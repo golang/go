@@ -127,24 +127,24 @@ var tests = []test{
 			`type T1 = T2`,                                                 // Type alias
 		},
 		[]string{
-			`const internalConstant = 2`,        // No internal constants.
-			`var internalVariable = 2`,          // No internal variables.
-			`func internalFunc(a int) bool`,     // No internal functions.
-			`Comment about exported constant`,   // No comment for single constant.
-			`Comment about exported variable`,   // No comment for single variable.
-			`Comment about block of constants.`, // No comment for constant block.
-			`Comment about block of variables.`, // No comment for variable block.
-			`Comment before ConstOne`,           // No comment for first entry in constant block.
-			`Comment before VarOne`,             // No comment for first entry in variable block.
-			`ConstTwo = 2`,                      // No second entry in constant block.
-			`VarTwo = 2`,                        // No second entry in variable block.
-			`VarFive = 5`,                       // From block starting with unexported variable.
-			`type unexportedType`,               // No unexported type.
-			`unexportedTypedConstant`,           // No unexported typed constant.
-			`\bField`,                           // No fields.
-			`Method`,                            // No methods.
-			`someArgument[5-8]`,                 // No truncated arguments.
-			`type T1 T2`,                        // Type alias does not display as type declaration.
+			`const internalConstant = 2`,       // No internal constants.
+			`var internalVariable = 2`,         // No internal variables.
+			`func internalFunc(a int) bool`,    // No internal functions.
+			`Comment about exported constant`,  // No comment for single constant.
+			`Comment about exported variable`,  // No comment for single variable.
+			`Comment about block of constants`, // No comment for constant block.
+			`Comment about block of variables`, // No comment for variable block.
+			`Comment before ConstOne`,          // No comment for first entry in constant block.
+			`Comment before VarOne`,            // No comment for first entry in variable block.
+			`ConstTwo = 2`,                     // No second entry in constant block.
+			`VarTwo = 2`,                       // No second entry in variable block.
+			`VarFive = 5`,                      // From block starting with unexported variable.
+			`type unexportedType`,              // No unexported type.
+			`unexportedTypedConstant`,          // No unexported typed constant.
+			`\bField`,                          // No fields.
+			`Method`,                           // No methods.
+			`someArgument[5-8]`,                // No truncated arguments.
+			`type T1 T2`,                       // Type alias does not display as type declaration.
 		},
 	},
 	// Package dump -u
@@ -204,6 +204,18 @@ var tests = []test{
 		[]string{"-u", p, `constThree`},
 		[]string{
 			`constThree = 3.*Comment on line with constThree`,
+		},
+		nil,
+	},
+	// Block of constants -src.
+	{
+		"block of constants with -src",
+		[]string{"-src", p, `ConstTwo`},
+		[]string{
+			`Comment about block of constants`, // Top comment.
+			`ConstOne.*=.*1`,                   // Each constant seen.
+			`ConstTwo.*=.*2.*Comment on line with ConstTwo`,
+			`constThree`, // Even unexported constants.
 		},
 		nil,
 	},
@@ -295,6 +307,17 @@ var tests = []test{
 		},
 		nil,
 	},
+	// Function with -src.
+	{
+		"function with -src",
+		[]string{"-src", p, `ExportedFunc`},
+		[]string{
+			`Comment about exported function`, // Include comment.
+			`func ExportedFunc\(a int\) bool`,
+			`return true != false`, // Include body.
+		},
+		nil,
+	},
 
 	// Type.
 	{
@@ -304,21 +327,44 @@ var tests = []test{
 			`Comment about exported type`, // Include comment.
 			`type ExportedType struct`,    // Type definition.
 			`Comment before exported field.*\n.*ExportedField +int` +
-				`.*Comment on line with exported field.`,
-			`ExportedEmbeddedType.*Comment on line with exported embedded field.`,
+				`.*Comment on line with exported field`,
+			`ExportedEmbeddedType.*Comment on line with exported embedded field`,
 			`Has unexported fields`,
 			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
 			`const ExportedTypedConstant ExportedType = iota`, // Must include associated constant.
 			`func ExportedTypeConstructor\(\) \*ExportedType`, // Must include constructor.
-			`io.Reader.*Comment on line with embedded Reader.`,
+			`io.Reader.*Comment on line with embedded Reader`,
 		},
 		[]string{
-			`unexportedField`,                // No unexported field.
-			`int.*embedded`,                  // No unexported embedded field.
-			`Comment about exported method.`, // No comment about exported method.
-			`unexportedMethod`,               // No unexported method.
-			`unexportedTypedConstant`,        // No unexported constant.
-			`error`,                          // No embedded error.
+			`unexportedField`,               // No unexported field.
+			`int.*embedded`,                 // No unexported embedded field.
+			`Comment about exported method`, // No comment about exported method.
+			`unexportedMethod`,              // No unexported method.
+			`unexportedTypedConstant`,       // No unexported constant.
+			`error`,                         // No embedded error.
+		},
+	},
+	// Type with -src. Will see unexported fields.
+	{
+		"type",
+		[]string{"-src", p, `ExportedType`},
+		[]string{
+			`Comment about exported type`, // Include comment.
+			`type ExportedType struct`,    // Type definition.
+			`Comment before exported field.*\n.*ExportedField +int` +
+				`.*Comment on line with exported field`,
+			`ExportedEmbeddedType.*Comment on line with exported embedded field`,
+			`unexportedType.*Comment on line with unexported embedded field`,
+			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
+			`const ExportedTypedConstant ExportedType = iota`, // Must include associated constant.
+			`func ExportedTypeConstructor\(\) \*ExportedType`, // Must include constructor.
+			`io.Reader.*Comment on line with embedded Reader`,
+		},
+		[]string{
+			`int.*embedded`,                 // No unexported embedded field.
+			`Comment about exported method`, // No comment about exported method.
+			`unexportedMethod`,              // No unexported method.
+			`unexportedTypedConstant`,       // No unexported constant.
 		},
 	},
 	// Type T1 dump (alias).
@@ -341,14 +387,14 @@ var tests = []test{
 			`Comment about exported type`, // Include comment.
 			`type ExportedType struct`,    // Type definition.
 			`Comment before exported field.*\n.*ExportedField +int`,
-			`unexportedField.*int.*Comment on line with unexported field.`,
-			`ExportedEmbeddedType.*Comment on line with exported embedded field.`,
-			`\*ExportedEmbeddedType.*Comment on line with exported embedded \*field.`,
-			`\*qualified.ExportedEmbeddedType.*Comment on line with exported embedded \*selector.field.`,
-			`unexportedType.*Comment on line with unexported embedded field.`,
-			`\*unexportedType.*Comment on line with unexported embedded \*field.`,
-			`io.Reader.*Comment on line with embedded Reader.`,
-			`error.*Comment on line with embedded error.`,
+			`unexportedField.*int.*Comment on line with unexported field`,
+			`ExportedEmbeddedType.*Comment on line with exported embedded field`,
+			`\*ExportedEmbeddedType.*Comment on line with exported embedded \*field`,
+			`\*qualified.ExportedEmbeddedType.*Comment on line with exported embedded \*selector.field`,
+			`unexportedType.*Comment on line with unexported embedded field`,
+			`\*unexportedType.*Comment on line with unexported embedded \*field`,
+			`io.Reader.*Comment on line with embedded Reader`,
+			`error.*Comment on line with embedded error`,
 			`func \(ExportedType\) unexportedMethod\(a int\) bool`,
 			`unexportedTypedConstant`,
 		},
@@ -380,8 +426,8 @@ var tests = []test{
 			`type ExportedInterface interface`, // Interface definition.
 			`Comment before exported method.*\n.*ExportedMethod\(\)` +
 				`.*Comment on line with exported method`,
-			`io.Reader.*Comment on line with embedded Reader.`,
-			`error.*Comment on line with embedded error.`,
+			`io.Reader.*Comment on line with embedded Reader`,
+			`error.*Comment on line with embedded error`,
 			`Has unexported methods`,
 		},
 		[]string{
@@ -400,9 +446,9 @@ var tests = []test{
 			`type ExportedInterface interface`, // Interface definition.
 			`Comment before exported method.*\n.*ExportedMethod\(\)` +
 				`.*Comment on line with exported method`,
-			`unexportedMethod\(\).*Comment on line with unexported method.`,
-			`io.Reader.*Comment on line with embedded Reader.`,
-			`error.*Comment on line with embedded error.`,
+			`unexportedMethod\(\).*Comment on line with unexported method`,
+			`io.Reader.*Comment on line with embedded Reader`,
+			`error.*Comment on line with embedded error`,
 		},
 		[]string{
 			`Has unexported methods`,
@@ -418,7 +464,7 @@ var tests = []test{
 				`.*Comment on line with exported method`,
 		},
 		[]string{
-			`Comment about exported interface.`,
+			`Comment about exported interface`,
 		},
 	},
 
@@ -428,7 +474,7 @@ var tests = []test{
 		[]string{p, `ExportedType.ExportedMethod`},
 		[]string{
 			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
-			`Comment about exported method.`,
+			`Comment about exported method`,
 		},
 		nil,
 	},
@@ -438,7 +484,18 @@ var tests = []test{
 		[]string{"-u", p, `ExportedType.unexportedMethod`},
 		[]string{
 			`func \(ExportedType\) unexportedMethod\(a int\) bool`,
-			`Comment about unexported method.`,
+			`Comment about unexported method`,
+		},
+		nil,
+	},
+	// Method with -src.
+	{
+		"method with -src",
+		[]string{"-src", p, `ExportedType.ExportedMethod`},
+		[]string{
+			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
+			`Comment about exported method`,
+			`return true != true`,
 		},
 		nil,
 	},
@@ -450,8 +507,8 @@ var tests = []test{
 		[]string{
 			`type ExportedType struct`,
 			`ExportedField int`,
-			`Comment before exported field.`,
-			`Comment on line with exported field.`,
+			`Comment before exported field`,
+			`Comment on line with exported field`,
 			`other fields elided`,
 		},
 		nil,
@@ -463,7 +520,7 @@ var tests = []test{
 		[]string{"-u", p, `ExportedType.unexportedField`},
 		[]string{
 			`unexportedField int`,
-			`Comment on line with unexported field.`,
+			`Comment on line with unexported field`,
 		},
 		nil,
 	},

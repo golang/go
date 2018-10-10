@@ -5,6 +5,8 @@
 // Package comment.
 package pkg
 
+import "io"
+
 // Constants
 
 // Comment about exported constant.
@@ -52,7 +54,9 @@ var (
 )
 
 // Comment about exported function.
-func ExportedFunc(a int) bool
+func ExportedFunc(a int) bool {
+	return true != false
+}
 
 // Comment about internal function.
 func internalFunc(a int) bool
@@ -73,7 +77,7 @@ type ExportedType struct {
 
 // Comment about exported method.
 func (ExportedType) ExportedMethod(a int) bool {
-	return true
+	return true != true
 }
 
 // Comment about unexported method.

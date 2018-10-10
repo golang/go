@@ -28,6 +28,9 @@
 // For commands, unless the -cmd flag is present "go doc command"
 // shows only the package-level docs for the package.
 //
+// The -src flag causes doc to print the full source code for the symbol, such
+// as the body of a struct, function or method.
+//
 // For complete documentation, run "go help doc".
 package main
 
@@ -50,6 +53,7 @@ var (
 	unexported bool // -u flag
 	matchCase  bool // -c flag
 	showCmd    bool // -cmd flag
+	showSrc    bool // -src flag
 )
 
 // usage is a replacement usage function for the flags package.
@@ -85,6 +89,7 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	flagSet.BoolVar(&unexported, "u", false, "show unexported symbols as well as exported")
 	flagSet.BoolVar(&matchCase, "c", false, "symbol matching honors case (paths not affected)")
 	flagSet.BoolVar(&showCmd, "cmd", false, "show symbols with package docs even if package is a command")
+	flagSet.BoolVar(&showSrc, "src", false, "show source code for symbol")
 	flagSet.Parse(args)
 	var paths []string
 	var symbol, method string

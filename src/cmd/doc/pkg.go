@@ -137,7 +137,11 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
 	// from finding the symbol. Work around this for now, but we
 	// should fix it in go/doc.
 	// A similar story applies to factory functions.
-	docPkg := doc.New(astPkg, pkg.ImportPath, doc.AllDecls)
+	mode := doc.AllDecls
+	if showSrc {
+		mode |= doc.PreserveAST // See comment for Package.emit.
+	}
+	docPkg := doc.New(astPkg, pkg.ImportPath, mode)
 	for _, typ := range docPkg.Types {
 		docPkg.Consts = append(docPkg.Consts, typ.Consts...)
 		docPkg.Vars = append(docPkg.Vars, typ.Vars...)
@@ -177,14 +181,16 @@ func (pkg *Package) newlines(n int) {
 	}
 }
 
-// emit prints the node.
+// emit prints the node. If showSrc is true, it ignores the provided comment,
+// assuming the comment is in the node itself. Otherwise, the go/doc package
+// clears the stuff we don't want to print anyway. It's a bit of a magic trick.
 func (pkg *Package) emit(comment string, node ast.Node) {
 	if node != nil {
 		err := format.Node(&pkg.buf, pkg.fs, node)
 		if err != nil {
 			log.Fatal(err)
 		}
-		if comment != "" {
+		if comment != "" && !showSrc {
 			pkg.newlines(1)
 			doc.ToText(&pkg.buf, comment, "    ", indent, indentedWidth)
 			pkg.newlines(2) // Blank line after comment to separate from next item.
@@ -611,7 +617,6 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 		}
 		// Symbol is a function.
 		decl := fun.Decl
-		decl.Body = nil
 		pkg.emit(fun.Doc, decl)
 		found = true
 	}
@@ -641,7 +646,7 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 			}
 
 			for _, ident := range vspec.Names {
-				if isExported(ident.Name) {
+				if showSrc || isExported(ident.Name) {
 					if vspec.Type == nil && vspec.Values == nil && typ != nil {
 						// This a standalone identifier, as in the case of iota usage.
 						// Thus, assume the type comes from the previous type.
@@ -701,9 +706,10 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 }
 
 // trimUnexportedElems modifies spec in place to elide unexported fields from
-// structs and methods from interfaces (unless the unexported flag is set).
+// structs and methods from interfaces (unless the unexported flag is set or we
+// are asked to show the original source).
 func trimUnexportedElems(spec *ast.TypeSpec) {
-	if unexported {
+	if unexported || showSrc {
 		return
 	}
 	switch typ := spec.Type.(type) {
@@ -808,7 +814,6 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
 			for _, meth := range typ.Methods {
 				if match(method, meth.Name) {
 					decl := meth.Decl
-					decl.Body = nil
 					pkg.emit(meth.Doc, decl)
 					found = true
 				}
