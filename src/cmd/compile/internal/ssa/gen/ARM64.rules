@@ -2957,3 +2957,8 @@
 (FSUBD a (FNMULD x y)) -> (FMADDD a x y)
 (FSUBS (FNMULS x y) a) -> (FNMADDS a x y)
 (FSUBD (FNMULD x y) a) -> (FNMADDD a x y)
+
+(MOVBUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read8(sym, off))])
+(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read16(sym, off, config.BigEndian))])
+(MOVWUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read32(sym, off, config.BigEndian))])
+(MOVDload  [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read64(sym, off, config.BigEndian))])

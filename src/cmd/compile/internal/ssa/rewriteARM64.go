@@ -8934,6 +8934,24 @@ func rewriteValueARM64_OpARM64MOVBUload_0(v *Value) bool {
 		v.AuxInt = 0
 		return true
 	}
+	// match: (MOVBUload [off] {sym} (SB) _)
+	// cond: symIsRO(sym)
+	// result: (MOVDconst [int64(read8(sym, off))])
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpSB {
+			break
+		}
+		if !(symIsRO(sym)) {
+			break
+		}
+		v.reset(OpARM64MOVDconst)
+		v.AuxInt = int64(read8(sym, off))
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64MOVBUloadidx_0(v *Value) bool {
@@ -12638,6 +12656,24 @@ func rewriteValueARM64_OpARM64MOVDload_0(v *Value) bool {
 		v.AuxInt = 0
 		return true
 	}
+	// match: (MOVDload [off] {sym} (SB) _)
+	// cond: symIsRO(sym)
+	// result: (MOVDconst [int64(read64(sym, off, config.BigEndian))])
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpSB {
+			break
+		}
+		if !(symIsRO(sym)) {
+			break
+		}
+		v.reset(OpARM64MOVDconst)
+		v.AuxInt = int64(read64(sym, off, config.BigEndian))
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64MOVDloadidx_0(v *Value) bool {
@@ -13561,6 +13597,24 @@ func rewriteValueARM64_OpARM64MOVHUload_0(v *Value) bool {
 		}
 		v.reset(OpARM64MOVDconst)
 		v.AuxInt = 0
+		return true
+	}
+	// match: (MOVHUload [off] {sym} (SB) _)
+	// cond: symIsRO(sym)
+	// result: (MOVDconst [int64(read16(sym, off, config.BigEndian))])
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpSB {
+			break
+		}
+		if !(symIsRO(sym)) {
+			break
+		}
+		v.reset(OpARM64MOVDconst)
+		v.AuxInt = int64(read16(sym, off, config.BigEndian))
 		return true
 	}
 	return false
@@ -16181,6 +16235,24 @@ func rewriteValueARM64_OpARM64MOVWUload_0(v *Value) bool {
 		}
 		v.reset(OpARM64MOVDconst)
 		v.AuxInt = 0
+		return true
+	}
+	// match: (MOVWUload [off] {sym} (SB) _)
+	// cond: symIsRO(sym)
+	// result: (MOVDconst [int64(read32(sym, off, config.BigEndian))])
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpSB {
+			break
+		}
+		if !(symIsRO(sym)) {
+			break
+		}
+		v.reset(OpARM64MOVDconst)
+		v.AuxInt = int64(read32(sym, off, config.BigEndian))
 		return true
 	}
 	return false

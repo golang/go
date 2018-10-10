@@ -1073,11 +1073,11 @@
 // Fold constants into stores.
 (MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validValAndOff(c,off) ->
 	(MOVQstoreconst [makeValAndOff(c,off)] {sym} ptr mem)
-(MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
+(MOVLstore [off] {sym} ptr (MOV(L|Q)const [c]) mem) && validOff(off) ->
 	(MOVLstoreconst [makeValAndOff(int64(int32(c)),off)] {sym} ptr mem)
-(MOVWstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
+(MOVWstore [off] {sym} ptr (MOV(L|Q)const [c]) mem) && validOff(off) ->
 	(MOVWstoreconst [makeValAndOff(int64(int16(c)),off)] {sym} ptr mem)
-(MOVBstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
+(MOVBstore [off] {sym} ptr (MOV(L|Q)const [c]) mem) && validOff(off) ->
 	(MOVBstoreconst [makeValAndOff(int64(int8(c)),off)] {sym} ptr mem)
 
 // Fold address offsets into constant stores.
@@ -2487,3 +2487,8 @@
 	&& validValAndOff(0,off)
 	&& clobber(l) ->
   @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff(0,off)] ptr mem)
+
+(MOVBload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read8(sym, off))])
+(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read16(sym, off, config.BigEndian))])
+(MOVLload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVQconst [int64(read32(sym, off, config.BigEndian))])
+(MOVQload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVQconst [int64(read64(sym, off, config.BigEndian))])
