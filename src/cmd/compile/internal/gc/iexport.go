@@ -1319,12 +1319,6 @@ func (w *exportWriter) expr(n *Node) {
 		w.pos(n.Pos)
 		w.exprList(n.List)
 
-	case OCMPSTR, OCMPIFACE:
-		w.op(n.SubOp())
-		w.pos(n.Pos)
-		w.expr(n.Left)
-		w.expr(n.Right)
-
 	case ODCLCONST:
 		// if exporting, DCLCONST should just be removed as its usage
 		// has already been replaced with literals

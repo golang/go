@@ -65,7 +65,7 @@ func (n *Node) ResetAux() {
 
 func (n *Node) SubOp() Op {
 	switch n.Op {
-	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
+	case OASOP, ONAME:
 	default:
 		Fatalf("unexpected op: %v", n.Op)
 	}
@@ -74,7 +74,7 @@ func (n *Node) SubOp() Op {
 
 func (n *Node) SetSubOp(op Op) {
 	switch n.Op {
-	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
+	case OASOP, ONAME:
 	default:
 		Fatalf("unexpected op: %v", n.Op)
 	}
@@ -610,8 +610,8 @@ const (
 	OCAP             // cap(Left)
 	OCLOSE           // close(Left)
 	OCLOSURE         // func Type { Body } (func literal)
-	OCMPIFACE        // Left Etype Right (interface comparison, x == y or x != y)
-	OCMPSTR          // Left Etype Right (string comparison, x == y, x < y, etc)
+	_                // toolstash kludge; was OCMPIFACE
+	_                // toolstash kludge; was OCMPSTR
 	OCOMPLIT         // Right{List} (composite literal, not yet lowered to specific form)
 	OMAPLIT          // Type{List} (composite literal, Type is map)
 	OSTRUCTLIT       // Type{List} (composite literal, Type is struct)

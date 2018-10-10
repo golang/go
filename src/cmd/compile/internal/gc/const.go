@@ -1058,9 +1058,7 @@ func idealkind(n *Node) Ctype {
 		OLT,
 		ONE,
 		ONOT,
-		OOROR,
-		OCMPSTR,
-		OCMPIFACE:
+		OOROR:
 		return CTBOOL
 
 		// shifts (beware!).
