@@ -1247,37 +1247,29 @@ var _, _ = rand.Read, rand.NewZipf
 func TestSimpleCases(t *testing.T) {
 	defer func(lp string) { LocalPrefix = lp }(LocalPrefix)
 	LocalPrefix = "local,github.com/local"
-
-	testConfig{
-		// Skeleton non-stdlib packages for use during testing.
-		// Each includes one arbitrary symbol, e.g. the first declaration in the first file.
-		// Try not to add more without a good reason.
-		gopathFiles: map[string]string{
-			"appengine/x.go":                          "package appengine\nfunc Main(){}\n",
-			"appengine/datastore/x.go":                "package datastore\nvar ErrInvalidEntityType error\n",
-			"rsc.io/p/x.go":                           "package p\nfunc P(){}\n",
-			"code.google.com/p/snappy-go/snappy/x.go": "package snappy\nvar ErrCorrupt error\n",
-		},
-	}.test(t, func(t *goimportTest) {
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				options := &Options{
-					TabWidth:   8,
-					TabIndent:  true,
-					Comments:   true,
-					Fragment:   true,
-					FormatOnly: tt.formatOnly,
-				}
-				buf, err := Process(tt.name+".go", []byte(tt.in), options)
-				if err != nil {
-					t.Fatalf("Process(...) = %v", err)
-				}
-				if got := string(buf); got != tt.out {
-					t.Errorf("output differs:\nGOT:\n%s\nWANT:\n%s\n", got, tt.out)
-				}
-			})
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			options := &Options{
+				TabWidth:   8,
+				TabIndent:  true,
+				Comments:   true,
+				Fragment:   true,
+				FormatOnly: tt.formatOnly,
+			}
+			testConfig{
+				// Skeleton non-stdlib packages for use during testing.
+				// Each includes one arbitrary symbol, e.g. the first declaration in the first file.
+				// Try not to add more without a good reason.
+				gopathFiles: map[string]string{
+					"appengine/x.go":                          "package appengine\nfunc Main(){}\n",
+					"appengine/datastore/x.go":                "package datastore\nvar ErrInvalidEntityType error\n",
+					"rsc.io/p/x.go":                           "package p\nfunc P(){}\n",
+					"code.google.com/p/snappy-go/snappy/x.go": "package snappy\nvar ErrCorrupt error\n",
+					"x/x.go": tt.in,
+				},
+			}.processTest(t, "x/x.go", nil, options, tt.out)
+		})
+	}
 
 }
 
@@ -1321,26 +1313,17 @@ func bar() {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			options := &Options{
+				TabWidth:  8,
+				TabIndent: true,
+				Comments:  true,
+				Fragment:  true,
+			}
 			testConfig{
 				gopathFiles: map[string]string{
 					"x.go": tt.in,
 				},
-			}.test(t, func(t *goimportTest) {
-				options := &Options{
-					TabWidth:  8,
-					TabIndent: true,
-					Comments:  true,
-					Fragment:  true,
-				}
-				buf, err := Process(filepath.Join(t.gopath, "/src/x.go"), nil, options)
-				if err != nil {
-					t.Errorf("Process(...) = %v", tt.name, err)
-
-				}
-				if got := string(buf); got != tt.out {
-					t.Errorf("output differs:\nGOT:\n%s\nWANT:\n%s\n", tt.name, got, tt.out)
-				}
-			})
+			}.processTest(t, "x.go", nil, options, tt.out)
 		})
 	}
 
@@ -1354,23 +1337,14 @@ func TestImportSymlinks(t *testing.T) {
 		t.Skipf("skipping test on %q as there are no symlinks", runtime.GOOS)
 	}
 
-	testConfig{
-		gopathFiles: map[string]string{
-			"../target/f.go": "package mypkg\nvar Foo = 123\n",
-			"x/mypkg":        "LINK:../../target", // valid symlink
-			"x/apkg":         "LINK:..",           // symlink loop
-		},
-	}.test(t, func(t *goimportTest) {
-		build.Default.GOPATH = t.gopath
-
-		input := `package p
+	const input = `package p
 
 var (
 	_ = fmt.Print
 	_ = mypkg.Foo
 )
 `
-		output := `package p
+	const want = `package p
 
 import (
 	"fmt"
@@ -1382,14 +1356,15 @@ var (
 	_ = mypkg.Foo
 )
 `
-		buf, err := Process(t.gopath+"/src/myotherpkg/toformat.go", []byte(input), &Options{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := string(buf); got != output {
-			t.Fatalf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, output)
-		}
-	})
+
+	testConfig{
+		gopathFiles: map[string]string{
+			"../target/f.go":             "package mypkg\nvar Foo = 123\n",
+			"x/mypkg":                    "LINK:../../target", // valid symlink
+			"x/apkg":                     "LINK:..",           // symlink loop
+			"myotherpackage/toformat.go": input,
+		},
+	}.processTest(t, "myotherpackage/toformat.go", nil, nil, want)
 }
 
 func TestImportSymlinksWithIgnore(t *testing.T) {
@@ -1398,22 +1373,14 @@ func TestImportSymlinksWithIgnore(t *testing.T) {
 		t.Skipf("skipping test on %q as there are no symlinks", runtime.GOOS)
 	}
 
-	testConfig{
-		gopathFiles: map[string]string{
-			"../target/f.go":   "package mypkg\nvar Foo = 123\n",
-			"x/mypkg":          "LINK:../../target", // valid symlink
-			"x/apkg":           "LINK:..",           // symlink loop
-			".goimportsignore": "x/mypkg\n",
-		},
-	}.test(t, func(t *goimportTest) {
-		input := `package p
+	const input = `package p
 
 var (
 	_ = fmt.Print
 	_ = mypkg.Foo
 )
 `
-		output := `package p
+	const want = `package p
 
 import "fmt"
 
@@ -1422,20 +1389,21 @@ var (
 	_ = mypkg.Foo
 )
 `
-		buf, err := Process(t.gopath+"/src/myotherpkg/toformat.go", []byte(input), &Options{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := string(buf); got != output {
-			t.Fatalf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, output)
-		}
-	})
+
+	testConfig{
+		gopathFiles: map[string]string{
+			"../target/f.go":         "package mypkg\nvar Foo = 123\n",
+			"x/mypkg":                "LINK:../../target", // valid symlink
+			"x/apkg":                 "LINK:..",           // symlink loop
+			"myotherpkg/toformat.go": input,
+			".goimportsignore":       "x/mypkg\n",
+		},
+	}.processTest(t, "myotherpkg/toformat.go", nil, nil, want)
 }
 
 // Test for x/y/v2 convention for package y.
 func TestModuleVersion(t *testing.T) {
-	testConfig{}.test(t, func(t *goimportTest) {
-		input := `package p
+	const input = `package p
 
 import (
 	"fmt"
@@ -1448,14 +1416,12 @@ var (
 	_ = foo.Foo
 )
 `
-		buf, err := Process(filepath.Join(t.gopath, "src/mypkg.com/outpkg/toformat.go"), []byte(input), &Options{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := string(buf); got != input {
-			t.Fatalf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, input)
-		}
-	})
+
+	testConfig{
+		gopathFiles: map[string]string{
+			"mypkg.com/outpkg/toformat.go": input,
+		},
+	}.processTest(t, "mypkg.com/outpkg/toformat.go", nil, nil, input)
 }
 
 // Test for correctly identifying the name of a vendored package when it
@@ -1463,12 +1429,7 @@ var (
 // "mypkg.com/mypkg.v1" would be removed if goimports wasn't able to detect
 // that the package name is "mypkg".
 func TestVendorPackage(t *testing.T) {
-	testConfig{
-		gopathFiles: map[string]string{
-			"mypkg.com/outpkg/vendor/mypkg.com/mypkg.v1/f.go": "package mypkg\nvar Foo = 123\n",
-		},
-	}.test(t, func(t *goimportTest) {
-		input := `package p
+	const input = `package p
 
 import (
 	"fmt"
@@ -1481,32 +1442,12 @@ var (
 	_ = mypkg.Foo
 )
 `
-		buf, err := Process(filepath.Join(t.gopath, "src/mypkg.com/outpkg/toformat.go"), []byte(input), &Options{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := string(buf); got != input {
-			t.Fatalf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, input)
-		}
-	})
-}
-
-func withEmptyGoPath(fn func()) {
-	scanOnce = sync.Once{}
-
-	oldGOPATH := build.Default.GOPATH
-	oldGOROOT := build.Default.GOROOT
-	oldCompiler := build.Default.Compiler
-	build.Default.GOPATH = ""
-	build.Default.Compiler = "gc"
-
-	defer func() {
-		build.Default.GOPATH = oldGOPATH
-		build.Default.GOROOT = oldGOROOT
-		build.Default.Compiler = oldCompiler
-	}()
-
-	fn()
+	testConfig{
+		gopathFiles: map[string]string{
+			"mypkg.com/outpkg/vendor/mypkg.com/mypkg.v1/f.go": "package mypkg\nvar Foo = 123\n",
+			"mypkg.com/outpkg/toformat.go":                    input,
+		},
+	}.processTest(t, "mypkg.com/outpkg/toformat.go", nil, nil, input)
 }
 
 func TestInternal(t *testing.T) {
@@ -1521,31 +1462,21 @@ import "foo/internal/race"
 var _ = race.Acquire
 `
 
-	tc := testConfig{
+	// Packages under the same directory should be able to use internal packages.
+	testConfig{
 		gopathFiles: map[string]string{
 			"foo/internal/race/x.go": "package race\n func Acquire(){}\n",
+			"foo/bar/x.go":           input,
 		},
-	}
-	// Packages under the same directory should be able to use internal packages.
-	tc.test(t, func(t *goimportTest) {
-		buf, err := Process(filepath.Join(t.gopath, "src/foo/bar/x.go"), []byte(input), &Options{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := string(buf); got != importAdded {
-			t.Errorf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, importAdded)
-		}
-	})
+	}.processTest(t, "foo/bar/x.go", nil, nil, importAdded)
+
 	// Packages outside the same directory should not.
-	tc.test(t, func(t *goimportTest) {
-		buf, err := Process(filepath.Join(t.gopath, "src/bar/x.go"), []byte(input), &Options{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := string(buf); got != input {
-			t.Errorf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, input)
-		}
-	})
+	testConfig{
+		gopathFiles: map[string]string{
+			"foo/internal/race/x.go": "package race\n func Acquire(){}\n",
+			"bar/x.go":               input,
+		},
+	}.processTest(t, "bar/x.go", nil, nil, input)
 }
 
 func TestProcessVendor(t *testing.T) {
@@ -1562,16 +1493,9 @@ var _ = hpack.HuffmanDecode
 	testConfig{
 		gopathFiles: map[string]string{
 			"vendor/golang.org/x/net/http2/hpack/huffman.go": "package hpack\nfunc HuffmanDecode() { }\n",
+			"bar/x.go": input,
 		},
-	}.test(t, func(t *goimportTest) {
-		buf, err := Process(filepath.Join(t.gopath, "src/bar/x.go"), []byte(input), &Options{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := string(buf); got != want {
-			t.Errorf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, want)
-		}
-	})
+	}.processTest(t, "bar/x.go", nil, nil, want)
 }
 
 func TestFindStdlib(t *testing.T) {
@@ -1617,6 +1541,7 @@ type testConfig struct {
 }
 
 func mustTempDir(t *testing.T, prefix string) string {
+	t.Helper()
 	dir, err := ioutil.TempDir("", prefix)
 	if err != nil {
 		t.Fatal(err)
@@ -1644,6 +1569,8 @@ func mapToDir(destDir string, files map[string]string) error {
 }
 
 func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
+	t.Helper()
+
 	goroot := c.goroot
 	gopath := c.gopath
 
@@ -1663,19 +1590,39 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 		t.Fatal(err)
 	}
 
-	withEmptyGoPath(func() {
-		if goroot != "" {
-			build.Default.GOROOT = goroot
-		}
-		build.Default.GOPATH = gopath
+	scanOnce = sync.Once{}
 
-		it := &goimportTest{
-			T:      t,
-			goroot: build.Default.GOROOT,
-			gopath: gopath,
-			ctx:    &build.Default,
-		}
-		fn(it)
+	oldGOPATH := build.Default.GOPATH
+	oldGOROOT := build.Default.GOROOT
+	oldCompiler := build.Default.Compiler
+	build.Default.GOPATH = ""
+	build.Default.Compiler = "gc"
+
+	defer func() {
+		build.Default.GOPATH = oldGOPATH
+		build.Default.GOROOT = oldGOROOT
+		build.Default.Compiler = oldCompiler
+	}()
+
+	if goroot != "" {
+		build.Default.GOROOT = goroot
+	}
+	build.Default.GOPATH = gopath
+
+	it := &goimportTest{
+		T:      t,
+		goroot: build.Default.GOROOT,
+		gopath: gopath,
+		ctx:    &build.Default,
+	}
+	fn(it)
+}
+
+func (c testConfig) processTest(t *testing.T, file string, contents []byte, opts *Options, want string) {
+	t.Helper()
+	c.test(t, func(t *goimportTest) {
+		t.Helper()
+		t.process(file, contents, opts, want)
 	})
 }
 
@@ -1686,30 +1633,37 @@ type goimportTest struct {
 	gopath string
 }
 
+func (t *goimportTest) process(file string, contents []byte, opts *Options, want string) {
+	t.Helper()
+	buf, err := Process(filepath.Join(t.gopath, "src", file), contents, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(buf) != want {
+		t.Errorf("Got:\n%s\nWant:\n%s", buf, want)
+	}
+}
+
 // Tests that added imports are renamed when the import path's base doesn't
 // match its package name. For example, we want to generate:
 //
 //     import cloudbilling "google.golang.org/api/cloudbilling/v1"
 func TestRenameWhenPackageNameMismatch(t *testing.T) {
-	testConfig{
-		gopathFiles: map[string]string{
-			"foo/bar/v1/x.go": "package bar \n const X = 1",
-		},
-	}.test(t, func(t *goimportTest) {
-		buf, err := Process(t.gopath+"/src/test/t.go", []byte("package main \n const Y = bar.X"), &Options{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		const want = `package main
+	const input = `package main
+ const Y = bar.X`
+
+	const want = `package main
 
 import bar "foo/bar/v1"
 
 const Y = bar.X
 `
-		if string(buf) != want {
-			t.Errorf("Got:\n%s\nWant:\n%s", buf, want)
-		}
-	})
+	testConfig{
+		gopathFiles: map[string]string{
+			"foo/bar/v1/x.go": "package bar \n const X = 1",
+			"test/t.go":       input,
+		},
+	}.processTest(t, "test/t.go", nil, nil, want)
 }
 
 // Tests that the LocalPrefix option causes imports
@@ -1796,35 +1750,31 @@ const _ = runtime.GOOS
 		tt.config.test(t, func(t *goimportTest) {
 			defer func(s string) { LocalPrefix = s }(LocalPrefix)
 			LocalPrefix = tt.localPrefix
-			buf, err := Process(t.gopath+"/src/test/t.go", []byte(tt.src), &Options{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if string(buf) != tt.want {
-				t.Errorf("Got:\n%s\nWant:\n%s", buf, tt.want)
-			}
+			t.process("test/t.go", []byte(tt.src), nil, tt.want)
 		})
 	}
 }
 
 // Tests that "package documentation" files are ignored.
 func TestIgnoreDocumentationPackage(t *testing.T) {
+	const input = `package x
+
+const Y = foo.X
+`
+	const want = `package x
+
+import "foo"
+
+const Y = foo.X
+`
+
 	testConfig{
 		gopathFiles: map[string]string{
 			"foo/foo.go": "package foo\nconst X = 1\n",
 			"foo/doc.go": "package documentation \n // just to confuse things\n",
+			"x/x.go":     input,
 		},
-	}.test(t, func(t *goimportTest) {
-		const in = "package x\n\nconst Y = foo.X\n"
-		const want = "package x\n\nimport \"foo\"\n\nconst Y = foo.X\n"
-		buf, err := Process(t.gopath+"/src/x/x.go", []byte(in), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(buf) != want {
-			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", in, want)
-		}
-	})
+	}.processTest(t, "x/x.go", nil, nil, want)
 }
 
 // Tests importPathToNameGoPathParse and in particular that it stops
@@ -1852,47 +1802,62 @@ func TestImportPathToNameGoPathParse(t *testing.T) {
 }
 
 func TestIgnoreConfiguration(t *testing.T) {
+	const input = `package x
+
+const _ = pkg.X
+`
+	const want = `package x
+
+import "otherwise-longer-so-worse.example.net/foo/pkg"
+
+const _ = pkg.X
+`
+
 	testConfig{
 		gopathFiles: map[string]string{
 			".goimportsignore":       "# comment line\n\n example.net", // tests comment, blank line, whitespace trimming
 			"example.net/pkg/pkg.go": "package pkg\nconst X = 1",
 			"otherwise-longer-so-worse.example.net/foo/pkg/pkg.go": "package pkg\nconst X = 1",
+			"x/x.go": input,
 		},
-	}.test(t, func(t *goimportTest) {
-		const in = "package x\n\nconst _ = pkg.X\n"
-		const want = "package x\n\nimport \"otherwise-longer-so-worse.example.net/foo/pkg\"\n\nconst _ = pkg.X\n"
-		buf, err := Process(t.gopath+"/src/x/x.go", []byte(in), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(buf) != want {
-			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, want)
-		}
-	})
+	}.processTest(t, "x/x.go", nil, nil, want)
 }
 
 // Skip "node_modules" directory.
 func TestSkipNodeModules(t *testing.T) {
+	const input = `package x
+
+const _ = pkg.X
+`
+	const want = `package x
+
+import "otherwise-longer.net/not_modules/pkg"
+
+const _ = pkg.X
+`
+
 	testConfig{
 		gopathFiles: map[string]string{
 			"example.net/node_modules/pkg/a.go":         "package pkg\nconst X = 1",
 			"otherwise-longer.net/not_modules/pkg/a.go": "package pkg\nconst X = 1",
+			"x/x.go": input,
 		},
-	}.test(t, func(t *goimportTest) {
-		const in = "package x\n\nconst _ = pkg.X\n"
-		const want = "package x\n\nimport \"otherwise-longer.net/not_modules/pkg\"\n\nconst _ = pkg.X\n"
-		buf, err := Process(t.gopath+"/src/x/x.go", []byte(in), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(buf) != want {
-			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, want)
-		}
-	})
+	}.processTest(t, "x/x.go", nil, nil, want)
 }
 
 // golang.org/issue/16458 -- if GOROOT is a prefix of GOPATH, GOPATH is ignored.
 func TestGoRootPrefixOfGoPath(t *testing.T) {
+	const input = `package x
+
+const _ = foo.X
+`
+	const want = `package x
+
+import "example.com/foo"
+
+const _ = foo.X
+`
+
 	dir := mustTempDir(t, "importstest")
 	defer os.RemoveAll(dir)
 	testConfig{
@@ -1900,19 +1865,9 @@ func TestGoRootPrefixOfGoPath(t *testing.T) {
 		gopath: filepath.Join(dir, "gopath"),
 		gopathFiles: map[string]string{
 			"example.com/foo/pkg.go": "package foo\nconst X = 1",
+			"x/x.go":                 input,
 		},
-	}.test(t, func(t *goimportTest) {
-		const in = "package x\n\nconst _ = foo.X\n"
-		const want = "package x\n\nimport \"example.com/foo\"\n\nconst _ = foo.X\n"
-		buf, err := Process(t.gopath+"/src/x/x.go", []byte(in), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(buf) != want {
-			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, want)
-		}
-	})
-
+	}.processTest(t, "x/x.go", nil, nil, want)
 }
 
 // Tests that package global variables with the same name and function name as
@@ -1939,18 +1894,10 @@ var time Time
 
 	testConfig{
 		gopathFiles: map[string]string{
+			"pkg/uses.go":   usesGlobal,
 			"pkg/global.go": declaresGlobal,
 		},
-	}.test(t, func(t *goimportTest) {
-		buf, err := Process(
-			filepath.Join(t.gopath, "src/pkg/uses.go"), []byte(usesGlobal), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(buf) != usesGlobal {
-			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, usesGlobal)
-		}
-	})
+	}.processTest(t, "pkg/uses.go", nil, nil, usesGlobal)
 }
 
 // Tests that sibling files - other files in the same package - can provide an
@@ -1994,23 +1941,12 @@ func LogSomethingElse() {
 }
 `
 
-	const pkg = "siblingimporttest"
-	const siblingFile = pkg + "/needs_import.go"
 	testConfig{
 		gopathFiles: map[string]string{
-			siblingFile:                 need,
-			pkg + "/provides_import.go": provide,
+			"p/needs_import.go":    need,
+			"p/provides_import.go": provide,
 		},
-	}.test(t, func(t *goimportTest) {
-		buf, err := Process(
-			t.gopath+"/src/"+siblingFile, []byte(need), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(buf) != want {
-			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, want)
-		}
-	})
+	}.processTest(t, "p/needs_import.go", nil, nil, want)
 }
 
 func TestPkgIsCandidate(t *testing.T) {
@@ -2169,28 +2105,24 @@ func TestProcessStdin(t *testing.T) {
 // should be the closest match.
 // https://golang.org/issues/17557
 func TestLocalPackagePromotion(t *testing.T) {
-	testConfig{
-		gopathFiles: map[string]string{
-			"config.net/config/config.go":         "package config\n type SystemConfig struct {}", // Will match but should not be first choice
-			"mycompany.net/config/config.go":      "package config\n type SystemConfig struct {}", // Will match but should not be first choice
-			"mycompany.net/tool/config/config.go": "package config\n type SystemConfig struct {}", // Local package should be promoted over shorter package
-		},
-	}.test(t, func(t *goimportTest) {
-		const in = "package main\n var c = &config.SystemConfig{}"
-		const want = `package main
+	const input = `package main
+var c = &config.SystemConfig{}
+`
+	const want = `package main
 
 import "mycompany.net/tool/config"
 
 var c = &config.SystemConfig{}
 `
-		got, err := Process(filepath.Join(t.gopath, "src", "mycompany.net/tool/main.go"), []byte(in), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(got) != want {
-			t.Errorf("Process = %q; want %q", got, want)
-		}
-	})
+
+	testConfig{
+		gopathFiles: map[string]string{
+			"config.net/config/config.go":         "package config\n type SystemConfig struct {}", // Will match but should not be first choice
+			"mycompany.net/config/config.go":      "package config\n type SystemConfig struct {}", // Will match but should not be first choice
+			"mycompany.net/tool/config/config.go": "package config\n type SystemConfig struct {}", // Local package should be promoted over shorter package
+			"mycompany.net/tool/main.go":          input,
+		},
+	}.processTest(t, "mycompany.net/tool/main.go", nil, nil, want)
 }
 
 // Tests FindImportInLocalGoFiles looks at the import lines for other Go files in the
@@ -2199,49 +2131,37 @@ var c = &config.SystemConfig{}
 // standard library.
 // https://golang.org/issues/17557
 func TestFindImportInLocalGoFiles(t *testing.T) {
-	testConfig{
-		gopathFiles: map[string]string{
-			"bytes.net/bytes/bytes.go":  "package bytes\n type Buffer struct {}",                               // Should be selected over standard library
-			"mycompany.net/tool/io.go":  "package main\n import \"bytes.net/bytes\"\n var _ = &bytes.Buffer{}", // Contains package import that will cause stdlib to be ignored
-			"mycompany.net/tool/err.go": "package main\n import \"bogus.net/bytes\"\n var _ = &bytes.Buffer{}", // Contains import which is not resolved, so it is ignored
-		},
-	}.test(t, func(t *goimportTest) {
-		const in = "package main\n var _ = &bytes.Buffer{}"
-		const want = `package main
+	const input = `package main
+ var _ = &bytes.Buffer{}`
+
+	const want = `package main
 
 import "bytes.net/bytes"
 
 var _ = &bytes.Buffer{}
 `
-		got, err := Process(filepath.Join(t.gopath, "src", "mycompany.net/tool/main.go"), []byte(in), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(got) != want {
-			t.Errorf("Process = got %q; want %q", got, want)
-		}
-	})
+	testConfig{
+		gopathFiles: map[string]string{
+			"bytes.net/bytes/bytes.go":   "package bytes\n type Buffer struct {}",                               // Should be selected over standard library
+			"mycompany.net/tool/io.go":   "package main\n import \"bytes.net/bytes\"\n var _ = &bytes.Buffer{}", // Contains package import that will cause stdlib to be ignored
+			"mycompany.net/tool/err.go":  "package main\n import \"bogus.net/bytes\"\n var _ = &bytes.Buffer{}", // Contains import which is not resolved, so it is ignored
+			"mycompany.net/tool/main.go": input,
+		},
+	}.processTest(t, "mycompany.net/tool/main.go", nil, nil, want)
 }
 
 func TestImportNoGoFiles(t *testing.T) {
-	testConfig{
-		gopathFiles: map[string]string{},
-	}.test(t, func(t *goimportTest) {
-		const in = "package main\n var _ = &bytes.Buffer{}"
-		const want = `package main
+	const input = `package main
+ var _ = &bytes.Buffer{}`
+
+	const want = `package main
 
 import "bytes"
 
 var _ = &bytes.Buffer{}
 `
-		got, err := Process(filepath.Join(t.gopath, "src", "mycompany.net/tool/main.go"), []byte(in), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(got) != want {
-			t.Errorf("Process = got %q; want %q", got, want)
-		}
-	})
+
+	testConfig{}.processTest(t, "mycompany.net/tool/main.go", []byte(input), nil, want)
 }
 
 // Ensures a token as large as 500000 bytes can be handled
@@ -2249,7 +2169,7 @@ var _ = &bytes.Buffer{}
 func TestProcessLargeToken(t *testing.T) {
 	largeString := strings.Repeat("x", 500000)
 
-	in := `package testimports
+	input := `package testimports
 
 import (
 	"fmt"
@@ -2261,12 +2181,6 @@ const x = mypkg.Sprintf("%s", "my package")
 
 // end
 `
-
-	out, err := Process("foo", []byte(in), nil)
-
-	if err != nil {
-		t.Errorf("Process returned error.\n got:\n%v\nwant:\nnil", err)
-	}
 
 	want := `package testimports
 
@@ -2281,7 +2195,8 @@ const x = mypkg.Sprintf("%s", "my package")
 
 // end
 `
-	if got := string(out); got != want {
-		t.Errorf("Process returned unexpected result.\ngot:\n%.100v\nwant:\n%.100v", got, want)
-	}
+
+	testConfig{
+		gopathFiles: map[string]string{"foo.go": input},
+	}.processTest(t, "foo.go", nil, nil, want)
 }
