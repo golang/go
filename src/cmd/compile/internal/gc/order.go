@@ -1010,20 +1010,6 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			}
 		}
 
-	case OCMPSTR:
-		n.Left = o.expr(n.Left, nil)
-		n.Right = o.expr(n.Right, nil)
-
-		// Mark string(byteSlice) arguments to reuse byteSlice backing
-		// buffer during conversion. String comparison does not
-		// memorize the strings for later use, so it is safe.
-		if n.Left.Op == OARRAYBYTESTR {
-			n.Left.Op = OARRAYBYTESTRTMP
-		}
-		if n.Right.Op == OARRAYBYTESTR {
-			n.Right.Op = OARRAYBYTESTRTMP
-		}
-
 		// key must be addressable
 	case OINDEXMAP:
 		n.Left = o.expr(n.Left, nil)
@@ -1181,11 +1167,24 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		n.Left = o.expr(n.Left, nil)
 		n = o.copyExpr(n, n.Type, true)
 
-	case OEQ, ONE:
+	case OEQ, ONE, OLT, OLE, OGT, OGE:
 		n.Left = o.expr(n.Left, nil)
 		n.Right = o.expr(n.Right, nil)
+
 		t := n.Left.Type
-		if t.IsStruct() || t.IsArray() {
+		switch {
+		case t.IsString():
+			// Mark string(byteSlice) arguments to reuse byteSlice backing
+			// buffer during conversion. String comparison does not
+			// memorize the strings for later use, so it is safe.
+			if n.Left.Op == OARRAYBYTESTR {
+				n.Left.Op = OARRAYBYTESTRTMP
+			}
+			if n.Right.Op == OARRAYBYTESTR {
+				n.Right.Op = OARRAYBYTESTRTMP
+			}
+
+		case t.IsStruct() || t.IsArray():
 			// for complex comparisons, we need both args to be
 			// addressable so we can pass them to the runtime.
 			n.Left = o.addrTemp(n.Left)
