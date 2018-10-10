@@ -241,24 +241,27 @@ func init() {
 		{name: "MFVSRD", argLength: 1, reg: fpgp, asm: "MFVSRD", typ: "Int64"},   // move 64 bits of F register into G register
 		{name: "MTVSRD", argLength: 1, reg: gpfp, asm: "MTVSRD", typ: "Float64"}, // move 64 bits of G register into F register
 
-		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},               // arg0&arg1
-		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                // arg0&^arg1
-		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},                 // arg0|arg1
-		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                                  // arg0|^arg1
-		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR", commutative: true},               // ^(arg0|arg1)
-		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", typ: "Int64", commutative: true}, // arg0^arg1
-		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true}, // arg0^^arg1
-		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                  // -arg0 (integer)
-		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                // -arg0 (floating point)
-		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},                              // sqrt(arg0) (floating point)
-		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                            // sqrt(arg0) (floating point, single precision)
-		{name: "FFLOOR", argLength: 1, reg: fp11, asm: "FRIM"},                              // floor(arg0), float64
-		{name: "FCEIL", argLength: 1, reg: fp11, asm: "FRIP"},                               // ceil(arg0), float64
-		{name: "FTRUNC", argLength: 1, reg: fp11, asm: "FRIZ"},                              // trunc(arg0), float64
-		{name: "FROUND", argLength: 1, reg: fp11, asm: "FRIN"},                              // round(arg0), float64
-		{name: "FABS", argLength: 1, reg: fp11, asm: "FABS"},                                // abs(arg0), float64
-		{name: "FNABS", argLength: 1, reg: fp11, asm: "FNABS"},                              // -abs(arg0), float64
-		{name: "FCPSGN", argLength: 2, reg: fp21, asm: "FCPSGN"},                            // copysign arg0 -> arg1, float64
+		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},                   // arg0&arg1
+		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                    // arg0&^arg1
+		{name: "ANDCC", argLength: 2, reg: gp21, asm: "ANDCC", commutative: true, typ: "Flags"}, // arg0&arg1 sets CC
+		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},                     // arg0|arg1
+		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                                      // arg0|^arg1
+		{name: "ORCC", argLength: 2, reg: gp21, asm: "ORCC", commutative: true, typ: "Flags"},   // arg0|arg1 sets CC
+		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR", commutative: true},                   // ^(arg0|arg1)
+		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", typ: "Int64", commutative: true},     // arg0^arg1
+		{name: "XORCC", argLength: 2, reg: gp21, asm: "XORCC", commutative: true, typ: "Flags"}, // arg0^arg1 sets CC
+		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true},     // arg0^^arg1
+		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                      // -arg0 (integer)
+		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                    // -arg0 (floating point)
+		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},                                  // sqrt(arg0) (floating point)
+		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                                // sqrt(arg0) (floating point, single precision)
+		{name: "FFLOOR", argLength: 1, reg: fp11, asm: "FRIM"},                                  // floor(arg0), float64
+		{name: "FCEIL", argLength: 1, reg: fp11, asm: "FRIP"},                                   // ceil(arg0), float64
+		{name: "FTRUNC", argLength: 1, reg: fp11, asm: "FRIZ"},                                  // trunc(arg0), float64
+		{name: "FROUND", argLength: 1, reg: fp11, asm: "FRIN"},                                  // round(arg0), float64
+		{name: "FABS", argLength: 1, reg: fp11, asm: "FABS"},                                    // abs(arg0), float64
+		{name: "FNABS", argLength: 1, reg: fp11, asm: "FNABS"},                                  // -abs(arg0), float64
+		{name: "FCPSGN", argLength: 2, reg: fp21, asm: "FCPSGN"},                                // copysign arg0 -> arg1, float64
 
 		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},                                                                                     // arg0|aux
 		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"},                                                                                   // arg0^aux
