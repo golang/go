@@ -344,18 +344,17 @@ func (s *Statfs_t) convertFrom(old *statfs_freebsd11_t) {
 	copy(s.Mntonname[:], old.Mntonname[:n])
 }
 
-func convertFromDirents11(oldBuf []byte, buf []byte) int {
-	src := unsafe.Pointer(&oldBuf[0])
-	esrc := unsafe.Pointer(uintptr(src) + uintptr(len(oldBuf)))
-	dst := unsafe.Pointer(&buf[0])
-	edst := unsafe.Pointer(uintptr(dst) + uintptr(len(buf)))
+func convertFromDirents11(old []byte, buf []byte) int {
+	oldFixedSize := int(unsafe.Offsetof((*dirent_freebsd11)(nil).Name))
+	fixedSize := int(unsafe.Offsetof((*Dirent)(nil).Name))
+	srcPos := 0
+	dstPos := 0
+	for dstPos+fixedSize < len(buf) && srcPos+oldFixedSize < len(old) {
+		srcDirent := (*dirent_freebsd11)(unsafe.Pointer(&old[srcPos]))
+		dstDirent := (*Dirent)(unsafe.Pointer(&buf[dstPos]))
 
-	for uintptr(src) < uintptr(esrc) && uintptr(dst) < uintptr(edst) {
-		srcDirent := (*dirent_freebsd11)(src)
-		dstDirent := (*Dirent)(dst)
-
-		reclen := roundup(int(unsafe.Offsetof(dstDirent.Name)+uintptr(srcDirent.Namlen)+1), 8)
-		if uintptr(dst)+uintptr(reclen) >= uintptr(edst) {
+		reclen := roundup(fixedSize+int(srcDirent.Namlen)+1, 8)
+		if dstPos+reclen >= len(buf) {
 			break
 		}
 
@@ -367,18 +366,17 @@ func convertFromDirents11(oldBuf []byte, buf []byte) int {
 		dstDirent.Namlen = uint16(srcDirent.Namlen)
 		dstDirent.Pad1 = 0
 
-		sl := srcDirent.Name[:]
-		n := clen(*(*[]byte)(unsafe.Pointer(&sl)))
-		copy(dstDirent.Name[:], srcDirent.Name[:n])
-		for i := n; i < int(dstDirent.Namlen); i++ {
-			dstDirent.Name[i] = 0
+		copy(dstDirent.Name[:], srcDirent.Name[:srcDirent.Namlen])
+		padding := buf[dstPos+fixedSize+int(dstDirent.Namlen) : dstPos+reclen]
+		for i := range padding {
+			padding[i] = 0
 		}
 
-		src = unsafe.Pointer(uintptr(src) + uintptr(srcDirent.Reclen))
-		dst = unsafe.Pointer(uintptr(dst) + uintptr(reclen))
+		dstPos += int(dstDirent.Reclen)
+		srcPos += int(srcDirent.Reclen)
 	}
 
-	return int(uintptr(dst) - uintptr(unsafe.Pointer((&buf[0]))))
+	return dstPos
 }
 
 /*
