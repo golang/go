@@ -624,7 +624,6 @@ div.play .buttons a {
 }
 
 /* drop-down playground */
-#playgroundButton,
 div#playground {
 	/* start hidden; revealed by javascript */
 	display: none;
