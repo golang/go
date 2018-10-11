@@ -610,8 +610,6 @@ const (
 	OCAP             // cap(Left)
 	OCLOSE           // close(Left)
 	OCLOSURE         // func Type { Body } (func literal)
-	_                // toolstash kludge; was OCMPIFACE
-	_                // toolstash kludge; was OCMPSTR
 	OCOMPLIT         // Right{List} (composite literal, not yet lowered to specific form)
 	OMAPLIT          // Type{List} (composite literal, Type is map)
 	OSTRUCTLIT       // Type{List} (composite literal, Type is struct)
