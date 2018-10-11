@@ -54,7 +54,11 @@ type wasmFuncType struct {
 }
 
 var wasmFuncTypes = map[string]*wasmFuncType{
-	"_rt0_wasm_js":           &wasmFuncType{Params: []byte{I32, I32}},                                 // argc, argv
+	"_rt0_wasm_js":           &wasmFuncType{Params: []byte{}},                                         //
+	"wasm_export_run":        &wasmFuncType{Params: []byte{I32, I32}},                                 // argc, argv
+	"wasm_export_resume":     &wasmFuncType{Params: []byte{}},                                         //
+	"wasm_export_getsp":      &wasmFuncType{Results: []byte{I32}},                                     // sp
+	"wasm_pc_f_loop":         &wasmFuncType{Params: []byte{}},                                         //
 	"runtime.wasmMove":       &wasmFuncType{Params: []byte{I32, I32, I32}},                            // dst, src, len
 	"runtime.wasmZero":       &wasmFuncType{Params: []byte{I32, I32}},                                 // ptr, len
 	"runtime.wasmDiv":        &wasmFuncType{Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
@@ -162,9 +166,6 @@ func asmb(ctxt *ld.Link) {
 		fns[i] = &wasmFunc{Name: name, Type: typ, Code: wfn.Bytes()}
 	}
 
-	// look up program entry point
-	rt0 := uint32(len(hostImports)) + uint32(ctxt.Syms.ROLookup("_rt0_wasm_js", 0).Value>>16) - funcValueOffset
-
 	ctxt.Out.Write([]byte{0x00, 0x61, 0x73, 0x6d}) // magic
 	ctxt.Out.Write([]byte{0x01, 0x00, 0x00, 0x00}) // version
 
@@ -180,7 +181,7 @@ func asmb(ctxt *ld.Link) {
 	writeTableSec(ctxt, fns)
 	writeMemorySec(ctxt)
 	writeGlobalSec(ctxt)
-	writeExportSec(ctxt, rt0)
+	writeExportSec(ctxt, len(hostImports))
 	writeElementSec(ctxt, uint64(len(hostImports)), uint64(len(fns)))
 	writeCodeSec(ctxt, fns)
 	writeDataSec(ctxt)
@@ -326,7 +327,7 @@ func writeGlobalSec(ctxt *ld.Link) {
 		I64, // 6: RET1
 		I64, // 7: RET2
 		I64, // 8: RET3
-		I32, // 9: RUN
+		I32, // 9: PAUSE
 	}
 
 	writeUleb128(ctxt.Out, uint64(len(globalRegs))) // number of globals
@@ -348,15 +349,18 @@ func writeGlobalSec(ctxt *ld.Link) {
 
 // writeExportSec writes the section that declares exports.
 // Exports can be accessed by the WebAssembly host, usually JavaScript.
-// Currently _rt0_wasm_js (program entry point) and the linear memory get exported.
-func writeExportSec(ctxt *ld.Link, rt0 uint32) {
+// The wasm_export_* functions and the linear memory get exported.
+func writeExportSec(ctxt *ld.Link, lenHostImports int) {
 	sizeOffset := writeSecHeader(ctxt, sectionExport)
 
-	writeUleb128(ctxt.Out, 2) // number of exports
+	writeUleb128(ctxt.Out, 4) // number of exports
 
-	writeName(ctxt.Out, "run")          // inst.exports.run in wasm_exec.js
-	ctxt.Out.WriteByte(0x00)            // func export
-	writeUleb128(ctxt.Out, uint64(rt0)) // funcidx
+	for _, name := range []string{"run", "resume", "getsp"} {
+		idx := uint32(lenHostImports) + uint32(ctxt.Syms.ROLookup("wasm_export_"+name, 0).Value>>16) - funcValueOffset
+		writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js
+		ctxt.Out.WriteByte(0x00)            // func export
+		writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+	}
 
 	writeName(ctxt.Out, "mem") // inst.exports.mem in wasm_exec.js
 	ctxt.Out.WriteByte(0x02)   // mem export

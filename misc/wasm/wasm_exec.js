@@ -79,6 +79,10 @@
 					console.warn("exit code:", code);
 				}
 			};
+			this._exitPromise = new Promise((resolve) => {
+				this._resolveExitPromise = resolve;
+			});
+			this._pendingCallback = null;
 			this._callbackTimeouts = new Map();
 			this._nextCallbackTimeoutID = 1;
 
@@ -194,6 +198,11 @@
 			const timeOrigin = Date.now() - performance.now();
 			this.importObject = {
 				go: {
+					// Go's SP does not change as long as no Go code is running. Some operations (e.g. calls, getters and setters)
+					// may trigger a synchronous callback to Go. This makes Go code get executed in the middle of the imported
+					// function. A goroutine can switch to a new stack if the current stack is too small (see morestack function).
+					// This changes the SP, thus we have to update the SP used by the imported function.
+
 					// func wasmExit(code int32)
 					"runtime.wasmExit": (sp) => {
 						const code = mem().getInt32(sp + 8, true);
@@ -229,7 +238,7 @@
 						const id = this._nextCallbackTimeoutID;
 						this._nextCallbackTimeoutID++;
 						this._callbackTimeouts.set(id, setTimeout(
-							() => { this._resolveCallbackPromise(); },
+							() => { this._resume(); },
 							getInt64(sp + 8) + 1, // setTimeout has been seen to fire up to 1 millisecond early
 						));
 						mem().setInt32(sp + 16, id, true);
@@ -254,7 +263,9 @@
 
 					// func valueGet(v ref, p string) ref
 					"syscall/js.valueGet": (sp) => {
-						storeValue(sp + 32, Reflect.get(loadValue(sp + 8), loadString(sp + 16)));
+						const result = Reflect.get(loadValue(sp + 8), loadString(sp + 16));
+						sp = this._inst.exports.getsp(); // see comment above
+						storeValue(sp + 32, result);
 					},
 
 					// func valueSet(v ref, p string, x ref)
@@ -278,7 +289,9 @@
 							const v = loadValue(sp + 8);
 							const m = Reflect.get(v, loadString(sp + 16));
 							const args = loadSliceOfValues(sp + 32);
-							storeValue(sp + 56, Reflect.apply(m, v, args));
+							const result = Reflect.apply(m, v, args);
+							sp = this._inst.exports.getsp(); // see comment above
+							storeValue(sp + 56, result);
 							mem().setUint8(sp + 64, 1);
 						} catch (err) {
 							storeValue(sp + 56, err);
@@ -291,7 +304,9 @@
 						try {
 							const v = loadValue(sp + 8);
 							const args = loadSliceOfValues(sp + 16);
-							storeValue(sp + 40, Reflect.apply(v, undefined, args));
+							const result = Reflect.apply(v, undefined, args);
+							sp = this._inst.exports.getsp(); // see comment above
+							storeValue(sp + 40, result);
 							mem().setUint8(sp + 48, 1);
 						} catch (err) {
 							storeValue(sp + 40, err);
@@ -304,7 +319,9 @@
 						try {
 							const v = loadValue(sp + 8);
 							const args = loadSliceOfValues(sp + 16);
-							storeValue(sp + 40, Reflect.construct(v, args));
+							const result = Reflect.construct(v, args);
+							sp = this._inst.exports.getsp(); // see comment above
+							storeValue(sp + 40, result);
 							mem().setUint8(sp + 48, 1);
 						} catch (err) {
 							storeValue(sp + 40, err);
@@ -355,7 +372,6 @@
 				this,
 			];
 			this._refs = new Map();
-			this._callbackShutdown = false;
 			this.exited = false;
 
 			const mem = new DataView(this._inst.exports.mem.buffer)
@@ -390,42 +406,30 @@
 				offset += 8;
 			});
 
-			while (true) {
-				const callbackPromise = new Promise((resolve) => {
-					this._resolveCallbackPromise = () => {
-						if (this.exited) {
-							throw new Error("bad callback: Go program has already exited");
-						}
-						setTimeout(resolve, 0); // make sure it is asynchronous
-					};
-				});
-				this._inst.exports.run(argc, argv);
-				if (this.exited) {
-					break;
-				}
-				await callbackPromise;
+			this._inst.exports.run(argc, argv);
+			if (this.exited) {
+				this._resolveExitPromise();
+			}
+			await this._exitPromise;
+		}
+
+		_resume() {
+			if (this.exited) {
+				throw new Error("bad callback: Go program has already exited");
+			}
+			this._inst.exports.resume();
+			if (this.exited) {
+				this._resolveExitPromise();
 			}
 		}
 
-		static _makeCallbackHelper(id, pendingCallbacks, go) {
+		_makeCallbackHelper(id) {
+			const go = this;
 			return function () {
-				pendingCallbacks.push({ id: id, args: arguments });
-				go._resolveCallbackPromise();
-			};
-		}
-
-		static _makeEventCallbackHelper(preventDefault, stopPropagation, stopImmediatePropagation, fn) {
-			return function (event) {
-				if (preventDefault) {
-					event.preventDefault();
-				}
-				if (stopPropagation) {
-					event.stopPropagation();
-				}
-				if (stopImmediatePropagation) {
-					event.stopImmediatePropagation();
-				}
-				fn(event);
+				const cb = { id: id, this: this, args: arguments };
+				go._pendingCallback = cb;
+				go._resume();
+				return cb.result;
 			};
 		}
 	}
@@ -444,8 +448,8 @@
 			process.on("exit", (code) => { // Node.js exits if no callback is pending
 				if (code === 0 && !go.exited) {
 					// deadlock, make Go print error and stack traces
-					go._callbackShutdown = true;
-					go._inst.exports.run();
+					go._pendingCallback = { id: 0 };
+					go._resume();
 				}
 			});
 			return go.run(result.instance);
