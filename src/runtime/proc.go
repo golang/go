@@ -2280,10 +2280,10 @@ stop:
 	}
 
 	// wasm only:
-	// Check if a goroutine is waiting for a callback from the WebAssembly host.
-	// If yes, pause the execution until a callback was triggered.
-	if pauseSchedulerUntilCallback() {
-		// A callback was triggered and caused at least one goroutine to wake up.
+	// If a callback returned and no other goroutine is awake,
+	// then pause execution until a callback was triggered.
+	if beforeIdle() {
+		// At least one goroutine got woken.
 		goto top
 	}
 
