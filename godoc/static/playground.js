@@ -46,12 +46,36 @@ here's a skeleton implementation of a playground transport.
 function HTTPTransport(enableVet) {
 	'use strict';
 
-	function playback(output, events) {
+	function playback(output, data) {
+		// Backwards compatibility: default values do not affect the output.
+		var events = data.Events || [];
+		var errors = data.Errors || "";
+		var status = data.Status || 0;
+		var isTest = data.IsTest || false;
+		var testsFailed = data.TestsFailed || 0;
+
 		var timeout;
 		output({Kind: 'start'});
 		function next() {
 			if (!events || events.length === 0) {
-				output({Kind: 'end'});
+				if (isTest) {
+					if (testsFailed > 0) {
+						output({Kind: 'system', Body: '\n'+testsFailed+' test'+(testsFailed>1?'s':'')+' failed.'});
+					} else {
+						output({Kind: 'system', Body: '\nAll tests passed.'});
+					}
+				} else {
+					if (status > 0) {
+						output({Kind: 'end', Body: 'status ' + status + '.'});
+					} else {
+						if (errors !== "") {
+							// errors are displayed only in the case of timeout.
+							output({Kind: 'end', Body: errors + '.'});
+						} else {
+							output({Kind: 'end'});
+						}
+					}
+				}
 				return;
 			}
 			var e = events.shift();
@@ -79,6 +103,12 @@ function HTTPTransport(enableVet) {
 		output({Kind: 'end'});
 	}
 
+	function buildFailed(output, msg) {
+		output({Kind: 'start'});
+		output({Kind: 'stderr', Body: msg});
+		output({Kind: 'system', Body: '\nGo build failed.'});
+	}
+
 	var seq = 0;
 	return {
 		Run: function(body, output, options) {
@@ -94,12 +124,17 @@ function HTTPTransport(enableVet) {
 					if (!data) return;
 					if (playing != null) playing.Stop();
 					if (data.Errors) {
-						error(output, data.Errors);
+						if (data.Errors === 'process took too long') {
+							// Playback the output that was captured before the timeout.
+							playing = playback(output, data);
+						} else {
+							buildFailed(output, data.Errors);
+						}
 						return;
 					}
 
 					if (!enableVet) {
-						playing = playback(output, data.Events);
+						playing = playback(output, data);
 						return;
 					}
 
@@ -116,10 +151,10 @@ function HTTPTransport(enableVet) {
 								data.Events.unshift({Message: 'Go vet exited.\n\n', Kind: 'system', Delay: 0});
 								data.Events.unshift({Message: dataVet.Errors, Kind: 'stderr', Delay: 0});
 							}
-							playing = playback(output, data.Events);
+							playing = playback(output, data);
 						},
 						error: function() {
-							playing = playback(output, data.Events);
+							playing = playback(output, data);
 						}
 					});
 				},
