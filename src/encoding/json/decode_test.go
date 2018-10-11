@@ -266,6 +266,10 @@ type XYZ struct {
 	Z interface{}
 }
 
+type unexportedWithMethods struct{}
+
+func (unexportedWithMethods) F() {}
+
 func sliceAddr(x []int) *[]int                 { return &x }
 func mapAddr(x map[string]int) *map[string]int { return &x }
 
@@ -2151,6 +2155,9 @@ func TestInvalidStringOption(t *testing.T) {
 //
 // (Issue 24152) If the embedded struct is given an explicit name,
 // ensure that the normal unmarshal logic does not panic in reflect.
+//
+// (Issue 28145) If the embedded struct is given an explicit name and has
+// exported methods, don't cause a panic trying to get its value.
 func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 	type (
 		embed1 struct{ Q int }
@@ -2189,6 +2196,9 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 			embed1 `json:"embed1"`
 			embed2 `json:"embed2"`
 			Q      int
+		}
+		S9 struct {
+			unexportedWithMethods `json:"embed"`
 		}
 	)
 
@@ -2251,6 +2261,11 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 		in:  `{"embed1": {"Q": 1}, "embed2": {"Q": 2}, "Q": 3}`,
 		ptr: new(S8),
 		out: &S8{embed1{1}, embed2{2}, 3},
+	}, {
+		// Issue 228145, similar to the cases above.
+		in:  `{"embed": {}}`,
+		ptr: new(S9),
+		out: &S9{},
 	}}
 
 	for i, tt := range tests {
