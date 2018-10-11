@@ -53,7 +53,7 @@ import (
 	"golang.org/x/tools/godoc/vfs/zipfs"
 )
 
-const defaultAddr = ":6060" // default webserver address
+const defaultAddr = "localhost:6060" // default webserver address
 
 var (
 	// file system to serve
@@ -66,17 +66,10 @@ var (
 	analysisFlag = flag.String("analysis", "", `comma-separated list of analyses to perform (supported: type, pointer). See http://golang.org/lib/godoc/analysis/help.html`)
 
 	// network
-	httpAddr   = flag.String("http", "", "HTTP service address (e.g., '"+defaultAddr+"')")
-	serverAddr = flag.String("server", "", "webserver address for command line searches")
+	httpAddr = flag.String("http", defaultAddr, "HTTP service address")
 
 	// layout control
-	html    = flag.Bool("html", false, "print HTML in command-line mode")
-	srcMode = flag.Bool("src", false, "print (exported) source in command-line mode")
-	allMode = flag.Bool("all", false, "include unexported identifiers in command-line mode")
 	urlFlag = flag.String("url", "", "print HTML for named URL")
-
-	// command-line searches
-	query = flag.Bool("q", false, "arguments are considered search queries")
 
 	verbose = flag.Bool("v", false, "verbose mode")
 
@@ -85,11 +78,9 @@ var (
 	goroot = flag.String("goroot", findGOROOT(), "Go root directory")
 
 	// layout control
-	tabWidth       = flag.Int("tabwidth", 4, "tab width")
 	showTimestamps = flag.Bool("timestamps", false, "show timestamps with directory listings")
 	templateDir    = flag.String("templates", "", "load templates/JS/CSS from disk in this directory")
 	showPlayground = flag.Bool("play", false, "enable playground in web interface")
-	showExamples   = flag.Bool("ex", false, "show examples in command line mode")
 	declLinks      = flag.Bool("links", true, "link identifiers to their declarations")
 
 	// search index
@@ -104,9 +95,7 @@ var (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr,
-		"usage: godoc package [name ...]\n"+
-			"	godoc -http="+defaultAddr+"\n")
+	fmt.Fprintf(os.Stderr, "usage: godoc -http="+defaultAddr+"\n")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
@@ -173,7 +162,7 @@ func main() {
 
 	// Check usage: server and no args.
 	if (*httpAddr != "" || *urlFlag != "") && (flag.NArg() > 0) {
-		fmt.Fprintln(os.Stderr, "can't use -http with args.")
+		fmt.Fprintln(os.Stderr, "Unexpected arguments.")
 		usage()
 	}
 
@@ -183,11 +172,10 @@ func main() {
 		usage()
 	}
 
-	// Setting the resolved goroot.
+	// Set the resolved goroot.
 	vfs.GOROOT = *goroot
 
-	var fsGate chan bool
-	fsGate = make(chan bool, 20)
+	fsGate := make(chan bool, 20)
 
 	// Determine file system to use.
 	if *zipfile == "" {
@@ -214,8 +202,6 @@ func main() {
 		fs.Bind("/src", gatefs.New(vfs.OS(p), fsGate), "/src", vfs.BindAfter)
 	}
 
-	httpMode := *httpAddr != ""
-
 	var typeAnalysis, pointerAnalysis bool
 	if *analysisFlag != "" {
 		for _, a := range strings.Split(*analysisFlag, ",") {
@@ -233,7 +219,7 @@ func main() {
 	corpus := godoc.NewCorpus(fs)
 	corpus.Verbose = *verbose
 	corpus.MaxResults = *maxResults
-	corpus.IndexEnabled = *indexEnabled && httpMode
+	corpus.IndexEnabled = *indexEnabled
 	if *maxResults == 0 {
 		corpus.IndexFullText = false
 	}
@@ -245,32 +231,21 @@ func main() {
 		corpus.IndexThrottle = 1.0
 		corpus.IndexEnabled = true
 	}
-	if *writeIndex || httpMode || *urlFlag != "" {
-		if httpMode {
-			go initCorpus(corpus)
-		} else {
-			initCorpus(corpus)
-		}
-	}
+	go initCorpus(corpus)
 
 	// Initialize the version info before readTemplates, which saves
 	// the map value in a method value.
 	corpus.InitVersionInfo()
 
 	pres = godoc.NewPresentation(corpus)
-	pres.TabWidth = *tabWidth
 	pres.ShowTimestamps = *showTimestamps
 	pres.ShowPlayground = *showPlayground
-	pres.ShowExamples = *showExamples
 	pres.DeclLinks = *declLinks
-	pres.SrcMode = *srcMode
-	pres.HTMLMode = *html
-	pres.AllMode = *allMode
 	if *notesRx != "" {
 		pres.NotesRx = regexp.MustCompile(*notesRx)
 	}
 
-	readTemplates(pres, httpMode || *urlFlag != "")
+	readTemplates(pres)
 	registerHandlers(pres)
 
 	if *writeIndex {
@@ -305,67 +280,51 @@ func main() {
 		return
 	}
 
-	if httpMode {
-		// HTTP server mode.
-		var handler http.Handler = http.DefaultServeMux
-		if *verbose {
-			log.Printf("Go Documentation Server")
-			log.Printf("version = %s", runtime.Version())
-			log.Printf("address = %s", *httpAddr)
-			log.Printf("goroot = %s", *goroot)
-			log.Printf("tabwidth = %d", *tabWidth)
-			switch {
-			case !*indexEnabled:
-				log.Print("search index disabled")
-			case *maxResults > 0:
-				log.Printf("full text index enabled (maxresults = %d)", *maxResults)
-			default:
-				log.Print("identifier search index enabled")
+	var handler http.Handler = http.DefaultServeMux
+	if *verbose {
+		log.Printf("Go Documentation Server")
+		log.Printf("version = %s", runtime.Version())
+		log.Printf("address = %s", *httpAddr)
+		log.Printf("goroot = %s", *goroot)
+		switch {
+		case !*indexEnabled:
+			log.Print("search index disabled")
+		case *maxResults > 0:
+			log.Printf("full text index enabled (maxresults = %d)", *maxResults)
+		default:
+			log.Print("identifier search index enabled")
+		}
+		fs.Fprint(os.Stderr)
+		handler = loggingHandler(handler)
+	}
+
+	// Initialize search index.
+	if *indexEnabled {
+		go corpus.RunIndexer()
+	}
+
+	// Start type/pointer analysis.
+	if typeAnalysis || pointerAnalysis {
+		go analysis.Run(pointerAnalysis, &corpus.Analysis)
+	}
+
+	if runHTTPS != nil {
+		go func() {
+			if err := runHTTPS(handler); err != nil {
+				log.Fatalf("ListenAndServe TLS: %v", err)
 			}
-			fs.Fprint(os.Stderr)
-			handler = loggingHandler(handler)
-		}
-
-		// Initialize search index.
-		if *indexEnabled {
-			go corpus.RunIndexer()
-		}
-
-		// Start type/pointer analysis.
-		if typeAnalysis || pointerAnalysis {
-			go analysis.Run(pointerAnalysis, &corpus.Analysis)
-		}
-
-		if runHTTPS != nil {
-			go func() {
-				if err := runHTTPS(handler); err != nil {
-					log.Fatalf("ListenAndServe TLS: %v", err)
-				}
-			}()
-		}
-
-		// Start http server.
-		if *verbose {
-			log.Println("starting HTTP server")
-		}
-		if wrapHTTPMux != nil {
-			handler = wrapHTTPMux(handler)
-		}
-		if err := http.ListenAndServe(*httpAddr, handler); err != nil {
-			log.Fatalf("ListenAndServe %s: %v", *httpAddr, err)
-		}
-
-		return
+		}()
 	}
 
-	if *query {
-		handleRemoteSearch()
-		return
+	// Start http server.
+	if *verbose {
+		log.Println("starting HTTP server")
 	}
-
-	build.Default.GOROOT = *goroot
-	if err := godoc.CommandLine(os.Stdout, fs, pres, flag.Args()); err != nil {
-		log.Print(err)
+	if wrapHTTPMux != nil {
+		handler = wrapHTTPMux(handler)
+	}
+	if err := http.ListenAndServe(*httpAddr, handler); err != nil {
+		log.Fatalf("ListenAndServe %s: %v", *httpAddr, err)
 	}
 }
 

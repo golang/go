@@ -276,11 +276,6 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if mode&NoHTML != 0 {
-		h.p.ServeText(w, applyTemplate(h.p.PackageText, "packageText", info))
-		return
-	}
-
 	var tabtitle, title, subtitle string
 	switch {
 	case info.PAst != nil:

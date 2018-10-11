@@ -89,12 +89,11 @@ func main() {
 	pres = godoc.NewPresentation(corpus)
 	pres.TabWidth = 8
 	pres.ShowPlayground = true
-	pres.ShowExamples = true
 	pres.DeclLinks = true
 	pres.NotesRx = regexp.MustCompile("BUG")
 	pres.GoogleAnalytics = os.Getenv("GODOC_ANALYTICS")
 
-	readTemplates(pres, true)
+	readTemplates(pres)
 
 	datastoreClient, memcacheClient := getClients()
 

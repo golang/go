@@ -112,28 +112,23 @@ func readTemplate(name string) *template.Template {
 	return t
 }
 
-func readTemplates(p *godoc.Presentation, html bool) {
-	p.PackageText = readTemplate("package.txt")
-	p.SearchText = readTemplate("search.txt")
-
-	if html || p.HTMLMode {
-		codewalkHTML = readTemplate("codewalk.html")
-		codewalkdirHTML = readTemplate("codewalkdir.html")
-		p.CallGraphHTML = readTemplate("callgraph.html")
-		p.DirlistHTML = readTemplate("dirlist.html")
-		p.ErrorHTML = readTemplate("error.html")
-		p.ExampleHTML = readTemplate("example.html")
-		p.GodocHTML = readTemplate("godoc.html")
-		p.ImplementsHTML = readTemplate("implements.html")
-		p.MethodSetHTML = readTemplate("methodset.html")
-		p.PackageHTML = readTemplate("package.html")
-		p.PackageRootHTML = readTemplate("packageroot.html")
-		p.SearchHTML = readTemplate("search.html")
-		p.SearchDocHTML = readTemplate("searchdoc.html")
-		p.SearchCodeHTML = readTemplate("searchcode.html")
-		p.SearchTxtHTML = readTemplate("searchtxt.html")
-		p.SearchDescXML = readTemplate("opensearch.xml")
-	}
+func readTemplates(p *godoc.Presentation) {
+	codewalkHTML = readTemplate("codewalk.html")
+	codewalkdirHTML = readTemplate("codewalkdir.html")
+	p.CallGraphHTML = readTemplate("callgraph.html")
+	p.DirlistHTML = readTemplate("dirlist.html")
+	p.ErrorHTML = readTemplate("error.html")
+	p.ExampleHTML = readTemplate("example.html")
+	p.GodocHTML = readTemplate("godoc.html")
+	p.ImplementsHTML = readTemplate("implements.html")
+	p.MethodSetHTML = readTemplate("methodset.html")
+	p.PackageHTML = readTemplate("package.html")
+	p.PackageRootHTML = readTemplate("packageroot.html")
+	p.SearchHTML = readTemplate("search.html")
+	p.SearchDocHTML = readTemplate("searchdoc.html")
+	p.SearchCodeHTML = readTemplate("searchcode.html")
+	p.SearchTxtHTML = readTemplate("searchtxt.html")
+	p.SearchDescXML = readTemplate("opensearch.xml")
 }
 
 type fmtResponse struct {

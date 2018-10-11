@@ -99,11 +99,7 @@ func (p *Presentation) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.FormValue("q"))
 	result := p.Corpus.Lookup(query)
 
-	if p.GetPageInfoMode(r)&NoHTML != 0 {
-		p.ServeText(w, applyTemplate(p.SearchText, "searchText", result))
-		return
-	}
-	contents := bytes.Buffer{}
+	var contents bytes.Buffer
 	for _, f := range p.SearchResults {
 		contents.Write(f(p, result))
 	}

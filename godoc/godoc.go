@@ -77,7 +77,6 @@ func (p *Presentation) initFuncMap() {
 		"node":         p.nodeFunc,
 		"node_html":    p.node_htmlFunc,
 		"comment_html": comment_htmlFunc,
-		"comment_text": comment_textFunc,
 		"sanitize":     sanitizeFunc,
 
 		// support for URL attributes
@@ -91,7 +90,6 @@ func (p *Presentation) initFuncMap() {
 
 		// formatting of Examples
 		"example_html":   p.example_htmlFunc,
-		"example_text":   p.example_textFunc,
 		"example_name":   p.example_nameFunc,
 		"example_suffix": p.example_suffixFunc,
 
@@ -372,15 +370,6 @@ func containsOnlySpace(buf []byte) bool {
 	return bytes.IndexFunc(buf, isNotSpace) == -1
 }
 
-func comment_textFunc(comment, indent, preIndent string) string {
-	var buf bytes.Buffer
-	doc.ToText(&buf, comment, indent, preIndent, punchCardWidth-2*len(indent))
-	if containsOnlySpace(buf.Bytes()) {
-		return ""
-	}
-	return buf.String()
-}
-
 // sanitizeFunc sanitizes the argument src by replacing newlines with
 // blanks, removing extra blanks, and by removing trailing whitespace
 // and commas before closing parentheses.
@@ -587,50 +576,6 @@ func queryLinkFunc(s, query string, line int) string {
 
 func docLinkFunc(s string, ident string) string {
 	return pathpkg.Clean("/pkg/"+s) + "/#" + ident
-}
-
-func (p *Presentation) example_textFunc(info *PageInfo, funcName, indent string) string {
-	if !p.ShowExamples {
-		return ""
-	}
-
-	var buf bytes.Buffer
-	first := true
-	for _, eg := range info.Examples {
-		name := stripExampleSuffix(eg.Name)
-		if name != funcName {
-			continue
-		}
-
-		if !first {
-			buf.WriteString("\n")
-		}
-		first = false
-
-		// print code
-		cnode := &printer.CommentedNode{Node: eg.Code, Comments: eg.Comments}
-		config := &printer.Config{Mode: printer.UseSpaces, Tabwidth: p.TabWidth}
-		var buf1 bytes.Buffer
-		config.Fprint(&buf1, info.FSet, cnode)
-		code := buf1.String()
-
-		// Additional formatting if this is a function body. Unfortunately, we
-		// can't print statements individually because we would lose comments
-		// on later statements.
-		if n := len(code); n >= 2 && code[0] == '{' && code[n-1] == '}' {
-			// remove surrounding braces
-			code = code[1 : n-1]
-			// unindent
-			code = replaceLeadingIndentation(code, strings.Repeat(" ", p.TabWidth), indent)
-		}
-		code = strings.Trim(code, "\n")
-
-		buf.WriteString(indent)
-		buf.WriteString("Example:\n")
-		buf.WriteString(code)
-		buf.WriteString("\n\n")
-	}
-	return buf.String()
 }
 
 func (p *Presentation) example_htmlFunc(info *PageInfo, funcName string) string {
