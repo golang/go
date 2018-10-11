@@ -549,6 +549,15 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		recvTyp = def
 	}
 
+	// Correct receiver type for all methods explicitly declared
+	// by this interface after we're done with type-checking at
+	// this level. See comment below for details.
+	check.later(func() {
+		for _, m := range ityp.methods {
+			m.typ.(*Signature).recv.typ = recvTyp
+		}
+	})
+
 	// collect methods
 	var sigfix []*methodInfo
 	for i, minfo := range info.methods {
@@ -562,8 +571,22 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			// its position, and because interface method
 			// signatures don't get a receiver via regular
 			// type-checking (there isn't a receiver in the
-			// method's AST). Setting the correct receiver
-			// type is also important for ptrRecv() (see methodset.go).
+			// method's AST). Setting the receiver type is
+			// also important for ptrRecv() (see methodset.go).
+			//
+			// Note: For embedded methods, the receiver type
+			// should be the type of the interface that declared
+			// the methods in the first place. Since we get the
+			// methods here via methodInfo, which may be computed
+			// before we have all relevant interface types, we use
+			// the current interface's type (recvType). This may be
+			// the type of the interface embedding the interface that
+			// declared the methods. This doesn't matter for type-
+			// checking (we only care about the receiver type for
+			// the ptrRecv predicate, and it's never a pointer recv
+			// for interfaces), but it matters for go/types clients
+			// and for printing. We correct the receiver after type-
+			// checking.
 			//
 			// TODO(gri) Consider marking methods signatures
 			// as incomplete, for better error messages. See
