@@ -29,13 +29,13 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	_ "expvar" // to serve /debug/vars
 	"flag"
 	"fmt"
 	"go/build"
 	"log"
 	"net/http"
-	"net/http/httptest"
 	_ "net/http/pprof" // to serve /debug/pprof/*
 	"net/url"
 	"os"
@@ -94,6 +94,17 @@ var (
 	notesRx = flag.String("notes", "BUG", "regular expression matching note markers to show")
 )
 
+// An httpResponseRecorder is an http.ResponseWriter
+type httpResponseRecorder struct {
+	body   *bytes.Buffer
+	header http.Header
+	code   int
+}
+
+func (w *httpResponseRecorder) Header() http.Header         { return w.header }
+func (w *httpResponseRecorder) Write(b []byte) (int, error) { return len(b), nil }
+func (w *httpResponseRecorder) WriteHeader(code int)        { w.code = code }
+
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: godoc -http="+defaultAddr+"\n")
 	flag.PrintDefaults()
@@ -122,22 +133,22 @@ func handleURLFlag() {
 
 		// Invoke default HTTP handler to serve request
 		// to our buffering httpWriter.
-		w := httptest.NewRecorder()
+		w := &httpResponseRecorder{code: 200, header: make(http.Header), body: new(bytes.Buffer)}
 		http.DefaultServeMux.ServeHTTP(w, req)
 
 		// Return data, error, or follow redirect.
-		switch w.Code {
+		switch w.code {
 		case 200: // ok
-			os.Stdout.Write(w.Body.Bytes())
+			os.Stdout.Write(w.body.Bytes())
 			return
 		case 301, 302, 303, 307: // redirect
-			redirect := w.HeaderMap.Get("Location")
+			redirect := w.header.Get("Location")
 			if redirect == "" {
-				log.Fatalf("HTTP %d without Location header", w.Code)
+				log.Fatalf("HTTP %d without Location header", w.code)
 			}
 			urlstr = redirect
 		default:
-			log.Fatalf("HTTP error %d", w.Code)
+			log.Fatalf("HTTP error %d", w.code)
 		}
 	}
 	log.Fatalf("too many redirects")
