@@ -155,8 +155,8 @@ func ExampleLoadWholeProgram() {
 		log.Fatal(err)
 	}
 
-	// Create SSA packages for all well-typed packages.
-	prog, pkgs := ssautil.Packages(initial, ssa.PrintPackages)
+	// Create SSA packages for well-typed packages and their dependencies.
+	prog, pkgs := ssautil.AllPackages(initial, ssa.PrintPackages)
 	_ = pkgs
 
 	// Build SSA code for the whole program.
