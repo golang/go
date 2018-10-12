@@ -28,6 +28,38 @@ func goListDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
 	// Determine files requested in contains patterns
 	var containFiles []string
 	restPatterns := make([]string, 0, len(patterns))
+	// Extract file= and other [querytype]= patterns. Report an error if querytype
+	// doesn't exist.
+extractQueries:
+	for _, pattern := range patterns {
+		eqidx := strings.Index(pattern, "=")
+		if eqidx < 0 {
+			restPatterns = append(restPatterns, pattern)
+		} else {
+			query, value := pattern[:eqidx], pattern[eqidx+len("="):]
+			switch query {
+			case "file":
+				containFiles = append(containFiles, value)
+			case "pattern":
+				restPatterns = append(containFiles, value)
+			case "": // not a reserved query
+				restPatterns = append(restPatterns, pattern)
+			default:
+				for _, rune := range query {
+					if rune < 'a' || rune > 'z' { // not a reserved query
+						restPatterns = append(restPatterns, pattern)
+						continue extractQueries
+					}
+				}
+				// Reject all other patterns containing "="
+				return nil, fmt.Errorf("invalid query type %q in query pattern %q", query, pattern)
+			}
+		}
+	}
+	patterns = restPatterns
+	// Look for the deprecated contains: syntax.
+	// TODO(matloob): delete this around mid-October 2018.
+	restPatterns = restPatterns[:0]
 	for _, pattern := range patterns {
 		if strings.HasPrefix(pattern, "contains:") {
 			containFile := strings.TrimPrefix(pattern, "contains:")

@@ -1013,7 +1013,7 @@ func TestAbsoluteFilenames(t *testing.T) {
 	}
 }
 
-func TestContains(t *testing.T) {
+func TestFile(t *testing.T) {
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/a/a.go": `package a; import "b"`,
 		"src/b/b.go": `package b; import "c"`,
@@ -1026,7 +1026,7 @@ func TestContains(t *testing.T) {
 		Dir:  tmp,
 		Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 	}
-	initial, err := packages.Load(cfg, "contains:src/b/b.go")
+	initial, err := packages.Load(cfg, "file=src/b/b.go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1093,7 +1093,7 @@ func TestContains_FallbackSticks(t *testing.T) {
 		Dir:  tmp,
 		Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
 	}
-	initial, err := packages.Load(cfg, "a", "contains:src/b/b.go")
+	initial, err := packages.Load(cfg, "a", "file=src/b/b.go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1259,6 +1259,46 @@ func TestJSON(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestRejectInvalidQueries(t *testing.T) {
+	queries := []string{"=", "key=", "key=value", "file/a/b=c/..."}
+	cfg := &packages.Config{
+		Mode: packages.LoadImports,
+		Env:  append(os.Environ(), "GO111MODULE=off"),
+	}
+	for _, q := range queries {
+		if _, err := packages.Load(cfg, q); err == nil {
+			t.Errorf("packages.Load(%q) succeeded. Expected \"invalid query type\" error", q)
+		} else if !strings.Contains(err.Error(), "invalid query type") {
+			t.Errorf("packages.Load(%q): got error %v, want \"invalid query type\" error", q, err)
+		}
+	}
+}
+
+func TestPatternPassthrough(t *testing.T) {
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/a/a.go": `package a;`,
+	})
+	defer cleanup()
+
+	cfg := &packages.Config{
+		Mode: packages.LoadImports,
+		Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
+	}
+	initial, err := packages.Load(cfg, "pattern=a")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	graph, _ := importGraph(initial)
+	wantGraph := `
+* a
+`[1:]
+	if graph != wantGraph {
+		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
+	}
+
 }
 
 func TestConfigDefaultEnv(t *testing.T) {
