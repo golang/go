@@ -3413,7 +3413,7 @@ Operators combine operands into expressions.
 
 <pre class="ebnf">
 Expression = UnaryExpr | Expression binary_op Expression .
-UnaryExpr  = PrimaryExpr | unary_op UnaryExpr .
+UnaryExpr  = unary_op UnaryExpr | PrimaryExpr .
 
 binary_op  = "||" | "&amp;&amp;" | rel_op | add_op | mul_op .
 rel_op     = "==" | "!=" | "&lt;" | "&lt;=" | ">" | ">=" .
