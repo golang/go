@@ -107,14 +107,14 @@ func klmdQuery() queryResult
 
 func doinit() {
 	options = []option{
-		{"zarch", &S390X.HasZArch},
-		{"stfle", &S390X.HasSTFLE},
-		{"ldisp", &S390X.HasLDisp},
-		{"msa", &S390X.HasMSA},
-		{"eimm", &S390X.HasEImm},
-		{"dfp", &S390X.HasDFP},
-		{"etf3eh", &S390X.HasETF3Enhanced},
-		{"vx", &S390X.HasVX},
+		{Name: "zarch", Feature: &S390X.HasZArch},
+		{Name: "stfle", Feature: &S390X.HasSTFLE},
+		{Name: "ldisp", Feature: &S390X.HasLDisp},
+		{Name: "msa", Feature: &S390X.HasMSA},
+		{Name: "eimm", Feature: &S390X.HasEImm},
+		{Name: "dfp", Feature: &S390X.HasDFP},
+		{Name: "etf3eh", Feature: &S390X.HasETF3Enhanced},
+		{Name: "vx", Feature: &S390X.HasVX},
 	}
 
 	aes := []function{aes128, aes192, aes256}
