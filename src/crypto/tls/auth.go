@@ -23,10 +23,9 @@ import (
 func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []SignatureScheme, tlsVersion uint16) (sigAlg SignatureScheme, sigType uint8, hashFunc crypto.Hash, err error) {
 	if tlsVersion < VersionTLS12 || len(peerSigAlgs) == 0 {
 		// For TLS 1.1 and before, the signature algorithm could not be
-		// negotiated and the hash is fixed based on the signature type.
-		// For TLS 1.2, if the client didn't send signature_algorithms
-		// extension then we can assume that it supports SHA1. See
-		// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
+		// negotiated and the hash is fixed based on the signature type. For TLS
+		// 1.2, if the client didn't send signature_algorithms extension then we
+		// can assume that it supports SHA1. See RFC 5246, Section 7.4.1.4.1.
 		switch pubkey.(type) {
 		case *rsa.PublicKey:
 			if tlsVersion < VersionTLS12 {

@@ -205,7 +205,7 @@ func (hc *halfConn) incSeq() {
 
 // extractPadding returns, in constant time, the length of the padding to remove
 // from the end of payload. It also returns a byte which is equal to 255 if the
-// padding was valid and 0 otherwise. See RFC 2246, section 6.2.3.2
+// padding was valid and 0 otherwise. See RFC 2246, Section 6.2.3.2.
 func extractPadding(payload []byte) (toRemove int, good byte) {
 	if len(payload) < 1 {
 		return 0, 0
