@@ -207,7 +207,6 @@ func Main(archInit func(*Arch)) {
 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
 	objabi.Flagcount("f", "debug stack frames", &Debug['f'])
 	objabi.Flagcount("h", "halt on error", &Debug['h'])
-	objabi.Flagcount("i", "debug line number stack", &Debug['i'])
 	objabi.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
 	objabi.Flagfn1("importcfg", "read import configuration from `file`", readImportCfg)
 	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")
