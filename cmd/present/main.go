@@ -25,7 +25,7 @@ var (
 	originHost    = flag.String("orighost", "", "host component of web origin URL (e.g., 'localhost')")
 	basePath      = flag.String("base", "", "base path for slide template and static resources")
 	contentPath   = flag.String("content", ".", "base path for presentation content")
-	usePlayground = flag.Bool("use_playground", false, "if false, arbitrary code (Go, shell scripts, etc.) is run locally via WebSocket transport; otherwise it uses play.golang.org")
+	usePlayground = flag.Bool("use_playground", false, "run code snippets using play.golang.org; if false, run them locally and deliver results by WebSocket transport")
 	nativeClient  = flag.Bool("nacl", false, "use Native Client environment playground (prevents non-Go code execution) when using local WebSocket transport")
 )
 
@@ -43,8 +43,7 @@ func main() {
 		*httpAddr = fmt.Sprintf("0.0.0.0:%s", port)
 		pwd, err := os.Getwd()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Couldn't get pwd: %v\n", err)
-			os.Exit(1)
+			log.Fatalf("Couldn't get pwd: %v\n", err)
 		}
 		*basePath = pwd
 		*usePlayground = true
@@ -139,7 +138,7 @@ const localhostWarning = `
 WARNING!  WARNING!  WARNING!
 
 The present server appears to be listening on an address that is not localhost
-and using socket transport for running Go code. Anyone with access to this address
+and is configured to run code snippets locally. Anyone with access to this address
 and port will have access to this machine as the user running present.
 
 To avoid this message, listen on localhost, run with -play=false, or run with
