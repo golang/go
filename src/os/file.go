@@ -394,6 +394,11 @@ func UserHomeDir() string {
 		return Getenv("home")
 	case "nacl", "android":
 		return "/"
+	case "darwin":
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+			return "/"
+		}
+		fallthrough
 	default:
 		return Getenv("HOME")
 	}
