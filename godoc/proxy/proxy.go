@@ -11,11 +11,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"strings"
 	"time"
 
@@ -23,13 +22,6 @@ import (
 )
 
 const playgroundURL = "https://play.golang.org"
-
-var proxy *httputil.ReverseProxy
-
-func init() {
-	target, _ := url.Parse(playgroundURL)
-	proxy = httputil.NewSingleHostReverseProxy(target)
-}
 
 type Request struct {
 	Body string
@@ -136,7 +128,28 @@ func share(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
-	proxy.ServeHTTP(w, r)
+
+	// HACK(cbro): use a simple proxy rather than httputil.ReverseProxy because of Issue #28168.
+	// TODO: investigate using ReverseProxy with a Director, unsetting whatever's necessary to make that work.
+	req, _ := http.NewRequest("POST", playgroundURL+"/share", r.Body)
+	req.Header.Set("Content-Type", r.Header.Get("Content-Type"))
+	req = req.WithContext(r.Context())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Printf("ERROR share error: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	copyHeader := func(k string) {
+		if v := resp.Header.Get(k); v != "" {
+			w.Header().Set(k, v)
+		}
+	}
+	copyHeader("Content-Type")
+	copyHeader("Content-Length")
+	defer resp.Body.Close()
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
 }
 
 func googleCN(r *http.Request) bool {

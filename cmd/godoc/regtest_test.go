@@ -36,6 +36,7 @@ func TestLiveServer(t *testing.T) {
 		Regexp      string
 		NoAnalytics bool // expect the response to not contain GA.
 		PostBody    string
+		StatusCode  int // if 0, expect 2xx status code.
 	}{
 		{
 			Path:      "/doc/faq",
@@ -65,6 +66,7 @@ func TestLiveServer(t *testing.T) {
 			Substring:   "bdb10cf",
 			Message:     "no change redirect - hg to git mapping not registered?",
 			NoAnalytics: true,
+			StatusCode:  302,
 		},
 		{
 			Path:      "/dl/",
@@ -81,6 +83,7 @@ func TestLiveServer(t *testing.T) {
 			Path:        "/s/go2design",
 			Regexp:      "proposal.*Found",
 			NoAnalytics: true,
+			StatusCode:  302,
 		},
 		{
 			Message:   "incorrect search result - broken index?",
@@ -105,6 +108,12 @@ func TestLiveServer(t *testing.T) {
 			Regexp:      `^{"Errors":"","Events":\[{"Message":"A","Kind":"stdout","Delay":0},{"Message":"B","Kind":"stdout","Delay":1000000000}\]}$`,
 			NoAnalytics: true,
 		},
+		{
+			Path:        "/share",
+			PostBody:    "package main",
+			Substring:   "", // just check it is a 2xx.
+			NoAnalytics: true,
+		},
 	}
 
 	for _, tc := range substringTests {
@@ -125,6 +134,13 @@ func TestLiveServer(t *testing.T) {
 			resp, err := http.DefaultTransport.RoundTrip(req)
 			if err != nil {
 				t.Fatalf("RoundTrip: %v", err)
+			}
+			if tc.StatusCode == 0 {
+				if resp.StatusCode > 299 {
+					t.Errorf("Non-OK status code: %v", resp.StatusCode)
+				}
+			} else if tc.StatusCode != resp.StatusCode {
+				t.Errorf("StatusCode; got %v, want %v", resp.StatusCode, tc.StatusCode)
 			}
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
