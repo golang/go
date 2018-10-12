@@ -21,8 +21,8 @@ const (
 
 func doinit() {
 	options = []option{
-		{"vfpv4", &ARM.HasVFPv4},
-		{"idiva", &ARM.HasIDIVA},
+		{Name: "vfpv4", Feature: &ARM.HasVFPv4},
+		{Name: "idiva", Feature: &ARM.HasIDIVA},
 	}
 
 	// HWCAP feature bits

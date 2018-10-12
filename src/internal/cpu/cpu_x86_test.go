@@ -45,3 +45,20 @@ func TestSSE2DebugOption(t *testing.T) {
 		t.Errorf("X86.HasSSE2 on %s expected %v, got %v", runtime.GOARCH, want, got)
 	}
 }
+
+func TestDisableSSE3(t *testing.T) {
+	runDebugOptionsTest(t, "TestSSE3DebugOption", "sse3=off")
+}
+
+func TestSSE3DebugOption(t *testing.T) {
+	MustHaveDebugOptionsSupport(t)
+
+	if os.Getenv("GODEBUGCPU") != "sse3=off" {
+		t.Skipf("skipping test: GODEBUGCPU=sse3=off not set")
+	}
+
+	want := false
+	if got := X86.HasSSE3; got != want {
+		t.Errorf("X86.HasSSE3 expected %v, got %v", want, got)
+	}
+}
