@@ -6,8 +6,7 @@
 // used by the Go standard library.
 package cpu
 
-// DebugOptions is set to true by the runtime if go was compiled with GOEXPERIMENT=debugcpu
-// and GOOS is Linux or Darwin.
+// DebugOptions is set to true by the runtime if the OS supports GODEBUGCPU.
 // This should not be changed after it is initialized.
 var DebugOptions bool
 
@@ -139,8 +138,7 @@ type s390x struct {
 
 // Initialize examines the processor and sets the relevant variables above.
 // This is called by the runtime package early in program initialization,
-// before normal init functions are run. env is set by runtime on Linux and Darwin
-// if go was compiled with GOEXPERIMENT=debugcpu.
+// before normal init functions are run. env is set by runtime if the OS supports GODEBUGCPU.
 func Initialize(env string) {
 	doinit()
 	processOptions(env)

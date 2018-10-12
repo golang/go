@@ -34,7 +34,7 @@ func TestDisableSSE2(t *testing.T) {
 }
 
 func TestSSE2DebugOption(t *testing.T) {
-	MustHaveDebugOptionsEnabled(t)
+	MustHaveDebugOptionsSupport(t)
 
 	if os.Getenv("GODEBUGCPU") != "sse2=0" {
 		t.Skipf("skipping test: GODEBUGCPU=sse2=0 not set")
