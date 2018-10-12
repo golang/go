@@ -258,6 +258,15 @@ func lockPath(tpkg *types.Package, typ types.Type) typePath {
 		return []types.Type{typ}
 	}
 
+	// In go1.10, sync.noCopy did not implement Locker.
+	// (The Unlock method was added only in CL 121876.)
+	// TODO(adonovan): remove workaround when we drop go1.10.
+	if named, ok := typ.(*types.Named); ok &&
+		named.Obj().Name() == "noCopy" &&
+		named.Obj().Pkg().Path() == "sync" {
+		return []types.Type{typ}
+	}
+
 	nfields := styp.NumFields()
 	for i := 0; i < nfields; i++ {
 		ftyp := styp.Field(i).Type()

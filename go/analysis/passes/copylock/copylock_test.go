@@ -7,7 +7,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/copylock"
 )
 
-func TestFromFileSystem(t *testing.T) {
+func Test(t *testing.T) {
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, copylock.Analyzer, "a")
 }

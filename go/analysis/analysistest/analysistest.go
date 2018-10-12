@@ -263,6 +263,9 @@ func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis
 
 	// Check the facts match expectations.
 	// Report errors in lexical order for determinism.
+	// (It's only deterministic within each file, not across files,
+	// because go/packages does not guarantee file.Pos is ascending
+	// across the files of a single compilation unit.)
 	var objects []types.Object
 	for obj := range facts {
 		objects = append(objects, obj)
