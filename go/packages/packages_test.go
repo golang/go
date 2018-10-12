@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
+	constantpkg "go/constant"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -1039,6 +1040,41 @@ func TestContains(t *testing.T) {
 	if graph != wantGraph {
 		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
 	}
+}
+
+// This test ensures that the effective GOARCH variable in the
+// application determines the Sizes function used by the type checker.
+// This behavior is a stop-gap until we make the build system's query
+// too report the correct sizes function for the actual configuration.
+func TestSizes(t *testing.T) {
+	tmp, cleanup := makeTree(t, map[string]string{
+		"src/a/a.go": `package a; import "unsafe"; const WordSize = 8*unsafe.Sizeof(int(0))`,
+	})
+	defer cleanup()
+
+	savedGOARCH := os.Getenv("GOARCH")
+	defer os.Setenv("GOARCH", savedGOARCH)
+
+	for arch, wantWordSize := range map[string]int64{"386": 32, "amd64": 64} {
+		os.Setenv("GOARCH", arch)
+		cfg := &packages.Config{
+			Mode: packages.LoadSyntax,
+			Dir:  tmp,
+			Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
+		}
+		initial, err := packages.Load(cfg, "a")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if packages.PrintErrors(initial) > 0 {
+			t.Fatal("there were errors")
+		}
+		gotWordSize, _ := constantpkg.Int64Val(constant(initial[0], "WordSize").Val())
+		if gotWordSize != wantWordSize {
+			t.Errorf("for GOARCH=%s, got word size %d, want %d", arch, gotWordSize, wantWordSize)
+		}
+	}
+
 }
 
 // TestContains_FallbackSticks ensures that when there are both contains and non-contains queries
