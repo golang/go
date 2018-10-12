@@ -5,11 +5,10 @@
 /*
 Package packages loads Go packages for inspection and analysis.
 
-NOTE: THIS PACKAGE IS NOT YET READY FOR WIDESPREAD USE:
- - The interface is still being revised and minor changes are likely.
- - The implementation depends on the Go 1.11 go command;
-   support for earlier versions will be added soon.
- - We intend to finalize the API before Go 1.11 is released.
+Note: Though this package is ready for widespread use, we may make minor
+breaking changes if absolutely necessary. Any such change will be
+announced on golang-tools@ at least one week before it is committed. No
+more breaking changes will be made after December 1, 2018.
 
 The Load function takes as input a list of patterns and return a list of Package
 structs describing individual packages matched by those patterns.
