@@ -11,6 +11,7 @@ import (
 	"go/build"
 	"go/token"
 	"go/types"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -107,7 +108,13 @@ func init() {
 	for _, arch := range arches {
 		arch.sizes = types.SizesFor("gc", arch.name)
 		if arch.sizes == nil {
-			panic("missing SizesFor for gc/" + arch.name)
+			// TODO(adonovan): fix: now that asmdecl is not in the standard
+			// library we cannot assume types.SizesFor is consistent with arches.
+			// For now, assume 64-bit norms and print a warning.
+			// But this warning should really be deferred until we attempt to use
+			// arch, which is very unlikely.
+			arch.sizes = types.SizesFor("gc", "amd64")
+			log.Printf("unknown architecture %s", arch.name)
 		}
 		arch.intSize = int(arch.sizes.Sizeof(types.Typ[types.Int]))
 		arch.ptrSize = int(arch.sizes.Sizeof(types.Typ[types.UnsafePointer]))
