@@ -104,6 +104,7 @@ func OnesCount(n uint) int {
 	// amd64:"POPCNTQ",".*support_popcnt"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
+	// ppc64:"POPCNTD"
 	return bits.OnesCount(n)
 }
 
@@ -111,6 +112,7 @@ func OnesCount64(n uint64) int {
 	// amd64:"POPCNTQ",".*support_popcnt"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
+	// ppc64:"POPCNTD"
 	return bits.OnesCount64(n)
 }
 
@@ -118,6 +120,7 @@ func OnesCount32(n uint32) int {
 	// amd64:"POPCNTL",".*support_popcnt"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
+	// ppc64:"POPCNTW"
 	return bits.OnesCount32(n)
 }
 
@@ -125,11 +128,13 @@ func OnesCount16(n uint16) int {
 	// amd64:"POPCNTL",".*support_popcnt"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
+	// ppc64:"POPCNTW"
 	return bits.OnesCount16(n)
 }
 
 func OnesCount8(n uint8) int {
 	// s390x:"POPCNT"
+	// ppc64:"POPCNTB"
 	return bits.OnesCount8(n)
 }
 
@@ -224,24 +229,28 @@ func RotateLeftVariable32(n uint32, m int) uint32 {
 func TrailingZeros(n uint) int {
 	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
 	// s390x:"FLOGR"
+	// ppc64:"ANDN","POPCNTD"
 	return bits.TrailingZeros(n)
 }
 
 func TrailingZeros64(n uint64) int {
 	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
 	// s390x:"FLOGR"
+	// ppc64:"ANDN","POPCNTD"
 	return bits.TrailingZeros64(n)
 }
 
 func TrailingZeros32(n uint32) int {
 	// amd64:"BTSQ\\t\\$32","BSFQ"
 	// s390x:"FLOGR","MOVWZ"
+	// ppc64:"ANDN","POPCNTW"
 	return bits.TrailingZeros32(n)
 }
 
 func TrailingZeros16(n uint16) int {
 	// amd64:"BSFL","BTSL\\t\\$16"
 	// s390x:"FLOGR","OR\t\\$65536"
+	// ppc64:"POPCNTD","OR\\t\\$65536"
 	return bits.TrailingZeros16(n)
 }
 
