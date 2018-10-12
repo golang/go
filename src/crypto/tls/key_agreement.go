@@ -12,10 +12,9 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	"errors"
+	"golang_org/x/crypto/curve25519"
 	"io"
 	"math/big"
-
-	"golang_org/x/crypto/curve25519"
 )
 
 var errClientKeyExchange = errors.New("tls: invalid ClientKeyExchange message")
@@ -200,7 +199,7 @@ NextCandidate:
 		ecdhePublic = elliptic.Marshal(curve, x, y)
 	}
 
-	// https://tools.ietf.org/html/rfc4492#section-5.4
+	// See RFC 4492, Section 5.4.
 	serverECDHParams := make([]byte, 1+2+1+len(ecdhePublic))
 	serverECDHParams[0] = 3 // named curve
 	serverECDHParams[1] = byte(ka.curveid >> 8)

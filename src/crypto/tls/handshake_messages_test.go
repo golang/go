@@ -271,8 +271,7 @@ func (*sessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 }
 
 func TestRejectEmptySCTList(t *testing.T) {
-	// https://tools.ietf.org/html/rfc6962#section-3.3.1 specifies that
-	// empty SCT lists are invalid.
+	// RFC 6962, Section 3.3.1 specifies that empty SCT lists are invalid.
 
 	var random [32]byte
 	sct := []byte{0x42, 0x42, 0x42, 0x42}

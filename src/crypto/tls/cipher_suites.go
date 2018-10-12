@@ -13,9 +13,8 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
-	"hash"
-
 	"golang_org/x/crypto/chacha20poly1305"
+	"hash"
 )
 
 // a keyAgreement implements the client and server side of a TLS key agreement
@@ -303,7 +302,7 @@ func newConstantTimeHash(h func() hash.Hash) func() hash.Hash {
 	}
 }
 
-// tls10MAC implements the TLS 1.0 MAC function. RFC 2246, section 6.2.3.
+// tls10MAC implements the TLS 1.0 MAC function. RFC 2246, Section 6.2.3.
 type tls10MAC struct {
 	h hash.Hash
 }
@@ -390,7 +389,6 @@ const (
 	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305  uint16 = 0xcca9
 
 	// TLS_FALLBACK_SCSV isn't a standard cipher suite but an indicator
-	// that the client is doing version fallback. See
-	// https://tools.ietf.org/html/rfc7507.
+	// that the client is doing version fallback. See RFC 7507.
 	TLS_FALLBACK_SCSV uint16 = 0x5600
 )
