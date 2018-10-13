@@ -281,66 +281,41 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 	dinc, dlen := 3, 4
 
 	for j := 0; j < len(dbuf); j++ {
-		if len(src) == si {
-			switch {
-			case j == 0:
-				return si, 0, nil
-			case j == 1, enc.padChar != NoPadding:
-				return si, 0, CorruptInputError(si - j)
+		if len(src) != si {
+			in := src[si]
+			si++
+
+			out := enc.decodeMap[in]
+			if out != 0xff {
+				dbuf[j] = out
+				continue
 			}
-			dinc, dlen = j-1, j
-			break
-		}
-		in := src[si]
-		si++
 
-		out := enc.decodeMap[in]
-		if out != 0xff {
-			dbuf[j] = out
-			continue
+			if in == '\n' || in == '\r' {
+				// skip over newlines
+				j--
+				continue
+			}
 		}
 
-		if in == '\n' || in == '\r' {
-			j--
-			continue
-		}
-
-		if rune(in) != enc.padChar {
-			return si, 0, CorruptInputError(si - 1)
-		}
+		// base64.StdEncoding.DecodeString("Zww")
+		// fix bug, if we don't know the code is padding or nopading
+		err = CorruptInputError(si - 1)
 
 		// We've reached the end and there's padding
+		// fix bug
 		switch j {
 		case 0, 1:
-			// incorrect padding
-			return si, 0, CorruptInputError(si - 1)
+			// incorrect padding or "=="
+			return si, 0, err
 		case 2:
-			// "==" is expected, the first "=" is already consumed.
-			// skip over newlines
-			for si < len(src) && (src[si] == '\n' || src[si] == '\r') {
-				si++
-			}
-			if si == len(src) {
-				// not enough padding
-				return si, 0, CorruptInputError(len(src))
-			}
-			if rune(src[si]) != enc.padChar {
-				// incorrect padding
-				return si, 0, CorruptInputError(si - 1)
-			}
-
-			si++
+			// "==" is expected one byte
+			dinc, dlen = 1, j
+			break
+		case 3:
+			// "=" is expected two byte
+			dinc, dlen = 2, j
 		}
-
-		// skip over newlines
-		for si < len(src) && (src[si] == '\n' || src[si] == '\r') {
-			si++
-		}
-		if si < len(src) {
-			// trailing garbage
-			err = CorruptInputError(si)
-		}
-		dinc, dlen = 3, j
 		break
 	}
 
@@ -605,10 +580,11 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
 // DecodedLen returns the maximum length in bytes of the decoded data
 // corresponding to n bytes of base64-encoded data.
 func (enc *Encoding) DecodedLen(n int) int {
-	if enc.padChar == NoPadding {
+	//fix bug
+	//if enc.padChar == NoPadding {
 		// Unpadded data may end with partial block of 2-3 characters.
 		return n * 6 / 8
-	}
+	//}
 	// Padded base64 should always be a multiple of 4 characters in length.
-	return n / 4 * 3
+	//return n / 4 * 3
 }
