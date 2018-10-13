@@ -24,7 +24,7 @@ type Encoding struct {
 	encode    [64]byte
 	decodeMap [256]byte
 	padChar   rune
-	strict    bool
+	//strict    bool   //did not use, remove
 }
 
 const (
@@ -87,7 +87,7 @@ func (enc Encoding) WithPadding(padding rune) *Encoding {
 // strict decoding enabled. In this mode, the decoder requires that
 // trailing padding bits are zero, as described in RFC 4648 section 3.5.
 func (enc Encoding) Strict() *Encoding {
-	enc.strict = true
+	//enc.strict = true //did not use, remove
 	return &enc
 }
 
@@ -325,20 +325,20 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 	switch dlen {
 	case 4:
 		dst[2] = dbuf[2]
-		dbuf[2] = 0
+		//dbuf[2] = 0
 		fallthrough
 	case 3:
 		dst[1] = dbuf[1]
-		if enc.strict && dbuf[2] != 0 {
-			return si, 0, CorruptInputError(si - 1)
-		}
-		dbuf[1] = 0
+		//if enc.strict && dbuf[2] != 0 {
+		//	return si, 0, CorruptInputError(si - 1)
+		//}
+		//dbuf[1] = 0
 		fallthrough
 	case 2:
 		dst[0] = dbuf[0]
-		if enc.strict && (dbuf[1] != 0 || dbuf[2] != 0) {
-			return si, 0, CorruptInputError(si - 2)
-		}
+		//if enc.strict && (dbuf[1] != 0 || dbuf[2] != 0) {
+		//	return si, 0, CorruptInputError(si - 2)
+		//}
 	}
 	dst = dst[dinc:]
 
