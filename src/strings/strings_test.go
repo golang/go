@@ -705,6 +705,36 @@ func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTest
 
 func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
 
+var toValidUTF8Tests = []struct {
+	in   string
+	repl string
+	out  string
+}{
+	{"", "\uFFFD", ""},
+	{"abc", "\uFFFD", "abc"},
+	{"\uFDDD", "\uFFFD", "\uFDDD"},
+	{"a\xffb", "\uFFFD", "a\uFFFDb"},
+	{"a\xffb\uFFFD", "X", "aXb\uFFFD"},
+	{"a☺\xffb☺\xC0\xAFc☺\xff", "", "a☺b☺c☺"},
+	{"a☺\xffb☺\xC0\xAFc☺\xff", "日本語", "a☺日本語b☺日本語c☺日本語"},
+	{"\xC0\xAF", "\uFFFD", "\uFFFD"},
+	{"\xE0\x80\xAF", "\uFFFD", "\uFFFD"},
+	{"\xed\xa0\x80", "abc", "abc"},
+	{"\xed\xbf\xbf", "\uFFFD", "\uFFFD"},
+	{"\xF0\x80\x80\xaf", "☺", "☺"},
+	{"\xF8\x80\x80\x80\xAF", "\uFFFD", "\uFFFD"},
+	{"\xFC\x80\x80\x80\x80\xAF", "\uFFFD", "\uFFFD"},
+}
+
+func TestToValidUTF8(t *testing.T) {
+	for _, tc := range toValidUTF8Tests {
+		got := ToValidUTF8(tc.in, tc.repl)
+		if got != tc.out {
+			t.Errorf("ToValidUTF8(%q, %q) = %q; want %q", tc.in, tc.repl, got, tc.out)
+		}
+	}
+}
+
 func BenchmarkToUpper(b *testing.B) {
 	for _, tc := range upperTests {
 		b.Run(tc.in, func(b *testing.B) {
@@ -848,6 +878,26 @@ func BenchmarkTrim(b *testing.B) {
 				b.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.arg, actual, tc.out)
 			}
 		}
+	}
+}
+
+func BenchmarkToValidUTF8(b *testing.B) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"Valid", "typical"},
+		{"InvalidASCII", "foo\xffbar"},
+		{"InvalidNonASCII", "日本語\xff日本語"},
+	}
+	replacement := "\uFFFD"
+	b.ResetTimer()
+	for _, test := range tests {
+		b.Run(test.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				ToValidUTF8(test.input, replacement)
+			}
+		})
 	}
 }
 

@@ -592,6 +592,35 @@ func ToTitleSpecial(c unicode.SpecialCase, s []byte) []byte {
 	return Map(c.ToTitle, s)
 }
 
+// ToValidUTF8 treats s as UTF-8-encoded bytes and returns a copy with each run of bytes
+// representing invalid UTF-8 replaced with the bytes in replacement, which may be empty.
+func ToValidUTF8(s, replacement []byte) []byte {
+	b := make([]byte, 0, len(s)+len(replacement))
+	invalid := false // previous byte was from an invalid UTF-8 sequence
+	for i := 0; i < len(s); {
+		c := s[i]
+		if c < utf8.RuneSelf {
+			i++
+			invalid = false
+			b = append(b, byte(c))
+			continue
+		}
+		_, wid := utf8.DecodeRune(s[i:])
+		if wid == 1 {
+			i++
+			if !invalid {
+				invalid = true
+				b = append(b, replacement...)
+			}
+			continue
+		}
+		invalid = false
+		b = append(b, s[i:i+wid]...)
+		i += wid
+	}
+	return b
+}
+
 // isSeparator reports whether the rune could mark a word boundary.
 // TODO: update when package unicode captures more of the properties.
 func isSeparator(r rune) bool {
