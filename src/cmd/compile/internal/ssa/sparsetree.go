@@ -98,9 +98,9 @@ func (t SparseTree) treestructure1(b *Block, i int) string {
 	s := "\n" + strings.Repeat("\t", i) + b.String() + "->["
 	for i, e := range b.Succs {
 		if i > 0 {
-			s = s + ","
+			s += ","
 		}
-		s = s + e.b.String()
+		s += e.b.String()
 	}
 	s += "]"
 	if c0 := t[b.ID].child; c0 != nil {
