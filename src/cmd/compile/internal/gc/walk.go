@@ -1460,7 +1460,9 @@ opswitch:
 				as := nod(OAS,
 					nod(OIND, p, nil),
 					nod(OIND, convnop(nod(OSPTR, s, nil), t.PtrTo()), nil))
-				init.Append(typecheck(as, Etop))
+				as = typecheck(as, Etop)
+				as = walkstmt(as)
+				init.Append(as)
 			}
 
 			// Slice the [n]byte to a []byte.
