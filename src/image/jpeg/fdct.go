@@ -123,14 +123,14 @@ func fdct(b *block) {
 		tmp13 = tmp1 + tmp3
 		z1 = (tmp12 + tmp13) * fix_1_175875602
 		z1 += 1 << (constBits - pass1Bits - 1)
-		tmp0 = tmp0 * fix_1_501321110
-		tmp1 = tmp1 * fix_3_072711026
-		tmp2 = tmp2 * fix_2_053119869
-		tmp3 = tmp3 * fix_0_298631336
-		tmp10 = tmp10 * -fix_0_899976223
-		tmp11 = tmp11 * -fix_2_562915447
-		tmp12 = tmp12 * -fix_0_390180644
-		tmp13 = tmp13 * -fix_1_961570560
+		tmp0 *= fix_1_501321110
+		tmp1 *= fix_3_072711026
+		tmp2 *= fix_2_053119869
+		tmp3 *= fix_0_298631336
+		tmp10 *= -fix_0_899976223
+		tmp11 *= -fix_2_562915447
+		tmp12 *= -fix_0_390180644
+		tmp13 *= -fix_1_961570560
 
 		tmp12 += z1
 		tmp13 += z1
@@ -171,14 +171,14 @@ func fdct(b *block) {
 		tmp13 = tmp1 + tmp3
 		z1 = (tmp12 + tmp13) * fix_1_175875602
 		z1 += 1 << (constBits + pass1Bits - 1)
-		tmp0 = tmp0 * fix_1_501321110
-		tmp1 = tmp1 * fix_3_072711026
-		tmp2 = tmp2 * fix_2_053119869
-		tmp3 = tmp3 * fix_0_298631336
-		tmp10 = tmp10 * -fix_0_899976223
-		tmp11 = tmp11 * -fix_2_562915447
-		tmp12 = tmp12 * -fix_0_390180644
-		tmp13 = tmp13 * -fix_1_961570560
+		tmp0 *= fix_1_501321110
+		tmp1 *= fix_3_072711026
+		tmp2 *= fix_2_053119869
+		tmp3 *= fix_0_298631336
+		tmp10 *= -fix_0_899976223
+		tmp11 *= -fix_2_562915447
+		tmp12 *= -fix_0_390180644
+		tmp13 *= -fix_1_961570560
 
 		tmp12 += z1
 		tmp13 += z1
