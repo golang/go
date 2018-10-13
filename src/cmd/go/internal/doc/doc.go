@@ -106,6 +106,8 @@ Examples:
 	cd go/src/encoding/json; go doc decode
 
 Flags:
+	-all
+		Show all the documentation for the package.
 	-c
 		Respect case when matching symbols.
 	-cmd
