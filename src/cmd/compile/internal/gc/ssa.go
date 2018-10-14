@@ -2321,6 +2321,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 		data := s.expr(n.Right)
 		return s.newValue2(ssa.OpIMake, n.Type, tab, data)
 
+	case OSLICEHEADER:
+		p := s.expr(n.Left)
+		l := s.expr(n.List.First())
+		c := s.expr(n.List.Second())
+		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
+
 	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR:
 		v := s.expr(n.Left)
 		var i, j, k *ssa.Value
