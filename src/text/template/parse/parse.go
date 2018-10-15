@@ -148,9 +148,6 @@ func (t *Tree) ErrorContext(n Node) (location, context string) {
 	}
 	lineNum := 1 + strings.Count(text, "\n")
 	context = n.String()
-	if len(context) > 20 {
-		context = fmt.Sprintf("%.20s...", context)
-	}
 	return fmt.Sprintf("%s:%d:%d", tree.ParseName, lineNum, byteNum), context
 }
 
