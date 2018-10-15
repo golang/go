@@ -463,8 +463,18 @@ func Map(mapping func(rune) rune, s string) string {
 
 	for i, c := range s {
 		r := mapping(c)
-		if r == c {
+		if r == c && c != utf8.RuneError {
 			continue
+		}
+
+		var width int
+		if c == utf8.RuneError {
+			c, width = utf8.DecodeRuneInString(s[i:])
+			if width != 1 && r == c {
+				continue
+			}
+		} else {
+			width = utf8.RuneLen(c)
 		}
 
 		b.Grow(len(s) + utf8.UTFMax)
@@ -473,17 +483,7 @@ func Map(mapping func(rune) rune, s string) string {
 			b.WriteRune(r)
 		}
 
-		if c == utf8.RuneError {
-			// RuneError is the result of either decoding
-			// an invalid sequence or '\uFFFD'. Determine
-			// the correct number of bytes we need to advance.
-			_, w := utf8.DecodeRuneInString(s[i:])
-			i += w
-		} else {
-			i += utf8.RuneLen(c)
-		}
-
-		s = s[i:]
+		s = s[i+width:]
 		break
 	}
 
@@ -561,15 +561,16 @@ func ToUpper(s string) string {
 		if !hasLower {
 			return s
 		}
-		b := make([]byte, len(s))
+		var b Builder
+		b.Grow(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
 			if c >= 'a' && c <= 'z' {
 				c -= 'a' - 'A'
 			}
-			b[i] = c
+			b.WriteByte(c)
 		}
-		return string(b)
+		return b.String()
 	}
 	return Map(unicode.ToUpper, s)
 }
@@ -590,15 +591,16 @@ func ToLower(s string) string {
 		if !hasUpper {
 			return s
 		}
-		b := make([]byte, len(s))
+		var b Builder
+		b.Grow(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
 			if c >= 'A' && c <= 'Z' {
 				c += 'a' - 'A'
 			}
-			b[i] = c
+			b.WriteByte(c)
 		}
-		return string(b)
+		return b.String()
 	}
 	return Map(unicode.ToLower, s)
 }
@@ -872,6 +874,15 @@ func Replace(s, old, new string, n int) string {
 	return string(t[0:w])
 }
 
+// ReplaceAll returns a copy of the string s with all
+// non-overlapping instances of old replaced by new.
+// If old is empty, it matches at the beginning of the string
+// and after each UTF-8 sequence, yielding up to k+1 replacements
+// for a k-rune string.
+func ReplaceAll(s, old, new string) string {
+	return Replace(s, old, new, -1)
+}
+
 // EqualFold reports whether s and t, interpreted as UTF-8 strings,
 // are equal under Unicode case-folding.
 func EqualFold(s, t string) bool {
@@ -947,21 +958,22 @@ func Index(s, substr string) int {
 		if len(s) <= bytealg.MaxBruteForce {
 			return bytealg.IndexString(s, substr)
 		}
-		c := substr[0]
+		c0 := substr[0]
+		c1 := substr[1]
 		i := 0
-		t := s[:len(s)-n+1]
+		t := len(s) - n + 1
 		fails := 0
-		for i < len(t) {
-			if t[i] != c {
+		for i < t {
+			if s[i] != c0 {
 				// IndexByte is faster than bytealg.IndexString, so use it as long as
 				// we're not getting lots of false positives.
-				o := IndexByte(t[i:], c)
+				o := IndexByte(s[i:t], c0)
 				if o < 0 {
 					return -1
 				}
 				i += o
 			}
-			if s[i:i+n] == substr {
+			if s[i+1] == c1 && s[i:i+n] == substr {
 				return i
 			}
 			fails++
@@ -977,24 +989,25 @@ func Index(s, substr string) int {
 		}
 		return -1
 	}
-	c := substr[0]
+	c0 := substr[0]
+	c1 := substr[1]
 	i := 0
-	t := s[:len(s)-n+1]
+	t := len(s) - n + 1
 	fails := 0
-	for i < len(t) {
-		if t[i] != c {
-			o := IndexByte(t[i:], c)
+	for i < t {
+		if s[i] != c0 {
+			o := IndexByte(s[i:t], c0)
 			if o < 0 {
 				return -1
 			}
 			i += o
 		}
-		if s[i:i+n] == substr {
+		if s[i+1] == c1 && s[i:i+n] == substr {
 			return i
 		}
 		i++
 		fails++
-		if fails >= 4+i>>4 && i < len(t) {
+		if fails >= 4+i>>4 && i < t {
 			// See comment in ../bytes/bytes_generic.go.
 			j := indexRabinKarp(s[i:], substr)
 			if j < 0 {

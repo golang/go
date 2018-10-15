@@ -131,15 +131,10 @@ func (byteFormatter) Format(f State, _ rune) {
 
 var byteFormatterSlice = []byteFormatter{'h', 'e', 'l', 'l', 'o'}
 
-// Copy of io.stringWriter interface used by writeStringFormatter for type assertion.
-type stringWriter interface {
-	WriteString(s string) (n int, err error)
-}
-
 type writeStringFormatter string
 
 func (sf writeStringFormatter) Format(f State, c rune) {
-	if sw, ok := f.(stringWriter); ok {
+	if sw, ok := f.(io.StringWriter); ok {
 		sw.WriteString("***" + string(sf) + "***")
 	}
 }

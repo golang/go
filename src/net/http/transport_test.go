@@ -4753,7 +4753,7 @@ func TestClientTimeoutKillsConn_BeforeHeaders(t *testing.T) {
 		}
 	case <-time.After(timeout * 10):
 		// If we didn't get into the Handler in 50ms, that probably means
-		// the builder was just slow and the the Get failed in that time
+		// the builder was just slow and the Get failed in that time
 		// but never made it to the server. That's fine. We'll usually
 		// test the part above on faster machines.
 		t.Skip("skipping test on slow builder")
@@ -4764,7 +4764,7 @@ func TestClientTimeoutKillsConn_BeforeHeaders(t *testing.T) {
 // conn is closed so that it's not reused.
 //
 // This is the test variant that has the server send response headers
-// first, and time out during the the write of the response body.
+// first, and time out during the write of the response body.
 func TestClientTimeoutKillsConn_AfterHeaders(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)

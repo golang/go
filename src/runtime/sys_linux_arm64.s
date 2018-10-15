@@ -36,7 +36,7 @@
 #define SYS_getpid		172
 #define SYS_gettid		178
 #define SYS_kill		129
-#define SYS_tkill		130
+#define SYS_tgkill		131
 #define SYS_futex		98
 #define SYS_sched_getaffinity	123
 #define SYS_exit_group		94
@@ -143,11 +143,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
+	MOVD	$SYS_getpid, R8
+	SVC
+	MOVW	R0, R19
 	MOVD	$SYS_gettid, R8
 	SVC
-	MOVW	R0, R0	// arg 1 tid
-	MOVW	sig+0(FP), R1	// arg 2
-	MOVD	$SYS_tkill, R8
+	MOVW	R0, R1	// arg 2 tid
+	MOVW	R19, R0	// arg 1 pid
+	MOVW	sig+0(FP), R2	// arg 3
+	MOVD	$SYS_tgkill, R8
 	SVC
 	RET
 
@@ -397,7 +401,7 @@ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+16(FP), R2
 	MOVD	$SYS_madvise, R8
 	SVC
-	// ignore failure - maybe pages are locked
+	MOVW	R0, ret+24(FP)
 	RET
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,

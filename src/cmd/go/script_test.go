@@ -329,7 +329,7 @@ func (ts *testScript) cmdAddcrlf(neg bool, args []string) {
 		file = ts.mkabs(file)
 		data, err := ioutil.ReadFile(file)
 		ts.check(err)
-		ts.check(ioutil.WriteFile(file, bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1), 0666))
+		ts.check(ioutil.WriteFile(file, bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n")), 0666))
 	}
 }
 
@@ -630,7 +630,7 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
 	}
 
 	// Matching against workdir would be misleading.
-	text = strings.Replace(text, ts.workdir, "$WORK", -1)
+	text = strings.ReplaceAll(text, ts.workdir, "$WORK")
 
 	if neg {
 		if re.MatchString(text) {
@@ -691,7 +691,7 @@ func (ts *testScript) cmdSymlink(neg bool, args []string) {
 
 // abbrev abbreviates the actual work directory in the string s to the literal string "$WORK".
 func (ts *testScript) abbrev(s string) string {
-	s = strings.Replace(s, ts.workdir, "$WORK", -1)
+	s = strings.ReplaceAll(s, ts.workdir, "$WORK")
 	if *testWork {
 		// Expose actual $WORK value in environment dump on first line of work script,
 		// so that the user can find out what directory -testwork left behind.
@@ -885,17 +885,17 @@ var diffTests = []struct {
 func TestDiff(t *testing.T) {
 	for _, tt := range diffTests {
 		// Turn spaces into \n.
-		text1 := strings.Replace(tt.text1, " ", "\n", -1)
+		text1 := strings.ReplaceAll(tt.text1, " ", "\n")
 		if text1 != "" {
 			text1 += "\n"
 		}
-		text2 := strings.Replace(tt.text2, " ", "\n", -1)
+		text2 := strings.ReplaceAll(tt.text2, " ", "\n")
 		if text2 != "" {
 			text2 += "\n"
 		}
 		out := diff(text1, text2)
 		// Cut final \n, cut spaces, turn remaining \n into spaces.
-		out = strings.Replace(strings.Replace(strings.TrimSuffix(out, "\n"), " ", "", -1), "\n", " ", -1)
+		out = strings.ReplaceAll(strings.ReplaceAll(strings.TrimSuffix(out, "\n"), " ", ""), "\n", " ")
 		if out != tt.diff {
 			t.Errorf("diff(%q, %q) = %q, want %q", text1, text2, out, tt.diff)
 		}

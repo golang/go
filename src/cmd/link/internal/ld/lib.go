@@ -1380,9 +1380,58 @@ func linkerFlagSupported(linker, flag string) bool {
 		}
 	})
 
+	flagsWithNextArgSkip := []string{
+		"-F",
+		"-l",
+		"-L",
+		"-framework",
+		"-Wl,-framework",
+		"-Wl,-rpath",
+		"-Wl,-undefined",
+	}
+	flagsWithNextArgKeep := []string{
+		"-arch",
+		"-isysroot",
+		"--sysroot",
+		"-target",
+	}
+	prefixesToKeep := []string{
+		"-f",
+		"-m",
+		"-p",
+		"-Wl,",
+		"-arch",
+		"-isysroot",
+		"--sysroot",
+		"-target",
+	}
+
 	var flags []string
-	flags = append(flags, ldflag...)
-	flags = append(flags, strings.Fields(*flagExtldflags)...)
+	keep := false
+	skip := false
+	extldflags := strings.Fields(*flagExtldflags)
+	for _, f := range append(extldflags, ldflag...) {
+		if keep {
+			flags = append(flags, f)
+			keep = false
+		} else if skip {
+			skip = false
+		} else if f == "" || f[0] != '-' {
+		} else if contains(flagsWithNextArgSkip, f) {
+			skip = true
+		} else if contains(flagsWithNextArgKeep, f) {
+			flags = append(flags, f)
+			keep = true
+		} else {
+			for _, p := range prefixesToKeep {
+				if strings.HasPrefix(f, p) {
+					flags = append(flags, f)
+					break
+				}
+			}
+		}
+	}
+
 	flags = append(flags, flag, "trivial.c")
 
 	cmd := exec.Command(linker, flags...)
@@ -1756,26 +1805,6 @@ func addsection(arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Sec
 	sect.Align = int32(arch.PtrSize) // everything is at least pointer-aligned
 	seg.Sections = append(seg.Sections, sect)
 	return sect
-}
-
-func Le16(b []byte) uint16 {
-	return uint16(b[0]) | uint16(b[1])<<8
-}
-
-func Le32(b []byte) uint32 {
-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
-}
-
-func Le64(b []byte) uint64 {
-	return uint64(Le32(b)) | uint64(Le32(b[4:]))<<32
-}
-
-func Be16(b []byte) uint16 {
-	return uint16(b[0])<<8 | uint16(b[1])
-}
-
-func Be32(b []byte) uint32 {
-	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
 }
 
 type chain struct {

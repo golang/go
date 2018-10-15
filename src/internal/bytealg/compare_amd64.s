@@ -63,7 +63,7 @@ loop:
 	ADDQ	$16, DI
 	SUBQ	$16, R8
 	JMP	loop
-	
+
 diff64:
 	ADDQ	$48, SI
 	ADDQ	$48, DI

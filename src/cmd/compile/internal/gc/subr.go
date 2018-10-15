@@ -364,9 +364,35 @@ func nodSym(op Op, left *Node, sym *types.Sym) *Node {
 	return n
 }
 
+// rawcopy returns a shallow copy of n.
+// Note: copy or sepcopy (rather than rawcopy) is usually the
+//       correct choice (see comment with Node.copy, below).
+func (n *Node) rawcopy() *Node {
+	copy := *n
+	return &copy
+}
+
+// sepcopy returns a separate shallow copy of n, with the copy's
+// Orig pointing to itself.
+func (n *Node) sepcopy() *Node {
+	copy := *n
+	copy.Orig = &copy
+	return &copy
+}
+
+// copy returns shallow copy of n and adjusts the copy's Orig if
+// necessary: In general, if n.Orig points to itself, the copy's
+// Orig should point to itself as well. Otherwise, if n is modified,
+// the copy's Orig node appears modified, too, and then doesn't
+// represent the original node anymore.
+// (This caused the wrong complit Op to be used when printing error
+// messages; see issues #26855, #27765).
 func (n *Node) copy() *Node {
-	n2 := *n
-	return &n2
+	copy := *n
+	if n.Orig == n {
+		copy.Orig = &copy
+	}
+	return &copy
 }
 
 // methcmp sorts methods by symbol.
@@ -412,8 +438,7 @@ func treecopy(n *Node, pos src.XPos) *Node {
 
 	switch n.Op {
 	default:
-		m := n.copy()
-		m.Orig = m
+		m := n.sepcopy()
 		m.Left = treecopy(n.Left, pos)
 		m.Right = treecopy(n.Right, pos)
 		m.List.Set(listtreecopy(n.List.Slice(), pos))

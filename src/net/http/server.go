@@ -1093,13 +1093,34 @@ func checkWriteHeaderCode(code int) {
 	}
 }
 
+// relevantCaller searches the call stack for the first function outside of net/http.
+// The purpose of this function is to provide more helpful error messages.
+func relevantCaller() runtime.Frame {
+	pc := make([]uintptr, 16)
+	n := runtime.Callers(1, pc)
+	frames := runtime.CallersFrames(pc[:n])
+	var frame runtime.Frame
+	for {
+		frame, more := frames.Next()
+		if !strings.HasPrefix(frame.Function, "net/http.") {
+			return frame
+		}
+		if !more {
+			break
+		}
+	}
+	return frame
+}
+
 func (w *response) WriteHeader(code int) {
 	if w.conn.hijacked() {
-		w.conn.server.logf("http: response.WriteHeader on hijacked connection")
+		caller := relevantCaller()
+		w.conn.server.logf("http: response.WriteHeader on hijacked connection from %s (%s:%d)", caller.Function, path.Base(caller.File), caller.Line)
 		return
 	}
 	if w.wroteHeader {
-		w.conn.server.logf("http: multiple response.WriteHeader calls")
+		caller := relevantCaller()
+		w.conn.server.logf("http: superfluous response.WriteHeader call from %s (%s:%d)", caller.Function, path.Base(caller.File), caller.Line)
 		return
 	}
 	checkWriteHeaderCode(code)
@@ -1529,7 +1550,8 @@ func (w *response) WriteString(data string) (n int, err error) {
 func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err error) {
 	if w.conn.hijacked() {
 		if lenData > 0 {
-			w.conn.server.logf("http: response.Write on hijacked connection")
+			caller := relevantCaller()
+			w.conn.server.logf("http: response.Write on hijacked connection from %s (%s:%d)", caller.Function, path.Base(caller.File), caller.Line)
 		}
 		return 0, ErrHijacked
 	}

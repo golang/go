@@ -3415,6 +3415,58 @@ func TestConnectionLeak(t *testing.T) {
 	wg.Wait()
 }
 
+func TestStatsMaxIdleClosedZero(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(0)
+
+	preMaxIdleClosed := db.Stats().MaxIdleClosed
+
+	for i := 0; i < 10; i++ {
+		rows, err := db.Query("SELECT|people|name|")
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows.Close()
+	}
+
+	st := db.Stats()
+	maxIdleClosed := st.MaxIdleClosed - preMaxIdleClosed
+	t.Logf("MaxIdleClosed: %d", maxIdleClosed)
+	if maxIdleClosed != 0 {
+		t.Fatal("expected 0 max idle closed conns, got: ", maxIdleClosed)
+	}
+}
+
+func TestStatsMaxIdleClosedTen(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(0)
+	db.SetConnMaxLifetime(0)
+
+	preMaxIdleClosed := db.Stats().MaxIdleClosed
+
+	for i := 0; i < 10; i++ {
+		rows, err := db.Query("SELECT|people|name|")
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows.Close()
+	}
+
+	st := db.Stats()
+	maxIdleClosed := st.MaxIdleClosed - preMaxIdleClosed
+	t.Logf("MaxIdleClosed: %d", maxIdleClosed)
+	if maxIdleClosed != 10 {
+		t.Fatal("expected 0 max idle closed conns, got: ", maxIdleClosed)
+	}
+}
+
 type nvcDriver struct {
 	fakeDriver
 	skipNamedValueCheck bool

@@ -348,6 +348,20 @@ updating. See the <a href="go1.10.html#cgo">Go 1.10 release notes</a> for
 details. <!-- CL 126275, CL 127156, CL 122217, CL 122575, CL 123177 -->
 </p>
 
+<h3 id="go_command">Go command</h3>
+
+<p><!-- CL 126656 -->
+  The environment variable <code>GOFLAGS</code> may now be used
+  to set default flags for the <code>go</code> command.
+  This is useful in certain situations.
+  Linking can be noticeably slower on underpowered systems due to DWARF,
+  and users may want to set <code>-ldflags=-w</code> by default.
+  For modules, some users and CI systems will want vendoring always,
+  so they should set <code>-mod=vendor</code> by default.
+  For more information, see the <a href="/cmd/go/#hdr-Environment_variables"><code>go</code>
+  command documentation</a>.
+</p>
+
 <h3 id="godoc">Godoc</h3>
 
 <p>

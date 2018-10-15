@@ -211,7 +211,13 @@ func (fs *fileStat) loadFileId() error {
 	if err != nil {
 		return err
 	}
-	h, err := syscall.CreateFile(pathp, 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
+	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS)
+	if fs.isSymlink() {
+		// Use FILE_FLAG_OPEN_REPARSE_POINT, otherwise CreateFile will follow symlink.
+		// See https://docs.microsoft.com/en-us/windows/desktop/FileIO/symbolic-link-effects-on-file-systems-functions#createfile-and-createfiletransacted
+		attrs |= syscall.FILE_FLAG_OPEN_REPARSE_POINT
+	}
+	h, err := syscall.CreateFile(pathp, 0, 0, nil, syscall.OPEN_EXISTING, attrs, 0)
 	if err != nil {
 		return err
 	}

@@ -10,6 +10,7 @@
 // +build !linux !arm64
 // +build !js
 // +build !darwin
+// +build !aix
 
 package runtime
 

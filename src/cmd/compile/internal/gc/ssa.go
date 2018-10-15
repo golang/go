@@ -16,6 +16,7 @@ import (
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 )
@@ -754,8 +755,8 @@ func (s *state) stmtList(l Nodes) {
 
 // stmt converts the statement n to SSA and adds it to s.
 func (s *state) stmt(n *Node) {
-	if !(n.Op == OVARKILL || n.Op == OVARLIVE) {
-		// OVARKILL and OVARLIVE are invisible to the programmer, so we don't use their line numbers to avoid confusion in debugging.
+	if !(n.Op == OVARKILL || n.Op == OVARLIVE || n.Op == OVARDEF) {
+		// OVARKILL, OVARLIVE, and OVARDEF are invisible to the programmer, so we don't use their line numbers to avoid confusion in debugging.
 		s.pushLine(n.Pos)
 		defer s.popLine()
 	}
@@ -1169,6 +1170,10 @@ func (s *state) stmt(n *Node) {
 		}
 		s.startBlock(bEnd)
 
+	case OVARDEF:
+		if !s.canSSA(n.Left) {
+			s.vars[&memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, n.Left, s.mem(), false)
+		}
 	case OVARKILL:
 		// Insert a varkill op to record that a variable is no longer live.
 		// We only care about liveness info at call sites, so putting the
@@ -3149,12 +3154,12 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpRoundToEven, types.Types[TFLOAT64], args[0])
 		},
-		sys.S390X)
+		sys.ARM64, sys.S390X)
 	addF("math", "Abs",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpAbs, types.Types[TFLOAT64], args[0])
 		},
-		sys.PPC64)
+		sys.ARM64, sys.PPC64)
 	addF("math", "Copysign",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpCopysign, types.Types[TFLOAT64], args[0], args[1])
@@ -3361,12 +3366,12 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft32, types.Types[TUINT32], args[0], args[1])
 		},
-		sys.AMD64, sys.S390X)
+		sys.AMD64, sys.ARM64, sys.S390X)
 	addF("math/bits", "RotateLeft64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft64, types.Types[TUINT64], args[0], args[1])
 		},
-		sys.AMD64, sys.S390X)
+		sys.AMD64, sys.ARM64, sys.S390X)
 	alias("math/bits", "RotateLeft", "math/bits", "RotateLeft64", p8...)
 
 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
@@ -3435,6 +3440,12 @@ func init() {
 	addF("math/bits", "OnesCount",
 		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount32),
 		sys.AMD64)
+	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64)
+	addF("math/bits", "Mul64",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1])
+		},
+		sys.AMD64, sys.ARM64, sys.PPC64)
 
 	/******** sync/atomic ********/
 
@@ -4927,6 +4938,57 @@ func (s *SSAGenState) DebugFriendlySetPosFrom(v *ssa.Value) {
 	}
 }
 
+// byXoffset implements sort.Interface for []*Node using Xoffset as the ordering.
+type byXoffset []*Node
+
+func (s byXoffset) Len() int           { return len(s) }
+func (s byXoffset) Less(i, j int) bool { return s[i].Xoffset < s[j].Xoffset }
+func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+func emitStackObjects(e *ssafn, pp *Progs) {
+	var vars []*Node
+	for _, n := range e.curfn.Func.Dcl {
+		if livenessShouldTrack(n) && n.Addrtaken() {
+			vars = append(vars, n)
+		}
+	}
+	if len(vars) == 0 {
+		return
+	}
+
+	// Sort variables from lowest to highest address.
+	sort.Sort(byXoffset(vars))
+
+	// Populate the stack object data.
+	// Format must match runtime/stack.go:stackObjectRecord.
+	x := e.curfn.Func.lsym.Func.StackObjects
+	off := 0
+	off = duintptr(x, off, uint64(len(vars)))
+	for _, v := range vars {
+		// Note: arguments and return values have non-negative Xoffset,
+		// in which case the offset is relative to argp.
+		// Locals have a negative Xoffset, in which case the offset is relative to varp.
+		off = duintptr(x, off, uint64(v.Xoffset))
+		if !typesym(v.Type).Siggen() {
+			Fatalf("stack object's type symbol not generated for type %s", v.Type)
+		}
+		off = dsymptr(x, off, dtypesym(v.Type), 0)
+	}
+
+	// Emit a funcdata pointing at the stack object data.
+	p := pp.Prog(obj.AFUNCDATA)
+	Addrconst(&p.From, objabi.FUNCDATA_StackObjects)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = x
+
+	if debuglive != 0 {
+		for _, v := range vars {
+			Warnl(v.Pos, "stack object %v %s", v, v.Type.String())
+		}
+	}
+}
+
 // genssa appends entries to pp for each instruction in f.
 func genssa(f *ssa.Func, pp *Progs) {
 	var s SSAGenState
@@ -4934,6 +4996,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 	e := f.Frontend().(*ssafn)
 
 	s.livenessMap = liveness(e, f)
+	emitStackObjects(e, pp)
 
 	// Remember where each block starts.
 	s.bstart = make([]*obj.Prog, f.NumBlocks())
@@ -5003,24 +5066,8 @@ func genssa(f *ssa.Func, pp *Progs) {
 			case ssa.OpGetG:
 				// nothing to do when there's a g register,
 				// and checkLower complains if there's not
-			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive:
+			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive, ssa.OpVarKill:
 				// nothing to do; already used by liveness
-			case ssa.OpVarKill:
-				// Zero variable if it is ambiguously live.
-				// After the VARKILL anything this variable references
-				// might be collected. If it were to become live again later,
-				// the GC will see references to already-collected objects.
-				// See issue 20029.
-				n := v.Aux.(*Node)
-				if n.Name.Needzero() {
-					if n.Class() != PAUTO {
-						v.Fatalf("zero of variable which isn't PAUTO %v", n)
-					}
-					if n.Type.Size()%int64(Widthptr) != 0 {
-						v.Fatalf("zero of variable not a multiple of ptr size %v", n)
-					}
-					thearch.ZeroAuto(s.pp, n)
-				}
 			case ssa.OpPhi:
 				CheckLoweredPhi(v)
 			case ssa.OpConvert:
@@ -5048,7 +5095,6 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 			}
 		}
-
 		// Emit control flow instructions for block
 		var next *ssa.Block
 		if i < len(f.Blocks)-1 && Debug['N'] == 0 {

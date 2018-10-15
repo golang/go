@@ -1469,8 +1469,10 @@ func (t *tester) packageHasBenchmarks(pkg string) bool {
 // because cmd/dist has to be buildable by Go 1.4.
 func raceDetectorSupported(goos, goarch string) bool {
 	switch goos {
-	case "linux", "darwin", "freebsd", "netbsd", "windows":
+	case "linux":
 		return goarch == "amd64" || goarch == "ppc64le"
+	case "darwin", "freebsd", "netbsd", "windows":
+		return goarch == "amd64"
 	default:
 		return false
 	}

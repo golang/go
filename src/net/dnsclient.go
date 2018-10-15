@@ -75,7 +75,7 @@ func isDomainName(s string) bool {
 	}
 
 	last := byte('.')
-	ok := false // Ok once we've seen a letter.
+	nonNumeric := false // true once we've seen a letter or hyphen
 	partlen := 0
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -83,7 +83,7 @@ func isDomainName(s string) bool {
 		default:
 			return false
 		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '_':
-			ok = true
+			nonNumeric = true
 			partlen++
 		case '0' <= c && c <= '9':
 			// fine
@@ -94,6 +94,7 @@ func isDomainName(s string) bool {
 				return false
 			}
 			partlen++
+			nonNumeric = true
 		case c == '.':
 			// Byte before dot cannot be dot, dash.
 			if last == '.' || last == '-' {
@@ -110,7 +111,7 @@ func isDomainName(s string) bool {
 		return false
 	}
 
-	return ok
+	return nonNumeric
 }
 
 // absDomainName returns an absolute domain name which ends with a

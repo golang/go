@@ -1705,14 +1705,14 @@ func (b *Builder) fmtcmd(dir string, format string, args ...interface{}) string 
 		if dir[len(dir)-1] == filepath.Separator {
 			dot += string(filepath.Separator)
 		}
-		cmd = strings.Replace(" "+cmd, " "+dir, dot, -1)[1:]
+		cmd = strings.ReplaceAll(" "+cmd, " "+dir, dot)[1:]
 		if b.scriptDir != dir {
 			b.scriptDir = dir
 			cmd = "cd " + dir + "\n" + cmd
 		}
 	}
 	if b.WorkDir != "" {
-		cmd = strings.Replace(cmd, b.WorkDir, "$WORK", -1)
+		cmd = strings.ReplaceAll(cmd, b.WorkDir, "$WORK")
 	}
 	return cmd
 }
@@ -1754,10 +1754,10 @@ func (b *Builder) showOutput(a *Action, dir, desc, out string) {
 	prefix := "# " + desc
 	suffix := "\n" + out
 	if reldir := base.ShortPath(dir); reldir != dir {
-		suffix = strings.Replace(suffix, " "+dir, " "+reldir, -1)
-		suffix = strings.Replace(suffix, "\n"+dir, "\n"+reldir, -1)
+		suffix = strings.ReplaceAll(suffix, " "+dir, " "+reldir)
+		suffix = strings.ReplaceAll(suffix, "\n"+dir, "\n"+reldir)
 	}
-	suffix = strings.Replace(suffix, " "+b.WorkDir, " $WORK", -1)
+	suffix = strings.ReplaceAll(suffix, " "+b.WorkDir, " $WORK")
 
 	if a != nil && a.output != nil {
 		a.output = append(a.output, prefix...)

@@ -646,10 +646,10 @@ func TestMap(t *testing.T) {
 		if unicode.Is(unicode.Latin, r) {
 			return r
 		}
-		return '?'
+		return utf8.RuneError
 	}
 	m = Map(replaceNotLatin, "Hello\255World")
-	expect = "Hello?World"
+	expect = "Hello\uFFFDWorld"
 	if m != expect {
 		t.Errorf("replace invalid sequence: expected %q got %q", expect, m)
 	}
@@ -1242,6 +1242,12 @@ func TestReplace(t *testing.T) {
 	for _, tt := range ReplaceTests {
 		if s := Replace(tt.in, tt.old, tt.new, tt.n); s != tt.out {
 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
+		}
+		if tt.n == -1 {
+			s := ReplaceAll(tt.in, tt.old, tt.new)
+			if s != tt.out {
+				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
+			}
 		}
 	}
 }

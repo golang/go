@@ -23,7 +23,7 @@ TEXT runtime·lwp_create(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
-	
+
 	// Set FS to point at m->tls.
 	LEAQ	m_tls(R8), DI
 	CALL	runtime·settls(SB)
@@ -319,7 +319,9 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	flags+16(FP), DX	// arg 3 - behav
 	MOVQ	$75, AX			// sys_madvise
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	JCC	2(PC)
+	MOVL	$-1, AX
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8

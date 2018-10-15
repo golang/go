@@ -38,10 +38,10 @@ func TestFixLongPath(t *testing.T) {
 		{`\\?\c:\long\foo.txt`, `\\?\c:\long\foo.txt`},
 		{`\\?\c:\long/foo.txt`, `\\?\c:\long/foo.txt`},
 	} {
-		in := strings.Replace(test.in, "long", veryLong, -1)
-		want := strings.Replace(test.want, "long", veryLong, -1)
+		in := strings.ReplaceAll(test.in, "long", veryLong)
+		want := strings.ReplaceAll(test.want, "long", veryLong)
 		if got := os.FixLongPath(in); got != want {
-			got = strings.Replace(got, veryLong, "long", -1)
+			got = strings.ReplaceAll(got, veryLong, "long")
 			t.Errorf("fixLongPath(%q) = %q; want %q", test.in, got, test.want)
 		}
 	}

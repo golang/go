@@ -334,13 +334,13 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
 	// check that g exists
 	get_tls(CX)
 	MOVL	g(CX), DI
-	
+
 	CMPL	DI, $0
 	JEQ	nog
 
 	// save g
 	MOVL	DI, 20(SP)
-	
+
 	// g = m->gsignal
 	MOVL	g_m(DI), BX
 	MOVL	m_gsignal(BX), BX

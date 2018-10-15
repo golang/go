@@ -24,7 +24,7 @@ TEXT ·Cos(SB),NOSPLIT,$0
 	FCOS                 // F0=cos(reduced_x)
 	FMOVDP  F0, ret+8(FP)
 	RET
-	
+
 // func Sin(x float64) float64
 TEXT ·Sin(SB),NOSPLIT,$0
 	FMOVD   x+0(FP), F0  // F0=x

@@ -273,7 +273,7 @@ func main() {
 	// Accept space-separated tags because that matches
 	// the go command's other subcommands.
 	// Accept commas because go tool vet traditionally has.
-	tagList = strings.Fields(strings.Replace(*tags, ",", " ", -1))
+	tagList = strings.Fields(strings.ReplaceAll(*tags, ",", " "))
 
 	initPrintFlags()
 	initUnusedFlags()
@@ -467,6 +467,7 @@ type Package struct {
 	path      string
 	defs      map[*ast.Ident]types.Object
 	uses      map[*ast.Ident]types.Object
+	implicits map[ast.Node]types.Object
 	selectors map[*ast.SelectorExpr]*types.Selection
 	types     map[ast.Expr]types.TypeAndValue
 	spans     map[types.Object]Span

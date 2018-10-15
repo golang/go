@@ -18,7 +18,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 
 	MOVL	AX, 16(SP)
 	MOVL	BX, 24(SP)
-	
+
 	// create istack out of the given (operating system) stack.
 	MOVL	$runtime·g0(SB), DI
 	LEAL	(-64*1024+104)(SP), BX
@@ -150,7 +150,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $8-4
 // to keep running g.
 TEXT runtime·mcall(SB), NOSPLIT, $0-4
 	MOVL	fn+0(FP), DI
-	
+
 	get_tls(CX)
 	MOVL	g(CX), AX	// save state in g->sched
 	MOVL	0(SP), BX	// caller's PC

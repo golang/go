@@ -123,7 +123,7 @@ func downloadZip(mod module.Version, target string) error {
 	for _, f := range z.File {
 		if !strings.HasPrefix(f.Name, prefix) {
 			z.Close()
-			return fmt.Errorf("zip for %s has unexpected file %s", prefix[:len(prefix)-1], f.Name)
+			return fmt.Errorf("zip for %s has unexpected file %s", prefix, f.Name)
 		}
 	}
 	z.Close()

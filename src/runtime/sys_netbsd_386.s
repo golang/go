@@ -135,7 +135,9 @@ TEXT runtime·munmap(SB),NOSPLIT,$-4
 TEXT runtime·madvise(SB),NOSPLIT,$-4
 	MOVL	$75, AX			// sys_madvise
 	INT	$0x80
-	// ignore failure - maybe pages are locked
+	JAE	2(PC)
+	MOVL	$-1, AX
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$-4

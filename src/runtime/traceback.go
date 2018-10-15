@@ -312,8 +312,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// the function either doesn't return at all (if it has no defers or if the
 		// defers do not recover) or it returns from one of the calls to
 		// deferproc a second time (if the corresponding deferred func recovers).
-		// It suffices to assume that the most recent deferproc is the one that
-		// returns; everything live at earlier deferprocs is still live at that one.
+		// In the latter case, use a deferreturn call site as the continuation pc.
 		frame.continpc = frame.pc
 		if waspanic {
 			// We match up defers with frames using the SP.
@@ -324,7 +323,10 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// can't push a defer, the defer can't belong
 			// to that frame.
 			if _defer != nil && _defer.sp == frame.sp && frame.sp != frame.fp {
-				frame.continpc = _defer.pc
+				frame.continpc = frame.fn.entry + uintptr(frame.fn.deferreturn) + 1
+				// Note: the +1 is to offset the -1 that
+				// stack.go:getStackMap does to back up a return
+				// address make sure the pc is in the CALL instruction.
 			} else {
 				frame.continpc = 0
 			}
@@ -571,8 +573,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 // reflectMethodValue is a partial duplicate of reflect.makeFuncImpl
 // and reflect.methodValue.
 type reflectMethodValue struct {
-	fn    uintptr
-	stack *bitvector // args bitmap
+	fn     uintptr
+	stack  *bitvector // ptrmap for both args and results
+	argLen uintptr    // just args
 }
 
 // getArgInfoFast returns the argument frame information for a call to f.
@@ -601,6 +604,7 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
 			// These take a *reflect.methodValue as their
 			// context register.
 			var mv *reflectMethodValue
+			var retValid bool
 			if ctxt != nil {
 				// This is not an actual call, but a
 				// deferred call. The function value
@@ -614,6 +618,10 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
 				// 0(SP).
 				arg0 := frame.sp + sys.MinFrameSize
 				mv = *(**reflectMethodValue)(unsafe.Pointer(arg0))
+				// Figure out whether the return values are valid.
+				// Reflect will update this value after it copies
+				// in the return values.
+				retValid = *(*bool)(unsafe.Pointer(arg0 + 3*sys.PtrSize))
 			}
 			if mv.fn != f.entry {
 				print("runtime: confused by ", funcname(f), "\n")
@@ -621,6 +629,9 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
 			}
 			bv := mv.stack
 			arglen = uintptr(bv.n * sys.PtrSize)
+			if !retValid {
+				arglen = uintptr(mv.argLen) &^ (sys.PtrSize - 1)
+			}
 			argmap = bv
 		}
 	}
@@ -936,7 +947,7 @@ func tracebackothers(me *g) {
 
 	lock(&allglock)
 	for _, gp := range allgs {
-		if gp == me || gp == g.m.curg || readgstatus(gp) == _Gdead || isSystemGoroutine(gp) && level < 2 {
+		if gp == me || gp == g.m.curg || readgstatus(gp) == _Gdead || isSystemGoroutine(gp, false) && level < 2 {
 			continue
 		}
 		print("\n")
@@ -1022,7 +1033,11 @@ func topofstack(f funcInfo, g0 bool) bool {
 // in stack dumps and deadlock detector. This is any goroutine that
 // starts at a runtime.* entry point, except for runtime.main and
 // sometimes runtime.runfinq.
-func isSystemGoroutine(gp *g) bool {
+//
+// If fixed is true, any goroutine that can vary between user and
+// system (that is, the finalizer goroutine) is considered a user
+// goroutine.
+func isSystemGoroutine(gp *g, fixed bool) bool {
 	// Keep this in sync with cmd/trace/trace.go:isSystemGoroutine.
 	f := findfunc(gp.startpc)
 	if !f.valid() {
@@ -1034,6 +1049,11 @@ func isSystemGoroutine(gp *g) bool {
 	if f.funcID == funcID_runfinq {
 		// We include the finalizer goroutine if it's calling
 		// back into user code.
+		if fixed {
+			// This goroutine can vary. In fixed mode,
+			// always consider it a user goroutine.
+			return false
+		}
 		return !fingRunning
 	}
 	return hasPrefix(funcname(f), "runtime.")

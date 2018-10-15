@@ -216,24 +216,89 @@ c000000000-c000036000 rw-p 00000000 00:00 0
 07000000 07093000 06c00000 /path/to/gobench_server_main
 `
 
+var profSelfMapsTestsWithDeleted = `
+00400000-0040b000 r-xp 00000000 fc:01 787766                             /bin/cat (deleted)
+0060a000-0060b000 r--p 0000a000 fc:01 787766                             /bin/cat (deleted)
+0060b000-0060c000 rw-p 0000b000 fc:01 787766                             /bin/cat (deleted)
+014ab000-014cc000 rw-p 00000000 00:00 0                                  [heap]
+7f7d76af8000-7f7d7797c000 r--p 00000000 fc:01 1318064                    /usr/lib/locale/locale-archive
+7f7d7797c000-7f7d77b36000 r-xp 00000000 fc:01 1180226                    /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77b36000-7f7d77d36000 ---p 001ba000 fc:01 1180226                    /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77d36000-7f7d77d3a000 r--p 001ba000 fc:01 1180226                    /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77d3a000-7f7d77d3c000 rw-p 001be000 fc:01 1180226                    /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77d3c000-7f7d77d41000 rw-p 00000000 00:00 0
+7f7d77d41000-7f7d77d64000 r-xp 00000000 fc:01 1180217                    /lib/x86_64-linux-gnu/ld-2.19.so
+7f7d77f3f000-7f7d77f42000 rw-p 00000000 00:00 0
+7f7d77f61000-7f7d77f63000 rw-p 00000000 00:00 0
+7f7d77f63000-7f7d77f64000 r--p 00022000 fc:01 1180217                    /lib/x86_64-linux-gnu/ld-2.19.so
+7f7d77f64000-7f7d77f65000 rw-p 00023000 fc:01 1180217                    /lib/x86_64-linux-gnu/ld-2.19.so
+7f7d77f65000-7f7d77f66000 rw-p 00000000 00:00 0
+7ffc342a2000-7ffc342c3000 rw-p 00000000 00:00 0                          [stack]
+7ffc34343000-7ffc34345000 r-xp 00000000 00:00 0                          [vdso]
+ffffffffff600000-ffffffffff601000 r-xp 00000090 00:00 0                  [vsyscall]
+->
+00400000 0040b000 00000000 /bin/cat
+7f7d7797c000 7f7d77b36000 00000000 /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77d41000 7f7d77d64000 00000000 /lib/x86_64-linux-gnu/ld-2.19.so
+7ffc34343000 7ffc34345000 00000000 [vdso]
+ffffffffff600000 ffffffffff601000 00000090 [vsyscall]
+
+00400000-0040b000 r-xp 00000000 fc:01 787766                             /bin/cat with space
+0060a000-0060b000 r--p 0000a000 fc:01 787766                             /bin/cat with space
+0060b000-0060c000 rw-p 0000b000 fc:01 787766                             /bin/cat with space
+014ab000-014cc000 rw-p 00000000 00:00 0                                  [heap]
+7f7d76af8000-7f7d7797c000 r--p 00000000 fc:01 1318064                    /usr/lib/locale/locale-archive
+7f7d7797c000-7f7d77b36000 r-xp 00000000 fc:01 1180226                    /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77b36000-7f7d77d36000 ---p 001ba000 fc:01 1180226                    /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77d36000-7f7d77d3a000 r--p 001ba000 fc:01 1180226                    /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77d3a000-7f7d77d3c000 rw-p 001be000 fc:01 1180226                    /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77d3c000-7f7d77d41000 rw-p 00000000 00:00 0
+7f7d77d41000-7f7d77d64000 r-xp 00000000 fc:01 1180217                    /lib/x86_64-linux-gnu/ld-2.19.so
+7f7d77f3f000-7f7d77f42000 rw-p 00000000 00:00 0
+7f7d77f61000-7f7d77f63000 rw-p 00000000 00:00 0
+7f7d77f63000-7f7d77f64000 r--p 00022000 fc:01 1180217                    /lib/x86_64-linux-gnu/ld-2.19.so
+7f7d77f64000-7f7d77f65000 rw-p 00023000 fc:01 1180217                    /lib/x86_64-linux-gnu/ld-2.19.so
+7f7d77f65000-7f7d77f66000 rw-p 00000000 00:00 0
+7ffc342a2000-7ffc342c3000 rw-p 00000000 00:00 0                          [stack]
+7ffc34343000-7ffc34345000 r-xp 00000000 00:00 0                          [vdso]
+ffffffffff600000-ffffffffff601000 r-xp 00000090 00:00 0                  [vsyscall]
+->
+00400000 0040b000 00000000 /bin/cat with space
+7f7d7797c000 7f7d77b36000 00000000 /lib/x86_64-linux-gnu/libc-2.19.so
+7f7d77d41000 7f7d77d64000 00000000 /lib/x86_64-linux-gnu/ld-2.19.so
+7ffc34343000 7ffc34345000 00000000 [vdso]
+ffffffffff600000 ffffffffff601000 00000090 [vsyscall]
+`
+
 func TestProcSelfMaps(t *testing.T) {
-	for tx, tt := range strings.Split(profSelfMapsTests, "\n\n") {
-		i := strings.Index(tt, "->\n")
-		if i < 0 {
-			t.Fatal("malformed test case")
-		}
-		in, out := tt[:i], tt[i+len("->\n"):]
-		if len(out) > 0 && out[len(out)-1] != '\n' {
-			out += "\n"
-		}
-		var buf bytes.Buffer
-		parseProcSelfMaps([]byte(in), func(lo, hi, offset uint64, file, buildID string) {
-			fmt.Fprintf(&buf, "%08x %08x %08x %s\n", lo, hi, offset, file)
-		})
-		if buf.String() != out {
-			t.Errorf("#%d: have:\n%s\nwant:\n%s\n%q\n%q", tx, buf.String(), out, buf.String(), out)
+
+	f := func(t *testing.T, input string) {
+		for tx, tt := range strings.Split(input, "\n\n") {
+			i := strings.Index(tt, "->\n")
+			if i < 0 {
+				t.Fatal("malformed test case")
+			}
+			in, out := tt[:i], tt[i+len("->\n"):]
+			if len(out) > 0 && out[len(out)-1] != '\n' {
+				out += "\n"
+			}
+			var buf bytes.Buffer
+			parseProcSelfMaps([]byte(in), func(lo, hi, offset uint64, file, buildID string) {
+				fmt.Fprintf(&buf, "%08x %08x %08x %s\n", lo, hi, offset, file)
+			})
+			if buf.String() != out {
+				t.Errorf("#%d: have:\n%s\nwant:\n%s\n%q\n%q", tx, buf.String(), out, buf.String(), out)
+			}
 		}
 	}
+
+	t.Run("Normal", func(t *testing.T) {
+		f(t, profSelfMapsTests)
+	})
+
+	t.Run("WithDeletedFile", func(t *testing.T) {
+		f(t, profSelfMapsTestsWithDeleted)
+	})
 }
 
 // TestMapping checkes the mapping section of CPU profiles

@@ -62,6 +62,9 @@ func TestStmtLines(t *testing.T) {
 		if pkgname == "runtime" {
 			continue
 		}
+		if e.Val(dwarf.AttrStmtList) == nil {
+			continue
+		}
 		lrdr, err := dw.LineReader(e)
 		must(err)
 

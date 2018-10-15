@@ -58,7 +58,7 @@ func (r relation) String() string {
 }
 
 // domain represents the domain of a variable pair in which a set
-// of relations is known.  For example, relations learned for unsigned
+// of relations is known. For example, relations learned for unsigned
 // pairs cannot be transferred to signed pairs because the same bit
 // representation can mean something else.
 type domain uint
@@ -625,7 +625,7 @@ var (
 	// For example:
 	//      OpLess8:   {signed, lt},
 	//	v1 = (OpLess8 v2 v3).
-	// If v1 branch is taken than we learn that the rangeMaks
+	// If v1 branch is taken then we learn that the rangeMask
 	// can be at most lt.
 	domainRelationTable = map[Op]struct {
 		d domain

@@ -242,14 +242,14 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("info goroutines failed: %s", bl)
 	}
 
-	printMapvarRe1 := regexp.MustCompile(`\Q = map[string]string = {["abc"] = "def", ["ghi"] = "jkl"}\E$`)
-	printMapvarRe2 := regexp.MustCompile(`\Q = map[string]string = {["ghi"] = "jkl", ["abc"] = "def"}\E$`)
+	printMapvarRe1 := regexp.MustCompile(`^\$[0-9]+ = map\[string\]string = {\[(0x[0-9a-f]+\s+)?"abc"\] = (0x[0-9a-f]+\s+)?"def", \[(0x[0-9a-f]+\s+)?"ghi"\] = (0x[0-9a-f]+\s+)?"jkl"}$`)
+	printMapvarRe2 := regexp.MustCompile(`^\$[0-9]+ = map\[string\]string = {\[(0x[0-9a-f]+\s+)?"ghi"\] = (0x[0-9a-f]+\s+)?"jkl", \[(0x[0-9a-f]+\s+)?"abc"\] = (0x[0-9a-f]+\s+)?"def"}$`)
 	if bl := blocks["print mapvar"]; !printMapvarRe1.MatchString(bl) &&
 		!printMapvarRe2.MatchString(bl) {
 		t.Fatalf("print mapvar failed: %s", bl)
 	}
 
-	strVarRe := regexp.MustCompile(`\Q = "abc"\E$`)
+	strVarRe := regexp.MustCompile(`^\$[0-9]+ = (0x[0-9a-f]+\s+)?"abc"$`)
 	if bl := blocks["print strvar"]; !strVarRe.MatchString(bl) {
 		t.Fatalf("print strvar failed: %s", bl)
 	}
@@ -263,8 +263,11 @@ func testGdbPython(t *testing.T, cgo bool) {
 	// aggregates from their fields and reverted their printing
 	// back to its original form.
 
-	infoLocalsRe := regexp.MustCompile(`slicevar *= *\[\]string *= *{"def"}`)
-	if bl := blocks["info locals"]; !infoLocalsRe.MatchString(bl) {
+	infoLocalsRe1 := regexp.MustCompile(`slicevar *= *\[\]string *= *{"def"}`)
+	// Format output from gdb v8.2
+	infoLocalsRe2 := regexp.MustCompile(`^slicevar = .*\nmapvar = .*\nstrvar = 0x[0-9a-f]+ "abc"`)
+	if bl := blocks["info locals"]; !infoLocalsRe1.MatchString(bl) &&
+		!infoLocalsRe2.MatchString(bl) {
 		t.Fatalf("info locals failed: %s", bl)
 	}
 
@@ -425,11 +428,11 @@ func TestGdbAutotmpTypes(t *testing.T) {
 
 	// Check that the backtrace matches the source code.
 	types := []string{
-		"struct []main.astruct;",
-		"struct bucket<string,main.astruct>;",
-		"struct hash<string,main.astruct>;",
-		"struct main.astruct;",
-		"typedef struct hash<string,main.astruct> * map[string]main.astruct;",
+		"[]main.astruct;",
+		"bucket<string,main.astruct>;",
+		"hash<string,main.astruct>;",
+		"main.astruct;",
+		"hash<string,main.astruct> * map[string]main.astruct;",
 	}
 	for _, name := range types {
 		if !strings.Contains(sgot, name) {
@@ -484,13 +487,13 @@ func TestGdbConst(t *testing.T) {
 		"-ex", "print main.aConstant",
 		"-ex", "print main.largeConstant",
 		"-ex", "print main.minusOne",
-		"-ex", "print 'runtime._MSpanInUse'",
+		"-ex", "print 'runtime.mSpanInUse'",
 		"-ex", "print 'runtime._PageSize'",
 		filepath.Join(dir, "a.exe"),
 	}
 	got, _ := exec.Command("gdb", args...).CombinedOutput()
 
-	sgot := strings.Replace(string(got), "\r\n", "\n", -1)
+	sgot := strings.ReplaceAll(string(got), "\r\n", "\n")
 
 	t.Logf("output %q", sgot)
 

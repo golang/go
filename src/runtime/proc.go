@@ -254,7 +254,7 @@ func forcegchelper() {
 			println("GC forced")
 		}
 		// Time-triggered, fully concurrent.
-		gcStart(gcBackgroundMode, gcTrigger{kind: gcTriggerTime, now: nanotime()})
+		gcStart(gcTrigger{kind: gcTriggerTime, now: nanotime()})
 	}
 }
 
@@ -661,59 +661,6 @@ func ready(gp *g, traceskip int, next bool) {
 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in Case we've cleared it in newstack
 		_g_.stackguard0 = stackPreempt
 	}
-}
-
-func gcprocs() int32 {
-	// Figure out how many CPUs to use during GC.
-	// Limited by gomaxprocs, number of actual CPUs, and MaxGcproc.
-	lock(&sched.lock)
-	n := gomaxprocs
-	if n > ncpu {
-		n = ncpu
-	}
-	if n > _MaxGcproc {
-		n = _MaxGcproc
-	}
-	if n > sched.nmidle+1 { // one M is currently running
-		n = sched.nmidle + 1
-	}
-	unlock(&sched.lock)
-	return n
-}
-
-func needaddgcproc() bool {
-	lock(&sched.lock)
-	n := gomaxprocs
-	if n > ncpu {
-		n = ncpu
-	}
-	if n > _MaxGcproc {
-		n = _MaxGcproc
-	}
-	n -= sched.nmidle + 1 // one M is currently running
-	unlock(&sched.lock)
-	return n > 0
-}
-
-func helpgc(nproc int32) {
-	_g_ := getg()
-	lock(&sched.lock)
-	pos := 0
-	for n := int32(1); n < nproc; n++ { // one M is currently running
-		if allp[pos].mcache == _g_.m.mcache {
-			pos++
-		}
-		mp := mget()
-		if mp == nil {
-			throw("gcprocs inconsistency")
-		}
-		mp.helpgc = n
-		mp.p.set(allp[pos])
-		mp.mcache = allp[pos].mcache
-		pos++
-		notewakeup(&mp.park)
-	}
-	unlock(&sched.lock)
 }
 
 // freezeStopWait is a large value that freezetheworld sets
@@ -1132,11 +1079,6 @@ func stopTheWorldWithSema() {
 	}
 }
 
-func mhelpgc() {
-	_g_ := getg()
-	_g_.m.helpgc = -1
-}
-
 func startTheWorldWithSema(emitTraceEvent bool) int64 {
 	_g_ := getg()
 
@@ -1145,7 +1087,6 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 		list := netpoll(false) // non-blocking
 		injectglist(&list)
 	}
-	add := needaddgcproc()
 	lock(&sched.lock)
 
 	procs := gomaxprocs
@@ -1175,7 +1116,6 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 		} else {
 			// Start M to run P.  Do not start another M below.
 			newm(nil, p)
-			add = false
 		}
 	}
 
@@ -1192,16 +1132,6 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 		wakep()
 	}
 
-	if add {
-		// If GC could have used another helper proc, start one now,
-		// in the hope that it will be available next time.
-		// It would have been even better to start it before the collection,
-		// but doing so requires allocating memory, so it's tricky to
-		// coordinate. This lazy approach works out in practice:
-		// we don't mind if the first couple gc rounds don't have quite
-		// the maximum number of procs.
-		newm(mhelpgc, nil)
-	}
 	_g_.m.locks--
 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
 		_g_.stackguard0 = stackPreempt
@@ -1242,8 +1172,8 @@ func mstart() {
 	mstart1()
 
 	// Exit this thread.
-	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" || GOOS == "darwin" {
-		// Window, Solaris, Darwin and Plan 9 always system-allocate
+	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" || GOOS == "darwin" || GOOS == "aix" {
+		// Window, Solaris, Darwin, AIX and Plan 9 always system-allocate
 		// the stack, but put it in _g_.stack before mstart,
 		// so the logic above hasn't set osStack yet.
 		osStack = true
@@ -1276,10 +1206,7 @@ func mstart1() {
 		fn()
 	}
 
-	if _g_.m.helpgc != 0 {
-		_g_.m.helpgc = 0
-		stopm()
-	} else if _g_.m != &m0 {
+	if _g_.m != &m0 {
 		acquirep(_g_.m.nextp.ptr())
 		_g_.m.nextp = 0
 	}
@@ -2003,21 +1930,11 @@ func stopm() {
 		throw("stopm spinning")
 	}
 
-retry:
 	lock(&sched.lock)
 	mput(_g_.m)
 	unlock(&sched.lock)
 	notesleep(&_g_.m.park)
 	noteclear(&_g_.m.park)
-	if _g_.m.helpgc != 0 {
-		// helpgc() set _g_.m.p and _g_.m.mcache, so we have a P.
-		gchelper()
-		// Undo the effects of helpgc().
-		_g_.m.helpgc = 0
-		_g_.m.mcache = nil
-		_g_.m.p = 0
-		goto retry
-	}
 	acquirep(_g_.m.nextp.ptr())
 	_g_.m.nextp = 0
 }
@@ -2615,6 +2532,23 @@ top:
 		resetspinning()
 	}
 
+	if sched.disable.user && !schedEnabled(gp) {
+		// Scheduling of this goroutine is disabled. Put it on
+		// the list of pending runnable goroutines for when we
+		// re-enable user scheduling and look again.
+		lock(&sched.lock)
+		if schedEnabled(gp) {
+			// Something re-enabled scheduling while we
+			// were acquiring the lock.
+			unlock(&sched.lock)
+		} else {
+			sched.disable.runnable.pushBack(gp)
+			sched.disable.n++
+			unlock(&sched.lock)
+			goto top
+		}
+	}
+
 	if gp.lockedm != 0 {
 		// Hands off own p to the locked m,
 		// then blocks waiting for a new p.
@@ -2730,7 +2664,7 @@ func goexit0(gp *g) {
 	_g_ := getg()
 
 	casgstatus(gp, _Grunning, _Gdead)
-	if isSystemGoroutine(gp) {
+	if isSystemGoroutine(gp, false) {
 		atomic.Xadd(&sched.ngsys, -1)
 	}
 	gp.m = nil
@@ -3033,6 +2967,12 @@ func exitsyscall() {
 			_g_.stackguard0 = _g_.stack.lo + _StackGuard
 		}
 		_g_.throwsplit = false
+
+		if sched.disable.user && !schedEnabled(_g_) {
+			// Scheduling of this goroutine is disabled.
+			Gosched()
+		}
+
 		return
 	}
 
@@ -3168,7 +3108,10 @@ func exitsyscall0(gp *g) {
 	casgstatus(gp, _Gsyscall, _Grunnable)
 	dropg()
 	lock(&sched.lock)
-	_p_ := pidleget()
+	var _p_ *p
+	if schedEnabled(_g_) {
+		_p_ = pidleget()
+	}
 	if _p_ == nil {
 		globrunqput(gp)
 	} else if atomic.Load(&sched.sysmonwait) != 0 {
@@ -3381,7 +3324,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callergp *g, callerpc uintpt
 	if _g_.m.curg != nil {
 		newg.labels = _g_.m.curg.labels
 	}
-	if isSystemGoroutine(newg) {
+	if isSystemGoroutine(newg, false) {
 		atomic.Xadd(&sched.ngsys, +1)
 	}
 	newg.gcscanvalid = false
@@ -3831,7 +3774,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 				pc = funcPC(_ExternalCode) + sys.PCQuantum
 			}
 			stk[0] = pc
-			if mp.preemptoff != "" || mp.helpgc != 0 {
+			if mp.preemptoff != "" {
 				stk[1] = funcPC(_GC) + sys.PCQuantum
 			} else {
 				stk[1] = funcPC(_System) + sys.PCQuantum
@@ -4093,6 +4036,7 @@ func procresize(nprocs int32) *p {
 	if _g_.m.p != 0 && _g_.m.p.ptr().id < nprocs {
 		// continue to use the current P
 		_g_.m.p.ptr().status = _Prunning
+		_g_.m.p.ptr().mcache.prepareForSweep()
 	} else {
 		// release the current P and acquire allp[0]
 		if _g_.m.p != 0 {
@@ -4142,6 +4086,10 @@ func acquirep(_p_ *p) {
 	// have p; write barriers now allowed
 	_g_ := getg()
 	_g_.m.mcache = _p_.mcache
+
+	// Perform deferred mcache flush before this P can allocate
+	// from a potentially stale mcache.
+	_p_.mcache.prepareForSweep()
 
 	if trace.enabled {
 		traceProcStart()
@@ -4244,7 +4192,7 @@ func checkdead() {
 	lock(&allglock)
 	for i := 0; i < len(allgs); i++ {
 		gp := allgs[i]
-		if isSystemGoroutine(gp) {
+		if isSystemGoroutine(gp, false) {
 			continue
 		}
 		s := readgstatus(gp)
@@ -4603,7 +4551,7 @@ func schedtrace(detailed bool) {
 		if lockedg != nil {
 			id3 = lockedg.goid
 		}
-		print("  M", mp.id, ": p=", id1, " curg=", id2, " mallocing=", mp.mallocing, " throwing=", mp.throwing, " preemptoff=", mp.preemptoff, ""+" locks=", mp.locks, " dying=", mp.dying, " helpgc=", mp.helpgc, " spinning=", mp.spinning, " blocked=", mp.blocked, " lockedg=", id3, "\n")
+		print("  M", mp.id, ": p=", id1, " curg=", id2, " mallocing=", mp.mallocing, " throwing=", mp.throwing, " preemptoff=", mp.preemptoff, ""+" locks=", mp.locks, " dying=", mp.dying, " spinning=", mp.spinning, " blocked=", mp.blocked, " lockedg=", id3, "\n")
 	}
 
 	lock(&allglock)
@@ -4623,6 +4571,40 @@ func schedtrace(detailed bool) {
 	}
 	unlock(&allglock)
 	unlock(&sched.lock)
+}
+
+// schedEnableUser enables or disables the scheduling of user
+// goroutines.
+//
+// This does not stop already running user goroutines, so the caller
+// should first stop the world when disabling user goroutines.
+func schedEnableUser(enable bool) {
+	lock(&sched.lock)
+	if sched.disable.user == !enable {
+		unlock(&sched.lock)
+		return
+	}
+	sched.disable.user = !enable
+	if enable {
+		n := sched.disable.n
+		sched.disable.n = 0
+		globrunqputbatch(&sched.disable.runnable, n)
+		unlock(&sched.lock)
+		for ; n != 0 && sched.npidle != 0; n-- {
+			startm(nil, false)
+		}
+	} else {
+		unlock(&sched.lock)
+	}
+}
+
+// schedEnabled returns whether gp should be scheduled. It returns
+// false is scheduling of gp is disabled.
+func schedEnabled(gp *g) bool {
+	if sched.disable.user {
+		return isSystemGoroutine(gp, true)
+	}
+	return true
 }
 
 // Put mp on midle list.

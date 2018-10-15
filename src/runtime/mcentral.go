@@ -135,7 +135,6 @@ havespan:
 		// heap_live changed.
 		gcController.revise()
 	}
-	s.incache = true
 	freeByteBase := s.freeindex &^ (64 - 1)
 	whichByte := freeByteBase / 8
 	// Init alloc bits cache.
@@ -150,28 +149,54 @@ havespan:
 
 // Return span from an MCache.
 func (c *mcentral) uncacheSpan(s *mspan) {
-	lock(&c.lock)
-
-	s.incache = false
-
 	if s.allocCount == 0 {
 		throw("uncaching span but s.allocCount == 0")
 	}
 
 	cap := int32((s.npages << _PageShift) / s.elemsize)
 	n := cap - int32(s.allocCount)
+
+	// cacheSpan updated alloc assuming all objects on s were
+	// going to be allocated. Adjust for any that weren't. We must
+	// do this before potentially sweeping the span.
 	if n > 0 {
-		c.empty.remove(s)
-		c.nonempty.insert(s)
-		// mCentral_CacheSpan conservatively counted
-		// unallocated slots in heap_live. Undo this.
-		atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
-		// cacheSpan updated alloc assuming all objects on s
-		// were going to be allocated. Adjust for any that
-		// weren't.
 		atomic.Xadd64(&c.nmalloc, -int64(n))
 	}
-	unlock(&c.lock)
+
+	sg := mheap_.sweepgen
+	stale := s.sweepgen == sg+1
+	if stale {
+		// Span was cached before sweep began. It's our
+		// responsibility to sweep it.
+		//
+		// Set sweepgen to indicate it's not cached but needs
+		// sweeping. sweep will set s.sweepgen to indicate s
+		// is swept.
+		s.sweepgen = sg - 1
+		s.sweep(true)
+		// sweep may have freed objects, so recompute n.
+		n = cap - int32(s.allocCount)
+	} else {
+		// Indicate that s is no longer cached.
+		s.sweepgen = sg
+	}
+
+	if n > 0 {
+		lock(&c.lock)
+		c.empty.remove(s)
+		c.nonempty.insert(s)
+		if !stale {
+			// mCentral_CacheSpan conservatively counted
+			// unallocated slots in heap_live. Undo this.
+			//
+			// If this span was cached before sweep, then
+			// heap_live was totally recomputed since
+			// caching this span, so we don't do this for
+			// stale spans.
+			atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
+		}
+		unlock(&c.lock)
+	}
 }
 
 // freeSpan updates c and s after sweeping s.
@@ -183,13 +208,13 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 // If preserve=true, it does not move s (the caller
 // must take care of it).
 func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
-	if s.incache {
+	if sg := mheap_.sweepgen; s.sweepgen == sg+1 || s.sweepgen == sg+3 {
 		throw("freeSpan given cached span")
 	}
 	s.needzero = 1
 
 	if preserve {
-		// preserve is set only when called from MCentral_CacheSpan above,
+		// preserve is set only when called from (un)cacheSpan above,
 		// the span must be in the empty list.
 		if !s.inList() {
 			throw("can't preserve unlinked span")

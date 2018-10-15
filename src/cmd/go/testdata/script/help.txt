@@ -34,3 +34,8 @@ stderr 'Run ''go help mod'' for usage.'
 ! go vet -h
 stderr 'usage: go vet'
 stderr 'Run ''go help vet'' for details'
+
+# go help get shows usage for get
+go help get
+stdout 'usage: go get'
+stdout 'get when using GOPATH'

@@ -192,15 +192,21 @@ func vetPlatforms(pp []platform) {
 }
 
 func (p platform) vet() {
-	if p.os == "linux" && p.arch == "riscv64" {
-		// TODO(tklauser): enable as soon as the riscv64 port has fully landed
-		fmt.Println("skipping linux/riscv64")
+	if p.os == "linux" && (p.arch == "riscv64" || p.arch == "sparc64") {
+		// TODO(tklauser): enable as soon as these ports have fully landed
+		fmt.Printf("skipping %s/%s\n", p.os, p.arch)
 		return
 	}
 
 	if p.os == "windows" && p.arch == "arm" {
 		// TODO(jordanrh1): enable as soon as the windows/arm port has fully landed
 		fmt.Println("skipping windows/arm")
+		return
+	}
+
+	if p.os == "aix" && p.arch == "ppc64" {
+		// TODO(aix): enable as soon as the aix/ppc64 port has fully landed
+		fmt.Println("skipping aix/ppc64")
 		return
 	}
 

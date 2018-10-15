@@ -124,8 +124,6 @@ const (
 	// have the most objects per span.
 	maxObjsPerSpan = pageSize / 8
 
-	mSpanInUse = _MSpanInUse
-
 	concurrentSweep = _ConcurrentSweep
 
 	_PageSize = 1 << _PageShift
@@ -328,27 +326,27 @@ var physPageSize uintptr
 // may use larger alignment, so the caller must be careful to realign the
 // memory obtained by sysAlloc.
 //
-// SysUnused notifies the operating system that the contents
+// sysUnused notifies the operating system that the contents
 // of the memory region are no longer needed and can be reused
 // for other purposes.
-// SysUsed notifies the operating system that the contents
+// sysUsed notifies the operating system that the contents
 // of the memory region are needed again.
 //
-// SysFree returns it unconditionally; this is only used if
+// sysFree returns it unconditionally; this is only used if
 // an out-of-memory error has been detected midway through
-// an allocation. It is okay if SysFree is a no-op.
+// an allocation. It is okay if sysFree is a no-op.
 //
-// SysReserve reserves address space without allocating memory.
+// sysReserve reserves address space without allocating memory.
 // If the pointer passed to it is non-nil, the caller wants the
-// reservation there, but SysReserve can still choose another
+// reservation there, but sysReserve can still choose another
 // location if that one is unavailable.
-// NOTE: SysReserve returns OS-aligned memory, but the heap allocator
+// NOTE: sysReserve returns OS-aligned memory, but the heap allocator
 // may use larger alignment, so the caller must be careful to realign the
 // memory obtained by sysAlloc.
 //
-// SysMap maps previously reserved address space for use.
+// sysMap maps previously reserved address space for use.
 //
-// SysFault marks a (already sysAlloc'd) region to fault
+// sysFault marks a (already sysAlloc'd) region to fault
 // if accessed. Used only for debugging the runtime.
 
 func mallocinit() {
@@ -735,6 +733,9 @@ func nextFreeFast(s *mspan) gclinkptr {
 // weight allocation. If it is a heavy weight allocation the caller must
 // determine whether a new GC cycle needs to be started or if the GC is active
 // whether this goroutine needs to assist the GC.
+//
+// Must run in a non-preemptible context since otherwise the owner of
+// c could change.
 func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bool) {
 	s = c.alloc[spc]
 	shouldhelpgc = false
@@ -745,9 +746,7 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 			println("runtime: s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
 			throw("s.allocCount != s.nelems && freeIndex == s.nelems")
 		}
-		systemstack(func() {
-			c.refill(spc)
-		})
+		c.refill(spc)
 		shouldhelpgc = true
 		s = c.alloc[spc]
 
@@ -993,7 +992,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	if shouldhelpgc {
 		if t := (gcTrigger{kind: gcTriggerHeap}); t.test() {
-			gcStart(gcBackgroundMode, t)
+			gcStart(t)
 		}
 	}
 

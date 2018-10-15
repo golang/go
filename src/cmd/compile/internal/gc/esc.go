@@ -654,9 +654,71 @@ func (e *EscState) esclist(l Nodes, parent *Node) {
 	}
 }
 
+func (e *EscState) isSliceSelfAssign(dst, src *Node) bool {
+	// Detect the following special case.
+	//
+	//	func (b *Buffer) Foo() {
+	//		n, m := ...
+	//		b.buf = b.buf[n:m]
+	//	}
+	//
+	// This assignment is a no-op for escape analysis,
+	// it does not store any new pointers into b that were not already there.
+	// However, without this special case b will escape, because we assign to OIND/ODOTPTR.
+	// Here we assume that the statement will not contain calls,
+	// that is, that order will move any calls to init.
+	// Otherwise base ONAME value could change between the moments
+	// when we evaluate it for dst and for src.
+
+	// dst is ONAME dereference.
+	if dst.Op != OIND && dst.Op != ODOTPTR || dst.Left.Op != ONAME {
+		return false
+	}
+	// src is a slice operation.
+	switch src.Op {
+	case OSLICE, OSLICE3, OSLICESTR:
+		// OK.
+	case OSLICEARR, OSLICE3ARR:
+		// Since arrays are embedded into containing object,
+		// slice of non-pointer array will introduce a new pointer into b that was not already there
+		// (pointer to b itself). After such assignment, if b contents escape,
+		// b escapes as well. If we ignore such OSLICEARR, we will conclude
+		// that b does not escape when b contents do.
+		//
+		// Pointer to an array is OK since it's not stored inside b directly.
+		// For slicing an array (not pointer to array), there is an implicit OADDR.
+		// We check that to determine non-pointer array slicing.
+		if src.Left.Op == OADDR {
+			return false
+		}
+	default:
+		return false
+	}
+	// slice is applied to ONAME dereference.
+	if src.Left.Op != OIND && src.Left.Op != ODOTPTR || src.Left.Left.Op != ONAME {
+		return false
+	}
+	// dst and src reference the same base ONAME.
+	return dst.Left == src.Left.Left
+}
+
 // isSelfAssign reports whether assignment from src to dst can
 // be ignored by the escape analysis as it's effectively a self-assignment.
 func (e *EscState) isSelfAssign(dst, src *Node) bool {
+	if e.isSliceSelfAssign(dst, src) {
+		return true
+	}
+
+	// Detect trivial assignments that assign back to the same object.
+	//
+	// It covers these cases:
+	//	val.x = val.y
+	//	val.x[i] = val.y[j]
+	//	val.x1.x2 = val.x1.y2
+	//	... etc
+	//
+	// These assignments do not change assigned object lifetime.
+
 	if dst == nil || src == nil || dst.Op != src.Op {
 		return false
 	}
@@ -689,18 +751,16 @@ func (e *EscState) mayAffectMemory(n *Node) bool {
 	switch n.Op {
 	case ONAME, OCLOSUREVAR, OLITERAL:
 		return false
-	case ODOT, ODOTPTR:
-		return e.mayAffectMemory(n.Left)
-	case OIND, OCONVNOP:
-		return e.mayAffectMemory(n.Left)
-	case OCONV:
-		return e.mayAffectMemory(n.Left)
-	case OINDEX:
+
+	// Left+Right group.
+	case OINDEX, OADD, OSUB, OOR, OXOR, OMUL, OLSH, ORSH, OAND, OANDNOT, ODIV, OMOD:
 		return e.mayAffectMemory(n.Left) || e.mayAffectMemory(n.Right)
-	case OADD, OSUB, OOR, OXOR, OMUL, OLSH, ORSH, OAND, OANDNOT, ODIV, OMOD:
-		return e.mayAffectMemory(n.Left) || e.mayAffectMemory(n.Right)
-	case ONOT, OCOM, OPLUS, OMINUS, OALIGNOF, OOFFSETOF, OSIZEOF:
+
+	// Left group.
+	case ODOT, ODOTPTR, OIND, OCONVNOP, OCONV, OLEN, OCAP,
+		ONOT, OCOM, OPLUS, OMINUS, OALIGNOF, OOFFSETOF, OSIZEOF:
 		return e.mayAffectMemory(n.Left)
+
 	default:
 		return true
 	}
@@ -832,48 +892,8 @@ opSwitch:
 			}
 		}
 
-	// Filter out the following special case.
-	//
-	//	func (b *Buffer) Foo() {
-	//		n, m := ...
-	//		b.buf = b.buf[n:m]
-	//	}
-	//
-	// This assignment is a no-op for escape analysis,
-	// it does not store any new pointers into b that were not already there.
-	// However, without this special case b will escape, because we assign to OIND/ODOTPTR.
 	case OAS, OASOP:
-		if (n.Left.Op == OIND || n.Left.Op == ODOTPTR) && n.Left.Left.Op == ONAME && // dst is ONAME dereference
-			(n.Right.Op == OSLICE || n.Right.Op == OSLICE3 || n.Right.Op == OSLICESTR) && // src is slice operation
-			(n.Right.Left.Op == OIND || n.Right.Left.Op == ODOTPTR) && n.Right.Left.Left.Op == ONAME && // slice is applied to ONAME dereference
-			n.Left.Left == n.Right.Left.Left { // dst and src reference the same base ONAME
-
-			// Here we also assume that the statement will not contain calls,
-			// that is, that order will move any calls to init.
-			// Otherwise base ONAME value could change between the moments
-			// when we evaluate it for dst and for src.
-			//
-			// Note, this optimization does not apply to OSLICEARR,
-			// because it does introduce a new pointer into b that was not already there
-			// (pointer to b itself). After such assignment, if b contents escape,
-			// b escapes as well. If we ignore such OSLICEARR, we will conclude
-			// that b does not escape when b contents do.
-			if Debug['m'] != 0 {
-				Warnl(n.Pos, "%v ignoring self-assignment to %S", e.curfnSym(n), n.Left)
-			}
-
-			break
-		}
-
-		// Also skip trivial assignments that assign back to the same object.
-		//
-		// It covers these cases:
-		//	val.x = val.y
-		//	val.x[i] = val.y[j]
-		//	val.x1.x2 = val.x1.y2
-		//	... etc
-		//
-		// These assignments do not change assigned object lifetime.
+		// Filter out some no-op assignments for escape analysis.
 		if e.isSelfAssign(n.Left, n.Right) {
 			if Debug['m'] != 0 {
 				Warnl(n.Pos, "%v ignoring self-assignment in %S", e.curfnSym(n), n)
@@ -1396,7 +1416,7 @@ func describeEscape(em uint16) string {
 		}
 		s += "contentToHeap"
 	}
-	for em >>= EscReturnBits; em != 0; em = em >> bitsPerOutputInTag {
+	for em >>= EscReturnBits; em != 0; em >>= bitsPerOutputInTag {
 		// See encoding description above
 		if s != "" {
 			s += " "
@@ -1446,7 +1466,7 @@ func (e *EscState) escassignfromtag(note string, dsts Nodes, src, call *Node) ui
 
 	em0 := em
 	dstsi := 0
-	for em >>= EscReturnBits; em != 0 && dstsi < dsts.Len(); em = em >> bitsPerOutputInTag {
+	for em >>= EscReturnBits; em != 0 && dstsi < dsts.Len(); em >>= bitsPerOutputInTag {
 		// Prefer the lowest-level path to the reference (for escape purposes).
 		// Two-bit encoding (for example. 1, 3, and 4 bits are other options)
 		//  01 = 0-level

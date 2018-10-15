@@ -472,7 +472,7 @@ func (f *FlagSet) PrintDefaults() {
 			// for both 4- and 8-space tab stops.
 			s += "\n    \t"
 		}
-		s += strings.Replace(usage, "\n", "\n    \t", -1)
+		s += strings.ReplaceAll(usage, "\n", "\n    \t")
 
 		if !isZeroValue(flag, flag.DefValue) {
 			if _, ok := flag.Value.(*stringValue); ok {
