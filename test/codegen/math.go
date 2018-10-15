@@ -109,6 +109,7 @@ func copysign(a, b, c float64) {
 
 func fma(x, y, z float64) float64 {
 	// amd64:"VFMADD231SD"
+	// arm/6:"FMULAD"
 	// arm64:"FMADDD"
 	// s390x:"FMADD"
 	// ppc64:"FMADD"

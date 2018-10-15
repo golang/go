@@ -92,6 +92,7 @@ func initssaconfig() {
 	x86HasPOPCNT = sysvar("x86HasPOPCNT")       // bool
 	x86HasSSE41 = sysvar("x86HasSSE41")         // bool
 	x86HasFMA = sysvar("x86HasFMA")             // bool
+	armHasVFPv4 = sysvar("armHasVFPv4")         // bool
 	arm64HasATOMICS = sysvar("arm64HasATOMICS") // bool
 	typedmemclr = sysfunc("typedmemclr")
 	typedmemmove = sysfunc("typedmemmove")
@@ -3357,6 +3358,36 @@ func init() {
 			return s.variable(n, types.Types[TFLOAT64])
 		},
 		sys.AMD64)
+	addF("math", "Fma",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), armHasVFPv4, s.sb)
+			v := s.load(types.Types[TBOOL], addr)
+			b := s.endBlock()
+			b.Kind = ssa.BlockIf
+			b.SetControl(v)
+			bTrue := s.f.NewBlock(ssa.BlockPlain)
+			bFalse := s.f.NewBlock(ssa.BlockPlain)
+			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			b.AddEdgeTo(bTrue)
+			b.AddEdgeTo(bFalse)
+			b.Likely = ssa.BranchLikely
+
+			// We have the intrinsic - use it directly.
+			s.startBlock(bTrue)
+			s.vars[n] = s.newValue3(ssa.OpFma, types.Types[TFLOAT64], args[0], args[1], args[2])
+			s.endBlock().AddEdgeTo(bEnd)
+
+			// Call the pure Go version.
+			s.startBlock(bFalse)
+			a := s.call(n, callNormal)
+			s.vars[n] = s.load(types.Types[TFLOAT64], a)
+			s.endBlock().AddEdgeTo(bEnd)
+
+			// Merge results.
+			s.startBlock(bEnd)
+			return s.variable(n, types.Types[TFLOAT64])
+		},
+		sys.ARM)
 
 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
