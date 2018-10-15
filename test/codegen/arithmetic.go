@@ -48,12 +48,16 @@ func Pow2Muls(n1, n2 int) (int, int) {
 	// 386:"SHLL\t[$]5",-"IMULL"
 	// arm:"SLL\t[$]5",-"MUL"
 	// arm64:"LSL\t[$]5",-"MUL"
+	// ppc64:"SLD\t[$]5",-"MUL"
+	// ppc64le:"SLD\t[$]5",-"MUL"
 	a := n1 * 32
 
 	// amd64:"SHLQ\t[$]6",-"IMULQ"
 	// 386:"SHLL\t[$]6",-"IMULL"
 	// arm:"SLL\t[$]6",-"MUL"
 	// arm64:`NEG\sR[0-9]+<<6,\sR[0-9]+`,-`LSL`,-`MUL`
+	// ppc64:"SLD\t[$]6","NEG\\sR[0-9]+,\\sR[0-9]+",-"MUL"
+	// ppc64le:"SLD\t[$]6","NEG\\sR[0-9]+,\\sR[0-9]+",-"MUL"
 	b := -64 * n2
 
 	return a, b
@@ -117,12 +121,16 @@ func Pow2Divs(n1 uint, n2 int) (uint, int) {
 	// amd64:"SHRQ\t[$]5",-"DIVQ"
 	// arm:"SRL\t[$]5",-".*udiv"
 	// arm64:"LSR\t[$]5",-"UDIV"
+	// ppc64:"SRD"
+	// ppc64le:"SRD"
 	a := n1 / 32 // unsigned
 
 	// amd64:"SARQ\t[$]6",-"IDIVQ"
 	// 386:"SARL\t[$]6",-"IDIVL"
 	// arm:"SRA\t[$]6",-".*udiv"
 	// arm64:"ASR\t[$]6",-"SDIV"
+	// ppc64:"SRAD"
+	// ppc64le:"SRAD"
 	b := n2 / 64 // signed
 
 	return a, b
@@ -149,6 +157,8 @@ func Pow2Mods(n1 uint, n2 int) (uint, int) {
 	// amd64:"ANDQ\t[$]31",-"DIVQ"
 	// arm:"AND\t[$]31",-".*udiv"
 	// arm64:"AND\t[$]31",-"UDIV"
+	// ppc64:"ANDCC\t[$]31"
+	// ppc64le:"ANDCC\t[$]31"
 	a := n1 % 32 // unsigned
 
 	// 386:-"IDIVL"
@@ -177,36 +187,48 @@ func ConstMods(n1 uint, n2 int) (uint, int) {
 func LenDiv1(a []int) int {
 	// 386:"SHRL\t[$]10"
 	// amd64:"SHRQ\t[$]10"
+	// ppc64:"SRD"\t[$]10"
+	// ppc64le:"SRD"\t[$]10"
 	return len(a) / 1024
 }
 
 func LenDiv2(s string) int {
 	// 386:"SHRL\t[$]11"
 	// amd64:"SHRQ\t[$]11"
+	// ppc64:"SRD\t[$]11"
+	// ppc64le:"SRD\t[$]11"
 	return len(s) / (4097 >> 1)
 }
 
 func LenMod1(a []int) int {
 	// 386:"ANDL\t[$]1023"
 	// amd64:"ANDQ\t[$]1023"
+	// ppc64:"ANDCC\t[$]1023"
+	// ppc64le:"ANDCC\t[$]1023"
 	return len(a) % 1024
 }
 
 func LenMod2(s string) int {
 	// 386:"ANDL\t[$]2047"
 	// amd64:"ANDQ\t[$]2047"
+	// ppc64:"ANDCC\t[$]2047"
+	// ppc64le:"ANDCC\t[$]2047"
 	return len(s) % (4097 >> 1)
 }
 
 func CapDiv(a []int) int {
 	// 386:"SHRL\t[$]12"
 	// amd64:"SHRQ\t[$]12"
+	// ppc64:"SRD\t[$]12"
+	// ppc64le:"SRD\t[$]12"
 	return cap(a) / ((1 << 11) + 2048)
 }
 
 func CapMod(a []int) int {
 	// 386:"ANDL\t[$]4095"
 	// amd64:"ANDQ\t[$]4095"
+	// ppc64:"ANDCC\t[$]4095"
+	// ppc64le:"ANDCC\t[$]4095"
 	return cap(a) % ((1 << 11) + 2048)
 }
 
