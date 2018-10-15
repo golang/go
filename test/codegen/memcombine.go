@@ -113,11 +113,13 @@ func load_be16_idx(b []byte, idx int) {
 
 func load_le_byte2_uint16(s []byte) uint16 {
 	// arm64:`MOVHU\t\(R[0-9]+\)`,-`ORR`,-`MOVB`
+	// 386:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`ORL`
 	return uint16(s[0]) | uint16(s[1])<<8
 }
 
 func load_le_byte2_uint16_inv(s []byte) uint16 {
 	// arm64:`MOVHU\t\(R[0-9]+\)`,-`ORR`,-`MOVB`
+	// 386:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`ORL`
 	return uint16(s[1])<<8 | uint16(s[0])
 }
 
@@ -173,11 +175,13 @@ func load_be_byte8_uint64_inv(s []byte) uint64 {
 
 func load_le_byte2_uint16_idx(s []byte, idx int) uint16 {
 	// arm64:`MOVHU\s\(R[0-9]+\)\(R[0-9]+\)`,-`ORR`,-`MOVB`
+	// 386:`MOVWLZX\s\([A-Z]+\)\([A-Z]+`,-`ORL`,-`MOVB`
 	return uint16(s[idx]) | uint16(s[idx+1])<<8
 }
 
 func load_le_byte2_uint16_idx_inv(s []byte, idx int) uint16 {
 	// arm64:`MOVHU\s\(R[0-9]+\)\(R[0-9]+\)`,-`ORR`,-`MOVB`
+	// 386:`MOVWLZX\s\([A-Z]+\)\([A-Z]+`,-`ORL`,-`MOVB`
 	return uint16(s[idx+1])<<8 | uint16(s[idx])
 }
 
@@ -405,7 +409,14 @@ func store_be16_idx(b []byte, idx int) {
 func store_le_byte_2(b []byte, val uint16) {
 	_ = b[2]
 	// arm64:`MOVH\sR[0-9]+,\s1\(R[0-9]+\)`,-`MOVB`
+	// 386:`MOVW\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`
 	b[1], b[2] = byte(val), byte(val>>8)
+}
+
+func store_le_byte_2_inv(b []byte, val uint16) {
+	_ = b[2]
+	// 386:`MOVW\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`
+	b[2], b[1] = byte(val>>8), byte(val)
 }
 
 func store_le_byte_4(b []byte, val uint32) {
@@ -441,7 +452,14 @@ func store_be_byte_8(b []byte, val uint64) {
 func store_le_byte_2_idx(b []byte, idx int, val uint16) {
 	_, _ = b[idx+0], b[idx+1]
 	// arm64:`MOVH\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOVB`
+	// 386:`MOVW\s[A-Z]+,\s\([A-Z]+\)\([A-Z]+`,-`MOVB`
 	b[idx+1], b[idx+0] = byte(val>>8), byte(val)
+}
+
+func store_le_byte_2_idx_inv(b []byte, idx int, val uint16) {
+	_, _ = b[idx+0], b[idx+1]
+	// 386:`MOVW\s[A-Z]+,\s\([A-Z]+\)\([A-Z]+`,-`MOVB`
+	b[idx+0], b[idx+1] = byte(val), byte(val>>8)
 }
 
 func store_le_byte_4_idx(b []byte, idx int, val uint32) {
