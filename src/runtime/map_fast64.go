@@ -41,7 +41,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 	}
 	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
-			if *(*uint64)(k) == key && b.tophash[i] != empty {
+			if *(*uint64)(k) == key && !isEmpty(b.tophash[i]) {
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
 			}
 		}
@@ -81,7 +81,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 	}
 	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
-			if *(*uint64)(k) == key && b.tophash[i] != empty {
+			if *(*uint64)(k) == key && !isEmpty(b.tophash[i]) {
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize)), true
 			}
 		}
@@ -120,12 +120,16 @@ again:
 	var inserti uintptr
 	var insertk unsafe.Pointer
 
+bucketloop:
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			if b.tophash[i] == empty {
+			if isEmpty(b.tophash[i]) {
 				if insertb == nil {
 					insertb = b
 					inserti = i
+				}
+				if b.tophash[i] == emptyRest {
+					break bucketloop
 				}
 				continue
 			}
@@ -206,12 +210,16 @@ again:
 	var inserti uintptr
 	var insertk unsafe.Pointer
 
+bucketloop:
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			if b.tophash[i] == empty {
+			if isEmpty(b.tophash[i]) {
 				if insertb == nil {
 					insertb = b
 					inserti = i
+				}
+				if b.tophash[i] == emptyRest {
+					break bucketloop
 				}
 				continue
 			}
@@ -286,7 +294,7 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 search:
 	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
-			if key != *(*uint64)(k) || b.tophash[i] == empty {
+			if key != *(*uint64)(k) || isEmpty(b.tophash[i]) {
 				continue
 			}
 			// Only clear key if there are pointers in it.
@@ -299,7 +307,8 @@ search:
 			} else {
 				memclrNoHeapPointers(v, t.elem.size)
 			}
-			b.tophash[i] = empty
+			b.tophash[i] = emptyOne
+			//TODO: emptyRest
 			h.count--
 			break search
 		}
@@ -350,7 +359,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 			v := add(k, bucketCnt*8)
 			for i := 0; i < bucketCnt; i, k, v = i+1, add(k, 8), add(v, uintptr(t.valuesize)) {
 				top := b.tophash[i]
-				if top == empty {
+				if isEmpty(top) {
 					b.tophash[i] = evacuatedEmpty
 					continue
 				}
