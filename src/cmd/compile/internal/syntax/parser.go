@@ -849,7 +849,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 		}
 		return t
 
-	case _Lbrack, _Chan, _Map, _Struct, _Interface:
+	case _Lbrack, _Chan, _Map, _Struct:
 		return p.type_() // othertype
 
 	default:
