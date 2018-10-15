@@ -349,15 +349,13 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 				gdata(n, e.Expr, int(n.Type.Width))
 				continue
 			}
-			ll := n.copy()
-			ll.Orig = ll // completely separate copy
+			ll := n.sepcopy()
 			if staticassign(ll, e.Expr, out) {
 				continue
 			}
 			// Requires computation, but we're
 			// copying someone else's computation.
-			rr := orig.copy()
-			rr.Orig = rr // completely separate copy
+			rr := orig.sepcopy()
 			rr.Type = ll.Type
 			rr.Xoffset += e.Xoffset
 			setlineno(rr)
@@ -453,8 +451,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 				continue
 			}
 			setlineno(e.Expr)
-			a := n.copy()
-			a.Orig = a // completely separate copy
+			a := n.sepcopy()
 			if !staticassign(a, e.Expr, out) {
 				*out = append(*out, nod(OAS, a, e.Expr))
 			}
@@ -518,8 +515,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			// Copy val directly into n.
 			n.Type = val.Type
 			setlineno(val)
-			a := n.copy()
-			a.Orig = a
+			a := n.sepcopy()
 			if !staticassign(a, val, out) {
 				*out = append(*out, nod(OAS, a, val))
 			}
@@ -843,6 +839,10 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 			a = nod(OAS, x, nil)
 			a = typecheck(a, Etop)
 			init.Append(a) // zero new temp
+		} else {
+			// Declare that we're about to initialize all of x.
+			// (Which happens at the *vauto = vstat below.)
+			init.Append(nod(OVARDEF, x, nil))
 		}
 
 		a = nod(OADDR, x, nil)
@@ -853,6 +853,8 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 			a = typecheck(a, Etop)
 			init.Append(a) // zero new temp
 			a = a.Left
+		} else {
+			init.Append(nod(OVARDEF, a, nil))
 		}
 
 		a = nod(OADDR, a, nil)

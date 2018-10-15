@@ -104,6 +104,9 @@ type context struct {
 func (c *context) ip() uintptr { return uintptr(c.eip) }
 func (c *context) sp() uintptr { return uintptr(c.esp) }
 
+// 386 does not have link register, so this returns 0.
+func (c *context) lr() uintptr { return 0 }
+
 func (c *context) setip(x uintptr) { c.eip = uint32(x) }
 func (c *context) setsp(x uintptr) { c.esp = uint32(x) }
 

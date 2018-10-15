@@ -252,7 +252,7 @@ type slurpResult struct {
 func (sr slurpResult) String() string { return fmt.Sprintf("body %q; err %v", sr.body, sr.err) }
 
 func (tt h12Compare) normalizeRes(t *testing.T, res *Response, wantProto string) {
-	if res.Proto == wantProto {
+	if res.Proto == wantProto || res.Proto == "HTTP/IGNORE" {
 		res.Proto, res.ProtoMajor, res.ProtoMinor = "", 0, 0
 	} else {
 		t.Errorf("got %q response; want %q", res.Proto, wantProto)
@@ -1474,11 +1474,11 @@ func testWriteHeaderAfterWrite(t *testing.T, h2, hijack bool) {
 		return
 	}
 	gotLog := strings.TrimSpace(errorLog.String())
-	wantLog := "http: multiple response.WriteHeader calls"
+	wantLog := "http: superfluous response.WriteHeader call from net/http_test.testWriteHeaderAfterWrite.func1 (clientserver_test.go:"
 	if hijack {
-		wantLog = "http: response.WriteHeader on hijacked connection"
+		wantLog = "http: response.WriteHeader on hijacked connection from net/http_test.testWriteHeaderAfterWrite.func1 (clientserver_test.go:"
 	}
-	if gotLog != wantLog {
+	if !strings.HasPrefix(gotLog, wantLog) {
 		t.Errorf("stderr output = %q; want %q", gotLog, wantLog)
 	}
 }
@@ -1545,4 +1545,26 @@ func TestBidiStreamReverseProxy(t *testing.T) {
 		t.Fatal("timeout")
 	}
 
+}
+
+// Always use HTTP/1.1 for WebSocket upgrades.
+func TestH12_WebSocketUpgrade(t *testing.T) {
+	h12Compare{
+		Handler: func(w ResponseWriter, r *Request) {
+			h := w.Header()
+			h.Set("Foo", "bar")
+		},
+		ReqFunc: func(c *Client, url string) (*Response, error) {
+			req, _ := NewRequest("GET", url, nil)
+			req.Header.Set("Connection", "Upgrade")
+			req.Header.Set("Upgrade", "WebSocket")
+			return c.Do(req)
+		},
+		EarlyCheckResponse: func(proto string, res *Response) {
+			if res.Proto != "HTTP/1.1" {
+				t.Errorf("%s: expected HTTP/1.1, got %q", proto, res.Proto)
+			}
+			res.Proto = "HTTP/IGNORE" // skip later checks that Proto must be 1.1 vs 2.0
+		},
+	}.run(t)
 }

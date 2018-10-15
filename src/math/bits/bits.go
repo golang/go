@@ -328,3 +328,197 @@ func Len64(x uint64) (n int) {
 	}
 	return n + int(len8tab[x])
 }
+
+// --- Add with carry ---
+
+// Add returns the sum with carry of x, y and carry: sum = x + y + carry.
+// The carry input must be 0 or 1; otherwise the behavior is undefined.
+// The carryOut output is guaranteed to be 0 or 1.
+func Add(x, y, carry uint) (sum, carryOut uint) {
+	yc := y + carry
+	sum = x + yc
+	if sum < x || yc < y {
+		carryOut = 1
+	}
+	return
+}
+
+// Add32 returns the sum with carry of x, y and carry: sum = x + y + carry.
+// The carry input must be 0 or 1; otherwise the behavior is undefined.
+// The carryOut output is guaranteed to be 0 or 1.
+func Add32(x, y, carry uint32) (sum, carryOut uint32) {
+	yc := y + carry
+	sum = x + yc
+	if sum < x || yc < y {
+		carryOut = 1
+	}
+	return
+}
+
+// Add64 returns the sum with carry of x, y and carry: sum = x + y + carry.
+// The carry input must be 0 or 1; otherwise the behavior is undefined.
+// The carryOut output is guaranteed to be 0 or 1.
+func Add64(x, y, carry uint64) (sum, carryOut uint64) {
+	yc := y + carry
+	sum = x + yc
+	if sum < x || yc < y {
+		carryOut = 1
+	}
+	return
+}
+
+// --- Subtract with borrow ---
+
+// Sub returns the difference of x, y and borrow: diff = x - y - borrow.
+// The borrow input must be 0 or 1; otherwise the behavior is undefined.
+// The borrowOut output is guaranteed to be 0 or 1.
+func Sub(x, y, borrow uint) (diff, borrowOut uint) {
+	yb := y + borrow
+	diff = x - yb
+	if diff > x || yb < y {
+		borrowOut = 1
+	}
+	return
+}
+
+// Sub32 returns the difference of x, y and borrow, diff = x - y - borrow.
+// The borrow input must be 0 or 1; otherwise the behavior is undefined.
+// The borrowOut output is guaranteed to be 0 or 1.
+func Sub32(x, y, borrow uint32) (diff, borrowOut uint32) {
+	yb := y + borrow
+	diff = x - yb
+	if diff > x || yb < y {
+		borrowOut = 1
+	}
+	return
+}
+
+// Sub64 returns the difference of x, y and borrow: diff = x - y - borrow.
+// The borrow input must be 0 or 1; otherwise the behavior is undefined.
+// The borrowOut output is guaranteed to be 0 or 1.
+func Sub64(x, y, borrow uint64) (diff, borrowOut uint64) {
+	yb := y + borrow
+	diff = x - yb
+	if diff > x || yb < y {
+		borrowOut = 1
+	}
+	return
+}
+
+// --- Full-width multiply ---
+
+// Mul returns the full-width product of x and y: (hi, lo) = x * y
+// with the product bits' upper half returned in hi and the lower
+// half returned in lo.
+func Mul(x, y uint) (hi, lo uint) {
+	if UintSize == 32 {
+		h, l := Mul32(uint32(x), uint32(y))
+		return uint(h), uint(l)
+	}
+	h, l := Mul64(uint64(x), uint64(y))
+	return uint(h), uint(l)
+}
+
+// Mul32 returns the 64-bit product of x and y: (hi, lo) = x * y
+// with the product bits' upper half returned in hi and the lower
+// half returned in lo.
+func Mul32(x, y uint32) (hi, lo uint32) {
+	tmp := uint64(x) * uint64(y)
+	hi, lo = uint32(tmp>>32), uint32(tmp)
+	return
+}
+
+// Mul64 returns the 128-bit product of x and y: (hi, lo) = x * y
+// with the product bits' upper half returned in hi and the lower
+// half returned in lo.
+func Mul64(x, y uint64) (hi, lo uint64) {
+	const mask32 = 1<<32 - 1
+	x0 := x & mask32
+	x1 := x >> 32
+	y0 := y & mask32
+	y1 := y >> 32
+	w0 := x0 * y0
+	t := x1*y0 + w0>>32
+	w1 := t & mask32
+	w2 := t >> 32
+	w1 += x0 * y1
+	hi = x1*y1 + w2 + w1>>32
+	lo = x * y
+	return
+}
+
+// --- Full-width divide ---
+
+// Div returns the quotient and remainder of (hi, lo) divided by y:
+// quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
+// half in parameter hi and the lower half in parameter lo.
+// hi must be < y otherwise the behavior is undefined (the quotient
+// won't fit into quo).
+func Div(hi, lo, y uint) (quo, rem uint) {
+	if UintSize == 32 {
+		q, r := Div32(uint32(hi), uint32(lo), uint32(y))
+		return uint(q), uint(r)
+	}
+	q, r := Div64(uint64(hi), uint64(lo), uint64(y))
+	return uint(q), uint(r)
+}
+
+// Div32 returns the quotient and remainder of (hi, lo) divided by y:
+// quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
+// half in parameter hi and the lower half in parameter lo.
+// hi must be < y otherwise the behavior is undefined (the quotient
+// won't fit into quo).
+func Div32(hi, lo, y uint32) (quo, rem uint32) {
+	z := uint64(hi)<<32 | uint64(lo)
+	quo, rem = uint32(z/uint64(y)), uint32(z%uint64(y))
+	return
+}
+
+// Div64 returns the quotient and remainder of (hi, lo) divided by y:
+// quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
+// half in parameter hi and the lower half in parameter lo.
+// hi must be < y otherwise the behavior is undefined (the quotient
+// won't fit into quo).
+func Div64(hi, lo, y uint64) (quo, rem uint64) {
+	const (
+		two32  = 1 << 32
+		mask32 = two32 - 1
+	)
+	if hi >= y {
+		return 1<<64 - 1, 1<<64 - 1
+	}
+
+	s := uint(LeadingZeros64(y))
+	y <<= s
+
+	yn1 := y >> 32
+	yn0 := y & mask32
+	un32 := hi<<s | lo>>(64-s)
+	un10 := lo << s
+	un1 := un10 >> 32
+	un0 := un10 & mask32
+	q1 := un32 / yn1
+	rhat := un32 - q1*yn1
+
+	for q1 >= two32 || q1*yn0 > two32*rhat+un1 {
+		q1--
+		rhat += yn1
+		if rhat >= two32 {
+			break
+		}
+	}
+
+	un21 := un32*two32 + un1 - q1*y
+	q0 := un21 / yn1
+	rhat = un21 - q0*yn1
+
+	for q0 >= two32 || q0*yn0 > two32*rhat+un0 {
+		q0--
+		rhat += yn1
+		if rhat >= two32 {
+			break
+		}
+	}
+
+	return q1*two32 + q0, (un21*two32 + un0 - q0*y) >> s
+}

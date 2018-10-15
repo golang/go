@@ -10,109 +10,126 @@ import (
 	"runtime"
 )
 
-// isRoot returns true if path is root of file system
-// (`/` on unix and `/`, `\`, `c:\` or `c:/` on windows).
-func isRoot(path string) bool {
-	if runtime.GOOS != "windows" {
-		return path == "/"
-	}
-	switch len(path) {
-	case 1:
-		return os.IsPathSeparator(path[0])
-	case 3:
-		return path[1] == ':' && os.IsPathSeparator(path[2])
-	}
-	return false
-}
-
-// isDriveLetter returns true if path is Windows drive letter (like "c:").
-func isDriveLetter(path string) bool {
-	if runtime.GOOS != "windows" {
-		return false
-	}
-	return len(path) == 2 && path[1] == ':'
-}
-
-func walkLink(path string, linksWalked *int) (newpath string, islink bool, err error) {
-	if *linksWalked > 255 {
-		return "", false, errors.New("EvalSymlinks: too many links")
-	}
-	fi, err := os.Lstat(path)
-	if err != nil {
-		return "", false, err
-	}
-	if fi.Mode()&os.ModeSymlink == 0 {
-		return path, false, nil
-	}
-	newpath, err = os.Readlink(path)
-	if err != nil {
-		return "", false, err
-	}
-	*linksWalked++
-	return newpath, true, nil
-}
-
-func walkLinks(path string, linksWalked *int) (string, error) {
-	switch dir, file := Split(path); {
-	case dir == "":
-		newpath, _, err := walkLink(file, linksWalked)
-		return newpath, err
-	case file == "":
-		if isDriveLetter(dir) {
-			return dir, nil
-		}
-		if os.IsPathSeparator(dir[len(dir)-1]) {
-			if isRoot(dir) {
-				return dir, nil
-			}
-			return walkLinks(dir[:len(dir)-1], linksWalked)
-		}
-		newpath, _, err := walkLink(dir, linksWalked)
-		return newpath, err
-	default:
-		newdir, err := walkLinks(dir, linksWalked)
-		if err != nil {
-			return "", err
-		}
-		newpath, islink, err := walkLink(Join(newdir, file), linksWalked)
-		if err != nil {
-			return "", err
-		}
-		if !islink {
-			return newpath, nil
-		}
-		if IsAbs(newpath) || os.IsPathSeparator(newpath[0]) {
-			return newpath, nil
-		}
-		return Join(newdir, newpath), nil
-	}
-}
-
 func walkSymlinks(path string) (string, error) {
-	if path == "" {
-		return path, nil
+	volLen := volumeNameLen(path)
+	if volLen < len(path) && os.IsPathSeparator(path[volLen]) {
+		volLen++
 	}
-	var linksWalked int // to protect against cycles
-	for {
-		i := linksWalked
-		newpath, err := walkLinks(path, &linksWalked)
+	vol := path[:volLen]
+	dest := vol
+	linksWalked := 0
+	for start, end := volLen, volLen; start < len(path); start = end {
+		for start < len(path) && os.IsPathSeparator(path[start]) {
+			start++
+		}
+		end = start
+		for end < len(path) && !os.IsPathSeparator(path[end]) {
+			end++
+		}
+
+		// On Windows, "." can be a symlink.
+		// We look it up, and use the value if it is absolute.
+		// If not, we just return ".".
+		isWindowsDot := runtime.GOOS == "windows" && path[volumeNameLen(path):] == "."
+
+		// The next path component is in path[start:end].
+		if end == start {
+			// No more path components.
+			break
+		} else if path[start:end] == "." && !isWindowsDot {
+			// Ignore path component ".".
+			continue
+		} else if path[start:end] == ".." {
+			// Back up to previous component if possible.
+			// Note that volLen includes any leading slash.
+			var r int
+			for r = len(dest) - 1; r >= volLen; r-- {
+				if os.IsPathSeparator(dest[r]) {
+					break
+				}
+			}
+			if r < volLen {
+				if len(dest) > volLen {
+					dest += string(os.PathSeparator)
+				}
+				dest += ".."
+			} else {
+				dest = dest[:r]
+			}
+			continue
+		}
+
+		// Ordinary path component. Add it to result.
+
+		if len(dest) > volumeNameLen(dest) && !os.IsPathSeparator(dest[len(dest)-1]) {
+			dest += string(os.PathSeparator)
+		}
+
+		dest += path[start:end]
+
+		// Resolve symlink.
+
+		fi, err := os.Lstat(dest)
 		if err != nil {
 			return "", err
 		}
-		if runtime.GOOS == "windows" {
-			// walkLinks(".", ...) always returns "." on unix.
-			// But on windows it returns symlink target, if current
-			// directory is a symlink. Stop the walk, if symlink
-			// target is not absolute path, and return "."
-			// to the caller (just like unix does).
-			// Same for "C:.".
-			if path[volumeNameLen(path):] == "." && !IsAbs(newpath) {
-				return path, nil
+
+		if fi.Mode()&os.ModeSymlink == 0 {
+			if !fi.Mode().IsDir() && end < len(path) {
+				return "", os.ErrNotExist
 			}
+			continue
 		}
-		if i == linksWalked {
-			return Clean(newpath), nil
+
+		// Found symlink.
+
+		linksWalked++
+		if linksWalked > 255 {
+			return "", errors.New("EvalSymlinks: too many links")
 		}
-		path = newpath
+
+		link, err := os.Readlink(dest)
+		if err != nil {
+			return "", err
+		}
+
+		if isWindowsDot && !IsAbs(link) {
+			// On Windows, if "." is a relative symlink,
+			// just return ".".
+			break
+		}
+
+		path = link + path[end:]
+
+		v := volumeNameLen(link)
+		if v > 0 {
+			// Symlink to drive name is an absolute path.
+			if v < len(link) && os.IsPathSeparator(link[v]) {
+				v++
+			}
+			vol = link[:v]
+			dest = vol
+			end = len(vol)
+		} else if len(link) > 0 && os.IsPathSeparator(link[0]) {
+			// Symlink to absolute path.
+			dest = link[:1]
+			end = 1
+		} else {
+			// Symlink to relative path; replace last
+			// path component in dest.
+			var r int
+			for r = len(dest) - 1; r >= volLen; r-- {
+				if os.IsPathSeparator(dest[r]) {
+					break
+				}
+			}
+			if r < volLen {
+				dest = vol
+			} else {
+				dest = dest[:r]
+			}
+			end = 0
+		}
 	}
+	return Clean(dest), nil
 }

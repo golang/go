@@ -70,7 +70,7 @@ label:
 // LTYPEM spec6	{ outcode(int($1), &$2); }
 	MOVL	AX, BX
 	MOVL	$4, BX
-	
+
 // LTYPEI spec7	{ outcode(int($1), &$2); }
 	IMULL	AX
 	IMULL	$4, CX

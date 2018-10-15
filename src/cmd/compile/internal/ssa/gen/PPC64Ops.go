@@ -135,11 +135,14 @@ func init() {
 		gp01        = regInfo{inputs: nil, outputs: []regMask{gp}}
 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
+		gp22        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
 		gp1cr       = regInfo{inputs: []regMask{gp | sp | sb}}
 		gp2cr       = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
 		crgp        = regInfo{inputs: nil, outputs: []regMask{gp}}
 		gpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+		gploadidx   = regInfo{inputs: []regMask{gp | sp | sb, gp}, outputs: []regMask{gp}}
 		gpstore     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
+		gpstoreidx  = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}}
 		gpstorezero = regInfo{inputs: []regMask{gp | sp | sb}} // ppc64.REGZERO is reserved zero value
 		gpxchg      = regInfo{inputs: []regMask{gp | sp | sb, gp}, outputs: []regMask{gp}}
 		gpcas       = regInfo{inputs: []regMask{gp | sp | sb, gp, gp}, outputs: []regMask{gp}}
@@ -151,7 +154,9 @@ func init() {
 		fp31        = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
 		fp2cr       = regInfo{inputs: []regMask{fp, fp}}
 		fpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{fp}}
+		fploadidx   = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{fp}}
 		fpstore     = regInfo{inputs: []regMask{gp | sp | sb, fp}}
+		fpstoreidx  = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, fp}}
 		callerSave  = regMask(gp | fp | gr)
 	)
 	ops := []opData{
@@ -170,6 +175,7 @@ func init() {
 		{name: "MULHW", argLength: 2, reg: gp21, asm: "MULHW", commutative: true},   // (arg0 * arg1) >> 32, signed
 		{name: "MULHDU", argLength: 2, reg: gp21, asm: "MULHDU", commutative: true}, // (arg0 * arg1) >> 64, unsigned
 		{name: "MULHWU", argLength: 2, reg: gp21, asm: "MULHWU", commutative: true}, // (arg0 * arg1) >> 32, unsigned
+		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true},   // arg0 * arg1, returns (hi, lo)
 
 		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true},   // arg0*arg1
 		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true}, // arg0*arg1
@@ -281,6 +287,19 @@ func init() {
 		{name: "MOVWBRload", argLength: 2, reg: gpload, asm: "MOVWBR", aux: "SymOff", typ: "Int32", faultOnNilArg0: true, symEffect: "Read"}, // load 4 bytes zero extend reverse order
 		{name: "MOVHBRload", argLength: 2, reg: gpload, asm: "MOVHBR", aux: "SymOff", typ: "Int16", faultOnNilArg0: true, symEffect: "Read"}, // load 2 bytes zero extend reverse order
 
+		// In these cases an index register is used in addition to a base register
+		{name: "MOVBZloadidx", argLength: 3, reg: gploadidx, asm: "MOVBZ", aux: "SymOff", typ: "UInt8", faultOnNilArg0: true, symEffect: "Read"},  // zero extend uint8 to uint64
+		{name: "MOVHloadidx", argLength: 3, reg: gploadidx, asm: "MOVH", aux: "SymOff", typ: "Int16", faultOnNilArg0: true, symEffect: "Read"},    // sign extend int16 to int64
+		{name: "MOVHZloadidx", argLength: 3, reg: gploadidx, asm: "MOVHZ", aux: "SymOff", typ: "UInt16", faultOnNilArg0: true, symEffect: "Read"}, // zero extend uint16 to uint64
+		{name: "MOVWloadidx", argLength: 3, reg: gploadidx, asm: "MOVW", aux: "SymOff", typ: "Int32", faultOnNilArg0: true, symEffect: "Read"},    // sign extend int32 to int64
+		{name: "MOVWZloadidx", argLength: 3, reg: gploadidx, asm: "MOVWZ", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"}, // zero extend uint32 to uint64
+		{name: "MOVDloadidx", argLength: 3, reg: gploadidx, asm: "MOVD", aux: "SymOff", typ: "Int64", faultOnNilArg0: true, symEffect: "Read"},
+		{name: "MOVHBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVHBR", aux: "SymOff", typ: "Int16", faultOnNilArg0: true, symEffect: "Read"}, // sign extend int16 to int64
+		{name: "MOVWBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVWBR", aux: "SymOff", typ: "Int32", faultOnNilArg0: true, symEffect: "Read"}, // sign extend int32 to int64
+		{name: "MOVDBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVDBR", aux: "SymOff", typ: "Int64", faultOnNilArg0: true, symEffect: "Read"},
+		{name: "FMOVDloadidx", argLength: 3, reg: fploadidx, asm: "FMOVD", aux: "SymOff", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"},
+		{name: "FMOVSloadidx", argLength: 3, reg: fploadidx, asm: "FMOVS", aux: "SymOff", typ: "Float32", faultOnNilArg0: true, symEffect: "Read"},
+
 		// Store bytes in the reverse endian order of the arch into arg0.
 		// These are indexes stores with no offset field in the instruction so the aux fields are not used.
 		{name: "MOVDBRstore", argLength: 3, reg: gpstore, asm: "MOVDBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes reverse order
@@ -300,6 +319,17 @@ func init() {
 		// Store floating point value into arg0+aux+auxint
 		{name: "FMOVDstore", argLength: 3, reg: fpstore, asm: "FMOVD", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store double flot
 		{name: "FMOVSstore", argLength: 3, reg: fpstore, asm: "FMOVS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store single float
+
+		// Stores using index and base registers
+		{name: "MOVBstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},     // store bye
+		{name: "MOVHstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVH", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},     // store half word
+		{name: "MOVWstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},     // store word
+		{name: "MOVDstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVD", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},     // store double word
+		{name: "FMOVDstoreidx", argLength: 4, reg: fpstoreidx, asm: "FMOVD", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store double float
+		{name: "FMOVSstoreidx", argLength: 4, reg: fpstoreidx, asm: "FMOVS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store single float
+		{name: "MOVHBRstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVHBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store half word reversed byte using index reg
+		{name: "MOVWBRstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVWBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store word reversed byte using index reg
+		{name: "MOVDBRstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVDBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store double word reversed byte using index reg
 
 		// The following ops store 0 into arg0+aux+auxint arg1=mem
 		{name: "MOVBstorezero", argLength: 2, reg: gpstorezero, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store zero 1 byte

@@ -35,12 +35,12 @@
 #define SYS_madvise		5027
 #define SYS_mincore		5026
 #define SYS_gettid		5178
-#define SYS_tkill		5192
 #define SYS_futex		5194
 #define SYS_sched_getaffinity	5196
 #define SYS_exit_group		5205
 #define SYS_epoll_create	5207
 #define SYS_epoll_ctl		5208
+#define SYS_tgkill		5225
 #define SYS_openat		5247
 #define SYS_epoll_pwait		5272
 #define SYS_clock_gettime	5222
@@ -137,11 +137,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
+	MOVV	$SYS_getpid, R2
+	SYSCALL
+	MOVW	R2, R16
 	MOVV	$SYS_gettid, R2
 	SYSCALL
-	MOVW	R2, R4	// arg 1 tid
-	MOVW	sig+0(FP), R5	// arg 2
-	MOVV	$SYS_tkill, R2
+	MOVW	R2, R5	// arg 2 tid
+	MOVW	R16, R4	// arg 1 pid
+	MOVW	sig+0(FP), R6	// arg 3
+	MOVV	$SYS_tgkill, R2
 	SYSCALL
 	RET
 
@@ -287,7 +291,7 @@ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+16(FP), R6
 	MOVV	$SYS_madvise, R2
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	MOVW	R2, ret+24(FP)
 	RET
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,

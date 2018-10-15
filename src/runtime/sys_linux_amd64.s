@@ -36,12 +36,12 @@
 #define SYS_sigaltstack 	131
 #define SYS_arch_prctl		158
 #define SYS_gettid		186
-#define SYS_tkill		200
 #define SYS_futex		202
 #define SYS_sched_getaffinity	204
 #define SYS_epoll_create	213
 #define SYS_exit_group		231
 #define SYS_epoll_ctl		233
+#define SYS_tgkill		234
 #define SYS_openat		257
 #define SYS_faccessat		269
 #define SYS_epoll_pwait		281
@@ -137,11 +137,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$0
+	MOVL	$SYS_getpid, AX
+	SYSCALL
+	MOVL	AX, R12
 	MOVL	$SYS_gettid, AX
 	SYSCALL
-	MOVL	AX, DI	// arg 1 tid
-	MOVL	sig+0(FP), SI	// arg 2
-	MOVL	$SYS_tkill, AX
+	MOVL	AX, SI	// arg 2 tid
+	MOVL	R12, DI	// arg 1 pid
+	MOVL	sig+0(FP), DX	// arg 3
+	MOVL	$SYS_tgkill, AX
 	SYSCALL
 	RET
 
@@ -515,7 +519,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	flags+16(FP), DX
 	MOVQ	$SYS_madvise, AX
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	MOVL	AX, ret+24(FP)
 	RET
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,
@@ -604,7 +608,7 @@ TEXT runtime·settls(SB),NOSPLIT,$32
 	// Same as in sys_darwin_386.s:/ugliness, different constant.
 	// DI currently holds m->tls, which must be fs:0x1d0.
 	// See cgo/gcc_android_amd64.c for the derivation of the constant.
-	SUBQ	$0x1d0, DI  // In android, the tls base 
+	SUBQ	$0x1d0, DI  // In android, the tls base
 #else
 	ADDQ	$8, DI	// ELF wants to use -8(FS)
 #endif

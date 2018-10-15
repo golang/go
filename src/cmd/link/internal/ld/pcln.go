@@ -312,45 +312,19 @@ func (ctxt *Link) pclntab() {
 		}
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), args))
 
-		// funcID uint32
-		funcID := objabi.FuncID_normal
-		switch s.Name {
-		case "runtime.main":
-			funcID = objabi.FuncID_runtime_main
-		case "runtime.goexit":
-			funcID = objabi.FuncID_goexit
-		case "runtime.jmpdefer":
-			funcID = objabi.FuncID_jmpdefer
-		case "runtime.mcall":
-			funcID = objabi.FuncID_mcall
-		case "runtime.morestack":
-			funcID = objabi.FuncID_morestack
-		case "runtime.mstart":
-			funcID = objabi.FuncID_mstart
-		case "runtime.rt0_go":
-			funcID = objabi.FuncID_rt0_go
-		case "runtime.asmcgocall":
-			funcID = objabi.FuncID_asmcgocall
-		case "runtime.sigpanic":
-			funcID = objabi.FuncID_sigpanic
-		case "runtime.runfinq":
-			funcID = objabi.FuncID_runfinq
-		case "runtime.gcBgMarkWorker":
-			funcID = objabi.FuncID_gcBgMarkWorker
-		case "runtime.systemstack_switch":
-			funcID = objabi.FuncID_systemstack_switch
-		case "runtime.systemstack":
-			funcID = objabi.FuncID_systemstack
-		case "runtime.cgocallback_gofunc":
-			funcID = objabi.FuncID_cgocallback_gofunc
-		case "runtime.gogo":
-			funcID = objabi.FuncID_gogo
-		case "runtime.externalthreadhandler":
-			funcID = objabi.FuncID_externalthreadhandler
-		case "runtime.debugCallV1":
-			funcID = objabi.FuncID_debugCallV1
+		// deferreturn
+		deferreturn := uint32(0)
+		for _, r := range s.R {
+			if r.Sym != nil && r.Sym.Name == "runtime.deferreturn" && r.Add == 0 {
+				// Note: the relocation target is in the call instruction, but
+				// is not necessarily the whole instruction (for instance, on
+				// x86 the relocation applies to bytes [1:5] of the 5 byte call
+				// instruction).
+				deferreturn = uint32(r.Off)
+				break // only need one
+			}
 		}
-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(funcID)))
+		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), deferreturn))
 
 		if pcln != &pclntabZpcln {
 			renumberfiles(ctxt, pcln.File, &pcln.Pcfile)
@@ -396,7 +370,52 @@ func (ctxt *Link) pclntab() {
 		off = addpctab(ctxt, ftab, off, &pcln.Pcfile)
 		off = addpctab(ctxt, ftab, off, &pcln.Pcline)
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Pcdata))))
-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Funcdata))))
+
+		// funcID uint8
+		funcID := objabi.FuncID_normal
+		switch s.Name {
+		case "runtime.main":
+			funcID = objabi.FuncID_runtime_main
+		case "runtime.goexit":
+			funcID = objabi.FuncID_goexit
+		case "runtime.jmpdefer":
+			funcID = objabi.FuncID_jmpdefer
+		case "runtime.mcall":
+			funcID = objabi.FuncID_mcall
+		case "runtime.morestack":
+			funcID = objabi.FuncID_morestack
+		case "runtime.mstart":
+			funcID = objabi.FuncID_mstart
+		case "runtime.rt0_go":
+			funcID = objabi.FuncID_rt0_go
+		case "runtime.asmcgocall":
+			funcID = objabi.FuncID_asmcgocall
+		case "runtime.sigpanic":
+			funcID = objabi.FuncID_sigpanic
+		case "runtime.runfinq":
+			funcID = objabi.FuncID_runfinq
+		case "runtime.gcBgMarkWorker":
+			funcID = objabi.FuncID_gcBgMarkWorker
+		case "runtime.systemstack_switch":
+			funcID = objabi.FuncID_systemstack_switch
+		case "runtime.systemstack":
+			funcID = objabi.FuncID_systemstack
+		case "runtime.cgocallback_gofunc":
+			funcID = objabi.FuncID_cgocallback_gofunc
+		case "runtime.gogo":
+			funcID = objabi.FuncID_gogo
+		case "runtime.externalthreadhandler":
+			funcID = objabi.FuncID_externalthreadhandler
+		case "runtime.debugCallV1":
+			funcID = objabi.FuncID_debugCallV1
+		}
+		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
+
+		// unused
+		off += 2
+
+		// nfuncdata must be the final entry.
+		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(len(pcln.Funcdata))))
 		for i := range pcln.Pcdata {
 			off = addpctab(ctxt, ftab, off, &pcln.Pcdata[i])
 		}

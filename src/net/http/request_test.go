@@ -878,7 +878,7 @@ func testMissingFile(t *testing.T, req *Request) {
 }
 
 func newTestMultipartRequest(t *testing.T) *Request {
-	b := strings.NewReader(strings.Replace(message, "\n", "\r\n", -1))
+	b := strings.NewReader(strings.ReplaceAll(message, "\n", "\r\n"))
 	req, err := NewRequest("POST", "/", b)
 	if err != nil {
 		t.Fatal("NewRequest:", err)
@@ -970,8 +970,8 @@ Content-Disposition: form-data; name="textb"
 `
 
 func benchmarkReadRequest(b *testing.B, request string) {
-	request = request + "\n"                             // final \n
-	request = strings.Replace(request, "\n", "\r\n", -1) // expand \n to \r\n
+	request = request + "\n"                            // final \n
+	request = strings.ReplaceAll(request, "\n", "\r\n") // expand \n to \r\n
 	b.SetBytes(int64(len(request)))
 	r := bufio.NewReader(&infiniteReader{buf: []byte(request)})
 	b.ReportAllocs()

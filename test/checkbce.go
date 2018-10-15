@@ -1,4 +1,4 @@
-// +build amd64
+// +build amd64,!gcflags_noopt
 // errorcheck -0 -d=ssa/check_bce/debug=3
 
 // Copyright 2016 The Go Authors. All rights reserved.

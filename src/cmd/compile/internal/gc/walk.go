@@ -1312,7 +1312,7 @@ opswitch:
 						b = conv(b, convType)
 						b = nod(OLSH, b, nodintconst(int64(8*offset)))
 						ncsubstr = nod(OOR, ncsubstr, b)
-						csubstr = csubstr | int64(s[i+offset])<<uint8(8*offset)
+						csubstr |= int64(s[i+offset]) << uint8(8*offset)
 					}
 					csubstrPart := nodintconst(csubstr)
 					// Compare "step" bytes as once
@@ -1418,7 +1418,7 @@ opswitch:
 			// Maximum key and value size is 128 bytes, larger objects
 			// are stored with an indirection. So max bucket size is 2048+eps.
 			if !Isconst(hint, CTINT) ||
-				!(hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) > 0) {
+				hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
 				// var bv bmap
 				bv := temp(bmap(t))
 
@@ -4052,7 +4052,7 @@ func wrapCall(n *Node, init *Nodes) *Node {
 // The result of substArgTypes MUST be assigned back to old, e.g.
 // 	n.Left = substArgTypes(n.Left, t1, t2)
 func substArgTypes(old *Node, types_ ...*types.Type) *Node {
-	n := old.copy() // make shallow copy
+	n := old.copy()
 
 	for _, t := range types_ {
 		dowidth(t)

@@ -27,6 +27,20 @@ import (
 	"golang_org/x/net/dns/dnsmessage"
 )
 
+var (
+	errLameReferral              = errors.New("lame referral")
+	errCannotUnmarshalDNSMessage = errors.New("cannot unmarshal DNS message")
+	errCannotMarshalDNSMessage   = errors.New("cannot marshal DNS message")
+	errServerMisbehaving         = errors.New("server misbehaving")
+	errInvalidDNSResponse        = errors.New("invalid DNS response")
+	errNoAnswerFromDNSServer     = errors.New("no answer from DNS server")
+
+	// errServerTemporarlyMisbehaving is like errServerMisbehaving, except
+	// that when it gets translated to a DNSError, the IsTemporary field
+	// gets set to true.
+	errServerTemporarlyMisbehaving = errors.New("server misbehaving")
+)
+
 func newRequest(q dnsmessage.Question) (id uint16, udpReq, tcpReq []byte, err error) {
 	id = uint16(rand.Int()) ^ uint16(time.Now().UnixNano())
 	b := dnsmessage.NewBuilder(make([]byte, 2, 514), dnsmessage.Header{ID: id, RecursionDesired: true})
@@ -105,14 +119,14 @@ func dnsStreamRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte) 
 	var p dnsmessage.Parser
 	h, err := p.Start(b[:n])
 	if err != nil {
-		return dnsmessage.Parser{}, dnsmessage.Header{}, errors.New("cannot unmarshal DNS message")
+		return dnsmessage.Parser{}, dnsmessage.Header{}, errCannotUnmarshalDNSMessage
 	}
 	q, err := p.Question()
 	if err != nil {
-		return dnsmessage.Parser{}, dnsmessage.Header{}, errors.New("cannot unmarshal DNS message")
+		return dnsmessage.Parser{}, dnsmessage.Header{}, errCannotUnmarshalDNSMessage
 	}
 	if !checkResponse(id, query, h, q) {
-		return dnsmessage.Parser{}, dnsmessage.Header{}, errors.New("invalid DNS response")
+		return dnsmessage.Parser{}, dnsmessage.Header{}, errInvalidDNSResponse
 	}
 	return p, h, nil
 }
@@ -122,7 +136,7 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
 	q.Class = dnsmessage.ClassINET
 	id, udpReq, tcpReq, err := newRequest(q)
 	if err != nil {
-		return dnsmessage.Parser{}, dnsmessage.Header{}, errors.New("cannot marshal DNS message")
+		return dnsmessage.Parser{}, dnsmessage.Header{}, errCannotMarshalDNSMessage
 	}
 	for _, network := range []string{"udp", "tcp"} {
 		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
@@ -147,31 +161,31 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
 			return dnsmessage.Parser{}, dnsmessage.Header{}, mapErr(err)
 		}
 		if err := p.SkipQuestion(); err != dnsmessage.ErrSectionDone {
-			return dnsmessage.Parser{}, dnsmessage.Header{}, errors.New("invalid DNS response")
+			return dnsmessage.Parser{}, dnsmessage.Header{}, errInvalidDNSResponse
 		}
 		if h.Truncated { // see RFC 5966
 			continue
 		}
 		return p, h, nil
 	}
-	return dnsmessage.Parser{}, dnsmessage.Header{}, errors.New("no answer from DNS server")
+	return dnsmessage.Parser{}, dnsmessage.Header{}, errNoAnswerFromDNSServer
 }
 
 // checkHeader performs basic sanity checks on the header.
 func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header, name, server string) error {
+	if h.RCode == dnsmessage.RCodeNameError {
+		return errNoSuchHost
+	}
+
 	_, err := p.AnswerHeader()
 	if err != nil && err != dnsmessage.ErrSectionDone {
-		return &DNSError{
-			Err:    "cannot unmarshal DNS message",
-			Name:   name,
-			Server: server,
-		}
+		return errCannotUnmarshalDNSMessage
 	}
 
 	// libresolv continues to the next server when it receives
 	// an invalid referral response. See golang.org/issue/15434.
 	if h.RCode == dnsmessage.RCodeSuccess && !h.Authoritative && !h.RecursionAvailable && err == dnsmessage.ErrSectionDone {
-		return &DNSError{Err: "lame referral", Name: name, Server: server}
+		return errLameReferral
 	}
 
 	if h.RCode != dnsmessage.RCodeSuccess && h.RCode != dnsmessage.RCodeNameError {
@@ -180,11 +194,10 @@ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header, name, server string)
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly or
 		// having temporary trouble.
-		err := &DNSError{Err: "server misbehaving", Name: name, Server: server}
 		if h.RCode == dnsmessage.RCodeServerFailure {
-			err.IsTemporary = true
+			return errServerTemporarlyMisbehaving
 		}
-		return err
+		return errServerMisbehaving
 	}
 
 	return nil
@@ -194,28 +207,16 @@ func skipToAnswer(p *dnsmessage.Parser, qtype dnsmessage.Type, name, server stri
 	for {
 		h, err := p.AnswerHeader()
 		if err == dnsmessage.ErrSectionDone {
-			return &DNSError{
-				Err:    errNoSuchHost.Error(),
-				Name:   name,
-				Server: server,
-			}
+			return errNoSuchHost
 		}
 		if err != nil {
-			return &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
+			return errCannotUnmarshalDNSMessage
 		}
 		if h.Type == qtype {
 			return nil
 		}
 		if err := p.SkipAnswer(); err != nil {
-			return &DNSError{
-				Err:    "cannot unmarshal DNS message",
-				Name:   name,
-				Server: server,
-			}
+			return errCannotUnmarshalDNSMessage
 		}
 	}
 }
@@ -229,7 +230,7 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 
 	n, err := dnsmessage.NewName(name)
 	if err != nil {
-		return dnsmessage.Parser{}, "", errors.New("cannot marshal DNS message")
+		return dnsmessage.Parser{}, "", errCannotMarshalDNSMessage
 	}
 	q := dnsmessage.Question{
 		Name:  n,
@@ -243,37 +244,61 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 
 			p, h, err := r.exchange(ctx, server, q, cfg.timeout)
 			if err != nil {
-				lastErr = &DNSError{
+				dnsErr := &DNSError{
 					Err:    err.Error(),
 					Name:   name,
 					Server: server,
 				}
 				if nerr, ok := err.(Error); ok && nerr.Timeout() {
-					lastErr.(*DNSError).IsTimeout = true
+					dnsErr.IsTimeout = true
 				}
 				// Set IsTemporary for socket-level errors. Note that this flag
 				// may also be used to indicate a SERVFAIL response.
 				if _, ok := err.(*OpError); ok {
-					lastErr.(*DNSError).IsTemporary = true
+					dnsErr.IsTemporary = true
 				}
+				lastErr = dnsErr
 				continue
 			}
 
-			// The name does not exist, so trying another server won't help.
-			//
-			// TODO: indicate this in a more obvious way, such as a field on DNSError?
-			if h.RCode == dnsmessage.RCodeNameError {
-				return dnsmessage.Parser{}, "", &DNSError{Err: errNoSuchHost.Error(), Name: name, Server: server}
-			}
-
-			lastErr = checkHeader(&p, h, name, server)
-			if lastErr != nil {
+			if err := checkHeader(&p, h, name, server); err != nil {
+				dnsErr := &DNSError{
+					Err:    err.Error(),
+					Name:   name,
+					Server: server,
+				}
+				if err == errServerTemporarlyMisbehaving {
+					dnsErr.IsTemporary = true
+				}
+				if err == errNoSuchHost {
+					// The name does not exist, so trying
+					// another server won't help.
+					//
+					// TODO: indicate this in a more
+					// obvious way, such as a field on
+					// DNSError?
+					return p, server, dnsErr
+				}
+				lastErr = dnsErr
 				continue
 			}
 
-			lastErr = skipToAnswer(&p, qtype, name, server)
-			if lastErr == nil {
+			err = skipToAnswer(&p, qtype, name, server)
+			if err == nil {
 				return p, server, nil
+			}
+			lastErr = &DNSError{
+				Err:    err.Error(),
+				Name:   name,
+				Server: server,
+			}
+			if err == errNoSuchHost {
+				// The name does not exist, so trying another
+				// server won't help.
+				//
+				// TODO: indicate this in a more obvious way,
+				// such as a field on DNSError?
+				return p, server, lastErr
 			}
 		}
 	}

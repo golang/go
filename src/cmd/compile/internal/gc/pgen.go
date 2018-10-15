@@ -233,6 +233,26 @@ func compile(fn *Node) {
 	// Set up the function's LSym early to avoid data races with the assemblers.
 	fn.Func.initLSym()
 
+	// Make sure type syms are declared for all types that might
+	// be types of stack objects. We need to do this here
+	// because symbols must be allocated before the parallel
+	// phase of the compiler.
+	if fn.Func.lsym != nil { // not func _(){}
+		for _, n := range fn.Func.Dcl {
+			switch n.Class() {
+			case PPARAM, PPARAMOUT, PAUTO:
+				if livenessShouldTrack(n) && n.Addrtaken() {
+					dtypesym(n.Type)
+					// Also make sure we allocate a linker symbol
+					// for the stack object data, for the same reason.
+					if fn.Func.lsym.Func.StackObjects == nil {
+						fn.Func.lsym.Func.StackObjects = lookup(fmt.Sprintf("%s.stkobj", fn.funcname())).Linksym()
+					}
+				}
+			}
+		}
+	}
+
 	if compilenow() {
 		compileSSA(fn, 0)
 	} else {

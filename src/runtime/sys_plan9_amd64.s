@@ -123,7 +123,7 @@ TEXT runtime·noted(SB),NOSPLIT,$0
 	SYSCALL
 	MOVL	AX, ret+8(FP)
 	RET
-	
+
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	MOVQ	$38, BP
 	SYSCALL

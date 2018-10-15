@@ -964,7 +964,7 @@ func matchGoImport(imports []metaImport, importPath string) (metaImport, error) 
 // expand rewrites s to replace {k} with match[k] for each key k in match.
 func expand(match map[string]string, s string) string {
 	for k, v := range match {
-		s = strings.Replace(s, "{"+k+"}", v, -1)
+		s = strings.ReplaceAll(s, "{"+k+"}", v)
 	}
 	return s
 }

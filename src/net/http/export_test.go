@@ -155,7 +155,7 @@ func (t *Transport) IdleConnStrsForTesting_h2() []string {
 func (t *Transport) IdleConnCountForTesting(scheme, addr string) int {
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
-	key := connectMethodKey{"", scheme, addr}
+	key := connectMethodKey{"", scheme, addr, false}
 	cacheKey := key.String()
 	for k, conns := range t.idleConn {
 		if k.String() == cacheKey {
@@ -178,12 +178,12 @@ func (t *Transport) IsIdleForTesting() bool {
 }
 
 func (t *Transport) RequestIdleConnChForTesting() {
-	t.getIdleConnCh(connectMethod{nil, "http", "example.com"})
+	t.getIdleConnCh(connectMethod{nil, "http", "example.com", false})
 }
 
 func (t *Transport) PutIdleTestConn(scheme, addr string) bool {
 	c, _ := net.Pipe()
-	key := connectMethodKey{"", scheme, addr}
+	key := connectMethodKey{"", scheme, addr, false}
 	select {
 	case <-t.incHostConnCount(key):
 	default:

@@ -38,7 +38,7 @@ type mstats struct {
 	heap_alloc    uint64 // bytes allocated and not yet freed (same as alloc above)
 	heap_sys      uint64 // virtual address space obtained from system for GC'd heap
 	heap_idle     uint64 // bytes in idle spans
-	heap_inuse    uint64 // bytes in _MSpanInUse spans
+	heap_inuse    uint64 // bytes in mSpanInUse spans
 	heap_released uint64 // bytes released to the os
 	heap_objects  uint64 // total number of allocated objects
 

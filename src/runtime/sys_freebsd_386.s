@@ -9,7 +9,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
-	
+
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
 	MOVL	$454, AX
 	INT	$0x80
@@ -39,7 +39,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 	POPAL
 	get_tls(CX)
 	MOVL	BX, g(CX)
-	
+
 	MOVL	AX, g_m(BX)
 	CALL	runtime·stackcheck(SB)		// smashes AX
 	CALL	runtime·mstart(SB)
@@ -163,7 +163,9 @@ TEXT runtime·munmap(SB),NOSPLIT,$-4
 TEXT runtime·madvise(SB),NOSPLIT,$-4
 	MOVL	$75, AX	// madvise
 	INT	$0x80
-	// ignore failure - maybe pages are locked
+	JAE	2(PC)
+	MOVL	$-1, AX
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·setitimer(SB), NOSPLIT, $-4

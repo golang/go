@@ -34,6 +34,10 @@ func semacreate(mp *m) {
 
 //go:nosplit
 func semasleep(ns int64) int32 {
+	var start int64
+	if ns >= 0 {
+		start = nanotime()
+	}
 	mp := getg().m
 	pthread_mutex_lock(&mp.mutex)
 	for {
@@ -43,8 +47,13 @@ func semasleep(ns int64) int32 {
 			return 0
 		}
 		if ns >= 0 {
+			spent := nanotime() - start
+			if spent >= ns {
+				pthread_mutex_unlock(&mp.mutex)
+				return -1
+			}
 			var t timespec
-			t.set_nsec(ns)
+			t.set_nsec(ns - spent)
 			err := pthread_cond_timedwait_relative_np(&mp.cond, &mp.mutex, &t)
 			if err == _ETIMEDOUT {
 				pthread_mutex_unlock(&mp.mutex)

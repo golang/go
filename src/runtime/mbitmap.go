@@ -365,7 +365,7 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
 	s = spanOf(p)
 	// If p is a bad pointer, it may not be in s's bounds.
 	if s == nil || p < s.base() || p >= s.limit || s.state != mSpanInUse {
-		if s == nil || s.state == _MSpanManual {
+		if s == nil || s.state == mSpanManual {
 			// If s is nil, the virtual address has never been part of the heap.
 			// This pointer may be to some mmap'd region, so we allow it.
 			// Pointers into stacks are also ok, the runtime manages these explicitly.
@@ -611,7 +611,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
 			}
 		}
 		return
-	} else if s.state != _MSpanInUse || dst < s.base() || s.limit <= dst {
+	} else if s.state != mSpanInUse || dst < s.base() || s.limit <= dst {
 		// dst was heap memory at some point, but isn't now.
 		// It can't be a global. It must be either our stack,
 		// or in the case of direct channel sends, it could be
@@ -1911,6 +1911,20 @@ Run:
 	return totalBits
 }
 
+// materializeGCProg allocates space for the (1-bit) pointer bitmask
+// for an object of size ptrdata.  Then it fills that space with the
+// pointer bitmask specified by the program prog.
+// The bitmask starts at s.startAddr.
+// The result must be deallocated with dematerializeGCProg.
+func materializeGCProg(ptrdata uintptr, prog *byte) *mspan {
+	s := mheap_.allocManual((ptrdata/(8*sys.PtrSize)+pageSize-1)/pageSize, &memstats.gc_sys)
+	runGCProg(addb(prog, 4), nil, (*byte)(unsafe.Pointer(s.startAddr)), 1)
+	return s
+}
+func dematerializeGCProg(s *mspan) {
+	mheap_.freeManual(s, &memstats.gc_sys)
+}
+
 func dumpGCProg(p *byte) {
 	nptr := 0
 	for {
@@ -1980,7 +1994,9 @@ func reflect_gcbits(x interface{}) []byte {
 	return ret
 }
 
-// Returns GC type info for object p for testing.
+// Returns GC type info for the pointer stored in ep for testing.
+// If ep points to the stack, only static live information will be returned
+// (i.e. not for objects which are only dynamically live stack objects).
 func getgcmask(ep interface{}) (mask []byte) {
 	e := *efaceOf(&ep)
 	p := e.data
@@ -2037,7 +2053,7 @@ func getgcmask(ep interface{}) (mask []byte) {
 		_g_ := getg()
 		gentraceback(_g_.m.curg.sched.pc, _g_.m.curg.sched.sp, 0, _g_.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
 		if frame.fn.valid() {
-			locals, _ := getStackMap(&frame, nil, false)
+			locals, _, _ := getStackMap(&frame, nil, false)
 			if locals.n == 0 {
 				return
 			}

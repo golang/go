@@ -130,7 +130,7 @@ func (c *testConn) Close() error {
 // reqBytes treats req as a request (with \n delimiters) and returns it with \r\n delimiters,
 // ending in \r\n\r\n
 func reqBytes(req string) []byte {
-	return []byte(strings.Replace(strings.TrimSpace(req), "\n", "\r\n", -1) + "\r\n\r\n")
+	return []byte(strings.ReplaceAll(strings.TrimSpace(req), "\n", "\r\n") + "\r\n\r\n")
 }
 
 type handlerTest struct {
@@ -4028,21 +4028,18 @@ func TestRequestBodyCloseDoesntBlock(t *testing.T) {
 	}
 }
 
-// test that ResponseWriter implements io.stringWriter.
+// test that ResponseWriter implements io.StringWriter.
 func TestResponseWriterWriteString(t *testing.T) {
 	okc := make(chan bool, 1)
 	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
-		type stringWriter interface {
-			WriteString(s string) (n int, err error)
-		}
-		_, ok := w.(stringWriter)
+		_, ok := w.(io.StringWriter)
 		okc <- ok
 	}))
 	ht.rawResponse("GET / HTTP/1.0")
 	select {
 	case ok := <-okc:
 		if !ok {
-			t.Error("ResponseWriter did not implement io.stringWriter")
+			t.Error("ResponseWriter did not implement io.StringWriter")
 		}
 	default:
 		t.Error("handler was never called")

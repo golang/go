@@ -470,8 +470,9 @@ var genericOps = []opData{
 
 	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None", zeroWidth: true}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
 	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},                             // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
-	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
-	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                             // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+	// TODO: what's the difference betweeen VarLive and KeepAlive?
+	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true}, // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                  // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
 
 	// Ops for breaking 64-bit operations on 32-bit architectures
 	{name: "Int64Make", argLength: 2, typ: "UInt64"}, // arg0=hi, arg1=lo

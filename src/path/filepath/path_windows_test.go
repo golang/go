@@ -431,7 +431,7 @@ func TestToNorm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = os.MkdirAll(strings.Replace(testPath, "{{tmp}}", ctmp, -1), 0777)
+	err = os.MkdirAll(strings.ReplaceAll(testPath, "{{tmp}}", ctmp), 0777)
 	if err != nil {
 		t.Fatal(err)
 	}

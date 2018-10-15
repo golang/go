@@ -280,7 +280,7 @@ func consumeValue(v string) (value, rest string) {
 		// and intended as a literal backslash. This makes Go servers deal better
 		// with MSIE without affecting the way they handle conforming MIME
 		// generators.
-		if r == '\\' && i+1 < len(v) && !isTokenChar(rune(v[i+1])) {
+		if r == '\\' && i+1 < len(v) && isTSpecial(rune(v[i+1])) {
 			buffer.WriteByte(v[i+1])
 			i++
 			continue

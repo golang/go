@@ -45,7 +45,7 @@ func TestImport(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	for _, tt := range importTests {
-		t.Run(strings.Replace(tt.path, "/", "_", -1), func(t *testing.T) {
+		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
 			// Note that there is no build list, so Import should always fail.
 			m, dir, err := Import(tt.path)
 			if err == nil {

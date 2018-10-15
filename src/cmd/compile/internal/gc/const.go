@@ -234,7 +234,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
 	if n.Op == OLITERAL && !reuse {
 		// Can't always set n.Type directly on OLITERAL nodes.
 		// See discussion on CL 20813.
-		n = n.copy()
+		n = n.rawcopy()
 		reuse = true
 	}
 
@@ -476,7 +476,7 @@ func toflt(v Val) Val {
 		f := newMpflt()
 		f.Set(&u.Real)
 		if u.Imag.CmpFloat64(0) != 0 {
-			yyerror("constant %v%vi truncated to real", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
+			yyerror("constant %v truncated to real", u.GoString())
 		}
 		v.U = f
 	}
@@ -509,11 +509,11 @@ func toint(v Val) Val {
 				// value from the error message.
 				// (See issue #11371).
 				var t big.Float
-				t.Parse(fconv(u, FmtSharp), 10)
+				t.Parse(u.GoString(), 10)
 				if t.IsInt() {
 					yyerror("constant truncated to integer")
 				} else {
-					yyerror("constant %v truncated to integer", fconv(u, FmtSharp))
+					yyerror("constant %v truncated to integer", u.GoString())
 				}
 			}
 		}
@@ -522,7 +522,7 @@ func toint(v Val) Val {
 	case *Mpcplx:
 		i := new(Mpint)
 		if !i.SetFloat(&u.Real) || u.Imag.CmpFloat64(0) != 0 {
-			yyerror("constant %v%vi truncated to integer", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
+			yyerror("constant %v truncated to integer", u.GoString())
 		}
 
 		v.U = i
@@ -1200,8 +1200,7 @@ func setconst(n *Node, v Val) {
 	// Ensure n.Orig still points to a semantically-equivalent
 	// expression after we rewrite n into a constant.
 	if n.Orig == n {
-		n.Orig = n.copy()
-		n.Orig.Orig = n.Orig
+		n.Orig = n.sepcopy()
 	}
 
 	*n = Node{
@@ -1331,7 +1330,7 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
 	}
 
 	if n.Op == OLITERAL && !reuse {
-		n = n.copy()
+		n = n.rawcopy()
 		reuse = true
 	}
 

@@ -278,16 +278,16 @@ type RuneScanner interface {
 	UnreadRune() error
 }
 
-// stringWriter is the interface that wraps the WriteString method.
-type stringWriter interface {
+// StringWriter is the interface that wraps the WriteString method.
+type StringWriter interface {
 	WriteString(s string) (n int, err error)
 }
 
 // WriteString writes the contents of the string s to w, which accepts a slice of bytes.
-// If w implements a WriteString method, it is invoked directly.
+// If w implements StringWriter, its WriteString method is invoked directly.
 // Otherwise, w.Write is called exactly once.
 func WriteString(w Writer, s string) (n int, err error) {
-	if sw, ok := w.(stringWriter); ok {
+	if sw, ok := w.(StringWriter); ok {
 		return sw.WriteString(s)
 	}
 	return w.Write([]byte(s))

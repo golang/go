@@ -424,7 +424,6 @@ type m struct {
 	locks         int32
 	dying         int32
 	profilehz     int32
-	helpgc        int32
 	spinning      bool // m is out of work and is actively looking for work
 	blocked       bool // m is blocked on a note
 	inwb          bool // m is executing a write barrier
@@ -580,6 +579,18 @@ type schedt struct {
 	runq     gQueue
 	runqsize int32
 
+	// disable controls selective disabling of the scheduler.
+	//
+	// Use schedEnableUser to control this.
+	//
+	// disable is protected by sched.lock.
+	disable struct {
+		// user disables scheduling of user goroutines.
+		user     bool
+		runnable gQueue // pending runnable Gs
+		n        int32  // length of runnable
+	}
+
 	// Global cache of dead G's.
 	gFree struct {
 		lock    mutex
@@ -639,14 +650,16 @@ type _func struct {
 	entry   uintptr // start pc
 	nameoff int32   // function name
 
-	args   int32  // in/out args size
-	funcID funcID // set for certain special runtime functions
+	args        int32  // in/out args size
+	deferreturn uint32 // offset of a deferreturn block from entry, if any.
 
 	pcsp      int32
 	pcfile    int32
 	pcln      int32
 	npcdata   int32
-	nfuncdata int32
+	funcID    funcID  // set for certain special runtime functions
+	_         [2]int8 // unused
+	nfuncdata uint8   // must be last
 }
 
 // layout of Itab known to compilers

@@ -99,7 +99,7 @@ and test commands:
 		link against shared libraries previously created with
 		-buildmode=shared.
 	-mod mode
-		module download mode to use: readonly, release, or vendor.
+		module download mode to use: readonly or vendor.
 		See 'go help modules' for more.
 	-pkgdir dir
 		install and load all packages from dir instead of the usual locations.
@@ -398,10 +398,10 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
 					arg = bp.ImportPath
 				}
 			}
-			appendName(strings.Replace(arg, "/", "-", -1))
+			appendName(strings.ReplaceAll(arg, "/", "-"))
 		} else {
 			for _, pkg := range pkgs {
-				appendName(strings.Replace(pkg.ImportPath, "/", "-", -1))
+				appendName(strings.ReplaceAll(pkg.ImportPath, "/", "-"))
 			}
 		}
 	} else if haveNonMeta { // have both meta package and a non-meta one

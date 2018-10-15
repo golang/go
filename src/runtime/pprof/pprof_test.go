@@ -602,7 +602,7 @@ func TestBlockProfile(t *testing.T) {
 		}
 
 		for _, test := range tests {
-			if !regexp.MustCompile(strings.Replace(test.re, "\t", "\t+", -1)).MatchString(prof) {
+			if !regexp.MustCompile(strings.ReplaceAll(test.re, "\t", "\t+")).MatchString(prof) {
 				t.Errorf("Bad %v entry, expect:\n%v\ngot:\n%v", test.name, test.re, prof)
 			}
 		}

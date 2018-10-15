@@ -44,8 +44,8 @@
 (Xor(32|16|8) x y) -> (XORL x y)
 
 (Neg(32|16|8)  x) -> (NEGL x)
-(Neg32F x) && !config.use387 -> (PXOR x (MOVSSconst <typ.Float32> [f2i(math.Copysign(0, -1))]))
-(Neg64F x) && !config.use387 -> (PXOR x (MOVSDconst <typ.Float64> [f2i(math.Copysign(0, -1))]))
+(Neg32F x) && !config.use387 -> (PXOR x (MOVSSconst <typ.Float32> [auxFrom32F(float32(math.Copysign(0, -1)))]))
+(Neg64F x) && !config.use387 -> (PXOR x (MOVSDconst <typ.Float64> [auxFrom64F(math.Copysign(0, -1))]))
 (Neg32F x) && config.use387 -> (FCHS x)
 (Neg64F x) && config.use387 -> (FCHS x)
 
@@ -1116,10 +1116,10 @@
 (XORL x x) -> (MOVLconst [0])
 
 // checking AND against 0.
-(CMP(L|W|B)const (ANDL x y) [0]) -> (TEST(L|W|B) x y)
-(CMPLconst (ANDLconst [c] x) [0]) -> (TESTLconst [c] x)
-(CMPWconst (ANDLconst [c] x) [0]) -> (TESTWconst [int64(int16(c))] x)
-(CMPBconst (ANDLconst [c] x) [0]) -> (TESTBconst [int64(int8(c))] x)
+(CMP(L|W|B)const l:(ANDL x y) [0]) && l.Uses==1 -> (TEST(L|W|B) x y)
+(CMPLconst l:(ANDLconst [c] x) [0]) && l.Uses==1 -> (TESTLconst [c] x)
+(CMPWconst l:(ANDLconst [c] x) [0]) && l.Uses==1 -> (TESTWconst [int64(int16(c))] x)
+(CMPBconst l:(ANDLconst [c] x) [0]) && l.Uses==1 -> (TESTBconst [int64(int8(c))] x)
 
 // TEST %reg,%reg is shorter than CMP
 (CMP(L|W|B)const x [0]) -> (TEST(L|W|B) x x)

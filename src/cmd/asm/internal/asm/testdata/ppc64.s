@@ -550,7 +550,7 @@ label1:
 //	ftsqrt	BF, FRB
 	FTSQRT	F2,$7
 
-//	FCFID	
+//	FCFID
 //	FCFIDS
 
 	FCFID	F2,F3

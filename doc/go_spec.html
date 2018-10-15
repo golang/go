@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of August 30, 2018",
+	"Subtitle": "Version of September 24, 2018",
 	"Path": "/ref/spec"
 }-->
 
@@ -5546,7 +5546,10 @@ executes, the function value and parameters to the call are
 and saved anew but the actual function is not invoked.
 Instead, deferred functions are invoked immediately before
 the surrounding function returns, in the reverse order
-they were deferred.
+they were deferred. That is, if the surrounding function
+returns through an explicit <a href="#Return_statements">return statement</a>,
+deferred functions are executed <i>after</i> any result parameters are set
+by that return statement but <i>before</i> the function returns to its caller.
 If a deferred function value evaluates
 to <code>nil</code>, execution <a href="#Handling_panics">panics</a>
 when the function is invoked, not when the "defer" statement is executed.
@@ -5572,12 +5575,13 @@ for i := 0; i &lt;= 3; i++ {
 	defer fmt.Print(i)
 }
 
-// f returns 1
+// f returns 42
 func f() (result int) {
 	defer func() {
-		result++
+		// result is accessed after it was set to 6 by the return statement
+		result *= 7
 	}()
-	return 0
+	return 6
 }
 </pre>
 

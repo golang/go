@@ -1362,6 +1362,12 @@ func TestReplace(t *testing.T) {
 		if cap(in) == cap(out) && &in[:1][0] == &out[:1][0] {
 			t.Errorf("Replace(%q, %q, %q, %d) didn't copy", tt.in, tt.old, tt.new, tt.n)
 		}
+		if tt.n == -1 {
+			out := ReplaceAll(in, []byte(tt.old), []byte(tt.new))
+			if s := string(out); s != tt.out {
+				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
+			}
+		}
 	}
 }
 

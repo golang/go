@@ -203,7 +203,7 @@ func runEnv(cmd *base.Command, args []string) {
 				fmt.Printf("%s=\"%s\"\n", e.Name, e.Value)
 			case "plan9":
 				if strings.IndexByte(e.Value, '\x00') < 0 {
-					fmt.Printf("%s='%s'\n", e.Name, strings.Replace(e.Value, "'", "''", -1))
+					fmt.Printf("%s='%s'\n", e.Name, strings.ReplaceAll(e.Value, "'", "''"))
 				} else {
 					v := strings.Split(e.Value, "\x00")
 					fmt.Printf("%s=(", e.Name)

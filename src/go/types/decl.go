@@ -65,7 +65,7 @@ func objPathString(path []Object) string {
 }
 
 // objDecl type-checks the declaration of obj in its respective (file) context.
-// See check.typ for the details on def and path.
+// For the meaning of def, see Checker.definedType, in typexpr.go.
 func (check *Checker) objDecl(obj Object, def *Named) {
 	if trace {
 		check.trace(obj.Pos(), "-- checking %s %s (objPath = %s)", obj.color(), obj, objPathString(check.objPath))
@@ -140,20 +140,12 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 		// order code.
 		switch obj := obj.(type) {
 		case *Const:
-			if check.typeCycle(obj) {
-				obj.typ = Typ[Invalid]
-				break
-			}
-			if obj.typ == nil {
+			if check.typeCycle(obj) || obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
 
 		case *Var:
-			if check.typeCycle(obj) {
-				obj.typ = Typ[Invalid]
-				break
-			}
-			if obj.typ == nil {
+			if check.typeCycle(obj) || obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
 

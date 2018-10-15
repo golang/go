@@ -197,23 +197,23 @@ func semacreate(mp *m) {
 //go:nosplit
 func semasleep(ns int64) int32 {
 	var ret int32
-
 	systemstack(func() {
 		_g_ := getg()
 		if nacl_mutex_lock(_g_.m.waitsemalock) < 0 {
 			throw("semasleep")
 		}
-
+		var ts timespec
+		if ns >= 0 {
+			end := ns + nanotime()
+			ts.tv_sec = end / 1e9
+			ts.tv_nsec = int32(end % 1e9)
+		}
 		for _g_.m.waitsemacount == 0 {
 			if ns < 0 {
 				if nacl_cond_wait(_g_.m.waitsema, _g_.m.waitsemalock) < 0 {
 					throw("semasleep")
 				}
 			} else {
-				var ts timespec
-				end := ns + nanotime()
-				ts.tv_sec = end / 1e9
-				ts.tv_nsec = int32(end % 1e9)
 				r := nacl_cond_timed_wait_abs(_g_.m.waitsema, _g_.m.waitsemalock, &ts)
 				if r == -_ETIMEDOUT {
 					nacl_mutex_unlock(_g_.m.waitsemalock)

@@ -11,7 +11,7 @@
 //	8(DI) - argc
 //	12(DI) - argv, then 0, then envv, then 0, then auxv
 // NaCl entry here is almost the same, except that there
-// is no saved caller PC, so 0(FP) is -8(FP) and so on. 
+// is no saved caller PC, so 0(FP) is -8(FP) and so on.
 TEXT _rt0_amd64p32_nacl(SB),NOSPLIT,$16
 	MOVL	DI, 0(SP)
 	CALL	runtime·nacl_sysinfo(SB)

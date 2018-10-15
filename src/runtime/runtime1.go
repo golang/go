@@ -305,7 +305,6 @@ var debug struct {
 	gccheckmark        int32
 	gcpacertrace       int32
 	gcshrinkstackoff   int32
-	gcrescanstacks     int32
 	gcstoptheworld     int32
 	gctrace            int32
 	invalidptr         int32
@@ -323,7 +322,6 @@ var dbgvars = []dbgVar{
 	{"gccheckmark", &debug.gccheckmark},
 	{"gcpacertrace", &debug.gcpacertrace},
 	{"gcshrinkstackoff", &debug.gcshrinkstackoff},
-	{"gcrescanstacks", &debug.gcrescanstacks},
 	{"gcstoptheworld", &debug.gcstoptheworld},
 	{"gctrace", &debug.gctrace},
 	{"invalidptr", &debug.invalidptr},
@@ -416,7 +414,9 @@ func timediv(v int64, div int32, rem *int32) int32 {
 	for bit := 30; bit >= 0; bit-- {
 		if v >= int64(div)<<uint(bit) {
 			v = v - (int64(div) << uint(bit))
-			res += 1 << uint(bit)
+			// Before this for loop, res was 0, thus all these
+			// power of 2 increments are now just bitsets.
+			res |= 1 << uint(bit)
 		}
 	}
 	if v >= int64(div) {

@@ -200,7 +200,7 @@ func TestDiff(t *testing.T) {
 	}
 
 	if runtime.GOOS == "windows" {
-		b = bytes.Replace(b, []byte{'\r', '\n'}, []byte{'\n'}, -1)
+		b = bytes.ReplaceAll(b, []byte{'\r', '\n'}, []byte{'\n'})
 	}
 
 	bs := bytes.SplitN(b, []byte{'\n'}, 3)

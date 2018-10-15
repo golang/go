@@ -25,7 +25,7 @@ func softfloat(f *Func) {
 				case OpConst32F:
 					v.Op = OpConst32
 					v.Type = f.Config.Types.UInt32
-					v.AuxInt = int64(int32(math.Float32bits(i2f32(v.AuxInt))))
+					v.AuxInt = int64(int32(math.Float32bits(auxTo32F(v.AuxInt))))
 				case OpConst64F:
 					v.Op = OpConst64
 					v.Type = f.Config.Types.UInt64

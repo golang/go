@@ -17,6 +17,8 @@ package runtime_test
 
 import (
 	"fmt"
+	"io/ioutil"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"sync/atomic"
@@ -25,6 +27,11 @@ import (
 )
 
 func startDebugCallWorker(t *testing.T) (g *runtime.G, after func()) {
+	// This can deadlock if run under a debugger because it
+	// depends on catching SIGTRAP, which is usually swallowed by
+	// a debugger.
+	skipUnderDebugger(t)
+
 	// This can deadlock if there aren't enough threads or if a GC
 	// tries to interrupt an atomic loop (see issue #10958).
 	ogomaxprocs := runtime.GOMAXPROCS(2)
@@ -71,6 +78,28 @@ func debugCallWorker2(stop *uint32, x *int) {
 
 func debugCallTKill(tid int) error {
 	return syscall.Tgkill(syscall.Getpid(), tid, syscall.SIGTRAP)
+}
+
+// skipUnderDebugger skips the current test when running under a
+// debugger (specifically if this process has a tracer). This is
+// Linux-specific.
+func skipUnderDebugger(t *testing.T) {
+	pid := syscall.Getpid()
+	status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
+	if err != nil {
+		t.Logf("couldn't get proc tracer: %s", err)
+		return
+	}
+	re := regexp.MustCompile(`TracerPid:\s+([0-9]+)`)
+	sub := re.FindSubmatch(status)
+	if sub == nil {
+		t.Logf("couldn't find proc tracer PID")
+		return
+	}
+	if string(sub[1]) == "0" {
+		return
+	}
+	t.Skip("test will deadlock under a debugger")
 }
 
 func TestDebugCall(t *testing.T) {
@@ -160,6 +189,8 @@ func debugCallUnsafePointWorker(gpp **runtime.G, ready, stop *uint32) {
 }
 
 func TestDebugCallUnsafePoint(t *testing.T) {
+	skipUnderDebugger(t)
+
 	// This can deadlock if there aren't enough threads or if a GC
 	// tries to interrupt an atomic loop (see issue #10958).
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
@@ -181,6 +212,8 @@ func TestDebugCallUnsafePoint(t *testing.T) {
 }
 
 func TestDebugCallPanic(t *testing.T) {
+	skipUnderDebugger(t)
+
 	// This can deadlock if there aren't enough threads.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
 

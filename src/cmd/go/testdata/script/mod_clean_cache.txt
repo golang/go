@@ -1,0 +1,23 @@
+env GO111MODULE=on
+
+go mod download rsc.io/quote@v1.5.0
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
+
+go clean -modcache -n
+stdout '^rm -rf .*pkg.mod$'
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
+
+go clean -modcache
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
+
+-- go.mod --
+module m
+
+-- m.go --
+package m

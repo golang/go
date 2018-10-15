@@ -14,6 +14,7 @@ import (
 	"cmd/go/internal/search"
 	"encoding/hex"
 	"fmt"
+	"internal/goroot"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,13 +31,11 @@ func isStandardImportPath(path string) bool {
 
 func findStandardImportPath(path string) string {
 	if search.IsStandardImportPath(path) {
-		dir := filepath.Join(cfg.GOROOT, "src", path)
-		if _, err := os.Stat(dir); err == nil {
-			return dir
+		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+			return filepath.Join(cfg.GOROOT, "src", path)
 		}
-		dir = filepath.Join(cfg.GOROOT, "src/vendor", path)
-		if _, err := os.Stat(dir); err == nil {
-			return dir
+		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, "vendor/"+path) {
+			return filepath.Join(cfg.GOROOT, "src/vendor", path)
 		}
 	}
 	return ""
@@ -232,11 +231,16 @@ func findModule(target, path string) module.Version {
 }
 
 func ModInfoProg(info string) []byte {
+	// Inject a variable with the debug information as runtime/debug.modinfo,
+	// but compile it in package main so that it is specific to the binary.
+	// Populate it in an init func so that it will work with go:linkname,
+	// but use a string constant instead of the name 'string' in case
+	// package main shadows the built-in 'string' with some local declaration.
 	return []byte(fmt.Sprintf(`
 		package main
 		import _ "unsafe"
 		//go:linkname __debug_modinfo__ runtime/debug.modinfo
-		var __debug_modinfo__ string
+		var __debug_modinfo__ = ""
 		func init() {
 			__debug_modinfo__ = %q
 		}

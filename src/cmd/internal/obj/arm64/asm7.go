@@ -1085,6 +1085,23 @@ func (c *ctxt7) regoff(a *obj.Addr) uint32 {
 	return uint32(c.instoffset)
 }
 
+func isSTLXRop(op obj.As) bool {
+	switch op {
+	case ASTLXR, ASTLXRW, ASTLXRB, ASTLXRH,
+		ASTXR, ASTXRW, ASTXRB, ASTXRH:
+		return true
+	}
+	return false
+}
+
+func isSTXPop(op obj.As) bool {
+	switch op {
+	case ASTXP, ASTLXP, ASTXPW, ASTLXPW:
+		return true
+	}
+	return false
+}
+
 func isRegShiftOrExt(a *obj.Addr) bool {
 	return (a.Index-obj.RBaseARM64)&REG_EXT != 0 || (a.Index-obj.RBaseARM64)&REG_LSL != 0
 }
@@ -1409,6 +1426,10 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 		return C_LIST
 
 	case obj.TYPE_MEM:
+		// The base register should be an integer register.
+		if int16(REG_F0) <= a.Reg && a.Reg <= int16(REG_V31) {
+			break
+		}
 		switch a.Name {
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
 			if a.Sym == nil {
@@ -2502,6 +2523,17 @@ func SYSARG4(op1 int, Cn int, Cm int, op2 int) int {
 	return SYSARG5(0, op1, Cn, Cm, op2)
 }
 
+// checkUnpredictable checks if the sourse and transfer registers are the same register.
+// ARM64 manual says it is "constrained unpredictable" if the src and dst registers of STP/LDP are same.
+func (c *ctxt7) checkUnpredictable(p *obj.Prog, isload bool, wback bool, rn int16, rt1 int16, rt2 int16) {
+	if wback && rn != REGSP && (rn == rt1 || rn == rt2) {
+		c.ctxt.Diag("constrained unpredictable behavior: %v", p)
+	}
+	if isload && rt1 == rt2 {
+		c.ctxt.Diag("constrained unpredictable behavior: %v", p)
+	}
+}
+
 /* checkindex checks if index >= 0 && index <= maxindex */
 func (c *ctxt7) checkindex(p *obj.Prog, index, maxindex int) {
 	if index < 0 || index > maxindex {
@@ -2940,6 +2972,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 22: /* movT (R)O!,R; movT O(R)!, R -> ldrT */
+		if p.From.Reg != REGSP && p.From.Reg == p.To.Reg {
+			c.ctxt.Diag("constrained unpredictable behavior: %v", p)
+		}
+
 		v := int32(p.From.Offset)
 
 		if v < -256 || v > 255 {
@@ -2954,6 +2990,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= ((uint32(v) & 0x1FF) << 12) | (uint32(p.From.Reg&31) << 5) | uint32(p.To.Reg&31)
 
 	case 23: /* movT R,(R)O!; movT O(R)!, R -> strT */
+		if p.To.Reg != REGSP && p.From.Reg == p.To.Reg {
+			c.ctxt.Diag("constrained unpredictable behavior: %v", p)
+		}
+
 		v := int32(p.To.Offset)
 
 		if v < -256 || v > 255 {
@@ -3551,6 +3591,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= 0x1F << 16
 		o1 |= uint32(p.From.Reg&31) << 5
 		if p.As == ALDXP || p.As == ALDXPW || p.As == ALDAXP || p.As == ALDAXPW {
+			if int(p.To.Reg) == int(p.To.Offset) {
+				c.ctxt.Diag("constrained unpredictable behavior: %v", p)
+			}
 			o1 |= uint32(p.To.Offset&31) << 10
 		} else {
 			o1 |= 0x1F << 10
@@ -3558,6 +3601,19 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(p.To.Reg & 31)
 
 	case 59: /* stxr/stlxr/stxp/stlxp */
+		s := p.RegTo2
+		n := p.To.Reg
+		t := p.From.Reg
+		if isSTLXRop(p.As) {
+			if s == t || (s == n && n != REGSP) {
+				c.ctxt.Diag("constrained unpredictable behavior: %v", p)
+			}
+		} else if isSTXPop(p.As) {
+			t2 := int16(p.From.Offset)
+			if (s == t || s == t2) || (s == n && n != REGSP) {
+				c.ctxt.Diag("constrained unpredictable behavior: %v", p)
+			}
+		}
 		o1 = c.opstore(p, p.As)
 
 		if p.RegTo2 != obj.REG_NONE {
@@ -3565,7 +3621,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		} else {
 			o1 |= 0x1F << 16
 		}
-		if p.As == ASTXP || p.As == ASTXPW || p.As == ASTLXP || p.As == ASTLXPW {
+		if isSTXPop(p.As) {
 			o1 |= uint32(p.From.Offset&31) << 10
 		}
 		o1 |= uint32(p.To.Reg&31)<<5 | uint32(p.From.Reg&31)
@@ -6177,6 +6233,20 @@ func (c *ctxt7) opextr(p *obj.Prog, a obj.As, v int32, rn int, rm int, rt int) u
 
 /* genrate instruction encoding for LDP/LDPW/LDPSW/STP/STPW */
 func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uint32) uint32 {
+	wback := false
+	if o.scond == C_XPOST || o.scond == C_XPRE {
+		wback = true
+	}
+	switch p.As {
+	case ALDP, ALDPW, ALDPSW:
+		c.checkUnpredictable(p, true, wback, p.From.Reg, p.To.Reg, int16(p.To.Offset))
+	case ASTP, ASTPW:
+		if wback == true {
+			c.checkUnpredictable(p, false, true, p.To.Reg, p.From.Reg, int16(p.From.Offset))
+		}
+	case AFLDPD, AFLDPS:
+		c.checkUnpredictable(p, true, false, p.From.Reg, p.To.Reg, int16(p.To.Offset))
+	}
 	var ret uint32
 	// check offset
 	switch p.As {

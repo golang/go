@@ -88,10 +88,11 @@ func sweepone() uintptr {
 	}
 	atomic.Xadd(&mheap_.sweepers, +1)
 
-	npages := ^uintptr(0)
+	// Find a span to sweep.
+	var s *mspan
 	sg := mheap_.sweepgen
 	for {
-		s := mheap_.sweepSpans[1-sg/2%2].pop()
+		s = mheap_.sweepSpans[1-sg/2%2].pop()
 		if s == nil {
 			atomic.Store(&mheap_.sweepdone, 1)
 			break
@@ -106,9 +107,14 @@ func sweepone() uintptr {
 			}
 			continue
 		}
-		if s.sweepgen != sg-2 || !atomic.Cas(&s.sweepgen, sg-2, sg-1) {
-			continue
+		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
+			break
 		}
+	}
+
+	// Sweep the span we found.
+	npages := ^uintptr(0)
+	if s != nil {
 		npages = s.npages
 		if !s.sweep(false) {
 			// Span is still in-use, so this returned no
@@ -116,7 +122,6 @@ func sweepone() uintptr {
 			// move to the swept in-use list.
 			npages = 0
 		}
-		break
 	}
 
 	// Decrement the number of active sweepers and if this is the
@@ -156,16 +161,21 @@ func (s *mspan) ensureSwept() {
 	}
 
 	sg := mheap_.sweepgen
-	if atomic.Load(&s.sweepgen) == sg {
+	spangen := atomic.Load(&s.sweepgen)
+	if spangen == sg || spangen == sg+3 {
 		return
 	}
-	// The caller must be sure that the span is a MSpanInUse span.
+	// The caller must be sure that the span is a mSpanInUse span.
 	if atomic.Cas(&s.sweepgen, sg-2, sg-1) {
 		s.sweep(false)
 		return
 	}
 	// unfortunate condition, and we don't have efficient means to wait
-	for atomic.Load(&s.sweepgen) != sg {
+	for {
+		spangen := atomic.Load(&s.sweepgen)
+		if spangen == sg || spangen == sg+3 {
+			break
+		}
 		osyield()
 	}
 }
@@ -339,18 +349,18 @@ func (s *mspan) sweep(preserve bool) bool {
 		// Free large span to heap
 
 		// NOTE(rsc,dvyukov): The original implementation of efence
-		// in CL 22060046 used SysFree instead of SysFault, so that
+		// in CL 22060046 used sysFree instead of sysFault, so that
 		// the operating system would eventually give the memory
 		// back to us again, so that an efence program could run
 		// longer without running out of memory. Unfortunately,
-		// calling SysFree here without any kind of adjustment of the
+		// calling sysFree here without any kind of adjustment of the
 		// heap data structures means that when the memory does
 		// come back to us, we have the wrong metadata for it, either in
 		// the MSpan structures or in the garbage collection bitmap.
-		// Using SysFault here means that the program will run out of
+		// Using sysFault here means that the program will run out of
 		// memory fairly quickly in efence mode, but at least it won't
 		// have mysterious crashes due to confused memory reuse.
-		// It should be possible to switch back to SysFree if we also
+		// It should be possible to switch back to sysFree if we also
 		// implement and then call some kind of MHeap_DeleteSpan.
 		if debug.efence > 0 {
 			s.limit = 0 // prevent mlookup from finding this span

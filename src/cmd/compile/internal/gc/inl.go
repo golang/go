@@ -71,9 +71,7 @@ func fnpkg(fn *Node) *types.Pkg {
 func typecheckinl(fn *Node) {
 	lno := setlineno(fn)
 
-	if flagiexport {
-		expandInline(fn)
-	}
+	expandInline(fn)
 
 	// typecheckinl is only for imported functions;
 	// their bodies may refer to unsafe as long as the package

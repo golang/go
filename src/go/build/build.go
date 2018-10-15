@@ -12,6 +12,7 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"internal/goroot"
 	"io"
 	"io/ioutil"
 	"log"
@@ -543,7 +544,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 		inTestdata := func(sub string) bool {
 			return strings.Contains(sub, "/testdata/") || strings.HasSuffix(sub, "/testdata") || strings.HasPrefix(sub, "testdata/") || sub == "testdata"
 		}
-		if ctxt.GOROOT != "" && ctxt.Compiler != "gccgo" {
+		if ctxt.GOROOT != "" {
 			root := ctxt.joinPath(ctxt.GOROOT, "src")
 			if sub, ok := ctxt.hasSubdir(root, p.Dir); ok && !inTestdata(sub) {
 				p.Goroot = true
@@ -656,7 +657,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 			}
 			tried.goroot = dir
 		}
-		if ctxt.Compiler == "gccgo" && isStandardPackage(path) {
+		if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
 			p.Dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
 			p.Goroot = true
 			p.Root = ctxt.GOROOT
@@ -714,6 +715,11 @@ Found:
 	// non-nil *Package returned when an error occurs.
 	// We need to do this before we return early on FindOnly flag.
 	if IsLocalImport(path) && !ctxt.isDir(p.Dir) {
+		if ctxt.Compiler == "gccgo" && p.Goroot {
+			// gccgo has no sources for GOROOT packages.
+			return p, nil
+		}
+
 		// package was not found
 		return p, fmt.Errorf("cannot find package %q in:\n\t%s", path, p.Dir)
 	}

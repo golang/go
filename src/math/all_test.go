@@ -3635,3 +3635,41 @@ func BenchmarkYn(b *testing.B) {
 	}
 	GlobalF = x
 }
+
+func BenchmarkFloat64bits(b *testing.B) {
+	y := uint64(0)
+	for i := 0; i < b.N; i++ {
+		y = Float64bits(roundNeg)
+	}
+	GlobalI = int(y)
+}
+
+var roundUint64 = uint64(5)
+
+func BenchmarkFloat64frombits(b *testing.B) {
+	x := 0.0
+	for i := 0; i < b.N; i++ {
+		x = Float64frombits(roundUint64)
+	}
+	GlobalF = x
+}
+
+var roundFloat32 = float32(-2.5)
+
+func BenchmarkFloat32bits(b *testing.B) {
+	y := uint32(0)
+	for i := 0; i < b.N; i++ {
+		y = Float32bits(roundFloat32)
+	}
+	GlobalI = int(y)
+}
+
+var roundUint32 = uint32(5)
+
+func BenchmarkFloat32frombits(b *testing.B) {
+	x := float32(0.0)
+	for i := 0; i < b.N; i++ {
+		x = Float32frombits(roundUint32)
+	}
+	GlobalF = float64(x)
+}

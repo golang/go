@@ -348,6 +348,7 @@ const (
 	_FUNCDATA_LocalsPointerMaps = 1
 	_FUNCDATA_InlTree           = 2
 	_FUNCDATA_RegPointerMaps    = 3
+	_FUNCDATA_StackObjects      = 4
 	_ArgsSizeUnknown            = -0x80000000
 )
 
@@ -356,7 +357,7 @@ const (
 // Note that in some situations involving plugins, there may be multiple
 // copies of a particular special runtime function.
 // Note: this list must match the list in cmd/internal/objabi/funcid.go.
-type funcID uint32
+type funcID uint8
 
 const (
 	funcID_normal funcID = iota // not a special function
@@ -855,7 +856,7 @@ func pcdatavalue(f funcInfo, table int32, targetpc uintptr, cache *pcvalueCache)
 	return pcvalue(f, off, targetpc, cache, true)
 }
 
-func funcdata(f funcInfo, i int32) unsafe.Pointer {
+func funcdata(f funcInfo, i uint8) unsafe.Pointer {
 	if i < 0 || i >= f.nfuncdata {
 		return nil
 	}
