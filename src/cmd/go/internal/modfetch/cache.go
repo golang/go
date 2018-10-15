@@ -15,9 +15,11 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/module"
 	"cmd/go/internal/par"
+	"cmd/go/internal/renameio"
 	"cmd/go/internal/semver"
 )
 
@@ -73,6 +75,37 @@ func DownloadDir(m module.Version) (string, error) {
 		return "", err
 	}
 	return filepath.Join(PkgMod, enc+"@"+encVer), nil
+}
+
+// lockVersion locks a file within the module cache that guards the downloading
+// and extraction of the zipfile for the given module version.
+func lockVersion(mod module.Version) (unlock func(), err error) {
+	path, err := CachePath(mod, "lock")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
+		return nil, err
+	}
+	return lockedfile.MutexAt(path).Lock()
+}
+
+// SideLock locks a file within the module cache that that guards edits to files
+// outside the cache, such as go.sum and go.mod files in the user's working
+// directory. It returns a function that must be called to unlock the file.
+func SideLock() (unlock func()) {
+	if PkgMod == "" {
+		base.Fatalf("go: internal error: modfetch.PkgMod not set")
+	}
+	path := filepath.Join(PkgMod, "cache", "lock")
+	if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
+		base.Fatalf("go: failed to create cache directory %s: %v", filepath.Dir(path), err)
+	}
+	unlock, err := lockedfile.MutexAt(path).Lock()
+	if err != nil {
+		base.Fatalf("go: failed to lock file at %v", path)
+	}
+	return unlock
 }
 
 // A cachingRepo is a cache around an underlying Repo,
@@ -386,7 +419,7 @@ func readDiskStatByHash(path, rev string) (file string, info *RevInfo, err error
 // and should ignore it.
 var oldVgoPrefix = []byte("//vgo 0.0.")
 
-// readDiskGoMod reads a cached stat result from disk,
+// readDiskGoMod reads a cached go.mod file from disk,
 // returning the name of the cache file and the result.
 // If the read fails, the caller can use
 // writeDiskGoMod(file, data) to write a new cache entry.
@@ -452,22 +485,8 @@ func writeDiskCache(file string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(file), 0777); err != nil {
 		return err
 	}
-	// Write data to temp file next to target file.
-	f, err := ioutil.TempFile(filepath.Dir(file), filepath.Base(file)+".tmp-")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-	if _, err := f.Write(data); err != nil {
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	// Rename temp file onto cache file,
-	// so that the cache file is always a complete file.
-	if err := os.Rename(f.Name(), file); err != nil {
+
+	if err := renameio.WriteFile(file, data); err != nil {
 		return err
 	}
 
@@ -484,8 +503,18 @@ func rewriteVersionList(dir string) {
 		base.Fatalf("go: internal error: misuse of rewriteVersionList")
 	}
 
-	// TODO(rsc): We should do some kind of directory locking here,
-	// to avoid lost updates.
+	listFile := filepath.Join(dir, "list")
+
+	// We use a separate lockfile here instead of locking listFile itself because
+	// we want to use Rename to write the file atomically. The list may be read by
+	// a GOPROXY HTTP server, and if we crash midway through a rewrite (or if the
+	// HTTP server ignores our locking and serves the file midway through a
+	// rewrite) it's better to serve a stale list than a truncated one.
+	unlock, err := lockedfile.MutexAt(listFile + ".lock").Lock()
+	if err != nil {
+		base.Fatalf("go: can't lock version list lockfile: %v", err)
+	}
+	defer unlock()
 
 	infos, err := ioutil.ReadDir(dir)
 	if err != nil {
@@ -514,12 +543,12 @@ func rewriteVersionList(dir string) {
 		buf.WriteString(v)
 		buf.WriteString("\n")
 	}
-	listFile := filepath.Join(dir, "list")
 	old, _ := ioutil.ReadFile(listFile)
 	if bytes.Equal(buf.Bytes(), old) {
 		return
 	}
-	// TODO: Use rename to install file,
-	// so that readers never see an incomplete file.
-	ioutil.WriteFile(listFile, buf.Bytes(), 0666)
+
+	if err := renameio.WriteFile(listFile, buf.Bytes()); err != nil {
+		base.Fatalf("go: failed to write version list: %v", err)
+	}
 }
