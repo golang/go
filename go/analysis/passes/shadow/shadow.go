@@ -1,11 +1,24 @@
-// +build ignore
-
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/*
-This file contains the code to check for shadowed variables.
+package shadow
+
+import (
+	"go/ast"
+	"go/token"
+	"go/types"
+
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
+)
+
+// NOTE: Experimental. Not part of the vet suite.
+
+const Doc = `check for possible unintended shadowing of variables
+
+This analyzer check for shadowed variables.
 A shadowed variable is a variable declared in an inner scope
 with the same name and type as a variable in an outer scope,
 and where the outer variable is mentioned after the inner one
@@ -27,41 +40,70 @@ For example:
 		}
 		return err
 	}
+`
 
-*/
+var Analyzer = &analysis.Analyzer{
+	Name:     "shadow",
+	Doc:      Doc,
+	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Run:      run,
+}
 
-package main
-
-import (
-	"flag"
-	"go/ast"
-	"go/token"
-	"go/types"
-)
-
-var strictShadowing = flag.Bool("shadowstrict", false, "whether to be strict about shadowing; can be noisy")
+// flags
+var strict = false
 
 func init() {
-	register("shadow",
-		"check for shadowed variables (experimental; must be set explicitly)",
-		checkShadow,
-		assignStmt, genDecl)
-	experimental["shadow"] = true
+	Analyzer.Flags.BoolVar(&strict, "strict", strict, "whether to be strict about shadowing; can be noisy")
 }
 
-func checkShadow(f *File, node ast.Node) {
-	switch n := node.(type) {
-	case *ast.AssignStmt:
-		checkShadowAssignment(f, n)
-	case *ast.GenDecl:
-		checkShadowDecl(f, n)
+func run(pass *analysis.Pass) (interface{}, error) {
+	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+
+	spans := make(map[types.Object]span)
+	for id, obj := range pass.TypesInfo.Defs {
+		// Ignore identifiers that don't denote objects
+		// (package names, symbolic variables such as t
+		// in t := x.(type) of type switch headers).
+		if obj != nil {
+			growSpan(spans, obj, id.Pos(), id.End())
+		}
 	}
+	for id, obj := range pass.TypesInfo.Uses {
+		growSpan(spans, obj, id.Pos(), id.End())
+	}
+	for node, obj := range pass.TypesInfo.Implicits {
+		// A type switch with a short variable declaration
+		// such as t := x.(type) doesn't declare the symbolic
+		// variable (t in the example) at the switch header;
+		// instead a new variable t (with specific type) is
+		// declared implicitly for each case. Such variables
+		// are found in the types.Info.Implicits (not Defs)
+		// map. Add them here, assuming they are declared at
+		// the type cases' colon ":".
+		if cc, ok := node.(*ast.CaseClause); ok {
+			growSpan(spans, obj, cc.Colon, cc.Colon)
+		}
+	}
+
+	nodeFilter := []ast.Node{
+		(*ast.AssignStmt)(nil),
+		(*ast.GenDecl)(nil),
+	}
+	inspect.Preorder(nodeFilter, func(n ast.Node) {
+		switch n := n.(type) {
+		case *ast.AssignStmt:
+			checkShadowAssignment(pass, spans, n)
+		case *ast.GenDecl:
+			checkShadowDecl(pass, spans, n)
+		}
+	})
+	return nil, nil
 }
 
-// Span stores the minimum range of byte positions in the file in which a
+// A span stores the minimum range of byte positions in the file in which a
 // given variable (types.Object) is mentioned. It is lexically defined: it spans
 // from the beginning of its first mention to the end of its last mention.
-// A variable is considered shadowed (if *strictShadowing is off) only if the
+// A variable is considered shadowed (if strict is off) only if the
 // shadowing variable is declared within the span of the shadowed variable.
 // In other words, if a variable is shadowed but not used after the shadowed
 // variable is declared, it is inconsequential and not worth complaining about.
@@ -78,56 +120,56 @@ func checkShadow(f *File, node ast.Node) {
 // - A variable declared inside a function literal can falsely be identified
 // as shadowing a variable in the outer function.
 //
-type Span struct {
+type span struct {
 	min token.Pos
 	max token.Pos
 }
 
 // contains reports whether the position is inside the span.
-func (s Span) contains(pos token.Pos) bool {
+func (s span) contains(pos token.Pos) bool {
 	return s.min <= pos && pos < s.max
 }
 
 // growSpan expands the span for the object to contain the source range [pos, end).
-func (pkg *Package) growSpan(obj types.Object, pos, end token.Pos) {
-	if *strictShadowing {
+func growSpan(spans map[types.Object]span, obj types.Object, pos, end token.Pos) {
+	if strict {
 		return // No need
 	}
-	span, ok := pkg.spans[obj]
+	s, ok := spans[obj]
 	if ok {
-		if span.min > pos {
-			span.min = pos
+		if s.min > pos {
+			s.min = pos
 		}
-		if span.max < end {
-			span.max = end
+		if s.max < end {
+			s.max = end
 		}
 	} else {
-		span = Span{pos, end}
+		s = span{pos, end}
 	}
-	pkg.spans[obj] = span
+	spans[obj] = s
 }
 
 // checkShadowAssignment checks for shadowing in a short variable declaration.
-func checkShadowAssignment(f *File, a *ast.AssignStmt) {
+func checkShadowAssignment(pass *analysis.Pass, spans map[types.Object]span, a *ast.AssignStmt) {
 	if a.Tok != token.DEFINE {
 		return
 	}
-	if f.idiomaticShortRedecl(a) {
+	if idiomaticShortRedecl(pass, a) {
 		return
 	}
 	for _, expr := range a.Lhs {
 		ident, ok := expr.(*ast.Ident)
 		if !ok {
-			f.Badf(expr.Pos(), "invalid AST: short variable declaration of non-identifier")
+			pass.Reportf(expr.Pos(), "invalid AST: short variable declaration of non-identifier")
 			return
 		}
-		checkShadowing(f, ident)
+		checkShadowing(pass, spans, ident)
 	}
 }
 
 // idiomaticShortRedecl reports whether this short declaration can be ignored for
 // the purposes of shadowing, that is, that any redeclarations it contains are deliberate.
-func (f *File) idiomaticShortRedecl(a *ast.AssignStmt) bool {
+func idiomaticShortRedecl(pass *analysis.Pass, a *ast.AssignStmt) bool {
 	// Don't complain about deliberate redeclarations of the form
 	//	i := i
 	// Such constructs are idiomatic in range loops to create a new variable
@@ -140,7 +182,7 @@ func (f *File) idiomaticShortRedecl(a *ast.AssignStmt) bool {
 	for i, expr := range a.Lhs {
 		lhs, ok := expr.(*ast.Ident)
 		if !ok {
-			f.Badf(expr.Pos(), "invalid AST: short variable declaration of non-identifier")
+			pass.Reportf(expr.Pos(), "invalid AST: short variable declaration of non-identifier")
 			return true // Don't do any more processing.
 		}
 		switch rhs := a.Rhs[i].(type) {
@@ -163,7 +205,7 @@ func (f *File) idiomaticShortRedecl(a *ast.AssignStmt) bool {
 
 // idiomaticRedecl reports whether this declaration spec can be ignored for
 // the purposes of shadowing, that is, that any redeclarations it contains are deliberate.
-func (f *File) idiomaticRedecl(d *ast.ValueSpec) bool {
+func idiomaticRedecl(d *ast.ValueSpec) bool {
 	// Don't complain about deliberate redeclarations of the form
 	//	var i, j = i, j
 	if len(d.Names) != len(d.Values) {
@@ -180,34 +222,34 @@ func (f *File) idiomaticRedecl(d *ast.ValueSpec) bool {
 }
 
 // checkShadowDecl checks for shadowing in a general variable declaration.
-func checkShadowDecl(f *File, d *ast.GenDecl) {
+func checkShadowDecl(pass *analysis.Pass, spans map[types.Object]span, d *ast.GenDecl) {
 	if d.Tok != token.VAR {
 		return
 	}
 	for _, spec := range d.Specs {
 		valueSpec, ok := spec.(*ast.ValueSpec)
 		if !ok {
-			f.Badf(spec.Pos(), "invalid AST: var GenDecl not ValueSpec")
+			pass.Reportf(spec.Pos(), "invalid AST: var GenDecl not ValueSpec")
 			return
 		}
 		// Don't complain about deliberate redeclarations of the form
 		//	var i = i
-		if f.idiomaticRedecl(valueSpec) {
+		if idiomaticRedecl(valueSpec) {
 			return
 		}
 		for _, ident := range valueSpec.Names {
-			checkShadowing(f, ident)
+			checkShadowing(pass, spans, ident)
 		}
 	}
 }
 
 // checkShadowing checks whether the identifier shadows an identifier in an outer scope.
-func checkShadowing(f *File, ident *ast.Ident) {
+func checkShadowing(pass *analysis.Pass, spans map[types.Object]span, ident *ast.Ident) {
 	if ident.Name == "_" {
 		// Can't shadow the blank identifier.
 		return
 	}
-	obj := f.pkg.defs[ident]
+	obj := pass.TypesInfo.Defs[ident]
 	if obj == nil {
 		return
 	}
@@ -221,7 +263,7 @@ func checkShadowing(f *File, ident *ast.Ident) {
 	if shadowed.Parent() == types.Universe {
 		return
 	}
-	if *strictShadowing {
+	if strict {
 		// The shadowed identifier must appear before this one to be an instance of shadowing.
 		if shadowed.Pos() > ident.Pos() {
 			return
@@ -229,9 +271,9 @@ func checkShadowing(f *File, ident *ast.Ident) {
 	} else {
 		// Don't complain if the span of validity of the shadowed identifier doesn't include
 		// the shadowing identifier.
-		span, ok := f.pkg.spans[shadowed]
+		span, ok := spans[shadowed]
 		if !ok {
-			f.Badf(shadowed.Pos(), "internal error: no range for %q", shadowed.Name())
+			pass.Reportf(ident.Pos(), "internal error: no range for %q", ident.Name)
 			return
 		}
 		if !span.contains(ident.Pos()) {
@@ -240,6 +282,7 @@ func checkShadowing(f *File, ident *ast.Ident) {
 	}
 	// Don't complain if the types differ: that implies the programmer really wants two different things.
 	if types.Identical(obj.Type(), shadowed.Type()) {
-		f.Badf(ident.Pos(), "declaration of %q shadows declaration at %s", obj.Name(), f.loc(shadowed.Pos()))
+		line := pass.Fset.Position(shadowed.Pos()).Line
+		pass.Reportf(ident.Pos(), "declaration of %q shadows declaration at line %d", obj.Name(), line)
 	}
 }
