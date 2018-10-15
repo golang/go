@@ -36,6 +36,7 @@ func CompareString2(s string) bool {
 func CompareString3(s string) bool {
 	// amd64:`CMPQ\t\(.*\), [A-Z]`
 	// arm64:-`CMPW\t`
+	// ppc64:-`CMPW\t`
 	// ppc64le:-`CMPW\t`
 	// s390x:-`CMPW\t`
 	return s == "xxxxxxxx"
