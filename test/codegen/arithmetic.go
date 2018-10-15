@@ -227,3 +227,16 @@ func MULA(a, b, c uint32) (uint32, uint32, uint32) {
 	r2 := b*64 + c
 	return r0, r1, r2
 }
+
+func MULS(a, b, c uint32) (uint32, uint32, uint32) {
+	// arm/7:`MULS`,-`MUL\s`
+	// arm64:`MSUBW`,-`MULW`
+	r0 := c - a*b
+	// arm/7:`MULS`-`MUL\s`
+	// arm64:`MSUBW`,-`MULW`
+	r1 := a - c*79
+	// arm/7:`SUB`,-`MULS`-`MUL\s`
+	// arm64:`SUB`,-`MSUBW`,-`MULW`
+	r2 := c - b*64
+	return r0, r1, r2
+}
