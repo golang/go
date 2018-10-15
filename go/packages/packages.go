@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/go/gcexportdata"
@@ -685,8 +686,11 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 	// This is only an approximation.
 	// TODO(adonovan): derive Sizes from the underlying build system.
 	goarch := runtime.GOARCH
-	if x, ok := os.LookupEnv("GOARCH"); ok {
-		goarch = x
+	const goarchPrefix = "GOARCH="
+	for _, e := range ld.Config.Env {
+		if strings.HasPrefix(e, goarchPrefix) {
+			goarch = e[len(goarchPrefix):]
+		}
 	}
 	sizes := types.SizesFor("gc", goarch)
 

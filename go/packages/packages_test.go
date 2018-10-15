@@ -1052,15 +1052,11 @@ func TestSizes(t *testing.T) {
 	})
 	defer cleanup()
 
-	savedGOARCH := os.Getenv("GOARCH")
-	defer os.Setenv("GOARCH", savedGOARCH)
-
 	for arch, wantWordSize := range map[string]int64{"386": 32, "amd64": 64} {
-		os.Setenv("GOARCH", arch)
 		cfg := &packages.Config{
 			Mode: packages.LoadSyntax,
 			Dir:  tmp,
-			Env:  append(os.Environ(), "GOPATH="+tmp, "GO111MODULE=off"),
+			Env:  append(os.Environ(), "GOARCH="+arch, "GOPATH="+tmp, "GO111MODULE=off"),
 		}
 		initial, err := packages.Load(cfg, "a")
 		if err != nil {
