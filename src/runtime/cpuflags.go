@@ -25,5 +25,7 @@ var (
 	x86HasSSE41  bool
 	x86HasFMA    bool
 
+	armHasVFPv4 bool
+
 	arm64HasATOMICS bool
 )

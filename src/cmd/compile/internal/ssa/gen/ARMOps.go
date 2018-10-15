@@ -192,6 +192,10 @@ func init() {
 		{name: "MULSF", argLength: 3, reg: fp31, asm: "MULSF", resultInArg0: true}, // arg0 - (arg1 * arg2)
 		{name: "MULSD", argLength: 3, reg: fp31, asm: "MULSD", resultInArg0: true}, // arg0 - (arg1 * arg2)
 
+		// FMULAD only exists on platforms with the VFPv4 instruction set.
+		// Any use must be preceded by a successful check of runtime.arm_support_vfpv4.
+		{name: "FMULAD", argLength: 3, reg: fp31, asm: "FMULAD", resultInArg0: true}, // arg0 + (arg1 * arg2)
+
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
 		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"}, // arg0 & auxInt
 		{name: "OR", argLength: 2, reg: gp21, asm: "ORR", commutative: true},  // arg0 | arg1

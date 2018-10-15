@@ -516,6 +516,8 @@ func cpuinit() {
 	x86HasSSE41 = cpu.X86.HasSSE41
 	x86HasFMA = cpu.X86.HasFMA
 
+	armHasVFPv4 = cpu.ARM.HasVFPv4
+
 	arm64HasATOMICS = cpu.ARM64.HasATOMICS
 }
 
