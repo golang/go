@@ -833,7 +833,9 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	var a *Node
 	if x := prealloc[n]; x != nil {
 		// temp allocated during order.go for dddarg
-		x.Type = t
+		if !eqtype(t, x.Type) {
+			panic("dotdotdot base type does not match order's assigned type")
+		}
 
 		if vstat == nil {
 			a = nod(OAS, x, nil)
