@@ -54,21 +54,21 @@ func panicmakeslicecap() {
 }
 
 func makeslice(et *_type, len, cap int) slice {
-	// NOTE: The len > maxElements check here is not strictly necessary,
-	// but it produces a 'len out of range' error instead of a 'cap out of range' error
-	// when someone does make([]T, bignumber). 'cap out of range' is true too,
-	// but since the cap is only being supplied implicitly, saying len is clearer.
-	// See issue 4085.
-	maxElements := maxSliceCap(et.size)
-	if len < 0 || uintptr(len) > maxElements {
-		panicmakeslicelen()
-	}
-
-	if cap < len || uintptr(cap) > maxElements {
+	mem, overflow := math.MulUintptr(et.size, uintptr(cap))
+	if overflow || mem > maxAlloc || len < 0 || len > cap {
+		// NOTE: Produce a 'len out of range' error instead of a
+		// 'cap out of range' error when someone does make([]T, bignumber).
+		// 'cap out of range' is true too, but since the cap is only being
+		// supplied implicitly, saying len is clearer.
+		// See golang.org/issue/4085.
+		mem, overflow := math.MulUintptr(et.size, uintptr(len))
+		if overflow || mem > maxAlloc || len < 0 {
+			panicmakeslicelen()
+		}
 		panicmakeslicecap()
 	}
+	p := mallocgc(mem, et, true)
 
-	p := mallocgc(et.size*uintptr(cap), et, true)
 	return slice{p, len, cap}
 }
 
