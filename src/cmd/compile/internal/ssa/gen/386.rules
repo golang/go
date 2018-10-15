@@ -1151,10 +1151,14 @@
   -> (MOVLstoreconstidx1 [makeValAndOff(ValAndOff(a).Val()&0xffff | ValAndOff(c).Val()<<16, ValAndOff(a).Off())] {s} p (SHLLconst <i.Type> [1] i) mem)
 
 // Combine stores into larger (unaligned) stores.
-(MOVBstore [i] {s} p (SHRLconst [8] w) x:(MOVBstore [i-1] {s} p w mem))
+(MOVBstore [i] {s} p (SHR(W|L)const [8] w) x:(MOVBstore [i-1] {s} p w mem))
   && x.Uses == 1
   && clobber(x)
   -> (MOVWstore [i-1] {s} p w mem)
+(MOVBstore [i] {s} p w x:(MOVBstore {s} [i+1] p (SHR(W|L)const [8] w) mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVWstore [i] {s} p w mem)
 (MOVBstore [i] {s} p (SHRLconst [j] w) x:(MOVBstore [i-1] {s} p w0:(SHRLconst [j-8] w) mem))
   && x.Uses == 1
   && clobber(x)
@@ -1168,10 +1172,14 @@
   && clobber(x)
   -> (MOVLstore [i-2] {s} p w0 mem)
 
-(MOVBstoreidx1 [i] {s} p idx (SHRLconst [8] w) x:(MOVBstoreidx1 [i-1] {s} p idx w mem))
+(MOVBstoreidx1 [i] {s} p idx (SHR(L|W)const [8] w) x:(MOVBstoreidx1 [i-1] {s} p idx w mem))
   && x.Uses == 1
   && clobber(x)
   -> (MOVWstoreidx1 [i-1] {s} p idx w mem)
+(MOVBstoreidx1 [i] {s} p idx w x:(MOVBstoreidx1 [i+1] {s} p idx (SHR(L|W)const [8] w) mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVWstoreidx1 [i] {s} p idx w mem)
 (MOVBstoreidx1 [i] {s} p idx (SHRLconst [j] w) x:(MOVBstoreidx1 [i-1] {s} p idx w0:(SHRLconst [j-8] w) mem))
   && x.Uses == 1
   && clobber(x)

@@ -106,13 +106,13 @@ func rewriteValue386(v *Value) bool {
 	case Op386MOVBloadidx1:
 		return rewriteValue386_Op386MOVBloadidx1_0(v)
 	case Op386MOVBstore:
-		return rewriteValue386_Op386MOVBstore_0(v)
+		return rewriteValue386_Op386MOVBstore_0(v) || rewriteValue386_Op386MOVBstore_10(v)
 	case Op386MOVBstoreconst:
 		return rewriteValue386_Op386MOVBstoreconst_0(v)
 	case Op386MOVBstoreconstidx1:
 		return rewriteValue386_Op386MOVBstoreconstidx1_0(v)
 	case Op386MOVBstoreidx1:
-		return rewriteValue386_Op386MOVBstoreidx1_0(v) || rewriteValue386_Op386MOVBstoreidx1_10(v)
+		return rewriteValue386_Op386MOVBstoreidx1_0(v) || rewriteValue386_Op386MOVBstoreidx1_10(v) || rewriteValue386_Op386MOVBstoreidx1_20(v)
 	case Op386MOVLload:
 		return rewriteValue386_Op386MOVLload_0(v)
 	case Op386MOVLloadidx1:
@@ -5545,6 +5545,51 @@ func rewriteValue386_Op386MOVBstore_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	// match: (MOVBstore [i] {s} p (SHRWconst [8] w) x:(MOVBstore [i-1] {s} p w mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstore [i-1] {s} p w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		p := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386SHRWconst {
+			break
+		}
+		if v_1.AuxInt != 8 {
+			break
+		}
+		w := v_1.Args[0]
+		x := v.Args[2]
+		if x.Op != Op386MOVBstore {
+			break
+		}
+		if x.AuxInt != i-1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[2]
+		if p != x.Args[0] {
+			break
+		}
+		if w != x.Args[1] {
+			break
+		}
+		mem := x.Args[2]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstore)
+		v.AuxInt = i - 1
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
 	// match: (MOVBstore [i] {s} p (SHRLconst [8] w) x:(MOVBstore [i-1] {s} p w mem))
 	// cond: x.Uses == 1 && clobber(x)
 	// result: (MOVWstore [i-1] {s} p w mem)
@@ -5584,6 +5629,99 @@ func rewriteValue386_Op386MOVBstore_0(v *Value) bool {
 		}
 		v.reset(Op386MOVWstore)
 		v.AuxInt = i - 1
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [i] {s} p w x:(MOVBstore {s} [i+1] p (SHRWconst [8] w) mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstore [i] {s} p w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		p := v.Args[0]
+		w := v.Args[1]
+		x := v.Args[2]
+		if x.Op != Op386MOVBstore {
+			break
+		}
+		if x.AuxInt != i+1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[2]
+		if p != x.Args[0] {
+			break
+		}
+		x_1 := x.Args[1]
+		if x_1.Op != Op386SHRWconst {
+			break
+		}
+		if x_1.AuxInt != 8 {
+			break
+		}
+		if w != x_1.Args[0] {
+			break
+		}
+		mem := x.Args[2]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstore)
+		v.AuxInt = i
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386MOVBstore_10(v *Value) bool {
+	// match: (MOVBstore [i] {s} p w x:(MOVBstore {s} [i+1] p (SHRLconst [8] w) mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstore [i] {s} p w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[2]
+		p := v.Args[0]
+		w := v.Args[1]
+		x := v.Args[2]
+		if x.Op != Op386MOVBstore {
+			break
+		}
+		if x.AuxInt != i+1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[2]
+		if p != x.Args[0] {
+			break
+		}
+		x_1 := x.Args[1]
+		if x_1.Op != Op386SHRLconst {
+			break
+		}
+		if x_1.AuxInt != 8 {
+			break
+		}
+		if w != x_1.Args[0] {
+			break
+		}
+		mem := x.Args[2]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstore)
+		v.AuxInt = i
 		v.Aux = s
 		v.AddArg(p)
 		v.AddArg(w)
@@ -6166,6 +6304,612 @@ func rewriteValue386_Op386MOVBstoreidx1_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	// match: (MOVBstoreidx1 [i] {s} p idx (SHRWconst [8] w) x:(MOVBstoreidx1 [i-1] {s} p idx w mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstoreidx1 [i-1] {s} p idx w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[3]
+		p := v.Args[0]
+		idx := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != Op386SHRWconst {
+			break
+		}
+		if v_2.AuxInt != 8 {
+			break
+		}
+		w := v_2.Args[0]
+		x := v.Args[3]
+		if x.Op != Op386MOVBstoreidx1 {
+			break
+		}
+		if x.AuxInt != i-1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[3]
+		if p != x.Args[0] {
+			break
+		}
+		if idx != x.Args[1] {
+			break
+		}
+		if w != x.Args[2] {
+			break
+		}
+		mem := x.Args[3]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstoreidx1)
+		v.AuxInt = i - 1
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstoreidx1 [i] {s} p idx (SHRWconst [8] w) x:(MOVBstoreidx1 [i-1] {s} idx p w mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstoreidx1 [i-1] {s} p idx w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[3]
+		p := v.Args[0]
+		idx := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != Op386SHRWconst {
+			break
+		}
+		if v_2.AuxInt != 8 {
+			break
+		}
+		w := v_2.Args[0]
+		x := v.Args[3]
+		if x.Op != Op386MOVBstoreidx1 {
+			break
+		}
+		if x.AuxInt != i-1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[3]
+		if idx != x.Args[0] {
+			break
+		}
+		if p != x.Args[1] {
+			break
+		}
+		if w != x.Args[2] {
+			break
+		}
+		mem := x.Args[3]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstoreidx1)
+		v.AuxInt = i - 1
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386MOVBstoreidx1_10(v *Value) bool {
+	// match: (MOVBstoreidx1 [i] {s} idx p (SHRWconst [8] w) x:(MOVBstoreidx1 [i-1] {s} p idx w mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstoreidx1 [i-1] {s} p idx w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[3]
+		idx := v.Args[0]
+		p := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != Op386SHRWconst {
+			break
+		}
+		if v_2.AuxInt != 8 {
+			break
+		}
+		w := v_2.Args[0]
+		x := v.Args[3]
+		if x.Op != Op386MOVBstoreidx1 {
+			break
+		}
+		if x.AuxInt != i-1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[3]
+		if p != x.Args[0] {
+			break
+		}
+		if idx != x.Args[1] {
+			break
+		}
+		if w != x.Args[2] {
+			break
+		}
+		mem := x.Args[3]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstoreidx1)
+		v.AuxInt = i - 1
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstoreidx1 [i] {s} idx p (SHRWconst [8] w) x:(MOVBstoreidx1 [i-1] {s} idx p w mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstoreidx1 [i-1] {s} p idx w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[3]
+		idx := v.Args[0]
+		p := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != Op386SHRWconst {
+			break
+		}
+		if v_2.AuxInt != 8 {
+			break
+		}
+		w := v_2.Args[0]
+		x := v.Args[3]
+		if x.Op != Op386MOVBstoreidx1 {
+			break
+		}
+		if x.AuxInt != i-1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[3]
+		if idx != x.Args[0] {
+			break
+		}
+		if p != x.Args[1] {
+			break
+		}
+		if w != x.Args[2] {
+			break
+		}
+		mem := x.Args[3]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstoreidx1)
+		v.AuxInt = i - 1
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstoreidx1 [i] {s} p idx w x:(MOVBstoreidx1 [i+1] {s} p idx (SHRLconst [8] w) mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstoreidx1 [i] {s} p idx w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[3]
+		p := v.Args[0]
+		idx := v.Args[1]
+		w := v.Args[2]
+		x := v.Args[3]
+		if x.Op != Op386MOVBstoreidx1 {
+			break
+		}
+		if x.AuxInt != i+1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[3]
+		if p != x.Args[0] {
+			break
+		}
+		if idx != x.Args[1] {
+			break
+		}
+		x_2 := x.Args[2]
+		if x_2.Op != Op386SHRLconst {
+			break
+		}
+		if x_2.AuxInt != 8 {
+			break
+		}
+		if w != x_2.Args[0] {
+			break
+		}
+		mem := x.Args[3]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstoreidx1)
+		v.AuxInt = i
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstoreidx1 [i] {s} p idx w x:(MOVBstoreidx1 [i+1] {s} idx p (SHRLconst [8] w) mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstoreidx1 [i] {s} p idx w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[3]
+		p := v.Args[0]
+		idx := v.Args[1]
+		w := v.Args[2]
+		x := v.Args[3]
+		if x.Op != Op386MOVBstoreidx1 {
+			break
+		}
+		if x.AuxInt != i+1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[3]
+		if idx != x.Args[0] {
+			break
+		}
+		if p != x.Args[1] {
+			break
+		}
+		x_2 := x.Args[2]
+		if x_2.Op != Op386SHRLconst {
+			break
+		}
+		if x_2.AuxInt != 8 {
+			break
+		}
+		if w != x_2.Args[0] {
+			break
+		}
+		mem := x.Args[3]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstoreidx1)
+		v.AuxInt = i
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstoreidx1 [i] {s} idx p w x:(MOVBstoreidx1 [i+1] {s} p idx (SHRLconst [8] w) mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstoreidx1 [i] {s} p idx w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[3]
+		idx := v.Args[0]
+		p := v.Args[1]
+		w := v.Args[2]
+		x := v.Args[3]
+		if x.Op != Op386MOVBstoreidx1 {
+			break
+		}
+		if x.AuxInt != i+1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[3]
+		if p != x.Args[0] {
+			break
+		}
+		if idx != x.Args[1] {
+			break
+		}
+		x_2 := x.Args[2]
+		if x_2.Op != Op386SHRLconst {
+			break
+		}
+		if x_2.AuxInt != 8 {
+			break
+		}
+		if w != x_2.Args[0] {
+			break
+		}
+		mem := x.Args[3]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstoreidx1)
+		v.AuxInt = i
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstoreidx1 [i] {s} idx p w x:(MOVBstoreidx1 [i+1] {s} idx p (SHRLconst [8] w) mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstoreidx1 [i] {s} p idx w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[3]
+		idx := v.Args[0]
+		p := v.Args[1]
+		w := v.Args[2]
+		x := v.Args[3]
+		if x.Op != Op386MOVBstoreidx1 {
+			break
+		}
+		if x.AuxInt != i+1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[3]
+		if idx != x.Args[0] {
+			break
+		}
+		if p != x.Args[1] {
+			break
+		}
+		x_2 := x.Args[2]
+		if x_2.Op != Op386SHRLconst {
+			break
+		}
+		if x_2.AuxInt != 8 {
+			break
+		}
+		if w != x_2.Args[0] {
+			break
+		}
+		mem := x.Args[3]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstoreidx1)
+		v.AuxInt = i
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstoreidx1 [i] {s} p idx w x:(MOVBstoreidx1 [i+1] {s} p idx (SHRWconst [8] w) mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstoreidx1 [i] {s} p idx w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[3]
+		p := v.Args[0]
+		idx := v.Args[1]
+		w := v.Args[2]
+		x := v.Args[3]
+		if x.Op != Op386MOVBstoreidx1 {
+			break
+		}
+		if x.AuxInt != i+1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[3]
+		if p != x.Args[0] {
+			break
+		}
+		if idx != x.Args[1] {
+			break
+		}
+		x_2 := x.Args[2]
+		if x_2.Op != Op386SHRWconst {
+			break
+		}
+		if x_2.AuxInt != 8 {
+			break
+		}
+		if w != x_2.Args[0] {
+			break
+		}
+		mem := x.Args[3]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstoreidx1)
+		v.AuxInt = i
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstoreidx1 [i] {s} p idx w x:(MOVBstoreidx1 [i+1] {s} idx p (SHRWconst [8] w) mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstoreidx1 [i] {s} p idx w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[3]
+		p := v.Args[0]
+		idx := v.Args[1]
+		w := v.Args[2]
+		x := v.Args[3]
+		if x.Op != Op386MOVBstoreidx1 {
+			break
+		}
+		if x.AuxInt != i+1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[3]
+		if idx != x.Args[0] {
+			break
+		}
+		if p != x.Args[1] {
+			break
+		}
+		x_2 := x.Args[2]
+		if x_2.Op != Op386SHRWconst {
+			break
+		}
+		if x_2.AuxInt != 8 {
+			break
+		}
+		if w != x_2.Args[0] {
+			break
+		}
+		mem := x.Args[3]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstoreidx1)
+		v.AuxInt = i
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstoreidx1 [i] {s} idx p w x:(MOVBstoreidx1 [i+1] {s} p idx (SHRWconst [8] w) mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstoreidx1 [i] {s} p idx w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[3]
+		idx := v.Args[0]
+		p := v.Args[1]
+		w := v.Args[2]
+		x := v.Args[3]
+		if x.Op != Op386MOVBstoreidx1 {
+			break
+		}
+		if x.AuxInt != i+1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[3]
+		if p != x.Args[0] {
+			break
+		}
+		if idx != x.Args[1] {
+			break
+		}
+		x_2 := x.Args[2]
+		if x_2.Op != Op386SHRWconst {
+			break
+		}
+		if x_2.AuxInt != 8 {
+			break
+		}
+		if w != x_2.Args[0] {
+			break
+		}
+		mem := x.Args[3]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstoreidx1)
+		v.AuxInt = i
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstoreidx1 [i] {s} idx p w x:(MOVBstoreidx1 [i+1] {s} idx p (SHRWconst [8] w) mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: (MOVWstoreidx1 [i] {s} p idx w mem)
+	for {
+		i := v.AuxInt
+		s := v.Aux
+		_ = v.Args[3]
+		idx := v.Args[0]
+		p := v.Args[1]
+		w := v.Args[2]
+		x := v.Args[3]
+		if x.Op != Op386MOVBstoreidx1 {
+			break
+		}
+		if x.AuxInt != i+1 {
+			break
+		}
+		if x.Aux != s {
+			break
+		}
+		_ = x.Args[3]
+		if idx != x.Args[0] {
+			break
+		}
+		if p != x.Args[1] {
+			break
+		}
+		x_2 := x.Args[2]
+		if x_2.Op != Op386SHRWconst {
+			break
+		}
+		if x_2.AuxInt != 8 {
+			break
+		}
+		if w != x_2.Args[0] {
+			break
+		}
+		mem := x.Args[3]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		v.reset(Op386MOVWstoreidx1)
+		v.AuxInt = i
+		v.Aux = s
+		v.AddArg(p)
+		v.AddArg(idx)
+		v.AddArg(w)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386MOVBstoreidx1_20(v *Value) bool {
 	// match: (MOVBstoreidx1 [i] {s} p idx (SHRLconst [j] w) x:(MOVBstoreidx1 [i-1] {s} p idx w0:(SHRLconst [j-8] w) mem))
 	// cond: x.Uses == 1 && clobber(x)
 	// result: (MOVWstoreidx1 [i-1] {s} p idx w0 mem)
@@ -6276,9 +7020,6 @@ func rewriteValue386_Op386MOVBstoreidx1_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
-}
-func rewriteValue386_Op386MOVBstoreidx1_10(v *Value) bool {
 	// match: (MOVBstoreidx1 [i] {s} idx p (SHRLconst [j] w) x:(MOVBstoreidx1 [i-1] {s} p idx w0:(SHRLconst [j-8] w) mem))
 	// cond: x.Uses == 1 && clobber(x)
 	// result: (MOVWstoreidx1 [i-1] {s} p idx w0 mem)
