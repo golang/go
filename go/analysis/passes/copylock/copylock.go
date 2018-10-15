@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package copylock defines an Analyzer that checks for locks
+// erroneously passed by value.
 package copylock
 
 import (
@@ -17,9 +19,15 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
+const Doc = `check for locks erroneously passed by value
+
+Inadvertently copying a value containing a lock, such as sync.Mutex or
+sync.WaitGroup, may cause both copies to malfunction. Generally such
+values should be referred to through a pointer.`
+
 var Analyzer = &analysis.Analyzer{
 	Name:             "copylocks",
-	Doc:              "check for locks erroneously passed by value",
+	Doc:              Doc,
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,
 	Run:              run,

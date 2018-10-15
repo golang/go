@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package loopclosure defines an Analyzer that checks for references to
+// enclosing loop variables from within nested functions.
 package loopclosure
 
 import (
@@ -22,9 +24,7 @@ import (
 //		}()
 //	}
 
-var Analyzer = &analysis.Analyzer{
-	Name: "loopclosure",
-	Doc: `check references to loop variables from within nested functions
+const Doc = `check references to loop variables from within nested functions
 
 This analyzer checks for references to loop variables from within a
 function literal inside the loop body. It checks only instances where
@@ -40,7 +40,11 @@ For example:
 		}()
 	}
 
-See: https://golang.org/doc/go_faq.html#closures_and_goroutines`,
+See: https://golang.org/doc/go_faq.html#closures_and_goroutines`
+
+var Analyzer = &analysis.Analyzer{
+	Name:     "loopclosure",
+	Doc:      Doc,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

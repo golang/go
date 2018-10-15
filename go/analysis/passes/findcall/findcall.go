@@ -1,6 +1,11 @@
-// The findcall package is a trivial example and test of an analyzer of
-// Go source code. It reports a diagnostic for every call to a function or
-// method of the name specified by its --name flag.
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// The findcall package defines an Analyzer that serves as a trivial
+// example and test of the Analysis API. It reports a diagnostic for
+// every call to a function or method of the name specified by its
+// -name flag.
 package findcall
 
 import (
@@ -10,13 +15,15 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name: "findcall",
-	Doc: `find calls to a particular function
+const Doc = `find calls to a particular function
 
 The findcall analysis reports calls to functions or methods
-of a particular name.`,
-	Run:              findcall,
+of a particular name.`
+
+var Analyzer = &analysis.Analyzer{
+	Name:             "findcall",
+	Doc:              Doc,
+	Run:              run,
 	RunDespiteErrors: true,
 	FactTypes:        []analysis.Fact{new(foundFact)},
 }
@@ -27,7 +34,7 @@ func init() {
 	Analyzer.Flags.StringVar(&name, "name", name, "name of the function to find")
 }
 
-func findcall(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (interface{}, error) {
 	for _, f := range pass.Files {
 		ast.Inspect(f, func(n ast.Node) bool {
 			if call, ok := n.(*ast.CallExpr); ok {

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package shift defines an Analyzer that checks for shifts that exceed
+// the width of an integer.
 package shift
 
 // TODO(adonovan): integrate with ctrflow (CFG-based) dead code analysis. May

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package lostcancel defines an Analyzer that checks for failure to
+// call a context cancelation function.
 package lostcancel
 
 import (
@@ -16,7 +18,7 @@ import (
 	"golang.org/x/tools/go/cfg"
 )
 
-const doc = `check cancel func returned by context.WithCancel is called
+const Doc = `check cancel func returned by context.WithCancel is called
 
 The cancelation function returned by context.WithCancel, WithTimeout,
 and WithDeadline must be called or the new context will remain live
@@ -25,7 +27,7 @@ until its parent context is cancelled.
 
 var Analyzer = &analysis.Analyzer{
 	Name: "lostcancel",
-	Doc:  doc,
+	Doc:  Doc,
 	Run:  run,
 	Requires: []*analysis.Analyzer{
 		inspect.Analyzer,

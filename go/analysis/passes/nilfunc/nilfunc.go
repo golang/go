@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package nilfunc defines an Analyzer that checks for useless
+// comparisons against nil.
 package nilfunc
 
 import (
@@ -14,11 +16,13 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name: "nilfunc",
-	Doc: `check for useless comparisons between functions and nil
+const Doc = `check for useless comparisons between functions and nil
 
-A useless comparison is one like f == nil as opposed to f() == nil.`,
+A useless comparison is one like f == nil as opposed to f() == nil.`
+
+var Analyzer = &analysis.Analyzer{
+	Name:     "nilfunc",
+	Doc:      Doc,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

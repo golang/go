@@ -15,7 +15,22 @@ import (
 	"golang.org/x/tools/go/analysis/internal/checker"
 )
 
+// TODO(adonovan): support tri-state enable flags so -printf.enable=true means
+// "run only printf" and -printf.enable=false means "run all but printf"
+
+// TODO(adonovan): document (and verify) the exit codes:
+// "Vet's exit code is 2 for erroneous invocation of the tool, 1 if a
+// problem was reported, and 0 otherwise. Note that the tool does not
+// check every possible problem and depends on unreliable heuristics
+// so it should be used as guidance only, not as a firm indicator of
+// program correctness."
+
 const usage = `Analyze is a tool for static analysis of Go programs.
+
+Analyze examines Go source code and reports suspicious constructs, such as Printf
+calls whose arguments do not align with the format string. It uses heuristics
+that do not guarantee all reports are genuine problems, but it can find errors
+not caught by the compilers.
 
 Usage: analyze [-flag] [package]
 `

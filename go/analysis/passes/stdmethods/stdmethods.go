@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package stdmethods defines an Analyzer that checks for misspellings
+// in the signatures of methods similar to well-known interfaces.
 package stdmethods
 
 import (
@@ -18,9 +20,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name: "stdmethods",
-	Doc: `check signature of methods of well-known interfaces
+const Doc = `check signature of methods of well-known interfaces
 
 Sometimes a type may be intended to satisfy an interface but may fail to
 do so because of a mistake in its method signature.
@@ -39,7 +39,11 @@ Checked method names include:
 	Peek ReadByte ReadFrom ReadRune Scan Seek
 	UnmarshalJSON UnreadByte UnreadRune WriteByte
 	WriteTo
-`,
+`
+
+var Analyzer = &analysis.Analyzer{
+	Name:     "stdmethods",
+	Doc:      Doc,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

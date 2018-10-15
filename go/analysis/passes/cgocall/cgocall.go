@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package cgocall defines an Analyzer that detects some violations of
+// the cgo pointer passing rules.
 package cgocall
 
 import (
@@ -18,16 +20,18 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name: "cgocall",
-	Doc: `detect some violations of the cgo pointer passing rules
+const Doc = `detect some violations of the cgo pointer passing rules
 
 Check for invalid cgo pointer passing.
 This looks for code that uses cgo to call C code passing values
 whose types are almost always invalid according to the cgo pointer
 sharing rules.
 Specifically, it warns about attempts to pass a Go chan, map, func,
-or slice to C, either directly, or via a pointer, array, or struct.`,
+or slice to C, either directly, or via a pointer, array, or struct.`
+
+var Analyzer = &analysis.Analyzer{
+	Name:             "cgocall",
+	Doc:              Doc,
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,
 	Run:              run,

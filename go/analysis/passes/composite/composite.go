@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package composite defines an Analyzer that checks for unkeyed
+// composite literals.
 package composite
 
 import (
@@ -14,14 +16,16 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name: "composites",
-	Doc: `checked for unkeyed composite literals
+const Doc = `checked for unkeyed composite literals
 
 This analyzer reports a diagnostic for composite literals of struct
 types imported from another package that do not use the field-keyed
 syntax. Such literals are fragile because the addition of a new field
-(even if unexported) to the struct will cause compilation to fail.`,
+(even if unexported) to the struct will cause compilation to fail.`
+
+var Analyzer = &analysis.Analyzer{
+	Name:             "composites",
+	Doc:              Doc,
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,
 	Run:              run,

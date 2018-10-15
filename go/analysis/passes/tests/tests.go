@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package tests defines an Analyzer that checks for common mistaken
+// usages of tests and examples.
 package tests
 
 import (
@@ -14,14 +16,16 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name: "tests",
-	Doc: `check for common mistaken usages of tests and examples
+const Doc = `check for common mistaken usages of tests and examples
 
 The tests checker walks Test, Benchmark and Example functions checking
 malformed names, wrong signatures and examples documenting non-existent
-identifiers.`,
-	Run: run,
+identifiers.`
+
+var Analyzer = &analysis.Analyzer{
+	Name: "tests",
+	Doc:  Doc,
+	Run:  run,
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {

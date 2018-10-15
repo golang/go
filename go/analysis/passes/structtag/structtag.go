@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package structtag defines an Analyzer that checks struct field tags
+// are well formed.
 package structtag
 
 import (
@@ -19,11 +21,13 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name: "structtag",
-	Doc: `check that struct field tags conform to reflect.StructTag.Get
+const Doc = `check that struct field tags conform to reflect.StructTag.Get
 
-Also report certain struct tags (json, xml) used with unexported fields.`,
+Also report certain struct tags (json, xml) used with unexported fields.`
+
+var Analyzer = &analysis.Analyzer{
+	Name:             "structtag",
+	Doc:              Doc,
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,
 	Run:              run,

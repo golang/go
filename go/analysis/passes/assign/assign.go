@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package assign defines an Analyzer that detects useless assignments.
 package assign
 
 // TODO(adonovan): check also for assignments to struct fields inside
@@ -18,13 +19,15 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name: "assign",
-	Doc: `check for useless assignments
+const Doc = `check for useless assignments
 
 This checker reports assignments of the form x = x or a[i] = a[i].
 These are almost always useless, and even when they aren't they are
-usually a mistake.`,
+usually a mistake.`
+
+var Analyzer = &analysis.Analyzer{
+	Name:     "assign",
+	Doc:      Doc,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

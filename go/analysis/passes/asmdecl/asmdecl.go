@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package asmdecl defines an Analyzer that reports mismatches between
+// assembly files and Go declarations.
 package asmdecl
 
 import (

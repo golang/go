@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package unusedresult defines an analyer that checks for unused
+// Package unusedresult defines an analyzer that checks for unused
 // results of calls to certain pure functions.
 package unusedresult
 
@@ -23,15 +23,17 @@ import (
 // fact for each function that tail-calls one of the functions that we
 // check, and check those functions too.
 
-var Analyzer = &analysis.Analyzer{
-	Name: "unusedresult",
-	Doc: `check for unused results of calls to some functions
+const Doc = `check for unused results of calls to some functions
 
 Some functions like fmt.Errorf return a result and have no side effects,
 so it is always a mistake to discard the result. This analyzer reports
 calls to certain functions in which the result of the call is ignored.
 
-The set of functions may be controlled using flags.`,
+The set of functions may be controlled using flags.`
+
+var Analyzer = &analysis.Analyzer{
+	Name:     "unusedresult",
+	Doc:      Doc,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
