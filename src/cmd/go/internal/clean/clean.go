@@ -176,25 +176,11 @@ func runClean(cmd *base.Command, args []string) {
 			b.Showcmd("", "rm -rf %s", modfetch.PkgMod)
 		}
 		if !cfg.BuildN {
-			if err := removeAll(modfetch.PkgMod); err != nil {
+			if err := modfetch.RemoveAll(modfetch.PkgMod); err != nil {
 				base.Errorf("go clean -modcache: %v", err)
 			}
 		}
 	}
-}
-
-func removeAll(dir string) error {
-	// Module cache has 0555 directories; make them writable in order to remove content.
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // ignore errors walking in file system
-		}
-		if info.IsDir() {
-			os.Chmod(path, 0777)
-		}
-		return nil
-	})
-	return os.RemoveAll(dir)
 }
 
 var cleaned = map[*load.Package]bool{}

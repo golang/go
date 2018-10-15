@@ -21,12 +21,12 @@ import (
 )
 
 func Unzip(dir, zipfile, prefix string, maxSize int64) error {
+	// TODO(bcmills): The maxSize parameter is invariantly 0. Remove it.
 	if maxSize == 0 {
 		maxSize = codehost.MaxZipFile
 	}
 
 	// Directory can exist, but must be empty.
-	// except maybe
 	files, _ := ioutil.ReadDir(dir)
 	if len(files) > 0 {
 		return fmt.Errorf("target directory %v exists and is not empty", dir)
@@ -113,7 +113,7 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 		if err := os.MkdirAll(filepath.Dir(dst), 0777); err != nil {
 			return err
 		}
-		w, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0444)
+		w, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0444)
 		if err != nil {
 			return fmt.Errorf("unzip %v: %v", zipfile, err)
 		}
@@ -143,11 +143,27 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 		dirlist = append(dirlist, dir)
 	}
 	sort.Strings(dirlist)
-
 	// Run over list backward to chmod children before parents.
 	for i := len(dirlist) - 1; i >= 0; i-- {
+		// TODO(bcmills): Does this end up stomping on the umask of the cache directory?
 		os.Chmod(dirlist[i], 0555)
 	}
 
 	return nil
+}
+
+// RemoveAll removes a directory written by Download or Unzip, first applying
+// any permission changes needed to do so.
+func RemoveAll(dir string) error {
+	// Module cache has 0555 directories; make them writable in order to remove content.
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // ignore errors walking in file system
+		}
+		if info.IsDir() {
+			os.Chmod(path, 0777)
+		}
+		return nil
+	})
+	return os.RemoveAll(dir)
 }
