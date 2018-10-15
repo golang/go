@@ -1262,7 +1262,7 @@ func TestJSON(t *testing.T) {
 }
 
 func TestRejectInvalidQueries(t *testing.T) {
-	queries := []string{"=", "key=", "key=value", "file/a/b=c/..."}
+	queries := []string{"key=", "key=value"}
 	cfg := &packages.Config{
 		Mode: packages.LoadImports,
 		Env:  append(os.Environ(), "GO111MODULE=off"),
