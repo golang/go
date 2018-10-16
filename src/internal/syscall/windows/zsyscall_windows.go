@@ -49,6 +49,8 @@ var (
 	procMoveFileExW                  = modkernel32.NewProc("MoveFileExW")
 	procGetModuleFileNameW           = modkernel32.NewProc("GetModuleFileNameW")
 	procWSASocketW                   = modws2_32.NewProc("WSASocketW")
+	procLockFileEx                   = modkernel32.NewProc("LockFileEx")
+	procUnlockFileEx                 = modkernel32.NewProc("UnlockFileEx")
 	procGetACP                       = modkernel32.NewProc("GetACP")
 	procGetConsoleCP                 = modkernel32.NewProc("GetConsoleCP")
 	procMultiByteToWideChar          = modkernel32.NewProc("MultiByteToWideChar")
@@ -118,6 +120,30 @@ func WSASocket(af int32, typ int32, protocol int32, protinfo *syscall.WSAProtoco
 	r0, _, e1 := syscall.Syscall6(procWSASocketW.Addr(), 6, uintptr(af), uintptr(typ), uintptr(protocol), uintptr(unsafe.Pointer(protinfo)), uintptr(group), uintptr(flags))
 	handle = syscall.Handle(r0)
 	if handle == syscall.InvalidHandle {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func LockFileEx(file syscall.Handle, flags uint32, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *syscall.Overlapped) (err error) {
+	r1, _, e1 := syscall.Syscall6(procLockFileEx.Addr(), 6, uintptr(file), uintptr(flags), uintptr(reserved), uintptr(bytesLow), uintptr(bytesHigh), uintptr(unsafe.Pointer(overlapped)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func UnlockFileEx(file syscall.Handle, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *syscall.Overlapped) (err error) {
+	r1, _, e1 := syscall.Syscall6(procUnlockFileEx.Addr(), 5, uintptr(file), uintptr(reserved), uintptr(bytesLow), uintptr(bytesHigh), uintptr(unsafe.Pointer(overlapped)), 0)
+	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
 		} else {
