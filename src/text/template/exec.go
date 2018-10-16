@@ -7,6 +7,7 @@ package template
 import (
 	"bytes"
 	"fmt"
+	"internal/fmtsort"
 	"io"
 	"reflect"
 	"runtime"
@@ -362,8 +363,9 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		if val.Len() == 0 {
 			break
 		}
-		for _, key := range sortKeys(val.MapKeys()) {
-			oneIteration(key, val.MapIndex(key))
+		om := fmtsort.Sort(val)
+		for i, key := range om.Key {
+			oneIteration(key, om.Value[i])
 		}
 		return
 	case reflect.Chan:

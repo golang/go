@@ -115,6 +115,7 @@ var pkgDeps = map[string][]string{
 	"image":                  {"L2", "image/color"}, // interfaces
 	"image/color":            {"L2"},                // interfaces
 	"image/color/palette":    {"L2", "image/color"},
+	"internal/fmtsort":       {"reflect", "sort"},
 	"reflect":                {"L2"},
 	"sort":                   {"reflect"},
 
@@ -135,6 +136,7 @@ var pkgDeps = map[string][]string{
 		"image",
 		"image/color",
 		"image/color/palette",
+		"internal/fmtsort",
 		"reflect",
 	},
 
@@ -177,8 +179,8 @@ var pkgDeps = map[string][]string{
 		"time",
 	},
 
-	// Formatted I/O: few dependencies (L1) but we must add reflect.
-	"fmt": {"L1", "os", "reflect"},
+	// Formatted I/O: few dependencies (L1) but we must add reflect and internal/fmtsort.
+	"fmt": {"L1", "os", "reflect", "internal/fmtsort"},
 	"log": {"L1", "os", "fmt", "time"},
 
 	// Packages used by testing must be low-level (L2+fmt).
