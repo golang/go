@@ -195,7 +195,7 @@ func TestRepoRootForImportPath(t *testing.T) {
 			},
 		},
 		{
-			// with .git extension
+			// with .git extension which is optional when creating a repo
 			path: "dev.azure.com/user-name/project_name/package.git/sub-package",
 			want: &RepoRoot{
 				vcs:  vcsGit,

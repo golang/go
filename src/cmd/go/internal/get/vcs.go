@@ -638,7 +638,10 @@ var httpPrefixRE = regexp.MustCompile(`^https?:`)
 type ModuleMode int
 
 const (
+	// IgnoreMod - ignore modules mode
 	IgnoreMod ModuleMode = iota
+
+	// PreferMod - prefer modules mode
 	PreferMod
 )
 
@@ -1028,7 +1031,7 @@ var vcsPaths = []*vcsPath{
 	{
 		prefix: "dev.azure.com/",
 		re:     `^(?P<path>dev\.azure\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(?P<package>/[A-Za-z0-9_.\-]+)(/[\p{L}0-9_.\-]+)*$`,
-		vcs: 	"git",
+		vcs:    "git",
 		repo:   "https://{path}/_git{package}",
 		check:  azureVCS,
 	},
@@ -1142,6 +1145,7 @@ func launchpadVCS(match map[string]string) error {
 	return nil
 }
 
+// azureVCS sets the root since it composed of 2 parts.
 func azureVCS(match map[string]string) error {
 	match["root"] = expand(match, "{path}{package}")
 	return nil

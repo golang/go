@@ -183,8 +183,8 @@ A few common code hosting sites have special syntax:
 
 	Azure DevOps (Git)
 		
-		import "dev.azure.com/user/project/package"
-		import "dev.azure.com/user/project/package/sub/directory"
+		import "dev.azure.com/organization/project/package"
+		import "dev.azure.com/organization/project/package.git/sub/directory"
 
 For code hosted on other servers, import paths may either be qualified
 with the version control type, or the go tool can dynamically fetch
