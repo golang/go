@@ -26,6 +26,7 @@ var ssaCaches []ssa.Cache
 
 var ssaDump string     // early copy of $GOSSAFUNC; the func name to dump output for
 var ssaDumpStdout bool // whether to dump to stdout
+var ssaDumpCFG string  // generate CFGs for these phases
 const ssaDumpFile = "ssa.html"
 
 // ssaDumpInlined holds all inlined functions when ssaDump contains a function name.
@@ -155,7 +156,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.softFloat = s.config.SoftFloat
 
 	if printssa {
-		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f.Frontend(), name)
+		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f.Frontend(), name, ssaDumpCFG)
 		// TODO: generate and print a mapping from nodes to values and blocks
 		dumpSourcesColumn(s.f.HTMLWriter, fn)
 		s.f.HTMLWriter.WriteAST("AST", astBuf)
