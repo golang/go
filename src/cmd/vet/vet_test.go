@@ -118,11 +118,12 @@ func TestVetPrint(t *testing.T) {
 	Build(t)
 	file := filepath.Join("testdata", "print.go")
 	cmd := exec.Command(
-		"go", "vet", "-vettool="+binary,
+		"go", "vet",
 		"-printf",
 		"-printfuncs=Warn:1,Warnf:1",
 		file,
 	)
+	cmd.Env = append(os.Environ(), "GOVETTOOL="+binary)
 	errchk(cmd, []string{file}, t)
 }
 
