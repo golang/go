@@ -178,7 +178,7 @@ func (b *Builder) toolID(name string) string {
 	path := base.Tool(name)
 	desc := "go tool " + name
 
-	// Special case: undocumented -vettool overrides usual vet, for testing vet.
+	// Special case: undocumented $GOVETTOOL overrides usual vet, for testing vet.
 	if name == "vet" && VetTool != "" {
 		path = VetTool
 		desc = VetTool
