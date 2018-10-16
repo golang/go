@@ -29,9 +29,9 @@ func main() {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	samples := []struct {
-		code       string
-		wantOutput []string
+	tests := []struct {
+		code   string
+		errors []string
 	}{
 		{
 			code: `
@@ -42,7 +42,7 @@ foo:
 foo:
 }
 `,
-			wantOutput: []string{
+			errors: []string{
 				"^.+:5:1: label foo defined and not used\n",
 				".+:6:1: label foo already defined at .+:5:1\n$",
 			},
@@ -60,7 +60,7 @@ bar            :
 }
 `,
 
-			wantOutput: []string{
+			errors: []string{
 				"^.+:6:13: label bar defined and not used\n",
 				".+:7:4: label bar already defined at .+:6:13\n",
 				".+:8:1: label bar already defined at .+:6:13\n",
@@ -69,26 +69,24 @@ bar            :
 		},
 	}
 
-	for i, sample := range samples {
+	for i, test := range tests {
 		filename := filepath.Join(tmpdir, fmt.Sprintf("%d.go", i))
-		if err := ioutil.WriteFile(filename, []byte(sample.code), 0644); err != nil {
+		if err := ioutil.WriteFile(filename, []byte(test.code), 0644); err != nil {
 			log.Printf("#%d: failed to create file %s", i, filename)
 			continue
 		}
 		output, _ := exec.Command("go", "tool", "compile", filename).CombinedOutput()
 
-		// Now match the output
-		for _, regex := range sample.wantOutput {
-			reg := regexp.MustCompile(regex)
-			matches := reg.FindAll(output, -1)
-			for _, match := range matches {
-				index := bytes.Index(output, match)
-				output = bytes.Join([][]byte{output[:index], output[index+len(match):]}, []byte(""))
-			}
+		// remove each matching error from the output
+		for _, err := range test.errors {
+			rx := regexp.MustCompile(err)
+			match := rx.Find(output)
+			output = bytes.Replace(output, match, nil, 1) // remove match (which might be nil) from output
 		}
 
+		// at this point all output should have been consumed
 		if len(output) != 0 {
-			log.Printf("#%d: did not match all the output\nResidual output:\n\t%s", i, output)
+			log.Printf("Test case %d has unmatched errors:\n%s", i, output)
 		}
 	}
 }
