@@ -3243,17 +3243,6 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	n.Left = walkexpr(n.Left, init)
 	n.Right = walkexpr(n.Right, init)
 
-	// Disable safemode while compiling this code: the code we
-	// generate internally can refer to unsafe.Pointer.
-	// In this case it can happen if we need to generate an ==
-	// for a struct containing a reflect.Value, which itself has
-	// an unexported field of type unsafe.Pointer.
-	old_safemode := safemode
-	safemode = false
-	defer func() {
-		safemode = old_safemode
-	}()
-
 	// Given interface value l and concrete value r, rewrite
 	//   l == r
 	// into types-equal && data-equal.

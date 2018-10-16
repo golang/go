@@ -228,7 +228,6 @@ func Main(archInit func(*Arch)) {
 	}
 	objabi.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
 	flag.StringVar(&pathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
-	flag.BoolVar(&safemode, "u", false, "reject unsafe code")
 	flag.BoolVar(&Debug_vlog, "v", false, "increase debug verbosity")
 	objabi.Flagcount("w", "debug type checking", &Debug['w'])
 	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
@@ -840,7 +839,7 @@ func islocalname(name string) bool {
 
 func findpkg(name string) (file string, ok bool) {
 	if islocalname(name) {
-		if safemode || nolocalimports {
+		if nolocalimports {
 			return "", false
 		}
 
@@ -982,11 +981,6 @@ func importfile(f *Val) *types.Pkg {
 	}
 
 	if path_ == "unsafe" {
-		if safemode {
-			yyerror("cannot import package unsafe")
-			errorexit()
-		}
-
 		imported_unsafe = true
 		return unsafepkg
 	}
@@ -1060,7 +1054,6 @@ func importfile(f *Val) *types.Pkg {
 	}
 
 	// process header lines
-	safe := false
 	for {
 		p, err = imp.ReadString('\n')
 		if err != nil {
@@ -1070,13 +1063,6 @@ func importfile(f *Val) *types.Pkg {
 		if p == "\n" {
 			break // header ends with blank line
 		}
-		if strings.HasPrefix(p, "safe") {
-			safe = true
-			break // ok to ignore rest
-		}
-	}
-	if safemode && !safe {
-		yyerror("cannot import unsafe package %q", importpkg.Path)
 	}
 
 	// assume files move (get installed) so don't record the full path

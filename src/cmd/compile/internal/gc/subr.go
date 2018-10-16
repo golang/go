@@ -670,13 +670,6 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 		*why = ""
 	}
 
-	// TODO(rsc,lvd): This behaves poorly in the presence of inlining.
-	// https://golang.org/issue/2795
-	if safemode && !inimport && src != nil && src.Etype == TUNSAFEPTR {
-		yyerror("cannot use unsafe.Pointer")
-		errorexit()
-	}
-
 	if src == dst {
 		return OCONVNOP
 	}

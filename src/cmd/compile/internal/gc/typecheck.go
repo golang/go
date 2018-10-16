@@ -2112,10 +2112,6 @@ func typecheck1(n *Node, top int) *Node {
 		}
 	}
 
-	if safemode && !inimport && !compiling_wrappers && t != nil && t.Etype == TUNSAFEPTR {
-		yyerror("cannot use unsafe.Pointer")
-	}
-
 	evconst(n)
 	if n.Op == OTYPE && top&Etype == 0 {
 		if !n.Type.Broke() {

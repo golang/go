@@ -105,8 +105,6 @@ var nsyntaxerrors int
 
 var decldepth int32
 
-var safemode bool
-
 var nolocalimports bool
 
 var Debug [256]int
