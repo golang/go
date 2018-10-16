@@ -43,10 +43,6 @@ const (
 )
 
 func dumpobj() {
-	if !dolinkobj {
-		dumpobj1(outfile, modeCompilerObj)
-		return
-	}
 	if linkobj == "" {
 		dumpobj1(outfile, modeCompilerObj|modeLinkerObj)
 		return

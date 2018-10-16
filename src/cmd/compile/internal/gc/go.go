@@ -92,7 +92,6 @@ var pragcgobuf [][]string
 
 var outfile string
 var linkobj string
-var dolinkobj bool
 
 // nerrors is the number of compiler errors reported
 // since the last call to saveerrors.
