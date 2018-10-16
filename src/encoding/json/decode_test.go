@@ -554,6 +554,16 @@ var unmarshalTests = []unmarshalTest{
 		ptr: new(map[uint8]string),
 		err: &UnmarshalTypeError{Value: "number -1", Type: reflect.TypeOf(uint8(0)), Offset: 2},
 	},
+	{
+		in:  `{"F":{"a":2,"3":4}}`,
+		ptr: new(map[string]map[int]int),
+		err: &UnmarshalTypeError{Value: "number a", Type: reflect.TypeOf(int(0)), Offset: 7},
+	},
+	{
+		in:  `{"F":{"a":2,"3":4}}`,
+		ptr: new(map[string]map[uint]int),
+		err: &UnmarshalTypeError{Value: "number a", Type: reflect.TypeOf(uint(0)), Offset: 7},
+	},
 
 	// Map keys can be encoding.TextUnmarshalers.
 	{in: `{"x:y":true}`, ptr: &ummapType, out: ummapXY},
