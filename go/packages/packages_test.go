@@ -1138,6 +1138,10 @@ func TestName(t *testing.T) {
 }
 
 func TestName_Modules(t *testing.T) {
+	if usesOldGolist {
+		t.Skip("pre-modules version of Go")
+	}
+
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/localmod/go.mod":     `module test`,
 		"src/localmod/pkg/pkg.go": `package pkg;`,
@@ -1174,6 +1178,10 @@ func TestName_Modules(t *testing.T) {
 }
 
 func TestName_ModulesDedup(t *testing.T) {
+	if usesOldGolist {
+		t.Skip("pre-modules version of Go")
+	}
+
 	tmp, cleanup := makeTree(t, map[string]string{
 		"src/localmod/go.mod": `module test`,
 	})
