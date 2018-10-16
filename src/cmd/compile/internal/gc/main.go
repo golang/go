@@ -438,9 +438,16 @@ func Main(archInit func(*Arch)) {
 	}
 
 	ssaDump = os.Getenv("GOSSAFUNC")
-	if strings.HasSuffix(ssaDump, "+") {
-		ssaDump = ssaDump[:len(ssaDump)-1]
-		ssaDumpStdout = true
+	if ssaDump != "" {
+		if strings.HasSuffix(ssaDump, "+") {
+			ssaDump = ssaDump[:len(ssaDump)-1]
+			ssaDumpStdout = true
+		}
+		spl := strings.Split(ssaDump, ":")
+		if len(spl) > 1 {
+			ssaDump = spl[0]
+			ssaDumpCFG = spl[1]
+		}
 	}
 
 	trackScopes = flagDWARF

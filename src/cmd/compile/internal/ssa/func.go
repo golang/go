@@ -43,6 +43,7 @@ type Func struct {
 	PrintOrHtmlSSA bool        // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
 
 	scheduled bool // Values in Blocks are in final order
+	laidout   bool // Blocks are ordered
 	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
 
 	// when register allocation is done, maps value ids to locations
