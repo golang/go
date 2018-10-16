@@ -72,7 +72,6 @@ func indexStore(b0 []float64, b1 float64, idx int) {
 func FusedAdd32(x, y, z float32) float32 {
 	// s390x:"FMADDS\t"
 	// ppc64le:"FMADDS\t"
-	// arm/7:"MULAF"
 	// arm64:"FMADDS"
 	return x*y + z
 }
@@ -84,7 +83,6 @@ func FusedSub32_a(x, y, z float32) float32 {
 }
 
 func FusedSub32_b(x, y, z float32) float32 {
-	// arm/7:"MULSF"
 	// arm64:"FMSUBS"
 	return z - x*y
 }
@@ -92,7 +90,6 @@ func FusedSub32_b(x, y, z float32) float32 {
 func FusedAdd64(x, y, z float64) float64 {
 	// s390x:"FMADD\t"
 	// ppc64le:"FMADD\t"
-	// arm/7:"MULAD"
 	// arm64:"FMADDD"
 	return x*y + z
 }
@@ -104,7 +101,6 @@ func FusedSub64_a(x, y, z float64) float64 {
 }
 
 func FusedSub64_b(x, y, z float64) float64 {
-	// arm/7:"MULSD"
 	// arm64:"FMSUBD"
 	return z - x*y
 }
