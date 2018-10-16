@@ -1131,3 +1131,28 @@ func TestIncrementAfterBulkClearKeyStringValueInt(t *testing.T) {
 		t.Errorf("incremented 0 to %d", n2)
 	}
 }
+
+func TestMapTombstones(t *testing.T) {
+	m := map[int]int{}
+	const N = 10000
+	// Fill a map.
+	for i := 0; i < N; i++ {
+		m[i] = i
+	}
+	runtime.MapTombstoneCheck(m)
+	// Delete half of the entries.
+	for i := 0; i < N; i += 2 {
+		delete(m, i)
+	}
+	runtime.MapTombstoneCheck(m)
+	// Add new entries to fill in holes.
+	for i := N; i < 3*N/2; i++ {
+		m[i] = i
+	}
+	runtime.MapTombstoneCheck(m)
+	// Delete everything.
+	for i := 0; i < 3*N/2; i++ {
+		delete(m, i)
+	}
+	runtime.MapTombstoneCheck(m)
+}
