@@ -1,24 +1,24 @@
 // run
 
-// Copyright 2011 The Go Authors. All rights reserved.
+// Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // Test that the implementation catches nil ptr indirection
 // in a large address space.
 
-// +build !aix
-// Address space starts at 1<<32 on AIX, so dummy is too far.
+// +build aix
 
 package main
 
 import "unsafe"
 
 // Having a big address space means that indexing
-// at a 256 MB offset from a nil pointer might not
+// at a 1G + 256 MB offset from a nil pointer might not
 // cause a memory access fault. This test checks
 // that Go is doing the correct explicit checks to catch
 // these nil pointer accesses, not just relying on the hardware.
+// The reason of the 1G offset is because AIX addresses start after 1G.
 var dummy [256 << 20]byte // give us a big address space
 
 func main() {
@@ -27,8 +27,8 @@ func main() {
 	// otherwise there might not be anything mapped
 	// at the address that might be accidentally
 	// dereferenced below.
-	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
-		panic("dummy too far out")
+	if uintptr(unsafe.Pointer(&dummy)) < 1<<32 {
+		panic("dummy not far enough")
 	}
 
 	shouldPanic(p1)
@@ -60,14 +60,14 @@ func shouldPanic(f func()) {
 
 func p1() {
 	// Array index.
-	var p *[1 << 30]byte = nil
-	println(p[256<<20]) // very likely to be inside dummy, but should panic
+	var p *[1 << 33]byte = nil
+	println(p[1<<32+256<<20]) // very likely to be inside dummy, but should panic
 }
 
 var xb byte
 
 func p2() {
-	var p *[1 << 30]byte = nil
+	var p *[1 << 33]byte = nil
 	xb = 123
 
 	// Array index.
@@ -76,12 +76,12 @@ func p2() {
 
 func p3() {
 	// Array to slice.
-	var p *[1 << 30]byte = nil
+	var p *[1 << 33]byte = nil
 	var x []byte = p[0:] // should panic
 	_ = x
 }
 
-var q *[1 << 30]byte
+var q *[1 << 33]byte
 
 func p4() {
 	// Array to slice.
@@ -96,18 +96,18 @@ func fb([]byte) {
 
 func p5() {
 	// Array to slice.
-	var p *[1 << 30]byte = nil
+	var p *[1 << 33]byte = nil
 	fb(p[0:]) // should crash
 }
 
 func p6() {
 	// Array to slice.
-	var p *[1 << 30]byte = nil
+	var p *[1 << 33]byte = nil
 	var _ []byte = p[10 : len(p)-10] // should crash
 }
 
 type T struct {
-	x [256 << 20]byte
+	x [1<<32 + 256<<20]byte
 	i int
 }
 
