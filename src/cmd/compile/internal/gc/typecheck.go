@@ -296,21 +296,21 @@ func indexlit(n *Node) *Node {
 // 	n.Left = typecheck1(n.Left, top)
 func typecheck1(n *Node, top int) *Node {
 	switch n.Op {
-	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER, ORETJMP:
-		// n.Sym is a field/method name, not a variable.
-	default:
-		if n.Sym != nil {
-			if n.Op == ONAME && n.SubOp() != 0 && top&Ecall == 0 {
-				yyerror("use of builtin %v not in function call", n.Sym)
-				n.Type = nil
-				return n
-			}
+	case OLITERAL, ONAME, ONONAME, OTYPE:
+		if n.Sym == nil {
+			break
+		}
 
-			typecheckdef(n)
-			if n.Op == ONONAME {
-				n.Type = nil
-				return n
-			}
+		if n.Op == ONAME && n.SubOp() != 0 && top&Ecall == 0 {
+			yyerror("use of builtin %v not in function call", n.Sym)
+			n.Type = nil
+			return n
+		}
+
+		typecheckdef(n)
+		if n.Op == ONONAME {
+			n.Type = nil
+			return n
 		}
 	}
 
@@ -3665,9 +3665,6 @@ func typecheckdef(n *Node) {
 	switch n.Op {
 	default:
 		Fatalf("typecheckdef %v", n.Op)
-
-	case OGOTO, OLABEL, OPACK:
-		// nothing to do here
 
 	case OLITERAL:
 		if n.Name.Param.Ntype != nil {
