@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 8, 2018",
+	"Subtitle": "Version of October 17, 2018",
 	"Path": "/ref/spec"
 }-->
 
@@ -2202,11 +2202,11 @@ Receiver   = Parameters .
 <p>
 The receiver is specified via an extra parameter section preceding the method
 name. That parameter section must declare a single non-variadic parameter, the receiver.
-Its type must be of the form <code>T</code> or <code>*T</code> (possibly using
-parentheses) where <code>T</code> is a type name. The type denoted by <code>T</code> is called
-the receiver <i>base type</i>; it must not be a pointer or interface type and
-it must be <a href="#Type_definitions">defined</a> in the same package as the method.
-The method is said to be <i>bound</i> to the base type and the method name
+Its type must be a <a href="#Type_definitions">defined</a> type <code>T</code> or a
+pointer to a defined type <code>T</code>. <code>T</code> is called the receiver
+<i>base type</i>. A receiver base type cannot be a pointer or interface type and
+it must be defined in the same package as the method.
+The method is said to be <i>bound</i> to its receiver base type and the method name
 is visible only within <a href="#Selectors">selectors</a> for type <code>T</code>
 or <code>*T</code>.
 </p>
@@ -2226,7 +2226,7 @@ the non-blank method and field names must be distinct.
 </p>
 
 <p>
-Given type <code>Point</code>, the declarations
+Given defined type <code>Point</code>, the declarations
 </p>
 
 <pre>
