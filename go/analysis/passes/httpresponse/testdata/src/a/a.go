@@ -1,4 +1,4 @@
-package testdata
+package a
 
 import (
 	"log"
@@ -15,7 +15,7 @@ func goodHTTPGet() {
 
 func badHTTPGet() {
 	res, err := http.Get("http://foo.com")
-	defer res.Body.Close() // ERROR "using res before checking for errors"
+	defer res.Body.Close() // want "using res before checking for errors"
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -23,7 +23,7 @@ func badHTTPGet() {
 
 func badHTTPHead() {
 	res, err := http.Head("http://foo.com")
-	defer res.Body.Close() // ERROR "using res before checking for errors"
+	defer res.Body.Close() // want "using res before checking for errors"
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func goodClientGet() {
 func badClientPtrGet() {
 	client := http.DefaultClient
 	resp, err := client.Get("http://foo.com")
-	defer resp.Body.Close() // ERROR "using resp before checking for errors"
+	defer resp.Body.Close() // want "using resp before checking for errors"
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func badClientPtrGet() {
 func badClientGet() {
 	client := http.Client{}
 	resp, err := client.Get("http://foo.com")
-	defer resp.Body.Close() // ERROR "using resp before checking for errors"
+	defer resp.Body.Close() // want "using resp before checking for errors"
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func badClientPtrDo() {
 	}
 
 	resp, err := client.Do(req)
-	defer resp.Body.Close() // ERROR "using resp before checking for errors"
+	defer resp.Body.Close() // want "using resp before checking for errors"
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func badClientDo() {
 	}
 
 	resp, err := client.Do(req)
-	defer resp.Body.Close() // ERROR "using resp before checking for errors"
+	defer resp.Body.Close() // want "using resp before checking for errors"
 	if err != nil {
 		log.Fatal(err)
 	}
