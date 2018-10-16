@@ -1024,6 +1024,15 @@ var vcsPaths = []*vcsPath{
 		repo:   "https://{root}",
 	},
 
+	// Azure DevOps
+	{
+		prefix: "dev.azure.com/",
+		re:     `^(?P<path>dev\.azure\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(?P<package>/[A-Za-z0-9_.\-]+)(/[\p{L}0-9_.\-]+)*$`,
+		vcs: 	"git",
+		repo:   "https://{path}/_git{package}",
+		check:  azureVCS,
+	},
+
 	// General syntax for any server.
 	// Must be last.
 	{
@@ -1130,5 +1139,10 @@ func launchpadVCS(match map[string]string) error {
 		match["root"] = expand(match, "launchpad.net/{project}")
 		match["repo"] = expand(match, "https://{root}")
 	}
+	return nil
+}
+
+func azureVCS(match map[string]string) error {
+	match["root"] = expand(match, "{path}{package}")
 	return nil
 }

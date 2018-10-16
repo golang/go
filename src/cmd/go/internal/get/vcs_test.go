@@ -178,6 +178,35 @@ func TestRepoRootForImportPath(t *testing.T) {
 			"chiselapp.com/user/kyle/fossilgg",
 			nil,
 		},
+		{
+			// Azure DevOps
+			path: "dev.azure.com/user/project/package",
+			want: &RepoRoot{
+				vcs:  vcsGit,
+				Repo: "https://dev.azure.com/user/project/_git/package",
+			},
+		},
+		{
+			// with subpackages
+			path: "dev.azure.com/user/project/package/sub-package",
+			want: &RepoRoot{
+				vcs:  vcsGit,
+				Repo: "https://dev.azure.com/user/project/_git/package",
+			},
+		},
+		{
+			// with .git extension
+			path: "dev.azure.com/user-name/project_name/package.git/sub-package",
+			want: &RepoRoot{
+				vcs:  vcsGit,
+				Repo: "https://dev.azure.com/user-name/project_name/_git/package.git",
+			},
+		},
+		{
+			// Azure DevOps supports user/projects/repos with spaces but these are not valid go paths
+			path: "dev.azure.com/user name/project name/package/sub-package",
+			want: nil,
+		},
 	}
 
 	for _, test := range tests {
