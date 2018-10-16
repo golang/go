@@ -92,8 +92,6 @@ Flags:
 		Compile with race detector enabled.
 	-trimpath prefix
 		Remove prefix from recorded source file paths.
-	-u
-		Disallow importing packages not marked as safe; implies -nolocalimports.
 
 There are also a number of debugging flags; run the command with no arguments
 for a usage message.
