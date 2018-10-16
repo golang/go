@@ -568,7 +568,7 @@ var statuniqgen int // name generator for static temps
 // returned node for readonly nodes.
 func staticname(t *types.Type) *Node {
 	// Don't use lookupN; it interns the resulting string, but these are all unique.
-	n := newname(lookup(fmt.Sprintf("statictmp_%d", statuniqgen)))
+	n := newname(lookup(fmt.Sprintf(".stmp_%d", statuniqgen)))
 	statuniqgen++
 	addvar(n, t, PEXTERN)
 	return n
