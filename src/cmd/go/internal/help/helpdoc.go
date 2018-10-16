@@ -182,7 +182,7 @@ A few common code hosting sites have special syntax:
 		import "hub.jazz.net/git/user/project/sub/directory"
 
 	Azure DevOps (Git)
-		
+
 		import "dev.azure.com/organization/project/package"
 		import "dev.azure.com/organization/project/package.git/sub/directory"
 
