@@ -1950,6 +1950,11 @@
 // 		import "hub.jazz.net/git/user/project"
 // 		import "hub.jazz.net/git/user/project/sub/directory"
 //
+// 	Azure DevOps (Git)
+//
+// 		import "dev.azure.com/organization/project/package"
+// 		import "dev.azure.com/organization/project/package.git/sub/directory"
+//
 // For code hosted on other servers, import paths may either be qualified
 // with the version control type, or the go tool can dynamically fetch
 // the import path over https/http and discover where the code resides
