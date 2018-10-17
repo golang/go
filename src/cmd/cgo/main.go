@@ -88,6 +88,7 @@ type Ref struct {
 	Name    *Name
 	Expr    *ast.Expr
 	Context astContext
+	Done    bool
 }
 
 func (r *Ref) Pos() token.Pos {
