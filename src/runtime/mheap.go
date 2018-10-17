@@ -21,7 +21,7 @@ import (
 const minPhysPageSize = 4096
 
 // Main malloc heap.
-// The heap itself is the "free[]" and "large" arrays,
+// The heap itself is the "free" and "scav" treaps,
 // but all the other global data is here too.
 //
 // mheap must not be heap-allocated because it contains mSpanLists,
@@ -147,7 +147,7 @@ type mheap struct {
 
 	spanalloc             fixalloc // allocator for span*
 	cachealloc            fixalloc // allocator for mcache*
-	treapalloc            fixalloc // allocator for treapNodes* used by large objects
+	treapalloc            fixalloc // allocator for treapNodes*
 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
 	specialprofilealloc   fixalloc // allocator for specialprofile*
 	speciallock           mutex    // lock for special record allocators.
@@ -198,15 +198,16 @@ type arenaHint struct {
 
 // An MSpan is a run of pages.
 //
-// When a MSpan is in the heap free list, state == mSpanFree
+// When a MSpan is in the heap free treap, state == mSpanFree
 // and heapmap(s->start) == span, heapmap(s->start+s->npages-1) == span.
+// If the MSpan is in the heap scav treap, then in addition to the
+// above scavenged == true. scavenged == false in all other cases.
 //
 // When a MSpan is allocated, state == mSpanInUse or mSpanManual
 // and heapmap(i) == span for all s->start <= i < s->start+s->npages.
 
-// Every MSpan is in one doubly-linked list,
-// either one of the MHeap's free lists or one of the
-// MCentral's span lists.
+// Every MSpan is in one doubly-linked list, either in the MHeap's
+// busy list or one of the MCentral's span lists.
 
 // An MSpan representing actual memory has state mSpanInUse,
 // mSpanManual, or mSpanFree. Transitions between these states are
@@ -848,7 +849,7 @@ func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
 
 // Allocates a span of the given size.  h must be locked.
 // The returned span has been removed from the
-// free list, but its state is still mSpanFree.
+// free structures, but its state is still mSpanFree.
 func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
 	var s *mspan
 
