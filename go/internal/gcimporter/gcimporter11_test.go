@@ -54,7 +54,7 @@ func TestImportedTypes(t *testing.T) {
 		importPath := s[0]
 		objName := s[1]
 
-		pkg, err := Import(make(map[string]*types.Package), importPath, ".")
+		pkg, err := Import(make(map[string]*types.Package), importPath, ".", nil)
 		if err != nil {
 			t.Error(err)
 			continue

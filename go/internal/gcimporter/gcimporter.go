@@ -128,42 +128,69 @@ func ImportData(packages map[string]*types.Package, filename, id string, data io
 // the corresponding package object to the packages map, and returns the object.
 // The packages map must contain all packages already imported.
 //
-func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types.Package, err error) {
-	filename, id := FindPkg(path, srcDir)
-	if filename == "" {
+func Import(packages map[string]*types.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types.Package, err error) {
+	var rc io.ReadCloser
+	var filename, id string
+	if lookup != nil {
+		// With custom lookup specified, assume that caller has
+		// converted path to a canonical import path for use in the map.
 		if path == "unsafe" {
 			return types.Unsafe, nil
 		}
-		err = fmt.Errorf("can't find import: %q", id)
-		return
-	}
+		id = path
 
-	// no need to re-import if the package was imported completely before
-	if pkg = packages[id]; pkg != nil && pkg.Complete() {
-		return
-	}
-
-	// open file
-	f, err := os.Open(filename)
-	if err != nil {
-		return
-	}
-	defer func() {
-		f.Close()
-		if err != nil {
-			// add file name to error
-			err = fmt.Errorf("reading export data: %s: %v", filename, err)
+		// No need to re-import if the package was imported completely before.
+		if pkg = packages[id]; pkg != nil && pkg.Complete() {
+			return
 		}
-	}()
+		f, err := lookup(path)
+		if err != nil {
+			return nil, err
+		}
+		rc = f
+	} else {
+		filename, id = FindPkg(path, srcDir)
+		if filename == "" {
+			if path == "unsafe" {
+				return types.Unsafe, nil
+			}
+			return nil, fmt.Errorf("can't find import: %q", id)
+		}
+
+		// no need to re-import if the package was imported completely before
+		if pkg = packages[id]; pkg != nil && pkg.Complete() {
+			return
+		}
+
+		// open file
+		f, err := os.Open(filename)
+		if err != nil {
+			return nil, err
+		}
+		defer func() {
+			if err != nil {
+				// add file name to error
+				err = fmt.Errorf("%s: %v", filename, err)
+			}
+		}()
+		rc = f
+	}
+	defer rc.Close()
 
 	var hdr string
-	buf := bufio.NewReader(f)
+	buf := bufio.NewReader(rc)
 	if hdr, err = FindExportData(buf); err != nil {
 		return
 	}
 
 	switch hdr {
 	case "$$\n":
+		// Work-around if we don't have a filename; happens only if lookup != nil.
+		// Either way, the filename is only needed for importer error messages, so
+		// this is fine.
+		if filename == "" {
+			filename = path
+		}
 		return ImportData(packages, filename, id, buf)
 
 	case "$$B\n":

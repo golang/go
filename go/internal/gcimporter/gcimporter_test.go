@@ -88,7 +88,7 @@ func compile(t *testing.T, dirname, filename string) string {
 
 func testPath(t *testing.T, path, srcDir string) *types.Package {
 	t0 := time.Now()
-	pkg, err := Import(make(map[string]*types.Package), path, srcDir)
+	pkg, err := Import(make(map[string]*types.Package), path, srcDir, nil)
 	if err != nil {
 		t.Errorf("testPath(%s): %s", path, err)
 		return nil
@@ -190,7 +190,7 @@ func TestVersionHandling(t *testing.T) {
 		}
 
 		// test that export data can be imported
-		_, err := Import(make(map[string]*types.Package), pkgpath, dir)
+		_, err := Import(make(map[string]*types.Package), pkgpath, dir, nil)
 		if err != nil {
 			// ok to fail if it fails with a newer version error for select files
 			if strings.Contains(err.Error(), "newer version") {
@@ -227,7 +227,7 @@ func TestVersionHandling(t *testing.T) {
 		defer os.Remove(filename)
 
 		// test that importing the corrupted file results in an error
-		_, err = Import(make(map[string]*types.Package), pkgpath, dir)
+		_, err = Import(make(map[string]*types.Package), pkgpath, dir, nil)
 		if err == nil {
 			t.Errorf("import corrupted %q succeeded", pkgpath)
 		} else if msg := err.Error(); !strings.Contains(msg, "version skew") {
@@ -290,7 +290,7 @@ func TestCorrectMethodPackage(t *testing.T) {
 	}
 
 	imports := make(map[string]*types.Package)
-	_, err := Import(imports, "net/http", ".")
+	_, err := Import(imports, "net/http", ".", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +346,7 @@ func TestIssue13898(t *testing.T) {
 
 	// import go/internal/gcimporter which imports go/types partially
 	imports := make(map[string]*types.Package)
-	_, err := Import(imports, "go/internal/gcimporter", ".")
+	_, err := Import(imports, "go/internal/gcimporter", ".", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -414,7 +414,7 @@ func TestIssue15517(t *testing.T) {
 	// The same issue occurs with vendoring.)
 	imports := make(map[string]*types.Package)
 	for i := 0; i < 3; i++ {
-		if _, err := Import(imports, "./././testdata/p", "."); err != nil {
+		if _, err := Import(imports, "./././testdata/p", ".", nil); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -468,7 +468,7 @@ func TestIssue20046(t *testing.T) {
 }
 
 func importPkg(t *testing.T, path string) *types.Package {
-	pkg, err := Import(make(map[string]*types.Package), path, ".")
+	pkg, err := Import(make(map[string]*types.Package), path, ".", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
