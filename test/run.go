@@ -78,6 +78,7 @@ func main() {
 	// Disable parallelism if printing or if using a simulator.
 	if *verbose || len(findExecCmd()) > 0 {
 		*numParallel = 1
+		*runoutputLimit = 1
 	}
 
 	ratec = make(chan bool, *numParallel)
