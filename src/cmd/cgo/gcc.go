@@ -1166,103 +1166,15 @@ func (p *Package) rewriteRef(f *File) {
 		if r.Name.IsConst() && r.Name.Const == "" {
 			error_(r.Pos(), "unable to find value of constant C.%s", fixGo(r.Name.Go))
 		}
-		var expr ast.Expr = ast.NewIdent(r.Name.Mangle) // default
-		switch r.Context {
-		case ctxCall, ctxCall2:
-			if r.Name.Kind != "func" {
-				if r.Name.Kind == "type" {
-					r.Context = ctxType
-					if r.Name.Type == nil {
-						error_(r.Pos(), "invalid conversion to C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
-						break
-					}
-					expr = r.Name.Type.Go
-					break
-				}
-				error_(r.Pos(), "call of non-function C.%s", fixGo(r.Name.Go))
-				break
-			}
-			functions[r.Name.Go] = true
-			if r.Context == ctxCall2 {
-				if r.Name.Go == "_CMalloc" {
-					error_(r.Pos(), "no two-result form for C.malloc")
-					break
-				}
-				// Invent new Name for the two-result function.
-				n := f.Name["2"+r.Name.Go]
-				if n == nil {
-					n = new(Name)
-					*n = *r.Name
-					n.AddError = true
-					n.Mangle = "_C2func_" + n.Go
-					f.Name["2"+r.Name.Go] = n
-				}
-				expr = ast.NewIdent(n.Mangle)
-				r.Name = n
-				break
-			}
-		case ctxExpr:
-			switch r.Name.Kind {
-			case "func":
-				if builtinDefs[r.Name.C] != "" {
-					error_(r.Pos(), "use of builtin '%s' not in function call", fixGo(r.Name.C))
-				}
 
-				// Function is being used in an expression, to e.g. pass around a C function pointer.
-				// Create a new Name for this Ref which causes the variable to be declared in Go land.
-				fpName := "fp_" + r.Name.Go
-				name := f.Name[fpName]
-				if name == nil {
-					name = &Name{
-						Go:   fpName,
-						C:    r.Name.C,
-						Kind: "fpvar",
-						Type: &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("void*"), Go: ast.NewIdent("unsafe.Pointer")},
-					}
-					p.mangleName(name)
-					f.Name[fpName] = name
-				}
-				r.Name = name
-				// Rewrite into call to _Cgo_ptr to prevent assignments. The _Cgo_ptr
-				// function is defined in out.go and simply returns its argument. See
-				// issue 7757.
-				expr = &ast.CallExpr{
-					Fun:  &ast.Ident{NamePos: (*r.Expr).Pos(), Name: "_Cgo_ptr"},
-					Args: []ast.Expr{ast.NewIdent(name.Mangle)},
-				}
-			case "type":
-				// Okay - might be new(T)
-				if r.Name.Type == nil {
-					error_(r.Pos(), "expression C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
-					break
-				}
-				expr = r.Name.Type.Go
-			case "var":
-				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
-			case "macro":
-				expr = &ast.CallExpr{Fun: expr}
-			}
-		case ctxSelector:
-			if r.Name.Kind == "var" {
-				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
-			} else {
-				error_(r.Pos(), "only C variables allowed in selector expression %s", fixGo(r.Name.Go))
-			}
-		case ctxType:
-			if r.Name.Kind != "type" {
-				error_(r.Pos(), "expression C.%s used as type", fixGo(r.Name.Go))
-			} else if r.Name.Type == nil {
-				// Use of C.enum_x, C.struct_x or C.union_x without C definition.
-				// GCC won't raise an error when using pointers to such unknown types.
-				error_(r.Pos(), "type C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
-			} else {
-				expr = r.Name.Type.Go
-			}
-		default:
-			if r.Name.Kind == "func" {
-				error_(r.Pos(), "must call C.%s", fixGo(r.Name.Go))
+		if r.Name.Kind == "func" {
+			switch r.Context {
+			case ctxCall, ctxCall2:
+				functions[r.Name.Go] = true
 			}
 		}
+
+		expr := p.rewriteName(f, r)
 
 		if *godefs {
 			// Substitute definition for mangled type name.
@@ -1304,6 +1216,107 @@ func (p *Package) rewriteRef(f *File) {
 			delete(f.Name, name)
 		}
 	}
+}
+
+// rewriteName returns the expression used to rewrite a reference.
+func (p *Package) rewriteName(f *File, r *Ref) ast.Expr {
+	var expr ast.Expr = ast.NewIdent(r.Name.Mangle) // default
+	switch r.Context {
+	case ctxCall, ctxCall2:
+		if r.Name.Kind != "func" {
+			if r.Name.Kind == "type" {
+				r.Context = ctxType
+				if r.Name.Type == nil {
+					error_(r.Pos(), "invalid conversion to C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
+					break
+				}
+				expr = r.Name.Type.Go
+				break
+			}
+			error_(r.Pos(), "call of non-function C.%s", fixGo(r.Name.Go))
+			break
+		}
+		if r.Context == ctxCall2 {
+			if r.Name.Go == "_CMalloc" {
+				error_(r.Pos(), "no two-result form for C.malloc")
+				break
+			}
+			// Invent new Name for the two-result function.
+			n := f.Name["2"+r.Name.Go]
+			if n == nil {
+				n = new(Name)
+				*n = *r.Name
+				n.AddError = true
+				n.Mangle = "_C2func_" + n.Go
+				f.Name["2"+r.Name.Go] = n
+			}
+			expr = ast.NewIdent(n.Mangle)
+			r.Name = n
+			break
+		}
+	case ctxExpr:
+		switch r.Name.Kind {
+		case "func":
+			if builtinDefs[r.Name.C] != "" {
+				error_(r.Pos(), "use of builtin '%s' not in function call", fixGo(r.Name.C))
+			}
+
+			// Function is being used in an expression, to e.g. pass around a C function pointer.
+			// Create a new Name for this Ref which causes the variable to be declared in Go land.
+			fpName := "fp_" + r.Name.Go
+			name := f.Name[fpName]
+			if name == nil {
+				name = &Name{
+					Go:   fpName,
+					C:    r.Name.C,
+					Kind: "fpvar",
+					Type: &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("void*"), Go: ast.NewIdent("unsafe.Pointer")},
+				}
+				p.mangleName(name)
+				f.Name[fpName] = name
+			}
+			r.Name = name
+			// Rewrite into call to _Cgo_ptr to prevent assignments. The _Cgo_ptr
+			// function is defined in out.go and simply returns its argument. See
+			// issue 7757.
+			expr = &ast.CallExpr{
+				Fun:  &ast.Ident{NamePos: (*r.Expr).Pos(), Name: "_Cgo_ptr"},
+				Args: []ast.Expr{ast.NewIdent(name.Mangle)},
+			}
+		case "type":
+			// Okay - might be new(T)
+			if r.Name.Type == nil {
+				error_(r.Pos(), "expression C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
+				break
+			}
+			expr = r.Name.Type.Go
+		case "var":
+			expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
+		case "macro":
+			expr = &ast.CallExpr{Fun: expr}
+		}
+	case ctxSelector:
+		if r.Name.Kind == "var" {
+			expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
+		} else {
+			error_(r.Pos(), "only C variables allowed in selector expression %s", fixGo(r.Name.Go))
+		}
+	case ctxType:
+		if r.Name.Kind != "type" {
+			error_(r.Pos(), "expression C.%s used as type", fixGo(r.Name.Go))
+		} else if r.Name.Type == nil {
+			// Use of C.enum_x, C.struct_x or C.union_x without C definition.
+			// GCC won't raise an error when using pointers to such unknown types.
+			error_(r.Pos(), "type C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
+		} else {
+			expr = r.Name.Type.Go
+		}
+	default:
+		if r.Name.Kind == "func" {
+			error_(r.Pos(), "must call C.%s", fixGo(r.Name.Go))
+		}
+	}
+	return expr
 }
 
 // gccBaseCmd returns the start of the compiler command line.
