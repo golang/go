@@ -1062,3 +1062,76 @@ func main() {
 		}
 	}
 }
+
+func TestStaticTmp(t *testing.T) {
+	// Checks that statictmp variables do not appear in debug_info or the
+	// symbol table.
+	// Also checks that statictmp variables do not collide with user defined
+	// variables (issue #25113)
+
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	const prog = `package main
+
+var stmp_0 string
+var a []int
+
+func init() {
+	a = []int{ 7 }
+}
+
+func main() {
+	println(a[0])
+}
+`
+
+	f := gobuild(t, dir, prog, NoOpt)
+
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	for {
+		e, err := rdr.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e == nil {
+			break
+		}
+		if e.Tag != dwarf.TagVariable {
+			continue
+		}
+		name, ok := e.Val(dwarf.AttrName).(string)
+		if !ok {
+			continue
+		}
+		if strings.Contains(name, "stmp") {
+			t.Errorf("statictmp variable found in debug_info: %s at %x", name, e.Offset)
+		}
+	}
+
+	syms, err := f.Symbols()
+	if err != nil {
+		t.Fatalf("error reading symbols: %v", err)
+	}
+	for _, sym := range syms {
+		if strings.Contains(sym.Name, "stmp") {
+			t.Errorf("statictmp variable found in symbol table: %s", sym.Name)
+		}
+	}
+}
