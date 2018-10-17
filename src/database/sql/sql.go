@@ -567,7 +567,6 @@ type finalCloser interface {
 // addDep notes that x now depends on dep, and x's finalClose won't be
 // called until all of x's dependencies are removed with removeDep.
 func (db *DB) addDep(x finalCloser, dep interface{}) {
-	//println(fmt.Sprintf("addDep(%T %p, %T %p)", x, x, dep, dep))
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	db.addDepLocked(x, dep)
@@ -597,7 +596,6 @@ func (db *DB) removeDep(x finalCloser, dep interface{}) error {
 }
 
 func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
-	//println(fmt.Sprintf("removeDep(%T %p, %T %p)", x, x, dep, dep))
 
 	xdep, ok := db.dep[x]
 	if !ok {
