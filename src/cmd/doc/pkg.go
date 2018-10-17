@@ -426,6 +426,7 @@ func (pkg *Package) allDoc() {
 	printHdr := func(s string) {
 		if hdr != s {
 			pkg.Printf("\n%s\n\n", s)
+			hdr = s
 		}
 	}
 
