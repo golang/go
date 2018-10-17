@@ -87,6 +87,25 @@ type mheap struct {
 	// TODO(austin): pagesInUse should be a uintptr, but the 386
 	// compiler can't 8-byte align fields.
 
+	// Scavenger pacing parameters
+	//
+	// The two basis parameters and the scavenge ratio parallel the proportional
+	// sweeping implementation, the primary differences being that:
+	//  * Scavenging concerns itself with RSS, estimated as heapRetained()
+	//  * Rather than pacing the scavenger to the GC, it is paced to a
+	//    time-based rate computed in gcPaceScavenger.
+	//
+	// scavengeRetainedGoal represents our goal RSS.
+	//
+	// All fields must be accessed with lock.
+	//
+	// TODO(mknyszek): Consider abstracting the basis fields and the scavenge ratio
+	// into its own type so that this logic may be shared with proportional sweeping.
+	scavengeTimeBasis     int64
+	scavengeRetainedBasis uint64
+	scavengeBytesPerNS    float64
+	scavengeRetainedGoal  uint64
+
 	// Page reclaimer state
 
 	// reclaimIndex is the page index in allArenas of next page to
@@ -105,14 +124,6 @@ type mheap struct {
 	//
 	// This is accessed atomically.
 	reclaimCredit uintptr
-
-	// scavengeCredit is spare credit for extra bytes scavenged.
-	// Since the scavenging mechanisms operate on spans, it may
-	// scavenge more than requested. Any spare pages released
-	// go to this credit pool.
-	//
-	// This is protected by the mheap lock.
-	scavengeCredit uintptr
 
 	// Malloc stats.
 	largealloc  uint64                  // bytes allocated for large objects
@@ -172,7 +183,7 @@ type mheap struct {
 	// simply blocking GC (by disabling preemption).
 	sweepArenas []arenaIdx
 
-	// _ uint32 // ensure 64-bit alignment of central
+	_ uint32 // ensure 64-bit alignment of central
 
 	// central free lists for small size classes.
 	// the padding makes sure that the mcentrals are
@@ -1203,12 +1214,12 @@ HaveSpan:
 
 		// Since we allocated out of a scavenged span, we just
 		// grew the RSS. Mitigate this by scavenging enough free
-		// space to make up for it.
+		// space to make up for it but only if we need to.
 		//
-		// Also, scavenge may cause coalescing, so prevent
+		// scavengeLocked may cause coalescing, so prevent
 		// coalescing with s by temporarily changing its state.
 		s.state = mSpanManual
-		h.scavengeLocked(s.npages*pageSize, true)
+		h.scavengeIfNeededLocked(s.npages * pageSize)
 		s.state = mSpanFree
 	}
 
@@ -1236,12 +1247,9 @@ func (h *mheap) grow(npage uintptr) bool {
 	}
 
 	// Scavenge some pages out of the free treap to make up for
-	// the virtual memory space we just allocated. We prefer to
-	// scavenge the largest spans first since the cost of scavenging
-	// is proportional to the number of sysUnused() calls rather than
-	// the number of pages released, so we make fewer of those calls
-	// with larger spans.
-	h.scavengeLocked(size, true)
+	// the virtual memory space we just allocated, but only if
+	// we need to.
+	h.scavengeIfNeededLocked(size)
 
 	// Create a fake "in use" span and free it, so that the
 	// right coalescing happens.
@@ -1346,22 +1354,8 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
 // starting from the span with the highest base address and working down.
 // It then takes those spans and places them in scav.
 //
-// useCredit determines whether a scavenging call should use the credit
-// system. In general, useCredit should be true except in special
-// circumstances.
-//
 // Returns the amount of memory scavenged in bytes. h must be locked.
-func (h *mheap) scavengeLocked(nbytes uintptr, useCredit bool) uintptr {
-	// Use up scavenge credit if there's any available.
-	if useCredit {
-		if nbytes > h.scavengeCredit {
-			nbytes -= h.scavengeCredit
-			h.scavengeCredit = 0
-		} else {
-			h.scavengeCredit -= nbytes
-			return nbytes
-		}
-	}
+func (h *mheap) scavengeLocked(nbytes uintptr) uintptr {
 	released := uintptr(0)
 	// Iterate over spans with huge pages first, then spans without.
 	const mask = treapIterScav | treapIterHuge
@@ -1387,13 +1381,24 @@ func (h *mheap) scavengeLocked(nbytes uintptr, useCredit bool) uintptr {
 			h.free.insert(s)
 		}
 	}
-	if useCredit {
-		// If we over-scavenged, turn that extra amount into credit.
-		if released > nbytes {
-			h.scavengeCredit += released - nbytes
-		}
-	}
 	return released
+}
+
+// scavengeIfNeededLocked calls scavengeLocked if we're currently above the
+// scavenge goal in order to prevent the mutator from out-running the
+// the scavenger.
+//
+// h must be locked.
+func (h *mheap) scavengeIfNeededLocked(size uintptr) {
+	if r := heapRetained(); r+uint64(size) > h.scavengeRetainedGoal {
+		todo := uint64(size)
+		// If we're only going to go a little bit over, just request what
+		// we actually need done.
+		if overage := r + uint64(size) - h.scavengeRetainedGoal; overage < todo {
+			todo = overage
+		}
+		h.scavengeLocked(uintptr(todo))
+	}
 }
 
 // scavengeAll visits each node in the free treap and scavenges the
@@ -1406,7 +1411,7 @@ func (h *mheap) scavengeAll() {
 	gp := getg()
 	gp.m.mallocing++
 	lock(&h.lock)
-	released := h.scavengeLocked(^uintptr(0), false)
+	released := h.scavengeLocked(^uintptr(0))
 	unlock(&h.lock)
 	gp.m.mallocing--
 
