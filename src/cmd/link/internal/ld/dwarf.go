@@ -863,7 +863,9 @@ func defdwsymb(ctxt *Link, s *sym.Symbol, str string, t SymbolType, v int64, got
 		default:
 			return
 		}
-
+		if ctxt.LinkMode != LinkExternal && isStaticTemp(s.Name) {
+			return
+		}
 		dwarfDefineGlobal(ctxt, s, str, v, gotype)
 
 	case AutoSym, ParamSym, DeletedAutoSym:
