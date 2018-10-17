@@ -63,6 +63,12 @@ func Walk(roots []Root, add func(root Root, dir string), opts Options) {
 }
 
 func walkDir(root Root, add func(Root, string), opts Options) {
+	if _, err := os.Stat(root.Path); os.IsNotExist(err) {
+		if opts.Debug {
+			log.Printf("skipping nonexistant directory: %v", root.Path)
+		}
+		return
+	}
 	if opts.Debug {
 		log.Printf("scanning %s", root.Path)
 	}
@@ -73,11 +79,11 @@ func walkDir(root Root, add func(Root, string), opts Options) {
 	}
 	w.init()
 	if err := fastwalk.Walk(root.Path, w.walk); err != nil {
-		log.Printf("goimports: scanning directory %v: %v", root.Path, err)
+		log.Printf("gopathwalk: scanning directory %v: %v", root.Path, err)
 	}
 
 	if opts.Debug {
-		defer log.Printf("scanned %s", root.Path)
+		log.Printf("scanned %s", root.Path)
 	}
 }
 
