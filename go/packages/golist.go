@@ -588,7 +588,7 @@ func golist(cfg *Config, args []string) (*bytes.Buffer, error) {
 			// Catastrophic error:
 			// - executable not found
 			// - context cancellation
-			return nil, fmt.Errorf("couldn't exec 'go list': %s %T", err, err)
+			return nil, fmt.Errorf("couldn't exec 'go %v': %s %T", args, err, err)
 		}
 
 		// Old go list?
@@ -601,20 +601,18 @@ func golist(cfg *Config, args []string) (*bytes.Buffer, error) {
 		// (despite the -e flag) and the Export field is blank.
 		// Do not fail in that case.
 		if !usesExportData(cfg) {
-			return nil, fmt.Errorf("go list: %s: %s", exitErr, cmd.Stderr)
+			return nil, fmt.Errorf("go %v: %s: %s", args, exitErr, cmd.Stderr)
 		}
 	}
 
-	// Print standard error output from "go list".
-	// Due to the -e flag, this should be empty.
-	// However, in -export mode it contains build errors.
-	// Should go list save build errors in the Package.Error JSON field?
-	// See https://github.com/golang/go/issues/26319.
-	// If so, then we should continue to print stderr as go list
-	// will be silent unless something unexpected happened.
-	// If not, perhaps we should suppress it to reduce noise.
-	if len(stderr.Bytes()) != 0 {
-		fmt.Fprintf(os.Stderr, "go list stderr <<%s>>\n", stderr)
+	// As of writing, go list -export prints some non-fatal compilation
+	// errors to stderr, even with -e set. We would prefer that it put
+	// them in the Package.Error JSON (see http://golang.org/issue/26319).
+	// In the meantime, there's nowhere good to put them, but they can
+	// be useful for debugging. Print them if $GOPACKAGESPRINTGOLISTERRORS
+	// is set.
+	if len(stderr.Bytes()) != 0 && os.Getenv("GOPACKAGESPRINTGOLISTERRORS") != "" {
+		fmt.Fprintf(os.Stderr, "go %v stderr: <<\n%s\n>>\n", args, stderr)
 	}
 
 	// debugging
