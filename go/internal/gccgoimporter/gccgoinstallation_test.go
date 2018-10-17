@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gccgoimporter
+// Except for this comment, this file is a verbatim copy of the file
+// with the same name in $GOROOT/src/go/internal/gccgoimporter.
 
-// This is a verbatim copy of $GOROOT/src/go/internal/gccgoimporter/gccgoinstallation_test.go.
+package gccgoimporter
 
 import (
 	"go/types"
@@ -150,7 +151,6 @@ func TestInstallationImporter(t *testing.T) {
 	// were compiled with gccgo.
 	if runtime.Compiler != "gccgo" {
 		t.Skip("This test needs gccgo")
-		return
 	}
 
 	var inst GccgoInstallation
@@ -164,14 +164,14 @@ func TestInstallationImporter(t *testing.T) {
 	// all packages into the same map and then each individually.
 	pkgMap := make(map[string]*types.Package)
 	for _, pkg := range importablePackages {
-		_, err = imp(pkgMap, pkg)
+		_, err = imp(pkgMap, pkg, ".", nil)
 		if err != nil {
 			t.Error(err)
 		}
 	}
 
 	for _, pkg := range importablePackages {
-		_, err = imp(make(map[string]*types.Package), pkg)
+		_, err = imp(make(map[string]*types.Package), pkg, ".", nil)
 		if err != nil {
 			t.Error(err)
 		}
@@ -179,12 +179,12 @@ func TestInstallationImporter(t *testing.T) {
 
 	// Test for certain specific entities in the imported data.
 	for _, test := range [...]importerTest{
-		{pkgpath: "io", name: "Reader", want: "type Reader interface{Read(p []byte) (n int, err error)}"},
+		{pkgpath: "io", name: "Reader", want: "type Reader interface{Read(p []uint8) (n int, err error)}"},
 		{pkgpath: "io", name: "ReadWriter", want: "type ReadWriter interface{Reader; Writer}"},
 		{pkgpath: "math", name: "Pi", want: "const Pi untyped float"},
 		{pkgpath: "math", name: "Sin", want: "func Sin(x float64) float64"},
 		{pkgpath: "sort", name: "Ints", want: "func Ints(a []int)"},
-		{pkgpath: "unsafe", name: "Pointer", want: "type Pointer"},
+		{pkgpath: "unsafe", name: "Pointer", want: "type Pointer unsafe.Pointer"},
 	} {
 		runImporterTest(t, imp, nil, &test)
 	}

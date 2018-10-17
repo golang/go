@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This is an almost verbatim copy of $GOROOT/src/go/internal/gccgoimporter/importer_test.go.
+// Except for this comment, this file is a verbatim copy of the file
+// with the same name in $GOROOT/src/go/internal/gccgoimporter without
+// the import of "testenv".
 
 package gccgoimporter
 
@@ -22,7 +24,7 @@ type importerTest struct {
 }
 
 func runImporterTest(t *testing.T, imp Importer, initmap map[*types.Package]InitData, test *importerTest) {
-	pkg, err := imp(make(map[string]*types.Package), test.pkgpath)
+	pkg, err := imp(make(map[string]*types.Package), test.pkgpath, ".", nil)
 	if err != nil {
 		t.Error(err)
 		return
@@ -90,7 +92,7 @@ func runImporterTest(t *testing.T, imp Importer, initmap map[*types.Package]Init
 	}
 }
 
-var importerTests = []importerTest{
+var importerTests = [...]importerTest{
 	{pkgpath: "pointer", name: "Int8Ptr", want: "type Int8Ptr *int8"},
 	{pkgpath: "complexnums", name: "NN", want: "const NN untyped complex", wantval: "(-1 + -1i)"},
 	{pkgpath: "complexnums", name: "NP", want: "const NP untyped complex", wantval: "(-1 + 1i)"},
@@ -102,6 +104,7 @@ var importerTests = []importerTest{
 	{pkgpath: "unicode", name: "IsUpper", want: "func IsUpper(r rune) bool"},
 	{pkgpath: "unicode", name: "MaxRune", want: "const MaxRune untyped rune", wantval: "1114111"},
 	{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
+	{pkgpath: "importsar", name: "Hello", want: "var Hello string"},
 	{pkgpath: "aliases", name: "A14", want: "type A14 = func(int, T0) chan T2"},
 	{pkgpath: "aliases", name: "C0", want: "type C0 struct{f1 C1; f2 C1}"},
 	{pkgpath: "escapeinfo", name: "NewT", want: "func NewT(data []byte) *T"},
@@ -126,7 +129,6 @@ func TestObjImporter(t *testing.T) {
 	// were compiled with gccgo.
 	if runtime.Compiler != "gccgo" {
 		t.Skip("This test needs gccgo")
-		return
 	}
 
 	tmpdir, err := ioutil.TempDir("", "")
@@ -145,13 +147,6 @@ func TestObjImporter(t *testing.T) {
 
 	for _, test := range importerTests {
 		gofile := filepath.Join("testdata", test.pkgpath+".go")
-
-		if _, err := os.Stat(gofile); err != nil {
-			// There is a .gox file but no .go file,
-			// so there is nothing to compile.
-			continue
-		}
-
 		ofile := filepath.Join(tmpdir, test.pkgpath+".o")
 		afile := filepath.Join(artmpdir, "lib"+test.pkgpath+".a")
 
@@ -161,10 +156,6 @@ func TestObjImporter(t *testing.T) {
 			t.Logf("%s", out)
 			t.Fatalf("gccgo %s failed: %s", gofile, err)
 		}
-
-		// The expected initializations are version dependent,
-		// so don't check for them.
-		test.wantinits = nil
 
 		runImporterTest(t, imp, initmap, &test)
 

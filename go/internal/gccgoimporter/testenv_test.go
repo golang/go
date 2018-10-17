@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gccgoimporter
-
 // This file contains testing utilities copied from $GOROOT/src/internal/testenv/testenv.go.
+
+package gccgoimporter
 
 import (
 	"runtime"

@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gccgoimporter
+// Except for this comment, this file is a verbatim copy of the file
+// with the same name in $GOROOT/src/go/internal/gccgoimporter.
 
-// This is a verbatim copy of $GOROOT/src/go/internal/gccgoimporter/gccgoinstallation.go.
+package gccgoimporter
 
 import (
 	"bufio"
@@ -28,7 +29,7 @@ type GccgoInstallation struct {
 }
 
 // Ask the driver at the given path for information for this GccgoInstallation.
-// The given arguments are passed directly to the call to the driver.
+// The given arguments are passed directly to the call of the driver.
 func (inst *GccgoInstallation) InitFromDriver(gccgoPath string, args ...string) (err error) {
 	argv := append([]string{"-###", "-S", "-x", "go", "-"}, args...)
 	cmd := exec.Command(gccgoPath, argv...)
