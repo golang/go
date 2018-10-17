@@ -733,6 +733,9 @@ func TestDoc(t *testing.T) {
 				failed = true
 			}
 		}
+		if bytes.Count(output, []byte("TYPES\n")) > 1 {
+			t.Fatalf("%s: repeating headers", test.name)
+		}
 		if failed {
 			t.Logf("\n%s", output)
 		}
