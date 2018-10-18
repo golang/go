@@ -95,6 +95,9 @@
 
 			const loadValue = (addr) => {
 				const f = mem().getFloat64(addr, true);
+				if (f === 0) {
+					return undefined;
+				}
 				if (!isNaN(f)) {
 					return f;
 				}
@@ -112,14 +115,18 @@
 						mem().setUint32(addr, 0, true);
 						return;
 					}
+					if (v === 0) {
+						mem().setUint32(addr + 4, nanHead, true);
+						mem().setUint32(addr, 1, true);
+						return;
+					}
 					mem().setFloat64(addr, v, true);
 					return;
 				}
 
 				switch (v) {
 					case undefined:
-						mem().setUint32(addr + 4, nanHead, true);
-						mem().setUint32(addr, 1, true);
+						mem().setFloat64(addr, 0, true);
 						return;
 					case null:
 						mem().setUint32(addr + 4, nanHead, true);
@@ -334,7 +341,7 @@
 			this._inst = instance;
 			this._values = [ // TODO: garbage collection
 				NaN,
-				undefined,
+				0,
 				null,
 				true,
 				false,
@@ -396,14 +403,14 @@
 		}
 
 		static _makeCallbackHelper(id, pendingCallbacks, go) {
-			return function() {
+			return function () {
 				pendingCallbacks.push({ id: id, args: arguments });
 				go._resolveCallbackPromise();
 			};
 		}
 
 		static _makeEventCallbackHelper(preventDefault, stopPropagation, stopImmediatePropagation, fn) {
-			return function(event) {
+			return function (event) {
 				if (preventDefault) {
 					event.preventDefault();
 				}
