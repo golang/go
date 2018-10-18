@@ -207,17 +207,15 @@ func (pkg *Package) newlines(n int) {
 // clears the stuff we don't want to print anyway. It's a bit of a magic trick.
 func (pkg *Package) emit(comment string, node ast.Node) {
 	if node != nil {
-		var err error
+		var arg interface{} = node
 		if showSrc {
 			// Need an extra little dance to get internal comments to appear.
-			commentedNode := &printer.CommentedNode{
+			arg = &printer.CommentedNode{
 				Node:     node,
 				Comments: pkg.file.Comments,
 			}
-			err = format.Node(&pkg.buf, pkg.fs, commentedNode)
-		} else {
-			err = format.Node(&pkg.buf, pkg.fs, node)
 		}
+		err := format.Node(&pkg.buf, pkg.fs, arg)
 		if err != nil {
 			log.Fatal(err)
 		}
