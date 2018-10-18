@@ -434,6 +434,7 @@ func store_le_byte_2(b []byte, val uint16) {
 func store_le_byte_2_inv(b []byte, val uint16) {
 	_ = b[2]
 	// 386:`MOVW\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`
+	// amd64:`MOVW\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`
 	b[2], b[1] = byte(val>>8), byte(val)
 }
 
@@ -542,6 +543,8 @@ func zero_byte_2(b1, b2 []byte) {
 	// 386:`MOVW\s[$]0,\s\([A-Z]+\)`
 	b1[0], b1[1] = 0, 0
 	// arm64:"MOVH\tZR",-"MOVB"
+	// 386:`MOVW\s[$]0,\s\([A-Z]+\)`
+	// amd64:`MOVW\s[$]0,\s\([A-Z]+\)`
 	b2[1], b2[0] = 0, 0
 }
 
@@ -596,6 +599,8 @@ func zero_uint16_2(h1, h2 []uint16) {
 	// 386:`MOVL\s[$]0,\s\([A-Z]+\)`
 	h1[0], h1[1] = 0, 0
 	// arm64:"MOVW\tZR",-"MOVB",-"MOVH"
+	// amd64:`MOVL\s[$]0,\s\([A-Z]+\)`
+	// 386:`MOVL\s[$]0,\s\([A-Z]+\)`
 	h2[1], h2[0] = 0, 0
 }
 
@@ -620,6 +625,7 @@ func zero_uint32_2(w1, w2 []uint32) {
 	// amd64:`MOVQ\s[$]0,\s\([A-Z]+\)`
 	w1[0], w1[1] = 0, 0
 	// arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
+	// amd64:`MOVQ\s[$]0,\s\([A-Z]+\)`
 	w2[1], w2[0] = 0, 0
 }
 
