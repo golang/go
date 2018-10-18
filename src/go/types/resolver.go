@@ -460,65 +460,74 @@ func (check *Checker) collectObjects() {
 	for _, f := range methods {
 		fdecl := check.objMap[f].fdecl
 		if list := fdecl.Recv.List; len(list) > 0 {
-			// f is a method
-			// receiver may be of the form T or *T, possibly with parentheses
-			typ := unparen(list[0].Type)
-			if ptr, _ := typ.(*ast.StarExpr); ptr != nil {
-				typ = unparen(ptr.X)
-				// TODO(gri): This may not be sufficient. See issue #27995.
-				f.hasPtrRecv = true
-			}
-			if base, _ := typ.(*ast.Ident); base != nil {
-				// base is a potential base type name; determine
-				// "underlying" defined type and associate f with it
-				if tname := check.resolveBaseTypeName(base); tname != nil {
-					check.methods[tname] = append(check.methods[tname], f)
-				}
+			// f is a method.
+			// Determine the receiver base type and associate f with it.
+			ptr, base := check.resolveBaseTypeName(list[0].Type)
+			if base != nil {
+				f.hasPtrRecv = ptr
+				check.methods[base] = append(check.methods[base], f)
 			}
 		}
 	}
 }
 
-// resolveBaseTypeName returns the non-alias receiver base type name,
-// explicitly declared in the package scope, for the given receiver
-// type name; or nil.
-func (check *Checker) resolveBaseTypeName(name *ast.Ident) *TypeName {
+// resolveBaseTypeName returns the non-alias base type name for typ, and whether
+// there was a pointer indirection to get to it. The base type name must be declared
+// in package scope, and there can be at most one pointer indirection. If no such type
+// name exists, the returned base is nil.
+func (check *Checker) resolveBaseTypeName(typ ast.Expr) (ptr bool, base *TypeName) {
+	// Algorithm: Starting from a type expression, which may be a name,
+	// we follow that type through alias declarations until we reach a
+	// non-alias type name. If we encounter anything but pointer types or
+	// parentheses we're done. If we encounter more than one pointer type
+	// we're done.
 	var path []*TypeName
 	for {
+		typ = unparen(typ)
+
+		// check if we have a pointer type
+		if pexpr, _ := typ.(*ast.StarExpr); pexpr != nil {
+			// if we've already seen a pointer, we're done
+			if ptr {
+				return false, nil
+			}
+			ptr = true
+			typ = unparen(pexpr.X) // continue with pointer base type
+		}
+
+		// typ must be the name
+		name, _ := typ.(*ast.Ident)
+		if name == nil {
+			return false, nil
+		}
+
 		// name must denote an object found in the current package scope
 		// (note that dot-imported objects are not in the package scope!)
 		obj := check.pkg.scope.Lookup(name.Name)
 		if obj == nil {
-			return nil
+			return false, nil
 		}
+
 		// the object must be a type name...
 		tname, _ := obj.(*TypeName)
 		if tname == nil {
-			return nil
+			return false, nil
 		}
 
 		// ... which we have not seen before
 		if check.cycle(tname, path, false) {
-			return nil
+			return false, nil
 		}
 
 		// we're done if tdecl defined tname as a new type
 		// (rather than an alias)
 		tdecl := check.objMap[tname] // must exist for objects in package scope
 		if !tdecl.alias {
-			return tname
+			return ptr, tname
 		}
 
-		// Otherwise, if tdecl defined an alias for a (possibly parenthesized)
-		// type which is not an (unqualified) named type, we're done because
-		// receiver base types must be named types declared in this package.
-		typ := unparen(tdecl.typ) // a type may be parenthesized
-		name, _ = typ.(*ast.Ident)
-		if name == nil {
-			return nil
-		}
-
-		// continue resolving name
+		// otherwise, continue resolving
+		typ = tdecl.typ
 		path = append(path, tname)
 	}
 }
