@@ -203,6 +203,14 @@ func TestRepoRootForImportPath(t *testing.T) {
 			},
 		},
 		{
+			// with _git and .git at the end should use default behavior
+			path: "dev.azure.com/user-name/project_name/_git/package.git/sub-package",
+			want: &RepoRoot{
+				vcs:  vcsGit,
+				Repo: "https://dev.azure.com/user-name/project_name/_git/package",
+			},
+		},
+		{
 			// Azure DevOps supports user/projects/repos with spaces but these are not valid go paths
 			path: "dev.azure.com/user name/project name/package/sub-package",
 			want: nil,

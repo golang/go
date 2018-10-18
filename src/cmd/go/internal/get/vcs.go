@@ -1030,7 +1030,7 @@ var vcsPaths = []*vcsPath{
 	// Azure DevOps
 	{
 		prefix: "dev.azure.com/",
-		re:     `^(?P<path>dev\.azure\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(?P<package>/[A-Za-z0-9_.\-]+)(/[\p{L}0-9_.\-]+)*$`,
+		re:     `^(?P<path>dev\.azure\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+(/_git)?)(?P<package>/[A-Za-z0-9_.\-]+)(/[\p{L}0-9_.\-]+)*$`,
 		vcs:    "git",
 		repo:   "https://{path}/_git{package}",
 		check:  azureVCS,
@@ -1148,5 +1148,10 @@ func launchpadVCS(match map[string]string) error {
 // azureVCS sets the root since it composed of 2 parts.
 func azureVCS(match map[string]string) error {
 	match["root"] = expand(match, "{path}{package}")
+	if strings.HasSuffix(match["path"], "/_git") {
+		// Handle legacy Azure DevOps import paths with _git and .git.
+		match["package"] = strings.TrimSuffix(match["package"], ".git")
+		match["repo"] = expand(match, "https://{path}{package}")
+	}
 	return nil
 }
