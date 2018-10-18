@@ -632,7 +632,7 @@ func typecheck1(n *Node, top int) *Node {
 			et = TINT
 		}
 		aop := OXXX
-		if iscmp[n.Op] && t.Etype != TIDEAL && !eqtype(l.Type, r.Type) {
+		if iscmp[n.Op] && t.Etype != TIDEAL && !types.Identical(l.Type, r.Type) {
 			// comparison is okay as long as one side is
 			// assignable to the other.  convert so they have
 			// the same type.
@@ -687,7 +687,7 @@ func typecheck1(n *Node, top int) *Node {
 			et = t.Etype
 		}
 
-		if t.Etype != TIDEAL && !eqtype(l.Type, r.Type) {
+		if t.Etype != TIDEAL && !types.Identical(l.Type, r.Type) {
 			l, r = defaultlit2(l, r, true)
 			if r.Type.IsInterface() == l.Type.IsInterface() || aop == 0 {
 				yyerror("invalid operation: %v (mismatched types %v and %v)", n, l.Type, r.Type)
@@ -1233,7 +1233,7 @@ func typecheck1(n *Node, top int) *Node {
 			// It isn't necessary, so just do a sanity check.
 			tp := t.Recv().Type
 
-			if l.Left == nil || !eqtype(l.Left.Type, tp) {
+			if l.Left == nil || !types.Identical(l.Left.Type, tp) {
 				Fatalf("method receiver")
 			}
 
@@ -1452,7 +1452,7 @@ func typecheck1(n *Node, top int) *Node {
 			n.Right = r
 		}
 
-		if !eqtype(l.Type, r.Type) {
+		if !types.Identical(l.Type, r.Type) {
 			yyerror("invalid operation: %v (mismatched types %v and %v)", n, l.Type, r.Type)
 			n.Type = nil
 			return n
@@ -1657,7 +1657,7 @@ func typecheck1(n *Node, top int) *Node {
 
 		// copy([]byte, string)
 		if n.Left.Type.IsSlice() && n.Right.Type.IsString() {
-			if eqtype(n.Left.Type.Elem(), types.Bytetype) {
+			if types.Identical(n.Left.Type.Elem(), types.Bytetype) {
 				break
 			}
 			yyerror("arguments to copy have different element types: %L and string", n.Left.Type)
@@ -1677,7 +1677,7 @@ func typecheck1(n *Node, top int) *Node {
 			return n
 		}
 
-		if !eqtype(n.Left.Type.Elem(), n.Right.Type.Elem()) {
+		if !types.Identical(n.Left.Type.Elem(), n.Right.Type.Elem()) {
 			yyerror("arguments to copy have different element types: %L and %L", n.Left.Type, n.Right.Type)
 			n.Type = nil
 			return n
@@ -2479,17 +2479,17 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 		tt := n.Left.Type
 		dowidth(tt)
 		rcvr := f2.Type.Recv().Type
-		if !eqtype(rcvr, tt) {
-			if rcvr.IsPtr() && eqtype(rcvr.Elem(), tt) {
+		if !types.Identical(rcvr, tt) {
+			if rcvr.IsPtr() && types.Identical(rcvr.Elem(), tt) {
 				checklvalue(n.Left, "call pointer method on")
 				n.Left = nod(OADDR, n.Left, nil)
 				n.Left.SetImplicit(true)
 				n.Left = typecheck(n.Left, Etype|Erv)
-			} else if tt.IsPtr() && !rcvr.IsPtr() && eqtype(tt.Elem(), rcvr) {
+			} else if tt.IsPtr() && !rcvr.IsPtr() && types.Identical(tt.Elem(), rcvr) {
 				n.Left = nod(OIND, n.Left, nil)
 				n.Left.SetImplicit(true)
 				n.Left = typecheck(n.Left, Etype|Erv)
-			} else if tt.IsPtr() && tt.Elem().IsPtr() && eqtype(derefall(tt), derefall(rcvr)) {
+			} else if tt.IsPtr() && tt.Elem().IsPtr() && types.Identical(derefall(tt), derefall(rcvr)) {
 				yyerror("calling method %v with receiver %L requires explicit dereference", n.Sym, n.Left)
 				for tt.IsPtr() {
 					// Stop one level early for method with pointer receiver.
@@ -2831,7 +2831,7 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 		if a.Op == OCONVIFACE && orign.Op == OCONVIFACE {
 			a = a.Left
 		}
-		if !eqtype(a.Type, n.Type) {
+		if !types.Identical(a.Type, n.Type) {
 			continue
 		}
 		cmp.Right = a
@@ -2875,7 +2875,7 @@ func pushtype(n *Node, t *types.Type) {
 		n.Right.SetImplicit(true) // * is okay
 	} else if Debug['s'] != 0 {
 		n.Right = typecheck(n.Right, Etype)
-		if n.Right.Type != nil && eqtype(n.Right.Type, t) {
+		if n.Right.Type != nil && types.Identical(n.Right.Type, t) {
 			fmt.Printf("%v: redundant type: %v\n", n.Line(), t)
 		}
 	}
@@ -3261,7 +3261,7 @@ func checkassignlist(stmt *Node, l Nodes) {
 // lvalue expression is for OSLICE and OAPPEND optimizations, and it
 // is correct in those settings.
 func samesafeexpr(l *Node, r *Node) bool {
-	if l.Op != r.Op || !eqtype(l.Type, r.Type) {
+	if l.Op != r.Op || !types.Identical(l.Type, r.Type) {
 		return false
 	}
 
@@ -3702,7 +3702,7 @@ func typecheckdef(n *Node) {
 				goto ret
 			}
 
-			if !e.Type.IsUntyped() && !eqtype(t, e.Type) {
+			if !e.Type.IsUntyped() && !types.Identical(t, e.Type) {
 				yyerrorl(n.Pos, "cannot use %L as type %v in const initializer", e, t)
 				goto ret
 			}

@@ -131,7 +131,7 @@ func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
 func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op, ctxt Class, t *types.Type) *Node {
 	n := importsym(ipkg, s, op)
 	if n.Op != ONONAME {
-		if n.Op == op && (n.Class() != ctxt || !eqtype(n.Type, t)) {
+		if n.Op == op && (n.Class() != ctxt || !types.Identical(n.Type, t)) {
 			redeclare(lineno, s, fmt.Sprintf("during import %q", ipkg.Path))
 		}
 		return nil

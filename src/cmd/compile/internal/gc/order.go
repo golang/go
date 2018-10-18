@@ -68,7 +68,7 @@ func (o *Order) newTemp(t *types.Type, clear bool) *Node {
 	key := t.LongString()
 	a := o.free[key]
 	for i, n := range a {
-		if eqtype(t, n.Type) {
+		if types.Identical(t, n.Type) {
 			v = a[i]
 			a[i] = a[len(a)-1]
 			a = a[:len(a)-1]
