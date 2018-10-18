@@ -1,3 +1,7 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // The analyze command is a static checker for Go programs, similar to
 // vet, but with pluggable analyzers defined using the analysis
 // interface, and using the go/packages API to load packages in any
@@ -10,8 +14,6 @@
 package main
 
 import (
-	"log"
-
 	"golang.org/x/tools/go/analysis/multichecker"
 
 	// analysis plug-ins
@@ -41,9 +43,6 @@ import (
 )
 
 func main() {
-	log.SetFlags(0)
-	log.SetPrefix("analyze: ")
-
 	multichecker.Main(
 		// the traditional vet suite:
 		asmdecl.Analyzer,
