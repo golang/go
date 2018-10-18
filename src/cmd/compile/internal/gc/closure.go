@@ -397,7 +397,7 @@ func walkclosure(clo *Node, init *Nodes) *Node {
 
 	// non-escaping temp to use, if any.
 	if x := prealloc[clo]; x != nil {
-		if !eqtype(typ, x.Type) {
+		if !types.Identical(typ, x.Type) {
 			panic("closure type does not match order's assigned type")
 		}
 		clos.Left.Right = x
@@ -530,7 +530,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 
 	// non-escaping temp to use, if any.
 	if x := prealloc[n]; x != nil {
-		if !eqtype(typ, x.Type) {
+		if !types.Identical(typ, x.Type) {
 			panic("partial call type does not match order's assigned type")
 		}
 		clos.Left.Right = x

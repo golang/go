@@ -611,7 +611,7 @@ Outer:
 			continue
 		}
 		for _, n := range prev {
-			if eqtype(n.Left.Type, c.node.Left.Type) {
+			if types.Identical(n.Left.Type, c.node.Left.Type) {
 				yyerrorl(c.node.Pos, "duplicate case %v in type switch\n\tprevious case at %v", c.node.Left.Type, n.Line())
 				// avoid double-reporting errors
 				continue Outer

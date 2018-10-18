@@ -1681,7 +1681,7 @@ func fncall(l *Node, rt *types.Type) bool {
 	if l.HasCall() || l.Op == OINDEXMAP {
 		return true
 	}
-	if eqtype(l.Type, rt) {
+	if types.Identical(l.Type, rt) {
 		return false
 	}
 	// There might be a conversion required, which might involve a runtime call.
@@ -2023,7 +2023,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 		r := nod(OCALL, on, nil)
 		if params := on.Type.Params().FieldSlice(); len(params) > 0 {
 			t := params[0].Type
-			if !eqtype(t, n.Type) {
+			if !types.Identical(t, n.Type) {
 				n = nod(OCONV, n, nil)
 				n.Type = t
 			}
@@ -2102,7 +2102,7 @@ func convas(n *Node, init *Nodes) *Node {
 		return n
 	}
 
-	if !eqtype(lt, rt) {
+	if !types.Identical(lt, rt) {
 		n.Right = assignconv(n.Right, lt, "assignment")
 		n.Right = walkexpr(n.Right, init)
 	}
@@ -2575,7 +2575,7 @@ func mkcall1(fn *Node, t *types.Type, init *Nodes, args ...*Node) *Node {
 }
 
 func conv(n *Node, t *types.Type) *Node {
-	if eqtype(n.Type, t) {
+	if types.Identical(n.Type, t) {
 		return n
 	}
 	n = nod(OCONV, n, nil)
@@ -2597,7 +2597,7 @@ func convnop(n *Node, t *types.Type) *Node {
 // We cannot use conv, because we allow converting bool to uint8 here,
 // which is forbidden in user code.
 func byteindex(n *Node) *Node {
-	if eqtype(n.Type, types.Types[TUINT8]) {
+	if types.Identical(n.Type, types.Types[TUINT8]) {
 		return n
 	}
 	n = nod(OCONV, n, nil)
@@ -3457,7 +3457,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 
 func walkcompareInterface(n *Node, init *Nodes) *Node {
 	// ifaceeq(i1 any-1, i2 any-2) (ret bool);
-	if !eqtype(n.Left.Type, n.Right.Type) {
+	if !types.Identical(n.Left.Type, n.Right.Type) {
 		Fatalf("ifaceeq %v %v %v", n.Op, n.Left.Type, n.Right.Type)
 	}
 	var fn *Node

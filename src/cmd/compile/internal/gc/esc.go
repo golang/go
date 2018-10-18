@@ -872,7 +872,7 @@ opSwitch:
 			// it is also a dereference, because it is implicitly
 			// dereferenced (see #12588)
 			if n.Type.IsArray() &&
-				!(n.Right.Type.IsPtr() && eqtype(n.Right.Type.Elem(), n.Type)) {
+				!(n.Right.Type.IsPtr() && types.Identical(n.Right.Type.Elem(), n.Type)) {
 				e.escassignWhyWhere(n.List.Second(), n.Right, "range", n)
 			} else {
 				e.escassignDereference(n.List.Second(), n.Right, e.stepAssignWhere(n.List.Second(), n.Right, "range-deref", n))
