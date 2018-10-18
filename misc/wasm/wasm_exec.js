@@ -59,6 +59,9 @@
 				err.code = "ENOSYS";
 				callback(err);
 			},
+			fsync(fd, callback) {
+				callback(null);
+			},
 		};
 	}
 
