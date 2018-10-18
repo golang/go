@@ -693,13 +693,13 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 		}
 		argv[i] = s.validateType(final, t)
 	}
-	result := fun.Call(argv)
-	// If we have an error that is not nil, stop execution and return that error to the caller.
-	if len(result) == 2 && !result[1].IsNil() {
+	v, err := safeCall(fun, argv)
+	// If we have an error that is not nil, stop execution and return that
+	// error to the caller.
+	if err != nil {
 		s.at(node)
-		s.errorf("error calling %s: %s", name, result[1].Interface().(error))
+		s.errorf("error calling %s: %v", name, err)
 	}
-	v := result[0]
 	if v.Type() == reflectValueType {
 		v = v.Interface().(reflect.Value)
 	}
