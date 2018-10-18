@@ -208,6 +208,7 @@ func (h *handlerServer) GetPageInfo(abspath, relpath string, mode PageInfoMode, 
 		timestamp = ts
 	}
 	if dir == nil {
+		// TODO(agnivade): handle this case better, now since there is no CLI mode.
 		// no directory tree present (happens in command-line mode);
 		// compute 2 levels for this page. The second level is to
 		// get the synopses of sub-directories.
