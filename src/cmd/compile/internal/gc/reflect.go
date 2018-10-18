@@ -406,18 +406,14 @@ func methods(t *types.Type) []*Sig {
 		if !sig.isym.Siggen() {
 			sig.isym.SetSiggen(true)
 			if !types.Identical(this, it) {
-				compiling_wrappers = true
 				genwrapper(it, f, sig.isym)
-				compiling_wrappers = false
 			}
 		}
 
 		if !sig.tsym.Siggen() {
 			sig.tsym.SetSiggen(true)
 			if !types.Identical(this, t) {
-				compiling_wrappers = true
 				genwrapper(t, f, sig.tsym)
-				compiling_wrappers = false
 			}
 		}
 	}
