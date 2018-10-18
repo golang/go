@@ -4282,19 +4282,6 @@ func sysmon() {
 	checkdead()
 	unlock(&sched.lock)
 
-	// If a heap span goes unused for 5 minutes after a garbage collection,
-	// we hand it back to the operating system.
-	scavengelimit := int64(5 * 60 * 1e9)
-
-	if debug.scavenge > 0 {
-		// Scavenge-a-lot for testing.
-		forcegcperiod = 10 * 1e6
-		scavengelimit = 20 * 1e6
-	}
-
-	lastscavenge := nanotime()
-	nscavenge := 0
-
 	lasttrace := int64(0)
 	idle := 0 // how many cycles in succession we had not wokeup somebody
 	delay := uint32(0)
@@ -4316,9 +4303,6 @@ func sysmon() {
 				// Make wake-up period small enough
 				// for the sampling to be correct.
 				maxsleep := forcegcperiod / 2
-				if scavengelimit < forcegcperiod {
-					maxsleep = scavengelimit / 2
-				}
 				shouldRelax := true
 				if osRelaxMinNS > 0 {
 					next := timeSleepUntil()
@@ -4380,12 +4364,6 @@ func sysmon() {
 			list.push(forcegc.g)
 			injectglist(&list)
 			unlock(&forcegc.lock)
-		}
-		// scavenge heap once in a while
-		if lastscavenge+scavengelimit/2 < now {
-			mheap_.scavengeAll(int32(nscavenge), uint64(now), uint64(scavengelimit))
-			lastscavenge = now
-			nscavenge++
 		}
 		if debug.schedtrace > 0 && lasttrace+int64(debug.schedtrace)*1000000 <= now {
 			lasttrace = now
