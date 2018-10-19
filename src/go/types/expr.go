@@ -590,10 +590,10 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
 		switch op {
 		case token.EQL, token.NEQ:
 			// spec: "The equality operators == and != apply to operands that are comparable."
-			defined = Comparable(x.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
+			defined = Comparable(x.typ) && Comparable(y.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
 		case token.LSS, token.LEQ, token.GTR, token.GEQ:
 			// spec: The ordering operators <, <=, >, and >= apply to operands that are ordered."
-			defined = isOrdered(x.typ)
+			defined = isOrdered(x.typ) && isOrdered(y.typ)
 		default:
 			unreachable()
 		}
