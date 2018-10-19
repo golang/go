@@ -205,6 +205,18 @@ Diagnostic is defined as:
 The optional Category field is a short identifier that classifies the
 kind of message when an analysis produces several kinds of diagnostic.
 
+Most Analyzers inspect typed Go syntax trees, but a few, such as asmdecl
+and buildtag, inspect the raw text of Go source files or even non-Go
+files such as assembly. To report a diagnostic against a line of a
+raw text file, use the following sequence:
+
+	content, err := ioutil.ReadFile(filename)
+	if err != nil { ... }
+	tf := fset.AddFile(filename, -1, len(content))
+	tf.SetLinesForContent(content)
+	...
+	pass.Reportf(tf.LineStart(line), "oops")
+
 
 Modular analysis with Facts
 
