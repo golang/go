@@ -116,6 +116,22 @@ func (p *Parser) Parse() (*obj.Prog, bool) {
 	return p.firstProg, true
 }
 
+// ParseSymABIs parses p's assembly code to find text symbol
+// definitions and references and writes a symabis file to w.
+func (p *Parser) ParseSymABIs(w io.Writer) bool {
+	operands := make([][]lex.Token, 0, 3)
+	for {
+		word, _, operands1, ok := p.line(operands)
+		if !ok {
+			break
+		}
+		operands = operands1
+
+		p.symDefRef(w, word, operands)
+	}
+	return p.errorCount == 0
+}
+
 // line consumes a single assembly line from p.lex of the form
 //
 //   {label:} WORD[.cond] [ arg {, arg} ] (';' | '\n')
@@ -256,6 +272,42 @@ func (p *Parser) pseudo(word string, operands [][]lex.Token) bool {
 		return false
 	}
 	return true
+}
+
+// symDefRef scans a line for potential text symbol definitions and
+// references and writes symabis information to w.
+//
+// The symabis format is documented at
+// cmd/compile/internal/gc.readSymABIs.
+func (p *Parser) symDefRef(w io.Writer, word string, operands [][]lex.Token) {
+	switch word {
+	case "TEXT":
+		// Defines text symbol in operands[0].
+		if len(operands) > 0 {
+			p.start(operands[0])
+			if name, ok := p.funcAddress(); ok {
+				fmt.Fprintf(w, "def %s ABI0\n", name)
+			}
+		}
+		return
+	case "GLOBL", "PCDATA":
+		// No text definitions or symbol references.
+	case "DATA", "FUNCDATA":
+		// For DATA, operands[0] is defined symbol.
+		// For FUNCDATA, operands[0] is an immediate constant.
+		// Remaining operands may have references.
+		if len(operands) < 2 {
+			return
+		}
+		operands = operands[1:]
+	}
+	// Search for symbol references.
+	for _, op := range operands {
+		p.start(op)
+		if name, ok := p.funcAddress(); ok {
+			fmt.Fprintf(w, "ref %s ABI0\n", name)
+		}
+	}
 }
 
 func (p *Parser) start(operand []lex.Token) {
@@ -744,6 +796,35 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
 	if prefix == '$' {
 		addr.Type = obj.TYPE_ADDR
 	}
+}
+
+// funcAddress parses an external function address. This is a
+// constrained form of the operand syntax that's always SB-based,
+// non-static, and has no additional offsets:
+//
+//    [$|*]sym(SB)
+func (p *Parser) funcAddress() (string, bool) {
+	switch p.peek() {
+	case '$', '*':
+		// Skip prefix.
+		p.next()
+	}
+
+	tok := p.next()
+	name := tok.String()
+	if tok.ScanToken != scanner.Ident || p.atStartOfRegister(name) {
+		return "", false
+	}
+	if p.next().ScanToken != '(' {
+		return "", false
+	}
+	if reg := p.next(); reg.ScanToken != scanner.Ident || reg.String() != "SB" {
+		return "", false
+	}
+	if p.next().ScanToken != ')' || p.peek() != scanner.EOF {
+		return "", false
+	}
+	return name, true
 }
 
 // registerIndirect parses the general form of a register indirection.
