@@ -54,8 +54,9 @@ func Main(analyzers ...*analysis.Analyzer) {
 	args := flag.Args()
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, strings.ReplaceAll(usage, "PROGNAME", progname))
-		fmt.Fprintf(os.Stderr, `Run '%[1]s help' for more detail,
- or '%[1]s help name' for details and flags of a specific analyzer.\n`, progname)
+		fmt.Fprintf(os.Stderr, "Run '%[1]s help' for more detail,\n"+
+			" or '%[1]s help name' for details and flags of a specific analyzer.\n",
+			progname)
 		os.Exit(1)
 	}
 

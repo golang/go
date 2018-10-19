@@ -72,15 +72,15 @@ To add a new Analyzer to an existing driver, add another item to the list:
 
 A driver may use the name, flags, and documentation to provide on-line
 help that describes the analyses its performs.
-The "analyze" command, shown below, is an example of a driver that runs
+The vet command, shown below, is an example of a driver that runs
 multiple analyzers. It is based on the multichecker package
 (see the "Standalone commands" section for details).
 
-	$ go build golang.org/x/tools/cmd/analyze
-	$ ./analyze help
-	Analyze is a tool for static analysis of Go programs.
+	$ go build golang.org/x/tools/cmd/vet
+	$ ./vet help
+	vet is a tool for static analysis of Go programs.
 
-	Usage: analyze [-flag] [package]
+	Usage: vet [-flag] [package]
 
 	Registered analyzers:
 
@@ -90,7 +90,7 @@ multiple analyzers. It is based on the multichecker package
 	    ...
 	    unusedresult check for unused results of calls to some functions
 
-	$ ./analyze help unusedresult
+	$ ./vet help unusedresult
 	unusedresult: check for unused results of calls to some functions
 
 	Analyzer flags:

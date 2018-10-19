@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The analyze command is a static checker for Go programs, similar to
-// vet, but with pluggable analyzers defined using the analysis
-// interface, and using the go/packages API to load packages in any
+// The vet command is a static checker for Go programs. It has pluggable
+// analyzers defined using the golang.org/x/tools/go/analysis API, and
+// using the golang.org/x/tools/go/packages API to load packages in any
 // build system.
 //
 // Each analysis flag name is preceded by the analysis name: --analysis.flag.
