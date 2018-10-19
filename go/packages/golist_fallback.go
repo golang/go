@@ -227,7 +227,7 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 		return &response, nil
 	}
 
-	buf, err := golist(cfg, golistArgsFallback(cfg, deps))
+	buf, err := invokeGo(cfg, golistArgsFallback(cfg, deps)...)
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +362,7 @@ func vendorlessPath(ipath string) string {
 
 // getDeps runs an initial go list to determine all the dependency packages.
 func getDeps(cfg *Config, words ...string) (originalSet map[string]*jsonPackage, deps []string, err error) {
-	buf, err := golist(cfg, golistArgsFallback(cfg, words))
+	buf, err := invokeGo(cfg, golistArgsFallback(cfg, words)...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -396,7 +396,7 @@ func getDeps(cfg *Config, words ...string) (originalSet map[string]*jsonPackage,
 	}
 	// Get the deps of the packages imported by tests.
 	if len(testImports) > 0 {
-		buf, err = golist(cfg, golistArgsFallback(cfg, testImports))
+		buf, err = invokeGo(cfg, golistArgsFallback(cfg, testImports)...)
 		if err != nil {
 			return nil, nil, err
 		}
