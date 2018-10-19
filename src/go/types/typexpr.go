@@ -541,7 +541,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 	info := check.infoFromTypeLit(check.scope, iface, tname, path)
 	if info == nil || info == &emptyIfaceInfo {
-		// error or empty interface - exit early
+		// we got an error or the empty interface - exit early
 		ityp.allMethods = markComplete
 		return
 	}
