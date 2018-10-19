@@ -13,6 +13,9 @@ import (
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
-	// Loads "a", "a [a.test]", and "a.test".
-	analysistest.Run(t, testdata, tests.Analyzer, "a")
+
+	analysistest.Run(t, testdata, tests.Analyzer,
+		"a", // loads "a", "a [a.test]", and "a.test"
+		"divergent",
+	)
 }
