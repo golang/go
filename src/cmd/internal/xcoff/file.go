@@ -355,7 +355,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 
 		// Read csect auxiliary entry (by convention, it is the last).
 		if !needAuxFcn {
-			if _, err := sr.Seek(int64(numaux-1)*SYMESZ, io.SeekCurrent); err != nil {
+			if _, err := sr.Seek(int64(numaux-1)*SYMESZ, os.SEEK_CUR); err != nil {
 				return nil, err
 			}
 		}
@@ -382,7 +382,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		f.Symbols = append(f.Symbols, sym)
 	skip:
 		i += numaux // Skip auxiliary entries
-		if _, err := sr.Seek(int64(numaux)*SYMESZ, io.SeekCurrent); err != nil {
+		if _, err := sr.Seek(int64(numaux)*SYMESZ, os.SEEK_CUR); err != nil {
 			return nil, err
 		}
 	}
