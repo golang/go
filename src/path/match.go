@@ -207,3 +207,62 @@ func getEsc(chunk string) (r rune, nchunk string, err error) {
 	}
 	return
 }
+
+type charClassItem int // produced by the lexer lexing character classes (like [a-z]) in a pattern
+
+const (
+	charItem  charClassItem = iota // regular character, including escaped special characters
+	minusItem                      // minus symbol in a character range, like in 'a-z'
+)
+
+// If IsPatternValid(pattern) is true, Match(pattern, name) will not return an error.
+func IsPatternValid(pattern string) bool {
+	p := []rune(pattern)
+	charClassItems := make([]charClassItem, 0) // captures content of '[...]'
+	insideCharClass := false                   // we saw a '[' but no ']' yet
+	escaped := false                           // p[i] is escaped by '\\'
+	for i := 0; i < len(p); i++ {
+		switch {
+		case p[i] == '\\' && !escaped:
+			escaped = true
+			continue
+		case !insideCharClass && p[i] == '[' && !escaped:
+			insideCharClass = true
+			if i+1 < len(p) && p[i+1] == '^' {
+				i++ // It doesn't matter if the char class starts with '[' or '[^'.
+			}
+		case insideCharClass && !escaped && p[i] == '-':
+			charClassItems = append(charClassItems, minusItem)
+		case insideCharClass && !escaped && p[i] == ']':
+			if !isCharClassValid(charClassItems) {
+				return false
+			}
+			charClassItems = charClassItems[:0]
+			insideCharClass = false
+		case insideCharClass:
+			charClassItems = append(charClassItems, charItem)
+		}
+		escaped = false
+	}
+	return !escaped && !insideCharClass
+}
+
+func isCharClassValid(charClassItems []charClassItem) bool {
+	if len(charClassItems) == 0 {
+		return false
+	}
+	for i := 0; i < len(charClassItems); i++ {
+		if charClassItems[i] == minusItem {
+			return false
+		}
+		if i+1 < len(charClassItems) {
+			if charClassItems[i+1] == minusItem {
+				i += 2
+				if i >= len(charClassItems) || charClassItems[i] == minusItem {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
