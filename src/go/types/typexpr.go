@@ -451,9 +451,12 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	}
 
 	// For a variadic function, change the last parameter's type from T to []T.
-	if variadic && len(params) > 0 {
+	// Since we type-checked T rather than ...T, we also need to retro-actively
+	// record the type for ...T.
+	if variadic {
 		last := params[len(params)-1]
 		last.typ = &Slice{elem: last.typ}
+		check.recordTypeAndValue(list.List[len(list.List)-1].Type, typexpr, last.typ, nil)
 	}
 
 	return
