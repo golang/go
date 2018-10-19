@@ -28,6 +28,8 @@ func init() {
 func TestTheTest(t *testing.T) {
 	// We'll simulate a partly failing test of the findcall analysis,
 	// which (by default) reports calls to functions named 'println'.
+	findcall.Analyzer.Flags.Set("name", "println")
+
 	filemap := map[string]string{"a/b.go": `package main
 
 func main() {

@@ -11,11 +11,16 @@ import (
 	"golang.org/x/tools/go/analysis/passes/findcall"
 )
 
+func init() {
+	findcall.Analyzer.Flags.Set("name", "println")
+}
+
 // TestFromStringLiterals demonstrates how to test an analysis using
 // a table of string literals for each test case.
 //
 // Such tests are typically quite compact.
 func TestFromStringLiterals(t *testing.T) {
+
 	for _, test := range [...]struct {
 		desc    string
 		pkgpath string

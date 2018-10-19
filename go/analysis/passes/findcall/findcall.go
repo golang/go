@@ -28,7 +28,7 @@ var Analyzer = &analysis.Analyzer{
 	FactTypes:        []analysis.Fact{new(foundFact)},
 }
 
-var name = "println" // -name flag
+var name string // -name flag
 
 func init() {
 	Analyzer.Flags.StringVar(&name, "name", name, "name of the function to find")
