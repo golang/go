@@ -44,3 +44,5 @@ func f17584(x float32, y complex64)
 
 func noframe1(x int32)
 func noframe2(x int32)
+
+func fvariadic(int, ...int)

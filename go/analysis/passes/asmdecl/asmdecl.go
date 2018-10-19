@@ -506,10 +506,20 @@ func asmParseDecl(pass *analysis.Pass, decl *ast.FuncDecl) map[string]*asmFunc {
 
 	// addParams adds asmVars for each of the parameters in list.
 	// isret indicates whether the list are the arguments or the return values.
+	// TODO(adonovan): simplify by passing (*types.Signature).{Params,Results}
+	// instead of list.
 	addParams := func(list []*ast.Field, isret bool) {
 		argnum := 0
 		for _, fld := range list {
 			t := pass.TypesInfo.Types[fld.Type].Type
+
+			// Work around github.com/golang/go/issues/28277.
+			if t == nil {
+				if ell, ok := fld.Type.(*ast.Ellipsis); ok {
+					t = types.NewSlice(pass.TypesInfo.Types[ell.Elt].Type)
+				}
+			}
+
 			align := int(arch.sizes.Alignof(t))
 			size := int(arch.sizes.Sizeof(t))
 			offset += -offset & (align - 1)
