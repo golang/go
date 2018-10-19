@@ -217,7 +217,7 @@ func (s *Set) Encode() []byte {
 	s.mu.Lock()
 	for k, fact := range s.m {
 		if debug {
-			log.Printf("%#v => %s\n", k, fact)
+			log.Printf("%v => %s\n", k, fact)
 		}
 		var object objectpath.Path
 		if k.obj != nil {
@@ -259,15 +259,6 @@ func (s *Set) Encode() []byte {
 	if len(gobFacts) > 0 {
 		if err := gob.NewEncoder(&buf).Encode(gobFacts); err != nil {
 			// Fact encoding should never fail. Identify the culprit.
-			//
-			// TODO(adonovan): what's the right thing to do here?
-			// The error is clearly a bug, so log.Fatal leads to early
-			// detection, but it could potentially bring down a big
-			// job because of an obscure dynamic bug in a fact.
-			// But perhaps that's fine: other bugs in Analyzers
-			// have the same potential to cause failures.
-			// Alternatively we could discard the bad facts with a
-			// log message, but who reads logs?
 			for _, gf := range gobFacts {
 				if err := gob.NewEncoder(ioutil.Discard).Encode(gf); err != nil {
 					fact := gf.Fact

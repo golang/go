@@ -70,14 +70,14 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 	}
 
-	// At each "const _name = value", add a fact into env.
+	// At each "const _name_ = value", add a fact into env.
 	doConst := func(spec *ast.ValueSpec) {
 		if len(spec.Names) == len(spec.Values) {
 			for i := range spec.Names {
 				name := spec.Names[i].Name
 				if strings.HasPrefix(name, "_") && strings.HasSuffix(name, "_") {
 
-					if key := strings.Trim(name[1:], "_"); key != "" {
+					if key := strings.Trim(name, "_"); key != "" {
 						value := pass.TypesInfo.Types[spec.Values[i]].Value.String()
 						result[key] = value
 					}

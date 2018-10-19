@@ -41,7 +41,7 @@ Usage: PROGNAME [-flag] [package]
 func Main(analyzers ...*analysis.Analyzer) {
 	progname := filepath.Base(os.Args[0])
 	log.SetFlags(0)
-	log.SetPrefix(progname + ": ")
+	log.SetPrefix(filepath.Base(os.Args[0]) + ": ") // e.g. "vet: "
 
 	if err := analysis.Validate(analyzers); err != nil {
 		log.Fatal(err)
