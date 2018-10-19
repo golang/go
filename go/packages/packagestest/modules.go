@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.11
-
 package packagestest
 
 import (
@@ -33,10 +31,6 @@ import (
 // and the working directory would be
 //     /sometemporarydirectory/repoa
 var Modules = modules{}
-
-func init() {
-	All = append(All, Modules)
-}
 
 type modules struct{}
 

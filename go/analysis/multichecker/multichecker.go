@@ -53,7 +53,7 @@ func Main(analyzers ...*analysis.Analyzer) {
 
 	args := flag.Args()
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, strings.ReplaceAll(usage, "PROGNAME", progname))
+		fmt.Fprintln(os.Stderr, strings.Replace(usage, "PROGNAME", progname, -1))
 		fmt.Fprintf(os.Stderr, "Run '%[1]s help' for more detail,\n"+
 			" or '%[1]s help name' for details and flags of a specific analyzer.\n",
 			progname)
@@ -73,7 +73,7 @@ func Main(analyzers ...*analysis.Analyzer) {
 func help(progname string, analyzers []*analysis.Analyzer, args []string) {
 	// No args: show summary of all analyzers.
 	if len(args) == 0 {
-		fmt.Println(strings.ReplaceAll(usage, "PROGNAME", progname))
+		fmt.Println(strings.Replace(usage, "PROGNAME", progname, -1))
 		fmt.Println("Registered analyzers:")
 		fmt.Println()
 		sort.Slice(analyzers, func(i, j int) bool {
