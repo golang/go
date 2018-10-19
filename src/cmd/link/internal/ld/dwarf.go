@@ -346,10 +346,20 @@ func lookupOrDiag(ctxt *Link, n string) *sym.Symbol {
 // If the symbol does not exist, it creates it if create is true,
 // or returns nil otherwise.
 func dwarfFuncSym(ctxt *Link, s *sym.Symbol, meta string, create bool) *sym.Symbol {
-	if create {
-		return ctxt.Syms.Lookup(meta+s.Name, int(s.Version))
+	// All function ABIs use symbol version 0 for the DWARF data.
+	//
+	// TODO(austin): It may be useful to have DWARF info for ABI
+	// wrappers, in which case we may want these versions to
+	// align. Better yet, replace these name lookups with a
+	// general way to attach metadata to a symbol.
+	ver := 0
+	if s.IsFileLocal() {
+		ver = int(s.Version)
 	}
-	return ctxt.Syms.ROLookup(meta+s.Name, int(s.Version))
+	if create {
+		return ctxt.Syms.Lookup(meta+s.Name, ver)
+	}
+	return ctxt.Syms.ROLookup(meta+s.Name, ver)
 }
 
 func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) *dwarf.DWDie {
@@ -853,7 +863,7 @@ func dwarfDefineGlobal(ctxt *Link, s *sym.Symbol, str string, v int64, gotype *s
 	}
 	dv := newdie(ctxt, ctxt.compUnitByPackage[lib].dwinfo, dwarf.DW_ABRV_VARIABLE, str, int(s.Version))
 	newabslocexprattr(dv, v, s)
-	if s.Version == 0 {
+	if !s.IsFileLocal() {
 		newattr(dv, dwarf.DW_AT_external, dwarf.DW_CLS_FLAG, 1, 0)
 	}
 	dt := defgotype(ctxt, gotype)

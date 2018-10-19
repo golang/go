@@ -128,7 +128,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 	// maybe one day STB_WEAK.
 	bind := STB_GLOBAL
 
-	if x.Version != 0 || x.Attr.VisibilityHidden() || x.Attr.Local() {
+	if x.IsFileLocal() || x.Attr.VisibilityHidden() || x.Attr.Local() {
 		bind = STB_LOCAL
 	}
 
@@ -224,7 +224,7 @@ func putplan9sym(ctxt *Link, x *sym.Symbol, s string, typ SymbolType, addr int64
 	t := int(typ)
 	switch typ {
 	case TextSym, DataSym, BSSSym:
-		if x.Version != 0 {
+		if x.IsFileLocal() {
 			t += 'a' - 'A'
 		}
 		fallthrough

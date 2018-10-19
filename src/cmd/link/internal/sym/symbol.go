@@ -51,11 +51,19 @@ type AuxSymbol struct {
 	elftype elf.SymType
 }
 
+const (
+	SymVerStatic = 10 // Minimum version used by static (file-local) syms
+)
+
 func (s *Symbol) String() string {
 	if s.Version == 0 {
 		return s.Name
 	}
 	return fmt.Sprintf("%s<%d>", s.Name, s.Version)
+}
+
+func (s *Symbol) IsFileLocal() bool {
+	return s.Version >= SymVerStatic
 }
 
 func (s *Symbol) ElfsymForReloc() int32 {
