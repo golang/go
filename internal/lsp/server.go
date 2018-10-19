@@ -95,7 +95,7 @@ func (s *server) ExecuteCommand(context.Context, *protocol.ExecuteCommandParams)
 }
 
 func (s *server) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
-	s.cacheActiveFile(params.TextDocument.URI, params.TextDocument.Text)
+	s.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, params.TextDocument.Text)
 	return nil
 }
 
@@ -105,9 +105,26 @@ func (s *server) DidChange(ctx context.Context, params *protocol.DidChangeTextDo
 	}
 	// We expect the full content of file, i.e. a single change with no range.
 	if change := params.ContentChanges[0]; change.RangeLength == 0 {
-		s.cacheActiveFile(params.TextDocument.URI, change.Text)
+		s.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, change.Text)
 	}
 	return nil
+}
+
+func (s *server) cacheAndDiagnoseFile(ctx context.Context, uri protocol.DocumentURI, text string) {
+	s.view.activeFilesMu.Lock()
+	s.view.activeFiles[uri] = []byte(text)
+	s.view.activeFilesMu.Unlock()
+	go func() {
+		reports, err := s.diagnostics(uri)
+		if err == nil {
+			for filename, diagnostics := range reports {
+				s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
+					URI:         filenameToURI(filename),
+					Diagnostics: diagnostics,
+				})
+			}
+		}
+	}()
 }
 
 func (s *server) WillSave(context.Context, *protocol.WillSaveTextDocumentParams) error {
@@ -119,7 +136,8 @@ func (s *server) WillSaveWaitUntil(context.Context, *protocol.WillSaveTextDocume
 }
 
 func (s *server) DidSave(context.Context, *protocol.DidSaveTextDocumentParams) error {
-	return notImplemented("DidSave")
+	// TODO(rstambler): Should we clear the cache here?
+	return nil // ignore
 }
 
 func (s *server) DidClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
@@ -172,7 +190,7 @@ func (s *server) CodeAction(context.Context, *protocol.CodeActionParams) ([]prot
 }
 
 func (s *server) CodeLens(context.Context, *protocol.CodeLensParams) ([]protocol.CodeLens, error) {
-	return nil, notImplemented("CodeLens")
+	return nil, nil // ignore
 }
 
 func (s *server) CodeLensResolve(context.Context, *protocol.CodeLens) (*protocol.CodeLens, error) {
@@ -180,7 +198,7 @@ func (s *server) CodeLensResolve(context.Context, *protocol.CodeLens) (*protocol
 }
 
 func (s *server) DocumentLink(context.Context, *protocol.DocumentLinkParams) ([]protocol.DocumentLink, error) {
-	return nil, notImplemented("DocumentLink")
+	return nil, nil // ignore
 }
 
 func (s *server) DocumentLinkResolve(context.Context, *protocol.DocumentLink) (*protocol.DocumentLink, error) {

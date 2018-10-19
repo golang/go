@@ -1,9 +1,9 @@
 package lsp
 
 import (
+	"bytes"
 	"fmt"
 	"go/format"
-	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 )
@@ -39,14 +39,20 @@ func (s *server) format(uri protocol.DocumentURI, rng *protocol.Range) ([]protoc
 	}
 	if rng == nil {
 		// Get the ending line and column numbers for the original file.
-		line := strings.Count(data, "\n")
-		col := len(data) - strings.LastIndex(data, "\n") - 1
+		line := bytes.Count(data, []byte("\n"))
+		col := len(data) - bytes.LastIndex(data, []byte("\n")) - 1
 		if col < 0 {
 			col = 0
 		}
 		rng = &protocol.Range{
-			Start: protocol.Position{0, 0},
-			End:   protocol.Position{float64(line), float64(col)},
+			Start: protocol.Position{
+				Line:      0,
+				Character: 0,
+			},
+			End: protocol.Position{
+				Line:      float64(line),
+				Character: float64(col),
+			},
 		}
 	}
 	// TODO(rstambler): Compute text edits instead of replacing whole file.
@@ -60,17 +66,17 @@ func (s *server) format(uri protocol.DocumentURI, rng *protocol.Range) ([]protoc
 
 // positionToOffset converts a 0-based line and column number in a file
 // to a byte offset value.
-func positionToOffset(contents string, line, col int) (int, error) {
+func positionToOffset(contents []byte, line, col int) (int, error) {
 	start := 0
 	for i := 0; i < int(line); i++ {
 		if start >= len(contents) {
 			return 0, fmt.Errorf("file contains %v lines, not %v lines", i, line)
 		}
-		index := strings.IndexByte(contents[start:], '\n')
+		index := bytes.IndexByte(contents[start:], '\n')
 		if index == -1 {
 			return 0, fmt.Errorf("file contains %v lines, not %v lines", i, line)
 		}
-		start += (index + 1)
+		start += index + 1
 	}
 	offset := start + int(col)
 	return offset, nil
