@@ -223,31 +223,31 @@ func Fstat(fd int, st *Stat_t) (err error) {
 	return nil
 }
 
-func Statfs(path string, stat *Statfs_t) (err error) {
+func Statfs(path string, st *Statfs_t) (err error) {
 	var oldStatfs statfs_freebsd11_t
 	if supportsABI(_ino64First) {
-		return statfs_freebsd12(path, stat)
+		return statfs_freebsd12(path, st)
 	}
 	err = statfs(path, &oldStatfs)
 	if err != nil {
 		return err
 	}
 
-	stat.convertFrom(&oldStatfs)
+	st.convertFrom(&oldStatfs)
 	return nil
 }
 
-func Fstatfs(fd int, stat *Statfs_t) (err error) {
+func Fstatfs(fd int, st *Statfs_t) (err error) {
 	var oldStatfs statfs_freebsd11_t
 	if supportsABI(_ino64First) {
-		return fstatfs_freebsd12(fd, stat)
+		return fstatfs_freebsd12(fd, st)
 	}
 	err = fstatfs(fd, &oldStatfs)
 	if err != nil {
 		return err
 	}
 
-	stat.convertFrom(&oldStatfs)
+	st.convertFrom(&oldStatfs)
 	return nil
 }
 
@@ -262,7 +262,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	oldBuf := make([]byte, oldBufLen)
 	n, err = getdirentries(fd, oldBuf, basep)
 	if err == nil && n > 0 {
-		n = convertFromDirents11(oldBuf[:n], buf)
+		n = convertFromDirents11(buf, oldBuf[:n])
 	}
 	return
 }
@@ -344,17 +344,20 @@ func (s *Statfs_t) convertFrom(old *statfs_freebsd11_t) {
 	copy(s.Mntonname[:], old.Mntonname[:n])
 }
 
-func convertFromDirents11(old []byte, buf []byte) int {
-	oldFixedSize := int(unsafe.Offsetof((*dirent_freebsd11)(nil).Name))
-	fixedSize := int(unsafe.Offsetof((*Dirent)(nil).Name))
-	srcPos := 0
+func convertFromDirents11(buf []byte, old []byte) int {
+	const (
+		fixedSize    = int(unsafe.Offsetof(Dirent{}.Name))
+		oldFixedSize = int(unsafe.Offsetof(dirent_freebsd11{}.Name))
+	)
+
 	dstPos := 0
+	srcPos := 0
 	for dstPos+fixedSize < len(buf) && srcPos+oldFixedSize < len(old) {
-		srcDirent := (*dirent_freebsd11)(unsafe.Pointer(&old[srcPos]))
 		dstDirent := (*Dirent)(unsafe.Pointer(&buf[dstPos]))
+		srcDirent := (*dirent_freebsd11)(unsafe.Pointer(&old[srcPos]))
 
 		reclen := roundup(fixedSize+int(srcDirent.Namlen)+1, 8)
-		if dstPos+reclen >= len(buf) {
+		if dstPos+reclen > len(buf) {
 			break
 		}
 
