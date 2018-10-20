@@ -138,9 +138,8 @@ and see only this:
 
 Also, inside the displayed text a line that ends
 	// HL
-will be highlighted in the display; the 'h' key in the browser will
-toggle extra emphasis of any highlighted lines. A highlighting mark
-may have a suffix word, such as
+will be highlighted in the display. A highlighting mark may have a
+suffix word, such as
 	// HLxxx
 Such highlights are enabled only if the code invocation ends with
 "HL" followed by the word:
