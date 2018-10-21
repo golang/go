@@ -17388,6 +17388,41 @@ func rewriteValuegeneric_OpMove_20(v *Value) bool {
 		v.AddArg(midmem)
 		return true
 	}
+	// match: (Move {t1} [s] dst tmp1 midmem:(VarDef (Move {t2} [s] tmp2 src _)))
+	// cond: t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+	// result: (Move {t1} [s] dst src midmem)
+	for {
+		s := v.AuxInt
+		t1 := v.Aux
+		_ = v.Args[2]
+		dst := v.Args[0]
+		tmp1 := v.Args[1]
+		midmem := v.Args[2]
+		if midmem.Op != OpVarDef {
+			break
+		}
+		midmem_0 := midmem.Args[0]
+		if midmem_0.Op != OpMove {
+			break
+		}
+		if midmem_0.AuxInt != s {
+			break
+		}
+		t2 := midmem_0.Aux
+		_ = midmem_0.Args[2]
+		tmp2 := midmem_0.Args[0]
+		src := midmem_0.Args[1]
+		if !(t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = s
+		v.Aux = t1
+		v.AddArg(dst)
+		v.AddArg(src)
+		v.AddArg(midmem)
+		return true
+	}
 	// match: (Move dst src mem)
 	// cond: isSamePtr(dst, src)
 	// result: mem
