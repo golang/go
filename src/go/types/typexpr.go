@@ -414,10 +414,10 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 		ftype := field.Type
 		if t, _ := ftype.(*ast.Ellipsis); t != nil {
 			ftype = t.Elt
-			if variadicOk && i == len(list.List)-1 {
+			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
 				variadic = true
 			} else {
-				check.invalidAST(field.Pos(), "... not permitted")
+				check.softErrorf(t.Pos(), "can only use ... with final parameter in list")
 				// ignore ... and continue
 			}
 		}
