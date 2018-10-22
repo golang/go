@@ -36,7 +36,7 @@ func (gcToolchain) linker() string {
 	return base.Tool("link")
 }
 
-func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
 	p := a.Package
 	objdir := a.Objdir
 	if archive != "" {
@@ -97,6 +97,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 	}
 	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
 		gcargs = append(gcargs, "-goversion", runtimeVersion)
+	}
+	if symabis != "" {
+		gcargs = append(gcargs, "-symabis", symabis)
 	}
 
 	gcflags := str.StringList(forcedGcflags, p.Internal.Gcflags)
@@ -218,8 +221,7 @@ func trimDir(dir string) string {
 	return dir
 }
 
-func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error) {
-	p := a.Package
+func asmArgs(a *Action, p *load.Package) []interface{} {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(cfg.GOROOT, "pkg", "include")
 	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", trimDir(a.Objdir), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
@@ -241,6 +243,13 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 		args = append(args, "-D", "GOMIPS64_"+cfg.GOMIPS64)
 	}
 
+	return args
+}
+
+func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error) {
+	p := a.Package
+	args := asmArgs(a, p)
+
 	var ofiles []string
 	for _, sfile := range sfiles {
 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
@@ -251,6 +260,32 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 		}
 	}
 	return ofiles, nil
+}
+
+func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, error) {
+	if len(sfiles) == 0 {
+		return "", nil
+	}
+
+	p := a.Package
+	symabis := a.Objdir + "symabis"
+	args := asmArgs(a, p)
+	args = append(args, "-symabis", "-o", symabis)
+	for _, sfile := range sfiles {
+		args = append(args, mkAbs(p.Dir, sfile))
+	}
+
+	// Supply an empty go_asm.h as if the compiler had been run.
+	// -symabis parsing is lax enough that we don't need the
+	// actual definitions that would appear in go_asm.h.
+	if err := b.writeFile(a.Objdir+"go_asm.h", nil); err != nil {
+		return "", err
+	}
+
+	if err := b.run(a, p.Dir, p.ImportPath, nil, args...); err != nil {
+		return "", err
+	}
+	return symabis, nil
 }
 
 // toolVerify checks that the command line args writes the same output file

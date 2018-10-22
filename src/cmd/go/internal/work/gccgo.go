@@ -51,7 +51,7 @@ func checkGccgoBin() {
 	os.Exit(2)
 }
 
-func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
 	p := a.Package
 	objdir := a.Objdir
 	out := "_go_.o"
@@ -170,6 +170,10 @@ func (tools gccgoToolchain) asm(b *Builder, a *Action, sfiles []string) ([]strin
 		}
 	}
 	return ofiles, nil
+}
+
+func (gccgoToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, error) {
+	return "", nil
 }
 
 func gccgoArchive(basedir, imp string) string {

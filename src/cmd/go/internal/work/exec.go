@@ -601,6 +601,12 @@ func (b *Builder) build(a *Action) (err error) {
 		return nil
 	}
 
+	// Collect symbol ABI requirements from assembly.
+	symabis, err := BuildToolchain.symabis(b, a, sfiles)
+	if err != nil {
+		return err
+	}
+
 	// Prepare Go import config.
 	// We start it off with a comment so it can't be empty, so icfg.Bytes() below is never nil.
 	// It should never be empty anyway, but there have been bugs in the past that resulted
@@ -632,7 +638,7 @@ func (b *Builder) build(a *Action) (err error) {
 
 	// Compile Go.
 	objpkg := objdir + "_pkg_.a"
-	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), len(sfiles) > 0, gofiles)
+	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), symabis, len(sfiles) > 0, gofiles)
 	if len(out) > 0 {
 		output := b.processOutput(out)
 		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
@@ -1967,13 +1973,18 @@ func mkAbs(dir, f string) string {
 type toolchain interface {
 	// gc runs the compiler in a specific directory on a set of files
 	// and returns the name of the generated output file.
-	gc(b *Builder, a *Action, archive string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
+	//
+	// TODO: This argument list is long. Consider putting it in a struct.
+	gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
 	// cc runs the toolchain's C compiler in a directory on a C file
 	// to produce an output file.
 	cc(b *Builder, a *Action, ofile, cfile string) error
 	// asm runs the assembler in a specific directory on specific files
 	// and returns a list of named output files.
 	asm(b *Builder, a *Action, sfiles []string) ([]string, error)
+	// symabis scans the symbol ABIs from sfiles and returns the
+	// path to the output symbol ABIs file, or "" if none.
+	symabis(b *Builder, a *Action, sfiles []string) (string, error)
 	// pack runs the archive packer in a specific directory to create
 	// an archive from a set of object files.
 	// typically it is run in the object directory.
@@ -2004,12 +2015,16 @@ func (noToolchain) linker() string {
 	return ""
 }
 
-func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
+func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
 	return "", nil, noCompiler()
 }
 
 func (noToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error) {
 	return nil, noCompiler()
+}
+
+func (noToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, error) {
+	return "", noCompiler()
 }
 
 func (noToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) error {
@@ -2695,7 +2710,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 
 	p := load.GoFilesPackage(srcs)
 
-	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, false, srcs); e != nil {
+	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, "", false, srcs); e != nil {
 		return "32", nil
 	}
 	return "64", nil

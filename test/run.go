@@ -807,10 +807,23 @@ func (t *test) run() {
 			}
 
 		}
+		if len(asms) > 0 {
+			if err := ioutil.WriteFile(filepath.Join(longdir, "go_asm.h"), nil, 0666); err != nil {
+				t.err = fmt.Errorf("write empty go_asm.h: %s", err)
+				return
+			}
+			cmd := []string{goTool(), "tool", "asm", "-symabis", "-o", "symabis"}
+			cmd = append(cmd, asms...)
+			_, err = runcmd(cmd...)
+			if err != nil {
+				t.err = err
+				break
+			}
+		}
 		var objs []string
 		cmd := []string{goTool(), "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
 		if len(asms) > 0 {
-			cmd = append(cmd, "-asmhdr", "go_asm.h")
+			cmd = append(cmd, "-asmhdr", "go_asm.h", "-symabis", "symabis")
 		}
 		cmd = append(cmd, gos...)
 		_, err := runcmd(cmd...)
