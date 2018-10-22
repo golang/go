@@ -342,6 +342,16 @@ func lookupOrDiag(ctxt *Link, n string) *sym.Symbol {
 	return s
 }
 
+// dwarfFuncSym looks up a DWARF metadata symbol for function symbol s.
+// If the symbol does not exist, it creates it if create is true,
+// or returns nil otherwise.
+func dwarfFuncSym(ctxt *Link, s *sym.Symbol, meta string, create bool) *sym.Symbol {
+	if create {
+		return ctxt.Syms.Lookup(meta+s.Name, int(s.Version))
+	}
+	return ctxt.Syms.ROLookup(meta+s.Name, int(s.Version))
+}
+
 func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) *dwarf.DWDie {
 	// Only emit typedefs for real names.
 	if strings.HasPrefix(name, "map[") {
@@ -1146,7 +1156,7 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 	// indexes (created by numberfile) to CU-local indexes.
 	fileNums := make(map[int]int)
 	for _, s := range unit.lib.Textp { // textp has been dead-code-eliminated already.
-		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+		dsym := dwarfFuncSym(ctxt, s, dwarf.InfoPrefix, true)
 		for _, f := range s.FuncInfo.File {
 			if _, ok := fileNums[int(f.Value)]; ok {
 				continue
@@ -1756,12 +1766,12 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		// referenced abstract functions.
 		// Collect all debug_range symbols in unit.rangeSyms
 		for _, s := range lib.Textp { // textp has been dead-code-eliminated already.
-			dsym := ctxt.Syms.ROLookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+			dsym := dwarfFuncSym(ctxt, s, dwarf.InfoPrefix, false)
 			dsym.Attr |= sym.AttrNotInSymbolTable | sym.AttrReachable
 			dsym.Type = sym.SDWARFINFO
 			unit.funcDIEs = append(unit.funcDIEs, dsym)
 
-			rangeSym := ctxt.Syms.ROLookup(dwarf.RangePrefix+s.Name, int(s.Version))
+			rangeSym := dwarfFuncSym(ctxt, s, dwarf.RangePrefix, false)
 			if rangeSym != nil && rangeSym.Size > 0 {
 				rangeSym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
 				rangeSym.Type = sym.SDWARFRANGE
