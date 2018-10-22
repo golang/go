@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"runtime/internal/math"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -104,10 +105,11 @@ func growslice(et *_type, old slice, cap int) slice {
 		msanread(old.array, uintptr(old.len*int(et.size)))
 	}
 
+	if cap < old.cap {
+		panic(errorString("growslice: cap out of range"))
+	}
+
 	if et.size == 0 {
-		if cap < old.cap {
-			panic(errorString("growslice: cap out of range"))
-		}
 		// append should not create a slice with nil pointer but non-zero len.
 		// We assume that append doesn't need to preserve old.array in this case.
 		return slice{unsafe.Pointer(&zerobase), old.len, cap}
@@ -169,15 +171,14 @@ func growslice(et *_type, old slice, cap int) slice {
 	default:
 		lenmem = uintptr(old.len) * et.size
 		newlenmem = uintptr(cap) * et.size
-		capmem = roundupsize(uintptr(newcap) * et.size)
-		overflow = uintptr(newcap) > maxSliceCap(et.size)
+		capmem, overflow = math.MulUintptr(et.size, uintptr(newcap))
+		capmem = roundupsize(capmem)
 		newcap = int(capmem / et.size)
 	}
 
-	// The check of overflow (uintptr(newcap) > maxSliceCap(et.size))
-	// in addition to capmem > _MaxMem is needed to prevent an overflow
-	// which can be used to trigger a segfault on 32bit architectures
-	// with this example program:
+	// The check of overflow in addition to capmem > maxAlloc is needed
+	// to prevent an overflow which can be used to trigger a segfault
+	// on 32bit architectures with this example program:
 	//
 	// type T [1<<27 + 1]int64
 	//
@@ -188,7 +189,7 @@ func growslice(et *_type, old slice, cap int) slice {
 	//   s = append(s, d, d, d, d)
 	//   print(len(s), "\n")
 	// }
-	if cap < old.cap || overflow || capmem > maxAlloc {
+	if overflow || capmem > maxAlloc {
 		panic(errorString("growslice: cap out of range"))
 	}
 
