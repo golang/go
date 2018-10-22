@@ -1402,11 +1402,11 @@ the moment, the following snippet would also read the first 32 bytes of the buff
     var err error
     for i := 0; i &lt; 32; i++ {
         nbytes, e := f.Read(buf[i:i+1])  // Read one byte.
+        n += nbytes
         if nbytes == 0 || e != nil {
             err = e
             break
         }
-        n += nbytes
     }
 </pre>
 <p>
