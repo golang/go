@@ -352,19 +352,14 @@ func (t *Interface) Complete() *Interface {
 		return t
 	}
 
+	// collect all methods
 	var allMethods []*Func
 	allMethods = append(allMethods, t.methods...)
 	for _, et := range t.embeddeds {
 		it := et.Underlying().(*Interface)
 		it.Complete()
-		for _, tm := range it.allMethods {
-			// Make a copy of the method and adjust its receiver type.
-			newm := *tm
-			newmtyp := *tm.typ.(*Signature)
-			newm.typ = &newmtyp
-			newmtyp.recv = NewVar(newm.pos, newm.pkg, "", t)
-			allMethods = append(allMethods, &newm)
-		}
+		// copy embedded methods unchanged (see issue #28282)
+		allMethods = append(allMethods, it.allMethods...)
 	}
 	sort.Sort(byUniqueMethodName(allMethods))
 

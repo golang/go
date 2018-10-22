@@ -422,3 +422,25 @@ func TestIssue28005(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue28282(t *testing.T) {
+	// create type interface { error }
+	et := Universe.Lookup("error").Type()
+	it := NewInterfaceType(nil, []Type{et})
+	it.Complete()
+	// verify that after completing the interface, the embedded method remains unchanged
+	want := et.Underlying().(*Interface).Method(0)
+	got := it.Method(0)
+	if got != want {
+		t.Fatalf("%s.Method(0): got %q (%p); want %q (%p)", it, got, got, want, want)
+	}
+	// verify that lookup finds the same method in both interfaces (redundant check)
+	obj, _, _ := LookupFieldOrMethod(et, false, nil, "Error")
+	if obj != want {
+		t.Fatalf("%s.Lookup: got %q (%p); want %q (%p)", et, obj, obj, want, want)
+	}
+	obj, _, _ = LookupFieldOrMethod(it, false, nil, "Error")
+	if obj != want {
+		t.Fatalf("%s.Lookup: got %q (%p); want %q (%p)", it, obj, obj, want, want)
+	}
+}
