@@ -106,6 +106,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/math"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -1040,10 +1041,11 @@ func newarray(typ *_type, n int) unsafe.Pointer {
 	if n == 1 {
 		return mallocgc(typ.size, typ, true)
 	}
-	if n < 0 || uintptr(n) > maxSliceCap(typ.size) {
+	mem, overflow := math.MulUintptr(typ.size, uintptr(n))
+	if overflow || mem > maxAlloc || n < 0 {
 		panic(plainError("runtime: allocation size out of range"))
 	}
-	return mallocgc(typ.size*uintptr(n), typ, true)
+	return mallocgc(mem, typ, true)
 }
 
 //go:linkname reflect_unsafe_NewArray reflect.unsafe_NewArray
