@@ -231,25 +231,19 @@ func typecheck(t *testing.T, path string, filenames []string) {
 
 	// Perform checks of API invariants.
 
-	// The code below fails at the moment - see issue #28282.
-	// Exit early for now to keep the longtest builder happy.
-	// TODO(gri) fix this ASAP and uncomment the code below.
-
-	/*
-		// All Objects have a package, except predeclared ones.
-		errorError := Universe.Lookup("error").Type().Underlying().(*Interface).ExplicitMethod(0) // (error).Error
-		for id, obj := range info.Uses {
-			predeclared := obj == Universe.Lookup(obj.Name()) || obj == errorError
-			if predeclared == (obj.Pkg() != nil) {
-				posn := fset.Position(id.Pos())
-				if predeclared {
-					t.Errorf("%s: predeclared object with package: %s", posn, obj)
-				} else {
-					t.Errorf("%s: user-defined object without package: %s", posn, obj)
-				}
+	// All Objects have a package, except predeclared ones.
+	errorError := Universe.Lookup("error").Type().Underlying().(*Interface).ExplicitMethod(0) // (error).Error
+	for id, obj := range info.Uses {
+		predeclared := obj == Universe.Lookup(obj.Name()) || obj == errorError
+		if predeclared == (obj.Pkg() != nil) {
+			posn := fset.Position(id.Pos())
+			if predeclared {
+				t.Errorf("%s: predeclared object with package: %s", posn, obj)
+			} else {
+				t.Errorf("%s: user-defined object without package: %s", posn, obj)
 			}
 		}
-	*/
+	}
 }
 
 // pkgFilenames returns the list of package filenames for the given directory.
