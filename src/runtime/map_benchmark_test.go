@@ -228,6 +228,23 @@ func benchmarkRepeatedLookup(b *testing.B, lookupKeySize int) {
 func BenchmarkRepeatedLookupStrMapKey32(b *testing.B) { benchmarkRepeatedLookup(b, 32) }
 func BenchmarkRepeatedLookupStrMapKey1M(b *testing.B) { benchmarkRepeatedLookup(b, 1<<20) }
 
+func BenchmarkMakeMap(b *testing.B) {
+	b.Run("[Byte]Byte", func(b *testing.B) {
+		var m map[byte]byte
+		for i := 0; i < b.N; i++ {
+			m = make(map[byte]byte, 10)
+		}
+		hugeSink = m
+	})
+	b.Run("[Int]Int", func(b *testing.B) {
+		var m map[int]int
+		for i := 0; i < b.N; i++ {
+			m = make(map[int]int, 10)
+		}
+		hugeSink = m
+	})
+}
+
 func BenchmarkNewEmptyMap(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
