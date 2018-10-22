@@ -262,7 +262,7 @@ func TestTypesInfo(t *testing.T) {
 			`...int`,
 			`[]int`,
 		},
-		{`package issue28277_b; func f(a, b, c ...[]struct{})`,
+		{`package issue28277_b; func f(a, b int, c ...[]struct{})`,
 			`...[]struct{}`,
 			`[][]struct{}`,
 		},
