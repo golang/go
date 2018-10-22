@@ -648,7 +648,7 @@ TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
 	NO_LOCAL_POINTERS
 
 	// Load m and g from thread-local storage.
-	MOVB	runtime·iscgo(SB), R3
+	MOVBZ	runtime·iscgo(SB), R3
 	CMP	R3, $0
 	BEQ	nocgo
 	BL	runtime·load_g(SB)

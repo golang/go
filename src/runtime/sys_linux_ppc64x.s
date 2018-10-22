@@ -301,7 +301,7 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 
 	// this might be called in external code context,
 	// where g is not set.
-	MOVB	runtime·iscgo(SB), R6
+	MOVBZ	runtime·iscgo(SB), R6
 	CMP 	R6, $0
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
