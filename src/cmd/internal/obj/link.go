@@ -409,6 +409,28 @@ type FuncInfo struct {
 	StackObjects *LSym
 }
 
+//go:generate stringer -type ABI
+
+// ABI is the calling convention of a text symbol.
+type ABI uint8
+
+const (
+	// ABI0 is the stable stack-based ABI. It's important that the
+	// value of this is "0": we can't distinguish between
+	// references to data and ABI0 text symbols in assembly code,
+	// and hence this doesn't distinguish between symbols without
+	// an ABI and text symbols with ABI0.
+	ABI0 ABI = iota
+
+	// ABIInternal is the internal ABI that may change between Go
+	// versions. All Go functions use the internal ABI and the
+	// compiler generates wrappers for calls to and from other
+	// ABIs.
+	ABIInternal
+
+	ABICount
+)
+
 // Attribute is a set of symbol attributes.
 type Attribute int16
 
