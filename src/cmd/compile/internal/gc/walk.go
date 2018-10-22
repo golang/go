@@ -2895,7 +2895,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 	ls := n.List.Slice()[1:]
 	for i, n := range ls {
 		n = cheapexpr(n, init)
-		if !eqtype(n.Type, nsrc.Type.Elem()) {
+		if !types.Identical(n.Type, nsrc.Type.Elem()) {
 			n = assignconv(n, nsrc.Type.Elem(), "append")
 			n = walkexpr(n, init)
 		}
