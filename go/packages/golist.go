@@ -131,7 +131,6 @@ extractQueries:
 		return nil, err
 	}
 	response.Roots = append(response.Roots, namedResults...)
-
 	return response, nil
 }
 

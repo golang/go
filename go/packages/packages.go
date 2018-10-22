@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 
@@ -173,6 +174,7 @@ func Load(cfg *Config, patterns ...string) ([]*Package, error) {
 	if err != nil {
 		return nil, err
 	}
+	sort.Strings(response.Roots) // make all driver responses deterministic
 	return l.refine(response.Roots, response.Packages...)
 }
 

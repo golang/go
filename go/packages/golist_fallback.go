@@ -246,11 +246,6 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 		createTestVariants(&response, v.pkg, v.xtestPkg)
 	}
 
-	// TODO(matloob): Is this the right ordering?
-	sort.SliceStable(response.Packages, func(i, j int) bool {
-		return response.Packages[i].PkgPath < response.Packages[j].PkgPath
-	})
-
 	return &response, nil
 }
 

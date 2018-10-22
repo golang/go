@@ -298,8 +298,9 @@ func TestLoadAbsolutePath(t *testing.T) {
 	for _, p := range initial {
 		got = append(got, p.ID)
 	}
-	if !reflect.DeepEqual(got, []string{"golang.org/gopatha/a", "golang.org/gopathb/b"}) {
-		t.Fatalf("initial packages loaded: got [%s], want [a b]", got)
+	want := []string{"golang.org/gopatha/a", "golang.org/gopathb/b"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("initial packages loaded: got [%s], want [%s]", got, want)
 	}
 }
 
