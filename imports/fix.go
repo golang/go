@@ -932,15 +932,3 @@ func findImportStdlib(shortPkg string, symbols map[string]bool) (importPath stri
 	}
 	return importPath, importPath != ""
 }
-
-// fileInDir reports whether the provided file path looks like
-// it's in dir. (without hitting the filesystem)
-func fileInDir(file, dir string) bool {
-	rest := strings.TrimPrefix(file, dir)
-	if len(rest) == len(file) {
-		// dir is not a prefix of file.
-		return false
-	}
-	// Check for boundary: either nothing (file == dir), or a slash.
-	return len(rest) == 0 || rest[0] == '/' || rest[0] == '\\'
-}

@@ -27,7 +27,7 @@ import (
 //             └── golang.org
 //                 └── repob
 //                     └── b
-//     										└── b.go
+//                         └── b.go
 // GOPATH would be set to
 //     /sometemporarydirectory/repoa;/sometemporarydirectory/repob
 // and the working directory would be
