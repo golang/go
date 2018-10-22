@@ -12,6 +12,7 @@ package short
 // TODO(adg): collect statistics on URL visits
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"html/template"
@@ -22,7 +23,6 @@ import (
 	"regexp"
 
 	"cloud.google.com/go/datastore"
-	"golang.org/x/net/context"
 	"golang.org/x/tools/internal/memcache"
 	"google.golang.org/appengine/user"
 )

@@ -7,6 +7,7 @@
 package dl
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/md5"
 	"encoding/json"
@@ -20,7 +21,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
-	"golang.org/x/net/context"
 	"golang.org/x/tools/godoc/env"
 	"golang.org/x/tools/internal/memcache"
 )
