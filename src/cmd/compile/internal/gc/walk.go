@@ -1390,6 +1390,63 @@ opswitch:
 			n = m
 		}
 
+	case OMAKESLICECOPY:
+		if n.Esc == EscNone {
+			Fatalf("OMAKESLICECOPY with EscNone: %v", n)
+		}
+
+		t := n.Type
+		if t.Elem().NotInHeap() {
+			Fatalf("%v is go:notinheap; heap allocation disallowed", t.Elem())
+		}
+
+		length := conv(n.Left, types.Types[TINT])
+		copylen := nod(OLEN, n.Right, nil)
+		copyptr := nod(OSPTR, n.Right, nil)
+
+		if !types.Haspointers(t.Elem()) && n.Bounded() {
+			// When len(to)==len(from) and elements have no pointers:
+			// replace make+copy with runtime.mallocgc+runtime.memmove.
+
+			// We do not check for overflow of len(to)*elem.Width here
+			// since len(from) is an existing checked slice capacity
+			// with same elem.Width for the from slice.
+			size := nod(OMUL, conv(length, types.Types[TUINTPTR]), conv(nodintconst(t.Elem().Width), types.Types[TUINTPTR]))
+
+			// instantiate mallocgc(size uintptr, typ *byte, needszero bool) unsafe.Pointer
+			fn := syslook("mallocgc")
+			sh := nod(OSLICEHEADER, nil, nil)
+			sh.Left = mkcall1(fn, types.Types[TUNSAFEPTR], init, size, nodnil(), nodbool(false))
+			sh.Left.MarkNonNil()
+			sh.List.Set2(length, length)
+			sh.Type = t
+
+			s := temp(t)
+			r := typecheck(nod(OAS, s, sh), ctxStmt)
+			r = walkexpr(r, init)
+			init.Append(r)
+
+			// instantiate memmove(to *any, frm *any, size uintptr)
+			fn = syslook("memmove")
+			fn = substArgTypes(fn, t.Elem(), t.Elem())
+			ncopy := mkcall1(fn, nil, init, nod(OSPTR, s, nil), copyptr, size)
+			ncopy = typecheck(ncopy, ctxStmt)
+			ncopy = walkexpr(ncopy, init)
+			init.Append(ncopy)
+
+			n = s
+		} else { // Replace make+copy with runtime.makeslicecopy.
+			// instantiate makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
+			fn := syslook("makeslicecopy")
+			s := nod(OSLICEHEADER, nil, nil)
+			s.Left = mkcall1(fn, types.Types[TUNSAFEPTR], init, typename(t.Elem()), length, copylen, conv(copyptr, types.Types[TUNSAFEPTR]))
+			s.Left.MarkNonNil()
+			s.List.Set2(length, length)
+			s.Type = t
+			n = typecheck(s, ctxExpr)
+			n = walkexpr(n, init)
+		}
+
 	case ORUNESTR:
 		a := nodnil()
 		if n.Esc == EscNone {
@@ -3771,6 +3828,9 @@ func candiscard(n *Node) bool {
 
 		// Difficult to tell what sizes are okay.
 	case OMAKESLICE:
+		return false
+
+	case OMAKESLICECOPY:
 		return false
 	}
 
