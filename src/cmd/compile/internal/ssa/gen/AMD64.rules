@@ -29,6 +29,19 @@
 (Div8u x y) -> (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
 (Div(32|64)F x y) -> (DIVS(S|D) x y)
 
+(Select0 (Add64carry x y c)) ->
+	(Select0 <typ.UInt64> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
+(Select1 (Add64carry x y c)) ->
+	(NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
+
+// Optimize ADCQ and friends
+(ADCQ x (MOVQconst [c]) carry) && is32Bit(c) -> (ADCQconst x [c] carry)
+(ADCQ x y (FlagEQ)) -> (ADDQcarry x y)
+(ADCQconst x [c] (FlagEQ)) -> (ADDQconstcarry x [c])
+(ADDQcarry x (MOVQconst [c])) && is32Bit(c) -> (ADDQconstcarry x [c])
+(Select1 (NEGLflags (MOVQconst [0]))) -> (FlagEQ)
+(Select1 (NEGLflags (NEGQ (SBBQcarrymask x)))) -> x
+
 (Mul64uhilo x y) -> (MULQU2 x y)
 (Div128u xhi xlo y) -> (DIVQU2 xhi xlo y)
 

@@ -3481,6 +3481,13 @@ func init() {
 		},
 		sys.AMD64, sys.ARM64, sys.PPC64)
 
+	addF("math/bits", "Add64",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+		},
+		sys.AMD64)
+	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64)
+
 	/******** sync/atomic ********/
 
 	// Note: these are disabled by flag_race in findIntrinsic below.
