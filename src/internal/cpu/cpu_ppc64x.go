@@ -40,11 +40,11 @@ func doinit() {
 		{Name: "scv", Feature: &PPC64.HasSCV},
 
 		// These capabilities should always be enabled on ppc64 and ppc64le:
-		//  {Name: "vmx", Feature: &PPC64.HasVMX},
-		//  {Name: "dfp", Feature: &PPC64.HasDFP},
-		//  {Name: "vsx", Feature: &PPC64.HasVSX},
-		//  {Name: "isel", Feature: &PPC64.HasISEL},
-		//  {Name: "vcrypto", Feature: &PPC64.HasVCRYPTO},
+		{Name: "vmx", Feature: &PPC64.HasVMX, Required: true},
+		{Name: "dfp", Feature: &PPC64.HasDFP, Required: true},
+		{Name: "vsx", Feature: &PPC64.HasVSX, Required: true},
+		{Name: "isel", Feature: &PPC64.HasISEL, Required: true},
+		{Name: "vcrypto", Feature: &PPC64.HasVCRYPTO, Required: true},
 	}
 
 	// HWCAP feature bits
