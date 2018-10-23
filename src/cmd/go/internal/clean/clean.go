@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
@@ -146,7 +148,20 @@ func runClean(cmd *base.Command, args []string) {
 		// right now are to be ignored.
 		dir := cache.DefaultDir()
 		if dir != "off" {
-			err := ioutil.WriteFile(filepath.Join(dir, "testexpire.txt"), []byte(fmt.Sprintf("%d\n", time.Now().UnixNano())), 0666)
+			f, err := lockedfile.Edit(filepath.Join(dir, "testexpire.txt"))
+			if err == nil {
+				now := time.Now().UnixNano()
+				buf, _ := ioutil.ReadAll(f)
+				prev, _ := strconv.ParseInt(strings.TrimSpace(string(buf)), 10, 64)
+				if now > prev {
+					if err = f.Truncate(0); err == nil {
+						_, err = fmt.Fprintf(f, "%d\n", now)
+					}
+				}
+				if closeErr := f.Close(); err == nil {
+					err = closeErr
+				}
+			}
 			if err != nil {
 				base.Errorf("go clean -testcache: %v", err)
 			}
