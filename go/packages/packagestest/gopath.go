@@ -56,10 +56,6 @@ func (gopath) Finalize(exported *Exported) error {
 			gopath += string(filepath.ListSeparator)
 		}
 		dir := gopathDir(exported, module)
-		if module == gorootModule {
-			exported.Config.Env = append(exported.Config.Env, "GOROOT="+dir)
-			continue
-		}
 		gopath += dir
 		if module == exported.primary {
 			exported.Config.Dir = filepath.Join(dir, "src")

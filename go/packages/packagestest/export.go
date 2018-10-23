@@ -24,14 +24,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-const (
-	// gorootModule is a special module name that indicates it contains source files
-	// that should replace the normal GOROOT
-	// in general you should not use this, it only exists for some very specialized
-	// tests.
-	gorootModule = "GOROOT"
-)
-
 var (
 	skipCleanup = flag.Bool("skip-cleanup", false, "Do not delete the temporary export folders") // for debugging
 )
@@ -112,6 +104,7 @@ func Export(t *testing.T, exporter Exporter, modules []Module) *Exported {
 			Env: append(os.Environ(), "GOPACKAGESDRIVER=off"),
 		},
 		temp:    temp,
+		primary: modules[0].Name,
 		written: map[string]map[string]string{},
 	}
 	defer func() {
@@ -120,9 +113,6 @@ func Export(t *testing.T, exporter Exporter, modules []Module) *Exported {
 		}
 	}()
 	for _, module := range modules {
-		if exported.primary == "" && module.Name != gorootModule {
-			exported.primary = module.Name
-		}
 		for fragment, value := range module.Files {
 			fullpath := exporter.Filename(exported, module.Name, filepath.FromSlash(fragment))
 			written, ok := exported.written[module.Name]
