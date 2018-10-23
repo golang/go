@@ -528,6 +528,10 @@ const (
 	OpAMD64ADCQ
 	OpAMD64ADDQconstcarry
 	OpAMD64ADCQconst
+	OpAMD64SUBQborrow
+	OpAMD64SBBQ
+	OpAMD64SUBQconstborrow
+	OpAMD64SBBQconst
 	OpAMD64MULQU2
 	OpAMD64DIVQU2
 	OpAMD64ANDQ
@@ -2399,6 +2403,7 @@ const (
 	OpSub32carry
 	OpSub32withcarry
 	OpAdd64carry
+	OpSub64borrow
 	OpSignmask
 	OpZeromask
 	OpSlicemask
@@ -6617,6 +6622,70 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		asm:          x86.AADCQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:         "SUBQborrow",
+		argLen:       2,
+		resultInArg0: true,
+		asm:          x86.ASUBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:         "SBBQ",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.ASBBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:         "SUBQconstborrow",
+		auxType:      auxInt32,
+		argLen:       1,
+		resultInArg0: true,
+		asm:          x86.ASUBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:         "SBBQconst",
+		auxType:      auxInt32,
+		argLen:       2,
+		resultInArg0: true,
+		asm:          x86.ASBBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -29721,6 +29790,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "Sub64borrow",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:    "Signmask",
