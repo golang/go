@@ -23,28 +23,6 @@ type notInHeapSlice struct {
 	cap   int
 }
 
-// maxElems is a lookup table containing the maximum capacity for a slice.
-// The index is the size of the slice element.
-var maxElems = [...]uintptr{
-	^uintptr(0),
-	maxAlloc / 1, maxAlloc / 2, maxAlloc / 3, maxAlloc / 4,
-	maxAlloc / 5, maxAlloc / 6, maxAlloc / 7, maxAlloc / 8,
-	maxAlloc / 9, maxAlloc / 10, maxAlloc / 11, maxAlloc / 12,
-	maxAlloc / 13, maxAlloc / 14, maxAlloc / 15, maxAlloc / 16,
-	maxAlloc / 17, maxAlloc / 18, maxAlloc / 19, maxAlloc / 20,
-	maxAlloc / 21, maxAlloc / 22, maxAlloc / 23, maxAlloc / 24,
-	maxAlloc / 25, maxAlloc / 26, maxAlloc / 27, maxAlloc / 28,
-	maxAlloc / 29, maxAlloc / 30, maxAlloc / 31, maxAlloc / 32,
-}
-
-// maxSliceCap returns the maximum capacity for a slice.
-func maxSliceCap(elemsize uintptr) uintptr {
-	if elemsize < uintptr(len(maxElems)) {
-		return maxElems[elemsize]
-	}
-	return maxAlloc / elemsize
-}
-
 func panicmakeslicelen() {
 	panic(errorString("makeslice: len out of range"))
 }
