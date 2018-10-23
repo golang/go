@@ -535,6 +535,7 @@ var Anames = []string{
 	"FUNCDATA",
 	"JMP",
 	"NOP",
+	"PCALIGN",
 	"PCDATA",
 	"RET",
 	"GETCALLERPC",
