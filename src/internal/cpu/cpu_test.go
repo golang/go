@@ -52,8 +52,9 @@ func TestAllCapabilitiesDisabled(t *testing.T) {
 	}
 
 	for _, o := range Options {
-		if got := *o.Feature; got != false {
-			t.Errorf("%v: expected false, got %v", o.Name, got)
+		want := o.Required
+		if got := *o.Feature; got != want {
+			t.Errorf("%v: expected %v, got %v", o.Name, want, got)
 		}
 	}
 }

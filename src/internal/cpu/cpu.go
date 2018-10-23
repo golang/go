@@ -155,8 +155,9 @@ var options []option
 type option struct {
 	Name      string
 	Feature   *bool
-	Specified bool // Stores if feature value was specified in GODEBUGCPU.
-	Enable    bool // Stores if feature should be enabled.
+	Specified bool // whether feature value was specified in GODEBUGCPU
+	Enable    bool // whether feature should be enabled
+	Required  bool // whether feature is mandatory and can not be disabled
 }
 
 // processOptions enables or disables CPU feature values based on the parsed env string.
@@ -196,7 +197,7 @@ field:
 		if key == "all" {
 			for i := range options {
 				options[i].Specified = true
-				options[i].Enable = enable
+				options[i].Enable = enable || options[i].Required
 			}
 			continue field
 		}
@@ -219,6 +220,11 @@ field:
 
 		if o.Enable && !*o.Feature {
 			print("GODEBUGCPU: can not enable \"", o.Name, "\", missing hardware support\n")
+			continue
+		}
+
+		if !o.Enable && o.Required {
+			print("GODEBUGCPU: can not disable \"", o.Name, "\", required feature\n")
 			continue
 		}
 
