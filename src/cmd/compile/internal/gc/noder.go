@@ -819,13 +819,18 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 		return name
 	case *syntax.SelectorExpr:
 		name := p.name(expr.X.(*syntax.Name))
+		def := asNode(name.Def)
+		if def == nil {
+			yyerror("undefined: %v", name)
+			return name
+		}
 		var pkg *types.Pkg
-		if asNode(name.Def) == nil || asNode(name.Def).Op != OPACK {
+		if def.Op != OPACK {
 			yyerror("%v is not a package", name)
 			pkg = localpkg
 		} else {
-			asNode(name.Def).Name.SetUsed(true)
-			pkg = asNode(name.Def).Name.Pkg
+			def.Name.SetUsed(true)
+			pkg = def.Name.Pkg
 		}
 		return restrictlookup(expr.Sel.Value, pkg)
 	}
