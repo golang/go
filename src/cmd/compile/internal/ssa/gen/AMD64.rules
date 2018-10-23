@@ -33,14 +33,23 @@
 	(Select0 <typ.UInt64> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
 (Select1 (Add64carry x y c)) ->
 	(NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
+(Select0 (Sub64borrow x y c)) ->
+	(Select0 <typ.UInt64> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
+(Select1 (Sub64borrow x y c)) ->
+	(NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
 
 // Optimize ADCQ and friends
 (ADCQ x (MOVQconst [c]) carry) && is32Bit(c) -> (ADCQconst x [c] carry)
 (ADCQ x y (FlagEQ)) -> (ADDQcarry x y)
 (ADCQconst x [c] (FlagEQ)) -> (ADDQconstcarry x [c])
 (ADDQcarry x (MOVQconst [c])) && is32Bit(c) -> (ADDQconstcarry x [c])
+(SBBQ x (MOVQconst [c]) borrow) && is32Bit(c) -> (SBBQconst x [c] borrow)
+(SBBQ x y (FlagEQ)) -> (SUBQborrow x y)
+(SBBQconst x [c] (FlagEQ)) -> (SUBQconstborrow x [c])
+(SUBQborrow x (MOVQconst [c])) && is32Bit(c) -> (SUBQconstborrow x [c])
 (Select1 (NEGLflags (MOVQconst [0]))) -> (FlagEQ)
 (Select1 (NEGLflags (NEGQ (SBBQcarrymask x)))) -> x
+
 
 (Mul64uhilo x y) -> (MULQU2 x y)
 (Div128u xhi xlo y) -> (DIVQU2 xhi xlo y)

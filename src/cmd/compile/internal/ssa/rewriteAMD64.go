@@ -457,8 +457,12 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64SARWconst_0(v)
 	case OpAMD64SBBLcarrymask:
 		return rewriteValueAMD64_OpAMD64SBBLcarrymask_0(v)
+	case OpAMD64SBBQ:
+		return rewriteValueAMD64_OpAMD64SBBQ_0(v)
 	case OpAMD64SBBQcarrymask:
 		return rewriteValueAMD64_OpAMD64SBBQcarrymask_0(v)
+	case OpAMD64SBBQconst:
+		return rewriteValueAMD64_OpAMD64SBBQconst_0(v)
 	case OpAMD64SETA:
 		return rewriteValueAMD64_OpAMD64SETA_0(v)
 	case OpAMD64SETAE:
@@ -533,6 +537,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64SUBLmodify_0(v)
 	case OpAMD64SUBQ:
 		return rewriteValueAMD64_OpAMD64SUBQ_0(v)
+	case OpAMD64SUBQborrow:
+		return rewriteValueAMD64_OpAMD64SUBQborrow_0(v)
 	case OpAMD64SUBQconst:
 		return rewriteValueAMD64_OpAMD64SUBQconst_0(v)
 	case OpAMD64SUBQload:
@@ -47835,6 +47841,46 @@ func rewriteValueAMD64_OpAMD64SBBLcarrymask_0(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueAMD64_OpAMD64SBBQ_0(v *Value) bool {
+	// match: (SBBQ x (MOVQconst [c]) borrow)
+	// cond: is32Bit(c)
+	// result: (SBBQconst x [c] borrow)
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := v_1.AuxInt
+		borrow := v.Args[2]
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpAMD64SBBQconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(borrow)
+		return true
+	}
+	// match: (SBBQ x y (FlagEQ))
+	// cond:
+	// result: (SUBQborrow x y)
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpAMD64FlagEQ {
+			break
+		}
+		v.reset(OpAMD64SUBQborrow)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpAMD64SBBQcarrymask_0(v *Value) bool {
 	// match: (SBBQcarrymask (FlagEQ))
 	// cond:
@@ -47894,6 +47940,25 @@ func rewriteValueAMD64_OpAMD64SBBQcarrymask_0(v *Value) bool {
 		}
 		v.reset(OpAMD64MOVQconst)
 		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SBBQconst_0(v *Value) bool {
+	// match: (SBBQconst x [c] (FlagEQ))
+	// cond:
+	// result: (SUBQconstborrow x [c])
+	for {
+		c := v.AuxInt
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagEQ {
+			break
+		}
+		v.reset(OpAMD64SUBQconstborrow)
+		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -55314,6 +55379,28 @@ func rewriteValueAMD64_OpAMD64SUBQ_0(v *Value) bool {
 		v.AddArg(x)
 		v.AddArg(ptr)
 		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64SUBQborrow_0(v *Value) bool {
+	// match: (SUBQborrow x (MOVQconst [c]))
+	// cond: is32Bit(c)
+	// result: (SUBQconstborrow x [c])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := v_1.AuxInt
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpAMD64SUBQconstborrow)
+		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -64990,6 +65077,31 @@ func rewriteValueAMD64_OpSelect0_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (Select0 (Sub64borrow x y c))
+	// cond:
+	// result: (Select0 <typ.UInt64> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSub64borrow {
+			break
+		}
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		c := v_0.Args[2]
+		v.reset(OpSelect0)
+		v.Type = typ.UInt64
+		v0 := b.NewValue0(v.Pos, OpAMD64SBBQ, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v1 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v2 := b.NewValue0(v.Pos, OpAMD64NEGLflags, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v2.AddArg(c)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Select0 <t> (AddTupleFirst32 val tuple))
 	// cond:
 	// result: (ADDL val (Select0 <t> tuple))
@@ -65092,6 +65204,35 @@ func rewriteValueAMD64_OpSelect1_0(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64SBBQcarrymask, typ.UInt64)
 		v1 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
 		v2 := b.NewValue0(v.Pos, OpAMD64ADCQ, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v2.AddArg(x)
+		v2.AddArg(y)
+		v3 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v4 := b.NewValue0(v.Pos, OpAMD64NEGLflags, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v4.AddArg(c)
+		v3.AddArg(v4)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Select1 (Sub64borrow x y c))
+	// cond:
+	// result: (NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSub64borrow {
+			break
+		}
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		c := v_0.Args[2]
+		v.reset(OpAMD64NEGQ)
+		v.Type = typ.UInt64
+		v0 := b.NewValue0(v.Pos, OpAMD64SBBQcarrymask, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v2 := b.NewValue0(v.Pos, OpAMD64SBBQ, types.NewTuple(typ.UInt64, types.TypeFlags))
 		v2.AddArg(x)
 		v2.AddArg(y)
 		v3 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
