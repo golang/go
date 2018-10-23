@@ -65,6 +65,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/obj/wasm",
 	"cmd/internal/src",
 	"cmd/internal/sys",
+	"cmd/internal/xcoff",
 	"cmd/link",
 	"cmd/link/internal/amd64",
 	"cmd/link/internal/arm",
