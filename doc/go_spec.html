@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 17, 2018",
+	"Subtitle": "Version of October 23, 2018",
 	"Path": "/ref/spec"
 }-->
 
@@ -3260,7 +3260,7 @@ var v, ok T1 = x.(T)
 yields an additional untyped boolean value. The value of <code>ok</code> is <code>true</code>
 if the assertion holds. Otherwise it is <code>false</code> and the value of <code>v</code> is
 the <a href="#The_zero_value">zero value</a> for type <code>T</code>.
-No run-time panic occurs in this case.
+No <a href="#Run_time_panics">run-time panic</a> occurs in this case.
 </p>
 
 
@@ -3624,7 +3624,7 @@ For signed integers, the operations <code>+</code>,
 <code>-</code>, <code>*</code>, <code>/</code>, and <code>&lt;&lt;</code> may legally
 overflow and the resulting value exists and is deterministically defined
 by the signed integer representation, the operation, and its operands.
-No exception is raised as a result of overflow.
+Overflow does not cause a <a href="#Run_time_panics">run-time panic</a>. 
 A compiler may not optimize code under the assumption that overflow does
 not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is always true.
 </p>
