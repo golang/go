@@ -1,6 +1,7 @@
 package ssa_test
 
 import (
+	"cmd/internal/xcoff"
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
@@ -22,6 +23,10 @@ func open(path string) (*dwarf.Data, error) {
 	}
 
 	if fh, err := macho.Open(path); err == nil {
+		return fh.DWARF()
+	}
+
+	if fh, err := xcoff.Open(path); err == nil {
 		return fh.DWARF()
 	}
 
