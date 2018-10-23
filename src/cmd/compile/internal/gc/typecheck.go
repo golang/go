@@ -2443,7 +2443,7 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
 	}
 
 	if f1 != nil {
-		if dostrcmp > 1 {
+		if dostrcmp > 1 || f1.Broke() {
 			// Already in the process of diagnosing an error.
 			return f1
 		}

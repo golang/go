@@ -863,7 +863,7 @@ func methodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 // Add a method, declared as a function.
 // - msym is the method symbol
 // - t is function type (with receiver)
-// Returns a pointer to the existing or added Field.
+// Returns a pointer to the existing or added Field; or nil if there's an error.
 func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.Field {
 	if msym == nil {
 		Fatalf("no method symbol")
@@ -918,6 +918,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
 		for _, f := range mt.Fields().Slice() {
 			if f.Sym == msym {
 				yyerror("type %v has both field and method named %v", mt, msym)
+				f.SetBroke(true)
 				return nil
 			}
 		}
@@ -927,7 +928,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
 		if msym.Name != f.Sym.Name {
 			continue
 		}
-		// eqtype only checks that incoming and result parameters match,
+		// types.Identical only checks that incoming and result parameters match,
 		// so explicitly check that the receiver parameters match too.
 		if !types.Identical(t, f.Type) || !types.Identical(t.Recv().Type, f.Type.Recv().Type) {
 			yyerror("method redeclared: %v.%v\n\t%v\n\t%v", mt, msym, f.Type, t)
