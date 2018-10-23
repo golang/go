@@ -7,6 +7,7 @@
 package modcmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -15,6 +16,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfile"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
@@ -204,17 +206,23 @@ func runEdit(cmd *base.Command, args []string) {
 		return
 	}
 
-	data, err = modFile.Format()
+	out, err := modFile.Format()
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
 
 	if *editPrint {
-		os.Stdout.Write(data)
+		os.Stdout.Write(out)
 		return
 	}
 
-	if err := ioutil.WriteFile(gomod, data, 0666); err != nil {
+	unlock := modfetch.SideLock()
+	defer unlock()
+	lockedData, err := ioutil.ReadFile(gomod)
+	if err == nil && !bytes.Equal(lockedData, data) {
+		base.Fatalf("go: go.mod changed during editing; not overwriting")
+	}
+	if err := ioutil.WriteFile(gomod, out, 0666); err != nil {
 		base.Fatalf("go: %v", err)
 	}
 }

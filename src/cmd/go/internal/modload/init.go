@@ -16,6 +16,7 @@ import (
 	"cmd/go/internal/modfile"
 	"cmd/go/internal/module"
 	"cmd/go/internal/mvs"
+	"cmd/go/internal/renameio"
 	"cmd/go/internal/search"
 	"encoding/json"
 	"fmt"
@@ -34,10 +35,11 @@ var (
 	MustUseModules = mustUseModules()
 	initialized    bool
 
-	ModRoot  string
-	modFile  *modfile.File
-	excluded map[module.Version]bool
-	Target   module.Version
+	ModRoot     string
+	modFile     *modfile.File
+	modFileData []byte
+	excluded    map[module.Version]bool
+	Target      module.Version
 
 	gopath string
 
@@ -285,6 +287,7 @@ func InitMod() {
 		base.Fatalf("go: errors parsing go.mod:\n%s\n", err)
 	}
 	modFile = f
+	modFileData = data
 
 	if len(f.Syntax.Stmt) == 0 || f.Module == nil {
 		// Empty mod file. Must add module path.
@@ -579,22 +582,53 @@ func WriteGoMod() {
 		modFile.SetRequire(list)
 	}
 
-	file := filepath.Join(ModRoot, "go.mod")
-	old, _ := ioutil.ReadFile(file)
 	modFile.Cleanup() // clean file after edits
 	new, err := modFile.Format()
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
-	if !bytes.Equal(old, new) {
-		if cfg.BuildMod == "readonly" {
-			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
-		}
-		if err := ioutil.WriteFile(file, new, 0666); err != nil {
-			base.Fatalf("go: %v", err)
-		}
-	}
+
+	// Always update go.sum, even if we didn't change go.mod: we may have
+	// downloaded modules that we didn't have before.
 	modfetch.WriteGoSum()
+
+	if bytes.Equal(new, modFileData) {
+		// We don't need to modify go.mod from what we read previously.
+		// Ignore any intervening edits.
+		return
+	}
+	if cfg.BuildMod == "readonly" {
+		base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
+	}
+
+	unlock := modfetch.SideLock()
+	defer unlock()
+
+	file := filepath.Join(ModRoot, "go.mod")
+	old, err := ioutil.ReadFile(file)
+	if !bytes.Equal(old, modFileData) {
+		if bytes.Equal(old, new) {
+			// Some other process wrote the same go.mod file that we were about to write.
+			modFileData = new
+			return
+		}
+		if err != nil {
+			base.Fatalf("go: can't determine whether go.mod has changed: %v", err)
+		}
+		// The contents of the go.mod file have changed. In theory we could add all
+		// of the new modules to the build list, recompute, and check whether any
+		// module in *our* build list got bumped to a different version, but that's
+		// a lot of work for marginal benefit. Instead, fail the command: if users
+		// want to run concurrent commands, they need to start with a complete,
+		// consistent module definition.
+		base.Fatalf("go: updates to go.mod needed, but contents have changed")
+
+	}
+
+	if err := renameio.WriteFile(file, new); err != nil {
+		base.Fatalf("error writing go.mod: %v", err)
+	}
+	modFileData = new
 }
 
 func fixVersion(path, vers string) (string, error) {
