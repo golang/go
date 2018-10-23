@@ -1,0 +1,40 @@
+# Test to ensure runtime/debug.ReadBuildInfo parses
+# the modinfo embedded in a binary by the go tool
+# when module is enabled.
+env GO111MODULE=on
+
+cd x
+go mod edit -require=rsc.io/quote@v1.5.2
+go mod edit -replace=rsc.io/quote@v1.5.2=rsc.io/quote@v1.0.0
+
+go run main.go
+
+stderr 'Hello, world.'
+stderr 'mod\s+x\s+\(devel\)'
+stderr 'dep\s+rsc.io/quote\s+v1.5.2\s+'
+stderr '=>\s+rsc.io/quote\s+v1.0.0\s+h1:'
+
+-- x/go.mod --
+module x
+
+-- x/main.go --
+package main
+
+import "runtime/debug"
+import "rsc.io/quote"
+
+func main() {
+  println(quote.Hello())
+
+  m, ok := debug.ReadBuildInfo()
+  if !ok {
+     panic("failed debug.ReadBuildInfo")
+  }
+  println("mod", m.Main.Path, m.Main.Version)
+  for _, d := range m.Deps {
+     println("dep", d.Path, d.Version, d.Sum)
+     if r := d.Replace; r != nil {
+        println("=>", r.Path, r.Version, r.Sum)
+     }
+  }
+}
