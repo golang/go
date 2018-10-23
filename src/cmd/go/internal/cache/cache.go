@@ -18,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"cmd/go/internal/renameio"
 )
 
 // An ActionID is a cache action key, the hash of a complete description of a
@@ -283,7 +285,9 @@ func (c *Cache) Trim() {
 		c.trimSubdir(subdir, cutoff)
 	}
 
-	ioutil.WriteFile(filepath.Join(c.dir, "trim.txt"), []byte(fmt.Sprintf("%d", now.Unix())), 0666)
+	// Ignore errors from here: if we don't write the complete timestamp, the
+	// cache will appear older than it is, and we'll trim it again next time.
+	renameio.WriteFile(filepath.Join(c.dir, "trim.txt"), []byte(fmt.Sprintf("%d", now.Unix())))
 }
 
 // trimSubdir trims a single cache subdirectory.
@@ -338,6 +342,8 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
 	}
 	file := c.fileName(id, "a")
 	if err := ioutil.WriteFile(file, entry, 0666); err != nil {
+		// TODO(bcmills): This Remove potentially races with another go command writing to file.
+		// Can we eliminate it?
 		os.Remove(file)
 		return err
 	}
