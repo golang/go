@@ -13,6 +13,7 @@ const (
 	ScoreReadTuple
 	ScoreVarDef
 	ScoreMemory
+	ScoreReadFlags
 	ScoreDefault
 	ScoreFlags
 	ScoreControl // towards bottom of block
@@ -129,13 +130,19 @@ func schedule(f *Func) {
 				// false dependency on the other part of the tuple.
 				// Also ensures tuple is never spilled.
 				score[v.ID] = ScoreReadTuple
-			case v.Type.IsFlags() || v.Type.IsTuple():
+			case v.Type.IsFlags() || v.Type.IsTuple() && v.Type.FieldType(1).IsFlags():
 				// Schedule flag register generation as late as possible.
 				// This makes sure that we only have one live flags
 				// value at a time.
 				score[v.ID] = ScoreFlags
 			default:
 				score[v.ID] = ScoreDefault
+				// If we're reading flags, schedule earlier to keep flag lifetime short.
+				for _, a := range v.Args {
+					if a.Type.IsFlags() {
+						score[v.ID] = ScoreReadFlags
+					}
+				}
 			}
 		}
 	}

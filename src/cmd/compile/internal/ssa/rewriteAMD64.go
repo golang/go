@@ -15,6 +15,10 @@ var _ = types.TypeMem // in case not otherwise used
 
 func rewriteValueAMD64(v *Value) bool {
 	switch v.Op {
+	case OpAMD64ADCQ:
+		return rewriteValueAMD64_OpAMD64ADCQ_0(v)
+	case OpAMD64ADCQconst:
+		return rewriteValueAMD64_OpAMD64ADCQconst_0(v)
 	case OpAMD64ADDL:
 		return rewriteValueAMD64_OpAMD64ADDL_0(v) || rewriteValueAMD64_OpAMD64ADDL_10(v) || rewriteValueAMD64_OpAMD64ADDL_20(v)
 	case OpAMD64ADDLconst:
@@ -27,6 +31,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64ADDLmodify_0(v)
 	case OpAMD64ADDQ:
 		return rewriteValueAMD64_OpAMD64ADDQ_0(v) || rewriteValueAMD64_OpAMD64ADDQ_10(v) || rewriteValueAMD64_OpAMD64ADDQ_20(v)
+	case OpAMD64ADDQcarry:
+		return rewriteValueAMD64_OpAMD64ADDQcarry_0(v)
 	case OpAMD64ADDQconst:
 		return rewriteValueAMD64_OpAMD64ADDQconst_0(v) || rewriteValueAMD64_OpAMD64ADDQconst_10(v)
 	case OpAMD64ADDQconstmodify:
@@ -1139,6 +1145,86 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpZeroExt8to32_0(v)
 	case OpZeroExt8to64:
 		return rewriteValueAMD64_OpZeroExt8to64_0(v)
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64ADCQ_0(v *Value) bool {
+	// match: (ADCQ x (MOVQconst [c]) carry)
+	// cond: is32Bit(c)
+	// result: (ADCQconst x [c] carry)
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := v_1.AuxInt
+		carry := v.Args[2]
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpAMD64ADCQconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(carry)
+		return true
+	}
+	// match: (ADCQ (MOVQconst [c]) x carry)
+	// cond: is32Bit(c)
+	// result: (ADCQconst x [c] carry)
+	for {
+		_ = v.Args[2]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		carry := v.Args[2]
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpAMD64ADCQconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(carry)
+		return true
+	}
+	// match: (ADCQ x y (FlagEQ))
+	// cond:
+	// result: (ADDQcarry x y)
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpAMD64FlagEQ {
+			break
+		}
+		v.reset(OpAMD64ADDQcarry)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64ADCQconst_0(v *Value) bool {
+	// match: (ADCQconst x [c] (FlagEQ))
+	// cond:
+	// result: (ADDQconstcarry x [c])
+	for {
+		c := v.AuxInt
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagEQ {
+			break
+		}
+		v.reset(OpAMD64ADDQconstcarry)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
 	}
 	return false
 }
@@ -2663,6 +2749,47 @@ func rewriteValueAMD64_OpAMD64ADDQ_20(v *Value) bool {
 		v.AddArg(x)
 		v.AddArg(ptr)
 		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64ADDQcarry_0(v *Value) bool {
+	// match: (ADDQcarry x (MOVQconst [c]))
+	// cond: is32Bit(c)
+	// result: (ADDQconstcarry x [c])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := v_1.AuxInt
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpAMD64ADDQconstcarry)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (ADDQcarry (MOVQconst [c]) x)
+	// cond: is32Bit(c)
+	// result: (ADDQconstcarry x [c])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpAMD64ADDQconstcarry)
+		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -64838,6 +64965,31 @@ func rewriteValueAMD64_OpSelect0_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (Select0 (Add64carry x y c))
+	// cond:
+	// result: (Select0 <typ.UInt64> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAdd64carry {
+			break
+		}
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		c := v_0.Args[2]
+		v.reset(OpSelect0)
+		v.Type = typ.UInt64
+		v0 := b.NewValue0(v.Pos, OpAMD64ADCQ, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v1 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v2 := b.NewValue0(v.Pos, OpAMD64NEGLflags, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v2.AddArg(c)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Select0 <t> (AddTupleFirst32 val tuple))
 	// cond:
 	// result: (ADDL val (Select0 <t> tuple))
@@ -64921,6 +65073,75 @@ func rewriteValueAMD64_OpSelect1_0(v *Value) bool {
 		v1.AddArg(y)
 		v0.AddArg(v1)
 		v.AddArg(v0)
+		return true
+	}
+	// match: (Select1 (Add64carry x y c))
+	// cond:
+	// result: (NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAdd64carry {
+			break
+		}
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		c := v_0.Args[2]
+		v.reset(OpAMD64NEGQ)
+		v.Type = typ.UInt64
+		v0 := b.NewValue0(v.Pos, OpAMD64SBBQcarrymask, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v2 := b.NewValue0(v.Pos, OpAMD64ADCQ, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v2.AddArg(x)
+		v2.AddArg(y)
+		v3 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v4 := b.NewValue0(v.Pos, OpAMD64NEGLflags, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v4.AddArg(c)
+		v3.AddArg(v4)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Select1 (NEGLflags (MOVQconst [0])))
+	// cond:
+	// result: (FlagEQ)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64NEGLflags {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpAMD64MOVQconst {
+			break
+		}
+		if v_0_0.AuxInt != 0 {
+			break
+		}
+		v.reset(OpAMD64FlagEQ)
+		return true
+	}
+	// match: (Select1 (NEGLflags (NEGQ (SBBQcarrymask x))))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64NEGLflags {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpAMD64NEGQ {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpAMD64SBBQcarrymask {
+			break
+		}
+		x := v_0_0_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
 		return true
 	}
 	// match: (Select1 (AddTupleFirst32 _ tuple))

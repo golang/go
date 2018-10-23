@@ -523,6 +523,11 @@ const (
 	OpAMD64DIVQU
 	OpAMD64DIVLU
 	OpAMD64DIVWU
+	OpAMD64NEGLflags
+	OpAMD64ADDQcarry
+	OpAMD64ADCQ
+	OpAMD64ADDQconstcarry
+	OpAMD64ADCQconst
 	OpAMD64MULQU2
 	OpAMD64DIVQU2
 	OpAMD64ANDQ
@@ -2393,6 +2398,7 @@ const (
 	OpAdd32withcarry
 	OpSub32carry
 	OpSub32withcarry
+	OpAdd64carry
 	OpSignmask
 	OpZeromask
 	OpSlicemask
@@ -6537,6 +6543,87 @@ var opcodeTable = [...]opInfo{
 			outputs: []outputInfo{
 				{0, 1}, // AX
 				{1, 4}, // DX
+			},
+		},
+	},
+	{
+		name:         "NEGLflags",
+		argLen:       1,
+		resultInArg0: true,
+		asm:          x86.ANEGL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:         "ADDQcarry",
+		argLen:       2,
+		commutative:  true,
+		resultInArg0: true,
+		asm:          x86.AADDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:         "ADCQ",
+		argLen:       3,
+		commutative:  true,
+		resultInArg0: true,
+		asm:          x86.AADCQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:         "ADDQconstcarry",
+		auxType:      auxInt32,
+		argLen:       1,
+		resultInArg0: true,
+		asm:          x86.AADDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:         "ADCQconst",
+		auxType:      auxInt32,
+		argLen:       2,
+		resultInArg0: true,
+		asm:          x86.AADCQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -29628,6 +29715,12 @@ var opcodeTable = [...]opInfo{
 		name:    "Sub32withcarry",
 		argLen:  3,
 		generic: true,
+	},
+	{
+		name:        "Add64carry",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
 	},
 	{
 		name:    "Signmask",
