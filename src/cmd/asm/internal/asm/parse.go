@@ -227,6 +227,8 @@ func (p *Parser) pseudo(word string, operands [][]lex.Token) bool {
 		p.asmGlobl(operands)
 	case "PCDATA":
 		p.asmPCData(operands)
+	case "PCALIGN":
+		p.asmPCAlign(operands)
 	case "TEXT":
 		p.asmText(operands)
 	default:

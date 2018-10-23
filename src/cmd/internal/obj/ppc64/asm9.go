@@ -602,6 +602,7 @@ var optab = []Optab{
 	{obj.ANOP, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0},
 	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_LBRA, 11, 4, 0}, // same as ABR/ABL
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_LBRA, 11, 4, 0}, // same as ABR/ABL
+	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0},   // align code
 
 	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0},
 }
@@ -609,6 +610,28 @@ var optab = []Optab{
 var oprange [ALAST & obj.AMask][]Optab
 
 var xcmp [C_NCLASS][C_NCLASS]bool
+
+// padding bytes to add to align code as requested
+func addpad(pc, a int64, ctxt *obj.Link) int {
+	switch a {
+	case 8:
+		if pc%8 != 0 {
+			return 4
+		}
+	case 16:
+		switch pc % 16 {
+		// When currently aligned to 4, avoid 3 NOPs and set to
+		// 8 byte alignment which should still help.
+		case 4, 12:
+			return 4
+		case 8:
+			return 8
+		}
+	default:
+		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)
+	}
+	return 0
+}
 
 func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	p := cursym.Func.Text
@@ -632,12 +655,16 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		o = c.oplook(p)
 		m = int(o.size)
 		if m == 0 {
-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
-				c.ctxt.Diag("zero-width instruction\n%v", p)
+			if p.As == obj.APCALIGN {
+				a := c.vregoff(&p.From)
+				m = addpad(pc, a, ctxt)
+			} else {
+				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+					ctxt.Diag("zero-width instruction\n%v", p)
+				}
+				continue
 			}
-			continue
 		}
-
 		pc += int64(m)
 	}
 
@@ -686,10 +713,15 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			m = int(o.size)
 			if m == 0 {
-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
-					c.ctxt.Diag("zero-width instruction\n%v", p)
+				if p.As == obj.APCALIGN {
+					a := c.vregoff(&p.From)
+					m = addpad(pc, a, ctxt)
+				} else {
+					if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+						ctxt.Diag("zero-width instruction\n%v", p)
+					}
+					continue
 				}
-				continue
 			}
 
 			pc += int64(m)
@@ -698,7 +730,10 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		c.cursym.Size = pc
 	}
 
-	pc += -pc & (funcAlign - 1)
+	if pc%funcAlign != 0 {
+		pc += funcAlign - (pc % funcAlign)
+	}
+
 	c.cursym.Size = pc
 
 	/*
@@ -716,10 +751,19 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if int(o.size) > 4*len(out) {
 			log.Fatalf("out array in span9 is too small, need at least %d for %v", o.size/4, p)
 		}
+		origsize := o.size
 		c.asmout(p, o, out[:])
-		for i = 0; i < int32(o.size/4); i++ {
-			c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
-			bp = bp[4:]
+		if origsize == 0 && o.size > 0 {
+			for i = 0; i < int32(o.size/4); i++ {
+				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[0])
+				bp = bp[4:]
+			}
+			o.size = origsize
+		} else {
+			for i = 0; i < int32(o.size/4); i++ {
+				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
+				bp = bp[4:]
+			}
 		}
 	}
 }
@@ -1897,6 +1941,7 @@ func buildop(ctxt *obj.Link) {
 			obj.ATEXT,
 			obj.AUNDEF,
 			obj.AFUNCDATA,
+			obj.APCALIGN,
 			obj.APCDATA,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
@@ -2305,6 +2350,19 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		prasm(p)
 
 	case 0: /* pseudo ops */
+		if p.As == obj.APCALIGN {
+			aln := c.vregoff(&p.From)
+			v := addpad(p.Pc, aln, c.ctxt)
+			if v > 0 {
+				for i := 0; i < 6; i++ {
+					out[i] = uint32(0)
+				}
+				o.size = int8(v)
+				out[0] = LOP_RRR(OP_OR, REGZERO, REGZERO, REGZERO)
+				return
+			}
+			o.size = 0
+		}
 		break
 
 	case 1: /* mov r1,r2 ==> OR Rs,Rs,Ra */
