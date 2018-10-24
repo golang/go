@@ -514,6 +514,7 @@ c = fmt.Printf
 
 import (
 	"fmt"
+
 	"gu"
 
 	"github.com/foo/bar"
@@ -604,11 +605,15 @@ var _, _, _, _, _ = fmt.Errorf, io.Copy, strings.Contains, renamed_bar.A, B
 
 import (
 	"fmt"
-	"io"
-	"strings"
 
 	renamed_bar "github.com/foo/bar"
+
+	"io"
+
 	. "github.com/foo/baz"
+
+	"strings"
+
 	_ "github.com/foo/qux"
 )
 
@@ -1041,149 +1046,6 @@ var _ = fmt.Printf
 import "fmt"
 
 var _ = fmt.Printf
-`,
-	},
-
-	// golang.org/issue/20818
-	{
-		name: "sort_all_groups",
-		in: `package p
-import (
-	"testing"
-
-	"github.com/Sirupsen/logrus"
-	"context"
-)
-
-var _, _, _ = testing.T, logrus.Entry, context.Context
-`,
-		out: `package p
-
-import (
-	"context"
-	"testing"
-
-	"github.com/Sirupsen/logrus"
-)
-
-var _, _, _ = testing.T, logrus.Entry, context.Context
-`,
-	},
-
-	// golang.org/issue/20818
-	{
-		name: "sort_many_groups",
-		in: `package p
-import (
-	"testing"
-	"k8s.io/apimachinery/pkg/api/meta"
-
-	"fmt"
-	"github.com/pkg/errors"
-
-	"golang.org/x/tools/cover"
-
-	"github.com/sirupsen/logrus"
-	"context"
-)
-
-var _, _, _, _, _, _ = testing.T, logrus.Entry, context.Context, meta.AnyGroup, fmt.Printf, errors.Frame
-`,
-		out: `package p
-
-import (
-	"context"
-	"fmt"
-	"testing"
-
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/meta"
-)
-
-var _, _, _, _, _, _ = testing.T, logrus.Entry, context.Context, meta.AnyGroup, fmt.Printf, errors.Frame
-`,
-	},
-
-	// golang.org/issue/20818
-	{
-		name: "sort_all_groups_with_blanks_and_comments",
-		in: `package p
-import (
-
-
-	"testing"
-	"k8s.io/apimachinery/pkg/api/meta"
-
-	// a comment for the "fmt" package (#26921: they are broken, should be fixed)
-	"fmt"
-	"github.com/pkg/errors" // some comment
-
-
-	"golang.org/x/tools/cover"
-
-	"github.com/sirupsen/logrus"
-	"context"
-
-
-)
-
-var _, _, _, _, _, _ = testing.T, logrus.Entry, context.Context, meta.AnyGroup, fmt.Printf, errors.Frame
-`,
-		out: `package p
-
-import (
-	"context"
-	"fmt"
-	"testing"
-
-	"github.com/pkg/errors" // some comment
-	"github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/meta" // a comment for the "fmt" package (#26921: they are broken, should be fixed)
-)
-
-var _, _, _, _, _, _ = testing.T, logrus.Entry, context.Context, meta.AnyGroup, fmt.Printf, errors.Frame
-`,
-	},
-
-	{
-		name: "sort_all_groups_with_local_packages",
-		in: `package p
-import (
-	"local/foo"
-	"testing"
-	"k8s.io/apimachinery/pkg/api/meta"
-
-	"fmt"
-	"github.com/pkg/errors"
-
-	"github.com/local/bar"
-	"golang.org/x/tools/cover"
-
-	"github.com/sirupsen/logrus"
-	"context"
-)
-
-var _, _, _, _, _, _ = testing.T, logrus.Entry, context.Context, meta.AnyGroup, fmt.Printf, errors.Frame
-var _, _ = foo.Foo, bar.Bar
-`,
-		out: `package p
-
-import (
-	"context"
-	"fmt"
-	"testing"
-
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/meta"
-
-	"github.com/local/bar"
-	"local/foo"
-)
-
-var _, _, _, _, _, _ = testing.T, logrus.Entry, context.Context, meta.AnyGroup, fmt.Printf, errors.Frame
-var _, _ = foo.Foo, bar.Bar
 `,
 	},
 

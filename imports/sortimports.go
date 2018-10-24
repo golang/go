@@ -34,8 +34,18 @@ func sortImports(fset *token.FileSet, f *ast.File) {
 			continue
 		}
 
-		// Sort and regroup all imports.
-		sortSpecs(fset, f, d.Specs)
+		// Identify and sort runs of specs on successive lines.
+		i := 0
+		specs := d.Specs[:0]
+		for j, s := range d.Specs {
+			if j > i && fset.Position(s.Pos()).Line > 1+fset.Position(d.Specs[j-1].End()).Line {
+				// j begins a new run.  End this one.
+				specs = append(specs, sortSpecs(fset, f, d.Specs[i:j])...)
+				i = j
+			}
+		}
+		specs = append(specs, sortSpecs(fset, f, d.Specs[i:])...)
+		d.Specs = specs
 
 		// Deduping can leave a blank line before the rparen; clean that up.
 		if len(d.Specs) > 0 {
