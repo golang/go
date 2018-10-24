@@ -363,7 +363,7 @@ func (v Value) Bool() bool {
 
 // Truthy returns the JavaScript "truthiness" of the value v.  In JavaScript,
 // false, 0, "", null, undefined, and NaN are "falsy", and everything else is
-// "truthy".
+// "truthy".  See https://developer.mozilla.org/en-US/docs/Glossary/Truthy.
 func (v Value) Truthy() bool {
 	switch v.Type() {
 	case TypeUndefined, TypeNull:
@@ -374,13 +374,14 @@ func (v Value) Truthy() bool {
 		if v.ref == valueNaN.ref {
 			return false
 		}
-		return v.Float() != 0
+		return v.ref != valueZero.ref
 	case TypeString:
 		return v.String() != ""
 	case TypeSymbol, TypeFunction, TypeObject:
 		return true
+	default:
+		panic("bad type")
 	}
-	panic("Unknown type")
 }
 
 // String returns the value v converted to string according to JavaScript type conversions.
