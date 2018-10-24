@@ -8,6 +8,8 @@
 // functions for the predeclared unsigned integer types.
 package bits
 
+import _ "unsafe" // for go:linkname
+
 const uintSize = 32 << (^uint(0) >> 32 & 1) // 32 or 64
 
 // UintSize is the size of a uint in bits.
@@ -469,6 +471,9 @@ func Div(hi, lo, y uint) (quo, rem uint) {
 // hi must be < y otherwise the behavior is undefined (the quotient
 // won't fit into quo).
 func Div32(hi, lo, y uint32) (quo, rem uint32) {
+	if y != 0 && y <= hi {
+		panic(overflowError)
+	}
 	z := uint64(hi)<<32 | uint64(lo)
 	quo, rem = uint32(z/uint64(y)), uint32(z%uint64(y))
 	return
@@ -484,8 +489,11 @@ func Div64(hi, lo, y uint64) (quo, rem uint64) {
 		two32  = 1 << 32
 		mask32 = two32 - 1
 	)
-	if hi >= y {
-		return 1<<64 - 1, 1<<64 - 1
+	if y == 0 {
+		panic(divideError)
+	}
+	if y <= hi {
+		panic(overflowError)
 	}
 
 	s := uint(LeadingZeros64(y))
@@ -522,3 +530,9 @@ func Div64(hi, lo, y uint64) (quo, rem uint64) {
 
 	return q1*two32 + q0, (un21*two32 + un0 - q0*y) >> s
 }
+
+//go:linkname overflowError runtime.overflowError
+var overflowError error
+
+//go:linkname divideError runtime.divideError
+var divideError error
