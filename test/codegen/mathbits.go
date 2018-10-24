@@ -465,3 +465,17 @@ func Mul64(x, y uint64) (hi, lo uint64) {
 	// ppc64le:"MULHDU","MULLD"
 	return bits.Mul64(x, y)
 }
+
+// --------------- //
+//    bits.Div*    //
+// --------------- //
+
+func Div(hi, lo, x uint) (q, r uint) {
+	// amd64:"DIVQ"
+	return bits.Div(hi, lo, x)
+}
+
+func Div64(hi, lo, x uint64) (q, r uint64) {
+	// amd64:"DIVQ"
+	return bits.Div64(hi, lo, x)
+}
