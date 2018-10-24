@@ -62,7 +62,7 @@ var pkgDeps = map[string][]string{
 	// L1 adds simple functions and strings processing,
 	// but not Unicode tables.
 	"math":          {"internal/cpu", "unsafe"},
-	"math/bits":     {},
+	"math/bits":     {"unsafe"},
 	"math/cmplx":    {"math"},
 	"math/rand":     {"L0", "math"},
 	"strconv":       {"L0", "unicode/utf8", "math", "math/bits"},

@@ -6,6 +6,7 @@ package bits_test
 
 import (
 	. "math/bits"
+	"runtime"
 	"testing"
 	"unsafe"
 )
@@ -873,6 +874,89 @@ func TestMulDiv64(t *testing.T) {
 		testDiv("Div64", Div64, a.hi, a.lo+a.r, a.y, a.x, a.r)
 		testDiv("Div64 symmetric", Div64, a.hi, a.lo+a.r, a.x, a.y, a.r)
 	}
+}
+
+const (
+	divZeroError  = "runtime error: integer divide by zero"
+	overflowError = "runtime error: integer overflow"
+)
+
+func TestDivPanicOverflow(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div should have panicked when y<=hi")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != overflowError {
+			t.Errorf("Div expected panic: %q, got: %q ", overflowError, e.Error())
+		}
+	}()
+	q, r := Div(1, 0, 1)
+	t.Errorf("undefined q, r = %v, %v calculated when Div should have panicked", q, r)
+}
+
+func TestDiv32PanicOverflow(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div32 should have panicked when y<=hi")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != overflowError {
+			t.Errorf("Div32 expected panic: %q, got: %q ", overflowError, e.Error())
+		}
+	}()
+	q, r := Div32(1, 0, 1)
+	t.Errorf("undefined q, r = %v, %v calculated when Div32 should have panicked", q, r)
+}
+
+func TestDiv64PanicOverflow(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div64 should have panicked when y<=hi")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != overflowError {
+			t.Errorf("Div64 expected panic: %q, got: %q ", overflowError, e.Error())
+		}
+	}()
+	q, r := Div64(1, 0, 1)
+	t.Errorf("undefined q, r = %v, %v calculated when Div64 should have panicked", q, r)
+}
+
+func TestDivPanicZero(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div should have panicked when y==0")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != divZeroError {
+			t.Errorf("Div expected panic: %q, got: %q ", divZeroError, e.Error())
+		}
+	}()
+	q, r := Div(1, 1, 0)
+	t.Errorf("undefined q, r = %v, %v calculated when Div should have panicked", q, r)
+}
+
+func TestDiv32PanicZero(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div32 should have panicked when y==0")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != divZeroError {
+			t.Errorf("Div32 expected panic: %q, got: %q ", divZeroError, e.Error())
+		}
+	}()
+	q, r := Div32(1, 1, 0)
+	t.Errorf("undefined q, r = %v, %v calculated when Div32 should have panicked", q, r)
+}
+
+func TestDiv64PanicZero(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div64 should have panicked when y==0")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != divZeroError {
+			t.Errorf("Div64 expected panic: %q, got: %q ", divZeroError, e.Error())
+		}
+	}()
+	q, r := Div64(1, 1, 0)
+	t.Errorf("undefined q, r = %v, %v calculated when Div64 should have panicked", q, r)
 }
 
 func BenchmarkAdd(b *testing.B) {
