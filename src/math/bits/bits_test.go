@@ -918,7 +918,7 @@ func BenchmarkSub32(b *testing.B) {
 func BenchmarkSub64(b *testing.B) {
 	var z, c uint64
 	for i := 0; i < b.N; i++ {
-		z, c = Add64(uint64(Input), uint64(i), c)
+		z, c = Sub64(uint64(Input), uint64(i), c)
 	}
 	Output = int(z + c)
 }
