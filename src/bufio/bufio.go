@@ -37,8 +37,10 @@ type Reader struct {
 	lastRuneSize int
 }
 
-const minReadBufferSize = 16
-const maxConsecutiveEmptyReads = 100
+const (
+	minReadBufferSize        = 16
+	maxConsecutiveEmptyReads = 100
+)
 
 // NewReaderSize returns a new Reader whose buffer has at least the specified
 // size. If the argument io.Reader is already a Reader with large enough
