@@ -354,3 +354,15 @@ func issue21727() {
 	var _ = string(1 << s)
 	var _ = string(1.0 /* ERROR "cannot convert" */ << s)
 }
+
+func issue22969() {
+	var s uint
+	var a []byte
+	_ = a[0xffffffffffffffff /* ERROR "overflows int" */ <<s] // example from issue 22969
+	_ = make([]int, 0xffffffffffffffff /* ERROR "overflows int" */ << s)
+	_ = make([]int, 0, 0xffffffffffffffff /* ERROR "overflows int" */ << s)
+	var _ byte = 0x100 /* ERROR "overflows byte" */ << s
+	var _ int8 = 0xff /* ERROR "overflows int8" */ << s
+	var _ int16 = 0xffff /* ERROR "overflows int16" */ << s
+	var _ int32 = 0x80000000 /* ERROR "overflows int32" */ << s
+}
