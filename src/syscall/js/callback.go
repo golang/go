@@ -20,6 +20,8 @@ var (
 	nextCallbackID uint32 = 1
 )
 
+var _ Wrapper = Callback{} // Callback must implement Wrapper
+
 // Callback is a Go function that got wrapped for use as a JavaScript callback.
 type Callback struct {
 	Value // the JavaScript function that queues the callback for execution
