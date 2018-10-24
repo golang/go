@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -27,6 +28,9 @@ var (
 )
 
 func TestRemoteFiles(t *testing.T) {
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skipf("files from outside the package are not available on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
 	files, err := ioutil.ReadDir(otherDir)
 	if err != nil {
 		t.Fatal(err)
