@@ -133,10 +133,7 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 		}
 
 		// We have a package.
-		if showAll {
-			if symbol != "" {
-				return fmt.Errorf("-all valid only for package, not symbol: %s", symbol)
-			}
+		if showAll && symbol == "" {
 			pkg.allDoc()
 			return
 		}
