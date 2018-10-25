@@ -78,6 +78,27 @@ func (t *treapNode) pred() *treapNode {
 	return t.parent
 }
 
+func (t *treapNode) succ() *treapNode {
+	if t.right != nil {
+		// If it has a right child, its successor will be
+		// its left-most right (grand)child.
+		t = t.right
+		for t.left != nil {
+			t = t.left
+		}
+		return t
+	}
+	// See pred.
+	for t.parent != nil && t.parent.left != t {
+		if t.parent.right != t {
+			println("runtime: predecessor t=", t, "t.spanKey=", t.spanKey)
+			throw("node is not its parent's child")
+		}
+		t = t.parent
+	}
+	return t.parent
+}
+
 // isSpanInTreap is handy for debugging. One should hold the heap lock, usually
 // mheap_.lock().
 func (t *treapNode) isSpanInTreap(s *mspan) bool {
