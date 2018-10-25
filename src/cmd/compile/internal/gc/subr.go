@@ -28,9 +28,17 @@ type Error struct {
 
 var errors []Error
 
+// largeStack is info about a function whose stack frame is too large (rare).
+type largeStack struct {
+	locals int64
+	args   int64
+	callee int64
+	pos    src.XPos
+}
+
 var (
 	largeStackFramesMu sync.Mutex // protects largeStackFrames
-	largeStackFrames   []src.XPos // positions of functions whose stack frames are too large (rare)
+	largeStackFrames   []largeStack
 )
 
 func errorexit() {

@@ -689,10 +689,14 @@ func Main(archInit func(*Arch)) {
 
 	// Check whether any of the functions we have compiled have gigantic stack frames.
 	obj.SortSlice(largeStackFrames, func(i, j int) bool {
-		return largeStackFrames[i].Before(largeStackFrames[j])
+		return largeStackFrames[i].pos.Before(largeStackFrames[j].pos)
 	})
-	for _, largePos := range largeStackFrames {
-		yyerrorl(largePos, "stack frame too large (>1GB)")
+	for _, large := range largeStackFrames {
+		if large.callee != 0 {
+			yyerrorl(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
+		} else {
+			yyerrorl(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
+		}
 	}
 
 	if len(compilequeue) != 0 {
