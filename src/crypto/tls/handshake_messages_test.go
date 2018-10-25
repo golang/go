@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 	"testing/quick"
+	"time"
 )
 
 var tests = []interface{}{
@@ -31,7 +32,7 @@ var tests = []interface{}{
 }
 
 func TestMarshalUnmarshal(t *testing.T) {
-	rand := rand.New(rand.NewSource(0))
+	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for i, iface := range tests {
 		ty := reflect.ValueOf(iface).Type()
@@ -132,7 +133,7 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m.supportedPoints = randomBytes(rand.Intn(5)+1, rand)
 	m.supportedCurves = make([]CurveID, rand.Intn(5)+1)
 	for i := range m.supportedCurves {
-		m.supportedCurves[i] = CurveID(rand.Intn(30000))
+		m.supportedCurves[i] = CurveID(rand.Intn(30000) + 1)
 	}
 	if rand.Intn(10) > 5 {
 		m.ticketSupported = true
@@ -145,6 +146,9 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	if rand.Intn(10) > 5 {
 		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
 	}
+	if rand.Intn(10) > 5 {
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
+	}
 	for i := 0; i < rand.Intn(5); i++ {
 		m.alpnProtocols = append(m.alpnProtocols, randomString(rand.Intn(20)+1, rand))
 	}
@@ -154,6 +158,31 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	if rand.Intn(10) > 5 {
 		m.secureRenegotiationSupported = true
 		m.secureRenegotiation = randomBytes(rand.Intn(50)+1, rand)
+	}
+	for i := 0; i < rand.Intn(5); i++ {
+		m.supportedVersions = append(m.supportedVersions, uint16(rand.Intn(0xffff)+1))
+	}
+	if rand.Intn(10) > 5 {
+		m.cookie = randomBytes(rand.Intn(500)+1, rand)
+	}
+	for i := 0; i < rand.Intn(5); i++ {
+		var ks keyShare
+		ks.group = CurveID(rand.Intn(30000) + 1)
+		ks.data = randomBytes(rand.Intn(200)+1, rand)
+		m.keyShares = append(m.keyShares, ks)
+	}
+	switch rand.Intn(3) {
+	case 1:
+		m.pskModes = []uint8{pskModeDHE}
+	case 2:
+		m.pskModes = []uint8{pskModeDHE, pskModePlain}
+	}
+	for i := 0; i < rand.Intn(5); i++ {
+		var psk pskIdentity
+		psk.obfuscatedTicketAge = uint32(rand.Intn(500000))
+		psk.label = randomBytes(rand.Intn(500)+1, rand)
+		m.pskIdentities = append(m.pskIdentities, psk)
+		m.pskBinders = append(m.pskBinders, randomBytes(rand.Intn(50)+32, rand))
 	}
 
 	return reflect.ValueOf(m)
@@ -189,6 +218,24 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	if rand.Intn(10) > 5 {
 		m.secureRenegotiationSupported = true
 		m.secureRenegotiation = randomBytes(rand.Intn(50)+1, rand)
+	}
+	if rand.Intn(10) > 5 {
+		m.supportedVersion = uint16(rand.Intn(0xffff) + 1)
+	}
+	if rand.Intn(10) > 5 {
+		m.cookie = randomBytes(rand.Intn(500)+1, rand)
+	}
+	if rand.Intn(10) > 5 {
+		for i := 0; i < rand.Intn(5); i++ {
+			m.serverShare.group = CurveID(rand.Intn(30000) + 1)
+			m.serverShare.data = randomBytes(rand.Intn(200)+1, rand)
+		}
+	} else if rand.Intn(10) > 5 {
+		m.selectedGroup = CurveID(rand.Intn(30000) + 1)
+	}
+	if rand.Intn(10) > 5 {
+		m.selectedIdentityPresent = true
+		m.selectedIdentity = uint16(rand.Intn(0xffff))
 	}
 
 	return reflect.ValueOf(m)
