@@ -8,12 +8,13 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
-	"golang.org/x/tools/go/packages"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+
+	"golang.org/x/tools/go/packages"
 )
 
 // Modules is the exporter that produces module layouts.

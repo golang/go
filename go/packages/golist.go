@@ -174,7 +174,7 @@ var modCacheRegexp = regexp.MustCompile(`(.*)@([^/\\]*)(.*)`)
 
 func runNamedQueries(cfg *Config, driver driver, addPkg func(*Package), queries []string) ([]string, error) {
 	// Determine which directories are relevant to scan.
-	roots, modulesEnabled, err := roots(cfg)
+	roots, modRoot, err := roots(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,26 @@ func runNamedQueries(cfg *Config, driver driver, addPkg func(*Package), queries 
 			}
 		}
 	}
-	gopathwalk.Walk(roots, add, gopathwalk.Options{ModulesEnabled: modulesEnabled})
+	gopathwalk.Walk(roots, add, gopathwalk.Options{ModulesEnabled: modRoot != ""})
+
+	// Weird special case: the top-level package in a module will be in
+	// whatever directory the user checked the repository out into. It's
+	// more reasonable for that to not match the package name. So, if there
+	// are any Go files in the mod root, query it just to be safe.
+	if modRoot != "" {
+		rel, err := filepath.Rel(cfg.Dir, modRoot)
+		if err != nil {
+			panic(err) // See above.
+		}
+
+		files, err := ioutil.ReadDir(modRoot)
+		for _, f := range files {
+			if strings.HasSuffix(f.Name(), ".go") {
+				simpleMatches = append(simpleMatches, rel)
+				break
+			}
+		}
+	}
 
 	var results []string
 	addResponse := func(r *driverResponse) {
@@ -291,36 +310,39 @@ func runNamedQueries(cfg *Config, driver driver, addPkg func(*Package), queries 
 
 // roots selects the appropriate paths to walk based on the passed-in configuration,
 // particularly the environment and the presence of a go.mod in cfg.Dir's parents.
-func roots(cfg *Config) ([]gopathwalk.Root, bool, error) {
+func roots(cfg *Config) ([]gopathwalk.Root, string, error) {
 	stdout, err := invokeGo(cfg, "env", "GOROOT", "GOPATH", "GOMOD")
 	if err != nil {
-		return nil, false, err
+		return nil, "", err
 	}
 
 	fields := strings.Split(stdout.String(), "\n")
 	if len(fields) != 4 || len(fields[3]) != 0 {
-		return nil, false, fmt.Errorf("go env returned unexpected output: %q", stdout.String())
+		return nil, "", fmt.Errorf("go env returned unexpected output: %q", stdout.String())
 	}
 	goroot, gopath, gomod := fields[0], filepath.SplitList(fields[1]), fields[2]
-	modsEnabled := gomod != ""
+	var modDir string
+	if gomod != "" {
+		modDir = filepath.Dir(gomod)
+	}
 
 	var roots []gopathwalk.Root
 	// Always add GOROOT.
 	roots = append(roots, gopathwalk.Root{filepath.Join(goroot, "/src"), gopathwalk.RootGOROOT})
 	// If modules are enabled, scan the module dir.
-	if modsEnabled {
-		roots = append(roots, gopathwalk.Root{filepath.Dir(gomod), gopathwalk.RootCurrentModule})
+	if modDir != "" {
+		roots = append(roots, gopathwalk.Root{modDir, gopathwalk.RootCurrentModule})
 	}
 	// Add either GOPATH/src or GOPATH/pkg/mod, depending on module mode.
 	for _, p := range gopath {
-		if modsEnabled {
+		if modDir != "" {
 			roots = append(roots, gopathwalk.Root{filepath.Join(p, "/pkg/mod"), gopathwalk.RootModuleCache})
 		} else {
 			roots = append(roots, gopathwalk.Root{filepath.Join(p, "/src"), gopathwalk.RootGOPATH})
 		}
 	}
 
-	return roots, modsEnabled, nil
+	return roots, modDir, nil
 }
 
 // These functions were copied from goimports. See further documentation there.

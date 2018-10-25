@@ -1146,10 +1146,13 @@ func TestName_Modules(t *testing.T) {
 		t.Skip("pre-modules version of Go")
 	}
 
+	// Test the top-level package case described in runNamedQueries.
+	// Note that overriding GOPATH below prevents Export from
+	// creating more than one module.
 	exported := packagestest.Export(t, packagestest.Modules, []packagestest.Module{{
-		Name: "golang.org/fake",
+		Name: "golang.org/pkg",
 		Files: map[string]interface{}{
-			"pkg/pkg.go": `package pkg`,
+			"pkg.go": `package pkg`,
 		}}})
 	defer exported.Cleanup()
 
@@ -1171,7 +1174,7 @@ func TestName_Modules(t *testing.T) {
 	wantGraph := `
 * github.com/heschik/tools-testrepo/pkg
 * github.com/heschik/tools-testrepo/v2/pkg
-* golang.org/fake/pkg
+* golang.org/pkg
 `[1:]
 	if graph != wantGraph {
 		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
