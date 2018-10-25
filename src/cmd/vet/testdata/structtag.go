@@ -59,7 +59,7 @@ type DuplicateJSONFields struct {
 	NonJSON           int `foo:"a"`
 	DuplicateNonJSON  int `foo:"a"`
 	Embedded          struct {
-		DuplicateJSON int `json:"a"` // OK because its not in the same struct type
+		DuplicateJSON int `json:"a"` // OK because it's not in the same struct type
 	}
 	AnonymousJSON `json:"a"` // ERROR "struct field AnonymousJSON repeats json tag .a. also at structtag.go:52"
 
@@ -75,7 +75,7 @@ type DuplicateJSONFields struct {
 	NonXML           int `foo:"a"`
 	DuplicateNonXML  int `foo:"a"`
 	Embedded2        struct {
-		DuplicateXML int `xml:"a"` // OK because its not in the same struct type
+		DuplicateXML int `xml:"a"` // OK because it's not in the same struct type
 	}
 	AnonymousXML `xml:"a"` // ERROR "struct field AnonymousXML repeats xml tag .a. also at structtag.go:68"
 	Attribute    struct {

@@ -212,6 +212,8 @@ const testFlag2 = `
 	    Run enough iterations of each benchmark to take t, specified
 	    as a time.Duration (for example, -benchtime 1h30s).
 	    The default is 1 second (1s).
+	    The special syntax Nx means to run the benchmark N times
+	    (for example, -benchtime 100x).
 
 	-count n
 	    Run each test and benchmark n times (default 1).

@@ -646,7 +646,7 @@ func (ctxt *Link) loadlib() {
 //
 // These are the symbols that begin with the prefix 'type.' and
 // contain run-time type information used by the runtime and reflect
-// packages. All Go binaries contain these symbols, but only only
+// packages. All Go binaries contain these symbols, but only
 // those programs loaded dynamically in multiple parts need these
 // symbols to have entries in the symbol table.
 func (ctxt *Link) mangleTypeSym() {
@@ -1566,7 +1566,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	//
 	// Note: It's possible for "\n!\n" to appear within the binary
 	// package export data format. To avoid truncating the package
-	// definition prematurely (issue 21703), we keep keep track of
+	// definition prematurely (issue 21703), we keep track of
 	// how many "$$" delimiters we've seen.
 
 	import0 := f.Offset()

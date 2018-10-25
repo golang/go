@@ -384,19 +384,24 @@ func UserCacheDir() (string, error) {
 // UserHomeDir returns the current user's home directory.
 //
 // On Unix, including macOS, it returns the $HOME environment variable.
-// On Windows, it returns the concatenation of %HOMEDRIVE% and %HOMEPATH%.
+// On Windows, it returns %USERPROFILE%.
 // On Plan 9, it returns the $home environment variable.
 func UserHomeDir() string {
-	if runtime.GOOS == "windows" {
-		return Getenv("HOMEDRIVE") + Getenv("HOMEPATH")
-	}
-	if runtime.GOOS == "plan9" {
+	switch runtime.GOOS {
+	case "windows":
+		return Getenv("USERPROFILE")
+	case "plan9":
 		return Getenv("home")
-	}
-	if runtime.GOOS == "nacl" {
+	case "nacl", "android":
 		return "/"
+	case "darwin":
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+			return "/"
+		}
+		fallthrough
+	default:
+		return Getenv("HOME")
 	}
-	return Getenv("HOME")
 }
 
 // Chmod changes the mode of the named file to mode.

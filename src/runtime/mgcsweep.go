@@ -52,7 +52,7 @@ func bgsweep(c chan int) {
 	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
 
 	for {
-		for gosweepone() != ^uintptr(0) {
+		for sweepone() != ^uintptr(0) {
 			sweep.nbgsweep++
 			Gosched()
 		}
@@ -60,7 +60,7 @@ func bgsweep(c chan int) {
 			Gosched()
 		}
 		lock(&sweep.lock)
-		if !gosweepdone() {
+		if !isSweepDone() {
 			// This can happen if a GC runs between
 			// gosweepone returning ^0 above
 			// and the lock being acquired.
@@ -72,9 +72,8 @@ func bgsweep(c chan int) {
 	}
 }
 
-// sweeps one span
-// returns number of pages returned to heap, or ^uintptr(0) if there is nothing to sweep
-//go:nowritebarrier
+// sweepone sweeps one span and returns the number of pages returned
+// to the heap, or ^uintptr(0) if there was nothing to sweep.
 func sweepone() uintptr {
 	_g_ := getg()
 	sweepRatio := mheap_.sweepPagesPerByte // For debugging
@@ -101,7 +100,7 @@ func sweepone() uintptr {
 			// This can happen if direct sweeping already
 			// swept this span, but in that case the sweep
 			// generation should always be up-to-date.
-			if s.sweepgen != sg {
+			if !(s.sweepgen == sg || s.sweepgen == sg+3) {
 				print("runtime: bad span s.state=", s.state, " s.sweepgen=", s.sweepgen, " sweepgen=", sg, "\n")
 				throw("non in-use span in unswept list")
 			}
@@ -135,17 +134,13 @@ func sweepone() uintptr {
 	return npages
 }
 
-//go:nowritebarrier
-func gosweepone() uintptr {
-	var ret uintptr
-	systemstack(func() {
-		ret = sweepone()
-	})
-	return ret
-}
-
-//go:nowritebarrier
-func gosweepdone() bool {
+// isSweepDone reports whether all spans are swept or currently being swept.
+//
+// Note that this condition may transition from false to true at any
+// time as the sweeper runs. It may transition from true to false if a
+// GC runs; to prevent that the caller must be non-preemptible or must
+// somehow block GC progress.
+func isSweepDone() bool {
 	return mheap_.sweepdone != 0
 }
 
@@ -366,7 +361,7 @@ func (s *mspan) sweep(preserve bool) bool {
 			s.limit = 0 // prevent mlookup from finding this span
 			sysFault(unsafe.Pointer(s.base()), size)
 		} else {
-			mheap_.freeSpan(s, 1)
+			mheap_.freeSpan(s, true)
 		}
 		c.local_nlargefree++
 		c.local_largefree += size
@@ -414,7 +409,7 @@ retry:
 	newHeapLive := uintptr(atomic.Load64(&memstats.heap_live)-mheap_.sweepHeapLiveBasis) + spanBytes
 	pagesTarget := int64(mheap_.sweepPagesPerByte*float64(newHeapLive)) - int64(callerSweepPages)
 	for pagesTarget > int64(atomic.Load64(&mheap_.pagesSwept)-sweptBasis) {
-		if gosweepone() == ^uintptr(0) {
+		if sweepone() == ^uintptr(0) {
 			mheap_.sweepPagesPerByte = 0
 			break
 		}

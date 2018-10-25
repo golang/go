@@ -17353,6 +17353,51 @@ func rewriteValuegeneric_OpMove_20(v *Value) bool {
 		v.AddArg(v1)
 		return true
 	}
+	// match: (Move {t1} [s1] dst tmp1 midmem:(Move {t2} [s2] tmp2 src _))
+	// cond: s1 == s2 && t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq && isSamePtr(tmp1, tmp2)
+	// result: (Move {t1} [s1] dst src midmem)
+	for {
+		s1 := v.AuxInt
+		t1 := v.Aux
+		_ = v.Args[2]
+		dst := v.Args[0]
+		tmp1 := v.Args[1]
+		midmem := v.Args[2]
+		if midmem.Op != OpMove {
+			break
+		}
+		s2 := midmem.AuxInt
+		t2 := midmem.Aux
+		_ = midmem.Args[2]
+		tmp2 := midmem.Args[0]
+		src := midmem.Args[1]
+		if !(s1 == s2 && t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq && isSamePtr(tmp1, tmp2)) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = s1
+		v.Aux = t1
+		v.AddArg(dst)
+		v.AddArg(src)
+		v.AddArg(midmem)
+		return true
+	}
+	// match: (Move dst src mem)
+	// cond: isSamePtr(dst, src)
+	// result: mem
+	for {
+		_ = v.Args[2]
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(isSamePtr(dst, src)) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpMul16_0(v *Value) bool {
@@ -28748,9 +28793,9 @@ func rewriteValuegeneric_OpStringLen_0(v *Value) bool {
 	return false
 }
 func rewriteValuegeneric_OpStringPtr_0(v *Value) bool {
-	// match: (StringPtr (StringMake (Const64 <t> [c]) _))
+	// match: (StringPtr (StringMake (Addr <t> {s} base) _))
 	// cond:
-	// result: (Const64 <t> [c])
+	// result: (Addr <t> {s} base)
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpStringMake {
@@ -28758,14 +28803,16 @@ func rewriteValuegeneric_OpStringPtr_0(v *Value) bool {
 		}
 		_ = v_0.Args[1]
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpConst64 {
+		if v_0_0.Op != OpAddr {
 			break
 		}
 		t := v_0_0.Type
-		c := v_0_0.AuxInt
-		v.reset(OpConst64)
+		s := v_0_0.Aux
+		base := v_0_0.Args[0]
+		v.reset(OpAddr)
 		v.Type = t
-		v.AuxInt = c
+		v.Aux = s
+		v.AddArg(base)
 		return true
 	}
 	return false

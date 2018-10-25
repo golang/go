@@ -16,15 +16,17 @@ import (
 )
 
 // ref is used to identify a JavaScript value, since the value itself can not be passed to WebAssembly.
-// A JavaScript number (64-bit float, except NaN) is represented by its IEEE 754 binary representation.
+//
+// The JavaScript value "undefined" is represented by the value 0.
+// A JavaScript number (64-bit float, except 0 and NaN) is represented by its IEEE 754 binary representation.
 // All other values are represented as an IEEE 754 binary representation of NaN with bits 0-31 used as
 // an ID and bits 32-33 used to differentiate between string, symbol, function and object.
 type ref uint64
 
-// nanHead are the upper 32 bits of a ref which are set if the value is not a JavaScript number or NaN itself.
+// nanHead are the upper 32 bits of a ref which are set if the value is not encoded as an IEEE 754 number (see above).
 const nanHead = 0x7FF80000
 
-// Value represents a JavaScript value.
+// Value represents a JavaScript value. The zero value is the JavaScript value "undefined".
 type Value struct {
 	ref ref
 }
@@ -38,6 +40,9 @@ func predefValue(id uint32) Value {
 }
 
 func floatValue(f float64) Value {
+	if f == 0 {
+		return valueZero
+	}
 	if f != f {
 		return valueNaN
 	}
@@ -56,8 +61,9 @@ func (e Error) Error() string {
 }
 
 var (
+	valueUndefined = Value{ref: 0}
 	valueNaN       = predefValue(0)
-	valueUndefined = predefValue(1)
+	valueZero      = predefValue(1)
 	valueNull      = predefValue(2)
 	valueTrue      = predefValue(3)
 	valueFalse     = predefValue(4)
@@ -318,12 +324,17 @@ func (v Value) New(args ...interface{}) Value {
 func valueNew(v ref, args []ref) (ref, bool)
 
 func (v Value) isNumber() bool {
-	return v.ref>>32&nanHead != nanHead || v.ref == valueNaN.ref
+	return v.ref == valueZero.ref ||
+		v.ref == valueNaN.ref ||
+		(v.ref != valueUndefined.ref && v.ref>>32&nanHead != nanHead)
 }
 
 func (v Value) float(method string) float64 {
 	if !v.isNumber() {
 		panic(&ValueError{method, v.Type()})
+	}
+	if v.ref == valueZero.ref {
+		return 0
 	}
 	return *(*float64)(unsafe.Pointer(&v.ref))
 }

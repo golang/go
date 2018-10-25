@@ -385,9 +385,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 	return f, nil
 }
 
-// The package cache doesn't operate correctly in rare (so far artificial)
-// circumstances (issue 8425). Disable before debugging non-obvious errors
-// from the type-checker.
+// Disable before debugging non-obvious errors from the type-checker.
 const usePkgCache = true
 
 var (
@@ -398,7 +396,7 @@ var (
 // tagKey returns the tag-based key to use in the pkgCache.
 // It is a comma-separated string; the first part is dir, the rest tags.
 // The satisfied tags are derived from context but only those that
-// matter (the ones listed in the tags argument) are used.
+// matter (the ones listed in the tags argument plus GOOS and GOARCH) are used.
 // The tags list, which came from go/build's Package.AllTags,
 // is known to be sorted.
 func tagKey(dir string, context *build.Context, tags []string) string {
@@ -414,9 +412,17 @@ func tagKey(dir string, context *build.Context, tags []string) string {
 	}
 	// TODO: ReleaseTags (need to load default)
 	key := dir
+
+	// explicit on GOOS and GOARCH as global cache will use "all" cached packages for
+	// an indirect imported package. See https://github.com/golang/go/issues/21181
+	// for more detail.
+	tags = append(tags, context.GOOS, context.GOARCH)
+	sort.Strings(tags)
+
 	for _, tag := range tags {
 		if ctags[tag] {
 			key += "," + tag
+			ctags[tag] = false
 		}
 	}
 	return key

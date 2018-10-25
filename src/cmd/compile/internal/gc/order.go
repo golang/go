@@ -42,8 +42,9 @@ import (
 
 // Order holds state during the ordering process.
 type Order struct {
-	out  []*Node // list of generated statements
-	temp []*Node // stack of temporary variables
+	out  []*Node            // list of generated statements
+	temp []*Node            // stack of temporary variables
+	free map[string][]*Node // free list of unused temporaries, by type.LongString().
 }
 
 // Order rewrites fn.Nbody to apply the ordering constraints
@@ -54,14 +55,30 @@ func order(fn *Node) {
 		dumplist(s, fn.Nbody)
 	}
 
-	orderBlock(&fn.Nbody)
+	orderBlock(&fn.Nbody, map[string][]*Node{})
 }
 
 // newTemp allocates a new temporary with the given type,
 // pushes it onto the temp stack, and returns it.
 // If clear is true, newTemp emits code to zero the temporary.
 func (o *Order) newTemp(t *types.Type, clear bool) *Node {
-	v := temp(t)
+	var v *Node
+	// Note: LongString is close to the type equality we want,
+	// but not exactly. We still need to double-check with eqtype.
+	key := t.LongString()
+	a := o.free[key]
+	for i, n := range a {
+		if types.Identical(t, n.Type) {
+			v = a[i]
+			a[i] = a[len(a)-1]
+			a = a[:len(a)-1]
+			o.free[key] = a
+			break
+		}
+	}
+	if v == nil {
+		v = temp(t)
+	}
 	if clear {
 		a := nod(OAS, v, nil)
 		a = typecheck(a, Etop)
@@ -216,6 +233,45 @@ func (o *Order) mapKeyTemp(t *types.Type, n *Node) *Node {
 	return n
 }
 
+// mapKeyReplaceStrConv replaces OARRAYBYTESTR by OARRAYBYTESTRTMP
+// in n to avoid string allocations for keys in map lookups.
+// Returns a bool that signals if a modification was made.
+//
+// For:
+//  x = m[string(k)]
+//  x = m[T1{... Tn{..., string(k), ...}]
+// where k is []byte, T1 to Tn is a nesting of struct and array literals,
+// the allocation of backing bytes for the string can be avoided
+// by reusing the []byte backing array. These are special cases
+// for avoiding allocations when converting byte slices to strings.
+// It would be nice to handle these generally, but because
+// []byte keys are not allowed in maps, the use of string(k)
+// comes up in important cases in practice. See issue 3512.
+func mapKeyReplaceStrConv(n *Node) bool {
+	var replaced bool
+	switch n.Op {
+	case OARRAYBYTESTR:
+		n.Op = OARRAYBYTESTRTMP
+		replaced = true
+	case OSTRUCTLIT:
+		for _, elem := range n.List.Slice() {
+			if mapKeyReplaceStrConv(elem.Left) {
+				replaced = true
+			}
+		}
+	case OARRAYLIT:
+		for _, elem := range n.List.Slice() {
+			if elem.Op == OKEY {
+				elem = elem.Right
+			}
+			if mapKeyReplaceStrConv(elem) {
+				replaced = true
+			}
+		}
+	}
+	return replaced
+}
+
 type ordermarker int
 
 // Marktemp returns the top of the temporary variable stack.
@@ -226,6 +282,10 @@ func (o *Order) markTemp() ordermarker {
 // Poptemp pops temporaries off the stack until reaching the mark,
 // which must have been returned by marktemp.
 func (o *Order) popTemp(mark ordermarker) {
+	for _, n := range o.temp[mark:] {
+		key := n.Type.LongString()
+		o.free[key] = append(o.free[key], n)
+	}
 	o.temp = o.temp[:mark]
 }
 
@@ -266,8 +326,10 @@ func (o *Order) stmtList(l Nodes) {
 
 // orderBlock orders the block of statements in n into a new slice,
 // and then replaces the old slice in n with the new slice.
-func orderBlock(n *Nodes) {
+// free is a map that can be used to obtain temporary variables by type.
+func orderBlock(n *Nodes, free map[string][]*Node) {
 	var order Order
+	order.free = free
 	mark := order.markTemp()
 	order.stmtList(*n)
 	order.cleanTemp(mark)
@@ -280,6 +342,7 @@ func orderBlock(n *Nodes) {
 // 	n.Left = o.exprInPlace(n.Left)
 func (o *Order) exprInPlace(n *Node) *Node {
 	var order Order
+	order.free = o.free
 	n = order.expr(n, nil)
 	n = addinit(n, order.out)
 
@@ -293,8 +356,10 @@ func (o *Order) exprInPlace(n *Node) *Node {
 // and replaces it with the resulting statement list.
 // The result of orderStmtInPlace MUST be assigned back to n, e.g.
 // 	n.Left = orderStmtInPlace(n.Left)
-func orderStmtInPlace(n *Node) *Node {
+// free is a map that can be used to obtain temporary variables by type.
+func orderStmtInPlace(n *Node, free map[string][]*Node) *Node {
 	var order Order
+	order.free = free
 	mark := order.markTemp()
 	order.stmt(n)
 	order.cleanTemp(mark)
@@ -341,11 +406,13 @@ func (o *Order) copyRet(n *Node) []*Node {
 		Fatalf("copyret %v %d", n.Type, n.Left.Type.NumResults())
 	}
 
-	var l1, l2 []*Node
-	for _, f := range n.Type.Fields().Slice() {
-		tmp := temp(f.Type)
-		l1 = append(l1, tmp)
-		l2 = append(l2, tmp)
+	slice := n.Type.Fields().Slice()
+	l1 := make([]*Node, len(slice))
+	l2 := make([]*Node, len(slice))
+	for i, t := range slice {
+		tmp := temp(t.Type)
+		l1[i] = tmp
+		l2[i] = tmp
 	}
 
 	as := nod(OAS2, nil, nil)
@@ -554,10 +621,9 @@ func (o *Order) stmt(n *Node) {
 		r.Left = o.expr(r.Left, nil)
 		r.Right = o.expr(r.Right, nil)
 
-		// See case OINDEXMAP below.
-		if r.Right.Op == OARRAYBYTESTR {
-			r.Right.Op = OARRAYBYTESTRTMP
-		}
+		// See similar conversion for OINDEXMAP below.
+		_ = mapKeyReplaceStrConv(r.Right)
+
 		r.Right = o.mapKeyTemp(r.Left.Type, r.Right)
 		o.okAs2(n)
 		o.cleanTemp(t)
@@ -643,8 +709,8 @@ func (o *Order) stmt(n *Node) {
 		t := o.markTemp()
 		n.Left = o.exprInPlace(n.Left)
 		n.Nbody.Prepend(o.cleanTempNoPop(t)...)
-		orderBlock(&n.Nbody)
-		n.Right = orderStmtInPlace(n.Right)
+		orderBlock(&n.Nbody, o.free)
+		n.Right = orderStmtInPlace(n.Right, o.free)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
@@ -656,8 +722,8 @@ func (o *Order) stmt(n *Node) {
 		n.Nbody.Prepend(o.cleanTempNoPop(t)...)
 		n.Rlist.Prepend(o.cleanTempNoPop(t)...)
 		o.popTemp(t)
-		orderBlock(&n.Nbody)
-		orderBlock(&n.Rlist)
+		orderBlock(&n.Nbody, o.free)
+		orderBlock(&n.Rlist, o.free)
 		o.out = append(o.out, n)
 
 	// Special: argument will be converted to interface using convT2E
@@ -739,7 +805,7 @@ func (o *Order) stmt(n *Node) {
 		}
 		o.exprListInPlace(n.List)
 		if orderBody {
-			orderBlock(&n.Nbody)
+			orderBlock(&n.Nbody, o.free)
 		}
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
@@ -857,7 +923,7 @@ func (o *Order) stmt(n *Node) {
 					tmp2 = typecheck(tmp2, Etop)
 					n2.Ninit.Append(tmp2)
 				}
-				orderBlock(&n2.Ninit)
+				orderBlock(&n2.Ninit, o.free)
 
 			case OSEND:
 				if r.Ninit.Len() != 0 {
@@ -882,7 +948,7 @@ func (o *Order) stmt(n *Node) {
 		// Also insert any ninit queued during the previous loop.
 		// (The temporary cleaning must follow that ninit work.)
 		for _, n3 := range n.List.Slice() {
-			orderBlock(&n3.Nbody)
+			orderBlock(&n3.Nbody, o.free)
 			n3.Nbody.Prepend(o.cleanTempNoPop(t)...)
 
 			// TODO(mdempsky): Is this actually necessary?
@@ -924,7 +990,7 @@ func (o *Order) stmt(n *Node) {
 				Fatalf("order switch case %v", ncas.Op)
 			}
 			o.exprListInPlace(ncas.List)
-			orderBlock(&ncas.Nbody)
+			orderBlock(&ncas.Nbody, o.free)
 		}
 
 		o.out = append(o.out, n)
@@ -1010,45 +1076,24 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			}
 		}
 
-	case OCMPSTR:
-		n.Left = o.expr(n.Left, nil)
-		n.Right = o.expr(n.Right, nil)
-
-		// Mark string(byteSlice) arguments to reuse byteSlice backing
-		// buffer during conversion. String comparison does not
-		// memorize the strings for later use, so it is safe.
-		if n.Left.Op == OARRAYBYTESTR {
-			n.Left.Op = OARRAYBYTESTRTMP
-		}
-		if n.Right.Op == OARRAYBYTESTR {
-			n.Right.Op = OARRAYBYTESTRTMP
-		}
-
 		// key must be addressable
 	case OINDEXMAP:
 		n.Left = o.expr(n.Left, nil)
 		n.Right = o.expr(n.Right, nil)
 		needCopy := false
 
-		if !n.IndexMapLValue() && instrumenting {
-			// Race detector needs the copy so it can
-			// call treecopy on the result.
-			needCopy = true
-		}
+		if !n.IndexMapLValue() {
+			// Enforce that any []byte slices we are not copying
+			// can not be changed before the map index by forcing
+			// the map index to happen immediately following the
+			// conversions. See copyExpr a few lines below.
+			needCopy = mapKeyReplaceStrConv(n.Right)
 
-		// For x = m[string(k)] where k is []byte, the allocation of
-		// backing bytes for the string can be avoided by reusing
-		// the []byte backing array. This is a special case that it
-		// would be nice to handle more generally, but because
-		// there are no []byte-keyed maps, this specific case comes
-		// up in important cases in practice. See issue 3512.
-		// Nothing can change the []byte we are not copying before
-		// the map index, because the map access is going to
-		// be forced to happen immediately following this
-		// conversion (by the ordercopyexpr a few lines below).
-		if !n.IndexMapLValue() && n.Right.Op == OARRAYBYTESTR {
-			n.Right.Op = OARRAYBYTESTRTMP
-			needCopy = true
+			if instrumenting {
+				// Race detector needs the copy so it can
+				// call treecopy on the result.
+				needCopy = true
+			}
 		}
 
 		n.Right = o.mapKeyTemp(n.Left.Type, n.Right)
@@ -1056,12 +1101,17 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			n = o.copyExpr(n, n.Type, false)
 		}
 
-	// concrete type (not interface) argument must be addressable
-	// temporary to pass to runtime.
+	// concrete type (not interface) argument might need an addressable
+	// temporary to pass to the runtime conversion routine.
 	case OCONVIFACE:
 		n.Left = o.expr(n.Left, nil)
-
-		if !n.Left.Type.IsInterface() {
+		if n.Left.Type.IsInterface() {
+			break
+		}
+		if _, needsaddr := convFuncName(n.Left.Type, n.Type); needsaddr || consttype(n.Left) > 0 {
+			// Need a temp if we need to pass the address to the conversion function.
+			// We also process constants here, making a named static global whose
+			// address we can put directly in an interface (see OCONVIFACE case in walk).
 			n.Left = o.addrTemp(n.Left)
 		}
 
@@ -1147,16 +1197,23 @@ func (o *Order) expr(n, lhs *Node) *Node {
 
 	case OCLOSURE:
 		if n.Noescape() && n.Func.Closure.Func.Cvars.Len() > 0 {
-			prealloc[n] = o.newTemp(types.Types[TUINT8], false) // walk will fill in correct type
+			prealloc[n] = o.newTemp(closureType(n), false)
 		}
 
-	case OARRAYLIT, OSLICELIT, OCALLPART:
+	case OSLICELIT, OCALLPART:
 		n.Left = o.expr(n.Left, nil)
 		n.Right = o.expr(n.Right, nil)
 		o.exprList(n.List)
 		o.exprList(n.Rlist)
 		if n.Noescape() {
-			prealloc[n] = o.newTemp(types.Types[TUINT8], false) // walk will fill in correct type
+			var t *types.Type
+			switch n.Op {
+			case OSLICELIT:
+				t = types.NewArray(n.Type.Elem(), n.Right.Int64())
+			case OCALLPART:
+				t = partialCallType(n)
+			}
+			prealloc[n] = o.newTemp(t, false)
 		}
 
 	case ODDDARG:
@@ -1181,11 +1238,24 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		n.Left = o.expr(n.Left, nil)
 		n = o.copyExpr(n, n.Type, true)
 
-	case OEQ, ONE:
+	case OEQ, ONE, OLT, OLE, OGT, OGE:
 		n.Left = o.expr(n.Left, nil)
 		n.Right = o.expr(n.Right, nil)
+
 		t := n.Left.Type
-		if t.IsStruct() || t.IsArray() {
+		switch {
+		case t.IsString():
+			// Mark string(byteSlice) arguments to reuse byteSlice backing
+			// buffer during conversion. String comparison does not
+			// memorize the strings for later use, so it is safe.
+			if n.Left.Op == OARRAYBYTESTR {
+				n.Left.Op = OARRAYBYTESTRTMP
+			}
+			if n.Right.Op == OARRAYBYTESTR {
+				n.Right.Op = OARRAYBYTESTRTMP
+			}
+
+		case t.IsStruct() || t.IsArray():
 			// for complex comparisons, we need both args to be
 			// addressable so we can pass them to the runtime.
 			n.Left = o.addrTemp(n.Left)
@@ -1217,9 +1287,10 @@ func okas(ok, val *Node) *Node {
 func (o *Order) as2(n *Node) {
 	tmplist := []*Node{}
 	left := []*Node{}
-	for _, l := range n.List.Slice() {
+	for ni, l := range n.List.Slice() {
 		if !l.isBlank() {
 			tmp := o.newTemp(l.Type, types.Haspointers(l.Type))
+			n.List.SetIndex(ni, tmp)
 			tmplist = append(tmplist, tmp)
 			left = append(left, l)
 		}
@@ -1232,14 +1303,6 @@ func (o *Order) as2(n *Node) {
 	as.Rlist.Set(tmplist)
 	as = typecheck(as, Etop)
 	o.stmt(as)
-
-	ti := 0
-	for ni, l := range n.List.Slice() {
-		if !l.isBlank() {
-			n.List.SetIndex(ni, tmplist[ti])
-			ti++
-		}
-	}
 }
 
 // okAs2 orders OAS2 with ok.

@@ -386,7 +386,7 @@ func offConv(off int64) string {
 // opSuffixSet is like regListSet, but for opcode suffixes.
 //
 // Unlike some other similar structures, uint8 space is not
-// divided by it's own values set (because the're only 256 of them).
+// divided by its own values set (because there are only 256 of them).
 // Instead, every arch may interpret/format all 8 bits as they like,
 // as long as they register proper cconv function for it.
 type opSuffixSet struct {
@@ -535,6 +535,7 @@ var Anames = []string{
 	"FUNCDATA",
 	"JMP",
 	"NOP",
+	"PCALIGN",
 	"PCDATA",
 	"RET",
 	"GETCALLERPC",

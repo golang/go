@@ -478,12 +478,12 @@ const (
 )
 
 // cpuinit extracts the environment variable GODEBUGCPU from the environment on
-// Linux and Darwin if the GOEXPERIMENT debugcpu was set and calls internal/cpu.Initialize.
+// Linux and Darwin and calls internal/cpu.Initialize.
 func cpuinit() {
 	const prefix = "GODEBUGCPU="
 	var env string
 
-	if haveexperiment("debugcpu") && (GOOS == "linux" || GOOS == "darwin") {
+	if GOOS == "linux" || GOOS == "darwin" {
 		cpu.DebugOptions = true
 
 		// Similar to goenv_unix but extracts the environment value for
@@ -1878,7 +1878,7 @@ func startTemplateThread() {
 
 // templateThread is a thread in a known-good state that exists solely
 // to start new threads in known-good states when the calling thread
-// may not be a a good state.
+// may not be in a good state.
 //
 // Many programs never need this, so templateThread is started lazily
 // when we first enter a state that might lead to running on a thread
@@ -4765,11 +4765,11 @@ func runqput(_p_ *p, gp *g, next bool) {
 	}
 
 retry:
-	h := atomic.Load(&_p_.runqhead) // load-acquire, synchronize with consumers
+	h := atomic.LoadAcq(&_p_.runqhead) // load-acquire, synchronize with consumers
 	t := _p_.runqtail
 	if t-h < uint32(len(_p_.runq)) {
 		_p_.runq[t%uint32(len(_p_.runq))].set(gp)
-		atomic.Store(&_p_.runqtail, t+1) // store-release, makes the item available for consumption
+		atomic.StoreRel(&_p_.runqtail, t+1) // store-release, makes the item available for consumption
 		return
 	}
 	if runqputslow(_p_, gp, h, t) {
@@ -4793,7 +4793,7 @@ func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
 	for i := uint32(0); i < n; i++ {
 		batch[i] = _p_.runq[(h+i)%uint32(len(_p_.runq))].ptr()
 	}
-	if !atomic.Cas(&_p_.runqhead, h, h+n) { // cas-release, commits consume
+	if !atomic.CasRel(&_p_.runqhead, h, h+n) { // cas-release, commits consume
 		return false
 	}
 	batch[n] = gp
@@ -4837,13 +4837,13 @@ func runqget(_p_ *p) (gp *g, inheritTime bool) {
 	}
 
 	for {
-		h := atomic.Load(&_p_.runqhead) // load-acquire, synchronize with other consumers
+		h := atomic.LoadAcq(&_p_.runqhead) // load-acquire, synchronize with other consumers
 		t := _p_.runqtail
 		if t == h {
 			return nil, false
 		}
 		gp := _p_.runq[h%uint32(len(_p_.runq))].ptr()
-		if atomic.Cas(&_p_.runqhead, h, h+1) { // cas-release, commits consume
+		if atomic.CasRel(&_p_.runqhead, h, h+1) { // cas-release, commits consume
 			return gp, false
 		}
 	}
@@ -4855,8 +4855,8 @@ func runqget(_p_ *p) (gp *g, inheritTime bool) {
 // Can be executed by any P.
 func runqgrab(_p_ *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool) uint32 {
 	for {
-		h := atomic.Load(&_p_.runqhead) // load-acquire, synchronize with other consumers
-		t := atomic.Load(&_p_.runqtail) // load-acquire, synchronize with the producer
+		h := atomic.LoadAcq(&_p_.runqhead) // load-acquire, synchronize with other consumers
+		t := atomic.LoadAcq(&_p_.runqtail) // load-acquire, synchronize with the producer
 		n := t - h
 		n = n - n/2
 		if n == 0 {
@@ -4899,7 +4899,7 @@ func runqgrab(_p_ *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool
 			g := _p_.runq[(h+i)%uint32(len(_p_.runq))]
 			batch[(batchHead+i)%uint32(len(batch))] = g
 		}
-		if atomic.Cas(&_p_.runqhead, h, h+n) { // cas-release, commits consume
+		if atomic.CasRel(&_p_.runqhead, h, h+n) { // cas-release, commits consume
 			return n
 		}
 	}
@@ -4919,11 +4919,11 @@ func runqsteal(_p_, p2 *p, stealRunNextG bool) *g {
 	if n == 0 {
 		return gp
 	}
-	h := atomic.Load(&_p_.runqhead) // load-acquire, synchronize with consumers
+	h := atomic.LoadAcq(&_p_.runqhead) // load-acquire, synchronize with consumers
 	if t-h+n >= uint32(len(_p_.runq)) {
 		throw("runqsteal: runq overflow")
 	}
-	atomic.Store(&_p_.runqtail, t+n) // store-release, makes the item available for consumption
+	atomic.StoreRel(&_p_.runqtail, t+n) // store-release, makes the item available for consumption
 	return gp
 }
 

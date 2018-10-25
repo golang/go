@@ -13,21 +13,25 @@ var sink64 [8]float64
 func approx(x float64) {
 	// s390x:"FIDBR\t[$]6"
 	// arm64:"FRINTPD"
+	// ppc64:"FRIP"
 	// ppc64le:"FRIP"
 	sink64[0] = math.Ceil(x)
 
 	// s390x:"FIDBR\t[$]7"
 	// arm64:"FRINTMD"
+	// ppc64:"FRIM"
 	// ppc64le:"FRIM"
 	sink64[1] = math.Floor(x)
 
 	// s390x:"FIDBR\t[$]1"
 	// arm64:"FRINTAD"
+	// ppc64:"FRIN"
 	// ppc64le:"FRIN"
 	sink64[2] = math.Round(x)
 
 	// s390x:"FIDBR\t[$]5"
 	// arm64:"FRINTZD"
+	// ppc64:"FRIZ"
 	// ppc64le:"FRIZ"
 	sink64[3] = math.Trunc(x)
 
@@ -51,11 +55,13 @@ func abs(x, y float64) {
 	// amd64:"BTRQ\t[$]63"
 	// arm64:"FABSD\t"
 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
+	// ppc64:"FABS\t"
 	// ppc64le:"FABS\t"
 	sink64[0] = math.Abs(x)
 
 	// amd64:"BTRQ\t[$]63","PXOR"    (TODO: this should be BTSQ)
 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
+	// ppc64:"FNABS\t"
 	// ppc64le:"FNABS\t"
 	sink64[1] = -math.Abs(y)
 }
@@ -70,11 +76,13 @@ func abs32(x float32) float32 {
 func copysign(a, b, c float64) {
 	// amd64:"BTRQ\t[$]63","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
 	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
+	// ppc64:"FCPSGN"
 	// ppc64le:"FCPSGN"
 	sink64[0] = math.Copysign(a, b)
 
 	// amd64:"BTSQ\t[$]63"
 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
+	// ppc64:"FCPSGN"
 	// ppc64le:"FCPSGN"
 	// arm64:"ORR", -"AND"
 	sink64[1] = math.Copysign(c, -1)
@@ -86,6 +94,7 @@ func copysign(a, b, c float64) {
 
 	// amd64:-"SHLQ\t[$]1",-"SHRQ\t[$]1","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
 	// s390x:"CPSDR\t",-"MOVD\t"     (no integer load/store)
+	// ppc64:"FCPSGN"
 	// ppc64le:"FCPSGN"
 	sink64[3] = math.Copysign(-1, c)
 }
@@ -93,6 +102,8 @@ func copysign(a, b, c float64) {
 func fromFloat64(f64 float64) uint64 {
 	// amd64:"MOVQ\tX.*, [^X].*"
 	// arm64:"FMOVD\tF.*, R.*"
+	// ppc64:"MFVSRD"
+	// ppc64le:"MFVSRD"
 	return math.Float64bits(f64+1) + 1
 }
 
@@ -105,6 +116,8 @@ func fromFloat32(f32 float32) uint32 {
 func toFloat64(u64 uint64) float64 {
 	// amd64:"MOVQ\t[^X].*, X.*"
 	// arm64:"FMOVD\tR.*, F.*"
+	// ppc64:"MTVSRD"
+	// ppc64le:"MTVSRD"
 	return math.Float64frombits(u64+1) + 1
 }
 
@@ -135,6 +148,7 @@ func constantCheck32() bool {
 func constantConvert32(x float32) float32 {
 	// amd64:"MOVSS\t[$]f32.3f800000\\(SB\\)"
 	// s390x:"FMOVS\t[$]f32.3f800000\\(SB\\)"
+	// ppc64:"FMOVS\t[$]f32.3f800000\\(SB\\)"
 	// ppc64le:"FMOVS\t[$]f32.3f800000\\(SB\\)"
 	// arm64:"FMOVS\t[$]\\(1.0\\)"
 	if x > math.Float32frombits(0x3f800000) {
@@ -146,6 +160,7 @@ func constantConvert32(x float32) float32 {
 func constantConvertInt32(x uint32) uint32 {
 	// amd64:-"MOVSS"
 	// s390x:-"FMOVS"
+	// ppc64:-"FMOVS"
 	// ppc64le:-"FMOVS"
 	// arm64:-"FMOVS"
 	if x > math.Float32bits(1) {

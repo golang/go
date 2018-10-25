@@ -459,7 +459,7 @@ func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err error) {
 	buf := make([]byte, bufsize)
 
 	for len(s) > 0 {
-		ncopy := copy(buf, s[:])
+		ncopy := copy(buf, s)
 		s = s[ncopy:]
 		for i, b := range buf[:ncopy] {
 			buf[i] = r[b]

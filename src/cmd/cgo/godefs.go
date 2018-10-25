@@ -126,3 +126,9 @@ func gofmt(n interface{}) string {
 	}
 	return gofmtBuf.String()
 }
+
+// gofmtLine returns the gofmt-formatted string for an AST node,
+// ensuring that it is on a single line.
+func gofmtLine(n interface{}) string {
+	return strings.Replace(gofmt(n), "\n", ";", -1)
+}

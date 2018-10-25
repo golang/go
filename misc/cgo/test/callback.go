@@ -295,7 +295,7 @@ func goWithString(s string) {
 }
 
 func testCallbackStack(t *testing.T) {
-	// Make cgo call and callback with different amount of stack stack available.
+	// Make cgo call and callback with different amount of stack available.
 	// We do not do any explicit checks, just ensure that it does not crash.
 	for _, f := range splitTests {
 		f()

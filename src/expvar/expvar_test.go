@@ -183,6 +183,43 @@ func TestMapInit(t *testing.T) {
 	}
 }
 
+func TestMapDelete(t *testing.T) {
+	RemoveAll()
+	colors := NewMap("bike-shed-colors")
+
+	colors.Add("red", 1)
+	colors.Add("red", 2)
+	colors.Add("blue", 4)
+
+	n := 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 2 {
+		t.Errorf("after two Add calls with distinct keys, Do should invoke f 2 times; got %v", n)
+	}
+
+	colors.Delete("red")
+	n = 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 1 {
+		t.Errorf("removed red, Do should invoke f 1 times; got %v", n)
+	}
+
+	colors.Delete("notfound")
+	n = 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 1 {
+		t.Errorf("attempted to remove notfound, Do should invoke f 1 times; got %v", n)
+	}
+
+	colors.Delete("blue")
+	colors.Delete("blue")
+	n = 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 0 {
+		t.Errorf("all keys removed, Do should invoke f 0 times; got %v", n)
+	}
+}
+
 func TestMapCounter(t *testing.T) {
 	RemoveAll()
 	colors := NewMap("bike-shed-colors")

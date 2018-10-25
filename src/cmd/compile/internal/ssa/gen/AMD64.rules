@@ -16,10 +16,14 @@
 (Mul(64|32|16|8)  x y) -> (MUL(Q|L|L|L)  x y)
 (Mul(32|64)F x y) -> (MULS(S|D) x y)
 
+(Select0 (Mul64uover x y)) -> (Select0 <typ.UInt64> (MULQU x y))
+(Select0 (Mul32uover x y)) -> (Select0 <typ.UInt32> (MULLU x y))
+(Select1 (Mul(64|32)uover x y)) -> (SETO (Select1 <types.TypeFlags> (MUL(Q|L)U x y)))
+
 (Hmul(64|32)  x y) -> (HMUL(Q|L)  x y)
 (Hmul(64|32)u x y) -> (HMUL(Q|L)U x y)
 
-(Div(64|32|16)  x y) -> (Select0 (DIV(Q|L|W)  x y))
+(Div(64|32|16) [a] x y) -> (Select0 (DIV(Q|L|W) [a] x y))
 (Div8  x y) -> (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
 (Div(64|32|16)u x y) -> (Select0 (DIV(Q|L|W)U x y))
 (Div8u x y) -> (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
@@ -30,7 +34,7 @@
 
 (Avg64u x y) -> (AVGQU x y)
 
-(Mod(64|32|16)  x y) -> (Select1 (DIV(Q|L|W)  x y))
+(Mod(64|32|16) [a] x y) -> (Select1 (DIV(Q|L|W) [a] x y))
 (Mod8  x y) -> (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
 (Mod(64|32|16)u x y) -> (Select1 (DIV(Q|L|W)U x y))
 (Mod8u x y) -> (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
@@ -480,6 +484,7 @@
 (If (SETBE cmp) yes no) -> (ULE cmp yes no)
 (If (SETA  cmp) yes no) -> (UGT cmp yes no)
 (If (SETAE cmp) yes no) -> (UGE cmp yes no)
+(If (SETO cmp) yes no) -> (OS cmp yes no)
 
 // Special case for floating point - LF/LEF not generated
 (If (SETGF  cmp) yes no) -> (UGT  cmp yes no)
@@ -542,6 +547,7 @@
 (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no) -> (ULE cmp yes no)
 (NE (TESTB (SETA  cmp) (SETA  cmp)) yes no) -> (UGT cmp yes no)
 (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no) -> (UGE cmp yes no)
+(NE (TESTB (SETO cmp) (SETO cmp)) yes no) -> (OS cmp yes no)
 
 // Recognize bit tests: a&(1<<b) != 0 for b suitably bounded
 // Note that BTx instructions use the carry bit, so we need to convert tests for zero flag
@@ -1073,11 +1079,11 @@
 // Fold constants into stores.
 (MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validValAndOff(c,off) ->
 	(MOVQstoreconst [makeValAndOff(c,off)] {sym} ptr mem)
-(MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
+(MOVLstore [off] {sym} ptr (MOV(L|Q)const [c]) mem) && validOff(off) ->
 	(MOVLstoreconst [makeValAndOff(int64(int32(c)),off)] {sym} ptr mem)
-(MOVWstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
+(MOVWstore [off] {sym} ptr (MOV(L|Q)const [c]) mem) && validOff(off) ->
 	(MOVWstoreconst [makeValAndOff(int64(int16(c)),off)] {sym} ptr mem)
-(MOVBstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
+(MOVBstore [off] {sym} ptr (MOV(L|Q)const [c]) mem) && validOff(off) ->
 	(MOVBstoreconst [makeValAndOff(int64(int8(c)),off)] {sym} ptr mem)
 
 // Fold address offsets into constant stores.
@@ -2119,12 +2125,27 @@
   && ValAndOff(a).Off() + 1 == ValAndOff(c).Off()
   && clobber(x)
   -> (MOVWstoreconst [makeValAndOff(ValAndOff(a).Val()&0xff | ValAndOff(c).Val()<<8, ValAndOff(a).Off())] {s} p mem)
+(MOVBstoreconst [a] {s} p x:(MOVBstoreconst [c] {s} p mem))
+  && x.Uses == 1
+  && ValAndOff(a).Off() + 1 == ValAndOff(c).Off()
+  && clobber(x)
+  -> (MOVWstoreconst [makeValAndOff(ValAndOff(a).Val()&0xff | ValAndOff(c).Val()<<8, ValAndOff(a).Off())] {s} p mem)
 (MOVWstoreconst [c] {s} p x:(MOVWstoreconst [a] {s} p mem))
   && x.Uses == 1
   && ValAndOff(a).Off() + 2 == ValAndOff(c).Off()
   && clobber(x)
   -> (MOVLstoreconst [makeValAndOff(ValAndOff(a).Val()&0xffff | ValAndOff(c).Val()<<16, ValAndOff(a).Off())] {s} p mem)
+(MOVWstoreconst [a] {s} p x:(MOVWstoreconst [c] {s} p mem))
+  && x.Uses == 1
+  && ValAndOff(a).Off() + 2 == ValAndOff(c).Off()
+  && clobber(x)
+  -> (MOVLstoreconst [makeValAndOff(ValAndOff(a).Val()&0xffff | ValAndOff(c).Val()<<16, ValAndOff(a).Off())] {s} p mem)
 (MOVLstoreconst [c] {s} p x:(MOVLstoreconst [a] {s} p mem))
+  && x.Uses == 1
+  && ValAndOff(a).Off() + 4 == ValAndOff(c).Off()
+  && clobber(x)
+  -> (MOVQstore [ValAndOff(a).Off()] {s} p (MOVQconst [ValAndOff(a).Val()&0xffffffff | ValAndOff(c).Val()<<32]) mem)
+(MOVLstoreconst [a] {s} p x:(MOVLstoreconst [c] {s} p mem))
   && x.Uses == 1
   && ValAndOff(a).Off() + 4 == ValAndOff(c).Off()
   && clobber(x)
@@ -2170,6 +2191,10 @@
   && x.Uses == 1
   && clobber(x)
   -> (MOVWstore [i-1] {s} p w mem)
+(MOVBstore [i] {s} p w x:(MOVBstore [i+1] {s} p (SHR(W|L|Q)const [8] w) mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVWstore [i] {s} p w mem)
 (MOVBstore [i] {s} p (SHR(L|Q)const [j] w) x:(MOVBstore [i-1] {s} p w0:(SHR(L|Q)const [j-8] w) mem))
   && x.Uses == 1
   && clobber(x)
@@ -2487,3 +2512,8 @@
 	&& validValAndOff(0,off)
 	&& clobber(l) ->
   @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff(0,off)] ptr mem)
+
+(MOVBload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read8(sym, off))])
+(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read16(sym, off, config.BigEndian))])
+(MOVLload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVQconst [int64(read32(sym, off, config.BigEndian))])
+(MOVQload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVQconst [int64(read64(sym, off, config.BigEndian))])

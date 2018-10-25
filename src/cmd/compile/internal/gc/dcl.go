@@ -929,7 +929,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
 		}
 		// eqtype only checks that incoming and result parameters match,
 		// so explicitly check that the receiver parameters match too.
-		if !eqtype(t, f.Type) || !eqtype(t.Recv().Type, f.Type.Recv().Type) {
+		if !types.Identical(t, f.Type) || !types.Identical(t.Recv().Type, f.Type.Recv().Type) {
 			yyerror("method redeclared: %v.%v\n\t%v\n\t%v", mt, msym, f.Type, t)
 		}
 		return f

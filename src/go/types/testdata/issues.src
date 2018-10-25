@@ -302,3 +302,14 @@ var issue27346 = [][n /* ERROR undeclared */ ]int{
 }
 
 var issue22467 = map[int][... /* ERROR invalid use of ... */ ]int{0: {}}
+
+// Test that invalid use of ... in parameter lists is recognized
+// (issue #28281).
+func issue28281a(int, int, ...int)
+func issue28281b(a, b int, c ...int)
+func issue28281c(a, b, c ... /* ERROR can only use ... with final parameter */ int)
+func issue28281d(... /* ERROR can only use ... with final parameter */ int, int)
+func issue28281e(a, b, c  ... /* ERROR can only use ... with final parameter */ int, d int)
+func issue28281f(... /* ERROR can only use ... with final parameter */ int, ... /* ERROR can only use ... with final parameter */ int, int)
+func (... /* ERROR expected type */ TT) f()
+func issue28281g() (... /* ERROR expected type */ TT)

@@ -383,6 +383,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		goto Error
 	}
 
+	// methods may not have a fully set up signature yet
+	if m, _ := obj.(*Func); m != nil {
+		check.objDecl(m, nil)
+	}
+
 	if x.mode == typexpr {
 		// method expression
 		m, _ := obj.(*Func)

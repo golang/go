@@ -147,6 +147,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.f.Cache.Reset()
 	s.f.DebugTest = s.f.DebugHashMatch("GOSSAHASH", name)
 	s.f.Name = name
+	s.f.PrintOrHtmlSSA = printssa
 	if fn.Func.Pragma&Nosplit != 0 {
 		s.f.NoSplit = true
 	}
@@ -201,7 +202,9 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	// Populate SSAable arguments.
 	for _, n := range fn.Func.Dcl {
 		if n.Class() == PPARAM && s.canSSA(n) {
-			s.vars[n] = s.newValue0A(ssa.OpArg, n.Type, n)
+			v := s.newValue0A(ssa.OpArg, n.Type, n)
+			s.vars[n] = v
+			s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
 		}
 	}
 
@@ -1247,10 +1250,8 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OADD, TUINT16}:  ssa.OpAdd16,
 	opAndType{OADD, TINT32}:   ssa.OpAdd32,
 	opAndType{OADD, TUINT32}:  ssa.OpAdd32,
-	opAndType{OADD, TPTR32}:   ssa.OpAdd32,
 	opAndType{OADD, TINT64}:   ssa.OpAdd64,
 	opAndType{OADD, TUINT64}:  ssa.OpAdd64,
-	opAndType{OADD, TPTR64}:   ssa.OpAdd64,
 	opAndType{OADD, TFLOAT32}: ssa.OpAdd32F,
 	opAndType{OADD, TFLOAT64}: ssa.OpAdd64F,
 
@@ -1365,8 +1366,7 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OEQ, TFUNC}:      ssa.OpEqPtr,
 	opAndType{OEQ, TMAP}:       ssa.OpEqPtr,
 	opAndType{OEQ, TCHAN}:      ssa.OpEqPtr,
-	opAndType{OEQ, TPTR32}:     ssa.OpEqPtr,
-	opAndType{OEQ, TPTR64}:     ssa.OpEqPtr,
+	opAndType{OEQ, TPTR}:       ssa.OpEqPtr,
 	opAndType{OEQ, TUINTPTR}:   ssa.OpEqPtr,
 	opAndType{OEQ, TUNSAFEPTR}: ssa.OpEqPtr,
 	opAndType{OEQ, TFLOAT64}:   ssa.OpEq64F,
@@ -1386,8 +1386,7 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{ONE, TFUNC}:      ssa.OpNeqPtr,
 	opAndType{ONE, TMAP}:       ssa.OpNeqPtr,
 	opAndType{ONE, TCHAN}:      ssa.OpNeqPtr,
-	opAndType{ONE, TPTR32}:     ssa.OpNeqPtr,
-	opAndType{ONE, TPTR64}:     ssa.OpNeqPtr,
+	opAndType{ONE, TPTR}:       ssa.OpNeqPtr,
 	opAndType{ONE, TUINTPTR}:   ssa.OpNeqPtr,
 	opAndType{ONE, TUNSAFEPTR}: ssa.OpNeqPtr,
 	opAndType{ONE, TFLOAT64}:   ssa.OpNeq64F,
@@ -2335,7 +2334,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if max != nil {
 			k = s.extendIndex(s.expr(max), panicslice)
 		}
-		p, l, c := s.slice(n.Left.Type, v, i, j, k)
+		p, l, c := s.slice(n.Left.Type, v, i, j, k, n.Bounded())
 		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
 
 	case OSLICESTR:
@@ -2348,7 +2347,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if high != nil {
 			j = s.extendIndex(s.expr(high), panicslice)
 		}
-		p, l, _ := s.slice(n.Left.Type, v, i, j, nil)
+		p, l, _ := s.slice(n.Left.Type, v, i, j, nil, n.Bounded())
 		return s.newValue2(ssa.OpStringMake, n.Type, p, l)
 
 	case OCALLFUNC:
@@ -2863,12 +2862,16 @@ func init() {
 	var all []*sys.Arch
 	var p4 []*sys.Arch
 	var p8 []*sys.Arch
+	var lwatomics []*sys.Arch
 	for _, a := range sys.Archs {
 		all = append(all, a)
 		if a.PtrSize == 4 {
 			p4 = append(p4, a)
 		} else {
 			p8 = append(p8, a)
+		}
+		if a.Family != sys.PPC64 {
+			lwatomics = append(lwatomics, a)
 		}
 	}
 
@@ -2916,6 +2919,14 @@ func init() {
 			},
 			all...)
 	}
+	addF("runtime/internal/math", "MulUintptr",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			if s.config.PtrSize == 4 {
+				return s.newValue2(ssa.OpMul32uover, types.NewTuple(types.Types[TUINT], types.Types[TUINT]), args[0], args[1])
+			}
+			return s.newValue2(ssa.OpMul64uover, types.NewTuple(types.Types[TUINT], types.Types[TUINT]), args[0], args[1])
+		},
+		sys.AMD64, sys.I386)
 	add("runtime", "KeepAlive",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			data := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, args[0])
@@ -2978,6 +2989,13 @@ func init() {
 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT64], v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS64, sys.PPC64)
+	addF("runtime/internal/atomic", "LoadAcq",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			v := s.newValue2(ssa.OpAtomicLoadAcq32, types.NewTuple(types.Types[TUINT32], types.TypeMem), args[0], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
+		},
+		sys.PPC64)
 	addF("runtime/internal/atomic", "Loadp",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoadPtr, types.NewTuple(s.f.Config.Types.BytePtr, types.TypeMem), args[0], s.mem())
@@ -3004,6 +3022,12 @@ func init() {
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64)
+	addF("runtime/internal/atomic", "StoreRel",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStoreRel32, types.TypeMem, args[0], args[1], s.mem())
+			return nil
+		},
+		sys.PPC64)
 
 	addF("runtime/internal/atomic", "Xchg",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
@@ -3091,6 +3115,13 @@ func init() {
 			return s.newValue1(ssa.OpSelect0, types.Types[TBOOL], v)
 		},
 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS64, sys.PPC64)
+	addF("runtime/internal/atomic", "CasRel",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, types.NewTuple(types.Types[TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
+			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+			return s.newValue1(ssa.OpSelect0, types.Types[TBOOL], v)
+		},
+		sys.PPC64)
 
 	addF("runtime/internal/atomic", "And8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
@@ -3111,8 +3142,10 @@ func init() {
 	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load64", p8...)
 	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load", p4...)
 	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load64", p8...)
+	alias("runtime/internal/atomic", "LoadAcq", "runtime/internal/atomic", "Load", lwatomics...)
 	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store", p4...)
 	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store64", p8...)
+	alias("runtime/internal/atomic", "StoreRel", "runtime/internal/atomic", "Store", lwatomics...)
 	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg", p4...)
 	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg64", p8...)
 	alias("runtime/internal/atomic", "Xadduintptr", "runtime/internal/atomic", "Xadd", p4...)
@@ -3121,6 +3154,7 @@ func init() {
 	alias("runtime/internal/atomic", "Casuintptr", "runtime/internal/atomic", "Cas64", p8...)
 	alias("runtime/internal/atomic", "Casp1", "runtime/internal/atomic", "Cas", p4...)
 	alias("runtime/internal/atomic", "Casp1", "runtime/internal/atomic", "Cas64", p8...)
+	alias("runtime/internal/atomic", "CasRel", "runtime/internal/atomic", "Cas", lwatomics...)
 
 	alias("runtime/internal/sys", "Ctz8", "math/bits", "TrailingZeros8", all...)
 
@@ -3240,7 +3274,7 @@ func init() {
 			y := s.newValue2(ssa.OpOr64, types.Types[TUINT64], x, c)
 			return s.newValue1(ssa.OpCtz64, types.Types[TINT], y)
 		},
-		sys.ARM64, sys.S390X)
+		sys.ARM64, sys.S390X, sys.PPC64)
 	addF("math/bits", "TrailingZeros8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			x := s.newValue1(ssa.OpZeroExt8to32, types.Types[TUINT32], args[0])
@@ -3431,12 +3465,12 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpPopCount16, types.Types[TINT], args[0])
 		},
-		sys.ARM64, sys.S390X)
+		sys.ARM64, sys.S390X, sys.PPC64)
 	addF("math/bits", "OnesCount8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpPopCount8, types.Types[TINT], args[0])
 		},
-		sys.S390X)
+		sys.S390X, sys.PPC64)
 	addF("math/bits", "OnesCount",
 		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount32),
 		sys.AMD64)
@@ -3492,7 +3526,7 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1])
 		},
-		sys.ArchAMD64, sys.ArchARM64)
+		sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64LE, sys.ArchPPC64)
 	add("math/big", "divWW",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpDiv128u, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
@@ -3551,59 +3585,34 @@ func (s *state) intrinsicCall(n *Node) *ssa.Value {
 	return v
 }
 
-type callArg struct {
-	offset int64
-	v      *ssa.Value
-}
-type byOffset []callArg
-
-func (x byOffset) Len() int      { return len(x) }
-func (x byOffset) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-func (x byOffset) Less(i, j int) bool {
-	return x[i].offset < x[j].offset
-}
-
 // intrinsicArgs extracts args from n, evaluates them to SSA values, and returns them.
 func (s *state) intrinsicArgs(n *Node) []*ssa.Value {
-	// This code is complicated because of how walk transforms calls. For a call node,
-	// each entry in n.List is either an assignment to OINDREGSP which actually
-	// stores an arg, or an assignment to a temporary which computes an arg
-	// which is later assigned.
-	// The args can also be out of order.
-	// TODO: when walk goes away someday, this code can go away also.
-	var args []callArg
+	// Construct map of temps; see comments in s.call about the structure of n.
 	temps := map[*Node]*ssa.Value{}
 	for _, a := range n.List.Slice() {
 		if a.Op != OAS {
-			s.Fatalf("non-assignment as a function argument %v", a.Op)
+			s.Fatalf("non-assignment as a temp function argument %v", a.Op)
 		}
 		l, r := a.Left, a.Right
-		switch l.Op {
-		case ONAME:
-			// Evaluate and store to "temporary".
-			// Walk ensures these temporaries are dead outside of n.
-			temps[l] = s.expr(r)
-		case OINDREGSP:
-			// Store a value to an argument slot.
-			var v *ssa.Value
-			if x, ok := temps[r]; ok {
-				// This is a previously computed temporary.
-				v = x
-			} else {
-				// This is an explicit value; evaluate it.
-				v = s.expr(r)
-			}
-			args = append(args, callArg{l.Xoffset, v})
-		default:
-			s.Fatalf("function argument assignment target not allowed: %v", l.Op)
+		if l.Op != ONAME {
+			s.Fatalf("non-ONAME temp function argument %v", a.Op)
 		}
+		// Evaluate and store to "temporary".
+		// Walk ensures these temporaries are dead outside of n.
+		temps[l] = s.expr(r)
 	}
-	sort.Sort(byOffset(args))
-	res := make([]*ssa.Value, len(args))
-	for i, a := range args {
-		res[i] = a.v
+	args := make([]*ssa.Value, n.Rlist.Len())
+	for i, n := range n.Rlist.Slice() {
+		// Store a value to an argument slot.
+		if x, ok := temps[n]; ok {
+			// This is a previously computed temporary.
+			args[i] = x
+			continue
+		}
+		// This is an explicit value; evaluate it.
+		args[i] = s.expr(n)
 	}
-	return res
+	return args
 }
 
 // Calls the function n using the specified call type.
@@ -3644,7 +3653,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		n2.Pos = fn.Pos
 		n2.Type = types.Types[TUINT8] // dummy type for a static closure. Could use runtime.funcval if we had it.
 		closure = s.expr(n2)
-		// Note: receiver is already assigned in n.List, so we don't
+		// Note: receiver is already present in n.Rlist, so we don't
 		// want to set it here.
 	case OCALLINTER:
 		if fn.Op != ODOTINTER {
@@ -3665,32 +3674,43 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	dowidth(fn.Type)
 	stksize := fn.Type.ArgWidth() // includes receiver
 
-	// Run all argument assignments. The arg slots have already
-	// been offset by the appropriate amount (+2*widthptr for go/defer,
-	// +widthptr for interface calls).
-	// For OCALLMETH, the receiver is set in these statements.
+	// Run all assignments of temps.
+	// The temps are introduced to avoid overwriting argument
+	// slots when arguments themselves require function calls.
 	s.stmtList(n.List)
 
-	// Set receiver (for interface calls)
-	if rcvr != nil {
-		argStart := Ctxt.FixedFrameSize()
-		if k != callNormal {
-			argStart += int64(2 * Widthptr)
-		}
-		addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
-		s.store(types.Types[TUINTPTR], addr, rcvr)
-	}
-
-	// Defer/go args
+	// Store arguments to stack, including defer/go arguments and receiver for method calls.
+	// These are written in SP-offset order.
+	argStart := Ctxt.FixedFrameSize()
+	// Defer/go args.
 	if k != callNormal {
 		// Write argsize and closure (args to newproc/deferproc).
-		argStart := Ctxt.FixedFrameSize()
 		argsize := s.constInt32(types.Types[TUINT32], int32(stksize))
 		addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
 		s.store(types.Types[TUINT32], addr, argsize)
 		addr = s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(Widthptr))
 		s.store(types.Types[TUINTPTR], addr, closure)
 		stksize += 2 * int64(Widthptr)
+		argStart += 2 * int64(Widthptr)
+	}
+
+	// Set receiver (for interface calls).
+	if rcvr != nil {
+		addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
+		s.store(types.Types[TUINTPTR], addr, rcvr)
+	}
+
+	// Write args.
+	t := n.Left.Type
+	args := n.Rlist.Slice()
+	if n.Op == OCALLMETH {
+		f := t.Recv()
+		s.storeArg(args[0], f.Type, argStart+f.Offset)
+		args = args[1:]
+	}
+	for i, n := range args {
+		f := t.Params().Field(i)
+		s.storeArg(n, f.Type, argStart+f.Offset)
 	}
 
 	// call target
@@ -4175,10 +4195,24 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 	}
 }
 
+func (s *state) storeArg(n *Node, t *types.Type, off int64) {
+	pt := types.NewPtr(t)
+	sp := s.constOffPtrSP(pt, off)
+
+	if !canSSAType(t) {
+		a := s.addr(n, false)
+		s.move(t, sp, a)
+		return
+	}
+
+	a := s.expr(n)
+	s.storeType(t, sp, a, 0, false)
+}
+
 // slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.
 // i,j,k may be nil, in which case they are set to their default value.
 // t is a slice, ptr to array, or string type.
-func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
+func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value, bounded bool) (p, l, c *ssa.Value) {
 	var elemtype *types.Type
 	var ptrtype *types.Type
 	var ptr *ssa.Value
@@ -4223,13 +4257,15 @@ func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value)
 		k = cap
 	}
 
-	// Panic if slice indices are not in bounds.
-	s.sliceBoundsCheck(i, j)
-	if j != k {
-		s.sliceBoundsCheck(j, k)
-	}
-	if k != cap {
-		s.sliceBoundsCheck(k, cap)
+	if !bounded {
+		// Panic if slice indices are not in bounds.
+		s.sliceBoundsCheck(i, j)
+		if j != k {
+			s.sliceBoundsCheck(j, k)
+		}
+		if k != cap {
+			s.sliceBoundsCheck(k, cap)
+		}
 	}
 
 	// Generate the following code assuming that indexes are in bounds.
@@ -5004,9 +5040,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 	var progToValue map[*obj.Prog]*ssa.Value
 	var progToBlock map[*obj.Prog]*ssa.Block
 	var valueToProgAfter []*obj.Prog // The first Prog following computation of a value v; v is visible at this point.
-	var logProgs = e.log
-	if f.HTMLWriter != nil {
-		// logProgs can be false, meaning that we do not dump to the Stdout.
+	if f.PrintOrHtmlSSA {
 		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
 		progToBlock = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
 		f.Logf("genssa %s\n", f.Name)
@@ -5089,7 +5123,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 				valueToProgAfter[v.ID] = s.pp.next
 			}
 
-			if logProgs {
+			if f.PrintOrHtmlSSA {
 				for ; x != s.pp.next; x = x.Link {
 					progToValue[x] = v
 				}
@@ -5107,7 +5141,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		x := s.pp.next
 		s.SetPos(b.Pos)
 		thearch.SSAGenBlock(&s, b, next)
-		if logProgs {
+		if f.PrintOrHtmlSSA {
 			for ; x != s.pp.next; x = x.Link {
 				progToBlock[x] = b
 			}
@@ -5140,7 +5174,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		}
 	}
 
-	if logProgs {
+	if e.log { // spew to stdout
 		filename := ""
 		for p := pp.Text; p != nil; p = p.Link {
 			if p.Pos.IsKnown() && p.InnermostFilename() != filename {
@@ -5159,7 +5193,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 			f.Logf(" %-6s\t%.5d (%s)\t%s\n", s, p.Pc, p.InnermostLineNumber(), p.InstructionString())
 		}
 	}
-	if f.HTMLWriter != nil {
+	if f.HTMLWriter != nil { // spew to ssa.html
 		var buf bytes.Buffer
 		buf.WriteString("<code>")
 		buf.WriteString("<dl class=\"ssa-gen\">")

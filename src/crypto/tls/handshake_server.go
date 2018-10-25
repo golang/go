@@ -49,7 +49,7 @@ func (c *Conn) serverHandshake() error {
 		return err
 	}
 
-	// For an overview of TLS handshaking, see https://tools.ietf.org/html/rfc5246#section-7.3
+	// For an overview of TLS handshaking, see RFC 5246, Section 7.3.
 	c.buffering = true
 	if isResume {
 		// The client has included a session ticket and so we do an abbreviated handshake.
@@ -268,7 +268,7 @@ Curves:
 		return false, errors.New("tls: no cipher suite supported by both client and server")
 	}
 
-	// See https://tools.ietf.org/html/rfc7507.
+	// See RFC 7507.
 	for _, id := range hs.clientHello.cipherSuites {
 		if id == TLS_FALLBACK_SCSV {
 			// The client is doing a fallback connection.

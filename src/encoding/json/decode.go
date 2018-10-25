@@ -473,7 +473,7 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
 		if v.IsNil() {
 			v.Set(reflect.New(v.Type().Elem()))
 		}
-		if v.Type().NumMethod() > 0 {
+		if v.Type().NumMethod() > 0 && v.CanInterface() {
 			if u, ok := v.Interface().(Unmarshaler); ok {
 				return u, nil, reflect.Value{}
 			}
@@ -786,7 +786,7 @@ func (d *decodeState) object(v reflect.Value) error {
 					n, err := strconv.ParseInt(s, 10, 64)
 					if err != nil || reflect.Zero(kt).OverflowInt(n) {
 						d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: kt, Offset: int64(start + 1)})
-						return nil
+						break
 					}
 					kv = reflect.ValueOf(n).Convert(kt)
 				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
@@ -794,14 +794,16 @@ func (d *decodeState) object(v reflect.Value) error {
 					n, err := strconv.ParseUint(s, 10, 64)
 					if err != nil || reflect.Zero(kt).OverflowUint(n) {
 						d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: kt, Offset: int64(start + 1)})
-						return nil
+						break
 					}
 					kv = reflect.ValueOf(n).Convert(kt)
 				default:
 					panic("json: Unexpected key type") // should never occur
 				}
 			}
-			v.SetMapIndex(kv, subv)
+			if kv.IsValid() {
+				v.SetMapIndex(kv, subv)
+			}
 		}
 
 		// Next token must be , or }.

@@ -8,6 +8,7 @@ import "container/heap"
 
 const (
 	ScorePhi = iota // towards top of block
+	ScoreArg
 	ScoreNilCheck
 	ScoreReadTuple
 	ScoreVarDef
@@ -113,6 +114,9 @@ func schedule(f *Func) {
 			case v.Op == OpVarDef:
 				// We want all the vardefs next.
 				score[v.ID] = ScoreVarDef
+			case v.Op == OpArg:
+				// We want all the args as early as possible, for better debugging.
+				score[v.ID] = ScoreArg
 			case v.Type.IsMemory():
 				// Schedule stores as early as possible. This tends to
 				// reduce register pressure. It also helps make sure

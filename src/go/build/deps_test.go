@@ -36,9 +36,10 @@ var pkgDeps = map[string][]string{
 	// L0 is the lowest level, core, nearly unavoidable packages.
 	"errors":                  {},
 	"io":                      {"errors", "sync", "sync/atomic"},
-	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys", "internal/cpu", "internal/bytealg"},
+	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys", "runtime/internal/math", "internal/cpu", "internal/bytealg"},
 	"runtime/internal/sys":    {},
 	"runtime/internal/atomic": {"unsafe", "internal/cpu"},
+	"runtime/internal/math":   {"runtime/internal/sys"},
 	"internal/race":           {"runtime", "unsafe"},
 	"sync":                    {"internal/race", "runtime", "sync/atomic", "unsafe"},
 	"sync/atomic":             {"unsafe"},
@@ -114,6 +115,7 @@ var pkgDeps = map[string][]string{
 	"image":                  {"L2", "image/color"}, // interfaces
 	"image/color":            {"L2"},                // interfaces
 	"image/color/palette":    {"L2", "image/color"},
+	"internal/fmtsort":       {"reflect", "sort"},
 	"reflect":                {"L2"},
 	"sort":                   {"reflect"},
 
@@ -141,6 +143,7 @@ var pkgDeps = map[string][]string{
 		"image",
 		"image/color",
 		"image/color/palette",
+		"internal/fmtsort",
 		"reflect",
 	},
 
@@ -183,8 +186,8 @@ var pkgDeps = map[string][]string{
 		"time",
 	},
 
-	// Formatted I/O: few dependencies (L1) but we must add reflect.
-	"fmt": {"L1", "os", "reflect"},
+	// Formatted I/O: few dependencies (L1) but we must add reflect and internal/fmtsort.
+	"fmt": {"L1", "os", "reflect", "internal/fmtsort"},
 	"log": {"L1", "os", "fmt", "time"},
 
 	// Packages used by testing must be low-level (L2+fmt).
@@ -276,6 +279,8 @@ var pkgDeps = map[string][]string{
 	"internal/goroot":                {"L4", "OS"},
 	"internal/singleflight":          {"sync"},
 	"internal/trace":                 {"L4", "OS"},
+	"internal/traceparser":           {"L4", "internal/traceparser/filebuf"},
+	"internal/traceparser/filebuf":   {"L4", "OS"},
 	"math/big":                       {"L4"},
 	"mime":                           {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
 	"mime/quotedprintable":           {"L4"},
@@ -321,7 +326,7 @@ var pkgDeps = map[string][]string{
 	"net": {
 		"L0", "CGO",
 		"context", "math/rand", "os", "reflect", "sort", "syscall", "time",
-		"internal/nettrace", "internal/poll",
+		"internal/nettrace", "internal/poll", "internal/syscall/unix",
 		"internal/syscall/windows", "internal/singleflight", "internal/race",
 		"golang_org/x/net/dns/dnsmessage", "golang_org/x/net/lif", "golang_org/x/net/route",
 	},

@@ -55,6 +55,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/math"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -296,7 +297,8 @@ func makemap_small() *hmap {
 // If h != nil, the map can be created directly in h.
 // If h.buckets != nil, bucket pointed to can be used as the first bucket.
 func makemap(t *maptype, hint int, h *hmap) *hmap {
-	if hint < 0 || hint > int(maxSliceCap(t.bucket.size)) {
+	mem, overflow := math.MulUintptr(uintptr(hint), t.bucket.size)
+	if overflow || mem > maxAlloc {
 		hint = 0
 	}
 
@@ -306,7 +308,8 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
 	}
 	h.hash0 = fastrand()
 
-	// find size parameter which will hold the requested # of elements
+	// Find the size parameter B which will hold the requested # of elements.
+	// For hint < 0 overLoadFactor returns false since hint < bucketCnt.
 	B := uint8(0)
 	for overLoadFactor(hint, B) {
 		B++

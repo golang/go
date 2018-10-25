@@ -614,7 +614,7 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
 		want = 2
 	}
 	if len(args) != want {
-		ts.fatalf("usage: %s [-count=N] 'pattern' file%s", name, extraUsage)
+		ts.fatalf("usage: %s [-count=N] 'pattern'%s", name, extraUsage)
 	}
 
 	pattern := args[0]

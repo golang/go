@@ -6,8 +6,7 @@
 // used by the Go standard library.
 package cpu
 
-// DebugOptions is set to true by the runtime if go was compiled with GOEXPERIMENT=debugcpu
-// and GOOS is Linux or Darwin.
+// DebugOptions is set to true by the runtime if the OS supports GODEBUGCPU.
 // This should not be changed after it is initialized.
 var DebugOptions bool
 
@@ -77,6 +76,7 @@ var ARM arm
 // The struct is padded to avoid false sharing.
 type arm struct {
 	_        CacheLinePad
+	HasVFPv4 bool
 	HasIDIVA bool
 	_        CacheLinePad
 }
@@ -139,8 +139,7 @@ type s390x struct {
 
 // Initialize examines the processor and sets the relevant variables above.
 // This is called by the runtime package early in program initialization,
-// before normal init functions are run. env is set by runtime on Linux and Darwin
-// if go was compiled with GOEXPERIMENT=debugcpu.
+// before normal init functions are run. env is set by runtime if the OS supports GODEBUGCPU.
 func Initialize(env string) {
 	doinit()
 	processOptions(env)
@@ -154,16 +153,19 @@ var options []option
 
 // Option names should be lower case. e.g. avx instead of AVX.
 type option struct {
-	Name    string
-	Feature *bool
+	Name      string
+	Feature   *bool
+	Specified bool // whether feature value was specified in GODEBUGCPU
+	Enable    bool // whether feature should be enabled
+	Required  bool // whether feature is mandatory and can not be disabled
 }
 
-// processOptions disables CPU feature values based on the parsed env string.
-// The env string is expected to be of the form feature1=0,feature2=0...
+// processOptions enables or disables CPU feature values based on the parsed env string.
+// The env string is expected to be of the form feature1=value1,feature2=value2...
 // where feature names is one of the architecture specifc list stored in the
-// cpu packages options variable. If env contains all=0 then all capabilities
-// referenced through the options variable are disabled. Other feature
-// names and values other than 0 are silently ignored.
+// cpu packages options variable and values are either 'on' or 'off'.
+// If env contains all=off then all cpu features referenced through the options
+// variable are disabled. Other feature names and values result in warning messages.
 func processOptions(env string) {
 field:
 	for env != "" {
@@ -176,26 +178,57 @@ field:
 		}
 		i = indexByte(field, '=')
 		if i < 0 {
+			print("GODEBUGCPU: no value specified for \"", field, "\"\n")
 			continue
 		}
 		key, value := field[:i], field[i+1:]
 
-		// Only allow turning off CPU features by specifying '0'.
-		if value == "0" {
-			if key == "all" {
-				for _, v := range options {
-					*v.Feature = false
-				}
-				return
-			} else {
-				for _, v := range options {
-					if v.Name == key {
-						*v.Feature = false
-						continue field
-					}
-				}
+		var enable bool
+		switch value {
+		case "on":
+			enable = true
+		case "off":
+			enable = false
+		default:
+			print("GODEBUGCPU: value \"", value, "\" not supported for option ", key, "\n")
+			continue field
+		}
+
+		if key == "all" {
+			for i := range options {
+				options[i].Specified = true
+				options[i].Enable = enable || options[i].Required
+			}
+			continue field
+		}
+
+		for i := range options {
+			if options[i].Name == key {
+				options[i].Specified = true
+				options[i].Enable = enable
+				continue field
 			}
 		}
+
+		print("GODEBUGCPU: unknown cpu feature \"", key, "\"\n")
+	}
+
+	for _, o := range options {
+		if !o.Specified {
+			continue
+		}
+
+		if o.Enable && !*o.Feature {
+			print("GODEBUGCPU: can not enable \"", o.Name, "\", missing hardware support\n")
+			continue
+		}
+
+		if !o.Enable && o.Required {
+			print("GODEBUGCPU: can not disable \"", o.Name, "\", required feature\n")
+			continue
+		}
+
+		*o.Feature = o.Enable
 	}
 }
 

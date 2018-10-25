@@ -22,6 +22,7 @@ var dummys = js.Global().Call("eval", `({
 	add: function(a, b) {
 		return a + b;
 	},
+	zero: 0,
 	NaN: NaN,
 })`)
 
@@ -73,6 +74,9 @@ func TestInt(t *testing.T) {
 	}
 	if dummys.Get("someInt") != dummys.Get("someInt") {
 		t.Errorf("same value not equal")
+	}
+	if got := dummys.Get("zero").Int(); got != 0 {
+		t.Errorf("got %#v, want %#v", got, 0)
 	}
 }
 
@@ -237,6 +241,9 @@ func TestType(t *testing.T) {
 	if got, want := js.ValueOf(true).Type(), js.TypeBoolean; got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}
+	if got, want := js.ValueOf(0).Type(), js.TypeNumber; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
 	if got, want := js.ValueOf(42).Type(), js.TypeNumber; got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}
@@ -266,6 +273,13 @@ func TestValueOf(t *testing.T) {
 	o := js.ValueOf(object{"x": object{"y": 42}})
 	if got := o.Get("x").Get("y").Int(); got != 42 {
 		t.Errorf("got %v, want %v", got, 42)
+	}
+}
+
+func TestZeroValue(t *testing.T) {
+	var v js.Value
+	if v != js.Undefined() {
+		t.Error("zero js.Value is not js.Undefined()")
 	}
 }
 

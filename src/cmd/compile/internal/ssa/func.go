@@ -37,9 +37,10 @@ type Func struct {
 
 	// Given an environment variable used for debug hash match,
 	// what file (if any) receives the yes/no logging?
-	logfiles   map[string]writeSyncer
-	HTMLWriter *HTMLWriter // html writer, for debugging
-	DebugTest  bool        // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
+	logfiles       map[string]writeSyncer
+	HTMLWriter     *HTMLWriter // html writer, for debugging
+	DebugTest      bool        // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
+	PrintOrHtmlSSA bool        // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
 
 	scheduled bool // Values in Blocks are in final order
 	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.

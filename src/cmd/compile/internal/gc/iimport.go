@@ -935,9 +935,6 @@ func (r *importReader) node() *Node {
 		}
 		return x
 
-	// case OCMPSTR, OCMPIFACE:
-	// 	unreachable - mapped to std comparison operators by exporter
-
 	// --------------------------------------------------------------------
 	// statements
 	case ODCL:

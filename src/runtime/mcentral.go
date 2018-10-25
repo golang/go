@@ -117,8 +117,7 @@ havespan:
 	if trace.enabled && !traceDone {
 		traceGCSweepDone()
 	}
-	cap := int32((s.npages << _PageShift) / s.elemsize)
-	n := cap - int32(s.allocCount)
+	n := int(s.nelems) - int(s.allocCount)
 	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
 		throw("span has no free objects")
 	}
@@ -153,16 +152,6 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 		throw("uncaching span but s.allocCount == 0")
 	}
 
-	cap := int32((s.npages << _PageShift) / s.elemsize)
-	n := cap - int32(s.allocCount)
-
-	// cacheSpan updated alloc assuming all objects on s were
-	// going to be allocated. Adjust for any that weren't. We must
-	// do this before potentially sweeping the span.
-	if n > 0 {
-		atomic.Xadd64(&c.nmalloc, -int64(n))
-	}
-
 	sg := mheap_.sweepgen
 	stale := s.sweepgen == sg+1
 	if stale {
@@ -170,18 +159,22 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 		// responsibility to sweep it.
 		//
 		// Set sweepgen to indicate it's not cached but needs
-		// sweeping. sweep will set s.sweepgen to indicate s
-		// is swept.
-		s.sweepgen = sg - 1
-		s.sweep(true)
-		// sweep may have freed objects, so recompute n.
-		n = cap - int32(s.allocCount)
+		// sweeping and can't be allocated from. sweep will
+		// set s.sweepgen to indicate s is swept.
+		atomic.Store(&s.sweepgen, sg-1)
 	} else {
 		// Indicate that s is no longer cached.
-		s.sweepgen = sg
+		atomic.Store(&s.sweepgen, sg)
 	}
 
+	n := int(s.nelems) - int(s.allocCount)
 	if n > 0 {
+		// cacheSpan updated alloc assuming all objects on s
+		// were going to be allocated. Adjust for any that
+		// weren't. We must do this before potentially
+		// sweeping the span.
+		atomic.Xadd64(&c.nmalloc, -int64(n))
+
 		lock(&c.lock)
 		c.empty.remove(s)
 		c.nonempty.insert(s)
@@ -196,6 +189,12 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 			atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
 		}
 		unlock(&c.lock)
+	}
+
+	if stale {
+		// Now that s is in the right mcentral list, we can
+		// sweep it.
+		s.sweep(false)
 	}
 }
 
@@ -244,7 +243,7 @@ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
 
 	c.nonempty.remove(s)
 	unlock(&c.lock)
-	mheap_.freeSpan(s, 0)
+	mheap_.freeSpan(s, false)
 	return true
 }
 

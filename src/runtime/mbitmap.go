@@ -283,9 +283,7 @@ func (m markBits) isMarked() bool {
 	return *m.bytep&m.mask != 0
 }
 
-// setMarked sets the marked bit in the markbits, atomically. Some compilers
-// are not able to inline atomic.Or8 function so if it appears as a hot spot consider
-// inlining it manually.
+// setMarked sets the marked bit in the markbits, atomically.
 func (m markBits) setMarked() {
 	// Might be racing with other updates, so use atomic update always.
 	// We used to be clever here and use a non-atomic update in certain

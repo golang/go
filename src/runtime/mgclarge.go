@@ -46,15 +46,6 @@ type treapNode struct {
 	priority  uint32     // random number used by treap algorithm to keep tree probabilistically balanced
 }
 
-func (t *treapNode) init() {
-	t.right = nil
-	t.left = nil
-	t.parent = nil
-	t.spanKey = nil
-	t.npagesKey = 0
-	t.priority = 0
-}
-
 // isSpanInTreap is handy for debugging. One should hold the heap lock, usually
 // mheap_.lock().
 func (t *treapNode) isSpanInTreap(s *mspan) bool {
@@ -140,7 +131,6 @@ func (root *mTreap) insert(span *mspan) {
 	// https://faculty.washington.edu/aragon/pubs/rst89.pdf
 
 	t := (*treapNode)(mheap_.treapalloc.alloc())
-	t.init()
 	t.npagesKey = span.npages
 	t.priority = fastrand()
 	t.spanKey = span
@@ -188,8 +178,6 @@ func (root *mTreap) removeNode(t *treapNode) {
 		root.treap = nil
 	}
 	// Return the found treapNode's span after freeing the treapNode.
-	t.spanKey = nil
-	t.npagesKey = 0
 	mheap_.treapalloc.free(unsafe.Pointer(t))
 }
 

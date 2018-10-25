@@ -95,7 +95,7 @@ func (r RDNSequence) String() string {
 type RelativeDistinguishedNameSET []AttributeTypeAndValue
 
 // AttributeTypeAndValue mirrors the ASN.1 structure of the same name in
-// https://tools.ietf.org/html/rfc5280#section-4.1.2.4
+// RFC 5280, Section 4.1.2.4.
 type AttributeTypeAndValue struct {
 	Type  asn1.ObjectIdentifier
 	Value interface{}

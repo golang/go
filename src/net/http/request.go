@@ -545,6 +545,9 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	} else if r.Method == "CONNECT" && r.URL.Path == "" {
 		// CONNECT requests normally give just the host and port, not a full URL.
 		ruri = host
+		if r.URL.Opaque != "" {
+			ruri = r.URL.Opaque
+		}
 	}
 	// TODO(bradfitz): escape at least newlines in ruri?
 

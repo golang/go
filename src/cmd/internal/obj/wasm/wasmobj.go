@@ -705,11 +705,42 @@ func regAddr(reg int16) obj.Addr {
 	return obj.Addr{Type: obj.TYPE_REG, Reg: reg}
 }
 
+// countRegisters returns the number of integer and float registers used by s.
+// It does so by looking for the maximum I* and R* registers.
+func countRegisters(s *obj.LSym) (numI, numF int16) {
+	for p := s.Func.Text; p != nil; p = p.Link {
+		var reg int16
+		switch p.As {
+		case AGet:
+			reg = p.From.Reg
+		case ASet:
+			reg = p.To.Reg
+		case ATee:
+			reg = p.To.Reg
+		default:
+			continue
+		}
+		if reg >= REG_R0 && reg <= REG_R15 {
+			if n := reg - REG_R0 + 1; numI < n {
+				numI = n
+			}
+		} else if reg >= REG_F0 && reg <= REG_F15 {
+			if n := reg - REG_F0 + 1; numF < n {
+				numF = n
+			}
+		}
+	}
+	return
+}
+
 func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	w := new(bytes.Buffer)
 
+	numI, numF := countRegisters(s)
+
 	// Function starts with declaration of locals: numbers and types.
 	switch s.Name {
+	// memchr and memcmp don't use the normal Go calling convention and need i32 variables.
 	case "memchr":
 		writeUleb128(w, 1) // number of sets of locals
 		writeUleb128(w, 3) // number of locals
@@ -719,11 +750,23 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		writeUleb128(w, 2) // number of locals
 		w.WriteByte(0x7F)  // i32
 	default:
-		writeUleb128(w, 2)  // number of sets of locals
-		writeUleb128(w, 16) // number of locals
-		w.WriteByte(0x7E)   // i64
-		writeUleb128(w, 16) // number of locals
-		w.WriteByte(0x7C)   // f64
+		numTypes := 0
+		if numI > 0 {
+			numTypes++
+		}
+		if numF > 0 {
+			numTypes++
+		}
+
+		writeUleb128(w, uint64(numTypes))
+		if numI > 0 {
+			writeUleb128(w, uint64(numI)) // number of locals
+			w.WriteByte(0x7E)             // i64
+		}
+		if numF > 0 {
+			writeUleb128(w, uint64(numF)) // number of locals
+			w.WriteByte(0x7C)             // f64
+		}
 	}
 
 	for p := s.Func.Text; p != nil; p = p.Link {
@@ -737,9 +780,12 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			case reg >= REG_PC_F && reg <= REG_RUN:
 				w.WriteByte(0x23) // get_global
 				writeUleb128(w, uint64(reg-REG_PC_F))
-			case reg >= REG_R0 && reg <= REG_F15:
-				w.WriteByte(0x20) // get_local
+			case reg >= REG_R0 && reg <= REG_R15:
+				w.WriteByte(0x20) // get_local (i64)
 				writeUleb128(w, uint64(reg-REG_R0))
+			case reg >= REG_F0 && reg <= REG_F15:
+				w.WriteByte(0x20) // get_local (f64)
+				writeUleb128(w, uint64(numI+(reg-REG_F0)))
 			default:
 				panic("bad Get: invalid register")
 			}
@@ -761,7 +807,11 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				} else {
 					w.WriteByte(0x21) // set_local
 				}
-				writeUleb128(w, uint64(reg-REG_R0))
+				if reg <= REG_R15 {
+					writeUleb128(w, uint64(reg-REG_R0))
+				} else {
+					writeUleb128(w, uint64(numI+(reg-REG_F0)))
+				}
 			default:
 				panic("bad Set: invalid register")
 			}
@@ -773,9 +823,12 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 			reg := p.To.Reg
 			switch {
-			case reg >= REG_R0 && reg <= REG_F15:
-				w.WriteByte(0x22) // tee_local
+			case reg >= REG_R0 && reg <= REG_R15:
+				w.WriteByte(0x22) // tee_local (i64)
 				writeUleb128(w, uint64(reg-REG_R0))
+			case reg >= REG_F0 && reg <= REG_F15:
+				w.WriteByte(0x22) // tee_local (f64)
+				writeUleb128(w, uint64(numI+(reg-REG_F0)))
 			default:
 				panic("bad Tee: invalid register")
 			}

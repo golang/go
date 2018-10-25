@@ -757,6 +757,7 @@ var errors = []struct {
 	{"\a", token.ILLEGAL, 0, "", "illegal character U+0007"},
 	{`#`, token.ILLEGAL, 0, "", "illegal character U+0023 '#'"},
 	{`…`, token.ILLEGAL, 0, "", "illegal character U+2026 '…'"},
+	{"..", token.PERIOD, 0, "", ""}, // two periods, not invalid token (issue #28112)
 	{`' '`, token.CHAR, 0, `' '`, ""},
 	{`''`, token.CHAR, 0, `''`, "illegal rune literal"},
 	{`'12'`, token.CHAR, 0, `'12'`, "illegal rune literal"},
@@ -822,7 +823,7 @@ func TestScanErrors(t *testing.T) {
 
 // Verify that no comments show up as literal values when skipping comments.
 func TestIssue10213(t *testing.T) {
-	var src = `
+	const src = `
 		var (
 			A = 1 // foo
 		)
@@ -851,6 +852,23 @@ func TestIssue10213(t *testing.T) {
 		}
 		if tok <= token.EOF {
 			break
+		}
+	}
+}
+
+func TestIssue28112(t *testing.T) {
+	const src = "... .. 0.. .." // make sure to have stand-alone ".." immediately before EOF to test EOF behavior
+	tokens := []token.Token{token.ELLIPSIS, token.PERIOD, token.PERIOD, token.FLOAT, token.PERIOD, token.PERIOD, token.PERIOD, token.EOF}
+	var s Scanner
+	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), nil, 0)
+	for _, want := range tokens {
+		pos, got, lit := s.Scan()
+		if got != want {
+			t.Errorf("%s: got %s, want %s", fset.Position(pos), got, want)
+		}
+		// literals expect to have a (non-empty) literal string and we don't care about other tokens for this test
+		if tokenclass(got) == literal && lit == "" {
+			t.Errorf("%s: for %s got empty literal string", fset.Position(pos), got)
 		}
 	}
 }

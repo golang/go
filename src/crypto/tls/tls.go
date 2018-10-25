@@ -11,6 +11,7 @@ package tls
 // https://www.imperialviolet.org/2013/02/04/luckythirteen.html.
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
@@ -29,7 +30,10 @@ import (
 // The configuration config must be non-nil and must include
 // at least one certificate or else set GetCertificate.
 func Server(conn net.Conn, config *Config) *Conn {
-	return &Conn{conn: conn, config: config}
+	return &Conn{
+		conn: conn, config: config,
+		input: *bytes.NewReader(nil), // Issue 28269
+	}
 }
 
 // Client returns a new TLS client side connection
@@ -37,7 +41,10 @@ func Server(conn net.Conn, config *Config) *Conn {
 // The config cannot be nil: users must set either ServerName or
 // InsecureSkipVerify in the config.
 func Client(conn net.Conn, config *Config) *Conn {
-	return &Conn{conn: conn, config: config, isClient: true}
+	return &Conn{
+		conn: conn, config: config, isClient: true,
+		input: *bytes.NewReader(nil), // Issue 28269
+	}
 }
 
 // A listener implements a network listener (net.Listener) for TLS connections.

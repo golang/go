@@ -55,6 +55,9 @@ var genericOps = []opData{
 	{name: "Mul32uhilo", argLength: 2, typ: "(UInt32,UInt32)", commutative: true}, // arg0 * arg1, returns (hi, lo)
 	{name: "Mul64uhilo", argLength: 2, typ: "(UInt64,UInt64)", commutative: true}, // arg0 * arg1, returns (hi, lo)
 
+	{name: "Mul32uover", argLength: 2, typ: "(UInt32,Bool)", commutative: true}, // Let x = arg0*arg1 (full 32x32-> 64 unsigned multiply), returns (uint32(x), (uint32(x) != x))
+	{name: "Mul64uover", argLength: 2, typ: "(UInt64,Bool)", commutative: true}, // Let x = arg0*arg1 (full 64x64->128 unsigned multiply), returns (uint64(x), (uint64(x) != x))
+
 	// Weird special instructions for use in the strength reduction of divides.
 	// These ops compute unsigned (arg0 + arg1) / 2, correct to all
 	// 32/64 bits, even when the intermediate result of the add has 33/65 bits.
@@ -63,23 +66,26 @@ var genericOps = []opData{
 	{name: "Avg32u", argLength: 2, typ: "UInt32"}, // 32-bit platforms only
 	{name: "Avg64u", argLength: 2, typ: "UInt64"}, // 64-bit platforms only
 
+	// For Div16, Div32 and Div64, AuxInt non-zero means that the divisor has been proved to be not -1
+	// or that the dividend is not the most negative value.
 	{name: "Div8", argLength: 2},  // arg0 / arg1, signed
 	{name: "Div8u", argLength: 2}, // arg0 / arg1, unsigned
-	{name: "Div16", argLength: 2},
+	{name: "Div16", argLength: 2, aux: "Bool"},
 	{name: "Div16u", argLength: 2},
-	{name: "Div32", argLength: 2},
+	{name: "Div32", argLength: 2, aux: "Bool"},
 	{name: "Div32u", argLength: 2},
-	{name: "Div64", argLength: 2},
+	{name: "Div64", argLength: 2, aux: "Bool"},
 	{name: "Div64u", argLength: 2},
 	{name: "Div128u", argLength: 3}, // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
 
+	// For Mod16, Mod32 and Mod64, AuxInt non-zero means that the divisor has been proved to be not -1.
 	{name: "Mod8", argLength: 2},  // arg0 % arg1, signed
 	{name: "Mod8u", argLength: 2}, // arg0 % arg1, unsigned
-	{name: "Mod16", argLength: 2},
+	{name: "Mod16", argLength: 2, aux: "Bool"},
 	{name: "Mod16u", argLength: 2},
-	{name: "Mod32", argLength: 2},
+	{name: "Mod32", argLength: 2, aux: "Bool"},
 	{name: "Mod32u", argLength: 2},
-	{name: "Mod64", argLength: 2},
+	{name: "Mod64", argLength: 2, aux: "Bool"},
 	{name: "Mod64u", argLength: 2},
 
 	{name: "And8", argLength: 2, commutative: true}, // arg0 & arg1
@@ -506,20 +512,23 @@ var genericOps = []opData{
 	// Atomic loads return a new memory so that the loads are properly ordered
 	// with respect to other loads and stores.
 	// TODO: use for sync/atomic at some point.
-	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},                               // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                               // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},                             // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicStore32", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicStore64", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem", hasSideEffects: true},            // Store arg1 to *arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
-	{name: "AtomicAdd64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
-	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true iff store happens and new memory.
-	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true iff store happens and new memory.
-	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 &= arg1.  arg2=memory.  Returns memory.
-	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},                                // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoadAcq32", argLength: 2, typ: "(UInt32,Mem)"},                               // Load from arg0.  arg1=memory.  Lock acquisition, returns loaded value and new memory.
+	{name: "AtomicStore32", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStore64", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem", hasSideEffects: true},               // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStoreRel32", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Lock release, returns memory.
+	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},             // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicAdd64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},             // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+	{name: "AtomicCompareAndSwapRel32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Lock release, returns true if store happens and new memory.
+	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},                       // *arg0 &= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},                        // *arg0 |= arg1.  arg2=memory.  Returns memory.
 
 	// Atomic operation variants
 	// These variants have the same semantics as above atomic operations.
