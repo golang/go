@@ -40,7 +40,7 @@ var vetTool = os.Getenv("GOVETTOOL")
 
 // vetFlags processes the command line, splitting it at the first non-flag
 // into the list of flags and list of packages.
-func vetFlags(args []string) (passToVet, packageNames []string) {
+func vetFlags(usage func(), args []string) (passToVet, packageNames []string) {
 	// Query the vet command for its flags.
 	tool := vetTool
 	if tool != "" {
@@ -108,7 +108,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
 			return args[:i], args[i:]
 		}
 
-		f, value, extraWord := cmdflag.Parse("vet", vetFlagDefn, args, i)
+		f, value, extraWord := cmdflag.Parse("vet", usage, vetFlagDefn, args, i)
 		if f == nil {
 			fmt.Fprintf(os.Stderr, "vet: flag %q not defined\n", args[i])
 			fmt.Fprintf(os.Stderr, "Run \"go help vet\" for more information\n")
