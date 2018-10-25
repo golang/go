@@ -1772,10 +1772,22 @@ func walkCall(n *Node, init *Nodes) {
 	var tempAssigns []*Node
 	for i, arg := range args {
 		updateHasCall(arg)
-		if instrumenting || arg.HasCall() {
+		// Determine param type.
+		var t *types.Type
+		if n.Op == OCALLMETH {
+			if i == 0 {
+				t = n.Left.Type.Recv().Type
+			} else {
+				t = params.Field(i - 1).Type
+			}
+		} else {
+			t = params.Field(i).Type
+		}
+		if instrumenting || fncall(arg, t) {
 			// make assignment of fncall to tempname
-			tmp := temp(arg.Type)
+			tmp := temp(t)
 			a := nod(OAS, tmp, arg)
+			a = convas(a, init)
 			tempAssigns = append(tempAssigns, a)
 			// replace arg with temp
 			args[i] = tmp
