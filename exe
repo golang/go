@@ -1,0 +1,7 @@
+, all output directed to this unit behaves as if it were typed at command level. In batch, output to unit -1 goes to the execution report.
+Units Zero and One:
+Unit zero is initialized as the standard input unit. In TSS, this is the terminal but input may come from a file if redirection of I/O is used. In batch, reads on unit zero come from file code I*, if it is defined and if input was not redirected. If I* is not present and there is no input redirection, unit zero is defined to be a null device (RD.NULL).
+
+Similarly, unit one is initialized as the standard output unit. In TSS, this is again the terminal and is subject to redirection of I/O. In batch, output to unit one goes to the printer, unless redirected.
+
+Free Units:tethistlethwaite-patch-1
