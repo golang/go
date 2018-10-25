@@ -279,7 +279,7 @@ func compileSSA(fn *Node, worker int) {
 	// Note: check arg size to fix issue 25507.
 	if f.Frontend().(*ssafn).stksize >= maxStackSize || fn.Type.ArgWidth() >= maxStackSize {
 		largeStackFramesMu.Lock()
-		largeStackFrames = append(largeStackFrames, fn.Pos)
+		largeStackFrames = append(largeStackFrames, largeStack{locals: f.Frontend().(*ssafn).stksize, args: fn.Type.ArgWidth(), pos: fn.Pos})
 		largeStackFramesMu.Unlock()
 		return
 	}
@@ -294,7 +294,8 @@ func compileSSA(fn *Node, worker int) {
 	// the assembler may emit inscrutable complaints about invalid instructions.
 	if pp.Text.To.Offset >= maxStackSize {
 		largeStackFramesMu.Lock()
-		largeStackFrames = append(largeStackFrames, fn.Pos)
+		locals := f.Frontend().(*ssafn).stksize
+		largeStackFrames = append(largeStackFrames, largeStack{locals: locals, args: fn.Type.ArgWidth(), callee: pp.Text.To.Offset - locals, pos: fn.Pos})
 		largeStackFramesMu.Unlock()
 		return
 	}
