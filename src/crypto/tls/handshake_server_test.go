@@ -615,10 +615,12 @@ func (test *serverTest) run(t *testing.T, write bool) {
 		}
 		for i, b := range flows {
 			if i%2 == 0 {
+				clientConn.SetWriteDeadline(time.Now().Add(1 * time.Second))
 				clientConn.Write(b)
 				continue
 			}
 			bb := make([]byte, len(b))
+			clientConn.SetReadDeadline(time.Now().Add(1 * time.Second))
 			n, err := io.ReadFull(clientConn, bb)
 			if err != nil {
 				t.Fatalf("%s #%d: %s\nRead %d, wanted %d, got %x, wanted %x\n", test.name, i+1, err, n, len(bb), bb[:n], b)
