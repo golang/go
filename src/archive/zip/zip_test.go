@@ -114,6 +114,25 @@ func TestFileHeaderRoundTrip64(t *testing.T) {
 	testHeaderRoundTrip(fh, uint32max, fh.UncompressedSize64, t)
 }
 
+func TestFileHeaderRoundTripModified(t *testing.T) {
+	fh := &FileHeader{
+		Name:             "foo.txt",
+		UncompressedSize: 987654321,
+		Modified:         time.Now().Local(),
+	}
+	fi := fh.FileInfo()
+	fh2, err := FileInfoHeader(fi)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := fh2.Modified, fh.Modified; got != want {
+		t.Errorf("Modified: got %s, want %s\n", got, want)
+	}
+	if got, want := fi.ModTime(), fh.Modified; got != want {
+		t.Errorf("Modified: got %s, want %s\n", got, want)
+	}
+}
+
 type repeatedByte struct {
 	off int64
 	b   byte
