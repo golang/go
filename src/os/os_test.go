@@ -1493,7 +1493,11 @@ func runBinHostname(t *testing.T) string {
 	}
 	defer r.Close()
 	const path = "/bin/hostname"
-	p, err := StartProcess(path, []string{"hostname"}, &ProcAttr{Files: []*File{nil, w, Stderr}})
+	argv := []string{"hostname"}
+	if runtime.GOOS == "aix" {
+		argv = []string{"hostname", "-s"}
+	}
+	p, err := StartProcess(path, argv, &ProcAttr{Files: []*File{nil, w, Stderr}})
 	if err != nil {
 		if _, err := Stat(path); IsNotExist(err) {
 			t.Skipf("skipping test; test requires %s but it does not exist", path)
