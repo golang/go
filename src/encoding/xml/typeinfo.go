@@ -149,8 +149,13 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 		switch mode := finfo.flags & fMode; mode {
 		case 0:
 			finfo.flags |= fElement
-		case fAttr, fCDATA, fCharData, fInnerXml, fComment, fAny, fAny | fAttr:
+		case fAttr, fComment, fInnerXml, fAny, fAny | fAttr:
 			if f.Name == xmlName || tag != "" && mode != fAttr {
+				valid = false
+			}
+		case fCDATA, fCharData:
+			// This will allow CData and CharData to have tags in annotation
+			if f.Name == xmlName && mode != fAttr {
 				valid = false
 			}
 		default:
@@ -158,6 +163,12 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 			valid = false
 		}
 		if finfo.flags&fMode == fAny {
+			finfo.flags |= fElement
+		}
+		if finfo.flags&fMode == fCDATA && tag != "" {
+			finfo.flags |= fElement
+		}
+		if finfo.flags&fMode == fCharData && tag != "" {
 			finfo.flags |= fElement
 		}
 		if finfo.flags&fOmitEmpty != 0 && finfo.flags&(fElement|fAttr) == 0 {

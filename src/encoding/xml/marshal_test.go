@@ -49,10 +49,24 @@ type Port struct {
 	Number  string   `xml:",chardata"`
 }
 
+type NamedPort struct {
+	XMLName struct{} `xml:"port"`
+	Type    string   `xml:"type,attr,omitempty"`
+	Comment string   `xml:",comment"`
+	Number  string   `xml:"number,chardata"`
+}
+
 type Domain struct {
 	XMLName struct{} `xml:"domain"`
 	Country string   `xml:",attr,omitempty"`
 	Name    []byte   `xml:",chardata"`
+	Comment []byte   `xml:",comment"`
+}
+
+type NamedDomain struct {
+	XMLName struct{} `xml:"domain"`
+	Country string   `xml:",attr,omitempty"`
+	Name    []byte   `xml:"name,chardata"`
 	Comment []byte   `xml:",comment"`
 }
 
@@ -61,9 +75,17 @@ type Book struct {
 	Title   string   `xml:",chardata"`
 }
 
+type NamedBook struct {
+	Title string `xml:"book,chardata,omitempty"`
+}
+
 type Event struct {
 	XMLName struct{} `xml:"event"`
 	Year    int      `xml:",chardata"`
+}
+
+type NamedEvent struct {
+	Year int `xml:"event,chardata"`
 }
 
 type Movie struct {
@@ -71,9 +93,17 @@ type Movie struct {
 	Length  uint     `xml:",chardata"`
 }
 
+type NamedMovie struct {
+	Length uint `xml:"movie,chardata"`
+}
+
 type Pi struct {
 	XMLName       struct{} `xml:"pi"`
 	Approximation float32  `xml:",chardata"`
+}
+
+type NamedPi struct {
+	Approximation float32 `xml:"pi,chardata"`
 }
 
 type Universe struct {
@@ -81,14 +111,26 @@ type Universe struct {
 	Visible float64  `xml:",chardata"`
 }
 
+type NamedUniverse struct {
+	Visible float64 `xml:"universe,chardata"`
+}
+
 type Particle struct {
 	XMLName struct{} `xml:"particle"`
 	HasMass bool     `xml:",chardata"`
 }
 
+type NamedParticle struct {
+	HasMass bool `xml:"particle,chardata"`
+}
+
 type Departure struct {
 	XMLName struct{}  `xml:"departure"`
 	When    time.Time `xml:",chardata"`
+}
+
+type NamedDeparture struct {
+	When time.Time `xml:"departure,chardata"`
 }
 
 type SecretAgent struct {
@@ -382,6 +424,54 @@ type NestedAndCData struct {
 	CDATA string   `xml:",cdata"`
 }
 
+type DirectNamedCDataTest struct {
+	CData string `xml:"A,cdata"`
+}
+
+type DirectNestedNamedCDataTest struct {
+	CData string `xml:"A>B>C,cdata"`
+}
+
+type IndirectNamedCDataTest struct {
+	CData *string `xml:"A,cdata"`
+}
+
+type IndirectNestedNamedCDataTest struct {
+	CData *string `xml:"A>B>C,cdata"`
+}
+
+type IfaceNamedCDataTest struct {
+	CData interface{} `xml:"A,cdata"`
+}
+
+type IfaceNestedNamedCDataTest struct {
+	CData interface{} `xml:"A>B>C,cdata"`
+}
+
+type DirectNamedChardataTest struct {
+	Chardata string `xml:"A,chardata"`
+}
+
+type DirectNestedNamedChardataTest struct {
+	Chardata string `xml:"A>B>C,chardata"`
+}
+
+type IndirectNamedChardataTest struct {
+	Chardata *string `xml:"A,chardata"`
+}
+
+type IndirectNestedNamedChardataTest struct {
+	Chardata *string `xml:"A>B>C,chardata"`
+}
+
+type IfaceNamedChardataTest struct {
+	Chardata interface{} `xml:"A,chardata"`
+}
+
+type IfaceNestedNamedChardataTest struct {
+	Chardata interface{} `xml:"A>B>C,chardata"`
+}
+
 func ifaceptr(x interface{}) interface{} {
 	return &x
 }
@@ -636,6 +726,21 @@ var marshalTests = []struct {
 	{Value: &Universe{Visible: 9.3e13}, ExpectXML: `<universe>9.3e+13</universe>`},
 	{Value: &Particle{HasMass: true}, ExpectXML: `<particle>true</particle>`},
 	{Value: &Departure{When: ParseTime("2013-01-09T00:15:00-09:00")}, ExpectXML: `<departure>2013-01-09T00:15:00-09:00</departure>`},
+	{Value: &NamedPort{Type: "ssl", Number: "443"}, ExpectXML: `<port type="ssl"><number>443</number></port>`},
+	{Value: &NamedPort{Number: "443"}, ExpectXML: `<port><number>443</number></port>`},
+	{Value: &NamedPort{Type: "<unix>"}, ExpectXML: `<port type="&lt;unix&gt;"><number></number></port>`},
+	{Value: &NamedPort{Number: "443", Comment: "https"}, ExpectXML: `<port><!--https--><number>443</number></port>`},
+	{Value: &NamedPort{Number: "443", Comment: "add space-"}, ExpectXML: `<port><!--add space- --><number>443</number></port>`, MarshalOnly: true},
+	{Value: &NamedDomain{Name: []byte("google.com&friends")}, ExpectXML: `<domain><name>google.com&amp;friends</name></domain>`},
+	{Value: &NamedDomain{Name: []byte("google.com"), Comment: []byte(" &friends ")}, ExpectXML: `<domain><name>google.com</name><!-- &friends --></domain>`},
+	{Value: &NamedBook{Title: "Pride & Prejudice"}, ExpectXML: `<NamedBook><book>Pride &amp; Prejudice</book></NamedBook>`},
+	{Value: &NamedBook{}, ExpectXML: `<NamedBook></NamedBook>`},
+	{Value: &NamedEvent{Year: -3114}, ExpectXML: `<NamedEvent><event>-3114</event></NamedEvent>`},
+	{Value: &NamedMovie{Length: 13440}, ExpectXML: `<NamedMovie><movie>13440</movie></NamedMovie>`},
+	{Value: &NamedPi{Approximation: 3.14159265}, ExpectXML: `<NamedPi><pi>3.1415927</pi></NamedPi>`},
+	{Value: &NamedUniverse{Visible: 9.3e13}, ExpectXML: `<NamedUniverse><universe>9.3e+13</universe></NamedUniverse>`},
+	{Value: &NamedParticle{HasMass: true}, ExpectXML: `<NamedParticle><particle>true</particle></NamedParticle>`},
+	{Value: &NamedDeparture{When: ParseTime("2013-01-09T00:15:00-09:00")}, ExpectXML: `<NamedDeparture><departure>2013-01-09T00:15:00-09:00</departure></NamedDeparture>`},
 	{Value: atomValue, ExpectXML: atomXML},
 	{
 		Value: &Ship{
@@ -1412,6 +1517,154 @@ var marshalTests = []struct {
 	{
 		ExpectXML: `<DirectCDATA><T1></T1><T2></T2></DirectCDATA>`,
 		Value:     &DirectCDATA{CDATA: string("")},
+	},
+	{
+		ExpectXML: `<DirectNamedCDataTest><A><![CDATA[2 > 1]]></A></DirectNamedCDataTest>`,
+		Value: &DirectNamedCDataTest{
+			CData: "2 > 1",
+		},
+	},
+	{
+		ExpectXML: `<DirectNamedCDataTest><A></A></DirectNamedCDataTest>`,
+		Value: &DirectNamedCDataTest{
+			CData: "",
+		},
+	},
+	{
+		ExpectXML: `<DirectNestedNamedCDataTest><A><B><C><![CDATA[2 > 1]]></C></B></A></DirectNestedNamedCDataTest>`,
+		Value: &DirectNestedNamedCDataTest{
+			CData: "2 > 1",
+		},
+	},
+	{
+		ExpectXML: `<DirectNestedNamedCDataTest><A><B><C></C></B></A></DirectNestedNamedCDataTest>`,
+		Value: &DirectNestedNamedCDataTest{
+			CData: "",
+		},
+	},
+	{
+		ExpectXML: `<IndirectNamedCDataTest><A><![CDATA[2 > 1]]></A></IndirectNamedCDataTest>`,
+		Value: &IndirectNamedCDataTest{
+			CData: stringptr("2 > 1"),
+		},
+	},
+	{
+		ExpectXML: `<IndirectNamedCDataTest><A></A></IndirectNamedCDataTest>`,
+		Value: &IndirectNamedCDataTest{
+			CData: stringptr(""),
+		},
+	},
+	{
+		ExpectXML: `<IndirectNamedCDataTest></IndirectNamedCDataTest>`,
+		Value: &IndirectNamedCDataTest{
+			CData: nil,
+		},
+	},
+	{
+		ExpectXML: `<IndirectNestedNamedCDataTest><A><B><C><![CDATA[2 > 1]]></C></B></A></IndirectNestedNamedCDataTest>`,
+		Value: &IndirectNestedNamedCDataTest{
+			CData: stringptr("2 > 1"),
+		},
+	},
+	{
+		ExpectXML: `<IndirectNestedNamedCDataTest><A><B><C></C></B></A></IndirectNestedNamedCDataTest>`,
+		Value: &IndirectNestedNamedCDataTest{
+			CData: stringptr(""),
+		},
+	},
+	{
+		ExpectXML: `<IndirectNestedNamedCDataTest></IndirectNestedNamedCDataTest>`,
+		Value: &IndirectNestedNamedCDataTest{
+			CData: nil,
+		},
+	},
+	{
+		ExpectXML: `<IfaceNamedCDataTest><A><![CDATA[2 > 1]]></A></IfaceNamedCDataTest>`,
+		Value: &IfaceNamedCDataTest{
+			CData: "2 > 1",
+		},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML: `<IfaceNestedNamedCDataTest><A><B><C><![CDATA[2 > 1]]></C></B></A></IfaceNestedNamedCDataTest>`,
+		Value: &IfaceNestedNamedCDataTest{
+			CData: "2 > 1",
+		},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML: `<DirectNamedChardataTest><A>2 &gt; 1</A></DirectNamedChardataTest>`,
+		Value: &DirectNamedChardataTest{
+			Chardata: "2 > 1",
+		},
+	},
+	{
+		ExpectXML: `<DirectNamedChardataTest><A></A></DirectNamedChardataTest>`,
+		Value: &DirectNamedChardataTest{
+			Chardata: "",
+		},
+	},
+	{
+		ExpectXML: `<DirectNestedNamedChardataTest><A><B><C>2 &gt; 1</C></B></A></DirectNestedNamedChardataTest>`,
+		Value: &DirectNestedNamedChardataTest{
+			Chardata: "2 > 1",
+		},
+	},
+	{
+		ExpectXML: `<DirectNestedNamedChardataTest><A><B><C></C></B></A></DirectNestedNamedChardataTest>`,
+		Value: &DirectNestedNamedChardataTest{
+			Chardata: "",
+		},
+	},
+	{
+		ExpectXML: `<IndirectNamedChardataTest><A>2 &gt; 1</A></IndirectNamedChardataTest>`,
+		Value: &IndirectNamedChardataTest{
+			Chardata: stringptr("2 > 1"),
+		},
+	},
+	{
+		ExpectXML: `<IndirectNamedChardataTest><A></A></IndirectNamedChardataTest>`,
+		Value: &IndirectNamedChardataTest{
+			Chardata: stringptr(""),
+		},
+	},
+	{
+		ExpectXML: `<IndirectNamedChardataTest></IndirectNamedChardataTest>`,
+		Value: &IndirectNamedChardataTest{
+			Chardata: nil,
+		},
+	},
+	{
+		ExpectXML: `<IndirectNestedNamedChardataTest><A><B><C>2 &gt; 1</C></B></A></IndirectNestedNamedChardataTest>`,
+		Value: &IndirectNestedNamedChardataTest{
+			Chardata: stringptr("2 > 1"),
+		},
+	},
+	{
+		ExpectXML: `<IndirectNestedNamedChardataTest><A><B><C></C></B></A></IndirectNestedNamedChardataTest>`,
+		Value: &IndirectNestedNamedChardataTest{
+			Chardata: stringptr(""),
+		},
+	},
+	{
+		ExpectXML: `<IndirectNestedNamedChardataTest></IndirectNestedNamedChardataTest>`,
+		Value: &IndirectNestedNamedChardataTest{
+			Chardata: nil,
+		},
+	},
+	{
+		ExpectXML: `<IfaceNamedChardataTest><A>2 &gt; 1</A></IfaceNamedChardataTest>`,
+		Value: &IfaceNamedChardataTest{
+			Chardata: "2 > 1",
+		},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML: `<IfaceNestedNamedChardataTest><A><B><C>2 &gt; 1</C></B></A></IfaceNestedNamedChardataTest>`,
+		Value: &IfaceNestedNamedChardataTest{
+			Chardata: "2 > 1",
+		},
+		MarshalOnly: true,
 	},
 	{
 		ExpectXML:   `<IndirInnerXML><T1></T1><hi/><T2></T2></IndirInnerXML>`,

@@ -802,10 +802,18 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 		vf := finfo.value(val)
 
 		switch finfo.flags & fMode {
-		case fCDATA, fCharData:
+		case fCharData, fCharData | fElement, fCDATA, fCDATA | fElement:
+
+			if finfo.flags&fOmitEmpty != 0 && isEmptyValue(vf) {
+				continue
+			}
+
 			emit := EscapeText
-			if finfo.flags&fMode == fCDATA {
+			if finfo.flags&fCDATA == fCDATA {
 				emit = emitCDATA
+			}
+			if finfo.flags&fElement == fElement {
+				emit = s.pushEmitTrim(finfo, emit)
 			}
 			if err := s.trim(finfo.parents); err != nil {
 				return err
@@ -1012,6 +1020,19 @@ func (s *parentStack) push(parents []string) error {
 	}
 	s.stack = append(s.stack, parents...)
 	return nil
+}
+
+func (ps *parentStack) pushEmitTrim(finfo *fieldInfo, emit func(io.Writer, []byte) error) func(io.Writer, []byte) error {
+	return func(w io.Writer, s []byte) error {
+		stack := append(finfo.parents, finfo.name)
+		if err := ps.push(stack); err != nil {
+			return err
+		}
+		if err := emit(w, s); err != nil {
+			return err
+		}
+		return ps.trim(stack)
+	}
 }
 
 // UnsupportedTypeError is returned when Marshal encounters a type
