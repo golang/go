@@ -20,7 +20,9 @@ var tests = []interface{}{
 
 	&certificateMsg{},
 	&certificateRequestMsg{},
-	&certificateVerifyMsg{},
+	&certificateVerifyMsg{
+		hasSignatureAlgorithm: true,
+	},
 	&certificateStatusMsg{},
 	&clientKeyExchangeMsg{},
 	&nextProtoMsg{},
@@ -149,6 +151,10 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	if rand.Intn(10) > 5 {
 		m.scts = true
 	}
+	if rand.Intn(10) > 5 {
+		m.secureRenegotiationSupported = true
+		m.secureRenegotiation = randomBytes(rand.Intn(50)+1, rand)
+	}
 
 	return reflect.ValueOf(m)
 }
@@ -180,6 +186,11 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		m.scts = append(m.scts, randomBytes(rand.Intn(500)+1, rand))
 	}
 
+	if rand.Intn(10) > 5 {
+		m.secureRenegotiationSupported = true
+		m.secureRenegotiation = randomBytes(rand.Intn(50)+1, rand)
+	}
+
 	return reflect.ValueOf(m)
 }
 
@@ -204,6 +215,8 @@ func (*certificateRequestMsg) Generate(rand *rand.Rand, size int) reflect.Value 
 
 func (*certificateVerifyMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &certificateVerifyMsg{}
+	m.hasSignatureAlgorithm = true
+	m.signatureAlgorithm = SignatureScheme(rand.Intn(30000))
 	m.signature = randomBytes(rand.Intn(15)+1, rand)
 	return reflect.ValueOf(m)
 }
