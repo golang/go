@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/go/expect"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
@@ -232,37 +233,41 @@ func testValueForExpr(t *testing.T, testfile string) {
 		}
 	}
 
-	// Find the actual AST node for each canonical position.
-	parenExprByPos := make(map[token.Pos]*ast.ParenExpr)
+	var parenExprs []*ast.ParenExpr
 	ast.Inspect(f, func(n ast.Node) bool {
 		if n != nil {
 			if e, ok := n.(*ast.ParenExpr); ok {
-				parenExprByPos[e.Pos()] = e
+				parenExprs = append(parenExprs, e)
 			}
 		}
 		return true
 	})
 
-	// Find all annotations of form /*@kind*/.
-	for _, c := range f.Comments {
-		text := strings.TrimSpace(c.Text())
-		if text == "" || text[0] != '@' {
-			continue
+	notes, err := expect.Extract(prog.Fset, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range notes {
+		want := n.Name
+		if want == "nil" {
+			want = "<nil>"
 		}
-		text = text[1:]
-		pos := c.End() + 1
-		position := prog.Fset.Position(pos)
+		position := prog.Fset.Position(n.Pos)
 		var e ast.Expr
-		if target := parenExprByPos[pos]; target == nil {
-			t.Errorf("%s: annotation doesn't precede ParenExpr: %q", position, text)
+		for _, paren := range parenExprs {
+			if paren.Pos() > n.Pos {
+				e = paren.X
+				break
+			}
+		}
+		if e == nil {
+			t.Errorf("%s: note doesn't precede ParenExpr: %q", position, want)
 			continue
-		} else {
-			e = target.X
 		}
 
-		path, _ := astutil.PathEnclosingInterval(f, pos, pos)
+		path, _ := astutil.PathEnclosingInterval(f, n.Pos, n.Pos)
 		if path == nil {
-			t.Errorf("%s: can't find AST path from root to comment: %s", position, text)
+			t.Errorf("%s: can't find AST path from root to comment: %s", position, want)
 			continue
 		}
 
@@ -274,7 +279,7 @@ func testValueForExpr(t *testing.T, testfile string) {
 
 		v, gotAddr := fn.ValueForExpr(e) // (may be nil)
 		got := strings.TrimPrefix(fmt.Sprintf("%T", v), "*ssa.")
-		if want := text; got != want {
+		if got != want {
 			t.Errorf("%s: got value %q, want %q", position, got, want)
 		}
 		if v != nil {
