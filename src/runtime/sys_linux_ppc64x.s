@@ -301,7 +301,7 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 
 	// this might be called in external code context,
 	// where g is not set.
-	MOVB	runtime·iscgo(SB), R6
+	MOVBZ	runtime·iscgo(SB), R6
 	CMP 	R6, $0
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
@@ -320,7 +320,7 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
 	// The stack unwinder, presumably written in C, may not be able to
 	// handle Go frame correctly. So, this function is NOFRAME, and we
-	// we save/restore LR manually.
+	// save/restore LR manually.
 	MOVD	LR, R10
 
 	// We're coming from C code, initialize essential registers.

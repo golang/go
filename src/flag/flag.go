@@ -83,6 +83,28 @@ import (
 // but no such flag is defined.
 var ErrHelp = errors.New("flag: help requested")
 
+// errParse is returned by Set if a flag's value fails to parse, such as with an invalid integer for Int.
+// It then gets wrapped through failf to provide more information.
+var errParse = errors.New("parse error")
+
+// errRange is returned by Set if a flag's value is out of range.
+// It then gets wrapped through failf to provide more information.
+var errRange = errors.New("value out of range")
+
+func numError(err error) error {
+	ne, ok := err.(*strconv.NumError)
+	if !ok {
+		return err
+	}
+	if ne.Err == strconv.ErrSyntax {
+		return errParse
+	}
+	if ne.Err == strconv.ErrRange {
+		return errRange
+	}
+	return err
+}
+
 // -- bool Value
 type boolValue bool
 
@@ -93,6 +115,9 @@ func newBoolValue(val bool, p *bool) *boolValue {
 
 func (b *boolValue) Set(s string) error {
 	v, err := strconv.ParseBool(s)
+	if err != nil {
+		err = errParse
+	}
 	*b = boolValue(v)
 	return err
 }
@@ -120,6 +145,9 @@ func newIntValue(val int, p *int) *intValue {
 
 func (i *intValue) Set(s string) error {
 	v, err := strconv.ParseInt(s, 0, strconv.IntSize)
+	if err != nil {
+		err = numError(err)
+	}
 	*i = intValue(v)
 	return err
 }
@@ -138,6 +166,9 @@ func newInt64Value(val int64, p *int64) *int64Value {
 
 func (i *int64Value) Set(s string) error {
 	v, err := strconv.ParseInt(s, 0, 64)
+	if err != nil {
+		err = numError(err)
+	}
 	*i = int64Value(v)
 	return err
 }
@@ -156,6 +187,9 @@ func newUintValue(val uint, p *uint) *uintValue {
 
 func (i *uintValue) Set(s string) error {
 	v, err := strconv.ParseUint(s, 0, strconv.IntSize)
+	if err != nil {
+		err = numError(err)
+	}
 	*i = uintValue(v)
 	return err
 }
@@ -174,6 +208,9 @@ func newUint64Value(val uint64, p *uint64) *uint64Value {
 
 func (i *uint64Value) Set(s string) error {
 	v, err := strconv.ParseUint(s, 0, 64)
+	if err != nil {
+		err = numError(err)
+	}
 	*i = uint64Value(v)
 	return err
 }
@@ -209,6 +246,9 @@ func newFloat64Value(val float64, p *float64) *float64Value {
 
 func (f *float64Value) Set(s string) error {
 	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		err = numError(err)
+	}
 	*f = float64Value(v)
 	return err
 }
@@ -227,6 +267,9 @@ func newDurationValue(val time.Duration, p *time.Duration) *durationValue {
 
 func (d *durationValue) Set(s string) error {
 	v, err := time.ParseDuration(s)
+	if err != nil {
+		err = errParse
+	}
 	*d = durationValue(v)
 	return err
 }

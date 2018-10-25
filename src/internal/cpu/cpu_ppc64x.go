@@ -34,17 +34,17 @@ const (
 
 func doinit() {
 	options = []option{
-		{"htm", &PPC64.HasHTM},
-		{"htmnosc", &PPC64.HasHTMNOSC},
-		{"darn", &PPC64.HasDARN},
-		{"scv", &PPC64.HasSCV},
+		{Name: "htm", Feature: &PPC64.HasHTM},
+		{Name: "htmnosc", Feature: &PPC64.HasHTMNOSC},
+		{Name: "darn", Feature: &PPC64.HasDARN},
+		{Name: "scv", Feature: &PPC64.HasSCV},
 
 		// These capabilities should always be enabled on ppc64 and ppc64le:
-		//  {"vmx", &PPC64.HasVMX},
-		//  {"dfp", &PPC64.HasDFP},
-		//  {"vsx", &PPC64.HasVSX},
-		//  {"isel", &PPC64.HasISEL},
-		//  {"vcrypto", &PPC64.HasVCRYPTO},
+		{Name: "vmx", Feature: &PPC64.HasVMX, Required: true},
+		{Name: "dfp", Feature: &PPC64.HasDFP, Required: true},
+		{Name: "vsx", Feature: &PPC64.HasVSX, Required: true},
+		{Name: "isel", Feature: &PPC64.HasISEL, Required: true},
+		{Name: "vcrypto", Feature: &PPC64.HasVCRYPTO, Required: true},
 	}
 
 	// HWCAP feature bits

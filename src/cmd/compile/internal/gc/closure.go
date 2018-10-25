@@ -337,18 +337,10 @@ func closuredebugruntimecheck(clo *Node) {
 	}
 }
 
-func walkclosure(clo *Node, init *Nodes) *Node {
-	xfunc := clo.Func.Closure
-
-	// If no closure vars, don't bother wrapping.
-	if hasemptycvars(clo) {
-		if Debug_closure > 0 {
-			Warnl(clo.Pos, "closure converted to global")
-		}
-		return xfunc.Func.Nname
-	}
-	closuredebugruntimecheck(clo)
-
+// closureType returns the struct type used to hold all the information
+// needed in the closure for clo (clo must be a OCLOSURE node).
+// The address of a variable of the returned type can be cast to a func.
+func closureType(clo *Node) *types.Type {
 	// Create closure in the form of a composite literal.
 	// supposing the closure captures an int i and a string s
 	// and has one float64 argument and no results,
@@ -362,11 +354,10 @@ func walkclosure(clo *Node, init *Nodes) *Node {
 	// The information appears in the binary in the form of type descriptors;
 	// the struct is unnamed so that closures in multiple packages with the
 	// same struct type can share the descriptor.
-
 	fields := []*Node{
 		namedfield(".F", types.Types[TUINTPTR]),
 	}
-	for _, v := range xfunc.Func.Cvars.Slice() {
+	for _, v := range clo.Func.Closure.Func.Cvars.Slice() {
 		typ := v.Type
 		if !v.Name.Byval() {
 			typ = types.NewPtr(typ)
@@ -375,6 +366,22 @@ func walkclosure(clo *Node, init *Nodes) *Node {
 	}
 	typ := tostruct(fields)
 	typ.SetNoalg(true)
+	return typ
+}
+
+func walkclosure(clo *Node, init *Nodes) *Node {
+	xfunc := clo.Func.Closure
+
+	// If no closure vars, don't bother wrapping.
+	if hasemptycvars(clo) {
+		if Debug_closure > 0 {
+			Warnl(clo.Pos, "closure converted to global")
+		}
+		return xfunc.Func.Nname
+	}
+	closuredebugruntimecheck(clo)
+
+	typ := closureType(clo)
 
 	clos := nod(OCOMPLIT, nil, nod(OIND, typenod(typ), nil))
 	clos.Esc = clo.Esc
@@ -389,10 +396,10 @@ func walkclosure(clo *Node, init *Nodes) *Node {
 	clos.Left.Esc = clo.Esc
 
 	// non-escaping temp to use, if any.
-	// orderexpr did not compute the type; fill it in now.
 	if x := prealloc[clo]; x != nil {
-		x.Type = clos.Left.Left.Type
-		x.Orig.Type = x.Type
+		if !types.Identical(typ, x.Type) {
+			panic("closure type does not match order's assigned type")
+		}
 		clos.Left.Right = x
 		delete(prealloc, clo)
 	}
@@ -479,6 +486,18 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	return xfunc
 }
 
+// partialCallType returns the struct type used to hold all the information
+// needed in the closure for n (n must be a OCALLPART node).
+// The address of a variable of the returned type can be cast to a func.
+func partialCallType(n *Node) *types.Type {
+	t := tostruct([]*Node{
+		namedfield("F", types.Types[TUINTPTR]),
+		namedfield("R", n.Left.Type),
+	})
+	t.SetNoalg(true)
+	return t
+}
+
 func walkpartialcall(n *Node, init *Nodes) *Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
@@ -495,30 +514,25 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 		checknil(n.Left, init)
 	}
 
-	typ := tostruct([]*Node{
-		namedfield("F", types.Types[TUINTPTR]),
-		namedfield("R", n.Left.Type),
-	})
-	typ.SetNoalg(true)
+	typ := partialCallType(n)
 
 	clos := nod(OCOMPLIT, nil, nod(OIND, typenod(typ), nil))
 	clos.Esc = n.Esc
 	clos.Right.SetImplicit(true)
-	clos.List.Set1(nod(OCFUNC, n.Func.Nname, nil))
-	clos.List.Append(n.Left)
+	clos.List.Set2(nod(OCFUNC, n.Func.Nname, nil), n.Left)
 
 	// Force type conversion from *struct to the func type.
 	clos = convnop(clos, n.Type)
 
-	// typecheck will insert a PTRLIT node under CONVNOP,
-	// tag it with escape analysis result.
+	// The typecheck inside convnop will insert a PTRLIT node under CONVNOP.
+	// Tag it with escape analysis result.
 	clos.Left.Esc = n.Esc
 
 	// non-escaping temp to use, if any.
-	// orderexpr did not compute the type; fill it in now.
 	if x := prealloc[n]; x != nil {
-		x.Type = clos.Left.Left.Type
-		x.Orig.Type = x.Type
+		if !types.Identical(typ, x.Type) {
+			panic("partial call type does not match order's assigned type")
+		}
 		clos.Left.Right = x
 		delete(prealloc, n)
 	}

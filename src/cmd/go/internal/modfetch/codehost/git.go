@@ -694,6 +694,10 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 		return nil, "", err
 	}
 
+	if err := ensureGitAttributes(r.dir); err != nil {
+		return nil, "", err
+	}
+
 	// Incredibly, git produces different archives depending on whether
 	// it is running on a Windows system or not, in an attempt to normalize
 	// text file line endings. Setting -c core.autocrlf=input means only
@@ -708,4 +712,44 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 	}
 
 	return ioutil.NopCloser(bytes.NewReader(archive)), "", nil
+}
+
+// ensureGitAttributes makes sure export-subst and export-ignore features are
+// disabled for this repo. This is intended to be run prior to running git
+// archive so that zip files are generated that produce consistent ziphashes
+// for a given revision, independent of variables such as git version and the
+// size of the repo.
+//
+// See: https://github.com/golang/go/issues/27153
+func ensureGitAttributes(repoDir string) (err error) {
+	const attr = "\n* -export-subst -export-ignore\n"
+
+	d := repoDir + "/info"
+	p := d + "/attributes"
+
+	if err := os.MkdirAll(d, 0755); err != nil {
+		return err
+	}
+
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		closeErr := f.Close()
+		if closeErr != nil {
+			err = closeErr
+		}
+	}()
+
+	b, err := ioutil.ReadAll(f)
+	if err != nil {
+		return err
+	}
+	if !bytes.HasSuffix(b, []byte(attr)) {
+		_, err := f.WriteString(attr)
+		return err
+	}
+
+	return nil
 }

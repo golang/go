@@ -9,7 +9,7 @@ import "C"
 
 func FuncInt() int { return 1 }
 
-// Add a recursive type to to check that type equality across plugins doesn't
+// Add a recursive type to check that type equality across plugins doesn't
 // crash. See https://golang.org/issues/19258
 func FuncRecursive() X { return X{} }
 

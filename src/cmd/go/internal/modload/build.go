@@ -30,6 +30,9 @@ func isStandardImportPath(path string) bool {
 }
 
 func findStandardImportPath(path string) string {
+	if path == "" {
+		panic("findStandardImportPath called with empty path")
+	}
 	if search.IsStandardImportPath(path) {
 		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
 			return filepath.Join(cfg.GOROOT, "src", path)
@@ -236,13 +239,10 @@ func ModInfoProg(info string) []byte {
 	// Populate it in an init func so that it will work with go:linkname,
 	// but use a string constant instead of the name 'string' in case
 	// package main shadows the built-in 'string' with some local declaration.
-	return []byte(fmt.Sprintf(`
-		package main
-		import _ "unsafe"
-		//go:linkname __debug_modinfo__ runtime/debug.modinfo
-		var __debug_modinfo__ = ""
-		func init() {
-			__debug_modinfo__ = %q
-		}
+	return []byte(fmt.Sprintf(`package main
+import _ "unsafe"
+//go:linkname __debug_modinfo__ runtime/debug.modinfo
+var __debug_modinfo__ = ""
+func init() { __debug_modinfo__ = %q }
 	`, string(infoStart)+info+string(infoEnd)))
 }

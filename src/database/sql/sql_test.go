@@ -397,7 +397,7 @@ func TestQueryContextWait(t *testing.T) {
 	prepares0 := numPrepares(t, db)
 
 	// TODO(kardianos): convert this from using a timeout to using an explicit
-	// cancel when the query signals that is is "executing" the query.
+	// cancel when the query signals that it is "executing" the query.
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
 
@@ -597,7 +597,7 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	state := 0
 
 	// waiter will be called for all queries, including
-	// initial setup queries. The state is only assigned when no
+	// initial setup queries. The state is only assigned when
 	// no queries are made.
 	//
 	// Only allow the first batch of queries to finish once the

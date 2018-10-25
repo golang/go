@@ -109,6 +109,12 @@ code, pre, .lines, .ast {
     font-size: 12px;
 }
 
+pre {
+    -moz-tab-size: 4;
+    -o-tab-size:   4;
+    tab-size:      4;
+}
+
 .allow-x-scroll {
     overflow-x: scroll;
 }

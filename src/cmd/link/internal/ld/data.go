@@ -529,11 +529,7 @@ func (ctxt *Link) reloc() {
 	}
 }
 
-func windynrelocsym(ctxt *Link, s *sym.Symbol) {
-	rel := ctxt.Syms.Lookup(".rel", 0)
-	if s == rel {
-		return
-	}
+func windynrelocsym(ctxt *Link, rel, s *sym.Symbol) {
 	for ri := range s.R {
 		r := &s.R[ri]
 		targ := r.Sym
@@ -576,14 +572,31 @@ func windynrelocsym(ctxt *Link, s *sym.Symbol) {
 	}
 }
 
-func dynrelocsym(ctxt *Link, s *sym.Symbol) {
-	if ctxt.HeadType == objabi.Hwindows {
-		if ctxt.LinkMode == LinkInternal {
-			windynrelocsym(ctxt, s)
-		}
+// windynrelocsyms generates jump table to C library functions that will be
+// added later. windynrelocsyms writes the table into .rel symbol.
+func (ctxt *Link) windynrelocsyms() {
+	if !(ctxt.HeadType == objabi.Hwindows && iscgo && ctxt.LinkMode == LinkInternal) {
 		return
 	}
+	if ctxt.Debugvlog != 0 {
+		ctxt.Logf("%5.2f windynrelocsyms\n", Cputime())
+	}
 
+	/* relocation table */
+	rel := ctxt.Syms.Lookup(".rel", 0)
+	rel.Attr |= sym.AttrReachable
+	rel.Type = sym.STEXT
+	ctxt.Textp = append(ctxt.Textp, rel)
+
+	for _, s := range ctxt.Textp {
+		if s == rel {
+			continue
+		}
+		windynrelocsym(ctxt, rel, s)
+	}
+}
+
+func dynrelocsym(ctxt *Link, s *sym.Symbol) {
 	for ri := range s.R {
 		r := &s.R[ri]
 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
@@ -605,9 +618,12 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
 }
 
 func dynreloc(ctxt *Link, data *[sym.SXREF][]*sym.Symbol) {
+	if ctxt.HeadType == objabi.Hwindows {
+		return
+	}
 	// -d suppresses dynamic loader format, so we may as well not
 	// compute these sections or mark their symbols as reachable.
-	if *FlagD && ctxt.HeadType != objabi.Hwindows {
+	if *FlagD {
 		return
 	}
 	if ctxt.Debugvlog != 0 {

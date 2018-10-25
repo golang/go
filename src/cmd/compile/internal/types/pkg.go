@@ -135,7 +135,7 @@ func InternString(b []byte) string {
 	return s
 }
 
-// CleanroomDo invokes f in an environment with with no preexisting packages.
+// CleanroomDo invokes f in an environment with no preexisting packages.
 // For testing of import/export only.
 func CleanroomDo(f func()) {
 	saved := pkgMap

@@ -297,6 +297,8 @@
 
 (Ctz64 x) -> (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
 (Ctz32 x) -> (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+(Ctz16 x) -> (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
+(Ctz8 x) -> (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
 
 (BitLen64 x) -> (SUB (MOVDconst [64]) (CNTLZD <typ.Int> x))
 (BitLen32 x) -> (SUB (MOVDconst [32]) (CNTLZW <typ.Int> x))
@@ -304,7 +306,7 @@
 (PopCount64 x) -> (POPCNTD x)
 (PopCount32 x) -> (POPCNTW (MOVWZreg x))
 (PopCount16 x) -> (POPCNTW (MOVHZreg x))
-(PopCount8 x) -> (POPCNTB (MOVBreg x))
+(PopCount8 x) -> (POPCNTB (MOVBZreg x))
 
 (And(64|32|16|8) x y) -> (AND x y)
 (Or(64|32|16|8) x y) -> (OR x y)
@@ -894,16 +896,19 @@
     (MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
 
 // atomic intrinsics
-(AtomicLoad(32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(32|64|Ptr) ptr mem)
+(AtomicLoad(32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(32|64|Ptr) [1] ptr mem)
+(AtomicLoadAcq32        ptr mem) -> (LoweredAtomicLoad32 [0] ptr mem)
 
-(AtomicStore(32|64)      ptr val mem) -> (LoweredAtomicStore(32|64) ptr val mem)
+(AtomicStore(32|64)      ptr val mem) -> (LoweredAtomicStore(32|64) [1] ptr val mem)
+(AtomicStoreRel32        ptr val mem) -> (LoweredAtomicStore32 [0] ptr val mem)
 //(AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)
 
 (AtomicExchange(32|64) ptr val mem) -> (LoweredAtomicExchange(32|64) ptr val mem)
 
 (AtomicAdd(32|64) ptr val mem) -> (LoweredAtomicAdd(32|64) ptr val mem)
 
-(AtomicCompareAndSwap(32|64) ptr old new_ mem) -> (LoweredAtomicCas(32|64) ptr old new_ mem)
+(AtomicCompareAndSwap(32|64) ptr old new_ mem) -> (LoweredAtomicCas(32|64) [1] ptr old new_ mem)
+(AtomicCompareAndSwapRel32   ptr old new_ mem) -> (LoweredAtomicCas32 [0] ptr old new_ mem)
 
 (AtomicAnd8 ptr val mem) -> (LoweredAtomicAnd8 ptr val mem)
 (AtomicOr8  ptr val mem) -> (LoweredAtomicOr8  ptr val mem)
@@ -956,7 +961,7 @@
 (MOVWZreg (MOVDconst [c])) -> (MOVDconst [int64(uint32(c))])
 
 
-// Lose widening ops fed to to stores
+// Lose widening ops fed to stores
 (MOVBstore [off] {sym} ptr (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) -> (MOVBstore [off] {sym} ptr x mem)
 (MOVHstore [off] {sym} ptr (MOV(H|HZ|W|WZ)reg x) mem) -> (MOVHstore [off] {sym} ptr x mem)
 (MOVWstore [off] {sym} ptr (MOV(W|WZ)reg x) mem) -> (MOVWstore [off] {sym} ptr x mem)

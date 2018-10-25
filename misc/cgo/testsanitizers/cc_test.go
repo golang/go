@@ -374,7 +374,7 @@ func (c *config) checkRuntime() (skip bool, err error) {
 	}
 
 	// libcgo.h sets CGO_TSAN if it detects TSAN support in the C compiler.
-	// Dump the preprocessor defines to check that that works.
+	// Dump the preprocessor defines to check that works.
 	// (Sometimes it doesn't: see https://golang.org/issue/15983.)
 	cmd, err := cc(c.cFlags...)
 	if err != nil {

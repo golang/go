@@ -1279,7 +1279,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 		p = add(p, sys.PtrSize)
 		*(*slice)(unsafe.Pointer(&objs)) = slice{array: noescape(p), len: int(n), cap: int(n)}
 		// Note: the noescape above is needed to keep
-		// getStackMap from from "leaking param content:
+		// getStackMap from "leaking param content:
 		// frame".  That leak propagates up to getgcmask, then
 		// GCMask, then verifyGCInfo, which converts the stack
 		// gcinfo tests into heap gcinfo tests :(

@@ -356,7 +356,7 @@ func Symlink(oldname, newname string) error {
 	// '/' does not work in link's content
 	oldname = fromSlash(oldname)
 
-	// need the exact location of the oldname when its relative to determine if its a directory
+	// need the exact location of the oldname when it's relative to determine if it's a directory
 	destpath := oldname
 	if !isAbs(oldname) {
 		destpath = dirname(newname) + `\` + oldname

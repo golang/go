@@ -87,9 +87,6 @@ func typecheckinl(fn *Node) {
 		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym, fn, asNodes(fn.Func.Inl.Body))
 	}
 
-	save_safemode := safemode
-	safemode = false
-
 	savefn := Curfn
 	Curfn = fn
 	typecheckslice(fn.Func.Inl.Body, Etop)
@@ -101,8 +98,6 @@ func typecheckinl(fn *Node) {
 	// may be called multiple times.)
 	fn.Func.Inl.Dcl = append(fn.Func.Inl.Dcl, fn.Func.Dcl...)
 	fn.Func.Dcl = nil
-
-	safemode = save_safemode
 
 	lineno = lno
 }
@@ -404,16 +399,6 @@ func (v *hairyVisitor) visit(n *Node) bool {
 	}
 
 	v.budget--
-	// TODO(mdempsky/josharian): Hacks to appease toolstash; remove.
-	// See issue 17566 and CL 31674 for discussion.
-	switch n.Op {
-	case OSTRUCTKEY:
-		v.budget--
-	case OSLICE, OSLICEARR, OSLICESTR:
-		v.budget--
-	case OSLICE3, OSLICE3ARR:
-		v.budget -= 2
-	}
 
 	// When debugging, don't stop early, to get full cost of inlining this function
 	if v.budget < 0 && Debug['m'] < 2 {
@@ -813,23 +798,6 @@ func (v *reassignVisitor) visitList(l Nodes) *Node {
 	return nil
 }
 
-// The result of mkinlcall MUST be assigned back to n, e.g.
-// 	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(n *Node, fn *Node, maxCost int32) *Node {
-	save_safemode := safemode
-
-	// imported functions may refer to unsafe as long as the
-	// package was marked safe during import (already checked).
-	pkg := fnpkg(fn)
-
-	if pkg != localpkg && pkg != nil {
-		safemode = false
-	}
-	n = mkinlcall1(n, fn, maxCost)
-	safemode = save_safemode
-	return n
-}
-
 func tinlvar(t *types.Field, inlvars map[*Node]*Node) *Node {
 	if n := asNode(t.Nname); n != nil && !n.isBlank() {
 		inlvar := inlvars[n]
@@ -849,9 +817,9 @@ var inlgen int
 // On return ninit has the parameter assignments, the nbody is the
 // inlined function body and list, rlist contain the input, output
 // parameters.
-// The result of mkinlcall1 MUST be assigned back to n, e.g.
-// 	n.Left = mkinlcall1(n.Left, fn, isddd)
-func mkinlcall1(n, fn *Node, maxCost int32) *Node {
+// The result of mkinlcall MUST be assigned back to n, e.g.
+// 	n.Left = mkinlcall(n.Left, fn, isddd)
+func mkinlcall(n, fn *Node, maxCost int32) *Node {
 	if fn.Func.Inl == nil {
 		// No inlinable body.
 		return n

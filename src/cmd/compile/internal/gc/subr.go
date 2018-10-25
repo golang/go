@@ -529,119 +529,6 @@ func methtype(t *types.Type) *types.Type {
 	return nil
 }
 
-// eqtype reports whether t1 and t2 are identical, following the spec rules.
-//
-// Any cyclic type must go through a named type, and if one is
-// named, it is only identical to the other if they are the same
-// pointer (t1 == t2), so there's no chance of chasing cycles
-// ad infinitum, so no need for a depth counter.
-func eqtype(t1, t2 *types.Type) bool {
-	return eqtype1(t1, t2, true, nil)
-}
-
-// eqtypeIgnoreTags is like eqtype but it ignores struct tags for struct identity.
-func eqtypeIgnoreTags(t1, t2 *types.Type) bool {
-	return eqtype1(t1, t2, false, nil)
-}
-
-type typePair struct {
-	t1 *types.Type
-	t2 *types.Type
-}
-
-func eqtype1(t1, t2 *types.Type, cmpTags bool, assumedEqual map[typePair]struct{}) bool {
-	if t1 == t2 {
-		return true
-	}
-	if t1 == nil || t2 == nil || t1.Etype != t2.Etype || t1.Broke() || t2.Broke() {
-		return false
-	}
-	if t1.Sym != nil || t2.Sym != nil {
-		// Special case: we keep byte/uint8 and rune/int32
-		// separate for error messages. Treat them as equal.
-		switch t1.Etype {
-		case TUINT8:
-			return (t1 == types.Types[TUINT8] || t1 == types.Bytetype) && (t2 == types.Types[TUINT8] || t2 == types.Bytetype)
-		case TINT32:
-			return (t1 == types.Types[TINT32] || t1 == types.Runetype) && (t2 == types.Types[TINT32] || t2 == types.Runetype)
-		default:
-			return false
-		}
-	}
-
-	if assumedEqual == nil {
-		assumedEqual = make(map[typePair]struct{})
-	} else if _, ok := assumedEqual[typePair{t1, t2}]; ok {
-		return true
-	}
-	assumedEqual[typePair{t1, t2}] = struct{}{}
-
-	switch t1.Etype {
-	case TINTER:
-		if t1.NumFields() != t2.NumFields() {
-			return false
-		}
-		for i, f1 := range t1.FieldSlice() {
-			f2 := t2.Field(i)
-			if f1.Sym != f2.Sym || !eqtype1(f1.Type, f2.Type, cmpTags, assumedEqual) {
-				return false
-			}
-		}
-		return true
-
-	case TSTRUCT:
-		if t1.NumFields() != t2.NumFields() {
-			return false
-		}
-		for i, f1 := range t1.FieldSlice() {
-			f2 := t2.Field(i)
-			if f1.Sym != f2.Sym || f1.Embedded != f2.Embedded || !eqtype1(f1.Type, f2.Type, cmpTags, assumedEqual) {
-				return false
-			}
-			if cmpTags && f1.Note != f2.Note {
-				return false
-			}
-		}
-		return true
-
-	case TFUNC:
-		// Check parameters and result parameters for type equality.
-		// We intentionally ignore receiver parameters for type
-		// equality, because they're never relevant.
-		for _, f := range types.ParamsResults {
-			// Loop over fields in structs, ignoring argument names.
-			fs1, fs2 := f(t1).FieldSlice(), f(t2).FieldSlice()
-			if len(fs1) != len(fs2) {
-				return false
-			}
-			for i, f1 := range fs1 {
-				f2 := fs2[i]
-				if f1.Isddd() != f2.Isddd() || !eqtype1(f1.Type, f2.Type, cmpTags, assumedEqual) {
-					return false
-				}
-			}
-		}
-		return true
-
-	case TARRAY:
-		if t1.NumElem() != t2.NumElem() {
-			return false
-		}
-
-	case TCHAN:
-		if t1.ChanDir() != t2.ChanDir() {
-			return false
-		}
-
-	case TMAP:
-		if !eqtype1(t1.Key(), t2.Key(), cmpTags, assumedEqual) {
-			return false
-		}
-	}
-
-	return eqtype1(t1.Elem(), t2.Elem(), cmpTags, assumedEqual)
-}
-
 // Are t1 and t2 equal struct types when field names are ignored?
 // For deciding whether the result struct from g can be copied
 // directly when compiling f(g()).
@@ -655,7 +542,7 @@ func eqtypenoname(t1 *types.Type, t2 *types.Type) bool {
 	}
 	for i, f1 := range t1.FieldSlice() {
 		f2 := t2.Field(i)
-		if !eqtype(f1.Type, f2.Type) {
+		if !types.Identical(f1.Type, f2.Type) {
 			return false
 		}
 	}
@@ -670,13 +557,6 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 		*why = ""
 	}
 
-	// TODO(rsc,lvd): This behaves poorly in the presence of inlining.
-	// https://golang.org/issue/2795
-	if safemode && !inimport && src != nil && src.Etype == TUNSAFEPTR {
-		yyerror("cannot use unsafe.Pointer")
-		errorexit()
-	}
-
 	if src == dst {
 		return OCONVNOP
 	}
@@ -685,7 +565,7 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 	}
 
 	// 1. src type is identical to dst.
-	if eqtype(src, dst) {
+	if types.Identical(src, dst) {
 		return OCONVNOP
 	}
 
@@ -696,7 +576,7 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 	// we want to recompute the itab. Recomputing the itab ensures
 	// that itabs are unique (thus an interface with a compile-time
 	// type I has an itab with interface type I).
-	if eqtype(src.Orig, dst.Orig) {
+	if types.Identical(src.Orig, dst.Orig) {
 		if src.IsEmptyInterface() {
 			// Conversion between two empty interfaces
 			// requires no code.
@@ -764,7 +644,7 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 	// src and dst have identical element types, and
 	// either src or dst is not a named type.
 	if src.IsChan() && src.ChanDir() == types.Cboth && dst.IsChan() {
-		if eqtype(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
+		if types.Identical(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
 			return OCONVNOP
 		}
 	}
@@ -772,8 +652,7 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 	// 5. src is the predeclared identifier nil and dst is a nillable type.
 	if src.Etype == TNIL {
 		switch dst.Etype {
-		case TPTR32,
-			TPTR64,
+		case TPTR,
 			TFUNC,
 			TMAP,
 			TCHAN,
@@ -836,14 +715,14 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 	}
 
 	// 2. Ignoring struct tags, src and dst have identical underlying types.
-	if eqtypeIgnoreTags(src.Orig, dst.Orig) {
+	if types.IdenticalIgnoreTags(src.Orig, dst.Orig) {
 		return OCONVNOP
 	}
 
 	// 3. src and dst are unnamed pointer types and, ignoring struct tags,
 	// their base types have identical underlying types.
 	if src.IsPtr() && dst.IsPtr() && src.Sym == nil && dst.Sym == nil {
-		if eqtypeIgnoreTags(src.Elem().Orig, dst.Elem().Orig) {
+		if types.IdenticalIgnoreTags(src.Elem().Orig, dst.Elem().Orig) {
 			return OCONVNOP
 		}
 	}
@@ -946,7 +825,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 		}
 	}
 
-	if eqtype(n.Type, t) {
+	if types.Identical(n.Type, t) {
 		return n
 	}
 
@@ -1729,11 +1608,10 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	Curfn = fn
 	typecheckslice(fn.Nbody.Slice(), Etop)
 
-	// TODO(mdempsky): Investigate why this doesn't work with
-	// indexed export. For now, we disable even in non-indexed
-	// mode to ensure fair benchmark comparisons and to track down
-	// unintended compilation differences.
-	if false {
+	// Inline calls within (*T).M wrappers. This is safe because we only
+	// generate those wrappers within the same compilation unit as (T).M.
+	// TODO(mdempsky): Investigate why we can't enable this more generally.
+	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym != nil {
 		inlcalls(fn)
 	}
 	escAnalyze([]*Node{fn}, false)
@@ -1813,7 +1691,7 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 				return false
 			}
 			tm := tms[i]
-			if !eqtype(tm.Type, im.Type) {
+			if !types.Identical(tm.Type, im.Type) {
 				*m = im
 				*samename = tm
 				*ptr = 0
@@ -1845,7 +1723,7 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 			return false
 		}
 		tm := tms[i]
-		if tm.Nointerface() || !eqtype(tm.Type, im.Type) {
+		if tm.Nointerface() || !types.Identical(tm.Type, im.Type) {
 			*m = im
 			*samename = tm
 			*ptr = 0
@@ -2003,8 +1881,7 @@ func isdirectiface(t *types.Type) bool {
 	}
 
 	switch t.Etype {
-	case TPTR32,
-		TPTR64,
+	case TPTR,
 		TCHAN,
 		TMAP,
 		TFUNC,

@@ -20,7 +20,7 @@ func sysctl(mib []int32, old *byte, oldlen *uintptr, new *byte, newlen uintptr) 
 	} else {
 		p = unsafe.Pointer(&zero)
 	}
-	_, _, errno := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(p), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), uintptr(newlen))
+	_, _, errno := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(p), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), newlen)
 	if errno != 0 {
 		return error(errno)
 	}

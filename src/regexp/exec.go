@@ -7,6 +7,7 @@ package regexp
 import (
 	"io"
 	"regexp/syntax"
+	"sync"
 )
 
 // A queue is a 'sparse array' holding pending threads of execution.
@@ -35,54 +36,60 @@ type thread struct {
 
 // A machine holds all the state during an NFA simulation for p.
 type machine struct {
-	re             *Regexp      // corresponding Regexp
-	p              *syntax.Prog // compiled program
-	op             *onePassProg // compiled onepass program, or notOnePass
-	maxBitStateLen int          // max length of string to search with bitstate
-	b              *bitState    // state for backtracker, allocated lazily
-	q0, q1         queue        // two queues for runq, nextq
-	pool           []*thread    // pool of available threads
-	matched        bool         // whether a match was found
-	matchcap       []int        // capture information for the match
+	re       *Regexp      // corresponding Regexp
+	p        *syntax.Prog // compiled program
+	q0, q1   queue        // two queues for runq, nextq
+	pool     []*thread    // pool of available threads
+	matched  bool         // whether a match was found
+	matchcap []int        // capture information for the match
 
+	inputs inputs
+}
+
+type inputs struct {
 	// cached inputs, to avoid allocation
-	inputBytes  inputBytes
-	inputString inputString
-	inputReader inputReader
+	bytes  inputBytes
+	string inputString
+	reader inputReader
 }
 
-func (m *machine) newInputBytes(b []byte) input {
-	m.inputBytes.str = b
-	return &m.inputBytes
+func (i *inputs) newBytes(b []byte) input {
+	i.bytes.str = b
+	return &i.bytes
 }
 
-func (m *machine) newInputString(s string) input {
-	m.inputString.str = s
-	return &m.inputString
+func (i *inputs) newString(s string) input {
+	i.string.str = s
+	return &i.string
 }
 
-func (m *machine) newInputReader(r io.RuneReader) input {
-	m.inputReader.r = r
-	m.inputReader.atEOT = false
-	m.inputReader.pos = 0
-	return &m.inputReader
+func (i *inputs) newReader(r io.RuneReader) input {
+	i.reader.r = r
+	i.reader.atEOT = false
+	i.reader.pos = 0
+	return &i.reader
 }
 
-// progMachine returns a new machine running the prog p.
-func progMachine(p *syntax.Prog, op *onePassProg) *machine {
-	m := &machine{p: p, op: op}
-	n := len(m.p.Inst)
-	m.q0 = queue{make([]uint32, n), make([]entry, 0, n)}
-	m.q1 = queue{make([]uint32, n), make([]entry, 0, n)}
-	ncap := p.NumCap
-	if ncap < 2 {
-		ncap = 2
+func (i *inputs) clear() {
+	// We need to clear 1 of these.
+	// Avoid the expense of clearing the others (pointer write barrier).
+	if i.bytes.str != nil {
+		i.bytes.str = nil
+	} else if i.reader.r != nil {
+		i.reader.r = nil
+	} else {
+		i.string.str = ""
 	}
-	if op == notOnePass {
-		m.maxBitStateLen = maxBitStateLen(p)
+}
+
+func (i *inputs) init(r io.RuneReader, b []byte, s string) (input, int) {
+	if r != nil {
+		return i.newReader(r), 0
 	}
-	m.matchcap = make([]int, ncap)
-	return m
+	if b != nil {
+		return i.newBytes(b), len(b)
+	}
+	return i.newString(s), len(s)
 }
 
 func (m *machine) init(ncap int) {
@@ -107,6 +114,61 @@ func (m *machine) alloc(i *syntax.Inst) *thread {
 	return t
 }
 
+// A lazyFlag is a lazily-evaluated syntax.EmptyOp,
+// for checking zero-width flags like ^ $ \A \z \B \b.
+// It records the pair of relevant runes and does not
+// determine the implied flags until absolutely necessary
+// (most of the time, that means never).
+type lazyFlag uint64
+
+func newLazyFlag(r1, r2 rune) lazyFlag {
+	return lazyFlag(uint64(r1)<<32 | uint64(uint32(r2)))
+}
+
+func (f lazyFlag) match(op syntax.EmptyOp) bool {
+	if op == 0 {
+		return true
+	}
+	r1 := rune(f >> 32)
+	if op&syntax.EmptyBeginLine != 0 {
+		if r1 != '\n' && r1 >= 0 {
+			return false
+		}
+		op &^= syntax.EmptyBeginLine
+	}
+	if op&syntax.EmptyBeginText != 0 {
+		if r1 >= 0 {
+			return false
+		}
+		op &^= syntax.EmptyBeginText
+	}
+	if op == 0 {
+		return true
+	}
+	r2 := rune(f)
+	if op&syntax.EmptyEndLine != 0 {
+		if r2 != '\n' && r2 >= 0 {
+			return false
+		}
+		op &^= syntax.EmptyEndLine
+	}
+	if op&syntax.EmptyEndText != 0 {
+		if r2 >= 0 {
+			return false
+		}
+		op &^= syntax.EmptyEndText
+	}
+	if op == 0 {
+		return true
+	}
+	if syntax.IsWordChar(r1) != syntax.IsWordChar(r2) {
+		op &^= syntax.EmptyWordBoundary
+	} else {
+		op &^= syntax.EmptyNoWordBoundary
+	}
+	return op == 0
+}
+
 // match runs the machine over the input starting at pos.
 // It reports whether a match was found.
 // If so, m.matchcap holds the submatch information.
@@ -126,9 +188,9 @@ func (m *machine) match(i input, pos int) bool {
 	if r != endOfText {
 		r1, width1 = i.step(pos + width)
 	}
-	var flag syntax.EmptyOp
+	var flag lazyFlag
 	if pos == 0 {
-		flag = syntax.EmptyOpContext(-1, r)
+		flag = newLazyFlag(-1, r)
 	} else {
 		flag = i.context(pos)
 	}
@@ -157,10 +219,10 @@ func (m *machine) match(i input, pos int) bool {
 			if len(m.matchcap) > 0 {
 				m.matchcap[0] = pos
 			}
-			m.add(runq, uint32(m.p.Start), pos, m.matchcap, flag, nil)
+			m.add(runq, uint32(m.p.Start), pos, m.matchcap, &flag, nil)
 		}
-		flag = syntax.EmptyOpContext(r, r1)
-		m.step(runq, nextq, pos, pos+width, r, flag)
+		flag = newLazyFlag(r, r1)
+		m.step(runq, nextq, pos, pos+width, r, &flag)
 		if width == 0 {
 			break
 		}
@@ -195,7 +257,7 @@ func (m *machine) clear(q *queue) {
 // The step processes the rune c (which may be endOfText),
 // which starts at position pos and ends at nextPos.
 // nextCond gives the setting for the empty-width flags after c.
-func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond syntax.EmptyOp) {
+func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond *lazyFlag) {
 	longest := m.re.longest
 	for j := 0; j < len(runq.dense); j++ {
 		d := &runq.dense[j]
@@ -252,7 +314,8 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
 // It also recursively adds an entry for all instructions reachable from pc by following
 // empty-width conditions satisfied by cond.  pos gives the current position
 // in the input.
-func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.EmptyOp, t *thread) *thread {
+func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond *lazyFlag, t *thread) *thread {
+Again:
 	if pc == 0 {
 		return t
 	}
@@ -275,13 +338,16 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
 		// nothing
 	case syntax.InstAlt, syntax.InstAltMatch:
 		t = m.add(q, i.Out, pos, cap, cond, t)
-		t = m.add(q, i.Arg, pos, cap, cond, t)
+		pc = i.Arg
+		goto Again
 	case syntax.InstEmptyWidth:
-		if syntax.EmptyOp(i.Arg)&^cond == 0 {
-			t = m.add(q, i.Out, pos, cap, cond, t)
+		if cond.match(syntax.EmptyOp(i.Arg)) {
+			pc = i.Out
+			goto Again
 		}
 	case syntax.InstNop:
-		t = m.add(q, i.Out, pos, cap, cond, t)
+		pc = i.Out
+		goto Again
 	case syntax.InstCapture:
 		if int(i.Arg) < len(cap) {
 			opos := cap[i.Arg]
@@ -289,7 +355,8 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
 			m.add(q, i.Out, pos, cap, cond, nil)
 			cap[i.Arg] = opos
 		} else {
-			t = m.add(q, i.Out, pos, cap, cond, t)
+			pc = i.Out
+			goto Again
 		}
 	case syntax.InstMatch, syntax.InstRune, syntax.InstRune1, syntax.InstRuneAny, syntax.InstRuneAnyNotNL:
 		if t == nil {
@@ -306,85 +373,112 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
 	return t
 }
 
-// onepass runs the machine over the input starting at pos.
-// It reports whether a match was found.
-// If so, m.matchcap holds the submatch information.
-// ncap is the number of captures.
-func (m *machine) onepass(i input, pos, ncap int) bool {
-	startCond := m.re.cond
-	if startCond == ^syntax.EmptyOp(0) { // impossible
-		return false
+type onePassMachine struct {
+	inputs   inputs
+	matchcap []int
+}
+
+var onePassPool sync.Pool
+
+func newOnePassMachine() *onePassMachine {
+	m, ok := onePassPool.Get().(*onePassMachine)
+	if !ok {
+		m = new(onePassMachine)
 	}
-	m.matched = false
-	m.matchcap = m.matchcap[:ncap]
+	return m
+}
+
+func freeOnePassMachine(m *onePassMachine) {
+	m.inputs.clear()
+	onePassPool.Put(m)
+}
+
+// doOnePass implements r.doExecute using the one-pass execution engine.
+func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap int, dstCap []int) []int {
+	startCond := re.cond
+	if startCond == ^syntax.EmptyOp(0) { // impossible
+		return nil
+	}
+
+	m := newOnePassMachine()
+	if cap(m.matchcap) < ncap {
+		m.matchcap = make([]int, ncap)
+	} else {
+		m.matchcap = m.matchcap[:ncap]
+	}
+
+	matched := false
 	for i := range m.matchcap {
 		m.matchcap[i] = -1
 	}
+
+	i, _ := m.inputs.init(ir, ib, is)
+
 	r, r1 := endOfText, endOfText
 	width, width1 := 0, 0
 	r, width = i.step(pos)
 	if r != endOfText {
 		r1, width1 = i.step(pos + width)
 	}
-	var flag syntax.EmptyOp
+	var flag lazyFlag
 	if pos == 0 {
-		flag = syntax.EmptyOpContext(-1, r)
+		flag = newLazyFlag(-1, r)
 	} else {
 		flag = i.context(pos)
 	}
-	pc := m.op.Start
-	inst := m.op.Inst[pc]
+	pc := re.onepass.Start
+	inst := re.onepass.Inst[pc]
 	// If there is a simple literal prefix, skip over it.
-	if pos == 0 && syntax.EmptyOp(inst.Arg)&^flag == 0 &&
-		len(m.re.prefix) > 0 && i.canCheckPrefix() {
+	if pos == 0 && flag.match(syntax.EmptyOp(inst.Arg)) &&
+		len(re.prefix) > 0 && i.canCheckPrefix() {
 		// Match requires literal prefix; fast search for it.
-		if !i.hasPrefix(m.re) {
-			return m.matched
+		if !i.hasPrefix(re) {
+			goto Return
 		}
-		pos += len(m.re.prefix)
+		pos += len(re.prefix)
 		r, width = i.step(pos)
 		r1, width1 = i.step(pos + width)
 		flag = i.context(pos)
-		pc = int(m.re.prefixEnd)
+		pc = int(re.prefixEnd)
 	}
 	for {
-		inst = m.op.Inst[pc]
+		inst = re.onepass.Inst[pc]
 		pc = int(inst.Out)
 		switch inst.Op {
 		default:
 			panic("bad inst")
 		case syntax.InstMatch:
-			m.matched = true
+			matched = true
 			if len(m.matchcap) > 0 {
 				m.matchcap[0] = 0
 				m.matchcap[1] = pos
 			}
-			return m.matched
+			goto Return
 		case syntax.InstRune:
 			if !inst.MatchRune(r) {
-				return m.matched
+				goto Return
 			}
 		case syntax.InstRune1:
 			if r != inst.Rune[0] {
-				return m.matched
+				goto Return
 			}
 		case syntax.InstRuneAny:
 			// Nothing
 		case syntax.InstRuneAnyNotNL:
 			if r == '\n' {
-				return m.matched
+				goto Return
 			}
 		// peek at the input rune to see which branch of the Alt to take
 		case syntax.InstAlt, syntax.InstAltMatch:
 			pc = int(onePassNext(&inst, r))
 			continue
 		case syntax.InstFail:
-			return m.matched
+			goto Return
 		case syntax.InstNop:
 			continue
 		case syntax.InstEmptyWidth:
-			if syntax.EmptyOp(inst.Arg)&^flag != 0 {
-				return m.matched
+			if !flag.match(syntax.EmptyOp(inst.Arg)) {
+				goto Return
 			}
 			continue
 		case syntax.InstCapture:
@@ -396,14 +490,23 @@ func (m *machine) onepass(i input, pos, ncap int) bool {
 		if width == 0 {
 			break
 		}
-		flag = syntax.EmptyOpContext(r, r1)
+		flag = newLazyFlag(r, r1)
 		pos += width
 		r, width = r1, width1
 		if r != endOfText {
 			r1, width1 = i.step(pos + width)
 		}
 	}
-	return m.matched
+
+Return:
+	if !matched {
+		freeOnePassMachine(m)
+		return nil
+	}
+
+	dstCap = append(dstCap, m.matchcap...)
+	freeOnePassMachine(m)
+	return dstCap
 }
 
 // doMatch reports whether either r, b or s match the regexp.
@@ -416,43 +519,28 @@ func (re *Regexp) doMatch(r io.RuneReader, b []byte, s string) bool {
 //
 // nil is returned if no matches are found and non-nil if matches are found.
 func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int, dstCap []int) []int {
-	m := re.get()
-	var i input
-	var size int
-	if r != nil {
-		i = m.newInputReader(r)
-	} else if b != nil {
-		i = m.newInputBytes(b)
-		size = len(b)
-	} else {
-		i = m.newInputString(s)
-		size = len(s)
-	}
-	if m.op != notOnePass {
-		if !m.onepass(i, pos, ncap) {
-			re.put(m)
-			return nil
-		}
-	} else if size < m.maxBitStateLen && r == nil {
-		if m.b == nil {
-			m.b = newBitState(m.p)
-		}
-		if !m.backtrack(i, pos, size, ncap) {
-			re.put(m)
-			return nil
-		}
-	} else {
-		m.init(ncap)
-		if !m.match(i, pos) {
-			re.put(m)
-			return nil
-		}
-	}
-	dstCap = append(dstCap, m.matchcap...)
 	if dstCap == nil {
-		// Keep the promise of returning non-nil value on match.
-		dstCap = arrayNoInts[:0]
+		// Make sure 'return dstCap' is non-nil.
+		dstCap = arrayNoInts[:0:0]
 	}
+
+	if re.onepass != nil {
+		return re.doOnePass(r, b, s, pos, ncap, dstCap)
+	}
+	if r == nil && len(b)+len(s) < re.maxBitStateLen {
+		return re.backtrack(b, s, pos, ncap, dstCap)
+	}
+
+	m := re.get()
+	i, _ := m.inputs.init(r, b, s)
+
+	m.init(ncap)
+	if !m.match(i, pos) {
+		re.put(m)
+		return nil
+	}
+
+	dstCap = append(dstCap, m.matchcap...)
 	re.put(m)
 	return dstCap
 }

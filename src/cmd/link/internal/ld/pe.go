@@ -1461,12 +1461,6 @@ func addPEBaseReloc(ctxt *Link) {
 }
 
 func (ctxt *Link) dope() {
-	/* relocation table */
-	rel := ctxt.Syms.Lookup(".rel", 0)
-
-	rel.Attr |= sym.AttrReachable
-	rel.Type = sym.SELFROSECT
-
 	initdynimport(ctxt)
 	initdynexport(ctxt)
 }
@@ -1534,9 +1528,6 @@ func Asmbpe(ctxt *Link) {
 		// some data symbols (e.g. masks) end up in the .rdata section, and they normally
 		// expect larger alignment requirement than the default text section alignment.
 		ro.characteristics |= IMAGE_SCN_ALIGN_32BYTES
-	} else {
-		// TODO(brainman): should not need IMAGE_SCN_MEM_EXECUTE, but I do not know why it carshes without it
-		ro.characteristics |= IMAGE_SCN_MEM_EXECUTE
 	}
 	ro.checkSegment(&Segrodata)
 	pefile.rdataSect = ro

@@ -342,12 +342,21 @@
 // 	cd go/src/encoding/json; go doc decode
 //
 // Flags:
+// 	-all
+// 		Show all the documentation for the package.
 // 	-c
 // 		Respect case when matching symbols.
 // 	-cmd
 // 		Treat a command (package main) like a regular package.
 // 		Otherwise package main's exported symbols are hidden
 // 		when showing the package's top-level documentation.
+// 	-src
+// 		Show the full source code for the symbol. This will
+// 		display the full Go source of its declaration and
+// 		definition, such as a function definition (including
+// 		the body), type declaration or enclosing const
+// 		block. The output may therefore include unexported
+// 		details.
 // 	-u
 // 		Show documentation for unexported as well as exported
 // 		symbols, methods, and fields.
@@ -2652,6 +2661,8 @@
 // 	    Run enough iterations of each benchmark to take t, specified
 // 	    as a time.Duration (for example, -benchtime 1h30s).
 // 	    The default is 1 second (1s).
+// 	    The special syntax Nx means to run the benchmark N times
+// 	    (for example, -benchtime 100x).
 //
 // 	-count n
 // 	    Run each test and benchmark n times (default 1).

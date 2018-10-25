@@ -53,6 +53,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpAtomicCompareAndSwap32_0(v)
 	case OpAtomicCompareAndSwap64:
 		return rewriteValuePPC64_OpAtomicCompareAndSwap64_0(v)
+	case OpAtomicCompareAndSwapRel32:
+		return rewriteValuePPC64_OpAtomicCompareAndSwapRel32_0(v)
 	case OpAtomicExchange32:
 		return rewriteValuePPC64_OpAtomicExchange32_0(v)
 	case OpAtomicExchange64:
@@ -61,6 +63,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpAtomicLoad32_0(v)
 	case OpAtomicLoad64:
 		return rewriteValuePPC64_OpAtomicLoad64_0(v)
+	case OpAtomicLoadAcq32:
+		return rewriteValuePPC64_OpAtomicLoadAcq32_0(v)
 	case OpAtomicLoadPtr:
 		return rewriteValuePPC64_OpAtomicLoadPtr_0(v)
 	case OpAtomicOr8:
@@ -69,6 +73,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpAtomicStore32_0(v)
 	case OpAtomicStore64:
 		return rewriteValuePPC64_OpAtomicStore64_0(v)
+	case OpAtomicStoreRel32:
+		return rewriteValuePPC64_OpAtomicStoreRel32_0(v)
 	case OpAvg64u:
 		return rewriteValuePPC64_OpAvg64u_0(v)
 	case OpBitLen32:
@@ -105,6 +111,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpConstNil_0(v)
 	case OpCopysign:
 		return rewriteValuePPC64_OpCopysign_0(v)
+	case OpCtz16:
+		return rewriteValuePPC64_OpCtz16_0(v)
 	case OpCtz32:
 		return rewriteValuePPC64_OpCtz32_0(v)
 	case OpCtz32NonZero:
@@ -113,6 +121,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpCtz64_0(v)
 	case OpCtz64NonZero:
 		return rewriteValuePPC64_OpCtz64NonZero_0(v)
+	case OpCtz8:
+		return rewriteValuePPC64_OpCtz8_0(v)
 	case OpCvt32Fto32:
 		return rewriteValuePPC64_OpCvt32Fto32_0(v)
 	case OpCvt32Fto64:
@@ -927,7 +937,7 @@ func rewriteValuePPC64_OpAtomicAnd8_0(v *Value) bool {
 func rewriteValuePPC64_OpAtomicCompareAndSwap32_0(v *Value) bool {
 	// match: (AtomicCompareAndSwap32 ptr old new_ mem)
 	// cond:
-	// result: (LoweredAtomicCas32 ptr old new_ mem)
+	// result: (LoweredAtomicCas32 [1] ptr old new_ mem)
 	for {
 		_ = v.Args[3]
 		ptr := v.Args[0]
@@ -935,6 +945,7 @@ func rewriteValuePPC64_OpAtomicCompareAndSwap32_0(v *Value) bool {
 		new_ := v.Args[2]
 		mem := v.Args[3]
 		v.reset(OpPPC64LoweredAtomicCas32)
+		v.AuxInt = 1
 		v.AddArg(ptr)
 		v.AddArg(old)
 		v.AddArg(new_)
@@ -945,7 +956,7 @@ func rewriteValuePPC64_OpAtomicCompareAndSwap32_0(v *Value) bool {
 func rewriteValuePPC64_OpAtomicCompareAndSwap64_0(v *Value) bool {
 	// match: (AtomicCompareAndSwap64 ptr old new_ mem)
 	// cond:
-	// result: (LoweredAtomicCas64 ptr old new_ mem)
+	// result: (LoweredAtomicCas64 [1] ptr old new_ mem)
 	for {
 		_ = v.Args[3]
 		ptr := v.Args[0]
@@ -953,6 +964,26 @@ func rewriteValuePPC64_OpAtomicCompareAndSwap64_0(v *Value) bool {
 		new_ := v.Args[2]
 		mem := v.Args[3]
 		v.reset(OpPPC64LoweredAtomicCas64)
+		v.AuxInt = 1
+		v.AddArg(ptr)
+		v.AddArg(old)
+		v.AddArg(new_)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicCompareAndSwapRel32_0(v *Value) bool {
+	// match: (AtomicCompareAndSwapRel32 ptr old new_ mem)
+	// cond:
+	// result: (LoweredAtomicCas32 [0] ptr old new_ mem)
+	for {
+		_ = v.Args[3]
+		ptr := v.Args[0]
+		old := v.Args[1]
+		new_ := v.Args[2]
+		mem := v.Args[3]
+		v.reset(OpPPC64LoweredAtomicCas32)
+		v.AuxInt = 0
 		v.AddArg(ptr)
 		v.AddArg(old)
 		v.AddArg(new_)
@@ -995,12 +1026,13 @@ func rewriteValuePPC64_OpAtomicExchange64_0(v *Value) bool {
 func rewriteValuePPC64_OpAtomicLoad32_0(v *Value) bool {
 	// match: (AtomicLoad32 ptr mem)
 	// cond:
-	// result: (LoweredAtomicLoad32 ptr mem)
+	// result: (LoweredAtomicLoad32 [1] ptr mem)
 	for {
 		_ = v.Args[1]
 		ptr := v.Args[0]
 		mem := v.Args[1]
 		v.reset(OpPPC64LoweredAtomicLoad32)
+		v.AuxInt = 1
 		v.AddArg(ptr)
 		v.AddArg(mem)
 		return true
@@ -1009,12 +1041,28 @@ func rewriteValuePPC64_OpAtomicLoad32_0(v *Value) bool {
 func rewriteValuePPC64_OpAtomicLoad64_0(v *Value) bool {
 	// match: (AtomicLoad64 ptr mem)
 	// cond:
-	// result: (LoweredAtomicLoad64 ptr mem)
+	// result: (LoweredAtomicLoad64 [1] ptr mem)
 	for {
 		_ = v.Args[1]
 		ptr := v.Args[0]
 		mem := v.Args[1]
 		v.reset(OpPPC64LoweredAtomicLoad64)
+		v.AuxInt = 1
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicLoadAcq32_0(v *Value) bool {
+	// match: (AtomicLoadAcq32 ptr mem)
+	// cond:
+	// result: (LoweredAtomicLoad32 [0] ptr mem)
+	for {
+		_ = v.Args[1]
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpPPC64LoweredAtomicLoad32)
+		v.AuxInt = 0
 		v.AddArg(ptr)
 		v.AddArg(mem)
 		return true
@@ -1023,12 +1071,13 @@ func rewriteValuePPC64_OpAtomicLoad64_0(v *Value) bool {
 func rewriteValuePPC64_OpAtomicLoadPtr_0(v *Value) bool {
 	// match: (AtomicLoadPtr ptr mem)
 	// cond:
-	// result: (LoweredAtomicLoadPtr ptr mem)
+	// result: (LoweredAtomicLoadPtr [1] ptr mem)
 	for {
 		_ = v.Args[1]
 		ptr := v.Args[0]
 		mem := v.Args[1]
 		v.reset(OpPPC64LoweredAtomicLoadPtr)
+		v.AuxInt = 1
 		v.AddArg(ptr)
 		v.AddArg(mem)
 		return true
@@ -1053,13 +1102,14 @@ func rewriteValuePPC64_OpAtomicOr8_0(v *Value) bool {
 func rewriteValuePPC64_OpAtomicStore32_0(v *Value) bool {
 	// match: (AtomicStore32 ptr val mem)
 	// cond:
-	// result: (LoweredAtomicStore32 ptr val mem)
+	// result: (LoweredAtomicStore32 [1] ptr val mem)
 	for {
 		_ = v.Args[2]
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpPPC64LoweredAtomicStore32)
+		v.AuxInt = 1
 		v.AddArg(ptr)
 		v.AddArg(val)
 		v.AddArg(mem)
@@ -1069,13 +1119,31 @@ func rewriteValuePPC64_OpAtomicStore32_0(v *Value) bool {
 func rewriteValuePPC64_OpAtomicStore64_0(v *Value) bool {
 	// match: (AtomicStore64 ptr val mem)
 	// cond:
-	// result: (LoweredAtomicStore64 ptr val mem)
+	// result: (LoweredAtomicStore64 [1] ptr val mem)
 	for {
 		_ = v.Args[2]
 		ptr := v.Args[0]
 		val := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpPPC64LoweredAtomicStore64)
+		v.AuxInt = 1
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicStoreRel32_0(v *Value) bool {
+	// match: (AtomicStoreRel32 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicStore32 [0] ptr val mem)
+	for {
+		_ = v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpPPC64LoweredAtomicStore32)
+		v.AuxInt = 0
 		v.AddArg(ptr)
 		v.AddArg(val)
 		v.AddArg(mem)
@@ -1323,6 +1391,29 @@ func rewriteValuePPC64_OpCopysign_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValuePPC64_OpCtz16_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Ctz16 x)
+	// cond:
+	// result: (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64POPCNTW)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZreg, typ.Int64)
+		v1 := b.NewValue0(v.Pos, OpPPC64ANDN, typ.Int16)
+		v2 := b.NewValue0(v.Pos, OpPPC64ADDconst, typ.Int16)
+		v2.AuxInt = -1
+		v2.AddArg(x)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValuePPC64_OpCtz32_0(v *Value) bool {
 	b := v.Block
 	_ = b
@@ -1386,6 +1477,29 @@ func rewriteValuePPC64_OpCtz64NonZero_0(v *Value) bool {
 		x := v.Args[0]
 		v.reset(OpCtz64)
 		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValuePPC64_OpCtz8_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Ctz8 x)
+	// cond:
+	// result: (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64POPCNTB)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVBZreg, typ.Int64)
+		v1 := b.NewValue0(v.Pos, OpPPC64ANDN, typ.UInt8)
+		v2 := b.NewValue0(v.Pos, OpPPC64ADDconst, typ.UInt8)
+		v2.AuxInt = -1
+		v2.AddArg(x)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -26653,11 +26767,11 @@ func rewriteValuePPC64_OpPopCount8_0(v *Value) bool {
 	_ = typ
 	// match: (PopCount8 x)
 	// cond:
-	// result: (POPCNTB (MOVBreg x))
+	// result: (POPCNTB (MOVBZreg x))
 	for {
 		x := v.Args[0]
 		v.reset(OpPPC64POPCNTB)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVBreg, typ.Int64)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVBZreg, typ.Int64)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true

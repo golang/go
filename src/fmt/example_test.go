@@ -63,6 +63,19 @@ func ExampleFscanln() {
 	// 3: ken, 271828, 3.141590
 }
 
+func ExampleSscanf() {
+	var name string
+	var age int
+	n, err := fmt.Sscanf("Kim is 22 years old", "%s is %d years old", &name, &age)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%d: %s, %d\n", n, name, age)
+
+	// Output:
+	// 2: Kim, 22
+}
+
 func ExamplePrint() {
 	const name, age = "Kim", 22
 	fmt.Print(name, " is ", age, " years old.\n")

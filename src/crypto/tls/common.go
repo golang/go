@@ -80,7 +80,7 @@ const (
 	extensionSupportedPoints     uint16 = 11
 	extensionSignatureAlgorithms uint16 = 13
 	extensionALPN                uint16 = 16
-	extensionSCT                 uint16 = 18 // https://tools.ietf.org/html/rfc6962#section-6
+	extensionSCT                 uint16 = 18 // RFC 6962, Section 6
 	extensionSessionTicket       uint16 = 35
 	extensionNextProtoNeg        uint16 = 13172 // not IANA assigned
 	extensionRenegotiationInfo   uint16 = 0xff01
@@ -129,7 +129,7 @@ const (
 )
 
 // Signature algorithms (for internal signaling use). Starting at 16 to avoid overlap with
-// TLS 1.2 codepoints (RFC 5246, section A.4.1), with which these have nothing to do.
+// TLS 1.2 codepoints (RFC 5246, Appendix A.4.1), with which these have nothing to do.
 const (
 	signaturePKCS1v15 uint8 = iota + 16
 	signatureECDSA
@@ -178,9 +178,9 @@ type ConnectionState struct {
 }
 
 // ExportKeyingMaterial returns length bytes of exported key material in a new
-// slice as defined in https://tools.ietf.org/html/rfc5705. If context is nil,
-// it is not used as part of the seed. If the connection was set to allow
-// renegotiation via Config.Renegotiation, this function will return an error.
+// slice as defined in RFC 5705. If context is nil, it is not used as part of
+// the seed. If the connection was set to allow renegotiation via
+// Config.Renegotiation, this function will return an error.
 func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
 	return cs.ekm(label, context, length)
 }
@@ -223,7 +223,7 @@ type ClientSessionCache interface {
 }
 
 // SignatureScheme identifies a signature algorithm supported by TLS. See
-// https://tools.ietf.org/html/draft-ietf-tls-tls13-18#section-4.2.3.
+// RFC 8446, Section 4.2.3.
 type SignatureScheme uint16
 
 const (
@@ -253,32 +253,27 @@ type ClientHelloInfo struct {
 
 	// ServerName indicates the name of the server requested by the client
 	// in order to support virtual hosting. ServerName is only set if the
-	// client is using SNI (see
-	// https://tools.ietf.org/html/rfc4366#section-3.1).
+	// client is using SNI (see RFC 4366, Section 3.1).
 	ServerName string
 
 	// SupportedCurves lists the elliptic curves supported by the client.
 	// SupportedCurves is set only if the Supported Elliptic Curves
-	// Extension is being used (see
-	// https://tools.ietf.org/html/rfc4492#section-5.1.1).
+	// Extension is being used (see RFC 4492, Section 5.1.1).
 	SupportedCurves []CurveID
 
 	// SupportedPoints lists the point formats supported by the client.
 	// SupportedPoints is set only if the Supported Point Formats Extension
-	// is being used (see
-	// https://tools.ietf.org/html/rfc4492#section-5.1.2).
+	// is being used (see RFC 4492, Section 5.1.2).
 	SupportedPoints []uint8
 
 	// SignatureSchemes lists the signature and hash schemes that the client
 	// is willing to verify. SignatureSchemes is set only if the Signature
-	// Algorithms Extension is being used (see
-	// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1).
+	// Algorithms Extension is being used (see RFC 5246, Section 7.4.1.4.1).
 	SignatureSchemes []SignatureScheme
 
 	// SupportedProtos lists the application protocols supported by the client.
 	// SupportedProtos is set only if the Application-Layer Protocol
-	// Negotiation Extension is being used (see
-	// https://tools.ietf.org/html/rfc7301#section-3.1).
+	// Negotiation Extension is being used (see RFC 7301, Section 3.1).
 	//
 	// Servers can select a protocol by setting Config.NextProtos in a
 	// GetConfigForClient return value.

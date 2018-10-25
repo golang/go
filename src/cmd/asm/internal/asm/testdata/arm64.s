@@ -25,6 +25,18 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	ADD	R1, R2, R3
 	ADD	R1, ZR, R3
 	ADD	$1, R2, R3
+	ADD	$0x000aaa, R2, R3 // ADD $2730, R2, R3     // 43a82a91
+	ADD	$0x000aaa, R2     // ADD $2730, R2         // 42a82a91
+	ADD	$0xaaa000, R2, R3 // ADD $11182080, R2, R3 // 43a86a91
+	ADD	$0xaaa000, R2     // ADD $11182080, R2     // 42a86a91
+	ADD	$0xaaaaaa, R2, R3 // ADD $11184810, R2, R3 // 43a82a9163a86a91
+	ADD	$0xaaaaaa, R2     // ADD $11184810, R2     // 42a82a9142a86a91
+	SUB	$0x000aaa, R2, R3 // SUB $2730, R2, R3     // 43a82ad1
+	SUB	$0x000aaa, R2     // SUB $2730, R2         // 42a82ad1
+	SUB	$0xaaa000, R2, R3 // SUB $11182080, R2, R3 // 43a86ad1
+	SUB	$0xaaa000, R2     // SUB $11182080, R2     // 42a86ad1
+	SUB	$0xaaaaaa, R2, R3 // SUB $11184810, R2, R3 // 43a82ad163a86ad1
+	SUB	$0xaaaaaa, R2     // SUB $11184810, R2     // 42a82ad142a86ad1
 	ADD	R1>>11, R2, R3
 	ADD	R1<<22, R2, R3
 	ADD	R1->33, R2, R3
@@ -179,6 +191,11 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVD	F4, (R2)(R6)       // FMOVD F4, (R2)(R6*1)    // 446826fc
 	FMOVD	F4, (R2)(R6<<3)                               // 447826fc
 
+	CMPW	$40960, R0                      // 1f284071
+	CMPW	$27745, R2                      // 3b8c8d525f001b6b
+	CMNW	$0x3fffffc0, R2                 // CMNW	$1073741760, R2                   // fb5f1a325f001b2b
+	CMPW	$0xffff0, R1                    // CMPW	$1048560, R1                      // fb3f1c323f001b6b
+	ADD	$0x3fffffffc000, R5             // ADD	$70368744161280, R5               // fb7f72b2a5001b8b
 //	LTYPE1 imsr ',' spreg ','
 //	{
 //		outcode($1, &$2, $4, &nullgen);
@@ -214,12 +231,35 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	ANDS	$0x22220000, R3, R4   // ANDS $572653568, R3, R4  // 5b44a4d264001bea
 	BICS	$0x22220000, R3, R4   // BICS $572653568, R3, R4  // 5b44a4d264003bea
 
+	EOR	$0xe03fffffffffffff, R20, R22       // EOR	$-2287828610704211969, R20, R22 // 96e243d2
+	TSTW	$0x600000006, R1                    // TSTW	$25769803782, R1                // 3f041f72
+	ANDS	$0xffff, R2                         // ANDS	$65535, R2                      // 423c40f2
+	AND	$0x7fffffff, R3                     // AND	$2147483647, R3                 // 63784092
+	ANDS	$0x0ffffffff80000000, R2            // ANDS	$-2147483648, R2                // 428061f2
+	AND	$0xfffff, R2                        // AND	$1048575, R2                    // 424c4092
+	ANDW	$0xf00fffff, R1                     // ANDW	$4027580415, R1                 // 215c0412
+	ANDSW	$0xff00ffff, R1                     // ANDSW	$4278255615, R1                 // 215c0872
+	TSTW	$0xff00ff, R1                       // TSTW	$16711935, R1                   // 3f9c0072
+
 	AND	$8, R0, RSP // 1f007d92
 	ORR	$8, R0, RSP // 1f007db2
 	EOR	$8, R0, RSP // 1f007dd2
 	BIC	$8, R0, RSP // 1ff87c92
 	ORN	$8, R0, RSP // 1ff87cb2
 	EON	$8, R0, RSP // 1ff87cd2
+
+	MOVD	$0x3fffffffc000, R0           // MOVD	$70368744161280, R0         // e07f72b2
+	MOVW	$0xaaaa0000, R1               // MOVW	$2863267840, R1             // 4155b552
+	MOVW	$0xaaaaffff, R1               // MOVW	$2863333375, R1             // a1aaaa12
+	MOVW	$0xaaaa, R1                   // MOVW	$43690, R1                  // 41559552
+	MOVW	$0xffffaaaa, R1               // MOVW	$4294945450, R1             // a1aa8a12
+	MOVW	$0xffff0000, R1               // MOVW	$4294901760, R1             // e1ffbf52
+	MOVD	$0xffff00000000000, R1        // MOVD	$1152903912420802560, R1    // e13f54b2
+	MOVD	$0x11110000, R1               // MOVD	$286326784, R1              // 2122a2d2
+	MOVD	$0, R1                        // 010080d2
+	MOVD	$-1, R1                       // 01008092
+	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                 // 2004a0d2
+	MOVD	$0xffffffffffffaaaa, R1       // MOVD	$-21846, R1                  // a1aa8a92
 
 //
 // CLS
@@ -416,7 +456,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	CMP	R22.SXTX, RSP // ffe336eb
 
 	CMP	$0x22220000, RSP  // CMP $572653568, RSP   // 5b44a4d2ff633beb
-	CMPW	$0x22220000, RSP  // CMPW $572653568, RSP  // 5b44a4d2ff633b6b
+	CMPW	$0x22220000, RSP  // CMPW $572653568, RSP  // 5b44a452ff633b6b
 
 // TST
 	TST	$15, R2                               // 5f0c40f2

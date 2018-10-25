@@ -1228,8 +1228,7 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
 		if mbits.isMarked() {
 			return
 		}
-		// mbits.setMarked() // Avoid extra call overhead with manual inlining.
-		atomic.Or8(mbits.bytep, mbits.mask)
+		mbits.setMarked()
 		// If this is a noscan object, fast-track it to black
 		// instead of greying it.
 		if span.spanclass.noscan() {

@@ -674,7 +674,7 @@ func checkMulticastListener(c *UDPConn, ip IP) error {
 
 func multicastRIBContains(ip IP) (bool, error) {
 	switch runtime.GOOS {
-	case "dragonfly", "netbsd", "openbsd", "plan9", "solaris", "windows":
+	case "aix", "dragonfly", "netbsd", "openbsd", "plan9", "solaris", "windows":
 		return true, nil // not implemented yet
 	case "linux":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "alpha" {

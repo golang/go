@@ -170,7 +170,7 @@ func (x int64Val) String() string { return strconv.FormatInt(int64(x), 10) }
 func (x intVal) String() string   { return x.val.String() }
 func (x ratVal) String() string   { return rtof(x).String() }
 
-// String returns returns a decimal approximation of the Float value.
+// String returns a decimal approximation of the Float value.
 func (x floatVal) String() string {
 	f := x.val
 

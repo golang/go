@@ -1402,11 +1402,11 @@ the moment, the following snippet would also read the first 32 bytes of the buff
     var err error
     for i := 0; i &lt; 32; i++ {
         nbytes, e := f.Read(buf[i:i+1])  // Read one byte.
+        n += nbytes
         if nbytes == 0 || e != nil {
             err = e
             break
         }
-        n += nbytes
     }
 </pre>
 <p>
@@ -2762,7 +2762,7 @@ type Job struct {
 }
 </pre>
 <p>
-The <code>Job</code> type now has the <code>Log</code>, <code>Logf</code>
+The <code>Job</code> type now has the <code>Print</code>, <code>Printf</code>, <code>Println</code>
 and other
 methods of <code>*log.Logger</code>.  We could have given the <code>Logger</code>
 a field name, of course, but it's not necessary to do so.  And now, once
@@ -2770,7 +2770,7 @@ initialized, we can
 log to the <code>Job</code>:
 </p>
 <pre>
-job.Log("starting now...")
+job.Println("starting now...")
 </pre>
 <p>
 The <code>Logger</code> is a regular field of the <code>Job</code> struct,
@@ -2797,8 +2797,8 @@ we would write <code>job.Logger</code>,
 which would be useful if we wanted to refine the methods of <code>Logger</code>.
 </p>
 <pre>
-func (job *Job) Logf(format string, args ...interface{}) {
-    job.Logger.Logf("%q: %s", job.Command, fmt.Sprintf(format, args...))
+func (job *Job) Printf(format string, args ...interface{}) {
+    job.Logger.Printf("%q: %s", job.Command, fmt.Sprintf(format, args...))
 }
 </pre>
 <p>

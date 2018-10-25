@@ -79,13 +79,18 @@ type Note struct {
 type Mode int
 
 const (
-	// extract documentation for all package-level declarations,
-	// not just exported ones
+	// AllDecls says to extract documentation for all package-level
+	// declarations, not just exported ones.
 	AllDecls Mode = 1 << iota
 
-	// show all embedded methods, not just the ones of
-	// invisible (unexported) anonymous fields
+	// AllMethods says to show all embedded methods, not just the ones of
+	// invisible (unexported) anonymous fields.
 	AllMethods
+
+	// PreserveAST says to leave the AST unmodified. Originally, pieces of
+	// the AST such as function bodies were nil-ed out to save memory in
+	// godoc, but not all programs want that behavior.
+	PreserveAST
 )
 
 // New computes the package documentation for the given package AST.

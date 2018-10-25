@@ -288,7 +288,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 	orig := r
 	r = r.Name.Defn.Right
 
-	for r.Op == OCONVNOP && !eqtype(r.Type, l.Type) {
+	for r.Op == OCONVNOP && !types.Identical(r.Type, l.Type) {
 		r = r.Left
 	}
 
@@ -751,7 +751,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 		case initKindStatic:
 			genAsStatic(a)
 		case initKindDynamic, initKindLocalCode:
-			a = orderStmtInPlace(a)
+			a = orderStmtInPlace(a, map[string][]*Node{})
 			a = walkstmt(a)
 			init.Append(a)
 		default:
@@ -833,7 +833,9 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	var a *Node
 	if x := prealloc[n]; x != nil {
 		// temp allocated during order.go for dddarg
-		x.Type = t
+		if !types.Identical(t, x.Type) {
+			panic("dotdotdot base type does not match order's assigned type")
+		}
 
 		if vstat == nil {
 			a = nod(OAS, x, nil)
@@ -909,7 +911,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		a = nod(OAS, a, value)
 
 		a = typecheck(a, Etop)
-		a = orderStmtInPlace(a)
+		a = orderStmtInPlace(a, map[string][]*Node{})
 		a = walkstmt(a)
 		init.Append(a)
 	}
@@ -918,7 +920,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	a = nod(OAS, var_, nod(OSLICE, vauto, nil))
 
 	a = typecheck(a, Etop)
-	a = orderStmtInPlace(a)
+	a = orderStmtInPlace(a, map[string][]*Node{})
 	a = walkstmt(a)
 	init.Append(a)
 }
@@ -1152,7 +1154,7 @@ func oaslit(n *Node, init *Nodes) bool {
 		// not a special composite literal assignment
 		return false
 	}
-	if !eqtype(n.Left.Type, n.Right.Type) {
+	if !types.Identical(n.Left.Type, n.Right.Type) {
 		// not a special composite literal assignment
 		return false
 	}

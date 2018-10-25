@@ -7,7 +7,9 @@ package ssa
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
@@ -447,6 +449,16 @@ func extend32Fto64F(f float32) float64 {
 	//   | sign                  | exponent      | mantissa                    |
 	r := ((b << 32) & (1 << 63)) | (0x7ff << 52) | ((b & 0x7fffff) << (52 - 23))
 	return math.Float64frombits(r)
+}
+
+// NeedsFixUp reports whether the division needs fix-up code.
+func NeedsFixUp(v *Value) bool {
+	return v.AuxInt == 0
+}
+
+// i2f is used in rules for converting from an AuxInt to a float.
+func i2f(i int64) float64 {
+	return math.Float64frombits(uint64(i))
 }
 
 // auxFrom64F encodes a float64 value so it can be stored in an AuxInt.
@@ -1089,4 +1101,46 @@ func needRaceCleanup(sym interface{}, v *Value) bool {
 		}
 	}
 	return true
+}
+
+// symIsRO reports whether sym is a read-only global.
+func symIsRO(sym interface{}) bool {
+	lsym := sym.(*obj.LSym)
+	return lsym.Type == objabi.SRODATA && len(lsym.R) == 0
+}
+
+// read8 reads one byte from the read-only global sym at offset off.
+func read8(sym interface{}, off int64) uint8 {
+	lsym := sym.(*obj.LSym)
+	return lsym.P[off]
+}
+
+// read16 reads two bytes from the read-only global sym at offset off.
+func read16(sym interface{}, off int64, bigEndian bool) uint16 {
+	lsym := sym.(*obj.LSym)
+	if bigEndian {
+		return binary.BigEndian.Uint16(lsym.P[off:])
+	} else {
+		return binary.LittleEndian.Uint16(lsym.P[off:])
+	}
+}
+
+// read32 reads four bytes from the read-only global sym at offset off.
+func read32(sym interface{}, off int64, bigEndian bool) uint32 {
+	lsym := sym.(*obj.LSym)
+	if bigEndian {
+		return binary.BigEndian.Uint32(lsym.P[off:])
+	} else {
+		return binary.LittleEndian.Uint32(lsym.P[off:])
+	}
+}
+
+// read64 reads eight bytes from the read-only global sym at offset off.
+func read64(sym interface{}, off int64, bigEndian bool) uint64 {
+	lsym := sym.(*obj.LSym)
+	if bigEndian {
+		return binary.BigEndian.Uint64(lsym.P[off:])
+	} else {
+		return binary.LittleEndian.Uint64(lsym.P[off:])
+	}
 }

@@ -320,7 +320,12 @@ func hiter(t *types.Type) *types.Type {
 // f is method type, with receiver.
 // return function type, receiver as first argument (or not).
 func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
-	var in []*Node
+	inLen := f.Params().Fields().Len()
+	if receiver != nil {
+		inLen++
+	}
+	in := make([]*Node, 0, inLen)
+
 	if receiver != nil {
 		d := anonfield(receiver)
 		in = append(in, d)
@@ -332,7 +337,8 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 		in = append(in, d)
 	}
 
-	var out []*Node
+	outLen := f.Results().Fields().Len()
+	out := make([]*Node, 0, outLen)
 	for _, t := range f.Results().Fields().Slice() {
 		d := anonfield(t.Type)
 		out = append(out, d)
@@ -405,19 +411,15 @@ func methods(t *types.Type) []*Sig {
 
 		if !sig.isym.Siggen() {
 			sig.isym.SetSiggen(true)
-			if !eqtype(this, it) {
-				compiling_wrappers = true
+			if !types.Identical(this, it) {
 				genwrapper(it, f, sig.isym)
-				compiling_wrappers = false
 			}
 		}
 
 		if !sig.tsym.Siggen() {
 			sig.tsym.SetSiggen(true)
-			if !eqtype(this, t) {
-				compiling_wrappers = true
+			if !types.Identical(this, t) {
 				genwrapper(t, f, sig.tsym)
-				compiling_wrappers = false
 			}
 		}
 	}
@@ -656,7 +658,7 @@ func typePkg(t *types.Type) *types.Pkg {
 	tsym := t.Sym
 	if tsym == nil {
 		switch t.Etype {
-		case TARRAY, TSLICE, TPTR32, TPTR64, TCHAN:
+		case TARRAY, TSLICE, TPTR, TCHAN:
 			if t.Elem() != nil {
 				tsym = t.Elem().Sym
 			}
@@ -714,8 +716,7 @@ var kinds = []int{
 	TFLOAT64:    objabi.KindFloat64,
 	TBOOL:       objabi.KindBool,
 	TSTRING:     objabi.KindString,
-	TPTR32:      objabi.KindPtr,
-	TPTR64:      objabi.KindPtr,
+	TPTR:        objabi.KindPtr,
 	TSTRUCT:     objabi.KindStruct,
 	TINTER:      objabi.KindInterface,
 	TCHAN:       objabi.KindChan,
@@ -736,8 +737,7 @@ func typeptrdata(t *types.Type) int64 {
 	}
 
 	switch t.Etype {
-	case TPTR32,
-		TPTR64,
+	case TPTR,
 		TUNSAFEPTR,
 		TFUNC,
 		TCHAN,
@@ -1035,8 +1035,7 @@ func isreflexive(t *types.Type) bool {
 		TINT64,
 		TUINT64,
 		TUINTPTR,
-		TPTR32,
-		TPTR64,
+		TPTR,
 		TUNSAFEPTR,
 		TSTRING,
 		TCHAN:
@@ -1071,7 +1070,7 @@ func isreflexive(t *types.Type) bool {
 func needkeyupdate(t *types.Type) bool {
 	switch t.Etype {
 	case TBOOL, TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32,
-		TINT64, TUINT64, TUINTPTR, TPTR32, TPTR64, TUNSAFEPTR, TCHAN:
+		TINT64, TUINT64, TUINTPTR, TPTR, TUNSAFEPTR, TCHAN:
 		return false
 
 	case TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, // floats and complex can be +0/-0
@@ -1279,7 +1278,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		ot = duint8(lsym, ot, uint8(obj.Bool2int(needkeyupdate(t.Key()))))
 		ot = dextratype(lsym, ot, t, 0)
 
-	case TPTR32, TPTR64:
+	case TPTR:
 		if t.Elem().Etype == TANY {
 			// ../../../../runtime/type.go:/UnsafePointerType
 			ot = dcommontype(lsym, t)
@@ -1383,7 +1382,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		// functions must return the existing type structure rather
 		// than creating a new one.
 		switch t.Etype {
-		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP, TSLICE, TSTRUCT:
+		case TPTR, TARRAY, TCHAN, TFUNC, TMAP, TSLICE, TSTRUCT:
 			keep = true
 		}
 	}

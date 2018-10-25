@@ -697,7 +697,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 	}
 
 	switch t.Etype {
-	case TPTR32, TPTR64:
+	case TPTR:
 		switch mode {
 		case FTypeId, FTypeIdName:
 			if flag&FmtShort != 0 {
@@ -1146,8 +1146,6 @@ var opprec = []int{
 	OGE:           4,
 	OGT:           4,
 	ONE:           4,
-	OCMPSTR:       4,
-	OCMPIFACE:     4,
 	OSEND:         3,
 	OANDAND:       2,
 	OOROR:         1,
@@ -1506,11 +1504,6 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			}
 			n1.exprfmt(s, nprec, mode)
 		}
-
-	case OCMPSTR, OCMPIFACE:
-		n.Left.exprfmt(s, nprec, mode)
-		mode.Fprintf(s, " %#v ", n.SubOp())
-		n.Right.exprfmt(s, nprec+1, mode)
 
 	default:
 		mode.Fprintf(s, "<node %v>", n.Op)

@@ -270,7 +270,7 @@ func (e CorruptInputError) Error() string {
 	return "illegal base64 data at input byte " + strconv.FormatInt(int64(e), 10)
 }
 
-// decodeQuantum decodes up to 4 base64 bytes. It takes for parameters
+// decodeQuantum decodes up to 4 base64 bytes. The received parameters are
 // the destination buffer dst, the source buffer src and an index in the
 // source buffer si.
 // It returns the number of bytes read from src, the number of bytes written

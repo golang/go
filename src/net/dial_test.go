@@ -318,9 +318,9 @@ func TestDialParallel(t *testing.T) {
 
 		expectElapsedMin := tt.expectElapsed - 95*time.Millisecond
 		expectElapsedMax := tt.expectElapsed + 95*time.Millisecond
-		if !(elapsed >= expectElapsedMin) {
+		if elapsed < expectElapsedMin {
 			t.Errorf("#%d: got %v; want >= %v", i, elapsed, expectElapsedMin)
-		} else if !(elapsed <= expectElapsedMax) {
+		} else if elapsed > expectElapsedMax {
 			t.Errorf("#%d: got %v; want <= %v", i, elapsed, expectElapsedMax)
 		}
 
@@ -418,10 +418,10 @@ func TestDialerFallbackDelay(t *testing.T) {
 		}
 		expectMin := tt.expectElapsed - 1*time.Millisecond
 		expectMax := tt.expectElapsed + 95*time.Millisecond
-		if !(elapsed >= expectMin) {
+		if elapsed < expectMin {
 			t.Errorf("#%d: got %v; want >= %v", i, elapsed, expectMin)
 		}
-		if !(elapsed <= expectMax) {
+		if elapsed > expectMax {
 			t.Errorf("#%d: got %v; want <= %v", i, elapsed, expectMax)
 		}
 	}

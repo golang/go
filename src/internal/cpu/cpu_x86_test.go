@@ -30,18 +30,35 @@ func TestX86ifAVX2hasAVX(t *testing.T) {
 }
 
 func TestDisableSSE2(t *testing.T) {
-	runDebugOptionsTest(t, "TestSSE2DebugOption", "sse2=0")
+	runDebugOptionsTest(t, "TestSSE2DebugOption", "sse2=off")
 }
 
 func TestSSE2DebugOption(t *testing.T) {
-	MustHaveDebugOptionsEnabled(t)
+	MustHaveDebugOptionsSupport(t)
 
-	if os.Getenv("GODEBUGCPU") != "sse2=0" {
-		t.Skipf("skipping test: GODEBUGCPU=sse2=0 not set")
+	if os.Getenv("GODEBUGCPU") != "sse2=off" {
+		t.Skipf("skipping test: GODEBUGCPU=sse2=off not set")
 	}
 
 	want := runtime.GOARCH != "386" // SSE2 can only be disabled on 386.
 	if got := X86.HasSSE2; got != want {
 		t.Errorf("X86.HasSSE2 on %s expected %v, got %v", runtime.GOARCH, want, got)
+	}
+}
+
+func TestDisableSSE3(t *testing.T) {
+	runDebugOptionsTest(t, "TestSSE3DebugOption", "sse3=off")
+}
+
+func TestSSE3DebugOption(t *testing.T) {
+	MustHaveDebugOptionsSupport(t)
+
+	if os.Getenv("GODEBUGCPU") != "sse3=off" {
+		t.Skipf("skipping test: GODEBUGCPU=sse3=off not set")
+	}
+
+	want := false
+	if got := X86.HasSSE3; got != want {
+		t.Errorf("X86.HasSSE3 expected %v, got %v", want, got)
 	}
 }

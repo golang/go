@@ -789,7 +789,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 		trigger = uint64(float64(memstats.heap_marked) * (1 + triggerRatio))
 		// Don't trigger below the minimum heap size.
 		minTrigger := heapminimum
-		if !gosweepdone() {
+		if !isSweepDone() {
 			// Concurrent sweep happens in the heap growth
 			// from heap_live to gc_trigger, so ensure
 			// that concurrent sweep has some heap growth
@@ -834,7 +834,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 	}
 
 	// Update sweep pacing.
-	if gosweepdone() {
+	if isSweepDone() {
 		mheap_.sweepPagesPerByte = 0
 	} else {
 		// Concurrent sweep needs to sweep all of the in-use
@@ -884,7 +884,7 @@ const gcGoalUtilization = 0.30
 // mutator latency.
 const gcBackgroundUtilization = 0.25
 
-// gcCreditSlack is the amount of scan work credit that can can
+// gcCreditSlack is the amount of scan work credit that can
 // accumulate locally before updating gcController.scanWork and,
 // optionally, gcController.bgScanCredit. Lower values give a more
 // accurate assist ratio and make it more likely that assists will
@@ -1061,7 +1061,7 @@ func GC() {
 	// complete the cycle and because runtime.GC() is often used
 	// as part of tests and benchmarks to get the system into a
 	// relatively stable and isolated state.
-	for atomic.Load(&work.cycles) == n+1 && gosweepone() != ^uintptr(0) {
+	for atomic.Load(&work.cycles) == n+1 && sweepone() != ^uintptr(0) {
 		sweep.nbgsweep++
 		Gosched()
 	}
@@ -1219,7 +1219,7 @@ func gcStart(trigger gcTrigger) {
 	//
 	// We check the transition condition continuously here in case
 	// this G gets delayed in to the next GC cycle.
-	for trigger.test() && gosweepone() != ^uintptr(0) {
+	for trigger.test() && sweepone() != ^uintptr(0) {
 		sweep.nbgsweep++
 	}
 

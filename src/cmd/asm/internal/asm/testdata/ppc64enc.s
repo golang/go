@@ -98,4 +98,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	LDAR (R4),$0,R5                 // 7ca020a8
 	LDAR (R3),R5                    // 7ca018a8
 
+	// float constants
+	FMOVD $(0.0), F1                // f0210cd0
+	FMOVD $(-0.0), F1               // f0210cd0fc200850
 	RET

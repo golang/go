@@ -155,7 +155,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		z[3] = byte(l)
 		z = z[4:]
 
-		// RFC 3546, section 3.1
+		// RFC 3546, Section 3.1
 		//
 		// struct {
 		//     NameType name_type;
@@ -182,7 +182,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		z = z[l:]
 	}
 	if m.ocspStapling {
-		// RFC 4366, section 3.6
+		// RFC 4366, Section 3.6
 		z[0] = byte(extensionStatusRequest >> 8)
 		z[1] = byte(extensionStatusRequest)
 		z[2] = 0
@@ -192,7 +192,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		z = z[9:]
 	}
 	if len(m.supportedCurves) > 0 {
-		// https://tools.ietf.org/html/rfc4492#section-5.5.1
+		// RFC 4492, Section 5.5.1
 		z[0] = byte(extensionSupportedCurves >> 8)
 		z[1] = byte(extensionSupportedCurves)
 		l := 2 + 2*len(m.supportedCurves)
@@ -209,7 +209,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		}
 	}
 	if len(m.supportedPoints) > 0 {
-		// https://tools.ietf.org/html/rfc4492#section-5.5.2
+		// RFC 4492, Section 5.5.2
 		z[0] = byte(extensionSupportedPoints >> 8)
 		z[1] = byte(extensionSupportedPoints)
 		l := 1 + len(m.supportedPoints)
@@ -224,7 +224,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		}
 	}
 	if m.ticketSupported {
-		// https://tools.ietf.org/html/rfc5077#section-3.2
+		// RFC 5077, Section 3.2
 		z[0] = byte(extensionSessionTicket >> 8)
 		z[1] = byte(extensionSessionTicket)
 		l := len(m.sessionTicket)
@@ -235,7 +235,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		z = z[len(m.sessionTicket):]
 	}
 	if len(m.supportedSignatureAlgorithms) > 0 {
-		// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
+		// RFC 5246, Section 7.4.1.4.1
 		z[0] = byte(extensionSignatureAlgorithms >> 8)
 		z[1] = byte(extensionSignatureAlgorithms)
 		l := 2 + 2*len(m.supportedSignatureAlgorithms)
@@ -285,7 +285,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		lengths[1] = byte(stringsLength)
 	}
 	if m.scts {
-		// https://tools.ietf.org/html/rfc6962#section-3.3.1
+		// RFC 6962, Section 3.3.1
 		z[0] = byte(extensionSCT >> 8)
 		z[1] = byte(extensionSCT)
 		// zero uint16 for the zero-length extension_data
@@ -396,9 +396,8 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 				}
 				if nameType == 0 {
 					m.serverName = string(d[:nameLen])
-					// An SNI value may not include a
-					// trailing dot. See
-					// https://tools.ietf.org/html/rfc6066#section-3.
+					// An SNI value may not include a trailing dot.
+					// See RFC 6066, Section 3.
 					if strings.HasSuffix(m.serverName, ".") {
 						return false
 					}
@@ -414,7 +413,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 		case extensionStatusRequest:
 			m.ocspStapling = length > 0 && data[0] == statusTypeOCSP
 		case extensionSupportedCurves:
-			// https://tools.ietf.org/html/rfc4492#section-5.5.1
+			// RFC 4492, Section 5.5.1
 			if length < 2 {
 				return false
 			}
@@ -430,7 +429,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 				d = d[2:]
 			}
 		case extensionSupportedPoints:
-			// https://tools.ietf.org/html/rfc4492#section-5.5.2
+			// RFC 4492, Section 5.5.2
 			if length < 1 {
 				return false
 			}
@@ -441,11 +440,11 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 			m.supportedPoints = make([]uint8, l)
 			copy(m.supportedPoints, data[1:])
 		case extensionSessionTicket:
-			// https://tools.ietf.org/html/rfc5077#section-3.2
+			// RFC 5077, Section 3.2
 			m.ticketSupported = true
 			m.sessionTicket = data[:length]
 		case extensionSignatureAlgorithms:
-			// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
+			// RFC 5246, Section 7.4.1.4.1
 			if length < 2 || length&1 != 0 {
 				return false
 			}
@@ -1224,7 +1223,7 @@ func (m *certificateRequestMsg) marshal() (x []byte) {
 		return m.raw
 	}
 
-	// See https://tools.ietf.org/html/rfc4346#section-7.4.4
+	// See RFC 4346, Section 7.4.4.
 	length := 1 + len(m.certificateTypes) + 2
 	casLength := 0
 	for _, ca := range m.certificateAuthorities {
@@ -1374,7 +1373,7 @@ func (m *certificateVerifyMsg) marshal() (x []byte) {
 		return m.raw
 	}
 
-	// See https://tools.ietf.org/html/rfc4346#section-7.4.8
+	// See RFC 4346, Section 7.4.8.
 	siglength := len(m.signature)
 	length := 2 + siglength
 	if m.hasSignatureAndHash {
@@ -1452,7 +1451,7 @@ func (m *newSessionTicketMsg) marshal() (x []byte) {
 		return m.raw
 	}
 
-	// See https://tools.ietf.org/html/rfc5077#section-3.3
+	// See RFC 5077, Section 3.3.
 	ticketLen := len(m.ticket)
 	length := 2 + 4 + ticketLen
 	x = make([]byte, 4+length)

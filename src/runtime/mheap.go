@@ -30,13 +30,11 @@ const minPhysPageSize = 4096
 //go:notinheap
 type mheap struct {
 	lock      mutex
-	free      [_MaxMHeapList]mSpanList // free lists of given length up to _MaxMHeapList
-	freelarge mTreap                   // free treap of length >= _MaxMHeapList
-	busy      [_MaxMHeapList]mSpanList // busy lists of large spans of given length
-	busylarge mSpanList                // busy lists of large spans length >= _MaxMHeapList
-	sweepgen  uint32                   // sweep generation, see comment in mspan
-	sweepdone uint32                   // all spans are swept
-	sweepers  uint32                   // number of active sweepone calls
+	free      mTreap    // free treap of spans
+	busy      mSpanList // busy list of spans
+	sweepgen  uint32    // sweep generation, see comment in mspan
+	sweepdone uint32    // all spans are swept
+	sweepers  uint32    // number of active sweepone calls
 
 	// allspans is a slice of all mspans ever created. Each mspan
 	// appears exactly once.
@@ -351,6 +349,34 @@ func (s *mspan) layout() (size, n, total uintptr) {
 	return
 }
 
+func (s *mspan) scavenge() uintptr {
+	start := s.base()
+	end := start + s.npages<<_PageShift
+	if physPageSize > _PageSize {
+		// We can only release pages in
+		// physPageSize blocks, so round start
+		// and end in. (Otherwise, madvise
+		// will round them *out* and release
+		// more memory than we want.)
+		start = (start + physPageSize - 1) &^ (physPageSize - 1)
+		end &^= physPageSize - 1
+		if end <= start {
+			// start and end don't span a
+			// whole physical page.
+			return 0
+		}
+	}
+	len := end - start
+	released := len - (s.npreleased << _PageShift)
+	if physPageSize > _PageSize && released == 0 {
+		return 0
+	}
+	memstats.heap_released += uint64(released)
+	s.npreleased = len >> _PageShift
+	sysUnused(unsafe.Pointer(start), len)
+	return released
+}
+
 // recordspan adds a newly allocated span to h.allspans.
 //
 // This only happens the first time a span is allocated from
@@ -571,12 +597,7 @@ func (h *mheap) init() {
 	h.spanalloc.zero = false
 
 	// h->mapcache needs no init
-	for i := range h.free {
-		h.free[i].init()
-		h.busy[i].init()
-	}
-
-	h.busylarge.init()
+	h.busy.init()
 	for i := range h.central {
 		h.central[i].mcentral.init(spanClass(i))
 	}
@@ -619,30 +640,12 @@ retry:
 // Sweeps and reclaims at least npage pages into heap.
 // Called before allocating npage pages.
 func (h *mheap) reclaim(npage uintptr) {
-	// First try to sweep busy spans with large objects of size >= npage,
-	// this has good chances of reclaiming the necessary space.
-	for i := int(npage); i < len(h.busy); i++ {
-		if h.reclaimList(&h.busy[i], npage) != 0 {
-			return // Bingo!
-		}
-	}
-
-	// Then -- even larger objects.
-	if h.reclaimList(&h.busylarge, npage) != 0 {
+	if h.reclaimList(&h.busy, npage) != 0 {
 		return // Bingo!
 	}
 
-	// Now try smaller objects.
-	// One such object is not enough, so we need to reclaim several of them.
-	reclaimed := uintptr(0)
-	for i := 0; i < int(npage) && i < len(h.busy); i++ {
-		reclaimed += h.reclaimList(&h.busy[i], npage-reclaimed)
-		if reclaimed >= npage {
-			return
-		}
-	}
-
 	// Now sweep everything that is not yet swept.
+	var reclaimed uintptr
 	unlock(&h.lock)
 	for {
 		n := sweepone()
@@ -657,13 +660,14 @@ func (h *mheap) reclaim(npage uintptr) {
 	lock(&h.lock)
 }
 
-// Allocate a new span of npage pages from the heap for GC'd memory
-// and record its size class in the HeapMap and HeapMapCache.
+// alloc_m is the internal implementation of mheap.alloc.
+//
+// alloc_m must run on the system stack because it locks the heap, so
+// any stack growth during alloc_m would self-deadlock.
+//
+//go:systemstack
 func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 	_g_ := getg()
-	if _g_ != _g_.m.g0 {
-		throw("_mheap_alloc not on g0 stack")
-	}
 	lock(&h.lock)
 
 	// To prevent excessive heap growth, before allocating n pages
@@ -672,7 +676,7 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 		// TODO(austin): This tends to sweep a large number of
 		// spans in order to find a few completely free spans
 		// (for example, in the garbage benchmark, this sweeps
-		// ~30x the number of pages its trying to allocate).
+		// ~30x the number of pages it's trying to allocate).
 		// If GC kept a bit for whether there were any marks
 		// in a span, we could release these free spans
 		// at the end of GC and eliminate this entirely.
@@ -723,11 +727,7 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 			mheap_.nlargealloc++
 			atomic.Xadd64(&memstats.heap_live, int64(npage<<_PageShift))
 			// Swept spans are at the end of lists.
-			if s.npages < uintptr(len(h.busy)) {
-				h.busy[s.npages].insertBack(s)
-			} else {
-				h.busylarge.insertBack(s)
-			}
+			h.busy.insertBack(s)
 		}
 	}
 	// heap_scan and heap_live were updated.
@@ -752,6 +752,12 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 	return s
 }
 
+// alloc allocates a new span of npage pages from the GC'd heap.
+//
+// Either large must be true or spanclass must indicates the span's
+// size class and scannability.
+//
+// If needzero is true, the memory for the returned span will be zeroed.
 func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero bool) *mspan {
 	// Don't do any operations that lock the heap on the G stack.
 	// It might trigger stack growth, and the stack growth code needs
@@ -832,31 +838,20 @@ func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
 // The returned span has been removed from the
 // free list, but its state is still mSpanFree.
 func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
-	var list *mSpanList
 	var s *mspan
 
-	// Try in fixed-size lists up to max.
-	for i := int(npage); i < len(h.free); i++ {
-		list = &h.free[i]
-		if !list.isEmpty() {
-			s = list.first
-			list.remove(s)
-			goto HaveSpan
-		}
-	}
-	// Best fit in list of large spans.
-	s = h.allocLarge(npage) // allocLarge removed s from h.freelarge for us
+	// Best fit in the treap of spans.
+	s = h.free.remove(npage)
 	if s == nil {
 		if !h.grow(npage) {
 			return nil
 		}
-		s = h.allocLarge(npage)
+		s = h.free.remove(npage)
 		if s == nil {
 			return nil
 		}
 	}
 
-HaveSpan:
 	// Mark span in use.
 	if s.state != mSpanFree {
 		throw("MHeap_AllocLocked - MSpan not free")
@@ -898,21 +893,6 @@ HaveSpan:
 	return s
 }
 
-// Large spans have a minimum size of 1MByte. The maximum number of large spans to support
-// 1TBytes is 1 million, experimentation using random sizes indicates that the depth of
-// the tree is less that 2x that of a perfectly balanced tree. For 1TByte can be referenced
-// by a perfectly balanced tree with a depth of 20. Twice that is an acceptable 40.
-func (h *mheap) isLargeSpan(npages uintptr) bool {
-	return npages >= uintptr(len(h.free))
-}
-
-// allocLarge allocates a span of at least npage pages from the treap of large spans.
-// Returns nil if no such span currently exists.
-func (h *mheap) allocLarge(npage uintptr) *mspan {
-	// Search treap for smallest span with >= npage pages.
-	return h.freelarge.remove(npage)
-}
-
 // Try to add at least npage pages of memory to the heap,
 // returning whether it worked.
 //
@@ -938,7 +918,10 @@ func (h *mheap) grow(npage uintptr) bool {
 }
 
 // Free the span back into the heap.
-func (h *mheap) freeSpan(s *mspan, acct int32) {
+//
+// large must match the value of large passed to mheap.alloc. This is
+// used for accounting.
+func (h *mheap) freeSpan(s *mspan, large bool) {
 	systemstack(func() {
 		mp := getg().m
 		lock(&h.lock)
@@ -952,7 +935,8 @@ func (h *mheap) freeSpan(s *mspan, acct int32) {
 			bytes := s.npages << _PageShift
 			msanfree(base, bytes)
 		}
-		if acct != 0 {
+		if large {
+			// Match accounting done in mheap.alloc.
 			memstats.heap_objects--
 		}
 		if gcBlackenEnabled != 0 {
@@ -984,7 +968,7 @@ func (h *mheap) freeManual(s *mspan, stat *uint64) {
 	unlock(&h.lock)
 }
 
-// s must be on a busy list (h.busy or h.busylarge) or unlinked.
+// s must be on the busy list or unlinked.
 func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince int64) {
 	switch s.state {
 	case mSpanManual:
@@ -1009,7 +993,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 	}
 	s.state = mSpanFree
 	if s.inList() {
-		h.busyList(s.npages).remove(s)
+		h.busy.remove(s)
 	}
 
 	// Stamp newly unused spans. The scavenger will use that
@@ -1030,12 +1014,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 		h.setSpan(before.base(), s)
 		// The size is potentially changing so the treap needs to delete adjacent nodes and
 		// insert back as a combined node.
-		if h.isLargeSpan(before.npages) {
-			// We have a t, it is large so it has to be in the treap so we can remove it.
-			h.freelarge.removeSpan(before)
-		} else {
-			h.freeList(before.npages).remove(before)
-		}
+		h.free.removeSpan(before)
 		before.state = mSpanDead
 		h.spanalloc.free(unsafe.Pointer(before))
 	}
@@ -1046,105 +1025,23 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 		s.npreleased += after.npreleased
 		s.needzero |= after.needzero
 		h.setSpan(s.base()+s.npages*pageSize-1, s)
-		if h.isLargeSpan(after.npages) {
-			h.freelarge.removeSpan(after)
-		} else {
-			h.freeList(after.npages).remove(after)
-		}
+		h.free.removeSpan(after)
 		after.state = mSpanDead
 		h.spanalloc.free(unsafe.Pointer(after))
 	}
 
-	// Insert s into appropriate list or treap.
-	if h.isLargeSpan(s.npages) {
-		h.freelarge.insert(s)
-	} else {
-		h.freeList(s.npages).insert(s)
-	}
-}
-
-func (h *mheap) freeList(npages uintptr) *mSpanList {
-	return &h.free[npages]
-}
-
-func (h *mheap) busyList(npages uintptr) *mSpanList {
-	if npages < uintptr(len(h.busy)) {
-		return &h.busy[npages]
-	}
-	return &h.busylarge
+	// Insert s into the free treap.
+	h.free.insert(s)
 }
 
 func scavengeTreapNode(t *treapNode, now, limit uint64) uintptr {
 	s := t.spanKey
-	var sumreleased uintptr
 	if (now-uint64(s.unusedsince)) > limit && s.npreleased != s.npages {
-		start := s.base()
-		end := start + s.npages<<_PageShift
-		if physPageSize > _PageSize {
-			// We can only release pages in
-			// physPageSize blocks, so round start
-			// and end in. (Otherwise, madvise
-			// will round them *out* and release
-			// more memory than we want.)
-			start = (start + physPageSize - 1) &^ (physPageSize - 1)
-			end &^= physPageSize - 1
-			if end <= start {
-				// start and end don't span a
-				// whole physical page.
-				return sumreleased
-			}
+		if released := s.scavenge(); released != 0 {
+			return released
 		}
-		len := end - start
-		released := len - (s.npreleased << _PageShift)
-		if physPageSize > _PageSize && released == 0 {
-			return sumreleased
-		}
-		memstats.heap_released += uint64(released)
-		sumreleased += released
-		s.npreleased = len >> _PageShift
-		sysUnused(unsafe.Pointer(start), len)
 	}
-	return sumreleased
-}
-
-func scavengelist(list *mSpanList, now, limit uint64) uintptr {
-	if list.isEmpty() {
-		return 0
-	}
-
-	var sumreleased uintptr
-	for s := list.first; s != nil; s = s.next {
-		if (now-uint64(s.unusedsince)) <= limit || s.npreleased == s.npages {
-			continue
-		}
-		start := s.base()
-		end := start + s.npages<<_PageShift
-		if physPageSize > _PageSize {
-			// We can only release pages in
-			// physPageSize blocks, so round start
-			// and end in. (Otherwise, madvise
-			// will round them *out* and release
-			// more memory than we want.)
-			start = (start + physPageSize - 1) &^ (physPageSize - 1)
-			end &^= physPageSize - 1
-			if end <= start {
-				// start and end don't span a
-				// whole physical page.
-				continue
-			}
-		}
-		len := end - start
-
-		released := len - (s.npreleased << _PageShift)
-		if physPageSize > _PageSize && released == 0 {
-			continue
-		}
-		memstats.heap_released += uint64(released)
-		sumreleased += released
-		s.npreleased = len >> _PageShift
-		sysUnused(unsafe.Pointer(start), len)
-	}
-	return sumreleased
+	return 0
 }
 
 func (h *mheap) scavenge(k int32, now, limit uint64) {
@@ -1154,11 +1051,7 @@ func (h *mheap) scavenge(k int32, now, limit uint64) {
 	gp := getg()
 	gp.m.mallocing++
 	lock(&h.lock)
-	var sumreleased uintptr
-	for i := 0; i < len(h.free); i++ {
-		sumreleased += scavengelist(&h.free[i], now, limit)
-	}
-	sumreleased += scavengetreap(h.freelarge.treap, now, limit)
+	sumreleased := scavengetreap(h.free.treap, now, limit)
 	unlock(&h.lock)
 	gp.m.mallocing--
 

@@ -45,7 +45,7 @@ type Node struct {
 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
 	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
 	// - OSTRUCTKEY uses it to store the named field's offset.
-	// - Named OLITERALs use it to to store their ambient iota value.
+	// - Named OLITERALs use it to store their ambient iota value.
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
@@ -65,7 +65,7 @@ func (n *Node) ResetAux() {
 
 func (n *Node) SubOp() Op {
 	switch n.Op {
-	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
+	case OASOP, ONAME:
 	default:
 		Fatalf("unexpected op: %v", n.Op)
 	}
@@ -74,7 +74,7 @@ func (n *Node) SubOp() Op {
 
 func (n *Node) SetSubOp(op Op) {
 	switch n.Op {
-	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
+	case OASOP, ONAME:
 	default:
 		Fatalf("unexpected op: %v", n.Op)
 	}
@@ -603,26 +603,32 @@ const (
 	OAS2DOTTYPE      // List = Rlist (x, ok = I.(int))
 	OASOP            // Left Etype= Right (x += y)
 	OCALL            // Left(List) (function call, method call or type conversion)
-	OCALLFUNC        // Left(List) (function call f(args))
-	OCALLMETH        // Left(List) (direct method call x.Method(args))
-	OCALLINTER       // Left(List) (interface method call x.Method(args))
-	OCALLPART        // Left.Right (method expression x.Method, not called)
-	OCAP             // cap(Left)
-	OCLOSE           // close(Left)
-	OCLOSURE         // func Type { Body } (func literal)
-	OCMPIFACE        // Left Etype Right (interface comparison, x == y or x != y)
-	OCMPSTR          // Left Etype Right (string comparison, x == y, x < y, etc)
-	OCOMPLIT         // Right{List} (composite literal, not yet lowered to specific form)
-	OMAPLIT          // Type{List} (composite literal, Type is map)
-	OSTRUCTLIT       // Type{List} (composite literal, Type is struct)
-	OARRAYLIT        // Type{List} (composite literal, Type is array)
-	OSLICELIT        // Type{List} (composite literal, Type is slice)
-	OPTRLIT          // &Left (left is composite literal)
-	OCONV            // Type(Left) (type conversion)
-	OCONVIFACE       // Type(Left) (type conversion, to interface)
-	OCONVNOP         // Type(Left) (type conversion, no effect)
-	OCOPY            // copy(Left, Right)
-	ODCL             // var Left (declares Left of type Left.Type)
+
+	// OCALLFUNC, OCALLMETH, and OCALLINTER have the same structure.
+	// Prior to walk, they are: Left(List), where List is all regular arguments.
+	// If present, Right is an ODDDARG that holds the
+	// generated slice used in a call to a variadic function.
+	// After walk, List is a series of assignments to temporaries,
+	// and Rlist is an updated set of arguments, including any ODDDARG slice.
+	// TODO(josharian/khr): Use Ninit instead of List for the assignments to temporaries. See CL 114797.
+	OCALLFUNC  // Left(List/Rlist) (function call f(args))
+	OCALLMETH  // Left(List/Rlist) (direct method call x.Method(args))
+	OCALLINTER // Left(List/Rlist) (interface method call x.Method(args))
+	OCALLPART  // Left.Right (method expression x.Method, not called)
+	OCAP       // cap(Left)
+	OCLOSE     // close(Left)
+	OCLOSURE   // func Type { Body } (func literal)
+	OCOMPLIT   // Right{List} (composite literal, not yet lowered to specific form)
+	OMAPLIT    // Type{List} (composite literal, Type is map)
+	OSTRUCTLIT // Type{List} (composite literal, Type is struct)
+	OARRAYLIT  // Type{List} (composite literal, Type is array)
+	OSLICELIT  // Type{List} (composite literal, Type is slice)
+	OPTRLIT    // &Left (left is composite literal)
+	OCONV      // Type(Left) (type conversion)
+	OCONVIFACE // Type(Left) (type conversion, to interface)
+	OCONVNOP   // Type(Left) (type conversion, no effect)
+	OCOPY      // copy(Left, Right)
+	ODCL       // var Left (declares Left of type Left.Type)
 
 	// Used during parsing but don't last.
 	ODCLFUNC  // func f() or func (r) f()

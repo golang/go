@@ -43,9 +43,7 @@ const (
 
 	TBOOL
 
-	TPTR32
-	TPTR64
-
+	TPTR
 	TFUNC
 	TSLICE
 	TARRAY
@@ -137,7 +135,7 @@ type Type struct {
 	// TFUNCARGS: FuncArgs
 	// TCHANARGS: ChanArgs
 	// TCHAN: *Chan
-	// TPTR32, TPTR64: Ptr
+	// TPTR: Ptr
 	// TARRAY: *Array
 	// TSLICE: Slice
 	Extra interface{}
@@ -461,7 +459,7 @@ func New(et EType) *Type {
 		t.Extra = new(Struct)
 	case TINTER:
 		t.Extra = new(Interface)
-	case TPTR32, TPTR64:
+	case TPTR:
 		t.Extra = Ptr{}
 	case TCHANARGS:
 		t.Extra = ChanArgs{}
@@ -560,11 +558,7 @@ func NewPtr(elem *Type) *Type {
 		return t
 	}
 
-	if Tptr == 0 {
-		Fatalf("NewPtr: Tptr not initialized")
-	}
-
-	t := New(Tptr)
+	t := New(TPTR)
 	t.Extra = Ptr{Elem: elem}
 	t.Width = int64(Widthptr)
 	t.Align = uint8(Widthptr)
@@ -619,7 +613,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 		t = (*types)[0]
 		*types = (*types)[1:]
 
-	case TPTR32, TPTR64:
+	case TPTR:
 		elem := SubstAny(t.Elem(), types)
 		if elem != t.Elem() {
 			t = t.copy()
@@ -790,7 +784,7 @@ func (t *Type) Key() *Type {
 // Usable with pointers, channels, arrays, slices, and maps.
 func (t *Type) Elem() *Type {
 	switch t.Etype {
-	case TPTR32, TPTR64:
+	case TPTR:
 		return t.Extra.(Ptr).Elem
 	case TARRAY:
 		return t.Extra.(*Array).Elem
@@ -1101,7 +1095,7 @@ func (t *Type) cmp(x *Type) Cmp {
 		}
 		return t.Elem().cmp(x.Elem())
 
-	case TPTR32, TPTR64, TSLICE:
+	case TPTR, TSLICE:
 		// No special cases for these, they are handled
 		// by the general code after the switch.
 
@@ -1199,7 +1193,7 @@ func (t *Type) cmp(x *Type) Cmp {
 		panic(e)
 	}
 
-	// Common element type comparison for TARRAY, TCHAN, TPTR32, TPTR64, and TSLICE.
+	// Common element type comparison for TARRAY, TCHAN, TPTR, and TSLICE.
 	return t.Elem().cmp(x.Elem())
 }
 
@@ -1261,7 +1255,7 @@ func (t *Type) IsComplex() bool {
 // IsPtr reports whether t is a regular Go pointer type.
 // This does not include unsafe.Pointer.
 func (t *Type) IsPtr() bool {
-	return t.Etype == TPTR32 || t.Etype == TPTR64
+	return t.Etype == TPTR
 }
 
 // IsUnsafePtr reports whether t is an unsafe pointer.
@@ -1275,7 +1269,7 @@ func (t *Type) IsUnsafePtr() bool {
 // that consist of a single pointer shaped type.
 // TODO(mdempsky): Should it? See golang.org/issue/15028.
 func (t *Type) IsPtrShaped() bool {
-	return t.Etype == TPTR32 || t.Etype == TPTR64 || t.Etype == TUNSAFEPTR ||
+	return t.Etype == TPTR || t.Etype == TUNSAFEPTR ||
 		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC
 }
 
@@ -1449,7 +1443,7 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
 		}
 		return false
 
-	case TPTR32, TPTR64, TSLICE:
+	case TPTR, TSLICE:
 		return !(ignoreNotInHeap && t.Elem().NotInHeap())
 
 	case TTUPLE:
