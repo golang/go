@@ -10,14 +10,23 @@
 // Licence: I hereby disclaim the copyright on this code and place it
 // in the public domain.
 
+// +build ppc64 ppc64le
+
 #include "textflag.h"
 
-// TODO: Could be updated for ppc64 big endian
-// by using the correct byte reverse instruction.
-// Changes required in the Go assembler to make
-// that instruction work.
-
-#define MOVE_LITTLE_ENDIAN MOVWZ
+// ENDIAN_MOVE generates the appropriate
+// 4 byte load for big or little endian.
+// The 4 bytes at ptr+off is loaded into dst.
+// The idx reg is only needed for big endian
+// and is clobbered when used.
+#ifdef GOARCH_ppc64le
+#define ENDIAN_MOVE(off, ptr, dst, idx) \
+	MOVWZ	off(ptr),dst
+#else
+#define ENDIAN_MOVE(off, ptr, dst, idx) \
+	MOVD	$off,idx; \
+	MOVWBR	(idx)(ptr), dst
+#endif
 
 TEXT ·block(SB),NOSPLIT,$0-32
 	MOVD	dig+0(FP), R10
@@ -40,7 +49,7 @@ loop:
 	MOVWZ	R4, R16
 	MOVWZ	R5, R17
 
-	MOVE_LITTLE_ENDIAN	0(R6), R8
+	ENDIAN_MOVE(0,R6,R8,R21)
 	MOVWZ	R5, R9
 
 #define ROUND1(a, b, c, d, index, const, shift) \
@@ -49,7 +58,7 @@ loop:
 	ADD	R8, a; \
 	AND	b, R9; \
 	XOR	d, R9; \
-	MOVE_LITTLE_ENDIAN	(index*4)(R6), R8; \
+	ENDIAN_MOVE(index*4,R6,R8,R21); \
 	ADD	R9, a; \
 	RLWMI	$shift, a, $0xffffffff, a; \
 	MOVWZ	c, R9; \
@@ -73,7 +82,7 @@ loop:
 	ROUND1(R4,R5,R22,R3,15,0xa679438e,17);
 	ROUND1(R3,R4,R5,R22, 0,0x49b40821,22);
 
-	MOVE_LITTLE_ENDIAN	(1*4)(R6), R8
+	ENDIAN_MOVE(1*4,R6,R8,R21)
 	MOVWZ	R5, R9
 	MOVWZ	R5, R10
 
@@ -83,7 +92,7 @@ loop:
 	ADD	R8, a; \
 	AND	b, R10; \
 	AND	c, R9; \
-	MOVE_LITTLE_ENDIAN	(index*4)(R6), R8; \
+	ENDIAN_MOVE(index*4,R6,R8,R21); \
 	OR	R9, R10; \
 	MOVWZ	c, R9; \
 	ADD	R10, a; \
@@ -109,13 +118,13 @@ loop:
 	ROUND2(R4,R5,R22,R3,12,0x676f02d9,14);
 	ROUND2(R3,R4,R5,R22, 0,0x8d2a4c8a,20);
 
-	MOVE_LITTLE_ENDIAN	(5*4)(R6), R8
+	ENDIAN_MOVE(5*4,R6,R8,R21)
 	MOVWZ	R4, R9
 
 #define ROUND3(a, b, c, d, index, const, shift) \
 	ADD	$const, a; \
 	ADD	R8, a; \
-	MOVE_LITTLE_ENDIAN	(index*4)(R6), R8; \
+	ENDIAN_MOVE(index*4,R6,R8,R21); \
 	XOR	d, R9; \
 	XOR	b, R9; \
 	ADD	R9, a; \
@@ -141,7 +150,7 @@ loop:
 	ROUND3(R4,R5,R22,R3, 2,0x1fa27cf8,16);
 	ROUND3(R3,R4,R5,R22, 0,0xc4ac5665,23);
 
-	MOVE_LITTLE_ENDIAN	(0*4)(R6), R8
+	ENDIAN_MOVE(0,R6,R8,R21)
 	MOVWZ	$0xffffffff, R9
 	XOR	R5, R9
 
@@ -151,7 +160,7 @@ loop:
 	OR	b, R9; \
 	XOR	c, R9; \
 	ADD	R9, a; \
-	MOVE_LITTLE_ENDIAN	(index*4)(R6), R8; \
+	ENDIAN_MOVE(index*4,R6,R8,R21); \
 	MOVWZ	$0xffffffff, R9; \
 	RLWMI	$shift, a, $0xffffffff, a; \
 	XOR	c, R9; \
