@@ -50,10 +50,14 @@ body {
     font-family: Arial, sans-serif;
 }
 
+h1 {
+    font-size: 18px;
+    display: inline-block;
+    margin: 0 1em .5em 0;
+}
+
 #helplink {
-    margin-bottom: 15px;
-    display: block;
-    margin-top: -15px;
+    display: inline-block;
 }
 
 #help {
