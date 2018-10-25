@@ -176,6 +176,20 @@ ul.ssa-print-func {
     padding-left: 0;
 }
 
+li.ssa-start-block button {
+    padding: 0 1em;
+    margin: 0;
+    border: none;
+    display: inline;
+    font-size: 14px;
+    float: right;
+}
+
+button:hover {
+    background-color: #eee;
+    cursor: pointer;
+}
+
 dl.ssa-gen {
     padding-left: 0;
 }
@@ -487,6 +501,20 @@ function toggle_visibility(id) {
         e.style.display = 'none';
     } else {
         e.style.display = 'block';
+    }
+}
+
+function hideBlock(el) {
+    var es = el.parentNode.parentNode.getElementsByClassName("ssa-value-list");
+    if (es.length===0)
+        return;
+    var e = es[0];
+    if (e.style.display === 'block' || e.style.display === '') {
+        e.style.display = 'none';
+        el.innerHTML = '+';
+    } else {
+        e.style.display = 'block';
+        el.innerHTML = '-';
     }
 }
 
@@ -985,7 +1013,6 @@ type htmlFuncPrinter struct {
 func (p htmlFuncPrinter) header(f *Func) {}
 
 func (p htmlFuncPrinter) startBlock(b *Block, reachable bool) {
-	// TODO: Make blocks collapsable?
 	var dead string
 	if !reachable {
 		dead = "dead-block"
@@ -998,6 +1025,9 @@ func (p htmlFuncPrinter) startBlock(b *Block, reachable bool) {
 			pred := e.b
 			fmt.Fprintf(p.w, " %s", pred.HTML())
 		}
+	}
+	if len(b.Values) > 0 {
+		io.WriteString(p.w, `<button onclick="hideBlock(this)">-</button>`)
 	}
 	io.WriteString(p.w, "</li>")
 	if len(b.Values) > 0 { // start list of values
