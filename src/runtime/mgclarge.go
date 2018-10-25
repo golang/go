@@ -46,6 +46,38 @@ type treapNode struct {
 	priority  uint32     // random number used by treap algorithm to keep tree probabilistically balanced
 }
 
+func (t *treapNode) pred() *treapNode {
+	if t.left != nil {
+		// If it has a left child, its predecessor will be
+		// its right most left (grand)child.
+		t = t.left
+		for t.right != nil {
+			t = t.right
+		}
+		return t
+	}
+	// If it has no left child, its predecessor will be
+	// the first grandparent who's right child is its
+	// ancestor.
+	//
+	// We compute this by walking up the treap until the
+	// current node's parent is its parent's right child.
+	//
+	// If we find at any point walking up the treap
+	// that the current node doesn't have a parent,
+	// we've hit the root. This means that t is already
+	// the left-most node in the treap and therefore
+	// has no predecessor.
+	for t.parent != nil && t.parent.right != t {
+		if t.parent.left != t {
+			println("runtime: predecessor t=", t, "t.spanKey=", t.spanKey)
+			throw("node is not its parent's child")
+		}
+		t = t.parent
+	}
+	return t.parent
+}
+
 // isSpanInTreap is handy for debugging. One should hold the heap lock, usually
 // mheap_.lock().
 func (t *treapNode) isSpanInTreap(s *mspan) bool {
