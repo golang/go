@@ -519,9 +519,6 @@ again:
 // the BL deferreturn and jmpdefer rewinds to that.
 TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD	0(R1), R31
-#ifdef GOOS_aix
-	MOVD	16(R31), R31	// caller LR is on the previous stack frame on AIX
-#endif
 	SUB     $8, R31
 	MOVD	R31, LR
 
