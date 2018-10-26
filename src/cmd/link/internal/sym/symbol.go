@@ -5,6 +5,7 @@
 package sym
 
 import (
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"debug/elf"
@@ -52,8 +53,20 @@ type AuxSymbol struct {
 }
 
 const (
-	SymVerStatic = 10 // Minimum version used by static (file-local) syms
+	SymVerABI0        = 0
+	SymVerABIInternal = 1
+	SymVerStatic      = 10 // Minimum version used by static (file-local) syms
 )
+
+func ABIToVersion(abi obj.ABI) int {
+	switch abi {
+	case obj.ABI0:
+		return SymVerABI0
+	case obj.ABIInternal:
+		return SymVerABIInternal
+	}
+	return -1
+}
 
 func (s *Symbol) String() string {
 	if s.Version == 0 {
