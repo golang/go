@@ -62,6 +62,16 @@ func (h ValHeap) Less(i, j int) bool {
 	return x.ID > y.ID
 }
 
+func (op Op) isLoweredGetClosurePtr() bool {
+	switch op {
+	case OpAMD64LoweredGetClosurePtr, OpPPC64LoweredGetClosurePtr, OpARMLoweredGetClosurePtr, OpARM64LoweredGetClosurePtr,
+		Op386LoweredGetClosurePtr, OpMIPS64LoweredGetClosurePtr, OpS390XLoweredGetClosurePtr, OpMIPSLoweredGetClosurePtr,
+		OpWasmLoweredGetClosurePtr:
+		return true
+	}
+	return false
+}
+
 // Schedule the Values in each Block. After this phase returns, the
 // order of b.Values matters and is the order in which those values
 // will appear in the assembly output. For now it generates a
@@ -92,11 +102,7 @@ func schedule(f *Func) {
 		// Compute score. Larger numbers are scheduled closer to the end of the block.
 		for _, v := range b.Values {
 			switch {
-			case v.Op == OpAMD64LoweredGetClosurePtr || v.Op == OpPPC64LoweredGetClosurePtr ||
-				v.Op == OpARMLoweredGetClosurePtr || v.Op == OpARM64LoweredGetClosurePtr ||
-				v.Op == Op386LoweredGetClosurePtr || v.Op == OpMIPS64LoweredGetClosurePtr ||
-				v.Op == OpS390XLoweredGetClosurePtr || v.Op == OpMIPSLoweredGetClosurePtr ||
-				v.Op == OpWasmLoweredGetClosurePtr:
+			case v.Op.isLoweredGetClosurePtr():
 				// We also score GetLoweredClosurePtr as early as possible to ensure that the
 				// context register is not stomped. GetLoweredClosurePtr should only appear
 				// in the entry block where there are no phi functions, so there is no
@@ -189,9 +195,11 @@ func schedule(f *Func) {
 			}
 		}
 
-		if b.Control != nil && b.Control.Op != OpPhi {
+		if b.Control != nil && b.Control.Op != OpPhi && b.Control.Op != OpArg {
 			// Force the control value to be scheduled at the end,
 			// unless it is a phi value (which must be first).
+			// OpArg also goes first -- if it is stack it register allocates
+			// to a LoadReg, if it is register it is from the beginning anyway.
 			score[b.Control.ID] = ScoreControl
 
 			// Schedule values dependent on the control value at the end.
