@@ -378,14 +378,6 @@ func (root *semaRoot) rotateLeft(x *sudog) {
 
 	y.prev = x
 	x.parent = y
-	y.next = c
-	if c != nil {
-		c.parent = y
-	}
-	x.prev = a
-	if a != nil {
-		a.parent = x
-	}
 	x.next = b
 	if b != nil {
 		b.parent = x
@@ -412,19 +404,11 @@ func (root *semaRoot) rotateRight(y *sudog) {
 	x, c := y.prev, y.next
 	a, b := x.prev, x.next
 
-	x.prev = a
-	if a != nil {
-		a.parent = x
-	}
 	x.next = y
 	y.parent = x
 	y.prev = b
 	if b != nil {
 		b.parent = y
-	}
-	y.next = c
-	if c != nil {
-		c.parent = y
 	}
 
 	x.parent = p
