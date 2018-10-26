@@ -40,6 +40,7 @@ func doinit() {
 		{Name: "scv", Feature: &PPC64.HasSCV},
 
 		// These capabilities should always be enabled on ppc64 and ppc64le:
+		{Name: "power8", Feature: &PPC64.IsPOWER8, Required: true},
 		{Name: "vmx", Feature: &PPC64.HasVMX, Required: true},
 		{Name: "dfp", Feature: &PPC64.HasDFP, Required: true},
 		{Name: "vsx", Feature: &PPC64.HasVSX, Required: true},
