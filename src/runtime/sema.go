@@ -373,19 +373,11 @@ Found:
 func (root *semaRoot) rotateLeft(x *sudog) {
 	// p -> (x a (y b c))
 	p := x.parent
-	a, y := x.prev, x.next
-	b, c := y.prev, y.next
+	y := x.next
+	b := y.prev
 
 	y.prev = x
 	x.parent = y
-	y.next = c
-	if c != nil {
-		c.parent = y
-	}
-	x.prev = a
-	if a != nil {
-		a.parent = x
-	}
 	x.next = b
 	if b != nil {
 		b.parent = x
@@ -409,22 +401,14 @@ func (root *semaRoot) rotateLeft(x *sudog) {
 func (root *semaRoot) rotateRight(y *sudog) {
 	// p -> (y (x a b) c)
 	p := y.parent
-	x, c := y.prev, y.next
-	a, b := x.prev, x.next
+	x := y.prev
+	b := x.next
 
-	x.prev = a
-	if a != nil {
-		a.parent = x
-	}
 	x.next = y
 	y.parent = x
 	y.prev = b
 	if b != nil {
 		b.parent = y
-	}
-	y.next = c
-	if c != nil {
-		c.parent = y
 	}
 
 	x.parent = p
