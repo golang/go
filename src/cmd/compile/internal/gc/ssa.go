@@ -5190,6 +5190,10 @@ func genssa(f *ssa.Func, pp *Progs) {
 		e.curfn.Func.DebugInfo.GetPC = func(b, v ssa.ID) int64 {
 			switch v {
 			case ssa.BlockStart.ID:
+				if b == f.Entry.ID {
+					return 0 // Start at the very beginning, at the assembler-generated prologue.
+					// this should only happen for function args (ssa.OpArg)
+				}
 				return bstart[b].Pc
 			case ssa.BlockEnd.ID:
 				return e.curfn.Func.lsym.Size
@@ -5199,7 +5203,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		}
 	}
 
-	// Resolove branchers, and relax DefaultStmt into NotStmt
+	// Resolve branches, and relax DefaultStmt into NotStmt
 	for _, br := range s.Branches {
 		br.P.To.Val = s.bstart[br.B.ID]
 		if br.P.Pos.IsStmt() != src.PosIsStmt {
