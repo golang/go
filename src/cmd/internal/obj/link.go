@@ -432,7 +432,7 @@ const (
 )
 
 // Attribute is a set of symbol attributes.
-type Attribute int16
+type Attribute uint16
 
 const (
 	AttrDuplicateOK Attribute = 1 << iota
@@ -468,6 +468,13 @@ const (
 	// For function symbols; indicates that the specified function was the
 	// target of an inline during compilation
 	AttrWasInlined
+
+	// attrABIBase is the value at which the ABI is encoded in
+	// Attribute. This must be last; all bits after this are
+	// assumed to be an ABI value.
+	//
+	// MUST BE LAST since all bits above this comprise the ABI.
+	attrABIBase
 )
 
 func (a Attribute) DuplicateOK() bool   { return a&AttrDuplicateOK != 0 }
@@ -491,6 +498,12 @@ func (a *Attribute) Set(flag Attribute, value bool) {
 	} else {
 		*a &^= flag
 	}
+}
+
+func (a Attribute) ABI() ABI { return ABI(a / attrABIBase) }
+func (a *Attribute) SetABI(abi ABI) {
+	const mask = 1 // Only one ABI bit for now.
+	*a = (*a &^ (mask * attrABIBase)) | Attribute(abi)*attrABIBase
 }
 
 var textAttrStrings = [...]struct {
@@ -523,6 +536,12 @@ func (a Attribute) TextAttrString() string {
 			}
 			a &^= x.bit
 		}
+	}
+	switch a.ABI() {
+	case ABI0:
+	case ABIInternal:
+		s += "ABIInternal|"
+		a.SetABI(0) // Clear ABI so we don't print below.
 	}
 	if a != 0 {
 		s += fmt.Sprintf("UnknownAttribute(%d)|", a)
@@ -606,6 +625,16 @@ type Link struct {
 	// state for writing objects
 	Text []*LSym
 	Data []*LSym
+
+	// ABIAliases are text symbols that should be aliased to all
+	// ABIs. These symbols may only be referenced and not defined
+	// by this object, since the need for an alias may appear in a
+	// different object than the definition. Hence, this
+	// information can't be carried in the symbol definition.
+	//
+	// TODO(austin): Replace this with ABI wrappers once the ABIs
+	// actually diverge.
+	ABIAliases []*LSym
 }
 
 func (ctxt *Link) Diag(format string, args ...interface{}) {
