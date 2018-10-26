@@ -55,11 +55,11 @@ func bar() {
 import (
   "fmt"
 
-  "appengine"
+  "github.com/golang/snappy"
 )
 func bar() {
 var b bytes.Buffer
-_ = appengine.IsDevServer
+_ = snappy.ErrCorrupt
 fmt.Println(b.String())
 }
 `,
@@ -69,12 +69,12 @@ import (
 	"bytes"
 	"fmt"
 
-	"appengine"
+	"github.com/golang/snappy"
 )
 
 func bar() {
 	var b bytes.Buffer
-	_ = appengine.IsDevServer
+	_ = snappy.ErrCorrupt
 	fmt.Println(b.String())
 }
 `,
@@ -88,12 +88,12 @@ func bar() {
 import (
   "fmt"
 
-  "appengine"
+  "github.com/golang/snappy"
 )
 func bar() {
 _ = math.NaN
 _ = fmt.Sprintf
-_ = appengine.IsDevServer
+_ = snappy.ErrCorrupt
 }
 `,
 		out: `package foo
@@ -102,13 +102,13 @@ import (
 	"fmt"
 	"math"
 
-	"appengine"
+	"github.com/golang/snappy"
 )
 
 func bar() {
 	_ = math.NaN
 	_ = fmt.Sprintf
-	_ = appengine.IsDevServer
+	_ = snappy.ErrCorrupt
 }
 `,
 	},
@@ -352,7 +352,7 @@ import (
 
 func foo () {
 _, _ = os.Args, fmt.Println
-_, _ = appengine.Main, datastore.ErrInvalidEntityType
+_, _ = snappy.ErrCorrupt, p.P
 }
 `,
 		out: `package foo
@@ -361,13 +361,13 @@ import (
 	"fmt"
 	"os"
 
-	"appengine"
-	"appengine/datastore"
+	"github.com/golang/snappy"
+	"rsc.io/p"
 )
 
 func foo() {
 	_, _ = os.Args, fmt.Println
-	_, _ = appengine.Main, datastore.ErrInvalidEntityType
+	_, _ = snappy.ErrCorrupt, p.P
 }
 `,
 	},
@@ -426,7 +426,7 @@ import (
 	"fmt"
 	"net"
 
-	"code.google.com/p/snappy-go/snappy"
+	"github.com/golang/snappy"
 )
 
 func f() {
@@ -443,7 +443,7 @@ func f() {
 		in: `package foo
 
 import (
-	"code.google.com/p/snappy-go/snappy"
+	"github.com/golang/snappy"
 	"fmt"
 	"net"
 )
@@ -460,7 +460,7 @@ import (
 	"fmt"
 	"net"
 
-	"code.google.com/p/snappy-go/snappy"
+	"github.com/golang/snappy"
 )
 
 func f() {
@@ -501,12 +501,12 @@ import (
 "fmt"
 
 "gu"
-"github.com/foo/bar"
+"manypackages.com/packagea"
 )
 
 var (
-a = bar.a
-b = gu.a
+a = packagea.A
+b = gu.A
 c = fmt.Printf
 )
 `,
@@ -517,12 +517,12 @@ import (
 
 	"gu"
 
-	"github.com/foo/bar"
+	"manypackages.com/packagea"
 )
 
 var (
-	a = bar.a
-	b = gu.a
+	a = packagea.A
+	b = gu.A
 	c = fmt.Printf
 )
 `,
@@ -556,14 +556,14 @@ func notmain() { fmt.Println("Hello, world") }`,
 import (
 	"fmt"
 
-	"github.com/foo/bar"
-	"github.com/foo/qux"
+	"manypackages.com/packagea"
+	"manypackages.com/packageb"
 )
 
 func main() {
 	var _ = fmt.Println
-	//var _ = bar.A
-	var _ = qux.B
+	//var _ = packagea.A
+	var _ = packageb.B
 }
 `,
 		out: `package main
@@ -571,13 +571,13 @@ func main() {
 import (
 	"fmt"
 
-	"github.com/foo/qux"
+	"manypackages.com/packageb"
 )
 
 func main() {
 	var _ = fmt.Println
-	//var _ = bar.A
-	var _ = qux.B
+	//var _ = packagea.A
+	var _ = packageb.B
 }
 `,
 	},
@@ -590,34 +590,34 @@ func main() {
 
 import (
 	"fmt"
-	renamed_bar "github.com/foo/bar"
+	renamed_packagea "manypackages.com/packagea"
 
-	. "github.com/foo/baz"
+	. "manypackages.com/packageb"
 	"io"
 
-	_ "github.com/foo/qux"
+	_ "manypackages.com/packagec"
 	"strings"
 )
 
-var _, _, _, _, _ = fmt.Errorf, io.Copy, strings.Contains, renamed_bar.A, B
+var _, _, _, _, _ = fmt.Errorf, io.Copy, strings.Contains, renamed_packagea.A, B
 `,
 		out: `package main
 
 import (
 	"fmt"
 
-	renamed_bar "github.com/foo/bar"
+	renamed_packagea "manypackages.com/packagea"
 
 	"io"
 
-	. "github.com/foo/baz"
+	. "manypackages.com/packageb"
 
 	"strings"
 
-	_ "github.com/foo/qux"
+	_ "manypackages.com/packagec"
 )
 
-var _, _, _, _, _ = fmt.Errorf, io.Copy, strings.Contains, renamed_bar.A, B
+var _, _, _, _, _ = fmt.Errorf, io.Copy, strings.Contains, renamed_packagea.A, B
 `,
 	},
 
@@ -630,7 +630,7 @@ var _, _, _, _, _ = fmt.Errorf, io.Copy, strings.Contains, renamed_bar.A, B
 import (
 	"fmt"                     // A
 	"go/ast"                  // B
-	_ "launchpad.net/gocheck" // C
+	_ "manypackages.com/packagec"    // C
 )
 
 func main() { _, _ = fmt.Print, ast.Walk }
@@ -641,7 +641,7 @@ import (
 	"fmt"    // A
 	"go/ast" // B
 
-	_ "launchpad.net/gocheck" // C
+	_ "manypackages.com/packagec" // C
 )
 
 func main() { _, _ = fmt.Print, ast.Walk }
@@ -761,7 +761,7 @@ func main() { fmt.Println() }
 
 import (
 "fmt"
-"golang.org/x/foo"
+"manypackages.com/packagea"
 )
 
 func main() {}
@@ -771,7 +771,7 @@ func main() {}
 import (
 	"fmt"
 
-	"golang.org/x/foo"
+	"manypackages.com/packagea"
 )
 
 func main() {}
@@ -818,7 +818,7 @@ func main() {
 import (
 	"time"
 
-	"code.google.com/p/snappy-go/snappy"
+	"github.com/golang/snappy"
 	"rsc.io/p"
 )
 
@@ -837,7 +837,7 @@ func main() {
 import (
 	"time"
 
-	"code.google.com/p/snappy-go/snappy"
+	"github.com/golang/snappy"
 )
 
 func main() {
@@ -851,7 +851,7 @@ func main() {
 import (
 	"time"
 
-	"code.google.com/p/snappy-go/snappy"
+	"github.com/golang/snappy"
 	"rsc.io/p"
 )
 
@@ -863,8 +863,9 @@ func main() {
 `,
 	},
 
+	// golang.org/issue/12097
 	{
-		name: "issue #12097",
+		name: "package_statement_insertion_preserves_comments",
 		in: `// a
 // b
 // c
@@ -980,7 +981,7 @@ import (
 	_ "net/http/pprof" // install the pprof http handlers
 	"strings"
 
-	"github.com/pkg/errors"
+	"manypackages.com/packagea"
 )
 
 func main() {
@@ -989,7 +990,7 @@ func main() {
 	var (
 		_ json.Number
 		_ *http.Request
-		_ errors.Frame
+		_ packagea.A
 	)
 }
 `,
@@ -1002,7 +1003,7 @@ import (
 	_ "net/http/pprof" // install the pprof http handlers
 	"strings"
 
-	"github.com/pkg/errors"
+	"manypackages.com/packagea"
 )
 
 func main() {
@@ -1011,7 +1012,7 @@ func main() {
 	var (
 		_ json.Number
 		_ *http.Request
-		_ errors.Frame
+		_ packagea.A
 	)
 }
 `,
@@ -1108,7 +1109,7 @@ var _, _ = rand.Read, rand.NewZipf
 
 func TestSimpleCases(t *testing.T) {
 	defer func(lp string) { LocalPrefix = lp }(LocalPrefix)
-	LocalPrefix = "local,github.com/local"
+	LocalPrefix = "local.com,github.com/local"
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			options := &Options{
@@ -1119,33 +1120,80 @@ func TestSimpleCases(t *testing.T) {
 				FormatOnly: tt.formatOnly,
 			}
 			testConfig{
-				// Skeleton non-stdlib packages for use during testing.
-				// Each includes one arbitrary symbol, e.g. the first declaration in the first file.
-				// Try not to add more without a good reason.
 				modules: []packagestest.Module{
 					{
-						Name: "appengine",
-						Files: fm{
-							"x.go":           "package appengine\nfunc Main(){}\n",
-							"datastore/x.go": "package datastore\nvar ErrInvalidEntityType error\n",
-						},
+						Name:  "golang.org/fake",
+						Files: fm{"x.go": tt.in},
 					},
+					// Skeleton non-stdlib packages for use during testing.
+					// Each includes one arbitrary symbol, e.g. the first declaration in the first file.
+					// Try not to add more without a good reason.
+					// DO NOT USE PACKAGES NOT LISTED HERE -- they will be downloaded!
 					{
 						Name:  "rsc.io",
 						Files: fm{"p/x.go": "package p\nfunc P(){}\n"},
 					},
 					{
-						Name:  "code.google.com/p/snappy-go",
-						Files: fm{"snappy/x.go": "package snappy\nvar ErrCorrupt error\n"},
+						Name:  "github.com/golang/snappy",
+						Files: fm{"x.go": "package snappy\nvar ErrCorrupt error\n"},
 					},
 					{
-						Name:  "golang.org/fake",
-						Files: fm{"x.go": tt.in},
+						Name: "manypackages.com",
+						Files: fm{
+							"packagea/x.go": "package packagea\nfunc A(){}\n",
+							"packageb/x.go": "package packageb\nfunc B(){}\n",
+							"packagec/x.go": "package packagec\nfunc C(){}\n",
+							"packaged/x.go": "package packaged\nfunc D(){}\n",
+						},
+					},
+					{
+						Name:  "local.com",
+						Files: fm{"foo/x.go": "package foo\nfunc Foo(){}\n"},
+					},
+					{
+						Name:  "github.com/local",
+						Files: fm{"bar/x.go": "package bar\nfunc Bar(){}\n"},
 					},
 				},
 			}.processTest(t, "golang.org/fake", "x.go", nil, options, tt.out)
 		})
 	}
+}
+
+func TestAppengine(t *testing.T) {
+	const input = `package p
+
+var _, _, _ = fmt.Printf, appengine.Main, datastore.ErrInvalidEntityType
+`
+
+	const want = `package p
+
+import (
+	"fmt"
+
+	"appengine"
+	"appengine/datastore"
+)
+
+var _, _, _ = fmt.Printf, appengine.Main, datastore.ErrInvalidEntityType
+`
+
+	testConfig{
+		gopathOnly: true, // can't create a module named appengine, so no module tests.
+		modules: []packagestest.Module{
+			{
+				Name:  "golang.org/fake",
+				Files: fm{"x.go": input},
+			},
+			{
+				Name: "appengine",
+				Files: fm{
+					"x.go":           "package appengine\nfunc Main(){}\n",
+					"datastore/x.go": "package datastore\nvar ErrInvalidEntityType error\n",
+				},
+			},
+		},
+	}.processTest(t, "golang.org/fake", "x.go", nil, nil, want)
 }
 
 func TestReadFromFilesystem(t *testing.T) {
@@ -1271,6 +1319,7 @@ var (
 `
 
 	testConfig{
+		gopathOnly: true,
 		module: packagestest.Module{
 			Name: "golang.org/fake",
 			Files: fm{
@@ -1327,6 +1376,7 @@ var (
 )
 `
 	testConfig{
+		gopathOnly: true,
 		module: packagestest.Module{
 			Name: "mypkg.com/outpkg",
 			Files: fm{
@@ -1425,8 +1475,9 @@ func TestFindStdlib(t *testing.T) {
 }
 
 type testConfig struct {
-	module  packagestest.Module
-	modules []packagestest.Module
+	gopathOnly bool
+	module     packagestest.Module
+	modules    []packagestest.Module
 }
 
 // fm is the type for a packagestest.Module's Files, abbreviated for shorter lines.
@@ -1440,72 +1491,68 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 		c.modules = []packagestest.Module{c.module}
 	}
 
-	exported = packagestest.Export(t, packagestest.GOPATH, c.modules)
-	defer exported.Cleanup()
+	for _, exporter := range []packagestest.Exporter{packagestest.GOPATH} {
+		t.Run(exporter.Name(), func(t *testing.T) {
+			t.Helper()
+			exported = packagestest.Export(t, exporter, c.modules)
+			defer exported.Cleanup()
 
-	env := make(map[string]string)
-	for _, kv := range exported.Config.Env {
-		split := strings.Split(kv, "=")
-		k, v := split[0], split[1]
-		env[k] = v
+			env := make(map[string]string)
+			for _, kv := range exported.Config.Env {
+				split := strings.Split(kv, "=")
+				k, v := split[0], split[1]
+				env[k] = v
+			}
+
+			goroot := env["GOROOT"]
+			gopath := env["GOPATH"]
+
+			scanOnce = sync.Once{}
+
+			oldGOPATH := build.Default.GOPATH
+			oldGOROOT := build.Default.GOROOT
+			oldCompiler := build.Default.Compiler
+			build.Default.GOROOT = goroot
+			build.Default.GOPATH = gopath
+			build.Default.Compiler = "gc"
+
+			defer func() {
+				build.Default.GOPATH = oldGOPATH
+				build.Default.GOROOT = oldGOROOT
+				build.Default.Compiler = oldCompiler
+			}()
+
+			it := &goimportTest{
+				T:        t,
+				gopath:   gopath,
+				exported: exported,
+			}
+			fn(it)
+		})
 	}
-
-	goroot := env["GOROOT"]
-	gopath := env["GOPATH"]
-
-	scanOnce = sync.Once{}
-
-	oldGOPATH := build.Default.GOPATH
-	oldGOROOT := build.Default.GOROOT
-	oldCompiler := build.Default.Compiler
-	build.Default.GOPATH = ""
-	build.Default.Compiler = "gc"
-
-	defer func() {
-		build.Default.GOPATH = oldGOPATH
-		build.Default.GOROOT = oldGOROOT
-		build.Default.Compiler = oldCompiler
-	}()
-
-	build.Default.GOROOT = goroot
-	build.Default.GOPATH = gopath
-
-	it := &goimportTest{
-		T:        t,
-		goroot:   build.Default.GOROOT,
-		gopath:   gopath,
-		ctx:      &build.Default,
-		exported: exported,
-	}
-	fn(it)
 }
 
 func (c testConfig) processTest(t *testing.T, module, file string, contents []byte, opts *Options, want string) {
 	t.Helper()
 	c.test(t, func(t *goimportTest) {
 		t.Helper()
-		f := t.exported.File(module, file)
-		if f == "" {
-			t.Fatalf("%v not found in exported files (typo in filename?)", file)
-		}
-		t.process(f, contents, opts, want)
+		t.process(module, file, contents, opts, want)
 	})
 }
 
 type goimportTest struct {
 	*testing.T
-	ctx      *build.Context
-	goroot   string
 	gopath   string
 	exported *packagestest.Exported
 }
 
-func (t *goimportTest) process(file string, contents []byte, opts *Options, want string) {
+func (t *goimportTest) process(module, file string, contents []byte, opts *Options, want string) {
 	t.Helper()
-	if !filepath.IsAbs(file) {
-		file = filepath.Join(t.gopath, "src", file)
+	f := t.exported.File(module, file)
+	if f == "" {
+		t.Fatalf("%v not found in exported files (typo in filename?)", file)
 	}
-	buf, err := Process(file, contents, opts)
+	buf, err := Process(f, contents, opts)
 	if err != nil {
 		t.Fatalf("Process() = %v", err)
 	}
@@ -1543,12 +1590,14 @@ const Y = bar.X
 // to be added into a later group (num=3).
 func TestLocalPrefix(t *testing.T) {
 	tests := []struct {
+		name        string
 		modules     []packagestest.Module
 		localPrefix string
 		src         string
 		want        string
 	}{
 		{
+			name: "one_local",
 			modules: []packagestest.Module{
 				{
 					Name: "foo.com",
@@ -1572,6 +1621,7 @@ const _ = runtime.GOOS
 `,
 		},
 		{
+			name: "two_local",
 			modules: []packagestest.Module{
 				{
 					Name: "foo.com",
@@ -1598,6 +1648,7 @@ const _ = runtime.GOOS
 `,
 		},
 		{
+			name: "three_prefixes",
 			modules: []packagestest.Module{
 				{
 					Name:  "example.org/pkg",
@@ -1633,12 +1684,18 @@ const _ = runtime.GOOS
 	}
 
 	for _, tt := range tests {
-		testConfig{
-			modules: tt.modules,
-		}.test(t, func(t *goimportTest) {
-			defer func(s string) { LocalPrefix = s }(LocalPrefix)
-			LocalPrefix = tt.localPrefix
-			t.process("test/t.go", []byte(tt.src), nil, tt.want)
+		t.Run(tt.name, func(t *testing.T) {
+			testConfig{
+				// The module being processed has to be first so it's the primary module.
+				modules: append([]packagestest.Module{{
+					Name:  "test.com",
+					Files: fm{"t.go": tt.src},
+				}}, tt.modules...),
+			}.test(t, func(t *goimportTest) {
+				defer func(s string) { LocalPrefix = s }(LocalPrefix)
+				LocalPrefix = tt.localPrefix
+				t.process("test.com", "t.go", nil, nil, tt.want)
+			})
 		})
 	}
 }
@@ -1674,6 +1731,7 @@ const Y = foo.X
 // never make it that far).
 func TestImportPathToNameGoPathParse(t *testing.T) {
 	testConfig{
+		gopathOnly: true,
 		module: packagestest.Module{
 			Name: "example.net/pkg",
 			Files: fm{
@@ -1708,6 +1766,7 @@ const _ = pkg.X
 `
 
 	testConfig{
+		gopathOnly: true,
 		module: packagestest.Module{
 			Name: "foo.com",
 			Files: fm{
@@ -1734,6 +1793,7 @@ const _ = pkg.X
 `
 
 	testConfig{
+		gopathOnly: true,
 		module: packagestest.Module{
 			Name: "foo.com",
 			Files: fm{
@@ -2035,19 +2095,36 @@ var _ = &bytes.Buffer{}
 	testConfig{
 		modules: []packagestest.Module{
 			{
-				Name:  "bytes.net/bytes",
-				Files: fm{"bytes.go": "package bytes\n type Buffer struct {}"}, // Should be selected over standard library
-			},
-			{
 				Name: "mycompany.net/tool",
 				Files: fm{
 					"io.go":   "package main\n import \"bytes.net/bytes\"\n var _ = &bytes.Buffer{}", // Contains package import that will cause stdlib to be ignored
-					"err.go":  "package main\n import \"bogus.net/bytes\"\n var _ = &bytes.Buffer{}", // Contains import which is not resolved, so it is ignored
 					"main.go": input,
 				},
 			},
+			{
+				Name:  "bytes.net/bytes",
+				Files: fm{"bytes.go": "package bytes\n type Buffer struct {}"}, // Should be selected over standard library
+			},
 		},
 	}.processTest(t, "mycompany.net/tool", "main.go", nil, nil, want)
+}
+
+func TestInMemoryFile(t *testing.T) {
+	const input = `package main
+ var _ = &bytes.Buffer{}`
+
+	const want = `package main
+
+import "bytes"
+
+var _ = &bytes.Buffer{}
+`
+	testConfig{
+		module: packagestest.Module{
+			Name:  "foo.com",
+			Files: fm{"x.go": "package x\n"},
+		},
+	}.processTest(t, "foo.com", "x.go", []byte(input), nil, want)
 }
 
 func TestImportNoGoFiles(t *testing.T) {
@@ -2078,12 +2155,11 @@ func TestProcessLargeToken(t *testing.T) {
 	input := `package testimports
 
 import (
-	"fmt"
-	"mydomain.mystuff/mypkg"
+	"bytes"
 )
 
 const s = fmt.Sprintf("%s", "` + largeString + `")
-const x = mypkg.Sprintf("%s", "my package")
+var _ = bytes.Buffer{}
 
 // end
 `
@@ -2091,13 +2167,13 @@ const x = mypkg.Sprintf("%s", "my package")
 	want := `package testimports
 
 import (
+	"bytes"
 	"fmt"
-
-	"mydomain.mystuff/mypkg"
 )
 
 const s = fmt.Sprintf("%s", "` + largeString + `")
-const x = mypkg.Sprintf("%s", "my package")
+
+var _ = bytes.Buffer{}
 
 // end
 `
