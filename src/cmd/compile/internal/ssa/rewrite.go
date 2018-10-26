@@ -177,23 +177,11 @@ func canMergeSym(x, y interface{}) bool {
 	return x == nil || y == nil
 }
 
-// canMergeLoad reports whether the load can be merged into target without
+// canMergeLoadClobber reports whether the load can be merged into target without
 // invalidating the schedule.
 // It also checks that the other non-load argument x is something we
-// are ok with clobbering (all our current load+op instructions clobber
-// their input register).
-func canMergeLoad(target, load, x *Value) bool {
-	if target.Block.ID != load.Block.ID {
-		// If the load is in a different block do not merge it.
-		return false
-	}
-
-	// We can't merge the load into the target if the load
-	// has more than one use.
-	if load.Uses != 1 {
-		return false
-	}
-
+// are ok with clobbering.
+func canMergeLoadClobber(target, load, x *Value) bool {
 	// The register containing x is going to get clobbered.
 	// Don't merge if we still need the value of x.
 	// We don't have liveness information here, but we can
@@ -206,6 +194,22 @@ func canMergeLoad(target, load, x *Value) bool {
 	loopnest := x.Block.Func.loopnest()
 	loopnest.calculateDepths()
 	if loopnest.depth(target.Block.ID) > loopnest.depth(x.Block.ID) {
+		return false
+	}
+	return canMergeLoad(target, load)
+}
+
+// canMergeLoad reports whether the load can be merged into target without
+// invalidating the schedule.
+func canMergeLoad(target, load *Value) bool {
+	if target.Block.ID != load.Block.ID {
+		// If the load is in a different block do not merge it.
+		return false
+	}
+
+	// We can't merge the load into the target if the load
+	// has more than one use.
+	if load.Uses != 1 {
 		return false
 	}
 
