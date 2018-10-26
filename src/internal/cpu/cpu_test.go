@@ -9,9 +9,26 @@ import (
 	"internal/testenv"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+func TestMinimalFeatures(t *testing.T) {
+	if runtime.GOARCH == "arm64" {
+		switch runtime.GOOS {
+		case "linux", "android":
+		default:
+			t.Skipf("%s/%s is not supported", runtime.GOOS, runtime.GOARCH)
+		}
+	}
+
+	for _, o := range Options {
+		if o.Required && !*o.Feature {
+			t.Errorf("%v expected true, got false", o.Name)
+		}
+	}
+}
 
 func MustHaveDebugOptionsSupport(t *testing.T) {
 	if !DebugOptions {
