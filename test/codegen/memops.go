@@ -84,3 +84,12 @@ func compMem2() int {
 	}
 	return 0
 }
+
+func compMem3(x, y *int) (int, bool) {
+	// We can do comparisons of a register with memory even if
+	// the register is used subsequently.
+	r := *x
+	// amd64:`CMPQ\t\(`
+	// 386:`CMPL\t\(`
+	return r, r < *y
+}
