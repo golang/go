@@ -205,6 +205,14 @@ func TestDirAndSymlinkStats(t *testing.T) {
 	}
 	testSymlinkStats(t, dirlink, true)
 	testSymlinkSameFile(t, dir, dirlink)
+
+	linklink := filepath.Join(tmpdir, "linklink")
+	err = os.Symlink(dirlink, linklink)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testSymlinkStats(t, linklink, true)
+	testSymlinkSameFile(t, dir, linklink)
 }
 
 func TestFileAndSymlinkStats(t *testing.T) {
@@ -230,6 +238,14 @@ func TestFileAndSymlinkStats(t *testing.T) {
 	}
 	testSymlinkStats(t, filelink, false)
 	testSymlinkSameFile(t, file, filelink)
+
+	linklink := filepath.Join(tmpdir, "linklink")
+	err = os.Symlink(filelink, linklink)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testSymlinkStats(t, linklink, false)
+	testSymlinkSameFile(t, file, linklink)
 }
 
 // see issue 27225 for details
