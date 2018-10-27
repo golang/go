@@ -45,6 +45,14 @@ type W struct {
 	S SS
 }
 
+type P struct {
+	PP PP
+}
+
+type PP struct {
+	T T
+}
+
 type SS string
 
 func (*SS) UnmarshalJSON(data []byte) error {
@@ -816,7 +824,7 @@ var unmarshalTests = []unmarshalTest{
 		err: &UnmarshalTypeError{
 			Value:  "string",
 			Struct: "V",
-			Field:  "F2",
+			Field:  "V.F2",
 			Type:   reflect.TypeOf(int32(0)),
 			Offset: 20,
 		},
@@ -827,7 +835,7 @@ var unmarshalTests = []unmarshalTest{
 		err: &UnmarshalTypeError{
 			Value:  "string",
 			Struct: "V",
-			Field:  "F2",
+			Field:  "V.F2",
 			Type:   reflect.TypeOf(int32(0)),
 			Offset: 30,
 		},
@@ -922,6 +930,18 @@ var unmarshalTests = []unmarshalTest{
 		in:  `{"foo": "bar"}`,
 		ptr: new(MustNotUnmarshalText),
 		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(&MustNotUnmarshalText{}), Offset: 1},
+	},
+	// #22369
+	{
+		in:  `{"PP": {"T": {"Y": "bad-type"}}}`,
+		ptr: new(P),
+		err: &UnmarshalTypeError{
+			Value:  "string",
+			Struct: "T",
+			Field:  "PP.T.Y",
+			Type:   reflect.TypeOf(int(0)),
+			Offset: 29,
+		},
 	},
 }
 
