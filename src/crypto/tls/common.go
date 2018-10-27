@@ -26,14 +26,19 @@ const (
 	VersionTLS10 = 0x0301
 	VersionTLS11 = 0x0302
 	VersionTLS12 = 0x0303
+
+	// VersionTLS13 is under development in this library and can't be selected
+	// nor negotiated yet on either side.
+	VersionTLS13 = 0x0304
 )
 
 const (
-	maxPlaintext      = 16384        // maximum plaintext payload length
-	maxCiphertext     = 16384 + 2048 // maximum ciphertext payload length
-	recordHeaderLen   = 5            // record header length
-	maxHandshake      = 65536        // maximum handshake we support (protocol max is 16 MB)
-	maxWarnAlertCount = 5            // maximum number of consecutive warning alerts
+	maxPlaintext       = 16384        // maximum plaintext payload length
+	maxCiphertext      = 16384 + 2048 // maximum ciphertext payload length
+	maxCiphertextTLS13 = 16384 + 256  // maximum ciphertext length in TLS 1.3
+	recordHeaderLen    = 5            // record header length
+	maxHandshake       = 65536        // maximum handshake we support (protocol max is 16 MB)
+	maxUselessRecords  = 5            // maximum number of consecutive non-advancing records
 
 	minVersion = VersionTLS10
 	maxVersion = VersionTLS12
@@ -942,8 +947,9 @@ func defaultConfig() *Config {
 }
 
 var (
-	once                   sync.Once
-	varDefaultCipherSuites []uint16
+	once                        sync.Once
+	varDefaultCipherSuites      []uint16
+	varDefaultCipherSuitesTLS13 []uint16
 )
 
 func defaultCipherSuites() []uint16 {
@@ -951,19 +957,24 @@ func defaultCipherSuites() []uint16 {
 	return varDefaultCipherSuites
 }
 
+func defaultCipherSuitesTLS13() []uint16 {
+	once.Do(initDefaultCipherSuites)
+	return varDefaultCipherSuitesTLS13
+}
+
 func initDefaultCipherSuites() {
 	var topCipherSuites []uint16
 
 	// Check the cpu flags for each platform that has optimized GCM implementations.
-	// Worst case, these variables will just all be false
-	hasGCMAsmAMD64 := cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
+	// Worst case, these variables will just all be false.
+	var (
+		hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
+		hasGCMAsmARM64 = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+		// Keep in sync with crypto/aes/cipher_s390x.go.
+		hasGCMAsmS390X = cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
 
-	hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
-
-	// Keep in sync with crypto/aes/cipher_s390x.go.
-	hasGCMAsmS390X := cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
-
-	hasGCMAsm := hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
+		hasGCMAsm = hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
+	)
 
 	if hasGCMAsm {
 		// If AES-GCM hardware is provided then prioritise AES-GCM
@@ -976,6 +987,11 @@ func initDefaultCipherSuites() {
 			TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 			TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
 		}
+		varDefaultCipherSuitesTLS13 = []uint16{
+			TLS_AES_128_GCM_SHA256,
+			TLS_CHACHA20_POLY1305_SHA256,
+			TLS_AES_256_GCM_SHA384,
+		}
 	} else {
 		// Without AES-GCM hardware, we put the ChaCha20-Poly1305
 		// cipher suites first.
@@ -986,6 +1002,11 @@ func initDefaultCipherSuites() {
 			TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 			TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 			TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		}
+		varDefaultCipherSuitesTLS13 = []uint16{
+			TLS_CHACHA20_POLY1305_SHA256,
+			TLS_AES_128_GCM_SHA256,
+			TLS_AES_256_GCM_SHA384,
 		}
 	}
 
