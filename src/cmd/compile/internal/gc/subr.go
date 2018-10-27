@@ -954,36 +954,6 @@ func typehash(t *types.Type) uint32 {
 	return binary.LittleEndian.Uint32(h[:4])
 }
 
-func frame(context int) {
-	if context != 0 {
-		fmt.Printf("--- external frame ---\n")
-		for _, n := range externdcl {
-			printframenode(n)
-		}
-		return
-	}
-
-	if Curfn != nil {
-		fmt.Printf("--- %v frame ---\n", Curfn.Func.Nname.Sym)
-		for _, ln := range Curfn.Func.Dcl {
-			printframenode(ln)
-		}
-	}
-}
-
-func printframenode(n *Node) {
-	w := int64(-1)
-	if n.Type != nil {
-		w = n.Type.Width
-	}
-	switch n.Op {
-	case ONAME:
-		fmt.Printf("%v %v G%d %v width=%d\n", n.Op, n.Sym, n.Name.Vargen, n.Type, w)
-	case OTYPE:
-		fmt.Printf("%v %v width=%d\n", n.Op, n.Type, w)
-	}
-}
-
 // updateHasCall checks whether expression n contains any function
 // calls and sets the n.HasCall flag if so.
 func updateHasCall(n *Node) {

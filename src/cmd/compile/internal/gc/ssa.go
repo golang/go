@@ -5239,9 +5239,6 @@ func genssa(f *ssa.Func, pp *Progs) {
 	}
 
 	defframe(&s, e)
-	if Debug['f'] != 0 {
-		frame(0)
-	}
 
 	f.HTMLWriter.Close()
 	f.HTMLWriter = nil

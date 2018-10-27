@@ -205,7 +205,6 @@ func Main(archInit func(*Arch)) {
 	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", true, "add location lists to DWARF in optimized mode")
 	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
-	objabi.Flagcount("f", "debug stack frames", &Debug['f'])
 	objabi.Flagcount("h", "halt on error", &Debug['h'])
 	objabi.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
 	objabi.Flagfn1("importcfg", "read import configuration from `file`", readImportCfg)
@@ -478,9 +477,6 @@ func Main(archInit func(*Arch)) {
 	finishUniverse()
 
 	typecheckok = true
-	if Debug['f'] != 0 {
-		frame(1)
-	}
 
 	// Process top-level declarations in phases.
 
