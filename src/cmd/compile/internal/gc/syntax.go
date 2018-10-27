@@ -574,7 +574,7 @@ const (
 	OXXX Op = iota
 
 	// names
-	ONAME    // var, const or func name
+	ONAME    // var or func name
 	ONONAME  // unnamed arg or return value: f(int, string) (int, error) { etc }
 	OTYPE    // type name
 	OPACK    // import
