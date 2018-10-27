@@ -1102,7 +1102,6 @@ func (w *exportWriter) stmt(n *Node) {
 	case OGOTO, OLABEL:
 		w.op(op)
 		w.pos(n.Pos)
-		w.op(ONAME) // TODO(mdempsky): Remove toolstash hack.
 		w.string(n.Sym.Name)
 
 	default:
