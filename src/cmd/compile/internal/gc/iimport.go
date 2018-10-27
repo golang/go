@@ -1044,9 +1044,6 @@ func (r *importReader) node() *Node {
 
 	case OGOTO, OLABEL:
 		n := nodl(r.pos(), op, nil, nil)
-		if op := r.op(); op != ONAME { // TODO(mdempsky): Remove toolstash check.
-			Fatalf("got %v, want ONAME", op)
-		}
 		n.Sym = lookup(r.string())
 		return n
 
