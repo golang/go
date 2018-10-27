@@ -1043,7 +1043,12 @@ func (r *importReader) node() *Node {
 	// 	unreachable - not emitted by exporter
 
 	case OGOTO, OLABEL:
-		return nodl(r.pos(), op, newname(r.expr().Sym), nil)
+		n := nodl(r.pos(), op, nil, nil)
+		if op := r.op(); op != ONAME { // TODO(mdempsky): Remove toolstash check.
+			Fatalf("got %v, want ONAME", op)
+		}
+		n.Sym = lookup(r.string())
+		return n
 
 	case OEND:
 		return nil

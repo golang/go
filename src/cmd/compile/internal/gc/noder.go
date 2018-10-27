@@ -941,7 +941,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
 		}
 		n := p.nod(stmt, op, nil, nil)
 		if stmt.Label != nil {
-			n.Left = p.newname(stmt.Label)
+			n.Sym = p.name(stmt.Label)
 		}
 		return n
 	case *syntax.CallStmt:
@@ -1205,7 +1205,7 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*
 }
 
 func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) *Node {
-	lhs := p.nod(label, OLABEL, p.newname(label.Label), nil)
+	lhs := p.nodSym(label, OLABEL, nil, p.name(label.Label))
 
 	var ls *Node
 	if label.Stmt != nil { // TODO(mdempsky): Should always be present.

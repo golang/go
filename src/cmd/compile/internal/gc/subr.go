@@ -234,7 +234,7 @@ func lookupN(prefix string, n int) *types.Sym {
 // to help with debugging.
 // It should begin with "." to avoid conflicts with
 // user labels.
-func autolabel(prefix string) *Node {
+func autolabel(prefix string) *types.Sym {
 	if prefix[0] != '.' {
 		Fatalf("autolabel prefix must start with '.', have %q", prefix)
 	}
@@ -244,7 +244,7 @@ func autolabel(prefix string) *Node {
 	}
 	n := fn.Func.Label
 	fn.Func.Label++
-	return newname(lookupN(prefix, int(n)))
+	return lookupN(prefix, int(n))
 }
 
 func restrictlookup(name string, pkg *types.Pkg) *types.Sym {

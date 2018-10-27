@@ -1984,7 +1984,7 @@ func typecheck1(n *Node, top int) *Node {
 	case OLABEL:
 		ok |= Etop
 		decldepth++
-		if n.Left.Sym.IsBlank() {
+		if n.Sym.IsBlank() {
 			// Empty identifier is valid but useless.
 			// Eliminate now to simplify life later.
 			// See issues 7538, 11589, 11593.
@@ -3831,12 +3831,12 @@ func markbreak(n *Node, implicit *Node) {
 
 	switch n.Op {
 	case OBREAK:
-		if n.Left == nil {
+		if n.Sym == nil {
 			if implicit != nil {
 				implicit.SetHasBreak(true)
 			}
 		} else {
-			lab := asNode(n.Left.Sym.Label)
+			lab := asNode(n.Sym.Label)
 			if lab != nil {
 				lab.SetHasBreak(true)
 			}
@@ -3864,9 +3864,9 @@ func markbreaklist(l Nodes, implicit *Node) {
 		if n.Op == OLABEL && i+1 < len(s) && n.Name.Defn == s[i+1] {
 			switch n.Name.Defn.Op {
 			case OFOR, OFORUNTIL, OSWITCH, OTYPESW, OSELECT, ORANGE:
-				n.Left.Sym.Label = asTypesNode(n.Name.Defn)
+				n.Sym.Label = asTypesNode(n.Name.Defn)
 				markbreak(n.Name.Defn, n.Name.Defn)
-				n.Left.Sym.Label = nil
+				n.Sym.Label = nil
 				i++
 				continue
 			}
