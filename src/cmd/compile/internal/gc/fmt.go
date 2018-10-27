@@ -1045,8 +1045,8 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 		mode.Fprintf(s, ": %v", n.Nbody)
 
 	case OBREAK, OCONTINUE, OGOTO, OFALL:
-		if n.Left != nil {
-			mode.Fprintf(s, "%#v %v", n.Op, n.Left)
+		if n.Sym != nil {
+			mode.Fprintf(s, "%#v %v", n.Op, n.Sym)
 		} else {
 			mode.Fprintf(s, "%#v", n.Op)
 		}
@@ -1055,7 +1055,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 		break
 
 	case OLABEL:
-		mode.Fprintf(s, "%v: ", n.Left)
+		mode.Fprintf(s, "%v: ", n.Sym)
 	}
 
 	if extrablock {

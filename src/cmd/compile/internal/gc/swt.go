@@ -421,7 +421,8 @@ func casebody(sw *Node, typeswvar *Node) {
 		n.Op = OCASE
 		needvar := n.List.Len() != 1 || n.List.First().Op == OLITERAL
 
-		jmp := nod(OGOTO, autolabel(".s"), nil)
+		lbl := autolabel(".s")
+		jmp := nodSym(OGOTO, nil, lbl)
 		switch n.List.Len() {
 		case 0:
 			// default
@@ -486,7 +487,7 @@ func casebody(sw *Node, typeswvar *Node) {
 			}
 		}
 
-		stat = append(stat, nod(OLABEL, jmp.Left, nil))
+		stat = append(stat, nodSym(OLABEL, nil, lbl))
 		if typeswvar != nil && needvar && n.Rlist.Len() != 0 {
 			l := []*Node{
 				nod(ODCL, n.Rlist.First(), nil),
@@ -778,10 +779,10 @@ func (s *typeSwitch) walk(sw *Node) {
 	} else {
 		// Jump to default case.
 		lbl := autolabel(".s")
-		i.Nbody.Set1(nod(OGOTO, lbl, nil))
+		i.Nbody.Set1(nodSym(OGOTO, nil, lbl))
 		// Wrap default case with label.
 		blk := nod(OBLOCK, nil, nil)
-		blk.List.Set2(nod(OLABEL, lbl, nil), def)
+		blk.List.Set2(nodSym(OLABEL, nil, lbl), def)
 		def = blk
 	}
 	i.Left = typecheck(i.Left, Erv)
