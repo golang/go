@@ -548,6 +548,8 @@ func (f *FlagSet) PrintDefaults() {
 // the output will be
 //	-I directory
 //		search directory for include files.
+//
+// To change the destination for flag messages, call CommandLine.SetOutput.
 func PrintDefaults() {
 	CommandLine.PrintDefaults()
 }
