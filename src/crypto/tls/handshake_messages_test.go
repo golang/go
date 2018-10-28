@@ -29,6 +29,12 @@ var tests = []interface{}{
 	&nextProtoMsg{},
 	&newSessionTicketMsg{},
 	&sessionState{},
+	&encryptedExtensionsMsg{},
+	&endOfEarlyDataMsg{},
+	&keyUpdateMsg{},
+	&newSessionTicketMsgTLS13{},
+	&certificateRequestMsgTLS13{},
+	&certificateMsgTLS13{},
 }
 
 func TestMarshalUnmarshal(t *testing.T) {
@@ -184,6 +190,9 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		m.pskIdentities = append(m.pskIdentities, psk)
 		m.pskBinders = append(m.pskBinders, randomBytes(rand.Intn(50)+32, rand))
 	}
+	if rand.Intn(10) > 5 {
+		m.earlyData = true
+	}
 
 	return reflect.ValueOf(m)
 }
@@ -209,7 +218,9 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	if rand.Intn(10) > 5 {
 		m.ticketSupported = true
 	}
-	m.alpnProtocol = randomString(rand.Intn(32)+1, rand)
+	if rand.Intn(10) > 5 {
+		m.alpnProtocol = randomString(rand.Intn(32)+1, rand)
+	}
 
 	for i := 0; i < rand.Intn(4); i++ {
 		m.scts = append(m.scts, randomBytes(rand.Intn(500)+1, rand))
@@ -236,6 +247,16 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	if rand.Intn(10) > 5 {
 		m.selectedIdentityPresent = true
 		m.selectedIdentity = uint16(rand.Intn(0xffff))
+	}
+
+	return reflect.ValueOf(m)
+}
+
+func (*encryptedExtensionsMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+	m := &encryptedExtensionsMsg{}
+
+	if rand.Intn(10) > 5 {
+		m.alpnProtocol = randomString(rand.Intn(32)+1, rand)
 	}
 
 	return reflect.ValueOf(m)
@@ -270,12 +291,7 @@ func (*certificateVerifyMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 
 func (*certificateStatusMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &certificateStatusMsg{}
-	if rand.Intn(10) > 5 {
-		m.statusType = statusTypeOCSP
-		m.response = randomBytes(rand.Intn(10)+1, rand)
-	} else {
-		m.statusType = 42
-	}
+	m.response = randomBytes(rand.Intn(10)+1, rand)
 	return reflect.ValueOf(m)
 }
 
@@ -314,6 +330,66 @@ func (*sessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 		s.certificates[i] = randomBytes(rand.Intn(10)+1, rand)
 	}
 	return reflect.ValueOf(s)
+}
+
+func (*endOfEarlyDataMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+	m := &endOfEarlyDataMsg{}
+	return reflect.ValueOf(m)
+}
+
+func (*keyUpdateMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+	m := &keyUpdateMsg{}
+	m.updateRequested = rand.Intn(10) > 5
+	return reflect.ValueOf(m)
+}
+
+func (*newSessionTicketMsgTLS13) Generate(rand *rand.Rand, size int) reflect.Value {
+	m := &newSessionTicketMsgTLS13{}
+	m.lifetime = uint32(rand.Intn(500000))
+	m.ageAdd = uint32(rand.Intn(500000))
+	m.nonce = randomBytes(rand.Intn(100), rand)
+	m.label = randomBytes(rand.Intn(1000), rand)
+	if rand.Intn(10) > 5 {
+		m.maxEarlyData = uint32(rand.Intn(500000))
+	}
+	return reflect.ValueOf(m)
+}
+
+func (*certificateRequestMsgTLS13) Generate(rand *rand.Rand, size int) reflect.Value {
+	m := &certificateRequestMsgTLS13{}
+	if rand.Intn(10) > 5 {
+		m.ocspStapling = true
+	}
+	if rand.Intn(10) > 5 {
+		m.scts = true
+	}
+	if rand.Intn(10) > 5 {
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+	}
+	if rand.Intn(10) > 5 {
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
+	}
+	return reflect.ValueOf(m)
+}
+
+func (*certificateMsgTLS13) Generate(rand *rand.Rand, size int) reflect.Value {
+	m := &certificateMsgTLS13{}
+	for i := 0; i < rand.Intn(2)+1; i++ {
+		m.certificate.Certificate = append(
+			m.certificate.Certificate, randomBytes(rand.Intn(500)+1, rand))
+	}
+	if rand.Intn(10) > 5 {
+		m.ocspStapling = true
+		m.certificate.OCSPStaple = randomBytes(rand.Intn(100)+1, rand)
+	}
+	if rand.Intn(10) > 5 {
+		m.scts = true
+		for i := 0; i < rand.Intn(2)+1; i++ {
+			m.certificate.SignedCertificateTimestamps = append(
+				m.certificate.SignedCertificateTimestamps, randomBytes(rand.Intn(500)+1, rand))
+		}
+	}
+	return reflect.ValueOf(m)
 }
 
 func TestRejectEmptySCTList(t *testing.T) {

@@ -389,7 +389,6 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 
 	if hs.hello.ocspStapling {
 		certStatus := new(certificateStatusMsg)
-		certStatus.statusType = statusTypeOCSP
 		certStatus.response = hs.cert.OCSPStaple
 		hs.finishedHash.Write(certStatus.marshal())
 		if _, err := c.writeRecord(recordTypeHandshake, certStatus.marshal()); err != nil {
