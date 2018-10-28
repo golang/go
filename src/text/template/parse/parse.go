@@ -385,6 +385,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 	token := t.peekNonSpace()
 	pos := token.pos
 	// Are there declarations or assignments?
+	// TODO(mvdan): simplify the loop break/continue logic
 	for {
 		if v := t.peekNonSpace(); v.typ == itemVariable {
 			t.next()
@@ -406,7 +407,12 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 				}
 				if next.typ == itemChar && next.val == "," {
 					if context == "range" && len(vars) < 2 {
-						continue
+						switch t.peekNonSpace().typ {
+						case itemVariable, itemRightDelim, itemRightParen:
+							continue
+						default:
+							t.errorf("range can only initialize variables")
+						}
 					}
 					t.errorf("too many declarations in %s", context)
 				}
