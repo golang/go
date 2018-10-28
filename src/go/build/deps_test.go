@@ -389,7 +389,7 @@ var pkgDeps = map[string][]string{
 
 	// SSL/TLS.
 	"crypto/tls": {
-		"L4", "CRYPTO-MATH", "OS", "golang_org/x/crypto/cryptobyte",
+		"L4", "CRYPTO-MATH", "OS", "golang_org/x/crypto/cryptobyte", "golang_org/x/crypto/hkdf",
 		"container/list", "crypto/x509", "encoding/pem", "net", "syscall",
 	},
 	"crypto/x509": {
