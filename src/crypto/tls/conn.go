@@ -990,12 +990,24 @@ func (c *Conn) readHandshake() (interface{}, error) {
 	case typeServerHello:
 		m = new(serverHelloMsg)
 	case typeNewSessionTicket:
-		m = new(newSessionTicketMsg)
+		if c.vers == VersionTLS13 {
+			m = new(newSessionTicketMsgTLS13)
+		} else {
+			m = new(newSessionTicketMsg)
+		}
 	case typeCertificate:
-		m = new(certificateMsg)
+		if c.vers == VersionTLS13 {
+			m = new(certificateMsgTLS13)
+		} else {
+			m = new(certificateMsg)
+		}
 	case typeCertificateRequest:
-		m = &certificateRequestMsg{
-			hasSignatureAlgorithm: c.vers >= VersionTLS12,
+		if c.vers == VersionTLS13 {
+			m = new(certificateRequestMsgTLS13)
+		} else {
+			m = &certificateRequestMsg{
+				hasSignatureAlgorithm: c.vers >= VersionTLS12,
+			}
 		}
 	case typeCertificateStatus:
 		m = new(certificateStatusMsg)
@@ -1013,6 +1025,12 @@ func (c *Conn) readHandshake() (interface{}, error) {
 		m = new(nextProtoMsg)
 	case typeFinished:
 		m = new(finishedMsg)
+	case typeEncryptedExtensions:
+		m = new(encryptedExtensionsMsg)
+	case typeEndOfEarlyData:
+		m = new(endOfEarlyDataMsg)
+	case typeKeyUpdate:
+		m = new(keyUpdateMsg)
 	default:
 		return nil, c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
 	}

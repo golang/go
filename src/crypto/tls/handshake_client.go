@@ -393,9 +393,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		}
 		hs.finishedHash.Write(cs.marshal())
 
-		if cs.statusType == statusTypeOCSP {
-			c.ocspResponse = cs.response
-		}
+		c.ocspResponse = cs.response
 
 		msg, err = c.readHandshake()
 		if err != nil {

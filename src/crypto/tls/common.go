@@ -56,19 +56,23 @@ const (
 
 // TLS handshake message types.
 const (
-	typeHelloRequest       uint8 = 0
-	typeClientHello        uint8 = 1
-	typeServerHello        uint8 = 2
-	typeNewSessionTicket   uint8 = 4
-	typeCertificate        uint8 = 11
-	typeServerKeyExchange  uint8 = 12
-	typeCertificateRequest uint8 = 13
-	typeServerHelloDone    uint8 = 14
-	typeCertificateVerify  uint8 = 15
-	typeClientKeyExchange  uint8 = 16
-	typeFinished           uint8 = 20
-	typeCertificateStatus  uint8 = 22
-	typeNextProtocol       uint8 = 67 // Not IANA assigned
+	typeHelloRequest        uint8 = 0
+	typeClientHello         uint8 = 1
+	typeServerHello         uint8 = 2
+	typeNewSessionTicket    uint8 = 4
+	typeEndOfEarlyData      uint8 = 5
+	typeEncryptedExtensions uint8 = 8
+	typeCertificate         uint8 = 11
+	typeServerKeyExchange   uint8 = 12
+	typeCertificateRequest  uint8 = 13
+	typeServerHelloDone     uint8 = 14
+	typeCertificateVerify   uint8 = 15
+	typeClientKeyExchange   uint8 = 16
+	typeFinished            uint8 = 20
+	typeCertificateStatus   uint8 = 22
+	typeKeyUpdate           uint8 = 24
+	typeNextProtocol        uint8 = 67  // Not IANA assigned
+	typeMessageHash         uint8 = 254 // synthetic message
 )
 
 // TLS compression types.
@@ -87,6 +91,7 @@ const (
 	extensionSCT                     uint16 = 18
 	extensionSessionTicket           uint16 = 35
 	extensionPreSharedKey            uint16 = 41
+	extensionEarlyData               uint16 = 42
 	extensionSupportedVersions       uint16 = 43
 	extensionCookie                  uint16 = 44
 	extensionPSKModes                uint16 = 45
