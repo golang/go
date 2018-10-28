@@ -483,7 +483,8 @@ func cpuinit() {
 	const prefix = "GODEBUGCPU="
 	var env string
 
-	if GOOS == "linux" || GOOS == "darwin" {
+	switch GOOS {
+	case "aix", "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "solaris", "linux":
 		cpu.DebugOptions = true
 
 		// Similar to goenv_unix but extracts the environment value for
