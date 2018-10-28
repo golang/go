@@ -542,7 +542,7 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 	}
 	baseAndOffset := func(ptr *Value) (base *Value, offset int64) {
 		base, offset = ptr, 0
-		if base.Op == OpOffPtr {
+		for base.Op == OpOffPtr {
 			offset += base.AuxInt
 			base = base.Args[0]
 		}
