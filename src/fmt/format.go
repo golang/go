@@ -308,8 +308,8 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
 	f.zero = oldZero
 }
 
-// truncate truncates the string to the specified precision, if present.
-func (f *fmt) truncate(s string) string {
+// truncate truncates the string s to the specified precision, if present.
+func (f *fmt) truncateString(s string) string {
 	if f.precPresent {
 		n := f.prec
 		for i := range s {
@@ -322,10 +322,35 @@ func (f *fmt) truncate(s string) string {
 	return s
 }
 
+// truncate truncates the byte slice b as a string of the specified precision, if present.
+func (f *fmt) truncate(b []byte) []byte {
+	if f.precPresent {
+		n := f.prec
+		for i := 0; i < len(b); {
+			n--
+			if n < 0 {
+				return b[:i]
+			}
+			wid := 1
+			if b[i] >= utf8.RuneSelf {
+				_, wid = utf8.DecodeRune(b[i:])
+			}
+			i += wid
+		}
+	}
+	return b
+}
+
 // fmtS formats a string.
 func (f *fmt) fmtS(s string) {
-	s = f.truncate(s)
+	s = f.truncateString(s)
 	f.padString(s)
+}
+
+// fmtBs formats the byte slice b as if it was formatted as string with fmtS.
+func (f *fmt) fmtBs(b []byte) {
+	b = f.truncate(b)
+	f.pad(b)
 }
 
 // fmtSbx formats a string or byte slice as a hexadecimal encoding of its bytes.
@@ -408,7 +433,7 @@ func (f *fmt) fmtBx(b []byte, digits string) {
 // If f.sharp is set a raw (backquoted) string may be returned instead
 // if the string does not contain any control characters other than tab.
 func (f *fmt) fmtQ(s string) {
-	s = f.truncate(s)
+	s = f.truncateString(s)
 	if f.sharp && strconv.CanBackquote(s) {
 		f.padString("`" + s + "`")
 		return

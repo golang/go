@@ -488,7 +488,7 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
 			p.buf.WriteByte(']')
 		}
 	case 's':
-		p.fmt.fmtS(string(v))
+		p.fmt.fmtBs(v)
 	case 'x':
 		p.fmt.fmtBx(v, ldigits)
 	case 'X':
