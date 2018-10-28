@@ -274,6 +274,17 @@ func extractPadding(payload []byte) (toRemove int, good byte) {
 	good &= good << 1
 	good = uint8(int8(good) >> 7)
 
+	// Zero the padding length on error. This ensures any unchecked bytes
+	// are included in the MAC. Otherwise, an attacker that could
+	// distinguish MAC failures from padding failures could mount an attack
+	// similar to POODLE in SSL 3.0: given a good ciphertext that uses a
+	// full block's worth of padding, replace the final block with another
+	// block. If the MAC check passed but the padding check failed, the
+	// last byte of that block decrypted to the block size.
+	//
+	// See also macAndPaddingGood logic below.
+	paddingLen &= good
+
 	toRemove = int(paddingLen) + 1
 	return
 }
@@ -416,7 +427,15 @@ func (hc *halfConn) decrypt(record []byte) ([]byte, recordType, error) {
 		remoteMAC := payload[n : n+macSize]
 		localMAC := hc.mac.MAC(hc.seq[0:], record[:recordHeaderLen], payload[:n], payload[n+macSize:])
 
-		if subtle.ConstantTimeCompare(localMAC, remoteMAC) != 1 || paddingGood != 255 {
+		// This is equivalent to checking the MACs and paddingGood
+		// separately, but in constant-time to prevent distinguishing
+		// padding failures from MAC failures. Depending on what value
+		// of paddingLen was returned on bad padding, distinguishing
+		// bad MAC from bad padding can lead to an attack.
+		//
+		// See also the logic at the end of extractPadding.
+		macAndPaddingGood := subtle.ConstantTimeCompare(localMAC, remoteMAC) & int(paddingGood)
+		if macAndPaddingGood != 1 {
 			return nil, 0, alertBadRecordMAC
 		}
 
