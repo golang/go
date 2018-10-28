@@ -530,6 +530,13 @@ func isSamePtr(p1, p2 *Value) bool {
 	return false
 }
 
+func isStackPtr(v *Value) bool {
+	for v.Op == OpOffPtr || v.Op == OpAddPtr {
+		v = v.Args[0]
+	}
+	return v.Op == OpSP || v.Op == OpLocalAddr
+}
+
 // disjoint reports whether the memory region specified by [p1:p1+n1)
 // does not overlap with [p2:p2+n2).
 // A return value of false does not imply the regions overlap.
