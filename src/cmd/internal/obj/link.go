@@ -403,9 +403,9 @@ type FuncInfo struct {
 	dwarfAbsFnSym  *LSym
 	dwarfIsStmtSym *LSym
 
-	GCArgs       LSym
-	GCLocals     LSym
-	GCRegs       LSym
+	GCArgs       *LSym
+	GCLocals     *LSym
+	GCRegs       *LSym
 	StackObjects *LSym
 }
 
