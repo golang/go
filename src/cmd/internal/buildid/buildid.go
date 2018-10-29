@@ -6,6 +6,7 @@ package buildid
 
 import (
 	"bytes"
+	"cmd/internal/xcoff"
 	"debug/elf"
 	"fmt"
 	"io"
@@ -40,6 +41,9 @@ func ReadFile(name string) (id string, err error) {
 		return "", err
 	}
 	if string(buf) != "!<arch>\n" {
+		if string(buf) == "<bigaf>\n" {
+			return readGccgoBigArchive(name, f)
+		}
 		return readBinary(name, f)
 	}
 
@@ -153,6 +157,85 @@ func readGccgoArchive(name string, f *os.File) (string, error) {
 		off += size
 		if off&1 != 0 {
 			off++
+		}
+	}
+}
+
+// readGccgoBigArchive tries to parse the archive as an AIX big
+// archive file, and fetch the build ID from the _buildid.o entry.
+// The _buildid.o entry is written by (*Builder).gccgoBuildIDXCOFFFile
+// in cmd/go/internal/work/exec.go.
+func readGccgoBigArchive(name string, f *os.File) (string, error) {
+	bad := func() (string, error) {
+		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+	}
+
+	// Read fixed-length header.
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return "", err
+	}
+	var flhdr [128]byte
+	if _, err := io.ReadFull(f, flhdr[:]); err != nil {
+		return "", err
+	}
+	// Read first member offset.
+	offStr := strings.TrimSpace(string(flhdr[68:88]))
+	off, err := strconv.ParseInt(offStr, 10, 64)
+	if err != nil {
+		return bad()
+	}
+	for {
+		if off == 0 {
+			// No more entries, no build ID.
+			return "", nil
+		}
+		if _, err := f.Seek(off, io.SeekStart); err != nil {
+			return "", err
+		}
+		// Read member header.
+		var hdr [112]byte
+		if _, err := io.ReadFull(f, hdr[:]); err != nil {
+			return "", err
+		}
+		// Read member name length.
+		namLenStr := strings.TrimSpace(string(hdr[108:112]))
+		namLen, err := strconv.ParseInt(namLenStr, 10, 32)
+		if err != nil {
+			return bad()
+		}
+		if namLen == 10 {
+			var nam [10]byte
+			if _, err := io.ReadFull(f, nam[:]); err != nil {
+				return "", err
+			}
+			if string(nam[:]) == "_buildid.o" {
+				sizeStr := strings.TrimSpace(string(hdr[0:20]))
+				size, err := strconv.ParseInt(sizeStr, 10, 64)
+				if err != nil {
+					return bad()
+				}
+				off += int64(len(hdr)) + namLen + 2
+				if off&1 != 0 {
+					off++
+				}
+				sr := io.NewSectionReader(f, off, size)
+				x, err := xcoff.NewFile(sr)
+				if err != nil {
+					return bad()
+				}
+				data := x.CSect(".go.buildid")
+				if data == nil {
+					return bad()
+				}
+				return string(data), nil
+			}
+		}
+
+		// Read next member offset.
+		offStr = strings.TrimSpace(string(hdr[20:40]))
+		off, err = strconv.ParseInt(offStr, 10, 64)
+		if err != nil {
+			return bad()
 		}
 	}
 }
