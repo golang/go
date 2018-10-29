@@ -13,8 +13,8 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io/ioutil"
 	"os"
-	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -32,10 +32,14 @@ func TestObjValueLookup(t *testing.T) {
 	}
 
 	conf := loader.Config{ParserMode: parser.ParseComments}
-	f, err := conf.ParseFile("testdata/objlookup.go", nil)
+	src, err := ioutil.ReadFile("testdata/objlookup.go")
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
+	}
+	readFile := func(filename string) ([]byte, error) { return src, nil }
+	f, err := conf.ParseFile("testdata/objlookup.go", src)
+	if err != nil {
+		t.Fatal(err)
 	}
 	conf.CreateFromFiles("main", f)
 
@@ -43,16 +47,40 @@ func TestObjValueLookup(t *testing.T) {
 	// kind of ssa.Value we expect (represented "Constant", "&Alloc").
 	expectations := make(map[string]string)
 
-	// Find all annotations of form x::BinOp, &y::Alloc, etc.
-	re := regexp.MustCompile(`(\b|&)?(\w*)::(\w*)\b`)
-	for _, c := range f.Comments {
-		text := c.Text()
-		pos := conf.Fset.Position(c.Pos())
-		for _, m := range re.FindAllStringSubmatch(text, -1) {
-			key := fmt.Sprintf("%s:%d", m[2], pos.Line)
-			value := m[1] + m[3]
-			expectations[key] = value
+	// Each note of the form @ssa(x, "BinOp") in testdata/objlookup.go
+	// specifies an expectation that an object named x declared on the
+	// same line is associated with an an ssa.Value of type *ssa.BinOp.
+	notes, err := expect.Extract(conf.Fset, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range notes {
+		if n.Name != "ssa" {
+			t.Errorf("%v: unexpected note type %q, want \"ssa\"", conf.Fset.Position(n.Pos), n.Name)
+			continue
 		}
+		if len(n.Args) != 2 {
+			t.Errorf("%v: ssa has %d args, want 2", conf.Fset.Position(n.Pos), len(n.Args))
+			continue
+		}
+		ident, ok := n.Args[0].(expect.Identifier)
+		if !ok {
+			t.Errorf("%v: got %v for arg 1, want identifier", conf.Fset.Position(n.Pos), n.Args[0])
+			continue
+		}
+		exp, ok := n.Args[1].(string)
+		if !ok {
+			t.Errorf("%v: got %v for arg 2, want string", conf.Fset.Position(n.Pos), n.Args[1])
+			continue
+		}
+		p, _, err := expect.MatchBefore(conf.Fset, readFile, n.Pos, string(ident))
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		pos := conf.Fset.Position(p)
+		key := fmt.Sprintf("%s:%d", ident, pos.Line)
+		expectations[key] = exp
 	}
 
 	iprog, err := conf.Load()
