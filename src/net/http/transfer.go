@@ -740,6 +740,16 @@ func fixTrailer(header Header, te []string) (Header, error) {
 	if !ok {
 		return nil, nil
 	}
+	if !chunked(te) {
+		// Trailer and no chunking:
+		// this is an invalid use case for trailer header.
+		// Nevertheless, no error will be returned and we
+		// let users decide if this is a valid HTTP message.
+		// The Trailer header will be kept in Response.Header
+		// but not populate Response.Trailer.
+		// See issue #27197.
+		return nil, nil
+	}
 	header.Del("Trailer")
 
 	trailer := make(Header)
@@ -762,10 +772,6 @@ func fixTrailer(header Header, te []string) (Header, error) {
 	}
 	if len(trailer) == 0 {
 		return nil, nil
-	}
-	if !chunked(te) {
-		// Trailer and no chunking
-		return nil, ErrUnexpectedTrailer
 	}
 	return trailer, nil
 }
