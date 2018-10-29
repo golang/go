@@ -141,7 +141,7 @@ type Type struct {
 	Extra interface{}
 
 	// Width is the width of this Type in bytes.
-	Width int64
+	Width int64 // valid if Align > 0
 
 	methods    Fields
 	allMethods Fields
@@ -156,16 +156,16 @@ type Type struct {
 	Vargen int32 // unique name for OTYPE/ONAME
 
 	Etype EType // kind of type
-	Align uint8 // the required alignment of this type, in bytes
+	Align uint8 // the required alignment of this type, in bytes (0 means Width and Align have not yet been computed)
 
 	flags bitset8
 }
 
 const (
-	typeNotInHeap = 1 << iota // type cannot be heap allocated
-	typeBroke                 // broken type definition
-	typeNoalg                 // suppress hash and eq algorithm generation
-	typeDeferwidth
+	typeNotInHeap  = 1 << iota // type cannot be heap allocated
+	typeBroke                  // broken type definition
+	typeNoalg                  // suppress hash and eq algorithm generation
+	typeDeferwidth             // width computation has been deferred and type is on deferredTypeStack
 	typeRecur
 )
 
