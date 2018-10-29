@@ -277,18 +277,18 @@ func dumpglobls() {
 // Though the object file format handles duplicates efficiently,
 // storing only a single copy of the data,
 // failure to remove these duplicates adds a few percent to object file size.
+//
+// This is done during the sequential phase after compilation, since
+// global symbols can't be declared during parallel compilation.
 func addGCLocals() {
-	seen := make(map[string]bool)
 	for _, s := range Ctxt.Text {
 		if s.Func == nil {
 			continue
 		}
-		for _, gcsym := range []*obj.LSym{&s.Func.GCArgs, &s.Func.GCLocals, &s.Func.GCRegs} {
-			if seen[gcsym.Name] {
-				continue
+		for _, gcsym := range []*obj.LSym{s.Func.GCArgs, s.Func.GCLocals, s.Func.GCRegs} {
+			if gcsym != nil && !gcsym.OnList() {
+				ggloblsym(gcsym, int32(len(gcsym.P)), obj.RODATA|obj.DUPOK)
 			}
-			Ctxt.Data = append(Ctxt.Data, gcsym)
-			seen[gcsym.Name] = true
 		}
 		if x := s.Func.StackObjects; x != nil {
 			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
