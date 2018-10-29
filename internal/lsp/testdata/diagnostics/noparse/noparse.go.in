@@ -1,0 +1,11 @@
+package noparse
+
+func bye(x int) {
+	hi()
+}
+
+func stuff() {
+	x := 5
+}
+
+func .() {} //@diag(".", "expected 'IDENT', found '.'")

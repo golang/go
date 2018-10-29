@@ -13,14 +13,21 @@ import (
 type view struct {
 	activeFilesMu sync.Mutex
 	activeFiles   map[protocol.DocumentURI][]byte
+	config        *packages.Config
 
 	fset *token.FileSet
 }
 
 func newView() *view {
+	fset := token.NewFileSet()
 	return &view{
+		config: &packages.Config{
+			Mode:  packages.LoadSyntax,
+			Fset:  fset,
+			Tests: true,
+		},
 		activeFiles: make(map[protocol.DocumentURI][]byte),
-		fset:        token.NewFileSet(),
+		fset:        fset,
 	}
 }
 
@@ -55,14 +62,12 @@ func (v *view) clearActiveFile(uri protocol.DocumentURI) {
 
 // typeCheck type-checks the package for the given package path.
 func (v *view) typeCheck(uri protocol.DocumentURI) (*packages.Package, error) {
-	cfg := &packages.Config{
-		Mode:    packages.LoadSyntax,
-		Fset:    v.fset,
-		Overlay: v.overlay(),
-		Tests:   true,
-	}
-	pkgs, err := packages.Load(cfg, fmt.Sprintf("file=%s", uriToFilename(uri)))
+	v.config.Overlay = v.overlay()
+	pkgs, err := packages.Load(v.config, fmt.Sprintf("file=%s", uriToFilename(uri)))
 	if len(pkgs) == 0 {
+		if err == nil {
+			err = fmt.Errorf("no packages found for %s", uri)
+		}
 		return nil, err
 	}
 	pkg := pkgs[0]

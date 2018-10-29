@@ -63,23 +63,27 @@ func (v *view) diagnostics(uri protocol.DocumentURI) (map[string][]protocol.Diag
 }
 
 func parseErrorPos(pkgErr packages.Error) (pos token.Position) {
-	split := strings.Split(pkgErr.Pos, ":")
-	if len(split) <= 1 {
-		return pos
-	}
-	pos.Filename = split[0]
-	line, err := strconv.ParseInt(split[1], 10, 64)
-	if err != nil {
-		return pos
-	}
-	pos.Line = int(line)
-	if len(split) == 3 {
-		col, err := strconv.ParseInt(split[2], 10, 64)
-		if err != nil {
-			return pos
-		}
-		pos.Column = int(col)
+	remainder1, first, hasLine := chop(pkgErr.Pos)
+	remainder2, second, hasColumn := chop(remainder1)
+	if hasLine && hasColumn {
+		pos.Filename = remainder2
+		pos.Line = second
+		pos.Column = first
+	} else if hasLine {
+		pos.Filename = remainder1
+		pos.Line = first
 	}
 	return pos
+}
 
+func chop(text string) (remainder string, value int, ok bool) {
+	i := strings.LastIndex(text, ":")
+	if i < 0 {
+		return text, 0, false
+	}
+	v, err := strconv.ParseInt(text[i+1:], 10, 64)
+	if err != nil {
+		return text, 0, false
+	}
+	return text[:i], int(v), true
 }

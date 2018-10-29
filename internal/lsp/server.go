@@ -16,9 +16,7 @@ import (
 // RunServer starts an LSP server on the supplied stream, and waits until the
 // stream is closed.
 func RunServer(ctx context.Context, stream jsonrpc2.Stream, opts ...interface{}) error {
-	s := &server{
-		view: newView(),
-	}
+	s := &server{}
 	conn, client := protocol.RunServer(ctx, stream, s, opts...)
 	s.client = client
 	return conn.Wait(ctx)
@@ -39,6 +37,7 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 	if s.initialized {
 		return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidRequest, "server already initialized")
 	}
+	s.view = newView()
 	s.initialized = true
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
