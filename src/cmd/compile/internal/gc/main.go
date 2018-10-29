@@ -480,7 +480,7 @@ func Main(archInit func(*Arch)) {
 
 	// Process top-level declarations in phases.
 
-	// Phase 1: type, and names and types of funcs.
+	// Phase 1: const, type, and names and types of funcs.
 	//   This will gather all the information about types
 	//   and methods but doesn't depend on any of it.
 	defercheckwidth()
@@ -489,29 +489,16 @@ func Main(archInit func(*Arch)) {
 	timings.Start("fe", "typecheck", "top1")
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
-		if op := n.Op; op != ODCL && op != OAS && op != OAS2 && op != ODCLCONST {
+		if op := n.Op; op != ODCL && op != OAS && op != OAS2 {
 			xtop[i] = typecheck(n, Etop)
 		}
 	}
 
-	// Phase 2: Constant declarations.
-	//   To have named types fully type checked, depends on phase 1.
+	// Phase 2: Variable assignments.
+	//   To check interface assignments, depends on phase 1.
 
 	// Don't use range--typecheck can add closures to xtop.
 	timings.Start("fe", "typecheck", "top2")
-	for i := 0; i < len(xtop); i++ {
-		n := xtop[i]
-		if op := n.Op; op == ODCLCONST {
-			xtop[i] = typecheck(n, Etop)
-		}
-	}
-
-	// Phase 3: Variable assignments.
-	//   To check interface assignments, depends on phase 1.
-	//   To use constants, depends on phase 2.
-
-	// Don't use range--typecheck can add closures to xtop.
-	timings.Start("fe", "typecheck", "top3")
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
 		if op := n.Op; op == ODCL || op == OAS || op == OAS2 {
