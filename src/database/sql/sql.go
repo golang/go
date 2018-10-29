@@ -2882,6 +2882,7 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 //    *float32, *float64
 //    *interface{}
 //    *RawBytes
+//    *Rows (cursor value)
 //    any type implementing Scanner (see Scanner docs)
 //
 // In the most simple case, if the type of the value from the source
@@ -2918,6 +2919,11 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 //
 // For scanning into *bool, the source may be true, false, 1, 0, or
 // string inputs parseable by strconv.ParseBool.
+//
+// Scan can also convert a cursor returned from a query, such as
+// "select cursor(select * from my_table) from dual", into a
+// *Rows value that can itself be scanned from. The parent
+// select query will close any cursor *Rows if the parent *Rows is closed.
 func (rs *Rows) Scan(dest ...interface{}) error {
 	rs.closemu.RLock()
 
@@ -2939,7 +2945,7 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 		return fmt.Errorf("sql: expected %d destination arguments in Scan, not %d", len(rs.lastcols), len(dest))
 	}
 	for i, sv := range rs.lastcols {
-		err := convertAssign(dest[i], sv)
+		err := convertAssignRows(dest[i], sv, rs)
 		if err != nil {
 			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %v`, i, rs.rowsi.Columns()[i], err)
 		}
