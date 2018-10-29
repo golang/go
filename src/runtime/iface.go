@@ -267,6 +267,34 @@ func panicnildottype(want *_type) {
 	// Just to match other nil conversion errors, we don't for now.
 }
 
+// The specialized convTx routines need a type descriptor to use when calling mallocgc.
+// We don't need the type to be exact, just to have the correct size, alignment, and pointer-ness.
+// However, when debugging, it'd be nice to have some indication in mallocgc where the types came from,
+// so we use named types here.
+// We then construct interface values of these types,
+// and then extract the type word to use as needed.
+type (
+	uint16InterfacePtr uint16
+	uint32InterfacePtr uint32
+	uint64InterfacePtr uint64
+	stringInterfacePtr string
+	sliceInterfacePtr  []byte
+)
+
+var (
+	uint16Eface interface{} = uint16InterfacePtr(0)
+	uint32Eface interface{} = uint32InterfacePtr(0)
+	uint64Eface interface{} = uint64InterfacePtr(0)
+	stringEface interface{} = stringInterfacePtr("")
+	sliceEface  interface{} = sliceInterfacePtr(nil)
+
+	uint16Type *_type = (*eface)(unsafe.Pointer(&uint16Eface))._type
+	uint32Type *_type = (*eface)(unsafe.Pointer(&uint32Eface))._type
+	uint64Type *_type = (*eface)(unsafe.Pointer(&uint64Eface))._type
+	stringType *_type = (*eface)(unsafe.Pointer(&stringEface))._type
+	sliceType  *_type = (*eface)(unsafe.Pointer(&sliceEface))._type
+)
+
 // The conv and assert functions below do very similar things.
 // The convXXX functions are guaranteed by the compiler to succeed.
 // The assertXXX functions may fail (either panicking or returning false,
@@ -290,69 +318,54 @@ func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
 	return
 }
 
-func convT2E16(t *_type, val uint16) (e eface) {
-	var x unsafe.Pointer
+func convT16(val uint16) (x unsafe.Pointer) {
 	if val == 0 {
 		x = unsafe.Pointer(&zeroVal[0])
 	} else {
-		x = mallocgc(2, t, false)
+		x = mallocgc(2, uint16Type, false)
 		*(*uint16)(x) = val
 	}
-	e._type = t
-	e.data = x
 	return
 }
 
-func convT2E32(t *_type, val uint32) (e eface) {
-	var x unsafe.Pointer
+func convT32(val uint32) (x unsafe.Pointer) {
 	if val == 0 {
 		x = unsafe.Pointer(&zeroVal[0])
 	} else {
-		x = mallocgc(4, t, false)
+		x = mallocgc(4, uint32Type, false)
 		*(*uint32)(x) = val
 	}
-	e._type = t
-	e.data = x
 	return
 }
 
-func convT2E64(t *_type, val uint64) (e eface) {
-	var x unsafe.Pointer
+func convT64(val uint64) (x unsafe.Pointer) {
 	if val == 0 {
 		x = unsafe.Pointer(&zeroVal[0])
 	} else {
-		x = mallocgc(8, t, false)
+		x = mallocgc(8, uint64Type, false)
 		*(*uint64)(x) = val
 	}
-	e._type = t
-	e.data = x
 	return
 }
 
-func convT2Estring(t *_type, val string) (e eface) {
-	var x unsafe.Pointer
+func convTstring(val string) (x unsafe.Pointer) {
 	if val == "" {
 		x = unsafe.Pointer(&zeroVal[0])
 	} else {
-		x = mallocgc(unsafe.Sizeof(val), t, true)
+		x = mallocgc(unsafe.Sizeof(val), stringType, true)
 		*(*string)(x) = val
 	}
-	e._type = t
-	e.data = x
 	return
 }
 
-func convT2Eslice(t *_type, val []byte) (e eface) {
+func convTslice(val []byte) (x unsafe.Pointer) {
 	// Note: this must work for any element type, not just byte.
-	var x unsafe.Pointer
 	if (*slice)(unsafe.Pointer(&val)).array == nil {
 		x = unsafe.Pointer(&zeroVal[0])
 	} else {
-		x = mallocgc(unsafe.Sizeof(val), t, true)
+		x = mallocgc(unsafe.Sizeof(val), sliceType, true)
 		*(*[]byte)(x) = val
 	}
-	e._type = t
-	e.data = x
 	return
 }
 
@@ -380,77 +393,6 @@ func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
 	}
 	x := mallocgc(t.size, t, true)
 	typedmemmove(t, x, elem)
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convT2I16(tab *itab, val uint16) (i iface) {
-	t := tab._type
-	var x unsafe.Pointer
-	if val == 0 {
-		x = unsafe.Pointer(&zeroVal[0])
-	} else {
-		x = mallocgc(2, t, false)
-		*(*uint16)(x) = val
-	}
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convT2I32(tab *itab, val uint32) (i iface) {
-	t := tab._type
-	var x unsafe.Pointer
-	if val == 0 {
-		x = unsafe.Pointer(&zeroVal[0])
-	} else {
-		x = mallocgc(4, t, false)
-		*(*uint32)(x) = val
-	}
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convT2I64(tab *itab, val uint64) (i iface) {
-	t := tab._type
-	var x unsafe.Pointer
-	if val == 0 {
-		x = unsafe.Pointer(&zeroVal[0])
-	} else {
-		x = mallocgc(8, t, false)
-		*(*uint64)(x) = val
-	}
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convT2Istring(tab *itab, val string) (i iface) {
-	t := tab._type
-	var x unsafe.Pointer
-	if val == "" {
-		x = unsafe.Pointer(&zeroVal[0])
-	} else {
-		x = mallocgc(unsafe.Sizeof(val), t, true)
-		*(*string)(x) = val
-	}
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convT2Islice(tab *itab, val []byte) (i iface) {
-	// Note: this must work for any element type, not just byte.
-	t := tab._type
-	var x unsafe.Pointer
-	if (*slice)(unsafe.Pointer(&val)).array == nil {
-		x = unsafe.Pointer(&zeroVal[0])
-	} else {
-		x = mallocgc(unsafe.Sizeof(val), t, true)
-		*(*[]byte)(x) = val
-	}
 	i.tab = tab
 	i.data = x
 	return
