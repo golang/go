@@ -273,10 +273,6 @@ func dumpglobls() {
 }
 
 // addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
-// It takes care not to add any duplicates.
-// Though the object file format handles duplicates efficiently,
-// storing only a single copy of the data,
-// failure to remove these duplicates adds a few percent to object file size.
 //
 // This is done during the sequential phase after compilation, since
 // global symbols can't be declared during parallel compilation.
