@@ -119,6 +119,8 @@ func TestFileHeaderRoundTripModified(t *testing.T) {
 		Name:             "foo.txt",
 		UncompressedSize: 987654321,
 		Modified:         time.Now().Local(),
+		ModifiedTime:     1234,
+		ModifiedDate:     5678,
 	}
 	fi := fh.FileInfo()
 	fh2, err := FileInfoHeader(fi)
@@ -129,6 +131,26 @@ func TestFileHeaderRoundTripModified(t *testing.T) {
 		t.Errorf("Modified: got %s, want %s\n", got, want)
 	}
 	if got, want := fi.ModTime(), fh.Modified; got != want {
+		t.Errorf("Modified: got %s, want %s\n", got, want)
+	}
+}
+
+func TestFileHeaderRoundTripWithoutModified(t *testing.T) {
+	fh := &FileHeader{
+		Name:             "foo.txt",
+		UncompressedSize: 987654321,
+		ModifiedTime:     1234,
+		ModifiedDate:     5678,
+	}
+	fi := fh.FileInfo()
+	fh2, err := FileInfoHeader(fi)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := fh2.ModTime(), fh.ModTime(); got != want {
+		t.Errorf("Modified: got %s, want %s\n", got, want)
+	}
+	if got, want := fi.ModTime(), fh.ModTime(); got != want {
 		t.Errorf("Modified: got %s, want %s\n", got, want)
 	}
 }
