@@ -1714,7 +1714,7 @@ func (pc *persistConn) readLoop() {
 			alive = false
 		}
 
-		if !hasBody {
+		if !hasBody || bodyWritable {
 			pc.t.setReqCanceler(rc.req, nil)
 
 			// Put the idle conn back into the pool before we send the response
