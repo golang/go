@@ -178,6 +178,7 @@ func FileInfoHeader(fi os.FileInfo) (*FileHeader, error) {
 		UncompressedSize64: uint64(size),
 	}
 	fh.SetModTime(fi.ModTime())
+	fh.Modified = fi.ModTime()
 	fh.SetMode(fi.Mode())
 	if fh.UncompressedSize64 > uint32max {
 		fh.UncompressedSize = uint32max
