@@ -61,23 +61,23 @@ func slicestringcopy(to any, fr any) int
 func decoderune(string, int) (retv rune, retk int)
 func countrunes(string) int
 
-// interface conversions
+// Non-empty-interface to non-empty-interface conversion.
 func convI2I(typ *byte, elem any) (ret any)
 
+// Specialized type-to-interface conversion.
+// These return only a data pointer.
+func convT16(val any) unsafe.Pointer     // val must be uint16-like (same size and alignment as a uint16)
+func convT32(val any) unsafe.Pointer     // val must be uint32-like (same size and alignment as a uint32)
+func convT64(val any) unsafe.Pointer     // val must be uint64-like (same size and alignment as a uint64 and contains no pointers)
+func convTstring(val any) unsafe.Pointer // val must be a string
+func convTslice(val any) unsafe.Pointer  // val must be a slice
+
+// Type to empty-interface conversion.
 func convT2E(typ *byte, elem *any) (ret any)
-func convT2E16(typ *byte, val any) (ret any)
-func convT2E32(typ *byte, val any) (ret any)
-func convT2E64(typ *byte, val any) (ret any)
-func convT2Estring(typ *byte, val any) (ret any) // val must be a string
-func convT2Eslice(typ *byte, val any) (ret any)  // val must be a slice
 func convT2Enoptr(typ *byte, elem *any) (ret any)
 
+// Type to non-empty-interface conversion.
 func convT2I(tab *byte, elem *any) (ret any)
-func convT2I16(tab *byte, val any) (ret any)
-func convT2I32(tab *byte, val any) (ret any)
-func convT2I64(tab *byte, val any) (ret any)
-func convT2Istring(tab *byte, val any) (ret any) // val must be a string
-func convT2Islice(tab *byte, val any) (ret any)  // val must be a slice
 func convT2Inoptr(tab *byte, elem *any) (ret any)
 
 // interface type assertions x.(T)
