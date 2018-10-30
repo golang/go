@@ -94,6 +94,7 @@ func TestAll(t *testing.T, f func(*testing.T, Exporter)) {
 // flag when invoking the test, allowing the temporary directory to be left for
 // debugging tests.
 func Export(t *testing.T, exporter Exporter, modules []Module) *Exported {
+	t.Helper()
 	temp, err := ioutil.TempDir("", strings.Replace(t.Name(), "/", "_", -1))
 	if err != nil {
 		t.Fatal(err)
