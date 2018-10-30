@@ -424,7 +424,8 @@ type Config struct {
 	// If RootCAs is nil, TLS uses the host's root CA set.
 	RootCAs *x509.CertPool
 
-	// NextProtos is a list of supported, application level protocols.
+	// NextProtos is a list of supported application level protocols, in
+	// order of preference.
 	NextProtos []string
 
 	// ServerName is used to verify the hostname on the returned
