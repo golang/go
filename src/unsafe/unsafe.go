@@ -99,6 +99,12 @@ type ArbitraryType int
 //	u := uintptr(p)
 //	p = unsafe.Pointer(u + offset)
 //
+// Note that the pointer must point into an allocated object, so it may not be nil.
+//
+//	// INVALID: conversion of nil pointer
+//	u := unsafe.Pointer(nil)
+//	p := unsafe.Pointer(uintptr(u) + offset)
+//
 // (4) Conversion of a Pointer to a uintptr when calling syscall.Syscall.
 //
 // The Syscall functions in package syscall pass their uintptr arguments directly
