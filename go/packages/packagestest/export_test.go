@@ -24,6 +24,11 @@ var testdata = []packagestest.Module{{
 	Files: map[string]interface{}{
 		"other/a.go": "package fake2",
 	},
+}, {
+	Name: "golang.org/fake2/v2",
+	Files: map[string]interface{}{
+		"other/a.go": "package fake2",
+	},
 }}
 
 type fileTest struct {

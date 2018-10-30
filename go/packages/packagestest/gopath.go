@@ -66,5 +66,9 @@ func (gopath) Finalize(exported *Exported) error {
 }
 
 func gopathDir(exported *Exported, module string) string {
-	return filepath.Join(exported.temp, path.Base(module))
+	dir := path.Base(module)
+	if versionSuffixRE.MatchString(dir) {
+		dir = path.Base(path.Dir(module)) + "_" + dir
+	}
+	return filepath.Join(exported.temp, dir)
 }

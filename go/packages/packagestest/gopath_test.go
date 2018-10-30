@@ -23,5 +23,6 @@ func TestGOPATHExport(t *testing.T) {
 		{"golang.org/fake1", "a.go", "fake1/src/golang.org/fake1/a.go", checkLink("testdata/a.go")},
 		{"golang.org/fake1", "b.go", "fake1/src/golang.org/fake1/b.go", checkContent("package fake1")},
 		{"golang.org/fake2", "other/a.go", "fake2/src/golang.org/fake2/other/a.go", checkContent("package fake2")},
+		{"golang.org/fake2/v2", "other/a.go", "fake2_v2/src/golang.org/fake2/v2/other/a.go", checkContent("package fake2")},
 	})
 }

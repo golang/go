@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -36,8 +37,6 @@ import (
 // and the working directory would be
 //     /sometemporarydirectory/repoa
 var Modules = modules{}
-
-const theVersion = "v1.0.0"
 
 type modules struct{}
 
@@ -64,7 +63,7 @@ func (modules) Finalize(exported *Exported) error {
 		if other == exported.primary {
 			continue
 		}
-		primaryGomod += fmt.Sprintf("\t%v %v\n", other, theVersion)
+		primaryGomod += fmt.Sprintf("\t%v %v\n", other, moduleVersion(other))
 	}
 	primaryGomod += ")\n"
 	if err := ioutil.WriteFile(filepath.Join(primaryDir, "go.mod"), []byte(primaryGomod), 0644); err != nil {
@@ -124,12 +123,13 @@ func (modules) Finalize(exported *Exported) error {
 
 // writeModuleProxy creates a directory in the proxy dir for a module.
 func writeModuleProxy(dir, module string, files map[string]string) error {
+	ver := moduleVersion(module)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
 
 	// list file. Just the single version.
-	if err := ioutil.WriteFile(filepath.Join(dir, "list"), []byte(theVersion+"\n"), 0644); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(dir, "list"), []byte(ver+"\n"), 0644); err != nil {
 		return err
 	}
 
@@ -138,24 +138,24 @@ func writeModuleProxy(dir, module string, files map[string]string) error {
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(dir, theVersion+".mod"), modContents, 0644); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(dir, ver+".mod"), modContents, 0644); err != nil {
 		return err
 	}
 
 	// info file, just the bare bones.
-	infoContents := []byte(fmt.Sprintf(`{"Version": "%v", "Time":"2017-12-14T13:08:43Z"}`, theVersion))
-	if err := ioutil.WriteFile(filepath.Join(dir, theVersion+".info"), infoContents, 0644); err != nil {
+	infoContents := []byte(fmt.Sprintf(`{"Version": "%v", "Time":"2017-12-14T13:08:43Z"}`, ver))
+	if err := ioutil.WriteFile(filepath.Join(dir, ver+".info"), infoContents, 0644); err != nil {
 		return err
 	}
 
 	// zip of all the source files.
-	f, err := os.OpenFile(filepath.Join(dir, theVersion+".zip"), os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(filepath.Join(dir, ver+".zip"), os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
 	z := zip.NewWriter(f)
 	for name, path := range files {
-		zf, err := z.Create(module + "@" + theVersion + "/" + name)
+		zf, err := z.Create(module + "@" + ver + "/" + name)
 		if err != nil {
 			return err
 		}
@@ -197,5 +197,14 @@ func primaryDir(exported *Exported) string {
 }
 
 func moduleDir(exported *Exported, module string) string {
-	return filepath.Join(modCache(exported), path.Dir(module), path.Base(module)+"@"+theVersion)
+	return filepath.Join(modCache(exported), path.Dir(module), path.Base(module)+"@"+moduleVersion(module))
+}
+
+var versionSuffixRE = regexp.MustCompile(`v\d+`)
+
+func moduleVersion(module string) string {
+	if versionSuffixRE.MatchString(path.Base(module)) {
+		return path.Base(module) + ".0.0"
+	}
+	return "v1.0.0"
 }
