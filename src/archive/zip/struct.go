@@ -159,7 +159,7 @@ func (fi headerFileInfo) ModTime() time.Time {
 	if fi.fh.Modified.IsZero() {
 		return fi.fh.ModTime()
 	}
-	return fi.fh.Modified
+	return fi.fh.Modified.UTC()
 }
 func (fi headerFileInfo) Mode() os.FileMode { return fi.fh.Mode() }
 func (fi headerFileInfo) Sys() interface{}  { return fi.fh }
@@ -178,7 +178,6 @@ func FileInfoHeader(fi os.FileInfo) (*FileHeader, error) {
 		UncompressedSize64: uint64(size),
 	}
 	fh.SetModTime(fi.ModTime())
-	fh.Modified = fi.ModTime()
 	fh.SetMode(fi.Mode())
 	if fh.UncompressedSize64 > uint32max {
 		fh.UncompressedSize = uint32max

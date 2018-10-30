@@ -127,10 +127,10 @@ func TestFileHeaderRoundTripModified(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := fh2.Modified, fh.Modified; got != want {
+	if got, want := fh2.Modified, fh.Modified.UTC(); got != want {
 		t.Errorf("Modified: got %s, want %s\n", got, want)
 	}
-	if got, want := fi.ModTime(), fh.Modified; got != want {
+	if got, want := fi.ModTime(), fh.Modified.UTC(); got != want {
 		t.Errorf("Modified: got %s, want %s\n", got, want)
 	}
 }
