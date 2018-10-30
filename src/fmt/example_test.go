@@ -139,6 +139,59 @@ func ExampleSprintf() {
 	// Kim is 22 years old.
 }
 
+// ExamplePrintf_commonExamples prints common formatting examples.
+func ExamplePrintf_commonExamples() {
+	type point struct {
+		x, y int
+	}
+	p := point{1, 2}
+	fmt.Printf("Struct 1: %v\n", p)
+	fmt.Printf("Struct 2: %+v\n", p)
+	fmt.Printf("Struct 3: %#v\n", p)
+	fmt.Printf("Type: %T\n", p)
+	fmt.Printf("Pointer: %p\n", &p)
+	fmt.Printf("Bool: %t\n", true)
+	fmt.Printf("Int 1: %d\n", 123)
+	fmt.Printf("Int 2: %c\n", 33)
+	fmt.Printf("Binary: %b\n", 14)
+	fmt.Printf("Hex: %x\n", 456)
+	fmt.Printf("Float 1: %f\n", 78.9)
+	fmt.Printf("Float 2: %e\n", 123400000.0)
+	fmt.Printf("Float 3: %E\n", 123400000.0)
+	fmt.Printf("String 1: %s\n", "\"string\"")
+	fmt.Printf("String 2: %q\n", "\"string\"")
+	fmt.Printf("String 3: %x\n", "hex this")
+	fmt.Printf("String 4: %s\n", "string")
+	fmt.Printf("Int numbers 1:|%6d|%6d|\n", 12, 345)
+	fmt.Printf("Float numbers 1:|%6.2f|%6.2f|\n", 1.2, 3.45)
+	fmt.Printf("Float numbers 2:|%-6.2f|%-6.2f|\n", 1.2, 3.45)
+	fmt.Printf("String 5:|%6s|%6s|\n", "foo", "b")
+	fmt.Printf("String 6:|%-6s|%-6s|\n", "foo", "b")
+	// Output:
+	// Struct 1: {1 2}
+	// Struct 2: {x:1 y:2}
+	// Struct 3: main.point{x:1, y:2}
+	// Type: main.point
+	// Pointer: 0xc420084010
+	// Bool: true
+	// Int 1: 123
+	// Int 2: !
+	// Binary: 1110
+	// Hex: 1c8
+	// Float 1: 78.900000
+	// Float 2: 1.234000e+08
+	// Float 3: 1.234000E+08
+	// String 1: "string"
+	// String 2: "\"string\""
+	// String 3: 6865782074686973
+	// String 4: string
+	// Int numbers 1:|    12|   345|
+	// Float numbers 1:|  1.20|  3.45|
+	// Float numbers 2:|1.20  |3.45  |
+	// String 5:|   foo|     b|
+	// String 6:|foo   |b     |
+}
+
 func ExampleFprint() {
 	const name, age = "Kim", 22
 	n, err := fmt.Fprint(os.Stdout, name, " is ", age, " years old.\n")
