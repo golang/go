@@ -20,7 +20,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 
@@ -174,7 +173,6 @@ func Load(cfg *Config, patterns ...string) ([]*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Strings(response.Roots) // make all driver responses deterministic
 	return l.refine(response.Roots, response.Packages...)
 }
 
@@ -413,25 +411,29 @@ func newLoader(cfg *Config) *loader {
 // refine connects the supplied packages into a graph and then adds type and
 // and syntax information as requested by the LoadMode.
 func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
-	isRoot := make(map[string]bool, len(roots))
-	for _, root := range roots {
-		isRoot[root] = true
+	rootMap := make(map[string]int, len(roots))
+	for i, root := range roots {
+		rootMap[root] = i
 	}
 	ld.pkgs = make(map[string]*loaderPackage)
 	// first pass, fixup and build the map and roots
-	var initial []*loaderPackage
+	var initial = make([]*loaderPackage, len(roots))
 	for _, pkg := range list {
+		rootIndex := -1
+		if i, found := rootMap[pkg.ID]; found {
+			rootIndex = i
+		}
 		lpkg := &loaderPackage{
 			Package: pkg,
 			needtypes: ld.Mode >= LoadAllSyntax ||
-				ld.Mode >= LoadTypes && isRoot[pkg.ID],
+				ld.Mode >= LoadTypes && rootIndex >= 0,
 			needsrc: ld.Mode >= LoadAllSyntax ||
-				ld.Mode >= LoadSyntax && isRoot[pkg.ID] ||
+				ld.Mode >= LoadSyntax && rootIndex >= 0 ||
 				pkg.ExportFile == "" && pkg.PkgPath != "unsafe",
 		}
 		ld.pkgs[lpkg.ID] = lpkg
-		if isRoot[lpkg.ID] {
-			initial = append(initial, lpkg)
+		if rootIndex >= 0 {
+			initial[rootIndex] = lpkg
 			lpkg.initial = true
 		}
 	}
