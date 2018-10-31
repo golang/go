@@ -463,6 +463,12 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
 			}
 		}
 
+		if !decodingNull && v.Kind() == reflect.Interface {
+			if u, ok := v.Interface().(Unmarshaler); ok {
+				return u, nil, reflect.Value{}
+			}
+		}
+
 		if v.Kind() != reflect.Ptr {
 			break
 		}

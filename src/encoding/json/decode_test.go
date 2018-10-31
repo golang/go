@@ -2292,3 +2292,37 @@ func TestUnmarshalPanic(t *testing.T) {
 	Unmarshal([]byte("{}"), &unmarshalPanic{})
 	t.Fatalf("Unmarshal should have panicked")
 }
+
+type CustomUnmarshaler struct{ p *bytes.Buffer }
+
+func (cu CustomUnmarshaler) UnmarshalJSON(b []byte) error {
+	cu.p.Write(b)
+	return nil
+}
+func (cu CustomUnmarshaler) String() string {
+	return fmt.Sprintf("custom %v", cu.p.String())
+}
+
+// Test unmarshal behavior when a struct has field with a custom
+// Unmarshaler as an interface{} object.
+//
+// Issue 27722 - When a field in a struct is declared as an interface
+// and an instance of a struct is assigned to it, the json Unmarshaler
+// while unmarshaling a string, replaces the field with an instance
+// of a string instead of calling the UnmarshalJSON method
+// (if the struct implements the json.Unmarshaler interface).
+func TestUnmarshalNonPointer(t *testing.T) {
+	s := &struct {
+		F1 interface{}
+	}{
+		CustomUnmarshaler{new(bytes.Buffer)},
+	}
+
+	if err := Unmarshal([]byte(`{"F1": "F1"}`), s); err != nil {
+		t.Errorf("expected no error while unmarshaling, got: %v", err)
+	}
+
+	if s.F1.(CustomUnmarshaler).String() != `custom "F1"` {
+		t.Errorf("expected custom \"F1\", got %v", s.F1)
+	}
+}
