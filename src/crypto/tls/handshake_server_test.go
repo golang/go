@@ -104,8 +104,13 @@ func TestRejectBadProtocolVersion(t *testing.T) {
 		testClientHelloFailure(t, testConfig, &clientHelloMsg{
 			vers:   v,
 			random: make([]byte, 32),
-		}, "unsupported, maximum protocol version")
+		}, "unsupported versions")
 	}
+	testClientHelloFailure(t, testConfig, &clientHelloMsg{
+		vers:              VersionTLS12,
+		supportedVersions: badProtocolVersions,
+		random:            make([]byte, 32),
+	}, "unsupported versions")
 }
 
 func TestNoSuiteOverlap(t *testing.T) {
@@ -1289,11 +1294,11 @@ var getConfigForClientTests = []struct {
 		func(clientHello *ClientHelloInfo) (*Config, error) {
 			config := testConfig.Clone()
 			// Setting a maximum version of TLS 1.1 should cause
-			// the handshake to fail.
+			// the handshake to fail, as the client MinVersion is TLS 1.2.
 			config.MaxVersion = VersionTLS11
 			return config, nil
 		},
-		"version 301 when expecting version 302",
+		"client offered only unsupported versions",
 		nil,
 	},
 	{
