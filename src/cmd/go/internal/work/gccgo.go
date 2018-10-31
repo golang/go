@@ -186,12 +186,12 @@ func (gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []string)
 	for _, f := range ofiles {
 		absOfiles = append(absOfiles, mkAbs(objdir, f))
 	}
-	var arArgs string
+	var arArgs []string
 	if cfg.Goos == "aix" && cfg.Goarch == "ppc64" {
 		// AIX puts both 32-bit and 64-bit objects in the same archive.
 		// Tell the AIX "ar" command to only care about 64-bit objects.
 		// AIX "ar" command does not know D option.
-		arArgs = "-X64"
+		arArgs = []string{"-X64"}
 	}
 
 	return b.run(a, p.Dir, p.ImportPath, nil, "ar", arArgs, "rc", mkAbs(objdir, afile), absOfiles)
