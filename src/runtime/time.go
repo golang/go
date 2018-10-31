@@ -156,7 +156,7 @@ func (tb *timersBucket) addtimerLocked(t *timer) bool {
 	}
 	if t.i == 0 {
 		// siftup moved to top: new earliest deadline.
-		if tb.sleeping {
+		if tb.sleeping && tb.sleepUntil > t.when {
 			tb.sleeping = false
 			notewakeup(&tb.waitnote)
 		}
@@ -164,10 +164,10 @@ func (tb *timersBucket) addtimerLocked(t *timer) bool {
 			tb.rescheduling = false
 			goready(tb.gp, 0)
 		}
-	}
-	if !tb.created {
-		tb.created = true
-		go timerproc(tb)
+		if !tb.created {
+			tb.created = true
+			go timerproc(tb)
+		}
 	}
 	return true
 }
