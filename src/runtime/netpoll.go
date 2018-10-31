@@ -56,14 +56,15 @@ type pollDesc struct {
 	lock    mutex // protects the following fields
 	fd      uintptr
 	closing bool
-	seq     uintptr // protects from stale timers and ready notifications
+	user    uint32  // user settable cookie
+	rseq    uintptr // protects from stale read timers
 	rg      uintptr // pdReady, pdWait, G waiting for read or nil
 	rt      timer   // read deadline timer (set if rt.f != nil)
 	rd      int64   // read deadline
+	wseq    uintptr // protects from stale write timers
 	wg      uintptr // pdReady, pdWait, G waiting for write or nil
 	wt      timer   // write deadline timer
 	wd      int64   // write deadline
-	user    uint32  // user settable cookie
 }
 
 type pollCache struct {
@@ -112,9 +113,10 @@ func poll_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
 	}
 	pd.fd = fd
 	pd.closing = false
-	pd.seq++
+	pd.rseq++
 	pd.rg = 0
 	pd.rd = 0
+	pd.wseq++
 	pd.wg = 0
 	pd.wd = 0
 	unlock(&pd.lock)
@@ -197,17 +199,8 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 		unlock(&pd.lock)
 		return
 	}
-	pd.seq++ // invalidate current timers
-	// Reset current timers.
-	if pd.rt.f != nil {
-		deltimer(&pd.rt)
-		pd.rt.f = nil
-	}
-	if pd.wt.f != nil {
-		deltimer(&pd.wt)
-		pd.wt.f = nil
-	}
-	// Setup new timers.
+	rd0, wd0 := pd.rd, pd.wd
+	combo0 := rd0 > 0 && rd0 == wd0
 	if d != 0 && d <= nanotime() {
 		d = -1
 	}
@@ -217,28 +210,43 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 	if mode == 'w' || mode == 'r'+'w' {
 		pd.wd = d
 	}
-	if pd.rd > 0 && pd.rd == pd.wd {
-		pd.rt.f = netpollDeadline
-		pd.rt.when = pd.rd
-		// Copy current seq into the timer arg.
-		// Timer func will check the seq against current descriptor seq,
-		// if they differ the descriptor was reused or timers were reset.
-		pd.rt.arg = pd
-		pd.rt.seq = pd.seq
-		addtimer(&pd.rt)
+	combo := pd.rd > 0 && pd.rd == pd.wd
+	// Reset current timers if necessary.
+	if pd.rt.f != nil && (pd.rd != rd0 || combo != combo0) {
+		pd.rseq++ // invalidate current timers
+		deltimer(&pd.rt)
+		pd.rt.f = nil
+	}
+	if pd.wt.f != nil && (pd.wd != wd0 || combo != combo0) {
+		pd.wseq++ // invalidate current timers
+		deltimer(&pd.wt)
+		pd.wt.f = nil
+	}
+	// Setup new timers.
+	if combo {
+		if pd.rt.f == nil {
+			pd.rt.f = netpollDeadline
+			pd.rt.when = pd.rd
+			// Copy current seq into the timer arg.
+			// Timer func will check the seq against current descriptor seq,
+			// if they differ the descriptor was reused or timers were reset.
+			pd.rt.arg = pd
+			pd.rt.seq = pd.rseq
+			addtimer(&pd.rt)
+		}
 	} else {
-		if pd.rd > 0 {
+		if pd.rd > 0 && pd.rt.f == nil {
 			pd.rt.f = netpollReadDeadline
 			pd.rt.when = pd.rd
 			pd.rt.arg = pd
-			pd.rt.seq = pd.seq
+			pd.rt.seq = pd.rseq
 			addtimer(&pd.rt)
 		}
-		if pd.wd > 0 {
+		if pd.wd > 0 && pd.wt.f == nil {
 			pd.wt.f = netpollWriteDeadline
 			pd.wt.when = pd.wd
 			pd.wt.arg = pd
-			pd.wt.seq = pd.seq
+			pd.wt.seq = pd.wseq
 			addtimer(&pd.wt)
 		}
 	}
@@ -267,7 +275,8 @@ func poll_runtime_pollUnblock(pd *pollDesc) {
 		throw("runtime: unblock on closing polldesc")
 	}
 	pd.closing = true
-	pd.seq++
+	pd.rseq++
+	pd.wseq++
 	var rg, wg *g
 	atomicstorep(unsafe.Pointer(&rg), nil) // full memory barrier between store to closing and read of rg/wg in netpollunblock
 	rg = netpollunblock(pd, 'r', false)
@@ -404,7 +413,11 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 	lock(&pd.lock)
 	// Seq arg is seq when the timer was set.
 	// If it's stale, ignore the timer event.
-	if seq != pd.seq {
+	currentSeq := pd.rseq
+	if !read {
+		currentSeq = pd.wseq
+	}
+	if seq != currentSeq {
 		// The descriptor was reused or timers were reset.
 		unlock(&pd.lock)
 		return
