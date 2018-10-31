@@ -260,7 +260,7 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 	// If we set the new deadline in the past, unblock currently pending IO if any.
 	var rg, wg *g
 	if pd.rd < 0 || pd.wd < 0 {
-		atomicstorep(unsafe.Pointer(&wg), nil) // full memory barrier between stores to rd/wd and load of rg/wg in netpollunblock
+		atomic.StorepNoWB(noescape(unsafe.Pointer(&wg)), nil) // full memory barrier between stores to rd/wd and load of rg/wg in netpollunblock
 		if pd.rd < 0 {
 			rg = netpollunblock(pd, 'r', false)
 		}
@@ -287,7 +287,7 @@ func poll_runtime_pollUnblock(pd *pollDesc) {
 	pd.rseq++
 	pd.wseq++
 	var rg, wg *g
-	atomicstorep(unsafe.Pointer(&rg), nil) // full memory barrier between store to closing and read of rg/wg in netpollunblock
+	atomic.StorepNoWB(noescape(unsafe.Pointer(&rg)), nil) // full memory barrier between store to closing and read of rg/wg in netpollunblock
 	rg = netpollunblock(pd, 'r', false)
 	wg = netpollunblock(pd, 'w', false)
 	if pd.rt.f != nil {
@@ -437,7 +437,7 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 			throw("runtime: inconsistent read deadline")
 		}
 		pd.rd = -1
-		atomicstorep(unsafe.Pointer(&pd.rt.f), nil) // full memory barrier between store to rd and load of rg in netpollunblock
+		atomic.StorepNoWB(unsafe.Pointer(&pd.rt.f), nil) // full memory barrier between store to rd and load of rg in netpollunblock
 		rg = netpollunblock(pd, 'r', false)
 	}
 	var wg *g
@@ -446,7 +446,7 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 			throw("runtime: inconsistent write deadline")
 		}
 		pd.wd = -1
-		atomicstorep(unsafe.Pointer(&pd.wt.f), nil) // full memory barrier between store to wd and load of wg in netpollunblock
+		atomic.StorepNoWB(unsafe.Pointer(&pd.wt.f), nil) // full memory barrier between store to wd and load of wg in netpollunblock
 		wg = netpollunblock(pd, 'w', false)
 	}
 	unlock(&pd.lock)
