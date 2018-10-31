@@ -455,9 +455,7 @@ loop:
 	MULL	CX
 	IMULL	$100, DI
 	ADDL	DI, DX
-	// wintime*100 = DX:AX, subtract startNano and return
-	SUBL	runtime·startNano+0(SB), AX
-	SBBL	runtime·startNano+4(SB), DX
+	// wintime*100 = DX:AX
 	MOVL	AX, ret_lo+0(FP)
 	MOVL	DX, ret_hi+4(FP)
 	RET
@@ -482,9 +480,6 @@ loop:
 	IMULL	$100, DI
 	ADDL	DI, DX
 	// w*100 = DX:AX
-	// subtract startNano and save for return
-	SUBL	runtime·startNano+0(SB), AX
-	SBBL	runtime·startNano+4(SB), DX
 	MOVL	AX, mono+12(FP)
 	MOVL	DX, mono+16(FP)
 

@@ -1050,9 +1050,21 @@ func daysIn(m Month, year int) int {
 // Provided by package runtime.
 func now() (sec int64, nsec int32, mono int64)
 
+// runtimeNano returns the current value of the runtime clock in nanoseconds.
+func runtimeNano() int64
+
+// Monotonic times are reported as offsets from startNano.
+// We initialize startNano to runtimeNano() - 1 so that on systems where
+// monotonic time resolution is fairly low (e.g. Windows 2008
+// which appears to have a default resolution of 15ms),
+// we avoid ever reporting a monotonic time of 0.
+// (Callers may want to use 0 as "time not set".)
+var startNano int64 = runtimeNano() - 1
+
 // Now returns the current local time.
 func Now() Time {
 	sec, nsec, mono := now()
+	mono -= startNano
 	sec += unixToInternal - minWall
 	if uint64(sec)>>33 != 0 {
 		return Time{uint64(nsec), sec + minWall, Local}
