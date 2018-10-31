@@ -208,12 +208,6 @@ func newnoname(s *types.Sym) *Node {
 	return n
 }
 
-// newfuncname generates a new name node for a function or method.
-// TODO(rsc): Use an ODCLFUNC node instead. See comment in CL 7360.
-func newfuncname(s *types.Sym) *Node {
-	return newfuncnamel(lineno, s)
-}
-
 // newfuncnamel generates a new name node for a function or method.
 // TODO(rsc): Use an ODCLFUNC node instead. See comment in CL 7360.
 func newfuncnamel(pos src.XPos, s *types.Sym) *Node {
@@ -1013,7 +1007,7 @@ func dclfunc(sym *types.Sym, tfn *Node) *Node {
 	}
 
 	fn := nod(ODCLFUNC, nil, nil)
-	fn.Func.Nname = newfuncname(sym)
+	fn.Func.Nname = newfuncnamel(lineno, sym)
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = tfn
 	declare(fn.Func.Nname, PFUNC)
