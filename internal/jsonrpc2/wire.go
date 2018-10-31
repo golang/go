@@ -114,6 +114,9 @@ func (VersionTag) UnmarshalJSON(data []byte) error {
 // The representation is non ambiguous, string forms are quoted, number forms
 // are preceded by a #
 func (id *ID) String() string {
+	if id == nil {
+		return ""
+	}
 	if id.Name != "" {
 		return strconv.Quote(id.Name)
 	}

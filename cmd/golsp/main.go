@@ -10,6 +10,7 @@ package main // import "golang.org/x/tools/cmd/golsp"
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -18,6 +19,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
+	"time"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
@@ -86,6 +88,7 @@ func main() {
 		}()
 	}
 
+	out := os.Stderr
 	if *logfile != "" {
 		f, err := os.Create(*logfile)
 		if err != nil {
@@ -93,12 +96,52 @@ func main() {
 		}
 		defer f.Close()
 		log.SetOutput(io.MultiWriter(os.Stderr, f))
+		out = f
 	}
-	if err := run(context.Background()); err != nil {
+	if err := lsp.RunServer(
+		context.Background(),
+		jsonrpc2.NewHeaderStream(os.Stdin, os.Stdout),
+		func(direction jsonrpc2.Direction, id *jsonrpc2.ID, elapsed time.Duration, method string, payload *json.RawMessage, err *jsonrpc2.Error) {
+
+			if err != nil {
+				fmt.Fprintf(out, "[Error - %v] %s %s%s %v", time.Now().Format("3:04:05 PM"), direction, method, id, err)
+				return
+			}
+			fmt.Fprintf(out, "[Trace - %v] ", time.Now().Format("3:04:05 PM"))
+			switch direction {
+			case jsonrpc2.Send:
+				fmt.Fprint(out, "Received ")
+			case jsonrpc2.Receive:
+				fmt.Fprint(out, "Sending ")
+			}
+			switch {
+			case id == nil:
+				fmt.Fprint(out, "notification ")
+			case elapsed >= 0:
+				fmt.Fprint(out, "response ")
+			default:
+				fmt.Fprint(out, "request ")
+			}
+			fmt.Fprintf(out, "'%s", method)
+			switch {
+			case id == nil:
+				// do nothing
+			case id.Name != "":
+				fmt.Fprintf(out, " - (%s)", id.Name)
+			default:
+				fmt.Fprintf(out, " - (%d)", id.Number)
+			}
+			fmt.Fprint(out, "'")
+			if elapsed >= 0 {
+				fmt.Fprintf(out, " in %vms", elapsed.Nanoseconds()/1000)
+			}
+			params := string(*payload)
+			if params == "null" {
+				params = "{}"
+			}
+			fmt.Fprintf(out, ".\r\nParams: %s\r\n\r\n\r\n", params)
+		},
+	); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func run(ctx context.Context) error {
-	return lsp.RunServer(ctx, jsonrpc2.NewHeaderStream(os.Stdin, os.Stdout), jsonrpc2.Log)
 }
