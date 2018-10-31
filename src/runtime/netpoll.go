@@ -211,21 +211,13 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 		pd.wd = d
 	}
 	combo := pd.rd > 0 && pd.rd == pd.wd
-	// Reset current timers if necessary.
-	if pd.rt.f != nil && (pd.rd != rd0 || combo != combo0) {
-		pd.rseq++ // invalidate current timers
-		deltimer(&pd.rt)
-		pd.rt.f = nil
-	}
-	if pd.wt.f != nil && (pd.wd != wd0 || combo != combo0) {
-		pd.wseq++ // invalidate current timers
-		deltimer(&pd.wt)
-		pd.wt.f = nil
-	}
-	// Setup new timers.
+	rtf := netpollReadDeadline
 	if combo {
-		if pd.rt.f == nil {
-			pd.rt.f = netpollDeadline
+		rtf = netpollDeadline
+	}
+	if pd.rt.f == nil {
+		if pd.rd > 0 {
+			pd.rt.f = rtf
 			pd.rt.when = pd.rd
 			// Copy current seq into the timer arg.
 			// Timer func will check the seq against current descriptor seq,
@@ -234,20 +226,30 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 			pd.rt.seq = pd.rseq
 			addtimer(&pd.rt)
 		}
-	} else {
-		if pd.rd > 0 && pd.rt.f == nil {
-			pd.rt.f = netpollReadDeadline
-			pd.rt.when = pd.rd
-			pd.rt.arg = pd
-			pd.rt.seq = pd.rseq
-			addtimer(&pd.rt)
+	} else if pd.rd != rd0 || combo != combo0 {
+		pd.rseq++ // invalidate current timers
+		if pd.rd > 0 {
+			modtimer(&pd.rt, pd.rd, 0, rtf, pd, pd.rseq)
+		} else {
+			deltimer(&pd.rt)
+			pd.rt.f = nil
 		}
-		if pd.wd > 0 && pd.wt.f == nil {
+	}
+	if pd.wt.f == nil {
+		if pd.wd > 0 && !combo {
 			pd.wt.f = netpollWriteDeadline
 			pd.wt.when = pd.wd
 			pd.wt.arg = pd
 			pd.wt.seq = pd.wseq
 			addtimer(&pd.wt)
+		}
+	} else if pd.wd != wd0 || combo != combo0 {
+		pd.wseq++ // invalidate current timers
+		if pd.wd > 0 && !combo {
+			modtimer(&pd.wt, pd.wd, 0, netpollWriteDeadline, pd, pd.wseq)
+		} else {
+			deltimer(&pd.wt)
+			pd.wt.f = nil
 		}
 	}
 	// If we set the new deadline in the past, unblock currently pending IO if any.
