@@ -68,17 +68,17 @@ func testOpenSSLVersion() {
 	}
 
 	version := string(output)
-	if strings.HasPrefix(version, "OpenSSL 1.1.0") {
+	if strings.HasPrefix(version, "OpenSSL 1.1.1") {
 		return
 	}
 
 	println("***********************************************")
 	println("")
-	println("You need to build OpenSSL 1.1.0 from source in order")
+	println("You need to build OpenSSL 1.1.1 from source in order")
 	println("to update the test data.")
 	println("")
 	println("Configure it with:")
-	println("./Configure enable-weak-ssl-ciphers enable-ssl3 enable-ssl3-method -static linux-x86_64")
+	println("./Configure enable-weak-ssl-ciphers enable-ssl3 enable-ssl3-method")
 	println("and then add the apps/ directory at the front of your PATH.")
 	println("***********************************************")
 
