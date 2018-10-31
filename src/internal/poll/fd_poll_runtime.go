@@ -136,15 +136,12 @@ func (fd *FD) SetWriteDeadline(t time.Time) error {
 }
 
 func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
-	diff := int64(time.Until(t))
-	d := runtimeNano() + diff
-	if d <= 0 && diff > 0 {
-		// If the user has a deadline in the future, but the delay calculation
-		// overflows, then set the deadline to the maximum possible value.
-		d = 1<<63 - 1
-	}
-	if t.IsZero() {
-		d = 0
+	var d int64
+	if !t.IsZero() {
+		d = int64(time.Until(t))
+		if d == 0 {
+			d = -1 // don't confuse deadline right now with no deadline
+		}
 	}
 	if err := fd.incref(); err != nil {
 		return err
