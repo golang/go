@@ -157,8 +157,7 @@ func main() {
 		}
 	}()
 
-	// Record when the world started. Must be after runtime_init
-	// because nanotime on some platforms depends on startNano.
+	// Record when the world started.
 	runtimeInitTime = nanotime()
 
 	gcenable()
