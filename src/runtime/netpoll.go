@@ -254,12 +254,14 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 	}
 	// If we set the new deadline in the past, unblock currently pending IO if any.
 	var rg, wg *g
-	atomicstorep(unsafe.Pointer(&wg), nil) // full memory barrier between stores to rd/wd and load of rg/wg in netpollunblock
-	if pd.rd < 0 {
-		rg = netpollunblock(pd, 'r', false)
-	}
-	if pd.wd < 0 {
-		wg = netpollunblock(pd, 'w', false)
+	if pd.rd < 0 || pd.wd < 0 {
+		atomicstorep(unsafe.Pointer(&wg), nil) // full memory barrier between stores to rd/wd and load of rg/wg in netpollunblock
+		if pd.rd < 0 {
+			rg = netpollunblock(pd, 'r', false)
+		}
+		if pd.wd < 0 {
+			wg = netpollunblock(pd, 'w', false)
+		}
 	}
 	unlock(&pd.lock)
 	if rg != nil {
