@@ -75,7 +75,10 @@
 //
 package time
 
-import "errors"
+import (
+	"errors"
+	_ "unsafe" // for go:linkname
+)
 
 // A Time represents an instant in time with nanosecond precision.
 //
@@ -1065,6 +1068,7 @@ func daysIn(m Month, year int) int {
 func now() (sec int64, nsec int32, mono int64)
 
 // runtimeNano returns the current value of the runtime clock in nanoseconds.
+//go:linkname runtimeNano runtime.nanotime
 func runtimeNano() int64
 
 // Monotonic times are reported as offsets from startNano.

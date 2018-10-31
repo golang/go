@@ -458,15 +458,3 @@ func siftdownTimer(t []*timer, i int) bool {
 func badTimer() {
 	panic(errorString("racy use of timers"))
 }
-
-// Entry points for net, time to call nanotime.
-
-//go:linkname poll_runtimeNano internal/poll.runtimeNano
-func poll_runtimeNano() int64 {
-	return nanotime()
-}
-
-//go:linkname time_runtimeNano time.runtimeNano
-func time_runtimeNano() int64 {
-	return nanotime()
-}
