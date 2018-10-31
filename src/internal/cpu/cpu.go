@@ -126,6 +126,7 @@ type s390x struct {
 	HasSHA256       bool // K{I,L}MD-SHA-256 functions
 	HasSHA512       bool // K{I,L}MD-SHA-512 functions
 	HasVX           bool // vector facility. Note: the runtime sets this when it processes auxv records.
+	HasVE1          bool // vector-enhancement 1
 	_               CacheLinePad
 }
 
