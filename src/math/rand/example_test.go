@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 )
 
 // These tests serve as an example but also make sure we don't change
@@ -139,4 +140,12 @@ func ExampleShuffle_slicesInUnison() {
 	// A: 1
 	// E: 5
 	// B: 2
+}
+
+// ExampleIntn provides pretty simple example how to use Intn func.
+func ExampleIntn() {
+	rand.Seed(time.Now().UTC().UnixNano())
+	println(rand.Intn(100))
+
+	// Output: 83
 }
