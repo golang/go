@@ -125,6 +125,9 @@ func declare(n *Node, ctxt Class) {
 	s.Def = asTypesNode(n)
 	n.Name.Vargen = int32(gen)
 	n.SetClass(ctxt)
+	if ctxt == PFUNC {
+		n.Sym.SetFunc(true)
+	}
 
 	autoexport(n, ctxt)
 }
@@ -801,8 +804,12 @@ func origSym(s *types.Sym) *types.Sym {
 // Method symbols can be used to distinguish the same method appearing
 // in different method sets. For example, T.M and (*T).M have distinct
 // method symbols.
+//
+// The returned symbol will be marked as a function.
 func methodSym(recv *types.Type, msym *types.Sym) *types.Sym {
-	return methodSymSuffix(recv, msym, "")
+	sym := methodSymSuffix(recv, msym, "")
+	sym.SetFunc(true)
+	return sym
 }
 
 // methodSymSuffix is like methodsym, but allows attaching a
