@@ -466,7 +466,8 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 			}
 		case extensionCookie:
 			// RFC 8446, Section 4.2.2
-			if !readUint16LengthPrefixed(&extData, &m.cookie) {
+			if !readUint16LengthPrefixed(&extData, &m.cookie) ||
+				len(m.cookie) == 0 {
 				return false
 			}
 		case extensionKeyShare:
@@ -757,7 +758,8 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 				return false
 			}
 		case extensionCookie:
-			if !readUint16LengthPrefixed(&extData, &m.cookie) {
+			if !readUint16LengthPrefixed(&extData, &m.cookie) ||
+				len(m.cookie) == 0 {
 				return false
 			}
 		case extensionKeyShare:
