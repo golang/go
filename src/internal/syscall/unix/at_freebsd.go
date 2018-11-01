@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux darwin openbsd netbsd dragonfly
-
 package unix
 
 import (
@@ -11,14 +9,18 @@ import (
 	"unsafe"
 )
 
+const (
+	AT_REMOVEDIR        = 0x800
+	AT_SYMLINK_NOFOLLOW = 0x200
+)
+
 func Unlinkat(dirfd int, path string, flags int) error {
-	var p *byte
 	p, err := syscall.BytePtrFromString(path)
 	if err != nil {
 		return err
 	}
 
-	_, _, errno := syscall.Syscall(unlinkatTrap, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags))
+	_, _, errno := syscall.Syscall(syscall.SYS_UNLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags))
 	if errno != 0 {
 		return errno
 	}
@@ -27,13 +29,12 @@ func Unlinkat(dirfd int, path string, flags int) error {
 }
 
 func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
-	var p *byte
 	p, err := syscall.BytePtrFromString(path)
 	if err != nil {
 		return 0, err
 	}
 
-	fd, _, errno := syscall.Syscall6(openatTrap, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), uintptr(perm), 0, 0)
+	fd, _, errno := syscall.Syscall6(syscall.SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), uintptr(perm), 0, 0)
 	if errno != 0 {
 		return 0, errno
 	}
@@ -42,17 +43,5 @@ func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
 }
 
 func Fstatat(dirfd int, path string, stat *syscall.Stat_t, flags int) error {
-	var p *byte
-	p, err := syscall.BytePtrFromString(path)
-	if err != nil {
-		return err
-	}
-
-	_, _, errno := syscall.Syscall6(fstatatTrap, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
-	if errno != 0 {
-		return errno
-	}
-
-	return nil
-
+	return syscall.Fstatat(dirfd, path, stat, flags)
 }

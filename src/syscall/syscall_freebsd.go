@@ -223,6 +223,20 @@ func Fstat(fd int, st *Stat_t) (err error) {
 	return nil
 }
 
+func Fstatat(fd int, path string, st *Stat_t, flags int) (err error) {
+	var oldStat stat_freebsd11_t
+	if supportsABI(_ino64First) {
+		return fstatat_freebsd12(fd, path, st, flags)
+	}
+	err = fstatat(fd, path, &oldStat, flags)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStat)
+	return nil
+}
+
 func Statfs(path string, st *Statfs_t) (err error) {
 	var oldStatfs statfs_freebsd11_t
 	if supportsABI(_ino64First) {
@@ -403,6 +417,7 @@ func convertFromDirents11(buf []byte, old []byte) int {
 //sys	Fpathconf(fd int, name int) (val int, err error)
 //sys	fstat(fd int, stat *stat_freebsd11_t) (err error)
 //sys	fstat_freebsd12(fd int, stat *Stat_t) (err error) = _SYS_FSTAT_FREEBSD12
+//sys	fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error)
 //sys	fstatat_freebsd12(fd int, path string, stat *Stat_t, flags int) (err error) = _SYS_FSTATAT_FREEBSD12
 //sys	fstatfs(fd int, stat *statfs_freebsd11_t) (err error)
 //sys	fstatfs_freebsd12(fd int, stat *Statfs_t) (err error) = _SYS_FSTATFS_FREEBSD12
