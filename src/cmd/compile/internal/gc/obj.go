@@ -81,7 +81,7 @@ func printObjHeader(bout *bio.Writer) {
 	if localpkg.Name == "main" {
 		fmt.Fprintf(bout, "main\n")
 	}
-	fmt.Fprintf(bout, "\n")     // header ends with blank line
+	fmt.Fprintf(bout, "\n") // header ends with blank line
 }
 
 func startArchiveEntry(bout *bio.Writer) int64 {
