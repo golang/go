@@ -428,10 +428,24 @@ func (f *File) genDecl(node ast.Node) bool {
 	for _, spec := range decl.Specs {
 		vspec := spec.(*ast.ValueSpec) // Guaranteed to succeed as this is CONST.
 		if vspec.Type == nil && len(vspec.Values) > 0 {
-			// "X = 1". With no type but a value, the constant is untyped.
-			// Skip this vspec and reset the remembered type.
+			// "X = 1". With no type but a value. If the constant is untyped,
+			// skip this vspec and reset the remembered type.
 			typ = ""
-			continue
+
+			// If this is a simple type conversion, remember the type.
+			// We don't mind if this is actually a call; a qualified call won't
+			// be matched (that will be SelectorExpr, not Ident), and only unusual
+			// situations will result in a function call that appears to be
+			// a type conversion.
+			ce, ok := vspec.Values[0].(*ast.CallExpr)
+			if !ok {
+				continue
+			}
+			id, ok := ce.Fun.(*ast.Ident)
+			if !ok {
+				continue
+			}
+			typ = id.Name
 		}
 		if vspec.Type != nil {
 			// "X T". We have a type. Remember it.
