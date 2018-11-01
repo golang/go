@@ -229,6 +229,9 @@ func Main(archInit func(*Arch)) {
 		flag.BoolVar(&flag_race, "race", false, "enable race detector")
 	}
 	objabi.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
+	if enableTrace {
+		flag.BoolVar(&trace, "t", false, "trace type-checking")
+	}
 	flag.StringVar(&pathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
 	flag.BoolVar(&Debug_vlog, "v", false, "increase debug verbosity")
 	objabi.Flagcount("w", "debug type checking", &Debug['w'])
