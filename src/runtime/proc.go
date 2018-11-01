@@ -2487,15 +2487,22 @@ top:
 
 	var gp *g
 	var inheritTime bool
+
+	// Normal goroutines will check for need to wakeP in ready,
+	// but GCworkers and tracereaders will not, so the check must
+	// be done here instead.
+	tryWakeP := false
 	if trace.enabled || trace.shutdown {
 		gp = traceReader()
 		if gp != nil {
 			casgstatus(gp, _Gwaiting, _Grunnable)
 			traceGoUnpark(gp, 0)
+			tryWakeP = true
 		}
 	}
 	if gp == nil && gcBlackenEnabled != 0 {
 		gp = gcController.findRunnableGCWorker(_g_.m.p.ptr())
+		tryWakeP = tryWakeP || gp != nil
 	}
 	if gp == nil {
 		// Check the global runnable queue once in a while to ensure fairness.
@@ -2541,6 +2548,13 @@ top:
 		}
 	}
 
+	// If about to schedule a not-normal goroutine (a GCworker or tracereader),
+	// wake a P if there is one.
+	if tryWakeP {
+		if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
+			wakep()
+		}
+	}
 	if gp.lockedm != 0 {
 		// Hands off own p to the locked m,
 		// then blocks waiting for a new p.
