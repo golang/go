@@ -49,4 +49,8 @@ const (
 	MaxUint16 = 1<<16 - 1
 	MaxUint32 = 1<<32 - 1
 	MaxUint64 = 1<<64 - 1
+	MaxUint   = ^uint(0)
+	MinUint   = 0
+	MaxInt    = int(MaxUint >> 1)
+	MinInt    = -MaxInt - 1
 )
