@@ -68,9 +68,9 @@ func initssaconfig() {
 	assertI2I2 = sysfunc("assertI2I2")
 	deferproc = sysfunc("deferproc")
 	Deferreturn = sysfunc("deferreturn")
-	Duffcopy = sysfunc("duffcopy")
-	Duffzero = sysfunc("duffzero")
-	gcWriteBarrier = sysfunc("gcWriteBarrier")
+	Duffcopy = sysvar("duffcopy")             // asm func with special ABI
+	Duffzero = sysvar("duffzero")             // asm func with special ABI
+	gcWriteBarrier = sysvar("gcWriteBarrier") // asm func with special ABI
 	goschedguarded = sysfunc("goschedguarded")
 	growslice = sysfunc("growslice")
 	msanread = sysfunc("msanread")
@@ -86,25 +86,25 @@ func initssaconfig() {
 	racereadrange = sysfunc("racereadrange")
 	racewrite = sysfunc("racewrite")
 	racewriterange = sysfunc("racewriterange")
-	supportPopcnt = sysfunc("support_popcnt")
-	supportSSE41 = sysfunc("support_sse41")
-	arm64SupportAtomics = sysfunc("arm64_support_atomics")
+	supportPopcnt = sysvar("support_popcnt")              // bool
+	supportSSE41 = sysvar("support_sse41")                // bool
+	arm64SupportAtomics = sysvar("arm64_support_atomics") // bool
 	typedmemclr = sysfunc("typedmemclr")
 	typedmemmove = sysfunc("typedmemmove")
-	Udiv = sysfunc("udiv")
-	writeBarrier = sysfunc("writeBarrier")
+	Udiv = sysvar("udiv")                 // asm func with special ABI
+	writeBarrier = sysvar("writeBarrier") // struct { bool; ... }
 
-	// GO386=387 runtime functions
-	ControlWord64trunc = sysfunc("controlWord64trunc")
-	ControlWord32 = sysfunc("controlWord32")
+	// GO386=387 runtime definitions
+	ControlWord64trunc = sysvar("controlWord64trunc") // uint16
+	ControlWord32 = sysvar("controlWord32")           // uint16
 
-	// Wasm
-	WasmMove = sysfunc("wasmMove")
-	WasmZero = sysfunc("wasmZero")
-	WasmDiv = sysfunc("wasmDiv")
-	WasmTruncS = sysfunc("wasmTruncS")
-	WasmTruncU = sysfunc("wasmTruncU")
-	SigPanic = sysfunc("sigpanic")
+	// Wasm (all asm funcs with special ABIs)
+	WasmMove = sysvar("wasmMove")
+	WasmZero = sysvar("wasmZero")
+	WasmDiv = sysvar("wasmDiv")
+	WasmTruncS = sysvar("wasmTruncS")
+	WasmTruncU = sysvar("wasmTruncU")
+	SigPanic = sysvar("sigpanic")
 }
 
 // buildssa builds an SSA function for fn.

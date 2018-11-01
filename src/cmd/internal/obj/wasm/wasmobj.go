@@ -126,7 +126,9 @@ func instinit(ctxt *obj.Link) {
 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
 	gcWriteBarrier = ctxt.Lookup("runtime.gcWriteBarrier")
 	sigpanic = ctxt.Lookup("runtime.sigpanic")
+	sigpanic.SetABI(obj.ABIInternal)
 	deferreturn = ctxt.Lookup("runtime.deferreturn")
+	deferreturn.SetABI(obj.ABIInternal)
 	jmpdefer = ctxt.Lookup(`"".jmpdefer`)
 }
 
