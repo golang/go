@@ -649,6 +649,11 @@ func Main(archInit func(*Arch)) {
 	Curfn = nil
 	peekitabs()
 
+	// The "init" function is the only user-spellable symbol that
+	// we construct later. Mark it as a function now before
+	// anything can ask for its Linksym.
+	lookup("init").SetFunc(true)
+
 	// Phase 8: Compile top level functions.
 	// Don't use range--walk can add functions to xtop.
 	timings.Start("be", "compilefuncs")

@@ -334,6 +334,7 @@ func (r *importReader) doDecl(n *Node) {
 			m := newfuncnamel(mpos, methodSym(recv.Type, msym))
 			m.Type = mtyp
 			m.SetClass(PFUNC)
+			// methodSym already marked m.Sym as a function.
 
 			// (comment from parser.go)
 			// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as

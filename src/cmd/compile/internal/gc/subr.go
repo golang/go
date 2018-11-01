@@ -1619,6 +1619,7 @@ func hashmem(t *types.Type) *Node {
 
 	n := newname(sym)
 	n.SetClass(PFUNC)
+	n.Sym.SetFunc(true)
 	n.Type = functype(nil, []*Node{
 		anonfield(types.NewPtr(t)),
 		anonfield(types.Types[TUINTPTR]),

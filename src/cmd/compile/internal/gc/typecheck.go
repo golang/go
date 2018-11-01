@@ -2513,6 +2513,7 @@ func typecheckMethodExpr(n *Node) (res *Node) {
 	n.Type = methodfunc(m.Type, n.Left.Type)
 	n.Xoffset = 0
 	n.SetClass(PFUNC)
+	// methodSym already marked n.Sym as a function.
 	return n
 }
 
