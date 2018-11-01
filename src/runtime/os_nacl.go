@@ -317,3 +317,12 @@ int8 nacl_irt_thread_v0_1_str[] = "nacl-irt-thread-0.1";
 void *nacl_irt_thread_v0_1[3]; // thread_create, thread_exit, thread_nice
 int32 nacl_irt_thread_v0_1_size = sizeof(nacl_irt_thread_v0_1);
 */
+
+// The following functions are implemented in runtime assembly.
+// Provide a Go declaration to go with its assembly definitions.
+
+//go:linkname syscall_naclWrite syscall.naclWrite
+func syscall_naclWrite(fd int, b []byte) int
+
+//go:linkname syscall_now syscall.now
+func syscall_now() (sec int64, nsec int32)
