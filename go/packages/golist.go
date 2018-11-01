@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go/types"
 	"io/ioutil"
 	"log"
 	"os"
@@ -36,6 +37,17 @@ type goTooOldError struct {
 // the build system package structure.
 // See driver for more details.
 func goListDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
+	var sizes types.Sizes
+	var sizeserr error
+	var sizeswg sync.WaitGroup
+	if cfg.Mode >= LoadTypes {
+		sizeswg.Add(1)
+		go func() {
+			sizes, sizeserr = getSizes(cfg)
+			sizeswg.Done()
+		}()
+	}
+
 	// Determine files requested in contains patterns
 	var containFiles []string
 	var packagesNamed []string
@@ -108,6 +120,12 @@ extractQueries:
 	} else {
 		response = &driverResponse{}
 	}
+
+	sizeswg.Wait()
+	if sizeserr != nil {
+		return nil, sizeserr
+	}
+	response.Sizes = sizes
 
 	if len(containFiles) == 0 && len(packagesNamed) == 0 {
 		return response, nil
@@ -326,6 +344,18 @@ func runNamedQueries(cfg *Config, driver driver, addPkg func(*Package), queries 
 	}
 
 	return results, nil
+}
+
+func getSizes(cfg *Config) (types.Sizes, error) {
+	stdout, err := invokeGo(cfg, "env", "GOARCH") // TODO(matloob): perhaps merge this call with the roots call?
+	if err != nil {
+		return nil, err
+	}
+
+	goarch := strings.TrimSpace(stdout.String())
+	// Assume "gc" because SizesFor doesn't respond to other compilers.
+	// TODO(matloob): add support for gccgo as needed.
+	return types.SizesFor("gc", goarch), nil
 }
 
 // roots selects the appropriate paths to walk based on the passed-in configuration,

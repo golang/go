@@ -19,8 +19,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"sync"
 
 	"golang.org/x/tools/go/gcexportdata"
@@ -139,6 +137,9 @@ type driver func(cfg *Config, patterns ...string) (*driverResponse, error)
 
 // driverResponse contains the results for a driver query.
 type driverResponse struct {
+	// Sizes, if not nil, is the types.Sizes to use when type checking.
+	Sizes types.Sizes
+
 	// Roots is the set of package IDs that make up the root packages.
 	// We have to encode this separately because when we encode a single package
 	// we cannot know if it is one of the roots as that requires knowledge of the
@@ -173,6 +174,7 @@ func Load(cfg *Config, patterns ...string) ([]*Package, error) {
 	if err != nil {
 		return nil, err
 	}
+	l.sizes = response.Sizes
 	return l.refine(response.Roots, response.Packages...)
 }
 
@@ -367,6 +369,7 @@ type loaderPackage struct {
 type loader struct {
 	pkgs map[string]*loaderPackage
 	Config
+	sizes    types.Sizes
 	exportMu sync.Mutex // enforces mutual exclusion of exportdata operations
 }
 
@@ -692,17 +695,6 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 		panic("unreachable")
 	})
 
-	// This is only an approximation.
-	// TODO(adonovan): derive Sizes from the underlying build system.
-	goarch := runtime.GOARCH
-	const goarchPrefix = "GOARCH="
-	for _, e := range ld.Config.Env {
-		if strings.HasPrefix(e, goarchPrefix) {
-			goarch = e[len(goarchPrefix):]
-		}
-	}
-	sizes := types.SizesFor("gc", goarch)
-
 	// type-check
 	tc := &types.Config{
 		Importer: importer,
@@ -713,7 +705,7 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 		IgnoreFuncBodies: ld.Mode < LoadAllSyntax && !lpkg.initial,
 
 		Error: appendError,
-		Sizes: sizes,
+		Sizes: ld.sizes,
 	}
 	types.NewChecker(tc, ld.Fset, lpkg.Types, lpkg.TypesInfo).Files(lpkg.Syntax)
 
