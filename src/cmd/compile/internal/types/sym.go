@@ -77,6 +77,12 @@ func (sym *Sym) Linksym() *obj.LSym {
 	if sym == nil {
 		return nil
 	}
+	if sym.Func() {
+		// This is a function symbol. Mark it as "internal ABI".
+		return Ctxt.LookupInit(sym.LinksymName(), func(s *obj.LSym) {
+			s.SetABI(obj.ABIInternal)
+		})
+	}
 	return Ctxt.Lookup(sym.LinksymName())
 }
 

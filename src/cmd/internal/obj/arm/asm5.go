@@ -1530,6 +1530,7 @@ func buildop(ctxt *obj.Link) {
 	}
 
 	deferreturn = ctxt.Lookup("runtime.deferreturn")
+	deferreturn.SetABI(obj.ABIInternal)
 
 	symdiv = ctxt.Lookup("runtime._div")
 	symdivu = ctxt.Lookup("runtime._divu")

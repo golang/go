@@ -15,6 +15,7 @@ import (
 
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
@@ -247,6 +248,18 @@ func (p *noder) node() {
 			lookup(n.local).Linkname = n.remote
 		} else {
 			p.yyerrorpos(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+		}
+	}
+
+	// The linker expects an ABI0 wrapper for all cgo-exported
+	// functions.
+	for _, prag := range p.pragcgobuf {
+		switch prag[0] {
+		case "cgo_export_static", "cgo_export_dynamic":
+			if symabiRefs == nil {
+				symabiRefs = make(map[string]obj.ABI)
+			}
+			symabiRefs[prag[1]] = obj.ABI0
 		}
 	}
 

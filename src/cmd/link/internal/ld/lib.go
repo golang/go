@@ -169,7 +169,7 @@ func (ctxt *Link) DynlinkingGo() bool {
 
 // CanUsePlugins returns whether a plugins can be used
 func (ctxt *Link) CanUsePlugins() bool {
-	return ctxt.Syms.ROLookup("plugin.Open", 0) != nil
+	return ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil
 }
 
 // UseRelro returns whether to make use of "read only relocations" aka
@@ -635,6 +635,19 @@ func (ctxt *Link) loadlib() {
 		}
 		ctxt.Textp = textp
 	}
+
+	// Resolve ABI aliases in the list of cgo-exported functions.
+	// This is necessary because we load the ABI0 symbol for all
+	// cgo exports.
+	for i, s := range dynexp {
+		if s.Type != sym.SABIALIAS {
+			continue
+		}
+		t := resolveABIAlias(s)
+		t.Attr |= s.Attr
+		t.SetExtname(s.Extname())
+		dynexp[i] = t
+	}
 }
 
 // mangleTypeSym shortens the names of symbols that represent Go types
@@ -651,7 +664,7 @@ func (ctxt *Link) loadlib() {
 // those programs loaded dynamically in multiple parts need these
 // symbols to have entries in the symbol table.
 func (ctxt *Link) mangleTypeSym() {
-	if ctxt.BuildMode != BuildModeShared && !ctxt.linkShared && ctxt.BuildMode != BuildModePlugin && ctxt.Syms.ROLookup("plugin.Open", 0) == nil {
+	if ctxt.BuildMode != BuildModeShared && !ctxt.linkShared && ctxt.BuildMode != BuildModePlugin && !ctxt.CanUsePlugins() {
 		return
 	}
 
@@ -1800,6 +1813,21 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 				lsym.P = readelfsymboldata(ctxt, f, &elfsym)
 				gcdataLocations[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = lsym
 			}
+		}
+		// For function symbols, we don't know what ABI is
+		// available, so alias it under both ABIs.
+		//
+		// TODO(austin): This is almost certainly wrong once
+		// the ABIs are actually different. We might have to
+		// mangle Go function names in the .so to include the
+		// ABI.
+		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
+			alias := ctxt.Syms.Lookup(elfsym.Name, sym.SymVerABIInternal)
+			if alias.Type != 0 {
+				continue
+			}
+			alias.Type = sym.SABIALIAS
+			alias.R = []sym.Reloc{{Sym: lsym}}
 		}
 	}
 	gcdataAddresses := make(map[*sym.Symbol]uint64)
