@@ -108,7 +108,6 @@ func prf30(result, secret, label, seed []byte) {
 }
 
 const (
-	tlsRandomLength      = 32 // Length of a random nonce in TLS 1.1.
 	masterSecretLength   = 48 // Length of a master secret in TLS 1.1.
 	finishedVerifyLength = 12 // Length of verify_data in a Finished message.
 )
@@ -176,9 +175,9 @@ func keysFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clie
 	return
 }
 
-// lookupTLSHash looks up the corresponding crypto.Hash for a given
+// hashFromSignatureScheme returns the corresponding crypto.Hash for a given
 // hash from a TLS SignatureScheme.
-func lookupTLSHash(signatureAlgorithm SignatureScheme) (crypto.Hash, error) {
+func hashFromSignatureScheme(signatureAlgorithm SignatureScheme) (crypto.Hash, error) {
 	switch signatureAlgorithm {
 	case PKCS1WithSHA1, ECDSAWithSHA1:
 		return crypto.SHA1, nil

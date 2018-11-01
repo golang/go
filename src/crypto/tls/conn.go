@@ -154,6 +154,8 @@ type halfConn struct {
 
 	nextCipher interface{} // next encryption state
 	nextMac    macFunction // next MAC algorithm
+
+	trafficSecret []byte // current TLS 1.3 traffic secret
 }
 
 func (hc *halfConn) setErrorLocked(err error) error {
@@ -172,7 +174,7 @@ func (hc *halfConn) prepareCipherSpec(version uint16, cipher interface{}, mac ma
 // changeCipherSpec changes the encryption and MAC states
 // to the ones previously passed to prepareCipherSpec.
 func (hc *halfConn) changeCipherSpec() error {
-	if hc.nextCipher == nil {
+	if hc.nextCipher == nil || hc.version == VersionTLS13 {
 		return alertInternalError
 	}
 	hc.cipher = hc.nextCipher
@@ -183,6 +185,15 @@ func (hc *halfConn) changeCipherSpec() error {
 		hc.seq[i] = 0
 	}
 	return nil
+}
+
+func (hc *halfConn) setTrafficSecret(suite *cipherSuiteTLS13, secret []byte) {
+	hc.trafficSecret = secret
+	key, iv := suite.trafficKey(secret)
+	hc.cipher = suite.aead(key, iv)
+	for i := range hc.seq {
+		hc.seq[i] = 0
+	}
 }
 
 // incSeq increments the sequence number.
@@ -1110,6 +1121,10 @@ func (c *Conn) Write(b []byte) (int, error) {
 
 // handleRenegotiation processes a HelloRequest handshake message.
 func (c *Conn) handleRenegotiation() error {
+	if c.vers == VersionTLS13 {
+		return errors.New("tls: internal error: unexpected renegotiation")
+	}
+
 	msg, err := c.readHandshake()
 	if err != nil {
 		return err
@@ -1299,7 +1314,7 @@ func (c *Conn) Handshake() error {
 	}
 
 	if c.handshakeErr == nil && !c.handshakeComplete() {
-		panic("handshake should have had a result.")
+		panic("tls: internal error: handshake should have had a result")
 	}
 
 	return c.handshakeErr
