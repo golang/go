@@ -162,7 +162,7 @@ func TestRemoveAllLarge(t *testing.T) {
 
 func TestRemoveAllLongPath(t *testing.T) {
 	switch runtime.GOOS {
-	case "linux", "darwin", "openbsd", "netbsd", "dragonfly", "solaris":
+	case "linux", "darwin", "freebsd", "openbsd", "netbsd", "dragonfly", "solaris":
 		break
 	default:
 		t.Skip("skipping for not implemented platforms")
@@ -212,7 +212,7 @@ func TestRemoveAllLongPath(t *testing.T) {
 
 func TestRemoveAllDot(t *testing.T) {
 	switch runtime.GOOS {
-	case "linux", "darwin", "openbsd", "netbsd", "dragonfly", "solaris":
+	case "linux", "darwin", "freebsd", "openbsd", "netbsd", "dragonfly", "solaris":
 		break
 	default:
 		t.Skip("skipping for not implemented platforms")
