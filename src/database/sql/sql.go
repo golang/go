@@ -133,6 +133,7 @@ const (
 	LevelLinearizable
 )
 
+// String returns the name of the transaction isolation level.
 func (i IsolationLevel) String() string {
 	switch i {
 	case LevelDefault:
