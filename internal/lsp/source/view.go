@@ -14,67 +14,41 @@ import (
 )
 
 type View struct {
+	mu sync.Mutex // protects all mutable state of the view
+
 	Config *packages.Config
 
-	activeFilesMu sync.Mutex
-	activeFiles   map[protocol.DocumentURI][]byte
-
-	fset *token.FileSet
+	files map[protocol.DocumentURI]*File
 }
 
 func NewView() *View {
-	fset := token.NewFileSet()
 	return &View{
 		Config: &packages.Config{
 			Mode:  packages.LoadSyntax,
-			Fset:  fset,
+			Fset:  token.NewFileSet(),
 			Tests: true,
 		},
-		activeFiles: make(map[protocol.DocumentURI][]byte),
-		fset:        fset,
+		files: make(map[protocol.DocumentURI]*File),
 	}
 }
 
-func (v *View) overlay() map[string][]byte {
-	over := make(map[string][]byte)
-
-	v.activeFilesMu.Lock()
-	defer v.activeFilesMu.Unlock()
-
-	for uri, content := range v.activeFiles {
-		filename, err := FromURI(uri)
-		if err == nil {
-			over[filename] = content
-		}
+// GetFile returns a File for the given uri.
+// It will always succeed, adding the file to the managed set if needed.
+func (v *View) GetFile(uri protocol.DocumentURI) *File {
+	v.mu.Lock()
+	f, found := v.files[uri]
+	if !found {
+		f := &File{URI: uri}
+		v.files[f.URI] = f
 	}
-	return over
-}
-
-func (v *View) SetActiveFileContent(uri protocol.DocumentURI, content []byte) {
-	v.activeFilesMu.Lock()
-	v.activeFiles[uri] = content
-	v.activeFilesMu.Unlock()
-}
-
-func (v *View) ReadActiveFile(uri protocol.DocumentURI) ([]byte, error) {
-	v.activeFilesMu.Lock()
-	content, ok := v.activeFiles[uri]
-	v.activeFilesMu.Unlock()
-	if !ok {
-		return nil, fmt.Errorf("uri not found: %s", uri)
-	}
-	return content, nil
-}
-
-func (v *View) ClearActiveFile(uri protocol.DocumentURI) {
-	v.activeFilesMu.Lock()
-	delete(v.activeFiles, uri)
-	v.activeFilesMu.Unlock()
+	v.mu.Unlock()
+	return f
 }
 
 // TypeCheck type-checks the package for the given package path.
 func (v *View) TypeCheck(uri protocol.DocumentURI) (*packages.Package, error) {
-	v.Config.Overlay = v.overlay()
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	path, err := FromURI(uri)
 	if err != nil {
 		return nil, err

@@ -111,7 +111,7 @@ func (s *server) DidChange(ctx context.Context, params *protocol.DidChangeTextDo
 }
 
 func (s *server) cacheAndDiagnoseFile(ctx context.Context, uri protocol.DocumentURI, text string) {
-	s.view.SetActiveFileContent(uri, []byte(text))
+	s.view.GetFile(uri).SetContent([]byte(text))
 	go func() {
 		reports, err := diagnostics(s.view, uri)
 		if err == nil {
@@ -139,7 +139,7 @@ func (s *server) DidSave(context.Context, *protocol.DidSaveTextDocumentParams) e
 }
 
 func (s *server) DidClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
-	s.view.ClearActiveFile(params.TextDocument.URI)
+	s.view.GetFile(params.TextDocument.URI).SetContent(nil)
 	return nil
 }
 
