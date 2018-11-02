@@ -2,7 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build go1.12
+
 package unitchecker_test
+
+// This test depends on go1.12 features such as go vet's support for
+// GOVETTOOL, and the (*os/exec.ExitError).ExitCode method.
 
 import (
 	"flag"
