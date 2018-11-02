@@ -1214,7 +1214,7 @@ func (p *Package) isType(t ast.Expr) bool {
 	return false
 }
 
-// isConst returns whether x is an untyped constant.
+// isConst returns whether x is an untyped constant expression.
 func (p *Package) isConst(f *File, x ast.Expr) bool {
 	switch x := x.(type) {
 	case *ast.BasicLit:
@@ -1233,6 +1233,23 @@ func (p *Package) isConst(f *File, x ast.Expr) bool {
 			strings.HasPrefix(x.Name, "_Ciconst_") ||
 			strings.HasPrefix(x.Name, "_Cfconst_") ||
 			strings.HasPrefix(x.Name, "_Csconst_")
+	case *ast.UnaryExpr:
+		return p.isConst(f, x.X)
+	case *ast.BinaryExpr:
+		return p.isConst(f, x.X) && p.isConst(f, x.Y)
+	case *ast.ParenExpr:
+		return p.isConst(f, x.X)
+	case *ast.CallExpr:
+		// Calling the builtin function complex on two untyped
+		// constants returns an untyped constant.
+		// TODO: It's possible to construct a case that will
+		// erroneously succeed if there is a local function
+		// named "complex", shadowing the builtin, that returns
+		// a numeric type. I can't think of any cases that will
+		// erroneously fail.
+		if id, ok := x.Fun.(*ast.Ident); ok && id.Name == "complex" && len(x.Args) == 2 {
+			return p.isConst(f, x.Args[0]) && p.isConst(f, x.Args[1])
+		}
 	}
 	return false
 }
