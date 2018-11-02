@@ -131,7 +131,7 @@ func (m *clientHelloMsg) marshal() []byte {
 				})
 			}
 			if len(m.supportedCurves) > 0 {
-				// RFC 4492, Section 5.1.1 and RFC 8446, Section 4.2.7
+				// RFC 4492, sections 5.1.1 and RFC 8446, Section 4.2.7
 				b.AddUint16(extensionSupportedCurves)
 				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
@@ -379,7 +379,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 			}
 			m.ocspStapling = statusType == statusTypeOCSP
 		case extensionSupportedCurves:
-			// RFC 4492, Section 5.1.1 and RFC 8446, Section 4.2.7
+			// RFC 4492, sections 5.1.1 and RFC 8446, Section 4.2.7
 			var curves cryptobyte.String
 			if !extData.ReadUint16LengthPrefixed(&curves) || curves.Empty() {
 				return false
