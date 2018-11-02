@@ -36,6 +36,7 @@ Scripts also have access to these other environment variables:
 	PATH=<actual PATH>
 	TMPDIR=$WORK/tmp
 	devnull=<value of os.DevNull>
+	goversion=<current Go version; for example, 1.12>
 
 The environment variable $exe (lowercase) is an empty string on most systems, ".exe" on Windows.
 
