@@ -485,7 +485,7 @@ func auxTo64F(i int64) float64 {
 	return math.Float64frombits(uint64(i))
 }
 
-// uaddOvf returns true if unsigned a+b would overflow.
+// uaddOvf reports whether unsigned a+b would overflow.
 func uaddOvf(a, b int64) bool {
 	return uint64(a)+uint64(b) < uint64(a)
 }

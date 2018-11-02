@@ -967,7 +967,7 @@ Outer:
 	}
 }
 
-// HasChildren returns true if 'die' uses an abbrev that supports children.
+// HasChildren reports whether 'die' uses an abbrev that supports children.
 func HasChildren(die *DWDie) bool {
 	return abbrevs[die.Abbrev].children != 0
 }

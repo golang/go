@@ -517,7 +517,7 @@ func (h heapBits) bits() uint32 {
 	return uint32(*h.bitp) >> (h.shift & 31)
 }
 
-// morePointers returns true if this word and all remaining words in this object
+// morePointers reports whether this word and all remaining words in this object
 // are scalars.
 // h must not describe the second word of the object.
 func (h heapBits) morePointers() bool {

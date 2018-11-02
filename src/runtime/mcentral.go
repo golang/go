@@ -203,7 +203,7 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 // and, based on the number of free objects in s,
 // moves s to the appropriate list of c or returns it
 // to the heap.
-// freeSpan returns true if s was returned to the heap.
+// freeSpan reports whether s was returned to the heap.
 // If preserve=true, it does not move s (the caller
 // must take care of it).
 func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {

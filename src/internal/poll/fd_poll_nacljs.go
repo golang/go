@@ -92,7 +92,7 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 	return nil
 }
 
-// IsPollDescriptor returns true if fd is the descriptor being used by the poller.
+// IsPollDescriptor reports whether fd is the descriptor being used by the poller.
 // This is only used for testing.
 func IsPollDescriptor(fd uintptr) bool {
 	return false

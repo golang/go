@@ -2400,7 +2400,7 @@ stop:
 	goto top
 }
 
-// pollWork returns true if there is non-background work this P could
+// pollWork reports whether there is non-background work this P could
 // be doing. This is a fairly lightweight check to be used for
 // background work loops, like idle GC. It checks a subset of the
 // conditions checked by the actual scheduler.
@@ -4713,7 +4713,7 @@ func pidleget() *p {
 	return _p_
 }
 
-// runqempty returns true if _p_ has no Gs on its local run queue.
+// runqempty reports whether _p_ has no Gs on its local run queue.
 // It never returns true spuriously.
 func runqempty(_p_ *p) bool {
 	// Defend against a race where 1) _p_ has G1 in runqnext but runqhead == runqtail,
@@ -4934,7 +4934,7 @@ type gQueue struct {
 	tail guintptr
 }
 
-// empty returns true if q is empty.
+// empty reports whether q is empty.
 func (q *gQueue) empty() bool {
 	return q.head == 0
 }
@@ -5000,7 +5000,7 @@ type gList struct {
 	head guintptr
 }
 
-// empty returns true if l is empty.
+// empty reports whether l is empty.
 func (l *gList) empty() bool {
 	return l.head == 0
 }

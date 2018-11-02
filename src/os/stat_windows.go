@@ -10,7 +10,7 @@ import (
 	"unsafe"
 )
 
-// isNulName returns true if name is NUL file name.
+// isNulName reports whether name is NUL file name.
 // For example, it returns true for both "NUL" and "nul".
 func isNulName(name string) bool {
 	if len(name) != 3 {

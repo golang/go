@@ -1147,7 +1147,7 @@ func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddre
 	return
 }
 
-// isValidIPMask returns true iff mask consists of zero or more 1 bits, followed by zero bits.
+// isValidIPMask reports whether mask consists of zero or more 1 bits, followed by zero bits.
 func isValidIPMask(mask []byte) bool {
 	seenZero := false
 

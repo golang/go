@@ -94,7 +94,7 @@ func trim(f *Func) {
 	}
 }
 
-// emptyBlock returns true if the block does not contain actual
+// emptyBlock reports whether the block does not contain actual
 // instructions
 func emptyBlock(b *Block) bool {
 	for _, v := range b.Values {
@@ -105,7 +105,7 @@ func emptyBlock(b *Block) bool {
 	return true
 }
 
-// trimmableBlock returns true if the block can be trimmed from the CFG,
+// trimmableBlock reports whether the block can be trimmed from the CFG,
 // subject to the following criteria:
 //  - it should not be the first block
 //  - it should be BlockPlain
