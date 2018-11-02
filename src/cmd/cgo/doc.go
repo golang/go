@@ -827,6 +827,10 @@ The directives are:
 	possibly version in the dynamic library, and the optional "<library>"
 	names the specific library where the symbol should be found.
 
+	On AIX, the library pattern is slightly different. It must be
+	"lib.a/obj.o" with obj.o the member of this library exporting
+	this symbol.
+
 	In the <remote>, # or @ can be used to introduce a symbol version.
 
 	Examples:
