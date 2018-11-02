@@ -1351,14 +1351,17 @@ opswitch:
 				argtype = types.Types[TINT]
 			}
 
+			m := nod(OSLICEHEADER, nil, nil)
+			m.Type = t
+
 			fn := syslook(fnname)
-			n.Left = mkcall1(fn, types.Types[TUNSAFEPTR], init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype))
-			n.Left.SetNonNil(true)
-			n.List.Set2(conv(len, types.Types[TINT]), conv(cap, types.Types[TINT]))
-			n.Op = OSLICEHEADER
-			n.Type = t
-			n = typecheck(n, Erv)
-			n = walkexpr(n, init)
+			m.Left = mkcall1(fn, types.Types[TUNSAFEPTR], init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype))
+			m.Left.SetNonNil(true)
+			m.List.Set2(conv(len, types.Types[TINT]), conv(cap, types.Types[TINT]))
+
+			m = typecheck(m, Erv)
+			m = walkexpr(m, init)
+			n = m
 		}
 
 	case ORUNESTR:
