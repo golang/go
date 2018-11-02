@@ -374,6 +374,13 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 }
 
 func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+	// Beware that bit0~bit15 start from the third byte of a instruction in Big-Endian machines.
+	if r.Type == objabi.R_ADDR || r.Type == objabi.R_POWER_TLS ||  r.Type == objabi.R_CALLPOWER {
+	} else {
+		if ctxt.Arch.ByteOrder == binary.BigEndian {
+			sectoff += 2
+		}
+	}
 	ctxt.Out.Write64(uint64(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
