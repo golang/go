@@ -6,5 +6,5 @@
 
 // System calls for Solaris are implemented in runtime/syscall_solaris.go
 
-TEXT ·sysvicall6(SB),NOSPLIT,$0-88
+TEXT ·syscall6(SB),NOSPLIT,$0-88
 	JMP	syscall·sysvicall6(SB)
