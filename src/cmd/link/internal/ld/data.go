@@ -318,8 +318,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			// must be done by the loader, as the section .data will be moved.
 			// The "default" symbol address is still needed by the loader so
 			// the current relocation can't be skipped.
-			// runtime.algarray is different because it will end up in .rodata section
-			if ctxt.HeadType == objabi.Haix && r.Sym.Sect.Seg == &Segdata && r.Sym.Name != "runtime.algarray" {
+			if ctxt.HeadType == objabi.Haix && r.Sym.Sect.Seg == &Segdata {
 				// It's not possible to make a loader relocation to a DWARF section.
 				// FIXME
 				if s.Sect.Seg != &Segdwarf {

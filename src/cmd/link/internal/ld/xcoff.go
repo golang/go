@@ -878,6 +878,38 @@ func (ctxt *Link) doxcoff() {
 	toc := ctxt.Syms.Lookup("TOC", 0)
 	toc.Type = sym.SXCOFFTOC
 	toc.Attr |= sym.AttrReachable
+
+	// XCOFF does not allow relocations of data symbol address to a text symbol.
+	// Such case occurs when a RODATA symbol retrieves a data symbol address.
+	// When it happens, this RODATA symbol is moved to .data section.
+	// runtime.algarray is a readonly symbol but stored inside .data section.
+	// If it stays in .data, all type symbols will be moved to .data which
+	// cannot be done.
+	algarray := ctxt.Syms.Lookup("runtime.algarray", 0)
+	algarray.Type = sym.SRODATA
+	for {
+		again := false
+		for _, s := range ctxt.Syms.Allsym {
+			if s.Type != sym.SRODATA {
+				continue
+			}
+			for ri := range s.R {
+				r := &s.R[ri]
+				if r.Type != objabi.R_ADDR {
+					continue
+				}
+				if r.Sym.Type != sym.Sxxx && r.Sym.Type != sym.STEXT && r.Sym.Type != sym.SRODATA {
+					s.Type = sym.SDATA
+					again = true
+					break
+				}
+			}
+
+		}
+		if !again {
+			break
+		}
+	}
 }
 
 // Loader section

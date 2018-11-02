@@ -301,6 +301,10 @@ func alginit() {
 }
 
 func initAlgAES() {
+	if GOOS == "aix" {
+		// runtime.algarray is immutable on AIX: see cmd/link/internal/ld/xcoff.go
+		return
+	}
 	useAeshash = true
 	algarray[alg_MEM32].hash = aeshash32
 	algarray[alg_MEM64].hash = aeshash64
