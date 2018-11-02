@@ -1689,21 +1689,14 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
 				a1 = ra0 + 1
 				p.From.Class = int8(a1)
 			}
-			if isANDWop(p.As) {
-				switch p.As {
-				case AANDW, AORRW, AEORW, AANDSW, ATSTW:
-					// For 32-bit logical instruction with constant,
-					// rewrite the high 32-bit to be a copy of the low
-					// 32-bit, so that the BITCON test can be shared
-					// for both 32-bit and 64-bit.
-					if a0 == C_BITCON {
-						break
-					}
-					fallthrough
-				default:
-					a1 = c.con32class(&p.From) + 1
-					p.From.Class = int8(a1)
-				}
+			if isANDWop(p.As) && a0 != C_BITCON {
+				// For 32-bit logical instruction with constant,
+				// the BITCON test is special in that it looks at
+				// the 64-bit which has the high 32-bit as a copy
+				// of the low 32-bit. We have handled that and
+				// don't pass it to con32class.
+				a1 = c.con32class(&p.From) + 1
+				p.From.Class = int8(a1)
 			}
 		}
 	}
