@@ -10,11 +10,12 @@ import (
 	"go/format"
 
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 )
 
-// format formats a document with a given range.
-func (s *server) format(uri protocol.DocumentURI, rng *protocol.Range) ([]protocol.TextEdit, error) {
-	data, err := s.readActiveFile(uri)
+// formatRange formats a document with a given range.
+func formatRange(v *source.View, uri protocol.DocumentURI, rng *protocol.Range) ([]protocol.TextEdit, error) {
+	data, err := v.ReadActiveFile(uri)
 	if err != nil {
 		return nil, err
 	}

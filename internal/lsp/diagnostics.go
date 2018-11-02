@@ -11,10 +11,11 @@ import (
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 )
 
-func (v *view) diagnostics(uri protocol.DocumentURI) (map[string][]protocol.Diagnostic, error) {
-	pkg, err := v.typeCheck(uri)
+func diagnostics(v *source.View, uri protocol.DocumentURI) (map[string][]protocol.Diagnostic, error) {
+	pkg, err := v.TypeCheck(uri)
 	if err != nil {
 		return nil, err
 	}

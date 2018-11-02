@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 )
 
 func TestDiagnostics(t *testing.T) {
@@ -84,12 +85,12 @@ func testDiagnostics(t *testing.T, exporter packagestest.Exporter) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v := newView()
-	v.config = exported.Config
-	v.config.Mode = packages.LoadSyntax
+	v := source.NewView()
+	v.Config = exported.Config
+	v.Config.Mode = packages.LoadSyntax
 	for _, pkg := range pkgs {
 		for _, filename := range pkg.GoFiles {
-			diagnostics, err := v.diagnostics(filenameToURI(filename))
+			diagnostics, err := diagnostics(v, source.ToURI(filename))
 			if err != nil {
 				t.Fatal(err)
 			}
