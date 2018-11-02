@@ -48,7 +48,7 @@ func (b godocBuilder) Init(dir, hostport string, heads map[string]string) (*exec
 	}
 
 	godocBin := filepath.Join(goPath, "bin/godoc")
-	godoc := exec.Command(godocBin, "-http="+hostport, "-index", "-index_interval=-1s")
+	godoc := exec.Command(godocBin, "-http="+hostport, "-index", "-index_interval=-1s", "-play")
 	godoc.Env = []string{"GOROOT=" + goDir}
 	// TODO(adg): log this somewhere useful
 	godoc.Stdout = os.Stdout
