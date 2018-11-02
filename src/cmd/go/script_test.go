@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"go/build"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -104,6 +105,7 @@ func (ts *testScript) setup() {
 		"GOROOT=" + testGOROOT,
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
+		"goversion=" + goVersion(ts),
 		":=" + string(os.PathListSeparator),
 	}
 
@@ -128,6 +130,16 @@ func (ts *testScript) setup() {
 			ts.envMap[kv[:i]] = kv[i+1:]
 		}
 	}
+}
+
+// goVersion returns the current Go version.
+func goVersion(ts *testScript) string {
+	tags := build.Default.ReleaseTags
+	version := tags[len(tags)-1]
+	if !regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`).MatchString(version) {
+		ts.fatalf("invalid go version %q", version)
+	}
+	return version[2:]
 }
 
 var execCache par.Cache
