@@ -1160,11 +1160,15 @@ func typecheck1(n *Node, top int) (res *Node) {
 		ok |= Erv
 
 		t := n.Type
+		if t == nil {
+			Fatalf("no type specified for OSLICEHEADER")
+		}
+
 		if !t.IsSlice() {
 			Fatalf("invalid type %v for OSLICEHEADER", n.Type)
 		}
 
-		if !n.Left.Type.IsUnsafePtr() {
+		if n.Left == nil || n.Left.Type == nil || !n.Left.Type.IsUnsafePtr() {
 			Fatalf("need unsafe.Pointer for OSLICEHEADER")
 		}
 
