@@ -79,17 +79,25 @@ func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessa
 		cli.writeRecord(recordTypeHandshake, m.marshal())
 		c.Close()
 	}()
+	conn := Server(s, serverConfig)
+	ch, err := conn.readClientHello()
 	hs := serverHandshakeState{
-		c: Server(s, serverConfig),
+		c:           conn,
+		clientHello: ch,
 	}
-	_, err := hs.readClientHello()
+	if err == nil {
+		err = hs.processClientHello()
+	}
+	if err == nil {
+		err = hs.pickCipherSuite()
+	}
 	s.Close()
 	if len(expectedSubStr) == 0 {
 		if err != nil && err != io.EOF {
 			t.Errorf("Got error: %s; expected to succeed", err)
 		}
 	} else if err == nil || !strings.Contains(err.Error(), expectedSubStr) {
-		t.Errorf("Got error: %s; expected to match substring '%s'", err, expectedSubStr)
+		t.Errorf("Got error: %v; expected to match substring '%s'", err, expectedSubStr)
 	}
 }
 
@@ -727,6 +735,16 @@ func runServerTestTLS12(t *testing.T, template *serverTest) {
 	runServerTestForVersion(t, template, "TLSv12", "-tls1_2")
 }
 
+func runServerTestTLS13(t *testing.T, template *serverTest) {
+	// TODO(filippo): set MaxVersion to VersionTLS13 instead in testConfig
+	// while regenerating server tests.
+	if template.config == nil {
+		template.config = testConfig.Clone()
+	}
+	template.config.MaxVersion = VersionTLS13
+	runServerTestForVersion(t, template, "TLSv13", "-tls1_3")
+}
+
 func TestHandshakeServerRSARC4(t *testing.T) {
 	test := &serverTest{
 		name:    "RSA-RC4",
@@ -774,6 +792,28 @@ func TestHandshakeServerAES256GCMSHA384(t *testing.T) {
 	runServerTestTLS12(t, test)
 }
 
+func TestHandshakeServerAES128SHA256(t *testing.T) {
+	test := &serverTest{
+		name:    "AES128-SHA256",
+		command: []string{"openssl", "s_client", "-no_ticket", "-ciphersuites", "TLS_AES_128_GCM_SHA256"},
+	}
+	runServerTestTLS13(t, test)
+}
+func TestHandshakeServerAES256SHA384(t *testing.T) {
+	test := &serverTest{
+		name:    "AES256-SHA384",
+		command: []string{"openssl", "s_client", "-no_ticket", "-ciphersuites", "TLS_AES_256_GCM_SHA384"},
+	}
+	runServerTestTLS13(t, test)
+}
+func TestHandshakeServerCHACHA20SHA256(t *testing.T) {
+	test := &serverTest{
+		name:    "CHACHA20-SHA256",
+		command: []string{"openssl", "s_client", "-no_ticket", "-ciphersuites", "TLS_CHACHA20_POLY1305_SHA256"},
+	}
+	runServerTestTLS13(t, test)
+}
+
 func TestHandshakeServerECDHEECDSAAES(t *testing.T) {
 	config := testConfig.Clone()
 	config.Certificates = make([]Certificate, 1)
@@ -783,11 +823,12 @@ func TestHandshakeServerECDHEECDSAAES(t *testing.T) {
 
 	test := &serverTest{
 		name:    "ECDHE-ECDSA-AES",
-		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "ECDHE-ECDSA-AES256-SHA"},
+		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "ECDHE-ECDSA-AES256-SHA", "-ciphersuites", "TLS_AES_128_GCM_SHA256"},
 		config:  config,
 	}
 	runServerTestTLS10(t, test)
 	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
 }
 
 func TestHandshakeServerX25519(t *testing.T) {
@@ -795,11 +836,37 @@ func TestHandshakeServerX25519(t *testing.T) {
 	config.CurvePreferences = []CurveID{X25519}
 
 	test := &serverTest{
-		name:    "X25519-ECDHE-RSA-AES-GCM",
-		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "ECDHE-RSA-AES128-GCM-SHA256"},
+		name:    "X25519",
+		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "ECDHE-RSA-AES128-GCM-SHA256", "-curves", "X25519"},
 		config:  config,
 	}
 	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
+}
+
+func TestHandshakeServerP256(t *testing.T) {
+	config := testConfig.Clone()
+	config.CurvePreferences = []CurveID{CurveP256}
+
+	test := &serverTest{
+		name:    "P256",
+		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "ECDHE-RSA-AES128-GCM-SHA256", "-curves", "P-256"},
+		config:  config,
+	}
+	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
+}
+
+func TestHandshakeServerHelloRetryRequest(t *testing.T) {
+	config := testConfig.Clone()
+	config.CurvePreferences = []CurveID{CurveP256}
+
+	test := &serverTest{
+		name:    "HelloRetryRequest",
+		command: []string{"openssl", "s_client", "-no_ticket", "-curves", "X25519:P-256"},
+		config:  config,
+	}
+	runServerTestTLS13(t, test)
 }
 
 func TestHandshakeServerALPN(t *testing.T) {
@@ -821,6 +888,7 @@ func TestHandshakeServerALPN(t *testing.T) {
 		},
 	}
 	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
 }
 
 func TestHandshakeServerALPNNoMatch(t *testing.T) {
@@ -843,6 +911,7 @@ func TestHandshakeServerALPNNoMatch(t *testing.T) {
 		},
 	}
 	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
 }
 
 // TestHandshakeServerSNI involves a client sending an SNI extension of
@@ -1052,6 +1121,7 @@ func TestHandshakeServerExportKeyingMaterial(t *testing.T) {
 	}
 	runServerTestTLS10(t, test)
 	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
 }
 
 func TestHandshakeServerRSAPKCS1v15(t *testing.T) {
@@ -1068,6 +1138,7 @@ func TestHandshakeServerRSAPSS(t *testing.T) {
 		command: []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha256"},
 	}
 	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
 }
 
 func benchmarkHandshakeServer(b *testing.B, cipherSuite uint16, curve CurveID, cert []byte, key crypto.PrivateKey) {
@@ -1286,10 +1357,18 @@ func TestSNIGivenOnFailure(t *testing.T) {
 		cli.writeRecord(recordTypeHandshake, clientHello.marshal())
 		c.Close()
 	}()
+	conn := Server(s, serverConfig)
+	ch, err := conn.readClientHello()
 	hs := serverHandshakeState{
-		c: Server(s, serverConfig),
+		c:           conn,
+		clientHello: ch,
 	}
-	_, err := hs.readClientHello()
+	if err == nil {
+		err = hs.processClientHello()
+	}
+	if err == nil {
+		err = hs.pickCipherSuite()
+	}
 	defer s.Close()
 
 	if err == nil {

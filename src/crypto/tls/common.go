@@ -740,7 +740,7 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 			continue
 		}
 		// TLS 1.3 is only supported if explicitly requested while in development.
-		if v == VersionTLS13 && (!isClient || c == nil || c.MaxVersion != VersionTLS13) {
+		if v == VersionTLS13 && (c == nil || c.MaxVersion != VersionTLS13) {
 			continue
 		}
 		versions = append(versions, v)
