@@ -238,3 +238,16 @@ func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, 
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
 	return c.r1, c.r2, c.err
 }
+
+//go:linkname syscall_Syscall18 syscall.Syscall18
+//go:nosplit
+func syscall_Syscall18(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2, err uintptr) {
+	lockOSThread()
+	defer unlockOSThread()
+	c := &getg().m.syscall
+	c.fn = fn
+	c.n = nargs
+	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	return c.r1, c.r2, c.err
+}
