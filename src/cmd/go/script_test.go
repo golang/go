@@ -331,6 +331,7 @@ var scriptCmds = map[string]func(*testScript, bool, []string){
 	"addcrlf": (*testScript).cmdAddcrlf,
 	"cd":      (*testScript).cmdCd,
 	"cmp":     (*testScript).cmdCmp,
+	"cmpenv":  (*testScript).cmdCmpenv,
 	"cp":      (*testScript).cmdCp,
 	"env":     (*testScript).cmdEnv,
 	"exec":    (*testScript).cmdExec,
@@ -396,7 +397,21 @@ func (ts *testScript) cmdCmp(neg bool, args []string) {
 	if len(args) != 2 {
 		ts.fatalf("usage: cmp file1 file2")
 	}
+	ts.doCmdCmp(args, false)
+}
 
+// cmpenv compares two files with environment variable substitution.
+func (ts *testScript) cmdCmpenv(neg bool, args []string) {
+	if neg {
+		ts.fatalf("unsupported: ! cmpenv")
+	}
+	if len(args) != 2 {
+		ts.fatalf("usage: cmpenv file1 file2")
+	}
+	ts.doCmdCmp(args, true)
+}
+
+func (ts *testScript) doCmdCmp(args []string, env bool) {
 	name1, name2 := args[0], args[1]
 	var text1, text2 string
 	if name1 == "stdout" {
@@ -412,6 +427,11 @@ func (ts *testScript) cmdCmp(neg bool, args []string) {
 	data, err := ioutil.ReadFile(ts.mkabs(name2))
 	ts.check(err)
 	text2 = string(data)
+
+	if env {
+		text1 = ts.expand(text1)
+		text2 = ts.expand(text2)
+	}
 
 	if text1 == text2 {
 		return

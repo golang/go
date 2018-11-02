@@ -92,6 +92,10 @@ The commands are:
   from the most recent exec or go command.
   (If the files have differing content, the failure prints a diff.)
 
+- cmpenv file1 file2
+  Like cmp, but environment variables are substituted in the file contents
+  before the comparison. For example, $GOOS is replaced by the target GOOS.
+
 - cp src... dst
   Copy the listed files to the target file or existing directory.
 
