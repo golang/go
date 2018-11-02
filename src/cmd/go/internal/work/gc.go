@@ -263,28 +263,78 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 }
 
 func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, error) {
-	if len(sfiles) == 0 {
-		return "", nil
+	mkSymabis := func(p *load.Package, sfiles []string, path string) error {
+		args := asmArgs(a, p)
+		args = append(args, "-symabis", "-o", path)
+		for _, sfile := range sfiles {
+			if p.ImportPath == "runtime/cgo" && strings.HasPrefix(sfile, "gcc_") {
+				continue
+			}
+			args = append(args, mkAbs(p.Dir, sfile))
+		}
+
+		// Supply an empty go_asm.h as if the compiler had been run.
+		// -symabis parsing is lax enough that we don't need the
+		// actual definitions that would appear in go_asm.h.
+		if err := b.writeFile(a.Objdir+"go_asm.h", nil); err != nil {
+			return err
+		}
+
+		return b.run(a, p.Dir, p.ImportPath, nil, args...)
 	}
 
+	var symabis string // Only set if we actually create the file
 	p := a.Package
-	symabis := a.Objdir + "symabis"
-	args := asmArgs(a, p)
-	args = append(args, "-symabis", "-o", symabis)
-	for _, sfile := range sfiles {
-		args = append(args, mkAbs(p.Dir, sfile))
+	if len(sfiles) != 0 {
+		symabis = a.Objdir + "symabis"
+		if err := mkSymabis(p, sfiles, symabis); err != nil {
+			return "", err
+		}
 	}
 
-	// Supply an empty go_asm.h as if the compiler had been run.
-	// -symabis parsing is lax enough that we don't need the
-	// actual definitions that would appear in go_asm.h.
-	if err := b.writeFile(a.Objdir+"go_asm.h", nil); err != nil {
-		return "", err
+	// Gather known cross-package references from assembly code.
+	var otherPkgs []string
+	if p.ImportPath == "runtime" {
+		// Assembly in syscall and runtime/cgo references
+		// symbols in runtime.
+		otherPkgs = []string{"syscall", "runtime/cgo"}
+	} else if p.ImportPath == "runtime/internal/atomic" {
+		// sync/atomic is an assembly wrapper around
+		// runtime/internal/atomic.
+		otherPkgs = []string{"sync/atomic"}
+	}
+	for _, p2name := range otherPkgs {
+		p2 := load.LoadPackage(p2name, &load.ImportStack{})
+		if len(p2.SFiles) == 0 {
+			continue
+		}
+
+		symabis2 := a.Objdir + "symabis2"
+		if err := mkSymabis(p2, p2.SFiles, symabis2); err != nil {
+			return "", err
+		}
+
+		// Filter out just the symbol refs and append them to
+		// the symabis file.
+		abis2, err := ioutil.ReadFile(symabis2)
+		if err != nil {
+			return "", err
+		}
+		var refs bytes.Buffer
+		for _, line := range strings.Split(string(abis2), "\n") {
+			fs := strings.Fields(line)
+			if len(fs) >= 2 && fs[0] == "ref" && !strings.HasPrefix(fs[1], `"".`) {
+				fmt.Fprintf(&refs, "%s\n", line)
+			}
+		}
+		if refs.Len() != 0 {
+			symabis = a.Objdir + "symabis"
+			if err := b.appendFile(symabis, refs.Bytes()); err != nil {
+				return "", err
+			}
+		}
 	}
 
-	if err := b.run(a, p.Dir, p.ImportPath, nil, args...); err != nil {
-		return "", err
-	}
 	return symabis, nil
 }
 
