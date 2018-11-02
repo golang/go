@@ -1,8 +1,3 @@
-// The vet command is a driver for static checkers conforming to
-// the golang.org/x/tools/go/analysis API. Run it using 'go vet'.
-//
-// For a tool capable of running standalone, use a multichecker-based
-// tool such as golang.org/x/tools/go/analysis/cmd/vet.
 package main
 
 import (
@@ -30,21 +25,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 )
-
-// Legacy vet had the concept of "experimental" checkers.
-
-// There was exactly one, shadow, and it had to be explicitly
-// enabled by the -shadow flag, which would of course disable
-// all the other tristate flags, requiring the -all flag (which
-// is now a no-op) to reenable them.
-//
-// The shadow analyzer has been removed from the suite,
-// but can be run using these additional commands:
-//   $ go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
-//   $ go vet -vettool=$(which shadow)
-// Alternatively, one could build a multichecker containing all
-// the desired checks (vet's suite + shadow) and run it in a
-// single "go vet" command.
 
 func main() {
 	unitchecker.Main(
