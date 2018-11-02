@@ -85,8 +85,12 @@ var All []Exporter
 // the All global.
 // Each exporter will be run as a sub-test named after the exporter being used.
 func TestAll(t *testing.T, f func(*testing.T, Exporter)) {
+	t.Helper()
 	for _, e := range All {
-		t.Run(e.Name(), func(t *testing.T) { f(t, e) })
+		t.Run(e.Name(), func(t *testing.T) {
+			t.Helper()
+			f(t, e)
+		})
 	}
 }
 
@@ -101,7 +105,9 @@ func TestAll(t *testing.T, f func(*testing.T, Exporter)) {
 // debugging tests.
 func Export(t *testing.T, exporter Exporter, modules []Module) *Exported {
 	t.Helper()
-	temp, err := ioutil.TempDir("", strings.Replace(t.Name(), "/", "_", -1))
+	dirname := strings.Replace(t.Name(), "/", "_", -1)
+	dirname = strings.Replace(dirname, "#", "_", -1) // duplicate subtests get a #NNN suffix.
+	temp, err := ioutil.TempDir("", dirname)
 	if err != nil {
 		t.Fatal(err)
 	}

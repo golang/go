@@ -35,9 +35,6 @@ type goTooOldError struct {
 // the build system package structure.
 // See driver for more details.
 func goListDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
-	if debug {
-		defer func(start time.Time, patterns []string) { log.Printf("%v for query %v", time.Since(start), patterns) }(time.Now(), patterns)
-	}
 	// Determine files requested in contains patterns
 	var containFiles []string
 	var packagesNamed []string
@@ -180,6 +177,10 @@ func runContainsQueries(cfg *Config, driver driver, addPkg func(*Package), queri
 var modCacheRegexp = regexp.MustCompile(`(.*)@([^/\\]*)(.*)`)
 
 func runNamedQueries(cfg *Config, driver driver, addPkg func(*Package), queries []string) ([]string, error) {
+	// calling `go env` isn't free; bail out if there's nothing to do.
+	if len(queries) == 0 {
+		return nil, nil
+	}
 	// Determine which directories are relevant to scan.
 	roots, modRoot, err := roots(cfg)
 	if err != nil {
@@ -216,7 +217,12 @@ func runNamedQueries(cfg *Config, driver driver, addPkg func(*Package), queries 
 			}
 		}
 	}
-	gopathwalk.Walk(roots, add, gopathwalk.Options{ModulesEnabled: modRoot != ""})
+
+	startWalk := time.Now()
+	gopathwalk.Walk(roots, add, gopathwalk.Options{ModulesEnabled: modRoot != "", Debug: debug})
+	if debug {
+		log.Printf("%v for walk", time.Since(startWalk))
+	}
 
 	// Weird special case: the top-level package in a module will be in
 	// whatever directory the user checked the repository out into. It's
