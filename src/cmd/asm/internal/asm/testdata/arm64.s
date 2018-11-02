@@ -47,8 +47,8 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	ADD	R2.SXTX<<1, RSP, RSP            // ffe7228b
 	ADD	ZR.SXTX<<1, R2, R3              // 43e43f8b
 	ADDW	R2.SXTW, R10, R12               // 4cc1220b
-	ADD	R18.UXTX, R14, R17              // d161328b
-	ADDSW	R18.UXTW, R14, R17              // d141322b
+	ADD	R19.UXTX, R14, R17              // d161338b
+	ADDSW	R19.UXTW, R14, R17              // d141332b
 	ADDS	R12.SXTX, R3, R1                // 61e02cab
 	SUB	R19.UXTH<<4, R2, R21            // 553033cb
 	SUBW	R1.UXTX<<1, R3, R2              // 6264214b
@@ -144,7 +144,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
 	MOVD	(R3)(R6), R5                    // MOVD	(R3)(R6*1), R5                  // 656866f8
 	MOVD	(R2)(R6), R4                    // MOVD	(R2)(R6*1), R4                  // 446866f8
-	MOVWU	(R19)(R18<<2), R18              // 727a72b8
+	MOVWU	(R19)(R20<<2), R20              // 747a74b8
 	MOVD	(R2)(R6<<3), R4                 // 447866f8
 	MOVD	(R3)(R7.SXTX<<3), R8            // 68f867f8
 	MOVWU	(R5)(R4.UXTW), R10              // aa4864b8
@@ -154,7 +154,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVHU	(R1)(R2<<1), R5                 // 25786278
 	MOVB	(R9)(R3.UXTW), R6               // 2649a338
 	MOVB	(R10)(R6), R15                  // MOVB	(R10)(R6*1), R15                // 4f69a638
-	MOVH	(R5)(R7.SXTX<<1), R18           // b2f8a778
+	MOVH	(R5)(R7.SXTX<<1), R19           // b3f8a778
 	MOVH	(R8)(R4<<1), R10                // 0a79a478
 	MOVW	(R9)(R8.SXTW<<2), R19           // 33d9a8b8
 	MOVW	(R1)(R4.SXTX), R11              // 2be8a4b8
