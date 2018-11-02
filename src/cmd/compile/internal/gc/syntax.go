@@ -929,7 +929,7 @@ type nodeQueue struct {
 	head, tail int
 }
 
-// empty returns true if q contains no Nodes.
+// empty reports whether q contains no Nodes.
 func (q *nodeQueue) empty() bool {
 	return q.head == q.tail
 }

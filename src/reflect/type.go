@@ -2314,7 +2314,7 @@ type structTypeFixed32 struct {
 	m [32]method
 }
 
-// isLetter returns true if a given 'rune' is classified as a Letter.
+// isLetter reports whether a given 'rune' is classified as a Letter.
 func isLetter(ch rune) bool {
 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= utf8.RuneSelf && unicode.IsLetter(ch)
 }

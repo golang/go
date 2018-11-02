@@ -314,7 +314,7 @@ func transformclosure(xfunc *Node) {
 	lineno = lno
 }
 
-// hasemptycvars returns true iff closure clo has an
+// hasemptycvars reports whether closure clo has an
 // empty list of captured vars.
 func hasemptycvars(clo *Node) bool {
 	xfunc := clo.Func.Closure

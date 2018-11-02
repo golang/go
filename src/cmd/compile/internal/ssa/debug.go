@@ -790,7 +790,7 @@ func (e *pendingEntry) clear() {
 	}
 }
 
-// canMerge returns true if the location description for new is the same as
+// canMerge reports whether the location description for new is the same as
 // pending.
 func canMerge(pending, new VarLoc) bool {
 	if pending.absent() && new.absent() {

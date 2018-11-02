@@ -621,7 +621,7 @@ func (f *Func) invalidateCFG() {
 	f.cachedLoopnest = nil
 }
 
-// DebugHashMatch returns true if environment variable evname
+// DebugHashMatch reports whether environment variable evname
 // 1) is empty (this is a special more-quickly implemented case of 3)
 // 2) is "y" or "Y"
 // 3) is a suffix of the sha1 hash of name

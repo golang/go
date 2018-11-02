@@ -340,7 +340,7 @@ func (t *Interface) NumMethods() int { return len(t.allMethods) }
 // The methods are ordered by their unique Id.
 func (t *Interface) Method(i int) *Func { return t.allMethods[i] }
 
-// Empty returns true if t is the empty interface.
+// Empty reports whether t is the empty interface.
 func (t *Interface) Empty() bool { return len(t.allMethods) == 0 }
 
 // Complete computes the interface's method set. It must be called by users of
