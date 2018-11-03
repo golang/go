@@ -180,6 +180,7 @@ func TestStdFixed(t *testing.T) {
 		"issue22200b.go", // go/types does not have constraints on stack size
 		"issue25507.go",  // go/types does not have constraints on stack size
 		"issue20780.go",  // go/types does not have constraints on stack size
+		"issue27232.go",  // go/types has a bug with alias type (issue #28576)
 	)
 }
 
