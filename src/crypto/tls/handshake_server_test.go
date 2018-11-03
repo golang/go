@@ -63,6 +63,13 @@ func init() {
 	testConfig.Certificates[1].Certificate = [][]byte{testSNICertificate}
 	testConfig.Certificates[1].PrivateKey = testRSAPrivateKey
 	testConfig.BuildNameToCertificate()
+	if keyFile := os.Getenv("SSLKEYLOGFILE"); keyFile != "" {
+		f, err := os.OpenFile(keyFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			panic("failed to open SSLKEYLOGFILE: " + err.Error())
+		}
+		testConfig.KeyLogWriter = f
+	}
 }
 
 func testClientHello(t *testing.T, serverConfig *Config, m handshakeMessage) {
