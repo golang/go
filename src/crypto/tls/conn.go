@@ -94,8 +94,9 @@ type Conn struct {
 	bytesSent   int64
 	packetsSent int64
 
-	// retryCount counts the number of consecutive warning alerts received
-	// by Conn.readRecord. Protected by in.Mutex.
+	// retryCount counts the number of consecutive non-advancing records
+	// received by Conn.readRecord. That is, records that neither advance the
+	// handshake, nor deliver application data. Protected by in.Mutex.
 	retryCount int
 
 	// activeCall is an atomic int32; the low bit is whether Close has
@@ -550,28 +551,35 @@ func (c *Conn) newRecordHeaderError(conn net.Conn, msg string) (err RecordHeader
 	return err
 }
 
-// readRecord reads the next TLS record from the connection
-// and updates the record layer state.
-func (c *Conn) readRecord(want recordType) error {
-	// Caller must be in sync with connection:
-	// handshake data if handshake not yet completed,
-	// else application data.
-	switch want {
-	default:
-		panic("tls: unknown record type requested")
-	case recordTypeHandshake, recordTypeChangeCipherSpec:
-		if c.handshakeComplete() {
-			panic("tls: handshake or ChangeCipherSpec requested while not in handshake")
-		}
-	case recordTypeApplicationData:
-		if !c.handshakeComplete() {
-			panic("tls: application data record requested while in handshake")
-		}
+func (c *Conn) readRecord() error {
+	return c.readRecordOrCCS(false)
+}
+
+func (c *Conn) readChangeCipherSpec() error {
+	return c.readRecordOrCCS(true)
+}
+
+// readRecordOrCCS reads one or more TLS records from the connection and
+// updates the record layer state. Some invariants:
+//   * c.in must be locked
+//   * c.input must be empty
+// During the handshake one and only one of the following will happen:
+//   - c.hand grows
+//   - c.in.changeCipherSpec is called
+//   - an error is returned
+// After the handshake one and only one of the following will happen:
+//   - c.hand grows
+//   - c.input is set
+//   - an error is returned
+func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
+	if c.in.err != nil {
+		return c.in.err
 	}
+	handshakeComplete := c.handshakeComplete()
 
 	// This function modifies c.rawInput, which owns the c.input memory.
 	if c.input.Len() != 0 {
-		panic("tls: attempted to read record with pending application data")
+		return c.in.setErrorLocked(errors.New("tls: internal error: attempted to read record with pending application data"))
 	}
 	c.input.Reset(nil)
 
@@ -595,7 +603,7 @@ func (c *Conn) readRecord(want recordType) error {
 	// start with a uint16 length where the MSB is set and the first record
 	// is always < 256 bytes long. Therefore typ == 0x80 strongly suggests
 	// an SSLv2 client.
-	if want == recordTypeHandshake && typ == 0x80 {
+	if !handshakeComplete && typ == 0x80 {
 		c.sendAlert(alertProtocolVersion)
 		return c.in.setErrorLocked(c.newRecordHeaderError(nil, "unsupported SSLv2 handshake received"))
 	}
@@ -612,7 +620,7 @@ func (c *Conn) readRecord(want recordType) error {
 		// client. Bail out before reading a full 'body', if possible.
 		// The current max version is 3.3 so if the version is >= 16.0,
 		// it's probably not real.
-		if (typ != recordTypeAlert && typ != want) || vers >= 0x1000 {
+		if (typ != recordTypeAlert && typ != recordTypeHandshake) || vers >= 0x1000 {
 			return c.in.setErrorLocked(c.newRecordHeaderError(c.conn, "first record does not look like a TLS handshake"))
 		}
 	}
@@ -653,18 +661,6 @@ func (c *Conn) readRecord(want recordType) error {
 		return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
 	}
 
-	// In TLS 1.3, change_cipher_spec records are ignored until the Finished.
-	// See RFC 8446, Appendix D.4. Note that according to Section 5, a server
-	// can send a ChangeCipherSpec before its ServerHello, when c.vers is still
-	// unset. That's not useful though and suspicious if the server then selects
-	// a lower protocol version, so don't allow that.
-	if c.vers == VersionTLS13 && typ == recordTypeChangeCipherSpec {
-		if len(data) != 1 || data[0] != 1 || c.handshakeComplete() {
-			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
-		}
-		return c.retryReadRecord(want)
-	}
-
 	switch typ {
 	default:
 		return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
@@ -681,7 +677,8 @@ func (c *Conn) readRecord(want recordType) error {
 		}
 		switch data[0] {
 		case alertLevelWarning:
-			return c.retryReadRecord(want) // Drop the record on the floor and retry.
+			// Drop the record on the floor and retry.
+			return c.retryReadRecord(expectChangeCipherSpec)
 		case alertLevelError:
 			return c.in.setErrorLocked(&net.OpError{Op: "remote error", Err: alert(data[1])})
 		default:
@@ -689,59 +686,61 @@ func (c *Conn) readRecord(want recordType) error {
 		}
 
 	case recordTypeChangeCipherSpec:
-		if typ != want || len(data) != 1 || data[0] != 1 {
-			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+		if len(data) != 1 || data[0] != 1 {
+			return c.in.setErrorLocked(c.sendAlert(alertDecodeError))
 		}
 		// Handshake messages are not allowed to fragment across the CCS.
 		if c.hand.Len() > 0 {
 			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
 		}
+		// In TLS 1.3, change_cipher_spec records are ignored until the
+		// Finished. See RFC 8446, Appendix D.4. Note that according to Section
+		// 5, a server can send a ChangeCipherSpec before its ServerHello, when
+		// c.vers is still unset. That's not useful though and suspicious if the
+		// server then selects a lower protocol version, so don't allow that.
+		if c.vers == VersionTLS13 {
+			return c.retryReadRecord(expectChangeCipherSpec)
+		}
+		if !expectChangeCipherSpec {
+			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+		}
 		if err := c.in.changeCipherSpec(); err != nil {
 			return c.in.setErrorLocked(c.sendAlert(err.(alert)))
 		}
-		return nil
 
 	case recordTypeApplicationData:
-		if typ != want {
+		if !handshakeComplete || expectChangeCipherSpec {
 			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
 		}
+		// Some OpenSSL servers send empty records in order to randomize the
+		// CBC IV. Ignore a limited number of empty records.
 		if len(data) == 0 {
-			return c.retryReadRecord(want)
+			return c.retryReadRecord(expectChangeCipherSpec)
 		}
 		// Note that data is owned by c.rawInput, following the Next call above,
 		// to avoid copying the plaintext. This is safe because c.rawInput is
 		// not read from or written to until c.input is drained.
 		c.input.Reset(data)
-		return nil
 
 	case recordTypeHandshake:
-		if typ != want && !c.isRenegotiationAcceptable() {
-			return c.in.setErrorLocked(c.sendAlert(alertNoRenegotiation))
-		}
-		if len(data) == 0 {
+		if len(data) == 0 || expectChangeCipherSpec {
 			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
 		}
 		c.hand.Write(data)
-		return nil
 	}
+
+	return nil
 }
 
-// retryReadRecord recurses into readRecord to drop a non-advancing record, like
+// retryReadRecord recurses into readRecordOrCCS to drop a non-advancing record, like
 // a warning alert, empty application_data, or a change_cipher_spec in TLS 1.3.
-func (c *Conn) retryReadRecord(want recordType) error {
+func (c *Conn) retryReadRecord(expectChangeCipherSpec bool) error {
 	c.retryCount++
 	if c.retryCount > maxUselessRecords {
 		c.sendAlert(alertUnexpectedMessage)
 		return c.in.setErrorLocked(errors.New("tls: too many ignored records"))
 	}
-	return c.readRecord(want)
-}
-
-func (c *Conn) isRenegotiationAcceptable() bool {
-	return c.isClient &&
-		c.vers != VersionTLS13 &&
-		c.handshakeComplete() &&
-		c.config.Renegotiation != RenegotiateNever
+	return c.readRecordOrCCS(expectChangeCipherSpec)
 }
 
 // atLeastReader reads from R, stopping with EOF once at least N bytes have been
@@ -969,10 +968,7 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (int, error) {
 // the record layer.
 func (c *Conn) readHandshake() (interface{}, error) {
 	for c.hand.Len() < 4 {
-		if err := c.in.err; err != nil {
-			return nil, err
-		}
-		if err := c.readRecord(recordTypeHandshake); err != nil {
+		if err := c.readRecord(); err != nil {
 			return nil, err
 		}
 	}
@@ -984,10 +980,7 @@ func (c *Conn) readHandshake() (interface{}, error) {
 		return nil, c.in.setErrorLocked(fmt.Errorf("tls: handshake message of length %d bytes exceeds maximum of %d bytes", n, maxHandshake))
 	}
 	for c.hand.Len() < 4+n {
-		if err := c.in.err; err != nil {
-			return nil, err
-		}
-		if err := c.readRecord(recordTypeHandshake); err != nil {
+		if err := c.readRecord(); err != nil {
 			return nil, err
 		}
 	}
@@ -1130,10 +1123,10 @@ func (c *Conn) handleRenegotiation() error {
 		return err
 	}
 
-	_, ok := msg.(*helloRequestMsg)
+	helloReq, ok := msg.(*helloRequestMsg)
 	if !ok {
 		c.sendAlert(alertUnexpectedMessage)
-		return alertUnexpectedMessage
+		return unexpectedMessageError(helloReq, msg)
 	}
 
 	if !c.isClient {
@@ -1164,6 +1157,70 @@ func (c *Conn) handleRenegotiation() error {
 	return c.handshakeErr
 }
 
+// handlePostHandshakeMessage processes a handshake message arrived after the
+// handshake is complete. Up to TLS 1.2, it indicates the start of a renegotiation.
+func (c *Conn) handlePostHandshakeMessage() error {
+	if c.vers != VersionTLS13 {
+		return c.handleRenegotiation()
+	}
+
+	msg, err := c.readHandshake()
+	if err != nil {
+		return err
+	}
+
+	switch msg := msg.(type) {
+	case *newSessionTicketMsgTLS13:
+		// TODO(filippo): TLS 1.3 session ticket not implemented.
+		return nil
+	case *keyUpdateMsg:
+		return c.handleKeyUpdate(msg)
+	default:
+		c.sendAlert(alertUnexpectedMessage)
+		return fmt.Errorf("tls: received unexpected handshake message of type %T", msg)
+	}
+}
+
+func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
+	c.retryCount++
+	if c.retryCount > maxUselessRecords {
+		c.sendAlert(alertUnexpectedMessage)
+		return c.in.setErrorLocked(errors.New("tls: too many non-advancing records"))
+	}
+
+	var cipherSuite *cipherSuiteTLS13
+	for _, suite := range cipherSuitesTLS13 {
+		if suite.id == c.cipherSuite {
+			cipherSuite = suite
+			break
+		}
+	}
+	if cipherSuite == nil {
+		return c.in.setErrorLocked(c.sendAlert(alertInternalError))
+	}
+
+	newSecret := cipherSuite.nextTrafficSecret(c.in.trafficSecret)
+	c.in.setTrafficSecret(cipherSuite, newSecret)
+
+	if keyUpdate.updateRequested {
+		c.out.Lock()
+		defer c.out.Unlock()
+
+		msg := &keyUpdateMsg{}
+		_, err := c.writeRecordLocked(recordTypeHandshake, msg.marshal())
+		if err != nil {
+			// Surface the error at the next write.
+			c.out.setErrorLocked(err)
+			return nil
+		}
+
+		newSecret := cipherSuite.nextTrafficSecret(c.out.trafficSecret)
+		c.out.setTrafficSecret(cipherSuite, newSecret)
+	}
+
+	return nil
+}
+
 // Read can be made to time out and return a net.Error with Timeout() == true
 // after a fixed time limit; see SetDeadline and SetReadDeadline.
 func (c *Conn) Read(b []byte) (int, error) {
@@ -1179,48 +1236,34 @@ func (c *Conn) Read(b []byte) (int, error) {
 	c.in.Lock()
 	defer c.in.Unlock()
 
-	// Some OpenSSL servers send empty records in order to randomize the
-	// CBC IV. So this loop ignores a limited number of empty records.
-	const maxConsecutiveEmptyRecords = 100
-	for emptyRecordCount := 0; emptyRecordCount <= maxConsecutiveEmptyRecords; emptyRecordCount++ {
-		for c.input.Len() == 0 && c.in.err == nil {
-			if err := c.readRecord(recordTypeApplicationData); err != nil {
-				return 0, err
-			}
-			if c.hand.Len() > 0 {
-				// We received handshake bytes, indicating the
-				// start of a renegotiation.
-				if err := c.handleRenegotiation(); err != nil {
-					return 0, err
-				}
-			}
-		}
-		if err := c.in.err; err != nil {
+	for c.input.Len() == 0 {
+		if err := c.readRecord(); err != nil {
 			return 0, err
 		}
-
-		n, _ := c.input.Read(b)
-
-		// If a close-notify alert is waiting, read it so that we can return (n,
-		// EOF) instead of (n, nil), to signal to the HTTP response reading
-		// goroutine that the connection is now closed. This eliminates a race
-		// where the HTTP response reading goroutine would otherwise not observe
-		// the EOF until its next read, by which time a client goroutine might
-		// have already tried to reuse the HTTP connection for a new request.
-		// See https://golang.org/cl/76400046 and https://golang.org/issue/3514
-		if n != 0 && c.input.Len() == 0 && c.rawInput.Len() > 0 &&
-			recordType(c.rawInput.Bytes()[0]) == recordTypeAlert {
-			if err := c.readRecord(recordTypeApplicationData); err != nil {
-				return n, err // will be io.EOF on closeNotify
+		for c.hand.Len() > 0 {
+			if err := c.handlePostHandshakeMessage(); err != nil {
+				return 0, err
 			}
-		}
-
-		if n != 0 {
-			return n, nil
 		}
 	}
 
-	return 0, io.ErrNoProgress
+	n, _ := c.input.Read(b)
+
+	// If a close-notify alert is waiting, read it so that we can return (n,
+	// EOF) instead of (n, nil), to signal to the HTTP response reading
+	// goroutine that the connection is now closed. This eliminates a race
+	// where the HTTP response reading goroutine would otherwise not observe
+	// the EOF until its next read, by which time a client goroutine might
+	// have already tried to reuse the HTTP connection for a new request.
+	// See https://golang.org/cl/76400046 and https://golang.org/issue/3514
+	if n != 0 && c.input.Len() == 0 && c.rawInput.Len() > 0 &&
+		recordType(c.rawInput.Bytes()[0]) == recordTypeAlert {
+		if err := c.readRecord(); err != nil {
+			return n, err // will be io.EOF on closeNotify
+		}
+	}
+
+	return n, nil
 }
 
 // Close closes the connection.
@@ -1314,7 +1357,7 @@ func (c *Conn) Handshake() error {
 	}
 
 	if c.handshakeErr == nil && !c.handshakeComplete() {
-		panic("tls: internal error: handshake should have had a result")
+		c.handshakeErr = errors.New("tls: internal error: handshake should have had a result")
 	}
 
 	return c.handshakeErr

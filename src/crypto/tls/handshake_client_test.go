@@ -53,6 +53,10 @@ const (
 	// opensslSendBanner causes OpenSSL to send the contents of
 	// opensslSentinel on the connection.
 	opensslSendSentinel
+
+	// opensslKeyUpdate causes OpenSSL to send send a key update message to the
+	// client and request one back.
+	opensslKeyUpdate
 )
 
 const opensslSentinel = "SENTINEL\n"
@@ -64,6 +68,8 @@ func (i opensslInput) Read(buf []byte) (n int, err error) {
 		switch event {
 		case opensslRenegotiate:
 			return copy(buf, []byte("R\n")), nil
+		case opensslKeyUpdate:
+			return copy(buf, []byte("K\n")), nil
 		case opensslSendSentinel:
 			return copy(buf, []byte(opensslSentinel)), nil
 		default:
@@ -74,22 +80,27 @@ func (i opensslInput) Read(buf []byte) (n int, err error) {
 	return 0, io.EOF
 }
 
-// opensslOutputSink is an io.Writer that receives the stdout and stderr from
-// an `openssl` process and sends a value to handshakeComplete when it sees a
-// log message from a completed server handshake.
+// opensslOutputSink is an io.Writer that receives the stdout and stderr from an
+// `openssl` process and sends a value to handshakeComplete or readKeyUpdate
+// when certain messages are seen.
 type opensslOutputSink struct {
 	handshakeComplete chan struct{}
+	readKeyUpdate     chan struct{}
 	all               []byte
 	line              []byte
 }
 
 func newOpensslOutputSink() *opensslOutputSink {
-	return &opensslOutputSink{make(chan struct{}), nil, nil}
+	return &opensslOutputSink{make(chan struct{}), make(chan struct{}), nil, nil}
 }
 
 // opensslEndOfHandshake is a message that the “openssl s_server” tool will
 // print when a handshake completes if run with “-state”.
 const opensslEndOfHandshake = "SSL_accept:SSLv3/TLS write finished"
+
+// opensslReadKeyUpdate is a message that the “openssl s_server” tool will
+// print when a KeyUpdate message is received if run with “-state”.
+const opensslReadKeyUpdate = "SSL_accept:TLSv1.3 read client key update"
 
 func (o *opensslOutputSink) Write(data []byte) (n int, err error) {
 	o.line = append(o.line, data...)
@@ -103,6 +114,9 @@ func (o *opensslOutputSink) Write(data []byte) (n int, err error) {
 
 		if bytes.Equal([]byte(opensslEndOfHandshake), o.line[:i]) {
 			o.handshakeComplete <- struct{}{}
+		}
+		if bytes.Equal([]byte(opensslReadKeyUpdate), o.line[:i]) {
+			o.readKeyUpdate <- struct{}{}
 		}
 		o.line = o.line[i+1:]
 	}
@@ -150,6 +164,8 @@ type clientTest struct {
 	// arising from renegotiation. It can map expected errors to nil to
 	// ignore them.
 	checkRenegotiationError func(renegotiationNum int, err error) error
+	// sendKeyUpdate will cause the server to send a KeyUpdate message.
+	sendKeyUpdate bool
 }
 
 var defaultServerCommand = []string{"openssl", "s_server"}
@@ -221,7 +237,7 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 		command = append(command, "-serverinfo", serverInfoPath)
 	}
 
-	if test.numRenegotiations > 0 {
+	if test.numRenegotiations > 0 || test.sendKeyUpdate {
 		found := false
 		for _, flag := range command[1:] {
 			if flag == "-state" {
@@ -231,7 +247,7 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 		}
 
 		if !found {
-			panic("-state flag missing to OpenSSL. You need this if testing renegotiation")
+			panic("-state flag missing to OpenSSL, you need this if testing renegotiation or KeyUpdate")
 		}
 	}
 
@@ -352,7 +368,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
 			signalChan := make(chan struct{})
 
 			go func() {
-				defer func() { signalChan <- struct{}{} }()
+				defer close(signalChan)
 
 				buf := make([]byte, 256)
 				n, err := client.Read(buf)
@@ -387,9 +403,60 @@ func (test *clientTest) run(t *testing.T, write bool) {
 			<-signalChan
 		}
 
+		if test.sendKeyUpdate {
+			if write {
+				<-stdout.handshakeComplete
+				stdin <- opensslKeyUpdate
+			}
+
+			doneRead := make(chan struct{})
+
+			go func() {
+				defer close(doneRead)
+
+				buf := make([]byte, 256)
+				n, err := client.Read(buf)
+
+				if err != nil {
+					t.Errorf("Client.Read failed after KeyUpdate: %s", err)
+					return
+				}
+
+				buf = buf[:n]
+				if !bytes.Equal([]byte(opensslSentinel), buf) {
+					t.Errorf("Client.Read returned %q, but wanted %q", string(buf), opensslSentinel)
+				}
+			}()
+
+			if write {
+				// There's no real reason to wait for the client KeyUpdate to
+				// send data with the new server keys, except that s_server
+				// drops writes if they are sent at the wrong time.
+				<-stdout.readKeyUpdate
+				stdin <- opensslSendSentinel
+			}
+			<-doneRead
+
+			if _, err := client.Write([]byte("hello again\n")); err != nil {
+				t.Errorf("Client.Write failed: %s", err)
+				return
+			}
+		}
+
 		if test.validate != nil {
 			if err := test.validate(client.ConnectionState()); err != nil {
 				t.Errorf("validate callback returned error: %s", err)
+			}
+		}
+
+		// If the server sent us an alert after our last flight, give it a
+		// chance to arrive.
+		if write {
+			client.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+			if _, err := client.Read(make([]byte, 1)); err != nil {
+				if netErr, ok := err.(net.Error); !ok || !netErr.Timeout() {
+					t.Errorf("final Read returned an error: %s", err)
+				}
 			}
 		}
 	}()
@@ -786,6 +853,15 @@ func TestHandshakeClientCertRSAPKCS1v15(t *testing.T) {
 	runClientTestTLS12(t, test)
 }
 
+func TestClientKeyUpdate(t *testing.T) {
+	test := &clientTest{
+		name:          "KeyUpdate",
+		command:       []string{"openssl", "s_server", "-state"},
+		sendKeyUpdate: true,
+	}
+	runClientTestTLS13(t, test)
+}
+
 func TestClientResumption(t *testing.T) {
 	serverConfig := &Config{
 		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
@@ -1092,11 +1168,7 @@ func TestRenegotiationRejected(t *testing.T) {
 			return nil
 		},
 	}
-
 	runClientTestTLS12(t, test)
-
-	config.Renegotiation = RenegotiateFreelyAsClient
-	runClientTestTLS13(t, test)
 }
 
 func TestRenegotiateOnce(t *testing.T) {
