@@ -679,6 +679,7 @@ func (r *importReader) funcExt(n *Node) {
 		n.Func.Inl = &Inline{
 			Cost: int32(u - 1),
 		}
+		n.Func.Endlineno = r.pos()
 	}
 }
 
@@ -934,9 +935,6 @@ func (r *importReader) node() *Node {
 		}
 		return x
 
-	// case OCMPSTR, OCMPIFACE:
-	// 	unreachable - mapped to std comparison operators by exporter
-
 	// --------------------------------------------------------------------
 	// statements
 	case ODCL:
@@ -1045,7 +1043,9 @@ func (r *importReader) node() *Node {
 	// 	unreachable - not emitted by exporter
 
 	case OGOTO, OLABEL:
-		return nodl(r.pos(), op, newname(r.expr().Sym), nil)
+		n := nodl(r.pos(), op, nil, nil)
+		n.Sym = lookup(r.string())
+		return n
 
 	case OEND:
 		return nil

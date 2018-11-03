@@ -292,3 +292,12 @@ func ExampleMarshalIndent() {
 	// <prefix><indent>"b": 2
 	// <prefix>}
 }
+
+func ExampleValid() {
+	goodJSON := `{"example": 1}`
+	badJSON := `{"example":2:]}}`
+
+	fmt.Println(json.Valid([]byte(goodJSON)), json.Valid([]byte(badJSON)))
+	// Output:
+	// true false
+}

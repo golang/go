@@ -22,6 +22,17 @@ import (
 	"cmd/go/internal/str"
 )
 
+// A VCSError indicates an error using a version control system.
+// The implication of a VCSError is that we know definitively where
+// to get the code, but we can't access it due to the error.
+// The caller should report this error instead of continuing to probe
+// other possible module paths.
+type VCSError struct {
+	Err error
+}
+
+func (e *VCSError) Error() string { return e.Err.Error() }
+
 func NewRepo(vcs, remote string) (Repo, error) {
 	type key struct {
 		vcs    string
@@ -33,6 +44,9 @@ func NewRepo(vcs, remote string) (Repo, error) {
 	}
 	c := vcsRepoCache.Do(key{vcs, remote}, func() interface{} {
 		repo, err := newVCSRepo(vcs, remote)
+		if err != nil {
+			err = &VCSError{err}
+		}
 		return cached{repo, err}
 	}).(cached)
 

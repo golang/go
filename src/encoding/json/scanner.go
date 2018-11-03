@@ -289,7 +289,7 @@ func stateEndValue(s *scanner, c byte) int {
 // such as after reading `{}` or `[1,2,3]`.
 // Only space characters should be seen now.
 func stateEndTop(s *scanner, c byte) int {
-	if c != ' ' && c != '\t' && c != '\r' && c != '\n' {
+	if !isSpace(c) {
 		// Complain about non-space byte on next call.
 		s.error(c, "after top-level value")
 	}

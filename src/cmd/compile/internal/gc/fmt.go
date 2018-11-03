@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -118,7 +119,7 @@ const (
 // *types.Type:
 //   %#v    Go format
 //   %#L    type definition instead of name
-//   %#S    omit"func" and receiver in function signature
+//   %#S    omit "func" and receiver in function signature
 //
 //   %-v    type identifiers
 //   %-S    type identifiers without "func" and arg names in type signatures (methodsym)
@@ -513,10 +514,10 @@ func (v Val) vconv(s fmt.State, flag FmtFlag) {
 	case *Mpint:
 		if !u.Rune {
 			if flag&FmtSharp != 0 {
-				fmt.Fprint(s, bconv(u, FmtSharp))
+				fmt.Fprint(s, u.String())
 				return
 			}
-			fmt.Fprint(s, bconv(u, 0))
+			fmt.Fprint(s, u.GoString())
 			return
 		}
 
@@ -536,29 +537,19 @@ func (v Val) vconv(s fmt.State, flag FmtFlag) {
 
 	case *Mpflt:
 		if flag&FmtSharp != 0 {
-			fmt.Fprint(s, fconv(u, 0))
+			fmt.Fprint(s, u.String())
 			return
 		}
-		fmt.Fprint(s, fconv(u, FmtSharp))
+		fmt.Fprint(s, u.GoString())
 		return
 
 	case *Mpcplx:
-		switch {
-		case flag&FmtSharp != 0:
-			fmt.Fprintf(s, "(%v+%vi)", &u.Real, &u.Imag)
-
-		case v.U.(*Mpcplx).Real.CmpFloat64(0) == 0:
-			fmt.Fprintf(s, "%vi", fconv(&u.Imag, FmtSharp))
-
-		case v.U.(*Mpcplx).Imag.CmpFloat64(0) == 0:
-			fmt.Fprint(s, fconv(&u.Real, FmtSharp))
-
-		case v.U.(*Mpcplx).Imag.CmpFloat64(0) < 0:
-			fmt.Fprintf(s, "(%v%vi)", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp))
-
-		default:
-			fmt.Fprintf(s, "(%v+%vi)", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp))
+		if flag&FmtSharp != 0 {
+			fmt.Fprint(s, u.String())
+			return
 		}
+		fmt.Fprint(s, u.GoString())
+		return
 
 	case string:
 		fmt.Fprint(s, strconv.Quote(u))
@@ -670,7 +661,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 		return "error"
 	}
 
-	// Unless the 'l' flag was specified, if the type has a name, just print that name.
+	// Unless the 'L' flag was specified, if the type has a name, just print that name.
 	if flag&FmtLong == 0 && t.Sym != nil && t != types.Types[t.Etype] {
 		switch mode {
 		case FTypeId, FTypeIdName:
@@ -706,7 +697,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 	}
 
 	switch t.Etype {
-	case TPTR32, TPTR64:
+	case TPTR:
 		switch mode {
 		case FTypeId, FTypeIdName:
 			if flag&FmtShort != 0 {
@@ -1054,8 +1045,8 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 		mode.Fprintf(s, ": %v", n.Nbody)
 
 	case OBREAK, OCONTINUE, OGOTO, OFALL:
-		if n.Left != nil {
-			mode.Fprintf(s, "%#v %v", n.Op, n.Left)
+		if n.Sym != nil {
+			mode.Fprintf(s, "%#v %v", n.Op, n.Sym)
 		} else {
 			mode.Fprintf(s, "%#v", n.Op)
 		}
@@ -1064,7 +1055,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 		break
 
 	case OLABEL:
-		mode.Fprintf(s, "%v: ", n.Left)
+		mode.Fprintf(s, "%v: ", n.Sym)
 	}
 
 	if extrablock {
@@ -1155,8 +1146,6 @@ var opprec = []int{
 	OGE:           4,
 	OGT:           4,
 	ONE:           4,
-	OCMPSTR:       4,
-	OCMPIFACE:     4,
 	OSEND:         3,
 	OANDAND:       2,
 	OOROR:         1,
@@ -1313,16 +1302,14 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		mode.Fprintf(s, "%v { %v }", n.Type, n.Func.Closure.Nbody)
 
 	case OCOMPLIT:
-		ptrlit := n.Right != nil && n.Right.Implicit() && n.Right.Type != nil && n.Right.Type.IsPtr()
 		if mode == FErr {
 			if n.Right != nil && n.Right.Type != nil && !n.Implicit() {
-				if ptrlit {
+				if n.Right.Implicit() && n.Right.Type.IsPtr() {
 					mode.Fprintf(s, "&%v literal", n.Right.Type.Elem())
 					return
-				} else {
-					mode.Fprintf(s, "%v literal", n.Right.Type)
-					return
 				}
+				mode.Fprintf(s, "%v literal", n.Right.Type)
+				return
 			}
 
 			fmt.Fprint(s, "composite literal")
@@ -1518,11 +1505,6 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			n1.exprfmt(s, nprec, mode)
 		}
 
-	case OCMPSTR, OCMPIFACE:
-		n.Left.exprfmt(s, nprec, mode)
-		mode.Fprintf(s, " %#v ", n.SubOp())
-		n.Right.exprfmt(s, nprec+1, mode)
-
 	default:
 		mode.Fprintf(s, "<node %v>", n.Op)
 	}
@@ -1531,9 +1513,8 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 func (n *Node) nodefmt(s fmt.State, flag FmtFlag, mode fmtMode) {
 	t := n.Type
 
-	// We almost always want the original, except in export mode for literals.
-	// This saves the importer some work, and avoids us having to redo some
-	// special casing for package unsafe.
+	// We almost always want the original.
+	// TODO(gri) Why the special case for OLITERAL?
 	if n.Op != OLITERAL && n.Orig != nil {
 		n = n.Orig
 	}
@@ -1834,6 +1815,10 @@ func (l Nodes) hconv(s fmt.State, flag FmtFlag, mode fmtMode) {
 
 func dumplist(s string, l Nodes) {
 	fmt.Printf("%s%+v\n", s, l)
+}
+
+func fdumplist(w io.Writer, s string, l Nodes) {
+	fmt.Fprintf(w, "%s%+v\n", s, l)
 }
 
 func Dump(s string, n *Node) {

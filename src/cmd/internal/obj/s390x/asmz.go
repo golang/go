@@ -246,6 +246,9 @@ var optab = []Optab{
 	// find leftmost one
 	Optab{AFLOGR, C_REG, C_NONE, C_NONE, C_REG, 8, 0},
 
+	// population count
+	Optab{APOPCNT, C_REG, C_NONE, C_NONE, C_REG, 9, 0},
+
 	// compare
 	Optab{ACMP, C_REG, C_NONE, C_NONE, C_REG, 70, 0},
 	Optab{ACMP, C_REG, C_NONE, C_NONE, C_LCON, 71, 0},
@@ -1376,6 +1379,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSBCBIQ, r)
 			opset(AVSBIQ, r)
 			opset(AVMSLG, r)
+			opset(AVMSLEG, r)
+			opset(AVMSLOG, r)
+			opset(AVMSLEOG, r)
 		case AVSEL:
 			opset(AVFMADB, r)
 			opset(AWFMADB, r)
@@ -2848,6 +2854,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		}
 		// FLOGR also writes a mask to p.To.Reg+1.
 		zRRE(op_FLOGR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+
+	case 9: // population count
+		zRRE(op_POPCNT, uint32(p.To.Reg), uint32(p.From.Reg), asm)
 
 	case 10: // subtract reg [reg] reg
 		r := int(p.Reg)

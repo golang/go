@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-func lookupLocalhost(ctx context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+func lookupLocalhost(ctx context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
 	switch host {
 	case "localhost":
 		return []IPAddr{
@@ -28,7 +28,7 @@ func lookupLocalhost(ctx context.Context, fn func(context.Context, string) ([]IP
 			{IP: IPv6loopback},
 		}, nil
 	default:
-		return fn(ctx, host)
+		return fn(ctx, network, host)
 	}
 }
 
@@ -1005,6 +1005,32 @@ func TestConcurrentPreferGoResolversDial(t *testing.T) {
 	for i, resolver := range resolvers {
 		if !resolver.dialed {
 			t.Errorf("custom resolver %d not dialed during lookup", i)
+		}
+	}
+}
+
+var ipVersionTests = []struct {
+	network string
+	version byte
+}{
+	{"tcp", 0},
+	{"tcp4", '4'},
+	{"tcp6", '6'},
+	{"udp", 0},
+	{"udp4", '4'},
+	{"udp6", '6'},
+	{"ip", 0},
+	{"ip4", '4'},
+	{"ip6", '6'},
+	{"ip7", 0},
+	{"", 0},
+}
+
+func TestIPVersion(t *testing.T) {
+	for _, tt := range ipVersionTests {
+		if version := ipVersion(tt.network); version != tt.version {
+			t.Errorf("Family for: %s. Expected: %s, Got: %s", tt.network,
+				string(tt.version), string(version))
 		}
 	}
 }

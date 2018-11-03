@@ -69,6 +69,7 @@ var okgoarch = []string{
 	"ppc64le",
 	"riscv64",
 	"s390x",
+	"sparc64",
 	"wasm",
 }
 
@@ -86,6 +87,7 @@ var okgoos = []string{
 	"openbsd",
 	"plan9",
 	"windows",
+	"aix",
 }
 
 // find reports the first index of p in l[0:n], or else -1.
@@ -805,10 +807,14 @@ func runInstall(dir string, ch chan struct{}) {
 		compile = append(compile, "-asmhdr", pathf("%s/go_asm.h", workdir))
 	}
 	compile = append(compile, gofiles...)
-	run(path, CheckExit|ShowOutput, compile...)
+	var wg sync.WaitGroup
+	// We use bgrun and immediately wait for it instead of calling run() synchronously.
+	// This executes all jobs through the bgwork channel and allows the process
+	// to exit cleanly in case an error occurs.
+	bgrun(&wg, path, compile...)
+	bgwait(&wg)
 
 	// Compile the files.
-	var wg sync.WaitGroup
 	for _, p := range files {
 		if !strings.HasSuffix(p, ".s") {
 			continue
@@ -858,7 +864,8 @@ func runInstall(dir string, ch chan struct{}) {
 
 	// Remove target before writing it.
 	xremove(link[targ])
-	run("", CheckExit|ShowOutput, link...)
+	bgrun(&wg, "", link...)
+	bgwait(&wg)
 }
 
 // matchfield reports whether the field (x,y,z) matches this build.
@@ -1382,6 +1389,7 @@ func checkNotStale(goBinary string, targets ...string) {
 // single point of truth for supported platforms. This list is used
 // by 'go tool dist list'.
 var cgoEnabled = map[string]bool{
+	"aix/ppc64":       false,
 	"darwin/386":      true,
 	"darwin/amd64":    true,
 	"darwin/arm":      true,
@@ -1402,6 +1410,7 @@ var cgoEnabled = map[string]bool{
 	"linux/mips64le":  true,
 	"linux/riscv64":   true,
 	"linux/s390x":     true,
+	"linux/sparc64":   true,
 	"android/386":     true,
 	"android/amd64":   true,
 	"android/arm":     true,
@@ -1422,6 +1431,7 @@ var cgoEnabled = map[string]bool{
 	"solaris/amd64":   true,
 	"windows/386":     true,
 	"windows/amd64":   true,
+	"windows/arm":     false,
 }
 
 func needCC() bool {

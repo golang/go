@@ -143,7 +143,7 @@ func CheckPath(path string) error {
 		}
 	}
 	if _, _, ok := SplitPathVersion(path); !ok {
-		return fmt.Errorf("malformed module path %q: invalid version %s", path, path[strings.LastIndex(path, "/")+1:])
+		return fmt.Errorf("malformed module path %q: invalid version", path)
 	}
 	return nil
 }
@@ -300,6 +300,9 @@ func splitGopkgIn(path string) (prefix, pathMajor string, ok bool) {
 		return path, "", false
 	}
 	i := len(path)
+	if strings.HasSuffix(path, "-unstable") {
+		i -= len("-unstable")
+	}
 	for i > 0 && ('0' <= path[i-1] && path[i-1] <= '9') {
 		i--
 	}
@@ -317,6 +320,9 @@ func splitGopkgIn(path string) (prefix, pathMajor string, ok bool) {
 // MatchPathMajor reports whether the semantic version v
 // matches the path major version pathMajor.
 func MatchPathMajor(v, pathMajor string) bool {
+	if strings.HasPrefix(pathMajor, ".v") && strings.HasSuffix(pathMajor, "-unstable") {
+		pathMajor = strings.TrimSuffix(pathMajor, "-unstable")
+	}
 	if strings.HasPrefix(v, "v0.0.0-") && pathMajor == ".v1" {
 		// Allow old bug in pseudo-versions that generated v0.0.0- pseudoversion for gopkg .v1.
 		// For example, gopkg.in/yaml.v2@v2.2.1's go.mod requires gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405.

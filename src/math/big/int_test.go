@@ -1727,3 +1727,29 @@ func BenchmarkIntSqr(b *testing.B) {
 		})
 	}
 }
+
+func benchmarkDiv(b *testing.B, aSize, bSize int) {
+	var r = rand.New(rand.NewSource(1234))
+	aa := randInt(r, uint(aSize))
+	bb := randInt(r, uint(bSize))
+	if aa.Cmp(bb) < 0 {
+		aa, bb = bb, aa
+	}
+	x := new(Int)
+	y := new(Int)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		x.DivMod(aa, bb, y)
+	}
+}
+
+func BenchmarkDiv(b *testing.B) {
+	min, max, step := 10, 100000, 10
+	for i := min; i <= max; i *= step {
+		j := 2 * i
+		b.Run(fmt.Sprintf("%d/%d", j, i), func(b *testing.B) {
+			benchmarkDiv(b, j, i)
+		})
+	}
+}

@@ -168,6 +168,58 @@ func TestExitStatus(t *testing.T) {
 	}
 }
 
+func TestExitCode(t *testing.T) {
+	// Test that exit code are returned correctly
+	cmd := helperCommand(t, "exit", "42")
+	cmd.Run()
+	want := 42
+	if runtime.GOOS == "plan9" {
+		want = 1
+	}
+	got := cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+
+	cmd = helperCommand(t, "/no-exist-executable")
+	cmd.Run()
+	want = 2
+	if runtime.GOOS == "plan9" {
+		want = 1
+	}
+	got = cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+
+	cmd = helperCommand(t, "exit", "255")
+	cmd.Run()
+	want = 255
+	if runtime.GOOS == "plan9" {
+		want = 1
+	}
+	got = cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+
+	cmd = helperCommand(t, "cat")
+	cmd.Run()
+	want = 0
+	got = cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+
+	// Test when command does not call Run().
+	cmd = helperCommand(t, "cat")
+	want = -1
+	got = cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+}
+
 func TestPipes(t *testing.T) {
 	check := func(what string, err error) {
 		if err != nil {
@@ -407,7 +459,7 @@ func basefds() uintptr {
 	// The poll (epoll/kqueue) descriptor can be numerically
 	// either between stderr and the testlog-fd, or after
 	// testlog-fd.
-	if poll.PollDescriptor() == n {
+	if poll.IsPollDescriptor(n) {
 		n++
 	}
 	for _, arg := range os.Args {
@@ -420,7 +472,7 @@ func basefds() uintptr {
 
 func closeUnexpectedFds(t *testing.T, m string) {
 	for fd := basefds(); fd <= 101; fd++ {
-		if fd == poll.PollDescriptor() {
+		if poll.IsPollDescriptor(fd) {
 			continue
 		}
 		err := os.NewFile(fd, "").Close()
@@ -682,6 +734,8 @@ func TestHelperProcess(*testing.T) {
 		ofcmd = "fstat"
 	case "plan9":
 		ofcmd = "/bin/cat"
+	case "aix":
+		ofcmd = "procfiles"
 	}
 
 	args := os.Args
@@ -785,7 +839,7 @@ func TestHelperProcess(*testing.T) {
 			// Now verify that there are no other open fds.
 			var files []*os.File
 			for wantfd := basefds() + 1; wantfd <= 100; wantfd++ {
-				if wantfd == poll.PollDescriptor() {
+				if poll.IsPollDescriptor(wantfd) {
 					continue
 				}
 				f, err := os.Open(os.Args[0])
@@ -799,6 +853,8 @@ func TestHelperProcess(*testing.T) {
 					switch runtime.GOOS {
 					case "plan9":
 						args = []string{fmt.Sprintf("/proc/%d/fd", os.Getpid())}
+					case "aix":
+						args = []string{fmt.Sprint(os.Getpid())}
 					default:
 						args = []string{"-p", fmt.Sprint(os.Getpid())}
 					}

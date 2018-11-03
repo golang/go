@@ -19,7 +19,7 @@ import (
 
 // matchPackages returns a list of packages in the list of modules
 // matching the pattern. Package loading assumes the given set of tags.
-func matchPackages(pattern string, tags map[string]bool, modules []module.Version) []string {
+func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []module.Version) []string {
 	match := func(string) bool { return true }
 	treeCanMatch := func(string) bool { return true }
 	if !search.IsMetaPackage(pattern) {
@@ -35,26 +35,28 @@ func matchPackages(pattern string, tags map[string]bool, modules []module.Versio
 	}
 	var pkgs []string
 
-	for _, mod := range modules {
-		if !treeCanMatch(mod.Path) {
-			continue
-		}
-		var root string
-		if mod.Version == "" {
-			root = ModRoot
-		} else {
-			var err error
-			root, _, err = fetch(mod)
-			if err != nil {
-				base.Errorf("go: %v", err)
-				continue
-			}
-		}
+	walkPkgs := func(root, importPathRoot string) {
 		root = filepath.Clean(root)
-
+		var cmd string
+		if root == cfg.GOROOTsrc {
+			cmd = filepath.Join(root, "cmd")
+		}
 		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
 			if err != nil {
 				return nil
+			}
+
+			// Don't use GOROOT/src but do walk down into it.
+			if path == root && importPathRoot == "" {
+				return nil
+			}
+
+			// GOROOT/src/cmd makes use of GOROOT/src/cmd/vendor,
+			// which module mode can't deal with. Eventually we'll stop using
+			// that vendor directory, and then we can remove this exclusion.
+			// golang.org/issue/26924.
+			if path == cmd {
+				return filepath.SkipDir
 			}
 
 			want := true
@@ -64,7 +66,10 @@ func matchPackages(pattern string, tags map[string]bool, modules []module.Versio
 				want = false
 			}
 
-			name := mod.Path + filepath.ToSlash(path[len(root):])
+			name := importPathRoot + filepath.ToSlash(path[len(root):])
+			if importPathRoot == "" {
+				name = name[1:] // cut leading slash
+			}
 			if !treeCanMatch(name) {
 				want = false
 			}
@@ -102,5 +107,28 @@ func matchPackages(pattern string, tags map[string]bool, modules []module.Versio
 			return nil
 		})
 	}
+
+	if useStd {
+		walkPkgs(cfg.GOROOTsrc, "")
+	}
+
+	for _, mod := range modules {
+		if !treeCanMatch(mod.Path) {
+			continue
+		}
+		var root string
+		if mod.Version == "" {
+			root = ModRoot
+		} else {
+			var err error
+			root, _, err = fetch(mod)
+			if err != nil {
+				base.Errorf("go: %v", err)
+				continue
+			}
+		}
+		walkPkgs(root, mod.Path)
+	}
+
 	return pkgs
 }

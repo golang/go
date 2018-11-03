@@ -10,7 +10,6 @@
 package main
 
 // issue 8142: lost 'addrtaken' bit on inlined variables.
-// no inlining in this test, so just checking that non-inlined works.
 
 func printnl()
 
@@ -28,15 +27,15 @@ func newT40() *T40 {
 }
 
 func bad40() {
-	t := newT40() // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
-	printnl()     // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
-	useT40(t)     // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
+	t := newT40() // ERROR "live at call to makemap: ret$" "stack object ret T40$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
+	printnl()     // ERROR "live at call to printnl: ret$"
+	useT40(t)
 }
 
 func good40() {
-	ret := T40{}
-	ret.m = make(map[int]int, 42) // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
+	ret := T40{}                  // ERROR "stack object ret T40$"
+	ret.m = make(map[int]int, 42) // ERROR "live at call to makemap: ret$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
 	t := &ret
-	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
-	useT40(t) // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
+	printnl() // ERROR "live at call to printnl: ret$"
+	useT40(t)
 }

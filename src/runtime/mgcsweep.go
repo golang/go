@@ -52,7 +52,7 @@ func bgsweep(c chan int) {
 	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
 
 	for {
-		for gosweepone() != ^uintptr(0) {
+		for sweepone() != ^uintptr(0) {
 			sweep.nbgsweep++
 			Gosched()
 		}
@@ -60,7 +60,7 @@ func bgsweep(c chan int) {
 			Gosched()
 		}
 		lock(&sweep.lock)
-		if !gosweepdone() {
+		if !isSweepDone() {
 			// This can happen if a GC runs between
 			// gosweepone returning ^0 above
 			// and the lock being acquired.
@@ -72,9 +72,8 @@ func bgsweep(c chan int) {
 	}
 }
 
-// sweeps one span
-// returns number of pages returned to heap, or ^uintptr(0) if there is nothing to sweep
-//go:nowritebarrier
+// sweepone sweeps one span and returns the number of pages returned
+// to the heap, or ^uintptr(0) if there was nothing to sweep.
 func sweepone() uintptr {
 	_g_ := getg()
 	sweepRatio := mheap_.sweepPagesPerByte // For debugging
@@ -88,10 +87,11 @@ func sweepone() uintptr {
 	}
 	atomic.Xadd(&mheap_.sweepers, +1)
 
-	npages := ^uintptr(0)
+	// Find a span to sweep.
+	var s *mspan
 	sg := mheap_.sweepgen
 	for {
-		s := mheap_.sweepSpans[1-sg/2%2].pop()
+		s = mheap_.sweepSpans[1-sg/2%2].pop()
 		if s == nil {
 			atomic.Store(&mheap_.sweepdone, 1)
 			break
@@ -100,15 +100,20 @@ func sweepone() uintptr {
 			// This can happen if direct sweeping already
 			// swept this span, but in that case the sweep
 			// generation should always be up-to-date.
-			if s.sweepgen != sg {
+			if !(s.sweepgen == sg || s.sweepgen == sg+3) {
 				print("runtime: bad span s.state=", s.state, " s.sweepgen=", s.sweepgen, " sweepgen=", sg, "\n")
 				throw("non in-use span in unswept list")
 			}
 			continue
 		}
-		if s.sweepgen != sg-2 || !atomic.Cas(&s.sweepgen, sg-2, sg-1) {
-			continue
+		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
+			break
 		}
+	}
+
+	// Sweep the span we found.
+	npages := ^uintptr(0)
+	if s != nil {
 		npages = s.npages
 		if !s.sweep(false) {
 			// Span is still in-use, so this returned no
@@ -116,7 +121,6 @@ func sweepone() uintptr {
 			// move to the swept in-use list.
 			npages = 0
 		}
-		break
 	}
 
 	// Decrement the number of active sweepers and if this is the
@@ -130,17 +134,13 @@ func sweepone() uintptr {
 	return npages
 }
 
-//go:nowritebarrier
-func gosweepone() uintptr {
-	var ret uintptr
-	systemstack(func() {
-		ret = sweepone()
-	})
-	return ret
-}
-
-//go:nowritebarrier
-func gosweepdone() bool {
+// isSweepDone reports whether all spans are swept or currently being swept.
+//
+// Note that this condition may transition from false to true at any
+// time as the sweeper runs. It may transition from true to false if a
+// GC runs; to prevent that the caller must be non-preemptible or must
+// somehow block GC progress.
+func isSweepDone() bool {
 	return mheap_.sweepdone != 0
 }
 
@@ -156,16 +156,21 @@ func (s *mspan) ensureSwept() {
 	}
 
 	sg := mheap_.sweepgen
-	if atomic.Load(&s.sweepgen) == sg {
+	spangen := atomic.Load(&s.sweepgen)
+	if spangen == sg || spangen == sg+3 {
 		return
 	}
-	// The caller must be sure that the span is a MSpanInUse span.
+	// The caller must be sure that the span is a mSpanInUse span.
 	if atomic.Cas(&s.sweepgen, sg-2, sg-1) {
 		s.sweep(false)
 		return
 	}
 	// unfortunate condition, and we don't have efficient means to wait
-	for atomic.Load(&s.sweepgen) != sg {
+	for {
+		spangen := atomic.Load(&s.sweepgen)
+		if spangen == sg || spangen == sg+3 {
+			break
+		}
 		osyield()
 	}
 }
@@ -339,24 +344,24 @@ func (s *mspan) sweep(preserve bool) bool {
 		// Free large span to heap
 
 		// NOTE(rsc,dvyukov): The original implementation of efence
-		// in CL 22060046 used SysFree instead of SysFault, so that
+		// in CL 22060046 used sysFree instead of sysFault, so that
 		// the operating system would eventually give the memory
 		// back to us again, so that an efence program could run
 		// longer without running out of memory. Unfortunately,
-		// calling SysFree here without any kind of adjustment of the
+		// calling sysFree here without any kind of adjustment of the
 		// heap data structures means that when the memory does
 		// come back to us, we have the wrong metadata for it, either in
 		// the MSpan structures or in the garbage collection bitmap.
-		// Using SysFault here means that the program will run out of
+		// Using sysFault here means that the program will run out of
 		// memory fairly quickly in efence mode, but at least it won't
 		// have mysterious crashes due to confused memory reuse.
-		// It should be possible to switch back to SysFree if we also
+		// It should be possible to switch back to sysFree if we also
 		// implement and then call some kind of MHeap_DeleteSpan.
 		if debug.efence > 0 {
 			s.limit = 0 // prevent mlookup from finding this span
 			sysFault(unsafe.Pointer(s.base()), size)
 		} else {
-			mheap_.freeSpan(s, 1)
+			mheap_.freeSpan(s, true)
 		}
 		c.local_nlargefree++
 		c.local_largefree += size
@@ -404,7 +409,7 @@ retry:
 	newHeapLive := uintptr(atomic.Load64(&memstats.heap_live)-mheap_.sweepHeapLiveBasis) + spanBytes
 	pagesTarget := int64(mheap_.sweepPagesPerByte*float64(newHeapLive)) - int64(callerSweepPages)
 	for pagesTarget > int64(atomic.Load64(&mheap_.pagesSwept)-sweptBasis) {
-		if gosweepone() == ^uintptr(0) {
+		if sweepone() == ^uintptr(0) {
 			mheap_.sweepPagesPerByte = 0
 			break
 		}

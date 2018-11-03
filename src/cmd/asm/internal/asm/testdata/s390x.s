@@ -115,6 +115,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	NEGW	R1                    // b9130011
 	NEGW	R1, R2                // b9130021
 	FLOGR	R2, R2                // b9830022
+	POPCNT	R3, R4                // b9e10043
 
 	AND	R1, R2                // b9800021
 	AND	R1, R2, R3            // b9e42031
@@ -368,6 +369,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	VSTEH	$7, V31, (R2)           // e7f020007809
 	VSTEB	$15, V29, 4094(R12)     // e7d0cffef808
 	VMSLG	V21, V22, V23, V24      // e78563007fb8
+	VMSLEG  V21, V22, V23, V24      // e78563807fb8
+	VMSLOG  V21, V22, V23, V24      // e78563407fb8
+	VMSLEOG V21, V22, V23, V24      // e78563c07fb8
 
 	RET
 	RET	foo(SB)

@@ -10,7 +10,7 @@ import (
 	"cmd/internal/sys"
 )
 
-// The racewalk pass is currently handled in two parts.
+// The racewalk pass is currently handled in three parts.
 //
 // First, for flag_race, it inserts calls to racefuncenter and
 // racefuncexit at the start and end (respectively) of each
@@ -22,13 +22,25 @@ import (
 // the Func.InstrumentBody flag as needed. For background on why this
 // is done during SSA construction rather than a separate SSA pass,
 // see issue #19054.
+//
+// Third we remove calls to racefuncenter and racefuncexit, for leaf
+// functions without instrumented operations. This is done as part of
+// ssa opt pass via special rule.
 
 // TODO(dvyukov): do not instrument initialization as writes:
 // a := make([]int, 10)
 
 // Do not instrument the following packages at all,
 // at best instrumentation would cause infinite recursion.
-var omit_pkgs = []string{"runtime/internal/atomic", "runtime/internal/sys", "runtime", "runtime/race", "runtime/msan", "internal/cpu"}
+var omit_pkgs = []string{
+	"runtime/internal/atomic",
+	"runtime/internal/sys",
+	"runtime/internal/math",
+	"runtime",
+	"runtime/race",
+	"runtime/msan",
+	"internal/cpu",
+}
 
 // Only insert racefuncenterfp/racefuncexit into the following packages.
 // Memory accesses in the packages are either uninteresting or will cause false positives.

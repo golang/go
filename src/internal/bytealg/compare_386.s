@@ -45,7 +45,7 @@ TEXT cmpbody<>(SB),NOSPLIT,$0-0
 	JEQ	allsame
 	CMPL	BP, $4
 	JB	small
-	CMPB	runtime·support_sse2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
 	JNE	mediumloop
 largeloop:
 	CMPL	BP, $16

@@ -1120,7 +1120,8 @@ func parseTimeZone(value string) (length int, ok bool) {
 	// Special Case 3: Some time zones are not named, but have +/-00 format
 	if value[0] == '+' || value[0] == '-' {
 		length = parseSignedOffset(value)
-		return length, true
+		ok := length > 0 // parseSignedOffset returns 0 in case of bad input
+		return length, ok
 	}
 	// How many upper-case letters are there? Need at least three, at most five.
 	var nUpper int
@@ -1152,7 +1153,7 @@ func parseTimeZone(value string) (length int, ok bool) {
 
 // parseGMT parses a GMT time zone. The input string is known to start "GMT".
 // The function checks whether that is followed by a sign and a number in the
-// range -14 through 12 excluding zero.
+// range -23 through +23 excluding zero.
 func parseGMT(value string) int {
 	value = value[3:]
 	if len(value) == 0 {
@@ -1163,7 +1164,7 @@ func parseGMT(value string) int {
 }
 
 // parseSignedOffset parses a signed timezone offset (e.g. "+03" or "-04").
-// The function checks for a signed number in the range -14 through +12 excluding zero.
+// The function checks for a signed number in the range -23 through +23 excluding zero.
 // Returns length of the found offset string or 0 otherwise
 func parseSignedOffset(value string) int {
 	sign := value[0]
@@ -1171,13 +1172,15 @@ func parseSignedOffset(value string) int {
 		return 0
 	}
 	x, rem, err := leadingInt(value[1:])
-	if err != nil {
+
+	// fail if nothing consumed by leadingInt
+	if err != nil || value[1:] == rem {
 		return 0
 	}
 	if sign == '-' {
 		x = -x
 	}
-	if x == 0 || x < -14 || 12 < x {
+	if x < -23 || 23 < x {
 		return 0
 	}
 	return len(value) - len(rem)

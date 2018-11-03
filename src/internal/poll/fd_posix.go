@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
 
 package poll
 
@@ -45,13 +45,4 @@ func (fd *FD) Ftruncate(size int64) error {
 	}
 	defer fd.decref()
 	return syscall.Ftruncate(fd.Sysfd, size)
-}
-
-// Fsync wraps syscall.Fsync.
-func (fd *FD) Fsync() error {
-	if err := fd.incref(); err != nil {
-		return err
-	}
-	defer fd.decref()
-	return syscall.Fsync(fd.Sysfd)
 }

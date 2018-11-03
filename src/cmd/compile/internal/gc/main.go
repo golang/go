@@ -19,11 +19,13 @@ import (
 	"cmd/internal/sys"
 	"flag"
 	"fmt"
+	"go/build"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -205,28 +207,32 @@ func Main(archInit func(*Arch)) {
 	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", true, "add location lists to DWARF in optimized mode")
 	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
-	objabi.Flagcount("f", "debug stack frames", &Debug['f'])
 	objabi.Flagcount("h", "halt on error", &Debug['h'])
-	objabi.Flagcount("i", "debug line number stack", &Debug['i'])
 	objabi.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
 	objabi.Flagfn1("importcfg", "read import configuration from `file`", readImportCfg)
 	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")
 	objabi.Flagcount("j", "debug runtime-initialized variables", &Debug['j'])
 	objabi.Flagcount("l", "disable inlining", &Debug['l'])
+	flag.StringVar(&flag_lang, "lang", defaultLang(), "release to compile for")
 	flag.StringVar(&linkobj, "linkobj", "", "write linker-specific object to `file`")
 	objabi.Flagcount("live", "debug liveness analysis", &debuglive)
 	objabi.Flagcount("m", "print optimization decisions", &Debug['m'])
-	flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
-	flag.BoolVar(&dolinkobj, "dolinkobj", true, "generate linker-specific objects; if false, some invalid code may compile")
+	if sys.MSanSupported(objabi.GOOS, objabi.GOARCH) {
+		flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
+	}
 	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
 	flag.StringVar(&outfile, "o", "", "write output to `file`")
 	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
 	flag.BoolVar(&writearchive, "pack", false, "write to file.a instead of file.o")
 	objabi.Flagcount("r", "debug generated wrappers", &Debug['r'])
-	flag.BoolVar(&flag_race, "race", false, "enable race detector")
+	if sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
+		flag.BoolVar(&flag_race, "race", false, "enable race detector")
+	}
 	objabi.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
+	if enableTrace {
+		flag.BoolVar(&trace, "t", false, "trace type-checking")
+	}
 	flag.StringVar(&pathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
-	flag.BoolVar(&safemode, "u", false, "reject unsafe code")
 	flag.BoolVar(&Debug_vlog, "v", false, "increase debug verbosity")
 	objabi.Flagcount("w", "debug type checking", &Debug['w'])
 	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
@@ -245,7 +251,6 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
-	flag.BoolVar(&flagiexport, "iexport", true, "export indexed package data")
 	objabi.Flagparse(usage)
 
 	// Record flags that affect the build result. (And don't
@@ -277,6 +282,8 @@ func Main(archInit func(*Arch)) {
 		fmt.Printf("compile: version %q does not match go tool version %q\n", runtime.Version(), goversion)
 		Exit(2)
 	}
+
+	checkLang()
 
 	thearch.LinkArch.Init(Ctxt)
 
@@ -341,7 +348,7 @@ func Main(archInit func(*Arch)) {
 			}
 			// display help about the -d option itself and quit
 			if name == "help" {
-				fmt.Printf(debugHelpHeader)
+				fmt.Print(debugHelpHeader)
 				maxLen := len("ssa/help")
 				for _, t := range debugtab {
 					if len(t.name) > maxLen {
@@ -353,7 +360,7 @@ func Main(archInit func(*Arch)) {
 				}
 				// ssa options have their own help
 				fmt.Printf("\t%-*s\t%s\n", maxLen, "ssa/help", "print help about SSA debugging")
-				fmt.Printf(debugHelpFooter)
+				fmt.Print(debugHelpFooter)
 				os.Exit(0)
 			}
 			val, valstring, haveInt := 1, "", true
@@ -423,6 +430,12 @@ func Main(archInit func(*Arch)) {
 		Debug['l'] = 1 - Debug['l']
 	}
 
+	ssaDump = os.Getenv("GOSSAFUNC")
+	if strings.HasSuffix(ssaDump, "+") {
+		ssaDump = ssaDump[:len(ssaDump)-1]
+		ssaDumpStdout = true
+	}
+
 	trackScopes = flagDWARF
 
 	Widthptr = thearch.LinkArch.PtrSize
@@ -472,9 +485,6 @@ func Main(archInit func(*Arch)) {
 	finishUniverse()
 
 	typecheckok = true
-	if Debug['f'] != 0 {
-		frame(1)
-	}
 
 	// Process top-level declarations in phases.
 
@@ -526,7 +536,9 @@ func Main(archInit func(*Arch)) {
 			fcount++
 		}
 	}
-	// With all types ckecked, it's now safe to verify map keys.
+	// With all types ckecked, it's now safe to verify map keys. One single
+	// check past phase 9 isn't sufficient, as we may exit with other errors
+	// before then, thus skipping map key errors.
 	checkMapKeys()
 	timings.AddEvent(fcount, "funcs")
 
@@ -596,71 +608,69 @@ func Main(archInit func(*Arch)) {
 	timings.Start("fe", "escapes")
 	escapes(xtop)
 
-	if dolinkobj {
-		// Collect information for go:nowritebarrierrec
-		// checking. This must happen before transformclosure.
-		// We'll do the final check after write barriers are
-		// inserted.
-		if compiling_runtime {
-			nowritebarrierrecCheck = newNowritebarrierrecChecker()
+	// Collect information for go:nowritebarrierrec
+	// checking. This must happen before transformclosure.
+	// We'll do the final check after write barriers are
+	// inserted.
+	if compiling_runtime {
+		nowritebarrierrecCheck = newNowritebarrierrecChecker()
+	}
+
+	// Phase 7: Transform closure bodies to properly reference captured variables.
+	// This needs to happen before walk, because closures must be transformed
+	// before walk reaches a call of a closure.
+	timings.Start("fe", "xclosures")
+	for _, n := range xtop {
+		if n.Op == ODCLFUNC && n.Func.Closure != nil {
+			Curfn = n
+			transformclosure(n)
 		}
+	}
 
-		// Phase 7: Transform closure bodies to properly reference captured variables.
-		// This needs to happen before walk, because closures must be transformed
-		// before walk reaches a call of a closure.
-		timings.Start("fe", "xclosures")
-		for _, n := range xtop {
-			if n.Op == ODCLFUNC && n.Func.Closure != nil {
-				Curfn = n
-				transformclosure(n)
-			}
+	// Prepare for SSA compilation.
+	// This must be before peekitabs, because peekitabs
+	// can trigger function compilation.
+	initssaconfig()
+
+	// Just before compilation, compile itabs found on
+	// the right side of OCONVIFACE so that methods
+	// can be de-virtualized during compilation.
+	Curfn = nil
+	peekitabs()
+
+	// Phase 8: Compile top level functions.
+	// Don't use range--walk can add functions to xtop.
+	timings.Start("be", "compilefuncs")
+	fcount = 0
+	for i := 0; i < len(xtop); i++ {
+		n := xtop[i]
+		if n.Op == ODCLFUNC {
+			funccompile(n)
+			fcount++
 		}
+	}
+	timings.AddEvent(fcount, "funcs")
 
-		// Prepare for SSA compilation.
-		// This must be before peekitabs, because peekitabs
-		// can trigger function compilation.
-		initssaconfig()
+	if nsavederrors+nerrors == 0 {
+		fninit(xtop)
+	}
 
-		// Just before compilation, compile itabs found on
-		// the right side of OCONVIFACE so that methods
-		// can be de-virtualized during compilation.
-		Curfn = nil
-		peekitabs()
+	compileFunctions()
 
-		// Phase 8: Compile top level functions.
-		// Don't use range--walk can add functions to xtop.
-		timings.Start("be", "compilefuncs")
-		fcount = 0
-		for i := 0; i < len(xtop); i++ {
-			n := xtop[i]
-			if n.Op == ODCLFUNC {
-				funccompile(n)
-				fcount++
-			}
-		}
-		timings.AddEvent(fcount, "funcs")
+	if nowritebarrierrecCheck != nil {
+		// Write barriers are now known. Check the
+		// call graph.
+		nowritebarrierrecCheck.check()
+		nowritebarrierrecCheck = nil
+	}
 
-		if nsavederrors+nerrors == 0 {
-			fninit(xtop)
-		}
-
-		compileFunctions()
-
-		if nowritebarrierrecCheck != nil {
-			// Write barriers are now known. Check the
-			// call graph.
-			nowritebarrierrecCheck.check()
-			nowritebarrierrecCheck = nil
-		}
-
-		// Finalize DWARF inline routine DIEs, then explicitly turn off
-		// DWARF inlining gen so as to avoid problems with generated
-		// method wrappers.
-		if Ctxt.DwFixups != nil {
-			Ctxt.DwFixups.Finalize(myimportpath, Debug_gendwarfinl != 0)
-			Ctxt.DwFixups = nil
-			genDwarfInline = 0
-		}
+	// Finalize DWARF inline routine DIEs, then explicitly turn off
+	// DWARF inlining gen so as to avoid problems with generated
+	// method wrappers.
+	if Ctxt.DwFixups != nil {
+		Ctxt.DwFixups.Finalize(myimportpath, Debug_gendwarfinl != 0)
+		Ctxt.DwFixups = nil
+		genDwarfInline = 0
 	}
 
 	// Phase 9: Check external declarations.
@@ -670,6 +680,9 @@ func Main(archInit func(*Arch)) {
 			externdcl[i] = typecheck(externdcl[i], Erv)
 		}
 	}
+	// Check the map keys again, since we typechecked the external
+	// declarations.
+	checkMapKeys()
 
 	if nerrors+nsavederrors != 0 {
 		errorexit()
@@ -684,10 +697,14 @@ func Main(archInit func(*Arch)) {
 
 	// Check whether any of the functions we have compiled have gigantic stack frames.
 	obj.SortSlice(largeStackFrames, func(i, j int) bool {
-		return largeStackFrames[i].Before(largeStackFrames[j])
+		return largeStackFrames[i].pos.Before(largeStackFrames[j].pos)
 	})
-	for _, largePos := range largeStackFrames {
-		yyerrorl(largePos, "stack frame too large (>1GB)")
+	for _, large := range largeStackFrames {
+		if large.callee != 0 {
+			yyerrorl(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
+		} else {
+			yyerrorl(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
+		}
 	}
 
 	if len(compilequeue) != 0 {
@@ -830,7 +847,7 @@ func islocalname(name string) bool {
 
 func findpkg(name string) (file string, ok bool) {
 	if islocalname(name) {
-		if safemode || nolocalimports {
+		if nolocalimports {
 			return "", false
 		}
 
@@ -972,11 +989,6 @@ func importfile(f *Val) *types.Pkg {
 	}
 
 	if path_ == "unsafe" {
-		if safemode {
-			yyerror("cannot import package unsafe")
-			errorexit()
-		}
-
 		imported_unsafe = true
 		return unsafepkg
 	}
@@ -1050,7 +1062,6 @@ func importfile(f *Val) *types.Pkg {
 	}
 
 	// process header lines
-	safe := false
 	for {
 		p, err = imp.ReadString('\n')
 		if err != nil {
@@ -1060,13 +1071,6 @@ func importfile(f *Val) *types.Pkg {
 		if p == "\n" {
 			break // header ends with blank line
 		}
-		if strings.HasPrefix(p, "safe") {
-			safe = true
-			break // ok to ignore rest
-		}
-	}
-	if safemode && !safe {
-		yyerror("cannot import unsafe package %q", importpkg.Path)
 	}
 
 	// assume files move (get installed) so don't record the full path
@@ -1119,24 +1123,13 @@ func importfile(f *Val) *types.Pkg {
 			errorexit()
 		}
 
-		// New indexed format is distinguished by an 'i' byte,
-		// whereas old export format always starts with 'c', 'd', or 'v'.
-		if c == 'i' {
-			if !flagiexport {
-				yyerror("import %s: cannot import package compiled with -iexport=true", file)
-				errorexit()
-			}
-
-			iimport(importpkg, imp)
-		} else {
-			if flagiexport {
-				yyerror("import %s: cannot import package compiled with -iexport=false", file)
-				errorexit()
-			}
-
-			imp.UnreadByte()
-			Import(importpkg, imp.Reader)
+		// Indexed format is distinguished by an 'i' byte,
+		// whereas previous export formats started with 'c', 'd', or 'v'.
+		if c != 'i' {
+			yyerror("import %s: unexpected package format byte: %v", file, c)
+			errorexit()
 		}
+		iimport(importpkg, imp)
 
 	default:
 		yyerror("no import in %q", path_)
@@ -1318,4 +1311,67 @@ func recordFlags(flags ...string) {
 	s.Set(obj.AttrDuplicateOK, true)
 	Ctxt.Data = append(Ctxt.Data, s)
 	s.P = cmd.Bytes()[1:]
+}
+
+// flag_lang is the language version we are compiling for, set by the -lang flag.
+var flag_lang string
+
+// defaultLang returns the default value for the -lang flag.
+func defaultLang() string {
+	tags := build.Default.ReleaseTags
+	return tags[len(tags)-1]
+}
+
+// goVersionRE is a regular expression that matches the valid
+// arguments to the -lang flag.
+var goVersionRE = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+
+// A lang is a language version broken into major and minor numbers.
+type lang struct {
+	major, minor int
+}
+
+// langWant is the desired language version set by the -lang flag.
+var langWant lang
+
+// langSupported reports whether language version major.minor is supported.
+func langSupported(major, minor int) bool {
+	return langWant.major > major || (langWant.major == major && langWant.minor >= minor)
+}
+
+// checkLang verifies that the -lang flag holds a valid value, and
+// exits if not. It initializes data used by langSupported.
+func checkLang() {
+	var err error
+	langWant, err = parseLang(flag_lang)
+	if err != nil {
+		log.Fatalf("invalid value %q for -lang: %v", flag_lang, err)
+	}
+
+	if def := defaultLang(); flag_lang != def {
+		defVers, err := parseLang(def)
+		if err != nil {
+			log.Fatalf("internal error parsing default lang %q: %v", def, err)
+		}
+		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.major > defVers.minor) {
+			log.Fatalf("invalid value %q for -lang: max known version is %q", flag_lang, def)
+		}
+	}
+}
+
+// parseLang parses a -lang option into a langVer.
+func parseLang(s string) (lang, error) {
+	matches := goVersionRE.FindStringSubmatch(s)
+	if matches == nil {
+		return lang{}, fmt.Errorf(`should be something like "go1.12"`)
+	}
+	major, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return lang{}, err
+	}
+	minor, err := strconv.Atoi(matches[2])
+	if err != nil {
+		return lang{}, err
+	}
+	return lang{major: major, minor: minor}, nil
 }

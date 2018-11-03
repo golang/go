@@ -373,21 +373,21 @@ func init() {
 		{name: "MOVFstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVF", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 		{name: "MOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 
-		{name: "MOVWloadidx", argLength: 3, reg: gp2load, asm: "MOVW"},                   // load from arg0 + arg1. arg2=mem
-		{name: "MOVWloadshiftLL", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32"}, // load from arg0 + arg1<<auxInt. arg2=mem
-		{name: "MOVWloadshiftRL", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32"}, // load from arg0 + arg1>>auxInt, unsigned shift. arg2=mem
-		{name: "MOVWloadshiftRA", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32"}, // load from arg0 + arg1>>auxInt, signed shift. arg2=mem
-		{name: "MOVBUloadidx", argLength: 3, reg: gp2load, asm: "MOVBU"},                 // load from arg0 + arg1. arg2=mem
-		{name: "MOVBloadidx", argLength: 3, reg: gp2load, asm: "MOVB"},                   // load from arg0 + arg1. arg2=mem
-		{name: "MOVHUloadidx", argLength: 3, reg: gp2load, asm: "MOVHU"},                 // load from arg0 + arg1. arg2=mem
-		{name: "MOVHloadidx", argLength: 3, reg: gp2load, asm: "MOVH"},                   // load from arg0 + arg1. arg2=mem
+		{name: "MOVWloadidx", argLength: 3, reg: gp2load, asm: "MOVW", typ: "UInt32"},                   // load from arg0 + arg1. arg2=mem
+		{name: "MOVWloadshiftLL", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32", typ: "UInt32"}, // load from arg0 + arg1<<auxInt. arg2=mem
+		{name: "MOVWloadshiftRL", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32", typ: "UInt32"}, // load from arg0 + arg1>>auxInt, unsigned shift. arg2=mem
+		{name: "MOVWloadshiftRA", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32", typ: "UInt32"}, // load from arg0 + arg1>>auxInt, signed shift. arg2=mem
+		{name: "MOVBUloadidx", argLength: 3, reg: gp2load, asm: "MOVBU", typ: "UInt8"},                  // load from arg0 + arg1. arg2=mem
+		{name: "MOVBloadidx", argLength: 3, reg: gp2load, asm: "MOVB", typ: "Int8"},                     // load from arg0 + arg1. arg2=mem
+		{name: "MOVHUloadidx", argLength: 3, reg: gp2load, asm: "MOVHU", typ: "UInt16"},                 // load from arg0 + arg1. arg2=mem
+		{name: "MOVHloadidx", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},                    // load from arg0 + arg1. arg2=mem
 
-		{name: "MOVWstoreidx", argLength: 4, reg: gp2store, asm: "MOVW"},                   // store arg2 to arg0 + arg1. arg3=mem
-		{name: "MOVWstoreshiftLL", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32"}, // store arg2 to arg0 + arg1<<auxInt. arg3=mem
-		{name: "MOVWstoreshiftRL", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32"}, // store arg2 to arg0 + arg1>>auxInt, unsigned shift. arg3=mem
-		{name: "MOVWstoreshiftRA", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32"}, // store arg2 to arg0 + arg1>>auxInt, signed shift. arg3=mem
-		{name: "MOVBstoreidx", argLength: 4, reg: gp2store, asm: "MOVB"},                   // store arg2 to arg0 + arg1. arg3=mem
-		{name: "MOVHstoreidx", argLength: 4, reg: gp2store, asm: "MOVH"},                   // store arg2 to arg0 + arg1. arg3=mem
+		{name: "MOVWstoreidx", argLength: 4, reg: gp2store, asm: "MOVW", typ: "Mem"},                   // store arg2 to arg0 + arg1. arg3=mem
+		{name: "MOVWstoreshiftLL", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32", typ: "Mem"}, // store arg2 to arg0 + arg1<<auxInt. arg3=mem
+		{name: "MOVWstoreshiftRL", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32", typ: "Mem"}, // store arg2 to arg0 + arg1>>auxInt, unsigned shift. arg3=mem
+		{name: "MOVWstoreshiftRA", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32", typ: "Mem"}, // store arg2 to arg0 + arg1>>auxInt, signed shift. arg3=mem
+		{name: "MOVBstoreidx", argLength: 4, reg: gp2store, asm: "MOVB", typ: "Mem"},                   // store arg2 to arg0 + arg1. arg3=mem
+		{name: "MOVHstoreidx", argLength: 4, reg: gp2store, asm: "MOVH", typ: "Mem"},                   // store arg2 to arg0 + arg1. arg3=mem
 
 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVBS"},  // move from arg0, sign-extended from byte
 		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte

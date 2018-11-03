@@ -7,6 +7,7 @@ package tls
 import (
 	"bytes"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"internal/testenv"
@@ -588,7 +589,7 @@ func TestWarningAlertFlood(t *testing.T) {
 		if err == nil {
 			return errors.New("unexpected lack of error from server")
 		}
-		const expected = "too many warn"
+		const expected = "too many ignored"
 		if str := err.Error(); !strings.Contains(str, expected) {
 			return fmt.Errorf("expected error containing %q, but saw: %s", expected, str)
 		}
@@ -609,7 +610,7 @@ func TestWarningAlertFlood(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < maxWarnAlertCount+1; i++ {
+	for i := 0; i < maxUselessRecords+1; i++ {
 		conn.sendAlert(alertNoRenegotiation)
 	}
 
@@ -905,5 +906,13 @@ func BenchmarkLatency(b *testing.B) {
 				latency(b, kbps*1000, mode == "Max")
 			})
 		}
+	}
+}
+
+func TestConnectionStateMarshal(t *testing.T) {
+	cs := &ConnectionState{}
+	_, err := json.Marshal(cs)
+	if err != nil {
+		t.Errorf("json.Marshal failed on ConnectionState: %v", err)
 	}
 }

@@ -64,7 +64,7 @@ notfound:
 	RET
 
 large:
-	MOVBZ	internal∕cpu·S390X+const_s390x_HasVX(SB), R1
+	MOVBZ	internal∕cpu·S390X+const_offsetS390xHasVX(SB), R1
 	CMPBNE	R1, $0, vectorimpl
 
 srstimpl:                       // no vector facility

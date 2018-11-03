@@ -62,7 +62,7 @@ loop:
 	ADDQ	$16, DI
 	SUBQ	$16, R8
 	JMP	loop
-	
+
 	// AX = bit mask of differences
 diff16:
 	BSFQ	AX, BX	// index of first byte that differs

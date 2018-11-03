@@ -111,7 +111,20 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 
 }
 
-// resolve relocations in s.
+// relocsym resolve relocations in "s". The main loop walks through
+// the list of relocations attached to "s" and resolves them where
+// applicable. Relocations are often architecture-specific, requiring
+// calls into the 'archreloc' and/or 'archrelocvariant' functions for
+// the architecture. When external linking is in effect, it may not be
+// possible to completely resolve the address/offset for a symbol, in
+// which case the goal is to lay the groundwork for turning a given
+// relocation into an external reloc (to be applied by the external
+// linker). For more on how relocations work in general, see
+//
+//  "Linkers and Loaders", by John R. Levine (Morgan Kaufmann, 1999), ch. 7
+//
+// This is a performance-critical function for the linker; be careful
+// to avoid introducing unnecessary allocations in the main loop.
 func relocsym(ctxt *Link, s *sym.Symbol) {
 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
 		r := &s.R[ri]
@@ -198,7 +211,9 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			case 8:
 				o = int64(ctxt.Arch.ByteOrder.Uint64(s.P[off:]))
 			}
-			if !thearch.Archreloc(ctxt, r, s, &o) {
+			if offset, ok := thearch.Archreloc(ctxt, r, s, o); ok {
+				o = offset
+			} else {
 				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type))
 			}
 		case objabi.R_TLS_LE:
@@ -298,6 +313,18 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				}
 
 				break
+			}
+			// On AIX, if a relocated symbol is in .data, a second relocation
+			// must be done by the loader, as the section .data will be moved.
+			// The "default" symbol address is still needed by the loader so
+			// the current relocation can't be skipped.
+			// runtime.algarray is different because it will end up in .rodata section
+			if ctxt.HeadType == objabi.Haix && r.Sym.Sect.Seg == &Segdata && r.Sym.Name != "runtime.algarray" {
+				// It's not possible to make a loader relocation to a DWARF section.
+				// FIXME
+				if s.Sect.Seg != &Segdwarf {
+					xcoffaddloaderreloc(ctxt, s, r)
+				}
 			}
 
 			o = Symaddr(r.Sym) + r.Add
@@ -514,11 +541,7 @@ func (ctxt *Link) reloc() {
 	}
 }
 
-func windynrelocsym(ctxt *Link, s *sym.Symbol) {
-	rel := ctxt.Syms.Lookup(".rel", 0)
-	if s == rel {
-		return
-	}
+func windynrelocsym(ctxt *Link, rel, s *sym.Symbol) {
 	for ri := range s.R {
 		r := &s.R[ri]
 		targ := r.Sym
@@ -531,40 +554,61 @@ func windynrelocsym(ctxt *Link, s *sym.Symbol) {
 			}
 			Errorf(s, "dynamic relocation to unreachable symbol %s", targ.Name)
 		}
-		if r.Sym.Plt == -2 && r.Sym.Got != -2 { // make dynimport JMP table for PE object files.
-			targ.Plt = int32(rel.Size)
+		if r.Sym.Plt() == -2 && r.Sym.Got() != -2 { // make dynimport JMP table for PE object files.
+			targ.SetPlt(int32(rel.Size))
 			r.Sym = rel
-			r.Add = int64(targ.Plt)
+			r.Add = int64(targ.Plt())
 
 			// jmp *addr
-			if ctxt.Arch.Family == sys.I386 {
+			switch ctxt.Arch.Family {
+			default:
+				Errorf(s, "unsupported arch %v", ctxt.Arch.Family)
+				return
+			case sys.I386:
 				rel.AddUint8(0xff)
 				rel.AddUint8(0x25)
 				rel.AddAddr(ctxt.Arch, targ)
 				rel.AddUint8(0x90)
 				rel.AddUint8(0x90)
-			} else {
+			case sys.AMD64:
 				rel.AddUint8(0xff)
 				rel.AddUint8(0x24)
 				rel.AddUint8(0x25)
 				rel.AddAddrPlus4(targ, 0)
 				rel.AddUint8(0x90)
 			}
-		} else if r.Sym.Plt >= 0 {
+		} else if r.Sym.Plt() >= 0 {
 			r.Sym = rel
-			r.Add = int64(targ.Plt)
+			r.Add = int64(targ.Plt())
 		}
 	}
 }
 
-func dynrelocsym(ctxt *Link, s *sym.Symbol) {
-	if ctxt.HeadType == objabi.Hwindows {
-		if ctxt.LinkMode == LinkInternal {
-			windynrelocsym(ctxt, s)
-		}
+// windynrelocsyms generates jump table to C library functions that will be
+// added later. windynrelocsyms writes the table into .rel symbol.
+func (ctxt *Link) windynrelocsyms() {
+	if !(ctxt.HeadType == objabi.Hwindows && iscgo && ctxt.LinkMode == LinkInternal) {
 		return
 	}
+	if ctxt.Debugvlog != 0 {
+		ctxt.Logf("%5.2f windynrelocsyms\n", Cputime())
+	}
 
+	/* relocation table */
+	rel := ctxt.Syms.Lookup(".rel", 0)
+	rel.Attr |= sym.AttrReachable
+	rel.Type = sym.STEXT
+	ctxt.Textp = append(ctxt.Textp, rel)
+
+	for _, s := range ctxt.Textp {
+		if s == rel {
+			continue
+		}
+		windynrelocsym(ctxt, rel, s)
+	}
+}
+
+func dynrelocsym(ctxt *Link, s *sym.Symbol) {
 	for ri := range s.R {
 		r := &s.R[ri]
 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
@@ -574,6 +618,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
 			thearch.Adddynrel(ctxt, s, r)
 			continue
 		}
+
 		if r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT || r.Type >= 256 {
 			if r.Sym != nil && !r.Sym.Attr.Reachable() {
 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
@@ -586,9 +631,12 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
 }
 
 func dynreloc(ctxt *Link, data *[sym.SXREF][]*sym.Symbol) {
+	if ctxt.HeadType == objabi.Hwindows {
+		return
+	}
 	// -d suppresses dynamic loader format, so we may as well not
 	// compute these sections or mark their symbols as reachable.
-	if *FlagD && ctxt.HeadType != objabi.Hwindows {
+	if *FlagD {
 		return
 	}
 	if ctxt.Debugvlog != 0 {
@@ -770,7 +818,8 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 		if ctxt.LinkMode != LinkExternal {
 			continue
 		}
-		for _, r := range sym.R {
+		for i := range sym.R {
+			r := &sym.R[i] // Copying sym.Reloc has measurable impact on performance
 			rsname := ""
 			if r.Sym != nil {
 				rsname = r.Sym.Name
@@ -1293,6 +1342,14 @@ func (ctxt *Link) dodata() {
 		gc.AddSym(s)
 		datsize += s.Size
 	}
+	// On AIX, TOC entries must be the last of .data
+	for _, s := range data[sym.SXCOFFTOC] {
+		s.Sect = sect
+		s.Type = sym.SDATA
+		datsize = aligndatsize(datsize, s)
+		s.Value = int64(uint64(datsize) - sect.Vaddr)
+		datsize += s.Size
+	}
 	checkdatsize(ctxt, datsize, sym.SDATA)
 	sect.Length = uint64(datsize) - sect.Vaddr
 	gc.End(int64(sect.Length))
@@ -1582,7 +1639,7 @@ func (ctxt *Link) dodata() {
 		datap = append(datap, data[symn]...)
 	}
 
-	dwarfgeneratedebugsyms(ctxt)
+	dwarfGenerateDebugSyms(ctxt)
 
 	var i int
 	for ; i < len(dwarfp); i++ {
@@ -1652,6 +1709,10 @@ func (ctxt *Link) dodata() {
 	}
 	for _, sect := range Segdata.Sections {
 		sect.Extnum = int16(n)
+		if ctxt.HeadType == objabi.Haix && (sect.Name == ".noptrdata" || sect.Name == ".bss") {
+			// On AIX, "noptr" sections are merged with their "ptr" section
+			continue
+		}
 		n++
 	}
 	for _, sect := range Segdwarf.Sections {

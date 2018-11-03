@@ -46,8 +46,11 @@ func TestStdlib(t *testing.T) {
 	}
 }
 
-// firstComment returns the contents of the first comment in
-// the given file, assuming there's one within the first KB.
+// firstComment returns the contents of the first non-empty comment in
+// the given file, "skip", or the empty string. No matter the present
+// comments, if any of them contains a build tag, the result is always
+// "skip". Only comments before the "package" token and within the first
+// 4K of the file are considered.
 func firstComment(filename string) string {
 	f, err := os.Open(filename)
 	if err != nil {
@@ -55,11 +58,12 @@ func firstComment(filename string) string {
 	}
 	defer f.Close()
 
-	var src [1 << 10]byte // read at most 1KB
+	var src [4 << 10]byte // read at most 4KB
 	n, _ := f.Read(src[:])
 
+	var first string
 	var s scanner.Scanner
-	s.Init(fset.AddFile("", fset.Base(), n), src[:n], nil, scanner.ScanComments)
+	s.Init(fset.AddFile("", fset.Base(), n), src[:n], nil /* ignore errors */, scanner.ScanComments)
 	for {
 		_, tok, lit := s.Scan()
 		switch tok {
@@ -68,9 +72,17 @@ func firstComment(filename string) string {
 			if lit[1] == '*' {
 				lit = lit[:len(lit)-2]
 			}
-			return strings.TrimSpace(lit[2:])
-		case token.EOF:
-			return ""
+			contents := strings.TrimSpace(lit[2:])
+			if strings.HasPrefix(contents, "+build ") {
+				return "skip"
+			}
+			if first == "" {
+				first = contents // contents may be "" but that's ok
+			}
+			// continue as we may still see build tags
+
+		case token.PACKAGE, token.EOF:
+			return first
 		}
 	}
 }
@@ -142,15 +154,8 @@ func TestStdTest(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	// test/recover4.go is only built for Linux and Darwin.
-	// TODO(gri) Remove once tests consider +build tags (issue 10370).
-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
-		return
-	}
-
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
-		"sigchld.go",     // don't work on Windows; testTestDir should consult build tags
 	)
 }
 
@@ -166,7 +171,6 @@ func TestStdFixed(t *testing.T) {
 		"issue6889.go",   // gc-specific test
 		"issue7746.go",   // large constants - consumes too much memory
 		"issue11362.go",  // canonical import path check
-		"issue15002.go",  // uses Mmap; testTestDir should consult build tags
 		"issue16369.go",  // go/types handles this correctly - not an issue
 		"issue18459.go",  // go/types doesn't check validity of //go:xxx directives
 		"issue18882.go",  // go/types doesn't check validity of //go:xxx directives

@@ -119,6 +119,7 @@ import (
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
+	"math/bits"
 	"unsafe"
 )
 
@@ -149,6 +150,8 @@ type register uint8
 
 const noRegister register = 255
 
+// A regMask encodes a set of machine registers.
+// TODO: regMask -> regSet?
 type regMask uint64
 
 func (m regMask) String() string {
@@ -183,26 +186,16 @@ func (s *regAllocState) RegMaskString(m regMask) string {
 
 // countRegs returns the number of set bits in the register mask.
 func countRegs(r regMask) int {
-	n := 0
-	for r != 0 {
-		n += int(r & 1)
-		r >>= 1
-	}
-	return n
+	return bits.OnesCount64(uint64(r))
 }
 
 // pickReg picks an arbitrary register from the register mask.
 func pickReg(r regMask) register {
-	// pick the lowest one
 	if r == 0 {
 		panic("can't pick a register from an empty set")
 	}
-	for i := register(0); ; i++ {
-		if r&1 != 0 {
-			return i
-		}
-		r >>= 1
-	}
+	// pick the lowest one
+	return register(bits.TrailingZeros64(uint64(r)))
 }
 
 type use struct {

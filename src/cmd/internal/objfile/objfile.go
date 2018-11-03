@@ -61,6 +61,7 @@ var openers = []func(io.ReaderAt) (rawFile, error){
 	openMacho,
 	openPE,
 	openPlan9,
+	openXcoff,
 }
 
 // Open opens the named file.

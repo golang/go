@@ -41,9 +41,16 @@ var compareTests = []struct {
 
 func TestCompare(t *testing.T) {
 	for _, tt := range compareTests {
-		cmp := Compare(tt.a, tt.b)
-		if cmp != tt.i {
-			t.Errorf(`Compare(%q, %q) = %v`, tt.a, tt.b, cmp)
+		numShifts := 16
+		buffer := make([]byte, len(tt.b)+numShifts)
+		// vary the input alignment of tt.b
+		for offset := 0; offset <= numShifts; offset++ {
+			shiftedB := buffer[offset : len(tt.b)+offset]
+			copy(shiftedB, tt.b)
+			cmp := Compare(tt.a, shiftedB)
+			if cmp != tt.i {
+				t.Errorf(`Compare(%q, %q), offset %d = %v; want %v`, tt.a, tt.b, offset, cmp, tt.i)
+			}
 		}
 	}
 }

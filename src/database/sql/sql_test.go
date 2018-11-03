@@ -397,7 +397,7 @@ func TestQueryContextWait(t *testing.T) {
 	prepares0 := numPrepares(t, db)
 
 	// TODO(kardianos): convert this from using a timeout to using an explicit
-	// cancel when the query signals that is is "executing" the query.
+	// cancel when the query signals that it is "executing" the query.
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
 
@@ -597,7 +597,7 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	state := 0
 
 	// waiter will be called for all queries, including
-	// initial setup queries. The state is only assigned when no
+	// initial setup queries. The state is only assigned when
 	// no queries are made.
 	//
 	// Only allow the first batch of queries to finish once the
@@ -3413,6 +3413,58 @@ func TestConnectionLeak(t *testing.T) {
 	// connection.
 	drv.waitCh <- struct{}{}
 	wg.Wait()
+}
+
+func TestStatsMaxIdleClosedZero(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(0)
+
+	preMaxIdleClosed := db.Stats().MaxIdleClosed
+
+	for i := 0; i < 10; i++ {
+		rows, err := db.Query("SELECT|people|name|")
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows.Close()
+	}
+
+	st := db.Stats()
+	maxIdleClosed := st.MaxIdleClosed - preMaxIdleClosed
+	t.Logf("MaxIdleClosed: %d", maxIdleClosed)
+	if maxIdleClosed != 0 {
+		t.Fatal("expected 0 max idle closed conns, got: ", maxIdleClosed)
+	}
+}
+
+func TestStatsMaxIdleClosedTen(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(0)
+	db.SetConnMaxLifetime(0)
+
+	preMaxIdleClosed := db.Stats().MaxIdleClosed
+
+	for i := 0; i < 10; i++ {
+		rows, err := db.Query("SELECT|people|name|")
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows.Close()
+	}
+
+	st := db.Stats()
+	maxIdleClosed := st.MaxIdleClosed - preMaxIdleClosed
+	t.Logf("MaxIdleClosed: %d", maxIdleClosed)
+	if maxIdleClosed != 10 {
+		t.Fatal("expected 0 max idle closed conns, got: ", maxIdleClosed)
+	}
 }
 
 type nvcDriver struct {

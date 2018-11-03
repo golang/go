@@ -4,6 +4,7 @@
 
 // +build !plan9
 
+#include "go_asm.h"
 #include "textflag.h"
 
 // NOTE: Windows externalthreadhandler expects memclr to preserve DX.
@@ -28,7 +29,7 @@ tail:
 	JBE	_5through8
 	CMPL	BX, $16
 	JBE	_9through16
-	CMPB	runtime·support_sse2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
 	JNE	nosse2
 	PXOR	X0, X0
 	CMPL	BX, $32

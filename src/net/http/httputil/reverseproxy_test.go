@@ -297,10 +297,6 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
 	proxyHandler.FlushInterval = time.Microsecond
 
-	done := make(chan bool)
-	onExitFlushLoop = func() { done <- true }
-	defer func() { onExitFlushLoop = nil }()
-
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 
@@ -313,13 +309,6 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	defer res.Body.Close()
 	if bodyBytes, _ := ioutil.ReadAll(res.Body); string(bodyBytes) != expected {
 		t.Errorf("got body %q; expected %q", bodyBytes, expected)
-	}
-
-	select {
-	case <-done:
-		// OK
-	case <-time.After(5 * time.Second):
-		t.Error("maxLatencyWriter flushLoop() never exited")
 	}
 }
 
@@ -945,4 +934,49 @@ func TestReverseProxy_PanicBodyError(t *testing.T) {
 	}()
 	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
 	rproxy.ServeHTTP(httptest.NewRecorder(), req)
+}
+
+func TestSelectFlushInterval(t *testing.T) {
+	tests := []struct {
+		name string
+		p    *ReverseProxy
+		req  *http.Request
+		res  *http.Response
+		want time.Duration
+	}{
+		{
+			name: "default",
+			res:  &http.Response{},
+			p:    &ReverseProxy{FlushInterval: 123},
+			want: 123,
+		},
+		{
+			name: "server-sent events overrides non-zero",
+			res: &http.Response{
+				Header: http.Header{
+					"Content-Type": {"text/event-stream"},
+				},
+			},
+			p:    &ReverseProxy{FlushInterval: 123},
+			want: -1,
+		},
+		{
+			name: "server-sent events overrides zero",
+			res: &http.Response{
+				Header: http.Header{
+					"Content-Type": {"text/event-stream"},
+				},
+			},
+			p:    &ReverseProxy{FlushInterval: 0},
+			want: -1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.p.flushInterval(tt.req, tt.res)
+			if got != tt.want {
+				t.Errorf("flushLatency = %v; want %v", got, tt.want)
+			}
+		})
+	}
 }

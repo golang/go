@@ -87,6 +87,10 @@ func mkzbootstrap(file string) {
 // stack guard size. Larger multipliers are used for non-optimized
 // builds that have larger stack frames.
 func stackGuardMultiplier() int {
+	// On AIX, a larger stack is needed for syscalls
+	if goos == "aix" {
+		return 2
+	}
 	for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
 		if s == "-N" {
 			return 2

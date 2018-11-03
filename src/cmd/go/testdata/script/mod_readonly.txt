@@ -1,10 +1,13 @@
 env GO111MODULE=on
 
 # -mod=readonly must not resolve missing modules nor update go.mod
+#
+# TODO(bcmills): 'go list' should suffice, but today it does not fail due to
+# unresolved imports. When that is fixed, use 'go list' instead of 'go list all'.
 env GOFLAGS=-mod=readonly
 go mod edit -fmt
 cp go.mod go.mod.empty
-! go list
+! go list all
 stderr 'import lookup disabled by -mod=readonly'
 cmp go.mod go.mod.empty
 

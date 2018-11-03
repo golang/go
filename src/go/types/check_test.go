@@ -91,6 +91,10 @@ var tests = [][]string{
 	{"testdata/issues.src"},
 	{"testdata/blank.src"},
 	{"testdata/issue25008b.src", "testdata/issue25008a.src"}, // order (b before a) is crucial!
+	{"testdata/issue26390.src"},                              // stand-alone test to ensure case is triggered
+	{"testdata/issue23203a.src"},
+	{"testdata/issue23203b.src"},
+	{"testdata/issue28251.src"},
 }
 
 var fset = token.NewFileSet()

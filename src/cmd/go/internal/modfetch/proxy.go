@@ -55,7 +55,7 @@ for that version of the given module.
 
 To avoid problems when serving from case-sensitive file systems,
 the <module> and <version> elements are case-encoded, replacing every
-uppercase letter with an exclamation mark followed by the correponding
+uppercase letter with an exclamation mark followed by the corresponding
 lower-case letter: github.com/Azure encodes as github.com/!azure.
 
 The JSON-formatted metadata about a given module corresponds to
@@ -248,5 +248,5 @@ func (p *proxyRepo) Zip(version string, tmpdir string) (tmpfile string, err erro
 // That is, it escapes things like ? and # (which really shouldn't appear anyway).
 // It does not escape / to %2F: our REST API is designed so that / can be left as is.
 func pathEscape(s string) string {
-	return strings.Replace(url.PathEscape(s), "%2F", "/", -1)
+	return strings.ReplaceAll(url.PathEscape(s), "%2F", "/")
 }

@@ -293,7 +293,7 @@ func (r *objReader) readRef() {
 	// In a symbol name in an object file, "". denotes the
 	// prefix for the package in which the object file has been found.
 	// Expand it.
-	name = strings.Replace(name, `"".`, r.pkgprefix, -1)
+	name = strings.ReplaceAll(name, `"".`, r.pkgprefix)
 
 	// An individual object file only records version 0 (extern) or 1 (static).
 	// To make static symbols unique across all files being read, we

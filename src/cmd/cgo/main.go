@@ -81,6 +81,7 @@ func nameKeys(m map[string]*Name) []string {
 type Call struct {
 	Call     *ast.CallExpr
 	Deferred bool
+	Done     bool
 }
 
 // A Ref refers to an expression of the form C.xxx in the AST.
@@ -88,6 +89,7 @@ type Ref struct {
 	Name    *Name
 	Expr    *ast.Expr
 	Context astContext
+	Done    bool
 }
 
 func (r *Ref) Pos() token.Pos {
@@ -211,6 +213,8 @@ var exportHeader = flag.String("exportheader", "", "where to write export header
 var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
 var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used with gccgo")
+var gccgoMangleCheckDone bool
+var gccgoNewmanglingInEffect bool
 var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo in generated code")
 var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
 var goarch, goos string

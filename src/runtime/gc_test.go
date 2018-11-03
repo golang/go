@@ -21,6 +21,12 @@ func TestGcSys(t *testing.T) {
 	if os.Getenv("GOGC") == "off" {
 		t.Skip("skipping test; GOGC=off in environment")
 	}
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping test; GOOS=windows http://golang.org/issue/27156")
+	}
+	if runtime.GOOS == "linux" && runtime.GOARCH == "arm64" {
+		t.Skip("skipping test; GOOS=linux GOARCH=arm64 https://github.com/golang/go/issues/27636")
+	}
 	got := runTestProg(t, "testprog", "GCSys")
 	want := "OK\n"
 	if got != want {
@@ -568,8 +574,8 @@ func BenchmarkWriteBarrier(b *testing.B) {
 		n := &node{mkTree(level - 1), mkTree(level - 1)}
 		if level == 10 {
 			// Seed GC with enough early pointers so it
-			// doesn't accidentally switch to mark 2 when
-			// it only has the top of the tree.
+			// doesn't start termination barriers when it
+			// only has the top of the tree.
 			wbRoots = append(wbRoots, n)
 		}
 		return n

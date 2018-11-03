@@ -78,16 +78,16 @@ func readModList() {
 		if i < 0 {
 			continue
 		}
-		encPath := strings.Replace(name[:i], "_", "/", -1)
+		encPath := strings.ReplaceAll(name[:i], "_", "/")
 		path, err := module.DecodePath(encPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "go proxy_test: %v", err)
+			fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
 			continue
 		}
 		encVers := name[i+1:]
 		vers, err := module.DecodeVersion(encVers)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "go proxy_test: %v", err)
+			fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
 			continue
 		}
 		modList = append(modList, module.Version{Path: path, Version: vers})
@@ -140,7 +140,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	encVers, ext := file[:i], file[i+1:]
 	vers, err := module.DecodeVersion(encVers)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go proxy_test: %v", err)
+		fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
 		http.NotFound(w, r)
 		return
 	}
@@ -256,7 +256,7 @@ func readArchive(path, vers string) *txtar.Archive {
 		return nil
 	}
 
-	prefix := strings.Replace(enc, "/", "_", -1)
+	prefix := strings.ReplaceAll(enc, "/", "_")
 	name := filepath.Join(cmdGoDir, "testdata/mod", prefix+"_"+encVers+".txt")
 	a := archiveCache.Do(name, func() interface{} {
 		a, err := txtar.ParseFile(name)

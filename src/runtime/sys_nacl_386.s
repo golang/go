@@ -266,7 +266,7 @@ TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$8
 	NACL_SYSCALL(SYS_clock_gettime)
 	MOVL AX, ret+8(FP)
 	RET
-	
+
 TEXT runtime·nanotime(SB),NOSPLIT,$20
 	MOVL $0, 0(SP) // real time clock
 	LEAL 8(SP), AX
@@ -308,12 +308,12 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 
 	// save g
 	MOVL	DI, 20(SP)
-	
+
 	// g = m->gsignal
 	MOVL	g_m(DI), BX
 	MOVL	m_gsignal(BX), BX
 	MOVL	BX, g(CX)
-	
+
 	// copy arguments for sighandler
 	MOVL	$11, 0(SP) // signal
 	MOVL	$0, 4(SP) // siginfo
@@ -356,7 +356,7 @@ ret:
 	// Today those registers are just PC and SP, but in case additional registers
 	// are relevant in the future (for example DX is the Go func context register)
 	// we restore as many registers as possible.
-	// 
+	//
 	// We smash BP, because that's what the linker smashes during RET.
 	//
 	LEAL	ctxt+4(FP), BP

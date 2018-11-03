@@ -3,11 +3,13 @@
 
 package ssa
 
+import "fmt"
 import "math"
 import "cmd/internal/obj"
 import "cmd/internal/objabi"
 import "cmd/compile/internal/types"
 
+var _ = fmt.Println   // in case not otherwise used
 var _ = math.MinInt8  // in case not otherwise used
 var _ = obj.ANOP      // in case not otherwise used
 var _ = objabi.GOROOT // in case not otherwise used
@@ -5071,7 +5073,7 @@ func rewriteValueWasm_OpWasmF64Add_0(v *Value) bool {
 	_ = typ
 	// match: (F64Add (F64Const [x]) (F64Const [y]))
 	// cond:
-	// result: (F64Const [f2i(i2f(x) + i2f(y))])
+	// result: (F64Const [auxFrom64F(auxTo64F(x) + auxTo64F(y))])
 	for {
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -5085,7 +5087,7 @@ func rewriteValueWasm_OpWasmF64Add_0(v *Value) bool {
 		}
 		y := v_1.AuxInt
 		v.reset(OpWasmF64Const)
-		v.AuxInt = f2i(i2f(x) + i2f(y))
+		v.AuxInt = auxFrom64F(auxTo64F(x) + auxTo64F(y))
 		return true
 	}
 	// match: (F64Add (F64Const [x]) y)
@@ -5115,7 +5117,7 @@ func rewriteValueWasm_OpWasmF64Mul_0(v *Value) bool {
 	_ = typ
 	// match: (F64Mul (F64Const [x]) (F64Const [y]))
 	// cond:
-	// result: (F64Const [f2i(i2f(x) * i2f(y))])
+	// result: (F64Const [auxFrom64F(auxTo64F(x) * auxTo64F(y))])
 	for {
 		_ = v.Args[1]
 		v_0 := v.Args[0]
@@ -5129,7 +5131,7 @@ func rewriteValueWasm_OpWasmF64Mul_0(v *Value) bool {
 		}
 		y := v_1.AuxInt
 		v.reset(OpWasmF64Const)
-		v.AuxInt = f2i(i2f(x) * i2f(y))
+		v.AuxInt = auxFrom64F(auxTo64F(x) * auxTo64F(y))
 		return true
 	}
 	// match: (F64Mul (F64Const [x]) y)

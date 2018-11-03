@@ -19,8 +19,15 @@ func init() {
 }
 
 func current() (*User, error) {
-	u := &User{
-		Uid:      currentUID(),
+	uid := currentUID()
+	// $USER and /etc/passwd may disagree; prefer the latter if we can get it.
+	// See issue 27524 for more information.
+	u, err := lookupUserId(uid)
+	if err == nil {
+		return u, nil
+	}
+	u = &User{
+		Uid:      uid,
 		Gid:      currentGID(),
 		Username: os.Getenv("USER"),
 		Name:     "", // ignored
@@ -58,8 +65,8 @@ func current() (*User, error) {
 }
 
 func listGroups(*User) ([]string, error) {
-	if runtime.GOOS == "android" {
-		return nil, errors.New("user: GroupIds not implemented on Android")
+	if runtime.GOOS == "android" || runtime.GOOS == "aix" {
+		return nil, errors.New(fmt.Sprintf("user: GroupIds not implemented on %s", runtime.GOOS))
 	}
 	return nil, errors.New("user: GroupIds requires cgo")
 }

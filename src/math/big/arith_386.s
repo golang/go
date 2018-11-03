@@ -183,7 +183,7 @@ L9:	MOVL AX, DX		// w = w1
 	SHRL CX, DX:AX		// w>>s | w1<<ŝ
 	MOVL DX, (DI)(BX*4)	// z[i] = w>>s | w1<<ŝ
 	ADDL $1, BX		// i++
-	
+
 E9:	CMPL BX, BP
 	JL L9			// i < n-1
 

@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 )
@@ -234,6 +233,26 @@ func compile(fn *Node) {
 	// Set up the function's LSym early to avoid data races with the assemblers.
 	fn.Func.initLSym()
 
+	// Make sure type syms are declared for all types that might
+	// be types of stack objects. We need to do this here
+	// because symbols must be allocated before the parallel
+	// phase of the compiler.
+	if fn.Func.lsym != nil { // not func _(){}
+		for _, n := range fn.Func.Dcl {
+			switch n.Class() {
+			case PPARAM, PPARAMOUT, PAUTO:
+				if livenessShouldTrack(n) && n.Addrtaken() {
+					dtypesym(n.Type)
+					// Also make sure we allocate a linker symbol
+					// for the stack object data, for the same reason.
+					if fn.Func.lsym.Func.StackObjects == nil {
+						fn.Func.lsym.Func.StackObjects = lookup(fmt.Sprintf("%s.stkobj", fn.funcname())).Linksym()
+					}
+				}
+			}
+		}
+	}
+
 	if compilenow() {
 		compileSSA(fn, 0)
 	} else {
@@ -260,7 +279,7 @@ func compileSSA(fn *Node, worker int) {
 	// Note: check arg size to fix issue 25507.
 	if f.Frontend().(*ssafn).stksize >= maxStackSize || fn.Type.ArgWidth() >= maxStackSize {
 		largeStackFramesMu.Lock()
-		largeStackFrames = append(largeStackFrames, fn.Pos)
+		largeStackFrames = append(largeStackFrames, largeStack{locals: f.Frontend().(*ssafn).stksize, args: fn.Type.ArgWidth(), pos: fn.Pos})
 		largeStackFramesMu.Unlock()
 		return
 	}
@@ -275,7 +294,8 @@ func compileSSA(fn *Node, worker int) {
 	// the assembler may emit inscrutable complaints about invalid instructions.
 	if pp.Text.To.Offset >= maxStackSize {
 		largeStackFramesMu.Lock()
-		largeStackFrames = append(largeStackFrames, fn.Pos)
+		locals := f.Frontend().(*ssafn).stksize
+		largeStackFrames = append(largeStackFrames, largeStack{locals: locals, args: fn.Type.ArgWidth(), callee: pp.Text.To.Offset - locals, pos: fn.Pos})
 		largeStackFramesMu.Unlock()
 		return
 	}
@@ -428,7 +448,8 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool
 			if Ctxt.FixedFrameSize() == 0 {
 				offs -= int64(Widthptr)
 			}
-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) || objabi.GOARCH == "arm64" {
+				// There is a word space for FP on ARM64 even if the frame pointer is disabled
 				offs -= int64(Widthptr)
 			}
 
@@ -594,34 +615,8 @@ func preInliningDcls(fnsym *obj.LSym) []*Node {
 		}
 		rdcl = append(rdcl, n)
 	}
-	sort.Sort(byNodeName(rdcl))
 	return rdcl
 }
-
-func cmpNodeName(a, b *Node) bool {
-	aart := 0
-	if strings.HasPrefix(a.Sym.Name, "~") {
-		aart = 1
-	}
-	bart := 0
-	if strings.HasPrefix(b.Sym.Name, "~") {
-		bart = 1
-	}
-	if aart != bart {
-		return aart < bart
-	}
-
-	aname := unversion(a.Sym.Name)
-	bname := unversion(b.Sym.Name)
-	return aname < bname
-}
-
-// byNodeName implements sort.Interface for []*Node using cmpNodeName.
-type byNodeName []*Node
-
-func (s byNodeName) Len() int           { return len(s) }
-func (s byNodeName) Less(i, j int) bool { return cmpNodeName(s[i], s[j]) }
-func (s byNodeName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // stackOffset returns the stack location of a LocalSlot relative to the
 // stack pointer, suitable for use in a DWARF location entry. This has nothing
@@ -634,7 +629,8 @@ func stackOffset(slot ssa.LocalSlot) int32 {
 		if Ctxt.FixedFrameSize() == 0 {
 			base -= int64(Widthptr)
 		}
-		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) || objabi.GOARCH == "arm64" {
+			// There is a word space for FP on ARM64 even if the frame pointer is disabled
 			base -= int64(Widthptr)
 		}
 	case PPARAM, PPARAMOUT:

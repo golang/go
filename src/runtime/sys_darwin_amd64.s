@@ -306,7 +306,7 @@ TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
 	CMPQ	AX, $-1
 	JNE	ok
 	CALL	libc_error(SB)
-	MOVQ	(AX), DX		// errno
+	MOVLQSX	(AX), DX		// errno
 	XORL	AX, AX
 ok:
 	MOVQ	AX, 32(BX)
@@ -371,7 +371,7 @@ TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
 	CMPQ	AX, $-1
 	JNE	ok
 	CALL	libc_error(SB)
-	MOVQ	(AX), AX		// errno
+	MOVLQSX	(AX), AX		// errno
 	NEGQ	AX			// caller wants it as a negative error code
 ok:
 	POPQ	BP

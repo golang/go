@@ -34,3 +34,7 @@ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
 	SYNC
 	MOVV	R1, ret+8(FP)
 	RET
+
+// uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* ptr)
+TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
+	JMP	atomic·Load(SB)

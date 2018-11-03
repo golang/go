@@ -4,6 +4,15 @@
 
 // +build js,wasm
 
+// To run these tests:
+//
+// - Install Node
+// - Add /path/to/go/misc/wasm to your $PATH (so that "go test" can find
+//   "go_js_wasm_exec").
+// - GOOS=js GOARCH=wasm go test
+//
+// See -exec in "go help test", and "go help run" for details.
+
 package js_test
 
 import (
@@ -19,10 +28,19 @@ var dummys = js.Global().Call("eval", `({
 	someInt: 42,
 	someFloat: 42.123,
 	someArray: [41, 42, 43],
+	someDate: new Date(),
 	add: function(a, b) {
 		return a + b;
 	},
+	zero: 0,
+	stringZero: "0",
 	NaN: NaN,
+	emptyObj: {},
+	emptyArray: [],
+	Infinity: Infinity,
+	NegInfinity: -Infinity,
+	objNumber0: new Number(0),
+	objBooleanFalse: new Boolean(false),
 })`)
 
 func TestBool(t *testing.T) {
@@ -73,6 +91,9 @@ func TestInt(t *testing.T) {
 	}
 	if dummys.Get("someInt") != dummys.Get("someInt") {
 		t.Errorf("same value not equal")
+	}
+	if got := dummys.Get("zero").Int(); got != 0 {
+		t.Errorf("got %#v, want %#v", got, 0)
 	}
 }
 
@@ -237,6 +258,9 @@ func TestType(t *testing.T) {
 	if got, want := js.ValueOf(true).Type(), js.TypeBoolean; got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}
+	if got, want := js.ValueOf(0).Type(), js.TypeNumber; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
 	if got, want := js.ValueOf(42).Type(), js.TypeNumber; got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}
@@ -266,6 +290,13 @@ func TestValueOf(t *testing.T) {
 	o := js.ValueOf(object{"x": object{"y": 42}})
 	if got := o.Get("x").Get("y").Int(); got != 42 {
 		t.Errorf("got %v, want %v", got, 42)
+	}
+}
+
+func TestZeroValue(t *testing.T) {
+	var v js.Value
+	if v != js.Undefined() {
+		t.Error("zero js.Value is not js.Undefined()")
 	}
 }
 
@@ -316,4 +347,41 @@ func ExampleNewCallback() {
 		cb.Release() // release the callback if the button will not be clicked again
 	})
 	js.Global().Get("document").Call("getElementById", "myButton").Call("addEventListener", "click", cb)
+}
+
+// See
+// - https://developer.mozilla.org/en-US/docs/Glossary/Truthy
+// - https://stackoverflow.com/questions/19839952/all-falsey-values-in-javascript/19839953#19839953
+// - http://www.ecma-international.org/ecma-262/5.1/#sec-9.2
+func TestTruthy(t *testing.T) {
+	want := true
+	for _, key := range []string{
+		"someBool", "someString", "someInt", "someFloat", "someArray", "someDate",
+		"stringZero", // "0" is truthy
+		"add",        // functions are truthy
+		"emptyObj", "emptyArray", "Infinity", "NegInfinity",
+		// All objects are truthy, even if they're Number(0) or Boolean(false).
+		"objNumber0", "objBooleanFalse",
+	} {
+		if got := dummys.Get(key).Truthy(); got != want {
+			t.Errorf("%s: got %#v, want %#v", key, got, want)
+		}
+	}
+
+	want = false
+	if got := dummys.Get("zero").Truthy(); got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got := dummys.Get("NaN").Truthy(); got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got := js.ValueOf("").Truthy(); got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got := js.Null().Truthy(); got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got := js.Undefined().Truthy(); got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
 }

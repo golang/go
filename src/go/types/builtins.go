@@ -13,7 +13,7 @@ import (
 )
 
 // builtin type-checks a call to the built-in specified by id and
-// returns true if the call is valid, with *x holding the result;
+// reports whether the call is valid, with *x holding the result;
 // but x.expr is not set. If the call is invalid, the result is
 // false, and *x is undefined.
 //
@@ -95,7 +95,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string.
-		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check.conf, NewSlice(universeByte), nil) {
+		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check, NewSlice(universeByte), nil) {
 			arg(x, 1)
 			if x.mode == invalid {
 				return
@@ -345,7 +345,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		if !x.assignableTo(check.conf, m.key, nil) {
+		if !x.assignableTo(check, m.key, nil) {
 			check.invalidArg(x.pos(), "%s is not assignable to %s", x, m.key)
 			return
 		}
@@ -476,7 +476,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// panic(x)
 		// record panic call if inside a function with result parameters
 		// (for use in Checker.isTerminating)
-		if check.sig.results.Len() > 0 {
+		if check.sig != nil && check.sig.results.Len() > 0 {
 			// function has result parameters
 			p := check.isPanic
 			if p == nil {

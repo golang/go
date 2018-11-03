@@ -226,8 +226,6 @@ func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr) {
 
 //go:nosplit
 func typedslicecopy(typ *_type, dst, src slice) int {
-	// TODO(rsc): If typedslicecopy becomes faster than calling
-	// typedmemmove repeatedly, consider using during func growslice.
 	n := dst.len
 	if n > src.len {
 		n = src.len
@@ -318,6 +316,19 @@ func typedmemclr(typ *_type, ptr unsafe.Pointer) {
 		bulkBarrierPreWrite(uintptr(ptr), 0, typ.size)
 	}
 	memclrNoHeapPointers(ptr, typ.size)
+}
+
+//go:linkname reflect_typedmemclr reflect.typedmemclr
+func reflect_typedmemclr(typ *_type, ptr unsafe.Pointer) {
+	typedmemclr(typ, ptr)
+}
+
+//go:linkname reflect_typedmemclrpartial reflect.typedmemclrpartial
+func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintptr) {
+	if typ.kind&kindNoPointers == 0 {
+		bulkBarrierPreWrite(uintptr(ptr), 0, size)
+	}
+	memclrNoHeapPointers(ptr, size)
 }
 
 // memclrHasPointers clears n bytes of typed memory starting at ptr.

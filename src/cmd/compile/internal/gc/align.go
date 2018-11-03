@@ -208,7 +208,7 @@ func dowidth(t *types.Type) {
 	}
 
 	t.Width = -2
-	t.Align = 0
+	t.Align = 0 // 0 means use t.Width, below
 
 	et := t.Etype
 	switch et {
@@ -222,7 +222,7 @@ func dowidth(t *types.Type) {
 		}
 	}
 
-	w := int64(0)
+	var w int64
 	switch et {
 	default:
 		Fatalf("dowidth: unknown type: %v", t)
@@ -250,12 +250,8 @@ func dowidth(t *types.Type) {
 		w = 16
 		t.Align = uint8(Widthreg)
 
-	case TPTR32:
-		w = 4
-		checkwidth(t.Elem())
-
-	case TPTR64:
-		w = 8
+	case TPTR:
+		w = int64(Widthptr)
 		checkwidth(t.Elem())
 
 	case TUNSAFEPTR:
@@ -370,7 +366,7 @@ func dowidth(t *types.Type) {
 
 	t.Width = w
 	if t.Align == 0 {
-		if w > 8 || w&(w-1) != 0 || w == 0 {
+		if w == 0 || w > 8 || w&(w-1) != 0 {
 			Fatalf("invalid alignment for %v", t)
 		}
 		t.Align = uint8(w)
@@ -427,12 +423,11 @@ func checkwidth(t *types.Type) {
 		return
 	}
 
-	if t.Deferwidth() {
-		return
+	// if type has not yet been pushed on deferredTypeStack yet, do it now
+	if !t.Deferwidth() {
+		t.SetDeferwidth(true)
+		deferredTypeStack = append(deferredTypeStack, t)
 	}
-	t.SetDeferwidth(true)
-
-	deferredTypeStack = append(deferredTypeStack, t)
 }
 
 func defercheckwidth() {
@@ -447,6 +442,7 @@ func resumecheckwidth() {
 	if defercalc == 0 {
 		Fatalf("resumecheckwidth")
 	}
+
 	for len(deferredTypeStack) > 0 {
 		t := deferredTypeStack[len(deferredTypeStack)-1]
 		deferredTypeStack = deferredTypeStack[:len(deferredTypeStack)-1]

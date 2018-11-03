@@ -13,13 +13,11 @@ var k = []uint32{
 	0xCA62C1D6,
 }
 
-var hasSHA1 = cpu.ARM64.HasSHA1
-
 //go:noescape
 func sha1block(h []uint32, p []byte, k []uint32)
 
 func block(dig *digest, p []byte) {
-	if !hasSHA1 {
+	if !cpu.ARM64.HasSHA1 {
 		blockGeneric(dig, p)
 	} else {
 		h := dig.h[:]

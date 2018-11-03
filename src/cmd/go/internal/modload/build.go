@@ -14,6 +14,7 @@ import (
 	"cmd/go/internal/search"
 	"encoding/hex"
 	"fmt"
+	"internal/goroot"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,15 +26,22 @@ var (
 )
 
 func isStandardImportPath(path string) bool {
+	return findStandardImportPath(path) != ""
+}
+
+func findStandardImportPath(path string) string {
+	if path == "" {
+		panic("findStandardImportPath called with empty path")
+	}
 	if search.IsStandardImportPath(path) {
-		if _, err := os.Stat(filepath.Join(cfg.GOROOT, "src", path)); err == nil {
-			return true
+		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+			return filepath.Join(cfg.GOROOT, "src", path)
 		}
-		if _, err := os.Stat(filepath.Join(cfg.GOROOT, "src/vendor", path)); err == nil {
-			return true
+		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, "vendor/"+path) {
+			return filepath.Join(cfg.GOROOT, "src/vendor", path)
 		}
 	}
-	return false
+	return ""
 }
 
 func PackageModuleInfo(pkgpath string) *modinfo.ModulePublic {
@@ -137,32 +145,38 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 				}
 			}
 		}
-		if cfg.BuildMod == "vendor" {
-			m.Dir = filepath.Join(ModRoot, "vendor", m.Path)
-		}
 	}
 
-	complete(info)
-
-	if r := Replacement(m); r.Path != "" {
-		info.Replace = &modinfo.ModulePublic{
-			Path:      r.Path,
-			Version:   r.Version,
-			GoVersion: info.GoVersion,
-		}
-		if r.Version == "" {
-			if filepath.IsAbs(r.Path) {
-				info.Replace.Dir = r.Path
-			} else {
-				info.Replace.Dir = filepath.Join(ModRoot, r.Path)
-			}
-		}
-		complete(info.Replace)
-		info.Dir = info.Replace.Dir
-		info.GoMod = filepath.Join(info.Dir, "go.mod")
-		info.Error = nil // ignore error loading original module version (it has been replaced)
+	if !fromBuildList {
+		complete(info)
+		return info
 	}
 
+	r := Replacement(m)
+	if r.Path == "" {
+		complete(info)
+		return info
+	}
+
+	// Don't hit the network to fill in extra data for replaced modules.
+	// The original resolved Version and Time don't matter enough to be
+	// worth the cost, and we're going to overwrite the GoMod and Dir from the
+	// replacement anyway. See https://golang.org/issue/27859.
+	info.Replace = &modinfo.ModulePublic{
+		Path:      r.Path,
+		Version:   r.Version,
+		GoVersion: info.GoVersion,
+	}
+	if r.Version == "" {
+		if filepath.IsAbs(r.Path) {
+			info.Replace.Dir = r.Path
+		} else {
+			info.Replace.Dir = filepath.Join(ModRoot, r.Path)
+		}
+	}
+	complete(info.Replace)
+	info.Dir = info.Replace.Dir
+	info.GoMod = filepath.Join(info.Dir, "go.mod")
 	return info
 }
 
@@ -214,6 +228,10 @@ func findModule(target, path string) module.Version {
 	if path == "." {
 		return buildList[0]
 	}
+	if cfg.BuildMod == "vendor" {
+		readVendorList()
+		return vendorMap[path]
+	}
 	for _, mod := range buildList {
 		if maybeInModule(path, mod.Path) {
 			return mod
@@ -224,13 +242,15 @@ func findModule(target, path string) module.Version {
 }
 
 func ModInfoProg(info string) []byte {
-	return []byte(fmt.Sprintf(`
-		package main
-		import _ "unsafe"
-		//go:linkname __debug_modinfo__ runtime/debug.modinfo
-		var __debug_modinfo__ string
-		func init() {
-			__debug_modinfo__ = %q
-		}
+	// Inject a variable with the debug information as runtime/debug.modinfo,
+	// but compile it in package main so that it is specific to the binary.
+	// Populate it in an init func so that it will work with go:linkname,
+	// but use a string constant instead of the name 'string' in case
+	// package main shadows the built-in 'string' with some local declaration.
+	return []byte(fmt.Sprintf(`package main
+import _ "unsafe"
+//go:linkname __debug_modinfo__ runtime/debug.modinfo
+var __debug_modinfo__ = ""
+func init() { __debug_modinfo__ = %q }
 	`, string(infoStart)+info+string(infoEnd)))
 }

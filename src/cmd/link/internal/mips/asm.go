@@ -82,23 +82,25 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return false
 }
 
-func applyrel(arch *sys.Arch, r *sym.Reloc, s *sym.Symbol, val *int64, t int64) {
+func applyrel(arch *sys.Arch, r *sym.Reloc, s *sym.Symbol, val int64, t int64) int64 {
 	o := arch.ByteOrder.Uint32(s.P[r.Off:])
 	switch r.Type {
 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSTLS:
-		*val = int64(o&0xffff0000 | uint32(t)&0xffff)
+		return int64(o&0xffff0000 | uint32(t)&0xffff)
 	case objabi.R_ADDRMIPSU:
-		*val = int64(o&0xffff0000 | uint32((t+(1<<15))>>16)&0xffff)
+		return int64(o&0xffff0000 | uint32((t+(1<<15))>>16)&0xffff)
 	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
-		*val = int64(o&0xfc000000 | uint32(t>>2)&^0xfc000000)
+		return int64(o&0xfc000000 | uint32(t>>2)&^0xfc000000)
+	default:
+		return val
 	}
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
 	if ctxt.LinkMode == ld.LinkExternal {
 		switch r.Type {
 		default:
-			return false
+			return val, false
 		case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
 			r.Done = false
 
@@ -114,28 +116,23 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
-			applyrel(ctxt.Arch, r, s, val, r.Xadd)
-			return true
+			return applyrel(ctxt.Arch, r, s, val, r.Xadd), true
 		case objabi.R_ADDRMIPSTLS, objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 			r.Done = false
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
-			applyrel(ctxt.Arch, r, s, val, r.Add)
-			return true
+			return applyrel(ctxt.Arch, r, s, val, r.Add), true
 		}
 	}
 
 	switch r.Type {
 	case objabi.R_CONST:
-		*val = r.Add
-		return true
+		return r.Add, true
 	case objabi.R_GOTOFF:
-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
-		return true
+		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
 		t := ld.Symaddr(r.Sym) + r.Add
-		applyrel(ctxt.Arch, r, s, val, t)
-		return true
+		return applyrel(ctxt.Arch, r, s, val, t), true
 	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 		t := ld.Symaddr(r.Sym) + r.Add
 
@@ -148,19 +145,17 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 			ld.Errorf(s, "direct call too far: %s %x", r.Sym.Name, t)
 		}
 
-		applyrel(ctxt.Arch, r, s, val, t)
-		return true
+		return applyrel(ctxt.Arch, r, s, val, t), true
 	case objabi.R_ADDRMIPSTLS:
 		// thread pointer is at 0x7000 offset from the start of TLS data area
 		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
 		if t < -32768 || t >= 32678 {
 			ld.Errorf(s, "TLS offset out of range %d", t)
 		}
-		applyrel(ctxt.Arch, r, s, val, t)
-		return true
+		return applyrel(ctxt.Arch, r, s, val, t), true
 	}
 
-	return false
+	return val, false
 }
 
 func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {

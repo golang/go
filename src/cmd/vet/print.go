@@ -259,6 +259,20 @@ func checkPrintfFwd(pkg *Package, w *printfWrapper, call *ast.CallExpr, kind int
 	}
 
 	if !call.Ellipsis.IsValid() {
+		typ, ok := pkg.types[call.Fun].Type.(*types.Signature)
+		if !ok {
+			return
+		}
+		if len(call.Args) > typ.Params().Len() {
+			// If we're passing more arguments than what the
+			// print/printf function can take, adding an ellipsis
+			// would break the program. For example:
+			//
+			//   func foo(arg1 string, arg2 ...interface{} {
+			//       fmt.Printf("%s %v", arg1, arg2)
+			//   }
+			return
+		}
 		if !vcfg.VetxOnly {
 			desc := "printf"
 			if kind == kindPrint {
@@ -517,7 +531,7 @@ func printfNameAndKind(pkg *Package, called ast.Expr) (pkgpath, name string, kin
 	return pkgpath, name, kind
 }
 
-// isStringer returns true if the provided declaration is a "String() string"
+// isStringer reports whether the provided declaration is a "String() string"
 // method, an implementation of fmt.Stringer.
 func isStringer(f *File, d *ast.FuncDecl) bool {
 	return d.Recv != nil && d.Name.Name == "String" && d.Type.Results != nil &&

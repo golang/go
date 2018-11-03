@@ -93,7 +93,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 	case UndefinedSym:
 		// ElfType is only set for symbols read from Go shared libraries, but
 		// for other symbols it is left as STT_NOTYPE which is fine.
-		typ = int(x.ElfType)
+		typ = int(x.ElfType())
 
 	case TLSSym:
 		typ = STT_TLS
@@ -432,6 +432,10 @@ func (ctxt *Link) symtab() {
 	// just defined above will be first.
 	// hide the specific symbols.
 	for _, s := range ctxt.Syms.Allsym {
+		if ctxt.LinkMode != LinkExternal && isStaticTemp(s.Name) {
+			s.Attr |= sym.AttrNotInSymbolTable
+		}
+
 		if !s.Attr.Reachable() || s.Attr.Special() || s.Type != sym.SRODATA {
 			continue
 		}
@@ -675,4 +679,11 @@ func (ctxt *Link) symtab() {
 		lastmoduledatap.Size = 0 // overwrite existing value
 		lastmoduledatap.AddAddr(ctxt.Arch, moduledata)
 	}
+}
+
+func isStaticTemp(name string) bool {
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		name = name[i:]
+	}
+	return strings.Contains(name, "..stmp_")
 }

@@ -34,7 +34,7 @@ back:
 	ADDL	BX, DI
 	ADDL	BX, SI
 	STD
-	
+
 	MOVL	BX, CX
 	SHRL	$2, CX
 	ANDL	$3, BX

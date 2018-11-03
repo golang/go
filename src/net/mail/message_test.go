@@ -668,9 +668,9 @@ func TestAddressParser(t *testing.T) {
 
 			switch charset {
 			case "iso-8859-15":
-				in = bytes.Replace(in, []byte("\xf6"), []byte("ö"), -1)
+				in = bytes.ReplaceAll(in, []byte("\xf6"), []byte("ö"))
 			case "windows-1252":
-				in = bytes.Replace(in, []byte("\xe9"), []byte("é"), -1)
+				in = bytes.ReplaceAll(in, []byte("\xe9"), []byte("é"))
 			}
 
 			return bytes.NewReader(in), nil

@@ -6,9 +6,11 @@ package modload
 
 import (
 	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/module"
 	"cmd/go/internal/semver"
 	"fmt"
+	pathpkg "path"
 	"strings"
 )
 
@@ -29,6 +31,8 @@ import (
 //
 // If the allowed function is non-nil, Query excludes any versions for which allowed returns false.
 //
+// If path is the path of the main module and the query is "latest",
+// Query returns Target.Version as the version.
 func Query(path, query string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
 	if allowed == nil {
 		allowed = func(module.Version) bool { return true }
@@ -117,6 +121,16 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
 		return info, nil
 	}
 
+	if path == Target.Path {
+		if query != "latest" {
+			return nil, fmt.Errorf("can't query specific version (%q) for the main module (%s)", query, path)
+		}
+		if !allowed(Target) {
+			return nil, fmt.Errorf("internal error: main module version is not allowed")
+		}
+		return &modfetch.RevInfo{Version: Target.Version}, nil
+	}
+
 	// Load versions and execute query.
 	repo, err := modfetch.Lookup(path)
 	if err != nil {
@@ -186,4 +200,50 @@ func isSemverPrefix(v string) bool {
 // matches the full-width (non-shortened) semantic version v.
 func matchSemverPrefix(p, v string) bool {
 	return len(v) > len(p) && v[len(p)] == '.' && v[:len(p)] == p
+}
+
+// QueryPackage looks up a revision of a module containing path.
+//
+// If multiple modules with revisions matching the query provide the requested
+// package, QueryPackage picks the one with the longest module path.
+//
+// If the path is in the main module and the query is "latest",
+// QueryPackage returns Target as the version.
+func QueryPackage(path, query string, allowed func(module.Version) bool) (module.Version, *modfetch.RevInfo, error) {
+	if _, ok := dirInModule(path, Target.Path, ModRoot, true); ok {
+		if query != "latest" {
+			return module.Version{}, nil, fmt.Errorf("can't query specific version (%q) for package %s in the main module (%s)", query, path, Target.Path)
+		}
+		if !allowed(Target) {
+			return module.Version{}, nil, fmt.Errorf("internal error: package %s is in the main module (%s), but version is not allowed", path, Target.Path)
+		}
+		return Target, &modfetch.RevInfo{Version: Target.Version}, nil
+	}
+
+	finalErr := errMissing
+	for p := path; p != "." && p != "/"; p = pathpkg.Dir(p) {
+		info, err := Query(p, query, allowed)
+		if err != nil {
+			if _, ok := err.(*codehost.VCSError); ok {
+				// A VCSError means we know where to find the code,
+				// we just can't. Abort search.
+				return module.Version{}, nil, err
+			}
+			if finalErr == errMissing {
+				finalErr = err
+			}
+			continue
+		}
+		m := module.Version{Path: p, Version: info.Version}
+		root, isLocal, err := fetch(m)
+		if err != nil {
+			return module.Version{}, nil, err
+		}
+		_, ok := dirInModule(path, m.Path, root, isLocal)
+		if ok {
+			return m, info, nil
+		}
+	}
+
+	return module.Version{}, nil, finalErr
 }

@@ -65,7 +65,7 @@ func createValueFuncs(funcMap FuncMap) map[string]reflect.Value {
 func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
 	for name, fn := range in {
 		if !goodName(name) {
-			panic(fmt.Errorf("function name %s is not a valid identifier", name))
+			panic(fmt.Errorf("function name %q is not a valid identifier", name))
 		}
 		v := reflect.ValueOf(fn)
 		if v.Kind() != reflect.Func {
@@ -275,11 +275,26 @@ func call(fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
 			return reflect.Value{}, fmt.Errorf("arg %d: %s", i, err)
 		}
 	}
-	result := v.Call(argv)
-	if len(result) == 2 && !result[1].IsNil() {
-		return result[0], result[1].Interface().(error)
+	return safeCall(v, argv)
+}
+
+// safeCall runs fun.Call(args), and returns the resulting value and error, if
+// any. If the call panics, the panic value is returned as an error.
+func safeCall(fun reflect.Value, args []reflect.Value) (val reflect.Value, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(error); ok {
+				err = e
+			} else {
+				err = fmt.Errorf("%v", r)
+			}
+		}
+	}()
+	ret := fun.Call(args)
+	if len(ret) == 2 && !ret[1].IsNil() {
+		return ret[0], ret[1].Interface().(error)
 	}
-	return result[0], nil
+	return ret[0], nil
 }
 
 // Boolean logic.

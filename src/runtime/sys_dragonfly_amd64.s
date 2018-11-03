@@ -9,7 +9,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
-	
+
 TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$0
 	MOVQ addr+0(FP), DI		// arg 1 - ptr
 	MOVL val+8(FP), SI		// arg 2 - value
@@ -260,9 +260,11 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	flags+16(FP), DX
 	MOVQ	$75, AX	// madvise
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	JCC	2(PC)
+	MOVL	$-1, AX
+	MOVL	AX, ret+24(FP)
 	RET
-	
+
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVQ	new+0(FP), DI
 	MOVQ	old+8(FP), SI

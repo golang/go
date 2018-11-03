@@ -43,6 +43,11 @@ const (
 
 	SC_STATUS_PROCESS_INFO = 0
 
+	SC_ACTION_NONE        = 0
+	SC_ACTION_RESTART     = 1
+	SC_ACTION_REBOOT      = 2
+	SC_ACTION_RUN_COMMAND = 3
+
 	SERVICE_STOPPED          = 1
 	SERVICE_START_PENDING    = 2
 	SERVICE_STOP_PENDING     = 3
@@ -146,6 +151,19 @@ type ENUM_SERVICE_STATUS_PROCESS struct {
 	ServiceName          *uint16
 	DisplayName          *uint16
 	ServiceStatusProcess SERVICE_STATUS_PROCESS
+}
+
+type SERVICE_FAILURE_ACTIONS struct {
+	ResetPeriod  uint32
+	RebootMsg    *uint16
+	Command      *uint16
+	ActionsCount uint32
+	Actions      *SC_ACTION
+}
+
+type SC_ACTION struct {
+	Type  uint32
+	Delay uint32
 }
 
 //sys	CloseServiceHandle(handle Handle) (err error) = advapi32.CloseServiceHandle

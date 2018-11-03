@@ -68,6 +68,9 @@ func Examples(files ...*ast.File) []*Example {
 			if !isTest(name, "Example") {
 				continue
 			}
+			if f.Body == nil { // ast.File.Body nil dereference (see issue 28044)
+				continue
+			}
 			var doc string
 			if f.Doc != nil {
 				doc = f.Doc.Text()
@@ -188,7 +191,7 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	inspectFunc = func(n ast.Node) bool {
 		switch e := n.(type) {
 		case *ast.Ident:
-			if e.Obj == nil {
+			if e.Obj == nil && e.Name != "_" {
 				unresolved[e.Name] = true
 			} else if d := topDecls[e.Obj]; d != nil {
 				if !hasDepDecls[d] {

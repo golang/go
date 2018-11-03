@@ -526,7 +526,7 @@ func (ex *examiner) entryFromOffset(off dwarf.Offset) *dwarf.Entry {
 	return nil
 }
 
-// Return the ID that that examiner uses to refer to the DIE at offset off
+// Return the ID that examiner uses to refer to the DIE at offset off
 func (ex *examiner) idxFromOffset(off dwarf.Offset) int {
 	if idx, found := ex.idxByOffset[off]; found {
 		return idx
@@ -946,5 +946,192 @@ func main() {
 
 	if rtAttr.(uint64)+types.Addr != addr {
 		t.Errorf("DWARF type offset was %#x+%#x, but test program said %#x", rtAttr.(uint64), types.Addr, addr)
+	}
+}
+
+func TestIssue27614(t *testing.T) {
+	// Type references in debug_info should always use the DW_TAG_typedef_type
+	// for the type, when that's generated.
+
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	const prog = `package main
+
+import "fmt"
+
+type astruct struct {
+	X int
+}
+
+type bstruct struct {
+	X float32
+}
+
+var globalptr *astruct
+var globalvar astruct
+var bvar0, bvar1, bvar2 bstruct
+
+func main() {
+	fmt.Println(globalptr, globalvar, bvar0, bvar1, bvar2)
+}
+`
+
+	f := gobuild(t, dir, prog, NoOpt)
+
+	defer f.Close()
+
+	data, err := f.DWARF()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rdr := data.Reader()
+
+	var astructTypeDIE, bstructTypeDIE, ptrastructTypeDIE *dwarf.Entry
+	var globalptrDIE, globalvarDIE *dwarf.Entry
+	var bvarDIE [3]*dwarf.Entry
+
+	for {
+		e, err := rdr.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e == nil {
+			break
+		}
+
+		name, _ := e.Val(dwarf.AttrName).(string)
+
+		switch e.Tag {
+		case dwarf.TagTypedef:
+			switch name {
+			case "main.astruct":
+				astructTypeDIE = e
+			case "main.bstruct":
+				bstructTypeDIE = e
+			}
+		case dwarf.TagPointerType:
+			if name == "*main.astruct" {
+				ptrastructTypeDIE = e
+			}
+		case dwarf.TagVariable:
+			switch name {
+			case "main.globalptr":
+				globalptrDIE = e
+			case "main.globalvar":
+				globalvarDIE = e
+			default:
+				const bvarprefix = "main.bvar"
+				if strings.HasPrefix(name, bvarprefix) {
+					i, _ := strconv.Atoi(name[len(bvarprefix):])
+					bvarDIE[i] = e
+				}
+			}
+		}
+	}
+
+	typedieof := func(e *dwarf.Entry) dwarf.Offset {
+		return e.Val(dwarf.AttrType).(dwarf.Offset)
+	}
+
+	if off := typedieof(ptrastructTypeDIE); off != astructTypeDIE.Offset {
+		t.Errorf("type attribute of *main.astruct references %#x, not main.astruct DIE at %#x\n", off, astructTypeDIE.Offset)
+	}
+
+	if off := typedieof(globalptrDIE); off != ptrastructTypeDIE.Offset {
+		t.Errorf("type attribute of main.globalptr references %#x, not *main.astruct DIE at %#x\n", off, ptrastructTypeDIE.Offset)
+	}
+
+	if off := typedieof(globalvarDIE); off != astructTypeDIE.Offset {
+		t.Errorf("type attribute of main.globalvar1 references %#x, not main.astruct DIE at %#x\n", off, astructTypeDIE.Offset)
+	}
+
+	for i := range bvarDIE {
+		if off := typedieof(bvarDIE[i]); off != bstructTypeDIE.Offset {
+			t.Errorf("type attribute of main.bvar%d references %#x, not main.bstruct DIE at %#x\n", i, off, bstructTypeDIE.Offset)
+		}
+	}
+}
+
+func TestStaticTmp(t *testing.T) {
+	// Checks that statictmp variables do not appear in debug_info or the
+	// symbol table.
+	// Also checks that statictmp variables do not collide with user defined
+	// variables (issue #25113)
+
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	const prog = `package main
+
+var stmp_0 string
+var a []int
+
+func init() {
+	a = []int{ 7 }
+}
+
+func main() {
+	println(a[0])
+}
+`
+
+	f := gobuild(t, dir, prog, NoOpt)
+
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	for {
+		e, err := rdr.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e == nil {
+			break
+		}
+		if e.Tag != dwarf.TagVariable {
+			continue
+		}
+		name, ok := e.Val(dwarf.AttrName).(string)
+		if !ok {
+			continue
+		}
+		if strings.Contains(name, "stmp") {
+			t.Errorf("statictmp variable found in debug_info: %s at %x", name, e.Offset)
+		}
+	}
+
+	syms, err := f.Symbols()
+	if err != nil {
+		t.Fatalf("error reading symbols: %v", err)
+	}
+	for _, sym := range syms {
+		if strings.Contains(sym.Name, "stmp") {
+			t.Errorf("statictmp variable found in symbol table: %s", sym.Name)
+		}
 	}
 }

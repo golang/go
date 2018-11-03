@@ -102,7 +102,7 @@ func algtype1(t *types.Type) (AlgKind, *types.Type) {
 	case TINT8, TUINT8, TINT16, TUINT16,
 		TINT32, TUINT32, TINT64, TUINT64,
 		TINT, TUINT, TUINTPTR,
-		TBOOL, TPTR32, TPTR64,
+		TBOOL, TPTR,
 		TCHAN, TUNSAFEPTR:
 		return AMEM, nil
 
@@ -300,18 +300,8 @@ func genhash(sym *types.Sym, t *types.Type) {
 		testdclstack()
 	}
 
-	// Disable safemode while compiling this code: the code we
-	// generate internally can refer to unsafe.Pointer.
-	// In this case it can happen if we need to generate an ==
-	// for a struct containing a reflect.Value, which itself has
-	// an unexported field of type unsafe.Pointer.
-	old_safemode := safemode
-	safemode = false
-
 	fn.Func.SetNilCheckDisabled(true)
 	funccompile(fn)
-
-	safemode = old_safemode
 }
 
 func hashfor(t *types.Type) *Node {
@@ -484,22 +474,12 @@ func geneq(sym *types.Sym, t *types.Type) {
 		testdclstack()
 	}
 
-	// Disable safemode while compiling this code: the code we
-	// generate internally can refer to unsafe.Pointer.
-	// In this case it can happen if we need to generate an ==
-	// for a struct containing a reflect.Value, which itself has
-	// an unexported field of type unsafe.Pointer.
-	old_safemode := safemode
-	safemode = false
-
 	// Disable checknils while compiling this code.
 	// We are comparing a struct or an array,
 	// neither of which can be nil, and our comparisons
 	// are shallow.
 	fn.Func.SetNilCheckDisabled(true)
 	funccompile(fn)
-
-	safemode = old_safemode
 }
 
 // eqfield returns the node

@@ -434,7 +434,7 @@ TEXT ·gcmAesEnc(SB),NOSPLIT,$0
 	VLD1	(tPtr), [ACC0.B16]
 	VEOR	ACC1.B16, ACC1.B16, ACC1.B16
 	VEOR	ACCM.B16, ACCM.B16, ACCM.B16
-	// Prepare intial counter, and the increment vector
+	// Prepare initial counter, and the increment vector
 	VLD1	(ctrPtr), [CTR.B16]
 	VEOR	INC.B16, INC.B16, INC.B16
 	MOVD	$1, H0
@@ -733,7 +733,7 @@ TEXT ·gcmAesDec(SB),NOSPLIT,$0
 	VLD1	(tPtr), [ACC0.B16]
 	VEOR	ACC1.B16, ACC1.B16, ACC1.B16
 	VEOR	ACCM.B16, ACCM.B16, ACCM.B16
-	// Prepare intial counter, and the increment vector
+	// Prepare initial counter, and the increment vector
 	VLD1	(ctrPtr), [CTR.B16]
 	VEOR	INC.B16, INC.B16, INC.B16
 	MOVD	$1, H0
@@ -969,7 +969,7 @@ tail:
 tailLast:
 	VEOR	KLAST.B16, B0.B16, B0.B16
 
-	// Assuming it is safe to load past dstPtr due to the presense of the tag
+	// Assuming it is safe to load past dstPtr due to the presence of the tag
 	VLD1	(srcPtr), [B5.B16]
 
 	VEOR	B5.B16, B0.B16, B0.B16

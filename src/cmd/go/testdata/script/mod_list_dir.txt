@@ -9,11 +9,14 @@ go list -f '{{.ImportPath}}' $GOROOT/src/math
 stdout ^math$
 go list -f '{{.ImportPath}}' .
 stdout ^x$
+! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+stderr '^go: no such directory.*quote@v1.5.2'
+go mod download rsc.io/quote@v1.5.2
 go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
 stdout '^rsc.io/quote$'
 go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.0
 stdout '^rsc.io/sampler$'
-go get rsc.io/sampler@v1.3.1
+go get -d rsc.io/sampler@v1.3.1
 go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.1
 stdout '^rsc.io/sampler$'
 ! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.0

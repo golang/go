@@ -27,31 +27,6 @@ type sessionState struct {
 	usedOldKey bool
 }
 
-func (s *sessionState) equal(i interface{}) bool {
-	s1, ok := i.(*sessionState)
-	if !ok {
-		return false
-	}
-
-	if s.vers != s1.vers ||
-		s.cipherSuite != s1.cipherSuite ||
-		!bytes.Equal(s.masterSecret, s1.masterSecret) {
-		return false
-	}
-
-	if len(s.certificates) != len(s1.certificates) {
-		return false
-	}
-
-	for i := range s.certificates {
-		if !bytes.Equal(s.certificates[i], s1.certificates[i]) {
-			return false
-		}
-	}
-
-	return true
-}
-
 func (s *sessionState) marshal() []byte {
 	length := 2 + 2 + 2 + len(s.masterSecret) + 2
 	for _, cert := range s.certificates {

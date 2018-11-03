@@ -190,6 +190,9 @@ func (f *peFile) goarch() string {
 	if _, err := findPESymbol(f.pe, "_rt0_amd64_windows"); err == nil {
 		return "amd64"
 	}
+	if _, err := findPESymbol(f.pe, "_rt0_arm_windows"); err == nil {
+		return "arm"
+	}
 	return ""
 }
 

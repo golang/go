@@ -134,47 +134,45 @@ func TestMergeRuneSet(t *testing.T) {
 	}
 }
 
-var onePass = &onePassProg{}
-
 var onePassTests = []struct {
-	re      string
-	onePass *onePassProg
+	re        string
+	isOnePass bool
 }{
-	{`^(?:a|(?:a*))$`, notOnePass},
-	{`^(?:(a)|(?:a*))$`, notOnePass},
-	{`^(?:(?:(?:.(?:$))?))$`, onePass},
-	{`^abcd$`, onePass},
-	{`^(?:(?:a{0,})*?)$`, onePass},
-	{`^(?:(?:a+)*)$`, onePass},
-	{`^(?:(?:a|(?:aa)))$`, onePass},
-	{`^(?:[^\s\S])$`, onePass},
-	{`^(?:(?:a{3,4}){0,})$`, notOnePass},
-	{`^(?:(?:(?:a*)+))$`, onePass},
-	{`^[a-c]+$`, onePass},
-	{`^[a-c]*$`, onePass},
-	{`^(?:a*)$`, onePass},
-	{`^(?:(?:aa)|a)$`, onePass},
-	{`^[a-c]*`, notOnePass},
-	{`^...$`, onePass},
-	{`^(?:a|(?:aa))$`, onePass},
-	{`^a((b))c$`, onePass},
-	{`^a.[l-nA-Cg-j]?e$`, onePass},
-	{`^a((b))$`, onePass},
-	{`^a(?:(b)|(c))c$`, onePass},
-	{`^a(?:(b*)|(c))c$`, notOnePass},
-	{`^a(?:b|c)$`, onePass},
-	{`^a(?:b?|c)$`, onePass},
-	{`^a(?:b?|c?)$`, notOnePass},
-	{`^a(?:b?|c+)$`, onePass},
-	{`^a(?:b+|(bc))d$`, notOnePass},
-	{`^a(?:bc)+$`, onePass},
-	{`^a(?:[bcd])+$`, onePass},
-	{`^a((?:[bcd])+)$`, onePass},
-	{`^a(:?b|c)*d$`, onePass},
-	{`^.bc(d|e)*$`, onePass},
-	{`^(?:(?:aa)|.)$`, notOnePass},
-	{`^(?:(?:a{1,2}){1,2})$`, notOnePass},
-	{`^l` + strings.Repeat("o", 2<<8) + `ng$`, onePass},
+	{`^(?:a|(?:a*))$`, false},
+	{`^(?:(a)|(?:a*))$`, false},
+	{`^(?:(?:(?:.(?:$))?))$`, true},
+	{`^abcd$`, true},
+	{`^(?:(?:a{0,})*?)$`, true},
+	{`^(?:(?:a+)*)$`, true},
+	{`^(?:(?:a|(?:aa)))$`, true},
+	{`^(?:[^\s\S])$`, true},
+	{`^(?:(?:a{3,4}){0,})$`, false},
+	{`^(?:(?:(?:a*)+))$`, true},
+	{`^[a-c]+$`, true},
+	{`^[a-c]*$`, true},
+	{`^(?:a*)$`, true},
+	{`^(?:(?:aa)|a)$`, true},
+	{`^[a-c]*`, false},
+	{`^...$`, true},
+	{`^(?:a|(?:aa))$`, true},
+	{`^a((b))c$`, true},
+	{`^a.[l-nA-Cg-j]?e$`, true},
+	{`^a((b))$`, true},
+	{`^a(?:(b)|(c))c$`, true},
+	{`^a(?:(b*)|(c))c$`, false},
+	{`^a(?:b|c)$`, true},
+	{`^a(?:b?|c)$`, true},
+	{`^a(?:b?|c?)$`, false},
+	{`^a(?:b?|c+)$`, true},
+	{`^a(?:b+|(bc))d$`, false},
+	{`^a(?:bc)+$`, true},
+	{`^a(?:[bcd])+$`, true},
+	{`^a((?:[bcd])+)$`, true},
+	{`^a(:?b|c)*d$`, true},
+	{`^.bc(d|e)*$`, true},
+	{`^(?:(?:aa)|.)$`, false},
+	{`^(?:(?:a{1,2}){1,2})$`, false},
+	{`^l` + strings.Repeat("o", 2<<8) + `ng$`, true},
 }
 
 func TestCompileOnePass(t *testing.T) {
@@ -194,9 +192,9 @@ func TestCompileOnePass(t *testing.T) {
 			t.Errorf("Compile(%q) got err:%s, want success", test.re, err)
 			continue
 		}
-		onePass = compileOnePass(p)
-		if (onePass == notOnePass) != (test.onePass == notOnePass) {
-			t.Errorf("CompileOnePass(%q) got %v, expected %v", test.re, onePass, test.onePass)
+		isOnePass := compileOnePass(p) != nil
+		if isOnePass != test.isOnePass {
+			t.Errorf("CompileOnePass(%q) got isOnePass=%v, expected %v", test.re, isOnePass, test.isOnePass)
 		}
 	}
 }
@@ -216,8 +214,8 @@ func TestRunOnePass(t *testing.T) {
 			t.Errorf("Compile(%q): got err: %s", test.re, err)
 			continue
 		}
-		if re.onepass == notOnePass {
-			t.Errorf("Compile(%q): got notOnePass, want one-pass", test.re)
+		if re.onepass == nil {
+			t.Errorf("Compile(%q): got nil, want one-pass", test.re)
 			continue
 		}
 		if !re.MatchString(test.match) {
@@ -227,21 +225,11 @@ func TestRunOnePass(t *testing.T) {
 }
 
 func BenchmarkCompileOnepass(b *testing.B) {
-	for _, test := range onePassTests {
-		if test.onePass == notOnePass {
-			continue
+	b.ReportAllocs()
+	const re = `^a.[l-nA-Cg-j]?e$`
+	for i := 0; i < b.N; i++ {
+		if _, err := Compile(re); err != nil {
+			b.Fatal(err)
 		}
-		name := test.re
-		if len(name) > 20 {
-			name = name[:20] + "..."
-		}
-		b.Run(name, func(b *testing.B) {
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				if _, err := Compile(test.re); err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
 	}
 }

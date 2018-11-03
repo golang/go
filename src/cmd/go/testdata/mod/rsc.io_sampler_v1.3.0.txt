@@ -36,6 +36,7 @@ import (
 	"testing"
 
 	"golang.org/x/text/language"
+	_ "rsc.io/testonly"
 )
 
 var glassTests = []struct {

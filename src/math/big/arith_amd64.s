@@ -324,10 +324,10 @@ TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	MOVQ r+56(FP), CX	// c = r
 	MOVQ z_len+8(FP), R11
 	MOVQ $0, BX		// i = 0
-	
+
 	CMPQ R11, $4
 	JL E5
-	
+
 U5:	// i+4 <= n
 	// regular loop body unrolled 4x
 	MOVQ (0*8)(R8)(BX*8), AX
@@ -355,7 +355,7 @@ U5:	// i+4 <= n
 	MOVQ AX, (3*8)(R10)(BX*8)
 	MOVQ DX, CX
 	ADDQ $4, BX		// i += 4
-	
+
 	LEAQ 4(BX), DX
 	CMPQ DX, R11
 	JLE U5

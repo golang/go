@@ -34,9 +34,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 				check.conversion(x, T)
 			}
 		default:
-			for _, arg := range e.Args {
-				check.expr(&operand{}, arg)
-			}
+			check.use(e.Args...)
 			check.errorf(e.Args[n-1].Pos(), "too many arguments in conversion to %s", T)
 		}
 		x.expr = e
@@ -383,6 +381,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			check.invalidOp(e.Sel.Pos(), "%s has no field or method %s", x, sel)
 		}
 		goto Error
+	}
+
+	// methods may not have a fully set up signature yet
+	if m, _ := obj.(*Func); m != nil {
+		check.objDecl(m, nil)
 	}
 
 	if x.mode == typexpr {

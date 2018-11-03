@@ -74,6 +74,7 @@ type T struct {
 	VariadicFuncInt func(int, ...string) string
 	NilOKFunc       func(*int) bool
 	ErrFunc         func() (string, error)
+	PanicFunc       func() string
 	// Template to test evaluation of templates.
 	Tmpl *Template
 	// Unexported field; cannot be accessed by template.
@@ -156,6 +157,7 @@ var tVal = &T{
 	VariadicFuncInt:      func(a int, s ...string) string { return fmt.Sprint(a, "=<", strings.Join(s, "+"), ">") },
 	NilOKFunc:            func(s *int) bool { return s == nil },
 	ErrFunc:              func() (string, error) { return "bla", nil },
+	PanicFunc:            func() string { panic("test panic") },
 	Tmpl:                 Must(New("x").Parse("test template")), // "x" is the value of .X
 }
 
@@ -1279,6 +1281,7 @@ func TestBadFuncNames(t *testing.T) {
 }
 
 func testBadFuncName(name string, t *testing.T) {
+	t.Helper()
 	defer func() {
 		recover()
 	}()
@@ -1447,6 +1450,63 @@ func TestInterfaceValues(t *testing.T) {
 		}
 		if buf.String() != tt.out {
 			t.Errorf("%s: template output = %q, want %q", tt.text, &buf, tt.out)
+		}
+	}
+}
+
+// Check that panics during calls are recovered and returned as errors.
+func TestExecutePanicDuringCall(t *testing.T) {
+	funcs := map[string]interface{}{
+		"doPanic": func() string {
+			panic("custom panic string")
+		},
+	}
+	tests := []struct {
+		name    string
+		input   string
+		data    interface{}
+		wantErr string
+	}{
+		{
+			"direct func call panics",
+			"{{doPanic}}", (*T)(nil),
+			`template: t:1:2: executing "t" at <doPanic>: error calling doPanic: custom panic string`,
+		},
+		{
+			"indirect func call panics",
+			"{{call doPanic}}", (*T)(nil),
+			`template: t:1:7: executing "t" at <doPanic>: error calling doPanic: custom panic string`,
+		},
+		{
+			"direct method call panics",
+			"{{.GetU}}", (*T)(nil),
+			`template: t:1:2: executing "t" at <.GetU>: error calling GetU: runtime error: invalid memory address or nil pointer dereference`,
+		},
+		{
+			"indirect method call panics",
+			"{{call .GetU}}", (*T)(nil),
+			`template: t:1:7: executing "t" at <.GetU>: error calling GetU: runtime error: invalid memory address or nil pointer dereference`,
+		},
+		{
+			"func field call panics",
+			"{{call .PanicFunc}}", tVal,
+			`template: t:1:2: executing "t" at <call .PanicFunc>: error calling call: test panic`,
+		},
+	}
+	for _, tc := range tests {
+		b := new(bytes.Buffer)
+		tmpl, err := New("t").Funcs(funcs).Parse(tc.input)
+		if err != nil {
+			t.Fatalf("parse error: %s", err)
+		}
+		err = tmpl.Execute(b, tc.data)
+		if err == nil {
+			t.Errorf("%s: expected error; got none", tc.name)
+		} else if !strings.Contains(err.Error(), tc.wantErr) {
+			if *debug {
+				fmt.Printf("%s: test execute error: %s\n", tc.name, err)
+			}
+			t.Errorf("%s: expected error:\n%s\ngot:\n%s", tc.name, tc.wantErr, err)
 		}
 	}
 }

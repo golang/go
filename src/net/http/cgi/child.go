@@ -86,7 +86,7 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 		if !strings.HasPrefix(k, "HTTP_") || k == "HTTP_HOST" {
 			continue
 		}
-		r.Header.Add(strings.Replace(k[5:], "_", "-", -1), v)
+		r.Header.Add(strings.ReplaceAll(k[5:], "_", "-"), v)
 	}
 
 	// TODO: cookies.  parsing them isn't exported, though.

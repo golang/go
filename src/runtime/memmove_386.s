@@ -25,6 +25,7 @@
 
 // +build !plan9
 
+#include "go_asm.h"
 #include "textflag.h"
 
 // func memmove(to, from unsafe.Pointer, n uintptr)
@@ -51,7 +52,7 @@ tail:
 	JBE	move_5through8
 	CMPL	BX, $16
 	JBE	move_9through16
-	CMPB	runtime·support_sse2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
 	JNE	nosse2
 	CMPL	BX, $32
 	JBE	move_17through32
@@ -72,7 +73,7 @@ nosse2:
  */
 forward:
 	// If REP MOVSB isn't fast, don't use it
-	CMPB	runtime·support_erms(SB), $1 // enhanced REP MOVSB/STOSB
+	CMPB	internal∕cpu·X86+const_offsetX86HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
 	JNE	fwdBy4
 
 	// Check alignment

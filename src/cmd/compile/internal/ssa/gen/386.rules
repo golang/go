@@ -17,14 +17,17 @@
 (Mul(32|64)F x y) -> (MULS(S|D) x y)
 (Mul32uhilo x y) -> (MULLQU x y)
 
+(Select0 (Mul32uover x y)) -> (Select0 <typ.UInt32> (MULLU x y))
+(Select1 (Mul32uover x y)) -> (SETO (Select1 <types.TypeFlags> (MULLU x y)))
+
 (Avg32u x y) -> (AVGLU x y)
 
 (Div32F x y) -> (DIVSS x y)
 (Div64F x y) -> (DIVSD x y)
 
-(Div32  x y) -> (DIVL  x y)
+(Div32 [a] x y) -> (DIVL [a] x y)
 (Div32u x y) -> (DIVLU x y)
-(Div16  x y) -> (DIVW  x y)
+(Div16 [a] x y) -> (DIVW [a] x y)
 (Div16u x y) -> (DIVWU x y)
 (Div8   x y) -> (DIVW  (SignExt8to16 x) (SignExt8to16 y))
 (Div8u  x y) -> (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
@@ -32,9 +35,9 @@
 (Hmul32  x y) -> (HMULL  x y)
 (Hmul32u x y) -> (HMULLU x y)
 
-(Mod32  x y) -> (MODL  x y)
+(Mod32 [a] x y) -> (MODL [a] x y)
 (Mod32u x y) -> (MODLU x y)
-(Mod16  x y) -> (MODW  x y)
+(Mod16 [a] x y) -> (MODW [a] x y)
 (Mod16u x y) -> (MODWU x y)
 (Mod8   x y) -> (MODW  (SignExt8to16 x) (SignExt8to16 y))
 (Mod8u  x y) -> (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))
@@ -44,8 +47,8 @@
 (Xor(32|16|8) x y) -> (XORL x y)
 
 (Neg(32|16|8)  x) -> (NEGL x)
-(Neg32F x) && !config.use387 -> (PXOR x (MOVSSconst <typ.Float32> [f2i(math.Copysign(0, -1))]))
-(Neg64F x) && !config.use387 -> (PXOR x (MOVSDconst <typ.Float64> [f2i(math.Copysign(0, -1))]))
+(Neg32F x) && !config.use387 -> (PXOR x (MOVSSconst <typ.Float32> [auxFrom32F(float32(math.Copysign(0, -1)))]))
+(Neg64F x) && !config.use387 -> (PXOR x (MOVSDconst <typ.Float64> [auxFrom64F(math.Copysign(0, -1))]))
 (Neg32F x) && config.use387 -> (FCHS x)
 (Neg64F x) && config.use387 -> (FCHS x)
 
@@ -369,6 +372,7 @@
 (If (SETBE cmp) yes no) -> (ULE cmp yes no)
 (If (SETA  cmp) yes no) -> (UGT cmp yes no)
 (If (SETAE cmp) yes no) -> (UGE cmp yes no)
+(If (SETO  cmp) yes no) -> (OS cmp yes no)
 
 // Special case for floating point - LF/LEF not generated
 (If (SETGF  cmp) yes no) -> (UGT  cmp yes no)
@@ -398,6 +402,7 @@
 (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no) -> (ULE cmp yes no)
 (NE (TESTB (SETA  cmp) (SETA  cmp)) yes no) -> (UGT cmp yes no)
 (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no) -> (UGE cmp yes no)
+(NE (TESTB (SETO cmp) (SETO cmp)) yes no) -> (OS cmp yes no)
 
 // Special case for floating point - LF/LEF not generated
 (NE (TESTB (SETGF  cmp) (SETGF  cmp)) yes no) -> (UGT  cmp yes no)
@@ -614,36 +619,39 @@
 (MOVWLSX (ANDLconst [c] x)) && c & 0x8000 == 0 -> (ANDLconst [c & 0x7fff] x)
 
 // Don't extend before storing
-(MOVWstore [off] {sym} ptr (MOVWLSX x) mem) -> (MOVWstore [off] {sym} ptr x mem)
-(MOVBstore [off] {sym} ptr (MOVBLSX x) mem) -> (MOVBstore [off] {sym} ptr x mem)
-(MOVWstore [off] {sym} ptr (MOVWLZX x) mem) -> (MOVWstore [off] {sym} ptr x mem)
-(MOVBstore [off] {sym} ptr (MOVBLZX x) mem) -> (MOVBstore [off] {sym} ptr x mem)
+(MOVWstore [off] {sym} ptr (MOVWL(S|Z)X x) mem) -> (MOVWstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr (MOVBL(S|Z)X x) mem) -> (MOVBstore [off] {sym} ptr x mem)
 
 // fold constants into memory operations
 // Note that this is not always a good idea because if not all the uses of
 // the ADDQconst get eliminated, we still have to compute the ADDQconst and we now
 // have potentially two live values (ptr and (ADDQconst [off] ptr)) instead of one.
 // Nevertheless, let's do it!
-(MOVLload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVLload  [off1+off2] {sym} ptr mem)
-(MOVWload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVWload  [off1+off2] {sym} ptr mem)
-(MOVBload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVBload  [off1+off2] {sym} ptr mem)
-(MOVSSload [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVSSload [off1+off2] {sym} ptr mem)
-(MOVSDload [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVSDload [off1+off2] {sym} ptr mem)
+(MOV(L|W|B|SS|SD)load  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOV(L|W|B|SS|SD)load  [off1+off2] {sym} ptr mem)
+(MOV(L|W|B|SS|SD)store  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOV(L|W|B|SS|SD)store  [off1+off2] {sym} ptr val mem)
 
-(MOVLstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVLstore  [off1+off2] {sym} ptr val mem)
-(MOVWstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVWstore  [off1+off2] {sym} ptr val mem)
-(MOVBstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVBstore  [off1+off2] {sym} ptr val mem)
-(MOVSSstore [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVSSstore [off1+off2] {sym} ptr val mem)
-(MOVSDstore [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVSDstore [off1+off2] {sym} ptr val mem)
-
-((ADD|SUB|AND|OR|XOR)Lload [off1] {sym} val (ADDLconst [off2] base) mem) && is32Bit(off1+off2) ->
-	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {sym} val base mem)
-((ADD|SUB|MUL)SSload [off1] {sym} val (ADDLconst [off2] base) mem) && is32Bit(off1+off2) ->
-	((ADD|SUB|MUL)SSload [off1+off2] {sym} val base mem)
-((ADD|SUB|MUL)SDload [off1] {sym} val (ADDLconst [off2] base) mem) && is32Bit(off1+off2) ->
-	((ADD|SUB|MUL)SDload [off1+off2] {sym} val base mem)
+((ADD|SUB|MUL|AND|OR|XOR)Lload [off1] {sym} val (ADDLconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|MUL|AND|OR|XOR)Lload [off1+off2] {sym} val base mem)
+((ADD|SUB|MUL|AND|OR|XOR)Lloadidx4 [off1] {sym} val (ADDLconst [off2] base) idx mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|MUL|AND|OR|XOR)Lloadidx4 [off1+off2] {sym} val base idx mem)
+((ADD|SUB|MUL|AND|OR|XOR)Lloadidx4 [off1] {sym} val base (ADDLconst [off2] idx) mem) && is32Bit(off1+off2*4) ->
+	((ADD|SUB|MUL|AND|OR|XOR)Lloadidx4 [off1+off2*4] {sym} val base idx mem)
+((ADD|SUB|MUL|DIV)SSload [off1] {sym} val (ADDLconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|MUL|DIV)SSload [off1+off2] {sym} val base mem)
+((ADD|SUB|MUL|DIV)SDload [off1] {sym} val (ADDLconst [off2] base) mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|MUL|DIV)SDload [off1+off2] {sym} val base mem)
 ((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym} (ADDLconst [off2] base) val mem) && is32Bit(off1+off2) ->
 	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {sym} base val mem)
+((ADD|SUB|AND|OR|XOR)Lmodifyidx4 [off1] {sym} (ADDLconst [off2] base) idx val mem) && is32Bit(off1+off2) ->
+	((ADD|SUB|AND|OR|XOR)Lmodifyidx4 [off1+off2] {sym} base idx val mem)
+((ADD|SUB|AND|OR|XOR)Lmodifyidx4 [off1] {sym} base (ADDLconst [off2] idx) val mem) && is32Bit(off1+off2*4) ->
+	((ADD|SUB|AND|OR|XOR)Lmodifyidx4 [off1+off2*4] {sym} base idx val mem)
+((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym} (ADDLconst [off2] base) mem) && ValAndOff(valoff1).canAdd(off2) ->
+	((ADD|AND|OR|XOR)Lconstmodify [ValAndOff(valoff1).add(off2)] {sym} base mem)
+((ADD|AND|OR|XOR)Lconstmodifyidx4 [valoff1] {sym} (ADDLconst [off2] base) idx mem) && ValAndOff(valoff1).canAdd(off2) ->
+	((ADD|AND|OR|XOR)Lconstmodifyidx4 [ValAndOff(valoff1).add(off2)] {sym} base idx mem)
+((ADD|AND|OR|XOR)Lconstmodifyidx4 [valoff1] {sym} base (ADDLconst [off2] idx) mem) && ValAndOff(valoff1).canAdd(off2*4) ->
+	((ADD|AND|OR|XOR)Lconstmodifyidx4 [ValAndOff(valoff1).add(off2*4)] {sym} base idx mem)
 
 // Fold constants into stores.
 (MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
@@ -654,12 +662,8 @@
 	(MOVBstoreconst [makeValAndOff(int64(int8(c)),off)] {sym} ptr mem)
 
 // Fold address offsets into constant stores.
-(MOVLstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
-	(MOVLstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
-(MOVWstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
-	(MOVWstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
-(MOVBstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
-	(MOVBstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+(MOV(L|W|B)storeconst [sc] {s} (ADDLconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+	(MOV(L|W|B)storeconst [ValAndOff(sc).add(off)] {s} ptr mem)
 
 // We need to fold LEAQ into the MOVx ops so that the live variable analysis knows
 // what variables are being read/written by the ops.
@@ -669,132 +673,73 @@
 // a separate instruction gives us that register.  Having the LEAL be
 // a separate instruction also allows it to be CSEd (which is good because
 // it compiles to a thunk call).
-(MOVLload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
+(MOV(L|W|B|SS|SD|BLSX|WLSX)load  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
   && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVLload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
-(MOVWload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-  && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVWload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
-(MOVBload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-  && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVBload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
-(MOVSSload [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-  && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVSSload [off1+off2] {mergeSym(sym1,sym2)} base mem)
-(MOVSDload [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-  && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVSDload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+        (MOV(L|W|B|SS|SD|BLSX|WLSX)load  [off1+off2] {mergeSym(sym1,sym2)} base mem)
 
-(MOVBLSXload [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
+(MOV(L|W|B|SS|SD)store  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
   && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVBLSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
-(MOVWLSXload [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-  && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVWLSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+	(MOV(L|W|B|SS|SD)store  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 
-(MOVLstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-  && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVLstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(MOVWstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-  && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVWstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(MOVBstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-  && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVBstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(MOVSSstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-  && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVSSstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(MOVSDstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
-  && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVSDstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-
-(MOVLstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
+(MOV(L|W|B)storeconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
   && (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVLstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVWstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
-  && (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVWstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVBstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
-  && (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
-	(MOVBstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+	(MOV(L|W|B)storeconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
 
 // generating indexed loads and stores
-(MOVBload [off1] {sym1} (LEAL1 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVBloadidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVWload [off1] {sym1} (LEAL1 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVWloadidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOV(B|W|L|SS|SD)load [off1] {sym1} (LEAL1 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOV(B|W|L|SS|SD)loadidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
 (MOVWload [off1] {sym1} (LEAL2 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVWloadidx2 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVLload [off1] {sym1} (LEAL1 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVLloadidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVLload [off1] {sym1} (LEAL4 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVLloadidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVSSload [off1] {sym1} (LEAL1 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVSSloadidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVSSload [off1] {sym1} (LEAL4 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVSSloadidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVSDload [off1] {sym1} (LEAL1 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVSDloadidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOV(L|SS)load [off1] {sym1} (LEAL4 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOV(L|SS)loadidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
 (MOVSDload [off1] {sym1} (LEAL8 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVSDloadidx8 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
 
-(MOVBstore [off1] {sym1} (LEAL1 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVBstoreidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
-(MOVWstore [off1] {sym1} (LEAL1 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVWstoreidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
+(MOV(B|W|L|SS|SD)store [off1] {sym1} (LEAL1 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOV(B|W|L|SS|SD)storeidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
 (MOVWstore [off1] {sym1} (LEAL2 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVWstoreidx2 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
-(MOVLstore [off1] {sym1} (LEAL1 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVLstoreidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
-(MOVLstore [off1] {sym1} (LEAL4 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVLstoreidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
-(MOVSSstore [off1] {sym1} (LEAL1 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVSSstoreidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
-(MOVSSstore [off1] {sym1} (LEAL4 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVSSstoreidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
-(MOVSDstore [off1] {sym1} (LEAL1 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVSDstoreidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
+(MOV(L|SS)store [off1] {sym1} (LEAL4 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOV(L|SS)storeidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
 (MOVSDstore [off1] {sym1} (LEAL8 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVSDstoreidx8 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
 
-((ADD|SUB|AND|OR|XOR)Lload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
+((ADD|SUB|MUL|AND|OR|XOR)Lload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	((ADD|SUB|AND|OR|XOR)Lload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
-((ADD|SUB|MUL)SSload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
+	((ADD|SUB|MUL|AND|OR|XOR)Lload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|MUL|AND|OR|XOR)Lloadidx4 [off1] {sym1} val (LEAL [off2] {sym2} base) idx mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	((ADD|SUB|MUL)SSload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
-((ADD|SUB|MUL)SDload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
+	((ADD|SUB|MUL|AND|OR|XOR)Lloadidx4 [off1+off2] {mergeSym(sym1,sym2)} val base idx mem)
+((ADD|SUB|MUL|DIV)SSload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
-	((ADD|SUB|MUL)SDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+	((ADD|SUB|MUL|DIV)SSload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|MUL|DIV)SDload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
+	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
+	((ADD|SUB|MUL|DIV)SDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
 ((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
 	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+((ADD|SUB|AND|OR|XOR)Lmodifyidx4 [off1] {sym1} (LEAL [off2] {sym2} base) idx val mem)
+	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
+	((ADD|SUB|AND|OR|XOR)Lmodifyidx4 [off1+off2] {mergeSym(sym1,sym2)} base idx val mem)
+((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym1} (LEAL [off2] {sym2} base) mem)
+	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
+	((ADD|AND|OR|XOR)Lconstmodify [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base mem)
+((ADD|AND|OR|XOR)Lconstmodifyidx4 [valoff1] {sym1} (LEAL [off2] {sym2} base) idx mem)
+	&& ValAndOff(valoff1).canAdd(off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
+	((ADD|AND|OR|XOR)Lconstmodifyidx4 [ValAndOff(valoff1).add(off2)] {mergeSym(sym1,sym2)} base idx mem)
 
-(MOVBload [off] {sym} (ADDL ptr idx) mem) && ptr.Op != OpSB -> (MOVBloadidx1 [off] {sym} ptr idx mem)
-(MOVWload [off] {sym} (ADDL ptr idx) mem) && ptr.Op != OpSB -> (MOVWloadidx1 [off] {sym} ptr idx mem)
-(MOVLload [off] {sym} (ADDL ptr idx) mem) && ptr.Op != OpSB -> (MOVLloadidx1 [off] {sym} ptr idx mem)
-(MOVSSload [off] {sym} (ADDL ptr idx) mem) && ptr.Op != OpSB -> (MOVSSloadidx1 [off] {sym} ptr idx mem)
-(MOVSDload [off] {sym} (ADDL ptr idx) mem) && ptr.Op != OpSB -> (MOVSDloadidx1 [off] {sym} ptr idx mem)
-(MOVBstore [off] {sym} (ADDL ptr idx) val mem) && ptr.Op != OpSB -> (MOVBstoreidx1 [off] {sym} ptr idx val mem)
-(MOVWstore [off] {sym} (ADDL ptr idx) val mem) && ptr.Op != OpSB -> (MOVWstoreidx1 [off] {sym} ptr idx val mem)
-(MOVLstore [off] {sym} (ADDL ptr idx) val mem) && ptr.Op != OpSB -> (MOVLstoreidx1 [off] {sym} ptr idx val mem)
-(MOVSSstore [off] {sym} (ADDL ptr idx) val mem) && ptr.Op != OpSB -> (MOVSSstoreidx1 [off] {sym} ptr idx val mem)
-(MOVSDstore [off] {sym} (ADDL ptr idx) val mem) && ptr.Op != OpSB -> (MOVSDstoreidx1 [off] {sym} ptr idx val mem)
+(MOV(B|W|L|SS|SD)load [off] {sym} (ADDL ptr idx) mem) && ptr.Op != OpSB -> (MOV(B|W|L|SS|SD)loadidx1 [off] {sym} ptr idx mem)
+(MOV(B|W|L|SS|SD)store [off] {sym} (ADDL ptr idx) val mem) && ptr.Op != OpSB -> (MOV(B|W|L|SS|SD)storeidx1 [off] {sym} ptr idx val mem)
 
-(MOVBstoreconst [x] {sym1} (LEAL1 [off] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
-	(MOVBstoreconstidx1 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVWstoreconst [x] {sym1} (LEAL1 [off] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
-	(MOVWstoreconstidx1 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOV(B|W|L)storeconst [x] {sym1} (LEAL1 [off] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
+	(MOV(B|W|L)storeconstidx1 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
 (MOVWstoreconst [x] {sym1} (LEAL2 [off] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
 	(MOVWstoreconstidx2 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVLstoreconst [x] {sym1} (LEAL1 [off] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
-	(MOVLstoreconstidx1 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
 (MOVLstoreconst [x] {sym1} (LEAL4 [off] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
 	(MOVLstoreconstidx4 [ValAndOff(x).add(off)] {mergeSym(sym1,sym2)} ptr idx mem)
 
-(MOVBstoreconst [x] {sym} (ADDL ptr idx) mem) -> (MOVBstoreconstidx1 [x] {sym} ptr idx mem)
-(MOVWstoreconst [x] {sym} (ADDL ptr idx) mem) -> (MOVWstoreconstidx1 [x] {sym} ptr idx mem)
-(MOVLstoreconst [x] {sym} (ADDL ptr idx) mem) -> (MOVLstoreconstidx1 [x] {sym} ptr idx mem)
+(MOV(B|W|L)storeconst [x] {sym} (ADDL ptr idx) mem) -> (MOV(B|W|L)storeconstidx1 [x] {sym} ptr idx mem)
 
 // combine SHLL into indexed loads and stores
 (MOVWloadidx1 [c] {sym} ptr (SHLLconst [1] idx) mem) -> (MOVWloadidx2 [c] {sym} ptr idx mem)
@@ -805,73 +750,64 @@
 (MOVLstoreconstidx1 [c] {sym} ptr (SHLLconst [2] idx) mem) -> (MOVLstoreconstidx4 [c] {sym} ptr idx mem)
 
 // combine ADDL into indexed loads and stores
-(MOVBloadidx1 [c] {sym} (ADDLconst [d] ptr) idx mem) -> (MOVBloadidx1 [int64(int32(c+d))] {sym} ptr idx mem)
-(MOVWloadidx1 [c] {sym} (ADDLconst [d] ptr) idx mem) -> (MOVWloadidx1 [int64(int32(c+d))] {sym} ptr idx mem)
+(MOV(B|W|L|SS|SD)loadidx1 [c] {sym} (ADDLconst [d] ptr) idx mem) -> (MOV(B|W|L|SS|SD)loadidx1 [int64(int32(c+d))] {sym} ptr idx mem)
 (MOVWloadidx2 [c] {sym} (ADDLconst [d] ptr) idx mem) -> (MOVWloadidx2 [int64(int32(c+d))] {sym} ptr idx mem)
-(MOVLloadidx1 [c] {sym} (ADDLconst [d] ptr) idx mem) -> (MOVLloadidx1 [int64(int32(c+d))] {sym} ptr idx mem)
-(MOVLloadidx4 [c] {sym} (ADDLconst [d] ptr) idx mem) -> (MOVLloadidx4 [int64(int32(c+d))] {sym} ptr idx mem)
-(MOVSSloadidx1 [c] {sym} (ADDLconst [d] ptr) idx mem) -> (MOVSSloadidx1 [int64(int32(c+d))] {sym} ptr idx mem)
-(MOVSSloadidx4 [c] {sym} (ADDLconst [d] ptr) idx mem) -> (MOVSSloadidx4 [int64(int32(c+d))] {sym} ptr idx mem)
-(MOVSDloadidx1 [c] {sym} (ADDLconst [d] ptr) idx mem) -> (MOVSDloadidx1 [int64(int32(c+d))] {sym} ptr idx mem)
+(MOV(L|SS)loadidx4 [c] {sym} (ADDLconst [d] ptr) idx mem) -> (MOV(L|SS)loadidx4 [int64(int32(c+d))] {sym} ptr idx mem)
 (MOVSDloadidx8 [c] {sym} (ADDLconst [d] ptr) idx mem) -> (MOVSDloadidx8 [int64(int32(c+d))] {sym} ptr idx mem)
 
-(MOVBstoreidx1 [c] {sym} (ADDLconst [d] ptr) idx val mem)  -> (MOVBstoreidx1 [int64(int32(c+d))] {sym} ptr idx val mem)
-(MOVWstoreidx1 [c] {sym} (ADDLconst [d] ptr) idx val mem)  -> (MOVWstoreidx1 [int64(int32(c+d))] {sym} ptr idx val mem)
-(MOVWstoreidx2 [c] {sym} (ADDLconst [d] ptr) idx val mem)  -> (MOVWstoreidx2 [int64(int32(c+d))] {sym} ptr idx val mem)
-(MOVLstoreidx1 [c] {sym} (ADDLconst [d] ptr) idx val mem)  -> (MOVLstoreidx1 [int64(int32(c+d))] {sym} ptr idx val mem)
-(MOVLstoreidx4 [c] {sym} (ADDLconst [d] ptr) idx val mem)  -> (MOVLstoreidx4 [int64(int32(c+d))] {sym} ptr idx val mem)
-(MOVSSstoreidx1 [c] {sym} (ADDLconst [d] ptr) idx val mem)  -> (MOVSSstoreidx1 [int64(int32(c+d))] {sym} ptr idx val mem)
-(MOVSSstoreidx4 [c] {sym} (ADDLconst [d] ptr) idx val mem)  -> (MOVSSstoreidx4 [int64(int32(c+d))] {sym} ptr idx val mem)
-(MOVSDstoreidx1 [c] {sym} (ADDLconst [d] ptr) idx val mem)  -> (MOVSDstoreidx1 [int64(int32(c+d))] {sym} ptr idx val mem)
-(MOVSDstoreidx8 [c] {sym} (ADDLconst [d] ptr) idx val mem)  -> (MOVSDstoreidx8 [int64(int32(c+d))] {sym} ptr idx val mem)
+(MOV(B|W|L|SS|SD)storeidx1 [c] {sym} (ADDLconst [d] ptr) idx val mem) -> (MOV(B|W|L|SS|SD)storeidx1 [int64(int32(c+d))] {sym} ptr idx val mem)
+(MOVWstoreidx2 [c] {sym} (ADDLconst [d] ptr) idx val mem) -> (MOVWstoreidx2 [int64(int32(c+d))] {sym} ptr idx val mem)
+(MOV(L|SS)storeidx4 [c] {sym} (ADDLconst [d] ptr) idx val mem) -> (MOV(L|SS)storeidx4 [int64(int32(c+d))] {sym} ptr idx val mem)
+(MOVSDstoreidx8 [c] {sym} (ADDLconst [d] ptr) idx val mem) -> (MOVSDstoreidx8 [int64(int32(c+d))] {sym} ptr idx val mem)
 
-(MOVBloadidx1 [c] {sym} ptr (ADDLconst [d] idx) mem) -> (MOVBloadidx1  [int64(int32(c+d))]   {sym} ptr idx mem)
-(MOVWloadidx1 [c] {sym} ptr (ADDLconst [d] idx) mem) -> (MOVWloadidx1  [int64(int32(c+d))]   {sym} ptr idx mem)
-(MOVWloadidx2 [c] {sym} ptr (ADDLconst [d] idx) mem) -> (MOVWloadidx2  [int64(int32(c+2*d))] {sym} ptr idx mem)
-(MOVLloadidx1 [c] {sym} ptr (ADDLconst [d] idx) mem) -> (MOVLloadidx1  [int64(int32(c+d))]   {sym} ptr idx mem)
-(MOVLloadidx4 [c] {sym} ptr (ADDLconst [d] idx) mem) -> (MOVLloadidx4  [int64(int32(c+4*d))] {sym} ptr idx mem)
-(MOVSSloadidx1 [c] {sym} ptr (ADDLconst [d] idx) mem) -> (MOVSSloadidx1 [int64(int32(c+d))]   {sym} ptr idx mem)
-(MOVSSloadidx4 [c] {sym} ptr (ADDLconst [d] idx) mem) -> (MOVSSloadidx4 [int64(int32(c+4*d))] {sym} ptr idx mem)
-(MOVSDloadidx1 [c] {sym} ptr (ADDLconst [d] idx) mem) -> (MOVSDloadidx1 [int64(int32(c+d))]   {sym} ptr idx mem)
+(MOV(B|W|L|SS|SD)loadidx1 [c] {sym} ptr (ADDLconst [d] idx) mem) -> (MOV(B|W|L|SS|SD)loadidx1 [int64(int32(c+d))] {sym} ptr idx mem)
+(MOVWloadidx2 [c] {sym} ptr (ADDLconst [d] idx) mem) -> (MOVWloadidx2 [int64(int32(c+2*d))] {sym} ptr idx mem)
+(MOV(L|SS)loadidx4 [c] {sym} ptr (ADDLconst [d] idx) mem) -> (MOV(L|SS)loadidx4 [int64(int32(c+4*d))] {sym} ptr idx mem)
 (MOVSDloadidx8 [c] {sym} ptr (ADDLconst [d] idx) mem) -> (MOVSDloadidx8 [int64(int32(c+8*d))] {sym} ptr idx mem)
 
-(MOVBstoreidx1 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVBstoreidx1  [int64(int32(c+d))]   {sym} ptr idx val mem)
-(MOVWstoreidx1 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVWstoreidx1  [int64(int32(c+d))]   {sym} ptr idx val mem)
+(MOV(B|W|L|SS|SD)storeidx1 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOV(B|W|L|SS|SD)storeidx1  [int64(int32(c+d))]   {sym} ptr idx val mem)
 (MOVWstoreidx2 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVWstoreidx2  [int64(int32(c+2*d))] {sym} ptr idx val mem)
-(MOVLstoreidx1 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVLstoreidx1  [int64(int32(c+d))]   {sym} ptr idx val mem)
-(MOVLstoreidx4 [c] {sym} ptr (ADDLconst [d] idx) val mem)  -> (MOVLstoreidx4  [int64(int32(c+4*d))] {sym} ptr idx val mem)
-(MOVSSstoreidx1 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVSSstoreidx1 [int64(int32(c+d))]   {sym} ptr idx val mem)
-(MOVSSstoreidx4 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVSSstoreidx4 [int64(int32(c+4*d))] {sym} ptr idx val mem)
-(MOVSDstoreidx1 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVSDstoreidx1 [int64(int32(c+d))]   {sym} ptr idx val mem)
+(MOV(L|SS)storeidx4 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOV(L|SS)storeidx4 [int64(int32(c+4*d))] {sym} ptr idx val mem)
 (MOVSDstoreidx8 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVSDstoreidx8 [int64(int32(c+8*d))] {sym} ptr idx val mem)
 
 // Merge load/store to op
-((ADD|AND|OR|XOR|SUB)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|AND|OR|XOR|SUB)Lload x [off] {sym} ptr mem)
-((ADD|SUB|MUL)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL)SDload x [off] {sym} ptr mem)
-((ADD|SUB|MUL)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL)SSload x [off] {sym} ptr mem)
+((ADD|AND|OR|XOR|SUB|MUL)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) -> ((ADD|AND|OR|XOR|SUB|MUL)Lload x [off] {sym} ptr mem)
+((ADD|AND|OR|XOR|SUB|MUL)L x l:(MOVLloadidx4 [off] {sym} ptr idx mem)) && canMergeLoadClobber(v, l, x) && clobber(l) ->
+	((ADD|AND|OR|XOR|SUB|MUL)Lloadidx4 x [off] {sym} ptr idx mem)
+((ADD|SUB|MUL|AND|OR|XOR)Lload [off1] {sym1} val (LEAL4 [off2] {sym2} ptr idx) mem)
+	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	((ADD|SUB|MUL|AND|OR|XOR)Lloadidx4 [off1+off2] {mergeSym(sym1,sym2)} val ptr idx mem)
+((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
+((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
 (MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lload x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) -> ((ADD|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
 (MOVLstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)L l:(MOVLload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) ->
 	((ADD|SUB|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
+(MOVLstoreidx4 {sym} [off] ptr idx y:((ADD|AND|OR|XOR)Lloadidx4 x [off] {sym} ptr idx mem) mem) && y.Uses==1 && clobber(y) ->
+	((ADD|AND|OR|XOR)Lmodifyidx4 [off] {sym} ptr idx x mem)
+(MOVLstoreidx4 {sym} [off] ptr idx y:((ADD|SUB|AND|OR|XOR)L l:(MOVLloadidx4 [off] {sym} ptr idx mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) ->
+	((ADD|SUB|AND|OR|XOR)Lmodifyidx4 [off] {sym} ptr idx x mem)
+(MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lconst [c] l:(MOVLload [off] {sym} ptr mem)) mem)
+	&& y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) && validValAndOff(c,off) ->
+	((ADD|AND|OR|XOR)Lconstmodify [makeValAndOff(c,off)] {sym} ptr mem)
+(MOVLstoreidx4 {sym} [off] ptr idx y:((ADD|AND|OR|XOR)Lconst [c] l:(MOVLloadidx4 [off] {sym} ptr idx mem)) mem)
+	&& y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) && validValAndOff(c,off) ->
+	((ADD|AND|OR|XOR)Lconstmodifyidx4 [makeValAndOff(c,off)] {sym} ptr idx mem)
+((ADD|AND|OR|XOR)Lmodifyidx4 [off] {sym} ptr idx (MOVLconst [c]) mem) && validValAndOff(c,off) ->
+	((ADD|AND|OR|XOR)Lconstmodifyidx4 [makeValAndOff(c,off)] {sym} ptr idx mem)
+(SUBLmodifyidx4 [off] {sym} ptr idx (MOVLconst [c]) mem) && validValAndOff(-c,off) ->
+	(ADDLconstmodifyidx4 [makeValAndOff(-c,off)] {sym} ptr idx mem)
 
-(MOVBstoreconstidx1 [x] {sym} (ADDLconst [c] ptr) idx mem) ->
-	(MOVBstoreconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
-(MOVWstoreconstidx1 [x] {sym} (ADDLconst [c] ptr) idx mem) ->
-	(MOVWstoreconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
+(MOV(B|W|L)storeconstidx1 [x] {sym} (ADDLconst [c] ptr) idx mem) ->
+	(MOV(B|W|L)storeconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
 (MOVWstoreconstidx2 [x] {sym} (ADDLconst [c] ptr) idx mem) ->
 	(MOVWstoreconstidx2 [ValAndOff(x).add(c)] {sym} ptr idx mem)
-(MOVLstoreconstidx1 [x] {sym} (ADDLconst [c] ptr) idx mem) ->
-	(MOVLstoreconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
 (MOVLstoreconstidx4 [x] {sym} (ADDLconst [c] ptr) idx mem) ->
 	(MOVLstoreconstidx4 [ValAndOff(x).add(c)] {sym} ptr idx mem)
 
-(MOVBstoreconstidx1 [x] {sym} ptr (ADDLconst [c] idx) mem) ->
-	(MOVBstoreconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
-(MOVWstoreconstidx1 [x] {sym} ptr (ADDLconst [c] idx) mem) ->
-	(MOVWstoreconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
+(MOV(B|W|L)storeconstidx1 [x] {sym} ptr (ADDLconst [c] idx) mem) ->
+	(MOV(B|W|L)storeconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
 (MOVWstoreconstidx2 [x] {sym} ptr (ADDLconst [c] idx) mem) ->
 	(MOVWstoreconstidx2 [ValAndOff(x).add(2*c)] {sym} ptr idx mem)
-(MOVLstoreconstidx1 [x] {sym} ptr (ADDLconst [c] idx) mem) ->
-	(MOVLstoreconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
 (MOVLstoreconstidx4 [x] {sym} ptr (ADDLconst [c] idx) mem) ->
 	(MOVLstoreconstidx4 [ValAndOff(x).add(4*c)] {sym} ptr idx mem)
 
@@ -1108,10 +1044,10 @@
 (XORL x x) -> (MOVLconst [0])
 
 // checking AND against 0.
-(CMP(L|W|B)const (ANDL x y) [0]) -> (TEST(L|W|B) x y)
-(CMPLconst (ANDLconst [c] x) [0]) -> (TESTLconst [c] x)
-(CMPWconst (ANDLconst [c] x) [0]) -> (TESTWconst [int64(int16(c))] x)
-(CMPBconst (ANDLconst [c] x) [0]) -> (TESTBconst [int64(int8(c))] x)
+(CMP(L|W|B)const l:(ANDL x y) [0]) && l.Uses==1 -> (TEST(L|W|B) x y)
+(CMPLconst l:(ANDLconst [c] x) [0]) && l.Uses==1 -> (TESTLconst [c] x)
+(CMPWconst l:(ANDLconst [c] x) [0]) && l.Uses==1 -> (TESTWconst [int64(int16(c))] x)
+(CMPBconst l:(ANDLconst [c] x) [0]) && l.Uses==1 -> (TESTBconst [int64(int8(c))] x)
 
 // TEST %reg,%reg is shorter than CMP
 (CMP(L|W|B)const x [0]) -> (TEST(L|W|B) x x)
@@ -1191,7 +1127,17 @@
   && ValAndOff(a).Off() + 1 == ValAndOff(c).Off()
   && clobber(x)
   -> (MOVWstoreconst [makeValAndOff(ValAndOff(a).Val()&0xff | ValAndOff(c).Val()<<8, ValAndOff(a).Off())] {s} p mem)
+(MOVBstoreconst [a] {s} p x:(MOVBstoreconst [c] {s} p mem))
+  && x.Uses == 1
+  && ValAndOff(a).Off() + 1 == ValAndOff(c).Off()
+  && clobber(x)
+  -> (MOVWstoreconst [makeValAndOff(ValAndOff(a).Val()&0xff | ValAndOff(c).Val()<<8, ValAndOff(a).Off())] {s} p mem)
 (MOVWstoreconst [c] {s} p x:(MOVWstoreconst [a] {s} p mem))
+  && x.Uses == 1
+  && ValAndOff(a).Off() + 2 == ValAndOff(c).Off()
+  && clobber(x)
+  -> (MOVLstoreconst [makeValAndOff(ValAndOff(a).Val()&0xffff | ValAndOff(c).Val()<<16, ValAndOff(a).Off())] {s} p mem)
+(MOVWstoreconst [a] {s} p x:(MOVWstoreconst [c] {s} p mem))
   && x.Uses == 1
   && ValAndOff(a).Off() + 2 == ValAndOff(c).Off()
   && clobber(x)
@@ -1215,10 +1161,14 @@
   -> (MOVLstoreconstidx1 [makeValAndOff(ValAndOff(a).Val()&0xffff | ValAndOff(c).Val()<<16, ValAndOff(a).Off())] {s} p (SHLLconst <i.Type> [1] i) mem)
 
 // Combine stores into larger (unaligned) stores.
-(MOVBstore [i] {s} p (SHRLconst [8] w) x:(MOVBstore [i-1] {s} p w mem))
+(MOVBstore [i] {s} p (SHR(W|L)const [8] w) x:(MOVBstore [i-1] {s} p w mem))
   && x.Uses == 1
   && clobber(x)
   -> (MOVWstore [i-1] {s} p w mem)
+(MOVBstore [i] {s} p w x:(MOVBstore {s} [i+1] p (SHR(W|L)const [8] w) mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVWstore [i] {s} p w mem)
 (MOVBstore [i] {s} p (SHRLconst [j] w) x:(MOVBstore [i-1] {s} p w0:(SHRLconst [j-8] w) mem))
   && x.Uses == 1
   && clobber(x)
@@ -1232,10 +1182,14 @@
   && clobber(x)
   -> (MOVLstore [i-2] {s} p w0 mem)
 
-(MOVBstoreidx1 [i] {s} p idx (SHRLconst [8] w) x:(MOVBstoreidx1 [i-1] {s} p idx w mem))
+(MOVBstoreidx1 [i] {s} p idx (SHR(L|W)const [8] w) x:(MOVBstoreidx1 [i-1] {s} p idx w mem))
   && x.Uses == 1
   && clobber(x)
   -> (MOVWstoreidx1 [i-1] {s} p idx w mem)
+(MOVBstoreidx1 [i] {s} p idx w x:(MOVBstoreidx1 [i+1] {s} p idx (SHR(L|W)const [8] w) mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVWstoreidx1 [i] {s} p idx w mem)
 (MOVBstoreidx1 [i] {s} p idx (SHRLconst [j] w) x:(MOVBstoreidx1 [i-1] {s} p idx w0:(SHRLconst [j-8] w) mem))
   && x.Uses == 1
   && clobber(x)
@@ -1262,3 +1216,20 @@
 // a register to use for holding the address of the constant pool entry.
 (MOVSSconst [c]) && config.ctxt.Flag_shared -> (MOVSSconst2 (MOVSSconst1 [c]))
 (MOVSDconst [c]) && config.ctxt.Flag_shared -> (MOVSDconst2 (MOVSDconst1 [c]))
+
+(CMP(L|W|B) l:(MOV(L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l) && clobber(l) -> (CMP(L|W|B)load {sym} [off] ptr x mem)
+(CMP(L|W|B) x l:(MOV(L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) -> (InvertFlags (CMP(L|W|B)load {sym} [off] ptr x mem))
+
+(CMP(L|W|B)const l:(MOV(L|W|B)load {sym} [off] ptr mem) [c])
+	&& l.Uses == 1
+	&& validValAndOff(c, off)
+	&& clobber(l) ->
+  @l.Block (CMP(L|W|B)constload {sym} [makeValAndOff(c,off)] ptr mem)
+
+(CMPLload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int32(c)),off) -> (CMPLconstload {sym} [makeValAndOff(int64(int32(c)),off)] ptr mem)
+(CMPWload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int16(c)),off) -> (CMPWconstload {sym} [makeValAndOff(int64(int16(c)),off)] ptr mem)
+(CMPBload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int8(c)),off) -> (CMPBconstload {sym} [makeValAndOff(int64(int8(c)),off)] ptr mem)
+
+(MOVBload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read8(sym, off))])
+(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read16(sym, off, config.BigEndian))])
+(MOVLload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(int32(read32(sym, off, config.BigEndian)))])

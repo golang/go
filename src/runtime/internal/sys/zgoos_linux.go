@@ -8,6 +8,7 @@ package sys
 const GOOS = `linux`
 
 const GoosAndroid = 0
+const GoosAix = 0
 const GoosDarwin = 0
 const GoosDragonfly = 0
 const GoosFreebsd = 0

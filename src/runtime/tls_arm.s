@@ -23,6 +23,9 @@
 #ifdef GOOS_darwin
 #define TLSG_IS_VARIABLE
 #endif
+#ifdef GOOS_windows
+#define TLSG_IS_VARIABLE
+#endif
 
 // save_g saves the g register into pthread-provided
 // thread-local memory, so that we can call externally compiled
@@ -36,6 +39,17 @@ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0
 	MOVW	g, R0 // preserve R0 across call to setg<>
 	RET
 #else
+#ifdef GOOS_windows
+	// Save the value in the _TEB->TlsSlots array.
+	// Effectively implements TlsSetValue().
+	MRC	15, 0, R0, C13, C0, 2
+	ADD	$0xe10, R0
+	MOVW 	$runtime·tls_g(SB), R11
+	MOVW	(R11), R11
+	MOVW	g, R11<<2(R0)
+	MOVW	g, R0	// preserve R0 accross call to setg<>
+	RET
+#else
 	// If the host does not support MRC the linker will replace it with
 	// a call to runtime.read_tls_fallback which jumps to __kuser_get_tls.
 	// The replacement function saves LR in R11 over the call to read_tls_fallback.
@@ -47,6 +61,7 @@ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0
 	MOVW	g, R0 // preserve R0 across call to setg<>
 	RET
 #endif
+#endif
 
 // load_g loads the g register from pthread-provided
 // thread-local memory, for use after calling externally compiled
@@ -56,6 +71,16 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	// nothing to do as nacl/arm does not use TLS at all.
 	RET
 #else
+#ifdef GOOS_windows
+	// Get the value from the _TEB->TlsSlots array.
+	// Effectively implements TlsGetValue().
+	MRC	15, 0, R0, C13, C0, 2
+	ADD	$0xe10, R0
+	MOVW 	$runtime·tls_g(SB), g
+	MOVW	(g), g
+	MOVW	g<<2(R0), g
+	RET
+#else
 	// See save_g
 	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
 	BIC $3, R0 // Darwin/ARM might return unaligned pointer
@@ -63,6 +88,7 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	ADD	R11, R0
 	MOVW	0(R0), g
 	RET
+#endif
 #endif
 
 // This is called from rt0_go, which runs on the system stack
@@ -76,6 +102,20 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 // Declare a dummy word ($4, not $0) to make sure the
 // frame is 8 bytes and stays 8-byte-aligned.
 TEXT runtime·_initcgo(SB),NOSPLIT,$4
+#ifdef GOOS_windows
+	MOVW	R13, R4
+	BIC	$0x7, R13
+	MOVW 	$runtime·_TlsAlloc(SB), R0
+	MOVW	(R0), R0
+	BL	(R0)
+	// Assert that slot is less than 64 so we can use _TEB->TlsSlots
+	CMP	$64, R0
+	MOVW	$runtime·abort(SB), R1
+	BL.GE	(R1)
+	MOVW 	$runtime·tls_g(SB), R1
+	MOVW	R0, (R1)
+	MOVW	R4, R13
+#else
 #ifndef GOOS_nacl
 	// if there is an _cgo_init, call it.
 	MOVW	_cgo_init(SB), R4
@@ -91,7 +131,8 @@ TEXT runtime·_initcgo(SB),NOSPLIT,$4
 	MOVW	$setg_gcc<>(SB), R1 	// arg 1: setg
 	MOVW	g, R0 			// arg 0: G
 	BL	(R4) // will clobber R0-R3
-#endif
+#endif // GOOS_nacl
+#endif // GOOS_windows
 nocgo:
 	RET
 

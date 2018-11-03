@@ -506,7 +506,7 @@ func Elfinit(ctxt *Link) {
 		}
 		elf64 = true
 
-		ehdr.phoff = ELF64HDRSIZE      /* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
+		ehdr.phoff = ELF64HDRSIZE      /* Must be ELF64HDRSIZE: first PHdr must follow ELF header */
 		ehdr.shoff = ELF64HDRSIZE      /* Will move as we add PHeaders */
 		ehdr.ehsize = ELF64HDRSIZE     /* Must be ELF64HDRSIZE */
 		ehdr.phentsize = ELF64PHDRSIZE /* Must be ELF64PHDRSIZE */
@@ -533,7 +533,7 @@ func Elfinit(ctxt *Link) {
 		fallthrough
 	default:
 		ehdr.phoff = ELF32HDRSIZE
-		/* Must be be ELF32HDRSIZE: first PHdr must follow ELF header */
+		/* Must be ELF32HDRSIZE: first PHdr must follow ELF header */
 		ehdr.shoff = ELF32HDRSIZE      /* Will move as we add PHeaders */
 		ehdr.ehsize = ELF32HDRSIZE     /* Must be ELF32HDRSIZE */
 		ehdr.phentsize = ELF32PHDRSIZE /* Must be ELF32PHDRSIZE */
@@ -1034,7 +1034,7 @@ func elfdynhash(ctxt *Link) {
 			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib(), sy.Dynimpvers())
 		}
 
-		name := sy.Extname
+		name := sy.Extname()
 		hc := elfhash(name)
 
 		b := hc % uint32(nbucket)
@@ -2254,7 +2254,7 @@ func elfadddynsym(ctxt *Link, s *sym.Symbol) {
 
 		d := ctxt.Syms.Lookup(".dynsym", 0)
 
-		name := s.Extname
+		name := s.Extname()
 		d.AddUint32(ctxt.Arch, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
 
 		/* type */
@@ -2297,7 +2297,7 @@ func elfadddynsym(ctxt *Link, s *sym.Symbol) {
 		d := ctxt.Syms.Lookup(".dynsym", 0)
 
 		/* name */
-		name := s.Extname
+		name := s.Extname()
 
 		d.AddUint32(ctxt.Arch, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
 

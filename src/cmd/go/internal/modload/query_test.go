@@ -132,7 +132,7 @@ func TestQuery(t *testing.T) {
 			ok, _ := path.Match(allow, m.Version)
 			return ok
 		}
-		t.Run(strings.Replace(tt.path, "/", "_", -1)+"/"+tt.query+"/"+allow, func(t *testing.T) {
+		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+allow, func(t *testing.T) {
 			info, err := Query(tt.path, tt.query, allowed)
 			if tt.err != "" {
 				if err != nil && err.Error() == tt.err {

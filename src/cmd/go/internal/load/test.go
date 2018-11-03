@@ -342,6 +342,8 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 			p1.ForTest = preal.ImportPath
 			p1.Internal.Imports = make([]*Package, len(p.Internal.Imports))
 			copy(p1.Internal.Imports, p.Internal.Imports)
+			p1.Imports = make([]string, len(p.Imports))
+			copy(p1.Imports, p.Imports)
 			p = p1
 			p.Target = ""
 		}

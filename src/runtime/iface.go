@@ -329,38 +329,27 @@ func convT2E64(t *_type, val uint64) (e eface) {
 	return
 }
 
-func convT2Estring(t *_type, elem unsafe.Pointer) (e eface) {
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Estring))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
+func convT2Estring(t *_type, val string) (e eface) {
 	var x unsafe.Pointer
-	if *(*string)(elem) == "" {
+	if val == "" {
 		x = unsafe.Pointer(&zeroVal[0])
 	} else {
-		x = mallocgc(t.size, t, true)
-		*(*string)(x) = *(*string)(elem)
+		x = mallocgc(unsafe.Sizeof(val), t, true)
+		*(*string)(x) = val
 	}
 	e._type = t
 	e.data = x
 	return
 }
 
-func convT2Eslice(t *_type, elem unsafe.Pointer) (e eface) {
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Eslice))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
+func convT2Eslice(t *_type, val []byte) (e eface) {
+	// Note: this must work for any element type, not just byte.
 	var x unsafe.Pointer
-	if v := *(*slice)(elem); uintptr(v.array) == 0 {
+	if (*slice)(unsafe.Pointer(&val)).array == nil {
 		x = unsafe.Pointer(&zeroVal[0])
 	} else {
-		x = mallocgc(t.size, t, true)
-		*(*slice)(x) = *(*slice)(elem)
+		x = mallocgc(unsafe.Sizeof(val), t, true)
+		*(*[]byte)(x) = val
 	}
 	e._type = t
 	e.data = x
@@ -438,40 +427,29 @@ func convT2I64(tab *itab, val uint64) (i iface) {
 	return
 }
 
-func convT2Istring(tab *itab, elem unsafe.Pointer) (i iface) {
+func convT2Istring(tab *itab, val string) (i iface) {
 	t := tab._type
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Istring))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
 	var x unsafe.Pointer
-	if *(*string)(elem) == "" {
+	if val == "" {
 		x = unsafe.Pointer(&zeroVal[0])
 	} else {
-		x = mallocgc(t.size, t, true)
-		*(*string)(x) = *(*string)(elem)
+		x = mallocgc(unsafe.Sizeof(val), t, true)
+		*(*string)(x) = val
 	}
 	i.tab = tab
 	i.data = x
 	return
 }
 
-func convT2Islice(tab *itab, elem unsafe.Pointer) (i iface) {
+func convT2Islice(tab *itab, val []byte) (i iface) {
+	// Note: this must work for any element type, not just byte.
 	t := tab._type
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Islice))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
 	var x unsafe.Pointer
-	if v := *(*slice)(elem); uintptr(v.array) == 0 {
+	if (*slice)(unsafe.Pointer(&val)).array == nil {
 		x = unsafe.Pointer(&zeroVal[0])
 	} else {
-		x = mallocgc(t.size, t, true)
-		*(*slice)(x) = *(*slice)(elem)
+		x = mallocgc(unsafe.Sizeof(val), t, true)
+		*(*[]byte)(x) = val
 	}
 	i.tab = tab
 	i.data = x

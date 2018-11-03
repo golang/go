@@ -133,6 +133,7 @@ const (
 	LevelLinearizable
 )
 
+// String returns the name of the transaction isolation level.
 func (i IsolationLevel) String() string {
 	switch i {
 	case LevelDefault:
@@ -567,7 +568,6 @@ type finalCloser interface {
 // addDep notes that x now depends on dep, and x's finalClose won't be
 // called until all of x's dependencies are removed with removeDep.
 func (db *DB) addDep(x finalCloser, dep interface{}) {
-	//println(fmt.Sprintf("addDep(%T %p, %T %p)", x, x, dep, dep))
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	db.addDepLocked(x, dep)
@@ -597,7 +597,6 @@ func (db *DB) removeDep(x finalCloser, dep interface{}) error {
 }
 
 func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
-	//println(fmt.Sprintf("removeDep(%T %p, %T %p)", x, x, dep, dep))
 
 	xdep, ok := db.dep[x]
 	if !ok {
@@ -1322,11 +1321,13 @@ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
 			err:  err,
 		}
 		return true
-	} else if err == nil && !db.closed && db.maxIdleConnsLocked() > len(db.freeConn) {
-		db.freeConn = append(db.freeConn, dc)
+	} else if err == nil && !db.closed {
+		if db.maxIdleConnsLocked() > len(db.freeConn) {
+			db.freeConn = append(db.freeConn, dc)
+			db.startCleanerLocked()
+			return true
+		}
 		db.maxIdleClosed++
-		db.startCleanerLocked()
-		return true
 	}
 	return false
 }
@@ -2605,6 +2606,15 @@ type Rows struct {
 	lastcols []driver.Value
 }
 
+// lasterrOrErrLocked returns either lasterr or the provided err.
+// rs.closemu must be read-locked.
+func (rs *Rows) lasterrOrErrLocked(err error) error {
+	if rs.lasterr != nil && rs.lasterr != io.EOF {
+		return rs.lasterr
+	}
+	return err
+}
+
 func (rs *Rows) initContextClose(ctx, txctx context.Context) {
 	if ctx.Done() == nil && (txctx == nil || txctx.Done() == nil) {
 		return
@@ -2681,7 +2691,7 @@ func (rs *Rows) nextLocked() (doClose, ok bool) {
 	return false, true
 }
 
-// NextResultSet prepares the next result set for reading. It returns true if
+// NextResultSet prepares the next result set for reading. It reports whether
 // there is further result sets, or false if there is no further result set
 // or if there is an error advancing to it. The Err method should be consulted
 // to distinguish between the two cases.
@@ -2728,23 +2738,22 @@ func (rs *Rows) NextResultSet() bool {
 func (rs *Rows) Err() error {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
-	if rs.lasterr == io.EOF {
-		return nil
-	}
-	return rs.lasterr
+	return rs.lasterrOrErrLocked(nil)
 }
 
+var errRowsClosed = errors.New("sql: Rows are closed")
+var errNoRows = errors.New("sql: no Rows available")
+
 // Columns returns the column names.
-// Columns returns an error if the rows are closed, or if the rows
-// are from QueryRow and there was a deferred error.
+// Columns returns an error if the rows are closed.
 func (rs *Rows) Columns() ([]string, error) {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
 	if rs.closed {
-		return nil, errors.New("sql: Rows are closed")
+		return nil, rs.lasterrOrErrLocked(errRowsClosed)
 	}
 	if rs.rowsi == nil {
-		return nil, errors.New("sql: no Rows available")
+		return nil, rs.lasterrOrErrLocked(errNoRows)
 	}
 	rs.dc.Lock()
 	defer rs.dc.Unlock()
@@ -2758,10 +2767,10 @@ func (rs *Rows) ColumnTypes() ([]*ColumnType, error) {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
 	if rs.closed {
-		return nil, errors.New("sql: Rows are closed")
+		return nil, rs.lasterrOrErrLocked(errRowsClosed)
 	}
 	if rs.rowsi == nil {
-		return nil, errors.New("sql: no Rows available")
+		return nil, rs.lasterrOrErrLocked(errNoRows)
 	}
 	rs.dc.Lock()
 	defer rs.dc.Unlock()
@@ -2917,8 +2926,9 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 		return rs.lasterr
 	}
 	if rs.closed {
+		err := rs.lasterrOrErrLocked(errRowsClosed)
 		rs.closemu.RUnlock()
-		return errors.New("sql: Rows are closed")
+		return err
 	}
 	rs.closemu.RUnlock()
 

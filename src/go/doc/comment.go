@@ -8,7 +8,6 @@ package doc
 
 import (
 	"io"
-	"regexp"
 	"strings"
 	"text/template" // for HTMLEscape
 	"unicode"
@@ -63,7 +62,7 @@ const (
 	urlRx = protoPart + `://` + hostPart + pathPart
 )
 
-var matchRx = regexp.MustCompile(`(` + urlRx + `)|(` + identRx + `)`)
+var matchRx = newLazyRE(`(` + urlRx + `)|(` + identRx + `)`)
 
 var (
 	html_a      = []byte(`<a href="`)
@@ -232,7 +231,7 @@ func heading(line string) string {
 	}
 
 	// exclude lines with illegal characters. we allow "(),"
-	if strings.ContainsAny(line, ".;:!?+*/=[]{}_^°&§~%#@<\">\\") {
+	if strings.ContainsAny(line, ";:!?+*/=[]{}_^°&§~%#@<\">\\") {
 		return ""
 	}
 
@@ -246,6 +245,18 @@ func heading(line string) string {
 			return "" // not followed by "s "
 		}
 		b = b[i+2:]
+	}
+
+	// allow "." when followed by non-space
+	for b := line;; {
+		i := strings.IndexRune(b, '.')
+		if i < 0 {
+			break
+		}
+		if i+1 >= len(b) || b[i+1] == ' ' {
+			return "" // not followed by non-space
+		}
+		b = b[i+1:]
 	}
 
 	return line
@@ -264,7 +275,7 @@ type block struct {
 	lines []string
 }
 
-var nonAlphaNumRx = regexp.MustCompile(`[^a-zA-Z0-9]`)
+var nonAlphaNumRx = newLazyRE(`[^a-zA-Z0-9]`)
 
 func anchorID(line string) string {
 	// Add a "hdr-" prefix to avoid conflicting with IDs used for package symbols.

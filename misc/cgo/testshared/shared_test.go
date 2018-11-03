@@ -560,7 +560,7 @@ func TestNotes(t *testing.T) {
 			abiHashNoteFound = true
 		case 3: // ELF_NOTE_GODEPS_TAG
 			if depsNoteFound {
-				t.Error("multiple depedency list notes")
+				t.Error("multiple dependency list notes")
 			}
 			testDepsNote(t, f, note)
 			depsNoteFound = true
@@ -578,7 +578,7 @@ func TestNotes(t *testing.T) {
 }
 
 // Build a GOPATH package (depBase) into a shared library that links against the goroot
-// runtime, another package (dep2) that links against the first, and and an
+// runtime, another package (dep2) that links against the first, and an
 // executable that links against dep2.
 func TestTwoGopathShlibs(t *testing.T) {
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")

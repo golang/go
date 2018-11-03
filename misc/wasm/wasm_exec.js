@@ -3,8 +3,18 @@
 // license that can be found in the LICENSE file.
 
 (() => {
+	if (typeof global !== "undefined") {
+		// global already exists
+	} else if (typeof window !== "undefined") {
+		window.global = window;
+	} else if (typeof self !== "undefined") {
+		self.global = self;
+	} else {
+		throw new Error("cannot export Go (neither global, window nor self is defined)");
+	}
+
 	// Map web browser API and Node.js API to a single common API (preferring web standards over Node.js API).
-	const isNodeJS = typeof process !== "undefined";
+	const isNodeJS = global.process && global.process.title === "node";
 	if (isNodeJS) {
 		global.require = require;
 		global.fs = require("fs");
@@ -27,14 +37,6 @@
 		global.TextEncoder = util.TextEncoder;
 		global.TextDecoder = util.TextDecoder;
 	} else {
-		if (typeof window !== "undefined") {
-			window.global = window;
-		} else if (typeof self !== "undefined") {
-			self.global = self;
-		} else {
-			throw new Error("cannot export Go (neither window nor self is defined)");
-		}
-
 		let outputBuf = "";
 		global.fs = {
 			constants: { O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1 }, // unused
@@ -47,10 +49,20 @@
 				}
 				return buf.length;
 			},
-			openSync(path, flags, mode) {
+			write(fd, buf, offset, length, position, callback) {
+				if (offset !== 0 || length !== buf.length || position !== null) {
+					throw new Error("not implemented");
+				}
+				const n = this.writeSync(fd, buf);
+				callback(null, n);
+			},
+			open(path, flags, mode, callback) {
 				const err = new Error("not implemented");
 				err.code = "ENOSYS";
-				throw err;
+				callback(err);
+			},
+			fsync(fd, callback) {
+				callback(null);
 			},
 		};
 	}
@@ -88,6 +100,9 @@
 
 			const loadValue = (addr) => {
 				const f = mem().getFloat64(addr, true);
+				if (f === 0) {
+					return undefined;
+				}
 				if (!isNaN(f)) {
 					return f;
 				}
@@ -105,14 +120,18 @@
 						mem().setUint32(addr, 0, true);
 						return;
 					}
+					if (v === 0) {
+						mem().setUint32(addr + 4, nanHead, true);
+						mem().setUint32(addr, 1, true);
+						return;
+					}
 					mem().setFloat64(addr, v, true);
 					return;
 				}
 
 				switch (v) {
 					case undefined:
-						mem().setUint32(addr + 4, nanHead, true);
-						mem().setUint32(addr, 1, true);
+						mem().setFloat64(addr, 0, true);
 						return;
 					case null:
 						mem().setUint32(addr + 4, nanHead, true);
@@ -327,7 +346,7 @@
 			this._inst = instance;
 			this._values = [ // TODO: garbage collection
 				NaN,
-				undefined,
+				0,
 				null,
 				true,
 				false,
@@ -389,14 +408,14 @@
 		}
 
 		static _makeCallbackHelper(id, pendingCallbacks, go) {
-			return function() {
+			return function () {
 				pendingCallbacks.push({ id: id, args: arguments });
 				go._resolveCallbackPromise();
 			};
 		}
 
 		static _makeEventCallbackHelper(preventDefault, stopPropagation, stopImmediatePropagation, fn) {
-			return function(event) {
+			return function (event) {
 				if (preventDefault) {
 					event.preventDefault();
 				}

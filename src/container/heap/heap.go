@@ -66,8 +66,8 @@ func Pop(h Interface) interface{} {
 	return h.Pop()
 }
 
-// Remove removes the element at index i from the heap.
-// The complexity is O(log(n)) where n = h.Len().
+// Remove removes the element at index i from the heap and returns
+// the element. The complexity is O(log(n)) where n = h.Len().
 //
 func Remove(h Interface, i int) interface{} {
 	n := h.Len() - 1

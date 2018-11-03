@@ -112,20 +112,20 @@ func sigpanic() {
 }
 
 func atolwhex(p string) int64 {
-	for hasprefix(p, " ") || hasprefix(p, "\t") {
+	for hasPrefix(p, " ") || hasPrefix(p, "\t") {
 		p = p[1:]
 	}
 	neg := false
-	if hasprefix(p, "-") || hasprefix(p, "+") {
+	if hasPrefix(p, "-") || hasPrefix(p, "+") {
 		neg = p[0] == '-'
 		p = p[1:]
-		for hasprefix(p, " ") || hasprefix(p, "\t") {
+		for hasPrefix(p, " ") || hasPrefix(p, "\t") {
 			p = p[1:]
 		}
 	}
 	var n int64
 	switch {
-	case hasprefix(p, "0x"), hasprefix(p, "0X"):
+	case hasPrefix(p, "0x"), hasPrefix(p, "0X"):
 		p = p[2:]
 		for ; len(p) > 0; p = p[1:] {
 			if '0' <= p[0] && p[0] <= '9' {
@@ -138,7 +138,7 @@ func atolwhex(p string) int64 {
 				break
 			}
 		}
-	case hasprefix(p, "0"):
+	case hasPrefix(p, "0"):
 		for ; len(p) > 0 && '0' <= p[0] && p[0] <= '7'; p = p[1:] {
 			n = n*8 + int64(p[0]-'0')
 		}

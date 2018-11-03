@@ -139,6 +139,7 @@ func init() {
 		gp1flags  = regInfo{inputs: []regMask{gpg}}
 		gp1flags1 = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
 		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
+		gp31      = regInfo{inputs: []regMask{gpg, gpg, gpg}, outputs: []regMask{gp}}
 		gp21nog   = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
 		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}}
 		gp2flags1 = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
@@ -158,7 +159,9 @@ func init() {
 		fp31      = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
 		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
 		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+		fp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{fp}}
 		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
+		fpstore2  = regInfo{inputs: []regMask{gpspsbg, gpg, fp}}
 		readflags = regInfo{inputs: nil, outputs: []regMask{gp}}
 	)
 	ops := []opData{
@@ -209,6 +212,7 @@ func init() {
 		// unary ops
 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},         // ^arg0
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},         // -arg0
+		{name: "FABSD", argLength: 1, reg: fp11, asm: "FABSD"},     // abs(arg0), float64
 		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},     // -arg0, float32
 		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},     // -arg0, float64
 		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},   // sqrt(arg0), float64
@@ -233,6 +237,10 @@ func init() {
 		{name: "FMSUBD", argLength: 3, reg: fp31, asm: "FMSUBD"},   // +arg0 - (arg1 * arg2)
 		{name: "FNMSUBS", argLength: 3, reg: fp31, asm: "FNMSUBS"}, // -arg0 + (arg1 * arg2)
 		{name: "FNMSUBD", argLength: 3, reg: fp31, asm: "FNMSUBD"}, // -arg0 + (arg1 * arg2)
+		{name: "MADD", argLength: 3, reg: gp31, asm: "MADD"},       // +arg0 + (arg1 * arg2)
+		{name: "MADDW", argLength: 3, reg: gp31, asm: "MADDW"},     // +arg0 + (arg1 * arg2), 32-bit
+		{name: "MSUB", argLength: 3, reg: gp31, asm: "MSUB"},       // +arg0 - (arg1 * arg2)
+		{name: "MSUBW", argLength: 3, reg: gp31, asm: "MSUBW"},     // +arg0 - (arg1 * arg2), 32-bit
 
 		// shifts
 		{name: "SLL", argLength: 2, reg: gp21, asm: "LSL"},                        // arg0 << arg1, shift amount is mod 64
@@ -241,6 +249,8 @@ func init() {
 		{name: "SRLconst", argLength: 1, reg: gp11, asm: "LSR", aux: "Int64"},     // arg0 >> auxInt, unsigned
 		{name: "SRA", argLength: 2, reg: gp21, asm: "ASR"},                        // arg0 >> arg1, signed, shift amount is mod 64
 		{name: "SRAconst", argLength: 1, reg: gp11, asm: "ASR", aux: "Int64"},     // arg0 >> auxInt, signed
+		{name: "ROR", argLength: 2, reg: gp21, asm: "ROR"},                        // arg0 right rotate by (arg1 mod 64) bits
+		{name: "RORW", argLength: 2, reg: gp21, asm: "RORW"},                      // arg0 right rotate by (arg1 mod 32) bits
 		{name: "RORconst", argLength: 1, reg: gp11, asm: "ROR", aux: "Int64"},     // arg0 right rotate by auxInt bits
 		{name: "RORWconst", argLength: 1, reg: gp11, asm: "RORW", aux: "Int64"},   // uint32(arg0) right rotate by auxInt bits
 		{name: "EXTRconst", argLength: 2, reg: gp21, asm: "EXTR", aux: "Int64"},   // extract 64 bits from arg0:arg1 starting at lsb auxInt
@@ -251,18 +261,24 @@ func init() {
 		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", aux: "Int64", typ: "Flags"},   // arg0 compare to auxInt
 		{name: "CMPW", argLength: 2, reg: gp2flags, asm: "CMPW", typ: "Flags"},                    // arg0 compare to arg1, 32 bit
 		{name: "CMPWconst", argLength: 1, reg: gp1flags, asm: "CMPW", aux: "Int32", typ: "Flags"}, // arg0 compare to auxInt, 32 bit
-		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags"},                      // arg0 compare to -arg1
+		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags", commutative: true},   // arg0 compare to -arg1
 		{name: "CMNconst", argLength: 1, reg: gp1flags, asm: "CMN", aux: "Int64", typ: "Flags"},   // arg0 compare to -auxInt
-		{name: "CMNW", argLength: 2, reg: gp2flags, asm: "CMNW", typ: "Flags"},                    // arg0 compare to -arg1, 32 bit
+		{name: "CMNW", argLength: 2, reg: gp2flags, asm: "CMNW", typ: "Flags", commutative: true}, // arg0 compare to -arg1, 32 bit
 		{name: "CMNWconst", argLength: 1, reg: gp1flags, asm: "CMNW", aux: "Int32", typ: "Flags"}, // arg0 compare to -auxInt, 32 bit
-		{name: "TST", argLength: 2, reg: gp2flags, asm: "TST", typ: "Flags"},                      // arg0 & arg1 compare to 0
+		{name: "TST", argLength: 2, reg: gp2flags, asm: "TST", typ: "Flags", commutative: true},   // arg0 & arg1 compare to 0
 		{name: "TSTconst", argLength: 1, reg: gp1flags, asm: "TST", aux: "Int64", typ: "Flags"},   // arg0 & auxInt compare to 0
-		{name: "TSTW", argLength: 2, reg: gp2flags, asm: "TSTW", typ: "Flags"},                    // arg0 & arg1 compare to 0, 32 bit
+		{name: "TSTW", argLength: 2, reg: gp2flags, asm: "TSTW", typ: "Flags", commutative: true}, // arg0 & arg1 compare to 0, 32 bit
 		{name: "TSTWconst", argLength: 1, reg: gp1flags, asm: "TSTW", aux: "Int32", typ: "Flags"}, // arg0 & auxInt compare to 0, 32 bit
 		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "FCMPS", typ: "Flags"},                  // arg0 compare to arg1, float32
 		{name: "FCMPD", argLength: 2, reg: fp2flags, asm: "FCMPD", typ: "Flags"},                  // arg0 compare to arg1, float64
 
 		// shifted ops
+		{name: "MVNshiftLL", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0<<auxInt)
+		{name: "MVNshiftRL", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0>>auxInt), unsigned shift
+		{name: "MVNshiftRA", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0>>auxInt), signed shift
+		{name: "NEGshiftLL", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64"},                   // -(arg0<<auxInt)
+		{name: "NEGshiftRL", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64"},                   // -(arg0>>auxInt), unsigned shift
+		{name: "NEGshiftRA", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64"},                   // -(arg0>>auxInt), signed shift
 		{name: "ADDshiftLL", argLength: 2, reg: gp21, asm: "ADD", aux: "Int64"},                   // arg0 + arg1<<auxInt
 		{name: "ADDshiftRL", argLength: 2, reg: gp21, asm: "ADD", aux: "Int64"},                   // arg0 + arg1>>auxInt, unsigned shift
 		{name: "ADDshiftRA", argLength: 2, reg: gp21, asm: "ADD", aux: "Int64"},                   // arg0 + arg1>>auxInt, signed shift
@@ -290,6 +306,12 @@ func init() {
 		{name: "CMPshiftLL", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1<<auxInt
 		{name: "CMPshiftRL", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1>>auxInt, unsigned shift
 		{name: "CMPshiftRA", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1>>auxInt, signed shift
+		{name: "CMNshiftLL", argLength: 2, reg: gp2flags, asm: "CMN", aux: "Int64", typ: "Flags"}, // (arg0 + arg1<<auxInt) compare to 0
+		{name: "CMNshiftRL", argLength: 2, reg: gp2flags, asm: "CMN", aux: "Int64", typ: "Flags"}, // (arg0 + arg1>>auxInt) compare to 0, unsigned shift
+		{name: "CMNshiftRA", argLength: 2, reg: gp2flags, asm: "CMN", aux: "Int64", typ: "Flags"}, // (arg0 + arg1>>auxInt) compare to 0, signed shift
+		{name: "TSTshiftLL", argLength: 2, reg: gp2flags, asm: "TST", aux: "Int64", typ: "Flags"}, // (arg0 & arg1<<auxInt) compare to 0
+		{name: "TSTshiftRL", argLength: 2, reg: gp2flags, asm: "TST", aux: "Int64", typ: "Flags"}, // (arg0 & arg1>>auxInt) compare to 0, unsigned shift
+		{name: "TSTshiftRA", argLength: 2, reg: gp2flags, asm: "TST", aux: "Int64", typ: "Flags"}, // (arg0 & arg1>>auxInt) compare to 0, signed shift
 
 		// bitfield ops
 		// for all bitfield ops lsb is auxInt>>8, width is auxInt&0xff
@@ -324,20 +346,22 @@ func init() {
 		{name: "FMOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVD", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"}, // load from arg0 + auxInt + aux.  arg1=mem.
 
 		// register indexed load
-		{name: "MOVDloadidx", argLength: 3, reg: gp2load, asm: "MOVD"},   // load 64-bit dword from arg0 + arg1, arg2 = mem.
-		{name: "MOVWloadidx", argLength: 3, reg: gp2load, asm: "MOVW"},   // load 32-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVWUloadidx", argLength: 3, reg: gp2load, asm: "MOVWU"}, // load 32-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
-		{name: "MOVHloadidx", argLength: 3, reg: gp2load, asm: "MOVH"},   // load 16-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVHUloadidx", argLength: 3, reg: gp2load, asm: "MOVHU"}, // load 16-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
-		{name: "MOVBloadidx", argLength: 3, reg: gp2load, asm: "MOVB"},   // load 8-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVBUloadidx", argLength: 3, reg: gp2load, asm: "MOVBU"}, // load 8-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVDloadidx", argLength: 3, reg: gp2load, asm: "MOVD", typ: "UInt64"},    // load 64-bit dword from arg0 + arg1, arg2 = mem.
+		{name: "MOVWloadidx", argLength: 3, reg: gp2load, asm: "MOVW", typ: "Int32"},     // load 32-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVWUloadidx", argLength: 3, reg: gp2load, asm: "MOVWU", typ: "UInt32"},  // load 32-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVHloadidx", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},     // load 16-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVHUloadidx", argLength: 3, reg: gp2load, asm: "MOVHU", typ: "UInt16"},  // load 16-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVBloadidx", argLength: 3, reg: gp2load, asm: "MOVB", typ: "Int8"},      // load 8-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVBUloadidx", argLength: 3, reg: gp2load, asm: "MOVBU", typ: "UInt8"},   // load 8-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
+		{name: "FMOVSloadidx", argLength: 3, reg: fp2load, asm: "FMOVS", typ: "Float32"}, // load 32-bit float from arg0 + arg1, arg2=mem.
+		{name: "FMOVDloadidx", argLength: 3, reg: fp2load, asm: "FMOVD", typ: "Float64"}, // load 64-bit float from arg0 + arg1, arg2=mem.
 
 		// shifted register indexed load
-		{name: "MOVHloadidx2", argLength: 3, reg: gp2load, asm: "MOVH"},   // load 16-bit half-word from arg0 + arg1*2, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVHUloadidx2", argLength: 3, reg: gp2load, asm: "MOVHU"}, // load 16-bit half-word from arg0 + arg1*2, zero-extended to 64-bit, arg2=mem.
-		{name: "MOVWloadidx4", argLength: 3, reg: gp2load, asm: "MOVW"},   // load 32-bit word from arg0 + arg1*4, sign-extended to 64-bit, arg2=mem.
-		{name: "MOVWUloadidx4", argLength: 3, reg: gp2load, asm: "MOVWU"}, // load 32-bit word from arg0 + arg1*4, zero-extended to 64-bit, arg2=mem.
-		{name: "MOVDloadidx8", argLength: 3, reg: gp2load, asm: "MOVD"},   // load 64-bit double-word from arg0 + arg1*8, arg2 = mem.
+		{name: "MOVHloadidx2", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},    // load 16-bit half-word from arg0 + arg1*2, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVHUloadidx2", argLength: 3, reg: gp2load, asm: "MOVHU", typ: "UInt16"}, // load 16-bit half-word from arg0 + arg1*2, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVWloadidx4", argLength: 3, reg: gp2load, asm: "MOVW", typ: "Int32"},    // load 32-bit word from arg0 + arg1*4, sign-extended to 64-bit, arg2=mem.
+		{name: "MOVWUloadidx4", argLength: 3, reg: gp2load, asm: "MOVWU", typ: "UInt32"}, // load 32-bit word from arg0 + arg1*4, zero-extended to 64-bit, arg2=mem.
+		{name: "MOVDloadidx8", argLength: 3, reg: gp2load, asm: "MOVD", typ: "UInt64"},   // load 64-bit double-word from arg0 + arg1*8, arg2 = mem.
 
 		{name: "MOVBstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store 1 byte of arg1 to arg0 + auxInt + aux.  arg2=mem.
 		{name: "MOVHstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store 2 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
@@ -348,10 +372,12 @@ func init() {
 		{name: "FMOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "FMOVD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 
 		// register indexed store
-		{name: "MOVBstoreidx", argLength: 4, reg: gpstore2, asm: "MOVB", typ: "Mem"}, // store 1 byte of arg2 to arg0 + arg1, arg3 = mem.
-		{name: "MOVHstoreidx", argLength: 4, reg: gpstore2, asm: "MOVH", typ: "Mem"}, // store 2 bytes of arg2 to arg0 + arg1, arg3 = mem.
-		{name: "MOVWstoreidx", argLength: 4, reg: gpstore2, asm: "MOVW", typ: "Mem"}, // store 4 bytes of arg2 to arg0 + arg1, arg3 = mem.
-		{name: "MOVDstoreidx", argLength: 4, reg: gpstore2, asm: "MOVD", typ: "Mem"}, // store 8 bytes of arg2 to arg0 + arg1, arg3 = mem.
+		{name: "MOVBstoreidx", argLength: 4, reg: gpstore2, asm: "MOVB", typ: "Mem"},   // store 1 byte of arg2 to arg0 + arg1, arg3 = mem.
+		{name: "MOVHstoreidx", argLength: 4, reg: gpstore2, asm: "MOVH", typ: "Mem"},   // store 2 bytes of arg2 to arg0 + arg1, arg3 = mem.
+		{name: "MOVWstoreidx", argLength: 4, reg: gpstore2, asm: "MOVW", typ: "Mem"},   // store 4 bytes of arg2 to arg0 + arg1, arg3 = mem.
+		{name: "MOVDstoreidx", argLength: 4, reg: gpstore2, asm: "MOVD", typ: "Mem"},   // store 8 bytes of arg2 to arg0 + arg1, arg3 = mem.
+		{name: "FMOVSstoreidx", argLength: 4, reg: fpstore2, asm: "FMOVS", typ: "Mem"}, // store 32-bit float of arg2 to arg0 + arg1, arg3=mem.
+		{name: "FMOVDstoreidx", argLength: 4, reg: fpstore2, asm: "FMOVD", typ: "Mem"}, // store 64-bit float of arg2 to arg0 + arg1, arg3=mem.
 
 		// shifted register indexed store
 		{name: "MOVHstoreidx2", argLength: 4, reg: gpstore2, asm: "MOVH", typ: "Mem"}, // store 2 bytes of arg2 to arg0 + arg1*2, arg3 = mem.
@@ -377,6 +403,8 @@ func init() {
 
 		{name: "FMOVDgpfp", argLength: 1, reg: gpfp, asm: "FMOVD"}, // move int64 to float64 (no conversion)
 		{name: "FMOVDfpgp", argLength: 1, reg: fpgp, asm: "FMOVD"}, // move float64 to int64 (no conversion)
+		{name: "FMOVSgpfp", argLength: 1, reg: gpfp, asm: "FMOVS"}, // move 32bits from int to float reg (no conversion)
+		{name: "FMOVSfpgp", argLength: 1, reg: fpgp, asm: "FMOVS"}, // move 32bits from float to int reg, zero extend (no conversion)
 
 		// conversions
 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},   // move from arg0, sign-extended from byte
@@ -411,6 +439,7 @@ func init() {
 		// floating-point round to integral
 		{name: "FRINTAD", argLength: 1, reg: fp11, asm: "FRINTAD"},
 		{name: "FRINTMD", argLength: 1, reg: fp11, asm: "FRINTMD"},
+		{name: "FRINTND", argLength: 1, reg: fp11, asm: "FRINTND"},
 		{name: "FRINTPD", argLength: 1, reg: fp11, asm: "FRINTPD"},
 		{name: "FRINTZD", argLength: 1, reg: fp11, asm: "FRINTZD"},
 

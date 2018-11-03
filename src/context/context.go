@@ -210,8 +210,7 @@ func Background() Context {
 // TODO returns a non-nil, empty Context. Code should use context.TODO when
 // it's unclear which Context to use or it is not yet available (because the
 // surrounding function has not yet been extended to accept a Context
-// parameter). TODO is recognized by static analysis tools that determine
-// whether Contexts are propagated correctly in a program.
+// parameter).
 func TODO() Context {
 	return todo
 }
@@ -394,7 +393,7 @@ func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
 	dur := time.Until(d)
 	if dur <= 0 {
 		c.cancel(true, DeadlineExceeded) // deadline has already passed
-		return c, func() { c.cancel(true, Canceled) }
+		return c, func() { c.cancel(false, Canceled) }
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()

@@ -11,6 +11,8 @@
 
 package escape
 
+func zero() int { return 0 }
+
 var sink interface{}
 
 // in -> out
@@ -58,20 +60,91 @@ func caller2b() {
 	sink = p       // ERROR "p escapes to heap$"
 }
 
+func paramArraySelfAssign(p *PairOfPairs) { // ERROR "p does not escape"
+	p.pairs[0] = p.pairs[1] // ERROR "ignoring self-assignment in p.pairs\[0\] = p.pairs\[1\]"
+}
+
+func paramArraySelfAssignUnsafeIndex(p *PairOfPairs) { // ERROR "leaking param content: p"
+	// Function call inside index disables self-assignment case to trigger.
+	p.pairs[zero()] = p.pairs[1]
+	p.pairs[zero()+1] = p.pairs[1]
+}
+
+type PairOfPairs struct {
+	pairs [2]*Pair
+}
+
+type BoxedPair struct {
+	pair *Pair
+}
+
+type WrappedPair struct {
+	pair Pair
+}
+
+func leakParam(x interface{}) { // ERROR "leaking param: x"
+	sink = x
+}
+
+func sinkAfterSelfAssignment1(box *BoxedPair) { // ERROR "leaking param content: box"
+	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
+	sink = box.pair.p2        // ERROR "box.pair.p2 escapes to heap"
+}
+
+func sinkAfterSelfAssignment2(box *BoxedPair) { // ERROR "leaking param content: box"
+	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
+	sink = box.pair           // ERROR "box.pair escapes to heap"
+}
+
+func sinkAfterSelfAssignment3(box *BoxedPair) { // ERROR "leaking param content: box"
+	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
+	leakParam(box.pair.p2)    // ERROR "box.pair.p2 escapes to heap"
+}
+
+func sinkAfterSelfAssignment4(box *BoxedPair) { // ERROR "leaking param content: box"
+	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
+	leakParam(box.pair)       // ERROR "box.pair escapes to heap"
+}
+
+func selfAssignmentAndUnrelated(box1, box2 *BoxedPair) { // ERROR "leaking param content: box2" "box1 does not escape"
+	box1.pair.p1 = box1.pair.p2 // ERROR "ignoring self-assignment in box1.pair.p1 = box1.pair.p2"
+	leakParam(box2.pair.p2)     // ERROR "box2.pair.p2 escapes to heap"
+}
+
+func notSelfAssignment1(box1, box2 *BoxedPair) { // ERROR "leaking param content: box2" "box1 does not escape"
+	box1.pair.p1 = box2.pair.p1
+}
+
+func notSelfAssignment2(p1, p2 *PairOfPairs) { // ERROR "leaking param content: p2" "p1 does not escape"
+	p1.pairs[0] = p2.pairs[1]
+}
+
+func notSelfAssignment3(p1, p2 *PairOfPairs) { // ERROR "leaking param content: p2" "p1 does not escape"
+	p1.pairs[0].p1 = p2.pairs[1].p1
+}
+
+func boxedPairSelfAssign(box *BoxedPair) { // ERROR "box does not escape"
+	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
+}
+
+func wrappedPairSelfAssign(w *WrappedPair) { // ERROR "w does not escape"
+	w.pair.p1 = w.pair.p2 // ERROR "ignoring self-assignment in w.pair.p1 = w.pair.p2"
+}
+
 // in -> in
 type Pair struct {
 	p1 *int
 	p2 *int
 }
 
-func param3(p *Pair) { // ERROR "leaking param content: p$"
-	p.p1 = p.p2
+func param3(p *Pair) { // ERROR "param3 p does not escape"
+	p.p1 = p.p2 // ERROR "param3 ignoring self-assignment in p.p1 = p.p2"
 }
 
 func caller3a() {
-	i := 0            // ERROR "moved to heap: i$"
-	j := 0            // ERROR "moved to heap: j$"
-	p := Pair{&i, &j} // ERROR "&i escapes to heap$" "&j escapes to heap$"
+	i := 0
+	j := 0
+	p := Pair{&i, &j} // ERROR "caller3a &i does not escape" "caller3a &j does not escape"
 	param3(&p)        // ERROR "caller3a &p does not escape"
 	_ = p
 }

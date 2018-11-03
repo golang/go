@@ -309,23 +309,20 @@ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.
 		dpix := dst.Pix[d0:]
 		spix := src.Pix[s0:]
 		for i := i0; i != i1; i += idelta {
-			sr := uint32(spix[i+0]) * 0x101
-			sg := uint32(spix[i+1]) * 0x101
-			sb := uint32(spix[i+2]) * 0x101
-			sa := uint32(spix[i+3]) * 0x101
-
-			dr := &dpix[i+0]
-			dg := &dpix[i+1]
-			db := &dpix[i+2]
-			da := &dpix[i+3]
+			s := spix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			sr := uint32(s[0]) * 0x101
+			sg := uint32(s[1]) * 0x101
+			sb := uint32(s[2]) * 0x101
+			sa := uint32(s[3]) * 0x101
 
 			// The 0x101 is here for the same reason as in drawRGBA.
 			a := (m - sa) * 0x101
 
-			*dr = uint8((uint32(*dr)*a/m + sr) >> 8)
-			*dg = uint8((uint32(*dg)*a/m + sg) >> 8)
-			*db = uint8((uint32(*db)*a/m + sb) >> 8)
-			*da = uint8((uint32(*da)*a/m + sa) >> 8)
+			d := dpix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			d[0] = uint8((uint32(d[0])*a/m + sr) >> 8)
+			d[1] = uint8((uint32(d[1])*a/m + sg) >> 8)
+			d[2] = uint8((uint32(d[2])*a/m + sb) >> 8)
+			d[3] = uint8((uint32(d[3])*a/m + sa) >> 8)
 		}
 		d0 += ddelta
 		s0 += sdelta
@@ -372,23 +369,25 @@ func drawNRGBAOver(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp imag
 
 		for i, si := i0, si0; i < i1; i, si = i+4, si+4 {
 			// Convert from non-premultiplied color to pre-multiplied color.
-			sa := uint32(spix[si+3]) * 0x101
-			sr := uint32(spix[si+0]) * sa / 0xff
-			sg := uint32(spix[si+1]) * sa / 0xff
-			sb := uint32(spix[si+2]) * sa / 0xff
+			s := spix[si : si+4 : si+4] // Small cap improves performance, see https://golang.org/issue/27857
+			sa := uint32(s[3]) * 0x101
+			sr := uint32(s[0]) * sa / 0xff
+			sg := uint32(s[1]) * sa / 0xff
+			sb := uint32(s[2]) * sa / 0xff
 
-			dr := uint32(dpix[i+0])
-			dg := uint32(dpix[i+1])
-			db := uint32(dpix[i+2])
-			da := uint32(dpix[i+3])
+			d := dpix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			dr := uint32(d[0])
+			dg := uint32(d[1])
+			db := uint32(d[2])
+			da := uint32(d[3])
 
 			// The 0x101 is here for the same reason as in drawRGBA.
 			a := (m - sa) * 0x101
 
-			dpix[i+0] = uint8((dr*a/m + sr) >> 8)
-			dpix[i+1] = uint8((dg*a/m + sg) >> 8)
-			dpix[i+2] = uint8((db*a/m + sb) >> 8)
-			dpix[i+3] = uint8((da*a/m + sa) >> 8)
+			d[0] = uint8((dr*a/m + sr) >> 8)
+			d[1] = uint8((dg*a/m + sg) >> 8)
+			d[2] = uint8((db*a/m + sb) >> 8)
+			d[3] = uint8((da*a/m + sa) >> 8)
 		}
 	}
 }
@@ -407,15 +406,17 @@ func drawNRGBASrc(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image
 
 		for i, si := i0, si0; i < i1; i, si = i+4, si+4 {
 			// Convert from non-premultiplied color to pre-multiplied color.
-			sa := uint32(spix[si+3]) * 0x101
-			sr := uint32(spix[si+0]) * sa / 0xff
-			sg := uint32(spix[si+1]) * sa / 0xff
-			sb := uint32(spix[si+2]) * sa / 0xff
+			s := spix[si : si+4 : si+4] // Small cap improves performance, see https://golang.org/issue/27857
+			sa := uint32(s[3]) * 0x101
+			sr := uint32(s[0]) * sa / 0xff
+			sg := uint32(s[1]) * sa / 0xff
+			sb := uint32(s[2]) * sa / 0xff
 
-			dpix[i+0] = uint8(sr >> 8)
-			dpix[i+1] = uint8(sg >> 8)
-			dpix[i+2] = uint8(sb >> 8)
-			dpix[i+3] = uint8(sa >> 8)
+			d := dpix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			d[0] = uint8(sr >> 8)
+			d[1] = uint8(sg >> 8)
+			d[2] = uint8(sb >> 8)
+			d[3] = uint8(sa >> 8)
 		}
 	}
 }
@@ -434,10 +435,11 @@ func drawGray(dst *image.RGBA, r image.Rectangle, src *image.Gray, sp image.Poin
 
 		for i, si := i0, si0; i < i1; i, si = i+4, si+1 {
 			p := spix[si]
-			dpix[i+0] = p
-			dpix[i+1] = p
-			dpix[i+2] = p
-			dpix[i+3] = 255
+			d := dpix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			d[0] = p
+			d[1] = p
+			d[2] = p
+			d[3] = 255
 		}
 	}
 }
@@ -455,9 +457,10 @@ func drawCMYK(dst *image.RGBA, r image.Rectangle, src *image.CMYK, sp image.Poin
 		spix := src.Pix[sy*src.Stride:]
 
 		for i, si := i0, si0; i < i1; i, si = i+4, si+4 {
-			dpix[i+0], dpix[i+1], dpix[i+2] =
-				color.CMYKToRGB(spix[si+0], spix[si+1], spix[si+2], spix[si+3])
-			dpix[i+3] = 255
+			s := spix[si : si+4 : si+4] // Small cap improves performance, see https://golang.org/issue/27857
+			d := dpix[i : i+4 : i+4]
+			d[0], d[1], d[2] = color.CMYKToRGB(s[0], s[1], s[2], s[3])
+			d[3] = 255
 		}
 	}
 }
@@ -475,18 +478,14 @@ func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.Uniform, mask 
 			}
 			ma |= ma << 8
 
-			dr := &dst.Pix[i+0]
-			dg := &dst.Pix[i+1]
-			db := &dst.Pix[i+2]
-			da := &dst.Pix[i+3]
-
 			// The 0x101 is here for the same reason as in drawRGBA.
 			a := (m - (sa * ma / m)) * 0x101
 
-			*dr = uint8((uint32(*dr)*a + sr*ma) / m >> 8)
-			*dg = uint8((uint32(*dg)*a + sg*ma) / m >> 8)
-			*db = uint8((uint32(*db)*a + sb*ma) / m >> 8)
-			*da = uint8((uint32(*da)*a + sa*ma) / m >> 8)
+			d := dst.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+			d[0] = uint8((uint32(d[0])*a + sr*ma) / m >> 8)
+			d[1] = uint8((uint32(d[1])*a + sg*ma) / m >> 8)
+			d[2] = uint8((uint32(d[2])*a + sb*ma) / m >> 8)
+			d[3] = uint8((uint32(d[3])*a + sa*ma) / m >> 8)
 		}
 		i0 += dst.Stride
 		i1 += dst.Stride
@@ -518,11 +517,12 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 				_, _, _, ma = mask.At(mx, my).RGBA()
 			}
 			sr, sg, sb, sa := src.At(sx, sy).RGBA()
+			d := dst.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
 			if op == Over {
-				dr := uint32(dst.Pix[i+0])
-				dg := uint32(dst.Pix[i+1])
-				db := uint32(dst.Pix[i+2])
-				da := uint32(dst.Pix[i+3])
+				dr := uint32(d[0])
+				dg := uint32(d[1])
+				db := uint32(d[2])
+				da := uint32(d[3])
 
 				// dr, dg, db and da are all 8-bit color at the moment, ranging in [0,255].
 				// We work in 16-bit color, and so would normally do:
@@ -532,16 +532,16 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 				// This yields the same result, but is fewer arithmetic operations.
 				a := (m - (sa * ma / m)) * 0x101
 
-				dst.Pix[i+0] = uint8((dr*a + sr*ma) / m >> 8)
-				dst.Pix[i+1] = uint8((dg*a + sg*ma) / m >> 8)
-				dst.Pix[i+2] = uint8((db*a + sb*ma) / m >> 8)
-				dst.Pix[i+3] = uint8((da*a + sa*ma) / m >> 8)
+				d[0] = uint8((dr*a + sr*ma) / m >> 8)
+				d[1] = uint8((dg*a + sg*ma) / m >> 8)
+				d[2] = uint8((db*a + sb*ma) / m >> 8)
+				d[3] = uint8((da*a + sa*ma) / m >> 8)
 
 			} else {
-				dst.Pix[i+0] = uint8(sr * ma / m >> 8)
-				dst.Pix[i+1] = uint8(sg * ma / m >> 8)
-				dst.Pix[i+2] = uint8(sb * ma / m >> 8)
-				dst.Pix[i+3] = uint8(sa * ma / m >> 8)
+				d[0] = uint8(sr * ma / m >> 8)
+				d[1] = uint8(sg * ma / m >> 8)
+				d[2] = uint8(sb * ma / m >> 8)
+				d[3] = uint8(sa * ma / m >> 8)
 			}
 		}
 		i0 += dy * dst.Stride

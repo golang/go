@@ -9,12 +9,13 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	"internal/goroot"
 	"os"
-	pathpkg "path"
 	"path/filepath"
 	"strings"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/module"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
@@ -60,8 +61,8 @@ func Import(path string) (m module.Version, dir string, err error) {
 		if strings.HasPrefix(path, "golang_org/") {
 			return module.Version{}, filepath.Join(cfg.GOROOT, "src/vendor", path), nil
 		}
-		dir := filepath.Join(cfg.GOROOT, "src", path)
-		if _, err := os.Stat(dir); err == nil {
+		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+			dir := filepath.Join(cfg.GOROOT, "src", path)
 			return module.Version{}, dir, nil
 		}
 	}
@@ -124,24 +125,6 @@ func Import(path string) (m module.Version, dir string, err error) {
 		return module.Version{}, "", errors.New(buf.String())
 	}
 
-	// Special case: if the path matches a module path,
-	// and we haven't found code in any module on the build list
-	// (since we haven't returned yet),
-	// force the use of the current module instead of
-	// looking for an alternate one.
-	// This helps "go get golang.org/x/net" even though
-	// there is no code in x/net.
-	for _, m := range buildList {
-		if m.Path == path {
-			root, isLocal, err := fetch(m)
-			if err != nil {
-				return module.Version{}, "", err
-			}
-			dir, _ := dirInModule(path, m.Path, root, isLocal)
-			return m, dir, nil
-		}
-	}
-
 	// Not on build list.
 
 	// Look up module containing the package, for addition to the build list.
@@ -150,43 +133,14 @@ func Import(path string) (m module.Version, dir string, err error) {
 		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
 	}
 
-	for p := path; p != "."; p = pathpkg.Dir(p) {
-		// We can't upgrade the main module.
-		// Note that this loop does consider upgrading other modules on the build list.
-		// If that's too aggressive we can skip all paths already on the build list,
-		// not just Target.Path, but for now let's try being aggressive.
-		if p == Target.Path {
-			// Can't move to a new version of main module.
-			continue
+	m, _, err = QueryPackage(path, "latest", Allowed)
+	if err != nil {
+		if _, ok := err.(*codehost.VCSError); ok {
+			return module.Version{}, "", err
 		}
-
-		info, err := Query(p, "latest", Allowed)
-		if err != nil {
-			continue
-		}
-		m := module.Version{Path: p, Version: info.Version}
-		root, isLocal, err := fetch(m)
-		if err != nil {
-			continue
-		}
-		_, ok := dirInModule(path, m.Path, root, isLocal)
-		if ok {
-			return module.Version{}, "", &ImportMissingError{ImportPath: path, Module: m}
-		}
-
-		// Special case matching the one above:
-		// if m.Path matches path, assume adding it to the build list
-		// will either add the right code or the right code doesn't exist.
-		if m.Path == path {
-			return module.Version{}, "", &ImportMissingError{ImportPath: path, Module: m}
-		}
+		return module.Version{}, "", &ImportMissingError{ImportPath: path}
 	}
-
-	// Did not resolve import to any module.
-	// TODO(rsc): It would be nice to return a specific error encountered
-	// during the loop above if possible, but it's not clear how to pick
-	// out the right one.
-	return module.Version{}, "", &ImportMissingError{ImportPath: path}
+	return m, "", &ImportMissingError{ImportPath: path, Module: m}
 }
 
 // maybeInModule reports whether, syntactically,
@@ -228,7 +182,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// So we only check local module trees
 	// (the main module, and any directory trees pointed at by replace directives).
 	if isLocal {
-		for d := dir; d != mdir && len(d) > len(mdir); d = filepath.Dir(d) {
+		for d := dir; d != mdir && len(d) > len(mdir); {
 			haveGoMod := haveGoModCache.Do(d, func() interface{} {
 				_, err := os.Stat(filepath.Join(d, "go.mod"))
 				return err == nil
@@ -237,6 +191,13 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 			if haveGoMod {
 				return "", false
 			}
+			parent := filepath.Dir(d)
+			if parent == d {
+				// Break the loop, as otherwise we'd loop
+				// forever if d=="." and mdir=="".
+				break
+			}
+			d = parent
 		}
 	}
 

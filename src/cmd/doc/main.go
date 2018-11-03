@@ -28,6 +28,12 @@
 // For commands, unless the -cmd flag is present "go doc command"
 // shows only the package-level docs for the package.
 //
+// The -src flag causes doc to print the full source code for the symbol, such
+// as the body of a struct, function or method.
+//
+// The -all flag causes doc to print all documentation for the package and
+// all its visible symbols. The argument must identify a package.
+//
 // For complete documentation, run "go help doc".
 package main
 
@@ -49,7 +55,9 @@ import (
 var (
 	unexported bool // -u flag
 	matchCase  bool // -c flag
+	showAll    bool // -all flag
 	showCmd    bool // -cmd flag
+	showSrc    bool // -src flag
 )
 
 // usage is a replacement usage function for the flags package.
@@ -84,7 +92,9 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	matchCase = false
 	flagSet.BoolVar(&unexported, "u", false, "show unexported symbols as well as exported")
 	flagSet.BoolVar(&matchCase, "c", false, "symbol matching honors case (paths not affected)")
+	flagSet.BoolVar(&showAll, "all", false, "show all documentation for package")
 	flagSet.BoolVar(&showCmd, "cmd", false, "show symbols with package docs even if package is a command")
+	flagSet.BoolVar(&showSrc, "src", false, "show source code for symbol")
 	flagSet.Parse(args)
 	var paths []string
 	var symbol, method string
@@ -120,6 +130,12 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 		// case but we want to see them, always.
 		if pkg.build.ImportPath == "builtin" {
 			unexported = true
+		}
+
+		// We have a package.
+		if showAll && symbol == "" {
+			pkg.allDoc()
+			return
 		}
 
 		switch {

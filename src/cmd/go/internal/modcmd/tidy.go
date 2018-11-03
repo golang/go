@@ -44,10 +44,11 @@ func runTidy(cmd *base.Command, args []string) {
 
 	// LoadALL adds missing modules.
 	// Remove unused modules.
-	used := map[module.Version]bool{modload.Target: true}
+	used := make(map[module.Version]bool)
 	for _, pkg := range modload.LoadALL() {
 		used[modload.PackageModule(pkg)] = true
 	}
+	used[modload.Target] = true // note: LoadALL initializes Target
 
 	inGoMod := make(map[string]bool)
 	for _, r := range modload.ModFile().Require {

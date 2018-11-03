@@ -820,7 +820,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		if elfobj.machine == ElfMachPower64 {
 			flag := int(elfsym.other) >> 5
 			if 2 <= flag && flag <= 6 {
-				s.Localentry = 1 << uint(flag-2)
+				s.SetLocalentry(1 << uint(flag-2))
 			} else if flag == 7 {
 				return errorf("%v: invalid sym.other 0x%x", s, elfsym.other)
 			}

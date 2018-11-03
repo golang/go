@@ -113,3 +113,25 @@ func ExamplePow10() {
 	fmt.Printf("%.1f", c)
 	// Output: 100.0
 }
+
+func ExampleRound() {
+	p := math.Round(10.5)
+	fmt.Printf("%.1f\n", p)
+
+	n := math.Round(-10.5)
+	fmt.Printf("%.1f\n", n)
+	// Output:
+	// 11.0
+	// -11.0
+}
+
+func ExampleRoundToEven() {
+	u := math.RoundToEven(11.5)
+	fmt.Printf("%.1f\n", u)
+
+	d := math.RoundToEven(12.5)
+	fmt.Printf("%.1f\n", d)
+	// Output:
+	// 12.0
+	// 12.0
+}

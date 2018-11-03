@@ -63,7 +63,7 @@ func NewReader(rd io.Reader) *Reader {
 }
 
 // Size returns the size of the underlying buffer in bytes.
-func (r *Reader) Size() int { return len(r.buf) }
+func (b *Reader) Size() int { return len(b.buf) }
 
 // Reset discards any buffered data, resets all state, and switches
 // the buffered reader to read from r.
@@ -187,6 +187,8 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
 // The bytes are taken from at most one Read on the underlying Reader,
 // hence n may be less than len(p).
 // At EOF, the count will be zero and err will be io.EOF.
+//
+// To read exactly len(p) bytes, use io.ReadFull(b, p).
 func (b *Reader) Read(p []byte) (n int, err error) {
 	n = len(p)
 	if n == 0 {
@@ -314,9 +316,11 @@ func (b *Reader) Buffered() int { return b.w - b.r }
 // ReadBytes or ReadString instead.
 // ReadSlice returns err != nil if and only if line does not end in delim.
 func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
+	s := 0 // search start index
 	for {
 		// Search buffer.
-		if i := bytes.IndexByte(b.buf[b.r:b.w], delim); i >= 0 {
+		if i := bytes.IndexByte(b.buf[b.r+s:b.w], delim); i >= 0 {
+			i += s
 			line = b.buf[b.r : b.r+i+1]
 			b.r += i + 1
 			break
@@ -337,6 +341,8 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
 			err = ErrBufferFull
 			break
 		}
+
+		s = b.w - b.r // do not rescan area we scanned before
 
 		b.fill() // buffer is not full
 	}

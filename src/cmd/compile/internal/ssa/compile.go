@@ -42,7 +42,9 @@ func Compile(f *Func) {
 	}()
 
 	// Run all the passes
-	printFunc(f)
+	if f.Log() {
+		printFunc(f)
+	}
 	f.HTMLWriter.WriteFunc("start", "start", f)
 	if BuildDump != "" && BuildDump == f.Name {
 		f.dumpFile("build")
@@ -84,8 +86,10 @@ func Compile(f *Func) {
 				stats = fmt.Sprintf("[%d ns]", time)
 			}
 
-			f.Logf("  pass %s end %s\n", p.name, stats)
-			printFunc(f)
+			if f.Log() {
+				f.Logf("  pass %s end %s\n", p.name, stats)
+				printFunc(f)
+			}
 			f.HTMLWriter.WriteFunc(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats), f)
 		}
 		if p.time || p.mem {
@@ -369,6 +373,7 @@ var passes = [...]pass{
 	{name: "phiopt", fn: phiopt},
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
+	{name: "fuse plain", fn: fusePlain},
 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
@@ -376,7 +381,7 @@ var passes = [...]pass{
 	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
 	{name: "check bce", fn: checkbce},
 	{name: "branchelim", fn: branchelim},
-	{name: "fuse", fn: fuse},
+	{name: "fuse", fn: fuseAll},
 	{name: "dse", fn: dse},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,

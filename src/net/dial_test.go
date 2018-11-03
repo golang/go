@@ -318,9 +318,9 @@ func TestDialParallel(t *testing.T) {
 
 		expectElapsedMin := tt.expectElapsed - 95*time.Millisecond
 		expectElapsedMax := tt.expectElapsed + 95*time.Millisecond
-		if !(elapsed >= expectElapsedMin) {
+		if elapsed < expectElapsedMin {
 			t.Errorf("#%d: got %v; want >= %v", i, elapsed, expectElapsedMin)
-		} else if !(elapsed <= expectElapsedMax) {
+		} else if elapsed > expectElapsedMax {
 			t.Errorf("#%d: got %v; want <= %v", i, elapsed, expectElapsedMax)
 		}
 
@@ -346,7 +346,7 @@ func TestDialParallel(t *testing.T) {
 	}
 }
 
-func lookupSlowFast(ctx context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+func lookupSlowFast(ctx context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
 	switch host {
 	case "slow6loopback4":
 		// Returns a slow IPv6 address, and a local IPv4 address.
@@ -355,7 +355,7 @@ func lookupSlowFast(ctx context.Context, fn func(context.Context, string) ([]IPA
 			{IP: ParseIP("127.0.0.1")},
 		}, nil
 	default:
-		return fn(ctx, host)
+		return fn(ctx, network, host)
 	}
 }
 
@@ -418,10 +418,10 @@ func TestDialerFallbackDelay(t *testing.T) {
 		}
 		expectMin := tt.expectElapsed - 1*time.Millisecond
 		expectMax := tt.expectElapsed + 95*time.Millisecond
-		if !(elapsed >= expectMin) {
+		if elapsed < expectMin {
 			t.Errorf("#%d: got %v; want >= %v", i, elapsed, expectMin)
 		}
-		if !(elapsed <= expectMax) {
+		if elapsed > expectMax {
 			t.Errorf("#%d: got %v; want <= %v", i, elapsed, expectMax)
 		}
 	}

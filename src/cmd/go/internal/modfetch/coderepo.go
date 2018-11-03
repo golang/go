@@ -86,6 +86,13 @@ func (r *codeRepo) ModulePath() string {
 }
 
 func (r *codeRepo) Versions(prefix string) ([]string, error) {
+	// Special case: gopkg.in/macaroon-bakery.v2-unstable
+	// does not use the v2 tags (those are for macaroon-bakery.v2).
+	// It has no possible tags at all.
+	if strings.HasPrefix(r.modPath, "gopkg.in/") && strings.HasSuffix(r.modPath, "-unstable") {
+		return nil, nil
+	}
+
 	p := prefix
 	if r.codeDir != "" {
 		p = r.codeDir + "/" + p

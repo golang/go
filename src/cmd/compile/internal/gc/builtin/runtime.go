@@ -68,16 +68,16 @@ func convT2E(typ *byte, elem *any) (ret any)
 func convT2E16(typ *byte, val any) (ret any)
 func convT2E32(typ *byte, val any) (ret any)
 func convT2E64(typ *byte, val any) (ret any)
-func convT2Estring(typ *byte, elem *any) (ret any)
-func convT2Eslice(typ *byte, elem *any) (ret any)
+func convT2Estring(typ *byte, val any) (ret any) // val must be a string
+func convT2Eslice(typ *byte, val any) (ret any)  // val must be a slice
 func convT2Enoptr(typ *byte, elem *any) (ret any)
 
 func convT2I(tab *byte, elem *any) (ret any)
 func convT2I16(tab *byte, val any) (ret any)
 func convT2I32(tab *byte, val any) (ret any)
 func convT2I64(tab *byte, val any) (ret any)
-func convT2Istring(tab *byte, elem *any) (ret any)
-func convT2Islice(tab *byte, elem *any) (ret any)
+func convT2Istring(tab *byte, val any) (ret any) // val must be a string
+func convT2Islice(tab *byte, val any) (ret any)  // val must be a slice
 func convT2Inoptr(tab *byte, elem *any) (ret any)
 
 // interface type assertions x.(T)
@@ -153,8 +153,8 @@ func selectsetpc(cas *byte)
 func selectgo(cas0 *byte, order0 *byte, ncases int) (int, bool)
 func block()
 
-func makeslice(typ *byte, len int, cap int) (ary []any)
-func makeslice64(typ *byte, len int64, cap int64) (ary []any)
+func makeslice(typ *byte, len int, cap int) unsafe.Pointer
+func makeslice64(typ *byte, len int64, cap int64) unsafe.Pointer
 func growslice(typ *byte, old []any, cap int) (ary []any)
 func memmove(to *any, frm *any, length uintptr)
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)

@@ -232,6 +232,23 @@ func Stat(path, rev string) (*RevInfo, error) {
 	return repo.Stat(rev)
 }
 
+// InfoFile is like Stat but returns the name of the file containing
+// the cached information.
+func InfoFile(path, version string) (string, error) {
+	if !semver.IsValid(version) {
+		return "", fmt.Errorf("invalid version %q", version)
+	}
+	if _, err := Stat(path, version); err != nil {
+		return "", err
+	}
+	// Stat should have populated the disk cache for us.
+	file, _, err := readDiskStat(path, version)
+	if err != nil {
+		return "", err
+	}
+	return file, nil
+}
+
 // GoMod is like Lookup(path).GoMod(rev) but avoids the
 // repository path resolution in Lookup if the result is
 // already cached on local disk.
@@ -256,6 +273,40 @@ func GoMod(path, rev string) ([]byte, error) {
 	return repo.GoMod(rev)
 }
 
+// GoModFile is like GoMod but returns the name of the file containing
+// the cached information.
+func GoModFile(path, version string) (string, error) {
+	if !semver.IsValid(version) {
+		return "", fmt.Errorf("invalid version %q", version)
+	}
+	if _, err := GoMod(path, version); err != nil {
+		return "", err
+	}
+	// GoMod should have populated the disk cache for us.
+	file, _, err := readDiskGoMod(path, version)
+	if err != nil {
+		return "", err
+	}
+	return file, nil
+}
+
+// GoModSum returns the go.sum entry for the module version's go.mod file.
+// (That is, it returns the entry listed in go.sum as "path version/go.mod".)
+func GoModSum(path, version string) (string, error) {
+	if !semver.IsValid(version) {
+		return "", fmt.Errorf("invalid version %q", version)
+	}
+	data, err := GoMod(path, version)
+	if err != nil {
+		return "", err
+	}
+	sum, err := goModSum(data)
+	if err != nil {
+		return "", err
+	}
+	return sum, nil
+}
+
 var errNotCached = fmt.Errorf("not in cache")
 
 // readDiskStat reads a cached stat result from disk,
@@ -273,6 +324,13 @@ func readDiskStat(path, rev string) (file string, info *RevInfo, err error) {
 	info = new(RevInfo)
 	if err := json.Unmarshal(data, info); err != nil {
 		return file, nil, errNotCached
+	}
+	// The disk might have stale .info files that have Name and Short fields set.
+	// We want to canonicalize to .info files with those fields omitted.
+	// Remarshal and update the cache file if needed.
+	data2, err := json.Marshal(info)
+	if err == nil && !bytes.Equal(data2, data) {
+		writeDiskCache(file, data)
 	}
 	return file, info, nil
 }

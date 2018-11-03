@@ -6,6 +6,8 @@
 
 package md5
 
+const haveAsm = true
+
 //go:noescape
 
 func block(dig *digest, p []byte)

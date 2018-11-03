@@ -22,6 +22,7 @@ import (
 	"go/types"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -31,10 +32,9 @@ import (
 	"cmd/internal/objabi"
 )
 
-// Important! If you add flags here, make sure to update cmd/go/internal/vet/vetflag.go.
-
 var (
 	verbose = flag.Bool("v", false, "verbose")
+	flags   = flag.Bool("flags", false, "print flags in JSON")
 	source  = flag.Bool("source", false, "import from source instead of compiled object files")
 	tags    = flag.String("tags", "", "space-separated list of build tags to apply when parsing")
 	tagList = []string{} // exploded version of tags flag; set in main
@@ -259,6 +259,32 @@ func main() {
 	flag.Usage = Usage
 	flag.Parse()
 
+	// -flags: print flags as JSON. Used by go vet.
+	if *flags {
+		type jsonFlag struct {
+			Name  string
+			Bool  bool
+			Usage string
+		}
+		var jsonFlags []jsonFlag
+		flag.VisitAll(func(f *flag.Flag) {
+			isBool := false
+			switch v := f.Value.(type) {
+			case interface{ BoolFlag() bool }:
+				isBool = v.BoolFlag()
+			case *triState:
+				isBool = true // go vet should treat it as boolean
+			}
+			jsonFlags = append(jsonFlags, jsonFlag{f.Name, isBool, f.Usage})
+		})
+		data, err := json.MarshalIndent(jsonFlags, "", "\t")
+		if err != nil {
+			log.Fatal(err)
+		}
+		os.Stdout.Write(data)
+		os.Exit(0)
+	}
+
 	// If any flag is set, we run only those checks requested.
 	// If all flag is set true or if no flags are set true, set all the non-experimental ones
 	// not explicitly set (in effect, set the "-all" flag).
@@ -273,7 +299,7 @@ func main() {
 	// Accept space-separated tags because that matches
 	// the go command's other subcommands.
 	// Accept commas because go tool vet traditionally has.
-	tagList = strings.Fields(strings.Replace(*tags, ",", " ", -1))
+	tagList = strings.Fields(strings.ReplaceAll(*tags, ",", " "))
 
 	initPrintFlags()
 	initUnusedFlags()
@@ -467,6 +493,7 @@ type Package struct {
 	path      string
 	defs      map[*ast.Ident]types.Object
 	uses      map[*ast.Ident]types.Object
+	implicits map[ast.Node]types.Object
 	selectors map[*ast.SelectorExpr]*types.Selection
 	types     map[ast.Expr]types.TypeAndValue
 	spans     map[types.Object]Span

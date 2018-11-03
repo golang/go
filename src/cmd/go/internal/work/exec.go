@@ -224,7 +224,9 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		if len(p.SFiles) > 0 {
 			fmt.Fprintf(h, "asm %q %q %q\n", b.toolID("asm"), forcedAsmflags, p.Internal.Asmflags)
 		}
-		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(cfg.BuildContext.GOARCH))) // GO386, GOARM, etc
+		// GO386, GOARM, GOMIPS, etc.
+		baseArch := strings.TrimSuffix(cfg.BuildContext.GOARCH, "le")
+		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(baseArch)))
 
 		// TODO(rsc): Convince compiler team not to add more magic environment variables,
 		// or perhaps restrict the environment variables passed to subprocesses.
@@ -697,8 +699,8 @@ func (b *Builder) build(a *Action) (err error) {
 	// This is read by readGccgoArchive in cmd/internal/buildid/buildid.go.
 	if a.buildID != "" && cfg.BuildToolchainName == "gccgo" {
 		switch cfg.Goos {
-		case "android", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
-			asmfile, err := b.gccgoBuildIDELFFile(a)
+		case "aix", "android", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+			asmfile, err := b.gccgoBuildIDFile(a)
 			if err != nil {
 				return err
 			}
@@ -1155,11 +1157,11 @@ func (b *Builder) link(a *Action) (err error) {
 	// We still call updateBuildID to update a.buildID, which is important
 	// for test result caching, but passing rewrite=false (final arg)
 	// means we don't actually rewrite the binary, nor store the
-	// result into the cache.
-	// Not calling updateBuildID means we also don't insert these
-	// binaries into the build object cache. That's probably a net win:
+	// result into the cache. That's probably a net win:
 	// less cache space wasted on large binaries we are not likely to
 	// need again. (On the other hand it does make repeated go test slower.)
+	// It also makes repeated go run slower, which is a win in itself:
+	// we don't want people to treat go run like a scripting environment.
 	if err := b.updateBuildID(a, a.Target, !a.Package.Internal.OmitDebug); err != nil {
 		return err
 	}
@@ -1646,6 +1648,7 @@ func (b *Builder) cover(a *Action, dst, src string, varName string) error {
 
 var objectMagic = [][]byte{
 	{'!', '<', 'a', 'r', 'c', 'h', '>', '\n'}, // Package archive
+	{'<', 'b', 'i', 'g', 'a', 'f', '>', '\n'}, // Package AIX big archive
 	{'\x7F', 'E', 'L', 'F'},                   // ELF
 	{0xFE, 0xED, 0xFA, 0xCE},                  // Mach-O big-endian 32-bit
 	{0xFE, 0xED, 0xFA, 0xCF},                  // Mach-O big-endian 64-bit
@@ -1656,6 +1659,8 @@ var objectMagic = [][]byte{
 	{0x00, 0x00, 0x8a, 0x97},                  // Plan 9 amd64
 	{0x00, 0x00, 0x06, 0x47},                  // Plan 9 arm
 	{0x00, 0x61, 0x73, 0x6D},                  // WASM
+	{0x01, 0xDF},                              // XCOFF 32bit
+	{0x01, 0xF7},                              // XCOFF 64bit
 }
 
 func isObject(s string) bool {
@@ -1703,14 +1708,14 @@ func (b *Builder) fmtcmd(dir string, format string, args ...interface{}) string 
 		if dir[len(dir)-1] == filepath.Separator {
 			dot += string(filepath.Separator)
 		}
-		cmd = strings.Replace(" "+cmd, " "+dir, dot, -1)[1:]
+		cmd = strings.ReplaceAll(" "+cmd, " "+dir, dot)[1:]
 		if b.scriptDir != dir {
 			b.scriptDir = dir
 			cmd = "cd " + dir + "\n" + cmd
 		}
 	}
 	if b.WorkDir != "" {
-		cmd = strings.Replace(cmd, b.WorkDir, "$WORK", -1)
+		cmd = strings.ReplaceAll(cmd, b.WorkDir, "$WORK")
 	}
 	return cmd
 }
@@ -1752,10 +1757,10 @@ func (b *Builder) showOutput(a *Action, dir, desc, out string) {
 	prefix := "# " + desc
 	suffix := "\n" + out
 	if reldir := base.ShortPath(dir); reldir != dir {
-		suffix = strings.Replace(suffix, " "+dir, " "+reldir, -1)
-		suffix = strings.Replace(suffix, "\n"+dir, "\n"+reldir, -1)
+		suffix = strings.ReplaceAll(suffix, " "+dir, " "+reldir)
+		suffix = strings.ReplaceAll(suffix, "\n"+dir, "\n"+reldir)
 	}
-	suffix = strings.Replace(suffix, " "+b.WorkDir, " $WORK", -1)
+	suffix = strings.ReplaceAll(suffix, " "+b.WorkDir, " $WORK")
 
 	if a != nil && a.output != nil {
 		a.output = append(a.output, prefix...)
@@ -2075,14 +2080,37 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 }
 
 // gccld runs the gcc linker to create an executable from a set of object files.
-func (b *Builder) gccld(p *load.Package, objdir, out string, flags []string, objs []string) error {
+func (b *Builder) gccld(p *load.Package, objdir, outfile string, flags []string, objs []string) error {
 	var cmd []string
 	if len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0 {
 		cmd = b.GxxCmd(p.Dir, objdir)
 	} else {
 		cmd = b.GccCmd(p.Dir, objdir)
 	}
-	return b.run(nil, p.Dir, p.ImportPath, b.cCompilerEnv(), cmd, "-o", out, objs, flags)
+
+	cmdargs := []interface{}{cmd, "-o", outfile, objs, flags}
+	dir := p.Dir
+	out, err := b.runOut(dir, b.cCompilerEnv(), cmdargs...)
+	if len(out) > 0 {
+		// Filter out useless linker warnings caused by bugs outside Go.
+		// See also cmd/link/internal/ld's hostlink method.
+		var save [][]byte
+		for _, line := range bytes.SplitAfter(out, []byte("\n")) {
+			// golang.org/issue/26073 - Apple Xcode bug
+			if bytes.Contains(line, []byte("ld: warning: text-based stub file")) {
+				continue
+			}
+			save = append(save, line)
+		}
+		out = bytes.Join(save, nil)
+		if len(out) > 0 {
+			b.showOutput(nil, dir, p.ImportPath, b.processOutput(out))
+			if err != nil {
+				err = errPrintedOutput
+			}
+		}
+	}
+	return err
 }
 
 // Grab these before main helpfully overwrites them.
@@ -2269,6 +2297,10 @@ func (b *Builder) gccArchArgs() []string {
 		return []string{"-mabi=64"}
 	case "mips", "mipsle":
 		return []string{"-mabi=32", "-march=mips32"}
+	case "ppc64":
+		if cfg.Goos == "aix" {
+			return []string{"-maix64"}
+		}
 	}
 	return nil
 }
@@ -2858,7 +2890,7 @@ func useResponseFile(path string, argLen int) bool {
 	}
 
 	// On the Go build system, use response files about 10% of the
-	// time, just to excercise this codepath.
+	// time, just to exercise this codepath.
 	isBuilder := os.Getenv("GO_BUILDER_NAME") != ""
 	if isBuilder && rand.Intn(10) == 0 {
 		return true

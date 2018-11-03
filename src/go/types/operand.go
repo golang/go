@@ -201,7 +201,9 @@ func (x *operand) isNil() bool {
 // assignableTo reports whether x is assignable to a variable of type T.
 // If the result is false and a non-nil reason is provided, it may be set
 // to a more detailed explanation of the failure (result != "").
-func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
+// The check parameter may be nil if assignableTo is invoked through
+// an exported API call, i.e., when all methods have been type-checked.
+func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 	if x.mode == invalid || T == Typ[Invalid] {
 		return true // avoid spurious errors
 	}
@@ -226,7 +228,7 @@ func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
 				return true
 			}
 			if x.mode == constant_ {
-				return representableConst(x.val, conf, t, nil)
+				return representableConst(x.val, check, t, nil)
 			}
 			// The result of a comparison is an untyped boolean,
 			// but may not be a constant.
@@ -249,7 +251,7 @@ func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
 
 	// T is an interface type and x implements T
 	if Ti, ok := Tu.(*Interface); ok {
-		if m, wrongType := MissingMethod(x.typ, Ti, true); m != nil /* Implements(x.typ, Ti) */ {
+		if m, wrongType := check.missingMethod(x.typ, Ti, true); m != nil /* Implements(x.typ, Ti) */ {
 			if reason != nil {
 				if wrongType {
 					*reason = "wrong type for method " + m.Name()

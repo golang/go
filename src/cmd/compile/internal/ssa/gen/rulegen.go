@@ -6,7 +6,7 @@
 
 // This program generates Go code that applies rewrite rules to a Value.
 // The generated code implements a function of type func (v *Value) bool
-// which returns true iff if did something.
+// which reports whether if did something.
 // Ideas stolen from Swift: http://www.hpl.hp.com/techreports/Compaq-DEC/WRL-2000-2.html
 
 package main
@@ -160,10 +160,12 @@ func genRules(arch arch) {
 	fmt.Fprintln(w, "// generated with: cd gen; go run *.go")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "package ssa")
+	fmt.Fprintln(w, "import \"fmt\"")
 	fmt.Fprintln(w, "import \"math\"")
 	fmt.Fprintln(w, "import \"cmd/internal/obj\"")
 	fmt.Fprintln(w, "import \"cmd/internal/objabi\"")
 	fmt.Fprintln(w, "import \"cmd/compile/internal/types\"")
+	fmt.Fprintln(w, "var _ = fmt.Println   // in case not otherwise used")
 	fmt.Fprintln(w, "var _ = math.MinInt8  // in case not otherwise used")
 	fmt.Fprintln(w, "var _ = obj.ANOP      // in case not otherwise used")
 	fmt.Fprintln(w, "var _ = objabi.GOROOT // in case not otherwise used")
@@ -384,7 +386,7 @@ func genRules(arch arch) {
 	}
 }
 
-// genMatch returns true if the match can fail.
+// genMatch reports whether the match can fail.
 func genMatch(w io.Writer, arch arch, match string, loc string) bool {
 	return genMatch0(w, arch, match, "v", map[string]struct{}{}, true, loc)
 }
@@ -621,7 +623,7 @@ outer:
 	return r
 }
 
-// isBlock returns true if this op is a block opcode.
+// isBlock reports whether this op is a block opcode.
 func isBlock(name string, arch arch) bool {
 	for _, b := range genericBlocks {
 		if b.name == name {
@@ -766,7 +768,7 @@ func typeName(typ string) string {
 	}
 }
 
-// unbalanced returns true if there aren't the same number of ( and ) in the string.
+// unbalanced reports whether there aren't the same number of ( and ) in the string.
 func unbalanced(s string) bool {
 	var left, right int
 	for _, c := range s {

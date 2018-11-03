@@ -222,10 +222,9 @@ type rfc2821Mailbox struct {
 }
 
 // parseRFC2821Mailbox parses an email address into local and domain parts,
-// based on the ABNF for a “Mailbox” from RFC 2821. According to
-// https://tools.ietf.org/html/rfc5280#section-4.2.1.6 that's correct for an
-// rfc822Name from a certificate: “The format of an rfc822Name is a "Mailbox"
-// as defined in https://tools.ietf.org/html/rfc2821#section-4.1.2”.
+// based on the ABNF for a “Mailbox” from RFC 2821. According to RFC 5280,
+// Section 4.2.1.6 that's correct for an rfc822Name from a certificate: “The
+// format of an rfc822Name is a "Mailbox" as defined in RFC 2821, Section 4.1.2”.
 func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
 	if len(in) == 0 {
 		return mailbox, false
@@ -242,9 +241,8 @@ func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
 		// quoted-pair = ("\" text) / obs-qp
 		// text = %d1-9 / %d11 / %d12 / %d14-127 / obs-text
 		//
-		// (Names beginning with “obs-” are the obsolete syntax from
-		// https://tools.ietf.org/html/rfc2822#section-4. Since it has
-		// been 16 years, we no longer accept that.)
+		// (Names beginning with “obs-” are the obsolete syntax from RFC 2822,
+		// Section 4. Since it has been 16 years, we no longer accept that.)
 		in = in[1:]
 	QuotedString:
 		for {
@@ -298,7 +296,7 @@ func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
 		// Atom ("." Atom)*
 	NextChar:
 		for len(in) > 0 {
-			// atext from https://tools.ietf.org/html/rfc2822#section-3.2.4
+			// atext from RFC 2822, Section 3.2.4
 			c := in[0]
 
 			switch {
@@ -334,7 +332,7 @@ func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
 			return mailbox, false
 		}
 
-		// https://tools.ietf.org/html/rfc3696#section-3
+		// From RFC 3696, Section 3:
 		// “period (".") may also appear, but may not be used to start
 		// or end the local part, nor may two or more consecutive
 		// periods appear.”
@@ -415,7 +413,7 @@ func matchEmailConstraint(mailbox rfc2821Mailbox, constraint string) (bool, erro
 }
 
 func matchURIConstraint(uri *url.URL, constraint string) (bool, error) {
-	// https://tools.ietf.org/html/rfc5280#section-4.2.1.10
+	// From RFC 5280, Section 4.2.1.10:
 	// “a uniformResourceIdentifier that does not include an authority
 	// component with a host name specified as a fully qualified domain
 	// name (e.g., if the URI either does not include an authority
@@ -861,7 +859,7 @@ nextIntermediate:
 }
 
 // validHostname returns whether host is a valid hostname that can be matched or
-// matched against according to RFC 6125 2.2, with some leniency to accomodate
+// matched against according to RFC 6125 2.2, with some leniency to accommodate
 // legacy values.
 func validHostname(host string) bool {
 	host = strings.TrimSuffix(host, ".")
@@ -894,8 +892,8 @@ func validHostname(host string) bool {
 			if c == '-' && j != 0 {
 				continue
 			}
-			if c == '_' {
-				// _ is not a valid character in hostnames, but it's commonly
+			if c == '_' || c == ':' {
+				// Not valid characters in hostnames, but commonly
 				// found in deployments outside the WebPKI.
 				continue
 			}
@@ -987,7 +985,7 @@ func (c *Certificate) VerifyHostname(h string) error {
 	}
 	if ip := net.ParseIP(candidateIP); ip != nil {
 		// We only match IP addresses against IP SANs.
-		// https://tools.ietf.org/html/rfc6125#appendix-B.2
+		// See RFC 6125, Appendix B.2.
 		for _, candidate := range c.IPAddresses {
 			if ip.Equal(candidate) {
 				return nil

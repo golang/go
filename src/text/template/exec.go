@@ -7,10 +7,10 @@ package template
 import (
 	"bytes"
 	"fmt"
+	"internal/fmtsort"
 	"io"
 	"reflect"
 	"runtime"
-	"sort"
 	"strings"
 	"text/template/parse"
 )
@@ -102,7 +102,7 @@ func (s *state) at(node parse.Node) {
 // doublePercent returns the string with %'s replaced by %%, if necessary,
 // so it can be used safely inside a Printf format string.
 func doublePercent(str string) string {
-	return strings.Replace(str, "%", "%%", -1)
+	return strings.ReplaceAll(str, "%", "%%")
 }
 
 // TODO: It would be nice if ExecError was more broken down, but
@@ -362,8 +362,9 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		if val.Len() == 0 {
 			break
 		}
-		for _, key := range sortKeys(val.MapKeys()) {
-			oneIteration(key, val.MapIndex(key))
+		om := fmtsort.Sort(val)
+		for i, key := range om.Key {
+			oneIteration(key, om.Value[i])
 		}
 		return
 	case reflect.Chan:
@@ -692,13 +693,13 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 		}
 		argv[i] = s.validateType(final, t)
 	}
-	result := fun.Call(argv)
-	// If we have an error that is not nil, stop execution and return that error to the caller.
-	if len(result) == 2 && !result[1].IsNil() {
+	v, err := safeCall(fun, argv)
+	// If we have an error that is not nil, stop execution and return that
+	// error to the caller.
+	if err != nil {
 		s.at(node)
-		s.errorf("error calling %s: %s", name, result[1].Interface().(error))
+		s.errorf("error calling %s: %v", name, err)
 	}
-	v := result[0]
 	if v.Type() == reflectValueType {
 		v = v.Interface().(reflect.Value)
 	}
@@ -957,30 +958,4 @@ func printableValue(v reflect.Value) (interface{}, bool) {
 		}
 	}
 	return v.Interface(), true
-}
-
-// sortKeys sorts (if it can) the slice of reflect.Values, which is a slice of map keys.
-func sortKeys(v []reflect.Value) []reflect.Value {
-	if len(v) <= 1 {
-		return v
-	}
-	switch v[0].Kind() {
-	case reflect.Float32, reflect.Float64:
-		sort.Slice(v, func(i, j int) bool {
-			return v[i].Float() < v[j].Float()
-		})
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		sort.Slice(v, func(i, j int) bool {
-			return v[i].Int() < v[j].Int()
-		})
-	case reflect.String:
-		sort.Slice(v, func(i, j int) bool {
-			return v[i].String() < v[j].String()
-		})
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		sort.Slice(v, func(i, j int) bool {
-			return v[i].Uint() < v[j].Uint()
-		})
-	}
-	return v
 }

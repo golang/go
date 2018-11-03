@@ -172,7 +172,7 @@ func jsValEscaper(args ...interface{}) string {
 		// turning into
 		//     x//* error marshaling y:
 		//          second line of error message */null
-		return fmt.Sprintf(" /* %s */null ", strings.Replace(err.Error(), "*/", "* /", -1))
+		return fmt.Sprintf(" /* %s */null ", strings.ReplaceAll(err.Error(), "*/", "* /"))
 	}
 
 	// TODO: maybe post-process output to prevent it from containing
@@ -371,7 +371,7 @@ func isJSIdentPart(r rune) bool {
 	return false
 }
 
-// isJSType returns true if the given MIME type should be considered JavaScript.
+// isJSType reports whether the given MIME type should be considered JavaScript.
 //
 // It is used to determine whether a script tag with a type attribute is a javascript container.
 func isJSType(mimeType string) bool {
