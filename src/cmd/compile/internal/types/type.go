@@ -665,23 +665,18 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 		}
 
 	case TSTRUCT:
+		// Make a copy of all fields, including ones whose type does not change.
+		// This prevents aliasing across functions, which can lead to later
+		// fields getting their Offset incorrectly overwritten.
 		fields := t.FieldSlice()
-		var nfs []*Field
+		nfs := make([]*Field, len(fields))
 		for i, f := range fields {
 			nft := SubstAny(f.Type, types)
-			if nft == f.Type {
-				continue
-			}
-			if nfs == nil {
-				nfs = append([]*Field(nil), fields...)
-			}
 			nfs[i] = f.Copy()
 			nfs[i].Type = nft
 		}
-		if nfs != nil {
-			t = t.copy()
-			t.SetFields(nfs)
-		}
+		t = t.copy()
+		t.SetFields(nfs)
 	}
 
 	return t
