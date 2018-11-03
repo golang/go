@@ -853,14 +853,20 @@ func (c *Config) BuildNameToCertificate() {
 	}
 }
 
-// writeKeyLog logs client random and master secret if logging was enabled by
-// setting c.KeyLogWriter.
-func (c *Config) writeKeyLog(clientRandom, masterSecret []byte) error {
+const (
+	keyLogLabelTLS12           = "CLIENT_RANDOM"
+	keyLogLabelClientHandshake = "CLIENT_HANDSHAKE_TRAFFIC_SECRET"
+	keyLogLabelServerHandshake = "SERVER_HANDSHAKE_TRAFFIC_SECRET"
+	keyLogLabelClientTraffic   = "CLIENT_TRAFFIC_SECRET_0"
+	keyLogLabelServerTraffic   = "SERVER_TRAFFIC_SECRET_0"
+)
+
+func (c *Config) writeKeyLog(label string, clientRandom, secret []byte) error {
 	if c.KeyLogWriter == nil {
 		return nil
 	}
 
-	logLine := []byte(fmt.Sprintf("CLIENT_RANDOM %x %x\n", clientRandom, masterSecret))
+	logLine := []byte(fmt.Sprintf("%s %x %x\n", label, clientRandom, secret))
 
 	writerMutex.Lock()
 	_, err := c.KeyLogWriter.Write(logLine)

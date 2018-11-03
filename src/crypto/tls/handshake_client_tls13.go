@@ -269,6 +269,17 @@ func (hs *clientHandshakeStateTLS13) establishHandshakeKeys() error {
 		serverHandshakeTrafficLabel, hs.transcript)
 	c.in.setTrafficSecret(hs.suite, serverSecret)
 
+	err := c.config.writeKeyLog(keyLogLabelClientHandshake, hs.hello.random, clientSecret)
+	if err != nil {
+		c.sendAlert(alertInternalError)
+		return err
+	}
+	err = c.config.writeKeyLog(keyLogLabelServerHandshake, hs.hello.random, serverSecret)
+	if err != nil {
+		c.sendAlert(alertInternalError)
+		return err
+	}
+
 	hs.masterSecret = hs.suite.extract(nil,
 		hs.suite.deriveSecret(handshakeSecret, "derived", nil))
 
@@ -408,6 +419,17 @@ func (hs *clientHandshakeStateTLS13) readServerFinished() error {
 	serverSecret := hs.suite.deriveSecret(hs.masterSecret,
 		serverApplicationTrafficLabel, hs.transcript)
 	c.in.setTrafficSecret(hs.suite, serverSecret)
+
+	err = c.config.writeKeyLog(keyLogLabelClientTraffic, hs.hello.random, hs.trafficSecret)
+	if err != nil {
+		c.sendAlert(alertInternalError)
+		return err
+	}
+	err = c.config.writeKeyLog(keyLogLabelServerTraffic, hs.hello.random, serverSecret)
+	if err != nil {
+		c.sendAlert(alertInternalError)
+		return err
+	}
 
 	c.ekm = hs.suite.exportKeyingMaterial(hs.masterSecret, hs.transcript)
 

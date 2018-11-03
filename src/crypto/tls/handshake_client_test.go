@@ -968,6 +968,49 @@ func TestKeyLog(t *testing.T) {
 	checkKeylogLine("server", serverBuf.String())
 }
 
+func TestKeyLogTLS13(t *testing.T) {
+	var serverBuf, clientBuf bytes.Buffer
+
+	clientConfig := testConfig.Clone()
+	clientConfig.KeyLogWriter = &clientBuf
+	clientConfig.MaxVersion = VersionTLS13
+
+	serverConfig := testConfig.Clone()
+	serverConfig.KeyLogWriter = &serverBuf
+	serverConfig.MaxVersion = VersionTLS13
+
+	c, s := localPipe(t)
+	done := make(chan bool)
+
+	go func() {
+		defer close(done)
+
+		if err := Server(s, serverConfig).Handshake(); err != nil {
+			t.Errorf("server: %s", err)
+			return
+		}
+		s.Close()
+	}()
+
+	if err := Client(c, clientConfig).Handshake(); err != nil {
+		t.Fatalf("client: %s", err)
+	}
+
+	c.Close()
+	<-done
+
+	checkKeylogLines := func(side, loggedLines string) {
+		loggedLines = strings.TrimSpace(loggedLines)
+		lines := strings.Split(loggedLines, "\n")
+		if len(lines) != 4 {
+			t.Errorf("Expected the %s to log 4 lines, got %d", side, len(lines))
+		}
+	}
+
+	checkKeylogLines("client", clientBuf.String())
+	checkKeylogLines("server", serverBuf.String())
+}
+
 func TestHandshakeClientALPNMatch(t *testing.T) {
 	config := testConfig.Clone()
 	config.NextProtos = []string{"proto2", "proto1"}

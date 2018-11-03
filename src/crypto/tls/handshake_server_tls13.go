@@ -336,6 +336,17 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 		serverHandshakeTrafficLabel, hs.transcript)
 	c.out.setTrafficSecret(hs.suite, serverSecret)
 
+	err := c.config.writeKeyLog(keyLogLabelClientHandshake, hs.clientHello.random, clientSecret)
+	if err != nil {
+		c.sendAlert(alertInternalError)
+		return err
+	}
+	err = c.config.writeKeyLog(keyLogLabelServerHandshake, hs.clientHello.random, serverSecret)
+	if err != nil {
+		c.sendAlert(alertInternalError)
+		return err
+	}
+
 	encryptedExtensions := new(encryptedExtensionsMsg)
 
 	if len(hs.clientHello.alpnProtocols) > 0 {
@@ -425,6 +436,17 @@ func (hs *serverHandshakeStateTLS13) sendServerFinished() error {
 	serverSecret := hs.suite.deriveSecret(masterSecret,
 		serverApplicationTrafficLabel, hs.transcript)
 	c.out.setTrafficSecret(hs.suite, serverSecret)
+
+	err := c.config.writeKeyLog(keyLogLabelClientTraffic, hs.clientHello.random, hs.trafficSecret)
+	if err != nil {
+		c.sendAlert(alertInternalError)
+		return err
+	}
+	err = c.config.writeKeyLog(keyLogLabelServerTraffic, hs.clientHello.random, serverSecret)
+	if err != nil {
+		c.sendAlert(alertInternalError)
+		return err
+	}
 
 	c.ekm = hs.suite.exportKeyingMaterial(masterSecret, hs.transcript)
 
