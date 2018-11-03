@@ -9,7 +9,12 @@ package b
 
 import C "fmt"
 
-var _ = C.Println(*p(**p))
+import "unsafe"
 
-// Passing a pointer (via a slice), but C is fmt, not cgo.
-var _ = C.Println([]int{3})
+func init() {
+	var f func()
+	C.Println(unsafe.Pointer(&f))
+
+	// Passing a pointer (via a slice), but C is fmt, not cgo.
+	C.Println([]int{3})
+}

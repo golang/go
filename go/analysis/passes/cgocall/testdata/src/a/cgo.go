@@ -36,6 +36,10 @@ func CgoTests() {
 	C.f(*(*unsafe.Pointer)(unsafe.Pointer(&st))) // want "embedded pointer"
 	C.f(unsafe.Pointer(&st))                     // want "embedded pointer"
 
+	var st3 S
+	C.f(*(*unsafe.Pointer)(unsafe.Pointer(&st3))) // want "embedded pointer"
+	C.f(unsafe.Pointer(&st3))                     // want "embedded pointer"
+
 	// The following cases are OK.
 	var i int
 	C.f(*(*unsafe.Pointer)(unsafe.Pointer(&i)))
@@ -52,8 +56,16 @@ func CgoTests() {
 	C.f(*(*unsafe.Pointer)(unsafe.Pointer(&st2)))
 	C.f(unsafe.Pointer(&st2))
 
+	var st4 S2
+	C.f(*(*unsafe.Pointer)(unsafe.Pointer(&st4)))
+	C.f(unsafe.Pointer(&st4))
+
 	type cgoStruct struct{ p *cgoStruct }
 	C.f(unsafe.Pointer(&cgoStruct{}))
 
 	C.CBytes([]byte("hello"))
 }
+
+type S struct{ slice []int }
+
+type S2 struct{ int int }

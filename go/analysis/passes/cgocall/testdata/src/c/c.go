@@ -4,7 +4,7 @@
 
 // Test the cgo checker on a file that doesn't use cgo.
 
-package a
+package c
 
 import "unsafe"
 
