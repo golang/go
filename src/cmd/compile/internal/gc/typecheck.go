@@ -3671,8 +3671,7 @@ func copytype(n *Node, t *types.Type) {
 	embedlineno := n.Type.ForwardType().Embedlineno
 	l := n.Type.ForwardType().Copyto
 
-	ptrBase := n.Type.PtrBase
-	sliceOf := n.Type.SliceOf
+	cache := n.Type.Cache
 
 	// TODO(mdempsky): Fix Type rekinding.
 	*n.Type = *t
@@ -3693,8 +3692,7 @@ func copytype(n *Node, t *types.Type) {
 
 	t.Nod = asTypesNode(n)
 	t.SetDeferwidth(false)
-	t.PtrBase = ptrBase
-	t.SliceOf = sliceOf
+	t.Cache = cache
 
 	// Propagate go:notinheap pragma from the Name to the Type.
 	if n.Name != nil && n.Name.Param != nil && n.Name.Param.Pragma&NotInHeap != 0 {
