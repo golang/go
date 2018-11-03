@@ -209,11 +209,6 @@ func (d *deadcodepass) markMethod(m methodref) {
 func (d *deadcodepass) init() {
 	var names []string
 
-	if d.ctxt.Arch.Family == sys.ARM {
-		// mark some functions that are only referenced after linker code editing
-		names = append(names, "runtime.read_tls_fallback")
-	}
-
 	if d.ctxt.BuildMode == BuildModeShared {
 		// Mark all symbols defined in this library as reachable when
 		// building a shared library.
