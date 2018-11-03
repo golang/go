@@ -972,6 +972,8 @@
 // and -dropreplace editing flags may be repeated, and the changes
 // are applied in the order given.
 //
+// The -go=version flag sets the expected Go language version.
+//
 // The -print flag prints the final go.mod in its text format instead of
 // writing it back to go.mod.
 //
@@ -984,7 +986,8 @@
 // 	}
 //
 // 	type GoMod struct {
-// 		Module Module
+// 		Module  Module
+// 		Go      string
 // 		Require []Require
 // 		Exclude []Module
 // 		Replace []Replace
