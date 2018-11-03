@@ -1019,7 +1019,7 @@ func (lv *Liveness) epilogue() {
 				live := lv.livevars[index]
 				if v.Op.IsCall() && live.regs != 0 {
 					lv.printDebug()
-					v.Fatalf("internal error: %v register %s recorded as live at call", lv.fn.Func.Nname, live.regs.niceString(lv.f.Config))
+					v.Fatalf("%v register %s recorded as live at call", lv.fn.Func.Nname, live.regs.niceString(lv.f.Config))
 				}
 				index++
 			}
@@ -1038,7 +1038,7 @@ func (lv *Liveness) epilogue() {
 	// input parameters.
 	for j, n := range lv.vars {
 		if n.Class() != PPARAM && lv.stackMaps[0].Get(int32(j)) {
-			Fatalf("internal error: %v %L recorded as live on entry", lv.fn.Func.Nname, n)
+			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Func.Nname, n)
 		}
 	}
 	// Check that no registers are live at function entry.
@@ -1047,7 +1047,7 @@ func (lv *Liveness) epilogue() {
 	// so it doesn't appear live at entry.
 	if regs := lv.regMaps[0]; regs != 0 {
 		lv.printDebug()
-		lv.f.Fatalf("internal error: %v register %s recorded as live on entry", lv.fn.Func.Nname, regs.niceString(lv.f.Config))
+		lv.f.Fatalf("%v register %s recorded as live on entry", lv.fn.Func.Nname, regs.niceString(lv.f.Config))
 	}
 }
 
