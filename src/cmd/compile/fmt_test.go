@@ -587,6 +587,7 @@ var knownFormats = map[string]string{
 	"*cmd/compile/internal/types.Sym %S":              "",
 	"*cmd/compile/internal/types.Sym %p":              "",
 	"*cmd/compile/internal/types.Sym %v":              "",
+	"*cmd/compile/internal/types.Type %#L":            "",
 	"*cmd/compile/internal/types.Type %#v":            "",
 	"*cmd/compile/internal/types.Type %+v":            "",
 	"*cmd/compile/internal/types.Type %-S":            "",
