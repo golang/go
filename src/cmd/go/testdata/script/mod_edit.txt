@@ -23,7 +23,7 @@ cmpenv go.mod $WORK/go.mod.edit2
 
 # go mod edit -json
 go mod edit -json
-cmp stdout $WORK/go.mod.json
+cmpenv stdout $WORK/go.mod.json
 
 # go mod edit -replace
 go mod edit -replace=x.1@v1.3.0=y.1/v2@v2.3.5 -replace=x.1@v1.4.0=y.1/v2@v2.3.5
@@ -83,6 +83,7 @@ require x.3 v1.99.0
 	"Module": {
 		"Path": "x.x/y/z"
 	},
+	"Go": "$goversion",
 	"Require": [
 		{
 			"Path": "x.3",
