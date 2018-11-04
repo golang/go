@@ -434,12 +434,8 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 func (hs *serverHandshakeStateTLS13) sendServerFinished() error {
 	c := hs.c
 
-	// See RFC 8446, sections 4.4.4 and 4.4.
-	finishedKey := hs.suite.expandLabel(c.out.trafficSecret, "finished", nil, hs.suite.hash.Size())
-	verifyData := hmac.New(hs.suite.hash.New, finishedKey)
-	verifyData.Write(hs.transcript.Sum(nil))
 	finished := &finishedMsg{
-		verifyData: verifyData.Sum(nil),
+		verifyData: hs.suite.finishedHash(c.out.trafficSecret, hs.transcript),
 	}
 
 	hs.transcript.Write(finished.marshal())
@@ -488,10 +484,8 @@ func (hs *serverHandshakeStateTLS13) readClientFinished() error {
 		return unexpectedMessageError(finished, msg)
 	}
 
-	finishedKey := hs.suite.expandLabel(c.in.trafficSecret, "finished", nil, hs.suite.hash.Size())
-	expectedMAC := hmac.New(hs.suite.hash.New, finishedKey)
-	expectedMAC.Write(hs.transcript.Sum(nil))
-	if !hmac.Equal(expectedMAC.Sum(nil), finished.verifyData) {
+	expectedMAC := hs.suite.finishedHash(c.in.trafficSecret, hs.transcript)
+	if !hmac.Equal(expectedMAC, finished.verifyData) {
 		c.sendAlert(alertDecryptError)
 		return errors.New("tls: invalid client finished hash")
 	}
