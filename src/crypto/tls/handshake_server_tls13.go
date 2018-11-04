@@ -20,6 +20,7 @@ type serverHandshakeStateTLS13 struct {
 	c               *Conn
 	clientHello     *clientHelloMsg
 	hello           *serverHelloMsg
+	sentDummyCCS    bool
 	suite           *cipherSuiteTLS13
 	cert            *Certificate
 	sigAlg          SignatureScheme
@@ -205,6 +206,18 @@ GroupSelection:
 	return nil
 }
 
+// sendDummyChangeCipherSpec sends a ChangeCipherSpec record for compatibility
+// with middleboxes that didn't implement TLS correctly. See RFC 8446, Appendix D.4.
+func (hs *serverHandshakeStateTLS13) sendDummyChangeCipherSpec() error {
+	if hs.sentDummyCCS {
+		return nil
+	}
+	hs.sentDummyCCS = true
+
+	_, err := hs.c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
+	return err
+}
+
 func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) error {
 	c := hs.c
 
@@ -228,6 +241,10 @@ func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) 
 
 	hs.transcript.Write(helloRetryRequest.marshal())
 	if _, err := c.writeRecord(recordTypeHandshake, helloRetryRequest.marshal()); err != nil {
+		return err
+	}
+
+	if err := hs.sendDummyChangeCipherSpec(); err != nil {
 		return err
 	}
 
@@ -326,6 +343,10 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 	hs.transcript.Write(hs.clientHello.marshal())
 	hs.transcript.Write(hs.hello.marshal())
 	if _, err := c.writeRecord(recordTypeHandshake, hs.hello.marshal()); err != nil {
+		return err
+	}
+
+	if err := hs.sendDummyChangeCipherSpec(); err != nil {
 		return err
 	}
 

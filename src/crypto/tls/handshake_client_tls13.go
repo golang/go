@@ -18,6 +18,7 @@ type clientHandshakeStateTLS13 struct {
 	serverHello   *serverHelloMsg
 	hello         *clientHelloMsg
 	certReq       *certificateRequestMsgTLS13
+	sentDummyCCS  bool
 	ecdheParams   ecdheParameters
 	suite         *cipherSuiteTLS13
 	transcript    hash.Hash
@@ -57,6 +58,9 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
 		hs.transcript.Write(chHash)
 		hs.transcript.Write(hs.serverHello.marshal())
 
+		if err := hs.sendDummyChangeCipherSpec(); err != nil {
+			return err
+		}
 		if err := hs.processHelloRetryRequest(); err != nil {
 			return err
 		}
@@ -66,7 +70,11 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
 
 	hs.transcript.Write(hs.serverHello.marshal())
 
+	c.buffering = true
 	if err := hs.processServerHello(); err != nil {
+		return err
+	}
+	if err := hs.sendDummyChangeCipherSpec(); err != nil {
 		return err
 	}
 	if err := hs.establishHandshakeKeys(); err != nil {
@@ -81,8 +89,6 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
 	if err := hs.readServerFinished(); err != nil {
 		return err
 	}
-
-	c.buffering = true
 	if err := hs.sendClientCertificate(); err != nil {
 		return err
 	}
@@ -153,6 +159,18 @@ func (hs *clientHandshakeStateTLS13) checkServerHelloOrHRR() error {
 	c.cipherSuite = hs.suite.id
 
 	return nil
+}
+
+// sendDummyChangeCipherSpec sends a ChangeCipherSpec record for compatibility
+// with middleboxes that didn't implement TLS correctly. See RFC 8446, Appendix D.4.
+func (hs *clientHandshakeStateTLS13) sendDummyChangeCipherSpec() error {
+	if hs.sentDummyCCS {
+		return nil
+	}
+	hs.sentDummyCCS = true
+
+	_, err := hs.c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
+	return err
 }
 
 // processHelloRetryRequest handles the HRR in hs.serverHello, modifies and

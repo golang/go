@@ -337,9 +337,14 @@ func (test *clientTest) run(t *testing.T, write bool) {
 
 	doneChan := make(chan bool)
 	go func() {
-		defer func() { doneChan <- true }()
-		defer clientConn.Close()
-		defer client.Close()
+		defer func() {
+			// Give time to the send buffer to drain, to avoid the kernel
+			// sending a RST and cutting off the flow. See Issue 18701.
+			time.Sleep(10 * time.Millisecond)
+			client.Close()
+			clientConn.Close()
+			doneChan <- true
+		}()
 
 		if _, err := client.Write([]byte("hello\n")); err != nil {
 			t.Errorf("Client.Write failed: %s", err)
@@ -482,6 +487,9 @@ func (test *clientTest) run(t *testing.T, write bool) {
 				t.Fatalf("%s #%d: mismatch on read: got:%x want:%x", test.name, i, bb, b)
 			}
 		}
+		// Give time to the send buffer to drain, to avoid the kernel
+		// sending a RST and cutting off the flow. See Issue 18701.
+		time.Sleep(10 * time.Millisecond)
 		serverConn.Close()
 	}
 

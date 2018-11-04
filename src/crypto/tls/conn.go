@@ -946,7 +946,7 @@ func (c *Conn) writeRecordLocked(typ recordType, data []byte) (int, error) {
 		data = data[m:]
 	}
 
-	if typ == recordTypeChangeCipherSpec {
+	if typ == recordTypeChangeCipherSpec && c.vers != VersionTLS13 {
 		if err := c.out.changeCipherSpec(); err != nil {
 			return n, c.sendAlertLocked(err.(alert))
 		}
