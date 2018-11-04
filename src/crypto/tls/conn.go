@@ -57,6 +57,9 @@ type Conn struct {
 	secureRenegotiation bool
 	// ekm is a closure for exporting keying material.
 	ekm func(label string, context []byte, length int) ([]byte, error)
+	// resumptionSecret is the resumption_master_secret for generating or
+	// handling NewSessionTicket messages. nil if config.SessionTicketsDisabled.
+	resumptionSecret []byte
 
 	// clientFinishedIsFirst is true if the client sent the first Finished
 	// message during the most recent handshake. This is recorded because
@@ -1169,10 +1172,15 @@ func (c *Conn) handlePostHandshakeMessage() error {
 		return err
 	}
 
+	c.retryCount++
+	if c.retryCount > maxUselessRecords {
+		c.sendAlert(alertUnexpectedMessage)
+		return c.in.setErrorLocked(errors.New("tls: too many non-advancing records"))
+	}
+
 	switch msg := msg.(type) {
 	case *newSessionTicketMsgTLS13:
-		// TODO(filippo): TLS 1.3 session ticket not implemented.
-		return nil
+		return c.handleNewSessionTicket(msg)
 	case *keyUpdateMsg:
 		return c.handleKeyUpdate(msg)
 	default:
@@ -1182,19 +1190,7 @@ func (c *Conn) handlePostHandshakeMessage() error {
 }
 
 func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
-	c.retryCount++
-	if c.retryCount > maxUselessRecords {
-		c.sendAlert(alertUnexpectedMessage)
-		return c.in.setErrorLocked(errors.New("tls: too many non-advancing records"))
-	}
-
-	var cipherSuite *cipherSuiteTLS13
-	for _, suite := range cipherSuitesTLS13 {
-		if suite.id == c.cipherSuite {
-			cipherSuite = suite
-			break
-		}
-	}
+	cipherSuite := cipherSuiteTLS13ByID(c.cipherSuite)
 	if cipherSuite == nil {
 		return c.in.setErrorLocked(c.sendAlert(alertInternalError))
 	}

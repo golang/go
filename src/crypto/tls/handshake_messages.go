@@ -288,6 +288,50 @@ func (m *clientHelloMsg) marshal() []byte {
 	return m.raw
 }
 
+// marshalWithoutBinders returns the ClientHello through the
+// PreSharedKeyExtension.identities field, according to RFC 8446, Section
+// 4.2.11.2. Note that m.pskBinders must be set to slices of the correct length.
+func (m *clientHelloMsg) marshalWithoutBinders() []byte {
+	bindersLen := 2 // uint16 length prefix
+	for _, binder := range m.pskBinders {
+		bindersLen += 1 // uint8 length prefix
+		bindersLen += len(binder)
+	}
+
+	fullMessage := m.marshal()
+	return fullMessage[:len(fullMessage)-bindersLen]
+}
+
+// updateBinders updates the m.pskBinders field, if necessary updating the
+// cached marshalled representation. The supplied binders must have the same
+// length as the current m.pskBinders.
+func (m *clientHelloMsg) updateBinders(pskBinders [][]byte) {
+	if len(pskBinders) != len(m.pskBinders) {
+		panic("tls: internal error: pskBinders length mismatch")
+	}
+	for i := range m.pskBinders {
+		if len(pskBinders[i]) != len(m.pskBinders[i]) {
+			panic("tls: internal error: pskBinders length mismatch")
+		}
+	}
+	m.pskBinders = pskBinders
+	if m.raw != nil {
+		lenWithoutBinders := len(m.marshalWithoutBinders())
+		// TODO(filippo): replace with NewFixedBuilder once CL 148882 is imported.
+		b := cryptobyte.NewBuilder(m.raw[:lenWithoutBinders])
+		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+			for _, binder := range m.pskBinders {
+				b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
+					b.AddBytes(binder)
+				})
+			}
+		})
+		if len(b.BytesOrPanic()) != len(m.raw) {
+			panic("tls: internal error: failed to update binders")
+		}
+	}
+}
+
 func (m *clientHelloMsg) unmarshal(data []byte) bool {
 	*m = clientHelloMsg{raw: data}
 	s := cryptobyte.String(data)

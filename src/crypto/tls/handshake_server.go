@@ -756,14 +756,7 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
 func (hs *serverHandshakeState) setCipherSuite(id uint16, supportedCipherSuites []uint16, version uint16) bool {
 	for _, supported := range supportedCipherSuites {
 		if id == supported {
-			var candidate *cipherSuite
-
-			for _, s := range cipherSuites {
-				if s.id == id {
-					candidate = s
-					break
-				}
-			}
+			candidate := cipherSuiteByID(id)
 			if candidate == nil {
 				continue
 			}

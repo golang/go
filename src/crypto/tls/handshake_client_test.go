@@ -529,7 +529,7 @@ func runClientTestForVersion(t *testing.T, template *clientTest, version, option
 
 		test.name = version + "-" + test.name
 		if len(test.command) == 0 {
-			test.command = defaultClientCommand
+			test.command = defaultServerCommand
 		}
 		test.command = append([]string(nil), test.command...)
 		test.command = append(test.command, option)
@@ -746,10 +746,9 @@ func TestHandshakeClientCHACHA20SHA256(t *testing.T) {
 
 func TestHandshakeClientECDSATLS13(t *testing.T) {
 	test := &clientTest{
-		name:    "ECDSA",
-		command: []string{"openssl", "s_server"},
-		cert:    testECDSACertificate,
-		key:     testECDSAPrivateKey,
+		name: "ECDSA",
+		cert: testECDSACertificate,
+		key:  testECDSAPrivateKey,
 	}
 	runClientTestTLS13(t, test)
 }
@@ -871,6 +870,9 @@ func TestClientKeyUpdate(t *testing.T) {
 }
 
 func TestClientResumption(t *testing.T) {
+	// TODO(filippo): update to test both TLS 1.3 and 1.2 once PSK are
+	// supported server-side.
+
 	serverConfig := &Config{
 		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
 		Certificates: testConfig.Certificates,
@@ -906,6 +908,10 @@ func TestClientResumption(t *testing.T) {
 
 	getTicket := func() []byte {
 		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.sessionTicket
+	}
+	deleteTicket := func() {
+		ticketKey := clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).sessionKey
+		clientConfig.ClientSessionCache.Put(ticketKey, nil)
 	}
 	randomKey := func() [32]byte {
 		var k [32]byte
@@ -951,6 +957,28 @@ func TestClientResumption(t *testing.T) {
 	testResumeState("DifferentCipherSuite", false)
 	testResumeState("DifferentCipherSuiteRecovers", true)
 
+	deleteTicket()
+	testResumeState("WithoutSessionTicket", false)
+
+	// Session resumption should work when using client certificates
+	deleteTicket()
+	serverConfig.ClientCAs = rootCAs
+	serverConfig.ClientAuth = RequireAndVerifyClientCert
+	clientConfig.Certificates = serverConfig.Certificates
+	testResumeState("InitialHandshake", false)
+	testResumeState("WithClientCertificates", true)
+
+	// Tickets should be removed from the session cache on TLS handshake failure
+	farFuture := func() time.Time { return time.Unix(16725225600, 0) }
+	serverConfig.Time = farFuture
+	_, _, err = testHandshake(t, clientConfig, serverConfig)
+	if err == nil {
+		t.Fatalf("handshake did not fail after client certificate expiry")
+	}
+	serverConfig.Time = nil
+	testResumeState("AfterHandshakeFailure", false)
+	serverConfig.ClientAuth = NoClientCert
+
 	clientConfig.ClientSessionCache = nil
 	testResumeState("WithoutSessionCache", false)
 }
@@ -994,10 +1022,21 @@ func TestLRUClientSessionCache(t *testing.T) {
 		t.Fatalf("session cache failed update for key 0")
 	}
 
-	// Adding a nil entry is valid.
+	// Calling Put with a nil entry deletes the key.
 	cache.Put(keys[0], nil)
-	if s, ok := cache.Get(keys[0]); !ok || s != nil {
-		t.Fatalf("failed to add nil entry to cache")
+	if _, ok := cache.Get(keys[0]); ok {
+		t.Fatalf("session cache failed to delete key 0")
+	}
+
+	// Delete entry 2. LRU should keep 4 and 5
+	cache.Put(keys[2], nil)
+	if _, ok := cache.Get(keys[2]); ok {
+		t.Fatalf("session cache failed to delete key 4")
+	}
+	for i := 4; i < 6; i++ {
+		if s, ok := cache.Get(keys[i]); !ok || s != &cs[i] {
+			t.Fatalf("session cache should not have deleted key: %s", keys[i])
+		}
 	}
 }
 
@@ -1128,11 +1167,10 @@ func TestHandshakClientSCTs(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Note that this needs OpenSSL 1.0.2 because that is the first
+	// version that supports the -serverinfo flag.
 	test := &clientTest{
-		name: "SCT",
-		// Note that this needs OpenSSL 1.0.2 because that is the first
-		// version that supports the -serverinfo flag.
-		command:    []string{"openssl", "s_server"},
+		name:       "SCT",
 		config:     config,
 		extensions: [][]byte{scts},
 		validate: func(state ConnectionState) error {
@@ -1237,9 +1275,8 @@ func TestRenegotiateTwiceRejected(t *testing.T) {
 
 func TestHandshakeClientExportKeyingMaterial(t *testing.T) {
 	test := &clientTest{
-		name:    "ExportKeyingMaterial",
-		command: []string{"openssl", "s_server"},
-		config:  testConfig.Clone(),
+		name:   "ExportKeyingMaterial",
+		config: testConfig.Clone(),
 		validate: func(state ConnectionState) error {
 			if km, err := state.ExportKeyingMaterial("test", nil, 42); err != nil {
 				return fmt.Errorf("ExportKeyingMaterial failed: %v", err)
