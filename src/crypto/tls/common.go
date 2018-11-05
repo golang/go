@@ -234,6 +234,17 @@ const (
 	RequireAndVerifyClientCert
 )
 
+// requiresClientCert returns whether the ClientAuthType requires a client
+// certificate to be provided.
+func requiresClientCert(c ClientAuthType) bool {
+	switch c {
+	case RequireAnyClientCert, RequireAndVerifyClientCert:
+		return true
+	default:
+		return false
+	}
+}
+
 // ClientSessionState contains the state needed by clients to resume TLS
 // sessions.
 type ClientSessionState struct {
@@ -598,6 +609,10 @@ func ticketKeyFromBytes(b [32]byte) (key ticketKey) {
 	copy(key.hmacKey[:], hashed[ticketKeyNameLen+16:ticketKeyNameLen+32])
 	return key
 }
+
+// maxSessionTicketLifetime is the maximum allowed lifetime of a TLS 1.3 session
+// ticket, and the lifetime we set for tickets we send.
+const maxSessionTicketLifetime = 7 * 24 * time.Hour
 
 // Clone returns a shallow clone of c. It is safe to clone a Config that is
 // being used concurrently by a TLS client or server.

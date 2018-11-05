@@ -869,11 +869,14 @@ func TestClientKeyUpdate(t *testing.T) {
 	runClientTestTLS13(t, test)
 }
 
-func TestClientResumption(t *testing.T) {
-	// TODO(filippo): update to test both TLS 1.3 and 1.2 once PSK are
-	// supported server-side.
+func TestResumption(t *testing.T) {
+	t.Run("TLSv12", func(t *testing.T) { testResumption(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testResumption(t, VersionTLS13) })
+}
 
+func testResumption(t *testing.T, version uint16) {
 	serverConfig := &Config{
+		MaxVersion:   version,
 		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
 		Certificates: testConfig.Certificates,
 	}
@@ -887,6 +890,7 @@ func TestClientResumption(t *testing.T) {
 	rootCAs.AddCert(issuer)
 
 	clientConfig := &Config{
+		MaxVersion:         version,
 		CipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
 		ClientSessionCache: NewLRUClientSessionCache(32),
 		RootCAs:            rootCAs,
@@ -924,8 +928,11 @@ func TestClientResumption(t *testing.T) {
 	testResumeState("Handshake", false)
 	ticket := getTicket()
 	testResumeState("Resume", true)
-	if !bytes.Equal(ticket, getTicket()) {
+	if !bytes.Equal(ticket, getTicket()) && version != VersionTLS13 {
 		t.Fatal("first ticket doesn't match ticket after resumption")
+	}
+	if bytes.Equal(ticket, getTicket()) && version == VersionTLS13 {
+		t.Fatal("ticket didn't change after resumption")
 	}
 
 	key1 := randomKey()
@@ -946,6 +953,7 @@ func TestClientResumption(t *testing.T) {
 	// Reset serverConfig to ensure that calling SetSessionTicketKeys
 	// before the serverConfig is used works.
 	serverConfig = &Config{
+		MaxVersion:   version,
 		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
 		Certificates: testConfig.Certificates,
 	}
@@ -953,9 +961,13 @@ func TestClientResumption(t *testing.T) {
 
 	testResumeState("FreshConfig", true)
 
-	clientConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_RC4_128_SHA}
-	testResumeState("DifferentCipherSuite", false)
-	testResumeState("DifferentCipherSuiteRecovers", true)
+	// In TLS 1.3, cross-cipher suite resumption is allowed as long as the KDF
+	// hash matches. Also, Config.CipherSuites does not apply to TLS 1.3.
+	if version != VersionTLS13 {
+		clientConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+		testResumeState("DifferentCipherSuite", false)
+		testResumeState("DifferentCipherSuiteRecovers", true)
+	}
 
 	deleteTicket()
 	testResumeState("WithoutSessionTicket", false)
@@ -966,18 +978,21 @@ func TestClientResumption(t *testing.T) {
 	serverConfig.ClientAuth = RequireAndVerifyClientCert
 	clientConfig.Certificates = serverConfig.Certificates
 	testResumeState("InitialHandshake", false)
-	testResumeState("WithClientCertificates", true)
+	if version != VersionTLS13 {
+		// TODO(filippo): reenable when client authentication is implemented
+		testResumeState("WithClientCertificates", true)
 
-	// Tickets should be removed from the session cache on TLS handshake failure
-	farFuture := func() time.Time { return time.Unix(16725225600, 0) }
-	serverConfig.Time = farFuture
-	_, _, err = testHandshake(t, clientConfig, serverConfig)
-	if err == nil {
-		t.Fatalf("handshake did not fail after client certificate expiry")
+		// Tickets should be removed from the session cache on TLS handshake failure
+		farFuture := func() time.Time { return time.Unix(16725225600, 0) }
+		serverConfig.Time = farFuture
+		_, _, err = testHandshake(t, clientConfig, serverConfig)
+		if err == nil {
+			t.Fatalf("handshake did not fail after client certificate expiry")
+		}
+		serverConfig.Time = nil
+		testResumeState("AfterHandshakeFailure", false)
+		serverConfig.ClientAuth = NoClientCert
 	}
-	serverConfig.Time = nil
-	testResumeState("AfterHandshakeFailure", false)
-	serverConfig.ClientAuth = NoClientCert
 
 	clientConfig.ClientSessionCache = nil
 	testResumeState("WithoutSessionCache", false)
