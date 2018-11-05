@@ -58,9 +58,6 @@ func Import(path string) (m module.Version, dir string, err error) {
 
 	// Is the package in the standard library?
 	if search.IsStandardImportPath(path) {
-		if strings.HasPrefix(path, "golang_org/") {
-			return module.Version{}, filepath.Join(cfg.GOROOT, "src/vendor", path), nil
-		}
 		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
 			dir := filepath.Join(cfg.GOROOT, "src", path)
 			return module.Version{}, dir, nil

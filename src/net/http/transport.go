@@ -30,8 +30,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang_org/x/net/http/httpguts"
-	"golang_org/x/net/http/httpproxy"
+	"internal/x/net/http/httpguts"
+	"internal/x/net/http/httpproxy"
 )
 
 // DefaultTransport is the default implementation of Transport and is
