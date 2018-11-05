@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"golang_org/x/net/dns/dnsmessage"
+	"internal/x/net/dns/dnsmessage"
 )
 
 var (

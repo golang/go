@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"sort"
 
-	"golang_org/x/net/dns/dnsmessage"
+	"internal/x/net/dns/dnsmessage"
 )
 
 // reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP

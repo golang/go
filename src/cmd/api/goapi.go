@@ -442,13 +442,8 @@ func (w *Walker) Import(name string) (*types.Package, error) {
 	}
 	w.imported[name] = &importing
 
-	root := w.root
-	if strings.HasPrefix(name, "golang_org/x/") {
-		root = filepath.Join(root, "vendor")
-	}
-
 	// Determine package files.
-	dir := filepath.Join(root, filepath.FromSlash(name))
+	dir := filepath.Join(w.root, filepath.FromSlash(name))
 	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
 		log.Fatalf("no source in tree for import %q: %v", name, err)
 	}
