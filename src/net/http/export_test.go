@@ -242,3 +242,5 @@ func ExportSetH2GoawayTimeout(d time.Duration) (restore func()) {
 	http2goAwayTimeout = d
 	return func() { http2goAwayTimeout = old }
 }
+
+func (r *Request) ExportIsReplayable() bool { return r.isReplayable() }
