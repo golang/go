@@ -5025,8 +5025,7 @@ func TestStructOfTooManyFields(t *testing.T) {
 		{Name: "Time", Type: TypeOf(time.Time{}), Anonymous: true},
 	})
 
-	_, present := tt.MethodByName("After")
-	if present != true {
+	if _, present := tt.MethodByName("After"); !present {
 		t.Errorf("Expected method `After` to be found")
 	}
 }

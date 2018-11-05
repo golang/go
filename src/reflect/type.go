@@ -2538,30 +2538,26 @@ func StructOf(fields []StructField) Type {
 	var typ *structType
 	var ut *uncommonType
 
-	switch {
-	case len(methods) == 0:
+	if len(methods) == 0 {
 		t := new(structTypeUncommon)
 		typ = &t.structType
 		ut = &t.u
-	default:
+	} else {
 		// A *rtype representing a struct is followed directly in memory by an
 		// array of method objects representing the methods attached to the
 		// struct. To get the same layout for a run time generated type, we
-		// need an array directly following the uncommonType memory. The types
-		// structTypeFixed4, ...structTypeFixedN are used to do this.
-		//
+		// need an array directly following the uncommonType memory.
 		// A similar strategy is used for funcTypeFixed4, ...funcTypeFixedN.
-
 		tt := New(StructOf([]StructField{
 			{Name: "S", Type: TypeOf(structType{})},
 			{Name: "U", Type: TypeOf(uncommonType{})},
 			{Name: "M", Type: ArrayOf(len(methods), TypeOf(methods[0]))},
 		}))
 
-		typ = (*structType)(unsafe.Pointer(tt.Pointer()))
-		ut = (*uncommonType)(unsafe.Pointer(tt.Pointer() + unsafe.Sizeof(*typ)))
+		typ = (*structType)(unsafe.Pointer(tt.Elem().Field(0).UnsafeAddr()))
+		ut = (*uncommonType)(unsafe.Pointer(tt.Elem().Field(1).UnsafeAddr()))
 
-		copy(tt.Elem().FieldByName("M").Slice(0, len(methods)).Interface().([]method), methods)
+		copy(tt.Elem().Field(2).Slice(0, len(methods)).Interface().([]method), methods)
 	}
 	// TODO(sbinet): Once we allow embedding multiple types,
 	// methods will need to be sorted like the compiler does.
