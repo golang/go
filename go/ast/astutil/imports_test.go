@@ -30,7 +30,7 @@ func print(t *testing.T, name string, f *ast.File) string {
 	if err := format.Node(&buf, fset, f); err != nil {
 		t.Fatalf("%s gofmt: %v", name, err)
 	}
-	return string(buf.Bytes())
+	return buf.String()
 }
 
 type test struct {
@@ -39,7 +39,7 @@ type test struct {
 	pkg        string
 	in         string
 	out        string
-	broken     bool // known broken
+	unchanged  bool // Expect added/deleted return value to be false.
 }
 
 var addTests = []test{
@@ -58,6 +58,7 @@ import (
 	"os"
 )
 `,
+		unchanged: true,
 	},
 	{
 		name: "import.1",
@@ -657,6 +658,117 @@ import (
 )
 `,
 	},
+
+	// Issue 28605: Add specified import, even if that import path is imported under another name
+	{
+		name:       "issue 28605 add unnamed path",
+		renamedPkg: "",
+		pkg:        "path",
+		in: `package main
+
+import (
+	. "path"
+	_ "path"
+	pathpkg "path"
+)
+`,
+		out: `package main
+
+import (
+	"path"
+	. "path"
+	_ "path"
+	pathpkg "path"
+)
+`,
+	},
+	{
+		name:       "issue 28605 add pathpkg-renamed path",
+		renamedPkg: "pathpkg",
+		pkg:        "path",
+		in: `package main
+
+import (
+	"path"
+	. "path"
+	_ "path"
+)
+`,
+		out: `package main
+
+import (
+	"path"
+	. "path"
+	_ "path"
+	pathpkg "path"
+)
+`,
+	},
+	{
+		name:       "issue 28605 add blank identifier path",
+		renamedPkg: "_",
+		pkg:        "path",
+		in: `package main
+
+import (
+	"path"
+	. "path"
+	pathpkg "path"
+)
+`,
+		out: `package main
+
+import (
+	"path"
+	. "path"
+	_ "path"
+	pathpkg "path"
+)
+`,
+	},
+	{
+		name:       "issue 28605 add dot import path",
+		renamedPkg: ".",
+		pkg:        "path",
+		in: `package main
+
+import (
+	"path"
+	_ "path"
+	pathpkg "path"
+)
+`,
+		out: `package main
+
+import (
+	"path"
+	. "path"
+	_ "path"
+	pathpkg "path"
+)
+`,
+	},
+
+	{
+		name:       "duplicate import declarations, add existing one",
+		renamedPkg: "f",
+		pkg:        "fmt",
+		in: `package main
+
+import "fmt"
+import "fmt"
+import f "fmt"
+import f "fmt"
+`,
+		out: `package main
+
+import "fmt"
+import "fmt"
+import f "fmt"
+import f "fmt"
+`,
+		unchanged: true,
+	},
 }
 
 func TestAddImport(t *testing.T) {
@@ -664,17 +776,25 @@ func TestAddImport(t *testing.T) {
 		file := parse(t, test.name, test.in)
 		var before bytes.Buffer
 		ast.Fprint(&before, fset, file, nil)
-		AddNamedImport(fset, file, test.renamedPkg, test.pkg)
+		added := AddNamedImport(fset, file, test.renamedPkg, test.pkg)
 		if got := print(t, test.name, file); got != test.out {
-			if test.broken {
-				t.Logf("%s is known broken:\ngot: %s\nwant: %s", test.name, got, test.out)
-			} else {
-				t.Errorf("%s:\ngot: %s\nwant: %s", test.name, got, test.out)
-			}
+			t.Errorf("first run: %s:\ngot: %s\nwant: %s", test.name, got, test.out)
 			var after bytes.Buffer
 			ast.Fprint(&after, fset, file, nil)
-
 			t.Logf("AST before:\n%s\nAST after:\n%s\n", before.String(), after.String())
+		}
+		if got, want := added, !test.unchanged; got != want {
+			t.Errorf("first run: %s: added = %v, want %v", test.name, got, want)
+		}
+
+		// AddNamedImport should be idempotent. Verify that by calling it again,
+		// expecting no change to the AST, and the returned added value to always be false.
+		added = AddNamedImport(fset, file, test.renamedPkg, test.pkg)
+		if got := print(t, test.name, file); got != test.out {
+			t.Errorf("second run: %s:\ngot: %s\nwant: %s", test.name, got, test.out)
+		}
+		if got, want := added, false; got != want {
+			t.Errorf("second run: %s: added = %v, want %v", test.name, got, want)
 		}
 	}
 }
@@ -1405,14 +1525,161 @@ import (
 )
 `,
 	},
+
+	// Issue 28605: Delete specified import, even if that import path is imported under another name
+	{
+		name:       "import.38",
+		renamedPkg: "",
+		pkg:        "path",
+		in: `package main
+
+import (
+	"path"
+	. "path"
+	_ "path"
+	pathpkg "path"
+)
+`,
+		out: `package main
+
+import (
+	. "path"
+	_ "path"
+	pathpkg "path"
+)
+`,
+	},
+	{
+		name:       "import.39",
+		renamedPkg: "pathpkg",
+		pkg:        "path",
+		in: `package main
+
+import (
+	"path"
+	. "path"
+	_ "path"
+	pathpkg "path"
+)
+`,
+		out: `package main
+
+import (
+	"path"
+	. "path"
+	_ "path"
+)
+`,
+	},
+	{
+		name:       "import.40",
+		renamedPkg: "_",
+		pkg:        "path",
+		in: `package main
+
+import (
+	"path"
+	. "path"
+	_ "path"
+	pathpkg "path"
+)
+`,
+		out: `package main
+
+import (
+	"path"
+	. "path"
+	pathpkg "path"
+)
+`,
+	},
+	{
+		name:       "import.41",
+		renamedPkg: ".",
+		pkg:        "path",
+		in: `package main
+
+import (
+	"path"
+	. "path"
+	_ "path"
+	pathpkg "path"
+)
+`,
+		out: `package main
+
+import (
+	"path"
+	_ "path"
+	pathpkg "path"
+)
+`,
+	},
+
+	// Duplicate import declarations, all matching ones are deleted.
+	{
+		name:       "import.42",
+		renamedPkg: "f",
+		pkg:        "fmt",
+		in: `package main
+
+import "fmt"
+import "fmt"
+import f "fmt"
+import f "fmt"
+`,
+		out: `package main
+
+import "fmt"
+import "fmt"
+`,
+	},
+	{
+		name:       "import.43",
+		renamedPkg: "x",
+		pkg:        "fmt",
+		in: `package main
+
+import "fmt"
+import "fmt"
+import f "fmt"
+import f "fmt"
+`,
+		out: `package main
+
+import "fmt"
+import "fmt"
+import f "fmt"
+import f "fmt"
+`,
+		unchanged: true,
+	},
 }
 
 func TestDeleteImport(t *testing.T) {
 	for _, test := range deleteTests {
 		file := parse(t, test.name, test.in)
-		DeleteNamedImport(fset, file, test.renamedPkg, test.pkg)
+		var before bytes.Buffer
+		ast.Fprint(&before, fset, file, nil)
+		deleted := DeleteNamedImport(fset, file, test.renamedPkg, test.pkg)
 		if got := print(t, test.name, file); got != test.out {
-			t.Errorf("%s:\ngot: %s\nwant: %s", test.name, got, test.out)
+			t.Errorf("first run: %s:\ngot: %s\nwant: %s", test.name, got, test.out)
+			var after bytes.Buffer
+			ast.Fprint(&after, fset, file, nil)
+			t.Logf("AST before:\n%s\nAST after:\n%s\n", before.String(), after.String())
+		}
+		if got, want := deleted, !test.unchanged; got != want {
+			t.Errorf("first run: %s: deleted = %v, want %v", test.name, got, want)
+		}
+
+		// DeleteNamedImport should be idempotent. Verify that by calling it again,
+		// expecting no change to the AST, and the returned deleted value to always be false.
+		deleted = DeleteNamedImport(fset, file, test.renamedPkg, test.pkg)
+		if got := print(t, test.name, file); got != test.out {
+			t.Errorf("second run: %s:\ngot: %s\nwant: %s", test.name, got, test.out)
+		}
+		if got, want := deleted, false; got != want {
+			t.Errorf("second run: %s: deleted = %v, want %v", test.name, got, want)
 		}
 	}
 }
