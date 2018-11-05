@@ -136,8 +136,8 @@ type mheap struct {
 	// _ uint32 // ensure 64-bit alignment of central
 
 	// central free lists for small size classes.
-	// the padding makes sure that the MCentrals are
-	// spaced CacheLinePadSize bytes apart, so that each MCentral.lock
+	// the padding makes sure that the mcentrals are
+	// spaced CacheLinePadSize bytes apart, so that each mcentral.lock
 	// gets its own cache line.
 	// central is indexed by spanClass.
 	central [numSpanClasses]struct {
@@ -196,20 +196,20 @@ type arenaHint struct {
 	next *arenaHint
 }
 
-// An MSpan is a run of pages.
+// An mspan is a run of pages.
 //
-// When a MSpan is in the heap free treap, state == mSpanFree
+// When a mspan is in the heap free treap, state == mSpanFree
 // and heapmap(s->start) == span, heapmap(s->start+s->npages-1) == span.
-// If the MSpan is in the heap scav treap, then in addition to the
+// If the mspan is in the heap scav treap, then in addition to the
 // above scavenged == true. scavenged == false in all other cases.
 //
-// When a MSpan is allocated, state == mSpanInUse or mSpanManual
+// When a mspan is allocated, state == mSpanInUse or mSpanManual
 // and heapmap(i) == span for all s->start <= i < s->start+s->npages.
 
-// Every MSpan is in one doubly-linked list, either in the MHeap's
-// busy list or one of the MCentral's span lists.
+// Every mspan is in one doubly-linked list, either in the mheap's
+// busy list or one of the mcentral's span lists.
 
-// An MSpan representing actual memory has state mSpanInUse,
+// An mspan representing actual memory has state mSpanInUse,
 // mSpanManual, or mSpanFree. Transitions between these states are
 // constrained as follows:
 //
@@ -880,10 +880,10 @@ func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
 HaveSpan:
 	// Mark span in use.
 	if s.state != mSpanFree {
-		throw("MHeap_AllocLocked - MSpan not free")
+		throw("mheap.allocLocked - mspan not free")
 	}
 	if s.npages < npage {
-		throw("MHeap_AllocLocked - bad npages")
+		throw("mheap.allocLocked - bad npages")
 	}
 
 	// First, subtract any memory that was released back to
@@ -1022,16 +1022,16 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 	switch s.state {
 	case mSpanManual:
 		if s.allocCount != 0 {
-			throw("MHeap_FreeSpanLocked - invalid stack free")
+			throw("mheap.freeSpanLocked - invalid stack free")
 		}
 	case mSpanInUse:
 		if s.allocCount != 0 || s.sweepgen != h.sweepgen {
-			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.base()), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
-			throw("MHeap_FreeSpanLocked - invalid free")
+			print("mheap.freeSpanLocked - span ", s, " ptr ", hex(s.base()), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
+			throw("mheap.freeSpanLocked - invalid free")
 		}
 		h.pagesInUse -= uint64(s.npages)
 	default:
-		throw("MHeap_FreeSpanLocked - invalid span state")
+		throw("mheap.freeSpanLocked - invalid span state")
 	}
 
 	if acctinuse {
@@ -1251,9 +1251,9 @@ func (list *mSpanList) init() {
 
 func (list *mSpanList) remove(span *mspan) {
 	if span.list != list {
-		print("runtime: failed MSpanList_Remove span.npages=", span.npages,
+		print("runtime: failed mSpanList.remove span.npages=", span.npages,
 			" span=", span, " prev=", span.prev, " span.list=", span.list, " list=", list, "\n")
-		throw("MSpanList_Remove")
+		throw("mSpanList.remove")
 	}
 	if list.first == span {
 		list.first = span.next
@@ -1276,8 +1276,8 @@ func (list *mSpanList) isEmpty() bool {
 
 func (list *mSpanList) insert(span *mspan) {
 	if span.next != nil || span.prev != nil || span.list != nil {
-		println("runtime: failed MSpanList_Insert", span, span.next, span.prev, span.list)
-		throw("MSpanList_Insert")
+		println("runtime: failed mSpanList.insert", span, span.next, span.prev, span.list)
+		throw("mSpanList.insert")
 	}
 	span.next = list.first
 	if list.first != nil {
@@ -1294,8 +1294,8 @@ func (list *mSpanList) insert(span *mspan) {
 
 func (list *mSpanList) insertBack(span *mspan) {
 	if span.next != nil || span.prev != nil || span.list != nil {
-		println("runtime: failed MSpanList_InsertBack", span, span.next, span.prev, span.list)
-		throw("MSpanList_InsertBack")
+		println("runtime: failed mSpanList.insertBack", span, span.next, span.prev, span.list)
+		throw("mSpanList.insertBack")
 	}
 	span.prev = list.last
 	if list.last != nil {
@@ -1523,7 +1523,7 @@ func setprofilebucket(p unsafe.Pointer, b *bucket) {
 }
 
 // Do whatever cleanup needs to be done to deallocate s. It has
-// already been unlinked from the MSpan specials list.
+// already been unlinked from the mspan specials list.
 func freespecial(s *special, p unsafe.Pointer, size uintptr) {
 	switch s.kind {
 	case _KindSpecialFinalizer:

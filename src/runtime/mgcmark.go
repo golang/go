@@ -178,7 +178,7 @@ func markroot(gcw *gcWork, i uint32) {
 		systemstack(markrootFreeGStacks)
 
 	case baseSpans <= i && i < baseStacks:
-		// mark MSpan.specials
+		// mark mspan.specials
 		markrootSpans(gcw, int(i-baseSpans))
 
 	default:
