@@ -437,6 +437,11 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 			lpkg.initial = true
 		}
 	}
+	for i, root := range roots {
+		if initial[i] == nil {
+			return nil, fmt.Errorf("root package %v is missing", root)
+		}
+	}
 
 	// Materialize the import graph.
 

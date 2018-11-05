@@ -1488,6 +1488,31 @@ EOF
 	}
 }
 
+// This test that a simple x test package layout loads correctly.
+// There was a bug in go list where it returned multiple copies of the same
+// package (specifically in this case of golang.org/fake/a), and this triggered
+// a bug in go/packages where it would leave an empty entry in the root package
+// list. This would then cause a nil pointer crash.
+// This bug was triggered by the simple package layout below, and thus this
+// test will make sure the bug remains fixed.
+func TestBasicXTest(t *testing.T) { packagestest.TestAll(t, testBasicXTest) }
+func testBasicXTest(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go":      `package a;`,
+			"a/a_test.go": `package a_test;`,
+		}}})
+	defer exported.Cleanup()
+
+	exported.Config.Mode = packages.LoadFiles
+	exported.Config.Tests = true
+	_, err := packages.Load(exported.Config, "golang.org/fake/a")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func errorMessages(errors []packages.Error) []string {
 	var msgs []string
 	for _, err := range errors {

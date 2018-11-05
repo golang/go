@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -488,6 +489,7 @@ func golistDriverCurrent(cfg *Config, words ...string) (*driverResponse, error) 
 	if err != nil {
 		return nil, err
 	}
+	seen := make(map[string]*jsonPackage)
 	// Decode the JSON and convert it to Package form.
 	var response driverResponse
 	for dec := json.NewDecoder(buf); dec.More(); {
@@ -509,6 +511,15 @@ func golistDriverCurrent(cfg *Config, words ...string) (*driverResponse, error) 
 			}
 			return nil, fmt.Errorf("package missing import path: %+v", p)
 		}
+
+		if old, found := seen[p.ImportPath]; found {
+			if !reflect.DeepEqual(p, old) {
+				return nil, fmt.Errorf("go list repeated package %v with different values", p.ImportPath)
+			}
+			// skip the duplicate
+			continue
+		}
+		seen[p.ImportPath] = p
 
 		pkg := &Package{
 			Name:            p.Name,
