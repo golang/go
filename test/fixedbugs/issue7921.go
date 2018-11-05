@@ -46,7 +46,7 @@ func bufferNoEscape4() []byte {
 	return b.Bytes() // ERROR "inlining call" "b does not escape"
 }
 
-func bufferNoEscape5() {
+func bufferNoEscape5() { // ERROR "can inline bufferNoEscape5"
 	b := bytes.NewBuffer(make([]byte, 0, 128)) // ERROR "inlining call" "make\(\[\]byte, 0, 128\) does not escape" "&bytes.Buffer literal does not escape"
 	useBuffer(b)
 }
