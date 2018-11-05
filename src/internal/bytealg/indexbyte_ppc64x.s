@@ -21,22 +21,6 @@ TEXT ·IndexByteString(SB),NOSPLIT|NOFRAME,$0-32
 	MOVD	$ret+24(FP), R14  // R14 = &ret
 	BR	indexbytebody<>(SB)
 
-TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
-	MOVD	b_base+0(FP), R3	// R3 = byte array pointer
-	MOVD	b_len+8(FP), R4		// R4 = length
-	MOVBZ	c+24(FP), R5		// R5 = byte
-	MOVD	$ret+32(FP), R14	// R14 = &ret
-	BR	indexbytebody<>(SB)
-
-TEXT strings·IndexByte(SB),NOSPLIT|NOFRAME,$0-32
-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
-	MOVD	s_base+0(FP), R3  // R3 = string
-	MOVD	s_len+8(FP), R4	  // R4 = length
-	MOVBZ	c+16(FP), R5	  // R5 = byte
-	MOVD	$ret+24(FP), R14  // R14 = &ret
-	BR	indexbytebody<>(SB)
-
 TEXT indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R3,R17		// Save base address for calculating the index later.
 	RLDICR	$0,R3,$60,R8	// Align address to doubleword boundary in R8.

@@ -1,6 +1,5 @@
 // nacl/amd64p32-specific vet whitelist. See readme.txt for details.
 
-internal/bytealg/compare_amd64p32.s: [amd64p32] cannot check cross-package assembly function: Compare is in package bytes
 internal/bytealg/compare_amd64p32.s: [amd64p32] cannot check cross-package assembly function: cmpstring is in package runtime
 
 // reflect trampolines intentionally omit arg size. Same for morestack.

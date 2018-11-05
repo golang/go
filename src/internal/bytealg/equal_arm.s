@@ -35,10 +35,6 @@ equal:
 	MOVBU	R0, ret+24(FP)
 	RET
 
-TEXT bytes·Equal(SB),NOSPLIT,$0-25
-	FUNCDATA $0, ·Equal·args_stackmap(SB)
-	JMP	·Equal(SB)
-
 // memequal(a, b unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-13
 	MOVW	a+0(FP), R1
