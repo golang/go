@@ -30,6 +30,23 @@ func addBytesWithLength(b *cryptobyte.Builder, v []byte, n int) {
 	}))
 }
 
+// addUint64 appends a big-endian, 64-bit value to the cryptobyte.Builder.
+func addUint64(b *cryptobyte.Builder, v uint64) {
+	b.AddUint32(uint32(v >> 32))
+	b.AddUint32(uint32(v))
+}
+
+// readUint64 decodes a big-endian, 64-bit value into out and advances over it.
+// It reports whether the read was successful.
+func readUint64(s *cryptobyte.String, out *uint64) bool {
+	var hi, lo uint32
+	if !s.ReadUint32(&hi) || !s.ReadUint32(&lo) {
+		return false
+	}
+	*out = uint64(hi)<<32 | uint64(lo)
+	return true
+}
+
 // readUint8LengthPrefixed acts like s.ReadUint8LengthPrefixed, but targets a
 // []byte instead of a cryptobyte.String.
 func readUint8LengthPrefixed(s *cryptobyte.String, out *[]byte) bool {
@@ -1266,58 +1283,81 @@ func (m *certificateMsgTLS13) marshal() []byte {
 	b.AddUint8(typeCertificate)
 	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
 		b.AddUint8(0) // certificate_request_context
-		b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
-			for i, cert := range m.certificate.Certificate {
-				b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
-					b.AddBytes(cert)
-				})
-				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-					if i > 0 {
-						// This library only supports OCSP and SCT for leaf certificates.
-						return
-					}
-					if m.ocspStapling {
-						b.AddUint16(extensionStatusRequest)
-						b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-							b.AddUint8(statusTypeOCSP)
-							b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
-								b.AddBytes(m.certificate.OCSPStaple)
-							})
-						})
-					}
-					if m.scts {
-						b.AddUint16(extensionSCT)
-						b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-							b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-								for _, sct := range m.certificate.SignedCertificateTimestamps {
-									b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
-										b.AddBytes(sct)
-									})
-								}
-							})
-						})
-					}
-				})
-			}
-		})
+
+		certificate := m.certificate
+		if !m.ocspStapling {
+			certificate.OCSPStaple = nil
+		}
+		if !m.scts {
+			certificate.SignedCertificateTimestamps = nil
+		}
+		marshalCertificate(b, certificate)
 	})
 
 	m.raw = b.BytesOrPanic()
 	return m.raw
 }
 
+func marshalCertificate(b *cryptobyte.Builder, certificate Certificate) {
+	b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+		for i, cert := range certificate.Certificate {
+			b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+				b.AddBytes(cert)
+			})
+			b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+				if i > 0 {
+					// This library only supports OCSP and SCT for leaf certificates.
+					return
+				}
+				if certificate.OCSPStaple != nil {
+					b.AddUint16(extensionStatusRequest)
+					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+						b.AddUint8(statusTypeOCSP)
+						b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+							b.AddBytes(certificate.OCSPStaple)
+						})
+					})
+				}
+				if certificate.SignedCertificateTimestamps != nil {
+					b.AddUint16(extensionSCT)
+					b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+						b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+							for _, sct := range certificate.SignedCertificateTimestamps {
+								b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+									b.AddBytes(sct)
+								})
+							}
+						})
+					})
+				}
+			})
+		}
+	})
+}
+
 func (m *certificateMsgTLS13) unmarshal(data []byte) bool {
 	*m = certificateMsgTLS13{raw: data}
 	s := cryptobyte.String(data)
 
-	var context, certList cryptobyte.String
+	var context cryptobyte.String
 	if !s.Skip(4) || // message type and uint24 length field
 		!s.ReadUint8LengthPrefixed(&context) || !context.Empty() ||
-		!s.ReadUint24LengthPrefixed(&certList) ||
+		!unmarshalCertificate(&s, &m.certificate) ||
 		!s.Empty() {
 		return false
 	}
 
+	m.scts = m.certificate.SignedCertificateTimestamps != nil
+	m.ocspStapling = m.certificate.OCSPStaple != nil
+
+	return true
+}
+
+func unmarshalCertificate(s *cryptobyte.String, certificate *Certificate) bool {
+	var certList cryptobyte.String
+	if !s.ReadUint24LengthPrefixed(&certList) {
+		return false
+	}
 	for !certList.Empty() {
 		var cert []byte
 		var extensions cryptobyte.String
@@ -1325,7 +1365,7 @@ func (m *certificateMsgTLS13) unmarshal(data []byte) bool {
 			!certList.ReadUint16LengthPrefixed(&extensions) {
 			return false
 		}
-		m.certificate.Certificate = append(m.certificate.Certificate, cert)
+		certificate.Certificate = append(certificate.Certificate, cert)
 		for !extensions.Empty() {
 			var extension uint16
 			var extData cryptobyte.String
@@ -1333,22 +1373,20 @@ func (m *certificateMsgTLS13) unmarshal(data []byte) bool {
 				!extensions.ReadUint16LengthPrefixed(&extData) {
 				return false
 			}
-			if len(m.certificate.Certificate) > 1 {
+			if len(certificate.Certificate) > 1 {
 				// This library only supports OCSP and SCT for leaf certificates.
 				continue
 			}
 
 			switch extension {
 			case extensionStatusRequest:
-				m.ocspStapling = true
 				var statusType uint8
 				if !extData.ReadUint8(&statusType) || statusType != statusTypeOCSP ||
-					!readUint24LengthPrefixed(&extData, &m.certificate.OCSPStaple) ||
-					len(m.certificate.OCSPStaple) == 0 {
+					!readUint24LengthPrefixed(&extData, &certificate.OCSPStaple) ||
+					len(certificate.OCSPStaple) == 0 {
 					return false
 				}
 			case extensionSCT:
-				m.scts = true
 				var sctList cryptobyte.String
 				if !extData.ReadUint16LengthPrefixed(&sctList) || sctList.Empty() {
 					return false
@@ -1359,8 +1397,8 @@ func (m *certificateMsgTLS13) unmarshal(data []byte) bool {
 						len(sct) == 0 {
 						return false
 					}
-					m.certificate.SignedCertificateTimestamps = append(
-						m.certificate.SignedCertificateTimestamps, sct)
+					certificate.SignedCertificateTimestamps = append(
+						certificate.SignedCertificateTimestamps, sct)
 				}
 			default:
 				// Ignore unknown extensions.

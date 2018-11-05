@@ -29,6 +29,7 @@ var tests = []interface{}{
 	&nextProtoMsg{},
 	&newSessionTicketMsg{},
 	&sessionState{},
+	&sessionStateTLS13{},
 	&encryptedExtensionsMsg{},
 	&endOfEarlyDataMsg{},
 	&keyUpdateMsg{},
@@ -328,6 +329,27 @@ func (*sessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 	s.certificates = make([][]byte, numCerts)
 	for i := 0; i < numCerts; i++ {
 		s.certificates[i] = randomBytes(rand.Intn(10)+1, rand)
+	}
+	return reflect.ValueOf(s)
+}
+
+func (*sessionStateTLS13) Generate(rand *rand.Rand, size int) reflect.Value {
+	s := &sessionStateTLS13{}
+	s.cipherSuite = uint16(rand.Intn(10000))
+	s.resumptionSecret = randomBytes(rand.Intn(100)+1, rand)
+	s.createdAt = uint64(rand.Int63())
+	for i := 0; i < rand.Intn(2)+1; i++ {
+		s.certificate.Certificate = append(
+			s.certificate.Certificate, randomBytes(rand.Intn(500)+1, rand))
+	}
+	if rand.Intn(10) > 5 {
+		s.certificate.OCSPStaple = randomBytes(rand.Intn(100)+1, rand)
+	}
+	if rand.Intn(10) > 5 {
+		for i := 0; i < rand.Intn(2)+1; i++ {
+			s.certificate.SignedCertificateTimestamps = append(
+				s.certificate.SignedCertificateTimestamps, randomBytes(rand.Intn(500)+1, rand))
+		}
 	}
 	return reflect.ValueOf(s)
 }

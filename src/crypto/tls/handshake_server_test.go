@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/big"
 	"net"
 	"os"
@@ -348,21 +349,41 @@ func TestClose(t *testing.T) {
 
 func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverState, clientState ConnectionState, err error) {
 	c, s := localPipe(t)
-	done := make(chan bool)
+	errChan := make(chan error)
 	go func() {
 		cli := Client(c, clientConfig)
-		cli.Handshake()
+		err := cli.Handshake()
+		if err != nil {
+			errChan <- fmt.Errorf("client: %v", err)
+			c.Close()
+			return
+		}
+		defer cli.Close()
 		clientState = cli.ConnectionState()
-		c.Close()
-		done <- true
+		buf, err := ioutil.ReadAll(cli)
+		if err != nil {
+			t.Errorf("failed to call cli.Read: %v", err)
+		}
+		if got := string(buf); got != opensslSentinel {
+			t.Errorf("read %q from TLS connection, but expected %q", got, opensslSentinel)
+		}
+		errChan <- nil
 	}()
 	server := Server(s, serverConfig)
 	err = server.Handshake()
 	if err == nil {
 		serverState = server.ConnectionState()
+		if _, err := io.WriteString(server, opensslSentinel); err != nil {
+			t.Errorf("failed to call server.Write: %v", err)
+		}
+		if err := server.Close(); err != nil {
+			t.Errorf("failed to call server.Close: %v", err)
+		}
+		err = <-errChan
+	} else {
+		s.Close()
+		<-errChan
 	}
-	s.Close()
-	<-done
 	return
 }
 
@@ -1053,49 +1074,83 @@ func TestCipherSuiteCertPreferenceECDSA(t *testing.T) {
 	runServerTestTLS12(t, test)
 }
 
-func TestResumption(t *testing.T) {
+func TestServerResumption(t *testing.T) {
 	sessionFilePath := tempFile("")
 	defer os.Remove(sessionFilePath)
 
-	test := &serverTest{
+	testIssue := &serverTest{
 		name:    "IssueTicket",
 		command: []string{"openssl", "s_client", "-cipher", "AES128-SHA", "-sess_out", sessionFilePath},
 		wait:    true,
 	}
-	runServerTestTLS12(t, test)
-
-	test = &serverTest{
+	testResume := &serverTest{
 		name:    "Resume",
 		command: []string{"openssl", "s_client", "-cipher", "AES128-SHA", "-sess_in", sessionFilePath},
+		validate: func(state ConnectionState) error {
+			if !state.DidResume {
+				return errors.New("did not resume")
+			}
+			return nil
+		},
 	}
-	runServerTestTLS12(t, test)
+
+	runServerTestTLS12(t, testIssue)
+	runServerTestTLS12(t, testResume)
+
+	runServerTestTLS13(t, testIssue)
+	runServerTestTLS13(t, testResume)
+
+	config := testConfig.Clone()
+	config.CurvePreferences = []CurveID{CurveP256}
+
+	testResumeHRR := &serverTest{
+		name:    "Resume-HelloRetryRequest",
+		command: []string{"openssl", "s_client", "-curves", "X25519:P-256", "-sess_in", sessionFilePath},
+		config:  config,
+		validate: func(state ConnectionState) error {
+			if !state.DidResume {
+				return errors.New("did not resume")
+			}
+			return nil
+		},
+	}
+
+	runServerTestTLS13(t, testResumeHRR)
 }
 
-func TestResumptionDisabled(t *testing.T) {
+func TestServerResumptionDisabled(t *testing.T) {
 	sessionFilePath := tempFile("")
 	defer os.Remove(sessionFilePath)
 
 	config := testConfig.Clone()
 
-	test := &serverTest{
+	testIssue := &serverTest{
 		name:    "IssueTicketPreDisable",
 		command: []string{"openssl", "s_client", "-cipher", "AES128-SHA", "-sess_out", sessionFilePath},
 		config:  config,
 		wait:    true,
 	}
-	runServerTestTLS12(t, test)
-
-	config.SessionTicketsDisabled = true
-
-	test = &serverTest{
+	testResume := &serverTest{
 		name:    "ResumeDisabled",
 		command: []string{"openssl", "s_client", "-cipher", "AES128-SHA", "-sess_in", sessionFilePath},
 		config:  config,
+		validate: func(state ConnectionState) error {
+			if state.DidResume {
+				return errors.New("resumed with SessionTicketsDisabled")
+			}
+			return nil
+		},
 	}
-	runServerTestTLS12(t, test)
 
-	// One needs to manually confirm that the handshake in the golden data
-	// file for ResumeDisabled does not include a resumption handshake.
+	config.SessionTicketsDisabled = false
+	runServerTestTLS12(t, testIssue)
+	config.SessionTicketsDisabled = true
+	runServerTestTLS12(t, testResume)
+
+	config.SessionTicketsDisabled = false
+	runServerTestTLS13(t, testIssue)
+	config.SessionTicketsDisabled = true
+	runServerTestTLS13(t, testResume)
 }
 
 func TestFallbackSCSV(t *testing.T) {
@@ -1591,5 +1646,16 @@ func TestCloseServerConnectionOnIdleClient(t *testing.T) {
 		}
 	} else {
 		t.Errorf("Error expected, but no error returned")
+	}
+}
+
+func TestCloneHash(t *testing.T) {
+	h1 := crypto.SHA256.New()
+	h1.Write([]byte("test"))
+	s1 := h1.Sum(nil)
+	h2 := cloneHash(h1, crypto.SHA256)
+	s2 := h2.Sum(nil)
+	if !bytes.Equal(s1, s2) {
+		t.Error("cloned hash generated a different sum")
 	}
 }

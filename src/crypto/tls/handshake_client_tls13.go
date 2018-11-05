@@ -565,7 +565,7 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
 		return nil
 	}
 	lifetime := time.Duration(msg.lifetime) * time.Second
-	if lifetime > 7*24*time.Hour {
+	if lifetime > maxSessionTicketLifetime {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: received a session ticket with invalid lifetime")
 	}
