@@ -1390,7 +1390,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		}
 	}
 
-	if _, ok := header["Date"]; !ok {
+	if !header.has("Date") {
 		setHeader.date = appendTime(cw.res.dateBuf[:0], time.Now())
 	}
 

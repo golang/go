@@ -52,6 +52,13 @@ func (h Header) get(key string) string {
 	return ""
 }
 
+// has reports whether h has the provided key defined, even if it's
+// set to 0-length slice.
+func (h Header) has(key string) bool {
+	_, ok := h[key]
+	return ok
+}
+
 // Del deletes the values associated with key.
 // The key is case insensitive; it is canonicalized by
 // textproto.CanonicalMIMEHeaderKey.
