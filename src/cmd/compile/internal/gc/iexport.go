@@ -909,7 +909,7 @@ func (w *exportWriter) mpfloat(f *big.Float, typ *types.Type) {
 
 	manti, acc := mant.Int(nil)
 	if acc != big.Exact {
-		Fatalf("exporter: internal error")
+		Fatalf("mantissa scaling failed for %f (%s)", f, acc)
 	}
 	w.mpint(manti, typ)
 	if manti.Sign() != 0 {

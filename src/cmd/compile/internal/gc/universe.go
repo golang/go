@@ -200,8 +200,6 @@ func typeinit() {
 	isComplex[TCOMPLEX64] = true
 	isComplex[TCOMPLEX128] = true
 
-	isforw[TFORW] = true
-
 	// initialize okfor
 	for et := types.EType(0); et < NTYPE; et++ {
 		if isInt[et] || et == TIDEAL {
