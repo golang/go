@@ -347,7 +347,7 @@ func runNamedQueries(cfg *Config, driver driver, addPkg func(*Package), queries 
 }
 
 func getSizes(cfg *Config) (types.Sizes, error) {
-	stdout, err := invokeGo(cfg, "env", "GOARCH") // TODO(matloob): perhaps merge this call with the roots call?
+	stdout, err := invokeGo(cfg, "env", "GOARCH")
 	if err != nil {
 		return nil, err
 	}
