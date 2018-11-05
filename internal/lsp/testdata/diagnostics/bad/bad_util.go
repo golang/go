@@ -1,3 +1,5 @@
+// +build go1.11
+
 package bad
 
 func random2(y int) int {
