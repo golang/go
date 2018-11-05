@@ -15,7 +15,7 @@ import (
 
 // formatRange formats a document with a given range.
 func formatRange(v *source.View, uri protocol.DocumentURI, rng *protocol.Range) ([]protocol.TextEdit, error) {
-	data, err := v.GetFile(uri).Read()
+	data, err := v.GetFile(source.URI(uri)).Read()
 	if err != nil {
 		return nil, err
 	}

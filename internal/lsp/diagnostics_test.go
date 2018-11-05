@@ -86,8 +86,11 @@ func testDiagnostics(t *testing.T, exporter packagestest.Exporter) {
 		t.Fatal(err)
 	}
 	v := source.NewView()
-	v.Config = exported.Config
-	v.Config.Mode = packages.LoadSyntax
+	// merge the config objects
+	cfg := *exported.Config
+	cfg.Fset = v.Config.Fset
+	cfg.Mode = packages.LoadSyntax
+	v.Config = &cfg
 	for _, pkg := range pkgs {
 		for _, filename := range pkg.GoFiles {
 			diagnostics, err := diagnostics(v, source.ToURI(filename))

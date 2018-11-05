@@ -14,8 +14,8 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 )
 
-func diagnostics(v *source.View, uri protocol.DocumentURI) (map[string][]protocol.Diagnostic, error) {
-	pkg, err := v.TypeCheck(uri)
+func diagnostics(v *source.View, uri source.URI) (map[string][]protocol.Diagnostic, error) {
+	pkg, err := v.GetFile(uri).GetPackage()
 	if err != nil {
 		return nil, err
 	}

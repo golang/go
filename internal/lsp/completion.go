@@ -15,15 +15,25 @@ import (
 )
 
 func completion(v *source.View, uri protocol.DocumentURI, pos protocol.Position) (items []protocol.CompletionItem, err error) {
-	pkg, qfile, qpos, err := v.TypeCheckAtPosition(uri, pos)
+	f := v.GetFile(source.URI(uri))
 	if err != nil {
 		return nil, err
 	}
-	items, _, err = completions(pkg.Fset, qfile, qpos, pkg.Types, pkg.TypesInfo)
+	tok, err := f.GetToken()
 	if err != nil {
 		return nil, err
 	}
-	return items, nil
+	p := fromProtocolPosition(tok, pos)
+	file, err := f.GetAST() // Use p to prune the AST?
+	if err != nil {
+		return nil, err
+	}
+	pkg, err := f.GetPackage()
+	if err != nil {
+		return nil, err
+	}
+	items, _, err = completions(v.Config.Fset, file, p, pkg.Types, pkg.TypesInfo)
+	return items, err
 }
 
 // Completions returns the map of possible candidates for completion,

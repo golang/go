@@ -114,13 +114,14 @@ func (s *server) DidChange(ctx context.Context, params *protocol.DidChangeTextDo
 }
 
 func (s *server) cacheAndDiagnoseFile(ctx context.Context, uri protocol.DocumentURI, text string) {
-	s.view.GetFile(uri).SetContent([]byte(text))
+	f := s.view.GetFile(source.URI(uri))
+	f.SetContent([]byte(text))
 	go func() {
-		reports, err := diagnostics(s.view, uri)
+		reports, err := diagnostics(s.view, f.URI)
 		if err == nil {
 			for filename, diagnostics := range reports {
 				s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-					URI:         source.ToURI(filename),
+					URI:         protocol.DocumentURI(source.ToURI(filename)),
 					Diagnostics: diagnostics,
 				})
 			}
@@ -142,7 +143,7 @@ func (s *server) DidSave(context.Context, *protocol.DidSaveTextDocumentParams) e
 }
 
 func (s *server) DidClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
-	s.view.GetFile(params.TextDocument.URI).SetContent(nil)
+	s.view.GetFile(source.URI(params.TextDocument.URI)).SetContent(nil)
 	return nil
 }
 
