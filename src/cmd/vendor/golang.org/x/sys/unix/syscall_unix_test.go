@@ -450,9 +450,9 @@ func TestGetwd(t *testing.T) {
 		t.Fatalf("Open .: %s", err)
 	}
 	defer fd.Close()
-	// These are chosen carefully not to be symlinks on a Mac
-	// (unlike, say, /var, /etc)
-	dirs := []string{"/", "/usr/bin"}
+	// Some dirs might not exist, orcontain symlinks, which
+	// is checked for in the test loop
+	dirs := []string{"/", "/usr/bin", "/etc", "/var", "/opt"}
 	switch runtime.GOOS {
 	case "android":
 		dirs = []string{"/", "/system/bin"}
@@ -472,6 +472,23 @@ func TestGetwd(t *testing.T) {
 	}
 	oldwd := os.Getenv("PWD")
 	for _, d := range dirs {
+        // #26678 Don't test with dir d if it contains a symlink
+        if _, err := os.Stat(d); err != nil {
+            if os.IsNotExist(err) {
+                t.Logf("Test dir %s not found, skipping", d)
+                continue
+            } else {
+                t.Fatalf("Couldn't Stat %s", d)
+            }
+        }
+        eval, err := filepath.EvalSymlinks(d)
+        if err != nil {
+            t.Fatalf("Couldn't resolve symlinks on dir %s: %v", d, err)
+        }
+        if d != eval {
+            t.Logf("Test directory %s contains a symlink (%s), skipping", d, eval)
+            continue
+        }
 		err = os.Chdir(d)
 		if err != nil {
 			t.Fatalf("Chdir: %v", err)
