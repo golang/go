@@ -977,6 +977,59 @@ func TestHasLabel(t *testing.T) {
 	}
 }
 
+func TestDiffBaseSample(t *testing.T) {
+	var testcases = []struct {
+		desc               string
+		labels             map[string][]string
+		wantDiffBaseSample bool
+	}{
+		{
+			desc:               "empty label does not have label",
+			labels:             map[string][]string{},
+			wantDiffBaseSample: false,
+		},
+		{
+			desc:               "label with one key and value, including diff base label",
+			labels:             map[string][]string{"pprof::base": {"true"}},
+			wantDiffBaseSample: true,
+		},
+		{
+			desc:               "label with one key and value, not including diff base label",
+			labels:             map[string][]string{"key": {"value"}},
+			wantDiffBaseSample: false,
+		},
+		{
+			desc: "label with many keys and values, including diff base label",
+			labels: map[string][]string{
+				"pprof::base": {"value2", "true"},
+				"key2":        {"true", "value2", "value2"},
+				"key3":        {"true", "value2", "value2"},
+			},
+			wantDiffBaseSample: true,
+		},
+		{
+			desc: "label with many keys and values, not including diff base label",
+			labels: map[string][]string{
+				"key1": {"value2", "value1"},
+				"key2": {"value1", "value2", "value2"},
+				"key3": {"value1", "value2", "value2"},
+			},
+			wantDiffBaseSample: false,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.desc, func(t *testing.T) {
+			sample := &Sample{
+				Label: tc.labels,
+			}
+			if gotHasLabel := sample.DiffBaseSample(); gotHasLabel != tc.wantDiffBaseSample {
+				t.Errorf("sample.DiffBaseSample() got %v, want %v", gotHasLabel, tc.wantDiffBaseSample)
+			}
+		})
+	}
+}
+
 func TestRemove(t *testing.T) {
 	var testcases = []struct {
 		desc       string
