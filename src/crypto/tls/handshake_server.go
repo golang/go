@@ -19,19 +19,18 @@ import (
 // serverHandshakeState contains details of a server handshake in progress.
 // It's discarded once the handshake has completed.
 type serverHandshakeState struct {
-	c               *Conn
-	clientHello     *clientHelloMsg
-	hello           *serverHelloMsg
-	suite           *cipherSuite
-	ellipticOk      bool
-	ecdsaOk         bool
-	rsaDecryptOk    bool
-	rsaSignOk       bool
-	sessionState    *sessionState
-	finishedHash    finishedHash
-	masterSecret    []byte
-	certsFromClient [][]byte
-	cert            *Certificate
+	c            *Conn
+	clientHello  *clientHelloMsg
+	hello        *serverHelloMsg
+	suite        *cipherSuite
+	ellipticOk   bool
+	ecdsaOk      bool
+	rsaDecryptOk bool
+	rsaSignOk    bool
+	sessionState *sessionState
+	finishedHash finishedHash
+	masterSecret []byte
+	cert         *Certificate
 }
 
 // serverHandshake performs a TLS handshake as a server.
@@ -383,10 +382,10 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 		return err
 	}
 
-	if len(hs.sessionState.certificates) > 0 {
-		if _, err := hs.processCertsFromClient(hs.sessionState.certificates); err != nil {
-			return err
-		}
+	if err := c.processCertsFromClient(Certificate{
+		Certificate: hs.sessionState.certificates,
+	}); err != nil {
+		return err
 	}
 
 	hs.masterSecret = hs.sessionState.masterSecret
@@ -488,28 +487,23 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		return err
 	}
 
-	var ok bool
 	// If we requested a client certificate, then the client must send a
 	// certificate message, even if it's empty.
 	if c.config.ClientAuth >= RequestClientCert {
-		if certMsg, ok = msg.(*certificateMsg); !ok {
+		certMsg, ok := msg.(*certificateMsg)
+		if !ok {
 			c.sendAlert(alertUnexpectedMessage)
 			return unexpectedMessageError(certMsg, msg)
 		}
 		hs.finishedHash.Write(certMsg.marshal())
 
-		if len(certMsg.certificates) == 0 {
-			// The client didn't actually send a certificate
-			switch c.config.ClientAuth {
-			case RequireAnyClientCert, RequireAndVerifyClientCert:
-				c.sendAlert(alertBadCertificate)
-				return errors.New("tls: client didn't provide a certificate")
-			}
-		}
-
-		pub, err = hs.processCertsFromClient(certMsg.certificates)
-		if err != nil {
+		if err := c.processCertsFromClient(Certificate{
+			Certificate: certMsg.certificates,
+		}); err != nil {
 			return err
+		}
+		if len(certMsg.certificates) != 0 {
+			pub = c.peerCertificates[0].PublicKey
 		}
 
 		msg, err = c.readHandshake()
@@ -654,13 +648,17 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 	c := hs.c
 	m := new(newSessionTicketMsg)
 
-	var err error
+	var certsFromClient [][]byte
+	for _, cert := range c.peerCertificates {
+		certsFromClient = append(certsFromClient, cert.Raw)
+	}
 	state := sessionState{
 		vers:         c.vers,
 		cipherSuite:  hs.suite.id,
 		masterSecret: hs.masterSecret,
-		certificates: hs.certsFromClient,
+		certificates: certsFromClient,
 	}
+	var err error
 	m.ticket, err = c.encryptTicket(state.marshal())
 	if err != nil {
 		return err
@@ -697,17 +695,20 @@ func (hs *serverHandshakeState) sendFinished(out []byte) error {
 // processCertsFromClient takes a chain of client certificates either from a
 // Certificates message or from a sessionState and verifies them. It returns
 // the public key of the leaf certificate.
-func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (crypto.PublicKey, error) {
-	c := hs.c
-
-	hs.certsFromClient = certificates
+func (c *Conn) processCertsFromClient(certificate Certificate) error {
+	certificates := certificate.Certificate
 	certs := make([]*x509.Certificate, len(certificates))
 	var err error
 	for i, asn1Data := range certificates {
 		if certs[i], err = x509.ParseCertificate(asn1Data); err != nil {
 			c.sendAlert(alertBadCertificate)
-			return nil, errors.New("tls: failed to parse client certificate: " + err.Error())
+			return errors.New("tls: failed to parse client certificate: " + err.Error())
 		}
+	}
+
+	if len(certs) == 0 && requiresClientCert(c.config.ClientAuth) {
+		c.sendAlert(alertBadCertificate)
+		return errors.New("tls: client didn't provide a certificate")
 	}
 
 	if c.config.ClientAuth >= VerifyClientCertIfGiven && len(certs) > 0 {
@@ -725,7 +726,7 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
 		chains, err := certs[0].Verify(opts)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
-			return nil, errors.New("tls: failed to verify client's certificate: " + err.Error())
+			return errors.New("tls: failed to verify client's certificate: " + err.Error())
 		}
 
 		c.verifiedChains = chains
@@ -734,24 +735,25 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
 	if c.config.VerifyPeerCertificate != nil {
 		if err := c.config.VerifyPeerCertificate(certificates, c.verifiedChains); err != nil {
 			c.sendAlert(alertBadCertificate)
-			return nil, err
+			return err
 		}
 	}
 
 	if len(certs) == 0 {
-		return nil, nil
+		return nil
 	}
 
-	var pub crypto.PublicKey
-	switch key := certs[0].PublicKey.(type) {
+	switch certs[0].PublicKey.(type) {
 	case *ecdsa.PublicKey, *rsa.PublicKey:
-		pub = key
 	default:
 		c.sendAlert(alertUnsupportedCertificate)
-		return nil, fmt.Errorf("tls: client's certificate contains an unsupported public key of type %T", certs[0].PublicKey)
+		return fmt.Errorf("tls: client's certificate contains an unsupported public key of type %T", certs[0].PublicKey)
 	}
+
 	c.peerCertificates = certs
-	return pub, nil
+	c.ocspResponse = certificate.OCSPStaple
+	c.scts = certificate.SignedCertificateTimestamps
+	return nil
 }
 
 // setCipherSuite sets a cipherSuite with the given id as the serverHandshakeState

@@ -391,6 +391,12 @@ func (*certificateRequestMsgTLS13) Generate(rand *rand.Rand, size int) reflect.V
 	if rand.Intn(10) > 5 {
 		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
 	}
+	if rand.Intn(10) > 5 {
+		m.certificateAuthorities = make([][]byte, 3)
+		for i := 0; i < 3; i++ {
+			m.certificateAuthorities[i] = randomBytes(rand.Intn(10)+1, rand)
+		}
+	}
 	return reflect.ValueOf(m)
 }
 

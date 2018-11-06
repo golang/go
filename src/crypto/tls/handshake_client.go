@@ -519,7 +519,8 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		certRequested = true
 		hs.finishedHash.Write(certReq.marshal())
 
-		if chainToSend, err = hs.getCertificate(certReq); err != nil {
+		cri := certificateRequestInfoFromMsg(certReq)
+		if chainToSend, err = c.getClientCertificate(cri); err != nil {
 			c.sendAlert(alertInternalError)
 			return err
 		}
@@ -863,20 +864,15 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 
 // tls11SignatureSchemes contains the signature schemes that we synthesise for
 // a TLS <= 1.1 connection, based on the supported certificate types.
-var tls11SignatureSchemes = []SignatureScheme{ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512, PKCS1WithSHA1}
-
-const (
-	// tls11SignatureSchemesNumECDSA is the number of initial elements of
-	// tls11SignatureSchemes that use ECDSA.
-	tls11SignatureSchemesNumECDSA = 3
-	// tls11SignatureSchemesNumRSA is the number of trailing elements of
-	// tls11SignatureSchemes that use RSA.
-	tls11SignatureSchemesNumRSA = 4
+var (
+	tls11SignatureSchemes      = []SignatureScheme{ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512, PKCS1WithSHA1}
+	tls11SignatureSchemesECDSA = tls11SignatureSchemes[:3]
+	tls11SignatureSchemesRSA   = tls11SignatureSchemes[3:]
 )
 
-func (hs *clientHandshakeState) getCertificate(certReq *certificateRequestMsg) (*Certificate, error) {
-	c := hs.c
-
+// certificateRequestInfoFromMsg generates a CertificateRequestInfo from a TLS
+// <= 1.2 CertificateRequest, making an effort to fill in missing information.
+func certificateRequestInfoFromMsg(certReq *certificateRequestMsg) *CertificateRequestInfo {
 	var rsaAvail, ecdsaAvail bool
 	for _, certType := range certReq.certificateTypes {
 		switch certType {
@@ -887,77 +883,84 @@ func (hs *clientHandshakeState) getCertificate(certReq *certificateRequestMsg) (
 		}
 	}
 
-	if c.config.GetClientCertificate != nil {
-		var signatureSchemes []SignatureScheme
-
-		if !certReq.hasSignatureAlgorithm {
-			// Prior to TLS 1.2, the signature schemes were not
-			// included in the certificate request message. In this
-			// case we use a plausible list based on the acceptable
-			// certificate types.
-			signatureSchemes = tls11SignatureSchemes
-			if !ecdsaAvail {
-				signatureSchemes = signatureSchemes[tls11SignatureSchemesNumECDSA:]
-			}
-			if !rsaAvail {
-				signatureSchemes = signatureSchemes[:len(signatureSchemes)-tls11SignatureSchemesNumRSA]
-			}
-		} else {
-			signatureSchemes = certReq.supportedSignatureAlgorithms
-		}
-
-		return c.config.GetClientCertificate(&CertificateRequestInfo{
-			AcceptableCAs:    certReq.certificateAuthorities,
-			SignatureSchemes: signatureSchemes,
-		})
+	cri := &CertificateRequestInfo{
+		AcceptableCAs: certReq.certificateAuthorities,
 	}
 
-	// RFC 4346 on the certificateAuthorities field: A list of the
-	// distinguished names of acceptable certificate authorities.
-	// These distinguished names may specify a desired
-	// distinguished name for a root CA or for a subordinate CA;
-	// thus, this message can be used to describe both known roots
-	// and a desired authorization space. If the
-	// certificate_authorities list is empty then the client MAY
-	// send any certificate of the appropriate
-	// ClientCertificateType, unless there is some external
-	// arrangement to the contrary.
+	if !certReq.hasSignatureAlgorithm {
+		// Prior to TLS 1.2, the signature schemes were not
+		// included in the certificate request message. In this
+		// case we use a plausible list based on the acceptable
+		// certificate types.
+		switch {
+		case rsaAvail && ecdsaAvail:
+			cri.SignatureSchemes = tls11SignatureSchemes
+		case rsaAvail:
+			cri.SignatureSchemes = tls11SignatureSchemesRSA
+		case ecdsaAvail:
+			cri.SignatureSchemes = tls11SignatureSchemesECDSA
+		}
+		return cri
+	}
+
+	// In TLS 1.2, the signature schemes apply to both the certificate chain and
+	// the leaf key, while the certificate types only apply to the leaf key.
+	// See RFC 5246, Section 7.4.4 (where it calls this "somewhat complicated").
+	// Filter the signature schemes based on the certificate type.
+	cri.SignatureSchemes = make([]SignatureScheme, 0, len(certReq.supportedSignatureAlgorithms))
+	for _, sigScheme := range certReq.supportedSignatureAlgorithms {
+		switch signatureFromSignatureScheme(sigScheme) {
+		case signatureECDSA:
+			if ecdsaAvail {
+				cri.SignatureSchemes = append(cri.SignatureSchemes, sigScheme)
+			}
+		case signatureRSAPSS, signaturePKCS1v15:
+			if rsaAvail {
+				cri.SignatureSchemes = append(cri.SignatureSchemes, sigScheme)
+			}
+		}
+	}
+
+	return cri
+}
+
+func (c *Conn) getClientCertificate(cri *CertificateRequestInfo) (*Certificate, error) {
+	if c.config.GetClientCertificate != nil {
+		return c.config.GetClientCertificate(cri)
+	}
 
 	// We need to search our list of client certs for one
 	// where SignatureAlgorithm is acceptable to the server and the
-	// Issuer is in certReq.certificateAuthorities
-findCert:
+	// Issuer is in AcceptableCAs.
 	for i, chain := range c.config.Certificates {
-		if !rsaAvail && !ecdsaAvail {
+		sigOK := false
+		for _, alg := range signatureSchemesForCertificate(&chain) {
+			if isSupportedSignatureAlgorithm(alg, cri.SignatureSchemes) {
+				sigOK = true
+				break
+			}
+		}
+		if !sigOK {
 			continue
+		}
+
+		if len(cri.AcceptableCAs) == 0 {
+			return &chain, nil
 		}
 
 		for j, cert := range chain.Certificate {
 			x509Cert := chain.Leaf
-			// parse the certificate if this isn't the leaf
-			// node, or if chain.Leaf was nil
+			// Parse the certificate if this isn't the leaf node, or if
+			// chain.Leaf was nil.
 			if j != 0 || x509Cert == nil {
 				var err error
 				if x509Cert, err = x509.ParseCertificate(cert); err != nil {
 					c.sendAlert(alertInternalError)
-					return nil, errors.New("tls: failed to parse client certificate #" + strconv.Itoa(i) + ": " + err.Error())
+					return nil, errors.New("tls: failed to parse configured certificate chain #" + strconv.Itoa(i) + ": " + err.Error())
 				}
 			}
 
-			switch {
-			case rsaAvail && x509Cert.PublicKeyAlgorithm == x509.RSA:
-			case ecdsaAvail && x509Cert.PublicKeyAlgorithm == x509.ECDSA:
-			default:
-				continue findCert
-			}
-
-			if len(certReq.certificateAuthorities) == 0 {
-				// they gave us an empty list, so just take the
-				// first cert from c.config.Certificates
-				return &chain, nil
-			}
-
-			for _, ca := range certReq.certificateAuthorities {
+			for _, ca := range cri.AcceptableCAs {
 				if bytes.Equal(x509Cert.RawIssuer, ca) {
 					return &chain, nil
 				}

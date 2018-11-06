@@ -27,12 +27,14 @@ type serverHandshakeStateTLS13 struct {
 	clientHello     *clientHelloMsg
 	hello           *serverHelloMsg
 	sentDummyCCS    bool
+	usingPSK        bool
 	suite           *cipherSuiteTLS13
 	cert            *Certificate
 	sigAlg          SignatureScheme
 	earlySecret     []byte
 	sharedKey       []byte
 	handshakeSecret []byte
+	masterSecret    []byte
 	trafficSecret   []byte // client_application_traffic_secret_0
 	transcript      hash.Hash
 	clientFinished  []byte
@@ -45,23 +47,18 @@ func (hs *serverHandshakeStateTLS13) handshake() error {
 	if err := hs.processClientHello(); err != nil {
 		return err
 	}
-	usePSK, err := hs.checkForResumption()
-	if err != nil {
+	if err := hs.checkForResumption(); err != nil {
 		return err
 	}
-	if !usePSK {
-		if err := hs.pickCertificate(); err != nil {
-			return err
-		}
+	if err := hs.pickCertificate(); err != nil {
+		return err
 	}
 	c.buffering = true
 	if err := hs.sendServerParameters(); err != nil {
 		return err
 	}
-	if !usePSK {
-		if err := hs.sendServerCertificate(); err != nil {
-			return err
-		}
+	if err := hs.sendServerCertificate(); err != nil {
+		return err
 	}
 	if err := hs.sendServerFinished(); err != nil {
 		return err
@@ -69,10 +66,10 @@ func (hs *serverHandshakeStateTLS13) handshake() error {
 	// Note that at this point we could start sending application data without
 	// waiting for the client's second flight, but the application might not
 	// expect the lack of replay protection of the ClientHello parameters.
-	if err := hs.sendSessionTickets(); err != nil {
+	if _, err := c.flush(); err != nil {
 		return err
 	}
-	if _, err := c.flush(); err != nil {
+	if err := hs.readClientCertificate(); err != nil {
 		return err
 	}
 	if err := hs.readClientFinished(); err != nil {
@@ -198,11 +195,11 @@ GroupSelection:
 	return nil
 }
 
-func (hs *serverHandshakeStateTLS13) checkForResumption() (usePSK bool, err error) {
+func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 	c := hs.c
 
 	if c.config.SessionTicketsDisabled {
-		return false, nil
+		return nil
 	}
 
 	modeOK := false
@@ -213,15 +210,15 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() (usePSK bool, err erro
 		}
 	}
 	if !modeOK {
-		return false, nil
+		return nil
 	}
 
 	if len(hs.clientHello.pskIdentities) != len(hs.clientHello.pskBinders) {
 		c.sendAlert(alertIllegalParameter)
-		return false, errors.New("tls: invalid or missing PSK binders")
+		return errors.New("tls: invalid or missing PSK binders")
 	}
 	if len(hs.clientHello.pskIdentities) == 0 {
-		return false, nil
+		return nil
 	}
 
 	for i, identity := range hs.clientHello.pskIdentities {
@@ -272,23 +269,27 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() (usePSK bool, err erro
 		transcript := cloneHash(hs.transcript, hs.suite.hash)
 		if transcript == nil {
 			c.sendAlert(alertInternalError)
-			return false, errors.New("tls: internal error: failed to clone hash")
+			return errors.New("tls: internal error: failed to clone hash")
 		}
 		transcript.Write(hs.clientHello.marshalWithoutBinders())
 		pskBinder := hs.suite.finishedHash(binderKey, transcript)
 		if !hmac.Equal(hs.clientHello.pskBinders[i], pskBinder) {
 			c.sendAlert(alertDecryptError)
-			return false, errors.New("tls: invalid PSK binder")
+			return errors.New("tls: invalid PSK binder")
+		}
+
+		if err := c.processCertsFromClient(sessionState.certificate); err != nil {
+			return err
 		}
 
 		hs.hello.selectedIdentityPresent = true
 		hs.hello.selectedIdentity = uint16(i)
+		hs.usingPSK = true
 		c.didResume = true
-		// TODO(filippo): surface sessionState.certificate.
-		return true, nil
+		return nil
 	}
 
-	return false, nil
+	return nil
 }
 
 // cloneHash uses the encoding.BinaryMarshaler and encoding.BinaryUnmarshaler
@@ -321,6 +322,11 @@ func cloneHash(in hash.Hash, h crypto.Hash) hash.Hash {
 
 func (hs *serverHandshakeStateTLS13) pickCertificate() error {
 	c := hs.c
+
+	// Only one of PSK and certificates are used at a time.
+	if hs.usingPSK {
+		return nil
+	}
 
 	// This implements a very simplistic certificate selection strategy for now:
 	// getCertificate delegates to the application Config.GetCertificate, or
@@ -542,8 +548,33 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 	return nil
 }
 
+func (hs *serverHandshakeStateTLS13) requestClientCert() bool {
+	return hs.c.config.ClientAuth >= RequestClientCert && !hs.usingPSK
+}
+
 func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 	c := hs.c
+
+	// Only one of PSK and certificates are used at a time.
+	if hs.usingPSK {
+		return nil
+	}
+
+	if hs.requestClientCert() {
+		// Request a client certificate
+		certReq := new(certificateRequestMsgTLS13)
+		certReq.ocspStapling = true
+		certReq.scts = true
+		certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+		if c.config.ClientCAs != nil {
+			certReq.certificateAuthorities = c.config.ClientCAs.Subjects()
+		}
+
+		hs.transcript.Write(certReq.marshal())
+		if _, err := c.writeRecord(recordTypeHandshake, certReq.marshal()); err != nil {
+			return err
+		}
+	}
 
 	certMsg := new(certificateMsgTLS13)
 
@@ -563,6 +594,8 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 	sigType := signatureFromSignatureScheme(hs.sigAlg)
 	sigHash, err := hashFromSignatureScheme(hs.sigAlg)
 	if sigType == 0 || err != nil {
+		// getCertificate returned a certificate incompatible with the
+		// ClientHello supported signature algorithms.
 		c.sendAlert(alertInternalError)
 		return err
 	}
@@ -602,12 +635,12 @@ func (hs *serverHandshakeStateTLS13) sendServerFinished() error {
 
 	// Derive secrets that take context through the server Finished.
 
-	masterSecret := hs.suite.extract(nil,
+	hs.masterSecret = hs.suite.extract(nil,
 		hs.suite.deriveSecret(hs.handshakeSecret, "derived", nil))
 
-	hs.trafficSecret = hs.suite.deriveSecret(masterSecret,
+	hs.trafficSecret = hs.suite.deriveSecret(hs.masterSecret,
 		clientApplicationTrafficLabel, hs.transcript)
-	serverSecret := hs.suite.deriveSecret(masterSecret,
+	serverSecret := hs.suite.deriveSecret(hs.masterSecret,
 		serverApplicationTrafficLabel, hs.transcript)
 	c.out.setTrafficSecret(hs.suite, serverSecret)
 
@@ -622,18 +655,15 @@ func (hs *serverHandshakeStateTLS13) sendServerFinished() error {
 		return err
 	}
 
-	c.ekm = hs.suite.exportKeyingMaterial(masterSecret, hs.transcript)
+	c.ekm = hs.suite.exportKeyingMaterial(hs.masterSecret, hs.transcript)
 
-	// Precompute the expected client flight for the transcript.
-	hs.clientFinished = hs.suite.finishedHash(c.in.trafficSecret, hs.transcript)
-	finishedMsg := &finishedMsg{
-		verifyData: hs.clientFinished,
-	}
-	hs.transcript.Write(finishedMsg.marshal())
-
-	if hs.shouldSendSessionTickets() {
-		c.resumptionSecret = hs.suite.deriveSecret(masterSecret,
-			resumptionLabel, hs.transcript)
+	// If we did not request client certificates, at this point we can
+	// precompute the client finished and roll the transcript forward to send
+	// session tickets in our first flight.
+	if !hs.requestClientCert() {
+		if err := hs.sendSessionTickets(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -656,18 +686,36 @@ func (hs *serverHandshakeStateTLS13) shouldSendSessionTickets() bool {
 func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 	c := hs.c
 
+	hs.clientFinished = hs.suite.finishedHash(c.in.trafficSecret, hs.transcript)
+	finishedMsg := &finishedMsg{
+		verifyData: hs.clientFinished,
+	}
+	hs.transcript.Write(finishedMsg.marshal())
+
 	if !hs.shouldSendSessionTickets() {
 		return nil
 	}
 
+	resumptionSecret := hs.suite.deriveSecret(hs.masterSecret,
+		resumptionLabel, hs.transcript)
+
 	m := new(newSessionTicketMsgTLS13)
 
-	var err error
+	var certsFromClient [][]byte
+	for _, cert := range c.peerCertificates {
+		certsFromClient = append(certsFromClient, cert.Raw)
+	}
 	state := sessionStateTLS13{
 		cipherSuite:      hs.suite.id,
 		createdAt:        uint64(c.config.time().Unix()),
-		resumptionSecret: c.resumptionSecret,
+		resumptionSecret: resumptionSecret,
+		certificate: Certificate{
+			Certificate:                 certsFromClient,
+			OCSPStaple:                  c.ocspResponse,
+			SignedCertificateTimestamps: c.scts,
+		},
 	}
+	var err error
 	m.label, err = c.encryptTicket(state.marshal())
 	if err != nil {
 		return err
@@ -675,6 +723,79 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 	m.lifetime = uint32(maxSessionTicketLifetime / time.Second)
 
 	if _, err := c.writeRecord(recordTypeHandshake, m.marshal()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
+	c := hs.c
+
+	if !hs.requestClientCert() {
+		return nil
+	}
+
+	// If we requested a client certificate, then the client must send a
+	// certificate message. If it's empty, no CertificateVerify is sent.
+
+	msg, err := c.readHandshake()
+	if err != nil {
+		return err
+	}
+
+	certMsg, ok := msg.(*certificateMsgTLS13)
+	if !ok {
+		c.sendAlert(alertUnexpectedMessage)
+		return unexpectedMessageError(certMsg, msg)
+	}
+	hs.transcript.Write(certMsg.marshal())
+
+	if err := c.processCertsFromClient(certMsg.certificate); err != nil {
+		return err
+	}
+
+	if len(certMsg.certificate.Certificate) != 0 {
+		msg, err = c.readHandshake()
+		if err != nil {
+			return err
+		}
+
+		certVerify, ok := msg.(*certificateVerifyMsg)
+		if !ok {
+			c.sendAlert(alertUnexpectedMessage)
+			return unexpectedMessageError(certVerify, msg)
+		}
+
+		// See RFC 8446, Section 4.4.3.
+		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms) {
+			c.sendAlert(alertIllegalParameter)
+			return errors.New("tls: invalid certificate signature algorithm")
+		}
+		sigType := signatureFromSignatureScheme(certVerify.signatureAlgorithm)
+		sigHash, err := hashFromSignatureScheme(certVerify.signatureAlgorithm)
+		if sigType == 0 || err != nil {
+			c.sendAlert(alertInternalError)
+			return err
+		}
+		if sigType == signaturePKCS1v15 || sigHash == crypto.SHA1 {
+			c.sendAlert(alertIllegalParameter)
+			return errors.New("tls: invalid certificate signature algorithm")
+		}
+		h := sigHash.New()
+		writeSignedMessage(h, clientSignatureContext, hs.transcript)
+		if err := verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,
+			sigHash, h.Sum(nil), certVerify.signature); err != nil {
+			c.sendAlert(alertDecryptError)
+			return errors.New("tls: invalid certificate signature")
+		}
+
+		hs.transcript.Write(certVerify.marshal())
+	}
+
+	// If we waited until the client certificates to send session tickets, we
+	// are ready to do it now.
+	if err := hs.sendSessionTickets(); err != nil {
 		return err
 	}
 

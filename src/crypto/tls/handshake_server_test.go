@@ -1368,6 +1368,7 @@ func TestClientAuth(t *testing.T) {
 		config:  config,
 	}
 	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
 
 	test = &serverTest{
 		name: "ClientAuthRequestedAndGiven",
@@ -1377,6 +1378,7 @@ func TestClientAuth(t *testing.T) {
 		expectedPeerCerts: []string{clientCertificatePEM},
 	}
 	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
 
 	test = &serverTest{
 		name: "ClientAuthRequestedAndECDSAGiven",
@@ -1386,6 +1388,7 @@ func TestClientAuth(t *testing.T) {
 		expectedPeerCerts: []string{clientECDSACertificatePEM},
 	}
 	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
 
 	test = &serverTest{
 		name: "ClientAuthRequestedAndPKCS1v15Given",
