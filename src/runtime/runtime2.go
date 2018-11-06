@@ -858,12 +858,6 @@ var (
 	isIntel              bool
 	lfenceBeforeRdtsc    bool
 
-	// Set in runtime.cpuinit.
-	// TODO: deprecate these; use internal/cpu directly.
-	support_popcnt        bool
-	support_sse41         bool
-	arm64_support_atomics bool
-
 	goarm                uint8 // set by cmd/link on arm systems
 	framepointer_enabled bool  // set by cmd/link
 )
