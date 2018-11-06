@@ -645,3 +645,29 @@ func dbg(format string, args ...interface{}) {
 	}
 	fmt.Printf(format, args...)
 }
+
+func PointersToCompoundTypes() {
+	stringSlice := []string{"a", "b"}
+	fmt.Printf("%s", &stringSlice) // not an error
+
+	intSlice := []int{3, 4}
+	fmt.Printf("%s", &intSlice) // ERROR "Printf format %s has arg &intSlice of wrong type \*\[\]int"
+
+	stringArray := [2]string{"a", "b"}
+	fmt.Printf("%s", &stringArray) // not an error
+
+	intArray := [2]int{3, 4}
+	fmt.Printf("%s", &intArray) // ERROR "Printf format %s has arg &intArray of wrong type \*\[2\]int"
+
+	stringStruct := struct{ F string }{"foo"}
+	fmt.Printf("%s", &stringStruct) // not an error
+
+	intStruct := struct{ F int }{3}
+	fmt.Printf("%s", &intStruct) // ERROR "Printf format %s has arg &intStruct of wrong type \*struct{F int}"
+
+	stringMap := map[string]string{"foo": "bar"}
+	fmt.Printf("%s", &stringMap) // not an error
+
+	intMap := map[int]int{3: 4}
+	fmt.Printf("%s", &intMap) // ERROR "Printf format %s has arg &intMap of wrong type \*map\[int\]int"
+}
