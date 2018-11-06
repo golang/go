@@ -1271,7 +1271,7 @@ func gccgoPkgpathToSymbolNew(ppath string) string {
 	for _, c := range []byte(ppath) {
 		switch {
 		case 'A' <= c && c <= 'Z', 'a' <= c && c <= 'z',
-			'0' <= c && c <= '9', '_' == c:
+			'0' <= c && c <= '9', c == '_', c == '.':
 			bsl = append(bsl, c)
 		default:
 			changed = true
