@@ -48,6 +48,9 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 			},
 			DocumentFormattingProvider:      true,
 			DocumentRangeFormattingProvider: true,
+			CompletionProvider: protocol.CompletionOptions{
+				TriggerCharacters: []string{"."},
+			},
 		},
 	}, nil
 }
@@ -143,8 +146,15 @@ func (s *server) DidClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	return nil
 }
 
-func (s *server) Completion(context.Context, *protocol.CompletionParams) (*protocol.CompletionList, error) {
-	return nil, notImplemented("Completion")
+func (s *server) Completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
+	items, err := completion(s.view, params.TextDocument.URI, params.Position)
+	if err != nil {
+		return nil, err
+	}
+	return &protocol.CompletionList{
+		IsIncomplete: false,
+		Items:        items,
+	}, nil
 }
 
 func (s *server) CompletionResolve(context.Context, *protocol.CompletionItem) (*protocol.CompletionItem, error) {

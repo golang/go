@@ -176,7 +176,7 @@ type CompletionItem struct {
 	 * *Note:* The range of the edit must be a single line range and it must contain the position at which completion
 	 * has been requested.
 	 */
-	TextEdit TextEdit `json:"textEdit,omitempty"`
+	TextEdit *TextEdit `json:"textEdit,omitempty"`
 
 	/**
 	 * An optional array of additional text edits that are applied when
@@ -201,7 +201,7 @@ type CompletionItem struct {
 	 * additional modifications to the current document should be described with the
 	 * additionalTextEdits-property.
 	 */
-	Command Command `json:"command,omitempty"`
+	Command *Command `json:"command,omitempty"`
 
 	/**
 	 * An data entry field that is preserved on a completion item between
