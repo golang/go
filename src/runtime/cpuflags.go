@@ -17,3 +17,12 @@ const (
 
 	offsetARMHasIDIVA = unsafe.Offsetof(cpu.ARM.HasIDIVA)
 )
+
+var (
+	// Set in runtime.cpuinit.
+	// TODO: deprecate these; use internal/cpu directly.
+	x86HasPOPCNT bool
+	x86HasSSE41  bool
+
+	arm64HasATOMICS bool
+)

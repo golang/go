@@ -101,7 +101,7 @@ func Len8(n uint8) int {
 // -------------------- //
 
 func OnesCount(n uint) int {
-	// amd64:"POPCNTQ",".*support_popcnt"
+	// amd64:"POPCNTQ",".*x86HasPOPCNT"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
 	// ppc64:"POPCNTD"
@@ -110,7 +110,7 @@ func OnesCount(n uint) int {
 }
 
 func OnesCount64(n uint64) int {
-	// amd64:"POPCNTQ",".*support_popcnt"
+	// amd64:"POPCNTQ",".*x86HasPOPCNT"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
 	// ppc64:"POPCNTD"
@@ -119,7 +119,7 @@ func OnesCount64(n uint64) int {
 }
 
 func OnesCount32(n uint32) int {
-	// amd64:"POPCNTL",".*support_popcnt"
+	// amd64:"POPCNTL",".*x86HasPOPCNT"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
 	// ppc64:"POPCNTW"
@@ -128,7 +128,7 @@ func OnesCount32(n uint32) int {
 }
 
 func OnesCount16(n uint16) int {
-	// amd64:"POPCNTL",".*support_popcnt"
+	// amd64:"POPCNTL",".*x86HasPOPCNT"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
 	// ppc64:"POPCNTW"

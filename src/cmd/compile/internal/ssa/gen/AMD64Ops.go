@@ -467,14 +467,14 @@ func init() {
 		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
 
 		// POPCNT instructions aren't guaranteed to be on the target platform (they are SSE4).
-		// Any use must be preceded by a successful check of runtime.support_popcnt.
+		// Any use must be preceded by a successful check of runtime.x86HasPOPCNT.
 		{name: "POPCNTQ", argLength: 1, reg: gp11, asm: "POPCNTQ", clobberFlags: true}, // count number of set bits in arg0
 		{name: "POPCNTL", argLength: 1, reg: gp11, asm: "POPCNTL", clobberFlags: true}, // count number of set bits in arg0
 
 		{name: "SQRTSD", argLength: 1, reg: fp11, asm: "SQRTSD"}, // sqrt(arg0)
 
 		// ROUNDSD instruction isn't guaranteed to be on the target platform (it is SSE4.1)
-		// Any use must be preceded by a successful check of runtime.support_sse41.
+		// Any use must be preceded by a successful check of runtime.x86HasSSE41.
 		{name: "ROUNDSD", argLength: 1, reg: fp11, aux: "Int8", asm: "ROUNDSD"}, // rounds arg0 depending on auxint, 1 means math.Floor, 2 Ceil, 3 Trunc
 
 		{name: "SBBQcarrymask", argLength: 1, reg: flagsgp, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.

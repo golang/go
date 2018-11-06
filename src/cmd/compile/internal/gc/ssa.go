@@ -86,9 +86,9 @@ func initssaconfig() {
 	racereadrange = sysfunc("racereadrange")
 	racewrite = sysfunc("racewrite")
 	racewriterange = sysfunc("racewriterange")
-	supportPopcnt = sysvar("support_popcnt")              // bool
-	supportSSE41 = sysvar("support_sse41")                // bool
-	arm64SupportAtomics = sysvar("arm64_support_atomics") // bool
+	x86HasPOPCNT = sysvar("x86HasPOPCNT")       // bool
+	x86HasSSE41 = sysvar("x86HasSSE41")         // bool
+	arm64HasATOMICS = sysvar("arm64HasATOMICS") // bool
 	typedmemclr = sysfunc("typedmemclr")
 	typedmemmove = sysfunc("typedmemmove")
 	Udiv = sysvar("udiv")                 // asm func with special ABI
@@ -3068,7 +3068,7 @@ func init() {
 	makeXaddARM64 := func(op0 ssa.Op, op1 ssa.Op, ty types.EType) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			// Target Atomic feature is identified by dynamic detection
-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), arm64SupportAtomics, s.sb)
+			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), arm64HasATOMICS, s.sb)
 			v := s.load(types.Types[TBOOL], addr)
 			b := s.endBlock()
 			b.Kind = ssa.BlockIf
@@ -3208,7 +3208,7 @@ func init() {
 
 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), supportSSE41, s.sb)
+			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), x86HasSSE41, s.sb)
 			v := s.load(types.Types[TBOOL], addr)
 			b := s.endBlock()
 			b.Kind = ssa.BlockIf
@@ -3416,7 +3416,7 @@ func init() {
 
 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), supportPopcnt, s.sb)
+			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), x86HasPOPCNT, s.sb)
 			v := s.load(types.Types[TBOOL], addr)
 			b := s.endBlock()
 			b.Kind = ssa.BlockIf
