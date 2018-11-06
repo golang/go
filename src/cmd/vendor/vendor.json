@@ -3,94 +3,100 @@
 	"ignore": "",
 	"package": [
 		{
-			"checksumSHA1": "G9UsR+iruMWxwUefhy+ID+VIFNs=",
+			"checksumSHA1": "tvvU1lZut+OvO+7NOIG3DXojs48=",
 			"path": "github.com/google/pprof/driver",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
-			"checksumSHA1": "LzGfApA19baVJIbQEqziWpRS3zE=",
+			"checksumSHA1": "LDRBxfypG0ZI3Nl/mfEIhrU/ae4=",
 			"path": "github.com/google/pprof/internal/binutils",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
-			"checksumSHA1": "uoKLYk9VTOx2kYV3hU3vOGm4BX8=",
+			"checksumSHA1": "mViiOBlz5l3mIlQE1SxY1IveYBU=",
 			"path": "github.com/google/pprof/internal/driver",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
-			"checksumSHA1": "IhuyU2pFSHhQxzadDBw1nHbcsrY=",
+			"checksumSHA1": "lxGP2FcHBwAiYHup+BNMBis136o=",
 			"path": "github.com/google/pprof/internal/elfexec",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
-			"checksumSHA1": "8vah+aXLGpbtn55JR8MkCAEOMrk=",
+			"checksumSHA1": "ejpBQbeYO4XPI6UtiPe4SVaMQqE=",
 			"path": "github.com/google/pprof/internal/graph",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
 			"checksumSHA1": "QPWfnT5pEU2jOOb8l8hpiFzQJ7Q=",
 			"path": "github.com/google/pprof/internal/measurement",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
-			"checksumSHA1": "PWZdFtGfGz/zbQTfvel9737NZdY=",
+			"checksumSHA1": "wMdOybuEcd10antxdOUDUugjmOs=",
 			"path": "github.com/google/pprof/internal/plugin",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
 			"checksumSHA1": "LmDglu/S6vFmgqkxubKDZemFHaY=",
 			"path": "github.com/google/pprof/internal/proftest",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
-			"checksumSHA1": "qgsLCrPLve6es8A3bA3qv2LPoYk=",
+			"checksumSHA1": "ijtIORD3B7fg+VwzjmXT/33zahM=",
 			"path": "github.com/google/pprof/internal/report",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
-			"checksumSHA1": "rWdirHgJi1+TdRwv5v3zjgFKcJA=",
+			"checksumSHA1": "Jjx/GbK8ftMDp0uoqfjTncz0TaQ=",
 			"path": "github.com/google/pprof/internal/symbolizer",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
-			"checksumSHA1": "5lS2AF207MVYyjF+82qHkWK2V64=",
+			"checksumSHA1": "T0WqnYtJKNJYW3qYH15E1HFlmE0=",
 			"path": "github.com/google/pprof/internal/symbolz",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
-			"checksumSHA1": "JMf63Fn5hz7JFgz6A2aT9DP/bL0=",
+			"checksumSHA1": "qDNZM9DiplY70UFnEiP9NcsVplg=",
+			"path": "github.com/google/pprof/internal/transport",
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
+		},
+		{
+			"checksumSHA1": "yFlyOuu4KgPEjXo1rIvl7Sj32Oo=",
 			"path": "github.com/google/pprof/profile",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
 			"checksumSHA1": "xmqfYca88U2c/I4642r3ps9uIRg=",
 			"path": "github.com/google/pprof/third_party/d3",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
 			"checksumSHA1": "LzWzD56Trzpq+0hLR00Yw5Gpepw=",
 			"path": "github.com/google/pprof/third_party/d3flamegraph",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
 			"checksumSHA1": "738v1E0v0qRW6oAKdCpBEtyVNnY=",
 			"path": "github.com/google/pprof/third_party/svgpan",
-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
-			"revisionTime": "2018-05-30T14:24:47Z"
+			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
+			"revisionTime": "2018-10-26T15:26:56Z"
 		},
 		{
 			"checksumSHA1": "J5yI4NzHbondzccJmummyJR/kQQ=",
@@ -371,5 +377,5 @@
 			"revisionTime": "2018-11-05T19:48:08Z"
 		}
 	],
-	"rootPath": "/cmd"
+	"rootPath": "cmd"
 }

@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -39,6 +39,7 @@ import (
 	"github.com/google/pprof/internal/plugin"
 	"github.com/google/pprof/internal/proftest"
 	"github.com/google/pprof/internal/symbolizer"
+	"github.com/google/pprof/internal/transport"
 	"github.com/google/pprof/profile"
 )
 
@@ -173,12 +174,6 @@ func (testFile) Close() error                                                 { 
 
 func TestFetch(t *testing.T) {
 	const path = "testdata/"
-
-	// Intercept http.Get calls from HTTPFetcher.
-	savedHTTPGet := httpGet
-	defer func() { httpGet = savedHTTPGet }()
-	httpGet = stubHTTPGet
-
 	type testcase struct {
 		source, execName string
 	}
@@ -188,7 +183,7 @@ func TestFetch(t *testing.T) {
 		{path + "go.nomappings.crash", "/bin/gotest.exe"},
 		{"http://localhost/profile?file=cppbench.cpu", ""},
 	} {
-		p, _, _, err := grabProfile(&source{ExecName: tc.execName}, tc.source, nil, testObj{}, &proftest.TestUI{T: t})
+		p, _, _, err := grabProfile(&source{ExecName: tc.execName}, tc.source, nil, testObj{}, &proftest.TestUI{T: t}, &httpTransport{})
 		if err != nil {
 			t.Fatalf("%s: %s", tc.source, err)
 		}
@@ -449,8 +444,9 @@ func TestFetchWithBase(t *testing.T) {
 			f.args = tc.sources
 
 			o := setDefaults(&plugin.Options{
-				UI:      &proftest.TestUI{T: t, AllowRx: "Local symbolization failed|Some binary filenames not available"},
-				Flagset: f,
+				UI:            &proftest.TestUI{T: t, AllowRx: "Local symbolization failed|Some binary filenames not available"},
+				Flagset:       f,
+				HTTPTransport: transport.New(nil),
 			})
 			src, _, err := parseFlags(o)
 
@@ -503,19 +499,14 @@ func mappingSources(key, source string, start uint64) plugin.MappingSources {
 	}
 }
 
-// stubHTTPGet intercepts a call to http.Get and rewrites it to use
-// "file://" to get the profile directly from a file.
-func stubHTTPGet(source string, _ time.Duration) (*http.Response, error) {
-	url, err := url.Parse(source)
-	if err != nil {
-		return nil, err
-	}
+type httpTransport struct{}
 
-	values := url.Query()
+func (tr *httpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	values := req.URL.Query()
 	file := values.Get("file")
 
 	if file == "" {
-		return nil, fmt.Errorf("want .../file?profile, got %s", source)
+		return nil, fmt.Errorf("want .../file?profile, got %s", req.URL.String())
 	}
 
 	t := &http.Transport{}
@@ -532,7 +523,7 @@ func closedError() string {
 	return "use of closed"
 }
 
-func TestHttpsInsecure(t *testing.T) {
+func TestHTTPSInsecure(t *testing.T) {
 	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
 		t.Skip("test assumes tcp available")
 	}
@@ -553,7 +544,8 @@ func TestHttpsInsecure(t *testing.T) {
 	pprofVariables = baseVars.makeCopy()
 	defer func() { pprofVariables = baseVars }()
 
-	tlsConfig := &tls.Config{Certificates: []tls.Certificate{selfSignedCert(t)}}
+	tlsCert, _, _ := selfSignedCert(t, "")
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{tlsCert}}
 
 	l, err := tls.Listen("tcp", "localhost:0", tlsConfig)
 	if err != nil {
@@ -586,8 +578,9 @@ func TestHttpsInsecure(t *testing.T) {
 		Symbolize: "remote",
 	}
 	o := &plugin.Options{
-		Obj: &binutils.Binutils{},
-		UI:  &proftest.TestUI{T: t, AllowRx: "Saved profile in"},
+		Obj:           &binutils.Binutils{},
+		UI:            &proftest.TestUI{T: t, AllowRx: "Saved profile in"},
+		HTTPTransport: transport.New(nil),
 	}
 	o.Sym = &symbolizer.Symbolizer{Obj: o.Obj, UI: o.UI}
 	p, err := fetchProfiles(s, o)
@@ -600,7 +593,122 @@ func TestHttpsInsecure(t *testing.T) {
 	if len(p.Function) == 0 {
 		t.Fatalf("fetchProfiles(%s) got non-symbolized profile: len(p.Function)==0", address)
 	}
-	if err := checkProfileHasFunction(p, "TestHttpsInsecure"); err != nil {
+	if err := checkProfileHasFunction(p, "TestHTTPSInsecure"); err != nil {
+		t.Fatalf("fetchProfiles(%s) %v", address, err)
+	}
+}
+
+func TestHTTPSWithServerCertFetch(t *testing.T) {
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+		t.Skip("test assumes tcp available")
+	}
+	saveHome := os.Getenv(homeEnv())
+	tempdir, err := ioutil.TempDir("", "home")
+	if err != nil {
+		t.Fatal("creating temp dir: ", err)
+	}
+	defer os.RemoveAll(tempdir)
+
+	// pprof writes to $HOME/pprof by default which is not necessarily
+	// writeable (e.g. on a Debian buildd) so set $HOME to something we
+	// know we can write to for the duration of the test.
+	os.Setenv(homeEnv(), tempdir)
+	defer os.Setenv(homeEnv(), saveHome)
+
+	baseVars := pprofVariables
+	pprofVariables = baseVars.makeCopy()
+	defer func() { pprofVariables = baseVars }()
+
+	cert, certBytes, keyBytes := selfSignedCert(t, "localhost")
+	cas := x509.NewCertPool()
+	cas.AppendCertsFromPEM(certBytes)
+
+	tlsConfig := &tls.Config{
+		RootCAs:      cas,
+		Certificates: []tls.Certificate{cert},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    cas,
+	}
+
+	l, err := tls.Listen("tcp", "localhost:0", tlsConfig)
+	if err != nil {
+		t.Fatalf("net.Listen: got error %v, want no error", err)
+	}
+
+	donec := make(chan error, 1)
+	go func(donec chan<- error) {
+		donec <- http.Serve(l, nil)
+	}(donec)
+	defer func() {
+		if got, want := <-donec, closedError(); !strings.Contains(got.Error(), want) {
+			t.Fatalf("Serve got error %v, want %q", got, want)
+		}
+	}()
+	defer l.Close()
+
+	outputTempFile, err := ioutil.TempFile("", "profile_output")
+	if err != nil {
+		t.Fatalf("Failed to create tempfile: %v", err)
+	}
+	defer os.Remove(outputTempFile.Name())
+	defer outputTempFile.Close()
+
+	// Get port from the address, so request to the server can be made using
+	// the host name specified in certificates.
+	_, portStr, err := net.SplitHostPort(l.Addr().String())
+	if err != nil {
+		t.Fatalf("cannot get port from URL: %v", err)
+	}
+	address := "https://" + "localhost:" + portStr + "/debug/pprof/goroutine"
+	s := &source{
+		Sources:   []string{address},
+		Seconds:   10,
+		Timeout:   10,
+		Symbolize: "remote",
+	}
+
+	certTempFile, err := ioutil.TempFile("", "cert_output")
+	if err != nil {
+		t.Errorf("cannot create cert tempfile: %v", err)
+	}
+	defer os.Remove(certTempFile.Name())
+	defer certTempFile.Close()
+	certTempFile.Write(certBytes)
+
+	keyTempFile, err := ioutil.TempFile("", "key_output")
+	if err != nil {
+		t.Errorf("cannot create key tempfile: %v", err)
+	}
+	defer os.Remove(keyTempFile.Name())
+	defer keyTempFile.Close()
+	keyTempFile.Write(keyBytes)
+
+	f := &testFlags{
+		strings: map[string]string{
+			"tls_cert": certTempFile.Name(),
+			"tls_key":  keyTempFile.Name(),
+			"tls_ca":   certTempFile.Name(),
+		},
+	}
+	o := &plugin.Options{
+		Obj:           &binutils.Binutils{},
+		UI:            &proftest.TestUI{T: t, AllowRx: "Saved profile in"},
+		Flagset:       f,
+		HTTPTransport: transport.New(f),
+	}
+
+	o.Sym = &symbolizer.Symbolizer{Obj: o.Obj, UI: o.UI, Transport: o.HTTPTransport}
+	p, err := fetchProfiles(s, o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.SampleType) == 0 {
+		t.Fatalf("fetchProfiles(%s) got empty profile: len(p.SampleType)==0", address)
+	}
+	if len(p.Function) == 0 {
+		t.Fatalf("fetchProfiles(%s) got non-symbolized profile: len(p.Function)==0", address)
+	}
+	if err := checkProfileHasFunction(p, "TestHTTPSWithServerCertFetch"); err != nil {
 		t.Fatalf("fetchProfiles(%s) %v", address, err)
 	}
 }
@@ -614,7 +722,10 @@ func checkProfileHasFunction(p *profile.Profile, fname string) error {
 	return fmt.Errorf("got %s, want function %q", p.String(), fname)
 }
 
-func selfSignedCert(t *testing.T) tls.Certificate {
+// selfSignedCert generates a self-signed certificate, and returns the
+// generated certificate, and byte arrays containing the certificate and
+// key associated with the certificate.
+func selfSignedCert(t *testing.T, host string) (tls.Certificate, []byte, []byte) {
 	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("failed to generate private key: %v", err)
@@ -629,6 +740,8 @@ func selfSignedCert(t *testing.T) tls.Certificate {
 		SerialNumber: big.NewInt(1),
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().Add(10 * time.Minute),
+		IsCA:         true,
+		DNSNames:     []string{host},
 	}
 
 	b, err = x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, privKey.Public(), privKey)
@@ -641,5 +754,5 @@ func selfSignedCert(t *testing.T) tls.Certificate {
 	if err != nil {
 		t.Fatalf("failed to create TLS key pair: %v", err)
 	}
-	return cert
+	return cert, bc, bk
 }
