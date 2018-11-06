@@ -138,7 +138,7 @@ type driver func(cfg *Config, patterns ...string) (*driverResponse, error)
 // driverResponse contains the results for a driver query.
 type driverResponse struct {
 	// Sizes, if not nil, is the types.Sizes to use when type checking.
-	Sizes types.Sizes
+	Sizes *types.StdSizes
 
 	// Roots is the set of package IDs that make up the root packages.
 	// We have to encode this separately because when we encode a single package

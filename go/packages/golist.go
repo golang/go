@@ -113,7 +113,8 @@ extractQueries:
 	if sizeserr != nil {
 		return nil, sizeserr
 	}
-	response.Sizes = sizes
+	// types.SizesFor always returns nil or a *types.StdSizes
+	response.Sizes, _ = sizes.(*types.StdSizes)
 
 	if len(containFiles) == 0 && len(packagesNamed) == 0 {
 		return response, nil
