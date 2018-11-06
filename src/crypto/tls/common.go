@@ -26,9 +26,6 @@ const (
 	VersionTLS10 = 0x0301
 	VersionTLS11 = 0x0302
 	VersionTLS12 = 0x0303
-
-	// VersionTLS13 is under development in this library and can't be selected
-	// nor negotiated yet on either side.
 	VersionTLS13 = 0x0304
 )
 
@@ -557,7 +554,7 @@ type Config struct {
 
 	// MaxVersion contains the maximum SSL/TLS version that is acceptable.
 	// If zero, then the maximum version supported by this package is used,
-	// which is currently TLS 1.2.
+	// which is currently TLS 1.3.
 	MaxVersion uint16
 
 	// CurvePreferences contains the elliptic curves that will be used in
@@ -771,10 +768,6 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 		}
 		// TLS 1.0 is the minimum version supported as a client.
 		if isClient && v < VersionTLS10 {
-			continue
-		}
-		// TLS 1.3 is only supported if explicitly requested while in development.
-		if v == VersionTLS13 && (c == nil || c.MaxVersion != VersionTLS13) {
 			continue
 		}
 		versions = append(versions, v)

@@ -306,12 +306,6 @@ func (test *clientTest) loadData() (flows [][]byte, err error) {
 func (test *clientTest) run(t *testing.T, write bool) {
 	checkOpenSSLVersion(t)
 
-	// TODO(filippo): regenerate client tests all at once after CL 146217,
-	// RSA-PSS and client-side TLS 1.3 are landed.
-	if !write && !strings.Contains(test.name, "TLSv13") {
-		t.Skip("recorded server tests are out of date")
-	}
-
 	var clientConn, serverConn net.Conn
 	var recordingConn *recordingConn
 	var childProcess *exec.Cmd
@@ -456,7 +450,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
 
 		// If the server sent us an alert after our last flight, give it a
 		// chance to arrive.
-		if write {
+		if write && test.renegotiationExpectedToFail == 0 {
 			client.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 			if _, err := client.Read(make([]byte, 1)); err != nil {
 				if netErr, ok := err.(net.Error); !ok || !netErr.Timeout() {
@@ -550,12 +544,6 @@ func runClientTestTLS12(t *testing.T, template *clientTest) {
 }
 
 func runClientTestTLS13(t *testing.T, template *clientTest) {
-	// TODO(filippo): set MaxVersion to VersionTLS13 instead in testConfig
-	// while regenerating client tests.
-	if template.config == nil {
-		template.config = testConfig.Clone()
-	}
-	template.config.MaxVersion = VersionTLS13
 	runClientTestForVersion(t, template, "TLSv13", "-tls1_3")
 }
 
@@ -1058,14 +1046,16 @@ func TestLRUClientSessionCache(t *testing.T) {
 	}
 }
 
-func TestKeyLog(t *testing.T) {
+func TestKeyLogTLS12(t *testing.T) {
 	var serverBuf, clientBuf bytes.Buffer
 
 	clientConfig := testConfig.Clone()
 	clientConfig.KeyLogWriter = &clientBuf
+	clientConfig.MaxVersion = VersionTLS12
 
 	serverConfig := testConfig.Clone()
 	serverConfig.KeyLogWriter = &serverBuf
+	serverConfig.MaxVersion = VersionTLS12
 
 	c, s := localPipe(t)
 	done := make(chan bool)
@@ -1114,11 +1104,9 @@ func TestKeyLogTLS13(t *testing.T) {
 
 	clientConfig := testConfig.Clone()
 	clientConfig.KeyLogWriter = &clientBuf
-	clientConfig.MaxVersion = VersionTLS13
 
 	serverConfig := testConfig.Clone()
 	serverConfig.KeyLogWriter = &serverBuf
-	serverConfig.MaxVersion = VersionTLS13
 
 	c, s := localPipe(t)
 	done := make(chan bool)
@@ -1640,6 +1628,11 @@ func (wcc *writeCountingConn) Write(data []byte) (int, error) {
 }
 
 func TestBuffering(t *testing.T) {
+	t.Run("TLSv12", func(t *testing.T) { testBuffering(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testBuffering(t, VersionTLS13) })
+}
+
+func testBuffering(t *testing.T, version uint16) {
 	c, s := localPipe(t)
 	done := make(chan bool)
 
@@ -1647,7 +1640,9 @@ func TestBuffering(t *testing.T) {
 	serverWCC := &writeCountingConn{Conn: s}
 
 	go func() {
-		Server(serverWCC, testConfig).Handshake()
+		config := testConfig.Clone()
+		config.MaxVersion = version
+		Server(serverWCC, config).Handshake()
 		serverWCC.Close()
 		done <- true
 	}()
@@ -1659,12 +1654,21 @@ func TestBuffering(t *testing.T) {
 	clientWCC.Close()
 	<-done
 
-	if n := clientWCC.numWrites; n != 2 {
-		t.Errorf("expected client handshake to complete with only two writes, but saw %d", n)
+	var expectedClient, expectedServer int
+	if version == VersionTLS13 {
+		expectedClient = 2
+		expectedServer = 1
+	} else {
+		expectedClient = 2
+		expectedServer = 2
 	}
 
-	if n := serverWCC.numWrites; n != 2 {
-		t.Errorf("expected server handshake to complete with only two writes, but saw %d", n)
+	if n := clientWCC.numWrites; n != expectedClient {
+		t.Errorf("expected client handshake to complete with %d writes, but saw %d", expectedClient, n)
+	}
+
+	if n := serverWCC.numWrites; n != expectedServer {
+		t.Errorf("expected server handshake to complete with %d writes, but saw %d", expectedServer, n)
 	}
 }
 
@@ -1696,16 +1700,12 @@ func TestAlertFlushing(t *testing.T) {
 		t.Fatal("client unexpectedly returned no error")
 	}
 
-	const expectedError = "remote error: tls: handshake failure"
+	const expectedError = "remote error: tls: internal error"
 	if e := err.Error(); !strings.Contains(e, expectedError) {
 		t.Fatalf("expected to find %q in error but error was %q", expectedError, e)
 	}
 	clientWCC.Close()
 	<-done
-
-	if n := clientWCC.numWrites; n != 1 {
-		t.Errorf("expected client handshake to complete with one write, but saw %d", n)
-	}
 
 	if n := serverWCC.numWrites; n != 1 {
 		t.Errorf("expected server handshake to complete with one write, but saw %d", n)

@@ -253,6 +253,9 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 	}()
 
 	clientConfig := testConfig.Clone()
+	// In TLS 1.3, alerts are encrypted and disguised as application data, so
+	// the opportunistic peek won't work.
+	clientConfig.MaxVersion = VersionTLS12
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
 		t.Fatal(err)
@@ -298,6 +301,7 @@ func TestTLSUniqueMatches(t *testing.T) {
 				return
 			}
 			serverConfig := testConfig.Clone()
+			serverConfig.MaxVersion = VersionTLS12 // TLSUnique is not defined in TLS 1.3
 			srv := Server(sconn, serverConfig)
 			if err := srv.Handshake(); err != nil {
 				t.Error(err)
@@ -352,19 +356,22 @@ func TestVerifyHostname(t *testing.T) {
 	if err := c.VerifyHostname("www.google.com"); err == nil {
 		t.Fatalf("verify www.google.com succeeded with InsecureSkipVerify=true")
 	}
-	if err := c.VerifyHostname("www.yahoo.com"); err == nil {
-		t.Fatalf("verify www.google.com succeeded with InsecureSkipVerify=true")
-	}
 }
 
 func TestVerifyHostnameResumed(t *testing.T) {
+	t.Run("TLSv12", func(t *testing.T) { testVerifyHostnameResumed(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testVerifyHostnameResumed(t, VersionTLS13) })
+}
+
+func testVerifyHostnameResumed(t *testing.T, version uint16) {
 	testenv.MustHaveExternalNetwork(t)
 
 	config := &Config{
+		MaxVersion:         version,
 		ClientSessionCache: NewLRUClientSessionCache(32),
 	}
 	for i := 0; i < 2; i++ {
-		c, err := Dial("tcp", "www.google.com:https", config)
+		c, err := Dial("tcp", "mail.google.com:https", config)
 		if err != nil {
 			t.Fatalf("Dial #%d: %v", i, err)
 		}
@@ -372,11 +379,21 @@ func TestVerifyHostnameResumed(t *testing.T) {
 		if i > 0 && !cs.DidResume {
 			t.Fatalf("Subsequent connection unexpectedly didn't resume")
 		}
+		if cs.Version != version {
+			t.Fatalf("Unexpectedly negotiated version %x", cs.Version)
+		}
 		if cs.VerifiedChains == nil {
 			t.Fatalf("Dial #%d: cs.VerifiedChains == nil", i)
 		}
-		if err := c.VerifyHostname("www.google.com"); err != nil {
-			t.Fatalf("verify www.google.com #%d: %v", i, err)
+		if err := c.VerifyHostname("mail.google.com"); err != nil {
+			t.Fatalf("verify mail.google.com #%d: %v", i, err)
+		}
+		// Give the client a chance to read the server session tickets.
+		c.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+		if _, err := c.Read(make([]byte, 1)); err != nil {
+			if err, ok := err.(net.Error); !ok || !err.Timeout() {
+				t.Fatal(err)
+			}
 		}
 		c.Close()
 	}
@@ -601,6 +618,7 @@ func TestWarningAlertFlood(t *testing.T) {
 	go func() { errChan <- server() }()
 
 	clientConfig := testConfig.Clone()
+	clientConfig.MaxVersion = VersionTLS12 // there are no warning alerts in TLS 1.3
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
 		t.Fatal(err)
@@ -749,7 +767,7 @@ func (w *changeImplConn) Close() error {
 	return w.Conn.Close()
 }
 
-func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool) {
+func throughput(b *testing.B, version uint16, totalBytes int64, dynamicRecordSizingDisabled bool) {
 	ln := newLocalListener(b)
 	defer ln.Close()
 
@@ -785,6 +803,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 	clientConfig := testConfig.Clone()
 	clientConfig.CipherSuites = nil // the defaults may prefer faster ciphers
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+	clientConfig.MaxVersion = version
 
 	buf := make([]byte, bufsize)
 	chunks := int(math.Ceil(float64(totalBytes) / float64(len(buf))))
@@ -812,7 +831,12 @@ func BenchmarkThroughput(b *testing.B) {
 		for size := 1; size <= 64; size <<= 1 {
 			name := fmt.Sprintf("%sPacket/%dMB", mode, size)
 			b.Run(name, func(b *testing.B) {
-				throughput(b, int64(size<<20), mode == "Max")
+				b.Run("TLSv12", func(b *testing.B) {
+					throughput(b, VersionTLS12, int64(size<<20), mode == "Max")
+				})
+				b.Run("TLSv13", func(b *testing.B) {
+					throughput(b, VersionTLS13, int64(size<<20), mode == "Max")
+				})
 			})
 		}
 	}
@@ -846,7 +870,7 @@ func (c *slowConn) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
+func latency(b *testing.B, version uint16, bps int, dynamicRecordSizingDisabled bool) {
 	ln := newLocalListener(b)
 	defer ln.Close()
 
@@ -872,6 +896,7 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
 
 	clientConfig := testConfig.Clone()
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+	clientConfig.MaxVersion = version
 
 	buf := make([]byte, 16384)
 	peek := make([]byte, 1)
@@ -903,7 +928,12 @@ func BenchmarkLatency(b *testing.B) {
 		for _, kbps := range []int{200, 500, 1000, 2000, 5000} {
 			name := fmt.Sprintf("%sPacket/%dkbps", mode, kbps)
 			b.Run(name, func(b *testing.B) {
-				latency(b, kbps*1000, mode == "Max")
+				b.Run("TLSv12", func(b *testing.B) {
+					latency(b, VersionTLS12, kbps*1000, mode == "Max")
+				})
+				b.Run("TLSv13", func(b *testing.B) {
+					latency(b, VersionTLS13, kbps*1000, mode == "Max")
+				})
 			})
 		}
 	}
@@ -1030,5 +1060,30 @@ func TestConnectionState(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestEscapeRoute tests that the library will still work if support for TLS 1.3
+// is dropped later in the Go 1.12 cycle.
+func TestEscapeRoute(t *testing.T) {
+	defer func(savedSupportedVersions []uint16) {
+		supportedVersions = savedSupportedVersions
+	}(supportedVersions)
+	supportedVersions = []uint16{
+		VersionTLS12,
+		VersionTLS11,
+		VersionTLS10,
+		VersionSSL30,
+	}
+
+	ss, cs, err := testHandshake(t, testConfig, testConfig)
+	if err != nil {
+		t.Fatalf("Handshake failed when support for TLS 1.3 was dropped: %v", err)
+	}
+	if ss.Version != VersionTLS12 {
+		t.Errorf("Server negotiated version %x, expected %x", cs.Version, VersionTLS12)
+	}
+	if cs.Version != VersionTLS12 {
+		t.Errorf("Client negotiated version %x, expected %x", cs.Version, VersionTLS12)
 	}
 }
