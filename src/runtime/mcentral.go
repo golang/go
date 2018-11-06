@@ -6,8 +6,8 @@
 //
 // See malloc.go for an overview.
 //
-// The MCentral doesn't actually contain the list of free objects; the MSpan does.
-// Each MCentral is two lists of MSpans: those with free objects (c->nonempty)
+// The mcentral doesn't actually contain the list of free objects; the mspan does.
+// Each mcentral is two lists of mspans: those with free objects (c->nonempty)
 // and those that are completely allocated (c->empty).
 
 package runtime
@@ -36,7 +36,7 @@ func (c *mcentral) init(spc spanClass) {
 	c.empty.init()
 }
 
-// Allocate a span to use in an MCache.
+// Allocate a span to use in an mcache.
 func (c *mcentral) cacheSpan() *mspan {
 	// Deduct credit for this span allocation and sweep if necessary.
 	spanBytes := uintptr(class_to_allocnpages[c.spanclass.sizeclass()]) * _PageSize
@@ -146,7 +146,7 @@ havespan:
 	return s
 }
 
-// Return span from an MCache.
+// Return span from an mcache.
 func (c *mcentral) uncacheSpan(s *mspan) {
 	if s.allocCount == 0 {
 		throw("uncaching span but s.allocCount == 0")
@@ -231,7 +231,7 @@ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
 	}
 
 	// delay updating sweepgen until here. This is the signal that
-	// the span may be used in an MCache, so it must come after the
+	// the span may be used in an mcache, so it must come after the
 	// linked list operations above (actually, just after the
 	// lock of c above.)
 	atomic.Store(&s.sweepgen, mheap_.sweepgen)

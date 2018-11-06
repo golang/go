@@ -149,8 +149,11 @@ type Type struct {
 	Nod  *Node // canonical OTYPE node
 	Orig *Type // original type (type literal or predefined type)
 
-	SliceOf *Type
-	PtrBase *Type
+	// Cache of composite types, with this type being the element type.
+	Cache struct {
+		ptr   *Type // *T, or nil
+		slice *Type // []T, or nil
+	}
 
 	Sym    *Sym  // symbol containing name, for named types
 	Vargen int32 // unique name for OTYPE/ONAME
@@ -488,7 +491,7 @@ func NewArray(elem *Type, bound int64) *Type {
 
 // NewSlice returns the slice Type with element type elem.
 func NewSlice(elem *Type) *Type {
-	if t := elem.SliceOf; t != nil {
+	if t := elem.Cache.slice; t != nil {
 		if t.Elem() != elem {
 			Fatalf("elem mismatch")
 		}
@@ -497,7 +500,7 @@ func NewSlice(elem *Type) *Type {
 
 	t := New(TSLICE)
 	t.Extra = Slice{Elem: elem}
-	elem.SliceOf = t
+	elem.Cache.slice = t
 	return t
 }
 
@@ -551,7 +554,7 @@ func NewPtr(elem *Type) *Type {
 		Fatalf("NewPtr: pointer to elem Type is nil")
 	}
 
-	if t := elem.PtrBase; t != nil {
+	if t := elem.Cache.ptr; t != nil {
 		if t.Elem() != elem {
 			Fatalf("NewPtr: elem mismatch")
 		}
@@ -563,7 +566,7 @@ func NewPtr(elem *Type) *Type {
 	t.Width = int64(Widthptr)
 	t.Align = uint8(Widthptr)
 	if NewPtrCacheEnabled {
-		elem.PtrBase = t
+		elem.Cache.ptr = t
 	}
 	return t
 }
@@ -662,23 +665,18 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 		}
 
 	case TSTRUCT:
+		// Make a copy of all fields, including ones whose type does not change.
+		// This prevents aliasing across functions, which can lead to later
+		// fields getting their Offset incorrectly overwritten.
 		fields := t.FieldSlice()
-		var nfs []*Field
+		nfs := make([]*Field, len(fields))
 		for i, f := range fields {
 			nft := SubstAny(f.Type, types)
-			if nft == f.Type {
-				continue
-			}
-			if nfs == nil {
-				nfs = append([]*Field(nil), fields...)
-			}
 			nfs[i] = f.Copy()
 			nfs[i].Type = nft
 		}
-		if nfs != nil {
-			t = t.copy()
-			t.SetFields(nfs)
-		}
+		t = t.copy()
+		t.SetFields(nfs)
 	}
 
 	return t
@@ -1256,6 +1254,11 @@ func (t *Type) IsComplex() bool {
 // This does not include unsafe.Pointer.
 func (t *Type) IsPtr() bool {
 	return t.Etype == TPTR
+}
+
+// IsPtrElem reports whether t is the element of a pointer (to t).
+func (t *Type) IsPtrElem() bool {
+	return t.Cache.ptr != nil
 }
 
 // IsUnsafePtr reports whether t is an unsafe pointer.

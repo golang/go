@@ -255,8 +255,16 @@ func typecheck(n *Node, top int) (res *Node) {
 				// since it would expand indefinitely when aliases
 				// are substituted.
 				cycle := cycleFor(n)
-				for _, n := range cycle {
-					if n.Name != nil && !n.Name.Param.Alias {
+				for _, n1 := range cycle {
+					if n1.Name != nil && !n1.Name.Param.Alias {
+						// Cycle is ok. But if n is an alias type and doesn't
+						// have a type yet, we have a recursive type declaration
+						// with aliases that we can't handle properly yet.
+						// Report an error rather than crashing later.
+						if n.Name != nil && n.Name.Param.Alias && n.Type == nil {
+							lineno = n.Pos
+							Fatalf("cannot handle alias type declaration (issue #25838): %v", n)
+						}
 						lineno = lno
 						return n
 					}
@@ -3671,8 +3679,7 @@ func copytype(n *Node, t *types.Type) {
 	embedlineno := n.Type.ForwardType().Embedlineno
 	l := n.Type.ForwardType().Copyto
 
-	ptrBase := n.Type.PtrBase
-	sliceOf := n.Type.SliceOf
+	cache := n.Type.Cache
 
 	// TODO(mdempsky): Fix Type rekinding.
 	*n.Type = *t
@@ -3693,8 +3700,7 @@ func copytype(n *Node, t *types.Type) {
 
 	t.Nod = asTypesNode(n)
 	t.SetDeferwidth(false)
-	t.PtrBase = ptrBase
-	t.SliceOf = sliceOf
+	t.Cache = cache
 
 	// Propagate go:notinheap pragma from the Name to the Type.
 	if n.Name != nil && n.Name.Param != nil && n.Name.Param.Pragma&NotInHeap != 0 {

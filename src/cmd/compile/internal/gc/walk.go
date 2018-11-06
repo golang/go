@@ -384,41 +384,31 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 	tkind := to.Tie()
 	switch from.Tie() {
 	case 'I':
-		switch tkind {
-		case 'I':
+		if tkind == 'I' {
 			return "convI2I", false
 		}
 	case 'T':
+		switch {
+		case from.Size() == 2 && from.Align == 2:
+			return "convT16", false
+		case from.Size() == 4 && from.Align == 4 && !types.Haspointers(from):
+			return "convT32", false
+		case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
+			return "convT64", false
+		case from.IsString():
+			return "convTstring", false
+		case from.IsSlice():
+			return "convTslice", false
+		}
+
 		switch tkind {
 		case 'E':
-			switch {
-			case from.Size() == 2 && from.Align == 2:
-				return "convT2E16", false
-			case from.Size() == 4 && from.Align == 4 && !types.Haspointers(from):
-				return "convT2E32", false
-			case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
-				return "convT2E64", false
-			case from.IsString():
-				return "convT2Estring", false
-			case from.IsSlice():
-				return "convT2Eslice", false
-			case !types.Haspointers(from):
+			if !types.Haspointers(from) {
 				return "convT2Enoptr", true
 			}
 			return "convT2E", true
 		case 'I':
-			switch {
-			case from.Size() == 2 && from.Align == 2:
-				return "convT2I16", false
-			case from.Size() == 4 && from.Align == 4 && !types.Haspointers(from):
-				return "convT2I32", false
-			case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
-				return "convT2I64", false
-			case from.IsString():
-				return "convT2Istring", false
-			case from.IsSlice():
-				return "convT2Islice", false
-			case !types.Haspointers(from):
+			if !types.Haspointers(from) {
 				return "convT2Inoptr", true
 			}
 			return "convT2I", true
@@ -925,6 +915,34 @@ opswitch:
 			break
 		}
 
+		fnname, needsaddr := convFuncName(n.Left.Type, n.Type)
+
+		if !needsaddr && !n.Left.Type.IsInterface() {
+			// Use a specialized conversion routine that only returns a data pointer.
+			// ptr = convT2X(val)
+			// e = iface{typ/tab, ptr}
+			fn := syslook(fnname)
+			dowidth(n.Left.Type)
+			fn = substArgTypes(fn, n.Left.Type)
+			dowidth(fn.Type)
+			call := nod(OCALL, fn, nil)
+			call.List.Set1(n.Left)
+			call = typecheck(call, Erv)
+			call = walkexpr(call, init)
+			call = safeexpr(call, init)
+			var tab *Node
+			if n.Type.IsEmptyInterface() {
+				tab = typename(n.Left.Type)
+			} else {
+				tab = itabname(n.Left.Type, n.Type)
+			}
+			e := nod(OEFACE, tab, call)
+			e.Type = n.Type
+			e.SetTypecheck(1)
+			n = e
+			break
+		}
+
 		var ll []*Node
 		if n.Type.IsEmptyInterface() {
 			if !n.Left.Type.IsInterface() {
@@ -938,7 +956,6 @@ opswitch:
 			}
 		}
 
-		fnname, needsaddr := convFuncName(n.Left.Type, n.Type)
 		v := n.Left
 		if needsaddr {
 			// Types of large or unknown size are passed by reference.

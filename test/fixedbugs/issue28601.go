@@ -4,16 +4,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Failed to compile with gccgo.
+
 package p
 
-// The compiler cannot handle this. Disabled for now.
-// See issue #25838.
-/*
-type I1 = interface {
-	I2
-}
+import "unsafe"
 
-type I2 interface {
-	I1
-}
-*/
+const w int = int(unsafe.Sizeof(0))
+
+var a [w]byte
