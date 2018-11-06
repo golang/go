@@ -83,18 +83,6 @@ extractQueries:
 		}
 	}
 	patterns = restPatterns
-	// Look for the deprecated contains: syntax.
-	// TODO(matloob): delete this around mid-October 2018.
-	restPatterns = restPatterns[:0]
-	for _, pattern := range patterns {
-		if strings.HasPrefix(pattern, "contains:") {
-			containFile := strings.TrimPrefix(pattern, "contains:")
-			containFiles = append(containFiles, containFile)
-		} else {
-			restPatterns = append(restPatterns, pattern)
-		}
-	}
-	containFiles = absJoin(cfg.Dir, containFiles)
 
 	// TODO(matloob): Remove the definition of listfunc and just use golistPackages once go1.12 is released.
 	var listfunc driver
