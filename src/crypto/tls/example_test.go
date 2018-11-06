@@ -110,9 +110,6 @@ func ExampleConfig_keyLogWriter() {
 	// The resulting file can be used with Wireshark to decrypt the TLS
 	// connection by setting (Pre)-Master-Secret log filename in SSL Protocol
 	// preferences.
-
-	// Output:
-	// CLIENT_RANDOM 0000000000000000000000000000000000000000000000000000000000000000 baca0df460a688e44ce018b025183cc2353ae01f89755ef766eedd3ecc302888ee3b3a22962e45f48c20df15a98c0e80
 }
 
 func ExampleLoadX509KeyPair() {
