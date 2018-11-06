@@ -189,6 +189,14 @@ var helloRetryRequestRandom = []byte{ // See RFC 8446, Section 4.1.3.
 	0x07, 0x9E, 0x09, 0xE2, 0xC8, 0xA8, 0x33, 0x9C,
 }
 
+const (
+	// downgradeCanaryTLS12 or downgradeCanaryTLS11 is embedded in the server
+	// random as a downgrade protection if the server would be capable of
+	// negotiating a higher version. See RFC 8446, Section 4.1.3.
+	downgradeCanaryTLS12 = "DOWNGRD\x01"
+	downgradeCanaryTLS11 = "DOWNGRD\x00"
+)
+
 // ConnectionState records basic TLS details about the connection.
 type ConnectionState struct {
 	Version                     uint16                // TLS version used by the connection (e.g. VersionTLS12)
@@ -772,6 +780,14 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 		versions = append(versions, v)
 	}
 	return versions
+}
+
+func (c *Config) maxSupportedVersion(isClient bool) uint16 {
+	supportedVersions := c.supportedVersions(isClient)
+	if len(supportedVersions) == 0 {
+		return 0
+	}
+	return supportedVersions[0]
 }
 
 // supportedVersionsFromMax returns a list of supported versions derived from a

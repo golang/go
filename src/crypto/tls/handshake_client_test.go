@@ -309,7 +309,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
 	// TODO(filippo): regenerate client tests all at once after CL 146217,
 	// RSA-PSS and client-side TLS 1.3 are landed.
 	if !write && !strings.Contains(test.name, "TLSv13") {
-		t.Skip("recorded client tests are out of date")
+		t.Skip("recorded server tests are out of date")
 	}
 
 	var clientConn, serverConn net.Conn
