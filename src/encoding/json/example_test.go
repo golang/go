@@ -14,6 +14,26 @@ import (
 	"strings"
 )
 
+func Example() {
+	data := map[string]string{"Name": "Platypus", "Order": "Monotremata"}
+
+	// To JSON:
+	jsonData, _ := json.Marshal(data)
+
+	// From JSON:
+	result := map[string]string{}
+	json.Unmarshal(jsonData, &result)
+
+	fmt.Printf("Origin data: %+v \n", data)
+	fmt.Printf("JSON data: %s \n", jsonData)
+	fmt.Printf("Result data: %+v \n", result)
+
+	// Output:
+	// Origin data: map[Name:Platypus Order:Monotremata]
+	// JSON data: {"Name":"Platypus","Order":"Monotremata"}
+	// Result data: map[Name:Platypus Order:Monotremata]
+}
+
 func ExampleMarshal() {
 	type ColorGroup struct {
 		ID     int
