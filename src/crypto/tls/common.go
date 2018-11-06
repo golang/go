@@ -92,6 +92,7 @@ const (
 	extensionSupportedVersions       uint16 = 43
 	extensionCookie                  uint16 = 44
 	extensionPSKModes                uint16 = 45
+	extensionCertificateAuthorities  uint16 = 47
 	extensionSignatureAlgorithmsCert uint16 = 50
 	extensionKeyShare                uint16 = 51
 	extensionNextProtoNeg            uint16 = 13172 // not IANA assigned
