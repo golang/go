@@ -450,8 +450,9 @@ func TestGetwd(t *testing.T) {
 		t.Fatalf("Open .: %s", err)
 	}
 	defer fd.Close()
-	// Some dirs might not exist, orcontain symlinks, which
-	// is checked for in the test loop
+    // Directories used in working directory test
+	// Some of these may not exist on client systems, or contain 
+    // symlinks. These conditions are checked in the test loop.
 	dirs := []string{"/", "/usr/bin", "/etc", "/var", "/opt"}
 	switch runtime.GOOS {
 	case "android":
