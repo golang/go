@@ -4084,6 +4084,12 @@ func deadcode(fn *Node) {
 }
 
 func deadcodeslice(nn Nodes) {
+	var lastLabel = -1
+	for i, n := range nn.Slice() {
+		if n != nil && n.Op == OLABEL {
+			lastLabel = i
+		}
+	}
 	for i, n := range nn.Slice() {
 		// Cut is set to true when all nodes after i'th position
 		// should be removed.
@@ -4106,10 +4112,14 @@ func deadcodeslice(nn Nodes) {
 				// If "then" or "else" branch ends with panic or return statement,
 				// it is safe to remove all statements after this node.
 				// isterminating is not used to avoid goto-related complications.
+				// We must be careful not to deadcode-remove labels, as they
+				// might be the target of a goto. See issue 28616.
 				if body := body.Slice(); len(body) != 0 {
 					switch body[(len(body) - 1)].Op {
 					case ORETURN, ORETJMP, OPANIC:
-						cut = true
+						if i > lastLabel {
+							cut = true
+						}
 					}
 				}
 			}
