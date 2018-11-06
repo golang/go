@@ -5,6 +5,7 @@
 package lsp
 
 import (
+	"fmt"
 	"go/token"
 	"strconv"
 	"strings"
@@ -18,6 +19,9 @@ func diagnostics(v *source.View, uri source.URI) (map[string][]protocol.Diagnost
 	pkg, err := v.GetFile(uri).GetPackage()
 	if err != nil {
 		return nil, err
+	}
+	if pkg == nil {
+		return nil, fmt.Errorf("package for %v not found", uri)
 	}
 	reports := make(map[string][]protocol.Diagnostic)
 	for _, filename := range pkg.GoFiles {

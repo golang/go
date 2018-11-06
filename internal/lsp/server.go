@@ -51,6 +51,7 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 			CompletionProvider: protocol.CompletionOptions{
 				TriggerCharacters: []string{"."},
 			},
+			DefinitionProvider: true,
 		},
 	}, nil
 }
@@ -170,8 +171,18 @@ func (s *server) SignatureHelp(context.Context, *protocol.TextDocumentPositionPa
 	return nil, notImplemented("SignatureHelp")
 }
 
-func (s *server) Definition(context.Context, *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
-	return nil, notImplemented("Definition")
+func (s *server) Definition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
+	f := s.view.GetFile(source.URI(params.TextDocument.URI))
+	tok, err := f.GetToken()
+	if err != nil {
+		return nil, err
+	}
+	pos := fromProtocolPosition(tok, params.Position)
+	r, err := source.Definition(ctx, f, pos)
+	if err != nil {
+		return nil, err
+	}
+	return []protocol.Location{toProtocolLocation(s.view, r)}, nil
 }
 
 func (s *server) TypeDefinition(context.Context, *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
