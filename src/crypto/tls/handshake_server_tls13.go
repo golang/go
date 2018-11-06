@@ -96,6 +96,27 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 		return errors.New("tls: client used the legacy version field to negotiate TLS 1.3")
 	}
 
+	// Abort if the client is doing a fallback and landing lower than what we
+	// support. See RFC 7507, which however does not specify the interaction
+	// with supported_versions. The only difference is that with
+	// supported_versions a client has a chance to attempt a [TLS 1.2, TLS 1.4]
+	// handshake in case TLS 1.3 is broken but 1.2 is not. Alas, in that case,
+	// it will have to drop the TLS_FALLBACK_SCSV protection if it falls back to
+	// TLS 1.2, because a TLS 1.3 server would abort here. The situation before
+	// supported_versions was not better because there was just no way to do a
+	// TLS 1.4 handshake without risking the server selecting TLS 1.3.
+	for _, id := range hs.clientHello.cipherSuites {
+		if id == TLS_FALLBACK_SCSV {
+			// Use c.vers instead of max(supported_versions) because an attacker
+			// could defeat this by adding an arbitrary high version otherwise.
+			if c.vers < c.config.maxSupportedVersion(false) {
+				c.sendAlert(alertInappropriateFallback)
+				return errors.New("tls: client using inappropriate protocol fallback")
+			}
+			break
+		}
+	}
+
 	if len(hs.clientHello.compressionMethods) != 1 ||
 		hs.clientHello.compressionMethods[0] != compressionNone {
 		c.sendAlert(alertIllegalParameter)
