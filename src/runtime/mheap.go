@@ -1054,7 +1054,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 
 	// We scavenge s at the end after coalescing if s or anything
 	// it merged with is marked scavenged.
-	needsScavenge := s.scavenged
+	needsScavenge := false
 	prescavenged := s.released() // number of bytes already scavenged.
 
 	// Coalesce with earlier, later spans.
@@ -1064,14 +1064,15 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 		s.npages += before.npages
 		s.needzero |= before.needzero
 		h.setSpan(before.base(), s)
+		// If before or s are scavenged, then we need to scavenge the final coalesced span.
+		needsScavenge = needsScavenge || before.scavenged || s.scavenged
+		prescavenged += before.released()
 		// The size is potentially changing so the treap needs to delete adjacent nodes and
 		// insert back as a combined node.
-		if !before.scavenged {
-			h.free.removeSpan(before)
-		} else {
+		if before.scavenged {
 			h.scav.removeSpan(before)
-			needsScavenge = true
-			prescavenged += before.released()
+		} else {
+			h.free.removeSpan(before)
 		}
 		before.state = mSpanDead
 		h.spanalloc.free(unsafe.Pointer(before))
@@ -1082,12 +1083,12 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 		s.npages += after.npages
 		s.needzero |= after.needzero
 		h.setSpan(s.base()+s.npages*pageSize-1, s)
-		if !after.scavenged {
-			h.free.removeSpan(after)
-		} else {
+		needsScavenge = needsScavenge || after.scavenged || s.scavenged
+		prescavenged += after.released()
+		if after.scavenged {
 			h.scav.removeSpan(after)
-			needsScavenge = true
-			prescavenged += after.released()
+		} else {
+			h.free.removeSpan(after)
 		}
 		after.state = mSpanDead
 		h.spanalloc.free(unsafe.Pointer(after))
