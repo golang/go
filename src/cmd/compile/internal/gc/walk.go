@@ -398,10 +398,14 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 			return "convT32", false
 		case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
 			return "convT64", false
-		case from.IsString():
-			return "convTstring", false
-		case from.IsSlice():
-			return "convTslice", false
+		}
+		if sc := from.SoleComponent(); sc != nil {
+			switch {
+			case sc.IsString():
+				return "convTstring", false
+			case sc.IsSlice():
+				return "convTslice", false
+			}
 		}
 
 		switch tkind {
