@@ -90,6 +90,9 @@ func completions(file *ast.File, pos token.Pos, fset *token.FileSet, pkg *types.
 			if typ != nil && matchingTypes(typ, obj.Type()) {
 				weight *= 10
 			}
+			if !strings.HasPrefix(obj.Name(), prefix) {
+				return items
+			}
 			item := formatCompletion(obj, pkgStringer, weight, func(v *types.Var) bool {
 				return isParameter(sig, v)
 			})
@@ -203,7 +206,7 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 		}
 		scopes = append(scopes, info.Scopes[n])
 	}
-	scopes = append(scopes, pkg.Scope(), types.Universe)
+	scopes = append(scopes, pkg.Scope())
 
 	// Process scopes innermost first.
 	for i, scope := range scopes {

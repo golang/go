@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"golang.org/x/tools/go/packages"
 	"io/ioutil"
+
+	"golang.org/x/tools/go/packages"
 )
 
 // File holds all the information we know about a file.

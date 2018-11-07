@@ -254,6 +254,23 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 			}
 			return reflect.ValueOf(b), args, nil
 		}, nil
+	case pt.Kind() == reflect.Slice:
+		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
+			converter, err := e.buildConverter(pt.Elem())
+			if err != nil {
+				return reflect.Value{}, nil, err
+			}
+			result := reflect.MakeSlice(reflect.SliceOf(pt.Elem()), 0, len(args))
+			for range args {
+				value, remains, err := converter(n, args)
+				if err != nil {
+					return reflect.Value{}, nil, err
+				}
+				result = reflect.Append(result, value)
+				args = remains
+			}
+			return result, args, nil
+		}, nil
 	default:
 		return nil, fmt.Errorf("param has invalid type %v", pt)
 	}
