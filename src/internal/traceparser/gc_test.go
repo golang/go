@@ -6,6 +6,7 @@ package traceparser
 
 import (
 	"math"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -75,6 +76,9 @@ func TestMMU(t *testing.T) {
 }
 
 func TestMMUTrace(t *testing.T) {
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skipf("files from outside the package are not available on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
 	// Can't be t.Parallel() because it modifies the
 	// testingOneBand package variable.
 
