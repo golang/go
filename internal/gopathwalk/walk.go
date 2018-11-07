@@ -11,12 +11,13 @@ import (
 	"bytes"
 	"fmt"
 	"go/build"
-	"golang.org/x/tools/internal/fastwalk"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/tools/internal/fastwalk"
 )
 
 // Options controls the behavior of a Walk call.
@@ -176,7 +177,9 @@ func (w *walker) walk(path string, typ os.FileMode) error {
 	if typ == os.ModeDir {
 		base := filepath.Base(path)
 		if base == "" || base[0] == '.' || base[0] == '_' ||
-			base == "testdata" || (!w.opts.ModulesEnabled && base == "node_modules") {
+			base == "testdata" ||
+			(w.root.Type == RootGOROOT && w.opts.ModulesEnabled && base == "vendor") ||
+			(!w.opts.ModulesEnabled && base == "node_modules") {
 			return filepath.SkipDir
 		}
 		fi, err := os.Lstat(path)
