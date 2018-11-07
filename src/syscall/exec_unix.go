@@ -248,7 +248,8 @@ func runtime_AfterExec()
 
 // execveLibc is non-nil on OS using libc syscall, set to execve in exec_libc.go; this
 // avoids a build dependency for other platforms.
-var execveLibc func(path uintptr, argv uintptr, envp uintptr) (err Errno)
+var execveLibc func(path uintptr, argv uintptr, envp uintptr) Errno
+var execveDarwin func(path *byte, argv **byte, envp **byte) error
 
 // Exec invokes the execve(2) system call.
 func Exec(argv0 string, argv []string, envv []string) (err error) {
@@ -266,13 +267,16 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	}
 	runtime_BeforeExec()
 
-	var err1 Errno
+	var err1 error
 	if runtime.GOOS == "solaris" || runtime.GOOS == "aix" {
 		// RawSyscall should never be used on Solaris or AIX.
 		err1 = execveLibc(
 			uintptr(unsafe.Pointer(argv0p)),
 			uintptr(unsafe.Pointer(&argvp[0])),
 			uintptr(unsafe.Pointer(&envvp[0])))
+	} else if runtime.GOOS == "darwin" {
+		// Similarly on Darwin.
+		err1 = execveDarwin(argv0p, &argvp[0], &envvp[0])
 	} else {
 		_, _, err1 = RawSyscall(SYS_EXECVE,
 			uintptr(unsafe.Pointer(argv0p)),

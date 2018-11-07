@@ -33,6 +33,8 @@ func main() {
 	}
 	in := string(in1) + string(in2) + string(in3)
 
+	trampolines := map[string]bool{}
+
 	var out bytes.Buffer
 
 	fmt.Fprintf(&out, "// go run mkasm_darwin.go %s\n", strings.Join(os.Args[1:], " "))
@@ -43,8 +45,11 @@ func main() {
 			continue
 		}
 		fn := line[5 : len(line)-13]
-		fmt.Fprintf(&out, "TEXT ·%s_trampoline(SB),NOSPLIT,$0-0\n", fn)
-		fmt.Fprintf(&out, "\tJMP\t%s(SB)\n", fn)
+		if !trampolines[fn] {
+			trampolines[fn] = true
+			fmt.Fprintf(&out, "TEXT ·%s_trampoline(SB),NOSPLIT,$0-0\n", fn)
+			fmt.Fprintf(&out, "\tJMP\t%s(SB)\n", fn)
+		}
 	}
 	err = ioutil.WriteFile(fmt.Sprintf("zsyscall_darwin_%s.s", arch), out.Bytes(), 0644)
 	if err != nil {
