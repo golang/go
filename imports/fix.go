@@ -224,7 +224,7 @@ func fixImports(fset *token.FileSet, f *ast.File, filename string) (added []stri
 			if ipath == "C" {
 				break
 			}
-			local := path.Base(ipath)
+			local := importPathToName(ipath, srcDir)
 			decls[local] = v
 		case *ast.SelectorExpr:
 			xident, ok := v.X.(*ast.Ident)
@@ -361,6 +361,98 @@ func fixImports(fset *token.FileSet, f *ast.File, filename string) (added []stri
 		return nil, firstErr
 	}
 	return added, nil
+}
+
+// importPathToName returns the package name for the given import path.
+var importPathToName func(importPath, srcDir string) (packageName string) = importPathToNameGoPath
+
+// importPathToNameBasic assumes the package name is the base of import path,
+// except that if the path ends in foo/vN, it assumes the package name is foo.
+func importPathToNameBasic(importPath, srcDir string) (packageName string) {
+	base := path.Base(importPath)
+	if strings.HasPrefix(base, "v") {
+		if _, err := strconv.Atoi(base[1:]); err == nil {
+			dir := path.Dir(importPath)
+			if dir != "." {
+				return path.Base(dir)
+			}
+		}
+	}
+	return base
+}
+
+// importPathToNameGoPath finds out the actual package name, as declared in its .go files.
+// If there's a problem, it falls back to using importPathToNameBasic.
+func importPathToNameGoPath(importPath, srcDir string) (packageName string) {
+	// Fast path for standard library without going to disk.
+	if pkg, ok := stdImportPackage[importPath]; ok {
+		return pkg
+	}
+
+	pkgName, err := importPathToNameGoPathParse(importPath, srcDir)
+	if Debug {
+		log.Printf("importPathToNameGoPathParse(%q, srcDir=%q) = %q, %v", importPath, srcDir, pkgName, err)
+	}
+	if err == nil {
+		return pkgName
+	}
+	return importPathToNameBasic(importPath, srcDir)
+}
+
+// importPathToNameGoPathParse is a faster version of build.Import if
+// the only thing desired is the package name. It uses build.FindOnly
+// to find the directory and then only parses one file in the package,
+// trusting that the files in the directory are consistent.
+func importPathToNameGoPathParse(importPath, srcDir string) (packageName string, err error) {
+	buildPkg, err := build.Import(importPath, srcDir, build.FindOnly)
+	if err != nil {
+		return "", err
+	}
+	d, err := os.Open(buildPkg.Dir)
+	if err != nil {
+		return "", err
+	}
+	names, err := d.Readdirnames(-1)
+	d.Close()
+	if err != nil {
+		return "", err
+	}
+	sort.Strings(names) // to have predictable behavior
+	var lastErr error
+	var nfile int
+	for _, name := range names {
+		if !strings.HasSuffix(name, ".go") {
+			continue
+		}
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		nfile++
+		fullFile := filepath.Join(buildPkg.Dir, name)
+
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, fullFile, nil, parser.PackageClauseOnly)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		pkgName := f.Name.Name
+		if pkgName == "documentation" {
+			// Special case from go/build.ImportDir, not
+			// handled by ctx.MatchFile.
+			continue
+		}
+		if pkgName == "main" {
+			// Also skip package main, assuming it's a +build ignore generator or example.
+			// Since you can't import a package main anyway, there's no harm here.
+			continue
+		}
+		return pkgName, nil
+	}
+	if lastErr != nil {
+		return "", lastErr
+	}
+	return "", fmt.Errorf("no importable package found in %d Go files", nfile)
 }
 
 var stdImportPackage = map[string]string{} // "net/http" => "http"
@@ -680,32 +772,12 @@ func findImportGoPath(ctx context.Context, pkgName string, symbols map[string]bo
 		if pkg == nil {
 			continue
 		}
-		// If the package name in the source doesn't match the import path,
+		// If the package name in the source doesn't match the import path's base,
 		// return true so the rewriter adds a name (import foo "github.com/bar/go-foo")
-		// Module-style version suffixes are allowed.
-		lastSeg := path.Base(pkg.importPath)
-		if isVersionSuffix(lastSeg) {
-			lastSeg = path.Base(path.Dir(pkg.importPath))
-		}
-		needsRename := lastSeg != pkgName
+		needsRename := path.Base(pkg.importPath) != pkgName
 		return pkg.importPathShort, needsRename, nil
 	}
 	return "", false, nil
-}
-
-// isVersionSuffix reports whether the path segment seg is a semantic import
-// versioning style major version suffix.
-func isVersionSuffix(seg string) bool {
-	if seg == "" {
-		return false
-	}
-	if seg[0] != 'v' {
-		return false
-	}
-	if _, err := strconv.Atoi(seg[1:]); err != nil {
-		return false
-	}
-	return true
 }
 
 // pkgIsCandidate reports whether pkg is a candidate for satisfying the
