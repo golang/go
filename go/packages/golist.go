@@ -86,9 +86,11 @@ extractQueries:
 
 	// TODO(matloob): Remove the definition of listfunc and just use golistPackages once go1.12 is released.
 	var listfunc driver
+	var isFallback bool
 	listfunc = func(cfg *Config, words ...string) (*driverResponse, error) {
 		response, err := golistDriverCurrent(cfg, words...)
 		if _, ok := err.(goTooOldError); ok {
+			isFallback = true
 			listfunc = golistDriverFallback
 			return listfunc(cfg, words...)
 		}
@@ -132,7 +134,7 @@ extractQueries:
 		response.Packages = append(response.Packages, p)
 	}
 
-	containsResults, err := runContainsQueries(cfg, listfunc, addPkg, containFiles)
+	containsResults, err := runContainsQueries(cfg, listfunc, isFallback, addPkg, containFiles)
 	if err != nil {
 		return nil, err
 	}
@@ -146,13 +148,23 @@ extractQueries:
 	return response, nil
 }
 
-func runContainsQueries(cfg *Config, driver driver, addPkg func(*Package), queries []string) ([]string, error) {
+func runContainsQueries(cfg *Config, driver driver, isFallback bool, addPkg func(*Package), queries []string) ([]string, error) {
 	var results []string
 	for _, query := range queries {
 		// TODO(matloob): Do only one query per directory.
 		fdir := filepath.Dir(query)
-		cfg.Dir = fdir
-		dirResponse, err := driver(cfg, ".")
+		// Pass absolute path of directory to go list so that it knows to treat it as a directory,
+		// not a package path.
+		pattern, err := filepath.Abs(fdir)
+		if err != nil {
+			return nil, fmt.Errorf("could not determine absolute path of file= query path %q: %v", query, err)
+		}
+		if isFallback {
+			pattern = "."
+			cfg.Dir = fdir
+		}
+
+		dirResponse, err := driver(cfg, pattern)
 		if err != nil {
 			return nil, err
 		}
