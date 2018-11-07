@@ -33,6 +33,13 @@ type Range struct {
 	End   token.Pos
 }
 
+// TextEdit represents a change to a section of a document.
+// The text within the specified range should be replaced by the supplied new text.
+type TextEdit struct {
+	Range   Range
+	NewText string
+}
+
 // SetContent sets the overlay contents for a file.
 // Setting it to nil will revert it to the on disk contents, and remove it
 // from the active set.

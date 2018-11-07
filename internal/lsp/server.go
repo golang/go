@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+	"go/token"
 	"os"
 	"sync"
 
@@ -240,11 +241,46 @@ func (s *server) ColorPresentation(context.Context, *protocol.ColorPresentationP
 }
 
 func (s *server) Formatting(ctx context.Context, params *protocol.DocumentFormattingParams) ([]protocol.TextEdit, error) {
-	return formatRange(s.view, params.TextDocument.URI, nil)
+	return formatRange(ctx, s.view, params.TextDocument.URI, nil)
 }
 
 func (s *server) RangeFormatting(ctx context.Context, params *protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
-	return formatRange(s.view, params.TextDocument.URI, &params.Range)
+	return formatRange(ctx, s.view, params.TextDocument.URI, &params.Range)
+}
+
+// formatRange formats a document with a given range.
+func formatRange(ctx context.Context, v *source.View, uri protocol.DocumentURI, rng *protocol.Range) ([]protocol.TextEdit, error) {
+	f := v.GetFile(source.URI(uri))
+	tok, err := f.GetToken()
+	if err != nil {
+		return nil, err
+	}
+	var r source.Range
+	if rng == nil {
+		r.Start = tok.Pos(0)
+		r.End = tok.Pos(tok.Size())
+	} else {
+		r = fromProtocolRange(tok, *rng)
+	}
+	edits, err := source.Format(ctx, f, r)
+	if err != nil {
+		return nil, err
+	}
+	return toProtocolEdits(tok, edits), nil
+}
+
+func toProtocolEdits(f *token.File, edits []source.TextEdit) []protocol.TextEdit {
+	if edits == nil {
+		return nil
+	}
+	result := make([]protocol.TextEdit, len(edits))
+	for i, edit := range edits {
+		result[i] = protocol.TextEdit{
+			Range:   toProtocolRange(f, edit.Range),
+			NewText: edit.NewText,
+		}
+	}
+	return result
 }
 
 func (s *server) OnTypeFormatting(context.Context, *protocol.DocumentOnTypeFormattingParams) ([]protocol.TextEdit, error) {
