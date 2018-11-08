@@ -483,7 +483,7 @@ ok:
 // C calling convention (use libcCall).
 TEXT runtime·syscall6(SB),NOSPLIT,$0
 	SUB	$16, RSP	// push structure pointer
-	MOVD	R0, (RSP)
+	MOVD	R0, 8(RSP)
 
 	MOVD	0(R0), R12	// fn
 	MOVD	16(R0), R1	// a2
@@ -492,19 +492,25 @@ TEXT runtime·syscall6(SB),NOSPLIT,$0
 	MOVD	40(R0), R4	// a5
 	MOVD	48(R0), R5	// a6
 	MOVD	8(R0), R0	// a1
+
+	// If fn is declared as vararg, we have to pass the vararg arguments on the stack.
+	// See syscall above. The only function this applies to is openat, for which the 4th
+	// arg must be on the stack.
+	MOVD	R3, (RSP)
+
 	BL	(R12)
 
-	MOVD	(RSP), R2	// pop structure pointer
+	MOVD	8(RSP), R2	// pop structure pointer
 	ADD	$16, RSP
 	MOVD	R0, 56(R2)	// save r1
 	MOVD	R1, 64(R2)	// save r2
 	CMPW	$-1, R0
 	BNE	ok
 	SUB	$16, RSP	// push structure pointer
-	MOVD	R2, (RSP)
+	MOVD	R2, 8(RSP)
 	BL	libc_error(SB)
 	MOVW	(R0), R0
-	MOVD	(RSP), R2	// pop structure pointer
+	MOVD	8(RSP), R2	// pop structure pointer
 	ADD	$16, RSP
 	MOVD	R0, 72(R2)	// save err
 ok:
