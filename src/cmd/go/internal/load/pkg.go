@@ -1515,7 +1515,9 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 	}
 
 	if cfg.ModulesEnabled {
-		p.Module = ModPackageModuleInfo(p.ImportPath)
+		if !p.Internal.CmdlineFiles {
+			p.Module = ModPackageModuleInfo(p.ImportPath)
+		}
 		if p.Name == "main" {
 			p.Internal.BuildInfo = ModPackageBuildInfo(p.ImportPath, p.Deps)
 		}

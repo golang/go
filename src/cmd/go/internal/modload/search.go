@@ -118,7 +118,10 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 		}
 		var root string
 		if mod.Version == "" {
-			root = ModRoot
+			if !HasModRoot() {
+				continue // If there is no main module, we can't search in it.
+			}
+			root = ModRoot()
 		} else {
 			var err error
 			root, _, err = fetch(mod)

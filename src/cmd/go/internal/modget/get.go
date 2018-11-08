@@ -281,8 +281,8 @@ func runGet(cmd *base.Command, args []string) {
 				base.Errorf("go get %s: %v", arg, err)
 				continue
 			}
-			if !str.HasFilePathPrefix(abs, modload.ModRoot) {
-				base.Errorf("go get %s: directory %s is outside module root %s", arg, abs, modload.ModRoot)
+			if !str.HasFilePathPrefix(abs, modload.ModRoot()) {
+				base.Errorf("go get %s: directory %s is outside module root %s", arg, abs, modload.ModRoot())
 				continue
 			}
 			// TODO: Check if abs is inside a nested module.

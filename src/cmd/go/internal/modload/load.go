@@ -101,10 +101,10 @@ func ImportPaths(patterns []string) []*search.Match {
 					// Note: The checks for @ here are just to avoid misinterpreting
 					// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
 					// It's not strictly necessary but helpful to keep the checks.
-					if dir == ModRoot {
+					if modRoot != "" && dir == modRoot {
 						pkg = Target.Path
-					} else if strings.HasPrefix(dir, ModRoot+string(filepath.Separator)) && !strings.Contains(dir[len(ModRoot):], "@") {
-						suffix := filepath.ToSlash(dir[len(ModRoot):])
+					} else if modRoot != "" && strings.HasPrefix(dir, modRoot+string(filepath.Separator)) && !strings.Contains(dir[len(modRoot):], "@") {
+						suffix := filepath.ToSlash(dir[len(modRoot):])
 						if strings.HasPrefix(suffix, "/vendor/") {
 							// TODO getmode vendor check
 							pkg = strings.TrimPrefix(suffix, "/vendor/")
@@ -118,6 +118,7 @@ func ImportPaths(patterns []string) []*search.Match {
 					} else {
 						pkg = ""
 						if !iterating {
+							ModRoot()
 							base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
 						}
 					}
@@ -251,17 +252,21 @@ func ImportFromFiles(gofiles []string) {
 // DirImportPath returns the effective import path for dir,
 // provided it is within the main module, or else returns ".".
 func DirImportPath(dir string) string {
+	if modRoot == "" {
+		return "."
+	}
+
 	if !filepath.IsAbs(dir) {
 		dir = filepath.Join(cwd, dir)
 	} else {
 		dir = filepath.Clean(dir)
 	}
 
-	if dir == ModRoot {
+	if dir == modRoot {
 		return Target.Path
 	}
-	if strings.HasPrefix(dir, ModRoot+string(filepath.Separator)) {
-		suffix := filepath.ToSlash(dir[len(ModRoot):])
+	if strings.HasPrefix(dir, modRoot+string(filepath.Separator)) {
+		suffix := filepath.ToSlash(dir[len(modRoot):])
 		if strings.HasPrefix(suffix, "/vendor/") {
 			return strings.TrimPrefix(suffix, "/vendor/")
 		}
@@ -810,7 +815,7 @@ func WhyDepth(path string) int {
 // a module.Version with Path == "".
 func Replacement(mod module.Version) module.Version {
 	if modFile == nil {
-		// Happens during testing.
+		// Happens during testing and if invoking 'go get' or 'go list' outside a module.
 		return module.Version{}
 	}
 
@@ -887,7 +892,7 @@ func readVendorList() {
 	vendorOnce.Do(func() {
 		vendorList = nil
 		vendorMap = make(map[string]module.Version)
-		data, _ := ioutil.ReadFile(filepath.Join(ModRoot, "vendor/modules.txt"))
+		data, _ := ioutil.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
 		var m module.Version
 		for _, line := range strings.Split(string(data), "\n") {
 			if strings.HasPrefix(line, "# ") {
@@ -917,7 +922,7 @@ func (r *mvsReqs) modFileToList(f *modfile.File) []module.Version {
 
 func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 	if mod == Target {
-		if modFile.Go != nil {
+		if modFile != nil && modFile.Go != nil {
 			r.versions.LoadOrStore(mod, modFile.Go.Version)
 		}
 		var list []module.Version
@@ -937,7 +942,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 			// TODO: need to slip the new version into the tags list etc.
 			dir := repl.Path
 			if !filepath.IsAbs(dir) {
-				dir = filepath.Join(ModRoot, dir)
+				dir = filepath.Join(ModRoot(), dir)
 			}
 			gomod := filepath.Join(dir, "go.mod")
 			data, err := ioutil.ReadFile(gomod)
@@ -1052,13 +1057,13 @@ func (*mvsReqs) next(m module.Version) (module.Version, error) {
 
 func fetch(mod module.Version) (dir string, isLocal bool, err error) {
 	if mod == Target {
-		return ModRoot, true, nil
+		return ModRoot(), true, nil
 	}
 	if r := Replacement(mod); r.Path != "" {
 		if r.Version == "" {
 			dir = r.Path
 			if !filepath.IsAbs(dir) {
-				dir = filepath.Join(ModRoot, dir)
+				dir = filepath.Join(ModRoot(), dir)
 			}
 			return dir, true, nil
 		}

@@ -26,16 +26,17 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 )
 
 var (
-	cwd            string
+	cwd            string // TODO(bcmills): Is this redundant with base.Cwd?
 	MustUseModules = mustUseModules()
 	initialized    bool
 
-	ModRoot     string
+	modRoot     string
 	modFile     *modfile.File
 	modFileData []byte
 	excluded    map[module.Version]bool
@@ -56,11 +57,15 @@ var (
 // To make permanent changes to the require statements
 // in go.mod, edit it before calling ImportPaths or LoadBuildList.
 func ModFile() *modfile.File {
+	Init()
+	if modFile == nil {
+		die()
+	}
 	return modFile
 }
 
 func BinDir() string {
-	MustInit()
+	Init()
 	return filepath.Join(gopath, "bin")
 }
 
@@ -76,6 +81,10 @@ func mustUseModules() bool {
 
 var inGOPATH bool // running in GOPATH/src
 
+// Init determines whether module mode is enabled, locates the root of the
+// current module (if any), sets environment variables for Git subprocesses, and
+// configures the cfg, codehost, load, modfetch, and search packages for use
+// with modules.
 func Init() {
 	if initialized {
 		return
@@ -141,6 +150,9 @@ func Init() {
 	}
 
 	if inGOPATH && !MustUseModules {
+		if CmdModInit {
+			die() // Don't init a module that we're just going to ignore.
+		}
 		// No automatic enabling in GOPATH.
 		if root, _ := FindModuleRoot(cwd, "", false); root != "" {
 			cfg.GoModInGOPATH = filepath.Join(root, "go.mod")
@@ -150,94 +162,32 @@ func Init() {
 
 	if CmdModInit {
 		// Running 'go mod init': go.mod will be created in current directory.
-		ModRoot = cwd
+		modRoot = cwd
 	} else {
-		ModRoot, _ = FindModuleRoot(cwd, "", MustUseModules)
-		if !MustUseModules {
-			if ModRoot == "" {
+		modRoot, _ = FindModuleRoot(cwd, "", MustUseModules)
+		if modRoot == "" {
+			if !MustUseModules {
+				// GO111MODULE is 'auto' (or unset), and we can't find a module root.
+				// Stay in GOPATH mode.
 				return
 			}
-			if search.InDir(ModRoot, os.TempDir()) == "." {
-				// If you create /tmp/go.mod for experimenting,
-				// then any tests that create work directories under /tmp
-				// will find it and get modules when they're not expecting them.
-				// It's a bit of a peculiar thing to disallow but quite mysterious
-				// when it happens. See golang.org/issue/26708.
-				ModRoot = ""
-				fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in system temp root %v\n", os.TempDir())
-				return
-			}
+		} else if search.InDir(modRoot, os.TempDir()) == "." {
+			// If you create /tmp/go.mod for experimenting,
+			// then any tests that create work directories under /tmp
+			// will find it and get modules when they're not expecting them.
+			// It's a bit of a peculiar thing to disallow but quite mysterious
+			// when it happens. See golang.org/issue/26708.
+			modRoot = ""
+			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in system temp root %v\n", os.TempDir())
 		}
 	}
 
-	cfg.ModulesEnabled = true
-	load.ModBinDir = BinDir
-	load.ModLookup = Lookup
-	load.ModPackageModuleInfo = PackageModuleInfo
-	load.ModImportPaths = ImportPaths
-	load.ModPackageBuildInfo = PackageBuildInfo
-	load.ModInfoProg = ModInfoProg
-	load.ModImportFromFiles = ImportFromFiles
-	load.ModDirImportPath = DirImportPath
+	// We're in module mode. Install the hooks to make it work.
 
-	search.SetModRoot(ModRoot)
-}
-
-func init() {
-	load.ModInit = Init
-
-	// Set modfetch.PkgMod unconditionally, so that go clean -modcache can run even without modules enabled.
-	if list := filepath.SplitList(cfg.BuildContext.GOPATH); len(list) > 0 && list[0] != "" {
-		modfetch.PkgMod = filepath.Join(list[0], "pkg/mod")
-	}
-}
-
-// Enabled reports whether modules are (or must be) enabled.
-// If modules must be enabled but are not, Enabled returns true
-// and then the first use of module information will call die
-// (usually through InitMod and MustInit).
-func Enabled() bool {
-	if !initialized {
-		panic("go: Enabled called before Init")
-	}
-	return ModRoot != "" || MustUseModules
-}
-
-// MustInit calls Init if needed and checks that
-// modules are enabled and the main module has been found.
-// If not, MustInit calls base.Fatalf with an appropriate message.
-func MustInit() {
-	if Init(); ModRoot == "" {
-		die()
-	}
 	if c := cache.Default(); c == nil {
 		// With modules, there are no install locations for packages
 		// other than the build cache.
 		base.Fatalf("go: cannot use modules with build cache disabled")
-	}
-}
-
-// Failed reports whether module loading failed.
-// If Failed returns true, then any use of module information will call die.
-func Failed() bool {
-	Init()
-	return cfg.ModulesEnabled && ModRoot == ""
-}
-
-func die() {
-	if os.Getenv("GO111MODULE") == "off" {
-		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
-	}
-	if inGOPATH && !MustUseModules {
-		base.Fatalf("go: modules disabled inside GOPATH/src by GO111MODULE=auto; see 'go help modules'")
-	}
-	base.Fatalf("go: cannot find main module; see 'go help modules'")
-}
-
-func InitMod() {
-	MustInit()
-	if modFile != nil {
-		return
 	}
 
 	list := filepath.SplitList(cfg.BuildContext.GOPATH)
@@ -258,8 +208,116 @@ func InitMod() {
 	}
 
 	modfetch.PkgMod = pkgMod
-	modfetch.GoSumFile = filepath.Join(ModRoot, "go.sum")
 	codehost.WorkRoot = filepath.Join(pkgMod, "cache/vcs")
+
+	cfg.ModulesEnabled = true
+	load.ModBinDir = BinDir
+	load.ModLookup = Lookup
+	load.ModPackageModuleInfo = PackageModuleInfo
+	load.ModImportPaths = ImportPaths
+	load.ModPackageBuildInfo = PackageBuildInfo
+	load.ModInfoProg = ModInfoProg
+	load.ModImportFromFiles = ImportFromFiles
+	load.ModDirImportPath = DirImportPath
+
+	if modRoot == "" {
+		// We're in module mode, but not inside a module.
+		//
+		// If the command is 'go get' or 'go list' and all of the args are in the
+		// same existing module, we could use that module's download directory in
+		// the module cache as the module root, applying any replacements and/or
+		// exclusions specified by that module. However, that would leave us in a
+		// strange state: we want 'go get' to be consistent with 'go list', and 'go
+		// list' should be able to operate on multiple modules. Moreover, the 'get'
+		// target might specify relative file paths (e.g. in the same repository) as
+		// replacements, and we would not be able to apply those anyway: we would
+		// need to either error out or ignore just those replacements, when a build
+		// from an empty module could proceed without error.
+		//
+		// Instead, we'll operate as though we're in some ephemeral external module,
+		// ignoring all replacements and exclusions uniformly.
+
+		// Normally we check sums using the go.sum file from the main module, but
+		// without a main module we do not have an authoritative go.sum file.
+		//
+		// TODO(bcmills): In Go 1.13, check sums when outside the main module.
+		//
+		// One possible approach is to merge the go.sum files from all of the
+		// modules we download: that doesn't protect us against bad top-level
+		// modules, but it at least ensures consistency for transitive dependencies.
+	} else {
+		modfetch.GoSumFile = filepath.Join(modRoot, "go.sum")
+		search.SetModRoot(modRoot)
+	}
+}
+
+func init() {
+	load.ModInit = Init
+
+	// Set modfetch.PkgMod unconditionally, so that go clean -modcache can run even without modules enabled.
+	if list := filepath.SplitList(cfg.BuildContext.GOPATH); len(list) > 0 && list[0] != "" {
+		modfetch.PkgMod = filepath.Join(list[0], "pkg/mod")
+	}
+}
+
+// Enabled reports whether modules are (or must be) enabled.
+// If modules are enabled but there is no main module, Enabled returns true
+// and then the first use of module information will call die
+// (usually through MustModRoot).
+func Enabled() bool {
+	Init()
+	return modRoot != "" || MustUseModules
+}
+
+// ModRoot returns the root of the main module.
+// It calls base.Fatalf if there is no main module.
+func ModRoot() string {
+	if !HasModRoot() {
+		die()
+	}
+	return modRoot
+}
+
+// HasModRoot reports whether a main module is present.
+// HasModRoot may return false even if Enabled returns true: for example, 'get'
+// does not require a main module.
+func HasModRoot() bool {
+	Init()
+	return modRoot != ""
+}
+
+// printStackInDie causes die to print a stack trace.
+//
+// It is enabled by the testgo tag, and helps to diagnose paths that
+// unexpectedly require a main module.
+var printStackInDie = false
+
+func die() {
+	if printStackInDie {
+		debug.PrintStack()
+	}
+	if os.Getenv("GO111MODULE") == "off" {
+		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
+	}
+	if inGOPATH && !MustUseModules {
+		base.Fatalf("go: modules disabled inside GOPATH/src by GO111MODULE=auto; see 'go help modules'")
+	}
+	base.Fatalf("go: cannot find main module; see 'go help modules'")
+}
+
+// InitMod sets Target and, if there is a main module, parses the initial build
+// list from its go.mod file, creating and populating that file if needed.
+func InitMod() {
+	if len(buildList) > 0 {
+		return
+	}
+
+	Init()
+	if modRoot == "" {
+		Target = module.Version{Path: "main"}
+		buildList = []module.Version{Target}
+		return
+	}
 
 	if CmdModInit {
 		// Running go mod init: do legacy module conversion
@@ -269,7 +327,7 @@ func InitMod() {
 		return
 	}
 
-	gomod := filepath.Join(ModRoot, "go.mod")
+	gomod := filepath.Join(modRoot, "go.mod")
 	data, err := ioutil.ReadFile(gomod)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -291,7 +349,7 @@ func InitMod() {
 
 	if len(f.Syntax.Stmt) == 0 || f.Module == nil {
 		// Empty mod file. Must add module path.
-		path, err := FindModulePath(ModRoot)
+		path, err := FindModulePath(modRoot)
 		if err != nil {
 			base.Fatalf("go: %v", err)
 		}
@@ -329,7 +387,7 @@ func Allowed(m module.Version) bool {
 
 func legacyModInit() {
 	if modFile == nil {
-		path, err := FindModulePath(ModRoot)
+		path, err := FindModulePath(modRoot)
 		if err != nil {
 			base.Fatalf("go: %v", err)
 		}
@@ -341,7 +399,7 @@ func legacyModInit() {
 	addGoStmt()
 
 	for _, name := range altConfigs {
-		cfg := filepath.Join(ModRoot, name)
+		cfg := filepath.Join(modRoot, name)
 		data, err := ioutil.ReadFile(cfg)
 		if err == nil {
 			convert := modconv.Converters[name]
@@ -566,6 +624,11 @@ func WriteGoMod() {
 		return
 	}
 
+	// If we aren't in a module, we don't have anywhere to write a go.mod file.
+	if modRoot == "" {
+		return
+	}
+
 	if loaded != nil {
 		reqs := MinReqs()
 		min, err := reqs.Required(Target)
@@ -604,7 +667,7 @@ func WriteGoMod() {
 	unlock := modfetch.SideLock()
 	defer unlock()
 
-	file := filepath.Join(ModRoot, "go.mod")
+	file := filepath.Join(modRoot, "go.mod")
 	old, err := ioutil.ReadFile(file)
 	if !bytes.Equal(old, modFileData) {
 		if bytes.Equal(old, new) {

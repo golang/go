@@ -105,10 +105,7 @@ func init() {
 }
 
 func runClean(cmd *base.Command, args []string) {
-	if len(args) == 0 && modload.Failed() {
-		// Don't try to clean current directory,
-		// which will cause modload to base.Fatalf.
-	} else {
+	if len(args) > 0 || !modload.Enabled() || modload.HasModRoot() {
 		for _, pkg := range load.PackagesAndErrors(args) {
 			clean(pkg)
 		}
