@@ -998,19 +998,34 @@ func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
 	}
 }
 
+// pickFreeSpan acquires a free span from internal free list
+// structures if one is available. Otherwise returns nil.
+// h must be locked.
+func (h *mheap) pickFreeSpan(npage uintptr) *mspan {
+	tf := h.free.find(npage)
+	ts := h.scav.find(npage)
+
+	// Check for whichever treap gave us the smaller, non-nil result.
+	// Note that we want the _smaller_ free span, i.e. the free span
+	// closer in size to the amount we requested (npage).
+	var s *mspan
+	if tf != nil && (ts == nil || tf.spanKey.npages <= ts.spanKey.npages) {
+		s = tf.spanKey
+		h.free.removeNode(tf)
+	} else if ts != nil && (tf == nil || tf.spanKey.npages > ts.spanKey.npages) {
+		s = ts.spanKey
+		h.scav.removeNode(ts)
+	}
+	return s
+}
+
 // Allocates a span of the given size.  h must be locked.
 // The returned span has been removed from the
 // free structures, but its state is still mSpanFree.
 func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
 	var s *mspan
 
-	// First, attempt to allocate from free spans, then from
-	// scavenged spans, looking for best fit in each.
-	s = h.free.remove(npage)
-	if s != nil {
-		goto HaveSpan
-	}
-	s = h.scav.remove(npage)
+	s = h.pickFreeSpan(npage)
 	if s != nil {
 		goto HaveSpan
 	}
@@ -1018,23 +1033,19 @@ func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
 	if !h.grow(npage) {
 		return nil
 	}
-	s = h.free.remove(npage)
+	s = h.pickFreeSpan(npage)
 	if s != nil {
 		goto HaveSpan
 	}
-	s = h.scav.remove(npage)
-	if s != nil {
-		goto HaveSpan
-	}
-	return nil
+	throw("grew heap, but no adequate free span found")
 
 HaveSpan:
 	// Mark span in use.
 	if s.state != mSpanFree {
-		throw("mheap.allocLocked - mspan not free")
+		throw("candidate mspan for allocation is not free")
 	}
 	if s.npages < npage {
-		throw("mheap.allocLocked - bad npages")
+		throw("candidate mspan for allocation is too small")
 	}
 
 	// First, subtract any memory that was released back to
