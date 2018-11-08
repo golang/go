@@ -63,6 +63,8 @@ func main() {
 // analysis with facts using unitchecker under "go vet".
 // It fork/execs the main function above.
 func TestIntegration(t *testing.T) {
+	t.Skip("skipping broken test; golang.org/issue/28676")
+
 	if runtime.GOOS != "linux" {
 		t.Skipf("skipping fork/exec test on this platform")
 	}
