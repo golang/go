@@ -223,15 +223,13 @@ func (zc *ipv6ZoneCache) name(index int) string {
 	zoneCache.RLock()
 	name, ok := zoneCache.toName[index]
 	zoneCache.RUnlock()
-	if !ok {
-		if !updated {
-			zoneCache.update(nil, true)
-			zoneCache.RLock()
-			name, ok = zoneCache.toName[index]
-			zoneCache.RUnlock()
-		}
+	if !ok && !updated {
+		zoneCache.update(nil, true)
+		zoneCache.RLock()
+		name, ok = zoneCache.toName[index]
+		zoneCache.RUnlock()
 	}
-	if !ok {
+	if !ok { // last resort
 		name = uitoa(uint(index))
 	}
 	return name
@@ -245,15 +243,13 @@ func (zc *ipv6ZoneCache) index(name string) int {
 	zoneCache.RLock()
 	index, ok := zoneCache.toIndex[name]
 	zoneCache.RUnlock()
-	if !ok {
-		if !updated {
-			zoneCache.update(nil, true)
-			zoneCache.RLock()
-			index, ok = zoneCache.toIndex[name]
-			zoneCache.RUnlock()
-		}
+	if !ok && !updated {
+		zoneCache.update(nil, true)
+		zoneCache.RLock()
+		index, ok = zoneCache.toIndex[name]
+		zoneCache.RUnlock()
 	}
-	if !ok {
+	if !ok { // last resort
 		index, _, _ = dtoi(name)
 	}
 	return index
