@@ -1040,5 +1040,4 @@ func indexRabinKarp(s, substr string) int {
 		}
 	}
 	return -1
-
 }
