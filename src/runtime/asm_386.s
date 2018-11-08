@@ -493,9 +493,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
 	JMP	AX
 // Note: can't just "JMP NAME(SB)" - bad inlining results.
 
-TEXT reflect·call(SB), NOSPLIT, $0-0
-	JMP	·reflectcall(SB)
-
 TEXT ·reflectcall(SB), NOSPLIT, $0-20
 	MOVL	argsize+12(FP), CX
 	DISPATCH(runtime·call16, 16)
