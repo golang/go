@@ -1769,9 +1769,6 @@ func loadPackage(arg string, stk *ImportStack) *Package {
 		bp.ImportPath = arg
 		bp.Goroot = true
 		bp.BinDir = cfg.GOROOTbin
-		if cfg.GOROOTbin != "" {
-			bp.BinDir = cfg.GOROOTbin
-		}
 		bp.Root = cfg.GOROOT
 		bp.SrcRoot = cfg.GOROOTsrc
 		p := new(Package)
