@@ -56,6 +56,8 @@ func CachePath(m module.Version, suffix string) (string, error) {
 	return filepath.Join(dir, encVer+"."+suffix), nil
 }
 
+// DownloadDir returns the directory to which m should be downloaded.
+// Note that the directory may not yet exist.
 func DownloadDir(m module.Version) (string, error) {
 	if PkgMod == "" {
 		return "", fmt.Errorf("internal error: modfetch.PkgMod not set")
