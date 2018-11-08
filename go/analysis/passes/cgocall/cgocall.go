@@ -73,7 +73,7 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
 			return true // not a call we need to check
 		}
 
-		// A call to C.Bytes passes a pointer but is always safe.
+		// A call to C.CBytes passes a pointer but is always safe.
 		if name == "CBytes" {
 			return true
 		}
