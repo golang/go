@@ -37,6 +37,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
 	"golang.org/x/tools/go/analysis/passes/structtag"
 	"golang.org/x/tools/go/analysis/passes/tests"
+	"golang.org/x/tools/go/analysis/passes/unmarshal"
 	"golang.org/x/tools/go/analysis/passes/unreachable"
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
@@ -64,6 +65,7 @@ func main() {
 		stdmethods.Analyzer,
 		structtag.Analyzer,
 		tests.Analyzer,
+		unmarshal.Analyzer,
 		unreachable.Analyzer,
 		unsafeptr.Analyzer,
 		unusedresult.Analyzer,
