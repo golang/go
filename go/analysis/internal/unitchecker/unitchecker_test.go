@@ -6,8 +6,9 @@
 
 package unitchecker_test
 
-// This test depends on go1.12 features such as go vet's support for
-// GOVETTOOL, and the (*os/exec.ExitError).ExitCode method.
+// This test depends on features such as
+// go vet's support for vetx files (1.11) and
+// the (*os.ProcessState).ExitCode method (1.12).
 
 import (
 	"flag"
@@ -71,9 +72,8 @@ func TestIntegration(t *testing.T) {
 
 	testdata := analysistest.TestData()
 
-	cmd := exec.Command("go", "vet", "b")
+	cmd := exec.Command("go", "vet", "-vettool="+os.Args[0], "b")
 	cmd.Env = append(os.Environ(),
-		"GOVETTOOL="+os.Args[0],
 		"UNITCHECKER_CHILD=1",
 		"GOPATH="+testdata,
 	)

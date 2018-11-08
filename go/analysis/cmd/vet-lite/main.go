@@ -1,7 +1,7 @@
 // The vet-lite command is a driver for static checkers conforming to
 // the golang.org/x/tools/go/analysis API. It must be run by go vet:
 //
-//   $ GOVETTOOL=$(which vet-lite) go vet
+//   $ go vet -vettool=$(which vet-lite)
 //
 // For a checker also capable of running standalone, use multichecker.
 package main
@@ -9,6 +9,7 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -74,6 +75,34 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Flags for legacy vet compatibility.
+	//
+	// These flags, plus the shims in analysisflags, enable all
+	// existing scripts that run vet to continue to work.
+	//
+	// We still need to deal with legacy vet's "experimental"
+	// checkers. In vet there is exactly one such checker, shadow,
+	// and it must be enabled explicitly with the -shadow flag, but
+	// of course setting it disables all the other tristate flags,
+	// requiring the -all flag to reenable them.
+	//
+	// I don't believe this feature carries its weight. I propose we
+	// simply skip shadow for now; the few users that want it can
+	// run "go vet -vettool=..." using a vet tool that includes
+	// shadow, either as an additional step, with a shadow
+	// "singlechecker", or in place of the regular vet step on a
+	// multichecker with a hand-picked suite of checkers.
+	// Or, we could improve the shadow checker to the point where it
+	// need not be experimental.
+	for _, name := range []string{"source", "v", "all"} {
+		flag.Var(warnBoolFlag(name), name, "no effect (deprecated)")
+	}
+
+	flag.Usage = func() {
+		analysisflags.Help("vet", analyzers, nil)
+		os.Exit(1)
+	}
+
 	analyzers = analysisflags.Parse(analyzers, true)
 
 	args := flag.Args()
@@ -83,3 +112,12 @@ func main() {
 
 	unitchecker.Main(args[0], analyzers)
 }
+
+type warnBoolFlag string
+
+func (f warnBoolFlag) Set(s string) error {
+	log.Printf("warning: deprecated flag -%s has no effect", string(f))
+	return nil
+}
+func (f warnBoolFlag) IsBoolFlag() bool { return true }
+func (f warnBoolFlag) String() string   { return "false" }

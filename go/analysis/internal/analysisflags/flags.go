@@ -69,6 +69,15 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 	printflags := flag.Bool("flags", false, "print analyzer flags in JSON")
 	addVersionFlag()
 
+	// Add shims for legacy vet flags.
+	for old, new := range vetLegacyFlags {
+		newFlag := flag.Lookup(new)
+		if newFlag != nil && flag.Lookup(old) == nil {
+			oldFlag := &warnFlag{old, new, newFlag.Value}
+			flag.Var(oldFlag, old, "deprecated alias for -"+new)
+		}
+	}
+
 	flag.Parse() // (ExitOnError)
 
 	// -flags: print flags so that go vet knows which ones are legitimate.
@@ -220,4 +229,64 @@ func (ts *triState) String() string {
 
 func (ts triState) IsBoolFlag() bool {
 	return true
+}
+
+// Legacy flag support
+
+// vetLegacyFlags maps flags used by legacy vet to their corresponding
+// new names. Uses of the old names will continue to work, but with a
+// log message.  TODO(adonovan): delete this mechanism after Nov 2019.
+var vetLegacyFlags = map[string]string{
+	"asmdecl":            "asmdecl.enable",
+	"assign":             "assign.enable",
+	"atomic":             "atomic.enable",
+	"bool":               "bools.enable",
+	"buildtags":          "buildtag.enable",
+	"cgocall":            "cgocall.enable",
+	"composites":         "composites.enable",
+	"compositewhitelist": "composites.whitelist",
+	"copylocks":          "copylocks.enable",
+	"flags":              "flags.enable",
+	"httpresponse":       "httpresponse.enable",
+	"lostcancel":         "lostcancel.enable",
+	"methods":            "stdmethods.enable",
+	"nilfunc":            "nilfunc.enable",
+	"printf":             "printf.enable",
+	"printfuncs":         "printf.funcs",
+	"rangeloops":         "loopclosure.enable",
+	"shadow":             "shadow.enable",
+	"shadowstrict":       "shadow.strict",
+	"shift":              "shift.enable",
+	"source":             "source.enable",
+	"structtags":         "structtag.enable",
+	"tests":              "tests.enable",
+	// "unmarshal":           "unmarshal.enable", // TODO(adonovan) a new checker
+	"unreachable":         "unreachable.enable",
+	"unsafeptr":           "unsafeptr.enable",
+	"unusedresult":        "unusedresult.enable",
+	"unusedfuncs":         "unusedresult.funcs",
+	"unusedstringmethods": "unusedresult.stringmethods",
+}
+
+type warnFlag struct {
+	old, new string
+	flag.Value
+}
+
+func (f *warnFlag) Set(s string) error {
+	log.Printf("warning: deprecated flag -%s; use -%s instead", f.old, f.new)
+	return f.Value.Set(s)
+}
+
+func (f *warnFlag) IsBoolFlag() bool {
+	b, ok := f.Value.(interface{ IsBoolFlag() bool })
+	return ok && b.IsBoolFlag()
+}
+
+func (f *warnFlag) String() string {
+	// The flag package may call new(warnFlag).String.
+	if f.Value == nil {
+		return ""
+	}
+	return f.Value.String()
 }
