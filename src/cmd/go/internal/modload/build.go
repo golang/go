@@ -98,8 +98,8 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 			Path:    m.Path,
 			Version: m.Version,
 			Main:    true,
-			Dir:     ModRoot,
-			GoMod:   filepath.Join(ModRoot, "go.mod"),
+			Dir:     ModRoot(),
+			GoMod:   filepath.Join(ModRoot(), "go.mod"),
 		}
 		if modFile.Go != nil {
 			info.GoVersion = modFile.Go.Version
@@ -117,7 +117,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 	}
 
 	if cfg.BuildMod == "vendor" {
-		info.Dir = filepath.Join(ModRoot, "vendor", m.Path)
+		info.Dir = filepath.Join(ModRoot(), "vendor", m.Path)
 		return info
 	}
 
@@ -171,7 +171,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 		if filepath.IsAbs(r.Path) {
 			info.Replace.Dir = r.Path
 		} else {
-			info.Replace.Dir = filepath.Join(ModRoot, r.Path)
+			info.Replace.Dir = filepath.Join(ModRoot(), r.Path)
 		}
 	}
 	complete(info.Replace)

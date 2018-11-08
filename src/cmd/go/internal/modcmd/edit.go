@@ -157,8 +157,7 @@ func runEdit(cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		gomod = args[0]
 	} else {
-		modload.MustInit()
-		gomod = filepath.Join(modload.ModRoot, "go.mod")
+		gomod = filepath.Join(modload.ModRoot(), "go.mod")
 	}
 
 	if *editModule != "" {
