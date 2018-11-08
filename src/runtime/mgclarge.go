@@ -297,14 +297,13 @@ func (root *mTreap) removeNode(t *treapNode) {
 	mheap_.treapalloc.free(unsafe.Pointer(t))
 }
 
-// remove searches for, finds, removes from the treap, and returns the smallest
-// span that can hold npages. If no span has at least npages return nil.
+// find searches for, finds, and returns the treap node containing the
+// smallest span that can hold npages. If no span has at least npages
+// it returns nil.
 // This is slightly more complicated than a simple binary tree search
 // since if an exact match is not found the next larger node is
 // returned.
-// If the last node inspected > npagesKey not holding
-// a left node (a smaller npages) is the "best fit" node.
-func (root *mTreap) remove(npages uintptr) *mspan {
+func (root *mTreap) find(npages uintptr) *treapNode {
 	t := root.treap
 	for t != nil {
 		if t.spanKey == nil {
@@ -315,9 +314,7 @@ func (root *mTreap) remove(npages uintptr) *mspan {
 		} else if t.left != nil && t.left.npagesKey >= npages {
 			t = t.left
 		} else {
-			result := t.spanKey
-			root.removeNode(t)
-			return result
+			return t
 		}
 	}
 	return nil
