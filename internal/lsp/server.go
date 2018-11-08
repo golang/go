@@ -149,13 +149,19 @@ func (s *server) DidClose(ctx context.Context, params *protocol.DidCloseTextDocu
 }
 
 func (s *server) Completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
-	items, err := completion(s.view, params.TextDocument.URI, params.Position)
+	f := s.view.GetFile(source.URI(params.TextDocument.URI))
+	tok, err := f.GetToken()
+	if err != nil {
+		return nil, err
+	}
+	pos := fromProtocolPosition(tok, params.Position)
+	items, err := source.Completion(ctx, f, pos)
 	if err != nil {
 		return nil, err
 	}
 	return &protocol.CompletionList{
 		IsIncomplete: false,
-		Items:        items,
+		Items:        toProtocolCompletionItems(items),
 	}, nil
 }
 
