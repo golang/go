@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
-	"go/build"
 	constantpkg "go/constant"
 	"go/parser"
 	"go/token"
@@ -1222,9 +1221,6 @@ func TestName_ModulesDedup(t *testing.T) {
 
 func TestJSON(t *testing.T) { packagestest.TestAll(t, testJSON) }
 func testJSON(t *testing.T, exporter packagestest.Exporter) {
-	if !haveReleaseTag("go1.11") {
-		t.Skip("skipping; flaky before Go 1.11; https://golang.org/issue/28609")
-	}
 	//TODO: add in some errors
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -1636,13 +1632,4 @@ func constant(p *packages.Package, name string) *types.Const {
 		return nil
 	}
 	return c.(*types.Const)
-}
-
-func haveReleaseTag(tag string) bool {
-	for _, v := range build.Default.ReleaseTags {
-		if tag == v {
-			return true
-		}
-	}
-	return false
 }

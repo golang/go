@@ -46,7 +46,7 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 
 	var response driverResponse
 	allPkgs := make(map[string]bool)
-	addPackage := func(p *jsonPackage) {
+	addPackage := func(p *jsonPackage, isRoot bool) {
 		id := p.ImportPath
 
 		if allPkgs[id] {
@@ -54,7 +54,6 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 		}
 		allPkgs[id] = true
 
-		isRoot := original[id] != nil
 		pkgpath := id
 
 		if pkgpath == "unsafe" {
@@ -221,7 +220,7 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 	}
 
 	for _, pkg := range original {
-		addPackage(pkg)
+		addPackage(pkg, true)
 	}
 	if cfg.Mode < LoadImports || len(deps) == 0 {
 		return &response, nil
@@ -239,7 +238,7 @@ func golistDriverFallback(cfg *Config, words ...string) (*driverResponse, error)
 			return nil, fmt.Errorf("JSON decoding failed: %v", err)
 		}
 
-		addPackage(p)
+		addPackage(p, false)
 	}
 
 	for _, v := range needsTestVariant {
@@ -356,14 +355,13 @@ func vendorlessPath(ipath string) string {
 }
 
 // getDeps runs an initial go list to determine all the dependency packages.
-func getDeps(cfg *Config, words ...string) (originalSet map[string]*jsonPackage, deps []string, err error) {
+func getDeps(cfg *Config, words ...string) (initial []*jsonPackage, deps []string, err error) {
 	buf, err := invokeGo(cfg, golistArgsFallback(cfg, words)...)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	depsSet := make(map[string]bool)
-	originalSet = make(map[string]*jsonPackage)
 	var testImports []string
 
 	// Extract deps from the JSON.
@@ -373,7 +371,7 @@ func getDeps(cfg *Config, words ...string) (originalSet map[string]*jsonPackage,
 			return nil, nil, fmt.Errorf("JSON decoding failed: %v", err)
 		}
 
-		originalSet[p.ImportPath] = p
+		initial = append(initial, p)
 		for _, dep := range p.Deps {
 			depsSet[dep] = true
 		}
@@ -407,8 +405,8 @@ func getDeps(cfg *Config, words ...string) (originalSet map[string]*jsonPackage,
 		}
 	}
 
-	for orig := range originalSet {
-		delete(depsSet, orig)
+	for _, orig := range initial {
+		delete(depsSet, orig.ImportPath)
 	}
 
 	deps = make([]string, 0, len(depsSet))
@@ -416,7 +414,7 @@ func getDeps(cfg *Config, words ...string) (originalSet map[string]*jsonPackage,
 		deps = append(deps, dep)
 	}
 	sort.Strings(deps) // ensure output is deterministic
-	return originalSet, deps, nil
+	return initial, deps, nil
 }
 
 func golistArgsFallback(cfg *Config, words []string) []string {
