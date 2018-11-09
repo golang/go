@@ -57,7 +57,7 @@ const (
 	LoadAllSyntax
 )
 
-// An Config specifies details about how packages should be loaded.
+// A Config specifies details about how packages should be loaded.
 // The zero value is a valid configuration.
 // Calls to Load do not modify this struct.
 type Config struct {
