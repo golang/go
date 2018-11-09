@@ -1116,7 +1116,7 @@ func calcHasCall(n *Node) bool {
 
 	// When using soft-float, these ops might be rewritten to function calls
 	// so we ensure they are evaluated first.
-	case OADD, OSUB, OMINUS:
+	case OADD, OSUB, OMINUS, OMUL:
 		if thearch.SoftFloat && (isFloat[n.Type.Etype] || isComplex[n.Type.Etype]) {
 			return true
 		}
