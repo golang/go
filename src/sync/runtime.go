@@ -22,7 +22,9 @@ func runtime_SemacquireMutex(s *uint32, lifo bool)
 // It is intended as a simple wakeup primitive for use by the synchronization
 // library and should not be used directly.
 // If handoff is true, pass count directly to the first waiter.
-func runtime_Semrelease(s *uint32, handoff bool)
+// skipframes is the number of frames to omit during tracing, counting from
+// runtime_Semrelease's caller.
+func runtime_Semrelease(s *uint32, handoff bool, skipframes int)
 
 // Approximation of notifyList in runtime/sema.go. Size and alignment must
 // agree.
