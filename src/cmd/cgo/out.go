@@ -246,7 +246,22 @@ func (p *Package) writeDefs() {
 
 	init := gccgoInit.String()
 	if init != "" {
-		fmt.Fprintln(fc, "static void init(void) __attribute__ ((constructor));")
+		// The init function does nothing but simple
+		// assignments, so it won't use much stack space, so
+		// it's OK to not split the stack. Splitting the stack
+		// can run into a bug in clang (as of 2018-11-09):
+		// this is a leaf function, and when clang sees a leaf
+		// function it won't emit the split stack prologue for
+		// the function. However, if this function refers to a
+		// non-split-stack function, which will happen if the
+		// cgo code refers to a C function not compiled with
+		// -fsplit-stack, then the linker will think that it
+		// needs to adjust the split stack prologue, but there
+		// won't be one. Marking the function explicitly
+		// no_split_stack works around this problem by telling
+		// the linker that it's OK if there is no split stack
+		// prologue.
+		fmt.Fprintln(fc, "static void init(void) __attribute__ ((constructor, no_split_stack));")
 		fmt.Fprintln(fc, "static void init(void) {")
 		fmt.Fprint(fc, init)
 		fmt.Fprintln(fc, "}")
