@@ -13,5 +13,5 @@ import (
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, lostcancel.Analyzer, "a")
+	analysistest.Run(t, testdata, lostcancel.Analyzer, "a", "b")
 }
