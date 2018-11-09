@@ -903,7 +903,7 @@ HaveSpan:
 		// If s was scavenged, then t may be scavenged.
 		start, end := t.physPageBounds()
 		if s.scavenged && start < end {
-			memstats.heap_released += uint64(end-start)
+			memstats.heap_released += uint64(end - start)
 			t.scavenged = true
 		}
 		s.state = mSpanManual // prevent coalescing with s
@@ -1146,7 +1146,7 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
 			//
 			// This check also preserves the invariant that spans that have
 			// `scavenged` set are only ever in the `scav` treap, and
-			// those which have it unset are only in the `free` treap. 
+			// those which have it unset are only in the `free` treap.
 			return
 		}
 		prev := t.pred()
@@ -1175,7 +1175,7 @@ func (h *mheap) scavengeAll(now, limit uint64) uintptr {
 	for t != nil {
 		s := t.spanKey
 		next := t.succ()
-		if (now-uint64(s.unusedsince)) > limit {
+		if (now - uint64(s.unusedsince)) > limit {
 			r := s.scavenge()
 			if r != 0 {
 				// If we ended up scavenging s, then remove it from unscav
