@@ -62,8 +62,8 @@ func poll_runtime_Semacquire(addr *uint32) {
 }
 
 //go:linkname sync_runtime_Semrelease sync.runtime_Semrelease
-func sync_runtime_Semrelease(addr *uint32, handoff bool) {
-	semrelease1(addr, handoff)
+func sync_runtime_Semrelease(addr *uint32, handoff bool, skipframes int) {
+	semrelease1(addr, handoff, skipframes)
 }
 
 //go:linkname sync_runtime_SemacquireMutex sync.runtime_SemacquireMutex
@@ -153,10 +153,10 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
 }
 
 func semrelease(addr *uint32) {
-	semrelease1(addr, false)
+	semrelease1(addr, false, 0)
 }
 
-func semrelease1(addr *uint32, handoff bool) {
+func semrelease1(addr *uint32, handoff bool, skipframes int) {
 	root := semroot(addr)
 	atomic.Xadd(addr, 1)
 
@@ -183,7 +183,7 @@ func semrelease1(addr *uint32, handoff bool) {
 	if s != nil { // May be slow, so unlock first
 		acquiretime := s.acquiretime
 		if acquiretime != 0 {
-			mutexevent(t0-acquiretime, 3)
+			mutexevent(t0-acquiretime, 3+skipframes)
 		}
 		if s.ticket != 0 {
 			throw("corrupted semaphore ticket")
@@ -191,7 +191,7 @@ func semrelease1(addr *uint32, handoff bool) {
 		if handoff && cansemacquire(addr) {
 			s.ticket = 1
 		}
-		readyWithTime(s, 5)
+		readyWithTime(s, 5+skipframes)
 	}
 }
 
