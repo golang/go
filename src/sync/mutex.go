@@ -77,7 +77,11 @@ func (m *Mutex) Lock() {
 		}
 		return
 	}
+	// Slow path (outlined so that the fast path can be inlined)
+	m.lockSlow()
+}
 
+func (m *Mutex) lockSlow() {
 	var waitStartTime int64
 	starving := false
 	awoke := false
@@ -131,7 +135,7 @@ func (m *Mutex) Lock() {
 			if waitStartTime == 0 {
 				waitStartTime = runtime_nanotime()
 			}
-			runtime_SemacquireMutex(&m.sema, queueLifo)
+			runtime_SemacquireMutex(&m.sema, queueLifo, 1)
 			starving = starving || runtime_nanotime()-waitStartTime > starvationThresholdNs
 			old = m.state
 			if old&mutexStarving != 0 {

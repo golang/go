@@ -8,7 +8,11 @@
 // Test, using compiler diagnostic flags, that inlining of functions
 // imported from the sync package is working.
 // Compiles but does not run.
-// FIXME: nacl-386 is excluded as inlining currently does not work there.
+
+// FIXME: This test is disabled on architectures where atomic operations
+// are function calls rather than intrinsics, since this prevents inlining
+// of the sync fast paths. This test should be re-enabled once the problem
+// is solved.
 
 package foo
 
@@ -21,4 +25,9 @@ var mutex *sync.Mutex
 func small5() { // ERROR "can inline small5"
 	// the Unlock fast path should be inlined
 	mutex.Unlock() // ERROR "inlining call to sync\.\(\*Mutex\)\.Unlock" "&sync\.m\.state escapes to heap"
+}
+
+func small6() { // ERROR "can inline small6"
+	// the Lock fast path should be inlined
+	mutex.Lock() // ERROR "inlining call to sync\.\(\*Mutex\)\.Lock" "&sync\.m\.state escapes to heap"
 }
