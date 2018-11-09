@@ -130,11 +130,18 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	mp.incgo = true
 	errno := asmcgocall(fn, arg)
 
-	// Call endcgo before exitsyscall because exitsyscall may
+	// Update accounting before exitsyscall because exitsyscall may
 	// reschedule us on to a different M.
-	endcgo(mp)
+	mp.incgo = false
+	mp.ncgo--
 
 	exitsyscall()
+
+	// Note that raceacquire must be called only after exitsyscall has
+	// wired this M to a P.
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&racecgosync))
+	}
 
 	// From the garbage collector's perspective, time can move
 	// backwards in the sequence above. If there's a callback into
@@ -151,16 +158,6 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	KeepAlive(mp)
 
 	return errno
-}
-
-//go:nosplit
-func endcgo(mp *m) {
-	mp.incgo = false
-	mp.ncgo--
-
-	if raceenabled {
-		raceacquire(unsafe.Pointer(&racecgosync))
-	}
 }
 
 // Call from C back to Go.
@@ -347,13 +344,14 @@ func unwindm(restore *bool) {
 			sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))
 		}
 
-		// Call endcgo to do the accounting that cgocall will not have a
-		// chance to do during an unwind.
+		// Do the accounting that cgocall will not have a chance to do
+		// during an unwind.
 		//
 		// In the case where a Go call originates from C, ncgo is 0
 		// and there is no matching cgocall to end.
 		if mp.ncgo > 0 {
-			endcgo(mp)
+			mp.incgo = false
+			mp.ncgo--
 		}
 
 		releasem(mp)
