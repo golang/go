@@ -7,10 +7,10 @@
 // using the golang.org/x/tools/go/packages API to load packages in any
 // build system.
 //
-// Each analysis flag name is preceded by the analysis name: --analysis.flag.
-// In addition, the --analysis.enabled flag controls whether the
-// diagnostics of that analysis are displayed. (A disabled analysis may yet
-// be run if it is required by some other analysis that is enabled.)
+// Each analyzer flag name is preceded by the analyzer name: -NAME.flag.
+// In addition, the -NAME flag itself controls whether the
+// diagnostics of that analyzer are displayed. (A disabled analyzer may yet
+// be run if it is required by some other analyzer that is enabled.)
 package main
 
 import (
@@ -58,9 +58,7 @@ func main() {
 		loopclosure.Analyzer,
 		lostcancel.Analyzer,
 		nilfunc.Analyzer,
-		pkgfact.Analyzer,
 		printf.Analyzer,
-		// shadow.Analyzer, // experimental; not enabled by default
 		shift.Analyzer,
 		stdmethods.Analyzer,
 		structtag.Analyzer,
@@ -72,12 +70,9 @@ func main() {
 
 		// for debugging:
 		findcall.Analyzer,
+		pkgfact.Analyzer,
 
-		// use SSA:
+		// uses SSA:
 		nilness.Analyzer,
-
-		// Work in progress:
-		// httpheader.Analyzer,
-		// deadcode.Analyzer,
 	)
 }

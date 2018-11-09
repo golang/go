@@ -8,6 +8,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -41,7 +42,6 @@ import (
 )
 
 var analyzers = []*analysis.Analyzer{
-	// For now, just the traditional vet suite:
 	asmdecl.Analyzer,
 	assign.Analyzer,
 	atomic.Analyzer,
@@ -56,7 +56,6 @@ var analyzers = []*analysis.Analyzer{
 	nilfunc.Analyzer,
 	pkgfact.Analyzer,
 	printf.Analyzer,
-	// shadow.Analyzer, // experimental; not enabled by default
 	shift.Analyzer,
 	stdmethods.Analyzer,
 	structtag.Analyzer,
@@ -77,47 +76,49 @@ func main() {
 
 	// Flags for legacy vet compatibility.
 	//
-	// These flags, plus the shims in analysisflags, enable all
+	// These flags, plus the shims in analysisflags, enable
 	// existing scripts that run vet to continue to work.
 	//
-	// We still need to deal with legacy vet's "experimental"
-	// checkers. In vet there is exactly one such checker, shadow,
-	// and it must be enabled explicitly with the -shadow flag, but
-	// of course setting it disables all the other tristate flags,
-	// requiring the -all flag to reenable them.
+	// Legacy vet had the concept of "experimental" checkers. There
+	// was exactly one, shadow, and it had to be explicitly enabled
+	// by the -shadow flag, which would of course disable all the
+	// other tristate flags, requiring the -all flag to reenable them.
+	// (By itself, -all did not enable all checkers.)
+	// The -all flag is no longer needed, so it is a no-op.
 	//
-	// I don't believe this feature carries its weight. I propose we
-	// simply skip shadow for now; the few users that want it can
-	// run "go vet -vettool=..." using a vet tool that includes
-	// shadow, either as an additional step, with a shadow
-	// "singlechecker", or in place of the regular vet step on a
-	// multichecker with a hand-picked suite of checkers.
-	// Or, we could improve the shadow checker to the point where it
-	// need not be experimental.
+	// The shadow analyzer has been removed from the suite,
+	// but can be run using these additional commands:
+	//   $ go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+	//   $ go vet -vettool=$(which shadow)
+	// Alternatively, one could build a multichecker containing all
+	// the desired checks (vet's suite + shadow) and run it in a
+	// single "go vet" command.
 	for _, name := range []string{"source", "v", "all"} {
-		flag.Var(warnBoolFlag(name), name, "no effect (deprecated)")
+		_ = flag.Bool(name, false, "no effect (deprecated)")
 	}
 
 	flag.Usage = func() {
-		analysisflags.Help("vet", analyzers, nil)
+		fmt.Fprintln(os.Stderr, `Usage of vet:
+	vet unit.cfg		# execute analysis specified by config file
+	vet help		# general help
+	vet help name		# help on specific analyzer and its flags`)
+		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
 	analyzers = analysisflags.Parse(analyzers, true)
 
 	args := flag.Args()
+	if len(args) == 0 {
+		flag.Usage()
+	}
+	if args[0] == "help" {
+		analysisflags.Help("vet", analyzers, args[1:])
+		os.Exit(0)
+	}
 	if len(args) != 1 || !strings.HasSuffix(args[0], ".cfg") {
 		log.Fatalf("invalid command: want .cfg file (this reduced version of vet is intended to be run only by the 'go vet' command)")
 	}
 
 	unitchecker.Main(args[0], analyzers)
 }
-
-type warnBoolFlag string
-
-func (f warnBoolFlag) Set(s string) error {
-	log.Printf("warning: deprecated flag -%s has no effect", string(f))
-	return nil
-}
-func (f warnBoolFlag) IsBoolFlag() bool { return true }
-func (f warnBoolFlag) String() string   { return "false" }

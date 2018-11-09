@@ -45,11 +45,11 @@ func TestExec(t *testing.T) {
 		want  string
 	}{
 		{"", "[a1 a2 a3]"},
-		{"-a1.enable=0", "[a2 a3]"},
-		{"-a1.enable=1", "[a1]"},
-		{"-a1.enable", "[a1]"},
-		{"-a1.enable=1 -a3.enable=1", "[a1 a3]"},
-		{"-a1.enable=1 -a3.enable=0", "[a1]"},
+		{"-a1=0", "[a2 a3]"},
+		{"-a1=1", "[a1]"},
+		{"-a1", "[a1]"},
+		{"-a1=1 -a3=1", "[a1 a3]"},
+		{"-a1=1 -a3=0", "[a1]"},
 	} {
 		cmd := exec.Command(progname, "-test.run=TestExec")
 		cmd.Env = append(os.Environ(), "ANALYSISFLAGS_CHILD=1", "FLAGS="+test.flags)

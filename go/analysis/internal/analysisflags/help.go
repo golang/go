@@ -46,8 +46,8 @@ func Help(progname string, analyzers []*analysis.Analyzer, args []string) {
 			fmt.Printf("    %-12s %s\n", a.Name, title)
 		}
 		fmt.Println("\nBy default all analyzers are run.")
-		fmt.Println("To select specific analyzers, use the -NAME.enable flag for each one,")
-		fmt.Println(" or -NAME.enable=false to run all analyzers not explicitly disabled.")
+		fmt.Println("To select specific analyzers, use the -NAME flag for each one,")
+		fmt.Println(" or -NAME=false to run all analyzers not explicitly disabled.")
 
 		// Show only the core command-line flags.
 		fmt.Println("\nCore flags:")
