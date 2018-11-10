@@ -208,8 +208,8 @@ type ConnectionState struct {
 	ServerName                  string                // server name requested by client, if any (server side only)
 	PeerCertificates            []*x509.Certificate   // certificate chain presented by remote peer
 	VerifiedChains              [][]*x509.Certificate // verified chains built from PeerCertificates
-	SignedCertificateTimestamps [][]byte              // SCTs from the server, if any
-	OCSPResponse                []byte                // stapled OCSP response from server, if any
+	SignedCertificateTimestamps [][]byte              // SCTs from the peer, if any
+	OCSPResponse                []byte                // stapled OCSP response from peer, if any
 
 	// ekm is a closure exposed via ExportKeyingMaterial.
 	ekm func(label string, context []byte, length int) ([]byte, error)
@@ -219,7 +219,7 @@ type ConnectionState struct {
 	// because resumption does not include enough context (see
 	// https://mitls.org/pages/attacks/3SHAKE#channelbindings). This will
 	// change in future versions of Go once the TLS master-secret fix has
-	// been standardized and implemented.
+	// been standardized and implemented. It is not defined in TLS 1.3.
 	TLSUnique []byte
 }
 

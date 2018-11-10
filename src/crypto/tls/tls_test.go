@@ -916,3 +916,119 @@ func TestConnectionStateMarshal(t *testing.T) {
 		t.Errorf("json.Marshal failed on ConnectionState: %v", err)
 	}
 }
+
+func TestConnectionState(t *testing.T) {
+	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	if err != nil {
+		panic(err)
+	}
+	rootCAs := x509.NewCertPool()
+	rootCAs.AddCert(issuer)
+
+	now := func() time.Time { return time.Unix(1476984729, 0) }
+
+	const alpnProtocol = "golang"
+	const serverName = "example.golang"
+	var scts = [][]byte{[]byte("dummy sct 1"), []byte("dummy sct 2")}
+	var ocsp = []byte("dummy ocsp")
+
+	for _, v := range []uint16{VersionTLS12, VersionTLS13} {
+		var name string
+		switch v {
+		case VersionTLS12:
+			name = "TLSv12"
+		case VersionTLS13:
+			name = "TLSv13"
+		}
+		t.Run(name, func(t *testing.T) {
+			config := &Config{
+				Time:         now,
+				Rand:         zeroSource{},
+				Certificates: make([]Certificate, 1),
+				MaxVersion:   v,
+				RootCAs:      rootCAs,
+				ClientCAs:    rootCAs,
+				ClientAuth:   RequireAndVerifyClientCert,
+				NextProtos:   []string{alpnProtocol},
+				ServerName:   serverName,
+			}
+			config.Certificates[0].Certificate = [][]byte{testRSACertificate}
+			config.Certificates[0].PrivateKey = testRSAPrivateKey
+			config.Certificates[0].SignedCertificateTimestamps = scts
+			config.Certificates[0].OCSPStaple = ocsp
+
+			ss, cs, err := testHandshake(t, config, config)
+			if err != nil {
+				t.Fatalf("Handshake failed: %v", err)
+			}
+
+			if ss.Version != v || cs.Version != v {
+				t.Errorf("Got versions %x (server) and %x (client), expected %x", ss.Version, cs.Version, v)
+			}
+
+			if !ss.HandshakeComplete || !cs.HandshakeComplete {
+				t.Errorf("Got HandshakeComplete %v (server) and %v (client), expected true", ss.HandshakeComplete, cs.HandshakeComplete)
+			}
+
+			if ss.DidResume || cs.DidResume {
+				t.Errorf("Got DidResume %v (server) and %v (client), expected false", ss.DidResume, cs.DidResume)
+			}
+
+			if ss.CipherSuite == 0 || cs.CipherSuite == 0 {
+				t.Errorf("Got invalid cipher suite: %v (server) and %v (client)", ss.CipherSuite, cs.CipherSuite)
+			}
+
+			if ss.NegotiatedProtocol != alpnProtocol || cs.NegotiatedProtocol != alpnProtocol {
+				t.Errorf("Got negotiated protocol %q (server) and %q (client), expected %q", ss.NegotiatedProtocol, cs.NegotiatedProtocol, alpnProtocol)
+			}
+
+			if !cs.NegotiatedProtocolIsMutual {
+				t.Errorf("Got false NegotiatedProtocolIsMutual on the client side")
+			}
+			// NegotiatedProtocolIsMutual on the server side is unspecified.
+
+			if ss.ServerName != serverName {
+				t.Errorf("Got server name %q, expected %q", ss.ServerName, serverName)
+			}
+			if cs.ServerName != "" {
+				t.Errorf("Got unexpected server name on the client side")
+			}
+
+			if len(ss.PeerCertificates) != 1 || len(cs.PeerCertificates) != 1 {
+				t.Errorf("Got %d (server) and %d (client) peer certificates, expected %d", len(ss.PeerCertificates), len(cs.PeerCertificates), 1)
+			}
+
+			if len(ss.VerifiedChains) != 1 || len(cs.VerifiedChains) != 1 {
+				t.Errorf("Got %d (server) and %d (client) verified chains, expected %d", len(ss.VerifiedChains), len(cs.VerifiedChains), 1)
+			} else if len(ss.VerifiedChains[0]) != 2 || len(cs.VerifiedChains[0]) != 2 {
+				t.Errorf("Got %d (server) and %d (client) long verified chain, expected %d", len(ss.VerifiedChains[0]), len(cs.VerifiedChains[0]), 2)
+			}
+
+			if len(cs.SignedCertificateTimestamps) != 2 {
+				t.Errorf("Got %d SCTs, expected %d", len(cs.SignedCertificateTimestamps), 2)
+			}
+			if !bytes.Equal(cs.OCSPResponse, ocsp) {
+				t.Errorf("Got OCSPs %x, expected %x", cs.OCSPResponse, ocsp)
+			}
+			// Only TLS 1.3 supports OCSP and SCTs on client certs.
+			if v == VersionTLS13 {
+				if len(ss.SignedCertificateTimestamps) != 2 {
+					t.Errorf("Got %d client SCTs, expected %d", len(ss.SignedCertificateTimestamps), 2)
+				}
+				if !bytes.Equal(ss.OCSPResponse, ocsp) {
+					t.Errorf("Got client OCSPs %x, expected %x", ss.OCSPResponse, ocsp)
+				}
+			}
+
+			if v == VersionTLS13 {
+				if ss.TLSUnique != nil || cs.TLSUnique != nil {
+					t.Errorf("Got TLSUnique %x (server) and %x (client), expected nil in TLS 1.3", ss.TLSUnique, cs.TLSUnique)
+				}
+			} else {
+				if ss.TLSUnique == nil || cs.TLSUnique == nil {
+					t.Errorf("Got TLSUnique %x (server) and %x (client), expected non-nil", ss.TLSUnique, cs.TLSUnique)
+				}
+			}
+		})
+	}
+}
