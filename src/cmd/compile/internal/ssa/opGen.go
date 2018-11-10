@@ -1473,6 +1473,8 @@ const (
 	OpS390XMOVHZreg
 	OpS390XMOVWreg
 	OpS390XMOVWZreg
+	OpS390XMOVDreg
+	OpS390XMOVDnop
 	OpS390XMOVDconst
 	OpS390XCFDBRA
 	OpS390XCGDBRA
@@ -7305,6 +7307,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         3,
 		resultInArg0:   true,
 		faultOnNilArg1: true,
+		hasSideEffects: true,
 		asm:            x86.AXCHGL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -7322,6 +7325,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         3,
 		resultInArg0:   true,
 		faultOnNilArg1: true,
+		hasSideEffects: true,
 		asm:            x86.AXCHGQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -7340,6 +7344,7 @@ var opcodeTable = [...]opInfo{
 		resultInArg0:   true,
 		clobberFlags:   true,
 		faultOnNilArg1: true,
+		hasSideEffects: true,
 		asm:            x86.AXADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -7358,6 +7363,7 @@ var opcodeTable = [...]opInfo{
 		resultInArg0:   true,
 		clobberFlags:   true,
 		faultOnNilArg1: true,
+		hasSideEffects: true,
 		asm:            x86.AXADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -7385,6 +7391,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         4,
 		clobberFlags:   true,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            x86.ACMPXCHGL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -7405,6 +7412,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         4,
 		clobberFlags:   true,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            x86.ACMPXCHGQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -7425,6 +7433,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         3,
 		clobberFlags:   true,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            x86.AANDB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -7439,6 +7448,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         3,
 		clobberFlags:   true,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            x86.AORB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -10073,6 +10083,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2147483648, // F15
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
@@ -10086,6 +10097,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2147483648, // F15
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
@@ -10099,6 +10111,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2147483648, // F15
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
@@ -10112,6 +10125,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
+			clobbers: 2147483648, // F15
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
@@ -10125,6 +10139,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
+			clobbers: 2147483648, // F15
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -10138,6 +10153,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
+			clobbers: 2147483648, // F15
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -10151,6 +10167,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
+			clobbers: 2147483648, // F15
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -10164,6 +10181,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
+			clobbers: 2147483648, // F15
 			outputs: []outputInfo{
 				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
 			},
@@ -12655,6 +12673,7 @@ var opcodeTable = [...]opInfo{
 		name:           "STLR",
 		argLen:         3,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            arm64.ASTLR,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12667,6 +12686,7 @@ var opcodeTable = [...]opInfo{
 		name:           "STLRW",
 		argLen:         3,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            arm64.ASTLRW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12680,6 +12700,7 @@ var opcodeTable = [...]opInfo{
 		argLen:          3,
 		resultNotInArgs: true,
 		faultOnNilArg0:  true,
+		hasSideEffects:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -12695,6 +12716,7 @@ var opcodeTable = [...]opInfo{
 		argLen:          3,
 		resultNotInArgs: true,
 		faultOnNilArg0:  true,
+		hasSideEffects:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -12710,6 +12732,7 @@ var opcodeTable = [...]opInfo{
 		argLen:          3,
 		resultNotInArgs: true,
 		faultOnNilArg0:  true,
+		hasSideEffects:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -12725,6 +12748,7 @@ var opcodeTable = [...]opInfo{
 		argLen:          3,
 		resultNotInArgs: true,
 		faultOnNilArg0:  true,
+		hasSideEffects:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -12741,6 +12765,7 @@ var opcodeTable = [...]opInfo{
 		resultNotInArgs: true,
 		clobberFlags:    true,
 		faultOnNilArg0:  true,
+		hasSideEffects:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -12758,6 +12783,7 @@ var opcodeTable = [...]opInfo{
 		resultNotInArgs: true,
 		clobberFlags:    true,
 		faultOnNilArg0:  true,
+		hasSideEffects:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -12773,6 +12799,7 @@ var opcodeTable = [...]opInfo{
 		name:           "LoweredAtomicAnd8",
 		argLen:         3,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            arm64.AAND,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12785,6 +12812,7 @@ var opcodeTable = [...]opInfo{
 		name:           "LoweredAtomicOr8",
 		argLen:         3,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            arm64.AORR,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13975,6 +14003,7 @@ var opcodeTable = [...]opInfo{
 		name:           "LoweredAtomicStore",
 		argLen:         3,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 469762046},       // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
@@ -13986,6 +14015,7 @@ var opcodeTable = [...]opInfo{
 		name:           "LoweredAtomicStorezero",
 		argLen:         2,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 140738025226238}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 SP g R31 SB
@@ -13997,6 +14027,7 @@ var opcodeTable = [...]opInfo{
 		argLen:          3,
 		resultNotInArgs: true,
 		faultOnNilArg0:  true,
+		hasSideEffects:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 469762046},       // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
@@ -14012,6 +14043,7 @@ var opcodeTable = [...]opInfo{
 		argLen:          3,
 		resultNotInArgs: true,
 		faultOnNilArg0:  true,
+		hasSideEffects:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 469762046},       // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
@@ -14028,6 +14060,7 @@ var opcodeTable = [...]opInfo{
 		argLen:          2,
 		resultNotInArgs: true,
 		faultOnNilArg0:  true,
+		hasSideEffects:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 140738025226238}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 SP g R31 SB
@@ -14042,6 +14075,7 @@ var opcodeTable = [...]opInfo{
 		argLen:          4,
 		resultNotInArgs: true,
 		faultOnNilArg0:  true,
+		hasSideEffects:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 469762046},       // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
@@ -14057,6 +14091,7 @@ var opcodeTable = [...]opInfo{
 		name:           "LoweredAtomicAnd",
 		argLen:         3,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            mips.AAND,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14069,6 +14104,7 @@ var opcodeTable = [...]opInfo{
 		name:           "LoweredAtomicOr",
 		argLen:         3,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            mips.AOR,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -18571,6 +18607,32 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "MOVDreg",
+		argLen: 1,
+		asm:    s390x.AMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+			},
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:         "MOVDnop",
+		argLen:       1,
+		resultInArg0: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+			outputs: []outputInfo{
+				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
 		name:              "MOVDconst",
 		auxType:           auxInt64,
 		argLen:            0,
@@ -19472,6 +19534,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         3,
 		clobberFlags:   true,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            s390x.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -19486,6 +19549,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         3,
 		clobberFlags:   true,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            s390x.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -19499,6 +19563,7 @@ var opcodeTable = [...]opInfo{
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            s390x.ALAA,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -19515,6 +19580,7 @@ var opcodeTable = [...]opInfo{
 		auxType:        auxSymOff,
 		argLen:         3,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            s390x.ALAAG,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -19542,6 +19608,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         4,
 		clobberFlags:   true,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            s390x.ACS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -19562,6 +19629,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         4,
 		clobberFlags:   true,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            s390x.ACSG,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -19582,6 +19650,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         3,
 		clobberFlags:   true,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            s390x.ACS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -19600,6 +19669,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         3,
 		clobberFlags:   true,
 		faultOnNilArg0: true,
+		hasSideEffects: true,
 		asm:            s390x.ACSG,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -21387,59 +21457,70 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "AtomicStore32",
-		argLen:  3,
-		generic: true,
+		name:           "AtomicStore32",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
 	},
 	{
-		name:    "AtomicStore64",
-		argLen:  3,
-		generic: true,
+		name:           "AtomicStore64",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
 	},
 	{
-		name:    "AtomicStorePtrNoWB",
-		argLen:  3,
-		generic: true,
+		name:           "AtomicStorePtrNoWB",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
 	},
 	{
-		name:    "AtomicExchange32",
-		argLen:  3,
-		generic: true,
+		name:           "AtomicExchange32",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
 	},
 	{
-		name:    "AtomicExchange64",
-		argLen:  3,
-		generic: true,
+		name:           "AtomicExchange64",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
 	},
 	{
-		name:    "AtomicAdd32",
-		argLen:  3,
-		generic: true,
+		name:           "AtomicAdd32",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
 	},
 	{
-		name:    "AtomicAdd64",
-		argLen:  3,
-		generic: true,
+		name:           "AtomicAdd64",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
 	},
 	{
-		name:    "AtomicCompareAndSwap32",
-		argLen:  4,
-		generic: true,
+		name:           "AtomicCompareAndSwap32",
+		argLen:         4,
+		hasSideEffects: true,
+		generic:        true,
 	},
 	{
-		name:    "AtomicCompareAndSwap64",
-		argLen:  4,
-		generic: true,
+		name:           "AtomicCompareAndSwap64",
+		argLen:         4,
+		hasSideEffects: true,
+		generic:        true,
 	},
 	{
-		name:    "AtomicAnd8",
-		argLen:  3,
-		generic: true,
+		name:           "AtomicAnd8",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
 	},
 	{
-		name:    "AtomicOr8",
-		argLen:  3,
-		generic: true,
+		name:           "AtomicOr8",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
 	},
 }
 

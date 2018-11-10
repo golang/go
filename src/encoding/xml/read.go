@@ -285,7 +285,8 @@ func (p *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
 		return nil
 	}
 
-	return copyValue(val, []byte(attr.Value))
+	copyValue(val, []byte(attr.Value))
+	return nil
 }
 
 var (

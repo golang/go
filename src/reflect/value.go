@@ -538,6 +538,11 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 			off += typ.size
 		}
 	}
+
+	// runtime.getArgInfo expects to be able to find ctxt on the
+	// stack when it finds our caller, makeFuncStub. Make sure it
+	// doesn't get garbage collected.
+	runtime.KeepAlive(ctxt)
 }
 
 // methodReceiver returns information about the receiver
@@ -625,8 +630,11 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 	args := framePool.Get().(unsafe.Pointer)
 
 	// Copy in receiver and rest of args.
+	// Avoid constructing out-of-bounds pointers if there are no args.
 	storeRcvr(rcvr, args)
-	typedmemmovepartial(frametype, unsafe.Pointer(uintptr(args)+ptrSize), frame, ptrSize, argSize-ptrSize)
+	if argSize-ptrSize > 0 {
+		typedmemmovepartial(frametype, unsafe.Pointer(uintptr(args)+ptrSize), frame, ptrSize, argSize-ptrSize)
+	}
 
 	// Call.
 	call(frametype, fn, args, uint32(frametype.size), uint32(retOffset))
@@ -636,20 +644,26 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
 	// a receiver) is different from the layout of the fn call, which has
 	// a receiver.
 	// Ignore any changes to args and just copy return values.
-	callerRetOffset := retOffset - ptrSize
-	if runtime.GOARCH == "amd64p32" {
-		callerRetOffset = align(argSize-ptrSize, 8)
+	// Avoid constructing out-of-bounds pointers if there are no return values.
+	if frametype.size-retOffset > 0 {
+		callerRetOffset := retOffset - ptrSize
+		if runtime.GOARCH == "amd64p32" {
+			callerRetOffset = align(argSize-ptrSize, 8)
+		}
+		typedmemmovepartial(frametype,
+			unsafe.Pointer(uintptr(frame)+callerRetOffset),
+			unsafe.Pointer(uintptr(args)+retOffset),
+			retOffset,
+			frametype.size-retOffset)
 	}
-	typedmemmovepartial(frametype,
-		unsafe.Pointer(uintptr(frame)+callerRetOffset),
-		unsafe.Pointer(uintptr(args)+retOffset),
-		retOffset,
-		frametype.size-retOffset)
 
 	// This is untyped because the frame is really a stack, even
 	// though it's a heap object.
 	memclrNoHeapPointers(args, frametype.size)
 	framePool.Put(args)
+
+	// See the comment in callReflect.
+	runtime.KeepAlive(ctxt)
 }
 
 // funcName returns the name of f, for use in error messages.

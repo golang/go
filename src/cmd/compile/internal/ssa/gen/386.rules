@@ -620,10 +620,12 @@
 (MOVWLZX x:(MOVWloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx1 <v.Type> [off] {sym} ptr idx mem)
 (MOVWLZX x:(MOVWloadidx2 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx2 <v.Type> [off] {sym} ptr idx mem)
 
-// replace load from same location as preceding store with copy
-(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
-(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+// replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
+(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBLZX x)
+(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWLZX x)
 (MOVLload [off] {sym} ptr (MOVLstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+(MOVBLSXload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBLSX x)
+(MOVWLSXload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWLSX x)
 
 // Fold extensions and ANDs together.
 (MOVBLZX (ANDLconst [c] x)) -> (ANDLconst [c & 0xff] x)

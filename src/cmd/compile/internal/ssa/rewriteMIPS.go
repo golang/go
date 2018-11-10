@@ -712,7 +712,7 @@ func rewriteValueMIPS_OpAtomicAnd8(v *Value, config *Config) bool {
 	_ = b
 	// match: (AtomicAnd8  ptr val mem)
 	// cond: !config.BigEndian
-	// result: (LoweredAtomicAnd (AND <config.fe.TypeUInt32().PtrTo()> (MOVWconst [^3]) ptr) 		(OR <config.fe.TypeUInt32()> (SLL <config.fe.TypeUInt32()> (ZeroExt8to32 val) 			(SLLconst <config.fe.TypeUInt32()> [3] 				(ANDconst  <config.fe.TypeUInt32()> [3] ptr))) 		(NORconst [0] <config.fe.TypeUInt32()> (SLL <config.fe.TypeUInt32()> 			(MOVWconst [0xff]) (SLLconst <config.fe.TypeUInt32()> [3] 				(ANDconst <config.fe.TypeUInt32()> [3] 					(XORconst <config.fe.TypeUInt32()> [3] ptr)))))) mem)
+	// result: (LoweredAtomicAnd (AND <config.fe.TypeUInt32().PtrTo()> (MOVWconst [^3]) ptr) 		(OR <config.fe.TypeUInt32()> (SLL <config.fe.TypeUInt32()> (ZeroExt8to32 val) 			(SLLconst <config.fe.TypeUInt32()> [3] 				(ANDconst  <config.fe.TypeUInt32()> [3] ptr))) 		(NORconst [0] <config.fe.TypeUInt32()> (SLL <config.fe.TypeUInt32()> 			(MOVWconst [0xff]) (SLLconst <config.fe.TypeUInt32()> [3] 				(ANDconst <config.fe.TypeUInt32()> [3] ptr))))) mem)
 	for {
 		ptr := v.Args[0]
 		val := v.Args[1]
@@ -750,10 +750,7 @@ func rewriteValueMIPS_OpAtomicAnd8(v *Value, config *Config) bool {
 		v10.AuxInt = 3
 		v11 := b.NewValue0(v.Line, OpMIPSANDconst, config.fe.TypeUInt32())
 		v11.AuxInt = 3
-		v12 := b.NewValue0(v.Line, OpMIPSXORconst, config.fe.TypeUInt32())
-		v12.AuxInt = 3
-		v12.AddArg(ptr)
-		v11.AddArg(v12)
+		v11.AddArg(ptr)
 		v10.AddArg(v11)
 		v8.AddArg(v10)
 		v7.AddArg(v8)
@@ -3335,8 +3332,8 @@ func rewriteValueMIPS_OpMIPSMOVBUload(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)
-	// result: x
+	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+	// result: (MOVBUreg x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -3349,11 +3346,10 @@ func rewriteValueMIPS_OpMIPSMOVBUload(v *Value, config *Config) bool {
 		sym2 := v_1.Aux
 		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)) {
+		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpMIPSMOVBUreg)
 		v.AddArg(x)
 		return true
 	}
@@ -3493,8 +3489,8 @@ func rewriteValueMIPS_OpMIPSMOVBload(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)
-	// result: x
+	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+	// result: (MOVBreg x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -3507,11 +3503,10 @@ func rewriteValueMIPS_OpMIPSMOVBload(v *Value, config *Config) bool {
 		sym2 := v_1.Aux
 		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)) {
+		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpMIPSMOVBreg)
 		v.AddArg(x)
 		return true
 	}
@@ -4151,8 +4146,8 @@ func rewriteValueMIPS_OpMIPSMOVHUload(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)
-	// result: x
+	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+	// result: (MOVHUreg x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -4165,11 +4160,10 @@ func rewriteValueMIPS_OpMIPSMOVHUload(v *Value, config *Config) bool {
 		sym2 := v_1.Aux
 		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)) {
+		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpMIPSMOVHUreg)
 		v.AddArg(x)
 		return true
 	}
@@ -4333,8 +4327,8 @@ func rewriteValueMIPS_OpMIPSMOVHload(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)
-	// result: x
+	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+	// result: (MOVHreg x)
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -4347,11 +4341,10 @@ func rewriteValueMIPS_OpMIPSMOVHload(v *Value, config *Config) bool {
 		sym2 := v_1.Aux
 		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)) {
+		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.reset(OpCopy)
-		v.Type = x.Type
+		v.reset(OpMIPSMOVHreg)
 		v.AddArg(x)
 		return true
 	}

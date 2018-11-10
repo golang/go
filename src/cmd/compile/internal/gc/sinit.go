@@ -585,7 +585,7 @@ func isliteral(n *Node) bool {
 }
 
 func (n *Node) isSimpleName() bool {
-	return n.Op == ONAME && n.Addable && n.Class != PAUTOHEAP
+	return n.Op == ONAME && n.Addable && n.Class != PAUTOHEAP && n.Class != PEXTERN
 }
 
 func litas(l *Node, r *Node, init *Nodes) {

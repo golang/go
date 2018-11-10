@@ -146,10 +146,16 @@ move_1or2:
 move_0:
 	RET
 move_3or4:
+	CMPQ	BX, $4
+	JB	move_3
+	MOVL	(SI), AX
+	MOVL	AX, (DI)
+	RET
+move_3:
 	MOVW	(SI), AX
-	MOVW	-2(SI)(BX*1), CX
+	MOVB	2(SI), CX
 	MOVW	AX, (DI)
-	MOVW	CX, -2(DI)(BX*1)
+	MOVB	CX, 2(DI)
 	RET
 move_5through7:
 	MOVL	(SI), AX

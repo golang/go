@@ -15,12 +15,7 @@ Do not send CLs removing the interior tags from such phrases.
 ul li { margin: 0.5em 0; }
 </style>
 
-<h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.8</h2>
-
-<p><strong>
-Go 1.8 is not yet released. These are work-in-progress
-release notes. Go 1.8 is expected to be released in February 2017.
-</strong></p>
+<h2 id="introduction">Introduction to Go 1.8</h2>
 
 <p>
 The latest Go release, version 1.8, arrives six months after <a href="go1.7">Go 1.7</a>.
@@ -93,7 +88,8 @@ On OpenBSD, Go now requires OpenBSD 5.9 or later. <!-- CL 34093 -->
 <p>
 The Plan 9 port's networking support is now much more complete
 and matches the behavior of Unix and Windows with respect to deadlines
-and cancelation.
+and cancelation. For Plan 9 kernel requirements, see the
+<a href="https://golang.org/wiki/Plan9">Plan 9 wiki page</a>.
 </p>
 
 <p>
@@ -434,11 +430,11 @@ version of gccgo.
 <h3 id="plugin">Plugins</h3>
 
 <p>
-  Go now supports a “<code>plugin</code>” build mode for generating
-  plugins written in Go, and a
+  Go now provides early support for plugins with a “<code>plugin</code>”
+  build mode for generating plugins written in Go, and a
   new <a href="/pkg/plugin/"><code>plugin</code></a> package for
-  loading such plugins at run time. Plugin support is only currently
-  available on Linux.
+  loading such plugins at run time. Plugin support is currently only
+  available on Linux. Please report any issues.
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -798,9 +794,9 @@ Optimizations and minor bug fixes are not listed.
       hardware support for AES-GCM is present.
     </p>
 
-    <p> <!-- CL 27315 -->
+    <p> <!-- CL 27315, CL 35290 -->
       AES-128-CBC cipher suites with SHA-256 are also
-      now supported.
+      now supported, but disabled by default.
     </p>
 
   </dd>
@@ -808,11 +804,6 @@ Optimizations and minor bug fixes are not listed.
 
 <dl id="crypto_x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
-    <p> <!-- CL 30578 -->
-      <a href="/pkg/crypto/x509/#SystemCertPool"><code>SystemCertPool</code></a>
-      is now implemented on Windows.
-    </p>
-
     <p> <!-- CL 24743 -->
       PSS signatures are now supported.
     </p>
@@ -863,11 +854,12 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
     <p>
       The <a href="/pkg/database/sql#IsolationLevel"><code>IsolationLevel</code></a>
       can now be set when starting a transaction by setting the isolation level
-      on the <code>Context</code> then passing that <code>Context</code> to
-      <a href="/pkg/database/sql#DB.BeginContext"><code>DB.BeginContext</code></a>.
+      on <a href="/pkg/database/sql#TxOptions.Isolation"><code>TxOptions.Isolation</code></a> and passing
+      it to <a href="/pkg/database/sql#DB.BeginTx"><code>DB.BeginTx</code></a>.
       An error will be returned if an isolation level is selected that the driver
       does not support. A read-only attribute may also be set on the transaction
-      with <a href="/pkg/database/sql/#ReadOnlyContext"><code>ReadOnlyContext</code></a>.
+      by setting <a href="/pkg/database/sql/#TxOptions.ReadOnly"><code>TxOptions.ReadOnly</code></a>
+      to true.
     </p>
     <p>
       Queries now expose the SQL column type information for drivers that support it.
@@ -1312,7 +1304,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
         request must have the new
         <a href="/pkg/net/http/#Request"><code>Request.GetBody</code></a>
         field defined.
-        <a href="pkg/net/http/#NewRequest"><code>NewRequest</code></a>
+        <a href="/pkg/net/http/#NewRequest"><code>NewRequest</code></a>
         sets <code>Request.GetBody</code> automatically for common
         body types.
       </li>
@@ -1617,9 +1609,9 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       June 31 and July 32.
     </p>
 
-    <p> <!-- CL 33029 -->
+    <p> <!-- CL 33029 --> <!-- CL 34816 -->
       The <code>tzdata</code> database has been updated to version
-      2016i for systems that don't already have a local time zone
+      2016j for systems that don't already have a local time zone
       database.
     </p>
 
@@ -1647,6 +1639,17 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
       detector is enabled and a data race occurs during execution.
       Previously, individual test cases would appear to pass,
       and only the overall execution of the test binary would fail.
+    </p>
+
+    <p><!-- CL 32455 -->
+      The signature of the
+      <a href="/pkg/testing/#MainStart"><code>MainStart</code></a>
+      function has changed, as allowed by the documentation. It is an
+      internal detail and not part of the Go 1 compatibility promise.
+      If you're not calling <code>MainStart</code> directly but see
+      errors, that likely means you set the
+      normally-empty <code>GOROOT</code> environment variable and it
+      doesn't match the version of your <code>go</code> command's binary.
     </p>
 
   </dd>

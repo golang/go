@@ -488,6 +488,17 @@ func testLrot() {
 			wantA, wantB, wantC, wantD, ", got", a, b, c, d)
 		failed = true
 	}
+	// Also test inputs with the top bit set, and make sure
+	// sub-word right shift has high bits cleared first.
+	// See issue #19270.
+	wantA, wantB, wantC, wantD = uint8(0xdf), uint16(0xdfff),
+		uint32(0xdfffffff), uint64(0xdfffffffffffffff)
+	a, b, c, d = lrot1_ssa(0xfe, 0xfffe, 0xfffffffe, 0xfffffffffffffffe)
+	if a != wantA || b != wantB || c != wantC || d != wantD {
+		println("lrot1_ssa(0xfe, 0xfffe, 0xfffffffe, 0xfffffffffffffffe)=",
+			wantA, wantB, wantC, wantD, ", got", a, b, c, d)
+		failed = true
+	}
 	x := lrot2_ssa(0xb0000001, 32)
 	wantX := uint32(0xb0000001)
 	if x != wantX {

@@ -413,11 +413,12 @@ func (c *Client) checkRedirect(req *Request, via []*Request) error {
 
 // redirectBehavior describes what should happen when the
 // client encounters a 3xx status code from the server
-func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirectMethod string, shouldRedirect bool) {
+func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirectMethod string, shouldRedirect, includeBody bool) {
 	switch resp.StatusCode {
 	case 301, 302, 303:
 		redirectMethod = reqMethod
 		shouldRedirect = true
+		includeBody = false
 
 		// RFC 2616 allowed automatic redirection only with GET and
 		// HEAD requests. RFC 7231 lifts this restriction, but we still
@@ -429,6 +430,7 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
 	case 307, 308:
 		redirectMethod = reqMethod
 		shouldRedirect = true
+		includeBody = true
 
 		// Treat 307 and 308 specially, since they're new in
 		// Go 1.8, and they also require re-sending the request body.
@@ -449,7 +451,7 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
 			shouldRedirect = false
 		}
 	}
-	return redirectMethod, shouldRedirect
+	return redirectMethod, shouldRedirect, includeBody
 }
 
 // Do sends an HTTP request and returns an HTTP response, following
@@ -492,11 +494,14 @@ func (c *Client) Do(req *Request) (*Response, error) {
 	}
 
 	var (
-		deadline       = c.deadline()
-		reqs           []*Request
-		resp           *Response
-		copyHeaders    = c.makeHeadersCopier(req)
+		deadline    = c.deadline()
+		reqs        []*Request
+		resp        *Response
+		copyHeaders = c.makeHeadersCopier(req)
+
+		// Redirect behavior:
 		redirectMethod string
+		includeBody    bool
 	)
 	uerr := func(err error) error {
 		req.closeBody()
@@ -534,7 +539,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
 				Cancel:   ireq.Cancel,
 				ctx:      ireq.ctx,
 			}
-			if ireq.GetBody != nil {
+			if includeBody && ireq.GetBody != nil {
 				req.Body, err = ireq.GetBody()
 				if err != nil {
 					return nil, uerr(err)
@@ -598,7 +603,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
 		}
 
 		var shouldRedirect bool
-		redirectMethod, shouldRedirect = redirectBehavior(req.Method, resp, reqs[0])
+		redirectMethod, shouldRedirect, includeBody = redirectBehavior(req.Method, resp, reqs[0])
 		if !shouldRedirect {
 			return resp, nil
 		}

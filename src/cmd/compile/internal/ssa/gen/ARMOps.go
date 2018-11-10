@@ -119,8 +119,8 @@ func init() {
 		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
 		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fp1flags  = regInfo{inputs: []regMask{fp}}
-		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
-		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
+		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}, clobbers: buildReg("F15")} // int-float conversion uses F15 as tmp
+		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}, clobbers: buildReg("F15")}
 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
 		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
 		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}

@@ -164,7 +164,7 @@ type Flusher interface {
 // should always test for this ability at runtime.
 type Hijacker interface {
 	// Hijack lets the caller take over the connection.
-	// After a call to Hijack(), the HTTP server library
+	// After a call to Hijack the HTTP server library
 	// will not do anything else with the connection.
 	//
 	// It becomes the caller's responsibility to manage
@@ -174,6 +174,9 @@ type Hijacker interface {
 	// already set, depending on the configuration of the
 	// Server. It is the caller's responsibility to set
 	// or clear those deadlines as needed.
+	//
+	// The returned bufio.Reader may contain unprocessed buffered
+	// data from the client.
 	Hijack() (net.Conn, *bufio.ReadWriter, error)
 }
 
@@ -293,6 +296,11 @@ func (c *conn) hijackLocked() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	rwc.SetDeadline(time.Time{})
 
 	buf = bufio.NewReadWriter(c.bufr, bufio.NewWriter(rwc))
+	if c.r.hasByte {
+		if _, err := c.bufr.Peek(c.bufr.Buffered() + 1); err != nil {
+			return nil, nil, fmt.Errorf("unexpected Peek failure reading buffered byte: %v", err)
+		}
+	}
 	c.setState(rwc, StateHijacked)
 	return
 }

@@ -72,6 +72,15 @@ func Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset in
 	return q
 }
 
+func AddAsmAfter(as obj.As, p *obj.Prog) *obj.Prog {
+	q := Ctxt.NewProg()
+	Clearp(q)
+	q.As = as
+	q.Link = p.Link
+	p.Link = q
+	return q
+}
+
 func ggloblnod(nam *Node) {
 	s := Linksym(nam.Sym)
 	s.Gotype = Linksym(ngotype(nam))

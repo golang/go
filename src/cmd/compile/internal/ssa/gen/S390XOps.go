@@ -311,6 +311,9 @@ func init() {
 		{name: "MOVHZreg", argLength: 1, reg: gp11sp, asm: "MOVHZ", typ: "UInt64"}, // zero extend arg0 from int16 to int64
 		{name: "MOVWreg", argLength: 1, reg: gp11sp, asm: "MOVW", typ: "Int64"},    // sign extend arg0 from int32 to int64
 		{name: "MOVWZreg", argLength: 1, reg: gp11sp, asm: "MOVWZ", typ: "UInt64"}, // zero extend arg0 from int32 to int64
+		{name: "MOVDreg", argLength: 1, reg: gp11sp, asm: "MOVD"},                  // move from arg0
+
+		{name: "MOVDnop", argLength: 1, reg: gp11, resultInArg0: true}, // nop, return arg0 in same register
 
 		{name: "MOVDconst", reg: gp01, asm: "MOVD", typ: "UInt64", aux: "Int64", rematerializeable: true}, // auxint
 
@@ -426,14 +429,14 @@ func init() {
 
 		// Atomic stores. These are just normal stores.
 		// store arg1 to arg0+auxint+aux. arg2=mem.
-		{name: "MOVWatomicstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true},
-		{name: "MOVDatomicstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true},
+		{name: "MOVWatomicstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "MOVDatomicstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// Atomic adds.
 		// *(arg0+auxint+aux) += arg1.  arg2=mem.
 		// Returns a tuple of <old contents of *(arg0+auxint+aux), memory>.
-		{name: "LAA", argLength: 3, reg: gpstorelaa, asm: "LAA", typ: "(UInt32,Mem)", aux: "SymOff", faultOnNilArg0: true},
-		{name: "LAAG", argLength: 3, reg: gpstorelaa, asm: "LAAG", typ: "(UInt64,Mem)", aux: "SymOff", faultOnNilArg0: true},
+		{name: "LAA", argLength: 3, reg: gpstorelaa, asm: "LAA", typ: "(UInt32,Mem)", aux: "SymOff", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LAAG", argLength: 3, reg: gpstorelaa, asm: "LAAG", typ: "(UInt64,Mem)", aux: "SymOff", faultOnNilArg0: true, hasSideEffects: true},
 		{name: "AddTupleFirst32", argLength: 2}, // arg0=tuple <x,y>.  Returns <x+arg1,y>.
 		{name: "AddTupleFirst64", argLength: 2}, // arg0=tuple <x,y>.  Returns <x+arg1,y>.
 
@@ -458,13 +461,13 @@ func init() {
 		//    BEQ ...
 		// but we can't do that because memory-using ops can't generate flags yet
 		// (flagalloc wants to move flag-generating instructions around).
-		{name: "LoweredAtomicCas32", argLength: 4, reg: cas, asm: "CS", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},
-		{name: "LoweredAtomicCas64", argLength: 4, reg: cas, asm: "CSG", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},
+		{name: "LoweredAtomicCas32", argLength: 4, reg: cas, asm: "CS", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicCas64", argLength: 4, reg: cas, asm: "CSG", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// Lowered atomic swaps, emulated using compare-and-swap.
 		// store arg1 to arg0+auxint+aux, arg2=mem.
-		{name: "LoweredAtomicExchange32", argLength: 3, reg: exchange, asm: "CS", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},
-		{name: "LoweredAtomicExchange64", argLength: 3, reg: exchange, asm: "CSG", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},
+		{name: "LoweredAtomicExchange32", argLength: 3, reg: exchange, asm: "CS", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicExchange64", argLength: 3, reg: exchange, asm: "CSG", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// find leftmost one
 		{

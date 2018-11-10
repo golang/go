@@ -90,7 +90,12 @@ func findEnv(env []envVar, name string) string {
 func extraEnvVars() []envVar {
 	var b builder
 	b.init()
-	cppflags, cflags, cxxflags, fflags, ldflags := b.cflags(&Package{})
+	cppflags, cflags, cxxflags, fflags, ldflags, err := b.cflags(&Package{})
+	if err != nil {
+		// Should not happen - b.CFlags was given an empty package.
+		fmt.Fprintf(os.Stderr, "go: invalid cflags: %v\n", err)
+		return nil
+	}
 	return []envVar{
 		{"PKG_CONFIG", b.pkgconfigCmd()},
 		{"CGO_CFLAGS", strings.Join(cflags, " ")},

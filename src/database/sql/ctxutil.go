@@ -35,15 +35,12 @@ func ctxDriverExec(ctx context.Context, execer driver.Execer, query string, nvda
 		return nil, err
 	}
 
-	resi, err := execer.Exec(query, dargs)
-	if err == nil {
-		select {
-		default:
-		case <-ctx.Done():
-			return resi, ctx.Err()
-		}
+	select {
+	default:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	return resi, err
+	return execer.Exec(query, dargs)
 }
 
 func ctxDriverQuery(ctx context.Context, queryer driver.Queryer, query string, nvdargs []driver.NamedValue) (driver.Rows, error) {
@@ -56,16 +53,12 @@ func ctxDriverQuery(ctx context.Context, queryer driver.Queryer, query string, n
 		return nil, err
 	}
 
-	rowsi, err := queryer.Query(query, dargs)
-	if err == nil {
-		select {
-		default:
-		case <-ctx.Done():
-			rowsi.Close()
-			return nil, ctx.Err()
-		}
+	select {
+	default:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	return rowsi, err
+	return queryer.Query(query, dargs)
 }
 
 func ctxDriverStmtExec(ctx context.Context, si driver.Stmt, nvdargs []driver.NamedValue) (driver.Result, error) {
@@ -77,15 +70,12 @@ func ctxDriverStmtExec(ctx context.Context, si driver.Stmt, nvdargs []driver.Nam
 		return nil, err
 	}
 
-	resi, err := si.Exec(dargs)
-	if err == nil {
-		select {
-		default:
-		case <-ctx.Done():
-			return resi, ctx.Err()
-		}
+	select {
+	default:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	return resi, err
+	return si.Exec(dargs)
 }
 
 func ctxDriverStmtQuery(ctx context.Context, si driver.Stmt, nvdargs []driver.NamedValue) (driver.Rows, error) {
@@ -97,16 +87,12 @@ func ctxDriverStmtQuery(ctx context.Context, si driver.Stmt, nvdargs []driver.Na
 		return nil, err
 	}
 
-	rowsi, err := si.Query(dargs)
-	if err == nil {
-		select {
-		default:
-		case <-ctx.Done():
-			rowsi.Close()
-			return nil, ctx.Err()
-		}
+	select {
+	default:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	return rowsi, err
+	return si.Query(dargs)
 }
 
 var errLevelNotSupported = errors.New("sql: selected isolation level is not supported")

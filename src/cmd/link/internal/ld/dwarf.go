@@ -1080,7 +1080,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
 		epcs = s
 
 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
-		dsym.Attr |= AttrHidden
+		dsym.Attr |= AttrHidden | AttrReachable
 		dsym.Type = obj.SDWARFINFO
 		for _, r := range dsym.R {
 			if r.Type == obj.R_DWARFREF && r.Sym.Size == 0 {

@@ -428,7 +428,7 @@ func downloadPackage(p *Package) error {
 			return fmt.Errorf("cannot download, $GOPATH not set. For more details see: 'go help gopath'")
 		}
 		// Guard against people setting GOPATH=$GOROOT.
-		if list[0] == goroot {
+		if filepath.Clean(list[0]) == filepath.Clean(goroot) {
 			return fmt.Errorf("cannot download, $GOPATH must not be set to $GOROOT. For more details see: 'go help gopath'")
 		}
 		if _, err := os.Stat(filepath.Join(list[0], "src/cmd/go/alldocs.go")); err == nil {
@@ -439,6 +439,11 @@ func downloadPackage(p *Package) error {
 		p.build.PkgRoot = filepath.Join(list[0], "pkg")
 	}
 	root := filepath.Join(p.build.SrcRoot, filepath.FromSlash(rootPath))
+
+	if err := checkNestedVCS(vcs, root, p.build.SrcRoot); err != nil {
+		return err
+	}
+
 	// If we've considered this repository already, don't do it again.
 	if downloadRootCache[root] {
 		return nil

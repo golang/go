@@ -262,9 +262,13 @@ func TestStdinCloseRace(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 	go func() {
-		if err := cmd.Process.Kill(); err != nil {
-			t.Errorf("Kill: %v", err)
-		}
+		// We don't check the error return of Kill. It is
+		// possible that the process has already exited, in
+		// which case Kill will return an error "process
+		// already finished". The purpose of this test is to
+		// see whether the race detector reports an error; it
+		// doesn't matter whether this Kill succeeds or not.
+		cmd.Process.Kill()
 	}()
 	go func() {
 		// Send the wrong string, so that the child fails even

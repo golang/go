@@ -338,9 +338,9 @@
 (Geq32F x y) -> (FGreaterEqual (FCMPU x y))
 (Geq64F x y) -> (FGreaterEqual (FCMPU x y))
 
-(Geq8U x y)  -> (GreaterEqual (CMPU (ZeroExt8to32 x) (ZeroExt8to32 y)))
-(Geq16U x y) -> (GreaterEqual (CMPU (ZeroExt16to32 x) (ZeroExt16to32 y)))
-(Geq32U x y) -> (GreaterEqual (CMPU x y))
+(Geq8U x y)  -> (GreaterEqual (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Geq16U x y) -> (GreaterEqual (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Geq32U x y) -> (GreaterEqual (CMPWU x y))
 (Geq64U x y) -> (GreaterEqual (CMPU x y))
 
 // Absorb pseudo-ops into blocks.

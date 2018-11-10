@@ -219,7 +219,7 @@ func (b *B) run1() bool {
 	}
 	// Only print the output if we know we are not going to proceed.
 	// Otherwise it is printed in processBench.
-	if b.hasSub || b.finished {
+	if atomic.LoadInt32(&b.hasSub) != 0 || b.finished {
 		tag := "BENCH"
 		if b.skipped {
 			tag = "SKIP"
@@ -460,10 +460,13 @@ func (ctx *benchContext) processBench(b *B) {
 //
 // A subbenchmark is like any other benchmark. A benchmark that calls Run at
 // least once will not be measured itself and will be called once with N=1.
+//
+// Run may be called simultaneously from multiple goroutines, but all such
+// calls must happen before the outer benchmark function for b returns.
 func (b *B) Run(name string, f func(b *B)) bool {
 	// Since b has subbenchmarks, we will no longer run it as a benchmark itself.
 	// Release the lock and acquire it on exit to ensure locks stay paired.
-	b.hasSub = true
+	atomic.StoreInt32(&b.hasSub, 1)
 	benchmarkLock.Unlock()
 	defer benchmarkLock.Lock()
 

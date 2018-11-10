@@ -9,12 +9,12 @@
 // This code was translated into a form compatible with 5a from the public
 // domain source by Andrew Moon: github.com/floodyberry/poly1305-opt/blob/master/app/extensions/poly1305.
 
-DATA poly1305_init_constants_armv6<>+0x00(SB)/4, $0x3ffffff
-DATA poly1305_init_constants_armv6<>+0x04(SB)/4, $0x3ffff03
-DATA poly1305_init_constants_armv6<>+0x08(SB)/4, $0x3ffc0ff
-DATA poly1305_init_constants_armv6<>+0x0c(SB)/4, $0x3f03fff
-DATA poly1305_init_constants_armv6<>+0x10(SB)/4, $0x00fffff
-GLOBL poly1305_init_constants_armv6<>(SB), 8, $20
+DATA ·poly1305_init_constants_armv6<>+0x00(SB)/4, $0x3ffffff
+DATA ·poly1305_init_constants_armv6<>+0x04(SB)/4, $0x3ffff03
+DATA ·poly1305_init_constants_armv6<>+0x08(SB)/4, $0x3ffc0ff
+DATA ·poly1305_init_constants_armv6<>+0x0c(SB)/4, $0x3f03fff
+DATA ·poly1305_init_constants_armv6<>+0x10(SB)/4, $0x00fffff
+GLOBL ·poly1305_init_constants_armv6<>(SB), 8, $20
 
 // Warning: the linker may use R11 to synthesize certain instructions. Please
 // take care and verify that no synthetic instructions use it.
@@ -27,7 +27,7 @@ TEXT poly1305_init_ext_armv6<>(SB), NOSPLIT, $0
 	ADD       $4, R13, R8
 	MOVM.IB   [R4-R7], (R8)
 	MOVM.IA.W (R1), [R2-R5]
-	MOVW      $poly1305_init_constants_armv6<>(SB), R7
+	MOVW      $·poly1305_init_constants_armv6<>(SB), R7
 	MOVW      R2, R8
 	MOVW      R2>>26, R9
 	MOVW      R3>>20, g

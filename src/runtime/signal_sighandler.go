@@ -101,7 +101,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
 			// tracebackothers on original m skipped this one; trace it now.
 			goroutineheader(_g_.m.curg)
-			traceback(^uintptr(0), ^uintptr(0), 0, gp)
+			traceback(^uintptr(0), ^uintptr(0), 0, _g_.m.curg)
 		} else if crashing == 0 {
 			tracebackothers(gp)
 			print("\n")

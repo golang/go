@@ -545,6 +545,10 @@ func runTest(cmd *Command, args []string) {
 
 	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
+		// sync/atomic import is inserted by the cover tool. See #18486
+		if testCover && testCoverMode == "atomic" {
+			ensureImport(p, "sync/atomic")
+		}
 		buildTest, runTest, printTest, err := b.test(p)
 		if err != nil {
 			str := err.Error()
@@ -634,6 +638,23 @@ func runTest(cmd *Command, args []string) {
 	}
 
 	b.do(root)
+}
+
+// ensures that package p imports the named package.
+func ensureImport(p *Package, pkg string) {
+	for _, d := range p.deps {
+		if d.Name == pkg {
+			return
+		}
+	}
+
+	a := loadPackage(pkg, &importStack{})
+	if a.Error != nil {
+		fatalf("load %s: %v", pkg, a.Error)
+	}
+	computeStale(a)
+
+	p.imports = append(p.imports, a)
 }
 
 func contains(x []string, s string) bool {
@@ -894,8 +915,12 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 
 	if buildContext.GOOS == "darwin" {
 		if buildContext.GOARCH == "arm" || buildContext.GOARCH == "arm64" {
-			t.NeedCgo = true
+			t.IsIOS = true
+			t.NeedOS = true
 		}
+	}
+	if t.TestMain == nil {
+		t.NeedOS = true
 	}
 
 	for _, cp := range pmain.imports {
@@ -1343,7 +1368,8 @@ type testFuncs struct {
 	NeedTest    bool
 	ImportXtest bool
 	NeedXtest   bool
-	NeedCgo     bool
+	NeedOS      bool
+	IsIOS       bool
 	Cover       []coverInfo
 }
 
@@ -1444,7 +1470,7 @@ var testmainTmpl = template.Must(template.New("main").Parse(`
 package main
 
 import (
-{{if not .TestMain}}
+{{if .NeedOS}}
 	"os"
 {{end}}
 	"testing"
@@ -1460,8 +1486,10 @@ import (
 	_cover{{$i}} {{$p.Package.ImportPath | printf "%q"}}
 {{end}}
 
-{{if .NeedCgo}}
+{{if .IsIOS}}
+	"os/signal"
 	_ "runtime/cgo"
+	"syscall"
 {{end}}
 )
 
@@ -1523,6 +1551,32 @@ func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts
 {{end}}
 
 func main() {
+{{if .IsIOS}}
+	// Send a SIGUSR2, which will be intercepted by LLDB to
+	// tell the test harness that installation was successful.
+	// See misc/ios/go_darwin_arm_exec.go.
+	signal.Notify(make(chan os.Signal), syscall.SIGUSR2)
+	syscall.Kill(0, syscall.SIGUSR2)
+	signal.Reset(syscall.SIGUSR2)
+
+	// The first argument supplied to an iOS test is an offset
+	// suffix for the current working directory.
+	// Process it here, and remove it from os.Args.
+	const hdr = "cwdSuffix="
+	if len(os.Args) < 2 || len(os.Args[1]) <= len(hdr) || os.Args[1][:len(hdr)] != hdr {
+		panic("iOS test not passed a working directory suffix")
+	}
+	suffix := os.Args[1][len(hdr):]
+	dir, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	if err := os.Chdir(dir + "/" + suffix); err != nil {
+		panic(err)
+	}
+	os.Args = append([]string{os.Args[0]}, os.Args[2:]...)
+{{end}}
+
 {{if .CoverEnabled}}
 	testing.RegisterCover(testing.Cover{
 		Mode: {{printf "%q" .CoverMode}},

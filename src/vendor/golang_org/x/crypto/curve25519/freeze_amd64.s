@@ -7,6 +7,8 @@
 
 // +build amd64,!gccgo,!appengine
 
+#include "const_amd64.h"
+
 // func freeze(inout *[5]uint64)
 TEXT ·freeze(SB),7,$0-8
 	MOVQ inout+0(FP), DI
@@ -16,7 +18,7 @@ TEXT ·freeze(SB),7,$0-8
 	MOVQ 16(DI),CX
 	MOVQ 24(DI),R8
 	MOVQ 32(DI),R9
-	MOVQ ·REDMASK51(SB),AX
+	MOVQ $REDMASK51,AX
 	MOVQ AX,R10
 	SUBQ $18,R10
 	MOVQ $3,R11

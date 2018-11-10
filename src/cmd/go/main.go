@@ -136,7 +136,7 @@ func main() {
 	// Diagnose common mistake: GOPATH==GOROOT.
 	// This setting is equivalent to not setting GOPATH at all,
 	// which is not what most people want when they do it.
-	if gopath := buildContext.GOPATH; gopath == runtime.GOROOT() {
+	if gopath := buildContext.GOPATH; filepath.Clean(gopath) == filepath.Clean(runtime.GOROOT()) {
 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
 	} else {
 		for _, p := range filepath.SplitList(gopath) {

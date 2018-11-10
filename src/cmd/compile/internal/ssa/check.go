@@ -294,6 +294,39 @@ func checkFunc(f *Func) {
 			}
 		}
 	}
+
+	// Check that if a tuple has a memory type, it is second.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Type.IsTuple() && v.Type.FieldType(0).IsMemory() {
+				f.Fatalf("memory is first in a tuple: %s\n", v.LongString())
+			}
+		}
+	}
+
+	// Check that only one memory is live at any point.
+	// TODO: make this check examine interblock.
+	if f.scheduled {
+		for _, b := range f.Blocks {
+			var mem *Value // the live memory
+			for _, v := range b.Values {
+				if v.Op != OpPhi {
+					for _, a := range v.Args {
+						if a.Type.IsMemory() || a.Type.IsTuple() && a.Type.FieldType(1).IsMemory() {
+							if mem == nil {
+								mem = a
+							} else if mem != a {
+								f.Fatalf("two live mems @ %s: %s and %s", v, mem, a)
+							}
+						}
+					}
+				}
+				if v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
+					mem = v
+				}
+			}
+		}
+	}
 }
 
 // domCheck reports whether x dominates y (including x==y).

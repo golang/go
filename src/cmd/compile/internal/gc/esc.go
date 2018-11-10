@@ -477,6 +477,10 @@ func escAnalyze(all []*Node, recursive bool) {
 	for _, n := range all {
 		if n.Op == ODCLFUNC {
 			n.Esc = EscFuncPlanned
+			if Debug['m'] > 3 {
+				Dump("escAnalyze", n)
+			}
+
 		}
 	}
 
@@ -1675,7 +1679,10 @@ func (e *EscState) escflows(dst, src *Node, why *EscStep) {
 	}
 
 	// Don't bother building a graph for scalars.
-	if src.Type != nil && !haspointers(src.Type) {
+	if src.Type != nil && !haspointers(src.Type) && !isReflectHeaderDataField(src) {
+		if Debug['m'] > 3 {
+			fmt.Printf("%v::NOT flows:: %S <- %S\n", linestr(lineno), dst, src)
+		}
 		return
 	}
 

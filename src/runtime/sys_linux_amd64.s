@@ -82,15 +82,18 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVL	$1000000, CX
 	DIVL	CX
 	MOVQ	AX, 0(SP)
-	MOVQ	DX, 8(SP)
+	MOVL	$1000, AX	// usec to nsec
+	MULL	DX
+	MOVQ	AX, 8(SP)
 
-	// select(0, 0, 0, 0, &tv)
+	// pselect6(0, 0, 0, 0, &ts, 0)
 	MOVL	$0, DI
 	MOVL	$0, SI
 	MOVL	$0, DX
 	MOVL	$0, R10
 	MOVQ	SP, R8
-	MOVL	$23, AX
+	MOVL	$0, R9
+	MOVL	$270, AX
 	SYSCALL
 	RET
 
@@ -330,9 +333,9 @@ sigtrampnog:
 	// Lock sigprofCallersUse.
 	MOVL	$0, AX
 	MOVL	$1, CX
-	MOVQ	$runtime·sigprofCallersUse(SB), BX
+	MOVQ	$runtime·sigprofCallersUse(SB), R11
 	LOCK
-	CMPXCHGL	CX, 0(BX)
+	CMPXCHGL	CX, 0(R11)
 	JNZ	sigtramp  // Skip stack trace if already locked.
 
 	// Jump to the traceback function in runtime/cgo.

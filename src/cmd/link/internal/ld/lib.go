@@ -430,6 +430,10 @@ func (ctxt *Link) loadlib() {
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
 
+	if Headtype == obj.Hdarwin && Linkmode == LinkExternal {
+		*FlagTextAddr = 0
+	}
+
 	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
 		toc := ctxt.Syms.Lookup(".TOC.", 0)
 		toc.Type = obj.SDYNIMPORT
@@ -998,6 +1002,10 @@ func (l *Link) hostlink() {
 
 	if !*FlagS && !debug_s {
 		argv = append(argv, "-gdwarf-2")
+	} else if Headtype == obj.Hdarwin {
+		// Recent versions of macOS print
+		//	ld: warning: option -s is obsolete and being ignored
+		// so do not pass any arguments.
 	} else {
 		argv = append(argv, "-s")
 	}
@@ -1219,7 +1227,7 @@ func (l *Link) hostlink() {
 		l.Logf("%s", out)
 	}
 
-	if !*FlagS && !debug_s && Headtype == obj.Hdarwin {
+	if !*FlagS && !*FlagW && !debug_s && Headtype == obj.Hdarwin {
 		// Skip combining dwarf on arm.
 		if !SysArch.InFamily(sys.ARM, sys.ARM64) {
 			dsym := filepath.Join(*flagTmpdir, "go.dwarf")

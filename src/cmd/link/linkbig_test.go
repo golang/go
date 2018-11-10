@@ -21,7 +21,7 @@ import (
 
 func TestLargeText(t *testing.T) {
 	if testing.Short() || (obj.GOARCH != "ppc64le" && obj.GOARCH != "ppc64" && obj.GOARCH != "arm") {
-		t.Skip("Skipping large text section test in short mode or on %s", obj.GOARCH)
+		t.Skipf("Skipping large text section test in short mode or on %s", obj.GOARCH)
 	}
 	testenv.MustHaveGoBuild(t)
 

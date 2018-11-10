@@ -34,6 +34,7 @@ type opInfo struct {
 	faultOnNilArg0    bool // this op will fault if arg0 is nil (and aux encodes a small offset)
 	faultOnNilArg1    bool // this op will fault if arg1 is nil (and aux encodes a small offset)
 	usesScratch       bool // this op requires scratch memory space
+	hasSideEffects    bool // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
 }
 
 type inputInfo struct {

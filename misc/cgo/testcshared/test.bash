@@ -179,6 +179,13 @@ if test "$output" != "PASS"; then
     status=1
 fi
 
+if test "$libext" = "dylib"; then
+	# make sure dylibs are well-formed
+	if ! otool -l libgo*.dylib >/dev/null; then
+		status=1
+	fi
+fi
+
 if test $status = 0; then
     echo "ok"
 fi

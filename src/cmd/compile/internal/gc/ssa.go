@@ -3470,8 +3470,13 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32, skip 
 	if s.WBLineno == 0 {
 		s.WBLineno = left.Line
 	}
-	s.storeTypeScalars(t, left, right, skip)
-	s.storeTypePtrsWB(t, left, right)
+	if t == Types[TUINTPTR] {
+		// Stores to reflect.{Slice,String}Header.Data.
+		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
+	} else {
+		s.storeTypeScalars(t, left, right, skip)
+		s.storeTypePtrsWB(t, left, right)
+	}
 
 	// WB ops will be expanded to branches at writebarrier phase.
 	// To make it easy, we put WB ops at the end of a block, so

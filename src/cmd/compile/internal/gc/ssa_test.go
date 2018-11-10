@@ -63,6 +63,9 @@ func TestArithmeticConst(t *testing.T) { runTest(t, "arithConst.go") }
 
 func TestChan(t *testing.T) { runTest(t, "chan.go") }
 
+// TestComparisonsConst tests results for comparison operations against constants.
+func TestComparisonsConst(t *testing.T) { runTest(t, "cmpConst.go") }
+
 func TestCompound(t *testing.T) { runTest(t, "compound.go") }
 
 func TestCtl(t *testing.T) { runTest(t, "ctl.go") }

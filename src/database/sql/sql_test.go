@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -152,8 +153,13 @@ func closeDB(t testing.TB, db *DB) {
 	if err != nil {
 		t.Fatalf("error closing DB: %v", err)
 	}
-	if count := db.numOpenConns(); count != 0 {
-		t.Fatalf("%d connections still open after closing DB", count)
+
+	var numOpen int
+	if !waitCondition(5*time.Second, 5*time.Millisecond, func() bool {
+		numOpen = db.numOpenConns()
+		return numOpen == 0
+	}) {
+		t.Fatalf("%d connections still open after closing DB", numOpen)
 	}
 }
 
@@ -275,6 +281,7 @@ func TestQuery(t *testing.T) {
 	}
 }
 
+// TestQueryContext tests canceling the context while scanning the rows.
 func TestQueryContext(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -296,7 +303,7 @@ func TestQueryContext(t *testing.T) {
 	for rows.Next() {
 		if index == 2 {
 			cancel()
-			time.Sleep(10 * time.Millisecond)
+			waitForRowsClose(t, rows, 5*time.Second)
 		}
 		var r row
 		err = rows.Scan(&r.age, &r.name)
@@ -312,9 +319,13 @@ func TestQueryContext(t *testing.T) {
 		got = append(got, r)
 		index++
 	}
-	err = rows.Err()
-	if err != nil {
-		t.Fatalf("Err: %v", err)
+	select {
+	case <-ctx.Done():
+		if err := ctx.Err(); err != context.Canceled {
+			t.Fatalf("context err = %v; want context.Canceled", ctx.Err())
+		}
+	default:
+		t.Fatalf("context err = nil; want context.Canceled")
 	}
 	want := []row{
 		{age: 1, name: "Alice"},
@@ -326,9 +337,8 @@ func TestQueryContext(t *testing.T) {
 
 	// And verify that the final rows.Next() call, which hit EOF,
 	// also closed the rows connection.
-	if n := db.numFreeConns(); n != 1 {
-		t.Fatalf("free conns after query hitting EOF = %d; want 1", n)
-	}
+	waitForRowsClose(t, rows, 5*time.Second)
+	waitForFree(t, db, 5*time.Second, 1)
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
@@ -345,12 +355,39 @@ func waitCondition(waitFor, checkEvery time.Duration, fn func() bool) bool {
 	return false
 }
 
+// waitForFree checks db.numFreeConns until either it equals want or
+// the maxWait time elapses.
+func waitForFree(t *testing.T, db *DB, maxWait time.Duration, want int) {
+	var numFree int
+	if !waitCondition(maxWait, 5*time.Millisecond, func() bool {
+		numFree = db.numFreeConns()
+		return numFree == want
+	}) {
+		t.Fatalf("free conns after hitting EOF = %d; want %d", numFree, want)
+	}
+}
+
+func waitForRowsClose(t *testing.T, rows *Rows, maxWait time.Duration) {
+	if !waitCondition(maxWait, 5*time.Millisecond, func() bool {
+		rows.closemu.RLock()
+		defer rows.closemu.RUnlock()
+		return rows.closed
+	}) {
+		t.Fatal("failed to close rows")
+	}
+}
+
+// TestQueryContextWait ensures that rows and all internal statements are closed when
+// a query context is closed during execution.
 func TestQueryContextWait(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 	prepares0 := numPrepares(t, db)
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*15)
+	// TODO(kardianos): convert this from using a timeout to using an explicit
+	// cancel when the query signals that is is "executing" the query.
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
 
 	// This will trigger the *fakeConn.Prepare method which will take time
 	// performing the query. The ctxDriverPrepare func will check the context
@@ -361,22 +398,30 @@ func TestQueryContextWait(t *testing.T) {
 	}
 
 	// Verify closed rows connection after error condition.
-	if n := db.numFreeConns(); n != 1 {
-		t.Fatalf("free conns after query hitting EOF = %d; want 1", n)
-	}
+	waitForFree(t, db, 5*time.Second, 1)
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
-		t.Errorf("executed %d Prepare statements; want 1", prepares)
+		// TODO(kardianos): if the context timeouts before the db.QueryContext
+		// executes this check may fail. After adjusting how the context
+		// is canceled above revert this back to a Fatal error.
+		t.Logf("executed %d Prepare statements; want 1", prepares)
 	}
 }
 
+// TestTxContextWait tests the transaction behavior when the tx context is canceled
+// during execution of the query.
 func TestTxContextWait(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*15)
+	defer cancel()
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
+		// Guard against the context being canceled before BeginTx completes.
+		if err == context.DeadlineExceeded {
+			t.Skip("tx context canceled prior to first use")
+		}
 		t.Fatal(err)
 	}
 
@@ -388,19 +433,7 @@ func TestTxContextWait(t *testing.T) {
 		t.Fatalf("expected QueryContext to error with context deadline exceeded but returned %v", err)
 	}
 
-	var numFree int
-	if !waitCondition(5*time.Second, 5*time.Millisecond, func() bool {
-		numFree = db.numFreeConns()
-		return numFree == 0
-	}) {
-		t.Fatalf("free conns after hitting EOF = %d; want 0", numFree)
-	}
-
-	// Ensure the dropped connection allows more connections to be made.
-	// Checked on DB Close.
-	waitCondition(5*time.Second, 5*time.Millisecond, func() bool {
-		return db.numOpenConns() == 0
-	})
+	waitForFree(t, db, 5*time.Second, 0)
 }
 
 func TestMultiResultSetQuery(t *testing.T) {
@@ -471,9 +504,7 @@ func TestMultiResultSetQuery(t *testing.T) {
 
 	// And verify that the final rows.Next() call, which hit EOF,
 	// also closed the rows connection.
-	if n := db.numFreeConns(); n != 1 {
-		t.Fatalf("free conns after query hitting EOF = %d; want 1", n)
-	}
+	waitForFree(t, db, 5*time.Second, 1)
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
@@ -523,6 +554,63 @@ func TestQueryNamedArg(t *testing.T) {
 	}
 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
 		t.Errorf("executed %d Prepare statements; want 1", prepares)
+	}
+}
+
+func TestPoolExhaustOnCancel(t *testing.T) {
+	if testing.Short() {
+		t.Skip("long test")
+	}
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	max := 3
+
+	db.SetMaxOpenConns(max)
+
+	// First saturate the connection pool.
+	// Then start new requests for a connection that is cancelled after it is requested.
+
+	var saturate, saturateDone sync.WaitGroup
+	saturate.Add(max)
+	saturateDone.Add(max)
+
+	for i := 0; i < max; i++ {
+		go func() {
+			saturate.Done()
+			rows, err := db.Query("WAIT|500ms|SELECT|people|name,photo|")
+			if err != nil {
+				t.Fatalf("Query: %v", err)
+			}
+			rows.Close()
+			saturateDone.Done()
+		}()
+	}
+
+	saturate.Wait()
+
+	// Now cancel the request while it is waiting.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+
+	for i := 0; i < max; i++ {
+		ctxReq, cancelReq := context.WithCancel(ctx)
+		go func() {
+			time.Sleep(time.Millisecond * 100)
+			cancelReq()
+		}()
+		err := db.PingContext(ctxReq)
+		if err != context.Canceled {
+			t.Fatalf("PingContext (Exhaust): %v", err)
+		}
+	}
+
+	saturateDone.Wait()
+
+	// Now try to open a normal connection.
+	err := db.PingContext(ctx)
+	if err != nil {
+		t.Fatalf("PingContext (Normal): %v", err)
 	}
 }
 
@@ -1135,6 +1223,24 @@ func TestQueryRowClosingStmt(t *testing.T) {
 	}
 }
 
+var atomicRowsCloseHook atomic.Value // of func(*Rows, *error)
+
+func init() {
+	rowsCloseHook = func() func(*Rows, *error) {
+		fn, _ := atomicRowsCloseHook.Load().(func(*Rows, *error))
+		return fn
+	}
+}
+
+func setRowsCloseHook(fn func(*Rows, *error)) {
+	if fn == nil {
+		// Can't change an atomic.Value back to nil, so set it to this
+		// no-op func instead.
+		fn = func(*Rows, *error) {}
+	}
+	atomicRowsCloseHook.Store(fn)
+}
+
 // Test issue 6651
 func TestIssue6651(t *testing.T) {
 	db := newTestDB(t, "people")
@@ -1147,6 +1253,7 @@ func TestIssue6651(t *testing.T) {
 		return fmt.Errorf(want)
 	}
 	defer func() { rowsCursorNextHook = nil }()
+
 	err := db.QueryRow("SELECT|people|name|").Scan(&v)
 	if err == nil || err.Error() != want {
 		t.Errorf("error = %q; want %q", err, want)
@@ -1154,10 +1261,10 @@ func TestIssue6651(t *testing.T) {
 	rowsCursorNextHook = nil
 
 	want = "error in rows.Close"
-	rowsCloseHook = func(rows *Rows, err *error) {
+	setRowsCloseHook(func(rows *Rows, err *error) {
 		*err = fmt.Errorf(want)
-	}
-	defer func() { rowsCloseHook = nil }()
+	})
+	defer setRowsCloseHook(nil)
 	err = db.QueryRow("SELECT|people|name|").Scan(&v)
 	if err == nil || err.Error() != want {
 		t.Errorf("error = %q; want %q", err, want)
@@ -1830,7 +1937,9 @@ func TestStmtCloseDeps(t *testing.T) {
 		db.dumpDeps(t)
 	}
 
-	if len(stmt.css) > nquery {
+	if !waitCondition(5*time.Second, 5*time.Millisecond, func() bool {
+		return len(stmt.css) <= nquery
+	}) {
 		t.Errorf("len(stmt.css) = %d; want <= %d", len(stmt.css), nquery)
 	}
 
@@ -2576,10 +2685,10 @@ func TestIssue6081(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rowsCloseHook = func(rows *Rows, err *error) {
+	setRowsCloseHook(func(rows *Rows, err *error) {
 		*err = driver.ErrBadConn
-	}
-	defer func() { rowsCloseHook = nil }()
+	})
+	defer setRowsCloseHook(nil)
 	for i := 0; i < 10; i++ {
 		rows, err := stmt.Query()
 		if err != nil {
@@ -2642,7 +2751,10 @@ func TestIssue18429(t *testing.T) {
 			if err != nil {
 				return
 			}
-			rows, err := tx.QueryContext(ctx, "WAIT|"+qwait+"|SELECT|people|name|")
+			// This is expected to give a cancel error many, but not all the time.
+			// Test failure will happen with a panic or other race condition being
+			// reported.
+			rows, _ := tx.QueryContext(ctx, "WAIT|"+qwait+"|SELECT|people|name|")
 			if rows != nil {
 				rows.Close()
 			}
@@ -2652,7 +2764,50 @@ func TestIssue18429(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	time.Sleep(milliWait * 3 * time.Millisecond)
+}
+
+// TestIssue18719 closes the context right before use. The sql.driverConn
+// will nil out the ci on close in a lock, but if another process uses it right after
+// it will panic with on the nil ref.
+//
+// See https://golang.org/cl/35550 .
+func TestIssue18719(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hookTxGrabConn = func() {
+		cancel()
+
+		// Wait for the context to cancel and tx to rollback.
+		for tx.isDone() == false {
+			time.Sleep(time.Millisecond * 3)
+		}
+	}
+	defer func() { hookTxGrabConn = nil }()
+
+	// This call will grab the connection and cancel the context
+	// after it has done so. Code after must deal with the canceled state.
+	rows, err := tx.QueryContext(ctx, "SELECT|people|name|")
+	if err != nil {
+		rows.Close()
+		t.Fatalf("expected error %v but got %v", nil, err)
+	}
+
+	// Rows may be ignored because it will be closed when the context is canceled.
+
+	// Do not explicitly rollback. The rollback will happen from the
+	// canceled context.
+
+	cancel()
+	waitForRowsClose(t, rows, 5*time.Second)
 }
 
 func TestConcurrency(t *testing.T) {

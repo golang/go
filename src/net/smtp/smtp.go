@@ -67,6 +67,7 @@ func NewClient(conn net.Conn, host string) (*Client, error) {
 		return nil, err
 	}
 	c := &Client{Text: text, conn: conn, serverName: host, localName: "localhost"}
+	_, c.tls = conn.(*tls.Conn)
 	return c, nil
 }
 

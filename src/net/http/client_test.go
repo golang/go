@@ -360,25 +360,25 @@ func TestPostRedirects(t *testing.T) {
 	wantSegments := []string{
 		`POST / "first"`,
 		`POST /?code=301&next=302 "c301"`,
-		`GET /?code=302 "c301"`,
-		`GET / "c301"`,
+		`GET /?code=302 ""`,
+		`GET / ""`,
 		`POST /?code=302&next=302 "c302"`,
-		`GET /?code=302 "c302"`,
-		`GET / "c302"`,
+		`GET /?code=302 ""`,
+		`GET / ""`,
 		`POST /?code=303&next=301 "c303wc301"`,
-		`GET /?code=301 "c303wc301"`,
-		`GET / "c303wc301"`,
+		`GET /?code=301 ""`,
+		`GET / ""`,
 		`POST /?code=304 "c304"`,
 		`POST /?code=305 "c305"`,
 		`POST /?code=307&next=303,308,302 "c307"`,
 		`POST /?code=303&next=308,302 "c307"`,
-		`GET /?code=308&next=302 "c307"`,
+		`GET /?code=308&next=302 ""`,
 		`GET /?code=302 "c307"`,
-		`GET / "c307"`,
+		`GET / ""`,
 		`POST /?code=308&next=302,301 "c308"`,
 		`POST /?code=302&next=301 "c308"`,
-		`GET /?code=301 "c308"`,
-		`GET / "c308"`,
+		`GET /?code=301 ""`,
+		`GET / ""`,
 		`POST /?code=404 "c404"`,
 	}
 	want := strings.Join(wantSegments, "\n")
@@ -399,20 +399,20 @@ func TestDeleteRedirects(t *testing.T) {
 	wantSegments := []string{
 		`DELETE / "first"`,
 		`DELETE /?code=301&next=302,308 "c301"`,
-		`GET /?code=302&next=308 "c301"`,
-		`GET /?code=308 "c301"`,
+		`GET /?code=302&next=308 ""`,
+		`GET /?code=308 ""`,
 		`GET / "c301"`,
 		`DELETE /?code=302&next=302 "c302"`,
-		`GET /?code=302 "c302"`,
-		`GET / "c302"`,
+		`GET /?code=302 ""`,
+		`GET / ""`,
 		`DELETE /?code=303 "c303"`,
-		`GET / "c303"`,
+		`GET / ""`,
 		`DELETE /?code=307&next=301,308,303,302,304 "c307"`,
 		`DELETE /?code=301&next=308,303,302,304 "c307"`,
-		`GET /?code=308&next=303,302,304 "c307"`,
+		`GET /?code=308&next=303,302,304 ""`,
 		`GET /?code=303&next=302,304 "c307"`,
-		`GET /?code=302&next=304 "c307"`,
-		`GET /?code=304 "c307"`,
+		`GET /?code=302&next=304 ""`,
+		`GET /?code=304 ""`,
 		`DELETE /?code=308&next=307 "c308"`,
 		`DELETE /?code=307 "c308"`,
 		`DELETE / "c308"`,
@@ -432,7 +432,11 @@ func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, wa
 	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		log.Lock()
 		slurp, _ := ioutil.ReadAll(r.Body)
-		fmt.Fprintf(&log.Buffer, "%s %s %q\n", r.Method, r.RequestURI, slurp)
+		fmt.Fprintf(&log.Buffer, "%s %s %q", r.Method, r.RequestURI, slurp)
+		if cl := r.Header.Get("Content-Length"); r.Method == "GET" && len(slurp) == 0 && (r.ContentLength != 0 || cl != "") {
+			fmt.Fprintf(&log.Buffer, " (but with body=%T, content-length = %v, %q)", r.Body, r.ContentLength, cl)
+		}
+		log.WriteByte('\n')
 		log.Unlock()
 		urlQuery := r.URL.Query()
 		if v := urlQuery.Get("code"); v != "" {
@@ -475,7 +479,24 @@ func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, wa
 	want = strings.TrimSpace(want)
 
 	if got != want {
-		t.Errorf("Log differs.\n Got:\n%s\nWant:\n%s\n", got, want)
+		got, want, lines := removeCommonLines(got, want)
+		t.Errorf("Log differs after %d common lines.\n\nGot:\n%s\n\nWant:\n%s\n", lines, got, want)
+	}
+}
+
+func removeCommonLines(a, b string) (asuffix, bsuffix string, commonLines int) {
+	for {
+		nl := strings.IndexByte(a, '\n')
+		if nl < 0 {
+			return a, b, commonLines
+		}
+		line := a[:nl+1]
+		if !strings.HasPrefix(b, line) {
+			return a, b, commonLines
+		}
+		commonLines++
+		a = a[len(line):]
+		b = b[len(line):]
 	}
 }
 

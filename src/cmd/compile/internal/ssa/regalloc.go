@@ -1699,6 +1699,24 @@ sinking:
 			}
 			p := d.Preds[0].b // block in loop exiting to d.
 
+			// Check that the spill value is still live at the start of d.
+			// If it isn't, we can't move the spill here because some other value
+			// may be using the same stack slot.  See issue 20472.
+			// The spill value can't be defined in d, so that makes our lives easier.
+			for _, x := range stacklive[d.ID] {
+				if x == vsp.ID {
+					goto stillLive
+				}
+			}
+			for _, v := range d.Values {
+				if v.Op == OpLoadReg && v.Args[0] == vsp {
+					goto stillLive
+				}
+			}
+			// Spill is not live - abort sinking this spill.
+			continue sinking
+		stillLive:
+
 			endregs := s.endRegs[p.ID]
 			for _, regrec := range endregs {
 				if regrec.v == e && regrec.r != noRegister && regrec.c == e { // TODO: regrec.c != e implies different spill possible.

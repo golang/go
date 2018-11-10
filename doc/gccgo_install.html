@@ -52,6 +52,19 @@ user libraries.  The Go 1.4 runtime is not fully merged, but that
 should not be visible to Go programs.
 </p>
 
+<p>
+The GCC 6 releases include a complete implementation of the Go 1.6.1
+user libraries.  The Go 1.6 runtime is not fully merged, but that
+should not be visible to Go programs.
+</p>
+
+<p>
+The GCC 7 releases are expected to include a complete implementation
+of the Go 1.8 user libraries.  As with earlier releases, the Go 1.8
+runtime is not fully merged, but that should not be visible to Go
+programs.
+</p>
+
 <h2 id="Source_code">Source code</h2>
 
 <p>
@@ -158,23 +171,6 @@ cd objdir
 ../gccgo/configure --prefix=/opt/gccgo --enable-languages=c,c++,go --with-ld=/opt/gold/bin/ld
 make
 make install
-</pre>
-
-<h3 id="Ubuntu">A note on Ubuntu</h3>
-
-<p>
-Current versions of Ubuntu and versions of GCC before 4.8 disagree on
-where system libraries and header files are found.  This is not a
-gccgo issue.  When building older versions of GCC, setting these
-environment variables while configuring and building gccgo may fix the
-problem.
-</p>
-
-<pre>
-LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
-C_INCLUDE_PATH=/usr/include/x86_64-linux-gnu
-CPLUS_INCLUDE_PATH=/usr/include/x86_64-linux-gnu
-export LIBRARY_PATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH
 </pre>
 
 <h2 id="Using_gccgo">Using gccgo</h2>
@@ -364,12 +360,15 @@ or with C++ code compiled using <code>extern "C"</code>.
 <h3 id="Types">Types</h3>
 
 <p>
-Basic types map directly: an <code>int</code> in Go is an <code>int</code>
-in C, an <code>int32</code> is an <code>int32_t</code>,
-etc.  Go <code>byte</code> is equivalent to C <code>unsigned
-char</code>.
-Pointers in Go are pointers in C. A Go <code>struct</code> is the same as C
-<code>struct</code> with the same fields and types.
+Basic types map directly: an <code>int32</code> in Go is
+an <code>int32_t</code> in C, an <code>int64</code> is
+an <code>int64_t</code>, etc.
+The Go type <code>int</code> is an integer that is the same size as a
+pointer, and as such corresponds to the C type <code>intptr_t</code>.
+Go <code>byte</code> is equivalent to C <code>unsigned char</code>.
+Pointers in Go are pointers in C.
+A Go <code>struct</code> is the same as C <code>struct</code> with the
+same fields and types.
 </p>
 
 <p>
@@ -380,7 +379,7 @@ structure (this is <b style="color: red;">subject to change</b>):
 <pre>
 struct __go_string {
   const unsigned char *__data;
-  int __length;
+  intptr_t __length;
 };
 </pre>
 
@@ -400,8 +399,8 @@ A slice in Go is a structure.  The current definition is
 <pre>
 struct __go_slice {
   void *__values;
-  int __count;
-  int __capacity;
+  intptr_t __count;
+  intptr_t __capacity;
 };
 </pre>
 
@@ -526,15 +525,3 @@ This procedure is full of unstated caveats and restrictions and we make no
 guarantee that it will not change in the future. It is more useful as a
 starting point for real Go code than as a regular procedure.
 </p>
-
-<h2 id="RTEMS_Port">RTEMS Port</h2>
-<p>
-The gccgo compiler has been ported to <a href="http://www.rtems.com/">
-<code>RTEMS</code></a>. <code>RTEMS</code> is a real-time executive
-that provides a high performance environment for embedded applications
-on a range of processors and embedded hardware. The current gccgo
-port is for x86. The goal is to extend the port to most of the
-<a href="http://www.rtems.org/wiki/index.php/SupportedCPUs">
-architectures supported by <code>RTEMS</code></a>. For more information on the port,
-as well as instructions on how to install it, please see this
-<a href="http://www.rtems.org/wiki/index.php/GCCGoRTEMS"><code>RTEMS</code> Wiki page</a>.

@@ -5,7 +5,7 @@
 package main
 
 /*
-#cgo LDFLAGS: -c
+#cgo LDFLAGS: -L/nonexist
 
 void test() {
 	xxx;		// ERROR HERE

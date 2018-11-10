@@ -171,6 +171,7 @@ func semrelease(addr *uint32) {
 			for x := root.head; x != nil; x = x.next {
 				if x.elem == unsafe.Pointer(addr) {
 					x.acquiretime = t0
+					break
 				}
 			}
 			mutexevent(t0-s.acquiretime, 3)

@@ -1634,6 +1634,8 @@ func (p *parser) stmtBody(context string) []Stmt {
 	return body
 }
 
+var dummyCond = &Name{Value: "false"}
+
 func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleStmt) {
 	if p.tok == _Lbrace {
 		return
@@ -1680,7 +1682,8 @@ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleSt
 	case *ExprStmt:
 		cond = s.X
 	default:
-		p.error("invalid condition, tag, or type switch guard")
+		p.syntax_error(fmt.Sprintf("%s used as value", String(s)))
+		cond = dummyCond // avoid follow-up error for if statements
 	}
 
 	p.xnest = outer

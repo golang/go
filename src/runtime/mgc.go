@@ -629,10 +629,12 @@ func (c *gcControllerState) endCycle() {
 //go:nowritebarrier
 func (c *gcControllerState) enlistWorker() {
 	// If there are idle Ps, wake one so it will run an idle worker.
-	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
-		wakep()
-		return
-	}
+	// NOTE: This is suspected of causing deadlocks. See golang.org/issue/19112.
+	//
+	//	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
+	//		wakep()
+	//		return
+	//	}
 
 	// There are no idle Ps. If we need more dedicated workers,
 	// try to preempt a running P so it will switch to a worker.
@@ -1130,8 +1132,6 @@ top:
 		// sitting in the per-P work caches.
 		// Flush and disable work caches.
 
-		gcMarkRootCheck()
-
 		// Disallow caching workbufs and indicate that we're in mark 2.
 		gcBlackenPromptly = true
 
@@ -1153,6 +1153,16 @@ top:
 				_p_.gcw.dispose()
 			})
 		})
+
+		// Check that roots are marked. We should be able to
+		// do this before the forEachP, but based on issue
+		// #16083 there may be a (harmless) race where we can
+		// enter mark 2 while some workers are still scanning
+		// stacks. The forEachP ensures these scans are done.
+		//
+		// TODO(austin): Figure out the race and fix this
+		// properly.
+		gcMarkRootCheck()
 
 		// Now we can start up mark 2 workers.
 		atomic.Xaddint64(&gcController.dedicatedMarkWorkersNeeded, 0xffffffff)
@@ -1909,7 +1919,7 @@ func gchelper() {
 		traceGCScanDone()
 	}
 
-	nproc := work.nproc // work.nproc can change right after we increment work.ndone
+	nproc := atomic.Load(&work.nproc) // work.nproc can change right after we increment work.ndone
 	if atomic.Xadd(&work.ndone, +1) == nproc-1 {
 		notewakeup(&work.alldone)
 	}

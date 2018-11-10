@@ -815,3 +815,14 @@ func TestImplicitInclusion(t *testing.T) {
 	goCmd(t, "install", "-linkshared", "implicitcmd")
 	run(t, "running executable linked against library that contains same package as it", "./bin/implicitcmd")
 }
+
+// Tests to make sure that the type fields of empty interfaces and itab
+// fields of nonempty interfaces are unique even across modules,
+// so that interface equality works correctly.
+func TestInterface(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "iface_a")
+	// Note: iface_i gets installed implicitly as a dependency of iface_a.
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "iface_b")
+	goCmd(t, "install", "-linkshared", "iface")
+	run(t, "running type/itab uniqueness tester", "./bin/iface")
+}

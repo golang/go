@@ -33,13 +33,24 @@ type loop struct {
 
 // outerinner records that outer contains inner
 func (sdom SparseTree) outerinner(outer, inner *loop) {
+	// There could be other outer loops found in some random order,
+	// locate the new outer loop appropriately among them.
 	oldouter := inner.outer
-	if oldouter == nil || sdom.isAncestorEq(oldouter.header, outer.header) {
-		inner.outer = outer
-		outer.isInner = false
-		if inner.containsCall {
-			outer.setContainsCall()
-		}
+	for oldouter != nil && sdom.isAncestor(outer.header, oldouter.header) {
+		inner = oldouter
+		oldouter = inner.outer
+	}
+	if outer == oldouter {
+		return
+	}
+	if oldouter != nil {
+		outer.outer = oldouter
+	}
+
+	inner.outer = outer
+	outer.isInner = false
+	if inner.containsCall {
+		outer.setContainsCall()
 	}
 }
 

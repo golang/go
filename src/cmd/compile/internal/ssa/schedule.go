@@ -14,6 +14,7 @@ const (
 	ScoreMemory
 	ScoreDefault
 	ScoreFlags
+	ScoreSelectCall
 	ScoreControl // towards bottom of block
 )
 
@@ -110,10 +111,25 @@ func schedule(f *Func) {
 				// We want all the vardefs next.
 				score[v.ID] = ScoreVarDef
 			case v.Type.IsMemory():
-				// Schedule stores as early as possible. This tends to
-				// reduce register pressure. It also helps make sure
-				// VARDEF ops are scheduled before the corresponding LEA.
-				score[v.ID] = ScoreMemory
+				// Don't schedule independent operations after call to those functions.
+				// runtime.selectgo will jump to next instruction after this call,
+				// causing extra execution of those operations. Prevent it, by setting
+				// priority to high value.
+				if (v.Op == OpAMD64CALLstatic || v.Op == OpPPC64CALLstatic ||
+					v.Op == OpARMCALLstatic || v.Op == OpARM64CALLstatic ||
+					v.Op == Op386CALLstatic || v.Op == OpMIPS64CALLstatic ||
+					v.Op == OpS390XCALLstatic || v.Op == OpMIPSCALLstatic) &&
+					(isSameSym(v.Aux, "runtime.selectrecv") ||
+						isSameSym(v.Aux, "runtime.selectrecv2") ||
+						isSameSym(v.Aux, "runtime.selectsend") ||
+						isSameSym(v.Aux, "runtime.selectdefault")) {
+					score[v.ID] = ScoreSelectCall
+				} else {
+					// Schedule stores as early as possible. This tends to
+					// reduce register pressure. It also helps make sure
+					// VARDEF ops are scheduled before the corresponding LEA.
+					score[v.ID] = ScoreMemory
+				}
 			case v.Op == OpSelect0 || v.Op == OpSelect1:
 				// Schedule the pseudo-op of reading part of a tuple
 				// immediately after the tuple-generating op, since
@@ -132,19 +148,20 @@ func schedule(f *Func) {
 		}
 	}
 
+	// TODO: make this logic permanent in types.IsMemory?
+	isMem := func(v *Value) bool {
+		return v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory()
+	}
+
 	for _, b := range f.Blocks {
 		// Find store chain for block.
 		// Store chains for different blocks overwrite each other, so
 		// the calculated store chain is good only for this block.
 		for _, v := range b.Values {
-			if v.Op != OpPhi && v.Type.IsMemory() {
-				mem := v
-				if v.Op == OpSelect1 {
-					v = v.Args[0]
-				}
+			if v.Op != OpPhi && isMem(v) {
 				for _, w := range v.Args {
-					if w.Type.IsMemory() {
-						nextMem[w.ID] = mem
+					if isMem(w) {
+						nextMem[w.ID] = v
 					}
 				}
 			}
@@ -163,15 +180,15 @@ func schedule(f *Func) {
 					uses[w.ID]++
 				}
 				// Any load must come before the following store.
-				if v.Type.IsMemory() || !w.Type.IsMemory() {
-					continue // not a load
+				if !isMem(v) && isMem(w) {
+					// v is a load.
+					s := nextMem[w.ID]
+					if s == nil || s.Block != b {
+						continue
+					}
+					additionalArgs[s.ID] = append(additionalArgs[s.ID], v)
+					uses[v.ID]++
 				}
-				s := nextMem[w.ID]
-				if s == nil || s.Block != b {
-					continue
-				}
-				additionalArgs[s.ID] = append(additionalArgs[s.ID], v)
-				uses[v.ID]++
 			}
 		}
 
