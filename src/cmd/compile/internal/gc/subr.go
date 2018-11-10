@@ -1829,18 +1829,6 @@ func isbadimport(path string, allowSpace bool) bool {
 	return false
 }
 
-func checknil(x *Node, init *Nodes) {
-	x = walkexpr(x, nil) // caller has not done this yet
-	if x.Type.IsInterface() {
-		x = nod(OITAB, x, nil)
-		x = typecheck(x, ctxExpr)
-	}
-
-	n := nod(OCHECKNIL, x, nil)
-	n.SetTypecheck(1)
-	init.Append(n)
-}
-
 // Can this type be stored directly in an interface word?
 // Yes, if the representation is a single pointer.
 func isdirectiface(t *types.Type) bool {
