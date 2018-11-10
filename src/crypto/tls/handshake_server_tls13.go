@@ -213,6 +213,7 @@ GroupSelection:
 		return errors.New("tls: invalid client key share")
 	}
 
+	c.serverName = hs.clientHello.serverName
 	return nil
 }
 
