@@ -98,6 +98,23 @@ func TestFastWalk_Basic(t *testing.T) {
 		})
 }
 
+func TestFastWalk_LongFileName(t *testing.T) {
+	longFileName := strings.Repeat("x", 255)
+
+	testFastWalk(t, map[string]string{
+		longFileName: "one",
+	},
+		func(path string, typ os.FileMode) error {
+			return nil
+		},
+		map[string]os.FileMode{
+			"":                     os.ModeDir,
+			"/src":                 os.ModeDir,
+			"/src/" + longFileName: 0,
+		},
+	)
+}
+
 func TestFastWalk_Symlink(t *testing.T) {
 	switch runtime.GOOS {
 	case "windows", "plan9":
