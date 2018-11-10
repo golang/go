@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -206,6 +206,71 @@ func TestResponseWrite(t *testing.T) {
 				Body:             nil,
 			},
 			"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n",
+		},
+
+		// When a response to a POST has Content-Length: -1, make sure we don't
+		// write the Content-Length as -1.
+		{
+			Response{
+				StatusCode:    StatusOK,
+				ProtoMajor:    1,
+				ProtoMinor:    1,
+				Request:       &Request{Method: "POST"},
+				Header:        Header{},
+				ContentLength: -1,
+				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
+			},
+			"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nabcdef",
+		},
+
+		// Status code under 100 should be zero-padded to
+		// three digits.  Still bogus, but less bogus. (be
+		// consistent with generating three digits, since the
+		// Transport requires it)
+		{
+			Response{
+				StatusCode: 7,
+				Status:     "license to violate specs",
+				ProtoMajor: 1,
+				ProtoMinor: 0,
+				Request:    dummyReq("GET"),
+				Header:     Header{},
+				Body:       nil,
+			},
+
+			"HTTP/1.0 007 license to violate specs\r\nContent-Length: 0\r\n\r\n",
+		},
+
+		// No stutter.  Status code in 1xx range response should
+		// not include a Content-Length header.  See issue #16942.
+		{
+			Response{
+				StatusCode: 123,
+				Status:     "123 Sesame Street",
+				ProtoMajor: 1,
+				ProtoMinor: 0,
+				Request:    dummyReq("GET"),
+				Header:     Header{},
+				Body:       nil,
+			},
+
+			"HTTP/1.0 123 Sesame Street\r\n\r\n",
+		},
+
+		// Status code 204 (No content) response should not include a
+		// Content-Length header.  See issue #16942.
+		{
+			Response{
+				StatusCode: 204,
+				Status:     "No Content",
+				ProtoMajor: 1,
+				ProtoMinor: 0,
+				Request:    dummyReq("GET"),
+				Header:     Header{},
+				Body:       nil,
+			},
+
+			"HTTP/1.0 204 No Content\r\n\r\n",
 		},
 	}
 

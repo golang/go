@@ -1,0 +1,13 @@
+// nacl/386-specific vet whitelist. See readme.txt for details.
+
+runtime/sys_nacl_386.s: [386] cannot check cross-package assembly function: naclWrite is in package syscall
+runtime/sys_nacl_386.s: [386] cannot check cross-package assembly function: now is in package syscall
+runtime/sys_nacl_386.s: [386] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
+runtime/sys_nacl_386.s: [386] setldt: function setldt missing Go declaration
+runtime/sys_nacl_386.s: [386] sigtramp: use of 20(SP) points beyond argument frame
+runtime/sys_nacl_386.s: [386] sigtramp: use of 4(SP) points beyond argument frame
+runtime/sys_nacl_386.s: [386] sigtramp: unknown variable ctxt
+runtime/sys_nacl_386.s: [386] sigtramp: use of 8(SP) points beyond argument frame
+runtime/sys_nacl_386.s: [386] sigtramp: use of 12(SP) points beyond argument frame
+runtime/sys_nacl_386.s: [386] sigtramp: use of 20(SP) points beyond argument frame
+runtime/sys_nacl_386.s: [386] sigtramp: unknown variable ctxt

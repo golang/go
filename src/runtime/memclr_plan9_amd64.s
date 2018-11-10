@@ -4,8 +4,8 @@
 
 #include "textflag.h"
 
-// void runtime·memclr(void*, uintptr)
-TEXT runtime·memclr(SB),NOSPLIT,$0-16
+// void runtime·memclrNoHeapPointers(void*, uintptr)
+TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
 	MOVQ	ptr+0(FP), DI
 	MOVQ	n+8(FP), CX
 	MOVQ	CX, BX

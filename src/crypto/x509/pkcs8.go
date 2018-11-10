@@ -13,7 +13,7 @@ import (
 
 // pkcs8 reflects an ASN.1, PKCS#8 PrivateKey. See
 // ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-8/pkcs-8v1_2.asn
-// and RFC5208.
+// and RFC 5208.
 type pkcs8 struct {
 	Version    int
 	Algo       pkix.AlgorithmIdentifier
@@ -21,8 +21,8 @@ type pkcs8 struct {
 	// optional attributes omitted.
 }
 
-// ParsePKCS8PrivateKey parses an unencrypted, PKCS#8 private key. See
-// http://www.rsa.com/rsalabs/node.asp?id=2130 and RFC5208.
+// ParsePKCS8PrivateKey parses an unencrypted, PKCS#8 private key.
+// See RFC 5208.
 func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
 	var privKey pkcs8
 	if _, err := asn1.Unmarshal(der, &privKey); err != nil {

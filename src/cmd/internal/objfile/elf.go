@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,7 +7,9 @@
 package objfile
 
 import (
+	"debug/dwarf"
 	"debug/elf"
+	"encoding/binary"
 	"fmt"
 	"os"
 )
@@ -98,7 +100,25 @@ func (f *elfFile) goarch() string {
 	case elf.EM_ARM:
 		return "arm"
 	case elf.EM_PPC64:
+		if f.elf.ByteOrder == binary.LittleEndian {
+			return "ppc64le"
+		}
 		return "ppc64"
+	case elf.EM_S390:
+		return "s390x"
 	}
 	return ""
+}
+
+func (f *elfFile) loadAddress() (uint64, error) {
+	for _, p := range f.elf.Progs {
+		if p.Type == elf.PT_LOAD {
+			return p.Vaddr, nil
+		}
+	}
+	return 0, fmt.Errorf("unknown load address")
+}
+
+func (f *elfFile) dwarf() (*dwarf.Data, error) {
+	return f.elf.DWARF()
 }

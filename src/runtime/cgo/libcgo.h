@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -45,9 +45,22 @@ struct ThreadStart
 extern void (*_cgo_thread_start)(ThreadStart *ts);
 
 /*
+ * Creates a new operating system thread without updating any Go state
+ * (OS dependent).
+ */
+extern void (*_cgo_sys_thread_create)(void* (*func)(void*), void* arg);
+
+/*
  * Creates the new operating system thread (OS, arch dependent).
  */
 void _cgo_sys_thread_start(ThreadStart *ts);
+
+/*
+ * Waits for the Go runtime to be initialized (OS dependent).
+ * If runtime.SetCgoTraceback is used to set a context function,
+ * calls the context function and returns the context value.
+ */
+uintptr_t _cgo_wait_runtime_init_done();
 
 /*
  * Call fn in the 6c world.
@@ -63,3 +76,65 @@ void crosscall_386(void (*fn)(void));
  * Prints error then calls abort. For linux and android.
  */
 void fatalf(const char* format, ...);
+
+/*
+ * Registers the current mach thread port for EXC_BAD_ACCESS processing.
+ */
+void darwin_arm_init_thread_exception_port(void);
+
+/*
+ * Starts a mach message server processing EXC_BAD_ACCESS.
+ */
+void darwin_arm_init_mach_exception_handler(void);
+
+/*
+ * The cgo context function. See runtime.SetCgoTraceback.
+ */
+struct context_arg {
+	uintptr_t Context;
+};
+extern void (*(_cgo_get_context_function(void)))(struct context_arg*);
+
+/*
+ * TSAN support.  This is only useful when building with
+ *   CGO_CFLAGS="-fsanitize=thread" CGO_LDFLAGS="-fsanitize=thread" go install
+ */
+#undef CGO_TSAN
+#if defined(__has_feature)
+# if __has_feature(thread_sanitizer)
+#  define CGO_TSAN
+# endif
+#elif defined(__SANITIZE_THREAD__)
+# define CGO_TSAN
+#endif
+
+#ifdef CGO_TSAN
+
+// These must match the definitions in yesTsanProlog in cmd/cgo/out.go.
+// In general we should call _cgo_tsan_acquire when we enter C code,
+// and call _cgo_tsan_release when we return to Go code.
+// This is only necessary when calling code that might be instrumented
+// by TSAN, which mostly means system library calls that TSAN intercepts.
+// See the comment in cmd/cgo/out.go for more details.
+
+long long _cgo_sync __attribute__ ((common));
+
+extern void __tsan_acquire(void*);
+extern void __tsan_release(void*);
+
+__attribute__ ((unused))
+static void _cgo_tsan_acquire() {
+	__tsan_acquire(&_cgo_sync);
+}
+
+__attribute__ ((unused))
+static void _cgo_tsan_release() {
+	__tsan_release(&_cgo_sync);
+}
+
+#else // !defined(CGO_TSAN)
+
+#define _cgo_tsan_acquire()
+#define _cgo_tsan_release()
+
+#endif // !defined(CGO_TSAN)

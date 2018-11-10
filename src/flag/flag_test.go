@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -375,5 +376,59 @@ func TestHelp(t *testing.T) {
 	}
 	if helpCalled {
 		t.Fatal("help was called; should not have been for defined help flag")
+	}
+}
+
+const defaultOutput = `  -A	for bootstrapping, allow 'any' type
+  -Alongflagname
+    	disable bounds checking
+  -C	a boolean defaulting to true (default true)
+  -D path
+    	set relative path for local imports
+  -F number
+    	a non-zero number (default 2.7)
+  -G float
+    	a float that defaults to zero
+  -N int
+    	a non-zero int (default 27)
+  -Z int
+    	an int that defaults to zero
+  -maxT timeout
+    	set timeout for dial
+`
+
+func TestPrintDefaults(t *testing.T) {
+	fs := NewFlagSet("print defaults test", ContinueOnError)
+	var buf bytes.Buffer
+	fs.SetOutput(&buf)
+	fs.Bool("A", false, "for bootstrapping, allow 'any' type")
+	fs.Bool("Alongflagname", false, "disable bounds checking")
+	fs.Bool("C", true, "a boolean defaulting to true")
+	fs.String("D", "", "set relative `path` for local imports")
+	fs.Float64("F", 2.7, "a non-zero `number`")
+	fs.Float64("G", 0, "a float that defaults to zero")
+	fs.Int("N", 27, "a non-zero int")
+	fs.Int("Z", 0, "an int that defaults to zero")
+	fs.Duration("maxT", 0, "set `timeout` for dial")
+	fs.PrintDefaults()
+	got := buf.String()
+	if got != defaultOutput {
+		t.Errorf("got %q want %q\n", got, defaultOutput)
+	}
+}
+
+// Issue 19230: validate range of Int and Uint flag values.
+func TestIntFlagOverflow(t *testing.T) {
+	if strconv.IntSize != 32 {
+		return
+	}
+	ResetForTesting(nil)
+	Int("i", 0, "")
+	Uint("u", 0, "")
+	if err := Set("i", "2147483648"); err == nil {
+		t.Error("unexpected success setting Int")
+	}
+	if err := Set("u", "4294967296"); err == nil {
+		t.Error("unexpected success setting Uint")
 	}
 }

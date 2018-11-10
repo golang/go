@@ -7,6 +7,7 @@ package zlib
 import (
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"os"
@@ -14,6 +15,7 @@ import (
 )
 
 var filenames = []string{
+	"../testdata/gettysburg.txt",
 	"../testdata/e.txt",
 	"../testdata/pi.txt",
 }
@@ -145,6 +147,7 @@ func TestWriter(t *testing.T) {
 		tag := fmt.Sprintf("#%d", i)
 		testLevelDict(t, tag, b, DefaultCompression, "")
 		testLevelDict(t, tag, b, NoCompression, "")
+		testLevelDict(t, tag, b, HuffmanOnly, "")
 		for level := BestSpeed; level <= BestCompression; level++ {
 			testLevelDict(t, tag, b, level, "")
 		}
@@ -152,22 +155,36 @@ func TestWriter(t *testing.T) {
 }
 
 func TestWriterBig(t *testing.T) {
-	for _, fn := range filenames {
+	for i, fn := range filenames {
 		testFileLevelDict(t, fn, DefaultCompression, "")
 		testFileLevelDict(t, fn, NoCompression, "")
+		testFileLevelDict(t, fn, HuffmanOnly, "")
 		for level := BestSpeed; level <= BestCompression; level++ {
 			testFileLevelDict(t, fn, level, "")
+			if level >= 1 && testing.Short() && testenv.Builder() == "" {
+				break
+			}
+		}
+		if i == 0 && testing.Short() && testenv.Builder() == "" {
+			break
 		}
 	}
 }
 
 func TestWriterDict(t *testing.T) {
 	const dictionary = "0123456789."
-	for _, fn := range filenames {
+	for i, fn := range filenames {
 		testFileLevelDict(t, fn, DefaultCompression, dictionary)
 		testFileLevelDict(t, fn, NoCompression, dictionary)
+		testFileLevelDict(t, fn, HuffmanOnly, dictionary)
 		for level := BestSpeed; level <= BestCompression; level++ {
 			testFileLevelDict(t, fn, level, dictionary)
+			if level >= 1 && testing.Short() && testenv.Builder() == "" {
+				break
+			}
+		}
+		if i == 0 && testing.Short() && testenv.Builder() == "" {
+			break
 		}
 	}
 }
@@ -177,12 +194,15 @@ func TestWriterReset(t *testing.T) {
 	for _, fn := range filenames {
 		testFileLevelDictReset(t, fn, NoCompression, nil)
 		testFileLevelDictReset(t, fn, DefaultCompression, nil)
+		testFileLevelDictReset(t, fn, HuffmanOnly, nil)
 		testFileLevelDictReset(t, fn, NoCompression, []byte(dictionary))
 		testFileLevelDictReset(t, fn, DefaultCompression, []byte(dictionary))
-		if !testing.Short() {
-			for level := BestSpeed; level <= BestCompression; level++ {
-				testFileLevelDictReset(t, fn, level, nil)
-			}
+		testFileLevelDictReset(t, fn, HuffmanOnly, []byte(dictionary))
+		if testing.Short() {
+			break
+		}
+		for level := BestSpeed; level <= BestCompression; level++ {
+			testFileLevelDictReset(t, fn, level, nil)
 		}
 	}
 }

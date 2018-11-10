@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"runtime/pprof"
 	"strings"
 )
@@ -55,7 +56,6 @@ func report(err error) {
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: gofmt [flags] [path ...]\n")
 	flag.PrintDefaults()
-	os.Exit(2)
 }
 
 func initParserMode() {
@@ -73,13 +73,19 @@ func isGoFile(f os.FileInfo) bool {
 
 // If in == nil, the source is the contents of the file with the given filename.
 func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error {
+	var perm os.FileMode = 0644
 	if in == nil {
 		f, err := os.Open(filename)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
+		fi, err := f.Stat()
+		if err != nil {
+			return err
+		}
 		in = f
+		perm = fi.Mode().Perm()
 	}
 
 	src, err := ioutil.ReadAll(in)
@@ -117,17 +123,27 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 			fmt.Fprintln(out, filename)
 		}
 		if *write {
-			err = ioutil.WriteFile(filename, res, 0644)
+			// make a temporary backup before overwriting original
+			bakname, err := backupFile(filename+".", src, perm)
+			if err != nil {
+				return err
+			}
+			err = ioutil.WriteFile(filename, res, perm)
+			if err != nil {
+				os.Rename(bakname, filename)
+				return err
+			}
+			err = os.Remove(bakname)
 			if err != nil {
 				return err
 			}
 		}
 		if *doDiff {
-			data, err := diff(src, res)
+			data, err := diff(src, res, filename)
 			if err != nil {
 				return fmt.Errorf("computing diff: %s", err)
 			}
-			fmt.Printf("diff %s gofmt/%s\n", filename, filename)
+			fmt.Printf("diff -u %s %s\n", filepath.ToSlash(filename+".orig"), filepath.ToSlash(filename))
 			out.Write(data)
 		}
 	}
@@ -143,7 +159,9 @@ func visitFile(path string, f os.FileInfo, err error) error {
 	if err == nil && isGoFile(f) {
 		err = processFile(path, nil, os.Stdout, false)
 	}
-	if err != nil {
+	// Don't complain if a file was deleted in the meantime (i.e.
+	// the directory changed concurrently while running gofmt).
+	if err != nil && !os.IsNotExist(err) {
 		report(err)
 	}
 	return nil
@@ -207,181 +225,107 @@ func gofmtMain() {
 	}
 }
 
-func diff(b1, b2 []byte) (data []byte, err error) {
-	f1, err := ioutil.TempFile("", "gofmt")
+func writeTempFile(dir, prefix string, data []byte) (string, error) {
+	file, err := ioutil.TempFile(dir, prefix)
+	if err != nil {
+		return "", err
+	}
+	_, err = file.Write(data)
+	if err1 := file.Close(); err == nil {
+		err = err1
+	}
+	if err != nil {
+		os.Remove(file.Name())
+		return "", err
+	}
+	return file.Name(), nil
+}
+
+func diff(b1, b2 []byte, filename string) (data []byte, err error) {
+	f1, err := writeTempFile("", "gofmt", b1)
 	if err != nil {
 		return
 	}
-	defer os.Remove(f1.Name())
-	defer f1.Close()
+	defer os.Remove(f1)
 
-	f2, err := ioutil.TempFile("", "gofmt")
+	f2, err := writeTempFile("", "gofmt", b2)
 	if err != nil {
 		return
 	}
-	defer os.Remove(f2.Name())
-	defer f2.Close()
+	defer os.Remove(f2)
 
-	f1.Write(b1)
-	f2.Write(b2)
+	cmd := "diff"
+	if runtime.GOOS == "plan9" {
+		cmd = "/bin/ape/diff"
+	}
 
-	data, err = exec.Command("diff", "-u", f1.Name(), f2.Name()).CombinedOutput()
+	data, err = exec.Command(cmd, "-u", f1, f2).CombinedOutput()
 	if len(data) > 0 {
 		// diff exits with a non-zero status when the files don't match.
 		// Ignore that failure as long as we get output.
-		err = nil
+		return replaceTempFilename(data, filename)
 	}
-	return
-
-}
-
-// ----------------------------------------------------------------------------
-// Support functions
-//
-// The functions parse, format, and isSpace below are identical to the
-// respective functions in src/go/format/format.go - keep them in sync!
-//
-// TODO(gri) Factor out this functionality, eventually.
-
-// parse parses src, which was read from the named file,
-// as a Go source file, declaration, or statement list.
-func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
-	file *ast.File,
-	sourceAdj func(src []byte, indent int) []byte,
-	indentAdj int,
-	err error,
-) {
-	// Try as whole source file.
-	file, err = parser.ParseFile(fset, filename, src, parserMode)
-	// If there's no error, return.  If the error is that the source file didn't begin with a
-	// package line and source fragments are ok, fall through to
-	// try as a source fragment.  Stop and return on any other error.
-	if err == nil || !fragmentOk || !strings.Contains(err.Error(), "expected 'package'") {
-		return
-	}
-
-	// If this is a declaration list, make it a source file
-	// by inserting a package clause.
-	// Insert using a ;, not a newline, so that the line numbers
-	// in psrc match the ones in src.
-	psrc := append([]byte("package p;"), src...)
-	file, err = parser.ParseFile(fset, filename, psrc, parserMode)
-	if err == nil {
-		sourceAdj = func(src []byte, indent int) []byte {
-			// Remove the package clause.
-			// Gofmt has turned the ; into a \n.
-			src = src[indent+len("package p\n"):]
-			return bytes.TrimSpace(src)
-		}
-		return
-	}
-	// If the error is that the source file didn't begin with a
-	// declaration, fall through to try as a statement list.
-	// Stop and return on any other error.
-	if !strings.Contains(err.Error(), "expected declaration") {
-		return
-	}
-
-	// If this is a statement list, make it a source file
-	// by inserting a package clause and turning the list
-	// into a function body.  This handles expressions too.
-	// Insert using a ;, not a newline, so that the line numbers
-	// in fsrc match the ones in src.
-	fsrc := append(append([]byte("package p; func _() {"), src...), '\n', '}')
-	file, err = parser.ParseFile(fset, filename, fsrc, parserMode)
-	if err == nil {
-		sourceAdj = func(src []byte, indent int) []byte {
-			// Cap adjusted indent to zero.
-			if indent < 0 {
-				indent = 0
-			}
-			// Remove the wrapping.
-			// Gofmt has turned the ; into a \n\n.
-			// There will be two non-blank lines with indent, hence 2*indent.
-			src = src[2*indent+len("package p\n\nfunc _() {"):]
-			src = src[:len(src)-(indent+len("\n}\n"))]
-			return bytes.TrimSpace(src)
-		}
-		// Gofmt has also indented the function body one level.
-		// Adjust that with indentAdj.
-		indentAdj = -1
-	}
-
-	// Succeeded, or out of options.
 	return
 }
 
-// format formats the given package file originally obtained from src
-// and adjusts the result based on the original source via sourceAdj
-// and indentAdj.
-func format(
-	fset *token.FileSet,
-	file *ast.File,
-	sourceAdj func(src []byte, indent int) []byte,
-	indentAdj int,
-	src []byte,
-	cfg printer.Config,
-) ([]byte, error) {
-	if sourceAdj == nil {
-		// Complete source file.
-		var buf bytes.Buffer
-		err := cfg.Fprint(&buf, fset, file)
-		if err != nil {
-			return nil, err
-		}
-		return buf.Bytes(), nil
+// replaceTempFilename replaces temporary filenames in diff with actual one.
+//
+// --- /tmp/gofmt316145376	2017-02-03 19:13:00.280468375 -0500
+// +++ /tmp/gofmt617882815	2017-02-03 19:13:00.280468375 -0500
+// ...
+// ->
+// --- path/to/file.go.orig	2017-02-03 19:13:00.280468375 -0500
+// +++ path/to/file.go	2017-02-03 19:13:00.280468375 -0500
+// ...
+func replaceTempFilename(diff []byte, filename string) ([]byte, error) {
+	bs := bytes.SplitN(diff, []byte{'\n'}, 3)
+	if len(bs) < 3 {
+		return nil, fmt.Errorf("got unexpected diff for %s", filename)
 	}
+	// Preserve timestamps.
+	var t0, t1 []byte
+	if i := bytes.LastIndexByte(bs[0], '\t'); i != -1 {
+		t0 = bs[0][i:]
+	}
+	if i := bytes.LastIndexByte(bs[1], '\t'); i != -1 {
+		t1 = bs[1][i:]
+	}
+	// Always print filepath with slash separator.
+	f := filepath.ToSlash(filename)
+	bs[0] = []byte(fmt.Sprintf("--- %s%s", f+".orig", t0))
+	bs[1] = []byte(fmt.Sprintf("+++ %s%s", f, t1))
+	return bytes.Join(bs, []byte{'\n'}), nil
+}
 
-	// Partial source file.
-	// Determine and prepend leading space.
-	i, j := 0, 0
-	for j < len(src) && isSpace(src[j]) {
-		if src[j] == '\n' {
-			i = j + 1 // byte offset of last line in leading space
-		}
-		j++
-	}
-	var res []byte
-	res = append(res, src[:i]...)
+const chmodSupported = runtime.GOOS != "windows"
 
-	// Determine and prepend indentation of first code line.
-	// Spaces are ignored unless there are no tabs,
-	// in which case spaces count as one tab.
-	indent := 0
-	hasSpace := false
-	for _, b := range src[i:j] {
-		switch b {
-		case ' ':
-			hasSpace = true
-		case '\t':
-			indent++
-		}
-	}
-	if indent == 0 && hasSpace {
-		indent = 1
-	}
-	for i := 0; i < indent; i++ {
-		res = append(res, '\t')
-	}
-
-	// Format the source.
-	// Write it without any leading and trailing space.
-	cfg.Indent = indent + indentAdj
-	var buf bytes.Buffer
-	err := cfg.Fprint(&buf, fset, file)
+// backupFile writes data to a new file named filename<number> with permissions perm,
+// with <number randomly chosen such that the file name is unique. backupFile returns
+// the chosen file name.
+func backupFile(filename string, data []byte, perm os.FileMode) (string, error) {
+	// create backup file
+	f, err := ioutil.TempFile(filepath.Dir(filename), filepath.Base(filename))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	res = append(res, sourceAdj(buf.Bytes(), cfg.Indent)...)
-
-	// Determine and append trailing space.
-	i = len(src)
-	for i > 0 && isSpace(src[i-1]) {
-		i--
+	bakname := f.Name()
+	if chmodSupported {
+		err = f.Chmod(perm)
+		if err != nil {
+			f.Close()
+			os.Remove(bakname)
+			return bakname, err
+		}
 	}
-	return append(res, src[i:]...), nil
-}
 
-func isSpace(b byte) bool {
-	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+	// write data to backup file
+	n, err := f.Write(data)
+	if err == nil && n < len(data) {
+		err = io.ErrShortWrite
+	}
+	if err1 := f.Close(); err == nil {
+		err = err1
+	}
+
+	return bakname, err
 }

@@ -1,6 +1,8 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// +build !amd64
 
 package elliptic
 
@@ -15,7 +17,8 @@ type p256Curve struct {
 }
 
 var (
-	p256 p256Curve
+	p256Params *CurveParams
+
 	// RInverse contains 1/R mod p - the inverse of the Montgomery constant
 	// (2**257).
 	p256RInverse *big.Int
@@ -23,15 +26,18 @@ var (
 
 func initP256() {
 	// See FIPS 186-3, section D.2.3
-	p256.CurveParams = &CurveParams{Name: "P-256"}
-	p256.P, _ = new(big.Int).SetString("115792089210356248762697446949407573530086143415290314195533631308867097853951", 10)
-	p256.N, _ = new(big.Int).SetString("115792089210356248762697446949407573529996955224135760342422259061068512044369", 10)
-	p256.B, _ = new(big.Int).SetString("5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b", 16)
-	p256.Gx, _ = new(big.Int).SetString("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296", 16)
-	p256.Gy, _ = new(big.Int).SetString("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5", 16)
-	p256.BitSize = 256
+	p256Params = &CurveParams{Name: "P-256"}
+	p256Params.P, _ = new(big.Int).SetString("115792089210356248762697446949407573530086143415290314195533631308867097853951", 10)
+	p256Params.N, _ = new(big.Int).SetString("115792089210356248762697446949407573529996955224135760342422259061068512044369", 10)
+	p256Params.B, _ = new(big.Int).SetString("5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b", 16)
+	p256Params.Gx, _ = new(big.Int).SetString("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296", 16)
+	p256Params.Gy, _ = new(big.Int).SetString("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5", 16)
+	p256Params.BitSize = 256
 
 	p256RInverse, _ = new(big.Int).SetString("7fffffff00000001fffffffe8000000100000000ffffffff0000000180000000", 16)
+
+	// Arch-specific initialization, i.e. let a platform dynamically pick a P256 implementation
+	initP256Arch()
 }
 
 func (curve p256Curve) Params() *CurveParams {
@@ -45,8 +51,8 @@ func p256GetScalar(out *[32]byte, in []byte) {
 	n := new(big.Int).SetBytes(in)
 	var scalarBytes []byte
 
-	if n.Cmp(p256.N) >= 0 {
-		n.Mod(n, p256.N)
+	if n.Cmp(p256Params.N) >= 0 {
+		n.Mod(n, p256Params.N)
 		scalarBytes = n.Bytes()
 	} else {
 		scalarBytes = in
@@ -1054,7 +1060,7 @@ func p256ScalarBaseMult(xOut, yOut, zOut *[p256Limbs]uint32, scalar *[32]uint8) 
 			p256CopyConditional(yOut, &ty, mask)
 			p256CopyConditional(zOut, &tz, mask)
 			// If p was not zero, then n is now non-zero.
-			nIsInfinityMask &= ^pIsNoninfiniteMask
+			nIsInfinityMask &^= pIsNoninfiniteMask
 		}
 	}
 }
@@ -1134,14 +1140,14 @@ func p256ScalarMult(xOut, yOut, zOut, x, y *[p256Limbs]uint32, scalar *[32]uint8
 		p256CopyConditional(xOut, &tx, mask)
 		p256CopyConditional(yOut, &ty, mask)
 		p256CopyConditional(zOut, &tz, mask)
-		nIsInfinityMask &= ^pIsNoninfiniteMask
+		nIsInfinityMask &^= pIsNoninfiniteMask
 	}
 }
 
 // p256FromBig sets out = R*in.
 func p256FromBig(out *[p256Limbs]uint32, in *big.Int) {
 	tmp := new(big.Int).Lsh(in, 257)
-	tmp.Mod(tmp, p256.P)
+	tmp.Mod(tmp, p256Params.P)
 
 	for i := 0; i < p256Limbs; i++ {
 		if bits := tmp.Bits(); len(bits) > 0 {
@@ -1181,6 +1187,6 @@ func p256ToBig(in *[p256Limbs]uint32) *big.Int {
 	}
 
 	result.Mul(result, p256RInverse)
-	result.Mod(result, p256.P)
+	result.Mod(result, p256Params.P)
 	return result
 }

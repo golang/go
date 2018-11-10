@@ -1,0 +1,186 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package vardecl
+
+// Prerequisites.
+import "math"
+func f() {}
+func g() (x, y int) { return }
+var m map[string]int
+
+// Var decls must have a type or an initializer.
+var _ int
+var _, _ int
+
+// The first error message is produced by the parser.
+// In a real-world scenario, the type-checker would not be run
+// in this case and the 2nd error message would not appear.
+var _ /* ERROR "missing variable type" */ /* ERROR "missing type or init expr" */
+var _ /* ERROR "missing variable type" */ /* ERROR "missing type or init expr" */, _
+var _ /* ERROR "missing variable type" */ /* ERROR "missing type or init expr" */, _, _
+
+// The initializer must be an expression.
+var _ = int /* ERROR "not an expression" */
+var _ = f /* ERROR "used as value" */ ()
+
+// Identifier and expression arity must match.
+var _, _ = 1, 2
+var _ = 1, 2 /* ERROR "extra init expr 2" */
+var _, _ = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
+var _, _, _ /* ERROR "missing init expr for _" */ = 1, 2
+
+var _ = g /* ERROR "2-valued g" */ ()
+var _, _ = g()
+var _, _, _ = g /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ()
+
+var _ = m["foo"]
+var _, _ = m["foo"]
+var _, _, _ = m  /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ["foo"]
+
+var _, _ int = 1, 2
+var _ int = 1, 2 /* ERROR "extra init expr 2" */
+var _, _ int = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
+var _, _, _ /* ERROR "missing init expr for _" */ int = 1, 2
+
+var (
+	_, _ = 1, 2
+	_ = 1, 2 /* ERROR "extra init expr 2" */
+	_, _ = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
+	_, _, _ /* ERROR "missing init expr for _" */ = 1, 2
+
+	_ = g /* ERROR "2-valued g" */ ()
+	_, _ = g()
+	_, _, _ = g /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ()
+
+	_ = m["foo"]
+	_, _ = m["foo"]
+	_, _, _ = m /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */ ["foo"]
+
+	_, _ int = 1, 2
+	_ int = 1, 2 /* ERROR "extra init expr 2" */
+	_, _ int = 1 /* ERROR "cannot initialize [0-9]+ variables with [0-9]+ values" */
+	_, _, _ /* ERROR "missing init expr for _" */ int = 1, 2
+)
+
+// Variables declared in function bodies must be 'used'.
+type T struct{}
+func (r T) _(a, b, c int) (u, v, w int) {
+	var x1 /* ERROR "declared but not used" */ int
+	var x2 /* ERROR "declared but not used" */ int
+	x1 = 1
+	(x2) = 2
+
+	y1 /* ERROR "declared but not used" */ := 1
+	y2 /* ERROR "declared but not used" */ := 2
+	y1 = 1
+	(y1) = 2
+
+	{
+		var x1 /* ERROR "declared but not used" */ int
+		var x2 /* ERROR "declared but not used" */ int
+		x1 = 1
+		(x2) = 2
+
+		y1 /* ERROR "declared but not used" */ := 1
+		y2 /* ERROR "declared but not used" */ := 2
+		y1 = 1
+		(y1) = 2
+	}
+
+	if x /* ERROR "declared but not used" */ := 0; a < b {}
+
+	switch x /* ERROR "declared but not used" */, y := 0, 1; a {
+	case 0:
+		_ = y
+	case 1:
+		x /* ERROR "declared but not used" */ := 0
+	}
+
+	var t interface{}
+	switch t /* ERROR "declared but not used" */ := t.(type) {}
+
+	switch t /* ERROR "declared but not used" */ := t.(type) {
+	case int:
+	}
+
+	switch t /* ERROR "declared but not used" */ := t.(type) {
+	case int:
+	case float32, complex64:
+		t = nil
+	}
+
+	switch t := t.(type) {
+	case int:
+	case float32, complex64:
+		_ = t
+	}
+
+	switch t := t.(type) {
+	case int:
+	case float32:
+	case string:
+		_ = func() string {
+			return t
+		}
+	}
+
+	switch t := t; t /* ERROR "declared but not used" */ := t.(type) {}
+
+	var z1 /* ERROR "declared but not used" */ int
+	var z2 int
+	_ = func(a, b, c int) (u, v, w int) {
+		z1 = a
+		(z1) = b
+		a = z2
+		return
+	}
+
+	var s []int
+	var i /* ERROR "declared but not used" */ , j int
+	for i, j = range s {
+		_ = j
+	}
+
+	for i, j /* ERROR "declared but not used" */ := range s {
+		_ = func() int {
+			return i
+		}
+	}
+	return
+}
+
+// Invalid (unused) expressions must not lead to spurious "declared but not used errors"
+func _() {
+	var a, b, c int
+	var x, y int
+	x, y = a /* ERROR cannot assign [0-9]+ values to [0-9]+ variables */ , b, c
+	_ = x
+	_ = y
+}
+
+func _() {
+	var x int
+	return x /* ERROR no result values expected */
+	return math /* ERROR no result values expected */ .Sin(0)
+}
+
+func _() int {
+	var x, y int
+	return /* ERROR wrong number of return values */ x, y
+}
+
+// Short variable declarations must declare at least one new non-blank variable.
+func _() {
+	_ := /* ERROR no new variables */ 0
+	_, a := 0, 1
+	_, a := /* ERROR no new variables */ 0, 1
+	_, a, b := 0, 1, 2
+	_, _, _ := /* ERROR no new variables */ 0, 1, 2
+
+	_ = a
+	_ = b
+}
+
+// TODO(gri) consolidate other var decl checks in this file

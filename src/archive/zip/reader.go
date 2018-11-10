@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash"
 	"hash/crc32"
 	"io"
@@ -21,9 +22,10 @@ var (
 )
 
 type Reader struct {
-	r       io.ReaderAt
-	File    []*File
-	Comment string
+	r             io.ReaderAt
+	File          []*File
+	Comment       string
+	decompressors map[uint16]Decompressor
 }
 
 type ReadCloser struct {
@@ -33,6 +35,7 @@ type ReadCloser struct {
 
 type File struct {
 	FileHeader
+	zip          *Reader
 	zipr         io.ReaderAt
 	zipsize      int64
 	headerOffset int64
@@ -77,11 +80,14 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	if err != nil {
 		return err
 	}
+	if end.directoryRecords > uint64(size)/fileHeaderLen {
+		return fmt.Errorf("archive/zip: TOC declares impossible %d files in %d byte zip", end.directoryRecords, size)
+	}
 	z.r = r
 	z.File = make([]*File, 0, end.directoryRecords)
 	z.Comment = end.comment
 	rs := io.NewSectionReader(r, 0, size)
-	if _, err = rs.Seek(int64(end.directoryOffset), os.SEEK_SET); err != nil {
+	if _, err = rs.Seek(int64(end.directoryOffset), io.SeekStart); err != nil {
 		return err
 	}
 	buf := bufio.NewReader(rs)
@@ -91,7 +97,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	// a bad one, and then only report a ErrFormat or UnexpectedEOF if
 	// the file count modulo 65536 is incorrect.
 	for {
-		f := &File{zipr: r, zipsize: size}
+		f := &File{zip: z, zipr: r, zipsize: size}
 		err = readDirectoryHeader(f, buf)
 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
@@ -107,6 +113,24 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		return err
 	}
 	return nil
+}
+
+// RegisterDecompressor registers or overrides a custom decompressor for a
+// specific method ID. If a decompressor for a given method is not found,
+// Reader will default to looking up the decompressor at the package level.
+func (z *Reader) RegisterDecompressor(method uint16, dcomp Decompressor) {
+	if z.decompressors == nil {
+		z.decompressors = make(map[uint16]Decompressor)
+	}
+	z.decompressors[method] = dcomp
+}
+
+func (z *Reader) decompressor(method uint16) Decompressor {
+	dcomp := z.decompressors[method]
+	if dcomp == nil {
+		dcomp = decompressor(method)
+	}
+	return dcomp
 }
 
 // Close closes the Zip file, rendering it unusable for I/O.
@@ -129,33 +153,38 @@ func (f *File) DataOffset() (offset int64, err error) {
 
 // Open returns a ReadCloser that provides access to the File's contents.
 // Multiple files may be read concurrently.
-func (f *File) Open() (rc io.ReadCloser, err error) {
+func (f *File) Open() (io.ReadCloser, error) {
 	bodyOffset, err := f.findBodyOffset()
 	if err != nil {
-		return
+		return nil, err
 	}
 	size := int64(f.CompressedSize64)
 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
-	dcomp := decompressor(f.Method)
+	dcomp := f.zip.decompressor(f.Method)
 	if dcomp == nil {
-		err = ErrAlgorithm
-		return
+		return nil, ErrAlgorithm
 	}
-	rc = dcomp(r)
+	var rc io.ReadCloser = dcomp(r)
 	var desr io.Reader
 	if f.hasDataDescriptor() {
 		desr = io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset+size, dataDescriptorLen)
 	}
-	rc = &checksumReader{rc, crc32.NewIEEE(), f, desr, nil}
-	return
+	rc = &checksumReader{
+		rc:   rc,
+		hash: crc32.NewIEEE(),
+		f:    f,
+		desr: desr,
+	}
+	return rc, nil
 }
 
 type checksumReader struct {
-	rc   io.ReadCloser
-	hash hash.Hash32
-	f    *File
-	desr io.Reader // if non-nil, where to read the data descriptor
-	err  error     // sticky error
+	rc    io.ReadCloser
+	hash  hash.Hash32
+	nread uint64 // number of bytes read so far
+	f     *File
+	desr  io.Reader // if non-nil, where to read the data descriptor
+	err   error     // sticky error
 }
 
 func (r *checksumReader) Read(b []byte) (n int, err error) {
@@ -164,13 +193,21 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
 	}
 	n, err = r.rc.Read(b)
 	r.hash.Write(b[:n])
+	r.nread += uint64(n)
 	if err == nil {
 		return
 	}
 	if err == io.EOF {
+		if r.nread != r.f.UncompressedSize64 {
+			return 0, io.ErrUnexpectedEOF
+		}
 		if r.desr != nil {
 			if err1 := readDataDescriptor(r.desr, r.f); err1 != nil {
-				err = err1
+				if err1 == io.EOF {
+					err = io.ErrUnexpectedEOF
+				} else {
+					err = err1
+				}
 			} else if r.hash.Sum32() != r.f.CRC32 {
 				err = ErrChecksum
 			}
@@ -243,39 +280,69 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 	f.Extra = d[filenameLen : filenameLen+extraLen]
 	f.Comment = string(d[filenameLen+extraLen:])
 
+	needUSize := f.UncompressedSize == ^uint32(0)
+	needCSize := f.CompressedSize == ^uint32(0)
+	needHeaderOffset := f.headerOffset == int64(^uint32(0))
+
 	if len(f.Extra) > 0 {
+		// Best effort to find what we need.
+		// Other zip authors might not even follow the basic format,
+		// and we'll just ignore the Extra content in that case.
 		b := readBuf(f.Extra)
 		for len(b) >= 4 { // need at least tag and size
 			tag := b.uint16()
 			size := b.uint16()
 			if int(size) > len(b) {
-				return ErrFormat
+				break
 			}
 			if tag == zip64ExtraId {
-				// update directory values from the zip64 extra block
+				// update directory values from the zip64 extra block.
+				// They should only be consulted if the sizes read earlier
+				// are maxed out.
+				// See golang.org/issue/13367.
 				eb := readBuf(b[:size])
-				if len(eb) >= 8 {
+
+				if needUSize {
+					needUSize = false
+					if len(eb) < 8 {
+						return ErrFormat
+					}
 					f.UncompressedSize64 = eb.uint64()
 				}
-				if len(eb) >= 8 {
+				if needCSize {
+					needCSize = false
+					if len(eb) < 8 {
+						return ErrFormat
+					}
 					f.CompressedSize64 = eb.uint64()
 				}
-				if len(eb) >= 8 {
+				if needHeaderOffset {
+					needHeaderOffset = false
+					if len(eb) < 8 {
+						return ErrFormat
+					}
 					f.headerOffset = int64(eb.uint64())
 				}
+				break
 			}
 			b = b[size:]
 		}
-		// Should have consumed the whole header.
-		// But popular zip & JAR creation tools are broken and
-		// may pad extra zeros at the end, so accept those
-		// too. See golang.org/issue/8186.
-		for _, v := range b {
-			if v != 0 {
-				return ErrFormat
-			}
-		}
 	}
+
+	// Assume that uncompressed size 2³²-1 could plausibly happen in
+	// an old zip32 file that was sharding inputs into the largest chunks
+	// possible (or is just malicious; search the web for 42.zip).
+	// If needUSize is true still, it means we didn't see a zip64 extension.
+	// As long as the compressed size is not also 2³²-1 (implausible)
+	// and the header is not also 2³²-1 (equally implausible),
+	// accept the uncompressed size 2³²-1 as valid.
+	// If nothing else, this keeps archive/zip working with 42.zip.
+	_ = needUSize
+
+	if needCSize || needHeaderOffset {
+		return ErrFormat
+	}
+
 	return nil
 }
 
@@ -358,14 +425,16 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) 
 	}
 	d.comment = string(b[:l])
 
-	p, err := findDirectory64End(r, directoryEndOffset)
-	if err == nil && p >= 0 {
-		err = readDirectory64End(r, p, d)
+	// These values mean that the file can be a zip64 file
+	if d.directoryRecords == 0xffff || d.directorySize == 0xffff || d.directoryOffset == 0xffffffff {
+		p, err := findDirectory64End(r, directoryEndOffset)
+		if err == nil && p >= 0 {
+			err = readDirectory64End(r, p, d)
+		}
+		if err != nil {
+			return nil, err
+		}
 	}
-	if err != nil {
-		return nil, err
-	}
-
 	// Make sure directoryOffset points to somewhere in our file.
 	if o := int64(d.directoryOffset); o < 0 || o >= size {
 		return nil, ErrFormat
@@ -389,8 +458,13 @@ func findDirectory64End(r io.ReaderAt, directoryEndOffset int64) (int64, error) 
 	if sig := b.uint32(); sig != directory64LocSignature {
 		return -1, nil
 	}
-	b = b[4:]       // skip number of the disk with the start of the zip64 end of central directory
-	p := b.uint64() // relative offset of the zip64 end of central directory record
+	if b.uint32() != 0 { // number of the disk with the start of the zip64 end of central directory
+		return -1, nil // the file is not a valid zip64-file
+	}
+	p := b.uint64()      // relative offset of the zip64 end of central directory record
+	if b.uint32() != 1 { // total number of disks
+		return -1, nil // the file is not a valid zip64-file
+	}
 	return int64(p), nil
 }
 

@@ -11,6 +11,7 @@ package rsa
 import (
 	"bytes"
 	"crypto"
+	"crypto/internal/boring"
 	"errors"
 	"hash"
 	"io"
@@ -64,7 +65,7 @@ func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byt
 	hash.Reset()
 
 	// 7.  Generate an octet string PS consisting of emLen - sLen - hLen - 2
-	//     zero octets.  The length of PS may be 0.
+	//     zero octets. The length of PS may be 0.
 	//
 	// 8.  Let DB = PS || 0x01 || salt; DB is an octet string of length
 	//     emLen - hLen - 1.
@@ -197,8 +198,24 @@ func signPSSWithSalt(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed,
 	if err != nil {
 		return
 	}
+
+	if boring.Enabled {
+		boringFakeRandomBlind(rand, priv)
+		bkey, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		// Note: BoringCrypto takes care of the "AndCheck" part of "decryptAndCheck".
+		// (It's not just decrypt.)
+		s, err := boring.DecryptRSANoPadding(bkey, em)
+		if err != nil {
+			return nil, err
+		}
+		return s, nil
+	}
+
 	m := new(big.Int).SetBytes(em)
-	c, err := decrypt(rand, priv, m)
+	c, err := decryptAndCheck(rand, priv, m)
 	if err != nil {
 		return
 	}
@@ -246,7 +263,7 @@ func (opts *PSSOptions) saltLength() int {
 // Note that hashed must be the result of hashing the input message using the
 // given hash function. The opts argument may be nil, in which case sensible
 // defaults are used.
-func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, opts *PSSOptions) (s []byte, err error) {
+func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, opts *PSSOptions) ([]byte, error) {
 	saltLength := opts.saltLength()
 	switch saltLength {
 	case PSSSaltLengthAuto:
@@ -259,9 +276,17 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, 
 		hash = opts.Hash
 	}
 
+	if boring.Enabled && rand == boring.RandReader {
+		bkey, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		return boring.SignRSAPSS(bkey, hash, hashed, saltLength)
+	}
+
 	salt := make([]byte, saltLength)
-	if _, err = io.ReadFull(rand, salt); err != nil {
-		return
+	if _, err := io.ReadFull(rand, salt); err != nil {
+		return nil, err
 	}
 	return signPSSWithSalt(rand, priv, hash, hashed, salt)
 }
@@ -277,6 +302,16 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte, opts
 
 // verifyPSS verifies a PSS signature with the given salt length.
 func verifyPSS(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte, saltLen int) error {
+	if boring.Enabled {
+		bkey, err := boringPublicKey(pub)
+		if err != nil {
+			return err
+		}
+		if err := boring.VerifyRSAPSS(bkey, hash, hashed, sig, saltLen); err != nil {
+			return ErrVerification
+		}
+		return nil
+	}
 	nBits := pub.N.BitLen()
 	if len(sig) != (nBits+7)/8 {
 		return ErrVerification

@@ -43,17 +43,15 @@ import (
 	"cmd/internal/objfile"
 )
 
+var printCode = flag.Bool("S", false, "print go code alongside assembly")
 var symregexp = flag.String("s", "", "only dump symbols matching this regexp")
 var symRE *regexp.Regexp
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: go tool objdump [-s symregexp] binary [start end]\n\n")
+	fmt.Fprintf(os.Stderr, "usage: go tool objdump [-S] [-s symregexp] binary [start end]\n\n")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
-
-type lookupFunc func(addr uint64) (sym string, base uint64)
-type disasmFunc func(code []byte, pc uint64, lookup lookupFunc) (text string, size int)
 
 func main() {
 	log.SetFlags(0)
@@ -88,7 +86,7 @@ func main() {
 		usage()
 	case 1:
 		// disassembly of entire object
-		dis.Print(os.Stdout, symRE, 0, ^uint64(0))
+		dis.Print(os.Stdout, symRE, 0, ^uint64(0), *printCode)
 		os.Exit(0)
 
 	case 3:
@@ -101,7 +99,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("invalid end PC: %v", err)
 		}
-		dis.Print(os.Stdout, symRE, start, end)
+		dis.Print(os.Stdout, symRE, start, end, *printCode)
 		os.Exit(0)
 	}
 }

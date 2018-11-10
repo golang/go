@@ -4,7 +4,7 @@
 
 // +build ignore
 
-// Generates root_darwin_arm.go.
+// Generates root_darwin_armx.go.
 //
 // As of iOS 8, there is no API for querying the system trusted X.509 root
 // certificates. We could use SecTrustEvaluate to verify that a trust chain
@@ -31,7 +31,7 @@ import (
 	"strings"
 )
 
-var output = flag.String("output", "root_darwin_arm.go", "file name to write")
+var output = flag.String("output", "root_darwin_armx.go", "file name to write")
 
 func main() {
 	certs, err := selectCerts()
@@ -178,10 +178,15 @@ const header = `
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build cgo
+// +build darwin
+// +build arm arm64
+
 package x509
 
-func initSystemRoots() {
-	systemRoots = NewCertPool()
-	systemRoots.AppendCertsFromPEM([]byte(systemRootsPEM))
+func loadSystemRoots() (*CertPool, error) {
+	p := NewCertPool()
+	p.AppendCertsFromPEM([]byte(systemRootsPEM))
+	return p, nil
 }
 `

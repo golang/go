@@ -11,6 +11,24 @@ package time
 
 import "errors"
 
+// maxFileSize is the max permitted size of files read by readFile.
+// As reference, the zoneinfo.zip distributed by Go is ~350 KB,
+// so 10MB is overkill.
+const maxFileSize = 10 << 20
+
+type fileSizeError string
+
+func (f fileSizeError) Error() string {
+	return "time: file " + string(f) + " is too large"
+}
+
+// Copies of io.Seek* constants to avoid importing "io":
+const (
+	seekStart   = 0
+	seekCurrent = 1
+	seekEnd     = 2
+)
+
 // Simple I/O interface to binary blob of data.
 type data struct {
 	p     []byte
@@ -181,7 +199,7 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
 
 	// Fill in the cache with information about right now,
 	// since that will be the most common lookup.
-	sec, _ := now()
+	sec, _, _ := now()
 	for i := range tx {
 		if tx[i].when <= sec && (i+1 == len(tx) || sec < tx[i+1].when) {
 			l.cacheStart = tx[i].when
@@ -210,10 +228,10 @@ func loadZoneFile(dir, name string) (l *Location, err error) {
 	return loadZoneData(buf)
 }
 
-// There are 500+ zoneinfo files.  Rather than distribute them all
+// There are 500+ zoneinfo files. Rather than distribute them all
 // individually, we ship them in an uncompressed zip file.
 // Used this way, the zip file format serves as a commonly readable
-// container for the individual small files.  We choose zip over tar
+// container for the individual small files. We choose zip over tar
 // because zip files have a contiguous table of contents, making
 // individual file lookups faster, and because the per-file overhead
 // in a zip file is considerably less than tar's 512 bytes.

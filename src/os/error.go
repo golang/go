@@ -10,10 +10,11 @@ import (
 
 // Portable analogs of some common system call errors.
 var (
-	ErrInvalid    = errors.New("invalid argument")
+	ErrInvalid    = errors.New("invalid argument") // methods on File will return this error when the receiver is nil
 	ErrPermission = errors.New("permission denied")
 	ErrExist      = errors.New("file already exists")
 	ErrNotExist   = errors.New("file does not exist")
+	ErrClosed     = errors.New("file already closed")
 )
 
 // PathError records an error and the operation and file path that caused it.
@@ -62,4 +63,17 @@ func IsNotExist(err error) bool {
 // as some syscall errors.
 func IsPermission(err error) bool {
 	return isPermission(err)
+}
+
+// underlyingError returns the underlying error for known os error types.
+func underlyingError(err error) error {
+	switch err := err.(type) {
+	case *PathError:
+		return err.Err
+	case *LinkError:
+		return err.Err
+	case *SyscallError:
+		return err.Err
+	}
+	return err
 }

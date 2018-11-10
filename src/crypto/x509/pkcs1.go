@@ -35,16 +35,21 @@ type pkcs1AdditionalRSAPrime struct {
 	Coeff *big.Int
 }
 
+// pkcs1PublicKey reflects the ASN.1 structure of a PKCS#1 public key.
+type pkcs1PublicKey struct {
+	N *big.Int
+	E int
+}
+
 // ParsePKCS1PrivateKey returns an RSA private key from its ASN.1 PKCS#1 DER encoded form.
-func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err error) {
+func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
 	var priv pkcs1PrivateKey
 	rest, err := asn1.Unmarshal(der, &priv)
 	if len(rest) > 0 {
-		err = asn1.SyntaxError{Msg: "trailing data"}
-		return
+		return nil, asn1.SyntaxError{Msg: "trailing data"}
 	}
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	if priv.Version > 1 {
@@ -55,7 +60,7 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err error) {
 		return nil, errors.New("x509: private key contains zero or negative value")
 	}
 
-	key = new(rsa.PrivateKey)
+	key := new(rsa.PrivateKey)
 	key.PublicKey = rsa.PublicKey{
 		E: priv.E,
 		N: priv.N,
@@ -80,7 +85,7 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err error) {
 	}
 	key.Precompute()
 
-	return
+	return key, nil
 }
 
 // MarshalPKCS1PrivateKey converts a private key to ASN.1 DER encoded form.
@@ -113,10 +118,4 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
 
 	b, _ := asn1.Marshal(priv)
 	return b
-}
-
-// rsaPublicKey reflects the ASN.1 structure of a PKCS#1 public key.
-type rsaPublicKey struct {
-	N *big.Int
-	E int
 }

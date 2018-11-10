@@ -4,6 +4,8 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs -- -m64 _const.go
 
+// +build amd64,dragonfly
+
 package syscall
 
 const (
@@ -1092,8 +1094,10 @@ const (
 	SIOCSLIFPHYADDR                   = 0x8118694a
 	SIOCSLOWAT                        = 0x80047302
 	SIOCSPGRP                         = 0x80047308
+	SOCK_CLOEXEC                      = 0x10000000
 	SOCK_DGRAM                        = 0x2
 	SOCK_MAXADDRLEN                   = 0xff
+	SOCK_NONBLOCK                     = 0x20000000
 	SOCK_RAW                          = 0x3
 	SOCK_RDM                          = 0x4
 	SOCK_SEQPACKET                    = 0x5

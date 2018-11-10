@@ -285,7 +285,8 @@ type element uint8
 const (
 	// elementNone occurs outside a special tag or special element body.
 	elementNone element = iota
-	// elementScript corresponds to the raw text <script> element.
+	// elementScript corresponds to the raw text <script> element
+	// with JS MIME type or no type attribute.
 	elementScript
 	// elementStyle corresponds to the raw text <style> element.
 	elementStyle
@@ -310,7 +311,8 @@ func (e element) String() string {
 	return fmt.Sprintf("illegal element %d", int(e))
 }
 
-// attr identifies the most recent HTML attribute when inside a start tag.
+// attr identifies the current HTML attribute when inside the attribute,
+// that is, starting from stateAttrName until stateTag/stateText (exclusive).
 type attr uint8
 
 const (
@@ -318,6 +320,8 @@ const (
 	attrNone attr = iota
 	// attrScript corresponds to an event handler attribute.
 	attrScript
+	// attrScriptType corresponds to the type attribute in script HTML element
+	attrScriptType
 	// attrStyle corresponds to the style attribute whose value is CSS.
 	attrStyle
 	// attrURL corresponds to an attribute whose value is a URL.
@@ -325,10 +329,11 @@ const (
 )
 
 var attrNames = [...]string{
-	attrNone:   "attrNone",
-	attrScript: "attrScript",
-	attrStyle:  "attrStyle",
-	attrURL:    "attrURL",
+	attrNone:       "attrNone",
+	attrScript:     "attrScript",
+	attrScriptType: "attrScriptType",
+	attrStyle:      "attrStyle",
+	attrURL:        "attrURL",
 }
 
 func (a attr) String() string {

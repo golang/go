@@ -11,16 +11,10 @@ import (
 
 const _BIT16SZ = 2
 
-func sameFile(fs1, fs2 *fileStat) bool {
-	a := fs1.sys.(*syscall.Dir)
-	b := fs2.sys.(*syscall.Dir)
-	return a.Qid.Path == b.Qid.Path && a.Type == b.Type && a.Dev == b.Dev
-}
-
 func fileInfoFromStat(d *syscall.Dir) FileInfo {
 	fs := &fileStat{
 		name:    d.Name,
-		size:    int64(d.Length),
+		size:    d.Length,
 		modTime: time.Unix(int64(d.Mtime), 0),
 		sys:     d,
 	}
@@ -36,6 +30,10 @@ func fileInfoFromStat(d *syscall.Dir) FileInfo {
 	}
 	if d.Mode&syscall.DMTMP != 0 {
 		fs.mode |= ModeTemporary
+	}
+	// Consider all files not served by #M as device files.
+	if d.Type != 'M' {
+		fs.mode |= ModeDevice
 	}
 	return fs
 }
@@ -63,7 +61,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 		}
 
 		if n < _BIT16SZ {
-			return nil, &PathError{"stat", name, syscall.ErrShortStat}
+			return nil, &PathError{"stat", name, err}
 		}
 
 		// Pull the real size out of the stat message.
@@ -90,7 +88,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 
 // Stat returns a FileInfo describing the named file.
 // If there is an error, it will be of type *PathError.
-func Stat(name string) (fi FileInfo, err error) {
+func Stat(name string) (FileInfo, error) {
 	d, err := dirstat(name)
 	if err != nil {
 		return nil, err
@@ -100,9 +98,9 @@ func Stat(name string) (fi FileInfo, err error) {
 
 // Lstat returns a FileInfo describing the named file.
 // If the file is a symbolic link, the returned FileInfo
-// describes the symbolic link.  Lstat makes no attempt to follow the link.
+// describes the symbolic link. Lstat makes no attempt to follow the link.
 // If there is an error, it will be of type *PathError.
-func Lstat(name string) (fi FileInfo, err error) {
+func Lstat(name string) (FileInfo, error) {
 	return Stat(name)
 }
 

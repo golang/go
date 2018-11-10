@@ -9,37 +9,16 @@ package os
 import "syscall"
 
 func isExist(err error) bool {
-	switch pe := err.(type) {
-	case nil:
-		return false
-	case *PathError:
-		err = pe.Err
-	case *LinkError:
-		err = pe.Err
-	}
-	return err == syscall.EEXIST || err == ErrExist
+	err = underlyingError(err)
+	return err == syscall.EEXIST || err == syscall.ENOTEMPTY || err == ErrExist
 }
 
 func isNotExist(err error) bool {
-	switch pe := err.(type) {
-	case nil:
-		return false
-	case *PathError:
-		err = pe.Err
-	case *LinkError:
-		err = pe.Err
-	}
+	err = underlyingError(err)
 	return err == syscall.ENOENT || err == ErrNotExist
 }
 
 func isPermission(err error) bool {
-	switch pe := err.(type) {
-	case nil:
-		return false
-	case *PathError:
-		err = pe.Err
-	case *LinkError:
-		err = pe.Err
-	}
+	err = underlyingError(err)
 	return err == syscall.EACCES || err == syscall.EPERM || err == ErrPermission
 }

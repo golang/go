@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,7 +11,7 @@ import "unsafe"
 
 // cgocallback is defined in runtime
 //go:linkname _runtime_cgocallback runtime.cgocallback
-func _runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr)
+func _runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr, uintptr)
 
 // The declaration of crosscall2 is:
 //   void crosscall2(void (*fn)(void *, int), void *, int);
@@ -19,36 +19,14 @@ func _runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr)
 // We need to export the symbol crosscall2 in order to support
 // callbacks from shared libraries. This applies regardless of
 // linking mode.
+//
+// Compatibility note: crosscall2 actually takes four arguments, but
+// it works to call it with three arguments when calling _cgo_panic.
+// That is supported for backward compatibility.
 //go:cgo_export_static crosscall2
 //go:cgo_export_dynamic crosscall2
 
-// Allocate memory.  This allocates the requested number of bytes in
-// memory controlled by the Go runtime.  The allocated memory will be
-// zeroed.  You are responsible for ensuring that the Go garbage
-// collector can see a pointer to the allocated memory for as long as
-// it is valid, e.g., by storing a pointer in a local variable in your
-// C function, or in memory allocated by the Go runtime.  If the only
-// pointers are in a C global variable or in memory allocated via
-// malloc, then the Go garbage collector may collect the memory.
-
-// Call like this in code compiled with gcc:
-//   struct { size_t len; void *ret; } a;
-//   a.len = /* number of bytes to allocate */;
-//   crosscall2(_cgo_allocate, &a, sizeof a);
-//   /* Here a.ret is a pointer to the allocated memory.  */
-
-//go:linkname _runtime_cgo_allocate_internal runtime._cgo_allocate_internal
-var _runtime_cgo_allocate_internal byte
-
-//go:linkname _cgo_allocate _cgo_allocate
-//go:cgo_export_static _cgo_allocate
-//go:cgo_export_dynamic _cgo_allocate
-//go:nosplit
-func _cgo_allocate(a unsafe.Pointer, n int32) {
-	_runtime_cgocallback(unsafe.Pointer(&_runtime_cgo_allocate_internal), a, uintptr(n))
-}
-
-// Panic.  The argument is converted into a Go string.
+// Panic. The argument is converted into a Go string.
 
 // Call like this in code compiled with gcc:
 //   struct { const char *p; } a;
@@ -63,8 +41,9 @@ var _runtime_cgo_panic_internal byte
 //go:cgo_export_static _cgo_panic
 //go:cgo_export_dynamic _cgo_panic
 //go:nosplit
+//go:norace
 func _cgo_panic(a unsafe.Pointer, n int32) {
-	_runtime_cgocallback(unsafe.Pointer(&_runtime_cgo_panic_internal), a, uintptr(n))
+	_runtime_cgocallback(unsafe.Pointer(&_runtime_cgo_panic_internal), a, uintptr(n), 0)
 }
 
 //go:cgo_import_static x_cgo_init
@@ -73,23 +52,55 @@ func _cgo_panic(a unsafe.Pointer, n int32) {
 var x_cgo_init byte
 var _cgo_init = &x_cgo_init
 
-//go:cgo_import_static x_cgo_malloc
-//go:linkname x_cgo_malloc x_cgo_malloc
-//go:linkname _cgo_malloc _cgo_malloc
-var x_cgo_malloc byte
-var _cgo_malloc = &x_cgo_malloc
-
-//go:cgo_import_static x_cgo_free
-//go:linkname x_cgo_free x_cgo_free
-//go:linkname _cgo_free _cgo_free
-var x_cgo_free byte
-var _cgo_free = &x_cgo_free
-
 //go:cgo_import_static x_cgo_thread_start
 //go:linkname x_cgo_thread_start x_cgo_thread_start
 //go:linkname _cgo_thread_start _cgo_thread_start
 var x_cgo_thread_start byte
 var _cgo_thread_start = &x_cgo_thread_start
+
+// Creates a new system thread without updating any Go state.
+//
+// This method is invoked during shared library loading to create a new OS
+// thread to perform the runtime initialization. This method is similar to
+// _cgo_sys_thread_start except that it doesn't update any Go state.
+
+//go:cgo_import_static x_cgo_sys_thread_create
+//go:linkname x_cgo_sys_thread_create x_cgo_sys_thread_create
+//go:linkname _cgo_sys_thread_create _cgo_sys_thread_create
+var x_cgo_sys_thread_create byte
+var _cgo_sys_thread_create = &x_cgo_sys_thread_create
+
+// Notifies that the runtime has been initialized.
+//
+// We currently block at every CGO entry point (via _cgo_wait_runtime_init_done)
+// to ensure that the runtime has been initialized before the CGO call is
+// executed. This is necessary for shared libraries where we kickoff runtime
+// initialization in a separate thread and return without waiting for this
+// thread to complete the init.
+
+//go:cgo_import_static x_cgo_notify_runtime_init_done
+//go:linkname x_cgo_notify_runtime_init_done x_cgo_notify_runtime_init_done
+//go:linkname _cgo_notify_runtime_init_done _cgo_notify_runtime_init_done
+var x_cgo_notify_runtime_init_done byte
+var _cgo_notify_runtime_init_done = &x_cgo_notify_runtime_init_done
+
+// Sets the traceback context function. See runtime.SetCgoTraceback.
+
+//go:cgo_import_static x_cgo_set_context_function
+//go:linkname x_cgo_set_context_function x_cgo_set_context_function
+//go:linkname _cgo_set_context_function _cgo_set_context_function
+var x_cgo_set_context_function byte
+var _cgo_set_context_function = &x_cgo_set_context_function
+
+// Calls a libc function to execute background work injected via libc
+// interceptors, such as processing pending signals under the thread
+// sanitizer.
+//
+// Left as a nil pointer if no libc interceptors are expected.
+
+//go:cgo_import_static _cgo_yield
+//go:linkname _cgo_yield _cgo_yield
+var _cgo_yield unsafe.Pointer
 
 //go:cgo_export_static _cgo_topofstack
 //go:cgo_export_dynamic _cgo_topofstack

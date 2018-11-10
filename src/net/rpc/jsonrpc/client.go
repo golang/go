@@ -1,9 +1,10 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package jsonrpc implements a JSON-RPC ClientCodec and ServerCodec
+// Package jsonrpc implements a JSON-RPC 1.0 ClientCodec and ServerCodec
 // for the rpc package.
+// For JSON-RPC 2.0 support, see https://godoc.org/?q=json-rpc+2.0
 package jsonrpc
 
 import (

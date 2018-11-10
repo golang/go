@@ -12,7 +12,7 @@ information on building gccgo for yourself,
 see <a href="/doc/gccgo_install.html">Setting up and using gccgo</a>.
 For more of the gritty details on the process of doing development
 with the gccgo frontend,
-see <a href="https://code.google.com/p/gofrontend/source/browse/HACKING">the
+see <a href="https://go.googlesource.com/gofrontend/+/master/HACKING">the
 file HACKING</a> in the gofrontend repository.
 </p>
 
@@ -30,7 +30,9 @@ contribution rules</a>.
 
 <p>
 The master sources for the gccgo frontend may be found at
-<a href="//code.google.com/p/gofrontend">http://code.google.com/p/gofrontend</a>.
+<a href="http://go.googlesource.com/gofrontend">http://go.googlesource.com/gofrontend</a>.
+They are mirrored
+at <a href="http://github.com/golang/gofrontend">http://github.com/golang/gofrontend</a>.
 The master sources are not buildable by themselves, but only in
 conjunction with GCC (in the future, other compilers may be
 supported).  Changes made to the gccgo frontend are also applied to
@@ -53,14 +55,12 @@ them.
 </p>
 
 <p>
-The gccgo frontend is written in C++.  It follows the GNU coding
-standards to the extent that they apply to C++.  In writing code for
-the frontend, follow the formatting of the surrounding code.  Although
-the frontend is currently tied to the rest of the GCC codebase, we
-plan to make it more independent.  Eventually all GCC-specific code
-will migrate out of the frontend proper and into GCC proper.  In the
-GCC sources this will generally mean moving code
-from <code>gcc/go/gofrontend</code> to <code>gcc/go</code>.
+The gccgo frontend is written in C++.
+It follows the GNU and GCC coding standards for C++.
+In writing code for the frontend, follow the formatting of the
+surrounding code.
+Almost all GCC-specific code is not in the frontend proper and is
+instead in the GCC sources in the <code>gcc/go</code> directory.
 </p>
 
 <p>

@@ -6,6 +6,8 @@ package x509
 
 import (
 	"encoding/pem"
+	"errors"
+	"runtime"
 )
 
 // CertPool is a set of certificates.
@@ -18,10 +20,22 @@ type CertPool struct {
 // NewCertPool returns a new, empty CertPool.
 func NewCertPool() *CertPool {
 	return &CertPool{
-		make(map[string][]int),
-		make(map[string][]int),
-		nil,
+		bySubjectKeyId: make(map[string][]int),
+		byName:         make(map[string][]int),
 	}
+}
+
+// SystemCertPool returns a copy of the system cert pool.
+//
+// Any mutations to the returned pool are not written to disk and do
+// not affect any other pool.
+func SystemCertPool() (*CertPool, error) {
+	if runtime.GOOS == "windows" {
+		// Issue 16736, 18609:
+		return nil, errors.New("crypto/x509: system root pool is not available on Windows")
+	}
+
+	return loadSystemRoots()
 }
 
 // findVerifiedParents attempts to find certificates in s which have signed the
@@ -52,6 +66,21 @@ func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int, errCer
 	return
 }
 
+func (s *CertPool) contains(cert *Certificate) bool {
+	if s == nil {
+		return false
+	}
+
+	candidates := s.byName[string(cert.RawSubject)]
+	for _, c := range candidates {
+		if s.certs[c].Equal(cert) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // AddCert adds a certificate to a pool.
 func (s *CertPool) AddCert(cert *Certificate) {
 	if cert == nil {
@@ -59,10 +88,8 @@ func (s *CertPool) AddCert(cert *Certificate) {
 	}
 
 	// Check that the certificate isn't being added twice.
-	for _, c := range s.certs {
-		if c.Equal(cert) {
-			return
-		}
+	if s.contains(cert) {
+		return
 	}
 
 	n := len(s.certs)
@@ -77,7 +104,7 @@ func (s *CertPool) AddCert(cert *Certificate) {
 }
 
 // AppendCertsFromPEM attempts to parse a series of PEM encoded certificates.
-// It appends any certificates found to s and returns true if any certificates
+// It appends any certificates found to s and reports whether any certificates
 // were successfully parsed.
 //
 // On many Linux systems, /etc/ssl/cert.pem will contain the system wide set
@@ -107,10 +134,10 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 
 // Subjects returns a list of the DER-encoded subjects of
 // all of the certificates in the pool.
-func (s *CertPool) Subjects() (res [][]byte) {
-	res = make([][]byte, len(s.certs))
+func (s *CertPool) Subjects() [][]byte {
+	res := make([][]byte, len(s.certs))
 	for i, c := range s.certs {
 		res[i] = c.RawSubject
 	}
-	return
+	return res
 }

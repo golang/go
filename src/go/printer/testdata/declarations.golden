@@ -778,6 +778,12 @@ func _() {
 	/* multi-line func because block is on multiple lines */
 }
 
+// test case for issue #19544
+func _()	{}
+func _longer_name_() {	// this comment must not force the {} from above to alignment
+	// multiple lines
+}
+
 // ellipsis parameters
 func _(...int)
 func _(...*int)
@@ -985,3 +991,18 @@ func _(struct {
 	x	int
 	y	int
 })	// no extra comma between } and )
+
+// alias declarations
+
+type c0 struct{}
+type c1 = C
+type c2 = struct{ x int }
+type c3 = p.C
+type (
+	s	struct{}
+	a	= A
+	b	= A
+	c	= foo
+	d	= interface{}
+	ddd	= p.Foo
+)

@@ -12,12 +12,19 @@ import (
 )
 
 func TestTempFile(t *testing.T) {
-	f, err := TempFile("/_not_exists_", "foo")
+	dir, err := TempDir("", "TestTempFile_BadDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	nonexistentDir := filepath.Join(dir, "_not_exists_")
+	f, err := TempFile(nonexistentDir, "foo")
 	if f != nil || err == nil {
-		t.Errorf("TempFile(`/_not_exists_`, `foo`) = %v, %v", f, err)
+		t.Errorf("TempFile(%q, `foo`) = %v, %v", nonexistentDir, f, err)
 	}
 
-	dir := os.TempDir()
+	dir = os.TempDir()
 	f, err = TempFile(dir, "ioutil_test")
 	if f == nil || err != nil {
 		t.Errorf("TempFile(dir, `ioutil_test`) = %v, %v", f, err)
@@ -49,5 +56,21 @@ func TestTempDir(t *testing.T) {
 		if !re.MatchString(name) {
 			t.Errorf("TempDir(`"+dir+"`, `ioutil_test`) created bad name %s", name)
 		}
+	}
+}
+
+// test that we return a nice error message if the dir argument to TempDir doesn't
+// exist (or that it's empty and os.TempDir doesn't exist)
+func TestTempDir_BadDir(t *testing.T) {
+	dir, err := TempDir("", "TestTempDir_BadDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	badDir := filepath.Join(dir, "not-exist")
+	_, err = TempDir(badDir, "foo")
+	if pe, ok := err.(*os.PathError); !ok || !os.IsNotExist(err) || pe.Path != badDir {
+		t.Errorf("TempDir error = %#v; want PathError for path %q satisifying os.IsNotExist", err, badDir)
 	}
 }

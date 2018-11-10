@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -17,8 +17,8 @@ import (
 	"strings"
 )
 
-func parse(name string, flags parser.Mode) *ast.File {
-	ast1, err := parser.ParseFile(fset, name, nil, flags)
+func parse(name string, src []byte, flags parser.Mode) *ast.File {
+	ast1, err := parser.ParseFile(fset, name, src, flags)
 	if err != nil {
 		if list, ok := err.(scanner.ErrorList); ok {
 			// If err is a scanner.ErrorList, its String will print just
@@ -39,12 +39,12 @@ func sourceLine(n ast.Node) int {
 	return fset.Position(n.Pos()).Line
 }
 
-// ReadGo populates f with information learned from reading the
-// Go source file with the given file name.  It gathers the C preamble
+// ParseGo populates f with information learned from the Go source code
+// which was read from the named file. It gathers the C preamble
 // attached to the import "C" comment, a list of references to C.xxx,
 // a list of exported functions, and the actual AST, to be rewritten and
 // printed.
-func (f *File) ReadGo(name string) {
+func (f *File) ParseGo(name string, src []byte) {
 	// Create absolute path for file, so that it will be used in error
 	// messages and recorded in debug line number information.
 	// This matches the rest of the toolchain. See golang.org/issue/5122.
@@ -58,8 +58,8 @@ func (f *File) ReadGo(name string) {
 	// so we use ast1 to look for the doc comments on import "C"
 	// and on exported functions, and we use ast2 for translating
 	// and reprinting.
-	ast1 := parse(name, parser.ParseComments)
-	ast2 := parse(name, 0)
+	ast1 := parse(name, src, parser.ParseComments)
+	ast2 := parse(name, src, 0)
 
 	f.Package = ast1.Name.Name
 	f.Name = make(map[string]*Name)
@@ -73,7 +73,7 @@ func (f *File) ReadGo(name string) {
 		}
 		for _, spec := range d.Specs {
 			s, ok := spec.(*ast.ImportSpec)
-			if !ok || string(s.Path.Value) != `"C"` {
+			if !ok || s.Path.Value != `"C"` {
 				continue
 			}
 			sawC = true
@@ -87,6 +87,7 @@ func (f *File) ReadGo(name string) {
 			if cg != nil {
 				f.Preamble += fmt.Sprintf("#line %d %q\n", sourceLine(cg), name)
 				f.Preamble += commentText(cg) + "\n"
+				f.Preamble += "#line 1 \"cgo-generated-wrapper\"\n"
 			}
 		}
 	}
@@ -106,7 +107,7 @@ func (f *File) ReadGo(name string) {
 		ws := 0
 		for _, spec := range d.Specs {
 			s, ok := spec.(*ast.ImportSpec)
-			if !ok || string(s.Path.Value) != `"C"` {
+			if !ok || s.Path.Value != `"C"` {
 				d.Specs[ws] = spec
 				ws++
 			}
@@ -124,7 +125,7 @@ func (f *File) ReadGo(name string) {
 	if f.Ref == nil {
 		f.Ref = make([]*Ref, 0, 8)
 	}
-	f.walk(ast2, "prog", (*File).saveRef)
+	f.walk(ast2, "prog", (*File).saveExprs)
 
 	// Accumulate exported functions.
 	// The comments are only on ast1 but we need to
@@ -147,7 +148,7 @@ func commentText(g *ast.CommentGroup) string {
 	}
 	var pieces []string
 	for _, com := range g.List {
-		c := string(com.Text)
+		c := com.Text
 		// Remove comment markers.
 		// The parser has given us exactly the comment text.
 		switch c[1] {
@@ -163,52 +164,73 @@ func commentText(g *ast.CommentGroup) string {
 	return strings.Join(pieces, "")
 }
 
+// Save various references we are going to need later.
+func (f *File) saveExprs(x interface{}, context string) {
+	switch x := x.(type) {
+	case *ast.Expr:
+		switch (*x).(type) {
+		case *ast.SelectorExpr:
+			f.saveRef(x, context)
+		}
+	case *ast.CallExpr:
+		f.saveCall(x, context)
+	}
+}
+
 // Save references to C.xxx for later processing.
-func (f *File) saveRef(x interface{}, context string) {
-	n, ok := x.(*ast.Expr)
+func (f *File) saveRef(n *ast.Expr, context string) {
+	sel := (*n).(*ast.SelectorExpr)
+	// For now, assume that the only instance of capital C is when
+	// used as the imported package identifier.
+	// The parser should take care of scoping in the future, so
+	// that we will be able to distinguish a "top-level C" from a
+	// local C.
+	if l, ok := sel.X.(*ast.Ident); !ok || l.Name != "C" {
+		return
+	}
+	if context == "as2" {
+		context = "expr"
+	}
+	if context == "embed-type" {
+		error_(sel.Pos(), "cannot embed C type")
+	}
+	goname := sel.Sel.Name
+	if goname == "errno" {
+		error_(sel.Pos(), "cannot refer to errno directly; see documentation")
+		return
+	}
+	if goname == "_CMalloc" {
+		error_(sel.Pos(), "cannot refer to C._CMalloc; use C.malloc")
+		return
+	}
+	if goname == "malloc" {
+		goname = "_CMalloc"
+	}
+	name := f.Name[goname]
+	if name == nil {
+		name = &Name{
+			Go: goname,
+		}
+		f.Name[goname] = name
+	}
+	f.Ref = append(f.Ref, &Ref{
+		Name:    name,
+		Expr:    n,
+		Context: context,
+	})
+}
+
+// Save calls to C.xxx for later processing.
+func (f *File) saveCall(call *ast.CallExpr, context string) {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return
 	}
-	if sel, ok := (*n).(*ast.SelectorExpr); ok {
-		// For now, assume that the only instance of capital C is
-		// when used as the imported package identifier.
-		// The parser should take care of scoping in the future,
-		// so that we will be able to distinguish a "top-level C"
-		// from a local C.
-		if l, ok := sel.X.(*ast.Ident); ok && l.Name == "C" {
-			if context == "as2" {
-				context = "expr"
-			}
-			if context == "embed-type" {
-				error_(sel.Pos(), "cannot embed C type")
-			}
-			goname := sel.Sel.Name
-			if goname == "errno" {
-				error_(sel.Pos(), "cannot refer to errno directly; see documentation")
-				return
-			}
-			if goname == "_CMalloc" {
-				error_(sel.Pos(), "cannot refer to C._CMalloc; use C.malloc")
-				return
-			}
-			if goname == "malloc" {
-				goname = "_CMalloc"
-			}
-			name := f.Name[goname]
-			if name == nil {
-				name = &Name{
-					Go: goname,
-				}
-				f.Name[goname] = name
-			}
-			f.Ref = append(f.Ref, &Ref{
-				Name:    name,
-				Expr:    n,
-				Context: context,
-			})
-			return
-		}
+	if l, ok := sel.X.(*ast.Ident); !ok || l.Name != "C" {
+		return
 	}
+	c := &Call{Call: call, Deferred: context == "defer"}
+	f.Calls = append(f.Calls, c)
 }
 
 // If a function should be exported add it to ExpFunc.
@@ -222,11 +244,11 @@ func (f *File) saveExport(x interface{}, context string) {
 		return
 	}
 	for _, c := range n.Doc.List {
-		if !strings.HasPrefix(string(c.Text), "//export ") {
+		if !strings.HasPrefix(c.Text, "//export ") {
 			continue
 		}
 
-		name := strings.TrimSpace(string(c.Text[9:]))
+		name := strings.TrimSpace(c.Text[9:])
 		if name == "" {
 			error_(c.Pos(), "export missing name")
 		}
@@ -235,9 +257,17 @@ func (f *File) saveExport(x interface{}, context string) {
 			error_(c.Pos(), "export comment has wrong name %q, want %q", name, n.Name.Name)
 		}
 
+		doc := ""
+		for _, c1 := range n.Doc.List {
+			if c1 != c {
+				doc += c1.Text + "\n"
+			}
+		}
+
 		f.ExpFunc = append(f.ExpFunc, &ExpFunc{
 			Func:    n,
 			ExpName: name,
+			Doc:     doc,
 		})
 		break
 	}
@@ -267,7 +297,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 
 	// everything else just recurs
 	default:
-		error_(token.NoPos, "unexpected type %T in walk", x, visit)
+		error_(token.NoPos, "unexpected type %T in walk", x)
 		panic("unexpected type")
 
 	case nil:
@@ -373,7 +403,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 	case *ast.GoStmt:
 		f.walk(n.Call, "expr", visit)
 	case *ast.DeferStmt:
-		f.walk(n.Call, "expr", visit)
+		f.walk(n.Call, "defer", visit)
 	case *ast.ReturnStmt:
 		f.walk(n.Results, "expr", visit)
 	case *ast.BranchStmt:
@@ -419,7 +449,11 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 	case *ast.ImportSpec:
 	case *ast.ValueSpec:
 		f.walk(&n.Type, "type", visit)
-		f.walk(n.Values, "expr", visit)
+		if len(n.Names) == 2 && len(n.Values) == 1 {
+			f.walk(&n.Values[0], "as2", visit)
+		} else {
+			f.walk(n.Values, "expr", visit)
+		}
 	case *ast.TypeSpec:
 		f.walk(&n.Type, "type", visit)
 

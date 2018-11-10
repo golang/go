@@ -1,6 +1,6 @@
 // run
 
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -17,6 +17,7 @@ import (
 )
 
 func main() {
+	runtime.GOMAXPROCS(1)
 	debug.SetGCPercent(1000000) // only GC when we ask for GC
 
 	var stats, stats1, stats2 runtime.MemStats

@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/internal/boring"
 	"io"
 	"os"
 	"runtime"
@@ -26,6 +27,10 @@ const urandomDevice = "/dev/urandom"
 // This is sufficient on Linux, OS X, and FreeBSD.
 
 func init() {
+	if boring.Enabled {
+		Reader = boring.RandReader
+		return
+	}
 	if runtime.GOOS == "plan9" {
 		Reader = newReader(nil)
 	} else {
@@ -45,6 +50,7 @@ type devReader struct {
 var altGetRandom func([]byte) (ok bool)
 
 func (r *devReader) Read(b []byte) (n int, err error) {
+	boring.Unreachable()
 	if altGetRandom != nil && r.name == urandomDevice && altGetRandom(b) {
 		return len(b), nil
 	}
@@ -84,7 +90,7 @@ func (hr hideAgainReader) Read(p []byte) (n int, err error) {
 // systems without a reliable /dev/urandom.
 
 // newReader returns a new pseudorandom generator that
-// seeds itself by reading from entropy.  If entropy == nil,
+// seeds itself by reading from entropy. If entropy == nil,
 // the generator seeds itself by reading from the system's
 // random number generator, typically /dev/random.
 // The Read method on the returned reader always returns
@@ -108,6 +114,7 @@ type reader struct {
 }
 
 func (r *reader) Read(b []byte) (n int, err error) {
+	boring.Unreachable()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	n = len(b)

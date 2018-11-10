@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -56,7 +56,13 @@ func TestSCMCredentials(t *testing.T) {
 		ucred.Gid = 0
 		oob := syscall.UnixCredentials(&ucred)
 		_, _, err := cli.(*net.UnixConn).WriteMsgUnix(nil, oob, nil)
-		if err.(*net.OpError).Err != syscall.EPERM {
+		if op, ok := err.(*net.OpError); ok {
+			err = op.Err
+		}
+		if sys, ok := err.(*os.SyscallError); ok {
+			err = sys.Err
+		}
+		if err != syscall.EPERM {
 			t.Fatalf("WriteMsgUnix failed with %v, want EPERM", err)
 		}
 	}

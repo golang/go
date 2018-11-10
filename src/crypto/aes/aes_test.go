@@ -280,42 +280,6 @@ var encryptTests = []CryptTest{
 	},
 }
 
-// Test encryptBlock against FIPS 197 examples.
-func TestEncryptBlock(t *testing.T) {
-	for i, tt := range encryptTests {
-		n := len(tt.key) + 28
-		enc := make([]uint32, n)
-		dec := make([]uint32, n)
-		expandKey(tt.key, enc, dec)
-		out := make([]byte, len(tt.in))
-		encryptBlock(enc, out, tt.in)
-		for j, v := range out {
-			if v != tt.out[j] {
-				t.Errorf("encryptBlock %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j])
-				break
-			}
-		}
-	}
-}
-
-// Test decryptBlock against FIPS 197 examples.
-func TestDecryptBlock(t *testing.T) {
-	for i, tt := range encryptTests {
-		n := len(tt.key) + 28
-		enc := make([]uint32, n)
-		dec := make([]uint32, n)
-		expandKey(tt.key, enc, dec)
-		plain := make([]byte, len(tt.in))
-		decryptBlock(dec, plain, tt.out)
-		for j, v := range plain {
-			if v != tt.in[j] {
-				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j])
-				break
-			}
-		}
-	}
-}
-
 // Test Cipher Encrypt method against FIPS 197 examples.
 func TestCipherEncrypt(t *testing.T) {
 	for i, tt := range encryptTests {

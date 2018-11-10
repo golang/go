@@ -1,6 +1,6 @@
 // Derived from Inferno utils/6l/obj.c and utils/6l/span.c
-// http://code.google.com/p/inferno-os/source/browse/utils/6l/obj.c
-// http://code.google.com/p/inferno-os/source/browse/utils/6l/span.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -9,7 +9,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -59,7 +59,7 @@ func mkfwd(sym *LSym) {
 	}
 
 	i := 0
-	for p := sym.Text; p != nil && p.Link != nil; p = p.Link {
+	for p := sym.Func.Text; p != nil && p.Link != nil; p = p.Link {
 		i--
 		if i < 0 {
 			i = LOG - 1
@@ -76,17 +76,10 @@ func mkfwd(sym *LSym) {
 	}
 }
 
-func Copyp(ctxt *Link, q *Prog) *Prog {
-	p := ctxt.NewProg()
-	*p = *q
-	return p
-}
-
-func Appendp(ctxt *Link, q *Prog) *Prog {
-	p := ctxt.NewProg()
+func Appendp(q *Prog, newprog ProgAlloc) *Prog {
+	p := newprog()
 	p.Link = q.Link
 	q.Link = p
-	p.Lineno = q.Lineno
-	p.Mode = q.Mode
+	p.Pos = q.Pos
 	return p
 }

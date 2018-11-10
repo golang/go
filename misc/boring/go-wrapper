@@ -1,0 +1,100 @@
+#!/bin/sh
+# Copied from https://raw.githubusercontent.com/docker-library/golang/master/1.9-rc/stretch/go-wrapper
+# Copied into Docker images.
+
+set -e
+
+usage() {
+	base="$(basename "$0")"
+	cat <<EOUSAGE
+
+usage: $base command [args]
+
+This script assumes that is is run from the root of your Go package (for
+example, "/go/src/app" if your GOPATH is set to "/go").
+
+In Go 1.4, a feature was introduced to supply the canonical "import path" for a
+given package in a comment attached to a package statement
+(https://golang.org/s/go14customimport).
+
+This script allows us to take a generic directory of Go source files such as
+"/go/src/app" and determine that the canonical "import path" of where that code
+expects to live and reference itself is "github.com/jsmith/my-cool-app".  It
+will then ensure that "/go/src/github.com/jsmith/my-cool-app" is a symlink to
+"/go/src/app", which allows us to build and run it under the proper package
+name.
+
+For compatibility with versions of Go older than 1.4, the "import path" may also
+be placed in a file named ".godir".
+
+Available Commands:
+
+  $base download
+  $base download -u
+    (equivalent to "go get -d [args] [godir]")
+
+  $base install
+  $base install -race
+    (equivalent to "go install [args] [godir]")
+
+  $base run
+  $base run -app -specific -arguments
+    (assumes "GOPATH/bin" is in "PATH")
+
+EOUSAGE
+}
+
+# make sure there is a subcommand specified
+if [ "$#" -eq 0 ]; then
+	usage >&2
+	exit 1
+fi
+# "shift" so that "$@" becomes the remaining arguments and can be passed along to other "go" subcommands easily
+cmd="$1"
+shift
+
+goDir="$(go list -e -f '{{.ImportComment}}' 2>/dev/null || true)"
+
+if [ -z "$goDir" -a -s .godir ]; then
+	goDir="$(cat .godir)"
+fi
+
+dir="$(pwd -P)"
+if [ "$goDir" ]; then
+	goPath="${GOPATH%%:*}" # this just grabs the first path listed in GOPATH, if there are multiple (which is the detection logic "go get" itself uses, too)
+	goDirPath="$goPath/src/$goDir"
+	mkdir -p "$(dirname "$goDirPath")"
+	if [ ! -e "$goDirPath" ]; then
+		ln -sfv "$dir" "$goDirPath"
+	elif [ ! -L "$goDirPath" ]; then
+		echo >&2 "error: $goDirPath already exists but is unexpectedly not a symlink!"
+		exit 1
+	fi
+	goBin="$goPath/bin/$(basename "$goDir")"
+else
+	goBin="$(basename "$dir")" # likely "app"
+fi
+
+case "$cmd" in
+	download)
+		set -- go get -v -d "$@"
+		if [ "$goDir" ]; then set -- "$@" "$goDir"; fi
+		set -x; exec "$@"
+		;;
+		
+	install)
+		set -- go install -v "$@"
+		if [ "$goDir" ]; then set -- "$@" "$goDir"; fi
+		set -x; exec "$@"
+		;;
+		
+	run)
+		set -x; exec "$goBin" "$@"
+		;;
+		
+	*)
+		echo >&2 'error: unknown command:' "$cmd"
+		usage >&2
+		exit 1
+		;;
+esac

@@ -1,6 +1,6 @@
 // run
 
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -15,21 +15,25 @@ type T []int
 
 func main() {
 	n := -1
-	shouldPanic("len out of range", func() {_ = make(T, n)})
-	shouldPanic("cap out of range", func() {_ = make(T, 0, n)})
+	shouldPanic("len out of range", func() { _ = make(T, n) })
+	shouldPanic("cap out of range", func() { _ = make(T, 0, n) })
+	shouldPanic("len out of range", func() { _ = make(T, int64(n)) })
+	shouldPanic("cap out of range", func() { _ = make(T, 0, int64(n)) })
 	var t *byte
 	if unsafe.Sizeof(t) == 8 {
-		n = 1<<20
+		n = 1 << 20
 		n <<= 20
-		shouldPanic("len out of range", func() {_ = make(T, n)})
-		shouldPanic("cap out of range", func() {_ = make(T, 0, n)})
+		shouldPanic("len out of range", func() { _ = make(T, n) })
+		shouldPanic("cap out of range", func() { _ = make(T, 0, n) })
 		n <<= 20
-		shouldPanic("len out of range", func() {_ = make(T, n)})
-		shouldPanic("cap out of range", func() {_ = make(T, 0, n)})
+		shouldPanic("len out of range", func() { _ = make(T, n) })
+		shouldPanic("cap out of range", func() { _ = make(T, 0, n) })
 	} else {
 		n = 1<<31 - 1
-		shouldPanic("len out of range", func() {_ = make(T, n)})
-		shouldPanic("cap out of range", func() {_ = make(T, 0, n)})
+		shouldPanic("len out of range", func() { _ = make(T, n) })
+		shouldPanic("cap out of range", func() { _ = make(T, 0, n) })
+		shouldPanic("len out of range", func() { _ = make(T, int64(n)) })
+		shouldPanic("cap out of range", func() { _ = make(T, 0, int64(n)) })
 	}
 }
 
@@ -44,6 +48,6 @@ func shouldPanic(str string, f func()) {
 			panic("got panic " + s + ", want " + str)
 		}
 	}()
-	
+
 	f()
 }

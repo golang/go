@@ -64,34 +64,36 @@ func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
 		if len(rdn) == 0 {
 			continue
 		}
-		atv := rdn[0]
-		n.Names = append(n.Names, atv)
-		value, ok := atv.Value.(string)
-		if !ok {
-			continue
-		}
 
-		t := atv.Type
-		if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
-			switch t[3] {
-			case 3:
-				n.CommonName = value
-			case 5:
-				n.SerialNumber = value
-			case 6:
-				n.Country = append(n.Country, value)
-			case 7:
-				n.Locality = append(n.Locality, value)
-			case 8:
-				n.Province = append(n.Province, value)
-			case 9:
-				n.StreetAddress = append(n.StreetAddress, value)
-			case 10:
-				n.Organization = append(n.Organization, value)
-			case 11:
-				n.OrganizationalUnit = append(n.OrganizationalUnit, value)
-			case 17:
-				n.PostalCode = append(n.PostalCode, value)
+		for _, atv := range rdn {
+			n.Names = append(n.Names, atv)
+			value, ok := atv.Value.(string)
+			if !ok {
+				continue
+			}
+
+			t := atv.Type
+			if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
+				switch t[3] {
+				case 3:
+					n.CommonName = value
+				case 5:
+					n.SerialNumber = value
+				case 6:
+					n.Country = append(n.Country, value)
+				case 7:
+					n.Locality = append(n.Locality, value)
+				case 8:
+					n.Province = append(n.Province, value)
+				case 9:
+					n.StreetAddress = append(n.StreetAddress, value)
+				case 10:
+					n.Organization = append(n.Organization, value)
+				case 11:
+					n.OrganizationalUnit = append(n.OrganizationalUnit, value)
+				case 17:
+					n.PostalCode = append(n.PostalCode, value)
+				}
 			}
 		}
 	}
@@ -129,12 +131,12 @@ func (n Name) appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentif
 
 func (n Name) ToRDNSequence() (ret RDNSequence) {
 	ret = n.appendRDNs(ret, n.Country, oidCountry)
-	ret = n.appendRDNs(ret, n.Organization, oidOrganization)
-	ret = n.appendRDNs(ret, n.OrganizationalUnit, oidOrganizationalUnit)
-	ret = n.appendRDNs(ret, n.Locality, oidLocality)
 	ret = n.appendRDNs(ret, n.Province, oidProvince)
+	ret = n.appendRDNs(ret, n.Locality, oidLocality)
 	ret = n.appendRDNs(ret, n.StreetAddress, oidStreetAddress)
 	ret = n.appendRDNs(ret, n.PostalCode, oidPostalCode)
+	ret = n.appendRDNs(ret, n.Organization, oidOrganization)
+	ret = n.appendRDNs(ret, n.OrganizationalUnit, oidOrganizationalUnit)
 	if len(n.CommonName) > 0 {
 		ret = n.appendRDNs(ret, []string{n.CommonName}, oidCommonName)
 	}
@@ -177,7 +179,7 @@ func (certList *CertificateList) HasExpired(now time.Time) bool {
 // 5280, section 5.1.
 type TBSCertificateList struct {
 	Raw                 asn1.RawContent
-	Version             int `asn1:"optional,default:1"`
+	Version             int `asn1:"optional,default:0"`
 	Signature           AlgorithmIdentifier
 	Issuer              RDNSequence
 	ThisUpdate          time.Time

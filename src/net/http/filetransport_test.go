@@ -49,6 +49,7 @@ func TestFileTransport(t *testing.T) {
 			t.Fatalf("for %s, nil Body", urlstr)
 		}
 		slurp, err := ioutil.ReadAll(res.Body)
+		res.Body.Close()
 		check("ReadAll "+urlstr, err)
 		if string(slurp) != "Bar" {
 			t.Errorf("for %s, got content %q, want %q", urlstr, string(slurp), "Bar")

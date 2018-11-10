@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -22,21 +22,12 @@
 // If !iscgo, this is a no-op.
 //
 // NOTE: setg_gcc<> assume this clobbers only R31.
-TEXT runtime·save_g(SB),NOSPLIT,$-8-0
+TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
 	MOVB	runtime·iscgo(SB), R31
 	CMP	R31, $0
 	BEQ	nocgo
-
-	// $runtime.tlsg(SB) is a special linker symbol.
-	// It is the offset from the start of TLS to our
-	// thread-local storage for g.
-	MOVD	$runtime·tlsg(SB), R31
-	ADD	R13, R31
-	// The actual TLS base is 0x7000 below R13
-	SUB	$0x7000, R31
-
-	// Store g in TLS
-	MOVD	g, 0(R31)
+	MOVD	runtime·tls_g(SB), R31
+	MOVD	g, 0(R13)(R31*1)
 
 nocgo:
 	RET
@@ -50,11 +41,9 @@ nocgo:
 // usual Go registers aren't set up.
 //
 // NOTE: _cgo_topofstack assumes this only clobbers g (R30), and R31.
-TEXT runtime·load_g(SB),NOSPLIT,$-8-0
-	MOVD	$runtime·tlsg(SB), R31
-	// R13 is the C ABI TLS base pointer + 0x7000
-	ADD	R13, R31
-	SUB	$0x7000, R31
-
-	MOVD	0(R31), g
+TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
+	MOVD	runtime·tls_g(SB), R31
+	MOVD	0(R13)(R31*1), g
 	RET
+
+GLOBL runtime·tls_g+0(SB), TLSBSS, $8

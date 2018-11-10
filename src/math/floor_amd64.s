@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,6 +8,12 @@
 
 // func Floor(x float64) float64
 TEXT ·Floor(SB),NOSPLIT,$0
+	CMPB    ·useSSE41(SB), $1
+	JNE     nosse4
+	ROUNDSD $1, x+0(FP), X0
+	MOVQ X0, ret+8(FP)
+	RET
+nosse4:
 	MOVQ	x+0(FP), AX
 	MOVQ	$~(1<<63), DX // sign bit mask
 	ANDQ	AX,DX // DX = |x|
@@ -30,6 +36,12 @@ isBig_floor:
 
 // func Ceil(x float64) float64
 TEXT ·Ceil(SB),NOSPLIT,$0
+	CMPB    ·useSSE41(SB), $1
+	JNE     nosse4
+	ROUNDSD $2, x+0(FP), X0
+	MOVQ X0, ret+8(FP)
+	RET
+nosse4:
 	MOVQ	x+0(FP), AX
 	MOVQ	$~(1<<63), DX // sign bit mask
 	MOVQ	AX, BX // BX = copy of x

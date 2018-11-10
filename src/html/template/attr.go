@@ -135,9 +135,8 @@ var attrTypeMap = map[string]contentType{
 }
 
 // attrType returns a conservative (upper-bound on authority) guess at the
-// type of the named attribute.
+// type of the lowercase named attribute.
 func attrType(name string) contentType {
-	name = strings.ToLower(name)
 	if strings.HasPrefix(name, "data-") {
 		// Strip data- so that custom attribute heuristics below are
 		// widely applied.

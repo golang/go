@@ -234,6 +234,18 @@ var expm1 = []float64{
 	1.842068661871398836913874273e-02,
 	-8.3193870863553801814961137573e-02,
 }
+var expm1Large = []float64{
+	4.2031418113550844e+21,
+	4.0690789717473863e+33,
+	-0.9372627915981363e+00,
+	-1.0,
+	7.077694784145933e+41,
+	5.117936223839153e+12,
+	5.124137759001189e+22,
+	7.03546003972584e+11,
+	8.456921800389698e+07,
+	-1.0,
+}
 var exp2 = []float64{
 	3.1537839463286288034313104e+01,
 	2.1361549283756232296144849e+02,
@@ -447,7 +459,7 @@ var log2 = []float64{
 var modf = [][2]float64{
 	{4.0000000000000000e+00, 9.7901192488367350108546816e-01},
 	{7.0000000000000000e+00, 7.3887247457810456552351752e-01},
-	{0.0000000000000000e+00, -2.7688005719200159404635997e-01},
+	{Copysign(0, -1), -2.7688005719200159404635997e-01},
 	{-5.0000000000000000e+00, -1.060361827107492160848778e-02},
 	{9.0000000000000000e+00, 6.3629370719841737980004837e-01},
 	{2.0000000000000000e+00, 9.2637723924396464525443662e-01},
@@ -935,6 +947,11 @@ var vfexpSC = []float64{
 	2000,
 	Inf(1),
 	NaN(),
+	// smallest float64 that overflows Exp(x)
+	7.097827128933841e+02,
+	// Issue 18912
+	1.48852223e+09,
+	1.4885222e+09,
 }
 var expSC = []float64{
 	0,
@@ -942,19 +959,44 @@ var expSC = []float64{
 	Inf(1),
 	Inf(1),
 	NaN(),
+	Inf(1),
+	Inf(1),
+	Inf(1),
+}
+
+var vfexp2SC = []float64{
+	Inf(-1),
+	-2000,
+	2000,
+	Inf(1),
+	NaN(),
+	// smallest float64 that overflows Exp2(x)
+	1024,
+}
+var exp2SC = []float64{
+	0,
+	0,
+	Inf(1),
+	Inf(1),
+	NaN(),
+	Inf(1),
 }
 
 var vfexpm1SC = []float64{
 	Inf(-1),
+	-710,
 	Copysign(0, -1),
 	0,
+	710,
 	Inf(1),
 	NaN(),
 }
 var expm1SC = []float64{
 	-1,
+	-1,
 	Copysign(0, -1),
 	0,
+	Inf(1),
 	Inf(1),
 	NaN(),
 }
@@ -990,6 +1032,24 @@ var vffdimSC = [][2]float64{
 	{NaN(), 0},
 	{NaN(), Inf(1)},
 	{NaN(), NaN()},
+}
+var nan = Float64frombits(0xFFF8000000000000) // SSE2 DIVSD 0/0
+var vffdim2SC = [][2]float64{
+	{Inf(-1), Inf(-1)},
+	{Inf(-1), Inf(1)},
+	{Inf(-1), nan},
+	{Copysign(0, -1), Copysign(0, -1)},
+	{Copysign(0, -1), 0},
+	{0, Copysign(0, -1)},
+	{0, 0},
+	{Inf(1), Inf(-1)},
+	{Inf(1), Inf(1)},
+	{Inf(1), nan},
+	{nan, Inf(-1)},
+	{nan, Copysign(0, -1)},
+	{nan, 0},
+	{nan, Inf(1)},
+	{nan, nan},
 }
 var fdimSC = []float64{
 	NaN(),
@@ -1131,21 +1191,88 @@ var frexpSC = []fi{
 	{NaN(), 0},
 }
 
-var vfgammaSC = []float64{
-	Inf(-1),
-	-3,
-	Copysign(0, -1),
-	0,
-	Inf(1),
-	NaN(),
-}
-var gammaSC = []float64{
-	NaN(),
-	NaN(),
-	Inf(-1),
-	Inf(1),
-	Inf(1),
-	NaN(),
+var vfgamma = [][2]float64{
+	{Inf(1), Inf(1)},
+	{Inf(-1), NaN()},
+	{0, Inf(1)},
+	{Copysign(0, -1), Inf(-1)},
+	{NaN(), NaN()},
+	{-1, NaN()},
+	{-2, NaN()},
+	{-3, NaN()},
+	{-1e16, NaN()},
+	{-1e300, NaN()},
+	{1.7e308, Inf(1)},
+
+	// Test inputs inspired by Python test suite.
+	// Outputs computed at high precision by PARI/GP.
+	// If recomputing table entries, be careful to use
+	// high-precision (%.1000g) formatting of the float64 inputs.
+	// For example, -2.0000000000000004 is the float64 with exact value
+	// -2.00000000000000044408920985626161695, and
+	// gamma(-2.0000000000000004) = -1249999999999999.5386078562728167651513, while
+	// gamma(-2.00000000000000044408920985626161695) = -1125899906826907.2044875028130093136826.
+	// Thus the table lists -1.1258999068426235e+15 as the answer.
+	{0.5, 1.772453850905516},
+	{1.5, 0.886226925452758},
+	{2.5, 1.329340388179137},
+	{3.5, 3.3233509704478426},
+	{-0.5, -3.544907701811032},
+	{-1.5, 2.363271801207355},
+	{-2.5, -0.9453087204829419},
+	{-3.5, 0.2700882058522691},
+	{0.1, 9.51350769866873},
+	{0.01, 99.4325851191506},
+	{1e-08, 9.999999942278434e+07},
+	{1e-16, 1e+16},
+	{0.001, 999.4237724845955},
+	{1e-16, 1e+16},
+	{1e-308, 1e+308},
+	{5.6e-309, 1.7857142857142864e+308},
+	{5.5e-309, Inf(1)},
+	{1e-309, Inf(1)},
+	{1e-323, Inf(1)},
+	{5e-324, Inf(1)},
+	{-0.1, -10.686287021193193},
+	{-0.01, -100.58719796441078},
+	{-1e-08, -1.0000000057721567e+08},
+	{-1e-16, -1e+16},
+	{-0.001, -1000.5782056293586},
+	{-1e-16, -1e+16},
+	{-1e-308, -1e+308},
+	{-5.6e-309, -1.7857142857142864e+308},
+	{-5.5e-309, Inf(-1)},
+	{-1e-309, Inf(-1)},
+	{-1e-323, Inf(-1)},
+	{-5e-324, Inf(-1)},
+	{-0.9999999999999999, -9.007199254740992e+15},
+	{-1.0000000000000002, 4.5035996273704955e+15},
+	{-1.9999999999999998, 2.2517998136852485e+15},
+	{-2.0000000000000004, -1.1258999068426235e+15},
+	{-100.00000000000001, -7.540083334883109e-145},
+	{-99.99999999999999, 7.540083334884096e-145},
+	{17, 2.0922789888e+13},
+	{171, 7.257415615307999e+306},
+	{171.6, 1.5858969096672565e+308},
+	{171.624, 1.7942117599248104e+308},
+	{171.625, Inf(1)},
+	{172, Inf(1)},
+	{2000, Inf(1)},
+	{-100.5, -3.3536908198076787e-159},
+	{-160.5, -5.255546447007829e-286},
+	{-170.5, -3.3127395215386074e-308},
+	{-171.5, 1.9316265431712e-310},
+	{-176.5, -1.196e-321},
+	{-177.5, 5e-324},
+	{-178.5, Copysign(0, -1)},
+	{-179.5, 0},
+	{-201.0001, 0},
+	{-202.9999, Copysign(0, -1)},
+	{-1000.5, Copysign(0, -1)},
+	{-1.0000000003e+09, Copysign(0, -1)},
+	{-4.5035996273704955e+15, 0},
+	{-63.349078729022985, 4.177797167776188e-88},
+	{-127.45117632943295, 1.183111089623681e-214},
 }
 
 var vfhypotSC = [][2]float64{
@@ -1191,12 +1318,6 @@ var hypotSC = []float64{
 	NaN(),
 }
 
-var vfilogbSC = []float64{
-	Inf(-1),
-	0,
-	Inf(1),
-	NaN(),
-}
 var ilogbSC = []int{
 	MaxInt32,
 	MinInt32,
@@ -1334,12 +1455,14 @@ var log1pSC = []float64{
 
 var vfmodfSC = []float64{
 	Inf(-1),
+	Copysign(0, -1),
 	Inf(1),
 	NaN(),
 }
 var modfSC = [][2]float64{
 	{Inf(-1), NaN()}, // [2]float64{Copysign(0, -1), Inf(-1)},
-	{Inf(1), NaN()},  // [2]float64{0, Inf(1)},
+	{Copysign(0, -1), Copysign(0, -1)},
+	{Inf(1), NaN()}, // [2]float64{0, Inf(1)},
 	{NaN(), NaN()},
 }
 
@@ -1523,16 +1646,38 @@ var powSC = []float64{
 
 var vfpow10SC = []int{
 	MinInt32,
-	MaxInt32,
-	-325,
+	-324,
+	-323,
+	-50,
+	-22,
+	-1,
+	0,
+	1,
+	22,
+	50,
+	100,
+	200,
+	308,
 	309,
+	MaxInt32,
 }
 
 var pow10SC = []float64{
-	0,      // pow10(MinInt32)
-	Inf(1), // pow10(MaxInt32)
-	0,      // pow10(-325)
-	Inf(1), // pow10(309)
+	0,        // pow10(MinInt32)
+	0,        // pow10(-324)
+	1.0e-323, // pow10(-323)
+	1.0e-50,  // pow10(-50)
+	1.0e-22,  // pow10(-22)
+	1.0e-1,   // pow10(-1)
+	1.0e0,    // pow10(0)
+	1.0e1,    // pow10(1)
+	1.0e22,   // pow10(22)
+	1.0e50,   // pow10(50)
+	1.0e100,  // pow10(100)
+	1.0e200,  // pow10(200)
+	1.0e308,  // pow10(308)
+	Inf(1),   // pow10(309)
+	Inf(1),   // pow10(MaxInt32)
 }
 
 var vfsignbitSC = []float64{
@@ -1587,6 +1732,7 @@ var vfsqrtSC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	Float64frombits(2), // subnormal; see https://golang.org/issue/13013
 }
 var sqrtSC = []float64{
 	NaN(),
@@ -1595,6 +1741,7 @@ var sqrtSC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	3.1434555694052576e-162,
 }
 
 var vftanhSC = []float64{
@@ -1617,11 +1764,13 @@ var vfy0SC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	-1,
 }
 var y0SC = []float64{
 	NaN(),
 	Inf(-1),
 	0,
+	NaN(),
 	NaN(),
 }
 var y1SC = []float64{
@@ -1629,17 +1778,20 @@ var y1SC = []float64{
 	Inf(-1),
 	0,
 	NaN(),
+	NaN(),
 }
 var y2SC = []float64{
 	NaN(),
 	Inf(-1),
 	0,
 	NaN(),
+	NaN(),
 }
 var yM3SC = []float64{
 	NaN(),
 	Inf(1),
 	0,
+	NaN(),
 	NaN(),
 }
 
@@ -1703,20 +1855,27 @@ var logbBC = []float64{
 }
 
 func tolerance(a, b, e float64) bool {
+	// Multiplying by e here can underflow denormal values to zero.
+	// Check a==b so that at least if a and b are small and identical
+	// we say they match.
+	if a == b {
+		return true
+	}
 	d := a - b
 	if d < 0 {
 		d = -d
 	}
 
-	if a != 0 {
-		e = e * a
+	// note: b is correct (expected) value, a is actual value.
+	// make error tolerance a fraction of b, not a.
+	if b != 0 {
+		e = e * b
 		if e < 0 {
 			e = -e
 		}
 	}
 	return d < e
 }
-func kindaclose(a, b float64) bool { return tolerance(a, b, 1e-8) }
 func close(a, b float64) bool      { return tolerance(a, b, 1e-14) }
 func veryclose(a, b float64) bool  { return tolerance(a, b, 4e-16) }
 func soclose(a, b, e float64) bool { return tolerance(a, b, e) }
@@ -1941,7 +2100,7 @@ func TestExp(t *testing.T) {
 
 func testExp(t *testing.T, Exp func(float64) float64, name string) {
 	for i := 0; i < len(vf); i++ {
-		if f := Exp(vf[i]); !close(exp[i], f) {
+		if f := Exp(vf[i]); !veryclose(exp[i], f) {
 			t.Errorf("%s(%g) = %g, want %g", name, vf[i], f, exp[i])
 		}
 	}
@@ -1957,6 +2116,12 @@ func TestExpm1(t *testing.T) {
 		a := vf[i] / 100
 		if f := Expm1(a); !veryclose(expm1[i], f) {
 			t.Errorf("Expm1(%g) = %g, want %g", a, f, expm1[i])
+		}
+	}
+	for i := 0; i < len(vf); i++ {
+		a := vf[i] * 10
+		if f := Expm1(a); !close(expm1Large[i], f) {
+			t.Errorf("Expm1(%g) = %g, want %g", a, f, expm1Large[i])
 		}
 	}
 	for i := 0; i < len(vfexpm1SC); i++ {
@@ -1977,8 +2142,8 @@ func testExp2(t *testing.T, Exp2 func(float64) float64, name string) {
 			t.Errorf("%s(%g) = %g, want %g", name, vf[i], f, exp2[i])
 		}
 	}
-	for i := 0; i < len(vfexpSC); i++ {
-		if f := Exp2(vfexpSC[i]); !alike(expSC[i], f) {
+	for i := 0; i < len(vfexp2SC); i++ {
+		if f := Exp2(vfexp2SC[i]); !alike(exp2SC[i], f) {
 			t.Errorf("%s(%g) = %g, want %g", name, vfexpSC[i], f, expSC[i])
 		}
 	}
@@ -2015,6 +2180,11 @@ func TestDim(t *testing.T) {
 			t.Errorf("Dim(%g, %g) = %g, want %g", vffdimSC[i][0], vffdimSC[i][1], f, fdimSC[i])
 		}
 	}
+	for i := 0; i < len(vffdim2SC); i++ {
+		if f := Dim(vffdim2SC[i][0], vffdim2SC[i][1]); !alike(fdimSC[i], f) {
+			t.Errorf("Dim(%g, %g) = %g, want %g", vffdim2SC[i][0], vffdim2SC[i][1], f, fdimSC[i])
+		}
+	}
 }
 
 func TestFloor(t *testing.T) {
@@ -2041,6 +2211,11 @@ func TestMax(t *testing.T) {
 			t.Errorf("Max(%g, %g) = %g, want %g", vffdimSC[i][0], vffdimSC[i][1], f, fmaxSC[i])
 		}
 	}
+	for i := 0; i < len(vffdim2SC); i++ {
+		if f := Max(vffdim2SC[i][0], vffdim2SC[i][1]); !alike(fmaxSC[i], f) {
+			t.Errorf("Max(%g, %g) = %g, want %g", vffdim2SC[i][0], vffdim2SC[i][1], f, fmaxSC[i])
+		}
+	}
 }
 
 func TestMin(t *testing.T) {
@@ -2052,6 +2227,11 @@ func TestMin(t *testing.T) {
 	for i := 0; i < len(vffdimSC); i++ {
 		if f := Min(vffdimSC[i][0], vffdimSC[i][1]); !alike(fminSC[i], f) {
 			t.Errorf("Min(%g, %g) = %g, want %g", vffdimSC[i][0], vffdimSC[i][1], f, fminSC[i])
+		}
+	}
+	for i := 0; i < len(vffdim2SC); i++ {
+		if f := Min(vffdim2SC[i][0], vffdim2SC[i][1]); !alike(fminSC[i], f) {
+			t.Errorf("Min(%g, %g) = %g, want %g", vffdim2SC[i][0], vffdim2SC[i][1], f, fminSC[i])
 		}
 	}
 }
@@ -2093,9 +2273,18 @@ func TestGamma(t *testing.T) {
 			t.Errorf("Gamma(%g) = %g, want %g", vf[i], f, gamma[i])
 		}
 	}
-	for i := 0; i < len(vfgammaSC); i++ {
-		if f := Gamma(vfgammaSC[i]); !alike(gammaSC[i], f) {
-			t.Errorf("Gamma(%g) = %g, want %g", vfgammaSC[i], f, gammaSC[i])
+	for _, g := range vfgamma {
+		f := Gamma(g[0])
+		var ok bool
+		if IsNaN(g[1]) || IsInf(g[1], 0) || g[1] == 0 || f == 0 {
+			ok = alike(g[1], f)
+		} else if g[0] > -50 && g[0] <= 171 {
+			ok = veryclose(g[1], f)
+		} else {
+			ok = close(g[1], f)
+		}
+		if !ok {
+			t.Errorf("Gamma(%g) = %g, want %g", g[0], f, g[1])
 		}
 	}
 }
@@ -2554,6 +2743,9 @@ func TestYn(t *testing.T) {
 			t.Errorf("Yn(-3, %g) = %g, want %g", vfy0SC[i], f, yM3SC[i])
 		}
 	}
+	if f := Yn(0, 0); !alike(Inf(-1), f) {
+		t.Errorf("Yn(0, 0) = %g, want %g", f, Inf(-1))
+	}
 }
 
 // Check that math functions of high angle values
@@ -2606,7 +2798,7 @@ func TestLargeTan(t *testing.T) {
 
 // Check that math constants are accepted by compiler
 // and have right value (assumes strconv.ParseFloat works).
-// http://golang.org/issue/201
+// https://golang.org/issue/201
 
 type floatTest struct {
 	val  interface{}
@@ -2632,361 +2824,544 @@ func TestFloatMinMax(t *testing.T) {
 
 // Benchmarks
 
+// Global exported variables are used to store the
+// return values of functions measured in the benchmarks.
+// Storing the results in these variables prevents the compiler
+// from completely optimizing the benchmarked functions away.
+var (
+	GlobalI int
+	GlobalB bool
+	GlobalF float64
+)
+
 func BenchmarkAcos(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Acos(.5)
+		x = Acos(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkAcosh(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Acosh(1.5)
+		x = Acosh(1.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkAsin(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Asin(.5)
+		x = Asin(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkAsinh(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Asinh(.5)
+		x = Asinh(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkAtan(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Atan(.5)
+		x = Atan(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkAtanh(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Atanh(.5)
+		x = Atanh(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkAtan2(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Atan2(.5, 1)
+		x = Atan2(.5, 1)
 	}
+	GlobalF = x
 }
 
 func BenchmarkCbrt(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Cbrt(10)
+		x = Cbrt(10)
 	}
+	GlobalF = x
 }
 
 func BenchmarkCeil(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Ceil(.5)
+		x = Ceil(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkCopysign(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Copysign(.5, -1)
+		x = Copysign(.5, -1)
 	}
+	GlobalF = x
 }
 
 func BenchmarkCos(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Cos(.5)
+		x = Cos(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkCosh(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Cosh(2.5)
+		x = Cosh(2.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkErf(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Erf(.5)
+		x = Erf(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkErfc(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Erfc(.5)
+		x = Erfc(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkExp(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Exp(.5)
+		x = Exp(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkExpGo(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		ExpGo(.5)
+		x = ExpGo(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkExpm1(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Expm1(.5)
+		x = Expm1(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkExp2(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Exp2(.5)
+		x = Exp2(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkExp2Go(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Exp2Go(.5)
+		x = Exp2Go(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkAbs(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Abs(.5)
+		x = Abs(.5)
 	}
+	GlobalF = x
+
 }
 
 func BenchmarkDim(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Dim(10, 3)
+		x = Dim(10, 3)
 	}
+	GlobalF = x
 }
 
 func BenchmarkFloor(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Floor(.5)
+		x = Floor(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkMax(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Max(10, 3)
+		x = Max(10, 3)
 	}
+	GlobalF = x
 }
 
 func BenchmarkMin(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Min(10, 3)
+		x = Min(10, 3)
 	}
+	GlobalF = x
 }
 
 func BenchmarkMod(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Mod(10, 3)
+		x = Mod(10, 3)
 	}
+	GlobalF = x
 }
 
 func BenchmarkFrexp(b *testing.B) {
+	x := 0.0
+	y := 0
 	for i := 0; i < b.N; i++ {
-		Frexp(8)
+		x, y = Frexp(8)
 	}
+	GlobalF = x
+	GlobalI = y
 }
 
 func BenchmarkGamma(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Gamma(2.5)
+		x = Gamma(2.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkHypot(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Hypot(3, 4)
+		x = Hypot(3, 4)
 	}
+	GlobalF = x
 }
 
 func BenchmarkHypotGo(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		HypotGo(3, 4)
+		x = HypotGo(3, 4)
 	}
+	GlobalF = x
 }
 
 func BenchmarkIlogb(b *testing.B) {
+	x := 0
 	for i := 0; i < b.N; i++ {
-		Ilogb(.5)
+		x = Ilogb(.5)
 	}
+	GlobalI = x
 }
 
 func BenchmarkJ0(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		J0(2.5)
+		x = J0(2.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkJ1(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		J1(2.5)
+		x = J1(2.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkJn(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Jn(2, 2.5)
+		x = Jn(2, 2.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkLdexp(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Ldexp(.5, 2)
+		x = Ldexp(.5, 2)
 	}
+	GlobalF = x
 }
 
 func BenchmarkLgamma(b *testing.B) {
+	x := 0.0
+	y := 0
 	for i := 0; i < b.N; i++ {
-		Lgamma(2.5)
+		x, y = Lgamma(2.5)
 	}
+	GlobalF = x
+	GlobalI = y
 }
 
 func BenchmarkLog(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Log(.5)
+		x = Log(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkLogb(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Logb(.5)
+		x = Logb(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkLog1p(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Log1p(.5)
+		x = Log1p(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkLog10(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Log10(.5)
+		x = Log10(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkLog2(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Log2(.5)
+		x = Log2(.5)
 	}
+	GlobalF += x
 }
 
 func BenchmarkModf(b *testing.B) {
+	x := 0.0
+	y := 0.0
 	for i := 0; i < b.N; i++ {
-		Modf(1.5)
+		x, y = Modf(1.5)
 	}
+	GlobalF += x
+	GlobalF += y
 }
 
 func BenchmarkNextafter32(b *testing.B) {
+	x := float32(0.0)
 	for i := 0; i < b.N; i++ {
-		Nextafter32(.5, 1)
+		x = Nextafter32(.5, 1)
 	}
+	GlobalF = float64(x)
 }
 
 func BenchmarkNextafter64(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Nextafter(.5, 1)
+		x = Nextafter(.5, 1)
 	}
+	GlobalF = x
 }
 
 func BenchmarkPowInt(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Pow(2, 2)
+		x = Pow(2, 2)
 	}
+	GlobalF = x
 }
 
 func BenchmarkPowFrac(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Pow(2.5, 1.5)
+		x = Pow(2.5, 1.5)
 	}
+	GlobalF = x
 }
+
+var pow10pos = int(300)
 
 func BenchmarkPow10Pos(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Pow10(300)
+		x = Pow10(pow10pos)
 	}
+	GlobalF = x
 }
 
+var pow10neg = int(-300)
+
 func BenchmarkPow10Neg(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Pow10(-300)
+		x = Pow10(pow10neg)
 	}
+	GlobalF = x
 }
 
 func BenchmarkRemainder(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Remainder(10, 3)
+		x = Remainder(10, 3)
 	}
+	GlobalF = x
 }
 
 func BenchmarkSignbit(b *testing.B) {
+	x := false
 	for i := 0; i < b.N; i++ {
-		Signbit(2.5)
+		x = Signbit(2.5)
 	}
+	GlobalB = x
 }
 
 func BenchmarkSin(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Sin(.5)
+		x = Sin(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkSincos(b *testing.B) {
+	x := 0.0
+	y := 0.0
 	for i := 0; i < b.N; i++ {
-		Sincos(.5)
+		x, y = Sincos(.5)
 	}
+	GlobalF += x
+	GlobalF += y
 }
 
 func BenchmarkSinh(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Sinh(2.5)
+		x = Sinh(2.5)
 	}
+	GlobalF = x
 }
 
-func BenchmarkSqrt(b *testing.B) {
+func BenchmarkSqrtIndirect(b *testing.B) {
+	x, y := 0.0, 10.0
+	f := Sqrt
 	for i := 0; i < b.N; i++ {
-		Sqrt(10)
+		x += f(y)
 	}
+	GlobalF = x
 }
 
-func BenchmarkSqrtGo(b *testing.B) {
+func BenchmarkSqrtLatency(b *testing.B) {
+	x := 10.0
 	for i := 0; i < b.N; i++ {
-		SqrtGo(10)
+		x = Sqrt(x)
 	}
+	GlobalF = x
+}
+
+func BenchmarkSqrtIndirectLatency(b *testing.B) {
+	x := 10.0
+	f := Sqrt
+	for i := 0; i < b.N; i++ {
+		x = f(x)
+	}
+	GlobalF = x
+}
+
+func BenchmarkSqrtGoLatency(b *testing.B) {
+	x := 10.0
+	for i := 0; i < b.N; i++ {
+		x = SqrtGo(x)
+	}
+	GlobalF = x
+}
+
+func isPrime(i int) bool {
+	// Yes, this is a dumb way to write this code,
+	// but calling Sqrt repeatedly in this way demonstrates
+	// the benefit of using a direct SQRT instruction on systems
+	// that have one, whereas the obvious loop seems not to
+	// demonstrate such a benefit.
+	for j := 2; float64(j) <= Sqrt(float64(i)); j++ {
+		if i%j == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func BenchmarkSqrtPrime(b *testing.B) {
+	x := false
+	for i := 0; i < b.N; i++ {
+		x = isPrime(100003)
+	}
+	GlobalB = x
 }
 
 func BenchmarkTan(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Tan(.5)
+		x = Tan(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkTanh(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Tanh(2.5)
+		x = Tanh(2.5)
 	}
+	GlobalF = x
 }
 func BenchmarkTrunc(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Trunc(.5)
+		x = Trunc(.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkY0(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Y0(2.5)
+		x = Y0(2.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkY1(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Y1(2.5)
+		x = Y1(2.5)
 	}
+	GlobalF = x
 }
 
 func BenchmarkYn(b *testing.B) {
+	x := 0.0
 	for i := 0; i < b.N; i++ {
-		Yn(2, 2.5)
+		x = Yn(2, 2.5)
 	}
+	GlobalF = x
 }

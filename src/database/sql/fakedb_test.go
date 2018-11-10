@@ -5,11 +5,13 @@
 package sql
 
 import (
+	"context"
 	"database/sql/driver"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,9 +34,18 @@ var _ = log.Printf
 //     where types are: "string", [u]int{8,16,32,64}, "bool"
 //   INSERT|<tablename>|col=val,col2=val2,col3=?
 //   SELECT|<tablename>|projectcol1,projectcol2|filtercol=?,filtercol2=?
+//   SELECT|<tablename>|projectcol1,projectcol2|filtercol=?param1,filtercol2=?param2
+//
+// Any of these can be preceded by PANIC|<method>|, to cause the
+// named method on fakeStmt to panic.
+//
+// Any of these can be proceeded by WAIT|<duration>|, to cause the
+// named method on fakeStmt to sleep for the specified duration.
+//
+// Multiple of these can be combined when separated with a semicolon.
 //
 // When opening a fakeDriver's database, it starts empty with no
-// tables.  All tables and data are stored in memory only.
+// tables. All tables and data are stored in memory only.
 type fakeDriver struct {
 	mu         sync.Mutex // guards 3 following fields
 	openCount  int        // conn opens
@@ -47,10 +58,10 @@ type fakeDriver struct {
 type fakeDB struct {
 	name string
 
-	mu      sync.Mutex
-	free    []*fakeConn
-	tables  map[string]*table
-	badConn bool
+	mu       sync.Mutex
+	tables   map[string]*table
+	badConn  bool
+	allowAny bool
 }
 
 type table struct {
@@ -73,10 +84,9 @@ type row struct {
 	cols []interface{} // must be same size as its table colname + coltype
 }
 
-func (r *row) clone() *row {
-	nrow := &row{cols: make([]interface{}, len(r.cols))}
-	copy(nrow.cols, r.cols)
-	return nrow
+type memToucher interface {
+	// touchMem reads & writes some memory, to help find data races.
+	touchMem()
 }
 
 type fakeConn struct {
@@ -84,12 +94,23 @@ type fakeConn struct {
 
 	currTx *fakeTx
 
+	// Every operation writes to line to enable the race detector
+	// check for data races.
+	line int64
+
 	// Stats for tests:
 	mu          sync.Mutex
 	stmtsMade   int
 	stmtsClosed int
 	numPrepare  int
-	bad         bool
+
+	// bad connection tests; see isBad()
+	bad       bool
+	stickyBad bool
+}
+
+func (c *fakeConn) touchMem() {
+	c.line++
 }
 
 func (c *fakeConn) incrStat(v *int) {
@@ -102,12 +123,23 @@ type fakeTx struct {
 	c *fakeConn
 }
 
+type boundCol struct {
+	Column      string
+	Placeholder string
+	Ordinal     int
+}
+
 type fakeStmt struct {
+	memToucher
 	c *fakeConn
 	q string // just for debugging
 
 	cmd   string
 	table string
+	panic string
+	wait  time.Duration
+
+	next *fakeStmt // used for returning multiple results.
 
 	closed bool
 
@@ -116,7 +148,7 @@ type fakeStmt struct {
 	colValue     []interface{} // used by INSERT (mix of strings and "?" for bound params)
 	placeholders int           // used by INSERT/SELECT: number of ? params
 
-	whereCol []string // used by SELECT (all placeholders)
+	whereCol []boundCol // used by SELECT (all placeholders)
 
 	placeholderConverter []driver.ValueConverter // used by INSERT
 }
@@ -150,12 +182,32 @@ func TestDrivers(t *testing.T) {
 	}
 }
 
+// hook to simulate connection failures
+var hookOpenErr struct {
+	sync.Mutex
+	fn func() error
+}
+
+func setHookOpenErr(fn func() error) {
+	hookOpenErr.Lock()
+	defer hookOpenErr.Unlock()
+	hookOpenErr.fn = fn
+}
+
 // Supports dsn forms:
 //    <dbname>
 //    <dbname>;<opts>  (only currently supported option is `badConn`,
 //                      which causes driver.ErrBadConn to be returned on
 //                      every other conn.Begin())
 func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
+	hookOpenErr.Lock()
+	fn := hookOpenErr.fn
+	hookOpenErr.Unlock()
+	if fn != nil {
+		if err := fn(); err != nil {
+			return nil, err
+		}
+	}
 	parts := strings.Split(dsn, ";")
 	if len(parts) < 1 {
 		return nil, errors.New("fakedb: no database name")
@@ -243,13 +295,15 @@ func (db *fakeDB) columnType(table, column string) (typ string, ok bool) {
 }
 
 func (c *fakeConn) isBad() bool {
-	// if not simulating bad conn, do nothing
-	if !c.bad {
+	if c.stickyBad {
+		return true
+	} else if c.bad {
+		// alternate between bad conn and not bad conn
+		c.db.badConn = !c.db.badConn
+		return c.db.badConn
+	} else {
 		return false
 	}
-	// alternate between bad conn and not bad conn
-	c.db.badConn = !c.db.badConn
-	return c.db.badConn
 }
 
 func (c *fakeConn) Begin() (driver.Tx, error) {
@@ -259,6 +313,7 @@ func (c *fakeConn) Begin() (driver.Tx, error) {
 	if c.currTx != nil {
 		return nil, errors.New("already in a transaction")
 	}
+	c.touchMem()
 	c.currTx = &fakeTx{c: c}
 	return c.currTx, nil
 }
@@ -300,6 +355,7 @@ func (c *fakeConn) Close() (err error) {
 			drv.mu.Unlock()
 		}
 	}()
+	c.touchMem()
 	if c.currTx != nil {
 		return errors.New("can't close fakeConn; in a Transaction")
 	}
@@ -313,23 +369,30 @@ func (c *fakeConn) Close() (err error) {
 	return nil
 }
 
-func checkSubsetTypes(args []driver.Value) error {
-	for n, arg := range args {
-		switch arg.(type) {
+func checkSubsetTypes(allowAny bool, args []driver.NamedValue) error {
+	for _, arg := range args {
+		switch arg.Value.(type) {
 		case int64, float64, bool, nil, []byte, string, time.Time:
 		default:
-			return fmt.Errorf("fakedb_test: invalid argument #%d: %v, type %T", n+1, arg, arg)
+			if !allowAny {
+				return fmt.Errorf("fakedb_test: invalid argument ordinal %[1]d: %[2]v, type %[2]T", arg.Ordinal, arg.Value)
+			}
 		}
 	}
 	return nil
 }
 
 func (c *fakeConn) Exec(query string, args []driver.Value) (driver.Result, error) {
+	// Ensure that ExecContext is called if available.
+	panic("ExecContext was not called.")
+}
+
+func (c *fakeConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 	// This is an optional interface, but it's implemented here
 	// just to check that all the args are of the proper types.
 	// ErrSkip is returned so the caller acts as if we didn't
 	// implement this at all.
-	err := checkSubsetTypes(args)
+	err := checkSubsetTypes(c.db.allowAny, args)
 	if err != nil {
 		return nil, err
 	}
@@ -337,11 +400,16 @@ func (c *fakeConn) Exec(query string, args []driver.Value) (driver.Result, error
 }
 
 func (c *fakeConn) Query(query string, args []driver.Value) (driver.Rows, error) {
+	// Ensure that ExecContext is called if available.
+	panic("QueryContext was not called.")
+}
+
+func (c *fakeConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	// This is an optional interface, but it's implemented here
 	// just to check that all the args are of the proper types.
 	// ErrSkip is returned so the caller acts as if we didn't
 	// implement this at all.
-	err := checkSubsetTypes(args)
+	err := checkSubsetTypes(c.db.allowAny, args)
 	if err != nil {
 		return nil, err
 	}
@@ -355,12 +423,13 @@ func errf(msg string, args ...interface{}) error {
 // parts are table|selectCol1,selectCol2|whereCol=?,whereCol2=?
 // (note that where columns must always contain ? marks,
 //  just a limitation for fakedb)
-func (c *fakeConn) prepareSelect(stmt *fakeStmt, parts []string) (driver.Stmt, error) {
+func (c *fakeConn) prepareSelect(stmt *fakeStmt, parts []string) (*fakeStmt, error) {
 	if len(parts) != 3 {
 		stmt.Close()
 		return nil, errf("invalid SELECT syntax with %d parts; want 3", len(parts))
 	}
 	stmt.table = parts[0]
+
 	stmt.colName = strings.Split(parts[1], ",")
 	for n, colspec := range strings.Split(parts[2], ",") {
 		if colspec == "" {
@@ -377,19 +446,19 @@ func (c *fakeConn) prepareSelect(stmt *fakeStmt, parts []string) (driver.Stmt, e
 			stmt.Close()
 			return nil, errf("SELECT on table %q references non-existent column %q", stmt.table, column)
 		}
-		if value != "?" {
+		if !strings.HasPrefix(value, "?") {
 			stmt.Close()
 			return nil, errf("SELECT on table %q has pre-bound value for where column %q; need a question mark",
 				stmt.table, column)
 		}
-		stmt.whereCol = append(stmt.whereCol, column)
 		stmt.placeholders++
+		stmt.whereCol = append(stmt.whereCol, boundCol{Column: column, Placeholder: value, Ordinal: stmt.placeholders})
 	}
 	return stmt, nil
 }
 
 // parts are table|col=type,col2=type2
-func (c *fakeConn) prepareCreate(stmt *fakeStmt, parts []string) (driver.Stmt, error) {
+func (c *fakeConn) prepareCreate(stmt *fakeStmt, parts []string) (*fakeStmt, error) {
 	if len(parts) != 2 {
 		stmt.Close()
 		return nil, errf("invalid CREATE syntax with %d parts; want 2", len(parts))
@@ -408,7 +477,7 @@ func (c *fakeConn) prepareCreate(stmt *fakeStmt, parts []string) (driver.Stmt, e
 }
 
 // parts are table|col=?,col2=val
-func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (driver.Stmt, error) {
+func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (*fakeStmt, error) {
 	if len(parts) != 2 {
 		stmt.Close()
 		return nil, errf("invalid INSERT syntax with %d parts; want 2", len(parts))
@@ -428,7 +497,7 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (driver.Stmt, e
 		}
 		stmt.colName = append(stmt.colName, column)
 
-		if value != "?" {
+		if !strings.HasPrefix(value, "?") {
 			var subsetVal interface{}
 			// Convert to driver subset type
 			switch ctype {
@@ -451,7 +520,7 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (driver.Stmt, e
 		} else {
 			stmt.placeholders++
 			stmt.placeholderConverter = append(stmt.placeholderConverter, converterForType(ctype))
-			stmt.colValue = append(stmt.colValue, "?")
+			stmt.colValue = append(stmt.colValue, value)
 		}
 	}
 	return stmt, nil
@@ -461,44 +530,92 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (driver.Stmt, e
 var hookPrepareBadConn func() bool
 
 func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
+	panic("use PrepareContext")
+}
+
+func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
 	c.numPrepare++
 	if c.db == nil {
 		panic("nil c.db; conn = " + fmt.Sprintf("%#v", c))
 	}
 
-	if hookPrepareBadConn != nil && hookPrepareBadConn() {
+	if c.stickyBad || (hookPrepareBadConn != nil && hookPrepareBadConn()) {
 		return nil, driver.ErrBadConn
 	}
 
-	parts := strings.Split(query, "|")
-	if len(parts) < 1 {
-		return nil, errf("empty query")
+	c.touchMem()
+	var firstStmt, prev *fakeStmt
+	for _, query := range strings.Split(query, ";") {
+		parts := strings.Split(query, "|")
+		if len(parts) < 1 {
+			return nil, errf("empty query")
+		}
+		stmt := &fakeStmt{q: query, c: c, memToucher: c}
+		if firstStmt == nil {
+			firstStmt = stmt
+		}
+		if len(parts) >= 3 {
+			switch parts[0] {
+			case "PANIC":
+				stmt.panic = parts[1]
+				parts = parts[2:]
+			case "WAIT":
+				wait, err := time.ParseDuration(parts[1])
+				if err != nil {
+					return nil, errf("expected section after WAIT to be a duration, got %q %v", parts[1], err)
+				}
+				parts = parts[2:]
+				stmt.wait = wait
+			}
+		}
+		cmd := parts[0]
+		stmt.cmd = cmd
+		parts = parts[1:]
+
+		if stmt.wait > 0 {
+			wait := time.NewTimer(stmt.wait)
+			select {
+			case <-wait.C:
+			case <-ctx.Done():
+				wait.Stop()
+				return nil, ctx.Err()
+			}
+		}
+
+		c.incrStat(&c.stmtsMade)
+		var err error
+		switch cmd {
+		case "WIPE":
+			// Nothing
+		case "SELECT":
+			stmt, err = c.prepareSelect(stmt, parts)
+		case "CREATE":
+			stmt, err = c.prepareCreate(stmt, parts)
+		case "INSERT":
+			stmt, err = c.prepareInsert(stmt, parts)
+		case "NOSERT":
+			// Do all the prep-work like for an INSERT but don't actually insert the row.
+			// Used for some of the concurrent tests.
+			stmt, err = c.prepareInsert(stmt, parts)
+		default:
+			stmt.Close()
+			return nil, errf("unsupported command type %q", cmd)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if prev != nil {
+			prev.next = stmt
+		}
+		prev = stmt
 	}
-	cmd := parts[0]
-	parts = parts[1:]
-	stmt := &fakeStmt{q: query, c: c, cmd: cmd}
-	c.incrStat(&c.stmtsMade)
-	switch cmd {
-	case "WIPE":
-		// Nothing
-	case "SELECT":
-		return c.prepareSelect(stmt, parts)
-	case "CREATE":
-		return c.prepareCreate(stmt, parts)
-	case "INSERT":
-		return c.prepareInsert(stmt, parts)
-	case "NOSERT":
-		// Do all the prep-work like for an INSERT but don't actually insert the row.
-		// Used for some of the concurrent tests.
-		return c.prepareInsert(stmt, parts)
-	default:
-		stmt.Close()
-		return nil, errf("unsupported command type %q", cmd)
-	}
-	return stmt, nil
+	return firstStmt, nil
 }
 
 func (s *fakeStmt) ColumnConverter(idx int) driver.ValueConverter {
+	if s.panic == "ColumnConverter" {
+		panic(s.panic)
+	}
 	if len(s.placeholderConverter) == 0 {
 		return driver.DefaultParameterConverter
 	}
@@ -506,15 +623,22 @@ func (s *fakeStmt) ColumnConverter(idx int) driver.ValueConverter {
 }
 
 func (s *fakeStmt) Close() error {
+	if s.panic == "Close" {
+		panic(s.panic)
+	}
 	if s.c == nil {
 		panic("nil conn in fakeStmt.Close")
 	}
 	if s.c.db == nil {
 		panic("in fakeStmt.Close, conn's db is nil (already closed)")
 	}
+	s.touchMem()
 	if !s.closed {
 		s.c.incrStat(&s.c.stmtsClosed)
 		s.closed = true
+	}
+	if s.next != nil {
+		s.next.Close()
 	}
 	return nil
 }
@@ -525,17 +649,34 @@ var errClosed = errors.New("fakedb: statement has been closed")
 var hookExecBadConn func() bool
 
 func (s *fakeStmt) Exec(args []driver.Value) (driver.Result, error) {
+	panic("Using ExecContext")
+}
+func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+	if s.panic == "Exec" {
+		panic(s.panic)
+	}
 	if s.closed {
 		return nil, errClosed
 	}
 
-	if hookExecBadConn != nil && hookExecBadConn() {
+	if s.c.stickyBad || (hookExecBadConn != nil && hookExecBadConn()) {
 		return nil, driver.ErrBadConn
 	}
 
-	err := checkSubsetTypes(args)
+	err := checkSubsetTypes(s.c.db.allowAny, args)
 	if err != nil {
 		return nil, err
+	}
+	s.touchMem()
+
+	if s.wait > 0 {
+		time.Sleep(s.wait)
+	}
+
+	select {
+	default:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 
 	db := s.c.db
@@ -562,7 +703,7 @@ func (s *fakeStmt) Exec(args []driver.Value) (driver.Result, error) {
 // When doInsert is true, add the row to the table.
 // When doInsert is false do prep-work and error checking, but don't
 // actually add the row to the table.
-func (s *fakeStmt) execInsert(args []driver.Value, doInsert bool) (driver.Result, error) {
+func (s *fakeStmt) execInsert(args []driver.NamedValue, doInsert bool) (driver.Result, error) {
 	db := s.c.db
 	if len(args) != s.placeholders {
 		panic("error in pkg db; should only get here if size is correct")
@@ -588,8 +729,18 @@ func (s *fakeStmt) execInsert(args []driver.Value, doInsert bool) (driver.Result
 			return nil, fmt.Errorf("fakedb: column %q doesn't exist or dropped since prepared statement was created", colname)
 		}
 		var val interface{}
-		if strvalue, ok := s.colValue[n].(string); ok && strvalue == "?" {
-			val = args[argPos]
+		if strvalue, ok := s.colValue[n].(string); ok && strings.HasPrefix(strvalue, "?") {
+			if strvalue == "?" {
+				val = args[argPos].Value
+			} else {
+				// Assign value from argument placeholder name.
+				for _, a := range args {
+					if a.Name == strvalue[1:] {
+						val = a.Value
+						break
+					}
+				}
+			}
 			argPos++
 		} else {
 			val = s.colValue[n]
@@ -609,106 +760,171 @@ func (s *fakeStmt) execInsert(args []driver.Value, doInsert bool) (driver.Result
 var hookQueryBadConn func() bool
 
 func (s *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
+	panic("Use QueryContext")
+}
+
+func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+	if s.panic == "Query" {
+		panic(s.panic)
+	}
 	if s.closed {
 		return nil, errClosed
 	}
 
-	if hookQueryBadConn != nil && hookQueryBadConn() {
+	if s.c.stickyBad || (hookQueryBadConn != nil && hookQueryBadConn()) {
 		return nil, driver.ErrBadConn
 	}
 
-	err := checkSubsetTypes(args)
+	err := checkSubsetTypes(s.c.db.allowAny, args)
 	if err != nil {
 		return nil, err
 	}
 
+	s.touchMem()
 	db := s.c.db
 	if len(args) != s.placeholders {
 		panic("error in pkg db; should only get here if size is correct")
 	}
 
-	db.mu.Lock()
-	t, ok := db.table(s.table)
-	db.mu.Unlock()
-	if !ok {
-		return nil, fmt.Errorf("fakedb: table %q doesn't exist", s.table)
-	}
+	setMRows := make([][]*row, 0, 1)
+	setColumns := make([][]string, 0, 1)
+	setColType := make([][]string, 0, 1)
 
-	if s.table == "magicquery" {
-		if len(s.whereCol) == 2 && s.whereCol[0] == "op" && s.whereCol[1] == "millis" {
-			if args[0] == "sleep" {
-				time.Sleep(time.Duration(args[1].(int64)) * time.Millisecond)
+	for {
+		db.mu.Lock()
+		t, ok := db.table(s.table)
+		db.mu.Unlock()
+		if !ok {
+			return nil, fmt.Errorf("fakedb: table %q doesn't exist", s.table)
+		}
+
+		if s.table == "magicquery" {
+			if len(s.whereCol) == 2 && s.whereCol[0].Column == "op" && s.whereCol[1].Column == "millis" {
+				if args[0].Value == "sleep" {
+					time.Sleep(time.Duration(args[1].Value.(int64)) * time.Millisecond)
+				}
 			}
 		}
-	}
 
-	t.mu.Lock()
-	defer t.mu.Unlock()
+		t.mu.Lock()
 
-	colIdx := make(map[string]int) // select column name -> column index in table
-	for _, name := range s.colName {
-		idx := t.columnIndex(name)
-		if idx == -1 {
-			return nil, fmt.Errorf("fakedb: unknown column name %q", name)
-		}
-		colIdx[name] = idx
-	}
-
-	mrows := []*row{}
-rows:
-	for _, trow := range t.rows {
-		// Process the where clause, skipping non-match rows. This is lazy
-		// and just uses fmt.Sprintf("%v") to test equality.  Good enough
-		// for test code.
-		for widx, wcol := range s.whereCol {
-			idx := t.columnIndex(wcol)
+		colIdx := make(map[string]int) // select column name -> column index in table
+		for _, name := range s.colName {
+			idx := t.columnIndex(name)
 			if idx == -1 {
-				return nil, fmt.Errorf("db: invalid where clause column %q", wcol)
+				t.mu.Unlock()
+				return nil, fmt.Errorf("fakedb: unknown column name %q", name)
 			}
-			tcol := trow.cols[idx]
-			if bs, ok := tcol.([]byte); ok {
-				// lazy hack to avoid sprintf %v on a []byte
-				tcol = string(bs)
-			}
-			if fmt.Sprintf("%v", tcol) != fmt.Sprintf("%v", args[widx]) {
-				continue rows
-			}
+			colIdx[name] = idx
 		}
-		mrow := &row{cols: make([]interface{}, len(s.colName))}
-		for seli, name := range s.colName {
-			mrow.cols[seli] = trow.cols[colIdx[name]]
+
+		mrows := []*row{}
+	rows:
+		for _, trow := range t.rows {
+			// Process the where clause, skipping non-match rows. This is lazy
+			// and just uses fmt.Sprintf("%v") to test equality. Good enough
+			// for test code.
+			for _, wcol := range s.whereCol {
+				idx := t.columnIndex(wcol.Column)
+				if idx == -1 {
+					t.mu.Unlock()
+					return nil, fmt.Errorf("db: invalid where clause column %q", wcol)
+				}
+				tcol := trow.cols[idx]
+				if bs, ok := tcol.([]byte); ok {
+					// lazy hack to avoid sprintf %v on a []byte
+					tcol = string(bs)
+				}
+				var argValue interface{}
+				if wcol.Placeholder == "?" {
+					argValue = args[wcol.Ordinal-1].Value
+				} else {
+					// Assign arg value from placeholder name.
+					for _, a := range args {
+						if a.Name == wcol.Placeholder[1:] {
+							argValue = a.Value
+							break
+						}
+					}
+				}
+				if fmt.Sprintf("%v", tcol) != fmt.Sprintf("%v", argValue) {
+					continue rows
+				}
+			}
+			mrow := &row{cols: make([]interface{}, len(s.colName))}
+			for seli, name := range s.colName {
+				mrow.cols[seli] = trow.cols[colIdx[name]]
+			}
+			mrows = append(mrows, mrow)
 		}
-		mrows = append(mrows, mrow)
+
+		var colType []string
+		for _, column := range s.colName {
+			colType = append(colType, t.coltype[t.columnIndex(column)])
+		}
+
+		t.mu.Unlock()
+
+		setMRows = append(setMRows, mrows)
+		setColumns = append(setColumns, s.colName)
+		setColType = append(setColType, colType)
+
+		if s.next == nil {
+			break
+		}
+		s = s.next
 	}
 
 	cursor := &rowsCursor{
-		pos:    -1,
-		rows:   mrows,
-		cols:   s.colName,
-		errPos: -1,
+		parentMem: s.c,
+		posRow:    -1,
+		rows:      setMRows,
+		cols:      setColumns,
+		colType:   setColType,
+		errPos:    -1,
 	}
 	return cursor, nil
 }
 
 func (s *fakeStmt) NumInput() int {
+	if s.panic == "NumInput" {
+		panic(s.panic)
+	}
 	return s.placeholders
 }
 
+// hook to simulate broken connections
+var hookCommitBadConn func() bool
+
 func (tx *fakeTx) Commit() error {
 	tx.c.currTx = nil
+	if hookCommitBadConn != nil && hookCommitBadConn() {
+		return driver.ErrBadConn
+	}
+	tx.c.touchMem()
 	return nil
 }
 
+// hook to simulate broken connections
+var hookRollbackBadConn func() bool
+
 func (tx *fakeTx) Rollback() error {
 	tx.c.currTx = nil
+	if hookRollbackBadConn != nil && hookRollbackBadConn() {
+		return driver.ErrBadConn
+	}
+	tx.c.touchMem()
 	return nil
 }
 
 type rowsCursor struct {
-	cols   []string
-	pos    int
-	rows   []*row
-	closed bool
+	parentMem memToucher
+	cols      [][]string
+	colType   [][]string
+	posSet    int
+	posRow    int
+	rows      [][]*row
+	closed    bool
 
 	// errPos and err are for making Next return early with error.
 	errPos int
@@ -718,6 +934,17 @@ type rowsCursor struct {
 	// the original slice's first byte address.  we clone them
 	// just so we're able to corrupt them on close.
 	bytesClone map[*byte][]byte
+
+	// Every operation writes to line to enable the race detector
+	// check for data races.
+	// This is separate from the fakeConn.line to allow for drivers that
+	// can start multiple queries on the same transaction at the same time.
+	line int64
+}
+
+func (rc *rowsCursor) touchMem() {
+	rc.parentMem.touchMem()
+	rc.line++
 }
 
 func (rc *rowsCursor) Close() error {
@@ -726,12 +953,18 @@ func (rc *rowsCursor) Close() error {
 			bs[0] = 255 // first byte corrupted
 		}
 	}
+	rc.touchMem()
+	rc.parentMem.touchMem()
 	rc.closed = true
 	return nil
 }
 
 func (rc *rowsCursor) Columns() []string {
-	return rc.cols
+	return rc.cols[rc.posSet]
+}
+
+func (rc *rowsCursor) ColumnTypeScanType(index int) reflect.Type {
+	return colTypeToReflectType(rc.colType[rc.posSet][index])
 }
 
 var rowsCursorNextHook func(dest []driver.Value) error
@@ -744,14 +977,15 @@ func (rc *rowsCursor) Next(dest []driver.Value) error {
 	if rc.closed {
 		return errors.New("fakedb: cursor is closed")
 	}
-	rc.pos++
-	if rc.pos == rc.errPos {
+	rc.touchMem()
+	rc.posRow++
+	if rc.posRow == rc.errPos {
 		return rc.err
 	}
-	if rc.pos >= len(rc.rows) {
+	if rc.posRow >= len(rc.rows[rc.posSet]) {
 		return io.EOF // per interface spec
 	}
-	for i, v := range rc.rows[rc.pos].cols {
+	for i, v := range rc.rows[rc.posSet][rc.posRow].cols {
 		// TODO(bradfitz): convert to subset types? naah, I
 		// think the subset types should only be input to
 		// driver, but the sql package should be able to handle
@@ -776,6 +1010,21 @@ func (rc *rowsCursor) Next(dest []driver.Value) error {
 	return nil
 }
 
+func (rc *rowsCursor) HasNextResultSet() bool {
+	rc.touchMem()
+	return rc.posSet < len(rc.rows)-1
+}
+
+func (rc *rowsCursor) NextResultSet() error {
+	rc.touchMem()
+	if rc.HasNextResultSet() {
+		rc.posSet++
+		rc.posRow = -1
+		return nil
+	}
+	return io.EOF // Per interface spec.
+}
+
 // fakeDriverString is like driver.String, but indirects pointers like
 // DefaultValueConverter.
 //
@@ -796,6 +1045,12 @@ func (fakeDriverString) ConvertValue(v interface{}) (driver.Value, error) {
 		return *c, nil
 	}
 	return fmt.Sprintf("%v", v), nil
+}
+
+type anyTypeConverter struct{}
+
+func (anyTypeConverter) ConvertValue(v interface{}) (driver.Value, error) {
+	return v, nil
 }
 
 func converterForType(typ string) driver.ValueConverter {
@@ -824,6 +1079,36 @@ func converterForType(typ string) driver.ValueConverter {
 		return driver.Null{Converter: driver.DefaultParameterConverter}
 	case "datetime":
 		return driver.DefaultParameterConverter
+	case "any":
+		return anyTypeConverter{}
+	}
+	panic("invalid fakedb column type of " + typ)
+}
+
+func colTypeToReflectType(typ string) reflect.Type {
+	switch typ {
+	case "bool":
+		return reflect.TypeOf(false)
+	case "nullbool":
+		return reflect.TypeOf(NullBool{})
+	case "int32":
+		return reflect.TypeOf(int32(0))
+	case "string":
+		return reflect.TypeOf("")
+	case "nullstring":
+		return reflect.TypeOf(NullString{})
+	case "int64":
+		return reflect.TypeOf(int64(0))
+	case "nullint64":
+		return reflect.TypeOf(NullInt64{})
+	case "float64":
+		return reflect.TypeOf(float64(0))
+	case "nullfloat64":
+		return reflect.TypeOf(NullFloat64{})
+	case "datetime":
+		return reflect.TypeOf(time.Time{})
+	case "any":
+		return reflect.TypeOf(new(interface{})).Elem()
 	}
 	panic("invalid fakedb column type of " + typ)
 }

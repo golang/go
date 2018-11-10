@@ -6,6 +6,7 @@ package signal
 
 import (
 	"bytes"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -75,7 +76,7 @@ func main() {
 	// compile it
 	exe := name + ".exe"
 	defer os.Remove(exe)
-	o, err := exec.Command("go", "build", "-o", exe, src).CombinedOutput()
+	o, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, src).CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to compile: %v\n%v", err, string(o))
 	}

@@ -1,0 +1,22 @@
+// Package predeclared is a go/doc test for handling of exported ...
+PACKAGE predeclared
+
+IMPORTPATH
+	testdata/predeclared
+
+FILENAMES
+	testdata/predeclared.go
+
+TYPES
+	// 
+	type bool int
+
+	// Must not be visible. 
+	func (b bool) String() string
+
+	// 
+	type error struct{}
+
+	// Must not be visible. 
+	func (e error) Error() string
+

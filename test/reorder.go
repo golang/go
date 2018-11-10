@@ -1,6 +1,6 @@
 // run
 
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -19,6 +19,7 @@ func main() {
 	p6()
 	p7()
 	p8()
+	p9()
 }
 
 var gx []int
@@ -110,5 +111,41 @@ func p8() {
 	m[0] = len(m)
 	if m[0] != 0 {
 		panic(m[0])
+	}
+}
+
+// Issue #13433: Left-to-right assignment of OAS2XXX nodes.
+func p9() {
+	var x bool
+
+	// OAS2FUNC
+	x, x = fn()
+	checkOAS2XXX(x, "x, x = fn()")
+
+	// OAS2RECV
+	var c = make(chan bool, 10)
+	c <- false
+	x, x = <-c
+	checkOAS2XXX(x, "x, x <-c")
+
+	// OAS2MAPR
+	var m = map[int]bool{0: false}
+	x, x = m[0]
+	checkOAS2XXX(x, "x, x = m[0]")
+
+	// OAS2DOTTYPE
+	var i interface{} = false
+	x, x = i.(bool)
+	checkOAS2XXX(x, "x, x = i.(bool)")
+}
+
+//go:noinline
+func fn() (bool, bool) { return false, true }
+
+// checks the order of OAS2XXX.
+func checkOAS2XXX(x bool, s string) {
+	if !x {
+		fmt.Printf("%s; got=(false); want=(true)\n", s)
+		panic("failed")
 	}
 }

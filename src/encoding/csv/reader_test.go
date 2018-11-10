@@ -5,6 +5,7 @@
 package csv
 
 import (
+	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -23,6 +24,7 @@ var readTests = []struct {
 	LazyQuotes       bool
 	TrailingComma    bool
 	TrimLeadingSpace bool
+	ReuseRecord      bool
 
 	Error  string
 	Line   int // Expected error line if != 0
@@ -81,6 +83,15 @@ field"`,
 	{
 		Name:  "BlankLine",
 		Input: "a,b,c\n\nd,e,f\n\n",
+		Output: [][]string{
+			{"a", "b", "c"},
+			{"d", "e", "f"},
+		},
+	},
+	{
+		Name:               "BlankLineFieldCount",
+		Input:              "a,b,c\n\nd,e,f\n\n",
+		UseFieldsPerRecord: true,
 		Output: [][]string{
 			{"a", "b", "c"},
 			{"d", "e", "f"},
@@ -250,6 +261,15 @@ x,,,
 			{"c", "d", "e"},
 		},
 	},
+	{
+		Name:        "ReadAllReuseRecord",
+		ReuseRecord: true,
+		Input:       "a,b\nc,d",
+		Output: [][]string{
+			{"a", "b"},
+			{"c", "d"},
+		},
+	},
 }
 
 func TestRead(t *testing.T) {
@@ -264,6 +284,7 @@ func TestRead(t *testing.T) {
 		r.LazyQuotes = tt.LazyQuotes
 		r.TrailingComma = tt.TrailingComma
 		r.TrimLeadingSpace = tt.TrimLeadingSpace
+		r.ReuseRecord = tt.ReuseRecord
 		if tt.Comma != 0 {
 			r.Comma = tt.Comma
 		}
@@ -281,4 +302,101 @@ func TestRead(t *testing.T) {
 			t.Errorf("%s: out=%q want %q", tt.Name, out, tt.Output)
 		}
 	}
+}
+
+// nTimes is an io.Reader which yields the string s n times.
+type nTimes struct {
+	s   string
+	n   int
+	off int
+}
+
+func (r *nTimes) Read(p []byte) (n int, err error) {
+	for {
+		if r.n <= 0 || r.s == "" {
+			return n, io.EOF
+		}
+		n0 := copy(p, r.s[r.off:])
+		p = p[n0:]
+		n += n0
+		r.off += n0
+		if r.off == len(r.s) {
+			r.off = 0
+			r.n--
+		}
+		if len(p) == 0 {
+			return
+		}
+	}
+}
+
+// benchmarkRead measures reading the provided CSV rows data.
+// initReader, if non-nil, modifies the Reader before it's used.
+func benchmarkRead(b *testing.B, initReader func(*Reader), rows string) {
+	b.ReportAllocs()
+	r := NewReader(&nTimes{s: rows, n: b.N})
+	if initReader != nil {
+		initReader(r)
+	}
+	for {
+		_, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+const benchmarkCSVData = `x,y,z,w
+x,y,z,
+x,y,,
+x,,,
+,,,
+"x","y","z","w"
+"x","y","z",""
+"x","y","",""
+"x","","",""
+"","","",""
+`
+
+func BenchmarkRead(b *testing.B) {
+	benchmarkRead(b, nil, benchmarkCSVData)
+}
+
+func BenchmarkReadWithFieldsPerRecord(b *testing.B) {
+	benchmarkRead(b, func(r *Reader) { r.FieldsPerRecord = 4 }, benchmarkCSVData)
+}
+
+func BenchmarkReadWithoutFieldsPerRecord(b *testing.B) {
+	benchmarkRead(b, func(r *Reader) { r.FieldsPerRecord = -1 }, benchmarkCSVData)
+}
+
+func BenchmarkReadLargeFields(b *testing.B) {
+	benchmarkRead(b, nil, strings.Repeat(`xxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+xxxxxxxxxxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvv
+,,zzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+`, 3))
+}
+
+func BenchmarkReadReuseRecord(b *testing.B) {
+	benchmarkRead(b, func(r *Reader) { r.ReuseRecord = true }, benchmarkCSVData)
+}
+
+func BenchmarkReadReuseRecordWithFieldsPerRecord(b *testing.B) {
+	benchmarkRead(b, func(r *Reader) { r.ReuseRecord = true; r.FieldsPerRecord = 4 }, benchmarkCSVData)
+}
+
+func BenchmarkReadReuseRecordWithoutFieldsPerRecord(b *testing.B) {
+	benchmarkRead(b, func(r *Reader) { r.ReuseRecord = true; r.FieldsPerRecord = -1 }, benchmarkCSVData)
+}
+
+func BenchmarkReadReuseRecordLargeFields(b *testing.B) {
+	benchmarkRead(b, func(r *Reader) { r.ReuseRecord = true }, strings.Repeat(`xxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+xxxxxxxxxxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvv
+,,zzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+`, 3))
 }

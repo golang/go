@@ -7,6 +7,7 @@
 package os_test
 
 import (
+	"fmt"
 	. "os"
 	"testing"
 )
@@ -25,6 +26,31 @@ func TestSetenvUnixEinval(t *testing.T) {
 		err := Setenv(tt.k, tt.v)
 		if err == nil {
 			t.Errorf(`Setenv(%q, %q) == nil, want error`, tt.k, tt.v)
+		}
+	}
+}
+
+var shellSpecialVarTests = []struct {
+	k, v string
+}{
+	{"*", "asterisk"},
+	{"#", "pound"},
+	{"$", "dollar"},
+	{"@", "at"},
+	{"!", "exclamation mark"},
+	{"?", "question mark"},
+	{"-", "dash"},
+}
+
+func TestExpandEnvShellSpecialVar(t *testing.T) {
+	for _, tt := range shellSpecialVarTests {
+		Setenv(tt.k, tt.v)
+		defer Unsetenv(tt.k)
+
+		argRaw := fmt.Sprintf("$%s", tt.k)
+		argWithBrace := fmt.Sprintf("${%s}", tt.k)
+		if gotRaw, gotBrace := ExpandEnv(argRaw), ExpandEnv(argWithBrace); gotRaw != gotBrace {
+			t.Errorf("ExpandEnv(%q) = %q, ExpandEnv(%q) = %q; expect them to be equal", argRaw, gotRaw, argWithBrace, gotBrace)
 		}
 	}
 }

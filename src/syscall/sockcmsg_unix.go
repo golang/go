@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,9 +13,10 @@ import "unsafe"
 // Round the length of a raw sockaddr up to align it properly.
 func cmsgAlignOf(salen int) int {
 	salign := sizeofPtr
-	// NOTE: It seems like 64-bit Darwin and DragonFly BSD kernels
-	// still require 32-bit aligned access to network subsystem.
-	if darwin64Bit || dragonfly64Bit {
+	// NOTE: It seems like 64-bit Darwin, DragonFly BSD and
+	// Solaris kernels still require 32-bit aligned access to
+	// network subsystem.
+	if darwin64Bit || dragonfly64Bit || solaris64Bit {
 		salign = 4
 	}
 	return (salen + salign - 1) & ^(salign - 1)
@@ -62,7 +63,7 @@ func ParseSocketControlMessage(b []byte) ([]SocketControlMessage, error) {
 
 func socketControlMessageHeaderAndData(b []byte) (*Cmsghdr, []byte, error) {
 	h := (*Cmsghdr)(unsafe.Pointer(&b[0]))
-	if h.Len < SizeofCmsghdr || int(h.Len) > len(b) {
+	if h.Len < SizeofCmsghdr || uint64(h.Len) > uint64(len(b)) {
 		return nil, nil, EINVAL
 	}
 	return h, b[cmsgAlignOf(SizeofCmsghdr):h.Len], nil
@@ -77,10 +78,10 @@ func UnixRights(fds ...int) []byte {
 	h.Level = SOL_SOCKET
 	h.Type = SCM_RIGHTS
 	h.SetLen(CmsgLen(datalen))
-	data := uintptr(cmsgData(h))
+	data := cmsgData(h)
 	for _, fd := range fds {
-		*(*int32)(unsafe.Pointer(data)) = int32(fd)
-		data += 4
+		*(*int32)(data) = int32(fd)
+		data = unsafe.Pointer(uintptr(data) + 4)
 	}
 	return b
 }

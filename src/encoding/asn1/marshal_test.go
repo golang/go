@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 )
@@ -40,6 +41,14 @@ type implicitTagTest struct {
 
 type explicitTagTest struct {
 	A int `asn1:"explicit,tag:5"`
+}
+
+type flagTest struct {
+	A Flag `asn1:"tag:0,optional"`
+}
+
+type generalizedTimeTest struct {
+	A time.Time `asn1:"generalized"`
 }
 
 type ia5StringTest struct {
@@ -92,10 +101,13 @@ var marshalTests = []marshalTest{
 	{[]byte{1, 2, 3}, "0403010203"},
 	{implicitTagTest{64}, "3003850140"},
 	{explicitTagTest{64}, "3005a503020140"},
+	{flagTest{true}, "30028000"},
+	{flagTest{false}, "3000"},
 	{time.Unix(0, 0).UTC(), "170d3730303130313030303030305a"},
 	{time.Unix(1258325776, 0).UTC(), "170d3039313131353232353631365a"},
 	{time.Unix(1258325776, 0).In(PST), "17113039313131353134353631362d30383030"},
 	{farFuture(), "180f32313030303430353132303130315a"},
+	{generalizedTimeTest{time.Unix(1258325776, 0).UTC()}, "3011180f32303039313131353232353631365a"},
 	{BitString{[]byte{0x80}, 1}, "03020780"},
 	{BitString{[]byte{0x81, 0xf0}, 12}, "03030481f0"},
 	{ObjectIdentifier([]int{1, 2, 3, 4}), "06032a0304"},
@@ -156,9 +168,42 @@ func TestMarshal(t *testing.T) {
 	}
 }
 
+type marshalErrTest struct {
+	in  interface{}
+	err string
+}
+
+var marshalErrTests = []marshalErrTest{
+	{bigIntStruct{nil}, "empty integer"},
+}
+
+func TestMarshalError(t *testing.T) {
+	for i, test := range marshalErrTests {
+		_, err := Marshal(test.in)
+		if err == nil {
+			t.Errorf("#%d should fail, but success", i)
+			continue
+		}
+
+		if !strings.Contains(err.Error(), test.err) {
+			t.Errorf("#%d got: %v want %v", i, err, test.err)
+		}
+	}
+}
+
 func TestInvalidUTF8(t *testing.T) {
 	_, err := Marshal(string([]byte{0xff, 0xff}))
 	if err == nil {
 		t.Errorf("invalid UTF8 string was accepted")
+	}
+}
+
+func BenchmarkMarshal(b *testing.B) {
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		for _, test := range marshalTests {
+			Marshal(test.in)
+		}
 	}
 }

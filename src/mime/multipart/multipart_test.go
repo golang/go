@@ -125,6 +125,7 @@ func TestMultipartSlowInput(t *testing.T) {
 }
 
 func testMultipart(t *testing.T, r io.Reader, onlyNewlines bool) {
+	t.Parallel()
 	reader := NewReader(r, "MyBoundary")
 	buf := new(bytes.Buffer)
 
@@ -323,6 +324,73 @@ func (s *slowReader) Read(p []byte) (int, error) {
 	return s.r.Read(p[:1])
 }
 
+type sentinelReader struct {
+	// done is closed when this reader is read from.
+	done chan struct{}
+}
+
+func (s *sentinelReader) Read([]byte) (int, error) {
+	if s.done != nil {
+		close(s.done)
+		s.done = nil
+	}
+	return 0, io.EOF
+}
+
+// TestMultipartStreamReadahead tests that PartReader does not block
+// on reading past the end of a part, ensuring that it can be used on
+// a stream like multipart/x-mixed-replace. See golang.org/issue/15431
+func TestMultipartStreamReadahead(t *testing.T) {
+	testBody1 := `
+This is a multi-part message.  This line is ignored.
+--MyBoundary
+foo-bar: baz
+
+Body
+--MyBoundary
+`
+	testBody2 := `foo-bar: bop
+
+Body 2
+--MyBoundary--
+`
+	done1 := make(chan struct{})
+	reader := NewReader(
+		io.MultiReader(
+			strings.NewReader(testBody1),
+			&sentinelReader{done1},
+			strings.NewReader(testBody2)),
+		"MyBoundary")
+
+	var i int
+	readPart := func(hdr textproto.MIMEHeader, body string) {
+		part, err := reader.NextPart()
+		if part == nil || err != nil {
+			t.Fatalf("Part %d: NextPart failed: %v", i, err)
+		}
+
+		if !reflect.DeepEqual(part.Header, hdr) {
+			t.Errorf("Part %d: part.Header = %v, want %v", i, part.Header, hdr)
+		}
+		data, err := ioutil.ReadAll(part)
+		expectEq(t, body, string(data), fmt.Sprintf("Part %d body", i))
+		if err != nil {
+			t.Fatalf("Part %d: ReadAll failed: %v", i, err)
+		}
+		i++
+	}
+
+	readPart(textproto.MIMEHeader{"Foo-Bar": {"baz"}}, "Body")
+
+	select {
+	case <-done1:
+		t.Errorf("Reader read past second boundary")
+	default:
+	}
+
+	readPart(textproto.MIMEHeader{"Foo-Bar": {"bop"}}, "Body 2")
+}
+
 func TestLineContinuation(t *testing.T) {
 	// This body, extracted from an email, contains headers that span multiple
 	// lines.
@@ -351,7 +419,7 @@ func TestLineContinuation(t *testing.T) {
 }
 
 func TestQuotedPrintableEncoding(t *testing.T) {
-	// From http://golang.org/issue/4411
+	// From https://golang.org/issue/4411
 	body := "--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=text\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words\r\n--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=submit\r\n\r\nSubmit\r\n--0016e68ee29c5d515f04cedf6733--"
 	r := NewReader(strings.NewReader(body), "0016e68ee29c5d515f04cedf6733")
 	part, err := r.NextPart()
@@ -446,8 +514,8 @@ type parseTest struct {
 var parseTests = []parseTest{
 	// Actual body from App Engine on a blob upload. The final part (the
 	// Content-Type: message/external-body) is what App Engine replaces
-	// the uploaded file with.  The other form fields (prefixed with
-	// "other" in their form-data name) are unchanged.  A bug was
+	// the uploaded file with. The other form fields (prefixed with
+	// "other" in their form-data name) are unchanged. A bug was
 	// reported with blob uploads failing when the other fields were
 	// empty. This was the MIME POST body that previously failed.
 	{
@@ -565,6 +633,138 @@ foo: bar
 		},
 	},
 
+	// Issue 10616; minimal
+	{
+		name: "issue 10616 minimal",
+		sep:  "sep",
+		in: "--sep \r\nFoo: bar\r\n\r\n" +
+			"a\r\n" +
+			"--sep_alt\r\n" +
+			"b\r\n" +
+			"\r\n--sep--",
+		want: []headerBody{
+			{textproto.MIMEHeader{"Foo": {"bar"}}, "a\r\n--sep_alt\r\nb\r\n"},
+		},
+	},
+
+	// Issue 10616; full example from bug.
+	{
+		name: "nested separator prefix is outer separator",
+		sep:  "----=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9",
+		in: strings.Replace(`------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9
+Content-Type: multipart/alternative; boundary="----=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt"
+
+------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+This is a multi-part message in MIME format.
+
+------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+html things
+------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt--
+------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9--`, "\n", "\r\n", -1),
+		want: []headerBody{
+			{textproto.MIMEHeader{"Content-Type": {`multipart/alternative; boundary="----=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt"`}},
+				strings.Replace(`------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+This is a multi-part message in MIME format.
+
+------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+html things
+------=_NextPart_4c2fbafd7ec4c8bf08034fe724b608d9_alt--`, "\n", "\r\n", -1),
+			},
+		},
+	},
+	// Issue 12662: Check that we don't consume the leading \r if the peekBuffer
+	// ends in '\r\n--separator-'
+	{
+		name: "peek buffer boundary condition",
+		sep:  "00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db",
+		in: strings.Replace(`--00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db
+Content-Disposition: form-data; name="block"; filename="block"
+Content-Type: application/octet-stream
+
+`+strings.Repeat("A", peekBufferSize-65)+"\n--00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db--", "\n", "\r\n", -1),
+		want: []headerBody{
+			{textproto.MIMEHeader{"Content-Type": {`application/octet-stream`}, "Content-Disposition": {`form-data; name="block"; filename="block"`}},
+				strings.Repeat("A", peekBufferSize-65),
+			},
+		},
+	},
+	// Issue 12662: Same test as above with \r\n at the end
+	{
+		name: "peek buffer boundary condition",
+		sep:  "00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db",
+		in: strings.Replace(`--00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db
+Content-Disposition: form-data; name="block"; filename="block"
+Content-Type: application/octet-stream
+
+`+strings.Repeat("A", peekBufferSize-65)+"\n--00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db--\n", "\n", "\r\n", -1),
+		want: []headerBody{
+			{textproto.MIMEHeader{"Content-Type": {`application/octet-stream`}, "Content-Disposition": {`form-data; name="block"; filename="block"`}},
+				strings.Repeat("A", peekBufferSize-65),
+			},
+		},
+	},
+	// Issue 12662v2: We want to make sure that for short buffers that end with
+	// '\r\n--separator-' we always consume at least one (valid) symbol from the
+	// peekBuffer
+	{
+		name: "peek buffer boundary condition",
+		sep:  "aaaaaaaaaa00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db",
+		in: strings.Replace(`--aaaaaaaaaa00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db
+Content-Disposition: form-data; name="block"; filename="block"
+Content-Type: application/octet-stream
+
+`+strings.Repeat("A", peekBufferSize)+"\n--aaaaaaaaaa00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db--", "\n", "\r\n", -1),
+		want: []headerBody{
+			{textproto.MIMEHeader{"Content-Type": {`application/octet-stream`}, "Content-Disposition": {`form-data; name="block"; filename="block"`}},
+				strings.Repeat("A", peekBufferSize),
+			},
+		},
+	},
+	// Context: https://github.com/camlistore/camlistore/issues/642
+	// If the file contents in the form happens to have a size such as:
+	// size = peekBufferSize - (len("\n--") + len(boundary) + len("\r") + 1), (modulo peekBufferSize)
+	// then peekBufferSeparatorIndex was wrongly returning (-1, false), which was leading to an nCopy
+	// cut such as:
+	// "somedata\r| |\n--Boundary\r" (instead of "somedata| |\r\n--Boundary\r"), which was making the
+	// subsequent Read miss the boundary.
+	{
+		name: "safeCount off by one",
+		sep:  "08b84578eabc563dcba967a945cdf0d9f613864a8f4a716f0e81caa71a74",
+		in: strings.Replace(`--08b84578eabc563dcba967a945cdf0d9f613864a8f4a716f0e81caa71a74
+Content-Disposition: form-data; name="myfile"; filename="my-file.txt"
+Content-Type: application/octet-stream
+
+`, "\n", "\r\n", -1) +
+			strings.Repeat("A", peekBufferSize-(len("\n--")+len("08b84578eabc563dcba967a945cdf0d9f613864a8f4a716f0e81caa71a74")+len("\r")+1)) +
+			strings.Replace(`
+--08b84578eabc563dcba967a945cdf0d9f613864a8f4a716f0e81caa71a74
+Content-Disposition: form-data; name="key"
+
+val
+--08b84578eabc563dcba967a945cdf0d9f613864a8f4a716f0e81caa71a74--
+`, "\n", "\r\n", -1),
+		want: []headerBody{
+			{textproto.MIMEHeader{"Content-Type": {`application/octet-stream`}, "Content-Disposition": {`form-data; name="myfile"; filename="my-file.txt"`}},
+				strings.Repeat("A", peekBufferSize-(len("\n--")+len("08b84578eabc563dcba967a945cdf0d9f613864a8f4a716f0e81caa71a74")+len("\r")+1)),
+			},
+			{textproto.MIMEHeader{"Content-Disposition": {`form-data; name="key"`}},
+				"val",
+			},
+		},
+	},
+
 	roundTripParseTest(),
 }
 
@@ -600,6 +800,54 @@ Cases:
 					}
 				}
 			}
+		}
+	}
+}
+
+func partsFromReader(r *Reader) ([]headerBody, error) {
+	got := []headerBody{}
+	for {
+		p, err := r.NextPart()
+		if err == io.EOF {
+			return got, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("NextPart: %v", err)
+		}
+		pbody, err := ioutil.ReadAll(p)
+		if err != nil {
+			return nil, fmt.Errorf("error reading part: %v", err)
+		}
+		got = append(got, headerBody{p.Header, string(pbody)})
+	}
+}
+
+func TestParseAllSizes(t *testing.T) {
+	t.Parallel()
+	const maxSize = 5 << 10
+	var buf bytes.Buffer
+	body := strings.Repeat("a", maxSize)
+	bodyb := []byte(body)
+	for size := 0; size < maxSize; size++ {
+		buf.Reset()
+		w := NewWriter(&buf)
+		part, _ := w.CreateFormField("f")
+		part.Write(bodyb[:size])
+		part, _ = w.CreateFormField("key")
+		part.Write([]byte("val"))
+		w.Close()
+		r := NewReader(&buf, w.Boundary())
+		got, err := partsFromReader(r)
+		if err != nil {
+			t.Errorf("For size %d: %v", size, err)
+			continue
+		}
+		if len(got) != 2 {
+			t.Errorf("For size %d, num parts = %d; want 2", size, len(got))
+			continue
+		}
+		if got[0].body != body[:size] {
+			t.Errorf("For size %d, got unexpected len %d: %q", size, len(got[0].body), got[0].body)
 		}
 	}
 }

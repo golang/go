@@ -90,13 +90,6 @@ type tforkt struct {
 	tf_stack uintptr
 }
 
-type sigaltstackt struct {
-	ss_sp     uintptr
-	ss_size   uintptr
-	ss_flags  int32
-	pad_cgo_0 [4]byte
-}
-
 type sigcontext struct {
 	sc_rdi      uint64
 	sc_rsi      uint64

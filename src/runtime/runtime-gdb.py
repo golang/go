@@ -60,7 +60,7 @@ class SliceValue:
 class StringTypePrinter:
 	"Pretty print Go strings."
 
-	pattern = re.compile(r'^struct string$')
+	pattern = re.compile(r'^struct string( \*)?$')
 
 	def __init__(self, val):
 		self.val = val
@@ -114,7 +114,7 @@ class MapTypePrinter:
 		return str(self.val.type)
 
 	def children(self):
-		B = self.val['b']
+		B = self.val['B']
 		buckets = self.val['buckets']
 		oldbuckets = self.val['oldbuckets']
 		flags = self.val['flags']
@@ -416,8 +416,37 @@ def find_goroutine(goid):
 		if ptr['atomicstatus'] == 6:  # 'gdead'
 			continue
 		if ptr['goid'] == goid:
-			return (ptr['sched'][x].cast(vp) for x in ('pc', 'sp'))
-	return None, None
+			break
+	else:
+		return None, None
+	# Get the goroutine's saved state.
+	pc, sp = ptr['sched']['pc'], ptr['sched']['sp']
+	# If the goroutine is stopped, sched.sp will be non-0.
+	if sp != 0:
+		return pc.cast(vp), sp.cast(vp)
+	# If the goroutine is in a syscall, use syscallpc/sp.
+	pc, sp = ptr['syscallpc'], ptr['syscallsp']
+	if sp != 0:
+		return pc.cast(vp), sp.cast(vp)
+	# Otherwise, the goroutine is running, so it doesn't have
+	# saved scheduler state. Find G's OS thread.
+	m = ptr['m']
+	if m == 0:
+		return None, None
+	for thr in gdb.selected_inferior().threads():
+		if thr.ptid[1] == m['procid']:
+			break
+	else:
+		return None, None
+	# Get scheduler state from the G's OS thread state.
+	curthr = gdb.selected_thread()
+	try:
+		thr.switch()
+		pc = gdb.parse_and_eval('$pc')
+		sp = gdb.parse_and_eval('$sp')
+	finally:
+		curthr.switch()
+	return pc.cast(vp), sp.cast(vp)
 
 
 class GoroutineCmd(gdb.Command):
@@ -446,17 +475,17 @@ class GoroutineCmd(gdb.Command):
 			#python3 / newer versions of gdb
 			pc = int(pc)
 		except gdb.error:
-			pc = int(str(pc), 16)
+			pc = int(str(pc).split(None, 1)[0], 16)
 		save_frame = gdb.selected_frame()
-		gdb.parse_and_eval('$save_pc = $pc')
 		gdb.parse_and_eval('$save_sp = $sp')
-		gdb.parse_and_eval('$pc = {0}'.format(str(pc)))
+		gdb.parse_and_eval('$save_pc = $pc')
 		gdb.parse_and_eval('$sp = {0}'.format(str(sp)))
+		gdb.parse_and_eval('$pc = {0}'.format(str(pc)))
 		try:
 			gdb.execute(cmd)
 		finally:
-			gdb.parse_and_eval('$pc = $save_pc')
 			gdb.parse_and_eval('$sp = $save_sp')
+			gdb.parse_and_eval('$pc = $save_pc')
 			save_frame.select()
 
 

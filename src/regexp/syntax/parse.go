@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -141,9 +141,9 @@ func (p *parser) push(re *Regexp) *Regexp {
 }
 
 // maybeConcat implements incremental concatenation
-// of literal runes into string nodes.  The parser calls this
+// of literal runes into string nodes. The parser calls this
 // before each push, so only the top fragment of the stack
-// might need processing.  Since this is called before a push,
+// might need processing. Since this is called before a push,
 // the topmost literal is no longer subject to operators like *
 // (Otherwise ab* would turn into (ab)*.)
 // If r >= 0 and there's a node left over, maybeConcat uses it
@@ -381,7 +381,7 @@ func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
 		}
 	}
 	if op == OpAlternate {
-		re.Sub = p.factor(re.Sub, re.Flags)
+		re.Sub = p.factor(re.Sub)
 		if len(re.Sub) == 1 {
 			old := re
 			re = re.Sub[0]
@@ -402,7 +402,7 @@ func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
 // which simplifies by character class introduction to
 //     A(B[CD]|EF)|BC[XY]
 //
-func (p *parser) factor(sub []*Regexp, flags Flags) []*Regexp {
+func (p *parser) factor(sub []*Regexp) []*Regexp {
 	if len(sub) < 2 {
 		return sub
 	}
@@ -470,9 +470,14 @@ func (p *parser) factor(sub []*Regexp, flags Flags) []*Regexp {
 	}
 	sub = out
 
-	// Round 2: Factor out common complex prefixes,
-	// just the first piece of each concatenation,
-	// whatever it is.  This is good enough a lot of the time.
+	// Round 2: Factor out common simple prefixes,
+	// just the first piece of each concatenation.
+	// This will be good enough a lot of the time.
+	//
+	// Complex subexpressions (e.g. involving quantifiers)
+	// are not safe to factor because that collapses their
+	// distinct paths through the automaton, which affects
+	// correctness in some cases.
 	start = 0
 	out = sub[:0]
 	var first *Regexp
@@ -485,7 +490,9 @@ func (p *parser) factor(sub []*Regexp, flags Flags) []*Regexp {
 		var ifirst *Regexp
 		if i < len(sub) {
 			ifirst = p.leadingRegexp(sub[i])
-			if first != nil && first.Equal(ifirst) {
+			if first != nil && first.Equal(ifirst) &&
+				// first must be a character class OR a fixed repeat of a character class.
+				(isCharClass(first) || (first.Op == OpRepeat && first.Min == first.Max && isCharClass(first.Sub[0]))) {
 				continue
 			}
 		}
@@ -593,7 +600,7 @@ func (p *parser) leadingString(re *Regexp) ([]rune, Flags) {
 }
 
 // removeLeadingString removes the first n leading runes
-// from the beginning of re.  It returns the replacement for re.
+// from the beginning of re. It returns the replacement for re.
 func (p *parser) removeLeadingString(re *Regexp, n int) *Regexp {
 	if re.Op == OpConcat && len(re.Sub) > 0 {
 		// Removing a leading string in a concatenation
@@ -830,7 +837,14 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 						lit = t[2:i]
 						t = t[i+2:]
 					}
-					p.push(literalRegexp(lit, p.flags))
+					for lit != "" {
+						c, rest, err := nextRune(lit)
+						if err != nil {
+							return nil, err
+						}
+						p.literal(c)
+						lit = rest
+					}
 					break BigSwitch
 				case 'z':
 					p.op(OpEndText)
@@ -943,11 +957,11 @@ func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 	// Perl 5.10 gave in and implemented the Python version too,
 	// but they claim that the last two are the preferred forms.
 	// PCRE and languages based on it (specifically, PHP and Ruby)
-	// support all three as well.  EcmaScript 4 uses only the Python form.
+	// support all three as well. EcmaScript 4 uses only the Python form.
 	//
 	// In both the open source world (via Code Search) and the
 	// Google source tree, (?P<expr>name) is the dominant form,
-	// so that's the one we implement.  One is enough.
+	// so that's the one we implement. One is enough.
 	if len(t) > 4 && t[2] == 'P' && t[3] == '<' {
 		// Pull out name.
 		end := strings.IndexRune(t, '>')
@@ -975,7 +989,7 @@ func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 		return t[end+1:], nil
 	}
 
-	// Non-capturing group.  Might also twiddle Perl flags.
+	// Non-capturing group. Might also twiddle Perl flags.
 	var c rune
 	t = t[2:] // skip (?
 	flags := p.flags
@@ -1243,7 +1257,7 @@ Switch:
 		if c < utf8.RuneSelf && !isalnum(c) {
 			// Escaped non-word characters are always themselves.
 			// PCRE is not quite so rigorous: it accepts things like
-			// \q, but we don't.  We once rejected \_, but too many
+			// \q, but we don't. We once rejected \_, but too many
 			// programs and people insist on using it, so allow \_.
 			return c, t, nil
 		}
@@ -1278,7 +1292,7 @@ Switch:
 		if c == '{' {
 			// Any number of digits in braces.
 			// Perl accepts any text at all; it ignores all text
-			// after the first non-hex digit.  We require only hex digits,
+			// after the first non-hex digit. We require only hex digits,
 			// and at least one.
 			nhex := 0
 			r = 0
@@ -1319,10 +1333,10 @@ Switch:
 		}
 		return x*16 + y, t, nil
 
-	// C escapes.  There is no case 'b', to avoid misparsing
+	// C escapes. There is no case 'b', to avoid misparsing
 	// the Perl word-boundary \b as the C backspace \b
-	// when in POSIX mode.  In Perl, /\b/ means word-boundary
-	// but /[\b]/ means backspace.  We don't support that.
+	// when in POSIX mode. In Perl, /\b/ means word-boundary
+	// but /[\b]/ means backspace. We don't support that.
 	// If you want a backspace, embed a literal backspace
 	// character or use \x08.
 	case 'a':
@@ -1363,7 +1377,7 @@ type charGroup struct {
 }
 
 // parsePerlClassEscape parses a leading Perl character class escape like \d
-// from the beginning of s.  If one is present, it appends the characters to r
+// from the beginning of s. If one is present, it appends the characters to r
 // and returns the new slice r and the remainder of the string.
 func (p *parser) parsePerlClassEscape(s string, r []rune) (out []rune, rest string) {
 	if p.flags&PerlX == 0 || len(s) < 2 || s[0] != '\\' {
@@ -1377,7 +1391,7 @@ func (p *parser) parsePerlClassEscape(s string, r []rune) (out []rune, rest stri
 }
 
 // parseNamedClass parses a leading POSIX named character class like [:alnum:]
-// from the beginning of s.  If one is present, it appends the characters to r
+// from the beginning of s. If one is present, it appends the characters to r
 // and returns the new slice r and the remainder of the string.
 func (p *parser) parseNamedClass(s string, r []rune) (out []rune, rest string, err error) {
 	if len(s) < 2 || s[0] != '[' || s[1] != ':' {
@@ -1440,7 +1454,7 @@ func unicodeTable(name string) (*unicode.RangeTable, *unicode.RangeTable) {
 }
 
 // parseUnicodeClass parses a leading Unicode character class like \p{Han}
-// from the beginning of s.  If one is present, it appends the characters to r
+// from the beginning of s. If one is present, it appends the characters to r
 // and returns the new slice r and the remainder of the string.
 func (p *parser) parseUnicodeClass(s string, r []rune) (out []rune, rest string, err error) {
 	if p.flags&UnicodeGroups == 0 || len(s) < 2 || s[0] != '\\' || s[1] != 'p' && s[1] != 'P' {
@@ -1678,7 +1692,7 @@ const (
 	// minimum and maximum runes involved in folding.
 	// checked during test.
 	minFold = 0x0041
-	maxFold = 0x118df
+	maxFold = 0x1e943
 )
 
 // appendFoldedRange returns the result of appending the range lo-hi
@@ -1704,7 +1718,7 @@ func appendFoldedRange(r []rune, lo, hi rune) []rune {
 		hi = maxFold
 	}
 
-	// Brute force.  Depend on appendRange to coalesce ranges on the fly.
+	// Brute force. Depend on appendRange to coalesce ranges on the fly.
 	for c := lo; c <= hi; c++ {
 		r = appendRange(r, c, c)
 		f := unicode.SimpleFold(c)

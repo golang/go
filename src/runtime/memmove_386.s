@@ -1,7 +1,7 @@
 // Inferno's libkern/memmove-386.s
-// http://code.google.com/p/inferno-os/source/browse/libkern/memmove-386.s
+// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/memmove-386.s
 //
-//         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+//         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
 //         Portions Copyright 2009 The Go Authors. All rights reserved.
 //
@@ -33,8 +33,8 @@ TEXT runtime·memmove(SB), NOSPLIT, $0-12
 	MOVL	n+8(FP), BX
 
 	// REP instructions have a high startup cost, so we handle small sizes
-	// with some straightline code.  The REP MOVSL instruction is really fast
-	// for large sizes.  The cutover is approximately 1K.  We implement up to
+	// with some straightline code. The REP MOVSL instruction is really fast
+	// for large sizes. The cutover is approximately 1K.  We implement up to
 	// 128 because that is the maximum SSE register load (loading all data
 	// into registers lets us ignore copy direction).
 tail:
@@ -43,13 +43,14 @@ tail:
 	CMPL	BX, $2
 	JBE	move_1or2
 	CMPL	BX, $4
-	JBE	move_3or4
+	JB	move_3
+	JE	move_4
 	CMPL	BX, $8
 	JBE	move_5through8
 	CMPL	BX, $16
 	JBE	move_9through16
-	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
-	JEQ	nosse2
+	CMPB	runtime·support_sse2(SB), $1
+	JNE	nosse2
 	CMPL	BX, $32
 	JBE	move_17through32
 	CMPL	BX, $64
@@ -68,13 +69,30 @@ nosse2:
 /*
  * forward copy loop
  */
-forward:	
+forward:
+	// If REP MOVSB isn't fast, don't use it
+	CMPB	runtime·support_erms(SB), $1 // enhanced REP MOVSB/STOSB
+	JNE	fwdBy4
+
+	// Check alignment
+	MOVL	SI, AX
+	ORL	DI, AX
+	TESTL	$3, AX
+	JEQ	fwdBy4
+
+	// Do 1 byte at a time
+	MOVL	BX, CX
+	REP;	MOVSB
+	RET
+
+fwdBy4:
+	// Do 4 bytes at a time
 	MOVL	BX, CX
 	SHRL	$2, CX
 	ANDL	$3, BX
-
 	REP;	MOVSL
 	JMP	tail
+
 /*
  * check overlap
  */
@@ -118,11 +136,16 @@ move_1or2:
 	RET
 move_0:
 	RET
-move_3or4:
+move_3:
 	MOVW	(SI), AX
-	MOVW	-2(SI)(BX*1), CX
+	MOVB	2(SI), CX
 	MOVW	AX, (DI)
-	MOVW	CX, -2(DI)(BX*1)
+	MOVB	CX, 2(DI)
+	RET
+move_4:
+	// We need a separate case for 4 to make sure we write pointers atomically.
+	MOVL	(SI), AX
+	MOVL	AX, (DI)
 	RET
 move_5through8:
 	MOVL	(SI), AX

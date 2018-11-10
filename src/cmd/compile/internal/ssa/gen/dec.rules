@@ -1,0 +1,92 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains rules to decompose builtin compound types
+// (complex,string,slice,interface) into their constituent
+// types.  These rules work together with the decomposeBuiltIn
+// pass which handles phis of these types.
+
+// complex ops
+(ComplexReal (ComplexMake real _  )) -> real
+(ComplexImag (ComplexMake _ imag )) -> imag
+
+(Load <t> ptr mem) && t.IsComplex() && t.Size() == 8 ->
+  (ComplexMake
+    (Load <typ.Float32> ptr mem)
+    (Load <typ.Float32>
+      (OffPtr <typ.Float32Ptr> [4] ptr)
+      mem)
+    )
+(Store {t} dst (ComplexMake real imag) mem) && t.(*types.Type).Size() == 8 ->
+  (Store {typ.Float32}
+    (OffPtr <typ.Float32Ptr> [4] dst)
+    imag
+    (Store {typ.Float32} dst real mem))
+(Load <t> ptr mem) && t.IsComplex() && t.Size() == 16 ->
+  (ComplexMake
+    (Load <typ.Float64> ptr mem)
+    (Load <typ.Float64>
+      (OffPtr <typ.Float64Ptr> [8] ptr)
+      mem)
+    )
+(Store {t} dst (ComplexMake real imag) mem) && t.(*types.Type).Size() == 16 ->
+  (Store {typ.Float64}
+    (OffPtr <typ.Float64Ptr> [8] dst)
+    imag
+    (Store {typ.Float64} dst real mem))
+
+// string ops
+(StringPtr (StringMake ptr _)) -> ptr
+(StringLen (StringMake _ len)) -> len
+
+(Load <t> ptr mem) && t.IsString() ->
+  (StringMake
+    (Load <typ.BytePtr> ptr mem)
+    (Load <typ.Int>
+      (OffPtr <typ.IntPtr> [config.PtrSize] ptr)
+      mem))
+(Store dst (StringMake ptr len) mem) ->
+  (Store {typ.Int}
+    (OffPtr <typ.IntPtr> [config.PtrSize] dst)
+    len
+    (Store {typ.BytePtr} dst ptr mem))
+
+// slice ops
+(SlicePtr (SliceMake ptr _ _ )) -> ptr
+(SliceLen (SliceMake _ len _)) -> len
+(SliceCap (SliceMake _ _ cap)) -> cap
+
+(Load <t> ptr mem) && t.IsSlice() ->
+  (SliceMake
+    (Load <t.ElemType().PtrTo()> ptr mem)
+    (Load <typ.Int>
+      (OffPtr <typ.IntPtr> [config.PtrSize] ptr)
+      mem)
+    (Load <typ.Int>
+      (OffPtr <typ.IntPtr> [2*config.PtrSize] ptr)
+      mem))
+(Store dst (SliceMake ptr len cap) mem) ->
+  (Store {typ.Int}
+    (OffPtr <typ.IntPtr> [2*config.PtrSize] dst)
+    cap
+    (Store {typ.Int}
+      (OffPtr <typ.IntPtr> [config.PtrSize] dst)
+      len
+      (Store {typ.BytePtr} dst ptr mem)))
+
+// interface ops
+(ITab (IMake itab _)) -> itab
+(IData (IMake _ data)) -> data
+
+(Load <t> ptr mem) && t.IsInterface() ->
+  (IMake
+    (Load <typ.BytePtr> ptr mem)
+    (Load <typ.BytePtr>
+      (OffPtr <typ.BytePtrPtr> [config.PtrSize] ptr)
+      mem))
+(Store dst (IMake itab data) mem) ->
+  (Store {typ.BytePtr}
+    (OffPtr <typ.BytePtrPtr> [config.PtrSize] dst)
+    data
+    (Store {typ.Uintptr} dst itab mem))

@@ -31,7 +31,7 @@ func testSetEnv(t *testing.T) {
 	keyc := C.CString(key)
 	defer C.free(unsafe.Pointer(keyc))
 	v := C.getenv(keyc)
-	if v == (*C.char)(unsafe.Pointer(uintptr(0))) {
+	if uintptr(unsafe.Pointer(v)) == 0 {
 		t.Fatal("getenv returned NULL")
 	}
 	vs := C.GoString(v)

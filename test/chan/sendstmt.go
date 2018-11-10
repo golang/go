@@ -1,6 +1,6 @@
 // run
 
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -30,7 +30,7 @@ func chanchan() {
 
 func sendprec() {
 	c := make(chan bool, 1)
-	c <- false || true	// not a syntax error: same as c <- (false || true)
+	c <- false || true // not a syntax error: same as c <- (false || true)
 	if !<-c {
 		panic("sent false")
 	}

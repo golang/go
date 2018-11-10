@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -25,6 +25,7 @@ func TestRegress(t *testing.T) {
 	var int32s = []int32{1, 10, 32, 1 << 20, 1<<20 + 1, 1000000000, 1 << 30, 1<<31 - 2, 1<<31 - 1}
 	var int64s = []int64{1, 10, 32, 1 << 20, 1<<20 + 1, 1000000000, 1 << 30, 1<<31 - 2, 1<<31 - 1, 1000000000000000000, 1 << 60, 1<<63 - 2, 1<<63 - 1}
 	var permSizes = []int{0, 1, 5, 8, 9, 10, 16}
+	var readBufferSizes = []int{1, 7, 8, 9, 10}
 	r := New(NewSource(0))
 
 	rv := reflect.ValueOf(r)
@@ -39,9 +40,6 @@ func TestRegress(t *testing.T) {
 		mt := mv.Type()
 		if mt.NumOut() == 0 {
 			continue
-		}
-		if mt.NumOut() != 1 {
-			t.Fatalf("unexpected result count for r.%s", m.Name)
 		}
 		r.Seed(0)
 		for repeat := 0; repeat < 20; repeat++ {
@@ -74,13 +72,24 @@ func TestRegress(t *testing.T) {
 
 				case reflect.Int64:
 					x = int64s[repeat%len(int64s)]
+
+				case reflect.Slice:
+					if m.Name == "Read" {
+						n := readBufferSizes[repeat%len(readBufferSizes)]
+						x = make([]byte, n)
+					}
 				}
 				argstr = fmt.Sprint(x)
 				args = append(args, reflect.ValueOf(x))
 			}
-			out := mv.Call(args)[0].Interface()
+
+			var out interface{}
+			out = mv.Call(args)[0].Interface()
 			if m.Name == "Int" || m.Name == "Intn" {
 				out = int64(out.(int))
+			}
+			if m.Name == "Read" {
+				out = args[0].Interface().([]byte)
 			}
 			if *printgolden {
 				var val string
@@ -332,24 +341,64 @@ var regressGolden = []interface{}{
 	[]int{2, 1, 7, 0, 6, 3, 4, 5},       // Perm(8)
 	[]int{8, 7, 5, 3, 4, 6, 0, 1, 2},    // Perm(9)
 	[]int{1, 0, 2, 5, 7, 6, 9, 8, 3, 4}, // Perm(10)
-	uint32(4059586549),                  // Uint32()
-	uint32(1052117029),                  // Uint32()
-	uint32(2817310706),                  // Uint32()
-	uint32(233405013),                   // Uint32()
-	uint32(1578775030),                  // Uint32()
-	uint32(1243308993),                  // Uint32()
-	uint32(826517535),                   // Uint32()
-	uint32(2814630155),                  // Uint32()
-	uint32(3853314576),                  // Uint32()
-	uint32(718781857),                   // Uint32()
-	uint32(1239465936),                  // Uint32()
-	uint32(3876658295),                  // Uint32()
-	uint32(3649778518),                  // Uint32()
-	uint32(1172727096),                  // Uint32()
-	uint32(2615979505),                  // Uint32()
-	uint32(1089444252),                  // Uint32()
-	uint32(3327114623),                  // Uint32()
-	uint32(75079301),                    // Uint32()
-	uint32(3380456901),                  // Uint32()
-	uint32(3433369789),                  // Uint32()
+	[]byte{0x1},                         // Read([0])
+	[]byte{0x94, 0xfd, 0xc2, 0xfa, 0x2f, 0xfc, 0xc0},                 // Read([0 0 0 0 0 0 0])
+	[]byte{0x41, 0xd3, 0xff, 0x12, 0x4, 0x5b, 0x73, 0xc8},            // Read([0 0 0 0 0 0 0 0])
+	[]byte{0x6e, 0x4f, 0xf9, 0x5f, 0xf6, 0x62, 0xa5, 0xee, 0xe8},     // Read([0 0 0 0 0 0 0 0 0])
+	[]byte{0x2a, 0xbd, 0xf4, 0x4a, 0x2d, 0xb, 0x75, 0xfb, 0x18, 0xd}, // Read([0 0 0 0 0 0 0 0 0 0])
+	[]byte{0xaf},                                                      // Read([0])
+	[]byte{0x48, 0xa7, 0x9e, 0xe0, 0xb1, 0xd, 0x39},                   // Read([0 0 0 0 0 0 0])
+	[]byte{0x46, 0x51, 0x85, 0xf, 0xd4, 0xa1, 0x78, 0x89},             // Read([0 0 0 0 0 0 0 0])
+	[]byte{0x2e, 0xe2, 0x85, 0xec, 0xe1, 0x51, 0x14, 0x55, 0x78},      // Read([0 0 0 0 0 0 0 0 0])
+	[]byte{0x8, 0x75, 0xd6, 0x4e, 0xe2, 0xd3, 0xd0, 0xd0, 0xde, 0x6b}, // Read([0 0 0 0 0 0 0 0 0 0])
+	[]byte{0xf8}, // Read([0])
+	[]byte{0xf9, 0xb4, 0x4c, 0xe8, 0x5f, 0xf0, 0x44},                   // Read([0 0 0 0 0 0 0])
+	[]byte{0xc6, 0xb1, 0xf8, 0x3b, 0x8e, 0x88, 0x3b, 0xbf},             // Read([0 0 0 0 0 0 0 0])
+	[]byte{0x85, 0x7a, 0xab, 0x99, 0xc5, 0xb2, 0x52, 0xc7, 0x42},       // Read([0 0 0 0 0 0 0 0 0])
+	[]byte{0x9c, 0x32, 0xf3, 0xa8, 0xae, 0xb7, 0x9e, 0xf8, 0x56, 0xf6}, // Read([0 0 0 0 0 0 0 0 0 0])
+	[]byte{0x59},                                                       // Read([0])
+	[]byte{0xc1, 0x8f, 0xd, 0xce, 0xcc, 0x77, 0xc7},                    // Read([0 0 0 0 0 0 0])
+	[]byte{0x5e, 0x7a, 0x81, 0xbf, 0xde, 0x27, 0x5f, 0x67},             // Read([0 0 0 0 0 0 0 0])
+	[]byte{0xcf, 0xe2, 0x42, 0xcf, 0x3c, 0xc3, 0x54, 0xf3, 0xed},       // Read([0 0 0 0 0 0 0 0 0])
+	[]byte{0xe2, 0xd6, 0xbe, 0xcc, 0x4e, 0xa3, 0xae, 0x5e, 0x88, 0x52}, // Read([0 0 0 0 0 0 0 0 0 0])
+	uint32(4059586549),                                                 // Uint32()
+	uint32(1052117029),                                                 // Uint32()
+	uint32(2817310706),                                                 // Uint32()
+	uint32(233405013),                                                  // Uint32()
+	uint32(1578775030),                                                 // Uint32()
+	uint32(1243308993),                                                 // Uint32()
+	uint32(826517535),                                                  // Uint32()
+	uint32(2814630155),                                                 // Uint32()
+	uint32(3853314576),                                                 // Uint32()
+	uint32(718781857),                                                  // Uint32()
+	uint32(1239465936),                                                 // Uint32()
+	uint32(3876658295),                                                 // Uint32()
+	uint32(3649778518),                                                 // Uint32()
+	uint32(1172727096),                                                 // Uint32()
+	uint32(2615979505),                                                 // Uint32()
+	uint32(1089444252),                                                 // Uint32()
+	uint32(3327114623),                                                 // Uint32()
+	uint32(75079301),                                                   // Uint32()
+	uint32(3380456901),                                                 // Uint32()
+	uint32(3433369789),                                                 // Uint32()
+	uint64(8717895732742165505),                                        // Uint64()
+	uint64(2259404117704393152),                                        // Uint64()
+	uint64(6050128673802995827),                                        // Uint64()
+	uint64(9724605487393973602),                                        // Uint64()
+	uint64(12613765599614152010),                                       // Uint64()
+	uint64(11893357769247901871),                                       // Uint64()
+	uint64(1774932891286980153),                                        // Uint64()
+	uint64(15267744271532198264),                                       // Uint64()
+	uint64(17498302081433670737),                                       // Uint64()
+	uint64(1543572285742637646),                                        // Uint64()
+	uint64(11885104867954719224),                                       // Uint64()
+	uint64(17548432336275752516),                                       // Uint64()
+	uint64(7837839688282259259),                                        // Uint64()
+	uint64(2518412263346885298),                                        // Uint64()
+	uint64(5617773211005988520),                                        // Uint64()
+	uint64(11562935753659892057),                                       // Uint64()
+	uint64(16368296284793757383),                                       // Uint64()
+	uint64(161231572858529631),                                         // Uint64()
+	uint64(16482847956365694147),                                       // Uint64()
+	uint64(16596477517051940556),                                       // Uint64()
 }

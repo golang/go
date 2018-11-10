@@ -38,7 +38,7 @@ func (s *Scope) Lookup(name string) *Object {
 // Insert attempts to insert a named object obj into the scope s.
 // If the scope already contains an object alt with the same name,
 // Insert leaves the scope unchanged and returns alt. Otherwise
-// it inserts obj and returns nil."
+// it inserts obj and returns nil.
 //
 func (s *Scope) Insert(obj *Object) (alt *Object) {
 	if alt = s.Objects[obj.Name]; alt == nil {
@@ -70,10 +70,8 @@ func (s *Scope) String() string {
 // The Data fields contains object-specific data:
 //
 //	Kind    Data type         Data value
-//	Pkg	*types.Package    package scope
+//	Pkg     *Scope            package scope
 //	Con     int               iota for the respective declaration
-//	Con     != nil            constant value
-//	Typ     *Scope            (used as method scope during type checking - transient)
 //
 type Object struct {
 	Kind ObjKind

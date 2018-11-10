@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // Used to be rejected
-// http://golang.org/issue/188
+// https://golang.org/issue/188
 
 package main
 

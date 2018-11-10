@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -70,7 +70,7 @@ func Prime(rand io.Reader, bits int) (p *big.Int, err error) {
 
 		p.SetBytes(bytes)
 
-		// Calculate the value mod the product of smallPrimes.  If it's
+		// Calculate the value mod the product of smallPrimes. If it's
 		// a multiple of any of these primes we add two until it isn't.
 		// The probability of overflowing is minimal and can be ignored
 		// because we still perform Miller-Rabin tests on the result.
@@ -107,16 +107,23 @@ func Int(rand io.Reader, max *big.Int) (n *big.Int, err error) {
 	if max.Sign() <= 0 {
 		panic("crypto/rand: argument to Int is <= 0")
 	}
-	k := (max.BitLen() + 7) / 8
-
-	// b is the number of bits in the most significant byte of max.
-	b := uint(max.BitLen() % 8)
+	n = new(big.Int)
+	n.Sub(max, n.SetUint64(1))
+	// bitLen is the maximum bit length needed to encode a value < max.
+	bitLen := n.BitLen()
+	if bitLen == 0 {
+		// the only valid result is 0
+		return
+	}
+	// k is the maximum byte length needed to encode a value < max.
+	k := (bitLen + 7) / 8
+	// b is the number of bits in the most significant byte of max-1.
+	b := uint(bitLen % 8)
 	if b == 0 {
 		b = 8
 	}
 
 	bytes := make([]byte, k)
-	n = new(big.Int)
 
 	for {
 		_, err = io.ReadFull(rand, bytes)

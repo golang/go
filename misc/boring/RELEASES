@@ -1,0 +1,11 @@
+# This file lists published Go+BoringCrypto releases.
+# Each line describes a single release: <version> <git commit> <target> <URL> <sha256sum>
+go1.9rc2b2 91753387bdf7 linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.9rc2b2.linux-amd64.tar.gz 59355a45e6970e8013060851ddb3f079afe8db52e90db520a0826a13f1b5ae5b
+go1.8.3b3 f6ff81bac156 linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.8.3b3.linux-amd64.tar.gz 6287ad971cd268bb2684fb8b1275dea928ad527823062bc057e73036c419e7af
+go1.9rc2b4 c339bc4e07a6 linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.9rc2b4.linux-amd64.tar.gz a8f677d48dc93920065fca4dca1a55bf7110aba132489c47e25d26d55c67eb32
+go1.9b4 e6ad24cde71e linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.9b4.linux-amd64.tar.gz 6592e36a05df8e7c59812328a3a4bfa6c4eed72132fc31245951c3ade3ef2a8a
+go1.9b4 e6ad24cde71e src https://go-boringcrypto.storage.googleapis.com/go1.9b4.src.tar.gz c85f31dc743fee0e8ce0c6ffc286e27c1f51b66c9b923afafb43cdc378a41091
+go1.8.3b4 42cb4dcdb59a linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.8.3b4.linux-amd64.tar.gz 4011c86e6175925e1c63dc7c19a51f825be53bbe7b08260918e5107b0fbd4f85
+go1.8.3b4 42cb4dcdb59a src https://go-boringcrypto.storage.googleapis.com/go1.8.3b4.src.tar.gz 2531ca8918aa024aed8f4a6c9e5c3b25bc8777623f1efa66aec7214601d474e4
+go1.9.2b4 cda3c6f91d7c linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.9.2b4.linux-amd64.tar.gz 7c5e9a033ddc3ab36646e3bac7fd16962742710c70c18122e44a9ab56cdd3cf7
+go1.9.2b4 cda3c6f91d7c src https://go-boringcrypto.storage.googleapis.com/go1.9.2b4.src.tar.gz 38a2260b64a6a5ab20f8972d08b4765bad116721356433f39aebd29c7598218c

@@ -6,8 +6,10 @@ package bytes_test
 
 import (
 	. "bytes"
+	"internal/testenv"
 	"io"
 	"math/rand"
+	"os/exec"
 	"runtime"
 	"testing"
 	"unicode/utf8"
@@ -231,6 +233,23 @@ func TestMixedReadsAndWrites(t *testing.T) {
 	empty(t, "TestMixedReadsAndWrites (2)", &buf, s, make([]byte, buf.Len()))
 }
 
+func TestCapWithPreallocatedSlice(t *testing.T) {
+	buf := NewBuffer(make([]byte, 10))
+	n := buf.Cap()
+	if n != 10 {
+		t.Errorf("expected 10, got %d", n)
+	}
+}
+
+func TestCapWithSliceAndWrittenData(t *testing.T) {
+	buf := NewBuffer(make([]byte, 0, 10))
+	buf.Write([]byte("test"))
+	n := buf.Cap()
+	if n != 10 {
+		t.Errorf("expected 10, got %d", n)
+	}
+}
+
 func TestNil(t *testing.T) {
 	var b *Buffer
 	if b.String() != "<nil>" {
@@ -294,6 +313,19 @@ func TestRuneIO(t *testing.T) {
 
 	// Check that UnreadRune works
 	buf.Reset()
+
+	// check at EOF
+	if err := buf.UnreadRune(); err == nil {
+		t.Fatal("UnreadRune at EOF: got no error")
+	}
+	if _, _, err := buf.ReadRune(); err == nil {
+		t.Fatal("ReadRune at EOF: got no error")
+	}
+	if err := buf.UnreadRune(); err == nil {
+		t.Fatal("UnreadRune after ReadRune at EOF: got no error")
+	}
+
+	// check not at EOF
 	buf.Write(b)
 	for r := rune(0); r < NRune; r++ {
 		r1, size, _ := buf.ReadRune()
@@ -456,15 +488,34 @@ func TestReadEmptyAtEOF(t *testing.T) {
 
 func TestUnreadByte(t *testing.T) {
 	b := new(Buffer)
-	b.WriteString("abcdefghijklmnopqrstuvwxyz")
 
-	_, err := b.ReadBytes('m')
-	if err != nil {
-		t.Fatalf("ReadBytes: %v", err)
+	// check at EOF
+	if err := b.UnreadByte(); err == nil {
+		t.Fatal("UnreadByte at EOF: got no error")
+	}
+	if _, err := b.ReadByte(); err == nil {
+		t.Fatal("ReadByte at EOF: got no error")
+	}
+	if err := b.UnreadByte(); err == nil {
+		t.Fatal("UnreadByte after ReadByte at EOF: got no error")
 	}
 
-	err = b.UnreadByte()
-	if err != nil {
+	// check not at EOF
+	b.WriteString("abcdefghijklmnopqrstuvwxyz")
+
+	// after unsuccessful read
+	if n, err := b.Read(nil); n != 0 || err != nil {
+		t.Fatalf("Read(nil) = %d,%v; want 0,nil", n, err)
+	}
+	if err := b.UnreadByte(); err == nil {
+		t.Fatal("UnreadByte after Read(nil): got no error")
+	}
+
+	// after successful read
+	if _, err := b.ReadBytes('m'); err != nil {
+		t.Fatalf("ReadBytes: %v", err)
+	}
+	if err := b.UnreadByte(); err != nil {
 		t.Fatalf("UnreadByte: %v", err)
 	}
 	c, err := b.ReadByte()
@@ -494,6 +545,51 @@ func TestBufferGrowth(t *testing.T) {
 	// so set our error threshold at 3x.
 	if cap1 > cap0*3 {
 		t.Errorf("buffer cap = %d; too big (grew from %d)", cap1, cap0)
+	}
+}
+
+// Test that tryGrowByReslice is inlined.
+// Only execute on "linux-amd64" builder in order to avoid breakage.
+func TestTryGrowByResliceInlined(t *testing.T) {
+	targetBuilder := "linux-amd64"
+	if testenv.Builder() != targetBuilder {
+		t.Skipf("%q gets executed on %q builder only", t.Name(), targetBuilder)
+	}
+	t.Parallel()
+	goBin := testenv.GoToolPath(t)
+	out, err := exec.Command(goBin, "tool", "nm", goBin).CombinedOutput()
+	if err != nil {
+		t.Fatalf("go tool nm: %v: %s", err, out)
+	}
+	// Verify this doesn't exist:
+	sym := "bytes.(*Buffer).tryGrowByReslice"
+	if Contains(out, []byte(sym)) {
+		t.Errorf("found symbol %q in cmd/go, but should be inlined", sym)
+	}
+}
+
+func BenchmarkWriteByte(b *testing.B) {
+	const n = 4 << 10
+	b.SetBytes(n)
+	buf := NewBuffer(make([]byte, n))
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		for i := 0; i < n; i++ {
+			buf.WriteByte('x')
+		}
+	}
+}
+
+func BenchmarkWriteRune(b *testing.B) {
+	const n = 4 << 10
+	const r = '☺'
+	b.SetBytes(int64(n * utf8.RuneLen(r)))
+	buf := NewBuffer(make([]byte, n*utf8.UTFMax))
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		for i := 0; i < n; i++ {
+			buf.WriteRune(r)
+		}
 	}
 }
 

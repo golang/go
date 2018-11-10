@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -27,9 +27,9 @@ func tuple() (int, int, int) { return 1, 2, 3 }
 
 var (
 	_ = sum(tuple())
-	_ = sum(tuple()...) // ERROR "multiple-value|[.][.][.]"
+	_ = sum(tuple()...) // ERROR "multiple-value"
 	_ = sum3(tuple())
-	_ = sum3(tuple()...) // ERROR "multiple-value|[.][.][.]" "not enough"
+	_ = sum3(tuple()...) // ERROR "multiple-value" "not enough"
 )
 
 type T []T
@@ -41,6 +41,8 @@ var (
 	_ = funny(nil, nil)
 	_ = funny([]T{}) // ok because []T{} is a T; passes []T{[]T{}}
 )
+
+func Foo(n int) {}
 
 func bad(args ...int) {
 	print(1, 2, args...)	// ERROR "[.][.][.]"
@@ -58,5 +60,6 @@ func bad(args ...int) {
 	_ = unsafe.Sizeof(x...)	// ERROR "[.][.][.]"
 	_ = [...]byte("foo") // ERROR "[.][.][.]"
 	_ = [...][...]int{{1,2,3},{4,5,6}}	// ERROR "[.][.][.]"
-}
 
+	Foo(x...) // ERROR "invalid use of [.][.][.] in call"
+}

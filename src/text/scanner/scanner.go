@@ -4,25 +4,14 @@
 
 // Package scanner provides a scanner and tokenizer for UTF-8-encoded text.
 // It takes an io.Reader providing the source, which then can be tokenized
-// through repeated calls to the Scan function.  For compatibility with
+// through repeated calls to the Scan function. For compatibility with
 // existing tools, the NUL character is not allowed. If the first character
 // in the source is a UTF-8 encoded byte order mark (BOM), it is discarded.
 //
 // By default, a Scanner skips white space and Go comments and recognizes all
-// literals as defined by the Go language specification.  It may be
+// literals as defined by the Go language specification. It may be
 // customized to recognize only a subset of those literals and to recognize
 // different identifier and white space characters.
-//
-// Basic usage pattern:
-//
-//	var s scanner.Scanner
-//	s.Init(src)
-//	tok := s.Scan()
-//	for tok != scanner.EOF {
-//		// do something with tok
-//		tok = s.Scan()
-//	}
-//
 package scanner
 
 import (
@@ -43,19 +32,16 @@ type Position struct {
 	Column   int    // column number, starting at 1 (character count per line)
 }
 
-// IsValid returns true if the position is valid.
+// IsValid reports whether the position is valid.
 func (pos *Position) IsValid() bool { return pos.Line > 0 }
 
 func (pos Position) String() string {
 	s := pos.Filename
-	if pos.IsValid() {
-		if s != "" {
-			s += ":"
-		}
-		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column)
-	}
 	if s == "" {
-		s = "???"
+		s = "<input>"
+	}
+	if pos.IsValid() {
+		s += fmt.Sprintf(":%d:%d", pos.Line, pos.Column)
 	}
 	return s
 }
@@ -84,7 +70,7 @@ const (
 	GoTokens       = ScanIdents | ScanFloats | ScanChars | ScanStrings | ScanRawStrings | ScanComments | SkipComments
 )
 
-// The result of Scan is one of the following tokens or a Unicode character.
+// The result of Scan is one of these tokens or a Unicode character.
 const (
 	EOF = -(iota + 1)
 	Ident
@@ -180,7 +166,8 @@ type Scanner struct {
 	// The Filename field is always left untouched by the Scanner.
 	// If an error is reported (via Error) and Position is invalid,
 	// the scanner is not inside a token. Call Pos to obtain an error
-	// position in that case.
+	// position in that case, or to obtain the position immediately
+	// after the most recently scanned token.
 	Position
 }
 
@@ -208,7 +195,7 @@ func (s *Scanner) Init(src io.Reader) *Scanner {
 	s.tokPos = -1
 
 	// initialize one character look-ahead
-	s.ch = -1 // no char read yet
+	s.ch = -2 // no char read yet, not EOF
 
 	// initialize public fields
 	s.Error = nil
@@ -314,7 +301,9 @@ func (s *Scanner) Next() rune {
 	s.tokPos = -1 // don't collect token text
 	s.Line = 0    // invalidate token position
 	ch := s.Peek()
-	s.ch = s.next()
+	if ch != EOF {
+		s.ch = s.next()
+	}
 	return ch
 }
 
@@ -322,7 +311,7 @@ func (s *Scanner) Next() rune {
 // the scanner. It returns EOF if the scanner's position is at the last
 // character of the source.
 func (s *Scanner) Peek() rune {
-	if s.ch < 0 {
+	if s.ch == -2 {
 		// this code is only run for the very first character
 		s.ch = s.next()
 		if s.ch == '\uFEFF' {
@@ -597,6 +586,8 @@ redo:
 		}
 	default:
 		switch ch {
+		case EOF:
+			break
 		case '"':
 			if s.Mode&ScanStrings != 0 {
 				s.scanString('"')
@@ -647,6 +638,8 @@ redo:
 
 // Pos returns the position of the character immediately after
 // the character or token returned by the last call to Next or Scan.
+// Use the Scanner's Position field for the start position of the most
+// recently scanned token.
 func (s *Scanner) Pos() (pos Position) {
 	pos.Filename = s.Filename
 	pos.Offset = s.srcBufOffset + s.srcPos - s.lastCharLen

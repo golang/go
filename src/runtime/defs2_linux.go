@@ -32,7 +32,7 @@ package runtime
 #include <linux/eventpoll.h>
 
 // This is the sigaction structure from the Linux 2.1.68 kernel which
-//   is used with the rt_sigaction system call.  For 386 this is not
+//   is used with the rt_sigaction system call. For 386 this is not
 //   defined in any public header file.
 
 struct kernel_sigaction {
@@ -139,7 +139,7 @@ type Timespec C.struct_timespec
 type Timeval C.struct_timeval
 type Sigaction C.struct_kernel_sigaction
 type Siginfo C.siginfo_t
-type SigaltstackT C.struct_sigaltstack
+type StackT C.stack_t
 type Sigcontext C.struct_sigcontext
 type Ucontext C.struct_ucontext
 type Itimerval C.struct_itimerval

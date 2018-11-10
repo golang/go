@@ -716,6 +716,7 @@ var errors = []struct {
 	{"078.", token.FLOAT, 0, "078.", ""},
 	{"07801234567.", token.FLOAT, 0, "07801234567.", ""},
 	{"078e0", token.FLOAT, 0, "078e0", ""},
+	{"0E", token.FLOAT, 0, "0E", "illegal floating-point exponent"}, // issue 17621
 	{"078", token.INT, 0, "078", "illegal octal number"},
 	{"07800000009", token.INT, 0, "07800000009", "illegal octal number"},
 	{"0x", token.INT, 0, "0x", "illegal hexadecimal number"},
@@ -731,6 +732,41 @@ var errors = []struct {
 func TestScanErrors(t *testing.T) {
 	for _, e := range errors {
 		checkError(t, e.src, e.tok, e.pos, e.lit, e.err)
+	}
+}
+
+// Verify that no comments show up as literal values when skipping comments.
+func TestIssue10213(t *testing.T) {
+	var src = `
+		var (
+			A = 1 // foo
+		)
+
+		var (
+			B = 2
+			// foo
+		)
+
+		var C = 3 // foo
+
+		var D = 4
+		// foo
+
+		func anycode() {
+		// foo
+		}
+	`
+	var s Scanner
+	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), nil, 0)
+	for {
+		pos, tok, lit := s.Scan()
+		class := tokenclass(tok)
+		if lit != "" && class != keyword && class != literal && tok != token.SEMICOLON {
+			t.Errorf("%s: tok = %s, lit = %q", fset.Position(pos), tok, lit)
+		}
+		if tok <= token.EOF {
+			break
+		}
 	}
 }
 

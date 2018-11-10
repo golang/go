@@ -5,8 +5,6 @@
 package xml
 
 import (
-	"bytes"
-	"fmt"
 	"io"
 	"reflect"
 	"strings"
@@ -486,34 +484,6 @@ func TestUnmarshalNS(t *testing.T) {
 	}
 }
 
-func TestRoundTrip(t *testing.T) {
-	// From issue 7535
-	const s = `<ex:element xmlns:ex="http://example.com/schema"></ex:element>`
-	in := bytes.NewBufferString(s)
-	for i := 0; i < 10; i++ {
-		out := &bytes.Buffer{}
-		d := NewDecoder(in)
-		e := NewEncoder(out)
-
-		for {
-			t, err := d.Token()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				fmt.Println("failed:", err)
-				return
-			}
-			e.EncodeToken(t)
-		}
-		e.Flush()
-		in = out
-	}
-	if got := in.String(); got != s {
-		t.Errorf("have: %q\nwant: %q\n", got, s)
-	}
-}
-
 func TestMarshalNS(t *testing.T) {
 	dst := Tables{"hello", "world"}
 	data, err := Marshal(&dst)
@@ -637,7 +607,7 @@ func TestMarshalNSAttr(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
-	want := `<TableAttrs><TAttr xmlns:json_1="http://golang.org/2/json/" xmlns:json="http://golang.org/json/" xmlns:_xmlfoo="http://golang.org/xmlfoo/" xmlns:_xml="http://golang.org/xml/" xmlns:furniture="http://www.w3schools.com/furniture" xmlns:html4="http://www.w3.org/TR/html4/" html4:table="hello" furniture:table="world" xml:lang="en_US" _xml:other="other1" _xmlfoo:other="other2" json:other="other3" json_1:other="other4"></TAttr></TableAttrs>`
+	want := `<TableAttrs><TAttr xmlns:html4="http://www.w3.org/TR/html4/" html4:table="hello" xmlns:furniture="http://www.w3schools.com/furniture" furniture:table="world" xml:lang="en_US" xmlns:_xml="http://golang.org/xml/" _xml:other="other1" xmlns:_xmlfoo="http://golang.org/xmlfoo/" _xmlfoo:other="other2" xmlns:json="http://golang.org/json/" json:other="other3" xmlns:json_1="http://golang.org/2/json/" json_1:other="other4"></TAttr></TableAttrs>`
 	str := string(data)
 	if str != want {
 		t.Errorf("Marshal:\nhave: %#q\nwant: %#q\n", str, want)
@@ -735,10 +705,206 @@ func TestUnmarshalIntoInterface(t *testing.T) {
 	}
 	pea, ok := pod.Pea.(*Pea)
 	if !ok {
-		t.Fatalf("unmarshalled into wrong type: have %T want *Pea", pod.Pea)
+		t.Fatalf("unmarshaled into wrong type: have %T want *Pea", pod.Pea)
 	}
 	have, want := pea.Cotelydon, "Green stuff"
 	if have != want {
 		t.Errorf("failed to unmarshal into interface, have %q want %q", have, want)
+	}
+}
+
+type X struct {
+	D string `xml:",comment"`
+}
+
+// Issue 11112. Unmarshal must reject invalid comments.
+func TestMalformedComment(t *testing.T) {
+	testData := []string{
+		"<X><!-- a---></X>",
+		"<X><!-- -- --></X>",
+		"<X><!-- a--b --></X>",
+		"<X><!------></X>",
+	}
+	for i, test := range testData {
+		data := []byte(test)
+		v := new(X)
+		if err := Unmarshal(data, v); err == nil {
+			t.Errorf("%d: unmarshal should reject invalid comments", i)
+		}
+	}
+}
+
+type IXField struct {
+	Five        int      `xml:"five"`
+	NotInnerXML []string `xml:",innerxml"`
+}
+
+// Issue 15600. ",innerxml" on a field that can't hold it.
+func TestInvalidInnerXMLType(t *testing.T) {
+	v := new(IXField)
+	if err := Unmarshal([]byte(`<tag><five>5</five><innertag/></tag>`), v); err != nil {
+		t.Errorf("Unmarshal failed: got %v", err)
+	}
+	if v.Five != 5 {
+		t.Errorf("Five = %v, want 5", v.Five)
+	}
+	if v.NotInnerXML != nil {
+		t.Errorf("NotInnerXML = %v, want nil", v.NotInnerXML)
+	}
+}
+
+type Child struct {
+	G struct {
+		I int
+	}
+}
+
+type ChildToEmbed struct {
+	X bool
+}
+
+type Parent struct {
+	I        int
+	IPtr     *int
+	Is       []int
+	IPtrs    []*int
+	F        float32
+	FPtr     *float32
+	Fs       []float32
+	FPtrs    []*float32
+	B        bool
+	BPtr     *bool
+	Bs       []bool
+	BPtrs    []*bool
+	Bytes    []byte
+	BytesPtr *[]byte
+	S        string
+	SPtr     *string
+	Ss       []string
+	SPtrs    []*string
+	MyI      MyInt
+	Child    Child
+	Children []Child
+	ChildPtr *Child
+	ChildToEmbed
+}
+
+const (
+	emptyXML = `
+<Parent>
+    <I></I>
+    <IPtr></IPtr>
+    <Is></Is>
+    <IPtrs></IPtrs>
+    <F></F>
+    <FPtr></FPtr>
+    <Fs></Fs>
+    <FPtrs></FPtrs>
+    <B></B>
+    <BPtr></BPtr>
+    <Bs></Bs>
+    <BPtrs></BPtrs>
+    <Bytes></Bytes>
+    <BytesPtr></BytesPtr>
+    <S></S>
+    <SPtr></SPtr>
+    <Ss></Ss>
+    <SPtrs></SPtrs>
+    <MyI></MyI>
+    <Child></Child>
+    <Children></Children>
+    <ChildPtr></ChildPtr>
+    <X></X>
+</Parent>
+`
+)
+
+// github.com/golang/go/issues/13417
+func TestUnmarshalEmptyValues(t *testing.T) {
+	// Test first with a zero-valued dst.
+	v := new(Parent)
+	if err := Unmarshal([]byte(emptyXML), v); err != nil {
+		t.Fatalf("zero: Unmarshal failed: got %v", err)
+	}
+
+	zBytes, zInt, zStr, zFloat, zBool := []byte{}, 0, "", float32(0), false
+	want := &Parent{
+		IPtr:         &zInt,
+		Is:           []int{zInt},
+		IPtrs:        []*int{&zInt},
+		FPtr:         &zFloat,
+		Fs:           []float32{zFloat},
+		FPtrs:        []*float32{&zFloat},
+		BPtr:         &zBool,
+		Bs:           []bool{zBool},
+		BPtrs:        []*bool{&zBool},
+		Bytes:        []byte{},
+		BytesPtr:     &zBytes,
+		SPtr:         &zStr,
+		Ss:           []string{zStr},
+		SPtrs:        []*string{&zStr},
+		Children:     []Child{{}},
+		ChildPtr:     new(Child),
+		ChildToEmbed: ChildToEmbed{},
+	}
+	if !reflect.DeepEqual(v, want) {
+		t.Fatalf("zero: Unmarshal:\nhave:  %#+v\nwant: %#+v", v, want)
+	}
+
+	// Test with a pre-populated dst.
+	// Multiple addressable copies, as pointer-to fields will replace value during unmarshal.
+	vBytes0, vInt0, vStr0, vFloat0, vBool0 := []byte("x"), 1, "x", float32(1), true
+	vBytes1, vInt1, vStr1, vFloat1, vBool1 := []byte("x"), 1, "x", float32(1), true
+	vInt2, vStr2, vFloat2, vBool2 := 1, "x", float32(1), true
+	v = &Parent{
+		I:            vInt0,
+		IPtr:         &vInt1,
+		Is:           []int{vInt0},
+		IPtrs:        []*int{&vInt2},
+		F:            vFloat0,
+		FPtr:         &vFloat1,
+		Fs:           []float32{vFloat0},
+		FPtrs:        []*float32{&vFloat2},
+		B:            vBool0,
+		BPtr:         &vBool1,
+		Bs:           []bool{vBool0},
+		BPtrs:        []*bool{&vBool2},
+		Bytes:        vBytes0,
+		BytesPtr:     &vBytes1,
+		S:            vStr0,
+		SPtr:         &vStr1,
+		Ss:           []string{vStr0},
+		SPtrs:        []*string{&vStr2},
+		MyI:          MyInt(vInt0),
+		Child:        Child{G: struct{ I int }{I: vInt0}},
+		Children:     []Child{{G: struct{ I int }{I: vInt0}}},
+		ChildPtr:     &Child{G: struct{ I int }{I: vInt0}},
+		ChildToEmbed: ChildToEmbed{X: vBool0},
+	}
+	if err := Unmarshal([]byte(emptyXML), v); err != nil {
+		t.Fatalf("populated: Unmarshal failed: got %v", err)
+	}
+
+	want = &Parent{
+		IPtr:     &zInt,
+		Is:       []int{vInt0, zInt},
+		IPtrs:    []*int{&vInt0, &zInt},
+		FPtr:     &zFloat,
+		Fs:       []float32{vFloat0, zFloat},
+		FPtrs:    []*float32{&vFloat0, &zFloat},
+		BPtr:     &zBool,
+		Bs:       []bool{vBool0, zBool},
+		BPtrs:    []*bool{&vBool0, &zBool},
+		Bytes:    []byte{},
+		BytesPtr: &zBytes,
+		SPtr:     &zStr,
+		Ss:       []string{vStr0, zStr},
+		SPtrs:    []*string{&vStr0, &zStr},
+		Child:    Child{G: struct{ I int }{I: vInt0}}, // I should == zInt0? (zero value)
+		Children: []Child{{G: struct{ I int }{I: vInt0}}, {}},
+		ChildPtr: &Child{G: struct{ I int }{I: vInt0}}, // I should == zInt0? (zero value)
+	}
+	if !reflect.DeepEqual(v, want) {
+		t.Fatalf("populated: Unmarshal:\nhave:  %#+v\nwant: %#+v", v, want)
 	}
 }

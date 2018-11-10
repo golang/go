@@ -25,7 +25,7 @@ import "sort"
 //	!h.Less(j, i) for 0 <= i < h.Len() and 2*i+1 <= j <= 2*i+2 and j < h.Len()
 //
 // Note that Push and Pop in this interface are for package heap's
-// implementation to call.  To add and remove things from the heap,
+// implementation to call. To add and remove things from the heap,
 // use heap.Push and heap.Pop.
 type Interface interface {
 	sort.Interface
@@ -72,8 +72,9 @@ func Remove(h Interface, i int) interface{} {
 	n := h.Len() - 1
 	if n != i {
 		h.Swap(i, n)
-		down(h, i, n)
-		up(h, i)
+		if !down(h, i, n) {
+			up(h, i)
+		}
 	}
 	return h.Pop()
 }
@@ -83,8 +84,9 @@ func Remove(h Interface, i int) interface{} {
 // but less expensive than, calling Remove(h, i) followed by a Push of the new value.
 // The complexity is O(log(n)) where n = h.Len().
 func Fix(h Interface, i int) {
-	down(h, i, h.Len())
-	up(h, i)
+	if !down(h, i, h.Len()) {
+		up(h, i)
+	}
 }
 
 func up(h Interface, j int) {
@@ -98,14 +100,15 @@ func up(h Interface, j int) {
 	}
 }
 
-func down(h Interface, i, n int) {
+func down(h Interface, i0, n int) bool {
+	i := i0
 	for {
 		j1 := 2*i + 1
 		if j1 >= n || j1 < 0 { // j1 < 0 after int overflow
 			break
 		}
 		j := j1 // left child
-		if j2 := j1 + 1; j2 < n && !h.Less(j1, j2) {
+		if j2 := j1 + 1; j2 < n && h.Less(j2, j1) {
 			j = j2 // = 2*i + 2  // right child
 		}
 		if !h.Less(j, i) {
@@ -114,4 +117,5 @@ func down(h Interface, i, n int) {
 		h.Swap(i, j)
 		i = j
 	}
+	return i > i0
 }

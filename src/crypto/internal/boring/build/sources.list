@@ -1,0 +1,10 @@
+deb http://archive.ubuntu.com/ubuntu/ zesty main restricted
+deb http://archive.ubuntu.com/ubuntu/ zesty-updates main restricted
+deb http://archive.ubuntu.com/ubuntu/ zesty universe
+deb http://archive.ubuntu.com/ubuntu/ zesty-updates universe
+deb http://archive.ubuntu.com/ubuntu/ zesty multiverse
+deb http://archive.ubuntu.com/ubuntu/ zesty-updates multiverse
+deb http://archive.ubuntu.com/ubuntu/ zesty-backports main restricted universe multiverse
+deb http://security.ubuntu.com/ubuntu zesty-security main restricted
+deb http://security.ubuntu.com/ubuntu zesty-security universe
+deb http://security.ubuntu.com/ubuntu zesty-security multiverse

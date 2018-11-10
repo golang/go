@@ -140,8 +140,8 @@ func cos(x float64) float64 {
 
 	// map zeros to origin
 	if j&1 == 1 {
-		j += 1
-		y += 1
+		j++
+		y++
 	}
 	j &= 7 // octant modulo 2Pi radians (360 degrees)
 	if j > 3 {
@@ -200,8 +200,8 @@ func sin(x float64) float64 {
 
 	// map zeros to origin
 	if j&1 == 1 {
-		j += 1
-		y += 1
+		j++
+		y++
 	}
 	j &= 7 // octant modulo 2Pi radians (360 degrees)
 	// reflect in x axis

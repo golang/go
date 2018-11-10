@@ -15,7 +15,7 @@
 //	memstats  runtime.Memstats
 //
 // The package is sometimes only imported for the side effect of
-// registering its HTTP handler and the above variables.  To use it
+// registering its HTTP handler and the above variables. To use it
 // this way, link this package into your program:
 //	import _ "expvar"
 //
@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"runtime"
@@ -37,12 +38,19 @@ import (
 
 // Var is an abstract type for all exported variables.
 type Var interface {
+	// String returns a valid JSON value for the variable.
+	// Types with String methods that do not return valid JSON
+	// (such as time.Time) must not be used as a Var.
 	String() string
 }
 
 // Int is a 64-bit integer variable that satisfies the Var interface.
 type Int struct {
 	i int64
+}
+
+func (v *Int) Value() int64 {
+	return atomic.LoadInt64(&v.i)
 }
 
 func (v *Int) String() string {
@@ -59,35 +67,41 @@ func (v *Int) Set(value int64) {
 
 // Float is a 64-bit float variable that satisfies the Var interface.
 type Float struct {
-	mu sync.RWMutex
-	f  float64
+	f uint64
+}
+
+func (v *Float) Value() float64 {
+	return math.Float64frombits(atomic.LoadUint64(&v.f))
 }
 
 func (v *Float) String() string {
-	v.mu.RLock()
-	defer v.mu.RUnlock()
-	return strconv.FormatFloat(v.f, 'g', -1, 64)
+	return strconv.FormatFloat(
+		math.Float64frombits(atomic.LoadUint64(&v.f)), 'g', -1, 64)
 }
 
 // Add adds delta to v.
 func (v *Float) Add(delta float64) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.f += delta
+	for {
+		cur := atomic.LoadUint64(&v.f)
+		curVal := math.Float64frombits(cur)
+		nxtVal := curVal + delta
+		nxt := math.Float64bits(nxtVal)
+		if atomic.CompareAndSwapUint64(&v.f, cur, nxt) {
+			return
+		}
+	}
 }
 
 // Set sets v to value.
 func (v *Float) Set(value float64) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.f = value
+	atomic.StoreUint64(&v.f, math.Float64bits(value))
 }
 
 // Map is a string-to-Var map variable that satisfies the Var interface.
 type Map struct {
-	mu   sync.RWMutex
-	m    map[string]Var
-	keys []string // sorted
+	m      sync.Map // map[string]Var
+	keysMu sync.RWMutex
+	keys   []string // sorted
 }
 
 // KeyValue represents a single entry in a Map.
@@ -97,12 +111,10 @@ type KeyValue struct {
 }
 
 func (v *Map) String() string {
-	v.mu.RLock()
-	defer v.mu.RUnlock()
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "{")
 	first := true
-	v.doLocked(func(kv KeyValue) {
+	v.Do(func(kv KeyValue) {
 		if !first {
 			fmt.Fprintf(&b, ", ")
 		}
@@ -113,79 +125,76 @@ func (v *Map) String() string {
 	return b.String()
 }
 
+// Init removes all keys from the map.
 func (v *Map) Init() *Map {
-	v.m = make(map[string]Var)
+	v.keysMu.Lock()
+	defer v.keysMu.Unlock()
+	v.keys = v.keys[:0]
+	v.m.Range(func(k, _ interface{}) bool {
+		v.m.Delete(k)
+		return true
+	})
 	return v
 }
 
 // updateKeys updates the sorted list of keys in v.keys.
-// must be called with v.mu held.
-func (v *Map) updateKeys() {
-	if len(v.m) == len(v.keys) {
-		// No new key.
-		return
-	}
-	v.keys = v.keys[:0]
-	for k := range v.m {
-		v.keys = append(v.keys, k)
-	}
+func (v *Map) addKey(key string) {
+	v.keysMu.Lock()
+	defer v.keysMu.Unlock()
+	v.keys = append(v.keys, key)
 	sort.Strings(v.keys)
 }
 
 func (v *Map) Get(key string) Var {
-	v.mu.RLock()
-	defer v.mu.RUnlock()
-	return v.m[key]
+	i, _ := v.m.Load(key)
+	av, _ := i.(Var)
+	return av
 }
 
 func (v *Map) Set(key string, av Var) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.m[key] = av
-	v.updateKeys()
+	// Before we store the value, check to see whether the key is new. Try a Load
+	// before LoadOrStore: LoadOrStore causes the key interface to escape even on
+	// the Load path.
+	if _, ok := v.m.Load(key); !ok {
+		if _, dup := v.m.LoadOrStore(key, av); !dup {
+			v.addKey(key)
+			return
+		}
+	}
+
+	v.m.Store(key, av)
 }
 
+// Add adds delta to the *Int value stored under the given map key.
 func (v *Map) Add(key string, delta int64) {
-	v.mu.RLock()
-	av, ok := v.m[key]
-	v.mu.RUnlock()
+	i, ok := v.m.Load(key)
 	if !ok {
-		// check again under the write lock
-		v.mu.Lock()
-		av, ok = v.m[key]
-		if !ok {
-			av = new(Int)
-			v.m[key] = av
-			v.updateKeys()
+		var dup bool
+		i, dup = v.m.LoadOrStore(key, new(Int))
+		if !dup {
+			v.addKey(key)
 		}
-		v.mu.Unlock()
 	}
 
 	// Add to Int; ignore otherwise.
-	if iv, ok := av.(*Int); ok {
+	if iv, ok := i.(*Int); ok {
 		iv.Add(delta)
 	}
 }
 
 // AddFloat adds delta to the *Float value stored under the given map key.
 func (v *Map) AddFloat(key string, delta float64) {
-	v.mu.RLock()
-	av, ok := v.m[key]
-	v.mu.RUnlock()
+	i, ok := v.m.Load(key)
 	if !ok {
-		// check again under the write lock
-		v.mu.Lock()
-		av, ok = v.m[key]
-		if !ok {
-			av = new(Float)
-			v.m[key] = av
-			v.updateKeys()
+		var dup bool
+		i, dup = v.m.LoadOrStore(key, new(Float))
+		if !dup {
+			v.addKey(key)
 		}
-		v.mu.Unlock()
 	}
 
 	// Add to Float; ignore otherwise.
-	if iv, ok := av.(*Float); ok {
+	if iv, ok := i.(*Float); ok {
 		iv.Add(delta)
 	}
 }
@@ -194,40 +203,43 @@ func (v *Map) AddFloat(key string, delta float64) {
 // The map is locked during the iteration,
 // but existing entries may be concurrently updated.
 func (v *Map) Do(f func(KeyValue)) {
-	v.mu.RLock()
-	defer v.mu.RUnlock()
-	v.doLocked(f)
-}
-
-// doLocked calls f for each entry in the map.
-// v.mu must be held for reads.
-func (v *Map) doLocked(f func(KeyValue)) {
+	v.keysMu.RLock()
+	defer v.keysMu.RUnlock()
 	for _, k := range v.keys {
-		f(KeyValue{k, v.m[k]})
+		i, _ := v.m.Load(k)
+		f(KeyValue{k, i.(Var)})
 	}
 }
 
 // String is a string variable, and satisfies the Var interface.
 type String struct {
-	mu sync.RWMutex
-	s  string
+	s atomic.Value // string
 }
 
+func (v *String) Value() string {
+	p, _ := v.s.Load().(string)
+	return p
+}
+
+// String implements the Val interface. To get the unquoted string
+// use Value.
 func (v *String) String() string {
-	v.mu.RLock()
-	defer v.mu.RUnlock()
-	return strconv.Quote(v.s)
+	s := v.Value()
+	b, _ := json.Marshal(s)
+	return string(b)
 }
 
 func (v *String) Set(value string) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.s = value
+	v.s.Store(value)
 }
 
 // Func implements Var by calling the function
 // and formatting the returned value using JSON.
 type Func func() interface{}
+
+func (f Func) Value() interface{} {
+	return f()
+}
 
 func (f Func) String() string {
 	v, _ := json.Marshal(f())
@@ -236,30 +248,30 @@ func (f Func) String() string {
 
 // All published variables.
 var (
-	mutex   sync.RWMutex
-	vars    = make(map[string]Var)
-	varKeys []string // sorted
+	vars      sync.Map // map[string]Var
+	varKeysMu sync.RWMutex
+	varKeys   []string // sorted
 )
 
 // Publish declares a named exported variable. This should be called from a
 // package's init function when it creates its Vars. If the name is already
 // registered then this will log.Panic.
 func Publish(name string, v Var) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	if _, existing := vars[name]; existing {
+	if _, dup := vars.LoadOrStore(name, v); dup {
 		log.Panicln("Reuse of exported var name:", name)
 	}
-	vars[name] = v
+	varKeysMu.Lock()
+	defer varKeysMu.Unlock()
 	varKeys = append(varKeys, name)
 	sort.Strings(varKeys)
 }
 
-// Get retrieves a named exported variable.
+// Get retrieves a named exported variable. It returns nil if the name has
+// not been registered.
 func Get(name string) Var {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	return vars[name]
+	i, _ := vars.Load(name)
+	v, _ := i.(Var)
+	return v
 }
 
 // Convenience functions for creating new exported variables.
@@ -292,10 +304,11 @@ func NewString(name string) *String {
 // The global variable map is locked during the iteration,
 // but existing entries may be concurrently updated.
 func Do(f func(KeyValue)) {
-	mutex.RLock()
-	defer mutex.RUnlock()
+	varKeysMu.RLock()
+	defer varKeysMu.RUnlock()
 	for _, k := range varKeys {
-		f(KeyValue{k, vars[k]})
+		val, _ := vars.Load(k)
+		f(KeyValue{k, val.(Var)})
 	}
 }
 
@@ -311,6 +324,13 @@ func expvarHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
 	})
 	fmt.Fprintf(w, "\n}\n")
+}
+
+// Handler returns the expvar HTTP Handler.
+//
+// This is only needed to install the handler in a non-standard location.
+func Handler() http.Handler {
+	return http.HandlerFunc(expvarHandler)
 }
 
 func cmdline() interface{} {

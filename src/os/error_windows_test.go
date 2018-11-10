@@ -1,47 +1,39 @@
-// Copyright 2012 The Go Authors. All rights reserved.
+// Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// +build windows
 
 package os_test
 
 import (
-	"io/ioutil"
 	"os"
-	"path/filepath"
-	"testing"
+	"syscall"
 )
 
-func TestErrIsExistAfterRename(t *testing.T) {
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatalf("Create temp directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+func init() {
+	const _ERROR_BAD_NETPATH = syscall.Errno(53)
 
-	src := filepath.Join(dir, "src")
-	dest := filepath.Join(dir, "dest")
+	isExistTests = append(isExistTests,
+		isExistTest{err: &os.PathError{Err: syscall.ERROR_FILE_NOT_FOUND}, is: false, isnot: true},
+		isExistTest{err: &os.LinkError{Err: syscall.ERROR_FILE_NOT_FOUND}, is: false, isnot: true},
+		isExistTest{err: &os.SyscallError{Err: syscall.ERROR_FILE_NOT_FOUND}, is: false, isnot: true},
 
-	f, err := os.Create(src)
-	if err != nil {
-		t.Fatalf("Create file %v: %v", src, err)
-	}
-	f.Close()
-	err = os.Rename(src, dest)
-	if err != nil {
-		t.Fatalf("Rename %v to %v: %v", src, dest, err)
-	}
+		isExistTest{err: &os.PathError{Err: _ERROR_BAD_NETPATH}, is: false, isnot: true},
+		isExistTest{err: &os.LinkError{Err: _ERROR_BAD_NETPATH}, is: false, isnot: true},
+		isExistTest{err: &os.SyscallError{Err: _ERROR_BAD_NETPATH}, is: false, isnot: true},
 
-	f, err = os.Create(src)
-	if err != nil {
-		t.Fatalf("Create file %v: %v", src, err)
-	}
-	f.Close()
-	err = os.Rename(src, dest)
-	if err == nil {
-		t.Fatal("Rename should have failed")
-	}
-	if s := checkErrorPredicate("os.IsExist", os.IsExist, err); s != "" {
-		t.Fatal(s)
-		return
-	}
+		isExistTest{err: &os.PathError{Err: syscall.ERROR_PATH_NOT_FOUND}, is: false, isnot: true},
+		isExistTest{err: &os.LinkError{Err: syscall.ERROR_PATH_NOT_FOUND}, is: false, isnot: true},
+		isExistTest{err: &os.SyscallError{Err: syscall.ERROR_PATH_NOT_FOUND}, is: false, isnot: true},
+
+		isExistTest{err: &os.PathError{Err: syscall.ERROR_DIR_NOT_EMPTY}, is: true, isnot: false},
+		isExistTest{err: &os.LinkError{Err: syscall.ERROR_DIR_NOT_EMPTY}, is: true, isnot: false},
+		isExistTest{err: &os.SyscallError{Err: syscall.ERROR_DIR_NOT_EMPTY}, is: true, isnot: false},
+	)
+	isPermissionTests = append(isPermissionTests,
+		isPermissionTest{err: &os.PathError{Err: syscall.ERROR_ACCESS_DENIED}, want: true},
+		isPermissionTest{err: &os.LinkError{Err: syscall.ERROR_ACCESS_DENIED}, want: true},
+		isPermissionTest{err: &os.SyscallError{Err: syscall.ERROR_ACCESS_DENIED}, want: true},
+	)
 }

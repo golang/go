@@ -9,32 +9,58 @@ void callback(void *f);
 void callGoFoo(void);
 void callGoStackCheck(void);
 void callPanic(void);
-void callCgoAllocate(void);
 int callGoReturnVal(void);
 int returnAfterGrow(void);
 int returnAfterGrowFromGo(void);
+void callGoWithString(void);
 */
 import "C"
 
 import (
-	"os"
 	"path"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"unsafe"
 )
 
+// Pass a func value from nestedCall to goCallback using an integer token.
+var callbackMutex sync.Mutex
+var callbackToken int
+var callbackFuncs = make(map[int]func())
+
 // nestedCall calls into C, back into Go, and finally to f.
 func nestedCall(f func()) {
-	// NOTE: Depends on representation of f.
 	// callback(x) calls goCallback(x)
-	C.callback(*(*unsafe.Pointer)(unsafe.Pointer(&f)))
+	callbackMutex.Lock()
+	callbackToken++
+	i := callbackToken
+	callbackFuncs[i] = f
+	callbackMutex.Unlock()
+
+	// Pass the address of i because the C function was written to
+	// take a pointer.  We could pass an int if we felt like
+	// rewriting the C code.
+	C.callback(unsafe.Pointer(&i))
+
+	callbackMutex.Lock()
+	delete(callbackFuncs, i)
+	callbackMutex.Unlock()
 }
 
 //export goCallback
 func goCallback(p unsafe.Pointer) {
-	(*(*func())(unsafe.Pointer(&p)))()
+	i := *(*int)(p)
+
+	callbackMutex.Lock()
+	f := callbackFuncs[i]
+	callbackMutex.Unlock()
+
+	if f == nil {
+		panic("missing callback function")
+	}
+	f()
 }
 
 func testCallback(t *testing.T) {
@@ -153,15 +179,14 @@ func testCallbackCallers(t *testing.T) {
 	pc := make([]uintptr, 100)
 	n := 0
 	name := []string{
-		"test.goCallback",
 		"runtime.call16",
 		"runtime.cgocallbackg1",
 		"runtime.cgocallbackg",
 		"runtime.cgocallback_gofunc",
-		"asmcgocall",
-		"runtime.asmcgocall_errno",
-		"runtime.cgocall_errno",
+		"runtime.asmcgocall",
+		"runtime.cgocall",
 		"test._Cfunc_callback",
+		"test.nestedCall.func1",
 		"test.nestedCall",
 		"test.testCallbackCallers",
 		"test.TestCallbackCallers",
@@ -169,10 +194,10 @@ func testCallbackCallers(t *testing.T) {
 		"runtime.goexit",
 	}
 	if unsafe.Sizeof((*byte)(nil)) == 8 {
-		name[1] = "runtime.call32"
+		name[0] = "runtime.call32"
 	}
 	nestedCall(func() {
-		n = runtime.Callers(2, pc)
+		n = runtime.Callers(4, pc)
 	})
 	if n != len(name) {
 		t.Errorf("expected %d frames, got %d", len(name), n)
@@ -180,7 +205,7 @@ func testCallbackCallers(t *testing.T) {
 	for i := 0; i < n; i++ {
 		f := runtime.FuncForPC(pc[i])
 		if f == nil {
-			t.Fatalf("expected non-nil Func for pc %p", pc[i])
+			t.Fatalf("expected non-nil Func for pc %d", pc[i])
 		}
 		fname := f.Name()
 		// Remove the prepended pathname from automatically
@@ -209,23 +234,6 @@ func testPanicFromC(t *testing.T) {
 		}
 	}()
 	C.callPanic()
-}
-
-func testAllocateFromC(t *testing.T) {
-	if strings.Contains(os.Getenv("GODEBUG"), "wbshadow=") {
-		// This test is writing pointers to Go heap objects from C.
-		// As such, those writes have no write barriers, and
-		// wbshadow=2 mode correctly discovers that and crashes.
-		// Disable test if any wbshadow mode is enabled.
-		// TODO(rsc): I am not sure whether the test is fundamentally
-		// incompatible with concurrent collection and should be
-		// turned off or rewritten entirely. The test is attempting to
-		// mimic some SWIG behavior, so it is important to work
-		// through what we expect before trying SWIG and C++
-		// with the concurrent collector.
-		t.Skip("test is incompatible with wbshadow=")
-	}
-	C.callCgoAllocate() // crashes or exits on failure
 }
 
 // Test that C code can return a value if it calls a Go function that
@@ -268,6 +276,22 @@ func goReturnVal() (r C.int) {
 	}
 	r = C.int(f(128))
 	return
+}
+
+// Test that C can pass in a Go string from a string constant.
+func testCallGoWithString(t *testing.T) {
+	C.callGoWithString()
+	want := "string passed from C to Go"
+	if stringFromGo != want {
+		t.Errorf("string passed through C is %s, want %s", stringFromGo, want)
+	}
+}
+
+var stringFromGo string
+
+//export goWithString
+func goWithString(s string) {
+	stringFromGo = s
 }
 
 func testCallbackStack(t *testing.T) {

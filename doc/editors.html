@@ -1,0 +1,231 @@
+<!--{
+	"Title": "Editor plugins and IDEs",
+	"Template": true
+}-->
+
+<h2 id="introduction">Introduction</h2>
+
+<p>
+  This document lists commonly used editor plugins and IDEs from the Go ecosystem
+  that make Go development more productive and seamless.
+  A comprehensive list of editor support and IDEs for Go development is available at
+  <a href="http://golang.org/wiki/IDEsAndTextEditorPlugins">the wiki</a>.
+</p>
+
+<h2 id="options">Options</h2>
+<p>
+The Go ecosystem provides a variety of editor plugins and IDEs to enhance your day-to-day
+editing, navigation, testing, and debugging experience.
+</p>
+
+<ul>
+<li><a href="https://github.com/fatih/vim-go">vim</a>: vim-go plugin provides Go programming language support</li>
+<li><a href="https://marketplace.visualstudio.com/items?itemName=lukehoban.Go">Visual Studio Code</a>:
+Go extension provides support for the Go programming language</li>
+<li><a href="https://www.jetbrains.com/go">Gogland</a>: Gogland is distributed either as a standalone IDE
+or as a plugin for the commercial IntelliJ Platform IDEs</li>
+<li><a href="https://atom.io/packages/go-plus">Atom</a>: Go-Plus is an Atom package that provides enhanced Go support</li>
+</ul>
+
+<p>
+Note that these are only a few top solutions; a more comphensive
+community-maintained list of
+<a href="https://github.com/golang/go/wiki/IDEsAndTextEditorPlugins">IDEs and text editor plugins</a>
+is available at the Wiki.
+</p>
+
+<p>
+Each development environment integrates a number of Go-specific tools.
+The following feature matrix lists and compares the most significant features.
+</p>
+
+<table class="features-matrix">
+  <tr>
+    <th></th>
+    <th><img title="Vim Go" src="/doc/editors/vimgo.png"><br>vim</th>
+    <th><img title="Visual Studio Code" src="/doc/editors/vscodego.png"><br>Visual Studio Code</th>
+    <th><img title="Gogland" src="/doc/editors/gogland.png"><br>Gogland</th>
+    <th><img title="Go-Plus" src="/doc/editors/go-plus.png"><br>Atom</th>
+  </tr>
+  <tr>
+    <td class="feature-row" colspan="5">Editing features</td>
+  </tr>
+  <tr>
+    <td>Build and run from the editor/IDE</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+  </tr>
+  <tr>
+    <td>Autocompletion of identifers (variable, method, and function names)</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+  </tr>
+  <tr>
+    <td>Type-aware autocompletion</td>
+    <td class="no">No</td>
+    <td class="no">No</td>
+    <td class="yes">Yes</td>
+    <td class="no">No</td>
+  </tr>
+  <tr>
+    <td>Rename identifiers</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+  </tr>
+  <tr>
+    <td>Auto format, build, vet, and lint on save</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes<sup>1</sup></td>
+    <td class="yes">Yes</td>
+  </tr>
+  <tr>
+    <td>Auto insert import paths and remove unused on save</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes<sup>2</sup></td>
+    <td class="yes">Yes</td>
+  </tr>
+  <tr>
+    <td>Auto generate JSON, XML tags for struct fields</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+  </tr>
+  <tr>
+    <td class="feature-row" colspan="5">Navigation features</td>
+  </tr>
+  <tr>
+    <td>Display documentation inline, or open godoc in browser</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+  </tr>
+  <tr>
+    <td>Switch between <code>*.go</code> and <code>*_test.go</code> file</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">No</td>
+  </tr>
+  <tr>
+    <td>Jump to definition and referees</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+  </tr>
+  <tr>
+    <td>Look up for interface implementations</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+  </tr>
+  <tr>
+    <td>Search for callers and callees</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+  </tr>
+  <tr>
+    <td class="feature-row" colspan="5">Testing and debugging features</td>
+  </tr>
+  <tr>
+    <td>Debugger support</td>
+    <td class="no">No</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes<sup>3</sup></td>
+
+  </tr>
+  <tr>
+    <td>Run a single test case, all tests from file, or all tests from a package</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="no">No</td>
+  </tr>
+  <tr>
+    <td>Auto generate tests for packages, files and identifiers</td>
+    <td class="no">No</td>
+    <td class="yes">Yes</td>
+    <td class="no">No</td>
+    <td class="no">No</td>
+  </tr>
+  <tr>
+    <td>Debug tests</td>
+    <td class="no">No</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes<sup>3</sup></td>
+  </tr>
+  <tr>
+    <td>Display test coverage</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+    <td class="yes">Yes</td>
+  </tr>
+  <tr class="download">
+    <td></td>
+    <td><a href="https://github.com/fatih/vim-go">Install<a/></td>
+    <td><a href="https://marketplace.visualstudio.com/items?itemName=lukehoban.Go">Install<a/></td>
+    <td><a href="https://www.jetbrains.com/go">Install<a/></td>
+    <td><a href="https://atom.io/packages/go-plus">Install</a></td>
+  </tr>
+</table>
+
+<p>
+<sup>1</sup>Possible when enabled via Settings &gt; Go &gt; On Save, <code>go</code> <code>vet</code> and <code>golint</code> are available via plugins. Also runs tests on save if configured.
+<br>
+<sup>2</sup>Additionally, user input can disambiguate when two or more options are available.
+<br>
+<sup>3</sup>Available if the <a href="https://atom.io/packages/go-debug">go-debug</a> package is installed.
+</p>
+
+</div>
+
+<style>
+.features-matrix {
+  min-width: 800px;
+  border-collapse: collapse;
+}
+.features-matrix th {
+  width: 60px;
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+}
+.features-matrix th img {
+  width: 48px;
+}
+.features-matrix .yes {
+  text-align: center;
+}
+.features-matrix .no {
+  text-align: center;
+  background-color: #ffe9e9;
+}
+.features-matrix .download {
+  font-weight: bold;
+  text-align: center;
+}
+.features-matrix td {
+  padding: 11px 5px 11px 5px;
+  border-bottom: solid 1px #ebebeb;
+}
+.features-matrix .feature-row {
+  background-color: #ebebeb;
+  font-weight: bold;
+}
+</style>

@@ -15,7 +15,7 @@
  *
  * Copyright (c) 1996-1998 John D. Polstra.  All rights reserved.
  * Copyright (c) 2001 David E. O'Brien
- * Portions Copyright 2009 The Go Authors.  All rights reserved.
+ * Portions Copyright 2009 The Go Authors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -312,7 +312,7 @@ const (
 	SHN_HIOS      SectionIndex = 0xff3f /* Last operating system-specific. */
 	SHN_ABS       SectionIndex = 0xfff1 /* Absolute values. */
 	SHN_COMMON    SectionIndex = 0xfff2 /* Common data. */
-	SHN_XINDEX    SectionIndex = 0xffff /* Escape -- index stored elsewhere. */
+	SHN_XINDEX    SectionIndex = 0xffff /* Escape; index stored elsewhere. */
 	SHN_HIRESERVE SectionIndex = 0xffff /* Last of reserved range. */
 )
 
@@ -411,6 +411,7 @@ const (
 	SHF_OS_NONCONFORMING SectionFlag = 0x100      /* OS-specific processing required. */
 	SHF_GROUP            SectionFlag = 0x200      /* Member of section group. */
 	SHF_TLS              SectionFlag = 0x400      /* Section contains TLS data. */
+	SHF_COMPRESSED       SectionFlag = 0x800      /* Section is compressed. */
 	SHF_MASKOS           SectionFlag = 0x0ff00000 /* OS-specific semantics. */
 	SHF_MASKPROC         SectionFlag = 0xf0000000 /* Processor-specific semantics. */
 )
@@ -426,10 +427,33 @@ var shfStrings = []intName{
 	{0x100, "SHF_OS_NONCONFORMING"},
 	{0x200, "SHF_GROUP"},
 	{0x400, "SHF_TLS"},
+	{0x800, "SHF_COMPRESSED"},
 }
 
 func (i SectionFlag) String() string   { return flagName(uint32(i), shfStrings, false) }
 func (i SectionFlag) GoString() string { return flagName(uint32(i), shfStrings, true) }
+
+// Section compression type.
+type CompressionType int
+
+const (
+	COMPRESS_ZLIB   CompressionType = 1          /* ZLIB compression. */
+	COMPRESS_LOOS   CompressionType = 0x60000000 /* First OS-specific. */
+	COMPRESS_HIOS   CompressionType = 0x6fffffff /* Last OS-specific. */
+	COMPRESS_LOPROC CompressionType = 0x70000000 /* First processor-specific type. */
+	COMPRESS_HIPROC CompressionType = 0x7fffffff /* Last processor-specific type. */
+)
+
+var compressionStrings = []intName{
+	{0, "COMPRESS_ZLIB"},
+	{0x60000000, "COMPRESS_LOOS"},
+	{0x6fffffff, "COMPRESS_HIOS"},
+	{0x70000000, "COMPRESS_LOPROC"},
+	{0x7fffffff, "COMPRESS_HIPROC"},
+}
+
+func (i CompressionType) String() string   { return stringName(uint32(i), compressionStrings, false) }
+func (i CompressionType) GoString() string { return stringName(uint32(i), compressionStrings, true) }
 
 // Prog.Type
 type ProgType int
@@ -1246,6 +1270,115 @@ var r386Strings = []intName{
 func (i R_386) String() string   { return stringName(uint32(i), r386Strings, false) }
 func (i R_386) GoString() string { return stringName(uint32(i), r386Strings, true) }
 
+// Relocation types for MIPS.
+type R_MIPS int
+
+const (
+	R_MIPS_NONE          R_MIPS = 0
+	R_MIPS_16            R_MIPS = 1
+	R_MIPS_32            R_MIPS = 2
+	R_MIPS_REL32         R_MIPS = 3
+	R_MIPS_26            R_MIPS = 4
+	R_MIPS_HI16          R_MIPS = 5  /* high 16 bits of symbol value */
+	R_MIPS_LO16          R_MIPS = 6  /* low 16 bits of symbol value */
+	R_MIPS_GPREL16       R_MIPS = 7  /* GP-relative reference  */
+	R_MIPS_LITERAL       R_MIPS = 8  /* Reference to literal section  */
+	R_MIPS_GOT16         R_MIPS = 9  /* Reference to global offset table */
+	R_MIPS_PC16          R_MIPS = 10 /* 16 bit PC relative reference */
+	R_MIPS_CALL16        R_MIPS = 11 /* 16 bit call through glbl offset tbl */
+	R_MIPS_GPREL32       R_MIPS = 12
+	R_MIPS_SHIFT5        R_MIPS = 16
+	R_MIPS_SHIFT6        R_MIPS = 17
+	R_MIPS_64            R_MIPS = 18
+	R_MIPS_GOT_DISP      R_MIPS = 19
+	R_MIPS_GOT_PAGE      R_MIPS = 20
+	R_MIPS_GOT_OFST      R_MIPS = 21
+	R_MIPS_GOT_HI16      R_MIPS = 22
+	R_MIPS_GOT_LO16      R_MIPS = 23
+	R_MIPS_SUB           R_MIPS = 24
+	R_MIPS_INSERT_A      R_MIPS = 25
+	R_MIPS_INSERT_B      R_MIPS = 26
+	R_MIPS_DELETE        R_MIPS = 27
+	R_MIPS_HIGHER        R_MIPS = 28
+	R_MIPS_HIGHEST       R_MIPS = 29
+	R_MIPS_CALL_HI16     R_MIPS = 30
+	R_MIPS_CALL_LO16     R_MIPS = 31
+	R_MIPS_SCN_DISP      R_MIPS = 32
+	R_MIPS_REL16         R_MIPS = 33
+	R_MIPS_ADD_IMMEDIATE R_MIPS = 34
+	R_MIPS_PJUMP         R_MIPS = 35
+	R_MIPS_RELGOT        R_MIPS = 36
+	R_MIPS_JALR          R_MIPS = 37
+
+	R_MIPS_TLS_DTPMOD32    R_MIPS = 38 /* Module number 32 bit */
+	R_MIPS_TLS_DTPREL32    R_MIPS = 39 /* Module-relative offset 32 bit */
+	R_MIPS_TLS_DTPMOD64    R_MIPS = 40 /* Module number 64 bit */
+	R_MIPS_TLS_DTPREL64    R_MIPS = 41 /* Module-relative offset 64 bit */
+	R_MIPS_TLS_GD          R_MIPS = 42 /* 16 bit GOT offset for GD */
+	R_MIPS_TLS_LDM         R_MIPS = 43 /* 16 bit GOT offset for LDM */
+	R_MIPS_TLS_DTPREL_HI16 R_MIPS = 44 /* Module-relative offset, high 16 bits */
+	R_MIPS_TLS_DTPREL_LO16 R_MIPS = 45 /* Module-relative offset, low 16 bits */
+	R_MIPS_TLS_GOTTPREL    R_MIPS = 46 /* 16 bit GOT offset for IE */
+	R_MIPS_TLS_TPREL32     R_MIPS = 47 /* TP-relative offset, 32 bit */
+	R_MIPS_TLS_TPREL64     R_MIPS = 48 /* TP-relative offset, 64 bit */
+	R_MIPS_TLS_TPREL_HI16  R_MIPS = 49 /* TP-relative offset, high 16 bits */
+	R_MIPS_TLS_TPREL_LO16  R_MIPS = 50 /* TP-relative offset, low 16 bits */
+)
+
+var rmipsStrings = []intName{
+	{0, "R_MIPS_NONE"},
+	{1, "R_MIPS_16"},
+	{2, "R_MIPS_32"},
+	{3, "R_MIPS_REL32"},
+	{4, "R_MIPS_26"},
+	{5, "R_MIPS_HI16"},
+	{6, "R_MIPS_LO16"},
+	{7, "R_MIPS_GPREL16"},
+	{8, "R_MIPS_LITERAL"},
+	{9, "R_MIPS_GOT16"},
+	{10, "R_MIPS_PC16"},
+	{11, "R_MIPS_CALL16"},
+	{12, "R_MIPS_GPREL32"},
+	{16, "R_MIPS_SHIFT5"},
+	{17, "R_MIPS_SHIFT6"},
+	{18, "R_MIPS_64"},
+	{19, "R_MIPS_GOT_DISP"},
+	{20, "R_MIPS_GOT_PAGE"},
+	{21, "R_MIPS_GOT_OFST"},
+	{22, "R_MIPS_GOT_HI16"},
+	{23, "R_MIPS_GOT_LO16"},
+	{24, "R_MIPS_SUB"},
+	{25, "R_MIPS_INSERT_A"},
+	{26, "R_MIPS_INSERT_B"},
+	{27, "R_MIPS_DELETE"},
+	{28, "R_MIPS_HIGHER"},
+	{29, "R_MIPS_HIGHEST"},
+	{30, "R_MIPS_CALL_HI16"},
+	{31, "R_MIPS_CALL_LO16"},
+	{32, "R_MIPS_SCN_DISP"},
+	{33, "R_MIPS_REL16"},
+	{34, "R_MIPS_ADD_IMMEDIATE"},
+	{35, "R_MIPS_PJUMP"},
+	{36, "R_MIPS_RELGOT"},
+	{37, "R_MIPS_JALR"},
+	{38, "R_MIPS_TLS_DTPMOD32"},
+	{39, "R_MIPS_TLS_DTPREL32"},
+	{40, "R_MIPS_TLS_DTPMOD64"},
+	{41, "R_MIPS_TLS_DTPREL64"},
+	{42, "R_MIPS_TLS_GD"},
+	{43, "R_MIPS_TLS_LDM"},
+	{44, "R_MIPS_TLS_DTPREL_HI16"},
+	{45, "R_MIPS_TLS_DTPREL_LO16"},
+	{46, "R_MIPS_TLS_GOTTPREL"},
+	{47, "R_MIPS_TLS_TPREL32"},
+	{48, "R_MIPS_TLS_TPREL64"},
+	{49, "R_MIPS_TLS_TPREL_HI16"},
+	{50, "R_MIPS_TLS_TPREL_LO16"},
+}
+
+func (i R_MIPS) String() string   { return stringName(uint32(i), rmipsStrings, false) }
+func (i R_MIPS) GoString() string { return stringName(uint32(i), rmipsStrings, true) }
+
 // Relocation types for PowerPC.
 type R_PPC int
 
@@ -1592,6 +1725,140 @@ var rppc64Strings = []intName{
 func (i R_PPC64) String() string   { return stringName(uint32(i), rppc64Strings, false) }
 func (i R_PPC64) GoString() string { return stringName(uint32(i), rppc64Strings, true) }
 
+// Relocation types for s390x processors.
+type R_390 int
+
+const (
+	R_390_NONE        R_390 = 0
+	R_390_8           R_390 = 1
+	R_390_12          R_390 = 2
+	R_390_16          R_390 = 3
+	R_390_32          R_390 = 4
+	R_390_PC32        R_390 = 5
+	R_390_GOT12       R_390 = 6
+	R_390_GOT32       R_390 = 7
+	R_390_PLT32       R_390 = 8
+	R_390_COPY        R_390 = 9
+	R_390_GLOB_DAT    R_390 = 10
+	R_390_JMP_SLOT    R_390 = 11
+	R_390_RELATIVE    R_390 = 12
+	R_390_GOTOFF      R_390 = 13
+	R_390_GOTPC       R_390 = 14
+	R_390_GOT16       R_390 = 15
+	R_390_PC16        R_390 = 16
+	R_390_PC16DBL     R_390 = 17
+	R_390_PLT16DBL    R_390 = 18
+	R_390_PC32DBL     R_390 = 19
+	R_390_PLT32DBL    R_390 = 20
+	R_390_GOTPCDBL    R_390 = 21
+	R_390_64          R_390 = 22
+	R_390_PC64        R_390 = 23
+	R_390_GOT64       R_390 = 24
+	R_390_PLT64       R_390 = 25
+	R_390_GOTENT      R_390 = 26
+	R_390_GOTOFF16    R_390 = 27
+	R_390_GOTOFF64    R_390 = 28
+	R_390_GOTPLT12    R_390 = 29
+	R_390_GOTPLT16    R_390 = 30
+	R_390_GOTPLT32    R_390 = 31
+	R_390_GOTPLT64    R_390 = 32
+	R_390_GOTPLTENT   R_390 = 33
+	R_390_GOTPLTOFF16 R_390 = 34
+	R_390_GOTPLTOFF32 R_390 = 35
+	R_390_GOTPLTOFF64 R_390 = 36
+	R_390_TLS_LOAD    R_390 = 37
+	R_390_TLS_GDCALL  R_390 = 38
+	R_390_TLS_LDCALL  R_390 = 39
+	R_390_TLS_GD32    R_390 = 40
+	R_390_TLS_GD64    R_390 = 41
+	R_390_TLS_GOTIE12 R_390 = 42
+	R_390_TLS_GOTIE32 R_390 = 43
+	R_390_TLS_GOTIE64 R_390 = 44
+	R_390_TLS_LDM32   R_390 = 45
+	R_390_TLS_LDM64   R_390 = 46
+	R_390_TLS_IE32    R_390 = 47
+	R_390_TLS_IE64    R_390 = 48
+	R_390_TLS_IEENT   R_390 = 49
+	R_390_TLS_LE32    R_390 = 50
+	R_390_TLS_LE64    R_390 = 51
+	R_390_TLS_LDO32   R_390 = 52
+	R_390_TLS_LDO64   R_390 = 53
+	R_390_TLS_DTPMOD  R_390 = 54
+	R_390_TLS_DTPOFF  R_390 = 55
+	R_390_TLS_TPOFF   R_390 = 56
+	R_390_20          R_390 = 57
+	R_390_GOT20       R_390 = 58
+	R_390_GOTPLT20    R_390 = 59
+	R_390_TLS_GOTIE20 R_390 = 60
+)
+
+var r390Strings = []intName{
+	{0, "R_390_NONE"},
+	{1, "R_390_8"},
+	{2, "R_390_12"},
+	{3, "R_390_16"},
+	{4, "R_390_32"},
+	{5, "R_390_PC32"},
+	{6, "R_390_GOT12"},
+	{7, "R_390_GOT32"},
+	{8, "R_390_PLT32"},
+	{9, "R_390_COPY"},
+	{10, "R_390_GLOB_DAT"},
+	{11, "R_390_JMP_SLOT"},
+	{12, "R_390_RELATIVE"},
+	{13, "R_390_GOTOFF"},
+	{14, "R_390_GOTPC"},
+	{15, "R_390_GOT16"},
+	{16, "R_390_PC16"},
+	{17, "R_390_PC16DBL"},
+	{18, "R_390_PLT16DBL"},
+	{19, "R_390_PC32DBL"},
+	{20, "R_390_PLT32DBL"},
+	{21, "R_390_GOTPCDBL"},
+	{22, "R_390_64"},
+	{23, "R_390_PC64"},
+	{24, "R_390_GOT64"},
+	{25, "R_390_PLT64"},
+	{26, "R_390_GOTENT"},
+	{27, "R_390_GOTOFF16"},
+	{28, "R_390_GOTOFF64"},
+	{29, "R_390_GOTPLT12"},
+	{30, "R_390_GOTPLT16"},
+	{31, "R_390_GOTPLT32"},
+	{32, "R_390_GOTPLT64"},
+	{33, "R_390_GOTPLTENT"},
+	{34, "R_390_GOTPLTOFF16"},
+	{35, "R_390_GOTPLTOFF32"},
+	{36, "R_390_GOTPLTOFF64"},
+	{37, "R_390_TLS_LOAD"},
+	{38, "R_390_TLS_GDCALL"},
+	{39, "R_390_TLS_LDCALL"},
+	{40, "R_390_TLS_GD32"},
+	{41, "R_390_TLS_GD64"},
+	{42, "R_390_TLS_GOTIE12"},
+	{43, "R_390_TLS_GOTIE32"},
+	{44, "R_390_TLS_GOTIE64"},
+	{45, "R_390_TLS_LDM32"},
+	{46, "R_390_TLS_LDM64"},
+	{47, "R_390_TLS_IE32"},
+	{48, "R_390_TLS_IE64"},
+	{49, "R_390_TLS_IEENT"},
+	{50, "R_390_TLS_LE32"},
+	{51, "R_390_TLS_LE64"},
+	{52, "R_390_TLS_LDO32"},
+	{53, "R_390_TLS_LDO64"},
+	{54, "R_390_TLS_DTPMOD"},
+	{55, "R_390_TLS_DTPOFF"},
+	{56, "R_390_TLS_TPOFF"},
+	{57, "R_390_20"},
+	{58, "R_390_GOT20"},
+	{59, "R_390_GOTPLT20"},
+	{60, "R_390_TLS_GOTIE20"},
+}
+
+func (i R_390) String() string   { return stringName(uint32(i), r390Strings, false) }
+func (i R_390) GoString() string { return stringName(uint32(i), r390Strings, true) }
+
 // Relocation types for SPARC.
 type R_SPARC int
 
@@ -1763,10 +2030,17 @@ type Prog32 struct {
 	Align  uint32 /* Alignment in memory and file. */
 }
 
-// ELF32 Dynamic structure.  The ".dynamic" section contains an array of them.
+// ELF32 Dynamic structure. The ".dynamic" section contains an array of them.
 type Dyn32 struct {
 	Tag int32  /* Entry type. */
 	Val uint32 /* Integer/Address value. */
+}
+
+// ELF32 Compression header.
+type Chdr32 struct {
+	Type      uint32
+	Size      uint32
+	Addralign uint32
 }
 
 /*
@@ -1786,8 +2060,8 @@ type Rela32 struct {
 	Addend int32  /* Addend. */
 }
 
-func R_SYM32(info uint32) uint32      { return uint32(info >> 8) }
-func R_TYPE32(info uint32) uint32     { return uint32(info & 0xff) }
+func R_SYM32(info uint32) uint32      { return info >> 8 }
+func R_TYPE32(info uint32) uint32     { return info & 0xff }
 func R_INFO32(sym, typ uint32) uint32 { return sym<<8 | typ }
 
 // ELF32 Symbol.
@@ -1857,10 +2131,18 @@ type Prog64 struct {
 	Align  uint64 /* Alignment in memory and file. */
 }
 
-// ELF64 Dynamic structure.  The ".dynamic" section contains an array of them.
+// ELF64 Dynamic structure. The ".dynamic" section contains an array of them.
 type Dyn64 struct {
 	Tag int64  /* Entry type. */
 	Val uint64 /* Integer/address value */
+}
+
+// ELF64 Compression header.
+type Chdr64 struct {
+	Type      uint32
+	_         uint32 /* Reserved. */
+	Size      uint64
+	Addralign uint64
 }
 
 /*

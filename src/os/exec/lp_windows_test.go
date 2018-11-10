@@ -107,7 +107,7 @@ func createEnv(dir, PATH, PATHEXT string) []string {
 	env := os.Environ()
 	env = updateEnv(env, "PATHEXT", PATHEXT)
 	// Add dir in front of every directory in the PATH.
-	dirs := splitList(PATH)
+	dirs := filepath.SplitList(PATH)
 	for i := range dirs {
 		dirs[i] = filepath.Join(dir, dirs[i])
 	}
@@ -117,7 +117,7 @@ func createEnv(dir, PATH, PATHEXT string) []string {
 }
 
 // createFiles copies srcPath file into multiply files.
-// It uses dir as preifx for all destination files.
+// It uses dir as prefix for all destination files.
 func createFiles(t *testing.T, dir string, files []string, srcPath string) {
 	for _, f := range files {
 		installProg(t, filepath.Join(dir, f), srcPath)
@@ -422,7 +422,7 @@ var commandTests = []commandTest{
 	},
 	// tests commands, like `a.exe`, with c.Dir set
 	{
-		// should not find a.exe in p, becasue LookPath(`a.exe`) will fail
+		// should not find a.exe in p, because LookPath(`a.exe`) will fail
 		files: []string{`p\a.exe`},
 		dir:   `p`,
 		arg0:  `a.exe`,
@@ -431,7 +431,7 @@ var commandTests = []commandTest{
 	},
 	{
 		// LookPath(`a.exe`) will find `.\a.exe`, but prefixing that with
-		// dir `p\a.exe` will refer to not existant file
+		// dir `p\a.exe` will refer to a non-existent file
 		files: []string{`a.exe`, `p\not_important_file`},
 		dir:   `p`,
 		arg0:  `a.exe`,
@@ -440,7 +440,7 @@ var commandTests = []commandTest{
 	},
 	{
 		// like above, but making test succeed by installing file
-		// in refered destination (so LookPath(`a.exe`) will still
+		// in referred destination (so LookPath(`a.exe`) will still
 		// find `.\a.exe`, but we successfully execute `p\a.exe`)
 		files: []string{`a.exe`, `p\a.exe`},
 		dir:   `p`,

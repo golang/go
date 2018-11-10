@@ -75,7 +75,13 @@ func TestCacheKeys(t *testing.T) {
 
 func ResetProxyEnv() {
 	for _, v := range []string{"HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy"} {
-		os.Setenv(v, "")
+		os.Unsetenv(v)
 	}
 	ResetCachedEnvironment()
+}
+
+func TestInvalidNoProxy(t *testing.T) {
+	ResetProxyEnv()
+	os.Setenv("NO_PROXY", ":1")
+	useProxy("example.com:80") // should not panic
 }

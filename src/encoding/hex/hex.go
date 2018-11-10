@@ -15,10 +15,11 @@ import (
 const hextable = "0123456789abcdef"
 
 // EncodedLen returns the length of an encoding of n source bytes.
+// Specifically, it returns n * 2.
 func EncodedLen(n int) int { return n * 2 }
 
 // Encode encodes src into EncodedLen(len(src))
-// bytes of dst.  As a convenience, it returns the number
+// bytes of dst. As a convenience, it returns the number
 // of bytes written to dst, but this value is always EncodedLen(len(src)).
 // Encode implements hexadecimal encoding.
 func Encode(dst, src []byte) int {
@@ -40,12 +41,15 @@ func (e InvalidByteError) Error() string {
 	return fmt.Sprintf("encoding/hex: invalid byte: %#U", rune(e))
 }
 
+// DecodedLen returns the length of a decoding of x source bytes.
+// Specifically, it returns x / 2.
 func DecodedLen(x int) int { return x / 2 }
 
-// Decode decodes src into DecodedLen(len(src)) bytes, returning the actual
-// number of bytes written to dst.
+// Decode decodes src into DecodedLen(len(src)) bytes,
+// returning the actual number of bytes written to dst.
 //
-// If Decode encounters invalid input, it returns an error describing the failure.
+// Decode expects that src contain only hexadecimal
+// characters and that src should have an even length.
 func Decode(dst, src []byte) (int, error) {
 	if len(src)%2 == 1 {
 		return 0, ErrLength
@@ -105,7 +109,7 @@ func Dump(data []byte) string {
 	dumper := Dumper(&buf)
 	dumper.Write(data)
 	dumper.Close()
-	return string(buf.Bytes())
+	return buf.String()
 }
 
 // Dumper returns a WriteCloser that writes a hex dump of all written data to

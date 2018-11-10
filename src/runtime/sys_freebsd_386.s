@@ -25,7 +25,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 	MOVL	mm+0(FP), AX
 	MOVL	m_g0(AX), BX
 	LEAL	m_tls(AX), BP
-	MOVL	0(BP), DI
+	MOVL	m_id(AX), DI
 	ADDL	$7, DI
 	PUSHAL
 	PUSHL	$32
@@ -62,24 +62,32 @@ TEXT runtime·exit1(SB),NOSPLIT,$-4
 TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$-4
+TEXT runtime·closefd(SB),NOSPLIT,$-4
 	MOVL	$6, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVL	$3, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVL	$4, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -101,6 +109,18 @@ TEXT runtime·raise(SB),NOSPLIT,$16
 	MOVL	sig+0(FP), AX
 	MOVL	AX, 8(SP)
 	MOVL	$433, AX
+	INT	$0x80
+	RET
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$16
+	// getpid
+	MOVL	$20, AX
+	INT	$0x80
+	// kill(self, sig)
+	MOVL	AX, 4(SP)
+	MOVL	sig+0(FP), AX
+	MOVL	AX, 8(SP)
+	MOVL	$37, AX
 	INT	$0x80
 	RET
 
@@ -139,9 +159,9 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-4
 	INT	$0x80
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB), NOSPLIT, $32
-	MOVL	$232, AX
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
+	MOVL	$232, AX // clock_gettime
 	LEAL	12(SP), BX
 	MOVL	$0, 4(SP)	// CLOCK_REALTIME
 	MOVL	BX, 8(SP)
@@ -150,8 +170,8 @@ TEXT time·now(SB), NOSPLIT, $32
 	MOVL	16(SP), BX	// nsec
 
 	// sec is in AX, nsec in BX
-	MOVL	AX, sec+0(FP)
-	MOVL	$0, sec+4(FP)
+	MOVL	AX, sec_lo+0(FP)
+	MOVL	$0, sec_hi+4(FP)
 	MOVL	BX, nsec+8(FP)
 	RET
 
@@ -187,44 +207,32 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-4
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$44
-	get_tls(CX)
-
-	// check that g exists
-	MOVL	g(CX), DI
-	CMPL	DI, $0
-	JNE	6(PC)
-	MOVL	signo+0(FP), BX
+TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+	MOVL	fn+0(FP), AX
+	MOVL	sig+4(FP), BX
+	MOVL	info+8(FP), CX
+	MOVL	ctx+12(FP), DX
+	MOVL	SP, SI
+	SUBL	$32, SP
+	ANDL	$~15, SP	// align stack: handler might be a C function
 	MOVL	BX, 0(SP)
-	MOVL	$runtime·badsignal(SB), AX
+	MOVL	CX, 4(SP)
+	MOVL	DX, 8(SP)
+	MOVL	SI, 12(SP)	// save SI: handler might be a Go function
 	CALL	AX
-	JMP 	ret
+	MOVL	12(SP), AX
+	MOVL	AX, SP
+	RET
 
-	// save g
-	MOVL	DI, 20(SP)
-	
-	// g = m->gsignal
-	MOVL	g_m(DI), BX
-	MOVL	m_gsignal(BX), BX
-	MOVL	BX, g(CX)
-
-	// copy arguments for call to sighandler
+TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	MOVL	signo+0(FP), BX
 	MOVL	BX, 0(SP)
 	MOVL	info+4(FP), BX
 	MOVL	BX, 4(SP)
 	MOVL	context+8(FP), BX
 	MOVL	BX, 8(SP)
-	MOVL	DI, 12(SP)
+	CALL	runtime·sigtrampgo(SB)
 
-	CALL	runtime·sighandler(SB)
-
-	// restore g
-	get_tls(CX)
-	MOVL	20(SP), BX
-	MOVL	BX, g(CX)
-
-ret:
 	// call sigreturn
 	MOVL	context+8(FP), AX
 	MOVL	$0, 0(SP)	// syscall gap
@@ -279,7 +287,7 @@ int i386_set_ldt(int, const union ldt_entry *, int);
 TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVL	address+4(FP), BX	// aka base
 	// see comment in sys_linux_386.s; freebsd is similar
-	ADDL	$0x8, BX
+	ADDL	$0x4, BX
 
 	// set up data_desc
 	LEAL	16(SP), AX	// struct data_desc
@@ -347,10 +355,11 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$16
 	MOVL	$0, 0(SP)		// syscall gap
-	MOVL	$3, 4(SP)		// arg 1 - how (SIG_SETMASK)
-	MOVL	new+0(FP), AX
+	MOVL	how+0(FP), AX		// arg 1 - how
+	MOVL	AX, 4(SP)
+	MOVL	new+4(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - set
-	MOVL	old+4(FP), AX
+	MOVL	old+8(FP), AX
 	MOVL	AX, 12(SP)		// arg 3 - oset
 	MOVL	$340, AX		// sys_sigprocmask
 	INT	$0x80
@@ -387,6 +396,15 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
+	RET
+
+// func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
+TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-28
+	MOVL	$487, AX
+	INT	$0x80
+	JAE	2(PC)
+	NEGL	AX
+	MOVL	AX, ret+24(FP)
 	RET
 
 GLOBL runtime·tlsoffset(SB),NOPTR,$4

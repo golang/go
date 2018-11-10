@@ -12,20 +12,25 @@ import "os"
 
 const Value = 1e12
 
-type Inter interface { M() int64 }
+type Inter interface {
+	M() int64
+}
 
 type T int64
+
 func (t T) M() int64 { return int64(t) }
+
 var t = T(Value)
 var pt = &t
 var ti Inter = t
 var pti = &ti
 
-type S struct { Inter }
-var s = S{ ti }
+type S struct{ Inter }
+
+var s = S{ti}
 var ps = &s
 
-type SP struct { *Inter }	// ERROR "interface"
+type SP struct{ *Inter } // ERROR "interface"
 
 var i Inter
 var pi = &i
@@ -43,25 +48,25 @@ func main() {
 	check("t.M()", t.M())
 	check("pt.M()", pt.M())
 	check("ti.M()", ti.M())
-	check("pti.M()", pti.M())	// ERROR "method"
+	check("pti.M()", pti.M()) // ERROR "pointer to interface, not interface"
 	check("s.M()", s.M())
 	check("ps.M()", ps.M())
 
 	i = t
 	check("i = t; i.M()", i.M())
-	check("i = t; pi.M()", pi.M())	// ERROR "method"
+	check("i = t; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
 
 	i = pt
 	check("i = pt; i.M()", i.M())
-	check("i = pt; pi.M()", pi.M())	// ERROR "method"
+	check("i = pt; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
 
 	i = s
 	check("i = s; i.M()", i.M())
-	check("i = s; pi.M()", pi.M())	// ERROR "method"
+	check("i = s; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
 
 	i = ps
 	check("i = ps; i.M()", i.M())
-	check("i = ps; pi.M()", pi.M())	// ERROR "method"
+	check("i = ps; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
 
 	if !ok {
 		println("BUG: interface10")

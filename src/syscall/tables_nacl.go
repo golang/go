@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -15,10 +15,10 @@ const (
 	sys_read                 = 12
 	sys_write                = 13
 	sys_lseek                = 14
-	sys_ioctl                = 15
 	sys_stat                 = 16
 	sys_fstat                = 17
 	sys_chmod                = 18
+	sys_isatty               = 19
 	sys_brk                  = 20
 	sys_mmap                 = 21
 	sys_munmap               = 22
@@ -76,6 +76,19 @@ const (
 	sys_test_crash           = 110
 	sys_test_syscall_1       = 111
 	sys_test_syscall_2       = 112
+	sys_futex_wait_abs       = 120
+	sys_futex_wake           = 121
+	sys_pread                = 130
+	sys_pwrite               = 131
+	sys_truncate             = 140
+	sys_lstat                = 141
+	sys_link                 = 142
+	sys_rename               = 143
+	sys_symlink              = 144
+	sys_access               = 145
+	sys_readlink             = 146
+	sys_utimes               = 147
+	sys_get_random_bytes     = 150
 )
 
 // TODO: Auto-generate some day. (Hard-coded in binaries so not likely to change.)
@@ -321,4 +334,28 @@ var errorstr = [...]string{
 	ENMFILE:         "No more files",
 	ENOSHARE:        "No such host or network path",
 	ECASECLASH:      "Filename exists with different case",
+}
+
+// Do the interface allocations only once for common
+// Errno values.
+var (
+	errEAGAIN error = EAGAIN
+	errEINVAL error = EINVAL
+	errENOENT error = ENOENT
+)
+
+// errnoErr returns common boxed Errno values, to prevent
+// allocations at runtime.
+func errnoErr(e Errno) error {
+	switch e {
+	case 0:
+		return nil
+	case EAGAIN:
+		return errEAGAIN
+	case EINVAL:
+		return errEINVAL
+	case ENOENT:
+		return errENOENT
+	}
+	return e
 }

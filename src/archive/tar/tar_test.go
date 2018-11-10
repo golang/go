@@ -6,9 +6,11 @@ package tar
 
 import (
 	"bytes"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -27,7 +29,7 @@ func TestFileInfoHeader(t *testing.T) {
 	if g, e := h.Name, "small.txt"; g != e {
 		t.Errorf("Name = %q; want %q", g, e)
 	}
-	if g, e := h.Mode, int64(fi.Mode().Perm())|c_ISREG; g != e {
+	if g, e := h.Mode, int64(fi.Mode().Perm()); g != e {
 		t.Errorf("Mode = %#o; want %#o", g, e)
 	}
 	if g, e := h.Size, int64(5); g != e {
@@ -55,7 +57,7 @@ func TestFileInfoHeaderDir(t *testing.T) {
 		t.Errorf("Name = %q; want %q", g, e)
 	}
 	// Ignoring c_ISGID for golang.org/issue/4867
-	if g, e := h.Mode&^c_ISGID, int64(fi.Mode().Perm())|c_ISDIR; g != e {
+	if g, e := h.Mode&^c_ISGID, int64(fi.Mode().Perm()); g != e {
 		t.Errorf("Mode = %#o; want %#o", g, e)
 	}
 	if g, e := h.Size, int64(0); g != e {
@@ -67,26 +69,39 @@ func TestFileInfoHeaderDir(t *testing.T) {
 }
 
 func TestFileInfoHeaderSymlink(t *testing.T) {
-	h, err := FileInfoHeader(symlink{}, "some-target")
+	testenv.MustHaveSymlink(t)
+
+	tmpdir, err := ioutil.TempDir("", "TestFileInfoHeaderSymlink")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if g, e := h.Name, "some-symlink"; g != e {
+	defer os.RemoveAll(tmpdir)
+
+	link := filepath.Join(tmpdir, "link")
+	target := tmpdir
+	err = os.Symlink(target, link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Lstat(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h, err := FileInfoHeader(fi, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, e := h.Name, fi.Name(); g != e {
 		t.Errorf("Name = %q; want %q", g, e)
 	}
-	if g, e := h.Linkname, "some-target"; g != e {
+	if g, e := h.Linkname, target; g != e {
 		t.Errorf("Linkname = %q; want %q", g, e)
 	}
+	if g, e := h.Typeflag, byte(TypeSymlink); g != e {
+		t.Errorf("Typeflag = %v; want %v", g, e)
+	}
 }
-
-type symlink struct{}
-
-func (symlink) Name() string       { return "some-symlink" }
-func (symlink) Size() int64        { return 0 }
-func (symlink) Mode() os.FileMode  { return os.ModeSymlink }
-func (symlink) ModTime() time.Time { return time.Time{} }
-func (symlink) IsDir() bool        { return false }
-func (symlink) Sys() interface{}   { return nil }
 
 func TestRoundTrip(t *testing.T) {
 	data := []byte("some file contents")
@@ -94,13 +109,16 @@ func TestRoundTrip(t *testing.T) {
 	var b bytes.Buffer
 	tw := NewWriter(&b)
 	hdr := &Header{
-		Name:    "file.txt",
-		Uid:     1 << 21, // too big for 8 octal digits
-		Size:    int64(len(data)),
-		ModTime: time.Now(),
+		Name: "file.txt",
+		Uid:  1 << 21, // too big for 8 octal digits
+		Size: int64(len(data)),
+		// AddDate to strip monotonic clock reading,
+		// and Round to discard sub-second precision,
+		// both of which are not included in the tar header
+		// and would otherwise break the round-trip check
+		// below.
+		ModTime: time.Now().AddDate(0, 0, 0).Round(1 * time.Second),
 	}
-	// tar only supports second precision.
-	hdr.ModTime = hdr.ModTime.Add(-time.Duration(hdr.ModTime.Nanosecond()) * time.Nanosecond)
 	if err := tw.WriteHeader(hdr); err != nil {
 		t.Fatalf("tw.WriteHeader: %v", err)
 	}
@@ -135,149 +153,178 @@ type headerRoundTripTest struct {
 }
 
 func TestHeaderRoundTrip(t *testing.T) {
-	golden := []headerRoundTripTest{
+	vectors := []headerRoundTripTest{{
 		// regular file.
-		{
-			h: &Header{
-				Name:     "test.txt",
-				Mode:     0644 | c_ISREG,
-				Size:     12,
-				ModTime:  time.Unix(1360600916, 0),
-				Typeflag: TypeReg,
-			},
-			fm: 0644,
+		h: &Header{
+			Name:     "test.txt",
+			Mode:     0644,
+			Size:     12,
+			ModTime:  time.Unix(1360600916, 0),
+			Typeflag: TypeReg,
 		},
-		// hard link.
-		{
-			h: &Header{
-				Name:     "hard.txt",
-				Mode:     0644 | c_ISLNK,
-				Size:     0,
-				ModTime:  time.Unix(1360600916, 0),
-				Typeflag: TypeLink,
-			},
-			fm: 0644 | os.ModeSymlink,
-		},
+		fm: 0644,
+	}, {
 		// symbolic link.
-		{
-			h: &Header{
-				Name:     "link.txt",
-				Mode:     0777 | c_ISLNK,
-				Size:     0,
-				ModTime:  time.Unix(1360600852, 0),
-				Typeflag: TypeSymlink,
-			},
-			fm: 0777 | os.ModeSymlink,
+		h: &Header{
+			Name:     "link.txt",
+			Mode:     0777,
+			Size:     0,
+			ModTime:  time.Unix(1360600852, 0),
+			Typeflag: TypeSymlink,
 		},
+		fm: 0777 | os.ModeSymlink,
+	}, {
 		// character device node.
-		{
-			h: &Header{
-				Name:     "dev/null",
-				Mode:     0666 | c_ISCHR,
-				Size:     0,
-				ModTime:  time.Unix(1360578951, 0),
-				Typeflag: TypeChar,
-			},
-			fm: 0666 | os.ModeDevice | os.ModeCharDevice,
+		h: &Header{
+			Name:     "dev/null",
+			Mode:     0666,
+			Size:     0,
+			ModTime:  time.Unix(1360578951, 0),
+			Typeflag: TypeChar,
 		},
+		fm: 0666 | os.ModeDevice | os.ModeCharDevice,
+	}, {
 		// block device node.
-		{
-			h: &Header{
-				Name:     "dev/sda",
-				Mode:     0660 | c_ISBLK,
-				Size:     0,
-				ModTime:  time.Unix(1360578954, 0),
-				Typeflag: TypeBlock,
-			},
-			fm: 0660 | os.ModeDevice,
+		h: &Header{
+			Name:     "dev/sda",
+			Mode:     0660,
+			Size:     0,
+			ModTime:  time.Unix(1360578954, 0),
+			Typeflag: TypeBlock,
 		},
+		fm: 0660 | os.ModeDevice,
+	}, {
 		// directory.
-		{
-			h: &Header{
-				Name:     "dir/",
-				Mode:     0755 | c_ISDIR,
-				Size:     0,
-				ModTime:  time.Unix(1360601116, 0),
-				Typeflag: TypeDir,
-			},
-			fm: 0755 | os.ModeDir,
+		h: &Header{
+			Name:     "dir/",
+			Mode:     0755,
+			Size:     0,
+			ModTime:  time.Unix(1360601116, 0),
+			Typeflag: TypeDir,
 		},
+		fm: 0755 | os.ModeDir,
+	}, {
 		// fifo node.
-		{
-			h: &Header{
-				Name:     "dev/initctl",
-				Mode:     0600 | c_ISFIFO,
-				Size:     0,
-				ModTime:  time.Unix(1360578949, 0),
-				Typeflag: TypeFifo,
-			},
-			fm: 0600 | os.ModeNamedPipe,
+		h: &Header{
+			Name:     "dev/initctl",
+			Mode:     0600,
+			Size:     0,
+			ModTime:  time.Unix(1360578949, 0),
+			Typeflag: TypeFifo,
 		},
+		fm: 0600 | os.ModeNamedPipe,
+	}, {
 		// setuid.
-		{
-			h: &Header{
-				Name:     "bin/su",
-				Mode:     0755 | c_ISREG | c_ISUID,
-				Size:     23232,
-				ModTime:  time.Unix(1355405093, 0),
-				Typeflag: TypeReg,
-			},
-			fm: 0755 | os.ModeSetuid,
+		h: &Header{
+			Name:     "bin/su",
+			Mode:     0755 | c_ISUID,
+			Size:     23232,
+			ModTime:  time.Unix(1355405093, 0),
+			Typeflag: TypeReg,
 		},
+		fm: 0755 | os.ModeSetuid,
+	}, {
 		// setguid.
-		{
-			h: &Header{
-				Name:     "group.txt",
-				Mode:     0750 | c_ISREG | c_ISGID,
-				Size:     0,
-				ModTime:  time.Unix(1360602346, 0),
-				Typeflag: TypeReg,
-			},
-			fm: 0750 | os.ModeSetgid,
+		h: &Header{
+			Name:     "group.txt",
+			Mode:     0750 | c_ISGID,
+			Size:     0,
+			ModTime:  time.Unix(1360602346, 0),
+			Typeflag: TypeReg,
 		},
+		fm: 0750 | os.ModeSetgid,
+	}, {
 		// sticky.
-		{
-			h: &Header{
-				Name:     "sticky.txt",
-				Mode:     0600 | c_ISREG | c_ISVTX,
-				Size:     7,
-				ModTime:  time.Unix(1360602540, 0),
-				Typeflag: TypeReg,
-			},
-			fm: 0600 | os.ModeSticky,
+		h: &Header{
+			Name:     "sticky.txt",
+			Mode:     0600 | c_ISVTX,
+			Size:     7,
+			ModTime:  time.Unix(1360602540, 0),
+			Typeflag: TypeReg,
 		},
-	}
+		fm: 0600 | os.ModeSticky,
+	}, {
+		// hard link.
+		h: &Header{
+			Name:     "hard.txt",
+			Mode:     0644,
+			Size:     0,
+			Linkname: "file.txt",
+			ModTime:  time.Unix(1360600916, 0),
+			Typeflag: TypeLink,
+		},
+		fm: 0644,
+	}, {
+		// More information.
+		h: &Header{
+			Name:     "info.txt",
+			Mode:     0600,
+			Size:     0,
+			Uid:      1000,
+			Gid:      1000,
+			ModTime:  time.Unix(1360602540, 0),
+			Uname:    "slartibartfast",
+			Gname:    "users",
+			Typeflag: TypeReg,
+		},
+		fm: 0600,
+	}}
 
-	for i, g := range golden {
-		fi := g.h.FileInfo()
+	for i, v := range vectors {
+		fi := v.h.FileInfo()
 		h2, err := FileInfoHeader(fi, "")
 		if err != nil {
 			t.Error(err)
 			continue
 		}
 		if strings.Contains(fi.Name(), "/") {
-			t.Errorf("FileInfo of %q contains slash: %q", g.h.Name, fi.Name())
+			t.Errorf("FileInfo of %q contains slash: %q", v.h.Name, fi.Name())
 		}
-		name := path.Base(g.h.Name)
+		name := path.Base(v.h.Name)
 		if fi.IsDir() {
 			name += "/"
 		}
 		if got, want := h2.Name, name; got != want {
 			t.Errorf("i=%d: Name: got %v, want %v", i, got, want)
 		}
-		if got, want := h2.Size, g.h.Size; got != want {
+		if got, want := h2.Size, v.h.Size; got != want {
 			t.Errorf("i=%d: Size: got %v, want %v", i, got, want)
 		}
-		if got, want := h2.Mode, g.h.Mode; got != want {
+		if got, want := h2.Uid, v.h.Uid; got != want {
+			t.Errorf("i=%d: Uid: got %d, want %d", i, got, want)
+		}
+		if got, want := h2.Gid, v.h.Gid; got != want {
+			t.Errorf("i=%d: Gid: got %d, want %d", i, got, want)
+		}
+		if got, want := h2.Uname, v.h.Uname; got != want {
+			t.Errorf("i=%d: Uname: got %q, want %q", i, got, want)
+		}
+		if got, want := h2.Gname, v.h.Gname; got != want {
+			t.Errorf("i=%d: Gname: got %q, want %q", i, got, want)
+		}
+		if got, want := h2.Linkname, v.h.Linkname; got != want {
+			t.Errorf("i=%d: Linkname: got %v, want %v", i, got, want)
+		}
+		if got, want := h2.Typeflag, v.h.Typeflag; got != want {
+			t.Logf("%#v %#v", v.h, fi.Sys())
+			t.Errorf("i=%d: Typeflag: got %q, want %q", i, got, want)
+		}
+		if got, want := h2.Mode, v.h.Mode; got != want {
 			t.Errorf("i=%d: Mode: got %o, want %o", i, got, want)
 		}
-		if got, want := fi.Mode(), g.fm; got != want {
+		if got, want := fi.Mode(), v.fm; got != want {
 			t.Errorf("i=%d: fi.Mode: got %o, want %o", i, got, want)
 		}
-		if got, want := h2.ModTime, g.h.ModTime; got != want {
+		if got, want := h2.AccessTime, v.h.AccessTime; got != want {
+			t.Errorf("i=%d: AccessTime: got %v, want %v", i, got, want)
+		}
+		if got, want := h2.ChangeTime, v.h.ChangeTime; got != want {
+			t.Errorf("i=%d: ChangeTime: got %v, want %v", i, got, want)
+		}
+		if got, want := h2.ModTime, v.h.ModTime; got != want {
 			t.Errorf("i=%d: ModTime: got %v, want %v", i, got, want)
 		}
-		if sysh, ok := fi.Sys().(*Header); !ok || sysh != g.h {
+		if sysh, ok := fi.Sys().(*Header); !ok || sysh != v.h {
 			t.Errorf("i=%d: Sys didn't return original *Header", i)
 		}
 	}

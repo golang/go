@@ -10,6 +10,7 @@ package jpeg
 import (
 	"image"
 	"image/color"
+	"image/internal/imageutil"
 	"io"
 )
 
@@ -25,6 +26,8 @@ func (e FormatError) Error() string { return "invalid JPEG format: " + string(e)
 type UnsupportedError string
 
 func (e UnsupportedError) Error() string { return "unsupported JPEG feature: " + string(e) }
+
+var errUnsupportedSubsamplingRatio = UnsupportedError("luma/chroma subsampling ratio")
 
 // Component specification, specified in section B.2.2.
 type component struct {
@@ -42,26 +45,20 @@ const (
 	maxTq   = 3
 
 	maxComponents = 4
-
-	// We only support 4:4:4, 4:4:0, 4:2:2 and 4:2:0 downsampling, and therefore the
-	// number of luma samples per chroma sample is at most 2 in the horizontal
-	// and 2 in the vertical direction.
-	maxH = 2
-	maxV = 2
 )
 
 const (
-	soiMarker  = 0xd8 // Start Of Image.
-	eoiMarker  = 0xd9 // End Of Image.
-	sof0Marker = 0xc0 // Start Of Frame (Baseline).
+	sof0Marker = 0xc0 // Start Of Frame (Baseline Sequential).
 	sof1Marker = 0xc1 // Start Of Frame (Extended Sequential).
 	sof2Marker = 0xc2 // Start Of Frame (Progressive).
 	dhtMarker  = 0xc4 // Define Huffman Table.
-	dqtMarker  = 0xdb // Define Quantization Table.
-	sosMarker  = 0xda // Start Of Scan.
-	driMarker  = 0xdd // Define Restart Interval.
 	rst0Marker = 0xd0 // ReSTart (0).
 	rst7Marker = 0xd7 // ReSTart (7).
+	soiMarker  = 0xd8 // Start Of Image.
+	eoiMarker  = 0xd9 // End Of Image.
+	sosMarker  = 0xda // Start Of Scan.
+	dqtMarker  = 0xdb // Define Quantization Table.
+	driMarker  = 0xdd // Define Restart Interval.
 	comMarker  = 0xfe // COMment.
 	// "APPlication specific" markers aren't part of the JPEG spec per se,
 	// but in practice, their use is described at
@@ -92,7 +89,7 @@ var unzig = [blockSize]int{
 	53, 60, 61, 54, 47, 55, 62, 63,
 }
 
-// Reader is deprecated.
+// Deprecated: Reader is deprecated.
 type Reader interface {
 	io.ByteReader
 	io.Reader
@@ -129,9 +126,18 @@ type decoder struct {
 	blackPix    []byte
 	blackStride int
 
-	ri                  int // Restart Interval.
-	nComp               int
-	progressive         bool
+	ri    int // Restart Interval.
+	nComp int
+
+	// As per section 4.5, there are four modes of operation (selected by the
+	// SOF? markers): sequential DCT, progressive DCT, lossless and
+	// hierarchical, although this implementation does not support the latter
+	// two non-DCT modes. Sequential DCT is further split into baseline and
+	// extended, as per section 4.11.
+	baseline    bool
+	progressive bool
+
+	jfif                bool
 	adobeTransformValid bool
 	adobeTransform      uint8
 	eobRun              uint16 // End-of-Band run, specified in section G.1.2.2.
@@ -171,9 +177,6 @@ func (d *decoder) fill() error {
 // sometimes overshoot and read one or two too many bytes. Two-byte overshoot
 // can happen when expecting to read a 0xff 0x00 byte-stuffed byte.
 func (d *decoder) unreadByteStuffedByte() {
-	if d.bytes.nUnreadable == 0 {
-		panic("jpeg: unreadByteStuffedByte call cannot be fulfilled")
-	}
 	d.bytes.i -= d.bytes.nUnreadable
 	d.bytes.nUnreadable = 0
 	if d.bits.n >= 8 {
@@ -219,18 +222,19 @@ func (d *decoder) readByteStuffedByte() (x byte, err error) {
 		return 0xff, nil
 	}
 
+	d.bytes.nUnreadable = 0
+
 	x, err = d.readByte()
 	if err != nil {
 		return 0, err
 	}
+	d.bytes.nUnreadable = 1
 	if x != 0xff {
-		d.bytes.nUnreadable = 1
 		return x, nil
 	}
 
 	x, err = d.readByte()
 	if err != nil {
-		d.bytes.nUnreadable = 1
 		return 0, err
 	}
 	d.bytes.nUnreadable = 2
@@ -300,15 +304,18 @@ func (d *decoder) ignore(n int) error {
 
 // Specified in section B.2.2.
 func (d *decoder) processSOF(n int) error {
+	if d.nComp != 0 {
+		return FormatError("multiple SOF markers")
+	}
 	switch n {
 	case 6 + 3*1: // Grayscale image.
 		d.nComp = 1
-	case 6 + 3*3: // YCbCr image. (TODO(nigeltao): or RGB image.)
+	case 6 + 3*3: // YCbCr or RGB image.
 		d.nComp = 3
 	case 6 + 3*4: // YCbCrK or CMYK image.
 		d.nComp = 4
 	default:
-		return UnsupportedError("SOF has wrong length")
+		return UnsupportedError("number of components")
 	}
 	if err := d.readFull(d.tmp[:n]); err != nil {
 		return err
@@ -320,12 +327,34 @@ func (d *decoder) processSOF(n int) error {
 	d.height = int(d.tmp[1])<<8 + int(d.tmp[2])
 	d.width = int(d.tmp[3])<<8 + int(d.tmp[4])
 	if int(d.tmp[5]) != d.nComp {
-		return UnsupportedError("SOF has wrong number of image components")
+		return FormatError("SOF has wrong length")
 	}
+
 	for i := 0; i < d.nComp; i++ {
 		d.comp[i].c = d.tmp[6+3*i]
+		// Section B.2.2 states that "the value of C_i shall be different from
+		// the values of C_1 through C_(i-1)".
+		for j := 0; j < i; j++ {
+			if d.comp[i].c == d.comp[j].c {
+				return FormatError("repeated component identifier")
+			}
+		}
+
 		d.comp[i].tq = d.tmp[8+3*i]
-		if d.nComp == 1 {
+		if d.comp[i].tq > maxTq {
+			return FormatError("bad Tq value")
+		}
+
+		hv := d.tmp[7+3*i]
+		h, v := int(hv>>4), int(hv&0x0f)
+		if h < 1 || 4 < h || v < 1 || 4 < v {
+			return FormatError("luma/chroma subsampling ratio")
+		}
+		if h == 3 || v == 3 {
+			return errUnsupportedSubsamplingRatio
+		}
+		switch d.nComp {
+		case 1:
 			// If a JPEG image has only one component, section A.2 says "this data
 			// is non-interleaved by definition" and section A.2.2 says "[in this
 			// case...] the order of data units within a scan shall be left-to-right
@@ -337,26 +366,34 @@ func (d *decoder) processSOF(n int) error {
 			// always 1. The component's (h, v) is effectively always (1, 1): even if
 			// the nominal (h, v) is (2, 1), a 20x5 image is encoded in three 8x8
 			// MCUs, not two 16x8 MCUs.
-			d.comp[i].h = 1
-			d.comp[i].v = 1
-			continue
-		}
-		hv := d.tmp[7+3*i]
-		d.comp[i].h = int(hv >> 4)
-		d.comp[i].v = int(hv & 0x0f)
-		switch d.nComp {
+			h, v = 1, 1
+
 		case 3:
-			// For YCbCr images, we only support 4:4:4, 4:4:0, 4:2:2 or 4:2:0 chroma
-			// downsampling ratios. This implies that the (h, v) values for the Y
-			// component are either (1, 1), (1, 2), (2, 1) or (2, 2), and the (h, v)
-			// values for the Cr and Cb components must be (1, 1).
-			if i == 0 {
-				if hv != 0x11 && hv != 0x21 && hv != 0x22 && hv != 0x12 {
-					return UnsupportedError("luma/chroma downsample ratio")
+			// For YCbCr images, we only support 4:4:4, 4:4:0, 4:2:2, 4:2:0,
+			// 4:1:1 or 4:1:0 chroma subsampling ratios. This implies that the
+			// (h, v) values for the Y component are either (1, 1), (1, 2),
+			// (2, 1), (2, 2), (4, 1) or (4, 2), and the Y component's values
+			// must be a multiple of the Cb and Cr component's values. We also
+			// assume that the two chroma components have the same subsampling
+			// ratio.
+			switch i {
+			case 0: // Y.
+				// We have already verified, above, that h and v are both
+				// either 1, 2 or 4, so invalid (h, v) combinations are those
+				// with v == 4.
+				if v == 4 {
+					return errUnsupportedSubsamplingRatio
 				}
-			} else if hv != 0x11 {
-				return UnsupportedError("luma/chroma downsample ratio")
+			case 1: // Cb.
+				if d.comp[0].h%h != 0 || d.comp[0].v%v != 0 {
+					return errUnsupportedSubsamplingRatio
+				}
+			case 2: // Cr.
+				if d.comp[1].h != h || d.comp[1].v != v {
+					return errUnsupportedSubsamplingRatio
+				}
 			}
+
 		case 4:
 			// For 4-component images (either CMYK or YCbCrK), we only support two
 			// hv vectors: [0x11 0x11 0x11 0x11] and [0x22 0x11 0x11 0x22].
@@ -370,18 +407,21 @@ func (d *decoder) processSOF(n int) error {
 			switch i {
 			case 0:
 				if hv != 0x11 && hv != 0x22 {
-					return UnsupportedError("luma/chroma downsample ratio")
+					return errUnsupportedSubsamplingRatio
 				}
 			case 1, 2:
 				if hv != 0x11 {
-					return UnsupportedError("luma/chroma downsample ratio")
+					return errUnsupportedSubsamplingRatio
 				}
 			case 3:
-				if d.comp[0].h != d.comp[3].h || d.comp[0].v != d.comp[3].v {
-					return UnsupportedError("luma/chroma downsample ratio")
+				if d.comp[0].h != h || d.comp[0].v != v {
+					return errUnsupportedSubsamplingRatio
 				}
 			}
 		}
+
+		d.comp[i].h = h
+		d.comp[i].v = v
 	}
 	return nil
 }
@@ -441,6 +481,23 @@ func (d *decoder) processDRI(n int) error {
 		return err
 	}
 	d.ri = int(d.tmp[0])<<8 + int(d.tmp[1])
+	return nil
+}
+
+func (d *decoder) processApp0Marker(n int) error {
+	if n < 5 {
+		return d.ignore(n)
+	}
+	if err := d.readFull(d.tmp[:5]); err != nil {
+		return err
+	}
+	n -= 5
+
+	d.jfif = d.tmp[0] == 'J' && d.tmp[1] == 'F' && d.tmp[2] == 'I' && d.tmp[3] == 'F' && d.tmp[4] == '\x00'
+
+	if n > 0 {
+		return d.ignore(n)
+	}
 	return nil
 }
 
@@ -547,29 +604,55 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 
 		switch marker {
 		case sof0Marker, sof1Marker, sof2Marker:
+			d.baseline = marker == sof0Marker
 			d.progressive = marker == sof2Marker
 			err = d.processSOF(n)
-			if configOnly {
+			if configOnly && d.jfif {
 				return nil, err
 			}
 		case dhtMarker:
-			err = d.processDHT(n)
+			if configOnly {
+				err = d.ignore(n)
+			} else {
+				err = d.processDHT(n)
+			}
 		case dqtMarker:
-			err = d.processDQT(n)
+			if configOnly {
+				err = d.ignore(n)
+			} else {
+				err = d.processDQT(n)
+			}
 		case sosMarker:
+			if configOnly {
+				return nil, nil
+			}
 			err = d.processSOS(n)
 		case driMarker:
-			err = d.processDRI(n)
+			if configOnly {
+				err = d.ignore(n)
+			} else {
+				err = d.processDRI(n)
+			}
+		case app0Marker:
+			err = d.processApp0Marker(n)
 		case app14Marker:
 			err = d.processApp14Marker(n)
 		default:
 			if app0Marker <= marker && marker <= app15Marker || marker == comMarker {
 				err = d.ignore(n)
+			} else if marker < 0xc0 { // See Table B.1 "Marker code assignments".
+				err = FormatError("unknown marker")
 			} else {
 				err = UnsupportedError("unknown marker")
 			}
 		}
 		if err != nil {
+			return nil, err
+		}
+	}
+
+	if d.progressive {
+		if err := d.reconstructProgressiveImage(); err != nil {
 			return nil, err
 		}
 	}
@@ -579,6 +662,8 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 	if d.img3 != nil {
 		if d.blackPix != nil {
 			return d.applyBlack()
+		} else if d.isRGB() {
+			return d.convertToRGB()
 		}
 		return d.img3, nil
 	}
@@ -608,7 +693,7 @@ func (d *decoder) applyBlack() (image.Image, error) {
 		// above, so in practice, only the fourth channel (black) is inverted.
 		bounds := d.img3.Bounds()
 		img := image.NewRGBA(bounds)
-		drawYCbCr(img, bounds, d.img3, bounds.Min)
+		imageutil.DrawYCbCr(img, bounds, d.img3, bounds.Min)
 		for iBase, y := 0, bounds.Min.Y; y < bounds.Max.Y; iBase, y = iBase+img.Stride, y+1 {
 			for i, x := iBase+3, bounds.Min.X; x < bounds.Max.X; i, x = i+4, x+1 {
 				img.Pix[i] = 255 - d.blackPix[(y-bounds.Min.Y)*d.blackStride+(x-bounds.Min.X)]
@@ -657,80 +742,34 @@ func (d *decoder) applyBlack() (image.Image, error) {
 	return img, nil
 }
 
-// drawYCbCr is the non-exported drawYCbCr function copy/pasted from the
-// image/draw package. It is copy/pasted because it doesn't seem right for the
-// image/jpeg package to depend on image/draw.
-//
-// TODO(nigeltao): remove the copy/paste, possibly by moving this to be an
-// exported method on *image.YCbCr. We'd need to make sure we're totally happy
-// with the API (for the rest of Go 1 compatibility) though, and if we want to
-// have a more general purpose DrawToRGBA method for other image types.
-func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) (ok bool) {
-	// An image.YCbCr is always fully opaque, and so if the mask is implicitly nil
-	// (i.e. fully opaque) then the op is effectively always Src.
-	x0 := (r.Min.X - dst.Rect.Min.X) * 4
-	x1 := (r.Max.X - dst.Rect.Min.X) * 4
-	y0 := r.Min.Y - dst.Rect.Min.Y
-	y1 := r.Max.Y - dst.Rect.Min.Y
-	switch src.SubsampleRatio {
-	case image.YCbCrSubsampleRatio444:
-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
-			dpix := dst.Pix[y*dst.Stride:]
-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
-			ci := (sy-src.Rect.Min.Y)*src.CStride + (sp.X - src.Rect.Min.X)
-			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
-				dpix[x+0] = rr
-				dpix[x+1] = gg
-				dpix[x+2] = bb
-				dpix[x+3] = 255
-			}
-		}
-	case image.YCbCrSubsampleRatio422:
-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
-			dpix := dst.Pix[y*dst.Stride:]
-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
-			ciBase := (sy-src.Rect.Min.Y)*src.CStride - src.Rect.Min.X/2
-			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
-				ci := ciBase + sx/2
-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
-				dpix[x+0] = rr
-				dpix[x+1] = gg
-				dpix[x+2] = bb
-				dpix[x+3] = 255
-			}
-		}
-	case image.YCbCrSubsampleRatio420:
-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
-			dpix := dst.Pix[y*dst.Stride:]
-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
-			ciBase := (sy/2-src.Rect.Min.Y/2)*src.CStride - src.Rect.Min.X/2
-			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
-				ci := ciBase + sx/2
-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
-				dpix[x+0] = rr
-				dpix[x+1] = gg
-				dpix[x+2] = bb
-				dpix[x+3] = 255
-			}
-		}
-	case image.YCbCrSubsampleRatio440:
-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
-			dpix := dst.Pix[y*dst.Stride:]
-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
-			ci := (sy/2-src.Rect.Min.Y/2)*src.CStride + (sp.X - src.Rect.Min.X)
-			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
-				dpix[x+0] = rr
-				dpix[x+1] = gg
-				dpix[x+2] = bb
-				dpix[x+3] = 255
-			}
-		}
-	default:
+func (d *decoder) isRGB() bool {
+	if d.jfif {
 		return false
 	}
-	return true
+	if d.adobeTransformValid && d.adobeTransform == adobeTransformUnknown {
+		// http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
+		// says that 0 means Unknown (and in practice RGB) and 1 means YCbCr.
+		return true
+	}
+	return d.comp[0].c == 'R' && d.comp[1].c == 'G' && d.comp[2].c == 'B'
+}
+
+func (d *decoder) convertToRGB() (image.Image, error) {
+	cScale := d.comp[0].h / d.comp[1].h
+	bounds := d.img3.Bounds()
+	img := image.NewRGBA(bounds)
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		po := img.PixOffset(bounds.Min.X, y)
+		yo := d.img3.YOffset(bounds.Min.X, y)
+		co := d.img3.COffset(bounds.Min.X, y)
+		for i, iMax := 0, bounds.Max.X-bounds.Min.X; i < iMax; i++ {
+			img.Pix[po+4*i+0] = d.img3.Y[yo+i]
+			img.Pix[po+4*i+1] = d.img3.Cb[co+i/cScale]
+			img.Pix[po+4*i+2] = d.img3.Cr[co+i/cScale]
+			img.Pix[po+4*i+3] = 255
+		}
+	}
+	return img, nil
 }
 
 // Decode reads a JPEG image from r and returns it as an image.Image.
@@ -754,8 +793,12 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 			Height:     d.height,
 		}, nil
 	case 3:
+		cm := color.YCbCrModel
+		if d.isRGB() {
+			cm = color.RGBAModel
+		}
 		return image.Config{
-			ColorModel: color.YCbCrModel, // TODO(nigeltao): support RGB JPEGs.
+			ColorModel: cm,
 			Width:      d.width,
 			Height:     d.height,
 		}, nil

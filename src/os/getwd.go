@@ -20,7 +20,7 @@ var getwdCache struct {
 var useSyscallwd = func(error) bool { return true }
 
 // Getwd returns a rooted path name corresponding to the
-// current directory.  If the current directory can be
+// current directory. If the current directory can be
 // reached via multiple paths (due to symbolic links),
 // Getwd may return any one of them.
 func Getwd() (dir string, err error) {
@@ -74,7 +74,7 @@ func Getwd() (dir string, err error) {
 	}
 
 	// General algorithm: find name in parent
-	// and then find name of parent.  Each iteration
+	// and then find name of parent. Each iteration
 	// adds /name to the beginning of dir.
 	dir = ""
 	for parent := ".."; ; parent = "../" + parent {

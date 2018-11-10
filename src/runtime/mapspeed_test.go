@@ -5,6 +5,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -305,5 +306,38 @@ func BenchmarkSmallKeyMap(b *testing.B) {
 	m[5] = true
 	for i := 0; i < b.N; i++ {
 		_ = m[5]
+	}
+}
+
+func BenchmarkMapPopulate(b *testing.B) {
+	for size := 1; size < 1000000; size *= 10 {
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				m := make(map[int]bool)
+				for j := 0; j < size; j++ {
+					m[j] = true
+				}
+			}
+		})
+	}
+}
+
+type ComplexAlgKey struct {
+	a, b, c int64
+	_       int
+	d       int32
+	_       int
+	e       string
+	_       int
+	f, g, h int64
+}
+
+func BenchmarkComplexAlgMap(b *testing.B) {
+	m := make(map[ComplexAlgKey]bool)
+	var k ComplexAlgKey
+	m[k] = true
+	for i := 0; i < b.N; i++ {
+		_ = m[k]
 	}
 }

@@ -233,7 +233,9 @@ func (nopWriteCloser) Close() error {
 // isn't met. See issue 6934.
 func TestChildServeCleansUp(t *testing.T) {
 	for _, tt := range cleanUpTests {
-		rc := nopWriteCloser{bytes.NewBuffer(tt.input)}
+		input := make([]byte, len(tt.input))
+		copy(input, tt.input)
+		rc := nopWriteCloser{bytes.NewBuffer(input)}
 		done := make(chan bool)
 		c := newChild(rc, http.HandlerFunc(func(
 			w http.ResponseWriter,
@@ -249,6 +251,96 @@ func TestChildServeCleansUp(t *testing.T) {
 		}))
 		go c.serve()
 		// wait for body of request to be closed or all goroutines to block
+		<-done
+	}
+}
+
+type rwNopCloser struct {
+	io.Reader
+	io.Writer
+}
+
+func (rwNopCloser) Close() error {
+	return nil
+}
+
+// Verifies it doesn't crash. 	Issue 11824.
+func TestMalformedParams(t *testing.T) {
+	input := []byte{
+		// beginRequest, requestId=1, contentLength=8, role=1, keepConn=1
+		1, 1, 0, 1, 0, 8, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
+		// params, requestId=1, contentLength=10, k1Len=50, v1Len=50 (malformed, wrong length)
+		1, 4, 0, 1, 0, 10, 0, 0, 50, 50, 3, 4, 5, 6, 7, 8, 9, 10,
+		// end of params
+		1, 4, 0, 1, 0, 0, 0, 0,
+	}
+	rw := rwNopCloser{bytes.NewReader(input), ioutil.Discard}
+	c := newChild(rw, http.DefaultServeMux)
+	c.serve()
+}
+
+// a series of FastCGI records that start and end a request
+var streamFullRequestStdin = bytes.Join([][]byte{
+	// set up request
+	makeRecord(typeBeginRequest, 1,
+		[]byte{0, byte(roleResponder), 0, 0, 0, 0, 0, 0}),
+	// add required parameters
+	makeRecord(typeParams, 1, nameValuePair11("REQUEST_METHOD", "GET")),
+	makeRecord(typeParams, 1, nameValuePair11("SERVER_PROTOCOL", "HTTP/1.1")),
+	// set optional parameters
+	makeRecord(typeParams, 1, nameValuePair11("REMOTE_USER", "jane.doe")),
+	makeRecord(typeParams, 1, nameValuePair11("QUERY_STRING", "/foo/bar")),
+	makeRecord(typeParams, 1, nil),
+	// begin sending body of request
+	makeRecord(typeStdin, 1, []byte("0123456789abcdef")),
+	// end request
+	makeRecord(typeEndRequest, 1, nil),
+},
+	nil)
+
+var envVarTests = []struct {
+	input               []byte
+	envVar              string
+	expectedVal         string
+	expectedFilteredOut bool
+}{
+	{
+		streamFullRequestStdin,
+		"REMOTE_USER",
+		"jane.doe",
+		false,
+	},
+	{
+		streamFullRequestStdin,
+		"QUERY_STRING",
+		"",
+		true,
+	},
+}
+
+// Test that environment variables set for a request can be
+// read by a handler. Ensures that variables not set will not
+// be exposed to a handler.
+func TestChildServeReadsEnvVars(t *testing.T) {
+	for _, tt := range envVarTests {
+		input := make([]byte, len(tt.input))
+		copy(input, tt.input)
+		rc := nopWriteCloser{bytes.NewBuffer(input)}
+		done := make(chan bool)
+		c := newChild(rc, http.HandlerFunc(func(
+			w http.ResponseWriter,
+			r *http.Request,
+		) {
+			env := ProcessEnv(r)
+			if _, ok := env[tt.envVar]; ok && tt.expectedFilteredOut {
+				t.Errorf("Expected environment variable %s to not be set, but set to %s",
+					tt.envVar, env[tt.envVar])
+			} else if env[tt.envVar] != tt.expectedVal {
+				t.Errorf("Expected %s, got %s", tt.expectedVal, env[tt.envVar])
+			}
+			done <- true
+		}))
+		go c.serve()
 		<-done
 	}
 }

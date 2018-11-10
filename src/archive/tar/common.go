@@ -13,7 +13,6 @@
 package tar
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -21,10 +20,12 @@ import (
 	"time"
 )
 
-const (
-	blockSize = 512
+// BUG: Use of the Uid and Gid fields in Header could overflow on 32-bit
+// architectures. If a large value is encountered when decoding, the result
+// stored in Header will be the truncated version.
 
-	// Types
+// Header type flags.
+const (
 	TypeReg           = '0'    // regular file
 	TypeRegA          = '\x00' // regular file
 	TypeLink          = '1'    // hard link
@@ -60,12 +61,6 @@ type Header struct {
 	ChangeTime time.Time // status change time
 	Xattrs     map[string]string
 }
-
-// File name constants from the tar spec.
-const (
-	fileNameSize       = 100 // Maximum number of bytes in a standard tar name.
-	fileNamePrefixSize = 155 // Maximum number of ustar extension bytes.
-)
 
 // FileInfo returns an os.FileInfo for the Header.
 func (h *Header) FileInfo() os.FileInfo {
@@ -139,8 +134,8 @@ func (fi headerFileInfo) Mode() (mode os.FileMode) {
 	}
 
 	switch fi.h.Typeflag {
-	case TypeLink, TypeSymlink:
-		// hard link, symbolic link
+	case TypeSymlink:
+		// symbolic link
 		mode |= os.ModeSymlink
 	case TypeChar:
 		// character device node
@@ -163,11 +158,15 @@ func (fi headerFileInfo) Mode() (mode os.FileMode) {
 // sysStat, if non-nil, populates h from system-dependent fields of fi.
 var sysStat func(fi os.FileInfo, h *Header) error
 
-// Mode constants from the tar spec.
 const (
-	c_ISUID  = 04000   // Set uid
-	c_ISGID  = 02000   // Set gid
-	c_ISVTX  = 01000   // Save text (sticky bit)
+	// Mode constants from the USTAR spec:
+	// See http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_06
+	c_ISUID = 04000 // Set uid
+	c_ISGID = 02000 // Set gid
+	c_ISVTX = 01000 // Save text (sticky bit)
+
+	// Common Unix mode constants; these are not defined in any common tar standard.
+	// Header.FileInfo understands these, but FileInfoHeader will never produce these.
 	c_ISDIR  = 040000  // Directory
 	c_ISFIFO = 010000  // FIFO
 	c_ISREG  = 0100000 // Regular file
@@ -213,30 +212,24 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	}
 	switch {
 	case fm.IsRegular():
-		h.Mode |= c_ISREG
 		h.Typeflag = TypeReg
 		h.Size = fi.Size()
 	case fi.IsDir():
 		h.Typeflag = TypeDir
-		h.Mode |= c_ISDIR
 		h.Name += "/"
 	case fm&os.ModeSymlink != 0:
 		h.Typeflag = TypeSymlink
-		h.Mode |= c_ISLNK
 		h.Linkname = link
 	case fm&os.ModeDevice != 0:
 		if fm&os.ModeCharDevice != 0 {
-			h.Mode |= c_ISCHR
 			h.Typeflag = TypeChar
 		} else {
-			h.Mode |= c_ISBLK
 			h.Typeflag = TypeBlock
 		}
 	case fm&os.ModeNamedPipe != 0:
 		h.Typeflag = TypeFifo
-		h.Mode |= c_ISFIFO
 	case fm&os.ModeSocket != 0:
-		h.Mode |= c_ISSOCK
+		return nil, fmt.Errorf("archive/tar: sockets not supported")
 	default:
 		return nil, fmt.Errorf("archive/tar: unknown file mode %v", fm)
 	}
@@ -249,57 +242,43 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	if fm&os.ModeSticky != 0 {
 		h.Mode |= c_ISVTX
 	}
+	// If possible, populate additional fields from OS-specific
+	// FileInfo fields.
+	if sys, ok := fi.Sys().(*Header); ok {
+		// This FileInfo came from a Header (not the OS). Use the
+		// original Header to populate all remaining fields.
+		h.Uid = sys.Uid
+		h.Gid = sys.Gid
+		h.Uname = sys.Uname
+		h.Gname = sys.Gname
+		h.AccessTime = sys.AccessTime
+		h.ChangeTime = sys.ChangeTime
+		if sys.Xattrs != nil {
+			h.Xattrs = make(map[string]string)
+			for k, v := range sys.Xattrs {
+				h.Xattrs[k] = v
+			}
+		}
+		if sys.Typeflag == TypeLink {
+			// hard link
+			h.Typeflag = TypeLink
+			h.Size = 0
+			h.Linkname = sys.Linkname
+		}
+	}
 	if sysStat != nil {
 		return h, sysStat(fi, h)
 	}
 	return h, nil
 }
 
-var zeroBlock = make([]byte, blockSize)
-
-// POSIX specifies a sum of the unsigned byte values, but the Sun tar uses signed byte values.
-// We compute and return both.
-func checksum(header []byte) (unsigned int64, signed int64) {
-	for i := 0; i < len(header); i++ {
-		if i == 148 {
-			// The chksum field (header[148:156]) is special: it should be treated as space bytes.
-			unsigned += ' ' * 8
-			signed += ' ' * 8
-			i += 7
-			continue
-		}
-		unsigned += int64(header[i])
-		signed += int64(int8(header[i]))
+// isHeaderOnlyType checks if the given type flag is of the type that has no
+// data section even if a size is specified.
+func isHeaderOnlyType(flag byte) bool {
+	switch flag {
+	case TypeLink, TypeSymlink, TypeChar, TypeBlock, TypeDir, TypeFifo:
+		return true
+	default:
+		return false
 	}
-	return
-}
-
-type slicer []byte
-
-func (sp *slicer) next(n int) (b []byte) {
-	s := *sp
-	b, *sp = s[0:n], s[n:]
-	return
-}
-
-func isASCII(s string) bool {
-	for _, c := range s {
-		if c >= 0x80 {
-			return false
-		}
-	}
-	return true
-}
-
-func toASCII(s string) string {
-	if isASCII(s) {
-		return s
-	}
-	var buf bytes.Buffer
-	for _, c := range s {
-		if c < 0x80 {
-			buf.WriteByte(byte(c))
-		}
-	}
-	return buf.String()
 }

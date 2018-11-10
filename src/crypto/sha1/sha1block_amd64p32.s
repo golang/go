@@ -1,10 +1,10 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 #include "textflag.h"
 
-// SHA1 block routine. See sha1block.go for Go equivalent.
+// SHA-1 block routine. See sha1block.go for Go equivalent.
 //
 // There are 80 rounds of 4 types:
 //   - rounds 0-15 are type 1 and load data (ROUND1 macro).
@@ -91,7 +91,7 @@
 	FUNC4(a, b, c, d, e); \
 	MIX(a, b, c, d, e, 0xCA62C1D6)
 
-TEXT ·block(SB),NOSPLIT,$64-32
+TEXT ·block(SB),NOSPLIT,$64-16
 	MOVL	dig+0(FP),	R14
 	MOVL	p_base+4(FP),	SI
 	MOVL	p_len+8(FP),	DX

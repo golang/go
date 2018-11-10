@@ -1,0 +1,21 @@
+digraph "unnamed" {
+node [style=filled fillcolor="#f8f8f8"]
+subgraph cluster_L { "Build ID: buildid" [shape=box fontsize=16 label="Build ID: buildid\lcomment\lType: inuse_space\lShowing nodes accounting for 67.38MB, 68.32% of 98.63MB total\l"] }
+N1 [label="line3000\nfile3000.src:4\n0 of 67.38MB (68.32%)" fontsize=8 shape=box tooltip="line3000 testdata/file3000.src:4 (67.38MB)" color="#b21300" fillcolor="#edd7d5"]
+N2 [label="line2001\nfile2000.src:2\n62.50MB (63.37%)\nof 63.48MB (64.36%)" fontsize=24 shape=box tooltip="line2001 testdata/file2000.src:2 (63.48MB)" color="#b21600" fillcolor="#edd8d5"]
+NN2_0 [label = "1.56MB" fontsize=8 shape=box3d tooltip="62.50MB"]
+N2 -> NN2_0 [label=" 62.50MB" weight=100 tooltip="62.50MB" labeltooltip="62.50MB"]
+N3 [label="line1000\nfile1000.src:1\n4.88MB (4.95%)" fontsize=13 shape=box tooltip="line1000 testdata/file1000.src:1 (4.88MB)" color="#b2a086" fillcolor="#edeae7"]
+NN3_0 [label = "200kB" fontsize=8 shape=box3d tooltip="3.91MB"]
+N3 -> NN3_0 [label=" 3.91MB" weight=100 tooltip="3.91MB" labeltooltip="3.91MB"]
+N4 [label="line3002\nfile3000.src:3\n0 of 63.48MB (64.36%)" fontsize=8 shape=box tooltip="line3002 testdata/file3000.src:3 (63.48MB)" color="#b21600" fillcolor="#edd8d5"]
+N5 [label="line3001\nfile3000.src:2\n0 of 4.88MB (4.95%)" fontsize=8 shape=box tooltip="line3001 testdata/file3000.src:2 (4.88MB)" color="#b2a086" fillcolor="#edeae7"]
+N6 [label="line2000\nfile2000.src:3\n0 of 63.48MB (64.36%)" fontsize=8 shape=box tooltip="line2000 testdata/file2000.src:3 (63.48MB)" color="#b21600" fillcolor="#edd8d5"]
+N6 -> N2 [label=" 63.48MB\n (inline)" weight=65 penwidth=4 color="#b21600" tooltip="line2000 testdata/file2000.src:3 -> line2001 testdata/file2000.src:2 (63.48MB)" labeltooltip="line2000 testdata/file2000.src:3 -> line2001 testdata/file2000.src:2 (63.48MB)"]
+N4 -> N6 [label=" 63.48MB" weight=65 penwidth=4 color="#b21600" tooltip="line3002 testdata/file3000.src:3 -> line2000 testdata/file2000.src:3 (63.48MB)" labeltooltip="line3002 testdata/file3000.src:3 -> line2000 testdata/file2000.src:3 (63.48MB)"]
+N1 -> N4 [label=" 62.50MB\n (inline)" weight=64 penwidth=4 color="#b21600" tooltip="line3000 testdata/file3000.src:4 -> line3002 testdata/file3000.src:3 (62.50MB)" labeltooltip="line3000 testdata/file3000.src:4 -> line3002 testdata/file3000.src:3 (62.50MB)"]
+N1 -> N5 [label=" 4.88MB\n (inline)" weight=5 color="#b2a086" tooltip="line3000 testdata/file3000.src:4 -> line3001 testdata/file3000.src:2 (4.88MB)" labeltooltip="line3000 testdata/file3000.src:4 -> line3001 testdata/file3000.src:2 (4.88MB)"]
+N5 -> N3 [label=" 3.91MB" weight=4 color="#b2a58f" tooltip="line3001 testdata/file3000.src:2 -> line1000 testdata/file1000.src:1 (3.91MB)" labeltooltip="line3001 testdata/file3000.src:2 -> line1000 testdata/file1000.src:1 (3.91MB)"]
+N2 -> N3 [label=" 0.98MB" color="#b2b0a9" tooltip="line2001 testdata/file2000.src:2 -> line1000 testdata/file1000.src:1 (0.98MB)" labeltooltip="line2001 testdata/file2000.src:2 -> line1000 testdata/file1000.src:1 (0.98MB)" minlen=2]
+N5 -> N4 [label=" 0.98MB\n (inline)" color="#b2b0a9" tooltip="line3001 testdata/file3000.src:2 -> line3002 testdata/file3000.src:3 (0.98MB)" labeltooltip="line3001 testdata/file3000.src:2 -> line3002 testdata/file3000.src:3 (0.98MB)"]
+}

@@ -89,7 +89,7 @@ func printPlan9(w io.Writer) {
 	fmt.Fprintln(w, "// of continuous tones.")
 	fmt.Fprintln(w, "//")
 	fmt.Fprintln(w, "// This palette was used in the Plan 9 Operating System, described at")
-	fmt.Fprintln(w, "// http://plan9.bell-labs.com/magic/man2html/6/color")
+	fmt.Fprintln(w, "// https://9p.io/magic/man2html/6/color")
 	fmt.Fprintln(w, "var Plan9 = []color.Color{")
 	for _, line := range lines {
 		fmt.Fprintln(w, line)

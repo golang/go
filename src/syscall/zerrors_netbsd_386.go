@@ -4,6 +4,8 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs -- -m32 _const.go
 
+// +build 386,netbsd
+
 package syscall
 
 const (

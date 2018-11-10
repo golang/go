@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 package objfile
 
 import (
+	"debug/dwarf"
 	"debug/gosym"
 	"fmt"
 	"os"
@@ -17,6 +18,8 @@ type rawFile interface {
 	pcln() (textStart uint64, symtab, pclntab []byte, err error)
 	text() (textStart uint64, text []byte, err error)
 	goarch() string
+	loadAddress() (uint64, error)
+	dwarf() (*dwarf.Data, error)
 }
 
 // A File is an opened executable file.
@@ -27,11 +30,24 @@ type File struct {
 
 // A Sym is a symbol defined in an executable file.
 type Sym struct {
-	Name string // symbol name
-	Addr uint64 // virtual address of symbol
-	Size int64  // size in bytes
-	Code rune   // nm code (T for text, D for data, and so on)
-	Type string // XXX?
+	Name   string  // symbol name
+	Addr   uint64  // virtual address of symbol
+	Size   int64   // size in bytes
+	Code   rune    // nm code (T for text, D for data, and so on)
+	Type   string  // XXX?
+	Relocs []Reloc // in increasing Addr order
+}
+
+type Reloc struct {
+	Addr     uint64 // Address of first byte that reloc applies to.
+	Size     uint64 // Number of bytes
+	Stringer RelocStringer
+}
+
+type RelocStringer interface {
+	// insnOffset is the offset of the instruction containing the relocation
+	// from the start of the symbol containing the relocation.
+	String(insnOffset uint64) string
 }
 
 var openers = []func(*os.File) (rawFile, error){
@@ -77,7 +93,13 @@ func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
 func (x byAddr) Len() int           { return len(x) }
 func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
-func (f *File) PCLineTable() (*gosym.Table, error) {
+func (f *File) PCLineTable() (Liner, error) {
+	// If the raw file implements Liner directly, use that.
+	// Currently, only Go intermediate objects and archives (goobj) use this path.
+	if pcln, ok := f.raw.(Liner); ok {
+		return pcln, nil
+	}
+	// Otherwise, read the pcln tables and build a Liner out of that.
 	textStart, symtab, pclntab, err := f.raw.pcln()
 	if err != nil {
 		return nil, err
@@ -91,4 +113,17 @@ func (f *File) Text() (uint64, []byte, error) {
 
 func (f *File) GOARCH() string {
 	return f.raw.goarch()
+}
+
+// LoadAddress returns the expected load address of the file.
+// This differs from the actual load address for a position-independent
+// executable.
+func (f *File) LoadAddress() (uint64, error) {
+	return f.raw.loadAddress()
+}
+
+// DWARF returns DWARF debug data for the file, if any.
+// This is for cmd/pprof to locate cgo functions.
+func (f *File) DWARF() (*dwarf.Data, error) {
+	return f.raw.dwarf()
 }

@@ -6,7 +6,9 @@ package http_test
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -17,6 +19,8 @@ import (
 )
 
 func TestNextProtoUpgrade(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "path=%s,proto=", r.URL.Path)
 		if r.TLS != nil {
@@ -38,12 +42,9 @@ func TestNextProtoUpgrade(t *testing.T) {
 	ts.StartTLS()
 	defer ts.Close()
 
-	tr := newTLSTransport(t, ts)
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
-
 	// Normal request, without NPN.
 	{
+		c := ts.Client()
 		res, err := c.Get(ts.URL)
 		if err != nil {
 			t.Fatal(err)
@@ -60,18 +61,32 @@ func TestNextProtoUpgrade(t *testing.T) {
 	// Request to an advertised but unhandled NPN protocol.
 	// Server will hang up.
 	{
-		tr.CloseIdleConnections()
-		tr.TLSClientConfig.NextProtos = []string{"unhandled-proto"}
-		_, err := c.Get(ts.URL)
+		certPool := x509.NewCertPool()
+		certPool.AddCert(ts.Certificate())
+		tr := &Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs:    certPool,
+				NextProtos: []string{"unhandled-proto"},
+			},
+		}
+		defer tr.CloseIdleConnections()
+		c := &Client{
+			Transport: tr,
+		}
+		res, err := c.Get(ts.URL)
 		if err == nil {
-			t.Errorf("expected error on unhandled-proto request")
+			defer res.Body.Close()
+			var buf bytes.Buffer
+			res.Write(&buf)
+			t.Errorf("expected error on unhandled-proto request; got: %s", buf.Bytes())
 		}
 	}
 
 	// Request using the "tls-0.9" protocol, which we register here.
 	// It is HTTP/0.9 over TLS.
 	{
-		tlsConfig := newTLSTransport(t, ts).TLSClientConfig
+		c := ts.Client()
+		tlsConfig := c.Transport.(*Transport).TLSClientConfig
 		tlsConfig.NextProtos = []string{"tls-0.9"}
 		conn, err := tls.Dial("tcp", ts.Listener.Addr().String(), tlsConfig)
 		if err != nil {

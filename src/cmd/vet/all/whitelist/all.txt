@@ -1,0 +1,56 @@
+// Non-platform-specific vet whitelist. See readme.txt for details.
+
+// Issue 17580 (remove when fixed)
+cmd/go/go_test.go: +build comment must appear before package clause and be followed by a blank line
+
+
+// Real problems that we can't fix.
+
+// This is a bad WriteTo signature. Errors are being ignored!
+// However, we can't change it due to the Go 1 compatibility promise.
+go/types/scope.go: method WriteTo(w io.Writer, n int, recurse bool) should have signature WriteTo(io.Writer) (int64, error)
+
+
+// False positives.
+
+// Test of how fmt handles nil.
+fmt/fmt_test.go: arg nil for printf verb %s of wrong type: untyped nil
+
+// Nothing much to do about cross-package assembly. Unfortunate.
+runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: call is in package reflect
+runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
+runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package bytes
+runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package strings
+
+// Legitimate vet complaints in which we are testing for correct runtime behavior
+// in bad situations that vet can also detect statically.
+encoding/json/decode_test.go: struct field m has json tag but is not exported
+encoding/json/decode_test.go: struct field m2 has json tag but is not exported
+encoding/json/tagkey_test.go: struct field tag `:"BadFormat"` not compatible with reflect.StructTag.Get: bad syntax for struct tag key
+runtime/testdata/testprog/deadlock.go: unreachable code
+runtime/testdata/testprog/deadlock.go: unreachable code
+sync/cond_test.go: assignment copies lock value to c2: sync.Cond contains sync.noCopy
+
+// Non-standard method signatures.
+// These cases are basically ok.
+// Errors are handled reasonably and there's no clear need for interface satisfaction.
+// Except for the runtime/pprof case, the API is not exported.
+cmd/internal/bio/buf.go: method Seek(offset int64, whence int) int64 should have signature Seek(int64, int) (int64, error)
+cmd/internal/bio/buf.go: method Seek(offset int64, whence int) int64 should have signature Seek(int64, int) (int64, error)
+fmt/print.go: method WriteByte(c byte) should have signature WriteByte(byte) error
+runtime/pprof/pprof.go: method WriteTo(w io.Writer, debug int) error should have signature WriteTo(io.Writer) (int64, error)
+
+// These encoding/xml methods have the correct signature.
+// vet doesn't know it because they are *in* the encoding/xml package.
+// It's not worth teaching vet about the distinction, so whitelist them.
+encoding/gob/encode.go: method WriteByte(c byte) should have signature WriteByte(byte) error
+encoding/xml/marshal.go: method MarshalXML(e *Encoder, start StartElement) error should have signature MarshalXML(*xml.Encoder, xml.StartElement) error
+encoding/xml/marshal_test.go: method MarshalXML(e *Encoder, start StartElement) error should have signature MarshalXML(*xml.Encoder, xml.StartElement) error
+encoding/xml/read.go: method UnmarshalXML(d *Decoder, start StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
+encoding/xml/read_test.go: method UnmarshalXML(d *Decoder, start StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
+
+// Long struct tags used to test reflect internals
+cmd/link/link_test.go: struct field tag "\n\tLondon. Michaelmas term lately over, and the Lord Chancellor sitting in Lincoln’s Inn Hall. Implacable November weather. As much mud in the streets as if the waters had but newly retired from the face of the earth, and it would not be wonderful to meet a Megalosaurus, forty feet long or so, waddling like an elephantine lizard up Holborn Hill. Smoke lowering down from chimney-pots, making a soft black drizzle, with flakes of soot in it as big as full-grown snowflakes—gone into mourning, one might imagine, for the death of the sun. Dogs, undistinguishable in mire. Horses, scarcely better; splashed to their very blinkers. Foot passengers, jostling one another’s umbrellas in a general infection of ill temper, and losing their foot-hold at street-corners, where tens of thousands of other foot passengers have been slipping and sliding since the day broke (if this day ever broke), adding new deposits to the crust upon crust of mud, sticking at those points tenaciously to the pavement, and accumulating at compound interest.\n\n\tFog everywhere. Fog up the river, where it flows among green aits and meadows; fog down the river, where it rolls defiled among the tiers of shipping and the waterside pollutions of a great (and dirty) city. Fog on the Essex marshes, fog on the Kentish heights. Fog creeping into the cabooses of collier-brigs; fog lying out on the yards and hovering in the rigging of great ships; fog drooping on the gunwales of barges and small boats. Fog in the eyes and throats of ancient Greenwich pensioners, wheezing by the firesides of their wards; fog in the stem and bowl of the afternoon pipe of the wrathful skipper, down in his close cabin; fog cruelly pinching the toes and fingers of his shivering little ‘prentice boy on deck. Chance people on the bridges peeping over the parapets into a nether sky of fog, with fog all round them, as if they were up in a balloon and hanging in the misty clouds.\n\n\tGas looming through the fog in divers places in the streets, much as the sun may, from the spongey fields, be seen to loom by husbandman and ploughboy. Most of the shops lighted two hours before their time—as the gas seems to know, for it has a haggard and unwilling look.\n\n\tThe raw afternoon is rawest, and the dense fog is densest, and the muddy streets are muddiest near that leaden-headed old obstruction, appropriate ornament for the threshold of a leaden-headed old corporation, Temple Bar. And hard by Temple Bar, in Lincoln’s Inn Hall, at the very heart of the fog, sits the Lord High Chancellor in his High Court of Chancery." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
+cmd/link/link_test.go: struct field tag "\n\tIt was grand to see how the wind awoke, and bent the trees, and drove the rain before it like a cloud of smoke; and to hear the solemn thunder, and to see the lightning; and while thinking with awe of the tremendous powers by which our little lives are encompassed, to consider how beneficent they are, and how upon the smallest flower and leaf there was already a freshness poured from all this seeming rage, which seemed to make creation new again." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
+cmd/link/link_test.go: struct field tag "\n\tJarndyce and Jarndyce drones on. This scarecrow of a suit has, over the course of time, become so complicated, that no man alive knows what it means. The parties to it understand it least; but it has been observed that no two Chancery lawyers can talk about it for five minutes, without coming to a total disagreement as to all the premises. Innumerable children have been born into the cause; innumerable young people have married into it; innumerable old people have died out of it. Scores of persons have deliriously found themselves made parties in Jarndyce and Jarndyce, without knowing how or why; whole families have inherited legendary hatreds with the suit. The little plaintiff or defendant, who was promised a new rocking-horse when Jarndyce and Jarndyce should be settled, has grown up, possessed himself of a real horse, and trotted away into the other world. Fair wards of court have faded into mothers and grandmothers; a long procession of Chancellors has come in and gone out; the legion of bills in the suit have been transformed into mere bills of mortality; there are not three Jarndyces left upon the earth perhaps, since old Tom Jarndyce in despair blew his brains out at a coffee-house in Chancery Lane; but Jarndyce and Jarndyce still drags its dreary length before the Court, perennially hopeless." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
+cmd/link/link_test.go: struct field tag "\n\tThe one great principle of the English law is, to make business for itself. There is no other principle distinctly, certainly, and consistently maintained through all its narrow turnings. Viewed by this light it becomes a coherent scheme, and not the monstrous maze the laity are apt to think it. Let them but once clearly perceive that its grand principle is to make business for itself at their expense, and surely they will cease to grumble." not compatible with reflect.StructTag.Get: bad syntax for struct tag key

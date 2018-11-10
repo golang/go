@@ -16,7 +16,7 @@ type timer struct {
 	i int // heap index
 
 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
-	// each time calling f(now, arg) in the timer goroutine, so f must be
+	// each time calling f(arg, now) in the timer goroutine, so f must be
 	// a well-behaved function and not block.
 	when   int64
 	period int64
@@ -31,6 +31,7 @@ var timers struct {
 	created      bool
 	sleeping     bool
 	rescheduling bool
+	sleepUntil   int64
 	waitnote     note
 	t            []*timer
 }
@@ -50,13 +51,18 @@ func timeSleep(ns int64) {
 		return
 	}
 
-	t := new(timer)
+	t := getg().timer
+	if t == nil {
+		t = new(timer)
+		getg().timer = t
+	}
+	*t = timer{}
 	t.when = nanotime() + ns
 	t.f = goroutineReady
 	t.arg = getg()
 	lock(&timers.lock)
 	addtimerLocked(t)
-	goparkunlock(&timers.lock, "sleep", traceEvGoSleep)
+	goparkunlock(&timers.lock, "sleep", traceEvGoSleep, 2)
 }
 
 // startTimer adds t to the timer heap.
@@ -79,7 +85,7 @@ func stopTimer(t *timer) bool {
 
 // Ready the goroutine arg.
 func goroutineReady(arg interface{}, seq uintptr) {
-	goready(arg.(*g))
+	goready(arg.(*g), 0)
 }
 
 func addtimer(t *timer) {
@@ -88,12 +94,12 @@ func addtimer(t *timer) {
 	unlock(&timers.lock)
 }
 
-// Add a timer to the heap and start or kick the timer proc.
-// If the new timer is earlier than any of the others.
+// Add a timer to the heap and start or kick timerproc if the new timer is
+// earlier than any of the others.
 // Timers are locked.
 func addtimerLocked(t *timer) {
 	// when must never be negative; otherwise timerproc will overflow
-	// during its delta calculation and never expire other runtime·timers.
+	// during its delta calculation and never expire other runtime timers.
 	if t.when < 0 {
 		t.when = 1<<63 - 1
 	}
@@ -108,7 +114,7 @@ func addtimerLocked(t *timer) {
 		}
 		if timers.rescheduling {
 			timers.rescheduling = false
-			goready(timers.gp)
+			goready(timers.gp, 0)
 		}
 	}
 	if !timers.created {
@@ -150,7 +156,7 @@ func deltimer(t *timer) bool {
 
 // Timerproc runs the time-driven events.
 // It sleeps until the next event in the timers heap.
-// If addtimer inserts a new earlier event, addtimer1 wakes timerproc early.
+// If addtimer inserts a new earlier event, it wakes timerproc early.
 func timerproc() {
 	timers.gp = getg()
 	for {
@@ -199,11 +205,12 @@ func timerproc() {
 		if delta < 0 || faketime > 0 {
 			// No timers left - put goroutine to sleep.
 			timers.rescheduling = true
-			goparkunlock(&timers.lock, "timer goroutine (idle)", traceEvGoBlock)
+			goparkunlock(&timers.lock, "timer goroutine (idle)", traceEvGoBlock, 1)
 			continue
 		}
-		// At least one timer pending.  Sleep until then.
+		// At least one timer pending. Sleep until then.
 		timers.sleeping = true
+		timers.sleepUntil = now + delta
 		noteclear(&timers.waitnote)
 		unlock(&timers.lock)
 		notetsleepg(&timers.waitnote, delta)
@@ -292,8 +299,8 @@ func siftdownTimer(i int) {
 
 // Entry points for net, time to call nanotime.
 
-//go:linkname net_runtimeNano net.runtimeNano
-func net_runtimeNano() int64 {
+//go:linkname poll_runtimeNano internal/poll.runtimeNano
+func poll_runtimeNano() int64 {
 	return nanotime()
 }
 
@@ -301,3 +308,11 @@ func net_runtimeNano() int64 {
 func time_runtimeNano() int64 {
 	return nanotime()
 }
+
+// Monotonic times are reported as offsets from startNano.
+// We initialize startNano to nanotime() - 1 so that on systems where
+// monotonic time resolution is fairly low (e.g. Windows 2008
+// which appears to have a default resolution of 15ms),
+// we avoid ever reporting a nanotime of 0.
+// (Callers may want to use 0 as "time not set".)
+var startNano int64 = nanotime() - 1

@@ -1,59 +1,52 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package net
 
-import (
-	"runtime"
-	"testing"
-)
+import "testing"
 
-type portTest struct {
-	netw string
-	name string
-	port int
-	ok   bool
+var parsePortTests = []struct {
+	service     string
+	port        int
+	needsLookup bool
+}{
+	{"", 0, false},
+
+	// Decimal number literals
+	{"-1073741825", -1 << 30, false},
+	{"-1073741824", -1 << 30, false},
+	{"-1073741823", -(1<<30 - 1), false},
+	{"-123456789", -123456789, false},
+	{"-1", -1, false},
+	{"-0", 0, false},
+	{"0", 0, false},
+	{"+0", 0, false},
+	{"+1", 1, false},
+	{"65535", 65535, false},
+	{"65536", 65536, false},
+	{"123456789", 123456789, false},
+	{"1073741822", 1<<30 - 2, false},
+	{"1073741823", 1<<30 - 1, false},
+	{"1073741824", 1<<30 - 1, false},
+	{"1073741825", 1<<30 - 1, false},
+
+	// Others
+	{"abc", 0, true},
+	{"9pfs", 0, true},
+	{"123badport", 0, true},
+	{"bad123port", 0, true},
+	{"badport123", 0, true},
+	{"123456789badport", 0, true},
+	{"-2147483649badport", 0, true},
+	{"2147483649badport", 0, true},
 }
 
-var porttests = []portTest{
-	{"tcp", "echo", 7, true},
-	{"tcp", "discard", 9, true},
-	{"tcp", "systat", 11, true},
-	{"tcp", "daytime", 13, true},
-	{"tcp", "chargen", 19, true},
-	{"tcp", "ftp-data", 20, true},
-	{"tcp", "ftp", 21, true},
-	{"tcp", "telnet", 23, true},
-	{"tcp", "smtp", 25, true},
-	{"tcp", "time", 37, true},
-	{"tcp", "domain", 53, true},
-	{"tcp", "finger", 79, true},
-
-	{"udp", "echo", 7, true},
-	{"udp", "tftp", 69, true},
-	{"udp", "bootpc", 68, true},
-	{"udp", "bootps", 67, true},
-	{"udp", "domain", 53, true},
-	{"udp", "ntp", 123, true},
-	{"udp", "snmp", 161, true},
-	{"udp", "syslog", 514, true},
-
-	{"--badnet--", "zzz", 0, false},
-	{"tcp", "--badport--", 0, false},
-}
-
-func TestLookupPort(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	}
-
-	for i := 0; i < len(porttests); i++ {
-		tt := porttests[i]
-		if port, err := LookupPort(tt.netw, tt.name); port != tt.port || (err == nil) != tt.ok {
-			t.Errorf("LookupPort(%q, %q) = %v, %v; want %v",
-				tt.netw, tt.name, port, err, tt.port)
+func TestParsePort(t *testing.T) {
+	// The following test cases are cribbed from the strconv
+	for _, tt := range parsePortTests {
+		if port, needsLookup := parsePort(tt.service); port != tt.port || needsLookup != tt.needsLookup {
+			t.Errorf("parsePort(%q) = %d, %t; want %d, %t", tt.service, port, needsLookup, tt.port, tt.needsLookup)
 		}
 	}
 }

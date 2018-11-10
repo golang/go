@@ -1,0 +1,180 @@
+<!--{
+	"Title": "Go Security Policy",
+	"Path":  "/security",
+	"Template": true
+}-->
+
+<h2>Implementation</h2>
+
+<h3>Reporting a Security Bug</h3>
+
+<p>
+Please report to us any issues you find.
+This document explains how to do that and what to expect in return.
+</p>
+
+<p>
+All security bugs in the Go distribution should be reported by email to
+<a href="mailto:security@golang.org">security@golang.org</a>.
+This mail is delivered to a small security team.
+Your email will be acknowledged within 24 hours, and you'll receive a more
+detailed response to your email within 72 hours indicating the next steps in
+handling your report.
+For critical problems, you can encrypt your report using our PGP key (listed below).
+</p>
+
+<p>
+Please use a descriptive subject line for your report email.
+After the initial reply to your report, the security team will endeavor to keep
+you informed of the progress being made towards a fix and full announcement.
+These updates will be sent at least every five days.
+In reality, this is more likely to be every 24-48 hours.
+</p>
+
+<p>
+If you have not received a reply to your email within 48 hours or you have not
+heard from the security team for the past five days please contact the Go
+security team directly:
+</p>
+
+<ul>
+<li>Primary security coordinator: <a href="mailto:adg@golang.org">Andrew Gerrand</a>  (<a href="https://drive.google.com/a/google.com/file/d/0B42ZAZN5yFufRldybEVNandRN2c/view">public key</a>).</li>
+<li>Secondary coordinator: <a href="mailto:agl@golang.org">Adam Langley</a> (<a href="https://www.imperialviolet.org/key.asc">public key</a>).</li>
+<li>If you receive no response, mail <a href="mailto:golang-dev@googlegroups.com">golang-dev@googlegroups.com</a> or use the <a href="https://groups.google.com/forum/#!forum/golang-dev">golang-dev web interface</a>.</li>
+</ul>
+
+<p>
+Please note that golang-dev is a public discussion forum.
+When escalating on this list, please do not disclose the details of the issue.
+Simply state that you're trying to reach a member of the security team.
+</p>
+
+<h3>Flagging Existing Issues as Security-related</h3>
+
+<p>
+If you believe that an <a href="https://golang.org/issue">existing issue</a>
+is security-related, we ask that you send an email to
+<a href="mailto:security@golang.org">security@golang.org</a>.
+The email should include the issue ID and a short description of why it should
+be handled according to this security policy.
+</p>
+
+<h3>Disclosure Process</h3>
+
+<p>The Go project uses the following disclosure process:</p>
+
+<ol>
+<li>Once the security report is received it is assigned a primary handler.
+This person coordinates the fix and release process.</li>
+<li>The issue is confirmed and a list of affected software is determined.</li>
+<li>Code is audited to find any potential similar problems.</li>
+<li>If it is determined, in consultation with the submitter, that a CVE-ID is
+required, the primary handler obtains one via email to
+<a href="http://oss-security.openwall.org/wiki/mailing-lists/distros">oss-distros</a>.</li>
+<li>Fixes are prepared for the two most recent major releases and the head/master
+revision. These fixes are not yet committed to the public repository.</li>
+<li>A notification is sent to the
+<a href="https://groups.google.com/group/golang-announce">golang-announce</a>
+mailing list to give users time to prepare their systems for the update.</li>
+<li>Three working days following this notification, the fixes are applied to
+the <a href="https://go.googlesource.com/go">public repository</a> and a new
+Go release is issued.</li>
+<li>On the date that the fixes are applied, announcements are sent to
+<a href="https://groups.google.com/group/golang-announce">golang-announce</a>,
+<a href="https://groups.google.com/group/golang-dev">golang-dev</a>, and
+<a href="https://groups.google.com/group/golang-nuts">golang-nuts</a>.
+</ol>
+
+<p>
+This process can take some time, especially when coordination is required with
+maintainers of other projects. Every effort will be made to handle the bug in
+as timely a manner as possible, however it's important that we follow the
+process described above to ensure that disclosures are handled consistently.
+</p>
+
+<p>
+For security issues that include the assignment of a CVE-ID,
+the issue is listed publicly under the
+<a href="https://www.cvedetails.com/vulnerability-list/vendor_id-14185/Golang.html">"Golang" product on the CVEDetails website</a>
+as well as the
+<a href="https://web.nvd.nist.gov/view/vuln/search">National Vulnerability Disclosure site</a>.
+</p>
+
+<h3>Receiving Security Updates</h3>
+
+<p>
+The best way to receive security announcements is to subscribe to the
+<a href="https://groups.google.com/forum/#!forum/golang-announce">golang-announce</a>
+mailing list. Any messages pertaining to a security issue will be prefixed
+with <code>[security]</code>.
+</p>
+
+<h3>Comments on This Policy</h3>
+
+<p>
+If you have any suggestions to improve this policy, please send an email to
+<a href="mailto:golang-dev@golang.org">golang-dev@golang.org</a> for discussion.
+</p>
+
+<h3>PGP Key for <a href="mailto:security@golang.org">security@golang.org</a></h3>
+
+<p>
+We accept PGP-encrypted email, but the majority of the security team
+are not regular PGP users so it's somewhat inconvenient. Please only
+use PGP for critical security reports.
+</p>
+
+<pre>
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Comment: GPGTools - https://gpgtools.org
+
+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
+UDrmjf9pr7o00hC7lCHFzw==
+=WE0r
+-----END PGP PUBLIC KEY BLOCK-----
+</pre>

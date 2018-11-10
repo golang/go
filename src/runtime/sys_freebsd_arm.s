@@ -18,6 +18,8 @@
 #define SYS_write (SYS_BASE + 4)
 #define SYS_open (SYS_BASE + 5)
 #define SYS_close (SYS_BASE + 6)
+#define SYS_getpid (SYS_BASE + 20)
+#define SYS_kill (SYS_BASE + 37)
 #define SYS_sigaltstack (SYS_BASE + 53)
 #define SYS_munmap (SYS_BASE + 73)
 #define SYS_madvise (SYS_BASE + 75)
@@ -37,13 +39,14 @@
 #define SYS_thr_kill (SYS_BASE + 433)
 #define SYS__umtx_op (SYS_BASE + 454)
 #define SYS_thr_new (SYS_BASE + 455)
-#define SYS_mmap (SYS_BASE + 477) 
-	
+#define SYS_mmap (SYS_BASE + 477)
+#define SYS_cpuset_getaffinity (SYS_BASE + 487)
+
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVW addr+0(FP), R0
 	MOVW mode+4(FP), R1
 	MOVW val+8(FP), R2
-	MOVW ptr2+12(FP), R3
+	MOVW uaddr1+12(FP), R3
 	ADD $20, R13 // arg 5 is passed on stack
 	MOVW $SYS__umtx_op, R7
 	SWI $0
@@ -93,6 +96,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVW perm+8(FP), R2	// arg 3 perm
 	MOVW $SYS_open, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -102,6 +106,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVW n+8(FP), R2	// arg 3 count
 	MOVW $SYS_read, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -111,13 +116,15 @@ TEXT runtime·write(SB),NOSPLIT,$-8
 	MOVW n+8(FP), R2	// arg 3 count
 	MOVW $SYS_write, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$-8
+TEXT runtime·closefd(SB),NOSPLIT,$-8
 	MOVW fd+0(FP), R0	// arg 1 fd
 	MOVW $SYS_close, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
 	RET
 
@@ -141,6 +148,17 @@ TEXT runtime·raise(SB),NOSPLIT,$8
 	SWI $0
 	RET
 
+TEXT runtime·raiseproc(SB),NOSPLIT,$0
+	// getpid
+	MOVW $SYS_getpid, R7
+	SWI $0
+	// kill(self, sig)
+				// arg 1 - pid, now in R0
+	MOVW sig+0(FP), R1	// arg 2 - signal
+	MOVW $SYS_kill, R7
+	SWI $0
+	RET
+
 TEXT runtime·setitimer(SB), NOSPLIT, $-8
 	MOVW mode+0(FP), R0
 	MOVW new+4(FP), R1
@@ -149,8 +167,8 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
 	SWI $0
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVW $0, R0 // CLOCK_REALTIME
 	MOVW $8(R13), R1
 	MOVW $SYS_clock_gettime, R7
@@ -199,7 +217,7 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
 	MOVW.CS R8, (R8)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$24
+TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	// this might be called in external code context,
 	// where g is not set.
 	// first save R0, because runtime·load_g will clobber it
@@ -208,30 +226,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	CMP 	$0, R0
 	BL.NE	runtime·load_g(SB)
 
-	CMP $0, g
-	BNE 4(PC)
-	// signal number is already prepared in 4(R13)
-	MOVW $runtime·badsignal(SB), R11
-	BL (R11)
-	RET
-
-	// save g
-	MOVW g, R4
-	MOVW g, 20(R13)
-
-	// g = m->signal
-	MOVW g_m(g), R8
-	MOVW m_gsignal(R8), g
-
-	// R0 is already saved
-	MOVW R1, 8(R13) // info
-	MOVW R2, 12(R13) // context
-	MOVW R4, 16(R13) // oldg
-
-	BL runtime·sighandler(SB)
-
-	// restore g
-	MOVW 20(R13), g
+	MOVW	R1, 8(R13)
+	MOVW	R2, 12(R13)
+	BL	runtime·sigtrampgo(SB)
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$16
@@ -283,17 +280,26 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVW.CS R8, (R8)
 	RET
 
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+	MOVW	sig+4(FP), R0
+	MOVW	info+8(FP), R1
+	MOVW	ctx+12(FP), R2
+	MOVW	fn+0(FP), R11
+	MOVW	R13, R4
+	SUB	$24, R13
+	BIC	$0x7, R13 // alignment for ELF ABI
+	BL	(R11)
+	MOVW	R4, R13
+	RET
+
 TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVW usec+0(FP), R0
-	MOVW R0, R2
-	MOVW $1000000, R1
-	DIV R1, R0
+	CALL runtime·usplitR0(SB)
 	// 0(R13) is the saved LR, don't use it
 	MOVW R0, 4(R13) // tv_sec.low
 	MOVW $0, R0
 	MOVW R0, 8(R13) // tv_sec.high
-	MOD R1, R2
-	MOVW $1000, R1
+	MOVW $1000, R2
 	MUL R1, R2
 	MOVW R2, 12(R13) // tv_nsec
 
@@ -323,9 +329,9 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVW $3, R0	// arg 1 - how (SIG_SETMASK)
-	MOVW new+0(FP), R1	// arg 2 - set
-	MOVW old+4(FP), R2	// arg 3 - oset
+	MOVW how+0(FP), R0	// arg 1 - how
+	MOVW new+4(FP), R1	// arg 2 - set
+	MOVW old+8(FP), R2	// arg 3 - oset
 	MOVW $SYS_sigprocmask, R7
 	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure
@@ -363,21 +369,25 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	SWI $0
 	RET
 
-TEXT runtime·casp1(SB),NOSPLIT,$0
-	B	runtime·cas(SB)
-
-// TODO(minux): this is only valid for ARMv6+
-// bool armcas(int32 *val, int32 old, int32 new)
-// Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	}else
-//		return 0;
-TEXT runtime·cas(SB),NOSPLIT,$0
-	B runtime·armcas(SB)
+// TODO: this is only valid for ARMv7+
+TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+	B	runtime·armPublicationBarrier(SB)
 
 // TODO(minux): this only supports ARMv6K+.
 TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
 	WORD $0xee1d0f70 // mrc p15, 0, r0, c13, c0, 3
+	RET
+
+// func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
+TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-28
+	MOVW	level+0(FP), R0
+	MOVW	which+4(FP), R1
+	MOVW	id_lo+8(FP), R2
+	MOVW	id_hi+12(FP), R3
+	ADD	$20, R13	// Pass size and mask on stack.
+	MOVW	$SYS_cpuset_getaffinity, R7
+	SWI	$0
+	RSB.CS	$0, R0
+	SUB	$20, R13
+	MOVW	R0, ret+24(FP)
 	RET

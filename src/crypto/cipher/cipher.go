@@ -9,8 +9,8 @@
 package cipher
 
 // A Block represents an implementation of block cipher
-// using a given key.  It provides the capability to encrypt
-// or decrypt individual blocks.  The mode implementations
+// using a given key. It provides the capability to encrypt
+// or decrypt individual blocks. The mode implementations
 // extend that capability to streams of blocks.
 type Block interface {
 	// BlockSize returns the cipher's block size.

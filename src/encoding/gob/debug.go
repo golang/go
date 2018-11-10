@@ -7,7 +7,7 @@
 
 package gob
 
-// This file is not normally included in the gob package.  Used only for debugging the package itself.
+// This file is not normally included in the gob package. Used only for debugging the package itself.
 // Except for reading uints, it is an implementation of a reader that is independent of
 // the one implemented by Decoder.
 // To enable the Debug function, delete the +build ignore line above and do
@@ -241,7 +241,7 @@ func (deb *debugger) delimitedMessage(indent tab) bool {
 // loadBlock preps us to read a message
 // of the length specified next in the input. It returns
 // the length of the block. The argument tells whether
-// an EOF is acceptable now.  If it is and one is found,
+// an EOF is acceptable now. If it is and one is found,
 // the return value is negative.
 func (deb *debugger) loadBlock(eofOK bool) int {
 	n64, w, err := decodeUintReader(deb.r, deb.tmp) // deb.uint64 will error at EOF
@@ -339,7 +339,7 @@ func (deb *debugger) string() string {
 	return string(b)
 }
 
-// delta returns the field delta at the input point.  The expect argument,
+// delta returns the field delta at the input point. The expect argument,
 // if non-negative, identifies what the value should be.
 func (deb *debugger) delta(expect int) int {
 	delta := int(deb.uint64())

@@ -9,29 +9,17 @@ import (
 	"syscall"
 )
 
-// FileConn returns a copy of the network connection corresponding to
-// the open file f.  It is the caller's responsibility to close f when
-// finished.  Closing c does not affect f, and closing f does not
-// affect c.
-func FileConn(f *os.File) (c Conn, err error) {
+func fileConn(f *os.File) (Conn, error) {
 	// TODO: Implement this
-	return nil, os.NewSyscallError("FileConn", syscall.EWINDOWS)
+	return nil, syscall.EWINDOWS
 }
 
-// FileListener returns a copy of the network listener corresponding
-// to the open file f.  It is the caller's responsibility to close l
-// when finished.  Closing l does not affect f, and closing f does not
-// affect l.
-func FileListener(f *os.File) (l Listener, err error) {
+func fileListener(f *os.File) (Listener, error) {
 	// TODO: Implement this
-	return nil, os.NewSyscallError("FileListener", syscall.EWINDOWS)
+	return nil, syscall.EWINDOWS
 }
 
-// FilePacketConn returns a copy of the packet network connection
-// corresponding to the open file f.  It is the caller's
-// responsibility to close f when finished.  Closing c does not affect
-// f, and closing f does not affect c.
-func FilePacketConn(f *os.File) (c PacketConn, err error) {
+func filePacketConn(f *os.File) (PacketConn, error) {
 	// TODO: Implement this
-	return nil, os.NewSyscallError("FilePacketConn", syscall.EWINDOWS)
+	return nil, syscall.EWINDOWS
 }

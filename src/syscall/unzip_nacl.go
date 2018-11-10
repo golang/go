@@ -162,7 +162,7 @@ func (f *decompressor) readHuffman() {
 
 // Decode a single Huffman block from f.
 // hl and hd are the Huffman states for the lit/length values
-// and the distance values, respectively.  If hd == nil, using the
+// and the distance values, respectively. If hd == nil, using the
 // fixed distance encoding associated with fixed Huffman blocks.
 func (f *decompressor) huffmanBlock(hl, hd *huffmanDecoder) {
 	for {

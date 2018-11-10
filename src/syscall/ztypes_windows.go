@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -18,6 +18,7 @@ const (
 	ERROR_INSUFFICIENT_BUFFER Errno = 122
 	ERROR_MOD_NOT_FOUND       Errno = 126
 	ERROR_PROC_NOT_FOUND      Errno = 127
+	ERROR_DIR_NOT_EMPTY       Errno = 145
 	ERROR_ALREADY_EXISTS      Errno = 183
 	ERROR_ENVVAR_NOT_FOUND    Errno = 203
 	ERROR_MORE_DATA           Errno = 234
@@ -26,6 +27,7 @@ const (
 	ERROR_NOT_FOUND           Errno = 1168
 	ERROR_PRIVILEGE_NOT_HELD  Errno = 1314
 	WSAEACCES                 Errno = 10013
+	WSAECONNABORTED           Errno = 10053
 	WSAECONNRESET             Errno = 10054
 )
 
@@ -1115,4 +1117,5 @@ const (
 	_IO_REPARSE_TAG_MOUNT_POINT      = 0xA0000003
 	IO_REPARSE_TAG_SYMLINK           = 0xA000000C
 	SYMBOLIC_LINK_FLAG_DIRECTORY     = 0x1
+	_SYMLINK_FLAG_RELATIVE           = 1
 )

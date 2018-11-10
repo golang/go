@@ -36,3 +36,38 @@ func ExampleWriter_Init() {
 	//     a     b       c         d.
 	//   123 12345 1234567 123456789.
 }
+
+func Example_elastic() {
+	// Observe how the b's and the d's, despite appearing in the
+	// second cell of each line, belong to different columns.
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, '.', tabwriter.AlignRight|tabwriter.Debug)
+	fmt.Fprintln(w, "a\tb\tc")
+	fmt.Fprintln(w, "aa\tbb\tcc")
+	fmt.Fprintln(w, "aaa\t") // trailing tab
+	fmt.Fprintln(w, "aaaa\tdddd\teeee")
+	w.Flush()
+
+	// output:
+	// ....a|..b|c
+	// ...aa|.bb|cc
+	// ..aaa|
+	// .aaaa|.dddd|eeee
+}
+
+func Example_trailingTab() {
+	// Observe that the third line has no trailing tab,
+	// so its final cell is not part of an aligned column.
+	const padding = 3
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, padding, '-', tabwriter.AlignRight|tabwriter.Debug)
+	fmt.Fprintln(w, "a\tb\taligned\t")
+	fmt.Fprintln(w, "aa\tbb\taligned\t")
+	fmt.Fprintln(w, "aaa\tbbb\tunaligned") // no trailing tab
+	fmt.Fprintln(w, "aaaa\tbbbb\taligned\t")
+	w.Flush()
+
+	// output:
+	// ------a|------b|---aligned|
+	// -----aa|-----bb|---aligned|
+	// ----aaa|----bbb|unaligned
+	// ---aaaa|---bbbb|---aligned|
+}

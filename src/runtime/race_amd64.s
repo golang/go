@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -159,14 +159,28 @@ call:
 ret:
 	RET
 
+// func runtime·racefuncenterfp(fp uintptr)
+// Called from instrumented code.
+// Like racefuncenter but passes FP, not PC
+TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-8
+	MOVQ	fp+0(FP), R11
+	MOVQ	-8(R11), R11
+	JMP	racefuncenter<>(SB)
+
 // func runtime·racefuncenter(pc uintptr)
 // Called from instrumented code.
 TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+	MOVQ	callpc+0(FP), R11
+	JMP	racefuncenter<>(SB)
+
+// Common code for racefuncenter/racefuncenterfp
+// R11 = caller's return address
+TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	MOVQ	DX, R15		// save function entry context (for closures)
 	get_tls(R12)
 	MOVQ	g(R12), R14
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
-	MOVQ	callpc+0(FP), RARG1
+	MOVQ	R11, RARG1
 	// void __tsan_func_enter(ThreadState *thr, void *pc);
 	MOVQ	$__tsan_func_enter(SB), AX
 	// racecall<> preserves R15
@@ -324,6 +338,7 @@ racecallatomic_ignore:
 	// An attempt to synchronize on the address would cause crash.
 	MOVQ	AX, R15	// remember the original function
 	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
+	get_tls(R12)
 	MOVQ	g(R12), R14
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	CALL	racecall<>(SB)
@@ -370,7 +385,24 @@ call:
 // C->Go callback thunk that allows to call runtime·racesymbolize from C code.
 // Direct Go->C race call has only switched SP, finish g->g0 switch by setting correct g.
 // The overall effect of Go->C->Go call chain is similar to that of mcall.
-TEXT	runtime·racesymbolizethunk(SB), NOSPLIT, $56-8
+// RARG0 contains command code. RARG1 contains command-specific context.
+// See racecallback for command codes.
+TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $56-8
+	// Handle command raceGetProcCmd (0) here.
+	// First, code below assumes that we are on curg, while raceGetProcCmd
+	// can be executed on g0. Second, it is called frequently, so will
+	// benefit from this fast path.
+	CMPQ	RARG0, $0
+	JNE	rest
+	get_tls(RARG0)
+	MOVQ	g(RARG0), RARG0
+	MOVQ	g_m(RARG0), RARG0
+	MOVQ	m_p(RARG0), RARG0
+	MOVQ	p_racectx(RARG0), RARG0
+	MOVQ	RARG0, (RARG1)
+	RET
+
+rest:
 	// Save callee-saved registers (Go code won't respect that).
 	// This is superset of darwin/linux/windows registers.
 	PUSHQ	BX
@@ -387,8 +419,10 @@ TEXT	runtime·racesymbolizethunk(SB), NOSPLIT, $56-8
 	MOVQ	g_m(R13), R13
 	MOVQ	m_g0(R13), R14
 	MOVQ	R14, g(R12)	// g = m->g0
+	PUSHQ	RARG1	// func arg
 	PUSHQ	RARG0	// func arg
-	CALL	runtime·racesymbolize(SB)
+	CALL	runtime·racecallback(SB)
+	POPQ	R12
 	POPQ	R12
 	// All registers are smashed after Go code, reload.
 	get_tls(R12)

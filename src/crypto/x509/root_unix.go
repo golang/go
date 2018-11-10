@@ -6,32 +6,66 @@
 
 package x509
 
-import "io/ioutil"
+import (
+	"io/ioutil"
+	"os"
+)
 
 // Possible directories with certificate files; stop after successfully
 // reading at least one file from a directory.
 var certDirectories = []string{
+	"/etc/ssl/certs",               // SLES10/SLES11, https://golang.org/issue/12139
 	"/system/etc/security/cacerts", // Android
+	"/usr/local/share/certs",       // FreeBSD
+	"/etc/pki/tls/certs",           // Fedora/RHEL
+	"/etc/openssl/certs",           // NetBSD
 }
+
+const (
+	// certFileEnv is the environment variable which identifies where to locate
+	// the SSL certificate file. If set this overrides the system default.
+	certFileEnv = "SSL_CERT_FILE"
+
+	// certDirEnv is the environment variable which identifies which directory
+	// to check for SSL certificate files. If set this overrides the system default.
+	certDirEnv = "SSL_CERT_DIR"
+)
 
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	return nil, nil
 }
 
-func initSystemRoots() {
+func loadSystemRoots() (*CertPool, error) {
 	roots := NewCertPool()
-	for _, file := range certFiles {
+
+	files := certFiles
+	if f := os.Getenv(certFileEnv); f != "" {
+		files = []string{f}
+	}
+
+	var firstErr error
+	for _, file := range files {
 		data, err := ioutil.ReadFile(file)
 		if err == nil {
 			roots.AppendCertsFromPEM(data)
-			systemRoots = roots
-			return
+			break
+		}
+		if firstErr == nil && !os.IsNotExist(err) {
+			firstErr = err
 		}
 	}
 
-	for _, directory := range certDirectories {
+	dirs := certDirectories
+	if d := os.Getenv(certDirEnv); d != "" {
+		dirs = []string{d}
+	}
+
+	for _, directory := range dirs {
 		fis, err := ioutil.ReadDir(directory)
 		if err != nil {
+			if firstErr == nil && !os.IsNotExist(err) {
+				firstErr = err
+			}
 			continue
 		}
 		rootsAdded := false
@@ -42,11 +76,13 @@ func initSystemRoots() {
 			}
 		}
 		if rootsAdded {
-			systemRoots = roots
-			return
+			return roots, nil
 		}
 	}
 
-	// All of the files failed to load. systemRoots will be nil which will
-	// trigger a specific error at verification time.
+	if len(roots.certs) > 0 {
+		return roots, nil
+	}
+
+	return nil, firstErr
 }

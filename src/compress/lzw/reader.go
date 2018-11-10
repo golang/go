@@ -57,8 +57,14 @@ type decoder struct {
 	// The next two codes mean clear and EOF.
 	// Other valid codes are in the range [lo, hi] where lo := clear + 2,
 	// with the upper bound incrementing on each code seen.
-	// overflow is the code at which hi overflows the code width.
+	//
+	// overflow is the code at which hi overflows the code width. It always
+	// equals 1 << width.
+	//
 	// last is the most recently seen code, or decoderInvalidCode.
+	//
+	// An invariant is that
+	// (hi < overflow) || (hi == overflow && last == decoderInvalidCode)
 	clear, eof, hi, overflow, last uint16
 
 	// Each code c in [lo, hi] expands to two or more bytes. For c != hi:
@@ -132,6 +138,7 @@ func (d *decoder) Read(b []byte) (int, error) {
 // litWidth is the width in bits of literal codes.
 func (d *decoder) decode() {
 	// Loop over the code stream, converting codes into decompressed bytes.
+loop:
 	for {
 		code, err := d.read(d)
 		if err != nil {
@@ -139,7 +146,7 @@ func (d *decoder) decode() {
 				err = io.ErrUnexpectedEOF
 			}
 			d.err = err
-			return
+			break
 		}
 		switch {
 		case code < d.clear:
@@ -158,12 +165,11 @@ func (d *decoder) decode() {
 			d.last = decoderInvalidCode
 			continue
 		case code == d.eof:
-			d.flush()
 			d.err = io.EOF
-			return
+			break loop
 		case code <= d.hi:
 			c, i := code, len(d.output)-1
-			if code == d.hi {
+			if code == d.hi && d.last != decoderInvalidCode {
 				// code == hi is a special case which expands to the last expansion
 				// followed by the head of the last expansion. To find the head, we walk
 				// the prefix chain until we find a literal code.
@@ -190,30 +196,31 @@ func (d *decoder) decode() {
 			}
 		default:
 			d.err = errors.New("lzw: invalid code")
-			return
+			break loop
 		}
 		d.last, d.hi = code, d.hi+1
 		if d.hi >= d.overflow {
 			if d.width == maxWidth {
 				d.last = decoderInvalidCode
+				// Undo the d.hi++ a few lines above, so that (1) we maintain
+				// the invariant that d.hi <= d.overflow, and (2) d.hi does not
+				// eventually overflow a uint16.
+				d.hi--
 			} else {
 				d.width++
 				d.overflow <<= 1
 			}
 		}
 		if d.o >= flushBuffer {
-			d.flush()
-			return
+			break
 		}
 	}
-}
-
-func (d *decoder) flush() {
+	// Flush pending output.
 	d.toRead = d.output[:d.o]
 	d.o = 0
 }
 
-var errClosed = errors.New("compress/lzw: reader/writer is closed")
+var errClosed = errors.New("lzw: reader/writer is closed")
 
 func (d *decoder) Close() error {
 	d.err = errClosed // in case any Reads come along
@@ -227,7 +234,8 @@ func (d *decoder) Close() error {
 // It is the caller's responsibility to call Close on the ReadCloser when
 // finished reading.
 // The number of bits to use for literal codes, litWidth, must be in the
-// range [2,8] and is typically 8.
+// range [2,8] and is typically 8. It must equal the litWidth
+// used during compression.
 func NewReader(r io.Reader, order Order, litWidth int) io.ReadCloser {
 	d := new(decoder)
 	switch order {

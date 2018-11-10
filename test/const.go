@@ -19,6 +19,9 @@ const (
 	c3div2  = 3 / 2
 	c1e3    = 1e3
 
+	rsh1 = 1e100 >> 1000
+	rsh2 = 1e302 >> 1000
+
 	ctrue  = true
 	cfalse = !ctrue
 )
@@ -48,6 +51,8 @@ func ints() {
 	assert(c3div2 == 1, "3/2")
 	assert(c1e3 == 1000, "c1e3 int")
 	assert(c1e3 == 1e3, "c1e3 float")
+	assert(rsh1 == 0, "rsh1")
+	assert(rsh2 == 9, "rsh2")
 
 	// verify that all (in range) are assignable as ints
 	var i int
@@ -118,9 +123,44 @@ func floats() {
 	assert(f == f1e3, "f == f1e3")
 }
 
+func interfaces() {
+	var (
+		nilN interface{}
+		nilI *int
+		five = 5
+
+		_ = nil == interface{}(nil)
+		_ = interface{}(nil) == nil
+	)
+	ii := func(i1 interface{}, i2 interface{}) bool { return i1 == i2 }
+	ni := func(n interface{}, i int) bool { return n == i }
+	in := func(i int, n interface{}) bool { return i == n }
+	pi := func(p *int, i interface{}) bool { return p == i }
+	ip := func(i interface{}, p *int) bool { return i == p }
+
+	assert((interface{}(nil) == interface{}(nil)) == ii(nilN, nilN),
+		"for interface{}==interface{} compiler == runtime")
+
+	assert(((*int)(nil) == interface{}(nil)) == pi(nilI, nilN),
+		"for *int==interface{} compiler == runtime")
+	assert((interface{}(nil) == (*int)(nil)) == ip(nilN, nilI),
+		"for interface{}==*int compiler == runtime")
+
+	assert((&five == interface{}(nil)) == pi(&five, nilN),
+		"for interface{}==*int compiler == runtime")
+	assert((interface{}(nil) == &five) == ip(nilN, &five),
+		"for interface{}==*int compiler == runtime")
+
+	assert((5 == interface{}(5)) == ni(five, five),
+		"for int==interface{} compiler == runtime")
+	assert((interface{}(5) == 5) == in(five, five),
+		"for interface{}==int comipiler == runtime")
+}
+
 func main() {
 	ints()
 	floats()
+	interfaces()
 
 	assert(ctrue == true, "ctrue == true")
 	assert(cfalse == false, "cfalse == false")

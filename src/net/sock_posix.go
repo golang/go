@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,17 +7,16 @@
 package net
 
 import (
+	"context"
+	"internal/poll"
 	"os"
 	"syscall"
-	"time"
 )
 
 // A sockaddr represents a TCP, UDP, IP or Unix network endpoint
 // address that can be converted into a syscall.Sockaddr.
 type sockaddr interface {
 	Addr
-
-	netaddr
 
 	// family returns the platform-dependent address family
 	// identifier.
@@ -32,21 +31,24 @@ type sockaddr interface {
 	// interface. It returns a nil interface when the address is
 	// nil.
 	sockaddr(family int) (syscall.Sockaddr, error)
+
+	// toLocal maps the zero address to a local system address (127.0.0.1 or ::1)
+	toLocal(net string) sockaddr
 }
 
 // socket returns a network file descriptor that is ready for
 // asynchronous I/O using the network poller.
-func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, deadline time.Time) (fd *netFD, err error) {
+func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr) (fd *netFD, err error) {
 	s, err := sysSocket(family, sotype, proto)
 	if err != nil {
 		return nil, err
 	}
 	if err = setDefaultSockopts(s, family, sotype, ipv6only); err != nil {
-		closesocket(s)
+		poll.CloseFunc(s)
 		return nil, err
 	}
 	if fd, err = newFD(s, family, sotype, net); err != nil {
-		closesocket(s)
+		poll.CloseFunc(s)
 		return nil, err
 	}
 
@@ -54,7 +56,7 @@ func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr s
 	// following applications:
 	//
 	// - An endpoint holder that opens a passive stream
-	//   connenction, known as a stream listener
+	//   connection, known as a stream listener
 	//
 	// - An endpoint holder that opens a destination-unspecific
 	//   datagram connection, known as a datagram listener
@@ -88,7 +90,7 @@ func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr s
 			return fd, nil
 		}
 	}
-	if err := fd.dial(laddr, raddr, deadline); err != nil {
+	if err := fd.dial(ctx, laddr, raddr); err != nil {
 		fd.Close()
 		return nil, err
 	}
@@ -119,24 +121,25 @@ func (fd *netFD) addrFunc() func(syscall.Sockaddr) Addr {
 	return func(syscall.Sockaddr) Addr { return nil }
 }
 
-func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time) error {
+func (fd *netFD) dial(ctx context.Context, laddr, raddr sockaddr) error {
 	var err error
 	var lsa syscall.Sockaddr
 	if laddr != nil {
 		if lsa, err = laddr.sockaddr(fd.family); err != nil {
 			return err
 		} else if lsa != nil {
-			if err := syscall.Bind(fd.sysfd, lsa); err != nil {
+			if err := syscall.Bind(fd.pfd.Sysfd, lsa); err != nil {
 				return os.NewSyscallError("bind", err)
 			}
 		}
 	}
-	var rsa syscall.Sockaddr
+	var rsa syscall.Sockaddr  // remote address from the user
+	var crsa syscall.Sockaddr // remote address we actually connected to
 	if raddr != nil {
 		if rsa, err = raddr.sockaddr(fd.family); err != nil {
 			return err
 		}
-		if err := fd.connect(lsa, rsa, deadline); err != nil {
+		if crsa, err = fd.connect(ctx, lsa, rsa); err != nil {
 			return err
 		}
 		fd.isConnected = true
@@ -145,8 +148,16 @@ func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time) error {
 			return err
 		}
 	}
-	lsa, _ = syscall.Getsockname(fd.sysfd)
-	if rsa, _ = syscall.Getpeername(fd.sysfd); rsa != nil {
+	// Record the local and remote addresses from the actual socket.
+	// Get the local address by calling Getsockname.
+	// For the remote address, use
+	// 1) the one returned by the connect method, if any; or
+	// 2) the one from Getpeername, if it succeeds; or
+	// 3) the one passed to us as the raddr parameter.
+	lsa, _ = syscall.Getsockname(fd.pfd.Sysfd)
+	if crsa != nil {
+		fd.setAddr(fd.addrFunc()(lsa), fd.addrFunc()(crsa))
+	} else if rsa, _ = syscall.Getpeername(fd.pfd.Sysfd); rsa != nil {
 		fd.setAddr(fd.addrFunc()(lsa), fd.addrFunc()(rsa))
 	} else {
 		fd.setAddr(fd.addrFunc()(lsa), raddr)
@@ -155,23 +166,23 @@ func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time) error {
 }
 
 func (fd *netFD) listenStream(laddr sockaddr, backlog int) error {
-	if err := setDefaultListenerSockopts(fd.sysfd); err != nil {
+	if err := setDefaultListenerSockopts(fd.pfd.Sysfd); err != nil {
 		return err
 	}
 	if lsa, err := laddr.sockaddr(fd.family); err != nil {
 		return err
 	} else if lsa != nil {
-		if err := syscall.Bind(fd.sysfd, lsa); err != nil {
+		if err := syscall.Bind(fd.pfd.Sysfd, lsa); err != nil {
 			return os.NewSyscallError("bind", err)
 		}
 	}
-	if err := syscall.Listen(fd.sysfd, backlog); err != nil {
+	if err := listenFunc(fd.pfd.Sysfd, backlog); err != nil {
 		return os.NewSyscallError("listen", err)
 	}
 	if err := fd.init(); err != nil {
 		return err
 	}
-	lsa, _ := syscall.Getsockname(fd.sysfd)
+	lsa, _ := syscall.Getsockname(fd.pfd.Sysfd)
 	fd.setAddr(fd.addrFunc()(lsa), nil)
 	return nil
 }
@@ -187,7 +198,7 @@ func (fd *netFD) listenDatagram(laddr sockaddr) error {
 		// multiple UDP listeners that listen on the same UDP
 		// port to join the same group address.
 		if addr.IP != nil && addr.IP.IsMulticast() {
-			if err := setDefaultMulticastSockopts(fd.sysfd); err != nil {
+			if err := setDefaultMulticastSockopts(fd.pfd.Sysfd); err != nil {
 				return err
 			}
 			addr := *addr
@@ -203,14 +214,14 @@ func (fd *netFD) listenDatagram(laddr sockaddr) error {
 	if lsa, err := laddr.sockaddr(fd.family); err != nil {
 		return err
 	} else if lsa != nil {
-		if err := syscall.Bind(fd.sysfd, lsa); err != nil {
+		if err := syscall.Bind(fd.pfd.Sysfd, lsa); err != nil {
 			return os.NewSyscallError("bind", err)
 		}
 	}
 	if err := fd.init(); err != nil {
 		return err
 	}
-	lsa, _ := syscall.Getsockname(fd.sysfd)
+	lsa, _ := syscall.Getsockname(fd.pfd.Sysfd)
 	fd.setAddr(fd.addrFunc()(lsa), nil)
 	return nil
 }

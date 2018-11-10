@@ -12,33 +12,75 @@ import (
 )
 
 var (
-	mimeLock       sync.RWMutex
-	mimeTypesLower = map[string]string{
-		".css":  "text/css; charset=utf-8",
-		".gif":  "image/gif",
-		".htm":  "text/html; charset=utf-8",
-		".html": "text/html; charset=utf-8",
-		".jpg":  "image/jpeg",
-		".js":   "application/x-javascript",
-		".pdf":  "application/pdf",
-		".png":  "image/png",
-		".xml":  "text/xml; charset=utf-8",
-	}
-	mimeTypes = clone(mimeTypesLower)
+	mimeTypes      sync.Map // map[string]string; ".Z" => "application/x-compress"
+	mimeTypesLower sync.Map // map[string]string; ".z" => "application/x-compress"
+
+	// extensions maps from MIME type to list of lowercase file
+	// extensions: "image/jpeg" => [".jpg", ".jpeg"]
+	extensionsMu sync.Mutex // Guards stores (but not loads) on extensions.
+	extensions   sync.Map   // map[string][]string; slice values are append-only.
 )
 
-func clone(m map[string]string) map[string]string {
-	m2 := make(map[string]string, len(m))
-	for k, v := range m {
-		m2[k] = v
-		if strings.ToLower(k) != k {
-			panic("keys in mimeTypesLower must be lowercase")
-		}
+func clearSyncMap(m *sync.Map) {
+	m.Range(func(k, _ interface{}) bool {
+		m.Delete(k)
+		return true
+	})
+}
+
+// setMimeTypes is used by initMime's non-test path, and by tests.
+func setMimeTypes(lowerExt, mixExt map[string]string) {
+	clearSyncMap(&mimeTypes)
+	clearSyncMap(&mimeTypesLower)
+	clearSyncMap(&extensions)
+
+	for k, v := range lowerExt {
+		mimeTypesLower.Store(k, v)
 	}
-	return m2
+	for k, v := range mixExt {
+		mimeTypes.Store(k, v)
+	}
+
+	extensionsMu.Lock()
+	defer extensionsMu.Unlock()
+	for k, v := range lowerExt {
+		justType, _, err := ParseMediaType(v)
+		if err != nil {
+			panic(err)
+		}
+		var exts []string
+		if ei, ok := extensions.Load(k); ok {
+			exts = ei.([]string)
+		}
+		extensions.Store(justType, append(exts, k))
+	}
+}
+
+var builtinTypesLower = map[string]string{
+	".css":  "text/css; charset=utf-8",
+	".gif":  "image/gif",
+	".htm":  "text/html; charset=utf-8",
+	".html": "text/html; charset=utf-8",
+	".jpg":  "image/jpeg",
+	".js":   "application/x-javascript",
+	".pdf":  "application/pdf",
+	".png":  "image/png",
+	".svg":  "image/svg+xml",
+	".xml":  "text/xml; charset=utf-8",
 }
 
 var once sync.Once // guards initMime
+
+var testInitMime, osInitMime func()
+
+func initMime() {
+	if fn := testInitMime; fn != nil {
+		fn()
+	} else {
+		setMimeTypes(builtinTypesLower, builtinTypesLower)
+		osInitMime()
+	}
+}
 
 // TypeByExtension returns the MIME type associated with the file extension ext.
 // The extension ext should begin with a leading dot, as in ".html".
@@ -59,13 +101,10 @@ var once sync.Once // guards initMime
 // Text types have the charset parameter set to "utf-8" by default.
 func TypeByExtension(ext string) string {
 	once.Do(initMime)
-	mimeLock.RLock()
-	defer mimeLock.RUnlock()
 
 	// Case-sensitive lookup.
-	v := mimeTypes[ext]
-	if v != "" {
-		return v
+	if v, ok := mimeTypes.Load(ext); ok {
+		return v.(string)
 	}
 
 	// Case-insensitive lookup.
@@ -78,7 +117,9 @@ func TypeByExtension(ext string) string {
 		c := ext[i]
 		if c >= utf8RuneSelf {
 			// Slow path.
-			return mimeTypesLower[strings.ToLower(ext)]
+			si, _ := mimeTypesLower.Load(strings.ToLower(ext))
+			s, _ := si.(string)
+			return s
 		}
 		if 'A' <= c && c <= 'Z' {
 			lower = append(lower, c+('a'-'A'))
@@ -86,9 +127,27 @@ func TypeByExtension(ext string) string {
 			lower = append(lower, c)
 		}
 	}
-	// The conversion from []byte to string doesn't allocate in
-	// a map lookup.
-	return mimeTypesLower[string(lower)]
+	si, _ := mimeTypesLower.Load(string(lower))
+	s, _ := si.(string)
+	return s
+}
+
+// ExtensionsByType returns the extensions known to be associated with the MIME
+// type typ. The returned extensions will each begin with a leading dot, as in
+// ".html". When typ has no associated extensions, ExtensionsByType returns an
+// nil slice.
+func ExtensionsByType(typ string) ([]string, error) {
+	justType, _, err := ParseMediaType(typ)
+	if err != nil {
+		return nil, err
+	}
+
+	once.Do(initMime)
+	s, ok := extensions.Load(justType)
+	if !ok {
+		return nil, nil
+	}
+	return append([]string{}, s.([]string)...), nil
 }
 
 // AddExtensionType sets the MIME type associated with
@@ -96,14 +155,14 @@ func TypeByExtension(ext string) string {
 // a leading dot, as in ".html".
 func AddExtensionType(ext, typ string) error {
 	if !strings.HasPrefix(ext, ".") {
-		return fmt.Errorf(`mime: extension %q misses dot`, ext)
+		return fmt.Errorf("mime: extension %q missing leading dot", ext)
 	}
 	once.Do(initMime)
 	return setExtensionType(ext, typ)
 }
 
 func setExtensionType(extension, mimeType string) error {
-	_, param, err := ParseMediaType(mimeType)
+	justType, param, err := ParseMediaType(mimeType)
 	if err != nil {
 		return err
 	}
@@ -113,9 +172,20 @@ func setExtensionType(extension, mimeType string) error {
 	}
 	extLower := strings.ToLower(extension)
 
-	mimeLock.Lock()
-	mimeTypes[extension] = mimeType
-	mimeTypesLower[extLower] = mimeType
-	mimeLock.Unlock()
+	mimeTypes.Store(extension, mimeType)
+	mimeTypesLower.Store(extLower, mimeType)
+
+	extensionsMu.Lock()
+	defer extensionsMu.Unlock()
+	var exts []string
+	if ei, ok := extensions.Load(justType); ok {
+		exts = ei.([]string)
+	}
+	for _, v := range exts {
+		if v == extLower {
+			return nil
+		}
+	}
+	extensions.Store(justType, append(exts, extLower))
 	return nil
 }

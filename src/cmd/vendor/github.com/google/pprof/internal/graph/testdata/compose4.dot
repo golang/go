@@ -1,0 +1,4 @@
+digraph "testtitle" {
+node [style=filled fillcolor="#f8f8f8"]
+subgraph cluster_L { "label1" [shape=box fontsize=16 label="label1\llabel2\l"] }
+}

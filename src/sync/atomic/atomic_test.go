@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -747,7 +747,7 @@ func TestStorePointer(t *testing.T) {
 // (Is the function atomic?)
 //
 // For each function, we write a "hammer" function that repeatedly
-// uses the atomic operation to add 1 to a value.  After running
+// uses the atomic operation to add 1 to a value. After running
 // multiple hammers in parallel, check that we end with the correct
 // total.
 // Swap can't add 1, so it uses a different scheme.
@@ -953,16 +953,20 @@ func hammerSwapUint64(addr *uint64, count int) {
 	}
 }
 
+const arch32 = unsafe.Sizeof(uintptr(0)) == 4
+
 func hammerSwapUintptr64(uaddr *uint64, count int) {
 	// only safe when uintptr is 64-bit.
 	// not called on 32-bit systems.
-	addr := (*uintptr)(unsafe.Pointer(uaddr))
-	seed := int(uintptr(unsafe.Pointer(&count)))
-	for i := 0; i < count; i++ {
-		new := uintptr(seed+i)<<32 | uintptr(seed+i)<<32>>32
-		old := SwapUintptr(addr, new)
-		if old>>32 != old<<32>>32 {
-			panic(fmt.Sprintf("SwapUintptr is not atomic: %v", old))
+	if !arch32 {
+		addr := (*uintptr)(unsafe.Pointer(uaddr))
+		seed := int(uintptr(unsafe.Pointer(&count)))
+		for i := 0; i < count; i++ {
+			new := uintptr(seed+i)<<32 | uintptr(seed+i)<<32>>32
+			old := SwapUintptr(addr, new)
+			if old>>32 != old<<32>>32 {
+				panic(fmt.Sprintf("SwapUintptr is not atomic: %v", old))
+			}
 		}
 	}
 }
@@ -1116,8 +1120,6 @@ func hammerStoreLoadUint64(t *testing.T, paddr unsafe.Pointer) {
 
 func hammerStoreLoadUintptr(t *testing.T, paddr unsafe.Pointer) {
 	addr := (*uintptr)(paddr)
-	var test64 uint64 = 1 << 50
-	arch32 := uintptr(test64) == 0
 	v := LoadUintptr(addr)
 	new := v
 	if arch32 {
@@ -1144,8 +1146,6 @@ func hammerStoreLoadUintptr(t *testing.T, paddr unsafe.Pointer) {
 
 func hammerStoreLoadPointer(t *testing.T, paddr unsafe.Pointer) {
 	addr := (*unsafe.Pointer)(paddr)
-	var test64 uint64 = 1 << 50
-	arch32 := uintptr(test64) == 0
 	v := uintptr(LoadPointer(addr))
 	new := v
 	if arch32 {
@@ -1226,10 +1226,12 @@ func TestStoreLoadSeqCst32(t *testing.T) {
 				}
 				his := LoadInt32(&ack[he][i%3])
 				if (my != i && my != i-1) || (his != i && his != i-1) {
-					t.Fatalf("invalid values: %d/%d (%d)", my, his, i)
+					t.Errorf("invalid values: %d/%d (%d)", my, his, i)
+					break
 				}
 				if my != i && his != i {
-					t.Fatalf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
+					t.Errorf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
+					break
 				}
 				StoreInt32(&ack[me][(i-1)%3], -1)
 			}
@@ -1269,10 +1271,12 @@ func TestStoreLoadSeqCst64(t *testing.T) {
 				}
 				his := LoadInt64(&ack[he][i%3])
 				if (my != i && my != i-1) || (his != i && his != i-1) {
-					t.Fatalf("invalid values: %d/%d (%d)", my, his, i)
+					t.Errorf("invalid values: %d/%d (%d)", my, his, i)
+					break
 				}
 				if my != i && his != i {
-					t.Fatalf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
+					t.Errorf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
+					break
 				}
 				StoreInt64(&ack[me][(i-1)%3], -1)
 			}
@@ -1317,7 +1321,8 @@ func TestStoreLoadRelAcq32(t *testing.T) {
 					d1 := X.data1
 					d2 := X.data2
 					if d1 != i || d2 != float32(i) {
-						t.Fatalf("incorrect data: %d/%g (%d)", d1, d2, i)
+						t.Errorf("incorrect data: %d/%g (%d)", d1, d2, i)
+						break
 					}
 				}
 			}
@@ -1365,7 +1370,8 @@ func TestStoreLoadRelAcq64(t *testing.T) {
 					d1 := X.data1
 					d2 := X.data2
 					if d1 != i || d2 != float64(i) {
-						t.Fatalf("incorrect data: %d/%g (%d)", d1, d2, i)
+						t.Errorf("incorrect data: %d/%g (%d)", d1, d2, i)
+						break
 					}
 				}
 			}
@@ -1389,8 +1395,15 @@ func TestUnaligned64(t *testing.T) {
 	// Unaligned 64-bit atomics on 32-bit systems are
 	// a continual source of pain. Test that on 32-bit systems they crash
 	// instead of failing silently.
-	if unsafe.Sizeof(int(0)) != 4 {
-		t.Skip("test only runs on 32-bit systems")
+
+	switch runtime.GOARCH {
+	default:
+		if !arch32 {
+			t.Skip("test only runs on 32-bit systems")
+		}
+	case "amd64p32":
+		// amd64p32 can handle unaligned atomics.
+		t.Skipf("test not needed on %v", runtime.GOARCH)
 	}
 
 	x := make([]uint32, 4)
@@ -1403,9 +1416,6 @@ func TestUnaligned64(t *testing.T) {
 }
 
 func TestNilDeref(t *testing.T) {
-	if p := runtime.GOOS + "/" + runtime.GOARCH; p == "freebsd/arm" || p == "netbsd/arm" {
-		t.Skipf("issue 7338: skipping test on %q", p)
-	}
 	funcs := [...]func(){
 		func() { CompareAndSwapInt32(nil, 0, 0) },
 		func() { CompareAndSwapInt64(nil, 0, 0) },

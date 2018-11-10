@@ -1,5 +1,3 @@
-// +build ignore
-
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -8,6 +6,7 @@ package asm
 
 import (
 	"cmd/asm/internal/lex"
+	"strings"
 	"testing"
 	"text/scanner"
 )
@@ -53,6 +52,8 @@ var exprTests = []exprTest{
 	{"3<<(2+4)", 3 << (2 + 4), true},
 	// Junk at EOF.
 	{"3 x", 3, false},
+	// Big number
+	{"4611686018427387904", 4611686018427387904, true},
 }
 
 func TestExpr(t *testing.T) {
@@ -70,4 +71,61 @@ func TestExpr(t *testing.T) {
 			t.Errorf("%d: %q: expected not EOF but at EOF", i, test.input)
 		}
 	}
+}
+
+type badExprTest struct {
+	input string
+	error string // Empty means no error.
+}
+
+var badExprTests = []badExprTest{
+	{"0/0", "division by zero"},
+	{"3/0", "division by zero"},
+	{"(1<<63)/0", "divide of value with high bit set"},
+	{"3%0", "modulo by zero"},
+	{"(1<<63)%0", "modulo of value with high bit set"},
+	{"3<<-4", "negative left shift count"},
+	{"3<<(1<<63)", "negative left shift count"},
+	{"3>>-4", "negative right shift count"},
+	{"3>>(1<<63)", "negative right shift count"},
+	{"(1<<63)>>2", "right shift of value with high bit set"},
+	{"(1<<62)>>2", ""},
+	{`'\x80'`, "illegal UTF-8 encoding for character constant"},
+	{"(23*4", "missing closing paren"},
+	{")23*4", "unexpected ) evaluating expression"},
+	{"18446744073709551616", "value out of range"},
+}
+
+func TestBadExpr(t *testing.T) {
+	panicOnError = true
+	defer func() {
+		panicOnError = false
+	}()
+	for i, test := range badExprTests {
+		err := runBadTest(i, test, t)
+		if err == nil {
+			if test.error != "" {
+				t.Errorf("#%d: %q: expected error %q; got none", i, test.input, test.error)
+			}
+			continue
+		}
+		if !strings.Contains(err.Error(), test.error) {
+			t.Errorf("#%d: expected error %q; got %q", i, test.error, err)
+			continue
+		}
+	}
+}
+
+func runBadTest(i int, test badExprTest, t *testing.T) (err error) {
+	p := NewParser(nil, nil, nil) // Expression evaluation uses none of these fields of the parser.
+	p.start(lex.Tokenize(test.input))
+	defer func() {
+		e := recover()
+		var ok bool
+		if err, ok = e.(error); e != nil && !ok {
+			t.Fatal(e)
+		}
+	}()
+	p.expr()
+	return nil
 }

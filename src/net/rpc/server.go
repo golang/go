@@ -13,6 +13,7 @@
 	Only methods that satisfy these criteria will be made available for remote access;
 	other methods will be ignored:
 
+		- the method's type is exported.
 		- the method is exported.
 		- the method has two arguments, both exported (or builtin) types.
 		- the method's second argument is a pointer.
@@ -22,7 +23,7 @@
 
 		func (t *T) MethodName(argType T1, replyType *T2) error
 
-	where T, T1 and T2 can be marshaled by encoding/gob.
+	where T1 and T2 can be marshaled by encoding/gob.
 	These requirements apply even if a different codec is used.
 	(In the future, these requirements may soften for custom codecs.)
 
@@ -53,6 +54,8 @@
 	Here is a simple example.  A server wishes to export an object of type Arith:
 
 		package server
+
+		import "errors"
 
 		type Args struct {
 			A, B int
@@ -118,6 +121,8 @@
 
 	A server implementation will often provide a simple, type-safe wrapper for the
 	client.
+
+	The net/rpc package is frozen and is not accepting new features.
 */
 package rpc
 
@@ -142,8 +147,8 @@ const (
 	DefaultDebugPath = "/debug/rpc"
 )
 
-// Precompute the reflect type for error.  Can't use error directly
-// because Typeof takes an empty interface value.  This is annoying.
+// Precompute the reflect type for error. Can't use error directly
+// because Typeof takes an empty interface value. This is annoying.
 var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
 
 type methodType struct {
@@ -161,7 +166,7 @@ type service struct {
 	method map[string]*methodType // registered methods
 }
 
-// Request is a header written before every RPC call.  It is used internally
+// Request is a header written before every RPC call. It is used internally
 // but documented here as an aid to debugging, such as when analyzing
 // network traffic.
 type Request struct {
@@ -170,7 +175,7 @@ type Request struct {
 	next          *Request // for free list in Server
 }
 
-// Response is a header written before every RPC return.  It is used internally
+// Response is a header written before every RPC return. It is used internally
 // but documented here as an aid to debugging, such as when analyzing
 // network traffic.
 type Response struct {
@@ -182,8 +187,7 @@ type Response struct {
 
 // Server represents an RPC Server.
 type Server struct {
-	mu         sync.RWMutex // protects the serviceMap
-	serviceMap map[string]*service
+	serviceMap sync.Map   // map[string]*service
 	reqLock    sync.Mutex // protects freeReq
 	freeReq    *Request
 	respLock   sync.Mutex // protects freeResp
@@ -192,7 +196,7 @@ type Server struct {
 
 // NewServer returns a new Server.
 func NewServer() *Server {
-	return &Server{serviceMap: make(map[string]*service)}
+	return &Server{}
 }
 
 // DefaultServer is the default instance of *Server.
@@ -216,7 +220,7 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 
 // Register publishes in the server the set of methods of the
 // receiver value that satisfy the following conditions:
-//	- exported method
+//	- exported method of exported type
 //	- two arguments, both of exported type
 //	- the second argument is a pointer
 //	- one return value, of type error
@@ -235,11 +239,6 @@ func (server *Server) RegisterName(name string, rcvr interface{}) error {
 }
 
 func (server *Server) register(rcvr interface{}, name string, useName bool) error {
-	server.mu.Lock()
-	defer server.mu.Unlock()
-	if server.serviceMap == nil {
-		server.serviceMap = make(map[string]*service)
-	}
 	s := new(service)
 	s.typ = reflect.TypeOf(rcvr)
 	s.rcvr = reflect.ValueOf(rcvr)
@@ -256,9 +255,6 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		s := "rpc.Register: type " + sname + " is not exported"
 		log.Print(s)
 		return errors.New(s)
-	}
-	if _, present := server.serviceMap[sname]; present {
-		return errors.New("rpc: service already defined: " + sname)
 	}
 	s.name = sname
 
@@ -278,7 +274,10 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		log.Print(str)
 		return errors.New(str)
 	}
-	server.serviceMap[s.name] = s
+
+	if _, dup := server.serviceMap.LoadOrStore(sname, s); dup {
+		return errors.New("rpc: service already defined: " + sname)
+	}
 	return nil
 }
 
@@ -441,7 +440,7 @@ func (c *gobServerCodec) Close() error {
 // ServeConn blocks, serving the connection until the client hangs up.
 // The caller typically invokes ServeConn in a go statement.
 // ServeConn uses the gob wire format (see package gob) on the
-// connection.  To use an alternate codec, use ServeCodec.
+// connection. To use an alternate codec, use ServeCodec.
 func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 	buf := bufio.NewWriter(conn)
 	srv := &gobServerCodec{
@@ -566,10 +565,17 @@ func (server *Server) readRequest(codec ServerCodec) (service *service, mtype *m
 	}
 
 	replyv = reflect.New(mtype.ReplyType.Elem())
+
+	switch mtype.ReplyType.Elem().Kind() {
+	case reflect.Map:
+		replyv.Elem().Set(reflect.MakeMap(mtype.ReplyType.Elem()))
+	case reflect.Slice:
+		replyv.Elem().Set(reflect.MakeSlice(mtype.ReplyType.Elem(), 0, 0))
+	}
 	return
 }
 
-func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mtype *methodType, req *Request, keepReading bool, err error) {
+func (server *Server) readRequestHeader(codec ServerCodec) (svc *service, mtype *methodType, req *Request, keepReading bool, err error) {
 	// Grab the request header.
 	req = server.getRequest()
 	err = codec.ReadRequestHeader(req)
@@ -582,7 +588,7 @@ func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mt
 		return
 	}
 
-	// We read the header successfully.  If we see an error now,
+	// We read the header successfully. If we see an error now,
 	// we can still recover and move on to the next request.
 	keepReading = true
 
@@ -595,14 +601,13 @@ func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mt
 	methodName := req.ServiceMethod[dot+1:]
 
 	// Look up the request.
-	server.mu.RLock()
-	service = server.serviceMap[serviceName]
-	server.mu.RUnlock()
-	if service == nil {
+	svci, ok := server.serviceMap.Load(serviceName)
+	if !ok {
 		err = errors.New("rpc: can't find service " + req.ServiceMethod)
 		return
 	}
-	mtype = service.method[methodName]
+	svc = svci.(*service)
+	mtype = svc.method[methodName]
 	if mtype == nil {
 		err = errors.New("rpc: can't find method " + req.ServiceMethod)
 	}
@@ -610,13 +615,15 @@ func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mt
 }
 
 // Accept accepts connections on the listener and serves requests
-// for each incoming connection.  Accept blocks; the caller typically
-// invokes it in a go statement.
+// for each incoming connection. Accept blocks until the listener
+// returns a non-nil error. The caller typically invokes Accept in a
+// go statement.
 func (server *Server) Accept(lis net.Listener) {
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
-			log.Fatal("rpc.Serve: accept:", err.Error()) // TODO(r): exit?
+			log.Print("rpc.Serve: accept:", err.Error())
+			return
 		}
 		go server.ServeConn(conn)
 	}
@@ -635,7 +642,7 @@ func RegisterName(name string, rcvr interface{}) error {
 // RPC responses for the server side of an RPC session.
 // The server calls ReadRequestHeader and ReadRequestBody in pairs
 // to read requests from the connection, and it calls WriteResponse to
-// write a response back.  The server calls Close when finished with the
+// write a response back. The server calls Close when finished with the
 // connection. ReadRequestBody may be called with a nil
 // argument to force the body of the request to be read and discarded.
 type ServerCodec interface {
@@ -651,7 +658,7 @@ type ServerCodec interface {
 // ServeConn blocks, serving the connection until the client hangs up.
 // The caller typically invokes ServeConn in a go statement.
 // ServeConn uses the gob wire format (see package gob) on the
-// connection.  To use an alternate codec, use ServeCodec.
+// connection. To use an alternate codec, use ServeCodec.
 func ServeConn(conn io.ReadWriteCloser) {
 	DefaultServer.ServeConn(conn)
 }

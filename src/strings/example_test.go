@@ -23,6 +23,16 @@ func ExampleFieldsFunc() {
 	// Output: Fields are: ["foo1" "bar2" "baz3"]
 }
 
+func ExampleCompare() {
+	fmt.Println(strings.Compare("a", "b"))
+	fmt.Println(strings.Compare("a", "a"))
+	fmt.Println(strings.Compare("b", "a"))
+	// Output:
+	// -1
+	// 0
+	// 1
+}
+
 func ExampleContains() {
 	fmt.Println(strings.Contains("seafood", "foo"))
 	fmt.Println(strings.Contains("seafood", "bar"))
@@ -47,6 +57,16 @@ func ExampleContainsAny() {
 	// false
 }
 
+func ExampleContainsRune() {
+	// Finds whether a string contains a particular Unicode code point.
+	// The code point for the lowercase letter "a", for example, is 97.
+	fmt.Println(strings.ContainsRune("aardvark", 97))
+	fmt.Println(strings.ContainsRune("timeout", 97))
+	// Output:
+	// true
+	// false
+}
+
 func ExampleCount() {
 	fmt.Println(strings.Count("cheese", "e"))
 	fmt.Println(strings.Count("five", "")) // before & after each rune
@@ -58,6 +78,28 @@ func ExampleCount() {
 func ExampleEqualFold() {
 	fmt.Println(strings.EqualFold("Go", "go"))
 	// Output: true
+}
+
+func ExampleHasPrefix() {
+	fmt.Println(strings.HasPrefix("Gopher", "Go"))
+	fmt.Println(strings.HasPrefix("Gopher", "C"))
+	fmt.Println(strings.HasPrefix("Gopher", ""))
+	// Output:
+	// true
+	// false
+	// true
+}
+
+func ExampleHasSuffix() {
+	fmt.Println(strings.HasSuffix("Amigo", "go"))
+	fmt.Println(strings.HasSuffix("Amigo", "O"))
+	fmt.Println(strings.HasSuffix("Amigo", "Ami"))
+	fmt.Println(strings.HasSuffix("Amigo", ""))
+	// Output:
+	// true
+	// false
+	// false
+	// true
 }
 
 func ExampleIndex() {
@@ -87,6 +129,15 @@ func ExampleIndexAny() {
 	// -1
 }
 
+func ExampleIndexByte() {
+	fmt.Println(strings.IndexByte("golang", 'g'))
+	fmt.Println(strings.IndexByte("gophers", 'h'))
+	fmt.Println(strings.IndexByte("golang", 'x'))
+	// Output:
+	// 0
+	// 3
+	// -1
+}
 func ExampleIndexRune() {
 	fmt.Println(strings.IndexRune("chicken", 'k'))
 	fmt.Println(strings.IndexRune("chicken", 'd'))
@@ -102,6 +153,16 @@ func ExampleLastIndex() {
 	// Output:
 	// 0
 	// 3
+	// -1
+}
+
+func ExampleLastIndexAny() {
+	fmt.Println(strings.LastIndexAny("go gopher", "go"))
+	fmt.Println(strings.LastIndexAny("go gopher", "rodent"))
+	fmt.Println(strings.LastIndexAny("go gopher", "fail"))
+	// Output:
+	// 4
+	// 8
 	// -1
 }
 
@@ -171,6 +232,14 @@ func ExampleToTitle() {
 func ExampleTrim() {
 	fmt.Printf("[%q]", strings.Trim(" !!! Achtung! Achtung! !!! ", "! "))
 	// Output: ["Achtung! Achtung"]
+}
+
+func ExampleTrimFunc() {
+	f := func(c rune) bool {
+		return !unicode.IsLetter(c) && !unicode.IsNumber(c)
+	}
+	fmt.Printf("[%q]", strings.TrimFunc("  Achtung1! Achtung2,...", f))
+	// Output: ["Achtung1! Achtung2"]
 }
 
 func ExampleMap() {

@@ -4,8 +4,8 @@
 
 #include "textflag.h"
 
-// void runtime·memclr(void*, uintptr)
-TEXT runtime·memclr(SB), NOSPLIT, $0-8
+// void runtime·memclrNoHeapPointers(void*, uintptr)
+TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-8
 	MOVL	ptr+0(FP), DI
 	MOVL	n+4(FP), BX
 	XORL	AX, AX
@@ -16,7 +16,8 @@ tail:
 	CMPL	BX, $2
 	JBE	_1or2
 	CMPL	BX, $4
-	JBE	_3or4
+	JB	_3
+	JE	_4
 	CMPL	BX, $8
 	JBE	_5through8
 	CMPL	BX, $16
@@ -35,9 +36,13 @@ _1or2:
 	RET
 _0:
 	RET
-_3or4:
+_3:
 	MOVW	AX, (DI)
-	MOVW	AX, -2(DI)(BX*1)
+	MOVB	AX, 2(DI)
+	RET
+_4:
+	// We need a separate case for 4 to make sure we clear pointers atomically.
+	MOVL	AX, (DI)
 	RET
 _5through8:
 	MOVL	AX, (DI)

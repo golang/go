@@ -1,0 +1,8 @@
+Showing nodes accounting for 150, 100% of 150 total
+      flat  flat%   sum%        cum   cum%
+        80 53.33% 53.33%        130 86.67%  line3002 testdata/file3000.src (inline)
+        40 26.67% 80.00%         50 33.33%  line2001 testdata/file2000.src (inline)
+        30 20.00%   100%         30 20.00%  line1000 testdata/file1000.src
+         0     0%   100%         50 33.33%  line2000 testdata/file2000.src
+         0     0%   100%        150   100%  line3000 testdata/file3000.src
+         0     0%   100%        110 73.33%  line3001 testdata/file3000.src (inline)

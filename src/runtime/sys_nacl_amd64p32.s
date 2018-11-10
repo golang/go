@@ -32,7 +32,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL AX, ret+16(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL fd+0(FP), DI
 	NACL_SYSCALL(SYS_close)
 	MOVL AX, ret+8(FP)
@@ -242,7 +242,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$8
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT time·now(SB),NOSPLIT,$16
+TEXT runtime·walltime(SB),NOSPLIT,$16
 	MOVQ runtime·faketime(SB), AX
 	CMPQ AX, $0
 	JEQ realtime
@@ -262,13 +262,13 @@ realtime:
 	MOVL 8(SP), BX // nsec
 
 	// sec is in AX, nsec in BX
-	MOVL	AX, sec+0(FP)
-	MOVL	CX, sec+4(FP)
+	MOVL	AX, sec_lo+0(FP)
+	MOVL	CX, sec_hi+4(FP)
 	MOVL	BX, nsec+8(FP)
 	RET
 
 TEXT syscall·now(SB),NOSPLIT,$0
-	JMP time·now(SB)
+	JMP runtime·walltime(SB)
 
 TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
 	MOVL arg1+0(FP), DI
@@ -366,40 +366,40 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
 	// 136(SI) is saved EFLAGS, never to be seen again
 	JMP	SI
 
-debughandler:
-	// print basic information
-	LEAL	ctxt+0(FP), DI
-	MOVL	$runtime·sigtrampf(SB), AX
-	MOVL	AX, 0(SP)
-	MOVQ	(16*4+16*8)(DI), BX // rip
-	MOVQ	BX, 8(SP)
-	MOVQ	(16*4+0*8)(DI), BX // rax
-	MOVQ	BX, 16(SP)
-	MOVQ	(16*4+1*8)(DI), BX // rcx
-	MOVQ	BX, 24(SP)
-	MOVQ	(16*4+2*8)(DI), BX // rdx
-	MOVQ	BX, 32(SP)
-	MOVQ	(16*4+3*8)(DI), BX // rbx
-	MOVQ	BX, 40(SP)
-	MOVQ	(16*4+7*8)(DI), BX // rdi
-	MOVQ	BX, 48(SP)
-	MOVQ	(16*4+15*8)(DI), BX // r15
-	MOVQ	BX, 56(SP)
-	MOVQ	(16*4+4*8)(DI), BX // rsp
-	MOVQ	0(BX), BX
-	MOVQ	BX, 64(SP)
-	CALL	runtime·printf(SB)
-	
-	LEAL	ctxt+0(FP), DI
-	MOVQ	(16*4+16*8)(DI), BX // rip
-	MOVL	BX, 0(SP)
-	MOVQ	(16*4+4*8)(DI), BX // rsp
-	MOVL	BX, 4(SP)
-	MOVL	$0, 8(SP)	// lr
-	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	BX, 12(SP)	// gp
-	CALL	runtime·traceback(SB)
+//debughandler:
+	//// print basic information
+	//LEAL	ctxt+0(FP), DI
+	//MOVL	$runtime·sigtrampf(SB), AX
+	//MOVL	AX, 0(SP)
+	//MOVQ	(16*4+16*8)(DI), BX // rip
+	//MOVQ	BX, 8(SP)
+	//MOVQ	(16*4+0*8)(DI), BX // rax
+	//MOVQ	BX, 16(SP)
+	//MOVQ	(16*4+1*8)(DI), BX // rcx
+	//MOVQ	BX, 24(SP)
+	//MOVQ	(16*4+2*8)(DI), BX // rdx
+	//MOVQ	BX, 32(SP)
+	//MOVQ	(16*4+3*8)(DI), BX // rbx
+	//MOVQ	BX, 40(SP)
+	//MOVQ	(16*4+7*8)(DI), BX // rdi
+	//MOVQ	BX, 48(SP)
+	//MOVQ	(16*4+15*8)(DI), BX // r15
+	//MOVQ	BX, 56(SP)
+	//MOVQ	(16*4+4*8)(DI), BX // rsp
+	//MOVQ	0(BX), BX
+	//MOVQ	BX, 64(SP)
+	//CALL	runtime·printf(SB)
+	//
+	//LEAL	ctxt+0(FP), DI
+	//MOVQ	(16*4+16*8)(DI), BX // rip
+	//MOVL	BX, 0(SP)
+	//MOVQ	(16*4+4*8)(DI), BX // rsp
+	//MOVL	BX, 4(SP)
+	//MOVL	$0, 8(SP)	// lr
+	//get_tls(CX)
+	//MOVL	g(CX), BX
+	//MOVL	BX, 12(SP)	// gp
+	//CALL	runtime·traceback(SB)
 
 notls:
 	MOVL	0, AX
@@ -411,6 +411,13 @@ nog:
 
 // cannot do real signal handling yet, because gsignal has not been allocated.
 MOVL $1, DI; NACL_SYSCALL(SYS_exit)
+
+// func getRandomData([]byte)
+TEXT runtime·getRandomData(SB),NOSPLIT,$0-12
+	MOVL arg_base+0(FP), DI
+	MOVL arg_len+4(FP), SI
+	NACL_SYSCALL(SYS_get_random_bytes)
+	RET
 
 TEXT runtime·nacl_sysinfo(SB),NOSPLIT,$16
 /*

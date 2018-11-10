@@ -1,0 +1,34 @@
+{
+	"package": [
+		{
+			"canonical": "github.com/ianlancetaylor/demangle",
+			"local": "github.com/ianlancetaylor/demangle",
+			"revision": "4883227f66371e02c4948937d3e2be1664d9be38",
+			"revisionTime": "2016-09-27T19:13:59Z"
+		},
+		{
+			"canonical": "github.com/google/pprof",
+			"local": "github.com/google/pprof",
+			"revision": "dec22b42d9eee442222c36c8da24ddc9905e7ee6",
+			"revisionTime": "2017-03-01T19:58:13Z",
+		},
+		{
+			"canonical": "golang.org/x/arch/x86/x86asm",
+			"local": "golang.org/x/arch/x86/x86asm",
+			"revision": "58ea1a195b1a354bcd572b7ef6bbbd264dc63732",
+			"revisionTime": "2017-02-16T08:17:04Z"
+		},
+		{
+			"canonical": "golang.org/x/arch/arm/armasm",
+			"local": "golang.org/x/arch/arm/armasm",
+			"revision": "ad6a463afcf9bd5b38c81fa9ba612dae11859d40",
+			"revisionTime": "2015-08-28T15:42:14Z"
+		},
+		{
+			"canonical": "golang.org/x/arch/ppc64/ppc64asm",
+			"local": "golang.org/x/arch/ppc64/ppc64asm",
+			"revision": "4831b0a617f7a819d4bf3c877d8e827d0283542c",
+			"revisionTime": "2016-10-12T18:28:04Z"
+		}
+	]
+}

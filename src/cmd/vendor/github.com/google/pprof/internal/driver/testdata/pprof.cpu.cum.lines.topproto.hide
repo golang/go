@@ -1,0 +1,3 @@
+Showing nodes accounting for 1s, 100% of 1s total
+      flat  flat%   sum%        cum   cum%
+        1s   100%   100%         1s   100%  mangled1000 testdata/file1000.src:1

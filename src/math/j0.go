@@ -10,7 +10,7 @@ package math
 
 // The original C code and the long comment below are
 // from FreeBSD's /usr/src/lib/msun/src/e_j0.c and
-// came with this notice.  The go code is a simplified
+// came with this notice. The go code is a simplified
 // version of the original C.
 //
 // ====================================================
@@ -38,7 +38,7 @@ package math
 //                      = 1/sqrt(2) * (cos(x) + sin(x))
 //              sin(x0) = sin(x)cos(pi/4)-cos(x)sin(pi/4)
 //                      = 1/sqrt(2) * (sin(x) - cos(x))
-//         (To avoid cancellation, use
+//         (To avoid cancelation, use
 //              sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
 //         to compute the worse one.)
 //
@@ -188,7 +188,7 @@ func Y0(x float64) float64 {
 		//             =  1/sqrt(2) * (sin(x) + cos(x))
 		//     sin(x0) = sin(x)cos(3pi/4)-cos(x)sin(3pi/4)
 		//             =  1/sqrt(2) * (sin(x) - cos(x))
-		// To avoid cancellation, use
+		// To avoid cancelation, use
 		//     sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
 		// to compute the worse one.
 
@@ -305,20 +305,20 @@ var p0S2 = [5]float64{
 }
 
 func pzero(x float64) float64 {
-	var p [6]float64
-	var q [5]float64
+	var p *[6]float64
+	var q *[5]float64
 	if x >= 8 {
-		p = p0R8
-		q = p0S8
+		p = &p0R8
+		q = &p0S8
 	} else if x >= 4.5454 {
-		p = p0R5
-		q = p0S5
+		p = &p0R5
+		q = &p0S5
 	} else if x >= 2.8571 {
-		p = p0R3
-		q = p0S3
+		p = &p0R3
+		q = &p0S3
 	} else if x >= 2 {
-		p = p0R2
-		q = p0S2
+		p = &p0R2
+		q = &p0S2
 	}
 	z := 1 / (x * x)
 	r := p[0] + z*(p[1]+z*(p[2]+z*(p[3]+z*(p[4]+z*p[5]))))
@@ -408,19 +408,19 @@ var q0S2 = [6]float64{
 }
 
 func qzero(x float64) float64 {
-	var p, q [6]float64
+	var p, q *[6]float64
 	if x >= 8 {
-		p = q0R8
-		q = q0S8
+		p = &q0R8
+		q = &q0S8
 	} else if x >= 4.5454 {
-		p = q0R5
-		q = q0S5
+		p = &q0R5
+		q = &q0S5
 	} else if x >= 2.8571 {
-		p = q0R3
-		q = q0S3
+		p = &q0R3
+		q = &q0S3
 	} else if x >= 2 {
-		p = q0R2
-		q = q0S2
+		p = &q0R2
+		q = &q0S2
 	}
 	z := 1 / (x * x)
 	r := p[0] + z*(p[1]+z*(p[2]+z*(p[3]+z*(p[4]+z*p[5]))))

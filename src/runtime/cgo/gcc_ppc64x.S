@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -16,7 +16,7 @@
 /*
  * void crosscall_ppc64(void (*fn)(void), void *g)
  *
- * Calling into the 9g tool chain, where all registers are caller save.
+ * Calling into the gc tool chain, where all registers are caller save.
  * Called from standard ppc64 C ABI, where r2, r14-r31, f14-f31 are
  * callee-save, so they must be saved explicitly.
  */
@@ -31,11 +31,13 @@ EXT(crosscall_ppc64):
 
 	// Set up Go ABI constant registers
 	bl	_cgo_reginit
+	nop
 
 	// Restore g pointer (r30 in Go ABI, which may have been clobbered by C)
 	mr	%r30, %r4
 
 	// Call fn
+	mr	%r12, %r3
 	mtctr	%r3
 	bctrl
 
@@ -129,11 +131,6 @@ restoreregs:
 
 	blr
 
-.globl EXT(__stack_chk_fail_local)
-EXT(__stack_chk_fail_local):
-1:
-	// TODO(austin)
-	b 1b
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits

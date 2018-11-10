@@ -46,7 +46,7 @@ loop:
 	BEQ	aligned			// aligned detected - skip copy
 
 	// Copy the unaligned source data into the aligned temporary buffer
-	// memove(to=4(R13), from=8(R13), n=12(R13)) - Corrupts all registers
+	// memmove(to=4(R13), from=8(R13), n=12(R13)) - Corrupts all registers
 	MOVW	$buf, Rtable	// to
 	MOVW	$64, Rc0		// n
 	MOVM.IB	[Rtable,Rdata,Rc0], (R13)

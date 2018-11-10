@@ -35,7 +35,7 @@ func ExampleRel() {
 	// On Unix:
 	// "/a/b/c": "b/c" <nil>
 	// "/b/c": "../b/c" <nil>
-	// "./b/c": "" Rel: can't make b/c relative to /a
+	// "./b/c": "" Rel: can't make ./b/c relative to /a
 }
 
 func ExampleSplit() {
@@ -64,4 +64,18 @@ func ExampleSplit() {
 	// input: "/usr/local//go"
 	// 	dir: "/usr/local//"
 	// 	file: "go"
+}
+
+func ExampleJoin() {
+	fmt.Println("On Unix:")
+	fmt.Println(filepath.Join("a", "b", "c"))
+	fmt.Println(filepath.Join("a", "b/c"))
+	fmt.Println(filepath.Join("a/b", "c"))
+	fmt.Println(filepath.Join("a/b", "/c"))
+	// Output:
+	// On Unix:
+	// a/b/c
+	// a/b/c
+	// a/b/c
+	// a/b/c
 }

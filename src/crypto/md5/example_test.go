@@ -8,6 +8,8 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"log"
+	"os"
 )
 
 func ExampleNew() {
@@ -22,4 +24,19 @@ func ExampleSum() {
 	data := []byte("These pretzels are making me thirsty.")
 	fmt.Printf("%x", md5.Sum(data))
 	// Output: b0804ec967f48520697662a204f5fe72
+}
+
+func ExampleNew_file() {
+	f, err := os.Open("file.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	h := md5.New()
+	if _, err := io.Copy(h, f); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("%x", h.Sum(nil))
 }

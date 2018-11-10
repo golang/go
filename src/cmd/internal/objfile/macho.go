@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,11 +7,14 @@
 package objfile
 
 import (
+	"debug/dwarf"
 	"debug/macho"
 	"fmt"
 	"os"
 	"sort"
 )
+
+const stabTypeMask = 0xe0
 
 type machoFile struct {
 	macho *macho.File
@@ -34,12 +37,19 @@ func (f *machoFile) symbols() ([]Sym, error) {
 	// We infer the size of a symbol by looking at where the next symbol begins.
 	var addrs []uint64
 	for _, s := range f.macho.Symtab.Syms {
-		addrs = append(addrs, s.Value)
+		// Skip stab debug info.
+		if s.Type&stabTypeMask == 0 {
+			addrs = append(addrs, s.Value)
+		}
 	}
 	sort.Sort(uint64s(addrs))
 
 	var syms []Sym
 	for _, s := range f.macho.Symtab.Syms {
+		if s.Type&stabTypeMask != 0 {
+			// Skip stab debug info.
+			continue
+		}
 		sym := Sym{Name: s.Name, Addr: s.Value, Code: '?'}
 		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
 		if i < len(addrs) {
@@ -114,3 +124,11 @@ type uint64s []uint64
 func (x uint64s) Len() int           { return len(x) }
 func (x uint64s) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x uint64s) Less(i, j int) bool { return x[i] < x[j] }
+
+func (f *machoFile) loadAddress() (uint64, error) {
+	return 0, fmt.Errorf("unknown load address")
+}
+
+func (f *machoFile) dwarf() (*dwarf.Data, error) {
+	return f.macho.DWARF()
+}

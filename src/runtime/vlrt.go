@@ -1,7 +1,7 @@
 // Inferno's libkern/vlrt-arm.c
-// http://code.google.com/p/inferno-os/source/browse/libkern/vlrt-arm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/vlrt-arm.c
 //
-//         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+//         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
 //         Portions Copyright 2009 The Go Authors. All rights reserved.
 //
@@ -23,7 +23,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// +build arm 386
+// +build arm 386 mips mipsle
 
 package runtime
 
@@ -195,7 +195,11 @@ func dodiv(n, d uint64) (q, r uint64) {
 	if GOARCH == "arm" {
 		// arm doesn't have a division instruction, so
 		// slowdodiv is the best that we can do.
-		// TODO: revisit for arm64.
+		return slowdodiv(n, d)
+	}
+
+	if GOARCH == "mips" || GOARCH == "mipsle" {
+		// No _div64by32 on mips and using only _mul64by32 doesn't bring much benefit
 		return slowdodiv(n, d)
 	}
 
@@ -256,3 +260,17 @@ func slowdodiv(n, d uint64) (q, r uint64) {
 	}
 	return q, n
 }
+
+// Floating point control word values for GOARCH=386 GO386=387.
+// Bits 0-5 are bits to disable floating-point exceptions.
+// Bits 8-9 are the precision control:
+//   0 = single precision a.k.a. float32
+//   2 = double precision a.k.a. float64
+// Bits 10-11 are the rounding mode:
+//   0 = round to nearest (even on a tie)
+//   3 = round toward zero
+var (
+	controlWord64      uint16 = 0x3f + 2<<8 + 0<<10
+	controlWord32             = 0x3f + 0<<8 + 0<<10
+	controlWord64trunc        = 0x3f + 2<<8 + 3<<10
+)

@@ -4,7 +4,11 @@
 
 package lex
 
-import "text/scanner"
+import (
+	"text/scanner"
+
+	"cmd/internal/src"
+)
 
 // A Stack is a stack of TokenReaders. As the top TokenReader hits EOF,
 // it resumes reading the next one down.
@@ -34,7 +38,15 @@ func (s *Stack) Text() string {
 }
 
 func (s *Stack) File() string {
-	return s.tr[len(s.tr)-1].File()
+	return s.Base().Filename()
+}
+
+func (s *Stack) Base() *src.PosBase {
+	return s.tr[len(s.tr)-1].Base()
+}
+
+func (s *Stack) SetBase(base *src.PosBase) {
+	s.tr[len(s.tr)-1].SetBase(base)
 }
 
 func (s *Stack) Line() int {
@@ -43,10 +55,6 @@ func (s *Stack) Line() int {
 
 func (s *Stack) Col() int {
 	return s.tr[len(s.tr)-1].Col()
-}
-
-func (s *Stack) SetPos(line int, file string) {
-	s.tr[len(s.tr)-1].SetPos(line, file)
 }
 
 func (s *Stack) Close() { // Unused.
