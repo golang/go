@@ -268,6 +268,11 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 		if err != nil {
 			continue
 		}
+		if p == "syscall/js" {
+			// We don't support examples that import syscall/js,
+			// because the package syscall/js is not available in the playground.
+			return nil
+		}
 		n := path.Base(p)
 		if s.Name != nil {
 			n = s.Name.Name
