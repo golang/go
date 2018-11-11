@@ -24,12 +24,12 @@ func Example() {
 	result := map[string]string{}
 	json.Unmarshal(jsonData, &result)
 
-	fmt.Printf("Origin data: %+v \n", data)
+	fmt.Printf("Original data: %+v \n", data)
 	fmt.Printf("JSON data: %s \n", jsonData)
 	fmt.Printf("Result data: %+v \n", result)
 
 	// Output:
-	// Origin data: map[Name:Platypus Order:Monotremata]
+	// Original data: map[Name:Platypus Order:Monotremata]
 	// JSON data: {"Name":"Platypus","Order":"Monotremata"}
 	// Result data: map[Name:Platypus Order:Monotremata]
 }
