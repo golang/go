@@ -250,13 +250,15 @@ the program would present a page containing:
 <h2>Using <code>net/http</code> to serve wiki pages</h2>
 
 <p>
-To use the <code>net/http</code> package, it must be imported:
+To use the <code>net/http</code> package, it must be imported. We also need
+to import <code>log</code> which is used later while starting the web server.
 </p>
 
 <pre>
 import (
 	"fmt"
 	"io/ioutil"
+	<b>"log"</b>
 	<b>"net/http"</b>
 )
 </pre>
@@ -372,6 +374,7 @@ also won't be using <code>fmt</code> anymore, so we have to remove that.
 import (
 	<b>"html/template"</b>
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 </pre>
