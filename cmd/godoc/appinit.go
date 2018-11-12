@@ -84,7 +84,11 @@ func main() {
 	}
 	corpus.IndexDirectory = indexDirectoryDefault
 	corpus.InitVersionInfo()
-	go corpus.RunIndexer()
+	if indexFilenames != "" {
+		corpus.RunIndexer()
+	} else {
+		go corpus.RunIndexer()
+	}
 
 	pres = godoc.NewPresentation(corpus)
 	pres.TabWidth = 8
