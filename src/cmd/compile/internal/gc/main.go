@@ -1444,7 +1444,7 @@ func checkLang() {
 		if err != nil {
 			log.Fatalf("internal error parsing default lang %q: %v", def, err)
 		}
-		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.major > defVers.minor) {
+		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.minor > defVers.minor) {
 			log.Fatalf("invalid value %q for -lang: max known version is %q", flag_lang, def)
 		}
 	}
