@@ -1087,3 +1087,25 @@ func TestEscapeRoute(t *testing.T) {
 		t.Errorf("Client negotiated version %x, expected %x", cs.Version, VersionTLS12)
 	}
 }
+
+// Issue 28744: Ensure that we don't modify memory
+// that Config doesn't own such as Certificates.
+func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
+	c0 := Certificate{
+		Certificate: [][]byte{testRSACertificate},
+		PrivateKey:  testRSAPrivateKey,
+	}
+	c1 := Certificate{
+		Certificate: [][]byte{testSNICertificate},
+		PrivateKey:  testRSAPrivateKey,
+	}
+	config := testConfig.Clone()
+	config.Certificates = []Certificate{c0, c1}
+
+	config.BuildNameToCertificate()
+	got := config.Certificates
+	want := []Certificate{c0, c1}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Certificates were mutated by BuildNameToCertificate\nGot: %#v\nWant: %#v\n", got, want)
+	}
+}
