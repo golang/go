@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 23, 2018",
+	"Subtitle": "Version of November 12, 2018",
 	"Path": "/ref/spec"
 }-->
 
@@ -823,6 +823,7 @@ particular architecture.
 <p>
 A <i>string type</i> represents the set of string values.
 A string value is a (possibly empty) sequence of bytes.
+The number of bytes is called the length of the string and is never negative.
 Strings are immutable: once created,
 it is impossible to change the contents of a string.
 The predeclared string type is <code>string</code>;
@@ -830,7 +831,7 @@ it is a <a href="#Type_definitions">defined type</a>.
 </p>
 
 <p>
-The length of a string <code>s</code> (its size in bytes) can be discovered using
+The length of a string <code>s</code> can be discovered using
 the built-in function <a href="#Length_and_capacity"><code>len</code></a>.
 The length is a compile-time constant if the string is a constant.
 A string's bytes can be accessed by integer <a href="#Index_expressions">indices</a>
@@ -846,8 +847,7 @@ string, <code>&amp;s[i]</code> is invalid.
 <p>
 An array is a numbered sequence of elements of a single
 type, called the element type.
-The number of elements is called the length and is never
-negative.
+The number of elements is called the length of the array and is never negative.
 </p>
 
 <pre class="ebnf">
@@ -883,6 +883,7 @@ multi-dimensional types.
 A slice is a descriptor for a contiguous segment of an <i>underlying array</i> and
 provides access to a numbered sequence of elements from that array.
 A slice type denotes the set of all slices of arrays of its element type.
+The number of elements is called the length of the slice and is never negative.
 The value of an uninitialized slice is <code>nil</code>.
 </p>
 
@@ -891,8 +892,7 @@ SliceType = "[" "]" ElementType .
 </pre>
 
 <p>
-Like arrays, slices are indexable and have a length.  The length of a
-slice <code>s</code> can be discovered by the built-in function
+The length of a slice <code>s</code> can be discovered by the built-in function
 <a href="#Length_and_capacity"><code>len</code></a>; unlike with arrays it may change during
 execution.  The elements can be addressed by integer <a href="#Index_expressions">indices</a>
 0 through <code>len(s)-1</code>.  The slice index of a
