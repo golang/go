@@ -19,10 +19,12 @@ func Example() {
 
 	// To JSON:
 	jsonData, _ := json.Marshal(data)
+	// Error ignored just for simplicity of this example.
 
 	// From JSON:
 	result := map[string]string{}
-	json.Unmarshal(jsonData, &result)
+	_ = json.Unmarshal(jsonData, &result)
+	// Error ignored just for simplicity of this example.
 
 	fmt.Printf("Original data: %+v \n", data)
 	fmt.Printf("JSON data: %s \n", jsonData)
