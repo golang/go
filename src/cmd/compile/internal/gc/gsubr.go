@@ -216,7 +216,7 @@ func (f *Func) initLSym(hasBody bool) {
 			// using the expected ABI.
 			want := obj.ABIInternal
 			if f.lsym.ABI() != want {
-				Fatalf("function symbol %s has the wrong ABI %v, expected %v", f.lsym, f.lsym.ABI(), want)
+				Fatalf("function symbol %s has the wrong ABI %v, expected %v", f.lsym.Name, f.lsym.ABI(), want)
 			}
 		}
 
