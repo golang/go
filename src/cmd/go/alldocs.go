@@ -1500,6 +1500,8 @@
 // 		The command to use to compile C++ code.
 // 	PKG_CONFIG
 // 		Path to pkg-config tool.
+// 	AR
+// 		The command to use to create, modify, and extract from library archives.
 //
 // Architecture-specific environment variables:
 //
