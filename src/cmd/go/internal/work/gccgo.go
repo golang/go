@@ -185,6 +185,7 @@ func gccgoArchive(basedir, imp string) string {
 
 func (gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) error {
 	var ok bool
+
 	p := a.Package
 	objdir := a.Objdir
 	var absOfiles []string
@@ -192,12 +193,9 @@ func (gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []string)
 		absOfiles = append(absOfiles, mkAbs(objdir, f))
 	}
 
-	var AR, RC string
+	var AR string
 	if AR, ok = os.LookupEnv("AR"); !ok {
 		AR = "ar"
-	}
-	if RC, ok = os.LookupEnv("RC"); !ok {
-		RC = "rc"
 	}
 
 	var arArgs []string
@@ -208,7 +206,7 @@ func (gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []string)
 		arArgs = []string{"-X64"}
 	}
 
-	return b.run(a, p.Dir, p.ImportPath, nil, AR, arArgs, RC, mkAbs(objdir, afile), absOfiles)
+	return b.run(a, p.Dir, p.ImportPath, nil, AR, arArgs, "rc", mkAbs(objdir, afile), absOfiles)
 }
 
 func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string, allactions []*Action, buildmode, desc string) error {
@@ -230,12 +228,9 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		fortran = len(root.Package.FFiles) > 0
 	}
 
-	var AR, RC string
+	var AR string
 	if AR, ok = os.LookupEnv("AR"); !ok {
 		AR = "ar"
-	}
-	if RC, ok = os.LookupEnv("RC"); !ok {
-		RC = "rc"
 	}
 
 	readCgoFlags := func(flagsFile string) error {
@@ -493,7 +488,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 
 	switch buildmode {
 	case "c-archive":
-		if err := b.run(root, ".", desc, nil, AR, RC, realOut, out); err != nil {
+		if err := b.run(root, ".", desc, nil, AR, "rc", realOut, out); err != nil {
 			return err
 		}
 	}
