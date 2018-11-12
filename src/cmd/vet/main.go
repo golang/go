@@ -365,6 +365,7 @@ type vetConfig struct {
 	Dir         string
 	ImportPath  string
 	GoFiles     []string
+	NonGoFiles  []string
 	ImportMap   map[string]string
 	PackageFile map[string]string
 	Standard    map[string]bool
@@ -430,7 +431,12 @@ func doPackageCfg(cfgFile string) {
 	stdImporter = &vcfg
 	inittypes()
 	mustTypecheck = true
-	doPackage(vcfg.GoFiles, nil)
+
+	var allFiles []string
+	allFiles = append(allFiles, vcfg.GoFiles...)
+	allFiles = append(allFiles, vcfg.NonGoFiles...)
+
+	doPackage(allFiles, nil)
 	if vcfg.VetxOutput != "" {
 		out := make([]vetxExport, 0, len(exporters))
 		for name, fn := range exporters {
