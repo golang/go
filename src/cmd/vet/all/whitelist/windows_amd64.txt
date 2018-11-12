@@ -5,4 +5,3 @@ runtime/sys_windows_amd64.s: [amd64] ctrlhandler: RET without writing to 4-byte 
 runtime/sys_windows_amd64.s: [amd64] callbackasm1: function callbackasm1 missing Go declaration
 runtime/sys_windows_amd64.s: [amd64] tstart_stdcall: RET without writing to 4-byte ret+8(FP)
 runtime/sys_windows_amd64.s: [amd64] settls: function settls missing Go declaration
-runtime/sys_windows_amd64.s: [amd64] cannot check cross-package assembly function: now is in package time
