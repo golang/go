@@ -25,7 +25,8 @@ func TestLSP(t *testing.T) {
 }
 
 func testLSP(t *testing.T, exporter packagestest.Exporter) {
-	dir := "testdata"
+	const dir = "testdata"
+
 	files := packagestest.MustCopyFileTree(dir)
 	subdirs, err := ioutil.ReadDir(dir)
 	if err != nil {
@@ -95,7 +96,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 					},
 				},
 				Severity: protocol.SeverityError,
-				Source:   "LSP: Go compiler",
+				Source:   "LSP",
 				Message:  msg,
 			}
 			if _, ok := expectedDiagnostics[pos.Filename]; ok {
@@ -153,11 +154,12 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 func testDiagnostics(t *testing.T, v *source.View, pkgs []*packages.Package, wants map[string][]protocol.Diagnostic) {
 	for _, pkg := range pkgs {
 		for _, filename := range pkg.GoFiles {
-			diagnostics, err := diagnostics(v, source.ToURI(filename))
+			f := v.GetFile(source.ToURI(filename))
+			diagnostics, err := source.Diagnostics(context.Background(), v, f)
 			if err != nil {
 				t.Fatal(err)
 			}
-			got := diagnostics[filename]
+			got := toProtocolDiagnostics(v, diagnostics[filename])
 			sort.Slice(got, func(i int, j int) bool {
 				return got[i].Range.Start.Line < got[j].Range.Start.Line
 			})

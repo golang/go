@@ -49,10 +49,8 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 			},
 			DocumentFormattingProvider:      true,
 			DocumentRangeFormattingProvider: true,
-			CompletionProvider: protocol.CompletionOptions{
-				TriggerCharacters: []string{"."},
-			},
-			DefinitionProvider: true,
+			CompletionProvider:              protocol.CompletionOptions{},
+			DefinitionProvider:              true,
 		},
 	}, nil
 }
@@ -119,14 +117,16 @@ func (s *server) cacheAndDiagnoseFile(ctx context.Context, uri protocol.Document
 	f := s.view.GetFile(source.URI(uri))
 	f.SetContent([]byte(text))
 	go func() {
-		reports, err := diagnostics(s.view, f.URI)
-		if err == nil {
-			for filename, diagnostics := range reports {
-				s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-					URI:         protocol.DocumentURI(source.ToURI(filename)),
-					Diagnostics: diagnostics,
-				})
-			}
+		f := s.view.GetFile(source.URI(uri))
+		reports, err := source.Diagnostics(ctx, s.view, f)
+		if err != nil {
+			return // handle error?
+		}
+		for filename, diagnostics := range reports {
+			s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
+				URI:         protocol.DocumentURI(source.ToURI(filename)),
+				Diagnostics: toProtocolDiagnostics(s.view, diagnostics),
+			})
 		}
 	}()
 }
