@@ -41,6 +41,11 @@ func TestInvalidLang(t *testing.T) {
 		t.Error("compilation with -lang=go9.99 succeeded unexpectedly")
 	}
 
+	// This test will have to be adjusted if we ever reach 1.99 or 2.0.
+	if testLang(t, "go1.99", src, outfile) == nil {
+		t.Error("compilation with -lang=go1.99 succeeded unexpectedly")
+	}
+
 	if testLang(t, "go1.8", src, outfile) == nil {
 		t.Error("compilation with -lang=go1.8 succeeded unexpectedly")
 	}
