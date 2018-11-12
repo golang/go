@@ -43,14 +43,15 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 	s.initialized = true
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
+			CompletionProvider:              protocol.CompletionOptions{},
+			DefinitionProvider:              true,
+			DocumentFormattingProvider:      true,
+			DocumentRangeFormattingProvider: true,
+			SignatureHelpProvider:           protocol.SignatureHelpOptions{},
 			TextDocumentSync: protocol.TextDocumentSyncOptions{
 				Change:    float64(protocol.Full), // full contents of file sent on each update
 				OpenClose: true,
 			},
-			DocumentFormattingProvider:      true,
-			DocumentRangeFormattingProvider: true,
-			CompletionProvider:              protocol.CompletionOptions{},
-			DefinitionProvider:              true,
 		},
 	}, nil
 }
@@ -174,8 +175,18 @@ func (s *server) Hover(context.Context, *protocol.TextDocumentPositionParams) (*
 	return nil, notImplemented("Hover")
 }
 
-func (s *server) SignatureHelp(context.Context, *protocol.TextDocumentPositionParams) (*protocol.SignatureHelp, error) {
-	return nil, notImplemented("SignatureHelp")
+func (s *server) SignatureHelp(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.SignatureHelp, error) {
+	f := s.view.GetFile(source.URI(params.TextDocument.URI))
+	tok, err := f.GetToken()
+	if err != nil {
+		return nil, err
+	}
+	pos := fromProtocolPosition(tok, params.Position)
+	info, err := source.SignatureHelp(ctx, f, pos)
+	if err != nil {
+		return nil, err
+	}
+	return toProtocolSignatureHelp(info), nil
 }
 
 func (s *server) Definition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
