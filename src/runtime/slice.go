@@ -31,7 +31,7 @@ func panicmakeslicecap() {
 	panic(errorString("makeslice: cap out of range"))
 }
 
-func makeslice(et *_type, len, cap int) slice {
+func makeslice(et *_type, len, cap int) unsafe.Pointer {
 	mem, overflow := math.MulUintptr(et.size, uintptr(cap))
 	if overflow || mem > maxAlloc || len < 0 || len > cap {
 		// NOTE: Produce a 'len out of range' error instead of a
@@ -45,12 +45,11 @@ func makeslice(et *_type, len, cap int) slice {
 		}
 		panicmakeslicecap()
 	}
-	p := mallocgc(mem, et, true)
 
-	return slice{p, len, cap}
+	return mallocgc(mem, et, true)
 }
 
-func makeslice64(et *_type, len64, cap64 int64) slice {
+func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
 	len := int(len64)
 	if int64(len) != len64 {
 		panicmakeslicelen()

@@ -636,65 +636,66 @@ const (
 	ODCLCONST // const pi = 3.14
 	ODCLTYPE  // type Int int or type Int = int
 
-	ODELETE    // delete(Left, Right)
-	ODOT       // Left.Sym (Left is of struct type)
-	ODOTPTR    // Left.Sym (Left is of pointer to struct type)
-	ODOTMETH   // Left.Sym (Left is non-interface, Right is method name)
-	ODOTINTER  // Left.Sym (Left is interface, Right is method name)
-	OXDOT      // Left.Sym (before rewrite to one of the preceding)
-	ODOTTYPE   // Left.Right or Left.Type (.Right during parsing, .Type once resolved); after walk, .Right contains address of interface type descriptor and .Right.Right contains address of concrete type descriptor
-	ODOTTYPE2  // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE); after walk, .Right contains address of interface type descriptor
-	OEQ        // Left == Right
-	ONE        // Left != Right
-	OLT        // Left < Right
-	OLE        // Left <= Right
-	OGE        // Left >= Right
-	OGT        // Left > Right
-	OIND       // *Left
-	OINDEX     // Left[Right] (index of array or slice)
-	OINDEXMAP  // Left[Right] (index of map)
-	OKEY       // Left:Right (key:value in struct/array/map literal)
-	OSTRUCTKEY // Sym:Left (key:value in struct literal, after type checking)
-	OLEN       // len(Left)
-	OMAKE      // make(List) (before type checking converts to one of the following)
-	OMAKECHAN  // make(Type, Left) (type is chan)
-	OMAKEMAP   // make(Type, Left) (type is map)
-	OMAKESLICE // make(Type, Left, Right) (type is slice)
-	OMUL       // Left * Right
-	ODIV       // Left / Right
-	OMOD       // Left % Right
-	OLSH       // Left << Right
-	ORSH       // Left >> Right
-	OAND       // Left & Right
-	OANDNOT    // Left &^ Right
-	ONEW       // new(Left)
-	ONOT       // !Left
-	OCOM       // ^Left
-	OPLUS      // +Left
-	OMINUS     // -Left
-	OOROR      // Left || Right
-	OPANIC     // panic(Left)
-	OPRINT     // print(List)
-	OPRINTN    // println(List)
-	OPAREN     // (Left)
-	OSEND      // Left <- Right
-	OSLICE     // Left[List[0] : List[1]] (Left is untypechecked or slice)
-	OSLICEARR  // Left[List[0] : List[1]] (Left is array)
-	OSLICESTR  // Left[List[0] : List[1]] (Left is string)
-	OSLICE3    // Left[List[0] : List[1] : List[2]] (Left is untypedchecked or slice)
-	OSLICE3ARR // Left[List[0] : List[1] : List[2]] (Left is array)
-	ORECOVER   // recover()
-	ORECV      // <-Left
-	ORUNESTR   // Type(Left) (Type is string, Left is rune)
-	OSELRECV   // Left = <-Right.Left: (appears as .Left of OCASE; Right.Op == ORECV)
-	OSELRECV2  // List = <-Right.Left: (apperas as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
-	OIOTA      // iota
-	OREAL      // real(Left)
-	OIMAG      // imag(Left)
-	OCOMPLEX   // complex(Left, Right)
-	OALIGNOF   // unsafe.Alignof(Left)
-	OOFFSETOF  // unsafe.Offsetof(Left)
-	OSIZEOF    // unsafe.Sizeof(Left)
+	ODELETE      // delete(Left, Right)
+	ODOT         // Left.Sym (Left is of struct type)
+	ODOTPTR      // Left.Sym (Left is of pointer to struct type)
+	ODOTMETH     // Left.Sym (Left is non-interface, Right is method name)
+	ODOTINTER    // Left.Sym (Left is interface, Right is method name)
+	OXDOT        // Left.Sym (before rewrite to one of the preceding)
+	ODOTTYPE     // Left.Right or Left.Type (.Right during parsing, .Type once resolved); after walk, .Right contains address of interface type descriptor and .Right.Right contains address of concrete type descriptor
+	ODOTTYPE2    // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE); after walk, .Right contains address of interface type descriptor
+	OEQ          // Left == Right
+	ONE          // Left != Right
+	OLT          // Left < Right
+	OLE          // Left <= Right
+	OGE          // Left >= Right
+	OGT          // Left > Right
+	OIND         // *Left
+	OINDEX       // Left[Right] (index of array or slice)
+	OINDEXMAP    // Left[Right] (index of map)
+	OKEY         // Left:Right (key:value in struct/array/map literal)
+	OSTRUCTKEY   // Sym:Left (key:value in struct literal, after type checking)
+	OLEN         // len(Left)
+	OMAKE        // make(List) (before type checking converts to one of the following)
+	OMAKECHAN    // make(Type, Left) (type is chan)
+	OMAKEMAP     // make(Type, Left) (type is map)
+	OMAKESLICE   // make(Type, Left, Right) (type is slice)
+	OMUL         // Left * Right
+	ODIV         // Left / Right
+	OMOD         // Left % Right
+	OLSH         // Left << Right
+	ORSH         // Left >> Right
+	OAND         // Left & Right
+	OANDNOT      // Left &^ Right
+	ONEW         // new(Left)
+	ONOT         // !Left
+	OCOM         // ^Left
+	OPLUS        // +Left
+	OMINUS       // -Left
+	OOROR        // Left || Right
+	OPANIC       // panic(Left)
+	OPRINT       // print(List)
+	OPRINTN      // println(List)
+	OPAREN       // (Left)
+	OSEND        // Left <- Right
+	OSLICE       // Left[List[0] : List[1]] (Left is untypechecked or slice)
+	OSLICEARR    // Left[List[0] : List[1]] (Left is array)
+	OSLICESTR    // Left[List[0] : List[1]] (Left is string)
+	OSLICE3      // Left[List[0] : List[1] : List[2]] (Left is untypedchecked or slice)
+	OSLICE3ARR   // Left[List[0] : List[1] : List[2]] (Left is array)
+	OSLICEHEADER // sliceheader{Left, List[0], List[1]} (Left is unsafe.Pointer, List[0] is length, List[1] is capacity)
+	ORECOVER     // recover()
+	ORECV        // <-Left
+	ORUNESTR     // Type(Left) (Type is string, Left is rune)
+	OSELRECV     // Left = <-Right.Left: (appears as .Left of OCASE; Right.Op == ORECV)
+	OSELRECV2    // List = <-Right.Left: (apperas as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
+	OIOTA        // iota
+	OREAL        // real(Left)
+	OIMAG        // imag(Left)
+	OCOMPLEX     // complex(Left, Right)
+	OALIGNOF     // unsafe.Alignof(Left)
+	OOFFSETOF    // unsafe.Offsetof(Left)
+	OSIZEOF      // unsafe.Sizeof(Left)
 
 	// statements
 	OBLOCK    // { List } (block of code)

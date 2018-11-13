@@ -14,6 +14,7 @@ import (
 // io.ByteScanner, and io.RuneScanner interfaces by reading from
 // a byte slice.
 // Unlike a Buffer, a Reader is read-only and supports seeking.
+// The zero value for Reader operates like a Reader of an empty slice.
 type Reader struct {
 	s        []byte
 	i        int64 // current reading index
@@ -75,10 +76,10 @@ func (r *Reader) ReadByte() (byte, error) {
 
 // UnreadByte complements ReadByte in implementing the io.ByteScanner interface.
 func (r *Reader) UnreadByte() error {
-	r.prevRune = -1
 	if r.i <= 0 {
 		return errors.New("bytes.Reader.UnreadByte: at beginning of slice")
 	}
+	r.prevRune = -1
 	r.i--
 	return nil
 }
@@ -101,6 +102,9 @@ func (r *Reader) ReadRune() (ch rune, size int, err error) {
 
 // UnreadRune complements ReadRune in implementing the io.RuneScanner interface.
 func (r *Reader) UnreadRune() error {
+	if r.i <= 0 {
+		return errors.New("bytes.Reader.UnreadRune: at beginning of slice")
+	}
 	if r.prevRune < 0 {
 		return errors.New("bytes.Reader.UnreadRune: previous operation was not ReadRune")
 	}

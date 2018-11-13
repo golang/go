@@ -417,8 +417,11 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
 		param.Pragma = 0
 	}
 
-	return p.nod(decl, ODCLTYPE, n, nil)
-
+	nod := p.nod(decl, ODCLTYPE, n, nil)
+	if param.Alias && !langSupported(1, 9) {
+		yyerrorl(nod.Pos, "type aliases only supported as of -lang=go1.9")
+	}
+	return nod
 }
 
 func (p *noder) declNames(names []*syntax.Name) []*Node {

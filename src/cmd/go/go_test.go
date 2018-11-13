@@ -7,6 +7,7 @@ package main_test
 import (
 	"bytes"
 	"cmd/internal/sys"
+	"context"
 	"debug/elf"
 	"debug/macho"
 	"flag"
@@ -108,6 +109,12 @@ var testGo string
 var testTmpDir string
 var testBin string
 
+// testCtx is canceled when the test binary is about to time out.
+//
+// If https://golang.org/issue/28135 is accepted, uses of this variable in test
+// functions should be replaced by t.Context().
+var testCtx = context.Background()
+
 // The TestMain function creates a go command for testing purposes and
 // deletes it after the tests have been run.
 func TestMain(m *testing.M) {
@@ -120,6 +127,20 @@ func TestMain(m *testing.M) {
 	os.Unsetenv("GOROOT_FINAL")
 
 	flag.Parse()
+
+	timeoutFlag := flag.Lookup("test.timeout")
+	if timeoutFlag != nil {
+		// TODO(golang.org/issue/28147): The go command does not pass the
+		// test.timeout flag unless either -timeout or -test.timeout is explicitly
+		// set on the command line.
+		if d := timeoutFlag.Value.(flag.Getter).Get().(time.Duration); d != 0 {
+			aBitShorter := d * 95 / 100
+			var cancel context.CancelFunc
+			testCtx, cancel = context.WithTimeout(testCtx, aBitShorter)
+			defer cancel()
+		}
+	}
+
 	if *proxyAddr != "" {
 		StartProxy()
 		select {}
