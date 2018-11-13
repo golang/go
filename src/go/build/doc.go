@@ -111,8 +111,7 @@
 //	- "go1.12", from Go version 1.12 onward
 //	- any additional words listed in ctxt.BuildTags
 //
-// There are no build tags for beta or minor releases. Programs that need the
-// minor release number can call runtime.Version.
+// There are no build tags for beta or minor releases.
 //
 // If a file's name, after stripping the extension and a possible _test suffix,
 // matches any of the following patterns:
