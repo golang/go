@@ -213,7 +213,7 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")
 	objabi.Flagcount("j", "debug runtime-initialized variables", &Debug['j'])
 	objabi.Flagcount("l", "disable inlining", &Debug['l'])
-	flag.StringVar(&flag_lang, "lang", defaultLang(), "release to compile for")
+	flag.StringVar(&flag_lang, "lang", "", "release to compile for")
 	flag.StringVar(&linkobj, "linkobj", "", "write linker-specific object to `file`")
 	objabi.Flagcount("live", "debug liveness analysis", &debuglive)
 	objabi.Flagcount("m", "print optimization decisions", &Debug['m'])
@@ -1313,8 +1313,8 @@ func recordFlags(flags ...string) {
 // flag_lang is the language version we are compiling for, set by the -lang flag.
 var flag_lang string
 
-// defaultLang returns the default value for the -lang flag.
-func defaultLang() string {
+// currentLang returns the current language version.
+func currentLang() string {
 	tags := build.Default.ReleaseTags
 	return tags[len(tags)-1]
 }
@@ -1329,23 +1329,32 @@ type lang struct {
 }
 
 // langWant is the desired language version set by the -lang flag.
+// If the -lang flag is not set, this is the zero value, meaning that
+// any language version is supported.
 var langWant lang
 
 // langSupported reports whether language version major.minor is supported.
 func langSupported(major, minor int) bool {
+	if langWant.major == 0 && langWant.minor == 0 {
+		return true
+	}
 	return langWant.major > major || (langWant.major == major && langWant.minor >= minor)
 }
 
 // checkLang verifies that the -lang flag holds a valid value, and
 // exits if not. It initializes data used by langSupported.
 func checkLang() {
+	if flag_lang == "" {
+		return
+	}
+
 	var err error
 	langWant, err = parseLang(flag_lang)
 	if err != nil {
 		log.Fatalf("invalid value %q for -lang: %v", flag_lang, err)
 	}
 
-	if def := defaultLang(); flag_lang != def {
+	if def := currentLang(); flag_lang != def {
 		defVers, err := parseLang(def)
 		if err != nil {
 			log.Fatalf("internal error parsing default lang %q: %v", def, err)
