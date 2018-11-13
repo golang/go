@@ -1498,7 +1498,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AVCMPNEZBCC, r0)
 
 		case AVPERM: /* vperm */
-			opset(AVPERM, r0)
+			opset(AVPERMXOR, r0)
 
 		case AVBPERMQ: /* vbpermq, vbpermd */
 			opset(AVBPERMD, r0)
@@ -4503,6 +4503,8 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 
 	case AVPERM:
 		return OPVX(4, 43, 0, 0) /* vperm - v2.03 */
+	case AVPERMXOR:
+		return OPVX(4, 45, 0, 0) /* vpermxor - v2.03 */
 
 	case AVSEL:
 		return OPVX(4, 42, 0, 0) /* vsel - v2.03 */
