@@ -548,6 +548,17 @@ func golistDriverCurrent(cfg *Config, words ...string) (*driverResponse, error) 
 			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
 		}
 
+		// Workaround for github.com/golang/go/issues/28749.
+		// TODO(adonovan): delete before go1.12 release.
+		out := pkg.CompiledGoFiles[:0]
+		for _, f := range pkg.CompiledGoFiles {
+			if strings.HasSuffix(f, ".s") {
+				continue
+			}
+			out = append(out, f)
+		}
+		pkg.CompiledGoFiles = out
+
 		// Extract the PkgPath from the package's ID.
 		if i := strings.IndexByte(pkg.ID, ' '); i >= 0 {
 			pkg.PkgPath = pkg.ID[:i]
@@ -594,7 +605,9 @@ func golistDriverCurrent(cfg *Config, words ...string) (*driverResponse, error) 
 			response.Roots = append(response.Roots, pkg.ID)
 		}
 
-		// TODO(matloob): Temporary hack since CompiledGoFiles isn't always set.
+		// Work around for pre-go.1.11 versions of go list.
+		// TODO(matloob): they should be handled by the fallback.
+		// Can we delete this?
 		if len(pkg.CompiledGoFiles) == 0 {
 			pkg.CompiledGoFiles = pkg.GoFiles
 		}
