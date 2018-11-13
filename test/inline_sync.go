@@ -31,3 +31,10 @@ func small6() { // ERROR "can inline small6"
 	// the Lock fast path should be inlined
 	mutex.Lock() // ERROR "inlining call to sync\.\(\*Mutex\)\.Lock" "&sync\.m\.state escapes to heap"
 }
+
+var once *sync.Once
+
+func small7() { // ERROR "can inline small7"
+        // the Do fast path should be inlined
+        once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do" "&sync\.o\.done escapes to heap"
+}

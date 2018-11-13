@@ -10,8 +10,13 @@ import (
 
 // Once is an object that will perform exactly one action.
 type Once struct {
-	m    Mutex
+	// done indicates whether the action has been performed.
+	// It is first in the struct because it is used in the hot path.
+	// The hot path is inlined at every call site.
+	// Placing done first allows more compact instructions on some architectures (amd64/x86),
+	// and fewer instructions (to calculate offset) on other architectures.
 	done uint32
+	m    Mutex
 }
 
 // Do calls the function f if and only if Do is being called for the
@@ -33,10 +38,13 @@ type Once struct {
 // without calling f.
 //
 func (o *Once) Do(f func()) {
-	if atomic.LoadUint32(&o.done) == 1 {
-		return
+	if atomic.LoadUint32(&o.done) == 0 {
+		// Outlined slow-path to allow inlining of the fast-path.
+		o.doSlow(f)
 	}
-	// Slow-path.
+}
+
+func (o *Once) doSlow(f func()) {
 	o.m.Lock()
 	defer o.m.Unlock()
 	if o.done == 0 {
