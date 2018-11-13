@@ -64,7 +64,7 @@ type Rlimit struct {
 	Max uint64
 }
 
-type Pid_t int32
+type _Pid_t int32
 
 type _Gid_t uint32
 

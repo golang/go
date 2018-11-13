@@ -121,6 +121,10 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x10000
 		}
+
+	case objabi.Haix:
+		ld.Xcoffinit(ctxt)
+
 	}
 
 	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {

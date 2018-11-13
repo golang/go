@@ -1043,7 +1043,9 @@ func (r *importReader) node() *Node {
 	// 	unreachable - not emitted by exporter
 
 	case OGOTO, OLABEL:
-		return nodl(r.pos(), op, newname(r.expr().Sym), nil)
+		n := nodl(r.pos(), op, nil, nil)
+		n.Sym = lookup(r.string())
+		return n
 
 	case OEND:
 		return nil

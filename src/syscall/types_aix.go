@@ -86,7 +86,7 @@ type Rusage C.struct_rusage
 
 type Rlimit C.struct_rlimit
 
-type Pid_t C.pid_t
+type _Pid_t C.pid_t
 
 type _Gid_t C.gid_t
 

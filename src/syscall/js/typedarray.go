@@ -22,6 +22,8 @@ var (
 	float64Array = Global().Get("Float64Array")
 )
 
+var _ Wrapper = TypedArray{} // TypedArray must implement Wrapper
+
 // TypedArray represents a JavaScript typed array.
 type TypedArray struct {
 	Value

@@ -771,14 +771,14 @@
 (MOVSDstoreidx8 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVSDstoreidx8 [int64(int32(c+8*d))] {sym} ptr idx val mem)
 
 // Merge load/store to op
-((ADD|AND|OR|XOR|SUB|MUL)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|AND|OR|XOR|SUB|MUL)Lload x [off] {sym} ptr mem)
-((ADD|AND|OR|XOR|SUB|MUL)L x l:(MOVLloadidx4 [off] {sym} ptr idx mem)) && canMergeLoad(v, l, x) && clobber(l) ->
+((ADD|AND|OR|XOR|SUB|MUL)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) -> ((ADD|AND|OR|XOR|SUB|MUL)Lload x [off] {sym} ptr mem)
+((ADD|AND|OR|XOR|SUB|MUL)L x l:(MOVLloadidx4 [off] {sym} ptr idx mem)) && canMergeLoadClobber(v, l, x) && clobber(l) ->
 	((ADD|AND|OR|XOR|SUB|MUL)Lloadidx4 x [off] {sym} ptr idx mem)
 ((ADD|SUB|MUL|AND|OR|XOR)Lload [off1] {sym1} val (LEAL4 [off2] {sym2} ptr idx) mem)
 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	((ADD|SUB|MUL|AND|OR|XOR)Lloadidx4 [off1+off2] {mergeSym(sym1,sym2)} val ptr idx mem)
-((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
-((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
+((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
+((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
 (MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lload x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) -> ((ADD|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
 (MOVLstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)L l:(MOVLload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) ->
 	((ADD|SUB|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
@@ -1217,8 +1217,8 @@
 (MOVSSconst [c]) && config.ctxt.Flag_shared -> (MOVSSconst2 (MOVSSconst1 [c]))
 (MOVSDconst [c]) && config.ctxt.Flag_shared -> (MOVSDconst2 (MOVSDconst1 [c]))
 
-(CMP(L|W|B) l:(MOV(L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l, x) && clobber(l) -> (CMP(L|W|B)load {sym} [off] ptr x mem)
-(CMP(L|W|B) x l:(MOV(L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> (InvertFlags (CMP(L|W|B)load {sym} [off] ptr x mem))
+(CMP(L|W|B) l:(MOV(L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l) && clobber(l) -> (CMP(L|W|B)load {sym} [off] ptr x mem)
+(CMP(L|W|B) x l:(MOV(L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) -> (InvertFlags (CMP(L|W|B)load {sym} [off] ptr x mem))
 
 (CMP(L|W|B)const l:(MOV(L|W|B)load {sym} [off] ptr mem) [c])
 	&& l.Uses == 1

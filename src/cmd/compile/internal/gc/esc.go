@@ -621,23 +621,23 @@ func (e *EscState) escloopdepth(n *Node) {
 
 	switch n.Op {
 	case OLABEL:
-		if n.Left == nil || n.Left.Sym == nil {
+		if n.Sym == nil {
 			Fatalf("esc:label without label: %+v", n)
 		}
 
 		// Walk will complain about this label being already defined, but that's not until
 		// after escape analysis. in the future, maybe pull label & goto analysis out of walk and put before esc
-		n.Left.Sym.Label = asTypesNode(&nonlooping)
+		n.Sym.Label = asTypesNode(&nonlooping)
 
 	case OGOTO:
-		if n.Left == nil || n.Left.Sym == nil {
+		if n.Sym == nil {
 			Fatalf("esc:goto without label: %+v", n)
 		}
 
 		// If we come past one that's uninitialized, this must be a (harmless) forward jump
 		// but if it's set to nonlooping the label must have preceded this goto.
-		if asNode(n.Left.Sym.Label) == &nonlooping {
-			n.Left.Sym.Label = asTypesNode(&looping)
+		if asNode(n.Sym.Label) == &nonlooping {
+			n.Sym.Label = asTypesNode(&looping)
 		}
 	}
 
@@ -851,18 +851,19 @@ opSwitch:
 		}
 
 	case OLABEL:
-		if asNode(n.Left.Sym.Label) == &nonlooping {
+		switch asNode(n.Sym.Label) {
+		case &nonlooping:
 			if Debug['m'] > 2 {
 				fmt.Printf("%v:%v non-looping label\n", linestr(lineno), n)
 			}
-		} else if asNode(n.Left.Sym.Label) == &looping {
+		case &looping:
 			if Debug['m'] > 2 {
 				fmt.Printf("%v: %v looping label\n", linestr(lineno), n)
 			}
 			e.loopdepth++
 		}
 
-		n.Left.Sym.Label = nil
+		n.Sym.Label = nil
 
 	case ORANGE:
 		if n.List.Len() >= 2 {

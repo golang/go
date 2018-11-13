@@ -68,6 +68,7 @@ func (e *MissingModuleError) Error() string {
 }
 
 // BuildList returns the build list for the target module.
+// The first element is the target itself, with the remainder of the list sorted by path.
 func BuildList(target module.Version, reqs Reqs) ([]module.Version, error) {
 	return buildList(target, reqs, nil)
 }

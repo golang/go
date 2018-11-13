@@ -360,6 +360,41 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
+	case ssa.OpAMD64ADDQcarry, ssa.OpAMD64ADCQ:
+		r := v.Reg0()
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		switch r {
+		case r0:
+			p := s.Prog(v.Op.Asm())
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = r1
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		case r1:
+			p := s.Prog(v.Op.Asm())
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = r0
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		default:
+			v.Fatalf("output not in same register as an input %s", v.LongString())
+		}
+
+	case ssa.OpAMD64SUBQborrow, ssa.OpAMD64SBBQ:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+
+	case ssa.OpAMD64ADDQconstcarry, ssa.OpAMD64ADCQconst, ssa.OpAMD64SUBQconstborrow, ssa.OpAMD64SBBQconst:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+
 	case ssa.OpAMD64ADDQconst, ssa.OpAMD64ADDLconst:
 		r := v.Reg()
 		a := v.Args[0].Reg()
@@ -946,6 +981,16 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+
+	case ssa.OpAMD64NEGLflags:
+		r := v.Reg0()
+		if r != v.Args[0].Reg() {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
+		p := s.Prog(v.Op.Asm())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+
 	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSRQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSRL, ssa.OpAMD64SQRTSD:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG

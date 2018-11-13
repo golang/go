@@ -491,6 +491,9 @@ var genericOps = []opData{
 	{name: "Sub32carry", argLength: 2, typ: "(UInt32,Flags)"}, // arg0 - arg1, returns (value, carry)
 	{name: "Sub32withcarry", argLength: 3},                    // arg0 - arg1 - arg2, arg2=carry (0 or 1)
 
+	{name: "Add64carry", argLength: 3, commutative: true, typ: "(UInt64,UInt64)"}, // arg0 + arg1 + arg2, arg2 must be 0 or 1. returns (value, value>>64)
+	{name: "Sub64borrow", argLength: 3, typ: "(UInt64,UInt64)"},                   // arg0 - (arg1 + arg2), arg2 must be 0 or 1. returns (value, value>>64&1)
+
 	{name: "Signmask", argLength: 1, typ: "Int32"},  // 0 if arg0 >= 0, -1 if arg0 < 0
 	{name: "Zeromask", argLength: 1, typ: "UInt32"}, // 0 if arg0 == 0, 0xffffffff if arg0 != 0
 	{name: "Slicemask", argLength: 1},               // 0 if arg0 == 0, -1 if arg0 > 0, undef if arg0<0. Type is native int size.

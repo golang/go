@@ -346,7 +346,7 @@ func TestDialParallel(t *testing.T) {
 	}
 }
 
-func lookupSlowFast(ctx context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+func lookupSlowFast(ctx context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
 	switch host {
 	case "slow6loopback4":
 		// Returns a slow IPv6 address, and a local IPv4 address.
@@ -355,7 +355,7 @@ func lookupSlowFast(ctx context.Context, fn func(context.Context, string) ([]IPA
 			{IP: ParseIP("127.0.0.1")},
 		}, nil
 	default:
-		return fn(ctx, host)
+		return fn(ctx, network, host)
 	}
 }
 

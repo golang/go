@@ -33,9 +33,9 @@ func main() {
 		fail("did not find mobile provision matching device udids %q", udids)
 	}
 
-	fmt.Println("Available provisioning profiles below.")
-	fmt.Println("NOTE: Any existing app on the device with the app id specified by GOIOS_APP_ID")
-	fmt.Println("will be overwritten when running Go programs.")
+	fmt.Println("# Available provisioning profiles below.")
+	fmt.Println("# NOTE: Any existing app on the device with the app id specified by GOIOS_APP_ID")
+	fmt.Println("# will be overwritten when running Go programs.")
 	for _, mp := range mps {
 		fmt.Println()
 		f, err := ioutil.TempFile("", "go_ios_detect_")

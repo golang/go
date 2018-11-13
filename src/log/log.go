@@ -254,6 +254,13 @@ func (l *Logger) SetPrefix(prefix string) {
 	l.prefix = prefix
 }
 
+// Writer returns the output destination for the logger.
+func (l *Logger) Writer() io.Writer {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.out
+}
+
 // SetOutput sets the output destination for the standard logger.
 func SetOutput(w io.Writer) {
 	std.mu.Lock()

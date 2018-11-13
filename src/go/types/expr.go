@@ -461,7 +461,11 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 			check.invalidOp(x.Pos(), "shifted operand %s (type %s) must be integer", x, typ)
 			return
 		}
-	} else if old.val != nil {
+		// Even if we have an integer, if the value is a constant we
+		// still must check that it is representable as the specific
+		// int type requested (was issue #22969). Fall through here.
+	}
+	if old.val != nil {
 		// If x is a constant, it must be representable as a value of typ.
 		c := operand{old.mode, x, old.typ, old.val, 0}
 		check.convertUntyped(&c, typ)

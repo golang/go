@@ -899,6 +899,21 @@ func BenchmarkAdd64(b *testing.B) {
 	Output = int(z + c)
 }
 
+func BenchmarkAdd64multiple(b *testing.B) {
+	var z0 = uint64(Input)
+	var z1 = uint64(Input)
+	var z2 = uint64(Input)
+	var z3 = uint64(Input)
+	for i := 0; i < b.N; i++ {
+		var c uint64
+		z0, c = Add64(z0, uint64(i), c)
+		z1, c = Add64(z1, uint64(i), c)
+		z2, c = Add64(z2, uint64(i), c)
+		z3, _ = Add64(z3, uint64(i), c)
+	}
+	Output = int(z0 + z1 + z2 + z3)
+}
+
 func BenchmarkSub(b *testing.B) {
 	var z, c uint
 	for i := 0; i < b.N; i++ {
@@ -918,9 +933,24 @@ func BenchmarkSub32(b *testing.B) {
 func BenchmarkSub64(b *testing.B) {
 	var z, c uint64
 	for i := 0; i < b.N; i++ {
-		z, c = Add64(uint64(Input), uint64(i), c)
+		z, c = Sub64(uint64(Input), uint64(i), c)
 	}
 	Output = int(z + c)
+}
+
+func BenchmarkSub64multiple(b *testing.B) {
+	var z0 = uint64(Input)
+	var z1 = uint64(Input)
+	var z2 = uint64(Input)
+	var z3 = uint64(Input)
+	for i := 0; i < b.N; i++ {
+		var c uint64
+		z0, c = Sub64(z0, uint64(i), c)
+		z1, c = Sub64(z1, uint64(i), c)
+		z2, c = Sub64(z2, uint64(i), c)
+		z3, _ = Sub64(z3, uint64(i), c)
+	}
+	Output = int(z0 + z1 + z2 + z3)
 }
 
 func BenchmarkMul(b *testing.B) {

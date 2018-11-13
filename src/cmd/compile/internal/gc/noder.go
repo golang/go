@@ -819,13 +819,18 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 		return name
 	case *syntax.SelectorExpr:
 		name := p.name(expr.X.(*syntax.Name))
+		def := asNode(name.Def)
+		if def == nil {
+			yyerror("undefined: %v", name)
+			return name
+		}
 		var pkg *types.Pkg
-		if asNode(name.Def) == nil || asNode(name.Def).Op != OPACK {
+		if def.Op != OPACK {
 			yyerror("%v is not a package", name)
 			pkg = localpkg
 		} else {
-			asNode(name.Def).Name.SetUsed(true)
-			pkg = asNode(name.Def).Name.Pkg
+			def.Name.SetUsed(true)
+			pkg = def.Name.Pkg
 		}
 		return restrictlookup(expr.Sel.Value, pkg)
 	}
@@ -936,7 +941,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
 		}
 		n := p.nod(stmt, op, nil, nil)
 		if stmt.Label != nil {
-			n.Left = p.newname(stmt.Label)
+			n.Sym = p.name(stmt.Label)
 		}
 		return n
 	case *syntax.CallStmt:
@@ -1200,7 +1205,7 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*
 }
 
 func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) *Node {
-	lhs := p.nod(label, OLABEL, p.newname(label.Label), nil)
+	lhs := p.nodSym(label, OLABEL, nil, p.name(label.Label))
 
 	var ls *Node
 	if label.Stmt != nil { // TODO(mdempsky): Should always be present.

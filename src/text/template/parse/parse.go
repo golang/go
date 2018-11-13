@@ -380,46 +380,44 @@ func (t *Tree) action() (n Node) {
 // Pipeline:
 //	declarations? command ('|' command)*
 func (t *Tree) pipeline(context string) (pipe *PipeNode) {
-	decl := false
-	var vars []*VariableNode
 	token := t.peekNonSpace()
-	pos := token.pos
+	pipe = t.newPipeline(token.pos, token.line, nil)
 	// Are there declarations or assignments?
-	for {
-		if v := t.peekNonSpace(); v.typ == itemVariable {
-			t.next()
-			// Since space is a token, we need 3-token look-ahead here in the worst case:
-			// in "$x foo" we need to read "foo" (as opposed to ":=") to know that $x is an
-			// argument variable rather than a declaration. So remember the token
-			// adjacent to the variable so we can push it back if necessary.
-			tokenAfterVariable := t.peek()
-			next := t.peekNonSpace()
-			switch {
-			case next.typ == itemAssign, next.typ == itemDeclare,
-				next.typ == itemChar && next.val == ",":
-				t.nextNonSpace()
-				variable := t.newVariable(v.pos, v.val)
-				vars = append(vars, variable)
-				t.vars = append(t.vars, v.val)
-				if next.typ == itemDeclare {
-					decl = true
+decls:
+	if v := t.peekNonSpace(); v.typ == itemVariable {
+		t.next()
+		// Since space is a token, we need 3-token look-ahead here in the worst case:
+		// in "$x foo" we need to read "foo" (as opposed to ":=") to know that $x is an
+		// argument variable rather than a declaration. So remember the token
+		// adjacent to the variable so we can push it back if necessary.
+		tokenAfterVariable := t.peek()
+		next := t.peekNonSpace()
+		switch {
+		case next.typ == itemAssign, next.typ == itemDeclare:
+			pipe.IsAssign = next.typ == itemAssign
+			t.nextNonSpace()
+			pipe.Decl = append(pipe.Decl, t.newVariable(v.pos, v.val))
+			t.vars = append(t.vars, v.val)
+		case next.typ == itemChar && next.val == ",":
+			t.nextNonSpace()
+			pipe.Decl = append(pipe.Decl, t.newVariable(v.pos, v.val))
+			t.vars = append(t.vars, v.val)
+			if context == "range" && len(pipe.Decl) < 2 {
+				switch t.peekNonSpace().typ {
+				case itemVariable, itemRightDelim, itemRightParen:
+					// second initialized variable in a range pipeline
+					goto decls
+				default:
+					t.errorf("range can only initialize variables")
 				}
-				if next.typ == itemChar && next.val == "," {
-					if context == "range" && len(vars) < 2 {
-						continue
-					}
-					t.errorf("too many declarations in %s", context)
-				}
-			case tokenAfterVariable.typ == itemSpace:
-				t.backup3(v, tokenAfterVariable)
-			default:
-				t.backup2(v)
 			}
+			t.errorf("too many declarations in %s", context)
+		case tokenAfterVariable.typ == itemSpace:
+			t.backup3(v, tokenAfterVariable)
+		default:
+			t.backup2(v)
 		}
-		break
 	}
-	pipe = t.newPipeline(pos, token.line, vars)
-	pipe.IsAssign = !decl
 	for {
 		switch token := t.nextNonSpace(); token.typ {
 		case itemRightDelim, itemRightParen:

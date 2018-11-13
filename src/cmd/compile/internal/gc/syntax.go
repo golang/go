@@ -574,7 +574,7 @@ const (
 	OXXX Op = iota
 
 	// names
-	ONAME    // var, const or func name
+	ONAME    // var or func name
 	ONONAME  // unnamed arg or return value: f(int, string) (int, error) { etc }
 	OTYPE    // type name
 	OPACK    // import
@@ -698,10 +698,10 @@ const (
 
 	// statements
 	OBLOCK    // { List } (block of code)
-	OBREAK    // break
+	OBREAK    // break [Sym]
 	OCASE     // case Left or List[0]..List[1]: Nbody (select case after processing; Left==nil and List==nil means default)
 	OXCASE    // case List: Nbody (select case before processing; List==nil means default)
-	OCONTINUE // continue
+	OCONTINUE // continue [Sym]
 	ODEFER    // defer Left (Left must be call)
 	OEMPTY    // no-op (empty statement)
 	OFALL     // fallthrough
@@ -716,9 +716,9 @@ const (
 	// 	}
 	// OFORUNTIL is created by walk. There's no way to write this in Go code.
 	OFORUNTIL
-	OGOTO   // goto Left
+	OGOTO   // goto Sym
 	OIF     // if Ninit; Left { Nbody } else { Rlist }
-	OLABEL  // Left:
+	OLABEL  // Sym:
 	OPROC   // go Left (Left must be call)
 	ORANGE  // for List = range Right { Nbody }
 	ORETURN // return List

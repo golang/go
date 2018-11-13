@@ -178,7 +178,6 @@ func TestStatError(t *testing.T) {
 	defer chtmpdir(t)()
 
 	path := "no-such-file"
-	Remove(path) // Just in case
 
 	fi, err := Stat(path)
 	if err == nil {
@@ -194,12 +193,10 @@ func TestStatError(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
 	link := "symlink"
-	Remove(link) // Just in case
 	err = Symlink(path, link)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer Remove(link)
 
 	fi, err = Stat(link)
 	if err == nil {
@@ -688,12 +685,10 @@ func TestHardLink(t *testing.T) {
 
 	defer chtmpdir(t)()
 	from, to := "hardlinktestfrom", "hardlinktestto"
-	Remove(from) // Just in case.
 	file, err := Create(to)
 	if err != nil {
 		t.Fatalf("open %q failed: %v", to, err)
 	}
-	defer Remove(to)
 	if err = file.Close(); err != nil {
 		t.Errorf("close %q failed: %v", to, err)
 	}
@@ -709,7 +704,6 @@ func TestHardLink(t *testing.T) {
 		t.Errorf("link %q, %q failed to return a valid error", none, none)
 	}
 
-	defer Remove(from)
 	tostat, err := Stat(to)
 	if err != nil {
 		t.Fatalf("stat %q failed: %v", to, err)
@@ -745,11 +739,8 @@ func TestHardLink(t *testing.T) {
 }
 
 // chtmpdir changes the working directory to a new temporary directory and
-// provides a cleanup function. Used when PWD is read-only.
+// provides a cleanup function.
 func chtmpdir(t *testing.T) func() {
-	if runtime.GOOS != "darwin" || (runtime.GOARCH != "arm" && runtime.GOARCH != "arm64") {
-		return func() {} // only needed on darwin/arm{,64}
-	}
 	oldwd, err := Getwd()
 	if err != nil {
 		t.Fatalf("chtmpdir: %v", err)
@@ -774,12 +765,10 @@ func TestSymlink(t *testing.T) {
 
 	defer chtmpdir(t)()
 	from, to := "symlinktestfrom", "symlinktestto"
-	Remove(from) // Just in case.
 	file, err := Create(to)
 	if err != nil {
 		t.Fatalf("Create(%q) failed: %v", to, err)
 	}
-	defer Remove(to)
 	if err = file.Close(); err != nil {
 		t.Errorf("Close(%q) failed: %v", to, err)
 	}
@@ -787,7 +776,6 @@ func TestSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Symlink(%q, %q) failed: %v", to, from, err)
 	}
-	defer Remove(from)
 	tostat, err := Lstat(to)
 	if err != nil {
 		t.Fatalf("Lstat(%q) failed: %v", to, err)
@@ -841,12 +829,10 @@ func TestLongSymlink(t *testing.T) {
 	// Long, but not too long: a common limit is 255.
 	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s
 	from := "longsymlinktestfrom"
-	Remove(from) // Just in case.
 	err := Symlink(s, from)
 	if err != nil {
 		t.Fatalf("symlink %q, %q failed: %v", s, from, err)
 	}
-	defer Remove(from)
 	r, err := Readlink(from)
 	if err != nil {
 		t.Fatalf("readlink %q failed: %v", from, err)
@@ -859,9 +845,6 @@ func TestLongSymlink(t *testing.T) {
 func TestRename(t *testing.T) {
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
-	// Ensure we are not testing the overwrite case here.
-	Remove(from)
-	Remove(to)
 
 	file, err := Create(from)
 	if err != nil {
@@ -874,7 +857,6 @@ func TestRename(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rename %q, %q failed: %v", to, from, err)
 	}
-	defer Remove(to)
 	_, err = Stat(to)
 	if err != nil {
 		t.Errorf("stat %q failed: %v", to, err)
@@ -884,9 +866,6 @@ func TestRename(t *testing.T) {
 func TestRenameOverwriteDest(t *testing.T) {
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
-	// Just in case.
-	Remove(from)
-	Remove(to)
 
 	toData := []byte("to")
 	fromData := []byte("from")
@@ -904,7 +883,6 @@ func TestRenameOverwriteDest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rename %q, %q failed: %v", to, from, err)
 	}
-	defer Remove(to)
 
 	_, err = Stat(from)
 	if err == nil {
@@ -925,9 +903,6 @@ func TestRenameOverwriteDest(t *testing.T) {
 func TestRenameFailed(t *testing.T) {
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
-	// Ensure we are not testing the overwrite case here.
-	Remove(from)
-	Remove(to)
 
 	err := Rename(from, to)
 	switch err := err.(type) {
@@ -943,9 +918,6 @@ func TestRenameFailed(t *testing.T) {
 		}
 	case nil:
 		t.Errorf("rename %q, %q: expected error, got nil", from, to)
-
-		// cleanup whatever was placed in "renameto"
-		Remove(to)
 	default:
 		t.Errorf("rename %q, %q: expected %T, got %T %v", from, to, new(LinkError), err, err)
 	}
@@ -956,7 +928,6 @@ func TestRenameNotExisting(t *testing.T) {
 	from, to := "doesnt-exist", "dest"
 
 	Mkdir(to, 0777)
-	defer Remove(to)
 
 	if err := Rename(from, to); !IsNotExist(err) {
 		t.Errorf("Rename(%q, %q) = %v; want an IsNotExist error", from, to, err)
@@ -967,12 +938,8 @@ func TestRenameToDirFailed(t *testing.T) {
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
 
-	Remove(from)
-	Remove(to)
 	Mkdir(from, 0777)
 	Mkdir(to, 0777)
-	defer Remove(from)
-	defer Remove(to)
 
 	err := Rename(from, to)
 	switch err := err.(type) {
@@ -988,9 +955,6 @@ func TestRenameToDirFailed(t *testing.T) {
 		}
 	case nil:
 		t.Errorf("rename %q, %q: expected error, got nil", from, to)
-
-		// cleanup whatever was placed in "renameto"
-		Remove(to)
 	default:
 		t.Errorf("rename %q, %q: expected %T, got %T %v", from, to, new(LinkError), err, err)
 	}
@@ -1493,7 +1457,11 @@ func runBinHostname(t *testing.T) string {
 	}
 	defer r.Close()
 	const path = "/bin/hostname"
-	p, err := StartProcess(path, []string{"hostname"}, &ProcAttr{Files: []*File{nil, w, Stderr}})
+	argv := []string{"hostname"}
+	if runtime.GOOS == "aix" {
+		argv = []string{"hostname", "-s"}
+	}
+	p, err := StartProcess(path, argv, &ProcAttr{Files: []*File{nil, w, Stderr}})
 	if err != nil {
 		if _, err := Stat(path); IsNotExist(err) {
 			t.Skipf("skipping test; test requires %s but it does not exist", path)
@@ -1698,7 +1666,6 @@ func writeFile(t *testing.T, fname string, flag int, text string) string {
 func TestAppend(t *testing.T) {
 	defer chtmpdir(t)()
 	const f = "append.txt"
-	defer Remove(f)
 	s := writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
 	if s != "new" {
 		t.Fatalf("writeFile: have %q want %q", s, "new")
@@ -1765,13 +1732,11 @@ func TestSameFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create(a): %v", err)
 	}
-	defer Remove(fa.Name())
 	fa.Close()
 	fb, err := Create("b")
 	if err != nil {
 		t.Fatalf("Create(b): %v", err)
 	}
-	defer Remove(fb.Name())
 	fb.Close()
 
 	ia1, err := Stat("a")

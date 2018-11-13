@@ -384,10 +384,12 @@ func (test *clientTest) run(t *testing.T, write bool) {
 		}
 		for i, b := range flows {
 			if i%2 == 1 {
+				serverConn.SetWriteDeadline(time.Now().Add(1 * time.Minute))
 				serverConn.Write(b)
 				continue
 			}
 			bb := make([]byte, len(b))
+			serverConn.SetReadDeadline(time.Now().Add(1 * time.Minute))
 			_, err := io.ReadFull(serverConn, bb)
 			if err != nil {
 				t.Fatalf("%s #%d: %s", test.name, i, err)
@@ -1644,7 +1646,7 @@ func TestCloseClientConnectionOnIdleServer(t *testing.T) {
 		serverConn.Read(b[:])
 		client.Close()
 	}()
-	client.SetWriteDeadline(time.Now().Add(time.Second))
+	client.SetWriteDeadline(time.Now().Add(time.Minute))
 	err := client.Handshake()
 	if err != nil {
 		if err, ok := err.(net.Error); ok && err.Timeout() {

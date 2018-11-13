@@ -2499,7 +2499,7 @@
 // In general, adding a new dependency may require upgrading
 // existing dependencies to keep a working build, and 'go get' does
 // this automatically. Similarly, downgrading one dependency may
-// require downgrading other dependenceis, and 'go get' does
+// require downgrading other dependencies, and 'go get' does
 // this automatically as well.
 //
 // The -m flag instructs get to stop here, after resolving, upgrading,
