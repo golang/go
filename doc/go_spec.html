@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of November 12, 2018",
+	"Subtitle": "Version of November 16, 2018",
 	"Path": "/ref/spec"
 }-->
 
@@ -1348,8 +1348,9 @@ ChannelType = ( "chan" | "chan" "&lt;-" | "&lt;-" "chan" ) ElementType .
 The optional <code>&lt;-</code> operator specifies the channel <i>direction</i>,
 <i>send</i> or <i>receive</i>. If no direction is given, the channel is
 <i>bidirectional</i>.
-A channel may be constrained only to send or only to receive by explicit
-<a href="#Conversions">conversion</a> or <a href="#Assignments">assignment</a>.
+A channel may be constrained only to send or only to receive by
+<a href="#Assignments">assignment</a> or
+explicit <a href="#Conversions">conversion</a>.
 </p>
 
 <pre>
@@ -3624,7 +3625,7 @@ For signed integers, the operations <code>+</code>,
 <code>-</code>, <code>*</code>, <code>/</code>, and <code>&lt;&lt;</code> may legally
 overflow and the resulting value exists and is deterministically defined
 by the signed integer representation, the operation, and its operands.
-Overflow does not cause a <a href="#Run_time_panics">run-time panic</a>. 
+Overflow does not cause a <a href="#Run_time_panics">run-time panic</a>.
 A compiler may not optimize code under the assumption that overflow does
 not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is always true.
 </p>
