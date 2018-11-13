@@ -808,7 +808,8 @@ func (t *test) run() {
 
 		}
 		if len(asms) > 0 {
-			if err := ioutil.WriteFile(filepath.Join(longdir, "go_asm.h"), nil, 0666); err != nil {
+			emptyHdrFile := filepath.Join(t.tempDir, "go_asm.h")
+			if err := ioutil.WriteFile(emptyHdrFile, nil, 0666); err != nil {
 				t.err = fmt.Errorf("write empty go_asm.h: %s", err)
 				return
 			}
