@@ -73,6 +73,10 @@ functions.
 For these internal escaping functions, if an action pipeline evaluates to
 a nil interface value, it is treated as though it were an empty string.
 
+HTML/CSS/JS comments make the injection context ambiguous, and so correct
+escaping can't be guaranteed. A possible workaround is using a template.HTML variable.
+For more information you can refer to this https://github.com/golang/go/issues/28628
+
 Errors
 
 See the documentation of ErrorCode for details.

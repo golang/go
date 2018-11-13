@@ -174,9 +174,7 @@ func (t *Template) DefinedTemplates() string {
 // Named template definitions ({{define ...}} or {{block ...}} statements) in text
 // define additional templates associated with t and are removed from the
 // definition of t itself. Comments in the html format i.e <!-- comment -->
-// are stripped while parsing, this is because they make the injection context
-// ambiguous, and so correct escaping can't be guaranteed. A possible workaround
-// is using a template.HTML variable.
+// are stripped while parsing.
 //
 // Templates can be redefined in successive calls to Parse,
 // before the first use of Execute on t or any associated template.
