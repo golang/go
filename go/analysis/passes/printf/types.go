@@ -108,9 +108,13 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type, 
 			// Check whether the rest can print pointers.
 			return t&argPointer != 0
 		}
-		// If it's a pointer to a struct, array, slice, or map, that's
-		// equivalent in our analysis to whether we can print the type
-		// being pointed to.
+		// If it's a top-level pointer to a struct, array, slice, or
+		// map, that's equivalent in our analysis to whether we can
+		// print the type being pointed to. Pointers in nested levels
+		// are not supported to minimize fmt running into loops.
+		if len(inProgress) > 1 {
+			return false
+		}
 		return matchArgTypeInternal(pass, t, under, arg, inProgress)
 
 	case *types.Struct:

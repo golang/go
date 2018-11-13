@@ -237,7 +237,7 @@ func PrintfTests() {
 	Printf("%T", someFunction) // ok: maybe someone wants to see the type
 	// Bug: used to recur forever.
 	Printf("%p %x", recursiveStructV, recursiveStructV.next)
-	Printf("%p %x", recursiveStruct1V, recursiveStruct1V.next)
+	Printf("%p %x", recursiveStruct1V, recursiveStruct1V.next) // want `Printf format %x has arg recursiveStruct1V\.next of wrong type \*a\.RecursiveStruct2`
 	Printf("%p %x", recursiveSliceV, recursiveSliceV)
 	Printf("%p %x", recursiveMapV, recursiveMapV)
 	// Special handling for Log.
@@ -678,6 +678,14 @@ func PointersToCompoundTypes() {
 
 	intMap := map[int]int{3: 4}
 	fmt.Printf("%s", &intMap) // want `Printf format %s has arg &intMap of wrong type \*map\[int\]int`
+
+	type T2 struct {
+		X string
+	}
+	type T1 struct {
+		X *T2
+	}
+	fmt.Printf("%s\n", T1{&T2{"x"}}) // want `Printf format %s has arg T1{&T2{.x.}} of wrong type a\.T1`
 }
 
 // Printf wrappers from external package
