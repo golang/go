@@ -532,6 +532,27 @@ func (c *common) Name() string {
 	return c.name
 }
 
+// Write implements io.Writer for test logging. It is suited for creating a
+// logger type.
+func (c *common) Write(data []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if !c.done {
+		println("non parent")
+		c.output = append(c.output, data...)
+		return len(data), nil
+	}
+
+	if c.parent != nil {
+		println("parent")
+		c.parent.output = append(c.parent.output, data...)
+		return len(data), nil
+	}
+
+	panic("Log in goroutine after " + c.name + " has completed")
+}
+
 func (c *common) setRan() {
 	if c.parent != nil {
 		c.parent.setRan()

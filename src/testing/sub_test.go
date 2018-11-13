@@ -416,23 +416,30 @@ func TestTRun(t *T) {
 		ok:   false,
 		output: `
 		--- FAIL: log in finished sub test logs to parent (N.NNs)
+    sub_test.go:NNN: message4
+    message3
     sub_test.go:NNN: message2
-    sub_test.go:NNN: message1
+    message1
     sub_test.go:NNN: error`,
 		maxPar: 1,
-		f: func(t *T) {
+		f: func(t1 *T) {
 			ch := make(chan bool)
-			t.Run("sub", func(t2 *T) {
+			t1.Run("sub", func(t2 *T) {
 				go func() {
 					<-ch
-					t2.Log("message1")
+					t2.Log("message2")
+					msg := "    message1\n"
+					assertWriteSuccess(t, len(msg))(t2.Write([]byte(msg)))
 					ch <- true
 				}()
 			})
-			t.Log("message2")
+			t1.Log("message4")
+			msg := "    message3\n"
+			assertWriteSuccess(t, len(msg))(t1.Write([]byte(msg)))
+
 			ch <- true
 			<-ch
-			t.Errorf("error")
+			t1.Errorf("error")
 		},
 	}}
 	for _, tc := range testCases {
@@ -464,6 +471,18 @@ func TestTRun(t *T) {
 		re := makeRegexp(want)
 		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
 			t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+		}
+	}
+}
+
+func assertWriteSuccess(t *T, expected int) func(int, error) {
+	return func(n int, err error) {
+		if err != nil {
+			t.Error(err)
+		}
+
+		if n != expected {
+			t.Errorf("expected %d to equal %d", n, expected)
 		}
 	}
 }
