@@ -3,8 +3,18 @@
 // license that can be found in the LICENSE file.
 
 (() => {
+	if (typeof global !== "undefined") {
+		// global already exists
+	} else if (typeof window !== "undefined") {
+		window.global = window;
+	} else if (typeof self !== "undefined") {
+		self.global = self;
+	} else {
+		throw new Error("cannot export Go (neither global, window nor self is defined)");
+	}
+
 	// Map web browser API and Node.js API to a single common API (preferring web standards over Node.js API).
-	const isNodeJS = typeof process !== "undefined";
+	const isNodeJS = global.process && global.process.title === "node";
 	if (isNodeJS) {
 		global.require = require;
 		global.fs = require("fs");
@@ -27,14 +37,6 @@
 		global.TextEncoder = util.TextEncoder;
 		global.TextDecoder = util.TextDecoder;
 	} else {
-		if (typeof window !== "undefined") {
-			window.global = window;
-		} else if (typeof self !== "undefined") {
-			self.global = self;
-		} else {
-			throw new Error("cannot export Go (neither window nor self is defined)");
-		}
-
 		let outputBuf = "";
 		global.fs = {
 			constants: { O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1 }, // unused

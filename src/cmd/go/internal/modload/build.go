@@ -145,34 +145,38 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 				}
 			}
 		}
-		if cfg.BuildMod == "vendor" {
-			m.Dir = filepath.Join(ModRoot, "vendor", m.Path)
-		}
 	}
 
-	complete(info)
-
-	if fromBuildList {
-		if r := Replacement(m); r.Path != "" {
-			info.Replace = &modinfo.ModulePublic{
-				Path:      r.Path,
-				Version:   r.Version,
-				GoVersion: info.GoVersion,
-			}
-			if r.Version == "" {
-				if filepath.IsAbs(r.Path) {
-					info.Replace.Dir = r.Path
-				} else {
-					info.Replace.Dir = filepath.Join(ModRoot, r.Path)
-				}
-			}
-			complete(info.Replace)
-			info.Dir = info.Replace.Dir
-			info.GoMod = filepath.Join(info.Dir, "go.mod")
-			info.Error = nil // ignore error loading original module version (it has been replaced)
-		}
+	if !fromBuildList {
+		complete(info)
+		return info
 	}
 
+	r := Replacement(m)
+	if r.Path == "" {
+		complete(info)
+		return info
+	}
+
+	// Don't hit the network to fill in extra data for replaced modules.
+	// The original resolved Version and Time don't matter enough to be
+	// worth the cost, and we're going to overwrite the GoMod and Dir from the
+	// replacement anyway. See https://golang.org/issue/27859.
+	info.Replace = &modinfo.ModulePublic{
+		Path:      r.Path,
+		Version:   r.Version,
+		GoVersion: info.GoVersion,
+	}
+	if r.Version == "" {
+		if filepath.IsAbs(r.Path) {
+			info.Replace.Dir = r.Path
+		} else {
+			info.Replace.Dir = filepath.Join(ModRoot, r.Path)
+		}
+	}
+	complete(info.Replace)
+	info.Dir = info.Replace.Dir
+	info.GoMod = filepath.Join(info.Dir, "go.mod")
 	return info
 }
 
@@ -223,6 +227,10 @@ func findModule(target, path string) module.Version {
 	// TODO: This should use loaded.
 	if path == "." {
 		return buildList[0]
+	}
+	if cfg.BuildMod == "vendor" {
+		readVendorList()
+		return vendorMap[path]
 	}
 	for _, mod := range buildList {
 		if maybeInModule(path, mod.Path) {

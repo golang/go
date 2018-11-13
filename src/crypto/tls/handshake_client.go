@@ -476,7 +476,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 
 	if chainToSend != nil && len(chainToSend.Certificate) > 0 {
 		certVerify := &certificateVerifyMsg{
-			hasSignatureAndHash: c.vers >= VersionTLS12,
+			hasSignatureAlgorithm: c.vers >= VersionTLS12,
 		}
 
 		key, ok := chainToSend.PrivateKey.(crypto.Signer)
@@ -491,7 +491,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			return err
 		}
 		// SignatureAndHashAlgorithm was introduced in TLS 1.2.
-		if certVerify.hasSignatureAndHash {
+		if certVerify.hasSignatureAlgorithm {
 			certVerify.signatureAlgorithm = signatureAlgorithm
 		}
 		digest, err := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
@@ -744,7 +744,7 @@ func (hs *clientHandshakeState) getCertificate(certReq *certificateRequestMsg) (
 	if c.config.GetClientCertificate != nil {
 		var signatureSchemes []SignatureScheme
 
-		if !certReq.hasSignatureAndHash {
+		if !certReq.hasSignatureAlgorithm {
 			// Prior to TLS 1.2, the signature schemes were not
 			// included in the certificate request message. In this
 			// case we use a plausible list based on the acceptable

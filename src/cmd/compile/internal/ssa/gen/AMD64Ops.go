@@ -107,16 +107,18 @@ func init() {
 
 	// Common regInfo
 	var (
-		gp01      = regInfo{inputs: nil, outputs: gponly}
-		gp11      = regInfo{inputs: []regMask{gp}, outputs: gponly}
-		gp11sp    = regInfo{inputs: []regMask{gpsp}, outputs: gponly}
-		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
-		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
-		gp21sp    = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}
-		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
-		gp21shift = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}}
-		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax, dx}}
-		gp21hmul  = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx}, clobbers: ax}
+		gp01           = regInfo{inputs: nil, outputs: gponly}
+		gp11           = regInfo{inputs: []regMask{gp}, outputs: gponly}
+		gp11sp         = regInfo{inputs: []regMask{gpsp}, outputs: gponly}
+		gp11sb         = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
+		gp21           = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
+		gp21sp         = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}
+		gp21sb         = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
+		gp21shift      = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}}
+		gp11div        = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax, dx}}
+		gp21hmul       = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx}, clobbers: ax}
+		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
+		gp2flags1flags = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp, 0}}
 
 		gp2flags     = regInfo{inputs: []regMask{gpsp, gpsp}}
 		gp1flags     = regInfo{inputs: []regMask{gpsp}}
@@ -124,7 +126,8 @@ func init() {
 		gp1flagsLoad = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
 		flagsgp      = regInfo{inputs: nil, outputs: gponly}
 
-		gp11flags = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, 0}}
+		gp11flags      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, 0}}
+		gp1flags1flags = regInfo{inputs: []regMask{gp, 0}, outputs: []regMask{gp, 0}}
 
 		readflags = regInfo{inputs: nil, outputs: gponly}
 		flagsgpax = regInfo{inputs: nil, clobbers: ax, outputs: []regMask{gp &^ ax}}
@@ -228,6 +231,21 @@ func init() {
 		{name: "DIVQU", argLength: 2, reg: gp11div, typ: "(UInt64,UInt64)", asm: "DIVQ", clobberFlags: true}, // [arg0 / arg1, arg0 % arg1]
 		{name: "DIVLU", argLength: 2, reg: gp11div, typ: "(UInt32,UInt32)", asm: "DIVL", clobberFlags: true}, // [arg0 / arg1, arg0 % arg1]
 		{name: "DIVWU", argLength: 2, reg: gp11div, typ: "(UInt16,UInt16)", asm: "DIVW", clobberFlags: true}, // [arg0 / arg1, arg0 % arg1]
+
+		{name: "NEGLflags", argLength: 1, reg: gp11flags, typ: "(UInt32,Flags)", asm: "NEGL", resultInArg0: true}, // -arg0, flags set for 0-arg0.
+		// The following 4 add opcodes return the low 64 bits of the sum in the first result and
+		// the carry (the 65th bit) in the carry flag.
+		{name: "ADDQcarry", argLength: 2, reg: gp21flags, typ: "(UInt64,Flags)", asm: "ADDQ", commutative: true, resultInArg0: true}, // r = arg0+arg1
+		{name: "ADCQ", argLength: 3, reg: gp2flags1flags, typ: "(UInt64,Flags)", asm: "ADCQ", commutative: true, resultInArg0: true}, // r = arg0+arg1+carry(arg2)
+		{name: "ADDQconstcarry", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "ADDQ", aux: "Int32", resultInArg0: true}, // r = arg0+auxint
+		{name: "ADCQconst", argLength: 2, reg: gp1flags1flags, typ: "(UInt64,Flags)", asm: "ADCQ", aux: "Int32", resultInArg0: true}, // r = arg0+auxint+carry(arg1)
+
+		// The following 4 add opcodes return the low 64 bits of the difference in the first result and
+		// the borrow (if the result is negative) in the carry flag.
+		{name: "SUBQborrow", argLength: 2, reg: gp21flags, typ: "(UInt64,Flags)", asm: "SUBQ", resultInArg0: true},                    // r = arg0-arg1
+		{name: "SBBQ", argLength: 3, reg: gp2flags1flags, typ: "(UInt64,Flags)", asm: "SBBQ", resultInArg0: true},                     // r = arg0-(arg1+carry(arg2))
+		{name: "SUBQconstborrow", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "SUBQ", aux: "Int32", resultInArg0: true}, // r = arg0-auxint
+		{name: "SBBQconst", argLength: 2, reg: gp1flags1flags, typ: "(UInt64,Flags)", asm: "SBBQ", aux: "Int32", resultInArg0: true},  // r = arg0-(auxint+carry(arg1))
 
 		{name: "MULQU2", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx, ax}}, commutative: true, asm: "MULQ", clobberFlags: true}, // arg0 * arg1, returns (hi, lo)
 		{name: "DIVQU2", argLength: 3, reg: regInfo{inputs: []regMask{dx, ax, gpsp}, outputs: []regMask{ax, dx}}, asm: "DIVQ", clobberFlags: true},                // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)

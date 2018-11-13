@@ -36,8 +36,8 @@ func TestExecutable(t *testing.T) {
 	// forge argv[0] for child, so that we can verify we could correctly
 	// get real path of the executable without influenced by argv[0].
 	cmd.Args = []string{"-", "-test.run=XXXX"}
-	if runtime.GOOS == "openbsd" {
-		// OpenBSD relies on argv[0]
+	if runtime.GOOS == "openbsd" || runtime.GOOS == "aix" {
+		// OpenBSD and AIX rely on argv[0]
 		cmd.Args[0] = fn
 	}
 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=1", executable_EnvVar))

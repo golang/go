@@ -166,6 +166,7 @@ var pkgDeps = map[string][]string{
 		// Other time dependencies:
 		"internal/syscall/windows/registry",
 		"syscall",
+		"syscall/js",
 	},
 
 	"internal/poll":    {"L0", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
@@ -395,7 +396,7 @@ var pkgDeps = map[string][]string{
 
 	// SSL/TLS.
 	"crypto/tls": {
-		"L4", "CRYPTO-MATH", "OS",
+		"L4", "CRYPTO-MATH", "OS", "golang_org/x/crypto/cryptobyte",
 		"container/list", "crypto/x509", "encoding/pem", "net", "syscall",
 	},
 	"crypto/x509": {

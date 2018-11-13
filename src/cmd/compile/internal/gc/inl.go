@@ -1072,7 +1072,7 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
 
 	body := subst.list(asNodes(fn.Func.Inl.Body))
 
-	lab := nod(OLABEL, retlabel, nil)
+	lab := nodSym(OLABEL, nil, retlabel)
 	body = append(body, lab)
 
 	typecheckslice(body, Etop)
@@ -1158,7 +1158,7 @@ func argvar(t *types.Type, i int) *Node {
 // function call.
 type inlsubst struct {
 	// Target of the goto substituted in place of a return.
-	retlabel *Node
+	retlabel *types.Sym
 
 	// Temporary result variables.
 	retvars []*Node
@@ -1218,7 +1218,7 @@ func (subst *inlsubst) node(n *Node) *Node {
 
 	//		dump("Return before substitution", n);
 	case ORETURN:
-		m := nod(OGOTO, subst.retlabel, nil)
+		m := nodSym(OGOTO, nil, subst.retlabel)
 		m.Ninit.Set(subst.list(n.Ninit))
 
 		if len(subst.retvars) != 0 && n.List.Len() != 0 {
@@ -1245,8 +1245,8 @@ func (subst *inlsubst) node(n *Node) *Node {
 		m := n.copy()
 		m.Pos = subst.updatedPos(m.Pos)
 		m.Ninit.Set(nil)
-		p := fmt.Sprintf("%s·%d", n.Left.Sym.Name, inlgen)
-		m.Left = newname(lookup(p))
+		p := fmt.Sprintf("%s·%d", n.Sym.Name, inlgen)
+		m.Sym = lookup(p)
 
 		return m
 	}

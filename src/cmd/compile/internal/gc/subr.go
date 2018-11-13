@@ -28,9 +28,17 @@ type Error struct {
 
 var errors []Error
 
+// largeStack is info about a function whose stack frame is too large (rare).
+type largeStack struct {
+	locals int64
+	args   int64
+	callee int64
+	pos    src.XPos
+}
+
 var (
 	largeStackFramesMu sync.Mutex // protects largeStackFrames
-	largeStackFrames   []src.XPos // positions of functions whose stack frames are too large (rare)
+	largeStackFrames   []largeStack
 )
 
 func errorexit() {
@@ -234,7 +242,7 @@ func lookupN(prefix string, n int) *types.Sym {
 // to help with debugging.
 // It should begin with "." to avoid conflicts with
 // user labels.
-func autolabel(prefix string) *Node {
+func autolabel(prefix string) *types.Sym {
 	if prefix[0] != '.' {
 		Fatalf("autolabel prefix must start with '.', have %q", prefix)
 	}
@@ -244,7 +252,7 @@ func autolabel(prefix string) *Node {
 	}
 	n := fn.Func.Label
 	fn.Func.Label++
-	return newname(lookupN(prefix, int(n)))
+	return lookupN(prefix, int(n))
 }
 
 func restrictlookup(name string, pkg *types.Pkg) *types.Sym {
@@ -952,36 +960,6 @@ func typehash(t *types.Type) uint32 {
 	// Using MD5 is overkill, but reduces accidental collisions.
 	h := md5.Sum([]byte(p))
 	return binary.LittleEndian.Uint32(h[:4])
-}
-
-func frame(context int) {
-	if context != 0 {
-		fmt.Printf("--- external frame ---\n")
-		for _, n := range externdcl {
-			printframenode(n)
-		}
-		return
-	}
-
-	if Curfn != nil {
-		fmt.Printf("--- %v frame ---\n", Curfn.Func.Nname.Sym)
-		for _, ln := range Curfn.Func.Dcl {
-			printframenode(ln)
-		}
-	}
-}
-
-func printframenode(n *Node) {
-	w := int64(-1)
-	if n.Type != nil {
-		w = n.Type.Width
-	}
-	switch n.Op {
-	case ONAME:
-		fmt.Printf("%v %v G%d %v width=%d\n", n.Op, n.Sym, n.Name.Vargen, n.Type, w)
-	case OTYPE:
-		fmt.Printf("%v %v width=%d\n", n.Op, n.Type, w)
-	}
 }
 
 // updateHasCall checks whether expression n contains any function

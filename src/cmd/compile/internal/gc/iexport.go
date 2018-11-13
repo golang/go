@@ -1102,7 +1102,7 @@ func (w *exportWriter) stmt(n *Node) {
 	case OGOTO, OLABEL:
 		w.op(op)
 		w.pos(n.Pos)
-		w.expr(n.Left)
+		w.string(n.Sym.Name)
 
 	default:
 		Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op)

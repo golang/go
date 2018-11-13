@@ -28,6 +28,7 @@ func TestBoringServerProtocolVersion(t *testing.T) {
 			serverConfig.MinVersion = VersionSSL30
 			clientHello := &clientHelloMsg{
 				vers:               v,
+				random:             make([]byte, 32),
 				cipherSuites:       allCipherSuites(),
 				compressionMethods: []uint8{compressionNone},
 			}
@@ -110,6 +111,7 @@ func TestBoringServerCipherSuites(t *testing.T) {
 		t.Run(fmt.Sprintf("suite=%#x", id), func(t *testing.T) {
 			clientHello := &clientHelloMsg{
 				vers:               VersionTLS12,
+				random:             make([]byte, 32),
 				cipherSuites:       []uint16{id},
 				compressionMethods: []uint8{compressionNone},
 				supportedCurves:    defaultCurvePreferences,
@@ -141,6 +143,7 @@ func TestBoringServerCurves(t *testing.T) {
 		t.Run(fmt.Sprintf("curve=%d", curveid), func(t *testing.T) {
 			clientHello := &clientHelloMsg{
 				vers:               VersionTLS12,
+				random:             make([]byte, 32),
 				cipherSuites:       []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
 				compressionMethods: []uint8{compressionNone},
 				supportedCurves:    []CurveID{curveid},

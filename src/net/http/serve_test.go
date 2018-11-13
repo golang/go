@@ -1556,6 +1556,32 @@ func TestServeTLS(t *testing.T) {
 	}
 }
 
+// Test that the HTTPS server nicely rejects plaintext HTTP/1.x requests.
+func TestTLSServerRejectHTTPRequests(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		t.Error("unexpected HTTPS request")
+	}))
+	var errBuf bytes.Buffer
+	ts.Config.ErrorLog = log.New(&errBuf, "", 0)
+	defer ts.Close()
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	io.WriteString(conn, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n")
+	slurp, err := ioutil.ReadAll(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const wantPrefix = "HTTP/1.0 400 Bad Request\r\n"
+	if !strings.HasPrefix(string(slurp), wantPrefix) {
+		t.Errorf("response = %q; wanted prefix %q", slurp, wantPrefix)
+	}
+}
+
 // Issue 15908
 func TestAutomaticHTTP2_Serve_NoTLSConfig(t *testing.T) {
 	testAutomaticHTTP2_Serve(t, nil, true)

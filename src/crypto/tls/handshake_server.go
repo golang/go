@@ -418,7 +418,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 			byte(certTypeECDSASign),
 		}
 		if c.vers >= VersionTLS12 {
-			certReq.hasSignatureAndHash = true
+			certReq.hasSignatureAlgorithm = true
 			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 		}
 

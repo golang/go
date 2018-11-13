@@ -87,13 +87,13 @@ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string,
 	return r.goLookupHostOrder(ctx, host, order)
 }
 
-func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
 	if r.preferGo() {
 		return r.goLookupIP(ctx, host)
 	}
 	order := systemConf().hostLookupOrder(r, host)
 	if order == hostLookupCgo {
-		if addrs, err, ok := cgoLookupIP(ctx, host); ok {
+		if addrs, err, ok := cgoLookupIP(ctx, network, host); ok {
 			return addrs, err
 		}
 		// cgo not available (or netgo); fall back to Go's DNS resolver

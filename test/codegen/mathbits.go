@@ -327,6 +327,126 @@ func IterateBits8(n uint8) int {
 }
 
 // --------------- //
+//    bits.Add*    //
+// --------------- //
+
+func Add(x, y, ci uint) (r, co uint) {
+	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+	return bits.Add(x, y, ci)
+}
+
+func AddC(x, ci uint) (r, co uint) {
+	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+	return bits.Add(x, 7, ci)
+}
+
+func AddZ(x, y uint) (r, co uint) {
+	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
+	return bits.Add(x, y, 0)
+}
+
+func AddR(x, y, ci uint) uint {
+	// amd64:"NEGL","ADCQ",-"SBBQ",-"NEGQ"
+	r, _ := bits.Add(x, y, ci)
+	return r
+}
+func AddM(p, q, r *[3]uint) {
+	var c uint
+	r[0], c = bits.Add(p[0], q[0], c)
+	// amd64:"ADCQ",-"NEGL",-"SBBQ",-"NEGQ"
+	r[1], c = bits.Add(p[1], q[1], c)
+	r[2], c = bits.Add(p[2], q[2], c)
+}
+
+func Add64(x, y, ci uint64) (r, co uint64) {
+	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+	return bits.Add64(x, y, ci)
+}
+
+func Add64C(x, ci uint64) (r, co uint64) {
+	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+	return bits.Add64(x, 7, ci)
+}
+
+func Add64Z(x, y uint64) (r, co uint64) {
+	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
+	return bits.Add64(x, y, 0)
+}
+
+func Add64R(x, y, ci uint64) uint64 {
+	// amd64:"NEGL","ADCQ",-"SBBQ",-"NEGQ"
+	r, _ := bits.Add64(x, y, ci)
+	return r
+}
+func Add64M(p, q, r *[3]uint64) {
+	var c uint64
+	r[0], c = bits.Add64(p[0], q[0], c)
+	// amd64:"ADCQ",-"NEGL",-"SBBQ",-"NEGQ"
+	r[1], c = bits.Add64(p[1], q[1], c)
+	r[2], c = bits.Add64(p[2], q[2], c)
+}
+
+// --------------- //
+//    bits.Sub*    //
+// --------------- //
+
+func Sub(x, y, ci uint) (r, co uint) {
+	// amd64:"NEGL","SBBQ","NEGQ"
+	return bits.Sub(x, y, ci)
+}
+
+func SubC(x, ci uint) (r, co uint) {
+	// amd64:"NEGL","SBBQ","NEGQ"
+	return bits.Sub(x, 7, ci)
+}
+
+func SubZ(x, y uint) (r, co uint) {
+	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
+	return bits.Sub(x, y, 0)
+}
+
+func SubR(x, y, ci uint) uint {
+	// amd64:"NEGL","SBBQ",-"NEGQ"
+	r, _ := bits.Sub(x, y, ci)
+	return r
+}
+func SubM(p, q, r *[3]uint) {
+	var c uint
+	r[0], c = bits.Sub(p[0], q[0], c)
+	// amd64:"SBBQ",-"NEGL",-"NEGQ"
+	r[1], c = bits.Sub(p[1], q[1], c)
+	r[2], c = bits.Sub(p[2], q[2], c)
+}
+
+func Sub64(x, y, ci uint64) (r, co uint64) {
+	// amd64:"NEGL","SBBQ","NEGQ"
+	return bits.Sub64(x, y, ci)
+}
+
+func Sub64C(x, ci uint64) (r, co uint64) {
+	// amd64:"NEGL","SBBQ","NEGQ"
+	return bits.Sub64(x, 7, ci)
+}
+
+func Sub64Z(x, y uint64) (r, co uint64) {
+	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
+	return bits.Sub64(x, y, 0)
+}
+
+func Sub64R(x, y, ci uint64) uint64 {
+	// amd64:"NEGL","SBBQ",-"NEGQ"
+	r, _ := bits.Sub64(x, y, ci)
+	return r
+}
+func Sub64M(p, q, r *[3]uint64) {
+	var c uint64
+	r[0], c = bits.Sub64(p[0], q[0], c)
+	// amd64:"SBBQ",-"NEGL",-"NEGQ"
+	r[1], c = bits.Sub64(p[1], q[1], c)
+	r[2], c = bits.Sub64(p[2], q[2], c)
+}
+
+// --------------- //
 //    bits.Mul*    //
 // --------------- //
 

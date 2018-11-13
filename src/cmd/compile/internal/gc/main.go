@@ -205,7 +205,6 @@ func Main(archInit func(*Arch)) {
 	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", true, "add location lists to DWARF in optimized mode")
 	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
-	objabi.Flagcount("f", "debug stack frames", &Debug['f'])
 	objabi.Flagcount("h", "halt on error", &Debug['h'])
 	objabi.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
 	objabi.Flagfn1("importcfg", "read import configuration from `file`", readImportCfg)
@@ -478,9 +477,6 @@ func Main(archInit func(*Arch)) {
 	finishUniverse()
 
 	typecheckok = true
-	if Debug['f'] != 0 {
-		frame(1)
-	}
 
 	// Process top-level declarations in phases.
 
@@ -693,10 +689,14 @@ func Main(archInit func(*Arch)) {
 
 	// Check whether any of the functions we have compiled have gigantic stack frames.
 	obj.SortSlice(largeStackFrames, func(i, j int) bool {
-		return largeStackFrames[i].Before(largeStackFrames[j])
+		return largeStackFrames[i].pos.Before(largeStackFrames[j].pos)
 	})
-	for _, largePos := range largeStackFrames {
-		yyerrorl(largePos, "stack frame too large (>1GB)")
+	for _, large := range largeStackFrames {
+		if large.callee != 0 {
+			yyerrorl(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
+		} else {
+			yyerrorl(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
+		}
 	}
 
 	if len(compilequeue) != 0 {

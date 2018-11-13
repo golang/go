@@ -29,6 +29,28 @@
 (Div8u x y) -> (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
 (Div(32|64)F x y) -> (DIVS(S|D) x y)
 
+(Select0 (Add64carry x y c)) ->
+	(Select0 <typ.UInt64> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
+(Select1 (Add64carry x y c)) ->
+	(NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
+(Select0 (Sub64borrow x y c)) ->
+	(Select0 <typ.UInt64> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
+(Select1 (Sub64borrow x y c)) ->
+	(NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
+
+// Optimize ADCQ and friends
+(ADCQ x (MOVQconst [c]) carry) && is32Bit(c) -> (ADCQconst x [c] carry)
+(ADCQ x y (FlagEQ)) -> (ADDQcarry x y)
+(ADCQconst x [c] (FlagEQ)) -> (ADDQconstcarry x [c])
+(ADDQcarry x (MOVQconst [c])) && is32Bit(c) -> (ADDQconstcarry x [c])
+(SBBQ x (MOVQconst [c]) borrow) && is32Bit(c) -> (SBBQconst x [c] borrow)
+(SBBQ x y (FlagEQ)) -> (SUBQborrow x y)
+(SBBQconst x [c] (FlagEQ)) -> (SUBQconstborrow x [c])
+(SUBQborrow x (MOVQconst [c])) && is32Bit(c) -> (SUBQconstborrow x [c])
+(Select1 (NEGLflags (MOVQconst [0]))) -> (FlagEQ)
+(Select1 (NEGLflags (NEGQ (SBBQcarrymask x)))) -> x
+
+
 (Mul64uhilo x y) -> (MULQU2 x y)
 (Div128u xhi xlo y) -> (DIVQU2 xhi xlo y)
 
@@ -2340,10 +2362,10 @@
 
 // Merge load and op
 // TODO: add indexed variants?
-((ADD|SUB|AND|OR|XOR)Q x l:(MOVQload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Qload x [off] {sym} ptr mem)
-((ADD|SUB|AND|OR|XOR)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Lload x [off] {sym} ptr mem)
-((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
-((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
+((ADD|SUB|AND|OR|XOR)Q x l:(MOVQload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Qload x [off] {sym} ptr mem)
+((ADD|SUB|AND|OR|XOR)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) -> ((ADD|SUB|AND|OR|XOR)Lload x [off] {sym} ptr mem)
+((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) -> ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
+((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) -> ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
 (MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lload x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) -> ((ADD|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
 (MOVLstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)L l:(MOVLload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) ->
 	((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Lmodify [off] {sym} ptr x mem)
@@ -2492,8 +2514,8 @@
 
 // Fold loads into compares
 // Note: these may be undone by the flagalloc pass.
-(CMP(Q|L|W|B) l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l, x) && clobber(l) -> (CMP(Q|L|W|B)load {sym} [off] ptr x mem)
-(CMP(Q|L|W|B) x l:(MOV(Q|L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> (InvertFlags (CMP(Q|L|W|B)load {sym} [off] ptr x mem))
+(CMP(Q|L|W|B) l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l) && clobber(l) -> (CMP(Q|L|W|B)load {sym} [off] ptr x mem)
+(CMP(Q|L|W|B) x l:(MOV(Q|L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) -> (InvertFlags (CMP(Q|L|W|B)load {sym} [off] ptr x mem))
 
 (CMP(Q|L|W|B)const l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) [c])
 	&& l.Uses == 1

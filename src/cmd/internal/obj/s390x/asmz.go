@@ -1379,6 +1379,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSBCBIQ, r)
 			opset(AVSBIQ, r)
 			opset(AVMSLG, r)
+			opset(AVMSLEG, r)
+			opset(AVMSLOG, r)
+			opset(AVMSLEOG, r)
 		case AVSEL:
 			opset(AVFMADB, r)
 			opset(AWFMADB, r)

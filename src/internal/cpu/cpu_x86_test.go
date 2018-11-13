@@ -13,16 +13,6 @@ import (
 	"testing"
 )
 
-func TestAMD64minimalFeatures(t *testing.T) {
-	if runtime.GOARCH != "amd64" {
-		return
-	}
-
-	if !X86.HasSSE2 {
-		t.Fatalf("HasSSE2 expected true, got false")
-	}
-}
-
 func TestX86ifAVX2hasAVX(t *testing.T) {
 	if X86.HasAVX2 && !X86.HasAVX {
 		t.Fatalf("HasAVX expected true when HasAVX2 is true, got false")

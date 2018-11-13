@@ -184,15 +184,15 @@ func ReadDirent(fd int, buf []byte) (n int, err error) {
 	return getdirent(fd, buf)
 }
 
-//sys  wait4(pid Pid_t, status *_C_int, options int, rusage *Rusage) (wpid Pid_t, err error)
+//sys  wait4(pid _Pid_t, status *_C_int, options int, rusage *Rusage) (wpid _Pid_t, err error)
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error) {
 	var status _C_int
-	var r Pid_t
+	var r _Pid_t
 	err = ERESTART
 	// AIX wait4 may return with ERESTART errno, while the processus is still
 	// active.
 	for err == ERESTART {
-		r, err = wait4(Pid_t(pid), &status, options, rusage)
+		r, err = wait4(_Pid_t(pid), &status, options, rusage)
 	}
 	wpid = int(r)
 	if wstatus != nil {

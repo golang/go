@@ -845,7 +845,7 @@ func (s *state) stmt(n *Node) {
 		}
 
 	case OLABEL:
-		sym := n.Left.Sym
+		sym := n.Sym
 		lab := s.label(sym)
 
 		// Associate label with its control flow node, if any
@@ -867,7 +867,7 @@ func (s *state) stmt(n *Node) {
 		s.startBlock(lab.target)
 
 	case OGOTO:
-		sym := n.Left.Sym
+		sym := n.Sym
 
 		lab := s.label(sym)
 		if lab.target == nil {
@@ -1033,7 +1033,7 @@ func (s *state) stmt(n *Node) {
 
 	case OCONTINUE, OBREAK:
 		var to *ssa.Block
-		if n.Left == nil {
+		if n.Sym == nil {
 			// plain break/continue
 			switch n.Op {
 			case OCONTINUE:
@@ -1043,7 +1043,7 @@ func (s *state) stmt(n *Node) {
 			}
 		} else {
 			// labeled break/continue; look up the target
-			sym := n.Left.Sym
+			sym := n.Sym
 			lab := s.label(sym)
 			switch n.Op {
 			case OCONTINUE:
@@ -3474,12 +3474,26 @@ func init() {
 	addF("math/bits", "OnesCount",
 		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount32),
 		sys.AMD64)
-	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64)
 	addF("math/bits", "Mul64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1])
 		},
 		sys.AMD64, sys.ARM64, sys.PPC64)
+	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64)
+
+	addF("math/bits", "Add64",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+		},
+		sys.AMD64)
+	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64)
+
+	addF("math/bits", "Sub64",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+		},
+		sys.AMD64)
+	alias("math/bits", "Sub", "math/bits", "Sub64", sys.ArchAMD64)
 
 	/******** sync/atomic ********/
 
@@ -5225,9 +5239,6 @@ func genssa(f *ssa.Func, pp *Progs) {
 	}
 
 	defframe(&s, e)
-	if Debug['f'] != 0 {
-		frame(0)
-	}
 
 	f.HTMLWriter.Close()
 	f.HTMLWriter = nil
