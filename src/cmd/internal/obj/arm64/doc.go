@@ -35,7 +35,7 @@ ldrsh, sturh, strh =>  MOVH.
 
 4. Go moves conditions into opcode suffix, like BLT.
 
-5. Go adds a V prefix for most floating-point and SIMD instrutions except cryptographic extension
+5. Go adds a V prefix for most floating-point and SIMD instructions, except cryptographic extension
 instructions and floating-point(scalar) instructions.
 
   Examples:
@@ -156,7 +156,7 @@ FCSELD, FCSELS <cond>, <Fn>, <Fm>, <Fd>
 
 #<immediate> is written as $<immediate>.
 
-Optionally-shifted immedate.
+Optionally-shifted immediate.
 
   Examples:
     ADD $(3151<<12), R14, R20     <=>    add x20, x14, #0xc4f, lsl #12
