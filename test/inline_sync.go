@@ -38,3 +38,16 @@ func small7() { // ERROR "can inline small7"
         // the Do fast path should be inlined
         once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do" "&sync\.o\.done escapes to heap"
 }
+
+var rwmutex *sync.RWMutex
+
+func small8() { // ERROR "can inline small8"
+        // the RUnlock fast path should be inlined
+        rwmutex.RUnlock() // ERROR "inlining call to sync\.\(\*RWMutex\)\.RUnlock" "&sync\.rw\.readerCount escapes to heap"
+}
+
+func small9() { // ERROR "can inline small9"
+        // the RLock fast path should be inlined
+        rwmutex.RLock() // ERROR "inlining call to sync\.\(\*RWMutex\)\.RLock" "&sync\.rw\.readerCount escapes to heap" "&sync\.rw\.readerSem escapes to heap"
+}
+
