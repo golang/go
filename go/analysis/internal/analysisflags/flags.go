@@ -234,6 +234,13 @@ func (ts triState) IsBoolFlag() bool {
 // vetLegacyFlags maps flags used by legacy vet to their corresponding
 // new names. The old names will continue to work.
 var vetLegacyFlags = map[string]string{
+	// Analyzer name changes
+	"bool":       "bools",
+	"buildtags":  "buildtag",
+	"methods":    "stdmethods",
+	"rangeloops": "loopclosure",
+
+	// Analyzer flags
 	"compositewhitelist":  "composites.whitelist",
 	"printfuncs":          "printf.funcs",
 	"shadowstrict":        "shadow.strict",
