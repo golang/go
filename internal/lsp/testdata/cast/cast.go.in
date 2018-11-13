@@ -1,0 +1,11 @@
+package cast
+
+func _() {
+	foo := struct{x int}{x: 1} //@item(x_field, "x", "int", "field")
+	_ = float64(foo.x) //@complete("x", x_field)
+}
+
+func _() {
+	foo := struct{x int}{x: 1}
+	_ = float64(foo. //@complete(" /", x_field)
+}

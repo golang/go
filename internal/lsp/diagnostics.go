@@ -5,6 +5,8 @@
 package lsp
 
 import (
+	"sort"
+
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 )
@@ -35,4 +37,16 @@ func toProtocolSeverity(severity source.DiagnosticSeverity) protocol.DiagnosticS
 		return protocol.SeverityInformation
 	}
 	return protocol.SeverityError // default
+}
+
+func sorted(d []protocol.Diagnostic) {
+	sort.Slice(d, func(i int, j int) bool {
+		if d[i].Range.Start.Line == d[j].Range.Start.Line {
+			if d[i].Range.Start.Character == d[j].Range.End.Character {
+				return d[i].Message < d[j].Message
+			}
+			return d[i].Range.Start.Character < d[j].Range.End.Character
+		}
+		return d[i].Range.Start.Line < d[j].Range.Start.Line
+	})
 }

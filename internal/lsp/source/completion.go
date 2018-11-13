@@ -15,7 +15,7 @@ import (
 type CompletionItem struct {
 	Label, Detail string
 	Kind          CompletionItemKind
-	Score         int
+	Score         float64
 }
 
 type CompletionItemKind int
@@ -46,6 +46,8 @@ func Completion(ctx context.Context, f *File, pos token.Pos) ([]CompletionItem, 
 	items, _, err := completions(file, pos, pkg.Fset, pkg.Types, pkg.TypesInfo)
 	return items, err
 }
+
+const stdScore float64 = 1.0
 
 type finder func(types.Object, float64, []CompletionItem) []CompletionItem
 
@@ -89,7 +91,7 @@ func completions(file *ast.File, pos token.Pos, fset *token.FileSet, pkg *types.
 		if !seen[obj] {
 			seen[obj] = true
 			if typ != nil && matchingTypes(typ, obj.Type()) {
-				weight *= 10
+				weight *= 10.0
 			}
 			if !strings.HasPrefix(obj.Name(), prefix) {
 				return items
@@ -160,7 +162,7 @@ func selector(sel *ast.SelectorExpr, info *types.Info, found finder) (items []Co
 			scope := pkgname.Imported().Scope()
 			// TODO testcase: bad import
 			for _, name := range scope.Names() {
-				items = found(scope.Lookup(name), 1, items)
+				items = found(scope.Lookup(name), stdScore, items)
 			}
 			return items, prefix, nil
 		}
@@ -175,20 +177,20 @@ func selector(sel *ast.SelectorExpr, info *types.Info, found finder) (items []Co
 	// methods of T
 	mset := types.NewMethodSet(tv.Type)
 	for i := 0; i < mset.Len(); i++ {
-		items = found(mset.At(i).Obj(), 1, items)
+		items = found(mset.At(i).Obj(), stdScore, items)
 	}
 
 	// methods of *T
 	if tv.Addressable() && !types.IsInterface(tv.Type) && !isPointer(tv.Type) {
 		mset := types.NewMethodSet(types.NewPointer(tv.Type))
 		for i := 0; i < mset.Len(); i++ {
-			items = found(mset.At(i).Obj(), 1, items)
+			items = found(mset.At(i).Obj(), stdScore, items)
 		}
 	}
 
 	// fields of T
 	for _, f := range fieldSelections(tv.Type) {
-		items = found(f, 1, items)
+		items = found(f, stdScore, items)
 	}
 
 	return items, prefix, nil
@@ -236,7 +238,7 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 				}
 			}
 
-			score := 1.0
+			score := stdScore
 			// Rank builtins significantly lower than other results.
 			if scope == types.Universe {
 				score *= 0.1
@@ -342,7 +344,7 @@ func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 					structPkg = field.Pkg()
 				}
 				if !addedFields[field] {
-					items = found(field, 10, items)
+					items = found(field, 10.0, items)
 				}
 			}
 			// Add lexical completions if the user hasn't typed a key value expression
@@ -418,6 +420,7 @@ func formatCompletion(obj types.Object, qualifier types.Qualifier, score float64
 		Label:  label,
 		Detail: detail,
 		Kind:   kind,
+		Score:  score,
 	}
 }
 

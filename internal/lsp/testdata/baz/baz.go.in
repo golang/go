@@ -1,0 +1,31 @@
+// +build go1.11
+
+package baz
+
+import (
+	"golang.org/x/tools/internal/lsp/bar"
+
+	f "golang.org/x/tools/internal/lsp/foo"
+)
+
+func Baz() {
+	defer bar.Bar() //@complete("B", Bar)
+	// TODO(rstambler): Test completion here.
+	defer bar.B
+	var _ f.IntFoo  //@complete("n", IntFoo)
+	bar.Bar()       //@complete("B", Bar)
+}
+
+func _() {
+	bob := f.StructFoo{Value: 5}
+	if x := bob.           //@complete(re"$", Value)
+	switch true == false {
+		case true:
+			if x := bob.   //@complete(re"$", Value)
+		case false:
+	}
+	if x := bob.Va         //@complete("a", Value)
+	switch true == true {
+		default:
+	}
+}

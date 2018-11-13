@@ -1,0 +1,66 @@
+// +build go1.11
+
+package selector
+
+import (
+	"golang.org/x/tools/internal/lsp/bar"
+)
+
+type S struct {
+	B, A, C int //@item(Bf, "B", "int", "field"),item(Af, "A", "int", "field"),item(Cf, "C", "int", "field")
+}
+
+func _() {
+	_ = S{}.; //@complete(";", Bf, Af, Cf)
+}
+
+type bob struct { a int } //@item(a, "a", "int", "field")
+type george struct { b int }
+type jack struct { c int } //@item(c, "c", "int", "field")
+type jill struct { d int }
+
+func (b *bob) george() *george {} //@item(george, "george()", "*george", "method")
+func (g *george) jack() *jack {}
+func (j *jack) jill() *jill {} //@item(jill, "jill()", "*jill", "method")
+
+func _() {
+	b := &bob{}
+	y := b.george().
+		jack();
+	y.; //@complete(";", jill, c)
+}
+
+func _() {
+	bar. //@complete(" /", Bar)
+	x := 5
+
+	var b *bob
+	b. //@complete(" /", george, a)
+	y, z := 5, 6
+
+	b. //@complete(" /", george, a)
+	y, z, a, b, c := 5, 6
+}
+
+func _() {
+	bar. //@complete(" /", Bar)
+	bar.Bar()
+
+	bar. //@complete(" /", Bar)
+	go f()
+}
+
+func _() {
+	var b *bob
+	if y != b. //@complete(" /", george, a)
+	z := 5
+
+	if z + y + 1 + b. //@complete(" /", george, a)
+	r, s, t := 4, 5
+
+	if y != b. //@complete(" /", george, a)
+	z = 5
+
+	if z + y + 1 + b. //@complete(" /", george, a)
+	r = 4
+}
