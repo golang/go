@@ -117,8 +117,8 @@ var runtimeDecls = [...]struct {
 	{"selectsetpc", funcTag, 56},
 	{"selectgo", funcTag, 93},
 	{"block", funcTag, 5},
-	{"makeslice", funcTag, 95},
-	{"makeslice64", funcTag, 96},
+	{"makeslice", funcTag, 94},
+	{"makeslice64", funcTag, 95},
 	{"growslice", funcTag, 97},
 	{"memmove", funcTag, 98},
 	{"memclrNoHeapPointers", funcTag, 99},
@@ -249,10 +249,10 @@ func runtimeTypes() []*types.Type {
 	typs[91] = types.NewPtr(typs[11])
 	typs[92] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[91]), anonfield(typs[79])}, []*Node{anonfield(typs[11])})
 	typs[93] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[1]), anonfield(typs[32])}, []*Node{anonfield(typs[32]), anonfield(typs[11])})
-	typs[94] = types.NewSlice(typs[2])
-	typs[95] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[94])})
-	typs[96] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[94])})
-	typs[97] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[94]), anonfield(typs[32])}, []*Node{anonfield(typs[94])})
+	typs[94] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[58])})
+	typs[95] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[58])})
+	typs[96] = types.NewSlice(typs[2])
+	typs[97] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[96]), anonfield(typs[32])}, []*Node{anonfield(typs[96])})
 	typs[98] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[47])}, nil)
 	typs[99] = functype(nil, []*Node{anonfield(typs[58]), anonfield(typs[47])}, nil)
 	typs[100] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[47])}, []*Node{anonfield(typs[11])})

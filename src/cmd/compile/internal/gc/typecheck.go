@@ -1086,6 +1086,47 @@ func typecheck1(n *Node, top int) *Node {
 		n.Right = assignconv(r, t.Elem(), "send")
 		n.Type = nil
 
+	case OSLICEHEADER:
+		// Errors here are Fatalf instead of yyerror because only the compiler
+		// can construct an OSLICEHEADER node.
+		// Components used in OSLICEHEADER that are supplied by parsed source code
+		// have already been typechecked in e.g. OMAKESLICE earlier.
+		ok |= Erv
+
+		t := n.Type
+		if !t.IsSlice() {
+			Fatalf("invalid type %v for OSLICEHEADER", n.Type)
+		}
+
+		if !n.Left.Type.IsUnsafePtr() {
+			Fatalf("need unsafe.Pointer for OSLICEHEADER")
+		}
+
+		if x := n.List.Len(); x != 2 {
+			Fatalf("expected 2 params (len, cap) for OSLICEHEADER, got %d", x)
+		}
+
+		n.Left = typecheck(n.Left, Erv)
+		l := typecheck(n.List.First(), Erv)
+		c := typecheck(n.List.Second(), Erv)
+		l = defaultlit(l, types.Types[TINT])
+		c = defaultlit(c, types.Types[TINT])
+
+		if Isconst(l, CTINT) && l.Int64() < 0 {
+			Fatalf("len for OSLICEHEADER must be non-negative")
+		}
+
+		if Isconst(c, CTINT) && c.Int64() < 0 {
+			Fatalf("cap for OSLICEHEADER must be non-negative")
+		}
+
+		if Isconst(l, CTINT) && Isconst(c, CTINT) && l.Val().U.(*Mpint).Cmp(c.Val().U.(*Mpint)) > 0 {
+			Fatalf("len larger than cap for OSLICEHEADER")
+		}
+
+		n.List.SetFirst(l)
+		n.List.SetSecond(c)
+
 	case OSLICE, OSLICE3:
 		ok |= Erv
 		n.Left = typecheck(n.Left, Erv)

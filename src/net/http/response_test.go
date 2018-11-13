@@ -157,6 +157,34 @@ var respTests = []respTest{
 		"Body here\ncontinued",
 	},
 
+	// Trailer header but no TransferEncoding
+	{
+		"HTTP/1.0 200 OK\r\n" +
+			"Trailer: Content-MD5, Content-Sources\r\n" +
+			"Content-Length: 10\r\n" +
+			"Connection: close\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.0",
+			ProtoMajor: 1,
+			ProtoMinor: 0,
+			Request:    dummyReq("GET"),
+			Header: Header{
+				"Connection":     {"close"},
+				"Content-Length": {"10"},
+				"Trailer":        []string{"Content-MD5, Content-Sources"},
+			},
+			Close:         true,
+			ContentLength: 10,
+		},
+
+		"Body here\n",
+	},
+
 	// Chunked response with Content-Length.
 	{
 		"HTTP/1.1 200 OK\r\n" +

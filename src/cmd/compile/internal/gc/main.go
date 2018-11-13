@@ -19,11 +19,13 @@ import (
 	"cmd/internal/sys"
 	"flag"
 	"fmt"
+	"go/build"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -211,6 +213,7 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")
 	objabi.Flagcount("j", "debug runtime-initialized variables", &Debug['j'])
 	objabi.Flagcount("l", "disable inlining", &Debug['l'])
+	flag.StringVar(&flag_lang, "lang", defaultLang(), "release to compile for")
 	flag.StringVar(&linkobj, "linkobj", "", "write linker-specific object to `file`")
 	objabi.Flagcount("live", "debug liveness analysis", &debuglive)
 	objabi.Flagcount("m", "print optimization decisions", &Debug['m'])
@@ -276,6 +279,8 @@ func Main(archInit func(*Arch)) {
 		fmt.Printf("compile: version %q does not match go tool version %q\n", runtime.Version(), goversion)
 		Exit(2)
 	}
+
+	checkLang()
 
 	thearch.LinkArch.Init(Ctxt)
 
@@ -1303,4 +1308,67 @@ func recordFlags(flags ...string) {
 	s.Set(obj.AttrDuplicateOK, true)
 	Ctxt.Data = append(Ctxt.Data, s)
 	s.P = cmd.Bytes()[1:]
+}
+
+// flag_lang is the language version we are compiling for, set by the -lang flag.
+var flag_lang string
+
+// defaultLang returns the default value for the -lang flag.
+func defaultLang() string {
+	tags := build.Default.ReleaseTags
+	return tags[len(tags)-1]
+}
+
+// goVersionRE is a regular expression that matches the valid
+// arguments to the -lang flag.
+var goVersionRE = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+
+// A lang is a language version broken into major and minor numbers.
+type lang struct {
+	major, minor int
+}
+
+// langWant is the desired language version set by the -lang flag.
+var langWant lang
+
+// langSupported reports whether language version major.minor is supported.
+func langSupported(major, minor int) bool {
+	return langWant.major > major || (langWant.major == major && langWant.minor >= minor)
+}
+
+// checkLang verifies that the -lang flag holds a valid value, and
+// exits if not. It initializes data used by langSupported.
+func checkLang() {
+	var err error
+	langWant, err = parseLang(flag_lang)
+	if err != nil {
+		log.Fatalf("invalid value %q for -lang: %v", flag_lang, err)
+	}
+
+	if def := defaultLang(); flag_lang != def {
+		defVers, err := parseLang(def)
+		if err != nil {
+			log.Fatalf("internal error parsing default lang %q: %v", def, err)
+		}
+		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.major > defVers.minor) {
+			log.Fatalf("invalid value %q for -lang: max known version is %q", flag_lang, def)
+		}
+	}
+}
+
+// parseLang parses a -lang option into a langVer.
+func parseLang(s string) (lang, error) {
+	matches := goVersionRE.FindStringSubmatch(s)
+	if matches == nil {
+		return lang{}, fmt.Errorf(`should be something like "go1.12"`)
+	}
+	major, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return lang{}, err
+	}
+	minor, err := strconv.Atoi(matches[2])
+	if err != nil {
+		return lang{}, err
+	}
+	return lang{major: major, minor: minor}, nil
 }

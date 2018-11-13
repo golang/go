@@ -762,12 +762,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		sc := v.AuxValAndOff()
 		off := sc.Off()
 		val := sc.Val()
-		if val == 1 {
+		if val == 1 || val == -1 {
 			var asm obj.As
 			if v.Op == ssa.OpAMD64ADDQconstmodify {
-				asm = x86.AINCQ
+				if val == 1 {
+					asm = x86.AINCQ
+				} else {
+					asm = x86.ADECQ
+				}
 			} else {
-				asm = x86.AINCL
+				if val == 1 {
+					asm = x86.AINCL
+				} else {
+					asm = x86.ADECL
+				}
 			}
 			p := s.Prog(asm)
 			p.To.Type = obj.TYPE_MEM

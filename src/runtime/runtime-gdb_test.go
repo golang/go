@@ -266,8 +266,11 @@ func testGdbPython(t *testing.T, cgo bool) {
 	infoLocalsRe1 := regexp.MustCompile(`slicevar *= *\[\]string *= *{"def"}`)
 	// Format output from gdb v8.2
 	infoLocalsRe2 := regexp.MustCompile(`^slicevar = .*\nmapvar = .*\nstrvar = 0x[0-9a-f]+ "abc"`)
+	// Format output from gdb v7.7
+	infoLocalsRe3 := regexp.MustCompile(`^mapvar = .*\nstrvar = "abc"\nslicevar *= *\[\]string`)
 	if bl := blocks["info locals"]; !infoLocalsRe1.MatchString(bl) &&
-		!infoLocalsRe2.MatchString(bl) {
+		!infoLocalsRe2.MatchString(bl) &&
+		!infoLocalsRe3.MatchString(bl) {
 		t.Fatalf("info locals failed: %s", bl)
 	}
 
