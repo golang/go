@@ -295,9 +295,9 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
 	// Gather known cross-package references from assembly code.
 	var otherPkgs []string
 	if p.ImportPath == "runtime" {
-		// Assembly in syscall and runtime/cgo references
+		// Assembly in the following packages references
 		// symbols in runtime.
-		otherPkgs = []string{"syscall", "runtime/cgo"}
+		otherPkgs = []string{"syscall", "internal/syscall/unix", "runtime/cgo"}
 	} else if p.ImportPath == "runtime/internal/atomic" {
 		// sync/atomic is an assembly wrapper around
 		// runtime/internal/atomic.
