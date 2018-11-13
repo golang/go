@@ -1502,6 +1502,7 @@
 // 		Path to pkg-config tool.
 // 	AR
 // 		The command to use to create, modify, and extract from library archives.
+// 		Only used when the compiler is gccgo ('-compiler=gccgo').
 //
 // Architecture-specific environment variables:
 //
