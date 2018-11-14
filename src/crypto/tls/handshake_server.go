@@ -135,14 +135,19 @@ func (hs *serverHandshakeState) readClientHello() (isResume bool, err error) {
 		}
 	}
 
-	c.vers, ok = c.config.mutualVersion(hs.clientHello.vers)
+	clientVersions := hs.clientHello.supportedVersions
+	if len(hs.clientHello.supportedVersions) == 0 {
+		clientVersions = supportedVersionsFromMax(hs.clientHello.vers)
+	}
+	c.vers, ok = c.config.mutualVersion(false, clientVersions)
 	if !ok {
 		c.sendAlert(alertProtocolVersion)
-		return false, fmt.Errorf("tls: client offered an unsupported, maximum protocol version of %x", hs.clientHello.vers)
+		return false, fmt.Errorf("tls: client offered only unsupported versions: %x", clientVersions)
 	}
 	c.haveVers = true
 
 	hs.hello = new(serverHelloMsg)
+	hs.hello.vers = c.vers
 
 	supportedCurve := false
 	preferredCurves := c.config.curvePreferences()
@@ -179,7 +184,6 @@ Curves:
 		return false, errors.New("tls: client does not support uncompressed connections")
 	}
 
-	hs.hello.vers = c.vers
 	hs.hello.random = make([]byte, 32)
 	_, err = io.ReadFull(c.config.rand(), hs.hello.random)
 	if err != nil {
@@ -272,7 +276,7 @@ Curves:
 	for _, id := range hs.clientHello.cipherSuites {
 		if id == TLS_FALLBACK_SCSV {
 			// The client is doing a fallback connection.
-			if hs.clientHello.vers < c.config.maxVersion() {
+			if hs.clientHello.vers < c.config.supportedVersions(false)[0] {
 				c.sendAlert(alertInappropriateFallback)
 				return false, errors.New("tls: client using inappropriate protocol fallback")
 			}
@@ -389,7 +393,6 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 
 	if hs.hello.ocspStapling {
 		certStatus := new(certificateStatusMsg)
-		certStatus.statusType = statusTypeOCSP
 		certStatus.response = hs.cert.OCSPStaple
 		hs.finishedHash.Write(certStatus.marshal())
 		if _, err := c.writeRecord(recordTypeHandshake, certStatus.marshal()); err != nil {
@@ -765,19 +768,14 @@ func (hs *serverHandshakeState) setCipherSuite(id uint16, supportedCipherSuites 
 	return false
 }
 
-// suppVersArray is the backing array of ClientHelloInfo.SupportedVersions
-var suppVersArray = [...]uint16{VersionTLS12, VersionTLS11, VersionTLS10, VersionSSL30}
-
 func (hs *serverHandshakeState) clientHelloInfo() *ClientHelloInfo {
 	if hs.cachedClientHelloInfo != nil {
 		return hs.cachedClientHelloInfo
 	}
 
-	var supportedVersions []uint16
-	if hs.clientHello.vers > VersionTLS12 {
-		supportedVersions = suppVersArray[:]
-	} else if hs.clientHello.vers >= VersionSSL30 {
-		supportedVersions = suppVersArray[VersionTLS12-hs.clientHello.vers:]
+	supportedVersions := hs.clientHello.supportedVersions
+	if len(hs.clientHello.supportedVersions) == 0 {
+		supportedVersions = supportedVersionsFromMax(hs.clientHello.vers)
 	}
 
 	hs.cachedClientHelloInfo = &ClientHelloInfo{

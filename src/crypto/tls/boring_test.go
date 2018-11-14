@@ -43,9 +43,9 @@ func TestBoringServerProtocolVersion(t *testing.T) {
 
 	fipstls.Force()
 	defer fipstls.Abandon()
-	test("VersionSSL30", VersionSSL30, "unsupported, maximum protocol version")
-	test("VersionTLS10", VersionTLS10, "unsupported, maximum protocol version")
-	test("VersionTLS11", VersionTLS11, "unsupported, maximum protocol version")
+	test("VersionSSL30", VersionSSL30, "client offered only unsupported versions")
+	test("VersionTLS10", VersionTLS10, "client offered only unsupported versions")
+	test("VersionTLS11", VersionTLS11, "client offered only unsupported versions")
 	test("VersionTLS12", VersionTLS12, "")
 }
 
