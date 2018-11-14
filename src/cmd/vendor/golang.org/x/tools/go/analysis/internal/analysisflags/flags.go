@@ -56,10 +56,7 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 			name := prefix + f.Name
 			flag.Var(f.Value, name, f.Usage)
 
-			var isBool bool
-			if b, ok := f.Value.(interface{ IsBoolFlag() bool }); ok {
-				isBool = b.IsBoolFlag()
-			}
+			isBool := isBoolFlag(f.Value)
 			analysisFlags = append(analysisFlags, analysisFlag{name, isBool, f.Usage})
 		})
 	}
@@ -68,11 +65,23 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 	printflags := flag.Bool("flags", false, "print analyzer flags in JSON")
 	addVersionFlag()
 
-	// Add shims for legacy vet flags.
+	// Add shims for legacy vet flags to enable existing
+	// scripts that run vet to continue to work.
+	_ = flag.Bool("source", false, "no effect (deprecated)")
+	_ = flag.Bool("v", false, "no effect (deprecated)")
+	_ = flag.Bool("all", false, "no effect (deprecated)")
+	_ = flag.String("tags", "", "no effect (deprecated)")
+	for _, name := range []string{"source", "v", "all", "tags"} {
+		f := flag.Lookup(name)
+		isBool := isBoolFlag(f.Value)
+		analysisFlags = append(analysisFlags, analysisFlag{name, isBool, f.Usage})
+	}
 	for old, new := range vetLegacyFlags {
 		newFlag := flag.Lookup(new)
 		if newFlag != nil && flag.Lookup(old) == nil {
 			flag.Var(newFlag.Value, old, "deprecated alias for -"+new)
+			isBool := isBoolFlag(newFlag.Value)
+			analysisFlags = append(analysisFlags, analysisFlag{old, isBool, newFlag.Usage})
 		}
 	}
 
@@ -227,6 +236,11 @@ func (ts *triState) String() string {
 
 func (ts triState) IsBoolFlag() bool {
 	return true
+}
+
+func isBoolFlag(v flag.Value) bool {
+	b, ok := v.(interface{ IsBoolFlag() bool })
+	return ok && b.IsBoolFlag()
 }
 
 // Legacy flag support
