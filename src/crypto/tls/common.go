@@ -27,9 +27,6 @@ const (
 	VersionTLS10 = 0x0301
 	VersionTLS11 = 0x0302
 	VersionTLS12 = 0x0303
-
-	// VersionTLS13 is under development in this library and can't be selected
-	// nor negotiated yet on either side.
 	VersionTLS13 = 0x0304
 )
 
@@ -190,6 +187,14 @@ var helloRetryRequestRandom = []byte{ // See RFC 8446, Section 4.1.3.
 	0x07, 0x9E, 0x09, 0xE2, 0xC8, 0xA8, 0x33, 0x9C,
 }
 
+const (
+	// downgradeCanaryTLS12 or downgradeCanaryTLS11 is embedded in the server
+	// random as a downgrade protection if the server would be capable of
+	// negotiating a higher version. See RFC 8446, Section 4.1.3.
+	downgradeCanaryTLS12 = "DOWNGRD\x01"
+	downgradeCanaryTLS11 = "DOWNGRD\x00"
+)
+
 // ConnectionState records basic TLS details about the connection.
 type ConnectionState struct {
 	Version                     uint16                // TLS version used by the connection (e.g. VersionTLS12)
@@ -201,8 +206,8 @@ type ConnectionState struct {
 	ServerName                  string                // server name requested by client, if any (server side only)
 	PeerCertificates            []*x509.Certificate   // certificate chain presented by remote peer
 	VerifiedChains              [][]*x509.Certificate // verified chains built from PeerCertificates
-	SignedCertificateTimestamps [][]byte              // SCTs from the server, if any
-	OCSPResponse                []byte                // stapled OCSP response from server, if any
+	SignedCertificateTimestamps [][]byte              // SCTs from the peer, if any
+	OCSPResponse                []byte                // stapled OCSP response from peer, if any
 
 	// ekm is a closure exposed via ExportKeyingMaterial.
 	ekm func(label string, context []byte, length int) ([]byte, error)
@@ -212,7 +217,7 @@ type ConnectionState struct {
 	// because resumption does not include enough context (see
 	// https://mitls.org/pages/attacks/3SHAKE#channelbindings). This will
 	// change in future versions of Go once the TLS master-secret fix has
-	// been standardized and implemented.
+	// been standardized and implemented. It is not defined in TLS 1.3.
 	TLSUnique []byte
 }
 
@@ -550,7 +555,7 @@ type Config struct {
 
 	// MaxVersion contains the maximum SSL/TLS version that is acceptable.
 	// If zero, then the maximum version supported by this package is used,
-	// which is currently TLS 1.2.
+	// which is currently TLS 1.3.
 	MaxVersion uint16
 
 	// CurvePreferences contains the elliptic curves that will be used in
@@ -772,13 +777,17 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 		if isClient && v < VersionTLS10 {
 			continue
 		}
-		// TLS 1.3 is only supported if explicitly requested while in development.
-		if v == VersionTLS13 && (c == nil || c.MaxVersion != VersionTLS13) {
-			continue
-		}
 		versions = append(versions, v)
 	}
 	return versions
+}
+
+func (c *Config) maxSupportedVersion(isClient bool) uint16 {
+	supportedVersions := c.supportedVersions(isClient)
+	if len(supportedVersions) == 0 {
+		return 0
+	}
+	return supportedVersions[0]
 }
 
 // supportedVersionsFromMax returns a list of supported versions derived from a
