@@ -102,7 +102,7 @@ func prepare(ctx context.Context, t *testing.T, withHeaders bool) (*testHandler,
 		} else {
 			h.stream = jsonrpc2.NewStream(h.reader, h.writer)
 		}
-		args := []interface{}{handle}
+		args := []interface{}{jsonrpc2.Handler(handle)}
 		if *logRPC {
 			args = append(args, jsonrpc2.Log)
 		}
@@ -128,32 +128,36 @@ type testHandler struct {
 	*jsonrpc2.Conn
 }
 
-func handle(ctx context.Context, c *jsonrpc2.Conn, r *jsonrpc2.Request) (interface{}, *jsonrpc2.Error) {
+func handle(ctx context.Context, c *jsonrpc2.Conn, r *jsonrpc2.Request) {
 	switch r.Method {
 	case "no_args":
 		if r.Params != nil {
-			return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params")
+			c.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))
+			return
 		}
-		return true, nil
+		c.Reply(ctx, r, true, nil)
 	case "one_string":
 		var v string
 		if err := json.Unmarshal(*r.Params, &v); err != nil {
-			return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error())
+			c.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
+			return
 		}
-		return "got:" + v, nil
+		c.Reply(ctx, r, "got:"+v, nil)
 	case "one_number":
 		var v int
 		if err := json.Unmarshal(*r.Params, &v); err != nil {
-			return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error())
+			c.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
+			return
 		}
-		return fmt.Sprintf("got:%d", v), nil
+		c.Reply(ctx, r, fmt.Sprintf("got:%d", v), nil)
 	case "join":
 		var v []string
 		if err := json.Unmarshal(*r.Params, &v); err != nil {
-			return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error())
+			c.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
+			return
 		}
-		return path.Join(v...), nil
+		c.Reply(ctx, r, path.Join(v...), nil)
 	default:
-		return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeMethodNotFound, "method %q not found", r.Method)
+		c.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeMethodNotFound, "method %q not found", r.Method))
 	}
 }
