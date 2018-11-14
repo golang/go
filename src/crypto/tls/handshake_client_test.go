@@ -22,10 +22,21 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 )
+
+func init() {
+	// TLS 1.3 cipher suites preferences are not configurable and change based
+	// on the architecture. Force them to the version with AES accelleration for
+	// test consistency.
+	once.Do(initDefaultCipherSuites)
+	varDefaultCipherSuitesTLS13 = []uint16{
+		TLS_AES_128_GCM_SHA256,
+		TLS_CHACHA20_POLY1305_SHA256,
+		TLS_AES_256_GCM_SHA384,
+	}
+}
 
 // Note: see comment in handshake_test.go for details of how the reference
 // tests work.
@@ -281,7 +292,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
 
 	// TODO(filippo): regenerate client tests all at once after CL 146217,
 	// RSA-PSS and client-side TLS 1.3 are landed.
-	if !write {
+	if !write && !strings.Contains(test.name, "TLSv13") {
 		t.Skip("recorded client tests are out of date")
 	}
 
@@ -421,7 +432,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
 		childProcess.Process.Kill()
 		childProcess.Wait()
 		if len(recordingConn.flows) < 3 {
-			os.Stdout.Write(childProcess.Stdout.(*opensslOutputSink).all)
+			os.Stdout.Write(stdout.all)
 			t.Fatalf("Client connection didn't work")
 		}
 		recordingConn.WriteTo(out)
@@ -429,46 +440,48 @@ func (test *clientTest) run(t *testing.T, write bool) {
 	}
 }
 
-var (
-	didParMu sync.Mutex
-	didPar   = map[*testing.T]bool{}
-)
+func runClientTestForVersion(t *testing.T, template *clientTest, version, option string) {
+	t.Run(version, func(t *testing.T) {
+		// Make a deep copy of the template before going parallel.
+		test := *template
+		if template.config != nil {
+			test.config = template.config.Clone()
+		}
 
-// setParallel calls t.Parallel once. If you call it twice, it would
-// panic.
-func setParallel(t *testing.T) {
-	didParMu.Lock()
-	v := didPar[t]
-	didPar[t] = true
-	didParMu.Unlock()
-	if !v {
-		t.Parallel()
-	}
-}
+		if !*update {
+			t.Parallel()
+		}
 
-func runClientTestForVersion(t *testing.T, template *clientTest, prefix, option string) {
-	setParallel(t)
-
-	test := *template
-	test.name = prefix + test.name
-	if len(test.command) == 0 {
-		test.command = defaultClientCommand
-	}
-	test.command = append([]string(nil), test.command...)
-	test.command = append(test.command, option)
-	test.run(t, *update)
+		test.name = version + "-" + test.name
+		if len(test.command) == 0 {
+			test.command = defaultClientCommand
+		}
+		test.command = append([]string(nil), test.command...)
+		test.command = append(test.command, option)
+		test.run(t, *update)
+	})
 }
 
 func runClientTestTLS10(t *testing.T, template *clientTest) {
-	runClientTestForVersion(t, template, "TLSv10-", "-tls1")
+	runClientTestForVersion(t, template, "TLSv10", "-tls1")
 }
 
 func runClientTestTLS11(t *testing.T, template *clientTest) {
-	runClientTestForVersion(t, template, "TLSv11-", "-tls1_1")
+	runClientTestForVersion(t, template, "TLSv11", "-tls1_1")
 }
 
 func runClientTestTLS12(t *testing.T, template *clientTest) {
-	runClientTestForVersion(t, template, "TLSv12-", "-tls1_2")
+	runClientTestForVersion(t, template, "TLSv12", "-tls1_2")
+}
+
+func runClientTestTLS13(t *testing.T, template *clientTest) {
+	// TODO(filippo): set MaxVersion to VersionTLS13 instead in testConfig
+	// while regenerating client tests.
+	if template.config == nil {
+		template.config = testConfig.Clone()
+	}
+	template.config.MaxVersion = VersionTLS13
+	runClientTestForVersion(t, template, "TLSv13", "-tls1_3")
 }
 
 func TestHandshakeClientRSARC4(t *testing.T) {
@@ -570,12 +583,40 @@ func TestHandshakeClientX25519(t *testing.T) {
 	config.CurvePreferences = []CurveID{X25519}
 
 	test := &clientTest{
-		name:    "X25519-ECDHE-RSA-AES-GCM",
-		command: []string{"openssl", "s_server", "-cipher", "ECDHE-RSA-AES128-GCM-SHA256"},
+		name:    "X25519-ECDHE",
+		command: []string{"openssl", "s_server", "-cipher", "ECDHE-RSA-AES128-GCM-SHA256", "-curves", "X25519"},
 		config:  config,
 	}
 
 	runClientTestTLS12(t, test)
+	runClientTestTLS13(t, test)
+}
+
+func TestHandshakeClientP256(t *testing.T) {
+	config := testConfig.Clone()
+	config.CurvePreferences = []CurveID{CurveP256}
+
+	test := &clientTest{
+		name:    "P256-ECDHE",
+		command: []string{"openssl", "s_server", "-cipher", "ECDHE-RSA-AES128-GCM-SHA256", "-curves", "P-256"},
+		config:  config,
+	}
+
+	runClientTestTLS12(t, test)
+	runClientTestTLS13(t, test)
+}
+
+func TestHandshakeClientHelloRetryRequest(t *testing.T) {
+	config := testConfig.Clone()
+	config.CurvePreferences = []CurveID{X25519, CurveP256}
+
+	test := &clientTest{
+		name:    "HelloRetryRequest",
+		command: []string{"openssl", "s_server", "-cipher", "ECDHE-RSA-AES128-GCM-SHA256", "-curves", "P-256"},
+		config:  config,
+	}
+
+	runClientTestTLS13(t, test)
 }
 
 func TestHandshakeClientECDHERSAChaCha20(t *testing.T) {
@@ -604,6 +645,38 @@ func TestHandshakeClientECDHEECDSAChaCha20(t *testing.T) {
 	}
 
 	runClientTestTLS12(t, test)
+}
+
+func TestHandshakeClientAES128SHA256(t *testing.T) {
+	test := &clientTest{
+		name:    "AES128-SHA256",
+		command: []string{"openssl", "s_server", "-ciphersuites", "TLS_AES_128_GCM_SHA256"},
+	}
+	runClientTestTLS13(t, test)
+}
+func TestHandshakeClientAES256SHA384(t *testing.T) {
+	test := &clientTest{
+		name:    "AES256-SHA384",
+		command: []string{"openssl", "s_server", "-ciphersuites", "TLS_AES_256_GCM_SHA384"},
+	}
+	runClientTestTLS13(t, test)
+}
+func TestHandshakeClientCHACHA20SHA256(t *testing.T) {
+	test := &clientTest{
+		name:    "CHACHA20-SHA256",
+		command: []string{"openssl", "s_server", "-ciphersuites", "TLS_CHACHA20_POLY1305_SHA256"},
+	}
+	runClientTestTLS13(t, test)
+}
+
+func TestHandshakeClientECDSATLS13(t *testing.T) {
+	test := &clientTest{
+		name:    "ECDSA",
+		command: []string{"openssl", "s_server"},
+		cert:    testECDSACertificate,
+		key:     testECDSAPrivateKey,
+	}
+	runClientTestTLS13(t, test)
 }
 
 func TestHandshakeClientCertRSA(t *testing.T) {
@@ -914,6 +987,7 @@ func TestHandshakeClientALPNMatch(t *testing.T) {
 		},
 	}
 	runClientTestTLS12(t, test)
+	runClientTestTLS13(t, test)
 }
 
 // sctsBase64 contains data from `openssl s_client -serverinfo 18 -connect ritter.vg:443`
@@ -952,6 +1026,9 @@ func TestHandshakClientSCTs(t *testing.T) {
 		},
 	}
 	runClientTestTLS12(t, test)
+
+	// TLS 1.3 moved SCTs to the Certificate extensions and -serverinfo only
+	// supports ServerHello extensions.
 }
 
 func TestRenegotiationRejected(t *testing.T) {
@@ -974,6 +1051,9 @@ func TestRenegotiationRejected(t *testing.T) {
 	}
 
 	runClientTestTLS12(t, test)
+
+	config.Renegotiation = RenegotiateFreelyAsClient
+	runClientTestTLS13(t, test)
 }
 
 func TestRenegotiateOnce(t *testing.T) {
@@ -1048,6 +1128,7 @@ func TestHandshakeClientExportKeyingMaterial(t *testing.T) {
 	}
 	runClientTestTLS10(t, test)
 	runClientTestTLS12(t, test)
+	runClientTestTLS13(t, test)
 }
 
 var hostnameInSNITests = []struct {

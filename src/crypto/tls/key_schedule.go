@@ -5,9 +5,14 @@
 package tls
 
 import (
+	"crypto/elliptic"
+	"errors"
 	"golang_org/x/crypto/cryptobyte"
+	"golang_org/x/crypto/curve25519"
 	"golang_org/x/crypto/hkdf"
 	"hash"
+	"io"
+	"math/big"
 )
 
 // This file contains the functions necessary to compute the TLS 1.3 key
@@ -82,4 +87,103 @@ func (c *cipherSuiteTLS13) exportKeyingMaterial(masterSecret []byte, transcript 
 		h.Write(context)
 		return c.expandLabel(secret, "exporter", h.Sum(nil), length), nil
 	}
+}
+
+// ecdheParameters implements Diffie-Hellman with either NIST curves or X25519,
+// according to RFC 8446, Section 4.2.8.2.
+type ecdheParameters interface {
+	CurveID() CurveID
+	PublicKey() []byte
+	SharedKey(peerPublicKey []byte) []byte
+}
+
+func generateECDHEParameters(rand io.Reader, curveID CurveID) (ecdheParameters, error) {
+	if curveID == X25519 {
+		p := &x25519Parameters{}
+		if _, err := io.ReadFull(rand, p.privateKey[:]); err != nil {
+			return nil, err
+		}
+		curve25519.ScalarBaseMult(&p.publicKey, &p.privateKey)
+		return p, nil
+	}
+
+	curve, ok := curveForCurveID(curveID)
+	if !ok {
+		return nil, errors.New("tls: internal error: unsupported curve")
+	}
+
+	p := &nistParameters{curveID: curveID}
+	var err error
+	p.privateKey, p.x, p.y, err = elliptic.GenerateKey(curve, rand)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func curveForCurveID(id CurveID) (elliptic.Curve, bool) {
+	switch id {
+	case CurveP256:
+		return elliptic.P256(), true
+	case CurveP384:
+		return elliptic.P384(), true
+	case CurveP521:
+		return elliptic.P521(), true
+	default:
+		return nil, false
+	}
+}
+
+type nistParameters struct {
+	privateKey []byte
+	x, y       *big.Int // public key
+	curveID    CurveID
+}
+
+func (p *nistParameters) CurveID() CurveID {
+	return p.curveID
+}
+
+func (p *nistParameters) PublicKey() []byte {
+	curve, _ := curveForCurveID(p.curveID)
+	return elliptic.Marshal(curve, p.x, p.y)
+}
+
+func (p *nistParameters) SharedKey(peerPublicKey []byte) []byte {
+	curve, _ := curveForCurveID(p.curveID)
+	// Unmarshal also checks whether the given point is on the curve.
+	x, y := elliptic.Unmarshal(curve, peerPublicKey)
+	if x == nil {
+		return nil
+	}
+
+	xShared, _ := curve.ScalarMult(x, y, p.privateKey)
+	sharedKey := make([]byte, (curve.Params().BitSize+7)>>3)
+	xBytes := xShared.Bytes()
+	copy(sharedKey[len(sharedKey)-len(xBytes):], xBytes)
+
+	return sharedKey
+}
+
+type x25519Parameters struct {
+	privateKey [32]byte
+	publicKey  [32]byte
+}
+
+func (p *x25519Parameters) CurveID() CurveID {
+	return X25519
+}
+
+func (p *x25519Parameters) PublicKey() []byte {
+	return p.publicKey[:]
+}
+
+func (p *x25519Parameters) SharedKey(peerPublicKey []byte) []byte {
+	if len(peerPublicKey) != 32 {
+		return nil
+	}
+	var theirPublicKey, sharedKey [32]byte
+	copy(theirPublicKey[:], peerPublicKey)
+	curve25519.ScalarMult(&sharedKey, &p.privateKey, &theirPublicKey)
+	return sharedKey[:]
 }

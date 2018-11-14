@@ -150,17 +150,8 @@ const (
 
 // Certificate types (for certificateRequestMsg)
 const (
-	certTypeRSASign    = 1 // A certificate containing an RSA key
-	certTypeDSSSign    = 2 // A certificate containing a DSA key
-	certTypeRSAFixedDH = 3 // A certificate containing a static DH key
-	certTypeDSSFixedDH = 4 // A certificate containing a static DH key
-
-	// See RFC 4492 sections 3 and 5.5.
-	certTypeECDSASign      = 64 // A certificate containing an ECDSA-capable public key, signed with ECDSA.
-	certTypeRSAFixedECDH   = 65 // A certificate containing an ECDH-capable public key, signed with RSA.
-	certTypeECDSAFixedECDH = 66 // A certificate containing an ECDH-capable public key, signed with ECDSA.
-
-	// Rest of these are reserved by the TLS spec
+	certTypeRSASign   = 1
+	certTypeECDSASign = 64 // RFC 4492, Section 5.5
 )
 
 // Signature algorithms (for internal signaling use). Starting at 16 to avoid overlap with
@@ -187,6 +178,15 @@ var defaultSupportedSignatureAlgorithms = []SignatureScheme{
 	ECDSAWithP521AndSHA512,
 	PKCS1WithSHA1,
 	ECDSAWithSHA1,
+}
+
+// helloRetryRequestRandom is set as the Random value of a ServerHello
+// to signal that the message is actually a HelloRetryRequest.
+var helloRetryRequestRandom = []byte{ // See RFC 8446, Section 4.1.3.
+	0xCF, 0x21, 0xAD, 0x74, 0xE5, 0x9A, 0x61, 0x11,
+	0xBE, 0x1D, 0x8C, 0x02, 0x1E, 0x65, 0xB8, 0x91,
+	0xC2, 0xA2, 0x11, 0x16, 0x7A, 0xBB, 0x8C, 0x5E,
+	0x07, 0x9E, 0x09, 0xE2, 0xC8, 0xA8, 0x33, 0x9C,
 }
 
 // ConnectionState records basic TLS details about the connection.
@@ -357,6 +357,8 @@ type CertificateRequestInfo struct {
 // handshake and application data flow is not permitted so renegotiation can
 // only be used with protocols that synchronise with the renegotiation, such as
 // HTTPS.
+//
+// Renegotiation is not defined in TLS 1.3.
 type RenegotiationSupport int
 
 const (
@@ -531,7 +533,8 @@ type Config struct {
 
 	// CurvePreferences contains the elliptic curves that will be used in
 	// an ECDHE handshake, in preference order. If empty, the default will
-	// be used.
+	// be used. The client will use the first preference as the type for
+	// its key share in TLS 1.3. This may change in the future.
 	CurvePreferences []CurveID
 
 	// DynamicRecordSizingDisabled disables adaptive sizing of TLS records.
@@ -720,6 +723,7 @@ func (c *Config) cipherSuites() []uint16 {
 }
 
 var supportedVersions = []uint16{
+	VersionTLS13,
 	VersionTLS12,
 	VersionTLS11,
 	VersionTLS10,
@@ -740,6 +744,10 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 		}
 		// TLS 1.0 is the minimum version supported as a client.
 		if isClient && v < VersionTLS10 {
+			continue
+		}
+		// TLS 1.3 is only supported if explicitly requested while in development.
+		if v == VersionTLS13 && (!isClient || c == nil || c.MaxVersion != VersionTLS13) {
 			continue
 		}
 		versions = append(versions, v)

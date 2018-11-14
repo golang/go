@@ -11,6 +11,8 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"hash"
+	"io"
 )
 
 // pickSignatureAlgorithm selects a signature algorithm that is compatible with
@@ -43,7 +45,7 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 		if !isSupportedSignatureAlgorithm(sigAlg, ourSigAlgs) {
 			continue
 		}
-		hashAlg, err := lookupTLSHash(sigAlg)
+		hashAlg, err := hashFromSignatureScheme(sigAlg)
 		if err != nil {
 			panic("tls: supported signature algorithm has an unknown hash function")
 		}
@@ -104,4 +106,28 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
 		return errors.New("tls: unknown signature algorithm")
 	}
 	return nil
+}
+
+const (
+	serverSignatureContext = "TLS 1.3, server CertificateVerify\x00"
+	clientSignatureContext = "TLS 1.3, client CertificateVerify\x00"
+)
+
+var signaturePadding = []byte{
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+}
+
+// writeSignedMessage writes the content to be signed by certificate keys in TLS
+// 1.3 to sigHash. See RFC 8446, Section 4.4.3.
+func writeSignedMessage(sigHash io.Writer, context string, transcript hash.Hash) {
+	sigHash.Write(signaturePadding)
+	io.WriteString(sigHash, context)
+	sigHash.Write(transcript.Sum(nil))
 }
