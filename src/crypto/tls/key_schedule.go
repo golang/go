@@ -6,6 +6,7 @@ package tls
 
 import (
 	"crypto/elliptic"
+	"crypto/hmac"
 	"errors"
 	"golang_org/x/crypto/cryptobyte"
 	"golang_org/x/crypto/curve25519"
@@ -75,6 +76,16 @@ func (c *cipherSuiteTLS13) trafficKey(trafficSecret []byte) (key, iv []byte) {
 	key = c.expandLabel(trafficSecret, "key", nil, c.keyLen)
 	iv = c.expandLabel(trafficSecret, "iv", nil, aeadNonceLength)
 	return
+}
+
+// finishedHash generates the Finished verify_data or PskBinderEntry according
+// to RFC 8446, Section 4.4.4. See sections 4.4 and 4.2.11.2 for the baseKey
+// selection.
+func (c *cipherSuiteTLS13) finishedHash(baseKey []byte, transcript hash.Hash) []byte {
+	finishedKey := c.expandLabel(baseKey, "finished", nil, c.hash.Size())
+	verifyData := hmac.New(c.hash.New, finishedKey)
+	verifyData.Write(transcript.Sum(nil))
+	return verifyData.Sum(nil)
 }
 
 // exportKeyingMaterial implements RFC5705 exporters for TLS 1.3 according to

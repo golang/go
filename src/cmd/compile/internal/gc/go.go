@@ -147,7 +147,6 @@ var asmhdr string
 var simtype [NTYPE]types.EType
 
 var (
-	isforw    [NTYPE]bool
 	isInt     [NTYPE]bool
 	isFloat   [NTYPE]bool
 	isComplex [NTYPE]bool

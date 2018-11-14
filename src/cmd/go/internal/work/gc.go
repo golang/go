@@ -53,6 +53,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 		pkgpath = "main"
 	}
 	gcargs := []string{"-p", pkgpath}
+	if p.Module != nil && p.Module.GoVersion != "" && allowedVersion(p.Module.GoVersion) {
+		gcargs = append(gcargs, "-lang=go"+p.Module.GoVersion)
+	}
 	if p.Standard {
 		gcargs = append(gcargs, "-std")
 	}

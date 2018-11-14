@@ -735,7 +735,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 	return gp
 }
 
-// pollFractionalWorkerExit returns true if a fractional mark worker
+// pollFractionalWorkerExit reports whether a fractional mark worker
 // should self-preempt. It assumes it is called from the fractional
 // worker.
 func pollFractionalWorkerExit() bool {
@@ -1157,7 +1157,7 @@ const (
 	gcTriggerCycle
 )
 
-// test returns true if the trigger condition is satisfied, meaning
+// test reports whether the trigger condition is satisfied, meaning
 // that the exit condition for the _GCoff phase has been met. The exit
 // condition should be tested when allocating.
 func (t gcTrigger) test() bool {
@@ -1867,7 +1867,7 @@ func gcBgMarkWorker(_p_ *p) {
 	}
 }
 
-// gcMarkWorkAvailable returns true if executing a mark worker
+// gcMarkWorkAvailable reports whether executing a mark worker
 // on p is potentially useful. p may be nil, in which case it only
 // checks the global sources of work.
 func gcMarkWorkAvailable(p *p) bool {

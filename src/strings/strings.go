@@ -146,6 +146,11 @@ func LastIndex(s, substr string) int {
 	return -1
 }
 
+// IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
+func IndexByte(s string, c byte) int {
+	return bytealg.IndexByteString(s, c)
+}
+
 // IndexRune returns the index of the first instance of the Unicode code point
 // r, or -1 if rune is not present in s.
 // If r is utf8.RuneError, it returns the first instance of any
@@ -1040,5 +1045,4 @@ func indexRabinKarp(s, substr string) int {
 		}
 	}
 	return -1
-
 }

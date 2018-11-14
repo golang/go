@@ -330,9 +330,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	B	(R27)
 // Note: can't just "B NAME(SB)" - bad inlining results.
 
-TEXT reflect·call(SB), NOSPLIT, $0-0
-	B	·reflectcall(SB)
-
 TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWU argsize+24(FP), R16
 	DISPATCH(runtime·call32, 32)

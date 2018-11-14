@@ -33,6 +33,7 @@ func initLocal() {
 	z.name = "UTC"
 	if offset < 0 {
 		z.name += "-"
+		offset *= -1
 	} else {
 		z.name += "+"
 	}
@@ -44,8 +45,8 @@ func initLocal() {
 	localLoc.zone = []zone{z}
 }
 
-// itoa is just the fast path implementation copied from strconv.Itoa.
-// No timezone hour can exceed 100, so the fast path will always satisfy.
+// itoa is like strconv.Itoa but only works for values of i in range [0,99].
+// It panics if i is out of range.
 func itoa(i int) string {
 	if i < 10 {
 		return digits[i : i+1]

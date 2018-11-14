@@ -1019,7 +1019,7 @@ func (lv *Liveness) epilogue() {
 				live := lv.livevars[index]
 				if v.Op.IsCall() && live.regs != 0 {
 					lv.printDebug()
-					v.Fatalf("internal error: %v register %s recorded as live at call", lv.fn.Func.Nname, live.regs.niceString(lv.f.Config))
+					v.Fatalf("%v register %s recorded as live at call", lv.fn.Func.Nname, live.regs.niceString(lv.f.Config))
 				}
 				index++
 			}
@@ -1038,7 +1038,7 @@ func (lv *Liveness) epilogue() {
 	// input parameters.
 	for j, n := range lv.vars {
 		if n.Class() != PPARAM && lv.stackMaps[0].Get(int32(j)) {
-			Fatalf("internal error: %v %L recorded as live on entry", lv.fn.Func.Nname, n)
+			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Func.Nname, n)
 		}
 	}
 	// Check that no registers are live at function entry.
@@ -1047,7 +1047,7 @@ func (lv *Liveness) epilogue() {
 	// so it doesn't appear live at entry.
 	if regs := lv.regMaps[0]; regs != 0 {
 		lv.printDebug()
-		lv.f.Fatalf("internal error: %v register %s recorded as live on entry", lv.fn.Func.Nname, regs.niceString(lv.f.Config))
+		lv.f.Fatalf("%v register %s recorded as live on entry", lv.fn.Func.Nname, regs.niceString(lv.f.Config))
 	}
 }
 
@@ -1461,7 +1461,7 @@ func (lv *Liveness) printDebug() {
 // first word dumped is the total number of bitmaps. The second word is the
 // length of the bitmaps. All bitmaps are assumed to be of equal length. The
 // remaining bytes are the raw bitmaps.
-func (lv *Liveness) emit(argssym, livesym, regssym *obj.LSym) {
+func (lv *Liveness) emit() (argsSym, liveSym, regsSym *obj.LSym) {
 	// Size args bitmaps to be just large enough to hold the largest pointer.
 	// First, find the largest Xoffset node we care about.
 	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
@@ -1489,13 +1489,16 @@ func (lv *Liveness) emit(argssym, livesym, regssym *obj.LSym) {
 	// This would require shifting all bitmaps.
 	maxLocals := lv.stkptrsize
 
+	// Temporary symbols for encoding bitmaps.
+	var argsSymTmp, liveSymTmp, regsSymTmp obj.LSym
+
 	args := bvalloc(int32(maxArgs / int64(Widthptr)))
-	aoff := duint32(argssym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
-	aoff = duint32(argssym, aoff, uint32(args.n))          // number of bits in each bitmap
+	aoff := duint32(&argsSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+	aoff = duint32(&argsSymTmp, aoff, uint32(args.n))          // number of bits in each bitmap
 
 	locals := bvalloc(int32(maxLocals / int64(Widthptr)))
-	loff := duint32(livesym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
-	loff = duint32(livesym, loff, uint32(locals.n))        // number of bits in each bitmap
+	loff := duint32(&liveSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+	loff = duint32(&liveSymTmp, loff, uint32(locals.n))        // number of bits in each bitmap
 
 	for _, live := range lv.stackMaps {
 		args.Clear()
@@ -1503,13 +1506,13 @@ func (lv *Liveness) emit(argssym, livesym, regssym *obj.LSym) {
 
 		lv.pointerMap(live, lv.vars, args, locals)
 
-		aoff = dbvec(argssym, aoff, args)
-		loff = dbvec(livesym, loff, locals)
+		aoff = dbvec(&argsSymTmp, aoff, args)
+		loff = dbvec(&liveSymTmp, loff, locals)
 	}
 
 	regs := bvalloc(lv.usedRegs())
-	roff := duint32(regssym, 0, uint32(len(lv.regMaps))) // number of bitmaps
-	roff = duint32(regssym, roff, uint32(regs.n))        // number of bits in each bitmap
+	roff := duint32(&regsSymTmp, 0, uint32(len(lv.regMaps))) // number of bitmaps
+	roff = duint32(&regsSymTmp, roff, uint32(regs.n))        // number of bits in each bitmap
 	if regs.n > 32 {
 		// Our uint32 conversion below won't work.
 		Fatalf("GP registers overflow uint32")
@@ -1519,25 +1522,29 @@ func (lv *Liveness) emit(argssym, livesym, regssym *obj.LSym) {
 		for _, live := range lv.regMaps {
 			regs.Clear()
 			regs.b[0] = uint32(live)
-			roff = dbvec(regssym, roff, regs)
+			roff = dbvec(&regsSymTmp, roff, regs)
 		}
 	}
 
 	// Give these LSyms content-addressable names,
 	// so that they can be de-duplicated.
 	// This provides significant binary size savings.
-	// It is safe to rename these LSyms because
-	// they are tracked separately from ctxt.hash.
-	argssym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(argssym.P))
-	livesym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(livesym.P))
-	regssym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(regssym.P))
+	//
+	// These symbols will be added to Ctxt.Data by addGCLocals
+	// after parallel compilation is done.
+	makeSym := func(tmpSym *obj.LSym) *obj.LSym {
+		return Ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(tmpSym.P)), func(lsym *obj.LSym) {
+			lsym.P = tmpSym.P
+		})
+	}
+	return makeSym(&argsSymTmp), makeSym(&liveSymTmp), makeSym(&regsSymTmp)
 }
 
 // Entry pointer for liveness analysis. Solves for the liveness of
 // pointer variables in the function and emits a runtime data
 // structure read by the garbage collector.
 // Returns a map from GC safe points to their corresponding stack map index.
-func liveness(e *ssafn, f *ssa.Func) LivenessMap {
+func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 	// Construct the global liveness state.
 	vars, idx := getvariables(e.curfn)
 	lv := newliveness(e.curfn, f, vars, idx, e.stkptrsize)
@@ -1577,7 +1584,25 @@ func liveness(e *ssafn, f *ssa.Func) LivenessMap {
 
 	// Emit the live pointer map data structures
 	if ls := e.curfn.Func.lsym; ls != nil {
-		lv.emit(&ls.Func.GCArgs, &ls.Func.GCLocals, &ls.Func.GCRegs)
+		ls.Func.GCArgs, ls.Func.GCLocals, ls.Func.GCRegs = lv.emit()
+
+		p := pp.Prog(obj.AFUNCDATA)
+		Addrconst(&p.From, objabi.FUNCDATA_ArgsPointerMaps)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = ls.Func.GCArgs
+
+		p = pp.Prog(obj.AFUNCDATA)
+		Addrconst(&p.From, objabi.FUNCDATA_LocalsPointerMaps)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = ls.Func.GCLocals
+
+		p = pp.Prog(obj.AFUNCDATA)
+		Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = ls.Func.GCRegs
 	}
 	return lv.livenessMap
 }

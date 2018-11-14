@@ -7,6 +7,7 @@ package tls
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rsa"
 	"encoding/asn1"
 	"errors"
@@ -130,4 +131,36 @@ func writeSignedMessage(sigHash io.Writer, context string, transcript hash.Hash)
 	sigHash.Write(signaturePadding)
 	io.WriteString(sigHash, context)
 	sigHash.Write(transcript.Sum(nil))
+}
+
+// signatureSchemesForCertificate returns the list of supported SignatureSchemes
+// for a given certificate, based on the public key.
+func signatureSchemesForCertificate(cert *Certificate) []SignatureScheme {
+	priv, ok := cert.PrivateKey.(crypto.Signer)
+	if !ok {
+		return nil
+	}
+
+	switch priv := priv.Public().(type) {
+	case *ecdsa.PublicKey:
+		switch priv.Curve {
+		case elliptic.P256():
+			return []SignatureScheme{ECDSAWithP256AndSHA256}
+		case elliptic.P384():
+			return []SignatureScheme{ECDSAWithP384AndSHA384}
+		case elliptic.P521():
+			return []SignatureScheme{ECDSAWithP521AndSHA512}
+		default:
+			return nil
+		}
+	case *rsa.PublicKey:
+		// RSA keys with RSA-PSS OID are not supported by crypto/x509.
+		return []SignatureScheme{
+			PSSWithSHA256,
+			PSSWithSHA384,
+			PSSWithSHA512,
+		}
+	default:
+		return nil
+	}
 }

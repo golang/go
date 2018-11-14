@@ -414,6 +414,8 @@ const (
 	C_BITCON   // bitfield and logical immediate masks
 	C_ADDCON2  // 24-bit constant
 	C_LCON     // 32-bit constant
+	C_MOVCON2  // a constant that can be loaded with one MOVZ/MOVN and one MOVK
+	C_MOVCON3  // a constant that can be loaded with one MOVZ/MOVN and two MOVKs
 	C_VCON     // 64-bit constant
 	C_FCON     // floating-point constant
 	C_VCONADDR // 64-bit memory address

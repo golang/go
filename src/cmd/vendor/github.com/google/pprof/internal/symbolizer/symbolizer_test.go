@@ -114,8 +114,8 @@ func TestSymbolization(t *testing.T) {
 	}
 
 	s := Symbolizer{
-		mockObjTool{},
-		&proftest.TestUI{T: t},
+		Obj: mockObjTool{},
+		UI:  &proftest.TestUI{T: t},
 	}
 	for i, tc := range []testcase{
 		{

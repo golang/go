@@ -327,7 +327,7 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 	return z
 }
 
-// Signbit returns true if x is negative or negative zero.
+// Signbit reports whether x is negative or negative zero.
 func (x *Float) Signbit() bool {
 	return x.neg
 }

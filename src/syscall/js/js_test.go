@@ -302,49 +302,43 @@ func TestZeroValue(t *testing.T) {
 
 func TestCallback(t *testing.T) {
 	c := make(chan struct{})
-	cb := js.NewCallback(func(args []js.Value) {
+	cb := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
 		if got := args[0].Int(); got != 42 {
 			t.Errorf("got %#v, want %#v", got, 42)
 		}
 		c <- struct{}{}
+		return nil
 	})
 	defer cb.Release()
 	js.Global().Call("setTimeout", cb, 0, 42)
 	<-c
 }
 
-func TestEventCallback(t *testing.T) {
-	for _, name := range []string{"preventDefault", "stopPropagation", "stopImmediatePropagation"} {
-		c := make(chan struct{})
-		var flags js.EventCallbackFlag
-		switch name {
-		case "preventDefault":
-			flags = js.PreventDefault
-		case "stopPropagation":
-			flags = js.StopPropagation
-		case "stopImmediatePropagation":
-			flags = js.StopImmediatePropagation
-		}
-		cb := js.NewEventCallback(flags, func(event js.Value) {
-			c <- struct{}{}
+func TestInvokeCallback(t *testing.T) {
+	called := false
+	cb := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+		cb2 := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+			called = true
+			return 42
 		})
-		defer cb.Release()
-
-		event := js.Global().Call("eval", fmt.Sprintf("({ called: false, %s: function() { this.called = true; } })", name))
-		cb.Invoke(event)
-		if !event.Get("called").Bool() {
-			t.Errorf("%s not called", name)
-		}
-
-		<-c
+		defer cb2.Release()
+		return cb2.Invoke()
+	})
+	defer cb.Release()
+	if got := cb.Invoke().Int(); got != 42 {
+		t.Errorf("got %#v, want %#v", got, 42)
+	}
+	if !called {
+		t.Error("callback not called")
 	}
 }
 
 func ExampleNewCallback() {
 	var cb js.Callback
-	cb = js.NewCallback(func(args []js.Value) {
+	cb = js.NewCallback(func(this js.Value, args []js.Value) interface{} {
 		fmt.Println("button clicked")
 		cb.Release() // release the callback if the button will not be clicked again
+		return nil
 	})
 	js.Global().Get("document").Call("getElementById", "myButton").Call("addEventListener", "click", cb)
 }

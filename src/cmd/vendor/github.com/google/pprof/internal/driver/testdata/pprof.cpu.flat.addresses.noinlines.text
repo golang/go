@@ -1,0 +1,7 @@
+Showing nodes accounting for 1.12s, 100% of 1.12s total
+Dropped 1 node (cum <= 0.06s)
+      flat  flat%   sum%        cum   cum%
+     1.10s 98.21% 98.21%      1.10s 98.21%  0000000000001000 line1000 testdata/file1000.src:1
+     0.01s  0.89% 99.11%      1.01s 90.18%  0000000000002000 line2000 testdata/file2000.src:4
+     0.01s  0.89%   100%      1.01s 90.18%  0000000000003000 line3000 testdata/file3000.src:6
+         0     0%   100%      0.10s  8.93%  0000000000003001 line3000 testdata/file3000.src:9

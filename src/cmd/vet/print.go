@@ -531,7 +531,7 @@ func printfNameAndKind(pkg *Package, called ast.Expr) (pkgpath, name string, kin
 	return pkgpath, name, kind
 }
 
-// isStringer returns true if the provided declaration is a "String() string"
+// isStringer reports whether the provided declaration is a "String() string"
 // method, an implementation of fmt.Stringer.
 func isStringer(f *File, d *ast.FuncDecl) bool {
 	return d.Recv != nil && d.Name.Name == "String" && d.Type.Results != nil &&

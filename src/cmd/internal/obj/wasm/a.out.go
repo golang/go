@@ -246,7 +246,7 @@ const (
 	REG_RET1
 	REG_RET2
 	REG_RET3
-	REG_RUN
+	REG_PAUSE
 
 	// locals
 	REG_R0

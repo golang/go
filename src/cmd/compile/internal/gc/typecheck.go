@@ -12,6 +12,50 @@ import (
 	"strings"
 )
 
+// To enable tracing support (-t flag), set enableTrace to true.
+const enableTrace = false
+
+var trace bool
+var traceIndent []byte
+
+func tracePrint(title string, n *Node) func(np **Node) {
+	indent := traceIndent
+
+	// guard against nil
+	var pos, op string
+	var tc uint8
+	if n != nil {
+		pos = linestr(n.Pos)
+		op = n.Op.String()
+		tc = n.Typecheck()
+	}
+
+	fmt.Printf("%s: %s%s %p %s %v tc=%d\n", pos, indent, title, n, op, n, tc)
+	traceIndent = append(traceIndent, ". "...)
+
+	return func(np **Node) {
+		traceIndent = traceIndent[:len(traceIndent)-2]
+
+		// if we have a result, use that
+		if np != nil {
+			n = *np
+		}
+
+		// guard against nil
+		// use outer pos, op so we don't get empty pos/op if n == nil (nicer output)
+		var tc uint8
+		var typ *types.Type
+		if n != nil {
+			pos = linestr(n.Pos)
+			op = n.Op.String()
+			tc = n.Typecheck()
+			typ = n.Type
+		}
+
+		fmt.Printf("%s: %s=> %p %s %v tc=%d type=%#L\n", pos, indent, n, op, n, tc, typ)
+	}
+}
+
 const (
 	Etop      = 1 << iota // evaluated at statement level
 	Erv                   // evaluated in value context
@@ -31,9 +75,14 @@ const (
 var typecheckdefstack []*Node
 
 // resolve ONONAME to definition, if any.
-func resolve(n *Node) *Node {
+func resolve(n *Node) (res *Node) {
 	if n == nil || n.Op != ONONAME {
 		return n
+	}
+
+	// only trace if there's work to do
+	if enableTrace && trace {
+		defer tracePrint("resolve", n)(&res)
 	}
 
 	if n.Sym.Pkg != localpkg {
@@ -150,7 +199,7 @@ var typecheck_tcstack []*Node
 // typecheck type checks node n.
 // The result of typecheck MUST be assigned back to n, e.g.
 // 	n.Left = typecheck(n.Left, top)
-func typecheck(n *Node, top int) *Node {
+func typecheck(n *Node, top int) (res *Node) {
 	// cannot type check until all the source has been parsed
 	if !typecheckok {
 		Fatalf("early typecheck")
@@ -158,6 +207,11 @@ func typecheck(n *Node, top int) *Node {
 
 	if n == nil {
 		return nil
+	}
+
+	// only trace if there's work to do
+	if enableTrace && trace {
+		defer tracePrint("typecheck", n)(&res)
 	}
 
 	lno := setlineno(n)
@@ -201,8 +255,16 @@ func typecheck(n *Node, top int) *Node {
 				// since it would expand indefinitely when aliases
 				// are substituted.
 				cycle := cycleFor(n)
-				for _, n := range cycle {
-					if n.Name != nil && !n.Name.Param.Alias {
+				for _, n1 := range cycle {
+					if n1.Name != nil && !n1.Name.Param.Alias {
+						// Cycle is ok. But if n is an alias type and doesn't
+						// have a type yet, we have a recursive type declaration
+						// with aliases that we can't handle properly yet.
+						// Report an error rather than crashing later.
+						if n.Name != nil && n.Name.Param.Alias && n.Type == nil {
+							lineno = n.Pos
+							Fatalf("cannot handle alias type declaration (issue #25838): %v", n)
+						}
 						lineno = lno
 						return n
 					}
@@ -294,7 +356,11 @@ func indexlit(n *Node) *Node {
 
 // The result of typecheck1 MUST be assigned back to n, e.g.
 // 	n.Left = typecheck1(n.Left, top)
-func typecheck1(n *Node, top int) *Node {
+func typecheck1(n *Node, top int) (res *Node) {
+	if enableTrace && trace {
+		defer tracePrint("typecheck1", n)(&res)
+	}
+
 	switch n.Op {
 	case OLITERAL, ONAME, ONONAME, OTYPE:
 		if n.Sym == nil {
@@ -1094,11 +1160,15 @@ func typecheck1(n *Node, top int) *Node {
 		ok |= Erv
 
 		t := n.Type
+		if t == nil {
+			Fatalf("no type specified for OSLICEHEADER")
+		}
+
 		if !t.IsSlice() {
 			Fatalf("invalid type %v for OSLICEHEADER", n.Type)
 		}
 
-		if !n.Left.Type.IsUnsafePtr() {
+		if n.Left == nil || n.Left.Type == nil || !n.Left.Type.IsUnsafePtr() {
 			Fatalf("need unsafe.Pointer for OSLICEHEADER")
 		}
 
@@ -2381,7 +2451,11 @@ func lookdot1(errnode *Node, s *types.Sym, t *types.Type, fs *types.Fields, dost
 
 // typecheckMethodExpr checks selector expressions (ODOT) where the
 // base expression is a type expression (OTYPE).
-func typecheckMethodExpr(n *Node) *Node {
+func typecheckMethodExpr(n *Node) (res *Node) {
+	if enableTrace && trace {
+		defer tracePrint("typecheckMethodExpr", n)(&res)
+	}
+
 	t := n.Left.Type
 
 	// Compute the method set for t.
@@ -2924,7 +2998,11 @@ func pushtype(n *Node, t *types.Type) {
 
 // The result of typecheckcomplit MUST be assigned back to n, e.g.
 // 	n.Left = typecheckcomplit(n.Left)
-func typecheckcomplit(n *Node) *Node {
+func typecheckcomplit(n *Node) (res *Node) {
+	if enableTrace && trace {
+		defer tracePrint("typecheckcomplit", n)(&res)
+	}
+
 	lno := lineno
 	defer func() {
 		lineno = lno
@@ -3337,6 +3415,10 @@ func samesafeexpr(l *Node, r *Node) bool {
 // if this assignment is the definition of a var on the left side,
 // fill in the var's type.
 func typecheckas(n *Node) {
+	if enableTrace && trace {
+		defer tracePrint("typecheckas", n)(nil)
+	}
+
 	// delicate little dance.
 	// the definition of n may refer to this assignment
 	// as its definition, in which case it will call typecheckas.
@@ -3393,6 +3475,10 @@ func checkassignto(src *types.Type, dst *Node) {
 }
 
 func typecheckas2(n *Node) {
+	if enableTrace && trace {
+		defer tracePrint("typecheckas2", n)(nil)
+	}
+
 	ls := n.List.Slice()
 	for i1, n1 := range ls {
 		// delicate little dance.
@@ -3521,6 +3607,10 @@ out:
 
 // type check function definition
 func typecheckfunc(n *Node) {
+	if enableTrace && trace {
+		defer tracePrint("typecheckfunc", n)(nil)
+	}
+
 	for _, ln := range n.Func.Dcl {
 		if ln.Op == ONAME && (ln.Class() == PPARAM || ln.Class() == PPARAMOUT) {
 			ln.Name.Decldepth = 1
@@ -3593,8 +3683,7 @@ func copytype(n *Node, t *types.Type) {
 	embedlineno := n.Type.ForwardType().Embedlineno
 	l := n.Type.ForwardType().Copyto
 
-	ptrBase := n.Type.PtrBase
-	sliceOf := n.Type.SliceOf
+	cache := n.Type.Cache
 
 	// TODO(mdempsky): Fix Type rekinding.
 	*n.Type = *t
@@ -3615,8 +3704,7 @@ func copytype(n *Node, t *types.Type) {
 
 	t.Nod = asTypesNode(n)
 	t.SetDeferwidth(false)
-	t.PtrBase = ptrBase
-	t.SliceOf = sliceOf
+	t.Cache = cache
 
 	// Propagate go:notinheap pragma from the Name to the Type.
 	if n.Name != nil && n.Name.Param != nil && n.Name.Param.Pragma&NotInHeap != 0 {
@@ -3637,6 +3725,10 @@ func copytype(n *Node, t *types.Type) {
 }
 
 func typecheckdeftype(n *Node) {
+	if enableTrace && trace {
+		defer tracePrint("typecheckdeftype", n)(nil)
+	}
+
 	n.Type.Sym = n.Sym
 	n.SetTypecheck(1)
 	n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
@@ -3654,6 +3746,10 @@ func typecheckdeftype(n *Node) {
 }
 
 func typecheckdef(n *Node) {
+	if enableTrace && trace {
+		defer tracePrint("typecheckdef", n)(nil)
+	}
+
 	lno := setlineno(n)
 
 	if n.Op == ONONAME {
@@ -3992,6 +4088,12 @@ func deadcode(fn *Node) {
 }
 
 func deadcodeslice(nn Nodes) {
+	var lastLabel = -1
+	for i, n := range nn.Slice() {
+		if n != nil && n.Op == OLABEL {
+			lastLabel = i
+		}
+	}
 	for i, n := range nn.Slice() {
 		// Cut is set to true when all nodes after i'th position
 		// should be removed.
@@ -4014,10 +4116,14 @@ func deadcodeslice(nn Nodes) {
 				// If "then" or "else" branch ends with panic or return statement,
 				// it is safe to remove all statements after this node.
 				// isterminating is not used to avoid goto-related complications.
+				// We must be careful not to deadcode-remove labels, as they
+				// might be the target of a goto. See issue 28616.
 				if body := body.Slice(); len(body) != 0 {
 					switch body[(len(body) - 1)].Op {
 					case ORETURN, ORETJMP, OPANIC:
-						cut = true
+						if i > lastLabel {
+							cut = true
+						}
 					}
 				}
 			}

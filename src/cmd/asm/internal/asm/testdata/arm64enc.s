@@ -56,7 +56,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    BFXILW $3, R27, $23, R14                   // 6e670333
    BFXIL $26, R8, $16, R20                    // 14a55ab3
    BICW R7@>15, R5, R16                       // b03ce70a
-   BIC R12@>13, R12, R18                      // 9235ec8a
+   BIC R12@>13, R12, R19                      // 9335ec8a
    BICSW R25->20, R3, R20                     // 7450b96a
    BICS R19->12, R1, R23                      // 3730b3ea
    BICS R19, R1, R23                          // 370033ea
@@ -76,7 +76,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    CCMN LE, R30, R12, $6                      // c6d34cba
    CCMPW VS, R29, $15, $7                     // a76b4f7a
    CCMP LE, R7, $19, $3                       // e3d853fa
-   CCMPW HS, R18, R6, $0                      // 4022467a
+   CCMPW HS, R19, R6, $0                      // 6022467a
    CCMP LT, R30, R6, $7                       // c7b346fa
    CCMN  MI, ZR, R1, $4                       // e44341ba
    CSINCW HS, ZR, R27, R14                    // ee279b1a
@@ -118,7 +118,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    CRC32H R3, R21, R27                        // bb46c31a
    CRC32W R22, R30, R9                        // c94bd61a
    CRC32X R20, R4, R15                        // 8f4cd49a
-   CRC32CB R18, R27, R22                      // 7653d21a
+   CRC32CB R19, R27, R22                      // 7653d31a
    CRC32CH R21, R0, R20                       // 1454d51a
    CRC32CW R9, R3, R21                        // 7558c91a
    CRC32CX R11, R0, R24                       // 185ccb9a
@@ -133,7 +133,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    CSINVW AL, R23, R21, R5                    // e5e2955a
    CSINV LO, R2, R11, R14                     // 4e308bda
    CSNEGW HS, R16, R29, R10                   // 0a269d5a
-   CSNEG NE, R21, R18, R11                    // ab1692da
+   CSNEG NE, R21, R19, R11                    // ab1693da
    //TODO DC
    DCPS1 $11378                               // 418ea5d4
    DCPS2 $10699                               // 6239a5d4
@@ -185,23 +185,23 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    MOVBU.P 42(R2), R12                        // 4ca44238
    MOVBU.W -27(R2), R14                       // 4e5c5e38
    MOVBU 2916(R24), R3                        // 03936d39
-   MOVBU (R18)(R14<<0), R23                   // 577a6e38
+   MOVBU (R19)(R14<<0), R23                   // 777a6e38
    MOVBU (R2)(R8.SXTX), R19                   // 53e86838
    MOVBU (R27)(R23), R14                      // MOVBU (R27)(R23*1), R14     // 6e6b7738
    MOVHU.P 107(R14), R13                      // cdb54678
    MOVHU.W 192(R3), R2                        // 620c4c78
-   MOVHU 6844(R4), R18                        // 92787579
+   MOVHU 6844(R4), R19                        // 93787579
    MOVHU (R5)(R25.SXTW), R15                  // afc87978
-   //TODO MOVBW.P 77(R18), R11                // 4bd6c438
+   //TODO MOVBW.P 77(R19), R11                // 6bd6c438
    MOVB.P 36(RSP), R27                        // fb478238
-   //TODO MOVBW.W -57(R18), R13               // 4d7edc38
+   //TODO MOVBW.W -57(R19), R13               // 6d7edc38
    MOVB.W -178(R16), R24                      // 18ee9438
    //TODO MOVBW 430(R8), R22                  // 16b9c639
    MOVB 997(R9), R23                          // 37958f39
    //TODO MOVBW (R2<<1)(R21), R15             // af7ae238
    //TODO MOVBW (R26)(R0), R21                // 1568fa38
    MOVB (R5)(R15), R16                        // MOVB (R5)(R15*1), R16         // b068af38
-   MOVB (R18)(R26.SXTW), R19                  // 53caba38
+   MOVB (R19)(R26.SXTW), R19                  // 73caba38
    MOVB (R29)(R30), R14                       // MOVB (R29)(R30*1), R14        // ae6bbe38
    //TODO MOVHW.P 218(R22), R25               // d9a6cd78
    MOVH.P 179(R23), R5                        // e5368b78
@@ -212,7 +212,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    //TODO MOVHW (R22)(R24.SXTX), R4           // c4eaf878
    MOVH (R26)(R30.UXTW<<1), ZR                // 5f5bbe78
    MOVW.P -58(R16), R2                        // 02669cb8
-   MOVW.W -216(R18), R8                       // 488e92b8
+   MOVW.W -216(R19), R8                       // 688e92b8
    MOVW 4764(R23), R10                        // ea9e92b9
    MOVW (R8)(R3.UXTW), R17                    // 1149a3b8
    //TODO LDTR -0x1e(R3), R4                  // 64285eb8
@@ -297,7 +297,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    RET                                        // c0035fd6
    REVW R8, R10                               // 0a09c05a
    REV R1, R2                                 // 220cc0da
-   REV16W R21, R18                            // b206c05a
+   REV16W R21, R19                            // b306c05a
    REV16 R25, R4                              // 2407c0da
    REV32 R27, R21                             // 750bc0da
    EXTRW $27, R4, R25, R19                    // 336f8413
@@ -308,7 +308,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    ROR R0, R23, R2                            // e22ec09a
    SBCW R4, R8, R24                           // 1801045a
    SBC R25, R10, R26                          // 5a0119da
-   SBCSW R27, R18, R18                        // 52021b7a
+   SBCSW R27, R19, R19                        // 73021b7a
    SBCS R5, R9, R5                            // 250105fa
    SBFIZW $9, R10, $18, R22                   // 56451713
    SBFIZ $6, R11, $15, R20                    // 74397a93
@@ -337,7 +337,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    //TODO STNPW 44(R1), R3, R10               // 2a8c0528
    //TODO STNP 0x108(R3), ZR, R7              // 67fc10a8
    LDP.P -384(R3), (R22, R26)                 // 7668e8a8
-   LDP.W 280(R8), (R18, R11)                  // 12add1a9
+   LDP.W 280(R8), (R19, R11)                  // 13add1a9
    STP.P (R22, R27), 352(R0)                  // 166c96a8
    STP.W (R17, R11), 96(R8)                   // 112d86a9
    MOVW.P R20, -28(R1)                        // 34441eb8
@@ -360,22 +360,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    MOVB R2, (R29)(R26)                        // MOVB R2, (R29)(R26*1)         // a26b3a38
    MOVH R11, -80(R23)                         // eb021b78
    MOVH R11, (R27)(R14.SXTW<<1)               // 6bdb2e78
-   MOVB R18, (R0)(R4)                         // MOVB R18, (R0)(R4*1)          // 12682438
+   MOVB R19, (R0)(R4)                         // MOVB R19, (R0)(R4*1)          // 13682438
    MOVB R1, (R6)(R4)                          // MOVB R1, (R6)(R4*1)           // c1682438
    MOVH R3, (R11)(R13<<1)                     // 63792d78
    //TODO STTR 55(R4), R29                    // 9d7803b8
    //TODO STTR 124(R5), R25                   // b9c807f8
    //TODO STTRB -28(R23), R16                 // f04a1e38
-   //TODO STTRH 9(R10), R18                   // 52990078
+   //TODO STTRH 9(R10), R19                   // 53990078
    STXP (R1, R2), (R3), R10                   // 61082ac8
    STXP (R1, R2), (RSP), R10                  // e10b2ac8
    STXPW (R1, R2), (R3), R10                  // 61082a88
    STXPW (R1, R2), (RSP), R10                 // e10b2a88
-   STXRW R2, (R19), R18                       // 627e1288
+   STXRW R2, (R19), R20                       // 627e1488
    STXR R15, (R21), R13                       // af7e0dc8
    STXRB R7, (R9), R24                        // 277d1808
    STXRH R12, (R3), R8                        // 6c7c0848
-   SUBW R20.UXTW<<2, R23, R18                 // f24a344b
+   SUBW R20.UXTW<<2, R23, R19                 // f34a344b
    SUB R5.SXTW<<2, R1, R26                    // 3ac825cb
    SUB $(1923<<12), R4, R27                   // SUB $7876608, R4, R27         // 9b0c5ed1
    SUBW $(1923<<12), R4, R27                  // SUBW $7876608, R4, R27        // 9b0c5e51
@@ -410,12 +410,12 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    UBFXW $3, R7, $20, R15                     // ef580353
    UBFX $33, R17, $25, R5                     // 25e661d3
    UDIVW R8, R21, R15                         // af0ac81a
-   UDIV R2, R18, R21                          // 550ac29a
+   UDIV R2, R19, R21                          // 750ac29a
    UMADDL R0, R20, R17, R17                   // 3152a09b
    UMSUBL R22, R4, R3, R7                     // 6790b69b
-   UMNEGL R3, R18, R1                         // 41fea39b
+   UMNEGL R3, R19, R1                         // 61fea39b
    UMULH R24, R20, R24                        // 987ed89b
-   UMULL R18, R22, R19                        // d37eb29b
+   UMULL R19, R22, R19                        // d37eb39b
    UXTBW R2, R6                               // 461c0053
    UXTHW R7, R20                              // f43c0053
    VCNT V0.B8, V0.B8                          // 0058200e
@@ -471,7 +471,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    //TODO FCVTAS F27, R7                      // 6703241e
    //TODO FCVTAS F19, R26                     // 7a02249e
    //TODO FCVTAS F4, R0                       // 8000641e
-   //TODO FCVTAS F3, R18                      // 7200649e
+   //TODO FCVTAS F3, R19                      // 7300649e
    //TODO FCVTAU F18, F28                     // 5cca217e
    //TODO VFCVTAU V30.S4, V27.S4              // dbcb216e
    //TODO FCVTAU F0, R2                       // 0200251e
@@ -482,16 +482,16 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    //TODO VFCVTL2 V15.H8, V25.S4              // f979214e
    //TODO FCVTMS F21, F28                     // bcba215e
    //TODO VFCVTMS V5.D2, V2.D2                // a2b8614e
-   //TODO FCVTMS F31, R18                     // f203301e
+   //TODO FCVTMS F31, R19                     // f303301e
    //TODO FCVTMS F23, R16                     // f002309e
    //TODO FCVTMS F16, R22                     // 1602701e
    //TODO FCVTMS F14, R19                     // d301709e
    //TODO FCVTMU F14, F8                      // c8b9217e
    //TODO VFCVTMU V7.D2, V1.D2                // e1b8616e
    //TODO FCVTMU F2, R0                       // 4000311e
-   //TODO FCVTMU F23, R18                     // f202319e
+   //TODO FCVTMU F23, R19                     // f302319e
    //TODO FCVTMU F16, R17                     // 1102711e
-   //TODO FCVTMU F12, R18                     // 9201719e
+   //TODO FCVTMU F12, R19                     // 9301719e
    //TODO VFCVTN V23.D2, V26.S2               // fa6a610e
    //TODO VFCVTN2 V2.D2, V31.S4               // 5f68614e
    //TODO FCVTNS F3, F27                      // 7ba8215e
@@ -540,7 +540,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    //TODO FCVTZU $14, F24, R20                // 14cb191e
    //TODO FCVTZU $6, F25, R17                 // 31eb199e
    //TODO FCVTZU $5, F17, R10                 // 2aee591e
-   //TODO FCVTZU $6, F7, R18                  // f2e8599e
+   //TODO FCVTZU $6, F7, R19                  // f3e8599e
    FCVTZUSW F2, R9                            // 4900391e
    FCVTZUS F12, R29                           // 9d01399e
    FCVTZUDW F27, R22                          // 7603791e
@@ -682,11 +682,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    VLD1.P (R19)(R4), [V24.B8, V25.B8]                          // VLD1.P (R19)(R4*1), [V24.B8, V25.B8]         // 78a2c40c
    VLD1.P (R20)(R8), [V7.H8, V8.H8, V9.H8]                     // VLD1.P (R20)(R8*1), [V7.H8, V8.H8, V9.H8]    // 8766c84c
    VLD1.P 32(R30), [V5.B8, V6.B8, V7.B8, V8.B8]                // c523df0c
-   VLD1 (R18), V14.B[15]                                       // 4e1e404d
+   VLD1 (R19), V14.B[15]                                       // 6e1e404d
    VLD1 (R29), V0.H[1]                                         // a04b400d
    VLD1 (R27), V2.S[0]                                         // 6283400d
    VLD1 (R21), V5.D[1]                                         // a586404d
-   VLD1.P 1(R18), V10.B[14]                                    // 4a1adf4d
+   VLD1.P 1(R19), V10.B[14]                                    // 6a1adf4d
    VLD1.P (R3)(R14), V16.B[11]                                 // VLD1.P (R3)(R14*1), V16.B[11]                // 700cce4d
    VLD1.P 2(R1), V28.H[2]                                      // 3c50df0d
    VLD1.P (R13)(R20), V9.H[2]                                  // VLD1.P (R13)(R20*1), V9.H[2]                 // a951d40d

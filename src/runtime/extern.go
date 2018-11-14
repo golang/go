@@ -202,6 +202,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 // directly is discouraged, as is using FuncForPC on any of the
 // returned PCs, since these cannot account for inlining or return
 // program counter adjustment.
+//go:noinline
 func Callers(skip int, pc []uintptr) int {
 	// runtime.callers uses pc.array==nil as a signal
 	// to print a stack trace. Pick off 0-length pc here

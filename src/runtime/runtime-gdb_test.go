@@ -181,12 +181,11 @@ func testGdbPython(t *testing.T, cgo bool) {
 	}
 	args = append(args,
 		"-ex", "set python print-stack full",
-		"-ex", "br fmt.Println",
+		"-ex", "br main.go:15",
 		"-ex", "run",
 		"-ex", "echo BEGIN info goroutines\n",
 		"-ex", "info goroutines",
 		"-ex", "echo END\n",
-		"-ex", "up", // up from fmt.Println to main
 		"-ex", "echo BEGIN print mapvar\n",
 		"-ex", "print mapvar",
 		"-ex", "echo END\n",
@@ -196,14 +195,13 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "echo BEGIN info locals\n",
 		"-ex", "info locals",
 		"-ex", "echo END\n",
-		"-ex", "down", // back to fmt.Println (goroutine 2 below only works at bottom of stack.  TODO: fix that)
 		"-ex", "echo BEGIN goroutine 1 bt\n",
 		"-ex", "goroutine 1 bt",
 		"-ex", "echo END\n",
 		"-ex", "echo BEGIN goroutine 2 bt\n",
 		"-ex", "goroutine 2 bt",
 		"-ex", "echo END\n",
-		"-ex", "clear fmt.Println", // clear the previous break point
+		"-ex", "clear main.go:15", // clear the previous break point
 		"-ex", fmt.Sprintf("br main.go:%d", nLines), // new break point at the end of main
 		"-ex", "c",
 		"-ex", "echo BEGIN goroutine 1 bt at the end\n",
@@ -274,7 +272,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("info locals failed: %s", bl)
 	}
 
-	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?fmt\.Println.+at`)
+	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
 	if bl := blocks["goroutine 1 bt"]; !btGoroutine1Re.MatchString(bl) {
 		t.Fatalf("goroutine 1 bt failed: %s", bl)
 	}

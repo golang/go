@@ -38,9 +38,10 @@ import (
 const (
 	inlineMaxBudget       = 80
 	inlineExtraAppendCost = 0
-	inlineExtraCallCost   = inlineMaxBudget // default is do not inline, -l=4 enables by using 1 instead.
-	inlineExtraPanicCost  = 1               // do not penalize inlining panics.
-	inlineExtraThrowCost  = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
+	// default is to inline if there's at most one call. -l=4 overrides this by using 1 instead.
+	inlineExtraCallCost  = inlineMaxBudget * 3 / 4
+	inlineExtraPanicCost = 1               // do not penalize inlining panics.
+	inlineExtraThrowCost = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
 
 	inlineBigFunctionNodes   = 5000 // Functions with this many nodes are considered "big".
 	inlineBigFunctionMaxCost = 20   // Max cost of inlinee when inlining into a "big" function.
@@ -138,6 +139,13 @@ func caninl(fn *Node) {
 	// function makes assumptions about its argument frame layout.
 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
 		reason = "marked go:cgo_unsafe_args"
+		return
+	}
+
+	// If marked as "go:uintptrescapes", don't inline, since the
+	// escape information is lost during inlining.
+	if fn.Func.Pragma&UintptrEscapes != 0 {
+		reason = "marked as having an escaping uintptr argument"
 		return
 	}
 
