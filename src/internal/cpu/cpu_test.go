@@ -41,7 +41,7 @@ func runDebugOptionsTest(t *testing.T, test string, options string) {
 
 	testenv.MustHaveExec(t)
 
-	env := "GODEBUGCPU=" + options
+	env := "GODEBUG=" + options
 
 	cmd := exec.Command(os.Args[0], "-test.run="+test)
 	cmd.Env = append(cmd.Env, env)
@@ -58,14 +58,14 @@ func runDebugOptionsTest(t *testing.T, test string, options string) {
 }
 
 func TestDisableAllCapabilities(t *testing.T) {
-	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "all=off")
+	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "cpu.all=off")
 }
 
 func TestAllCapabilitiesDisabled(t *testing.T) {
 	MustHaveDebugOptionsSupport(t)
 
-	if os.Getenv("GODEBUGCPU") != "all=off" {
-		t.Skipf("skipping test: GODEBUGCPU=all=off not set")
+	if os.Getenv("GODEBUG") != "cpu.all=off" {
+		t.Skipf("skipping test: GODEBUG=cpu.all=off not set")
 	}
 
 	for _, o := range Options {
