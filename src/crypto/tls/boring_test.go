@@ -32,6 +32,7 @@ func TestBoringServerProtocolVersion(t *testing.T) {
 				random:             make([]byte, 32),
 				cipherSuites:       allCipherSuites(),
 				compressionMethods: []uint8{compressionNone},
+				supportedVersions:  []uint16{v},
 			}
 			testClientHelloFailure(t, serverConfig, clientHello, msg)
 		})
@@ -41,6 +42,7 @@ func TestBoringServerProtocolVersion(t *testing.T) {
 	test("VersionTLS10", VersionTLS10, "")
 	test("VersionTLS11", VersionTLS11, "")
 	test("VersionTLS12", VersionTLS12, "")
+	test("VersionTLS13", VersionTLS13, "")
 
 	fipstls.Force()
 	defer fipstls.Abandon()
@@ -48,6 +50,11 @@ func TestBoringServerProtocolVersion(t *testing.T) {
 	test("VersionTLS10", VersionTLS10, "client offered only unsupported versions")
 	test("VersionTLS11", VersionTLS11, "client offered only unsupported versions")
 	test("VersionTLS12", VersionTLS12, "")
+	test("VersionTLS13", VersionTLS13, "client offered only unsupported versions")
+}
+
+func isBoringVersion(v uint16) bool {
+	return v == VersionTLS12
 }
 
 func isBoringCipherSuite(id uint16) bool {
@@ -171,7 +178,7 @@ func TestBoringServerCurves(t *testing.T) {
 }
 
 func boringHandshake(t *testing.T, clientConfig, serverConfig *Config) (clientErr, serverErr error) {
-	c, s := realNetPipe(t)
+	c, s := localPipe(t)
 	client := Client(c, clientConfig)
 	server := Server(s, serverConfig)
 	done := make(chan error, 1)
@@ -196,7 +203,7 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 	for _, sigHash := range defaultSupportedSignatureAlgorithms {
 		testingOnlyForceClientHelloSignatureAlgorithms = []SignatureScheme{sigHash}
 
-		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%#x", sigHash), func(t *testing.T) {
 			switch sigHash {
 			case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512,
 				PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
@@ -214,9 +221,9 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 			// 1.3, and the ECDSA ones bind to the curve used.
 			serverConfig.MaxVersion = VersionTLS12
 
-			clientErr, _ := boringHandshake(t, testConfig, serverConfig)
+			clientErr, serverErr := boringHandshake(t, testConfig, serverConfig)
 			if clientErr != nil {
-				t.Fatalf("expected handshake with %v to succeed; err=%v", sigHash, clientErr)
+				t.Fatalf("expected handshake with %#x to succeed; client error: %v; server error: %v", sigHash, clientErr, serverErr)
 			}
 
 			// With fipstls forced, bad curves should be rejected.
@@ -226,11 +233,11 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 				clientErr, _ := boringHandshake(t, testConfig, serverConfig)
 				if isBoringSignatureScheme(sigHash) {
 					if clientErr != nil {
-						t.Fatalf("expected handshake with %v to succeed; err=%v", sigHash, clientErr)
+						t.Fatalf("expected handshake with %#x to succeed; err=%v", sigHash, clientErr)
 					}
 				} else {
 					if clientErr == nil {
-						t.Fatalf("expected handshake with %v to fail, but it succeeded", sigHash)
+						t.Fatalf("expected handshake with %#x to fail, but it succeeded", sigHash)
 					}
 				}
 			})
@@ -251,6 +258,7 @@ func TestBoringClientHello(t *testing.T) {
 	clientConfig := testConfig.Clone()
 	// All sorts of traps for the client to avoid.
 	clientConfig.MinVersion = VersionSSL30
+	clientConfig.MaxVersion = VersionTLS13
 	clientConfig.CipherSuites = allCipherSuites()
 	clientConfig.CurvePreferences = defaultCurvePreferences
 
@@ -265,8 +273,13 @@ func TestBoringClientHello(t *testing.T) {
 		t.Fatalf("unexpected message type %T", msg)
 	}
 
-	if hello.vers != VersionTLS12 {
+	if !isBoringVersion(hello.vers) {
 		t.Errorf("client vers=%#x, want %#x (TLS 1.2)", hello.vers, VersionTLS12)
+	}
+	for _, v := range hello.supportedVersions {
+		if !isBoringVersion(v) {
+			t.Errorf("client offered disallowed version %#x", v)
+		}
 	}
 	for _, id := range hello.cipherSuites {
 		if !isBoringCipherSuite(id) {
@@ -549,26 +562,6 @@ func boringCert(t *testing.T, name string, key interface{}, parent *boringCertif
 	return &boringCertificate{name, org, parentOrg, der, cert, key, fipsOK}
 }
 
-func boringPool(t *testing.T, list ...*boringCertificate) *x509.CertPool {
-	pool := x509.NewCertPool()
-	for _, c := range list {
-		cert, err := x509.ParseCertificate(c.der)
-		if err != nil {
-			t.Fatal(err)
-		}
-		pool.AddCert(cert)
-	}
-	return pool
-}
-
-func boringList(t *testing.T, list ...*boringCertificate) [][]byte {
-	var all [][]byte
-	for _, c := range list {
-		all = append(all, c.der)
-	}
-	return all
-}
-
 // A self-signed test certificate with an RSA key of size 2048, for testing
 // RSA-PSS with SHA512. SAN of example.golang.
 var (
@@ -632,22 +625,4 @@ oOrtvMdrl6upy9Hz4BJD3FXwVFiPFE7jqeNqi0F21viLxBPMMD3UODF6LL5EyLiR
 	if err != nil {
 		panic(err)
 	}
-}
-
-// realNetPipe is like net.Pipe but returns an actual network socket pair,
-// which has buffering that avoids various deadlocks if both sides
-// try to speak at the same time.
-func realNetPipe(t *testing.T) (net.Conn, net.Conn) {
-	l := newLocalListener(t)
-	defer l.Close()
-	c, err := net.Dial("tcp", l.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	s, err := l.Accept()
-	if err != nil {
-		c.Close()
-		t.Fatal(err)
-	}
-	return c, s
 }
