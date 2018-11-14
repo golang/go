@@ -506,6 +506,9 @@ type serverTest struct {
 	// ConnectionState of the resulting connection. It returns false if the
 	// ConnectionState is unacceptable.
 	validate func(ConnectionState) error
+	// wait, if true, prevents this subtest from calling t.Parallel.
+	// If false, runServerTest* returns immediately.
+	wait bool
 }
 
 var defaultClientCommand = []string{"openssl", "s_client", "-no_ticket"}
@@ -686,32 +689,42 @@ func (test *serverTest) run(t *testing.T, write bool) {
 	}
 }
 
-func runServerTestForVersion(t *testing.T, template *serverTest, prefix, option string) {
-	setParallel(t)
-	test := *template
-	test.name = prefix + test.name
-	if len(test.command) == 0 {
-		test.command = defaultClientCommand
-	}
-	test.command = append([]string(nil), test.command...)
-	test.command = append(test.command, option)
-	test.run(t, *update)
+func runServerTestForVersion(t *testing.T, template *serverTest, version, option string) {
+	t.Run(version, func(t *testing.T) {
+		// Make a deep copy of the template before going parallel.
+		test := *template
+		if template.config != nil {
+			test.config = template.config.Clone()
+		}
+
+		if !*update && !template.wait {
+			t.Parallel()
+		}
+
+		test.name = version + "-" + test.name
+		if len(test.command) == 0 {
+			test.command = defaultClientCommand
+		}
+		test.command = append([]string(nil), test.command...)
+		test.command = append(test.command, option)
+		test.run(t, *update)
+	})
 }
 
 func runServerTestSSLv3(t *testing.T, template *serverTest) {
-	runServerTestForVersion(t, template, "SSLv3-", "-ssl3")
+	runServerTestForVersion(t, template, "SSLv3", "-ssl3")
 }
 
 func runServerTestTLS10(t *testing.T, template *serverTest) {
-	runServerTestForVersion(t, template, "TLSv10-", "-tls1")
+	runServerTestForVersion(t, template, "TLSv10", "-tls1")
 }
 
 func runServerTestTLS11(t *testing.T, template *serverTest) {
-	runServerTestForVersion(t, template, "TLSv11-", "-tls1_1")
+	runServerTestForVersion(t, template, "TLSv11", "-tls1_1")
 }
 
 func runServerTestTLS12(t *testing.T, template *serverTest) {
-	runServerTestForVersion(t, template, "TLSv12-", "-tls1_2")
+	runServerTestForVersion(t, template, "TLSv12", "-tls1_2")
 }
 
 func TestHandshakeServerRSARC4(t *testing.T) {
@@ -971,6 +984,7 @@ func TestResumption(t *testing.T) {
 	test := &serverTest{
 		name:    "IssueTicket",
 		command: []string{"openssl", "s_client", "-cipher", "AES128-SHA", "-sess_out", sessionFilePath},
+		wait:    true,
 	}
 	runServerTestTLS12(t, test)
 
@@ -991,6 +1005,7 @@ func TestResumptionDisabled(t *testing.T) {
 		name:    "IssueTicketPreDisable",
 		command: []string{"openssl", "s_client", "-cipher", "AES128-SHA", "-sess_out", sessionFilePath},
 		config:  config,
+		wait:    true,
 	}
 	runServerTestTLS12(t, test)
 
@@ -1196,7 +1211,6 @@ FMBexFe01MNvja5oHt1vzobhfm6ySD6B5U7ixohLZNz1MLvT/2XMW/TdtWo+PtAd
 -----END EC PRIVATE KEY-----`
 
 func TestClientAuth(t *testing.T) {
-	setParallel(t)
 	var certPath, keyPath, ecdsaCertPath, ecdsaKeyPath string
 
 	if *update {
@@ -1208,6 +1222,8 @@ func TestClientAuth(t *testing.T) {
 		defer os.Remove(ecdsaCertPath)
 		ecdsaKeyPath = tempFile(clientECDSAKeyPEM)
 		defer os.Remove(ecdsaKeyPath)
+	} else {
+		t.Parallel()
 	}
 
 	config := testConfig.Clone()

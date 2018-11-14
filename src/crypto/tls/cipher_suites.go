@@ -430,6 +430,20 @@ func mutualCipherSuite(have []uint16, want uint16) *cipherSuite {
 	return nil
 }
 
+func mutualCipherSuiteTLS13(have []uint16, want uint16) *cipherSuiteTLS13 {
+	for _, id := range have {
+		if id == want {
+			for _, suite := range cipherSuitesTLS13 {
+				if suite.id == want {
+					return suite
+				}
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
 // A list of cipher suite IDs that are, or have been, implemented by this
 // package.
 //
