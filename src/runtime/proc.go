@@ -476,10 +476,10 @@ const (
 	_GoidCacheBatch = 16
 )
 
-// cpuinit extracts the environment variable GODEBUGCPU from the environment on
-// Linux and Darwin and calls internal/cpu.Initialize.
+// cpuinit extracts the environment variable GODEBUG from the environment on
+// Unix-like operating systems and calls internal/cpu.Initialize.
 func cpuinit() {
-	const prefix = "GODEBUGCPU="
+	const prefix = "GODEBUG="
 	var env string
 
 	switch GOOS {
@@ -487,7 +487,7 @@ func cpuinit() {
 		cpu.DebugOptions = true
 
 		// Similar to goenv_unix but extracts the environment value for
-		// GODEBUGCPU directly.
+		// GODEBUG directly.
 		// TODO(moehrmann): remove when general goenvs() can be called before cpuinit()
 		n := int32(0)
 		for argv_index(argv, argc+1+n) != nil {
