@@ -546,6 +546,10 @@ Environment variables for use with cgo:
 		The command to use to compile C++ code.
 	PKG_CONFIG
 		Path to pkg-config tool.
+	AR
+		The command to use to manipulate library archives when
+		building with the gccgo compiler.
+		The default is 'ar'.
 
 Architecture-specific environment variables:
 
