@@ -454,8 +454,7 @@ func Mul64(x, y uint64) (hi, lo uint64) {
 // Div returns the quotient and remainder of (hi, lo) divided by y:
 // quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
 // half in parameter hi and the lower half in parameter lo.
-// hi must be < y otherwise the behavior is undefined (the quotient
-// won't fit into quo).
+// Div panics for y == 0 (division by zero) or y <= hi (quotient overflow).
 func Div(hi, lo, y uint) (quo, rem uint) {
 	if UintSize == 32 {
 		q, r := Div32(uint32(hi), uint32(lo), uint32(y))
@@ -468,8 +467,7 @@ func Div(hi, lo, y uint) (quo, rem uint) {
 // Div32 returns the quotient and remainder of (hi, lo) divided by y:
 // quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
 // half in parameter hi and the lower half in parameter lo.
-// hi must be < y otherwise the behavior is undefined (the quotient
-// won't fit into quo).
+// Div32 panics for y == 0 (division by zero) or y <= hi (quotient overflow).
 func Div32(hi, lo, y uint32) (quo, rem uint32) {
 	if y != 0 && y <= hi {
 		panic(overflowError)
@@ -482,8 +480,7 @@ func Div32(hi, lo, y uint32) (quo, rem uint32) {
 // Div64 returns the quotient and remainder of (hi, lo) divided by y:
 // quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
 // half in parameter hi and the lower half in parameter lo.
-// hi must be < y otherwise the behavior is undefined (the quotient
-// won't fit into quo).
+// Div64 panics for y == 0 (division by zero) or y <= hi (quotient overflow).
 func Div64(hi, lo, y uint64) (quo, rem uint64) {
 	const (
 		two32  = 1 << 32
