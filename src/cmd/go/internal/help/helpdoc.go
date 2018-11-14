@@ -547,8 +547,9 @@ Environment variables for use with cgo:
 	PKG_CONFIG
 		Path to pkg-config tool.
 	AR
-		The command to use to create, modify, and extract from library archives.
-		Only used when the compiler is gccgo ('-compiler=gccgo').
+		The command to use to manipulate library archives when
+		building with the gccgo compiler.
+		The default is 'ar'.
 
 Architecture-specific environment variables:
 
