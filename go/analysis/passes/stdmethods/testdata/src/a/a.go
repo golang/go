@@ -4,7 +4,10 @@
 
 package a
 
-import "fmt"
+import (
+	"encoding/xml"
+	"fmt"
+)
 
 type T int
 
@@ -17,6 +20,9 @@ type U int
 func (U) Format(byte) {} // no error: first parameter must be fmt.State to trigger check
 
 func (U) GobDecode() {} // want `should have signature GobDecode\(\[\]byte\) error`
+
+// Test rendering of type names such as xml.Encoder in diagnostic.
+func (U) MarshalXML(*xml.Encoder) {} // want `method MarshalXML\(\*xml.Encoder\) should...`
 
 type I interface {
 	ReadByte() byte // want `should have signature ReadByte\(\) \(byte, error\)`

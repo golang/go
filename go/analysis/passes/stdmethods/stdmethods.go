@@ -131,7 +131,7 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
 			expectFmt += " (" + argjoin(expect.results) + ")"
 		}
 
-		actual := sign.String()
+		actual := types.TypeString(sign, (*types.Package).Name)
 		actual = strings.TrimPrefix(actual, "func")
 		actual = id.Name + actual
 
