@@ -96,6 +96,7 @@ func main() {
 	for _, name := range []string{"source", "v", "all"} {
 		_ = flag.Bool(name, false, "no effect (deprecated)")
 	}
+	_ = flag.String("tags", "", "no effect (deprecated)")
 
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, `Usage of vet:

@@ -58,7 +58,7 @@ type Config struct {
 	Dir                       string
 	ImportPath                string
 	GoFiles                   []string
-	OtherFiles                []string // TODO(adonovan): make go vet populate this (github.com/golang/go/issues/27665)
+	NonGoFiles                []string
 	ImportMap                 map[string]string
 	PackageFile               map[string]string
 	Standard                  map[string]bool
@@ -82,7 +82,7 @@ func Main(configFile string, analyzers []*analysis.Analyzer) {
 		log.Fatal(err)
 	}
 
-	if len(diags) > 0 {
+	if !cfg.VetxOnly && len(diags) > 0 {
 		for _, diag := range diags {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", fset.Position(diag.Pos), diag.Message)
 		}
@@ -250,7 +250,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]an
 				Analyzer:          a,
 				Fset:              fset,
 				Files:             files,
-				OtherFiles:        cfg.OtherFiles,
+				OtherFiles:        cfg.NonGoFiles,
 				Pkg:               pkg,
 				TypesInfo:         info,
 				ResultOf:          inputs,
