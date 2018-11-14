@@ -210,6 +210,9 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 				serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
 			}
 			serverConfig.BuildNameToCertificate()
+			// PKCS#1 v1.5 signature algorithms can't be used standalone in TLS
+			// 1.3, and the ECDSA ones bind to the curve used.
+			serverConfig.MaxVersion = VersionTLS12
 
 			clientErr, _ := boringHandshake(t, testConfig, serverConfig)
 			if clientErr != nil {

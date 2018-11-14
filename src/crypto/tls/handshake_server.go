@@ -210,7 +210,18 @@ Curves:
 	}
 
 	hs.hello.random = make([]byte, 32)
-	_, err := io.ReadFull(c.config.rand(), hs.hello.random)
+	serverRandom := hs.hello.random
+	// Downgrade protection canaries. See RFC 8446, Section 4.1.3.
+	maxVers := c.config.maxSupportedVersion(false)
+	if maxVers >= VersionTLS12 && c.vers < maxVers {
+		if c.vers == VersionTLS12 {
+			copy(serverRandom[24:], downgradeCanaryTLS12)
+		} else {
+			copy(serverRandom[24:], downgradeCanaryTLS11)
+		}
+		serverRandom = serverRandom[:24]
+	}
+	_, err := io.ReadFull(c.config.rand(), serverRandom)
 	if err != nil {
 		c.sendAlert(alertInternalError)
 		return err
@@ -299,11 +310,10 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 		return errors.New("tls: no cipher suite supported by both client and server")
 	}
 
-	// See RFC 7507.
 	for _, id := range hs.clientHello.cipherSuites {
 		if id == TLS_FALLBACK_SCSV {
-			// The client is doing a fallback connection.
-			if hs.clientHello.vers < c.config.supportedVersions(false)[0] {
+			// The client is doing a fallback connection. See RFC 7507.
+			if hs.clientHello.vers < c.config.maxSupportedVersion(false) {
 				c.sendAlert(alertInappropriateFallback)
 				return errors.New("tls: client using inappropriate protocol fallback")
 			}

@@ -56,7 +56,7 @@ func init() {
 		Certificates:       make([]Certificate, 2),
 		InsecureSkipVerify: true,
 		MinVersion:         VersionSSL30,
-		MaxVersion:         VersionTLS12,
+		MaxVersion:         VersionTLS13,
 		CipherSuites:       allCipherSuites(),
 	}
 	testConfig.Certificates[0].Certificate = [][]byte{testRSACertificate}
@@ -434,6 +434,11 @@ func TestCipherSuitePreference(t *testing.T) {
 }
 
 func TestSCTHandshake(t *testing.T) {
+	t.Run("TLSv12", func(t *testing.T) { testSCTHandshake(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testSCTHandshake(t, VersionTLS13) })
+}
+
+func testSCTHandshake(t *testing.T, version uint16) {
 	expected := [][]byte{[]byte("certificate"), []byte("transparency")}
 	serverConfig := &Config{
 		Certificates: []Certificate{{
@@ -441,6 +446,7 @@ func TestSCTHandshake(t *testing.T) {
 			PrivateKey:                  testRSAPrivateKey,
 			SignedCertificateTimestamps: expected,
 		}},
+		MaxVersion: version,
 	}
 	clientConfig := &Config{
 		InsecureSkipVerify: true,
@@ -461,6 +467,11 @@ func TestSCTHandshake(t *testing.T) {
 }
 
 func TestCrossVersionResume(t *testing.T) {
+	t.Run("TLSv12", func(t *testing.T) { testCrossVersionResume(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testCrossVersionResume(t, VersionTLS13) })
+}
+
+func testCrossVersionResume(t *testing.T, version uint16) {
 	serverConfig := &Config{
 		CipherSuites: []uint16{TLS_RSA_WITH_AES_128_CBC_SHA},
 		Certificates: testConfig.Certificates,
@@ -764,12 +775,6 @@ func runServerTestTLS12(t *testing.T, template *serverTest) {
 }
 
 func runServerTestTLS13(t *testing.T, template *serverTest) {
-	// TODO(filippo): set MaxVersion to VersionTLS13 instead in testConfig
-	// while regenerating server tests.
-	if template.config == nil {
-		template.config = testConfig.Clone()
-	}
-	template.config.MaxVersion = VersionTLS13
 	runServerTestForVersion(t, template, "TLSv13", "-tls1_3")
 }
 
@@ -1203,7 +1208,7 @@ func TestHandshakeServerRSAPSS(t *testing.T) {
 	runServerTestTLS13(t, test)
 }
 
-func benchmarkHandshakeServer(b *testing.B, cipherSuite uint16, curve CurveID, cert []byte, key crypto.PrivateKey) {
+func benchmarkHandshakeServer(b *testing.B, version uint16, cipherSuite uint16, curve CurveID, cert []byte, key crypto.PrivateKey) {
 	config := testConfig.Clone()
 	config.CipherSuites = []uint16{cipherSuite}
 	config.CurvePreferences = []CurveID{curve}
@@ -1215,7 +1220,10 @@ func benchmarkHandshakeServer(b *testing.B, cipherSuite uint16, curve CurveID, c
 	clientConn, serverConn := localPipe(b)
 	serverConn = &recordingConn{Conn: serverConn}
 	go func() {
-		client := Client(clientConn, testConfig)
+		config := testConfig.Clone()
+		config.MaxVersion = version
+		config.CurvePreferences = []CurveID{curve}
+		client := Client(clientConn, config)
 		client.Handshake()
 	}()
 	server := Server(serverConn, config)
@@ -1260,27 +1268,51 @@ func benchmarkHandshakeServer(b *testing.B, cipherSuite uint16, curve CurveID, c
 
 func BenchmarkHandshakeServer(b *testing.B) {
 	b.Run("RSA", func(b *testing.B) {
-		benchmarkHandshakeServer(b, TLS_RSA_WITH_AES_128_GCM_SHA256,
+		benchmarkHandshakeServer(b, VersionTLS12, TLS_RSA_WITH_AES_128_GCM_SHA256,
 			0, testRSACertificate, testRSAPrivateKey)
 	})
 	b.Run("ECDHE-P256-RSA", func(b *testing.B) {
-		benchmarkHandshakeServer(b, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-			CurveP256, testRSACertificate, testRSAPrivateKey)
+		b.Run("TLSv13", func(b *testing.B) {
+			benchmarkHandshakeServer(b, VersionTLS13, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+				CurveP256, testRSACertificate, testRSAPrivateKey)
+		})
+		b.Run("TLSv12", func(b *testing.B) {
+			benchmarkHandshakeServer(b, VersionTLS12, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+				CurveP256, testRSACertificate, testRSAPrivateKey)
+		})
 	})
 	b.Run("ECDHE-P256-ECDSA-P256", func(b *testing.B) {
-		benchmarkHandshakeServer(b, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-			CurveP256, testP256Certificate, testP256PrivateKey)
+		b.Run("TLSv13", func(b *testing.B) {
+			benchmarkHandshakeServer(b, VersionTLS13, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+				CurveP256, testP256Certificate, testP256PrivateKey)
+		})
+		b.Run("TLSv12", func(b *testing.B) {
+			benchmarkHandshakeServer(b, VersionTLS12, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+				CurveP256, testP256Certificate, testP256PrivateKey)
+		})
 	})
 	b.Run("ECDHE-X25519-ECDSA-P256", func(b *testing.B) {
-		benchmarkHandshakeServer(b, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-			X25519, testP256Certificate, testP256PrivateKey)
+		b.Run("TLSv13", func(b *testing.B) {
+			benchmarkHandshakeServer(b, VersionTLS13, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+				X25519, testP256Certificate, testP256PrivateKey)
+		})
+		b.Run("TLSv12", func(b *testing.B) {
+			benchmarkHandshakeServer(b, VersionTLS12, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+				X25519, testP256Certificate, testP256PrivateKey)
+		})
 	})
 	b.Run("ECDHE-P521-ECDSA-P521", func(b *testing.B) {
 		if testECDSAPrivateKey.PublicKey.Curve != elliptic.P521() {
 			b.Fatal("test ECDSA key doesn't use curve P-521")
 		}
-		benchmarkHandshakeServer(b, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-			CurveP521, testECDSACertificate, testECDSAPrivateKey)
+		b.Run("TLSv13", func(b *testing.B) {
+			benchmarkHandshakeServer(b, VersionTLS13, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+				CurveP521, testECDSACertificate, testECDSAPrivateKey)
+		})
+		b.Run("TLSv12", func(b *testing.B) {
+			benchmarkHandshakeServer(b, VersionTLS12, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+				CurveP521, testECDSACertificate, testECDSAPrivateKey)
+		})
 	})
 }
 

@@ -1378,7 +1378,7 @@ func (c *Conn) ConnectionState() ConnectionState {
 		state.VerifiedChains = c.verifiedChains
 		state.SignedCertificateTimestamps = c.scts
 		state.OCSPResponse = c.ocspResponse
-		if !c.didResume {
+		if !c.didResume && c.vers != VersionTLS13 {
 			if c.clientFinishedIsFirst {
 				state.TLSUnique = c.clientFinished[:]
 			} else {
