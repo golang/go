@@ -5,6 +5,7 @@
 package tls
 
 import (
+	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/des"
@@ -59,8 +60,7 @@ const (
 	suiteDefaultOff
 )
 
-// A cipherSuite is a specific combination of key agreement, cipher and MAC
-// function. All cipher suites currently assume RSA key agreement.
+// A cipherSuite is a specific combination of key agreement, cipher and MAC function.
 type cipherSuite struct {
 	id uint16
 	// the lengths, in bytes, of the key material needed for each component.
@@ -72,7 +72,7 @@ type cipherSuite struct {
 	flags  int
 	cipher func(key, iv []byte, isRead bool) interface{}
 	mac    func(version uint16, macKey []byte) macFunction
-	aead   func(key, fixedNonce []byte) cipher.AEAD
+	aead   func(key, fixedNonce []byte) aead
 }
 
 var cipherSuites = []*cipherSuite{
@@ -102,6 +102,21 @@ var cipherSuites = []*cipherSuite{
 	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, suiteDefaultOff, cipherRC4, macSHA1, nil},
 	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, suiteECDHE | suiteDefaultOff, cipherRC4, macSHA1, nil},
 	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteDefaultOff, cipherRC4, macSHA1, nil},
+}
+
+// A cipherSuiteTLS13 defines only the pair of the AEAD algorithm and hash
+// algorithm to be used with HKDF. See RFC 8446, Appendix B.4.
+type cipherSuiteTLS13 struct {
+	id     uint16
+	keyLen int
+	aead   func(key, fixedNonce []byte) aead
+	hash   crypto.Hash
+}
+
+var cipherSuitesTLS13 = []*cipherSuiteTLS13{
+	{TLS_AES_128_GCM_SHA256, 16, aeadAESGCMTLS13, crypto.SHA256},
+	{TLS_CHACHA20_POLY1305_SHA256, 32, aeadChaCha20Poly1305, crypto.SHA256},
+	{TLS_AES_256_GCM_SHA384, 32, aeadAESGCMTLS13, crypto.SHA384},
 }
 
 func cipherRC4(key, iv []byte, isRead bool) interface{} {
@@ -166,36 +181,41 @@ type aead interface {
 	explicitNonceLen() int
 }
 
-// fixedNonceAEAD wraps an AEAD and prefixes a fixed portion of the nonce to
+const (
+	aeadNonceLength   = 12
+	noncePrefixLength = 4
+)
+
+// prefixNonceAEAD wraps an AEAD and prefixes a fixed portion of the nonce to
 // each call.
-type fixedNonceAEAD struct {
+type prefixNonceAEAD struct {
 	// nonce contains the fixed part of the nonce in the first four bytes.
-	nonce [12]byte
+	nonce [aeadNonceLength]byte
 	aead  cipher.AEAD
 }
 
-func (f *fixedNonceAEAD) NonceSize() int        { return 8 }
-func (f *fixedNonceAEAD) Overhead() int         { return f.aead.Overhead() }
-func (f *fixedNonceAEAD) explicitNonceLen() int { return 8 }
+func (f *prefixNonceAEAD) NonceSize() int        { return aeadNonceLength - noncePrefixLength }
+func (f *prefixNonceAEAD) Overhead() int         { return f.aead.Overhead() }
+func (f *prefixNonceAEAD) explicitNonceLen() int { return f.NonceSize() }
 
-func (f *fixedNonceAEAD) Seal(out, nonce, plaintext, additionalData []byte) []byte {
+func (f *prefixNonceAEAD) Seal(out, nonce, plaintext, additionalData []byte) []byte {
 	copy(f.nonce[4:], nonce)
 	return f.aead.Seal(out, f.nonce[:], plaintext, additionalData)
 }
 
-func (f *fixedNonceAEAD) Open(out, nonce, plaintext, additionalData []byte) ([]byte, error) {
+func (f *prefixNonceAEAD) Open(out, nonce, ciphertext, additionalData []byte) ([]byte, error) {
 	copy(f.nonce[4:], nonce)
-	return f.aead.Open(out, f.nonce[:], plaintext, additionalData)
+	return f.aead.Open(out, f.nonce[:], ciphertext, additionalData)
 }
 
 // xoredNonceAEAD wraps an AEAD by XORing in a fixed pattern to the nonce
 // before each call.
 type xorNonceAEAD struct {
-	nonceMask [12]byte
+	nonceMask [aeadNonceLength]byte
 	aead      cipher.AEAD
 }
 
-func (f *xorNonceAEAD) NonceSize() int        { return 8 }
+func (f *xorNonceAEAD) NonceSize() int        { return 8 } // 64-bit sequence number
 func (f *xorNonceAEAD) Overhead() int         { return f.aead.Overhead() }
 func (f *xorNonceAEAD) explicitNonceLen() int { return 0 }
 
@@ -211,11 +231,11 @@ func (f *xorNonceAEAD) Seal(out, nonce, plaintext, additionalData []byte) []byte
 	return result
 }
 
-func (f *xorNonceAEAD) Open(out, nonce, plaintext, additionalData []byte) ([]byte, error) {
+func (f *xorNonceAEAD) Open(out, nonce, ciphertext, additionalData []byte) ([]byte, error) {
 	for i, b := range nonce {
 		f.nonceMask[4+i] ^= b
 	}
-	result, err := f.aead.Open(out, f.nonceMask[:], plaintext, additionalData)
+	result, err := f.aead.Open(out, f.nonceMask[:], ciphertext, additionalData)
 	for i, b := range nonce {
 		f.nonceMask[4+i] ^= b
 	}
@@ -227,7 +247,10 @@ type gcmtls interface {
 	NewGCMTLS() (cipher.AEAD, error)
 }
 
-func aeadAESGCM(key, fixedNonce []byte) cipher.AEAD {
+func aeadAESGCM(key, noncePrefix []byte) aead {
+	if len(noncePrefix) != noncePrefixLength {
+		panic("tls: internal error: wrong nonce length")
+	}
 	aes, err := aes.NewCipher(key)
 	if err != nil {
 		panic(err)
@@ -243,19 +266,40 @@ func aeadAESGCM(key, fixedNonce []byte) cipher.AEAD {
 		panic(err)
 	}
 
-	ret := &fixedNonceAEAD{aead: aead}
-	copy(ret.nonce[:], fixedNonce)
+	ret := &prefixNonceAEAD{aead: aead}
+	copy(ret.nonce[:], noncePrefix)
 	return ret
 }
 
-func aeadChaCha20Poly1305(key, fixedNonce []byte) cipher.AEAD {
+func aeadAESGCMTLS13(key, nonceMask []byte) aead {
+	if len(nonceMask) != aeadNonceLength {
+		panic("tls: internal error: wrong nonce length")
+	}
+	aes, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+	aead, err := cipher.NewGCM(aes)
+	if err != nil {
+		panic(err)
+	}
+
+	ret := &xorNonceAEAD{aead: aead}
+	copy(ret.nonceMask[:], nonceMask)
+	return ret
+}
+
+func aeadChaCha20Poly1305(key, nonceMask []byte) aead {
+	if len(nonceMask) != aeadNonceLength {
+		panic("tls: internal error: wrong nonce length")
+	}
 	aead, err := chacha20poly1305.New(key)
 	if err != nil {
 		panic(err)
 	}
 
 	ret := &xorNonceAEAD{aead: aead}
-	copy(ret.nonceMask[:], fixedNonce)
+	copy(ret.nonceMask[:], nonceMask)
 	return ret
 }
 
@@ -391,6 +435,7 @@ func mutualCipherSuite(have []uint16, want uint16) *cipherSuite {
 //
 // Taken from https://www.iana.org/assignments/tls-parameters/tls-parameters.xml
 const (
+	// TLS 1.0 - 1.2 cipher suites.
 	TLS_RSA_WITH_RC4_128_SHA                uint16 = 0x0005
 	TLS_RSA_WITH_3DES_EDE_CBC_SHA           uint16 = 0x000a
 	TLS_RSA_WITH_AES_128_CBC_SHA            uint16 = 0x002f
@@ -413,6 +458,11 @@ const (
 	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 uint16 = 0xc02c
 	TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305    uint16 = 0xcca8
 	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305  uint16 = 0xcca9
+
+	// TLS 1.3 cipher suites.
+	TLS_AES_128_GCM_SHA256       uint16 = 0x1301
+	TLS_AES_256_GCM_SHA384       uint16 = 0x1302
+	TLS_CHACHA20_POLY1305_SHA256 uint16 = 0x1303
 
 	// TLS_FALLBACK_SCSV isn't a standard cipher suite but an indicator
 	// that the client is doing version fallback. See RFC 7507.

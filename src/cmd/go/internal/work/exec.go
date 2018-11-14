@@ -699,8 +699,8 @@ func (b *Builder) build(a *Action) (err error) {
 	// This is read by readGccgoArchive in cmd/internal/buildid/buildid.go.
 	if a.buildID != "" && cfg.BuildToolchainName == "gccgo" {
 		switch cfg.Goos {
-		case "android", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
-			asmfile, err := b.gccgoBuildIDELFFile(a)
+		case "aix", "android", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+			asmfile, err := b.gccgoBuildIDFile(a)
 			if err != nil {
 				return err
 			}
@@ -2297,6 +2297,10 @@ func (b *Builder) gccArchArgs() []string {
 		return []string{"-mabi=64"}
 	case "mips", "mipsle":
 		return []string{"-mabi=32", "-march=mips32"}
+	case "ppc64":
+		if cfg.Goos == "aix" {
+			return []string{"-maix64"}
+		}
 	}
 	return nil
 }

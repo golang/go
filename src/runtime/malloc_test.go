@@ -168,6 +168,14 @@ func TestTinyAlloc(t *testing.T) {
 	}
 }
 
+func TestPhysicalMemoryUtilization(t *testing.T) {
+	got := runTestProg(t, "testprog", "GCPhys")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
 type acLink struct {
 	x [1 << 20]byte
 }

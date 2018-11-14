@@ -39,9 +39,9 @@ type Sym struct {
 const (
 	symOnExportList = 1 << iota // added to exportlist (no need to add again)
 	symUniq
-	symSiggen
-	symAsm
-	symAlgGen
+	symSiggen // type symbol has been generated
+	symAsm    // on asmlist, for writing to -asmhdr
+	symAlgGen // algorithm table has been generated
 )
 
 func (sym *Sym) OnExportList() bool { return sym.flags&symOnExportList != 0 }

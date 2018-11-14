@@ -751,6 +751,11 @@ func TestIsAbs(t *testing.T) {
 		for _, test := range isabstests {
 			tests = append(tests, IsAbsTest{"c:" + test.path, test.isAbs})
 		}
+		// Test reserved names.
+		tests = append(tests, IsAbsTest{os.DevNull, true})
+		tests = append(tests, IsAbsTest{"NUL", true})
+		tests = append(tests, IsAbsTest{"nul", true})
+		tests = append(tests, IsAbsTest{"CON", true})
 	} else {
 		tests = isabstests
 	}

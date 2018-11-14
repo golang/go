@@ -187,6 +187,8 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
 // The bytes are taken from at most one Read on the underlying Reader,
 // hence n may be less than len(p).
 // At EOF, the count will be zero and err will be io.EOF.
+//
+// To read exactly len(p) bytes, use io.ReadFull(b, p).
 func (b *Reader) Read(p []byte) (n int, err error) {
 	n = len(p)
 	if n == 0 {

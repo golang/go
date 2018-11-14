@@ -297,6 +297,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 		slow.TotalAlloc = 0
 		slow.Mallocs = 0
 		slow.Frees = 0
+		slow.HeapReleased = 0
 		var bySize [_NumSizeClasses]struct {
 			Mallocs, Frees uint64
 		}
@@ -335,6 +336,10 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			slow.BySize[i].Mallocs = bySize[i].Mallocs
 			slow.BySize[i].Frees = bySize[i].Frees
 		}
+
+		mheap_.scav.treap.walkTreap(func(tn *treapNode) {
+			slow.HeapReleased += uint64(tn.spanKey.released())
+		})
 
 		getg().m.mallocing--
 	})

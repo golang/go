@@ -36,6 +36,8 @@ func checkGdbEnvironment(t *testing.T) {
 		if runtime.GOARCH == "mips" {
 			t.Skip("skipping gdb tests on linux/mips; see https://golang.org/issue/25939")
 		}
+	case "aix":
+		t.Skip("gdb does not work on AIX; see golang.org/issue/28558")
 	}
 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
 		t.Skip("gdb test can fail with GOROOT_FINAL pending")
@@ -262,15 +264,13 @@ func testGdbPython(t *testing.T, cgo bool) {
 	// However, the newer dwarf location list code reconstituted
 	// aggregates from their fields and reverted their printing
 	// back to its original form.
+	// Only test that all variables are listed in 'info locals' since
+	// different versions of gdb print variables in different
+	// order and with differing amount of information and formats.
 
-	infoLocalsRe1 := regexp.MustCompile(`slicevar *= *\[\]string *= *{"def"}`)
-	// Format output from gdb v8.2
-	infoLocalsRe2 := regexp.MustCompile(`^slicevar = .*\nmapvar = .*\nstrvar = 0x[0-9a-f]+ "abc"`)
-	// Format output from gdb v7.7
-	infoLocalsRe3 := regexp.MustCompile(`^mapvar = .*\nstrvar = "abc"\nslicevar *= *\[\]string`)
-	if bl := blocks["info locals"]; !infoLocalsRe1.MatchString(bl) &&
-		!infoLocalsRe2.MatchString(bl) &&
-		!infoLocalsRe3.MatchString(bl) {
+	if bl := blocks["info locals"]; !strings.Contains(bl, "slicevar") ||
+		!strings.Contains(bl, "mapvar") ||
+		!strings.Contains(bl, "strvar") {
 		t.Fatalf("info locals failed: %s", bl)
 	}
 

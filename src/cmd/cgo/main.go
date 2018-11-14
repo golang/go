@@ -81,6 +81,7 @@ func nameKeys(m map[string]*Name) []string {
 type Call struct {
 	Call     *ast.CallExpr
 	Deferred bool
+	Done     bool
 }
 
 // A Ref refers to an expression of the form C.xxx in the AST.
@@ -88,6 +89,7 @@ type Ref struct {
 	Name    *Name
 	Expr    *ast.Expr
 	Context astContext
+	Done    bool
 }
 
 func (r *Ref) Pos() token.Pos {

@@ -589,7 +589,7 @@ func TestWarningAlertFlood(t *testing.T) {
 		if err == nil {
 			return errors.New("unexpected lack of error from server")
 		}
-		const expected = "too many warn"
+		const expected = "too many ignored"
 		if str := err.Error(); !strings.Contains(str, expected) {
 			return fmt.Errorf("expected error containing %q, but saw: %s", expected, str)
 		}
@@ -610,7 +610,7 @@ func TestWarningAlertFlood(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < maxWarnAlertCount+1; i++ {
+	for i := 0; i < maxUselessRecords+1; i++ {
 		conn.sendAlert(alertNoRenegotiation)
 	}
 
