@@ -320,8 +320,6 @@ overwrite:
 			pc.InlTree[i].Func = r.readSymIndex()
 		}
 
-		s.FuncInfo.IsStmtSym = r.syms.Lookup(dwarf.IsStmtPrefix+s.Name, int(s.Version))
-
 		if !dupok {
 			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
