@@ -481,6 +481,26 @@ var tests = []test{
 			`unexportedTypedConstant`,       // No unexported constant.
 		},
 	},
+	// Type -all.
+	{
+		"type",
+		[]string{"-all", p, `ExportedType`},
+		[]string{
+			`type ExportedType struct {`,                        // Type definition as source.
+			`Comment about exported type`,                       // Include comment afterwards.
+			`const ConstGroup4 ExportedType = ExportedType\{\}`, // Related constants.
+			`ExportedTypedConstant ExportedType = iota`,
+			`Constants tied to ExportedType`,
+			`func ExportedTypeConstructor\(\) \*ExportedType`,
+			`Comment about constructor for exported type.`,
+			`func ReturnExported\(\) ExportedType`,
+			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
+			`Comment about exported method.`,
+		},
+		[]string{
+			`unexportedType`,
+		},
+	},
 	// Type T1 dump (alias).
 	{
 		"type T1",

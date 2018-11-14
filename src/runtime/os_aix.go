@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"internal/cpu"
 	"unsafe"
 )
 
@@ -93,6 +94,7 @@ func semawakeup(mp *m) {
 func osinit() {
 	ncpu = int32(sysconf(__SC_NPROCESSORS_ONLN))
 	physPageSize = sysconf(__SC_PAGE_SIZE)
+	setupSystemConf()
 }
 
 // Ms related functions
@@ -259,4 +261,23 @@ func walltime() (sec int64, nsec int32) {
 		throw("syscall clock_gettime failed")
 	}
 	return ts.tv_sec, int32(ts.tv_nsec)
+}
+
+const (
+	// getsystemcfg constants
+	_SC_IMPL     = 2
+	_IMPL_POWER8 = 0x10000
+	_IMPL_POWER9 = 0x20000
+)
+
+// setupSystemConf retrieves information about the CPU and updates
+// cpu.HWCap variables.
+func setupSystemConf() {
+	impl := getsystemcfg(_SC_IMPL)
+	if impl&_IMPL_POWER8 != 0 {
+		cpu.HWCap2 |= cpu.PPC_FEATURE2_ARCH_2_07
+	}
+	if impl&_IMPL_POWER9 != 0 {
+		cpu.HWCap2 |= cpu.PPC_FEATURE2_ARCH_3_00
+	}
 }

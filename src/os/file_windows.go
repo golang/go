@@ -362,7 +362,7 @@ func Symlink(oldname, newname string) error {
 		destpath = dirname(newname) + `\` + oldname
 	}
 
-	fi, err := Lstat(destpath)
+	fi, err := Stat(destpath)
 	isdir := err == nil && fi.IsDir()
 
 	n, err := syscall.UTF16PtrFromString(fixLongPath(newname))

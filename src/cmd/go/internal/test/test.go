@@ -887,15 +887,19 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 				target = filepath.Join(base.Cwd, target)
 			}
 		}
-		pmain.Target = target
-		installAction = &work.Action{
-			Mode:    "test build",
-			Func:    work.BuildInstallFunc,
-			Deps:    []*work.Action{buildAction},
-			Package: pmain,
-			Target:  target,
+		if target == os.DevNull {
+			runAction = buildAction
+		} else {
+			pmain.Target = target
+			installAction = &work.Action{
+				Mode:    "test build",
+				Func:    work.BuildInstallFunc,
+				Deps:    []*work.Action{buildAction},
+				Package: pmain,
+				Target:  target,
+			}
+			runAction = installAction // make sure runAction != nil even if not running test
 		}
-		runAction = installAction // make sure runAction != nil even if not running test
 	}
 	var vetRunAction *work.Action
 	if testC {

@@ -286,7 +286,16 @@
 (Move [7] dst src mem) ->
 	(MOVLstore [3] dst (MOVLload [3] src mem)
 		(MOVLstore dst (MOVLload src mem) mem))
-(Move [s] dst src mem) && s > 8 && s < 16 ->
+(Move [9] dst src mem) ->
+	(MOVBstore [8] dst (MOVBload [8] src mem)
+		(MOVQstore dst (MOVQload src mem) mem))
+(Move [10] dst src mem) ->
+	(MOVWstore [8] dst (MOVWload [8] src mem)
+		(MOVQstore dst (MOVQload src mem) mem))
+(Move [12] dst src mem) ->
+	(MOVLstore [8] dst (MOVLload [8] src mem)
+		(MOVQstore dst (MOVQload src mem) mem))
+(Move [s] dst src mem) && s == 11 || s >= 13 && s <= 15 ->
 	(MOVQstore [s-8] dst (MOVQload [s-8] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
 

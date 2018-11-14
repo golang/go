@@ -47,6 +47,13 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 	if err != nil {
 		return nil, &PathError{"GetFileInformationByHandle", path, err}
 	}
+
+	var ti windows.FILE_ATTRIBUTE_TAG_INFO
+	err = windows.GetFileInformationByHandleEx(h, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&ti)), uint32(unsafe.Sizeof(ti)))
+	if err != nil {
+		return nil, &PathError{"GetFileInformationByHandleEx", path, err}
+	}
+
 	return &fileStat{
 		name:           basename(path),
 		FileAttributes: d.FileAttributes,
@@ -58,6 +65,7 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 		vol:            d.VolumeSerialNumber,
 		idxhi:          d.FileIndexHigh,
 		idxlo:          d.FileIndexLow,
+		Reserved0:      ti.ReparseTag,
 		// fileStat.path is used by os.SameFile to decide if it needs
 		// to fetch vol, idxhi and idxlo. But these are already set,
 		// so set fileStat.path to "" to prevent os.SameFile doing it again.
@@ -76,67 +84,6 @@ func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
 		FileSizeLow:    d.FileSizeLow,
 		Reserved0:      d.Reserved0,
 	}
-}
-
-// newFileStatFromGetFileAttributesExOrFindFirstFile calls GetFileAttributesEx
-// and FindFirstFile to gather all required information about the provided file path pathp.
-func newFileStatFromGetFileAttributesExOrFindFirstFile(path string, pathp *uint16) (*fileStat, error) {
-	// As suggested by Microsoft, use GetFileAttributes() to acquire the file information,
-	// and if it's a reparse point use FindFirstFile() to get the tag:
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa363940(v=vs.85).aspx
-	// Notice that always calling FindFirstFile can create performance problems
-	// (https://golang.org/issues/19922#issuecomment-300031421)
-	var fa syscall.Win32FileAttributeData
-	err := syscall.GetFileAttributesEx(pathp, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
-	if err == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
-		// Not a symlink.
-		return &fileStat{
-			FileAttributes: fa.FileAttributes,
-			CreationTime:   fa.CreationTime,
-			LastAccessTime: fa.LastAccessTime,
-			LastWriteTime:  fa.LastWriteTime,
-			FileSizeHigh:   fa.FileSizeHigh,
-			FileSizeLow:    fa.FileSizeLow,
-		}, nil
-	}
-	// GetFileAttributesEx returns ERROR_INVALID_NAME if called
-	// for invalid file name like "*.txt". Do not attempt to call
-	// FindFirstFile with "*.txt", because FindFirstFile will
-	// succeed. So just return ERROR_INVALID_NAME instead.
-	// see https://golang.org/issue/24999 for details.
-	if errno, _ := err.(syscall.Errno); errno == windows.ERROR_INVALID_NAME {
-		return nil, &PathError{"GetFileAttributesEx", path, err}
-	}
-	// We might have symlink here. But some directories also have
-	// FileAttributes FILE_ATTRIBUTE_REPARSE_POINT bit set.
-	// For example, OneDrive directory is like that
-	// (see golang.org/issue/22579 for details).
-	// So use FindFirstFile instead to distinguish directories like
-	// OneDrive from real symlinks (see instructions described at
-	// https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
-	// and in particular bits about using both FileAttributes and
-	// Reserved0 fields).
-	var fd syscall.Win32finddata
-	sh, err := syscall.FindFirstFile(pathp, &fd)
-	if err != nil {
-		return nil, &PathError{"FindFirstFile", path, err}
-	}
-	syscall.FindClose(sh)
-
-	return newFileStatFromWin32finddata(&fd), nil
-}
-
-func (fs *fileStat) updatePathAndName(name string) error {
-	fs.path = name
-	if !isAbs(fs.path) {
-		var err error
-		fs.path, err = syscall.FullPath(fs.path)
-		if err != nil {
-			return &PathError{"FullPath", name, err}
-		}
-	}
-	fs.name = basename(name)
-	return nil
 }
 
 func (fs *fileStat) isSymlink() bool {

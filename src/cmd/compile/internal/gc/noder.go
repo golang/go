@@ -237,7 +237,7 @@ func (p *noder) node() {
 	types.Block = 1
 	imported_unsafe = false
 
-	p.lineno(p.file.PkgName)
+	p.setlineno(p.file.PkgName)
 	mkpackage(p.file.PkgName.Value)
 
 	xtop = append(xtop, p.decls(p.file.DeclList)...)
@@ -259,7 +259,7 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
 	var cs constState
 
 	for _, decl := range decls {
-		p.lineno(decl)
+		p.setlineno(decl)
 		switch decl := decl.(type) {
 		case *syntax.ImportDecl:
 			p.importDecl(decl)
@@ -335,7 +335,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
 		exprs = p.exprList(decl.Values)
 	}
 
-	p.lineno(decl)
+	p.setlineno(decl)
 	return variter(names, typ, exprs)
 }
 
@@ -433,7 +433,9 @@ func (p *noder) declNames(names []*syntax.Name) []*Node {
 }
 
 func (p *noder) declName(name *syntax.Name) *Node {
-	return p.setlineno(name, dclname(p.name(name)))
+	n := dclname(p.name(name))
+	n.Pos = p.pos(name)
+	return n
 }
 
 func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
@@ -459,7 +461,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		name = nblank.Sym // filled in by typecheckfunc
 	}
 
-	f.Func.Nname = p.setlineno(fun.Name, newfuncname(name))
+	f.Func.Nname = newfuncnamel(p.pos(fun.Name), name)
 	f.Func.Nname.Name.Defn = f
 	f.Func.Nname.Name.Param.Ntype = t
 
@@ -502,7 +504,7 @@ func (p *noder) signature(recv *syntax.Field, typ *syntax.FuncType) *Node {
 func (p *noder) params(params []*syntax.Field, dddOk bool) []*Node {
 	var nodes []*Node
 	for i, param := range params {
-		p.lineno(param)
+		p.setlineno(param)
 		nodes = append(nodes, p.param(param, dddOk, i+1 == len(params)))
 	}
 	return nodes
@@ -552,15 +554,14 @@ func (p *noder) exprs(exprs []syntax.Expr) []*Node {
 }
 
 func (p *noder) expr(expr syntax.Expr) *Node {
-	p.lineno(expr)
+	p.setlineno(expr)
 	switch expr := expr.(type) {
 	case nil, *syntax.BadExpr:
 		return nil
 	case *syntax.Name:
 		return p.mkname(expr)
 	case *syntax.BasicLit:
-		return p.setlineno(expr, nodlit(p.basicLit(expr)))
-
+		return nodlit(p.basicLit(expr))
 	case *syntax.CompositeLit:
 		n := p.nod(expr, OCOMPLIT, nil, nil)
 		if expr.Type != nil {
@@ -587,7 +588,9 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 			obj.Name.SetUsed(true)
 			return oldname(restrictlookup(expr.Sel.Value, obj.Name.Pkg))
 		}
-		return p.setlineno(expr, nodSym(OXDOT, obj, p.name(expr.Sel)))
+		n := nodSym(OXDOT, obj, p.name(expr.Sel))
+		n.Pos = p.pos(expr) // lineno may have been changed by p.expr(expr.X)
+		return n
 	case *syntax.IndexExpr:
 		return p.nod(expr, OINDEX, p.expr(expr.X), p.expr(expr.Index))
 	case *syntax.SliceExpr:
@@ -771,7 +774,7 @@ func (p *noder) chanDir(dir syntax.ChanDir) types.ChanDir {
 func (p *noder) structType(expr *syntax.StructType) *Node {
 	var l []*Node
 	for i, field := range expr.FieldList {
-		p.lineno(field)
+		p.setlineno(field)
 		var n *Node
 		if field.Name == nil {
 			n = p.embedded(field.Type)
@@ -784,7 +787,7 @@ func (p *noder) structType(expr *syntax.StructType) *Node {
 		l = append(l, n)
 	}
 
-	p.lineno(expr)
+	p.setlineno(expr)
 	n := p.nod(expr, OTSTRUCT, nil, nil)
 	n.List.Set(l)
 	return n
@@ -793,7 +796,7 @@ func (p *noder) structType(expr *syntax.StructType) *Node {
 func (p *noder) interfaceType(expr *syntax.InterfaceType) *Node {
 	var l []*Node
 	for _, method := range expr.MethodList {
-		p.lineno(method)
+		p.setlineno(method)
 		var n *Node
 		if method.Name == nil {
 			n = p.nodSym(method, ODCLFIELD, oldname(p.packname(method.Type)), nil)
@@ -882,7 +885,7 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
 }
 
 func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
-	p.lineno(stmt)
+	p.setlineno(stmt)
 	switch stmt := stmt.(type) {
 	case *syntax.EmptyStmt:
 		return nil
@@ -1010,7 +1013,7 @@ func (p *noder) assignList(expr syntax.Expr, defn *Node, colas bool) []*Node {
 
 	newOrErr := false
 	for i, expr := range exprs {
-		p.lineno(expr)
+		p.setlineno(expr)
 		res[i] = nblank
 
 		name, ok := expr.(*syntax.Name)
@@ -1132,7 +1135,7 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) *Node {
 func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace syntax.Pos) []*Node {
 	var nodes []*Node
 	for i, clause := range clauses {
-		p.lineno(clause)
+		p.setlineno(clause)
 		if i > 0 {
 			p.closeScope(clause.Pos())
 		}
@@ -1188,7 +1191,7 @@ func (p *noder) selectStmt(stmt *syntax.SelectStmt) *Node {
 func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*Node {
 	var nodes []*Node
 	for i, clause := range clauses {
-		p.lineno(clause)
+		p.setlineno(clause)
 		if i > 0 {
 			p.closeScope(clause.Pos())
 		}
@@ -1361,33 +1364,28 @@ func (p *noder) wrapname(n syntax.Node, x *Node) *Node {
 }
 
 func (p *noder) nod(orig syntax.Node, op Op, left, right *Node) *Node {
-	return p.setlineno(orig, nod(op, left, right))
+	return nodl(p.pos(orig), op, left, right)
 }
 
 func (p *noder) nodSym(orig syntax.Node, op Op, left *Node, sym *types.Sym) *Node {
-	return p.setlineno(orig, nodSym(op, left, sym))
+	n := nodSym(op, left, sym)
+	n.Pos = p.pos(orig)
+	return n
 }
 
-func (p *noder) setlineno(src_ syntax.Node, dst *Node) *Node {
-	pos := src_.Pos()
-	if !pos.IsKnown() {
-		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
-		return dst
+func (p *noder) pos(n syntax.Node) src.XPos {
+	// TODO(gri): orig.Pos() should always be known - fix package syntax
+	xpos := lineno
+	if pos := n.Pos(); pos.IsKnown() {
+		xpos = p.makeXPos(pos)
 	}
-	dst.Pos = p.makeXPos(pos)
-	return dst
+	return xpos
 }
 
-func (p *noder) lineno(n syntax.Node) {
-	if n == nil {
-		return
+func (p *noder) setlineno(n syntax.Node) {
+	if n != nil {
+		lineno = p.pos(n)
 	}
-	pos := n.Pos()
-	if !pos.IsKnown() {
-		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
-		return
-	}
-	lineno = p.makeXPos(pos)
 }
 
 // error is called concurrently if files are parsed concurrently.

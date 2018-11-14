@@ -322,13 +322,16 @@ func assemblerIsGas() bool {
 	}
 }
 
-// gccgoBuildIDELFFile creates an assembler file that records the
-// action's build ID in an SHF_EXCLUDE section.
-func (b *Builder) gccgoBuildIDELFFile(a *Action) (string, error) {
+// gccgoBuildIDFile creates an assembler file that records the
+// action's build ID in an SHF_EXCLUDE section for ELF files or
+// in a CSECT in XCOFF files.
+func (b *Builder) gccgoBuildIDFile(a *Action) (string, error) {
 	sfile := a.Objdir + "_buildid.s"
 
 	var buf bytes.Buffer
-	if cfg.Goos != "solaris" || assemblerIsGas() {
+	if cfg.Goos == "aix" {
+		fmt.Fprintf(&buf, "\t.csect .go.buildid[XO]\n")
+	} else if cfg.Goos != "solaris" || assemblerIsGas() {
 		fmt.Fprintf(&buf, "\t"+`.section .go.buildid,"e"`+"\n")
 	} else if cfg.Goarch == "sparc" || cfg.Goarch == "sparc64" {
 		fmt.Fprintf(&buf, "\t"+`.section ".go.buildid",#exclude`+"\n")
@@ -347,7 +350,7 @@ func (b *Builder) gccgoBuildIDELFFile(a *Action) (string, error) {
 		fmt.Fprintf(&buf, "%#02x", a.buildID[i])
 	}
 	fmt.Fprintf(&buf, "\n")
-	if cfg.Goos != "solaris" {
+	if cfg.Goos != "solaris" && cfg.Goos != "aix" {
 		secType := "@progbits"
 		if cfg.Goarch == "arm" {
 			secType = "%progbits"
