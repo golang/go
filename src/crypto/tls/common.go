@@ -40,9 +40,6 @@ const (
 	recordHeaderLen    = 5            // record header length
 	maxHandshake       = 65536        // maximum handshake we support (protocol max is 16 MB)
 	maxUselessRecords  = 5            // maximum number of consecutive non-advancing records
-
-	minVersion = VersionTLS10
-	maxVersion = VersionTLS12
 )
 
 // TLS record types.
@@ -57,19 +54,23 @@ const (
 
 // TLS handshake message types.
 const (
-	typeHelloRequest       uint8 = 0
-	typeClientHello        uint8 = 1
-	typeServerHello        uint8 = 2
-	typeNewSessionTicket   uint8 = 4
-	typeCertificate        uint8 = 11
-	typeServerKeyExchange  uint8 = 12
-	typeCertificateRequest uint8 = 13
-	typeServerHelloDone    uint8 = 14
-	typeCertificateVerify  uint8 = 15
-	typeClientKeyExchange  uint8 = 16
-	typeFinished           uint8 = 20
-	typeCertificateStatus  uint8 = 22
-	typeNextProtocol       uint8 = 67 // Not IANA assigned
+	typeHelloRequest        uint8 = 0
+	typeClientHello         uint8 = 1
+	typeServerHello         uint8 = 2
+	typeNewSessionTicket    uint8 = 4
+	typeEndOfEarlyData      uint8 = 5
+	typeEncryptedExtensions uint8 = 8
+	typeCertificate         uint8 = 11
+	typeServerKeyExchange   uint8 = 12
+	typeCertificateRequest  uint8 = 13
+	typeServerHelloDone     uint8 = 14
+	typeCertificateVerify   uint8 = 15
+	typeClientKeyExchange   uint8 = 16
+	typeFinished            uint8 = 20
+	typeCertificateStatus   uint8 = 22
+	typeKeyUpdate           uint8 = 24
+	typeNextProtocol        uint8 = 67  // Not IANA assigned
+	typeMessageHash         uint8 = 254 // synthetic message
 )
 
 // TLS compression types.
@@ -88,6 +89,7 @@ const (
 	extensionSCT                     uint16 = 18
 	extensionSessionTicket           uint16 = 35
 	extensionPreSharedKey            uint16 = 41
+	extensionEarlyData               uint16 = 42
 	extensionSupportedVersions       uint16 = 43
 	extensionCookie                  uint16 = 44
 	extensionPSKModes                uint16 = 45
@@ -713,24 +715,46 @@ func (c *Config) cipherSuites() []uint16 {
 	return s
 }
 
-func (c *Config) minVersion() uint16 {
-	if needFIPS() {
-		return fipsMinVersion(c)
-	}
-	if c == nil || c.MinVersion == 0 {
-		return minVersion
-	}
-	return c.MinVersion
+var supportedVersions = []uint16{
+	VersionTLS12,
+	VersionTLS11,
+	VersionTLS10,
+	VersionSSL30,
 }
 
-func (c *Config) maxVersion() uint16 {
-	if needFIPS() {
-		return fipsMaxVersion(c)
+func (c *Config) supportedVersions(isClient bool) []uint16 {
+	versions := make([]uint16, 0, len(supportedVersions))
+	for _, v := range supportedVersions {
+		if needFIPS() && (v < fipsMinVersion(c) || v > fipsMaxVersion(c)) {
+			continue
+		}
+		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
+			continue
+		}
+		if c != nil && c.MaxVersion != 0 && v > c.MaxVersion {
+			continue
+		}
+		// TLS 1.0 is the minimum version supported as a client.
+		if isClient && v < VersionTLS10 {
+			continue
+		}
+		versions = append(versions, v)
 	}
-	if c == nil || c.MaxVersion == 0 {
-		return maxVersion
+	return versions
+}
+
+// supportedVersionsFromMax returns a list of supported versions derived from a
+// legacy maximum version value. Note that only versions supported by this
+// library are returned. Any newer peer will use supportedVersions anyway.
+func supportedVersionsFromMax(maxVersion uint16) []uint16 {
+	versions := make([]uint16, 0, len(supportedVersions))
+	for _, v := range supportedVersions {
+		if v > maxVersion {
+			continue
+		}
+		versions = append(versions, v)
 	}
-	return c.MaxVersion
+	return versions
 }
 
 var defaultCurvePreferences = []CurveID{X25519, CurveP256, CurveP384, CurveP521}
@@ -746,18 +770,17 @@ func (c *Config) curvePreferences() []CurveID {
 }
 
 // mutualVersion returns the protocol version to use given the advertised
-// version of the peer.
-func (c *Config) mutualVersion(vers uint16) (uint16, bool) {
-	minVersion := c.minVersion()
-	maxVersion := c.maxVersion()
-
-	if vers < minVersion {
-		return 0, false
+// versions of the peer. Priority is given to the peer preference order.
+func (c *Config) mutualVersion(isClient bool, peerVersions []uint16) (uint16, bool) {
+	supportedVersions := c.supportedVersions(isClient)
+	for _, peerVersion := range peerVersions {
+		for _, v := range supportedVersions {
+			if v == peerVersion {
+				return v, true
+			}
+		}
 	}
-	if vers > maxVersion {
-		vers = maxVersion
-	}
-	return vers, true
+	return 0, false
 }
 
 // getCertificate returns the best certificate for the given ClientHelloInfo,
