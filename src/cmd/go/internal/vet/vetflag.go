@@ -23,24 +23,43 @@ import (
 
 // go vet flag processing
 //
-// We query the flags of the tool specified by GOVETTOOL (default:
-// cmd/vet) and accept any of those flags plus any flag valid for 'go
-// build'. The tool must support -flags, which prints a description of
-// its flags in JSON to stdout.
+// We query the flags of the tool specified by -vettool and accept any
+// of those flags plus any flag valid for 'go build'. The tool must
+// support -flags, which prints a description of its flags in JSON to
+// stdout.
 
-// GOVETTOOL specifies the vet command to run.
-// This must be an environment variable because
-// we need it before flag processing, as we execute
-// $GOVETTOOL to discover the set of flags it supports.
+// vetTool specifies the vet command to run.
+// Any tool that supports the (still unpublished) vet
+// command-line protocol may be supplied; see
+// golang.org/x/tools/go/analysis/unitchecker for one
+// implementation. It is also used by tests.
 //
-// Using an environment variable also makes it easy for users to opt in
-// to (and later, opt out of) the new cmd/vet analysis driver during the
-// transition. It is also used by tests.
-var vetTool = os.Getenv("GOVETTOOL")
+// The default behavior (vetTool=="") runs 'go tool vet'.
+//
+var vetTool string // -vettool
+
+func init() {
+	// Extract -vettool by ad hoc flag processing:
+	// its value is needed even before we can declare
+	// the flags available during main flag processing.
+	for i, arg := range os.Args {
+		if arg == "-vettool" || arg == "--vettool" {
+			if i+1 >= len(os.Args) {
+				log.Fatalf("%s requires a filename", arg)
+			}
+			vetTool = os.Args[i+1]
+			break
+		} else if strings.HasPrefix(arg, "-vettool=") ||
+			strings.HasPrefix(arg, "--vettool=") {
+			vetTool = arg[strings.IndexByte(arg, '=')+1:]
+			break
+		}
+	}
+}
 
 // vetFlags processes the command line, splitting it at the first non-flag
 // into the list of flags and list of packages.
-func vetFlags(args []string) (passToVet, packageNames []string) {
+func vetFlags(usage func(), args []string) (passToVet, packageNames []string) {
 	// Query the vet command for its flags.
 	tool := vetTool
 	if tool != "" {
@@ -94,6 +113,9 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
 	// Add build flags to vetFlagDefn.
 	var cmd base.Command
 	work.AddBuildFlags(&cmd)
+	// This flag declaration is a placeholder:
+	// -vettool is actually parsed by the init function above.
+	cmd.Flag.StringVar(new(string), "vettool", "", "path to vet tool binary")
 	cmd.Flag.VisitAll(func(f *flag.Flag) {
 		vetFlagDefn = append(vetFlagDefn, &cmdflag.Defn{
 			Name:  f.Name,
@@ -108,7 +130,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
 			return args[:i], args[i:]
 		}
 
-		f, value, extraWord := cmdflag.Parse("vet", vetFlagDefn, args, i)
+		f, value, extraWord := cmdflag.Parse("vet", usage, vetFlagDefn, args, i)
 		if f == nil {
 			fmt.Fprintf(os.Stderr, "vet: flag %q not defined\n", args[i])
 			fmt.Fprintf(os.Stderr, "Run \"go help vet\" for more information\n")

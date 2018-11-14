@@ -382,3 +382,177 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
 	MOVW	0(R0), R0	// arg 1 cond
 	BL	libc_pthread_cond_signal(SB)
 	RET
+
+// syscall calls a function in libc on behalf of the syscall package.
+// syscall takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall(SB),NOSPLIT,$0
+	MOVW.W	R0, -4(R13)	// push structure pointer
+	MOVW	0(R0), R12	// fn
+	MOVW	8(R0), R1	// a2
+	MOVW	12(R0), R2	// a3
+	MOVW	4(R0), R0	// a1
+	BL	(R12)
+	MOVW.P	4(R13), R2	// pop structure pointer
+	MOVW	R0, 16(R2)	// save r1
+	MOVW	R1, 20(R2)	// save r2
+	MOVW	$-1, R3
+	CMP	R0, R3
+	BNE	ok
+	MOVW.W	R2, -4(R13)	// push structure pointer
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	MOVW.P	4(R13), R2	// pop structure pointer
+	MOVW	R0, 24(R2)	// save err
+ok:
+	RET
+
+// syscall6 calls a function in libc on behalf of the syscall package.
+// syscall6 takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall6 must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall6(SB),NOSPLIT,$0
+	MOVW.W	R0, -4(R13)	// push structure pointer
+	MOVW	0(R0), R12	// fn
+	MOVW	24(R0), R1	// a6
+	MOVW.W	R1, -4(R13)
+	MOVW	20(R0), R1	// a5
+	MOVW.W	R1, -4(R13)
+	MOVW	8(R0), R1	// a2
+	MOVW	12(R0), R2	// a3
+	MOVW	16(R0), R3	// a4
+	MOVW	4(R0), R0	// a1
+	BL	(R12)
+	ADD	$8, R13
+	MOVW.P	4(R13), R2	// pop structure pointer
+	MOVW	R0, 28(R2)	// save r1
+	MOVW	R1, 32(R2)	// save r2
+	MOVW	$-1, R3
+	CMP	R0, R3
+	BNE	ok
+	MOVW.W	R2, -4(R13)	// push structure pointer
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	MOVW.P	4(R13), R2	// pop structure pointer
+	MOVW	R0, 36(R2)	// save err
+ok:
+	RET
+
+// syscall6X calls a function in libc on behalf of the syscall package.
+// syscall6X takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall6X must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall6X(SB),NOSPLIT,$0
+	MOVW.W	R0, -4(R13)	// push structure pointer
+	MOVW	0(R0), R12	// fn
+	MOVW	24(R0), R1	// a6
+	MOVW.W	R1, -4(R13)
+	MOVW	20(R0), R1	// a5
+	MOVW.W	R1, -4(R13)
+	MOVW	8(R0), R1	// a2
+	MOVW	12(R0), R2	// a3
+	MOVW	16(R0), R3	// a4
+	MOVW	4(R0), R0	// a1
+	BL	(R12)
+	ADD	$8, R13
+	MOVW.P	4(R13), R2	// pop structure pointer
+	MOVW	R0, 28(R2)	// save r1
+	MOVW	R1, 32(R2)	// save r2
+	MOVW	$-1, R3
+	CMP	R0, R3
+	BNE	ok
+	CMP	R1, R3
+	BNE	ok
+	MOVW.W	R2, -4(R13)	// push structure pointer
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	MOVW.P	4(R13), R2	// pop structure pointer
+	MOVW	R0, 36(R2)	// save err
+ok:
+	RET
+
+// syscall9 calls a function in libc on behalf of the syscall package.
+// syscall9 takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	a7    uintptr
+//	a8    uintptr
+//	a9    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall9 must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall9(SB),NOSPLIT,$0
+	MOVW.W	R0, -4(R13)	// push structure pointer
+	MOVW	0(R0), R12	// fn
+	MOVW	36(R0), R1	// a9
+	MOVW.W	R1, -4(R13)
+	MOVW	32(R0), R1	// a8
+	MOVW.W	R1, -4(R13)
+	MOVW	28(R0), R1	// a7
+	MOVW.W	R1, -4(R13)
+	MOVW	24(R0), R1	// a6
+	MOVW.W	R1, -4(R13)
+	MOVW	20(R0), R1	// a5
+	MOVW.W	R1, -4(R13)
+	MOVW	8(R0), R1	// a2
+	MOVW	12(R0), R2	// a3
+	MOVW	16(R0), R3	// a4
+	MOVW	4(R0), R0	// a1
+	BL	(R12)
+	ADD	$20, R13
+	MOVW.P	4(R13), R2	// pop structure pointer
+	MOVW	R0, 40(R2)	// save r1
+	MOVW	R1, 44(R2)	// save r2
+	MOVW	$-1, R3
+	CMP	R0, R3
+	BNE	ok
+	MOVW.W	R2, -4(R13)	// push structure pointer
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	MOVW.P	4(R13), R2	// pop structure pointer
+	MOVW	R0, 48(R2)	// save err
+ok:
+	RET

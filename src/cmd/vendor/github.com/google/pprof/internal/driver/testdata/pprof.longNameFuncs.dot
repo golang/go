@@ -1,0 +1,9 @@
+digraph "testbinary" {
+node [style=filled fillcolor="#f8f8f8"]
+subgraph cluster_L { "File: testbinary" [shape=box fontsize=16 label="File: testbinary\lType: cpu\lDuration: 10s, Total samples = 1.11s (11.10%)\lShowing nodes accounting for 1.11s, 100% of 1.11s total\l" tooltip="testbinary"] }
+N1 [label="package1\nobject\nfunction1\n1.10s (99.10%)" id="node1" fontsize=24 shape=box tooltip="path/to/package1.object.function1 (1.10s)" color="#b20000" fillcolor="#edd5d5"]
+N2 [label="FooBar\nrun\n0.01s (0.9%)\nof 1.01s (90.99%)" id="node2" fontsize=10 shape=box tooltip="java.bar.foo.FooBar.run(java.lang.Runnable) (1.01s)" color="#b20400" fillcolor="#edd6d5"]
+N3 [label="Bar\nFoo\n0 of 1.10s (99.10%)" id="node3" fontsize=8 shape=box tooltip="(anonymous namespace)::Bar::Foo (1.10s)" color="#b20000" fillcolor="#edd5d5"]
+N3 -> N1 [label=" 1.10s" weight=100 penwidth=5 color="#b20000" tooltip="(anonymous namespace)::Bar::Foo -> path/to/package1.object.function1 (1.10s)" labeltooltip="(anonymous namespace)::Bar::Foo -> path/to/package1.object.function1 (1.10s)"]
+N2 -> N3 [label=" 1s" weight=91 penwidth=5 color="#b20500" tooltip="java.bar.foo.FooBar.run(java.lang.Runnable) -> (anonymous namespace)::Bar::Foo (1s)" labeltooltip="java.bar.foo.FooBar.run(java.lang.Runnable) -> (anonymous namespace)::Bar::Foo (1s)"]
+}

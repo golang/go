@@ -1804,11 +1804,25 @@
 // Later passes (deadstore, elim unread auto) will remove the A -> B move, if possible.
 // This happens most commonly when B is an autotmp inserted earlier
 // during compilation to ensure correctness.
-(Move {t1} [s1] dst tmp1 midmem:(Move {t2} [s2] tmp2 src _))
-	&& s1 == s2
+// Take care that overlapping moves are preserved.
+// Restrict this optimization to the stack, to avoid duplicating loads from the heap;
+// see CL 145208 for discussion.
+(Move {t1} [s] dst tmp1 midmem:(Move {t2} [s] tmp2 src _))
 	&& t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq
 	&& isSamePtr(tmp1, tmp2)
-	-> (Move {t1} [s1] dst src midmem)
+	&& isStackPtr(src)
+	&& disjoint(src, s, tmp2, s)
+	&& (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+	-> (Move {t1} [s] dst src midmem)
+
+// Same, but for large types that require VarDefs.
+(Move {t1} [s] dst tmp1 midmem:(VarDef (Move {t2} [s] tmp2 src _)))
+	&& t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq
+	&& isSamePtr(tmp1, tmp2)
+	&& isStackPtr(src)
+	&& disjoint(src, s, tmp2, s)
+	&& (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+	-> (Move {t1} [s] dst src midmem)
 
 // Elide self-moves. This only happens rarely (e.g test/fixedbugs/bug277.go).
 // However, this rule is needed to prevent the previous rule from looping forever in such cases.

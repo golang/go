@@ -16,7 +16,6 @@ package driver
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -25,6 +24,7 @@ import (
 	"github.com/google/pprof/internal/binutils"
 	"github.com/google/pprof/internal/plugin"
 	"github.com/google/pprof/internal/symbolizer"
+	"github.com/google/pprof/internal/transport"
 )
 
 // setDefaults returns a new plugin.Options with zero fields sets to
@@ -38,7 +38,7 @@ func setDefaults(o *plugin.Options) *plugin.Options {
 		d.Writer = oswriter{}
 	}
 	if d.Flagset == nil {
-		d.Flagset = goFlags{}
+		d.Flagset = &GoFlags{}
 	}
 	if d.Obj == nil {
 		d.Obj = &binutils.Binutils{}
@@ -46,65 +46,13 @@ func setDefaults(o *plugin.Options) *plugin.Options {
 	if d.UI == nil {
 		d.UI = &stdUI{r: bufio.NewReader(os.Stdin)}
 	}
+	if d.HTTPTransport == nil {
+		d.HTTPTransport = transport.New(d.Flagset)
+	}
 	if d.Sym == nil {
-		d.Sym = &symbolizer.Symbolizer{Obj: d.Obj, UI: d.UI}
+		d.Sym = &symbolizer.Symbolizer{Obj: d.Obj, UI: d.UI, Transport: d.HTTPTransport}
 	}
 	return d
-}
-
-// goFlags returns a flagset implementation based on the standard flag
-// package from the Go distribution. It implements the plugin.FlagSet
-// interface.
-type goFlags struct{}
-
-func (goFlags) Bool(o string, d bool, c string) *bool {
-	return flag.Bool(o, d, c)
-}
-
-func (goFlags) Int(o string, d int, c string) *int {
-	return flag.Int(o, d, c)
-}
-
-func (goFlags) Float64(o string, d float64, c string) *float64 {
-	return flag.Float64(o, d, c)
-}
-
-func (goFlags) String(o, d, c string) *string {
-	return flag.String(o, d, c)
-}
-
-func (goFlags) BoolVar(b *bool, o string, d bool, c string) {
-	flag.BoolVar(b, o, d, c)
-}
-
-func (goFlags) IntVar(i *int, o string, d int, c string) {
-	flag.IntVar(i, o, d, c)
-}
-
-func (goFlags) Float64Var(f *float64, o string, d float64, c string) {
-	flag.Float64Var(f, o, d, c)
-}
-
-func (goFlags) StringVar(s *string, o, d, c string) {
-	flag.StringVar(s, o, d, c)
-}
-
-func (goFlags) StringList(o, d, c string) *[]*string {
-	return &[]*string{flag.String(o, d, c)}
-}
-
-func (goFlags) ExtraUsage() string {
-	return ""
-}
-
-func (goFlags) Parse(usage func()) []string {
-	flag.Usage = usage
-	flag.Parse()
-	args := flag.Args()
-	if len(args) == 0 {
-		usage()
-	}
-	return args
 }
 
 type stdUI struct {

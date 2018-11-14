@@ -384,41 +384,31 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 	tkind := to.Tie()
 	switch from.Tie() {
 	case 'I':
-		switch tkind {
-		case 'I':
+		if tkind == 'I' {
 			return "convI2I", false
 		}
 	case 'T':
+		switch {
+		case from.Size() == 2 && from.Align == 2:
+			return "convT16", false
+		case from.Size() == 4 && from.Align == 4 && !types.Haspointers(from):
+			return "convT32", false
+		case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
+			return "convT64", false
+		case from.IsString():
+			return "convTstring", false
+		case from.IsSlice():
+			return "convTslice", false
+		}
+
 		switch tkind {
 		case 'E':
-			switch {
-			case from.Size() == 2 && from.Align == 2:
-				return "convT2E16", false
-			case from.Size() == 4 && from.Align == 4 && !types.Haspointers(from):
-				return "convT2E32", false
-			case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
-				return "convT2E64", false
-			case from.IsString():
-				return "convT2Estring", false
-			case from.IsSlice():
-				return "convT2Eslice", false
-			case !types.Haspointers(from):
+			if !types.Haspointers(from) {
 				return "convT2Enoptr", true
 			}
 			return "convT2E", true
 		case 'I':
-			switch {
-			case from.Size() == 2 && from.Align == 2:
-				return "convT2I16", false
-			case from.Size() == 4 && from.Align == 4 && !types.Haspointers(from):
-				return "convT2I32", false
-			case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
-				return "convT2I64", false
-			case from.IsString():
-				return "convT2Istring", false
-			case from.IsSlice():
-				return "convT2Islice", false
-			case !types.Haspointers(from):
+			if !types.Haspointers(from) {
 				return "convT2Inoptr", true
 			}
 			return "convT2I", true
@@ -496,7 +486,7 @@ opswitch:
 		OIND, OSPTR, OITAB, OIDATA, OADDR:
 		n.Left = walkexpr(n.Left, init)
 
-	case OEFACE, OAND, OSUB, OMUL, OADD, OOR, OXOR:
+	case OEFACE, OAND, OSUB, OMUL, OADD, OOR, OXOR, OLSH, ORSH:
 		n.Left = walkexpr(n.Left, init)
 		n.Right = walkexpr(n.Right, init)
 
@@ -546,15 +536,6 @@ opswitch:
 			safeexpr(n.Left, init)
 			setintconst(n, t.NumElem())
 			n.SetTypecheck(1)
-		}
-
-	case OLSH, ORSH:
-		n.Left = walkexpr(n.Left, init)
-		n.Right = walkexpr(n.Right, init)
-		t := n.Left.Type
-		n.SetBounded(bounded(n.Right, 8*t.Width))
-		if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
-			Warn("shift bounds check elided")
 		}
 
 	case OCOMPLEX:
@@ -834,16 +815,21 @@ opswitch:
 	case OCONVIFACE:
 		n.Left = walkexpr(n.Left, init)
 
-		// Optimize convT2E or convT2I as a two-word copy when T is pointer-shaped.
-		if isdirectiface(n.Left.Type) {
-			var t *Node
-			if n.Type.IsEmptyInterface() {
-				t = typename(n.Left.Type)
-			} else {
-				t = itabname(n.Left.Type, n.Type)
+		fromType := n.Left.Type
+		toType := n.Type
+
+		// typeword generates the type word of the interface value.
+		typeword := func() *Node {
+			if toType.IsEmptyInterface() {
+				return typename(fromType)
 			}
-			l := nod(OEFACE, t, n.Left)
-			l.Type = n.Type
+			return itabname(fromType, toType)
+		}
+
+		// Optimize convT2E or convT2I as a two-word copy when T is pointer-shaped.
+		if isdirectiface(fromType) {
+			l := nod(OEFACE, typeword(), n.Left)
+			l.Type = toType
 			l.SetTypecheck(n.Typecheck())
 			n = l
 			break
@@ -863,11 +849,11 @@ opswitch:
 		// or creating one on the stack.
 		var value *Node
 		switch {
-		case n.Left.Type.Size() == 0:
+		case fromType.Size() == 0:
 			// n.Left is zero-sized. Use zerobase.
 			cheapexpr(n.Left, init) // Evaluate n.Left for side-effects. See issue 19246.
 			value = zerobase
-		case n.Left.Type.IsBoolean() || (n.Left.Type.Size() == 1 && n.Left.Type.IsInteger()):
+		case fromType.IsBoolean() || (fromType.Size() == 1 && fromType.IsInteger()):
 			// n.Left is a bool/byte. Use staticbytes[n.Left].
 			n.Left = cheapexpr(n.Left, init)
 			value = nod(OINDEX, staticbytes, byteindex(n.Left))
@@ -875,23 +861,17 @@ opswitch:
 		case n.Left.Class() == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly():
 			// n.Left is a readonly global; use it directly.
 			value = n.Left
-		case !n.Left.Type.IsInterface() && n.Esc == EscNone && n.Left.Type.Width <= 1024:
+		case !fromType.IsInterface() && n.Esc == EscNone && fromType.Width <= 1024:
 			// n.Left does not escape. Use a stack temporary initialized to n.Left.
-			value = temp(n.Left.Type)
+			value = temp(fromType)
 			init.Append(typecheck(nod(OAS, value, n.Left), Etop))
 		}
 
 		if value != nil {
 			// Value is identical to n.Left.
 			// Construct the interface directly: {type/itab, &value}.
-			var t *Node
-			if n.Type.IsEmptyInterface() {
-				t = typename(n.Left.Type)
-			} else {
-				t = itabname(n.Left.Type, n.Type)
-			}
-			l := nod(OEFACE, t, typecheck(nod(OADDR, value, nil), Erv))
-			l.Type = n.Type
+			l := nod(OEFACE, typeword(), typecheck(nod(OADDR, value, nil), Erv))
+			l.Type = toType
 			l.SetTypecheck(n.Typecheck())
 			n = l
 			break
@@ -903,9 +883,9 @@ opswitch:
 		//    tmp = tmp.type
 		// }
 		// e = iface{tmp, i.data}
-		if n.Type.IsEmptyInterface() && n.Left.Type.IsInterface() && !n.Left.Type.IsEmptyInterface() {
+		if toType.IsEmptyInterface() && fromType.IsInterface() && !fromType.IsEmptyInterface() {
 			// Evaluate the input interface.
-			c := temp(n.Left.Type)
+			c := temp(fromType)
 			init.Append(nod(OAS, c, n.Left))
 
 			// Get the itab out of the interface.
@@ -919,26 +899,43 @@ opswitch:
 
 			// Build the result.
 			e := nod(OEFACE, tmp, ifaceData(c, types.NewPtr(types.Types[TUINT8])))
-			e.Type = n.Type // assign type manually, typecheck doesn't understand OEFACE.
+			e.Type = toType // assign type manually, typecheck doesn't understand OEFACE.
 			e.SetTypecheck(1)
 			n = e
 			break
 		}
 
-		var ll []*Node
-		if n.Type.IsEmptyInterface() {
-			if !n.Left.Type.IsInterface() {
-				ll = append(ll, typename(n.Left.Type))
-			}
-		} else {
-			if n.Left.Type.IsInterface() {
-				ll = append(ll, typename(n.Type))
-			} else {
-				ll = append(ll, itabname(n.Left.Type, n.Type))
-			}
+		fnname, needsaddr := convFuncName(fromType, toType)
+
+		if !needsaddr && !fromType.IsInterface() {
+			// Use a specialized conversion routine that only returns a data pointer.
+			// ptr = convT2X(val)
+			// e = iface{typ/tab, ptr}
+			fn := syslook(fnname)
+			dowidth(fromType)
+			fn = substArgTypes(fn, fromType)
+			dowidth(fn.Type)
+			call := nod(OCALL, fn, nil)
+			call.List.Set1(n.Left)
+			call = typecheck(call, Erv)
+			call = walkexpr(call, init)
+			call = safeexpr(call, init)
+			e := nod(OEFACE, typeword(), call)
+			e.Type = toType
+			e.SetTypecheck(1)
+			n = e
+			break
 		}
 
-		fnname, needsaddr := convFuncName(n.Left.Type, n.Type)
+		var tab *Node
+		if fromType.IsInterface() {
+			// convI2I
+			tab = typename(toType)
+		} else {
+			// convT2x
+			tab = typeword()
+		}
+
 		v := n.Left
 		if needsaddr {
 			// Types of large or unknown size are passed by reference.
@@ -952,14 +949,13 @@ opswitch:
 			}
 			v = nod(OADDR, v, nil)
 		}
-		ll = append(ll, v)
 
-		dowidth(n.Left.Type)
+		dowidth(fromType)
 		fn := syslook(fnname)
-		fn = substArgTypes(fn, n.Left.Type, n.Type)
+		fn = substArgTypes(fn, fromType, toType)
 		dowidth(fn.Type)
 		n = nod(OCALL, fn, nil)
-		n.List.Set(ll)
+		n.List.Set2(tab, v)
 		n = typecheck(n, Erv)
 		n = walkexpr(n, init)
 
@@ -1343,14 +1339,17 @@ opswitch:
 				argtype = types.Types[TINT]
 			}
 
+			m := nod(OSLICEHEADER, nil, nil)
+			m.Type = t
+
 			fn := syslook(fnname)
-			n.Left = mkcall1(fn, types.Types[TUNSAFEPTR], init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype))
-			n.Left.SetNonNil(true)
-			n.List.Set2(conv(len, types.Types[TINT]), conv(cap, types.Types[TINT]))
-			n.Op = OSLICEHEADER
-			n.Type = t
-			n = typecheck(n, Erv)
-			n = walkexpr(n, init)
+			m.Left = mkcall1(fn, types.Types[TUNSAFEPTR], init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype))
+			m.Left.SetNonNil(true)
+			m.List.Set2(conv(len, types.Types[TINT]), conv(cap, types.Types[TINT]))
+
+			m = typecheck(m, Erv)
+			m = walkexpr(m, init)
+			n = m
 		}
 
 	case ORUNESTR:

@@ -595,6 +595,9 @@ func (s structWithMethod) callers() []uintptr {
 	return pc[:Callers(0, pc)]
 }
 
+// The noinline prevents this function from being inlined
+// into a wrapper. TODO: remove this when issue 28640 is fixed.
+//go:noinline
 func (s structWithMethod) stack() string {
 	buf := make([]byte, 4<<10)
 	return string(buf[:Stack(buf, false)])

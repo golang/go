@@ -508,7 +508,7 @@ func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping tim
 	return overlapping
 }
 
-// overlappingInstant returns true if the instantaneous event, ev, occurred during
+// overlappingInstant reports whether the instantaneous event, ev, occurred during
 // any of the task's region if ev is a goroutine-local event, or overlaps with the
 // task's lifetime if ev is a global event.
 func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {

@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/google/pprof/internal/plugin"
@@ -359,5 +360,33 @@ func TestLLVMSymbolizer(t *testing.T) {
 		if !reflect.DeepEqual(frames, c.frames) {
 			t.Errorf("LLVM: expect %v; got %v\n", c.frames, frames)
 		}
+	}
+}
+
+func TestOpenMalformedELF(t *testing.T) {
+	// Test that opening a malformed ELF file will report an error containing
+	// the word "ELF".
+	bu := &Binutils{}
+	_, err := bu.Open(filepath.Join("testdata", "malformed_elf"), 0, 0, 0)
+	if err == nil {
+		t.Fatalf("Open: unexpected success")
+	}
+
+	if !strings.Contains(err.Error(), "ELF") {
+		t.Errorf("Open: got %v, want error containing 'ELF'", err)
+	}
+}
+
+func TestOpenMalformedMachO(t *testing.T) {
+	// Test that opening a malformed Mach-O file will report an error containing
+	// the word "Mach-O".
+	bu := &Binutils{}
+	_, err := bu.Open(filepath.Join("testdata", "malformed_macho"), 0, 0, 0)
+	if err == nil {
+		t.Fatalf("Open: unexpected success")
+	}
+
+	if !strings.Contains(err.Error(), "Mach-O") {
+		t.Errorf("Open: got %v, want error containing 'Mach-O'", err)
 	}
 }

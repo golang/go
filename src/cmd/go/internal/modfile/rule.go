@@ -154,7 +154,7 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
 	return f, nil
 }
 
-var goVersionRE = regexp.MustCompile(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
+var GoVersionRE = regexp.MustCompile(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
 
 func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
 	// If strict is false, this module is a dependency.
@@ -181,7 +181,7 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 			fmt.Fprintf(errs, "%s:%d: repeated go statement\n", f.Syntax.Name, line.Start.Line)
 			return
 		}
-		if len(args) != 1 || !goVersionRE.MatchString(args[0]) {
+		if len(args) != 1 || !GoVersionRE.MatchString(args[0]) {
 			fmt.Fprintf(errs, "%s:%d: usage: go 1.23\n", f.Syntax.Name, line.Start.Line)
 			return
 		}
@@ -475,6 +475,22 @@ func (f *File) Cleanup() {
 	f.Replace = f.Replace[:w]
 
 	f.Syntax.Cleanup()
+}
+
+func (f *File) AddGoStmt(version string) error {
+	if !GoVersionRE.MatchString(version) {
+		return fmt.Errorf("invalid language version string %q", version)
+	}
+	if f.Go == nil {
+		f.Go = &Go{
+			Version: version,
+			Syntax:  f.Syntax.addLine(nil, "go", version),
+		}
+	} else {
+		f.Go.Version = version
+		f.Syntax.updateLine(f.Go.Syntax, "go", version)
+	}
+	return nil
 }
 
 func (f *File) AddRequire(path, vers string) error {

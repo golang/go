@@ -419,12 +419,16 @@ func ecdheRSAKA(version uint16) keyAgreement {
 func mutualCipherSuite(have []uint16, want uint16) *cipherSuite {
 	for _, id := range have {
 		if id == want {
-			for _, suite := range cipherSuites {
-				if suite.id == want {
-					return suite
-				}
-			}
-			return nil
+			return cipherSuiteByID(id)
+		}
+	}
+	return nil
+}
+
+func cipherSuiteByID(id uint16) *cipherSuite {
+	for _, cipherSuite := range cipherSuites {
+		if cipherSuite.id == id {
+			return cipherSuite
 		}
 	}
 	return nil
@@ -433,12 +437,16 @@ func mutualCipherSuite(have []uint16, want uint16) *cipherSuite {
 func mutualCipherSuiteTLS13(have []uint16, want uint16) *cipherSuiteTLS13 {
 	for _, id := range have {
 		if id == want {
-			for _, suite := range cipherSuitesTLS13 {
-				if suite.id == want {
-					return suite
-				}
-			}
-			return nil
+			return cipherSuiteTLS13ByID(id)
+		}
+	}
+	return nil
+}
+
+func cipherSuiteTLS13ByID(id uint16) *cipherSuiteTLS13 {
+	for _, cipherSuite := range cipherSuitesTLS13 {
+		if cipherSuite.id == id {
+			return cipherSuite
 		}
 	}
 	return nil

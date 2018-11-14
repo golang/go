@@ -1114,6 +1114,7 @@ var opprec = []int{
 	OSLICEARR:     8,
 	OSLICE3:       8,
 	OSLICE3ARR:    8,
+	OSLICEHEADER:  8,
 	ODOTINTER:     8,
 	ODOTMETH:      8,
 	ODOTPTR:       8,
@@ -1392,6 +1393,12 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			}
 		}
 		fmt.Fprint(s, "]")
+
+	case OSLICEHEADER:
+		if n.List.Len() != 2 {
+			Fatalf("bad OSLICEHEADER list length %d", n.List.Len())
+		}
+		mode.Fprintf(s, "sliceheader{%v,%v,%v}", n.Left, n.List.First(), n.List.Second())
 
 	case OCOPY, OCOMPLEX:
 		mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)

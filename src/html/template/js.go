@@ -371,7 +371,7 @@ func isJSIdentPart(r rune) bool {
 	return false
 }
 
-// isJSType returns true if the given MIME type should be considered JavaScript.
+// isJSType reports whether the given MIME type should be considered JavaScript.
 //
 // It is used to determine whether a script tag with a type attribute is a javascript container.
 func isJSType(mimeType string) bool {

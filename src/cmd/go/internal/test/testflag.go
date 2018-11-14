@@ -87,7 +87,7 @@ func init() {
 // to allow both
 //	go test fmt -custom-flag-for-fmt-test
 //	go test -x math
-func testFlags(args []string) (packageNames, passToTest []string) {
+func testFlags(usage func(), args []string) (packageNames, passToTest []string) {
 	args = str.StringList(cmdflag.FindGOFLAGS(testFlagDefn), args)
 	inPkg := false
 	var explicitArgs []string
@@ -108,7 +108,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			inPkg = false
 		}
 
-		f, value, extraWord := cmdflag.Parse(cmd, testFlagDefn, args, i)
+		f, value, extraWord := cmdflag.Parse(cmd, usage, testFlagDefn, args, i)
 		if f == nil {
 			// This is a flag we do not know; we must assume
 			// that any args we see after this might be flag

@@ -812,7 +812,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 
 	sptrWeak := true
 	var sptr *obj.LSym
-	if !t.IsPtr() || t.PtrBase != nil {
+	if !t.IsPtr() || t.IsPtrElem() {
 		tptr := types.NewPtr(t)
 		if t.Sym != nil || methods(tptr) != nil {
 			sptrWeak = false
@@ -1137,7 +1137,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 			return lsym
 		}
 		// TODO(mdempsky): Investigate whether this can happen.
-		if isforw[tbase.Etype] {
+		if tbase.Etype == TFORW {
 			return lsym
 		}
 	}

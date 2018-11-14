@@ -5051,7 +5051,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 
 	e := f.Frontend().(*ssafn)
 
-	s.livenessMap = liveness(e, f)
+	s.livenessMap = liveness(e, f, pp)
 	emitStackObjects(e, pp)
 
 	// Remember where each block starts.

@@ -849,7 +849,7 @@ func canpanic(gp *g) bool {
 	return true
 }
 
-// shouldPushSigpanic returns true if pc should be used as sigpanic's
+// shouldPushSigpanic reports whether pc should be used as sigpanic's
 // return PC (pushing a frame for the call). Otherwise, it should be
 // left alone so that LR is used as sigpanic's return PC, effectively
 // replacing the top-most frame with sigpanic. This is used by
@@ -887,7 +887,7 @@ func shouldPushSigpanic(gp *g, pc, lr uintptr) bool {
 	return true
 }
 
-// isAbortPC returns true if pc is the program counter at which
+// isAbortPC reports whether pc is the program counter at which
 // runtime.abort raises a signal.
 //
 // It is nosplit because it's part of the isgoexception

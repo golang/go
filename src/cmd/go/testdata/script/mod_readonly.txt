@@ -37,6 +37,8 @@ cmp go.mod go.mod.inconsistent
 -- go.mod --
 module m
 
+go 1.20
+
 -- x.go --
 package x
 import _ "rsc.io/quote"

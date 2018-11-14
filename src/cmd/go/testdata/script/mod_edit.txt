@@ -10,37 +10,37 @@ stderr 'cannot determine module path'
 
 go mod init x.x/y/z
 stderr 'creating new go.mod: module x.x/y/z'
-cmp go.mod $WORK/go.mod.init
+cmpenv go.mod $WORK/go.mod.init
 
 ! go mod init
-cmp go.mod $WORK/go.mod.init
+cmpenv go.mod $WORK/go.mod.init
 
 # go mod edits
 go mod edit -droprequire=x.1 -require=x.1@v1.0.0 -require=x.2@v1.1.0 -droprequire=x.2 -exclude='x.1 @ v1.2.0' -exclude=x.1@v1.2.1 -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
-cmp go.mod $WORK/go.mod.edit1
+cmpenv go.mod $WORK/go.mod.edit1
 go mod edit -droprequire=x.1 -dropexclude=x.1@v1.2.1 -dropreplace=x.1@v1.3.0 -require=x.3@v1.99.0
-cmp go.mod $WORK/go.mod.edit2
+cmpenv go.mod $WORK/go.mod.edit2
 
 # go mod edit -json
 go mod edit -json
-cmp stdout $WORK/go.mod.json
+cmpenv stdout $WORK/go.mod.json
 
 # go mod edit -replace
 go mod edit -replace=x.1@v1.3.0=y.1/v2@v2.3.5 -replace=x.1@v1.4.0=y.1/v2@v2.3.5
-cmp go.mod $WORK/go.mod.edit3
+cmpenv go.mod $WORK/go.mod.edit3
 go mod edit -replace=x.1=y.1/v2@v2.3.6
-cmp go.mod $WORK/go.mod.edit4
+cmpenv go.mod $WORK/go.mod.edit4
 go mod edit -dropreplace=x.1
-cmp go.mod $WORK/go.mod.edit5
+cmpenv go.mod $WORK/go.mod.edit5
 
 # go mod edit -fmt
 cp $WORK/go.mod.badfmt go.mod
 go mod edit -fmt -print # -print should avoid writing file
-cmp stdout $WORK/go.mod.edit4
+cmpenv stdout $WORK/go.mod.edit6
 cmp go.mod $WORK/go.mod.badfmt
 go mod edit -fmt # without -print, should write file (and nothing to stdout)
 ! stdout .
-cmp go.mod $WORK/go.mod.edit4
+cmpenv go.mod $WORK/go.mod.edit6
 
 -- x.go --
 package x
@@ -50,8 +50,12 @@ package w
 
 -- $WORK/go.mod.init --
 module x.x/y/z
+
+go $goversion
 -- $WORK/go.mod.edit1 --
 module x.x/y/z
+
+go $goversion
 
 require x.1 v1.0.0
 
@@ -67,6 +71,8 @@ replace (
 -- $WORK/go.mod.edit2 --
 module x.x/y/z
 
+go $goversion
+
 exclude x.1 v1.2.0
 
 replace x.1 v1.4.0 => ../z
@@ -77,6 +83,7 @@ require x.3 v1.99.0
 	"Module": {
 		"Path": "x.x/y/z"
 	},
+	"Go": "$goversion",
 	"Require": [
 		{
 			"Path": "x.3",
@@ -104,6 +111,8 @@ require x.3 v1.99.0
 -- $WORK/go.mod.edit3 --
 module x.x/y/z
 
+go $goversion
+
 exclude x.1 v1.2.0
 
 replace (
@@ -115,6 +124,8 @@ require x.3 v1.99.0
 -- $WORK/go.mod.edit4 --
 module x.x/y/z
 
+go $goversion
+
 exclude x.1 v1.2.0
 
 replace x.1 => y.1/v2 v2.3.6
@@ -123,11 +134,25 @@ require x.3 v1.99.0
 -- $WORK/go.mod.edit5 --
 module x.x/y/z
 
+go $goversion
+
 exclude x.1 v1.2.0
+
+require x.3 v1.99.0
+-- $WORK/go.mod.edit6 --
+module x.x/y/z
+
+go 1.10
+
+exclude x.1 v1.2.0
+
+replace x.1 => y.1/v2 v2.3.6
 
 require x.3 v1.99.0
 -- $WORK/go.mod.badfmt --
 module     x.x/y/z
+
+go 1.10
 
 exclude x.1     v1.2.0
 

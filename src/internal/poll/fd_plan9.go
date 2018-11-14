@@ -193,7 +193,7 @@ func isInterrupted(err error) bool {
 	return err != nil && stringsHasSuffix(err.Error(), "interrupted")
 }
 
-// IsPollDescriptor returns true if fd is the descriptor being used by the poller.
+// IsPollDescriptor reports whether fd is the descriptor being used by the poller.
 // This is only used for testing.
 func IsPollDescriptor(fd uintptr) bool {
 	return false

@@ -53,6 +53,9 @@ func TestParse(t *testing.T) {
 		flags, source string
 	}{
 		{"text,functions,flat", "cpu"},
+		{"text,functions,noinlines,flat", "cpu"},
+		{"text,filefunctions,noinlines,flat", "cpu"},
+		{"text,addresses,noinlines,flat", "cpu"},
 		{"tree,addresses,flat,nodecount=4", "cpusmall"},
 		{"text,functions,flat,nodecount=5,call_tree", "unknown"},
 		{"text,alloc_objects,flat", "heap_alloc"},
@@ -63,6 +66,7 @@ func TestParse(t *testing.T) {
 		{"text,lines,cum,show=[12]00", "cpu"},
 		{"text,lines,cum,hide=line[X3]0,focus=[12]00", "cpu"},
 		{"topproto,lines,cum,hide=mangled[X3]0", "cpu"},
+		{"topproto,lines", "cpu"},
 		{"tree,lines,cum,focus=[24]00", "heap"},
 		{"tree,relative_percentages,cum,focus=[24]00", "heap"},
 		{"tree,lines,cum,show_from=line2", "cpu"},
@@ -92,6 +96,8 @@ func TestParse(t *testing.T) {
 		{"peek=line.*01", "cpu"},
 		{"weblist=line[13],addresses,flat", "cpu"},
 		{"tags,tagfocus=400kb:", "heap_request"},
+		{"dot", "longNameFuncs"},
+		{"text", "longNameFuncs"},
 	}
 
 	baseVars := pprofVariables
@@ -108,9 +114,6 @@ func TestParse(t *testing.T) {
 
 			flags := strings.Split(tc.flags, ",")
 
-			// Skip the output format in the first flag, to output to a proto
-			addFlags(&f, flags[1:])
-
 			// Encode profile into a protobuf and decode it again.
 			protoTempFile, err := ioutil.TempFile("", "profile_proto")
 			if err != nil {
@@ -123,11 +126,13 @@ func TestParse(t *testing.T) {
 			if flags[0] == "topproto" {
 				f.bools["proto"] = false
 				f.bools["topproto"] = true
+				f.bools["addresses"] = true
 			}
 
 			// First pprof invocation to save the profile into a profile.proto.
-			o1 := setDefaults(nil)
-			o1.Flagset = f
+			// Pass in flag set hen setting defaults, because otherwise default
+			// transport will try to add flags to the default flag set.
+			o1 := setDefaults(&plugin.Options{Flagset: f})
 			o1.Fetch = testFetcher{}
 			o1.Sym = testSymbolizer{}
 			o1.UI = testUI
@@ -144,28 +149,28 @@ func TestParse(t *testing.T) {
 			}
 			defer os.Remove(outputTempFile.Name())
 			defer outputTempFile.Close()
+
+			f = baseFlags()
 			f.strings["output"] = outputTempFile.Name()
 			f.args = []string{protoTempFile.Name()}
 
-			var solution string
+			delete(f.bools, "proto")
+			addFlags(&f, flags)
+			solution := solutionFilename(tc.source, &f)
 			// Apply the flags for the second pprof run, and identify name of
 			// the file containing expected results
 			if flags[0] == "topproto" {
+				addFlags(&f, flags)
 				solution = solutionFilename(tc.source, &f)
 				delete(f.bools, "topproto")
 				f.bools["text"] = true
-			} else {
-				delete(f.bools, "proto")
-				addFlags(&f, flags[:1])
-				solution = solutionFilename(tc.source, &f)
 			}
-			// The add_comment flag is not idempotent so only apply it on the first run.
-			delete(f.strings, "add_comment")
 
 			// Second pprof invocation to read the profile from profile.proto
 			// and generate a report.
-			o2 := setDefaults(nil)
-			o2.Flagset = f
+			// Pass in flag set hen setting defaults, because otherwise default
+			// transport will try to add flags to the default flag set.
+			o2 := setDefaults(&plugin.Options{Flagset: f})
 			o2.Sym = testSymbolizeDemangler{}
 			o2.Obj = new(mockObjTool)
 			o2.UI = testUI
@@ -250,7 +255,8 @@ func testSourceURL(port int) string {
 func solutionFilename(source string, f *testFlags) string {
 	name := []string{"pprof", strings.TrimPrefix(source, testSourceURL(8000))}
 	name = addString(name, f, []string{"flat", "cum"})
-	name = addString(name, f, []string{"functions", "files", "lines", "addresses"})
+	name = addString(name, f, []string{"functions", "filefunctions", "files", "lines", "addresses"})
+	name = addString(name, f, []string{"noinlines"})
 	name = addString(name, f, []string{"inuse_space", "inuse_objects", "alloc_space", "alloc_objects"})
 	name = addString(name, f, []string{"relative_percentages"})
 	name = addString(name, f, []string{"seconds"})
@@ -292,6 +298,8 @@ type testFlags struct {
 }
 
 func (testFlags) ExtraUsage() string { return "" }
+
+func (testFlags) AddExtraUsage(eu string) {}
 
 func (f testFlags) Bool(s string, d bool, c string) *bool {
 	if b, ok := f.bools[s]; ok {
@@ -436,6 +444,8 @@ func (testFetcher) Fetch(s string, d, t time.Duration) (*profile.Profile, string
 		p = contentionProfile()
 	case "symbolz":
 		p = symzProfile()
+	case "longNameFuncs":
+		p = longNameFuncsProfile()
 	default:
 		return nil, "", fmt.Errorf("unexpected source: %s", s)
 	}
@@ -516,6 +526,83 @@ func fakeDemangler(name string) string {
 		return "malloc"
 	default:
 		return name
+	}
+}
+
+// Returns a profile with function names which should be shortened in
+// graph and flame views.
+func longNameFuncsProfile() *profile.Profile {
+	var longNameFuncsM = []*profile.Mapping{
+		{
+			ID:              1,
+			Start:           0x1000,
+			Limit:           0x4000,
+			File:            "/path/to/testbinary",
+			HasFunctions:    true,
+			HasFilenames:    true,
+			HasLineNumbers:  true,
+			HasInlineFrames: true,
+		},
+	}
+
+	var longNameFuncsF = []*profile.Function{
+		{ID: 1, Name: "path/to/package1.object.function1", SystemName: "path/to/package1.object.function1", Filename: "path/to/package1.go"},
+		{ID: 2, Name: "(anonymous namespace)::Bar::Foo", SystemName: "(anonymous namespace)::Bar::Foo", Filename: "a/long/path/to/package2.cc"},
+		{ID: 3, Name: "java.bar.foo.FooBar.run(java.lang.Runnable)", SystemName: "java.bar.foo.FooBar.run(java.lang.Runnable)", Filename: "FooBar.java"},
+	}
+
+	var longNameFuncsL = []*profile.Location{
+		{
+			ID:      1000,
+			Mapping: longNameFuncsM[0],
+			Address: 0x1000,
+			Line: []profile.Line{
+				{Function: longNameFuncsF[0], Line: 1},
+			},
+		},
+		{
+			ID:      2000,
+			Mapping: longNameFuncsM[0],
+			Address: 0x2000,
+			Line: []profile.Line{
+				{Function: longNameFuncsF[1], Line: 4},
+			},
+		},
+		{
+			ID:      3000,
+			Mapping: longNameFuncsM[0],
+			Address: 0x3000,
+			Line: []profile.Line{
+				{Function: longNameFuncsF[2], Line: 9},
+			},
+		},
+	}
+
+	return &profile.Profile{
+		PeriodType:    &profile.ValueType{Type: "cpu", Unit: "milliseconds"},
+		Period:        1,
+		DurationNanos: 10e9,
+		SampleType: []*profile.ValueType{
+			{Type: "samples", Unit: "count"},
+			{Type: "cpu", Unit: "milliseconds"},
+		},
+		Sample: []*profile.Sample{
+			{
+				Location: []*profile.Location{longNameFuncsL[0], longNameFuncsL[1], longNameFuncsL[2]},
+				Value:    []int64{1000, 1000},
+			},
+			{
+				Location: []*profile.Location{longNameFuncsL[0], longNameFuncsL[1]},
+				Value:    []int64{100, 100},
+			},
+			{
+				Location: []*profile.Location{longNameFuncsL[2]},
+				Value:    []int64{10, 10},
+			},
+		},
+		Location: longNameFuncsL,
+		Function: longNameFuncsF,
+		Mapping:  longNameFuncsM,
 	}
 }
 

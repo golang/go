@@ -95,7 +95,7 @@ func netpollinited() bool {
 
 //go:linkname poll_runtime_isPollServerDescriptor internal/poll.runtime_isPollServerDescriptor
 
-// poll_runtime_isPollServerDescriptor returns true if fd is a
+// poll_runtime_isPollServerDescriptor reports whether fd is a
 // descriptor being used by netpoll.
 func poll_runtime_isPollServerDescriptor(fd uintptr) bool {
 	fds := netpolldescriptor()

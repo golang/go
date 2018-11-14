@@ -34,16 +34,23 @@ func skipSpecialPlatforms(t *testing.T) {
 	}
 }
 
-func compile(t *testing.T, dirname, filename string) string {
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", filename)
+// compile runs the compiler on filename, with dirname as the working directory,
+// and writes the output file to outdirname.
+func compile(t *testing.T, dirname, filename, outdirname string) string {
+	// filename must end with ".go"
+	if !strings.HasSuffix(filename, ".go") {
+		t.Fatalf("filename doesn't end in .go: %s", filename)
+	}
+	basename := filepath.Base(filename)
+	outname := filepath.Join(outdirname, basename[:len(basename)-2]+"o")
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", outname, filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Logf("%s", out)
 		t.Fatalf("go tool compile %s failed: %s", filename, err)
 	}
-	// filename should end with ".go"
-	return filepath.Join(dirname, filename[:len(filename)-2]+"o")
+	return outname
 }
 
 func testPath(t *testing.T, path, srcDir string) *types.Package {
@@ -88,17 +95,30 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
 	return
 }
 
+func mktmpdir(t *testing.T) string {
+	tmpdir, err := ioutil.TempDir("", "gcimporter_test")
+	if err != nil {
+		t.Fatal("mktmpdir:", err)
+	}
+	if err := os.Mkdir(filepath.Join(tmpdir, "testdata"), 0700); err != nil {
+		os.RemoveAll(tmpdir)
+		t.Fatal("mktmpdir:", err)
+	}
+	return tmpdir
+}
+
 func TestImportTestdata(t *testing.T) {
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 	}
 
-	if outFn := compile(t, "testdata", "exports.go"); outFn != "" {
-		defer os.Remove(outFn)
-	}
+	tmpdir := mktmpdir(t)
+	defer os.RemoveAll(tmpdir)
 
-	if pkg := testPath(t, "./testdata/exports", "."); pkg != nil {
+	compile(t, "testdata", "exports.go", filepath.Join(tmpdir, "testdata"))
+
+	if pkg := testPath(t, "./testdata/exports", tmpdir); pkg != nil {
 		// The package's Imports list must include all packages
 		// explicitly imported by exports.go, plus all packages
 		// referenced indirectly via exported objects in exports.go.
@@ -128,6 +148,13 @@ func TestVersionHandling(t *testing.T) {
 	const dir = "./testdata/versions"
 	list, err := ioutil.ReadDir(dir)
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpdir := mktmpdir(t)
+	defer os.RemoveAll(tmpdir)
+	corruptdir := filepath.Join(tmpdir, "testdata", "versions")
+	if err := os.Mkdir(corruptdir, 0700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -178,12 +205,11 @@ func TestVersionHandling(t *testing.T) {
 		}
 		// 4) write the file
 		pkgpath += "_corrupted"
-		filename := filepath.Join(dir, pkgpath) + ".a"
+		filename := filepath.Join(corruptdir, pkgpath) + ".a"
 		ioutil.WriteFile(filename, data, 0666)
-		defer os.Remove(filename)
 
 		// test that importing the corrupted file results in an error
-		_, err = Import(make(map[string]*types.Package), pkgpath, dir, nil)
+		_, err = Import(make(map[string]*types.Package), pkgpath, corruptdir, nil)
 		if err == nil {
 			t.Errorf("import corrupted %q succeeded", pkgpath)
 		} else if msg := err.Error(); !strings.Contains(msg, "version skew") {
@@ -315,7 +341,7 @@ func TestIssue5815(t *testing.T) {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 	}
 
-	pkg := importPkg(t, "strings")
+	pkg := importPkg(t, "strings", ".")
 
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
@@ -373,15 +399,22 @@ func TestIssue13566(t *testing.T) {
 		t.Skip("avoid dealing with relative paths/drive letters on windows")
 	}
 
-	if f := compile(t, "testdata", "a.go"); f != "" {
-		defer os.Remove(f)
+	tmpdir := mktmpdir(t)
+	defer os.RemoveAll(tmpdir)
+	testoutdir := filepath.Join(tmpdir, "testdata")
+
+	// b.go needs to be compiled from the output directory so that the compiler can
+	// find the compiled package a. We pass the full path to compile() so that we
+	// don't have to copy the file to that directory.
+	bpath, err := filepath.Abs(filepath.Join("testdata", "b.go"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if f := compile(t, "testdata", "b.go"); f != "" {
-		defer os.Remove(f)
-	}
+	compile(t, "testdata", "a.go", testoutdir)
+	compile(t, testoutdir, bpath, testoutdir)
 
 	// import must succeed (test for issue at hand)
-	pkg := importPkg(t, "./testdata/b")
+	pkg := importPkg(t, "./testdata/b", tmpdir)
 
 	// make sure all indirectly imported packages have names
 	for _, imp := range pkg.Imports() {
@@ -451,9 +484,10 @@ func TestIssue15517(t *testing.T) {
 		t.Skip("avoid dealing with relative paths/drive letters on windows")
 	}
 
-	if f := compile(t, "testdata", "p.go"); f != "" {
-		defer os.Remove(f)
-	}
+	tmpdir := mktmpdir(t)
+	defer os.RemoveAll(tmpdir)
+
+	compile(t, "testdata", "p.go", filepath.Join(tmpdir, "testdata"))
 
 	// Multiple imports of p must succeed without redeclaration errors.
 	// We use an import path that's not cleaned up so that the eventual
@@ -469,7 +503,7 @@ func TestIssue15517(t *testing.T) {
 	// The same issue occurs with vendoring.)
 	imports := make(map[string]*types.Package)
 	for i := 0; i < 3; i++ {
-		if _, err := Import(imports, "./././testdata/p", ".", nil); err != nil {
+		if _, err := Import(imports, "./././testdata/p", tmpdir, nil); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -489,11 +523,7 @@ func TestIssue15920(t *testing.T) {
 		t.Skip("avoid dealing with relative paths/drive letters on windows")
 	}
 
-	if f := compile(t, "testdata", "issue15920.go"); f != "" {
-		defer os.Remove(f)
-	}
-
-	importPkg(t, "./testdata/issue15920")
+	compileAndImportPkg(t, "issue15920")
 }
 
 func TestIssue20046(t *testing.T) {
@@ -510,12 +540,8 @@ func TestIssue20046(t *testing.T) {
 		t.Skip("avoid dealing with relative paths/drive letters on windows")
 	}
 
-	if f := compile(t, "testdata", "issue20046.go"); f != "" {
-		defer os.Remove(f)
-	}
-
 	// "./issue20046".V.M must exist
-	pkg := importPkg(t, "./testdata/issue20046")
+	pkg := compileAndImportPkg(t, "issue20046")
 	obj := lookupObj(t, pkg.Scope(), "V")
 	if m, index, indirect := types.LookupFieldOrMethod(obj.Type(), false, nil, "M"); m == nil {
 		t.Fatalf("V.M not found (index = %v, indirect = %v)", index, indirect)
@@ -535,11 +561,7 @@ func TestIssue25301(t *testing.T) {
 		t.Skip("avoid dealing with relative paths/drive letters on windows")
 	}
 
-	if f := compile(t, "testdata", "issue25301.go"); f != "" {
-		defer os.Remove(f)
-	}
-
-	importPkg(t, "./testdata/issue25301")
+	compileAndImportPkg(t, "issue25301")
 }
 
 func TestIssue25596(t *testing.T) {
@@ -556,19 +578,22 @@ func TestIssue25596(t *testing.T) {
 		t.Skip("avoid dealing with relative paths/drive letters on windows")
 	}
 
-	if f := compile(t, "testdata", "issue25596.go"); f != "" {
-		defer os.Remove(f)
-	}
-
-	importPkg(t, "./testdata/issue25596")
+	compileAndImportPkg(t, "issue25596")
 }
 
-func importPkg(t *testing.T, path string) *types.Package {
-	pkg, err := Import(make(map[string]*types.Package), path, ".", nil)
+func importPkg(t *testing.T, path, srcDir string) *types.Package {
+	pkg, err := Import(make(map[string]*types.Package), path, srcDir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return pkg
+}
+
+func compileAndImportPkg(t *testing.T, name string) *types.Package {
+	tmpdir := mktmpdir(t)
+	defer os.RemoveAll(tmpdir)
+	compile(t, "testdata", name+".go", filepath.Join(tmpdir, "testdata"))
+	return importPkg(t, "./testdata/"+name, tmpdir)
 }
 
 func lookupObj(t *testing.T, scope *types.Scope, name string) types.Object {

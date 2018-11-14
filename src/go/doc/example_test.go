@@ -351,6 +351,68 @@ func TestExamplesWholeFile(t *testing.T) {
 	}
 }
 
+const exampleInspectSignature = `package foo_test
+
+import (
+	"bytes"
+	"io"
+)
+
+func getReader() io.Reader { return nil }
+
+func do(b bytes.Reader) {}
+
+func Example() {
+	getReader()
+	do()
+	// Output:
+}
+
+func ExampleIgnored() {
+}
+`
+
+const exampleInspectSignatureOutput = `package main
+
+import (
+	"bytes"
+	"io"
+)
+
+func getReader() io.Reader { return nil }
+
+func do(b bytes.Reader) {}
+
+func main() {
+	getReader()
+	do()
+}
+`
+
+func TestExampleInspectSignature(t *testing.T) {
+	// Verify that "bytes" and "io" are imported. See issue #28492.
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "test.go", strings.NewReader(exampleInspectSignature), parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	es := doc.Examples(file)
+	if len(es) != 2 {
+		t.Fatalf("wrong number of examples; got %d want 2", len(es))
+	}
+	// We are interested in the first example only.
+	e := es[0]
+	if e.Name != "" {
+		t.Errorf("got Name == %q, want %q", e.Name, "")
+	}
+	if g, w := formatFile(t, fset, e.Play), exampleInspectSignatureOutput; g != w {
+		t.Errorf("got Play == %q, want %q", g, w)
+	}
+	if g, w := e.Output, ""; g != w {
+		t.Errorf("got Output == %q, want %q", g, w)
+	}
+}
+
 func formatFile(t *testing.T, fset *token.FileSet, n *ast.File) string {
 	if n == nil {
 		return "<nil>"

@@ -1,0 +1,5 @@
+Showing nodes accounting for 1.12s, 100% of 1.12s total
+      flat  flat%   sum%        cum   cum%
+     1.10s 98.21% 98.21%      1.10s 98.21%  line1000 testdata/file1000.src
+     0.01s  0.89% 99.11%      1.01s 90.18%  line2000 testdata/file2000.src
+     0.01s  0.89%   100%      1.12s   100%  line3000 testdata/file3000.src

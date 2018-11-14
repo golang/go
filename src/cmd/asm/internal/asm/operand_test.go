@@ -607,6 +607,7 @@ var arm64OperandTests = []operandTest{
 	{"R0", "R0"},
 	{"R10", "R10"},
 	{"R11", "R11"},
+	{"R18_PLATFORM", "R18"},
 	{"$4503601774854144.0", "$(4503601774854144.0)"},
 	{"$runtime·badsystemstack(SB)", "$runtime.badsystemstack(SB)"},
 	{"ZR", "ZR"},

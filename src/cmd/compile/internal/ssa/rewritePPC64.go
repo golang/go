@@ -30996,6 +30996,143 @@ func rewriteBlockPPC64(b *Block) bool {
 			b.Aux = nil
 			return true
 		}
+		// match: (EQ (CMPconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (EQ (ANDCCconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64ANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockPPC64EQ
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCCconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPWconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (EQ (ANDCCconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPWconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64ANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockPPC64EQ
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCCconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] z:(AND x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (EQ (ANDCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64AND {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64EQ
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] z:(OR x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (EQ (ORCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64OR {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64EQ
+			v0 := b.NewValue0(v.Pos, OpPPC64ORCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (EQ (CMPconst [0] z:(XOR x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (EQ (XORCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64XOR {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64EQ
+			v0 := b.NewValue0(v.Pos, OpPPC64XORCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
 	case BlockPPC64GE:
 		// match: (GE (FlagEQ) yes no)
 		// cond:
@@ -31048,6 +31185,143 @@ func rewriteBlockPPC64(b *Block) bool {
 			cmp := v.Args[0]
 			b.Kind = BlockPPC64LE
 			b.SetControl(cmp)
+			b.Aux = nil
+			return true
+		}
+		// match: (GE (CMPconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (GE (ANDCCconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64ANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockPPC64GE
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCCconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (GE (CMPWconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (GE (ANDCCconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPWconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64ANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockPPC64GE
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCCconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (GE (CMPconst [0] z:(AND x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (GE (ANDCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64AND {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64GE
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (GE (CMPconst [0] z:(OR x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (GE (ORCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64OR {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64GE
+			v0 := b.NewValue0(v.Pos, OpPPC64ORCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (GE (CMPconst [0] z:(XOR x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (GE (XORCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64XOR {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64GE
+			v0 := b.NewValue0(v.Pos, OpPPC64XORCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
 			b.Aux = nil
 			return true
 		}
@@ -31104,6 +31378,143 @@ func rewriteBlockPPC64(b *Block) bool {
 			cmp := v.Args[0]
 			b.Kind = BlockPPC64LT
 			b.SetControl(cmp)
+			b.Aux = nil
+			return true
+		}
+		// match: (GT (CMPconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (GT (ANDCCconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64ANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockPPC64GT
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCCconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (GT (CMPWconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (GT (ANDCCconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPWconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64ANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockPPC64GT
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCCconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (GT (CMPconst [0] z:(AND x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (GT (ANDCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64AND {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64GT
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (GT (CMPconst [0] z:(OR x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (GT (ORCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64OR {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64GT
+			v0 := b.NewValue0(v.Pos, OpPPC64ORCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (GT (CMPconst [0] z:(XOR x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (GT (XORCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64XOR {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64GT
+			v0 := b.NewValue0(v.Pos, OpPPC64XORCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
 			b.Aux = nil
 			return true
 		}
@@ -31318,6 +31729,143 @@ func rewriteBlockPPC64(b *Block) bool {
 			b.Aux = nil
 			return true
 		}
+		// match: (LE (CMPconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (LE (ANDCCconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64ANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockPPC64LE
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCCconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (LE (CMPWconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (LE (ANDCCconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPWconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64ANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockPPC64LE
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCCconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (LE (CMPconst [0] z:(AND x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (LE (ANDCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64AND {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64LE
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (LE (CMPconst [0] z:(OR x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (LE (ORCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64OR {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64LE
+			v0 := b.NewValue0(v.Pos, OpPPC64ORCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (LE (CMPconst [0] z:(XOR x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (LE (XORCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64XOR {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64LE
+			v0 := b.NewValue0(v.Pos, OpPPC64XORCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
 	case BlockPPC64LT:
 		// match: (LT (FlagEQ) yes no)
 		// cond:
@@ -31371,6 +31919,143 @@ func rewriteBlockPPC64(b *Block) bool {
 			cmp := v.Args[0]
 			b.Kind = BlockPPC64GT
 			b.SetControl(cmp)
+			b.Aux = nil
+			return true
+		}
+		// match: (LT (CMPconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (LT (ANDCCconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64ANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockPPC64LT
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCCconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (LT (CMPWconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (LT (ANDCCconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPWconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64ANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockPPC64LT
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCCconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (LT (CMPconst [0] z:(AND x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (LT (ANDCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64AND {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64LT
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (LT (CMPconst [0] z:(OR x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (LT (ORCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64OR {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64LT
+			v0 := b.NewValue0(v.Pos, OpPPC64ORCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (LT (CMPconst [0] z:(XOR x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (LT (XORCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64XOR {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64LT
+			v0 := b.NewValue0(v.Pos, OpPPC64XORCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
 			b.Aux = nil
 			return true
 		}
@@ -31686,6 +32371,143 @@ func rewriteBlockPPC64(b *Block) bool {
 			cmp := v.Args[0]
 			b.Kind = BlockPPC64NE
 			b.SetControl(cmp)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (NE (ANDCCconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64ANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockPPC64NE
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCCconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPWconst [0] (ANDconst [c] x)) yes no)
+		// cond:
+		// result: (NE (ANDCCconst [c] x) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPWconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpPPC64ANDconst {
+				break
+			}
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			b.Kind = BlockPPC64NE
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCCconst, types.TypeFlags)
+			v0.AuxInt = c
+			v0.AddArg(x)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] z:(AND x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (NE (ANDCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64AND {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64NE
+			v0 := b.NewValue0(v.Pos, OpPPC64ANDCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] z:(OR x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (NE (ORCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64OR {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64NE
+			v0 := b.NewValue0(v.Pos, OpPPC64ORCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
+			b.Aux = nil
+			return true
+		}
+		// match: (NE (CMPconst [0] z:(XOR x y)) yes no)
+		// cond: z.Uses == 1
+		// result: (NE (XORCC x y) yes no)
+		for {
+			v := b.Control
+			if v.Op != OpPPC64CMPconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			z := v.Args[0]
+			if z.Op != OpPPC64XOR {
+				break
+			}
+			_ = z.Args[1]
+			x := z.Args[0]
+			y := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			b.Kind = BlockPPC64NE
+			v0 := b.NewValue0(v.Pos, OpPPC64XORCC, types.TypeFlags)
+			v0.AddArg(x)
+			v0.AddArg(y)
+			b.SetControl(v0)
 			b.Aux = nil
 			return true
 		}

@@ -539,7 +539,7 @@ func (c *fakeConn) prepareCreate(stmt *fakeStmt, parts []string) (*fakeStmt, err
 }
 
 // parts are table|col=?,col2=val
-func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (*fakeStmt, error) {
+func (c *fakeConn) prepareInsert(ctx context.Context, stmt *fakeStmt, parts []string) (*fakeStmt, error) {
 	if len(parts) != 2 {
 		stmt.Close()
 		return nil, errf("invalid INSERT syntax with %d parts; want 2", len(parts))
@@ -574,6 +574,20 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (*fakeStmt, err
 					return nil, errf("invalid conversion to int32 from %q", value)
 				}
 				subsetVal = int64(i) // int64 is a subset type, but not int32
+			case "table": // For testing cursor reads.
+				c.skipDirtySession = true
+				vparts := strings.Split(value, "!")
+
+				substmt, err := c.PrepareContext(ctx, fmt.Sprintf("SELECT|%s|%s|", vparts[0], strings.Join(vparts[1:], ",")))
+				if err != nil {
+					return nil, err
+				}
+				cursor, err := (substmt.(driver.StmtQueryContext)).QueryContext(ctx, []driver.NamedValue{})
+				substmt.Close()
+				if err != nil {
+					return nil, err
+				}
+				subsetVal = cursor
 			default:
 				stmt.Close()
 				return nil, errf("unsupported conversion for pre-bound parameter %q to type %q", value, ctype)
@@ -658,11 +672,11 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 		case "CREATE":
 			stmt, err = c.prepareCreate(stmt, parts)
 		case "INSERT":
-			stmt, err = c.prepareInsert(stmt, parts)
+			stmt, err = c.prepareInsert(ctx, stmt, parts)
 		case "NOSERT":
 			// Do all the prep-work like for an INSERT but don't actually insert the row.
 			// Used for some of the concurrent tests.
-			stmt, err = c.prepareInsert(stmt, parts)
+			stmt, err = c.prepareInsert(ctx, stmt, parts)
 		default:
 			stmt.Close()
 			return nil, errf("unsupported command type %q", cmd)

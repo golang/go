@@ -2280,10 +2280,10 @@ stop:
 	}
 
 	// wasm only:
-	// Check if a goroutine is waiting for a callback from the WebAssembly host.
-	// If yes, pause the execution until a callback was triggered.
-	if pauseSchedulerUntilCallback() {
-		// A callback was triggered and caused at least one goroutine to wake up.
+	// If a callback returned and no other goroutine is awake,
+	// then pause execution until a callback was triggered.
+	if beforeIdle() {
+		// At least one goroutine got woken.
 		goto top
 	}
 
@@ -2400,7 +2400,7 @@ stop:
 	goto top
 }
 
-// pollWork returns true if there is non-background work this P could
+// pollWork reports whether there is non-background work this P could
 // be doing. This is a fairly lightweight check to be used for
 // background work loops, like idle GC. It checks a subset of the
 // conditions checked by the actual scheduler.
@@ -2828,8 +2828,11 @@ func reentersyscall(pc, sp uintptr) {
 	_g_.m.syscalltick = _g_.m.p.ptr().syscalltick
 	_g_.sysblocktraced = true
 	_g_.m.mcache = nil
-	_g_.m.p.ptr().m = 0
-	atomic.Store(&_g_.m.p.ptr().status, _Psyscall)
+	pp := _g_.m.p.ptr()
+	pp.m = 0
+	_g_.m.oldp.set(pp)
+	_g_.m.p = 0
+	atomic.Store(&pp.status, _Psyscall)
 	if sched.gcwaiting != 0 {
 		systemstack(entersyscall_gcwait)
 		save(pc, sp)
@@ -2855,7 +2858,7 @@ func entersyscall_sysmon() {
 
 func entersyscall_gcwait() {
 	_g_ := getg()
-	_p_ := _g_.m.p.ptr()
+	_p_ := _g_.m.oldp.ptr()
 
 	lock(&sched.lock)
 	if sched.stopwait > 0 && atomic.Cas(&_p_.status, _Psyscall, _Pgcstop) {
@@ -2940,8 +2943,9 @@ func exitsyscall() {
 	}
 
 	_g_.waitsince = 0
-	oldp := _g_.m.p.ptr()
-	if exitsyscallfast() {
+	oldp := _g_.m.oldp.ptr()
+	_g_.m.oldp = 0
+	if exitsyscallfast(oldp) {
 		if _g_.m.mcache == nil {
 			throw("lost mcache")
 		}
@@ -3011,27 +3015,23 @@ func exitsyscall() {
 }
 
 //go:nosplit
-func exitsyscallfast() bool {
+func exitsyscallfast(oldp *p) bool {
 	_g_ := getg()
 
 	// Freezetheworld sets stopwait but does not retake P's.
 	if sched.stopwait == freezeStopWait {
-		_g_.m.mcache = nil
-		_g_.m.p = 0
 		return false
 	}
 
 	// Try to re-acquire the last P.
-	if _g_.m.p != 0 && _g_.m.p.ptr().status == _Psyscall && atomic.Cas(&_g_.m.p.ptr().status, _Psyscall, _Prunning) {
+	if oldp != nil && oldp.status == _Psyscall && atomic.Cas(&oldp.status, _Psyscall, _Pidle) {
 		// There's a cpu for us, so we can run.
+		wirep(oldp)
 		exitsyscallfast_reacquired()
 		return true
 	}
 
 	// Try to get any other idle P.
-	oldp := _g_.m.p.ptr()
-	_g_.m.mcache = nil
-	_g_.m.p = 0
 	if sched.pidle != 0 {
 		var ok bool
 		systemstack(func() {
@@ -3058,15 +3058,9 @@ func exitsyscallfast() bool {
 // has successfully reacquired the P it was running on before the
 // syscall.
 //
-// This function is allowed to have write barriers because exitsyscall
-// has acquired a P at this point.
-//
-//go:yeswritebarrierrec
 //go:nosplit
 func exitsyscallfast_reacquired() {
 	_g_ := getg()
-	_g_.m.mcache = _g_.m.p.ptr().mcache
-	_g_.m.p.ptr().m.set(_g_.m)
 	if _g_.m.syscalltick != _g_.m.p.ptr().syscalltick {
 		if trace.enabled {
 			// The p was retaken and then enter into syscall again (since _g_.m.syscalltick has changed).
@@ -4081,11 +4075,9 @@ func procresize(nprocs int32) *p {
 //go:yeswritebarrierrec
 func acquirep(_p_ *p) {
 	// Do the part that isn't allowed to have write barriers.
-	acquirep1(_p_)
+	wirep(_p_)
 
-	// have p; write barriers now allowed
-	_g_ := getg()
-	_g_.m.mcache = _p_.mcache
+	// Have p; write barriers now allowed.
 
 	// Perform deferred mcache flush before this P can allocate
 	// from a potentially stale mcache.
@@ -4096,25 +4088,27 @@ func acquirep(_p_ *p) {
 	}
 }
 
-// acquirep1 is the first step of acquirep, which actually acquires
-// _p_. This is broken out so we can disallow write barriers for this
-// part, since we don't yet have a P.
+// wirep is the first step of acquirep, which actually associates the
+// current M to _p_. This is broken out so we can disallow write
+// barriers for this part, since we don't yet have a P.
 //
 //go:nowritebarrierrec
-func acquirep1(_p_ *p) {
+//go:nosplit
+func wirep(_p_ *p) {
 	_g_ := getg()
 
 	if _g_.m.p != 0 || _g_.m.mcache != nil {
-		throw("acquirep: already in go")
+		throw("wirep: already in go")
 	}
 	if _p_.m != 0 || _p_.status != _Pidle {
 		id := int64(0)
 		if _p_.m != 0 {
 			id = _p_.m.ptr().id
 		}
-		print("acquirep: p->m=", _p_.m, "(", id, ") p->status=", _p_.status, "\n")
-		throw("acquirep: invalid p state")
+		print("wirep: p->m=", _p_.m, "(", id, ") p->status=", _p_.status, "\n")
+		throw("wirep: invalid p state")
 	}
+	_g_.m.mcache = _p_.mcache
 	_g_.m.p.set(_p_)
 	_p_.m.set(_g_.m)
 	_p_.status = _Prunning
@@ -4713,7 +4707,7 @@ func pidleget() *p {
 	return _p_
 }
 
-// runqempty returns true if _p_ has no Gs on its local run queue.
+// runqempty reports whether _p_ has no Gs on its local run queue.
 // It never returns true spuriously.
 func runqempty(_p_ *p) bool {
 	// Defend against a race where 1) _p_ has G1 in runqnext but runqhead == runqtail,
@@ -4934,7 +4928,7 @@ type gQueue struct {
 	tail guintptr
 }
 
-// empty returns true if q is empty.
+// empty reports whether q is empty.
 func (q *gQueue) empty() bool {
 	return q.head == 0
 }
@@ -5000,7 +4994,7 @@ type gList struct {
 	head guintptr
 }
 
-// empty returns true if l is empty.
+// empty reports whether l is empty.
 func (l *gList) empty() bool {
 	return l.head == 0
 }

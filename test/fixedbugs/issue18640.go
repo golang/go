@@ -20,8 +20,7 @@ type (
 	d = c
 )
 
-// The compiler reports an incorrect (non-alias related)
-// type cycle here (via dowith()). Disabled for now.
+// The compiler cannot handle these cases. Disabled for now.
 // See issue #25838.
 /*
 type (
@@ -32,7 +31,6 @@ type (
 	i = j
 	j = e
 )
-*/
 
 type (
 	a1 struct{ *b1 }
@@ -45,3 +43,4 @@ type (
 	b2 = c2
 	c2 struct{ *b2 }
 )
+*/

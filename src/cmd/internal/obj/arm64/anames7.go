@@ -30,6 +30,8 @@ var cnames7 = []string{
 	"BITCON",
 	"ADDCON2",
 	"LCON",
+	"MOVCON2",
+	"MOVCON3",
 	"VCON",
 	"FCON",
 	"VCONADDR",

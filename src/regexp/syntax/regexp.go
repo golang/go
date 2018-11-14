@@ -59,7 +59,7 @@ const (
 
 const opPseudo Op = 128 // where pseudo-ops start
 
-// Equal returns true if x and y have identical structure.
+// Equal reports whether x and y have identical structure.
 func (x *Regexp) Equal(y *Regexp) bool {
 	if x == nil || y == nil {
 		return x == y

@@ -115,7 +115,7 @@ func (s *Scope) Insert(obj Object) Object {
 func (s *Scope) Pos() token.Pos { return s.pos }
 func (s *Scope) End() token.Pos { return s.end }
 
-// Contains returns true if pos is within the scope's extent.
+// Contains reports whether pos is within the scope's extent.
 // The result is guaranteed to be valid only if the type-checked
 // AST has complete position information.
 func (s *Scope) Contains(pos token.Pos) bool {
