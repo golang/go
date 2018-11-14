@@ -277,18 +277,56 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
 // or case-insensitive identifiers such as "errorf".
 //
 // The -funcs flag adds to this set.
+//
+// The set below includes facts for many important standard library
+// functions, even though the analysis is capable of deducing that, for
+// example, fmt.Printf forwards to fmt.Fprintf. We avoid relying on the
+// driver applying analyzers to standard packages because "go vet" does
+// not do so with gccgo, and nor do some other build systems.
+// TODO(adonovan): eliminate the redundant facts once this restriction
+// is lifted.
+//
 var isPrint = stringSet{
 	"fmt.Errorf":   true,
 	"fmt.Fprint":   true,
 	"fmt.Fprintf":  true,
 	"fmt.Fprintln": true,
-	"fmt.Print":    true, // technically these three
-	"fmt.Printf":   true, // are redundant because they
-	"fmt.Println":  true, // forward to Fprint{,f,ln}
+	"fmt.Print":    true,
+	"fmt.Printf":   true,
+	"fmt.Println":  true,
 	"fmt.Sprint":   true,
 	"fmt.Sprintf":  true,
 	"fmt.Sprintln": true,
 
+	"runtime/trace.Logf": true,
+
+	"log.Print":             true,
+	"log.Printf":            true,
+	"log.Println":           true,
+	"log.Fatal":             true,
+	"log.Fatalf":            true,
+	"log.Fatalln":           true,
+	"log.Panic":             true,
+	"log.Panicf":            true,
+	"log.Panicln":           true,
+	"(*log.Logger).Fatal":   true,
+	"(*log.Logger).Fatalf":  true,
+	"(*log.Logger).Fatalln": true,
+	"(*log.Logger).Panic":   true,
+	"(*log.Logger).Panicf":  true,
+	"(*log.Logger).Panicln": true,
+	"(*log.Logger).Print":   true,
+	"(*log.Logger).Printf":  true,
+	"(*log.Logger).Println": true,
+
+	"(*testing.common).Error":  true,
+	"(*testing.common).Errorf": true,
+	"(*testing.common).Fatal":  true,
+	"(*testing.common).Fatalf": true,
+	"(*testing.common).Log":    true,
+	"(*testing.common).Logf":   true,
+	"(*testing.common).Skip":   true,
+	"(*testing.common).Skipf":  true,
 	// *testing.T and B are detected by induction, but testing.TB is
 	// an interface and the inference can't follow dynamic calls.
 	"(testing.TB).Error":  true,

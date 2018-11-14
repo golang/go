@@ -14,26 +14,26 @@ import (
 )
 
 // AddImport adds the import path to the file f, if absent.
-func AddImport(fset *token.FileSet, f *ast.File, ipath string) (added bool) {
-	return AddNamedImport(fset, f, "", ipath)
+func AddImport(fset *token.FileSet, f *ast.File, path string) (added bool) {
+	return AddNamedImport(fset, f, "", path)
 }
 
-// AddNamedImport adds the import path to the file f, if absent.
+// AddNamedImport adds the import with the given name and path to the file f, if absent.
 // If name is not empty, it is used to rename the import.
 //
 // For example, calling
 //	AddNamedImport(fset, f, "pathpkg", "path")
 // adds
 //	import pathpkg "path"
-func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added bool) {
-	if imports(f, ipath) {
+func AddNamedImport(fset *token.FileSet, f *ast.File, name, path string) (added bool) {
+	if imports(f, name, path) {
 		return false
 	}
 
 	newImport := &ast.ImportSpec{
 		Path: &ast.BasicLit{
 			Kind:  token.STRING,
-			Value: strconv.Quote(ipath),
+			Value: strconv.Quote(path),
 		},
 	}
 	if name != "" {
@@ -43,14 +43,14 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 	// Find an import decl to add to.
 	// The goal is to find an existing import
 	// whose import path has the longest shared
-	// prefix with ipath.
+	// prefix with path.
 	var (
 		bestMatch  = -1         // length of longest shared prefix
 		lastImport = -1         // index in f.Decls of the file's final import decl
 		impDecl    *ast.GenDecl // import decl containing the best match
 		impIndex   = -1         // spec index in impDecl containing the best match
 
-		isThirdPartyPath = isThirdParty(ipath)
+		isThirdPartyPath = isThirdParty(path)
 	)
 	for i, decl := range f.Decls {
 		gen, ok := decl.(*ast.GenDecl)
@@ -81,7 +81,7 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 			for j, spec := range gen.Specs {
 				impspec := spec.(*ast.ImportSpec)
 				p := importPath(impspec)
-				n := matchLen(p, ipath)
+				n := matchLen(p, path)
 				if n > bestMatch || (bestMatch == 0 && !seenAnyThirdParty && isThirdPartyPath) {
 					bestMatch = n
 					impDecl = gen
@@ -197,11 +197,13 @@ func isThirdParty(importPath string) bool {
 }
 
 // DeleteImport deletes the import path from the file f, if present.
+// If there are duplicate import declarations, all matching ones are deleted.
 func DeleteImport(fset *token.FileSet, f *ast.File, path string) (deleted bool) {
 	return DeleteNamedImport(fset, f, "", path)
 }
 
 // DeleteNamedImport deletes the import with the given name and path from the file f, if present.
+// If there are duplicate import declarations, all matching ones are deleted.
 func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (deleted bool) {
 	var delspecs []*ast.ImportSpec
 	var delcomments []*ast.CommentGroup
@@ -216,13 +218,7 @@ func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (del
 		for j := 0; j < len(gen.Specs); j++ {
 			spec := gen.Specs[j]
 			impspec := spec.(*ast.ImportSpec)
-			if impspec.Name == nil && name != "" {
-				continue
-			}
-			if impspec.Name != nil && impspec.Name.Name != name {
-				continue
-			}
-			if importPath(impspec) != path {
+			if importName(impspec) != name || importPath(impspec) != path {
 				continue
 			}
 
@@ -383,9 +379,14 @@ func (fn visitFn) Visit(node ast.Node) ast.Visitor {
 	return fn
 }
 
-// imports returns true if f imports path.
-func imports(f *ast.File, path string) bool {
-	return importSpec(f, path) != nil
+// imports reports whether f has an import with the specified name and path.
+func imports(f *ast.File, name, path string) bool {
+	for _, s := range f.Imports {
+		if importName(s) == name && importPath(s) == path {
+			return true
+		}
+	}
+	return false
 }
 
 // importSpec returns the import spec if f imports path,
@@ -399,14 +400,23 @@ func importSpec(f *ast.File, path string) *ast.ImportSpec {
 	return nil
 }
 
+// importName returns the name of s,
+// or "" if the import is not named.
+func importName(s *ast.ImportSpec) string {
+	if s.Name == nil {
+		return ""
+	}
+	return s.Name.Name
+}
+
 // importPath returns the unquoted import path of s,
 // or "" if the path is not properly quoted.
 func importPath(s *ast.ImportSpec) string {
 	t, err := strconv.Unquote(s.Path.Value)
-	if err == nil {
-		return t
+	if err != nil {
+		return ""
 	}
-	return ""
+	return t
 }
 
 // declImports reports whether gen contains an import of path.

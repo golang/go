@@ -20,7 +20,7 @@ import (
 )
 
 // Parse creates a flag for each of the analyzer's flags,
-// including (in multi mode) an --analysis.enable flag,
+// including (in multi mode) a flag named after the analyzer,
 // parses the flags, then filters and returns the list of
 // analyzers enabled by flags.
 func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
@@ -36,16 +36,15 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 	for _, a := range analyzers {
 		var prefix string
 
-		// Add -analysis.enable flag.
+		// Add -NAME flag to enable it.
 		if multi {
 			prefix = a.Name + "."
 
 			enable := new(triState)
-			enableName := prefix + "enable"
 			enableUsage := "enable " + a.Name + " analysis"
-			flag.Var(enable, enableName, enableUsage)
+			flag.Var(enable, a.Name, enableUsage)
 			enabled[a] = enable
-			analysisFlags = append(analysisFlags, analysisFlag{enableName, true, enableUsage})
+			analysisFlags = append(analysisFlags, analysisFlag{a.Name, true, enableUsage})
 		}
 
 		a.Flags.VisitAll(func(f *flag.Flag) {
@@ -69,6 +68,14 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 	printflags := flag.Bool("flags", false, "print analyzer flags in JSON")
 	addVersionFlag()
 
+	// Add shims for legacy vet flags.
+	for old, new := range vetLegacyFlags {
+		newFlag := flag.Lookup(new)
+		if newFlag != nil && flag.Lookup(old) == nil {
+			flag.Var(newFlag.Value, old, "deprecated alias for -"+new)
+		}
+	}
+
 	flag.Parse() // (ExitOnError)
 
 	// -flags: print flags so that go vet knows which ones are legitimate.
@@ -81,8 +88,8 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 		os.Exit(0)
 	}
 
-	// If any --foo.enable flag is true,  run only those analyzers. Otherwise,
-	// if any --foo.enable flag is false, run all but those analyzers.
+	// If any -NAME flag is true,  run only those analyzers. Otherwise,
+	// if any -NAME flag is false, run all but those analyzers.
 	if multi {
 		var hasTrue, hasFalse bool
 		for _, ts := range enabled {
@@ -195,7 +202,7 @@ func (ts *triState) Set(value string) error {
 	b, err := strconv.ParseBool(value)
 	if err != nil {
 		// This error message looks poor but package "flag" adds
-		// "invalid boolean value %q for -foo.enable: %s"
+		// "invalid boolean value %q for -NAME: %s"
 		return fmt.Errorf("want true or false")
 	}
 	if b {
@@ -220,4 +227,23 @@ func (ts *triState) String() string {
 
 func (ts triState) IsBoolFlag() bool {
 	return true
+}
+
+// Legacy flag support
+
+// vetLegacyFlags maps flags used by legacy vet to their corresponding
+// new names. The old names will continue to work.
+var vetLegacyFlags = map[string]string{
+	// Analyzer name changes
+	"bool":       "bools",
+	"buildtags":  "buildtag",
+	"methods":    "stdmethods",
+	"rangeloops": "loopclosure",
+
+	// Analyzer flags
+	"compositewhitelist":  "composites.whitelist",
+	"printfuncs":          "printf.funcs",
+	"shadowstrict":        "shadow.strict",
+	"unusedfuncs":         "unusedresult.funcs",
+	"unusedstringmethods": "unusedresult.stringmethods",
 }
