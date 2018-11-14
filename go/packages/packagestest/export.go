@@ -58,7 +58,7 @@ type Exported struct {
 	written  map[string]map[string]string // the full set of exported files
 	fset     *token.FileSet               // The file set used when parsing expectations
 	notes    []*expect.Note               // The list of expectations extracted from go source files
-	markers  map[string]marker            // The set of markers extracted from go source files
+	markers  map[string]Range             // The set of markers extracted from go source files
 	contents map[string][]byte
 }
 

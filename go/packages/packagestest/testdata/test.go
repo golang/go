@@ -18,3 +18,7 @@ type Match string //@check("Match",re`[[:upper:]]`)
 //@stringArg(PlainString, "PlainString")
 //@stringArg(IdentAsString,IdentAsString)
 //@directNote()
+//@range(AThing)
+
+// The following test should remain at the bottom of the file
+//@checkEOF(EOF)

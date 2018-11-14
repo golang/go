@@ -14,21 +14,30 @@ import (
 	"golang.org/x/tools/go/expect"
 )
 
-// Expect invokes the supplied methods for all expectation comments found in
+const (
+	markMethod    = "mark"
+	eofIdentifier = "EOF"
+)
+
+// Expect invokes the supplied methods for all expectation notes found in
 // the exported source files.
 //
 // All exported go source files are parsed to collect the expectation
-// expressions.
-// See the documentation for expect.Parse for how the expectations are collected
+// notes.
+// See the documentation for expect.Parse for how the notes are collected
 // and parsed.
 //
 // The methods are supplied as a map of name to function, and those functions
 // will be matched against the expectations by name.
-// Markers with no matching function will be skipped, and functions with no
-// matching markers will not be invoked.
-// As a special case expectations for the mark function will be processed and
-// the names can then be used to identify positions in files for all other
-// methods invoked.
+// Notes with no matching function will be skipped, and functions with no
+// matching notes will not be invoked.
+// If there are no registered markers yet, a special pass will be run first
+// which adds any markers declared with @mark(Name, pattern) or @name. These
+// call the Mark method to add the marker to the global set.
+// You can register the "mark" method to override these in your own call to
+// Expect. The bound Mark function is usable directly in your method map, so
+//    exported.Expect(map[string]interface{}{"mark": exported.Mark})
+// replicates the built in behavior.
 //
 // Method invocation
 //
@@ -44,12 +53,10 @@ import (
 // Position calculation
 //
 // There is some extra handling when a parameter is being coerced into a
-// token.Pos or token.Position type argument.
+// token.Pos, token.Position or Range type argument.
 //
 // If the parameter is an identifier, it will be treated as the name of an
-// marker to look up (as if markers were global variables). These markers
-// are the results of all "mark" expectations, where the first parameter is
-// the name of the marker and the second is the position of the marker.
+// marker to look up (as if markers were global variables).
 //
 // If it is a string or regular expression, then it will be passed to
 // expect.MatchBefore to look up a match in the line at which it was declared.
@@ -57,26 +64,11 @@ import (
 // It is safe to call this repeatedly with different method sets, but it is
 // not safe to call it concurrently.
 func (e *Exported) Expect(methods map[string]interface{}) error {
-	if e.notes == nil {
-		notes := []*expect.Note{}
-		for _, module := range e.written {
-			for _, filename := range module {
-				if !strings.HasSuffix(filename, ".go") {
-					continue
-				}
-				l, err := expect.Parse(e.fset, filename, nil)
-				if err != nil {
-					return fmt.Errorf("Failed to extract expectations: %v", err)
-				}
-				notes = append(notes, l...)
-			}
-		}
-		e.notes = notes
+	if err := e.getNotes(); err != nil {
+		return err
 	}
-	if e.markers == nil {
-		if err := e.getMarkers(); err != nil {
-			return err
-		}
+	if err := e.getMarkers(); err != nil {
+		return err
 	}
 	var err error
 	ms := make(map[string]method, len(methods))
@@ -92,6 +84,14 @@ func (e *Exported) Expect(methods map[string]interface{}) error {
 		ms[name] = mi
 	}
 	for _, n := range e.notes {
+		if n.Args == nil {
+			// simple identifier form, convert to a call to mark
+			n = &expect.Note{
+				Pos:  n.Pos,
+				Name: markMethod,
+				Args: []interface{}{n.Name, n.Name},
+			}
+		}
 		mi, ok := ms[n.Name]
 		if !ok {
 			continue
@@ -113,53 +113,49 @@ func (e *Exported) Expect(methods map[string]interface{}) error {
 	return nil
 }
 
-type marker struct {
-	name  string
-	start token.Pos
-	end   token.Pos
+type Range struct {
+	Start token.Pos
+	End   token.Pos
+}
+
+// Mark adds a new marker to the known set.
+func (e *Exported) Mark(name string, r Range) {
+	if e.markers == nil {
+		e.markers = make(map[string]Range)
+	}
+	e.markers[name] = r
+}
+
+func (e *Exported) getNotes() error {
+	if e.notes != nil {
+		return nil
+	}
+	notes := []*expect.Note{}
+	for _, module := range e.written {
+		for _, filename := range module {
+			if !strings.HasSuffix(filename, ".go") {
+				continue
+			}
+			l, err := expect.Parse(e.fset, filename, nil)
+			if err != nil {
+				return fmt.Errorf("Failed to extract expectations: %v", err)
+			}
+			notes = append(notes, l...)
+		}
+	}
+	e.notes = notes
+	return nil
 }
 
 func (e *Exported) getMarkers() error {
-	e.markers = make(map[string]marker)
-	for _, n := range e.notes {
-		var name string
-		var pattern interface{}
-		switch {
-		case n.Args == nil:
-			// simple identifier form
-			name = n.Name
-			pattern = n.Name
-		case n.Name == "mark":
-			if len(n.Args) != 2 {
-				return fmt.Errorf("%v: expected 2 args to mark, got %v", e.fset.Position(n.Pos), len(n.Args))
-			}
-			ident, ok := n.Args[0].(expect.Identifier)
-			if !ok {
-				return fmt.Errorf("%v: expected identifier, got %T", e.fset.Position(n.Pos), n.Args[0])
-			}
-			name = string(ident)
-			pattern = n.Args[1]
-		default:
-			// not a marker note, so skip it
-			continue
-		}
-		if old, found := e.markers[name]; found {
-			return fmt.Errorf("%v: marker %v already exists at %v", e.fset.Position(n.Pos), name, e.fset.Position(old.start))
-		}
-		start, end, err := expect.MatchBefore(e.fset, e.fileContents, n.Pos, pattern)
-		if err != nil {
-			return err
-		}
-		if start == token.NoPos {
-			return fmt.Errorf("%v: pattern %s did not match", e.fset.Position(n.Pos), pattern)
-		}
-		e.markers[name] = marker{
-			name:  name,
-			start: start,
-			end:   end,
-		}
+	if e.markers != nil {
+		return nil
 	}
-	return nil
+	// set markers early so that we don't call getMarkers again from Expect
+	e.markers = make(map[string]Range)
+	return e.Expect(map[string]interface{}{
+		markMethod: e.Mark,
+	})
 }
 
 var (
@@ -167,6 +163,7 @@ var (
 	identifierType = reflect.TypeOf(expect.Identifier(""))
 	posType        = reflect.TypeOf(token.Pos(0))
 	positionType   = reflect.TypeOf(token.Position{})
+	rangeType      = reflect.TypeOf(Range{})
 )
 
 // converter converts from a marker's argument parsed from the comment to
@@ -195,19 +192,27 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 		}, nil
 	case pt == posType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
-			pos, remains, err := e.posConverter(n, args)
+			r, remains, err := e.rangeConverter(n, args)
 			if err != nil {
 				return reflect.Value{}, nil, err
 			}
-			return reflect.ValueOf(pos), remains, nil
+			return reflect.ValueOf(r.Start), remains, nil
 		}, nil
 	case pt == positionType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
-			pos, remains, err := e.posConverter(n, args)
+			r, remains, err := e.rangeConverter(n, args)
 			if err != nil {
 				return reflect.Value{}, nil, err
 			}
-			return reflect.ValueOf(e.fset.Position(pos)), remains, nil
+			return reflect.ValueOf(e.fset.Position(r.Start)), remains, nil
+		}, nil
+	case pt == rangeType:
+		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
+			r, remains, err := e.rangeConverter(n, args)
+			if err != nil {
+				return reflect.Value{}, nil, err
+			}
+			return reflect.ValueOf(r), remains, nil
 		}, nil
 	case pt == identifierType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
@@ -276,39 +281,48 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 	}
 }
 
-func (e *Exported) posConverter(n *expect.Note, args []interface{}) (token.Pos, []interface{}, error) {
+func (e *Exported) rangeConverter(n *expect.Note, args []interface{}) (Range, []interface{}, error) {
 	if len(args) < 1 {
-		return 0, nil, fmt.Errorf("missing argument")
+		return Range{}, nil, fmt.Errorf("missing argument")
 	}
 	arg := args[0]
 	args = args[1:]
 	switch arg := arg.(type) {
 	case expect.Identifier:
-		// look up an marker by name
-		p, ok := e.markers[string(arg)]
-		if !ok {
-			return 0, nil, fmt.Errorf("cannot find marker %v", arg)
+		// handle the special identifiers
+		switch arg {
+		case eofIdentifier:
+			// end of file identifier, look up the current file
+			f := e.fset.File(n.Pos)
+			eof := f.Pos(f.Size())
+			return Range{Start: eof, End: token.NoPos}, args, nil
+		default:
+			// look up an marker by name
+			mark, ok := e.markers[string(arg)]
+			if !ok {
+				return Range{}, nil, fmt.Errorf("cannot find marker %v", arg)
+			}
+			return mark, args, nil
 		}
-		return p.start, args, nil
 	case string:
-		p, _, err := expect.MatchBefore(e.fset, e.fileContents, n.Pos, arg)
+		start, end, err := expect.MatchBefore(e.fset, e.fileContents, n.Pos, arg)
 		if err != nil {
-			return 0, nil, err
+			return Range{}, nil, err
 		}
-		if p == token.NoPos {
-			return 0, nil, fmt.Errorf("%v: pattern %s did not match", e.fset.Position(n.Pos), arg)
+		if start == token.NoPos {
+			return Range{}, nil, fmt.Errorf("%v: pattern %s did not match", e.fset.Position(n.Pos), arg)
 		}
-		return p, args, nil
+		return Range{Start: start, End: end}, args, nil
 	case *regexp.Regexp:
-		p, _, err := expect.MatchBefore(e.fset, e.fileContents, n.Pos, arg)
+		start, end, err := expect.MatchBefore(e.fset, e.fileContents, n.Pos, arg)
 		if err != nil {
-			return 0, nil, err
+			return Range{}, nil, err
 		}
-		if p == token.NoPos {
-			return 0, nil, fmt.Errorf("%v: pattern %s did not match", e.fset.Position(n.Pos), arg)
+		if start == token.NoPos {
+			return Range{}, nil, fmt.Errorf("%v: pattern %s did not match", e.fset.Position(n.Pos), arg)
 		}
-		return p, args, nil
+		return Range{Start: start, End: end}, args, nil
 	default:
-		return 0, nil, fmt.Errorf("cannot convert %v to pos", arg)
+		return Range{}, nil, fmt.Errorf("cannot convert %v to pos", arg)
 	}
 }
