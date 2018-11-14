@@ -12,6 +12,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"math/big"
 	"net"
@@ -88,7 +89,10 @@ func isBoringSignatureScheme(alg SignatureScheme) bool {
 		PKCS1WithSHA384,
 		ECDSAWithP384AndSHA384,
 		PKCS1WithSHA512,
-		ECDSAWithP521AndSHA512:
+		ECDSAWithP521AndSHA512,
+		PSSWithSHA256,
+		PSSWithSHA384,
+		PSSWithSHA512:
 		// ok
 	}
 	return true
@@ -193,11 +197,13 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 		testingOnlyForceClientHelloSignatureAlgorithms = []SignatureScheme{sigHash}
 
 		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {
-			if sigHash == PKCS1WithSHA1 || sigHash == PKCS1WithSHA256 || sigHash == PKCS1WithSHA384 || sigHash == PKCS1WithSHA512 {
+			switch sigHash {
+			case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512,
+				PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
 				serverConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
-				serverConfig.Certificates[0].Certificate = [][]byte{testRSACertificate}
-				serverConfig.Certificates[0].PrivateKey = testRSAPrivateKey
-			} else {
+				serverConfig.Certificates[0].Certificate = [][]byte{testRSA2048Certificate}
+				serverConfig.Certificates[0].PrivateKey = testRSA2048PrivateKey
+			default:
 				serverConfig.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256}
 				serverConfig.Certificates = make([]Certificate, 1)
 				serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
@@ -558,6 +564,71 @@ func boringList(t *testing.T, list ...*boringCertificate) [][]byte {
 		all = append(all, c.der)
 	}
 	return all
+}
+
+// A self-signed test certificate with an RSA key of size 2048, for testing
+// RSA-PSS with SHA512. SAN of example.golang.
+var (
+	testRSA2048Certificate []byte
+	testRSA2048PrivateKey  *rsa.PrivateKey
+)
+
+func init() {
+	block, _ := pem.Decode([]byte(`
+-----BEGIN CERTIFICATE-----
+MIIC/zCCAeegAwIBAgIRALHHX/kh4+4zMU9DarzBEcQwDQYJKoZIhvcNAQELBQAw
+EjEQMA4GA1UEChMHQWNtZSBDbzAeFw0xMTAxMDExNTA0MDVaFw0yMDEyMjkxNTA0
+MDVaMBIxEDAOBgNVBAoTB0FjbWUgQ28wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
+ggEKAoIBAQCf8fk0N6ieCBX4IOVIfKitt4kGcOQLeimCfsjqqHcysMIVGEtFSM6E
+4Ay141f/7IqdW0UtIqNb4PXhROID7yDxR284xL6XbCuv/t5hP3UcehYc3hmLiyVd
+MkZQiZWtfUUJf/1qOtM+ohNg59LRWp4d+6iX0la1JL3EwCIckkNjJ9hQbF7Pb2CS
++ES9Yo55KAap8KOblpcR8MBSN38bqnwjfQdCXvOEOjam2HUxKzEFX5MA+fA0me4C
+ioCcCRLWKl+GoN9F8fABfoZ+T+2eal4DLuO95rXR8SrOIVBh3XFOr/RVhjtXcNVF
+ZKcvDt6d68V6jAKAYKm5nlj9GPpd4v+rAgMBAAGjUDBOMA4GA1UdDwEB/wQEAwIF
+oDATBgNVHSUEDDAKBggrBgEFBQcDATAMBgNVHRMBAf8EAjAAMBkGA1UdEQQSMBCC
+DmV4YW1wbGUuZ29sYW5nMA0GCSqGSIb3DQEBCwUAA4IBAQCOoYsVcFCBhboqe3WH
+dC6V7XXXECmnjh01r8h80yv0NR379nSD3cw2M+HKvaXysWqrl5hjGVKw0vtwD81r
+V4JzDu7IfIog5m8+QNC+7LqDZsz88vDKOrsoySVOmUCgmCKFXew+LA+eO/iQEJTr
+7ensddOeXJEp27Ed5vW+kmWW3Qmglc2Gwy8wFrMDIqnrnOzBA4oCnDEgtXJt0zog
+nRwbfEMAWi1aQRy5dT9KA3SP9mo5SeTFSzGGHiE4s4gHUe7jvsAFF2qgtD6+wH6s
+z9b6shxnC7g5IlBKhI7SVB/Uqt2ydJ+kH1YbjMcIq6NAM5eNMKgZuJr3+zwsSgwh
+GNaE
+-----END CERTIFICATE-----`))
+	testRSA2048Certificate = block.Bytes
+
+	block, _ = pem.Decode([]byte(`
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEAn/H5NDeonggV+CDlSHyorbeJBnDkC3opgn7I6qh3MrDCFRhL
+RUjOhOAMteNX/+yKnVtFLSKjW+D14UTiA+8g8UdvOMS+l2wrr/7eYT91HHoWHN4Z
+i4slXTJGUImVrX1FCX/9ajrTPqITYOfS0VqeHfuol9JWtSS9xMAiHJJDYyfYUGxe
+z29gkvhEvWKOeSgGqfCjm5aXEfDAUjd/G6p8I30HQl7zhDo2pth1MSsxBV+TAPnw
+NJnuAoqAnAkS1ipfhqDfRfHwAX6Gfk/tnmpeAy7jvea10fEqziFQYd1xTq/0VYY7
+V3DVRWSnLw7enevFeowCgGCpuZ5Y/Rj6XeL/qwIDAQABAoIBAQCNpMZifd/vg42h
+HdCvLuZaYS0R7SunFlpoXEsltGdLFsnp0IfoJZ/ugFQBSAIIfLwMumU6oXA1z7Uv
+98aIYV61DePrTCDVDFBsHbNmP8JAo8WtbusEbwd5zyoB7LYG2+clkJklWE73KqUq
+rmI+UJeyScl2Gin7ZTxBXz1WPBk9VwcnwkeaXpgASIBW23fhECM9gnYEEwaBez5T
+6Me8d1tHtYQv7vsKe7ro9w9/HKrRXejqYKK1LxkhfFriyV+m8LZJZn2nXOa6G3gF
+Nb8Qk1Uk5PUBENBmyMFJhT4M/uuSq4YtMrrO2gi8Q+fPhuGzc5SshYKRBp0W4P5r
+mtVCtEFRAoGBAMENBIFLrV2+HsGj0xYFasKov/QPe6HSTR1Hh2IZONp+oK4oszWE
+jBT4VcnITmpl6tC1Wy4GcrxjNgKIFZAj+1x1LUULdorXkuG8yr0tAhG9zNyfWsSy
+PrSovC0UVbzr8Jxxla+kQVxEQQqWQxPlEVuL8kXaIDA6Lyt1Hpua2LvPAoGBANQZ
+c6Lq2T7+BxLxNdi2m8kZzej5kgzBp/XdVsbFWRlebIX2KrFHsrHzT9PUk3DE1vZK
+M6pzTt94nQhWSkDgCaw1SohElJ3HFIFwcusF1SJAc3pQepd8ug6IYdlpDMLtBj/P
+/5P6BVUtgo05E4+I/T3iYatmglQxTtlZ0RkSV2llAoGBALOXkKFX7ahPvf0WksDh
+uTfuFOTPoowgQG0EpgW0wRdCxeg/JLic3lSD0gsttQV2WsRecryWcxaelRg10RmO
+38BbogmhaF4xvgsSvujOfiZTE8oK1T43M+6NKsIlML3YILbpU/9aJxPWy0s2DqDr
+cQJhZrlk+pzjBA7Bnf/URdwxAoGAKR/CNw14D+mrL3YLbbiCXiydqxVwxv5pdZdz
+8thi3TNcsWC4iGURdcVqbfUinVPdJiXe/Kac3WGCeRJaFVgbKAOxLti1RB5MkIhg
+D8eyupBqk4W1L1gkrxqsdj4TFlxkwMywjl2E2S4YyQ8PBt6V04DoVRZsIKzqz+PF
+UionPq0CgYBCYXvqioJhPewkOq/Y5wrDBeZW1FQK5QD9W5M8/5zxd4rdvJtjhbJp
+oOrtvMdrl6upy9Hz4BJD3FXwVFiPFE7jqeNqi0F21viLxBPMMD3UODF6LL5EyLiR
+9V4xVMS8KXxvg7rxsuqzMPscViaWUL6WNVBhsD2+92dHxSXzz5EJKQ==
+-----END RSA PRIVATE KEY-----`))
+	var err error
+	testRSA2048PrivateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // realNetPipe is like net.Pipe but returns an actual network socket pair,
