@@ -198,7 +198,6 @@ func (tools gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []s
 	for _, f := range ofiles {
 		absOfiles = append(absOfiles, mkAbs(objdir, f))
 	}
-
 	var arArgs []string
 	if cfg.Goos == "aix" && cfg.Goarch == "ppc64" {
 		// AIX puts both 32-bit and 64-bit objects in the same archive.
@@ -211,7 +210,6 @@ func (tools gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []s
 }
 
 func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string, allactions []*Action, buildmode, desc string) error {
-
 	// gccgo needs explicit linking with all package dependencies,
 	// and all LDFLAGS from cgo dependencies.
 	afiles := []string{}
