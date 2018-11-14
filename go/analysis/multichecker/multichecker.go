@@ -19,13 +19,6 @@ import (
 	"golang.org/x/tools/go/analysis/internal/checker"
 )
 
-// TODO(adonovan): document (and verify) the exit codes:
-// "Vet's exit code is 2 for erroneous invocation of the tool, 1 if a
-// problem was reported, and 0 otherwise. Note that the tool does not
-// check every possible problem and depends on unreliable heuristics
-// so it should be used as guidance only, not as a firm indicator of
-// program correctness."
-
 func Main(analyzers ...*analysis.Analyzer) {
 	progname := filepath.Base(os.Args[0])
 	log.SetFlags(0)
@@ -53,7 +46,5 @@ func Main(analyzers ...*analysis.Analyzer) {
 		os.Exit(0)
 	}
 
-	if err := checker.Run(args, analyzers); err != nil {
-		log.Fatal(err)
-	}
+	os.Exit(checker.Run(args, analyzers))
 }

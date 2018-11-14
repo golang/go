@@ -67,7 +67,5 @@ func Main(a *analysis.Analyzer) {
 		os.Exit(1)
 	}
 
-	if err := checker.Run(args, analyzers); err != nil {
-		log.Fatal(err)
-	}
+	os.Exit(checker.Run(args, analyzers))
 }

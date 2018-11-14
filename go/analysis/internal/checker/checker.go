@@ -64,7 +64,8 @@ func RegisterFlags() {
 // Analysis flags must already have been set.
 // It provides most of the logic for the main functions of both the
 // singlechecker and the multi-analysis commands.
-func Run(args []string, analyzers []*analysis.Analyzer) error {
+// It returns the appropriate exit code.
+func Run(args []string, analyzers []*analysis.Analyzer) (exitcode int) {
 	if CPUProfile != "" {
 		f, err := os.Create(CPUProfile)
 		if err != nil {
@@ -131,15 +132,14 @@ func Run(args []string, analyzers []*analysis.Analyzer) error {
 	allSyntax := needFacts(analyzers)
 	initial, err := load(args, allSyntax)
 	if err != nil {
-		return err
+		log.Print(err)
+		return 1 // load errors
 	}
 
+	// Print the results.
 	roots := analyze(initial, analyzers)
 
-	// Print the results.
-	printDiagnostics(roots)
-
-	return nil
+	return printDiagnostics(roots)
 }
 
 // load loads the initial packages.
@@ -159,6 +159,9 @@ func load(patterns []string, allSyntax bool) ([]*packages.Package, error) {
 		} else if n == 1 {
 			err = fmt.Errorf("error during loading")
 		}
+	}
+	if len(initial) == 0 {
+		err = fmt.Errorf("%s matched no packages", strings.Join(patterns, " "))
 	}
 	return initial, err
 }
@@ -263,7 +266,12 @@ func analyze(pkgs []*packages.Package, analyzers []*analysis.Analyzer) []*action
 // printDiagnostics prints the diagnostics for the root packages in either
 // plain text or JSON format. JSON format also includes errors for any
 // dependencies.
-func printDiagnostics(roots []*action) {
+//
+// It returns the exitcode: in plain mode, 0 for success, 1 for analysis
+// errors, and 3 for diagnostics. We avoid 2 since the flag package uses
+// it. JSON mode always succeeds at printing errors and diagnostics in a
+// structured form to stdout.
+func printDiagnostics(roots []*action) (exitcode int) {
 	// Print the output.
 	//
 	// Print diagnostics only for root packages,
@@ -341,6 +349,7 @@ func printDiagnostics(roots []*action) {
 		print = func(act *action) {
 			if act.err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", act.a.Name, act.err)
+				exitcode = 1 // analysis failed, at least partially
 				return
 			}
 			if act.isroot {
@@ -372,6 +381,10 @@ func printDiagnostics(roots []*action) {
 			}
 		}
 		visitAll(roots)
+
+		if exitcode == 0 && len(seen) > 0 {
+			exitcode = 3 // successfuly produced diagnostics
+		}
 	}
 
 	// Print timing info.
@@ -399,6 +412,8 @@ func printDiagnostics(roots []*action) {
 			}
 		}
 	}
+
+	return exitcode
 }
 
 // needFacts reports whether any analysis required by the specified set
