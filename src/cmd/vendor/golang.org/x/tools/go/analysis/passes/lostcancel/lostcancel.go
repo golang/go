@@ -132,11 +132,17 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 	var sig *types.Signature
 	switch node := node.(type) {
 	case *ast.FuncDecl:
-		g = cfgs.FuncDecl(node)
 		sig, _ = pass.TypesInfo.Defs[node.Name].Type().(*types.Signature)
+		if node.Name.Name == "main" && sig.Recv() == nil && pass.Pkg.Name() == "main" {
+			// Returning from main.main terminates the process,
+			// so there's no need to cancel contexts.
+			return
+		}
+		g = cfgs.FuncDecl(node)
+
 	case *ast.FuncLit:
-		g = cfgs.FuncLit(node)
 		sig, _ = pass.TypesInfo.Types[node.Type].Type.(*types.Signature)
+		g = cfgs.FuncLit(node)
 	}
 	if sig == nil {
 		return // missing type information

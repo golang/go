@@ -6,7 +6,7 @@
 // driver that analyzes a single compilation unit during a build.
 // It is invoked by a build system such as "go vet":
 //
-//   $ GOVETTOOL=$(which vet) go vet
+//   $ go vet -vettool=$(which vet)
 //
 // It supports the following command-line protocol:
 //

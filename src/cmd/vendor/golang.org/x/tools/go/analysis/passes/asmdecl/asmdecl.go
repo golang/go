@@ -243,16 +243,17 @@ Files:
 						}
 					}
 					if arch == "" {
-						badf("%s: cannot determine architecture for assembly file")
+						log.Printf("%s: cannot determine architecture for assembly file", fname)
 						continue Files
 					}
 				}
 				fnName = m[2]
-				if pkgName := strings.TrimSpace(m[1]); pkgName != "" {
-					pathParts := strings.Split(pkgName, "∕")
-					pkgName = pathParts[len(pathParts)-1]
-					if pkgName != pass.Pkg.Path() {
-						badf("[%s] cannot check cross-package assembly function: %s is in package %s", arch, fnName, pkgName)
+				if pkgPath := strings.TrimSpace(m[1]); pkgPath != "" {
+					// The assembler uses Unicode division slash within
+					// identifiers to represent the directory separator.
+					pkgPath = strings.Replace(pkgPath, "∕", "/", -1)
+					if pkgPath != pass.Pkg.Path() {
+						log.Printf("%s:%d: [%s] cannot check cross-package assembly function: %s is in package %s", fname, lineno, arch, fnName, pkgPath)
 						fn = nil
 						fnName = ""
 						continue
