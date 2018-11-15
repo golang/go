@@ -30,6 +30,7 @@ package unitchecker
 import (
 	"encoding/gob"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -41,12 +42,14 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/internal/analysisflags"
 	"golang.org/x/tools/go/analysis/internal/facts"
 )
 
@@ -68,9 +71,56 @@ type Config struct {
 	SucceedOnTypecheckFailure bool
 }
 
-// Main reads the *.cfg file, runs the analysis,
+// Main is the main function of a vet-like analysis tool that must be
+// invoked by a build system to analyze a single package.
+//
+// The protocol required by 'go vet -vettool=...' is that the tool must support:
+//
+//      -flags          describe flags in JSON
+//      -V=full         describe executable for build caching
+//      foo.cfg         perform separate modular analyze on the single
+//                      unit described by a JSON config file foo.cfg.
+//
+func Main(analyzers ...*analysis.Analyzer) {
+	progname := filepath.Base(os.Args[0])
+	log.SetFlags(0)
+	log.SetPrefix(progname + ": ")
+
+	if err := analysis.Validate(analyzers); err != nil {
+		log.Fatal(err)
+	}
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, `%[1]s is a tool for static analysis of Go programs.
+
+Usage of %[1]s:
+	%.16[1]s unit.cfg	# execute analysis specified by config file
+	%.16[1]s help		# general help
+	%.16[1]s help name	# help on specific analyzer and its flags
+`, progname)
+		os.Exit(1)
+	}
+
+	analyzers = analysisflags.Parse(analyzers, true)
+
+	args := flag.Args()
+	if len(args) == 0 {
+		flag.Usage()
+	}
+	if args[0] == "help" {
+		analysisflags.Help(progname, analyzers, args[1:])
+		os.Exit(0)
+	}
+	if len(args) != 1 || !strings.HasSuffix(args[0], ".cfg") {
+		log.Fatalf("invalid command: want .cfg file (this reduced version of %s is intended to be run only by the 'go vet' command)", progname)
+	}
+	Run(args[0], analyzers)
+}
+
+// Run reads the *.cfg file, runs the analysis,
 // and calls os.Exit with an appropriate error code.
-func Main(configFile string, analyzers []*analysis.Analyzer) {
+// It assumes flags have already been set.
+func Run(configFile string, analyzers []*analysis.Analyzer) {
 	cfg, err := readConfig(configFile)
 	if err != nil {
 		log.Fatal(err)

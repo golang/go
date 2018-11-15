@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/internal/unitchecker"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -106,18 +105,6 @@ func Run(args []string, analyzers []*analysis.Analyzer) (exitcode int) {
 			}
 			f.Close()
 		}()
-	}
-
-	// The undocumented protocol used by 'go vet'
-	// is that a vet-like tool must support:
-	//
-	//      -flags          describe flags in JSON
-	//      -V=full         describe executable for build caching
-	//      foo.cfg         perform separate modular analyze on the single
-	//                      unit described by a JSON config file foo.cfg.
-	if len(args) == 1 && strings.HasSuffix(args[0], ".cfg") {
-		unitchecker.Main(args[0], analyzers)
-		panic("unreachable")
 	}
 
 	// Load the packages.

@@ -13,10 +13,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
 	"golang.org/x/tools/go/analysis/internal/checker"
+	"golang.org/x/tools/go/analysis/unitchecker"
 )
 
 func Main(analyzers ...*analysis.Analyzer) {
@@ -34,16 +36,24 @@ func Main(analyzers ...*analysis.Analyzer) {
 
 	args := flag.Args()
 	if len(args) == 0 {
-		analysisflags.PrintUsage(os.Stderr)
-		fmt.Fprintf(os.Stderr, "Run '%[1]s help' for more detail,\n"+
-			" or '%[1]s help name' for details and flags of a specific analyzer.\n",
-			progname)
+		fmt.Fprintf(os.Stderr, `%[1]s is a tool for static analysis of Go programs.
+
+Usage: %[1]s [-flag] [package]
+
+Run '%[1]s help' for more detail,
+ or '%[1]s help name' for details and flags of a specific analyzer.
+`, progname)
 		os.Exit(1)
 	}
 
 	if args[0] == "help" {
 		analysisflags.Help(progname, analyzers, args[1:])
 		os.Exit(0)
+	}
+
+	if len(args) == 1 && strings.HasSuffix(args[0], ".cfg") {
+		unitchecker.Run(args[0], analyzers)
+		panic("unreachable")
 	}
 
 	os.Exit(checker.Run(args, analyzers))
