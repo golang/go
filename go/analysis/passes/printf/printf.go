@@ -843,7 +843,22 @@ func recursiveStringer(pass *analysis.Pass, e ast.Expr) bool {
 	}
 
 	// Is the expression e within the body of that String method?
-	return stringMethod.Pkg() == pass.Pkg && stringMethod.Scope().Contains(e.Pos())
+	if stringMethod.Pkg() != pass.Pkg || !stringMethod.Scope().Contains(e.Pos()) {
+		return false
+	}
+
+	// Is it the receiver r, or &r?
+	recv := stringMethod.Type().(*types.Signature).Recv()
+	if recv == nil {
+		return false
+	}
+	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
+		e = u.X // strip off & from &r
+	}
+	if id, ok := e.(*ast.Ident); ok {
+		return pass.TypesInfo.Uses[id] == recv
+	}
+	return false
 }
 
 // isFunctionValue reports whether the expression is a function as opposed to a function call.

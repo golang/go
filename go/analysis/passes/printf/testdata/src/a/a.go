@@ -514,6 +514,19 @@ func (p *recursivePtrStringer) String() string {
 	return fmt.Sprintln(p) // want "Sprintln arg p causes recursive call to String method"
 }
 
+type cons struct {
+	car int
+	cdr *cons
+}
+
+func (cons *cons) String() string {
+	if cons == nil {
+		return "nil"
+	}
+	_ = fmt.Sprint(cons.cdr)                            // don't want "recursive call" diagnostic
+	return fmt.Sprintf("(%d . %v)", cons.car, cons.cdr) // don't want "recursive call" diagnostic
+}
+
 type BoolFormatter bool
 
 func (*BoolFormatter) Format(fmt.State, rune) {
