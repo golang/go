@@ -804,7 +804,7 @@ func runInstall(dir string, ch chan struct{}) {
 	if len(sfiles) > 0 {
 		symabis = pathf("%s/symabis", workdir)
 		var wg sync.WaitGroup
-		asmabis := append(asmArgs[:len(asmArgs):len(asmArgs)], "-symabis", "-o", symabis)
+		asmabis := append(asmArgs[:len(asmArgs):len(asmArgs)], "-gensymabis", "-o", symabis)
 		asmabis = append(asmabis, sfiles...)
 		if err := ioutil.WriteFile(goasmh, nil, 0666); err != nil {
 			fatalf("cannot write empty go_asm.h: %s", err)

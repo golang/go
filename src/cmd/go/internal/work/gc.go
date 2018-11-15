@@ -265,7 +265,7 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, error) {
 	mkSymabis := func(p *load.Package, sfiles []string, path string) error {
 		args := asmArgs(a, p)
-		args = append(args, "-symabis", "-o", path)
+		args = append(args, "-gensymabis", "-o", path)
 		for _, sfile := range sfiles {
 			if p.ImportPath == "runtime/cgo" && strings.HasPrefix(sfile, "gcc_") {
 				continue
@@ -274,7 +274,7 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
 		}
 
 		// Supply an empty go_asm.h as if the compiler had been run.
-		// -symabis parsing is lax enough that we don't need the
+		// -gensymabis parsing is lax enough that we don't need the
 		// actual definitions that would appear in go_asm.h.
 		if err := b.writeFile(a.Objdir+"go_asm.h", nil); err != nil {
 			return err
