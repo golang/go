@@ -79,6 +79,14 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 			dirs[filepath.Dir(filename)] = true
 		}
 	}
+	// Do a first pass to collect special markers
+	if err := exported.Expect(map[string]interface{}{
+		"item": func(name string, r packagestest.Range, _, _ string) {
+			exported.Mark(name, r)
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
 	// Collect any data that needs to be used by subsequent tests.
 	if err := exported.Expect(map[string]interface{}{
 		"diag": func(pos token.Position, msg string) {

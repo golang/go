@@ -1,13 +1,13 @@
 package foo
 
-type StructFoo struct { //@mark(StructFoo, "StructFoo"),item(StructFoo, "StructFoo", "struct{...}", "struct")
-	Value int //@mark(Value, "Value"),item(Value, "Value", "int", "field")
+type StructFoo struct { //@item(StructFoo, "StructFoo", "struct{...}", "struct")
+	Value int //@item(Value, "Value", "int", "field")
 }
 
 // TODO(rstambler): Create pre-set builtins?
-//@mark(Error, ""),item(Error, "Error()", "string", "method")
+/* Error() */ //@item(Error, "Error()", "string", "method")
 
-func Foo() { //@mark(Foo, "Foo"),item(Foo, "Foo()", "", "func")
+func Foo() { //@item(Foo, "Foo()", "", "func")
 	var err error
 	err.Error() //@complete("E", Error)
 }
@@ -20,4 +20,4 @@ func _() {
 }
 
 //@complete("", Foo, IntFoo, StructFoo)
-type IntFoo int //@mark(IntFoo, "IntFoo"),item(IntFoo, "IntFoo", "int", "type")
+type IntFoo int //@item(IntFoo, "IntFoo", "int", "type")
