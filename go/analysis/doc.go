@@ -72,11 +72,13 @@ To add a new Analyzer to an existing driver, add another item to the list:
 
 A driver may use the name, flags, and documentation to provide on-line
 help that describes the analyses its performs.
+The doc comment contains a brief one-line summary,
+optionally followed by paragraphs of explanation.
 The vet command, shown below, is an example of a driver that runs
 multiple analyzers. It is based on the multichecker package
 (see the "Standalone commands" section for details).
 
-	$ go build golang.org/x/tools/cmd/vet
+	$ go build golang.org/x/tools/go/analysis/cmd/vet
 	$ ./vet help
 	vet is a tool for static analysis of Go programs.
 
@@ -285,6 +287,16 @@ pointed to by fact. This scheme assumes that the concrete type of fact
 is a pointer; this assumption is checked by the Validate function.
 See the "printf" analyzer for an example of object facts in action.
 
+Some driver implementations (such as those based on Bazel and Blaze) do
+not currently apply analyzers to packages of the standard library.
+Therefore, for best results, analyzer authors should not rely on
+analysis facts being available for standard packages.
+For example, although the printf checker is capable of deducing during
+analysis of the log package that log.Printf is a printf-wrapper,
+this fact is built in to the analyzer so that it correctly checks
+calls to log.Printf even when run in a driver that does not apply
+it to standard packages. We plan to remove this limitation in future.
+
 
 Testing an Analyzer
 
@@ -298,14 +310,14 @@ diagnostics and facts (and no more). Expectations are expressed using
 Standalone commands
 
 Analyzers are provided in the form of packages that a driver program is
-expected to import. The vet command imports a set of several analyses,
+expected to import. The vet command imports a set of several analyzers,
 but users may wish to define their own analysis commands that perform
 additional checks. To simplify the task of creating an analysis command,
 either for a single analyzer or for a whole suite, we provide the
 singlechecker and multichecker subpackages.
 
 The singlechecker package provides the main function for a command that
-runs one analysis. By convention, each analyzer such as
+runs one analyzer. By convention, each analyzer such as
 go/passes/findcall should be accompanied by a singlechecker-based
 command such as go/analysis/passes/findcall/cmd/findcall, defined in its
 entirety as:
