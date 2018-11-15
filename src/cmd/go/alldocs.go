@@ -74,8 +74,8 @@
 // Build compiles the packages named by the import paths,
 // along with their dependencies, but it does not install the results.
 //
-// If the arguments to build are a list of .go files, build treats
-// them as a list of source files specifying a single package.
+// If the arguments to build are a list of .go files from a single directory,
+// build treats them as a list of source files specifying a single package.
 //
 // When compiling a single main package, build writes
 // the resulting executable to an output file named after
@@ -505,8 +505,8 @@
 // "go tool foo".
 //
 // Generate processes packages in the order given on the command line,
-// one at a time. If the command line lists .go files, they are treated
-// as a single package. Within a package, generate processes the
+// one at a time. If the command line lists .go files from a single directory,
+// they are treated as a single package. Within a package, generate processes the
 // source files in a package in file name order, one at a time. Within
 // a source file, generate runs generators in the order they appear
 // in the file, one at a time.
@@ -1170,7 +1170,7 @@
 // 	go run [build flags] [-exec xprog] package [arguments...]
 //
 // Run compiles and runs the named main Go package.
-// Typically the package is specified as a list of .go source files,
+// Typically the package is specified as a list of .go source files from a single directory,
 // but it may also be an import path, file system path, or pattern
 // matching a single known package, as in 'go run .' or 'go run my/cmd'.
 //
