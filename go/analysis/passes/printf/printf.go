@@ -32,7 +32,7 @@ func init() {
 
 var Analyzer = &analysis.Analyzer{
 	Name:      "printf",
-	Doc:       "check printf-like invocations",
+	Doc:       doc,
 	Requires:  []*analysis.Analyzer{inspect.Analyzer},
 	Run:       run,
 	FactTypes: []analysis.Fact{new(isWrapper)},
@@ -43,12 +43,12 @@ const doc = `check consistency of Printf format strings and arguments
 The check applies to known functions (for example, those in package fmt)
 as well as any detected wrappers of known functions.
 
-A function that wants to avail itself of printf checking but does not
-get found by this analyzer's heuristics (for example, due to use of
+A function that wants to avail itself of printf checking but is not
+found by this analyzer's heuristics (for example, due to use of
 dynamic calls) can insert a bogus call:
 
 	if false {
-		fmt.Sprintf(format, args...) // enable printf checking
+		_ = fmt.Sprintf(format, args...) // enable printf checking
 	}
 
 The -funcs flag specifies a comma-separated list of names of additional
