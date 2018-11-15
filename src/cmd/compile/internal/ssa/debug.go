@@ -881,12 +881,11 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 	for _, b := range state.f.Blocks {
 		state.mergePredecessors(b, blockLocs, prevBlock)
 
-		// Handle any differences among predecessor blocks and previous block (perhaps not a predecessor)
-		for _, varID := range state.changedVars.contents() {
-			state.updateVar(VarID(varID), b, BlockStart)
-		}
-
 		if !blockLocs[b.ID].relevant {
+			// Handle any differences among predecessor blocks and previous block (perhaps not a predecessor)
+			for _, varID := range state.changedVars.contents() {
+				state.updateVar(VarID(varID), b, BlockStart)
+			}
 			continue
 		}
 
@@ -1019,6 +1018,14 @@ func (state *debugState) writePendingEntry(varID VarID, endBlock, endValue ID) {
 		// they get incomplete debug info on 32-bit platforms.
 		return
 	}
+	if start == end {
+		if state.loggingEnabled {
+			// Printf not logf so not gated by GOSSAFUNC; this should fire very rarely.
+			fmt.Printf("Skipping empty location list for %v in %s\n", state.vars[varID], state.f.Name)
+		}
+		return
+	}
+
 	list := state.lists[varID]
 	list = appendPtr(state.ctxt, list, start)
 	list = appendPtr(state.ctxt, list, end)
