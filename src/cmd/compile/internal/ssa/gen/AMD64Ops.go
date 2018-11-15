@@ -31,9 +31,9 @@ import "strings"
 // copied from ../../amd64/reg.go
 var regNamesAMD64 = []string{
 	"AX",
+	"BX",
 	"CX",
 	"DX",
-	"BX",
 	"SP",
 	"BP",
 	"SI",
@@ -91,9 +91,10 @@ func init() {
 	// Common individual register masks
 	var (
 		ax         = buildReg("AX")
+		bx         = buildReg("BX")
 		cx         = buildReg("CX")
 		dx         = buildReg("DX")
-		gp         = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
+		gp         = buildReg("AX BX CX DX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
 		fp         = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15")
 		gpsp       = gp | buildReg("SP")
 		gpspsb     = gpsp | buildReg("SB")
