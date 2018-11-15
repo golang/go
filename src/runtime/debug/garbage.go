@@ -162,7 +162,8 @@ func WriteHeapDump(fd uintptr)
 // The level argument takes the same values as the GOTRACEBACK
 // environment variable. For example, SetTraceback("all") ensure
 // that the program prints all goroutines when it crashes.
-// See the package runtime documentation for details.
+// See the package runtime documentation
+// https://golang.org/pkg/runtime for details.
 // If SetTraceback is called with a level lower than that of the
 // environment variable, the call is ignored.
 func SetTraceback(level string)
