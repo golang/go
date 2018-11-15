@@ -24,11 +24,11 @@ func fromProtocolLocation(v *source.View, loc protocol.Location) (source.Range, 
 }
 
 // toProtocolLocation converts from a source range back to a protocol location.
-func toProtocolLocation(v *source.View, r source.Range) protocol.Location {
-	tokFile := v.Config.Fset.File(r.Start)
-	file := v.GetFile(source.ToURI(tokFile.Name()))
+func toProtocolLocation(fset *token.FileSet, r source.Range) protocol.Location {
+	tokFile := fset.File(r.Start)
+	uri := source.ToURI(tokFile.Name())
 	return protocol.Location{
-		URI:   protocol.DocumentURI(file.URI),
+		URI:   protocol.DocumentURI(uri),
 		Range: toProtocolRange(tokFile, r),
 	}
 }

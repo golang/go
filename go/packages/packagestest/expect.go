@@ -164,6 +164,7 @@ var (
 	posType        = reflect.TypeOf(token.Pos(0))
 	positionType   = reflect.TypeOf(token.Position{})
 	rangeType      = reflect.TypeOf(Range{})
+	fsetType       = reflect.TypeOf((*token.FileSet)(nil))
 )
 
 // converter converts from a marker's argument parsed from the comment to
@@ -189,6 +190,10 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 	case pt == noteType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
 			return reflect.ValueOf(n), args, nil
+		}, nil
+	case pt == fsetType:
+		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
+			return reflect.ValueOf(e.fset), args, nil
 		}, nil
 	case pt == posType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {

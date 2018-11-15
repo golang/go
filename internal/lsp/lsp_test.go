@@ -29,8 +29,9 @@ func TestLSP(t *testing.T) {
 func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	const dir = "testdata"
 	const expectedCompletionsCount = 4
-	const expectedDiagnosticsCount = 7
+	const expectedDiagnosticsCount = 9
 	const expectedFormatCount = 3
+	const expectedDefinitionsCount = 16
 
 	files := packagestest.MustCopyFileTree(dir)
 	for fragment, operation := range files {
@@ -55,6 +56,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	completionItems := make(completionItems)
 	expectedCompletions := make(completions)
 	expectedFormat := make(formats)
+	expectedDefinitions := make(definitions)
 
 	s := &server{
 		view: source.NewView(),
@@ -89,6 +91,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		"item":     completionItems.collect,
 		"complete": expectedCompletions.collect,
 		"format":   expectedFormat.collect,
+		"godef":    expectedDefinitions.collect,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -116,12 +119,21 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		}
 		expectedFormat.test(t, s)
 	})
+
+	t.Run("Definitions", func(t *testing.T) {
+		t.Helper()
+		if len(expectedDefinitions) != expectedDefinitionsCount {
+			t.Errorf("got %v definitions expected %v", len(expectedDefinitions), expectedDefinitionsCount)
+		}
+		expectedDefinitions.test(t, s)
+	})
 }
 
 type diagnostics map[string][]protocol.Diagnostic
 type completionItems map[token.Pos]*protocol.CompletionItem
 type completions map[token.Position][]token.Pos
 type formats map[string]string
+type definitions map[protocol.Location]protocol.Location
 
 func (c completions) test(t *testing.T, exported *packagestest.Exported, s *server, items completionItems) {
 	for src, itemList := range c {
@@ -271,4 +283,32 @@ func (f formats) collect(pos token.Position) {
 	cmd.Stdout = stdout
 	cmd.Run() // ignore error, sometimes we have intentionally ungofmt-able files
 	f[pos.Filename] = stdout.String()
+}
+
+func (d definitions) test(t *testing.T, s *server) {
+	for src, target := range d {
+		locs, err := s.Definition(context.Background(), &protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{
+				URI: src.URI,
+			},
+			Position: src.Range.Start,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(locs) != 1 {
+			t.Errorf("got %d locations for definition, expected 1", len(locs))
+		}
+		if locs[0] != target {
+			t.Errorf("for %v got %v want %v", src, locs[0], target)
+		}
+	}
+}
+
+func (d definitions) collect(fset *token.FileSet, src, target packagestest.Range) {
+	sRange := source.Range{Start: src.Start, End: src.End}
+	sLoc := toProtocolLocation(fset, sRange)
+	tRange := source.Range{Start: target.Start, End: target.End}
+	tLoc := toProtocolLocation(fset, tRange)
+	d[sLoc] = tLoc
 }
