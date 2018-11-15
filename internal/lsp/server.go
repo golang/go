@@ -43,11 +43,15 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 	s.initialized = true
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
-			CompletionProvider:              protocol.CompletionOptions{},
+			CompletionProvider: protocol.CompletionOptions{
+				TriggerCharacters: []string{"."},
+			},
 			DefinitionProvider:              true,
 			DocumentFormattingProvider:      true,
 			DocumentRangeFormattingProvider: true,
-			SignatureHelpProvider:           protocol.SignatureHelpOptions{},
+			SignatureHelpProvider: protocol.SignatureHelpOptions{
+				TriggerCharacters: []string{"("},
+			},
 			TextDocumentSync: protocol.TextDocumentSyncOptions{
 				Change:    float64(protocol.Full), // full contents of file sent on each update
 				OpenClose: true,

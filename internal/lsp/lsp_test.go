@@ -5,8 +5,10 @@
 package lsp
 
 import (
+	"bytes"
 	"context"
 	"go/token"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -47,6 +49,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	// collect results for certain tests
 	expectedDiagnostics := make(map[string][]protocol.Diagnostic)
 	expectedCompletions := make(map[token.Position]*protocol.CompletionItem)
+	expectedFormat := make(map[string]string)
 
 	s := &server{
 		view: source.NewView(),
@@ -78,54 +81,13 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	// Collect any data that needs to be used by subsequent tests.
 	if err := exported.Expect(map[string]interface{}{
 		"diag": func(pos token.Position, msg string) {
-			line := float64(pos.Line - 1)
-			col := float64(pos.Column - 1)
-			want := protocol.Diagnostic{
-				Range: protocol.Range{
-					Start: protocol.Position{
-						Line:      line,
-						Character: col,
-					},
-					End: protocol.Position{
-						Line:      line,
-						Character: col,
-					},
-				},
-				Severity: protocol.SeverityError,
-				Source:   "LSP",
-				Message:  msg,
-			}
-			if _, ok := expectedDiagnostics[pos.Filename]; ok {
-				expectedDiagnostics[pos.Filename] = append(expectedDiagnostics[pos.Filename], want)
-			} else {
-				t.Errorf("unexpected filename: %v", pos.Filename)
-			}
+			collectDiagnostics(t, expectedDiagnostics, pos, msg)
 		},
 		"item": func(pos token.Position, label, detail, kind string) {
-			var k protocol.CompletionItemKind
-			switch kind {
-			case "struct":
-				k = protocol.StructCompletion
-			case "func":
-				k = protocol.FunctionCompletion
-			case "var":
-				k = protocol.VariableCompletion
-			case "type":
-				k = protocol.TypeParameterCompletion
-			case "field":
-				k = protocol.FieldCompletion
-			case "interface":
-				k = protocol.InterfaceCompletion
-			case "const":
-				k = protocol.ConstantCompletion
-			case "method":
-				k = protocol.MethodCompletion
-			}
-			expectedCompletions[pos] = &protocol.CompletionItem{
-				Label:  label,
-				Detail: detail,
-				Kind:   float64(k),
-			}
+			collectCompletionItems(expectedCompletions, pos, label, detail, kind)
+		},
+		"format": func(pos token.Position) {
+			collectFormat(expectedFormat, pos)
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -145,26 +107,9 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		t.Fatal(err)
 	}
 	testDiagnostics(t, s.view, pkgs, expectedDiagnostics)
-}
 
-func testDiagnostics(t *testing.T, v *source.View, pkgs []*packages.Package, wants map[string][]protocol.Diagnostic) {
-	for _, pkg := range pkgs {
-		for _, filename := range pkg.GoFiles {
-			f := v.GetFile(source.ToURI(filename))
-			diagnostics, err := source.Diagnostics(context.Background(), v, f)
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := toProtocolDiagnostics(v, diagnostics[filename])
-			sort.Slice(got, func(i int, j int) bool {
-				return got[i].Range.Start.Line < got[j].Range.Start.Line
-			})
-			want := wants[filename]
-			if equal := reflect.DeepEqual(want, got); !equal {
-				t.Errorf("diagnostics failed for %s: (expected: %v), (got: %v)", filepath.Base(filename), want, got)
-			}
-		}
-	}
+	// test format
+	testFormat(t, s, expectedFormat)
 }
 
 func testCompletion(t *testing.T, exported *packagestest.Exported, s *server, wants map[token.Position]*protocol.CompletionItem) {
@@ -196,4 +141,104 @@ func testCompletion(t *testing.T, exported *packagestest.Exported, s *server, wa
 	}); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func collectCompletionItems(expectedCompletions map[token.Position]*protocol.CompletionItem, pos token.Position, label, detail, kind string) {
+	var k protocol.CompletionItemKind
+	switch kind {
+	case "struct":
+		k = protocol.StructCompletion
+	case "func":
+		k = protocol.FunctionCompletion
+	case "var":
+		k = protocol.VariableCompletion
+	case "type":
+		k = protocol.TypeParameterCompletion
+	case "field":
+		k = protocol.FieldCompletion
+	case "interface":
+		k = protocol.InterfaceCompletion
+	case "const":
+		k = protocol.ConstantCompletion
+	case "method":
+		k = protocol.MethodCompletion
+	}
+	expectedCompletions[pos] = &protocol.CompletionItem{
+		Label:  label,
+		Detail: detail,
+		Kind:   float64(k),
+	}
+}
+
+func testDiagnostics(t *testing.T, v *source.View, pkgs []*packages.Package, wants map[string][]protocol.Diagnostic) {
+	for _, pkg := range pkgs {
+		for _, filename := range pkg.GoFiles {
+			f := v.GetFile(source.ToURI(filename))
+			diagnostics, err := source.Diagnostics(context.Background(), v, f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := toProtocolDiagnostics(v, diagnostics[filename])
+			sort.Slice(got, func(i int, j int) bool {
+				return got[i].Range.Start.Line < got[j].Range.Start.Line
+			})
+			want := wants[filename]
+			if equal := reflect.DeepEqual(want, got); !equal {
+				t.Errorf("diagnostics failed for %s: (expected: %v), (got: %v)", filepath.Base(filename), want, got)
+			}
+		}
+	}
+}
+
+func collectDiagnostics(t *testing.T, expectedDiagnostics map[string][]protocol.Diagnostic, pos token.Position, msg string) {
+	line := float64(pos.Line - 1)
+	col := float64(pos.Column - 1)
+	want := protocol.Diagnostic{
+		Range: protocol.Range{
+			Start: protocol.Position{
+				Line:      line,
+				Character: col,
+			},
+			End: protocol.Position{
+				Line:      line,
+				Character: col,
+			},
+		},
+		Severity: protocol.SeverityError,
+		Source:   "LSP",
+		Message:  msg,
+	}
+	if _, ok := expectedDiagnostics[pos.Filename]; ok {
+		expectedDiagnostics[pos.Filename] = append(expectedDiagnostics[pos.Filename], want)
+	} else {
+		t.Errorf("unexpected filename: %v", pos.Filename)
+	}
+}
+
+func testFormat(t *testing.T, s *server, expectedFormat map[string]string) {
+	for filename, gofmted := range expectedFormat {
+		edits, err := s.Formatting(context.Background(), &protocol.DocumentFormattingParams{
+			TextDocument: protocol.TextDocumentIdentifier{
+				URI: protocol.DocumentURI(source.ToURI(filename)),
+			},
+		})
+		if err != nil || len(edits) == 0 {
+			if gofmted != "" {
+				t.Error(err)
+			}
+			return
+		}
+		edit := edits[0]
+		if edit.NewText != gofmted {
+			t.Errorf("formatting failed: (got: %s), (expected: %s)", edit.NewText, gofmted)
+		}
+	}
+}
+
+func collectFormat(expectedFormat map[string]string, pos token.Position) {
+	cmd := exec.Command("gofmt", pos.Filename)
+	stdout := bytes.NewBuffer(nil)
+	cmd.Stdout = stdout
+	cmd.Run() // ignore error, sometimes we have intentionally ungofmt-able files
+	expectedFormat[pos.Filename] = stdout.String()
 }
