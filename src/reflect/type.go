@@ -593,6 +593,7 @@ const (
 	kindMask        = (1 << 5) - 1
 )
 
+// String returns a human-readable name of kind k.
 func (k Kind) String() string {
 	if int(k) < len(kindNames) {
 		return kindNames[k]
