@@ -110,8 +110,8 @@ specifies that the command "foo" represents the generator
 "go tool foo".
 
 Generate processes packages in the order given on the command line,
-one at a time. If the command line lists .go files, they are treated
-as a single package. Within a package, generate processes the
+one at a time. If the command line lists .go files from a single directory,
+they are treated as a single package. Within a package, generate processes the
 source files in a package in file name order, one at a time. Within
 a source file, generate runs generators in the order they appear
 in the file, one at a time.

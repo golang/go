@@ -22,7 +22,7 @@ var CmdRun = &base.Command{
 	Short:     "compile and run Go program",
 	Long: `
 Run compiles and runs the named main Go package.
-Typically the package is specified as a list of .go source files,
+Typically the package is specified as a list of .go source files from a single directory,
 but it may also be an import path, file system path, or pattern
 matching a single known package, as in 'go run .' or 'go run my/cmd'.
 
