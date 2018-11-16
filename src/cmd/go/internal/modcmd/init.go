@@ -10,6 +10,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/modload"
 	"os"
+	"strings"
 )
 
 var cmdInit = &base.Command{
@@ -36,6 +37,9 @@ func runInit(cmd *base.Command, args []string) {
 	}
 	if _, err := os.Stat("go.mod"); err == nil {
 		base.Fatalf("go mod init: go.mod already exists")
+	}
+	if strings.Contains(modload.CmdModModule, "@") {
+		base.Fatalf("go mod init: module path must not contain '@'")
 	}
 	modload.InitMod() // does all the hard work
 }
