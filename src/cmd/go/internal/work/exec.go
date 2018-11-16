@@ -881,6 +881,7 @@ func (b *Builder) loadCachedSrcFiles(a *Action) bool {
 
 // vetConfig is the configuration passed to vet describing a single package.
 type vetConfig struct {
+	ID         string   // package ID (example: "fmt [fmt.test]")
 	Compiler   string   // compiler name (gc, gccgo)
 	Dir        string   // directory containing package
 	ImportPath string   // canonical import path ("package path")
@@ -914,6 +915,7 @@ func buildVetConfig(a *Action, srcfiles []string) {
 	// so that we can reformat them relative to the directory
 	// in which the go command is invoked.
 	vcfg := &vetConfig{
+		ID:          a.Package.ImportPath,
 		Compiler:    cfg.BuildToolchainName,
 		Dir:         a.Package.Dir,
 		GoFiles:     mkAbsFiles(a.Package.Dir, gofiles),
