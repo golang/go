@@ -1,5 +1,3 @@
-// +build go1.11
-
 package bad
 
 func stuff() {
@@ -14,8 +12,7 @@ type bob struct {
 }
 
 func _() {
-	var q int
 	_ = &bob{
-		f: q, //@diag("f", "unknown field f in struct literal")
+		f: 0, //@diag("f", "unknown field f in struct literal")
 	}
 }

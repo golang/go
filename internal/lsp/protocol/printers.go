@@ -37,3 +37,20 @@ func (r Range) Format(f fmt.State, c rune) {
 func (l Location) Format(f fmt.State, c rune) {
 	fmt.Fprintf(f, "%s:%v", l.URI, l.Range)
 }
+
+func (s DiagnosticSeverity) Format(f fmt.State, c rune) {
+	switch s {
+	case SeverityError:
+		fmt.Fprint(f, "Error")
+	case SeverityWarning:
+		fmt.Fprint(f, "Warning")
+	case SeverityInformation:
+		fmt.Fprint(f, "Information")
+	case SeverityHint:
+		fmt.Fprint(f, "Hint")
+	}
+}
+
+func (d Diagnostic) Format(f fmt.State, c rune) {
+	fmt.Fprintf(f, "%v:%v from %v at %v: %v", d.Severity, d.Code, d.Source, d.Range, d.Message)
+}

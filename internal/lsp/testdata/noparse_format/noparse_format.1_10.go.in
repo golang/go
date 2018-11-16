@@ -1,0 +1,11 @@
+// +build !go1.11
+
+// This file does not actually test anything
+// on 1.10 the errors are different
+package noparse_format
+
+func what() {
+	// we need a diagnostic below so we have the same count as the main file
+	var b int  //@diag("b", "b declared but not used")
+	if true {}
+}

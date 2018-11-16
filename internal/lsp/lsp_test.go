@@ -7,6 +7,7 @@ package lsp
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"go/token"
 	"os/exec"
 	"path/filepath"
@@ -184,7 +185,16 @@ func testDiagnostics(t *testing.T, v *source.View, pkgs []*packages.Package, wan
 			})
 			want := wants[filename]
 			if equal := reflect.DeepEqual(want, got); !equal {
-				t.Errorf("diagnostics failed for %s: (expected: %v), (got: %v)", filepath.Base(filename), want, got)
+				msg := &bytes.Buffer{}
+				fmt.Fprintf(msg, "diagnostics failed for %s: expected:\n", filepath.Base(filename))
+				for _, d := range want {
+					fmt.Fprintf(msg, "  %v\n", d)
+				}
+				fmt.Fprintf(msg, "got:\n")
+				for _, d := range got {
+					fmt.Fprintf(msg, "  %v\n", d)
+				}
+				t.Error(msg.String())
 			}
 		}
 	}
