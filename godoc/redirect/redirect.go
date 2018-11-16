@@ -115,7 +115,7 @@ var redirects = map[string]string{
 	"/tour":  "http://tour.golang.org",
 	"/wiki":  "https://github.com/golang/go/wiki",
 
-	"/doc/articles/c_go_cgo.html": "/blog/c-go-cgo",
+	"/doc/articles/c_go_cgo.html":                    "/blog/c-go-cgo",
 	"/doc/articles/concurrency_patterns.html":        "/blog/go-concurrency-patterns-timing-out-and",
 	"/doc/articles/defer_panic_recover.html":         "/blog/defer-panic-and-recover",
 	"/doc/articles/error_handling.html":              "/blog/error-handling-and-go",
@@ -191,9 +191,13 @@ func clHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	target := ""
-	// the first CL in rietveld is about 152046, so only treat the id as
-	// a rietveld CL if it is larger than 150000.
-	if n, err := strconv.Atoi(id); err == nil && n > 150000 {
+
+	if n, err := strconv.Atoi(id); err == nil && isRietveldCL(n) {
+		// TODO: Issue 28836: if this Rietveld CL happens to
+		// also be a Gerrit CL, render a disambiguation HTML
+		// page with two links instead. We'll need to make an
+		// RPC (to maintner?) to figure that out. For now just
+		// redirect to rietveld.
 		target = "https://codereview.appspot.com/" + id
 	} else {
 		target = "https://go-review.googlesource.com/" + id
