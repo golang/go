@@ -5,6 +5,21 @@ env GOARCH=amd64
 ! go vet -asmdecl a
 stderr 'f: invalid MOVW of x'
 
+# -c flag shows context
+! go vet -c=2 -asmdecl a
+stderr '...invalid MOVW...'
+stderr '1	.*TEXT'
+stderr '2		MOVW'
+stderr '3		RET'
+stderr '4'
+
+# -json causes success, even with diagnostics and errors.
+go vet -json -asmdecl a
+stderr '"a": {'
+stderr   '"asmdecl":'
+stderr     '"posn": ".*asm.s:2:1",'
+stderr     '"message": ".*invalid MOVW.*"'
+
 -- a/a.go --
 package a
 
