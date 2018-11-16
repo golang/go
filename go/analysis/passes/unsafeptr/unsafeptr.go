@@ -62,28 +62,28 @@ func isSafeUintptr(info *types.Info, x ast.Expr) bool {
 		return isSafeUintptr(info, x.X)
 
 	case *ast.SelectorExpr:
-		switch x.Sel.Name {
-		case "Data":
-			// reflect.SliceHeader and reflect.StringHeader are okay,
-			// but only if they are pointing at a real slice or string.
-			// It's not okay to do:
-			//	var x SliceHeader
-			//	x.Data = uintptr(unsafe.Pointer(...))
-			//	... use x ...
-			//	p := unsafe.Pointer(x.Data)
-			// because in the middle the garbage collector doesn't
-			// see x.Data as a pointer and so x.Data may be dangling
-			// by the time we get to the conversion at the end.
-			// For now approximate by saying that *Header is okay
-			// but Header is not.
-			pt, ok := info.Types[x.X].Type.(*types.Pointer)
-			if ok {
-				t, ok := pt.Elem().(*types.Named)
-				if ok && t.Obj().Pkg().Path() == "reflect" {
-					switch t.Obj().Name() {
-					case "StringHeader", "SliceHeader":
-						return true
-					}
+		if x.Sel.Name != "Data" {
+			break
+		}
+		// reflect.SliceHeader and reflect.StringHeader are okay,
+		// but only if they are pointing at a real slice or string.
+		// It's not okay to do:
+		//	var x SliceHeader
+		//	x.Data = uintptr(unsafe.Pointer(...))
+		//	... use x ...
+		//	p := unsafe.Pointer(x.Data)
+		// because in the middle the garbage collector doesn't
+		// see x.Data as a pointer and so x.Data may be dangling
+		// by the time we get to the conversion at the end.
+		// For now approximate by saying that *Header is okay
+		// but Header is not.
+		pt, ok := info.Types[x.X].Type.(*types.Pointer)
+		if ok {
+			t, ok := pt.Elem().(*types.Named)
+			if ok && t.Obj().Pkg().Path() == "reflect" {
+				switch t.Obj().Name() {
+				case "StringHeader", "SliceHeader":
+					return true
 				}
 			}
 		}
