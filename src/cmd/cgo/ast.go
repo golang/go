@@ -66,6 +66,7 @@ func (f *File) ParseGo(name string, src []byte) {
 	f.Package = ast1.Name.Name
 	f.Name = make(map[string]*Name)
 	f.NamePos = make(map[*Name]token.Pos)
+	f.Consts = make(map[string]bool)
 
 	// In ast1, find the import "C" line and get any extra C preamble.
 	sawC := false
@@ -191,6 +192,18 @@ func (f *File) saveExprs(x interface{}, context astContext) {
 		}
 	case *ast.CallExpr:
 		f.saveCall(x, context)
+	case *ast.GenDecl:
+		if x.Tok == token.CONST {
+			for _, spec := range x.Specs {
+				vs := spec.(*ast.ValueSpec)
+				if vs.Type == nil {
+					for _, name := range spec.(*ast.ValueSpec).Names {
+						f.Consts[name.Name] = true
+					}
+				}
+			}
+		}
+
 	}
 }
 
