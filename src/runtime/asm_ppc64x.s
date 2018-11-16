@@ -36,6 +36,12 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	MOVD	_cgo_init(SB), R12
 	CMP	R0, R12
 	BEQ	nocgo
+#ifdef GOARCH_ppc64
+	// ppc64 use elf ABI v1. we must get the real entry address from
+	// first slot of the function descriptor before call.
+	MOVD	8(R12), R2
+	MOVD	(R12), R12
+#endif
 	MOVD	R12, CTR		// r12 = "global function entry point"
 	MOVD	R13, R5			// arg 2: TLS base pointer
 	MOVD	$setg_gcc<>(SB), R4 	// arg 1: setg
@@ -597,6 +603,16 @@ g0:
 #endif
 	// This is a "global call", so put the global entry point in r12
 	MOVD	R3, R12
+
+#ifdef GOARCH_ppc64
+	// ppc64 use elf ABI v1. we must get the real entry address from
+	// first slot of the function descriptor before call.
+#ifndef GOOS_aix
+	// aix just passes the function pointer for the moment, see golang.org/cl/146898 for details.
+	MOVD	8(R12), R2
+	MOVD	(R12), R12
+#endif
+#endif
 	MOVD	R12, CTR
 	MOVD	R4, R3		// arg in r3
 	BL	(CTR)
@@ -754,9 +770,20 @@ TEXT runtime·setg(SB), NOSPLIT, $0-8
 	BL	runtime·save_g(SB)
 	RET
 
+#ifdef GOARCH_ppc64
+TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
+	DWORD	$_setg_gcc<>(SB)
+	DWORD	$0
+	DWORD	$0
+#endif
+
 // void setg_gcc(G*); set g in C TLS.
 // Must obey the gcc calling convention.
+#ifdef GOARCH_ppc64le
 TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
+#else
+TEXT _setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
+#endif
 	// The standard prologue clobbers R31, which is callee-save in
 	// the C ABI, so we have to use $-8-0 and save LR ourselves.
 	MOVD	LR, R4
