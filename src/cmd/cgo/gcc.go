@@ -1232,7 +1232,8 @@ func (p *Package) isConst(f *File, x ast.Expr) bool {
 		return x.Name == "nil" ||
 			strings.HasPrefix(x.Name, "_Ciconst_") ||
 			strings.HasPrefix(x.Name, "_Cfconst_") ||
-			strings.HasPrefix(x.Name, "_Csconst_")
+			strings.HasPrefix(x.Name, "_Csconst_") ||
+			f.Consts[x.Name]
 	case *ast.UnaryExpr:
 		return p.isConst(f, x.X)
 	case *ast.BinaryExpr:
