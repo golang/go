@@ -106,7 +106,18 @@ func TestVet(t *testing.T) {
 		t.Run(pkg, func(t *testing.T) {
 			t.Parallel()
 
+			// Skip for now, pending investigation.
+			if pkg == "cgo" {
+				t.Skip("cgo test disabled -- github.com/golang/go/issues/28829")
+				return
+			}
+
 			cmd := vetCmd(t, "-printfuncs=Warn,Warnf", pkg)
+
+			// The asm test assumes amd64.
+			if pkg == "asm" {
+				cmd.Env = append(cmd.Env, "GOOS=linux", "GOARCH=amd64")
+			}
 
 			dir := filepath.Join("testdata/src", pkg)
 			gos, err := filepath.Glob(filepath.Join(dir, "*.go"))
