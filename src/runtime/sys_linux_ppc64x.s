@@ -414,7 +414,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
 	DWORD	$0
 	DWORD	$0
 TEXT runtime·_cgoSigtramp(SB),NOSPLIT,$0
-	JMP	runtime·sigtramp(SB)
+	JMP	runtime·_sigtramp(SB)
 #endif
 
 TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
