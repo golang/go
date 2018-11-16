@@ -70,11 +70,6 @@ func vetCmd(t *testing.T, args ...string) *exec.Cmd {
 	return cmd
 }
 
-// TestVet is equivalent to running this:
-// 	go build -o ./testvet
-// 	errorCheck the output of ./testvet -printfuncs='Warn:1,Warnf:1' testdata/*.go testdata/*.s
-// 	rm ./testvet
-//
 func TestVet(t *testing.T) {
 	t.Parallel()
 	Build(t)
@@ -106,9 +101,8 @@ func TestVet(t *testing.T) {
 		t.Run(pkg, func(t *testing.T) {
 			t.Parallel()
 
-			// Skip for now, pending investigation.
-			if pkg == "cgo" {
-				t.Skip("cgo test disabled -- github.com/golang/go/issues/28829")
+			// Skip cgo test on platforms without cgo.
+			if pkg == "cgo" && !cgoEnabled(t) {
 				return
 			}
 
@@ -135,6 +129,17 @@ func TestVet(t *testing.T) {
 			errchk(cmd, files, t)
 		})
 	}
+}
+
+func cgoEnabled(t *testing.T) bool {
+	// Don't trust build.Default.CgoEnabled as it is false for
+	// cross-builds unless CGO_ENABLED is explicitly specified.
+	// That's fine for the builders, but causes commands like
+	// 'GOARCH=386 go test .' to fail.
+	// Instead, we ask the go command.
+	cmd := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{context.CgoEnabled}}")
+	out, _ := cmd.CombinedOutput()
+	return string(out) == "true\n"
 }
 
 func errchk(c *exec.Cmd, files []string, t *testing.T) {
