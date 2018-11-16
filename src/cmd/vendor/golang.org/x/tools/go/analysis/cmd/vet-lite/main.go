@@ -7,8 +7,6 @@
 package main
 
 import (
-	"flag"
-
 	"golang.org/x/tools/go/analysis/unitchecker"
 
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
@@ -23,7 +21,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/loopclosure"
 	"golang.org/x/tools/go/analysis/passes/lostcancel"
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
-	"golang.org/x/tools/go/analysis/passes/pkgfact"
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/passes/shift"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
@@ -35,11 +32,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 )
 
-// Flags for legacy vet compatibility.
-//
-// These flags, plus the shims in analysisflags, enable
-// existing scripts that run vet to continue to work.
-//
 // Legacy vet had the concept of "experimental" checkers. There
 // was exactly one, shadow, and it had to be explicitly enabled
 // by the -shadow flag, which would of course disable all the
@@ -54,12 +46,6 @@ import (
 // Alternatively, one could build a multichecker containing all
 // the desired checks (vet's suite + shadow) and run it in a
 // single "go vet" command.
-func init() {
-	_ = flag.Bool("source", false, "no effect (deprecated)")
-	_ = flag.Bool("v", false, "no effect (deprecated)")
-	_ = flag.Bool("all", false, "no effect (deprecated)")
-	_ = flag.String("tags", "", "no effect (deprecated)")
-}
 
 func main() {
 	unitchecker.Main(
@@ -75,7 +61,6 @@ func main() {
 		loopclosure.Analyzer,
 		lostcancel.Analyzer,
 		nilfunc.Analyzer,
-		pkgfact.Analyzer,
 		printf.Analyzer,
 		shift.Analyzer,
 		stdmethods.Analyzer,
