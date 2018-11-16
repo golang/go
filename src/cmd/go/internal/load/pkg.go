@@ -1343,6 +1343,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 
 	// SWIG adds imports of some standard packages.
 	if p.UsesSwig() {
+		addImport("unsafe", true)
 		if cfg.BuildContext.Compiler != "gccgo" {
 			addImport("runtime/cgo", true)
 		}
