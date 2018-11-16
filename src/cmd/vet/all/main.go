@@ -236,10 +236,6 @@ func (p platform) vet() {
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stderr
 	if err := cmd.Run(); err != nil {
-		if _, err := build.Default.Import("golang.org/x/tools/go/analysis/cmd/vet", "", 0); err != nil {
-			fmt.Printf("skipping because golang.org/x/tools is not in GOPATH")
-			return
-		}
 		log.Fatal(err)
 	}
 
