@@ -18,11 +18,11 @@
 // For more detail, run ``go help test'' and ``go help testflag''.
 //
 // A simple test function looks like this:
+//
 //     func TestAbs(t *testing.T) {
 //         got := Abs(-1)
-//         want := 1
-//         if got != want {
-//             t.Errorf("Abs(-1) returns %d, want %d", got, want)
+//         if got != 1 {
+//             t.Errorf("Abs(-1) = %d; want 1", got)
 //         }
 //     }
 //
@@ -36,7 +36,7 @@
 // For a description of the testing flags, see
 // https://golang.org/cmd/go/#hdr-Testing_flags
 //
-// A simple benchmark function looks like this:
+// A sample benchmark function looks like this:
 //     func BenchmarkHello(b *testing.B) {
 //         for i := 0; i < b.N; i++ {
 //             fmt.Sprintf("hello")
@@ -136,6 +136,7 @@
 //
 // Tests or benchmarks may be skipped at run time with a call to
 // the Skip method of *T or *B:
+//
 //     func TestTimeConsuming(t *testing.T) {
 //         if testing.Short() {
 //             t.Skip("skipping test in short mode.")
