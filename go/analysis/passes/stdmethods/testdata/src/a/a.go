@@ -24,6 +24,10 @@ func (U) GobDecode() {} // want `should have signature GobDecode\(\[\]byte\) err
 // Test rendering of type names such as xml.Encoder in diagnostic.
 func (U) MarshalXML(*xml.Encoder) {} // want `method MarshalXML\(\*xml.Encoder\) should...`
 
+func (U) UnmarshalXML(*xml.Decoder, xml.StartElement) error { // no error: signature matches xml.Unmarshaler
+	return nil
+}
+
 type I interface {
 	ReadByte() byte // want `should have signature ReadByte\(\) \(byte, error\)`
 }
