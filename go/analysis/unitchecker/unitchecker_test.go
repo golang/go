@@ -60,14 +60,29 @@ testdata/src/a/a.go:4:11: call of MyFunc123(...)
 testdata/src/b/b.go:6:13: call of MyFunc123(...)
 testdata/src/b/b.go:7:11: call of MyFunc123(...)
 `
+	const wantAJSON = `# a
+{
+	"a": {
+		"findcall": [
+			{
+				"posn": "$GOPATH/src/a/a.go:4:11",
+				"message": "call of MyFunc123(...)"
+			}
+		]
+	}
+}
+`
 
 	for _, test := range []struct {
-		args string
-		want string
+		args     string
+		wantOut  string
+		wantExit int
 	}{
-		{args: "a", want: wantA},
-		{args: "b", want: wantB},
-		{args: "a b", want: wantA + wantB},
+		{args: "a", wantOut: wantA, wantExit: 2},
+		{args: "b", wantOut: wantB, wantExit: 2},
+		{args: "a b", wantOut: wantA + wantB, wantExit: 2},
+		{args: "-json a", wantOut: wantAJSON, wantExit: 0},
+		{args: "-c=0 a", wantOut: wantA + "4		MyFunc123()\n", wantExit: 2},
 	} {
 		cmd := exec.Command("go", "vet", "-vettool="+os.Args[0], "-findcall.name=MyFunc123")
 		cmd.Args = append(cmd.Args, strings.Fields(test.args)...)
@@ -77,16 +92,17 @@ testdata/src/b/b.go:7:11: call of MyFunc123(...)
 		)
 
 		out, err := cmd.CombinedOutput()
-		exitcode := -1
+		exitcode := 0
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitcode = exitErr.ExitCode()
 		}
-		if exitcode != 2 {
-			t.Errorf("%s: got exit code %d, want 2", test.args, exitcode)
+		if exitcode != test.wantExit {
+			t.Errorf("%s: got exit code %d, want %d", test.args, exitcode, test.wantExit)
 		}
+		got := strings.Replace(string(out), testdata, "$GOPATH", -1)
 
-		if got := string(out); got != test.want {
-			t.Errorf("%s: got <<%s>>, want <<%s>>", test.args, got, test.want)
+		if got != test.wantOut {
+			t.Errorf("%s: got <<%s>>, want <<%s>>", test.args, got, test.wantOut)
 		}
 	}
 }

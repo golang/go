@@ -11,12 +11,21 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"go/token"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
+)
+
+// flags common to all {single,multi,unit}checkers.
+var (
+	JSON    = false // -json
+	Context = -1    // -c=N: if N>0, display offending line plus N lines of context
 )
 
 // Parse creates a flag for each of the analyzer's flags,
@@ -25,13 +34,6 @@ import (
 // analyzers enabled by flags.
 func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 	// Connect each analysis flag to the command line as -analysis.flag.
-	type analysisFlag struct {
-		Name  string
-		Bool  bool
-		Usage string
-	}
-	var analysisFlags []analysisFlag
-
 	enabled := make(map[*analysis.Analyzer]*triState)
 	for _, a := range analyzers {
 		var prefix string
@@ -44,7 +46,6 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 			enableUsage := "enable " + a.Name + " analysis"
 			flag.Var(enable, a.Name, enableUsage)
 			enabled[a] = enable
-			analysisFlags = append(analysisFlags, analysisFlag{a.Name, true, enableUsage})
 		}
 
 		a.Flags.VisitAll(func(f *flag.Flag) {
@@ -55,12 +56,6 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 
 			name := prefix + f.Name
 			flag.Var(f.Value, name, f.Usage)
-
-			var isBool bool
-			if b, ok := f.Value.(interface{ IsBoolFlag() bool }); ok {
-				isBool = b.IsBoolFlag()
-			}
-			analysisFlags = append(analysisFlags, analysisFlag{name, isBool, f.Usage})
 		})
 	}
 
@@ -68,7 +63,16 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 	printflags := flag.Bool("flags", false, "print analyzer flags in JSON")
 	addVersionFlag()
 
-	// Add shims for legacy vet flags.
+	// flags common to all checkers
+	flag.BoolVar(&JSON, "json", JSON, "emit JSON output")
+	flag.IntVar(&Context, "c", Context, `display offending line with this many lines of context`)
+
+	// Add shims for legacy vet flags to enable existing
+	// scripts that run vet to continue to work.
+	_ = flag.Bool("source", false, "no effect (deprecated)")
+	_ = flag.Bool("v", false, "no effect (deprecated)")
+	_ = flag.Bool("all", false, "no effect (deprecated)")
+	_ = flag.String("tags", "", "no effect (deprecated)")
 	for old, new := range vetLegacyFlags {
 		newFlag := flag.Lookup(new)
 		if newFlag != nil && flag.Lookup(old) == nil {
@@ -80,11 +84,7 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 
 	// -flags: print flags so that go vet knows which ones are legitimate.
 	if *printflags {
-		data, err := json.MarshalIndent(analysisFlags, "", "\t")
-		if err != nil {
-			log.Fatal(err)
-		}
-		os.Stdout.Write(data)
+		printFlags()
 		os.Exit(0)
 	}
 
@@ -120,6 +120,33 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 	}
 
 	return analyzers
+}
+
+func printFlags() {
+	type jsonFlag struct {
+		Name  string
+		Bool  bool
+		Usage string
+	}
+	var flags []jsonFlag = nil
+	flag.VisitAll(func(f *flag.Flag) {
+		// Don't report {single,multi}checker debugging
+		// flags as these have no effect on unitchecker
+		// (as invoked by 'go vet').
+		switch f.Name {
+		case "debug", "cpuprofile", "memprofile", "trace":
+			return
+		}
+
+		b, ok := f.Value.(interface{ IsBoolFlag() bool })
+		isBool := ok && b.IsBoolFlag()
+		flags = append(flags, jsonFlag{f.Name, isBool, f.Usage})
+	})
+	data, err := json.MarshalIndent(flags, "", "\t")
+	if err != nil {
+		log.Fatal(err)
+	}
+	os.Stdout.Write(data)
 }
 
 // addVersionFlag registers a -V flag that, if set,
@@ -246,4 +273,71 @@ var vetLegacyFlags = map[string]string{
 	"shadowstrict":        "shadow.strict",
 	"unusedfuncs":         "unusedresult.funcs",
 	"unusedstringmethods": "unusedresult.stringmethods",
+}
+
+// ---- output helpers common to all drivers ----
+
+// PrintPlain prints a diagnostic in plain text form,
+// with context specified by the -c flag.
+func PrintPlain(fset *token.FileSet, diag analysis.Diagnostic) {
+	posn := fset.Position(diag.Pos)
+	fmt.Fprintf(os.Stderr, "%s: %s\n", posn, diag.Message)
+
+	// -c=N: show offending line plus N lines of context.
+	if Context >= 0 {
+		data, _ := ioutil.ReadFile(posn.Filename)
+		lines := strings.Split(string(data), "\n")
+		for i := posn.Line - Context; i <= posn.Line+Context; i++ {
+			if 1 <= i && i <= len(lines) {
+				fmt.Fprintf(os.Stderr, "%d\t%s\n", i, lines[i-1])
+			}
+		}
+	}
+}
+
+// A JSONTree is a mapping from package ID to analysis name to result.
+// Each result is either a jsonError or a list of jsonDiagnostic.
+type JSONTree map[string]map[string]interface{}
+
+// Add adds the result of analysis 'name' on package 'id'.
+// The result is either a list of diagnostics or an error.
+func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.Diagnostic, err error) {
+	var v interface{}
+	if err != nil {
+		type jsonError struct {
+			Err string `json:"error"`
+		}
+		v = jsonError{err.Error()}
+	} else if len(diags) > 0 {
+		type jsonDiagnostic struct {
+			Category string `json:"category,omitempty"`
+			Posn     string `json:"posn"`
+			Message  string `json:"message"`
+		}
+		var diagnostics []jsonDiagnostic
+		for _, f := range diags {
+			diagnostics = append(diagnostics, jsonDiagnostic{
+				Category: f.Category,
+				Posn:     fset.Position(f.Pos).String(),
+				Message:  f.Message,
+			})
+		}
+		v = diagnostics
+	}
+	if v != nil {
+		m, ok := tree[id]
+		if !ok {
+			m = make(map[string]interface{})
+			tree[id] = m
+		}
+		m[name] = v
+	}
+}
+
+func (tree JSONTree) Print() {
+	data, err := json.MarshalIndent(tree, "", "\t")
+	if err != nil {
+		log.Panicf("internal error: JSON marshalling failed: %v", err)
+	}
+	fmt.Printf("%s\n", data)
 }
