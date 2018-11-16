@@ -78,6 +78,7 @@ func main() {
 	// Disable parallelism if printing or if using a simulator.
 	if *verbose || len(findExecCmd()) > 0 {
 		*numParallel = 1
+		*runoutputLimit = 1
 	}
 
 	ratec = make(chan bool, *numParallel)
@@ -321,7 +322,7 @@ func goDirFiles(longdir string) (filter []os.FileInfo, err error) {
 	return
 }
 
-var packageRE = regexp.MustCompile(`(?m)^package (\w+)`)
+var packageRE = regexp.MustCompile(`(?m)^package ([\p{Lu}\p{Ll}\w]+)`)
 
 // If singlefilepkgs is set, each file is considered a separate package
 // even if the package names are the same.
@@ -795,25 +796,37 @@ func (t *test) run() {
 			t.err = dirErr
 			break
 		}
-		var gos []os.FileInfo
-		var asms []os.FileInfo
+		var gos []string
+		var asms []string
 		for _, file := range files {
 			switch filepath.Ext(file.Name()) {
 			case ".go":
-				gos = append(gos, file)
+				gos = append(gos, filepath.Join(longdir, file.Name()))
 			case ".s":
-				asms = append(asms, file)
+				asms = append(asms, filepath.Join(longdir, file.Name()))
 			}
 
+		}
+		if len(asms) > 0 {
+			emptyHdrFile := filepath.Join(t.tempDir, "go_asm.h")
+			if err := ioutil.WriteFile(emptyHdrFile, nil, 0666); err != nil {
+				t.err = fmt.Errorf("write empty go_asm.h: %s", err)
+				return
+			}
+			cmd := []string{goTool(), "tool", "asm", "-symabis", "-o", "symabis"}
+			cmd = append(cmd, asms...)
+			_, err = runcmd(cmd...)
+			if err != nil {
+				t.err = err
+				break
+			}
 		}
 		var objs []string
 		cmd := []string{goTool(), "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
 		if len(asms) > 0 {
-			cmd = append(cmd, "-asmhdr", "go_asm.h")
+			cmd = append(cmd, "-asmhdr", "go_asm.h", "-symabis", "symabis")
 		}
-		for _, file := range gos {
-			cmd = append(cmd, filepath.Join(longdir, file.Name()))
-		}
+		cmd = append(cmd, gos...)
 		_, err := runcmd(cmd...)
 		if err != nil {
 			t.err = err
@@ -822,9 +835,7 @@ func (t *test) run() {
 		objs = append(objs, "go.o")
 		if len(asms) > 0 {
 			cmd = []string{goTool(), "tool", "asm", "-e", "-I", ".", "-o", "asm.o"}
-			for _, file := range asms {
-				cmd = append(cmd, filepath.Join(longdir, file.Name()))
-			}
+			cmd = append(cmd, asms...)
 			_, err = runcmd(cmd...)
 			if err != nil {
 				t.err = err
@@ -1071,10 +1082,10 @@ func splitOutput(out string, wantAuto bool) []string {
 // this function will report an error.
 // Likewise if outStr does not have an error for a line which has a comment,
 // or if the error message does not match the <regexp>.
-// The <regexp> syntax is Perl but its best to stick to egrep.
+// The <regexp> syntax is Perl but it's best to stick to egrep.
 //
 // Sources files are supplied as fullshort slice.
-// It consists of pairs: full path to source file and it's base name.
+// It consists of pairs: full path to source file and its base name.
 func (t *test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (err error) {
 	defer func() {
 		if *verbose && err != nil {

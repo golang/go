@@ -25,6 +25,7 @@
 
 (Mul64  x y) -> (MULLD  x y)
 (Mul(32|16|8)  x y) -> (MULLW  x y)
+(Mul64uhilo x y) -> (LoweredMuluhilo x y)
 
 (Div64  x y) -> (DIVD  x y)
 (Div64u x y) -> (DIVDU x y)
@@ -296,6 +297,8 @@
 
 (Ctz64 x) -> (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
 (Ctz32 x) -> (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+(Ctz16 x) -> (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
+(Ctz8 x) -> (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
 
 (BitLen64 x) -> (SUB (MOVDconst [64]) (CNTLZD <typ.Int> x))
 (BitLen32 x) -> (SUB (MOVDconst [32]) (CNTLZW <typ.Int> x))
@@ -303,7 +306,7 @@
 (PopCount64 x) -> (POPCNTD x)
 (PopCount32 x) -> (POPCNTW (MOVWZreg x))
 (PopCount16 x) -> (POPCNTW (MOVHZreg x))
-(PopCount8 x) -> (POPCNTB (MOVBreg x))
+(PopCount8 x) -> (POPCNTB (MOVBZreg x))
 
 (And(64|32|16|8) x y) -> (AND x y)
 (Or(64|32|16|8) x y) -> (OR x y)
@@ -514,6 +517,13 @@
 (GreaterThan (InvertFlags x)) -> (LessThan x)
 (LessEqual (InvertFlags x)) -> (GreaterEqual x)
 (GreaterEqual (InvertFlags x)) -> (LessEqual x)
+
+// Elide compares of bit tests // TODO need to make both CC and result of ANDCC available.
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] (ANDconst [c] x)) yes no) -> ((EQ|NE|LT|LE|GT|GE) (ANDCCconst [c] x) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPWconst [0] (ANDconst [c] x)) yes no) -> ((EQ|NE|LT|LE|GT|GE) (ANDCCconst [c] x) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> ((EQ|NE|LT|LE|GT|GE) (ANDCC x y) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(OR x y)) yes no) && z.Uses == 1 -> ((EQ|NE|LT|LE|GT|GE) (ORCC x y) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(XOR x y)) yes no) && z.Uses == 1 -> ((EQ|NE|LT|LE|GT|GE) (XORCC x y) yes no)
 
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVDload ptr mem)
@@ -847,11 +857,19 @@
 (MOVHZload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVHZload [off1+off2] {sym} x mem)
 (MOVBZload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVBZload [off1+off2] {sym} x mem)
 
+// Determine load + addressing that can be done as a register indexed load
+(MOV(D|W|WZ|H|HZ|BZ)load [0] {sym} p:(ADD ptr idx) mem) && sym == nil && p.Uses == 1 -> (MOV(D|W|WZ|H|HZ|BZ)loadidx ptr idx mem)
+
+// Determine indexed loads with constant values that can be done without index
+(MOV(D|W|WZ|H|HZ|BZ)loadidx ptr (MOVDconst [c]) mem) && is16Bit(c) -> (MOV(D|W|WZ|H|HZ|BZ)load [c] ptr mem)
+(MOV(D|W|WZ|H|HZ|BZ)loadidx (MOVDconst [c]) ptr mem) && is16Bit(c) -> (MOV(D|W|WZ|H|HZ|BZ)load [c] ptr mem)
+
+
 // Store of zero -> storezero
-(MOVDstore [off] {sym} ptr (MOVDconst [c]) mem) && c == 0 -> (MOVDstorezero [off] {sym} ptr mem)
-(MOVWstore [off] {sym} ptr (MOVDconst [c]) mem) && c == 0 -> (MOVWstorezero [off] {sym} ptr mem)
-(MOVHstore [off] {sym} ptr (MOVDconst [c]) mem) && c == 0 -> (MOVHstorezero [off] {sym} ptr mem)
-(MOVBstore [off] {sym} ptr (MOVDconst [c]) mem) && c == 0 -> (MOVBstorezero [off] {sym} ptr mem)
+(MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVDstorezero [off] {sym} ptr mem)
+(MOVWstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVWstorezero [off] {sym} ptr mem)
+(MOVHstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVHstorezero [off] {sym} ptr mem)
+(MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVBstorezero [off] {sym} ptr mem)
 
 // Fold offsets for storezero
 (MOVDstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) ->
@@ -862,6 +880,13 @@
     (MOVHstorezero [off1+off2] {sym} x mem)
 (MOVBstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) ->
     (MOVBstorezero [off1+off2] {sym} x mem)
+
+// Stores with addressing that can be done as indexed stores
+(MOV(D|W|H|B)store [off] {sym} p:(ADD ptr idx) val mem) && off == 0 && sym == nil && p.Uses == 1 -> (MOV(D|W|H|B)storeidx ptr idx val mem)
+
+// Stores with constant index values can be done without indexed instructions
+(MOV(D|W|H|B)storeidx ptr (MOVDconst [c]) val mem) && is16Bit(c) -> (MOV(D|W|H|B)store [c] ptr val mem)
+(MOV(D|W|H|B)storeidx (MOVDconst [c]) ptr val mem) && is16Bit(c) -> (MOV(D|W|H|B)store [c] ptr val mem)
 
 // Fold symbols into storezero
 (MOVDstorezero [off1] {sym1} p:(MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2)
@@ -878,16 +903,19 @@
     (MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
 
 // atomic intrinsics
-(AtomicLoad(32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(32|64|Ptr) ptr mem)
+(AtomicLoad(32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(32|64|Ptr) [1] ptr mem)
+(AtomicLoadAcq32        ptr mem) -> (LoweredAtomicLoad32 [0] ptr mem)
 
-(AtomicStore(32|64)      ptr val mem) -> (LoweredAtomicStore(32|64) ptr val mem)
+(AtomicStore(32|64)      ptr val mem) -> (LoweredAtomicStore(32|64) [1] ptr val mem)
+(AtomicStoreRel32        ptr val mem) -> (LoweredAtomicStore32 [0] ptr val mem)
 //(AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)
 
 (AtomicExchange(32|64) ptr val mem) -> (LoweredAtomicExchange(32|64) ptr val mem)
 
 (AtomicAdd(32|64) ptr val mem) -> (LoweredAtomicAdd(32|64) ptr val mem)
 
-(AtomicCompareAndSwap(32|64) ptr old new_ mem) -> (LoweredAtomicCas(32|64) ptr old new_ mem)
+(AtomicCompareAndSwap(32|64) ptr old new_ mem) -> (LoweredAtomicCas(32|64) [1] ptr old new_ mem)
+(AtomicCompareAndSwapRel32   ptr old new_ mem) -> (LoweredAtomicCas32 [0] ptr old new_ mem)
 
 (AtomicAnd8 ptr val mem) -> (LoweredAtomicAnd8 ptr val mem)
 (AtomicOr8  ptr val mem) -> (LoweredAtomicOr8  ptr val mem)
@@ -914,10 +942,15 @@
 // Note that MOV??reg returns a 64-bit int, x is not necessarily that wide
 // This may interact with other patterns in the future. (Compare with arm64)
 (MOV(B|H|W)Zreg x:(MOVBZload _ _)) -> x
+(MOV(B|H|W)Zreg x:(MOVBZloadidx _ _ _)) -> x
 (MOV(H|W)Zreg x:(MOVHZload _ _)) -> x
+(MOV(H|W)Zreg x:(MOVHZloadidx _ _ _)) -> x
 (MOV(H|W)reg x:(MOVHload _ _)) -> x
+(MOV(H|W)reg x:(MOVHloadidx _ _ _)) -> x
 (MOVWZreg x:(MOVWZload _ _)) -> x
+(MOVWZreg x:(MOVWZloadidx _ _ _)) -> x
 (MOVWreg x:(MOVWload _ _)) -> x
+(MOVWreg x:(MOVWloadidx _ _ _)) -> x
 
 // don't extend if argument is already extended
 (MOVBreg x:(Arg <t>)) && is8BitInt(t) && isSigned(t) -> x
@@ -935,12 +968,17 @@
 (MOVWZreg (MOVDconst [c])) -> (MOVDconst [int64(uint32(c))])
 
 
-// Lose widening ops fed to to stores
+// Lose widening ops fed to stores
 (MOVBstore [off] {sym} ptr (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) -> (MOVBstore [off] {sym} ptr x mem)
 (MOVHstore [off] {sym} ptr (MOV(H|HZ|W|WZ)reg x) mem) -> (MOVHstore [off] {sym} ptr x mem)
 (MOVWstore [off] {sym} ptr (MOV(W|WZ)reg x) mem) -> (MOVWstore [off] {sym} ptr x mem)
 (MOVBstore [off] {sym} ptr (SRWconst (MOV(H|HZ)reg x) [c]) mem) && c <= 8 -> (MOVBstore [off] {sym} ptr (SRWconst <typ.UInt32> x [c]) mem)
 (MOVBstore [off] {sym} ptr (SRWconst (MOV(W|WZ)reg x) [c]) mem) && c <= 24 -> (MOVBstore [off] {sym} ptr (SRWconst <typ.UInt32> x [c]) mem)
+(MOVBstoreidx [off] {sym} ptr idx (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) -> (MOVBstoreidx [off] {sym} ptr idx x mem)
+(MOVHstoreidx [off] {sym} ptr idx (MOV(H|HZ|W|WZ)reg x) mem) -> (MOVHstoreidx [off] {sym} ptr idx x mem)
+(MOVWstoreidx [off] {sym} ptr idx (MOV(W|WZ)reg x) mem) -> (MOVWstoreidx [off] {sym} ptr idx x mem)
+(MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOV(H|HZ)reg x) [c]) mem) && c <= 8 -> (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
+(MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOV(W|WZ)reg x) [c]) mem) && c <= 24 -> (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
 (MOVHBRstore {sym} ptr (MOV(H|HZ|W|WZ)reg x) mem) -> (MOVHBRstore {sym} ptr x mem)
 (MOVWBRstore {sym} ptr (MOV(W|WZ)reg x) mem) -> (MOVWBRstore {sym} ptr x mem)
 

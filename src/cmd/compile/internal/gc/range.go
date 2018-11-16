@@ -286,13 +286,7 @@ func walkrange(n *Node) *Node {
 		// This runs *after* the condition check, so we know
 		// advancing the pointer is safe and won't go past the
 		// end of the allocation.
-		tmp = nod(OADD, hp, nodintconst(t.Elem().Width))
-
-		tmp.Type = hp.Type
-		tmp.SetTypecheck(1)
-		tmp.Right.Type = types.Types[types.Tptr]
-		tmp.Right.SetTypecheck(1)
-		a = nod(OAS, hp, tmp)
+		a = nod(OAS, hp, addptr(hp, t.Elem().Width))
 		a = typecheck(a, Etop)
 		n.List.Set1(a)
 
@@ -612,4 +606,19 @@ func arrayClear(n, v1, v2, a *Node) bool {
 	typecheckslice(n.Nbody.Slice(), Etop)
 	n = walkstmt(n)
 	return true
+}
+
+// addptr returns (*T)(uintptr(p) + n).
+func addptr(p *Node, n int64) *Node {
+	t := p.Type
+
+	p = nod(OCONVNOP, p, nil)
+	p.Type = types.Types[TUINTPTR]
+
+	p = nod(OADD, p, nodintconst(n))
+
+	p = nod(OCONVNOP, p, nil)
+	p.Type = t
+
+	return p
 }

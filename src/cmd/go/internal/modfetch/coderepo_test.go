@@ -423,7 +423,7 @@ func TestCodeRepo(t *testing.T) {
 				}
 			}
 		}
-		t.Run(strings.Replace(tt.path, "/", "_", -1)+"/"+tt.rev, f)
+		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f)
 		if strings.HasPrefix(tt.path, vgotest1git) {
 			for _, alt := range altVgotests {
 				// Note: Communicating with f through tt; should be cleaned up.
@@ -442,7 +442,7 @@ func TestCodeRepo(t *testing.T) {
 				tt.rev = remap(tt.rev, m)
 				tt.gomoderr = remap(tt.gomoderr, m)
 				tt.ziperr = remap(tt.ziperr, m)
-				t.Run(strings.Replace(tt.path, "/", "_", -1)+"/"+tt.rev, f)
+				t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f)
 				tt = old
 			}
 		}
@@ -473,9 +473,9 @@ func remap(name string, m map[string]string) string {
 		}
 	}
 	for k, v := range m {
-		name = strings.Replace(name, k, v, -1)
+		name = strings.ReplaceAll(name, k, v)
 		if codehost.AllHex(k) {
-			name = strings.Replace(name, k[:12], v[:12], -1)
+			name = strings.ReplaceAll(name, k[:12], v[:12])
 		}
 	}
 	return name
@@ -505,11 +505,11 @@ var codeRepoVersionsTests = []struct {
 	},
 	{
 		path:     "gopkg.in/russross/blackfriday.v2",
-		versions: []string{"v2.0.0"},
+		versions: []string{"v2.0.0", "v2.0.1"},
 	},
 	{
 		path:     "gopkg.in/natefinch/lumberjack.v2",
-		versions: nil,
+		versions: []string{"v2.0.0"},
 	},
 }
 
@@ -522,7 +522,7 @@ func TestCodeRepoVersions(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 	for _, tt := range codeRepoVersionsTests {
-		t.Run(strings.Replace(tt.path, "/", "_", -1), func(t *testing.T) {
+		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
 			repo, err := Lookup(tt.path)
 			if err != nil {
 				t.Fatalf("Lookup(%q): %v", tt.path, err)
@@ -570,7 +570,7 @@ func TestLatest(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 	for _, tt := range latestTests {
-		name := strings.Replace(tt.path, "/", "_", -1)
+		name := strings.ReplaceAll(tt.path, "/", "_")
 		t.Run(name, func(t *testing.T) {
 			repo, err := Lookup(tt.path)
 			if err != nil {

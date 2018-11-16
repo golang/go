@@ -36,6 +36,7 @@ Scripts also have access to these other environment variables:
 	PATH=<actual PATH>
 	TMPDIR=$WORK/tmp
 	devnull=<value of os.DevNull>
+	goversion=<current Go version; for example, 1.12>
 
 The environment variable $exe (lowercase) is an empty string on most systems, ".exe" on Windows.
 
@@ -92,6 +93,10 @@ The commands are:
   from the most recent exec or go command.
   (If the files have differing content, the failure prints a diff.)
 
+- cmpenv file1 file2
+  Like cmp, but environment variables are substituted in the file contents
+  before the comparison. For example, $GOOS is replaced by the target GOOS.
+
 - cp src... dst
   Copy the listed files to the target file or existing directory.
 
@@ -99,16 +104,23 @@ The commands are:
   With no arguments, print the environment (useful for debugging).
   Otherwise add the listed key=value pairs to the environment.
 
-- [!] exec program [args...]
+- [!] exec program [args...] [&]
   Run the given executable program with the arguments.
   It must (or must not) succeed.
   Note that 'exec' does not terminate the script (unlike in Unix shells).
+
+  If the last token is '&', the program executes in the background. The standard
+  output and standard error of the previous command is cleared, but the output
+  of the background process is buffered — and checking of its exit status is
+  delayed — until the next call to 'wait', 'skip', or 'stop' or the end of the
+  test. At the end of the test, any remaining background processes are
+  terminated using os.Interrupt (if supported) or os.Kill.
 
 - [!] exists [-readonly] file...
   Each of the listed files or directories must (or must not) exist.
   If -readonly is given, the files or directories must be unwritable.
 
-- [!] go args...
+- [!] go args... [&]
   Run the (test copy of the) go command with the given arguments.
   It must (or must not) succeed.
 
@@ -131,17 +143,24 @@ The commands are:
 
 - [!] stderr [-count=N] pattern
   Apply the grep command (see above) to the standard error
-  from the most recent exec or go command.
+  from the most recent exec, go, or wait command.
 
 - [!] stdout [-count=N] pattern
   Apply the grep command (see above) to the standard output
-  from the most recent exec or go command.
+  from the most recent exec, go, or wait command.
 
 - stop [message]
   Stop the test early (marking it as passing), including the message if given.
 
 - symlink file -> target
   Create file as a symlink to target. The -> (like in ls -l output) is required.
+
+- wait
+  Wait for all 'exec' and 'go' commands started in the background (with the '&'
+  token) to exit, and display success or failure status for them.
+  After a call to wait, the 'stderr' and 'stdout' commands will apply to the
+  concatenation of the corresponding streams of the background commands,
+  in the order in which those commands were started.
 
 When TestScript runs a script and the script fails, by default TestScript shows
 the execution of the most recent phase of the script (since the last # comment)

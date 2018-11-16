@@ -52,11 +52,3 @@ notfound:
 	MOVV	$-1, R1
 	MOVV	R1, ret+24(FP)
 	RET
-
-TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
-	JMP ·IndexByte(SB)
-
-TEXT strings·IndexByte(SB),NOSPLIT,$0-32
-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
-	JMP ·IndexByteString(SB)

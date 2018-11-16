@@ -58,11 +58,13 @@
 87:			if a == 0 { //gdb-opt=(a,n,t)
 86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
+92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
 90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
+92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
 90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
@@ -70,11 +72,13 @@
 87:			if a == 0 { //gdb-opt=(a,n,t)
 86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
+92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
 90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 86:		for i, a := range hist {
 87:			if a == 0 { //gdb-opt=(a,n,t)
+92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
 91:			n += a
 90:			t += i * a
 92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)

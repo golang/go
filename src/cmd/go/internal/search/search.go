@@ -275,7 +275,7 @@ func MatchPattern(pattern string) func(name string) bool {
 	case strings.HasSuffix(re, `/\.\.\.`):
 		re = strings.TrimSuffix(re, `/\.\.\.`) + `(/\.\.\.)?`
 	}
-	re = strings.Replace(re, `\.\.\.`, `[^`+vendorChar+`]*`, -1)
+	re = strings.ReplaceAll(re, `\.\.\.`, `[^`+vendorChar+`]*`)
 
 	reg := regexp.MustCompile(`^` + re + `$`)
 
@@ -353,7 +353,7 @@ func CleanPatterns(patterns []string) []string {
 		// as a courtesy to Windows developers, rewrite \ to /
 		// in command-line arguments. Handles .\... and so on.
 		if filepath.Separator == '\\' {
-			a = strings.Replace(a, `\`, `/`, -1)
+			a = strings.ReplaceAll(a, `\`, `/`)
 		}
 
 		// Put argument in canonical form, but preserve leading ./.

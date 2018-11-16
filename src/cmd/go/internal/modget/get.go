@@ -78,7 +78,7 @@ to use newer patch releases when available. Continuing the previous example,
 In general, adding a new dependency may require upgrading
 existing dependencies to keep a working build, and 'go get' does
 this automatically. Similarly, downgrading one dependency may
-require downgrading other dependenceis, and 'go get' does
+require downgrading other dependencies, and 'go get' does
 this automatically as well.
 
 The -m flag instructs get to stop here, after resolving, upgrading,
@@ -247,7 +247,7 @@ func runGet(cmd *base.Command, args []string) {
 		// Deciding which module to upgrade/downgrade for a particular argument is difficult.
 		// Patterns only make it more difficult.
 		// We impose restrictions to avoid needing to interlace pattern expansion,
-		// like in in modload.ImportPaths.
+		// like in modload.ImportPaths.
 		// Specifically, these patterns are supported:
 		//
 		//	- Relative paths like ../../foo or ../../foo... are restricted to matching directories

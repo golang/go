@@ -85,6 +85,15 @@ func (s *Scanner) next() {
 	}
 }
 
+// peek returns the byte following the most recently read character without
+// advancing the scanner. If the scanner is at EOF, peek returns 0.
+func (s *Scanner) peek() byte {
+	if s.rdOffset < len(s.src) {
+		return s.src[s.rdOffset]
+	}
+	return 0
+}
+
 // A mode value is a set of flags (or 0).
 // They control scanner behavior.
 //
@@ -735,14 +744,13 @@ scanAgain:
 			if '0' <= s.ch && s.ch <= '9' {
 				insertSemi = true
 				tok, lit = s.scanNumber(true)
-			} else if s.ch == '.' {
-				s.next()
-				if s.ch == '.' {
-					s.next()
-					tok = token.ELLIPSIS
-				}
 			} else {
 				tok = token.PERIOD
+				if s.ch == '.' && s.peek() == '.' {
+					s.next()
+					s.next() // consume last '.'
+					tok = token.ELLIPSIS
+				}
 			}
 		case ',':
 			tok = token.COMMA

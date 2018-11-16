@@ -621,23 +621,23 @@ func (e *EscState) escloopdepth(n *Node) {
 
 	switch n.Op {
 	case OLABEL:
-		if n.Left == nil || n.Left.Sym == nil {
+		if n.Sym == nil {
 			Fatalf("esc:label without label: %+v", n)
 		}
 
 		// Walk will complain about this label being already defined, but that's not until
 		// after escape analysis. in the future, maybe pull label & goto analysis out of walk and put before esc
-		n.Left.Sym.Label = asTypesNode(&nonlooping)
+		n.Sym.Label = asTypesNode(&nonlooping)
 
 	case OGOTO:
-		if n.Left == nil || n.Left.Sym == nil {
+		if n.Sym == nil {
 			Fatalf("esc:goto without label: %+v", n)
 		}
 
 		// If we come past one that's uninitialized, this must be a (harmless) forward jump
 		// but if it's set to nonlooping the label must have preceded this goto.
-		if asNode(n.Left.Sym.Label) == &nonlooping {
-			n.Left.Sym.Label = asTypesNode(&looping)
+		if asNode(n.Sym.Label) == &nonlooping {
+			n.Sym.Label = asTypesNode(&looping)
 		}
 	}
 
@@ -798,9 +798,8 @@ func (e *EscState) esc(n *Node, parent *Node) {
 	// gathered here.
 	if n.Esc != EscHeap && n.Type != nil &&
 		(n.Type.Width > maxStackVarSize ||
-			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= 1<<16 ||
+			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= maxImplicitStackVarSize ||
 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
-
 		// isSmallMakeSlice returns false for non-constant len/cap.
 		// If that's the case, print a more accurate escape reason.
 		var msgVerb, escapeMsg string
@@ -852,18 +851,19 @@ opSwitch:
 		}
 
 	case OLABEL:
-		if asNode(n.Left.Sym.Label) == &nonlooping {
+		switch asNode(n.Sym.Label) {
+		case &nonlooping:
 			if Debug['m'] > 2 {
 				fmt.Printf("%v:%v non-looping label\n", linestr(lineno), n)
 			}
-		} else if asNode(n.Left.Sym.Label) == &looping {
+		case &looping:
 			if Debug['m'] > 2 {
 				fmt.Printf("%v: %v looping label\n", linestr(lineno), n)
 			}
 			e.loopdepth++
 		}
 
-		n.Left.Sym.Label = nil
+		n.Sym.Label = nil
 
 	case ORANGE:
 		if n.List.Len() >= 2 {
@@ -873,7 +873,7 @@ opSwitch:
 			// it is also a dereference, because it is implicitly
 			// dereferenced (see #12588)
 			if n.Type.IsArray() &&
-				!(n.Right.Type.IsPtr() && eqtype(n.Right.Type.Elem(), n.Type)) {
+				!(n.Right.Type.IsPtr() && types.Identical(n.Right.Type.Elem(), n.Type)) {
 				e.escassignWhyWhere(n.List.Second(), n.Right, "range", n)
 			} else {
 				e.escassignDereference(n.List.Second(), n.Right, e.stepAssignWhere(n.List.Second(), n.Right, "range-deref", n))
@@ -946,7 +946,8 @@ opSwitch:
 	case OCALLMETH, OCALLFUNC, OCALLINTER:
 		e.esccall(n, parent)
 
-		// esccall already done on n.Rlist.First(). tie it's Retval to n.List
+		// esccall already done on n.Rlist.First()
+		// tie its Retval to n.List
 	case OAS2FUNC: // x,y = f()
 		rs := e.nodeEscState(n.Rlist.First()).Retval.Slice()
 		where := n
@@ -1507,7 +1508,7 @@ func (e *EscState) addDereference(n *Node) *Node {
 	e.nodeEscState(ind).Loopdepth = e.nodeEscState(n).Loopdepth
 	ind.Pos = n.Pos
 	t := n.Type
-	if t.IsKind(types.Tptr) || t.IsSlice() {
+	if t.IsPtr() || t.IsSlice() {
 		// This should model our own sloppy use of OIND to encode
 		// decreasing levels of indirection; i.e., "indirecting" a slice
 		// yields the type of an element.

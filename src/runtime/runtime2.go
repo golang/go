@@ -417,6 +417,7 @@ type m struct {
 	caughtsig     guintptr // goroutine running during fatal signal
 	p             puintptr // attached p for executing go code (nil if not executing go code)
 	nextp         puintptr
+	oldp          puintptr // the p that was attached before executing a syscall
 	id            int64
 	mallocing     int32
 	throwing      int32
@@ -424,7 +425,6 @@ type m struct {
 	locks         int32
 	dying         int32
 	profilehz     int32
-	helpgc        int32
 	spinning      bool // m is out of work and is actively looking for work
 	blocked       bool // m is blocked on a note
 	inwb          bool // m is executing a write barrier
@@ -580,6 +580,18 @@ type schedt struct {
 	runq     gQueue
 	runqsize int32
 
+	// disable controls selective disabling of the scheduler.
+	//
+	// Use schedEnableUser to control this.
+	//
+	// disable is protected by sched.lock.
+	disable struct {
+		// user disables scheduling of user goroutines.
+		user     bool
+		runnable gQueue // pending runnable Gs
+		n        int32  // length of runnable
+	}
+
 	// Global cache of dead G's.
 	gFree struct {
 		lock    mutex
@@ -639,14 +651,16 @@ type _func struct {
 	entry   uintptr // start pc
 	nameoff int32   // function name
 
-	args   int32  // in/out args size
-	funcID funcID // set for certain special runtime functions
+	args        int32  // in/out args size
+	deferreturn uint32 // offset of a deferreturn block from entry, if any.
 
 	pcsp      int32
 	pcfile    int32
 	pcln      int32
 	npcdata   int32
-	nfuncdata int32
+	funcID    funcID  // set for certain special runtime functions
+	_         [2]int8 // unused
+	nfuncdata uint8   // must be last
 }
 
 // layout of Itab known to compilers
@@ -843,12 +857,6 @@ var (
 	processorVersionInfo uint32
 	isIntel              bool
 	lfenceBeforeRdtsc    bool
-
-	// Set in runtime.cpuinit.
-	// TODO: deprecate these; use internal/cpu directly.
-	support_popcnt        bool
-	support_sse41         bool
-	arm64_support_atomics bool
 
 	goarm                uint8 // set by cmd/link on arm systems
 	framepointer_enabled bool  // set by cmd/link

@@ -12,6 +12,7 @@ import (
 	"go/doc"
 	"go/format"
 	"go/parser"
+	"go/printer"
 	"go/token"
 	"io"
 	"log"
@@ -29,15 +30,18 @@ const (
 )
 
 type Package struct {
-	writer   io.Writer    // Destination for output.
-	name     string       // Package name, json for encoding/json.
-	userPath string       // String the user used to find this package.
-	pkg      *ast.Package // Parsed package.
-	file     *ast.File    // Merged from all files in the package
-	doc      *doc.Package
-	build    *build.Package
-	fs       *token.FileSet // Needed for printing.
-	buf      bytes.Buffer
+	writer               io.Writer    // Destination for output.
+	name                 string       // Package name, json for encoding/json.
+	userPath             string       // String the user used to find this package.
+	pkg                  *ast.Package // Parsed package.
+	file                 *ast.File    // Merged from all files in the package
+	doc                  *doc.Package
+	build                *build.Package
+	typedValue           map[*doc.Value]bool // Consts and vars related to types.
+	constructor          map[*doc.Func]bool  // Constructors.
+	packageClausePrinted bool                // Prevent repeated package clauses.
+	fs                   *token.FileSet      // Needed for printing.
+	buf                  bytes.Buffer
 }
 
 type PackageError string // type returned by pkg.Fatalf.
@@ -137,22 +141,43 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
 	// from finding the symbol. Work around this for now, but we
 	// should fix it in go/doc.
 	// A similar story applies to factory functions.
-	docPkg := doc.New(astPkg, pkg.ImportPath, doc.AllDecls)
+	mode := doc.AllDecls
+	if showSrc {
+		mode |= doc.PreserveAST // See comment for Package.emit.
+	}
+	docPkg := doc.New(astPkg, pkg.ImportPath, mode)
+	typedValue := make(map[*doc.Value]bool)
+	constructor := make(map[*doc.Func]bool)
 	for _, typ := range docPkg.Types {
 		docPkg.Consts = append(docPkg.Consts, typ.Consts...)
+		for _, value := range typ.Consts {
+			typedValue[value] = true
+		}
 		docPkg.Vars = append(docPkg.Vars, typ.Vars...)
+		for _, value := range typ.Vars {
+			typedValue[value] = true
+		}
 		docPkg.Funcs = append(docPkg.Funcs, typ.Funcs...)
+		for _, fun := range typ.Funcs {
+			// We don't count it as a constructor bound to the type
+			// if the type itself is not exported.
+			if isExported(typ.Name) {
+				constructor[fun] = true
+			}
+		}
 	}
 
 	return &Package{
-		writer:   writer,
-		name:     pkg.Name,
-		userPath: userPath,
-		pkg:      astPkg,
-		file:     ast.MergePackageFiles(astPkg, 0),
-		doc:      docPkg,
-		build:    pkg,
-		fs:       fs,
+		writer:      writer,
+		name:        pkg.Name,
+		userPath:    userPath,
+		pkg:         astPkg,
+		file:        ast.MergePackageFiles(astPkg, 0),
+		doc:         docPkg,
+		typedValue:  typedValue,
+		constructor: constructor,
+		build:       pkg,
+		fs:          fs,
 	}
 }
 
@@ -177,14 +202,24 @@ func (pkg *Package) newlines(n int) {
 	}
 }
 
-// emit prints the node.
+// emit prints the node. If showSrc is true, it ignores the provided comment,
+// assuming the comment is in the node itself. Otherwise, the go/doc package
+// clears the stuff we don't want to print anyway. It's a bit of a magic trick.
 func (pkg *Package) emit(comment string, node ast.Node) {
 	if node != nil {
-		err := format.Node(&pkg.buf, pkg.fs, node)
+		var arg interface{} = node
+		if showSrc {
+			// Need an extra little dance to get internal comments to appear.
+			arg = &printer.CommentedNode{
+				Node:     node,
+				Comments: pkg.file.Comments,
+			}
+		}
+		err := format.Node(&pkg.buf, pkg.fs, arg)
 		if err != nil {
 			log.Fatal(err)
 		}
-		if comment != "" {
+		if comment != "" && !showSrc {
 			pkg.newlines(1)
 			doc.ToText(&pkg.buf, comment, "    ", indent, indentedWidth)
 			pkg.newlines(2) // Blank line after comment to separate from next item.
@@ -384,6 +419,69 @@ func joinStrings(ss []string) string {
 	return strings.Join(ss, ", ")
 }
 
+// allDoc prints all the docs for the package.
+func (pkg *Package) allDoc() {
+	defer pkg.flush()
+	if pkg.showInternals() {
+		pkg.packageClause(false)
+	}
+
+	doc.ToText(&pkg.buf, pkg.doc.Doc, "", indent, indentedWidth)
+	pkg.newlines(1)
+
+	printed := make(map[*ast.GenDecl]bool)
+
+	hdr := ""
+	printHdr := func(s string) {
+		if hdr != s {
+			pkg.Printf("\n%s\n\n", s)
+			hdr = s
+		}
+	}
+
+	// Constants.
+	for _, value := range pkg.doc.Consts {
+		// Constants and variables come in groups, and valueDoc prints
+		// all the items in the group. We only need to find one exported symbol.
+		for _, name := range value.Names {
+			if isExported(name) && !pkg.typedValue[value] {
+				printHdr("CONSTANTS")
+				pkg.valueDoc(value, printed)
+				break
+			}
+		}
+	}
+
+	// Variables.
+	for _, value := range pkg.doc.Vars {
+		// Constants and variables come in groups, and valueDoc prints
+		// all the items in the group. We only need to find one exported symbol.
+		for _, name := range value.Names {
+			if isExported(name) && !pkg.typedValue[value] {
+				printHdr("VARIABLES")
+				pkg.valueDoc(value, printed)
+				break
+			}
+		}
+	}
+
+	// Functions.
+	for _, fun := range pkg.doc.Funcs {
+		if isExported(fun.Name) && !pkg.constructor[fun] {
+			printHdr("FUNCTIONS")
+			pkg.emit(fun.Doc, fun.Decl)
+		}
+	}
+
+	// Types.
+	for _, typ := range pkg.doc.Types {
+		if isExported(typ.Name) {
+			printHdr("TYPES")
+			pkg.typeDoc(typ)
+		}
+	}
+}
+
 // packageDoc prints the docs for the package (package doc plus one-liners of the rest).
 func (pkg *Package) packageDoc() {
 	defer pkg.flush()
@@ -420,6 +518,10 @@ func (pkg *Package) showInternals() bool {
 // user's argument is identical to the actual package path or
 // is empty, meaning it's the current directory.
 func (pkg *Package) packageClause(checkUserPath bool) {
+	if pkg.packageClausePrinted {
+		return
+	}
+
 	if checkUserPath {
 		if pkg.userPath == "" || pkg.userPath == pkg.build.ImportPath {
 			return
@@ -457,6 +559,7 @@ func (pkg *Package) packageClause(checkUserPath bool) {
 	if !usingModules && importPath != pkg.build.ImportPath {
 		pkg.Printf("WARNING: package source is installed in %q\n", pkg.build.ImportPath)
 	}
+	pkg.packageClausePrinted = true
 }
 
 // valueSummary prints a one-line summary for each set of values and constants.
@@ -491,22 +594,10 @@ func (pkg *Package) valueSummary(values []*doc.Value, showGrouped bool) {
 // funcSummary prints a one-line summary for each function. Constructors
 // are printed by typeSummary, below, and so can be suppressed here.
 func (pkg *Package) funcSummary(funcs []*doc.Func, showConstructors bool) {
-	// First, identify the constructors. Don't bother figuring out if they're exported.
-	var isConstructor map[*doc.Func]bool
-	if !showConstructors {
-		isConstructor = make(map[*doc.Func]bool)
-		for _, typ := range pkg.doc.Types {
-			if isExported(typ.Name) {
-				for _, f := range typ.Funcs {
-					isConstructor[f] = true
-				}
-			}
-		}
-	}
 	for _, fun := range funcs {
 		// Exported functions only. The go/doc package does not include methods here.
 		if isExported(fun.Name) {
-			if !isConstructor[fun] {
+			if showConstructors || !pkg.constructor[fun] {
 				pkg.Printf("%s\n", pkg.oneLineNode(fun.Decl))
 			}
 		}
@@ -611,7 +702,6 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 		}
 		// Symbol is a function.
 		decl := fun.Decl
-		decl.Body = nil
 		pkg.emit(fun.Doc, decl)
 		found = true
 	}
@@ -624,71 +714,12 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 	// So we remember which declarations we've printed to avoid duplication.
 	printed := make(map[*ast.GenDecl]bool)
 	for _, value := range values {
-		// Print each spec only if there is at least one exported symbol in it.
-		// (See issue 11008.)
-		// TODO: Should we elide unexported symbols from a single spec?
-		// It's an unlikely scenario, probably not worth the trouble.
-		// TODO: Would be nice if go/doc did this for us.
-		specs := make([]ast.Spec, 0, len(value.Decl.Specs))
-		var typ ast.Expr
-		for _, spec := range value.Decl.Specs {
-			vspec := spec.(*ast.ValueSpec)
-
-			// The type name may carry over from a previous specification in the
-			// case of constants and iota.
-			if vspec.Type != nil {
-				typ = vspec.Type
-			}
-
-			for _, ident := range vspec.Names {
-				if isExported(ident.Name) {
-					if vspec.Type == nil && vspec.Values == nil && typ != nil {
-						// This a standalone identifier, as in the case of iota usage.
-						// Thus, assume the type comes from the previous type.
-						vspec.Type = &ast.Ident{
-							Name:    pkg.oneLineNode(typ),
-							NamePos: vspec.End() - 1,
-						}
-					}
-
-					specs = append(specs, vspec)
-					typ = nil // Only inject type on first exported identifier
-					break
-				}
-			}
-		}
-		if len(specs) == 0 || printed[value.Decl] {
-			continue
-		}
-		value.Decl.Specs = specs
-		if !found {
-			pkg.packageClause(true)
-		}
-		pkg.emit(value.Doc, value.Decl)
-		printed[value.Decl] = true
+		pkg.valueDoc(value, printed)
 		found = true
 	}
 	// Types.
 	for _, typ := range pkg.findTypes(symbol) {
-		if !found {
-			pkg.packageClause(true)
-		}
-		decl := typ.Decl
-		spec := pkg.findTypeSpec(decl, typ.Name)
-		trimUnexportedElems(spec)
-		// If there are multiple types defined, reduce to just this one.
-		if len(decl.Specs) > 1 {
-			decl.Specs = []ast.Spec{spec}
-		}
-		pkg.emit(typ.Doc, decl)
-		// Show associated methods, constants, etc.
-		if len(typ.Consts) > 0 || len(typ.Vars) > 0 || len(typ.Funcs) > 0 || len(typ.Methods) > 0 {
-			pkg.Printf("\n")
-		}
-		pkg.valueSummary(typ.Consts, true)
-		pkg.valueSummary(typ.Vars, true)
-		pkg.funcSummary(typ.Funcs, true)
-		pkg.funcSummary(typ.Methods, true)
+		pkg.typeDoc(typ)
 		found = true
 	}
 	if !found {
@@ -700,10 +731,98 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 	return true
 }
 
+// valueDoc prints the docs for a constant or variable.
+func (pkg *Package) valueDoc(value *doc.Value, printed map[*ast.GenDecl]bool) {
+	if printed[value.Decl] {
+		return
+	}
+	// Print each spec only if there is at least one exported symbol in it.
+	// (See issue 11008.)
+	// TODO: Should we elide unexported symbols from a single spec?
+	// It's an unlikely scenario, probably not worth the trouble.
+	// TODO: Would be nice if go/doc did this for us.
+	specs := make([]ast.Spec, 0, len(value.Decl.Specs))
+	var typ ast.Expr
+	for _, spec := range value.Decl.Specs {
+		vspec := spec.(*ast.ValueSpec)
+
+		// The type name may carry over from a previous specification in the
+		// case of constants and iota.
+		if vspec.Type != nil {
+			typ = vspec.Type
+		}
+
+		for _, ident := range vspec.Names {
+			if showSrc || isExported(ident.Name) {
+				if vspec.Type == nil && vspec.Values == nil && typ != nil {
+					// This a standalone identifier, as in the case of iota usage.
+					// Thus, assume the type comes from the previous type.
+					vspec.Type = &ast.Ident{
+						Name:    pkg.oneLineNode(typ),
+						NamePos: vspec.End() - 1,
+					}
+				}
+
+				specs = append(specs, vspec)
+				typ = nil // Only inject type on first exported identifier
+				break
+			}
+		}
+	}
+	if len(specs) == 0 {
+		return
+	}
+	value.Decl.Specs = specs
+	pkg.emit(value.Doc, value.Decl)
+	printed[value.Decl] = true
+}
+
+// typeDoc prints the docs for a type, including constructors and other items
+// related to it.
+func (pkg *Package) typeDoc(typ *doc.Type) {
+	decl := typ.Decl
+	spec := pkg.findTypeSpec(decl, typ.Name)
+	trimUnexportedElems(spec)
+	// If there are multiple types defined, reduce to just this one.
+	if len(decl.Specs) > 1 {
+		decl.Specs = []ast.Spec{spec}
+	}
+	pkg.emit(typ.Doc, decl)
+	pkg.newlines(2)
+	// Show associated methods, constants, etc.
+	if showAll {
+		printed := make(map[*ast.GenDecl]bool)
+		// We can use append here to print consts, then vars. Ditto for funcs and methods.
+		values := typ.Consts
+		values = append(values, typ.Vars...)
+		for _, value := range values {
+			for _, name := range value.Names {
+				if isExported(name) {
+					pkg.valueDoc(value, printed)
+					break
+				}
+			}
+		}
+		funcs := typ.Funcs
+		funcs = append(funcs, typ.Methods...)
+		for _, fun := range funcs {
+			if isExported(fun.Name) {
+				pkg.emit(fun.Doc, fun.Decl)
+			}
+		}
+	} else {
+		pkg.valueSummary(typ.Consts, true)
+		pkg.valueSummary(typ.Vars, true)
+		pkg.funcSummary(typ.Funcs, true)
+		pkg.funcSummary(typ.Methods, true)
+	}
+}
+
 // trimUnexportedElems modifies spec in place to elide unexported fields from
-// structs and methods from interfaces (unless the unexported flag is set).
+// structs and methods from interfaces (unless the unexported flag is set or we
+// are asked to show the original source).
 func trimUnexportedElems(spec *ast.TypeSpec) {
-	if unexported {
+	if unexported || showSrc {
 		return
 	}
 	switch typ := spec.Type.(type) {
@@ -808,7 +927,6 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
 			for _, meth := range typ.Methods {
 				if match(method, meth.Name) {
 					decl := meth.Decl
-					decl.Body = nil
 					pkg.emit(meth.Doc, decl)
 					found = true
 				}

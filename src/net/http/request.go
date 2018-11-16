@@ -53,8 +53,9 @@ var (
 	// available.
 	ErrNotSupported = &ProtocolError{"feature not supported"}
 
-	// ErrUnexpectedTrailer is returned by the Transport when a server
-	// replies with a Trailer header, but without a chunked reply.
+	// Deprecated: ErrUnexpectedTrailer is no longer returned by
+	// anything in the net/http package. Callers should not
+	// compare errors against this variable.
 	ErrUnexpectedTrailer = &ProtocolError{"trailer header without chunked transfer encoding"}
 
 	// ErrMissingBoundary is returned by Request.MultipartReader when the
@@ -545,6 +546,9 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	} else if r.Method == "CONNECT" && r.URL.Path == "" {
 		// CONNECT requests normally give just the host and port, not a full URL.
 		ruri = host
+		if r.URL.Opaque != "" {
+			ruri = r.URL.Opaque
+		}
 	}
 	// TODO(bradfitz): escape at least newlines in ruri?
 
@@ -575,7 +579,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	// Use the defaultUserAgent unless the Header contains one, which
 	// may be blank to not send the header.
 	userAgent := defaultUserAgent
-	if _, ok := r.Header["User-Agent"]; ok {
+	if r.Header.has("User-Agent") {
 		userAgent = r.Header.Get("User-Agent")
 	}
 	if userAgent != "" {
@@ -1341,6 +1345,12 @@ func (r *Request) isReplayable() bool {
 		case "GET", "HEAD", "OPTIONS", "TRACE":
 			return true
 		}
+		// The Idempotency-Key, while non-standard, is widely used to
+		// mean a POST or other request is idempotent. See
+		// https://golang.org/issue/19943#issuecomment-421092421
+		if r.Header.has("Idempotency-Key") || r.Header.has("X-Idempotency-Key") {
+			return true
+		}
 	}
 	return false
 }
@@ -1370,4 +1380,11 @@ func requestMethodUsuallyLacksBody(method string) bool {
 		return true
 	}
 	return false
+}
+
+// requiresHTTP1 reports whether this request requires being sent on
+// an HTTP/1 connection.
+func (r *Request) requiresHTTP1() bool {
+	return hasToken(r.Header.Get("Connection"), "upgrade") &&
+		strings.EqualFold(r.Header.Get("Upgrade"), "websocket")
 }

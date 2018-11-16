@@ -8,10 +8,12 @@ import "container/heap"
 
 const (
 	ScorePhi = iota // towards top of block
+	ScoreArg
 	ScoreNilCheck
 	ScoreReadTuple
 	ScoreVarDef
 	ScoreMemory
+	ScoreReadFlags
 	ScoreDefault
 	ScoreFlags
 	ScoreControl // towards bottom of block
@@ -113,6 +115,9 @@ func schedule(f *Func) {
 			case v.Op == OpVarDef:
 				// We want all the vardefs next.
 				score[v.ID] = ScoreVarDef
+			case v.Op == OpArg:
+				// We want all the args as early as possible, for better debugging.
+				score[v.ID] = ScoreArg
 			case v.Type.IsMemory():
 				// Schedule stores as early as possible. This tends to
 				// reduce register pressure. It also helps make sure
@@ -125,13 +130,19 @@ func schedule(f *Func) {
 				// false dependency on the other part of the tuple.
 				// Also ensures tuple is never spilled.
 				score[v.ID] = ScoreReadTuple
-			case v.Type.IsFlags() || v.Type.IsTuple():
+			case v.Type.IsFlags() || v.Type.IsTuple() && v.Type.FieldType(1).IsFlags():
 				// Schedule flag register generation as late as possible.
 				// This makes sure that we only have one live flags
 				// value at a time.
 				score[v.ID] = ScoreFlags
 			default:
 				score[v.ID] = ScoreDefault
+				// If we're reading flags, schedule earlier to keep flag lifetime short.
+				for _, a := range v.Args {
+					if a.Type.IsFlags() {
+						score[v.ID] = ScoreReadFlags
+					}
+				}
 			}
 		}
 	}

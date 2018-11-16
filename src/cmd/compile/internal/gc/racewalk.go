@@ -32,7 +32,15 @@ import (
 
 // Do not instrument the following packages at all,
 // at best instrumentation would cause infinite recursion.
-var omit_pkgs = []string{"runtime/internal/atomic", "runtime/internal/sys", "runtime", "runtime/race", "runtime/msan", "internal/cpu"}
+var omit_pkgs = []string{
+	"runtime/internal/atomic",
+	"runtime/internal/sys",
+	"runtime/internal/math",
+	"runtime",
+	"runtime/race",
+	"runtime/msan",
+	"internal/cpu",
+}
 
 // Only insert racefuncenterfp/racefuncexit into the following packages.
 // Memory accesses in the packages are either uninteresting or will cause false positives.
@@ -63,14 +71,14 @@ func instrument(fn *Node) {
 		lno := lineno
 		lineno = src.NoXPos
 
-		if thearch.LinkArch.Arch == sys.ArchPPC64LE {
+		if thearch.LinkArch.Arch.Family != sys.AMD64 {
 			fn.Func.Enter.Prepend(mkcall("racefuncenterfp", nil, nil))
 			fn.Func.Exit.Append(mkcall("racefuncexit", nil, nil))
 		} else {
 
 			// nodpc is the PC of the caller as extracted by
 			// getcallerpc. We use -widthptr(FP) for x86.
-			// BUG: This only works for amd64. This will not
+			// This only works for amd64. This will not
 			// work on arm or others that might support
 			// race in the future.
 			nodpc := nodfp.copy()

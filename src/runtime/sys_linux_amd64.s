@@ -608,7 +608,7 @@ TEXT runtime·settls(SB),NOSPLIT,$32
 	// Same as in sys_darwin_386.s:/ugliness, different constant.
 	// DI currently holds m->tls, which must be fs:0x1d0.
 	// See cgo/gcc_android_amd64.c for the derivation of the constant.
-	SUBQ	$0x1d0, DI  // In android, the tls base 
+	SUBQ	$0x1d0, DI  // In android, the tls base
 #else
 	ADDQ	$8, DI	// ELF wants to use -8(FS)
 #endif

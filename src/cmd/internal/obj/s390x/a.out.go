@@ -945,6 +945,9 @@ const (
 	AVUPLHW
 	AVUPLF
 	AVMSLG
+	AVMSLEG
+	AVMSLOG
+	AVMSLEOG
 
 	// binary
 	ABYTE

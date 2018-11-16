@@ -50,10 +50,14 @@ body {
     font-family: Arial, sans-serif;
 }
 
+h1 {
+    font-size: 18px;
+    display: inline-block;
+    margin: 0 1em .5em 0;
+}
+
 #helplink {
-    margin-bottom: 15px;
-    display: block;
-    margin-top: -15px;
+    display: inline-block;
 }
 
 #help {
@@ -107,6 +111,12 @@ td.collapsed  div {
 code, pre, .lines, .ast {
     font-family: Menlo, monospace;
     font-size: 12px;
+}
+
+pre {
+    -moz-tab-size: 4;
+    -o-tab-size:   4;
+    tab-size:      4;
 }
 
 .allow-x-scroll {

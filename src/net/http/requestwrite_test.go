@@ -512,6 +512,70 @@ var reqWriteTests = []reqWriteTest{
 			"User-Agent: Go-http-client/1.1\r\n" +
 			"\r\n",
 	},
+
+	// CONNECT without Opaque
+	21: {
+		Req: Request{
+			Method: "CONNECT",
+			URL: &url.URL{
+				Scheme: "https", // of proxy.com
+				Host:   "proxy.com",
+			},
+		},
+		// What we used to do, locking that behavior in:
+		WantWrite: "CONNECT proxy.com HTTP/1.1\r\n" +
+			"Host: proxy.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"\r\n",
+	},
+
+	// CONNECT with Opaque
+	22: {
+		Req: Request{
+			Method: "CONNECT",
+			URL: &url.URL{
+				Scheme: "https", // of proxy.com
+				Host:   "proxy.com",
+				Opaque: "backend:443",
+			},
+		},
+		WantWrite: "CONNECT backend:443 HTTP/1.1\r\n" +
+			"Host: proxy.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"\r\n",
+	},
+
+	// Verify that a nil header value doesn't get written.
+	23: {
+		Req: Request{
+			Method: "GET",
+			URL:    mustParseURL("/foo"),
+			Header: Header{
+				"X-Foo":             []string{"X-Bar"},
+				"X-Idempotency-Key": nil,
+			},
+		},
+
+		WantWrite: "GET /foo HTTP/1.1\r\n" +
+			"Host: \r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"X-Foo: X-Bar\r\n\r\n",
+	},
+	24: {
+		Req: Request{
+			Method: "GET",
+			URL:    mustParseURL("/foo"),
+			Header: Header{
+				"X-Foo":             []string{"X-Bar"},
+				"X-Idempotency-Key": []string{},
+			},
+		},
+
+		WantWrite: "GET /foo HTTP/1.1\r\n" +
+			"Host: \r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"X-Foo: X-Bar\r\n\r\n",
+	},
 }
 
 func TestRequestWrite(t *testing.T) {

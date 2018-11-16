@@ -6,6 +6,7 @@ package fmt
 
 import (
 	"errors"
+	"internal/fmtsort"
 	"io"
 	"os"
 	"reflect"
@@ -487,7 +488,7 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
 			p.buf.WriteByte(']')
 		}
 	case 's':
-		p.fmt.fmtS(string(v))
+		p.fmt.fmtBs(v)
 	case 'x':
 		p.fmt.fmtBx(v, ldigits)
 	case 'X':
@@ -753,8 +754,8 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 		} else {
 			p.buf.WriteString(mapString)
 		}
-		iter := f.MapRange()
-		for i := 0; iter.Next(); i++ {
+		sorted := fmtsort.Sort(f)
+		for i, key := range sorted.Key {
 			if i > 0 {
 				if p.fmt.sharpV {
 					p.buf.WriteString(commaSpaceString)
@@ -762,9 +763,9 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 					p.buf.WriteByte(' ')
 				}
 			}
-			p.printValue(iter.Key(), verb, depth+1)
+			p.printValue(key, verb, depth+1)
 			p.buf.WriteByte(':')
-			p.printValue(iter.Value(), verb, depth+1)
+			p.printValue(sorted.Value[i], verb, depth+1)
 		}
 		if p.fmt.sharpV {
 			p.buf.WriteByte('}')

@@ -9,7 +9,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
-	
+
 TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$0
 	MOVQ addr+0(FP), DI		// arg 1 - ptr
 	MOVL val+8(FP), SI		// arg 2 - value

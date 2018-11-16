@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"cmd/internal/xcoff"
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
@@ -14,7 +15,9 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -243,7 +246,22 @@ func (p *Package) writeDefs() {
 
 	init := gccgoInit.String()
 	if init != "" {
-		fmt.Fprintln(fc, "static void init(void) __attribute__ ((constructor));")
+		// The init function does nothing but simple
+		// assignments, so it won't use much stack space, so
+		// it's OK to not split the stack. Splitting the stack
+		// can run into a bug in clang (as of 2018-11-09):
+		// this is a leaf function, and when clang sees a leaf
+		// function it won't emit the split stack prologue for
+		// the function. However, if this function refers to a
+		// non-split-stack function, which will happen if the
+		// cgo code refers to a C function not compiled with
+		// -fsplit-stack, then the linker will think that it
+		// needs to adjust the split stack prologue, but there
+		// won't be one. Marking the function explicitly
+		// no_split_stack works around this problem by telling
+		// the linker that it's OK if there is no split stack
+		// prologue.
+		fmt.Fprintln(fc, "static void init(void) __attribute__ ((constructor, no_split_stack));")
 		fmt.Fprintln(fc, "static void init(void) {")
 		fmt.Fprint(fc, init)
 		fmt.Fprintln(fc, "}")
@@ -312,7 +330,25 @@ func dynimport(obj string) {
 		return
 	}
 
-	fatalf("cannot parse %s as ELF, Mach-O or PE", obj)
+	if f, err := xcoff.Open(obj); err == nil {
+		sym, err := f.ImportedSymbols()
+		if err != nil {
+			fatalf("cannot load imported symbols from XCOFF file %s: %v", obj, err)
+		}
+		for _, s := range sym {
+			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s.Name, s.Name, s.Library)
+		}
+		lib, err := f.ImportedLibraries()
+		if err != nil {
+			fatalf("cannot load imported libraries from XCOFF file %s: %v", obj, err)
+		}
+		for _, l := range lib {
+			fmt.Fprintf(stdout, "//go:cgo_import_dynamic _ _ %q\n", l)
+		}
+		return
+	}
+
+	fatalf("cannot parse %s as ELF, Mach-O, PE or XCOFF", obj)
 }
 
 // Construct a gcc struct matching the gc argument frame.
@@ -1167,12 +1203,91 @@ func (p *Package) writeExportHeader(fgcch io.Writer) {
 	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
 }
 
-// Return the package prefix when using gccgo.
-func (p *Package) gccgoSymbolPrefix() string {
-	if !*gccgo {
-		return ""
+// gccgoUsesNewMangling returns whether gccgo uses the new collision-free
+// packagepath mangling scheme (see determineGccgoManglingScheme for more
+// info).
+func gccgoUsesNewMangling() bool {
+	if !gccgoMangleCheckDone {
+		gccgoNewmanglingInEffect = determineGccgoManglingScheme()
+		gccgoMangleCheckDone = true
+	}
+	return gccgoNewmanglingInEffect
+}
+
+const mangleCheckCode = `
+package läufer
+func Run(x int) int {
+  return 1
+}
+`
+
+// determineGccgoManglingScheme performs a runtime test to see which
+// flavor of packagepath mangling gccgo is using. Older versions of
+// gccgo use a simple mangling scheme where there can be collisions
+// between packages whose paths are different but mangle to the same
+// string. More recent versions of gccgo use a new mangler that avoids
+// these collisions. Return value is whether gccgo uses the new mangling.
+func determineGccgoManglingScheme() bool {
+
+	// Emit a small Go file for gccgo to compile.
+	filepat := "*_gccgo_manglecheck.go"
+	var f *os.File
+	var err error
+	if f, err = ioutil.TempFile(*objDir, filepat); err != nil {
+		fatalf("%v", err)
+	}
+	gofilename := f.Name()
+	defer os.Remove(gofilename)
+
+	if err = ioutil.WriteFile(gofilename, []byte(mangleCheckCode), 0666); err != nil {
+		fatalf("%v", err)
 	}
 
+	// Compile with gccgo, capturing generated assembly.
+	gccgocmd := os.Getenv("GCCGO")
+	if gccgocmd == "" {
+		gpath, gerr := exec.LookPath("gccgo")
+		if gerr != nil {
+			fatalf("unable to locate gccgo: %v", gerr)
+		}
+		gccgocmd = gpath
+	}
+	cmd := exec.Command(gccgocmd, "-S", "-o", "-", gofilename)
+	buf, cerr := cmd.CombinedOutput()
+	if cerr != nil {
+		fatalf("%s", err)
+	}
+
+	// New mangling: expect go.l..u00e4ufer.Run
+	// Old mangling: expect go.l__ufer.Run
+	return regexp.MustCompile(`go\.l\.\.u00e4ufer\.Run`).Match(buf)
+}
+
+// gccgoPkgpathToSymbolNew converts a package path to a gccgo-style
+// package symbol.
+func gccgoPkgpathToSymbolNew(ppath string) string {
+	bsl := []byte{}
+	changed := false
+	for _, c := range []byte(ppath) {
+		switch {
+		case 'A' <= c && c <= 'Z', 'a' <= c && c <= 'z',
+			'0' <= c && c <= '9', c == '_', c == '.':
+			bsl = append(bsl, c)
+		default:
+			changed = true
+			encbytes := []byte(fmt.Sprintf("..z%02x", c))
+			bsl = append(bsl, encbytes...)
+		}
+	}
+	if !changed {
+		return ppath
+	}
+	return string(bsl)
+}
+
+// gccgoPkgpathToSymbolOld converts a package path to a gccgo-style
+// package symbol using the older mangling scheme.
+func gccgoPkgpathToSymbolOld(ppath string) string {
 	clean := func(r rune) rune {
 		switch {
 		case 'A' <= r && r <= 'Z', 'a' <= r && r <= 'z',
@@ -1181,14 +1296,32 @@ func (p *Package) gccgoSymbolPrefix() string {
 		}
 		return '_'
 	}
+	return strings.Map(clean, ppath)
+}
+
+// gccgoPkgpathToSymbol converts a package path to a mangled packagepath
+// symbol.
+func gccgoPkgpathToSymbol(ppath string) string {
+	if gccgoUsesNewMangling() {
+		return gccgoPkgpathToSymbolNew(ppath)
+	} else {
+		return gccgoPkgpathToSymbolOld(ppath)
+	}
+}
+
+// Return the package prefix when using gccgo.
+func (p *Package) gccgoSymbolPrefix() string {
+	if !*gccgo {
+		return ""
+	}
 
 	if *gccgopkgpath != "" {
-		return strings.Map(clean, *gccgopkgpath)
+		return gccgoPkgpathToSymbol(*gccgopkgpath)
 	}
 	if *gccgoprefix == "" && p.PackageName == "main" {
 		return "main"
 	}
-	prefix := strings.Map(clean, *gccgoprefix)
+	prefix := gccgoPkgpathToSymbol(*gccgoprefix)
 	if prefix == "" {
 		prefix = "go"
 	}

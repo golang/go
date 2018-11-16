@@ -41,7 +41,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 	}
 	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 4) {
-			if *(*uint32)(k) == key && b.tophash[i] != empty {
+			if *(*uint32)(k) == key && !isEmpty(b.tophash[i]) {
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
 			}
 		}
@@ -81,7 +81,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 	}
 	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 4) {
-			if *(*uint32)(k) == key && b.tophash[i] != empty {
+			if *(*uint32)(k) == key && !isEmpty(b.tophash[i]) {
 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize)), true
 			}
 		}
@@ -120,12 +120,16 @@ again:
 	var inserti uintptr
 	var insertk unsafe.Pointer
 
+bucketloop:
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			if b.tophash[i] == empty {
+			if isEmpty(b.tophash[i]) {
 				if insertb == nil {
 					inserti = i
 					insertb = b
+				}
+				if b.tophash[i] == emptyRest {
+					break bucketloop
 				}
 				continue
 			}
@@ -206,12 +210,16 @@ again:
 	var inserti uintptr
 	var insertk unsafe.Pointer
 
+bucketloop:
 	for {
 		for i := uintptr(0); i < bucketCnt; i++ {
-			if b.tophash[i] == empty {
+			if isEmpty(b.tophash[i]) {
 				if insertb == nil {
 					inserti = i
 					insertb = b
+				}
+				if b.tophash[i] == emptyRest {
+					break bucketloop
 				}
 				continue
 			}
@@ -283,10 +291,11 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
 		growWork_fast32(t, h, bucket)
 	}
 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+	bOrig := b
 search:
 	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 4) {
-			if key != *(*uint32)(k) || b.tophash[i] == empty {
+			if key != *(*uint32)(k) || isEmpty(b.tophash[i]) {
 				continue
 			}
 			// Only clear key if there are pointers in it.
@@ -299,7 +308,37 @@ search:
 			} else {
 				memclrNoHeapPointers(v, t.elem.size)
 			}
-			b.tophash[i] = empty
+			b.tophash[i] = emptyOne
+			// If the bucket now ends in a bunch of emptyOne states,
+			// change those to emptyRest states.
+			if i == bucketCnt-1 {
+				if b.overflow(t) != nil && b.overflow(t).tophash[0] != emptyRest {
+					goto notLast
+				}
+			} else {
+				if b.tophash[i+1] != emptyRest {
+					goto notLast
+				}
+			}
+			for {
+				b.tophash[i] = emptyRest
+				if i == 0 {
+					if b == bOrig {
+						break // beginning of initial bucket, we're done.
+					}
+					// Find previous bucket, continue at its last entry.
+					c := b
+					for b = bOrig; b.overflow(t) != c; b = b.overflow(t) {
+					}
+					i = bucketCnt - 1
+				} else {
+					i--
+				}
+				if b.tophash[i] != emptyOne {
+					break
+				}
+			}
+		notLast:
 			h.count--
 			break search
 		}
@@ -350,7 +389,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
 			v := add(k, bucketCnt*4)
 			for i := 0; i < bucketCnt; i, k, v = i+1, add(k, 4), add(v, uintptr(t.valuesize)) {
 				top := b.tophash[i]
-				if top == empty {
+				if isEmpty(top) {
 					b.tophash[i] = evacuatedEmpty
 					continue
 				}

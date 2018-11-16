@@ -397,6 +397,9 @@ func ModuleUsedDirectly(path string) bool {
 // Lookup requires that one of the Load functions in this package has already
 // been called.
 func Lookup(path string) (dir, realPath string, err error) {
+	if path == "" {
+		panic("Lookup called with empty package path")
+	}
 	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
 	if !ok {
 		// The loader should have found all the relevant paths.

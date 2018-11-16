@@ -12,7 +12,34 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"sync"
+	"unsafe"
+)
+
+const (
+	_SYS_FSTAT_FREEBSD12         = 551 // { int fstat(int fd, _Out_ struct stat *sb); }
+	_SYS_FSTATAT_FREEBSD12       = 552 // { int fstatat(int fd, _In_z_ char *path, \
+	_SYS_GETDIRENTRIES_FREEBSD12 = 554 // { ssize_t getdirentries(int fd, \
+	_SYS_STATFS_FREEBSD12        = 555 // { int statfs(_In_z_ char *path, \
+	_SYS_FSTATFS_FREEBSD12       = 556 // { int fstatfs(int fd, \
+	_SYS_GETFSSTAT_FREEBSD12     = 557 // { int getfsstat( \
+	_SYS_MKNODAT_FREEBSD12       = 559 // { int mknodat(int fd, _In_z_ char *path, \
+)
+
+// See https://www.freebsd.org/doc/en_US.ISO8859-1/books/porters-handbook/versions.html.
+var (
+	osreldateOnce sync.Once
+	osreldate     uint32
+)
+
+// INO64_FIRST from /usr/src/lib/libc/sys/compat-ino64.h
+const _ino64First = 1200031
+
+func supportsABI(ver uint32) bool {
+	osreldateOnce.Do(func() { osreldate, _ = SysctlUint32("kern.osreldate") })
+	return osreldate >= ver
+}
 
 type SockaddrDatalink struct {
 	Len    uint8
@@ -113,16 +140,38 @@ func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
 }
 
 func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
-	var _p0 unsafe.Pointer
-	var bufsize uintptr
+	var (
+		_p0          unsafe.Pointer
+		bufsize      uintptr
+		oldBuf       []statfs_freebsd11_t
+		needsConvert bool
+	)
+
 	if len(buf) > 0 {
-		_p0 = unsafe.Pointer(&buf[0])
-		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+		if supportsABI(_ino64First) {
+			_p0 = unsafe.Pointer(&buf[0])
+			bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+		} else {
+			n := len(buf)
+			oldBuf = make([]statfs_freebsd11_t, n)
+			_p0 = unsafe.Pointer(&oldBuf[0])
+			bufsize = unsafe.Sizeof(statfs_freebsd11_t{}) * uintptr(n)
+			needsConvert = true
+		}
 	}
-	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
+	var sysno uintptr = SYS_GETFSSTAT
+	if supportsABI(_ino64First) {
+		sysno = _SYS_GETFSSTAT_FREEBSD12
+	}
+	r0, _, e1 := Syscall(sysno, uintptr(_p0), bufsize, uintptr(flags))
 	n = int(r0)
 	if e1 != 0 {
 		err = e1
+	}
+	if e1 == 0 && needsConvert {
+		for i := range oldBuf {
+			buf[i].convertFrom(&oldBuf[i])
+		}
 	}
 	return
 }
@@ -130,6 +179,221 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 func setattrlistTimes(path string, times []Timespec) error {
 	// used on Darwin for UtimesNano
 	return ENOSYS
+}
+
+func Stat(path string, st *Stat_t) (err error) {
+	var oldStat stat_freebsd11_t
+	if supportsABI(_ino64First) {
+		return fstatat_freebsd12(_AT_FDCWD, path, st, 0)
+	}
+	err = stat(path, &oldStat)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStat)
+	return nil
+}
+
+func Lstat(path string, st *Stat_t) (err error) {
+	var oldStat stat_freebsd11_t
+	if supportsABI(_ino64First) {
+		return fstatat_freebsd12(_AT_FDCWD, path, st, _AT_SYMLINK_NOFOLLOW)
+	}
+	err = lstat(path, &oldStat)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStat)
+	return nil
+}
+
+func Fstat(fd int, st *Stat_t) (err error) {
+	var oldStat stat_freebsd11_t
+	if supportsABI(_ino64First) {
+		return fstat_freebsd12(fd, st)
+	}
+	err = fstat(fd, &oldStat)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStat)
+	return nil
+}
+
+func Fstatat(fd int, path string, st *Stat_t, flags int) (err error) {
+	var oldStat stat_freebsd11_t
+	if supportsABI(_ino64First) {
+		return fstatat_freebsd12(fd, path, st, flags)
+	}
+	err = fstatat(fd, path, &oldStat, flags)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStat)
+	return nil
+}
+
+func Statfs(path string, st *Statfs_t) (err error) {
+	var oldStatfs statfs_freebsd11_t
+	if supportsABI(_ino64First) {
+		return statfs_freebsd12(path, st)
+	}
+	err = statfs(path, &oldStatfs)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStatfs)
+	return nil
+}
+
+func Fstatfs(fd int, st *Statfs_t) (err error) {
+	var oldStatfs statfs_freebsd11_t
+	if supportsABI(_ino64First) {
+		return fstatfs_freebsd12(fd, st)
+	}
+	err = fstatfs(fd, &oldStatfs)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStatfs)
+	return nil
+}
+
+func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+	if supportsABI(_ino64First) {
+		return getdirentries_freebsd12(fd, buf, basep)
+	}
+
+	// The old syscall entries are smaller than the new. Use 1/4 of the original
+	// buffer size rounded up to DIRBLKSIZ (see /usr/src/lib/libc/sys/getdirentries.c).
+	oldBufLen := roundup(len(buf)/4, _dirblksiz)
+	oldBuf := make([]byte, oldBufLen)
+	n, err = getdirentries(fd, oldBuf, basep)
+	if err == nil && n > 0 {
+		n = convertFromDirents11(buf, oldBuf[:n])
+	}
+	return
+}
+
+func Mknod(path string, mode uint32, dev uint64) (err error) {
+	var oldDev int
+	if supportsABI(_ino64First) {
+		return mknodat_freebsd12(_AT_FDCWD, path, mode, dev)
+	}
+	oldDev = int(dev)
+	return mknod(path, mode, oldDev)
+}
+
+// round x to the nearest multiple of y, larger or equal to x.
+//
+// from /usr/include/sys/param.h Macros for counting and rounding.
+// #define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
+func roundup(x, y int) int {
+	return ((x + y - 1) / y) * y
+}
+
+func (s *Stat_t) convertFrom(old *stat_freebsd11_t) {
+	*s = Stat_t{
+		Dev:      uint64(old.Dev),
+		Ino:      uint64(old.Ino),
+		Nlink:    uint64(old.Nlink),
+		Mode:     old.Mode,
+		Uid:      old.Uid,
+		Gid:      old.Gid,
+		Rdev:     uint64(old.Rdev),
+		Atim:     old.Atim,
+		Mtim:     old.Mtim,
+		Ctim:     old.Ctim,
+		Birthtim: old.Birthtim,
+		Size:     old.Size,
+		Blocks:   old.Blocks,
+		Blksize:  old.Blksize,
+		Flags:    old.Flags,
+		Gen:      uint64(old.Gen),
+	}
+}
+
+func (s *Statfs_t) convertFrom(old *statfs_freebsd11_t) {
+	*s = Statfs_t{
+		Version:     _statfsVersion,
+		Type:        old.Type,
+		Flags:       old.Flags,
+		Bsize:       old.Bsize,
+		Iosize:      old.Iosize,
+		Blocks:      old.Blocks,
+		Bfree:       old.Bfree,
+		Bavail:      old.Bavail,
+		Files:       old.Files,
+		Ffree:       old.Ffree,
+		Syncwrites:  old.Syncwrites,
+		Asyncwrites: old.Asyncwrites,
+		Syncreads:   old.Syncreads,
+		Asyncreads:  old.Asyncreads,
+		// Spare
+		Namemax: old.Namemax,
+		Owner:   old.Owner,
+		Fsid:    old.Fsid,
+		// Charspare
+		// Fstypename
+		// Mntfromname
+		// Mntonname
+	}
+
+	sl := old.Fstypename[:]
+	n := clen(*(*[]byte)(unsafe.Pointer(&sl)))
+	copy(s.Fstypename[:], old.Fstypename[:n])
+
+	sl = old.Mntfromname[:]
+	n = clen(*(*[]byte)(unsafe.Pointer(&sl)))
+	copy(s.Mntfromname[:], old.Mntfromname[:n])
+
+	sl = old.Mntonname[:]
+	n = clen(*(*[]byte)(unsafe.Pointer(&sl)))
+	copy(s.Mntonname[:], old.Mntonname[:n])
+}
+
+func convertFromDirents11(buf []byte, old []byte) int {
+	const (
+		fixedSize    = int(unsafe.Offsetof(Dirent{}.Name))
+		oldFixedSize = int(unsafe.Offsetof(dirent_freebsd11{}.Name))
+	)
+
+	dstPos := 0
+	srcPos := 0
+	for dstPos+fixedSize < len(buf) && srcPos+oldFixedSize < len(old) {
+		dstDirent := (*Dirent)(unsafe.Pointer(&buf[dstPos]))
+		srcDirent := (*dirent_freebsd11)(unsafe.Pointer(&old[srcPos]))
+
+		reclen := roundup(fixedSize+int(srcDirent.Namlen)+1, 8)
+		if dstPos+reclen > len(buf) {
+			break
+		}
+
+		dstDirent.Fileno = uint64(srcDirent.Fileno)
+		dstDirent.Off = 0
+		dstDirent.Reclen = uint16(reclen)
+		dstDirent.Type = srcDirent.Type
+		dstDirent.Pad0 = 0
+		dstDirent.Namlen = uint16(srcDirent.Namlen)
+		dstDirent.Pad1 = 0
+
+		copy(dstDirent.Name[:], srcDirent.Name[:srcDirent.Namlen])
+		padding := buf[dstPos+fixedSize+int(dstDirent.Namlen) : dstPos+reclen]
+		for i := range padding {
+			padding[i] = 0
+		}
+
+		dstPos += int(dstDirent.Reclen)
+		srcPos += int(srcDirent.Reclen)
+	}
+
+	return dstPos
 }
 
 /*
@@ -151,11 +415,16 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Flock(fd int, how int) (err error)
 //sys	Fpathconf(fd int, name int) (val int, err error)
-//sys	Fstat(fd int, stat *Stat_t) (err error)
-//sys	Fstatfs(fd int, stat *Statfs_t) (err error)
+//sys	fstat(fd int, stat *stat_freebsd11_t) (err error)
+//sys	fstat_freebsd12(fd int, stat *Stat_t) (err error) = _SYS_FSTAT_FREEBSD12
+//sys	fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error)
+//sys	fstatat_freebsd12(fd int, path string, stat *Stat_t, flags int) (err error) = _SYS_FSTATAT_FREEBSD12
+//sys	fstatfs(fd int, stat *statfs_freebsd11_t) (err error)
+//sys	fstatfs_freebsd12(fd int, stat *Statfs_t) (err error) = _SYS_FSTATFS_FREEBSD12
 //sys	Fsync(fd int) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
-//sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error)
+//sys	getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error)
+//sys	getdirentries_freebsd12(fd int, buf []byte, basep *uintptr) (n int, err error) = _SYS_GETDIRENTRIES_FREEBSD12
 //sys	Getdtablesize() (size int)
 //sysnb	Getegid() (egid int)
 //sysnb	Geteuid() (uid int)
@@ -176,10 +445,11 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	Lchown(path string, uid int, gid int) (err error)
 //sys	Link(path string, link string) (err error)
 //sys	Listen(s int, backlog int) (err error)
-//sys	Lstat(path string, stat *Stat_t) (err error)
+//sys	lstat(path string, stat *stat_freebsd11_t) (err error)
 //sys	Mkdir(path string, mode uint32) (err error)
 //sys	Mkfifo(path string, mode uint32) (err error)
-//sys	Mknod(path string, mode uint32, dev int) (err error)
+//sys	mknod(path string, mode uint32, dev int) (err error)
+//sys	mknodat_freebsd12(fd int, path string, mode uint32, dev uint64) (err error) = _SYS_MKNODAT_FREEBSD12
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
@@ -204,8 +474,9 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
-//sys	Stat(path string, stat *Stat_t) (err error)
-//sys	Statfs(path string, stat *Statfs_t) (err error)
+//sys	stat(path string, stat *stat_freebsd11_t) (err error)
+//sys	statfs(path string, stat *statfs_freebsd11_t) (err error)
+//sys	statfs_freebsd12(path string, stat *Statfs_t) (err error) = _SYS_STATFS_FREEBSD12
 //sys	Symlink(path string, link string) (err error)
 //sys	Sync() (err error)
 //sys	Truncate(path string, length int64) (err error)
@@ -221,3 +492,4 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
 //sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL

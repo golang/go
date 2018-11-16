@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -67,17 +68,17 @@ func testOpenSSLVersion() {
 	}
 
 	version := string(output)
-	if strings.HasPrefix(version, "OpenSSL 1.1.0") {
+	if strings.HasPrefix(version, "OpenSSL 1.1.1") {
 		return
 	}
 
 	println("***********************************************")
 	println("")
-	println("You need to build OpenSSL 1.1.0 from source in order")
+	println("You need to build OpenSSL 1.1.1 from source in order")
 	println("to update the test data.")
 	println("")
 	println("Configure it with:")
-	println("./Configure enable-weak-ssl-ciphers enable-ssl3 enable-ssl3-method -static linux-x86_64")
+	println("./Configure enable-weak-ssl-ciphers enable-ssl3 enable-ssl3-method")
 	println("and then add the apps/ directory at the front of your PATH.")
 	println("***********************************************")
 
@@ -223,4 +224,46 @@ func tempFile(contents string) string {
 	file.WriteString(contents)
 	file.Close()
 	return path
+}
+
+// localListener is set up by TestMain and used by localPipe to create Conn
+// pairs like net.Pipe, but connected by an actual buffered TCP connection.
+var localListener struct {
+	sync.Mutex
+	net.Listener
+}
+
+func localPipe(t testing.TB) (net.Conn, net.Conn) {
+	localListener.Lock()
+	defer localListener.Unlock()
+	c := make(chan net.Conn)
+	go func() {
+		conn, err := localListener.Accept()
+		if err != nil {
+			t.Errorf("Failed to accept local connection: %v", err)
+		}
+		c <- conn
+	}()
+	addr := localListener.Addr()
+	c1, err := net.Dial(addr.Network(), addr.String())
+	if err != nil {
+		t.Fatalf("Failed to dial local connection: %v", err)
+	}
+	c2 := <-c
+	return c1, c2
+}
+
+func TestMain(m *testing.M) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		l, err = net.Listen("tcp6", "[::1]:0")
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to open local listener: %v", err)
+		os.Exit(1)
+	}
+	localListener.Listener = l
+	exitCode := m.Run()
+	localListener.Close()
+	os.Exit(exitCode)
 }

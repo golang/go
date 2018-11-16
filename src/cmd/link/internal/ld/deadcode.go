@@ -60,8 +60,8 @@ func deadcode(ctxt *Link) {
 	d.init()
 	d.flood()
 
-	callSym := ctxt.Syms.ROLookup("reflect.Value.Call", 0)
-	methSym := ctxt.Syms.ROLookup("reflect.Value.Method", 0)
+	callSym := ctxt.Syms.ROLookup("reflect.Value.Call", sym.SymVerABIInternal)
+	methSym := ctxt.Syms.ROLookup("reflect.Value.Method", sym.SymVerABIInternal)
 	reflectSeen := false
 
 	if ctxt.DynlinkingGo() {
@@ -257,7 +257,10 @@ func (d *deadcodepass) init() {
 	}
 
 	for _, name := range names {
+		// Mark symbol as an data/ABI0 symbol.
 		d.mark(d.ctxt.Syms.ROLookup(name, 0), nil)
+		// Also mark any Go functions (internal ABI).
+		d.mark(d.ctxt.Syms.ROLookup(name, sym.SymVerABIInternal), nil)
 	}
 }
 
@@ -307,6 +310,11 @@ func (d *deadcodepass) flood() {
 				// enough to mark the pointed-to symbol as
 				// reachable.
 				continue
+			}
+			if r.Sym.Type == sym.SABIALIAS {
+				// Patch this relocation through the
+				// ABI alias before marking.
+				r.Sym = resolveABIAlias(r.Sym)
 			}
 			if r.Type != objabi.R_METHODOFF {
 				d.mark(r.Sym, s)

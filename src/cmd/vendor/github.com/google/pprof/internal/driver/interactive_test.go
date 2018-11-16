@@ -23,6 +23,7 @@ import (
 	"github.com/google/pprof/internal/plugin"
 	"github.com/google/pprof/internal/proftest"
 	"github.com/google/pprof/internal/report"
+	"github.com/google/pprof/internal/transport"
 	"github.com/google/pprof/profile"
 )
 
@@ -41,7 +42,10 @@ func TestShell(t *testing.T) {
 
 	// Random interleave of independent scripts
 	pprofVariables = testVariables(savedVariables)
-	o := setDefaults(nil)
+
+	// pass in HTTPTransport when setting defaults, because otherwise default
+	// transport will try to add flags to the default flag set.
+	o := setDefaults(&plugin.Options{HTTPTransport: transport.New(nil)})
 	o.UI = newUI(t, interleave(script, 0))
 	if err := interactive(p, o); err != nil {
 		t.Error("first attempt:", err)
@@ -259,12 +263,13 @@ func TestInteractiveCommands(t *testing.T) {
 		{
 			"weblist  find -test",
 			map[string]string{
-				"functions":        "false",
-				"addressnoinlines": "true",
-				"nodecount":        "0",
-				"cum":              "false",
-				"flat":             "true",
-				"ignore":           "test",
+				"functions": "false",
+				"addresses": "true",
+				"noinlines": "true",
+				"nodecount": "0",
+				"cum":       "false",
+				"flat":      "true",
+				"ignore":    "test",
 			},
 		},
 		{

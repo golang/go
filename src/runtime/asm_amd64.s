@@ -92,7 +92,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	ANDQ	$~15, SP
 	MOVQ	AX, 16(SP)
 	MOVQ	BX, 24(SP)
-	
+
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
 	MOVQ	$runtime·g0(SB), DI
@@ -273,7 +273,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
 // to keep running g.
 TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	MOVQ	fn+0(FP), DI
-	
+
 	get_tls(CX)
 	MOVQ	g(CX), AX	// save state in g->sched
 	MOVQ	0(SP), BX	// caller's PC
@@ -448,9 +448,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 	JMP	AX
 // Note: can't just "JMP NAME(SB)" - bad inlining results.
 
-TEXT reflect·call(SB), NOSPLIT, $0-0
-	JMP	·reflectcall(SB)
-
 TEXT ·reflectcall(SB), NOSPLIT, $0-32
 	MOVLQZX argsize+24(FP), CX
 	DISPATCH(runtime·call32, 32)
@@ -617,7 +614,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVQ	m_gsignal(R8), SI
 	CMPQ	SI, DI
 	JEQ	nosave
-	
+
 	// Switch to system stack.
 	MOVQ	m_g0(R8), SI
 	CALL	gosave<>(SB)
@@ -717,7 +714,7 @@ needm:
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	g_m(BX), BX
-	
+
 	// Set m->sched.sp = SP, so that if a panic happens
 	// during the function we are about to execute, it will
 	// have a valid SP to run on the g0 stack.
@@ -801,7 +798,7 @@ havem:
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
 	MOVQ	0(SP), AX
 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
-	
+
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
 	CMPQ	R8, $0
@@ -953,7 +950,7 @@ aes17to32:
 	// make second starting seed
 	PXOR	runtime·aeskeysched+16(SB), X1
 	AESENC	X1, X1
-	
+
 	// load data to be hashed
 	MOVOU	(AX), X2
 	MOVOU	-16(AX)(CX*1), X3
@@ -985,7 +982,7 @@ aes33to64:
 	AESENC	X1, X1
 	AESENC	X2, X2
 	AESENC	X3, X3
-	
+
 	MOVOU	(AX), X4
 	MOVOU	16(AX), X5
 	MOVOU	-32(AX)(CX*1), X6
@@ -995,17 +992,17 @@ aes33to64:
 	PXOR	X1, X5
 	PXOR	X2, X6
 	PXOR	X3, X7
-	
+
 	AESENC	X4, X4
 	AESENC	X5, X5
 	AESENC	X6, X6
 	AESENC	X7, X7
-	
+
 	AESENC	X4, X4
 	AESENC	X5, X5
 	AESENC	X6, X6
 	AESENC	X7, X7
-	
+
 	AESENC	X4, X4
 	AESENC	X5, X5
 	AESENC	X6, X6
@@ -1121,7 +1118,7 @@ aes129plus:
 	AESENC	X5, X5
 	AESENC	X6, X6
 	AESENC	X7, X7
-	
+
 	// start with last (possibly overlapping) block
 	MOVOU	-128(AX)(CX*1), X8
 	MOVOU	-112(AX)(CX*1), X9
@@ -1141,11 +1138,11 @@ aes129plus:
 	PXOR	X5, X13
 	PXOR	X6, X14
 	PXOR	X7, X15
-	
+
 	// compute number of remaining 128-byte blocks
 	DECQ	CX
 	SHRQ	$7, CX
-	
+
 aesloop:
 	// scramble state
 	AESENC	X8, X8

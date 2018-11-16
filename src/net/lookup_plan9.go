@@ -176,7 +176,7 @@ loop:
 	return
 }
 
-func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+func (r *Resolver) lookupIP(ctx context.Context, _, host string) (addrs []IPAddr, err error) {
 	lits, err := r.lookupHost(ctx, host)
 	if err != nil {
 		return

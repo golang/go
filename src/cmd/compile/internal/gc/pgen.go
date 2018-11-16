@@ -198,6 +198,8 @@ func funccompile(fn *Node) {
 	dowidth(fn.Type)
 
 	if fn.Nbody.Len() == 0 {
+		// Initialize ABI wrappers if necessary.
+		fn.Func.initLSym(false)
 		emitptrargsmap(fn)
 		return
 	}
@@ -231,7 +233,27 @@ func compile(fn *Node) {
 	Curfn = nil
 
 	// Set up the function's LSym early to avoid data races with the assemblers.
-	fn.Func.initLSym()
+	fn.Func.initLSym(true)
+
+	// Make sure type syms are declared for all types that might
+	// be types of stack objects. We need to do this here
+	// because symbols must be allocated before the parallel
+	// phase of the compiler.
+	if fn.Func.lsym != nil { // not func _(){}
+		for _, n := range fn.Func.Dcl {
+			switch n.Class() {
+			case PPARAM, PPARAMOUT, PAUTO:
+				if livenessShouldTrack(n) && n.Addrtaken() {
+					dtypesym(n.Type)
+					// Also make sure we allocate a linker symbol
+					// for the stack object data, for the same reason.
+					if fn.Func.lsym.Func.StackObjects == nil {
+						fn.Func.lsym.Func.StackObjects = lookup(fmt.Sprintf("%s.stkobj", fn.funcname())).Linksym()
+					}
+				}
+			}
+		}
+	}
 
 	if compilenow() {
 		compileSSA(fn, 0)
@@ -259,7 +281,7 @@ func compileSSA(fn *Node, worker int) {
 	// Note: check arg size to fix issue 25507.
 	if f.Frontend().(*ssafn).stksize >= maxStackSize || fn.Type.ArgWidth() >= maxStackSize {
 		largeStackFramesMu.Lock()
-		largeStackFrames = append(largeStackFrames, fn.Pos)
+		largeStackFrames = append(largeStackFrames, largeStack{locals: f.Frontend().(*ssafn).stksize, args: fn.Type.ArgWidth(), pos: fn.Pos})
 		largeStackFramesMu.Unlock()
 		return
 	}
@@ -274,7 +296,8 @@ func compileSSA(fn *Node, worker int) {
 	// the assembler may emit inscrutable complaints about invalid instructions.
 	if pp.Text.To.Offset >= maxStackSize {
 		largeStackFramesMu.Lock()
-		largeStackFrames = append(largeStackFrames, fn.Pos)
+		locals := f.Frontend().(*ssafn).stksize
+		largeStackFrames = append(largeStackFrames, largeStack{locals: locals, args: fn.Type.ArgWidth(), callee: pp.Text.To.Offset - locals, pos: fn.Pos})
 		largeStackFramesMu.Unlock()
 		return
 	}

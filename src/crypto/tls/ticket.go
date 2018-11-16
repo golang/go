@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
+	"golang_org/x/crypto/cryptobyte"
 	"io"
 )
 
@@ -25,31 +26,6 @@ type sessionState struct {
 	// usedOldKey is true if the ticket from which this session came from
 	// was encrypted with an older key and thus should be refreshed.
 	usedOldKey bool
-}
-
-func (s *sessionState) equal(i interface{}) bool {
-	s1, ok := i.(*sessionState)
-	if !ok {
-		return false
-	}
-
-	if s.vers != s1.vers ||
-		s.cipherSuite != s1.cipherSuite ||
-		!bytes.Equal(s.masterSecret, s1.masterSecret) {
-		return false
-	}
-
-	if len(s.certificates) != len(s1.certificates) {
-		return false
-	}
-
-	for i := range s.certificates {
-		if !bytes.Equal(s.certificates[i], s1.certificates[i]) {
-			return false
-		}
-	}
-
-	return true
 }
 
 func (s *sessionState) marshal() []byte {
@@ -129,9 +105,50 @@ func (s *sessionState) unmarshal(data []byte) bool {
 	return len(data) == 0
 }
 
-func (c *Conn) encryptTicket(state *sessionState) ([]byte, error) {
-	serialized := state.marshal()
-	encrypted := make([]byte, ticketKeyNameLen+aes.BlockSize+len(serialized)+sha256.Size)
+// sessionStateTLS13 is the content of a TLS 1.3 session ticket. Its first
+// version (revision = 0) doesn't carry any of the information needed for 0-RTT
+// validation and the nonce is always empty.
+type sessionStateTLS13 struct {
+	// uint8 version  = 0x0304;
+	// uint8 revision = 0;
+	cipherSuite      uint16
+	createdAt        uint64
+	resumptionSecret []byte      // opaque resumption_master_secret<1..2^8-1>;
+	certificate      Certificate // CertificateEntry certificate_list<0..2^24-1>;
+}
+
+func (m *sessionStateTLS13) marshal() []byte {
+	var b cryptobyte.Builder
+	b.AddUint16(VersionTLS13)
+	b.AddUint8(0) // revision
+	b.AddUint16(m.cipherSuite)
+	addUint64(&b, m.createdAt)
+	b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
+		b.AddBytes(m.resumptionSecret)
+	})
+	marshalCertificate(&b, m.certificate)
+	return b.BytesOrPanic()
+}
+
+func (m *sessionStateTLS13) unmarshal(data []byte) bool {
+	*m = sessionStateTLS13{}
+	s := cryptobyte.String(data)
+	var version uint16
+	var revision uint8
+	return s.ReadUint16(&version) &&
+		version == VersionTLS13 &&
+		s.ReadUint8(&revision) &&
+		revision == 0 &&
+		s.ReadUint16(&m.cipherSuite) &&
+		readUint64(&s, &m.createdAt) &&
+		readUint8LengthPrefixed(&s, &m.resumptionSecret) &&
+		len(m.resumptionSecret) != 0 &&
+		unmarshalCertificate(&s, &m.certificate) &&
+		s.Empty()
+}
+
+func (c *Conn) encryptTicket(state []byte) ([]byte, error) {
+	encrypted := make([]byte, ticketKeyNameLen+aes.BlockSize+len(state)+sha256.Size)
 	keyName := encrypted[:ticketKeyNameLen]
 	iv := encrypted[ticketKeyNameLen : ticketKeyNameLen+aes.BlockSize]
 	macBytes := encrypted[len(encrypted)-sha256.Size:]
@@ -145,7 +162,7 @@ func (c *Conn) encryptTicket(state *sessionState) ([]byte, error) {
 	if err != nil {
 		return nil, errors.New("tls: failed to create cipher while encrypting ticket: " + err.Error())
 	}
-	cipher.NewCTR(block, iv).XORKeyStream(encrypted[ticketKeyNameLen+aes.BlockSize:], serialized)
+	cipher.NewCTR(block, iv).XORKeyStream(encrypted[ticketKeyNameLen+aes.BlockSize:], state)
 
 	mac := hmac.New(sha256.New, key.hmacKey[:])
 	mac.Write(encrypted[:len(encrypted)-sha256.Size])
@@ -154,15 +171,15 @@ func (c *Conn) encryptTicket(state *sessionState) ([]byte, error) {
 	return encrypted, nil
 }
 
-func (c *Conn) decryptTicket(encrypted []byte) (*sessionState, bool) {
-	if c.config.SessionTicketsDisabled ||
-		len(encrypted) < ticketKeyNameLen+aes.BlockSize+sha256.Size {
+func (c *Conn) decryptTicket(encrypted []byte) (plaintext []byte, usedOldKey bool) {
+	if len(encrypted) < ticketKeyNameLen+aes.BlockSize+sha256.Size {
 		return nil, false
 	}
 
 	keyName := encrypted[:ticketKeyNameLen]
 	iv := encrypted[ticketKeyNameLen : ticketKeyNameLen+aes.BlockSize]
 	macBytes := encrypted[len(encrypted)-sha256.Size:]
+	ciphertext := encrypted[ticketKeyNameLen+aes.BlockSize : len(encrypted)-sha256.Size]
 
 	keys := c.config.ticketKeys()
 	keyIndex := -1
@@ -190,11 +207,8 @@ func (c *Conn) decryptTicket(encrypted []byte) (*sessionState, bool) {
 	if err != nil {
 		return nil, false
 	}
-	ciphertext := encrypted[ticketKeyNameLen+aes.BlockSize : len(encrypted)-sha256.Size]
-	plaintext := ciphertext
+	plaintext = make([]byte, len(ciphertext))
 	cipher.NewCTR(block, iv).XORKeyStream(plaintext, ciphertext)
 
-	state := &sessionState{usedOldKey: keyIndex > 0}
-	ok := state.unmarshal(plaintext)
-	return state, ok
+	return plaintext, keyIndex > 0
 }

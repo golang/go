@@ -150,31 +150,6 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 			}
 
 		case *TypeName:
-			// fixFor26390 enables a temporary work-around to handle alias type names
-			// that have not been given a type yet even though the underlying type
-			// is already known. See testdata/issue26390.src for a simple example.
-			// Set this flag to false to disable this code quickly (and comment
-			// out the new test in decls4.src that will fail again).
-			// TODO(gri) remove this for Go 1.12 in favor of a more comprehensive fix
-			const fixFor26390 = true
-			if fixFor26390 {
-				// If we have a package-level alias type name that has not been
-				// given a type yet but the underlying type is a type name that
-				// has been given a type already, don't report a cycle but use
-				// the underlying type name's type instead. The cycle shouldn't
-				// exist in the first place in this case and is due to the way
-				// methods are type-checked at the moment. See also the comment
-				// at the end of Checker.typeDecl below.
-				if d := check.objMap[obj]; d != nil && d.alias && obj.typ == Typ[Invalid] {
-					// If we can find the underlying type name syntactically
-					// and it has a type, use that type.
-					if tname := check.resolveBaseTypeName(ast.NewIdent(obj.name)); tname != nil && tname.typ != nil {
-						obj.typ = tname.typ
-						break
-					}
-				}
-			}
-
 			if check.typeCycle(obj) {
 				// break cycle
 				// (without this, calling underlying()
@@ -245,14 +220,6 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 // Indirections are used to break type cycles.
 var indir = NewTypeName(token.NoPos, nil, "*", nil)
 
-// cutCycle is a sentinel type name that is pushed onto the object path
-// to indicate that a cycle doesn't actually exist. This is currently
-// needed to break cycles formed via method declarations because they
-// are type-checked together with their receiver base types. Once methods
-// are type-checked separately (see also TODO in Checker.typeDecl), we
-// can get rid of this.
-var cutCycle = NewTypeName(token.NoPos, nil, "!", nil)
-
 // typeCycle checks if the cycle starting with obj is valid and
 // reports an error if it is not.
 // TODO(gri) rename s/typeCycle/cycle/ once we don't need the other
@@ -293,16 +260,10 @@ func (check *Checker) typeCycle(obj Object) (isCycle bool) {
 		case *Const, *Var:
 			nval++
 		case *TypeName:
-			switch {
-			case obj == indir:
+			if obj == indir {
 				ncycle-- // don't count (indirections are not objects)
 				hasIndir = true
-			case obj == cutCycle:
-				// The cycle is not real and only caused by the fact
-				// that we type-check methods when we type-check their
-				// receiver base types.
-				return false
-			default:
+			} else {
 				// Determine if the type name is an alias or not. For
 				// package-level objects, use the object map which
 				// provides syntactic information (which doesn't rely
@@ -515,11 +476,6 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, alias bo
 
 	}
 
-	// check and add associated methods
-	// TODO(gri) It's easy to create pathological cases where the
-	// current approach is incorrect: In general we need to know
-	// and add all methods _before_ type-checking the type.
-	// See https://play.golang.org/p/WMpE0q2wK8
 	check.addMethodDecls(obj)
 }
 
@@ -559,15 +515,7 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 		}
 	}
 
-	// Suppress detection of type cycles occurring through method
-	// declarations - they wouldn't exist if methods were type-
-	// checked separately from their receiver base types. See also
-	// comment at the end of Checker.typeDecl.
-	// TODO(gri) Remove this once methods are type-checked separately.
-	check.push(cutCycle)
-	defer check.pop()
-
-	// type-check methods
+	// add valid methods
 	for _, m := range methods {
 		// spec: "For a base type, the non-blank names of methods bound
 		// to it must be unique."
@@ -584,9 +532,6 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
 			check.reportAltDecl(alt)
 			continue
 		}
-
-		// type-check
-		check.objDecl(m, nil)
 
 		if base != nil {
 			base.methods = append(base.methods, m)

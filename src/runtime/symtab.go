@@ -348,6 +348,7 @@ const (
 	_FUNCDATA_LocalsPointerMaps = 1
 	_FUNCDATA_InlTree           = 2
 	_FUNCDATA_RegPointerMaps    = 3
+	_FUNCDATA_StackObjects      = 4
 	_ArgsSizeUnknown            = -0x80000000
 )
 
@@ -356,7 +357,7 @@ const (
 // Note that in some situations involving plugins, there may be multiple
 // copies of a particular special runtime function.
 // Note: this list must match the list in cmd/internal/objabi/funcid.go.
-type funcID uint32
+type funcID uint8
 
 const (
 	funcID_normal funcID = iota // not a special function
@@ -697,7 +698,7 @@ func findfunc(pc uintptr) funcInfo {
 }
 
 type pcvalueCache struct {
-	entries [16]pcvalueCacheEnt
+	entries [2][8]pcvalueCacheEnt
 }
 
 type pcvalueCacheEnt struct {
@@ -706,6 +707,14 @@ type pcvalueCacheEnt struct {
 	off      int32
 	// val is the value of this cached pcvalue entry.
 	val int32
+}
+
+// pcvalueCacheKey returns the outermost index in a pcvalueCache to use for targetpc.
+// It must be very cheap to calculate.
+// For now, align to sys.PtrSize and reduce mod the number of entries.
+// In practice, this appears to be fairly randomly and evenly distributed.
+func pcvalueCacheKey(targetpc uintptr) uintptr {
+	return (targetpc / sys.PtrSize) % uintptr(len(pcvalueCache{}.entries))
 }
 
 func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
@@ -720,13 +729,14 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
 	// cheaper than doing the hashing for a less associative
 	// cache.
 	if cache != nil {
-		for i := range cache.entries {
+		x := pcvalueCacheKey(targetpc)
+		for i := range cache.entries[x] {
 			// We check off first because we're more
 			// likely to have multiple entries with
 			// different offsets for the same targetpc
 			// than the other way around, so we'll usually
 			// fail in the first clause.
-			ent := &cache.entries[i]
+			ent := &cache.entries[x][i]
 			if ent.off == off && ent.targetpc == targetpc {
 				return ent.val
 			}
@@ -755,9 +765,14 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
 			// replacement prevents a performance cliff if
 			// a recursive stack's cycle is slightly
 			// larger than the cache.
+			// Put the new element at the beginning,
+			// since it is the most likely to be newly used.
 			if cache != nil {
-				ci := fastrandn(uint32(len(cache.entries)))
-				cache.entries[ci] = pcvalueCacheEnt{
+				x := pcvalueCacheKey(targetpc)
+				e := &cache.entries[x]
+				ci := fastrand() % uint32(len(cache.entries[x]))
+				e[ci] = e[0]
+				e[0] = pcvalueCacheEnt{
 					targetpc: targetpc,
 					off:      off,
 					val:      val,
@@ -855,7 +870,7 @@ func pcdatavalue(f funcInfo, table int32, targetpc uintptr, cache *pcvalueCache)
 	return pcvalue(f, off, targetpc, cache, true)
 }
 
-func funcdata(f funcInfo, i int32) unsafe.Pointer {
+func funcdata(f funcInfo, i uint8) unsafe.Pointer {
 	if i < 0 || i >= f.nfuncdata {
 		return nil
 	}

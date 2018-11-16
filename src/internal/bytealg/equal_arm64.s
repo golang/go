@@ -25,27 +25,6 @@ not_equal:
 	MOVB	ZR, ret+48(FP)
 	RET
 
-TEXT bytes·Equal(SB),NOSPLIT,$0-49
-	FUNCDATA $0, ·Equal·args_stackmap(SB)
-	MOVD	a_len+8(FP), R1
-	MOVD	b_len+32(FP), R3
-	CMP	R1, R3
-	// unequal lengths are not equal
-	BNE	not_equal
-	// short path to handle 0-byte case
-	CBZ	R1, equal
-	MOVD	a_base+0(FP), R0
-	MOVD	b_base+24(FP), R2
-	MOVD	$ret+48(FP), R8
-	B	memeqbody<>(SB)
-equal:
-	MOVD	$1, R0
-	MOVB	R0, ret+48(FP)
-	RET
-not_equal:
-	MOVB	ZR, ret+48(FP)
-	RET
-
 // memequal(a, b unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
 	MOVD	size+16(FP), R1

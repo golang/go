@@ -455,9 +455,7 @@ loop:
 	MULL	CX
 	IMULL	$100, DI
 	ADDL	DI, DX
-	// wintime*100 = DX:AX, subtract startNano and return
-	SUBL	runtime·startNano+0(SB), AX
-	SBBL	runtime·startNano+4(SB), DX
+	// wintime*100 = DX:AX
 	MOVL	AX, ret_lo+0(FP)
 	MOVL	DX, ret_hi+4(FP)
 	RET
@@ -482,9 +480,6 @@ loop:
 	IMULL	$100, DI
 	ADDL	DI, DX
 	// w*100 = DX:AX
-	// subtract startNano and save for return
-	SUBL	runtime·startNano+0(SB), AX
-	SBBL	runtime·startNano+4(SB), DX
 	MOVL	AX, mono+12(FP)
 	MOVL	DX, mono+16(FP)
 
@@ -494,13 +489,13 @@ wall:
 	MOVL	(_SYSTEM_TIME+time_hi2), DX
 	CMPL	CX, DX
 	JNE	wall
-	
+
 	// w = DX:AX
 	// convert to Unix epoch (but still 100ns units)
 	#define delta 116444736000000000
 	SUBL	$(delta & 0xFFFFFFFF), AX
 	SBBL $(delta >> 32), DX
-	
+
 	// nano/100 = DX:AX
 	// split into two decimal halves by div 1e9.
 	// (decimal point is two spots over from correct place,
@@ -509,7 +504,7 @@ wall:
 	DIVL	CX
 	MOVL	AX, DI
 	MOVL	DX, SI
-	
+
 	// DI = nano/100/1e9 = nano/1e11 = sec/100, DX = SI = nano/100%1e9
 	// split DX into seconds and nanoseconds by div 1e7 magic multiply.
 	MOVL	DX, AX
@@ -520,7 +515,7 @@ wall:
 	IMULL	$10000000, DX
 	MOVL	SI, CX
 	SUBL	DX, CX
-	
+
 	// DI = sec/100 (still)
 	// BX = (nano/100%1e9)/1e7 = (nano/1e9)%100 = sec%100
 	// CX = (nano/100%1e9)%1e7 = (nano%1e9)/100 = nsec/100

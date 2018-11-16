@@ -39,9 +39,10 @@ type Sym struct {
 const (
 	symOnExportList = 1 << iota // added to exportlist (no need to add again)
 	symUniq
-	symSiggen
-	symAsm
-	symAlgGen
+	symSiggen // type symbol has been generated
+	symAsm    // on asmlist, for writing to -asmhdr
+	symAlgGen // algorithm table has been generated
+	symFunc   // function symbol; uses internal ABI
 )
 
 func (sym *Sym) OnExportList() bool { return sym.flags&symOnExportList != 0 }
@@ -49,12 +50,14 @@ func (sym *Sym) Uniq() bool         { return sym.flags&symUniq != 0 }
 func (sym *Sym) Siggen() bool       { return sym.flags&symSiggen != 0 }
 func (sym *Sym) Asm() bool          { return sym.flags&symAsm != 0 }
 func (sym *Sym) AlgGen() bool       { return sym.flags&symAlgGen != 0 }
+func (sym *Sym) Func() bool         { return sym.flags&symFunc != 0 }
 
 func (sym *Sym) SetOnExportList(b bool) { sym.flags.set(symOnExportList, b) }
 func (sym *Sym) SetUniq(b bool)         { sym.flags.set(symUniq, b) }
 func (sym *Sym) SetSiggen(b bool)       { sym.flags.set(symSiggen, b) }
 func (sym *Sym) SetAsm(b bool)          { sym.flags.set(symAsm, b) }
 func (sym *Sym) SetAlgGen(b bool)       { sym.flags.set(symAlgGen, b) }
+func (sym *Sym) SetFunc(b bool)         { sym.flags.set(symFunc, b) }
 
 func (sym *Sym) IsBlank() bool {
 	return sym != nil && sym.Name == "_"
@@ -73,6 +76,12 @@ func (sym *Sym) LinksymName() string {
 func (sym *Sym) Linksym() *obj.LSym {
 	if sym == nil {
 		return nil
+	}
+	if sym.Func() {
+		// This is a function symbol. Mark it as "internal ABI".
+		return Ctxt.LookupInit(sym.LinksymName(), func(s *obj.LSym) {
+			s.SetABI(obj.ABIInternal)
+		})
 	}
 	return Ctxt.Lookup(sym.LinksymName())
 }

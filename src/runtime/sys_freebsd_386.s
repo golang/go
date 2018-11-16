@@ -9,7 +9,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
-	
+
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
 	MOVL	$454, AX
 	INT	$0x80
@@ -39,7 +39,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 	POPAL
 	get_tls(CX)
 	MOVL	BX, g(CX)
-	
+
 	MOVL	AX, g_m(BX)
 	CALL	runtime·stackcheck(SB)		// smashes AX
 	CALL	runtime·mstart(SB)

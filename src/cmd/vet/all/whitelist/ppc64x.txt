@@ -1,8 +1,5 @@
 // ppc64-specific vet whitelist. See readme.txt for details.
 
-internal/bytealg/compare_ppc64x.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
-internal/bytealg/compare_ppc64x.s: [GOARCH] cannot check cross-package assembly function: cmpstring is in package runtime
-
 runtime/asm_ppc64x.s: [GOARCH] reginit: function reginit missing Go declaration
 runtime/asm_ppc64x.s: [GOARCH] goexit: use of 24(R1) points beyond argument frame
 runtime/asm_ppc64x.s: [GOARCH] addmoduledata: function addmoduledata missing Go declaration

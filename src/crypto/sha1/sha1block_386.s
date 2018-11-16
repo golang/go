@@ -105,7 +105,7 @@ TEXT ·block(SB),NOSPLIT,$92-16
 	MOVL	p_len+8(FP),	DX
 	SHRL	$6,		DX
 	SHLL	$6,		DX
-	
+
 	LEAL	(SI)(DX*1),	DI
 	MOVL	(0*4)(BP),	AX
 	MOVL	(1*4)(BP),	BX
@@ -148,7 +148,7 @@ loop:
 	ROUND1x(DX, BP, AX, BX, CX, 17)
 	ROUND1x(CX, DX, BP, AX, BX, 18)
 	ROUND1x(BX, CX, DX, BP, AX, 19)
-	
+
 	ROUND2(AX, BX, CX, DX, BP, 20)
 	ROUND2(BP, AX, BX, CX, DX, 21)
 	ROUND2(DX, BP, AX, BX, CX, 22)
@@ -169,7 +169,7 @@ loop:
 	ROUND2(DX, BP, AX, BX, CX, 37)
 	ROUND2(CX, DX, BP, AX, BX, 38)
 	ROUND2(BX, CX, DX, BP, AX, 39)
-	
+
 	ROUND3(AX, BX, CX, DX, BP, 40)
 	ROUND3(BP, AX, BX, CX, DX, 41)
 	ROUND3(DX, BP, AX, BX, CX, 42)
@@ -190,7 +190,7 @@ loop:
 	ROUND3(DX, BP, AX, BX, CX, 57)
 	ROUND3(CX, DX, BP, AX, BX, 58)
 	ROUND3(BX, CX, DX, BP, AX, 59)
-	
+
 	ROUND4(AX, BX, CX, DX, BP, 60)
 	ROUND4(BP, AX, BX, CX, DX, 61)
 	ROUND4(DX, BP, AX, BX, CX, 62)

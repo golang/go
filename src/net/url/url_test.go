@@ -590,16 +590,6 @@ var urltests = []URLTest{
 		},
 		"mailto:?subject=hi",
 	},
-	{
-		"https://example.com/search?q=Фотки собак&source=lnms",
-		&URL{
-			Scheme:   "https",
-			Host:     "example.com",
-			Path:     "/search",
-			RawQuery: "q%3D%D0%A4%D0%BE%D1%82%D0%BA%D0%B8+%D1%81%D0%BE%D0%B1%D0%B0%D0%BA%26source%3Dlnms",
-		},
-		"https://example.com/search?q%3D%D0%A4%D0%BE%D1%82%D0%BA%D0%B8+%D1%81%D0%BE%D0%B1%D0%B0%D0%BA%26source%3Dlnms",
-	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -858,18 +848,18 @@ func TestUnescape(t *testing.T) {
 		in := tt.in
 		out := tt.out
 		if strings.Contains(tt.in, "+") {
-			in = strings.Replace(tt.in, "+", "%20", -1)
+			in = strings.ReplaceAll(tt.in, "+", "%20")
 			actual, err := PathUnescape(in)
 			if actual != tt.out || (err != nil) != (tt.err != nil) {
 				t.Errorf("PathUnescape(%q) = %q, %s; want %q, %s", in, actual, err, tt.out, tt.err)
 			}
 			if tt.err == nil {
-				s, err := QueryUnescape(strings.Replace(tt.in, "+", "XXX", -1))
+				s, err := QueryUnescape(strings.ReplaceAll(tt.in, "+", "XXX"))
 				if err != nil {
 					continue
 				}
 				in = tt.in
-				out = strings.Replace(s, "XXX", "+", -1)
+				out = strings.ReplaceAll(s, "XXX", "+")
 			}
 		}
 
@@ -1449,7 +1439,6 @@ func TestParseErrors(t *testing.T) {
 		{"cache_object:foo", true},
 		{"cache_object:foo/bar", true},
 		{"cache_object/:foo/bar", false},
-		{"https://example.com/search?q=Фотки собак&source=lnms", false},
 	}
 	for _, tt := range tests {
 		u, err := Parse(tt.in)

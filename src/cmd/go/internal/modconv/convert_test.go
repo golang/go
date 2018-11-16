@@ -146,7 +146,7 @@ func TestConvertLegacyConfig(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(strings.Replace(tt.path, "/", "_", -1)+"_"+tt.vers, func(t *testing.T) {
+		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"_"+tt.vers, func(t *testing.T) {
 			f, err := modfile.Parse("golden", []byte(tt.gomod), nil)
 			if err != nil {
 				t.Fatal(err)

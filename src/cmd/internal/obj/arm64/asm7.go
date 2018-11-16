@@ -164,6 +164,10 @@ func OPBIT(x uint32) uint32 {
 	return 1<<30 | 0<<29 | 0xD6<<21 | 0<<16 | x<<10
 }
 
+func MOVCONST(d int64, s int, rt int) uint32 {
+	return uint32(((d>>uint(s*16))&0xFFFF)<<5) | uint32(s)&3<<21 | uint32(rt&31)
+}
+
 const (
 	LFROM = 1 << 0
 	LTO   = 1 << 1
@@ -192,9 +196,17 @@ var optab = []Optab{
 	{AADD, C_BITCON, C_RSP, C_NONE, C_RSP, 62, 8, 0, 0, 0},
 	{AADD, C_BITCON, C_NONE, C_NONE, C_RSP, 62, 8, 0, 0, 0},
 	{ACMP, C_BITCON, C_RSP, C_NONE, C_NONE, 62, 8, 0, 0, 0},
-	{AADD, C_VCON, C_RSP, C_NONE, C_RSP, 13, 8, 0, LFROM, 0},
-	{AADD, C_VCON, C_NONE, C_NONE, C_RSP, 13, 8, 0, LFROM, 0},
-	{ACMP, C_VCON, C_REG, C_NONE, C_NONE, 13, 8, 0, LFROM, 0},
+	{AADD, C_ADDCON2, C_RSP, C_NONE, C_RSP, 48, 8, 0, 0, 0},
+	{AADD, C_ADDCON2, C_NONE, C_NONE, C_RSP, 48, 8, 0, 0, 0},
+	{AADD, C_MOVCON2, C_RSP, C_NONE, C_RSP, 13, 12, 0, 0, 0},
+	{AADD, C_MOVCON2, C_NONE, C_NONE, C_RSP, 13, 12, 0, 0, 0},
+	{AADD, C_MOVCON3, C_RSP, C_NONE, C_RSP, 13, 16, 0, 0, 0},
+	{AADD, C_MOVCON3, C_NONE, C_NONE, C_RSP, 13, 16, 0, 0, 0},
+	{AADD, C_VCON, C_RSP, C_NONE, C_RSP, 13, 20, 0, 0, 0},
+	{AADD, C_VCON, C_NONE, C_NONE, C_RSP, 13, 20, 0, 0, 0},
+	{ACMP, C_MOVCON2, C_REG, C_NONE, C_NONE, 13, 12, 0, 0, 0},
+	{ACMP, C_MOVCON3, C_REG, C_NONE, C_NONE, 13, 16, 0, 0, 0},
+	{ACMP, C_VCON, C_REG, C_NONE, C_NONE, 13, 20, 0, 0, 0},
 	{AADD, C_SHIFT, C_REG, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{AADD, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{AMVN, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
@@ -249,11 +261,21 @@ var optab = []Optab{
 	{AANDS, C_MOVCON, C_REG, C_NONE, C_REG, 62, 8, 0, 0, 0},
 	{AANDS, C_MOVCON, C_NONE, C_NONE, C_REG, 62, 8, 0, 0, 0},
 	{ATST, C_MOVCON, C_REG, C_NONE, C_NONE, 62, 8, 0, 0, 0},
-	{AAND, C_VCON, C_REG, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
-	{AAND, C_VCON, C_NONE, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
-	{AANDS, C_VCON, C_REG, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
-	{AANDS, C_VCON, C_NONE, C_NONE, C_REG, 28, 8, 0, LFROM, 0},
-	{ATST, C_VCON, C_REG, C_NONE, C_NONE, 28, 8, 0, LFROM, 0},
+	{AAND, C_MOVCON2, C_REG, C_NONE, C_REG, 28, 12, 0, 0, 0},
+	{AAND, C_MOVCON2, C_NONE, C_NONE, C_REG, 28, 12, 0, 0, 0},
+	{AAND, C_MOVCON3, C_REG, C_NONE, C_REG, 28, 16, 0, 0, 0},
+	{AAND, C_MOVCON3, C_NONE, C_NONE, C_REG, 28, 16, 0, 0, 0},
+	{AAND, C_VCON, C_REG, C_NONE, C_REG, 28, 20, 0, 0, 0},
+	{AAND, C_VCON, C_NONE, C_NONE, C_REG, 28, 20, 0, 0, 0},
+	{AANDS, C_MOVCON2, C_REG, C_NONE, C_REG, 28, 12, 0, 0, 0},
+	{AANDS, C_MOVCON2, C_NONE, C_NONE, C_REG, 28, 12, 0, 0, 0},
+	{AANDS, C_MOVCON3, C_REG, C_NONE, C_REG, 28, 16, 0, 0, 0},
+	{AANDS, C_MOVCON3, C_NONE, C_NONE, C_REG, 28, 16, 0, 0, 0},
+	{AANDS, C_VCON, C_REG, C_NONE, C_REG, 28, 20, 0, 0, 0},
+	{AANDS, C_VCON, C_NONE, C_NONE, C_REG, 28, 20, 0, 0, 0},
+	{ATST, C_MOVCON2, C_REG, C_NONE, C_NONE, 28, 12, 0, 0, 0},
+	{ATST, C_MOVCON3, C_REG, C_NONE, C_NONE, 28, 16, 0, 0, 0},
+	{ATST, C_VCON, C_REG, C_NONE, C_NONE, 28, 20, 0, 0, 0},
 	{AAND, C_SHIFT, C_REG, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{AAND, C_SHIFT, C_NONE, C_NONE, C_REG, 3, 4, 0, 0, 0},
 	{AANDS, C_SHIFT, C_REG, C_NONE, C_REG, 3, 4, 0, 0, 0},
@@ -270,12 +292,12 @@ var optab = []Optab{
 	/* MOVs that become MOVK/MOVN/MOVZ/ADD/SUB/OR */
 	{AMOVW, C_MOVCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
 	{AMOVD, C_MOVCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
-
-	// TODO: these don't work properly.
-	// { AMOVW,		C_ADDCON,	C_NONE,	C_REG,		2, 4, 0 , 0},
-	// { AMOVD,		C_ADDCON,	C_NONE,	C_REG,		2, 4, 0 , 0},
 	{AMOVW, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
 	{AMOVD, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
+	{AMOVW, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, 0, 0},
+	{AMOVD, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, 0, 0},
+	{AMOVD, C_MOVCON3, C_NONE, C_NONE, C_REG, 12, 12, 0, 0, 0},
+	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 16, 0, 0, 0},
 
 	{AMOVK, C_VCON, C_NONE, C_NONE, C_REG, 33, 4, 0, 0, 0},
 	{AMOVD, C_AACON, C_NONE, C_NONE, C_REG, 4, 4, REGFROM, 0, 0},
@@ -316,9 +338,7 @@ var optab = []Optab{
 	{AWORD, C_NONE, C_NONE, C_NONE, C_LCON, 14, 4, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_NONE, C_LEXT, 14, 4, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_NONE, C_ADDR, 14, 4, 0, 0, 0},
-	{AMOVW, C_VCON, C_NONE, C_NONE, C_REG, 12, 4, 0, LFROM, 0},
 	{AMOVW, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, 0, 0},
-	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 4, 0, LFROM, 0},
 	{AMOVD, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, 0, 0},
 	{AMOVB, C_REG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
 	{AMOVBU, C_REG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
@@ -399,8 +419,8 @@ var optab = []Optab{
 	{AMOVH, C_REG, C_NONE, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
-	{AMOVD, C_REG, C_NONE, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
 	{AMOVD, C_REG, C_NONE, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
+	{AMOVD, C_REG, C_NONE, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
 
 	{AFMOVS, C_FREG, C_NONE, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
 	{AFMOVS, C_FREG, C_NONE, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
@@ -409,15 +429,15 @@ var optab = []Optab{
 
 	/* scaled 12-bit unsigned displacement load */
 	{AMOVB, C_UAUTO4K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVB, C_UOREG4K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVB, C_UOREG4K, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVBU, C_UAUTO4K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVBU, C_UOREG4K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVBU, C_UOREG4K, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVH, C_UAUTO8K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVH, C_UOREG8K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVH, C_UOREG8K, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVW, C_UAUTO16K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVW, C_UOREG16K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVW, C_UOREG16K, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVD, C_UAUTO32K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVD, C_UOREG32K, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVD, C_UOREG32K, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
 
 	{AFMOVS, C_UAUTO16K, C_NONE, C_NONE, C_FREG, 21, 4, REGSP, 0, 0},
 	{AFMOVS, C_UOREG16K, C_NONE, C_NONE, C_FREG, 21, 4, 0, 0, 0},
@@ -426,15 +446,15 @@ var optab = []Optab{
 
 	/* unscaled 9-bit signed displacement load */
 	{AMOVB, C_NSAUTO, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVB, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVB, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVBU, C_NSAUTO, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVBU, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVBU, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVH, C_NSAUTO, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVH, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVH, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVW, C_NSAUTO, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVW, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVW, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
 	{AMOVD, C_NSAUTO, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
-	{AMOVD, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+	{AMOVD, C_NSOREG, C_NONE, C_NONE, C_REG, 21, 4, 0, 0, 0},
 
 	{AFMOVS, C_NSAUTO, C_NONE, C_NONE, C_FREG, 21, 4, REGSP, 0, 0},
 	{AFMOVS, C_NSOREG, C_NONE, C_NONE, C_FREG, 21, 4, 0, 0, 0},
@@ -1046,6 +1066,7 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 		C_NOREG4K,
 		C_LOREG,
 		C_LACON,
+		C_ADDCON2,
 		C_LCON,
 		C_VCON:
 		if a.Name == obj.NAME_EXTERN {
@@ -1097,6 +1118,40 @@ func isSTLXRop(op obj.As) bool {
 func isSTXPop(op obj.As) bool {
 	switch op {
 	case ASTXP, ASTLXP, ASTXPW, ASTLXPW:
+		return true
+	}
+	return false
+}
+
+func isANDop(op obj.As) bool {
+	switch op {
+	case AAND, AORR, AEOR, AANDS, ATST,
+		ABIC, AEON, AORN, ABICS:
+		return true
+	}
+	return false
+}
+
+func isANDWop(op obj.As) bool {
+	switch op {
+	case AANDW, AORRW, AEORW, AANDSW, ATSTW,
+		ABICW, AEONW, AORNW, ABICSW:
+		return true
+	}
+	return false
+}
+
+func isADDop(op obj.As) bool {
+	switch op {
+	case AADD, AADDS, ASUB, ASUBS, ACMN, ACMP:
+		return true
+	}
+	return false
+}
+
+func isADDWop(op obj.As) bool {
+	switch op {
+	case AADDW, AADDSW, ASUBW, ASUBSW, ACMNW, ACMPW:
 		return true
 	}
 	return false
@@ -1408,6 +1463,81 @@ func rclass(r int16) int {
 	return C_GOK
 }
 
+// con32class reclassifies the constant of 32-bit instruction. Becuase the constant type is 32-bit,
+// but saved in Offset which type is int64, con32class treats it as uint32 type and reclassifies it.
+func (c *ctxt7) con32class(a *obj.Addr) int {
+	v := uint32(a.Offset)
+	if v == 0 {
+		return C_ZCON
+	}
+	if isaddcon(int64(v)) {
+		if v <= 0xFFF {
+			if isbitcon(uint64(v)) {
+				return C_ABCON0
+			}
+			return C_ADDCON0
+		}
+		if isbitcon(uint64(v)) {
+			return C_ABCON
+		}
+		if movcon(int64(v)) >= 0 {
+			return C_AMCON
+		}
+		if movcon(int64(^v)) >= 0 {
+			return C_AMCON
+		}
+		return C_ADDCON
+	}
+
+	t := movcon(int64(v))
+	if t >= 0 {
+		if isbitcon(uint64(v)) {
+			return C_MBCON
+		}
+		return C_MOVCON
+	}
+
+	t = movcon(int64(^v))
+	if t >= 0 {
+		if isbitcon(uint64(v)) {
+			return C_MBCON
+		}
+		return C_MOVCON
+	}
+
+	if isbitcon(uint64(v)) {
+		return C_BITCON
+	}
+
+	if 0 <= v && v <= 0xffffff {
+		return C_ADDCON2
+	}
+	return C_LCON
+}
+
+// con64class reclassifies the constant of C_VCON and C_LCON class.
+func (c *ctxt7) con64class(a *obj.Addr) int {
+	zeroCount := 0
+	negCount := 0
+	for i := uint(0); i < 4; i++ {
+		immh := uint32(a.Offset >> (i * 16) & 0xffff)
+		if immh == 0 {
+			zeroCount++
+		} else if immh == 0xffff {
+			negCount++
+		}
+	}
+	if zeroCount >= 3 || negCount >= 3 {
+		return C_MOVCON
+	} else if zeroCount == 2 || negCount == 2 {
+		return C_MOVCON2
+	} else if zeroCount == 1 || negCount == 1 {
+		return C_MOVCON3
+	} else {
+		return C_VCON
+	}
+}
+
 func (c *ctxt7) aclass(a *obj.Addr) int {
 	switch a.Type {
 	case obj.TYPE_NONE:
@@ -1514,6 +1644,12 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 				if isbitcon(uint64(v)) {
 					return C_ABCON
 				}
+				if movcon(v) >= 0 {
+					return C_AMCON
+				}
+				if movcon(^v) >= 0 {
+					return C_AMCON
+				}
 				return C_ADDCON
 			}
 
@@ -1535,6 +1671,10 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 
 			if isbitcon(uint64(v)) {
 				return C_BITCON
+			}
+
+			if 0 <= v && v <= 0xffffff {
+				return C_ADDCON2
 			}
 
 			if uint64(v) == uint64(uint32(v)) || v == int64(int32(v)) {
@@ -1595,8 +1735,38 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
 	}
 	a1 = int(p.From.Class)
 	if a1 == 0 {
-		a1 = c.aclass(&p.From) + 1
+		a0 := c.aclass(&p.From)
+		// do not break C_ADDCON2 when S bit is set
+		if (p.As == AADDS || p.As == AADDSW || p.As == ASUBS || p.As == ASUBSW) && a0 == C_ADDCON2 {
+			a0 = C_LCON
+		}
+		a1 = a0 + 1
 		p.From.Class = int8(a1)
+		// more specific classification of 32-bit integers
+		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE {
+			if p.As == AMOVW || isADDWop(p.As) {
+				ra0 := c.con32class(&p.From)
+				// do not break C_ADDCON2 when S bit is set
+				if (p.As == AADDSW || p.As == ASUBSW) && ra0 == C_ADDCON2 {
+					ra0 = C_LCON
+				}
+				a1 = ra0 + 1
+				p.From.Class = int8(a1)
+			}
+			if isANDWop(p.As) && a0 != C_BITCON {
+				// For 32-bit logical instruction with constant,
+				// the BITCON test is special in that it looks at
+				// the 64-bit which has the high 32-bit as a copy
+				// of the low 32-bit. We have handled that and
+				// don't pass it to con32class.
+				a1 = c.con32class(&p.From) + 1
+				p.From.Class = int8(a1)
+			}
+			if ((p.As == AMOVD) || isANDop(p.As) || isADDop(p.As)) && (a0 == C_LCON || a0 == C_VCON) {
+				a1 = c.con64class(&p.From) + 1
+				p.From.Class = int8(a1)
+			}
+		}
 	}
 
 	a1--
@@ -1667,7 +1837,7 @@ func cmp(a int, b int) bool {
 		}
 
 	case C_ADDCON:
-		if b == C_ZCON || b == C_ABCON0 || b == C_ADDCON0 || b == C_ABCON {
+		if b == C_ZCON || b == C_ABCON0 || b == C_ADDCON0 || b == C_ABCON || b == C_AMCON {
 			return true
 		}
 
@@ -1677,14 +1847,22 @@ func cmp(a int, b int) bool {
 		}
 
 	case C_MOVCON:
-		if b == C_MBCON || b == C_ZCON || b == C_ADDCON0 {
+		if b == C_MBCON || b == C_ZCON || b == C_ADDCON0 || b == C_AMCON {
+			return true
+		}
+
+	case C_ADDCON2:
+		if b == C_ZCON || b == C_ADDCON || b == C_ADDCON0 {
 			return true
 		}
 
 	case C_LCON:
-		if b == C_ZCON || b == C_BITCON || b == C_ADDCON || b == C_ADDCON0 || b == C_ABCON || b == C_ABCON0 || b == C_MBCON || b == C_MOVCON {
+		if b == C_ZCON || b == C_BITCON || b == C_ADDCON || b == C_ADDCON0 || b == C_ABCON || b == C_ABCON0 || b == C_MBCON || b == C_MOVCON || b == C_ADDCON2 || b == C_AMCON {
 			return true
 		}
+
+	case C_MOVCON2:
+		return cmp(C_LCON, b)
 
 	case C_VCON:
 		return cmp(C_LCON, b)
@@ -2604,6 +2782,7 @@ func (c *ctxt7) checkShiftAmount(p *obj.Prog, a *obj.Addr) {
 }
 
 func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+	var os [5]uint32
 	o1 := uint32(0)
 	o2 := uint32(0)
 	o3 := uint32(0)
@@ -2793,13 +2972,29 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 12: /* movT $vcon, reg */
-		o1 = c.omovlit(p.As, p, &p.From, int(p.To.Reg))
+		num := c.omovlconst(p.As, p, &p.From, int(p.To.Reg), os[:])
+		if num == 0 {
+			c.ctxt.Diag("invalid constant: %v", p)
+		}
+		o1 = os[0]
+		o2 = os[1]
+		o3 = os[2]
+		o4 = os[3]
 
 	case 13: /* addop $vcon, [R], R (64 bit literal); cmp $lcon,R -> addop $lcon,R, ZR */
-		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
-
-		if o1 == 0 {
-			break
+		o := uint32(0)
+		num := uint8(0)
+		cls := oclass(&p.From)
+		if isADDWop(p.As) {
+			if (cls != C_LCON) && (cls != C_ADDCON2) {
+				c.ctxt.Diag("illegal combination: %v", p)
+			}
+			num = c.omovlconst(AMOVW, p, &p.From, REGTMP, os[:])
+		} else {
+			num = c.omovlconst(AMOVD, p, &p.From, REGTMP, os[:])
+		}
+		if num == 0 {
+			c.ctxt.Diag("invalid constant: %v", p)
 		}
 		rt := int(p.To.Reg)
 		if p.To.Type == obj.TYPE_NONE {
@@ -2810,16 +3005,23 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = rt
 		}
 		if p.To.Type != obj.TYPE_NONE && (p.To.Reg == REGSP || r == REGSP) {
-			o2 = c.opxrrr(p, p.As, false)
-			o2 |= REGTMP & 31 << 16
-			o2 |= LSL0_64
+			o = c.opxrrr(p, p.As, false)
+			o |= REGTMP & 31 << 16
+			o |= LSL0_64
 		} else {
-			o2 = c.oprrr(p, p.As)
-			o2 |= REGTMP & 31 << 16 /* shift is 0 */
+			o = c.oprrr(p, p.As)
+			o |= REGTMP & 31 << 16 /* shift is 0 */
 		}
 
-		o2 |= uint32(r&31) << 5
-		o2 |= uint32(rt & 31)
+		o |= uint32(r&31) << 5
+		o |= uint32(rt & 31)
+
+		os[num] = o
+		o1 = os[0]
+		o2 = os[1]
+		o3 = os[2]
+		o4 = os[3]
+		o5 = os[4]
 
 	case 14: /* word */
 		if c.aclass(&p.To) == C_ADDR {
@@ -3065,10 +3267,20 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(r&31) << 5) | uint32(rt&31)
 
 	case 28: /* logop $vcon, [R], R (64 bit literal) */
-		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
+		o := uint32(0)
+		num := uint8(0)
+		cls := oclass(&p.From)
+		if isANDWop(p.As) {
+			if (cls != C_LCON) && (cls != C_ADDCON) {
+				c.ctxt.Diag("illegal combination: %v", p)
+			}
+			num = c.omovlconst(AMOVW, p, &p.From, REGTMP, os[:])
+		} else {
+			num = c.omovlconst(AMOVD, p, &p.From, REGTMP, os[:])
+		}
 
-		if o1 == 0 {
-			break
+		if num == 0 {
+			c.ctxt.Diag("invalid constant: %v", p)
 		}
 		rt := int(p.To.Reg)
 		if p.To.Type == obj.TYPE_NONE {
@@ -3078,10 +3290,17 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = rt
 		}
-		o2 = c.oprrr(p, p.As)
-		o2 |= REGTMP & 31 << 16 /* shift is 0 */
-		o2 |= uint32(r&31) << 5
-		o2 |= uint32(rt & 31)
+		o = c.oprrr(p, p.As)
+		o |= REGTMP & 31 << 16 /* shift is 0 */
+		o |= uint32(r&31) << 5
+		o |= uint32(rt & 31)
+
+		os[num] = o
+		o1 = os[0]
+		o2 = os[1]
+		o3 = os[2]
+		o4 = os[3]
+		o5 = os[4]
 
 	case 29: /* op Rn, Rd */
 		fc := c.aclass(&p.From)
@@ -3474,6 +3693,19 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 |= 0x1c1<<21 | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
 
+	case 48: /* ADD $C_ADDCON2, Rm, Rd */
+		op := c.opirr(p, p.As)
+		if op&Sbit != 0 {
+			c.ctxt.Diag("can not break addition/subtraction when S bit is set", p)
+		}
+		rt := int(p.To.Reg)
+		r := int(p.Reg)
+		if r == 0 {
+			r = rt
+		}
+		o1 = c.oaddi(p, int32(op), int32(c.regoff(&p.From))&0x000fff, r, rt)
+		o2 = c.oaddi(p, int32(op), int32(c.regoff(&p.From))&0xfff000, rt, rt)
+
 	case 50: /* sys/sysl */
 		o1 = c.opirr(p, p.As)
 
@@ -3640,7 +3872,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.Reg == REGTMP {
 			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
 		}
-		o1 = c.omovconst(AMOVD, p, &p.From, REGTMP)
+		if isADDWop(p.As) || isANDWop(p.As) {
+			o1 = c.omovconst(AMOVW, p, &p.From, REGTMP)
+		} else {
+			o1 = c.omovconst(AMOVD, p, &p.From, REGTMP)
+		}
 
 		rt := int(p.To.Reg)
 		if p.To.Type == obj.TYPE_NONE {
@@ -6088,7 +6324,7 @@ func (c *ctxt7) oaddi(p *obj.Prog, o1 int32, v int32, r int, rt int) uint32 {
 }
 
 /*
- * load a a literal value into dr
+ * load a literal value into dr
  */
 func (c *ctxt7) omovlit(as obj.As, p *obj.Prog, a *obj.Addr, dr int) uint32 {
 	var o1 int32
@@ -6165,32 +6401,183 @@ func (c *ctxt7) omovconst(as obj.As, p *obj.Prog, a *obj.Addr, rt int) (o1 uint3
 		return o1
 	}
 
-	r := 32
-	if as == AMOVD {
-		r = 64
-	}
-	d := a.Offset
-	s := movcon(d)
-	if s < 0 || s >= r {
-		d = ^d
-		s = movcon(d)
-		if s < 0 || s >= r {
-			c.ctxt.Diag("impossible move wide: %#x\n%v", uint64(a.Offset), p)
-		}
-		if as == AMOVD {
-			o1 = c.opirr(p, AMOVN)
-		} else {
+	if as == AMOVW {
+		d := uint32(a.Offset)
+		s := movcon(int64(d))
+		if s < 0 || 16*s >= 32 {
+			d = ^d
+			s = movcon(int64(d))
+			if s < 0 || 16*s >= 32 {
+				c.ctxt.Diag("impossible 32-bit move wide: %#x\n%v", uint32(a.Offset), p)
+			}
 			o1 = c.opirr(p, AMOVNW)
-		}
-	} else {
-		if as == AMOVD {
-			o1 = c.opirr(p, AMOVZ)
 		} else {
 			o1 = c.opirr(p, AMOVZW)
 		}
+		o1 |= MOVCONST(int64(d), s, rt)
 	}
-	o1 |= uint32((((d >> uint(s*16)) & 0xFFFF) << 5) | int64((uint32(s)&3)<<21) | int64(rt&31))
+	if as == AMOVD {
+		d := a.Offset
+		s := movcon(d)
+		if s < 0 || 16*s >= 64 {
+			d = ^d
+			s = movcon(d)
+			if s < 0 || 16*s >= 64 {
+				c.ctxt.Diag("impossible 64-bit move wide: %#x\n%v", uint64(a.Offset), p)
+			}
+			o1 = c.opirr(p, AMOVN)
+		} else {
+			o1 = c.opirr(p, AMOVZ)
+		}
+		o1 |= MOVCONST(d, s, rt)
+	}
 	return o1
+}
+
+// load a 32-bit/64-bit large constant (LCON or VCON) in a.Offset into rt
+// put the instruction sequence in os and return the number of instructions.
+func (c *ctxt7) omovlconst(as obj.As, p *obj.Prog, a *obj.Addr, rt int, os []uint32) (num uint8) {
+	switch as {
+	case AMOVW:
+		d := uint32(a.Offset)
+		// use MOVZW and MOVKW to load a constant to rt
+		os[0] = c.opirr(p, AMOVZW)
+		os[0] |= MOVCONST(int64(d), 0, rt)
+		os[1] = c.opirr(p, AMOVKW)
+		os[1] |= MOVCONST(int64(d), 1, rt)
+		return 2
+
+	case AMOVD:
+		d := a.Offset
+		dn := ^d
+		var immh [4]uint64
+		var i int
+		zeroCount := int(0)
+		negCount := int(0)
+		for i = 0; i < 4; i++ {
+			immh[i] = uint64((d >> uint(i*16)) & 0xffff)
+			if immh[i] == 0 {
+				zeroCount++
+			} else if immh[i] == 0xffff {
+				negCount++
+			}
+		}
+
+		if zeroCount == 4 || negCount == 4 {
+			c.ctxt.Diag("the immediate should be MOVCON: %v", p)
+		}
+		switch {
+		case zeroCount == 3:
+			// one MOVZ
+			for i = 0; i < 4; i++ {
+				if immh[i] != 0 {
+					os[0] = c.opirr(p, AMOVZ)
+					os[0] |= MOVCONST(d, i, rt)
+					break
+				}
+			}
+			return 1
+
+		case negCount == 3:
+			// one MOVN
+			for i = 0; i < 4; i++ {
+				if immh[i] != 0xffff {
+					os[0] = c.opirr(p, AMOVN)
+					os[0] |= MOVCONST(dn, i, rt)
+					break
+				}
+			}
+			return 1
+
+		case zeroCount == 2:
+			// one MOVZ and one MOVK
+			for i = 0; i < 4; i++ {
+				if immh[i] != 0 {
+					os[0] = c.opirr(p, AMOVZ)
+					os[0] |= MOVCONST(d, i, rt)
+					i++
+					break
+				}
+			}
+			for ; i < 4; i++ {
+				if immh[i] != 0 {
+					os[1] = c.opirr(p, AMOVK)
+					os[1] |= MOVCONST(d, i, rt)
+				}
+			}
+			return 2
+
+		case negCount == 2:
+			// one MOVN and one MOVK
+			for i = 0; i < 4; i++ {
+				if immh[i] != 0xffff {
+					os[0] = c.opirr(p, AMOVN)
+					os[0] |= MOVCONST(dn, i, rt)
+					i++
+					break
+				}
+			}
+			for ; i < 4; i++ {
+				if immh[i] != 0xffff {
+					os[1] = c.opirr(p, AMOVK)
+					os[1] |= MOVCONST(d, i, rt)
+				}
+			}
+			return 2
+
+		case zeroCount == 1:
+			// one MOVZ and two MOVKs
+			for i = 0; i < 4; i++ {
+				if immh[i] != 0 {
+					os[0] = c.opirr(p, AMOVZ)
+					os[0] |= MOVCONST(d, i, rt)
+					i++
+					break
+				}
+			}
+
+			for j := 1; i < 4; i++ {
+				if immh[i] != 0 {
+					os[j] = c.opirr(p, AMOVK)
+					os[j] |= MOVCONST(d, i, rt)
+					j++
+				}
+			}
+			return 3
+
+		case negCount == 1:
+			// one MOVN and two MOVKs
+			for i = 0; i < 4; i++ {
+				if immh[i] != 0xffff {
+					os[0] = c.opirr(p, AMOVN)
+					os[0] |= MOVCONST(dn, i, rt)
+					i++
+					break
+				}
+			}
+
+			for j := 1; i < 4; i++ {
+				if immh[i] != 0xffff {
+					os[j] = c.opirr(p, AMOVK)
+					os[j] |= MOVCONST(d, i, rt)
+					j++
+				}
+			}
+			return 3
+
+		default:
+			// one MOVZ and 3 MOVKs
+			os[0] = c.opirr(p, AMOVZ)
+			os[0] |= MOVCONST(d, 0, rt)
+			for i = 1; i < 4; i++ {
+				os[i] = c.opirr(p, AMOVK)
+				os[i] |= MOVCONST(d, i, rt)
+			}
+			return 4
+		}
+	default:
+		return 0
+	}
 }
 
 func (c *ctxt7) opbfm(p *obj.Prog, a obj.As, r int, s int, rf int, rt int) uint32 {

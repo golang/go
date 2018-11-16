@@ -816,7 +816,7 @@
 // Decomposing StringMake and lowering of StringPtr and StringLen
 // happens in a later pass, dec, so that these operations are available
 // to other passes for optimizations.
-(StringPtr (StringMake (Const64 <t> [c]) _)) -> (Const64 <t> [c])
+(StringPtr (StringMake (Addr <t> {s} base) _)) -> (Addr <t> {s} base)
 (StringLen (StringMake _ (Const64 <t> [c]))) -> (Const64 <t> [c])
 (ConstString {s}) && config.PtrSize == 4 && s.(string) == "" ->
   (StringMake (ConstNil) (Const32 <typ.Int> [0]))
@@ -1545,8 +1545,8 @@
 // Don't Move from memory if the values are likely to already be
 // in registers.
 (Move {t1} [n] dst p1
-	mem:(Store {t2} op2:(OffPtr [o2] p2) d1
-		(Store {t3} op3:(OffPtr [0] p3) d2 _)))
+	mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
+		(Store {t3} op3:(OffPtr <tt3> [0] p3) d2 _)))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3)
 	&& alignof(t2) <= alignof(t1)
 	&& alignof(t3) <= alignof(t1)
@@ -1554,12 +1554,12 @@
 	&& registerizable(b, t3)
 	&& o2 == sizeof(t3)
 	&& n == sizeof(t2) + sizeof(t3)
-	-> (Store {t2} (OffPtr <t2.(*types.Type)> [o2] dst) d1
-		(Store {t3} (OffPtr <t3.(*types.Type)> [0] dst) d2 mem))
+	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+		(Store {t3} (OffPtr <tt3> [0] dst) d2 mem))
 (Move {t1} [n] dst p1
-	mem:(Store {t2} op2:(OffPtr [o2] p2) d1
-		(Store {t3} op3:(OffPtr [o3] p3) d2
-			(Store {t4} op4:(OffPtr [0] p4) d3 _))))
+	mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
+		(Store {t3} op3:(OffPtr <tt3> [o3] p3) d2
+			(Store {t4} op4:(OffPtr <tt4> [0] p4) d3 _))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4)
 	&& alignof(t2) <= alignof(t1)
 	&& alignof(t3) <= alignof(t1)
@@ -1570,14 +1570,14 @@
 	&& o3 == sizeof(t4)
 	&& o2-o3 == sizeof(t3)
 	&& n == sizeof(t2) + sizeof(t3) + sizeof(t4)
-	-> (Store {t2} (OffPtr <t2.(*types.Type)> [o2] dst) d1
-		(Store {t3} (OffPtr <t3.(*types.Type)> [o3] dst) d2
-			(Store {t4} (OffPtr <t4.(*types.Type)> [0] dst) d3 mem)))
+	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+		(Store {t3} (OffPtr <tt3> [o3] dst) d2
+			(Store {t4} (OffPtr <tt4> [0] dst) d3 mem)))
 (Move {t1} [n] dst p1
-	mem:(Store {t2} op2:(OffPtr [o2] p2) d1
-		(Store {t3} op3:(OffPtr [o3] p3) d2
-			(Store {t4} op4:(OffPtr [o4] p4) d3
-				(Store {t5} op5:(OffPtr [0] p5) d4 _)))))
+	mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
+		(Store {t3} op3:(OffPtr <tt3> [o3] p3) d2
+			(Store {t4} op4:(OffPtr <tt4> [o4] p4) d3
+				(Store {t5} op5:(OffPtr <tt5> [0] p5) d4 _)))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5)
 	&& alignof(t2) <= alignof(t1)
 	&& alignof(t3) <= alignof(t1)
@@ -1591,16 +1591,16 @@
 	&& o3-o4 == sizeof(t4)
 	&& o2-o3 == sizeof(t3)
 	&& n == sizeof(t2) + sizeof(t3) + sizeof(t4) + sizeof(t5)
-	-> (Store {t2} (OffPtr <t2.(*types.Type)> [o2] dst) d1
-		(Store {t3} (OffPtr <t3.(*types.Type)> [o3] dst) d2
-			(Store {t4} (OffPtr <t4.(*types.Type)> [o4] dst) d3
-				(Store {t5} (OffPtr <t5.(*types.Type)> [0] dst) d4 mem))))
+	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+		(Store {t3} (OffPtr <tt3> [o3] dst) d2
+			(Store {t4} (OffPtr <tt4> [o4] dst) d3
+				(Store {t5} (OffPtr <tt5> [0] dst) d4 mem))))
 
 // Same thing but with VarDef in the middle.
 (Move {t1} [n] dst p1
 	mem:(VarDef
-		(Store {t2} op2:(OffPtr [o2] p2) d1
-			(Store {t3} op3:(OffPtr [0] p3) d2 _))))
+		(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
+			(Store {t3} op3:(OffPtr <tt3> [0] p3) d2 _))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3)
 	&& alignof(t2) <= alignof(t1)
 	&& alignof(t3) <= alignof(t1)
@@ -1608,13 +1608,13 @@
 	&& registerizable(b, t3)
 	&& o2 == sizeof(t3)
 	&& n == sizeof(t2) + sizeof(t3)
-	-> (Store {t2} (OffPtr <t2.(*types.Type)> [o2] dst) d1
-		(Store {t3} (OffPtr <t3.(*types.Type)> [0] dst) d2 mem))
+	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+		(Store {t3} (OffPtr <tt3> [0] dst) d2 mem))
 (Move {t1} [n] dst p1
 	mem:(VarDef
-		(Store {t2} op2:(OffPtr [o2] p2) d1
-			(Store {t3} op3:(OffPtr [o3] p3) d2
-				(Store {t4} op4:(OffPtr [0] p4) d3 _)))))
+		(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
+			(Store {t3} op3:(OffPtr <tt3> [o3] p3) d2
+				(Store {t4} op4:(OffPtr <tt4> [0] p4) d3 _)))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4)
 	&& alignof(t2) <= alignof(t1)
 	&& alignof(t3) <= alignof(t1)
@@ -1625,15 +1625,15 @@
 	&& o3 == sizeof(t4)
 	&& o2-o3 == sizeof(t3)
 	&& n == sizeof(t2) + sizeof(t3) + sizeof(t4)
-	-> (Store {t2} (OffPtr <t2.(*types.Type)> [o2] dst) d1
-		(Store {t3} (OffPtr <t3.(*types.Type)> [o3] dst) d2
-			(Store {t4} (OffPtr <t4.(*types.Type)> [0] dst) d3 mem)))
+	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+		(Store {t3} (OffPtr <tt3> [o3] dst) d2
+			(Store {t4} (OffPtr <tt4> [0] dst) d3 mem)))
 (Move {t1} [n] dst p1
 	mem:(VarDef
-		(Store {t2} op2:(OffPtr [o2] p2) d1
-			(Store {t3} op3:(OffPtr [o3] p3) d2
-				(Store {t4} op4:(OffPtr [o4] p4) d3
-					(Store {t5} op5:(OffPtr [0] p5) d4 _))))))
+		(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
+			(Store {t3} op3:(OffPtr <tt3> [o3] p3) d2
+				(Store {t4} op4:(OffPtr <tt4> [o4] p4) d3
+					(Store {t5} op5:(OffPtr <tt5> [0] p5) d4 _))))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5)
 	&& alignof(t2) <= alignof(t1)
 	&& alignof(t3) <= alignof(t1)
@@ -1647,10 +1647,10 @@
 	&& o3-o4 == sizeof(t4)
 	&& o2-o3 == sizeof(t3)
 	&& n == sizeof(t2) + sizeof(t3) + sizeof(t4) + sizeof(t5)
-	-> (Store {t2} (OffPtr <t2.(*types.Type)> [o2] dst) d1
-		(Store {t3} (OffPtr <t3.(*types.Type)> [o3] dst) d2
-			(Store {t4} (OffPtr <t4.(*types.Type)> [o4] dst) d3
-				(Store {t5} (OffPtr <t5.(*types.Type)> [0] dst) d4 mem))))
+	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+		(Store {t3} (OffPtr <tt3> [o3] dst) d2
+			(Store {t4} (OffPtr <tt4> [o4] dst) d3
+				(Store {t5} (OffPtr <tt5> [0] dst) d4 mem))))
 
 // Prefer to Zero and Store than to Move.
 (Move {t1} [n] dst p1
@@ -1799,3 +1799,31 @@
 					(Zero {t1} [n] dst mem)))))
 
 (StaticCall {sym} x) && needRaceCleanup(sym,v) -> x
+
+// Collapse moving A -> B -> C into just A -> C.
+// Later passes (deadstore, elim unread auto) will remove the A -> B move, if possible.
+// This happens most commonly when B is an autotmp inserted earlier
+// during compilation to ensure correctness.
+// Take care that overlapping moves are preserved.
+// Restrict this optimization to the stack, to avoid duplicating loads from the heap;
+// see CL 145208 for discussion.
+(Move {t1} [s] dst tmp1 midmem:(Move {t2} [s] tmp2 src _))
+	&& t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq
+	&& isSamePtr(tmp1, tmp2)
+	&& isStackPtr(src)
+	&& disjoint(src, s, tmp2, s)
+	&& (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+	-> (Move {t1} [s] dst src midmem)
+
+// Same, but for large types that require VarDefs.
+(Move {t1} [s] dst tmp1 midmem:(VarDef (Move {t2} [s] tmp2 src _)))
+	&& t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq
+	&& isSamePtr(tmp1, tmp2)
+	&& isStackPtr(src)
+	&& disjoint(src, s, tmp2, s)
+	&& (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+	-> (Move {t1} [s] dst src midmem)
+
+// Elide self-moves. This only happens rarely (e.g test/fixedbugs/bug277.go).
+// However, this rule is needed to prevent the previous rule from looping forever in such cases.
+(Move dst src mem) && isSamePtr(dst, src) -> mem

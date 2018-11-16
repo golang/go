@@ -12,10 +12,10 @@ import (
 	"sync"
 )
 
-// tooBig provides a sanity check for sizes; used in several places.
-// Upper limit of 1GB, allowing room to grow a little without overflow.
-// TODO: make this adjustable?
-const tooBig = 1 << 30
+// tooBig provides a sanity check for sizes; used in several places. Upper limit
+// of is 1GB on 32-bit systems, 8GB on 64-bit, allowing room to grow a little
+// without overflow.
+const tooBig = (1 << 30) << (^uint(0) >> 62)
 
 // A Decoder manages the receipt of type and data information read from the
 // remote side of a connection.

@@ -69,16 +69,17 @@ func (ec *errorCatcher) PrintErr(args ...interface{}) {
 
 // webArgs contains arguments passed to templates in webhtml.go.
 type webArgs struct {
-	Title      string
-	Errors     []string
-	Total      int64
-	Legend     []string
-	Help       map[string]string
-	Nodes      []string
-	HTMLBody   template.HTML
-	TextBody   string
-	Top        []report.TextItem
-	FlameGraph template.JS
+	Title       string
+	Errors      []string
+	Total       int64
+	SampleTypes []string
+	Legend      []string
+	Help        map[string]string
+	Nodes       []string
+	HTMLBody    template.HTML
+	TextBody    string
+	Top         []report.TextItem
+	FlameGraph  template.JS
 }
 
 func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options) error {
@@ -199,8 +200,10 @@ func openBrowser(url string, o *plugin.Options) {
 	for _, p := range []struct{ param, key string }{
 		{"f", "focus"},
 		{"s", "show"},
+		{"sf", "show_from"},
 		{"i", "ignore"},
 		{"h", "hide"},
+		{"si", "sample_index"},
 	} {
 		if v := pprofVariables[p.key].value; v != "" {
 			q.Set(p.param, v)
@@ -230,8 +233,10 @@ func varsFromURL(u *gourl.URL) variables {
 	vars := pprofVariables.makeCopy()
 	vars["focus"].value = u.Query().Get("f")
 	vars["show"].value = u.Query().Get("s")
+	vars["show_from"].value = u.Query().Get("sf")
 	vars["ignore"].value = u.Query().Get("i")
 	vars["hide"].value = u.Query().Get("h")
+	vars["sample_index"].value = u.Query().Get("si")
 	return vars
 }
 
@@ -262,6 +267,7 @@ func (ui *webInterface) render(w http.ResponseWriter, tmpl string,
 	data.Title = file + " " + profile
 	data.Errors = errList
 	data.Total = rpt.Total()
+	data.SampleTypes = sampleTypes(ui.prof)
 	data.Legend = legend
 	data.Help = ui.help
 	html := &bytes.Buffer{}

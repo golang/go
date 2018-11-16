@@ -308,10 +308,6 @@ func (w *appendSliceWriter) WriteString(s string) (int, error) {
 	return len(s), nil
 }
 
-type stringWriterIface interface {
-	WriteString(string) (int, error)
-}
-
 type stringWriter struct {
 	w io.Writer
 }
@@ -320,8 +316,8 @@ func (w stringWriter) WriteString(s string) (int, error) {
 	return w.w.Write([]byte(s))
 }
 
-func getStringWriter(w io.Writer) stringWriterIface {
-	sw, ok := w.(stringWriterIface)
+func getStringWriter(w io.Writer) io.StringWriter {
+	sw, ok := w.(io.StringWriter)
 	if !ok {
 		sw = stringWriter{w}
 	}
@@ -463,7 +459,7 @@ func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err error) {
 	buf := make([]byte, bufsize)
 
 	for len(s) > 0 {
-		ncopy := copy(buf, s[:])
+		ncopy := copy(buf, s)
 		s = s[ncopy:]
 		for i, b := range buf[:ncopy] {
 			buf[i] = r[b]

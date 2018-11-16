@@ -19,6 +19,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/math"
 	"unsafe"
 )
 
@@ -78,7 +79,8 @@ func makechan(t *chantype, size int) *hchan {
 		throw("makechan: bad alignment")
 	}
 
-	if size < 0 || uintptr(size) > maxSliceCap(elem.size) || uintptr(size)*elem.size > maxAlloc-hchanSize {
+	mem, overflow := math.MulUintptr(elem.size, uintptr(size))
+	if overflow || mem > maxAlloc-hchanSize || size < 0 {
 		panic(plainError("makechan: size out of range"))
 	}
 
@@ -88,7 +90,7 @@ func makechan(t *chantype, size int) *hchan {
 	// TODO(dvyukov,rlh): Rethink when collector can move allocated objects.
 	var c *hchan
 	switch {
-	case size == 0 || elem.size == 0:
+	case mem == 0:
 		// Queue or element size is zero.
 		c = (*hchan)(mallocgc(hchanSize, nil, true))
 		// Race detector uses this location for synchronization.
@@ -96,12 +98,12 @@ func makechan(t *chantype, size int) *hchan {
 	case elem.kind&kindNoPointers != 0:
 		// Elements do not contain pointers.
 		// Allocate hchan and buf in one call.
-		c = (*hchan)(mallocgc(hchanSize+uintptr(size)*elem.size, nil, true))
+		c = (*hchan)(mallocgc(hchanSize+mem, nil, true))
 		c.buf = add(unsafe.Pointer(c), hchanSize)
 	default:
 		// Elements contain pointers.
 		c = new(hchan)
-		c.buf = mallocgc(uintptr(size)*elem.size, elem, true)
+		c.buf = mallocgc(mem, elem, true)
 	}
 
 	c.elemsize = uint16(elem.size)
@@ -232,6 +234,11 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	gp.param = nil
 	c.sendq.enqueue(mysg)
 	goparkunlock(&c.lock, waitReasonChanSend, traceEvGoBlockSend, 3)
+	// Ensure the value being sent is kept alive until the
+	// receiver copies it out. The sudog has a pointer to the
+	// stack object, but sudogs aren't considered as roots of the
+	// stack tracer.
+	KeepAlive(ep)
 
 	// someone woke us up.
 	if mysg != gp.waiting {

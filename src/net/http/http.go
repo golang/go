@@ -135,6 +135,10 @@ type Pusher interface {
 	// data that may trigger a request for URL X. This avoids a race where the
 	// client issues requests for X before receiving the PUSH_PROMISE for X.
 	//
+	// Push will run in a separate goroutine making the order of arrival
+	// non-deterministic. Any required synchronization needs to be implemented
+	// by the caller.
+	//
 	// Push returns ErrNotSupported if the client has disabled push or if push
 	// is not supported on the underlying connection.
 	Push(target string, opts *PushOptions) error

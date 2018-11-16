@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	"internal/goroot"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,8 +61,8 @@ func Import(path string) (m module.Version, dir string, err error) {
 		if strings.HasPrefix(path, "golang_org/") {
 			return module.Version{}, filepath.Join(cfg.GOROOT, "src/vendor", path), nil
 		}
-		dir := filepath.Join(cfg.GOROOT, "src", path)
-		if _, err := os.Stat(dir); err == nil {
+		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+			dir := filepath.Join(cfg.GOROOT, "src", path)
 			return module.Version{}, dir, nil
 		}
 	}

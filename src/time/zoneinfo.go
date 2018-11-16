@@ -288,14 +288,23 @@ func LoadLocation(name string) (*Location, error) {
 		env, _ := syscall.Getenv("ZONEINFO")
 		zoneinfo = &env
 	})
+	var firstErr error
 	if *zoneinfo != "" {
 		if zoneData, err := loadTzinfoFromDirOrZip(*zoneinfo, name); err == nil {
 			if z, err := LoadLocationFromTZData(name, zoneData); err == nil {
 				return z, nil
 			}
+			firstErr = err
+		} else if err != syscall.ENOENT {
+			firstErr = err
 		}
 	}
-	return loadLocation(name, zoneSources)
+	if z, err := loadLocation(name, zoneSources); err == nil {
+		return z, nil
+	} else if firstErr == nil {
+		firstErr = err
+	}
+	return nil, firstErr
 }
 
 // containsDotDot reports whether s contains "..".

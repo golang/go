@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-func lookupLocalhost(ctx context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+func lookupLocalhost(ctx context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
 	switch host {
 	case "localhost":
 		return []IPAddr{
@@ -28,7 +28,7 @@ func lookupLocalhost(ctx context.Context, fn func(context.Context, string) ([]IP
 			{IP: IPv6loopback},
 		}, nil
 	default:
-		return fn(ctx, host)
+		return fn(ctx, network, host)
 	}
 }
 
@@ -1006,5 +1006,106 @@ func TestConcurrentPreferGoResolversDial(t *testing.T) {
 		if !resolver.dialed {
 			t.Errorf("custom resolver %d not dialed during lookup", i)
 		}
+	}
+}
+
+var ipVersionTests = []struct {
+	network string
+	version byte
+}{
+	{"tcp", 0},
+	{"tcp4", '4'},
+	{"tcp6", '6'},
+	{"udp", 0},
+	{"udp4", '4'},
+	{"udp6", '6'},
+	{"ip", 0},
+	{"ip4", '4'},
+	{"ip6", '6'},
+	{"ip7", 0},
+	{"", 0},
+}
+
+func TestIPVersion(t *testing.T) {
+	for _, tt := range ipVersionTests {
+		if version := ipVersion(tt.network); version != tt.version {
+			t.Errorf("Family for: %s. Expected: %s, Got: %s", tt.network,
+				string(tt.version), string(version))
+		}
+	}
+}
+
+// Issue 28600: The context that is used to lookup ips should always
+// preserve the values from the context that was passed into LookupIPAddr.
+func TestLookupIPAddrPreservesContextValues(t *testing.T) {
+	origTestHookLookupIP := testHookLookupIP
+	defer func() { testHookLookupIP = origTestHookLookupIP }()
+
+	keyValues := []struct {
+		key, value interface{}
+	}{
+		{"key-1", 12},
+		{384, "value2"},
+		{new(float64), 137},
+	}
+	ctx := context.Background()
+	for _, kv := range keyValues {
+		ctx = context.WithValue(ctx, kv.key, kv.value)
+	}
+
+	wantIPs := []IPAddr{
+		{IP: IPv4(127, 0, 0, 1)},
+		{IP: IPv6loopback},
+	}
+
+	checkCtxValues := func(ctx_ context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
+		for _, kv := range keyValues {
+			g, w := ctx_.Value(kv.key), kv.value
+			if !reflect.DeepEqual(g, w) {
+				t.Errorf("Value lookup:\n\tGot:  %v\n\tWant: %v", g, w)
+			}
+		}
+		return wantIPs, nil
+	}
+	testHookLookupIP = checkCtxValues
+
+	resolvers := []*Resolver{
+		nil,
+		new(Resolver),
+	}
+
+	for i, resolver := range resolvers {
+		gotIPs, err := resolver.LookupIPAddr(ctx, "golang.org")
+		if err != nil {
+			t.Errorf("Resolver #%d: unexpected error: %v", i, err)
+		}
+		if !reflect.DeepEqual(gotIPs, wantIPs) {
+			t.Errorf("#%d: mismatched IPAddr results\n\tGot: %v\n\tWant: %v", i, gotIPs, wantIPs)
+		}
+	}
+}
+
+func TestWithUnexpiredValuesPreserved(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Insert a value into it.
+	key, value := "key-1", 2
+	ctx = context.WithValue(ctx, key, value)
+
+	// Now use the "values preserving context" like
+	// we would for LookupIPAddr. See Issue 28600.
+	ctx = withUnexpiredValuesPreserved(ctx)
+
+	// Lookup before expiry.
+	if g, w := ctx.Value(key), value; g != w {
+		t.Errorf("Lookup before expiry: Got %v Want %v", g, w)
+	}
+
+	// Cancel the context.
+	cancel()
+
+	// Lookup after expiry should return nil
+	if g := ctx.Value(key); g != nil {
+		t.Errorf("Lookup after expiry: Got %v want nil", g)
 	}
 }

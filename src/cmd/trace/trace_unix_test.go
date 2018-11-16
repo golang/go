@@ -8,7 +8,7 @@ package main
 
 import (
 	"bytes"
-	traceparser "internal/trace"
+	"internal/traceparser"
 	"io/ioutil"
 	"runtime"
 	"runtime/trace"
@@ -73,17 +73,15 @@ func TestGoroutineInSyscall(t *testing.T) {
 	}
 	trace.Stop()
 
-	res, err := traceparser.Parse(buf, "")
-	if err == traceparser.ErrTimeOrder {
-		t.Skipf("skipping due to golang.org/issue/16755 (timestamps are unreliable): %v", err)
-	} else if err != nil {
+	res, err := traceparser.ParseBuffer(buf)
+	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
 
 	// Check only one thread for the pipe read goroutine is
 	// considered in-syscall.
 	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
-	c.consumeViewerEvent = func(ev *ViewerEvent, _ bool) {
+	c.consumeViewerEvent = func(ev *viewerEvent, _ bool) {
 		if ev.Name == "Threads" {
 			arg := ev.Arg.(*threadCountersArg)
 			if arg.InSyscall > 1 {
@@ -96,7 +94,7 @@ func TestGoroutineInSyscall(t *testing.T) {
 		parsed:  res,
 		endTime: int64(1<<63 - 1),
 	}
-	if err := generateTrace(param, c); err != nil {
+	if err := generateTrace(res, param, c); err != nil {
 		t.Fatalf("failed to generate ViewerData: %v", err)
 	}
 }

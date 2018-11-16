@@ -5019,6 +5019,17 @@ func TestStructOfWithInterface(t *testing.T) {
 	})
 }
 
+func TestStructOfTooManyFields(t *testing.T) {
+	// Bug Fix: #25402 - this should not panic
+	tt := StructOf([]StructField{
+		{Name: "Time", Type: TypeOf(time.Time{}), Anonymous: true},
+	})
+
+	if _, present := tt.MethodByName("After"); !present {
+		t.Errorf("Expected method `After` to be found")
+	}
+}
+
 func TestChanOf(t *testing.T) {
 	// check construction and use of type not in binary
 	type T string
@@ -5844,7 +5855,7 @@ func clobber() {
 type funcLayoutTest struct {
 	rcvr, t                  Type
 	size, argsize, retOffset uintptr
-	stack                    []byte // pointer bitmap: 1 is pointer, 0 is scalar (or uninitialized)
+	stack                    []byte // pointer bitmap: 1 is pointer, 0 is scalar
 	gc                       []byte
 }
 
@@ -5866,7 +5877,7 @@ func init() {
 			6 * PtrSize,
 			4 * PtrSize,
 			4 * PtrSize,
-			[]byte{1, 0, 1},
+			[]byte{1, 0, 1, 0, 1},
 			[]byte{1, 0, 1, 0, 1},
 		})
 
@@ -5988,7 +5999,8 @@ func TestFuncLayout(t *testing.T) {
 func verifyGCBits(t *testing.T, typ Type, bits []byte) {
 	heapBits := GCBits(New(typ).Interface())
 	if !bytes.Equal(heapBits, bits) {
-		t.Errorf("heapBits incorrect for %v\nhave %v\nwant %v", typ, heapBits, bits)
+		_, _, line, _ := runtime.Caller(1)
+		t.Errorf("line %d: heapBits incorrect for %v\nhave %v\nwant %v", line, typ, heapBits, bits)
 	}
 }
 

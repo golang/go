@@ -12,6 +12,7 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"internal/goroot"
 	"io"
 	"io/ioutil"
 	"log"
@@ -44,6 +45,7 @@ type Context struct {
 	// which defaults to the list of Go releases the current release is compatible with.
 	// In addition to the BuildTags and ReleaseTags, build constraints
 	// consider the values of GOARCH and GOOS as satisfied tags.
+	// The last element in ReleaseTags is assumed to be the current release.
 	BuildTags   []string
 	ReleaseTags []string
 
@@ -295,7 +297,8 @@ func defaultContext() Context {
 	// say "+build go1.x", and code that should only be built before Go 1.x
 	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
 	// NOTE: If you add to this list, also update the doc comment in doc.go.
-	const version = 11 // go1.11
+	// NOTE: The last element in ReleaseTags should be the current release.
+	const version = 12 // go1.12
 	for i := 1; i <= version; i++ {
 		c.ReleaseTags = append(c.ReleaseTags, "go1."+strconv.Itoa(i))
 	}
@@ -543,7 +546,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 		inTestdata := func(sub string) bool {
 			return strings.Contains(sub, "/testdata/") || strings.HasSuffix(sub, "/testdata") || strings.HasPrefix(sub, "testdata/") || sub == "testdata"
 		}
-		if ctxt.GOROOT != "" && ctxt.Compiler != "gccgo" {
+		if ctxt.GOROOT != "" {
 			root := ctxt.joinPath(ctxt.GOROOT, "src")
 			if sub, ok := ctxt.hasSubdir(root, p.Dir); ok && !inTestdata(sub) {
 				p.Goroot = true
@@ -656,7 +659,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 			}
 			tried.goroot = dir
 		}
-		if ctxt.Compiler == "gccgo" && isStandardPackage(path) {
+		if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
 			p.Dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
 			p.Goroot = true
 			p.Root = ctxt.GOROOT
@@ -714,6 +717,11 @@ Found:
 	// non-nil *Package returned when an error occurs.
 	// We need to do this before we return early on FindOnly flag.
 	if IsLocalImport(path) && !ctxt.isDir(p.Dir) {
+		if ctxt.Compiler == "gccgo" && p.Goroot {
+			// gccgo has no sources for GOROOT packages.
+			return p, nil
+		}
+
 		// package was not found
 		return p, fmt.Errorf("cannot find package %q in:\n\t%s", path, p.Dir)
 	}

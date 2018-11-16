@@ -8,7 +8,7 @@
 TEXT ·Expm1(SB),NOSPLIT,$0
 	FLDLN2               // F0=log(2) = 1/log2(e) ~ 0.693147
 	FMOVD   x+0(FP), F0  // F0=x, F1=1/log2(e)
-	FABS                 // F0=|x|, F1=1/log2(e) 
+	FABS                 // F0=|x|, F1=1/log2(e)
 	FUCOMPP F0, F1       // compare F0 to F1
 	FSTSW   AX
 	SAHF
@@ -36,7 +36,7 @@ use_exp:
 	FSCALE                // F0=e**x, F1=int(x*log2(e))
 	FMOVDP  F0, F1        // F0=e**x
 	FLD1                  // F0=1, F1=e**x
-	FSUBDP  F0, F1        // F0=e**x-1 
+	FSUBDP  F0, F1        // F0=e**x-1
 	FMOVDP  F0, ret+8(FP)
 	RET
 not_finite:

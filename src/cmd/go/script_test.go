@@ -9,7 +9,9 @@ package main_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"go/build"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -55,21 +57,28 @@ func TestScript(t *testing.T) {
 
 // A testScript holds execution state for a single test script.
 type testScript struct {
-	t       *testing.T
-	workdir string            // temporary work dir ($WORK)
-	log     bytes.Buffer      // test execution log (printed at end of test)
-	mark    int               // offset of next log truncation
-	cd      string            // current directory during test execution; initially $WORK/gopath/src
-	name    string            // short name of test ("foo")
-	file    string            // full file name ("testdata/script/foo.txt")
-	lineno  int               // line number currently executing
-	line    string            // line currently executing
-	env     []string          // environment list (for os/exec)
-	envMap  map[string]string // environment mapping (matches env)
-	stdout  string            // standard output from last 'go' command; for 'stdout' command
-	stderr  string            // standard error from last 'go' command; for 'stderr' command
-	stopped bool              // test wants to stop early
-	start   time.Time         // time phase started
+	t          *testing.T
+	workdir    string            // temporary work dir ($WORK)
+	log        bytes.Buffer      // test execution log (printed at end of test)
+	mark       int               // offset of next log truncation
+	cd         string            // current directory during test execution; initially $WORK/gopath/src
+	name       string            // short name of test ("foo")
+	file       string            // full file name ("testdata/script/foo.txt")
+	lineno     int               // line number currently executing
+	line       string            // line currently executing
+	env        []string          // environment list (for os/exec)
+	envMap     map[string]string // environment mapping (matches env)
+	stdout     string            // standard output from last 'go' command; for 'stdout' command
+	stderr     string            // standard error from last 'go' command; for 'stderr' command
+	stopped    bool              // test wants to stop early
+	start      time.Time         // time phase started
+	background []backgroundCmd   // backgrounded 'exec' and 'go' commands
+}
+
+type backgroundCmd struct {
+	cmd  *exec.Cmd
+	wait <-chan struct{}
+	neg  bool // if true, cmd should fail
 }
 
 var extraEnvKeys = []string{
@@ -96,6 +105,7 @@ func (ts *testScript) setup() {
 		"GOROOT=" + testGOROOT,
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
+		"goversion=" + goVersion(ts),
 		":=" + string(os.PathListSeparator),
 	}
 
@@ -122,6 +132,16 @@ func (ts *testScript) setup() {
 	}
 }
 
+// goVersion returns the current Go version.
+func goVersion(ts *testScript) string {
+	tags := build.Default.ReleaseTags
+	version := tags[len(tags)-1]
+	if !regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`).MatchString(version) {
+		ts.fatalf("invalid go version %q", version)
+	}
+	return version[2:]
+}
+
 var execCache par.Cache
 
 // run runs the test script.
@@ -146,6 +166,17 @@ func (ts *testScript) run() {
 	}
 
 	defer func() {
+		// On a normal exit from the test loop, background processes are cleaned up
+		// before we print PASS. If we return early (e.g., due to a test failure),
+		// don't print anything about the processes that were still running.
+		for _, bg := range ts.background {
+			interruptProcess(bg.cmd.Process)
+		}
+		for _, bg := range ts.background {
+			<-bg.wait
+		}
+		ts.background = nil
+
 		markTime()
 		// Flush testScript log to testing.T log.
 		ts.t.Log("\n" + ts.abbrev(ts.log.String()))
@@ -284,14 +315,23 @@ Script:
 
 		// Command can ask script to stop early.
 		if ts.stopped {
-			return
+			// Break instead of returning, so that we check the status of any
+			// background processes and print PASS.
+			break
 		}
 	}
+
+	for _, bg := range ts.background {
+		interruptProcess(bg.cmd.Process)
+	}
+	ts.cmdWait(false, nil)
 
 	// Final phase ended.
 	rewind()
 	markTime()
-	fmt.Fprintf(&ts.log, "PASS\n")
+	if !ts.stopped {
+		fmt.Fprintf(&ts.log, "PASS\n")
+	}
 }
 
 // scriptCmds are the script command implementations.
@@ -303,6 +343,7 @@ var scriptCmds = map[string]func(*testScript, bool, []string){
 	"addcrlf": (*testScript).cmdAddcrlf,
 	"cd":      (*testScript).cmdCd,
 	"cmp":     (*testScript).cmdCmp,
+	"cmpenv":  (*testScript).cmdCmpenv,
 	"cp":      (*testScript).cmdCp,
 	"env":     (*testScript).cmdEnv,
 	"exec":    (*testScript).cmdExec,
@@ -317,6 +358,7 @@ var scriptCmds = map[string]func(*testScript, bool, []string){
 	"stdout":  (*testScript).cmdStdout,
 	"stop":    (*testScript).cmdStop,
 	"symlink": (*testScript).cmdSymlink,
+	"wait":    (*testScript).cmdWait,
 }
 
 // addcrlf adds CRLF line endings to the named files.
@@ -329,7 +371,7 @@ func (ts *testScript) cmdAddcrlf(neg bool, args []string) {
 		file = ts.mkabs(file)
 		data, err := ioutil.ReadFile(file)
 		ts.check(err)
-		ts.check(ioutil.WriteFile(file, bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1), 0666))
+		ts.check(ioutil.WriteFile(file, bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n")), 0666))
 	}
 }
 
@@ -367,7 +409,21 @@ func (ts *testScript) cmdCmp(neg bool, args []string) {
 	if len(args) != 2 {
 		ts.fatalf("usage: cmp file1 file2")
 	}
+	ts.doCmdCmp(args, false)
+}
 
+// cmpenv compares two files with environment variable substitution.
+func (ts *testScript) cmdCmpenv(neg bool, args []string) {
+	if neg {
+		ts.fatalf("unsupported: ! cmpenv")
+	}
+	if len(args) != 2 {
+		ts.fatalf("usage: cmpenv file1 file2")
+	}
+	ts.doCmdCmp(args, true)
+}
+
+func (ts *testScript) doCmdCmp(args []string, env bool) {
 	name1, name2 := args[0], args[1]
 	var text1, text2 string
 	if name1 == "stdout" {
@@ -383,6 +439,11 @@ func (ts *testScript) cmdCmp(neg bool, args []string) {
 	data, err := ioutil.ReadFile(ts.mkabs(name2))
 	ts.check(err)
 	text2 = string(data)
+
+	if env {
+		text1 = ts.expand(text1)
+		text2 = ts.expand(text2)
+	}
 
 	if text1 == text2 {
 		return
@@ -451,25 +512,42 @@ func (ts *testScript) cmdEnv(neg bool, args []string) {
 
 // exec runs the given command.
 func (ts *testScript) cmdExec(neg bool, args []string) {
-	if len(args) < 1 {
-		ts.fatalf("usage: exec program [args...]")
+	if len(args) < 1 || (len(args) == 1 && args[0] == "&") {
+		ts.fatalf("usage: exec program [args...] [&]")
 	}
+
 	var err error
-	ts.stdout, ts.stderr, err = ts.exec(args[0], args[1:]...)
-	if ts.stdout != "" {
-		fmt.Fprintf(&ts.log, "[stdout]\n%s", ts.stdout)
+	if len(args) > 0 && args[len(args)-1] == "&" {
+		var cmd *exec.Cmd
+		cmd, err = ts.execBackground(args[0], args[1:len(args)-1]...)
+		if err == nil {
+			wait := make(chan struct{})
+			go func() {
+				ctxWait(testCtx, cmd)
+				close(wait)
+			}()
+			ts.background = append(ts.background, backgroundCmd{cmd, wait, neg})
+		}
+		ts.stdout, ts.stderr = "", ""
+	} else {
+		ts.stdout, ts.stderr, err = ts.exec(args[0], args[1:]...)
+		if ts.stdout != "" {
+			fmt.Fprintf(&ts.log, "[stdout]\n%s", ts.stdout)
+		}
+		if ts.stderr != "" {
+			fmt.Fprintf(&ts.log, "[stderr]\n%s", ts.stderr)
+		}
+		if err == nil && neg {
+			ts.fatalf("unexpected command success")
+		}
 	}
-	if ts.stderr != "" {
-		fmt.Fprintf(&ts.log, "[stderr]\n%s", ts.stderr)
-	}
+
 	if err != nil {
 		fmt.Fprintf(&ts.log, "[%v]\n", err)
-		if !neg {
+		if testCtx.Err() != nil {
+			ts.fatalf("test timed out while running command")
+		} else if !neg {
 			ts.fatalf("unexpected command failure")
-		}
-	} else {
-		if neg {
-			ts.fatalf("unexpected command success")
 		}
 	}
 }
@@ -545,6 +623,14 @@ func (ts *testScript) cmdSkip(neg bool, args []string) {
 	if neg {
 		ts.fatalf("unsupported: ! skip")
 	}
+
+	// Before we mark the test as skipped, shut down any background processes and
+	// make sure they have returned the correct status.
+	for _, bg := range ts.background {
+		interruptProcess(bg.cmd.Process)
+	}
+	ts.cmdWait(false, nil)
+
 	if len(args) == 1 {
 		ts.t.Skip(args[0])
 	}
@@ -614,7 +700,7 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
 		want = 2
 	}
 	if len(args) != want {
-		ts.fatalf("usage: %s [-count=N] 'pattern' file%s", name, extraUsage)
+		ts.fatalf("usage: %s [-count=N] 'pattern'%s", name, extraUsage)
 	}
 
 	pattern := args[0]
@@ -630,7 +716,7 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
 	}
 
 	// Matching against workdir would be misleading.
-	text = strings.Replace(text, ts.workdir, "$WORK", -1)
+	text = strings.ReplaceAll(text, ts.workdir, "$WORK")
 
 	if neg {
 		if re.MatchString(text) {
@@ -687,11 +773,57 @@ func (ts *testScript) cmdSymlink(neg bool, args []string) {
 	ts.check(os.Symlink(args[2], ts.mkabs(args[0])))
 }
 
+// wait waits for background commands to exit, setting stderr and stdout to their result.
+func (ts *testScript) cmdWait(neg bool, args []string) {
+	if neg {
+		ts.fatalf("unsupported: ! wait")
+	}
+	if len(args) > 0 {
+		ts.fatalf("usage: wait")
+	}
+
+	var stdouts, stderrs []string
+	for _, bg := range ts.background {
+		<-bg.wait
+
+		args := append([]string{filepath.Base(bg.cmd.Args[0])}, bg.cmd.Args[1:]...)
+		fmt.Fprintf(&ts.log, "[background] %s: %v\n", strings.Join(args, " "), bg.cmd.ProcessState)
+
+		cmdStdout := bg.cmd.Stdout.(*strings.Builder).String()
+		if cmdStdout != "" {
+			fmt.Fprintf(&ts.log, "[stdout]\n%s", cmdStdout)
+			stdouts = append(stdouts, cmdStdout)
+		}
+
+		cmdStderr := bg.cmd.Stderr.(*strings.Builder).String()
+		if cmdStderr != "" {
+			fmt.Fprintf(&ts.log, "[stderr]\n%s", cmdStderr)
+			stderrs = append(stderrs, cmdStderr)
+		}
+
+		if bg.cmd.ProcessState.Success() {
+			if bg.neg {
+				ts.fatalf("unexpected command success")
+			}
+		} else {
+			if testCtx.Err() != nil {
+				ts.fatalf("test timed out while running command")
+			} else if !bg.neg {
+				ts.fatalf("unexpected command failure")
+			}
+		}
+	}
+
+	ts.stdout = strings.Join(stdouts, "")
+	ts.stderr = strings.Join(stderrs, "")
+	ts.background = nil
+}
+
 // Helpers for command implementations.
 
 // abbrev abbreviates the actual work directory in the string s to the literal string "$WORK".
 func (ts *testScript) abbrev(s string) string {
-	s = strings.Replace(s, ts.workdir, "$WORK", -1)
+	s = strings.ReplaceAll(s, ts.workdir, "$WORK")
 	if *testWork {
 		// Expose actual $WORK value in environment dump on first line of work script,
 		// so that the user can find out what directory -testwork left behind.
@@ -716,8 +848,49 @@ func (ts *testScript) exec(command string, args ...string) (stdout, stderr strin
 	var stdoutBuf, stderrBuf strings.Builder
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
-	err = cmd.Run()
+	if err = cmd.Start(); err == nil {
+		err = ctxWait(testCtx, cmd)
+	}
 	return stdoutBuf.String(), stderrBuf.String(), err
+}
+
+// execBackground starts the given command line (an actual subprocess, not simulated)
+// in ts.cd with environment ts.env.
+func (ts *testScript) execBackground(command string, args ...string) (*exec.Cmd, error) {
+	cmd := exec.Command(command, args...)
+	cmd.Dir = ts.cd
+	cmd.Env = append(ts.env, "PWD="+ts.cd)
+	var stdoutBuf, stderrBuf strings.Builder
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+	return cmd, cmd.Start()
+}
+
+// ctxWait is like cmd.Wait, but terminates cmd with os.Interrupt if ctx becomes done.
+//
+// This differs from exec.CommandContext in that it prefers os.Interrupt over os.Kill.
+// (See https://golang.org/issue/21135.)
+func ctxWait(ctx context.Context, cmd *exec.Cmd) error {
+	errc := make(chan error, 1)
+	go func() { errc <- cmd.Wait() }()
+
+	select {
+	case err := <-errc:
+		return err
+	case <-ctx.Done():
+		interruptProcess(cmd.Process)
+		return <-errc
+	}
+}
+
+// interruptProcess sends os.Interrupt to p if supported, or os.Kill otherwise.
+func interruptProcess(p *os.Process) {
+	if err := p.Signal(os.Interrupt); err != nil {
+		// Per https://golang.org/pkg/os/#Signal, “Interrupt is not implemented on
+		// Windows; using it with os.Process.Signal will return an error.”
+		// Fall back to Kill instead.
+		p.Kill()
+	}
 }
 
 // expand applies environment variable expansion to the string s.
@@ -885,17 +1058,17 @@ var diffTests = []struct {
 func TestDiff(t *testing.T) {
 	for _, tt := range diffTests {
 		// Turn spaces into \n.
-		text1 := strings.Replace(tt.text1, " ", "\n", -1)
+		text1 := strings.ReplaceAll(tt.text1, " ", "\n")
 		if text1 != "" {
 			text1 += "\n"
 		}
-		text2 := strings.Replace(tt.text2, " ", "\n", -1)
+		text2 := strings.ReplaceAll(tt.text2, " ", "\n")
 		if text2 != "" {
 			text2 += "\n"
 		}
 		out := diff(text1, text2)
 		// Cut final \n, cut spaces, turn remaining \n into spaces.
-		out = strings.Replace(strings.Replace(strings.TrimSuffix(out, "\n"), " ", "", -1), "\n", " ", -1)
+		out = strings.ReplaceAll(strings.ReplaceAll(strings.TrimSuffix(out, "\n"), " ", ""), "\n", " ")
 		if out != tt.diff {
 			t.Errorf("diff(%q, %q) = %q, want %q", text1, text2, out, tt.diff)
 		}

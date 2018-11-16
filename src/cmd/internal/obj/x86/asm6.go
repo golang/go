@@ -2065,6 +2065,7 @@ func instinit(ctxt *obj.Link) {
 		plan9privates = ctxt.Lookup("_privates")
 	case objabi.Hnacl:
 		deferreturn = ctxt.Lookup("runtime.deferreturn")
+		deferreturn.SetABI(obj.ABIInternal)
 	}
 
 	for i := range avxOptab {
@@ -2288,7 +2289,7 @@ func instinit(ctxt *obj.Link) {
 	}
 }
 
-var isAndroid = (objabi.GOOS == "android")
+var isAndroid = objabi.GOOS == "android"
 
 func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 	if a.Reg < REG_CS && a.Index < REG_CS { // fast path
@@ -4704,7 +4705,9 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					r = obj.Addrel(cursym)
 					r.Off = int32(p.Pc + int64(ab.Len()))
 					r.Sym = p.To.Sym
-					r.Type = objabi.R_PCREL
+					// Note: R_CALL instead of R_PCREL. R_CALL is more permissive in that
+					// it can point to a trampoline instead of the destination itself.
+					r.Type = objabi.R_CALL
 					r.Siz = 4
 					ab.PutInt32(0)
 					break
@@ -5051,7 +5054,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 bad:
 	if ctxt.Arch.Family != sys.AMD64 {
 		// here, the assembly has failed.
-		// if its a byte instruction that has
+		// if it's a byte instruction that has
 		// unaddressable registers, try to
 		// exchange registers and reissue the
 		// instruction with the operands renamed.

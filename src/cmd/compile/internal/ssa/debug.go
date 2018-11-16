@@ -153,8 +153,12 @@ var BlockEnd = &Value{
 // RegisterSet is a bitmap of registers, indexed by Register.num.
 type RegisterSet uint64
 
+// logf prints debug-specific logging to stdout (always stdout) if the current
+// function is tagged by GOSSAFUNC (for ssa output directed either to stdout or html).
 func (s *debugState) logf(msg string, args ...interface{}) {
-	s.f.Logf(msg, args...)
+	if s.f.PrintOrHtmlSSA {
+		fmt.Printf(msg, args...)
+	}
 }
 
 type debugState struct {
@@ -786,7 +790,7 @@ func (e *pendingEntry) clear() {
 	}
 }
 
-// canMerge returns true if the location description for new is the same as
+// canMerge reports whether the location description for new is the same as
 // pending.
 func canMerge(pending, new VarLoc) bool {
 	if pending.absent() && new.absent() {

@@ -381,6 +381,29 @@ func UserCacheDir() (string, error) {
 	return dir, nil
 }
 
+// UserHomeDir returns the current user's home directory.
+//
+// On Unix, including macOS, it returns the $HOME environment variable.
+// On Windows, it returns %USERPROFILE%.
+// On Plan 9, it returns the $home environment variable.
+func UserHomeDir() string {
+	switch runtime.GOOS {
+	case "windows":
+		return Getenv("USERPROFILE")
+	case "plan9":
+		return Getenv("home")
+	case "nacl", "android":
+		return "/"
+	case "darwin":
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+			return "/"
+		}
+		fallthrough
+	default:
+		return Getenv("HOME")
+	}
+}
+
 // Chmod changes the mode of the named file to mode.
 // If the file is a symbolic link, it changes the mode of the link's target.
 // If there is an error, it will be of type *PathError.

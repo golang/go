@@ -153,15 +153,20 @@ func TestReverseProxy(t *testing.T) {
 func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 	const fakeConnectionToken = "X-Fake-Connection-Token"
 	const backendResponse = "I am the backend"
+
+	// someConnHeader is some arbitrary header to be declared as a hop-by-hop header
+	// in the Request's Connection header.
+	const someConnHeader = "X-Some-Conn-Header"
+
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if c := r.Header.Get(fakeConnectionToken); c != "" {
 			t.Errorf("handler got header %q = %q; want empty", fakeConnectionToken, c)
 		}
-		if c := r.Header.Get("Upgrade"); c != "" {
-			t.Errorf("handler got header %q = %q; want empty", "Upgrade", c)
+		if c := r.Header.Get(someConnHeader); c != "" {
+			t.Errorf("handler got header %q = %q; want empty", someConnHeader, c)
 		}
-		w.Header().Set("Connection", "Upgrade, "+fakeConnectionToken)
-		w.Header().Set("Upgrade", "should be deleted")
+		w.Header().Set("Connection", someConnHeader+", "+fakeConnectionToken)
+		w.Header().Set(someConnHeader, "should be deleted")
 		w.Header().Set(fakeConnectionToken, "should be deleted")
 		io.WriteString(w, backendResponse)
 	}))
@@ -173,15 +178,15 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
 	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		proxyHandler.ServeHTTP(w, r)
-		if c := r.Header.Get("Upgrade"); c != "original value" {
-			t.Errorf("handler modified header %q = %q; want %q", "Upgrade", c, "original value")
+		if c := r.Header.Get(someConnHeader); c != "original value" {
+			t.Errorf("handler modified header %q = %q; want %q", someConnHeader, c, "original value")
 		}
 	}))
 	defer frontend.Close()
 
 	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
-	getReq.Header.Set("Connection", "Upgrade, "+fakeConnectionToken)
-	getReq.Header.Set("Upgrade", "original value")
+	getReq.Header.Set("Connection", someConnHeader+", "+fakeConnectionToken)
+	getReq.Header.Set(someConnHeader, "original value")
 	getReq.Header.Set(fakeConnectionToken, "should be deleted")
 	res, err := frontend.Client().Do(getReq)
 	if err != nil {
@@ -195,8 +200,8 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 	if got, want := string(bodyBytes), backendResponse; got != want {
 		t.Errorf("got body %q; want %q", got, want)
 	}
-	if c := res.Header.Get("Upgrade"); c != "" {
-		t.Errorf("handler got header %q = %q; want empty", "Upgrade", c)
+	if c := res.Header.Get(someConnHeader); c != "" {
+		t.Errorf("handler got header %q = %q; want empty", someConnHeader, c)
 	}
 	if c := res.Header.Get(fakeConnectionToken); c != "" {
 		t.Errorf("handler got header %q = %q; want empty", fakeConnectionToken, c)
@@ -297,10 +302,6 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
 	proxyHandler.FlushInterval = time.Microsecond
 
-	done := make(chan bool)
-	onExitFlushLoop = func() { done <- true }
-	defer func() { onExitFlushLoop = nil }()
-
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 
@@ -313,13 +314,6 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	defer res.Body.Close()
 	if bodyBytes, _ := ioutil.ReadAll(res.Body); string(bodyBytes) != expected {
 		t.Errorf("got body %q; expected %q", bodyBytes, expected)
-	}
-
-	select {
-	case <-done:
-		// OK
-	case <-time.After(5 * time.Second):
-		t.Error("maxLatencyWriter flushLoop() never exited")
 	}
 }
 
@@ -945,4 +939,112 @@ func TestReverseProxy_PanicBodyError(t *testing.T) {
 	}()
 	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
 	rproxy.ServeHTTP(httptest.NewRecorder(), req)
+}
+
+func TestSelectFlushInterval(t *testing.T) {
+	tests := []struct {
+		name string
+		p    *ReverseProxy
+		req  *http.Request
+		res  *http.Response
+		want time.Duration
+	}{
+		{
+			name: "default",
+			res:  &http.Response{},
+			p:    &ReverseProxy{FlushInterval: 123},
+			want: 123,
+		},
+		{
+			name: "server-sent events overrides non-zero",
+			res: &http.Response{
+				Header: http.Header{
+					"Content-Type": {"text/event-stream"},
+				},
+			},
+			p:    &ReverseProxy{FlushInterval: 123},
+			want: -1,
+		},
+		{
+			name: "server-sent events overrides zero",
+			res: &http.Response{
+				Header: http.Header{
+					"Content-Type": {"text/event-stream"},
+				},
+			},
+			p:    &ReverseProxy{FlushInterval: 0},
+			want: -1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.p.flushInterval(tt.req, tt.res)
+			if got != tt.want {
+				t.Errorf("flushLatency = %v; want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestReverseProxyWebSocket(t *testing.T) {
+	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if upgradeType(r.Header) != "websocket" {
+			t.Error("unexpected backend request")
+			http.Error(w, "unexpected request", 400)
+			return
+		}
+		c, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer c.Close()
+		io.WriteString(c, "HTTP/1.1 101 Switching Protocols\r\nConnection: upgrade\r\nUpgrade: WebSocket\r\n\r\n")
+		bs := bufio.NewScanner(c)
+		if !bs.Scan() {
+			t.Errorf("backend failed to read line from client: %v", bs.Err())
+			return
+		}
+		fmt.Fprintf(c, "backend got %q\n", bs.Text())
+	}))
+	defer backendServer.Close()
+
+	backURL, _ := url.Parse(backendServer.URL)
+	rproxy := NewSingleHostReverseProxy(backURL)
+	rproxy.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+
+	frontendProxy := httptest.NewServer(rproxy)
+	defer frontendProxy.Close()
+
+	req, _ := http.NewRequest("GET", frontendProxy.URL, nil)
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "websocket")
+
+	c := frontendProxy.Client()
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 101 {
+		t.Fatalf("status = %v; want 101", res.Status)
+	}
+	if upgradeType(res.Header) != "websocket" {
+		t.Fatalf("not websocket upgrade; got %#v", res.Header)
+	}
+	rwc, ok := res.Body.(io.ReadWriteCloser)
+	if !ok {
+		t.Fatalf("response body is of type %T; does not implement ReadWriteCloser", res.Body)
+	}
+	defer rwc.Close()
+
+	io.WriteString(rwc, "Hello\n")
+	bs := bufio.NewScanner(rwc)
+	if !bs.Scan() {
+		t.Fatalf("Scan: %v", bs.Err())
+	}
+	got := bs.Text()
+	want := `backend got "Hello"`
+	if got != want {
+		t.Errorf("got %#q, want %#q", got, want)
+	}
 }

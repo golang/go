@@ -334,6 +334,7 @@ func (r *importReader) doDecl(n *Node) {
 			m := newfuncnamel(mpos, methodSym(recv.Type, msym))
 			m.Type = mtyp
 			m.SetClass(PFUNC)
+			// methodSym already marked m.Sym as a function.
 
 			// (comment from parser.go)
 			// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
@@ -935,9 +936,6 @@ func (r *importReader) node() *Node {
 		}
 		return x
 
-	// case OCMPSTR, OCMPIFACE:
-	// 	unreachable - mapped to std comparison operators by exporter
-
 	// --------------------------------------------------------------------
 	// statements
 	case ODCL:
@@ -1046,7 +1044,9 @@ func (r *importReader) node() *Node {
 	// 	unreachable - not emitted by exporter
 
 	case OGOTO, OLABEL:
-		return nodl(r.pos(), op, newname(r.expr().Sym), nil)
+		n := nodl(r.pos(), op, nil, nil)
+		n.Sym = lookup(r.string())
+		return n
 
 	case OEND:
 		return nil

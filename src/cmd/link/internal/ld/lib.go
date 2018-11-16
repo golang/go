@@ -39,6 +39,7 @@ import (
 	"cmd/link/internal/loadelf"
 	"cmd/link/internal/loadmacho"
 	"cmd/link/internal/loadpe"
+	"cmd/link/internal/loadxcoff"
 	"cmd/link/internal/objfile"
 	"cmd/link/internal/sym"
 	"crypto/sha1"
@@ -168,7 +169,7 @@ func (ctxt *Link) DynlinkingGo() bool {
 
 // CanUsePlugins returns whether a plugins can be used
 func (ctxt *Link) CanUsePlugins() bool {
-	return ctxt.Syms.ROLookup("plugin.Open", 0) != nil
+	return ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil
 }
 
 // UseRelro returns whether to make use of "read only relocations" aka
@@ -634,6 +635,19 @@ func (ctxt *Link) loadlib() {
 		}
 		ctxt.Textp = textp
 	}
+
+	// Resolve ABI aliases in the list of cgo-exported functions.
+	// This is necessary because we load the ABI0 symbol for all
+	// cgo exports.
+	for i, s := range dynexp {
+		if s.Type != sym.SABIALIAS {
+			continue
+		}
+		t := resolveABIAlias(s)
+		t.Attr |= s.Attr
+		t.SetExtname(s.Extname())
+		dynexp[i] = t
+	}
 }
 
 // mangleTypeSym shortens the names of symbols that represent Go types
@@ -646,11 +660,11 @@ func (ctxt *Link) loadlib() {
 //
 // These are the symbols that begin with the prefix 'type.' and
 // contain run-time type information used by the runtime and reflect
-// packages. All Go binaries contain these symbols, but only only
+// packages. All Go binaries contain these symbols, but only
 // those programs loaded dynamically in multiple parts need these
 // symbols to have entries in the symbol table.
 func (ctxt *Link) mangleTypeSym() {
-	if ctxt.BuildMode != BuildModeShared && !ctxt.linkShared && ctxt.BuildMode != BuildModePlugin && ctxt.Syms.ROLookup("plugin.Open", 0) == nil {
+	if ctxt.BuildMode != BuildModeShared && !ctxt.linkShared && ctxt.BuildMode != BuildModePlugin && !ctxt.CanUsePlugins() {
 		return
 	}
 
@@ -852,6 +866,13 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
 		// ensures consistency between -linkobj and normal
 		// build modes.
 		if arhdr.name == pkgdef {
+			continue
+		}
+
+		// Skip other special (non-object-file) sections that
+		// build tools may have added. Such sections must have
+		// short names so that the suffix is not truncated.
+		if len(arhdr.name) < 16 && !strings.HasSuffix(arhdr.name, ".o") {
 			continue
 		}
 
@@ -1337,9 +1358,24 @@ func (ctxt *Link) hostlink() {
 		ctxt.Logf("\n")
 	}
 
-	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
+	out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput()
+	if err != nil {
 		Exitf("running %s failed: %v\n%s", argv[0], err, out)
-	} else if len(out) > 0 {
+	}
+
+	// Filter out useless linker warnings caused by bugs outside Go.
+	// See also cmd/go/internal/work/exec.go's gccld method.
+	var save [][]byte
+	for _, line := range bytes.SplitAfter(out, []byte("\n")) {
+		// golang.org/issue/26073 - Apple Xcode bug
+		if bytes.Contains(line, []byte("ld: warning: text-based stub file")) {
+			continue
+		}
+		save = append(save, line)
+	}
+	out = bytes.Join(save, nil)
+
+	if len(out) > 0 {
 		// always print external output even if the command is successful, so that we don't
 		// swallow linker warnings (see https://golang.org/issue/17935).
 		ctxt.Logf("%s", out)
@@ -1517,6 +1553,18 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		return ldhostobj(ldpe, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
+	if c1 == 0x01 && (c2 == 0xD7 || c2 == 0xF7) {
+		ldxcoff := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+			textp, err := loadxcoff.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
+			if err != nil {
+				Errorf(nil, "%v", err)
+				return
+			}
+			ctxt.Textp = append(ctxt.Textp, textp...)
+		}
+		return ldhostobj(ldxcoff, ctxt.HeadType, f, pkg, length, pn, file)
+	}
+
 	/* check the header */
 	line, err := f.ReadString('\n')
 	if err != nil {
@@ -1565,7 +1613,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	//
 	// Note: It's possible for "\n!\n" to appear within the binary
 	// package export data format. To avoid truncating the package
-	// definition prematurely (issue 21703), we keep keep track of
+	// definition prematurely (issue 21703), we keep track of
 	// how many "$$" delimiters we've seen.
 
 	import0 := f.Offset()
@@ -1765,6 +1813,21 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 				lsym.P = readelfsymboldata(ctxt, f, &elfsym)
 				gcdataLocations[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = lsym
 			}
+		}
+		// For function symbols, we don't know what ABI is
+		// available, so alias it under both ABIs.
+		//
+		// TODO(austin): This is almost certainly wrong once
+		// the ABIs are actually different. We might have to
+		// mangle Go function names in the .so to include the
+		// ABI.
+		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
+			alias := ctxt.Syms.Lookup(elfsym.Name, sym.SymVerABIInternal)
+			if alias.Type != 0 {
+				continue
+			}
+			alias.Type = sym.SABIALIAS
+			alias.R = []sym.Reloc{{Sym: lsym}}
 		}
 	}
 	gcdataAddresses := make(map[*sym.Symbol]uint64)
@@ -2094,7 +2157,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 		if s.Attr.NotInSymbolTable() {
 			continue
 		}
-		if (s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC." {
+		if (s.Name == "" || s.Name[0] == '.') && !s.IsFileLocal() && s.Name != ".rathole" && s.Name != ".TOC." {
 			continue
 		}
 		switch s.Type {
@@ -2243,7 +2306,7 @@ func Entryvalue(ctxt *Link) int64 {
 	if s.Type == 0 {
 		return *FlagTextAddr
 	}
-	if s.Type != sym.STEXT {
+	if ctxt.HeadType != objabi.Haix && s.Type != sym.STEXT {
 		Errorf(s, "entry not text")
 	}
 	return s.Value

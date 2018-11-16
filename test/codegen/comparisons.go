@@ -36,6 +36,7 @@ func CompareString2(s string) bool {
 func CompareString3(s string) bool {
 	// amd64:`CMPQ\t\(.*\), [A-Z]`
 	// arm64:-`CMPW\t`
+	// ppc64:-`CMPW\t`
 	// ppc64le:-`CMPW\t`
 	// s390x:-`CMPW\t`
 	return s == "xxxxxxxx"
@@ -183,6 +184,10 @@ func CmpToZero(a, b, d int32, e, f int64) int32 {
 	// arm:`AND`,-`TST`
 	// 386:`ANDL`
 	c6 := a&d >= 0
+	// arm64:`TST\sR[0-9]+<<3,\sR[0-9]+`
+	c7 := e&(f<<3) < 0
+	// arm64:`CMN\sR[0-9]+<<3,\sR[0-9]+`
+	c8 := e+(f<<3) < 0
 	if c0 {
 		return 1
 	} else if c1 {
@@ -197,7 +202,44 @@ func CmpToZero(a, b, d int32, e, f int64) int32 {
 		return b + d
 	} else if c6 {
 		return a & d
+	} else if c7 {
+		return 7
+	} else if c8 {
+		return 8
 	} else {
 		return 0
 	}
+}
+
+func CmpLogicalToZero(a, b, c uint32, d, e uint64) uint64 {
+
+	// ppc64:"ANDCC",-"CMPW"
+	// ppc64le:"ANDCC",-"CMPW"
+	if a & 63 == 0 {
+		return 1
+	}
+
+	// ppc64:"ANDCC",-"CMP"
+	// ppc64le:"ANDCC",-"CMP"
+	if d & 255 == 0 {
+		return 1
+	}
+
+	// ppc64:"ANDCC",-"CMP"
+	// ppc64le:"ANDCC",-"CMP"
+	if d & e == 0 {
+		return 1
+	}
+	// ppc64:"ORCC",-"CMP"
+	// ppc64le:"ORCC",-"CMP"
+	if d | e == 0 {
+		return 1
+	}
+
+	// ppc64:"XORCC",-"CMP"
+	// ppc64le:"XORCC",-"CMP"
+	if e ^ d == 0 {
+		return 1
+	}
+	return 0
 }

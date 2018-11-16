@@ -697,7 +697,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 	}
 
 	switch t.Etype {
-	case TPTR32, TPTR64:
+	case TPTR:
 		switch mode {
 		case FTypeId, FTypeIdName:
 			if flag&FmtShort != 0 {
@@ -1045,8 +1045,8 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 		mode.Fprintf(s, ": %v", n.Nbody)
 
 	case OBREAK, OCONTINUE, OGOTO, OFALL:
-		if n.Left != nil {
-			mode.Fprintf(s, "%#v %v", n.Op, n.Left)
+		if n.Sym != nil {
+			mode.Fprintf(s, "%#v %v", n.Op, n.Sym)
 		} else {
 			mode.Fprintf(s, "%#v", n.Op)
 		}
@@ -1055,7 +1055,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 		break
 
 	case OLABEL:
-		mode.Fprintf(s, "%v: ", n.Left)
+		mode.Fprintf(s, "%v: ", n.Sym)
 	}
 
 	if extrablock {
@@ -1114,6 +1114,7 @@ var opprec = []int{
 	OSLICEARR:     8,
 	OSLICE3:       8,
 	OSLICE3ARR:    8,
+	OSLICEHEADER:  8,
 	ODOTINTER:     8,
 	ODOTMETH:      8,
 	ODOTPTR:       8,
@@ -1146,8 +1147,6 @@ var opprec = []int{
 	OGE:           4,
 	OGT:           4,
 	ONE:           4,
-	OCMPSTR:       4,
-	OCMPIFACE:     4,
 	OSEND:         3,
 	OANDAND:       2,
 	OOROR:         1,
@@ -1395,6 +1394,12 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		}
 		fmt.Fprint(s, "]")
 
+	case OSLICEHEADER:
+		if n.List.Len() != 2 {
+			Fatalf("bad OSLICEHEADER list length %d", n.List.Len())
+		}
+		mode.Fprintf(s, "sliceheader{%v,%v,%v}", n.Left, n.List.First(), n.List.Second())
+
 	case OCOPY, OCOMPLEX:
 		mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
 
@@ -1506,11 +1511,6 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			}
 			n1.exprfmt(s, nprec, mode)
 		}
-
-	case OCMPSTR, OCMPIFACE:
-		n.Left.exprfmt(s, nprec, mode)
-		mode.Fprintf(s, " %#v ", n.SubOp())
-		n.Right.exprfmt(s, nprec+1, mode)
 
 	default:
 		mode.Fprintf(s, "<node %v>", n.Op)

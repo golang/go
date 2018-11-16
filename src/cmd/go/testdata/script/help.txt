@@ -35,6 +35,12 @@ stderr 'Run ''go help mod'' for usage.'
 stderr 'usage: go vet'
 stderr 'Run ''go help vet'' for details'
 
+# Earlier versions of Go printed a large document here, instead of these two
+# lines.
+! go test -h
+stderr 'usage: go test'
+stderr 'Run ''go help test'' for details'
+
 # go help get shows usage for get
 go help get
 stdout 'usage: go get'

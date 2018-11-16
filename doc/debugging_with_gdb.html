@@ -179,7 +179,15 @@ from it.</li>
 <code>"fmt.Print"</code> as an unstructured literal with a <code>"."</code>
 that needs to be quoted.  It objects even more strongly to method names of
 the form <code>pkg.(*MyType).Meth</code>.
-<li>All global variables are lumped into package <code>"main"</code>.</li>
+<li>As of Go 1.11, debug information is compressed by default.
+Older versions of gdb, such as the one available by default on MacOS,
+do not understand the compression.
+You can generate uncompressed debug information by using <code>go
+build -ldflags=-compressdwarf=false</code>.
+(For convenience you can put the <code>-ldflags</code> option in
+the <a href="/cmd/go/#hdr-Environment_variables"><code>GOFLAGS</code>
+environment variable</a> so that you don't have to specify it each time.)
+</li>
 </ol>
 
 <h2 id="Tutorial">Tutorial</h2>

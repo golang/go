@@ -67,6 +67,7 @@ module m
 
 require (
 	a v1.0.0
+	diamondroot v0.0.0
 	mysite/myname/mypkg v1.0.0
 	w v1.0.0 // indirect
 	x v1.0.0
@@ -76,6 +77,10 @@ require (
 
 replace (
 	a v1.0.0 => ./a
+	diamondleft => ./diamondleft
+	diamondpoint => ./diamondpoint
+	diamondright => ./diamondright
+	diamondroot => ./diamondroot
 	mysite/myname/mypkg v1.0.0 => ./mypkg
 	w v1.0.0 => ./w
 	x v1.0.0 => ./x
@@ -200,6 +205,10 @@ import _ "z"
 package m
 
 import _ "x/x1"
+-- importdiamond.go --
+package m
+
+import _ "diamondroot"
 -- w/go.mod --
 module w
 -- w/w.go --
@@ -228,3 +237,42 @@ package y
 module z
 -- z/z.go --
 package z
+
+-- diamondroot/go.mod --
+module diamondroot
+
+require (
+	diamondleft v0.0.0
+	diamondright v0.0.0
+)
+-- diamondroot/x.go --
+package diamondroot
+
+import (
+	_ "diamondleft"
+	_ "diamondright"
+)
+-- diamondleft/go.mod --
+module diamondleft
+
+require (
+	diamondpoint v0.0.0
+)
+-- diamondleft/x.go --
+package diamondleft
+
+import _ "diamondpoint"
+-- diamondright/go.mod --
+module diamondright
+
+require (
+	diamondpoint v0.0.0
+)
+-- diamondright/x.go --
+package diamondright
+
+import _ "diamondpoint"
+-- diamondpoint/go.mod --
+module diamondpoint
+-- diamondpoint/x.go --
+package diamondpoint

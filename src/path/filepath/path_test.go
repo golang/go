@@ -92,6 +92,9 @@ var wincleantests = []PathTest{
 	{`//host/share/foo/../baz`, `\\host\share\baz`},
 	{`\\a\b\..\c`, `\\a\b\c`},
 	{`\\a\b`, `\\a\b`},
+	{`\\a\b\`, `\\a\b`},
+	{`\\folder\share\foo`, `\\folder\share\foo`},
+	{`\\folder\share\foo\`, `\\folder\share\foo`},
 }
 
 func TestClean(t *testing.T) {
@@ -748,6 +751,11 @@ func TestIsAbs(t *testing.T) {
 		for _, test := range isabstests {
 			tests = append(tests, IsAbsTest{"c:" + test.path, test.isAbs})
 		}
+		// Test reserved names.
+		tests = append(tests, IsAbsTest{os.DevNull, true})
+		tests = append(tests, IsAbsTest{"NUL", true})
+		tests = append(tests, IsAbsTest{"nul", true})
+		tests = append(tests, IsAbsTest{"CON", true})
 	} else {
 		tests = isabstests
 	}
@@ -1062,7 +1070,7 @@ func TestAbs(t *testing.T) {
 	}
 
 	for _, path := range absTests {
-		path = strings.Replace(path, "$", root, -1)
+		path = strings.ReplaceAll(path, "$", root)
 		info, err := os.Stat(path)
 		if err != nil {
 			t.Errorf("%s: %s", path, err)

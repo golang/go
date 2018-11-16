@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !nacl,!js
+// +build !aix,!nacl,!js
 
 package pprof
 
@@ -602,7 +602,7 @@ func TestBlockProfile(t *testing.T) {
 		}
 
 		for _, test := range tests {
-			if !regexp.MustCompile(strings.Replace(test.re, "\t", "\t+", -1)).MatchString(prof) {
+			if !regexp.MustCompile(strings.ReplaceAll(test.re, "\t", "\t+")).MatchString(prof) {
 				t.Errorf("Bad %v entry, expect:\n%v\ngot:\n%v", test.name, test.re, prof)
 			}
 		}

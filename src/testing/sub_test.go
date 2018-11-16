@@ -17,7 +17,7 @@ import (
 
 func init() {
 	// Make benchmark tests run 10* faster.
-	*benchTime = 100 * time.Millisecond
+	benchTime.d = 100 * time.Millisecond
 }
 
 func TestTestContext(t *T) {
@@ -411,6 +411,29 @@ func TestTRun(t *T) {
 			ch <- true
 			<-ch
 		},
+	}, {
+		desc: "log in finished sub test logs to parent",
+		ok:   false,
+		output: `
+		--- FAIL: log in finished sub test logs to parent (N.NNs)
+    sub_test.go:NNN: message2
+    sub_test.go:NNN: message1
+    sub_test.go:NNN: error`,
+		maxPar: 1,
+		f: func(t *T) {
+			ch := make(chan bool)
+			t.Run("sub", func(t2 *T) {
+				go func() {
+					<-ch
+					t2.Log("message1")
+					ch <- true
+				}()
+			})
+			t.Log("message2")
+			ch <- true
+			<-ch
+			t.Errorf("error")
+		},
 	}}
 	for _, tc := range testCases {
 		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
@@ -570,7 +593,7 @@ func TestBRun(t *T) {
 				chatty: tc.chatty,
 			},
 			benchFunc: func(b *B) { ok = b.Run("test", tc.f) }, // Use Run to catch failure.
-			benchTime: time.Microsecond,
+			benchTime: benchTimeFlag{d: 1 * time.Microsecond},
 		}
 		root.runN(1)
 		if ok != !tc.failed {
@@ -594,8 +617,8 @@ func TestBRun(t *T) {
 
 func makeRegexp(s string) string {
 	s = regexp.QuoteMeta(s)
-	s = strings.Replace(s, ":NNN:", `:\d\d\d:`, -1)
-	s = strings.Replace(s, "N\\.NNs", `\d*\.\d*s`, -1)
+	s = strings.ReplaceAll(s, ":NNN:", `:\d\d\d:`)
+	s = strings.ReplaceAll(s, "N\\.NNs", `\d*\.\d*s`)
 	return s
 }
 

@@ -684,7 +684,7 @@ func BenchmarkMatch(b *testing.B) {
 func BenchmarkMatch_onepass_regex(b *testing.B) {
 	isRaceBuilder := strings.HasSuffix(testenv.Builder(), "-race")
 	r := MustCompile(`(?s)\A.*\z`)
-	if r.get().op == notOnePass {
+	if r.onepass == nil {
 		b.Fatalf("want onepass regex, but %q is not onepass", r)
 	}
 	for _, size := range benchSizes {
@@ -692,18 +692,12 @@ func BenchmarkMatch_onepass_regex(b *testing.B) {
 			continue
 		}
 		t := makeText(size.n)
-		bs := make([][]byte, len(t))
-		for i, s := range t {
-			bs[i] = []byte{s}
-		}
 		b.Run(size.name, func(b *testing.B) {
 			b.SetBytes(int64(size.n))
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				for _, byts := range bs {
-					if !r.Match(byts) {
-						b.Fatal("not match!")
-					}
+				if !r.Match(t) {
+					b.Fatal("not match!")
 				}
 			}
 		})

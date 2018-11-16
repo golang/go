@@ -48,6 +48,10 @@ cas64_fail:
 TEXT ·Casuintptr(SB), NOSPLIT, $0-25
 	BR	·Cas64(SB)
 
+// func CasRel(ptr *uint32, old, new uint32) bool
+TEXT ·CasRel(SB), NOSPLIT, $0-17
+	BR	·Cas(SB)
+
 // func Loaduintptr(ptr *uintptr) uintptr
 TEXT ·Loaduintptr(SB), NOSPLIT, $0-16
 	BR	·Load64(SB)

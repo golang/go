@@ -308,8 +308,8 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
 	f.zero = oldZero
 }
 
-// truncate truncates the string to the specified precision, if present.
-func (f *fmt) truncate(s string) string {
+// truncate truncates the string s to the specified precision, if present.
+func (f *fmt) truncateString(s string) string {
 	if f.precPresent {
 		n := f.prec
 		for i := range s {
@@ -322,10 +322,35 @@ func (f *fmt) truncate(s string) string {
 	return s
 }
 
+// truncate truncates the byte slice b as a string of the specified precision, if present.
+func (f *fmt) truncate(b []byte) []byte {
+	if f.precPresent {
+		n := f.prec
+		for i := 0; i < len(b); {
+			n--
+			if n < 0 {
+				return b[:i]
+			}
+			wid := 1
+			if b[i] >= utf8.RuneSelf {
+				_, wid = utf8.DecodeRune(b[i:])
+			}
+			i += wid
+		}
+	}
+	return b
+}
+
 // fmtS formats a string.
 func (f *fmt) fmtS(s string) {
-	s = f.truncate(s)
+	s = f.truncateString(s)
 	f.padString(s)
+}
+
+// fmtBs formats the byte slice b as if it was formatted as string with fmtS.
+func (f *fmt) fmtBs(b []byte) {
+	b = f.truncate(b)
+	f.pad(b)
 }
 
 // fmtSbx formats a string or byte slice as a hexadecimal encoding of its bytes.
@@ -408,7 +433,7 @@ func (f *fmt) fmtBx(b []byte, digits string) {
 // If f.sharp is set a raw (backquoted) string may be returned instead
 // if the string does not contain any control characters other than tab.
 func (f *fmt) fmtQ(s string) {
-	s = f.truncate(s)
+	s = f.truncateString(s)
 	if f.sharp && strconv.CanBackquote(s) {
 		f.padString("`" + s + "`")
 		return
@@ -481,19 +506,15 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 		return
 	}
 	// The sharp flag forces printing a decimal point for non-binary formats
-	// and retains trailing zeros, which we may need to restore. For the sharpV
-	// flag, we ensure a single trailing zero is present if the output is not
-	// in exponent notation.
-	if f.sharpV || (f.sharp && verb != 'b') {
+	// and retains trailing zeros, which we may need to restore.
+	if f.sharp && verb != 'b' {
 		digits := 0
-		if !f.sharpV {
-			switch verb {
-			case 'g', 'G':
-				digits = prec
-				// If no precision is set explicitly use a precision of 6.
-				if digits == -1 {
-					digits = 6
-				}
+		switch verb {
+		case 'v', 'g', 'G':
+			digits = prec
+			// If no precision is set explicitly use a precision of 6.
+			if digits == -1 {
+				digits = 6
 			}
 		}
 
@@ -502,32 +523,25 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 		var tailBuf [5]byte
 		tail := tailBuf[:0]
 
-		var hasDecimalPoint, hasExponent bool
+		hasDecimalPoint := false
 		// Starting from i = 1 to skip sign at num[0].
 		for i := 1; i < len(num); i++ {
 			switch num[i] {
 			case '.':
 				hasDecimalPoint = true
 			case 'e', 'E':
-				hasExponent = true
 				tail = append(tail, num[i:]...)
 				num = num[:i]
 			default:
 				digits--
 			}
 		}
-		if f.sharpV {
-			if !hasDecimalPoint && !hasExponent {
-				num = append(num, '.', '0')
-			}
-		} else {
-			if !hasDecimalPoint {
-				num = append(num, '.')
-			}
-			for digits > 0 {
-				num = append(num, '0')
-				digits--
-			}
+		if !hasDecimalPoint {
+			num = append(num, '.')
+		}
+		for digits > 0 {
+			num = append(num, '0')
+			digits--
 		}
 		num = append(num, tail...)
 	}

@@ -132,7 +132,7 @@ func ExampleAfter() {
 	select {
 	case m := <-c:
 		handle(m)
-	case <-time.After(5 * time.Minute):
+	case <-time.After(10 * time.Second):
 		fmt.Println("timed out")
 	}
 }
@@ -144,7 +144,7 @@ func ExampleSleep() {
 func statusUpdate() string { return "" }
 
 func ExampleTick() {
-	c := time.Tick(1 * time.Minute)
+	c := time.Tick(5 * time.Second)
 	for now := range c {
 		fmt.Printf("%v %s\n", now, statusUpdate())
 	}
