@@ -25,13 +25,11 @@ import (
 	"golang.org/x/tools/go/analysis/passes/cgocall"
 	"golang.org/x/tools/go/analysis/passes/composite"
 	"golang.org/x/tools/go/analysis/passes/copylock"
-	"golang.org/x/tools/go/analysis/passes/findcall"
 	"golang.org/x/tools/go/analysis/passes/httpresponse"
 	"golang.org/x/tools/go/analysis/passes/loopclosure"
 	"golang.org/x/tools/go/analysis/passes/lostcancel"
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
 	"golang.org/x/tools/go/analysis/passes/nilness"
-	"golang.org/x/tools/go/analysis/passes/pkgfact"
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/passes/shift"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
@@ -44,6 +42,10 @@ import (
 )
 
 func main() {
+	// This suite of analyzers is applied to all code
+	// in GOROOT by GOROOT/src/cmd/vet/all. When adding
+	// a new analyzer, update the whitelist used by vet/all,
+	// or change its vet command to disable the new analyzer.
 	multichecker.Main(
 		// the traditional vet suite:
 		asmdecl.Analyzer,
@@ -69,8 +71,8 @@ func main() {
 		unusedresult.Analyzer,
 
 		// for debugging:
-		findcall.Analyzer,
-		pkgfact.Analyzer,
+		// findcall.Analyzer,
+		// pkgfact.Analyzer,
 
 		// uses SSA:
 		nilness.Analyzer,
