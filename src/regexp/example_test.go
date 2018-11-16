@@ -25,6 +25,18 @@ func Example() {
 	// false
 }
 
+func ExampleMatch() {
+	content := []byte(`option1: value1;`)
+	matched, err := regexp.Match(`option\d:`, content)
+	if err != nil {
+		// handle error
+	}
+	println(matched)
+
+	// Output:
+	// true
+}
+
 func ExampleMatchString() {
 	matched, err := regexp.MatchString("foo.*", "seafood")
 	fmt.Println(matched, err)
@@ -42,6 +54,56 @@ func ExampleQuoteMeta() {
 	fmt.Println(regexp.QuoteMeta("Escaping symbols like: .+*?()|[]{}^$"))
 	// Output:
 	// Escaping symbols like: \.\+\*\?\(\)\|\[\]\{\}\^\$
+}
+
+func ExampleRegexp_Find() {
+	re := regexp.MustCompile(`option\d:`)
+	content := []byte(`option1: value1; option2: value2;`)
+	found := re.Find(content)
+	fmt.Printf("%s", found)
+
+	// Output:
+	// option1:
+}
+
+func ExampleRegexp_FindAll() {
+	re := regexp.MustCompile(`option\d:`)
+	content := []byte(`option1: value1; option2: value2;`)
+	found := re.FindAll(content, -1)
+	fmt.Printf("%s", found)
+
+	// Output:
+	// [option1: option2:]
+}
+
+func ExampleRegexp_FindAllSubmatch() {
+	re := regexp.MustCompile(`option\d: (\w+\d+)`)
+	content := []byte(`option1: value1; option2: value2;`)
+	found := re.FindAllSubmatch(content, -1)
+	fmt.Printf("%s", found)
+
+	// Output:
+	// [[option1: value1 value1] [option2: value2 value2]]
+}
+
+func ExampleRegexp_FindSubmatch() {
+	re := regexp.MustCompile(`option\d: (\w+\d+)`)
+	content := []byte(`option1: value1; option2: value2;`)
+	found := re.FindSubmatch(content)
+	fmt.Printf("%s", found)
+
+	// Output:
+	// [option1: value1 value1]
+}
+
+func ExampleRegexp_Match() {
+	re := regexp.MustCompile(`option\d:`)
+	content := []byte(`option1: value1;`)
+	matched := re.Match(content)
+	println(matched)
+
+	// Output:
+	// true
 }
 
 func ExampleRegexp_FindString() {
