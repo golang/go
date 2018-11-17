@@ -114,6 +114,8 @@ func Global() Value {
 //  | string                 | string                 |
 //  | []interface{}          | new array              |
 //  | map[string]interface{} | new object             |
+//
+// Panics if x is not one of the expected types.
 func ValueOf(x interface{}) Value {
 	switch x := x.(type) {
 	case Value: // should precede Wrapper to avoid a loop
