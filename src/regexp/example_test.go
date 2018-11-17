@@ -26,15 +26,11 @@ func Example() {
 }
 
 func ExampleMatch() {
-	content := []byte(`option1: value1;`)
-	matched, err := regexp.Match(`option\d:`, content)
-	if err != nil {
-		// handle error
-	}
-	println(matched)
+	matched, err := regexp.Match(`foo.*`, []byte(`seafood`))
+	fmt.Println(matched, err)
 
 	// Output:
-	// true
+	// true <nil>
 }
 
 func ExampleMatchString() {
@@ -57,50 +53,40 @@ func ExampleQuoteMeta() {
 }
 
 func ExampleRegexp_Find() {
-	re := regexp.MustCompile(`option\d:`)
-	content := []byte(`option1: value1; option2: value2;`)
-	found := re.Find(content)
-	fmt.Printf("%s", found)
+	re := regexp.MustCompile("foo.?")
+	fmt.Printf("%q\n", re.Find([]byte(`seafood fool`)))
 
 	// Output:
-	// option1:
+	// "food"
 }
 
 func ExampleRegexp_FindAll() {
-	re := regexp.MustCompile(`option\d:`)
-	content := []byte(`option1: value1; option2: value2;`)
-	found := re.FindAll(content, -1)
-	fmt.Printf("%s", found)
+	re := regexp.MustCompile("foo.?")
+	fmt.Printf("%q\n", re.FindAll([]byte(`seafood fool`), -1))
 
 	// Output:
-	// [option1: option2:]
+	// ["food" "fool"]
 }
 
 func ExampleRegexp_FindAllSubmatch() {
-	re := regexp.MustCompile(`option\d: (\w+\d+)`)
-	content := []byte(`option1: value1; option2: value2;`)
-	found := re.FindAllSubmatch(content, -1)
-	fmt.Printf("%s", found)
+	re := regexp.MustCompile("foo(.?)")
+	fmt.Printf("%q\n", re.FindAllSubmatch([]byte(`seafood fool`), -1))
 
 	// Output:
-	// [[option1: value1 value1] [option2: value2 value2]]
+	// [["food" "d"] ["fool" "l"]]
 }
 
 func ExampleRegexp_FindSubmatch() {
-	re := regexp.MustCompile(`option\d: (\w+\d+)`)
-	content := []byte(`option1: value1; option2: value2;`)
-	found := re.FindSubmatch(content)
-	fmt.Printf("%s", found)
+	re := regexp.MustCompile("foo(.?)")
+	fmt.Printf("%q\n", re.FindSubmatch([]byte(`seafood fool`)))
 
 	// Output:
-	// [option1: value1 value1]
+	// ["food" "d"]
 }
 
 func ExampleRegexp_Match() {
-	re := regexp.MustCompile(`option\d:`)
-	content := []byte(`option1: value1;`)
-	matched := re.Match(content)
-	println(matched)
+	re := regexp.MustCompile("foo.?")
+	fmt.Println(re.Match([]byte(`seafood fool`)))
 
 	// Output:
 	// true
