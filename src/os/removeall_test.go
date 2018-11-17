@@ -21,6 +21,10 @@ func TestRemoveAll(t *testing.T) {
 	}
 	defer RemoveAll(tmpDir)
 
+	if err := RemoveAll(""); err != nil {
+		t.Errorf("RemoveAll(\"\"): %v; want nil", err)
+	}
+
 	file := filepath.Join(tmpDir, "file")
 	path := filepath.Join(tmpDir, "_TestRemoveAll_")
 	fpath := filepath.Join(path, "file")

@@ -13,8 +13,14 @@ import (
 )
 
 func RemoveAll(path string) error {
+	if path == "" {
+		// fail silently to retain compatibility with previous behavior
+		// of RemoveAll. See issue 28830.
+		return nil
+	}
+
 	// Not allowed in unix
-	if path == "" || endsWithDot(path) {
+	if endsWithDot(path) {
 		return syscall.EINVAL
 	}
 
