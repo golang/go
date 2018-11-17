@@ -16,6 +16,12 @@ import (
 // it encounters. If the path does not exist, RemoveAll
 // returns nil (no error).
 func RemoveAll(path string) error {
+	if path == "" {
+		// fail silently to retain compatibility with previous behavior
+		// of RemoveAll. See issue 28830.
+		return nil
+	}
+
 	// Simple case: if Remove works, we're done.
 	err := Remove(path)
 	if err == nil || IsNotExist(err) {
