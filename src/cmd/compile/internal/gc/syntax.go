@@ -144,7 +144,7 @@ const (
 	_, nodeAssigned  // is the variable ever assigned to
 	_, nodeAddrtaken // address taken, even if not moved to heap
 	_, nodeImplicit
-	_, nodeIsddd     // is the argument variadic
+	_, nodeIsDDD     // is the argument variadic
 	_, nodeDiag      // already printed error about this
 	_, nodeColas     // OAS resulting from :=
 	_, nodeNonNil    // guaranteed to be non-nil
@@ -172,7 +172,7 @@ func (n *Node) IsOutputParamHeapAddr() bool { return n.flags&nodeIsOutputParamHe
 func (n *Node) Assigned() bool              { return n.flags&nodeAssigned != 0 }
 func (n *Node) Addrtaken() bool             { return n.flags&nodeAddrtaken != 0 }
 func (n *Node) Implicit() bool              { return n.flags&nodeImplicit != 0 }
-func (n *Node) Isddd() bool                 { return n.flags&nodeIsddd != 0 }
+func (n *Node) IsDDD() bool                 { return n.flags&nodeIsDDD != 0 }
 func (n *Node) Diag() bool                  { return n.flags&nodeDiag != 0 }
 func (n *Node) Colas() bool                 { return n.flags&nodeColas != 0 }
 func (n *Node) NonNil() bool                { return n.flags&nodeNonNil != 0 }
@@ -199,7 +199,7 @@ func (n *Node) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nodeIsOutputParamH
 func (n *Node) SetAssigned(b bool)              { n.flags.set(nodeAssigned, b) }
 func (n *Node) SetAddrtaken(b bool)             { n.flags.set(nodeAddrtaken, b) }
 func (n *Node) SetImplicit(b bool)              { n.flags.set(nodeImplicit, b) }
-func (n *Node) SetIsddd(b bool)                 { n.flags.set(nodeIsddd, b) }
+func (n *Node) SetIsDDD(b bool)                 { n.flags.set(nodeIsDDD, b) }
 func (n *Node) SetDiag(b bool)                  { n.flags.set(nodeDiag, b) }
 func (n *Node) SetColas(b bool)                 { n.flags.set(nodeColas, b) }
 func (n *Node) SetNonNil(b bool)                { n.flags.set(nodeNonNil, b) }
@@ -477,7 +477,7 @@ type Func struct {
 	FieldTrack map[*types.Sym]struct{}
 	DebugInfo  *ssa.FuncDebug
 	Ntype      *Node // signature
-	Top        int   // top context (Ecall, Eproc, etc)
+	Top        int   // top context (ctxCallee, etc)
 	Closure    *Node // OCLOSURE <-> ODCLFUNC
 	Nname      *Node
 	lsym       *obj.LSym
@@ -581,28 +581,28 @@ const (
 	OLITERAL // literal
 
 	// expressions
-	OADD             // Left + Right
-	OSUB             // Left - Right
-	OOR              // Left | Right
-	OXOR             // Left ^ Right
-	OADDSTR          // +{List} (string addition, list elements are strings)
-	OADDR            // &Left
-	OANDAND          // Left && Right
-	OAPPEND          // append(List); after walk, Left may contain elem type descriptor
-	OARRAYBYTESTR    // Type(Left) (Type is string, Left is a []byte)
-	OARRAYBYTESTRTMP // Type(Left) (Type is string, Left is a []byte, ephemeral)
-	OARRAYRUNESTR    // Type(Left) (Type is string, Left is a []rune)
-	OSTRARRAYBYTE    // Type(Left) (Type is []byte, Left is a string)
-	OSTRARRAYBYTETMP // Type(Left) (Type is []byte, Left is a string, ephemeral)
-	OSTRARRAYRUNE    // Type(Left) (Type is []rune, Left is a string)
-	OAS              // Left = Right or (if Colas=true) Left := Right
-	OAS2             // List = Rlist (x, y, z = a, b, c)
-	OAS2FUNC         // List = Rlist (x, y = f())
-	OAS2RECV         // List = Rlist (x, ok = <-c)
-	OAS2MAPR         // List = Rlist (x, ok = m["foo"])
-	OAS2DOTTYPE      // List = Rlist (x, ok = I.(int))
-	OASOP            // Left Etype= Right (x += y)
-	OCALL            // Left(List) (function call, method call or type conversion)
+	OADD          // Left + Right
+	OSUB          // Left - Right
+	OOR           // Left | Right
+	OXOR          // Left ^ Right
+	OADDSTR       // +{List} (string addition, list elements are strings)
+	OADDR         // &Left
+	OANDAND       // Left && Right
+	OAPPEND       // append(List); after walk, Left may contain elem type descriptor
+	OBYTES2STR    // Type(Left) (Type is string, Left is a []byte)
+	OBYTES2STRTMP // Type(Left) (Type is string, Left is a []byte, ephemeral)
+	ORUNES2STR    // Type(Left) (Type is string, Left is a []rune)
+	OSTR2BYTES    // Type(Left) (Type is []byte, Left is a string)
+	OSTR2BYTESTMP // Type(Left) (Type is []byte, Left is a string, ephemeral)
+	OSTR2RUNES    // Type(Left) (Type is []rune, Left is a string)
+	OAS           // Left = Right or (if Colas=true) Left := Right
+	OAS2          // List = Rlist (x, y, z = a, b, c)
+	OAS2FUNC      // List = Rlist (x, y = f())
+	OAS2RECV      // List = Rlist (x, ok = <-c)
+	OAS2MAPR      // List = Rlist (x, ok = m["foo"])
+	OAS2DOTTYPE   // List = Rlist (x, ok = I.(int))
+	OASOP         // Left Etype= Right (x += y)
+	OCALL         // Left(List) (function call, method call or type conversion)
 
 	// OCALLFUNC, OCALLMETH, and OCALLINTER have the same structure.
 	// Prior to walk, they are: Left(List), where List is all regular arguments.
@@ -650,7 +650,7 @@ const (
 	OLE          // Left <= Right
 	OGE          // Left >= Right
 	OGT          // Left > Right
-	OIND         // *Left
+	ODEREF       // *Left
 	OINDEX       // Left[Right] (index of array or slice)
 	OINDEXMAP    // Left[Right] (index of map)
 	OKEY         // Left:Right (key:value in struct/array/map literal)
@@ -669,9 +669,9 @@ const (
 	OANDNOT      // Left &^ Right
 	ONEW         // new(Left)
 	ONOT         // !Left
-	OCOM         // ^Left
+	OBITNOT      // ^Left
 	OPLUS        // +Left
-	OMINUS       // -Left
+	ONEG         // -Left
 	OOROR        // Left || Right
 	OPANIC       // panic(Left)
 	OPRINT       // print(List)
@@ -720,7 +720,7 @@ const (
 	OGOTO   // goto Sym
 	OIF     // if Ninit; Left { Nbody } else { Rlist }
 	OLABEL  // Sym:
-	OPROC   // go Left (Left must be call)
+	OGO     // go Left (Left must be call)
 	ORANGE  // for List = range Right { Nbody }
 	ORETURN // return List
 	OSELECT // select { List } (List is list of OXCASE or OCASE)

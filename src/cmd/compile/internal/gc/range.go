@@ -28,17 +28,17 @@ func typecheckrange(n *Node) {
 	ls := n.List.Slice()
 	for i1, n1 := range ls {
 		if n1.Typecheck() == 0 {
-			ls[i1] = typecheck(ls[i1], Erv|Easgn)
+			ls[i1] = typecheck(ls[i1], ctxExpr|ctxAssign)
 		}
 	}
 
 	decldepth++
-	typecheckslice(n.Nbody.Slice(), Etop)
+	typecheckslice(n.Nbody.Slice(), ctxStmt)
 	decldepth--
 }
 
 func typecheckrangeExpr(n *Node) {
-	n.Right = typecheck(n.Right, Erv)
+	n.Right = typecheck(n.Right, ctxExpr)
 
 	t := n.Right.Type
 	if t == nil {
@@ -48,7 +48,7 @@ func typecheckrangeExpr(n *Node) {
 	ls := n.List.Slice()
 	for i1, n1 := range ls {
 		if n1.Name == nil || n1.Name.Defn != n {
-			ls[i1] = typecheck(ls[i1], Erv|Easgn)
+			ls[i1] = typecheck(ls[i1], ctxExpr|ctxAssign)
 		}
 	}
 
@@ -278,7 +278,7 @@ func walkrange(n *Node) *Node {
 		// of the form "v1, a[v1] := range".
 		a := nod(OAS2, nil, nil)
 		a.List.Set2(v1, v2)
-		a.Rlist.Set2(hv1, nod(OIND, hp, nil))
+		a.Rlist.Set2(hv1, nod(ODEREF, hp, nil))
 		body = append(body, a)
 
 		// Advance pointer as part of the late increment.
@@ -287,7 +287,7 @@ func walkrange(n *Node) *Node {
 		// advancing the pointer is safe and won't go past the
 		// end of the allocation.
 		a = nod(OAS, hp, addptr(hp, t.Elem().Width))
-		a = typecheck(a, Etop)
+		a = typecheck(a, ctxStmt)
 		n.List.Set1(a)
 
 	case TMAP:
@@ -312,14 +312,14 @@ func walkrange(n *Node) *Node {
 		n.Right = mkcall1(fn, nil, nil, nod(OADDR, hit, nil))
 
 		key := nodSym(ODOT, hit, keysym)
-		key = nod(OIND, key, nil)
+		key = nod(ODEREF, key, nil)
 		if v1 == nil {
 			body = nil
 		} else if v2 == nil {
 			body = []*Node{nod(OAS, v1, key)}
 		} else {
 			val := nodSym(ODOT, hit, valsym)
-			val = nod(OIND, val, nil)
+			val = nod(ODEREF, val, nil)
 			a := nod(OAS2, nil, nil)
 			a.List.Set2(v1, v2)
 			a.Rlist.Set2(key, val)
@@ -427,21 +427,21 @@ func walkrange(n *Node) *Node {
 	}
 
 	n.Op = translatedLoopOp
-	typecheckslice(init, Etop)
+	typecheckslice(init, ctxStmt)
 
 	if ifGuard != nil {
 		ifGuard.Ninit.Append(init...)
-		ifGuard = typecheck(ifGuard, Etop)
+		ifGuard = typecheck(ifGuard, ctxStmt)
 	} else {
 		n.Ninit.Append(init...)
 	}
 
-	typecheckslice(n.Left.Ninit.Slice(), Etop)
+	typecheckslice(n.Left.Ninit.Slice(), ctxStmt)
 
-	n.Left = typecheck(n.Left, Erv)
+	n.Left = typecheck(n.Left, ctxExpr)
 	n.Left = defaultlit(n.Left, nil)
-	n.Right = typecheck(n.Right, Etop)
-	typecheckslice(body, Etop)
+	n.Right = typecheck(n.Right, ctxStmt)
+	typecheckslice(body, ctxStmt)
 	n.Nbody.Prepend(body...)
 
 	if ifGuard != nil {
@@ -512,7 +512,7 @@ func mapClear(m *Node) *Node {
 	fn = substArgTypes(fn, t.Key(), t.Elem())
 	n := mkcall1(fn, nil, nil, typename(t), m)
 
-	n = typecheck(n, Etop)
+	n = typecheck(n, ctxStmt)
 	n = walkstmt(n)
 
 	return n
@@ -601,9 +601,9 @@ func arrayClear(n, v1, v2, a *Node) bool {
 
 	n.Nbody.Append(v1)
 
-	n.Left = typecheck(n.Left, Erv)
+	n.Left = typecheck(n.Left, ctxExpr)
 	n.Left = defaultlit(n.Left, nil)
-	typecheckslice(n.Nbody.Slice(), Etop)
+	typecheckslice(n.Nbody.Slice(), ctxStmt)
 	n = walkstmt(n)
 	return true
 }

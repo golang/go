@@ -542,9 +542,9 @@ func (p *noder) param(param *syntax.Field, dddOk, final bool) *Node {
 		typ.Op = OTARRAY
 		typ.Right = typ.Left
 		typ.Left = nil
-		n.SetIsddd(true)
+		n.SetIsDDD(true)
 		if n.Left != nil {
-			n.Left.SetIsddd(true)
+			n.Left.SetIsDDD(true)
 		}
 	}
 
@@ -632,7 +632,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 				x = unparen(x) // TODO(mdempsky): Needed?
 				if x.Op == OCOMPLIT {
 					// Special case for &T{...}: turn into (*T){...}.
-					x.Right = p.nod(expr, OIND, x.Right, nil)
+					x.Right = p.nod(expr, ODEREF, x.Right, nil)
 					x.Right.SetImplicit(true)
 					return x
 				}
@@ -643,7 +643,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 	case *syntax.CallExpr:
 		n := p.nod(expr, OCALL, p.expr(expr.Fun), nil)
 		n.List.Set(p.exprs(expr.ArgList))
-		n.SetIsddd(expr.HasDots)
+		n.SetIsDDD(expr.HasDots)
 		return n
 
 	case *syntax.ArrayType:
@@ -870,7 +870,7 @@ func (p *noder) embedded(typ syntax.Expr) *Node {
 	n.SetEmbedded(true)
 
 	if isStar {
-		n.Left = p.nod(op, OIND, n.Left, nil)
+		n.Left = p.nod(op, ODEREF, n.Left, nil)
 	}
 	return n
 }
@@ -969,7 +969,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
 		case syntax.Defer:
 			op = ODEFER
 		case syntax.Go:
-			op = OPROC
+			op = OGO
 		default:
 			panic("unhandled CallStmt")
 		}
@@ -1245,13 +1245,13 @@ func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) *Node {
 
 var unOps = [...]Op{
 	syntax.Recv: ORECV,
-	syntax.Mul:  OIND,
+	syntax.Mul:  ODEREF,
 	syntax.And:  OADDR,
 
 	syntax.Not: ONOT,
-	syntax.Xor: OCOM,
+	syntax.Xor: OBITNOT,
 	syntax.Add: OPLUS,
-	syntax.Sub: OMINUS,
+	syntax.Sub: ONEG,
 }
 
 func (p *noder) unOp(op syntax.Operator) Op {
