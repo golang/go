@@ -502,6 +502,9 @@ type Config struct {
 	// an IP address.
 	ServerName string
 
+	// SkipSNI is used to disable client send the SNI extension.
+	SkipSNI bool
+
 	// ClientAuth determines the server's policy for
 	// TLS Client Authentication. The default is NoClientCert.
 	ClientAuth ClientAuthType
@@ -644,6 +647,7 @@ func (c *Config) Clone() *Config {
 		RootCAs:                     c.RootCAs,
 		NextProtos:                  c.NextProtos,
 		ServerName:                  c.ServerName,
+		SkipSNI:                     c.SkipSNI,
 		ClientAuth:                  c.ClientAuth,
 		ClientCAs:                   c.ClientCAs,
 		InsecureSkipVerify:          c.InsecureSkipVerify,

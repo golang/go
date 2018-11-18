@@ -69,13 +69,16 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 		sessionId:                    make([]byte, 32),
 		ocspStapling:                 true,
 		scts:                         true,
-		serverName:                   hostnameInSNI(config.ServerName),
 		supportedCurves:              config.curvePreferences(),
 		supportedPoints:              []uint8{pointFormatUncompressed},
 		nextProtoNeg:                 len(config.NextProtos) > 0,
 		secureRenegotiationSupported: true,
 		alpnProtocols:                config.NextProtos,
 		supportedVersions:            supportedVersions,
+	}
+
+	if !config.SkipSNI {
+		hello.serverName = hostnameInSNI(config.ServerName)
 	}
 
 	if c.handshakes > 0 {

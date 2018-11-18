@@ -1355,6 +1355,38 @@ func TestHostnameInSNI(t *testing.T) {
 	}
 }
 
+func TestSkipSNI(t *testing.T) {
+	c, s := localPipe(t)
+
+	host := "golang.org"
+
+	go func(host string) {
+		Client(c, &Config{ServerName: host, InsecureSkipVerify: true, SkipSNI: true}).Handshake()
+	}(host)
+
+	var header [5]byte
+	if _, err := io.ReadFull(s, header[:]); err != nil {
+		t.Fatal(err)
+	}
+	recordLen := int(header[3])<<8 | int(header[4])
+
+	record := make([]byte, recordLen)
+	if _, err := io.ReadFull(s, record[:]); err != nil {
+		t.Fatal(err)
+	}
+
+	c.Close()
+	s.Close()
+
+	var m clientHelloMsg
+	if !m.unmarshal(record) {
+		t.Errorf("unmarshaling ClientHello for %q failed", host)
+	}
+	if m.serverName != "" {
+		t.Errorf("expected empty serverName not found in ClientHello: %x", record)
+	}
+}
+
 func TestServerSelectingUnconfiguredCipherSuite(t *testing.T) {
 	// This checks that the server can't select a cipher suite that the
 	// client didn't offer. See #13174.
