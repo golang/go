@@ -5,11 +5,13 @@
 package source
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"io/ioutil"
 
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -43,10 +45,7 @@ func Definition(ctx context.Context, f *File, pos token.Pos) (Range, error) {
 			}
 		}
 	}
-	return Range{
-		Start: obj.Pos(),
-		End:   obj.Pos() + token.Pos(len([]byte(obj.Name()))), // TODO: use real range of obj
-	}, nil
+	return objToRange(f.view.Config.Fset, obj), nil
 }
 
 // ident returns the ident plus any extra information needed
@@ -92,4 +91,31 @@ func checkIdentifier(f *ast.File, pos token.Pos) (ident, error) {
 		}
 	}
 	return result, nil
+}
+
+func objToRange(fSet *token.FileSet, obj types.Object) Range {
+	p := obj.Pos()
+	f := fSet.File(p)
+	pos := f.Position(p)
+	if pos.Column == 1 {
+		// Column is 1, so we probably do not have full position information
+		// Currently exportdata does not store the column.
+		// For now we attempt to read the original source and  find the identifier
+		// within the line. If we find it we patch the column to match its offset.
+		// TODO: we have probably already added the full data for the file to the
+		// fileset, we ought to track it rather than adding it over and over again
+		// TODO: if we parse from source, we will never need this hack
+		if src, err := ioutil.ReadFile(pos.Filename); err == nil {
+			newF := fSet.AddFile(pos.Filename, -1, len(src))
+			newF.SetLinesForContent(src)
+			lineStart := lineStart(newF, pos.Line)
+			offset := newF.Offset(lineStart)
+			col := bytes.Index(src[offset:], []byte(obj.Name()))
+			p = newF.Pos(offset + col)
+		}
+	}
+	return Range{
+		Start: p,
+		End:   p + token.Pos(len([]byte(obj.Name()))), // TODO: use real range of obj
+	}
 }
