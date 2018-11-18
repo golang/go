@@ -294,8 +294,8 @@ func typeinit() {
 	okfor[ORSH] = okforand[:]
 
 	// unary
-	okfor[OCOM] = okforand[:]
-	okfor[OMINUS] = okforarith[:]
+	okfor[OBITNOT] = okforand[:]
+	okfor[ONEG] = okforarith[:]
 	okfor[ONOT] = okforbool[:]
 	okfor[OPLUS] = okforarith[:]
 

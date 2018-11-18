@@ -803,7 +803,7 @@ func (s *state) stmt(n *Node) {
 		}
 	case ODEFER:
 		s.call(n.Left, callDefer)
-	case OPROC:
+	case OGO:
 		s.call(n.Left, callGo)
 
 	case OAS2DOTTYPE:
@@ -1268,25 +1268,25 @@ var opToSSA = map[opAndType]ssa.Op{
 
 	opAndType{ONOT, TBOOL}: ssa.OpNot,
 
-	opAndType{OMINUS, TINT8}:    ssa.OpNeg8,
-	opAndType{OMINUS, TUINT8}:   ssa.OpNeg8,
-	opAndType{OMINUS, TINT16}:   ssa.OpNeg16,
-	opAndType{OMINUS, TUINT16}:  ssa.OpNeg16,
-	opAndType{OMINUS, TINT32}:   ssa.OpNeg32,
-	opAndType{OMINUS, TUINT32}:  ssa.OpNeg32,
-	opAndType{OMINUS, TINT64}:   ssa.OpNeg64,
-	opAndType{OMINUS, TUINT64}:  ssa.OpNeg64,
-	opAndType{OMINUS, TFLOAT32}: ssa.OpNeg32F,
-	opAndType{OMINUS, TFLOAT64}: ssa.OpNeg64F,
+	opAndType{ONEG, TINT8}:    ssa.OpNeg8,
+	opAndType{ONEG, TUINT8}:   ssa.OpNeg8,
+	opAndType{ONEG, TINT16}:   ssa.OpNeg16,
+	opAndType{ONEG, TUINT16}:  ssa.OpNeg16,
+	opAndType{ONEG, TINT32}:   ssa.OpNeg32,
+	opAndType{ONEG, TUINT32}:  ssa.OpNeg32,
+	opAndType{ONEG, TINT64}:   ssa.OpNeg64,
+	opAndType{ONEG, TUINT64}:  ssa.OpNeg64,
+	opAndType{ONEG, TFLOAT32}: ssa.OpNeg32F,
+	opAndType{ONEG, TFLOAT64}: ssa.OpNeg64F,
 
-	opAndType{OCOM, TINT8}:   ssa.OpCom8,
-	opAndType{OCOM, TUINT8}:  ssa.OpCom8,
-	opAndType{OCOM, TINT16}:  ssa.OpCom16,
-	opAndType{OCOM, TUINT16}: ssa.OpCom16,
-	opAndType{OCOM, TINT32}:  ssa.OpCom32,
-	opAndType{OCOM, TUINT32}: ssa.OpCom32,
-	opAndType{OCOM, TINT64}:  ssa.OpCom64,
-	opAndType{OCOM, TUINT64}: ssa.OpCom64,
+	opAndType{OBITNOT, TINT8}:   ssa.OpCom8,
+	opAndType{OBITNOT, TUINT8}:  ssa.OpCom8,
+	opAndType{OBITNOT, TINT16}:  ssa.OpCom16,
+	opAndType{OBITNOT, TUINT16}: ssa.OpCom16,
+	opAndType{OBITNOT, TINT32}:  ssa.OpCom32,
+	opAndType{OBITNOT, TUINT32}: ssa.OpCom32,
+	opAndType{OBITNOT, TINT64}:  ssa.OpCom64,
+	opAndType{OBITNOT, TUINT64}: ssa.OpCom64,
 
 	opAndType{OIMAG, TCOMPLEX64}:  ssa.OpComplexImag,
 	opAndType{OIMAG, TCOMPLEX128}: ssa.OpComplexImag,
@@ -1655,12 +1655,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 	s.stmtList(n.Ninit)
 	switch n.Op {
-	case OARRAYBYTESTRTMP:
+	case OBYTES2STRTMP:
 		slice := s.expr(n.Left)
 		ptr := s.newValue1(ssa.OpSlicePtr, s.f.Config.Types.BytePtr, slice)
 		len := s.newValue1(ssa.OpSliceLen, types.Types[TINT], slice)
 		return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
-	case OSTRARRAYBYTETMP:
+	case OSTR2BYTESTMP:
 		str := s.expr(n.Left)
 		ptr := s.newValue1(ssa.OpStringPtr, s.f.Config.Types.BytePtr, str)
 		len := s.newValue1(ssa.OpStringLen, types.Types[TINT], str)
@@ -2174,7 +2174,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.newValue2(ssa.OpComplexMake, n.Type, r, i)
 
 	// unary ops
-	case OMINUS:
+	case ONEG:
 		a := s.expr(n.Left)
 		if n.Type.IsComplex() {
 			tp := floatForComplex(n.Type)
@@ -2184,7 +2184,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexImag, tp, a)))
 		}
 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
-	case ONOT, OCOM:
+	case ONOT, OBITNOT:
 		a := s.expr(n.Left)
 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
 	case OIMAG, OREAL:
@@ -2200,7 +2200,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		addr := s.constOffPtrSP(types.NewPtr(n.Type), n.Xoffset)
 		return s.load(n.Type, addr)
 
-	case OIND:
+	case ODEREF:
 		p := s.exprPtr(n.Left, false, n.Pos)
 		return s.load(n.Type, p)
 
@@ -2838,7 +2838,7 @@ func (s *state) sfcall(op ssa.Op, args ...*ssa.Value) (*ssa.Value, bool) {
 			args[0], args[1] = args[1], args[0]
 		case ssa.OpSub32F,
 			ssa.OpSub64F:
-			args[1] = s.newValue1(s.ssaOp(OMINUS, types.Types[callDef.rtype]), args[1].Type, args[1])
+			args[1] = s.newValue1(s.ssaOp(ONEG, types.Types[callDef.rtype]), args[1].Type, args[1])
 		}
 
 		result := s.rtcall(callDef.rtfn, true, []*types.Type{types.Types[callDef.rtype]}, args...)[0]
@@ -2915,7 +2915,7 @@ func init() {
 	if !instrumenting {
 		add("runtime", "slicebytetostringtmp",
 			func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-				// Compiler frontend optimizations emit OARRAYBYTESTRTMP nodes
+				// Compiler frontend optimizations emit OBYTES2STRTMP nodes
 				// for the backend instead of slicebytetostringtmp calls
 				// when not instrumenting.
 				slice := args[0]
@@ -3861,7 +3861,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			}
 			return s.newValue2(ssa.OpPtrIndex, types.NewPtr(n.Left.Type.Elem()), a, i)
 		}
-	case OIND:
+	case ODEREF:
 		return s.exprPtr(n.Left, bounded, n.Pos)
 	case ODOT:
 		p := s.addr(n.Left, bounded)

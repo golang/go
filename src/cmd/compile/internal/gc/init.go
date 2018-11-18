@@ -166,7 +166,7 @@ func fninit(n []*Node) {
 			rhs := asNode(s.Def)
 			rhs.checkInitFuncSignature()
 			as := nod(OAS, lhs, rhs)
-			as = typecheck(as, Etop)
+			as = typecheck(as, ctxStmt)
 			genAsStatic(as)
 		}
 
@@ -187,7 +187,7 @@ func fninit(n []*Node) {
 		loop.Nbody.Set1(body)
 		loop.Ninit.Set1(zero)
 
-		loop = typecheck(loop, Etop)
+		loop = typecheck(loop, ctxStmt)
 		r = append(r, loop)
 	}
 
@@ -206,8 +206,8 @@ func fninit(n []*Node) {
 	funcbody()
 
 	Curfn = fn
-	fn = typecheck(fn, Etop)
-	typecheckslice(r, Etop)
+	fn = typecheck(fn, ctxStmt)
+	typecheckslice(r, ctxStmt)
 	Curfn = nil
 	funccompile(fn)
 }

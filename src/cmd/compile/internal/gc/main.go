@@ -509,7 +509,7 @@ func Main(archInit func(*Arch)) {
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
 		if op := n.Op; op != ODCL && op != OAS && op != OAS2 && (op != ODCLTYPE || !n.Left.Name.Param.Alias) {
-			xtop[i] = typecheck(n, Etop)
+			xtop[i] = typecheck(n, ctxStmt)
 		}
 	}
 
@@ -521,7 +521,7 @@ func Main(archInit func(*Arch)) {
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
 		if op := n.Op; op == ODCL || op == OAS || op == OAS2 || op == ODCLTYPE && n.Left.Name.Param.Alias {
-			xtop[i] = typecheck(n, Etop)
+			xtop[i] = typecheck(n, ctxStmt)
 		}
 	}
 	resumecheckwidth()
@@ -536,7 +536,7 @@ func Main(archInit func(*Arch)) {
 			Curfn = n
 			decldepth = 1
 			saveerrors()
-			typecheckslice(Curfn.Nbody.Slice(), Etop)
+			typecheckslice(Curfn.Nbody.Slice(), ctxStmt)
 			checkreturn(Curfn)
 			if nerrors != 0 {
 				Curfn.Nbody.Set(nil) // type errors; do not compile
@@ -693,7 +693,7 @@ func Main(archInit func(*Arch)) {
 	timings.Start("be", "externaldcls")
 	for i, n := range externdcl {
 		if n.Op == ONAME {
-			externdcl[i] = typecheck(externdcl[i], Erv)
+			externdcl[i] = typecheck(externdcl[i], ctxExpr)
 		}
 	}
 	// Check the map keys again, since we typechecked the external
