@@ -22,7 +22,7 @@ func RemoveAll(path string) error {
 	// The rmdir system call does not permit removing ".",
 	// so we don't permit it either.
 	if endsWithDot(path) {
-		return syscall.EINVAL
+		return &PathError{"RemoveAll", path, syscall.EINVAL}
 	}
 
 	// RemoveAll recurses by deleting the path base from
