@@ -461,11 +461,10 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
 				v = e
 				continue
 			}
-		}
 
-		if !decodingNull && v.Kind() == reflect.Interface {
-			if u, ok := v.Interface().(Unmarshaler); ok {
-				return u, nil, reflect.Value{}
+			if !decodingNull {
+				v = e
+				goto cont
 			}
 		}
 
@@ -479,6 +478,7 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
 		if v.IsNil() {
 			v.Set(reflect.New(v.Type().Elem()))
 		}
+	cont:
 		if v.Type().NumMethod() > 0 && v.CanInterface() {
 			if u, ok := v.Interface().(Unmarshaler); ok {
 				return u, nil, reflect.Value{}
@@ -494,7 +494,12 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
 			v = v0 // restore original value after round-trip Value.Addr().Elem()
 			haveAddr = false
 		} else {
-			v = v.Elem()
+			if v.Kind() != reflect.Interface && v.Kind() != reflect.Ptr {
+				v = v0
+				break
+			} else {
+				v = v.Elem()
+			}
 		}
 	}
 	return nil, nil, v
