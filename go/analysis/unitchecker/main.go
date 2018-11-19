@@ -1,7 +1,12 @@
-// The vet-lite command is a driver for static checkers conforming to
-// the golang.org/x/tools/go/analysis API. It must be run by go vet:
+// +build ignore
+
+// This file provides an example command for static checkers
+// conforming to the golang.org/x/tools/go/analysis API.
+// It serves as a model for the behavior of the cmd/vet tool in $GOROOT.
+// Being based on the unitchecker driver, it must be run by go vet:
 //
-//   $ go vet -vettool=$(which vet-lite)
+//   $ go build -o unitchecker main.go
+//   $ go vet -vettool=unitchecker my/project/...
 //
 // For a checker also capable of running standalone, use multichecker.
 package main
@@ -31,21 +36,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 )
-
-// Legacy vet had the concept of "experimental" checkers. There
-// was exactly one, shadow, and it had to be explicitly enabled
-// by the -shadow flag, which would of course disable all the
-// other tristate flags, requiring the -all flag to reenable them.
-// (By itself, -all did not enable all checkers.)
-// The -all flag is no longer needed, so it is a no-op.
-//
-// The shadow analyzer has been removed from the suite,
-// but can be run using these additional commands:
-//   $ go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
-//   $ go vet -vettool=$(which shadow)
-// Alternatively, one could build a multichecker containing all
-// the desired checks (vet's suite + shadow) and run it in a
-// single "go vet" command.
 
 func main() {
 	unitchecker.Main(
