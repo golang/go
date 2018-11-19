@@ -28,7 +28,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	trace "internal/traceparser"
+	"internal/trace"
 	"log"
 	"math"
 	"net/http"
@@ -83,11 +83,11 @@ func getMMUCurve(r *http.Request) ([][]trace.MutatorUtil, *trace.MMUCurve, error
 	mmuCache.lock.Unlock()
 
 	c.init.Do(func() {
-		tr, err := parseTrace()
+		events, err := parseEvents()
 		if err != nil {
 			c.err = err
 		} else {
-			c.util = tr.MutatorUtilization(flags)
+			c.util = trace.MutatorUtilization(events, flags)
 			c.mmuCurve = trace.NewMMUCurve(c.util)
 		}
 	})

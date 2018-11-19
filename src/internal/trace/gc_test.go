@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package traceparser
+package trace
 
 import (
+	"bytes"
+	"io/ioutil"
 	"math"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -76,20 +77,18 @@ func TestMMU(t *testing.T) {
 }
 
 func TestMMUTrace(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skipf("files from outside the package are not available on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
 	// Can't be t.Parallel() because it modifies the
 	// testingOneBand package variable.
 
-	p, err := New("../trace/testdata/stress_1_10_good")
+	data, err := ioutil.ReadFile("testdata/stress_1_10_good")
 	if err != nil {
 		t.Fatalf("failed to read input file: %v", err)
 	}
-	if err := p.Parse(0, 1<<62, nil); err != nil {
+	_, events, err := parse(bytes.NewReader(data), "")
+	if err != nil {
 		t.Fatalf("failed to parse trace: %s", err)
 	}
-	mu := p.MutatorUtilization(UtilSTW | UtilBackground | UtilAssist)
+	mu := MutatorUtilization(events.Events, UtilSTW|UtilBackground|UtilAssist)
 	mmuCurve := NewMMUCurve(mu)
 
 	// Test the optimized implementation against the "obviously
@@ -123,14 +122,15 @@ func TestMMUTrace(t *testing.T) {
 }
 
 func BenchmarkMMU(b *testing.B) {
-	p, err := New("../trace/testdata/stress_1_10_good")
+	data, err := ioutil.ReadFile("testdata/stress_1_10_good")
 	if err != nil {
 		b.Fatalf("failed to read input file: %v", err)
 	}
-	if err := p.Parse(0, 1<<62, nil); err != nil {
+	_, events, err := parse(bytes.NewReader(data), "")
+	if err != nil {
 		b.Fatalf("failed to parse trace: %s", err)
 	}
-	mu := p.MutatorUtilization(UtilSTW | UtilBackground | UtilAssist | UtilSweep)
+	mu := MutatorUtilization(events.Events, UtilSTW|UtilBackground|UtilAssist|UtilSweep)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {

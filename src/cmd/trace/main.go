@@ -5,12 +5,12 @@
 package main
 
 import (
-	"bytes"
+	"bufio"
 	"cmd/internal/browser"
 	"flag"
 	"fmt"
 	"html/template"
-	trace "internal/traceparser"
+	"internal/trace"
 	"io"
 	"log"
 	"net"
@@ -115,22 +115,8 @@ func main() {
 		dief("%v\n", err)
 	}
 
-	if *debugFlag { // match go tool trace -d (except for Offset and Seq)
-		f := func(ev *trace.Event) {
-			desc := trace.EventDescriptions[ev.Type]
-			w := new(bytes.Buffer)
-			fmt.Fprintf(w, "%v %v p=%v g=%v", ev.Ts, desc.Name, ev.P, ev.G)
-			for i, a := range desc.Args {
-				fmt.Fprintf(w, " %v=%v", a, ev.Args[i])
-			}
-			for i, a := range desc.SArgs {
-				fmt.Fprintf(w, " %v=%v", a, ev.SArgs[i])
-			}
-			fmt.Println(w.String())
-		}
-		for i := 0; i < len(res.Events); i++ {
-			f(res.Events[i])
-		}
+	if *debugFlag {
+		trace.Print(res.Events)
 		os.Exit(0)
 	}
 	reportMemoryUsage("after parsing trace")
@@ -155,23 +141,36 @@ var ranges []Range
 
 var loader struct {
 	once sync.Once
-	res  *trace.Parsed
+	res  trace.ParseResult
 	err  error
 }
 
-func parseTrace() (*trace.Parsed, error) {
+// parseEvents is a compatibility wrapper that returns only
+// the Events part of trace.ParseResult returned by parseTrace.
+func parseEvents() ([]*trace.Event, error) {
+	res, err := parseTrace()
+	if err != nil {
+		return nil, err
+	}
+	return res.Events, err
+}
+
+func parseTrace() (trace.ParseResult, error) {
 	loader.once.Do(func() {
-		x, err := trace.New(traceFile)
+		tracef, err := os.Open(traceFile)
 		if err != nil {
-			loader.err = err
+			loader.err = fmt.Errorf("failed to open trace file: %v", err)
 			return
 		}
-		err = x.Parse(0, x.MaxTs, nil)
+		defer tracef.Close()
+
+		// Parse and symbolize.
+		res, err := trace.Parse(bufio.NewReader(tracef), programBinary)
 		if err != nil {
-			loader.err = err
+			loader.err = fmt.Errorf("failed to parse trace: %v", err)
 			return
 		}
-		loader.res = x
+		loader.res = res
 	})
 	return loader.res, loader.err
 }
