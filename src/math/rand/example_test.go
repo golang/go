@@ -142,10 +142,9 @@ func ExampleShuffle_slicesInUnison() {
 	// B: 2
 }
 
-// ExampleIntn provides pretty simple example how to use Intn func.
 func ExampleIntn() {
-	rand.Seed(time.Now().UTC().UnixNano())
+	rand.Seed(35)
 	fmt.Println(rand.Intn(100))
 
-	// Output: 83
+	// Output: 50
 }
