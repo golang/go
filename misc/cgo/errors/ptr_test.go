@@ -357,6 +357,55 @@ var ptrTests = []ptrTest{
 		body:    `r, _, _ := os.Pipe(); r.SetDeadline(time.Now().Add(C.US * time.Microsecond))`,
 		fail:    false,
 	},
+	{
+		// Test for double evaluation of channel receive.
+		name:    "chan-recv",
+		c:       `void f(char** p) {}`,
+		imports: []string{"time"},
+		body:    `c := make(chan []*C.char, 2); c <- make([]*C.char, 1); go func() { time.Sleep(10 * time.Second); panic("received twice from chan") }(); C.f(&(<-c)[0]);`,
+		fail:    false,
+	},
+	{
+		// Test that converting the address of a struct field
+		// to unsafe.Pointer still just checks that field.
+		// Issue #25941.
+		name:    "struct-field",
+		c:       `void f(void* p) {}`,
+		imports: []string{"unsafe"},
+		support: `type S struct { p *int; a [8]byte; u uintptr }`,
+		body:    `s := &S{p: new(int)}; C.f(unsafe.Pointer(&s.a))`,
+		fail:    false,
+	},
+	{
+		// Test that converting multiple struct field
+		// addresses to unsafe.Pointer still just checks those
+		// fields. Issue #25941.
+		name:    "struct-field-2",
+		c:       `void f(void* p, int r, void* s) {}`,
+		imports: []string{"unsafe"},
+		support: `type S struct { a [8]byte; p *int; b int64; }`,
+		body:    `s := &S{p: new(int)}; C.f(unsafe.Pointer(&s.a), 32, unsafe.Pointer(&s.b))`,
+		fail:    false,
+	},
+	{
+		// Test that second argument to cgoCheckPointer is
+		// evaluated when a deferred function is deferred, not
+		// when it is run.
+		name:    "defer2",
+		c:       `void f(char **pc) {}`,
+		support: `type S1 struct { s []*C.char }; type S2 struct { ps *S1 }`,
+		body:    `p := &S2{&S1{[]*C.char{nil}}}; defer C.f(&p.ps.s[0]); p.ps = nil`,
+		fail:    false,
+	},
+	{
+		// Test that indexing into a function call still
+		// examines only the slice being indexed.
+		name:    "buffer",
+		c:       `void f(void *p) {}`,
+		imports: []string{"bytes", "unsafe"},
+		body:    `var b bytes.Buffer; b.WriteString("a"); C.f(unsafe.Pointer(&b.Bytes()[0]))`,
+		fail:    false,
+	},
 }
 
 func TestPointerChecks(t *testing.T) {

@@ -593,6 +593,7 @@ const (
 	kindMask        = (1 << 5) - 1
 )
 
+// String returns the name of k.
 func (k Kind) String() string {
 	if int(k) < len(kindNames) {
 		return kindNames[k]
@@ -1889,6 +1890,8 @@ func MapOf(key, elem Type) Type {
 	return ti.(Type)
 }
 
+// TODO(crawshaw): as these funcTypeFixedN structs have no methods,
+// they could be defined at runtime using the StructOf function.
 type funcTypeFixed4 struct {
 	funcType
 	args [4]*rtype
@@ -2278,43 +2281,7 @@ type structTypeUncommon struct {
 	u uncommonType
 }
 
-// A *rtype representing a struct is followed directly in memory by an
-// array of method objects representing the methods attached to the
-// struct. To get the same layout for a run time generated type, we
-// need an array directly following the uncommonType memory. The types
-// structTypeFixed4, ...structTypeFixedN are used to do this.
-//
-// A similar strategy is used for funcTypeFixed4, ...funcTypeFixedN.
-
-// TODO(crawshaw): as these structTypeFixedN and funcTypeFixedN structs
-// have no methods, they could be defined at runtime using the StructOf
-// function.
-
-type structTypeFixed4 struct {
-	structType
-	u uncommonType
-	m [4]method
-}
-
-type structTypeFixed8 struct {
-	structType
-	u uncommonType
-	m [8]method
-}
-
-type structTypeFixed16 struct {
-	structType
-	u uncommonType
-	m [16]method
-}
-
-type structTypeFixed32 struct {
-	structType
-	u uncommonType
-	m [32]method
-}
-
-// isLetter returns true if a given 'rune' is classified as a Letter.
+// isLetter reports whether a given 'rune' is classified as a Letter.
 func isLetter(ch rune) bool {
 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= utf8.RuneSelf && unicode.IsLetter(ch)
 }
@@ -2571,33 +2538,26 @@ func StructOf(fields []StructField) Type {
 	var typ *structType
 	var ut *uncommonType
 
-	switch {
-	case len(methods) == 0:
+	if len(methods) == 0 {
 		t := new(structTypeUncommon)
 		typ = &t.structType
 		ut = &t.u
-	case len(methods) <= 4:
-		t := new(structTypeFixed4)
-		typ = &t.structType
-		ut = &t.u
-		copy(t.m[:], methods)
-	case len(methods) <= 8:
-		t := new(structTypeFixed8)
-		typ = &t.structType
-		ut = &t.u
-		copy(t.m[:], methods)
-	case len(methods) <= 16:
-		t := new(structTypeFixed16)
-		typ = &t.structType
-		ut = &t.u
-		copy(t.m[:], methods)
-	case len(methods) <= 32:
-		t := new(structTypeFixed32)
-		typ = &t.structType
-		ut = &t.u
-		copy(t.m[:], methods)
-	default:
-		panic("reflect.StructOf: too many methods")
+	} else {
+		// A *rtype representing a struct is followed directly in memory by an
+		// array of method objects representing the methods attached to the
+		// struct. To get the same layout for a run time generated type, we
+		// need an array directly following the uncommonType memory.
+		// A similar strategy is used for funcTypeFixed4, ...funcTypeFixedN.
+		tt := New(StructOf([]StructField{
+			{Name: "S", Type: TypeOf(structType{})},
+			{Name: "U", Type: TypeOf(uncommonType{})},
+			{Name: "M", Type: ArrayOf(len(methods), TypeOf(methods[0]))},
+		}))
+
+		typ = (*structType)(unsafe.Pointer(tt.Elem().Field(0).UnsafeAddr()))
+		ut = (*uncommonType)(unsafe.Pointer(tt.Elem().Field(1).UnsafeAddr()))
+
+		copy(tt.Elem().Field(2).Slice(0, len(methods)).Interface().([]method), methods)
 	}
 	// TODO(sbinet): Once we allow embedding multiple types,
 	// methods will need to be sorted like the compiler does.

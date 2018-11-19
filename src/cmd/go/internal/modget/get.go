@@ -534,9 +534,11 @@ func runGet(cmd *base.Command, args []string) {
 					// module root.
 					continue
 				}
+				base.Errorf("%s", p.Error)
 			}
 			todo = append(todo, p)
 		}
+		base.ExitIfErrors()
 
 		// If -d was specified, we're done after the download: no build.
 		// (The load.PackagesAndErrors is what did the download

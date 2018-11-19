@@ -8,18 +8,27 @@ import (
 	"fmt"
 	"io/ioutil"
 	. "os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestRemoveAll(t *testing.T) {
-	tmpDir := TempDir()
-	// Work directory.
-	file := "file"
-	path := tmpDir + "/_TestRemoveAll_"
-	fpath := path + "/file"
-	dpath := path + "/dir"
+	tmpDir, err := ioutil.TempDir("", "TestRemoveAll-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer RemoveAll(tmpDir)
+
+	if err := RemoveAll(""); err != nil {
+		t.Errorf("RemoveAll(\"\"): %v; want nil", err)
+	}
+
+	file := filepath.Join(tmpDir, "file")
+	path := filepath.Join(tmpDir, "_TestRemoveAll_")
+	fpath := filepath.Join(path, "file")
+	dpath := filepath.Join(path, "dir")
 
 	// Make a regular file and remove
 	fd, err := Create(file)
@@ -127,9 +136,13 @@ func TestRemoveAllLarge(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	tmpDir := TempDir()
-	// Work directory.
-	path := tmpDir + "/_TestRemoveAllLarge_"
+	tmpDir, err := ioutil.TempDir("", "TestRemoveAll-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer RemoveAll(tmpDir)
+
+	path := filepath.Join(tmpDir, "_TestRemoveAllLarge_")
 
 	// Make directory with 1000 files and remove.
 	if err := MkdirAll(path, 0777); err != nil {
@@ -153,7 +166,7 @@ func TestRemoveAllLarge(t *testing.T) {
 
 func TestRemoveAllLongPath(t *testing.T) {
 	switch runtime.GOOS {
-	case "linux", "darwin", "openbsd", "netbsd", "dragonfly", "solaris":
+	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
 		break
 	default:
 		t.Skip("skipping for not implemented platforms")
@@ -168,6 +181,8 @@ func TestRemoveAllLongPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create TempDir: %s", err)
 	}
+	defer RemoveAll(startPath)
+
 	err = Chdir(startPath)
 	if err != nil {
 		t.Fatalf("Could not chdir %s: %s", startPath, err)
@@ -201,7 +216,7 @@ func TestRemoveAllLongPath(t *testing.T) {
 
 func TestRemoveAllDot(t *testing.T) {
 	switch runtime.GOOS {
-	case "linux", "darwin", "openbsd", "netbsd", "dragonfly", "solaris":
+	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
 		break
 	default:
 		t.Skip("skipping for not implemented platforms")
@@ -215,6 +230,8 @@ func TestRemoveAllDot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create TempDir: %s", err)
 	}
+	defer RemoveAll(tempDir)
+
 	err = Chdir(tempDir)
 	if err != nil {
 		t.Fatalf("Could not chdir to tempdir: %s", err)

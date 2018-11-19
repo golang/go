@@ -50,6 +50,61 @@ func libcCall(fn, arg unsafe.Pointer) int32 {
 	return res
 }
 
+// The X versions of syscall expect the libc call to return a 64-bit result.
+// Otherwise (the non-X version) expects a 32-bit result.
+// This distinction is required because an error is indicated by returning -1,
+// and we need to know whether to check 32 or 64 bits of the result.
+// (Some libc functions that return 32 bits put junk in the upper 32 bits of AX.)
+
+//go:linkname syscall_syscall syscall.syscall
+//go:nosplit
+//go:cgo_unsafe_args
+func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+	entersyscallblock()
+	libcCall(unsafe.Pointer(funcPC(syscall)), unsafe.Pointer(&fn))
+	exitsyscall()
+	return
+}
+func syscall()
+
+//go:linkname syscall_syscall6 syscall.syscall6
+//go:nosplit
+//go:cgo_unsafe_args
+func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+	entersyscallblock()
+	libcCall(unsafe.Pointer(funcPC(syscall6)), unsafe.Pointer(&fn))
+	exitsyscall()
+	return
+}
+func syscall6()
+
+//go:linkname syscall_syscall6X syscall.syscall6X
+//go:nosplit
+//go:cgo_unsafe_args
+func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+	entersyscallblock()
+	libcCall(unsafe.Pointer(funcPC(syscall6X)), unsafe.Pointer(&fn))
+	exitsyscall()
+	return
+}
+func syscall6X()
+
+//go:linkname syscall_rawSyscall syscall.rawSyscall
+//go:nosplit
+//go:cgo_unsafe_args
+func syscall_rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+	libcCall(unsafe.Pointer(funcPC(syscall)), unsafe.Pointer(&fn))
+	return
+}
+
+//go:linkname syscall_rawSyscall6 syscall.rawSyscall6
+//go:nosplit
+//go:cgo_unsafe_args
+func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+	libcCall(unsafe.Pointer(funcPC(syscall6)), unsafe.Pointer(&fn))
+	return
+}
+
 // The *_trampoline functions convert from the Go calling convention to the C calling convention
 // and then call the underlying libc function.  They are defined in sys_darwin_$ARCH.s.
 

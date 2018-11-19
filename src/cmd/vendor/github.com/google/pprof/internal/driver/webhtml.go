@@ -249,6 +249,21 @@ table tr td {
     </div>
   </div>
 
+  {{$sampleLen := len .SampleTypes}}
+  {{if gt $sampleLen 1}}
+  <div id="sample" class="menu-item">
+    <div class="menu-name">
+      Sample
+      <i class="downArrow"></i>
+    </div>
+    <div class="submenu">
+      {{range .SampleTypes}}
+      <a href="?si={{.}}" id="{{.}}">{{.}}</a>
+      {{end}}
+    </div>
+  </div>
+  {{end}}
+
   <div id="refine" class="menu-item">
     <div class="menu-name">
       Refine
@@ -259,6 +274,7 @@ table tr td {
       <a title="{{.Help.ignore}}" href="?" id="ignore">Ignore</a>
       <a title="{{.Help.hide}}" href="?" id="hide">Hide</a>
       <a title="{{.Help.show}}" href="?" id="show">Show</a>
+      <a title="{{.Help.show_from}}" href="?" id="show-from">Show from</a>
       <hr>
       <a title="{{.Help.reset}}" href="?">Reset</a>
     </div>
@@ -718,9 +734,18 @@ function viewer(baseUrl, nodes) {
     return str.replace(/([\\\.?+*\[\](){}|^$])/g, '\\$1');
   }
 
+  function setSampleIndexLink(id) {
+    const elem = document.getElementById(id);
+    if (elem != null) {
+      setHrefParams(elem, function (params) {
+        params.set("si", id);
+      });
+    }
+  }
+
   // Update id's href to reflect current selection whenever it is
   // liable to be followed.
-  function makeLinkDynamic(id) {
+  function makeSearchLinkDynamic(id) {
     const elem = document.getElementById(id);
     if (elem == null) return;
 
@@ -730,25 +755,39 @@ function viewer(baseUrl, nodes) {
     if (id == 'ignore') param = 'i';
     if (id == 'hide') param = 'h';
     if (id == 'show') param = 's';
+    if (id == 'show-from') param = 'sf';
 
     // We update on mouseenter so middle-click/right-click work properly.
     elem.addEventListener('mouseenter', updater);
     elem.addEventListener('touchstart', updater);
 
     function updater() {
-      elem.href = updateUrl(new URL(elem.href), param);
+      // The selection can be in one of two modes: regexp-based or
+      // list-based.  Construct regular expression depending on mode.
+      let re = regexpActive
+        ? search.value
+        : Array.from(selected.keys()).map(key => quotemeta(nodes[key])).join('|');
+
+      setHrefParams(elem, function (params) {
+        if (re != '') {
+          // For focus/show/show-from, forget old parameter. For others, add to re.
+          if (param != 'f' && param != 's' && param != 'sf' && params.has(param)) {
+            const old = params.get(param);
+            if (old != '') {
+              re += '|' + old;
+            }
+          }
+          params.set(param, re);
+        } else {
+          params.delete(param);
+        }
+      });
     }
   }
 
-  // Update URL to reflect current selection.
-  function updateUrl(url, param) {
+  function setHrefParams(elem, paramSetter) {
+    let url = new URL(elem.href);
     url.hash = '';
-
-    // The selection can be in one of two modes: regexp-based or
-    // list-based.  Construct regular expression depending on mode.
-    let re = regexpActive
-      ? search.value
-      : Array.from(selected.keys()).map(key => quotemeta(nodes[key])).join('|');
 
     // Copy params from this page's URL.
     const params = url.searchParams;
@@ -756,20 +795,10 @@ function viewer(baseUrl, nodes) {
       params.set(p[0], p[1]);
     }
 
-    if (re != '') {
-      // For focus/show, forget old parameter.  For others, add to re.
-      if (param != 'f' && param != 's' && params.has(param)) {
-        const old = params.get(param);
-         if (old != '') {
-          re += '|' + old;
-        }
-      }
-      params.set(param, re);
-    } else {
-      params.delete(param);
-    }
+    // Give the params to the setter to modify.
+    paramSetter(params);
 
-    return url.toString();
+    elem.href = url.toString();
   }
 
   function handleTopClick(e) {
@@ -803,7 +832,7 @@ function viewer(baseUrl, nodes) {
     const enable = (search.value != '' || selected.size != 0);
     if (buttonsEnabled == enable) return;
     buttonsEnabled = enable;
-    for (const id of ['focus', 'ignore', 'hide', 'show']) {
+    for (const id of ['focus', 'ignore', 'hide', 'show', 'show-from']) {
       const link = document.getElementById(id);
       if (link != null) {
         link.classList.toggle('disabled', !enable);
@@ -825,8 +854,11 @@ function viewer(baseUrl, nodes) {
   }
 
   const ids = ['topbtn', 'graphbtn', 'peek', 'list', 'disasm',
-               'focus', 'ignore', 'hide', 'show'];
-  ids.forEach(makeLinkDynamic);
+               'focus', 'ignore', 'hide', 'show', 'show-from'];
+  ids.forEach(makeSearchLinkDynamic);
+
+  const sampleIDs = [{{range .SampleTypes}}'{{.}}', {{end}}];
+  sampleIDs.forEach(setSampleIndexLink);
 
   // Bind action to button with specified id.
   function addAction(id, action) {

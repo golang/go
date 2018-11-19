@@ -342,6 +342,26 @@ func lookupOrDiag(ctxt *Link, n string) *sym.Symbol {
 	return s
 }
 
+// dwarfFuncSym looks up a DWARF metadata symbol for function symbol s.
+// If the symbol does not exist, it creates it if create is true,
+// or returns nil otherwise.
+func dwarfFuncSym(ctxt *Link, s *sym.Symbol, meta string, create bool) *sym.Symbol {
+	// All function ABIs use symbol version 0 for the DWARF data.
+	//
+	// TODO(austin): It may be useful to have DWARF info for ABI
+	// wrappers, in which case we may want these versions to
+	// align. Better yet, replace these name lookups with a
+	// general way to attach metadata to a symbol.
+	ver := 0
+	if s.IsFileLocal() {
+		ver = int(s.Version)
+	}
+	if create {
+		return ctxt.Syms.Lookup(meta+s.Name, ver)
+	}
+	return ctxt.Syms.ROLookup(meta+s.Name, ver)
+}
+
 func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) *dwarf.DWDie {
 	// Only emit typedefs for real names.
 	if strings.HasPrefix(name, "map[") {
@@ -843,7 +863,7 @@ func dwarfDefineGlobal(ctxt *Link, s *sym.Symbol, str string, v int64, gotype *s
 	}
 	dv := newdie(ctxt, ctxt.compUnitByPackage[lib].dwinfo, dwarf.DW_ABRV_VARIABLE, str, int(s.Version))
 	newabslocexprattr(dv, v, s)
-	if s.Version == 0 {
+	if !s.IsFileLocal() {
 		newattr(dv, dwarf.DW_AT_external, dwarf.DW_CLS_FLAG, 1, 0)
 	}
 	dt := defgotype(ctxt, gotype)
@@ -1146,7 +1166,7 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 	// indexes (created by numberfile) to CU-local indexes.
 	fileNums := make(map[int]int)
 	for _, s := range unit.lib.Textp { // textp has been dead-code-eliminated already.
-		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+		dsym := dwarfFuncSym(ctxt, s, dwarf.InfoPrefix, true)
 		for _, f := range s.FuncInfo.File {
 			if _, ok := fileNums[int(f.Value)]; ok {
 				continue
@@ -1199,11 +1219,14 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 
 		pciterinit(ctxt, &pcfile, &s.FuncInfo.Pcfile)
 		pciterinit(ctxt, &pcline, &s.FuncInfo.Pcline)
-		pciterinit(ctxt, &pcstmt, &sym.Pcdata{P: s.FuncInfo.IsStmtSym.P})
 
-		if pcstmt.done != 0 {
+		isStmtSym := dwarfFuncSym(ctxt, s, dwarf.IsStmtPrefix, false)
+		if isStmtSym != nil && len(isStmtSym.P) > 0 {
+			pciterinit(ctxt, &pcstmt, &sym.Pcdata{P: isStmtSym.P})
+		} else {
 			// Assembly files lack a pcstmt section, we assume that every instruction
 			// is a valid statement.
+			pcstmt.done = 1
 			pcstmt.value = 1
 		}
 
@@ -1756,12 +1779,12 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		// referenced abstract functions.
 		// Collect all debug_range symbols in unit.rangeSyms
 		for _, s := range lib.Textp { // textp has been dead-code-eliminated already.
-			dsym := ctxt.Syms.ROLookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+			dsym := dwarfFuncSym(ctxt, s, dwarf.InfoPrefix, false)
 			dsym.Attr |= sym.AttrNotInSymbolTable | sym.AttrReachable
 			dsym.Type = sym.SDWARFINFO
 			unit.funcDIEs = append(unit.funcDIEs, dsym)
 
-			rangeSym := ctxt.Syms.ROLookup(dwarf.RangePrefix+s.Name, int(s.Version))
+			rangeSym := dwarfFuncSym(ctxt, s, dwarf.RangePrefix, false)
 			if rangeSym != nil && rangeSym.Size > 0 {
 				rangeSym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
 				rangeSym.Type = sym.SDWARFRANGE

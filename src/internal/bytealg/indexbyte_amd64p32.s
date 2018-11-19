@@ -21,24 +21,6 @@ TEXT ·IndexByteString(SB),NOSPLIT,$0-20
 	MOVL AX, ret+16(FP)
 	RET
 
-TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
-	MOVL b_base+0(FP), SI
-	MOVL b_len+4(FP), BX
-	MOVB c+12(FP), AL
-	CALL indexbytebody<>(SB)
-	MOVL AX, ret+16(FP)
-	RET
-
-TEXT strings·IndexByte(SB),NOSPLIT,$0-20
-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
-	MOVL s_base+0(FP), SI
-	MOVL s_len+4(FP), BX
-	MOVB c+8(FP), AL
-	CALL indexbytebody<>(SB)
-	MOVL AX, ret+16(FP)
-	RET
-
 // input:
 //   SI: data
 //   BX: data len

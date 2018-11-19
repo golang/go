@@ -2,10 +2,6 @@
 
 // False positives.
 
-// Nothing much to do about cross-package assembly. Unfortunate.
-internal/bytealg/compare_wasm.s: [wasm] cannot check cross-package assembly function: Compare is in package bytes
-internal/bytealg/compare_wasm.s: [wasm] cannot check cross-package assembly function: cmpstring is in package runtime
-
 // morestack intentionally omits arg size.
 runtime/asm_wasm.s: [wasm] morestack: use of 8(SP) points beyond argument frame
 runtime/asm_wasm.s: [wasm] morestack: use of 16(SP) points beyond argument frame

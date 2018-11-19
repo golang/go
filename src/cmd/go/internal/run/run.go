@@ -78,6 +78,9 @@ func runRun(cmd *base.Command, args []string) {
 		p = load.GoFilesPackage(files)
 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		pkgs := load.PackagesAndErrors(args[:1])
+		if len(pkgs) == 0 {
+			base.Fatalf("go run: no packages loaded from %s", args[0])
+		}
 		if len(pkgs) > 1 {
 			var names []string
 			for _, p := range pkgs {

@@ -36,6 +36,8 @@ func checkGdbEnvironment(t *testing.T) {
 		if runtime.GOARCH == "mips" {
 			t.Skip("skipping gdb tests on linux/mips; see https://golang.org/issue/25939")
 		}
+	case "aix":
+		t.Skip("gdb does not work on AIX; see golang.org/issue/28558")
 	}
 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
 		t.Skip("gdb test can fail with GOROOT_FINAL pending")
@@ -179,12 +181,11 @@ func testGdbPython(t *testing.T, cgo bool) {
 	}
 	args = append(args,
 		"-ex", "set python print-stack full",
-		"-ex", "br fmt.Println",
+		"-ex", "br main.go:15",
 		"-ex", "run",
 		"-ex", "echo BEGIN info goroutines\n",
 		"-ex", "info goroutines",
 		"-ex", "echo END\n",
-		"-ex", "up", // up from fmt.Println to main
 		"-ex", "echo BEGIN print mapvar\n",
 		"-ex", "print mapvar",
 		"-ex", "echo END\n",
@@ -194,14 +195,13 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "echo BEGIN info locals\n",
 		"-ex", "info locals",
 		"-ex", "echo END\n",
-		"-ex", "down", // back to fmt.Println (goroutine 2 below only works at bottom of stack.  TODO: fix that)
 		"-ex", "echo BEGIN goroutine 1 bt\n",
 		"-ex", "goroutine 1 bt",
 		"-ex", "echo END\n",
 		"-ex", "echo BEGIN goroutine 2 bt\n",
 		"-ex", "goroutine 2 bt",
 		"-ex", "echo END\n",
-		"-ex", "clear fmt.Println", // clear the previous break point
+		"-ex", "clear main.go:15", // clear the previous break point
 		"-ex", fmt.Sprintf("br main.go:%d", nLines), // new break point at the end of main
 		"-ex", "c",
 		"-ex", "echo BEGIN goroutine 1 bt at the end\n",
@@ -262,19 +262,17 @@ func testGdbPython(t *testing.T, cgo bool) {
 	// However, the newer dwarf location list code reconstituted
 	// aggregates from their fields and reverted their printing
 	// back to its original form.
+	// Only test that all variables are listed in 'info locals' since
+	// different versions of gdb print variables in different
+	// order and with differing amount of information and formats.
 
-	infoLocalsRe1 := regexp.MustCompile(`slicevar *= *\[\]string *= *{"def"}`)
-	// Format output from gdb v8.2
-	infoLocalsRe2 := regexp.MustCompile(`^slicevar = .*\nmapvar = .*\nstrvar = 0x[0-9a-f]+ "abc"`)
-	// Format output from gdb v7.7
-	infoLocalsRe3 := regexp.MustCompile(`^mapvar = .*\nstrvar = "abc"\nslicevar *= *\[\]string`)
-	if bl := blocks["info locals"]; !infoLocalsRe1.MatchString(bl) &&
-		!infoLocalsRe2.MatchString(bl) &&
-		!infoLocalsRe3.MatchString(bl) {
+	if bl := blocks["info locals"]; !strings.Contains(bl, "slicevar") ||
+		!strings.Contains(bl, "mapvar") ||
+		!strings.Contains(bl, "strvar") {
 		t.Fatalf("info locals failed: %s", bl)
 	}
 
-	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?fmt\.Println.+at`)
+	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
 	if bl := blocks["goroutine 1 bt"]; !btGoroutine1Re.MatchString(bl) {
 		t.Fatalf("goroutine 1 bt failed: %s", bl)
 	}

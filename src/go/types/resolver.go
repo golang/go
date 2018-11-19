@@ -570,7 +570,25 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
+	// We process non-alias declarations first, in order to avoid situations where
+	// the type of an alias declaration is needed before it is available. In general
+	// this is still not enough, as it is possible to create sufficiently convoluted
+	// recursive type definitions that will cause a type alias to be needed before it
+	// is available (see issue #25838 for examples).
+	// As an aside, the cmd/compiler suffers from the same problem (#25838).
+	var aliasList []*TypeName
+	// phase 1
 	for _, obj := range objList {
+		// If we have a type alias, collect it for the 2nd phase.
+		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].alias {
+			aliasList = append(aliasList, tname)
+			continue
+		}
+
+		check.objDecl(obj, nil)
+	}
+	// phase 2
+	for _, obj := range aliasList {
 		check.objDecl(obj, nil)
 	}
 

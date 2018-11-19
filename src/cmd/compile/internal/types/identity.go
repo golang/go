@@ -92,7 +92,7 @@ func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) b
 			}
 			for i, f1 := range fs1 {
 				f2 := fs2[i]
-				if f1.Isddd() != f2.Isddd() || !identical(f1.Type, f2.Type, cmpTags, assumedEqual) {
+				if f1.IsDDD() != f2.IsDDD() || !identical(f1.Type, f2.Type, cmpTags, assumedEqual) {
 					return false
 				}
 			}

@@ -109,6 +109,9 @@ const (
 	SDWARFRANGE
 	SDWARFLOC
 	SDWARFMISC // Not really a section; informs/affects other DWARF section generation
+
+	// ABI aliases (these never appear in the output)
+	SABIALIAS
 )
 
 // AbiSymKindToSymKind maps values read from object files (which are
@@ -126,6 +129,7 @@ var AbiSymKindToSymKind = [...]SymKind{
 	SDWARFRANGE,
 	SDWARFLOC,
 	SDWARFMISC,
+	SABIALIAS,
 }
 
 // ReadOnly are the symbol kinds that form read-only sections. In some

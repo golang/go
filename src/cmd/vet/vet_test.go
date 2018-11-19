@@ -15,7 +15,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -60,110 +59,87 @@ func Build(t *testing.T) {
 	built = true
 }
 
-func Vet(t *testing.T, files []string) {
-	flags := []string{
-		"-printfuncs=Warn:1,Warnf:1",
-		"-all",
-		"-shadow",
+func vetCmd(t *testing.T, args ...string) *exec.Cmd {
+	cmd := exec.Command(testenv.GoToolPath(t), "vet", "-vettool="+binary)
+	cmd.Args = append(cmd.Args, args...)
+	testdata, err := filepath.Abs("testdata")
+	if err != nil {
+		t.Fatal(err)
 	}
-	cmd := exec.Command(binary, append(flags, files...)...)
-	errchk(cmd, files, t)
+	cmd.Env = append(os.Environ(), "GOPATH="+testdata)
+	return cmd
 }
 
-// TestVet is equivalent to running this:
-// 	go build -o ./testvet
-// 	errorCheck the output of ./testvet -shadow -printfuncs='Warn:1,Warnf:1' testdata/*.go testdata/*.s
-// 	rm ./testvet
-//
-
-// TestVet tests self-contained files in testdata/*.go.
-//
-// If a file contains assembly or has inter-dependencies, it should be
-// in its own test, like TestVetAsm, TestDivergentPackagesExamples,
-// etc below.
 func TestVet(t *testing.T) {
-	Build(t)
-	t.Parallel()
-
-	gos, err := filepath.Glob(filepath.Join(dataDir, "*.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	wide := runtime.GOMAXPROCS(0)
-	if wide > len(gos) {
-		wide = len(gos)
-	}
-	batch := make([][]string, wide)
-	for i, file := range gos {
-		// The print.go test is run by TestVetPrint.
-		if strings.HasSuffix(file, "print.go") {
-			continue
-		}
-		batch[i%wide] = append(batch[i%wide], file)
-	}
-	for i, files := range batch {
-		if len(files) == 0 {
-			continue
-		}
-		files := files
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
-			t.Parallel()
-			t.Logf("files: %q", files)
-			Vet(t, files)
-		})
-	}
-}
-
-func TestVetPrint(t *testing.T) {
-	Build(t)
-	file := filepath.Join("testdata", "print.go")
-	cmd := exec.Command(
-		"go", "vet",
-		"-printf",
-		"-printfuncs=Warn:1,Warnf:1",
-		file,
-	)
-	cmd.Env = append(os.Environ(), "GOVETTOOL="+binary)
-	errchk(cmd, []string{file}, t)
-}
-
-func TestVetAsm(t *testing.T) {
-	Build(t)
-
-	asmDir := filepath.Join(dataDir, "asm")
-	gos, err := filepath.Glob(filepath.Join(asmDir, "*.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	asms, err := filepath.Glob(filepath.Join(asmDir, "*.s"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Parallel()
-	Vet(t, append(gos, asms...))
-}
-
-func TestVetDirs(t *testing.T) {
 	t.Parallel()
 	Build(t)
-	for _, dir := range []string{
-		"testingpkg",
-		"divergent",
+	for _, pkg := range []string{
+		"asm",
+		"assign",
+		"atomic",
+		"bool",
 		"buildtag",
-		"incomplete", // incomplete examples
 		"cgo",
+		"composite",
+		"copylock",
+		"deadcode",
+		"httpresponse",
+		"lostcancel",
+		"method",
+		"nilfunc",
+		"print",
+		"rangeloop",
+		"shift",
+		"structtag",
+		"testingpkg",
+		// "testtag" has its own test
+		"unmarshal",
+		"unsafeptr",
+		"unused",
 	} {
-		dir := dir
-		t.Run(dir, func(t *testing.T) {
+		pkg := pkg
+		t.Run(pkg, func(t *testing.T) {
 			t.Parallel()
-			gos, err := filepath.Glob(filepath.Join("testdata", dir, "*.go"))
+
+			// Skip cgo test on platforms without cgo.
+			if pkg == "cgo" && !cgoEnabled(t) {
+				return
+			}
+
+			cmd := vetCmd(t, "-printfuncs=Warn,Warnf", pkg)
+
+			// The asm test assumes amd64.
+			if pkg == "asm" {
+				cmd.Env = append(cmd.Env, "GOOS=linux", "GOARCH=amd64")
+			}
+
+			dir := filepath.Join("testdata/src", pkg)
+			gos, err := filepath.Glob(filepath.Join(dir, "*.go"))
 			if err != nil {
 				t.Fatal(err)
 			}
-			Vet(t, gos)
+			asms, err := filepath.Glob(filepath.Join(dir, "*.s"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var files []string
+			files = append(files, gos...)
+			files = append(files, asms...)
+
+			errchk(cmd, files, t)
 		})
 	}
+}
+
+func cgoEnabled(t *testing.T) bool {
+	// Don't trust build.Default.CgoEnabled as it is false for
+	// cross-builds unless CGO_ENABLED is explicitly specified.
+	// That's fine for the builders, but causes commands like
+	// 'GOARCH=386 go test .' to fail.
+	// Instead, we ask the go command.
+	cmd := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{context.CgoEnabled}}")
+	out, _ := cmd.CombinedOutput()
+	return string(out) == "true\n"
 }
 
 func errchk(c *exec.Cmd, files []string, t *testing.T) {
@@ -186,41 +162,32 @@ func errchk(c *exec.Cmd, files []string, t *testing.T) {
 func TestTags(t *testing.T) {
 	t.Parallel()
 	Build(t)
-	for _, tag := range []string{"testtag", "x testtag y", "x,testtag,y"} {
-		tag := tag
+	for tag, wantFile := range map[string]int{
+		"testtag":     1, // file1
+		"x testtag y": 1,
+		"othertag":    2,
+	} {
+		tag, wantFile := tag, wantFile
 		t.Run(tag, func(t *testing.T) {
 			t.Parallel()
 			t.Logf("-tags=%s", tag)
-			args := []string{
-				"-tags=" + tag,
-				"-v", // We're going to look at the files it examines.
-				"testdata/tagtest",
-			}
-			cmd := exec.Command(binary, args...)
+			cmd := vetCmd(t, "-tags="+tag, "tagtest")
 			output, err := cmd.CombinedOutput()
-			if err != nil {
-				t.Fatal(err)
-			}
+
+			want := fmt.Sprintf("file%d.go", wantFile)
+			dontwant := fmt.Sprintf("file%d.go", 3-wantFile)
+
 			// file1 has testtag and file2 has !testtag.
-			if !bytes.Contains(output, []byte(filepath.Join("tagtest", "file1.go"))) {
-				t.Error("file1 was excluded, should be included")
+			if !bytes.Contains(output, []byte(filepath.Join("tagtest", want))) {
+				t.Errorf("%s: %s was excluded, should be included", tag, want)
 			}
-			if bytes.Contains(output, []byte(filepath.Join("tagtest", "file2.go"))) {
-				t.Error("file2 was included, should be excluded")
+			if bytes.Contains(output, []byte(filepath.Join("tagtest", dontwant))) {
+				t.Errorf("%s: %s was included, should be excluded", tag, dontwant)
+			}
+			if t.Failed() {
+				t.Logf("err=%s, output=<<%s>>", err, output)
 			}
 		})
-	}
-}
-
-// Issue #21188.
-func TestVetVerbose(t *testing.T) {
-	t.Parallel()
-	Build(t)
-	cmd := exec.Command(binary, "-v", "-all", "testdata/cgo/cgo3.go")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Logf("%s", out)
-		t.Error(err)
 	}
 }
 

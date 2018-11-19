@@ -452,10 +452,11 @@ var tryDupCloexec = int32(1)
 // DupCloseOnExec dups fd and marks it close-on-exec.
 func DupCloseOnExec(fd int) (int, string, error) {
 	if atomic.LoadInt32(&tryDupCloexec) == 1 {
-		r0, _, e1 := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), syscall.F_DUPFD_CLOEXEC, 0)
-		switch e1 {
-		case 0:
-			return int(r0), "", nil
+		r0, e1 := fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0)
+		if e1 == nil {
+			return r0, "", nil
+		}
+		switch e1.(syscall.Errno) {
 		case syscall.EINVAL, syscall.ENOSYS:
 			// Old kernel, or js/wasm (which returns
 			// ENOSYS). Fall back to the portable way from

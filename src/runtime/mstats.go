@@ -529,7 +529,7 @@ func updatememstats() {
 		memstats.by_size[i].nfree = 0
 	}
 
-	// Flush MCache's to MCentral.
+	// Flush mcache's to mcentral.
 	systemstack(flushallmcaches)
 
 	// Aggregate local stats.

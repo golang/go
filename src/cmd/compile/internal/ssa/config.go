@@ -112,7 +112,7 @@ type Logger interface {
 	// Logf logs a message from the compiler.
 	Logf(string, ...interface{})
 
-	// Log returns true if logging is not a no-op
+	// Log reports whether logging is not a no-op
 	// some logging calls account for more than a few heap allocations.
 	Log() bool
 

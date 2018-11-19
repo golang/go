@@ -19,12 +19,12 @@ import (
 	"cmd/go/internal/search"
 	"encoding/json"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 )
@@ -335,6 +335,8 @@ func legacyModInit() {
 		modFile.AddModuleStmt(path)
 	}
 
+	addGoStmt()
+
 	for _, name := range altConfigs {
 		cfg := filepath.Join(ModRoot, name)
 		data, err := ioutil.ReadFile(cfg)
@@ -354,6 +356,25 @@ func legacyModInit() {
 			}
 			return
 		}
+	}
+}
+
+// InitGoStmt adds a go statement, unless there already is one.
+func InitGoStmt() {
+	if modFile.Go == nil {
+		addGoStmt()
+	}
+}
+
+// addGoStmt adds a go statement referring to the current version.
+func addGoStmt() {
+	tags := build.Default.ReleaseTags
+	version := tags[len(tags)-1]
+	if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
+		base.Fatalf("go: unrecognized default version %q", version)
+	}
+	if err := modFile.AddGoStmt(version[2:]); err != nil {
+		base.Fatalf("go: internal error: %v", err)
 	}
 }
 
@@ -380,7 +401,7 @@ func FindModuleRoot(dir, limit string, legacyConfigOK bool) (root, file string) 
 
 	// Look for enclosing go.mod.
 	for {
-		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !(runtime.GOOS == "plan9" && fi.IsDir()) {
+		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
 			return dir, "go.mod"
 		}
 		if dir == limit {
@@ -398,7 +419,7 @@ func FindModuleRoot(dir, limit string, legacyConfigOK bool) (root, file string) 
 		dir = dir1
 		for {
 			for _, name := range altConfigs {
-				if fi, err := os.Stat(filepath.Join(dir, name)); err == nil && !(runtime.GOOS == "plan9" && fi.IsDir()) {
+				if fi, err := os.Stat(filepath.Join(dir, name)); err == nil && !fi.IsDir() {
 					return dir, name
 				}
 			}

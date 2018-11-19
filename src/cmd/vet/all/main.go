@@ -7,6 +7,9 @@
 // The vet/all command runs go vet on the standard library and commands.
 // It compares the output against a set of whitelists
 // maintained in the whitelist directory.
+//
+// This program attempts to build packages from golang.org/x/tools,
+// which must be in your GOPATH.
 package main
 
 import (
@@ -18,6 +21,7 @@ import (
 	"go/types"
 	"internal/testenv"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -217,13 +221,36 @@ func (p platform) vet() {
 	w := make(whitelist)
 	w.load(p.os, p.arch)
 
-	// 'go tool vet .' is considerably faster than 'go vet ./...'
+	tmpdir, err := ioutil.TempDir("", "cmd-vet-all")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	// Build the go/packages-based vet command from the x/tools
+	// repo. It is considerably faster than "go vet", which rebuilds
+	// the standard library.
+	vetTool := filepath.Join(tmpdir, "vet")
+	cmd := exec.Command(cmdGoPath, "build", "-o", vetTool, "golang.org/x/tools/go/analysis/cmd/vet")
+	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Fatal(err)
+	}
+
 	// TODO: The unsafeptr checks are disabled for now,
 	// because there are so many false positives,
 	// and no clear way to improve vet to eliminate large chunks of them.
 	// And having them in the whitelists will just cause annoyance
 	// and churn when working on the runtime.
-	cmd := exec.Command(cmdGoPath, "tool", "vet", "-unsafeptr=false", "-source", ".")
+	cmd = exec.Command(vetTool,
+		"-unsafeptr=0",
+		"-nilness=0", // expensive, uses SSA
+		"std",
+		"cmd/...",
+		"cmd/compile/internal/gc/testdata",
+	)
 	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
 	cmd.Env = append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch, "CGO_ENABLED=0")
 	stderr, err := cmd.StderrPipe()
@@ -243,6 +270,9 @@ NextLine:
 		if strings.HasPrefix(line, "vet: ") {
 			// Typecheck failure: Malformed syntax or multiple packages or the like.
 			// This will yield nicer error messages elsewhere, so ignore them here.
+
+			// This includes warnings from asmdecl of the form:
+			//   "vet: foo.s:16: [amd64] cannot check cross-package assembly function"
 			continue
 		}
 
@@ -254,22 +284,48 @@ NextLine:
 			io.Copy(os.Stderr, stderr)
 			break
 		}
+		if strings.HasPrefix(line, "# ") {
+			// 'go vet' prefixes the output of each vet invocation by a comment:
+			//    # [package]
+			continue
+		}
 
-		fields := strings.SplitN(line, ":", 3)
+		// Parse line.
+		// Assume the part before the first ": "
+		// is the "file:line:col: " information.
+		// TODO(adonovan): parse vet -json output.
 		var file, lineno, msg string
-		switch len(fields) {
-		case 2:
-			// vet message with no line number
-			file, msg = fields[0], fields[1]
-		case 3:
-			file, lineno, msg = fields[0], fields[1], fields[2]
-		default:
+		if i := strings.Index(line, ": "); i >= 0 {
+			msg = line[i+len(": "):]
+
+			words := strings.Split(line[:i], ":")
+			switch len(words) {
+			case 3:
+				_ = words[2] // ignore column
+				fallthrough
+			case 2:
+				lineno = words[1]
+				fallthrough
+			case 1:
+				file = words[0]
+
+				// Make the file name relative to GOROOT/src.
+				if rel, err := filepath.Rel(cmd.Dir, file); err == nil {
+					file = rel
+				}
+			default:
+				// error: too many columns
+			}
+		}
+		if file == "" {
 			if !parseFailed {
 				parseFailed = true
 				fmt.Fprintf(os.Stderr, "failed to parse %s vet output:\n", p)
 			}
 			fmt.Fprintln(os.Stderr, line)
+			continue
 		}
+
 		msg = strings.TrimSpace(msg)
 
 		for _, ignore := range ignorePathPrefixes {

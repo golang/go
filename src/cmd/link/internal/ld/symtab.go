@@ -128,7 +128,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 	// maybe one day STB_WEAK.
 	bind := STB_GLOBAL
 
-	if x.Version != 0 || x.Attr.VisibilityHidden() || x.Attr.Local() {
+	if x.IsFileLocal() || x.Attr.VisibilityHidden() || x.Attr.Local() {
 		bind = STB_LOCAL
 	}
 
@@ -224,7 +224,7 @@ func putplan9sym(ctxt *Link, x *sym.Symbol, s string, typ SymbolType, addr int64
 	t := int(typ)
 	switch typ {
 	case TextSym, DataSym, BSSSym:
-		if x.Version != 0 {
+		if x.IsFileLocal() {
 			t += 'a' - 'A'
 		}
 		fallthrough
@@ -506,7 +506,7 @@ func (ctxt *Link) symtab() {
 		abihashgostr.AddAddr(ctxt.Arch, hashsym)
 		abihashgostr.AddUint(ctxt.Arch, uint64(hashsym.Size))
 	}
-	if ctxt.BuildMode == BuildModePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
+	if ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
 		for _, l := range ctxt.Library {
 			s := ctxt.Syms.Lookup("go.link.pkghashbytes."+l.Pkg, 0)
 			s.Attr |= sym.AttrReachable

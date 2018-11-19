@@ -735,7 +735,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 	return gp
 }
 
-// pollFractionalWorkerExit returns true if a fractional mark worker
+// pollFractionalWorkerExit reports whether a fractional mark worker
 // should self-preempt. It assumes it is called from the fractional
 // worker.
 func pollFractionalWorkerExit() bool {
@@ -1157,7 +1157,7 @@ const (
 	gcTriggerCycle
 )
 
-// test returns true if the trigger condition is satisfied, meaning
+// test reports whether the trigger condition is satisfied, meaning
 // that the exit condition for the _GCoff phase has been met. The exit
 // condition should be tested when allocating.
 func (t gcTrigger) test() bool {
@@ -1867,7 +1867,7 @@ func gcBgMarkWorker(_p_ *p) {
 	}
 }
 
-// gcMarkWorkAvailable returns true if executing a mark worker
+// gcMarkWorkAvailable reports whether executing a mark worker
 // on p is potentially useful. p may be nil, in which case it only
 // checks the global sources of work.
 func gcMarkWorkAvailable(p *p) bool {
@@ -1974,6 +1974,9 @@ func gcSweep(mode gcMode) {
 		throw("non-empty swept list")
 	}
 	mheap_.pagesSwept = 0
+	mheap_.sweepArenas = mheap_.allArenas
+	mheap_.reclaimIndex = 0
+	mheap_.reclaimCredit = 0
 	unlock(&mheap_.lock)
 
 	if !_ConcurrentSweep || mode == gcForceBlockMode {
@@ -2022,6 +2025,18 @@ func gcResetMarkState() {
 		gp.gcAssistBytes = 0
 	}
 	unlock(&allglock)
+
+	// Clear page marks. This is just 1MB per 64GB of heap, so the
+	// time here is pretty trivial.
+	lock(&mheap_.lock)
+	arenas := mheap_.allArenas
+	unlock(&mheap_.lock)
+	for _, ai := range arenas {
+		ha := mheap_.arenas[ai.l1()][ai.l2()]
+		for i := range ha.pageMarks {
+			ha.pageMarks[i] = 0
+		}
+	}
 
 	work.bytesMarked = 0
 	work.initialHeapLive = atomic.Load64(&memstats.heap_live)

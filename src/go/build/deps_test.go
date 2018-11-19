@@ -273,7 +273,7 @@ var pkgDeps = map[string][]string{
 	"internal/goroot":                {"L4", "OS"},
 	"internal/singleflight":          {"sync"},
 	"internal/trace":                 {"L4", "OS"},
-	"internal/traceparser":           {"L4", "internal/traceparser/filebuf"},
+	"internal/traceparser":           {"L4", "internal/traceparser/filebuf", "container/heap"},
 	"internal/traceparser/filebuf":   {"L4", "OS"},
 	"math/big":                       {"L4"},
 	"mime":                           {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
@@ -389,7 +389,7 @@ var pkgDeps = map[string][]string{
 
 	// SSL/TLS.
 	"crypto/tls": {
-		"L4", "CRYPTO-MATH", "OS", "golang_org/x/crypto/cryptobyte",
+		"L4", "CRYPTO-MATH", "OS", "golang_org/x/crypto/cryptobyte", "golang_org/x/crypto/hkdf",
 		"container/list", "crypto/x509", "encoding/pem", "net", "syscall",
 	},
 	"crypto/x509": {
@@ -436,7 +436,7 @@ var pkgDeps = map[string][]string{
 		"L4", "NET", "OS", "crypto/tls", "flag", "net/http", "net/http/internal", "crypto/x509",
 		"golang_org/x/net/http/httpguts",
 	},
-	"net/http/httputil": {"L4", "NET", "OS", "context", "net/http", "net/http/internal"},
+	"net/http/httputil": {"L4", "NET", "OS", "context", "net/http", "net/http/internal", "golang_org/x/net/http/httpguts"},
 	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
 	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http"},
 	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},

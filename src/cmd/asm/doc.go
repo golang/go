@@ -39,6 +39,8 @@ Flags:
 		Generate code that can be linked into a shared library.
 	-trimpath prefix
 		Remove prefix from recorded source file paths.
+	-gensymabis
+		Write symbol ABI information to output file. Don't assemble.
 Input language:
 
 The assembler uses mostly the same syntax for all architectures,

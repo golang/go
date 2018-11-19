@@ -7,7 +7,9 @@ package net
 import (
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -35,6 +37,16 @@ func testableNetwork(network string) bool {
 		switch runtime.GOOS {
 		case "android", "nacl", "plan9", "windows":
 			return false
+		case "aix":
+			// Unix network isn't properly working on AIX 7.2 with Technical Level < 2
+			out, err := exec.Command("oslevel", "-s").Output()
+			if err != nil {
+				return false
+			}
+			if tl, err := strconv.Atoi(string(out[5:7])); err != nil || tl < 2 {
+				return false
+			}
+			return true
 		}
 		// iOS does not support unix, unixgram.
 		if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {

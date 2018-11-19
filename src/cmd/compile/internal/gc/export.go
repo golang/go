@@ -140,6 +140,9 @@ func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op, ctxt Class, t
 	n.Op = op
 	n.Pos = pos
 	n.SetClass(ctxt)
+	if ctxt == PFUNC {
+		n.Sym.SetFunc(true)
+	}
 	n.Type = t
 	return n
 }

@@ -38,7 +38,7 @@ func initExceptionHandler() {
 	}
 }
 
-// isgoexception returns true if this exception should be translated
+// isgoexception reports whether this exception should be translated
 // into a Go panic.
 //
 // It is nosplit to avoid growing the stack in case we're aborting

@@ -694,7 +694,7 @@ func (src *Source) ParseFile(path string) error {
 	return nil
 }
 
-// IsStdRepo returns true if src is part of standard library.
+// IsStdRepo reports whether src is part of standard library.
 func (src *Source) IsStdRepo() (bool, error) {
 	if len(src.Files) == 0 {
 		return false, errors.New("no input files provided")

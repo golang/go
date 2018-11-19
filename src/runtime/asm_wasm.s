@@ -293,9 +293,6 @@ TEXT ·cgocallback_gofunc(SB), NOSPLIT, $16-32
 		JMP NAME(SB); \
 	End
 
-TEXT reflect·call(SB), NOSPLIT, $0-0
-	JMP ·reflectcall(SB)
-
 TEXT ·reflectcall(SB), NOSPLIT, $0-32
 	I64Load fn+8(FP)
 	I64Eqz

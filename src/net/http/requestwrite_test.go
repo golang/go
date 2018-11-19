@@ -544,6 +544,38 @@ var reqWriteTests = []reqWriteTest{
 			"User-Agent: Go-http-client/1.1\r\n" +
 			"\r\n",
 	},
+
+	// Verify that a nil header value doesn't get written.
+	23: {
+		Req: Request{
+			Method: "GET",
+			URL:    mustParseURL("/foo"),
+			Header: Header{
+				"X-Foo":             []string{"X-Bar"},
+				"X-Idempotency-Key": nil,
+			},
+		},
+
+		WantWrite: "GET /foo HTTP/1.1\r\n" +
+			"Host: \r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"X-Foo: X-Bar\r\n\r\n",
+	},
+	24: {
+		Req: Request{
+			Method: "GET",
+			URL:    mustParseURL("/foo"),
+			Header: Header{
+				"X-Foo":             []string{"X-Bar"},
+				"X-Idempotency-Key": []string{},
+			},
+		},
+
+		WantWrite: "GET /foo HTTP/1.1\r\n" +
+			"Host: \r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"X-Foo: X-Bar\r\n\r\n",
+	},
 }
 
 func TestRequestWrite(t *testing.T) {

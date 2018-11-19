@@ -129,12 +129,13 @@ func (r *Reader) readContinuedLineSlice() ([]byte, error) {
 	}
 
 	// Optimistically assume that we have started to buffer the next line
-	// and it starts with an ASCII letter (the next header key), so we can
-	// avoid copying that buffered data around in memory and skipping over
-	// non-existent whitespace.
+	// and it starts with an ASCII letter (the next header key), or a blank
+	// line, so we can avoid copying that buffered data around in memory
+	// and skipping over non-existent whitespace.
 	if r.R.Buffered() > 1 {
-		peek, err := r.R.Peek(1)
-		if err == nil && isASCIILetter(peek[0]) {
+		peek, _ := r.R.Peek(2)
+		if len(peek) > 0 && (isASCIILetter(peek[0]) || peek[0] == '\n') ||
+			len(peek) == 2 && peek[0] == '\r' && peek[1] == '\n' {
 			return trim(line), nil
 		}
 	}

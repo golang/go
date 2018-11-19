@@ -125,6 +125,9 @@ func declare(n *Node, ctxt Class) {
 	s.Def = asTypesNode(n)
 	n.Name.Vargen = int32(gen)
 	n.SetClass(ctxt)
+	if ctxt == PFUNC {
+		n.Sym.SetFunc(true)
+	}
 
 	autoexport(n, ctxt)
 }
@@ -208,12 +211,6 @@ func newnoname(s *types.Sym) *Node {
 	return n
 }
 
-// newfuncname generates a new name node for a function or method.
-// TODO(rsc): Use an ODCLFUNC node instead. See comment in CL 7360.
-func newfuncname(s *types.Sym) *Node {
-	return newfuncnamel(lineno, s)
-}
-
 // newfuncnamel generates a new name node for a function or method.
 // TODO(rsc): Use an ODCLFUNC node instead. See comment in CL 7360.
 func newfuncnamel(pos src.XPos, s *types.Sym) *Node {
@@ -286,7 +283,7 @@ func oldname(s *types.Sym) *Node {
 			c = newname(s)
 			c.SetClass(PAUTOHEAP)
 			c.SetIsClosureVar(true)
-			c.SetIsddd(n.Isddd())
+			c.SetIsDDD(n.IsDDD())
 			c.Name.Defn = n
 			c.SetAddable(false)
 
@@ -458,7 +455,7 @@ func funcarg(n *Node, ctxt Class) {
 
 	n.Right = newnamel(n.Pos, n.Sym)
 	n.Right.Name.Param.Ntype = n.Left
-	n.Right.SetIsddd(n.Isddd())
+	n.Right.SetIsDDD(n.IsDDD())
 	declare(n.Right, ctxt)
 
 	vargen++
@@ -491,7 +488,7 @@ func funcarg2(f *types.Field, ctxt Class) {
 	n := newnamel(f.Pos, f.Sym)
 	f.Nname = asTypesNode(n)
 	n.Type = f.Type
-	n.SetIsddd(f.Isddd())
+	n.SetIsDDD(f.IsDDD())
 	declare(n, ctxt)
 }
 
@@ -631,7 +628,7 @@ func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
 	fields := make([]*types.Field, len(l))
 	for i, n := range l {
 		f := structfield(n)
-		f.SetIsddd(n.Isddd())
+		f.SetIsDDD(n.IsDDD())
 		if n.Right != nil {
 			n.Right.Type = f.Type
 			f.Nname = asTypesNode(n.Right)
@@ -807,8 +804,12 @@ func origSym(s *types.Sym) *types.Sym {
 // Method symbols can be used to distinguish the same method appearing
 // in different method sets. For example, T.M and (*T).M have distinct
 // method symbols.
+//
+// The returned symbol will be marked as a function.
 func methodSym(recv *types.Type, msym *types.Sym) *types.Sym {
-	return methodSymSuffix(recv, msym, "")
+	sym := methodSymSuffix(recv, msym, "")
+	sym.SetFunc(true)
+	return sym
 }
 
 // methodSymSuffix is like methodsym, but allows attaching a
@@ -1013,7 +1014,7 @@ func dclfunc(sym *types.Sym, tfn *Node) *Node {
 	}
 
 	fn := nod(ODCLFUNC, nil, nil)
-	fn.Func.Nname = newfuncname(sym)
+	fn.Func.Nname = newfuncnamel(lineno, sym)
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = tfn
 	declare(fn.Func.Nname, PFUNC)

@@ -36,7 +36,7 @@ func (gcToolchain) linker() string {
 	return base.Tool("link")
 }
 
-func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
 	p := a.Package
 	objdir := a.Objdir
 	if archive != "" {
@@ -53,6 +53,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 		pkgpath = "main"
 	}
 	gcargs := []string{"-p", pkgpath}
+	if p.Module != nil && p.Module.GoVersion != "" && allowedVersion(p.Module.GoVersion) {
+		gcargs = append(gcargs, "-lang=go"+p.Module.GoVersion)
+	}
 	if p.Standard {
 		gcargs = append(gcargs, "-std")
 	}
@@ -94,6 +97,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
 	}
 	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
 		gcargs = append(gcargs, "-goversion", runtimeVersion)
+	}
+	if symabis != "" {
+		gcargs = append(gcargs, "-symabis", symabis)
 	}
 
 	gcflags := str.StringList(forcedGcflags, p.Internal.Gcflags)
@@ -215,8 +221,7 @@ func trimDir(dir string) string {
 	return dir
 }
 
-func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error) {
-	p := a.Package
+func asmArgs(a *Action, p *load.Package) []interface{} {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(cfg.GOROOT, "pkg", "include")
 	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", trimDir(a.Objdir), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
@@ -238,6 +243,13 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 		args = append(args, "-D", "GOMIPS64_"+cfg.GOMIPS64)
 	}
 
+	return args
+}
+
+func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error) {
+	p := a.Package
+	args := asmArgs(a, p)
+
 	var ofiles []string
 	for _, sfile := range sfiles {
 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
@@ -248,6 +260,82 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 		}
 	}
 	return ofiles, nil
+}
+
+func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, error) {
+	mkSymabis := func(p *load.Package, sfiles []string, path string) error {
+		args := asmArgs(a, p)
+		args = append(args, "-gensymabis", "-o", path)
+		for _, sfile := range sfiles {
+			if p.ImportPath == "runtime/cgo" && strings.HasPrefix(sfile, "gcc_") {
+				continue
+			}
+			args = append(args, mkAbs(p.Dir, sfile))
+		}
+
+		// Supply an empty go_asm.h as if the compiler had been run.
+		// -gensymabis parsing is lax enough that we don't need the
+		// actual definitions that would appear in go_asm.h.
+		if err := b.writeFile(a.Objdir+"go_asm.h", nil); err != nil {
+			return err
+		}
+
+		return b.run(a, p.Dir, p.ImportPath, nil, args...)
+	}
+
+	var symabis string // Only set if we actually create the file
+	p := a.Package
+	if len(sfiles) != 0 {
+		symabis = a.Objdir + "symabis"
+		if err := mkSymabis(p, sfiles, symabis); err != nil {
+			return "", err
+		}
+	}
+
+	// Gather known cross-package references from assembly code.
+	var otherPkgs []string
+	if p.ImportPath == "runtime" {
+		// Assembly in syscall and runtime/cgo references
+		// symbols in runtime.
+		otherPkgs = []string{"syscall", "runtime/cgo"}
+	} else if p.ImportPath == "runtime/internal/atomic" {
+		// sync/atomic is an assembly wrapper around
+		// runtime/internal/atomic.
+		otherPkgs = []string{"sync/atomic"}
+	}
+	for _, p2name := range otherPkgs {
+		p2 := load.LoadPackage(p2name, &load.ImportStack{})
+		if len(p2.SFiles) == 0 {
+			continue
+		}
+
+		symabis2 := a.Objdir + "symabis2"
+		if err := mkSymabis(p2, p2.SFiles, symabis2); err != nil {
+			return "", err
+		}
+
+		// Filter out just the symbol refs and append them to
+		// the symabis file.
+		abis2, err := ioutil.ReadFile(symabis2)
+		if err != nil {
+			return "", err
+		}
+		var refs bytes.Buffer
+		for _, line := range strings.Split(string(abis2), "\n") {
+			fs := strings.Fields(line)
+			if len(fs) >= 2 && fs[0] == "ref" && !strings.HasPrefix(fs[1], `"".`) {
+				fmt.Fprintf(&refs, "%s\n", line)
+			}
+		}
+		if refs.Len() != 0 {
+			symabis = a.Objdir + "symabis"
+			if err := b.appendFile(symabis, refs.Bytes()); err != nil {
+				return "", err
+			}
+		}
+	}
+
+	return symabis, nil
 }
 
 // toolVerify checks that the command line args writes the same output file

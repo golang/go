@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -68,13 +67,8 @@ func objdumpOutput(t *testing.T) []byte {
 		testenv.GoToolPath(t), "build", "-o",
 		filepath.Join(tmpdir, "output"))
 
-	var env []string
-	for _, v := range os.Environ() {
-		if !strings.HasPrefix(v, "GOARCH=") {
-			env = append(env, v)
-		}
-	}
-	cmd.Env = append(env, "GOARCH=amd64")
+	cmd.Env = append(os.Environ(), "GOARCH=amd64", "GOOS=linux")
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("error %s output %s", err, out)

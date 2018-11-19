@@ -309,7 +309,10 @@ func printTopProto(w io.Writer, rpt *Report) error {
 	}
 	functionMap := make(functionMap)
 	for i, n := range g.Nodes {
-		f := functionMap.FindOrAdd(n.Info)
+		f, added := functionMap.findOrAdd(n.Info)
+		if added {
+			out.Function = append(out.Function, f)
+		}
 		flat, cum := n.FlatValue(), n.CumValue()
 		l := &profile.Location{
 			ID:      uint64(i + 1),
@@ -328,7 +331,6 @@ func printTopProto(w io.Writer, rpt *Report) error {
 			Location: []*profile.Location{l},
 			Value:    []int64{int64(cv), int64(fv)},
 		}
-		out.Function = append(out.Function, f)
 		out.Location = append(out.Location, l)
 		out.Sample = append(out.Sample, s)
 	}
@@ -338,11 +340,15 @@ func printTopProto(w io.Writer, rpt *Report) error {
 
 type functionMap map[string]*profile.Function
 
-func (fm functionMap) FindOrAdd(ni graph.NodeInfo) *profile.Function {
+// findOrAdd takes a node representing a function, adds the function
+// represented by the node to the map if the function is not already present,
+// and returns the function the node represents. This also returns a boolean,
+// which is true if the function was added and false otherwise.
+func (fm functionMap) findOrAdd(ni graph.NodeInfo) (*profile.Function, bool) {
 	fName := fmt.Sprintf("%q%q%q%d", ni.Name, ni.OrigName, ni.File, ni.StartLine)
 
 	if f := fm[fName]; f != nil {
-		return f
+		return f, false
 	}
 
 	f := &profile.Function{
@@ -353,7 +359,7 @@ func (fm functionMap) FindOrAdd(ni graph.NodeInfo) *profile.Function {
 		StartLine:  int64(ni.StartLine),
 	}
 	fm[fName] = f
-	return f
+	return f, true
 }
 
 // printAssembly prints an annotated assembly listing.
@@ -361,7 +367,7 @@ func printAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 	return PrintAssembly(w, rpt, obj, -1)
 }
 
-// PrintAssembly prints annotated disasssembly of rpt to w.
+// PrintAssembly prints annotated disassembly of rpt to w.
 func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) error {
 	o := rpt.options
 	prof := rpt.prof
@@ -1217,8 +1223,8 @@ func NewDefault(prof *profile.Profile, options Options) *Report {
 }
 
 // computeTotal computes the sum of the absolute value of all sample values.
-// If any samples have the label "pprof::base" with value "true", then the total
-// will only include samples with that label.
+// If any samples have label indicating they belong to the diff base, then the
+// total will only include samples with that label.
 func computeTotal(prof *profile.Profile, value, meanDiv func(v []int64) int64) int64 {
 	var div, total, diffDiv, diffTotal int64
 	for _, sample := range prof.Sample {
@@ -1232,7 +1238,7 @@ func computeTotal(prof *profile.Profile, value, meanDiv func(v []int64) int64) i
 		}
 		total += v
 		div += d
-		if sample.HasLabel("pprof::base", "true") {
+		if sample.DiffBaseSample() {
 			diffTotal += v
 			diffDiv += d
 		}

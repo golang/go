@@ -178,7 +178,7 @@ func markroot(gcw *gcWork, i uint32) {
 		systemstack(markrootFreeGStacks)
 
 	case baseSpans <= i && i < baseStacks:
-		// mark MSpan.specials
+		// mark mspan.specials
 		markrootSpans(gcw, int(i-baseSpans))
 
 	default:
@@ -1229,6 +1229,13 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
 			return
 		}
 		mbits.setMarked()
+
+		// Mark span.
+		arena, pageIdx, pageMask := pageIndexOf(span.base())
+		if arena.pageMarks[pageIdx]&pageMask == 0 {
+			atomic.Or8(&arena.pageMarks[pageIdx], pageMask)
+		}
+
 		// If this is a noscan object, fast-track it to black
 		// instead of greying it.
 		if span.spanclass.noscan() {

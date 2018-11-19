@@ -48,6 +48,7 @@ if(~ $1 -v) {
 }
 
 GOFLAGS=()
+GO111MODULE=()
 GOROOT = `{cd .. && pwd}
 if(! ~ $#GOROOT_BOOTSTRAP 1)
 	GOROOT_BOOTSTRAP = $home/go1.4

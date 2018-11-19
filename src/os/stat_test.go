@@ -250,10 +250,6 @@ func TestFileAndSymlinkStats(t *testing.T) {
 
 // see issue 27225 for details
 func TestSymlinkWithTrailingSlash(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping on windows; issue 27225")
-	}
-
 	testenv.MustHaveSymlink(t)
 
 	tmpdir, err := ioutil.TempDir("", "TestSymlinkWithTrailingSlash")
@@ -274,7 +270,11 @@ func TestSymlinkWithTrailingSlash(t *testing.T) {
 	}
 	dirlinkWithSlash := dirlink + string(os.PathSeparator)
 
-	testDirStats(t, dirlinkWithSlash)
+	if runtime.GOOS == "windows" {
+		testSymlinkStats(t, dirlinkWithSlash, true)
+	} else {
+		testDirStats(t, dirlinkWithSlash)
+	}
 
 	fi1, err := os.Stat(dir)
 	if err != nil {

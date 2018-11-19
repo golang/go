@@ -55,6 +55,7 @@ func TestIntendedInlining(t *testing.T) {
 			"isDirectIface",
 			"itabHashFunc",
 			"noescape",
+			"pcvalueCacheKey",
 			"readUnaligned32",
 			"readUnaligned64",
 			"releasem",

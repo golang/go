@@ -91,6 +91,15 @@ func init() {
 // considered a terminal status and returned by RoundTrip. To see the
 // ignored 1xx responses, use the httptrace trace package's
 // ClientTrace.Got1xxResponse.
+//
+// Transport only retries a request upon encountering a network error
+// if the request is idempotent and either has no body or has its
+// Request.GetBody defined. HTTP requests are considered idempotent if
+// they have HTTP methods GET, HEAD, OPTIONS, or TRACE; or if their
+// Header map contains an "Idempotency-Key" or "X-Idempotency-Key"
+// entry. If the idempotency key value is an zero-length slice, the
+// request is treated as idempotent but the header is not sent on the
+// wire.
 type Transport struct {
 	idleMu     sync.Mutex
 	wantIdle   bool                                // user has requested to close all idle conns
@@ -1714,7 +1723,7 @@ func (pc *persistConn) readLoop() {
 			alive = false
 		}
 
-		if !hasBody {
+		if !hasBody || bodyWritable {
 			pc.t.setReqCanceler(rc.req, nil)
 
 			// Put the idle conn back into the pool before we send the response

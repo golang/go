@@ -36,6 +36,7 @@ Scripts also have access to these other environment variables:
 	PATH=<actual PATH>
 	TMPDIR=$WORK/tmp
 	devnull=<value of os.DevNull>
+	goversion=<current Go version; for example, 1.12>
 
 The environment variable $exe (lowercase) is an empty string on most systems, ".exe" on Windows.
 
@@ -91,6 +92,10 @@ The commands are:
   File1 can be "stdout" or "stderr" to use the standard output or standard error
   from the most recent exec or go command.
   (If the files have differing content, the failure prints a diff.)
+
+- cmpenv file1 file2
+  Like cmp, but environment variables are substituted in the file contents
+  before the comparison. For example, $GOOS is replaced by the target GOOS.
 
 - cp src... dst
   Copy the listed files to the target file or existing directory.

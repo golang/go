@@ -18,7 +18,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
 	MOVD	$runtime·g0(SB), g
-	MOVD RSP, R7
+	MOVD	RSP, R7
 	MOVD	$(-64*1024)(R7), R0
 	MOVD	R0, g_stackguard0(g)
 	MOVD	R0, g_stackguard1(g)
@@ -44,6 +44,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	ADD	$16, RSP
 
 nocgo:
+	BL	runtime·save_g(SB)
 	// update stackguard after _cgo_init
 	MOVD	(g_stack+stack_lo)(g), R0
 	ADD	$const__StackGuard, R0
@@ -329,9 +330,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	$NAME(SB), R27;	\
 	B	(R27)
 // Note: can't just "B NAME(SB)" - bad inlining results.
-
-TEXT reflect·call(SB), NOSPLIT, $0-0
-	B	·reflectcall(SB)
 
 TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWU argsize+24(FP), R16

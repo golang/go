@@ -50,6 +50,9 @@ go	src=..
 					google
 						pprof
 							internal
+								binutils
+									testdata
+										+
 								driver
 									testdata
 										+

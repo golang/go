@@ -11,5 +11,6 @@ GOPATH = () # we disallow local import for non-local packages, if $GOROOT happen
             # to be under $GOPATH, then some tests below will fail
 GOBIN = () # Issue 14340
 GOFLAGS = ()
+GO111MODULE = ()
 
 exec go tool dist test -rebuild $*

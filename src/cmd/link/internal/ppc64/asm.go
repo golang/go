@@ -133,7 +133,7 @@ func genplt(ctxt *ld.Link) {
 }
 
 func genaddmoduledata(ctxt *ld.Link) {
-	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", 0)
+	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", sym.SymVerABI0)
 	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
 		return
 	}

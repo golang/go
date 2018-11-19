@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !linux,!darwin,!openbsd,!netbsd,!dragonfly,!solaris
+// +build !aix,!darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd,!solaris
 
 package os
 
@@ -16,6 +16,12 @@ import (
 // it encounters. If the path does not exist, RemoveAll
 // returns nil (no error).
 func RemoveAll(path string) error {
+	if path == "" {
+		// fail silently to retain compatibility with previous behavior
+		// of RemoveAll. See issue 28830.
+		return nil
+	}
+
 	// Simple case: if Remove works, we're done.
 	err := Remove(path)
 	if err == nil || IsNotExist(err) {
