@@ -28,9 +28,15 @@ func Example() {
 func ExampleMatch() {
 	matched, err := regexp.Match(`foo.*`, []byte(`seafood`))
 	fmt.Println(matched, err)
+	matched, err = regexp.Match(`bar.*`, []byte(`seafood`))
+	fmt.Println(matched, err)
+	matched, err = regexp.Match(`a(b`, []byte(`seafood`))
+	fmt.Println(matched, err)
 
 	// Output:
 	// true <nil>
+	// false <nil>
+	// false error parsing regexp: missing closing ): `a(b`
 }
 
 func ExampleMatchString() {
