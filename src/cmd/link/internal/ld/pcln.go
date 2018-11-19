@@ -520,10 +520,8 @@ func (ctxt *Link) findfunctab() {
 
 	// find min and max address
 	min := ctxt.Textp[0].Value
-	max := int64(0)
-	for _, s := range ctxt.Textp {
-		max = s.Value + s.Size
-	}
+	lastp := ctxt.Textp[len(ctxt.Textp)-1]
+	max := lastp.Value + lastp.Size
 
 	// for each subbucket, compute the minimum of all symbol indexes
 	// that map to that subbucket.
