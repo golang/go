@@ -1934,6 +1934,19 @@ func gcMark(start_time int64) {
 
 		gcw := &p.gcw
 		if !gcw.empty() {
+			printlock()
+			print("runtime: P ", p.id, " flushedWork ", gcw.flushedWork)
+			if gcw.wbuf1 == nil {
+				print(" wbuf1=<nil>")
+			} else {
+				print(" wbuf1.n=", gcw.wbuf1.nobj)
+			}
+			if gcw.wbuf2 == nil {
+				print(" wbuf2=<nil>")
+			} else {
+				print(" wbuf2.n=", gcw.wbuf2.nobj)
+			}
+			print("\n")
 			throw("P has cached GC work at end of mark termination")
 		}
 		// There may still be cached empty buffers, which we
