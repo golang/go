@@ -708,3 +708,70 @@ func externalPackage() {
 	b.NoWrap("%s", 1)
 	b.Wrapf2("%s", 1) // want "Wrapf2 format %s has arg 1 of wrong type int"
 }
+
+func PointerVerbs() {
+	// Use booleans, so that we don't just format the elements like in
+	// PointersToCompoundTypes. Bools can only be formatted with verbs like
+	// %t and %v, and none of the ones below.
+	ptr := new(bool)
+	slice := []bool{}
+	array := [3]bool{}
+	map_ := map[bool]bool{}
+	chan_ := make(chan bool)
+	func_ := func(bool) {}
+
+	// %p, %b, %d, %o, %x, and %X all support pointers.
+	fmt.Printf("%p", ptr)
+	fmt.Printf("%b", ptr)
+	fmt.Printf("%d", ptr)
+	fmt.Printf("%o", ptr)
+	fmt.Printf("%x", ptr)
+	fmt.Printf("%X", ptr)
+
+	// %p, %b, %d, %o, %x, and %X all support channels.
+	fmt.Printf("%p", chan_)
+	fmt.Printf("%b", chan_)
+	fmt.Printf("%d", chan_)
+	fmt.Printf("%o", chan_)
+	fmt.Printf("%x", chan_)
+	fmt.Printf("%X", chan_)
+
+	// %p is the only one that supports funcs.
+	fmt.Printf("%p", func_)
+	fmt.Printf("%b", func_) // want `Printf format %b arg func_ is a func value, not called`
+	fmt.Printf("%d", func_) // want `Printf format %d arg func_ is a func value, not called`
+	fmt.Printf("%o", func_) // want `Printf format %o arg func_ is a func value, not called`
+	fmt.Printf("%x", func_) // want `Printf format %x arg func_ is a func value, not called`
+	fmt.Printf("%X", func_) // want `Printf format %X arg func_ is a func value, not called`
+
+	// %p is the only one that supports all slices, by printing the address
+	// of the 0th element.
+	fmt.Printf("%p", slice) // supported; address of 0th element
+	fmt.Printf("%b", slice) // want `Printf format %b has arg slice of wrong type \[\]bool`
+
+	fmt.Printf("%d", slice) // want `Printf format %d has arg slice of wrong type \[\]bool`
+
+	fmt.Printf("%o", slice) // want `Printf format %o has arg slice of wrong type \[\]bool`
+
+	fmt.Printf("%x", slice) // want `Printf format %x has arg slice of wrong type \[\]bool`
+	fmt.Printf("%X", slice) // want `Printf format %X has arg slice of wrong type \[\]bool`
+
+	// None support arrays.
+	fmt.Printf("%p", array) // want `Printf format %p has arg array of wrong type \[3\]bool`
+	fmt.Printf("%b", array) // want `Printf format %b has arg array of wrong type \[3\]bool`
+	fmt.Printf("%d", array) // want `Printf format %d has arg array of wrong type \[3\]bool`
+	fmt.Printf("%o", array) // want `Printf format %o has arg array of wrong type \[3\]bool`
+	fmt.Printf("%x", array) // want `Printf format %x has arg array of wrong type \[3\]bool`
+	fmt.Printf("%X", array) // want `Printf format %X has arg array of wrong type \[3\]bool`
+
+	// %p is the only one that supports all maps.
+	fmt.Printf("%p", map_) // supported; address of 0th element
+	fmt.Printf("%b", map_) // want `Printf format %b has arg map_ of wrong type map\[bool\]bool`
+
+	fmt.Printf("%d", map_) // want `Printf format %d has arg map_ of wrong type map\[bool\]bool`
+
+	fmt.Printf("%o", map_) // want `Printf format %o has arg map_ of wrong type map\[bool\]bool`
+
+	fmt.Printf("%x", map_) // want `Printf format %x has arg map_ of wrong type map\[bool\]bool`
+	fmt.Printf("%X", map_) // want `Printf format %X has arg map_ of wrong type map\[bool\]bool`
+}
