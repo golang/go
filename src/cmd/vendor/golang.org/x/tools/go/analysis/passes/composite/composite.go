@@ -16,7 +16,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-const Doc = `checked for unkeyed composite literals
+const Doc = `check for unkeyed composite literals
 
 This analyzer reports a diagnostic for composite literals of struct
 types imported from another package that do not use the field-keyed

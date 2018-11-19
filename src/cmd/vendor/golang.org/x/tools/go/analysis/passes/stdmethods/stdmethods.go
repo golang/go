@@ -131,12 +131,16 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
 			expectFmt += " (" + argjoin(expect.results) + ")"
 		}
 
-		actual := types.TypeString(sign, (*types.Package).Name)
+		actual := typeString(sign)
 		actual = strings.TrimPrefix(actual, "func")
 		actual = id.Name + actual
 
 		pass.Reportf(id.Pos(), "method %s should have signature %s", actual, expectFmt)
 	}
+}
+
+func typeString(typ types.Type) string {
+	return types.TypeString(typ, (*types.Package).Name)
 }
 
 func argjoin(x []string) string {
@@ -178,5 +182,5 @@ func matchParamType(fset *token.FileSet, pkg *types.Package, expect string, actu
 	}
 
 	// Overkill but easy.
-	return actual.String() == expect
+	return typeString(actual) == expect
 }
