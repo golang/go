@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package traceparser
+package trace
 
 import (
 	"container/heap"
@@ -50,8 +50,7 @@ const (
 //
 // If the UtilPerProc flag is not given, this always returns a single
 // utilization function. Otherwise, it returns one function per P.
-func (p *Parsed) MutatorUtilization(flags UtilFlags) [][]MutatorUtil {
-	events := p.Events
+func MutatorUtilization(events []*Event, flags UtilFlags) [][]MutatorUtil {
 	if len(events) == 0 {
 		return nil
 	}
@@ -474,6 +473,7 @@ func (acc *accumulator) addMU(time int64, mu float64, window time.Duration) bool
 		}
 	keep:
 	}
+
 	if len(acc.wHeap) < acc.nWorst {
 		// We don't have N windows yet, so keep accumulating.
 		acc.bound = 1.0
