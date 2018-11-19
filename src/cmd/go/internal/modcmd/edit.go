@@ -183,7 +183,7 @@ func runEdit(cmd *base.Command, args []string) {
 	}
 
 	if *editModule != "" {
-		modFile.AddModuleStmt(modload.CmdModModule)
+		modFile.AddModuleStmt(*editModule)
 	}
 
 	if *editGo != "" {
