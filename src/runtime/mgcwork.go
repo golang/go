@@ -22,6 +22,13 @@ const (
 	workbufAlloc = 32 << 10
 )
 
+// throwOnGCWork causes any operations that add pointers to a gcWork
+// buffer to throw.
+//
+// TODO(austin): This is a temporary debugging measure for issue
+// #27993. To be removed before release.
+var throwOnGCWork bool
+
 func init() {
 	if workbufAlloc%pageSize != 0 || workbufAlloc%_WorkbufSize != 0 {
 		throw("bad workbufAlloc")
@@ -108,6 +115,10 @@ func (w *gcWork) init() {
 // obj must point to the beginning of a heap object or an oblet.
 //go:nowritebarrierrec
 func (w *gcWork) put(obj uintptr) {
+	if throwOnGCWork {
+		throw("throwOnGCWork")
+	}
+
 	flushed := false
 	wbuf := w.wbuf1
 	if wbuf == nil {
@@ -142,6 +153,10 @@ func (w *gcWork) put(obj uintptr) {
 // otherwise it returns false and the caller needs to call put.
 //go:nowritebarrierrec
 func (w *gcWork) putFast(obj uintptr) bool {
+	if throwOnGCWork {
+		throw("throwOnGCWork")
+	}
+
 	wbuf := w.wbuf1
 	if wbuf == nil {
 		return false
@@ -161,6 +176,10 @@ func (w *gcWork) putFast(obj uintptr) bool {
 func (w *gcWork) putBatch(obj []uintptr) {
 	if len(obj) == 0 {
 		return
+	}
+
+	if throwOnGCWork {
+		throw("throwOnGCWork")
 	}
 
 	flushed := false
@@ -284,10 +303,16 @@ func (w *gcWork) balance() {
 		return
 	}
 	if wbuf := w.wbuf2; wbuf.nobj != 0 {
+		if throwOnGCWork {
+			throw("throwOnGCWork")
+		}
 		putfull(wbuf)
 		w.flushedWork = true
 		w.wbuf2 = getempty()
 	} else if wbuf := w.wbuf1; wbuf.nobj > 4 {
+		if throwOnGCWork {
+			throw("throwOnGCWork")
+		}
 		w.wbuf1 = handoff(wbuf)
 		w.flushedWork = true // handoff did putfull
 	} else {

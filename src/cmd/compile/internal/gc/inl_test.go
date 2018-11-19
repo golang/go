@@ -85,7 +85,7 @@ func TestIntendedInlining(t *testing.T) {
 			"puintptr.ptr",
 			"spanOf",
 			"spanOfUnchecked",
-			"(*gcWork).putFast",
+			//"(*gcWork).putFast", // TODO(austin): For debugging #27993
 			"(*gcWork).tryGetFast",
 			"(*guintptr).set",
 			"(*markBits).advance",

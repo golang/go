@@ -1431,6 +1431,8 @@ top:
 		goto top
 	}
 
+	throwOnGCWork = true
+
 	// There was no global work, no local work, and no Ps
 	// communicated work since we took markDoneSema. Therefore
 	// there are no grey objects and no more objects can be
@@ -1924,7 +1926,7 @@ func gcMark(start_time int64) {
 		// ensured all reachable objects were marked, all of
 		// these must be pointers to black objects. Hence we
 		// can just discard the write barrier buffer.
-		if debug.gccheckmark > 0 {
+		if debug.gccheckmark > 0 || throwOnGCWork {
 			// For debugging, flush the buffer and make
 			// sure it really was all marked.
 			wbBufFlush1(p)
@@ -1955,6 +1957,8 @@ func gcMark(start_time int64) {
 		// black after the gcMarkDone barrier.
 		gcw.dispose()
 	}
+
+	throwOnGCWork = false
 
 	cachestats()
 
