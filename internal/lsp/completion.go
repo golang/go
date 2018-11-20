@@ -23,13 +23,21 @@ func toProtocolCompletionItems(items []source.CompletionItem, snippetsSupported,
 		insertTextFormat = protocol.SnippetTextFormat
 	}
 	for _, item := range items {
-		results = append(results, protocol.CompletionItem{
+		insertText, triggerSignatureHelp := labelToProtocolSnippets(item.Label, item.Kind, insertTextFormat, signatureHelpEnabled)
+		i := protocol.CompletionItem{
 			Label:            item.Label,
-			InsertText:       labelToProtocolSnippets(item.Label, item.Kind, insertTextFormat, signatureHelpEnabled),
+			InsertText:       insertText,
 			Detail:           item.Detail,
 			Kind:             float64(toProtocolCompletionItemKind(item.Kind)),
 			InsertTextFormat: insertTextFormat,
-		})
+		}
+		// If we are completing a function, we should trigger signature help if possible.
+		if triggerSignatureHelp && signatureHelpEnabled {
+			i.Command = &protocol.Command{
+				Command: "editor.action.triggerParameterHints",
+			}
+		}
+		results = append(results, i)
 	}
 	return results
 }
@@ -59,26 +67,26 @@ func toProtocolCompletionItemKind(kind source.CompletionItemKind) protocol.Compl
 	}
 }
 
-func labelToProtocolSnippets(label string, kind source.CompletionItemKind, insertTextFormat protocol.InsertTextFormat, signatureHelpEnabled bool) string {
+func labelToProtocolSnippets(label string, kind source.CompletionItemKind, insertTextFormat protocol.InsertTextFormat, signatureHelpEnabled bool) (string, bool) {
 	switch kind {
 	case source.ConstantCompletionItem:
 		// The label for constants is of the format "<identifier> = <value>".
 		// We should now insert the " = <value>" part of the label.
-		return label[:strings.Index(label, " =")]
+		return label[:strings.Index(label, " =")], false
 	case source.FunctionCompletionItem, source.MethodCompletionItem:
 		trimmed := label[:strings.Index(label, "(")]
 		params := strings.Trim(label[strings.Index(label, "("):], "()")
 		if params == "" {
-			return label
+			return label, true
 		}
 		// Don't add parameters or parens for the plaintext insert format.
 		if insertTextFormat == protocol.PlainTextFormat {
-			return trimmed
+			return trimmed, true
 		}
 		// If we do have signature help enabled, the user can see parameters as
 		// they type in the function, so we just return empty parentheses.
 		if signatureHelpEnabled {
-			return trimmed + "($1)"
+			return trimmed + "($1)", true
 		}
 		// If signature help is not enabled, we should give the user parameters
 		// that they can tab through. The insert text format follows the
@@ -96,8 +104,8 @@ func labelToProtocolSnippets(label string, kind source.CompletionItemKind, inser
 			}
 			trimmed += fmt.Sprintf("${%v:%v}", i+1, r.Replace(strings.Trim(p, " ")))
 		}
-		return trimmed + ")"
+		return trimmed + ")", false
 
 	}
-	return label
+	return label, false
 }

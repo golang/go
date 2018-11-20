@@ -58,7 +58,7 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 			DocumentFormattingProvider:      true,
 			DocumentRangeFormattingProvider: true,
 			SignatureHelpProvider: protocol.SignatureHelpOptions{
-				TriggerCharacters: []string{"("},
+				TriggerCharacters: []string{"(", ","},
 			},
 			TextDocumentSync: protocol.TextDocumentSyncOptions{
 				Change:    float64(protocol.Full), // full contents of file sent on each update

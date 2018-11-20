@@ -492,14 +492,14 @@ func qualifier(f *ast.File, pkg *types.Package, info *types.Info) types.Qualifie
 		}
 	}
 	// Define qualifier to replace full package paths with names of the imports.
-	return func(pkg *types.Package) string {
-		if pkg == pkg {
+	return func(p *types.Package) string {
+		if p == pkg {
 			return ""
 		}
-		if name, ok := imports[pkg]; ok {
+		if name, ok := imports[p]; ok {
 			return name
 		}
-		return pkg.Name()
+		return p.Name()
 	}
 }
 

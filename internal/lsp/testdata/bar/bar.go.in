@@ -6,7 +6,10 @@ import (
 	"golang.org/x/tools/internal/lsp/foo" //@item(foo, "foo", "\"golang.org/x/tools/internal/lsp/foo\"", "package")
 )
 
+func helper(i foo.IntFoo) {} //@item(helper, "helper(i foo.IntFoo)", "", "func")
+
 func _() {
+	help //@complete("l", helper)
 	_ = foo.StructFoo{} //@complete("S", Foo, IntFoo, StructFoo)
 }
 
@@ -35,9 +38,9 @@ func _() {
 		Value: Valen //@complete("le", Valentine)
 	}
 	_ = foo.StructFoo{
-		Value:       //@complete(re"$", Valentine, foo, Bar)
+		Value:       //@complete(re"$", Valentine, foo, Bar, helper)
 	}
 	_ = foo.StructFoo{
-		Value:       //@complete(" ", Valentine, foo, Bar)
+		Value:       //@complete(" ", Valentine, foo, Bar, helper)
 	}
 }
