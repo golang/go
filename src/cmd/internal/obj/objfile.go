@@ -25,12 +25,6 @@ type objWriter struct {
 	// Temporary buffer for zigzag int writing.
 	varintbuf [10]uint8
 
-	// Provide the index of a symbol reference by symbol name.
-	// One map for versioned symbols and one for unversioned symbols.
-	// Used for deduplicating the symbol reference list.
-	refIdx  map[string]int
-	vrefIdx map[string]int
-
 	// Number of objects written of each type.
 	nRefs     int
 	nData     int
@@ -79,10 +73,8 @@ func (w *objWriter) writeLengths() {
 
 func newObjWriter(ctxt *Link, b *bufio.Writer) *objWriter {
 	return &objWriter{
-		ctxt:    ctxt,
-		wr:      b,
-		vrefIdx: make(map[string]int),
-		refIdx:  make(map[string]int),
+		ctxt: ctxt,
+		wr:   b,
 	}
 }
 
@@ -90,7 +82,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 	w := newObjWriter(ctxt, b)
 
 	// Magic header
-	w.wr.WriteString("\x00\x00go19ld")
+	w.wr.WriteString("\x00go112ld")
 
 	// Version
 	w.wr.WriteByte(1)
@@ -107,6 +99,10 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 		w.addLengths(s)
 	}
 	for _, s := range ctxt.Data {
+		w.writeRefs(s)
+		w.addLengths(s)
+	}
+	for _, s := range ctxt.ABIAliases {
 		w.writeRefs(s)
 		w.addLengths(s)
 	}
@@ -145,9 +141,12 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 	for _, s := range ctxt.Data {
 		w.writeSym(s)
 	}
+	for _, s := range ctxt.ABIAliases {
+		w.writeSym(s)
+	}
 
 	// Magic footer
-	w.wr.WriteString("\xff\xffgo19ld")
+	w.wr.WriteString("\xffgo112ld")
 }
 
 // Symbols are prefixed so their content doesn't get confused with the magic footer.
@@ -157,28 +156,20 @@ func (w *objWriter) writeRef(s *LSym, isPath bool) {
 	if s == nil || s.RefIdx != 0 {
 		return
 	}
-	var m map[string]int
-	if !s.Static() {
-		m = w.refIdx
-	} else {
-		m = w.vrefIdx
-	}
-
-	if idx := m[s.Name]; idx != 0 {
-		s.RefIdx = idx
-		return
-	}
 	w.wr.WriteByte(symPrefix)
 	if isPath {
 		w.writeString(filepath.ToSlash(s.Name))
 	} else {
 		w.writeString(s.Name)
 	}
-	// Write "version".
-	w.writeBool(s.Static())
+	// Write ABI/static information.
+	abi := int64(s.ABI())
+	if s.Static() {
+		abi = -1
+	}
+	w.writeInt(abi)
 	w.nRefs++
 	s.RefIdx = w.nRefs
-	m[s.Name] = w.nRefs
 }
 
 func (w *objWriter) writeRefs(s *LSym) {

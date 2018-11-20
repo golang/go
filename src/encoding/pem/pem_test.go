@@ -26,6 +26,10 @@ var getLineTests = []GetLineTest{
 	{"abc\r\nd", "abc", "d"},
 	{"\nabc", "", "abc"},
 	{"\r\nabc", "", "abc"},
+	{"abc\t \nd", "abc", "d"},
+	{"\t abc\nd", "\t abc", "d"},
+	{"abc\n\t d", "abc", "\t d"},
+	{"abc\nd\t ", "abc", "d\t "},
 }
 
 func TestGetLine(t *testing.T) {

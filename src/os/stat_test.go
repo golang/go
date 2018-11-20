@@ -205,6 +205,14 @@ func TestDirAndSymlinkStats(t *testing.T) {
 	}
 	testSymlinkStats(t, dirlink, true)
 	testSymlinkSameFile(t, dir, dirlink)
+
+	linklink := filepath.Join(tmpdir, "linklink")
+	err = os.Symlink(dirlink, linklink)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testSymlinkStats(t, linklink, true)
+	testSymlinkSameFile(t, dir, linklink)
 }
 
 func TestFileAndSymlinkStats(t *testing.T) {
@@ -230,14 +238,18 @@ func TestFileAndSymlinkStats(t *testing.T) {
 	}
 	testSymlinkStats(t, filelink, false)
 	testSymlinkSameFile(t, file, filelink)
+
+	linklink := filepath.Join(tmpdir, "linklink")
+	err = os.Symlink(filelink, linklink)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testSymlinkStats(t, linklink, false)
+	testSymlinkSameFile(t, file, linklink)
 }
 
 // see issue 27225 for details
 func TestSymlinkWithTrailingSlash(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping on windows; issue 27225")
-	}
-
 	testenv.MustHaveSymlink(t)
 
 	tmpdir, err := ioutil.TempDir("", "TestSymlinkWithTrailingSlash")
@@ -258,7 +270,11 @@ func TestSymlinkWithTrailingSlash(t *testing.T) {
 	}
 	dirlinkWithSlash := dirlink + string(os.PathSeparator)
 
-	testDirStats(t, dirlinkWithSlash)
+	if runtime.GOOS == "windows" {
+		testSymlinkStats(t, dirlinkWithSlash, true)
+	} else {
+		testDirStats(t, dirlinkWithSlash)
+	}
 
 	fi1, err := os.Stat(dir)
 	if err != nil {

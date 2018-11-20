@@ -5,12 +5,12 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
 	"cmd/internal/browser"
 	"flag"
 	"fmt"
 	"html/template"
-	"internal/trace"
+	trace "internal/traceparser"
 	"io"
 	"log"
 	"net"
@@ -115,8 +115,22 @@ func main() {
 		dief("%v\n", err)
 	}
 
-	if *debugFlag {
-		trace.Print(res.Events)
+	if *debugFlag { // match go tool trace -d (except for Offset and Seq)
+		f := func(ev *trace.Event) {
+			desc := trace.EventDescriptions[ev.Type]
+			w := new(bytes.Buffer)
+			fmt.Fprintf(w, "%v %v p=%v g=%v", ev.Ts, desc.Name, ev.P, ev.G)
+			for i, a := range desc.Args {
+				fmt.Fprintf(w, " %v=%v", a, ev.Args[i])
+			}
+			for i, a := range desc.SArgs {
+				fmt.Fprintf(w, " %v=%v", a, ev.SArgs[i])
+			}
+			fmt.Println(w.String())
+		}
+		for i := 0; i < len(res.Events); i++ {
+			f(res.Events[i])
+		}
 		os.Exit(0)
 	}
 	reportMemoryUsage("after parsing trace")
@@ -141,36 +155,23 @@ var ranges []Range
 
 var loader struct {
 	once sync.Once
-	res  trace.ParseResult
+	res  *trace.Parsed
 	err  error
 }
 
-// parseEvents is a compatibility wrapper that returns only
-// the Events part of trace.ParseResult returned by parseTrace.
-func parseEvents() ([]*trace.Event, error) {
-	res, err := parseTrace()
-	if err != nil {
-		return nil, err
-	}
-	return res.Events, err
-}
-
-func parseTrace() (trace.ParseResult, error) {
+func parseTrace() (*trace.Parsed, error) {
 	loader.once.Do(func() {
-		tracef, err := os.Open(traceFile)
+		x, err := trace.New(traceFile)
 		if err != nil {
-			loader.err = fmt.Errorf("failed to open trace file: %v", err)
+			loader.err = err
 			return
 		}
-		defer tracef.Close()
-
-		// Parse and symbolize.
-		res, err := trace.Parse(bufio.NewReader(tracef), programBinary)
+		err = x.Parse(0, x.MaxTs, nil)
 		if err != nil {
-			loader.err = fmt.Errorf("failed to parse trace: %v", err)
+			loader.err = err
 			return
 		}
-		loader.res = res
+		loader.res = x
 	})
 	return loader.res, loader.err
 }
@@ -188,7 +189,7 @@ var templMain = template.Must(template.New("").Parse(`
 <body>
 {{if $}}
 	{{range $e := $}}
-		<a href="/trace?start={{$e.Start}}&end={{$e.End}}">View trace ({{$e.Name}})</a><br>
+		<a href="{{$e.URL}}">View trace ({{$e.Name}})</a><br>
 	{{end}}
 	<br>
 {{else}}
@@ -201,6 +202,7 @@ var templMain = template.Must(template.New("").Parse(`
 <a href="/sched">Scheduler latency profile</a> (<a href="/sche?raw=1" download="sched.profile">⬇</a>)<br>
 <a href="/usertasks">User-defined tasks</a><br>
 <a href="/userregions">User-defined regions</a><br>
+<a href="/mmu">Minimum mutator utilization</a><br>
 </body>
 </html>
 `))

@@ -9,18 +9,24 @@
 // TestFormats finds potential (Printf, etc.) format strings.
 // If they are used in a call, the format verbs are verified
 // based on the matching argument type against a precomputed
-// table of valid formats. The knownFormats table can be used
-// to automatically rewrite format strings with the -u flag.
+// map of valid formats (knownFormats). This map can be used to
+// automatically rewrite format strings across all compiler
+// files with the -r flag.
 //
-// A new knownFormats table based on the found formats is printed
-// when the test is run in verbose mode (-v flag). The table
-// needs to be updated whenever a new (type, format) combination
-// is found and the format verb is not 'v' or 'T' (as in "%v" or
-// "%T").
+// The format map needs to be updated whenever a new (type,
+// format) combination is found and the format verb is not
+// 'v' or 'T' (as in "%v" or "%T"). To update the map auto-
+// matically from the compiler source's use of format strings,
+// use the -u flag. (Whether formats are valid for the values
+// to be formatted must be verified manually, of course.)
 //
-// Run as: go test -run Formats [-u][-v]
+// The -v flag prints out the names of all functions called
+// with a format string, the names of files that were not
+// processed, and any format rewrites made (with -r).
 //
-// Known bugs:
+// Run as: go test -run Formats [-r][-u][-v]
+//
+// Known shortcomings:
 // - indexed format strings ("%[2]s", etc.) are not supported
 //   (the test will fail)
 // - format strings that are not simple string literals cannot
@@ -45,6 +51,7 @@ import (
 	"go/token"
 	"go/types"
 	"internal/testenv"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -56,7 +63,10 @@ import (
 	"unicode/utf8"
 )
 
-var update = flag.Bool("u", false, "update format strings")
+var (
+	rewrite = flag.Bool("r", false, "rewrite format strings")
+	update  = flag.Bool("u", false, "update known formats")
+)
 
 // The following variables collect information across all processed files.
 var (
@@ -173,11 +183,11 @@ func TestFormats(t *testing.T) {
 
 	// write dirty files back
 	var filesUpdated bool
-	if len(updatedFiles) > 0 && *update {
+	if len(updatedFiles) > 0 && *rewrite {
 		for _, file := range updatedFiles {
 			var buf bytes.Buffer
 			if err := format.Node(&buf, fset, file.ast); err != nil {
-				t.Errorf("WARNING: formatting %s failed: %v", file.name, err)
+				t.Errorf("WARNING: gofmt %s failed: %v", file.name, err)
 				continue
 			}
 			if err := ioutil.WriteFile(file.name, buf.Bytes(), 0x666); err != nil {
@@ -189,7 +199,7 @@ func TestFormats(t *testing.T) {
 		}
 	}
 
-	// report all function names containing a format string
+	// report the names of all functions called with a format string
 	if len(callSites) > 0 && testing.Verbose() {
 		set := make(map[string]bool)
 		for _, p := range callSites {
@@ -199,23 +209,33 @@ func TestFormats(t *testing.T) {
 		for s := range set {
 			list = append(list, s)
 		}
-		fmt.Println("\nFunctions")
-		printList(list)
+		fmt.Println("\nFunctions called with a format string")
+		writeList(os.Stdout, list)
 	}
 
-	// report all formats found
-	if len(foundFormats) > 0 && testing.Verbose() {
+	// update formats
+	if len(foundFormats) > 0 && *update {
 		var list []string
 		for s := range foundFormats {
 			list = append(list, fmt.Sprintf("%q: \"\",", s))
 		}
-		fmt.Println("\nvar knownFormats = map[string]string{")
-		printList(list)
-		fmt.Println("}")
+		var buf bytes.Buffer
+		buf.WriteString(knownFormatsHeader)
+		writeList(&buf, list)
+		buf.WriteString("}\n")
+		out, err := format.Source(buf.Bytes())
+		const outfile = "fmtmap_test.go"
+		if err != nil {
+			t.Errorf("WARNING: gofmt %s failed: %v", outfile, err)
+			out = buf.Bytes() // continue with unformatted source
+		}
+		if err = ioutil.WriteFile(outfile, out, 0644); err != nil {
+			t.Errorf("WARNING: updating format map failed: %v", err)
+		}
 	}
 
 	// check that knownFormats is up to date
-	if !testing.Verbose() && !*update {
+	if !*rewrite && !*update {
 		var mismatch bool
 		for s := range foundFormats {
 			if _, ok := knownFormats[s]; !ok {
@@ -232,7 +252,7 @@ func TestFormats(t *testing.T) {
 			}
 		}
 		if mismatch {
-			t.Errorf("knownFormats is out of date; please 'go test -v fmt_test.go > foo', then extract new definition of knownFormats from foo")
+			t.Errorf("format map is out of date; run 'go test -u' to update and manually verify correctness of change'")
 		}
 	}
 
@@ -256,7 +276,7 @@ func TestFormats(t *testing.T) {
 			list = append(list, fmt.Sprintf("%s: %s", posString(lit), nodeString(lit)))
 		}
 		fmt.Println("\nWARNING: Potentially missed format strings")
-		printList(list)
+		writeList(os.Stdout, list)
 		t.Fail()
 	}
 
@@ -365,11 +385,11 @@ func collectPkgFormats(t *testing.T, pkg *build.Package) {
 	}
 }
 
-// printList prints list in sorted order.
-func printList(list []string) {
+// writeList writes list in sorted order to w.
+func writeList(w io.Writer, list []string) {
 	sort.Strings(list)
 	for _, s := range list {
-		fmt.Println("\t", s)
+		fmt.Fprintln(w, "\t", s)
 	}
 }
 
@@ -542,7 +562,7 @@ func init() {
 	// verify that knownFormats entries are correctly formatted
 	for key, val := range knownFormats {
 		// key must be "typename format", and format starts with a '%'
-		// (formats containing '*' alone are not collected in this table)
+		// (formats containing '*' alone are not collected in this map)
 		i := strings.Index(key, "%")
 		if i < 0 || !oneFormat(key[i:]) {
 			log.Fatalf("incorrect knownFormats key: %q", key)
@@ -554,184 +574,26 @@ func init() {
 	}
 }
 
+const knownFormatsHeader = `// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file implements the knownFormats map which records the valid
+// formats for a given type. The valid formats must correspond to
+// supported compiler formats implemented in fmt.go, or whatever
+// other format verbs are implemented for the given type. The map may
+// also be used to change the use of a format verb across all compiler
+// sources automatically (for instance, if the implementation of fmt.go
+// changes), by using the -r option together with the new formats in the
+// map. To generate this file automatically from the existing source,
+// run: go test -run Formats -u.
+//
+// See the package comment in fmt_test.go for additional information.
+
+package main_test
+
 // knownFormats entries are of the form "typename format" -> "newformat".
 // An absent entry means that the format is not recognized as valid.
 // An empty new format means that the format should remain unchanged.
-// To print out a new table, run: go test -run Formats -v.
 var knownFormats = map[string]string{
-	"*bytes.Buffer %s":                                "",
-	"*cmd/compile/internal/gc.Mpflt %v":               "",
-	"*cmd/compile/internal/gc.Mpint %v":               "",
-	"*cmd/compile/internal/gc.Node %#v":               "",
-	"*cmd/compile/internal/gc.Node %+S":               "",
-	"*cmd/compile/internal/gc.Node %+v":               "",
-	"*cmd/compile/internal/gc.Node %0j":               "",
-	"*cmd/compile/internal/gc.Node %L":                "",
-	"*cmd/compile/internal/gc.Node %S":                "",
-	"*cmd/compile/internal/gc.Node %j":                "",
-	"*cmd/compile/internal/gc.Node %p":                "",
-	"*cmd/compile/internal/gc.Node %v":                "",
-	"*cmd/compile/internal/ssa.Block %s":              "",
-	"*cmd/compile/internal/ssa.Block %v":              "",
-	"*cmd/compile/internal/ssa.Func %s":               "",
-	"*cmd/compile/internal/ssa.Func %v":               "",
-	"*cmd/compile/internal/ssa.Register %s":           "",
-	"*cmd/compile/internal/ssa.Register %v":           "",
-	"*cmd/compile/internal/ssa.SparseTreeNode %v":     "",
-	"*cmd/compile/internal/ssa.Value %s":              "",
-	"*cmd/compile/internal/ssa.Value %v":              "",
-	"*cmd/compile/internal/ssa.sparseTreeMapEntry %v": "",
-	"*cmd/compile/internal/types.Field %p":            "",
-	"*cmd/compile/internal/types.Field %v":            "",
-	"*cmd/compile/internal/types.Sym %0S":             "",
-	"*cmd/compile/internal/types.Sym %S":              "",
-	"*cmd/compile/internal/types.Sym %p":              "",
-	"*cmd/compile/internal/types.Sym %v":              "",
-	"*cmd/compile/internal/types.Type %#v":            "",
-	"*cmd/compile/internal/types.Type %+v":            "",
-	"*cmd/compile/internal/types.Type %-S":            "",
-	"*cmd/compile/internal/types.Type %0S":            "",
-	"*cmd/compile/internal/types.Type %L":             "",
-	"*cmd/compile/internal/types.Type %S":             "",
-	"*cmd/compile/internal/types.Type %p":             "",
-	"*cmd/compile/internal/types.Type %s":             "",
-	"*cmd/compile/internal/types.Type %v":             "",
-	"*cmd/internal/obj.Addr %v":                       "",
-	"*cmd/internal/obj.LSym %v":                       "",
-	"*math/big.Int %#x":                               "",
-	"*math/big.Int %s":                                "",
-	"*math/big.Int %v":                                "",
-	"[16]byte %x":                                     "",
-	"[]*cmd/compile/internal/gc.Node %v":              "",
-	"[]*cmd/compile/internal/ssa.Block %v":            "",
-	"[]*cmd/compile/internal/ssa.Value %v":            "",
-	"[][]string %q":                                   "",
-	"[]byte %s":                                       "",
-	"[]byte %x":                                       "",
-	"[]cmd/compile/internal/ssa.Edge %v":              "",
-	"[]cmd/compile/internal/ssa.ID %v":                "",
-	"[]cmd/compile/internal/ssa.posetNode %v":         "",
-	"[]cmd/compile/internal/ssa.posetUndo %v":         "",
-	"[]cmd/compile/internal/syntax.token %s":          "",
-	"[]string %v":                                     "",
-	"[]uint32 %v":                                     "",
-	"bool %v":                                         "",
-	"byte %08b":                                       "",
-	"byte %c":                                         "",
-	"byte %v":                                         "",
-	"cmd/compile/internal/arm.shift %d":               "",
-	"cmd/compile/internal/gc.Class %d":                "",
-	"cmd/compile/internal/gc.Class %s":                "",
-	"cmd/compile/internal/gc.Class %v":                "",
-	"cmd/compile/internal/gc.Ctype %d":                "",
-	"cmd/compile/internal/gc.Ctype %v":                "",
-	"cmd/compile/internal/gc.Level %d":                "",
-	"cmd/compile/internal/gc.Level %v":                "",
-	"cmd/compile/internal/gc.Nodes %#v":               "",
-	"cmd/compile/internal/gc.Nodes %+v":               "",
-	"cmd/compile/internal/gc.Nodes %.v":               "",
-	"cmd/compile/internal/gc.Nodes %v":                "",
-	"cmd/compile/internal/gc.Op %#v":                  "",
-	"cmd/compile/internal/gc.Op %v":                   "",
-	"cmd/compile/internal/gc.Val %#v":                 "",
-	"cmd/compile/internal/gc.Val %T":                  "",
-	"cmd/compile/internal/gc.Val %v":                  "",
-	"cmd/compile/internal/gc.fmtMode %d":              "",
-	"cmd/compile/internal/gc.initKind %d":             "",
-	"cmd/compile/internal/gc.itag %v":                 "",
-	"cmd/compile/internal/ssa.BranchPrediction %d":    "",
-	"cmd/compile/internal/ssa.Edge %v":                "",
-	"cmd/compile/internal/ssa.GCNode %v":              "",
-	"cmd/compile/internal/ssa.ID %d":                  "",
-	"cmd/compile/internal/ssa.ID %v":                  "",
-	"cmd/compile/internal/ssa.LocPair %s":             "",
-	"cmd/compile/internal/ssa.LocalSlot %s":           "",
-	"cmd/compile/internal/ssa.LocalSlot %v":           "",
-	"cmd/compile/internal/ssa.Location %T":            "",
-	"cmd/compile/internal/ssa.Location %s":            "",
-	"cmd/compile/internal/ssa.Op %s":                  "",
-	"cmd/compile/internal/ssa.Op %v":                  "",
-	"cmd/compile/internal/ssa.ValAndOff %s":           "",
-	"cmd/compile/internal/ssa.domain %v":              "",
-	"cmd/compile/internal/ssa.posetNode %v":           "",
-	"cmd/compile/internal/ssa.posetTestOp %v":         "",
-	"cmd/compile/internal/ssa.rbrank %d":              "",
-	"cmd/compile/internal/ssa.regMask %d":             "",
-	"cmd/compile/internal/ssa.register %d":            "",
-	"cmd/compile/internal/syntax.Expr %#v":            "",
-	"cmd/compile/internal/syntax.Node %T":             "",
-	"cmd/compile/internal/syntax.Operator %s":         "",
-	"cmd/compile/internal/syntax.Pos %s":              "",
-	"cmd/compile/internal/syntax.Pos %v":              "",
-	"cmd/compile/internal/syntax.position %s":         "",
-	"cmd/compile/internal/syntax.token %q":            "",
-	"cmd/compile/internal/syntax.token %s":            "",
-	"cmd/compile/internal/types.EType %d":             "",
-	"cmd/compile/internal/types.EType %s":             "",
-	"cmd/compile/internal/types.EType %v":             "",
-	"error %v":                                        "",
-	"float64 %.2f":                                    "",
-	"float64 %.3f":                                    "",
-	"float64 %.6g":                                    "",
-	"float64 %g":                                      "",
-	"int %-12d":                                       "",
-	"int %-6d":                                        "",
-	"int %-8o":                                        "",
-	"int %02d":                                        "",
-	"int %6d":                                         "",
-	"int %c":                                          "",
-	"int %d":                                          "",
-	"int %v":                                          "",
-	"int %x":                                          "",
-	"int16 %d":                                        "",
-	"int16 %x":                                        "",
-	"int32 %d":                                        "",
-	"int32 %v":                                        "",
-	"int32 %x":                                        "",
-	"int64 %+d":                                       "",
-	"int64 %-10d":                                     "",
-	"int64 %.5d":                                      "",
-	"int64 %X":                                        "",
-	"int64 %d":                                        "",
-	"int64 %v":                                        "",
-	"int64 %x":                                        "",
-	"int8 %d":                                         "",
-	"int8 %x":                                         "",
-	"interface{} %#v":                                 "",
-	"interface{} %T":                                  "",
-	"interface{} %p":                                  "",
-	"interface{} %q":                                  "",
-	"interface{} %s":                                  "",
-	"interface{} %v":                                  "",
-	"map[*cmd/compile/internal/gc.Node]*cmd/compile/internal/ssa.Value %v": "",
-	"map[cmd/compile/internal/ssa.ID]uint32 %v":                            "",
-	"reflect.Type %s":  "",
-	"rune %#U":         "",
-	"rune %c":          "",
-	"string %-*s":      "",
-	"string %-16s":     "",
-	"string %-6s":      "",
-	"string %.*s":      "",
-	"string %q":        "",
-	"string %s":        "",
-	"string %v":        "",
-	"time.Duration %d": "",
-	"time.Duration %v": "",
-	"uint %04x":        "",
-	"uint %5d":         "",
-	"uint %d":          "",
-	"uint %x":          "",
-	"uint16 %d":        "",
-	"uint16 %v":        "",
-	"uint16 %x":        "",
-	"uint32 %#x":       "",
-	"uint32 %d":        "",
-	"uint32 %v":        "",
-	"uint32 %x":        "",
-	"uint64 %08x":      "",
-	"uint64 %d":        "",
-	"uint64 %x":        "",
-	"uint8 %d":         "",
-	"uint8 %x":         "",
-	"uintptr %d":       "",
-}
+`

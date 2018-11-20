@@ -3,6 +3,8 @@ package graph
 import (
 	"fmt"
 	"testing"
+
+	"github.com/google/pprof/profile"
 )
 
 func edgeDebugString(edge *Edge) string {
@@ -309,6 +311,161 @@ func TestTrimTree(t *testing.T) {
 			t.Fatalf("Graphs do not match.\nExpected: %s\nFound: %s\n",
 				expectedNodesDebugString(test.expected),
 				graphDebugString(graph))
+		}
+	}
+}
+
+func nodeTestProfile() *profile.Profile {
+	mappings := []*profile.Mapping{
+		{
+			ID:   1,
+			File: "symbolized_binary",
+		},
+		{
+			ID:   2,
+			File: "unsymbolized_library_1",
+		},
+		{
+			ID:   3,
+			File: "unsymbolized_library_2",
+		},
+	}
+	functions := []*profile.Function{
+		{ID: 1, Name: "symname"},
+		{ID: 2},
+	}
+	locations := []*profile.Location{
+		{
+			ID:      1,
+			Mapping: mappings[0],
+			Line: []profile.Line{
+				{Function: functions[0]},
+			},
+		},
+		{
+			ID:      2,
+			Mapping: mappings[1],
+			Line: []profile.Line{
+				{Function: functions[1]},
+			},
+		},
+		{
+			ID:      3,
+			Mapping: mappings[2],
+		},
+	}
+	return &profile.Profile{
+		PeriodType: &profile.ValueType{Type: "cpu", Unit: "milliseconds"},
+		SampleType: []*profile.ValueType{
+			{Type: "type", Unit: "unit"},
+		},
+		Sample: []*profile.Sample{
+			{
+				Location: []*profile.Location{locations[0]},
+				Value:    []int64{1},
+			},
+			{
+				Location: []*profile.Location{locations[1]},
+				Value:    []int64{1},
+			},
+			{
+				Location: []*profile.Location{locations[2]},
+				Value:    []int64{1},
+			},
+		},
+		Location: locations,
+		Function: functions,
+		Mapping:  mappings,
+	}
+}
+
+// Check that nodes are properly created for a simple profile.
+func TestCreateNodes(t *testing.T) {
+	testProfile := nodeTestProfile()
+	wantNodeSet := NodeSet{
+		{Name: "symname"}:                   true,
+		{Objfile: "unsymbolized_library_1"}: true,
+		{Objfile: "unsymbolized_library_2"}: true,
+	}
+
+	nodes, _ := CreateNodes(testProfile, &Options{})
+	if len(nodes) != len(wantNodeSet) {
+		t.Errorf("got %d nodes, want %d", len(nodes), len(wantNodeSet))
+	}
+	for _, node := range nodes {
+		if !wantNodeSet[node.Info] {
+			t.Errorf("unexpected node %v", node.Info)
+		}
+	}
+}
+
+func TestShortenFunctionName(t *testing.T) {
+	type testCase struct {
+		name string
+		want string
+	}
+	testcases := []testCase{
+		{
+			"root",
+			"root",
+		},
+		{
+			"syscall.Syscall",
+			"syscall.Syscall",
+		},
+		{
+			"net/http.(*conn).serve",
+			"http.(*conn).serve",
+		},
+		{
+			"github.com/blahBlah/foo.Foo",
+			"foo.Foo",
+		},
+		{
+			"github.com/BlahBlah/foo.Foo",
+			"foo.Foo",
+		},
+		{
+			"github.com/blah-blah/foo_bar.(*FooBar).Foo",
+			"foo_bar.(*FooBar).Foo",
+		},
+		{
+			"encoding/json.(*structEncoder).(encoding/json.encode)-fm",
+			"json.(*structEncoder).(encoding/json.encode)-fm",
+		},
+		{
+			"github.com/blah/blah/vendor/gopkg.in/redis.v3.(*baseClient).(github.com/blah/blah/vendor/gopkg.in/redis.v3.process)-fm",
+			"redis.v3.(*baseClient).(github.com/blah/blah/vendor/gopkg.in/redis.v3.process)-fm",
+		},
+		{
+			"java.util.concurrent.ThreadPoolExecutor$Worker.run",
+			"ThreadPoolExecutor$Worker.run",
+		},
+		{
+			"java.bar.foo.FooBar.run(java.lang.Runnable)",
+			"FooBar.run",
+		},
+		{
+			"(anonymous namespace)::Bar::Foo",
+			"Bar::Foo",
+		},
+		{
+			"(anonymous namespace)::foo",
+			"foo",
+		},
+		{
+			"foo_bar::Foo::bar",
+			"Foo::bar",
+		},
+		{
+			"foo",
+			"foo",
+		},
+	}
+	for _, tc := range testcases {
+		name := ShortenFunctionName(tc.name)
+		if got, want := name, tc.want; got != want {
+			t.Errorf("ShortenFunctionName(%q) = %q, want %q", tc.name, got, want)
 		}
 	}
 }

@@ -33,6 +33,7 @@ var (
 //go:cgo_import_dynamic libc_close close "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_exit exit "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_getpid getpid "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_getsystemcfg getsystemcfg "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_kill kill "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_madvise madvise "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_malloc malloc "libc.a/shr_64.o"
@@ -69,6 +70,7 @@ var (
 //go:linkname libc_close libc_close
 //go:linkname libc_exit libc_exit
 //go:linkname libc_getpid libc_getpid
+//go:linkname libc_getsystemcfg libc_getsystemcfg
 //go:linkname libc_kill libc_kill
 //go:linkname libc_madvise libc_madvise
 //go:linkname libc_malloc libc_malloc
@@ -107,6 +109,7 @@ var (
 	libc_close,
 	libc_exit,
 	libc_getpid,
+	libc_getsystemcfg,
 	libc_kill,
 	libc_madvise,
 	libc_malloc,
@@ -317,6 +320,12 @@ func sigaltstack(new, old *stackt) {
 		println("syscall sigaltstack failed: ", hex(err))
 		throw("syscall sigaltstack")
 	}
+}
+
+//go:nosplit
+func getsystemcfg(label uint) uintptr {
+	r, _ := syscall1(&libc_getsystemcfg, uintptr(label))
+	return r
 }
 
 //go:nosplit

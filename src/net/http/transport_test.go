@@ -4952,3 +4952,56 @@ func TestTransportCONNECTBidi(t *testing.T) {
 		}
 	}
 }
+
+func TestTransportRequestReplayable(t *testing.T) {
+	someBody := ioutil.NopCloser(strings.NewReader(""))
+	tests := []struct {
+		name string
+		req  *Request
+		want bool
+	}{
+		{
+			name: "GET",
+			req:  &Request{Method: "GET"},
+			want: true,
+		},
+		{
+			name: "GET_http.NoBody",
+			req:  &Request{Method: "GET", Body: NoBody},
+			want: true,
+		},
+		{
+			name: "GET_body",
+			req:  &Request{Method: "GET", Body: someBody},
+			want: false,
+		},
+		{
+			name: "POST",
+			req:  &Request{Method: "POST"},
+			want: false,
+		},
+		{
+			name: "POST_idempotency-key",
+			req:  &Request{Method: "POST", Header: Header{"Idempotency-Key": {"x"}}},
+			want: true,
+		},
+		{
+			name: "POST_x-idempotency-key",
+			req:  &Request{Method: "POST", Header: Header{"X-Idempotency-Key": {"x"}}},
+			want: true,
+		},
+		{
+			name: "POST_body",
+			req:  &Request{Method: "POST", Header: Header{"Idempotency-Key": {"x"}}, Body: someBody},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.req.ExportIsReplayable()
+			if got != tt.want {
+				t.Errorf("replyable = %v; want %v", got, tt.want)
+			}
+		})
+	}
+}

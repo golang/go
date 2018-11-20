@@ -134,35 +134,36 @@ func checkTimeouts() {
 	}
 }
 
-var waitingForCallback *g
+var returnedCallback *g
 
-// sleepUntilCallback puts the current goroutine to sleep until a callback is triggered.
-// It is currently only used by the callback routine of the syscall/js package.
-//go:linkname sleepUntilCallback syscall/js.sleepUntilCallback
-func sleepUntilCallback() {
-	waitingForCallback = getg()
+func init() {
+	// At the toplevel we need an extra goroutine that handles asynchronous callbacks.
+	initg := getg()
+	go func() {
+		returnedCallback = getg()
+		goready(initg, 1)
+
+		gopark(nil, nil, waitReasonZero, traceEvNone, 1)
+		returnedCallback = nil
+
+		pause(getcallersp() - 16)
+	}()
 	gopark(nil, nil, waitReasonZero, traceEvNone, 1)
-	waitingForCallback = nil
 }
 
-// pauseSchedulerUntilCallback gets called from the scheduler and pauses the execution
-// of Go's WebAssembly code until a callback is triggered. Then it checks for note timeouts
-// and resumes goroutines that are waiting for a callback.
-func pauseSchedulerUntilCallback() bool {
-	if waitingForCallback == nil && len(notesWithTimeout) == 0 {
-		return false
+// beforeIdle gets called by the scheduler if no goroutine is awake.
+// If a callback has returned, then we resume the callback handler which
+// will pause the execution.
+func beforeIdle() bool {
+	if returnedCallback != nil {
+		goready(returnedCallback, 1)
+		return true
 	}
-
-	pause()
-	checkTimeouts()
-	if waitingForCallback != nil {
-		goready(waitingForCallback, 1)
-	}
-	return true
+	return false
 }
 
-// pause pauses the execution of Go's WebAssembly code until a callback is triggered.
-func pause()
+// pause sets SP to newsp and pauses the execution of Go's WebAssembly code until a callback is triggered.
+func pause(newsp uintptr)
 
 // scheduleCallback tells the WebAssembly environment to trigger a callback after ms milliseconds.
 // It returns a timer id that can be used with clearScheduledCallback.
@@ -170,3 +171,25 @@ func scheduleCallback(ms int64) int32
 
 // clearScheduledCallback clears a callback scheduled by scheduleCallback.
 func clearScheduledCallback(id int32)
+
+func handleCallback() {
+	prevReturnedCallback := returnedCallback
+	returnedCallback = nil
+
+	checkTimeouts()
+	callbackHandler()
+
+	returnedCallback = getg()
+	gopark(nil, nil, waitReasonZero, traceEvNone, 1)
+
+	returnedCallback = prevReturnedCallback
+
+	pause(getcallersp() - 16)
+}
+
+var callbackHandler func()
+
+//go:linkname setCallbackHandler syscall/js.setCallbackHandler
+func setCallbackHandler(fn func()) {
+	callbackHandler = fn
+}

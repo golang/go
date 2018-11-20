@@ -294,6 +294,10 @@ var racearenaend uintptr
 func racefuncenter(uintptr)
 func racefuncenterfp()
 func racefuncexit()
+func raceread(uintptr)
+func racewrite(uintptr)
+func racereadrange(addr, size uintptr)
+func racewriterange(addr, size uintptr)
 func racereadrangepc1(uintptr, uintptr, uintptr)
 func racewriterangepc1(uintptr, uintptr, uintptr)
 func racecallbackthunk(uintptr)
@@ -496,3 +500,76 @@ func racereleasemergeg(gp *g, addr unsafe.Pointer) {
 func racefingo() {
 	racecall(&__tsan_finalizer_goroutine, getg().racectx, 0, 0, 0)
 }
+
+// The declarations below generate ABI wrappers for functions
+// implemented in assembly in this package but declared in another
+// package.
+
+//go:linkname abigen_sync_atomic_LoadInt32 sync/atomic.LoadInt32
+func abigen_sync_atomic_LoadInt32(addr *int32) (val int32)
+
+//go:linkname abigen_sync_atomic_LoadInt64 sync/atomic.LoadInt64
+func abigen_sync_atomic_LoadInt64(addr *int64) (val int64)
+
+//go:linkname abigen_sync_atomic_LoadUint32 sync/atomic.LoadUint32
+func abigen_sync_atomic_LoadUint32(addr *uint32) (val uint32)
+
+//go:linkname abigen_sync_atomic_LoadUint64 sync/atomic.LoadUint64
+func abigen_sync_atomic_LoadUint64(addr *uint64) (val uint64)
+
+//go:linkname abigen_sync_atomic_LoadUintptr sync/atomic.LoadUintptr
+func abigen_sync_atomic_LoadUintptr(addr *uintptr) (val uintptr)
+
+//go:linkname abigen_sync_atomic_LoadPointer sync/atomic.LoadPointer
+func abigen_sync_atomic_LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer)
+
+//go:linkname abigen_sync_atomic_StoreInt32 sync/atomic.StoreInt32
+func abigen_sync_atomic_StoreInt32(addr *int32, val int32)
+
+//go:linkname abigen_sync_atomic_StoreInt64 sync/atomic.StoreInt64
+func abigen_sync_atomic_StoreInt64(addr *int64, val int64)
+
+//go:linkname abigen_sync_atomic_StoreUint32 sync/atomic.StoreUint32
+func abigen_sync_atomic_StoreUint32(addr *uint32, val uint32)
+
+//go:linkname abigen_sync_atomic_StoreUint64 sync/atomic.StoreUint64
+func abigen_sync_atomic_StoreUint64(addr *uint64, val uint64)
+
+//go:linkname abigen_sync_atomic_SwapInt32 sync/atomic.SwapInt32
+func abigen_sync_atomic_SwapInt32(addr *int32, new int32) (old int32)
+
+//go:linkname abigen_sync_atomic_SwapInt64 sync/atomic.SwapInt64
+func abigen_sync_atomic_SwapInt64(addr *int64, new int64) (old int64)
+
+//go:linkname abigen_sync_atomic_SwapUint32 sync/atomic.SwapUint32
+func abigen_sync_atomic_SwapUint32(addr *uint32, new uint32) (old uint32)
+
+//go:linkname abigen_sync_atomic_SwapUint64 sync/atomic.SwapUint64
+func abigen_sync_atomic_SwapUint64(addr *uint64, new uint64) (old uint64)
+
+//go:linkname abigen_sync_atomic_AddInt32 sync/atomic.AddInt32
+func abigen_sync_atomic_AddInt32(addr *int32, delta int32) (new int32)
+
+//go:linkname abigen_sync_atomic_AddUint32 sync/atomic.AddUint32
+func abigen_sync_atomic_AddUint32(addr *uint32, delta uint32) (new uint32)
+
+//go:linkname abigen_sync_atomic_AddInt64 sync/atomic.AddInt64
+func abigen_sync_atomic_AddInt64(addr *int64, delta int64) (new int64)
+
+//go:linkname abigen_sync_atomic_AddUint64 sync/atomic.AddUint64
+func abigen_sync_atomic_AddUint64(addr *uint64, delta uint64) (new uint64)
+
+//go:linkname abigen_sync_atomic_AddUintptr sync/atomic.AddUintptr
+func abigen_sync_atomic_AddUintptr(addr *uintptr, delta uintptr) (new uintptr)
+
+//go:linkname abigen_sync_atomic_CompareAndSwapInt32 sync/atomic.CompareAndSwapInt32
+func abigen_sync_atomic_CompareAndSwapInt32(addr *int32, old, new int32) (swapped bool)
+
+//go:linkname abigen_sync_atomic_CompareAndSwapInt64 sync/atomic.CompareAndSwapInt64
+func abigen_sync_atomic_CompareAndSwapInt64(addr *int64, old, new int64) (swapped bool)
+
+//go:linkname abigen_sync_atomic_CompareAndSwapUint32 sync/atomic.CompareAndSwapUint32
+func abigen_sync_atomic_CompareAndSwapUint32(addr *uint32, old, new uint32) (swapped bool)
+
+//go:linkname abigen_sync_atomic_CompareAndSwapUint64 sync/atomic.CompareAndSwapUint64
+func abigen_sync_atomic_CompareAndSwapUint64(addr *uint64, old, new uint64) (swapped bool)

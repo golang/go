@@ -246,14 +246,16 @@ func Compile(str string) (*Regexp, error) {
 
 <p>
 If every doc comment begins with the name of the item it describes,
-the output of <code>godoc</code> can usefully be run through <code>grep</code>.
+you can use the <a href="/cmd/go/#hdr-Show_documentation_for_package_or_symbol">doc</a>
+subcommand of the <a href="/cmd/go/">go</a> tool
+and run the output through <code>grep</code>.
 Imagine you couldn't remember the name "Compile" but were looking for
 the parsing function for regular expressions, so you ran
 the command,
 </p>
 
 <pre>
-$ godoc regexp | grep -i parse
+$ go doc -all regexp | grep -i parse
 </pre>
 
 <p>
@@ -264,10 +266,10 @@ which recalls the word you're looking for.
 </p>
 
 <pre>
-$ godoc regexp | grep parse
+$ go doc -all regexp | grep -i parse
     Compile parses a regular expression and returns, if successful, a Regexp
+    MustCompile is like Compile but panics if the expression cannot be parsed.
     parsed. It simplifies safe initialization of global variables holding
-    cannot be parsed. It simplifies safe initialization of global variables
 $
 </pre>
 

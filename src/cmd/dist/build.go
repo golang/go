@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -682,7 +683,7 @@ func runInstall(dir string, ch chan struct{}) {
 	}
 
 	// Is the target up-to-date?
-	var gofiles, missing []string
+	var gofiles, sfiles, missing []string
 	stale := rebuildall
 	files = filter(files, func(p string) bool {
 		for _, suf := range depsuffix {
@@ -698,6 +699,8 @@ func runInstall(dir string, ch chan struct{}) {
 		}
 		if strings.HasSuffix(p, ".go") {
 			gofiles = append(gofiles, p)
+		} else if strings.HasSuffix(p, ".s") {
+			sfiles = append(sfiles, p)
 		}
 		if t.After(ttarg) {
 			stale = true
@@ -778,10 +781,42 @@ func runInstall(dir string, ch chan struct{}) {
 		return
 	}
 
+	asmArgs := []string{
+		pathf("%s/asm", tooldir),
+		"-I", workdir,
+		"-I", pathf("%s/pkg/include", goroot),
+		"-D", "GOOS_" + goos,
+		"-D", "GOARCH_" + goarch,
+		"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
+	}
+	if goarch == "mips" || goarch == "mipsle" {
+		// Define GOMIPS_value from gomips.
+		asmArgs = append(asmArgs, "-D", "GOMIPS_"+gomips)
+	}
+	if goarch == "mips64" || goarch == "mipsle64" {
+		// Define GOMIPS64_value from gomips64.
+		asmArgs = append(asmArgs, "-D", "GOMIPS64_"+gomips64)
+	}
+	goasmh := pathf("%s/go_asm.h", workdir)
+
+	// Collect symabis from assembly code.
+	var symabis string
+	if len(sfiles) > 0 {
+		symabis = pathf("%s/symabis", workdir)
+		var wg sync.WaitGroup
+		asmabis := append(asmArgs[:len(asmArgs):len(asmArgs)], "-gensymabis", "-o", symabis)
+		asmabis = append(asmabis, sfiles...)
+		if err := ioutil.WriteFile(goasmh, nil, 0666); err != nil {
+			fatalf("cannot write empty go_asm.h: %s", err)
+		}
+		bgrun(&wg, path, asmabis...)
+		bgwait(&wg)
+	}
+
 	var archive string
 	// The next loop will compile individual non-Go files.
 	// Hand the Go files to the compiler en masse.
-	// For package runtime, this writes go_asm.h, which
+	// For packages containing assembly, this writes go_asm.h, which
 	// the assembly files will need.
 	pkg := dir
 	if strings.HasPrefix(dir, "cmd/") && strings.Count(dir, "/") == 1 {
@@ -794,18 +829,29 @@ func runInstall(dir string, ch chan struct{}) {
 	} else {
 		archive = b
 	}
+
+	// Compile Go code.
 	compile := []string{pathf("%s/compile", tooldir), "-std", "-pack", "-o", b, "-p", pkg}
 	if gogcflags != "" {
 		compile = append(compile, strings.Fields(gogcflags)...)
 	}
 	if dir == "runtime" {
-		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
+		compile = append(compile, "-+")
 	}
-	if dir == "internal/bytealg" {
-		// TODO: why don't we generate go_asm.h for all packages
-		// that have any assembly?
-		compile = append(compile, "-asmhdr", pathf("%s/go_asm.h", workdir))
+	if len(sfiles) > 0 {
+		compile = append(compile, "-asmhdr", goasmh)
 	}
+	if symabis != "" {
+		compile = append(compile, "-symabis", symabis)
+	}
+	if dir == "runtime" || dir == "runtime/internal/atomic" {
+		// These packages define symbols referenced by
+		// assembly in other packages. In cmd/go, we work out
+		// the exact details. For bootstrapping, just tell the
+		// compiler to generate ABI wrappers for everything.
+		compile = append(compile, "-allabis")
+	}
+
 	compile = append(compile, gofiles...)
 	var wg sync.WaitGroup
 	// We use bgrun and immediately wait for it instead of calling run() synchronously.
@@ -815,31 +861,9 @@ func runInstall(dir string, ch chan struct{}) {
 	bgwait(&wg)
 
 	// Compile the files.
-	for _, p := range files {
-		if !strings.HasSuffix(p, ".s") {
-			continue
-		}
-
-		var compile []string
+	for _, p := range sfiles {
 		// Assembly file for a Go package.
-		compile = []string{
-			pathf("%s/asm", tooldir),
-			"-I", workdir,
-			"-I", pathf("%s/pkg/include", goroot),
-			"-D", "GOOS_" + goos,
-			"-D", "GOARCH_" + goarch,
-			"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
-		}
-
-		if goarch == "mips" || goarch == "mipsle" {
-			// Define GOMIPS_value from gomips.
-			compile = append(compile, "-D", "GOMIPS_"+gomips)
-		}
-
-		if goarch == "mips64" || goarch == "mipsle64" {
-			// Define GOMIPS64_value from gomips64.
-			compile = append(compile, "-D", "GOMIPS64_"+gomips64)
-		}
+		compile := asmArgs[:len(asmArgs):len(asmArgs)]
 
 		doclean := true
 		b := pathf("%s/%s", workdir, filepath.Base(p))

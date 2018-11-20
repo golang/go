@@ -139,7 +139,7 @@ func (in *Input) Text() string {
 	return in.text
 }
 
-// hash processes a # preprocessor directive. It returns true iff it completes.
+// hash processes a # preprocessor directive. It reports whether it completes.
 func (in *Input) hash() bool {
 	// We have a '#'; it must be followed by a known word (define, include, etc.).
 	tok := in.Stack.Next()

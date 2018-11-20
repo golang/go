@@ -219,6 +219,18 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	for i := 0; i < len(depDecls); i++ {
 		switch d := depDecls[i].(type) {
 		case *ast.FuncDecl:
+			// Inspect types of parameters and results. See #28492.
+			if d.Type.Params != nil {
+				for _, p := range d.Type.Params.List {
+					ast.Inspect(p.Type, inspectFunc)
+				}
+			}
+			if d.Type.Results != nil {
+				for _, r := range d.Type.Results.List {
+					ast.Inspect(r.Type, inspectFunc)
+				}
+			}
+
 			ast.Inspect(d.Body, inspectFunc)
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {

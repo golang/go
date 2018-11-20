@@ -34,6 +34,8 @@ func SubMem(arr []int, b, c, d int) int {
 	arr[d] -= 15
 	// 386:`DECL\s\([A-Z]+\)\([A-Z]+\*4\)`
 	arr[b]--
+	// amd64:`DECQ\s64\([A-Z]+\)`
+	arr[8]--
 	// 386:"SUBL\t4"
 	// amd64:"SUBQ\t8"
 	return arr[0] - arr[1]
@@ -322,10 +324,10 @@ func MULA(a, b, c uint32) (uint32, uint32, uint32) {
 	// arm:`MULA`,-`MUL\s`
 	// arm64:`MADDW`,-`MULW`
 	r0 := a*b + c
-	// arm:`MULA`-`MUL\s`
+	// arm:`MULA`,-`MUL\s`
 	// arm64:`MADDW`,-`MULW`
 	r1 := c*79 + a
-	// arm:`ADD`,-`MULA`-`MUL\s`
+	// arm:`ADD`,-`MULA`,-`MUL\s`
 	// arm64:`ADD`,-`MADD`,-`MULW`
 	r2 := b*64 + c
 	return r0, r1, r2
@@ -333,12 +335,14 @@ func MULA(a, b, c uint32) (uint32, uint32, uint32) {
 
 func MULS(a, b, c uint32) (uint32, uint32, uint32) {
 	// arm/7:`MULS`,-`MUL\s`
+	// arm/6:`SUB`,`MUL\s`,-`MULS`
 	// arm64:`MSUBW`,-`MULW`
 	r0 := c - a*b
-	// arm/7:`MULS`-`MUL\s`
+	// arm/7:`MULS`,-`MUL\s`
+	// arm/6:`SUB`,`MUL\s`,-`MULS`
 	// arm64:`MSUBW`,-`MULW`
 	r1 := a - c*79
-	// arm/7:`SUB`,-`MULS`-`MUL\s`
+	// arm/7:`SUB`,-`MULS`,-`MUL\s`
 	// arm64:`SUB`,-`MSUBW`,-`MULW`
 	r2 := c - b*64
 	return r0, r1, r2

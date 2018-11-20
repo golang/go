@@ -81,7 +81,7 @@ func printObjHeader(bout *bio.Writer) {
 	if localpkg.Name == "main" {
 		fmt.Fprintf(bout, "main\n")
 	}
-	fmt.Fprintf(bout, "\n")     // header ends with blank line
+	fmt.Fprintf(bout, "\n") // header ends with blank line
 }
 
 func startArchiveEntry(bout *bio.Writer) int64 {
@@ -273,22 +273,18 @@ func dumpglobls() {
 }
 
 // addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
-// It takes care not to add any duplicates.
-// Though the object file format handles duplicates efficiently,
-// storing only a single copy of the data,
-// failure to remove these duplicates adds a few percent to object file size.
+//
+// This is done during the sequential phase after compilation, since
+// global symbols can't be declared during parallel compilation.
 func addGCLocals() {
-	seen := make(map[string]bool)
 	for _, s := range Ctxt.Text {
 		if s.Func == nil {
 			continue
 		}
-		for _, gcsym := range []*obj.LSym{&s.Func.GCArgs, &s.Func.GCLocals, &s.Func.GCRegs} {
-			if seen[gcsym.Name] {
-				continue
+		for _, gcsym := range []*obj.LSym{s.Func.GCArgs, s.Func.GCLocals, s.Func.GCRegs} {
+			if gcsym != nil && !gcsym.OnList() {
+				ggloblsym(gcsym, int32(len(gcsym.P)), obj.RODATA|obj.DUPOK)
 			}
-			Ctxt.Data = append(Ctxt.Data, gcsym)
-			seen[gcsym.Name] = true
 		}
 		if x := s.Func.StackObjects; x != nil {
 			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)

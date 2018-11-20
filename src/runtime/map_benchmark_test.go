@@ -5,6 +5,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"testing"
@@ -204,6 +205,67 @@ func BenchmarkIntMap(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _ = m[7]
 	}
+}
+
+func BenchmarkMapFirst(b *testing.B) {
+	for n := 1; n <= 16; n++ {
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			m := make(map[int]bool)
+			for i := 0; i < n; i++ {
+				m[i] = true
+			}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = m[0]
+			}
+		})
+	}
+}
+func BenchmarkMapMid(b *testing.B) {
+	for n := 1; n <= 16; n++ {
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			m := make(map[int]bool)
+			for i := 0; i < n; i++ {
+				m[i] = true
+			}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = m[n>>1]
+			}
+		})
+	}
+}
+func BenchmarkMapLast(b *testing.B) {
+	for n := 1; n <= 16; n++ {
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			m := make(map[int]bool)
+			for i := 0; i < n; i++ {
+				m[i] = true
+			}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = m[n-1]
+			}
+		})
+	}
+}
+
+func BenchmarkMapCycle(b *testing.B) {
+	// Arrange map entries to be a permuation, so that
+	// we hit all entries, and one lookup is data dependent
+	// on the previous lookup.
+	const N = 3127
+	p := rand.New(rand.NewSource(1)).Perm(N)
+	m := map[int]int{}
+	for i := 0; i < N; i++ {
+		m[i] = p[i]
+	}
+	b.ResetTimer()
+	j := 0
+	for i := 0; i < b.N; i++ {
+		j = m[j]
+	}
+	sink = uint64(j)
 }
 
 // Accessing the same keys in a row.

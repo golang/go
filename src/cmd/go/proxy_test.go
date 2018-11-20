@@ -197,7 +197,13 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 				if strings.HasPrefix(f.Name, ".") {
 					continue
 				}
-				zf, err := z.Create(path + "@" + vers + "/" + f.Name)
+				var zipName string
+				if strings.HasPrefix(f.Name, "/") {
+					zipName = f.Name[1:]
+				} else {
+					zipName = path + "@" + vers + "/" + f.Name
+				}
+				zf, err := z.Create(zipName)
 				if err != nil {
 					return cached{nil, err}
 				}

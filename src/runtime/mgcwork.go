@@ -138,7 +138,7 @@ func (w *gcWork) put(obj uintptr) {
 	}
 }
 
-// putFast does a put and returns true if it can be done quickly
+// putFast does a put and reports whether it can be done quickly
 // otherwise it returns false and the caller needs to call put.
 //go:nowritebarrierrec
 func (w *gcWork) putFast(obj uintptr) bool {
@@ -299,7 +299,7 @@ func (w *gcWork) balance() {
 	}
 }
 
-// empty returns true if w has no mark work available.
+// empty reports whether w has no mark work available.
 //go:nowritebarrierrec
 func (w *gcWork) empty() bool {
 	return w.wbuf1 == nil || (w.wbuf1.nobj == 0 && w.wbuf2.nobj == 0)

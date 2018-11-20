@@ -198,6 +198,8 @@ func funccompile(fn *Node) {
 	dowidth(fn.Type)
 
 	if fn.Nbody.Len() == 0 {
+		// Initialize ABI wrappers if necessary.
+		fn.Func.initLSym(false)
 		emitptrargsmap(fn)
 		return
 	}
@@ -231,7 +233,7 @@ func compile(fn *Node) {
 	Curfn = nil
 
 	// Set up the function's LSym early to avoid data races with the assemblers.
-	fn.Func.initLSym()
+	fn.Func.initLSym(true)
 
 	// Make sure type syms are declared for all types that might
 	// be types of stack objects. We need to do this here

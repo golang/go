@@ -29,7 +29,6 @@ type SockaddrDatalink struct {
 func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
 
 func nametomib(name string) (mib []_C_int, err error) {
-
 	// Perform lookup via a binary search
 	left := 0
 	right := len(sysctlMib) - 1
@@ -212,3 +211,4 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
 //sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL

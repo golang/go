@@ -128,6 +128,9 @@ func (b *Reader) Peek(n int) ([]byte, error) {
 		return nil, ErrNegativeCount
 	}
 
+	b.lastByte = -1
+	b.lastRuneSize = -1
+
 	for b.w-b.r < n && b.w-b.r < len(b.buf) && b.err == nil {
 		b.fill() // b.w-b.r < len(b.buf) => buffer is not full
 	}
@@ -186,6 +189,7 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
 // It returns the number of bytes read into p.
 // The bytes are taken from at most one Read on the underlying Reader,
 // hence n may be less than len(p).
+// To read exactly len(p) bytes, use io.ReadFull(b, p).
 // At EOF, the count will be zero and err will be io.EOF.
 func (b *Reader) Read(p []byte) (n int, err error) {
 	n = len(p)

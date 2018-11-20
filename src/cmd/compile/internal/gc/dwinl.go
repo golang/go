@@ -300,7 +300,7 @@ func beginRange(calls []dwarf.InlCall, p *obj.Prog, ii int, imap map[int]int) *d
 	}
 	callIdx, found := imap[ii]
 	if !found {
-		Fatalf("internal error: can't find inlIndex %d in imap for prog at %d\n", ii, p.Pc)
+		Fatalf("can't find inlIndex %d in imap for prog at %d\n", ii, p.Pc)
 	}
 	call := &calls[callIdx]
 

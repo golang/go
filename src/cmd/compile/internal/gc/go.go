@@ -147,7 +147,6 @@ var asmhdr string
 var simtype [NTYPE]types.EType
 
 var (
-	isforw    [NTYPE]bool
 	isInt     [NTYPE]bool
 	isFloat   [NTYPE]bool
 	isComplex [NTYPE]bool
@@ -306,9 +305,9 @@ var (
 	racereadrange,
 	racewrite,
 	racewriterange,
-	supportPopcnt,
-	supportSSE41,
-	arm64SupportAtomics,
+	x86HasPOPCNT,
+	x86HasSSE41,
+	arm64HasATOMICS,
 	typedmemclr,
 	typedmemmove,
 	Udiv,

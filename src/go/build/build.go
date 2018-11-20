@@ -45,6 +45,7 @@ type Context struct {
 	// which defaults to the list of Go releases the current release is compatible with.
 	// In addition to the BuildTags and ReleaseTags, build constraints
 	// consider the values of GOARCH and GOOS as satisfied tags.
+	// The last element in ReleaseTags is assumed to be the current release.
 	BuildTags   []string
 	ReleaseTags []string
 
@@ -296,7 +297,8 @@ func defaultContext() Context {
 	// say "+build go1.x", and code that should only be built before Go 1.x
 	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
 	// NOTE: If you add to this list, also update the doc comment in doc.go.
-	const version = 11 // go1.11
+	// NOTE: The last element in ReleaseTags should be the current release.
+	const version = 12 // go1.12
 	for i := 1; i <= version; i++ {
 		c.ReleaseTags = append(c.ReleaseTags, "go1."+strconv.Itoa(i))
 	}

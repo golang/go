@@ -459,7 +459,7 @@ func basefds() uintptr {
 	// The poll (epoll/kqueue) descriptor can be numerically
 	// either between stderr and the testlog-fd, or after
 	// testlog-fd.
-	if poll.PollDescriptor() == n {
+	if poll.IsPollDescriptor(n) {
 		n++
 	}
 	for _, arg := range os.Args {
@@ -472,7 +472,7 @@ func basefds() uintptr {
 
 func closeUnexpectedFds(t *testing.T, m string) {
 	for fd := basefds(); fd <= 101; fd++ {
-		if fd == poll.PollDescriptor() {
+		if poll.IsPollDescriptor(fd) {
 			continue
 		}
 		err := os.NewFile(fd, "").Close()
@@ -734,6 +734,8 @@ func TestHelperProcess(*testing.T) {
 		ofcmd = "fstat"
 	case "plan9":
 		ofcmd = "/bin/cat"
+	case "aix":
+		ofcmd = "procfiles"
 	}
 
 	args := os.Args
@@ -837,7 +839,7 @@ func TestHelperProcess(*testing.T) {
 			// Now verify that there are no other open fds.
 			var files []*os.File
 			for wantfd := basefds() + 1; wantfd <= 100; wantfd++ {
-				if wantfd == poll.PollDescriptor() {
+				if poll.IsPollDescriptor(wantfd) {
 					continue
 				}
 				f, err := os.Open(os.Args[0])
@@ -851,6 +853,8 @@ func TestHelperProcess(*testing.T) {
 					switch runtime.GOOS {
 					case "plan9":
 						args = []string{fmt.Sprintf("/proc/%d/fd", os.Getpid())}
+					case "aix":
+						args = []string{fmt.Sprint(os.Getpid())}
 					default:
 						args = []string{"-p", fmt.Sprint(os.Getpid())}
 					}

@@ -24,6 +24,11 @@ import (
 //   []byte
 //   string
 //   time.Time
+//
+// If the driver supports cursors, a returned Value may also implement the Rows interface
+// in this package. This is used when, for example, when a user selects a cursor
+// such as "select cursor(select * from my_table) from dual". If the Rows
+// from the select is closed, the cursor Rows will also be closed.
 type Value interface{}
 
 // NamedValue holds both the value name and value.

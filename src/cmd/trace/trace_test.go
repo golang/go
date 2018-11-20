@@ -8,26 +8,27 @@ package main
 
 import (
 	"context"
-	"internal/trace"
 	"io/ioutil"
 	rtrace "runtime/trace"
 	"strings"
 	"testing"
+
+	trace "internal/traceparser"
 )
 
 // stacks is a fake stack map populated for test.
-type stacks map[uint64][]*trace.Frame
+type stacks map[uint32][]*trace.Frame
 
 // add adds a stack with a single frame whose Fn field is
 // set to the provided fname and returns a unique stack id.
 func (s *stacks) add(fname string) uint64 {
 	if *s == nil {
-		*s = make(map[uint64][]*trace.Frame)
+		*s = make(map[uint32][]*trace.Frame)
 	}
 
-	id := uint64(len(*s))
+	id := uint32(len(*s))
 	(*s)[id] = []*trace.Frame{{Fn: fname}}
-	return id
+	return uint64(id)
 }
 
 // TestGoroutineCount tests runnable/running goroutine counts computed by generateTrace
@@ -36,8 +37,7 @@ func (s *stacks) add(fname string) uint64 {
 //   - the counts must not include goroutines blocked waiting on channels or in syscall.
 func TestGoroutineCount(t *testing.T) {
 	w := trace.NewWriter()
-	w.Emit(trace.EvBatch, 0, 0)  // start of per-P batch event [pid, timestamp]
-	w.Emit(trace.EvFrequency, 1) // [ticks per second]
+	w.Emit(trace.EvBatch, 0, 0) // start of per-P batch event [pid, timestamp]
 
 	var s stacks
 
@@ -61,8 +61,9 @@ func TestGoroutineCount(t *testing.T) {
 	w.Emit(trace.EvGoCreate, 1, 40, s.add("pkg.f4"), s.add("main.f4"))
 	w.Emit(trace.EvGoStartLocal, 1, 40)          // [timestamp, goroutine id]
 	w.Emit(trace.EvGoSched, 1, s.add("main.f4")) // [timestamp, stack]
+	w.Emit(trace.EvFrequency, 1)                 // [ticks per second]
 
-	res, err := trace.Parse(w, "")
+	res, err := trace.ParseBuffer(w)
 	if err != nil {
 		t.Fatalf("failed to parse test trace: %v", err)
 	}
@@ -74,9 +75,9 @@ func TestGoroutineCount(t *testing.T) {
 	}
 
 	// Use the default viewerDataTraceConsumer but replace
-	// consumeViewerEvent to intercept the ViewerEvents for testing.
+	// consumeViewerEvent to intercept the viewerEvents for testing.
 	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
-	c.consumeViewerEvent = func(ev *ViewerEvent, _ bool) {
+	c.consumeViewerEvent = func(ev *viewerEvent, _ bool) {
 		if ev.Name == "Goroutines" {
 			cnt := ev.Arg.(*goroutineCountersArg)
 			if cnt.Runnable+cnt.Running > 2 {
@@ -87,7 +88,7 @@ func TestGoroutineCount(t *testing.T) {
 	}
 
 	// If the counts drop below 0, generateTrace will return an error.
-	if err := generateTrace(params, c); err != nil {
+	if err := generateTrace(res, params, c); err != nil {
 		t.Fatalf("generateTrace failed: %v", err)
 	}
 }
@@ -99,8 +100,7 @@ func TestGoroutineFilter(t *testing.T) {
 	var s stacks
 
 	w := trace.NewWriter()
-	w.Emit(trace.EvBatch, 0, 0)  // start of per-P batch event [pid, timestamp]
-	w.Emit(trace.EvFrequency, 1) // [ticks per second]
+	w.Emit(trace.EvBatch, 0, 0) // start of per-P batch event [pid, timestamp]
 
 	// goroutine 10: blocked
 	w.Emit(trace.EvGoCreate, 1, 10, s.add("pkg.f1"), s.add("main.f1")) // [timestamp, new goroutine id, new stack id, stack id]
@@ -115,8 +115,9 @@ func TestGoroutineFilter(t *testing.T) {
 	// goroutine 10: runnable->running->block
 	w.Emit(trace.EvGoStartLocal, 1, 10)         // [timestamp, goroutine id]
 	w.Emit(trace.EvGoBlock, 1, s.add("pkg.f3")) // [timestamp, stack]
+	w.Emit(trace.EvFrequency, 1)                // [ticks per second]
 
-	res, err := trace.Parse(w, "")
+	res, err := trace.ParseBuffer(w)
 	if err != nil {
 		t.Fatalf("failed to parse test trace: %v", err)
 	}
@@ -129,15 +130,14 @@ func TestGoroutineFilter(t *testing.T) {
 	}
 
 	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
-	if err := generateTrace(params, c); err != nil {
+	if err := generateTrace(res, params, c); err != nil {
 		t.Fatalf("generateTrace failed: %v", err)
 	}
 }
 
 func TestPreemptedMarkAssist(t *testing.T) {
 	w := trace.NewWriter()
-	w.Emit(trace.EvBatch, 0, 0)  // start of per-P batch event [pid, timestamp]
-	w.Emit(trace.EvFrequency, 1) // [ticks per second]
+	w.Emit(trace.EvBatch, 0, 0) // start of per-P batch event [pid, timestamp]
 
 	var s stacks
 	// goroutine 9999: running -> mark assisting -> preempted -> assisting -> running -> block
@@ -148,11 +148,13 @@ func TestPreemptedMarkAssist(t *testing.T) {
 	w.Emit(trace.EvGoStartLocal, 1, 9999)                                // [timestamp, goroutine id]
 	w.Emit(trace.EvGCMarkAssistDone, 1)                                  // [timestamp]
 	w.Emit(trace.EvGoBlock, 1, s.add("main.f2"))                         // [timestamp, stack]
+	w.Emit(trace.EvFrequency, 1)                                         // [ticks per second]
 
-	res, err := trace.Parse(w, "")
+	res, err := trace.ParseBuffer(w)
 	if err != nil {
 		t.Fatalf("failed to parse test trace: %v", err)
 	}
+	t.Logf("%+v", *res)
 	res.Stacks = s // use fake stacks
 
 	params := &traceParams{
@@ -163,12 +165,12 @@ func TestPreemptedMarkAssist(t *testing.T) {
 	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
 
 	marks := 0
-	c.consumeViewerEvent = func(ev *ViewerEvent, _ bool) {
+	c.consumeViewerEvent = func(ev *viewerEvent, _ bool) {
 		if strings.Contains(ev.Name, "MARK ASSIST") {
 			marks++
 		}
 	}
-	if err := generateTrace(params, c); err != nil {
+	if err := generateTrace(res, params, c); err != nil {
 		t.Fatalf("generateTrace failed: %v", err)
 	}
 
@@ -214,7 +216,7 @@ func TestFoo(t *testing.T) {
 	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
 
 	var logBeforeTaskEnd, logAfterTaskEnd bool
-	c.consumeViewerEvent = func(ev *ViewerEvent, _ bool) {
+	c.consumeViewerEvent = func(ev *viewerEvent, _ bool) {
 		if ev.Name == "log before task ends" {
 			logBeforeTaskEnd = true
 		}
@@ -222,7 +224,7 @@ func TestFoo(t *testing.T) {
 			logAfterTaskEnd = true
 		}
 	}
-	if err := generateTrace(params, c); err != nil {
+	if err := generateTrace(res, params, c); err != nil {
 		t.Fatalf("generateTrace failed: %v", err)
 	}
 	if !logBeforeTaskEnd {

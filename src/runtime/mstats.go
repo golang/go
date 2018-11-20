@@ -42,20 +42,6 @@ type mstats struct {
 	heap_released uint64 // bytes released to the os
 	heap_objects  uint64 // total number of allocated objects
 
-	// TODO(austin): heap_released is both useless and inaccurate
-	// in its current form. It's useless because, from the user's
-	// and OS's perspectives, there's no difference between a page
-	// that has not yet been faulted in and a page that has been
-	// released back to the OS. We could fix this by considering
-	// newly mapped spans to be "released". It's inaccurate
-	// because when we split a large span for allocation, we
-	// "unrelease" all pages in the large span and not just the
-	// ones we split off for use. This is trickier to fix because
-	// we currently don't know which pages of a span we've
-	// released. We could fix it by separating "free" and
-	// "released" spans, but then we have to allocate from runs of
-	// free and released spans.
-
 	// Statistics about allocation of low-level fixed-size structures.
 	// Protected by FixAlloc locks.
 	stacks_inuse uint64 // bytes in manually-managed stack spans
@@ -543,7 +529,7 @@ func updatememstats() {
 		memstats.by_size[i].nfree = 0
 	}
 
-	// Flush MCache's to MCentral.
+	// Flush mcache's to mcentral.
 	systemstack(flushallmcaches)
 
 	// Aggregate local stats.

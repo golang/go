@@ -298,20 +298,30 @@ var fmtTests = []struct {
 
 	// width
 	{"%5s", "abc", "  abc"},
+	{"%5s", []byte("abc"), "  abc"},
 	{"%2s", "\u263a", " ☺"},
+	{"%2s", []byte("\u263a"), " ☺"},
 	{"%-5s", "abc", "abc  "},
-	{"%-8q", "abc", `"abc"   `},
+	{"%-5s", []byte("abc"), "abc  "},
 	{"%05s", "abc", "00abc"},
-	{"%08q", "abc", `000"abc"`},
+	{"%05s", []byte("abc"), "00abc"},
 	{"%5s", "abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz"},
+	{"%5s", []byte("abcdefghijklmnopqrstuvwxyz"), "abcdefghijklmnopqrstuvwxyz"},
 	{"%.5s", "abcdefghijklmnopqrstuvwxyz", "abcde"},
+	{"%.5s", []byte("abcdefghijklmnopqrstuvwxyz"), "abcde"},
 	{"%.0s", "日本語日本語", ""},
+	{"%.0s", []byte("日本語日本語"), ""},
 	{"%.5s", "日本語日本語", "日本語日本"},
-	{"%.10s", "日本語日本語", "日本語日本語"},
 	{"%.5s", []byte("日本語日本語"), "日本語日本"},
+	{"%.10s", "日本語日本語", "日本語日本語"},
+	{"%.10s", []byte("日本語日本語"), "日本語日本語"},
+	{"%08q", "abc", `000"abc"`},
+	{"%08q", []byte("abc"), `000"abc"`},
+	{"%-8q", "abc", `"abc"   `},
+	{"%-8q", []byte("abc"), `"abc"   `},
 	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
-	{"%.5x", "abcdefghijklmnopqrstuvwxyz", "6162636465"},
 	{"%.5q", []byte("abcdefghijklmnopqrstuvwxyz"), `"abcde"`},
+	{"%.5x", "abcdefghijklmnopqrstuvwxyz", "6162636465"},
 	{"%.5x", []byte("abcdefghijklmnopqrstuvwxyz"), "6162636465"},
 	{"%.3q", "日本語日本語", `"日本語"`},
 	{"%.3q", []byte("日本語日本語"), `"日本語"`},
@@ -320,6 +330,7 @@ var fmtTests = []struct {
 	{"%.1x", "日本語", "e6"},
 	{"%.1X", []byte("日本語"), "E6"},
 	{"%10.1q", "日本語日本語", `       "日"`},
+	{"%10.1q", []byte("日本語日本語"), `       "日"`},
 	{"%10v", nil, "     <nil>"},
 	{"%-10v", nil, "<nil>     "},
 
@@ -1211,7 +1222,16 @@ func BenchmarkSprintfString(b *testing.B) {
 func BenchmarkSprintfTruncateString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%.3s", "日本語日本語日本語")
+			Sprintf("%.3s", "日本語日本語日本語日本語")
+		}
+	})
+}
+
+func BenchmarkSprintfTruncateBytes(b *testing.B) {
+	var bytes interface{} = []byte("日本語日本語日本語日本語")
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%.3s", bytes)
 		}
 	})
 }

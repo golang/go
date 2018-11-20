@@ -44,28 +44,31 @@ var (
 	moduserenv  = syscall.NewLazyDLL(sysdll.Add("userenv.dll"))
 	modpsapi    = syscall.NewLazyDLL(sysdll.Add("psapi.dll"))
 
-	procGetAdaptersAddresses      = modiphlpapi.NewProc("GetAdaptersAddresses")
-	procGetComputerNameExW        = modkernel32.NewProc("GetComputerNameExW")
-	procMoveFileExW               = modkernel32.NewProc("MoveFileExW")
-	procGetModuleFileNameW        = modkernel32.NewProc("GetModuleFileNameW")
-	procWSASocketW                = modws2_32.NewProc("WSASocketW")
-	procGetACP                    = modkernel32.NewProc("GetACP")
-	procGetConsoleCP              = modkernel32.NewProc("GetConsoleCP")
-	procMultiByteToWideChar       = modkernel32.NewProc("MultiByteToWideChar")
-	procGetCurrentThread          = modkernel32.NewProc("GetCurrentThread")
-	procNetShareAdd               = modnetapi32.NewProc("NetShareAdd")
-	procNetShareDel               = modnetapi32.NewProc("NetShareDel")
-	procGetFinalPathNameByHandleW = modkernel32.NewProc("GetFinalPathNameByHandleW")
-	procImpersonateSelf           = modadvapi32.NewProc("ImpersonateSelf")
-	procRevertToSelf              = modadvapi32.NewProc("RevertToSelf")
-	procOpenThreadToken           = modadvapi32.NewProc("OpenThreadToken")
-	procLookupPrivilegeValueW     = modadvapi32.NewProc("LookupPrivilegeValueW")
-	procAdjustTokenPrivileges     = modadvapi32.NewProc("AdjustTokenPrivileges")
-	procDuplicateTokenEx          = modadvapi32.NewProc("DuplicateTokenEx")
-	procSetTokenInformation       = modadvapi32.NewProc("SetTokenInformation")
-	procGetProfilesDirectoryW     = moduserenv.NewProc("GetProfilesDirectoryW")
-	procNetUserGetLocalGroups     = modnetapi32.NewProc("NetUserGetLocalGroups")
-	procGetProcessMemoryInfo      = modpsapi.NewProc("GetProcessMemoryInfo")
+	procGetAdaptersAddresses         = modiphlpapi.NewProc("GetAdaptersAddresses")
+	procGetComputerNameExW           = modkernel32.NewProc("GetComputerNameExW")
+	procMoveFileExW                  = modkernel32.NewProc("MoveFileExW")
+	procGetModuleFileNameW           = modkernel32.NewProc("GetModuleFileNameW")
+	procWSASocketW                   = modws2_32.NewProc("WSASocketW")
+	procLockFileEx                   = modkernel32.NewProc("LockFileEx")
+	procUnlockFileEx                 = modkernel32.NewProc("UnlockFileEx")
+	procGetACP                       = modkernel32.NewProc("GetACP")
+	procGetConsoleCP                 = modkernel32.NewProc("GetConsoleCP")
+	procMultiByteToWideChar          = modkernel32.NewProc("MultiByteToWideChar")
+	procGetCurrentThread             = modkernel32.NewProc("GetCurrentThread")
+	procNetShareAdd                  = modnetapi32.NewProc("NetShareAdd")
+	procNetShareDel                  = modnetapi32.NewProc("NetShareDel")
+	procGetFinalPathNameByHandleW    = modkernel32.NewProc("GetFinalPathNameByHandleW")
+	procImpersonateSelf              = modadvapi32.NewProc("ImpersonateSelf")
+	procRevertToSelf                 = modadvapi32.NewProc("RevertToSelf")
+	procOpenThreadToken              = modadvapi32.NewProc("OpenThreadToken")
+	procLookupPrivilegeValueW        = modadvapi32.NewProc("LookupPrivilegeValueW")
+	procAdjustTokenPrivileges        = modadvapi32.NewProc("AdjustTokenPrivileges")
+	procDuplicateTokenEx             = modadvapi32.NewProc("DuplicateTokenEx")
+	procSetTokenInformation          = modadvapi32.NewProc("SetTokenInformation")
+	procGetProfilesDirectoryW        = moduserenv.NewProc("GetProfilesDirectoryW")
+	procNetUserGetLocalGroups        = modnetapi32.NewProc("NetUserGetLocalGroups")
+	procGetProcessMemoryInfo         = modpsapi.NewProc("GetProcessMemoryInfo")
+	procGetFileInformationByHandleEx = modkernel32.NewProc("GetFileInformationByHandleEx")
 )
 
 func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
@@ -117,6 +120,30 @@ func WSASocket(af int32, typ int32, protocol int32, protinfo *syscall.WSAProtoco
 	r0, _, e1 := syscall.Syscall6(procWSASocketW.Addr(), 6, uintptr(af), uintptr(typ), uintptr(protocol), uintptr(unsafe.Pointer(protinfo)), uintptr(group), uintptr(flags))
 	handle = syscall.Handle(r0)
 	if handle == syscall.InvalidHandle {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func LockFileEx(file syscall.Handle, flags uint32, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *syscall.Overlapped) (err error) {
+	r1, _, e1 := syscall.Syscall6(procLockFileEx.Addr(), 6, uintptr(file), uintptr(flags), uintptr(reserved), uintptr(bytesLow), uintptr(bytesHigh), uintptr(unsafe.Pointer(overlapped)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func UnlockFileEx(file syscall.Handle, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *syscall.Overlapped) (err error) {
+	r1, _, e1 := syscall.Syscall6(procUnlockFileEx.Addr(), 5, uintptr(file), uintptr(reserved), uintptr(bytesLow), uintptr(bytesHigh), uintptr(unsafe.Pointer(overlapped)), 0)
+	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
 		} else {
@@ -312,6 +339,18 @@ func NetUserGetLocalGroups(serverName *uint16, userName *uint16, level uint32, f
 
 func GetProcessMemoryInfo(handle syscall.Handle, memCounters *PROCESS_MEMORY_COUNTERS, cb uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetProcessMemoryInfo.Addr(), 3, uintptr(handle), uintptr(unsafe.Pointer(memCounters)), uintptr(cb))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetFileInformationByHandleEx(handle syscall.Handle, class uint32, info *byte, bufsize uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetFileInformationByHandleEx.Addr(), 4, uintptr(handle), uintptr(class), uintptr(unsafe.Pointer(info)), uintptr(bufsize), 0, 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)

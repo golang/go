@@ -1134,7 +1134,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 // than starting at the first line break).
 //
 func (p *printer) indentList(list []ast.Expr) bool {
-	// Heuristic: indentList returns true if there are more than one multi-
+	// Heuristic: indentList reports whether there are more than one multi-
 	// line element in the list, or if there is any element that is not
 	// starting on the same line as the previous one ends.
 	if len(list) >= 2 {

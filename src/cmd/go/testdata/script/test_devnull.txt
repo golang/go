@@ -1,0 +1,13 @@
+# go test -c -o NUL
+# should work (see golang.org/issue/28035).
+cd x
+go test -o=$devnull -c
+! exists x.test$exe
+
+-- x/x_test.go --
+package x_test
+import (
+    "testing"
+)
+func TestNUL(t *testing.T) {
+}

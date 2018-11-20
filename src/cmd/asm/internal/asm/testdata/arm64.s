@@ -47,8 +47,8 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	ADD	R2.SXTX<<1, RSP, RSP            // ffe7228b
 	ADD	ZR.SXTX<<1, R2, R3              // 43e43f8b
 	ADDW	R2.SXTW, R10, R12               // 4cc1220b
-	ADD	R18.UXTX, R14, R17              // d161328b
-	ADDSW	R18.UXTW, R14, R17              // d141322b
+	ADD	R19.UXTX, R14, R17              // d161338b
+	ADDSW	R19.UXTW, R14, R17              // d141332b
 	ADDS	R12.SXTX, R3, R1                // 61e02cab
 	SUB	R19.UXTH<<4, R2, R21            // 553033cb
 	SUBW	R1.UXTX<<1, R3, R2              // 6264214b
@@ -144,7 +144,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
 	MOVD	(R3)(R6), R5                    // MOVD	(R3)(R6*1), R5                  // 656866f8
 	MOVD	(R2)(R6), R4                    // MOVD	(R2)(R6*1), R4                  // 446866f8
-	MOVWU	(R19)(R18<<2), R18              // 727a72b8
+	MOVWU	(R19)(R20<<2), R20              // 747a74b8
 	MOVD	(R2)(R6<<3), R4                 // 447866f8
 	MOVD	(R3)(R7.SXTX<<3), R8            // 68f867f8
 	MOVWU	(R5)(R4.UXTW), R10              // aa4864b8
@@ -154,7 +154,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVHU	(R1)(R2<<1), R5                 // 25786278
 	MOVB	(R9)(R3.UXTW), R6               // 2649a338
 	MOVB	(R10)(R6), R15                  // MOVB	(R10)(R6*1), R15                // 4f69a638
-	MOVH	(R5)(R7.SXTX<<1), R18           // b2f8a778
+	MOVH	(R5)(R7.SXTX<<1), R19           // b3f8a778
 	MOVH	(R8)(R4<<1), R10                // 0a79a478
 	MOVW	(R9)(R8.SXTW<<2), R19           // 33d9a8b8
 	MOVW	(R1)(R4.SXTX), R11              // 2be8a4b8
@@ -195,6 +195,11 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	CMPW	$27745, R2                      // 3b8c8d525f001b6b
 	CMNW	$0x3fffffc0, R2                 // CMNW	$1073741760, R2                   // fb5f1a325f001b2b
 	CMPW	$0xffff0, R1                    // CMPW	$1048560, R1                      // fb3f1c323f001b6b
+	CMP	$0xffffffffffa0, R3             // CMP	$281474976710560, R3              // fb0b80921b00e0f27f001beb
+	CMP	$0xf4240, R1                    // CMP	$1000000, R1                      // 1b4888d2fb01a0f23f001beb
+	ADD	$0x186a0, R2, R5                // ADD	$100000, R2, R5                   // 45801a91a5604091
+	SUB	$0xe7791f700, R3, R1            // SUB	$62135596800, R3, R1              // 1be09ed23bf2aef2db01c0f261001bcb
+	CMP     $3343198598084851058, R3        // 5bae8ed2db8daef23badcdf2bbcce5f27f001beb
 	ADD	$0x3fffffffc000, R5             // ADD	$70368744161280, R5               // fb7f72b2a5001b8b
 //	LTYPE1 imsr ',' spreg ','
 //	{
@@ -222,6 +227,13 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	EOR	$(1<<63), R1   // EOR	$-9223372036854775808, R1 // 210041d2
 	EOR	$(1<<63-1), R1 // EOR	$9223372036854775807, R1  // 21f840d2
 
+	ANDW	$0x3ff00000, R2 // ANDW	$1072693248, R2 // 42240c12
+	BICW	$0x3ff00000, R2 // BICW	$1072693248, R2 // 42540212
+	ORRW	$0x3ff00000, R2 // ORRW	$1072693248, R2 // 42240c32
+	ORNW	$0x3ff00000, R2 // ORNW	$1072693248, R2 // 42540232
+	EORW	$0x3ff00000, R2 // EORW	$1072693248, R2 // 42240c52
+	EONW	$0x3ff00000, R2 // EONW	$1072693248, R2 // 42540252
+
 	AND	$0x22220000, R3, R4   // AND $572653568, R3, R4   // 5b44a4d264001b8a
 	ORR	$0x22220000, R3, R4   // ORR $572653568, R3, R4   // 5b44a4d264001baa
 	EOR	$0x22220000, R3, R4   // EOR $572653568, R3, R4   // 5b44a4d264001bca
@@ -233,12 +245,21 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 
 	EOR	$0xe03fffffffffffff, R20, R22       // EOR	$-2287828610704211969, R20, R22 // 96e243d2
 	TSTW	$0x600000006, R1                    // TSTW	$25769803782, R1                // 3f041f72
+	TST	$0x4900000049, R0                   // TST	$313532612681, R0               // 3b0980d23b09c0f21f001bea
+	ORR	$0x170000, R2, R1                   // ORR	$1507328, R2, R1                // fb02a0d241001baa
+	AND	$0xff00ff, R2                       // AND	$16711935, R2                   // fb1f80d2fb1fa0f242001b8a
+	AND	$0xff00ffff, R1                     // AND	$4278255615, R1                 // fbff9fd21be0bff221001b8a
 	ANDS	$0xffff, R2                         // ANDS	$65535, R2                      // 423c40f2
 	AND	$0x7fffffff, R3                     // AND	$2147483647, R3                 // 63784092
 	ANDS	$0x0ffffffff80000000, R2            // ANDS	$-2147483648, R2                // 428061f2
 	AND	$0xfffff, R2                        // AND	$1048575, R2                    // 424c4092
 	ANDW	$0xf00fffff, R1                     // ANDW	$4027580415, R1                 // 215c0412
 	ANDSW	$0xff00ffff, R1                     // ANDSW	$4278255615, R1                 // 215c0872
+	TST	$0x11223344, R2                     // TST	$287454020, R2                  // 9b6886d25b24a2f25f001bea
+	TSTW	$0xa000, R3                         // TSTW	$40960, R3                      // 1b0094527f001b6a
+	BICW	$0xa000, R3                         // BICW	$40960, R3                      // 1b00945263003b0a
+	ORRW	$0x1b000, R2, R3                    // ORRW	$110592, R2, R3                 // 1b0096523b00a07243001b2a
+	TSTW	$0x500000, R1                       // TSTW	$5242880, R1                    // 1b0aa0523f001b6a
 	TSTW	$0xff00ff, R1                       // TSTW	$16711935, R1                   // 3f9c0072
 
 	AND	$8, R0, RSP // 1f007d92
@@ -249,13 +270,20 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	EON	$8, R0, RSP // 1ff87cd2
 
 	MOVD	$0x3fffffffc000, R0           // MOVD	$70368744161280, R0         // e07f72b2
+	MOVW	$1000000, R4                  // 04488852e401a072
 	MOVW	$0xaaaa0000, R1               // MOVW	$2863267840, R1             // 4155b552
 	MOVW	$0xaaaaffff, R1               // MOVW	$2863333375, R1             // a1aaaa12
 	MOVW	$0xaaaa, R1                   // MOVW	$43690, R1                  // 41559552
 	MOVW	$0xffffaaaa, R1               // MOVW	$4294945450, R1             // a1aa8a12
 	MOVW	$0xffff0000, R1               // MOVW	$4294901760, R1             // e1ffbf52
 	MOVD	$0xffff00000000000, R1        // MOVD	$1152903912420802560, R1    // e13f54b2
+	MOVD	$0x1111000000001111, R1       // MOVD	$1229764173248860433, R1    // 212282d22122e2f2
+	MOVD	$0x1111ffff1111ffff, R1       // MOVD	$1230045644216991743, R1    // c1ddbd922122e2f2
+	MOVD	$0x1111222233334444, R1       // MOVD	$1229801703532086340, R1    // 818888d26166a6f24144c4f22122e2f2
+	MOVD	$0xaaaaffff, R1               // MOVD	$2863333375, R1             // e1ff9fd24155b5f2
 	MOVD	$0x11110000, R1               // MOVD	$286326784, R1              // 2122a2d2
+	MOVD	$0xaaaa0000aaaa1111, R1       // MOVD	$-6149102338357718767, R1   // 212282d24155b5f24155f5f2
+	MOVD	$0x1111ffff1111aaaa, R1       // MOVD	$1230045644216969898, R1    // a1aa8a922122a2f22122e2f2
 	MOVD	$0, R1                        // 010080d2
 	MOVD	$-1, R1                       // 01008092
 	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                 // 2004a0d2
