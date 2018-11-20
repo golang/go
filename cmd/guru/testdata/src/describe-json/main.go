@@ -25,5 +25,5 @@ type I interface {
 type C int // @describe desc-type-C "C"
 type D struct{}
 
-func (c C) f()  {}
-func (d *D) f() {}
+func (c C) f()  {} // @describe desc-param-c "\\bc\\b"
+func (d *D) f() {} // @describe desc-param-d "\\bd\\b"

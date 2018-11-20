@@ -340,6 +340,7 @@ func describeValue(qpos *queryPos, path []ast.Node) (*describeValueResult, error
 		qpos:     qpos,
 		expr:     expr,
 		typ:      typ,
+		names:    appendNames(nil, typ),
 		constVal: constVal,
 		obj:      obj,
 		methods:  accessibleMethods(typ, qpos.info.Pkg),
@@ -347,10 +348,34 @@ func describeValue(qpos *queryPos, path []ast.Node) (*describeValueResult, error
 	}, nil
 }
 
+// appendNames returns named types found within the Type by
+// removing map, pointer, channel, slice, and array constructors.
+// It does not descend into structs or interfaces.
+func appendNames(names []*types.Named, typ types.Type) []*types.Named {
+	// elemType specifies type that has some element in it
+	// such as array, slice, chan, pointer
+	type elemType interface {
+		Elem() types.Type
+	}
+
+	switch t := typ.(type) {
+	case *types.Named:
+		names = append(names, t)
+	case *types.Map:
+		names = appendNames(names, t.Key())
+		names = appendNames(names, t.Elem())
+	case elemType:
+		names = appendNames(names, t.Elem())
+	}
+
+	return names
+}
+
 type describeValueResult struct {
 	qpos     *queryPos
 	expr     ast.Expr       // query node
 	typ      types.Type     // type of expression
+	names    []*types.Named // named types within typ
 	constVal constant.Value // value of expression, if constant
 	obj      types.Object   // var/func/const object, if expr was Ident
 	methods  []*types.Selection
@@ -398,6 +423,7 @@ func (r *describeValueResult) PrintPlain(printf printfFunc) {
 
 	printMethods(printf, r.expr, r.methods)
 	printFields(printf, r.expr, r.fields)
+	printNamedTypes(printf, r.expr, r.names)
 }
 
 func (r *describeValueResult) JSON(fset *token.FileSet) []byte {
@@ -409,14 +435,23 @@ func (r *describeValueResult) JSON(fset *token.FileSet) []byte {
 		objpos = fset.Position(r.obj.Pos()).String()
 	}
 
+	typesPos := make([]serial.Definition, len(r.names))
+	for i, t := range r.names {
+		typesPos[i] = serial.Definition{
+			ObjPos: fset.Position(t.Obj().Pos()).String(),
+			Desc:   r.qpos.typeString(t),
+		}
+	}
+
 	return toJSON(&serial.Describe{
 		Desc:   astutil.NodeDescription(r.expr),
 		Pos:    fset.Position(r.expr.Pos()).String(),
 		Detail: "value",
 		Value: &serial.DescribeValue{
-			Type:   r.qpos.typeString(r.typ),
-			Value:  value,
-			ObjPos: objpos,
+			Type:     r.qpos.typeString(r.typ),
+			TypesPos: typesPos,
+			Value:    value,
+			ObjPos:   objpos,
 		},
 	})
 }
@@ -521,6 +556,19 @@ func printFields(printf printfFunc, node ast.Node, fields []describeField) {
 		// in which it was defined, not the query package,
 		printf(f.field, "\t%*s %s", -width, names[i],
 			types.TypeString(f.field.Type(), types.RelativeTo(f.field.Pkg())))
+	}
+}
+
+func printNamedTypes(printf printfFunc, node ast.Node, names []*types.Named) {
+	if len(names) > 0 {
+		printf(node, "Named types:")
+	}
+
+	for _, t := range names {
+		// Print the type relative to the package
+		// in which it was defined, not the query package,
+		printf(t.Obj(), "\ttype %s defined here",
+			types.TypeString(t.Obj().Type(), types.RelativeTo(t.Obj().Pkg())))
 	}
 }
 

@@ -43,7 +43,7 @@
 	"package": "describe",
 	"refs": [
 		{
-			"pos": "testdata/src/describe/main.go:86:8",
+			"pos": "testdata/src/describe/main.go:87:8",
 			"text": "\tvar _ lib.Outer // @describe lib-outer \"Outer\""
 		}
 	]

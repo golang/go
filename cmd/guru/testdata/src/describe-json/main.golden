@@ -68,7 +68,13 @@
 	"detail": "value",
 	"value": {
 		"type": "I",
-		"objpos": "testdata/src/describe-json/main.go:12:6"
+		"objpos": "testdata/src/describe-json/main.go:12:6",
+		"typespos": [
+			{
+				"objpos": "testdata/src/describe-json/main.go:21:6",
+				"desc": "I"
+			}
+		]
 	}
 }
 -------- @describe desc-stmt --------
@@ -90,6 +96,38 @@
 			{
 				"name": "method (C) f()",
 				"pos": "testdata/src/describe-json/main.go:28:12"
+			}
+		]
+	}
+}
+-------- @describe desc-param-c --------
+{
+	"desc": "identifier",
+	"pos": "testdata/src/describe-json/main.go:28:7",
+	"detail": "value",
+	"value": {
+		"type": "C",
+		"objpos": "testdata/src/describe-json/main.go:28:7",
+		"typespos": [
+			{
+				"objpos": "testdata/src/describe-json/main.go:25:6",
+				"desc": "C"
+			}
+		]
+	}
+}
+-------- @describe desc-param-d --------
+{
+	"desc": "identifier",
+	"pos": "testdata/src/describe-json/main.go:29:7",
+	"detail": "value",
+	"value": {
+		"type": "*D",
+		"objpos": "testdata/src/describe-json/main.go:29:7",
+		"typespos": [
+			{
+				"objpos": "testdata/src/describe-json/main.go:26:6",
+				"desc": "D"
 			}
 		]
 	}

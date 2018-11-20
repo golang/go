@@ -10,6 +10,7 @@ definition of package "describe"
 	type  cake   float64
 	var   global *string
 	func  main   func()
+	func  newD   func() D
 	const pi     untyped float = 3.141
 	const pie    cake = 3.141
 
@@ -31,6 +32,8 @@ definition of const pi untyped float of value 3.141
 
 -------- @describe const-def-pie --------
 definition of const pie cake of value 3.141
+Named types:
+	type cake defined here
 
 -------- @describe const-ref-pi --------
 reference to const pi untyped float of value 3.141
@@ -56,13 +59,14 @@ reference to interface method func (I).f()
 defined here
 
 -------- @describe type-D --------
-reference to type D (size 24, align 8)
-defined as struct{Field int; AnotherField string}
+reference to type D (size 32, align 8)
+defined as struct{Field int; AnotherField string; ThirdField C}
 Methods:
 	method (D) f()
 Fields:
 	Field        int
 	AnotherField string
+	ThirdField   C
 
 -------- @describe type-I --------
 reference to type I (size 16, align 8)
@@ -78,6 +82,11 @@ defined here
 reference to interface method func (I).f()
 defined here
 
+-------- @describe slice-of-D --------
+definition of var slice []D
+Named types:
+	type D defined here
+
 -------- @describe ptr-with-nonptr-methods --------
 definition of var dptr *D
 Methods:
@@ -85,6 +94,9 @@ Methods:
 Fields:
 	Field        int
 	AnotherField string
+	ThirdField   C
+Named types:
+	type D defined here
 
 -------- @describe ref-lexical-d --------
 reference to var d D
@@ -94,6 +106,9 @@ Methods:
 Fields:
 	Field        int
 	AnotherField string
+	ThirdField   C
+Named types:
+	type D defined here
 
 -------- @describe ref-anon --------
 reference to var anon func()
@@ -123,24 +138,32 @@ reference to var i I
 defined here
 Methods:
 	method (I) f()
+Named types:
+	type I defined here
 
 -------- @describe var-ref-i-D --------
 reference to var i I
 defined here
 Methods:
 	method (I) f()
+Named types:
+	type I defined here
 
 -------- @describe var-ref-i --------
 reference to var i I
 defined here
 Methods:
 	method (I) f()
+Named types:
+	type I defined here
 
 -------- @describe const-local-pi --------
 definition of const localpi untyped float of value 3.141
 
 -------- @describe const-local-pie --------
 definition of const localpie cake of value 3.141
+Named types:
+	type cake defined here
 
 -------- @describe const-ref-localpi --------
 reference to const localpi untyped float of value 3.141
@@ -198,6 +221,20 @@ Fields:
 	A                 int
 	inner.C           bool
 	inner.recursive.E bool
+
+-------- @describe var-map-of-C-D --------
+definition of var mmm map[C]D
+Named types:
+	type C defined here
+	type D defined here
+
+-------- @describe field-access --------
+reference to field ThirdField C
+defined here
+Methods:
+	method (*C) f()
+Named types:
+	type C defined here
 
 -------- @describe call-unknown --------
 function call of type invalid type
