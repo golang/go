@@ -2717,11 +2717,6 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 
 	anon := 0
 	for _, f := range dt.Field {
-		if f.ByteOffset > off {
-			fld, sizes = c.pad(fld, sizes, f.ByteOffset-off)
-			off = f.ByteOffset
-		}
-
 		name := f.Name
 		ft := f.Type
 
@@ -2770,6 +2765,19 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 			// structs are in system headers that cannot be corrected.
 			continue
 		}
+
+		// Round off up to talign, assumed to be a power of 2.
+		off = (off + talign - 1) &^ (talign - 1)
+
+		if f.ByteOffset > off {
+			fld, sizes = c.pad(fld, sizes, f.ByteOffset-off)
+			off = f.ByteOffset
+		}
+		if f.ByteOffset < off {
+			// Drop a packed field that we can't represent.
+			continue
+		}
+
 		n := len(fld)
 		fld = fld[0 : n+1]
 		if name == "" {
