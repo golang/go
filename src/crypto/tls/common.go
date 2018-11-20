@@ -519,6 +519,11 @@ type Config struct {
 	// This should be used only for testing.
 	InsecureSkipVerify bool
 
+	// DisableTls13MiddleboxCompat controls whether a client or
+        // server sends a dummy CCS to work around broken middleboxes.
+        // May become the default in the future. Go 1.12.
+	DisableTls13MiddleboxCompat bool
+
 	// CipherSuites is a list of supported cipher suites. If CipherSuites
 	// is nil, TLS uses a list of suites supported by the implementation.
 	CipherSuites []uint16
@@ -647,6 +652,7 @@ func (c *Config) Clone() *Config {
 		ClientAuth:                  c.ClientAuth,
 		ClientCAs:                   c.ClientCAs,
 		InsecureSkipVerify:          c.InsecureSkipVerify,
+		DisableTls13MiddleboxCompat: c.DisableTls13MiddleboxCompat,
 		CipherSuites:                c.CipherSuites,
 		PreferServerCipherSuites:    c.PreferServerCipherSuites,
 		SessionTicketsDisabled:      c.SessionTicketsDisabled,

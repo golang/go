@@ -164,7 +164,7 @@ func (hs *clientHandshakeStateTLS13) checkServerHelloOrHRR() error {
 // sendDummyChangeCipherSpec sends a ChangeCipherSpec record for compatibility
 // with middleboxes that didn't implement TLS correctly. See RFC 8446, Appendix D.4.
 func (hs *clientHandshakeStateTLS13) sendDummyChangeCipherSpec() error {
-	if hs.sentDummyCCS {
+	if hs.sentDummyCCS == false {
 		return nil
 	}
 	hs.sentDummyCCS = true

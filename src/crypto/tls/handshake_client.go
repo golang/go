@@ -193,7 +193,11 @@ func (c *Conn) clientHandshake() (err error) {
 			earlySecret: earlySecret,
 			binderKey:   binderKey,
 		}
-
+		if c.config.DisableTls13MiddleboxCompat {
+			hs.sentDummyCCS = false
+		} else {
+			hs.sentDummyCCS = true
+		}
 		// In TLS 1.3, session tickets are delivered after the handshake.
 		return hs.handshake()
 	}
