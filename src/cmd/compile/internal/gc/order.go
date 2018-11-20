@@ -81,7 +81,7 @@ func (o *Order) newTemp(t *types.Type, clear bool) *Node {
 	}
 	if clear {
 		a := nod(OAS, v, nil)
-		a = typecheck(a, Etop)
+		a = typecheck(a, ctxStmt)
 		o.out = append(o.out, a)
 	}
 
@@ -104,7 +104,7 @@ func (o *Order) newTemp(t *types.Type, clear bool) *Node {
 func (o *Order) copyExpr(n *Node, t *types.Type, clear bool) *Node {
 	v := o.newTemp(t, clear)
 	a := nod(OAS, v, n)
-	a = typecheck(a, Etop)
+	a = typecheck(a, ctxStmt)
 	o.out = append(o.out, a)
 	return v
 }
@@ -128,7 +128,7 @@ func (o *Order) cheapExpr(n *Node) *Node {
 		}
 		a := n.sepcopy()
 		a.Left = l
-		return typecheck(a, Erv)
+		return typecheck(a, ctxExpr)
 	}
 
 	return o.copyExpr(n, n.Type, false)
@@ -153,16 +153,16 @@ func (o *Order) safeExpr(n *Node) *Node {
 		}
 		a := n.sepcopy()
 		a.Left = l
-		return typecheck(a, Erv)
+		return typecheck(a, ctxExpr)
 
-	case ODOTPTR, OIND:
+	case ODOTPTR, ODEREF:
 		l := o.cheapExpr(n.Left)
 		if l == n.Left {
 			return n
 		}
 		a := n.sepcopy()
 		a.Left = l
-		return typecheck(a, Erv)
+		return typecheck(a, ctxExpr)
 
 	case OINDEX, OINDEXMAP:
 		var l *Node
@@ -178,7 +178,7 @@ func (o *Order) safeExpr(n *Node) *Node {
 		a := n.sepcopy()
 		a.Left = l
 		a.Right = r
-		return typecheck(a, Erv)
+		return typecheck(a, ctxExpr)
 
 	default:
 		Fatalf("ordersafeexpr %v", n.Op)
@@ -213,7 +213,7 @@ func (o *Order) addrTemp(n *Node) *Node {
 		if out != nil {
 			Fatalf("staticassign of const generated code: %+v", n)
 		}
-		vstat = typecheck(vstat, Erv)
+		vstat = typecheck(vstat, ctxExpr)
 		return vstat
 	}
 	if isaddrokay(n) {
@@ -233,7 +233,7 @@ func (o *Order) mapKeyTemp(t *types.Type, n *Node) *Node {
 	return n
 }
 
-// mapKeyReplaceStrConv replaces OARRAYBYTESTR by OARRAYBYTESTRTMP
+// mapKeyReplaceStrConv replaces OBYTES2STR by OBYTES2STRTMP
 // in n to avoid string allocations for keys in map lookups.
 // Returns a bool that signals if a modification was made.
 //
@@ -250,8 +250,8 @@ func (o *Order) mapKeyTemp(t *types.Type, n *Node) *Node {
 func mapKeyReplaceStrConv(n *Node) bool {
 	var replaced bool
 	switch n.Op {
-	case OARRAYBYTESTR:
-		n.Op = OARRAYBYTESTRTMP
+	case OBYTES2STR:
+		n.Op = OBYTES2STRTMP
 		replaced = true
 	case OSTRUCTLIT:
 		for _, elem := range n.List.Slice() {
@@ -300,11 +300,11 @@ func (o *Order) cleanTempNoPop(mark ordermarker) []*Node {
 			n.Name.SetKeepalive(false)
 			n.SetAddrtaken(true) // ensure SSA keeps the n variable
 			live := nod(OVARLIVE, n, nil)
-			live = typecheck(live, Etop)
+			live = typecheck(live, ctxStmt)
 			out = append(out, live)
 		}
 		kill := nod(OVARKILL, n, nil)
-		kill = typecheck(kill, Etop)
+		kill = typecheck(kill, ctxStmt)
 		out = append(out, kill)
 	}
 	return out
@@ -418,7 +418,7 @@ func (o *Order) copyRet(n *Node) []*Node {
 	as := nod(OAS2, nil, nil)
 	as.List.Set(l1)
 	as.Rlist.Set1(n)
-	as = typecheck(as, Etop)
+	as = typecheck(as, ctxStmt)
 	o.stmt(as)
 
 	return l2
@@ -463,7 +463,7 @@ func (o *Order) call(n *Node) {
 
 	for i, t := range n.Left.Type.Params().FieldSlice() {
 		// Check for "unsafe-uintptr" tag provided by escape analysis.
-		if t.Isddd() && !n.Isddd() {
+		if t.IsDDD() && !n.IsDDD() {
 			if t.Note == uintptrEscapesTag {
 				for ; i < n.List.Len(); i++ {
 					keepAlive(i)
@@ -528,7 +528,7 @@ func (o *Order) mapAssign(n *Node) {
 				t := o.newTemp(m.Type, false)
 				n.List.SetIndex(i, t)
 				a := nod(OAS, m, t)
-				a = typecheck(a, Etop)
+				a = typecheck(a, ctxStmt)
 				post = append(post, a)
 			}
 		}
@@ -602,7 +602,7 @@ func (o *Order) stmt(n *Node) {
 			}
 			l = o.copyExpr(l, n.Left.Type, false)
 			n.Right = nod(n.SubOp(), l, n.Right)
-			n.Right = typecheck(n.Right, Erv)
+			n.Right = typecheck(n.Right, ctxExpr)
 			n.Right = o.expr(n.Right, nil)
 
 			n.Op = OAS
@@ -657,10 +657,10 @@ func (o *Order) stmt(n *Node) {
 		tmp2 := o.newTemp(types.Types[TBOOL], false)
 		o.out = append(o.out, n)
 		r := nod(OAS, n.List.First(), tmp1)
-		r = typecheck(r, Etop)
+		r = typecheck(r, ctxStmt)
 		o.mapAssign(r)
 		r = okas(n.List.Second(), tmp2)
-		r = typecheck(r, Etop)
+		r = typecheck(r, ctxStmt)
 		o.mapAssign(r)
 		n.List.Set2(tmp1, tmp2)
 		o.cleanTemp(t)
@@ -689,7 +689,7 @@ func (o *Order) stmt(n *Node) {
 		o.cleanTemp(t)
 
 	// Special: order arguments to inner call but not call itself.
-	case ODEFER, OPROC:
+	case ODEFER, OGO:
 		t := o.markTemp()
 		o.call(n.Left)
 		o.out = append(o.out, n)
@@ -751,8 +751,8 @@ func (o *Order) stmt(n *Node) {
 
 		// Mark []byte(str) range expression to reuse string backing storage.
 		// It is safe because the storage cannot be mutated.
-		if n.Right.Op == OSTRARRAYBYTE {
-			n.Right.Op = OSTRARRAYBYTETMP
+		if n.Right.Op == OSTR2BYTES {
+			n.Right.Op = OSTR2BYTESTMP
 		}
 
 		t := o.markTemp()
@@ -779,7 +779,7 @@ func (o *Order) stmt(n *Node) {
 			if r.Type.IsString() && r.Type != types.Types[TSTRING] {
 				r = nod(OCONV, r, nil)
 				r.Type = types.Types[TSTRING]
-				r = typecheck(r, Erv)
+				r = typecheck(r, ctxExpr)
 			}
 
 			n.Right = o.copyExpr(r, r.Type, false)
@@ -897,13 +897,13 @@ func (o *Order) stmt(n *Node) {
 
 					if r.Colas() {
 						tmp2 := nod(ODCL, tmp1, nil)
-						tmp2 = typecheck(tmp2, Etop)
+						tmp2 = typecheck(tmp2, ctxStmt)
 						n2.Ninit.Append(tmp2)
 					}
 
 					r.Left = o.newTemp(r.Right.Left.Type.Elem(), types.Haspointers(r.Right.Left.Type.Elem()))
 					tmp2 := nod(OAS, tmp1, r.Left)
-					tmp2 = typecheck(tmp2, Etop)
+					tmp2 = typecheck(tmp2, ctxStmt)
 					n2.Ninit.Append(tmp2)
 				}
 
@@ -914,13 +914,13 @@ func (o *Order) stmt(n *Node) {
 					tmp1 := r.List.First()
 					if r.Colas() {
 						tmp2 := nod(ODCL, tmp1, nil)
-						tmp2 = typecheck(tmp2, Etop)
+						tmp2 = typecheck(tmp2, ctxStmt)
 						n2.Ninit.Append(tmp2)
 					}
 
 					r.List.Set1(o.newTemp(types.Types[TBOOL], false))
 					tmp2 := okas(tmp1, r.List.First())
-					tmp2 = typecheck(tmp2, Etop)
+					tmp2 = typecheck(tmp2, ctxStmt)
 					n2.Ninit.Append(tmp2)
 				}
 				orderBlock(&n2.Ninit, o.free)
@@ -1064,14 +1064,14 @@ func (o *Order) expr(n, lhs *Node) *Node {
 
 		haslit := false
 		for _, n1 := range n.List.Slice() {
-			hasbyte = hasbyte || n1.Op == OARRAYBYTESTR
+			hasbyte = hasbyte || n1.Op == OBYTES2STR
 			haslit = haslit || n1.Op == OLITERAL && len(n1.Val().U.(string)) != 0
 		}
 
 		if haslit && hasbyte {
 			for _, n2 := range n.List.Slice() {
-				if n2.Op == OARRAYBYTESTR {
-					n2.Op = OARRAYBYTESTRTMP
+				if n2.Op == OBYTES2STR {
+					n2.Op = OBYTES2STRTMP
 				}
 			}
 		}
@@ -1153,9 +1153,9 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		ONEW,
 		OREAL,
 		ORECOVER,
-		OSTRARRAYBYTE,
-		OSTRARRAYBYTETMP,
-		OSTRARRAYRUNE:
+		OSTR2BYTES,
+		OSTR2BYTESTMP,
+		OSTR2RUNES:
 
 		if isRuneCount(n) {
 			// len([]rune(s)) is rewritten to runtime.countrunes(s) later.
@@ -1248,11 +1248,11 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			// Mark string(byteSlice) arguments to reuse byteSlice backing
 			// buffer during conversion. String comparison does not
 			// memorize the strings for later use, so it is safe.
-			if n.Left.Op == OARRAYBYTESTR {
-				n.Left.Op = OARRAYBYTESTRTMP
+			if n.Left.Op == OBYTES2STR {
+				n.Left.Op = OBYTES2STRTMP
 			}
-			if n.Right.Op == OARRAYBYTESTR {
-				n.Right.Op = OARRAYBYTESTRTMP
+			if n.Right.Op == OBYTES2STR {
+				n.Right.Op = OBYTES2STRTMP
 			}
 
 		case t.IsStruct() || t.IsArray():
@@ -1301,7 +1301,7 @@ func (o *Order) as2(n *Node) {
 	as := nod(OAS2, nil, nil)
 	as.List.Set(left)
 	as.Rlist.Set(tmplist)
-	as = typecheck(as, Etop)
+	as = typecheck(as, ctxStmt)
 	o.stmt(as)
 }
 
@@ -1322,13 +1322,13 @@ func (o *Order) okAs2(n *Node) {
 
 	if tmp1 != nil {
 		r := nod(OAS, n.List.First(), tmp1)
-		r = typecheck(r, Etop)
+		r = typecheck(r, ctxStmt)
 		o.mapAssign(r)
 		n.List.SetFirst(tmp1)
 	}
 	if tmp2 != nil {
 		r := okas(n.List.Second(), tmp2)
-		r = typecheck(r, Etop)
+		r = typecheck(r, ctxStmt)
 		o.mapAssign(r)
 		n.List.SetSecond(tmp2)
 	}

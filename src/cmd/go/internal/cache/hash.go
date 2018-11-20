@@ -123,7 +123,7 @@ var hashFileCache struct {
 	m map[string][HashSize]byte
 }
 
-// HashFile returns the hash of the named file.
+// FileHash returns the hash of the named file.
 // It caches repeated lookups for a given file,
 // and the cache entry for a file can be initialized
 // using SetFileHash.

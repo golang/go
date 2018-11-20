@@ -25,6 +25,17 @@ func expandpkg(t0 string, pkg string) string {
 	return strings.Replace(t0, `"".`, pkg+".", -1)
 }
 
+func resolveABIAlias(s *sym.Symbol) *sym.Symbol {
+	if s.Type != sym.SABIALIAS {
+		return s
+	}
+	target := s.R[0].Sym
+	if target.Type == sym.SABIALIAS {
+		panic(fmt.Sprintf("ABI alias %s references another ABI alias %s", s, target))
+	}
+	return target
+}
+
 // TODO:
 //	generate debugging section in binary.
 //	once the dust settles, try to move some code to
@@ -191,6 +202,11 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			}
 			local = expandpkg(local, pkg)
 
+			// The compiler arranges for an ABI0 wrapper
+			// to be available for all cgo-exported
+			// functions. Link.loadlib will resolve any
+			// ABI aliases we find here (since we may not
+			// yet know it's an alias).
 			s := ctxt.Syms.Lookup(local, 0)
 
 			switch ctxt.BuildMode {

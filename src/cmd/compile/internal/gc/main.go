@@ -19,11 +19,13 @@ import (
 	"cmd/internal/sys"
 	"flag"
 	"fmt"
+	"go/build"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -211,6 +213,7 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")
 	objabi.Flagcount("j", "debug runtime-initialized variables", &Debug['j'])
 	objabi.Flagcount("l", "disable inlining", &Debug['l'])
+	flag.StringVar(&flag_lang, "lang", "", "release to compile for")
 	flag.StringVar(&linkobj, "linkobj", "", "write linker-specific object to `file`")
 	objabi.Flagcount("live", "debug liveness analysis", &debuglive)
 	objabi.Flagcount("m", "print optimization decisions", &Debug['m'])
@@ -226,6 +229,9 @@ func Main(archInit func(*Arch)) {
 		flag.BoolVar(&flag_race, "race", false, "enable race detector")
 	}
 	objabi.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
+	if enableTrace {
+		flag.BoolVar(&trace, "t", false, "trace type-checking")
+	}
 	flag.StringVar(&pathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
 	flag.BoolVar(&Debug_vlog, "v", false, "increase debug verbosity")
 	objabi.Flagcount("w", "debug type checking", &Debug['w'])
@@ -241,6 +247,9 @@ func Main(archInit func(*Arch)) {
 	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
 	var goversion string
 	flag.StringVar(&goversion, "goversion", "", "required version of the runtime")
+	var symabisPath string
+	flag.StringVar(&symabisPath, "symabis", "", "read symbol ABIs from `file`")
+	flag.BoolVar(&allABIs, "allabis", false, "generate ABI wrappers for all symbols (for bootstrap)")
 	flag.StringVar(&traceprofile, "traceprofile", "", "write an execution trace to `file`")
 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
@@ -275,6 +284,12 @@ func Main(archInit func(*Arch)) {
 	if goversion != "" && goversion != runtime.Version() {
 		fmt.Printf("compile: version %q does not match go tool version %q\n", runtime.Version(), goversion)
 		Exit(2)
+	}
+
+	checkLang()
+
+	if symabisPath != "" {
+		readSymABIs(symabisPath, myimportpath)
 	}
 
 	thearch.LinkArch.Init(Ctxt)
@@ -483,14 +498,18 @@ func Main(archInit func(*Arch)) {
 	// Phase 1: const, type, and names and types of funcs.
 	//   This will gather all the information about types
 	//   and methods but doesn't depend on any of it.
+	//
+	//   We also defer type alias declarations until phase 2
+	//   to avoid cycles like #18640.
+	//   TODO(gri) Remove this again once we have a fix for #25838.
 	defercheckwidth()
 
 	// Don't use range--typecheck can add closures to xtop.
 	timings.Start("fe", "typecheck", "top1")
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
-		if op := n.Op; op != ODCL && op != OAS && op != OAS2 {
-			xtop[i] = typecheck(n, Etop)
+		if op := n.Op; op != ODCL && op != OAS && op != OAS2 && (op != ODCLTYPE || !n.Left.Name.Param.Alias) {
+			xtop[i] = typecheck(n, ctxStmt)
 		}
 	}
 
@@ -501,8 +520,8 @@ func Main(archInit func(*Arch)) {
 	timings.Start("fe", "typecheck", "top2")
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
-		if op := n.Op; op == ODCL || op == OAS || op == OAS2 {
-			xtop[i] = typecheck(n, Etop)
+		if op := n.Op; op == ODCL || op == OAS || op == OAS2 || op == ODCLTYPE && n.Left.Name.Param.Alias {
+			xtop[i] = typecheck(n, ctxStmt)
 		}
 	}
 	resumecheckwidth()
@@ -517,7 +536,7 @@ func Main(archInit func(*Arch)) {
 			Curfn = n
 			decldepth = 1
 			saveerrors()
-			typecheckslice(Curfn.Nbody.Slice(), Etop)
+			typecheckslice(Curfn.Nbody.Slice(), ctxStmt)
 			checkreturn(Curfn)
 			if nerrors != 0 {
 				Curfn.Nbody.Set(nil) // type errors; do not compile
@@ -537,6 +556,11 @@ func Main(archInit func(*Arch)) {
 	if nsavederrors+nerrors != 0 {
 		errorexit()
 	}
+
+	// The "init" function is the only user-spellable symbol that
+	// we construct later. Mark it as a function now before
+	// anything can ask for its Linksym.
+	lookup("init").SetFunc(true)
 
 	// Phase 4: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
@@ -669,7 +693,7 @@ func Main(archInit func(*Arch)) {
 	timings.Start("be", "externaldcls")
 	for i, n := range externdcl {
 		if n.Op == ONAME {
-			externdcl[i] = typecheck(externdcl[i], Erv)
+			externdcl[i] = typecheck(externdcl[i], ctxExpr)
 		}
 	}
 	// Check the map keys again, since we typechecked the external
@@ -794,6 +818,81 @@ func readImportCfg(file string) {
 				log.Fatalf(`%s:%d: invalid packagefile: syntax is "packagefile path=filename"`, file, lineNum)
 			}
 			packageFile[before] = after
+		}
+	}
+}
+
+// symabiDefs and symabiRefs record the defined and referenced ABIs of
+// symbols required by non-Go code. These are keyed by link symbol
+// name, where the local package prefix is always `"".`
+var symabiDefs, symabiRefs map[string]obj.ABI
+
+// allABIs indicates that all symbol definitions should have ABI
+// wrappers. This is used during toolchain bootstrapping to avoid
+// having to find cross-package references.
+var allABIs bool
+
+// readSymABIs reads a symabis file that specifies definitions and
+// references of text symbols by ABI.
+//
+// The symabis format is a set of lines, where each line is a sequence
+// of whitespace-separated fields. The first field is a verb and is
+// either "def" for defining a symbol ABI or "ref" for referencing a
+// symbol using an ABI. For both "def" and "ref", the second field is
+// the symbol name and the third field is the ABI name, as one of the
+// named cmd/internal/obj.ABI constants.
+func readSymABIs(file, myimportpath string) {
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		log.Fatalf("-symabis: %v", err)
+	}
+
+	symabiDefs = make(map[string]obj.ABI)
+	symabiRefs = make(map[string]obj.ABI)
+
+	localPrefix := ""
+	if myimportpath != "" {
+		// Symbols in this package may be written either as
+		// "".X or with the package's import path already in
+		// the symbol.
+		localPrefix = objabi.PathToPrefix(myimportpath) + "."
+	}
+
+	for lineNum, line := range strings.Split(string(data), "\n") {
+		lineNum++ // 1-based
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		switch parts[0] {
+		case "def", "ref":
+			// Parse line.
+			if len(parts) != 3 {
+				log.Fatalf(`%s:%d: invalid symabi: syntax is "%s sym abi"`, file, lineNum, parts[0])
+			}
+			sym, abi := parts[1], parts[2]
+			if abi != "ABI0" { // Only supported external ABI right now
+				log.Fatalf(`%s:%d: invalid symabi: unknown abi "%s"`, file, lineNum, abi)
+			}
+
+			// If the symbol is already prefixed with
+			// myimportpath, rewrite it to start with ""
+			// so it matches the compiler's internal
+			// symbol names.
+			if localPrefix != "" && strings.HasPrefix(sym, localPrefix) {
+				sym = `"".` + sym[len(localPrefix):]
+			}
+
+			// Record for later.
+			if parts[0] == "def" {
+				symabiDefs[sym] = obj.ABI0
+			} else {
+				symabiRefs[sym] = obj.ABI0
+			}
+		default:
+			log.Fatalf(`%s:%d: invalid symabi type "%s"`, file, lineNum, parts[0])
 		}
 	}
 }
@@ -1303,4 +1402,76 @@ func recordFlags(flags ...string) {
 	s.Set(obj.AttrDuplicateOK, true)
 	Ctxt.Data = append(Ctxt.Data, s)
 	s.P = cmd.Bytes()[1:]
+}
+
+// flag_lang is the language version we are compiling for, set by the -lang flag.
+var flag_lang string
+
+// currentLang returns the current language version.
+func currentLang() string {
+	tags := build.Default.ReleaseTags
+	return tags[len(tags)-1]
+}
+
+// goVersionRE is a regular expression that matches the valid
+// arguments to the -lang flag.
+var goVersionRE = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+
+// A lang is a language version broken into major and minor numbers.
+type lang struct {
+	major, minor int
+}
+
+// langWant is the desired language version set by the -lang flag.
+// If the -lang flag is not set, this is the zero value, meaning that
+// any language version is supported.
+var langWant lang
+
+// langSupported reports whether language version major.minor is supported.
+func langSupported(major, minor int) bool {
+	if langWant.major == 0 && langWant.minor == 0 {
+		return true
+	}
+	return langWant.major > major || (langWant.major == major && langWant.minor >= minor)
+}
+
+// checkLang verifies that the -lang flag holds a valid value, and
+// exits if not. It initializes data used by langSupported.
+func checkLang() {
+	if flag_lang == "" {
+		return
+	}
+
+	var err error
+	langWant, err = parseLang(flag_lang)
+	if err != nil {
+		log.Fatalf("invalid value %q for -lang: %v", flag_lang, err)
+	}
+
+	if def := currentLang(); flag_lang != def {
+		defVers, err := parseLang(def)
+		if err != nil {
+			log.Fatalf("internal error parsing default lang %q: %v", def, err)
+		}
+		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.minor > defVers.minor) {
+			log.Fatalf("invalid value %q for -lang: max known version is %q", flag_lang, def)
+		}
+	}
+}
+
+// parseLang parses a -lang option into a langVer.
+func parseLang(s string) (lang, error) {
+	matches := goVersionRE.FindStringSubmatch(s)
+	if matches == nil {
+		return lang{}, fmt.Errorf(`should be something like "go1.12"`)
+	}
+	major, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return lang{}, err
+	}
+	minor, err := strconv.Atoi(matches[2])
+	if err != nil {
+		return lang{}, err
+	}
+	return lang{major: major, minor: minor}, nil
 }

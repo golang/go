@@ -11,13 +11,14 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	_ "unsafe" // for go:linkname
 )
 
 // runtimeNano returns the current value of the runtime clock in nanoseconds.
+//go:linkname runtimeNano runtime.nanotime
 func runtimeNano() int64
 
 func runtime_pollServerInit()
-func runtime_pollServerDescriptor() uintptr
 func runtime_pollOpen(fd uintptr) (uintptr, int)
 func runtime_pollClose(ctx uintptr)
 func runtime_pollWait(ctx uintptr, mode int) int
@@ -25,6 +26,7 @@ func runtime_pollWaitCanceled(ctx uintptr, mode int) int
 func runtime_pollReset(ctx uintptr, mode int) int
 func runtime_pollSetDeadline(ctx uintptr, d int64, mode int)
 func runtime_pollUnblock(ctx uintptr)
+func runtime_isPollServerDescriptor(fd uintptr) bool
 
 type pollDesc struct {
 	runtimeCtx uintptr
@@ -134,15 +136,12 @@ func (fd *FD) SetWriteDeadline(t time.Time) error {
 }
 
 func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
-	diff := int64(time.Until(t))
-	d := runtimeNano() + diff
-	if d <= 0 && diff > 0 {
-		// If the user has a deadline in the future, but the delay calculation
-		// overflows, then set the deadline to the maximum possible value.
-		d = 1<<63 - 1
-	}
-	if t.IsZero() {
-		d = 0
+	var d int64
+	if !t.IsZero() {
+		d = int64(time.Until(t))
+		if d == 0 {
+			d = -1 // don't confuse deadline right now with no deadline
+		}
 	}
 	if err := fd.incref(); err != nil {
 		return err
@@ -155,8 +154,8 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 	return nil
 }
 
-// PollDescriptor returns the descriptor being used by the poller,
-// or ^uintptr(0) if there isn't one. This is only used for testing.
-func PollDescriptor() uintptr {
-	return runtime_pollServerDescriptor()
+// IsPollDescriptor reports whether fd is the descriptor being used by the poller.
+// This is only used for testing.
+func IsPollDescriptor(fd uintptr) bool {
+	return runtime_isPollServerDescriptor(fd)
 }

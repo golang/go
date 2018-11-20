@@ -625,3 +625,237 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
 	MOVL	BP, SP
 	POPL	BP
 	RET
+
+// syscall calls a function in libc on behalf of the syscall package.
+// syscall takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$24, SP
+	MOVL	32(SP), CX
+	MOVL	(0*4)(CX), AX // fn
+	MOVL	(1*4)(CX), DX // a1
+	MOVL	DX, 0(SP)
+	MOVL	(2*4)(CX), DX // a2
+	MOVL	DX, 4(SP)
+	MOVL	(3*4)(CX), DX // a3
+	MOVL	DX, 8(SP)
+
+	CALL	AX
+
+	MOVL	32(SP), CX
+	MOVL	AX, (4*4)(CX) // r1
+	MOVL	DX, (5*4)(CX) // r2
+
+	// Standard libc functions return -1 on error
+	// and set errno.
+	CMPL	AX, $-1
+	JNE	ok
+
+	// Get error code from libc.
+	CALL	libc_error(SB)
+	MOVL	(AX), AX
+	MOVL	32(SP), CX
+	MOVL	AX, (6*4)(CX) // err
+
+ok:
+	XORL	AX, AX        // no error (it's ignored anyway)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+// syscall6 calls a function in libc on behalf of the syscall package.
+// syscall6 takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall6 must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall6(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$24, SP
+	MOVL	32(SP), CX
+	MOVL	(0*4)(CX), AX // fn
+	MOVL	(1*4)(CX), DX // a1
+	MOVL	DX, 0(SP)
+	MOVL	(2*4)(CX), DX // a2
+	MOVL	DX, 4(SP)
+	MOVL	(3*4)(CX), DX // a3
+	MOVL	DX, 8(SP)
+	MOVL	(4*4)(CX), DX // a4
+	MOVL	DX, 12(SP)
+	MOVL	(5*4)(CX), DX // a5
+	MOVL	DX, 16(SP)
+	MOVL	(6*4)(CX), DX // a6
+	MOVL	DX, 20(SP)
+
+	CALL	AX
+
+	MOVL	32(SP), CX
+	MOVL	AX, (7*4)(CX) // r1
+	MOVL	DX, (8*4)(CX) // r2
+
+	// Standard libc functions return -1 on error
+	// and set errno.
+	CMPL	AX, $-1
+	JNE	ok
+
+	// Get error code from libc.
+	CALL	libc_error(SB)
+	MOVL	(AX), AX
+	MOVL	32(SP), CX
+	MOVL	AX, (9*4)(CX) // err
+
+ok:
+	XORL	AX, AX        // no error (it's ignored anyway)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+// syscall6X calls a function in libc on behalf of the syscall package.
+// syscall6X takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall6X must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall6X(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$24, SP
+	MOVL	32(SP), CX
+	MOVL	(0*4)(CX), AX // fn
+	MOVL	(1*4)(CX), DX // a1
+	MOVL	DX, 0(SP)
+	MOVL	(2*4)(CX), DX // a2
+	MOVL	DX, 4(SP)
+	MOVL	(3*4)(CX), DX // a3
+	MOVL	DX, 8(SP)
+	MOVL	(4*4)(CX), DX // a4
+	MOVL	DX, 12(SP)
+	MOVL	(5*4)(CX), DX // a5
+	MOVL	DX, 16(SP)
+	MOVL	(6*4)(CX), DX // a6
+	MOVL	DX, 20(SP)
+
+	CALL	AX
+
+	MOVL	32(SP), CX
+	MOVL	AX, (7*4)(CX) // r1
+	MOVL	DX, (8*4)(CX) // r2
+
+	// Standard libc functions return -1 on error
+	// and set errno.
+	CMPL	AX, $-1
+	JNE	ok
+	CMPL	DX, $-1
+	JNE	ok
+
+	// Get error code from libc.
+	CALL	libc_error(SB)
+	MOVL	(AX), AX
+	MOVL	32(SP), CX
+	MOVL	AX, (9*4)(CX) // err
+
+ok:
+	XORL	AX, AX        // no error (it's ignored anyway)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+// syscall9 calls a function in libc on behalf of the syscall package.
+// syscall9 takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	a7    uintptr
+//	a8    uintptr
+//	a9    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall9 must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall9(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$40, SP
+	MOVL	48(SP), CX
+	MOVL	(0*4)(CX), AX // fn
+	MOVL	(1*4)(CX), DX // a1
+	MOVL	DX, 0(SP)
+	MOVL	(2*4)(CX), DX // a2
+	MOVL	DX, 4(SP)
+	MOVL	(3*4)(CX), DX // a3
+	MOVL	DX, 8(SP)
+	MOVL	(4*4)(CX), DX // a4
+	MOVL	DX, 12(SP)
+	MOVL	(5*4)(CX), DX // a5
+	MOVL	DX, 16(SP)
+	MOVL	(6*4)(CX), DX // a6
+	MOVL	DX, 20(SP)
+	MOVL	(7*4)(CX), DX // a7
+	MOVL	DX, 24(SP)
+	MOVL	(8*4)(CX), DX // a8
+	MOVL	DX, 28(SP)
+	MOVL	(9*4)(CX), DX // a9
+	MOVL	DX, 32(SP)
+
+	CALL	AX
+
+	MOVL	48(SP), CX
+	MOVL	AX, (10*4)(CX) // r1
+	MOVL	DX, (11*4)(CX) // r2
+
+	// Standard libc functions return -1 on error
+	// and set errno.
+	CMPL	AX, $-1
+	JNE	ok
+
+	// Get error code from libc.
+	CALL	libc_error(SB)
+	MOVL	(AX), AX
+	MOVL	48(SP), CX
+	MOVL	AX, (12*4)(CX) // err
+
+ok:
+	XORL	AX, AX        // no error (it's ignored anyway)
+	MOVL	BP, SP
+	POPL	BP
+	RET

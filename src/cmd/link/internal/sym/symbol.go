@@ -5,6 +5,7 @@
 package sym
 
 import (
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"debug/elf"
@@ -51,11 +52,31 @@ type AuxSymbol struct {
 	elftype elf.SymType
 }
 
+const (
+	SymVerABI0        = 0
+	SymVerABIInternal = 1
+	SymVerStatic      = 10 // Minimum version used by static (file-local) syms
+)
+
+func ABIToVersion(abi obj.ABI) int {
+	switch abi {
+	case obj.ABI0:
+		return SymVerABI0
+	case obj.ABIInternal:
+		return SymVerABIInternal
+	}
+	return -1
+}
+
 func (s *Symbol) String() string {
 	if s.Version == 0 {
 		return s.Name
 	}
 	return fmt.Sprintf("%s<%d>", s.Name, s.Version)
+}
+
+func (s *Symbol) IsFileLocal() bool {
+	return s.Version >= SymVerStatic
 }
 
 func (s *Symbol) ElfsymForReloc() int32 {
@@ -478,7 +499,6 @@ type FuncInfo struct {
 	Pcline      Pcdata
 	Pcinline    Pcdata
 	Pcdata      []Pcdata
-	IsStmtSym   *Symbol
 	Funcdata    []*Symbol
 	Funcdataoff []int64
 	File        []*Symbol

@@ -11,6 +11,7 @@ package time
 
 import (
 	"errors"
+	"runtime"
 	"syscall"
 )
 
@@ -172,6 +173,14 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 			return nil, badData
 		}
 		zone[i].name = byteString(abbrev[b:])
+		if runtime.GOOS == "aix" && len(name) > 8 && (name[:8] == "Etc/GMT+" || name[:8] == "Etc/GMT-") {
+			// There is a bug with AIX 7.2 TL 0 with files in Etc,
+			// GMT+1 will return GMT-1 instead of GMT+1 or -01.
+			if name != "Etc/GMT+0" {
+				// GMT+0 is OK
+				zone[i].name = name[4:]
+			}
+		}
 	}
 
 	// Now the transition time info.

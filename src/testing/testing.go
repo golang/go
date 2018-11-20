@@ -17,13 +17,13 @@
 // package builds but will be included when the ``go test'' command is run.
 // For more detail, run ``go help test'' and ``go help testflag''.
 //
-// Tests and benchmarks may be skipped if not applicable with a call to
-// the Skip method of *T and *B:
-//     func TestTimeConsuming(t *testing.T) {
-//         if testing.Short() {
-//             t.Skip("skipping test in short mode.")
+// A simple test function looks like this:
+//
+//     func TestAbs(t *testing.T) {
+//         got := Abs(-1)
+//         if got != 1 {
+//             t.Errorf("Abs(-1) = %d; want 1", got)
 //         }
-//         ...
 //     }
 //
 // Benchmarks
@@ -131,6 +131,18 @@
 // The entire test file is presented as the example when it contains a single
 // example function, at least one other function, type, variable, or constant
 // declaration, and no test or benchmark functions.
+//
+// Skipping
+//
+// Tests or benchmarks may be skipped at run time with a call to
+// the Skip method of *T or *B:
+//
+//     func TestTimeConsuming(t *testing.T) {
+//         if testing.Short() {
+//             t.Skip("skipping test in short mode.")
+//         }
+//         ...
+//     }
 //
 // Subtests and Sub-benchmarks
 //

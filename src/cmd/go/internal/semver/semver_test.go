@@ -44,6 +44,7 @@ var tests = []struct {
 	{"v1.2.3", "v1.2.3"},
 	{"v1.2.3+meta", "v1.2.3"},
 	{"v1.2.3+meta-pre", "v1.2.3"},
+	{"v1.2.3+meta-pre.sha.256a", "v1.2.3"},
 }
 
 func TestIsValid(t *testing.T) {

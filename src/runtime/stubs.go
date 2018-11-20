@@ -154,6 +154,8 @@ func breakpoint()
 // one call that copies results back, in cgocallbackg1, and it does NOT pass a
 // frame type, meaning there are no write barriers invoked. See that call
 // site for justification.
+//
+// Package reflect accesses this symbol through a linkname.
 func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
 
 func procyield(cycles uint32)

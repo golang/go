@@ -151,10 +151,10 @@ func main() {
 				flag = flag[:i]
 			}
 			switch flag {
-			case "-sync":
-				fmt.Fprintf(os.Stderr, "go: go mod -sync is now go mod tidy\n")
+			case "-sync", "-fix":
+				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod tidy\n", flag)
 				os.Exit(2)
-			case "-init", "-fix", "-graph", "-vendor", "-verify":
+			case "-init", "-graph", "-vendor", "-verify":
 				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod %s\n", flag, flag[1:])
 				os.Exit(2)
 			case "-fmt", "-json", "-module", "-require", "-droprequire", "-replace", "-dropreplace", "-exclude", "-dropexclude":
@@ -235,17 +235,6 @@ func init() {
 }
 
 func mainUsage() {
-	// special case "go test -h"
-	if len(os.Args) > 1 && os.Args[1] == "test" {
-		test.Usage()
-	}
-	// Since vet shares code with test in cmdflag, it doesn't show its
-	// command usage properly. For now, special case it too.
-	// TODO(mvdan): fix the cmdflag package instead; see
-	// golang.org/issue/26999
-	if len(os.Args) > 1 && os.Args[1] == "vet" {
-		vet.CmdVet.Usage()
-	}
 	help.PrintUsage(os.Stderr, base.Go)
 	os.Exit(2)
 }

@@ -16,16 +16,16 @@ import (
 )
 
 var Register = map[string]int16{
-	"PC_F": REG_PC_F,
-	"PC_B": REG_PC_B,
-	"SP":   REG_SP,
-	"CTXT": REG_CTXT,
-	"g":    REG_g,
-	"RET0": REG_RET0,
-	"RET1": REG_RET1,
-	"RET2": REG_RET2,
-	"RET3": REG_RET3,
-	"RUN":  REG_RUN,
+	"PC_F":  REG_PC_F,
+	"PC_B":  REG_PC_B,
+	"SP":    REG_SP,
+	"CTXT":  REG_CTXT,
+	"g":     REG_g,
+	"RET0":  REG_RET0,
+	"RET1":  REG_RET1,
+	"RET2":  REG_RET2,
+	"RET3":  REG_RET3,
+	"PAUSE": REG_PAUSE,
 
 	"R0":  REG_R0,
 	"R1":  REG_R1,
@@ -126,7 +126,9 @@ func instinit(ctxt *obj.Link) {
 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
 	gcWriteBarrier = ctxt.Lookup("runtime.gcWriteBarrier")
 	sigpanic = ctxt.Lookup("runtime.sigpanic")
+	sigpanic.SetABI(obj.ABIInternal)
 	deferreturn = ctxt.Lookup("runtime.deferreturn")
+	deferreturn.SetABI(obj.ABIInternal)
 	jmpdefer = ctxt.Lookup(`"".jmpdefer`)
 }
 
@@ -777,7 +779,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 			reg := p.From.Reg
 			switch {
-			case reg >= REG_PC_F && reg <= REG_RUN:
+			case reg >= REG_PC_F && reg <= REG_PAUSE:
 				w.WriteByte(0x23) // get_global
 				writeUleb128(w, uint64(reg-REG_PC_F))
 			case reg >= REG_R0 && reg <= REG_R15:
@@ -797,7 +799,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 			reg := p.To.Reg
 			switch {
-			case reg >= REG_PC_F && reg <= REG_RUN:
+			case reg >= REG_PC_F && reg <= REG_PAUSE:
 				w.WriteByte(0x24) // set_global
 				writeUleb128(w, uint64(reg-REG_PC_F))
 			case reg >= REG_R0 && reg <= REG_F15:

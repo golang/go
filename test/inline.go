@@ -11,6 +11,7 @@ package foo
 
 import (
 	"errors"
+	"runtime"
 	"unsafe"
 )
 
@@ -161,4 +162,21 @@ func k() (T, int, int) { return T{}, 0, 0 } // ERROR "can inline k"
 
 func _() { // ERROR "can inline _"
 	T.meth(k()) // ERROR "inlining call to k" "inlining call to T.meth"
+}
+
+func small1() { // ERROR "can inline small1"
+	runtime.GC()
+}
+func small2() int { // ERROR "can inline small2"
+	return runtime.GOMAXPROCS(0)
+}
+func small3(t T) { // ERROR "can inline small3"
+	t.meth2(3, 5)
+}
+func small4(t T) { // not inlineable - has 2 calls.
+	t.meth2(runtime.GOMAXPROCS(0), 5)
+}
+func (T) meth2(int, int) { // not inlineable - has 2 calls.
+	runtime.GC()
+	runtime.GC()
 }

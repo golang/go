@@ -7,7 +7,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"internal/trace"
+	trace "internal/traceparser"
 	"io"
 	"log"
 	"math"
@@ -23,7 +23,7 @@ import (
 
 func init() {
 	http.HandleFunc("/trace", httpTrace)
-	http.HandleFunc("/jsontrace", httpJsonTrace)
+	http.HandleFunc("/jsontrace", httpJSONTrace)
 	http.HandleFunc("/trace_viewer_html", httpTraceViewerHTML)
 }
 
@@ -38,7 +38,7 @@ func httpTrace(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	html := strings.ReplaceAll(templTrace, "{{PARAMS}}", r.Form.Encode())
+	html := strings.Replace(templTrace, "{{PARAMS}}", r.Form.Encode(), -1)
 	w.Write([]byte(html))
 
 }
@@ -165,8 +165,8 @@ func httpTraceViewerHTML(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filepath.Join(runtime.GOROOT(), "misc", "trace", "trace_viewer_full.html"))
 }
 
-// httpJsonTrace serves json trace, requested from within templTrace HTML.
-func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+// httpJSONTrace serves json trace, requested from within templTrace HTML.
+func httpJSONTrace(w http.ResponseWriter, r *http.Request) {
 	defer debug.FreeOSMemory()
 	defer reportMemoryUsage("after httpJsonTrace")
 	// This is an AJAX handler, so instead of http.Error we use log.Printf to log errors.
@@ -188,7 +188,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 			log.Printf("failed to parse goid parameter %q: %v", goids, err)
 			return
 		}
-		analyzeGoroutines(res.Events)
+		analyzeGoroutines(res)
 		g, ok := gs[goid]
 		if !ok {
 			log.Printf("failed to find goroutine %d", goid)
@@ -202,7 +202,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 			params.endTime = lastTimestamp()
 		}
 		params.maing = goid
-		params.gs = trace.RelatedGoroutines(res.Events, goid)
+		params.gs = res.RelatedGoroutines(goid)
 	} else if taskids := r.FormValue("taskid"); taskids != "" {
 		taskid, err := strconv.ParseUint(taskids, 10, 64)
 		if err != nil {
@@ -264,28 +264,35 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := viewerDataTraceConsumer(w, start, end)
-	if err := generateTrace(params, c); err != nil {
+	if err := generateTrace(res, params, c); err != nil {
 		log.Printf("failed to generate trace: %v", err)
 		return
 	}
 }
 
+// Range is a named range
 type Range struct {
-	Name  string
-	Start int
-	End   int
+	Name      string
+	Start     int
+	End       int
+	StartTime int64
+	EndTime   int64
+}
+
+func (r Range) URL() string {
+	return fmt.Sprintf("/trace?start=%d&end=%d", r.Start, r.End)
 }
 
 // splitTrace splits the trace into a number of ranges,
 // each resulting in approx 100MB of json output
 // (trace viewer can hardly handle more).
-func splitTrace(res trace.ParseResult) []Range {
+func splitTrace(res *trace.Parsed) []Range {
 	params := &traceParams{
 		parsed:  res,
 		endTime: math.MaxInt64,
 	}
 	s, c := splittingTraceConsumer(100 << 20) // 100M
-	if err := generateTrace(params, c); err != nil {
+	if err := generateTrace(res, params, c); err != nil {
 		dief("%v\n", err)
 	}
 	return s.Ranges
@@ -302,7 +309,7 @@ func splittingTraceConsumer(max int) (*splitter, traceConsumer) {
 	}
 
 	var (
-		data = ViewerData{Frames: make(map[string]ViewerFrame)}
+		data = viewerData{Frames: make(map[string]viewerFrame)}
 
 		sizes []eventSz
 		cw    countingWriter
@@ -314,7 +321,7 @@ func splittingTraceConsumer(max int) (*splitter, traceConsumer) {
 		consumeTimeUnit: func(unit string) {
 			data.TimeUnit = unit
 		},
-		consumeViewerEvent: func(v *ViewerEvent, required bool) {
+		consumeViewerEvent: func(v *viewerEvent, required bool) {
 			if required {
 				// Store required events inside data
 				// so flush can include them in the required
@@ -327,7 +334,7 @@ func splittingTraceConsumer(max int) (*splitter, traceConsumer) {
 			sizes = append(sizes, eventSz{v.Time, cw.size + 1}) // +1 for ",".
 			cw.size = 0
 		},
-		consumeViewerFrame: func(k string, v ViewerFrame) {
+		consumeViewerFrame: func(k string, v viewerFrame) {
 			data.Frames[k] = v
 		},
 		flush: func() {
@@ -344,10 +351,14 @@ func splittingTraceConsumer(max int) (*splitter, traceConsumer) {
 			start := 0
 			for i, ev := range sizes {
 				if sum+ev.Sz > max {
+					startTime := time.Duration(sizes[start].Time * 1000)
+					endTime := time.Duration(ev.Time * 1000)
 					ranges = append(ranges, Range{
-						Name:  fmt.Sprintf("%v-%v", time.Duration(sizes[start].Time*1000), time.Duration(ev.Time*1000)),
-						Start: start,
-						End:   i + 1,
+						Name:      fmt.Sprintf("%v-%v", startTime, endTime),
+						Start:     start,
+						End:       i + 1,
+						StartTime: int64(startTime),
+						EndTime:   int64(endTime),
 					})
 					start = i + 1
 					sum = minSize
@@ -362,9 +373,11 @@ func splittingTraceConsumer(max int) (*splitter, traceConsumer) {
 
 			if end := len(sizes) - 1; start < end {
 				ranges = append(ranges, Range{
-					Name:  fmt.Sprintf("%v-%v", time.Duration(sizes[start].Time*1000), time.Duration(sizes[end].Time*1000)),
-					Start: start,
-					End:   end,
+					Name:      fmt.Sprintf("%v-%v", time.Duration(sizes[start].Time*1000), time.Duration(sizes[end].Time*1000)),
+					Start:     start,
+					End:       end,
+					StartTime: int64(sizes[start].Time * 1000),
+					EndTime:   int64(sizes[end].Time * 1000),
 				})
 			}
 			s.Ranges = ranges
@@ -382,7 +395,7 @@ func (cw *countingWriter) Write(data []byte) (int, error) {
 }
 
 type traceParams struct {
-	parsed    trace.ParseResult
+	parsed    *trace.Parsed
 	mode      traceviewMode
 	startTime int64
 	endTime   int64
@@ -399,6 +412,7 @@ const (
 )
 
 type traceContext struct {
+	res *trace.Parsed
 	*traceParams
 	consumer  traceConsumer
 	frameTree frameNode
@@ -449,16 +463,16 @@ type gInfo struct {
 	markAssist *trace.Event // if non-nil, the mark assist currently running.
 }
 
-type ViewerData struct {
-	Events   []*ViewerEvent         `json:"traceEvents"`
-	Frames   map[string]ViewerFrame `json:"stackFrames"`
+type viewerData struct {
+	Events   []*viewerEvent         `json:"traceEvents"`
+	Frames   map[string]viewerFrame `json:"stackFrames"`
 	TimeUnit string                 `json:"displayTimeUnit"`
 
 	// This is where mandatory part of the trace starts (e.g. thread names)
 	footer int
 }
 
-type ViewerEvent struct {
+type viewerEvent struct {
 	Name     string      `json:"name,omitempty"`
 	Phase    string      `json:"ph"`
 	Scope    string      `json:"s,omitempty"`
@@ -474,33 +488,33 @@ type ViewerEvent struct {
 	Category string      `json:"cat,omitempty"`
 }
 
-type ViewerFrame struct {
+type viewerFrame struct {
 	Name   string `json:"name"`
 	Parent int    `json:"parent,omitempty"`
 }
 
-type NameArg struct {
+type nameArg struct {
 	Name string `json:"name"`
 }
 
-type TaskArg struct {
+type taskArg struct {
 	ID     uint64 `json:"id"`
 	StartG uint64 `json:"start_g,omitempty"`
 	EndG   uint64 `json:"end_g,omitempty"`
 }
 
-type RegionArg struct {
+type regionArg struct {
 	TaskID uint64 `json:"taskid,omitempty"`
 }
 
-type SortIndexArg struct {
+type sortIndexArg struct {
 	Index int `json:"sort_index"`
 }
 
 type traceConsumer struct {
 	consumeTimeUnit    func(unit string)
-	consumeViewerEvent func(v *ViewerEvent, required bool)
-	consumeViewerFrame func(key string, f ViewerFrame)
+	consumeViewerEvent func(v *viewerEvent, required bool)
+	consumeViewerFrame func(key string, f viewerFrame)
 	flush              func()
 }
 
@@ -517,15 +531,15 @@ const (
 // If mode==goroutineMode, generate trace for goroutine goid, otherwise whole trace.
 // startTime, endTime determine part of the trace that we are interested in.
 // gset restricts goroutines that are included in the resulting trace.
-func generateTrace(params *traceParams, consumer traceConsumer) error {
+func generateTrace(res *trace.Parsed, params *traceParams, consumer traceConsumer) error {
 	defer consumer.flush()
 
-	ctx := &traceContext{traceParams: params}
+	ctx := &traceContext{res: res, traceParams: params}
 	ctx.frameTree.children = make(map[uint64]frameNode)
 	ctx.consumer = consumer
 
 	ctx.consumer.consumeTimeUnit("ns")
-	maxProc := 0
+	maxProc := int32(0)
 	ginfos := make(map[uint64]*gInfo)
 	stacks := params.parsed.Stacks
 
@@ -570,12 +584,12 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			newG := ev.Args[0]
 			info := getGInfo(newG)
 			if info.name != "" {
-				return fmt.Errorf("duplicate go create event for go id=%d detected at offset %d", newG, ev.Off)
+				return fmt.Errorf("duplicate go create event for go id=%d detected at time %d", newG, ev.Ts)
 			}
 
-			stk, ok := stacks[ev.Args[1]]
+			stk, ok := stacks[uint32(ev.Args[1])]
 			if !ok || len(stk) == 0 {
-				return fmt.Errorf("invalid go create event: missing stack information for go id=%d at offset %d", newG, ev.Off)
+				return fmt.Errorf("invalid go create event: missing stack information for go id=%d at time %d", newG, ev.Ts)
 			}
 
 			fname := stk[0].Fn
@@ -746,23 +760,23 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 		ctx.emitSectionFooter(procsSection, "PROCS", 2)
 	}
 
-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.GCP, Arg: &NameArg{"GC"}})
-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.GCP, Arg: &SortIndexArg{-6}})
+	ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.GCP, Arg: &nameArg{"GC"}})
+	ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.GCP, Arg: &sortIndexArg{-6}})
 
-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.NetpollP, Arg: &NameArg{"Network"}})
-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.NetpollP, Arg: &SortIndexArg{-5}})
+	ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.NetpollP, Arg: &nameArg{"Network"}})
+	ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.NetpollP, Arg: &sortIndexArg{-5}})
 
-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.TimerP, Arg: &NameArg{"Timers"}})
-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.TimerP, Arg: &SortIndexArg{-4}})
+	ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.TimerP, Arg: &nameArg{"Timers"}})
+	ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.TimerP, Arg: &sortIndexArg{-4}})
 
-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.SyscallP, Arg: &NameArg{"Syscalls"}})
-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.SyscallP, Arg: &SortIndexArg{-3}})
+	ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.SyscallP, Arg: &nameArg{"Syscalls"}})
+	ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.SyscallP, Arg: &sortIndexArg{-3}})
 
 	// Display rows for Ps if we are in the default trace view mode (not goroutine-oriented presentation)
 	if ctx.mode&modeGoroutineOriented == 0 {
-		for i := 0; i <= maxProc; i++ {
-			ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: uint64(i), Arg: &NameArg{fmt.Sprintf("Proc %v", i)}})
-			ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: uint64(i), Arg: &SortIndexArg{i}})
+		for i := 0; i <= int(maxProc); i++ {
+			ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: uint64(i), Arg: &nameArg{fmt.Sprintf("Proc %v", i)}})
+			ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: uint64(i), Arg: &sortIndexArg{i}})
 		}
 	}
 
@@ -800,27 +814,27 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			if !ctx.gs[k] {
 				continue
 			}
-			ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: k, Arg: &NameArg{v.name}})
+			ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: k, Arg: &nameArg{v.name}})
 		}
 		// Row for the main goroutine (maing)
-		ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: ctx.maing, Arg: &SortIndexArg{-2}})
+		ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: ctx.maing, Arg: &sortIndexArg{-2}})
 		// Row for GC or global state (specified with G=0)
-		ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: 0, Arg: &SortIndexArg{-1}})
+		ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: 0, Arg: &sortIndexArg{-1}})
 	}
 
 	return nil
 }
 
-func (ctx *traceContext) emit(e *ViewerEvent) {
+func (ctx *traceContext) emit(e *viewerEvent) {
 	ctx.consumer.consumeViewerEvent(e, false)
 }
 
-func (ctx *traceContext) emitFooter(e *ViewerEvent) {
+func (ctx *traceContext) emitFooter(e *viewerEvent) {
 	ctx.consumer.consumeViewerEvent(e, true)
 }
 func (ctx *traceContext) emitSectionFooter(sectionID uint64, name string, priority int) {
-	ctx.emitFooter(&ViewerEvent{Name: "process_name", Phase: "M", Pid: sectionID, Arg: &NameArg{name}})
-	ctx.emitFooter(&ViewerEvent{Name: "process_sort_index", Phase: "M", Pid: sectionID, Arg: &SortIndexArg{priority}})
+	ctx.emitFooter(&viewerEvent{Name: "process_name", Phase: "M", Pid: sectionID, Arg: &nameArg{name}})
+	ctx.emitFooter(&viewerEvent{Name: "process_sort_index", Phase: "M", Pid: sectionID, Arg: &sortIndexArg{priority}})
 }
 
 func (ctx *traceContext) time(ev *trace.Event) float64 {
@@ -842,31 +856,30 @@ func tsWithinRange(ts, s, e int64) bool {
 func (ctx *traceContext) proc(ev *trace.Event) uint64 {
 	if ctx.mode&modeGoroutineOriented != 0 && ev.P < trace.FakeP {
 		return ev.G
-	} else {
-		return uint64(ev.P)
 	}
+	return uint64(ev.P)
 }
 
 func (ctx *traceContext) emitSlice(ev *trace.Event, name string) {
 	ctx.emit(ctx.makeSlice(ev, name))
 }
 
-func (ctx *traceContext) makeSlice(ev *trace.Event, name string) *ViewerEvent {
-	// If ViewerEvent.Dur is not a positive value,
+func (ctx *traceContext) makeSlice(ev *trace.Event, name string) *viewerEvent {
+	// If viewerEvent.Dur is not a positive value,
 	// trace viewer handles it as a non-terminating time interval.
 	// Avoid it by setting the field with a small value.
 	durationUsec := ctx.time(ev.Link) - ctx.time(ev)
-	if ev.Link.Ts-ev.Ts <= 0 {
+	if ev.Link == nil || ev.Link.Ts-ev.Ts <= 0 {
 		durationUsec = 0.0001 // 0.1 nanoseconds
 	}
-	sl := &ViewerEvent{
+	sl := &viewerEvent{
 		Name:     name,
 		Phase:    "X",
 		Time:     ctx.time(ev),
 		Dur:      durationUsec,
 		Tid:      ctx.proc(ev),
-		Stack:    ctx.stack(ev.Stk),
-		EndStack: ctx.stack(ev.Link.Stk),
+		Stack:    ctx.stack(ctx.res.Stacks[ev.StkID]),
+		EndStack: ctx.stack(ctx.res.Stacks[ev.Link.StkID]),
 	}
 
 	// grey out non-overlapping events if the event is not a global event (ev.G == 0)
@@ -876,7 +889,7 @@ func (ctx *traceContext) makeSlice(ev *trace.Event, name string) *ViewerEvent {
 			type Arg struct {
 				P int
 			}
-			sl.Arg = &Arg{P: ev.P}
+			sl.Arg = &Arg{P: int(ev.P)}
 		}
 		// grey out non-overlapping events.
 		overlapping := false
@@ -898,10 +911,10 @@ func (ctx *traceContext) emitTask(task *taskDesc, sortIndex int) {
 	taskName := task.name
 	durationUsec := float64(task.lastTimestamp()-task.firstTimestamp()) / 1e3
 
-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: tasksSection, Tid: taskRow, Arg: &NameArg{fmt.Sprintf("T%d %s", task.id, taskName)}})
-	ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: tasksSection, Tid: taskRow, Arg: &SortIndexArg{sortIndex}})
+	ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: tasksSection, Tid: taskRow, Arg: &nameArg{fmt.Sprintf("T%d %s", task.id, taskName)}})
+	ctx.emit(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: tasksSection, Tid: taskRow, Arg: &sortIndexArg{sortIndex}})
 	ts := float64(task.firstTimestamp()) / 1e3
-	sl := &ViewerEvent{
+	sl := &viewerEvent{
 		Name:  taskName,
 		Phase: "X",
 		Time:  ts,
@@ -910,13 +923,13 @@ func (ctx *traceContext) emitTask(task *taskDesc, sortIndex int) {
 		Tid:   taskRow,
 		Cname: pickTaskColor(task.id),
 	}
-	targ := TaskArg{ID: task.id}
+	targ := taskArg{ID: task.id}
 	if task.create != nil {
-		sl.Stack = ctx.stack(task.create.Stk)
+		sl.Stack = ctx.stack(ctx.res.Stacks[task.create.StkID])
 		targ.StartG = task.create.G
 	}
 	if task.end != nil {
-		sl.EndStack = ctx.stack(task.end.Stk)
+		sl.EndStack = ctx.stack(ctx.res.Stacks[task.end.StkID])
 		targ.EndG = task.end.G
 	}
 	sl.Arg = targ
@@ -924,8 +937,8 @@ func (ctx *traceContext) emitTask(task *taskDesc, sortIndex int) {
 
 	if task.create != nil && task.create.Type == trace.EvUserTaskCreate && task.create.Args[1] != 0 {
 		ctx.arrowSeq++
-		ctx.emit(&ViewerEvent{Name: "newTask", Phase: "s", Tid: task.create.Args[1], ID: ctx.arrowSeq, Time: ts, Pid: tasksSection})
-		ctx.emit(&ViewerEvent{Name: "newTask", Phase: "t", Tid: taskRow, ID: ctx.arrowSeq, Time: ts, Pid: tasksSection})
+		ctx.emit(&viewerEvent{Name: "newTask", Phase: "s", Tid: task.create.Args[1], ID: ctx.arrowSeq, Time: ts, Pid: tasksSection})
+		ctx.emit(&viewerEvent{Name: "newTask", Phase: "t", Tid: taskRow, ID: ctx.arrowSeq, Time: ts, Pid: tasksSection})
 	}
 }
 
@@ -946,7 +959,7 @@ func (ctx *traceContext) emitRegion(s regionDesc) {
 	scopeID := fmt.Sprintf("%x", id)
 	name := s.Name
 
-	sl0 := &ViewerEvent{
+	sl0 := &viewerEvent{
 		Category: "Region",
 		Name:     name,
 		Phase:    "b",
@@ -957,11 +970,11 @@ func (ctx *traceContext) emitRegion(s regionDesc) {
 		Cname:    pickTaskColor(s.TaskID),
 	}
 	if s.Start != nil {
-		sl0.Stack = ctx.stack(s.Start.Stk)
+		sl0.Stack = ctx.stack(ctx.res.Stacks[s.Start.StkID])
 	}
 	ctx.emit(sl0)
 
-	sl1 := &ViewerEvent{
+	sl1 := &viewerEvent{
 		Category: "Region",
 		Name:     name,
 		Phase:    "e",
@@ -970,10 +983,10 @@ func (ctx *traceContext) emitRegion(s regionDesc) {
 		ID:       uint64(regionID),
 		Scope:    scopeID,
 		Cname:    pickTaskColor(s.TaskID),
-		Arg:      RegionArg{TaskID: s.TaskID},
+		Arg:      regionArg{TaskID: s.TaskID},
 	}
 	if s.End != nil {
-		sl1.Stack = ctx.stack(s.End.Stk)
+		sl1.Stack = ctx.stack(ctx.res.Stacks[s.End.StkID])
 	}
 	ctx.emit(sl1)
 }
@@ -992,7 +1005,7 @@ func (ctx *traceContext) emitHeapCounters(ev *trace.Event) {
 		diff = ctx.heapStats.nextGC - ctx.heapStats.heapAlloc
 	}
 	if tsWithinRange(ev.Ts, ctx.startTime, ctx.endTime) {
-		ctx.emit(&ViewerEvent{Name: "Heap", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &heapCountersArg{ctx.heapStats.heapAlloc, diff}})
+		ctx.emit(&viewerEvent{Name: "Heap", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &heapCountersArg{ctx.heapStats.heapAlloc, diff}})
 	}
 	ctx.prevHeapStats = ctx.heapStats
 }
@@ -1008,7 +1021,7 @@ func (ctx *traceContext) emitGoroutineCounters(ev *trace.Event) {
 		return
 	}
 	if tsWithinRange(ev.Ts, ctx.startTime, ctx.endTime) {
-		ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{uint64(ctx.gstates[gRunning]), uint64(ctx.gstates[gRunnable]), uint64(ctx.gstates[gWaitingGC])}})
+		ctx.emit(&viewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{uint64(ctx.gstates[gRunning]), uint64(ctx.gstates[gRunnable]), uint64(ctx.gstates[gWaitingGC])}})
 	}
 	ctx.prevGstates = ctx.gstates
 }
@@ -1023,7 +1036,7 @@ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
 		return
 	}
 	if tsWithinRange(ev.Ts, ctx.startTime, ctx.endTime) {
-		ctx.emit(&ViewerEvent{Name: "Threads", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &threadCountersArg{
+		ctx.emit(&viewerEvent{Name: "Threads", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &threadCountersArg{
 			Running:   ctx.threadStats.prunning,
 			InSyscall: ctx.threadStats.insyscall}})
 	}
@@ -1061,14 +1074,14 @@ func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
 		}
 		arg = &Arg{ev.Args[0]}
 	}
-	ctx.emit(&ViewerEvent{
+	ctx.emit(&viewerEvent{
 		Name:     name,
 		Category: category,
 		Phase:    "I",
 		Scope:    "t",
 		Time:     ctx.time(ev),
 		Tid:      ctx.proc(ev),
-		Stack:    ctx.stack(ev.Stk),
+		Stack:    ctx.stack(ctx.res.Stacks[ev.StkID]),
 		Cname:    cname,
 		Arg:      arg})
 }
@@ -1105,8 +1118,11 @@ func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {
 	}
 
 	ctx.arrowSeq++
-	ctx.emit(&ViewerEvent{Name: name, Phase: "s", Tid: ctx.proc(ev), ID: ctx.arrowSeq, Time: ctx.time(ev), Stack: ctx.stack(ev.Stk), Cname: color})
-	ctx.emit(&ViewerEvent{Name: name, Phase: "t", Tid: ctx.proc(ev.Link), ID: ctx.arrowSeq, Time: ctx.time(ev.Link), Cname: color})
+	ctx.emit(&viewerEvent{Name: name, Phase: "s", Tid: ctx.proc(ev),
+		ID: ctx.arrowSeq, Time: ctx.time(ev),
+		Stack: ctx.stack(ctx.res.Stacks[ev.StkID]), Cname: color})
+	ctx.emit(&viewerEvent{Name: name, Phase: "t", Tid: ctx.proc(ev.Link),
+		ID: ctx.arrowSeq, Time: ctx.time(ev.Link), Cname: color})
 }
 
 func (ctx *traceContext) stack(stk []*trace.Frame) int {
@@ -1128,7 +1144,7 @@ func (ctx *traceContext) buildBranch(parent frameNode, stk []*trace.Frame) int {
 		node.id = ctx.frameSeq
 		node.children = make(map[uint64]frameNode)
 		parent.children[frame.PC] = node
-		ctx.consumer.consumeViewerFrame(strconv.Itoa(node.id), ViewerFrame{fmt.Sprintf("%v:%v", frame.Fn, frame.Line), parent.id})
+		ctx.consumer.consumeViewerFrame(strconv.Itoa(node.id), viewerFrame{fmt.Sprintf("%v:%v", frame.Fn, frame.Line), parent.id})
 	}
 	return ctx.buildBranch(node, stk)
 }
@@ -1163,7 +1179,7 @@ type jsonWriter struct {
 }
 
 func viewerDataTraceConsumer(w io.Writer, start, end int64) traceConsumer {
-	frames := make(map[string]ViewerFrame)
+	frames := make(map[string]viewerFrame)
 	enc := json.NewEncoder(w)
 	written := 0
 	index := int64(-1)
@@ -1175,7 +1191,7 @@ func viewerDataTraceConsumer(w io.Writer, start, end int64) traceConsumer {
 			enc.Encode(unit)
 			io.WriteString(w, ",")
 		},
-		consumeViewerEvent: func(v *ViewerEvent, required bool) {
+		consumeViewerEvent: func(v *viewerEvent, required bool) {
 			index++
 			if !required && (index < start || index > end) {
 				// not in the range. Skip!
@@ -1192,7 +1208,7 @@ func viewerDataTraceConsumer(w io.Writer, start, end int64) traceConsumer {
 			// Same should be applied to splittingTraceConsumer.
 			written++
 		},
-		consumeViewerFrame: func(k string, v ViewerFrame) {
+		consumeViewerFrame: func(k string, v viewerFrame) {
 			frames[k] = v
 		},
 		flush: func() {

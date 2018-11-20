@@ -1254,7 +1254,14 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 	// Arguments.
 	if frame.arglen > 0 {
 		if frame.argmap != nil {
+			// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
+			// In this case, arglen specifies how much of the args section is actually live.
+			// (It could be either all the args + results, or just the args.)
 			args = *frame.argmap
+			n := int32(frame.arglen / sys.PtrSize)
+			if n < args.n {
+				args.n = n // Don't use more of the arguments than arglen.
+			}
 		} else {
 			stackmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
 			if stackmap == nil || stackmap.n <= 0 {

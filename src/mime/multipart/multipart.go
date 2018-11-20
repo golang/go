@@ -21,6 +21,7 @@ import (
 	"mime"
 	"mime/quotedprintable"
 	"net/textproto"
+	"strings"
 )
 
 var emptyParams = make(map[string]string)
@@ -135,7 +136,7 @@ func newPart(mr *Reader) (*Part, error) {
 	}
 	bp.r = partReader{bp}
 	const cte = "Content-Transfer-Encoding"
-	if bp.Header.Get(cte) == "quoted-printable" {
+	if strings.EqualFold(bp.Header.Get(cte), "quoted-printable") {
 		bp.Header.Del(cte)
 		bp.r = quotedprintable.NewReader(bp.r)
 	}

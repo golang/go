@@ -485,7 +485,7 @@ func auxTo64F(i int64) float64 {
 	return math.Float64frombits(uint64(i))
 }
 
-// uaddOvf returns true if unsigned a+b would overflow.
+// uaddOvf reports whether unsigned a+b would overflow.
 func uaddOvf(a, b int64) bool {
 	return uint64(a)+uint64(b) < uint64(a)
 }
@@ -530,6 +530,13 @@ func isSamePtr(p1, p2 *Value) bool {
 	return false
 }
 
+func isStackPtr(v *Value) bool {
+	for v.Op == OpOffPtr || v.Op == OpAddPtr {
+		v = v.Args[0]
+	}
+	return v.Op == OpSP || v.Op == OpLocalAddr
+}
+
 // disjoint reports whether the memory region specified by [p1:p1+n1)
 // does not overlap with [p2:p2+n2).
 // A return value of false does not imply the regions overlap.
@@ -542,7 +549,7 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 	}
 	baseAndOffset := func(ptr *Value) (base *Value, offset int64) {
 		base, offset = ptr, 0
-		if base.Op == OpOffPtr {
+		for base.Op == OpOffPtr {
 			offset += base.AuxInt
 			base = base.Args[0]
 		}

@@ -518,6 +518,13 @@
 (LessEqual (InvertFlags x)) -> (GreaterEqual x)
 (GreaterEqual (InvertFlags x)) -> (LessEqual x)
 
+// Elide compares of bit tests // TODO need to make both CC and result of ANDCC available.
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] (ANDconst [c] x)) yes no) -> ((EQ|NE|LT|LE|GT|GE) (ANDCCconst [c] x) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPWconst [0] (ANDconst [c] x)) yes no) -> ((EQ|NE|LT|LE|GT|GE) (ANDCCconst [c] x) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> ((EQ|NE|LT|LE|GT|GE) (ANDCC x y) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(OR x y)) yes no) && z.Uses == 1 -> ((EQ|NE|LT|LE|GT|GE) (ORCC x y) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(XOR x y)) yes no) && z.Uses == 1 -> ((EQ|NE|LT|LE|GT|GE) (XORCC x y) yes no)
+
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVDload ptr mem)
 (Load <t> ptr mem) && is32BitInt(t) && isSigned(t) -> (MOVWload ptr mem)

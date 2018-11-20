@@ -185,27 +185,15 @@ func (pp *Progs) settext(fn *Node) {
 	ptxt.From.Type = obj.TYPE_MEM
 	ptxt.From.Name = obj.NAME_EXTERN
 	ptxt.From.Sym = fn.Func.lsym
-
-	p := pp.Prog(obj.AFUNCDATA)
-	Addrconst(&p.From, objabi.FUNCDATA_ArgsPointerMaps)
-	p.To.Type = obj.TYPE_MEM
-	p.To.Name = obj.NAME_EXTERN
-	p.To.Sym = &fn.Func.lsym.Func.GCArgs
-
-	p = pp.Prog(obj.AFUNCDATA)
-	Addrconst(&p.From, objabi.FUNCDATA_LocalsPointerMaps)
-	p.To.Type = obj.TYPE_MEM
-	p.To.Name = obj.NAME_EXTERN
-	p.To.Sym = &fn.Func.lsym.Func.GCLocals
-
-	p = pp.Prog(obj.AFUNCDATA)
-	Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
-	p.To.Type = obj.TYPE_MEM
-	p.To.Name = obj.NAME_EXTERN
-	p.To.Sym = &fn.Func.lsym.Func.GCRegs
 }
 
-func (f *Func) initLSym() {
+// initLSym defines f's obj.LSym and initializes it based on the
+// properties of f. This includes setting the symbol flags and ABI and
+// creating and initializing related DWARF symbols.
+//
+// initLSym must be called exactly once per function and must be
+// called for both functions with bodies and functions without bodies.
+func (f *Func) initLSym(hasBody bool) {
 	if f.lsym != nil {
 		Fatalf("Func.initLSym called twice")
 	}
@@ -215,6 +203,61 @@ func (f *Func) initLSym() {
 		if f.Pragma&Systemstack != 0 {
 			f.lsym.Set(obj.AttrCFunc, true)
 		}
+
+		var aliasABI obj.ABI
+		needABIAlias := false
+		if abi, ok := symabiDefs[f.lsym.Name]; ok && abi == obj.ABI0 {
+			// Symbol is defined as ABI0. Create an
+			// Internal -> ABI0 wrapper.
+			f.lsym.SetABI(obj.ABI0)
+			needABIAlias, aliasABI = true, obj.ABIInternal
+		} else {
+			// No ABI override. Check that the symbol is
+			// using the expected ABI.
+			want := obj.ABIInternal
+			if f.lsym.ABI() != want {
+				Fatalf("function symbol %s has the wrong ABI %v, expected %v", f.lsym.Name, f.lsym.ABI(), want)
+			}
+		}
+
+		if abi, ok := symabiRefs[f.lsym.Name]; ok && abi == obj.ABI0 {
+			// Symbol is referenced as ABI0. Create an
+			// ABI0 -> Internal wrapper if necessary.
+			if f.lsym.ABI() != obj.ABI0 {
+				needABIAlias, aliasABI = true, obj.ABI0
+			}
+		}
+
+		if !needABIAlias && allABIs {
+			// The compiler was asked to produce ABI
+			// wrappers for everything.
+			switch f.lsym.ABI() {
+			case obj.ABI0:
+				needABIAlias, aliasABI = true, obj.ABIInternal
+			case obj.ABIInternal:
+				needABIAlias, aliasABI = true, obj.ABI0
+			}
+		}
+
+		if needABIAlias {
+			// These LSyms have the same name as the
+			// native function, so we create them directly
+			// rather than looking them up. The uniqueness
+			// of f.lsym ensures uniqueness of asym.
+			asym := &obj.LSym{
+				Name: f.lsym.Name,
+				Type: objabi.SABIALIAS,
+				R:    []obj.Reloc{{Sym: f.lsym}}, // 0 size, so "informational"
+			}
+			asym.SetABI(aliasABI)
+			asym.Set(obj.AttrDuplicateOK, true)
+			Ctxt.ABIAliases = append(Ctxt.ABIAliases, asym)
+		}
+	}
+
+	if !hasBody {
+		// For body-less functions, we only create the LSym.
+		return
 	}
 
 	var flag int

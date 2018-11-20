@@ -25,6 +25,20 @@ func Example() {
 	// false
 }
 
+func ExampleMatch() {
+	matched, err := regexp.Match(`foo.*`, []byte(`seafood`))
+	fmt.Println(matched, err)
+	matched, err = regexp.Match(`bar.*`, []byte(`seafood`))
+	fmt.Println(matched, err)
+	matched, err = regexp.Match(`a(b`, []byte(`seafood`))
+	fmt.Println(matched, err)
+
+	// Output:
+	// true <nil>
+	// false <nil>
+	// false error parsing regexp: missing closing ): `a(b`
+}
+
 func ExampleMatchString() {
 	matched, err := regexp.MatchString("foo.*", "seafood")
 	fmt.Println(matched, err)
@@ -42,6 +56,46 @@ func ExampleQuoteMeta() {
 	fmt.Println(regexp.QuoteMeta("Escaping symbols like: .+*?()|[]{}^$"))
 	// Output:
 	// Escaping symbols like: \.\+\*\?\(\)\|\[\]\{\}\^\$
+}
+
+func ExampleRegexp_Find() {
+	re := regexp.MustCompile("foo.?")
+	fmt.Printf("%q\n", re.Find([]byte(`seafood fool`)))
+
+	// Output:
+	// "food"
+}
+
+func ExampleRegexp_FindAll() {
+	re := regexp.MustCompile("foo.?")
+	fmt.Printf("%q\n", re.FindAll([]byte(`seafood fool`), -1))
+
+	// Output:
+	// ["food" "fool"]
+}
+
+func ExampleRegexp_FindAllSubmatch() {
+	re := regexp.MustCompile("foo(.?)")
+	fmt.Printf("%q\n", re.FindAllSubmatch([]byte(`seafood fool`), -1))
+
+	// Output:
+	// [["food" "d"] ["fool" "l"]]
+}
+
+func ExampleRegexp_FindSubmatch() {
+	re := regexp.MustCompile("foo(.?)")
+	fmt.Printf("%q\n", re.FindSubmatch([]byte(`seafood fool`)))
+
+	// Output:
+	// ["food" "d"]
+}
+
+func ExampleRegexp_Match() {
+	re := regexp.MustCompile("foo.?")
+	fmt.Println(re.Match([]byte(`seafood fool`)))
+
+	// Output:
+	// true
 }
 
 func ExampleRegexp_FindString() {

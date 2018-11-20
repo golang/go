@@ -91,7 +91,23 @@ func (p *Parser) pos() src.XPos {
 }
 
 func (p *Parser) Parse() (*obj.Prog, bool) {
-	for p.line() {
+	scratch := make([][]lex.Token, 0, 3)
+	for {
+		word, cond, operands, ok := p.line(scratch)
+		if !ok {
+			break
+		}
+		scratch = operands
+
+		if p.pseudo(word, operands) {
+			continue
+		}
+		i, present := p.arch.Instructions[word]
+		if present {
+			p.instruction(i, word, cond, operands)
+			continue
+		}
+		p.errorf("unrecognized instruction %q", word)
 	}
 	if p.errorCount > 0 {
 		return nil, false
@@ -100,8 +116,33 @@ func (p *Parser) Parse() (*obj.Prog, bool) {
 	return p.firstProg, true
 }
 
-// WORD [ arg {, arg} ] (';' | '\n')
-func (p *Parser) line() bool {
+// ParseSymABIs parses p's assembly code to find text symbol
+// definitions and references and writes a symabis file to w.
+func (p *Parser) ParseSymABIs(w io.Writer) bool {
+	operands := make([][]lex.Token, 0, 3)
+	for {
+		word, _, operands1, ok := p.line(operands)
+		if !ok {
+			break
+		}
+		operands = operands1
+
+		p.symDefRef(w, word, operands)
+	}
+	return p.errorCount == 0
+}
+
+// line consumes a single assembly line from p.lex of the form
+//
+//   {label:} WORD[.cond] [ arg {, arg} ] (';' | '\n')
+//
+// It adds any labels to p.pendingLabels and returns the word, cond,
+// operand list, and true. If there is an error or EOF, it returns
+// ok=false.
+//
+// line may reuse the memory from scratch.
+func (p *Parser) line(scratch [][]lex.Token) (word, cond string, operands [][]lex.Token, ok bool) {
+next:
 	// Skip newlines.
 	var tok lex.ScanToken
 	for {
@@ -114,24 +155,29 @@ func (p *Parser) line() bool {
 		case '\n', ';':
 			continue
 		case scanner.EOF:
-			return false
+			return "", "", nil, false
 		}
 		break
 	}
 	// First item must be an identifier.
 	if tok != scanner.Ident {
 		p.errorf("expected identifier, found %q", p.lex.Text())
-		return false // Might as well stop now.
+		return "", "", nil, false // Might as well stop now.
 	}
-	word := p.lex.Text()
-	var cond string
-	operands := make([][]lex.Token, 0, 3)
+	word, cond = p.lex.Text(), ""
+	operands = scratch[:0]
 	// Zero or more comma-separated operands, one per loop.
 	nesting := 0
 	colon := -1
 	for tok != '\n' && tok != ';' {
 		// Process one operand.
-		items := make([]lex.Token, 0, 3)
+		var items []lex.Token
+		if cap(operands) > len(operands) {
+			// Reuse scratch items slice.
+			items = operands[:cap(operands)][len(operands)][:0]
+		} else {
+			items = make([]lex.Token, 0, 3)
+		}
 		for {
 			tok = p.lex.Next()
 			if len(operands) == 0 && len(items) == 0 {
@@ -148,12 +194,12 @@ func (p *Parser) line() bool {
 				if tok == ':' {
 					// Labels.
 					p.pendingLabels = append(p.pendingLabels, word)
-					return true
+					goto next
 				}
 			}
 			if tok == scanner.EOF {
 				p.errorf("unexpected EOF")
-				return false
+				return "", "", nil, false
 			}
 			// Split operands on comma. Also, the old syntax on x86 for a "register pair"
 			// was AX:DX, for which the new syntax is DX, AX. Note the reordering.
@@ -162,7 +208,7 @@ func (p *Parser) line() bool {
 					// Remember this location so we can swap the operands below.
 					if colon >= 0 {
 						p.errorf("invalid ':' in operand")
-						return true
+						return word, cond, operands, true
 					}
 					colon = len(operands)
 				}
@@ -188,16 +234,7 @@ func (p *Parser) line() bool {
 			p.errorf("missing operand")
 		}
 	}
-	if p.pseudo(word, operands) {
-		return true
-	}
-	i, present := p.arch.Instructions[word]
-	if present {
-		p.instruction(i, word, cond, operands)
-		return true
-	}
-	p.errorf("unrecognized instruction %q", word)
-	return true
+	return word, cond, operands, true
 }
 
 func (p *Parser) instruction(op obj.As, word, cond string, operands [][]lex.Token) {
@@ -235,6 +272,42 @@ func (p *Parser) pseudo(word string, operands [][]lex.Token) bool {
 		return false
 	}
 	return true
+}
+
+// symDefRef scans a line for potential text symbol definitions and
+// references and writes symabis information to w.
+//
+// The symabis format is documented at
+// cmd/compile/internal/gc.readSymABIs.
+func (p *Parser) symDefRef(w io.Writer, word string, operands [][]lex.Token) {
+	switch word {
+	case "TEXT":
+		// Defines text symbol in operands[0].
+		if len(operands) > 0 {
+			p.start(operands[0])
+			if name, ok := p.funcAddress(); ok {
+				fmt.Fprintf(w, "def %s ABI0\n", name)
+			}
+		}
+		return
+	case "GLOBL", "PCDATA":
+		// No text definitions or symbol references.
+	case "DATA", "FUNCDATA":
+		// For DATA, operands[0] is defined symbol.
+		// For FUNCDATA, operands[0] is an immediate constant.
+		// Remaining operands may have references.
+		if len(operands) < 2 {
+			return
+		}
+		operands = operands[1:]
+	}
+	// Search for symbol references.
+	for _, op := range operands {
+		p.start(op)
+		if name, ok := p.funcAddress(); ok {
+			fmt.Fprintf(w, "ref %s ABI0\n", name)
+		}
+	}
 }
 
 func (p *Parser) start(operand []lex.Token) {
@@ -723,6 +796,35 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
 	if prefix == '$' {
 		addr.Type = obj.TYPE_ADDR
 	}
+}
+
+// funcAddress parses an external function address. This is a
+// constrained form of the operand syntax that's always SB-based,
+// non-static, and has no additional offsets:
+//
+//    [$|*]sym(SB)
+func (p *Parser) funcAddress() (string, bool) {
+	switch p.peek() {
+	case '$', '*':
+		// Skip prefix.
+		p.next()
+	}
+
+	tok := p.next()
+	name := tok.String()
+	if tok.ScanToken != scanner.Ident || p.atStartOfRegister(name) {
+		return "", false
+	}
+	if p.next().ScanToken != '(' {
+		return "", false
+	}
+	if reg := p.next(); reg.ScanToken != scanner.Ident || reg.String() != "SB" {
+		return "", false
+	}
+	if p.next().ScanToken != ')' || p.peek() != scanner.EOF {
+		return "", false
+	}
+	return name, true
 }
 
 // registerIndirect parses the general form of a register indirection.

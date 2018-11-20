@@ -45,8 +45,8 @@ type source struct {
 func parseFlags(o *plugin.Options) (*source, []string, error) {
 	flag := o.Flagset
 	// Comparisons.
-	flagBase := flag.StringList("base", "", "Source for base profile for profile subtraction")
-	flagDiffBase := flag.StringList("diff_base", "", "Source for diff base profile for comparison")
+	flagDiffBase := flag.StringList("diff_base", "", "Source of base profile for comparison")
+	flagBase := flag.StringList("base", "", "Source of base profile for profile subtraction")
 	// Source options.
 	flagSymbolize := flag.String("symbolize", "", "Options for profile symbolization")
 	flagBuildID := flag.String("buildid", "", "Override build id for first mapping")
@@ -312,7 +312,8 @@ var usageMsgSrc = "\n\n" +
 	"    -buildid              Override build id for main binary\n" +
 	"    -add_comment          Free-form annotation to add to the profile\n" +
 	"                          Displayed on some reports or with pprof -comments\n" +
-	"    -base source          Source of profile to use as baseline\n" +
+	"    -diff_base source     Source of base profile for comparison\n" +
+	"    -base source          Source of base profile for profile subtraction\n" +
 	"    profile.pb.gz         Profile in compressed protobuf format\n" +
 	"    legacy_profile        Profile in legacy pprof format\n" +
 	"    http://host/profile   URL for profile handler to retrieve\n" +

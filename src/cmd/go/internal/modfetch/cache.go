@@ -129,15 +129,17 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 		}
 		info, err = r.r.Stat(rev)
 		if err == nil {
-			if err := writeDiskStat(file, info); err != nil {
-				fmt.Fprintf(os.Stderr, "go: writing stat cache: %v\n", err)
-			}
 			// If we resolved, say, 1234abcde to v0.0.0-20180604122334-1234abcdef78,
 			// then save the information under the proper version, for future use.
 			if info.Version != rev {
+				file, _ = CachePath(module.Version{Path: r.path, Version: info.Version}, "info")
 				r.cache.Do("stat:"+info.Version, func() interface{} {
 					return cachedInfo{info, err}
 				})
+			}
+
+			if err := writeDiskStat(file, info); err != nil {
+				fmt.Fprintf(os.Stderr, "go: writing stat cache: %v\n", err)
 			}
 		}
 		return cachedInfo{info, err}

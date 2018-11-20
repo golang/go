@@ -2667,6 +2667,8 @@ func maplen(m unsafe.Pointer) int
 // back into arg+retoffset before returning. If copying result bytes back,
 // the caller must pass the argument frame type as argtype, so that
 // call can execute appropriate write barriers during the copy.
+//
+//go:linkname call runtime.reflectcall
 func call(argtype *rtype, fn, arg unsafe.Pointer, n uint32, retoffset uint32)
 
 func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)

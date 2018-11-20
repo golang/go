@@ -147,18 +147,6 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	isstmt.Type = objabi.SDWARFMISC
 	isstmt.Set(AttrDuplicateOK, s.DuplicateOK())
 	ctxt.Data = append(ctxt.Data, isstmt)
-
-	// Set up the function's gcargs and gclocals.
-	// They will be filled in later if needed.
-	gcargs := &s.Func.GCArgs
-	gcargs.Set(AttrDuplicateOK, true)
-	gcargs.Type = objabi.SRODATA
-	gclocals := &s.Func.GCLocals
-	gclocals.Set(AttrDuplicateOK, true)
-	gclocals.Type = objabi.SRODATA
-	gcregs := &s.Func.GCRegs
-	gcregs.Set(AttrDuplicateOK, true)
-	gcregs.Type = objabi.SRODATA
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {

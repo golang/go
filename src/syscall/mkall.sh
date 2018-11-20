@@ -83,6 +83,7 @@ mksysctl=""
 zsysctl="zsysctl_$GOOSARCH.go"
 mksysnum=
 mktypes=
+mkasm=
 run="sh"
 
 case "$1" in
@@ -122,19 +123,31 @@ aix_ppc64)
 	;;
 darwin_386)
 	mkerrors="$mkerrors -m32"
-	mksyscall="./mksyscall.pl -l32"
+	mksyscall="./mksyscall.pl -l32 -darwin"
 	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	mkasm="go run mkasm_darwin.go"
 	;;
 darwin_amd64)
 	mkerrors="$mkerrors -m64"
+	mksyscall="./mksyscall.pl -darwin"
 	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	mkasm="go run mkasm_darwin.go"
 	;;
 darwin_arm64)
 	mkerrors="$mkerrors -m64"
+	mksyscall="./mksyscall.pl -darwin"
 	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	mkasm="go run mkasm_darwin.go"
+	;;
+darwin_arm)
+	mkerrors="$mkerrors -m32"
+	mksyscall="./mksyscall.pl -l32 -darwin"
+	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	mkasm="go run mkasm_darwin.go"
 	;;
 dragonfly_amd64)
 	mkerrors="$mkerrors -m64"
@@ -337,4 +350,5 @@ esac
 		# Therefore, "go run" tries to recompile syscall package but ztypes is empty and it fails.
 		echo "$mktypes types_$GOOS.go |go run mkpost.go >ztypes_$GOOSARCH.go.NEW && mv ztypes_$GOOSARCH.go.NEW ztypes_$GOOSARCH.go";
 	fi
+	if [ -n "$mkasm" ]; then echo "$mkasm $GOARCH"; fi
 ) | $run

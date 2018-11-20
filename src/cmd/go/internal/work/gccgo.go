@@ -43,6 +43,14 @@ func (gccgoToolchain) linker() string {
 	return GccgoBin
 }
 
+func (gccgoToolchain) ar() string {
+	ar := os.Getenv("AR")
+	if ar == "" {
+		ar = "ar"
+	}
+	return ar
+}
+
 func checkGccgoBin() {
 	if gccgoErr == nil {
 		return
@@ -51,7 +59,7 @@ func checkGccgoBin() {
 	os.Exit(2)
 }
 
-func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
 	p := a.Package
 	objdir := a.Objdir
 	out := "_go_.o"
@@ -172,6 +180,10 @@ func (tools gccgoToolchain) asm(b *Builder, a *Action, sfiles []string) ([]strin
 	return ofiles, nil
 }
 
+func (gccgoToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, error) {
+	return "", nil
+}
+
 func gccgoArchive(basedir, imp string) string {
 	end := filepath.FromSlash(imp + ".a")
 	afile := filepath.Join(basedir, end)
@@ -179,14 +191,22 @@ func gccgoArchive(basedir, imp string) string {
 	return filepath.Join(filepath.Dir(afile), "lib"+filepath.Base(afile))
 }
 
-func (gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) error {
+func (tools gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) error {
 	p := a.Package
 	objdir := a.Objdir
 	var absOfiles []string
 	for _, f := range ofiles {
 		absOfiles = append(absOfiles, mkAbs(objdir, f))
 	}
-	return b.run(a, p.Dir, p.ImportPath, nil, "ar", "rc", mkAbs(objdir, afile), absOfiles)
+	var arArgs []string
+	if cfg.Goos == "aix" && cfg.Goarch == "ppc64" {
+		// AIX puts both 32-bit and 64-bit objects in the same archive.
+		// Tell the AIX "ar" command to only care about 64-bit objects.
+		// AIX "ar" command does not know D option.
+		arArgs = []string{"-X64"}
+	}
+
+	return b.run(a, p.Dir, p.ImportPath, nil, tools.ar(), arArgs, "rc", mkAbs(objdir, afile), absOfiles)
 }
 
 func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string, allactions []*Action, buildmode, desc string) error {
@@ -245,11 +265,11 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 				return "", nil
 			}
 		}
-		err := b.run(root, root.Objdir, desc, nil, "ar", "x", newArchive, "_cgo_flags")
+		err := b.run(root, root.Objdir, desc, nil, tools.ar(), "x", newArchive, "_cgo_flags")
 		if err != nil {
 			return "", err
 		}
-		err = b.run(root, ".", desc, nil, "ar", "d", newArchive, "_cgo_flags")
+		err = b.run(root, ".", desc, nil, tools.ar(), "d", newArchive, "_cgo_flags")
 		if err != nil {
 			return "", err
 		}
@@ -342,17 +362,24 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		}
 	}
 
-	ldflags = append(ldflags, "-Wl,--whole-archive")
+	wholeArchive := []string{"-Wl,--whole-archive"}
+	noWholeArchive := []string{"-Wl,--no-whole-archive"}
+	if cfg.Goos == "aix" {
+		wholeArchive = nil
+		noWholeArchive = nil
+	}
+	ldflags = append(ldflags, wholeArchive...)
 	ldflags = append(ldflags, afiles...)
-	ldflags = append(ldflags, "-Wl,--no-whole-archive")
+	ldflags = append(ldflags, noWholeArchive...)
 
 	ldflags = append(ldflags, cgoldflags...)
 	ldflags = append(ldflags, envList("CGO_LDFLAGS", "")...)
 	if root.Package != nil {
 		ldflags = append(ldflags, root.Package.CgoLDFLAGS...)
 	}
-
-	ldflags = str.StringList("-Wl,-(", ldflags, "-Wl,-)")
+	if cfg.Goos != "aix" {
+		ldflags = str.StringList("-Wl,-(", ldflags, "-Wl,-)")
+	}
 
 	if root.buildID != "" {
 		// On systems that normally use gold or the GNU linker,
@@ -363,11 +390,17 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		}
 	}
 
+	var rLibPath string
+	if cfg.Goos == "aix" {
+		rLibPath = "-Wl,-blibpath="
+	} else {
+		rLibPath = "-Wl,-rpath="
+	}
 	for _, shlib := range shlibs {
 		ldflags = append(
 			ldflags,
 			"-L"+filepath.Dir(shlib),
-			"-Wl,-rpath="+filepath.Dir(shlib),
+			rLibPath+filepath.Dir(shlib),
 			"-l"+strings.TrimSuffix(
 				strings.TrimPrefix(filepath.Base(shlib), "lib"),
 				".so"))
@@ -412,7 +445,10 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 	case "c-shared":
 		ldflags = append(ldflags, "-shared", "-nostdlib", "-Wl,--whole-archive", "-lgolibbegin", "-Wl,--no-whole-archive", "-lgo", "-lgcc_s", "-lgcc", "-lc", "-lgcc")
 	case "shared":
-		ldflags = append(ldflags, "-zdefs", "-shared", "-nostdlib", "-lgo", "-lgcc_s", "-lgcc", "-lc")
+		if cfg.Goos != "aix" {
+			ldflags = append(ldflags, "-zdefs")
+		}
+		ldflags = append(ldflags, "-shared", "-nostdlib", "-lgo", "-lgcc_s", "-lgcc", "-lc")
 
 	default:
 		base.Fatalf("-buildmode=%s not supported for gccgo", buildmode)
@@ -445,7 +481,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 
 	switch buildmode {
 	case "c-archive":
-		if err := b.run(root, ".", desc, nil, "ar", "rc", realOut, out); err != nil {
+		if err := b.run(root, ".", desc, nil, tools.ar(), "rc", realOut, out); err != nil {
 			return err
 		}
 	}

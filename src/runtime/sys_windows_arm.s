@@ -510,11 +510,7 @@ loop:
 	MULLU	R0, R2, (R4, R3)    // R4:R3 = R1:R0 * R2
 	MULA	R1, R2, R4, R4
 
-	// wintime*100 = R4:R3, subtract startNano and return
-	MOVW    runtime·startNano+0(SB), R0
-	MOVW    runtime·startNano+4(SB), R1
-	SUB.S   R0, R3
-	SBC	R1, R4
+	// wintime*100 = R4:R3
 	MOVW	R3, ret_lo+0(FP)
 	MOVW	R4, ret_hi+4(FP)
 	RET
@@ -540,11 +536,7 @@ loop:
 	MULLU	R0, R2, (R4, R3)    // R4:R3 = R1:R0 * R2
 	MULA	R1, R2, R4, R4
 
-	// wintime*100 = R4:R3, subtract startNano and return
-	MOVW    runtime·startNano+0(SB), R0
-	MOVW    runtime·startNano+4(SB), R1
-	SUB.S   R0, R3
-	SBC	R1, R4
+	// wintime*100 = R4:R3
 	MOVW	R3, mono+12(FP)
 	MOVW	R4, mono+16(FP)
 

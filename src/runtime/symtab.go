@@ -698,7 +698,7 @@ func findfunc(pc uintptr) funcInfo {
 }
 
 type pcvalueCache struct {
-	entries [16]pcvalueCacheEnt
+	entries [2][8]pcvalueCacheEnt
 }
 
 type pcvalueCacheEnt struct {
@@ -707,6 +707,14 @@ type pcvalueCacheEnt struct {
 	off      int32
 	// val is the value of this cached pcvalue entry.
 	val int32
+}
+
+// pcvalueCacheKey returns the outermost index in a pcvalueCache to use for targetpc.
+// It must be very cheap to calculate.
+// For now, align to sys.PtrSize and reduce mod the number of entries.
+// In practice, this appears to be fairly randomly and evenly distributed.
+func pcvalueCacheKey(targetpc uintptr) uintptr {
+	return (targetpc / sys.PtrSize) % uintptr(len(pcvalueCache{}.entries))
 }
 
 func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
@@ -721,13 +729,14 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
 	// cheaper than doing the hashing for a less associative
 	// cache.
 	if cache != nil {
-		for i := range cache.entries {
+		x := pcvalueCacheKey(targetpc)
+		for i := range cache.entries[x] {
 			// We check off first because we're more
 			// likely to have multiple entries with
 			// different offsets for the same targetpc
 			// than the other way around, so we'll usually
 			// fail in the first clause.
-			ent := &cache.entries[i]
+			ent := &cache.entries[x][i]
 			if ent.off == off && ent.targetpc == targetpc {
 				return ent.val
 			}
@@ -756,9 +765,14 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
 			// replacement prevents a performance cliff if
 			// a recursive stack's cycle is slightly
 			// larger than the cache.
+			// Put the new element at the beginning,
+			// since it is the most likely to be newly used.
 			if cache != nil {
-				ci := fastrandn(uint32(len(cache.entries)))
-				cache.entries[ci] = pcvalueCacheEnt{
+				x := pcvalueCacheKey(targetpc)
+				e := &cache.entries[x]
+				ci := fastrand() % uint32(len(cache.entries[x]))
+				e[ci] = e[0]
+				e[0] = pcvalueCacheEnt{
 					targetpc: targetpc,
 					off:      off,
 					val:      val,
