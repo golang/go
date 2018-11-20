@@ -441,55 +441,60 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool
 		if n.IsAutoTmp() {
 			continue
 		}
-		var abbrev int
-		offs := n.Xoffset
 
-		switch n.Class() {
-		case PAUTO:
-			abbrev = dwarf.DW_ABRV_AUTO
-			if Ctxt.FixedFrameSize() == 0 {
-				offs -= int64(Widthptr)
-			}
-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) || objabi.GOARCH == "arm64" {
-				// There is a word space for FP on ARM64 even if the frame pointer is disabled
-				offs -= int64(Widthptr)
-			}
-
-		case PPARAM, PPARAMOUT:
-			abbrev = dwarf.DW_ABRV_PARAM
-			offs += Ctxt.FixedFrameSize()
-		default:
-			Fatalf("createSimpleVars unexpected type %v for node %v", n.Class(), n)
-		}
-
-		selected[n] = true
-		typename := dwarf.InfoPrefix + typesymname(n.Type)
 		decls = append(decls, n)
-		inlIndex := 0
-		if genDwarfInline > 1 {
-			if n.InlFormal() || n.InlLocal() {
-				inlIndex = posInlIndex(n.Pos) + 1
-				if n.InlFormal() {
-					abbrev = dwarf.DW_ABRV_PARAM
-				}
-			}
-		}
-		declpos := Ctxt.InnermostPos(n.Pos)
-		vars = append(vars, &dwarf.Var{
-			Name:          n.Sym.Name,
-			IsReturnValue: n.Class() == PPARAMOUT,
-			IsInlFormal:   n.InlFormal(),
-			Abbrev:        abbrev,
-			StackOffset:   int32(offs),
-			Type:          Ctxt.Lookup(typename),
-			DeclFile:      declpos.RelFilename(),
-			DeclLine:      declpos.RelLine(),
-			DeclCol:       declpos.Col(),
-			InlIndex:      int32(inlIndex),
-			ChildIndex:    -1,
-		})
+		vars = append(vars, createSimpleVar(n))
+		selected[n] = true
 	}
 	return decls, vars, selected
+}
+
+func createSimpleVar(n *Node) *dwarf.Var {
+	var abbrev int
+	offs := n.Xoffset
+
+	switch n.Class() {
+	case PAUTO:
+		abbrev = dwarf.DW_ABRV_AUTO
+		if Ctxt.FixedFrameSize() == 0 {
+			offs -= int64(Widthptr)
+		}
+		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) || objabi.GOARCH == "arm64" {
+			// There is a word space for FP on ARM64 even if the frame pointer is disabled
+			offs -= int64(Widthptr)
+		}
+
+	case PPARAM, PPARAMOUT:
+		abbrev = dwarf.DW_ABRV_PARAM
+		offs += Ctxt.FixedFrameSize()
+	default:
+		Fatalf("createSimpleVar unexpected class %v for node %v", n.Class(), n)
+	}
+
+	typename := dwarf.InfoPrefix + typesymname(n.Type)
+	inlIndex := 0
+	if genDwarfInline > 1 {
+		if n.InlFormal() || n.InlLocal() {
+			inlIndex = posInlIndex(n.Pos) + 1
+			if n.InlFormal() {
+				abbrev = dwarf.DW_ABRV_PARAM
+			}
+		}
+	}
+	declpos := Ctxt.InnermostPos(n.Pos)
+	return &dwarf.Var{
+		Name:          n.Sym.Name,
+		IsReturnValue: n.Class() == PPARAMOUT,
+		IsInlFormal:   n.InlFormal(),
+		Abbrev:        abbrev,
+		StackOffset:   int32(offs),
+		Type:          Ctxt.Lookup(typename),
+		DeclFile:      declpos.RelFilename(),
+		DeclLine:      declpos.RelLine(),
+		DeclCol:       declpos.Col(),
+		InlIndex:      int32(inlIndex),
+		ChildIndex:    -1,
+	}
 }
 
 // createComplexVars creates recomposed DWARF vars with location lists,
@@ -541,18 +546,33 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
 	// If optimization is enabled, the list above will typically be
 	// missing some of the original pre-optimization variables in the
 	// function (they may have been promoted to registers, folded into
-	// constants, dead-coded away, etc). Here we add back in entries
+	// constants, dead-coded away, etc).  Input arguments not eligible
+	// for SSA optimization are also missing.  Here we add back in entries
 	// for selected missing vars. Note that the recipe below creates a
 	// conservative location. The idea here is that we want to
 	// communicate to the user that "yes, there is a variable named X
 	// in this function, but no, I don't have enough information to
 	// reliably report its contents."
+	// For non-SSA-able arguments, however, the correct information
+	// is known -- they have a single home on the stack.
 	for _, n := range dcl {
 		if _, found := selected[n]; found {
 			continue
 		}
 		c := n.Sym.Name[0]
 		if c == '.' || n.Type.IsUntyped() {
+			continue
+		}
+		if n.Class() == PPARAM && !canSSAType(n.Type) {
+			// SSA-able args get location lists, and may move in and
+			// out of registers, so those are handled elsewhere.
+			// Autos and named output params seem to get handled
+			// with VARDEF, which creates location lists.
+			// Args not of SSA-able type are treated here; they
+			// are homed on the stack in a single place for the
+			// entire call.
+			vars = append(vars, createSimpleVar(n))
+			decls = append(decls, n)
 			continue
 		}
 		typename := dwarf.InfoPrefix + typesymname(n.Type)
