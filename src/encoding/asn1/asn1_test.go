@@ -937,6 +937,23 @@ func TestImplicitTaggedTime(t *testing.T) {
 	}
 }
 
+type implicitTaggedGeneralizedTimeTest struct {
+	Time time.Time `asn1:"tag:1,generalized"`
+}
+
+func TestImplicitTaggedGeneralizedTime(t *testing.T) {
+	// An implicitly tagged time value, where the timeType param is set via the "generalized" field tag
+	// shouild be parsed as a GeneralizedTime
+	der := []byte{0x30, 0x11, 0x80 | 1, 0xf, '2', '0', '1', '7', '0', '5', '0', '6', '1', '6', '4', '5', '4', '0', 'Z'}
+	var result implicitTaggedGeneralizedTimeTest
+	if _, err := Unmarshal(der, &result); err != nil {
+		t.Fatalf("Error while parsing: %s", err)
+	}
+	if expected := time.Date(2017, 05, 06, 16, 45, 40, 0, time.UTC); !result.Time.Equal(expected) {
+		t.Errorf("Wrong result. Got %v, want %v", result.Time, expected)
+	}
+}
+
 type truncatedExplicitTagTest struct {
 	Test int `asn1:"explicit,tag:0"`
 }

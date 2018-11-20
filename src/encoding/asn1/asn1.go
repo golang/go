@@ -769,7 +769,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 
 	// Special case for time: UTCTime and GeneralizedTime both map to the
 	// Go type time.Time.
-	if universalTag == TagUTCTime && t.tag == TagGeneralizedTime && t.class == ClassUniversal {
+	if params.timeType == TagGeneralizedTime || (universalTag == TagUTCTime && t.tag == TagGeneralizedTime && t.class == ClassUniversal) {
 		universalTag = TagGeneralizedTime
 	}
 
