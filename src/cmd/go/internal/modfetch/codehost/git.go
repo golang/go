@@ -164,6 +164,11 @@ func (r *gitRepo) loadRefs() {
 	// Most of the time we only care about tags but sometimes we care about heads too.
 	out, err := Run(r.dir, "git", "ls-remote", "-q", r.remote)
 	if err != nil {
+		if rerr, ok := err.(*RunError); ok {
+			if bytes.Contains(rerr.Stderr, []byte("fatal: could not read Username")) {
+				rerr.HelpText = "If this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
+			}
+		}
 		r.refsErr = err
 		return
 	}
