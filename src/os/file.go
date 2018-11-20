@@ -386,22 +386,24 @@ func UserCacheDir() (string, error) {
 // On Unix, including macOS, it returns the $HOME environment variable.
 // On Windows, it returns %USERPROFILE%.
 // On Plan 9, it returns the $home environment variable.
-func UserHomeDir() string {
+func UserHomeDir() (string, error) {
+	env, enverr := "HOME", "$HOME"
 	switch runtime.GOOS {
 	case "windows":
-		return Getenv("USERPROFILE")
+		env, enverr = "USERPROFILE", "%userprofile%"
 	case "plan9":
-		return Getenv("home")
+		env, enverr = "home", "$home"
 	case "nacl", "android":
-		return "/"
+		return "/", nil
 	case "darwin":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			return "/"
+			return "/", nil
 		}
-		fallthrough
-	default:
-		return Getenv("HOME")
 	}
+	if v := Getenv(env); v != "" {
+		return v, nil
+	}
+	return "", errors.New(enverr + " is not defined")
 }
 
 // Chmod changes the mode of the named file to mode.
