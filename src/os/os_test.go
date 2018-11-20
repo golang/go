@@ -2300,9 +2300,12 @@ func TestDoubleCloseError(t *testing.T) {
 }
 
 func TestUserHomeDir(t *testing.T) {
-	dir := UserHomeDir()
-	if dir == "" {
-		t.Fatal("UserHomeDir returned an empty string")
+	dir, err := UserHomeDir()
+	if dir == "" && err == nil {
+		t.Fatal("UserHomeDir returned an empty string but no error")
+	}
+	if err != nil {
+		t.Skipf("UserHomeDir failed: %v", err)
 	}
 	fi, err := Stat(dir)
 	if err != nil {
