@@ -215,13 +215,6 @@ func TestRemoveAllLongPath(t *testing.T) {
 }
 
 func TestRemoveAllDot(t *testing.T) {
-	switch runtime.GOOS {
-	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
-		break
-	default:
-		t.Skip("skipping for not implemented platforms")
-	}
-
 	prevDir, err := Getwd()
 	if err != nil {
 		t.Fatalf("Could not get wd: %s", err)
@@ -242,13 +235,32 @@ func TestRemoveAllDot(t *testing.T) {
 		t.Errorf("RemoveAll succeed to remove .")
 	}
 
-	err = RemoveAll("..")
-	if err == nil {
-		t.Errorf("RemoveAll succeed to remove ..")
-	}
-
 	err = Chdir(prevDir)
 	if err != nil {
 		t.Fatalf("Could not chdir %s: %s", prevDir, err)
+	}
+}
+
+func TestRemoveAllDotDot(t *testing.T) {
+	t.Parallel()
+
+	tempDir, err := ioutil.TempDir("", "TestRemoveAllDotDot-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer RemoveAll(tempDir)
+
+	subdir := filepath.Join(tempDir, "x")
+	subsubdir := filepath.Join(subdir, "y")
+	if err := MkdirAll(subsubdir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveAll(filepath.Join(subsubdir, "..")); err != nil {
+		t.Error(err)
+	}
+	for _, dir := range []string{subsubdir, subdir} {
+		if _, err := Stat(dir); err == nil {
+			t.Errorf("%s: exists after RemoveAll", dir)
+		}
 	}
 }
