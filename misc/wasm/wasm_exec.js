@@ -442,7 +442,7 @@
 
 		const go = new Go();
 		go.argv = process.argv.slice(2);
-		go.env = process.env;
+		go.env = Object.assign({ TMPDIR: require("os").tmpdir() }, process.env);
 		go.exit = process.exit;
 		WebAssembly.instantiate(fs.readFileSync(process.argv[2]), go.importObject).then((result) => {
 			process.on("exit", (code) => { // Node.js exits if no callback is pending
