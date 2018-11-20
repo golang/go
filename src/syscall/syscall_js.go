@@ -74,6 +74,7 @@ const (
 	SIGKILL
 	SIGTRAP
 	SIGQUIT
+	SIGTERM
 )
 
 func (s Signal) Signal() {}
