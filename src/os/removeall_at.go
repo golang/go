@@ -19,7 +19,8 @@ func RemoveAll(path string) error {
 		return nil
 	}
 
-	// Not allowed in unix
+	// The rmdir system call does not permit removing ".",
+	// so we don't permit it either.
 	if endsWithDot(path) {
 		return syscall.EINVAL
 	}
@@ -130,16 +131,13 @@ func openFdAt(fd int, path string) (*File, error) {
 	return NewFile(uintptr(fd), path), nil
 }
 
+// endsWithDot returns whether the final component of path is ".".
 func endsWithDot(path string) bool {
-	if path == "." || path == ".." {
+	if path == "." {
 		return true
 	}
-	if len(path) >= 2 && path[len(path)-2:] == "/." {
+	if len(path) >= 2 && path[len(path)-1] == '.' && IsPathSeparator(path[len(path)-2]) {
 		return true
 	}
-	if len(path) >= 3 && path[len(path)-3:] == "/.." {
-		return true
-	}
-
 	return false
 }
