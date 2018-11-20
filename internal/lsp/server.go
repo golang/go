@@ -277,21 +277,36 @@ func formatRange(ctx context.Context, v *source.View, uri protocol.DocumentURI, 
 	} else {
 		r = fromProtocolRange(tok, *rng)
 	}
+	content, err := f.Read()
+	if err != nil {
+		return nil, err
+	}
 	edits, err := source.Format(ctx, f, r)
 	if err != nil {
 		return nil, err
 	}
-	return toProtocolEdits(tok, edits), nil
+	return toProtocolEdits(tok, content, edits), nil
 }
 
-func toProtocolEdits(f *token.File, edits []source.TextEdit) []protocol.TextEdit {
+func toProtocolEdits(tok *token.File, content []byte, edits []source.TextEdit) []protocol.TextEdit {
 	if edits == nil {
 		return nil
 	}
+	// When a file ends with an empty line, the newline character is counted
+	// as part of the previous line. This causes the formatter to insert
+	// another unnecessary newline on each formatting. We handle this case by
+	// checking if the file already ends with a newline character.
+	hasExtraNewline := content[len(content)-1] == '\n'
 	result := make([]protocol.TextEdit, len(edits))
 	for i, edit := range edits {
+		rng := toProtocolRange(tok, edit.Range)
+		// If the edit ends at the end of the file, add the extra line.
+		if hasExtraNewline && tok.Offset(edit.Range.End) == len(content) {
+			rng.End.Line++
+			rng.End.Character = 0
+		}
 		result[i] = protocol.TextEdit{
-			Range:   toProtocolRange(f, edit.Range),
+			Range:   rng,
 			NewText: edit.NewText,
 		}
 	}
