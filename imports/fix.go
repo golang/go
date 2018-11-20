@@ -238,9 +238,10 @@ type pass struct {
 	used            map[*importInfo]bool
 
 	// Inputs to fix. These can be augmented between successive fix calls.
-	lastTry       bool                    // indicates that this is the last call and fix should clean up as best it can.
-	candidates    []*importInfo           // candidate imports in priority order.
-	knownPackages map[string]*packageInfo // information about all known packages.
+	lastTry        bool                    // indicates that this is the last call and fix should clean up as best it can.
+	addImportNames bool                    // add names to mismatched imports.
+	candidates     []*importInfo           // candidate imports in priority order.
+	knownPackages  map[string]*packageInfo // information about all known packages.
 }
 
 // loadPackageNames saves the package names for everything referenced by imports.
@@ -334,6 +335,23 @@ func (p *pass) fix() bool {
 			astutil.DeleteNamedImport(p.fset, p.f, imp.name, imp.importPath)
 		}
 	}
+
+	if p.addImportNames {
+		for _, imp := range p.f.Imports {
+			if imp.Name != nil {
+				continue
+			}
+			path := strings.Trim(imp.Path.Value, `""`)
+			pkg, ok := p.knownPackages[path]
+			if !ok {
+				continue
+			}
+			if pkg.name != importPathToNameBasic(path, p.srcDir) {
+				imp.Name = &ast.Ident{Name: pkg.name, NamePos: imp.Pos()}
+			}
+		}
+	}
+
 	for _, imp := range selected {
 		astutil.AddNamedImport(p.fset, p.f, imp.name, imp.importPath)
 	}
@@ -421,6 +439,7 @@ func fixImports(fset *token.FileSet, f *ast.File, filename string) error {
 	// the naive algorithm.
 	p = &pass{fset: fset, f: f, srcDir: srcDir}
 	p.pathToName = importPathToName
+	p.addImportNames = true
 	p.otherFiles = otherFiles
 	if p.load() {
 		return nil
@@ -506,7 +525,7 @@ func addGoPathCandidates(pass *pass, refs map[string]map[string]bool, filename s
 			}
 			// If the package name isn't what you'd expect looking
 			// at the import path, add an explicit name.
-			if path.Base(ipath) != pkgName {
+			if importPathToNameBasic(ipath, pass.srcDir) != pkgName {
 				imp.name = pkgName
 			}
 

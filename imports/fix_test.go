@@ -1350,9 +1350,15 @@ var (
 `
 
 	testConfig{
-		module: packagestest.Module{
-			Name:  "mypkg.com/outpkg",
-			Files: fm{"toformat.go": input},
+		modules: []packagestest.Module{
+			{
+				Name:  "mypkg.com/outpkg",
+				Files: fm{"toformat.go": input},
+			},
+			{
+				Name:  "github.com/foo/v2",
+				Files: fm{"x.go": "package foo\n func Foo(){}\n"},
+			},
 		},
 	}.processTest(t, "mypkg.com/outpkg", "toformat.go", nil, nil, input)
 }
@@ -1363,18 +1369,24 @@ var (
 // that the package name is "mypkg".
 func TestVendorPackage(t *testing.T) {
 	const input = `package p
+import (
+	"fmt"
+	"mypkg.com/mypkg.v1"
+)
+var _, _ = fmt.Print, mypkg.Foo
+`
+
+	const want = `package p
 
 import (
 	"fmt"
 
-	"mypkg.com/mypkg.v1"
+	mypkg "mypkg.com/mypkg.v1"
 )
 
-var (
-	_ = fmt.Print
-	_ = mypkg.Foo
-)
+var _, _ = fmt.Print, mypkg.Foo
 `
+
 	testConfig{
 		gopathOnly: true,
 		module: packagestest.Module{
@@ -1384,7 +1396,7 @@ var (
 				"toformat.go":                    input,
 			},
 		},
-	}.processTest(t, "mypkg.com/outpkg", "toformat.go", nil, nil, input)
+	}.processTest(t, "mypkg.com/outpkg", "toformat.go", nil, nil, want)
 }
 
 func TestInternal(t *testing.T) {
@@ -1562,16 +1574,14 @@ func (t *goimportTest) process(module, file string, contents []byte, opts *Optio
 }
 
 // Tests that added imports are renamed when the import path's base doesn't
-// match its package name. For example, we want to generate:
-//
-//     import cloudbilling "google.golang.org/api/cloudbilling/v1"
+// match its package name.
 func TestRenameWhenPackageNameMismatch(t *testing.T) {
 	const input = `package main
  const Y = bar.X`
 
 	const want = `package main
 
-import bar "foo.com/foo/bar/v1"
+import bar "foo.com/foo/bar/baz"
 
 const Y = bar.X
 `
@@ -1579,8 +1589,42 @@ const Y = bar.X
 		module: packagestest.Module{
 			Name: "foo.com",
 			Files: fm{
-				"foo/bar/v1/x.go": "package bar \n const X = 1",
-				"test/t.go":       input,
+				"foo/bar/baz/x.go": "package bar \n const X = 1",
+				"test/t.go":        input,
+			},
+		},
+	}.processTest(t, "foo.com", "test/t.go", nil, nil, want)
+}
+
+// Tests that an existing import with badly mismatched path/name has its name
+// correctly added. See #28645 and #29041.
+func TestAddNameToMismatchedImport(t *testing.T) {
+	const input = `package main
+
+import (
+"foo.com/surprise"
+"foo.com/v1"
+)
+
+var _, _ = bar.X, v1.Y`
+
+	const want = `package main
+
+import (
+	bar "foo.com/surprise"
+	v1 "foo.com/v1"
+)
+
+var _, _ = bar.X, v1.Y
+`
+
+	testConfig{
+		module: packagestest.Module{
+			Name: "foo.com",
+			Files: fm{
+				"surprise/x.go": "package bar \n const X = 1",
+				"v1/x.go":       "package v1 \n const Y = 1",
+				"test/t.go":     input,
 			},
 		},
 	}.processTest(t, "foo.com", "test/t.go", nil, nil, want)
