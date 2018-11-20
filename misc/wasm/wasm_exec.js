@@ -61,6 +61,11 @@
 				err.code = "ENOSYS";
 				callback(err);
 			},
+			read(fd, buffer, offset, length, position, callback) {
+				const err = new Error("not implemented");
+				err.code = "ENOSYS";
+				callback(err);
+			},
 			fsync(fd, callback) {
 				callback(null);
 			},
