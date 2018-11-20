@@ -5,22 +5,30 @@
 package lsp
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 )
 
-func toProtocolCompletionItems(items []source.CompletionItem) []protocol.CompletionItem {
+func toProtocolCompletionItems(items []source.CompletionItem, snippetsSupported, signatureHelpEnabled bool) []protocol.CompletionItem {
 	var results []protocol.CompletionItem
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Score > items[j].Score
 	})
+	insertTextFormat := protocol.PlainTextFormat
+	if snippetsSupported {
+		insertTextFormat = protocol.SnippetTextFormat
+	}
 	for _, item := range items {
 		results = append(results, protocol.CompletionItem{
-			Label:  item.Label,
-			Detail: item.Detail,
-			Kind:   float64(toProtocolCompletionItemKind(item.Kind)),
+			Label:            item.Label,
+			InsertText:       labelToProtocolSnippets(item.Label, item.Kind, insertTextFormat, signatureHelpEnabled),
+			Detail:           item.Detail,
+			Kind:             float64(toProtocolCompletionItemKind(item.Kind)),
+			InsertTextFormat: insertTextFormat,
 		})
 	}
 	return results
@@ -49,5 +57,47 @@ func toProtocolCompletionItemKind(kind source.CompletionItemKind) protocol.Compl
 	default:
 		return protocol.TextCompletion
 	}
+}
 
+func labelToProtocolSnippets(label string, kind source.CompletionItemKind, insertTextFormat protocol.InsertTextFormat, signatureHelpEnabled bool) string {
+	switch kind {
+	case source.ConstantCompletionItem:
+		// The label for constants is of the format "<identifier> = <value>".
+		// We should now insert the " = <value>" part of the label.
+		return label[:strings.Index(label, " =")]
+	case source.FunctionCompletionItem, source.MethodCompletionItem:
+		trimmed := label[:strings.Index(label, "(")]
+		params := strings.Trim(label[strings.Index(label, "("):], "()")
+		if params == "" {
+			return label
+		}
+		// Don't add parameters or parens for the plaintext insert format.
+		if insertTextFormat == protocol.PlainTextFormat {
+			return trimmed
+		}
+		// If we do have signature help enabled, the user can see parameters as
+		// they type in the function, so we just return empty parentheses.
+		if signatureHelpEnabled {
+			return trimmed + "($1)"
+		}
+		// If signature help is not enabled, we should give the user parameters
+		// that they can tab through. The insert text format follows the
+		// specification defined by Microsoft for LSP. The "$", "}, and "\"
+		// characters should be escaped.
+		r := strings.NewReplacer(
+			`\`, `\\`,
+			`}`, `\}`,
+			`$`, `\$`,
+		)
+		trimmed += "("
+		for i, p := range strings.Split(params, ",") {
+			if i != 0 {
+				trimmed += ", "
+			}
+			trimmed += fmt.Sprintf("${%v:%v}", i+1, r.Replace(strings.Trim(p, " ")))
+		}
+		return trimmed + ")"
+
+	}
+	return label
 }

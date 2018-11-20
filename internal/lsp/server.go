@@ -30,6 +30,9 @@ type server struct {
 	initializedMu sync.Mutex
 	initialized   bool // set once the server has received "initialize" request
 
+	signatureHelpEnabled bool
+	snippetsSupported    bool
+
 	view *source.View
 }
 
@@ -40,7 +43,12 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 		return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidRequest, "server already initialized")
 	}
 	s.view = source.NewView()
-	s.initialized = true
+	s.initialized = true // mark server as initialized now
+
+	// Check if the client supports snippets in completion items.
+	s.snippetsSupported = params.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport
+	s.signatureHelpEnabled = true
+
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
 			CompletionProvider: protocol.CompletionOptions{
@@ -167,7 +175,7 @@ func (s *server) Completion(ctx context.Context, params *protocol.CompletionPara
 	}
 	return &protocol.CompletionList{
 		IsIncomplete: false,
-		Items:        toProtocolCompletionItems(items),
+		Items:        toProtocolCompletionItems(items, s.snippetsSupported, s.signatureHelpEnabled),
 	}, nil
 }
 

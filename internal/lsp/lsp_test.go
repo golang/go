@@ -31,6 +31,9 @@ func TestLSP(t *testing.T) {
 
 func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	const dir = "testdata"
+
+	// We hardcode the expected number of test cases to ensure that all tests
+	// are being executed. If a test is added, this number must be changed.
 	const expectedCompletionsCount = 43
 	const expectedDiagnosticsCount = 14
 	const expectedFormatCount = 3
@@ -52,23 +55,16 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, modules)
 	defer exported.Cleanup()
 
-	// collect results for certain tests
-	expectedDiagnostics := make(diagnostics)
-	completionItems := make(completionItems)
-	expectedCompletions := make(completions)
-	expectedFormat := make(formats)
-	expectedDefinitions := make(definitions)
-
 	s := &server{
 		view: source.NewView(),
 	}
-	// merge the config objects
+	// Merge the exported.Config with the view.Config.
 	cfg := *exported.Config
 	cfg.Fset = s.view.Config.Fset
 	cfg.Mode = packages.LoadSyntax
 	s.view.Config = &cfg
 
-	// Do a first pass to collect special markers
+	// Do a first pass to collect special markers for completion.
 	if err := exported.Expect(map[string]interface{}{
 		"item": func(name string, r packagestest.Range, _, _ string) {
 			exported.Mark(name, r)
@@ -76,6 +72,13 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+
+	expectedDiagnostics := make(diagnostics)
+	completionItems := make(completionItems)
+	expectedCompletions := make(completions)
+	expectedFormat := make(formats)
+	expectedDefinitions := make(definitions)
+
 	// Collect any data that needs to be used by subsequent tests.
 	if err := exported.Expect(map[string]interface{}{
 		"diag":     expectedDiagnostics.collect,
@@ -134,66 +137,6 @@ type completions map[token.Position][]token.Pos
 type formats map[string]string
 type definitions map[protocol.Location]protocol.Location
 
-func (c completions) test(t *testing.T, exported *packagestest.Exported, s *server, items completionItems) {
-	for src, itemList := range c {
-		var want []protocol.CompletionItem
-		for _, pos := range itemList {
-			want = append(want, *items[pos])
-		}
-		list, err := s.Completion(context.Background(), &protocol.CompletionParams{
-			TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-				TextDocument: protocol.TextDocumentIdentifier{
-					URI: protocol.DocumentURI(source.ToURI(src.Filename)),
-				},
-				Position: protocol.Position{
-					Line:      float64(src.Line - 1),
-					Character: float64(src.Column - 1),
-				},
-			},
-		})
-		if err != nil {
-			t.Fatalf("completion failed for %s:%v:%v: %v", filepath.Base(src.Filename), src.Line, src.Column, err)
-		}
-		got := list.Items
-		if equal := reflect.DeepEqual(want, got); !equal {
-			t.Errorf(diffC(src, want, got))
-		}
-	}
-}
-
-func (c completions) collect(src token.Position, expected []token.Pos) {
-	c[src] = expected
-}
-
-func (i completionItems) collect(pos token.Pos, label, detail, kind string) {
-	var k protocol.CompletionItemKind
-	switch kind {
-	case "struct":
-		k = protocol.StructCompletion
-	case "func":
-		k = protocol.FunctionCompletion
-	case "var":
-		k = protocol.VariableCompletion
-	case "type":
-		k = protocol.TypeParameterCompletion
-	case "field":
-		k = protocol.FieldCompletion
-	case "interface":
-		k = protocol.InterfaceCompletion
-	case "const":
-		k = protocol.ConstantCompletion
-	case "method":
-		k = protocol.MethodCompletion
-	case "package":
-		k = protocol.ModuleCompletion
-	}
-	i[pos] = &protocol.CompletionItem{
-		Label:  label,
-		Detail: detail,
-		Kind:   float64(k),
-	}
-}
-
 func (d diagnostics) test(t *testing.T, exported *packagestest.Exported, v *source.View) int {
 	count := 0
 	for filename, want := range d {
@@ -239,6 +182,66 @@ func (d diagnostics) collect(pos token.Position, msg string) {
 		Message:  msg,
 	}
 	d[pos.Filename] = append(d[pos.Filename], want)
+}
+
+func (c completions) test(t *testing.T, exported *packagestest.Exported, s *server, items completionItems) {
+	for src, itemList := range c {
+		var want []protocol.CompletionItem
+		for _, pos := range itemList {
+			want = append(want, *items[pos])
+		}
+		list, err := s.Completion(context.Background(), &protocol.CompletionParams{
+			TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+				TextDocument: protocol.TextDocumentIdentifier{
+					URI: protocol.DocumentURI(source.ToURI(src.Filename)),
+				},
+				Position: protocol.Position{
+					Line:      float64(src.Line - 1),
+					Character: float64(src.Column - 1),
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("completion failed for %s:%v:%v: %v", filepath.Base(src.Filename), src.Line, src.Column, err)
+		}
+		got := list.Items
+		if diff := diffC(src, want, got); diff != "" {
+			t.Errorf(diff)
+		}
+	}
+}
+
+func (c completions) collect(src token.Position, expected []token.Pos) {
+	c[src] = expected
+}
+
+func (i completionItems) collect(pos token.Pos, label, detail, kind string) {
+	var k protocol.CompletionItemKind
+	switch kind {
+	case "struct":
+		k = protocol.StructCompletion
+	case "func":
+		k = protocol.FunctionCompletion
+	case "var":
+		k = protocol.VariableCompletion
+	case "type":
+		k = protocol.TypeParameterCompletion
+	case "field":
+		k = protocol.FieldCompletion
+	case "interface":
+		k = protocol.InterfaceCompletion
+	case "const":
+		k = protocol.ConstantCompletion
+	case "method":
+		k = protocol.MethodCompletion
+	case "package":
+		k = protocol.ModuleCompletion
+	}
+	i[pos] = &protocol.CompletionItem{
+		Label:  label,
+		Detail: detail,
+		Kind:   float64(k),
+	}
 }
 
 func (f formats) test(t *testing.T, s *server) {
@@ -313,6 +316,23 @@ func diffD(filename string, want, got []protocol.Diagnostic) string {
 
 // diffC prints the diff between expected and actual completion test results.
 func diffC(pos token.Position, want, got []protocol.CompletionItem) string {
+	if len(got) != len(want) {
+		goto Failed
+	}
+	for i, w := range want {
+		g := got[i]
+		if w.Label != g.Label {
+			goto Failed
+		}
+		if w.Detail != g.Detail {
+			goto Failed
+		}
+		if w.Kind != g.Kind {
+			goto Failed
+		}
+	}
+	return ""
+Failed:
 	msg := &bytes.Buffer{}
 	fmt.Fprintf(msg, "completion failed for %s:%v:%v:\nexpected:\n", filepath.Base(pos.Filename), pos.Line, pos.Column)
 	for _, d := range want {
