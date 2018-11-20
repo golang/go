@@ -192,69 +192,86 @@ TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
 
 // Load
 TEXT	sync∕atomic·LoadInt32(SB), NOSPLIT, $0
+	GO_ARGS
 	MOVD	$__tsan_go_atomic32_load(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·LoadInt64(SB), NOSPLIT, $0
+	GO_ARGS
 	MOVD	$__tsan_go_atomic64_load(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·LoadUint32(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·LoadInt32(SB)
 
 TEXT	sync∕atomic·LoadUint64(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·LoadInt64(SB)
 
 TEXT	sync∕atomic·LoadUintptr(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·LoadInt64(SB)
 
 TEXT	sync∕atomic·LoadPointer(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·LoadInt64(SB)
 
 // Store
 TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT, $0
+	GO_ARGS
 	MOVD	$__tsan_go_atomic32_store(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·StoreInt64(SB), NOSPLIT, $0
+	GO_ARGS
 	MOVD	$__tsan_go_atomic64_store(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·StoreUint32(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·StoreInt32(SB)
 
 TEXT	sync∕atomic·StoreUint64(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·StoreInt64(SB)
 
 TEXT	sync∕atomic·StoreUintptr(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·StoreInt64(SB)
 
 // Swap
 TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT, $0
+	GO_ARGS
 	MOVD	$__tsan_go_atomic32_exchange(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·SwapInt64(SB), NOSPLIT, $0
+	GO_ARGS
 	MOVD	$__tsan_go_atomic64_exchange(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·SwapUint32(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·SwapInt32(SB)
 
 TEXT	sync∕atomic·SwapUint64(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·SwapInt64(SB)
 
 TEXT	sync∕atomic·SwapUintptr(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·SwapInt64(SB)
 
 // Add
 TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0
+	GO_ARGS
 	MOVD	$__tsan_go_atomic32_fetch_add(SB), R9
 	BL	racecallatomic<>(SB)
 	MOVW	add+8(FP), R0	// convert fetch_add to add_fetch
@@ -264,6 +281,7 @@ TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0
 	RET
 
 TEXT	sync∕atomic·AddInt64(SB), NOSPLIT, $0
+	GO_ARGS
 	MOVD	$__tsan_go_atomic64_fetch_add(SB), R9
 	BL	racecallatomic<>(SB)
 	MOVD	add+8(FP), R0	// convert fetch_add to add_fetch
@@ -273,32 +291,40 @@ TEXT	sync∕atomic·AddInt64(SB), NOSPLIT, $0
 	RET
 
 TEXT	sync∕atomic·AddUint32(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·AddInt32(SB)
 
 TEXT	sync∕atomic·AddUint64(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·AddInt64(SB)
 
 TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·AddInt64(SB)
 
 // CompareAndSwap
 TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0
+	GO_ARGS
 	MOVD	$__tsan_go_atomic32_compare_exchange(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·CompareAndSwapInt64(SB), NOSPLIT, $0
+	GO_ARGS
 	MOVD	$__tsan_go_atomic64_compare_exchange(SB), R9
 	BL	racecallatomic<>(SB)
 	RET
 
 TEXT	sync∕atomic·CompareAndSwapUint32(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·CompareAndSwapInt32(SB)
 
 TEXT	sync∕atomic·CompareAndSwapUint64(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·CompareAndSwapInt64(SB)
 
 TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0
+	GO_ARGS
 	JMP	sync∕atomic·CompareAndSwapInt64(SB)
 
 // Generic atomic operation implementation.
