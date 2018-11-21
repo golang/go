@@ -94,6 +94,19 @@ func TestAll(t *testing.T, f func(*testing.T, Exporter)) {
 	}
 }
 
+// BenchmarkAll invokes the testing function once for each exporter registered in
+// the All global.
+// Each exporter will be run as a sub-test named after the exporter being used.
+func BenchmarkAll(b *testing.B, f func(*testing.B, Exporter)) {
+	b.Helper()
+	for _, e := range All {
+		b.Run(e.Name(), func(b *testing.B) {
+			b.Helper()
+			f(b, e)
+		})
+	}
+}
+
 // Export is called to write out a test directory from within a test function.
 // It takes the exporter and the build system agnostic module descriptions, and
 // uses them to build a temporary directory.
