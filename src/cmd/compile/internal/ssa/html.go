@@ -893,7 +893,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 		if f.laidout {
 			layout = fmt.Sprintf(" #%d", i)
 		}
-		fmt.Fprintf(pipe, `%v [label="%v%s\n%v",id="graph_node_%v_%v",tooltip="%v"];`, b, b, layout, b.Kind, id, b, b.LongString())
+		fmt.Fprintf(pipe, `%v [label="%v%s\n%v",id="graph_node_%v_%v",tooltip="%v"];`, b, b, layout, b.Kind.String(), id, b, b.LongString())
 	}
 	indexOf := make([]int, f.NumBlocks())
 	for i, b := range f.Blocks {
@@ -942,7 +942,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 	err = cmd.Wait()
 	if err != nil {
 		d.broken = true
-		fmt.Printf("dot: %s\n%v\n", err, bufErr.String())
+		fmt.Printf("dot: %v\n%v\n", err, bufErr.String())
 		return
 	}
 
@@ -952,7 +952,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 	// our fingers, finding '<svg ' and injecting needed attributes after it.
 	err = d.copyUntil(w, buf, `<svg `)
 	if err != nil {
-		fmt.Printf("injecting attributes: %s\n", err)
+		fmt.Printf("injecting attributes: %v\n", err)
 		return
 	}
 	fmt.Fprintf(w, ` id="%s" onload="makeDraggable(evt)" `, svgID)
