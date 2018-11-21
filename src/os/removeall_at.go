@@ -130,14 +130,3 @@ func openFdAt(fd int, path string) (*File, error) {
 
 	return NewFile(uintptr(fd), path), nil
 }
-
-// endsWithDot returns whether the final component of path is ".".
-func endsWithDot(path string) bool {
-	if path == "." {
-		return true
-	}
-	if len(path) >= 2 && path[len(path)-1] == '.' && IsPathSeparator(path[len(path)-2]) {
-		return true
-	}
-	return false
-}
