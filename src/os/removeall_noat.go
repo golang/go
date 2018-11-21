@@ -22,6 +22,13 @@ func RemoveAll(path string) error {
 		return nil
 	}
 
+	// The rmdir system call permits removing "." on Plan 9,
+	// so we don't permit it to remain consistent with the
+	// "at" implementation of RemoveAll.
+	if endsWithDot(path) {
+		return &PathError{"RemoveAll", path, syscall.EINVAL}
+	}
+
 	// Simple case: if Remove works, we're done.
 	err := Remove(path)
 	if err == nil || IsNotExist(err) {
