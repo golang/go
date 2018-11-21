@@ -104,8 +104,9 @@ func (c *context) ip() uintptr { return uintptr(c.pc) }
 func (c *context) sp() uintptr { return uintptr(c.spr) }
 func (c *context) lr() uintptr { return uintptr(c.lrr) }
 
-func (c *context) setip(x uintptr) { c.pc = uint32(x) }
-func (c *context) setsp(x uintptr) { c.spr = uint32(x) }
+func (c *context) set_ip(x uintptr) { c.pc = uint32(x) }
+func (c *context) set_sp(x uintptr) { c.spr = uint32(x) }
+func (c *context) set_lr(x uintptr) { c.lrr = uint32(x) }
 
 func dumpregs(r *context) {
 	print("r0   ", hex(r.r0), "\n")

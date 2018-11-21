@@ -117,10 +117,18 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 	if r.ip() != 0 {
 		sp := unsafe.Pointer(r.sp())
 		sp = add(sp, ^(unsafe.Sizeof(uintptr(0)) - 1)) // sp--
-		*((*uintptr)(sp)) = r.ip()
-		r.setsp(uintptr(sp))
+		r.set_sp(uintptr(sp))
+		switch GOARCH {
+		default:
+			panic("unsupported architecture")
+		case "386", "amd64":
+			*((*uintptr)(sp)) = r.ip()
+		case "arm":
+			*((*uintptr)(sp)) = r.lr()
+			r.set_lr(r.ip())
+		}
 	}
-	r.setip(funcPC(sigpanic))
+	r.set_ip(funcPC(sigpanic))
 	return _EXCEPTION_CONTINUE_EXECUTION
 }
 
