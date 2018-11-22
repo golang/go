@@ -169,13 +169,13 @@ func (s *server) Completion(ctx context.Context, params *protocol.CompletionPara
 		return nil, err
 	}
 	pos := fromProtocolPosition(tok, params.Position)
-	items, err := source.Completion(ctx, f, pos)
+	items, prefix, err := source.Completion(ctx, f, pos)
 	if err != nil {
 		return nil, err
 	}
 	return &protocol.CompletionList{
 		IsIncomplete: false,
-		Items:        toProtocolCompletionItems(items, s.snippetsSupported, s.signatureHelpEnabled),
+		Items:        toProtocolCompletionItems(items, prefix, params.Position, s.snippetsSupported, s.signatureHelpEnabled),
 	}, nil
 }
 

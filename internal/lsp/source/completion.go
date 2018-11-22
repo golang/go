@@ -34,17 +34,16 @@ const (
 	PackageCompletionItem
 )
 
-func Completion(ctx context.Context, f *File, pos token.Pos) ([]CompletionItem, error) {
+func Completion(ctx context.Context, f *File, pos token.Pos) ([]CompletionItem, string, error) {
 	file, err := f.GetAST()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	pkg, err := f.GetPackage()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	items, _, err := completions(file, pos, pkg.Fset, pkg.Types, pkg.TypesInfo)
-	return items, err
+	return completions(file, pos, pkg.Fset, pkg.Types, pkg.TypesInfo)
 }
 
 const stdScore float64 = 1.0
@@ -93,9 +92,6 @@ func completions(file *ast.File, pos token.Pos, fset *token.FileSet, pkg *types.
 			if typ != nil && matchingTypes(typ, obj.Type()) {
 				weight *= 10.0
 			}
-			if !strings.HasPrefix(obj.Name(), prefix) {
-				return items
-			}
 			item := formatCompletion(obj, pkgStringer, weight, func(v *types.Var) bool {
 				return isParameter(sig, v)
 			})
@@ -115,7 +111,8 @@ func completions(file *ast.File, pos token.Pos, fset *token.FileSet, pkg *types.
 
 		// Is this the Sel part of a selector?
 		if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
-			return selector(sel, info, found)
+			items, err = selector(sel, pos, info, found)
+			return items, prefix, err
 		}
 		// reject defining identifiers
 		if obj, ok := info.Defs[n]; ok {
@@ -137,10 +134,12 @@ func completions(file *ast.File, pos token.Pos, fset *token.FileSet, pkg *types.
 	//   recv.‸(arg)
 	case *ast.TypeAssertExpr:
 		// Create a fake selector expression.
-		return selector(&ast.SelectorExpr{X: n.X}, info, found)
+		items, err = selector(&ast.SelectorExpr{X: n.X}, pos, info, found)
+		return items, prefix, err
 
 	case *ast.SelectorExpr:
-		return selector(n, info, found)
+		items, err = selector(n, pos, info, found)
+		return items, prefix, err
 
 	default:
 		// fallback to lexical completions
@@ -153,7 +152,7 @@ func completions(file *ast.File, pos token.Pos, fset *token.FileSet, pkg *types.
 // selector finds completions for
 // the specified selector expression.
 // TODO(rstambler): Set the prefix filter correctly for selectors.
-func selector(sel *ast.SelectorExpr, info *types.Info, found finder) (items []CompletionItem, prefix string, err error) {
+func selector(sel *ast.SelectorExpr, pos token.Pos, info *types.Info, found finder) (items []CompletionItem, err error) {
 	// Is sel a qualified identifier?
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkgname, ok := info.Uses[id].(*types.PkgName); ok {
@@ -164,14 +163,14 @@ func selector(sel *ast.SelectorExpr, info *types.Info, found finder) (items []Co
 			for _, name := range scope.Names() {
 				items = found(scope.Lookup(name), stdScore, items)
 			}
-			return items, prefix, nil
+			return items, nil
 		}
 	}
 
 	// Inv: sel is a true selector.
 	tv, ok := info.Types[sel.X]
 	if !ok {
-		return nil, "", fmt.Errorf("cannot resolve %s", sel.X)
+		return nil, fmt.Errorf("cannot resolve %s", sel.X)
 	}
 
 	// methods of T
@@ -193,7 +192,7 @@ func selector(sel *ast.SelectorExpr, info *types.Info, found finder) (items []Co
 		items = found(f, stdScore, items)
 	}
 
-	return items, prefix, nil
+	return items, nil
 }
 
 // lexical finds completions in the lexical environment.
@@ -208,7 +207,7 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 		}
 		scopes = append(scopes, info.Scopes[n])
 	}
-	scopes = append(scopes, pkg.Scope())
+	scopes = append(scopes, pkg.Scope(), types.Universe)
 
 	// Process scopes innermost first.
 	for i, scope := range scopes {

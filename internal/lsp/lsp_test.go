@@ -201,10 +201,28 @@ func (c completions) test(t *testing.T, exported *packagestest.Exported, s *serv
 				},
 			},
 		})
+		var got []protocol.CompletionItem
+		for _, item := range list.Items {
+			// Skip all types with no details (builtin types).
+			if item.Detail == "" && item.Kind == float64(protocol.TypeParameterCompletion) {
+				continue
+			}
+			// Skip remaining builtin types.
+			trimmed := item.Label
+			if i := strings.Index(trimmed, "("); i >= 0 {
+				trimmed = trimmed[:i]
+			}
+			switch trimmed {
+			case "append", "cap", "close", "complex", "copy", "delete",
+				"error", "false", "imag", "iota", "len", "make", "new",
+				"nil", "panic", "print", "println", "real", "recover", "true":
+				continue
+			}
+			got = append(got, item)
+		}
 		if err != nil {
 			t.Fatalf("completion failed for %s:%v:%v: %v", filepath.Base(src.Filename), src.Line, src.Column, err)
 		}
-		got := list.Items
 		if diff := diffC(src, want, got); diff != "" {
 			t.Errorf(diff)
 		}

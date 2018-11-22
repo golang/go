@@ -13,7 +13,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 )
 
-func toProtocolCompletionItems(items []source.CompletionItem, snippetsSupported, signatureHelpEnabled bool) []protocol.CompletionItem {
+func toProtocolCompletionItems(items []source.CompletionItem, prefix string, pos protocol.Position, snippetsSupported, signatureHelpEnabled bool) []protocol.CompletionItem {
 	var results []protocol.CompletionItem
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Score > items[j].Score
@@ -22,14 +22,33 @@ func toProtocolCompletionItems(items []source.CompletionItem, snippetsSupported,
 	if snippetsSupported {
 		insertTextFormat = protocol.SnippetTextFormat
 	}
-	for _, item := range items {
+	for i, item := range items {
+		// Matching against the label.
+		if !strings.HasPrefix(item.Label, prefix) {
+			continue
+		}
 		insertText, triggerSignatureHelp := labelToProtocolSnippets(item.Label, item.Kind, insertTextFormat, signatureHelpEnabled)
+		if prefix != "" {
+			insertText = insertText[len(prefix):]
+		}
 		i := protocol.CompletionItem{
 			Label:            item.Label,
-			InsertText:       insertText,
 			Detail:           item.Detail,
 			Kind:             float64(toProtocolCompletionItemKind(item.Kind)),
 			InsertTextFormat: insertTextFormat,
+			TextEdit: &protocol.TextEdit{
+				NewText: insertText,
+				Range: protocol.Range{
+					Start: pos,
+					End:   pos,
+				},
+			},
+			// InsertText is deprecated in favor of TextEdit.
+			InsertText: insertText,
+			// This is a hack so that the client sorts completion results in the order
+			// according to their score. This can be removed upon the resolution of
+			// https://github.com/Microsoft/language-server-protocol/issues/348.
+			SortText: fmt.Sprintf("%05d", i),
 		}
 		// If we are completing a function, we should trigger signature help if possible.
 		if triggerSignatureHelp && signatureHelpEnabled {
@@ -72,7 +91,9 @@ func labelToProtocolSnippets(label string, kind source.CompletionItemKind, inser
 	case source.ConstantCompletionItem:
 		// The label for constants is of the format "<identifier> = <value>".
 		// We should now insert the " = <value>" part of the label.
-		return label[:strings.Index(label, " =")], false
+		if i := strings.Index(label, " ="); i >= 0 {
+			return label[:i], false
+		}
 	case source.FunctionCompletionItem, source.MethodCompletionItem:
 		trimmed := label[:strings.Index(label, "(")]
 		params := strings.Trim(label[strings.Index(label, "("):], "()")
