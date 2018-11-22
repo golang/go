@@ -298,7 +298,7 @@ func round(n, a uintptr) uintptr {
 	return (n + a - 1) &^ (a - 1)
 }
 
-// checkASM returns whether assembly runtime checks have passed.
+// checkASM reports whether assembly runtime checks have passed.
 func checkASM() bool
 
 func memequal_varlen(a, b unsafe.Pointer) bool

@@ -205,7 +205,7 @@ func (l *Location) lookupFirstZone() int {
 	return 0
 }
 
-// firstZoneUsed returns whether the first zone is used by some
+// firstZoneUsed reports whether the first zone is used by some
 // transition.
 func (l *Location) firstZoneUsed() bool {
 	for _, tx := range l.tx {

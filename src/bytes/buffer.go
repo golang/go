@@ -68,7 +68,7 @@ func (b *Buffer) String() string {
 	return string(b.buf[b.off:])
 }
 
-// empty returns whether the unread portion of the buffer is empty.
+// empty reports whether the unread portion of the buffer is empty.
 func (b *Buffer) empty() bool { return len(b.buf) <= b.off }
 
 // Len returns the number of bytes of the unread portion of the buffer;

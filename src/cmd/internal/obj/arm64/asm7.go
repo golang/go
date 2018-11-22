@@ -1183,7 +1183,7 @@ func isaddcon(v int64) bool {
 	return v <= 0xFFF
 }
 
-// isbitcon returns whether a constant can be encoded into a logical instruction.
+// isbitcon reports whether a constant can be encoded into a logical instruction.
 // bitcon has a binary form of repetition of a bit sequence of length 2, 4, 8, 16, 32, or 64,
 // which itself is a rotate (w.r.t. the length of the unit) of a sequence of ones.
 // special cases: 0 and -1 are not bitcon.

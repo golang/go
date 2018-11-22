@@ -240,7 +240,7 @@ const (
 	RequireAndVerifyClientCert
 )
 
-// requiresClientCert returns whether the ClientAuthType requires a client
+// requiresClientCert reports whether the ClientAuthType requires a client
 // certificate to be provided.
 func requiresClientCert(c ClientAuthType) bool {
 	switch c {

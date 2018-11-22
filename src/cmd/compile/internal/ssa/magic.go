@@ -83,7 +83,7 @@ import "math/big"
 //                   a+b has n+1 bits in it.  Nevertheless, can be done
 //                   in 2 instructions on x86.)
 
-// umagicOK returns whether we should strength reduce a n-bit divide by c.
+// umagicOK reports whether we should strength reduce a n-bit divide by c.
 func umagicOK(n uint, c int64) bool {
 	// Convert from ConstX auxint values to the real uint64 constant they represent.
 	d := uint64(c) << (64 - n) >> (64 - n)

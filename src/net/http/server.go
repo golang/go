@@ -3082,7 +3082,7 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 }
 
 // setupHTTP2_ServeTLS conditionally configures HTTP/2 on
-// srv and returns whether there was an error setting it up. If it is
+// srv and reports whether there was an error setting it up. If it is
 // not configured for policy reasons, nil is returned.
 func (srv *Server) setupHTTP2_ServeTLS() error {
 	srv.nextProtoOnce.Do(srv.onceSetNextProtoDefaults)

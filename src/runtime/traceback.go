@@ -876,7 +876,7 @@ func isExportedRuntime(name string) bool {
 	return len(name) > n && name[:n] == "runtime." && 'A' <= name[n] && name[n] <= 'Z'
 }
 
-// elideWrapperCalling returns whether a wrapper function that called
+// elideWrapperCalling reports whether a wrapper function that called
 // function "name" should be elided from stack traces.
 func elideWrapperCalling(name string) bool {
 	// If the wrapper called a panic function instead of the

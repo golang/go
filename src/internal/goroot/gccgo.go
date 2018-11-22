@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 )
 
-// IsStandardPackage returns whether path is a standard package,
+// IsStandardPackage reports whether path is a standard package,
 // given goroot and compiler.
 func IsStandardPackage(goroot, compiler, path string) bool {
 	switch compiler {

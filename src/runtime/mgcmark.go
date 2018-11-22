@@ -558,7 +558,7 @@ func gcWakeAllAssists() {
 
 // gcParkAssist puts the current goroutine on the assist queue and parks.
 //
-// gcParkAssist returns whether the assist is now satisfied. If it
+// gcParkAssist reports whether the assist is now satisfied. If it
 // returns false, the caller must retry the assist.
 //
 //go:nowritebarrier

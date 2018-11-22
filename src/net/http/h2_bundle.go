@@ -4852,7 +4852,7 @@ func (sc *http2serverConn) resetStream(se http2StreamError) {
 
 // processFrameFromReader processes the serve loop's read from readFrameCh from the
 // frame-reading goroutine.
-// processFrameFromReader returns whether the connection should be kept open.
+// processFrameFromReader reports whether the connection should be kept open.
 func (sc *http2serverConn) processFrameFromReader(res http2readFrameResult) bool {
 	sc.serveG.check()
 	err := res.err
