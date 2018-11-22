@@ -606,7 +606,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 	return
 }
 
-// cgoIsGoPointer returns whether the pointer is a Go pointer--a
+// cgoIsGoPointer reports whether the pointer is a Go pointer--a
 // pointer to Go memory. We only care about Go memory that might
 // contain pointers.
 //go:nosplit
@@ -629,7 +629,7 @@ func cgoIsGoPointer(p unsafe.Pointer) bool {
 	return false
 }
 
-// cgoInRange returns whether p is between start and end.
+// cgoInRange reports whether p is between start and end.
 //go:nosplit
 //go:nowritebarrierrec
 func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {

@@ -538,7 +538,7 @@ func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
 	return false
 }
 
-// overlappingDuration returns whether the durational event, ev, overlaps with
+// overlappingDuration reports whether the durational event, ev, overlaps with
 // any of the task's region if ev is a goroutine-local event, or overlaps with
 // the task's lifetime if ev is a global event. It returns the overlapping time
 // as well.

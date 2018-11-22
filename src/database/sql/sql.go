@@ -2821,7 +2821,7 @@ func (ci *ColumnType) ScanType() reflect.Type {
 	return ci.scanType
 }
 
-// Nullable returns whether the column may be null.
+// Nullable reports whether the column may be null.
 // If a driver does not support this property ok will be false.
 func (ci *ColumnType) Nullable() (nullable, ok bool) {
 	return ci.nullable, ci.hasNullable

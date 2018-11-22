@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// needwb returns whether we need write barrier for store op v.
+// needwb reports whether we need write barrier for store op v.
 // v must be Store/Move/Zero.
 func needwb(v *Value) bool {
 	t, ok := v.Aux.(*types.Type)

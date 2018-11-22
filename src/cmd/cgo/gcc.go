@@ -718,7 +718,7 @@ func (p *Package) mangleName(n *Name) {
 
 // rewriteCalls rewrites all calls that pass pointers to check that
 // they follow the rules for passing pointers between Go and C.
-// This returns whether the package needs to import unsafe as _cgo_unsafe.
+// This reports whether the package needs to import unsafe as _cgo_unsafe.
 func (p *Package) rewriteCalls(f *File) bool {
 	needsUnsafe := false
 	// Walk backward so that in C.f1(C.f2()) we rewrite C.f2 first.
@@ -941,7 +941,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 	return sb.String(), needsUnsafe
 }
 
-// needsPointerCheck returns whether the type t needs a pointer check.
+// needsPointerCheck reports whether the type t needs a pointer check.
 // This is true if t is a pointer and if the value to which it points
 // might contain a pointer.
 func (p *Package) needsPointerCheck(f *File, t ast.Expr, arg ast.Expr) bool {
@@ -958,7 +958,7 @@ func (p *Package) needsPointerCheck(f *File, t ast.Expr, arg ast.Expr) bool {
 
 // hasPointer is used by needsPointerCheck. If top is true it returns
 // whether t is or contains a pointer that might point to a pointer.
-// If top is false it returns whether t is or contains a pointer.
+// If top is false it reports whether t is or contains a pointer.
 // f may be nil.
 func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
 	switch t := t.(type) {
@@ -1172,7 +1172,7 @@ func (p *Package) checkAddr(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool
 	return true
 }
 
-// isType returns whether the expression is definitely a type.
+// isType reports whether the expression is definitely a type.
 // This is conservative--it returns false for an unknown identifier.
 func (p *Package) isType(t ast.Expr) bool {
 	switch t := t.(type) {
@@ -1214,7 +1214,7 @@ func (p *Package) isType(t ast.Expr) bool {
 	return false
 }
 
-// isConst returns whether x is an untyped constant expression.
+// isConst reports whether x is an untyped constant expression.
 func (p *Package) isConst(f *File, x ast.Expr) bool {
 	switch x := x.(type) {
 	case *ast.BasicLit:
@@ -2827,7 +2827,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 	return
 }
 
-// dwarfHasPointer returns whether the DWARF type dt contains a pointer.
+// dwarfHasPointer reports whether the DWARF type dt contains a pointer.
 func (c *typeConv) dwarfHasPointer(dt dwarf.Type, pos token.Pos) bool {
 	switch dt := dt.(type) {
 	default:

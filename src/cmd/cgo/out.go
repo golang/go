@@ -1203,7 +1203,7 @@ func (p *Package) writeExportHeader(fgcch io.Writer) {
 	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
 }
 
-// gccgoUsesNewMangling returns whether gccgo uses the new collision-free
+// gccgoUsesNewMangling reports whether gccgo uses the new collision-free
 // packagepath mangling scheme (see determineGccgoManglingScheme for more
 // info).
 func gccgoUsesNewMangling() bool {

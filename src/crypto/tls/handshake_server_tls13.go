@@ -464,7 +464,7 @@ func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) 
 	return nil
 }
 
-// illegalClientHelloChange returns whether the two ClientHello messages are
+// illegalClientHelloChange reports whether the two ClientHello messages are
 // different, with the exception of the changes allowed before and after a
 // HelloRetryRequest. See RFC 8446, Section 4.1.2.
 func illegalClientHelloChange(ch, ch1 *clientHelloMsg) bool {
