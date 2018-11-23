@@ -91,15 +91,11 @@ func (f *xcoffFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
 	if sect := f.xcoff.Section(".text"); sect != nil {
 		textStart = sect.VirtualAddress
 	}
-	if sect := f.xcoff.Section(".gosymtab"); sect != nil {
-		if symtab, err = sect.Data(); err != nil {
-			return 0, nil, nil, err
-		}
+	if pclntab, err = loadXCOFFTable(f.xcoff, "runtime.pclntab", "runtime.epclntab"); err != nil {
+		return 0, nil, nil, err
 	}
-	if sect := f.xcoff.Section(".gopclntab"); sect != nil {
-		if pclntab, err = sect.Data(); err != nil {
-			return 0, nil, nil, err
-		}
+	if symtab, err = loadXCOFFTable(f.xcoff, "runtime.symtab", "runtime.esymtab"); err != nil {
+		return 0, nil, nil, err
 	}
 	return textStart, symtab, pclntab, nil
 }
@@ -112,6 +108,42 @@ func (f *xcoffFile) text() (textStart uint64, text []byte, err error) {
 	textStart = sect.VirtualAddress
 	text, err = sect.Data()
 	return
+}
+
+func findXCOFFSymbol(f *xcoff.File, name string) (*xcoff.Symbol, error) {
+	for _, s := range f.Symbols {
+		if s.Name != name {
+			continue
+		}
+		if s.SectionNumber <= 0 {
+			return nil, fmt.Errorf("symbol %s: invalid section number %d", name, s.SectionNumber)
+		}
+		if len(f.Sections) < int(s.SectionNumber) {
+			return nil, fmt.Errorf("symbol %s: section number %d is larger than max %d", name, s.SectionNumber, len(f.Sections))
+		}
+		return s, nil
+	}
+	return nil, fmt.Errorf("no %s symbol found", name)
+}
+
+func loadXCOFFTable(f *xcoff.File, sname, ename string) ([]byte, error) {
+	ssym, err := findXCOFFSymbol(f, sname)
+	if err != nil {
+		return nil, err
+	}
+	esym, err := findXCOFFSymbol(f, ename)
+	if err != nil {
+		return nil, err
+	}
+	if ssym.SectionNumber != esym.SectionNumber {
+		return nil, fmt.Errorf("%s and %s symbols must be in the same section", sname, ename)
+	}
+	sect := f.Sections[ssym.SectionNumber-1]
+	data, err := sect.Data()
+	if err != nil {
+		return nil, err
+	}
+	return data[ssym.Value:esym.Value], nil
 }
 
 func (f *xcoffFile) goarch() string {

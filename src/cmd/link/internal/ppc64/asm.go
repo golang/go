@@ -953,13 +953,6 @@ func asmb(ctxt *ld.Link) {
 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
-	loadersize := uint64(0)
-	if ctxt.HeadType == objabi.Haix && ctxt.BuildMode == ld.BuildModeExe {
-		loadero := uint64(ld.Rnd(int64(ld.Segdwarf.Fileoff+ld.Segdwarf.Filelen), int64(*ld.FlagRound)))
-		ctxt.Out.SeekSet(int64(loadero))
-		loadersize = ld.Loaderblk(ctxt, loadero)
-	}
-
 	/* output symbol table */
 	ld.Symsize = 0
 
@@ -981,14 +974,7 @@ func asmb(ctxt *ld.Link) {
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 
 		case objabi.Haix:
-			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
-
-			// Add loader size if needed
-			if ctxt.BuildMode == ld.BuildModeExe {
-				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
-				symo += uint32(loadersize)
-			}
-			symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+			// Nothing to do
 		}
 
 		ctxt.Out.SeekSet(int64(symo))
@@ -1019,7 +1005,7 @@ func asmb(ctxt *ld.Link) {
 			}
 
 		case objabi.Haix:
-			ld.Asmaixsym(ctxt)
+			// symtab must be added once sections have been created in ld.Asmbxcoff
 			ctxt.Out.Flush()
 		}
 	}
@@ -1048,7 +1034,9 @@ func asmb(ctxt *ld.Link) {
 		ld.Asmbelf(ctxt, int64(symo))
 
 	case objabi.Haix:
-		ld.Asmbxcoff(ctxt)
+		fileoff := uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+		fileoff = uint32(ld.Rnd(int64(fileoff), int64(*ld.FlagRound)))
+		ld.Asmbxcoff(ctxt, int64(fileoff))
 	}
 
 	ctxt.Out.Flush()

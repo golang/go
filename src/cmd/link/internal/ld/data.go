@@ -1708,10 +1708,6 @@ func (ctxt *Link) dodata() {
 	}
 	for _, sect := range Segdata.Sections {
 		sect.Extnum = int16(n)
-		if ctxt.HeadType == objabi.Haix && (sect.Name == ".noptrdata" || sect.Name == ".bss") {
-			// On AIX, "noptr" sections are merged with their "ptr" section
-			continue
-		}
 		n++
 	}
 	for _, sect := range Segdwarf.Sections {
