@@ -97,7 +97,6 @@ type XcoffAoutHdr64 struct {
 	Ox64flags   uint16   // Additional Flags For 64-Bit Objects
 	Oresv3a     int16    // Reserved
 	Oresv3      [2]int32 // Reserved
-
 }
 
 // Section Header
@@ -507,7 +506,6 @@ func Xcoffinit(ctxt *Link) {
 		Errorf(nil, "-T not available on AIX")
 	}
 	*FlagTextAddr = XCOFFTEXTBASE + int64(HEADR)
-	*FlagDataAddr = 0
 	if *FlagRound != -1 {
 		Errorf(nil, "-R not available on AIX")
 	}
