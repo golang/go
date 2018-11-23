@@ -316,6 +316,12 @@ type XcoffLdSym64 struct {
 	Lparm   uint32 // Parameter type-check field
 }
 
+type xcoffLoaderSymbol struct {
+	sym    *sym.Symbol
+	smtype int8
+	smclas int8
+}
+
 type XcoffLdImportFile64 struct {
 	Limpidpath string
 	Limpidbase string
@@ -354,11 +360,11 @@ type xcoffFile struct {
 	stringTable     xcoffStringTable
 	sectNameToScnum map[string]int16
 	loaderSize      uint64
-	symtabOffset    int64               // offset to the start of symbol table
-	symbolCount     uint32              // number of symbol table records written
-	dynLibraries    map[string]int      // Dynamic libraries in .loader section. The integer represents its import file number (- 1)
-	dynSymbols      []*sym.Symbol       // Dynamic symbols in .loader section
-	loaderReloc     []*xcoffLoaderReloc // Reloc that must be made inside loader
+	symtabOffset    int64                // offset to the start of symbol table
+	symbolCount     uint32               // number of symbol table records written
+	dynLibraries    map[string]int       // Dynamic libraries in .loader section. The integer represents its import file number (- 1)
+	loaderSymbols   []*xcoffLoaderSymbol // symbols inside .loader symbol table
+	loaderReloc     []*xcoffLoaderReloc  // Reloc that must be made inside loader
 }
 
 // Those values will latter be computed in XcoffInit
@@ -796,7 +802,33 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 
 		syms = append(syms, a4)
 
+	case UndefinedSym:
+		if x.Type != sym.SDYNIMPORT && x.Type != sym.SHOSTOBJ {
+			return
+		}
+		s := &XcoffSymEnt64{
+			Nsclass: C_EXT,
+			Noffset: uint32(xfile.stringTable.add(str)),
+			Nnumaux: 1,
+		}
+		syms = append(syms, s)
+
+		a4 := &XcoffAuxCSect64{
+			Xauxtype: _AUX_CSECT,
+			Xsmclas:  XMC_DS,
+			Xsmtyp:   XTY_ER | XTY_IMP,
+		}
+
+		if x.Name == "__n_pthreads" {
+			// Currently, all imported symbols made by cgo_import_dynamic are
+			// syscall functions, except __n_pthreads which is a variable.
+			// TODO(aix): Find a way to detect variables imported by cgo.
+			a4.Xsmclas = XMC_RW
+		}
+
+		syms = append(syms, a4)
 	}
+
 	for _, s := range syms {
 		xfile.writeSymbol(ctxt.Out, ctxt.Arch.ByteOrder, s)
 	}
@@ -814,18 +846,32 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 	xfile.stringTable.write(ctxt.Out)
 }
 
-// xcoffadddynimpsym adds a dynamic symbol to a XCOFF file
-func xcoffadddynimpsym(ctxt *Link, s *sym.Symbol) {
-	xfile.adddynimpsym(ctxt, s)
+func (f *xcoffFile) genDynSym(ctxt *Link) {
+	var dynsyms []*sym.Symbol
+	for _, s := range ctxt.Syms.Allsym {
+		if s.Type != sym.SHOSTOBJ && s.Type != sym.SDYNIMPORT {
+			continue
+		}
+		dynsyms = append(dynsyms, s)
+	}
+
+	for _, s := range dynsyms {
+		f.adddynimpsym(ctxt, s)
+
+		if _, ok := f.dynLibraries[s.Dynimplib()]; !ok {
+			f.dynLibraries[s.Dynimplib()] = len(f.dynLibraries)
+		}
+
+	}
+
 }
 
-// Add a new imported symbol and a new library if needed.
-// Currently, dynamic symbols are considered as .data symbols which will receive
-// their value by the loader. Their relocation is created during the creation
-// of the .loader section, because it needs its symbol index.
+// (*xcoffFile)adddynimpsym adds the dynamic symbol "s" to a XCOFF file.
+// A new symbol named s.Extname() is created to be the actual dynamic symbol
+// in the .loader section and in the symbol table as an External Reference.
+// The symbol "s" is transformed to SXCOFFTOC to end up in .data section.
 // However, there is no writing protection on those symbols and
 // it might need to be added.
-// TODO(aix): Add writing protection.
 // TODO(aix): Handles dynamic symbols without library.
 func (f *xcoffFile) adddynimpsym(ctxt *Link, s *sym.Symbol) {
 	// Check that library name is given.
@@ -834,26 +880,42 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s *sym.Symbol) {
 		Errorf(s, "imported symbol must have a given library")
 	}
 
-	for _, sf := range f.dynSymbols {
-		if sf == s {
-			return
-		}
-	}
-
-	f.dynSymbols = append(f.dynSymbols, s)
 	s.Type = sym.SXCOFFTOC
-	// Function descriptor value
-	s.AddUint64(ctxt.Arch, 0)
 
-	if _, ok := f.dynLibraries[s.Dynimplib()]; !ok {
-		f.dynLibraries[s.Dynimplib()] = len(f.dynLibraries)
+	// Create new dynamic symbol
+	extsym := ctxt.Syms.Lookup(s.Extname(), 0)
+	extsym.Type = sym.SDYNIMPORT
+	extsym.Attr |= sym.AttrReachable
+	extsym.SetDynimplib(s.Dynimplib())
+	extsym.SetExtname(s.Extname())
+	extsym.SetDynimpvers(s.Dynimpvers())
+
+	// Add loader symbol
+	lds := &xcoffLoaderSymbol{
+		sym:    extsym,
+		smtype: XTY_IMP,
+		smclas: XMC_DS,
 	}
+	if s.Name == "__n_pthreads" {
+		// Currently, all imported symbols made by cgo_import_dynamic are
+		// syscall functions, except __n_pthreads which is a variable.
+		// TODO(aix): Find a way to detect variables imported by cgo.
+		lds.smclas = XMC_RW
+	}
+	f.loaderSymbols = append(f.loaderSymbols, lds)
+
+	// Relocation to retrieve the external address
+	s.AddBytes(make([]byte, 8))
+	s.SetAddr(ctxt.Arch, 0, extsym)
+
 }
 
-// Add a relocation to .loader relocation section
-func xcoffaddloaderreloc(ctxt *Link, s *sym.Symbol, r *sym.Reloc) {
+// Xcoffadddynrel adds a dynamic relocation in a XCOFF file.
+// This relocation will be made by the loader.
+func Xcoffadddynrel(ctxt *Link, s *sym.Symbol, r *sym.Reloc) bool {
 	if s.Type <= sym.SPCLNTAB && r.Sym.Type >= sym.SELFSECT && r.Sym.Type <= sym.SXREF {
 		Errorf(s, "cannot have a relocation in a text section with a data symbol: %s ", r.Sym.Name)
+		return false
 	}
 
 	ldr := &xcoffLoaderReloc{
@@ -862,19 +924,39 @@ func xcoffaddloaderreloc(ctxt *Link, s *sym.Symbol, r *sym.Reloc) {
 	}
 
 	switch r.Type {
-	case objabi.R_ADDR:
-		// Relocation of a .data symbol
-		ldr.rtype = 0x3F<<8 + XCOFF_R_POS
-		ldr.symndx = 1 // .data
 	default:
 		Errorf(s, "unexpected .loader relocation to symbol: %s (type: %s)", r.Sym.Name, r.Type.String())
+		return false
+	case objabi.R_ADDR:
+		if s.Type == sym.SXCOFFTOC && r.Sym.Type == sym.SDYNIMPORT {
+			// Imported symbol relocation
+			for i, dynsym := range xfile.loaderSymbols {
+				if dynsym.sym.Name == r.Sym.Name {
+					ldr.symndx = int32(i + 3) // +3 because of 3 section symbols
+					break
+				}
+			}
+		} else if s.Type == sym.SDATA && r.Sym.Type >= sym.SELFSECT && r.Sym.Type <= sym.SXREF {
+			// .data to .data relocation
+			ldr.symndx = 1 // .data
+		} else {
+			Errorf(s, "unexpected type for .loader relocation R_ADDR for symbol %s: %s to %s", r.Sym.Name, s.Type, r.Sym.Type)
+			return false
+		}
+
+		ldr.rtype = 0x3F<<8 + XCOFF_R_POS
 	}
 
 	xfile.loaderReloc = append(xfile.loaderReloc, ldr)
-
+	return true
 }
 
 func (ctxt *Link) doxcoff() {
+	if *FlagD {
+		// All XCOFF files have dynamic symbols because of the syscalls.
+		Exitf("-d is not available on AIX")
+	}
+
 	// Initial map used to store compilation unit size for each DWARF section (see dwarf.go).
 	dwsectCUSize = make(map[string]uint64)
 
@@ -914,6 +996,19 @@ func (ctxt *Link) doxcoff() {
 			break
 		}
 	}
+
+	// Add entry point to .loader symbols.
+	ep := ctxt.Syms.ROLookup(*flagEntrySymbol, 0)
+	if !ep.Attr.Reachable() {
+		Exitf("wrong entry point")
+	}
+	xfile.loaderSymbols = append(xfile.loaderSymbols, &xcoffLoaderSymbol{
+		sym:    ep,
+		smtype: XTY_ENT | XTY_SD,
+		smclas: XMC_DS,
+	})
+
+	xfile.genDynSym(ctxt)
 }
 
 // Loader section
@@ -943,55 +1038,28 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 	}
 
 	/* Symbol table */
-	// Entry point symbol
-	ep := ctxt.Syms.ROLookup(*flagEntrySymbol, 0)
-	if !ep.Attr.Reachable() {
-		Exitf("wrong entry point")
-	}
-	lds := &XcoffLdSym64{
-		Lvalue:  uint64(ep.Value),
-		Loffset: uint32(stlen + 2), // +2 because it must have the first byte of the symbol not its size field
-		Lscnum:  f.getXCOFFscnum(ep.Sect),
-		Lsmtype: XTY_ENT | XTY_SD,
-		Lsmclas: XMC_DS,
-		Lifile:  0,
-		Lparm:   0,
-	}
-	ldstr := &XcoffLdStr64{
-		size: uint16(len(ep.String()) + 1), // + null terminator
-		name: ep.String(),
-	}
-	stlen += uint32(2 + ldstr.size) // 2 = sizeof ldstr.size
-	symtab = append(symtab, lds)
-	strtab = append(strtab, ldstr)
-
-	nbldsym := int32(4)
-
-	// dynamic import
-	for _, s := range f.dynSymbols {
-		lds = &XcoffLdSym64{
+	for _, s := range f.loaderSymbols {
+		lds := &XcoffLdSym64{
 			Loffset: uint32(stlen + 2),
-			Lsmtype: XTY_IMP,
-			Lsmclas: XMC_DS,
-			Lifile:  int32(f.dynLibraries[s.Dynimplib()] + 1),
+			Lsmtype: s.smtype,
+			Lsmclas: s.smclas,
+		}
+		switch s.smtype {
+		default:
+			Errorf(s.sym, "unexpected loader symbol type: 0x%x", s.smtype)
+		case XTY_ENT | XTY_SD:
+			lds.Lvalue = uint64(s.sym.Value)
+			lds.Lscnum = f.getXCOFFscnum(s.sym.Sect)
+		case XTY_IMP:
+			lds.Lifile = int32(f.dynLibraries[s.sym.Dynimplib()] + 1)
 		}
 		ldstr := &XcoffLdStr64{
-			size: uint16(len(s.Extname()) + 1), // + null terminator
-			name: s.Extname(),
+			size: uint16(len(s.sym.Name) + 1), // + null terminator
+			name: s.sym.Name,
 		}
 		stlen += uint32(2 + ldstr.size) // 2 = sizeof ldstr.size
 		symtab = append(symtab, lds)
 		strtab = append(strtab, ldstr)
-
-		// Create relocation entry at the same moment to get symndx
-		ldr := &XcoffLdRel64{
-			Lvaddr:  uint64(s.Value),
-			Lrtype:  0x3F00,
-			Lrsecnm: f.getXCOFFscnum(s.Sect),
-			Lsymndx: int32(nbldsym),
-		}
-		dynimpreloc = append(dynimpreloc, ldr)
-		nbldsym++
 
 	}
 
@@ -1000,6 +1068,7 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 	off := hdr.Lrldoff                                // current offset is the same of reloc offset
 
 	/* Reloc */
+	ep := ctxt.Syms.ROLookup(*flagEntrySymbol, 0)
 	ldr := &XcoffLdRel64{
 		Lvaddr:  uint64(ep.Value),
 		Lrtype:  0x3F00,
