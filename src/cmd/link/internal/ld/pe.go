@@ -975,14 +975,8 @@ func Peinit(ctxt *Link) {
 	if *FlagTextAddr == -1 {
 		*FlagTextAddr = PEBASE + int64(PESECTHEADR)
 	}
-	if *FlagDataAddr == -1 {
-		*FlagDataAddr = 0
-	}
 	if *FlagRound == -1 {
 		*FlagRound = int(PESECTALIGN)
-	}
-	if *FlagDataAddr != 0 && *FlagRound != 0 {
-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*FlagDataAddr), uint32(*FlagRound))
 	}
 }
 
