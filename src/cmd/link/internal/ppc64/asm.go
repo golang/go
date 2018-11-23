@@ -262,6 +262,14 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
 }
 
 func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+	if ctxt.IsELF {
+		return addelfdynrel(ctxt, s, r)
+	} else if ctxt.HeadType == objabi.Haix {
+		return ld.Xcoffadddynrel(ctxt, s, r)
+	}
+	return false
+}
+func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
 
 	switch r.Type {

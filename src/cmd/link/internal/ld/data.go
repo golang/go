@@ -175,8 +175,8 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 		}
 
 		// We need to be able to reference dynimport symbols when linking against
-		// shared libraries, and Solaris and Darwin need it always
-		if ctxt.HeadType != objabi.Hsolaris && ctxt.HeadType != objabi.Hdarwin && r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT && !ctxt.DynlinkingGo() && !r.Sym.Attr.SubSymbol() {
+		// shared libraries, and Solaris, Darwin and AIX need it always
+		if ctxt.HeadType != objabi.Hsolaris && ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Haix && r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT && !ctxt.DynlinkingGo() && !r.Sym.Attr.SubSymbol() {
 			if !(ctxt.Arch.Family == sys.PPC64 && ctxt.LinkMode == LinkExternal && r.Sym.Name == ".TOC.") {
 				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, sym.RelocName(ctxt.Arch, r.Type))
 			}
@@ -318,11 +318,11 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			// must be done by the loader, as the section .data will be moved.
 			// The "default" symbol address is still needed by the loader so
 			// the current relocation can't be skipped.
-			if ctxt.HeadType == objabi.Haix && r.Sym.Sect.Seg == &Segdata {
+			if ctxt.HeadType == objabi.Haix && r.Sym.Type != sym.SDYNIMPORT && r.Sym.Sect.Seg == &Segdata {
 				// It's not possible to make a loader relocation to a DWARF section.
 				// FIXME
 				if s.Sect.Seg != &Segdwarf {
-					xcoffaddloaderreloc(ctxt, s, r)
+					Xcoffadddynrel(ctxt, s, r)
 				}
 			}
 
