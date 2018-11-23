@@ -329,6 +329,14 @@ type XcoffLdRel64 struct {
 	Lsymndx int32  // Loader-Section symbol table index
 }
 
+// xcoffLoaderReloc holds information about a relocation made by the loader.
+type xcoffLoaderReloc struct {
+	sym    *sym.Symbol
+	rel    *sym.Reloc
+	rtype  uint16
+	symndx int32
+}
+
 const (
 	XCOFF_R_POS = 0x00 // A(sym) Positive Relocation
 )
@@ -340,19 +348,17 @@ type XcoffLdStr64 struct {
 
 // xcoffFile is used to build XCOFF file.
 type xcoffFile struct {
-	xfhdr        XcoffFileHdr64
-	xahdr        XcoffAoutHdr64
-	sections     []*XcoffScnHdr64
-	stringTable  xcoffStringTable
-	textSect     *XcoffScnHdr64
-	dataSect     *XcoffScnHdr64
-	bssSect      *XcoffScnHdr64
-	loaderSect   *XcoffScnHdr64
-	symtabOffset int64           // offset to the start of symbol table
-	symbolCount  uint32          // number of symbol table records written
-	dynLibraries map[string]int  // Dynamic libraries in .loader section. The integer represents its import file number (- 1)
-	dynSymbols   []*sym.Symbol   // Dynamic symbols in .loader section
-	loaderReloc  []*XcoffLdRel64 // Reloc that must be made inside loader
+	xfhdr           XcoffFileHdr64
+	xahdr           XcoffAoutHdr64
+	sections        []*XcoffScnHdr64
+	stringTable     xcoffStringTable
+	sectNameToScnum map[string]int16
+	loaderSize      uint64
+	symtabOffset    int64               // offset to the start of symbol table
+	symbolCount     uint32              // number of symbol table records written
+	dynLibraries    map[string]int      // Dynamic libraries in .loader section. The integer represents its import file number (- 1)
+	dynSymbols      []*sym.Symbol       // Dynamic symbols in .loader section
+	loaderReloc     []*xcoffLoaderReloc // Reloc that must be made inside loader
 }
 
 // Those values will latter be computed in XcoffInit
@@ -363,9 +369,7 @@ var (
 
 // Var used by XCOFF Generation algorithms
 var (
-	xfile      xcoffFile
-	loaderOff  uint64
-	loaderSize uint64
+	xfile xcoffFile
 )
 
 // xcoffStringTable is a XCOFF string table.
@@ -404,29 +408,17 @@ func (sect *XcoffScnHdr64) write(ctxt *Link) {
 }
 
 // addSection adds section to the XCOFF file f.
-func (f *xcoffFile) addSection(s *sym.Section) *XcoffScnHdr64 {
+func (f *xcoffFile) addSection(name string, addr uint64, size uint64, fileoff uint64, flags uint32) *XcoffScnHdr64 {
 	sect := &XcoffScnHdr64{
-		Spaddr:  s.Vaddr,
-		Svaddr:  s.Vaddr,
-		Ssize:   s.Length,
-		Sscnptr: s.Seg.Fileoff + s.Vaddr - s.Seg.Vaddr,
-	}
-	copy(sect.Sname[:], s.Name) // copy string to [8]byte ( pb if len(name) > 8 )
-	f.sections = append(f.sections, sect)
-	return sect
-}
-
-// addLoaderSection adds the loader section to the XCOFF file f.
-func (f *xcoffFile) addLoaderSection(size uint64, off uint64) *XcoffScnHdr64 {
-	sect := &XcoffScnHdr64{
+		Spaddr:  addr,
+		Svaddr:  addr,
 		Ssize:   size,
-		Sscnptr: off,
-		Sflags:  STYP_LOADER,
+		Sscnptr: fileoff,
+		Sflags:  flags,
 	}
-	copy(sect.Sname[:], ".loader") // copy string to [8]byte ( pb if len(name) > 8
-	f.xahdr.Osnloader = int16(len(f.sections) + 1)
+	copy(sect.Sname[:], name) // copy string to [8]byte
 	f.sections = append(f.sections, sect)
-	f.loaderSect = sect
+	f.sectNameToScnum[name] = int16(len(f.sections))
 	return sect
 }
 
@@ -434,16 +426,8 @@ func (f *xcoffFile) addLoaderSection(size uint64, off uint64) *XcoffScnHdr64 {
 // This function is similar to addSection, but Dwarf section names
 // must be modified to conventional names and they are various subtypes.
 func (f *xcoffFile) addDwarfSection(s *sym.Section) *XcoffScnHdr64 {
-	sect := &XcoffScnHdr64{
-		Ssize:   s.Length,
-		Sscnptr: s.Seg.Fileoff + s.Vaddr - s.Seg.Vaddr,
-		Sflags:  STYP_DWARF,
-	}
 	newName, subtype := xcoffGetDwarfSubtype(s.Name)
-	copy(sect.Sname[:], newName)
-	sect.Sflags |= subtype
-	f.sections = append(f.sections, sect)
-	return sect
+	return f.addSection(newName, 0, s.Length, s.Seg.Fileoff+s.Vaddr-s.Seg.Vaddr, STYP_DWARF|subtype)
 }
 
 // xcoffGetDwarfSubtype returns the XCOFF name of the DWARF section str
@@ -471,6 +455,27 @@ func xcoffGetDwarfSubtype(str string) (string, uint32) {
 	}
 	// never used
 	return "", 0
+}
+
+// getXCOFFscnum returns the XCOFF section number of a Go section.
+func (f *xcoffFile) getXCOFFscnum(sect *sym.Section) int16 {
+	switch sect.Seg {
+	case &Segtext:
+		return f.sectNameToScnum[".text"]
+	case &Segdata:
+		if sect.Name == ".noptrdata" || sect.Name == ".data" {
+			return f.sectNameToScnum[".data"]
+		}
+		if sect.Name == ".noptrbss" || sect.Name == ".bss" {
+			return f.sectNameToScnum[".bss"]
+		}
+		Errorf(nil, "unknown XCOFF segment data section: %s", sect.Name)
+	case &Segdwarf:
+		name, _ := xcoffGetDwarfSubtype(sect.Name)
+		return f.sectNameToScnum[name]
+	}
+	Errorf(nil, "getXCOFFscnum not implemented for section %s", sect.Name)
+	return -1
 }
 
 // Xcoffinit initialised some internal value and setups
@@ -561,7 +566,7 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 			Nvalue:  currDwscnoff[sect.Name],
 			Noffset: uint32(f.stringTable.add(name)),
 			Nsclass: C_DWARF,
-			Nscnum:  sect.Extnum,
+			Nscnum:  f.getXCOFFscnum(sect),
 			Nnumaux: 1,
 		}
 		f.writeSymbol(ctxt.Out, ctxt.Arch.ByteOrder, s)
@@ -660,7 +665,7 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []interface{} {
 			xfile.updatePreviousFile(ctxt, false)
 			currSymSrcFile.name = x.File
 			currSymSrcFile.fileSymNb = f.symbolCount
-			f.writeSymbolNewFile(ctxt, x.File, uint64(x.Value), x.Sect.Extnum)
+			f.writeSymbolNewFile(ctxt, x.File, uint64(x.Value), xfile.getXCOFFscnum(x.Sect))
 		}
 	}
 
@@ -668,7 +673,7 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []interface{} {
 		Nsclass: C_EXT,
 		Noffset: uint32(xfile.stringTable.add(x.Name)),
 		Nvalue:  uint64(x.Value),
-		Nscnum:  x.Sect.Extnum,
+		Nscnum:  f.getXCOFFscnum(x.Sect),
 		Ntype:   SYM_TYPE_FUNC,
 		Nnumaux: 2,
 	}
@@ -726,7 +731,7 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 				Nsclass: C_HIDEXT,
 				Noffset: uint32(xfile.stringTable.add(str)),
 				Nvalue:  uint64(x.Value),
-				Nscnum:  x.Sect.Extnum,
+				Nscnum:  xfile.getXCOFFscnum(x.Sect),
 				Ntype:   SYM_TYPE_FUNC,
 				Nnumaux: 1,
 			}
@@ -749,7 +754,7 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 			Nsclass: C_EXT,
 			Noffset: uint32(xfile.stringTable.add(str)),
 			Nvalue:  uint64(x.Value),
-			Nscnum:  x.Sect.Extnum,
+			Nscnum:  xfile.getXCOFFscnum(x.Sect),
 			Nnumaux: 1,
 		}
 
@@ -798,9 +803,8 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 }
 
 // Generate XCOFF Symbol table and XCOFF String table
-func Asmaixsym(ctxt *Link) {
+func (f *xcoffFile) asmaixsym(ctxt *Link) {
 	// write symbol table
-	xfile.symtabOffset = ctxt.Out.Offset()
 	genasmsym(ctxt, putaixsym)
 
 	// update last file Svalue
@@ -852,16 +856,16 @@ func xcoffaddloaderreloc(ctxt *Link, s *sym.Symbol, r *sym.Reloc) {
 		Errorf(s, "cannot have a relocation in a text section with a data symbol: %s ", r.Sym.Name)
 	}
 
-	ldr := &XcoffLdRel64{
-		Lvaddr:  uint64(s.Value + int64(r.Off)),
-		Lrsecnm: s.Sect.Extnum,
+	ldr := &xcoffLoaderReloc{
+		sym: s,
+		rel: r,
 	}
 
 	switch r.Type {
 	case objabi.R_ADDR:
 		// Relocation of a .data symbol
-		ldr.Lrtype = 0x3F<<8 + XCOFF_R_POS
-		ldr.Lsymndx = 1 // .data
+		ldr.rtype = 0x3F<<8 + XCOFF_R_POS
+		ldr.symndx = 1 // .data
 	default:
 		Errorf(s, "unexpected .loader relocation to symbol: %s (type: %s)", r.Sym.Name, r.Type.String())
 	}
@@ -917,9 +921,8 @@ func (ctxt *Link) doxcoff() {
 // according to information retrieved in xfile object.
 
 // Create loader section and returns its size
-func Loaderblk(ctxt *Link, off uint64) uint64 {
+func Loaderblk(ctxt *Link, off uint64) {
 	xfile.writeLdrScn(ctxt, off)
-	return loaderSize
 }
 
 func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
@@ -948,7 +951,7 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 	lds := &XcoffLdSym64{
 		Lvalue:  uint64(ep.Value),
 		Loffset: uint32(stlen + 2), // +2 because it must have the first byte of the symbol not its size field
-		Lscnum:  ep.Sect.Extnum,
+		Lscnum:  f.getXCOFFscnum(ep.Sect),
 		Lsmtype: XTY_ENT | XTY_SD,
 		Lsmclas: XMC_DS,
 		Lifile:  0,
@@ -984,7 +987,7 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 		ldr := &XcoffLdRel64{
 			Lvaddr:  uint64(s.Value),
 			Lrtype:  0x3F00,
-			Lrsecnm: s.Sect.Extnum,
+			Lrsecnm: f.getXCOFFscnum(s.Sect),
 			Lsymndx: int32(nbldsym),
 		}
 		dynimpreloc = append(dynimpreloc, ldr)
@@ -1000,14 +1003,26 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 	ldr := &XcoffLdRel64{
 		Lvaddr:  uint64(ep.Value),
 		Lrtype:  0x3F00,
-		Lrsecnm: ep.Sect.Extnum,
+		Lrsecnm: f.getXCOFFscnum(ep.Sect),
 		Lsymndx: 0,
 	}
 	off += 16
 	reloctab = append(reloctab, ldr)
 
 	off += uint64(16 * len(f.loaderReloc))
-	reloctab = append(reloctab, (f.loaderReloc)...)
+	for _, r := range f.loaderReloc {
+		ldr = &XcoffLdRel64{
+			Lvaddr:  uint64(r.sym.Value + int64(r.rel.Off)),
+			Lrtype:  r.rtype,
+			Lsymndx: r.symndx,
+		}
+
+		if r.sym.Sect != nil {
+			ldr.Lrsecnm = f.getXCOFFscnum(r.sym.Sect)
+		}
+
+		reloctab = append(reloctab, ldr)
+	}
 
 	off += uint64(16 * len(dynimpreloc))
 	reloctab = append(reloctab, dynimpreloc...)
@@ -1083,8 +1098,7 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 		ctxt.Out.Write8(0) // null terminator
 	}
 
-	loaderOff = globalOff
-	loaderSize = off + uint64(stlen)
+	f.loaderSize = off + uint64(stlen)
 	ctxt.Out.Flush()
 
 	/* again for printing */
@@ -1148,8 +1162,12 @@ func (f *xcoffFile) writeFileHeader(ctxt *Link) {
 		f.xahdr.Ovstamp = 1 // based on dump -o
 		f.xahdr.Omagic = 0x10b
 		copy(f.xahdr.Omodtype[:], "1L")
-		f.xahdr.Oentry = uint64(Entryvalue(ctxt))
-		f.xahdr.Otoc = uint64(ctxt.Syms.ROLookup("TOC", 0).Value)
+		entry := ctxt.Syms.ROLookup(*flagEntrySymbol, 0)
+		f.xahdr.Oentry = uint64(entry.Value)
+		f.xahdr.Osnentry = f.getXCOFFscnum(entry.Sect)
+		toc := ctxt.Syms.ROLookup("TOC", 0)
+		f.xahdr.Otoc = uint64(toc.Value)
+		f.xahdr.Osntoc = f.getXCOFFscnum(toc.Sect)
 
 		// Based on dump -o
 		f.xahdr.Oalgntext = 0x5
@@ -1175,90 +1193,47 @@ func xcoffwrite(ctxt *Link) {
 }
 
 // Generate XCOFF assembly file
-func Asmbxcoff(ctxt *Link) {
-	// initial offset for sections
-	if ctxt.BuildMode == BuildModeExe {
-		// search entry section number
-		eaddr := uint64(Entryvalue(ctxt))
-		for _, sect := range append(Segtext.Sections, Segdata.Sections...) {
-			if eaddr-sect.Vaddr <= sect.Length {
-				xfile.xahdr.Osnentry = int16(sect.Extnum)
-			}
-		}
+func Asmbxcoff(ctxt *Link, fileoff int64) {
+	xfile.sectNameToScnum = make(map[string]int16)
 
-		// check
-		if xfile.xahdr.Osnentry == 0 {
-			Exitf("internal error: Section number for entry point (addr = 0x%x) not found", eaddr)
-		}
+	// Add sections
+	s := xfile.addSection(".text", Segtext.Vaddr, Segtext.Length, Segtext.Fileoff, STYP_TEXT)
+	xfile.xahdr.Otextstart = s.Svaddr
+	xfile.xahdr.Osntext = xfile.sectNameToScnum[".text"]
+	xfile.xahdr.Otsize = s.Ssize
 
-	}
-
-	// add text sections
-	for _, sect := range Segtext.Sections {
-		// ctxt.Logf(".text: %s \n", sect.Name)
-		s := xfile.addSection(sect)
-		s.Sflags = STYP_TEXT
-
-		// use sect.Name because of convertion inside scnhdr
-		if sect.Name == ".text" {
-			xfile.xahdr.Otextstart = s.Spaddr
-			xfile.xahdr.Otsize = s.Ssize
-			xfile.xahdr.Osntext = sect.Extnum
-		}
-	}
-
-	// add data sections
-	var (
-		snoptrdata,
-		sdata,
-		sbss,
-		snoptrbss *sym.Section
-	)
-	for _, sect := range Segdata.Sections {
-		if sect.Name == ".noptrdata" {
-			snoptrdata = sect
-		}
-		if sect.Name == ".noptrbss" {
-			snoptrbss = sect
-		}
-		if sect.Name == ".data" {
-			sdata = sect
-		}
-		if sect.Name == ".bss" {
-			sbss = sect
-		}
-	}
-
-	// On AIX, there must be only one data and one bss section.
-	// Therefore, their noptr section is merged within them.
-	// The length of the new section must be recomputed to handle defautl gap
-	// between GO sections as AIX doesn't allow it.
-
-	// Merge .noptrdata inside .data
-	sdata.Vaddr = snoptrdata.Vaddr
-	sdata.Length = sbss.Vaddr - sdata.Vaddr
-	s := xfile.addSection(sdata)
-	s.Sflags = STYP_DATA
-	xfile.xahdr.Odatastart = s.Spaddr
+	s = xfile.addSection(".data", Segdata.Vaddr, Segdata.Filelen, Segdata.Fileoff, STYP_DATA)
+	xfile.xahdr.Odatastart = s.Svaddr
+	xfile.xahdr.Osndata = xfile.sectNameToScnum[".data"]
 	xfile.xahdr.Odsize = s.Ssize
-	xfile.xahdr.Osndata = sdata.Extnum
 
-	// Merge .noptrbss inside .bss
-	sbss.Length = snoptrbss.Vaddr + snoptrbss.Length - sbss.Vaddr
-	s = xfile.addSection(sbss)
-	s.Sflags = STYP_BSS
+	s = xfile.addSection(".bss", Segdata.Vaddr+Segdata.Filelen, Segdata.Length-Segdata.Filelen, 0, STYP_BSS)
+	xfile.xahdr.Osnbss = xfile.sectNameToScnum[".bss"]
 	xfile.xahdr.Obsize = s.Ssize
-	xfile.xahdr.Osnbss = sbss.Extnum
-	s.Sscnptr = 0
 
-	// add dwarf section
+	// add dwarf sections
 	for _, sect := range Segdwarf.Sections {
 		xfile.addDwarfSection(sect)
 	}
 
-	// Loader section must be add at the end because of sect.Extnum
-	// in others sections
-	xfile.addLoaderSection(loaderSize, loaderOff)
+	// add and write remaining sections
+	if ctxt.LinkMode == LinkInternal {
+		// Loader section
+		if ctxt.BuildMode == BuildModeExe {
+			Loaderblk(ctxt, uint64(fileoff))
+			s = xfile.addSection(".loader", 0, xfile.loaderSize, uint64(fileoff), STYP_LOADER)
+			xfile.xahdr.Osnloader = xfile.sectNameToScnum[".loader"]
+		}
+	} else {
+		// TODO: Relocation
+	}
 
+	// Write symbol table
+	symo := Rnd(ctxt.Out.Offset(), int64(*FlagRound))
+	xfile.symtabOffset = symo
+	ctxt.Out.SeekSet(int64(symo))
+	xfile.asmaixsym(ctxt)
+
+	// write headers
 	xcoffwrite(ctxt)
 }
