@@ -314,14 +314,18 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 
 				break
 			}
-			// On AIX, if a relocated symbol is in .data, a second relocation
-			// must be done by the loader, as the section .data will be moved.
+
+			// On AIX, a second relocation must be done by the loader,
+			// as section addresses can change once loaded.
 			// The "default" symbol address is still needed by the loader so
 			// the current relocation can't be skipped.
-			if ctxt.HeadType == objabi.Haix && r.Sym.Type != sym.SDYNIMPORT && r.Sym.Sect.Seg == &Segdata {
-				// It's not possible to make a loader relocation to a DWARF section.
-				// FIXME
-				if s.Sect.Seg != &Segdwarf {
+			if ctxt.HeadType == objabi.Haix && r.Sym.Type != sym.SDYNIMPORT {
+				// It's not possible to make a loader relocation in a
+				// symbol which is not inside .data section.
+				// FIXME: It should be forbidden to have R_ADDR from a
+				// symbol which isn't in .data. However, as .text has the
+				// same address once loaded, this is possible.
+				if s.Sect.Seg == &Segdata {
 					Xcoffadddynrel(ctxt, s, r)
 				}
 			}
