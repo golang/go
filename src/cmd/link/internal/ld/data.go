@@ -2036,6 +2036,11 @@ func (ctxt *Link) address() []*sym.Segment {
 	}
 
 	va = uint64(Rnd(int64(va), int64(*FlagRound)))
+	if ctxt.HeadType == objabi.Haix {
+		// Data sections are moved to an unreachable segment
+		// to ensure that they are position-independent.
+		va += uint64(XCOFFDATABASE) - uint64(XCOFFTEXTBASE)
+	}
 	order = append(order, &Segdata)
 	Segdata.Rwx = 06
 	Segdata.Vaddr = va
