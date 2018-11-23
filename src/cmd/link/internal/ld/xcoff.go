@@ -913,8 +913,8 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s *sym.Symbol) {
 // Xcoffadddynrel adds a dynamic relocation in a XCOFF file.
 // This relocation will be made by the loader.
 func Xcoffadddynrel(ctxt *Link, s *sym.Symbol, r *sym.Reloc) bool {
-	if s.Type <= sym.SPCLNTAB && r.Sym.Type >= sym.SELFSECT && r.Sym.Type <= sym.SXREF {
-		Errorf(s, "cannot have a relocation in a text section with a data symbol: %s ", r.Sym.Name)
+	if s.Type <= sym.SPCLNTAB {
+		Errorf(s, "cannot have a relocation to %s in a text section symbol", r.Sym.Name)
 		return false
 	}
 
@@ -936,9 +936,22 @@ func Xcoffadddynrel(ctxt *Link, s *sym.Symbol, r *sym.Reloc) bool {
 					break
 				}
 			}
-		} else if s.Type == sym.SDATA && r.Sym.Type >= sym.SELFSECT && r.Sym.Type <= sym.SXREF {
-			// .data to .data relocation
-			ldr.symndx = 1 // .data
+		} else if s.Type == sym.SDATA {
+			switch r.Sym.Sect.Seg {
+			default:
+				Errorf(s, "unknown segment for .loader relocation with symbol %s", r.Sym.Name)
+			case &Segtext:
+			case &Segrodata:
+				ldr.symndx = 0 // .text
+			case &Segdata:
+				if r.Sym.Type == sym.SBSS || r.Sym.Type == sym.SNOPTRBSS {
+					ldr.symndx = 2 // .bss
+				} else {
+					ldr.symndx = 1 // .data
+				}
+
+			}
+
 		} else {
 			Errorf(s, "unexpected type for .loader relocation R_ADDR for symbol %s: %s to %s", r.Sym.Name, s.Type, r.Sym.Type)
 			return false
@@ -1009,6 +1022,12 @@ func (ctxt *Link) doxcoff() {
 	})
 
 	xfile.genDynSym(ctxt)
+
+	for _, s := range ctxt.Syms.Allsym {
+		if strings.HasPrefix(s.Name, "TOC.") {
+			s.Type = sym.SXCOFFTOC
+		}
+	}
 }
 
 // Loader section

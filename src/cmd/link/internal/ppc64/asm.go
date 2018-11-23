@@ -489,7 +489,40 @@ func symtoc(ctxt *ld.Link, s *sym.Symbol) int64 {
 	return toc.Value
 }
 
+func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+	var o1, o2 uint32
+
+	o1 = uint32(val >> 32)
+	o2 = uint32(val)
+
+	t := ld.Symaddr(r.Sym) + r.Add - ctxt.Syms.ROLookup("TOC", 0).Value // sym addr
+	if t != int64(int32(t)) {
+		ld.Errorf(s, "TOC relocation for %s is too big to relocate %s: 0x%x", s.Name, r.Sym, t)
+	}
+
+	if t&0x8000 != 0 {
+		t += 0x10000
+	}
+
+	o1 |= uint32((t >> 16) & 0xFFFF)
+
+	switch r.Type {
+	case objabi.R_ADDRPOWER_TOCREL_DS:
+		if t&3 != 0 {
+			ld.Errorf(s, "bad DS reloc for %s: %d", s.Name, ld.Symaddr(r.Sym))
+		}
+		o2 |= uint32(t) & 0xFFFC
+	default:
+		return -1
+	}
+
+	return int64(o1)<<32 | int64(o2)
+}
+
 func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+	if ctxt.HeadType == objabi.Haix {
+		ld.Errorf(s, "archrelocaddr called for %s relocation\n", r.Sym.Name)
+	}
 	var o1, o2 uint32
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
 		o1 = uint32(val >> 32)
@@ -508,7 +541,7 @@ func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 
 
 	t := ld.Symaddr(r.Sym) + r.Add
 	if t < 0 || t >= 1<<31 {
-		ld.Errorf(s, "relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(r.Sym))
+		ld.Errorf(s, "relocation for %s is too big (>=2G): 0x%x", s.Name, ld.Symaddr(r.Sym))
 	}
 	if t&0x8000 != 0 {
 		t += 0x10000
@@ -682,6 +715,8 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 		return r.Add, true
 	case objabi.R_GOTOFF:
 		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
+	case objabi.R_ADDRPOWER_TOCREL, objabi.R_ADDRPOWER_TOCREL_DS:
+		return archreloctoc(ctxt, r, s, val), true
 	case objabi.R_ADDRPOWER, objabi.R_ADDRPOWER_DS:
 		return archrelocaddr(ctxt, r, s, val), true
 	case objabi.R_CALLPOWER:
