@@ -1141,6 +1141,10 @@ func (w *response) WriteHeader(code int) {
 			w.handlerHeader.Del("Content-Length")
 		}
 	}
+
+	if w.handlerHeader.get("Connection") == "close" {
+		w.closeAfterReply = true
+	}
 }
 
 // extraHeader is the set of headers sometimes added by chunkWriter.writeHeader.
@@ -1540,6 +1544,10 @@ func (w *response) bodyAllowed() bool {
 // bufferBeforeChunkingSize smaller and having bufio's fast-paths deal
 // with this instead.
 func (w *response) Write(data []byte) (n int, err error) {
+	if w.closeAfterReply {
+		defer w.conn.Close()
+	}
+
 	return w.write(len(data), data, "")
 }
 
