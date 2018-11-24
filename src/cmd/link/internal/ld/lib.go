@@ -588,8 +588,8 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
-	if ctxt.Arch == sys.Arch386 {
-		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || (ctxt.BuildMode == BuildModeCShared && ctxt.HeadType != objabi.Hwindows) || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
+	if ctxt.Arch == sys.Arch386 && ctxt.HeadType != objabi.Hwindows {
+		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
 			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
 			got.Type = sym.SDYNIMPORT
 			got.Attr |= sym.AttrReachable
