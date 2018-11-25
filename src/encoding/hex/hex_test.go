@@ -242,6 +242,7 @@ func BenchmarkEncode(b *testing.B) {
 		sink = make([]byte, 2*size)
 
 		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
+			b.SetBytes(int64(size))
 			for i := 0; i < b.N; i++ {
 				Encode(sink, src)
 			}
@@ -269,6 +270,7 @@ func BenchmarkDump(b *testing.B) {
 		sink = make([]byte, 2*size)
 
 		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
+			b.SetBytes(int64(size))
 			for i := 0; i < b.N; i++ {
 				Dump(src)
 			}
