@@ -23,11 +23,12 @@ func EncodedLen(n int) int { return n * 2 }
 // of bytes written to dst, but this value is always EncodedLen(len(src)).
 // Encode implements hexadecimal encoding.
 func Encode(dst, src []byte) int {
-	for i, v := range src {
-		dst[i*2] = hextable[v>>4]
-		dst[i*2+1] = hextable[v&0x0f]
+	j := 0
+	for _, v := range src {
+		dst[j] = hextable[v>>4]
+		dst[j+1] = hextable[v&0x0f]
+		j += 2
 	}
-
 	return len(src) * 2
 }
 
