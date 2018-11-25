@@ -119,6 +119,10 @@ func TestIntendedInlining(t *testing.T) {
 			"byLiteral.Less",
 			"byLiteral.Swap",
 		},
+		"encoding/base64": {
+			"assemble32",
+			"assemble64",
+		},
 		"unicode/utf8": {
 			"FullRune",
 			"FullRuneInString",
