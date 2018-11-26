@@ -1818,9 +1818,9 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 		switch n.Op {
 		case OCONVNOP:
-			if n.Left.Op == OLITERAL {
-				n.Op = OCONV
-				setconst(n, n.Left.Val())
+			if n.Left.Op == OLITERAL && n.isGoConst() {
+				n.Op = OCONV              // set so n.Orig gets OCONV instead of OCONVNOP
+				setconst(n, n.Left.Val()) // convert n to OLITERAL with the given value
 			} else if t.Etype == n.Type.Etype {
 				switch t.Etype {
 				case TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:

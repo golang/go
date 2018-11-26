@@ -1327,7 +1327,7 @@ func (n *Node) isGoConst() bool {
 		}
 		return true
 
-	case OCONV:
+	case OCONV, OCONVNOP:
 		if okforconst[n.Type.Etype] && n.Left.isGoConst() {
 			return true
 		}
