@@ -2106,12 +2106,14 @@ In this contrived example <code>Sequence</code> satisfies both.
 
 <p>
 The <code>String</code> method of <code>Sequence</code> is recreating the
-work that <code>Sprint</code> already does for slices.  We can share the
-effort if we convert the <code>Sequence</code> to a plain
+work that <code>Sprint</code> already does for slices.
+(It also has complexity O(N²), which is poor.) We can share the
+effort (and also speed it up) if we convert the <code>Sequence</code> to a plain
 <code>[]int</code> before calling <code>Sprint</code>.
 </p>
 <pre>
 func (s Sequence) String() string {
+    s = s.Copy()
     sort.Sort(s)
     return fmt.Sprint([]int(s))
 }
@@ -2138,6 +2140,7 @@ type Sequence []int
 
 // Method for printing - sorts the elements before printing
 func (s Sequence) String() string {
+    s = s.Copy()
     sort.IntSlice(s).Sort()
     return fmt.Sprint([]int(s))
 }
