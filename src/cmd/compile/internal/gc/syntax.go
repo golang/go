@@ -692,7 +692,7 @@ const (
 	OIOTA        // iota
 	OREAL        // real(Left)
 	OIMAG        // imag(Left)
-	OCOMPLEX     // complex(Left, Right)
+	OCOMPLEX     // complex(Left, Right) or complex(List[0]) where List[0] is a 2-result function call
 	OALIGNOF     // unsafe.Alignof(Left)
 	OOFFSETOF    // unsafe.Offsetof(Left)
 	OSIZEOF      // unsafe.Sizeof(Left)
