@@ -23,7 +23,7 @@ type T [29]byte
 
 func f6(p, q *T) {
 	x := *p // ERROR "generated nil check"
-	*q = x  // ERROR "generated nil check"
+	*q = x  // ERROR "removed nil check"
 }
 
 // make sure to remove nil check for memory move (issue #18003)
