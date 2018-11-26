@@ -612,6 +612,15 @@ func getdyn(n *Node, top bool) initGenType {
 		if !top {
 			return initDynamic
 		}
+		if n.Right.Int64()/4 > int64(n.List.Len()) {
+			// <25% of entries have explicit values.
+			// Very rough estimation, it takes 4 bytes of instructions
+			// to initialize 1 byte of result. So don't use a static
+			// initializer if the dynamic initialization code would be
+			// smaller than the static value.
+			// See issue 23780.
+			return initDynamic
+		}
 
 	case OARRAYLIT, OSTRUCTLIT:
 	}
@@ -902,7 +911,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 			continue
 		}
 
-		if isLiteral(value) {
+		if vstat != nil && isLiteral(value) { // already set by copy from static value
 			continue
 		}
 
