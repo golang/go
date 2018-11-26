@@ -679,7 +679,7 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
 	seen := make(map[typeVal]*Node)
 	for _, ncase := range clauses {
 		for _, n := range ncase.List.Slice() {
-			if ct := consttype(n); ct == 0 || ct == CTBOOL {
+			if ct := consttype(n); ct == 0 || ct == CTBOOL || ct == CTNIL {
 				continue
 			}
 			tv := typeVal{
