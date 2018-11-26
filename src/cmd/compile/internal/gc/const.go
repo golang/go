@@ -584,6 +584,14 @@ func Isconst(n *Node, ct Ctype) bool {
 
 // evconst rewrites constant expressions into OLITERAL nodes.
 func evconst(n *Node) {
+	if !n.isGoConst() {
+		// Avoid constant evaluation of things that aren't actually constants
+		// according to the spec. See issue 24760.
+		// The SSA backend has a more robust optimizer that will catch
+		// all of these weird cases (like uintptr(unsafe.Pointer(uintptr(1)))).
+		return
+	}
+
 	nl, nr := n.Left, n.Right
 
 	// Pick off just the opcodes that can be constant evaluated.
@@ -1268,7 +1276,7 @@ func nonnegintconst(n *Node) int64 {
 //
 // Expressions derived from nil, like string([]byte(nil)), while they
 // may be known at compile time, are not Go language constants.
-// Only called for expressions known to evaluated to compile-time
+// Only called for expressions known to evaluate to compile-time
 // constants.
 func (n *Node) isGoConst() bool {
 	if n.Orig != nil {
@@ -1277,7 +1285,6 @@ func (n *Node) isGoConst() bool {
 
 	switch n.Op {
 	case OADD,
-		OADDSTR,
 		OAND,
 		OANDAND,
 		OANDNOT,
@@ -1301,12 +1308,24 @@ func (n *Node) isGoConst() bool {
 		OSUB,
 		OXOR,
 		OIOTA,
-		OCOMPLEX,
 		OREAL,
 		OIMAG:
 		if n.Left.isGoConst() && (n.Right == nil || n.Right.isGoConst()) {
 			return true
 		}
+
+	case OCOMPLEX:
+		if n.List.Len() == 0 && n.Left.isGoConst() && n.Right.isGoConst() {
+			return true
+		}
+
+	case OADDSTR:
+		for _, n1 := range n.List.Slice() {
+			if !n1.isGoConst() {
+				return false
+			}
+		}
+		return true
 
 	case OCONV:
 		if okforconst[n.Type.Etype] && n.Left.isGoConst() {

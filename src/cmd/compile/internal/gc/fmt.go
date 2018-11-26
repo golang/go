@@ -1400,8 +1400,15 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		}
 		mode.Fprintf(s, "sliceheader{%v,%v,%v}", n.Left, n.List.First(), n.List.Second())
 
-	case OCOPY, OCOMPLEX:
+	case OCOPY:
 		mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
+
+	case OCOMPLEX:
+		if n.List.Len() == 1 {
+			mode.Fprintf(s, "%#v(%v)", n.Op, n.List.First())
+		} else {
+			mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
+		}
 
 	case OCONV,
 		OCONVIFACE,
