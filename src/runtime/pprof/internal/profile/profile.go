@@ -211,9 +211,7 @@ func (p *Profile) setMain() {
 			continue
 		}
 		// Swap what we guess is main to position 0.
-		tmp := p.Mapping[i]
-		p.Mapping[i] = p.Mapping[0]
-		p.Mapping[0] = tmp
+		p.Mapping[i], p.Mapping[0] = p.Mapping[0], p.Mapping[i]
 		break
 	}
 }
