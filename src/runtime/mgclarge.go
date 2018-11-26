@@ -153,6 +153,70 @@ func checkTreapNode(t *treapNode) {
 	}
 }
 
+// treapIter is a unidirectional iterator type which may be used to iterate over a
+// an mTreap in-order forwards (increasing order) or backwards (decreasing order).
+// Its purpose is to hide details about the treap from users when trying to iterate
+// over it.
+//
+// To create iterators over the treap, call iter or rev on an mTreap.
+type treapIter struct {
+	t   *treapNode
+	inc bool // if true, iterate in increasing order, otherwise decreasing order.
+}
+
+// span returns the span at the current position in the treap.
+// If the treap is not valid, span will panic.
+func (i *treapIter) span() *mspan {
+	return i.t.spanKey
+}
+
+// valid returns whether the iterator represents a valid position
+// in the mTreap.
+func (i *treapIter) valid() bool {
+	return i.t != nil
+}
+
+// next moves the iterator forward by one. Once the iterator
+// ceases to be valid, calling next will panic.
+func (i treapIter) next() treapIter {
+	if i.inc {
+		i.t = i.t.succ()
+	} else {
+		i.t = i.t.pred()
+	}
+	return i
+}
+
+// iter returns an iterator which may be used to iterate over the treap
+// in increasing order of span size ("forwards").
+func (root *mTreap) iter() treapIter {
+	i := treapIter{inc: true}
+	t := root.treap
+	if t == nil {
+		return i
+	}
+	for t.left != nil {
+		t = t.left
+	}
+	i.t = t
+	return i
+}
+
+// rev returns an iterator which may be used to iterate over the treap
+// in decreasing order of span size ("reverse").
+func (root *mTreap) rev() treapIter {
+	i := treapIter{inc: false}
+	t := root.treap
+	if t == nil {
+		return i
+	}
+	for t.right != nil {
+		t = t.right
+	}
+	i.t = t
+	return i
+}
+
 // insert adds span to the large span treap.
 func (root *mTreap) insert(span *mspan) {
 	npages := span.npages
@@ -278,6 +342,16 @@ func (root *mTreap) removeSpan(span *mspan) {
 		}
 	}
 	root.removeNode(t)
+}
+
+// erase removes the element referred to by the current position of the
+// iterator and returns i.next(). This operation consumes the given
+// iterator, so it should no longer be used and iteration should continue
+// from the returned iterator.
+func (root *mTreap) erase(i treapIter) treapIter {
+	n := i.next()
+	root.removeNode(i.t)
+	return n
 }
 
 // rotateLeft rotates the tree rooted at node x.
