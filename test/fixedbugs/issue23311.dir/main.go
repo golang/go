@@ -2,4 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This exists solely so we can linkname in symbols from runtime.
+package main
+
+import _ "unsafe" // for linkname
+
+//go:linkname f runtime.GC
+func f()
+
+func main() {
+	f()
+}

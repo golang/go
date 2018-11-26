@@ -497,7 +497,18 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		}
 	} else {
 		if pure_go || strings.HasPrefix(f.funcname(), "init.") {
-			yyerrorl(f.Pos, "missing function body")
+			// Linknamed functions are allowed to have no body. Hopefully
+			// the linkname target has a body. See issue 23311.
+			isLinknamed := false
+			for _, n := range p.linknames {
+				if f.funcname() == n.local {
+					isLinknamed = true
+					break
+				}
+			}
+			if !isLinknamed {
+				yyerrorl(f.Pos, "missing function body")
+			}
 		}
 	}
 
