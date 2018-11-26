@@ -19,11 +19,8 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
-	"cmd/internal/src"
 	"crypto/md5"
-	"crypto/sha1"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -632,7 +629,7 @@ func (lv *Liveness) pointerMap(liveout bvec, vars []*Node, args, locals bvec) {
 
 // markUnsafePoints finds unsafe points and computes lv.unsafePoints.
 func (lv *Liveness) markUnsafePoints() {
-	if compiling_runtime || lv.f.NoSplit || objabi.Clobberdead_enabled != 0 {
+	if compiling_runtime || lv.f.NoSplit {
 		// No complex analysis necessary. Do this on the fly
 		// in issafepoint.
 		return
@@ -791,7 +788,7 @@ func (lv *Liveness) issafepoint(v *ssa.Value) bool {
 	// go:nosplit functions are similar. Since safe points used to
 	// be coupled with stack checks, go:nosplit often actually
 	// means "no safe points in this function".
-	if compiling_runtime || lv.f.NoSplit || objabi.Clobberdead_enabled != 0 {
+	if compiling_runtime || lv.f.NoSplit {
 		return v.Op.IsCall()
 	}
 	switch v.Op {
@@ -1049,161 +1046,6 @@ func (lv *Liveness) epilogue() {
 		lv.printDebug()
 		lv.f.Fatalf("%v register %s recorded as live on entry", lv.fn.Func.Nname, regs.niceString(lv.f.Config))
 	}
-}
-
-func (lv *Liveness) clobber() {
-	// The clobberdead experiment inserts code to clobber all the dead variables (locals and args)
-	// before and after every safepoint. This experiment is useful for debugging the generation
-	// of live pointer bitmaps.
-	if objabi.Clobberdead_enabled == 0 {
-		return
-	}
-	var varSize int64
-	for _, n := range lv.vars {
-		varSize += n.Type.Size()
-	}
-	if len(lv.stackMaps) > 1000 || varSize > 10000 {
-		// Be careful to avoid doing too much work.
-		// Bail if >1000 safepoints or >10000 bytes of variables.
-		// Otherwise, giant functions make this experiment generate too much code.
-		return
-	}
-	if h := os.Getenv("GOCLOBBERDEADHASH"); h != "" {
-		// Clobber only functions where the hash of the function name matches a pattern.
-		// Useful for binary searching for a miscompiled function.
-		hstr := ""
-		for _, b := range sha1.Sum([]byte(lv.fn.funcname())) {
-			hstr += fmt.Sprintf("%08b", b)
-		}
-		if !strings.HasSuffix(hstr, h) {
-			return
-		}
-		fmt.Printf("\t\t\tCLOBBERDEAD %s\n", lv.fn.funcname())
-	}
-	if lv.f.Name == "forkAndExecInChild" || lv.f.Name == "wbBufFlush" {
-		// forkAndExecInChild calls vfork (on linux/amd64, anyway).
-		// The code we add here clobbers parts of the stack in the child.
-		// When the parent resumes, it is using the same stack frame. But the
-		// child has clobbered stack variables that the parent needs. Boom!
-		// In particular, the sys argument gets clobbered.
-		// Note to self: GOCLOBBERDEADHASH=011100101110
-		//
-		// runtime.wbBufFlush must not modify its arguments. See the comments
-		// in runtime/mwbbuf.go:wbBufFlush.
-		return
-	}
-
-	var oldSched []*ssa.Value
-	for _, b := range lv.f.Blocks {
-		// Copy block's values to a temporary.
-		oldSched = append(oldSched[:0], b.Values...)
-		b.Values = b.Values[:0]
-
-		// Clobber all dead variables at entry.
-		if b == lv.f.Entry {
-			for len(oldSched) > 0 && len(oldSched[0].Args) == 0 {
-				// Skip argless ops. We need to skip at least
-				// the lowered ClosurePtr op, because it
-				// really wants to be first. This will also
-				// skip ops like InitMem and SP, which are ok.
-				b.Values = append(b.Values, oldSched[0])
-				oldSched = oldSched[1:]
-			}
-			clobber(lv, b, lv.stackMaps[0])
-		}
-
-		// Copy values into schedule, adding clobbering around safepoints.
-		for _, v := range oldSched {
-			if !lv.issafepoint(v) {
-				b.Values = append(b.Values, v)
-				continue
-			}
-			before := true
-			if v.Op.IsCall() && v.Aux != nil && v.Aux.(*obj.LSym) == typedmemmove {
-				// Can't put clobber code before the call to typedmemmove.
-				// The variable to-be-copied is marked as dead
-				// at the callsite. That is ok, though, as typedmemmove
-				// is marked as nosplit, and the first thing it does
-				// is to call memmove (also nosplit), after which
-				// the source value is dead.
-				// See issue 16026.
-				before = false
-			}
-			if before {
-				clobber(lv, b, lv.stackMaps[lv.livenessMap.Get(v).stackMapIndex])
-			}
-			b.Values = append(b.Values, v)
-			clobber(lv, b, lv.stackMaps[lv.livenessMap.Get(v).stackMapIndex])
-		}
-	}
-}
-
-// clobber generates code to clobber all dead variables (those not marked in live).
-// Clobbering instructions are added to the end of b.Values.
-func clobber(lv *Liveness, b *ssa.Block, live bvec) {
-	for i, n := range lv.vars {
-		if !live.Get(int32(i)) {
-			clobberVar(b, n)
-		}
-	}
-}
-
-// clobberVar generates code to trash the pointers in v.
-// Clobbering instructions are added to the end of b.Values.
-func clobberVar(b *ssa.Block, v *Node) {
-	clobberWalk(b, v, 0, v.Type)
-}
-
-// b = block to which we append instructions
-// v = variable
-// offset = offset of (sub-portion of) variable to clobber (in bytes)
-// t = type of sub-portion of v.
-func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
-	if !types.Haspointers(t) {
-		return
-	}
-	switch t.Etype {
-	case TPTR,
-		TUNSAFEPTR,
-		TFUNC,
-		TCHAN,
-		TMAP:
-		clobberPtr(b, v, offset)
-
-	case TSTRING:
-		// struct { byte *str; int len; }
-		clobberPtr(b, v, offset)
-
-	case TINTER:
-		// struct { Itab *tab; void *data; }
-		// or, when isnilinter(t)==true:
-		// struct { Type *type; void *data; }
-		// Note: the first word isn't a pointer. See comment in plive.go:onebitwalktype1.
-		clobberPtr(b, v, offset+int64(Widthptr))
-
-	case TSLICE:
-		// struct { byte *array; int len; int cap; }
-		clobberPtr(b, v, offset)
-
-	case TARRAY:
-		for i := int64(0); i < t.NumElem(); i++ {
-			clobberWalk(b, v, offset+i*t.Elem().Size(), t.Elem())
-		}
-
-	case TSTRUCT:
-		for _, t1 := range t.Fields().Slice() {
-			clobberWalk(b, v, offset+t1.Offset, t1.Type)
-		}
-
-	default:
-		Fatalf("clobberWalk: unexpected type, %v", t)
-	}
-}
-
-// clobberPtr generates a clobber of the pointer at offset offset in v.
-// The clobber instruction is added at the end of b.
-func clobberPtr(b *ssa.Block, v *Node, offset int64) {
-	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, v)
 }
 
 // Compact coalesces identical bitmaps from lv.livevars into the sets
@@ -1553,7 +1395,6 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 	lv.prologue()
 	lv.solve()
 	lv.epilogue()
-	lv.clobber()
 	if debuglive > 0 {
 		lv.showlive(nil, lv.stackMaps[0])
 		for _, b := range f.Blocks {
