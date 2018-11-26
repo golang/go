@@ -39,6 +39,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"strings"
 )
 
 func genplt(ctxt *ld.Link) {
@@ -490,6 +491,9 @@ func symtoc(ctxt *ld.Link, s *sym.Symbol) int64 {
 }
 
 // archreloctoc relocates a TOC relative symbol.
+// If the symbol pointed by this TOC relative symbol is in .data or .bss, the
+// default load instruction can be changed to an addi instruction and the
+// symbol address can be used directly.
 // This code is for AIX only.
 func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
 	if ctxt.HeadType == objabi.Hlinux {
@@ -500,7 +504,25 @@ func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
 	o1 = uint32(val >> 32)
 	o2 = uint32(val)
 
-	t := ld.Symaddr(r.Sym) + r.Add - ctxt.Syms.ROLookup("TOC", 0).Value // sym addr
+	var t int64
+	useAddi := false
+	const prefix = "TOC."
+	var tarSym *sym.Symbol
+	if strings.HasPrefix(r.Sym.Name, prefix) {
+		tarSym = ctxt.Syms.ROLookup(strings.TrimPrefix(r.Sym.Name, prefix), 0)
+	} else {
+		ld.Errorf(s, "archreloctoc called for a symbol without TOC anchor")
+	}
+
+	if tarSym != nil && tarSym.Attr.Reachable() && (tarSym.Sect.Seg == &ld.Segdata) {
+		t = ld.Symaddr(tarSym) + r.Add - ctxt.Syms.ROLookup("TOC", 0).Value
+		// change ld to addi in the second instruction
+		o2 = (o2 & 0x03FF0000) | 0xE<<26
+		useAddi = true
+	} else {
+		t = ld.Symaddr(r.Sym) + r.Add - ctxt.Syms.ROLookup("TOC", 0).Value
+	}
+
 	if t != int64(int32(t)) {
 		ld.Errorf(s, "TOC relocation for %s is too big to relocate %s: 0x%x", s.Name, r.Sym, t)
 	}
@@ -513,10 +535,14 @@ func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
 
 	switch r.Type {
 	case objabi.R_ADDRPOWER_TOCREL_DS:
-		if t&3 != 0 {
-			ld.Errorf(s, "bad DS reloc for %s: %d", s.Name, ld.Symaddr(r.Sym))
+		if useAddi {
+			o2 |= uint32(t) & 0xFFFF
+		} else {
+			if t&3 != 0 {
+				ld.Errorf(s, "bad DS reloc for %s: %d", s.Name, ld.Symaddr(r.Sym))
+			}
+			o2 |= uint32(t) & 0xFFFC
 		}
-		o2 |= uint32(t) & 0xFFFC
 	default:
 		return -1
 	}
