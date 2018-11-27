@@ -391,7 +391,13 @@ func TestCodeRepo(t *testing.T) {
 				}
 			}
 			if tt.zip != nil || tt.ziperr != "" {
-				zipfile, err := repo.Zip(tt.version, tmpdir)
+				f, err := ioutil.TempFile(tmpdir, tt.version+".zip.")
+				if err != nil {
+					t.Fatalf("ioutil.TempFile: %v", err)
+				}
+				zipfile := f.Name()
+				err = repo.Zip(f, tt.version)
+				f.Close()
 				if err != nil {
 					if tt.ziperr != "" {
 						if err.Error() == tt.ziperr {

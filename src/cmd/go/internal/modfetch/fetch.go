@@ -108,41 +108,47 @@ func downloadZip(mod module.Version, target string) error {
 	if err != nil {
 		return err
 	}
-	tmpfile, err := repo.Zip(mod.Version, os.TempDir())
+	tmpfile, err := ioutil.TempFile("", "go-codezip-")
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmpfile)
+	defer func() {
+		tmpfile.Close()
+		os.Remove(tmpfile.Name())
+	}()
+	if err := repo.Zip(tmpfile, mod.Version); err != nil {
+		return err
+	}
 
 	// Double-check zip file looks OK.
-	z, err := zip.OpenReader(tmpfile)
+	fi, err := tmpfile.Stat()
+	if err != nil {
+		return err
+	}
+	z, err := zip.NewReader(tmpfile, fi.Size())
 	if err != nil {
 		return err
 	}
 	prefix := mod.Path + "@" + mod.Version + "/"
 	for _, f := range z.File {
 		if !strings.HasPrefix(f.Name, prefix) {
-			z.Close()
 			return fmt.Errorf("zip for %s has unexpected file %s", prefix[:len(prefix)-1], f.Name)
 		}
 	}
-	z.Close()
 
-	hash, err := dirhash.HashZip(tmpfile, dirhash.DefaultHash)
+	hash, err := dirhash.HashZip(tmpfile.Name(), dirhash.DefaultHash)
 	if err != nil {
 		return err
 	}
 	checkOneSum(mod, hash) // check before installing the zip file
-	r, err := os.Open(tmpfile)
-	if err != nil {
+	if _, err := tmpfile.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
-	defer r.Close()
 	w, err := os.Create(target)
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(w, r); err != nil {
+	if _, err := io.Copy(w, tmpfile); err != nil {
 		w.Close()
 		return fmt.Errorf("copying: %v", err)
 	}
