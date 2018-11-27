@@ -4,7 +4,10 @@
 
 package ssa
 
-import "container/heap"
+import (
+	"container/heap"
+	"sort"
+)
 
 const (
 	ScorePhi = iota // towards top of block
@@ -447,5 +450,33 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 		count[s-1]++
 	}
 
+	// Order nil checks in source order. We want the first in source order to trigger.
+	// If two are on the same line, we don't really care which happens first.
+	// See issue 18169.
+	if hasNilCheck {
+		start := -1
+		for i, v := range order {
+			if v.Op == OpNilCheck {
+				if start == -1 {
+					start = i
+				}
+			} else {
+				if start != -1 {
+					sort.Sort(bySourcePos(order[start:i]))
+					start = -1
+				}
+			}
+		}
+		if start != -1 {
+			sort.Sort(bySourcePos(order[start:]))
+		}
+	}
+
 	return order
 }
+
+type bySourcePos []*Value
+
+func (s bySourcePos) Len() int           { return len(s) }
+func (s bySourcePos) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s bySourcePos) Less(i, j int) bool { return s[i].Pos.Before(s[j].Pos) }
