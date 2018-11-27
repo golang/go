@@ -2135,7 +2135,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		continueCh = make(chan struct{}, 1)
 	}
 
-	if pc.t.DisableKeepAlives {
+	if pc.t.DisableKeepAlives && !req.wantsClose() {
 		req.extraHeaders().Set("Connection", "close")
 	}
 
