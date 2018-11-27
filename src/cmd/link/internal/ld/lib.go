@@ -1122,7 +1122,7 @@ func (ctxt *Link) hostlink() {
 	switch ctxt.HeadType {
 	case objabi.Hdarwin:
 		argv = append(argv, "-Wl,-headerpad,1144")
-		if ctxt.DynlinkingGo() {
+		if ctxt.DynlinkingGo() && !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
 			argv = append(argv, "-Wl,-flat_namespace")
 		}
 		if ctxt.BuildMode == BuildModeExe && !ctxt.Arch.InFamily(sys.ARM64) {
