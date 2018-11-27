@@ -745,18 +745,15 @@ func TestParenthesizedDecl(t *testing.T) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", src, 0)
 
-	// reset the file set to get uniform formatting
-	fset = token.NewFileSet()
-
+	// print the original package
 	var buf bytes.Buffer
-	// Print the original package
 	err = Fprint(&buf, fset, f)
 	if err != nil {
 		t.Fatal(err)
 	}
 	original := buf.String()
 
-	// Now remove parentheses from the declaration
+	// now remove parentheses from the declaration
 	for i := 0; i != len(f.Decls); i++ {
 		f.Decls[i].(*ast.GenDecl).Lparen = token.NoPos
 	}
