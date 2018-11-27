@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -215,8 +216,8 @@ func (r *cachingRepo) GoMod(rev string) ([]byte, error) {
 	return append([]byte(nil), c.text...), nil
 }
 
-func (r *cachingRepo) Zip(version, tmpdir string) (string, error) {
-	return r.r.Zip(version, tmpdir)
+func (r *cachingRepo) Zip(dst io.Writer, version string) error {
+	return r.r.Zip(dst, version)
 }
 
 // Stat is like Lookup(path).Stat(rev) but avoids the
