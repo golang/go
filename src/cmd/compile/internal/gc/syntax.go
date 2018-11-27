@@ -622,7 +622,7 @@ const (
 	OMAPLIT    // Type{List} (composite literal, Type is map)
 	OSTRUCTLIT // Type{List} (composite literal, Type is struct)
 	OARRAYLIT  // Type{List} (composite literal, Type is array)
-	OSLICELIT  // Type{List} (composite literal, Type is slice)
+	OSLICELIT  // Type{List} (composite literal, Type is slice) Right.Int64() = slice length.
 	OPTRLIT    // &Left (left is composite literal)
 	OCONV      // Type(Left) (type conversion)
 	OCONVIFACE // Type(Left) (type conversion, to interface)
@@ -692,7 +692,7 @@ const (
 	OIOTA        // iota
 	OREAL        // real(Left)
 	OIMAG        // imag(Left)
-	OCOMPLEX     // complex(Left, Right)
+	OCOMPLEX     // complex(Left, Right) or complex(List[0]) where List[0] is a 2-result function call
 	OALIGNOF     // unsafe.Alignof(Left)
 	OOFFSETOF    // unsafe.Offsetof(Left)
 	OSIZEOF      // unsafe.Sizeof(Left)

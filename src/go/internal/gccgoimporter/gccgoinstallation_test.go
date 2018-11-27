@@ -6,7 +6,6 @@ package gccgoimporter
 
 import (
 	"go/types"
-	"runtime"
 	"testing"
 )
 
@@ -144,14 +143,14 @@ var importablePackages = [...]string{
 }
 
 func TestInstallationImporter(t *testing.T) {
-	// This test relies on gccgo being around, which it most likely will be if we
-	// were compiled with gccgo.
-	if runtime.Compiler != "gccgo" {
+	// This test relies on gccgo being around.
+	gpath := gccgoPath()
+	if gpath == "" {
 		t.Skip("This test needs gccgo")
 	}
 
 	var inst GccgoInstallation
-	err := inst.InitFromDriver("gccgo")
+	err := inst.InitFromDriver(gpath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,12 +175,12 @@ func TestInstallationImporter(t *testing.T) {
 
 	// Test for certain specific entities in the imported data.
 	for _, test := range [...]importerTest{
-		{pkgpath: "io", name: "Reader", want: "type Reader interface{Read(p []uint8) (n int, err error)}"},
+		{pkgpath: "io", name: "Reader", want: "type Reader interface{Read(p []byte) (n int, err error)}"},
 		{pkgpath: "io", name: "ReadWriter", want: "type ReadWriter interface{Reader; Writer}"},
 		{pkgpath: "math", name: "Pi", want: "const Pi untyped float"},
 		{pkgpath: "math", name: "Sin", want: "func Sin(x float64) float64"},
 		{pkgpath: "sort", name: "Ints", want: "func Ints(a []int)"},
-		{pkgpath: "unsafe", name: "Pointer", want: "type Pointer unsafe.Pointer"},
+		{pkgpath: "unsafe", name: "Pointer", want: "type Pointer"},
 	} {
 		runImporterTest(t, imp, nil, &test)
 	}

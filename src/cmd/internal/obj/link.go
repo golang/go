@@ -214,6 +214,8 @@ const (
 	// Indicates auto that was optimized away, but whose type
 	// we want to preserve in the DWARF debug info.
 	NAME_DELETED_AUTO
+	// Indicates that this is a reference to a TOC anchor.
+	NAME_TOCREF
 )
 
 //go:generate stringer -type AddrType

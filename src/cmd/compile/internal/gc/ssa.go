@@ -82,6 +82,7 @@ func initssaconfig() {
 	panicdottypeI = sysfunc("panicdottypeI")
 	panicindex = sysfunc("panicindex")
 	panicnildottype = sysfunc("panicnildottype")
+	panicoverflow = sysfunc("panicoverflow")
 	panicslice = sysfunc("panicslice")
 	raceread = sysfunc("raceread")
 	racereadrange = sysfunc("racereadrange")
@@ -3487,20 +3488,29 @@ func init() {
 		},
 		sys.AMD64, sys.ARM64, sys.PPC64)
 	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64)
-
 	addF("math/bits", "Add64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
 		},
 		sys.AMD64)
 	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64)
-
 	addF("math/bits", "Sub64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
 		},
 		sys.AMD64)
 	alias("math/bits", "Sub", "math/bits", "Sub64", sys.ArchAMD64)
+	addF("math/bits", "Div64",
+		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+			// check for divide-by-zero/overflow and panic with appropriate message
+			cmpZero := s.newValue2(s.ssaOp(ONE, types.Types[TUINT64]), types.Types[TBOOL], args[2], s.zeroVal(types.Types[TUINT64]))
+			s.check(cmpZero, panicdivide)
+			cmpOverflow := s.newValue2(s.ssaOp(OLT, types.Types[TUINT64]), types.Types[TBOOL], args[0], args[2])
+			s.check(cmpOverflow, panicoverflow)
+			return s.newValue3(ssa.OpDiv128u, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+		},
+		sys.AMD64)
+	alias("math/bits", "Div", "math/bits", "Div64", sys.ArchAMD64)
 
 	/******** sync/atomic ********/
 
@@ -3651,7 +3661,8 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			break
 		}
 		closure = s.expr(fn)
-		if thearch.LinkArch.Family == sys.Wasm {
+		if thearch.LinkArch.Family == sys.Wasm || objabi.GOOS == "aix" && k != callGo {
+			// On AIX, the closure needs to be verified as fn can be nil, except if it's a call go. This needs to be handled by the runtime to have the "go of nil func value" error.
 			// TODO(neelance): On other architectures this should be eliminated by the optimization steps
 			s.nilCheck(closure)
 		}

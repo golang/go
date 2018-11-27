@@ -605,9 +605,10 @@ func TestImportTableInUnknownSection(t *testing.T) {
 
 	// kernel32.dll import table is located in ".rdata" section,
 	// so it is good enough to test issue #16103.
-	path, err := exec.LookPath("kernel32.dll")
+	const filename = "kernel32.dll"
+	path, err := exec.LookPath(filename)
 	if err != nil {
-		t.Fatalf("unable to locate required file %q in search path: %s", "atmfd.dll", err)
+		t.Fatalf("unable to locate required file %q in search path: %s", filename, err)
 	}
 
 	f, err := Open(path)

@@ -1537,7 +1537,7 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 	p.setComment(d.Doc)
 	p.print(d.Pos(), d.Tok, blank)
 
-	if d.Lparen.IsValid() {
+	if d.Lparen.IsValid() || len(d.Specs) > 1 {
 		// group of parenthesized declarations
 		p.print(d.Lparen, token.LPAREN)
 		if n := len(d.Specs); n > 0 {

@@ -300,6 +300,7 @@ var (
 	panicdottypeI,
 	panicindex,
 	panicnildottype,
+	panicoverflow,
 	panicslice,
 	raceread,
 	racereadrange,

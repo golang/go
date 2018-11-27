@@ -174,9 +174,6 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				}
 				havedynamic = 1
 			}
-			if ctxt.HeadType == objabi.Haix {
-				xcoffadddynimpsym(ctxt, s)
-			}
 
 			continue
 

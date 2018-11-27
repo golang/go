@@ -372,6 +372,17 @@ func Mconv(a *Addr) string {
 		} else {
 			str = fmt.Sprintf("%s(%s)", offConv(a.Offset), reg)
 		}
+	case NAME_TOCREF:
+		reg := "SB"
+		if a.Reg != REG_NONE {
+			reg = Rconv(int(a.Reg))
+		}
+		if a.Sym != nil {
+			str = fmt.Sprintf("%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
+		} else {
+			str = fmt.Sprintf("%s(%s)", offConv(a.Offset), reg)
+		}
+
 	}
 	return str
 }

@@ -175,8 +175,8 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 		}
 
 		// We need to be able to reference dynimport symbols when linking against
-		// shared libraries, and Solaris and Darwin need it always
-		if ctxt.HeadType != objabi.Hsolaris && ctxt.HeadType != objabi.Hdarwin && r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT && !ctxt.DynlinkingGo() && !r.Sym.Attr.SubSymbol() {
+		// shared libraries, and Solaris, Darwin and AIX need it always
+		if ctxt.HeadType != objabi.Hsolaris && ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Haix && r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT && !ctxt.DynlinkingGo() && !r.Sym.Attr.SubSymbol() {
 			if !(ctxt.Arch.Family == sys.PPC64 && ctxt.LinkMode == LinkExternal && r.Sym.Name == ".TOC.") {
 				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, sym.RelocName(ctxt.Arch, r.Type))
 			}
@@ -314,16 +314,19 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 
 				break
 			}
-			// On AIX, if a relocated symbol is in .data, a second relocation
-			// must be done by the loader, as the section .data will be moved.
+
+			// On AIX, a second relocation must be done by the loader,
+			// as section addresses can change once loaded.
 			// The "default" symbol address is still needed by the loader so
 			// the current relocation can't be skipped.
-			// runtime.algarray is different because it will end up in .rodata section
-			if ctxt.HeadType == objabi.Haix && r.Sym.Sect.Seg == &Segdata && r.Sym.Name != "runtime.algarray" {
-				// It's not possible to make a loader relocation to a DWARF section.
-				// FIXME
-				if s.Sect.Seg != &Segdwarf {
-					xcoffaddloaderreloc(ctxt, s, r)
+			if ctxt.HeadType == objabi.Haix && r.Sym.Type != sym.SDYNIMPORT {
+				// It's not possible to make a loader relocation in a
+				// symbol which is not inside .data section.
+				// FIXME: It should be forbidden to have R_ADDR from a
+				// symbol which isn't in .data. However, as .text has the
+				// same address once loaded, this is possible.
+				if s.Sect.Seg == &Segdata {
+					Xcoffadddynrel(ctxt, s, r)
 				}
 			}
 
@@ -1709,10 +1712,6 @@ func (ctxt *Link) dodata() {
 	}
 	for _, sect := range Segdata.Sections {
 		sect.Extnum = int16(n)
-		if ctxt.HeadType == objabi.Haix && (sect.Name == ".noptrdata" || sect.Name == ".bss") {
-			// On AIX, "noptr" sections are merged with their "ptr" section
-			continue
-		}
 		n++
 	}
 	for _, sect := range Segdwarf.Sections {

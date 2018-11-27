@@ -28,9 +28,20 @@ const (
 	// bottom, because node must be pointer-aligned, giving a total of 19 bits
 	// of count.
 	cntBits = 64 - addrBits + 3
+
+	// On AIX, 64-bit addresses are split into 36-bit segment number and 28-bit
+	// offset in segment.  Segment numbers in the range 0x0A0000000-0x0AFFFFFFF(LSA)
+	// are available for mmap.
+	// We assume all lfnode addresses are from memory allocated with mmap.
+	// We use one bit to distinguish between the two ranges.
+	aixAddrBits = 57
+	aixCntBits  = 64 - aixAddrBits + 3
 )
 
 func lfstackPack(node *lfnode, cnt uintptr) uint64 {
+	if GOARCH == "ppc64" && GOOS == "aix" {
+		return uint64(uintptr(unsafe.Pointer(node)))<<(64-aixAddrBits) | uint64(cnt&(1<<aixCntBits-1))
+	}
 	return uint64(uintptr(unsafe.Pointer(node)))<<(64-addrBits) | uint64(cnt&(1<<cntBits-1))
 }
 
@@ -39,6 +50,9 @@ func lfstackUnpack(val uint64) *lfnode {
 		// amd64 systems can place the stack above the VA hole, so we need to sign extend
 		// val before unpacking.
 		return (*lfnode)(unsafe.Pointer(uintptr(int64(val) >> cntBits << 3)))
+	}
+	if GOARCH == "ppc64" && GOOS == "aix" {
+		return (*lfnode)(unsafe.Pointer(uintptr((val >> aixCntBits << 3) | 0xa<<56)))
 	}
 	return (*lfnode)(unsafe.Pointer(uintptr(val >> cntBits << 3)))
 }

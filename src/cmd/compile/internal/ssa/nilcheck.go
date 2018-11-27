@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -183,6 +184,9 @@ func nilcheckelim(f *Func) {
 // This should agree with minLegalPointer in the runtime.
 const minZeroPage = 4096
 
+// faultOnLoad is true if a load to an address below minZeroPage will trigger a SIGSEGV.
+var faultOnLoad = objabi.GOOS != "aix"
+
 // nilcheckelim2 eliminates unnecessary nil checks.
 // Runs after lowering and scheduling.
 func nilcheckelim2(f *Func) {
@@ -225,12 +229,16 @@ func nilcheckelim2(f *Func) {
 			// Find any pointers that this op is guaranteed to fault on if nil.
 			var ptrstore [2]*Value
 			ptrs := ptrstore[:0]
-			if opcodeTable[v.Op].faultOnNilArg0 {
+			if opcodeTable[v.Op].faultOnNilArg0 && (faultOnLoad || v.Type.IsMemory()) {
+				// On AIX, only writing will fault.
 				ptrs = append(ptrs, v.Args[0])
 			}
-			if opcodeTable[v.Op].faultOnNilArg1 {
+			if opcodeTable[v.Op].faultOnNilArg1 && (faultOnLoad || (v.Type.IsMemory() && v.Op != OpPPC64LoweredMove)) {
+				// On AIX, only writing will fault.
+				// LoweredMove is a special case because it's considered as a "mem" as it stores on arg0 but arg1 is accessed as a load and should be checked.
 				ptrs = append(ptrs, v.Args[1])
 			}
+
 			for _, ptr := range ptrs {
 				// Check to make sure the offset is small.
 				switch opcodeTable[v.Op].auxType {
