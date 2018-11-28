@@ -891,6 +891,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 	// Write _cgoCheckPointer calls to sbCheck.
 	var sbCheck bytes.Buffer
 	for i, param := range params {
+		origArg := args[i]
 		arg, nu := p.mangle(f, &args[i])
 		if nu {
 			needsUnsafe = true
@@ -910,7 +911,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 		}
 
 		if !p.needsPointerCheck(f, param.Go, args[i]) {
-			fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtLine(arg))
+			fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtPos(arg, origArg.Pos()))
 			continue
 		}
 
@@ -924,7 +925,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 			continue
 		}
 
-		fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtLine(arg))
+		fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtPos(arg, origArg.Pos()))
 		fmt.Fprintf(&sbCheck, "_cgoCheckPointer(_cgo%d); ", i)
 	}
 
@@ -1147,10 +1148,10 @@ func (p *Package) checkIndex(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) boo
 		return false
 	}
 
-	fmt.Fprintf(sb, "_cgoIndex%d := %s; ", i, gofmtLine(index.X))
+	fmt.Fprintf(sb, "_cgoIndex%d := %s; ", i, gofmtPos(index.X, index.X.Pos()))
 	origX := index.X
 	index.X = ast.NewIdent(fmt.Sprintf("_cgoIndex%d", i))
-	fmt.Fprintf(sb, "_cgo%d := %s; ", i, gofmtLine(arg))
+	fmt.Fprintf(sb, "_cgo%d := %s; ", i, gofmtPos(arg, arg.Pos()))
 	index.X = origX
 
 	fmt.Fprintf(sbCheck, "_cgoCheckPointer(_cgo%d, _cgoIndex%d); ", i, i)
@@ -1182,11 +1183,11 @@ func (p *Package) checkAddr(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool
 		return false
 	}
 
-	fmt.Fprintf(sb, "_cgoBase%d := %s; ", i, gofmtLine(*px))
+	fmt.Fprintf(sb, "_cgoBase%d := %s; ", i, gofmtPos(*px, (*px).Pos()))
 
 	origX := *px
 	*px = ast.NewIdent(fmt.Sprintf("_cgoBase%d", i))
-	fmt.Fprintf(sb, "_cgo%d := %s; ", i, gofmtLine(arg))
+	fmt.Fprintf(sb, "_cgo%d := %s; ", i, gofmtPos(arg, arg.Pos()))
 	*px = origX
 
 	// Use "0 == 0" to do the right thing in the unlikely event
@@ -1388,7 +1389,18 @@ func (p *Package) rewriteRef(f *File) {
 
 		// Record source-level edit for cgo output.
 		if !r.Done {
-			repl := gofmt(expr)
+			repl := gofmtPos(expr, old.Pos())
+			end := fset.Position(old.End())
+			// Subtract 1 from the column if we are going to
+			// append a close parenthesis. That will set the
+			// correct column for the following characters.
+			sub := 0
+			if r.Name.Kind != "type" {
+				sub = 1
+			}
+			if end.Column > sub {
+				repl = fmt.Sprintf("%s/*line :%d:%d*/", repl, end.Line, end.Column-sub)
+			}
 			if r.Name.Kind != "type" {
 				repl = "(" + repl + ")"
 			}
@@ -1504,6 +1516,17 @@ func (p *Package) rewriteName(f *File, r *Ref) ast.Expr {
 		}
 	}
 	return expr
+}
+
+// gofmtPos returns the gofmt-formatted string for an AST node,
+// with a comment setting the position before the node.
+func gofmtPos(n ast.Expr, pos token.Pos) string {
+	s := gofmtLine(n)
+	p := fset.Position(pos)
+	if p.Column == 0 {
+		return s
+	}
+	return fmt.Sprintf("/*line :%d:%d*/%s", p.Line, p.Column, s)
 }
 
 // gccBaseCmd returns the start of the compiler command line.
