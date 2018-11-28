@@ -164,10 +164,10 @@ func (root *mTreap) insert(span *mspan) {
 			pt = &t.right
 		} else if t.npagesKey > npages {
 			pt = &t.left
-		} else if uintptr(unsafe.Pointer(t.spanKey)) < uintptr(unsafe.Pointer(span)) {
+		} else if t.spanKey.base() < span.base() {
 			// t.npagesKey == npages, so sort on span addresses.
 			pt = &t.right
-		} else if uintptr(unsafe.Pointer(t.spanKey)) > uintptr(unsafe.Pointer(span)) {
+		} else if t.spanKey.base() > span.base() {
 			pt = &t.left
 		} else {
 			throw("inserting span already in treap")
@@ -271,9 +271,9 @@ func (root *mTreap) removeSpan(span *mspan) {
 			t = t.right
 		} else if t.npagesKey > npages {
 			t = t.left
-		} else if uintptr(unsafe.Pointer(t.spanKey)) < uintptr(unsafe.Pointer(span)) {
+		} else if t.spanKey.base() < span.base() {
 			t = t.right
-		} else if uintptr(unsafe.Pointer(t.spanKey)) > uintptr(unsafe.Pointer(span)) {
+		} else if t.spanKey.base() > span.base() {
 			t = t.left
 		}
 	}
