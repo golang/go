@@ -2388,7 +2388,8 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 		panic("http: nil handler")
 	}
 	if _, exist := mux.m[pattern]; exist {
-		panic("http: multiple registrations for " + pattern)
+		fmt.Println("http: multiple registrations for ",pattern)
+		return
 	}
 
 	if mux.m == nil {
