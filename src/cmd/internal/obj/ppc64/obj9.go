@@ -114,6 +114,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 }
 
 // Rewrite p, if necessary, to access a symbol using its TOC anchor.
+// This code is for AIX only.
 func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
 	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
 		return

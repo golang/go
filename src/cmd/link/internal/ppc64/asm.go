@@ -383,7 +383,7 @@ func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	// Beware that bit0~bit15 start from the third byte of a instruction in Big-Endian machines.
-	if r.Type == objabi.R_ADDR || r.Type == objabi.R_POWER_TLS ||  r.Type == objabi.R_CALLPOWER {
+	if r.Type == objabi.R_ADDR || r.Type == objabi.R_POWER_TLS || r.Type == objabi.R_CALLPOWER {
 	} else {
 		if ctxt.Arch.ByteOrder == binary.BigEndian {
 			sectoff += 2
@@ -489,7 +489,12 @@ func symtoc(ctxt *ld.Link, s *sym.Symbol) int64 {
 	return toc.Value
 }
 
+// archreloctoc relocates a TOC relative symbol.
+// This code is for AIX only.
 func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+	if ctxt.HeadType == objabi.Hlinux {
+		ld.Errorf(s, "archrelocaddr called for %s relocation\n", r.Sym.Name)
+	}
 	var o1, o2 uint32
 
 	o1 = uint32(val >> 32)
@@ -519,6 +524,8 @@ func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
 	return int64(o1)<<32 | int64(o2)
 }
 
+// archrelocaddr relocates a symbol address.
+// This code is for AIX only.
 func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
 	if ctxt.HeadType == objabi.Haix {
 		ld.Errorf(s, "archrelocaddr called for %s relocation\n", r.Sym.Name)
