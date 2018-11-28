@@ -2212,7 +2212,7 @@ func (c *ctxt9) opform(insn uint32) int {
 // instruction op with source or destination (as appropriate) register reg.
 func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32) (o1, o2 uint32) {
 	if c.ctxt.Headtype == objabi.Haix {
-		// Every symbol accesses must be made via a TOC anchor.
+		// Every symbol access must be made via a TOC anchor.
 		c.ctxt.Diag("symbolAccess called for %s", s.Name)
 	}
 	var base uint32
@@ -3656,18 +3656,20 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		cy := int(c.regoff(p.GetFrom3()))
 		o1 = AOP_Z23I(c.oprrr(p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), uint32(cy))
 
-	case 95: /* Retrieve TOC symbol */
-		v := c.vregoff(&p.To)
+	case 95: /* Retrieve TOC relative symbol */
+		/* This code is for AIX only */
+		v := c.vregoff(&p.From)
 		if v != 0 {
 			c.ctxt.Diag("invalid offset against TOC slot %v", p)
 		}
 
-		if c.opform(c.opload(p.As)) != DS_FORM {
+		inst := c.opload(p.As)
+		if c.opform(inst) != DS_FORM {
 			c.ctxt.Diag("invalid form for a TOC access in %v", p)
 		}
 
 		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
-		o2 = AOP_IRR(c.opload(AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
+		o2 = AOP_IRR(inst, uint32(p.To.Reg), uint32(p.To.Reg), 0)
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 8
