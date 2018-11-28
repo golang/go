@@ -90,7 +90,7 @@ func ImportPaths(patterns []string) []*search.Match {
 				// the exact version of a particular module increases during
 				// the loader iterations.
 				m.Pkgs = str.StringList(fsDirs[i])
-				for i, pkg := range m.Pkgs {
+				for j, pkg := range m.Pkgs {
 					dir := pkg
 					if !filepath.IsAbs(dir) {
 						dir = filepath.Join(cwd, pkg)
@@ -124,19 +124,15 @@ func ImportPaths(patterns []string) []*search.Match {
 					}
 					info, err := os.Stat(dir)
 					if err != nil || !info.IsDir() {
-						// If the directory does not exist,
-						// don't turn it into an import path
-						// that will trigger a lookup.
-						pkg = ""
-						if !iterating {
-							if err != nil {
-								base.Errorf("go: no such directory %v", m.Pattern)
-							} else {
-								base.Errorf("go: %s is not a directory", m.Pattern)
-							}
+						// If the directory is local but does not exist, don't return it
+						// while loader is iterating, since this would trigger a fetch.
+						// After loader is done iterating, we still need to return the
+						// path, so that "go list -e" produces valid output.
+						if iterating {
+							pkg = ""
 						}
 					}
-					m.Pkgs[i] = pkg
+					m.Pkgs[j] = pkg
 				}
 
 			case strings.Contains(m.Pattern, "..."):

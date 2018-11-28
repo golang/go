@@ -10,7 +10,9 @@ stdout ^math$
 go list -f '{{.ImportPath}}' .
 stdout ^x$
 ! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
-stderr '^go: no such directory.*quote@v1.5.2'
+stderr 'unknown import path "rsc.io/quote": cannot find package'
+go list -e -f '{{with .Error}}{{.}}{{end}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+stdout 'unknown import path "rsc.io/quote": cannot find package'
 go mod download rsc.io/quote@v1.5.2
 go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
 stdout '^rsc.io/quote$'
