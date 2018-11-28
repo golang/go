@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"text/scanner"
+	"unicode/utf8"
 )
 
 type parser struct {
@@ -41,7 +42,7 @@ func (p *parser) init(filename string, src io.Reader, imports map[string]*types.
 func (p *parser) initScanner(filename string, src io.Reader) {
 	p.scanner.Init(src)
 	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
-	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanFloats | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
+	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanFloats | scanner.ScanStrings
 	p.scanner.Whitespace = 1<<'\t' | 1<<' '
 	p.scanner.Filename = filename // for good error messages
 	p.next()
@@ -281,6 +282,15 @@ func (p *parser) parseConversion(pkg *types.Package) (val constant.Value, typ ty
 // ConstValue     = string | "false" | "true" | ["-"] (int ["'"] | FloatOrComplex) | Conversion .
 // FloatOrComplex = float ["i" | ("+"|"-") float "i"] .
 func (p *parser) parseConstValue(pkg *types.Package) (val constant.Value, typ types.Type) {
+	// v3 changed to $false, $true, $convert, to avoid confusion
+	// with variable names in inline function bodies.
+	if p.tok == '$' {
+		p.next()
+		if p.tok != scanner.Ident {
+			p.errorf("expected identifer after '$', got %s (%q)", scanner.TokenString(p.tok), p.lit)
+		}
+	}
+
 	switch p.tok {
 	case scanner.String:
 		str := p.parseString()
@@ -443,7 +453,7 @@ func (p *parser) update(t types.Type, nlist []int) {
 
 // NamedType = TypeName [ "=" ] Type { Method } .
 // TypeName  = ExportedName .
-// Method    = "func" "(" Param ")" Name ParamList ResultList ";" .
+// Method    = "func" "(" Param ")" Name ParamList ResultList [InlineBody] ";" .
 func (p *parser) parseNamedType(nlist []int) types.Type {
 	pkg, name := p.parseExportedName()
 	scope := pkg.Scope()
@@ -508,6 +518,7 @@ func (p *parser) parseNamedType(nlist []int) types.Type {
 			name := p.parseName()
 			params, isVariadic := p.parseParamList(pkg)
 			results := p.parseResultList(pkg)
+			p.skipInlineBody()
 			p.expectEOL()
 
 			sig := types.NewSignature(receiver, params, results, isVariadic)
@@ -653,7 +664,11 @@ func (p *parser) parseParamList(pkg *types.Package) (*types.Tuple, bool) {
 func (p *parser) parseResultList(pkg *types.Package) *types.Tuple {
 	switch p.tok {
 	case '<':
-		return types.NewTuple(types.NewParam(token.NoPos, pkg, "", p.parseType(pkg)))
+		p.next()
+		if p.tok == scanner.Ident && p.lit == "inl" {
+			return nil
+		}
+		return types.NewTuple(types.NewParam(token.NoPos, pkg, "", p.parseTypeAfterAngle(pkg)))
 
 	case '(':
 		params, _ := p.parseParamList(pkg)
@@ -676,7 +691,7 @@ func (p *parser) parseFunctionType(pkg *types.Package, nlist []int) *types.Signa
 	return t
 }
 
-// Func = Name FunctionType .
+// Func = Name FunctionType [InlineBody] .
 func (p *parser) parseFunc(pkg *types.Package) *types.Func {
 	name := p.parseName()
 	if strings.ContainsRune(name, '$') {
@@ -685,7 +700,9 @@ func (p *parser) parseFunc(pkg *types.Package) *types.Func {
 		p.discardDirectiveWhileParsingTypes(pkg)
 		return nil
 	}
-	return types.NewFunc(token.NoPos, pkg, name, p.parseFunctionType(pkg, nil))
+	f := types.NewFunc(token.NoPos, pkg, name, p.parseFunctionType(pkg, nil))
+	p.skipInlineBody()
+	return f
 }
 
 // InterfaceType = "interface" "{" { ("?" Type | Func) ";" } "}" .
@@ -823,8 +840,13 @@ func lookupBuiltinType(typ int) types.Type {
 //
 // parseType updates the type map to t for all type numbers n.
 //
-func (p *parser) parseType(pkg *types.Package, n ...int) (t types.Type) {
+func (p *parser) parseType(pkg *types.Package, n ...int) types.Type {
 	p.expect('<')
+	return p.parseTypeAfterAngle(pkg, n...)
+}
+
+// (*parser).Type after reading the "<".
+func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...int) (t types.Type) {
 	p.expectKeyword("type")
 
 	switch p.tok {
@@ -863,6 +885,39 @@ func (p *parser) parseType(pkg *types.Package, n ...int) (t types.Type) {
 	return
 }
 
+// InlineBody = "<inl:NN>" .{NN}
+// Reports whether a body was skipped.
+func (p *parser) skipInlineBody() {
+	// We may or may not have seen the '<' already, depending on
+	// whether the function had a result type or not.
+	if p.tok == '<' {
+		p.next()
+		p.expectKeyword("inl")
+	} else if p.tok != scanner.Ident || p.lit != "inl" {
+		return
+	} else {
+		p.next()
+	}
+
+	p.expect(':')
+	want := p.parseInt()
+	p.expect('>')
+
+	defer func(w uint64) {
+		p.scanner.Whitespace = w
+	}(p.scanner.Whitespace)
+	p.scanner.Whitespace = 0
+
+	got := 0
+	for got < want {
+		r := p.scanner.Next()
+		if r == scanner.EOF {
+			p.error("unexpected EOF")
+		}
+		got += utf8.RuneLen(r)
+	}
+}
+
 // Types = "types" maxp1 exportedp1 (offset length)* .
 func (p *parser) parseTypes(pkg *types.Package) {
 	maxp1 := p.parseInt()
@@ -881,6 +936,11 @@ func (p *parser) parseTypes(pkg *types.Package) {
 		typeOffsets = append(typeOffsets, typeOffset{total, len})
 		total += len
 	}
+
+	defer func(w uint64) {
+		p.scanner.Whitespace = w
+	}(p.scanner.Whitespace)
+	p.scanner.Whitespace = 0
 
 	// We should now have p.tok pointing to the final newline.
 	// The next runes from the scanner should be the type data.
