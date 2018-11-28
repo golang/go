@@ -3073,10 +3073,16 @@ func typecheckcomplit(n *Node) (res *Node) {
 			if l.Op == OKEY {
 				l.Left = typecheck(l.Left, ctxExpr)
 				evconst(l.Left)
-				i = nonnegintconst(l.Left)
-				if i < 0 && !l.Left.Diag() {
-					yyerror("index must be non-negative integer constant")
-					l.Left.SetDiag(true)
+				i = indexconst(l.Left)
+				if i < 0 {
+					if !l.Left.Diag() {
+						if i == -2 {
+							yyerror("index too large")
+						} else {
+							yyerror("index must be non-negative integer constant")
+						}
+						l.Left.SetDiag(true)
+					}
 					i = -(1 << 30) // stay negative for a while
 				}
 				vp = &l.Right
