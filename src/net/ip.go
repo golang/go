@@ -31,7 +31,10 @@ const (
 // be an IPv4 address.
 type IP []byte
 
-// An IP mask is an IP address.
+// An IPMask is a bitmask that can be used to manipulate
+// IP addresses for IP addressing and routing.
+//
+// See type IPNet and func ParseCIDR for details.
 type IPMask []byte
 
 // An IPNet represents an IP network.
