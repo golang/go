@@ -603,9 +603,9 @@ func TestImportTableInUnknownSection(t *testing.T) {
 		t.Skip("skipping Windows-only test")
 	}
 
-	// kernel32.dll import table is located in ".rdata" section,
+	// ws2_32.dll import table is located in ".rdata" section,
 	// so it is good enough to test issue #16103.
-	const filename = "kernel32.dll"
+	const filename = "ws2_32.dll"
 	path, err := exec.LookPath(filename)
 	if err != nil {
 		t.Fatalf("unable to locate required file %q in search path: %s", filename, err)
