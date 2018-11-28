@@ -128,6 +128,16 @@ func runDownload(cmd *base.Command, args []string) {
 				base.Fatalf("%v", err)
 			}
 			os.Stdout.Write(append(b, '\n'))
+			if m.Error != "" {
+				base.SetExitStatus(1)
+			}
 		}
+	} else {
+		for _, m := range mods {
+			if m.Error != "" {
+				base.Errorf("%s@%s: %s\n", m.Path, m.Version, m.Error)
+			}
+		}
+		base.ExitIfErrors()
 	}
 }
