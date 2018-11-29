@@ -143,7 +143,7 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 		return nil
 	}
 
-	switch priv := priv.Public().(type) {
+	switch pub := priv.Public().(type) {
 	case *ecdsa.PublicKey:
 		if version != VersionTLS13 {
 			// In TLS 1.2 and earlier, ECDSA algorithms are not
@@ -155,7 +155,7 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 				ECDSAWithSHA1,
 			}
 		}
-		switch priv.Curve {
+		switch pub.Curve {
 		case elliptic.P256():
 			return []SignatureScheme{ECDSAWithP256AndSHA256}
 		case elliptic.P384():
@@ -186,4 +186,36 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 	default:
 		return nil
 	}
+}
+
+// unsupportedCertificateError returns a helpful error for certificates with
+// an unsupported private key.
+func unsupportedCertificateError(cert *Certificate) error {
+	switch cert.PrivateKey.(type) {
+	case rsa.PrivateKey, ecdsa.PrivateKey:
+		return fmt.Errorf("tls: unsupported certificate: private key is %T, expected *%T",
+			cert.PrivateKey, cert.PrivateKey)
+	}
+
+	signer, ok := cert.PrivateKey.(crypto.Signer)
+	if !ok {
+		return fmt.Errorf("tls: certificate private key (%T) does not implement crypto.Signer",
+			cert.PrivateKey)
+	}
+
+	switch pub := signer.Public().(type) {
+	case *ecdsa.PublicKey:
+		switch pub.Curve {
+		case elliptic.P256():
+		case elliptic.P384():
+		case elliptic.P521():
+		default:
+			return fmt.Errorf("tls: unsupported certificate curve (%s)", pub.Curve.Params().Name)
+		}
+	case *rsa.PublicKey:
+	default:
+		return fmt.Errorf("tls: unsupported certificate key (%T)", pub)
+	}
+
+	return fmt.Errorf("tls: internal error: unsupported key (%T)", cert.PrivateKey)
 }
