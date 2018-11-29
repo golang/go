@@ -62,8 +62,10 @@ type File struct {
 	Name     map[string]*Name    // map from Go name to Name
 	NamePos  map[*Name]token.Pos // map from Name to position of the first reference
 	Edit     *edit.Buffer
-	Consts   map[string]bool // untyped constants
 }
+
+// Untyped constants in the current package.
+var consts = make(map[string]bool)
 
 func (f *File) offset(p token.Pos) int {
 	return fset.Position(p).Offset
