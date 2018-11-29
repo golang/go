@@ -6,17 +6,17 @@ import (
 )
 
 func TestCtz64(t *testing.T) {
-	for i := uint(0); i <= 64; i++ {
-		x := uint64(5) << i
-		if got := sys.Ctz64(x); got != uint64(i) {
+	for i := 0; i <= 64; i++ {
+		x := uint64(5) << uint(i)
+		if got := sys.Ctz64(x); got != i {
 			t.Errorf("Ctz64(%d)=%d, want %d", x, got, i)
 		}
 	}
 }
 func TestCtz32(t *testing.T) {
-	for i := uint(0); i <= 32; i++ {
-		x := uint32(5) << i
-		if got := sys.Ctz32(x); got != uint32(i) {
+	for i := 0; i <= 32; i++ {
+		x := uint32(5) << uint(i)
+		if got := sys.Ctz32(x); got != i {
 			t.Errorf("Ctz32(%d)=%d, want %d", x, got, i)
 		}
 	}

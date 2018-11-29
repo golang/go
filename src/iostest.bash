@@ -24,19 +24,23 @@ if [ "$GOARCH" != "arm" ] && [ "$GOARCH" != "arm64" ]; then
 	echo "iostest.bash requires GOARCH=arm or GOARCH=arm64, got GOARCH=$GOARCH" 1>&2
 	exit 1
 fi
-if [ "$GOARCH" == "arm" ]; then
+if [ "$GOARCH" = "arm" ]; then
 	export GOARM=7
 fi
 
-if [ "$1" == "-restart" ]; then
+if [ "$1" = "-restart" ]; then
 	# Reboot to make sure previous runs do not interfere with the current run.
 	# It is reasonably easy for a bad program leave an iOS device in an
 	# almost unusable state.
-	idevicediagnostics restart
+	IDEVARGS=
+	if [ -n "$GOIOS_DEVICE_ID" ]; then
+		IDEVARGS="-u $GOIOS_DEVICE_ID"
+	fi
+	idevicediagnostics $IDEVARGS restart
 	# Initial sleep to make sure we are restarting before we start polling.
 	sleep 30
 	# Poll until the device has restarted.
-	until idevicediagnostics diagnostics; do
+	until idevicediagnostics $IDEVARGS diagnostics; do
 		# TODO(crawshaw): replace with a test app using go_darwin_arm_exec.
 		echo "waiting for idevice to come online"
 		sleep 10
@@ -60,10 +64,10 @@ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
 	-o ../bin/go_darwin_${GOARCH}_exec \
 	../misc/ios/go_darwin_arm_exec.go
 
-if [ "$GOIOS_DEV_ID" == "" ]; then
+if [ "$GOIOS_DEV_ID" = "" ]; then
 	echo "detecting iOS development identity"
 	eval $(GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go run ../misc/ios/detect.go)
 fi
 
-# Run standard build and tests.
-./all.bash --no-clean
+# Run standard tests.
+bash run.bash --no-rebuild

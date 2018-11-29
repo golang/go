@@ -12,7 +12,6 @@ package net
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 */
@@ -50,7 +49,7 @@ type reverseLookupResult struct {
 }
 
 func cgoLookupHost(ctx context.Context, name string) (hosts []string, err error, completed bool) {
-	addrs, err, completed := cgoLookupIP(ctx, name)
+	addrs, err, completed := cgoLookupIP(ctx, "ip", name)
 	for _, addr := range addrs {
 		hosts = append(hosts, addr.String())
 	}
@@ -70,13 +69,11 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 	default:
 		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}, true
 	}
-	if len(network) >= 4 {
-		switch network[3] {
-		case '4':
-			hints.ai_family = C.AF_INET
-		case '6':
-			hints.ai_family = C.AF_INET6
-		}
+	switch ipVersion(network) {
+	case '4':
+		hints.ai_family = C.AF_INET
+	case '6':
+		hints.ai_family = C.AF_INET6
 	}
 	if ctx.Done() == nil {
 		port, err := cgoLookupServicePort(&hints, network, service)
@@ -95,15 +92,14 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 }
 
 func cgoLookupServicePort(hints *C.struct_addrinfo, network, service string) (port int, err error) {
-	s := C.CString(service)
-	// Lowercase the service name in the C-allocated memory.
-	for i := 0; i < len(service); i++ {
-		bp := (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(s)) + uintptr(i)))
-		*bp = lowerASCII(*bp)
+	cservice := make([]byte, len(service)+1)
+	copy(cservice, service)
+	// Lowercase the C service name.
+	for i, b := range cservice[:len(service)] {
+		cservice[i] = lowerASCII(b)
 	}
 	var res *C.struct_addrinfo
-	defer C.free(unsafe.Pointer(s))
-	gerrno, err := C.getaddrinfo(nil, s, hints, &res)
+	gerrno, err := C.getaddrinfo(nil, (*C.char)(unsafe.Pointer(&cservice[0])), hints, &res)
 	if gerrno != 0 {
 		switch gerrno {
 		case C.EAI_SYSTEM:
@@ -137,18 +133,25 @@ func cgoPortLookup(result chan<- portLookupResult, hints *C.struct_addrinfo, net
 	result <- portLookupResult{port, err}
 }
 
-func cgoLookupIPCNAME(name string) (addrs []IPAddr, cname string, err error) {
+func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err error) {
 	acquireThread()
 	defer releaseThread()
 
 	var hints C.struct_addrinfo
 	hints.ai_flags = cgoAddrInfoFlags
 	hints.ai_socktype = C.SOCK_STREAM
+	hints.ai_family = C.AF_UNSPEC
+	switch ipVersion(network) {
+	case '4':
+		hints.ai_family = C.AF_INET
+	case '6':
+		hints.ai_family = C.AF_INET6
+	}
 
-	h := C.CString(name)
-	defer C.free(unsafe.Pointer(h))
+	h := make([]byte, len(name)+1)
+	copy(h, name)
 	var res *C.struct_addrinfo
-	gerrno, err := C.getaddrinfo(h, nil, &hints, &res)
+	gerrno, err := C.getaddrinfo((*C.char)(unsafe.Pointer(&h[0])), nil, &hints, &res)
 	if gerrno != 0 {
 		switch gerrno {
 		case C.EAI_SYSTEM:
@@ -192,25 +195,25 @@ func cgoLookupIPCNAME(name string) (addrs []IPAddr, cname string, err error) {
 			addrs = append(addrs, addr)
 		case C.AF_INET6:
 			sa := (*syscall.RawSockaddrInet6)(unsafe.Pointer(r.ai_addr))
-			addr := IPAddr{IP: copyIP(sa.Addr[:]), Zone: zoneToString(int(sa.Scope_id))}
+			addr := IPAddr{IP: copyIP(sa.Addr[:]), Zone: zoneCache.name(int(sa.Scope_id))}
 			addrs = append(addrs, addr)
 		}
 	}
 	return addrs, cname, nil
 }
 
-func cgoIPLookup(result chan<- ipLookupResult, name string) {
-	addrs, cname, err := cgoLookupIPCNAME(name)
+func cgoIPLookup(result chan<- ipLookupResult, network, name string) {
+	addrs, cname, err := cgoLookupIPCNAME(network, name)
 	result <- ipLookupResult{addrs, cname, err}
 }
 
-func cgoLookupIP(ctx context.Context, name string) (addrs []IPAddr, err error, completed bool) {
+func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error, completed bool) {
 	if ctx.Done() == nil {
-		addrs, _, err = cgoLookupIPCNAME(name)
+		addrs, _, err = cgoLookupIPCNAME(network, name)
 		return addrs, err, true
 	}
 	result := make(chan ipLookupResult, 1)
-	go cgoIPLookup(result, name)
+	go cgoIPLookup(result, network, name)
 	select {
 	case r := <-result:
 		return r.addrs, r.err, true
@@ -221,11 +224,11 @@ func cgoLookupIP(ctx context.Context, name string) (addrs []IPAddr, err error, c
 
 func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
 	if ctx.Done() == nil {
-		_, cname, err = cgoLookupIPCNAME(name)
+		_, cname, err = cgoLookupIPCNAME("ip", name)
 		return cname, err, true
 	}
 	result := make(chan ipLookupResult, 1)
-	go cgoIPLookup(result, name)
+	go cgoIPLookup(result, "ip", name)
 	select {
 	case r := <-result:
 		return r.cname, r.err, true
@@ -251,7 +254,7 @@ func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error, 
 	var zone string
 	ip := parseIPv4(addr)
 	if ip == nil {
-		ip, zone = parseIPv6(addr, true)
+		ip, zone = parseIPv6Zone(addr)
 	}
 	if ip == nil {
 		return nil, &DNSError{Err: "invalid address", Name: addr}, true
@@ -317,7 +320,7 @@ func cgoSockaddr(ip IP, zone string) (*C.struct_sockaddr, C.socklen_t) {
 		return cgoSockaddrInet4(ip4), C.socklen_t(syscall.SizeofSockaddrInet4)
 	}
 	if ip6 := ip.To16(); ip6 != nil {
-		return cgoSockaddrInet6(ip6, zoneToInt(zone)), C.socklen_t(syscall.SizeofSockaddrInet6)
+		return cgoSockaddrInet6(ip6, zoneCache.index(zone)), C.socklen_t(syscall.SizeofSockaddrInet6)
 	}
 	return nil, 0
 }

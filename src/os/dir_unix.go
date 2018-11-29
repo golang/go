@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
 
 package os
 
 import (
 	"io"
+	"runtime"
 	"syscall"
 )
 
 const (
-	blockSize = 4096
+	// More than 5760 to work around https://golang.org/issue/24015.
+	blockSize = 8192
 )
 
 func (f *File) readdir(n int) (fi []FileInfo, err error) {
@@ -63,9 +65,10 @@ func (f *File) readdirnames(n int) (names []string, err error) {
 		if d.bufp >= d.nbuf {
 			d.bufp = 0
 			var errno error
-			d.nbuf, errno = fixCount(syscall.ReadDirent(f.fd, d.buf))
+			d.nbuf, errno = f.pfd.ReadDirent(d.buf)
+			runtime.KeepAlive(f)
 			if errno != nil {
-				return names, NewSyscallError("readdirent", errno)
+				return names, wrapSyscallError("readdirent", errno)
 			}
 			if d.nbuf <= 0 {
 				break // EOF

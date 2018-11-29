@@ -138,6 +138,35 @@ func _() {
 	_ = x[:b+d:c+d]
 }
 
+func issue22111() {
+	_ = x[:]
+
+	_ = x[:b]
+	_ = x[:b+1]
+
+	_ = x[a:]
+	_ = x[a+1:]
+
+	_ = x[a:b]
+	_ = x[a+1:b]
+	_ = x[a:b+1]
+	_ = x[a+1:b+1]
+
+	_ = x[:b:c]
+	_ = x[:b+1:c]
+	_ = x[:b:c+1]
+	_ = x[:b+1:c+1]
+
+	_ = x[a:b:c]
+	_ = x[a+1:b:c]
+	_ = x[a:b+1:c]
+	_ = x[a+1:b+1:c]
+	_ = x[a:b:c+1]
+	_ = x[a+1:b:c+1]
+	_ = x[a:b+1:c+1]
+	_ = x[a+1:b+1:c+1]
+}
+
 func _() {
 	_ = a+b
 	_ = a+b+c
@@ -266,8 +295,17 @@ func _() {
 	_ = struct{ x, y, z int }{0, 1, 2}
 	_ = struct{ int }{0}
 	_ = struct{ s struct { int } }{struct{ int}{0} }
-}
 
+	_ = (interface{})(nil)
+	_ = (interface{String() string})(nil)
+	_ = (interface{
+		String()    string
+	})(nil)
+	_ = (interface{fmt.Stringer})(nil)
+	_ = (interface{
+		    fmt.Stringer
+	})(nil)
+}
 
 func _() {
 	// do not modify literals

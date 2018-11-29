@@ -6,18 +6,19 @@ package strconv_test
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	. "strconv"
 	"testing"
 )
 
-type atoui64Test struct {
+type parseUint64Test struct {
 	in  string
 	out uint64
 	err error
 }
 
-var atoui64tests = []atoui64Test{
+var parseUint64Tests = []parseUint64Test{
 	{"", 0, ErrSyntax},
 	{"0", 0, nil},
 	{"1", 1, nil},
@@ -30,38 +31,45 @@ var atoui64tests = []atoui64Test{
 	{"18446744073709551620", 1<<64 - 1, ErrRange},
 }
 
-var btoui64tests = []atoui64Test{
-	{"", 0, ErrSyntax},
-	{"0", 0, nil},
-	{"0x", 0, ErrSyntax},
-	{"0X", 0, ErrSyntax},
-	{"1", 1, nil},
-	{"12345", 12345, nil},
-	{"012345", 012345, nil},
-	{"0x12345", 0x12345, nil},
-	{"0X12345", 0x12345, nil},
-	{"12345x", 0, ErrSyntax},
-	{"0xabcdefg123", 0, ErrSyntax},
-	{"123456789abc", 0, ErrSyntax},
-	{"98765432100", 98765432100, nil},
-	{"18446744073709551615", 1<<64 - 1, nil},
-	{"18446744073709551616", 1<<64 - 1, ErrRange},
-	{"18446744073709551620", 1<<64 - 1, ErrRange},
-	{"0xFFFFFFFFFFFFFFFF", 1<<64 - 1, nil},
-	{"0x10000000000000000", 1<<64 - 1, ErrRange},
-	{"01777777777777777777777", 1<<64 - 1, nil},
-	{"01777777777777777777778", 0, ErrSyntax},
-	{"02000000000000000000000", 1<<64 - 1, ErrRange},
-	{"0200000000000000000000", 1 << 61, nil},
+type parseUint64BaseTest struct {
+	in   string
+	base int
+	out  uint64
+	err  error
 }
 
-type atoi64Test struct {
+var parseUint64BaseTests = []parseUint64BaseTest{
+	{"", 0, 0, ErrSyntax},
+	{"0", 0, 0, nil},
+	{"0x", 0, 0, ErrSyntax},
+	{"0X", 0, 0, ErrSyntax},
+	{"1", 0, 1, nil},
+	{"12345", 0, 12345, nil},
+	{"012345", 0, 012345, nil},
+	{"0x12345", 0, 0x12345, nil},
+	{"0X12345", 0, 0x12345, nil},
+	{"12345x", 0, 0, ErrSyntax},
+	{"0xabcdefg123", 0, 0, ErrSyntax},
+	{"123456789abc", 0, 0, ErrSyntax},
+	{"98765432100", 0, 98765432100, nil},
+	{"18446744073709551615", 0, 1<<64 - 1, nil},
+	{"18446744073709551616", 0, 1<<64 - 1, ErrRange},
+	{"18446744073709551620", 0, 1<<64 - 1, ErrRange},
+	{"0xFFFFFFFFFFFFFFFF", 0, 1<<64 - 1, nil},
+	{"0x10000000000000000", 0, 1<<64 - 1, ErrRange},
+	{"01777777777777777777777", 0, 1<<64 - 1, nil},
+	{"01777777777777777777778", 0, 0, ErrSyntax},
+	{"02000000000000000000000", 0, 1<<64 - 1, ErrRange},
+	{"0200000000000000000000", 0, 1 << 61, nil},
+}
+
+type parseInt64Test struct {
 	in  string
 	out int64
 	err error
 }
 
-var atoi64tests = []atoi64Test{
+var parseInt64Tests = []parseInt64Test{
 	{"", 0, ErrSyntax},
 	{"0", 0, nil},
 	{"-0", 0, nil},
@@ -81,14 +89,14 @@ var atoi64tests = []atoi64Test{
 	{"-9223372036854775809", -1 << 63, ErrRange},
 }
 
-type btoi64Test struct {
+type parseInt64BaseTest struct {
 	in   string
 	base int
 	out  int64
 	err  error
 }
 
-var btoi64tests = []btoi64Test{
+var parseInt64BaseTests = []parseInt64BaseTest{
 	{"", 0, 0, ErrSyntax},
 	{"0", 0, 0, nil},
 	{"-0", 0, 0, nil},
@@ -138,13 +146,13 @@ var btoi64tests = []btoi64Test{
 	{"7fffffffffffffff", 16, 1<<63 - 1, nil},
 }
 
-type atoui32Test struct {
+type parseUint32Test struct {
 	in  string
 	out uint32
 	err error
 }
 
-var atoui32tests = []atoui32Test{
+var parseUint32Tests = []parseUint32Test{
 	{"", 0, ErrSyntax},
 	{"0", 0, nil},
 	{"1", 1, nil},
@@ -156,13 +164,13 @@ var atoui32tests = []atoui32Test{
 	{"4294967296", 1<<32 - 1, ErrRange},
 }
 
-type atoi32Test struct {
+type parseInt32Test struct {
 	in  string
 	out int32
 	err error
 }
 
-var atoi32tests = []atoi32Test{
+var parseInt32Tests = []parseInt32Test{
 	{"", 0, ErrSyntax},
 	{"0", 0, nil},
 	{"-0", 0, nil},
@@ -195,86 +203,108 @@ var numErrorTests = []numErrorTest{
 }
 
 func init() {
-	// The atoi routines return NumErrors wrapping
+	// The parse routines return NumErrors wrapping
 	// the error and the string. Convert the tables above.
-	for i := range atoui64tests {
-		test := &atoui64tests[i]
+	for i := range parseUint64Tests {
+		test := &parseUint64Tests[i]
 		if test.err != nil {
 			test.err = &NumError{"ParseUint", test.in, test.err}
 		}
 	}
-	for i := range btoui64tests {
-		test := &btoui64tests[i]
+	for i := range parseUint64BaseTests {
+		test := &parseUint64BaseTests[i]
 		if test.err != nil {
 			test.err = &NumError{"ParseUint", test.in, test.err}
 		}
 	}
-	for i := range atoi64tests {
-		test := &atoi64tests[i]
+	for i := range parseInt64Tests {
+		test := &parseInt64Tests[i]
 		if test.err != nil {
 			test.err = &NumError{"ParseInt", test.in, test.err}
 		}
 	}
-	for i := range btoi64tests {
-		test := &btoi64tests[i]
+	for i := range parseInt64BaseTests {
+		test := &parseInt64BaseTests[i]
 		if test.err != nil {
 			test.err = &NumError{"ParseInt", test.in, test.err}
 		}
 	}
-	for i := range atoui32tests {
-		test := &atoui32tests[i]
+	for i := range parseUint32Tests {
+		test := &parseUint32Tests[i]
 		if test.err != nil {
 			test.err = &NumError{"ParseUint", test.in, test.err}
 		}
 	}
-	for i := range atoi32tests {
-		test := &atoi32tests[i]
+	for i := range parseInt32Tests {
+		test := &parseInt32Tests[i]
 		if test.err != nil {
 			test.err = &NumError{"ParseInt", test.in, test.err}
 		}
 	}
 }
 
+func TestParseUint32(t *testing.T) {
+	for i := range parseUint32Tests {
+		test := &parseUint32Tests[i]
+		out, err := ParseUint(test.in, 10, 32)
+		if uint64(test.out) != out || !reflect.DeepEqual(test.err, err) {
+			t.Errorf("ParseUint(%q, 10, 32) = %v, %v want %v, %v",
+				test.in, out, err, test.out, test.err)
+		}
+	}
+}
+
 func TestParseUint64(t *testing.T) {
-	for i := range atoui64tests {
-		test := &atoui64tests[i]
+	for i := range parseUint64Tests {
+		test := &parseUint64Tests[i]
 		out, err := ParseUint(test.in, 10, 64)
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
-			t.Errorf("Atoui64(%q) = %v, %v want %v, %v",
+			t.Errorf("ParseUint(%q, 10, 64) = %v, %v want %v, %v",
 				test.in, out, err, test.out, test.err)
 		}
 	}
 }
 
 func TestParseUint64Base(t *testing.T) {
-	for i := range btoui64tests {
-		test := &btoui64tests[i]
-		out, err := ParseUint(test.in, 0, 64)
+	for i := range parseUint64BaseTests {
+		test := &parseUint64BaseTests[i]
+		out, err := ParseUint(test.in, test.base, 64)
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
-			t.Errorf("ParseUint(%q) = %v, %v want %v, %v",
+			t.Errorf("ParseUint(%q, %v, 64) = %v, %v want %v, %v",
+				test.in, test.base, out, err, test.out, test.err)
+		}
+	}
+}
+
+func TestParseInt32(t *testing.T) {
+	for i := range parseInt32Tests {
+		test := &parseInt32Tests[i]
+		out, err := ParseInt(test.in, 10, 32)
+		if int64(test.out) != out || !reflect.DeepEqual(test.err, err) {
+			t.Errorf("ParseInt(%q, 10 ,32) = %v, %v want %v, %v",
 				test.in, out, err, test.out, test.err)
 		}
 	}
 }
 
 func TestParseInt64(t *testing.T) {
-	for i := range atoi64tests {
-		test := &atoi64tests[i]
+	for i := range parseInt64Tests {
+		test := &parseInt64Tests[i]
 		out, err := ParseInt(test.in, 10, 64)
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
-			t.Errorf("Atoi64(%q) = %v, %v want %v, %v",
+			t.Errorf("ParseInt(%q, 10, 64) = %v, %v want %v, %v",
 				test.in, out, err, test.out, test.err)
 		}
 	}
 }
 
 func TestParseInt64Base(t *testing.T) {
-	for i := range btoi64tests {
-		test := &btoi64tests[i]
+	for i := range parseInt64BaseTests {
+		test := &parseInt64BaseTests[i]
 		out, err := ParseInt(test.in, test.base, 64)
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
-			t.Errorf("ParseInt(%q) = %v, %v want %v, %v",
-				test.in, out, err, test.out, test.err)
+			t.Errorf("ParseInt(%q, %v, 64) = %v, %v want %v, %v",
+				test.in, test.base, out, err, test.out, test.err)
 		}
 	}
 }
@@ -282,20 +312,20 @@ func TestParseInt64Base(t *testing.T) {
 func TestParseUint(t *testing.T) {
 	switch IntSize {
 	case 32:
-		for i := range atoui32tests {
-			test := &atoui32tests[i]
+		for i := range parseUint32Tests {
+			test := &parseUint32Tests[i]
 			out, err := ParseUint(test.in, 10, 0)
-			if test.out != uint32(out) || !reflect.DeepEqual(test.err, err) {
-				t.Errorf("Atoui(%q) = %v, %v want %v, %v",
+			if uint64(test.out) != out || !reflect.DeepEqual(test.err, err) {
+				t.Errorf("ParseUint(%q, 10, 0) = %v, %v want %v, %v",
 					test.in, out, err, test.out, test.err)
 			}
 		}
 	case 64:
-		for i := range atoui64tests {
-			test := &atoui64tests[i]
+		for i := range parseUint64Tests {
+			test := &parseUint64Tests[i]
 			out, err := ParseUint(test.in, 10, 0)
-			if test.out != uint64(out) || !reflect.DeepEqual(test.err, err) {
-				t.Errorf("Atoui(%q) = %v, %v want %v, %v",
+			if test.out != out || !reflect.DeepEqual(test.err, err) {
+				t.Errorf("ParseUint(%q, 10, 0) = %v, %v want %v, %v",
 					test.in, out, err, test.out, test.err)
 			}
 		}
@@ -305,22 +335,134 @@ func TestParseUint(t *testing.T) {
 func TestParseInt(t *testing.T) {
 	switch IntSize {
 	case 32:
-		for i := range atoi32tests {
-			test := &atoi32tests[i]
+		for i := range parseInt32Tests {
+			test := &parseInt32Tests[i]
 			out, err := ParseInt(test.in, 10, 0)
-			if test.out != int32(out) || !reflect.DeepEqual(test.err, err) {
-				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
+			if int64(test.out) != out || !reflect.DeepEqual(test.err, err) {
+				t.Errorf("ParseInt(%q, 10, 0) = %v, %v want %v, %v",
 					test.in, out, err, test.out, test.err)
 			}
 		}
 	case 64:
-		for i := range atoi64tests {
-			test := &atoi64tests[i]
+		for i := range parseInt64Tests {
+			test := &parseInt64Tests[i]
 			out, err := ParseInt(test.in, 10, 0)
-			if test.out != int64(out) || !reflect.DeepEqual(test.err, err) {
-				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
+			if test.out != out || !reflect.DeepEqual(test.err, err) {
+				t.Errorf("ParseInt(%q, 10, 0) = %v, %v want %v, %v",
 					test.in, out, err, test.out, test.err)
 			}
+		}
+	}
+}
+
+func TestAtoi(t *testing.T) {
+	switch IntSize {
+	case 32:
+		for i := range parseInt32Tests {
+			test := &parseInt32Tests[i]
+			out, err := Atoi(test.in)
+			var testErr error
+			if test.err != nil {
+				testErr = &NumError{"Atoi", test.in, test.err.(*NumError).Err}
+			}
+			if int(test.out) != out || !reflect.DeepEqual(testErr, err) {
+				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
+					test.in, out, err, test.out, testErr)
+			}
+		}
+	case 64:
+		for i := range parseInt64Tests {
+			test := &parseInt64Tests[i]
+			out, err := Atoi(test.in)
+			var testErr error
+			if test.err != nil {
+				testErr = &NumError{"Atoi", test.in, test.err.(*NumError).Err}
+			}
+			if test.out != int64(out) || !reflect.DeepEqual(testErr, err) {
+				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
+					test.in, out, err, test.out, testErr)
+			}
+		}
+	}
+}
+
+func bitSizeErrStub(name string, bitSize int) error {
+	return BitSizeError(name, "0", bitSize)
+}
+
+func baseErrStub(name string, base int) error {
+	return BaseError(name, "0", base)
+}
+
+func noErrStub(name string, arg int) error {
+	return nil
+}
+
+type parseErrorTest struct {
+	arg     int
+	errStub func(name string, arg int) error
+}
+
+var parseBitSizeTests = []parseErrorTest{
+	{-1, bitSizeErrStub},
+	{0, noErrStub},
+	{64, noErrStub},
+	{65, bitSizeErrStub},
+}
+
+var parseBaseTests = []parseErrorTest{
+	{-1, baseErrStub},
+	{0, noErrStub},
+	{1, baseErrStub},
+	{2, noErrStub},
+	{36, noErrStub},
+	{37, baseErrStub},
+}
+
+func TestParseIntBitSize(t *testing.T) {
+	for i := range parseBitSizeTests {
+		test := &parseBitSizeTests[i]
+		testErr := test.errStub("ParseInt", test.arg)
+		_, err := ParseInt("0", 0, test.arg)
+		if !reflect.DeepEqual(testErr, err) {
+			t.Errorf("ParseInt(\"0\", 0, %v) = 0, %v want 0, %v",
+				test.arg, err, testErr)
+		}
+	}
+}
+
+func TestParseUintBitSize(t *testing.T) {
+	for i := range parseBitSizeTests {
+		test := &parseBitSizeTests[i]
+		testErr := test.errStub("ParseUint", test.arg)
+		_, err := ParseUint("0", 0, test.arg)
+		if !reflect.DeepEqual(testErr, err) {
+			t.Errorf("ParseUint(\"0\", 0, %v) = 0, %v want 0, %v",
+				test.arg, err, testErr)
+		}
+	}
+}
+
+func TestParseIntBase(t *testing.T) {
+	for i := range parseBaseTests {
+		test := &parseBaseTests[i]
+		testErr := test.errStub("ParseInt", test.arg)
+		_, err := ParseInt("0", test.arg, 0)
+		if !reflect.DeepEqual(testErr, err) {
+			t.Errorf("ParseInt(\"0\", %v, 0) = 0, %v want 0, %v",
+				test.arg, err, testErr)
+		}
+	}
+}
+
+func TestParseUintBase(t *testing.T) {
+	for i := range parseBaseTests {
+		test := &parseBaseTests[i]
+		testErr := test.errStub("ParseUint", test.arg)
+		_, err := ParseUint("0", test.arg, 0)
+		if !reflect.DeepEqual(testErr, err) {
+			t.Errorf("ParseUint(\"0\", %v, 0) = 0, %v want 0, %v",
+				test.arg, err, testErr)
 		}
 	}
 }
@@ -338,26 +480,67 @@ func TestNumError(t *testing.T) {
 	}
 }
 
+func BenchmarkParseInt(b *testing.B) {
+	b.Run("Pos", func(b *testing.B) {
+		benchmarkParseInt(b, 1)
+	})
+	b.Run("Neg", func(b *testing.B) {
+		benchmarkParseInt(b, -1)
+	})
+}
+
+type benchCase struct {
+	name string
+	num  int64
+}
+
+func benchmarkParseInt(b *testing.B, neg int) {
+	cases := []benchCase{
+		{"7bit", 1<<7 - 1},
+		{"26bit", 1<<26 - 1},
+		{"31bit", 1<<31 - 1},
+		{"56bit", 1<<56 - 1},
+		{"63bit", 1<<63 - 1},
+	}
+	for _, cs := range cases {
+		b.Run(cs.name, func(b *testing.B) {
+			s := fmt.Sprintf("%d", cs.num*int64(neg))
+			for i := 0; i < b.N; i++ {
+				out, _ := ParseInt(s, 10, 64)
+				BenchSink += int(out)
+			}
+		})
+	}
+}
+
 func BenchmarkAtoi(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		ParseInt("12345678", 10, 0)
-	}
+	b.Run("Pos", func(b *testing.B) {
+		benchmarkAtoi(b, 1)
+	})
+	b.Run("Neg", func(b *testing.B) {
+		benchmarkAtoi(b, -1)
+	})
 }
 
-func BenchmarkAtoiNeg(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		ParseInt("-12345678", 10, 0)
+func benchmarkAtoi(b *testing.B, neg int) {
+	cases := []benchCase{
+		{"7bit", 1<<7 - 1},
+		{"26bit", 1<<26 - 1},
+		{"31bit", 1<<31 - 1},
 	}
-}
-
-func BenchmarkAtoi64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		ParseInt("12345678901234", 10, 64)
+	if IntSize == 64 {
+		cases = append(cases, []benchCase{
+			{"56bit", 1<<56 - 1},
+			{"63bit", 1<<63 - 1},
+		}...)
 	}
-}
-
-func BenchmarkAtoi64Neg(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		ParseInt("-12345678901234", 10, 64)
+	for _, cs := range cases {
+		b.Run(cs.name, func(b *testing.B) {
+			s := fmt.Sprintf("%d", cs.num*int64(neg))
+			for i := 0; i < b.N; i++ {
+				out, _ := Atoi(s)
+				BenchSink += out
+			}
+		})
 	}
 }

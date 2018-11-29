@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-// BUG(mikio): On Windows, the File method of TCPListener is not
-// implemented.
+// BUG(mikio): On JS, NaCl and Windows, the File method of TCPConn and
+// TCPListener is not implemented.
 
 // TCPAddr represents the address of a TCP end point.
 type TCPAddr struct {
@@ -50,34 +50,49 @@ func (a *TCPAddr) opAddr() Addr {
 	return a
 }
 
-// ResolveTCPAddr parses addr as a TCP address of the form "host:port"
-// or "[ipv6-host%zone]:port" and resolves a pair of domain name and
-// port name on the network net, which must be "tcp", "tcp4" or
-// "tcp6".  A literal address or host name for IPv6 must be enclosed
-// in square brackets, as in "[::1]:80", "[ipv6-host]:http" or
-// "[ipv6-host%zone]:80".
+// ResolveTCPAddr returns an address of TCP end point.
 //
-// Resolving a hostname is not recommended because this returns at most
-// one of its IP addresses.
-func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
-	switch net {
+// The network must be a TCP network name.
+//
+// If the host in the address parameter is not a literal IP address or
+// the port is not a literal port number, ResolveTCPAddr resolves the
+// address to an address of TCP end point.
+// Otherwise, it parses the address as a pair of literal IP address
+// and port number.
+// The address parameter can use a host name, but this is not
+// recommended, because it will return at most one of the host name's
+// IP addresses.
+//
+// See func Dial for a description of the network and address
+// parameters.
+func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
+	switch network {
 	case "tcp", "tcp4", "tcp6":
 	case "": // a hint wildcard for Go 1.0 undocumented behavior
-		net = "tcp"
+		network = "tcp"
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, UnknownNetworkError(network)
 	}
-	addrs, err := DefaultResolver.internetAddrList(context.Background(), net, addr)
+	addrs, err := DefaultResolver.internetAddrList(context.Background(), network, address)
 	if err != nil {
 		return nil, err
 	}
-	return addrs.first(isIPv4).(*TCPAddr), nil
+	return addrs.forResolve(network, address).(*TCPAddr), nil
 }
 
 // TCPConn is an implementation of the Conn interface for TCP network
 // connections.
 type TCPConn struct {
 	conn
+}
+
+// SyscallConn returns a raw network connection.
+// This implements the syscall.Conn interface.
+func (c *TCPConn) SyscallConn() (syscall.RawConn, error) {
+	if !c.ok() {
+		return nil, syscall.EINVAL
+	}
+	return newRawConn(c.fd)
 }
 
 // ReadFrom implements the io.ReaderFrom ReadFrom method.
@@ -181,21 +196,26 @@ func newTCPConn(fd *netFD) *TCPConn {
 	return c
 }
 
-// DialTCP connects to the remote address raddr on the network net,
-// which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is
-// used as the local address for the connection.
-func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
-	switch net {
+// DialTCP acts like Dial for TCP networks.
+//
+// The network must be a TCP network name; see func Dial for details.
+//
+// If laddr is nil, a local address is automatically chosen.
+// If the IP field of raddr is nil or an unspecified IP address, the
+// local system is assumed.
+func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+	switch network {
 	case "tcp", "tcp4", "tcp6":
 	default:
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(net)}
+		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(network)}
 	}
 	if raddr == nil {
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
+		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
-	c, err := dialTCP(context.Background(), net, laddr, raddr)
+	sd := &sysDialer{network: network, address: raddr.String()}
+	c, err := sd.dialTCP(context.Background(), laddr, raddr)
 	if err != nil {
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
 	return c, nil
 }
@@ -204,6 +224,18 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 // use variables of type Listener instead of assuming TCP.
 type TCPListener struct {
 	fd *netFD
+}
+
+// SyscallConn returns a raw network connection.
+// This implements the syscall.Conn interface.
+//
+// The returned RawConn only supports calling Control. Read and
+// Write return an error.
+func (l *TCPListener) SyscallConn() (syscall.RawConn, error) {
+	if !l.ok() {
+		return nil, syscall.EINVAL
+	}
+	return newRawListener(l.fd)
 }
 
 // AcceptTCP accepts the next incoming call and returns the new
@@ -255,14 +287,14 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 	if !l.ok() {
 		return syscall.EINVAL
 	}
-	if err := l.fd.setDeadline(t); err != nil {
+	if err := l.fd.pfd.SetDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: l.fd.net, Source: nil, Addr: l.fd.laddr, Err: err}
 	}
 	return nil
 }
 
-// File returns a copy of the underlying os.File, set to blocking
-// mode. It is the caller's responsibility to close f when finished.
+// File returns a copy of the underlying os.File.
+// It is the caller's responsibility to close f when finished.
 // Closing l does not affect f, and closing f does not affect l.
 //
 // The returned os.File's file descriptor is different from the
@@ -279,22 +311,28 @@ func (l *TCPListener) File() (f *os.File, err error) {
 	return
 }
 
-// ListenTCP announces on the TCP address laddr and returns a TCP
-// listener. Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
-// port of 0, ListenTCP will choose an available port. The caller can
-// use the Addr method of TCPListener to retrieve the chosen address.
-func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
-	switch net {
+// ListenTCP acts like Listen for TCP networks.
+//
+// The network must be a TCP network name; see func Dial for details.
+//
+// If the IP field of laddr is nil or an unspecified IP address,
+// ListenTCP listens on all available unicast and anycast IP addresses
+// of the local system.
+// If the Port field of laddr is 0, a port number is automatically
+// chosen.
+func ListenTCP(network string, laddr *TCPAddr) (*TCPListener, error) {
+	switch network {
 	case "tcp", "tcp4", "tcp6":
 	default:
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(net)}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: UnknownNetworkError(network)}
 	}
 	if laddr == nil {
 		laddr = &TCPAddr{}
 	}
-	ln, err := listenTCP(context.Background(), net, laddr)
+	sl := &sysListener{network: network, address: laddr.String()}
+	ln, err := sl.listenTCP(context.Background(), laddr)
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
 	return ln, nil
 }

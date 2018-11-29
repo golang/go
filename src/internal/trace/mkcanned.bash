@@ -14,6 +14,7 @@ if [ $# != 1 ]; then
 fi
 
 go test -run ClientServerParallel4 -trace "testdata/http_$1_good" net/http
-go test -run 'TraceStress$|TraceStressStartStop$' runtime/trace -savetraces
+go test -run 'TraceStress$|TraceStressStartStop$|TestUserTaskSpan$' runtime/trace -savetraces
 mv ../../runtime/trace/TestTraceStress.trace "testdata/stress_$1_good"
 mv ../../runtime/trace/TestTraceStressStartStop.trace "testdata/stress_start_stop_$1_good"
+mv ../../runtime/trace/TestUserTaskSpan.trace "testdata/user_task_span_$1_good"

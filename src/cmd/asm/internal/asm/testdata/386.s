@@ -2,7 +2,9 @@
 // the old assembler's (8a's) grammar and hand-writing complete
 // instructions for each rule, to guarantee we cover the same space.
 
-TEXT foo(SB), 7, $0
+#include "../../../../../runtime/textflag.h"
+
+TEXT foo(SB), DUPOK|NOSPLIT, $0
 
 // LTYPE1 nonrem	{ outcode(int($1), &$2); }
 	SETCC	AX
@@ -68,7 +70,7 @@ label:
 // LTYPEM spec6	{ outcode(int($1), &$2); }
 	MOVL	AX, BX
 	MOVL	$4, BX
-	
+
 // LTYPEI spec7	{ outcode(int($1), &$2); }
 	IMULL	AX
 	IMULL	$4, CX
@@ -89,3 +91,4 @@ loop:
 
 // LTYPE0 nonnon	{ outcode(int($1), &$2); }
 	RET
+	RET	foo(SB)

@@ -12,8 +12,48 @@ import (
 	"testing"
 )
 
+type newServerFunc func(http.Handler) *Server
+
+var newServers = map[string]newServerFunc{
+	"NewServer":    NewServer,
+	"NewTLSServer": NewTLSServer,
+
+	// The manual variants of newServer create a Server manually by only filling
+	// in the exported fields of Server.
+	"NewServerManual": func(h http.Handler) *Server {
+		ts := &Server{Listener: newLocalListener(), Config: &http.Server{Handler: h}}
+		ts.Start()
+		return ts
+	},
+	"NewTLSServerManual": func(h http.Handler) *Server {
+		ts := &Server{Listener: newLocalListener(), Config: &http.Server{Handler: h}}
+		ts.StartTLS()
+		return ts
+	},
+}
+
 func TestServer(t *testing.T) {
-	ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	for _, name := range []string{"NewServer", "NewServerManual"} {
+		t.Run(name, func(t *testing.T) {
+			newServer := newServers[name]
+			t.Run("Server", func(t *testing.T) { testServer(t, newServer) })
+			t.Run("GetAfterClose", func(t *testing.T) { testGetAfterClose(t, newServer) })
+			t.Run("ServerCloseBlocking", func(t *testing.T) { testServerCloseBlocking(t, newServer) })
+			t.Run("ServerCloseClientConnections", func(t *testing.T) { testServerCloseClientConnections(t, newServer) })
+			t.Run("ServerClientTransportType", func(t *testing.T) { testServerClientTransportType(t, newServer) })
+		})
+	}
+	for _, name := range []string{"NewTLSServer", "NewTLSServerManual"} {
+		t.Run(name, func(t *testing.T) {
+			newServer := newServers[name]
+			t.Run("ServerClient", func(t *testing.T) { testServerClient(t, newServer) })
+			t.Run("TLSServerClientTransportType", func(t *testing.T) { testTLSServerClientTransportType(t, newServer) })
+		})
+	}
+}
+
+func testServer(t *testing.T, newServer newServerFunc) {
+	ts := newServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello"))
 	}))
 	defer ts.Close()
@@ -22,6 +62,7 @@ func TestServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,8 +72,8 @@ func TestServer(t *testing.T) {
 }
 
 // Issue 12781
-func TestGetAfterClose(t *testing.T) {
-	ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func testGetAfterClose(t *testing.T, newServer newServerFunc) {
+	ts := newServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello"))
 	}))
 
@@ -57,8 +98,8 @@ func TestGetAfterClose(t *testing.T) {
 	}
 }
 
-func TestServerCloseBlocking(t *testing.T) {
-	ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func testServerCloseBlocking(t *testing.T, newServer newServerFunc) {
+	ts := newServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello"))
 	}))
 	dial := func() net.Conn {
@@ -86,9 +127,9 @@ func TestServerCloseBlocking(t *testing.T) {
 }
 
 // Issue 14290
-func TestServerCloseClientConnections(t *testing.T) {
+func testServerCloseClientConnections(t *testing.T, newServer newServerFunc) {
 	var s *Server
-	s = NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s = newServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.CloseClientConnections()
 	}))
 	defer s.Close()
@@ -97,4 +138,67 @@ func TestServerCloseClientConnections(t *testing.T) {
 		res.Body.Close()
 		t.Fatalf("Unexpected response: %#v", res)
 	}
+}
+
+// Tests that the Server.Client method works and returns an http.Client that can hit
+// NewTLSServer without cert warnings.
+func testServerClient(t *testing.T, newTLSServer newServerFunc) {
+	ts := newTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello"))
+	}))
+	defer ts.Close()
+	client := ts.Client()
+	res, err := client.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "hello" {
+		t.Errorf("got %q, want hello", string(got))
+	}
+}
+
+// Tests that the Server.Client.Transport interface is implemented
+// by a *http.Transport.
+func testServerClientTransportType(t *testing.T, newServer newServerFunc) {
+	ts := newServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	}))
+	defer ts.Close()
+	client := ts.Client()
+	if _, ok := client.Transport.(*http.Transport); !ok {
+		t.Errorf("got %T, want *http.Transport", client.Transport)
+	}
+}
+
+// Tests that the TLS Server.Client.Transport interface is implemented
+// by a *http.Transport.
+func testTLSServerClientTransportType(t *testing.T, newTLSServer newServerFunc) {
+	ts := newTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	}))
+	defer ts.Close()
+	client := ts.Client()
+	if _, ok := client.Transport.(*http.Transport); !ok {
+		t.Errorf("got %T, want *http.Transport", client.Transport)
+	}
+}
+
+type onlyCloseListener struct {
+	net.Listener
+}
+
+func (onlyCloseListener) Close() error { return nil }
+
+// Issue 19729: panic in Server.Close for values created directly
+// without a constructor (so the unexported client field is nil).
+func TestServerZeroValueClose(t *testing.T) {
+	ts := &Server{
+		Listener: onlyCloseListener{},
+		Config:   &http.Server{},
+	}
+
+	ts.Close() // tests that it doesn't panic
 }

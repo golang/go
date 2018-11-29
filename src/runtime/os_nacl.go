@@ -33,7 +33,7 @@ func nacl_thread_create(fn uintptr, stk, tls, xx unsafe.Pointer) int32
 //go:noescape
 func nacl_nanosleep(ts, extra *timespec) int32
 func nanotime() int64
-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
 func exit(code int32)
 func osyield()
 
@@ -88,6 +88,11 @@ func msigrestore(sigmask sigset) {
 }
 
 //go:nosplit
+//go:nowritebarrierrec
+func clearSignalHandlers() {
+}
+
+//go:nosplit
 func sigblock() {
 }
 
@@ -126,6 +131,7 @@ func signame(sig uint32) string {
 	return sigtable[sig].name
 }
 
+//go:nosplit
 func crash() {
 	*(*int32)(nil) = 0
 }
@@ -153,7 +159,8 @@ func mstart_nacl()
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
-func newosproc(mp *m, stk unsafe.Pointer) {
+func newosproc(mp *m) {
+	stk := unsafe.Pointer(mp.g0.stack.hi)
 	mp.tls[0] = uintptr(unsafe.Pointer(mp.g0))
 	mp.tls[1] = uintptr(unsafe.Pointer(mp))
 	ret := nacl_thread_create(funcPC(mstart_nacl), stk, unsafe.Pointer(&mp.tls[2]), nil)
@@ -162,6 +169,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		throw("newosproc")
 	}
 }
+
+//go:noescape
+func exitThread(wait *uint32)
 
 //go:nosplit
 func semacreate(mp *m) {
@@ -187,23 +197,23 @@ func semacreate(mp *m) {
 //go:nosplit
 func semasleep(ns int64) int32 {
 	var ret int32
-
 	systemstack(func() {
 		_g_ := getg()
 		if nacl_mutex_lock(_g_.m.waitsemalock) < 0 {
 			throw("semasleep")
 		}
-
+		var ts timespec
+		if ns >= 0 {
+			end := ns + nanotime()
+			ts.tv_sec = end / 1e9
+			ts.tv_nsec = int32(end % 1e9)
+		}
 		for _g_.m.waitsemacount == 0 {
 			if ns < 0 {
 				if nacl_cond_wait(_g_.m.waitsema, _g_.m.waitsemalock) < 0 {
 					throw("semasleep")
 				}
 			} else {
-				var ts timespec
-				end := ns + nanotime()
-				ts.tv_sec = end / 1e9
-				ts.tv_nsec = int32(end % 1e9)
 				r := nacl_cond_timed_wait_abs(_g_.m.waitsema, _g_.m.waitsemalock, &ts)
 				if r == -_ETIMEDOUT {
 					nacl_mutex_unlock(_g_.m.waitsemalock)
@@ -238,10 +248,6 @@ func semawakeup(mp *m) {
 	})
 }
 
-func memlimit() uintptr {
-	return 0
-}
-
 // This runs on a foreign stack, without an m or a g. No stack split.
 //go:nosplit
 //go:norace
@@ -273,13 +279,26 @@ func raisebadsignal(sig uint32) {
 
 func madvise(addr unsafe.Pointer, n uintptr, flags int32) {}
 func munmap(addr unsafe.Pointer, n uintptr)               {}
-func resetcpuprofiler(hz int32)                           {}
+func setProcessCPUProfiler(hz int32)                      {}
+func setThreadCPUProfiler(hz int32)                       {}
 func sigdisable(uint32)                                   {}
 func sigenable(uint32)                                    {}
 func sigignore(uint32)                                    {}
 func closeonexec(int32)                                   {}
 
+// gsignalStack is unused on nacl.
+type gsignalStack struct{}
+
 var writelock uint32 // test-and-set spin lock for write
+
+// lastfaketime stores the last faketime value written to fd 1 or 2.
+var lastfaketime int64
+
+// lastfaketimefd stores the fd to which lastfaketime was written.
+//
+// Subsequent writes to the same fd may use the same timestamp,
+// but the timestamp must increase if the fd changes.
+var lastfaketimefd int32
 
 /*
 An attempt at IRT. Doesn't work. See end of sys_nacl_amd64.s.
@@ -298,3 +317,12 @@ int8 nacl_irt_thread_v0_1_str[] = "nacl-irt-thread-0.1";
 void *nacl_irt_thread_v0_1[3]; // thread_create, thread_exit, thread_nice
 int32 nacl_irt_thread_v0_1_size = sizeof(nacl_irt_thread_v0_1);
 */
+
+// The following functions are implemented in runtime assembly.
+// Provide a Go declaration to go with its assembly definitions.
+
+//go:linkname syscall_naclWrite syscall.naclWrite
+func syscall_naclWrite(fd int, b []byte) int
+
+//go:linkname syscall_now syscall.now
+func syscall_now() (sec int64, nsec int32)

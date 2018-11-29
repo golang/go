@@ -116,7 +116,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 		for _, k := range v1.MapKeys() {
 			val1 := v1.MapIndex(k)
 			val2 := v2.MapIndex(k)
-			if !val1.IsValid() || !val2.IsValid() || !deepValueEqual(v1.MapIndex(k), v2.MapIndex(k), visited, depth+1) {
+			if !val1.IsValid() || !val2.IsValid() || !deepValueEqual(val1, val2, visited, depth+1) {
 				return false
 			}
 		}
@@ -178,6 +178,12 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 // DeepEqual has been defined so that the same short-cut applies
 // to slices and maps: if x and y are the same slice or the same map,
 // they are deeply equal regardless of content.
+//
+// As DeepEqual traverses the data values it may find a cycle. The
+// second and subsequent times that DeepEqual compares two pointer
+// values that have been compared before, it treats the values as
+// equal rather than examining the values to which they point.
+// This ensures that DeepEqual terminates.
 func DeepEqual(x, y interface{}) bool {
 	if x == nil || y == nil {
 		return x == y

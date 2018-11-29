@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2016 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -45,4 +45,4 @@ gobin=$GOROOT_BOOTSTRAP/bin
 GOROOT=$GOROOT_BOOTSTRAP $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ../misc/nacl/testzip.proto syscall/fstest_nacl.go
 
 # Run standard build and tests.
-GOOS=nacl GOARCH=$naclGOARCH ./make.bash
+GOOS=nacl GOARCH=$naclGOARCH ./make.bash "$@"

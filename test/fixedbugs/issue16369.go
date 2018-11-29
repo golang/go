@@ -1,4 +1,4 @@
-// errorcheck
+// compile
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -9,5 +9,5 @@ package p
 type T interface {
 	M(interface {
 		T
-	}) // ERROR "cannot export unnamed recursive interface"
+	})
 }

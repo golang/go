@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package tls partially implements TLS 1.2, as specified in RFC 5246.
+// Package tls partially implements TLS 1.2, as specified in RFC 5246,
+// and TLS 1.3, as specified in RFC 8446.
 package tls
 
 // BUG(agl): The crypto/tls package only implements some countermeasures
-// against Lucky13 attacks on CBC-mode encryption. See
-// http://www.isg.rhul.ac.uk/tls/TLStiming.pdf and
+// against Lucky13 attacks on CBC-mode encryption, and only on SHA1
+// variants. See http://www.isg.rhul.ac.uk/tls/TLStiming.pdf and
 // https://www.imperialviolet.org/2013/02/04/luckythirteen.html.
 
 import (
@@ -237,15 +238,14 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 		skippedBlockTypes = append(skippedBlockTypes, keyDERBlock.Type)
 	}
 
-	var err error
-	cert.PrivateKey, err = parsePrivateKey(keyDERBlock.Bytes)
+	// We don't need to parse the public key for TLS, but we so do anyway
+	// to check that it looks sane and matches the private key.
+	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
 		return fail(err)
 	}
 
-	// We don't need to parse the public key for TLS, but we so do anyway
-	// to check that it looks sane and matches the private key.
-	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+	cert.PrivateKey, err = parsePrivateKey(keyDERBlock.Bytes)
 	if err != nil {
 		return fail(err)
 	}

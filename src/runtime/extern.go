@@ -50,26 +50,13 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	gcshrinkstackoff: setting gcshrinkstackoff=1 disables moving goroutines
 	onto smaller stacks. In this mode, a goroutine's stack can only grow.
 
-	gcstackbarrieroff: setting gcstackbarrieroff=1 disables the use of stack barriers
-	that allow the garbage collector to avoid repeating a stack scan during the
-	mark termination phase.
-
-	gcstackbarrierall: setting gcstackbarrierall=1 installs stack barriers
-	in every stack frame, rather than in exponentially-spaced frames.
-
-	gcrescanstacks: setting gcrescanstacks=1 enables stack
-	re-scanning during the STW mark termination phase. This is
-	helpful for debugging if objects are being prematurely
-	garbage collected.
-
 	gcstoptheworld: setting gcstoptheworld=1 disables concurrent garbage collection,
 	making every garbage collection a stop-the-world event. Setting gcstoptheworld=2
 	also disables concurrent sweeping after the garbage collection finishes.
 
 	gctrace: setting gctrace=1 causes the garbage collector to emit a single line to standard
 	error at each collection, summarizing the amount of memory collected and the
-	length of the pause. Setting gctrace=2 emits the same summary but also
-	repeats each collection. The format of this line is subject to change.
+	length of the pause. The format of this line is subject to change.
 	Currently, it is:
 		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # P
 	where the fields are as follows:
@@ -85,7 +72,7 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	for mark/scan are broken down in to assist time (GC performed in
 	line with allocation), background GC time, and idle GC time.
 	If the line ends with "(forced)", this GC was forced by a
-	runtime.GC() call and all phases are STW.
+	runtime.GC() call.
 
 	Setting gctrace to any value > 0 also causes the garbage collector
 	to emit a summary when memory is released back to the system.
@@ -124,6 +111,12 @@ It is a comma-separated list of name=val pairs setting these named variables:
 
 	schedtrace: setting schedtrace=X causes the scheduler to emit a single line to standard
 	error every X milliseconds, summarizing the scheduler state.
+
+	tracebackancestors: setting tracebackancestors=N extends tracebacks with the stacks at
+	which goroutines were created, where N limits the number of ancestor goroutines to
+	report. This also extends the information returned by runtime.Stack. Ancestor's goroutine
+	IDs will refer to the ID of the goroutine at the time of creation; it's possible for this
+	ID to be reused for another goroutine. Setting N to 0 will report no ancestry information.
 
 The net and net/http packages also refer to debugging variables in GODEBUG.
 See the documentation for those packages for details.
@@ -173,33 +166,26 @@ import "runtime/internal/sys"
 // program counter, file name, and line number within the file of the corresponding
 // call. The boolean ok is false if it was not possible to recover the information.
 func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
-	// Ask for two PCs: the one we were asked for
-	// and what it called, so that we can see if it
-	// "called" sigpanic.
-	var rpc [2]uintptr
-	if callers(1+skip-1, rpc[:]) < 2 {
+	// Make room for three PCs: the one we were asked for,
+	// what it called, so that CallersFrames can see if it "called"
+	// sigpanic, and possibly a PC for skipPleaseUseCallersFrames.
+	var rpc [3]uintptr
+	if callers(skip, rpc[:]) < 2 {
 		return
 	}
-	f := findfunc(rpc[1])
-	if f == nil {
-		// TODO(rsc): Probably a bug?
-		// The C version said "have retpc at least"
-		// but actually returned pc=0.
-		ok = true
+	var stackExpander stackExpander
+	callers := stackExpander.init(rpc[:])
+	// We asked for one extra, so skip that one. If this is sigpanic,
+	// stepping over this frame will set up state in Frames so the
+	// next frame is correct.
+	callers, _, ok = stackExpander.next(callers, true)
+	if !ok {
 		return
 	}
-	pc = rpc[1]
-	xpc := pc
-	g := findfunc(rpc[0])
-	// All architectures turn faults into apparent calls to sigpanic.
-	// If we see a call to sigpanic, we do not back up the PC to find
-	// the line number of the call instruction, because there is no call.
-	if xpc > f.entry && (g == nil || g.entry != funcPC(sigpanic)) {
-		xpc--
-	}
-	file, line32 := funcline(f, xpc)
-	line = int(line32)
-	ok = true
+	_, frame, _ := stackExpander.next(callers, true)
+	pc = frame.PC
+	file = frame.File
+	line = frame.Line
 	return
 }
 
@@ -209,11 +195,14 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 // 1 identifying the caller of Callers.
 // It returns the number of entries written to pc.
 //
-// Note that since each slice entry pc[i] is a return program counter,
-// looking up the file and line for pc[i] (for example, using (*Func).FileLine)
-// will normally return the file and line number of the instruction immediately
-// following the call.
-// To easily look up file/line information for the call sequence, use Frames.
+// To translate these PCs into symbolic information such as function
+// names and line numbers, use CallersFrames. CallersFrames accounts
+// for inlined functions and adjusts the return program counters into
+// call program counters. Iterating over the returned slice of PCs
+// directly is discouraged, as is using FuncForPC on any of the
+// returned PCs, since these cannot account for inlining or return
+// program counter adjustment.
+//go:noinline
 func Callers(skip int, pc []uintptr) int {
 	// runtime.callers uses pc.array==nil as a signal
 	// to print a stack trace. Pick off 0-length pc here
@@ -224,8 +213,8 @@ func Callers(skip int, pc []uintptr) int {
 	return callers(skip, pc)
 }
 
-// GOROOT returns the root of the Go tree.
-// It uses the GOROOT environment variable, if set,
+// GOROOT returns the root of the Go tree. It uses the
+// GOROOT environment variable, if set at process start,
 // or else the root used during the Go build.
 func GOROOT() string {
 	s := gogetenv("GOROOT")
@@ -244,8 +233,9 @@ func Version() string {
 
 // GOOS is the running program's operating system target:
 // one of darwin, freebsd, linux, and so on.
+// To view possible combinations of GOOS and GOARCH, run "go tool dist list".
 const GOOS string = sys.GOOS
 
 // GOARCH is the running program's architecture target:
-// 386, amd64, arm, or s390x.
+// one of 386, amd64, arm, s390x, and so on.
 const GOARCH string = sys.GOARCH

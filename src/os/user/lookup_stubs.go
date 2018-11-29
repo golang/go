@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !cgo,!windows,!plan9,!android
+// +build !cgo,!windows,!plan9 android osusergo,!windows,!plan9
 
 package user
 
@@ -15,19 +15,27 @@ import (
 )
 
 func init() {
-	userImplemented = false
 	groupImplemented = false
 }
 
 func current() (*User, error) {
-	u := &User{
-		Uid:      currentUID(),
+	uid := currentUID()
+	// $USER and /etc/passwd may disagree; prefer the latter if we can get it.
+	// See issue 27524 for more information.
+	u, err := lookupUserId(uid)
+	if err == nil {
+		return u, nil
+	}
+	u = &User{
+		Uid:      uid,
 		Gid:      currentGID(),
 		Username: os.Getenv("USER"),
 		Name:     "", // ignored
 		HomeDir:  os.Getenv("HOME"),
 	}
-	if runtime.GOOS == "nacl" {
+	// On NaCL and Android, return a dummy user instead of failing.
+	switch runtime.GOOS {
+	case "nacl":
 		if u.Uid == "" {
 			u.Uid = "1"
 		}
@@ -35,7 +43,17 @@ func current() (*User, error) {
 			u.Username = "nacl"
 		}
 		if u.HomeDir == "" {
-			u.HomeDir = "/home/nacl"
+			u.HomeDir = "/"
+		}
+	case "android":
+		if u.Uid == "" {
+			u.Uid = "1"
+		}
+		if u.Username == "" {
+			u.Username = "android"
+		}
+		if u.HomeDir == "" {
+			u.HomeDir = "/sdcard"
 		}
 	}
 	// cgo isn't available, but if we found the minimum information
@@ -46,23 +64,10 @@ func current() (*User, error) {
 	return u, fmt.Errorf("user: Current not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
 }
 
-func lookupUser(username string) (*User, error) {
-	return nil, errors.New("user: Lookup requires cgo")
-}
-
-func lookupUserId(uid string) (*User, error) {
-	return nil, errors.New("user: LookupId requires cgo")
-}
-
-func lookupGroup(groupname string) (*Group, error) {
-	return nil, errors.New("user: LookupGroup requires cgo")
-}
-
-func lookupGroupId(string) (*Group, error) {
-	return nil, errors.New("user: LookupGroupId requires cgo")
-}
-
 func listGroups(*User) ([]string, error) {
+	if runtime.GOOS == "android" || runtime.GOOS == "aix" {
+		return nil, errors.New(fmt.Sprintf("user: GroupIds not implemented on %s", runtime.GOOS))
+	}
 	return nil, errors.New("user: GroupIds requires cgo")
 }
 

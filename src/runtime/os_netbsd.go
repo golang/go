@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -20,6 +21,9 @@ const (
 	// From NetBSD's <sys/ucontext.h>
 	_UC_SIGMASK = 0x01
 	_UC_CPU     = 0x04
+
+	// From <sys/lwp.h>
+	_LWP_DETACHED = 0x00000040
 
 	_EAGAIN = 35
 )
@@ -55,7 +59,7 @@ func getcontext(ctxt unsafe.Pointer)
 func lwp_create(ctxt unsafe.Pointer, flags uintptr, lwpid unsafe.Pointer) int32
 
 //go:noescape
-func lwp_park(abstime *timespec, unpark int32, hint, unparkhint unsafe.Pointer) int32
+func lwp_park(clockid, flags int32, ts *timespec, unpark int32, hint, unparkhint unsafe.Pointer) int32
 
 //go:noescape
 func lwp_unpark(lwp int32, hint unsafe.Pointer) int32
@@ -63,6 +67,12 @@ func lwp_unpark(lwp int32, hint unsafe.Pointer) int32
 func lwp_self() int32
 
 func osyield()
+
+func kqueue() int32
+
+//go:noescape
+func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+func closeonexec(fd int32)
 
 const (
 	_ESRCH     = 3
@@ -73,6 +83,9 @@ const (
 	_CLOCK_VIRTUAL   = 1
 	_CLOCK_PROF      = 2
 	_CLOCK_MONOTONIC = 3
+
+	_TIMER_RELTIME = 0
+	_TIMER_ABSTIME = 1
 )
 
 var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
@@ -113,16 +126,9 @@ func semacreate(mp *m) {
 //go:nosplit
 func semasleep(ns int64) int32 {
 	_g_ := getg()
-
-	// Compute sleep deadline.
-	var tsp *timespec
+	var deadline int64
 	if ns >= 0 {
-		var ts timespec
-		var nsec int32
-		ns += nanotime()
-		ts.set_sec(timediv(ns, 1000000000, &nsec))
-		ts.set_nsec(nsec)
-		tsp = &ts
+		deadline = nanotime() + ns
 	}
 
 	for {
@@ -135,7 +141,19 @@ func semasleep(ns int64) int32 {
 		}
 
 		// Sleep until unparked by semawakeup or timeout.
-		ret := lwp_park(tsp, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
+		var tsp *timespec
+		var ts timespec
+		if ns >= 0 {
+			wait := deadline - nanotime()
+			if wait <= 0 {
+				return -1
+			}
+			var nsec int32
+			ts.set_sec(timediv(wait, 1000000000, &nsec))
+			ts.set_nsec(nsec)
+			tsp = &ts
+		}
+		ret := lwp_park(_CLOCK_MONOTONIC, _TIMER_RELTIME, tsp, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
 		if ret == _ETIMEDOUT {
 			return -1
 		}
@@ -159,7 +177,8 @@ func semawakeup(mp *m) {
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
-func newosproc(mp *m, stk unsafe.Pointer) {
+func newosproc(mp *m) {
+	stk := unsafe.Pointer(mp.g0.stack.hi)
 	if false {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
@@ -167,13 +186,23 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	var uc ucontextt
 	getcontext(unsafe.Pointer(&uc))
 
+	// _UC_SIGMASK does not seem to work here.
+	// It would be nice if _UC_SIGMASK and _UC_STACK
+	// worked so that we could do all the work setting
+	// the sigmask and the stack here, instead of setting
+	// the mask here and the stack in netbsdMstart.
+	// For now do the blocking manually.
 	uc.uc_flags = _UC_SIGMASK | _UC_CPU
 	uc.uc_link = nil
 	uc.uc_sigmask = sigset_all
 
+	var oset sigset
+	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+
 	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, funcPC(netbsdMstart))
 
-	ret := lwp_create(unsafe.Pointer(&uc), 0, unsafe.Pointer(&mp.procid))
+	ret := lwp_create(unsafe.Pointer(&uc), _LWP_DETACHED, unsafe.Pointer(&mp.procid))
+	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if ret < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
 		if ret == -_EAGAIN {
@@ -199,7 +228,9 @@ func netbsdMstart() {
 
 func osinit() {
 	ncpu = getncpu()
-	physPageSize = getPageSize()
+	if physPageSize == 0 {
+		physPageSize = getPageSize()
+	}
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -246,10 +277,6 @@ func minit() {
 //go:nosplit
 func unminit() {
 	unminitSignals()
-}
-
-func memlimit() uintptr {
-	return 0
 }
 
 func sigtramp()
@@ -304,4 +331,35 @@ func sigdelset(mask *sigset, i int) {
 }
 
 func (c *sigctxt) fixsigcode(sig uint32) {
+}
+
+func sysargs(argc int32, argv **byte) {
+	n := argc + 1
+
+	// skip over argv, envp to get to auxv
+	for argv_index(argv, n) != nil {
+		n++
+	}
+
+	// skip NULL separator
+	n++
+
+	// now argv+n is auxv
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	sysauxv(auxv[:])
+}
+
+const (
+	_AT_NULL   = 0 // Terminates the vector
+	_AT_PAGESZ = 6 // Page size in bytes
+)
+
+func sysauxv(auxv []uintptr) {
+	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+		tag, val := auxv[i], auxv[i+1]
+		switch tag {
+		case _AT_PAGESZ:
+			physPageSize = val
+		}
+	}
 }

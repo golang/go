@@ -60,10 +60,10 @@ func critical(f *Func) {
 					// since we're iterating over len(f.Blocks) above, this forces
 					// the new blocks to be re-examined.
 					d = f.NewBlock(BlockPlain)
-					d.Line = p.Line
+					d.Pos = p.Pos
 					blocks[argID] = d
 					if f.pass.debug > 0 {
-						f.Config.Warnl(p.Line, "split critical edge")
+						f.Warnl(p.Pos, "split critical edge")
 					}
 				} else {
 					reusedBlock = true
@@ -72,9 +72,9 @@ func critical(f *Func) {
 				// no existing block, so allocate a new block
 				// to place on the edge
 				d = f.NewBlock(BlockPlain)
-				d.Line = p.Line
+				d.Pos = p.Pos
 				if f.pass.debug > 0 {
-					f.Config.Warnl(p.Line, "split critical edge")
+					f.Warnl(p.Pos, "split critical edge")
 				}
 			}
 

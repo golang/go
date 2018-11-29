@@ -59,7 +59,7 @@ func mkfwd(sym *LSym) {
 	}
 
 	i := 0
-	for p := sym.Text; p != nil && p.Link != nil; p = p.Link {
+	for p := sym.Func.Text; p != nil && p.Link != nil; p = p.Link {
 		i--
 		if i < 0 {
 			i = LOG - 1
@@ -76,17 +76,10 @@ func mkfwd(sym *LSym) {
 	}
 }
 
-func Copyp(ctxt *Link, q *Prog) *Prog {
-	p := ctxt.NewProg()
-	*p = *q
-	return p
-}
-
-func Appendp(ctxt *Link, q *Prog) *Prog {
-	p := ctxt.NewProg()
+func Appendp(q *Prog, newprog ProgAlloc) *Prog {
+	p := newprog()
 	p.Link = q.Link
 	q.Link = p
-	p.Lineno = q.Lineno
-	p.Mode = q.Mode
+	p.Pos = q.Pos
 	return p
 }

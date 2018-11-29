@@ -39,6 +39,15 @@ const (
 	hicb = 0xBF // 1011 1111
 )
 
+// countrunes returns the number of runes in s.
+func countrunes(s string) int {
+	n := 0
+	for range s {
+		n++
+	}
+	return n
+}
+
 // decoderune returns the non-ASCII rune at the start of
 // s[k:] and the index after the rune in s.
 //

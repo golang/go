@@ -11,9 +11,10 @@ import (
 	"time"
 )
 
-// The only signal values guaranteed to be present on all systems
-// are Interrupt (send the process an interrupt) and Kill (force
-// the process to exit).
+// The only signal values guaranteed to be present in the os package
+// on all systems are Interrupt (send the process an interrupt) and
+// Kill (force the process to exit). Interrupt is not implemented on
+// Windows; using it with os.Process.Signal will return an error.
 var (
 	Interrupt Signal = syscall.Note("interrupt")
 	Kill      Signal = syscall.Note("kill")
@@ -134,4 +135,14 @@ func (p *ProcessState) String() string {
 		return "<nil>"
 	}
 	return "exit status: " + p.status.Msg
+}
+
+// ExitCode returns the exit code of the exited process, or -1
+// if the process hasn't exited or was terminated by a signal.
+func (p *ProcessState) ExitCode() int {
+	// return -1 if the process hasn't started.
+	if p == nil {
+		return -1
+	}
+	return p.status.ExitStatus()
 }

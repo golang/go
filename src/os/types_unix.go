@@ -29,5 +29,3 @@ func (fs *fileStat) Sys() interface{}   { return &fs.sys }
 func sameFile(fs1, fs2 *fileStat) bool {
 	return fs1.sys.Dev == fs2.sys.Dev && fs1.sys.Ino == fs2.sys.Ino
 }
-
-const badFd = -1

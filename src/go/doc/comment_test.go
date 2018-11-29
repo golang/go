@@ -150,6 +150,12 @@ func TestToText(t *testing.T) {
 var emphasizeTests = []struct {
 	in, out string
 }{
+	{"http://[::1]:8080/foo.txt", `<a href="http://[::1]:8080/foo.txt">http://[::1]:8080/foo.txt</a>`},
+	{"before (https://www.google.com) after", `before (<a href="https://www.google.com">https://www.google.com</a>) after`},
+	{"before https://www.google.com:30/x/y/z:b::c. After", `before <a href="https://www.google.com:30/x/y/z:b::c">https://www.google.com:30/x/y/z:b::c</a>. After`},
+	{"http://www.google.com/path/:;!-/?query=%34b#093124", `<a href="http://www.google.com/path/:;!-/?query=%34b#093124">http://www.google.com/path/:;!-/?query=%34b#093124</a>`},
+	{"http://www.google.com/path/:;!-/?query=%34bar#093124", `<a href="http://www.google.com/path/:;!-/?query=%34bar#093124">http://www.google.com/path/:;!-/?query=%34bar#093124</a>`},
+	{"http://www.google.com/index.html! After", `<a href="http://www.google.com/index.html">http://www.google.com/index.html</a>! After`},
 	{"http://www.google.com/", `<a href="http://www.google.com/">http://www.google.com/</a>`},
 	{"https://www.google.com/", `<a href="https://www.google.com/">https://www.google.com/</a>`},
 	{"http://www.google.com/path.", `<a href="http://www.google.com/path">http://www.google.com/path</a>.`},

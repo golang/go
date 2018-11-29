@@ -9,6 +9,9 @@
 // doesn't go into the Go runtime.
 // +build !windows
 
+// wasm does not work, because the linear memory is not executable.
+// +build !wasm
+
 package main
 
 import (
@@ -61,9 +64,9 @@ func f(n int) {
 		binary.BigEndian.PutUint32(ill, 0x7fe00008) // trap
 	case "ppc64le":
 		binary.LittleEndian.PutUint32(ill, 0x7fe00008) // trap
-	case "mips64":
+	case "mips", "mips64":
 		binary.BigEndian.PutUint32(ill, 0x00000034) // trap
-	case "mips64le":
+	case "mipsle", "mips64le":
 		binary.LittleEndian.PutUint32(ill, 0x00000034) // trap
 	case "s390x":
 		binary.BigEndian.PutUint32(ill, 0) // undefined instruction

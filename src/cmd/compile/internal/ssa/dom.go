@@ -22,40 +22,44 @@ const (
 func postorder(f *Func) []*Block {
 	return postorderWithNumbering(f, []int32{})
 }
+
+type blockAndIndex struct {
+	b     *Block
+	index int // index is the number of successor edges of b that have already been explored.
+}
+
+// postorderWithNumbering provides a DFS postordering.
+// This seems to make loop-finding more robust.
 func postorderWithNumbering(f *Func, ponums []int32) []*Block {
 	mark := make([]markKind, f.NumBlocks())
 
 	// result ordering
 	var order []*Block
 
-	// stack of blocks
-	var s []*Block
-	s = append(s, f.Entry)
-	mark[f.Entry.ID] = notExplored
+	// stack of blocks and next child to visit
+	// A constant bound allows this to be stack-allocated. 32 is
+	// enough to cover almost every postorderWithNumbering call.
+	s := make([]blockAndIndex, 0, 32)
+	s = append(s, blockAndIndex{b: f.Entry})
+	mark[f.Entry.ID] = explored
 	for len(s) > 0 {
-		b := s[len(s)-1]
-		switch mark[b.ID] {
-		case explored:
-			// Children have all been visited. Pop & output block.
-			s = s[:len(s)-1]
-			mark[b.ID] = done
+		tos := len(s) - 1
+		x := s[tos]
+		b := x.b
+		i := x.index
+		if i < len(b.Succs) {
+			s[tos].index++
+			bb := b.Succs[i].Block()
+			if mark[bb.ID] == notFound {
+				mark[bb.ID] = explored
+				s = append(s, blockAndIndex{b: bb})
+			}
+		} else {
+			s = s[:tos]
 			if len(ponums) > 0 {
 				ponums[b.ID] = int32(len(order))
 			}
 			order = append(order, b)
-		case notExplored:
-			// Children have not been visited yet. Mark as explored
-			// and queue any children we haven't seen yet.
-			mark[b.ID] = explored
-			for _, e := range b.Succs {
-				c := e.b
-				if mark[c.ID] == notFound {
-					mark[c.ID] = notExplored
-					s = append(s, c)
-				}
-			}
-		default:
-			b.Fatalf("bad stack state %v %d", b, mark[b.ID])
 		}
 	}
 	return order
@@ -70,9 +74,9 @@ const nscratchslices = 7
 // in make.bash.
 const minscratchblocks = 512
 
-func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID) {
+func (cache *Cache) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID) {
 	tot := maxBlockID * nscratchslices
-	scratch := cfg.domblockstore
+	scratch := cache.domblockstore
 	if len(scratch) < tot {
 		// req = min(1.5*tot, nscratchslices*minscratchblocks)
 		// 50% padding allows for graph growth in later phases.
@@ -81,7 +85,7 @@ func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID
 			req = nscratchslices * minscratchblocks
 		}
 		scratch = make([]ID, req)
-		cfg.domblockstore = scratch
+		cache.domblockstore = scratch
 	} else {
 		// Clear as much of scratch as we will (re)use
 		scratch = scratch[0:tot]
@@ -117,7 +121,7 @@ func (f *Func) dominatorsLTOrig(entry *Block, predFn linkedBlocks, succFn linked
 	// Adapted directly from the original TOPLAS article's "simple" algorithm
 
 	maxBlockID := entry.Func.NumBlocks()
-	semi, vertex, label, parent, ancestor, bucketHead, bucketLink := f.Config.scratchBlocksForDom(maxBlockID)
+	semi, vertex, label, parent, ancestor, bucketHead, bucketLink := f.Cache.scratchBlocksForDom(maxBlockID)
 
 	// This version uses integers for most of the computation,
 	// to make the work arrays smaller and pointer-free.
@@ -296,7 +300,8 @@ func dominatorsSimple(f *Func) []*Block {
 // intersect finds the closest dominator of both b and c.
 // It requires a postorder numbering of all the blocks.
 func intersect(b, c *Block, postnum []int, idom []*Block) *Block {
-	// TODO: This loop is O(n^2). See BenchmarkNilCheckDeep*.
+	// TODO: This loop is O(n^2). It used to be used in nilcheck,
+	// see BenchmarkNilCheckDeep*.
 	for b != c {
 		if postnum[b.ID] < postnum[c.ID] {
 			b = idom[b.ID]

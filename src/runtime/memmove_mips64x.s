@@ -6,8 +6,8 @@
 
 #include "textflag.h"
 
-// void runtime·memmove(void*, void*, uintptr)
-TEXT runtime·memmove(SB), NOSPLIT, $-8-24
+// func memmove(to, from unsafe.Pointer, n uintptr)
+TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
 	MOVV	to+0(FP), R1
 	MOVV	from+8(FP), R2
 	MOVV	n+16(FP), R3

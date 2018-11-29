@@ -6,7 +6,7 @@ package rsa
 
 // This file implements the PSS signature scheme [1].
 //
-// [1] http://www.rsa.com/rsalabs/pkcs/files/h11300-wp-pkcs-1v2-2-rsa-cryptography-standard.pdf
+// [1] https://www.emc.com/collateral/white-papers/h11300-pkcs-1v2-2-rsa-cryptography-standard-wp.pdf
 
 import (
 	"bytes"
@@ -36,7 +36,7 @@ func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byt
 	// 3.  If emLen < hLen + sLen + 2, output "encoding error" and stop.
 
 	if emLen < hLen+sLen+2 {
-		return nil, errors.New("crypto/rsa: encoding error")
+		return nil, errors.New("crypto/rsa: key size too small for PSS signature")
 	}
 
 	em := make([]byte, emLen)

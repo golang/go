@@ -12,7 +12,7 @@ import (
 	"strings"
 	"text/scanner"
 
-	"cmd/internal/obj"
+	"cmd/internal/src"
 )
 
 // A ScanToken represents an input item. It is a simple wrapping of rune, as
@@ -57,23 +57,8 @@ func (t ScanToken) String() string {
 	}
 }
 
-var (
-	// It might be nice if these weren't global.
-	linkCtxt *obj.Link     // The link context for all instructions.
-	histLine int       = 1 // The cumulative count of lines processed.
-)
-
-// HistLine reports the cumulative source line number of the token,
-// for use in the Prog structure for the linker. (It's always handling the
-// instruction from the current lex line.)
-// It returns int32 because that's what type ../asm prefers.
-func HistLine() int32 {
-	return int32(histLine)
-}
-
 // NewLexer returns a lexer for the named file and the given link context.
-func NewLexer(name string, ctxt *obj.Link) TokenReader {
-	linkCtxt = ctxt
+func NewLexer(name string) TokenReader {
 	input := NewInput(name)
 	fd, err := os.Open(name)
 	if err != nil {
@@ -83,16 +68,11 @@ func NewLexer(name string, ctxt *obj.Link) TokenReader {
 	return input
 }
 
-// InitHist sets the line count to 1, for reproducible testing.
-func InitHist() {
-	histLine = 1
-}
-
 // The other files in this directory each contain an implementation of TokenReader.
 
 // A TokenReader is like a reader, but returns lex tokens of type Token. It also can tell you what
 // the text of the most recently returned token is, and where it was found.
-// The underlying scanner elides all spaces except newline, so the input looks like a  stream of
+// The underlying scanner elides all spaces except newline, so the input looks like a stream of
 // Tokens; original spacing is lost but we don't need it.
 type TokenReader interface {
 	// Next returns the next token.
@@ -102,12 +82,14 @@ type TokenReader interface {
 	Text() string
 	// File reports the source file name of the token.
 	File() string
+	// Base reports the position base of the token.
+	Base() *src.PosBase
+	// SetBase sets the position base.
+	SetBase(*src.PosBase)
 	// Line reports the source line number of the token.
 	Line() int
 	// Col reports the source column number of the token.
 	Col() int
-	// SetPos sets the file and line number.
-	SetPos(line int, file string)
 	// Close does any teardown required.
 	Close()
 }

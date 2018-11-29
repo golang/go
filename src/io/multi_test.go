@@ -142,6 +142,55 @@ func testMultiWriter(t *testing.T, sink interface {
 	}
 }
 
+// writerFunc is an io.Writer implemented by the underlying func.
+type writerFunc func(p []byte) (int, error)
+
+func (f writerFunc) Write(p []byte) (int, error) {
+	return f(p)
+}
+
+// Test that MultiWriter properly flattens chained multiWriters,
+func TestMultiWriterSingleChainFlatten(t *testing.T) {
+	pc := make([]uintptr, 1000) // 1000 should fit the full stack
+	n := runtime.Callers(0, pc)
+	var myDepth = callDepth(pc[:n])
+	var writeDepth int // will contain the depth from which writerFunc.Writer was called
+	var w Writer = MultiWriter(writerFunc(func(p []byte) (int, error) {
+		n := runtime.Callers(1, pc)
+		writeDepth += callDepth(pc[:n])
+		return 0, nil
+	}))
+
+	mw := w
+	// chain a bunch of multiWriters
+	for i := 0; i < 100; i++ {
+		mw = MultiWriter(w)
+	}
+
+	mw = MultiWriter(w, mw, w, mw)
+	mw.Write(nil) // don't care about errors, just want to check the call-depth for Write
+
+	if writeDepth != 4*(myDepth+2) { // 2 should be multiWriter.Write and writerFunc.Write
+		t.Errorf("multiWriter did not flatten chained multiWriters: expected writeDepth %d, got %d",
+			4*(myDepth+2), writeDepth)
+	}
+}
+
+func TestMultiWriterError(t *testing.T) {
+	f1 := writerFunc(func(p []byte) (int, error) {
+		return len(p) / 2, ErrShortWrite
+	})
+	f2 := writerFunc(func(p []byte) (int, error) {
+		t.Errorf("MultiWriter called f2.Write")
+		return len(p), nil
+	})
+	w := MultiWriter(f1, f2)
+	n, err := w.Write(make([]byte, 100))
+	if n != 50 || err != ErrShortWrite {
+		t.Errorf("Write = %d, %v, want 50, ErrShortWrite", n, err)
+	}
+}
+
 // Test that MultiReader copies the input slice and is insulated from future modification.
 func TestMultiReaderCopy(t *testing.T) {
 	slice := []Reader{strings.NewReader("hello world")}
@@ -175,13 +224,26 @@ func (f readerFunc) Read(p []byte) (int, error) {
 	return f(p)
 }
 
+// callDepth returns the logical call depth for the given PCs.
+func callDepth(callers []uintptr) (depth int) {
+	frames := runtime.CallersFrames(callers)
+	more := true
+	for more {
+		_, more = frames.Next()
+		depth++
+	}
+	return
+}
+
 // Test that MultiReader properly flattens chained multiReaders when Read is called
 func TestMultiReaderFlatten(t *testing.T) {
 	pc := make([]uintptr, 1000) // 1000 should fit the full stack
-	var myDepth = runtime.Callers(0, pc)
+	n := runtime.Callers(0, pc)
+	var myDepth = callDepth(pc[:n])
 	var readDepth int // will contain the depth from which fakeReader.Read was called
 	var r Reader = MultiReader(readerFunc(func(p []byte) (int, error) {
-		readDepth = runtime.Callers(1, pc)
+		n := runtime.Callers(1, pc)
+		readDepth = callDepth(pc[:n])
 		return 0, errors.New("irrelevant")
 	}))
 
@@ -239,14 +301,17 @@ func TestMultiReaderFinalEOF(t *testing.T) {
 func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
 	var mr Reader
 	closed := make(chan struct{})
-	{
+	// The closure ensures that we don't have a live reference to buf1
+	// on our stack after MultiReader is inlined (Issue 18819).  This
+	// is a work around for a limitation in liveness analysis.
+	func() {
 		buf1 := bytes.NewReader([]byte("foo"))
 		buf2 := bytes.NewReader([]byte("bar"))
 		mr = MultiReader(buf1, buf2)
 		runtime.SetFinalizer(buf1, func(*bytes.Reader) {
 			close(closed)
 		})
-	}
+	}()
 
 	buf := make([]byte, 4)
 	if n, err := ReadFull(mr, buf); err != nil || string(buf) != "foob" {
@@ -262,5 +327,29 @@ func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
 
 	if n, err := ReadFull(mr, buf[:2]); err != nil || string(buf[:2]) != "ar" {
 		t.Fatalf(`ReadFull = %d (%q), %v; want 2, "ar", nil`, n, buf[:n], err)
+	}
+}
+
+func TestInterleavedMultiReader(t *testing.T) {
+	r1 := strings.NewReader("123")
+	r2 := strings.NewReader("45678")
+
+	mr1 := MultiReader(r1, r2)
+	mr2 := MultiReader(mr1)
+
+	buf := make([]byte, 4)
+
+	// Have mr2 use mr1's []Readers.
+	// Consume r1 (and clear it for GC to handle) and consume part of r2.
+	n, err := ReadFull(mr2, buf)
+	if got := string(buf[:n]); got != "1234" || err != nil {
+		t.Errorf(`ReadFull(mr2) = (%q, %v), want ("1234", nil)`, got, err)
+	}
+
+	// Consume the rest of r2 via mr1.
+	// This should not panic even though mr2 cleared r1.
+	n, err = ReadFull(mr1, buf)
+	if got := string(buf[:n]); got != "5678" || err != nil {
+		t.Errorf(`ReadFull(mr1) = (%q, %v), want ("5678", nil)`, got, err)
 	}
 }

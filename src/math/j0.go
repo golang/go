@@ -99,9 +99,7 @@ func J0(x float64) float64 {
 		return 1
 	}
 
-	if x < 0 {
-		x = -x
-	}
+	x = Abs(x)
 	if x >= 2 {
 		s, c := Sincos(x)
 		ss := s - c

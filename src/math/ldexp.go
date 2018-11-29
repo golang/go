@@ -25,7 +25,7 @@ func ldexp(frac float64, exp int) float64 {
 	exp += e
 	x := Float64bits(frac)
 	exp += int(x>>shift)&mask - bias
-	if exp < -1074 {
+	if exp < -1075 {
 		return Copysign(0, frac) // underflow
 	}
 	if exp > 1023 { // overflow
@@ -36,8 +36,8 @@ func ldexp(frac float64, exp int) float64 {
 	}
 	var m float64 = 1
 	if exp < -1022 { // denormal
-		exp += 52
-		m = 1.0 / (1 << 52) // 2**-52
+		exp += 53
+		m = 1.0 / (1 << 53) // 2**-53
 	}
 	x &^= mask << shift
 	x |= uint64(exp+bias) << shift

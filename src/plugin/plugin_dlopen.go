@@ -40,56 +40,63 @@ import (
 )
 
 func open(name string) (*Plugin, error) {
-	cPath := (*C.char)(C.malloc(C.PATH_MAX + 1))
-	defer C.free(unsafe.Pointer(cPath))
-
-	cRelName := C.CString(name)
-	defer C.free(unsafe.Pointer(cRelName))
-	if C.realpath(cRelName, cPath) == nil {
-		return nil, errors.New("plugin.Open(" + name + "): realpath failed")
+	cPath := make([]byte, C.PATH_MAX+1)
+	cRelName := make([]byte, len(name)+1)
+	copy(cRelName, name)
+	if C.realpath(
+		(*C.char)(unsafe.Pointer(&cRelName[0])),
+		(*C.char)(unsafe.Pointer(&cPath[0]))) == nil {
+		return nil, errors.New(`plugin.Open("` + name + `"): realpath failed`)
 	}
 
-	filepath := C.GoString(cPath)
+	filepath := C.GoString((*C.char)(unsafe.Pointer(&cPath[0])))
 
 	pluginsMu.Lock()
 	if p := plugins[filepath]; p != nil {
 		pluginsMu.Unlock()
+		if p.err != "" {
+			return nil, errors.New(`plugin.Open("` + name + `"): ` + p.err + ` (previous failure)`)
+		}
 		<-p.loaded
 		return p, nil
 	}
 	var cErr *C.char
-	h := C.pluginOpen(cPath, &cErr)
+	h := C.pluginOpen((*C.char)(unsafe.Pointer(&cPath[0])), &cErr)
 	if h == 0 {
 		pluginsMu.Unlock()
-		return nil, errors.New("plugin.Open: " + C.GoString(cErr))
+		return nil, errors.New(`plugin.Open("` + name + `"): ` + C.GoString(cErr))
 	}
 	// TODO(crawshaw): look for plugin note, confirm it is a Go plugin
 	// and it was built with the correct toolchain.
 	if len(name) > 3 && name[len(name)-3:] == ".so" {
 		name = name[:len(name)-3]
 	}
-
-	pluginpath, syms, mismatchpkg := lastmoduleinit()
-	if mismatchpkg != "" {
-		pluginsMu.Unlock()
-		return nil, errors.New("plugin.Open: plugin was built with a different version of package " + mismatchpkg)
-	}
 	if plugins == nil {
 		plugins = make(map[string]*Plugin)
+	}
+	pluginpath, syms, errstr := lastmoduleinit()
+	if errstr != "" {
+		plugins[filepath] = &Plugin{
+			pluginpath: pluginpath,
+			err:        errstr,
+		}
+		pluginsMu.Unlock()
+		return nil, errors.New(`plugin.Open("` + name + `"): ` + errstr)
 	}
 	// This function can be called from the init function of a plugin.
 	// Drop a placeholder in the map so subsequent opens can wait on it.
 	p := &Plugin{
 		pluginpath: pluginpath,
 		loaded:     make(chan struct{}),
-		syms:       syms,
 	}
 	plugins[filepath] = p
 	pluginsMu.Unlock()
 
-	initStr := C.CString(pluginpath + ".init")
-	initFuncPC := C.pluginLookup(h, initStr, &cErr)
-	C.free(unsafe.Pointer(initStr))
+	initStr := make([]byte, len(pluginpath)+6)
+	copy(initStr, pluginpath)
+	copy(initStr[len(pluginpath):], ".init")
+
+	initFuncPC := C.pluginLookup(h, (*C.char)(unsafe.Pointer(&initStr[0])), &cErr)
 	if initFuncPC != nil {
 		initFuncP := &initFuncPC
 		initFunc := *(*func())(unsafe.Pointer(&initFuncP))
@@ -97,6 +104,7 @@ func open(name string) (*Plugin, error) {
 	}
 
 	// Fill out the value of each plugin symbol.
+	updatedSyms := map[string]interface{}{}
 	for symName, sym := range syms {
 		isFunc := symName[0] == '.'
 		if isFunc {
@@ -104,11 +112,13 @@ func open(name string) (*Plugin, error) {
 			symName = symName[1:]
 		}
 
-		cname := C.CString(pluginpath + "." + symName)
-		p := C.pluginLookup(h, cname, &cErr)
-		C.free(unsafe.Pointer(cname))
+		fullName := pluginpath + "." + symName
+		cname := make([]byte, len(fullName)+1)
+		copy(cname, fullName)
+
+		p := C.pluginLookup(h, (*C.char)(unsafe.Pointer(&cname[0])), &cErr)
 		if p == nil {
-			return nil, errors.New("plugin.Open: could not find symbol " + symName + ": " + C.GoString(cErr))
+			return nil, errors.New(`plugin.Open("` + name + `"): could not find symbol ` + symName + `: ` + C.GoString(cErr))
 		}
 		valp := (*[2]unsafe.Pointer)(unsafe.Pointer(&sym))
 		if isFunc {
@@ -116,8 +126,12 @@ func open(name string) (*Plugin, error) {
 		} else {
 			(*valp)[1] = p
 		}
-		syms[symName] = sym
+		// we can't add to syms during iteration as we'll end up processing
+		// some symbols twice with the inability to tell if the symbol is a function
+		updatedSyms[symName] = sym
 	}
+	p.syms = updatedSyms
+
 	close(p.loaded)
 	return p, nil
 }
@@ -135,4 +149,4 @@ var (
 )
 
 // lastmoduleinit is defined in package runtime
-func lastmoduleinit() (pluginpath string, syms map[string]interface{}, mismatchpkg string)
+func lastmoduleinit() (pluginpath string, syms map[string]interface{}, errstr string)

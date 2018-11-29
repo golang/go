@@ -27,7 +27,6 @@ type dumpTest struct {
 }
 
 var dumpTests = []dumpTest{
-
 	// HTTP/1.1 => chunked coding; body; empty trailer
 	{
 		Req: http.Request{
@@ -184,6 +183,18 @@ var dumpTests = []dumpTest{
 		WantDump: "POST /v2/api/?login HTTP/1.1\r\n" +
 			"Host: passport.myhost.com\r\n\r\n",
 	},
+
+	// Issue 18506: make drainBody recognize NoBody. Otherwise
+	// this was turning into a chunked request.
+	{
+		Req: *mustNewRequest("POST", "http://example.com/foo", http.NoBody),
+
+		WantDumpOut: "POST /foo HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Content-Length: 0\r\n" +
+			"Accept-Encoding: gzip\r\n\r\n",
+	},
 }
 
 func TestDumpRequest(t *testing.T) {
@@ -202,7 +213,6 @@ func TestDumpRequest(t *testing.T) {
 				t.Fatalf("Test %d: unsupported Body of %T", i, tt.Body)
 			}
 		}
-		setBody()
 		if tt.Req.Header == nil {
 			tt.Req.Header = make(http.Header)
 		}
@@ -360,7 +370,7 @@ func TestDumpResponse(t *testing.T) {
 		}
 		got := string(gotb)
 		got = strings.TrimSpace(got)
-		got = strings.Replace(got, "\r", "", -1)
+		got = strings.ReplaceAll(got, "\r", "")
 
 		if got != tt.want {
 			t.Errorf("%d.\nDumpResponse got:\n%s\n\nWant:\n%s\n", i, got, tt.want)

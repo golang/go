@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"os"
 	"testing"
+	"testing/quick"
 )
 
 func eq(c0, c1 color.Color) bool {
@@ -465,5 +466,49 @@ loop:
 				}
 			}
 		}
+	}
+}
+
+func TestSqDiff(t *testing.T) {
+	// This test is similar to the one from the image/color package, but
+	// sqDiff in this package accepts int32 instead of uint32, so test it
+	// for appropriate input.
+
+	// canonical sqDiff implementation
+	orig := func(x, y int32) uint32 {
+		var d uint32
+		if x > y {
+			d = uint32(x - y)
+		} else {
+			d = uint32(y - x)
+		}
+		return (d * d) >> 2
+	}
+	testCases := []int32{
+		0,
+		1,
+		2,
+		0x0fffd,
+		0x0fffe,
+		0x0ffff,
+		0x10000,
+		0x10001,
+		0x10002,
+		0x7ffffffd,
+		0x7ffffffe,
+		0x7fffffff,
+		-0x7ffffffd,
+		-0x7ffffffe,
+		-0x80000000,
+	}
+	for _, x := range testCases {
+		for _, y := range testCases {
+			if got, want := sqDiff(x, y), orig(x, y); got != want {
+				t.Fatalf("sqDiff(%#x, %#x): got %d, want %d", x, y, got, want)
+			}
+		}
+	}
+	if err := quick.CheckEqual(orig, sqDiff, &quick.Config{MaxCountScale: 10}); err != nil {
+		t.Fatal(err)
 	}
 }

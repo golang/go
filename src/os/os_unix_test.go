@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package os_test
 
@@ -15,6 +15,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func init() {
@@ -36,11 +37,6 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
 }
 
 func TestChown(t *testing.T) {
-	// Chown is not supported under windows or Plan 9.
-	// Plan9 provides a native ChownPlan9 version instead.
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Skipf("%s does not support syscall.Chown", runtime.GOOS)
-	}
 	// Use TempDir() to make sure we're on a local file system,
 	// so that the group ids returned by Getgroups will be allowed
 	// on the file. On NFS, the Getgroups groups are
@@ -84,10 +80,6 @@ func TestChown(t *testing.T) {
 }
 
 func TestFileChown(t *testing.T) {
-	// Fchown is not supported under windows or Plan 9.
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Skipf("%s does not support syscall.Fchown", runtime.GOOS)
-	}
 	// Use TempDir() to make sure we're on a local file system,
 	// so that the group ids returned by Getgroups will be allowed
 	// on the file. On NFS, the Getgroups groups are
@@ -131,10 +123,6 @@ func TestFileChown(t *testing.T) {
 }
 
 func TestLchown(t *testing.T) {
-	// Lchown is not supported under windows or Plan 9.
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Skipf("%s does not support syscall.Lchown", runtime.GOOS)
-	}
 	// Use TempDir() to make sure we're on a local file system,
 	// so that the group ids returned by Getgroups will be allowed
 	// on the file. On NFS, the Getgroups groups are
@@ -216,4 +204,77 @@ func TestReaddirRemoveRace(t *testing.T) {
 		}
 		t.FailNow()
 	}
+}
+
+// Issue 23120: respect umask when doing Mkdir with the sticky bit
+func TestMkdirStickyUmask(t *testing.T) {
+	const umask = 0077
+	dir := newDir("TestMkdirStickyUmask", t)
+	defer RemoveAll(dir)
+	oldUmask := syscall.Umask(umask)
+	defer syscall.Umask(oldUmask)
+	p := filepath.Join(dir, "dir1")
+	if err := Mkdir(p, ModeSticky|0755); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode := fi.Mode(); (mode&umask) != 0 || (mode&^ModePerm) != (ModeDir|ModeSticky) {
+		t.Errorf("unexpected mode %s", mode)
+	}
+}
+
+// See also issues: 22939, 24331
+func newFileTest(t *testing.T, blocking bool) {
+	p := make([]int, 2)
+	if err := syscall.Pipe(p); err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	defer syscall.Close(p[1])
+
+	// Set the read-side to non-blocking.
+	if !blocking {
+		if err := syscall.SetNonblock(p[0], true); err != nil {
+			syscall.Close(p[0])
+			t.Fatalf("SetNonblock: %v", err)
+		}
+	}
+	// Convert it to a file.
+	file := NewFile(uintptr(p[0]), "notapipe")
+	if file == nil {
+		syscall.Close(p[0])
+		t.Fatalf("failed to convert fd to file!")
+	}
+	defer file.Close()
+
+	// Try to read with deadline (but don't block forever).
+	b := make([]byte, 1)
+	// Send something after 100ms.
+	timer := time.AfterFunc(100*time.Millisecond, func() { syscall.Write(p[1], []byte("a")) })
+	defer timer.Stop()
+	file.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+	_, err := file.Read(b)
+	if !blocking {
+		// We want it to fail with a timeout.
+		if !IsTimeout(err) {
+			t.Fatalf("No timeout reading from file: %v", err)
+		}
+	} else {
+		// We want it to succeed after 100ms
+		if err != nil {
+			t.Fatalf("Error reading from file: %v", err)
+		}
+	}
+}
+
+func TestNewFileBlock(t *testing.T) {
+	t.Parallel()
+	newFileTest(t, true)
+}
+
+func TestNewFileNonBlock(t *testing.T) {
+	t.Parallel()
+	newFileTest(t, false)
 }

@@ -6,8 +6,10 @@ package runtime_test
 
 import (
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // Strings and slices that don't escape and fit into tmpBuf are stack allocated,
@@ -89,10 +91,61 @@ func BenchmarkConcatStringAndBytes(b *testing.B) {
 	}
 }
 
+var escapeString string
+
+func BenchmarkSliceByteToString(b *testing.B) {
+	buf := []byte{'!'}
+	for n := 0; n < 8; n++ {
+		b.Run(strconv.Itoa(len(buf)), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				escapeString = string(buf)
+			}
+		})
+		buf = append(buf, buf...)
+	}
+}
+
 var stringdata = []struct{ name, data string }{
 	{"ASCII", "01234567890"},
 	{"Japanese", "日本語日本語日本語"},
 	{"MixedLength", "$Ѐࠀက퀀𐀀\U00040000\U0010FFFF"},
+}
+
+var sinkInt int
+
+func BenchmarkRuneCount(b *testing.B) {
+	// Each sub-benchmark counts the runes in a string in a different way.
+	b.Run("lenruneslice", func(b *testing.B) {
+		for _, sd := range stringdata {
+			b.Run(sd.name, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					sinkInt += len([]rune(sd.data))
+				}
+			})
+		}
+	})
+	b.Run("rangeloop", func(b *testing.B) {
+		for _, sd := range stringdata {
+			b.Run(sd.name, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					n := 0
+					for range sd.data {
+						n++
+					}
+					sinkInt += n
+				}
+			})
+		}
+	})
+	b.Run("utf8.RuneCountInString", func(b *testing.B) {
+		for _, sd := range stringdata {
+			b.Run(sd.name, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					sinkInt += utf8.RuneCountInString(sd.data)
+				}
+			})
+		}
+	})
 }
 
 func BenchmarkRuneIterate(b *testing.B) {
@@ -110,7 +163,7 @@ func BenchmarkRuneIterate(b *testing.B) {
 		for _, sd := range stringdata {
 			b.Run(sd.name, func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					for _ = range sd.data {
+					for range sd.data {
 					}
 				}
 			})
@@ -120,7 +173,7 @@ func BenchmarkRuneIterate(b *testing.B) {
 		for _, sd := range stringdata {
 			b.Run(sd.name, func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					for _, _ = range sd.data {
+					for range sd.data {
 					}
 				}
 			})
@@ -180,6 +233,34 @@ func TestCompareTempString(t *testing.T) {
 		if string(b) == s {
 		} else {
 			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}
+
+func TestStringIndexHaystack(t *testing.T) {
+	// See issue 25864.
+	haystack := []byte("hello")
+	needle := "ll"
+	n := testing.AllocsPerRun(1000, func() {
+		if strings.Index(string(haystack), needle) != 2 {
+			t.Fatalf("needle not found")
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}
+
+func TestStringIndexNeedle(t *testing.T) {
+	// See issue 25864.
+	haystack := "hello"
+	needle := []byte("ll")
+	n := testing.AllocsPerRun(1000, func() {
+		if strings.Index(haystack, string(needle)) != 2 {
+			t.Fatalf("needle not found")
 		}
 	})
 	if n != 0 {

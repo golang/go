@@ -61,7 +61,7 @@ type (
 
 
 type (
-	p1 pi /* ERROR "no field or method foo" */ .foo
+	p1 pi.foo /* ERROR "no field or method foo" */
 	p2 unsafe.Pointer
 )
 
@@ -97,7 +97,7 @@ type (
 		u, v, a /* ERROR "redeclared" */ float32
 	}
 	S2 struct {
-		S0 // anonymous field
+		S0 // embedded field
 		S0 /* ERROR "redeclared" */ int
 	}
 	S3 struct {
@@ -159,13 +159,13 @@ type (
 	I8 /* ERROR "illegal cycle" */ interface {
 		I8
 	}
-	I9 interface {
+	I9 /* ERROR "illegal cycle" */ interface {
 		I10
 	}
 	I10 interface {
 		I11
 	}
-	I11 /* ERROR "illegal cycle" */ interface {
+	I11 interface {
 		I9
 	}
 
@@ -183,16 +183,16 @@ type (
 )
 
 // cycles in function/method declarations
-// (test cases for issue 5217 and variants)
+// (test cases for issues #5217, #25790 and variants)
 func f1(x f1 /* ERROR "not a type" */ ) {}
 func f2(x *f2 /* ERROR "not a type" */ ) {}
 func f3() (x f3 /* ERROR "not a type" */ ) { return }
 func f4() (x *f4 /* ERROR "not a type" */ ) { return }
 
-func (S0) m1(x S0 /* ERROR "field or method" */ .m1) {}
-func (S0) m2(x *S0 /* ERROR "field or method" */ .m2) {}
-func (S0) m3() (x S0 /* ERROR "field or method" */ .m3) { return }
-func (S0) m4() (x *S0 /* ERROR "field or method" */ .m4) { return }
+func (S0) m1 /* ERROR illegal cycle */ (x S0 /* ERROR value .* is not a type */ .m1) {}
+func (S0) m2 /* ERROR illegal cycle */ (x *S0 /* ERROR value .* is not a type */ .m2) {}
+func (S0) m3 /* ERROR illegal cycle */ () (x S0 /* ERROR value .* is not a type */ .m3) { return }
+func (S0) m4 /* ERROR illegal cycle */ () (x *S0 /* ERROR value .* is not a type */ .m4) { return }
 
 // interfaces may not have any blank methods
 type BlankI interface {

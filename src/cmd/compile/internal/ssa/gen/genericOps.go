@@ -17,8 +17,6 @@ package main
 // all args take signed inputs, or don't care whether their inputs
 // are signed or unsigned.
 
-// Unused portions of AuxInt are filled by sign-extending the used portion.
-// Users of AuxInt which interpret AuxInt as unsigned (e.g. shifts) must be careful.
 var genericOps = []opData{
 	// 2-input arithmetic
 	// Types must be consistent with Go typing. Add, for example, must take two values
@@ -28,8 +26,8 @@ var genericOps = []opData{
 	{name: "Add32", argLength: 2, commutative: true},
 	{name: "Add64", argLength: 2, commutative: true},
 	{name: "AddPtr", argLength: 2}, // For address calculations.  arg0 is a pointer and arg1 is an int.
-	{name: "Add32F", argLength: 2},
-	{name: "Add64F", argLength: 2},
+	{name: "Add32F", argLength: 2, commutative: true},
+	{name: "Add64F", argLength: 2, commutative: true},
 
 	{name: "Sub8", argLength: 2}, // arg0 - arg1
 	{name: "Sub16", argLength: 2},
@@ -43,44 +41,51 @@ var genericOps = []opData{
 	{name: "Mul16", argLength: 2, commutative: true},
 	{name: "Mul32", argLength: 2, commutative: true},
 	{name: "Mul64", argLength: 2, commutative: true},
-	{name: "Mul32F", argLength: 2},
-	{name: "Mul64F", argLength: 2},
+	{name: "Mul32F", argLength: 2, commutative: true},
+	{name: "Mul64F", argLength: 2, commutative: true},
 
 	{name: "Div32F", argLength: 2}, // arg0 / arg1
 	{name: "Div64F", argLength: 2},
 
-	{name: "Hmul8", argLength: 2},  // (arg0 * arg1) >> width, signed
-	{name: "Hmul8u", argLength: 2}, // (arg0 * arg1) >> width, unsigned
-	{name: "Hmul16", argLength: 2},
-	{name: "Hmul16u", argLength: 2},
-	{name: "Hmul32", argLength: 2},
-	{name: "Hmul32u", argLength: 2},
-	{name: "Hmul64", argLength: 2},
-	{name: "Hmul64u", argLength: 2},
+	{name: "Hmul32", argLength: 2, commutative: true},
+	{name: "Hmul32u", argLength: 2, commutative: true},
+	{name: "Hmul64", argLength: 2, commutative: true},
+	{name: "Hmul64u", argLength: 2, commutative: true},
 
-	{name: "Mul32uhilo", argLength: 2, typ: "(UInt32,UInt32)"}, // arg0 * arg1, returns (hi, lo)
-	{name: "Mul64uhilo", argLength: 2, typ: "(UInt64,UInt64)"}, // arg0 * arg1, returns (hi, lo)
+	{name: "Mul32uhilo", argLength: 2, typ: "(UInt32,UInt32)", commutative: true}, // arg0 * arg1, returns (hi, lo)
+	{name: "Mul64uhilo", argLength: 2, typ: "(UInt64,UInt64)", commutative: true}, // arg0 * arg1, returns (hi, lo)
 
-	// Weird special instruction for strength reduction of divides.
-	{name: "Avg64u", argLength: 2}, // (uint64(arg0) + uint64(arg1)) / 2, correct to all 64 bits.
+	{name: "Mul32uover", argLength: 2, typ: "(UInt32,Bool)", commutative: true}, // Let x = arg0*arg1 (full 32x32-> 64 unsigned multiply), returns (uint32(x), (uint32(x) != x))
+	{name: "Mul64uover", argLength: 2, typ: "(UInt64,Bool)", commutative: true}, // Let x = arg0*arg1 (full 64x64->128 unsigned multiply), returns (uint64(x), (uint64(x) != x))
 
+	// Weird special instructions for use in the strength reduction of divides.
+	// These ops compute unsigned (arg0 + arg1) / 2, correct to all
+	// 32/64 bits, even when the intermediate result of the add has 33/65 bits.
+	// These ops can assume arg0 >= arg1.
+	// Note: these ops aren't commutative!
+	{name: "Avg32u", argLength: 2, typ: "UInt32"}, // 32-bit platforms only
+	{name: "Avg64u", argLength: 2, typ: "UInt64"}, // 64-bit platforms only
+
+	// For Div16, Div32 and Div64, AuxInt non-zero means that the divisor has been proved to be not -1
+	// or that the dividend is not the most negative value.
 	{name: "Div8", argLength: 2},  // arg0 / arg1, signed
 	{name: "Div8u", argLength: 2}, // arg0 / arg1, unsigned
-	{name: "Div16", argLength: 2},
+	{name: "Div16", argLength: 2, aux: "Bool"},
 	{name: "Div16u", argLength: 2},
-	{name: "Div32", argLength: 2},
+	{name: "Div32", argLength: 2, aux: "Bool"},
 	{name: "Div32u", argLength: 2},
-	{name: "Div64", argLength: 2},
+	{name: "Div64", argLength: 2, aux: "Bool"},
 	{name: "Div64u", argLength: 2},
 	{name: "Div128u", argLength: 3}, // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
 
+	// For Mod16, Mod32 and Mod64, AuxInt non-zero means that the divisor has been proved to be not -1.
 	{name: "Mod8", argLength: 2},  // arg0 % arg1, signed
 	{name: "Mod8u", argLength: 2}, // arg0 % arg1, unsigned
-	{name: "Mod16", argLength: 2},
+	{name: "Mod16", argLength: 2, aux: "Bool"},
 	{name: "Mod16u", argLength: 2},
-	{name: "Mod32", argLength: 2},
+	{name: "Mod32", argLength: 2, aux: "Bool"},
 	{name: "Mod32u", argLength: 2},
-	{name: "Mod64", argLength: 2},
+	{name: "Mod64", argLength: 2, aux: "Bool"},
 	{name: "Mod64u", argLength: 2},
 
 	{name: "And8", argLength: 2, commutative: true}, // arg0 & arg1
@@ -100,81 +105,59 @@ var genericOps = []opData{
 
 	// For shifts, AxB means the shifted value has A bits and the shift amount has B bits.
 	// Shift amounts are considered unsigned.
-	{name: "Lsh8x8", argLength: 2}, // arg0 << arg1
-	{name: "Lsh8x16", argLength: 2},
-	{name: "Lsh8x32", argLength: 2},
-	{name: "Lsh8x64", argLength: 2},
-	{name: "Lsh16x8", argLength: 2},
-	{name: "Lsh16x16", argLength: 2},
-	{name: "Lsh16x32", argLength: 2},
-	{name: "Lsh16x64", argLength: 2},
-	{name: "Lsh32x8", argLength: 2},
-	{name: "Lsh32x16", argLength: 2},
-	{name: "Lsh32x32", argLength: 2},
-	{name: "Lsh32x64", argLength: 2},
-	{name: "Lsh64x8", argLength: 2},
-	{name: "Lsh64x16", argLength: 2},
-	{name: "Lsh64x32", argLength: 2},
-	{name: "Lsh64x64", argLength: 2},
+	// If arg1 is known to be less than the number of bits in arg0,
+	// then auxInt may be set to 1.
+	// This enables better code generation on some platforms.
+	{name: "Lsh8x8", argLength: 2, aux: "Bool"}, // arg0 << arg1
+	{name: "Lsh8x16", argLength: 2, aux: "Bool"},
+	{name: "Lsh8x32", argLength: 2, aux: "Bool"},
+	{name: "Lsh8x64", argLength: 2, aux: "Bool"},
+	{name: "Lsh16x8", argLength: 2, aux: "Bool"},
+	{name: "Lsh16x16", argLength: 2, aux: "Bool"},
+	{name: "Lsh16x32", argLength: 2, aux: "Bool"},
+	{name: "Lsh16x64", argLength: 2, aux: "Bool"},
+	{name: "Lsh32x8", argLength: 2, aux: "Bool"},
+	{name: "Lsh32x16", argLength: 2, aux: "Bool"},
+	{name: "Lsh32x32", argLength: 2, aux: "Bool"},
+	{name: "Lsh32x64", argLength: 2, aux: "Bool"},
+	{name: "Lsh64x8", argLength: 2, aux: "Bool"},
+	{name: "Lsh64x16", argLength: 2, aux: "Bool"},
+	{name: "Lsh64x32", argLength: 2, aux: "Bool"},
+	{name: "Lsh64x64", argLength: 2, aux: "Bool"},
 
-	{name: "Rsh8x8", argLength: 2}, // arg0 >> arg1, signed
-	{name: "Rsh8x16", argLength: 2},
-	{name: "Rsh8x32", argLength: 2},
-	{name: "Rsh8x64", argLength: 2},
-	{name: "Rsh16x8", argLength: 2},
-	{name: "Rsh16x16", argLength: 2},
-	{name: "Rsh16x32", argLength: 2},
-	{name: "Rsh16x64", argLength: 2},
-	{name: "Rsh32x8", argLength: 2},
-	{name: "Rsh32x16", argLength: 2},
-	{name: "Rsh32x32", argLength: 2},
-	{name: "Rsh32x64", argLength: 2},
-	{name: "Rsh64x8", argLength: 2},
-	{name: "Rsh64x16", argLength: 2},
-	{name: "Rsh64x32", argLength: 2},
-	{name: "Rsh64x64", argLength: 2},
+	{name: "Rsh8x8", argLength: 2, aux: "Bool"}, // arg0 >> arg1, signed
+	{name: "Rsh8x16", argLength: 2, aux: "Bool"},
+	{name: "Rsh8x32", argLength: 2, aux: "Bool"},
+	{name: "Rsh8x64", argLength: 2, aux: "Bool"},
+	{name: "Rsh16x8", argLength: 2, aux: "Bool"},
+	{name: "Rsh16x16", argLength: 2, aux: "Bool"},
+	{name: "Rsh16x32", argLength: 2, aux: "Bool"},
+	{name: "Rsh16x64", argLength: 2, aux: "Bool"},
+	{name: "Rsh32x8", argLength: 2, aux: "Bool"},
+	{name: "Rsh32x16", argLength: 2, aux: "Bool"},
+	{name: "Rsh32x32", argLength: 2, aux: "Bool"},
+	{name: "Rsh32x64", argLength: 2, aux: "Bool"},
+	{name: "Rsh64x8", argLength: 2, aux: "Bool"},
+	{name: "Rsh64x16", argLength: 2, aux: "Bool"},
+	{name: "Rsh64x32", argLength: 2, aux: "Bool"},
+	{name: "Rsh64x64", argLength: 2, aux: "Bool"},
 
-	{name: "Rsh8Ux8", argLength: 2}, // arg0 >> arg1, unsigned
-	{name: "Rsh8Ux16", argLength: 2},
-	{name: "Rsh8Ux32", argLength: 2},
-	{name: "Rsh8Ux64", argLength: 2},
-	{name: "Rsh16Ux8", argLength: 2},
-	{name: "Rsh16Ux16", argLength: 2},
-	{name: "Rsh16Ux32", argLength: 2},
-	{name: "Rsh16Ux64", argLength: 2},
-	{name: "Rsh32Ux8", argLength: 2},
-	{name: "Rsh32Ux16", argLength: 2},
-	{name: "Rsh32Ux32", argLength: 2},
-	{name: "Rsh32Ux64", argLength: 2},
-	{name: "Rsh64Ux8", argLength: 2},
-	{name: "Rsh64Ux16", argLength: 2},
-	{name: "Rsh64Ux32", argLength: 2},
-	{name: "Rsh64Ux64", argLength: 2},
-
-	// (Left) rotates replace pattern matches in the front end
-	// of (arg0 << arg1) ^ (arg0 >> (A-arg1))
-	// where A is the bit width of arg0 and result.
-	// Note that because rotates are pattern-matched from
-	// shifts, that a rotate of arg1=A+k (k > 0) bits originated from
-	//    (arg0 << A+k) ^ (arg0 >> -k) =
-	//    0 ^ arg0>>huge_unsigned =
-	//    0 ^ 0 = 0
-	// which is not the same as a rotation by A+k
-	//
-	// However, in the specific case of k = 0, the result of
-	// the shift idiom is the same as the result for the
-	// rotate idiom, i.e., result=arg0.
-	// This is different from shifts, where
-	// arg0 << A is defined to be zero.
-	//
-	// Because of this, and also because the primary use case
-	// for rotates is hashing and crypto code with constant
-	// distance, rotate instructions are only substituted
-	// when arg1 is a constant between 1 and A-1, inclusive.
-	{name: "Lrot8", argLength: 1, aux: "Int64"},
-	{name: "Lrot16", argLength: 1, aux: "Int64"},
-	{name: "Lrot32", argLength: 1, aux: "Int64"},
-	{name: "Lrot64", argLength: 1, aux: "Int64"},
+	{name: "Rsh8Ux8", argLength: 2, aux: "Bool"}, // arg0 >> arg1, unsigned
+	{name: "Rsh8Ux16", argLength: 2, aux: "Bool"},
+	{name: "Rsh8Ux32", argLength: 2, aux: "Bool"},
+	{name: "Rsh8Ux64", argLength: 2, aux: "Bool"},
+	{name: "Rsh16Ux8", argLength: 2, aux: "Bool"},
+	{name: "Rsh16Ux16", argLength: 2, aux: "Bool"},
+	{name: "Rsh16Ux32", argLength: 2, aux: "Bool"},
+	{name: "Rsh16Ux64", argLength: 2, aux: "Bool"},
+	{name: "Rsh32Ux8", argLength: 2, aux: "Bool"},
+	{name: "Rsh32Ux16", argLength: 2, aux: "Bool"},
+	{name: "Rsh32Ux32", argLength: 2, aux: "Bool"},
+	{name: "Rsh32Ux64", argLength: 2, aux: "Bool"},
+	{name: "Rsh64Ux8", argLength: 2, aux: "Bool"},
+	{name: "Rsh64Ux16", argLength: 2, aux: "Bool"},
+	{name: "Rsh64Ux32", argLength: 2, aux: "Bool"},
+	{name: "Rsh64Ux64", argLength: 2, aux: "Bool"},
 
 	// 2-input comparisons
 	{name: "Eq8", argLength: 2, commutative: true, typ: "Bool"}, // arg0 == arg1
@@ -184,8 +167,8 @@ var genericOps = []opData{
 	{name: "EqPtr", argLength: 2, commutative: true, typ: "Bool"},
 	{name: "EqInter", argLength: 2, typ: "Bool"}, // arg0 or arg1 is nil; other cases handled by frontend
 	{name: "EqSlice", argLength: 2, typ: "Bool"}, // arg0 or arg1 is nil; other cases handled by frontend
-	{name: "Eq32F", argLength: 2, typ: "Bool"},
-	{name: "Eq64F", argLength: 2, typ: "Bool"},
+	{name: "Eq32F", argLength: 2, commutative: true, typ: "Bool"},
+	{name: "Eq64F", argLength: 2, commutative: true, typ: "Bool"},
 
 	{name: "Neq8", argLength: 2, commutative: true, typ: "Bool"}, // arg0 != arg1
 	{name: "Neq16", argLength: 2, commutative: true, typ: "Bool"},
@@ -194,8 +177,8 @@ var genericOps = []opData{
 	{name: "NeqPtr", argLength: 2, commutative: true, typ: "Bool"},
 	{name: "NeqInter", argLength: 2, typ: "Bool"}, // arg0 or arg1 is nil; other cases handled by frontend
 	{name: "NeqSlice", argLength: 2, typ: "Bool"}, // arg0 or arg1 is nil; other cases handled by frontend
-	{name: "Neq32F", argLength: 2, typ: "Bool"},
-	{name: "Neq64F", argLength: 2},
+	{name: "Neq32F", argLength: 2, commutative: true, typ: "Bool"},
+	{name: "Neq64F", argLength: 2, commutative: true, typ: "Bool"},
 
 	{name: "Less8", argLength: 2, typ: "Bool"},  // arg0 < arg1, signed
 	{name: "Less8U", argLength: 2, typ: "Bool"}, // arg0 < arg1, unsigned
@@ -241,12 +224,17 @@ var genericOps = []opData{
 	{name: "Geq32F", argLength: 2, typ: "Bool"},
 	{name: "Geq64F", argLength: 2, typ: "Bool"},
 
+	// the type of a CondSelect is the same as the type of its first
+	// two arguments, which should be register-width scalars; the third
+	// argument should be a boolean
+	{name: "CondSelect", argLength: 3}, // arg2 ? arg0 : arg1
+
 	// boolean ops
-	{name: "AndB", argLength: 2, typ: "Bool"}, // arg0 && arg1 (not shortcircuited)
-	{name: "OrB", argLength: 2, typ: "Bool"},  // arg0 || arg1 (not shortcircuited)
-	{name: "EqB", argLength: 2, typ: "Bool"},  // arg0 == arg1
-	{name: "NeqB", argLength: 2, typ: "Bool"}, // arg0 != arg1
-	{name: "Not", argLength: 1, typ: "Bool"},  // !arg0, boolean
+	{name: "AndB", argLength: 2, commutative: true, typ: "Bool"}, // arg0 && arg1 (not shortcircuited)
+	{name: "OrB", argLength: 2, commutative: true, typ: "Bool"},  // arg0 || arg1 (not shortcircuited)
+	{name: "EqB", argLength: 2, commutative: true, typ: "Bool"},  // arg0 == arg1
+	{name: "NeqB", argLength: 2, commutative: true, typ: "Bool"}, // arg0 != arg1
+	{name: "Not", argLength: 1, typ: "Bool"},                     // !arg0, boolean
 
 	// 1-input ops
 	{name: "Neg8", argLength: 1}, // -arg0
@@ -261,24 +249,72 @@ var genericOps = []opData{
 	{name: "Com32", argLength: 1},
 	{name: "Com64", argLength: 1},
 
-	{name: "Ctz32", argLength: 1}, // Count trailing (low  order) zeroes (returns 0-32)
-	{name: "Ctz64", argLength: 1}, // Count trailing zeroes (returns 0-64)
+	{name: "Ctz8", argLength: 1},         // Count trailing (low order) zeroes (returns 0-8)
+	{name: "Ctz16", argLength: 1},        // Count trailing (low order) zeroes (returns 0-16)
+	{name: "Ctz32", argLength: 1},        // Count trailing (low order) zeroes (returns 0-32)
+	{name: "Ctz64", argLength: 1},        // Count trailing (low order) zeroes (returns 0-64)
+	{name: "Ctz8NonZero", argLength: 1},  // same as above, but arg[0] known to be non-zero, returns 0-7
+	{name: "Ctz16NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-15
+	{name: "Ctz32NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-31
+	{name: "Ctz64NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-63
+	{name: "BitLen8", argLength: 1},      // Number of bits in arg[0] (returns 0-8)
+	{name: "BitLen16", argLength: 1},     // Number of bits in arg[0] (returns 0-16)
+	{name: "BitLen32", argLength: 1},     // Number of bits in arg[0] (returns 0-32)
+	{name: "BitLen64", argLength: 1},     // Number of bits in arg[0] (returns 0-64)
 
 	{name: "Bswap32", argLength: 1}, // Swap bytes
 	{name: "Bswap64", argLength: 1}, // Swap bytes
 
-	{name: "Sqrt", argLength: 1}, // sqrt(arg0), float64 only
+	{name: "BitRev8", argLength: 1},  // Reverse the bits in arg[0]
+	{name: "BitRev16", argLength: 1}, // Reverse the bits in arg[0]
+	{name: "BitRev32", argLength: 1}, // Reverse the bits in arg[0]
+	{name: "BitRev64", argLength: 1}, // Reverse the bits in arg[0]
+
+	{name: "PopCount8", argLength: 1},    // Count bits in arg[0]
+	{name: "PopCount16", argLength: 1},   // Count bits in arg[0]
+	{name: "PopCount32", argLength: 1},   // Count bits in arg[0]
+	{name: "PopCount64", argLength: 1},   // Count bits in arg[0]
+	{name: "RotateLeft8", argLength: 2},  // Rotate bits in arg[0] left by arg[1]
+	{name: "RotateLeft16", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+	{name: "RotateLeft32", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+	{name: "RotateLeft64", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+
+	// Square root, float64 only.
+	// Special cases:
+	//   +∞  → +∞
+	//   ±0  → ±0 (sign preserved)
+	//   x<0 → NaN
+	//   NaN → NaN
+	{name: "Sqrt", argLength: 1}, // √arg0
+
+	// Round to integer, float64 only.
+	// Special cases:
+	//   ±∞  → ±∞ (sign preserved)
+	//   ±0  → ±0 (sign preserved)
+	//   NaN → NaN
+	{name: "Floor", argLength: 1},       // round arg0 toward -∞
+	{name: "Ceil", argLength: 1},        // round arg0 toward +∞
+	{name: "Trunc", argLength: 1},       // round arg0 toward 0
+	{name: "Round", argLength: 1},       // round arg0 to nearest, ties away from 0
+	{name: "RoundToEven", argLength: 1}, // round arg0 to nearest, ties to even
+
+	// Modify the sign bit
+	{name: "Abs", argLength: 1},      // absolute value arg0
+	{name: "Copysign", argLength: 2}, // copy sign from arg0 to arg1
 
 	// Data movement, max argument length for Phi is indefinite so just pick
 	// a really large number
-	{name: "Phi", argLength: -1}, // select an argument based on which predecessor block we came from
-	{name: "Copy", argLength: 1}, // output = arg0
+	{name: "Phi", argLength: -1, zeroWidth: true}, // select an argument based on which predecessor block we came from
+	{name: "Copy", argLength: 1},                  // output = arg0
 	// Convert converts between pointers and integers.
 	// We have a special op for this so as to not confuse GC
 	// (particularly stack maps).  It takes a memory arg so it
 	// gets correctly ordered with respect to GC safepoints.
+	// It gets compiled to nothing, so its result must in the same
+	// register as its argument. regalloc knows it can use any
+	// allocatable integer register for OpConvert.
 	// arg0=ptr/int arg1=mem, output=int/ptr
-	{name: "Convert", argLength: 2},
+	{name: "Convert", argLength: 2, zeroWidth: true, resultInArg0: true},
 
 	// constants. Constant values are stored in the aux or
 	// auxint fields.
@@ -288,48 +324,57 @@ var genericOps = []opData{
 	{name: "Const8", aux: "Int8"},        // auxint is sign-extended 8 bits
 	{name: "Const16", aux: "Int16"},      // auxint is sign-extended 16 bits
 	{name: "Const32", aux: "Int32"},      // auxint is sign-extended 32 bits
-	{name: "Const64", aux: "Int64"},      // value is auxint
-	{name: "Const32F", aux: "Float32"},   // value is math.Float64frombits(uint64(auxint)) and is exactly prepresentable as float 32
-	{name: "Const64F", aux: "Float64"},   // value is math.Float64frombits(uint64(auxint))
-	{name: "ConstInterface"},             // nil interface
-	{name: "ConstSlice"},                 // nil slice
+	// Note: ConstX are sign-extended even when the type of the value is unsigned.
+	// For instance, uint8(0xaa) is stored as auxint=0xffffffffffffffaa.
+	{name: "Const64", aux: "Int64"},    // value is auxint
+	{name: "Const32F", aux: "Float32"}, // value is math.Float64frombits(uint64(auxint)) and is exactly prepresentable as float 32
+	{name: "Const64F", aux: "Float64"}, // value is math.Float64frombits(uint64(auxint))
+	{name: "ConstInterface"},           // nil interface
+	{name: "ConstSlice"},               // nil slice
 
 	// Constant-like things
-	{name: "InitMem"},            // memory input to the function.
-	{name: "Arg", aux: "SymOff"}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
+	{name: "InitMem", zeroWidth: true},                               // memory input to the function.
+	{name: "Arg", aux: "SymOff", symEffect: "Read", zeroWidth: true}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
 
-	// The address of a variable.  arg0 is the base pointer (SB or SP, depending
-	// on whether it is a global or stack variable).  The Aux field identifies the
-	// variable. It will be either an *ExternSymbol (with arg0=SB), *ArgSymbol (arg0=SP),
-	// or *AutoSymbol (arg0=SP).
-	{name: "Addr", argLength: 1, aux: "Sym"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
+	// The address of a variable.  arg0 is the base pointer.
+	// If the variable is a global, the base pointer will be SB and
+	// the Aux field will be a *obj.LSym.
+	// If the variable is a local, the base pointer will be SP and
+	// the Aux field will be a *gc.Node.
+	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"},      // Address of a variable.  Arg0=SB.  Aux identifies the variable.
+	{name: "LocalAddr", argLength: 2, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP. Arg1=mem. Aux identifies the variable.
 
-	{name: "SP"},                 // stack pointer
-	{name: "SB", typ: "Uintptr"}, // static base pointer (a.k.a. globals pointer)
-	{name: "Func", aux: "Sym"},   // entry address of a function
-	{name: "Invalid"},            // unused value
+	{name: "SP", zeroWidth: true},                 // stack pointer
+	{name: "SB", typ: "Uintptr", zeroWidth: true}, // static base pointer (a.k.a. globals pointer)
+	{name: "Invalid"},                             // unused value
 
 	// Memory operations
-	{name: "Load", argLength: 2},                                  // Load from arg0.  arg1=memory
-	{name: "Store", argLength: 3, typ: "Mem", aux: "Int64"},       // Store arg1 to arg0.  arg2=memory, auxint=size.  Returns memory.
-	{name: "Move", argLength: 3, typ: "Mem", aux: "SizeAndAlign"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment.  Returns memory.
-	{name: "Zero", argLength: 2, typ: "Mem", aux: "SizeAndAlign"}, // arg0=destptr, arg1=mem, auxint=size+alignment. Returns memory.
+	{name: "Load", argLength: 2},                          // Load from arg0.  arg1=memory
+	{name: "Store", argLength: 3, typ: "Mem", aux: "Typ"}, // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	// The source and destination of Move may overlap in some cases. See e.g.
+	// memmove inlining in generic.rules. When inlineablememmovesize (in ../rewrite.go)
+	// returns true, we must do all loads before all stores, when lowering Move.
+	{name: "Move", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
+	{name: "Zero", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
 
 	// Memory operations with write barriers.
 	// Expand to runtime calls. Write barrier will be removed if write on stack.
-	{name: "StoreWB", argLength: 3, typ: "Mem", aux: "Int64"},                  // Store arg1 to arg0. arg2=memory, auxint=size.  Returns memory.
-	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign"},         // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=symbol-of-type (for typedmemmove).  Returns memory.
-	{name: "MoveWBVolatile", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=symbol-of-type (for typedmemmove).  Returns memory. Src is volatile, i.e. needs to move to a temp space before calling typedmemmove.
-	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "SymSizeAndAlign"},         // arg0=destptr, arg1=mem, auxint=size+alignment, aux=symbol-of-type. Returns memory.
+	{name: "StoreWB", argLength: 3, typ: "Mem", aux: "Typ"},    // Store arg1 to arg0. arg2=memory, aux=type.  Returns memory.
+	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
+	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
+
+	// WB invokes runtime.gcWriteBarrier. This is not a normal
+	// call: it takes arguments in registers, doesn't clobber
+	// general-purpose registers (the exact clobber set is
+	// arch-dependent), and is not a safe-point.
+	{name: "WB", argLength: 3, typ: "Mem", aux: "Sym", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 
 	// Function calls. Arguments to the call have already been written to the stack.
 	// Return values appear on the stack. The method receiver, if any, is treated
 	// as a phantom first argument.
-	{name: "ClosureCall", argLength: 3, aux: "Int64", call: true}, // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
-	{name: "StaticCall", argLength: 1, aux: "SymOff", call: true}, // call function aux.(*gc.Sym), arg0=memory.  auxint=arg size.  Returns memory.
-	{name: "DeferCall", argLength: 1, aux: "Int64", call: true},   // defer call.  arg0=memory, auxint=arg size.  Returns memory.
-	{name: "GoCall", argLength: 1, aux: "Int64", call: true},      // go call.  arg0=memory, auxint=arg size.  Returns memory.
-	{name: "InterCall", argLength: 2, aux: "Int64", call: true},   // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
+	{name: "ClosureCall", argLength: 3, aux: "Int64", call: true},                    // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
+	{name: "StaticCall", argLength: 1, aux: "SymOff", call: true, symEffect: "None"}, // call function aux.(*obj.LSym), arg0=memory.  auxint=arg size.  Returns memory.
+	{name: "InterCall", argLength: 2, aux: "Int64", call: true},                      // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
 
 	// Conversions: signed extensions, zero (unsigned) extensions, truncations
 	{name: "SignExt8to16", argLength: 1, typ: "Int16"},
@@ -362,6 +407,10 @@ var genericOps = []opData{
 	{name: "Cvt32Fto64F", argLength: 1},
 	{name: "Cvt64Fto32F", argLength: 1},
 
+	// Force rounding to precision of type.
+	{name: "Round32F", argLength: 1},
+	{name: "Round64F", argLength: 1},
+
 	// Automatically inserted safety checks
 	{name: "IsNonNil", argLength: 1, typ: "Bool"},        // arg0 != nil
 	{name: "IsInBounds", argLength: 2, typ: "Bool"},      // 0 <= arg0 < arg1. arg1 is guaranteed >= 0.
@@ -369,8 +418,10 @@ var genericOps = []opData{
 	{name: "NilCheck", argLength: 2, typ: "Void"},        // arg0=ptr, arg1=mem. Panics if arg0 is nil. Returns void.
 
 	// Pseudo-ops
-	{name: "GetG", argLength: 1}, // runtime.getg() (read g pointer). arg0=mem
-	{name: "GetClosurePtr"},      // get closure pointer from dedicated register
+	{name: "GetG", argLength: 1, zeroWidth: true}, // runtime.getg() (read g pointer). arg0=mem
+	{name: "GetClosurePtr"},                       // get closure pointer from dedicated register
+	{name: "GetCallerPC"},                         // for getcallerpc intrinsic
+	{name: "GetCallerSP"},                         // for getcallersp intrinsic
 
 	// Indexing operations
 	{name: "PtrIndex", argLength: 2},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
@@ -394,7 +445,7 @@ var genericOps = []opData{
 
 	// Interfaces
 	{name: "IMake", argLength: 2},                // arg0=itab, arg1=data
-	{name: "ITab", argLength: 1, typ: "BytePtr"}, // arg0=interface, returns itable field
+	{name: "ITab", argLength: 1, typ: "Uintptr"}, // arg0=interface, returns itable field
 	{name: "IData", argLength: 1},                // arg0=interface, returns data field
 
 	// Structs
@@ -418,15 +469,16 @@ var genericOps = []opData{
 	{name: "LoadReg", argLength: 1},
 
 	// Used during ssa construction. Like Copy, but the arg has not been specified yet.
-	{name: "FwdRef", aux: "Sym"},
+	{name: "FwdRef", aux: "Sym", symEffect: "None"},
 
 	// Unknown value. Used for Values whose values don't matter because they are dead code.
 	{name: "Unknown"},
 
-	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
-	{name: "VarKill", argLength: 1, aux: "Sym"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
-	{name: "VarLive", argLength: 1, aux: "Sym"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
-	{name: "KeepAlive", argLength: 2, typ: "Mem"},          // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None", zeroWidth: true}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
+	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},                             // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+	// TODO: what's the difference betweeen VarLive and KeepAlive?
+	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true}, // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                  // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
 
 	// Ops for breaking 64-bit operations on 32-bit architectures
 	{name: "Int64Make", argLength: 2, typ: "UInt64"}, // arg0=hi, arg1=lo
@@ -438,6 +490,9 @@ var genericOps = []opData{
 
 	{name: "Sub32carry", argLength: 2, typ: "(UInt32,Flags)"}, // arg0 - arg1, returns (value, carry)
 	{name: "Sub32withcarry", argLength: 3},                    // arg0 - arg1 - arg2, arg2=carry (0 or 1)
+
+	{name: "Add64carry", argLength: 3, commutative: true, typ: "(UInt64,UInt64)"}, // arg0 + arg1 + arg2, arg2 must be 0 or 1. returns (value, value>>64)
+	{name: "Sub64borrow", argLength: 3, typ: "(UInt64,UInt64)"},                   // arg0 - (arg1 + arg2), arg2 must be 0 or 1. returns (value, value>>64&1)
 
 	{name: "Signmask", argLength: 1, typ: "Int32"},  // 0 if arg0 >= 0, -1 if arg0 < 0
 	{name: "Zeromask", argLength: 1, typ: "UInt32"}, // 0 if arg0 == 0, 0xffffffff if arg0 != 0
@@ -453,27 +508,40 @@ var genericOps = []opData{
 	{name: "Cvt64Fto64U", argLength: 1}, // float64 -> uint64, only used on archs that has the instruction
 
 	// pseudo-ops for breaking Tuple
-	{name: "Select0", argLength: 1}, // the first component of a tuple
-	{name: "Select1", argLength: 1}, // the second component of a tuple
+	{name: "Select0", argLength: 1, zeroWidth: true}, // the first component of a tuple
+	{name: "Select1", argLength: 1, zeroWidth: true}, // the second component of a tuple
 
 	// Atomic operations used for semantically inlining runtime/internal/atomic.
 	// Atomic loads return a new memory so that the loads are properly ordered
 	// with respect to other loads and stores.
 	// TODO: use for sync/atomic at some point.
-	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},         // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},         // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},       // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicStore32", argLength: 3, typ: "Mem"},                 // Store arg1 to *arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicStore64", argLength: 3, typ: "Mem"},                 // Store arg1 to *arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem"},            // Store arg1 to *arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)"},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)"},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)"},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
-	{name: "AtomicAdd64", argLength: 3, typ: "(UInt64,Mem)"},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
-	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)"}, // if *arg0==arg1, then set *arg0=arg2.  Returns true iff store happens and new memory.
-	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)"}, // if *arg0==arg1, then set *arg0=arg2.  Returns true iff store happens and new memory.
-	{name: "AtomicAnd8", argLength: 3, typ: "Mem"},                    // *arg0 &= arg1.  arg2=memory.  Returns memory.
-	{name: "AtomicOr8", argLength: 3, typ: "Mem"},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},                                // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoadAcq32", argLength: 2, typ: "(UInt32,Mem)"},                               // Load from arg0.  arg1=memory.  Lock acquisition, returns loaded value and new memory.
+	{name: "AtomicStore32", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStore64", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem", hasSideEffects: true},               // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStoreRel32", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Lock release, returns memory.
+	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},             // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicAdd64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},             // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+	{name: "AtomicCompareAndSwapRel32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Lock release, reports whether store happens and new memory.
+	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},                       // *arg0 &= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},                        // *arg0 |= arg1.  arg2=memory.  Returns memory.
+
+	// Atomic operation variants
+	// These variants have the same semantics as above atomic operations.
+	// But they are used for generating more efficient code on certain modern machines, with run-time CPU feature detection.
+	// Currently, they are used on ARM64 only.
+	{name: "AtomicAdd32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true}, // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicAdd64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true}, // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+
+	// Clobber experiment op
+	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable
 }
 
 //     kind           control    successors       implicit exit

@@ -4,10 +4,7 @@
 
 package runtime
 
-import (
-	"runtime/internal/sys"
-	"unsafe"
-)
+import "unsafe"
 
 // Should be a built-in for unsafe.Pointer?
 //go:nosplit
@@ -56,8 +53,13 @@ func mcall(fn func(*g))
 //go:noescape
 func systemstack(fn func())
 
+var badsystemstackMsg = "fatal: systemstack called from unexpected goroutine"
+
+//go:nosplit
+//go:nowritebarrierrec
 func badsystemstack() {
-	throw("systemstack called from unexpected goroutine")
+	sp := stringStructOf(&badsystemstackMsg)
+	write(2, sp.str, int32(sp.len))
 }
 
 // memclrNoHeapPointers clears n bytes starting at ptr.
@@ -66,12 +68,12 @@ func badsystemstack() {
 // used only when the caller knows that *ptr contains no heap pointers
 // because either:
 //
-// 1. *ptr is initialized memory and its type is pointer-free.
+// *ptr is initialized memory and its type is pointer-free, or
 //
-// 2. *ptr is uninitialized memory (e.g., memory that's being reused
-//    for a new allocation) and hence contains only "junk".
+// *ptr is uninitialized memory (e.g., memory that's being reused
+// for a new allocation) and hence contains only "junk".
 //
-// in memclr_*.s
+// The (CPU-specific) implementations of this function are in memclr_*.s.
 //go:noescape
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 
@@ -91,10 +93,29 @@ func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
 }
 
 // exported value for testing
-var hashLoad = loadFactor
+var hashLoad = float32(loadFactorNum) / float32(loadFactorDen)
 
-// in asm_*.s
-func fastrand() uint32
+//go:nosplit
+func fastrand() uint32 {
+	mp := getg().m
+	// Implement xorshift64+: 2 32-bit xorshift sequences added together.
+	// Shift triplet [17,7,16] was calculated as indicated in Marsaglia's
+	// Xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
+	// This generator passes the SmallCrush suite, part of TestU01 framework:
+	// http://simul.iro.umontreal.ca/testu01/tu01.html
+	s1, s0 := mp.fastrand[0], mp.fastrand[1]
+	s1 ^= s1 << 17
+	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
+	mp.fastrand[0], mp.fastrand[1] = s0, s1
+	return s0 + s1
+}
+
+//go:nosplit
+func fastrandn(n uint32) uint32 {
+	// This is similar to fastrand() % n, but faster.
+	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
+	return uint32(uint64(fastrand()) * uint64(n) >> 32)
+}
 
 //go:linkname sync_fastrand sync.fastrand
 func sync_fastrand() uint32 { return fastrand() }
@@ -117,11 +138,9 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
 func cgocallback(fn, frame unsafe.Pointer, framesize, ctxt uintptr)
 func gogo(buf *gobuf)
 func gosave(buf *gobuf)
-func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 
 //go:noescape
 func jmpdefer(fv *funcval, argp uintptr)
-func exit1(code int32)
 func asminit()
 func setg(gg *g)
 func breakpoint()
@@ -135,6 +154,8 @@ func breakpoint()
 // one call that copies results back, in cgocallbackg1, and it does NOT pass a
 // frame type, meaning there are no write barriers invoked. See that call
 // site for justification.
+//
+// Package reflect accesses this symbol through a linkname.
 func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
 
 func procyield(cycles uint32)
@@ -150,7 +171,7 @@ type neverCallThisFunction struct{}
 // This function must never be called directly. Call goexit1 instead.
 // gentraceback assumes that goexit terminates the stack. A direct
 // call on the stack will cause gentraceback to stop walking the stack
-// prematurely and if there are leftover stack barriers it may panic.
+// prematurely and if there is leftover state it may panic.
 func goexit(neverCallThisFunction)
 
 // Not all cgocallback_gofunc frames are actually cgocallback_gofunc,
@@ -159,7 +180,7 @@ func goexit(neverCallThisFunction)
 // cgocallback_gofunc is not called from go, only from cgocallback,
 // so the arguments will be found via cgocallback's pointer-declared arguments.
 // See the assembly implementations for more details.
-func cgocallback_gofunc(fv uintptr, frame uintptr, framesize, ctxt uintptr)
+func cgocallback_gofunc(fv, frame, framesize, ctxt uintptr)
 
 // publicationBarrier performs a store/store barrier (a "publication"
 // or "export" barrier). Some form of synchronization is required
@@ -178,30 +199,23 @@ func cgocallback_gofunc(fv uintptr, frame uintptr, framesize, ctxt uintptr)
 // data dependency ordering.
 func publicationBarrier()
 
-//go:noescape
-func setcallerpc(argp unsafe.Pointer, pc uintptr)
-
 // getcallerpc returns the program counter (PC) of its caller's caller.
 // getcallersp returns the stack pointer (SP) of its caller's caller.
-// For both, the argp must be a pointer to the caller's first function argument.
-// The implementation may or may not use argp, depending on
-// the architecture.
+// The implementation may be a compiler intrinsic; there is not
+// necessarily code implementing this on every platform.
 //
 // For example:
 //
 //	func f(arg1, arg2, arg3 int) {
-//		pc := getcallerpc(unsafe.Pointer(&arg1))
-//		sp := getcallersp(unsafe.Pointer(&arg1))
+//		pc := getcallerpc()
+//		sp := getcallersp()
 //	}
 //
 // These two lines find the PC and SP immediately following
 // the call to f (where f will return).
 //
 // The call to getcallerpc and getcallersp must be done in the
-// frame being asked about. It would not be correct for f to pass &arg1
-// to another function g and let g call getcallerpc/getcallersp.
-// The call inside g might return information about g's caller or
-// information about f's caller or complete garbage.
+// frame being asked about.
 //
 // The result of getcallersp is correct at the time of the return,
 // but it may be invalidated by any subsequent call to a function
@@ -210,12 +224,26 @@ func setcallerpc(argp unsafe.Pointer, pc uintptr)
 // immediately and can only be passed to nosplit functions.
 
 //go:noescape
-func getcallerpc(argp unsafe.Pointer) uintptr
+func getcallerpc() uintptr
 
-//go:nosplit
-func getcallersp(argp unsafe.Pointer) uintptr {
-	return uintptr(argp) - sys.MinFrameSize
-}
+//go:noescape
+func getcallersp() uintptr // implemented as an intrinsic on all platforms
+
+// getclosureptr returns the pointer to the current closure.
+// getclosureptr can only be used in an assignment statement
+// at the entry of a function. Moreover, go:nosplit directive
+// must be specified at the declaration of caller function,
+// so that the function prolog does not clobber the closure register.
+// for example:
+//
+//	//go:nosplit
+//	func f(arg1, arg2, arg3 int) {
+//		dx := getclosureptr()
+//	}
+//
+// The compiler rewrites calls to this function into instructions that fetch the
+// pointer from a well-known register (DX on x86 architecture, etc.) directly.
+func getclosureptr() uintptr
 
 //go:noescape
 func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -227,22 +255,12 @@ func morestack()
 func morestack_noctxt()
 func rt0_go()
 
-// stackBarrier records that the stack has been unwound past a certain
-// point. It is installed over a return PC on the stack. It must
-// retrieve the original return PC from g.stkbuf, increment
-// g.stkbufPos to record that the barrier was hit, and jump to the
-// original return PC.
-func stackBarrier()
-
 // return0 is a stub used to return 0 from deferproc.
 // It is called at the very end of deferproc to signal
 // the calling Go function that it should not jump
 // to deferreturn.
 // in asm_*.s
 func return0()
-
-//go:linkname time_now time.now
-func time_now() (sec int64, nsec int32)
 
 // in asm_*.s
 // not called directly; definitions here supply type information for traceback.
@@ -275,16 +293,6 @@ func call1073741824(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
 
 func systemstack_switch()
 
-func prefetcht0(addr uintptr)
-func prefetcht1(addr uintptr)
-func prefetcht2(addr uintptr)
-func prefetchnta(addr uintptr)
-
-func unixnanotime() int64 {
-	sec, nsec := time_now()
-	return sec*1e9 + int64(nsec)
-}
-
 // round n up to a multiple of a.  a must be a power of 2.
 func round(n, a uintptr) uintptr {
 	return (n + a - 1) &^ (a - 1)
@@ -294,4 +302,17 @@ func round(n, a uintptr) uintptr {
 func checkASM() bool
 
 func memequal_varlen(a, b unsafe.Pointer) bool
-func eqstring(s1, s2 string) bool
+
+// bool2int returns 0 if x is false or 1 if x is true.
+func bool2int(x bool) int {
+	// Avoid branches. In the SSA compiler, this compiles to
+	// exactly what you would want it to.
+	return int(uint8(*(*uint8)(unsafe.Pointer(&x))))
+}
+
+// abort crashes the runtime in situations where even throw might not
+// work. In general it should do something a debugger will recognize
+// (e.g., an INT3 on x86). A crash in abort is recognized by the
+// signal handler, which will attempt to tear down the runtime
+// immediately.
+func abort()

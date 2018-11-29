@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"cmd/internal/src"
+	"fmt"
+)
 
 // Block represents a basic block in the control flow graph of a function.
 type Block struct {
@@ -12,8 +15,8 @@ type Block struct {
 	// these IDs densely, but no guarantees.
 	ID ID
 
-	// Line number for block's control operation
-	Line int32
+	// Source position for block's control operation
+	Pos src.XPos
 
 	// The kind of block this is.
 	Kind BlockKind
@@ -98,7 +101,7 @@ func (e Edge) Index() int {
 //     Exit        return mem                []
 //    Plain               nil            [next]
 //       If   a boolean Value      [then, else]
-//    Defer               mem  [nopanic, panic]  (control opcode should be OpDeferCall)
+//    Defer               mem  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
 type BlockKind int8
 
 // short form print
@@ -193,6 +196,29 @@ func (b *Block) swapSuccessors() {
 	e0.b.Preds[e0.i].i = 1
 	e1.b.Preds[e1.i].i = 0
 	b.Likely *= -1
+}
+
+// LackingPos indicates whether b is a block whose position should be inherited
+// from its successors.  This is true if all the values within it have unreliable positions
+// and if it is "plain", meaning that there is no control flow that is also very likely
+// to correspond to a well-understood source position.
+func (b *Block) LackingPos() bool {
+	// Non-plain predecessors are If or Defer, which both (1) have two successors,
+	// which might have different line numbers and (2) correspond to statements
+	// in the source code that have positions, so this case ought not occur anyway.
+	if b.Kind != BlockPlain {
+		return false
+	}
+	if b.Pos != src.NoXPos {
+		return false
+	}
+	for _, v := range b.Values {
+		if v.LackingPos() {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func (b *Block) Logf(msg string, args ...interface{})   { b.Func.Logf(msg, args...) }

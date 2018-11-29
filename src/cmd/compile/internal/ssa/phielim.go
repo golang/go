@@ -63,7 +63,7 @@ func phielimValue(v *Value) bool {
 	v.SetArgs1(w)
 	f := v.Block.Func
 	if f.pass.debug > 0 {
-		f.Config.Warnl(v.Line, "eliminated phi")
+		f.Warnl(v.Pos, "eliminated phi")
 	}
 	return true
 }

@@ -36,15 +36,16 @@ func (a *Mpint) Set(b *Mpint) {
 	a.Val.Set(&b.Val)
 }
 
-func (a *Mpint) SetFloat(b *Mpflt) int {
+func (a *Mpint) SetFloat(b *Mpflt) bool {
 	// avoid converting huge floating-point numbers to integers
 	// (2*Mpprec is large enough to permit all tests to pass)
 	if b.Val.MantExp(nil) > 2*Mpprec {
-		return -1
+		a.SetOverflow()
+		return false
 	}
 
 	if _, acc := b.Val.Int(&a.Val); acc == big.Exact {
-		return 0
+		return true
 	}
 
 	const delta = 16 // a reasonably small number of bits > 0
@@ -55,23 +56,24 @@ func (a *Mpint) SetFloat(b *Mpflt) int {
 	t.SetMode(big.ToZero)
 	t.Set(&b.Val)
 	if _, acc := t.Int(&a.Val); acc == big.Exact {
-		return 0
+		return true
 	}
 
 	// try rounding up a little
 	t.SetMode(big.AwayFromZero)
 	t.Set(&b.Val)
 	if _, acc := t.Int(&a.Val); acc == big.Exact {
-		return 0
+		return true
 	}
 
-	return -1
+	a.Ovf = false
+	return false
 }
 
 func (a *Mpint) Add(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in Mpint Add")
+			Fatalf("ovf in Mpint Add")
 		}
 		a.SetOverflow()
 		return
@@ -87,7 +89,7 @@ func (a *Mpint) Add(b *Mpint) {
 func (a *Mpint) Sub(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in Mpint Sub")
+			Fatalf("ovf in Mpint Sub")
 		}
 		a.SetOverflow()
 		return
@@ -103,7 +105,7 @@ func (a *Mpint) Sub(b *Mpint) {
 func (a *Mpint) Mul(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in Mpint Mul")
+			Fatalf("ovf in Mpint Mul")
 		}
 		a.SetOverflow()
 		return
@@ -119,7 +121,7 @@ func (a *Mpint) Mul(b *Mpint) {
 func (a *Mpint) Quo(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in Mpint Quo")
+			Fatalf("ovf in Mpint Quo")
 		}
 		a.SetOverflow()
 		return
@@ -136,7 +138,7 @@ func (a *Mpint) Quo(b *Mpint) {
 func (a *Mpint) Rem(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in Mpint Rem")
+			Fatalf("ovf in Mpint Rem")
 		}
 		a.SetOverflow()
 		return
@@ -153,7 +155,7 @@ func (a *Mpint) Rem(b *Mpint) {
 func (a *Mpint) Or(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in Mpint Or")
+			Fatalf("ovf in Mpint Or")
 		}
 		a.SetOverflow()
 		return
@@ -165,7 +167,7 @@ func (a *Mpint) Or(b *Mpint) {
 func (a *Mpint) And(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in Mpint And")
+			Fatalf("ovf in Mpint And")
 		}
 		a.SetOverflow()
 		return
@@ -177,7 +179,7 @@ func (a *Mpint) And(b *Mpint) {
 func (a *Mpint) AndNot(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in Mpint AndNot")
+			Fatalf("ovf in Mpint AndNot")
 		}
 		a.SetOverflow()
 		return
@@ -189,7 +191,7 @@ func (a *Mpint) AndNot(b *Mpint) {
 func (a *Mpint) Xor(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in Mpint Xor")
+			Fatalf("ovf in Mpint Xor")
 		}
 		a.SetOverflow()
 		return
@@ -201,7 +203,7 @@ func (a *Mpint) Xor(b *Mpint) {
 func (a *Mpint) Lsh(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in Mpint Lsh")
+			Fatalf("ovf in Mpint Lsh")
 		}
 		a.SetOverflow()
 		return
@@ -228,7 +230,7 @@ func (a *Mpint) Lsh(b *Mpint) {
 func (a *Mpint) Rsh(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("ovf in Mpint Rsh")
+			Fatalf("ovf in Mpint Rsh")
 		}
 		a.SetOverflow()
 		return
@@ -266,7 +268,7 @@ func (a *Mpint) Neg() {
 func (a *Mpint) Int64() int64 {
 	if a.Ovf {
 		if nsavederrors+nerrors == 0 {
-			yyerror("constant overflow")
+			Fatalf("constant overflow")
 		}
 		return 0
 	}
@@ -297,13 +299,10 @@ func (a *Mpint) SetString(as string) {
 	}
 }
 
-func (x *Mpint) String() string {
-	return bconv(x, 0)
+func (a *Mpint) GoString() string {
+	return a.Val.String()
 }
 
-func bconv(xval *Mpint, flag FmtFlag) string {
-	if flag&FmtSharp != 0 {
-		return fmt.Sprintf("%#x", &xval.Val)
-	}
-	return xval.Val.String()
+func (a *Mpint) String() string {
+	return fmt.Sprintf("%#x", &a.Val)
 }

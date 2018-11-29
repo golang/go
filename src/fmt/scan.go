@@ -298,13 +298,6 @@ func notSpace(r rune) bool {
 	return !isSpace(r)
 }
 
-// SkipSpace provides Scan methods the ability to skip space and newline
-// characters in keeping with the current scanning mode set by format strings
-// and Scan/Scanln.
-func (s *ss) SkipSpace() {
-	s.skipSpace(false)
-}
-
 // readRune is a structure to enable reading UTF-8 encoded code points
 // from an io.Reader. It is used if the Reader given to the scanner does
 // not already implement io.RuneScanner.
@@ -421,8 +414,10 @@ func (s *ss) free(old ssave) {
 	ssFree.Put(s)
 }
 
-// skipSpace skips spaces and maybe newlines.
-func (s *ss) skipSpace(stopAtNewline bool) {
+// SkipSpace provides Scan methods the ability to skip space and newline
+// characters in keeping with the current scanning mode set by format strings
+// and Scan/Scanln.
+func (s *ss) SkipSpace() {
 	for {
 		r := s.getRune()
 		if r == eof {
@@ -432,9 +427,6 @@ func (s *ss) skipSpace(stopAtNewline bool) {
 			continue
 		}
 		if r == '\n' {
-			if stopAtNewline {
-				break
-			}
 			if s.nlIsSpace {
 				continue
 			}
@@ -453,7 +445,7 @@ func (s *ss) skipSpace(stopAtNewline bool) {
 // newlines are treated as spaces.
 func (s *ss) token(skipSpace bool, f func(rune) bool) []byte {
 	if skipSpace {
-		s.skipSpace(false)
+		s.SkipSpace()
 	}
 	// read until white space or newline
 	for {
@@ -537,7 +529,7 @@ func (s *ss) okVerb(verb rune, okVerbs, typ string) bool {
 
 // scanBool returns the value of the boolean represented by the next token.
 func (s *ss) scanBool(verb rune) bool {
-	s.skipSpace(false)
+	s.SkipSpace()
 	s.notEOF()
 	if !s.okVerb(verb, "tv", "boolean") {
 		return false
@@ -641,7 +633,7 @@ func (s *ss) scanInt(verb rune, bitSize int) int64 {
 	if verb == 'c' {
 		return s.scanRune(bitSize)
 	}
-	s.skipSpace(false)
+	s.SkipSpace()
 	s.notEOF()
 	base, digits := s.getBase(verb)
 	haveDigits := false
@@ -674,7 +666,7 @@ func (s *ss) scanUint(verb rune, bitSize int) uint64 {
 	if verb == 'c' {
 		return uint64(s.scanRune(bitSize))
 	}
-	s.skipSpace(false)
+	s.SkipSpace()
 	s.notEOF()
 	base, digits := s.getBase(verb)
 	haveDigits := false
@@ -795,7 +787,7 @@ func (s *ss) scanComplex(verb rune, n int) complex128 {
 	if !s.okVerb(verb, floatVerbs, "complex") {
 		return 0
 	}
-	s.skipSpace(false)
+	s.SkipSpace()
 	s.notEOF()
 	sreal, simag := s.complexTokens()
 	real := s.convertFloat(sreal, n/2)
@@ -809,7 +801,7 @@ func (s *ss) convertString(verb rune) (str string) {
 	if !s.okVerb(verb, "svqxX", "string") {
 		return ""
 	}
-	s.skipSpace(false)
+	s.SkipSpace()
 	s.notEOF()
 	switch verb {
 	case 'q':
@@ -973,13 +965,13 @@ func (s *ss) scanOne(verb rune, arg interface{}) {
 	// scan in high precision and convert, in order to preserve the correct error condition.
 	case *float32:
 		if s.okVerb(verb, floatVerbs, "float32") {
-			s.skipSpace(false)
+			s.SkipSpace()
 			s.notEOF()
 			*v = float32(s.convertFloat(s.floatToken(), 32))
 		}
 	case *float64:
 		if s.okVerb(verb, floatVerbs, "float64") {
-			s.skipSpace(false)
+			s.SkipSpace()
 			s.notEOF()
 			*v = s.convertFloat(s.floatToken(), 64)
 		}
@@ -1017,7 +1009,7 @@ func (s *ss) scanOne(verb rune, arg interface{}) {
 				v.Index(i).SetUint(uint64(str[i]))
 			}
 		case reflect.Float32, reflect.Float64:
-			s.skipSpace(false)
+			s.SkipSpace()
 			s.notEOF()
 			v.SetFloat(s.convertFloat(s.floatToken(), v.Type().Bits()))
 		case reflect.Complex64, reflect.Complex128:

@@ -27,8 +27,8 @@ var suites = []struct{ name, file string }{
 	// does not repeat, but there are only 10 possible digits, so it should be
 	// reasonably compressible.
 	{"Digits", "../testdata/e.txt"},
-	// Twain is Mark Twain's classic English novel.
-	{"Twain", "../testdata/Mark.Twain-Tom.Sawyer.txt"},
+	// Newton is Isaac Newtons's educational text on Opticks.
+	{"Newton", "../../testdata/Isaac.Newton-Opticks.txt"},
 }
 
 func BenchmarkDecode(b *testing.B) {

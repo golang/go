@@ -6,7 +6,10 @@
 
 package strconv
 
-import "unicode/utf8"
+import (
+	"internal/bytealg"
+	"unicode/utf8"
+)
 
 const lowerhex = "0123456789abcdef"
 
@@ -32,7 +35,7 @@ func appendQuotedWith(buf []byte, s string, quote byte, ASCIIonly, graphicOnly b
 			buf = append(buf, lowerhex[s[0]&0xF])
 			continue
 		}
-		buf = appendEscapedRune(buf, r, width, quote, ASCIIonly, graphicOnly)
+		buf = appendEscapedRune(buf, r, quote, ASCIIonly, graphicOnly)
 	}
 	buf = append(buf, quote)
 	return buf
@@ -43,12 +46,12 @@ func appendQuotedRuneWith(buf []byte, r rune, quote byte, ASCIIonly, graphicOnly
 	if !utf8.ValidRune(r) {
 		r = utf8.RuneError
 	}
-	buf = appendEscapedRune(buf, r, utf8.RuneLen(r), quote, ASCIIonly, graphicOnly)
+	buf = appendEscapedRune(buf, r, quote, ASCIIonly, graphicOnly)
 	buf = append(buf, quote)
 	return buf
 }
 
-func appendEscapedRune(buf []byte, r rune, width int, quote byte, ASCIIonly, graphicOnly bool) []byte {
+func appendEscapedRune(buf []byte, r rune, quote byte, ASCIIonly, graphicOnly bool) []byte {
 	var runeTmp [utf8.UTFMax]byte
 	if r == rune(quote) || r == '\\' { // always backslashed
 		buf = append(buf, '\\')
@@ -237,6 +240,10 @@ func unhex(b byte) (v rune, ok bool) {
 // If set to zero, it does not permit either escape and allows both quote characters to appear unescaped.
 func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string, err error) {
 	// easy cases
+	if len(s) == 0 {
+		err = ErrSyntax
+		return
+	}
 	switch c := s[0]; {
 	case c == quote && (quote == '\'' || quote == '"'):
 		err = ErrSyntax
@@ -381,11 +388,13 @@ func Unquote(s string) (string, error) {
 		return "", ErrSyntax
 	}
 
-	// Is it trivial?  Avoid allocation.
+	// Is it trivial? Avoid allocation.
 	if !contains(s, '\\') && !contains(s, quote) {
 		switch quote {
 		case '"':
-			return s, nil
+			if utf8.ValidString(s) {
+				return s, nil
+			}
 		case '\'':
 			r, size := utf8.DecodeRuneInString(s)
 			if size == len(s) && (r != utf8.RuneError || size != 1) {
@@ -418,12 +427,7 @@ func Unquote(s string) (string, error) {
 
 // contains reports whether the string contains the byte c.
 func contains(s string, c byte) bool {
-	for i := 0; i < len(s); i++ {
-		if s[i] == c {
-			return true
-		}
-	}
-	return false
+	return bytealg.IndexByteString(s, c) != -1
 }
 
 // bsearch16 returns the smallest i such that a[i] >= x.

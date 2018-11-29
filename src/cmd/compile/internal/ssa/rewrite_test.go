@@ -25,7 +25,7 @@ func TestNlzNto(t *testing.T) {
 	// construct the bit pattern 000...111, with bit 33 set as well.
 	for i := int64(0); i < 64; i++ {
 		tx := x | (1 << 32)
-		// nto should be the the number of bits we've shifted on, with an extra bit
+		// nto should be the number of bits we've shifted on, with an extra bit
 		// at iter 32
 		ntoExp := i
 		if ntoExp == 32 {
@@ -100,6 +100,28 @@ func TestLog2(t *testing.T) {
 	for _, tc := range log2Tests {
 		if got := log2(tc.v); got != tc.exp {
 			t.Errorf("expected log2(%d) = %d, got %d", tc.v, tc.exp, got)
+		}
+	}
+}
+
+// We generate memmove for copy(x[1:], x[:]), however we may change it to OpMove,
+// because size is known. Check that OpMove is alias-safe, or we did call memmove.
+func TestMove(t *testing.T) {
+	x := [...]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40}
+	copy(x[1:], x[:])
+	for i := 1; i < len(x); i++ {
+		if int(x[i]) != i {
+			t.Errorf("Memmove got converted to OpMove in alias-unsafe way. Got %d insted of %d in position %d", int(x[i]), i, i+1)
+		}
+	}
+}
+
+func TestMoveSmall(t *testing.T) {
+	x := [...]byte{1, 2, 3, 4, 5, 6, 7}
+	copy(x[1:], x[:])
+	for i := 1; i < len(x); i++ {
+		if int(x[i]) != i {
+			t.Errorf("Memmove got converted to OpMove in alias-unsafe way. Got %d instead of %d in position %d", int(x[i]), i, i+1)
 		}
 	}
 }

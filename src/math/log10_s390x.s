@@ -87,7 +87,7 @@ L1:
 	RET
 
 L2:
-	WORD    $0xB3120000     //ltdbr %f0,%f0
+	LTDBR	F0, F0
 	BLEU    L13
 	WORD    $0xED009080     //mdb %f0,.L20-.L19(%r9)
 	BYTE    $0x00
@@ -108,7 +108,7 @@ L8:
 	ORW     $0x45000000, R2
 L4:
 	FMOVD   log10rodataL19<>+120(SB), F2
-	WORD    $0xB3C10041     //ldgr  %f4,%r1
+	LDGR    R1, F4
 	WFMADB  V4, V0, V2, V0
 	FMOVD   log10rodataL19<>+112(SB), F4
 	FMOVD   log10rodataL19<>+104(SB), F6
@@ -140,7 +140,7 @@ L4:
 	WORD    $0x68331000     //ld %f3,0(%r3,%r1)
 	WFMADB  V0, V4, V3, V0
 	FMOVD   log10rodataL19<>+24(SB), F4
-	FMADD   F4, F2, F0, F0
+	FMADD   F4, F2, F0
 	FMOVD   F0, ret+8(FP)
 	RET
 

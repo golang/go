@@ -93,6 +93,7 @@ type entry struct {
 	Value      string
 	Domain     string
 	Path       string
+	SameSite   string
 	Secure     bool
 	HttpOnly   bool
 	Persistent bool
@@ -331,7 +332,7 @@ func jarKey(host string, psl PublicSuffixList) string {
 	var i int
 	if psl == nil {
 		i = strings.LastIndex(host, ".")
-		if i == -1 {
+		if i <= 0 {
 			return host
 		}
 	} else {
@@ -345,6 +346,9 @@ func jarKey(host string, psl PublicSuffixList) string {
 			// Storing cookies under host is a safe stopgap.
 			return host
 		}
+		// Only len(suffix) is used to determine the jar key from
+		// here on, so it is okay if psl.PublicSuffix("www.buggy.psl")
+		// returns "com" as the jar key is generated from host.
 	}
 	prevDot := strings.LastIndex(host[:i-1], ".")
 	return host[prevDot+1:]
@@ -414,6 +418,15 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 	e.Value = c.Value
 	e.Secure = c.Secure
 	e.HttpOnly = c.HttpOnly
+
+	switch c.SameSite {
+	case http.SameSiteDefaultMode:
+		e.SameSite = "SameSite"
+	case http.SameSiteStrictMode:
+		e.SameSite = "SameSite=Strict"
+	case http.SameSiteLaxMode:
+		e.SameSite = "SameSite=Lax"
+	}
 
 	return e, false, nil
 }

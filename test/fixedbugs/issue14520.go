@@ -9,6 +9,6 @@ package f
 import /* // ERROR "import path" */ `
 bogus`
 
-func f(x int /* // ERROR "unexpected semicolon"
+func f(x int /* // ERROR "unexpected newline"
 
 */)

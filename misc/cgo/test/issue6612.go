@@ -74,18 +74,15 @@ func testNaming(t *testing.T) {
 		}
 	}
 
-	// This would be nice, but it has never worked.
-	/*
-		if c := C.myfloat_def; c != 1.5 {
-			t.Errorf("C.myint_def = %v, want 1.5", c)
-		}
-		{
-			const c = C.myfloat_def
-			if c != 1.5 {
+	if c := C.myfloat_def; c != 1.5 {
+		t.Errorf("C.myint_def = %v, want 1.5", c)
+	}
+	{
+		const c = C.myfloat_def
+		if c != 1.5 {
 			t.Errorf("C.myint as const = %v, want 1.5", c)
-			}
 		}
-	*/
+	}
 
 	if s := C.mystring_def; s != "hello" {
 		t.Errorf("C.mystring_def = %q, want %q", s, "hello")

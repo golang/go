@@ -5,7 +5,9 @@
 // This input was created by taking the ppc64 testcase and modified
 // by hand.
 
-TEXT foo(SB),7,$0
+#include "../../../../../runtime/textflag.h"
+
+TEXT foo(SB),DUPOK|NOSPLIT,$0
 
 //inst:
 //
@@ -36,6 +38,9 @@ TEXT foo(SB),7,$0
 	MOVV	foo<>+3(SB), R2
 	MOVV	16(R1), R2
 	MOVV	(R1), R2
+
+	LL	(R1), R2 // c0220000
+	LLV	(R1), R2 // d0220000
 
 //	LMOVB rreg ',' rreg
 //	{
@@ -95,6 +100,9 @@ TEXT foo(SB),7,$0
 	MOVV	R1, foo<>+3(SB)
 	MOVV	R1, 16(R2)
 	MOVV	R1, (R2)
+
+	SC	R1, (R2) // e0410000
+	SCV	R1, (R2) // f0410000
 
 //	LMOVB rreg ',' addr
 //	{
@@ -236,11 +244,11 @@ TEXT foo(SB),7,$0
 label0:
 	JMP	1(PC)
 	BEQ	R1, 2(PC)
-	JMP	label0+0 // JMP 64
+	JMP	label0+0 // JMP 68
 	BEQ	R1, 2(PC)
 	JAL	1(PC) // CALL 1(PC)
 	BEQ	R1, 2(PC)
-	JAL	label0+0 // CALL 64
+	JAL	label0+0 // CALL 68
 
 //	LBRA addr
 //	{
@@ -264,7 +272,7 @@ label0:
 //	}
 label1:
 	BEQ	R1, 1(PC)
-	BEQ	R1, label1 // BEQ R1, 79
+	BEQ	R1, label1 // BEQ R1, 83
 
 //	LBRA rreg ',' sreg ',' rel
 //	{
@@ -272,7 +280,7 @@ label1:
 //	}
 label2:
 	BEQ	R1, R2, 1(PC)
-	BEQ	R1, R2, label2 // BEQ R1, R2, 81
+	BEQ	R1, R2, label2 // BEQ R1, R2, 85
 
 //
 // other integer conditional branch
@@ -283,7 +291,7 @@ label2:
 //	}
 label3:
 	BLTZ	R1, 1(PC)
-	BLTZ	R1, label3 // BLTZ R1, 83
+	BLTZ	R1, label3 // BLTZ R1, 87
 
 //
 // floating point conditional branch
@@ -291,7 +299,7 @@ label3:
 //	LBRA rel
 label4:
 	BFPT	1(PC)
-	BFPT	label4 // BFPT 85
+	BFPT	label4 // BFPT 89
 
 
 //
@@ -325,7 +333,9 @@ label4:
 //
 // WORD
 //
-	WORD	$1
+	WORD	$1	// 00000001
+	NOOP		// 00000000
+	SYNC		// 0000000f
 
 //
 // NOP
@@ -392,6 +402,10 @@ label4:
 	BEQ	R1, 2(PC)
 	JMP	foo(SB)
 	CALL	foo(SB)
+	RET	foo(SB)
+
+	NEGW	R1, R2 // 00011023
+	NEGV	R1, R2 // 0001102f
 
 // END
 //

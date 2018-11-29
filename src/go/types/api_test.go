@@ -26,7 +26,6 @@ func pkgFor(path, source string, info *Info) (*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	conf := Config{Importer: importer.Default()}
 	return conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
 }
@@ -40,6 +39,20 @@ func mustTypecheck(t *testing.T, path, source string, info *Info) string {
 		}
 		t.Fatalf("%s: didn't type-check (%s)", name, err)
 	}
+	return pkg.Name()
+}
+
+func mayTypecheck(t *testing.T, path, source string, info *Info) string {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, path, source, 0)
+	if f == nil { // ignore errors unless f is nil
+		t.Fatalf("%s: unable to parse: %s", path, err)
+	}
+	conf := Config{
+		Error:    func(err error) {},
+		Importer: importer.Default(),
+	}
+	pkg, _ := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
 	return pkg.Name()
 }
 
@@ -87,6 +100,10 @@ func TestValuesInfo(t *testing.T) {
 		{`package c5a; var _ = string("foo")`, `"foo"`, `string`, `"foo"`},
 		{`package c5b; var _ = string("foo")`, `string("foo")`, `string`, `"foo"`},
 		{`package c5c; type T string; var _ = T("foo")`, `T("foo")`, `c5c.T`, `"foo"`},
+		{`package c5d; var _ = string(65)`, `65`, `untyped int`, `65`},
+		{`package c5e; var _ = string('A')`, `'A'`, `untyped rune`, `65`},
+		{`package c5f; type T string; var _ = T('A')`, `'A'`, `untyped rune`, `65`},
+		{`package c5g; var s uint; var _ = string(1 << s)`, `1 << s`, `untyped int`, ``},
 
 		{`package d0; var _ = []byte("foo")`, `"foo"`, `string`, `"foo"`},
 		{`package d1; var _ = []byte(string("foo"))`, `"foo"`, `string`, `"foo"`},
@@ -114,6 +131,8 @@ func TestValuesInfo(t *testing.T) {
 		{`package f7a; var _ complex128 = -1e-2000i`, `-1e-2000i`, `complex128`, `(0 + 0i)`},
 		{`package f6b; var _            =  1e-2000i`, `1e-2000i`, `complex128`, `(0 + 0i)`},
 		{`package f7b; var _            = -1e-2000i`, `-1e-2000i`, `complex128`, `(0 + 0i)`},
+
+		{`package g0; const (a = len([iota]int{}); b; c); const _ = c`, `c`, `int`, `2`}, // issue #22341
 	}
 
 	for _, test := range tests {
@@ -122,7 +141,7 @@ func TestValuesInfo(t *testing.T) {
 		}
 		name := mustTypecheck(t, "ValuesInfo", test.src, &info)
 
-		// look for constant expression
+		// look for expression
 		var expr ast.Expr
 		for e := range info.Types {
 			if ExprString(e) == test.expr {
@@ -142,9 +161,15 @@ func TestValuesInfo(t *testing.T) {
 			continue
 		}
 
-		// check that value is correct
-		if got := tv.Value.ExactString(); got != test.val {
-			t.Errorf("package %s: got value %s; want %s", name, got, test.val)
+		// if we have a constant, check that value is correct
+		if tv.Value != nil {
+			if got := tv.Value.ExactString(); got != test.val {
+				t.Errorf("package %s: got value %s; want %s", name, got, test.val)
+			}
+		} else {
+			if test.val != "" {
+				t.Errorf("package %s: no constant found; want %s", name, test.val)
+			}
 		}
 	}
 }
@@ -231,11 +256,29 @@ func TestTypesInfo(t *testing.T) {
 			`<-ch`,
 			`(string, bool)`,
 		},
+
+		// issue 28277
+		{`package issue28277_a; func f(...int)`,
+			`...int`,
+			`[]int`,
+		},
+		{`package issue28277_b; func f(a, b int, c ...[]struct{})`,
+			`...[]struct{}`,
+			`[][]struct{}`,
+		},
+
+		// tests for broken code that doesn't parse or type-check
+		{`package x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
+		{`package x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
+		{`package x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a; f: b;}}`, `b`, `string`},
+		{`package x3; var x = panic("");`, `panic`, `func(interface{})`},
+		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
+		{`package x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
 	}
 
 	for _, test := range tests {
 		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
-		name := mustTypecheck(t, "TypesInfo", test.src, &info)
+		name := mayTypecheck(t, "TypesInfo", test.src, &info)
 
 		// look for expression type
 		var typ Type
@@ -253,6 +296,63 @@ func TestTypesInfo(t *testing.T) {
 		// check that type is correct
 		if got := typ.String(); got != test.typ {
 			t.Errorf("package %s: got %s; want %s", name, got, test.typ)
+		}
+	}
+}
+
+func TestImplicitsInfo(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	var tests = []struct {
+		src  string
+		want string
+	}{
+		{`package p2; import . "fmt"; var _ = Println`, ""},           // no Implicits entry
+		{`package p0; import local "fmt"; var _ = local.Println`, ""}, // no Implicits entry
+		{`package p1; import "fmt"; var _ = fmt.Println`, "importSpec: package fmt"},
+
+		{`package p3; func f(x interface{}) { switch x.(type) { case int: } }`, ""}, // no Implicits entry
+		{`package p4; func f(x interface{}) { switch t := x.(type) { case int: _ = t } }`, "caseClause: var t int"},
+		{`package p5; func f(x interface{}) { switch t := x.(type) { case int, uint: _ = t } }`, "caseClause: var t interface{}"},
+		{`package p6; func f(x interface{}) { switch t := x.(type) { default: _ = t } }`, "caseClause: var t interface{}"},
+
+		{`package p7; func f(x int) {}`, ""}, // no Implicits entry
+		{`package p8; func f(int) {}`, "field: var  int"},
+		{`package p9; func f() (complex64) { return 0 }`, "field: var  complex64"},
+		{`package p10; type T struct{}; func (*T) f() {}`, "field: var  *p10.T"},
+	}
+
+	for _, test := range tests {
+		info := Info{
+			Implicits: make(map[ast.Node]Object),
+		}
+		name := mustTypecheck(t, "ImplicitsInfo", test.src, &info)
+
+		// the test cases expect at most one Implicits entry
+		if len(info.Implicits) > 1 {
+			t.Errorf("package %s: %d Implicits entries found", name, len(info.Implicits))
+			continue
+		}
+
+		// extract Implicits entry, if any
+		var got string
+		for n, obj := range info.Implicits {
+			switch x := n.(type) {
+			case *ast.ImportSpec:
+				got = "importSpec"
+			case *ast.CaseClause:
+				got = "caseClause"
+			case *ast.Field:
+				got = "field"
+			default:
+				t.Fatalf("package %s: unexpected %T", name, x)
+			}
+			got += ": " + obj.String()
+		}
+
+		// verify entry
+		if got != test.want {
+			t.Errorf("package %s: got %q; want %q", name, got, test.want)
 		}
 	}
 }
@@ -299,6 +399,8 @@ func TestPredicatesInfo(t *testing.T) {
 		{`package t0; type _ int`, `int`, `type`},
 		{`package t1; type _ []int`, `[]int`, `type`},
 		{`package t2; type _ func()`, `func()`, `type`},
+		{`package t3; type _ func(int)`, `int`, `type`},
+		{`package t3; type _ func(...int)`, `...int`, `type`},
 
 		// built-ins
 		{`package b0; var _ = len("")`, `len`, `builtin`},
@@ -1296,154 +1398,73 @@ func f(x int) { y := x; print(y) }
 	}
 }
 
-// Alias-related code. Keep for now.
-/*
-func TestAliases(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-
-	const src = `
-package b
-
-import (
-	"./testdata/alias"
-	a "./testdata/alias"
-	"math"
-)
-
-const (
-	c1 = alias.Pi1
-	c2 => a.Pi1
-	c3 => a.Pi2
-	c4 => math.Pi
-)
-
-var (
-	v1 => alias.Default
-	v2 => a.Default
-	v3 = f1
-)
-
-type (
-	t1 => alias.Context
-	t2 => a.Context
-)
-
-func f1 => alias.Sin
-func f2 => a.Sin
-
-func _() {
-	assert(c1 == alias.Pi1 && c2 == a.Pi1 && c3 == a.Pi2 && c4 == math.Pi)
-	assert(c2 == c2 && c2 == c3 && c3 == c4)
-	v1 = v2 // must be assignable
-	var _ *t1 = new(t2) // must be assignable
-	var _ t2 = alias.Default
-	f1(1) // must be callable
-	f2(1)
-	_ = alias.Sin(1)
-	_ = a.Sin(1)
-}
-`
-
-	if out := compile(t, "testdata", "alias.go"); out != "" {
-		defer os.Remove(out)
-	}
-
-	DefPredeclaredTestFuncs() // declare assert built-in for testing
-	mustTypecheck(t, "Aliases", src, nil)
-}
-
-func compile(t *testing.T, dirname, filename string) string {
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", filename)
-	cmd.Dir = dirname
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Logf("%s", out)
-		t.Fatalf("go tool compile %s failed: %s", filename, err)
-	}
-	// filename should end with ".go"
-	return filepath.Join(dirname, filename[:len(filename)-2]+"o")
-}
-
-func TestAliasDefUses(t *testing.T) {
+// TestFailedImport tests that we don't get follow-on errors
+// elsewhere in a package due to failing to import a package.
+func TestFailedImport(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	const src = `
 package p
 
-import(
-	"go/build"
-	"go/types"
-)
+import foo "go/types/thisdirectorymustnotexistotherwisethistestmayfail/foo" // should only see an error here
 
-// Defs
-const Invalid => types.Invalid
-type Struct => types.Struct
-var Default => build.Default
-func Implements => types.Implements
-
-// Uses
-const _ = Invalid
-var _ types.Struct = Struct{} // types must be identical
-var _ build.Context = Default
-var _ = Implements(nil, nil)
+const c = foo.C
+type T = foo.T
+var v T = c
+func f(x T) T { return foo.F(x) }
 `
-
-	info := Info{
-		Defs: make(map[*ast.Ident]Object),
-		Uses: make(map[*ast.Ident]Object),
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "src", src, 0)
+	if err != nil {
+		t.Fatal(err)
 	}
-	mustTypecheck(t, "TestAliasDefUses", src, &info)
+	files := []*ast.File{f}
 
-	// verify Defs
-	defs := map[string]string{
-		"Invalid":    "types.Invalid",
-		"Struct":     "types.Struct",
-		"Default":    "build.Default",
-		"Implements": "types.Implements",
-	}
-
-	for ident, obj := range info.Defs {
-		if alias, ok := obj.(*Alias); ok {
-			if want := defs[ident.Name]; want != "" {
-				orig := alias.Orig()
-				if got := orig.Pkg().Name() + "." + orig.Name(); got != want {
-					t.Errorf("%v: got %v, want %v", ident, got, want)
+	// type-check using all possible importers
+	for _, compiler := range []string{"gc", "gccgo", "source"} {
+		errcount := 0
+		conf := Config{
+			Error: func(err error) {
+				// we should only see the import error
+				if errcount > 0 || !strings.Contains(err.Error(), "could not import") {
+					t.Errorf("for %s importer, got unexpected error: %v", compiler, err)
 				}
-				delete(defs, ident.Name) // mark as found
-			} else {
-				t.Errorf("unexpected alias def of %v", ident)
+				errcount++
+			},
+			Importer: importer.For(compiler, nil),
+		}
+
+		info := &Info{
+			Uses: make(map[*ast.Ident]Object),
+		}
+		pkg, _ := conf.Check("p", fset, files, info)
+		if pkg == nil {
+			t.Errorf("for %s importer, type-checking failed to return a package", compiler)
+			continue
+		}
+
+		imports := pkg.Imports()
+		if len(imports) != 1 {
+			t.Errorf("for %s importer, got %d imports, want 1", compiler, len(imports))
+			continue
+		}
+		imp := imports[0]
+		if imp.Name() != "foo" {
+			t.Errorf(`for %s importer, got %q, want "foo"`, compiler, imp.Name())
+			continue
+		}
+
+		// verify that all uses of foo refer to the imported package foo (imp)
+		for ident, obj := range info.Uses {
+			if ident.Name == "foo" {
+				if obj, ok := obj.(*PkgName); ok {
+					if obj.Imported() != imp {
+						t.Errorf("%s resolved to %v; want %v", ident, obj.Imported(), imp)
+					}
+				} else {
+					t.Errorf("%s resolved to %v; want package name", ident, obj)
+				}
 			}
 		}
-	}
-
-	if len(defs) != 0 {
-		t.Errorf("missing aliases: %v", defs)
-	}
-
-	// verify Uses
-	uses := map[string]string{
-		"Invalid":    "types.Invalid",
-		"Struct":     "types.Struct",
-		"Default":    "build.Default",
-		"Implements": "types.Implements",
-	}
-
-	for ident, obj := range info.Uses {
-		if alias, ok := obj.(*Alias); ok {
-			if want := uses[ident.Name]; want != "" {
-				orig := alias.Orig()
-				if got := orig.Pkg().Name() + "." + orig.Name(); got != want {
-					t.Errorf("%v: got %v, want %v", ident, got, want)
-				}
-				delete(uses, ident.Name) // mark as found
-			} else {
-				t.Errorf("unexpected alias use of %v", ident)
-			}
-		}
-	}
-
-	if len(uses) != 0 {
-		t.Errorf("missing aliases: %v", defs)
 	}
 }
-*/

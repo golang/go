@@ -8,10 +8,20 @@ set -e
 eval $(go env)
 export GOROOT   # the api test requires GOROOT to be set.
 
+# We disallow local import for non-local packages, if $GOROOT happens
+# to be under $GOPATH, then some tests below will fail.  $GOPATH needs
+# to be set to a non-empty string, else Go will set a default value
+# that may also conflict with $GOROOT.  The $GOPATH value doesn't need
+# to point to an actual directory, it just needs to pass the semantic
+# checks performed by Go.  Use $GOROOT to define $GOPATH so that we
+# don't blunder into a user-defined symbolic link.
+GOPATH=$GOROOT/nonexistentpath
+export GOPATH
+
 unset CDPATH	# in case user has it set
-unset GOPATH    # we disallow local import for non-local packages, if $GOROOT happens
-                # to be under $GOPATH, then some tests below will fail
 unset GOBIN     # Issue 14340
+unset GOFLAGS
+unset GO111MODULE
 
 export GOHOSTOS
 export CC
@@ -27,13 +37,13 @@ ulimit -c 0
 # non-root process is allowed to set the high limit.
 # This is a system misconfiguration and should be fixed on the
 # broken system, not "fixed" by ignoring the failure here.
-# See longer discussion on golang.org/issue/7381. 
-[ "$(ulimit -H -n)" == "unlimited" ] || ulimit -S -n $(ulimit -H -n)
-[ "$(ulimit -H -d)" == "unlimited" ] || ulimit -S -d $(ulimit -H -d)
+# See longer discussion on golang.org/issue/7381.
+[ "$(ulimit -H -n)" = "unlimited" ] || ulimit -S -n $(ulimit -H -n)
+[ "$(ulimit -H -d)" = "unlimited" ] || ulimit -S -d $(ulimit -H -d)
 
 # Thread count limit on NetBSD 7.
 if ulimit -T &> /dev/null; then
-	[ "$(ulimit -H -T)" == "unlimited" ] || ulimit -S -T $(ulimit -H -T)
+	[ "$(ulimit -H -T)" = "unlimited" ] || ulimit -S -T $(ulimit -H -T)
 fi
 
 exec go tool dist test -rebuild "$@"

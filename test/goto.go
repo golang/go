@@ -77,7 +77,7 @@ L:
 
 // error shows first offending variable
 func _() {
-	goto L // ERROR "goto L jumps over declaration of x at LINE+1|goto jumps over declaration"
+	goto L // ERROR "goto L jumps over declaration of y at LINE+3|goto jumps over declaration"
 	x := 1 // GCCGO_ERROR "defined here"
 	_ = x
 	y := 1
@@ -87,7 +87,7 @@ L:
 
 // goto not okay even if code path is dead
 func _() {
-	goto L // ERROR "goto L jumps over declaration of x at LINE+1|goto jumps over declaration"
+	goto L // ERROR "goto L jumps over declaration of y at LINE+3|goto jumps over declaration"
 	x := 1 // GCCGO_ERROR "defined here"
 	_ = x
 	y := 1
@@ -130,7 +130,7 @@ func _() {
 
 // error shows first (outermost) offending block
 func _() {
-	goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
+	goto L // ERROR "goto L jumps into block starting at LINE+3|goto jumps into block"
 	{
 		{
 			{ // GCCGO_ERROR "block starts here"
@@ -194,7 +194,7 @@ func _() {
 }
 
 func _() {
-	goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
+	goto L // ERROR "goto L jumps into block starting at LINE+2|goto jumps into block"
 	if true {
 	} else { // GCCGO_ERROR "block starts here"
 	L:
@@ -241,7 +241,7 @@ func _() {
 	// really is LINE+1 (like in the previous test),
 	// even though it looks like it might be LINE+3 instead.
 	if true {
-		goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
+		goto L // ERROR "goto L jumps into block starting at LINE+2|goto jumps into block"
 	} else if false {
 	} else { // GCCGO_ERROR "block starts here"
 	L:
@@ -395,7 +395,7 @@ func _() {
 }
 
 func _() {
-	goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
+	goto L // ERROR "goto L jumps into block starting at LINE+2|goto jumps into block"
 	switch i {
 	case 0:
 	L: // GCCGO_ERROR "block starts here"
@@ -403,7 +403,7 @@ func _() {
 }
 
 func _() {
-	goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
+	goto L // ERROR "goto L jumps into block starting at LINE+2|goto jumps into block"
 	switch i {
 	case 0:
 	L: // GCCGO_ERROR "block starts here"
@@ -413,7 +413,7 @@ func _() {
 }
 
 func _() {
-	goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
+	goto L // ERROR "goto L jumps into block starting at LINE+3|goto jumps into block"
 	switch i {
 	case 0:
 	default:

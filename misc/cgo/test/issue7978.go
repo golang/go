@@ -44,8 +44,8 @@ static void issue7978c(uint32_t *sync) {
 import "C"
 
 import (
-	"os"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -88,7 +88,18 @@ func issue7978wait(store uint32, wait uint32) {
 
 //export issue7978cb
 func issue7978cb() {
+	// Force a stack growth from the callback to put extra
+	// pressure on the runtime. See issue #17785.
+	growStack(64)
 	issue7978wait(3, 4)
+}
+
+func growStack(n int) int {
+	var buf [128]int
+	if n == 0 {
+		return 0
+	}
+	return buf[growStack(n-1)]
 }
 
 func issue7978go() {
@@ -103,12 +114,7 @@ func test7978(t *testing.T) {
 	if C.HAS_SYNC_FETCH_AND_ADD == 0 {
 		t.Skip("clang required for __sync_fetch_and_add support on darwin/arm")
 	}
-	if runtime.GOOS == "android" || runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skip("GOTRACEBACK is not passed on to the exec wrapper")
-	}
-	if os.Getenv("GOTRACEBACK") != "2" {
-		t.Fatalf("GOTRACEBACK must be 2")
-	}
+	debug.SetTraceback("2")
 	issue7978sync = 0
 	go issue7978go()
 	// test in c code, before callback

@@ -148,3 +148,43 @@ func TestLookupMallocs(t *testing.T) {
 		t.Errorf("allocs = %v; want 0", n)
 	}
 }
+
+func BenchmarkTypeByExtension(b *testing.B) {
+	initMime()
+	b.ResetTimer()
+
+	for _, ext := range []string{
+		".html",
+		".HTML",
+		".unused",
+	} {
+		b.Run(ext, func(b *testing.B) {
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					TypeByExtension(ext)
+				}
+			})
+		})
+	}
+}
+
+func BenchmarkExtensionsByType(b *testing.B) {
+	initMime()
+	b.ResetTimer()
+
+	for _, typ := range []string{
+		"text/html",
+		"text/html; charset=utf-8",
+		"application/octet-stream",
+	} {
+		b.Run(typ, func(b *testing.B) {
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					if _, err := ExtensionsByType(typ); err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
+		})
+	}
+}

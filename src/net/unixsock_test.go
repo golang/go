@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !nacl,!plan9,!windows
+// +build !js,!nacl,!plan9,!windows
 
 package net
 
@@ -168,51 +168,6 @@ func TestUnixgramZeroByteBuffer(t *testing.T) {
 			}
 		}
 	}
-}
-
-func TestUnixgramAutobind(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("autobind is linux only")
-	}
-
-	laddr := &UnixAddr{Name: "", Net: "unixgram"}
-	c1, err := ListenUnixgram("unixgram", laddr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c1.Close()
-
-	// retrieve the autobind address
-	autoAddr := c1.LocalAddr().(*UnixAddr)
-	if len(autoAddr.Name) <= 1 {
-		t.Fatalf("invalid autobind address: %v", autoAddr)
-	}
-	if autoAddr.Name[0] != '@' {
-		t.Fatalf("invalid autobind address: %v", autoAddr)
-	}
-
-	c2, err := DialUnix("unixgram", nil, autoAddr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c2.Close()
-
-	if !reflect.DeepEqual(c1.LocalAddr(), c2.RemoteAddr()) {
-		t.Fatalf("expected autobind address %v, got %v", c1.LocalAddr(), c2.RemoteAddr())
-	}
-}
-
-func TestUnixAutobindClose(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("autobind is linux only")
-	}
-
-	laddr := &UnixAddr{Name: "", Net: "unix"}
-	ln, err := ListenUnix("unix", laddr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ln.Close()
 }
 
 func TestUnixgramWrite(t *testing.T) {

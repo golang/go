@@ -4,33 +4,29 @@
 
 package crc32
 
+import "internal/cpu"
+
 // This file contains the code to call the SSE 4.2 version of the Castagnoli
 // CRC.
-
-// haveSSE42 is defined in crc32_amd64p32.s and uses CPUID to test for SSE 4.2
-// support.
-func haveSSE42() bool
 
 // castagnoliSSE42 is defined in crc32_amd64p32.s and uses the SSE4.2 CRC32
 // instruction.
 //go:noescape
 func castagnoliSSE42(crc uint32, p []byte) uint32
 
-var sse42 = haveSSE42()
-
 func archAvailableCastagnoli() bool {
-	return sse42
+	return cpu.X86.HasSSE42
 }
 
 func archInitCastagnoli() {
-	if !sse42 {
+	if !cpu.X86.HasSSE42 {
 		panic("not available")
 	}
 	// No initialization necessary.
 }
 
 func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
-	if !sse42 {
+	if !cpu.X86.HasSSE42 {
 		panic("not available")
 	}
 	return castagnoliSSE42(crc, p)

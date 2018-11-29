@@ -12,14 +12,9 @@ type loop struct {
 	header *Block // The header node of this (reducible) loop
 	outer  *loop  // loop containing this loop
 
-	// By default, children exits, and depth are not initialized.
+	// By default, children, exits, and depth are not initialized.
 	children []*loop  // loops nested directly within this loop. Initialized by assembleChildren().
 	exits    []*Block // exits records blocks reached by exits from this loop. Initialized by findExits().
-
-	// Loops aren't that common, so rather than force regalloc to keep
-	// a map or slice for its data, just put it here.
-	spills  []*Value
-	scratch int32
 
 	// Next three fields used by regalloc and/or
 	// aid in computation of inner-ness and list of blocks.
@@ -28,46 +23,51 @@ type loop struct {
 	isInner bool  // True if never discovered to contain a loop
 
 	// register allocation uses this.
-	containsCall bool // if any block in this loop or any loop it contains has a call
+	containsUnavoidableCall bool // True if all paths through the loop have a call
 }
 
 // outerinner records that outer contains inner
 func (sdom SparseTree) outerinner(outer, inner *loop) {
+	// There could be other outer loops found in some random order,
+	// locate the new outer loop appropriately among them.
+
+	// Outer loop headers dominate inner loop headers.
+	// Use this to put the "new" "outer" loop in the right place.
 	oldouter := inner.outer
-	if oldouter == nil || sdom.isAncestorEq(oldouter.header, outer.header) {
-		inner.outer = outer
-		outer.isInner = false
-		if inner.containsCall {
-			outer.setContainsCall()
-		}
+	for oldouter != nil && sdom.isAncestor(outer.header, oldouter.header) {
+		inner = oldouter
+		oldouter = inner.outer
 	}
-}
-
-func (l *loop) setContainsCall() {
-	for ; l != nil && !l.containsCall; l = l.outer {
-		l.containsCall = true
-	}
-
-}
-func (l *loop) checkContainsCall(bb *Block) {
-	if bb.Kind == BlockDefer {
-		l.setContainsCall()
+	if outer == oldouter {
 		return
+	}
+	if oldouter != nil {
+		sdom.outerinner(oldouter, outer)
+	}
+
+	inner.outer = outer
+	outer.isInner = false
+}
+
+func checkContainsCall(bb *Block) bool {
+	if bb.Kind == BlockDefer {
+		return true
 	}
 	for _, v := range bb.Values {
 		if opcodeTable[v.Op].call {
-			l.setContainsCall()
-			return
+			return true
 		}
 	}
+	return false
 }
 
 type loopnest struct {
-	f     *Func
-	b2l   []*loop
-	po    []*Block
-	sdom  SparseTree
-	loops []*loop
+	f              *Func
+	b2l            []*loop
+	po             []*Block
+	sdom           SparseTree
+	loops          []*loop
+	hasIrreducible bool // TODO current treatment of irreducible loops is very flaky, if accurate loops are needed, must punt at function level.
 
 	// Record which of the lazily initialized fields have actually been initialized.
 	initializedChildren, initializedDepth, initializedExits bool
@@ -95,7 +95,7 @@ const (
 	blEXIT    = 3
 )
 
-var bllikelies [4]string = [4]string{"default", "call", "ret", "exit"}
+var bllikelies = [4]string{"default", "call", "ret", "exit"}
 
 func describePredictionAgrees(b *Block, prediction BranchPrediction) string {
 	s := ""
@@ -108,7 +108,7 @@ func describePredictionAgrees(b *Block, prediction BranchPrediction) string {
 }
 
 func describeBranchPrediction(f *Func, b *Block, likely, not int8, prediction BranchPrediction) {
-	f.Config.Warnl(b.Line, "Branch prediction rule %s < %s%s",
+	f.Warnl(b.Pos, "Branch prediction rule %s < %s%s",
 		bllikelies[likely-blMin], bllikelies[not-blMin], describePredictionAgrees(b, prediction))
 }
 
@@ -183,7 +183,7 @@ func likelyadjust(f *Func) {
 						noprediction = true
 					}
 					if f.pass.debug > 0 && !noprediction {
-						f.Config.Warnl(b.Line, "Branch prediction rule stay in loop%s",
+						f.Warnl(b.Pos, "Branch prediction rule stay in loop%s",
 							describePredictionAgrees(b, prediction))
 					}
 
@@ -226,7 +226,7 @@ func likelyadjust(f *Func) {
 			}
 		}
 		if f.pass.debug > 2 {
-			f.Config.Warnl(b.Line, "BP: Block %s, local=%s, certain=%s", b, bllikelies[local[b.ID]-blMin], bllikelies[certain[b.ID]-blMin])
+			f.Warnl(b.Pos, "BP: Block %s, local=%s, certain=%s", b, bllikelies[local[b.ID]-blMin], bllikelies[certain[b.ID]-blMin])
 		}
 
 	}
@@ -248,6 +248,18 @@ func (l *loop) LongString() string {
 	return fmt.Sprintf("hdr:%s%s%s", l.header, i, o)
 }
 
+func (l *loop) isWithinOrEq(ll *loop) bool {
+	if ll == nil { // nil means whole program
+		return true
+	}
+	for ; l != nil; l = l.outer {
+		if l == ll {
+			return true
+		}
+	}
+	return false
+}
+
 // nearestOuterLoop returns the outer loop of loop most nearly
 // containing block b; the header must dominate b.  loop itself
 // is assumed to not be that loop. For acceptable performance,
@@ -264,11 +276,17 @@ func loopnestfor(f *Func) *loopnest {
 	sdom := f.sdom()
 	b2l := make([]*loop, f.NumBlocks())
 	loops := make([]*loop, 0)
+	visited := make([]bool, f.NumBlocks())
+	sawIrred := false
+
+	if f.pass.debug > 2 {
+		fmt.Printf("loop finding in %s\n", f.Name)
+	}
 
 	// Reducible-loop-nest-finding.
 	for _, b := range po {
-		if f.pass.debug > 3 {
-			fmt.Printf("loop finding (0) at %s\n", b)
+		if f.pass != nil && f.pass.debug > 3 {
+			fmt.Printf("loop finding at %s\n", b)
 		}
 
 		var innermost *loop // innermost header reachable from this block
@@ -279,7 +297,7 @@ func loopnestfor(f *Func) *loopnest {
 		//
 		// Choose the first/innermost such h.
 		//
-		// IF s itself dominates b, the s is a loop header;
+		// IF s itself dominates b, then s is a loop header;
 		// and there may be more than one such s.
 		// Since there's at most 2 successors, the inner/outer ordering
 		// between them can be established with simple comparisons.
@@ -288,18 +306,39 @@ func loopnestfor(f *Func) *loopnest {
 			l := b2l[bb.ID]
 
 			if sdom.isAncestorEq(bb, b) { // Found a loop header
+				if f.pass != nil && f.pass.debug > 4 {
+					fmt.Printf("loop finding    succ %s of %s is header\n", bb.String(), b.String())
+				}
 				if l == nil {
 					l = &loop{header: bb, isInner: true}
 					loops = append(loops, l)
 					b2l[bb.ID] = l
-					l.checkContainsCall(bb)
 				}
-			} else { // Perhaps a loop header is inherited.
+			} else if !visited[bb.ID] { // Found an irreducible loop
+				sawIrred = true
+				if f.pass != nil && f.pass.debug > 4 {
+					fmt.Printf("loop finding    succ %s of %s is IRRED, in %s\n", bb.String(), b.String(), f.Name)
+				}
+			} else if l != nil {
+				// TODO handle case where l is irreducible.
+				// Perhaps a loop header is inherited.
 				// is there any loop containing our successor whose
 				// header dominates b?
-				if l != nil && !sdom.isAncestorEq(l.header, b) {
+				if !sdom.isAncestorEq(l.header, b) {
 					l = l.nearestOuterLoop(sdom, b)
 				}
+				if f.pass != nil && f.pass.debug > 4 {
+					if l == nil {
+						fmt.Printf("loop finding    succ %s of %s has no loop\n", bb.String(), b.String())
+					} else {
+						fmt.Printf("loop finding    succ %s of %s provides loop with header %s\n", bb.String(), b.String(), l.header.String())
+					}
+				}
+			} else { // No loop
+				if f.pass != nil && f.pass.debug > 4 {
+					fmt.Printf("loop finding    succ %s of %s has no loop\n", bb.String(), b.String())
+				}
+
 			}
 
 			if l == nil || innermost == l {
@@ -321,15 +360,74 @@ func loopnestfor(f *Func) *loopnest {
 
 		if innermost != nil {
 			b2l[b.ID] = innermost
-			innermost.checkContainsCall(b)
 			innermost.nBlocks++
+		}
+		visited[b.ID] = true
+	}
+
+	ln := &loopnest{f: f, b2l: b2l, po: po, sdom: sdom, loops: loops, hasIrreducible: sawIrred}
+
+	// Calculate containsUnavoidableCall for regalloc
+	dominatedByCall := make([]bool, f.NumBlocks())
+	for _, b := range po {
+		if checkContainsCall(b) {
+			dominatedByCall[b.ID] = true
+		}
+	}
+	// Run dfs to find path through the loop that avoids all calls.
+	// Such path either escapes loop or return back to header.
+	// It isn't enough to have exit not dominated by any call, for example:
+	// ... some loop
+	// call1   call2
+	//   \      /
+	//     exit
+	// ...
+	// exit is not dominated by any call, but we don't have call-free path to it.
+	for _, l := range loops {
+		// Header contains call.
+		if dominatedByCall[l.header.ID] {
+			l.containsUnavoidableCall = true
+			continue
+		}
+		callfreepath := false
+		tovisit := make([]*Block, 0, len(l.header.Succs))
+		// Push all non-loop non-exit successors of header onto toVisit.
+		for _, s := range l.header.Succs {
+			nb := s.Block()
+			// This corresponds to loop with zero iterations.
+			if !l.iterationEnd(nb, b2l) {
+				tovisit = append(tovisit, nb)
+			}
+		}
+		for len(tovisit) > 0 {
+			cur := tovisit[len(tovisit)-1]
+			tovisit = tovisit[:len(tovisit)-1]
+			if dominatedByCall[cur.ID] {
+				continue
+			}
+			// Record visited in dominatedByCall.
+			dominatedByCall[cur.ID] = true
+			for _, s := range cur.Succs {
+				nb := s.Block()
+				if l.iterationEnd(nb, b2l) {
+					callfreepath = true
+				}
+				if !dominatedByCall[nb.ID] {
+					tovisit = append(tovisit, nb)
+				}
+
+			}
+			if callfreepath {
+				break
+			}
+		}
+		if !callfreepath {
+			l.containsUnavoidableCall = true
 		}
 	}
 
-	ln := &loopnest{f: f, b2l: b2l, po: po, sdom: sdom, loops: loops}
-
 	// Curious about the loopiness? "-d=ssa/likelyadjust/stats"
-	if f.pass.stats > 0 && len(loops) > 0 {
+	if f.pass != nil && f.pass.stats > 0 && len(loops) > 0 {
 		ln.assembleChildren()
 		ln.calculateDepths()
 		ln.findExits()
@@ -340,7 +438,7 @@ func loopnestfor(f *Func) *loopnest {
 		for _, l := range loops {
 			x := len(l.exits)
 			cf := 0
-			if !l.containsCall {
+			if !l.containsUnavoidableCall {
 				cf = 1
 			}
 			inner := 0
@@ -350,11 +448,11 @@ func loopnestfor(f *Func) *loopnest {
 
 			f.LogStat("loopstats:",
 				l.depth, "depth", x, "exits",
-				inner, "is_inner", cf, "is_callfree", l.nBlocks, "n_blocks")
+				inner, "is_inner", cf, "always_calls", l.nBlocks, "n_blocks")
 		}
 	}
 
-	if f.pass.debug > 1 && len(loops) > 0 {
+	if f.pass != nil && f.pass.debug > 1 && len(loops) > 0 {
 		fmt.Printf("Loops in %s:\n", f.Name)
 		for _, l := range loops {
 			fmt.Printf("%s, b=", l.LongString())
@@ -432,6 +530,14 @@ func (ln *loopnest) findExits() {
 	ln.initializedExits = true
 }
 
+// depth returns the loop nesting level of block b.
+func (ln *loopnest) depth(b ID) int16 {
+	if l := ln.b2l[b]; l != nil {
+		return l.depth
+	}
+	return 0
+}
+
 // recordIfExit checks sl (the loop containing b) to see if it
 // is outside of loop l, and if so, records b as an exit block
 // from l and returns true.
@@ -459,4 +565,11 @@ func (l *loop) setDepth(d int16) {
 	for _, c := range l.children {
 		c.setDepth(d + 1)
 	}
+}
+
+// iterationEnd checks if block b ends iteration of loop l.
+// Ending iteration means either escaping to outer loop/code or
+// going back to header
+func (l *loop) iterationEnd(b *Block, b2l []*loop) bool {
+	return b == l.header || b2l[b.ID] == nil || (b2l[b.ID] != l && b2l[b.ID].depth <= l.depth)
 }

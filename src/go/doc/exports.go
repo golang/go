@@ -25,6 +25,49 @@ func filterIdentList(list []*ast.Ident) []*ast.Ident {
 	return list[0:j]
 }
 
+var underscore = ast.NewIdent("_")
+
+func filterCompositeLit(lit *ast.CompositeLit, filter Filter, export bool) {
+	n := len(lit.Elts)
+	lit.Elts = filterExprList(lit.Elts, filter, export)
+	if len(lit.Elts) < n {
+		lit.Incomplete = true
+	}
+}
+
+func filterExprList(list []ast.Expr, filter Filter, export bool) []ast.Expr {
+	j := 0
+	for _, exp := range list {
+		switch x := exp.(type) {
+		case *ast.CompositeLit:
+			filterCompositeLit(x, filter, export)
+		case *ast.KeyValueExpr:
+			if x, ok := x.Key.(*ast.Ident); ok && !filter(x.Name) {
+				continue
+			}
+			if x, ok := x.Value.(*ast.CompositeLit); ok {
+				filterCompositeLit(x, filter, export)
+			}
+		}
+		list[j] = exp
+		j++
+	}
+	return list[0:j]
+}
+
+// updateIdentList replaces all unexported identifiers with underscore
+// and reports whether at least one exported name exists.
+func updateIdentList(list []*ast.Ident) (hasExported bool) {
+	for i, x := range list {
+		if ast.IsExported(x.Name) {
+			hasExported = true
+		} else {
+			list[i] = underscore
+		}
+	}
+	return hasExported
+}
+
 // hasExportedName reports whether list contains any exported names.
 //
 func hasExportedName(list []*ast.Ident) bool {
@@ -150,16 +193,30 @@ func (r *reader) filterType(parent *namedType, typ ast.Expr) {
 	}
 }
 
-func (r *reader) filterSpec(spec ast.Spec, tok token.Token) bool {
+func (r *reader) filterSpec(spec ast.Spec) bool {
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
 		// always keep imports so we can collect them
 		return true
 	case *ast.ValueSpec:
-		s.Names = filterIdentList(s.Names)
-		if len(s.Names) > 0 {
-			r.filterType(nil, s.Type)
-			return true
+		s.Values = filterExprList(s.Values, ast.IsExported, true)
+		if len(s.Values) > 0 || s.Type == nil && len(s.Values) == 0 {
+			// If there are values declared on RHS, just replace the unexported
+			// identifiers on the LHS with underscore, so that it matches
+			// the sequence of expression on the RHS.
+			//
+			// Similarly, if there are no type and values, then this expression
+			// must be following an iota expression, where order matters.
+			if updateIdentList(s.Names) {
+				r.filterType(nil, s.Type)
+				return true
+			}
+		} else {
+			s.Names = filterIdentList(s.Names)
+			if len(s.Names) > 0 {
+				r.filterType(nil, s.Type)
+				return true
+			}
 		}
 	case *ast.TypeSpec:
 		if name := s.Name.Name; ast.IsExported(name) {
@@ -200,7 +257,7 @@ func (r *reader) filterSpecList(list []ast.Spec, tok token.Token) []ast.Spec {
 		var prevType ast.Expr
 		for _, spec := range list {
 			spec := spec.(*ast.ValueSpec)
-			if spec.Type == nil && prevType != nil {
+			if spec.Type == nil && len(spec.Values) == 0 && prevType != nil {
 				// provide current spec with an explicit type
 				spec.Type = copyConstType(prevType, spec.Pos())
 			}
@@ -215,7 +272,7 @@ func (r *reader) filterSpecList(list []ast.Spec, tok token.Token) []ast.Spec {
 
 	j := 0
 	for _, s := range list {
-		if r.filterSpec(s, tok) {
+		if r.filterSpec(s) {
 			list[j] = s
 			j++
 		}

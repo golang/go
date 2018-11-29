@@ -33,13 +33,13 @@ type abbrevTable map[uint32]abbrev
 
 // ParseAbbrev returns the abbreviation table that starts at byte off
 // in the .debug_abbrev section.
-func (d *Data) parseAbbrev(off uint32, vers int) (abbrevTable, error) {
+func (d *Data) parseAbbrev(off uint64, vers int) (abbrevTable, error) {
 	if m, ok := d.abbrevCache[off]; ok {
 		return m, nil
 	}
 
 	data := d.abbrev
-	if off > uint32(len(data)) {
+	if off > uint64(len(data)) {
 		data = nil
 	} else {
 		data = data[off:]
@@ -461,7 +461,18 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 		case formString:
 			val = b.string()
 		case formStrp:
-			off := b.uint32() // offset into .debug_str
+			var off uint64 // offset into .debug_str
+			is64, known := b.format.dwarf64()
+			if !known {
+				b.error("unknown size for DW_FORM_strp")
+			} else if is64 {
+				off = b.uint64()
+			} else {
+				off = uint64(b.uint32())
+			}
+			if uint64(int(off)) != off {
+				b.error("DW_FORM_strp offset out of range")
+			}
 			if b.err != nil {
 				return nil
 			}

@@ -10,8 +10,10 @@ import (
 	"runtime/pprof"
 )
 
+// Line returns n's position as a string. If n has been inlined,
+// it uses the outermost position where n has been inlined.
 func (n *Node) Line() string {
-	return Ctxt.LineHist.LineString(int(n.Lineno))
+	return linestr(n.Pos)
 }
 
 var atExitFuncs []func()
@@ -30,11 +32,13 @@ func Exit(code int) {
 }
 
 var (
+	blockprofile   string
 	cpuprofile     string
 	memprofile     string
 	memprofilerate int64
 	traceprofile   string
 	traceHandler   func(string)
+	mutexprofile   string
 )
 
 func startProfile() {
@@ -57,10 +61,40 @@ func startProfile() {
 			Fatalf("%v", err)
 		}
 		atExit(func() {
-			runtime.GC() // profile all outstanding allocations
-			if err := pprof.WriteHeapProfile(f); err != nil {
+			// Profile all outstanding allocations.
+			runtime.GC()
+			// compilebench parses the memory profile to extract memstats,
+			// which are only written in the legacy pprof format.
+			// See golang.org/issue/18641 and runtime/pprof/pprof.go:writeHeap.
+			const writeLegacyFormat = 1
+			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
 				Fatalf("%v", err)
 			}
+		})
+	} else {
+		// Not doing memory profiling; disable it entirely.
+		runtime.MemProfileRate = 0
+	}
+	if blockprofile != "" {
+		f, err := os.Create(blockprofile)
+		if err != nil {
+			Fatalf("%v", err)
+		}
+		runtime.SetBlockProfileRate(1)
+		atExit(func() {
+			pprof.Lookup("block").WriteTo(f, 0)
+			f.Close()
+		})
+	}
+	if mutexprofile != "" {
+		f, err := os.Create(mutexprofile)
+		if err != nil {
+			Fatalf("%v", err)
+		}
+		startMutexProfiling()
+		atExit(func() {
+			pprof.Lookup("mutex").WriteTo(f, 0)
+			f.Close()
 		})
 	}
 	if traceprofile != "" && traceHandler != nil {

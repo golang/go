@@ -10,6 +10,10 @@
 
 package main
 
+import _ "unsafe" // for go:linkname
+
+//go:linkname some_name some_name
+
 const anything = 1e9 // Just some unlikely value that means "we got here, don't care how often"
 
 func testAll() {
@@ -278,7 +282,7 @@ loop:
 	}
 }
 
-// This comment shouldn't appear in generated go code.
+// This comment didn't appear in generated go code.
 func haha() {
 	// Needed for cover to add counter increment here.
 	_ = 42

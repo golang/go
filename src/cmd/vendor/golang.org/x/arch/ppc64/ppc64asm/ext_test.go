@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -35,7 +36,7 @@ var (
 	debug      = false
 )
 
-// A ExtInst represents a single decoded instruction parsed
+// An ExtInst represents a single decoded instruction parsed
 // from an external disassembler's output.
 type ExtInst struct {
 	addr uint32
@@ -194,7 +195,7 @@ func writeInst(generate func(func([]byte))) (file string, f *os.File, size int, 
 
 	file = f.Name()
 
-	f.Seek(start, 0)
+	f.Seek(start, io.SeekStart)
 	w := bufio.NewWriter(f)
 	defer w.Flush()
 	size = 0

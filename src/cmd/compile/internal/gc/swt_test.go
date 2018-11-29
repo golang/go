@@ -5,16 +5,20 @@
 package gc
 
 import (
-	"math/big"
 	"testing"
 )
 
 func nodrune(r rune) *Node {
-	return nodlit(Val{&Mpint{Val: *big.NewInt(int64(r)), Rune: true}})
+	v := new(Mpint)
+	v.SetInt64(int64(r))
+	v.Rune = true
+	return nodlit(Val{v})
 }
 
 func nodflt(f float64) *Node {
-	return nodlit(Val{&Mpflt{Val: *big.NewFloat(f)}})
+	v := new(Mpflt)
+	v.SetFloat64(f)
+	return nodlit(Val{v})
 }
 
 func TestCaseClauseByConstVal(t *testing.T) {

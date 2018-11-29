@@ -1,0 +1,33 @@
+// Package issue12839 is a go/doc test to test association of a ...
+PACKAGE issue12839
+
+IMPORTPATH
+	testdata/issue12839
+
+IMPORTS
+	p
+
+FILENAMES
+	testdata/issue12839.go
+
+FUNCTIONS
+	// F1 should not be associated with T1 
+	func F1() (*T1, *T2)
+
+	// F4 should not be associated with a type (same as F1) 
+	func F4() (a T1, b T2)
+
+
+TYPES
+	// 
+	type T1 struct{}
+
+	// F2 should be associated with T1 
+	func F2() (a, b, c T1)
+
+	// F3 should be associated with T1 because b.T3 is from a ...
+	func F3() (a T1, b p.T3)
+
+	// 
+	type T2 struct{}
+

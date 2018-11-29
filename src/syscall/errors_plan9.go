@@ -45,6 +45,7 @@ var (
 	// what package os and others expect.
 	EACCES       = NewError("access permission denied")
 	EAFNOSUPPORT = NewError("address family not supported by protocol")
+	ESPIPE       = NewError("illegal seek")
 )
 
 // Notes

@@ -6,8 +6,8 @@
 //
 // See malloc.go for an overview.
 //
-// The MCentral doesn't actually contain the list of free objects; the MSpan does.
-// Each MCentral is two lists of MSpans: those with free objects (c->nonempty)
+// The mcentral doesn't actually contain the list of free objects; the mspan does.
+// Each mcentral is two lists of mspans: those with free objects (c->nonempty)
 // and those that are completely allocated (c->empty).
 
 package runtime
@@ -19,25 +19,34 @@ import "runtime/internal/atomic"
 //go:notinheap
 type mcentral struct {
 	lock      mutex
-	sizeclass int32
+	spanclass spanClass
 	nonempty  mSpanList // list of spans with a free object, ie a nonempty free list
 	empty     mSpanList // list of spans with no free objects (or cached in an mcache)
+
+	// nmalloc is the cumulative count of objects allocated from
+	// this mcentral, assuming all spans in mcaches are
+	// fully-allocated. Written atomically, read under STW.
+	nmalloc uint64
 }
 
 // Initialize a single central free list.
-func (c *mcentral) init(sizeclass int32) {
-	c.sizeclass = sizeclass
+func (c *mcentral) init(spc spanClass) {
+	c.spanclass = spc
 	c.nonempty.init()
 	c.empty.init()
 }
 
-// Allocate a span to use in an MCache.
+// Allocate a span to use in an mcache.
 func (c *mcentral) cacheSpan() *mspan {
 	// Deduct credit for this span allocation and sweep if necessary.
-	spanBytes := uintptr(class_to_allocnpages[c.sizeclass]) * _PageSize
+	spanBytes := uintptr(class_to_allocnpages[c.spanclass.sizeclass()]) * _PageSize
 	deductSweepCredit(spanBytes, 0)
 
 	lock(&c.lock)
+	traceDone := false
+	if trace.enabled {
+		traceGCSweepStart()
+	}
 	sg := mheap_.sweepgen
 retry:
 	var s *mspan
@@ -87,6 +96,10 @@ retry:
 		// all subsequent ones must also be either swept or in process of sweeping
 		break
 	}
+	if trace.enabled {
+		traceGCSweepDone()
+		traceDone = true
+	}
 	unlock(&c.lock)
 
 	// Replenish central list if empty.
@@ -101,15 +114,17 @@ retry:
 	// At this point s is a non-empty span, queued at the end of the empty list,
 	// c is unlocked.
 havespan:
-	cap := int32((s.npages << _PageShift) / s.elemsize)
-	n := cap - int32(s.allocCount)
+	if trace.enabled && !traceDone {
+		traceGCSweepDone()
+	}
+	n := int(s.nelems) - int(s.allocCount)
 	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
 		throw("span has no free objects")
 	}
+	// Assume all objects from this span will be allocated in the
+	// mcache. If it gets uncached, we'll adjust this.
+	atomic.Xadd64(&c.nmalloc, int64(n))
 	usedBytes := uintptr(s.allocCount) * s.elemsize
-	if usedBytes > 0 {
-		reimburseSweepCredit(usedBytes)
-	}
 	atomic.Xadd64(&memstats.heap_live, int64(spanBytes)-int64(usedBytes))
 	if trace.enabled {
 		// heap_live changed.
@@ -119,7 +134,6 @@ havespan:
 		// heap_live changed.
 		gcController.revise()
 	}
-	s.incache = true
 	freeByteBase := s.freeindex &^ (64 - 1)
 	whichByte := freeByteBase / 8
 	// Init alloc bits cache.
@@ -132,26 +146,56 @@ havespan:
 	return s
 }
 
-// Return span from an MCache.
+// Return span from an mcache.
 func (c *mcentral) uncacheSpan(s *mspan) {
-	lock(&c.lock)
-
-	s.incache = false
-
 	if s.allocCount == 0 {
 		throw("uncaching span but s.allocCount == 0")
 	}
 
-	cap := int32((s.npages << _PageShift) / s.elemsize)
-	n := cap - int32(s.allocCount)
+	sg := mheap_.sweepgen
+	stale := s.sweepgen == sg+1
+	if stale {
+		// Span was cached before sweep began. It's our
+		// responsibility to sweep it.
+		//
+		// Set sweepgen to indicate it's not cached but needs
+		// sweeping and can't be allocated from. sweep will
+		// set s.sweepgen to indicate s is swept.
+		atomic.Store(&s.sweepgen, sg-1)
+	} else {
+		// Indicate that s is no longer cached.
+		atomic.Store(&s.sweepgen, sg)
+	}
+
+	n := int(s.nelems) - int(s.allocCount)
 	if n > 0 {
+		// cacheSpan updated alloc assuming all objects on s
+		// were going to be allocated. Adjust for any that
+		// weren't. We must do this before potentially
+		// sweeping the span.
+		atomic.Xadd64(&c.nmalloc, -int64(n))
+
+		lock(&c.lock)
 		c.empty.remove(s)
 		c.nonempty.insert(s)
-		// mCentral_CacheSpan conservatively counted
-		// unallocated slots in heap_live. Undo this.
-		atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
+		if !stale {
+			// mCentral_CacheSpan conservatively counted
+			// unallocated slots in heap_live. Undo this.
+			//
+			// If this span was cached before sweep, then
+			// heap_live was totally recomputed since
+			// caching this span, so we don't do this for
+			// stale spans.
+			atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
+		}
+		unlock(&c.lock)
 	}
-	unlock(&c.lock)
+
+	if stale {
+		// Now that s is in the right mcentral list, we can
+		// sweep it.
+		s.sweep(false)
+	}
 }
 
 // freeSpan updates c and s after sweeping s.
@@ -159,17 +203,17 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 // and, based on the number of free objects in s,
 // moves s to the appropriate list of c or returns it
 // to the heap.
-// freeSpan returns true if s was returned to the heap.
+// freeSpan reports whether s was returned to the heap.
 // If preserve=true, it does not move s (the caller
 // must take care of it).
 func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
-	if s.incache {
+	if sg := mheap_.sweepgen; s.sweepgen == sg+1 || s.sweepgen == sg+3 {
 		throw("freeSpan given cached span")
 	}
 	s.needzero = 1
 
 	if preserve {
-		// preserve is set only when called from MCentral_CacheSpan above,
+		// preserve is set only when called from (un)cacheSpan above,
 		// the span must be in the empty list.
 		if !s.inList() {
 			throw("can't preserve unlinked span")
@@ -187,7 +231,7 @@ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
 	}
 
 	// delay updating sweepgen until here. This is the signal that
-	// the span may be used in an MCache, so it must come after the
+	// the span may be used in an mcache, so it must come after the
 	// linked list operations above (actually, just after the
 	// lock of c above.)
 	atomic.Store(&s.sweepgen, mheap_.sweepgen)
@@ -199,17 +243,17 @@ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
 
 	c.nonempty.remove(s)
 	unlock(&c.lock)
-	mheap_.freeSpan(s, 0)
+	mheap_.freeSpan(s, false)
 	return true
 }
 
 // grow allocates a new empty span from the heap and initializes it for c's size class.
 func (c *mcentral) grow() *mspan {
-	npages := uintptr(class_to_allocnpages[c.sizeclass])
-	size := uintptr(class_to_size[c.sizeclass])
+	npages := uintptr(class_to_allocnpages[c.spanclass.sizeclass()])
+	size := uintptr(class_to_size[c.spanclass.sizeclass()])
 	n := (npages << _PageShift) / size
 
-	s := mheap_.alloc(npages, c.sizeclass, false, true)
+	s := mheap_.alloc(npages, c.spanclass, false, true)
 	if s == nil {
 		return nil
 	}
@@ -217,6 +261,6 @@ func (c *mcentral) grow() *mspan {
 	p := s.base()
 	s.limit = p + size*n
 
-	heapBitsForSpan(s.base()).initSpan(s)
+	heapBitsForAddr(s.base()).initSpan(s)
 	return s
 }

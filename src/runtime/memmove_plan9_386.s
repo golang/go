@@ -25,6 +25,7 @@
 
 #include "textflag.h"
 
+// func memmove(to, from unsafe.Pointer, n uintptr)
 TEXT runtime·memmove(SB), NOSPLIT, $0-12
 	MOVL	to+0(FP), DI
 	MOVL	from+4(FP), SI
@@ -55,7 +56,7 @@ tail:
 /*
  * forward copy loop
  */
-forward:	
+forward:
 	MOVL	BX, CX
 	SHRL	$2, CX
 	ANDL	$3, BX

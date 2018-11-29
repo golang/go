@@ -5,7 +5,7 @@
 // Package types declares the data types and implements
 // the algorithms for type-checking of Go packages. Use
 // Config.Check to invoke the type checker for a package.
-// Alternatively, create a new type checked with NewChecker
+// Alternatively, create a new type checker with NewChecker
 // and invoke it incrementally by calling Checker.Files.
 //
 // Type-checking consists of several interdependent phases:
@@ -24,7 +24,7 @@
 //
 // For a tutorial, see https://golang.org/s/types-tutorial.
 //
-package types // import "go/types"
+package types
 
 import (
 	"bytes"
@@ -57,10 +57,9 @@ func (err Error) Error() string {
 // vendored packages. See https://golang.org/s/go15vendor.
 // If possible, external implementations should implement ImporterFrom.
 type Importer interface {
-	// Import returns the imported package for the given import
-	// path, or an error if the package couldn't be imported.
-	// Two calls to Import with the same path return the same
-	// package.
+	// Import returns the imported package for the given import path.
+	// The semantics is like for ImporterFrom.ImportFrom except that
+	// dir and mode are ignored (since they are not present).
 	Import(path string) (*Package, error)
 }
 
@@ -79,12 +78,15 @@ type ImporterFrom interface {
 	Importer
 
 	// ImportFrom returns the imported package for the given import
-	// path when imported by the package in srcDir, or an error
-	// if the package couldn't be imported. The mode value must
-	// be 0; it is reserved for future use.
-	// Two calls to ImportFrom with the same path and srcDir return
-	// the same package.
-	ImportFrom(path, srcDir string, mode ImportMode) (*Package, error)
+	// path when imported by a package file located in dir.
+	// If the import failed, besides returning an error, ImportFrom
+	// is encouraged to cache and return a package anyway, if one
+	// was created. This will reduce package inconsistencies and
+	// follow-on type checker errors due to the missing package.
+	// The mode value must be 0; it is reserved for future use.
+	// Two calls to ImportFrom with the same path and dir must
+	// return the same package.
+	ImportFrom(path, dir string, mode ImportMode) (*Package, error)
 }
 
 // A Config specifies the configuration for type checking.
@@ -99,7 +101,7 @@ type Config struct {
 	// identifiers referring to package C (which won't find an object).
 	// This feature is intended for the standard library cmd/api tool.
 	//
-	// Caution: Effects may be unpredictable due to follow-up errors.
+	// Caution: Effects may be unpredictable due to follow-on errors.
 	//          Do not use casually!
 	FakeImportC bool
 
@@ -121,7 +123,7 @@ type Config struct {
 	Importer Importer
 
 	// If Sizes != nil, it provides the sizing functions for package unsafe.
-	// Otherwise &StdSizes{WordSize: 8, MaxAlign: 8} is used instead.
+	// Otherwise SizesFor("gc", "amd64") is used instead.
 	Sizes Sizes
 
 	// If DisableUnusedImportCheck is set, packages are not checked
@@ -159,14 +161,14 @@ type Info struct {
 	// in package clauses, or symbolic variables t in t := x.(type) of
 	// type switch headers), the corresponding objects are nil.
 	//
-	// For an anonymous field, Defs returns the field *Var it defines.
+	// For an embedded field, Defs returns the field *Var it defines.
 	//
 	// Invariant: Defs[id] == nil || Defs[id].Pos() == id.Pos()
 	Defs map[*ast.Ident]Object
 
 	// Uses maps identifiers to the objects they denote.
 	//
-	// For an anonymous field, Uses returns the *TypeName it denotes.
+	// For an embedded field, Uses returns the *TypeName it denotes.
 	//
 	// Invariant: Uses[id].Pos() != id.Pos()
 	Uses map[*ast.Ident]Object
@@ -174,11 +176,11 @@ type Info struct {
 	// Implicits maps nodes to their implicitly declared objects, if any.
 	// The following node and object types may appear:
 	//
-	//	node               declared object
+	//     node               declared object
 	//
-	//	*ast.ImportSpec    *PkgName for dot-imports and imports without renames
-	//	*ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
-	//      *ast.Field         anonymous parameter *Var
+	//     *ast.ImportSpec    *PkgName for imports without renames
+	//     *ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
+	//     *ast.Field         anonymous parameter *Var (incl. unnamed results)
 	//
 	Implicits map[ast.Node]Object
 
@@ -198,16 +200,16 @@ type Info struct {
 	//
 	// The following node types may appear in Scopes:
 	//
-	//	*ast.File
-	//	*ast.FuncType
-	//	*ast.BlockStmt
-	//	*ast.IfStmt
-	//	*ast.SwitchStmt
-	//	*ast.TypeSwitchStmt
-	//	*ast.CaseClause
-	//	*ast.CommClause
-	//	*ast.ForStmt
-	//	*ast.RangeStmt
+	//     *ast.File
+	//     *ast.FuncType
+	//     *ast.BlockStmt
+	//     *ast.IfStmt
+	//     *ast.SwitchStmt
+	//     *ast.TypeSwitchStmt
+	//     *ast.CaseClause
+	//     *ast.CommClause
+	//     *ast.ForStmt
+	//     *ast.RangeStmt
 	//
 	Scopes map[ast.Node]*Scope
 
@@ -237,13 +239,13 @@ func (info *Info) TypeOf(e ast.Expr) Type {
 // ObjectOf returns the object denoted by the specified id,
 // or nil if not found.
 //
-// If id is an anonymous struct field, ObjectOf returns the field (*Var)
-// it uses, not the type (*TypeName) it defines.
+// If id is an embedded struct field, ObjectOf returns the field (*Var)
+// it defines, not the type (*TypeName) it uses.
 //
 // Precondition: the Uses and Defs maps are populated.
 //
 func (info *Info) ObjectOf(id *ast.Ident) Object {
-	if obj, _ := info.Defs[id]; obj != nil {
+	if obj := info.Defs[id]; obj != nil {
 		return obj
 	}
 	return info.Uses[id]
@@ -307,7 +309,7 @@ func (tv TypeAndValue) Assignable() bool {
 }
 
 // HasOk reports whether the corresponding expression may be
-// used on the lhs of a comma-ok assignment.
+// used on the rhs of a comma-ok assignment.
 func (tv TypeAndValue) HasOk() bool {
 	return tv.mode == commaok || tv.mode == mapindex
 }
@@ -351,20 +353,20 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
 func AssertableTo(V *Interface, T Type) bool {
-	m, _ := assertableTo(V, T)
+	m, _ := (*Checker)(nil).assertableTo(V, T)
 	return m == nil
 }
 
 // AssignableTo reports whether a value of type V is assignable to a variable of type T.
 func AssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.assignableTo(nil, T, nil) // config not needed for non-constant x
+	return x.assignableTo(nil, T, nil) // check not needed for non-constant x
 }
 
 // ConvertibleTo reports whether a value of type V is convertible to a value of type T.
 func ConvertibleTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.convertibleTo(nil, T) // config not needed for non-constant x
+	return x.convertibleTo(nil, T) // check not needed for non-constant x
 }
 
 // Implements reports whether type V implements interface T.

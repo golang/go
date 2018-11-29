@@ -2,22 +2,26 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
 
 import (
+	"internal/poll"
 	"os"
 	"syscall"
 )
 
 func dupSocket(f *os.File) (int, error) {
-	s, err := dupCloseOnExec(int(f.Fd()))
+	s, call, err := poll.DupCloseOnExec(int(f.Fd()))
 	if err != nil {
+		if call != "" {
+			err = os.NewSyscallError(call, err)
+		}
 		return -1, err
 	}
 	if err := syscall.SetNonblock(s, true); err != nil {
-		closeFunc(s)
+		poll.CloseFunc(s)
 		return -1, os.NewSyscallError("setnonblock", err)
 	}
 	return s, nil
@@ -31,7 +35,7 @@ func newFileFD(f *os.File) (*netFD, error) {
 	family := syscall.AF_UNSPEC
 	sotype, err := syscall.GetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_TYPE)
 	if err != nil {
-		closeFunc(s)
+		poll.CloseFunc(s)
 		return nil, os.NewSyscallError("getsockopt", err)
 	}
 	lsa, _ := syscall.Getsockname(s)
@@ -44,12 +48,12 @@ func newFileFD(f *os.File) (*netFD, error) {
 	case *syscall.SockaddrUnix:
 		family = syscall.AF_UNIX
 	default:
-		closeFunc(s)
+		poll.CloseFunc(s)
 		return nil, syscall.EPROTONOSUPPORT
 	}
 	fd, err := newFD(s, family, sotype, "")
 	if err != nil {
-		closeFunc(s)
+		poll.CloseFunc(s)
 		return nil, err
 	}
 	laddr := fd.addrFunc()(lsa)

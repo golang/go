@@ -81,8 +81,10 @@ package net
 import (
 	"context"
 	"errors"
+	"internal/poll"
 	"io"
 	"os"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -94,12 +96,6 @@ var (
 	netGo  bool // set true in cgo_stub.go for build tag "netgo" (or no cgo)
 	netCgo bool // set true in conf_netcgo.go for build tag "netcgo"
 )
-
-func init() {
-	sysInit()
-	supportsIPv4 = probeIPv4Stack()
-	supportsIPv6, supportsIPv4map = probeIPv6Stack()
-}
 
 // Addr represents a network end point address.
 //
@@ -234,7 +230,7 @@ func (c *conn) SetDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := c.fd.setDeadline(t); err != nil {
+	if err := c.fd.SetDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
@@ -245,7 +241,7 @@ func (c *conn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := c.fd.setReadDeadline(t); err != nil {
+	if err := c.fd.SetReadDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
@@ -256,7 +252,7 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := c.fd.setWriteDeadline(t); err != nil {
+	if err := c.fd.SetWriteDeadline(t); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: nil, Addr: c.fd.laddr, Err: err}
 	}
 	return nil
@@ -286,7 +282,7 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 	return nil
 }
 
-// File sets the underlying os.File to blocking mode and returns a copy.
+// File returns a copy of the underlying os.File
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.
 //
@@ -306,20 +302,23 @@ func (c *conn) File() (f *os.File, err error) {
 // Multiple goroutines may invoke methods on a PacketConn simultaneously.
 type PacketConn interface {
 	// ReadFrom reads a packet from the connection,
-	// copying the payload into b. It returns the number of
-	// bytes copied into b and the return address that
+	// copying the payload into p. It returns the number of
+	// bytes copied into p and the return address that
 	// was on the packet.
+	// It returns the number of bytes read (0 <= n <= len(p))
+	// and any error encountered. Callers should always process
+	// the n > 0 bytes returned before considering the error err.
 	// ReadFrom can be made to time out and return
 	// an Error with Timeout() == true after a fixed time limit;
 	// see SetDeadline and SetReadDeadline.
-	ReadFrom(b []byte) (n int, addr Addr, err error)
+	ReadFrom(p []byte) (n int, addr Addr, err error)
 
-	// WriteTo writes a packet with payload b to addr.
+	// WriteTo writes a packet with payload p to addr.
 	// WriteTo can be made to time out and return
 	// an Error with Timeout() == true after a fixed time limit;
 	// see SetDeadline and SetWriteDeadline.
 	// On packet-oriented connections, write timeouts are rare.
-	WriteTo(b []byte, addr Addr) (n int, err error)
+	WriteTo(p []byte, addr Addr) (n int, err error)
 
 	// Close closes the connection.
 	// Any blocked ReadFrom or WriteTo operations will be unblocked and return errors.
@@ -358,7 +357,16 @@ type PacketConn interface {
 	SetWriteDeadline(t time.Time) error
 }
 
-var listenerBacklog = maxListenerBacklog()
+var listenerBacklogCache struct {
+	sync.Once
+	val int
+}
+
+// listenerBacklog is a caching wrapper around maxListenerBacklog.
+func listenerBacklog() int {
+	listenerBacklogCache.Do(func() { listenerBacklogCache.val = maxListenerBacklog() })
+	return listenerBacklogCache.val
+}
 
 // A Listener is a generic network listener for stream-oriented protocols.
 //
@@ -391,10 +399,8 @@ var (
 	errMissingAddress = errors.New("missing address")
 
 	// For both read and write operations.
-	errTimeout          error = &timeoutError{}
-	errCanceled               = errors.New("operation was canceled")
-	errClosing                = errors.New("use of closed network connection")
-	ErrWriteToConnected       = errors.New("use of WriteTo with pre-connected connection")
+	errCanceled         = errors.New("operation was canceled")
+	ErrWriteToConnected = errors.New("use of WriteTo with pre-connected connection")
 )
 
 // mapErr maps from the context errors to the historical internal net
@@ -407,7 +413,7 @@ func mapErr(err error) error {
 	case context.Canceled:
 		return errCanceled
 	case context.DeadlineExceeded:
-		return errTimeout
+		return poll.ErrTimeout
 	default:
 		return err
 	}
@@ -468,7 +474,7 @@ func (e *OpError) Error() string {
 var (
 	// aLongTimeAgo is a non-zero time, far in the past, used for
 	// immediate cancelation of dials.
-	aLongTimeAgo = time.Unix(233431200, 0)
+	aLongTimeAgo = time.Unix(1, 0)
 
 	// nonDeadline and noCancel are just zero values for
 	// readability with functions taking too many parameters.
@@ -494,6 +500,12 @@ type temporary interface {
 }
 
 func (e *OpError) Temporary() bool {
+	// Treat ECONNRESET and ECONNABORTED as temporary errors when
+	// they come from calling accept. See issue 6163.
+	if e.Op == "accept" && isConnError(e.Err) {
+		return true
+	}
+
 	if ne, ok := e.Err.(*os.SyscallError); ok {
 		t, ok := ne.Err.(temporary)
 		return ok && t.Temporary()
@@ -501,12 +513,6 @@ func (e *OpError) Temporary() bool {
 	t, ok := e.Err.(temporary)
 	return ok && t.Temporary()
 }
-
-type timeoutError struct{}
-
-func (e *timeoutError) Error() string   { return "i/o timeout" }
-func (e *timeoutError) Timeout() bool   { return true }
-func (e *timeoutError) Temporary() bool { return true }
 
 // A ParseError is the error type of literal network address parsers.
 type ParseError struct {
@@ -614,9 +620,14 @@ func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
 // server is not responding. Then the many lookups each use a different
 // thread, and the system or the program runs out of threads.
 
-var threadLimit = make(chan struct{}, 500)
+var threadLimit chan struct{}
+
+var threadOnce sync.Once
 
 func acquireThread() {
+	threadOnce.Do(func() {
+		threadLimit = make(chan struct{}, concurrentThreadsLimit())
+	})
 	threadLimit <- struct{}{}
 }
 
@@ -631,8 +642,6 @@ func releaseThread() {
 type buffersWriter interface {
 	writeBuffers(*Buffers) (int64, error)
 }
-
-var testHookDidWritev = func(wrote int) {}
 
 // Buffers contains zero or more runs of bytes to write.
 //

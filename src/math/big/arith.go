@@ -8,18 +8,17 @@
 
 package big
 
+import "math/bits"
+
 // A Word represents a single digit of a multi-precision unsigned integer.
-type Word uintptr
+type Word uint
 
 const (
-	// Compute the size _S of a Word in bytes.
-	_m    = ^Word(0)
-	_logS = _m>>8&1 + _m>>16&1 + _m>>32&1
-	_S    = 1 << _logS
+	_S = _W / 8 // word size in bytes
 
-	_W = _S << 3 // word size in bits
-	_B = 1 << _W // digit base
-	_M = _B - 1  // digit mask
+	_W = bits.UintSize // word size in bits
+	_B = 1 << _W       // digit base
+	_M = _B - 1        // digit mask
 
 	_W2 = _W / 2   // half word size in bits
 	_B2 = 1 << _W2 // half digit base
@@ -77,57 +76,13 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
 	return
 }
 
-// Length of x in bits.
-func bitLen_g(x Word) (n int) {
-	for ; x >= 0x8000; x >>= 16 {
-		n += 16
-	}
-	if x >= 0x80 {
-		x >>= 8
-		n += 8
-	}
-	if x >= 0x8 {
-		x >>= 4
-		n += 4
-	}
-	if x >= 0x2 {
-		x >>= 2
-		n += 2
-	}
-	if x >= 0x1 {
-		n++
-	}
-	return
-}
-
-// log2 computes the integer binary logarithm of x.
-// The result is the integer n for which 2^n <= x < 2^(n+1).
-// If x == 0, the result is -1.
-func log2(x Word) int {
-	return bitLen(x) - 1
-}
-
 // nlz returns the number of leading zeros in x.
+// Wraps bits.LeadingZeros call for convenience.
 func nlz(x Word) uint {
-	return uint(_W - bitLen(x))
+	return uint(bits.LeadingZeros(uint(x)))
 }
 
-// nlz64 returns the number of leading zeros in x.
-func nlz64(x uint64) uint {
-	switch _W {
-	case 32:
-		w := x >> 32
-		if w == 0 {
-			return 32 + nlz(Word(x))
-		}
-		return nlz(Word(w))
-	case 64:
-		return nlz(Word(x))
-	}
-	panic("unreachable")
-}
-
-// q = (u1<<_W + u0 - r)/y
+// q = (u1<<_W + u0 - r)/v
 // Adapted from Warren, Hacker's Delight, p. 152.
 func divWW_g(u1, u0, v Word) (q, r Word) {
 	if u1 >= v {

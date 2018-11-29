@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 // Read system DNS config from /etc/resolv.conf
 
 package net
 
 import (
+	"internal/bytealg"
 	"os"
 	"sync/atomic"
 	"time"
@@ -73,7 +74,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 				// to look it up.
 				if parseIPv4(f[1]) != nil {
 					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
-				} else if ip, _ := parseIPv6(f[1], true); ip != nil {
+				} else if ip, _ := parseIPv6Zone(f[1]); ip != nil {
 					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
 				}
 			}
@@ -121,7 +122,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 
 		case "lookup":
 			// OpenBSD option:
-			// http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
+			// https://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
 			// "the legal space-separated values are: bind, file, yp"
 			conf.lookup = f[1:]
 
@@ -155,7 +156,7 @@ func dnsDefaultSearch() []string {
 		// best effort
 		return nil
 	}
-	if i := byteIndex(hn, '.'); i >= 0 && i < len(hn)-1 {
+	if i := bytealg.IndexByteString(hn, '.'); i >= 0 && i < len(hn)-1 {
 		return []string{ensureRooted(hn[i+1:])}
 	}
 	return nil

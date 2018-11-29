@@ -12,15 +12,19 @@ package runtime
 
 // emitted by compiler, not referred to by go programs
 
+import "unsafe"
+
 func newobject(typ *byte) *any
 func panicindex()
 func panicslice()
 func panicdivide()
+func panicmakeslicelen()
 func throwinit()
-func panicwrap(string, string, string)
+func panicwrap()
 
 func gopanic(interface{})
 func gorecover(*int32) interface{}
+func goschedguarded()
 
 func printbool(bool)
 func printfloat(float64)
@@ -45,35 +49,57 @@ func concatstring5(*[32]byte, string, string, string, string, string) string
 func concatstrings(*[32]byte, []string) string
 
 func cmpstring(string, string) int
-func eqstring(string, string) bool
 func intstring(*[4]byte, int64) string
 func slicebytetostring(*[32]byte, []byte) string
 func slicebytetostringtmp([]byte) string
 func slicerunetostring(*[32]byte, []rune) string
 func stringtoslicebyte(*[32]byte, string) []byte
 func stringtoslicerune(*[32]rune, string) []rune
-func decoderune(string, int) (retv rune, retk int)
 func slicecopy(to any, fr any, wid uintptr) int
 func slicestringcopy(to any, fr any) int
 
-// interface conversions
-func convI2I(typ *byte, elem any) (ret any)
-func convT2E(typ *byte, elem *any) (ret any)
-func convT2I(tab *byte, elem *any) (ret any)
+func decoderune(string, int) (retv rune, retk int)
+func countrunes(string) int
 
-// interface type assertions  x.(T)
+// Non-empty-interface to non-empty-interface conversion.
+func convI2I(typ *byte, elem any) (ret any)
+
+// Specialized type-to-interface conversion.
+// These return only a data pointer.
+func convT16(val any) unsafe.Pointer     // val must be uint16-like (same size and alignment as a uint16)
+func convT32(val any) unsafe.Pointer     // val must be uint32-like (same size and alignment as a uint32)
+func convT64(val any) unsafe.Pointer     // val must be uint64-like (same size and alignment as a uint64 and contains no pointers)
+func convTstring(val any) unsafe.Pointer // val must be a string
+func convTslice(val any) unsafe.Pointer  // val must be a slice
+
+// Type to empty-interface conversion.
+func convT2E(typ *byte, elem *any) (ret any)
+func convT2Enoptr(typ *byte, elem *any) (ret any)
+
+// Type to non-empty-interface conversion.
+func convT2I(tab *byte, elem *any) (ret any)
+func convT2Inoptr(tab *byte, elem *any) (ret any)
+
+// interface type assertions x.(T)
 func assertE2I(typ *byte, iface any) (ret any)
 func assertE2I2(typ *byte, iface any) (ret any, b bool)
 func assertI2I(typ *byte, iface any) (ret any)
 func assertI2I2(typ *byte, iface any) (ret any, b bool)
-func panicdottype(have, want, iface *byte)
+func panicdottypeE(have, want, iface *byte)
+func panicdottypeI(have, want, iface *byte)
 func panicnildottype(want *byte)
 
-func ifaceeq(i1 any, i2 any) (ret bool)
-func efaceeq(i1 any, i2 any) (ret bool)
+// interface equality. Type/itab pointers are already known to be equal, so
+// we only need to pass one.
+func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
+func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
+
+func fastrand() uint32
 
 // *byte is really *runtime.Type
-func makemap(mapType *byte, hint int64, mapbuf *any, bucketbuf *any) (hmap map[any]any)
+func makemap64(mapType *byte, hint int64, mapbuf *any) (hmap map[any]any)
+func makemap(mapType *byte, hint int, mapbuf *any) (hmap map[any]any)
+func makemap_small() (hmap map[any]any)
 func mapaccess1(mapType *byte, hmap map[any]any, key *any) (val *any)
 func mapaccess1_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
 func mapaccess1_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
@@ -85,48 +111,54 @@ func mapaccess2_fast64(mapType *byte, hmap map[any]any, key any) (val *any, pres
 func mapaccess2_faststr(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
 func mapaccess2_fat(mapType *byte, hmap map[any]any, key *any, zero *byte) (val *any, pres bool)
 func mapassign(mapType *byte, hmap map[any]any, key *any) (val *any)
+func mapassign_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
+func mapassign_fast32ptr(mapType *byte, hmap map[any]any, key any) (val *any)
+func mapassign_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
+func mapassign_fast64ptr(mapType *byte, hmap map[any]any, key any) (val *any)
+func mapassign_faststr(mapType *byte, hmap map[any]any, key any) (val *any)
 func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
 func mapdelete(mapType *byte, hmap map[any]any, key *any)
+func mapdelete_fast32(mapType *byte, hmap map[any]any, key any)
+func mapdelete_fast64(mapType *byte, hmap map[any]any, key any)
+func mapdelete_faststr(mapType *byte, hmap map[any]any, key any)
 func mapiternext(hiter *any)
+func mapclear(mapType *byte, hmap map[any]any)
 
 // *byte is really *runtime.Type
-func makechan(chanType *byte, hint int64) (hchan chan any)
-func chanrecv1(chanType *byte, hchan <-chan any, elem *any)
-func chanrecv2(chanType *byte, hchan <-chan any, elem *any) bool
-func chansend1(chanType *byte, hchan chan<- any, elem *any)
+func makechan64(chanType *byte, size int64) (hchan chan any)
+func makechan(chanType *byte, size int) (hchan chan any)
+func chanrecv1(hchan <-chan any, elem *any)
+func chanrecv2(hchan <-chan any, elem *any) bool
+func chansend1(hchan chan<- any, elem *any)
 func closechan(hchan any)
 
 var writeBarrier struct {
 	enabled bool
+	pad     [3]byte
 	needed  bool
 	cgo     bool
+	alignme uint64
 }
-
-func writebarrierptr(dst *any, src any)
 
 // *byte is really *runtime.Type
 func typedmemmove(typ *byte, dst *any, src *any)
 func typedmemclr(typ *byte, dst *any)
 func typedslicecopy(typ *byte, dst any, src any) int
 
-func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool
-func selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool
-func selectnbrecv2(chanType *byte, elem *any, received *bool, hchan <-chan any) bool
+func selectnbsend(hchan chan<- any, elem *any) bool
+func selectnbrecv(elem *any, hchan <-chan any) bool
+func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
 
-func newselect(sel *byte, selsize int64, size int32)
-func selectsend(sel *byte, hchan chan<- any, elem *any) (selected bool)
-func selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool)
-func selectrecv2(sel *byte, hchan <-chan any, elem *any, received *bool) (selected bool)
-func selectdefault(sel *byte) (selected bool)
-func selectgo(sel *byte)
+func selectsetpc(cas *byte)
+func selectgo(cas0 *byte, order0 *byte, ncases int) (int, bool)
 func block()
 
-func makeslice(typ *byte, len int, cap int) (ary []any)
-func makeslice64(typ *byte, len int64, cap int64) (ary []any)
+func makeslice(typ *byte, len int, cap int) unsafe.Pointer
+func makeslice64(typ *byte, len int64, cap int64) unsafe.Pointer
 func growslice(typ *byte, old []any, cap int) (ary []any)
 func memmove(to *any, frm *any, length uintptr)
-func memclrNoHeapPointers(ptr *byte, length uintptr)
-func memclrHasPointers(ptr *byte, length uintptr)
+func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+func memclrHasPointers(ptr unsafe.Pointer, n uintptr)
 
 func memequal(x, y *any, size uintptr) bool
 func memequal8(x, y *any) bool
@@ -151,6 +183,7 @@ func complex128div(num complex128, den complex128) (quo complex128)
 
 // race detection
 func racefuncenter(uintptr)
+func racefuncenterfp()
 func racefuncexit()
 func raceread(uintptr)
 func racewrite(uintptr)
@@ -160,3 +193,8 @@ func racewriterange(addr, size uintptr)
 // memory sanitizer
 func msanread(addr, size uintptr)
 func msanwrite(addr, size uintptr)
+
+// architecture variants
+var x86HasPOPCNT bool
+var x86HasSSE41 bool
+var arm64HasATOMICS bool

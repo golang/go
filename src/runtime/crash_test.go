@@ -32,25 +32,6 @@ func TestMain(m *testing.M) {
 	os.Exit(status)
 }
 
-func testEnv(cmd *exec.Cmd) *exec.Cmd {
-	if cmd.Env != nil {
-		panic("environment already set")
-	}
-	for _, env := range os.Environ() {
-		// Exclude GODEBUG from the environment to prevent its output
-		// from breaking tests that are trying to parse other command output.
-		if strings.HasPrefix(env, "GODEBUG=") {
-			continue
-		}
-		// Exclude GOTRACEBACK for the same reason.
-		if strings.HasPrefix(env, "GOTRACEBACK=") {
-			continue
-		}
-		cmd.Env = append(cmd.Env, env)
-	}
-	return cmd
-}
-
 var testprog struct {
 	sync.Mutex
 	dir    string
@@ -62,7 +43,11 @@ type buildexe struct {
 	err error
 }
 
-func runTestProg(t *testing.T, binary, name string) string {
+func runTestProg(t *testing.T, binary, name string, env ...string) string {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
 	testenv.MustHaveGoBuild(t)
 
 	exe, err := buildTestProg(t, binary)
@@ -70,7 +55,11 @@ func runTestProg(t *testing.T, binary, name string) string {
 		t.Fatal(err)
 	}
 
-	cmd := testEnv(exec.Command(exe, name))
+	cmd := testenv.CleanCmdEnv(exec.Command(exe, name))
+	cmd.Env = append(cmd.Env, env...)
+	if testing.Short() {
+		cmd.Env = append(cmd.Env, "RUNTIME_TEST_SHORT=1")
+	}
 	var b bytes.Buffer
 	cmd.Stdout = &b
 	cmd.Stderr = &b
@@ -111,6 +100,10 @@ func runTestProg(t *testing.T, binary, name string) string {
 }
 
 func buildTestProg(t *testing.T, binary string, flags ...string) (string, error) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
 	checkStaleRuntime(t)
 
 	testprog.Lock()
@@ -139,7 +132,7 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 	exe := filepath.Join(testprog.dir, name+".exe")
 	cmd := exec.Command(testenv.GoToolPath(t), append([]string{"build", "-o", exe}, flags...)...)
 	cmd.Dir = "testdata/" + binary
-	out, err := testEnv(cmd).CombinedOutput()
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
 		target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
 		testprog.target[name] = target
@@ -158,12 +151,18 @@ var (
 func checkStaleRuntime(t *testing.T) {
 	staleRuntimeOnce.Do(func() {
 		// 'go run' uses the installed copy of runtime.a, which may be out of date.
-		out, err := testEnv(exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Stale}}", "runtime")).CombinedOutput()
+		out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "-f", "{{.Stale}}", "runtime")).CombinedOutput()
 		if err != nil {
 			staleRuntimeErr = fmt.Errorf("failed to execute 'go list': %v\n%v", err, string(out))
 			return
 		}
 		if string(out) != "false\n" {
+			t.Logf("go list -f {{.Stale}} runtime:\n%s", out)
+			out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "-f", "{{.StaleReason}}", "runtime")).CombinedOutput()
+			if err != nil {
+				t.Logf("go list -f {{.StaleReason}} failed: %v", err)
+			}
+			t.Logf("go list -f {{.StaleReason}} runtime:\n%s", out)
 			staleRuntimeErr = fmt.Errorf("Stale runtime.a. Run 'go install runtime'.")
 		}
 	})
@@ -302,7 +301,9 @@ func TestNoHelperGoroutines(t *testing.T) {
 
 func TestBreakpoint(t *testing.T) {
 	output := runTestProg(t, "testprog", "Breakpoint")
-	want := "runtime.Breakpoint()"
+	// If runtime.Breakpoint() is inlined, then the stack trace prints
+	// "runtime.Breakpoint(...)" instead of "runtime.Breakpoint()".
+	want := "runtime.Breakpoint("
 	if !strings.Contains(output, want) {
 		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
 	}
@@ -460,35 +461,40 @@ func TestMemPprof(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := testEnv(exec.Command(exe, "MemProf")).CombinedOutput()
+	got, err := testenv.CleanCmdEnv(exec.Command(exe, "MemProf")).CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
 	}
 	fn := strings.TrimSpace(string(got))
 	defer os.Remove(fn)
 
-	cmd := testEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-alloc_space", "-top", exe, fn))
-
-	found := false
-	for i, e := range cmd.Env {
-		if strings.HasPrefix(e, "PPROF_TMPDIR=") {
-			cmd.Env[i] = "PPROF_TMPDIR=" + os.TempDir()
-			found = true
-			break
+	for try := 0; try < 2; try++ {
+		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-alloc_space", "-top"))
+		// Check that pprof works both with and without explicit executable on command line.
+		if try == 0 {
+			cmd.Args = append(cmd.Args, exe, fn)
+		} else {
+			cmd.Args = append(cmd.Args, fn)
 		}
-	}
-	if !found {
-		cmd.Env = append(cmd.Env, "PPROF_TMPDIR="+os.TempDir())
-	}
+		found := false
+		for i, e := range cmd.Env {
+			if strings.HasPrefix(e, "PPROF_TMPDIR=") {
+				cmd.Env[i] = "PPROF_TMPDIR=" + os.TempDir()
+				found = true
+				break
+			}
+		}
+		if !found {
+			cmd.Env = append(cmd.Env, "PPROF_TMPDIR="+os.TempDir())
+		}
 
-	top, err := cmd.CombinedOutput()
-	t.Logf("%s", top)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.Contains(top, []byte("MemProf")) {
-		t.Error("missing MemProf in pprof output")
+		top, err := cmd.CombinedOutput()
+		t.Logf("%s:\n%s", cmd.Args, top)
+		if err != nil {
+			t.Error(err)
+		} else if !bytes.Contains(top, []byte("MemProf")) {
+			t.Error("missing MemProf in pprof output")
+		}
 	}
 }
 
@@ -526,4 +532,199 @@ func TestConcurrentMapIterateWrite(t *testing.T) {
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
+}
+
+type point struct {
+	x, y *int
+}
+
+func (p *point) negate() {
+	*p.x = *p.x * -1
+	*p.y = *p.y * -1
+}
+
+// Test for issue #10152.
+func TestPanicInlined(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatalf("recover failed")
+		}
+		buf := make([]byte, 2048)
+		n := runtime.Stack(buf, false)
+		buf = buf[:n]
+		if !bytes.Contains(buf, []byte("(*point).negate(")) {
+			t.Fatalf("expecting stack trace to contain call to (*point).negate()")
+		}
+	}()
+
+	pt := new(point)
+	pt.negate()
+}
+
+// Test for issues #3934 and #20018.
+// We want to delay exiting until a panic print is complete.
+func TestPanicRace(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+
+	exe, err := buildTestProg(t, "testprog")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The test is intentionally racy, and in my testing does not
+	// produce the expected output about 0.05% of the time.
+	// So run the program in a loop and only fail the test if we
+	// get the wrong output ten times in a row.
+	const tries = 10
+retry:
+	for i := 0; i < tries; i++ {
+		got, err := testenv.CleanCmdEnv(exec.Command(exe, "PanicRace")).CombinedOutput()
+		if err == nil {
+			t.Logf("try %d: program exited successfully, should have failed", i+1)
+			continue
+		}
+
+		if i > 0 {
+			t.Logf("try %d:\n", i+1)
+		}
+		t.Logf("%s\n", got)
+
+		wants := []string{
+			"panic: crash",
+			"PanicRace",
+			"created by ",
+		}
+		for _, want := range wants {
+			if !bytes.Contains(got, []byte(want)) {
+				t.Logf("did not find expected string %q", want)
+				continue retry
+			}
+		}
+
+		// Test generated expected output.
+		return
+	}
+	t.Errorf("test ran %d times without producing expected output", tries)
+}
+
+func TestBadTraceback(t *testing.T) {
+	output := runTestProg(t, "testprog", "BadTraceback")
+	for _, want := range []string{
+		"runtime: unexpected return pc",
+		"called from 0xbad",
+		"00000bad",    // Smashed LR in hex dump
+		"<main.badLR", // Symbolization in hex dump (badLR1 or badLR2)
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("output does not contain %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestTimePprof(t *testing.T) {
+	if runtime.GOOS == "aix" {
+		t.Skip("pprof not yet available on AIX (see golang.org/issue/28555)")
+	}
+	fn := runTestProg(t, "testprog", "TimeProf")
+	fn = strings.TrimSpace(fn)
+	defer os.Remove(fn)
+
+	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-top", "-nodecount=1", fn))
+	cmd.Env = append(cmd.Env, "PPROF_TMPDIR="+os.TempDir())
+	top, err := cmd.CombinedOutput()
+	t.Logf("%s", top)
+	if err != nil {
+		t.Error(err)
+	} else if bytes.Contains(top, []byte("ExternalCode")) {
+		t.Error("profiler refers to ExternalCode")
+	}
+}
+
+// Test that runtime.abort does so.
+func TestAbort(t *testing.T) {
+	// Pass GOTRACEBACK to ensure we get runtime frames.
+	output := runTestProg(t, "testprog", "Abort", "GOTRACEBACK=system")
+	if want := "runtime.abort"; !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+	if strings.Contains(output, "BAD") {
+		t.Errorf("output contains BAD:\n%s", output)
+	}
+	// Check that it's a signal traceback.
+	want := "PC="
+	// For systems that use a breakpoint, check specifically for that.
+	switch runtime.GOARCH {
+	case "386", "amd64":
+		switch runtime.GOOS {
+		case "plan9":
+			want = "sys: breakpoint"
+		case "windows":
+			want = "Exception 0x80000003"
+		default:
+			want = "SIGTRAP"
+		}
+	}
+	if !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+}
+
+// For TestRuntimePanic: test a panic in the runtime package without
+// involving the testing harness.
+func init() {
+	if os.Getenv("GO_TEST_RUNTIME_PANIC") == "1" {
+		defer func() {
+			if r := recover(); r != nil {
+				// We expect to crash, so exit 0
+				// to indicate failure.
+				os.Exit(0)
+			}
+		}()
+		runtime.PanicForTesting(nil, 1)
+		// We expect to crash, so exit 0 to indicate failure.
+		os.Exit(0)
+	}
+}
+
+func TestRuntimePanic(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestRuntimePanic"))
+	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_PANIC=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("child process did not fail")
+	} else if want := "runtime.unexportedPanicForTesting"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("output did not contain expected string %q", want)
+	}
+}
+
+// Test that g0 stack overflows are handled gracefully.
+func TestG0StackOverflow(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	switch runtime.GOOS {
+	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "android":
+		t.Skipf("g0 stack is wrong on pthread platforms (see golang.org/issue/26061)")
+	}
+
+	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {
+		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestG0StackOverflow", "-test.v"))
+		cmd.Env = append(cmd.Env, "TEST_G0_STACK_OVERFLOW=1")
+		out, err := cmd.CombinedOutput()
+		// Don't check err since it's expected to crash.
+		if n := strings.Count(string(out), "morestack on g0\n"); n != 1 {
+			t.Fatalf("%s\n(exit status %v)", out, err)
+		}
+		// Check that it's a signal-style traceback.
+		if runtime.GOOS != "windows" {
+			if want := "PC="; !strings.Contains(string(out), want) {
+				t.Errorf("output does not contain %q:\n%s", want, out)
+			}
+		}
+		return
+	}
+
+	runtime.G0StackOverflow()
 }

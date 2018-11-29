@@ -5,19 +5,19 @@
 
 # This script rebuilds the time zone files using files
 # downloaded from the ICANN/IANA distribution.
-# Consult http://www.iana.org/time-zones for the latest versions.
+# Consult https://www.iana.org/time-zones for the latest versions.
 
 # Versions to use.
-CODE=2016i
-DATA=2016i
+CODE=2018g
+DATA=2018g
 
 set -e
 rm -rf work
 mkdir work
 cd work
 mkdir zoneinfo
-curl -O http://www.iana.org/time-zones/repository/releases/tzcode$CODE.tar.gz
-curl -O http://www.iana.org/time-zones/repository/releases/tzdata$DATA.tar.gz
+curl -L -O https://www.iana.org/time-zones/repository/releases/tzcode$CODE.tar.gz
+curl -L -O https://www.iana.org/time-zones/repository/releases/tzdata$DATA.tar.gz
 tar xzf tzcode$CODE.tar.gz
 tar xzf tzdata$DATA.tar.gz
 
@@ -42,10 +42,9 @@ zip -0 -r ../../zoneinfo.zip *
 cd ../..
 
 echo
-if [ "$1" == "-work" ]; then 
+if [ "$1" = "-work" ]; then
 	echo Left workspace behind in work/.
 else
 	rm -rf work
 fi
 echo New time zone files in zoneinfo.zip.
-

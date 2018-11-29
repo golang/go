@@ -36,7 +36,7 @@ func (c *sigctxt) lr() uint32  { return c.regs().lr }
 func (c *sigctxt) pc() uint32 { return c.regs().pc }
 
 func (c *sigctxt) cpsr() uint32    { return c.regs().cpsr }
-func (c *sigctxt) fault() uint32   { return c.info.si_addr }
+func (c *sigctxt) fault() uintptr  { return uintptr(c.info.si_addr) }
 func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
 func (c *sigctxt) trap() uint32    { return 0 }
 func (c *sigctxt) error() uint32   { return 0 }

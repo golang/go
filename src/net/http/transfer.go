@@ -11,14 +11,17 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http/httptrace"
 	"net/http/internal"
 	"net/textproto"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
-	"golang_org/x/net/lex/httplex"
+	"internal/x/net/http/httpguts"
 )
 
 // ErrLineTooLong is returned when reading request or response bodies
@@ -33,6 +36,36 @@ func (r errorReader) Read(p []byte) (n int, err error) {
 	return 0, r.err
 }
 
+type byteReader struct {
+	b    byte
+	done bool
+}
+
+func (br *byteReader) Read(p []byte) (n int, err error) {
+	if br.done {
+		return 0, io.EOF
+	}
+	if len(p) == 0 {
+		return 0, nil
+	}
+	br.done = true
+	p[0] = br.b
+	return 1, io.EOF
+}
+
+// transferBodyReader is an io.Reader that reads from tw.Body
+// and records any non-EOF error in tw.bodyReadError.
+// It is exactly 1 pointer wide to avoid allocations into interfaces.
+type transferBodyReader struct{ tw *transferWriter }
+
+func (br transferBodyReader) Read(p []byte) (n int, err error) {
+	n, err = br.tw.Body.Read(p)
+	if err != nil && err != io.EOF {
+		br.tw.bodyReadError = err
+	}
+	return
+}
+
 // transferWriter inspects the fields of a user-supplied Request or Response,
 // sanitizes them without changing the user object and provides methods for
 // writing the respective header, body and trailer in wire format.
@@ -44,8 +77,13 @@ type transferWriter struct {
 	ContentLength    int64 // -1 means unknown, 0 means exactly none
 	Close            bool
 	TransferEncoding []string
+	Header           Header
 	Trailer          Header
 	IsResponse       bool
+	bodyReadError    error // any non-EOF error from reading Body
+
+	FlushHeaders bool            // flush headers to network before body
+	ByteReadCh   chan readResult // non-nil if probeRequestBody called
 }
 
 func newTransferWriter(r interface{}) (t *transferWriter, err error) {
@@ -61,17 +99,26 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 		t.Method = valueOrDefault(rr.Method, "GET")
 		t.Close = rr.Close
 		t.TransferEncoding = rr.TransferEncoding
+		t.Header = rr.Header
 		t.Trailer = rr.Trailer
-		atLeastHTTP11 = rr.ProtoAtLeast(1, 1)
-
 		t.Body = rr.Body
+		t.BodyCloser = rr.Body
 		t.ContentLength = rr.outgoingLength()
-		if t.Body != nil {
-			t.BodyCloser = rr.Body
-		}
-		if t.ContentLength < 0 && len(t.TransferEncoding) == 0 && atLeastHTTP11 {
+		if t.ContentLength < 0 && len(t.TransferEncoding) == 0 && t.shouldSendChunkedRequestBody() {
 			t.TransferEncoding = []string{"chunked"}
 		}
+		// If there's a body, conservatively flush the headers
+		// to any bufio.Writer we're writing to, just in case
+		// the server needs the headers early, before we copy
+		// the body and possibly block. We make an exception
+		// for the common standard library in-memory types,
+		// though, to avoid unnecessary TCP packets on the
+		// wire. (Issue 22088.)
+		if t.ContentLength != 0 && !isKnownInMemoryReader(t.Body) {
+			t.FlushHeaders = true
+		}
+
+		atLeastHTTP11 = true // Transport requests are always 1.1 or 2.0
 	case *Response:
 		t.IsResponse = true
 		if rr.Request != nil {
@@ -82,9 +129,10 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 		t.ContentLength = rr.ContentLength
 		t.Close = rr.Close
 		t.TransferEncoding = rr.TransferEncoding
+		t.Header = rr.Header
 		t.Trailer = rr.Trailer
 		atLeastHTTP11 = rr.ProtoAtLeast(1, 1)
-		t.ResponseToHEAD = noBodyExpected(t.Method)
+		t.ResponseToHEAD = noResponseBodyExpected(t.Method)
 	}
 
 	// Sanitize Body,ContentLength,TransferEncoding
@@ -112,7 +160,103 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 	return t, nil
 }
 
-func noBodyExpected(requestMethod string) bool {
+// shouldSendChunkedRequestBody reports whether we should try to send a
+// chunked request body to the server. In particular, the case we really
+// want to prevent is sending a GET or other typically-bodyless request to a
+// server with a chunked body when the body has zero bytes, since GETs with
+// bodies (while acceptable according to specs), even zero-byte chunked
+// bodies, are approximately never seen in the wild and confuse most
+// servers. See Issue 18257, as one example.
+//
+// The only reason we'd send such a request is if the user set the Body to a
+// non-nil value (say, ioutil.NopCloser(bytes.NewReader(nil))) and didn't
+// set ContentLength, or NewRequest set it to -1 (unknown), so then we assume
+// there's bytes to send.
+//
+// This code tries to read a byte from the Request.Body in such cases to see
+// whether the body actually has content (super rare) or is actually just
+// a non-nil content-less ReadCloser (the more common case). In that more
+// common case, we act as if their Body were nil instead, and don't send
+// a body.
+func (t *transferWriter) shouldSendChunkedRequestBody() bool {
+	// Note that t.ContentLength is the corrected content length
+	// from rr.outgoingLength, so 0 actually means zero, not unknown.
+	if t.ContentLength >= 0 || t.Body == nil { // redundant checks; caller did them
+		return false
+	}
+	if t.Method == "CONNECT" {
+		return false
+	}
+	if requestMethodUsuallyLacksBody(t.Method) {
+		// Only probe the Request.Body for GET/HEAD/DELETE/etc
+		// requests, because it's only those types of requests
+		// that confuse servers.
+		t.probeRequestBody() // adjusts t.Body, t.ContentLength
+		return t.Body != nil
+	}
+	// For all other request types (PUT, POST, PATCH, or anything
+	// made-up we've never heard of), assume it's normal and the server
+	// can deal with a chunked request body. Maybe we'll adjust this
+	// later.
+	return true
+}
+
+// probeRequestBody reads a byte from t.Body to see whether it's empty
+// (returns io.EOF right away).
+//
+// But because we've had problems with this blocking users in the past
+// (issue 17480) when the body is a pipe (perhaps waiting on the response
+// headers before the pipe is fed data), we need to be careful and bound how
+// long we wait for it. This delay will only affect users if all the following
+// are true:
+//   * the request body blocks
+//   * the content length is not set (or set to -1)
+//   * the method doesn't usually have a body (GET, HEAD, DELETE, ...)
+//   * there is no transfer-encoding=chunked already set.
+// In other words, this delay will not normally affect anybody, and there
+// are workarounds if it does.
+func (t *transferWriter) probeRequestBody() {
+	t.ByteReadCh = make(chan readResult, 1)
+	go func(body io.Reader) {
+		var buf [1]byte
+		var rres readResult
+		rres.n, rres.err = body.Read(buf[:])
+		if rres.n == 1 {
+			rres.b = buf[0]
+		}
+		t.ByteReadCh <- rres
+	}(t.Body)
+	timer := time.NewTimer(200 * time.Millisecond)
+	select {
+	case rres := <-t.ByteReadCh:
+		timer.Stop()
+		if rres.n == 0 && rres.err == io.EOF {
+			// It was empty.
+			t.Body = nil
+			t.ContentLength = 0
+		} else if rres.n == 1 {
+			if rres.err != nil {
+				t.Body = io.MultiReader(&byteReader{b: rres.b}, errorReader{rres.err})
+			} else {
+				t.Body = io.MultiReader(&byteReader{b: rres.b}, t.Body)
+			}
+		} else if rres.err != nil {
+			t.Body = errorReader{rres.err}
+		}
+	case <-timer.C:
+		// Too slow. Don't wait. Read it later, and keep
+		// assuming that this is ContentLength == -1
+		// (unknown), which means we'll send a
+		// "Transfer-Encoding: chunked" header.
+		t.Body = io.MultiReader(finishAsyncByteRead{t}, t.Body)
+		// Request that Request.Write flush the headers to the
+		// network before writing the body, since our body may not
+		// become readable until it's seen the response headers.
+		t.FlushHeaders = true
+	}
+}
+
+func noResponseBodyExpected(requestMethod string) bool {
 	return requestMethod == "HEAD"
 }
 
@@ -140,10 +284,13 @@ func (t *transferWriter) shouldSendContentLength() bool {
 	return false
 }
 
-func (t *transferWriter) WriteHeader(w io.Writer) error {
-	if t.Close {
+func (t *transferWriter) writeHeader(w io.Writer, trace *httptrace.ClientTrace) error {
+	if t.Close && !hasToken(t.Header.get("Connection"), "close") {
 		if _, err := io.WriteString(w, "Connection: close\r\n"); err != nil {
 			return err
+		}
+		if trace != nil && trace.WroteHeaderField != nil {
+			trace.WroteHeaderField("Connection", []string{"close"})
 		}
 	}
 
@@ -157,9 +304,15 @@ func (t *transferWriter) WriteHeader(w io.Writer) error {
 		if _, err := io.WriteString(w, strconv.FormatInt(t.ContentLength, 10)+"\r\n"); err != nil {
 			return err
 		}
+		if trace != nil && trace.WroteHeaderField != nil {
+			trace.WroteHeaderField("Content-Length", []string{strconv.FormatInt(t.ContentLength, 10)})
+		}
 	} else if chunked(t.TransferEncoding) {
 		if _, err := io.WriteString(w, "Transfer-Encoding: chunked\r\n"); err != nil {
 			return err
+		}
+		if trace != nil && trace.WroteHeaderField != nil {
+			trace.WroteHeaderField("Transfer-Encoding", []string{"chunked"})
 		}
 	}
 
@@ -181,42 +334,52 @@ func (t *transferWriter) WriteHeader(w io.Writer) error {
 			if _, err := io.WriteString(w, "Trailer: "+strings.Join(keys, ",")+"\r\n"); err != nil {
 				return err
 			}
+			if trace != nil && trace.WroteHeaderField != nil {
+				trace.WroteHeaderField("Trailer", keys)
+			}
 		}
 	}
 
 	return nil
 }
 
-func (t *transferWriter) WriteBody(w io.Writer) error {
+func (t *transferWriter) writeBody(w io.Writer) error {
 	var err error
 	var ncopy int64
 
 	// Write body
 	if t.Body != nil {
+		var body = transferBodyReader{t}
 		if chunked(t.TransferEncoding) {
 			if bw, ok := w.(*bufio.Writer); ok && !t.IsResponse {
 				w = &internal.FlushAfterChunkWriter{Writer: bw}
 			}
 			cw := internal.NewChunkedWriter(w)
-			_, err = io.Copy(cw, t.Body)
+			_, err = io.Copy(cw, body)
 			if err == nil {
 				err = cw.Close()
 			}
 		} else if t.ContentLength == -1 {
-			ncopy, err = io.Copy(w, t.Body)
+			dst := w
+			if t.Method == "CONNECT" {
+				dst = bufioFlushWriter{dst}
+			}
+			ncopy, err = io.Copy(dst, body)
 		} else {
-			ncopy, err = io.Copy(w, io.LimitReader(t.Body, t.ContentLength))
+			ncopy, err = io.Copy(w, io.LimitReader(body, t.ContentLength))
 			if err != nil {
 				return err
 			}
 			var nextra int64
-			nextra, err = io.Copy(ioutil.Discard, t.Body)
+			nextra, err = io.Copy(ioutil.Discard, body)
 			ncopy += nextra
 		}
 		if err != nil {
 			return err
 		}
-		if err = t.BodyCloser.Close(); err != nil {
+	}
+	if t.BodyCloser != nil {
+		if err := t.BodyCloser.Close(); err != nil {
 			return err
 		}
 	}
@@ -259,7 +422,7 @@ func (t *transferReader) protoAtLeast(m, n int) bool {
 }
 
 // bodyAllowedForStatus reports whether a given response status code
-// permits a body. See RFC 2616, section 4.4.
+// permits a body. See RFC 7230, section 3.3.
 func bodyAllowedForStatus(status int) bool {
 	switch {
 	case status >= 100 && status <= 199:
@@ -280,7 +443,7 @@ var (
 func suppressedHeaders(status int) []string {
 	switch {
 	case status == 304:
-		// RFC 2616 section 10.3.5: "the response MUST NOT include other entity-headers"
+		// RFC 7232 section 4.1
 		return suppressedHeaders304
 	case !bodyAllowedForStatus(status):
 		return suppressedHeadersNoBody
@@ -351,7 +514,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 
 	// If there is no Content-Length or chunked Transfer-Encoding on a *Response
 	// and the status is not 1xx, 204 or 304, then the body is unbounded.
-	// See RFC 2616, section 4.4.
+	// See RFC 7230, section 3.3.
 	switch msg.(type) {
 	case *Response:
 		if realLength == -1 &&
@@ -366,7 +529,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	// or close connection when finished, since multipart is not supported yet
 	switch {
 	case chunked(t.TransferEncoding):
-		if noBodyExpected(t.RequestMethod) {
+		if noResponseBodyExpected(t.RequestMethod) || !bodyAllowedForStatus(t.StatusCode) {
 			t.Body = NoBody
 		} else {
 			t.Body = &body{src: internal.NewChunkedReader(r), hdr: msg, r: r, closing: t.Close}
@@ -470,7 +633,7 @@ func (t *transferReader) fixTransferEncoding() error {
 	return nil
 }
 
-// Determine the expected body length, using RFC 2616 Section 4.4. This
+// Determine the expected body length, using RFC 7230 Section 3.3. This
 // function is not a method, because ultimately it should be shared by
 // ReadResponse and ReadRequest.
 func fixLength(isResponse bool, status int, requestMethod string, header Header, te []string) (int64, error) {
@@ -498,7 +661,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 	}
 
 	// Logic based on response type or status
-	if noBodyExpected(requestMethod) {
+	if noResponseBodyExpected(requestMethod) {
 		// For HTTP requests, as part of hardening against request
 		// smuggling (RFC 7230), don't allow a Content-Length header for
 		// methods which don't permit bodies. As an exception, allow
@@ -532,12 +695,11 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 			return -1, err
 		}
 		return n, nil
-	} else {
-		header.Del("Content-Length")
 	}
+	header.Del("Content-Length")
 
 	if isRequest {
-		// RFC 2616 neither explicitly permits nor forbids an
+		// RFC 7230 neither explicitly permits nor forbids an
 		// entity-body on a GET request so we permit one if
 		// declared, but we default to 0 here (not -1 below)
 		// if there's no mention of a body.
@@ -560,9 +722,9 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 	}
 
 	conv := header["Connection"]
-	hasClose := httplex.HeaderValuesContainsToken(conv, "close")
+	hasClose := httpguts.HeaderValuesContainsToken(conv, "close")
 	if major == 1 && minor == 0 {
-		return hasClose || !httplex.HeaderValuesContainsToken(conv, "keep-alive")
+		return hasClose || !httpguts.HeaderValuesContainsToken(conv, "keep-alive")
 	}
 
 	if hasClose && removeCloseHeader {
@@ -576,6 +738,16 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 func fixTrailer(header Header, te []string) (Header, error) {
 	vv, ok := header["Trailer"]
 	if !ok {
+		return nil, nil
+	}
+	if !chunked(te) {
+		// Trailer and no chunking:
+		// this is an invalid use case for trailer header.
+		// Nevertheless, no error will be returned and we
+		// let users decide if this is a valid HTTP message.
+		// The Trailer header will be kept in Response.Header
+		// but not populate Response.Trailer.
+		// See issue #27197.
 		return nil, nil
 	}
 	header.Del("Trailer")
@@ -600,10 +772,6 @@ func fixTrailer(header Header, te []string) (Header, error) {
 	}
 	if len(trailer) == 0 {
 		return nil, nil
-	}
-	if !chunked(te) {
-		// Trailer and no chunking
-		return nil, ErrUnexpectedTrailer
 	}
 	return trailer, nil
 }
@@ -787,7 +955,7 @@ func (b *body) Close() error {
 		// no trailer and closing the connection next.
 		// no point in reading to EOF.
 	case b.doEarlyClose:
-		// Read up to maxPostHandlerReadBytes bytes of the body, looking for
+		// Read up to maxPostHandlerReadBytes bytes of the body, looking
 		// for EOF (and trailers), so we can re-use this connection.
 		if lr, ok := b.src.(*io.LimitedReader); ok && lr.N > maxPostHandlerReadBytes {
 			// There was a declared Content-Length, and we have more bytes remaining
@@ -860,4 +1028,53 @@ func parseContentLength(cl string) (int64, error) {
 	}
 	return n, nil
 
+}
+
+// finishAsyncByteRead finishes reading the 1-byte sniff
+// from the ContentLength==0, Body!=nil case.
+type finishAsyncByteRead struct {
+	tw *transferWriter
+}
+
+func (fr finishAsyncByteRead) Read(p []byte) (n int, err error) {
+	if len(p) == 0 {
+		return
+	}
+	rres := <-fr.tw.ByteReadCh
+	n, err = rres.n, rres.err
+	if n == 1 {
+		p[0] = rres.b
+	}
+	return
+}
+
+var nopCloserType = reflect.TypeOf(ioutil.NopCloser(nil))
+
+// isKnownInMemoryReader reports whether r is a type known to not
+// block on Read. Its caller uses this as an optional optimization to
+// send fewer TCP packets.
+func isKnownInMemoryReader(r io.Reader) bool {
+	switch r.(type) {
+	case *bytes.Reader, *bytes.Buffer, *strings.Reader:
+		return true
+	}
+	if reflect.TypeOf(r) == nopCloserType {
+		return isKnownInMemoryReader(reflect.ValueOf(r).Field(0).Interface().(io.Reader))
+	}
+	return false
+}
+
+// bufioFlushWriter is an io.Writer wrapper that flushes all writes
+// on its wrapped writer if it's a *bufio.Writer.
+type bufioFlushWriter struct{ w io.Writer }
+
+func (fw bufioFlushWriter) Write(p []byte) (n int, err error) {
+	n, err = fw.w.Write(p)
+	if bw, ok := fw.w.(*bufio.Writer); n > 0 && ok {
+		ferr := bw.Flush()
+		if ferr != nil && err == nil {
+			err = ferr
+		}
+	}
+	return
 }

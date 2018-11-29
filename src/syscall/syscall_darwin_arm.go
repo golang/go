@@ -14,21 +14,7 @@ func setTimeval(sec, usec int64) Timeval {
 	return Timeval{Sec: int32(sec), Usec: int32(usec)}
 }
 
-//sysnb	gettimeofday(tp *Timeval) (sec int32, usec int32, err error)
-func Gettimeofday(tv *Timeval) error {
-	// The tv passed to gettimeofday must be non-nil
-	// but is otherwise unused. The answers come back
-	// in the two registers.
-	sec, usec, err := gettimeofday(tv)
-	if err != nil {
-		return err
-	}
-	if sec != 0 || usec != 0 {
-		tv.Sec = int32(sec)
-		tv.Usec = int32(usec)
-	}
-	return nil
-}
+//sysnb	Gettimeofday(tp *Timeval) (err error)
 
 func SetKevent(k *Kevent_t, fd, mode, flags int) {
 	k.Ident = uint32(fd)
@@ -51,7 +37,7 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	var length = uint64(count)
 
-	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(*offset>>32), uintptr(unsafe.Pointer(&length)), 0, 0, 0, 0)
+	_, _, e1 := Syscall9(funcPC(libc_sendfile_trampoline), uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(*offset>>32), uintptr(unsafe.Pointer(&length)), 0, 0, 0, 0)
 
 	written = int(length)
 
@@ -60,5 +46,13 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 	}
 	return
 }
+
+func libc_sendfile_trampoline()
+
+//go:linkname libc_sendfile libc_sendfile
+//go:cgo_import_dynamic libc_sendfile sendfile "/usr/lib/libSystem.B.dylib"
+
+// Implemented in the runtime package (runtime/sys_darwin_32.go)
+func syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
 
 func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) // sic

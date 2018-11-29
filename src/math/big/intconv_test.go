@@ -56,6 +56,10 @@ var stringTests = []struct {
 	{"-0b111", "-7", 0, -7, true},
 	{"0b1001010111", "599", 0, 0x257, true},
 	{"1001010111", "1001010111", 2, 0x257, true},
+	{"A", "a", 36, 10, true},
+	{"A", "A", 37, 36, true},
+	{"ABCXYZ", "abcxyz", 36, 623741435, true},
+	{"ABCXYZ", "ABCXYZ", 62, 33536793425, true},
 }
 
 func TestIntText(t *testing.T) {
@@ -135,8 +139,16 @@ func TestGetString(t *testing.T) {
 			}
 		}
 
-		if got := fmt.Sprintf(format(test.base), z); got != test.out {
-			t.Errorf("#%db got %s; want %s", i, got, test.out)
+		f := format(test.base)
+		got := fmt.Sprintf(f, z)
+		if f == "%d" {
+			if got != fmt.Sprintf("%d", test.val) {
+				t.Errorf("#%db got %s; want %d", i, got, test.val)
+			}
+		} else {
+			if got != test.out {
+				t.Errorf("#%dc got %s; want %s", i, got, test.out)
+			}
 		}
 	}
 }

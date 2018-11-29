@@ -89,7 +89,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$48
 	MOVQ	$0, 32(SP)	// overlapped
 	MOVQ	runtime·_WriteFile(SB), AX
 	CALL	AX
-	
+
 	RET
 
 // faster get/set last error
@@ -363,7 +363,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	// Layout new m scheduler stack on os stack.
 	MOVQ	SP, AX
 	MOVQ	AX, (g_stack+stack_hi)(DX)
-	SUBQ	$(64*1024), AX		// stack size
+	SUBQ	$(64*1024), AX		// initial stack size (adjusted later)
 	MOVQ	AX, (g_stack+stack_lo)(DX)
 	ADDQ	$const__StackGuard, AX
 	MOVQ	AX, g_stackguard0(DX)
@@ -465,10 +465,60 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
 	MOVQ	32(SP), SP
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB),NOSPLIT,$8-12
-	CALL	runtime·unixnano(SB)
-	MOVQ	0(SP), AX
+// See https://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
+// Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
+#define _INTERRUPT_TIME 0x7ffe0008
+#define _SYSTEM_TIME 0x7ffe0014
+#define time_lo 0
+#define time_hi1 4
+#define time_hi2 8
+
+TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+	CMPB	runtime·useQPCTime(SB), $0
+	JNE	useQPC
+	MOVQ	$_INTERRUPT_TIME, DI
+loop:
+	MOVL	time_hi1(DI), AX
+	MOVL	time_lo(DI), BX
+	MOVL	time_hi2(DI), CX
+	CMPL	AX, CX
+	JNE	loop
+	SHLQ	$32, CX
+	ORQ	BX, CX
+	IMULQ	$100, CX
+	MOVQ	CX, ret+0(FP)
+	RET
+useQPC:
+	JMP	runtime·nanotimeQPC(SB)
+	RET
+
+TEXT time·now(SB),NOSPLIT,$0-24
+	CMPB	runtime·useQPCTime(SB), $0
+	JNE	useQPC
+	MOVQ	$_INTERRUPT_TIME, DI
+loop:
+	MOVL	time_hi1(DI), AX
+	MOVL	time_lo(DI), BX
+	MOVL	time_hi2(DI), CX
+	CMPL	AX, CX
+	JNE	loop
+	SHLQ	$32, AX
+	ORQ	BX, AX
+	IMULQ	$100, AX
+	MOVQ	AX, mono+16(FP)
+
+	MOVQ	$_SYSTEM_TIME, DI
+wall:
+	MOVL	time_hi1(DI), AX
+	MOVL	time_lo(DI), BX
+	MOVL	time_hi2(DI), CX
+	CMPL	AX, CX
+	JNE	wall
+	SHLQ	$32, AX
+	ORQ	BX, AX
+	MOVQ	$116444736000000000, DI
+	SUBQ	DI, AX
+	IMULQ	$100, AX
 
 	// generated code for
 	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
@@ -484,4 +534,6 @@ TEXT time·now(SB),NOSPLIT,$8-12
 	SUBQ	DX, CX
 	MOVL	CX, nsec+8(FP)
 	RET
-
+useQPC:
+	JMP	runtime·nowQPC(SB)
+	RET

@@ -1,0 +1,487 @@
+<!--{
+        "Title": "Go 1.12 Release Notes",
+        "Path":  "/doc/go1.12",
+        "Template": true
+}-->
+
+<!--
+NOTE: In this document and others in this directory, the convention is to
+set fixed-width phrases with non-fixed-width spaces, as in
+<code>hello</code> <code>world</code>.
+Do not send CLs removing the interior tags from such phrases.
+-->
+
+<style>
+  ul li { margin: 0.5em 0; }
+</style>
+
+<h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.12</h2>
+
+<p>
+  <strong>
+    Go 1.12 is not yet released. These are work-in-progress
+    release notes. Go 1.12 is expected to be released in February 2019.
+  </strong>
+</p>
+
+<p>
+  The latest Go release, version 1.12, arrives six months after <a href="go1.11">Go 1.11</a>.
+  Most of its changes are in TODO.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+  We expect almost all Go programs to continue to compile and run as before.
+</p>
+
+<h2 id="language">Changes to the language</h2>
+
+<p>
+  There are no changes to the language specification.
+</p>
+
+<h2 id="ports">Ports</h2>
+
+<h3 id="freebsd">FreeBSD</h3>
+
+<p>
+  Go 1.12 is the last release that is supported on FreeBSD 10.x, which has
+  already reached end-of-life. Go 1.13 will require FreeBSD 11.2+ or FreeBSD
+  12.0+.
+</p>
+
+<h3 id="darwin">Darwin</h3>
+
+<p>
+Go 1.12 is the last release that will run on macOS 10.10 Yosemite.
+Go 1.13 will require macOS 10.11 El Capitan or later.
+</p>
+
+<h2 id="tools">Tools</h2>
+
+<h3 id="gocache">Build cache requirement</h3>
+
+<p>
+  The build cache is now required as a step toward eliminating
+  <code>$GOPATH/pkg</code>. Setting the environment variable
+  <code>GOCACHE=off</code> to disable the
+  <a href="/cmd/go/#hdr-Build_and_test_caching">build cache</a>
+  has no effect in Go 1.12.
+</p>
+
+<h3 id="compiler">Compiler toolchain</h3>
+
+<p><!-- CL 134155, 134156 -->
+  The compiler's live variable analysis has improved. This may mean that
+  finalizers will be executed sooner in this release than in previous
+  releases. If that is a problem, consider the appropriate addition of a
+  <a href="/pkg/runtime/#KeepAlive"><code>runtime.KeepAlive</code></a> call.
+</p>
+
+<p><!-- CL 147361 -->
+  More functions are now eligible for inlining by default, including
+  functions that do nothing but call another function.
+  This extra inlining makes it additionally important to use
+  <a href="/pkg/runtime/#CallersFrames"><code>runtime.CallersFrames</code></a>
+  instead of iterating over the result of
+  <a href="/pkg/runtime/#Callers"><code>runtime.Callers</code></a> directly.
+<pre>
+// Old code which no longer works correctly (it will miss inlined call frames).
+var pcs [10]uintptr
+n := runtime.Callers(1, pcs[:])
+for _, pc := range pcs[:n] {
+	f := runtime.FuncForPC(pc)
+	if f != nil {
+		fmt.Println(f.Name())
+	}
+}
+</pre>
+<pre>
+// New code which will work correctly.
+var pcs [10]uintptr
+n := runtime.Callers(1, pcs[:])
+frames := runtime.CallersFrames(pcs[:n])
+for {
+	frame, more := frames.Next()
+	fmt.Println(frame.Function)
+	if !more {
+		break
+	}
+}
+</pre>
+</p>
+
+<h3 id="godoc">Godoc</h3>
+
+<p>
+  In Go 1.12, <code>godoc</code> no longer has a command-line interface and
+  is only a web server. Users should use <code>go</code> <code>doc</code>
+  for command-line help output instead.
+</p>
+
+<h2 id="library">Core library</h2>
+
+<p>
+  All of the changes to the standard library are minor.
+</p>
+
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+  As always, there are various minor changes and updates to the library,
+  made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+  in mind.
+</p>
+
+<!-- CL 147218: https://golang.org/cl/147218: cmd/asm: rename R18 to R18_PLATFORM on ARM64 -->
+<!-- CL 116275: https://golang.org/cl/116275: cmd/compile: avoid string allocations when map key is struct or array literal -->
+<!-- CL 142717: https://golang.org/cl/142717: cmd/compile: remove obsolete "safe" mode -->
+<!-- CL 144340: https://golang.org/cl/144340: cmd/compile: add -lang flag to specify language version -->
+<!-- CL 146058: https://golang.org/cl/146058: It is invalid to convert a nil unsafe.Pointer to uintptr and back, with arithmetic.: cmd/compile: assume unsafe pointer arithmetic generates non-nil results -->
+<!-- CL 141977: https://golang.org/cl/141977: cmd/doc: add -all flag to print all documentation for package -->
+<!-- CL 126656: https://golang.org/cl/126656: cmd/go: add $GOFLAGS environment variable -->
+<!-- CL 147282: https://golang.org/cl/147282: cmd/go: add go mod edit -go flag -->
+<!-- CL 146898: https://golang.org/cl/146898: cmd/link, runtime: add initial cgo support for ppc64 -->
+<!-- CL 60790: https://golang.org/cl/60790: The trace tool now supports plotting mutator utilization curves, including cross-references to the execution trace. These are useful for analyzing the impact of the garbage collector on application latency and throughput.: cmd/trace: add minimum mutator utilization (MMU) plot -->
+<!-- CL 115677: https://golang.org/cl/115677: cmd/vet: check embedded field tags too -->
+<dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
+  <dd>
+    <p><!-- CL 149297 -->
+      TODO: <a href="https://golang.org/cl/149297">https://golang.org/cl/149297</a>: make Reader.Peek invalidate Unreads
+    </p>
+
+</dl><!-- bufio -->
+
+<dl id="build"><dt><a href="/pkg/build/">build</a></dt>
+  <dd>
+    <p><!-- CL 61511 -->
+      TODO: <a href="https://golang.org/cl/61511">https://golang.org/cl/61511</a>: support frame-pointer for arm64
+    </p>
+
+</dl><!-- build -->
+
+<dl id="bytes, strings"><dt><a href="/pkg/bytes, strings/">bytes, strings</a></dt>
+  <dd>
+    <p><!-- CL 137855 -->
+      TODO: <a href="https://golang.org/cl/137855">https://golang.org/cl/137855</a>: add ReplaceAll
+    </p>
+
+    <p><!-- CL 145098 -->
+      TODO: <a href="https://golang.org/cl/145098">https://golang.org/cl/145098</a>: fix Reader.UnreadRune returning without error on a zero Reader
+    </p>
+
+</dl><!-- bytes, strings -->
+
+<dl id="cmd,runtime"><dt><a href="/pkg/cmd,runtime/">cmd,runtime</a></dt>
+  <dd>
+    <p><!-- CL 138675 -->
+      TODO: <a href="https://golang.org/cl/138675">https://golang.org/cl/138675</a>: enable race detector on arm64
+    </p>
+
+</dl><!-- cmd,runtime -->
+
+<dl id="crypto/rand"><dt><a href="/pkg/crypto/rand/">crypto/rand</a></dt>
+  <dd>
+    <p><!-- CL 120055 -->
+      TODO: <a href="https://golang.org/cl/120055">https://golang.org/cl/120055</a>: use the new getrandom syscall on FreeBSD
+    </p>
+
+    <p><!-- CL 139419 -->
+      TODO: <a href="https://golang.org/cl/139419">https://golang.org/cl/139419</a>: warn to stderr if blocked 60+ sec on first Reader.Read call
+    </p>
+
+</dl><!-- crypto/rand -->
+
+<dl id="crypto/rc4"><dt><a href="/pkg/crypto/rc4/">crypto/rc4</a></dt>
+  <dd>
+    <p><!-- CL 130397 -->
+      TODO: <a href="https://golang.org/cl/130397">https://golang.org/cl/130397</a>: remove assembler implementations
+    </p>
+
+</dl><!-- crypto/rc4 -->
+
+<dl id="crypto/tls, net/http"><dt><a href="/pkg/crypto/tls, net/http/">crypto/tls, net/http</a></dt>
+  <dd>
+    <p><!-- CL 143177 -->
+      TODO: <a href="https://golang.org/cl/143177">https://golang.org/cl/143177</a>: reject HTTP requests to HTTPS server
+    </p>
+
+</dl><!-- crypto/tls, net/http -->
+
+<dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
+  <dd>
+    <p><!-- CL 145738 -->
+      TODO: <a href="https://golang.org/cl/145738">https://golang.org/cl/145738</a>: add support for returning cursors to client
+    </p>
+
+</dl><!-- database/sql -->
+
+<dl id="expvar"><dt><a href="/pkg/expvar/">expvar</a></dt>
+  <dd>
+    <p><!-- CL 139537 -->
+      TODO: <a href="https://golang.org/cl/139537">https://golang.org/cl/139537</a>: add Map.Delete
+    </p>
+
+</dl><!-- expvar -->
+
+<dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
+  <dd>
+    <p><!-- CL 129777 -->
+      TODO: <a href="https://golang.org/cl/129777">https://golang.org/cl/129777</a>: print values for map keys with non-reflexive equality
+    </p>
+
+    <p><!-- CL 142737 -->
+      TODO: <a href="https://golang.org/cl/142737">https://golang.org/cl/142737</a>: print maps in key-sorted order
+    </p>
+
+</dl><!-- fmt -->
+
+<dl id="go/build, cmd/go"><dt><a href="/pkg/go/build, cmd/go/">go/build, cmd/go</a></dt>
+  <dd>
+    <p><!-- CL 146023 -->
+      TODO: <a href="https://golang.org/cl/146023">https://golang.org/cl/146023</a>: add &#34;hurd&#34; as a GOOS value
+    </p>
+
+</dl><!-- go/build, cmd/go -->
+
+<dl id="go/doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
+  <dd>
+    <p><!-- CL 140958 -->
+      TODO: <a href="https://golang.org/cl/140958">https://golang.org/cl/140958</a>: add new mode bit PreserveAST to control clearing of data in AST
+    </p>
+
+</dl><!-- go/doc -->
+
+<dl id="go/token"><dt><a href="/pkg/go/token/">go/token</a></dt>
+  <dd>
+    <p><!-- CL 134075 -->
+      TODO: <a href="https://golang.org/cl/134075">https://golang.org/cl/134075</a>: add (*File).LineStart, which returns Pos for a given line
+    </p>
+
+</dl><!-- go/token -->
+
+<dl id="godoc, cmd/godoc"><dt><a href="/pkg/godoc, cmd/godoc/">godoc, cmd/godoc</a></dt>
+  <dd>
+    <p><!-- CL 141397 -->
+      TODO: <a href="https://golang.org/cl/141397">https://golang.org/cl/141397</a>: remove CLI support
+    </p>
+
+</dl><!-- godoc, cmd/godoc -->
+
+<dl id="image"><dt><a href="/pkg/image/">image</a></dt>
+  <dd>
+    <p><!-- CL 118755 -->
+      TODO: <a href="https://golang.org/cl/118755">https://golang.org/cl/118755</a>: make RegisterFormat safe for concurrent use
+    </p>
+
+</dl><!-- image -->
+
+<dl id="image/png"><dt><a href="/pkg/image/png/">image/png</a></dt>
+  <dd>
+    <p><!-- CL 134235 -->
+      TODO: <a href="https://golang.org/cl/134235">https://golang.org/cl/134235</a>: pack image data for small bitdepth paletted images
+    </p>
+
+</dl><!-- image/png -->
+
+<dl id="internal/cpu"><dt><a href="/pkg/internal/cpu/">internal/cpu</a></dt>
+  <dd>
+    <p><!-- CL 149578 -->
+      TODO: <a href="https://golang.org/cl/149578">https://golang.org/cl/149578</a>: move GODEBUGCPU options into GODEBUG
+    </p>
+
+</dl><!-- internal/cpu -->
+
+<dl id="internal/poll"><dt><a href="/pkg/internal/poll/">internal/poll</a></dt>
+  <dd>
+    <p><!-- CL 130676 -->
+      TODO: <a href="https://golang.org/cl/130676">https://golang.org/cl/130676</a>: use F_FULLFSYNC fcntl for FD.Fsync on OS X
+    </p>
+
+</dl><!-- internal/poll -->
+
+<dl id="io"><dt><a href="/pkg/io/">io</a></dt>
+  <dd>
+    <p><!-- CL 139457 -->
+      TODO: <a href="https://golang.org/cl/139457">https://golang.org/cl/139457</a>: export StringWriter
+    </p>
+
+</dl><!-- io -->
+
+<dl id="lib/time"><dt><a href="/pkg/lib/time/">lib/time</a></dt>
+  <dd>
+    <p><!-- CL 151299 -->
+      TODO: <a href="https://golang.org/cl/151299">https://golang.org/cl/151299</a>: update tzdata to 2018g
+    </p>
+
+</dl><!-- lib/time -->
+
+<dl id="math/bits"><dt><a href="/pkg/math/bits/">math/bits</a></dt>
+  <dd>
+    <p><!-- CL 123157 -->
+      TODO: <a href="https://golang.org/cl/123157">https://golang.org/cl/123157</a>: add extended precision Add, Sub, Mul, Div
+    </p>
+
+</dl><!-- math/bits -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 113997 -->
+      TODO: <a href="https://golang.org/cl/113997">https://golang.org/cl/113997</a>: use splice(2) on Linux when reading from UnixConn, rework splice tests
+    </p>
+
+    <p><!-- CL 146659 -->
+      TODO: <a href="https://golang.org/cl/146659">https://golang.org/cl/146659</a>: enable RFC 6555 Fast Fallback by default
+    </p>
+
+</dl><!-- net -->
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- CL 130115 -->
+      TODO: <a href="https://golang.org/cl/130115">https://golang.org/cl/130115</a>: add Client.CloseIdleConnections
+    </p>
+
+    <p><!-- CL 145398 -->
+      TODO: <a href="https://golang.org/cl/145398">https://golang.org/cl/145398</a>: in Transport, don&#39;t error on non-chunked response with Trailer header
+    </p>
+
+</dl><!-- net/http -->
+
+<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+  <dd>
+    <p><!-- CL 146437 -->
+      TODO: <a href="https://golang.org/cl/146437">https://golang.org/cl/146437</a>: make ReverseProxy automatically proxy WebSocket requests
+    </p>
+
+</dl><!-- net/http/httputil -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL 125443 -->
+      TODO: <a href="https://golang.org/cl/125443">https://golang.org/cl/125443</a>: add ExitCode method to ProcessState
+    </p>
+
+    <p><!-- CL 135075 -->
+      TODO: <a href="https://golang.org/cl/135075">https://golang.org/cl/135075</a>: add ModeCharDevice to ModeType
+    </p>
+
+    <p><!-- CL 139418 -->
+      TODO: <a href="https://golang.org/cl/139418">https://golang.org/cl/139418</a>: add UserHomeDir
+    </p>
+
+    <p><!-- CL 146020 -->
+      TODO: <a href="https://golang.org/cl/146020">https://golang.org/cl/146020</a>: add support for long path names on unix RemoveAll
+    </p>
+
+</dl><!-- os -->
+
+<dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
+  <dd>
+    <p><!-- CL 145220 -->
+      TODO: <a href="https://golang.org/cl/145220">https://golang.org/cl/145220</a>: change IsAbs(&#34;NUL&#34;) to return true
+    </p>
+
+</dl><!-- path/filepath -->
+
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 33572 -->
+      TODO: <a href="https://golang.org/cl/33572">https://golang.org/cl/33572</a>: add Value.MapRange method and MapIter type
+    </p>
+
+</dl><!-- reflect -->
+
+<dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
+  <dd>
+    <p><!-- CL 139783 -->
+      TODO: <a href="https://golang.org/cl/139783">https://golang.org/cl/139783</a>: add DeepEqual test
+    </p>
+
+    <p><!-- CL 139784 -->
+      TODO: <a href="https://golang.org/cl/139784">https://golang.org/cl/139784</a>: add partial Deprecation comment to Copy
+    </p>
+
+</dl><!-- regexp -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- CL 135395 -->
+      TODO: <a href="https://golang.org/cl/135395">https://golang.org/cl/135395</a>: use MADV_FREE on Linux if available
+    </p>
+
+</dl><!-- runtime -->
+
+<dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
+  <dd>
+    <p><!-- CL 144220 -->
+      TODO: <a href="https://golang.org/cl/144220">https://golang.org/cl/144220</a>: add API to read module info in binary
+    </p>
+
+</dl><!-- runtime/debug -->
+
+<dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
+  <dd>
+    <p><!-- CL 122835 -->
+      TODO: <a href="https://golang.org/cl/122835">https://golang.org/cl/122835</a>: add Builder.Cap
+    </p>
+
+    <p><!-- CL 131495 -->
+      TODO: <a href="https://golang.org/cl/131495">https://golang.org/cl/131495</a>: correctly handle invalid utf8 sequences in Map
+    </p>
+
+</dl><!-- strings -->
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 125456 -->
+      TODO: <a href="https://golang.org/cl/125456">https://golang.org/cl/125456</a>: implement Unix Socket for Windows
+    </p>
+
+    <p><!-- CL 138595 -->
+      TODO: <a href="https://golang.org/cl/138595">https://golang.org/cl/138595</a>: FreeBSD 12 ino64 support
+    </p>
+
+    <p><!-- CL 141639 -->
+      TODO: <a href="https://golang.org/cl/141639">https://golang.org/cl/141639</a>: implement syscalls on Darwin using libSystem
+    </p>
+
+    <p><!-- CL 147117 -->
+      TODO: <a href="https://golang.org/cl/147117">https://golang.org/cl/147117</a>: add Syscall18 on Windows
+    </p>
+
+</dl><!-- syscall -->
+
+<dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
+  <dd>
+    <p><!-- CL 141644 -->
+      TODO: <a href="https://golang.org/cl/141644">https://golang.org/cl/141644</a>: add Wrapper interface to support external Value wrapper types
+    </p>
+
+    <p><!-- CL 143137 -->
+      TODO: <a href="https://golang.org/cl/143137">https://golang.org/cl/143137</a>: make zero js.Value represent &#34;undefined&#34;
+    </p>
+
+    <p><!-- CL 144384 -->
+      TODO: <a href="https://golang.org/cl/144384">https://golang.org/cl/144384</a>: add the Value.Truthy method
+    </p>
+
+</dl><!-- syscall/js -->
+
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- CL 121936 -->
+      TODO: <a href="https://golang.org/cl/121936">https://golang.org/cl/121936</a>: exit with error if testing.Short is called before flag.Parse
+    </p>
+
+    <p><!-- CL 139258 -->
+      TODO: <a href="https://golang.org/cl/139258">https://golang.org/cl/139258</a>: implement -benchtime=100x
+    </p>
+
+</dl><!-- testing -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 142217 -->
+      TODO: <a href="https://golang.org/cl/142217">https://golang.org/cl/142217</a>: removed truncation of context in error message
+    </p>
+
+</dl><!-- text/template -->
+

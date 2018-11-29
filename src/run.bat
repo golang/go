@@ -17,6 +17,8 @@ set GOBUILDFAIL=0
 set GOPATH=
 :: Issue 14340: ignore GOBIN during all.bat.
 set GOBIN=
+set GOFLAGS=
+set GO111MODULE=
 
 rem TODO avoid rebuild if possible
 

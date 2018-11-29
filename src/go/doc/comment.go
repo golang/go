@@ -8,7 +8,6 @@ package doc
 
 import (
 	"io"
-	"regexp"
 	"strings"
 	"text/template" // for HTMLEscape
 	"unicode"
@@ -48,15 +47,22 @@ const (
 	identRx = `[\pL_][\pL_0-9]*`
 
 	// Regexp for URLs
-	protocol = `https?|ftp|file|gopher|mailto|news|nntp|telnet|wais|prospero`
-	hostPart = `[a-zA-Z0-9_@\-]+`
-	filePart = `[a-zA-Z0-9_?%#~&/\-+=()]+` // parentheses may not be matching; see pairedParensPrefixLen
-	urlRx    = `(` + protocol + `)://` +   // http://
-		hostPart + `([.:]` + hostPart + `)*/?` + // //www.google.com:8080/
-		filePart + `([:.,;]` + filePart + `)*`
+	// Match parens, and check in pairedParensPrefixLen for balance - see #5043
+	// Match .,:;?! within path, but not at end - see #18139, #16565
+	// This excludes some rare yet valid urls ending in common punctuation
+	// in order to allow sentences ending in URLs.
+
+	// protocol (required) e.g. http
+	protoPart = `(https?|ftp|file|gopher|mailto|nntp)`
+	// host (required) e.g. www.example.com or [::1]:8080
+	hostPart = `([a-zA-Z0-9_@\-.\[\]:]+)`
+	// path+query+fragment (optional) e.g. /path/index.html?q=foo#bar
+	pathPart = `([.,:;?!]*[a-zA-Z0-9$'()*+&#=@~_/\-\[\]%])*`
+
+	urlRx = protoPart + `://` + hostPart + pathPart
 )
 
-var matchRx = regexp.MustCompile(`(` + urlRx + `)|(` + identRx + `)`)
+var matchRx = newLazyRE(`(` + urlRx + `)|(` + identRx + `)`)
 
 var (
 	html_a      = []byte(`<a href="`)
@@ -224,8 +230,8 @@ func heading(line string) string {
 		return ""
 	}
 
-	// exclude lines with illegal characters
-	if strings.ContainsAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") {
+	// exclude lines with illegal characters. we allow "(),"
+	if strings.ContainsAny(line, ";:!?+*/=[]{}_^°&§~%#@<\">\\") {
 		return ""
 	}
 
@@ -239,6 +245,18 @@ func heading(line string) string {
 			return "" // not followed by "s "
 		}
 		b = b[i+2:]
+	}
+
+	// allow "." when followed by non-space
+	for b := line;; {
+		i := strings.IndexRune(b, '.')
+		if i < 0 {
+			break
+		}
+		if i+1 >= len(b) || b[i+1] == ' ' {
+			return "" // not followed by non-space
+		}
+		b = b[i+1:]
 	}
 
 	return line
@@ -257,7 +275,7 @@ type block struct {
 	lines []string
 }
 
-var nonAlphaNumRx = regexp.MustCompile(`[^a-zA-Z0-9]`)
+var nonAlphaNumRx = newLazyRE(`[^a-zA-Z0-9]`)
 
 func anchorID(line string) string {
 	// Add a "hdr-" prefix to avoid conflicting with IDs used for package symbols.
@@ -274,7 +292,7 @@ func anchorID(line string) string {
 // a single paragraph. There is one exception to the rule: a span that
 // consists of a single line, is followed by another paragraph span,
 // begins with a capital letter, and contains no punctuation
-// is formatted as a heading.
+// other than parentheses and commas is formatted as a heading.
 //
 // A span of indented lines is converted into a <pre> block,
 // with the common indent prefix removed.

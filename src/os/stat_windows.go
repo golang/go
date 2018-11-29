@@ -10,116 +10,127 @@ import (
 	"unsafe"
 )
 
+// isNulName reports whether name is NUL file name.
+// For example, it returns true for both "NUL" and "nul".
+func isNulName(name string) bool {
+	if len(name) != 3 {
+		return false
+	}
+	if name[0] != 'n' && name[0] != 'N' {
+		return false
+	}
+	if name[1] != 'u' && name[1] != 'U' {
+		return false
+	}
+	if name[2] != 'l' && name[2] != 'L' {
+		return false
+	}
+	return true
+}
+
 // Stat returns the FileInfo structure describing file.
 // If there is an error, it will be of type *PathError.
 func (file *File) Stat() (FileInfo, error) {
 	if file == nil {
 		return nil, ErrInvalid
 	}
-	if file == nil || file.fd < 0 {
-		return nil, syscall.EINVAL
-	}
+
 	if file.isdir() {
 		// I don't know any better way to do that for directory
 		return Stat(file.dirinfo.path)
 	}
-	if file.name == DevNull {
+	if isNulName(file.name) {
 		return &devNullStat, nil
 	}
 
-	ft, err := syscall.GetFileType(file.fd)
+	ft, err := file.pfd.GetFileType()
 	if err != nil {
 		return nil, &PathError{"GetFileType", file.name, err}
 	}
-	if ft == syscall.FILE_TYPE_PIPE {
-		return &fileStat{name: basename(file.name), pipe: true}, nil
+	switch ft {
+	case syscall.FILE_TYPE_PIPE, syscall.FILE_TYPE_CHAR:
+		return &fileStat{name: basename(file.name), filetype: ft}, nil
 	}
 
-	var d syscall.ByHandleFileInformation
-	err = syscall.GetFileInformationByHandle(file.fd, &d)
+	fs, err := newFileStatFromGetFileInformationByHandle(file.name, file.pfd.Sysfd)
 	if err != nil {
-		return nil, &PathError{"GetFileInformationByHandle", file.name, err}
+		return nil, err
 	}
-	return &fileStat{
-		name: basename(file.name),
-		sys: syscall.Win32FileAttributeData{
-			FileAttributes: d.FileAttributes,
-			CreationTime:   d.CreationTime,
-			LastAccessTime: d.LastAccessTime,
-			LastWriteTime:  d.LastWriteTime,
-			FileSizeHigh:   d.FileSizeHigh,
-			FileSizeLow:    d.FileSizeLow,
-		},
-		vol:   d.VolumeSerialNumber,
-		idxhi: d.FileIndexHigh,
-		idxlo: d.FileIndexLow,
-		pipe:  false,
-	}, nil
+	fs.filetype = ft
+	return fs, err
 }
 
-// Stat returns a FileInfo structure describing the named file.
-// If there is an error, it will be of type *PathError.
-func Stat(name string) (FileInfo, error) {
-	var fi FileInfo
-	var err error
-	for i := 0; i < 255; i++ {
-		fi, err = Lstat(name)
-		if err != nil {
-			return fi, err
-		}
-		if fi.Mode()&ModeSymlink == 0 {
-			return fi, nil
-		}
-		name, err = Readlink(name)
-		if err != nil {
-			return fi, err
-		}
-	}
-	return nil, &PathError{"Stat", name, syscall.ELOOP}
-}
-
-// Lstat returns the FileInfo structure describing the named file.
-// If the file is a symbolic link, the returned FileInfo
-// describes the symbolic link. Lstat makes no attempt to follow the link.
-// If there is an error, it will be of type *PathError.
-func Lstat(name string) (FileInfo, error) {
+// stat implements both Stat and Lstat of a file.
+func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 	if len(name) == 0 {
-		return nil, &PathError{"Lstat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+		return nil, &PathError{funcname, name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
 	}
-	if name == DevNull {
+	if isNulName(name) {
 		return &devNullStat, nil
 	}
-	fs := &fileStat{name: basename(name)}
-	namep, e := syscall.UTF16PtrFromString(fixLongPath(name))
-	if e != nil {
-		return nil, &PathError{"Lstat", name, e}
+	namep, err := syscall.UTF16PtrFromString(fixLongPath(name))
+	if err != nil {
+		return nil, &PathError{funcname, name, err}
 	}
-	e = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fs.sys)))
-	if e != nil {
-		if e != windows.ERROR_SHARING_VIOLATION {
-			return nil, &PathError{"GetFileAttributesEx", name, e}
-		}
-		// try FindFirstFile now that GetFileAttributesEx failed
-		var fd syscall.Win32finddata
-		h, e2 := syscall.FindFirstFile(namep, &fd)
-		if e2 != nil {
-			return nil, &PathError{"FindFirstFile", name, e}
-		}
-		syscall.FindClose(h)
 
-		fs.sys.FileAttributes = fd.FileAttributes
-		fs.sys.CreationTime = fd.CreationTime
-		fs.sys.LastAccessTime = fd.LastAccessTime
-		fs.sys.LastWriteTime = fd.LastWriteTime
-		fs.sys.FileSizeHigh = fd.FileSizeHigh
-		fs.sys.FileSizeLow = fd.FileSizeLow
-	}
-	fs.path = name
-	if !isAbs(fs.path) {
-		fs.path, e = syscall.FullPath(fs.path)
-		if e != nil {
-			return nil, e
+	// Try GetFileAttributesEx first, because it is faster than CreateFile.
+	// See https://golang.org/issues/19922#issuecomment-300031421 for details.
+	var fa syscall.Win32FileAttributeData
+	err = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
+	if err == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+		// Not a symlink.
+		fs := &fileStat{
+			path:           name,
+			FileAttributes: fa.FileAttributes,
+			CreationTime:   fa.CreationTime,
+			LastAccessTime: fa.LastAccessTime,
+			LastWriteTime:  fa.LastWriteTime,
+			FileSizeHigh:   fa.FileSizeHigh,
+			FileSizeLow:    fa.FileSizeLow,
 		}
+		// Gather full path to be used by os.SameFile later.
+		if !isAbs(fs.path) {
+			fs.path, err = syscall.FullPath(fs.path)
+			if err != nil {
+				return nil, &PathError{"FullPath", name, err}
+			}
+		}
+		fs.name = basename(name)
+		return fs, nil
 	}
-	return fs, nil
+	// GetFileAttributesEx fails with ERROR_SHARING_VIOLATION error for
+	// files, like c:\pagefile.sys. Use FindFirstFile for such files.
+	if err == windows.ERROR_SHARING_VIOLATION {
+		var fd syscall.Win32finddata
+		sh, err := syscall.FindFirstFile(namep, &fd)
+		if err != nil {
+			return nil, &PathError{"FindFirstFile", name, err}
+		}
+		syscall.FindClose(sh)
+		return newFileStatFromWin32finddata(&fd), nil
+	}
+
+	// Finally use CreateFile.
+	h, err := syscall.CreateFile(namep, 0, 0, nil,
+		syscall.OPEN_EXISTING, createFileAttrs, 0)
+	if err != nil {
+		return nil, &PathError{"CreateFile", name, err}
+	}
+	defer syscall.CloseHandle(h)
+
+	return newFileStatFromGetFileInformationByHandle(name, h)
+}
+
+// statNolog implements Stat for Windows.
+func statNolog(name string) (FileInfo, error) {
+	return stat("Stat", name, syscall.FILE_FLAG_BACKUP_SEMANTICS)
+}
+
+// lstatNolog implements Lstat for Windows.
+func lstatNolog(name string) (FileInfo, error) {
+	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS)
+	// Use FILE_FLAG_OPEN_REPARSE_POINT, otherwise CreateFile will follow symlink.
+	// See https://docs.microsoft.com/en-us/windows/desktop/FileIO/symbolic-link-effects-on-file-systems-functions#createfile-and-createfiletransacted
+	attrs |= syscall.FILE_FLAG_OPEN_REPARSE_POINT
+	return stat("Lstat", name, attrs)
 }

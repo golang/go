@@ -18,11 +18,11 @@ func testWaitGroup(t *testing.T, wg1 *WaitGroup, wg2 *WaitGroup) {
 	wg2.Add(n)
 	exited := make(chan bool, n)
 	for i := 0; i != n; i++ {
-		go func(i int) {
+		go func() {
 			wg1.Done()
 			wg2.Wait()
 			exited <- true
-		}(i)
+		}()
 	}
 	wg1.Wait()
 	for i := 0; i != n; i++ {
@@ -68,13 +68,25 @@ func TestWaitGroupMisuse(t *testing.T) {
 	t.Fatal("Should panic")
 }
 
+// pollUntilEqual blocks until v, loaded atomically, is
+// equal to the target.
+func pollUntilEqual(v *uint32, target uint32) {
+	for {
+		for i := 0; i < 1e3; i++ {
+			if atomic.LoadUint32(v) == target {
+				return
+			}
+		}
+		// yield to avoid deadlock with the garbage collector
+		// see issue #20072
+		runtime.Gosched()
+	}
+}
+
 func TestWaitGroupMisuse2(t *testing.T) {
 	knownRacy(t)
-	if testing.Short() {
-		t.Skip("skipping flaky test in short mode; see issue 11443")
-	}
-	if runtime.NumCPU() <= 2 {
-		t.Skip("NumCPU<=2, skipping: this test requires parallelism")
+	if runtime.NumCPU() <= 4 {
+		t.Skip("NumCPU<=4, skipping: this test requires parallelism")
 	}
 	defer func() {
 		err := recover()
@@ -86,24 +98,31 @@ func TestWaitGroupMisuse2(t *testing.T) {
 	}()
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
 	done := make(chan interface{}, 2)
-	// The detection is opportunistically, so we want it to panic
+	// The detection is opportunistic, so we want it to panic
 	// at least in one run out of a million.
 	for i := 0; i < 1e6; i++ {
 		var wg WaitGroup
+		var here uint32
 		wg.Add(1)
 		go func() {
 			defer func() {
 				done <- recover()
 			}()
+			atomic.AddUint32(&here, 1)
+			pollUntilEqual(&here, 3)
 			wg.Wait()
 		}()
 		go func() {
 			defer func() {
 				done <- recover()
 			}()
+			atomic.AddUint32(&here, 1)
+			pollUntilEqual(&here, 3)
 			wg.Add(1) // This is the bad guy.
 			wg.Done()
 		}()
+		atomic.AddUint32(&here, 1)
+		pollUntilEqual(&here, 3)
 		wg.Done()
 		for j := 0; j < 2; j++ {
 			if err := <-done; err != nil {

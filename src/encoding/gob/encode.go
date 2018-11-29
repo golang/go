@@ -8,7 +8,9 @@ package gob
 
 import (
 	"encoding"
+	"encoding/binary"
 	"math"
+	"math/bits"
 	"reflect"
 	"sync"
 )
@@ -107,14 +109,12 @@ func (state *encoderState) encodeUint(x uint64) {
 		state.b.WriteByte(uint8(x))
 		return
 	}
-	i := uint64Size
-	for x > 0 {
-		state.buf[i] = uint8(x)
-		x >>= 8
-		i--
-	}
-	state.buf[i] = uint8(i - uint64Size) // = loop count, negated
-	state.b.Write(state.buf[i : uint64Size+1])
+
+	binary.BigEndian.PutUint64(state.buf[1:], x)
+	bc := bits.LeadingZeros64(x) >> 3      // 8 - bytelen(x)
+	state.buf[bc] = uint8(bc - uint64Size) // and then we subtract 8 to get -bytelen(x)
+
+	state.b.Write(state.buf[bc : uint64Size+1])
 }
 
 // encodeInt writes an encoded signed integer to state.w.
@@ -209,13 +209,7 @@ func encUint(i *encInstr, state *encoderState, v reflect.Value) {
 // swizzling.
 func floatBits(f float64) uint64 {
 	u := math.Float64bits(f)
-	var v uint64
-	for i := 0; i < 8; i++ {
-		v <<= 8
-		v |= u & 0xFF
-		u >>= 8
-	}
-	return v
+	return bits.ReverseBytes64(u)
 }
 
 // encFloat encodes the floating point value (float32 float64) referenced by v.
@@ -404,12 +398,12 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
 	}
 
 	ut := userType(iv.Elem().Type())
-	registerLock.RLock()
-	name, ok := concreteTypeToName[ut.base]
-	registerLock.RUnlock()
+	namei, ok := concreteTypeToName.Load(ut.base)
 	if !ok {
 		errorf("type not registered for interface: %s", ut.base)
 	}
+	name := namei.(string)
+
 	// Send the name.
 	state.encodeUint(uint64(len(name)))
 	state.b.WriteString(name)

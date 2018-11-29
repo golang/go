@@ -123,7 +123,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	MOVW	z_len+4(FP), R5
 	TEQ	$0, R5
 	BEQ	X7
-	
+
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
 	ADD	R5<<2, R2, R2
@@ -135,7 +135,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	MOVW	$32, R4
 	SUB	R3, R4
 	MOVW	$0, R7
-	
+
 	MOVW.W	-4(R2), R6
 	MOVW	R6<<R3, R7
 	MOVW	R6>>R4, R6
@@ -291,12 +291,4 @@ TEXT ·mulWW(SB),NOSPLIT,$0
 	MULLU	R1, R2, (R4, R3)
 	MOVW	R4, z1+8(FP)
 	MOVW	R3, z0+12(FP)
-	RET
-
-// func bitLen(x Word) (n int)
-TEXT ·bitLen(SB),NOSPLIT,$0
-	MOVW	x+0(FP), R0
-	CLZ 	R0, R0
-	RSB	$32, R0
-	MOVW	R0, n+4(FP)
 	RET

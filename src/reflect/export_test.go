@@ -25,9 +25,9 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 	var ft *rtype
 	var s *bitVector
 	if rcvr != nil {
-		ft, argSize, retOffset, s, _ = funcLayout(t.(*rtype), rcvr.(*rtype))
+		ft, argSize, retOffset, s, _ = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), rcvr.(*rtype))
 	} else {
-		ft, argSize, retOffset, s, _ = funcLayout(t.(*rtype), nil)
+		ft, argSize, retOffset, s, _ = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), nil)
 	}
 	frametype = ft
 	for i := uint32(0); i < s.n; i++ {
@@ -93,7 +93,7 @@ func FirstMethodNameBytes(t Type) *byte {
 	}
 	m := ut.methods()[0]
 	mname := t.(*rtype).nameOff(m.name)
-	if *mname.data(0)&(1<<2) == 0 {
+	if *mname.data(0, "name flag field")&(1<<2) == 0 {
 		panic("method name does not have pkgPath *string")
 	}
 	return mname.bytes
@@ -111,7 +111,7 @@ func IsExported(t Type) bool {
 }
 
 func ResolveReflectName(s string) {
-	resolveReflectName(newName(s, "", "", false))
+	resolveReflectName(newName(s, "", false))
 }
 
 type Buffer struct {

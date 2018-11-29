@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"golang_org/x/net/lex/httplex"
+	"internal/x/net/http/httpguts"
 )
 
 // maxInt64 is the effective "infinite" value for the Server and
@@ -20,7 +20,7 @@ const maxInt64 = 1<<63 - 1
 
 // aLongTimeAgo is a non-zero time, far in the past, used for
 // immediate cancelation of network operations.
-var aLongTimeAgo = time.Unix(233431200, 0)
+var aLongTimeAgo = time.Unix(1, 0)
 
 // TODO(bradfitz): move common stuff here. The other files have accumulated
 // generic http stuff in random places.
@@ -47,7 +47,7 @@ func removeEmptyPort(host string) string {
 }
 
 func isNotToken(r rune) bool {
-	return !httplex.IsTokenRune(r)
+	return !httpguts.IsTokenRune(r)
 }
 
 func isASCII(s string) bool {
@@ -134,6 +134,10 @@ type Pusher interface {
 	// Handlers that wish to push URL X should call Push before sending any
 	// data that may trigger a request for URL X. This avoids a race where the
 	// client issues requests for X before receiving the PUSH_PROMISE for X.
+	//
+	// Push will run in a separate goroutine making the order of arrival
+	// non-deterministic. Any required synchronization needs to be implemented
+	// by the caller.
 	//
 	// Push returns ErrNotSupported if the client has disabled push or if push
 	// is not supported on the underlying connection.

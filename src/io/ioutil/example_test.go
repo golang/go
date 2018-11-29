@@ -69,3 +69,41 @@ func ExampleTempFile() {
 		log.Fatal(err)
 	}
 }
+
+func ExampleTempFile_suffix() {
+	content := []byte("temporary file's content")
+	tmpfile, err := ioutil.TempFile("", "example.*.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.Remove(tmpfile.Name()) // clean up
+
+	if _, err := tmpfile.Write(content); err != nil {
+		tmpfile.Close()
+		log.Fatal(err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleReadFile() {
+	content, err := ioutil.ReadFile("testdata/hello")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("File contents: %s", content)
+
+	// Output:
+	// File contents: Hello, Gophers!
+}
+
+func ExampleWriteFile() {
+	message := []byte("Hello, Gophers!")
+	err := ioutil.WriteFile("testdata/hello", message, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+}

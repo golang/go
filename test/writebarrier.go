@@ -11,14 +11,14 @@ package p
 import "unsafe"
 
 func f(x **byte, y *byte) {
-	*x = y // ERROR "write barrier"
+	*x = y // no barrier (dead store)
 
 	z := y // no barrier
 	*x = z // ERROR "write barrier"
 }
 
 func f1(x *[]byte, y []byte) {
-	*x = y // ERROR "write barrier"
+	*x = y // no barrier (dead store)
 
 	z := y // no barrier
 	*x = z // ERROR "write barrier"
@@ -32,21 +32,21 @@ func f1a(x *[]byte, y *[]byte) {
 }
 
 func f2(x *interface{}, y interface{}) {
-	*x = y // ERROR "write barrier"
+	*x = y // no barrier (dead store)
 
 	z := y // no barrier
 	*x = z // ERROR "write barrier"
 }
 
 func f2a(x *interface{}, y *interface{}) {
-	*x = *y // ERROR "write barrier"
+	*x = *y // no barrier (dead store)
 
 	z := y // no barrier
 	*x = z // ERROR "write barrier"
 }
 
 func f3(x *string, y string) {
-	*x = y // ERROR "write barrier"
+	*x = y // no barrier (dead store)
 
 	z := y // no barrier
 	*x = z // ERROR "write barrier"
@@ -204,12 +204,18 @@ var y21 struct {
 }
 var z21 int
 
-func f21(x *int) {
-	// Global -> heap pointer updates must have write barriers.
-	x21 = x                   // ERROR "write barrier"
-	y21.x = x                 // ERROR "write barrier"
-	x21 = &z21                // ERROR "write barrier"
-	y21.x = &z21              // ERROR "write barrier"
+// f21x: Global -> heap pointer updates must have write barriers.
+func f21a(x *int) {
+	x21 = x   // ERROR "write barrier"
+	y21.x = x // ERROR "write barrier"
+}
+
+func f21b(x *int) {
+	x21 = &z21   // ERROR "write barrier"
+	y21.x = &z21 // ERROR "write barrier"
+}
+
+func f21c(x *int) {
 	y21 = struct{ x *int }{x} // ERROR "write barrier"
 }
 
@@ -219,4 +225,28 @@ func f22(x *int) (y *int) {
 	p := &y
 	*p = x // no barrier
 	return
+}
+
+type T23 struct {
+	p *int
+	a int
+}
+
+var t23 T23
+var i23 int
+
+// f23x: zeroing global needs write barrier for the hybrid barrier.
+func f23a() {
+	t23 = T23{} // ERROR "write barrier"
+}
+
+func f23b() {
+	// also test partial assignments
+	t23 = T23{a: 1} // ERROR "write barrier"
+}
+
+func f23c() {
+	t23 = T23{} // no barrier (dead store)
+	// also test partial assignments
+	t23 = T23{p: &i23} // ERROR "write barrier"
 }

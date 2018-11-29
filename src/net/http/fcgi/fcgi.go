@@ -4,9 +4,8 @@
 
 // Package fcgi implements the FastCGI protocol.
 //
-// The protocol is not an official standard and the original
-// documentation is no longer online. See the Internet Archive's
-// mirror at: https://web.archive.org/web/20150420080736/http://www.fastcgi.com/drupal/node/6?q=node/22
+// See https://fast-cgi.github.io/ for an unofficial mirror of the
+// original documentation.
 //
 // Currently only the responder role is supported.
 package fcgi
@@ -24,7 +23,7 @@ import (
 )
 
 // recType is a record type, as defined by
-// http://www.fastcgi.com/devkit/doc/fcgi-spec.html#S8
+// https://web.archive.org/web/20150420080736/http://www.fastcgi.com/drupal/node/6?q=node/22#S8
 type recType uint8
 
 const (

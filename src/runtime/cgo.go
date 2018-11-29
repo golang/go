@@ -16,6 +16,7 @@ import "unsafe"
 //go:linkname _cgo_notify_runtime_init_done _cgo_notify_runtime_init_done
 //go:linkname _cgo_callers _cgo_callers
 //go:linkname _cgo_set_context_function _cgo_set_context_function
+//go:linkname _cgo_yield _cgo_yield
 
 var (
 	_cgo_init                     unsafe.Pointer
@@ -24,6 +25,7 @@ var (
 	_cgo_notify_runtime_init_done unsafe.Pointer
 	_cgo_callers                  unsafe.Pointer
 	_cgo_set_context_function     unsafe.Pointer
+	_cgo_yield                    unsafe.Pointer
 )
 
 // iscgo is set to true by the runtime/cgo package
@@ -48,3 +50,5 @@ func cgoUse(interface{}) { throw("cgoUse should not be called") }
 // so it emits the test and keeps the call, giving the desired
 // escape analysis result. The test is cheaper than the call.
 var cgoAlwaysFalse bool
+
+var cgo_yield = &_cgo_yield

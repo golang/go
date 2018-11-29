@@ -7,6 +7,10 @@
 // +build !windows
 // +build !nacl
 // +build !linux !amd64
+// +build !linux !arm64
+// +build !js
+// +build !darwin
+// +build !aix
 
 package runtime
 
@@ -16,4 +20,8 @@ import "unsafe"
 // We only pass the lower 32 bits of file offset to the
 // assembly routine; the higher bits (if required), should be provided
 // by the assembly routine as 0.
-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+// The err result is an OS error code such as ENOMEM.
+func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
+
+// munmap calls the munmap system call. It is implemented in assembly.
+func munmap(addr unsafe.Pointer, n uintptr)

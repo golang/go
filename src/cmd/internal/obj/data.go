@@ -32,6 +32,7 @@
 package obj
 
 import (
+	"cmd/internal/objabi"
 	"log"
 	"math"
 )
@@ -45,12 +46,7 @@ func (s *LSym) Grow(lsiz int64) {
 	if len(s.P) >= siz {
 		return
 	}
-	// TODO(dfc) append cap-len at once, rather than
-	// one byte at a time.
-	for cap(s.P) < siz {
-		s.P = append(s.P[:cap(s.P)], 0)
-	}
-	s.P = s.P[:siz]
+	s.P = append(s.P, make([]byte, siz-len(s.P))...)
 }
 
 // GrowCap increases the capacity of s.P to c.
@@ -70,10 +66,15 @@ func (s *LSym) GrowCap(c int64) {
 // prepwrite prepares to write data of size siz into s at offset off.
 func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
 	if off < 0 || siz < 0 || off >= 1<<30 {
-		log.Fatalf("prepwrite: bad off=%d siz=%d", off, siz)
+		ctxt.Diag("prepwrite: bad off=%d siz=%d s=%v", off, siz, s)
 	}
-	if s.Type == SBSS || s.Type == STLSBSS {
-		ctxt.Diag("cannot supply data for BSS var")
+	switch s.Type {
+	case objabi.Sxxx, objabi.SBSS:
+		s.Type = objabi.SDATA
+	case objabi.SNOPTRBSS:
+		s.Type = objabi.SNOPTRDATA
+	case objabi.STLSBSS:
+		ctxt.Diag("cannot supply data for %v var %v", s.Type, s.Name)
 	}
 	l := off + int64(siz)
 	s.Grow(l)
@@ -114,7 +115,8 @@ func (s *LSym) WriteInt(ctxt *Link, off int64, siz int, i int64) {
 // WriteAddr writes an address of size siz into s at offset off.
 // rsym and roff specify the relocation for the address.
 func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64) {
-	if siz != ctxt.Arch.PtrSize {
+	// Allow 4-byte addresses for DWARF.
+	if siz != ctxt.Arch.PtrSize && siz != 4 {
 		ctxt.Diag("WriteAddr: bad address size %d in %s", siz, s.Name)
 	}
 	s.prepwrite(ctxt, off, siz)
@@ -125,7 +127,7 @@ func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64)
 	}
 	r.Siz = uint8(siz)
 	r.Sym = rsym
-	r.Type = R_ADDR
+	r.Type = objabi.R_ADDR
 	r.Add = roff
 }
 
@@ -141,7 +143,7 @@ func (s *LSym) WriteOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
 	}
 	r.Siz = 4
 	r.Sym = rsym
-	r.Type = R_ADDROFF
+	r.Type = objabi.R_ADDROFF
 	r.Add = roff
 }
 
@@ -157,7 +159,7 @@ func (s *LSym) WriteWeakOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
 	}
 	r.Siz = 4
 	r.Sym = rsym
-	r.Type = R_WEAKADDROFF
+	r.Type = objabi.R_WEAKADDROFF
 	r.Add = roff
 }
 
@@ -178,29 +180,9 @@ func (s *LSym) WriteBytes(ctxt *Link, off int64, b []byte) int64 {
 }
 
 func Addrel(s *LSym) *Reloc {
+	if s.R == nil {
+		s.R = make([]Reloc, 0, 4)
+	}
 	s.R = append(s.R, Reloc{})
 	return &s.R[len(s.R)-1]
-}
-
-func Setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	if s.Size < off+wid {
-		s.Size = off + wid
-		s.Grow(s.Size)
-	}
-
-	switch wid {
-	case 1:
-		s.P[off] = uint8(v)
-	case 2:
-		ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(v))
-	case 4:
-		ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(v))
-	case 8:
-		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], v)
-	}
-
-	return off + wid
 }

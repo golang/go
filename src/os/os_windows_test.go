@@ -6,7 +6,9 @@ package os_test
 
 import (
 	"fmt"
+	"internal/poll"
 	"internal/syscall/windows"
+	"internal/syscall/windows/registry"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -104,6 +106,10 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	fi, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = ioutil.WriteFile(filepath.Join(dir, "abc"), []byte("abc"), 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -112,7 +118,7 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
 		link := filepath.Join(tmpdir, test.name+"_link")
 		err := test.mklink(link, dir)
 		if err != nil {
-			t.Errorf("creating link for %s test failed: %v", test.name, err)
+			t.Errorf("creating link for %q test failed: %v", test.name, err)
 			continue
 		}
 
@@ -131,15 +137,35 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
 			continue
 		}
 
-		fi, err := os.Stat(link)
+		fi1, err := os.Stat(link)
 		if err != nil {
 			t.Errorf("failed to stat link %v: %v", link, err)
 			continue
 		}
-		expected := filepath.Base(dir)
-		got := fi.Name()
-		if !fi.IsDir() || expected != got {
-			t.Errorf("link should point to %v but points to %v instead", expected, got)
+		if !fi1.IsDir() {
+			t.Errorf("%q should be a directory", link)
+			continue
+		}
+		if fi1.Name() != filepath.Base(link) {
+			t.Errorf("Stat(%q).Name() = %q, want %q", link, fi1.Name(), filepath.Base(link))
+			continue
+		}
+		if !os.SameFile(fi, fi1) {
+			t.Errorf("%q should point to %q", link, dir)
+			continue
+		}
+
+		fi2, err := os.Lstat(link)
+		if err != nil {
+			t.Errorf("failed to lstat link %v: %v", link, err)
+			continue
+		}
+		if m := fi2.Mode(); m&os.ModeSymlink == 0 {
+			t.Errorf("%q should be a link, but is not (mode=0x%x)", link, uint32(m))
+			continue
+		}
+		if m := fi2.Mode(); m&os.ModeDir != 0 {
+			t.Errorf("%q should be a link, not a directory (mode=0x%x)", link, uint32(m))
 			continue
 		}
 	}
@@ -165,7 +191,7 @@ func (rd *reparseData) addUTF16s(s []uint16) (offset uint16) {
 
 func (rd *reparseData) addString(s string) (offset, length uint16) {
 	p := syscall.StringToUTF16(s)
-	return rd.addUTF16s(p), uint16(len(p)-1) * 2 // do not include terminating NUL in the legth (as per PrintNameLength and SubstituteNameLength documentation)
+	return rd.addUTF16s(p), uint16(len(p)-1) * 2 // do not include terminating NUL in the length (as per PrintNameLength and SubstituteNameLength documentation)
 }
 
 func (rd *reparseData) addSubstituteName(name string) {
@@ -404,6 +430,8 @@ func TestDirectorySymbolicLink(t *testing.T) {
 func TestNetworkSymbolicLink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
+	const _NERR_ServerNotStarted = syscall.Errno(2114)
+
 	dir, err := ioutil.TempDir("", "TestNetworkSymbolicLink")
 	if err != nil {
 		t.Fatal(err)
@@ -454,6 +482,9 @@ func TestNetworkSymbolicLink(t *testing.T) {
 		if err == syscall.ERROR_ACCESS_DENIED {
 			t.Skip("you don't have enough privileges to add network share")
 		}
+		if err == _NERR_ServerNotStarted {
+			t.Skip(_NERR_ServerNotStarted.Error())
+		}
 		t.Fatal(err)
 	}
 	defer func() {
@@ -490,9 +521,16 @@ func TestNetworkSymbolicLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if got != target {
 		t.Errorf(`os.Readlink("%s"): got %v, want %v`, link, got, target)
+	}
+
+	got, err = filepath.EvalSymlinks(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != target {
+		t.Errorf(`filepath.EvalSymlinks("%s"): got %v, want %v`, link, got, target)
 	}
 }
 
@@ -637,15 +675,15 @@ func TestStatSymlinkLoop(t *testing.T) {
 	defer os.Remove("x")
 
 	_, err = os.Stat("x")
-	if perr, ok := err.(*os.PathError); !ok || perr.Err != syscall.ELOOP {
-		t.Errorf("expected *PathError with ELOOP, got %T: %v\n", err, err)
+	if _, ok := err.(*os.PathError); !ok {
+		t.Errorf("expected *PathError, got %T: %v\n", err, err)
 	}
 }
 
 func TestReadStdin(t *testing.T) {
-	old := *os.ReadConsoleFunc
+	old := poll.ReadConsole
 	defer func() {
-		*os.ReadConsoleFunc = old
+		poll.ReadConsole = old
 	}()
 
 	testConsole := os.NewConsoleFile(syscall.Stdin, "test")
@@ -664,7 +702,7 @@ func TestReadStdin(t *testing.T) {
 			for _, s := range tests {
 				t.Run(fmt.Sprintf("c%d/r%d/%s", consoleSize, readSize, s), func(t *testing.T) {
 					s16 := utf16.Encode([]rune(s))
-					*os.ReadConsoleFunc = func(h syscall.Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) error {
+					poll.ReadConsole = func(h syscall.Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) error {
 						if inputControl != nil {
 							t.Fatalf("inputControl not nil")
 						}
@@ -721,4 +759,247 @@ func TestStatPagefile(t *testing.T) {
 		t.Skip(`skipping because c:\pagefile.sys is not found`)
 	}
 	t.Fatal(err)
+}
+
+// syscallCommandLineToArgv calls syscall.CommandLineToArgv
+// and converts returned result into []string.
+func syscallCommandLineToArgv(cmd string) ([]string, error) {
+	var argc int32
+	argv, err := syscall.CommandLineToArgv(&syscall.StringToUTF16(cmd)[0], &argc)
+	if err != nil {
+		return nil, err
+	}
+	defer syscall.LocalFree(syscall.Handle(uintptr(unsafe.Pointer(argv))))
+
+	var args []string
+	for _, v := range (*argv)[:argc] {
+		args = append(args, syscall.UTF16ToString((*v)[:]))
+	}
+	return args, nil
+}
+
+// compareCommandLineToArgvWithSyscall ensures that
+// os.CommandLineToArgv(cmd) and syscall.CommandLineToArgv(cmd)
+// return the same result.
+func compareCommandLineToArgvWithSyscall(t *testing.T, cmd string) {
+	syscallArgs, err := syscallCommandLineToArgv(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := os.CommandLineToArgv(cmd)
+	if want, have := fmt.Sprintf("%q", syscallArgs), fmt.Sprintf("%q", args); want != have {
+		t.Errorf("testing os.commandLineToArgv(%q) failed: have %q want %q", cmd, args, syscallArgs)
+		return
+	}
+}
+
+func TestCmdArgs(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestCmdArgs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	const prog = `
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	fmt.Printf("%q", os.Args)
+}
+`
+	src := filepath.Join(tmpdir, "main.go")
+	err = ioutil.WriteFile(src, []byte(prog), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exe := filepath.Join(tmpdir, "main.exe")
+	cmd := osexec.Command(testenv.GoToolPath(t), "build", "-o", exe, src)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("building main.exe failed: %v\n%s", err, out)
+	}
+
+	var cmds = []string{
+		``,
+		` a b c`,
+		` "`,
+		` ""`,
+		` """`,
+		` "" a`,
+		` "123"`,
+		` \"123\"`,
+		` \"123 456\"`,
+		` \\"`,
+		` \\\"`,
+		` \\\\\"`,
+		` \\\"x`,
+		` """"\""\\\"`,
+		` abc`,
+		` \\\\\""x"""y z`,
+		"\tb\t\"x\ty\"",
+		` "Брад" d e`,
+		// examples from https://msdn.microsoft.com/en-us/library/17w5ykft.aspx
+		` "abc" d e`,
+		` a\\b d"e f"g h`,
+		` a\\\"b c d`,
+		` a\\\\"b c" d e`,
+		// http://daviddeley.com/autohotkey/parameters/parameters.htm#WINARGV
+		// from 5.4  Examples
+		` CallMeIshmael`,
+		` "Call Me Ishmael"`,
+		` Cal"l Me I"shmael`,
+		` CallMe\"Ishmael`,
+		` "CallMe\"Ishmael"`,
+		` "Call Me Ishmael\\"`,
+		` "CallMe\\\"Ishmael"`,
+		` a\\\b`,
+		` "a\\\b"`,
+		// from 5.5  Some Common Tasks
+		` "\"Call Me Ishmael\""`,
+		` "C:\TEST A\\"`,
+		` "\"C:\TEST A\\\""`,
+		// from 5.6  The Microsoft Examples Explained
+		` "a b c"  d  e`,
+		` "ab\"c"  "\\"  d`,
+		` a\\\b d"e f"g h`,
+		` a\\\"b c d`,
+		` a\\\\"b c" d e`,
+		// from 5.7  Double Double Quote Examples (pre 2008)
+		` "a b c""`,
+		` """CallMeIshmael"""  b  c`,
+		` """Call Me Ishmael"""`,
+		` """"Call Me Ishmael"" b c`,
+	}
+	for _, cmd := range cmds {
+		compareCommandLineToArgvWithSyscall(t, "test"+cmd)
+		compareCommandLineToArgvWithSyscall(t, `"cmd line"`+cmd)
+		compareCommandLineToArgvWithSyscall(t, exe+cmd)
+
+		// test both syscall.EscapeArg and os.commandLineToArgv
+		args := os.CommandLineToArgv(exe + cmd)
+		out, err := osexec.Command(args[0], args[1:]...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("running %q failed: %v\n%v", args, err, string(out))
+		}
+		if want, have := fmt.Sprintf("%q", args), string(out); want != have {
+			t.Errorf("wrong output of executing %q: have %q want %q", args, have, want)
+			continue
+		}
+	}
+}
+
+func findOneDriveDir() (string, error) {
+	// as per https://stackoverflow.com/questions/42519624/how-to-determine-location-of-onedrive-on-windows-7-and-8-in-c
+	const onedrivekey = `SOFTWARE\Microsoft\OneDrive`
+	k, err := registry.OpenKey(registry.CURRENT_USER, onedrivekey, registry.READ)
+	if err != nil {
+		return "", fmt.Errorf("OpenKey(%q) failed: %v", onedrivekey, err)
+	}
+	defer k.Close()
+
+	path, _, err := k.GetStringValue("UserFolder")
+	if err != nil {
+		return "", fmt.Errorf("reading UserFolder failed: %v", err)
+	}
+	return path, nil
+}
+
+// TestOneDrive verifies that OneDrive folder is a directory and not a symlink.
+func TestOneDrive(t *testing.T) {
+	dir, err := findOneDriveDir()
+	if err != nil {
+		t.Skipf("Skipping, because we did not find OneDrive directory: %v", err)
+	}
+	testDirStats(t, dir)
+}
+
+func TestWindowsDevNullFile(t *testing.T) {
+	testDevNullFile(t, "NUL", true)
+	testDevNullFile(t, "nul", true)
+	testDevNullFile(t, "Nul", true)
+
+	f1, err := os.Open("NUL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f1.Close()
+
+	fi1, err := f1.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f2, err := os.Open("nul")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f2.Close()
+
+	fi2, err := f2.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !os.SameFile(fi1, fi2) {
+		t.Errorf(`"NUL" and "nul" are not the same file`)
+	}
+}
+
+// TestSymlinkCreation verifies that creating a symbolic link
+// works on Windows when developer mode is active.
+// This is supported starting Windows 10 (1703, v10.0.14972).
+func TestSymlinkCreation(t *testing.T) {
+	if !isWindowsDeveloperModeActive() {
+		t.Skip("Windows developer mode is not active")
+	}
+
+	temp, err := ioutil.TempDir("", "TestSymlinkCreation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(temp)
+
+	dummyFile := filepath.Join(temp, "file")
+	err = ioutil.WriteFile(dummyFile, []byte(""), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	linkFile := filepath.Join(temp, "link")
+	err = os.Symlink(dummyFile, linkFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// isWindowsDeveloperModeActive checks whether or not the developer mode is active on Windows 10.
+// Returns false for prior Windows versions.
+// see https://docs.microsoft.com/en-us/windows/uwp/get-started/enable-your-device-for-development
+func isWindowsDeveloperModeActive() bool {
+	key, err := registry.OpenKey(registry.LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", registry.READ)
+	if err != nil {
+		return false
+	}
+
+	val, _, err := key.GetIntegerValue("AllowDevelopmentWithoutDevLicense")
+	if err != nil {
+		return false
+	}
+
+	return val != 0
+}
+
+// TestStatOfInvalidName is regression test for issue #24999.
+func TestStatOfInvalidName(t *testing.T) {
+	_, err := os.Stat("*.go")
+	if err == nil {
+		t.Fatal(`os.Stat("*.go") unexpectedly succeeded`)
+	}
 }

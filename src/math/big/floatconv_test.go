@@ -8,9 +8,12 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"math/bits"
 	"strconv"
 	"testing"
 )
+
+var zero_ float64
 
 func TestFloatSetFloat64String(t *testing.T) {
 	inf := math.Inf(0)
@@ -22,7 +25,7 @@ func TestFloatSetFloat64String(t *testing.T) {
 	}{
 		// basics
 		{"0", 0},
-		{"-0", -0},
+		{"-0", -zero_},
 		{"+0", 0},
 		{"1", 1},
 		{"-1", -1},
@@ -36,10 +39,10 @@ func TestFloatSetFloat64String(t *testing.T) {
 
 		// various zeros
 		{"0e100", 0},
-		{"-0e+100", 0},
+		{"-0e+100", -zero_},
 		{"+0e-100", 0},
 		{"0E100", 0},
-		{"-0E+100", 0},
+		{"-0E+100", -zero_},
 		{"+0E-100", 0},
 
 		// various decimal exponent formats
@@ -78,7 +81,7 @@ func TestFloatSetFloat64String(t *testing.T) {
 
 		// decimal mantissa, binary exponent
 		{"0p0", 0},
-		{"-0p0", -0},
+		{"-0p0", -zero_},
 		{"1p10", 1 << 10},
 		{"1p+10", 1 << 10},
 		{"+1p-10", 1.0 / (1 << 10)},
@@ -88,9 +91,9 @@ func TestFloatSetFloat64String(t *testing.T) {
 
 		// binary mantissa, decimal exponent
 		{"0b0", 0},
-		{"-0b0", -0},
+		{"-0b0", -zero_},
 		{"0b0e+10", 0},
-		{"-0b0e-10", -0},
+		{"-0b0e-10", -zero_},
 		{"0b1010", 10},
 		{"0B1010E2", 1000},
 		{"0b.1", 0.5},
@@ -99,7 +102,7 @@ func TestFloatSetFloat64String(t *testing.T) {
 
 		// binary mantissa, binary exponent
 		{"0b0p+10", 0},
-		{"-0b0p-10", -0},
+		{"-0b0p-10", -zero_},
 		{"0b.1010p4", 10},
 		{"0b1p-1", 0.5},
 		{"0b001p-3", 0.125},
@@ -108,9 +111,9 @@ func TestFloatSetFloat64String(t *testing.T) {
 
 		// hexadecimal mantissa and exponent
 		{"0x0", 0},
-		{"-0x0", -0},
+		{"-0x0", -zero_},
 		{"0x0p+10", 0},
-		{"-0x0p-10", -0},
+		{"-0x0p-10", -zero_},
 		{"0xff", 255},
 		{"0X.8p1", 1},
 		{"-0X0.00008p16", -0.5},
@@ -134,8 +137,8 @@ func TestFloatSetFloat64String(t *testing.T) {
 		}
 		f, _ := x.Float64()
 		want := new(Float).SetFloat64(test.x)
-		if x.Cmp(want) != 0 {
-			t.Errorf("%s: got %s (%v); want %v", test.s, &x, f, test.x)
+		if x.Cmp(want) != 0 || x.Signbit() != want.Signbit() {
+			t.Errorf("%s: got %v (%v); want %v", test.s, &x, f, test.x)
 		}
 	}
 }
@@ -283,9 +286,9 @@ func TestFloat64Text(t *testing.T) {
 		{0.5, 'f', 0, "0"},
 		{1.5, 'f', 0, "2"},
 
-		// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+		// https://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
 		{2.2250738585072012e-308, 'g', -1, "2.2250738585072014e-308"},
-		// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+		// https://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
 		{2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
 
 		// Issue 2625.
@@ -326,9 +329,9 @@ func TestFloat64Text(t *testing.T) {
 
 // actualPrec returns the number of actually used mantissa bits.
 func actualPrec(x float64) uint {
-	if bits := math.Float64bits(x); x != 0 && bits&(0x7ff<<52) == 0 {
+	if mant := math.Float64bits(x); x != 0 && mant&(0x7ff<<52) == 0 {
 		// x is denormalized
-		return 64 - nlz64(bits&(1<<52-1))
+		return 64 - uint(bits.LeadingZeros64(mant&(1<<52-1)))
 	}
 	return 53
 }

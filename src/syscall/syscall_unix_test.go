@@ -78,12 +78,16 @@ func TestFcntlFlock(t *testing.T) {
 	}
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "" {
 		// parent
-		name := filepath.Join(os.TempDir(), "TestFcntlFlock")
+		tempDir, err := ioutil.TempDir("", "TestFcntlFlock")
+		if err != nil {
+			t.Fatalf("Failed to create temp dir: %v", err)
+		}
+		name := filepath.Join(tempDir, "TestFcntlFlock")
 		fd, err := syscall.Open(name, syscall.O_CREAT|syscall.O_RDWR|syscall.O_CLOEXEC, 0)
 		if err != nil {
 			t.Fatalf("Open failed: %v", err)
 		}
-		defer syscall.Unlink(name)
+		defer os.RemoveAll(tempDir)
 		defer syscall.Close(fd)
 		if err := syscall.Ftruncate(fd, 1<<20); err != nil {
 			t.Fatalf("Ftruncate(1<<20) failed: %v", err)
@@ -176,6 +180,9 @@ func TestPassFD(t *testing.T) {
 		uc.Close()
 	})
 	_, oobn, _, _, err := uc.ReadMsgUnix(buf, oob)
+	if err != nil {
+		t.Fatalf("ReadMsgUnix: %v", err)
+	}
 	closeUnix.Stop()
 
 	scms, err := syscall.ParseSocketControlMessage(oob[:oobn])
@@ -308,6 +315,12 @@ func TestRlimit(t *testing.T) {
 	}
 	set := rlimit
 	set.Cur = set.Max - 1
+	if runtime.GOOS == "darwin" && set.Cur > 10240 {
+		// The max file limit is 10240, even though
+		// the max returned by Getrlimit is 1<<63-1.
+		// This is OPEN_MAX in sys/syslimits.h.
+		set.Cur = 10240
+	}
 	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &set)
 	if err != nil {
 		t.Fatalf("Setrlimit: set failed: %#v %v", set, err)
@@ -319,15 +332,11 @@ func TestRlimit(t *testing.T) {
 	}
 	set = rlimit
 	set.Cur = set.Max - 1
+	if runtime.GOOS == "darwin" && set.Cur > 10240 {
+		set.Cur = 10240
+	}
 	if set != get {
-		// Seems like Darwin requires some privilege to
-		// increase the soft limit of rlimit sandbox, though
-		// Setrlimit never reports an error.
-		switch runtime.GOOS {
-		case "darwin":
-		default:
-			t.Fatalf("Rlimit: change failed: wanted %#v got %#v", set, get)
-		}
+		t.Fatalf("Rlimit: change failed: wanted %#v got %#v", set, get)
 	}
 	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlimit)
 	if err != nil {

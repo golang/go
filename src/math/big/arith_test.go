@@ -142,6 +142,23 @@ func BenchmarkAddVV(b *testing.B) {
 	}
 }
 
+func BenchmarkSubVV(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndV(n)
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			for i := 0; i < b.N; i++ {
+				subVV(z, x, y)
+			}
+		})
+	}
+}
+
 type funVW func(z, x []Word, y Word) (c Word)
 type argVW struct {
 	z, x nat
@@ -250,6 +267,23 @@ func BenchmarkAddVW(b *testing.B) {
 			b.SetBytes(int64(n * _S))
 			for i := 0; i < b.N; i++ {
 				addVW(z, x, y)
+			}
+		})
+	}
+}
+
+func BenchmarkSubVW(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndW()
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _S))
+			for i := 0; i < b.N; i++ {
+				subVW(z, x, y)
 			}
 		})
 	}
@@ -391,35 +425,6 @@ func BenchmarkAddMulVVW(b *testing.B) {
 			b.SetBytes(int64(n * _W))
 			for i := 0; i < b.N; i++ {
 				addMulVVW(z, x, y)
-			}
-		})
-	}
-}
-
-func testWordBitLen(t *testing.T, fname string, f func(Word) int) {
-	for i := 0; i <= _W; i++ {
-		x := Word(1) << uint(i-1) // i == 0 => x == 0
-		n := f(x)
-		if n != i {
-			t.Errorf("got %d; want %d for %s(%#x)", n, i, fname, x)
-		}
-	}
-}
-
-func TestWordBitLen(t *testing.T) {
-	testWordBitLen(t, "bitLen", bitLen)
-	testWordBitLen(t, "bitLen_g", bitLen_g)
-}
-
-// runs b.N iterations of bitLen called on a Word containing (1 << nbits)-1.
-func BenchmarkBitLen(b *testing.B) {
-	// Individual bitLen tests. Numbers chosen to examine both sides
-	// of powers-of-two boundaries.
-	for _, nbits := range []uint{0, 1, 2, 3, 4, 5, 8, 9, 16, 17, 31} {
-		testword := Word((uint64(1) << nbits) - 1)
-		b.Run(fmt.Sprint(nbits), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				bitLen(testword)
 			}
 		})
 	}

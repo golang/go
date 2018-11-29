@@ -14,6 +14,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -22,80 +23,70 @@ import (
 )
 
 func main() {
-	devID := detectDevID()
-	fmt.Printf("export GOIOS_DEV_ID=%s\n", devID)
-
-	udid := detectUDID()
-	mp := detectMobileProvisionFile(udid)
-
-	f, err := ioutil.TempFile("", "go_ios_detect_")
-	check(err)
-	fname := f.Name()
-	defer os.Remove(fname)
-
-	out := combinedOutput(parseMobileProvision(mp))
-	_, err = f.Write(out)
-	check(err)
-	check(f.Close())
-
-	appID, err := plistExtract(fname, "ApplicationIdentifierPrefix:0")
-	check(err)
-	fmt.Printf("export GOIOS_APP_ID=%s\n", appID)
-
-	teamID, err := plistExtract(fname, "Entitlements:com.apple.developer.team-identifier")
-	check(err)
-	fmt.Printf("export GOIOS_TEAM_ID=%s\n", teamID)
-}
-
-func detectDevID() string {
-	cmd := exec.Command("security", "find-identity", "-p", "codesigning", "-v")
-	lines := getLines(cmd)
-
-	for _, line := range lines {
-		if !bytes.Contains(line, []byte("iPhone Developer")) {
-			continue
-		}
-		if bytes.Contains(line, []byte("REVOKED")) {
-			continue
-		}
-		fields := bytes.Fields(line)
-		return string(fields[1])
+	udids := getLines(exec.Command("idevice_id", "-l"))
+	if len(udids) == 0 {
+		fail("no udid found; is a device connected?")
 	}
-	fail("no code signing identity found")
-	panic("unreachable")
-}
 
-var udidPrefix = []byte("UniqueDeviceID: ")
-
-func detectUDID() []byte {
-	cmd := exec.Command("ideviceinfo")
-	lines := getLines(cmd)
-	for _, line := range lines {
-		if bytes.HasPrefix(line, udidPrefix) {
-			return bytes.TrimPrefix(line, udidPrefix)
-		}
+	mps := detectMobileProvisionFiles(udids)
+	if len(mps) == 0 {
+		fail("did not find mobile provision matching device udids %q", udids)
 	}
-	fail("udid not found; is the device connected?")
-	panic("unreachable")
+
+	fmt.Println("# Available provisioning profiles below.")
+	fmt.Println("# NOTE: Any existing app on the device with the app id specified by GOIOS_APP_ID")
+	fmt.Println("# will be overwritten when running Go programs.")
+	for _, mp := range mps {
+		fmt.Println()
+		f, err := ioutil.TempFile("", "go_ios_detect_")
+		check(err)
+		fname := f.Name()
+		defer os.Remove(fname)
+
+		out := output(parseMobileProvision(mp))
+		_, err = f.Write(out)
+		check(err)
+		check(f.Close())
+
+		cert, err := plistExtract(fname, "DeveloperCertificates:0")
+		check(err)
+		pcert, err := x509.ParseCertificate(cert)
+		check(err)
+		fmt.Printf("export GOIOS_DEV_ID=\"%s\"\n", pcert.Subject.CommonName)
+
+		appID, err := plistExtract(fname, "Entitlements:application-identifier")
+		check(err)
+		fmt.Printf("export GOIOS_APP_ID=%s\n", appID)
+
+		teamID, err := plistExtract(fname, "Entitlements:com.apple.developer.team-identifier")
+		check(err)
+		fmt.Printf("export GOIOS_TEAM_ID=%s\n", teamID)
+	}
 }
 
-func detectMobileProvisionFile(udid []byte) string {
+func detectMobileProvisionFiles(udids [][]byte) []string {
 	cmd := exec.Command("mdfind", "-name", ".mobileprovision")
 	lines := getLines(cmd)
 
+	var files []string
 	for _, line := range lines {
 		if len(line) == 0 {
 			continue
 		}
 		xmlLines := getLines(parseMobileProvision(string(line)))
-		for _, xmlLine := range xmlLines {
-			if bytes.Contains(xmlLine, udid) {
-				return string(line)
+		matches := 0
+		for _, udid := range udids {
+			for _, xmlLine := range xmlLines {
+				if bytes.Contains(xmlLine, udid) {
+					matches++
+				}
 			}
 		}
+		if matches == len(udids) {
+			files = append(files, string(line))
+		}
 	}
-	fail("did not find mobile provision matching device udid %s", udid)
-	panic("ureachable")
+	return files
 }
 
 func parseMobileProvision(fname string) *exec.Cmd {
@@ -111,12 +102,17 @@ func plistExtract(fname string, path string) ([]byte, error) {
 }
 
 func getLines(cmd *exec.Cmd) [][]byte {
-	out := combinedOutput(cmd)
-	return bytes.Split(out, []byte("\n"))
+	out := output(cmd)
+	lines := bytes.Split(out, []byte("\n"))
+	// Skip the empty line at the end.
+	if len(lines[len(lines)-1]) == 0 {
+		lines = lines[:len(lines)-1]
+	}
+	return lines
 }
 
-func combinedOutput(cmd *exec.Cmd) []byte {
-	out, err := cmd.CombinedOutput()
+func output(cmd *exec.Cmd) []byte {
+	out, err := cmd.Output()
 	if err != nil {
 		fmt.Println(strings.Join(cmd.Args, "\n"))
 		fmt.Fprintln(os.Stderr, err)

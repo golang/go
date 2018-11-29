@@ -12,20 +12,32 @@ TEXT ·Asin(SB),NOSPLIT,$0
 TEXT ·Acos(SB),NOSPLIT,$0
 	BR ·acos(SB)
 
+TEXT ·Asinh(SB),NOSPLIT,$0
+        BR ·asinh(SB)
+
+TEXT ·Acosh(SB),NOSPLIT,$0
+        BR ·acosh(SB)
+
 TEXT ·Atan2(SB),NOSPLIT,$0
 	BR ·atan2(SB)
 
 TEXT ·Atan(SB),NOSPLIT,$0
 	BR ·atan(SB)
 
-TEXT ·Dim(SB),NOSPLIT,$0
-	BR ·dim(SB)
+TEXT ·Atanh(SB),NOSPLIT,$0
+	BR ·atanh(SB)
 
 TEXT ·Min(SB),NOSPLIT,$0
 	BR ·min(SB)
 
 TEXT ·Max(SB),NOSPLIT,$0
 	BR ·max(SB)
+
+TEXT ·Erf(SB),NOSPLIT,$0
+	BR ·erf(SB)
+
+TEXT ·Erfc(SB),NOSPLIT,$0
+	BR ·erfc(SB)
 
 TEXT ·Exp2(SB),NOSPLIT,$0
 	BR ·exp2(SB)
@@ -57,17 +69,11 @@ TEXT ·Log1p(SB),NOSPLIT,$0
 TEXT ·Log(SB),NOSPLIT,$0
 	BR ·log(SB)
 
-TEXT ·Modf(SB),NOSPLIT,$0
-	BR ·modf(SB)
-
 TEXT ·Mod(SB),NOSPLIT,$0
 	BR ·mod(SB)
 
 TEXT ·Remainder(SB),NOSPLIT,$0
 	BR ·remainder(SB)
-
-TEXT ·Sincos(SB),NOSPLIT,$0
-	BR ·sincos(SB)
 
 TEXT ·Sin(SB),NOSPLIT,$0
 	BR ·sin(SB)
@@ -86,3 +92,10 @@ TEXT ·Tan(SB),NOSPLIT,$0
 
 TEXT ·Tanh(SB),NOSPLIT,$0
 	BR ·tanh(SB)
+
+TEXT ·Cbrt(SB),NOSPLIT,$0
+	BR ·cbrt(SB)
+
+TEXT ·Pow(SB),NOSPLIT,$0
+	BR ·pow(SB)
+

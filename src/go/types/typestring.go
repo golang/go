@@ -56,6 +56,7 @@ func RelativeTo(pkg *Package) Qualifier {
 // This flag is exported in the x/tools/go/types package. We don't
 // need it at the moment in the std repo and so we don't export it
 // anymore. We should eventually try to remove it altogether.
+// TODO(gri) remove this
 var gcCompatibilityMode bool
 
 // TypeString returns the string representation of typ.
@@ -120,7 +121,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			if i > 0 {
 				buf.WriteString("; ")
 			}
-			if !f.anonymous {
+			if !f.embedded {
 				buf.WriteString(f.name)
 				buf.WriteByte(' ')
 			}
@@ -145,7 +146,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 	case *Interface:
 		// We write the source-level methods and embedded types rather
 		// than the actual method set since resolved method signatures
-		// may have non-printable cycles if parameters have anonymous
+		// may have non-printable cycles if parameters have embedded
 		// interface types that (directly or indirectly) embed the
 		// current interface. For instance, consider the result type
 		// of m:
@@ -155,6 +156,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		//     }
 		//
 		buf.WriteString("interface{")
+		empty := true
 		if gcCompatibilityMode {
 			// print flattened interface
 			// (useful to compare against gc-generated interfaces)
@@ -164,6 +166,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				}
 				buf.WriteString(m.name)
 				writeSignature(buf, m.typ.(*Signature), qf, visited)
+				empty = false
 			}
 		} else {
 			// print explicit interface methods and embedded types
@@ -173,13 +176,21 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				}
 				buf.WriteString(m.name)
 				writeSignature(buf, m.typ.(*Signature), qf, visited)
+				empty = false
 			}
 			for i, typ := range t.embeddeds {
 				if i > 0 || len(t.methods) > 0 {
 					buf.WriteString("; ")
 				}
 				writeType(buf, typ, qf, visited)
+				empty = false
 			}
+		}
+		if t.allMethods == nil || len(t.methods) > len(t.allMethods) {
+			if !empty {
+				buf.WriteByte(' ')
+			}
+			buf.WriteString("/* incomplete */")
 		}
 		buf.WriteByte('}')
 

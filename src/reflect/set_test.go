@@ -7,13 +7,12 @@ package reflect_test
 import (
 	"bytes"
 	"go/ast"
+	"go/token"
 	"io"
 	. "reflect"
 	"testing"
 	"unsafe"
 )
-
-type MyBuffer bytes.Buffer
 
 func TestImplicitMapConversion(t *testing.T) {
 	// Test implicit conversions in MapIndex and SetMapIndex.
@@ -101,10 +100,7 @@ func TestImplicitMapConversion(t *testing.T) {
 	}
 	{
 		// convert identical underlying types
-		// TODO(rsc): Should be able to define MyBuffer here.
-		// 6l prints very strange messages about .this.Bytes etc
-		// when we do that though, so MyBuffer is defined
-		// at top level.
+		type MyBuffer bytes.Buffer
 		m := make(map[*MyBuffer]*bytes.Buffer)
 		mv := ValueOf(m)
 		b1 := new(MyBuffer)
@@ -172,6 +168,23 @@ var implementsTests = []struct {
 	{new(bytes.Buffer), new(io.Reader), false},
 	{new(*bytes.Buffer), new(io.ReaderAt), false},
 	{new(*ast.Ident), new(ast.Expr), true},
+	{new(*notAnExpr), new(ast.Expr), false},
+	{new(*ast.Ident), new(notASTExpr), false},
+	{new(notASTExpr), new(ast.Expr), false},
+	{new(ast.Expr), new(notASTExpr), false},
+	{new(*notAnExpr), new(notASTExpr), true},
+}
+
+type notAnExpr struct{}
+
+func (notAnExpr) Pos() token.Pos { return token.NoPos }
+func (notAnExpr) End() token.Pos { return token.NoPos }
+func (notAnExpr) exprNode()      {}
+
+type notASTExpr interface {
+	Pos() token.Pos
+	End() token.Pos
+	exprNode()
 }
 
 func TestImplements(t *testing.T) {

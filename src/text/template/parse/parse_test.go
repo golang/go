@@ -259,9 +259,9 @@ var parseTests = []parseTest{
 	{"adjacent args", "{{printf 3`x`}}", hasError, ""},
 	{"adjacent args with .", "{{printf `x`.}}", hasError, ""},
 	{"extra end after if", "{{if .X}}a{{else if .Y}}b{{end}}{{end}}", hasError, ""},
-	// Equals (and other chars) do not assignments make (yet).
+	// Other kinds of assignments and operators aren't available yet.
 	{"bug0a", "{{$x := 0}}{{$x}}", noError, "{{$x := 0}}{{$x}}"},
-	{"bug0b", "{{$x = 1}}{{$x}}", hasError, ""},
+	{"bug0b", "{{$x += 1}}{{$x}}", hasError, ""},
 	{"bug0c", "{{$x ! 2}}{{$x}}", hasError, ""},
 	{"bug0d", "{{$x % 3}}{{$x}}", hasError, ""},
 	// Check the parse fails for := rather than comma.
@@ -447,18 +447,40 @@ var errorTests = []parseTest{
 	{"emptypipeline",
 		`{{ ( ) }}`,
 		hasError, `missing value for parenthesized pipeline`},
+	{"multilinerawstring",
+		"{{ $v := `\n` }} {{",
+		hasError, `multilinerawstring:2: unexpected unclosed action`},
+	{"rangeundefvar",
+		"{{range $k}}{{end}}",
+		hasError, `undefined variable`},
+	{"rangeundefvars",
+		"{{range $k, $v}}{{end}}",
+		hasError, `undefined variable`},
+	{"rangemissingvalue1",
+		"{{range $k,}}{{end}}",
+		hasError, `missing value for range`},
+	{"rangemissingvalue2",
+		"{{range $k, $v := }}{{end}}",
+		hasError, `missing value for range`},
+	{"rangenotvariable1",
+		"{{range $k, .}}{{end}}",
+		hasError, `range can only initialize variables`},
+	{"rangenotvariable2",
+		"{{range $k, 123 := .}}{{end}}",
+		hasError, `range can only initialize variables`},
 }
 
 func TestErrors(t *testing.T) {
 	for _, test := range errorTests {
-		_, err := New(test.name).Parse(test.input, "", "", make(map[string]*Tree))
-		if err == nil {
-			t.Errorf("%q: expected error", test.name)
-			continue
-		}
-		if !strings.Contains(err.Error(), test.result) {
-			t.Errorf("%q: error %q does not contain %q", test.name, err, test.result)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			_, err := New(test.name).Parse(test.input, "", "", make(map[string]*Tree))
+			if err == nil {
+				t.Fatalf("expected error %q, got nil", test.result)
+			}
+			if !strings.Contains(err.Error(), test.result) {
+				t.Fatalf("error %q does not contain %q", err, test.result)
+			}
+		})
 	}
 }
 

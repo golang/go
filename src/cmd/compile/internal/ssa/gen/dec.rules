@@ -13,28 +13,28 @@
 
 (Load <t> ptr mem) && t.IsComplex() && t.Size() == 8 ->
   (ComplexMake
-    (Load <config.fe.TypeFloat32()> ptr mem)
-    (Load <config.fe.TypeFloat32()>
-      (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] ptr)
+    (Load <typ.Float32> ptr mem)
+    (Load <typ.Float32>
+      (OffPtr <typ.Float32Ptr> [4] ptr)
       mem)
     )
-(Store [8] dst (ComplexMake real imag) mem) ->
-  (Store [4]
-    (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)
+(Store {t} dst (ComplexMake real imag) mem) && t.(*types.Type).Size() == 8 ->
+  (Store {typ.Float32}
+    (OffPtr <typ.Float32Ptr> [4] dst)
     imag
-    (Store [4] dst real mem))
+    (Store {typ.Float32} dst real mem))
 (Load <t> ptr mem) && t.IsComplex() && t.Size() == 16 ->
   (ComplexMake
-    (Load <config.fe.TypeFloat64()> ptr mem)
-    (Load <config.fe.TypeFloat64()>
-      (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] ptr)
+    (Load <typ.Float64> ptr mem)
+    (Load <typ.Float64>
+      (OffPtr <typ.Float64Ptr> [8] ptr)
       mem)
     )
-(Store [16] dst (ComplexMake real imag) mem) ->
-  (Store [8]
-    (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)
+(Store {t} dst (ComplexMake real imag) mem) && t.(*types.Type).Size() == 16 ->
+  (Store {typ.Float64}
+    (OffPtr <typ.Float64Ptr> [8] dst)
     imag
-    (Store [8] dst real mem))
+    (Store {typ.Float64} dst real mem))
 
 // string ops
 (StringPtr (StringMake ptr _)) -> ptr
@@ -42,15 +42,15 @@
 
 (Load <t> ptr mem) && t.IsString() ->
   (StringMake
-    (Load <config.fe.TypeBytePtr()> ptr mem)
-    (Load <config.fe.TypeInt()>
-      (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] ptr)
+    (Load <typ.BytePtr> ptr mem)
+    (Load <typ.Int>
+      (OffPtr <typ.IntPtr> [config.PtrSize] ptr)
       mem))
-(Store [2*config.PtrSize] dst (StringMake ptr len) mem) ->
-  (Store [config.PtrSize]
-    (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)
+(Store dst (StringMake ptr len) mem) ->
+  (Store {typ.Int}
+    (OffPtr <typ.IntPtr> [config.PtrSize] dst)
     len
-    (Store [config.PtrSize] dst ptr mem))
+    (Store {typ.BytePtr} dst ptr mem))
 
 // slice ops
 (SlicePtr (SliceMake ptr _ _ )) -> ptr
@@ -59,21 +59,21 @@
 
 (Load <t> ptr mem) && t.IsSlice() ->
   (SliceMake
-    (Load <t.ElemType().PtrTo()> ptr mem)
-    (Load <config.fe.TypeInt()>
-      (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] ptr)
+    (Load <t.Elem().PtrTo()> ptr mem)
+    (Load <typ.Int>
+      (OffPtr <typ.IntPtr> [config.PtrSize] ptr)
       mem)
-    (Load <config.fe.TypeInt()>
-      (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] ptr)
+    (Load <typ.Int>
+      (OffPtr <typ.IntPtr> [2*config.PtrSize] ptr)
       mem))
-(Store [3*config.PtrSize] dst (SliceMake ptr len cap) mem) ->
-  (Store [config.PtrSize]
-    (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] dst)
+(Store dst (SliceMake ptr len cap) mem) ->
+  (Store {typ.Int}
+    (OffPtr <typ.IntPtr> [2*config.PtrSize] dst)
     cap
-    (Store [config.PtrSize]
-      (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)
+    (Store {typ.Int}
+      (OffPtr <typ.IntPtr> [config.PtrSize] dst)
       len
-      (Store [config.PtrSize] dst ptr mem)))
+      (Store {typ.BytePtr} dst ptr mem)))
 
 // interface ops
 (ITab (IMake itab _)) -> itab
@@ -81,12 +81,12 @@
 
 (Load <t> ptr mem) && t.IsInterface() ->
   (IMake
-    (Load <config.fe.TypeBytePtr()> ptr mem)
-    (Load <config.fe.TypeBytePtr()>
-      (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] ptr)
+    (Load <typ.Uintptr> ptr mem)
+    (Load <typ.BytePtr>
+      (OffPtr <typ.BytePtrPtr> [config.PtrSize] ptr)
       mem))
-(Store [2*config.PtrSize] dst (IMake itab data) mem) ->
-  (Store [config.PtrSize]
-    (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] dst)
+(Store dst (IMake itab data) mem) ->
+  (Store {typ.BytePtr}
+    (OffPtr <typ.BytePtrPtr> [config.PtrSize] dst)
     data
-    (Store [config.PtrSize] dst itab mem))
+    (Store {typ.Uintptr} dst itab mem))

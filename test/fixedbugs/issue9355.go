@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" {
+	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" || runtime.GOOS == "js" {
 		return
 	}
 

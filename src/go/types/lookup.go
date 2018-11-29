@@ -6,6 +6,11 @@
 
 package types
 
+// Internal use of LookupFieldOrMethod: If the obj result is a method
+// associated with a concrete (non-interface) type, the method's signature
+// may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
+// the method's type.
+
 // LookupFieldOrMethod looks up a field or method with given package and name
 // in T and returns the corresponding *Var or *Func, an index sequence, and a
 // bool indicating if there were any pointer indirections on the path to the
@@ -19,7 +24,7 @@ package types
 //	2) the list of all methods (method set) of an interface type; or
 //	3) the list of fields of a struct type.
 //
-// The earlier index entries are the indices of the anonymous struct fields
+// The earlier index entries are the indices of the embedded struct fields
 // traversed to get to the found entry, starting at depth 0.
 //
 // If no entry is found, a nil object is returned. In this case, the returned
@@ -67,24 +72,22 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	}
 
 	typ, isPtr := deref(T)
-	named, _ := typ.(*Named)
 
 	// *typ where typ is an interface has no methods.
-	if isPtr {
-		utyp := typ
-		if named != nil {
-			utyp = named.underlying
-		}
-		if _, ok := utyp.(*Interface); ok {
-			return
-		}
+	if isPtr && IsInterface(typ) {
+		return
 	}
 
 	// Start with typ as single entry at shallowest depth.
-	// If typ is not a named type, insert a nil type instead.
-	current := []embeddedType{{named, nil, isPtr, false}}
+	current := []embeddedType{{typ, nil, isPtr, false}}
 
-	// named types that we have seen already, allocated lazily
+	// Named types that we have seen already, allocated lazily.
+	// Used to avoid endless searches in case of recursive types.
+	// Since only Named types can be used for recursive types, we
+	// only need to track those.
+	// (If we ever allow type aliases to construct recursive types,
+	// we must use type identity rather than pointer equality for
+	// the map key comparison, as we do in consolidateMultiples.)
 	var seen map[*Named]bool
 
 	// search current depth
@@ -93,11 +96,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 
 		// look for (pkg, name) in all types at current depth
 		for _, e := range current {
-			// The very first time only, e.typ may be nil.
-			// In this case, we don't have a named type and
-			// we simply continue with the underlying type.
-			if e.typ != nil {
-				if seen[e.typ] {
+			typ := e.typ
+
+			// If we have a named type, we may have associated methods.
+			// Look for those first.
+			if named, _ := typ.(*Named); named != nil {
+				if seen[named] {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth
 					// were consolidated before). The type at that depth shadows
@@ -108,12 +112,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 				if seen == nil {
 					seen = make(map[*Named]bool)
 				}
-				seen[e.typ] = true
+				seen[named] = true
 
 				// look for a matching attached method
-				if i, m := lookupMethod(e.typ.methods, pkg, name); m != nil {
+				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
 					// potential match
-					assert(m.typ != nil)
+					// caution: method may not have a proper signature yet
 					index = concat(e.index, i)
 					if obj != nil || e.multiples {
 						return nil, index, false // collision
@@ -124,7 +128,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 				}
 
 				// continue with underlying type
-				typ = e.typ.underlying
+				typ = named.underlying
 			}
 
 			switch t := typ.(type) {
@@ -147,16 +151,15 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 					// we have a name collision on the same depth; in either
 					// case we don't need to look further).
 					// Embedded fields are always of the form T or *T where
-					// T is a named type. If e.typ appeared multiple times at
+					// T is a type name. If e.typ appeared multiple times at
 					// this depth, f.typ appears multiple times at the next
 					// depth.
-					if obj == nil && f.anonymous {
-						// Ignore embedded basic types - only user-defined
-						// named types can have methods or struct fields.
+					if obj == nil && f.embedded {
 						typ, isPtr := deref(f.typ)
-						if t, _ := typ.(*Named); t != nil {
-							next = append(next, embeddedType{t, concat(e.index, i), e.indirect || isPtr, e.multiples})
-						}
+						// TODO(gri) optimization: ignore types that can't
+						// have fields or methods (only Named, Struct, and
+						// Interface types need to be considered).
+						next = append(next, embeddedType{typ, concat(e.index, i), e.indirect || isPtr, e.multiples})
 					}
 				}
 
@@ -193,12 +196,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	return nil, nil, false // not found
 }
 
-// embeddedType represents an embedded named type
+// embeddedType represents an embedded type
 type embeddedType struct {
-	typ       *Named // nil means use the outer typ variable instead
-	index     []int  // embedded field indices, starting with index at depth 0
-	indirect  bool   // if set, there was a pointer indirection on the path to this field
-	multiples bool   // if set, typ appears multiple times at this depth
+	typ       Type
+	index     []int // embedded field indices, starting with index at depth 0
+	indirect  bool  // if set, there was a pointer indirection on the path to this field
+	multiples bool  // if set, typ appears multiple times at this depth
 }
 
 // consolidateMultiples collects multiple list entries with the same type
@@ -209,10 +212,10 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 		return list // at most one entry - nothing to do
 	}
 
-	n := 0                       // number of entries w/ unique type
-	prev := make(map[*Named]int) // index at which type was previously seen
+	n := 0                     // number of entries w/ unique type
+	prev := make(map[Type]int) // index at which type was previously seen
 	for _, e := range list {
-		if i, found := prev[e.typ]; found {
+		if i, found := lookupType(prev, e.typ); found {
 			list[i].multiples = true
 			// ignore this entry
 		} else {
@@ -222,6 +225,21 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 		}
 	}
 	return list[:n]
+}
+
+func lookupType(m map[Type]int, typ Type) (int, bool) {
+	// fast path: maybe the types are equal
+	if i, found := m[typ]; found {
+		return i, true
+	}
+
+	for t, i := range m {
+		if Identical(t, typ) {
+			return i, true
+		}
+	}
+
+	return 0, false
 }
 
 // MissingMethod returns (nil, false) if V implements T, otherwise it
@@ -235,6 +253,14 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 // x is of interface type V).
 //
 func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
+	return (*Checker)(nil).missingMethod(V, T, static)
+}
+
+// missingMethod is like MissingMethod but accepts a receiver.
+// The receiver may be nil if missingMethod is invoked through
+// an exported API call (such as MissingMethod), i.e., when all
+// methods have been type-checked.
+func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
 	// fast path for common case
 	if T.Empty() {
 		return
@@ -262,9 +288,15 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 	for _, m := range T.allMethods {
 		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name)
 
+		// we must have a method (not a field of matching function type)
 		f, _ := obj.(*Func)
 		if f == nil {
 			return m, false
+		}
+
+		// methods may not have a fully set up signature yet
+		if check != nil {
+			check.objDecl(f, nil)
 		}
 
 		if !Identical(f.typ, m.typ) {
@@ -278,14 +310,16 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // assertableTo reports whether a value of type V can be asserted to have type T.
 // It returns (nil, false) as affirmative answer. Otherwise it returns a missing
 // method required by V and whether it is missing or just has the wrong type.
-func assertableTo(V *Interface, T Type) (method *Func, wrongType bool) {
+// The receiver may be nil if assertableTo is invoked through an exported API call
+// (such as AssertableTo), i.e., when all methods have been type-checked.
+func (check *Checker) assertableTo(V *Interface, T Type) (method *Func, wrongType bool) {
 	// no static check is required if T is an interface
 	// spec: "If T is an interface type, x.(T) asserts that the
 	//        dynamic type of x implements the interface T."
 	if _, ok := T.Underlying().(*Interface); ok && !strict {
 		return
 	}
-	return MissingMethod(T, V, false)
+	return check.missingMethod(T, V, false)
 }
 
 // deref dereferences typ if it is a *Pointer and returns its base and true.

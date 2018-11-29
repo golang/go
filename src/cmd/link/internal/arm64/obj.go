@@ -31,52 +31,50 @@
 package arm64
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
 )
 
-func Init() {
-	ld.SysArch = sys.ArchARM64
+func Init() (*sys.Arch, ld.Arch) {
+	arch := sys.ArchARM64
 
-	ld.Thearch.Funcalign = funcAlign
-	ld.Thearch.Maxalign = maxAlign
-	ld.Thearch.Minalign = minAlign
-	ld.Thearch.Dwarfregsp = dwarfRegSP
-	ld.Thearch.Dwarfreglr = dwarfRegLR
+	theArch := ld.Arch{
+		Funcalign:  funcAlign,
+		Maxalign:   maxAlign,
+		Minalign:   minAlign,
+		Dwarfregsp: dwarfRegSP,
+		Dwarfreglr: dwarfRegLR,
 
-	ld.Thearch.Adddynrel = adddynrel
-	ld.Thearch.Archinit = archinit
-	ld.Thearch.Archreloc = archreloc
-	ld.Thearch.Archrelocvariant = archrelocvariant
-	ld.Thearch.Asmb = asmb
-	ld.Thearch.Elfreloc1 = elfreloc1
-	ld.Thearch.Elfsetupplt = elfsetupplt
-	ld.Thearch.Gentext = gentext
-	ld.Thearch.Machoreloc1 = machoreloc1
-	ld.Thearch.Lput = ld.Lputl
-	ld.Thearch.Wput = ld.Wputl
-	ld.Thearch.Vput = ld.Vputl
-	ld.Thearch.Append16 = ld.Append16l
-	ld.Thearch.Append32 = ld.Append32l
-	ld.Thearch.Append64 = ld.Append64l
+		Adddynrel:        adddynrel,
+		Archinit:         archinit,
+		Archreloc:        archreloc,
+		Archrelocvariant: archrelocvariant,
+		Asmb:             asmb,
+		Elfreloc1:        elfreloc1,
+		Elfsetupplt:      elfsetupplt,
+		Gentext:          gentext,
+		Machoreloc1:      machoreloc1,
 
-	ld.Thearch.Linuxdynld = "/lib/ld-linux-aarch64.so.1"
+		Linuxdynld: "/lib/ld-linux-aarch64.so.1",
 
-	ld.Thearch.Freebsddynld = "XXX"
-	ld.Thearch.Openbsddynld = "XXX"
-	ld.Thearch.Netbsddynld = "XXX"
-	ld.Thearch.Dragonflydynld = "XXX"
-	ld.Thearch.Solarisdynld = "XXX"
+		Freebsddynld:   "XXX",
+		Openbsddynld:   "XXX",
+		Netbsddynld:    "XXX",
+		Dragonflydynld: "XXX",
+		Solarisdynld:   "XXX",
+	}
+
+	return arch, theArch
 }
 
 func archinit(ctxt *ld.Link) {
-	switch ld.Headtype {
+	switch ctxt.HeadType {
 	default:
-		ld.Exitf("unknown -H option: %v", ld.Headtype)
+		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
 
-	case obj.Hplan9: /* plan 9 */
+	case objabi.Hplan9: /* plan 9 */
 		ld.HEADR = 32
 
 		if *ld.FlagTextAddr == -1 {
@@ -89,7 +87,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 
-	case obj.Hlinux: /* arm64 elf */
+	case objabi.Hlinux: /* arm64 elf */
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if *ld.FlagTextAddr == -1 {
@@ -102,9 +100,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x10000
 		}
 
-	case obj.Hdarwin: /* apple MACH */
-		*ld.FlagW = true // disable DWARF generation
-		ld.Machoinit()
+	case objabi.Hdarwin: /* apple MACH */
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
@@ -116,7 +112,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 
-	case obj.Hnacl:
+	case objabi.Hnacl:
 		ld.Elfinit(ctxt)
 		ld.HEADR = 0x10000
 		ld.Funcalign = 16

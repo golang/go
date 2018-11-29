@@ -24,16 +24,12 @@ func mod(x, y float64) float64 {
 	if y == 0 || IsInf(x, 0) || IsNaN(x) || IsNaN(y) {
 		return NaN()
 	}
-	if y < 0 {
-		y = -y
-	}
+	y = Abs(y)
 
 	yfr, yexp := Frexp(y)
-	sign := false
 	r := x
 	if x < 0 {
 		r = -x
-		sign = true
 	}
 
 	for r >= y {
@@ -43,7 +39,7 @@ func mod(x, y float64) float64 {
 		}
 		r = r - Ldexp(y, rexp-yexp)
 	}
-	if sign {
+	if x < 0 {
 		r = -r
 	}
 	return r

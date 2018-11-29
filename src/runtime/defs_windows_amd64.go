@@ -119,8 +119,12 @@ type context struct {
 func (c *context) ip() uintptr { return uintptr(c.rip) }
 func (c *context) sp() uintptr { return uintptr(c.rsp) }
 
-func (c *context) setip(x uintptr) { c.rip = uint64(x) }
-func (c *context) setsp(x uintptr) { c.rsp = uint64(x) }
+// Amd64 does not have link register, so this returns 0.
+func (c *context) lr() uintptr      { return 0 }
+func (c *context) set_lr(x uintptr) {}
+
+func (c *context) set_ip(x uintptr) { c.rip = uint64(x) }
+func (c *context) set_sp(x uintptr) { c.rsp = uint64(x) }
 
 func dumpregs(r *context) {
 	print("rax     ", hex(r.rax), "\n")
@@ -150,4 +154,14 @@ type overlapped struct {
 	internalhigh uint64
 	anon0        [8]byte
 	hevent       *byte
+}
+
+type memoryBasicInformation struct {
+	baseAddress       uintptr
+	allocationBase    uintptr
+	allocationProtect uint32
+	regionSize        uintptr
+	state             uint32
+	protect           uint32
+	type_             uint32
 }

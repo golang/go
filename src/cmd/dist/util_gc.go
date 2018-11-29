@@ -25,3 +25,8 @@ func useVFPv1()
 // useVFPv3 tries to execute one VFPv3 instruction on ARM.
 // It will crash the current process if VFPv3 is missing.
 func useVFPv3()
+
+// useARMv6K tries to run ARMv6K instructions on ARM.
+// It will crash the current process if it doesn't implement
+// ARMv6K or above.
+func useARMv6K()

@@ -7,6 +7,7 @@ package base64
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"reflect"
@@ -52,8 +53,8 @@ func stdRef(ref string) string {
 
 // Convert a reference string to URL-encoding
 func urlRef(ref string) string {
-	ref = strings.Replace(ref, "+", "-", -1)
-	ref = strings.Replace(ref, "/", "_", -1)
+	ref = strings.ReplaceAll(ref, "+", "-")
+	ref = strings.ReplaceAll(ref, "/", "_")
 	return ref
 }
 
@@ -63,7 +64,7 @@ func rawRef(ref string) string {
 }
 
 // Both URL and unpadding conversions
-func rawUrlRef(ref string) string {
+func rawURLRef(ref string) string {
 	return rawRef(urlRef(ref))
 }
 
@@ -71,7 +72,7 @@ func rawUrlRef(ref string) string {
 var funnyEncoding = NewEncoding(encodeStd).WithPadding(rune('@'))
 
 func funnyRef(ref string) string {
-	return strings.Replace(ref, "=", "@", -1)
+	return strings.ReplaceAll(ref, "=", "@")
 }
 
 type encodingTest struct {
@@ -83,12 +84,12 @@ var encodingTests = []encodingTest{
 	{StdEncoding, stdRef},
 	{URLEncoding, urlRef},
 	{RawStdEncoding, rawRef},
-	{RawURLEncoding, rawUrlRef},
+	{RawURLEncoding, rawURLRef},
 	{funnyEncoding, funnyRef},
 	{StdEncoding.Strict(), stdRef},
 	{URLEncoding.Strict(), urlRef},
 	{RawStdEncoding.Strict(), rawRef},
-	{RawURLEncoding.Strict(), rawUrlRef},
+	{RawURLEncoding.Strict(), rawURLRef},
 	{funnyEncoding.Strict(), funnyRef},
 }
 
@@ -98,6 +99,7 @@ var bigtest = testpair{
 }
 
 func testEqual(t *testing.T, msg string, args ...interface{}) bool {
+	t.Helper()
 	if args[len(args)-2] != args[len(args)-1] {
 		t.Errorf(msg, args...)
 		return false
@@ -150,17 +152,14 @@ func TestDecode(t *testing.T) {
 		for _, tt := range encodingTests {
 			encoded := tt.conv(p.encoded)
 			dbuf := make([]byte, tt.enc.DecodedLen(len(encoded)))
-			count, end, err := tt.enc.decode(dbuf, []byte(encoded))
+			count, err := tt.enc.Decode(dbuf, []byte(encoded))
 			testEqual(t, "Decode(%q) = error %v, want %v", encoded, err, error(nil))
 			testEqual(t, "Decode(%q) = length %v, want %v", encoded, count, len(p.decoded))
-			if len(encoded) > 0 {
-				testEqual(t, "Decode(%q) = end %v, want %v", encoded, end, len(p.decoded)%3 != 0)
-			}
 			testEqual(t, "Decode(%q) = %q, want %q", encoded, string(dbuf[0:count]), p.decoded)
 
 			dbuf, err = tt.enc.DecodeString(encoded)
 			testEqual(t, "DecodeString(%q) = error %v, want %v", encoded, err, error(nil))
-			testEqual(t, "DecodeString(%q) = %q, want %q", string(dbuf), p.decoded)
+			testEqual(t, "DecodeString(%q) = %q, want %q", encoded, string(dbuf), p.decoded)
 		}
 	}
 }
@@ -187,10 +186,14 @@ func TestDecoderBuffering(t *testing.T) {
 		decoder := NewDecoder(StdEncoding, strings.NewReader(bigtest.encoded))
 		buf := make([]byte, len(bigtest.decoded)+12)
 		var total int
-		for total = 0; total < len(bigtest.decoded); {
-			n, err := decoder.Read(buf[total : total+bs])
-			testEqual(t, "Read from %q at pos %d = %d, %v, want _, %v", bigtest.encoded, total, n, err, error(nil))
+		var n int
+		var err error
+		for total = 0; total < len(bigtest.decoded) && err == nil; {
+			n, err = decoder.Read(buf[total : total+bs])
 			total += n
+		}
+		if err != nil && err != io.EOF {
+			t.Errorf("Read from %q at pos %d = %d, unexpected error %v", bigtest.encoded, total, n, err)
 		}
 		testEqual(t, "Decoding/%d of %q = %q, want %q", bs, bigtest.encoded, string(buf[0:total]), bigtest.decoded)
 	}
@@ -202,6 +205,9 @@ func TestDecodeCorrupt(t *testing.T) {
 		offset int // -1 means no corruption.
 	}{
 		{"", -1},
+		{"\n", -1},
+		{"AAA=\n", -1},
+		{"AAAA\n", -1},
 		{"!!!!", 0},
 		{"====", 0},
 		{"x===", 1},
@@ -220,6 +226,8 @@ func TestDecodeCorrupt(t *testing.T) {
 		{"AAAA", -1},
 		{"AAAAAA=", 7},
 		{"YWJjZA=====", 8},
+		{"A!\n", 1},
+		{"A=\n", 1},
 	}
 	for _, tc := range testCases {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(tc.input)))
@@ -410,7 +418,7 @@ j+mSARB/17pKVXYWHXjsj7yIex0PadzXMO1zT5KHoNA3HT8ietoGhgjsfA+CSnvvqh/jJtqsrwOv
 2b6NGNzXfTYexzJ+nU7/ALkf4P8Awv6P9KvTQQ4AgyDqCF85Pho3CTB7eHwXoH+LT65uZbX9X+o2
 bqbPb06551Y4
 `
-	encodedShort := strings.Replace(encoded, "\n", "", -1)
+	encodedShort := strings.ReplaceAll(encoded, "\n", "")
 
 	dec := NewDecoder(StdEncoding, strings.NewReader(encoded))
 	res1, err := ioutil.ReadAll(dec)
@@ -466,10 +474,19 @@ func BenchmarkEncodeToString(b *testing.B) {
 }
 
 func BenchmarkDecodeString(b *testing.B) {
-	data := StdEncoding.EncodeToString(make([]byte, 8192))
-	b.SetBytes(int64(len(data)))
-	for i := 0; i < b.N; i++ {
-		StdEncoding.DecodeString(data)
+	sizes := []int{2, 4, 8, 64, 8192}
+	benchFunc := func(b *testing.B, benchSize int) {
+		data := StdEncoding.EncodeToString(make([]byte, benchSize))
+		b.SetBytes(int64(len(data)))
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			StdEncoding.DecodeString(data)
+		}
+	}
+	for _, size := range sizes {
+		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
+			benchFunc(b, size)
+		})
 	}
 }
 

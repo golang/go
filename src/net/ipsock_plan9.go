@@ -2,15 +2,26 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Internet protocol family sockets for Plan 9
-
 package net
 
 import (
 	"context"
+	"internal/bytealg"
 	"os"
 	"syscall"
 )
+
+// Probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
+// capabilities.
+//
+// Plan 9 uses IPv6 natively, see ip(3).
+func (p *ipStackCapabilities) probe() {
+	p.ipv4Enabled = probe(netdir+"/iproute", "4i")
+	p.ipv6Enabled = probe(netdir+"/iproute", "6i")
+	if p.ipv4Enabled && p.ipv6Enabled {
+		p.ipv4MappedIPv6Enabled = true
+	}
+}
 
 func probe(filename, query string) bool {
 	var file *file
@@ -18,6 +29,7 @@ func probe(filename, query string) bool {
 	if file, err = open(filename); err != nil {
 		return false
 	}
+	defer file.close()
 
 	r := false
 	for line, ok := file.readLine(); ok && !r; line, ok = file.readLine() {
@@ -32,31 +44,13 @@ func probe(filename, query string) bool {
 			}
 		}
 	}
-	file.close()
 	return r
-}
-
-func probeIPv4Stack() bool {
-	return probe(netdir+"/iproute", "4i")
-}
-
-// probeIPv6Stack returns two boolean values. If the first boolean
-// value is true, kernel supports basic IPv6 functionality. If the
-// second boolean value is true, kernel supports IPv6 IPv4-mapping.
-func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
-	// Plan 9 uses IPv6 natively, see ip(3).
-	r := probe(netdir+"/iproute", "6i")
-	v := false
-	if r {
-		v = probe(netdir+"/iproute", "4i")
-	}
-	return r, v
 }
 
 // parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).
 func parsePlan9Addr(s string) (ip IP, iport int, err error) {
 	addr := IPv4zero // address contains port only
-	i := byteIndex(s, '!')
+	i := bytealg.IndexByteString(s, '!')
 	if i >= 0 {
 		addr = ParseIP(s[:i])
 		if addr == nil {
@@ -249,10 +243,10 @@ func (fd *netFD) netFD() (*netFD, error) {
 
 func (fd *netFD) acceptPlan9() (nfd *netFD, err error) {
 	defer func() { fixErr(err) }()
-	if err := fd.readLock(); err != nil {
+	if err := fd.pfd.ReadLock(); err != nil {
 		return nil, err
 	}
-	defer fd.readUnlock()
+	defer fd.pfd.ReadUnlock()
 	listen, err := os.Open(fd.dir + "/listen")
 	if err != nil {
 		return nil, err

@@ -41,6 +41,3 @@ TEXT ·addMulVVW(SB),NOSPLIT,$0
 
 TEXT ·divWVW(SB),NOSPLIT,$0
 	JMP	·divWVW_g(SB)
-
-TEXT ·bitLen(SB),NOSPLIT,$0
-	JMP	·bitLen_g(SB)

@@ -12,7 +12,10 @@
 //	significant-byte first (network) order.
 package adler32
 
-import "hash"
+import (
+	"errors"
+	"hash"
+)
 
 const (
 	// mod is the largest prime that is less than 65536.
@@ -32,8 +35,11 @@ type digest uint32
 
 func (d *digest) Reset() { *d = 1 }
 
-// New returns a new hash.Hash32 computing the Adler-32 checksum.
-// Its Sum method will lay the value out in big-endian byte order.
+// New returns a new hash.Hash32 computing the Adler-32 checksum. Its
+// Sum method will lay the value out in big-endian byte order. The
+// returned Hash32 also implements encoding.BinaryMarshaler and
+// encoding.BinaryUnmarshaler to marshal and unmarshal the internal
+// state of the hash.
 func New() hash.Hash32 {
 	d := new(digest)
 	d.Reset()
@@ -43,6 +49,44 @@ func New() hash.Hash32 {
 func (d *digest) Size() int { return Size }
 
 func (d *digest) BlockSize() int { return 4 }
+
+const (
+	magic         = "adl\x01"
+	marshaledSize = len(magic) + 4
+)
+
+func (d *digest) MarshalBinary() ([]byte, error) {
+	b := make([]byte, 0, marshaledSize)
+	b = append(b, magic...)
+	b = appendUint32(b, uint32(*d))
+	return b, nil
+}
+
+func (d *digest) UnmarshalBinary(b []byte) error {
+	if len(b) < len(magic) || string(b[:len(magic)]) != magic {
+		return errors.New("hash/adler32: invalid hash state identifier")
+	}
+	if len(b) != marshaledSize {
+		return errors.New("hash/adler32: invalid hash state size")
+	}
+	*d = digest(readUint32(b[len(magic):]))
+	return nil
+}
+
+func appendUint32(b []byte, x uint32) []byte {
+	a := [4]byte{
+		byte(x >> 24),
+		byte(x >> 16),
+		byte(x >> 8),
+		byte(x),
+	}
+	return append(b, a[:]...)
+}
+
+func readUint32(b []byte) uint32 {
+	_ = b[3]
+	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+}
 
 // Add p to the running checksum d.
 func update(d digest, p []byte) digest {

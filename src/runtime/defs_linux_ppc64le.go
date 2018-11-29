@@ -18,6 +18,7 @@ const (
 	_MAP_FIXED   = 0x10
 
 	_MADV_DONTNEED   = 0x4
+	_MADV_FREE       = 0x8
 	_MADV_HUGEPAGE   = 0xe
 	_MADV_NOHUGEPAGE = 0xf
 

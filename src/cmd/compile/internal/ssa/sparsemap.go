@@ -4,13 +4,15 @@
 
 package ssa
 
-// from http://research.swtch.com/sparse
+import "cmd/internal/src"
+
+// from https://research.swtch.com/sparse
 // in turn, from Briggs and Torczon
 
 type sparseEntry struct {
 	key ID
 	val int32
-	aux int32
+	aux src.XPos
 }
 
 type sparseMap struct {
@@ -22,6 +24,10 @@ type sparseMap struct {
 // integers between 0 and n-1 to int32s.
 func newSparseMap(n int) *sparseMap {
 	return &sparseMap{dense: nil, sparse: make([]int32, n)}
+}
+
+func (s *sparseMap) cap() int {
+	return len(s.sparse)
 }
 
 func (s *sparseMap) size() int {
@@ -43,7 +49,7 @@ func (s *sparseMap) get(k ID) int32 {
 	return -1
 }
 
-func (s *sparseMap) set(k ID, v, a int32) {
+func (s *sparseMap) set(k ID, v int32, a src.XPos) {
 	i := s.sparse[k]
 	if i < int32(len(s.dense)) && s.dense[i].key == k {
 		s.dense[i].val = v
@@ -64,7 +70,7 @@ func (s *sparseMap) setBit(k ID, v uint) {
 		s.dense[i].val |= 1 << v
 		return
 	}
-	s.dense = append(s.dense, sparseEntry{k, 1 << v, 0})
+	s.dense = append(s.dense, sparseEntry{k, 1 << v, src.NoXPos})
 	s.sparse[k] = int32(len(s.dense)) - 1
 }
 

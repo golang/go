@@ -39,7 +39,9 @@ package math
 //	Acosh(+Inf) = +Inf
 //	Acosh(x) = NaN if x < 1
 //	Acosh(NaN) = NaN
-func Acosh(x float64) float64 {
+func Acosh(x float64) float64
+
+func acosh(x float64) float64 {
 	const (
 		Ln2   = 6.93147180559945286227e-01 // 0x3FE62E42FEFA39EF
 		Large = 1 << 28                    // 2**28

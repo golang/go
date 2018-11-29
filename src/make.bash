@@ -41,7 +41,7 @@
 # This is used by cgo.  Default is CC.
 #
 # CXX_FOR_TARGET: Command line to run to compile C++ code for GOARCH.
-# This is used by cgo. Default is CXX, or, if that is not set, 
+# This is used by cgo. Default is CXX, or, if that is not set,
 # "g++" or "clang++".
 #
 # FC: Command line to run to compile Fortran code for GOARCH.
@@ -50,14 +50,29 @@
 # PKG_CONFIG: Path to pkg-config tool. Default is "pkg-config".
 #
 # GO_DISTFLAGS: extra flags to provide to "dist bootstrap".
+# (Or just pass them to the make.bash command line.)
+#
+# GOBUILDTIMELOGFILE: If set, make.bash and all.bash write
+# timing information to this file. Useful for profiling where the
+# time goes when these scripts run.
+#
+# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.4 for bootstrap.
+# If $GOROOT_BOOTSTRAP/bin/go is missing, $(go env GOROOT) is
+# tried for all "go" in $PATH. $HOME/go1.4 by default.
 
 set -e
 
 unset GOBIN # Issue 14340
+unset GOFLAGS
+unset GO111MODULE
 
 if [ ! -f run.bash ]; then
 	echo 'make.bash must be run from $GOROOT/src' 1>&2
 	exit 1
+fi
+
+if [ "$GOBUILDTIMELOGFILE" != "" ]; then
+	echo $(LC_TIME=C date) start make.bash >"$GOBUILDTIMELOGFILE"
 fi
 
 # Test for Windows.
@@ -107,8 +122,8 @@ done
 # Test for debian/kFreeBSD.
 # cmd/dist will detect kFreeBSD as freebsd/$GOARCH, but we need to
 # disable cgo manually.
-if [ "$(uname -s)" == "GNU/kFreeBSD" ]; then
-        export CGO_ENABLED=0
+if [ "$(uname -s)" = "GNU/kFreeBSD" ]; then
+	export CGO_ENABLED=0
 fi
 
 # Clean old generated file that will cause problems in the build.
@@ -116,16 +131,34 @@ rm -f ./runtime/runtime_defs.go
 
 # Finally!  Run the build.
 
-echo '##### Building Go bootstrap tool.'
-echo cmd/dist
+verbose=false
+vflag=""
+if [ "$1" = "-v" ]; then
+	verbose=true
+	vflag=-v
+	shift
+fi
+
+export GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
 export GOROOT="$(cd .. && pwd)"
-GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
+IFS=$'\n'; for go_exe in $(type -ap go); do
+	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
+		goroot=$(GOROOT='' GOOS='' GOARCH='' "$go_exe" env GOROOT)
+		if [ "$goroot" != "$GOROOT" ]; then
+			GOROOT_BOOTSTRAP=$goroot
+		fi
+	fi
+done; unset IFS
+echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP."
+if $verbose; then
+	echo cmd/dist
+fi
 if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 	echo "ERROR: Cannot find $GOROOT_BOOTSTRAP/bin/go." >&2
 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
 	exit 1
 fi
-if [ "$GOROOT_BOOTSTRAP" == "$GOROOT" ]; then
+if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
 	echo "ERROR: \$GOROOT_BOOTSTRAP must not be set to \$GOROOT" >&2
 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
 	exit 1
@@ -139,7 +172,9 @@ if [ "$FAIL" = true ]; then
 	exit 1
 fi
 
-echo
+if $verbose; then
+	echo
+fi
 
 if [ "$1" = "--dist-tool" ]; then
 	# Stop after building dist tool.
@@ -156,27 +191,15 @@ if [ "$1" = "--no-clean" ]; then
 	buildall=""
 	shift
 fi
-./cmd/dist/dist bootstrap $buildall $GO_DISTFLAGS -v # builds go_bootstrap
 
-# Delay move of dist tool to now, because bootstrap may clear tool directory.
-mv cmd/dist/dist "$GOTOOLDIR"/dist
-echo
+# Run dist bootstrap to complete make.bash.
+# Bootstrap installs a proper cmd/dist, built with the new toolchain.
+# Throw ours, built with Go 1.4, away after bootstrap.
+./cmd/dist/dist bootstrap $buildall $vflag $GO_DISTFLAGS "$@"
+rm -f ./cmd/dist/dist
 
-if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
-	echo "##### Building packages and commands for host, $GOHOSTOS/$GOHOSTARCH."
-	# CC_FOR_TARGET is recorded as the default compiler for the go tool. When building for the host, however,
-	# use the host compiler, CC, from `cmd/dist/dist env` instead.
-	CC=$CC GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
-		"$GOTOOLDIR"/go_bootstrap install -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std cmd
-	echo
-fi
-
-echo "##### Building packages and commands for $GOOS/$GOARCH."
-CC=$CC_FOR_TARGET "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std cmd
-echo
-
-rm -f "$GOTOOLDIR"/go_bootstrap
-
-if [ "$1" != "--no-banner" ]; then
-	"$GOTOOLDIR"/dist banner
-fi
+# DO NOT ADD ANY NEW CODE HERE.
+# The bootstrap+rm above are the final step of make.bash.
+# If something must be added, add it to cmd/dist's cmdbootstrap,
+# to avoid needing three copies in three different shell languages
+# (make.bash, make.bat, make.rc).

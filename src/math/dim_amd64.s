@@ -8,44 +8,6 @@
 #define NaN    0x7FF8000000000001
 #define NegInf 0xFFF0000000000000
 
-// func Dim(x, y float64) float64
-TEXT ·Dim(SB),NOSPLIT,$0
-	// (+Inf, +Inf) special case
-	MOVQ    x+0(FP), BX
-	MOVQ    y+8(FP), CX
-	MOVQ    $PosInf, AX
-	CMPQ    AX, BX
-	JNE     dim2
-	CMPQ    AX, CX
-	JEQ     bothInf
-dim2:	// (-Inf, -Inf) special case
-	MOVQ    $NegInf, AX
-	CMPQ    AX, BX
-	JNE     dim3
-	CMPQ    AX, CX
-	JEQ     bothInf
-dim3:	// (NaN, x) or (x, NaN)
-	MOVQ    $~(1<<63), DX
-	MOVQ    $PosInf, AX
-	ANDQ    DX, BX // x = |x|
-	CMPQ    AX, BX
-	JLT     isDimNaN
-	ANDQ    DX, CX // y = |y|
-	CMPQ    AX, CX
-	JLT     isDimNaN
-
-	MOVSD x+0(FP), X0
-	SUBSD y+8(FP), X0
-	MOVSD $(0.0), X1
-	MAXSD X1, X0
-	MOVSD X0, ret+16(FP)
-	RET
-bothInf: // Dim(-Inf, -Inf) or Dim(+Inf, +Inf)
-isDimNaN:
-	MOVQ    $NaN, AX
-	MOVQ    AX, ret+16(FP)
-	RET
-
 // func ·Max(x, y float64) float64
 TEXT ·Max(SB),NOSPLIT,$0
 	// +Inf special cases

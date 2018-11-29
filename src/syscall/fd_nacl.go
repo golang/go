@@ -121,7 +121,6 @@ func Dup(fd int) (int, error) {
 
 func Dup2(fd, newfd int) error {
 	files.Lock()
-	defer files.Unlock()
 	if fd < 0 || fd >= len(files.tab) || files.tab[fd] == nil || newfd < 0 || newfd >= len(files.tab)+100 {
 		files.Unlock()
 		return EBADF

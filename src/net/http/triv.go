@@ -107,7 +107,7 @@ func DateServer(rw http.ResponseWriter, req *http.Request) {
 
 	date, err := exec.Command("/bin/date").Output()
 	if err != nil {
-		http.Error(rw, err.Error(), 500)
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	rw.Write(date)
@@ -115,7 +115,7 @@ func DateServer(rw http.ResponseWriter, req *http.Request) {
 
 func Logger(w http.ResponseWriter, req *http.Request) {
 	log.Print(req.URL)
-	http.Error(w, "oops", 404)
+	http.Error(w, "oops", http.StatusNotFound)
 }
 
 var webroot = flag.String("root", os.Getenv("HOME"), "web root directory")

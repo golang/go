@@ -19,6 +19,7 @@ package runtime
 #include <sys/time.h>
 #include <signal.h>
 #include <errno.h>
+#define _WANT_FREEBSD11_KEVENT 1
 #include <sys/event.h>
 #include <sys/mman.h>
 #include <sys/ucontext.h>
@@ -28,8 +29,20 @@ package runtime
 #include <sys/thr.h>
 #include <sys/_sigset.h>
 #include <sys/unistd.h>
+#include <sys/sysctl.h>
+#include <sys/cpuset.h>
+#include <sys/param.h>
+#include <sys/vdso.h>
 */
 import "C"
+
+// Local consts.
+const (
+	_NBBY            = C.NBBY            // Number of bits in a byte.
+	_CTL_MAXNAME     = C.CTL_MAXNAME     // Largest number of components supported.
+	_CPU_LEVEL_WHICH = C.CPU_LEVEL_WHICH // Actual mask/id for which.
+	_CPU_WHICH_PID   = C.CPU_WHICH_PID   // Specifies a process id.
+)
 
 const (
 	EINTR  = C.EINTR
@@ -41,6 +54,7 @@ const (
 	PROT_EXEC  = C.PROT_EXEC
 
 	MAP_ANON    = C.MAP_ANON
+	MAP_SHARED  = C.MAP_SHARED
 	MAP_PRIVATE = C.MAP_PRIVATE
 	MAP_FIXED   = C.MAP_FIXED
 
@@ -51,6 +65,7 @@ const (
 	SA_ONSTACK = C.SA_ONSTACK
 
 	CLOCK_MONOTONIC = C.CLOCK_MONOTONIC
+	CLOCK_REALTIME  = C.CLOCK_REALTIME
 
 	UMTX_OP_WAIT_UINT         = C.UMTX_OP_WAIT_UINT
 	UMTX_OP_WAIT_UINT_PRIVATE = C.UMTX_OP_WAIT_UINT_PRIVATE
@@ -114,6 +129,7 @@ const (
 	EV_CLEAR     = C.EV_CLEAR
 	EV_RECEIPT   = C.EV_RECEIPT
 	EV_ERROR     = C.EV_ERROR
+	EV_EOF       = C.EV_EOF
 	EVFILT_READ  = C.EVFILT_READ
 	EVFILT_WRITE = C.EVFILT_WRITE
 )
@@ -134,4 +150,15 @@ type Itimerval C.struct_itimerval
 
 type Umtx_time C.struct__umtx_time
 
-type Kevent C.struct_kevent
+type Kevent C.struct_kevent_freebsd11
+
+type bintime C.struct_bintime
+type vdsoTimehands C.struct_vdso_timehands
+type vdsoTimekeep C.struct_vdso_timekeep
+
+const (
+	_VDSO_TK_VER_CURR = C.VDSO_TK_VER_CURR
+
+	vdsoTimehandsSize = C.sizeof_struct_vdso_timehands
+	vdsoTimekeepSize  = C.sizeof_struct_vdso_timekeep
+)

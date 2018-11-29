@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// BUG(mikio): On NaCl, methods and functions related to
+// BUG(mikio): On JS and NaCl, methods and functions related to
 // Interface are not implemented.
 
 // BUG(mikio): On DragonFly BSD, NetBSD, OpenBSD, Plan 9 and Solaris,
@@ -102,7 +102,7 @@ func Interfaces() ([]Interface, error) {
 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: err}
 	}
 	if len(ift) != 0 {
-		zoneCache.update(ift)
+		zoneCache.update(ift, false)
 	}
 	return ift, nil
 }
@@ -159,7 +159,7 @@ func InterfaceByName(name string) (*Interface, error) {
 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: err}
 	}
 	if len(ift) != 0 {
-		zoneCache.update(ift)
+		zoneCache.update(ift, false)
 	}
 	for _, ifi := range ift {
 		if name == ifi.Name {
@@ -172,6 +172,9 @@ func InterfaceByName(name string) (*Interface, error) {
 // An ipv6ZoneCache represents a cache holding partial network
 // interface information. It is used for reducing the cost of IPv6
 // addressing scope zone resolution.
+//
+// Multiple names sharing the index are managed by first-come
+// first-served basis for consistency.
 type ipv6ZoneCache struct {
 	sync.RWMutex                // guard the following
 	lastFetched  time.Time      // last time routing information was fetched
@@ -184,52 +187,70 @@ var zoneCache = ipv6ZoneCache{
 	toName:  make(map[int]string),
 }
 
-func (zc *ipv6ZoneCache) update(ift []Interface) {
+// update refreshes the network interface information if the cache was last
+// updated more than 1 minute ago, or if force is set. It returns whether the
+// cache was updated.
+func (zc *ipv6ZoneCache) update(ift []Interface, force bool) (updated bool) {
 	zc.Lock()
 	defer zc.Unlock()
 	now := time.Now()
-	if zc.lastFetched.After(now.Add(-60 * time.Second)) {
-		return
+	if !force && zc.lastFetched.After(now.Add(-60*time.Second)) {
+		return false
 	}
 	zc.lastFetched = now
 	if len(ift) == 0 {
 		var err error
 		if ift, err = interfaceTable(0); err != nil {
-			return
+			return false
 		}
 	}
 	zc.toIndex = make(map[string]int, len(ift))
 	zc.toName = make(map[int]string, len(ift))
 	for _, ifi := range ift {
 		zc.toIndex[ifi.Name] = ifi.Index
-		zc.toName[ifi.Index] = ifi.Name
+		if _, ok := zc.toName[ifi.Index]; !ok {
+			zc.toName[ifi.Index] = ifi.Name
+		}
 	}
+	return true
 }
 
-func zoneToString(zone int) string {
-	if zone == 0 {
+func (zc *ipv6ZoneCache) name(index int) string {
+	if index == 0 {
 		return ""
 	}
-	zoneCache.update(nil)
+	updated := zoneCache.update(nil, false)
 	zoneCache.RLock()
-	defer zoneCache.RUnlock()
-	name, ok := zoneCache.toName[zone]
-	if !ok {
-		name = uitoa(uint(zone))
+	name, ok := zoneCache.toName[index]
+	zoneCache.RUnlock()
+	if !ok && !updated {
+		zoneCache.update(nil, true)
+		zoneCache.RLock()
+		name, ok = zoneCache.toName[index]
+		zoneCache.RUnlock()
+	}
+	if !ok { // last resort
+		name = uitoa(uint(index))
 	}
 	return name
 }
 
-func zoneToInt(zone string) int {
-	if zone == "" {
+func (zc *ipv6ZoneCache) index(name string) int {
+	if name == "" {
 		return 0
 	}
-	zoneCache.update(nil)
+	updated := zoneCache.update(nil, false)
 	zoneCache.RLock()
-	defer zoneCache.RUnlock()
-	index, ok := zoneCache.toIndex[zone]
-	if !ok {
-		index, _, _ = dtoi(zone)
+	index, ok := zoneCache.toIndex[name]
+	zoneCache.RUnlock()
+	if !ok && !updated {
+		zoneCache.update(nil, true)
+		zoneCache.RLock()
+		index, ok = zoneCache.toIndex[name]
+		zoneCache.RUnlock()
+	}
+	if !ok { // last resort
+		index, _, _ = dtoi(name)
 	}
 	return index
 }

@@ -2,38 +2,71 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This file implements scanner, a lexical tokenizer for
+// Go source. After initialization, consecutive calls of
+// next advance the scanner one token at a time.
+//
+// This file, source.go, and tokens.go are self-contained
+// (go tool compile scanner.go source.go tokens.go compiles)
+// and thus could be made into its own package.
+
 package syntax
 
 import (
 	"fmt"
 	"io"
-	"strings"
 	"unicode"
 	"unicode/utf8"
 )
 
+// The mode flags below control which comments are reported
+// by calling the error handler. If no flag is set, comments
+// are ignored.
+const (
+	comments   uint = 1 << iota // call handler for all comments
+	directives                  // call handler for directives only
+)
+
 type scanner struct {
 	source
+	mode   uint
 	nlsemi bool // if set '\n' and EOF translate to ';'
-	pragma Pragma
 
 	// current token, valid after calling next()
-	pos, line int
+	line, col uint
 	tok       token
-	lit       string   // valid if tok is _Name or _Literal
+	lit       string   // valid if tok is _Name, _Literal, or _Semi ("semicolon", "newline", or "EOF")
 	kind      LitKind  // valid if tok is _Literal
 	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
 	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
-
-	pragh PragmaHandler
 }
 
-func (s *scanner) init(src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+func (s *scanner) init(src io.Reader, errh func(line, col uint, msg string), mode uint) {
 	s.source.init(src, errh)
+	s.mode = mode
 	s.nlsemi = false
-	s.pragh = pragh
 }
 
+// next advances the scanner by reading the next token.
+//
+// If a read, source encoding, or lexical error occurs, next calls
+// the installed error handler with the respective error position
+// and message. The error message is guaranteed to be non-empty and
+// never starts with a '/'. The error handler must exist.
+//
+// If the scanner mode includes the comments flag and a comment
+// (including comments containing directives) is encountered, the
+// error handler is also called with each comment position and text
+// (including opening /* or // and closing */, but without a newline
+// at the end of line comments). Comment text always starts with a /
+// which can be used to distinguish these handler calls from errors.
+//
+// If the scanner mode includes the directives (but not the comments)
+// flag, only comments containing a //line, /*line, or //go: directive
+// are reported, in the same way as regular comments. Directives in
+// //-style comments are only recognized if they are at the beginning
+// of a line.
+//
 func (s *scanner) next() {
 	nlsemi := s.nlsemi
 	s.nlsemi = false
@@ -46,9 +79,9 @@ redo:
 	}
 
 	// token start
-	s.pos, s.line = s.source.pos0(), s.source.line0
+	s.line, s.col = s.source.line0, s.source.col0
 
-	if isLetter(c) || c >= utf8.RuneSelf && (unicode.IsLetter(c) || s.isCompatRune(c, true)) {
+	if isLetter(c) || c >= utf8.RuneSelf && s.isIdentRune(c, true) {
 		s.ident()
 		return
 	}
@@ -56,12 +89,14 @@ redo:
 	switch c {
 	case -1:
 		if nlsemi {
+			s.lit = "EOF"
 			s.tok = _Semi
 			break
 		}
 		s.tok = _EOF
 
 	case '\n':
+		s.lit = "newline"
 		s.tok = _Semi
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
@@ -89,6 +124,7 @@ redo:
 		s.tok = _Comma
 
 	case ';':
+		s.lit = "semicolon"
 		s.tok = _Semi
 
 	case ')':
@@ -114,8 +150,7 @@ redo:
 	case '.':
 		c = s.getr()
 		if isDigit(c) {
-			s.ungetr()
-			s.source.r0-- // make sure '.' is part of literal (line cannot have changed)
+			s.ungetr2()
 			s.number('.')
 			break
 		}
@@ -125,8 +160,7 @@ redo:
 				s.tok = _DotDotDot
 				break
 			}
-			s.ungetr()
-			s.source.r0-- // make next ungetr work (line cannot have changed)
+			s.ungetr2()
 		}
 		s.ungetr()
 		s.tok = _Dot
@@ -170,6 +204,7 @@ redo:
 			if s.source.line > s.line && nlsemi {
 				// A multi-line comment acts like a newline;
 				// it translates to a ';' if nlsemi is set.
+				s.lit = "newline"
 				s.tok = _Semi
 				break
 			}
@@ -206,10 +241,6 @@ redo:
 		}
 		s.op, s.prec = Or, precAdd
 		goto assignop
-
-	case '~':
-		s.error("bitwise complement operator is ^")
-		fallthrough
 
 	case '^':
 		s.op, s.prec = Xor, precAdd
@@ -273,7 +304,7 @@ redo:
 
 	default:
 		s.tok = 0
-		s.error(fmt.Sprintf("illegal character %#U", c))
+		s.error(fmt.Sprintf("invalid character %#U", c))
 		goto redo
 	}
 
@@ -307,7 +338,7 @@ func (s *scanner) ident() {
 
 	// general case
 	if c >= utf8.RuneSelf {
-		for unicode.IsLetter(c) || c == '_' || unicode.IsDigit(c) || s.isCompatRune(c, false) {
+		for s.isIdentRune(c, false) {
 			c = s.getr()
 		}
 	}
@@ -317,7 +348,7 @@ func (s *scanner) ident() {
 
 	// possibly a keyword
 	if len(lit) >= 2 {
-		if tok := keywordMap[hash(lit)]; tok != 0 && tokstrings[tok] == string(lit) {
+		if tok := keywordMap[hash(lit)]; tok != 0 && tokStrFast(tok) == string(lit) {
 			s.nlsemi = contains(1<<_Break|1<<_Continue|1<<_Fallthrough|1<<_Return, tok)
 			s.tok = tok
 			return
@@ -329,14 +360,24 @@ func (s *scanner) ident() {
 	s.tok = _Name
 }
 
-func (s *scanner) isCompatRune(c rune, start bool) bool {
-	if !gcCompat || c < utf8.RuneSelf {
-		return false
-	}
-	if start && unicode.IsNumber(c) {
-		s.error(fmt.Sprintf("identifier cannot begin with digit %#U", c))
-	} else {
+// tokStrFast is a faster version of token.String, which assumes that tok
+// is one of the valid tokens - and can thus skip bounds checks.
+func tokStrFast(tok token) string {
+	return _token_name[_token_index[tok-1]:_token_index[tok]]
+}
+
+func (s *scanner) isIdentRune(c rune, first bool) bool {
+	switch {
+	case unicode.IsLetter(c) || c == '_':
+		// ok
+	case unicode.IsDigit(c):
+		if first {
+			s.error(fmt.Sprintf("identifier cannot begin with digit %#U", c))
+		}
+	case c >= utf8.RuneSelf:
 		s.error(fmt.Sprintf("invalid identifier character %#U", c))
+	default:
+		return false
 	}
 	return true
 }
@@ -352,7 +393,7 @@ var keywordMap [1 << 6]token // size must be power of two
 func init() {
 	// populate keywordMap
 	for tok := _Break; tok <= _Var; tok++ {
-		h := hash([]byte(tokstrings[tok]))
+		h := hash([]byte(tok.String()))
 		if keywordMap[h] != 0 {
 			panic("imperfect hash")
 		}
@@ -442,6 +483,53 @@ done:
 	s.tok = _Literal
 }
 
+func (s *scanner) rune() {
+	s.startLit()
+
+	ok := true // only report errors if we're ok so far
+	n := 0
+	for ; ; n++ {
+		r := s.getr()
+		if r == '\'' {
+			break
+		}
+		if r == '\\' {
+			if !s.escape('\'') {
+				ok = false
+			}
+			continue
+		}
+		if r == '\n' {
+			s.ungetr() // assume newline is not part of literal
+			if ok {
+				s.error("newline in character literal")
+				ok = false
+			}
+			break
+		}
+		if r < 0 {
+			if ok {
+				s.errh(s.line, s.col, "invalid character literal (missing closing ')")
+				ok = false
+			}
+			break
+		}
+	}
+
+	if ok {
+		if n == 0 {
+			s.error("empty character literal or unescaped ' in character literal")
+		} else if n != 1 {
+			s.errh(s.line, s.col, "invalid character literal (more than one character)")
+		}
+	}
+
+	s.nlsemi = true
+	s.lit = string(s.stopLit())
+	s.kind = RuneLit
+	s.tok = _Literal
+}
+
 func (s *scanner) stdString() {
 	s.startLit()
 
@@ -460,7 +548,7 @@ func (s *scanner) stdString() {
 			break
 		}
 		if r < 0 {
-			s.error_at(s.pos, s.line, "string not terminated")
+			s.errh(s.line, s.col, "string not terminated")
 			break
 		}
 	}
@@ -480,7 +568,7 @@ func (s *scanner) rawString() {
 			break
 		}
 		if r < 0 {
-			s.error_at(s.pos, s.line, "string not terminated")
+			s.errh(s.line, s.col, "string not terminated")
 			break
 		}
 	}
@@ -494,95 +582,103 @@ func (s *scanner) rawString() {
 	s.tok = _Literal
 }
 
-func (s *scanner) rune() {
-	s.startLit()
-
-	r := s.getr()
-	ok := false
-	if r == '\'' {
-		s.error("empty character literal or unescaped ' in character literal")
-	} else if r == '\n' {
-		s.ungetr() // assume newline is not part of literal
-		s.error("newline in character literal")
-	} else {
-		ok = true
-		if r == '\\' {
-			ok = s.escape('\'')
-		}
-	}
-
-	r = s.getr()
-	if r != '\'' {
-		// only report error if we're ok so far
-		if ok {
-			s.error("missing '")
-		}
-		s.ungetr()
-	}
-
-	s.nlsemi = true
-	s.lit = string(s.stopLit())
-	s.kind = RuneLit
-	s.tok = _Literal
+func (s *scanner) comment(text string) {
+	s.errh(s.line, s.col, text)
 }
 
-func (s *scanner) lineComment() {
-	// recognize pragmas
-	var prefix string
-	r := s.getr()
-	if s.pragh == nil {
-		goto skip
-	}
-
-	switch r {
-	case 'g':
-		prefix = "go:"
-	case 'l':
-		prefix = "line "
-	default:
-		goto skip
-	}
-
-	s.startLit()
-	for _, m := range prefix {
-		if r != m {
-			s.stopLit()
-			goto skip
-		}
-		r = s.getr()
-	}
-
+func (s *scanner) skipLine(r rune) {
 	for r >= 0 {
 		if r == '\n' {
-			s.ungetr()
+			s.ungetr() // don't consume '\n' - needed for nlsemi logic
 			break
 		}
 		r = s.getr()
 	}
-	s.pragma |= s.pragh(0, s.line, strings.TrimSuffix(string(s.stopLit()), "\r"))
-	return
-
-skip:
-	// consume line
-	for r != '\n' && r >= 0 {
-		r = s.getr()
-	}
-	s.ungetr() // don't consume '\n' - needed for nlsemi logic
 }
 
-func (s *scanner) fullComment() {
-	for {
-		r := s.getr()
+func (s *scanner) lineComment() {
+	r := s.getr()
+
+	if s.mode&comments != 0 {
+		s.startLit()
+		s.skipLine(r)
+		s.comment("//" + string(s.stopLit()))
+		return
+	}
+
+	// directives must start at the beginning of the line (s.col == colbase)
+	if s.mode&directives == 0 || s.col != colbase || (r != 'g' && r != 'l') {
+		s.skipLine(r)
+		return
+	}
+
+	// recognize go: or line directives
+	prefix := "go:"
+	if r == 'l' {
+		prefix = "line "
+	}
+	for _, m := range prefix {
+		if r != m {
+			s.skipLine(r)
+			return
+		}
+		r = s.getr()
+	}
+
+	// directive text
+	s.startLit()
+	s.skipLine(r)
+	s.comment("//" + prefix + string(s.stopLit()))
+}
+
+func (s *scanner) skipComment(r rune) bool {
+	for r >= 0 {
 		for r == '*' {
 			r = s.getr()
 			if r == '/' {
-				return
+				return true
 			}
 		}
-		if r < 0 {
-			s.error_at(s.pos, s.line, "comment not terminated")
+		r = s.getr()
+	}
+	s.errh(s.line, s.col, "comment not terminated")
+	return false
+}
+
+func (s *scanner) fullComment() {
+	r := s.getr()
+
+	if s.mode&comments != 0 {
+		s.startLit()
+		if s.skipComment(r) {
+			s.comment("/*" + string(s.stopLit()))
+		} else {
+			s.killLit() // not a complete comment - ignore
+		}
+		return
+	}
+
+	if s.mode&directives == 0 || r != 'l' {
+		s.skipComment(r)
+		return
+	}
+
+	// recognize line directive
+	const prefix = "line "
+	for _, m := range prefix {
+		if r != m {
+			s.skipComment(r)
 			return
 		}
+		r = s.getr()
+	}
+
+	// directive text
+	s.startLit()
+	if s.skipComment(r) {
+		s.comment("/*" + prefix + string(s.stopLit()))
+	} else {
+		s.killLit() // not a complete comment - ignore
 	}
 }
 
@@ -628,19 +724,11 @@ func (s *scanner) escape(quote rune) bool {
 			if c < 0 {
 				return true // complain in caller about EOF
 			}
-			if gcCompat {
-				name := "hex"
-				if base == 8 {
-					name = "octal"
-				}
-				s.error(fmt.Sprintf("non-%s character in escape sequence: %c", name, c))
-			} else {
-				if c != quote {
-					s.error(fmt.Sprintf("illegal character %#U in escape sequence", c))
-				} else {
-					s.error("escape sequence incomplete")
-				}
+			kind := "hex"
+			if base == 8 {
+				kind = "octal"
 			}
+			s.error(fmt.Sprintf("non-%s character in escape sequence: %c", kind, c))
 			s.ungetr()
 			return false
 		}

@@ -4,6 +4,10 @@
 
 package strconv
 
+import (
+	"math/bits"
+)
+
 // An extFloat represents an extended floating-point number, with more
 // precision than a float64. It does not try to save bits: the
 // number represented by the structure is mant*(2^exp), with a negative
@@ -15,7 +19,7 @@ type extFloat struct {
 }
 
 // Powers of ten taken from double-conversion library.
-// http://code.google.com/p/double-conversion/
+// https://code.google.com/p/double-conversion/
 const (
 	firstPowerOfTen = -348
 	stepPowerOfTen  = 8
@@ -196,38 +200,15 @@ func (f *extFloat) AssignComputeBounds(mant uint64, exp int, neg bool, flt *floa
 
 // Normalize normalizes f so that the highest bit of the mantissa is
 // set, and returns the number by which the mantissa was left-shifted.
-func (f *extFloat) Normalize() (shift uint) {
-	mant, exp := f.mant, f.exp
-	if mant == 0 {
+func (f *extFloat) Normalize() uint {
+	// bits.LeadingZeros64 would return 64
+	if f.mant == 0 {
 		return 0
 	}
-	if mant>>(64-32) == 0 {
-		mant <<= 32
-		exp -= 32
-	}
-	if mant>>(64-16) == 0 {
-		mant <<= 16
-		exp -= 16
-	}
-	if mant>>(64-8) == 0 {
-		mant <<= 8
-		exp -= 8
-	}
-	if mant>>(64-4) == 0 {
-		mant <<= 4
-		exp -= 4
-	}
-	if mant>>(64-2) == 0 {
-		mant <<= 2
-		exp -= 2
-	}
-	if mant>>(64-1) == 0 {
-		mant <<= 1
-		exp -= 1
-	}
-	shift = uint(f.exp - exp)
-	f.mant, f.exp = mant, exp
-	return
+	shift := bits.LeadingZeros64(f.mant)
+	f.mant <<= uint(shift)
+	f.exp -= shift
+	return uint(shift)
 }
 
 // Multiply sets f to the product f*g: the result is correctly rounded,
@@ -641,7 +622,7 @@ func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool
 // adjustLastDigit modifies d = x-currentDiff*ε, to get closest to
 // d = x-targetDiff*ε, without becoming smaller than x-maxDiff*ε.
 // It assumes that a decimal digit is worth ulpDecimal*ε, and that
-// all data is known with a error estimate of ulpBinary*ε.
+// all data is known with an error estimate of ulpBinary*ε.
 func adjustLastDigit(d *decimalSlice, currentDiff, targetDiff, maxDiff, ulpDecimal, ulpBinary uint64) bool {
 	if ulpDecimal < 2*ulpBinary {
 		// Approximation is too wide.

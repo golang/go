@@ -28,7 +28,7 @@ func endsWithCSSKeyword(b []byte, kw string) bool {
 	}
 	// Many CSS keywords, such as "!important" can have characters encoded,
 	// but the URI production does not allow that according to
-	// http://www.w3.org/TR/css3-syntax/#TOK-URI
+	// https://www.w3.org/TR/css3-syntax/#TOK-URI
 	// This does not attempt to recognize encoded keywords. For example,
 	// given "\75\72\6c" and "url" this return false.
 	return string(bytes.ToLower(b[i:])) == kw
@@ -38,7 +38,7 @@ func endsWithCSSKeyword(b []byte, kw string) bool {
 func isCSSNmchar(r rune) bool {
 	// Based on the CSS3 nmchar production but ignores multi-rune escape
 	// sequences.
-	// http://www.w3.org/TR/css3-syntax/#SUBTOK-nmchar
+	// https://www.w3.org/TR/css3-syntax/#SUBTOK-nmchar
 	return 'a' <= r && r <= 'z' ||
 		'A' <= r && r <= 'Z' ||
 		'0' <= r && r <= '9' ||
@@ -53,7 +53,7 @@ func isCSSNmchar(r rune) bool {
 // decodeCSS decodes CSS3 escapes given a sequence of stringchars.
 // If there is no change, it returns the input, otherwise it returns a slice
 // backed by a new array.
-// http://www.w3.org/TR/css3-syntax/#SUBTOK-stringchar defines stringchar.
+// https://www.w3.org/TR/css3-syntax/#SUBTOK-stringchar defines stringchar.
 func decodeCSS(s []byte) []byte {
 	i := bytes.IndexByte(s, '\\')
 	if i == -1 {
@@ -72,10 +72,10 @@ func decodeCSS(s []byte) []byte {
 		if len(s) < 2 {
 			break
 		}
-		// http://www.w3.org/TR/css3-syntax/#SUBTOK-escape
+		// https://www.w3.org/TR/css3-syntax/#SUBTOK-escape
 		// escape ::= unicode | '\' [#x20-#x7E#x80-#xD7FF#xE000-#xFFFD#x10000-#x10FFFF]
 		if isHex(s[1]) {
-			// http://www.w3.org/TR/css3-syntax/#SUBTOK-unicode
+			// https://www.w3.org/TR/css3-syntax/#SUBTOK-unicode
 			//   unicode ::= '\' [0-9a-fA-F]{1,6} wc?
 			j := 2
 			for j < len(s) && j < 7 && isHex(s[j]) {
@@ -222,7 +222,7 @@ func cssValueFilter(args ...interface{}) string {
 	b, id := decodeCSS([]byte(s)), make([]byte, 0, 64)
 
 	// CSS3 error handling is specified as honoring string boundaries per
-	// http://www.w3.org/TR/css3-syntax/#error-handling :
+	// https://www.w3.org/TR/css3-syntax/#error-handling :
 	//     Malformed declarations. User agents must handle unexpected
 	//     tokens encountered while parsing a declaration by reading until
 	//     the end of the declaration, while observing the rules for

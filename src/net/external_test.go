@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !js
+
 package net
 
 import (
@@ -15,7 +17,7 @@ import (
 func TestResolveGoogle(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
+	if !supportsIPv4() || !supportsIPv6() || !*testIPv4 || !*testIPv6 {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
@@ -62,7 +64,7 @@ var dialGoogleTests = []struct {
 func TestDialGoogle(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
+	if !supportsIPv4() || !supportsIPv6() || !*testIPv4 || !*testIPv6 {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 

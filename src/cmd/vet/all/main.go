@@ -7,6 +7,9 @@
 // The vet/all command runs go vet on the standard library and commands.
 // It compares the output against a set of whitelists
 // maintained in the whitelist directory.
+//
+// This program attempts to build packages from golang.org/x/tools,
+// which must be in your GOPATH.
 package main
 
 import (
@@ -15,15 +18,17 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"go/types"
 	"internal/testenv"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
-	"sync"
+	"sync/atomic"
 )
 
 var (
@@ -33,6 +38,7 @@ var (
 )
 
 var cmdGoPath string
+var failed uint32 // updated atomically
 
 func main() {
 	log.SetPrefix("vet/all: ")
@@ -59,10 +65,14 @@ func main() {
 	case *flagAll:
 		vetPlatforms(allPlatforms())
 	default:
-		host := platform{os: build.Default.GOOS, arch: build.Default.GOARCH}
-		host.vet(runtime.GOMAXPROCS(-1))
+		hostPlatform.vet()
+	}
+	if atomic.LoadUint32(&failed) != 0 {
+		os.Exit(1)
 	}
 }
+
+var hostPlatform = platform{os: build.Default.GOOS, arch: build.Default.GOARCH}
 
 func allPlatforms() []platform {
 	var pp []platform
@@ -102,11 +112,11 @@ type whitelist map[string]int
 
 // load adds entries from the whitelist file, if present, for os/arch to w.
 func (w whitelist) load(goos string, goarch string) {
-	// Look up whether goarch is a 32-bit or 64-bit architecture.
-	archbits, ok := nbits[goarch]
-	if !ok {
-		log.Fatalf("unknown bitwidth for arch %q", goarch)
+	sz := types.SizesFor("gc", goarch)
+	if sz == nil {
+		log.Fatalf("unknown type sizes for arch %q", goarch)
 	}
+	archbits := 8 * sz.Sizeof(types.Typ[types.UnsafePointer])
 
 	// Look up whether goarch has a shared arch suffix,
 	// such as mips64x for mips64 and mips64le.
@@ -180,23 +190,30 @@ var ignorePathPrefixes = [...]string{
 }
 
 func vetPlatforms(pp []platform) {
-	ncpus := runtime.GOMAXPROCS(-1) / len(pp)
-	if ncpus < 1 {
-		ncpus = 1
-	}
-	var wg sync.WaitGroup
-	wg.Add(len(pp))
 	for _, p := range pp {
-		p := p
-		go func() {
-			p.vet(ncpus)
-			wg.Done()
-		}()
+		p.vet()
 	}
-	wg.Wait()
 }
 
-func (p platform) vet(ncpus int) {
+func (p platform) vet() {
+	if p.os == "linux" && (p.arch == "riscv64" || p.arch == "sparc64") {
+		// TODO(tklauser): enable as soon as these ports have fully landed
+		fmt.Printf("skipping %s/%s\n", p.os, p.arch)
+		return
+	}
+
+	if p.os == "windows" && p.arch == "arm" {
+		// TODO(jordanrh1): enable as soon as the windows/arm port has fully landed
+		fmt.Println("skipping windows/arm")
+		return
+	}
+
+	if p.os == "aix" && p.arch == "ppc64" {
+		// TODO(aix): enable as soon as the aix/ppc64 port has fully landed
+		fmt.Println("skipping aix/ppc64")
+		return
+	}
+
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "go run main.go -p %s\n", p)
 
@@ -204,29 +221,38 @@ func (p platform) vet(ncpus int) {
 	w := make(whitelist)
 	w.load(p.os, p.arch)
 
-	env := append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch)
-
-	// Do 'go install std' before running vet.
-	// It is cheap when already installed.
-	// Not installing leads to non-obvious failures due to inability to typecheck.
-	// TODO: If go/loader ever makes it to the standard library, have vet use it,
-	// at which point vet can work off source rather than compiled packages.
-	cmd := exec.Command(cmdGoPath, "install", "-p", strconv.Itoa(ncpus), "std")
-	cmd.Env = env
-	out, err := cmd.CombinedOutput()
+	tmpdir, err := ioutil.TempDir("", "cmd-vet-all")
 	if err != nil {
-		log.Fatalf("failed to run GOOS=%s GOARCH=%s 'go install std': %v\n%s", p.os, p.arch, err, out)
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	// Build the go/packages-based vet command from the x/tools
+	// repo. It is considerably faster than "go vet", which rebuilds
+	// the standard library.
+	vetTool := filepath.Join(tmpdir, "vet")
+	cmd := exec.Command(cmdGoPath, "build", "-o", vetTool, "golang.org/x/tools/go/analysis/cmd/vet")
+	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Fatal(err)
 	}
 
-	// 'go tool vet .' is considerably faster than 'go vet ./...'
 	// TODO: The unsafeptr checks are disabled for now,
 	// because there are so many false positives,
 	// and no clear way to improve vet to eliminate large chunks of them.
 	// And having them in the whitelists will just cause annoyance
 	// and churn when working on the runtime.
-	cmd = exec.Command(cmdGoPath, "tool", "vet", "-unsafeptr=false", ".")
+	cmd = exec.Command(vetTool,
+		"-unsafeptr=0",
+		"-nilness=0", // expensive, uses SSA
+		"std",
+		"cmd/...",
+		"cmd/compile/internal/gc/testdata",
+	)
 	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
-	cmd.Env = env
+	cmd.Env = append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch, "CGO_ENABLED=0")
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		log.Fatal(err)
@@ -237,26 +263,69 @@ func (p platform) vet(ncpus int) {
 
 	// Process vet output.
 	scan := bufio.NewScanner(stderr)
+	var parseFailed bool
 NextLine:
 	for scan.Scan() {
 		line := scan.Text()
 		if strings.HasPrefix(line, "vet: ") {
 			// Typecheck failure: Malformed syntax or multiple packages or the like.
 			// This will yield nicer error messages elsewhere, so ignore them here.
+
+			// This includes warnings from asmdecl of the form:
+			//   "vet: foo.s:16: [amd64] cannot check cross-package assembly function"
 			continue
 		}
 
-		fields := strings.SplitN(line, ":", 3)
-		var file, lineno, msg string
-		switch len(fields) {
-		case 2:
-			// vet message with no line number
-			file, msg = fields[0], fields[1]
-		case 3:
-			file, lineno, msg = fields[0], fields[1], fields[2]
-		default:
-			log.Fatalf("could not parse vet output line:\n%s", line)
+		if strings.HasPrefix(line, "panic: ") {
+			// Panic in vet. Don't filter anything, we want the complete output.
+			parseFailed = true
+			fmt.Fprintf(os.Stderr, "panic in vet (to reproduce: go run main.go -p %s):\n", p)
+			fmt.Fprintln(os.Stderr, line)
+			io.Copy(os.Stderr, stderr)
+			break
 		}
+		if strings.HasPrefix(line, "# ") {
+			// 'go vet' prefixes the output of each vet invocation by a comment:
+			//    # [package]
+			continue
+		}
+
+		// Parse line.
+		// Assume the part before the first ": "
+		// is the "file:line:col: " information.
+		// TODO(adonovan): parse vet -json output.
+		var file, lineno, msg string
+		if i := strings.Index(line, ": "); i >= 0 {
+			msg = line[i+len(": "):]
+
+			words := strings.Split(line[:i], ":")
+			switch len(words) {
+			case 3:
+				_ = words[2] // ignore column
+				fallthrough
+			case 2:
+				lineno = words[1]
+				fallthrough
+			case 1:
+				file = words[0]
+
+				// Make the file name relative to GOROOT/src.
+				if rel, err := filepath.Rel(cmd.Dir, file); err == nil {
+					file = rel
+				}
+			default:
+				// error: too many columns
+			}
+		}
+		if file == "" {
+			if !parseFailed {
+				parseFailed = true
+				fmt.Fprintf(os.Stderr, "failed to parse %s vet output:\n", p)
+			}
+			fmt.Fprintln(os.Stderr, line)
+			continue
+		}
+
 		msg = strings.TrimSpace(msg)
 
 		for _, ignore := range ignorePathPrefixes {
@@ -273,9 +342,14 @@ NextLine:
 			} else {
 				fmt.Fprintf(&buf, "%s:%s: %s\n", file, lineno, msg)
 			}
+			atomic.StoreUint32(&failed, 1)
 			continue
 		}
 		w[key]--
+	}
+	if parseFailed {
+		atomic.StoreUint32(&failed, 1)
+		return
 	}
 	if scan.Err() != nil {
 		log.Fatalf("failed to scan vet output: %v", scan.Err())
@@ -297,28 +371,12 @@ NextLine:
 				for i := 0; i < v; i++ {
 					fmt.Fprintln(&buf, k)
 				}
+				atomic.StoreUint32(&failed, 1)
 			}
 		}
 	}
 
 	os.Stdout.Write(buf.Bytes())
-}
-
-// nbits maps from architecture names to the number of bits in a pointer.
-// TODO: figure out a clean way to avoid get this info rather than listing it here yet again.
-var nbits = map[string]int{
-	"386":      32,
-	"amd64":    64,
-	"amd64p32": 32,
-	"arm":      32,
-	"arm64":    64,
-	"mips":     32,
-	"mipsle":   32,
-	"mips64":   64,
-	"mips64le": 64,
-	"ppc64":    64,
-	"ppc64le":  64,
-	"s390x":    64,
 }
 
 // archAsmX maps architectures to the suffix usually used for their assembly files,
@@ -327,6 +385,8 @@ var archAsmX = map[string]string{
 	"android":  "linux",
 	"mips64":   "mips64x",
 	"mips64le": "mips64x",
+	"mips":     "mipsx",
+	"mipsle":   "mipsx",
 	"ppc64":    "ppc64x",
 	"ppc64le":  "ppc64x",
 }

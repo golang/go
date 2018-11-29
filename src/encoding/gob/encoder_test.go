@@ -55,6 +55,71 @@ func TestBasicEncoderDecoder(t *testing.T) {
 	}
 }
 
+func TestEncodeIntSlice(t *testing.T) {
+
+	s8 := []int8{1, 5, 12, 22, 35, 51, 70, 92, 117}
+	s16 := []int16{145, 176, 210, 247, 287, 330, 376, 425, 477}
+	s32 := []int32{532, 590, 651, 715, 782, 852, 925, 1001, 1080}
+	s64 := []int64{1162, 1247, 1335, 1426, 1520, 1617, 1717, 1820, 1926}
+
+	t.Run("int8", func(t *testing.T) {
+		var sink bytes.Buffer
+		enc := NewEncoder(&sink)
+		enc.Encode(s8)
+
+		dec := NewDecoder(&sink)
+		res := make([]int8, 9)
+		dec.Decode(&res)
+
+		if !reflect.DeepEqual(s8, res) {
+			t.Fatalf("EncodeIntSlice: expected %v, got %v", s8, res)
+		}
+	})
+
+	t.Run("int16", func(t *testing.T) {
+		var sink bytes.Buffer
+		enc := NewEncoder(&sink)
+		enc.Encode(s16)
+
+		dec := NewDecoder(&sink)
+		res := make([]int16, 9)
+		dec.Decode(&res)
+
+		if !reflect.DeepEqual(s16, res) {
+			t.Fatalf("EncodeIntSlice: expected %v, got %v", s16, res)
+		}
+	})
+
+	t.Run("int32", func(t *testing.T) {
+		var sink bytes.Buffer
+		enc := NewEncoder(&sink)
+		enc.Encode(s32)
+
+		dec := NewDecoder(&sink)
+		res := make([]int32, 9)
+		dec.Decode(&res)
+
+		if !reflect.DeepEqual(s32, res) {
+			t.Fatalf("EncodeIntSlice: expected %v, got %v", s32, res)
+		}
+	})
+
+	t.Run("int64", func(t *testing.T) {
+		var sink bytes.Buffer
+		enc := NewEncoder(&sink)
+		enc.Encode(s64)
+
+		dec := NewDecoder(&sink)
+		res := make([]int64, 9)
+		dec.Decode(&res)
+
+		if !reflect.DeepEqual(s64, res) {
+			t.Fatalf("EncodeIntSlice: expected %v, got %v", s64, res)
+		}
+	})
+
+}
+
 type ET0 struct {
 	A int
 	B string
@@ -949,7 +1014,7 @@ type Bug4Secret struct {
 }
 
 // Test that a failed compilation doesn't leave around an executable encoder.
-// Issue 3273.
+// Issue 3723.
 func TestMutipleEncodingsOfBadType(t *testing.T) {
 	x := Bug4Public{
 		Name:   "name",
@@ -1060,23 +1125,5 @@ func TestBadData(t *testing.T) {
 		if !strings.Contains(err.Error(), test.error) {
 			t.Errorf("#%d: decode: expected %q error, got %s", i, test.error, err.Error())
 		}
-	}
-}
-
-// TestHugeWriteFails tests that enormous messages trigger an error.
-func TestHugeWriteFails(t *testing.T) {
-	if testing.Short() {
-		// Requires allocating a monster, so don't do this from all.bash.
-		t.Skip("skipping huge allocation in short mode")
-	}
-	huge := make([]byte, tooBig)
-	huge[0] = 7 // Make sure it's not all zeros.
-	buf := new(bytes.Buffer)
-	err := NewEncoder(buf).Encode(huge)
-	if err == nil {
-		t.Fatalf("expected error for huge slice")
-	}
-	if !strings.Contains(err.Error(), "message too big") {
-		t.Fatalf("expected 'too big' error; got %s\n", err.Error())
 	}
 }

@@ -36,6 +36,7 @@ type nameSpace struct {
 	mu      sync.Mutex
 	set     map[string]*Template
 	escaped bool
+	esc     escaper
 }
 
 // Templates returns a slice of the templates associated with t, including t
@@ -112,7 +113,8 @@ func (t *Template) escape() error {
 // If an error occurs executing the template or writing its output,
 // execution stops, but partial results may already have been written to
 // the output writer.
-// A template may be executed safely in parallel.
+// A template may be executed safely in parallel, although if parallel
+// executions share a Writer the output may be interleaved.
 func (t *Template) Execute(wr io.Writer, data interface{}) error {
 	if err := t.escape(); err != nil {
 		return err
@@ -125,7 +127,8 @@ func (t *Template) Execute(wr io.Writer, data interface{}) error {
 // If an error occurs executing the template or writing its output,
 // execution stops, but partial results may already have been written to
 // the output writer.
-// A template may be executed safely in parallel.
+// A template may be executed safely in parallel, although if parallel
+// executions share a Writer the output may be interleaved.
 func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
 	tmpl, err := t.lookupAndEscapeTemplate(name)
 	if err != nil {
@@ -248,13 +251,13 @@ func (t *Template) Clone() (*Template, error) {
 	if err != nil {
 		return nil, err
 	}
+	ns := &nameSpace{set: make(map[string]*Template)}
+	ns.esc = makeEscaper(ns)
 	ret := &Template{
 		nil,
 		textClone,
 		textClone.Tree,
-		&nameSpace{
-			set: make(map[string]*Template),
-		},
+		ns,
 	}
 	ret.set[ret.Name()] = ret
 	for _, x := range textClone.Templates() {
@@ -277,13 +280,13 @@ func (t *Template) Clone() (*Template, error) {
 
 // New allocates a new HTML template with the given name.
 func New(name string) *Template {
+	ns := &nameSpace{set: make(map[string]*Template)}
+	ns.esc = makeEscaper(ns)
 	tmpl := &Template{
 		nil,
 		template.New(name),
 		nil,
-		&nameSpace{
-			set: make(map[string]*Template),
-		},
+		ns,
 	}
 	tmpl.set[name] = tmpl
 	return tmpl
@@ -292,6 +295,10 @@ func New(name string) *Template {
 // New allocates a new HTML template associated with the given one
 // and with the same delimiters. The association, which is transitive,
 // allows one template to invoke another with a {{template}} action.
+//
+// If a template with the given name already exists, the new HTML template
+// will replace it. The existing template will be reset and disassociated with
+// t.
 func (t *Template) New(name string) *Template {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
@@ -305,6 +312,10 @@ func (t *Template) new(name string) *Template {
 		t.text.New(name),
 		nil,
 		t.nameSpace,
+	}
+	if existing, ok := tmpl.set[name]; ok {
+		emptyTmpl := New(existing.Name())
+		*existing = *emptyTmpl
 	}
 	tmpl.set[name] = tmpl
 	return tmpl
@@ -325,6 +336,7 @@ func (t *Template) Name() string {
 type FuncMap map[string]interface{}
 
 // Funcs adds the elements of the argument map to the template's function map.
+// It must be called before the template is parsed.
 // It panics if a value in the map is not a function with appropriate return
 // type. However, it is legal to overwrite elements of the map. The return
 // value is the template, so calls can be chained.

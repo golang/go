@@ -22,6 +22,9 @@ go	src=..
 				internal
 					syntax
 						parser.go
+			cover
+				testdata
+					+
 			doc
 				main.go
 				pkg.go
@@ -31,17 +34,50 @@ go	src=..
 			internal
 				objfile
 					objfile.go
+				buildid
+					testdata
+						+
+				xcoff
+					testdata
+						+
 			gofmt
 				gofmt.go
 				gofmt_test.go
 				testdata
 					+
 			vendor
+				github.com
+					google
+						pprof
+							internal
+								binutils
+									testdata
+										+
+								driver
+									testdata
+										+
+								graph
+									testdata
+										+
+								report
+									testdata
+										+
+							profile
+								testdata
+									+
+					ianlancetaylor
+						demangle
+							testdata
+								+
 				golang.org
 					x
 						arch
 							arm
 								armasm
+									testdata
+										+
+							arm64
+								arm64asm
 									testdata
 										+
 							x86
@@ -142,9 +178,13 @@ go	src=..
 		regexp
 			testdata
 				+
+		runtime
+			textflag.h
 		strconv
 			testdata
 				+
+		testdata
+			+
 		text
 			template
 				testdata

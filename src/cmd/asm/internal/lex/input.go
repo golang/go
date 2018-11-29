@@ -13,6 +13,8 @@ import (
 	"text/scanner"
 
 	"cmd/asm/internal/flags"
+	"cmd/internal/objabi"
+	"cmd/internal/src"
 )
 
 // Input is the main input: a stack of readers and some macro definitions.
@@ -137,7 +139,7 @@ func (in *Input) Text() string {
 	return in.text
 }
 
-// hash processes a # preprocessor directive. It returns true iff it completes.
+// hash processes a # preprocessor directive. It reports whether it completes.
 func (in *Input) hash() bool {
 	// We have a '#'; it must be followed by a known word (define, include, etc.).
 	tok := in.Stack.Next()
@@ -290,7 +292,7 @@ func lookup(args []string, arg string) int {
 func (in *Input) invokeMacro(macro *Macro) {
 	// If the macro has no arguments, just substitute the text.
 	if macro.args == nil {
-		in.Push(NewSlice(in.File(), in.Line(), macro.tokens))
+		in.Push(NewSlice(in.Base(), in.Line(), macro.tokens))
 		return
 	}
 	tok := in.Stack.Next()
@@ -300,7 +302,7 @@ func (in *Input) invokeMacro(macro *Macro) {
 		in.peekToken = tok
 		in.peekText = in.text
 		in.peek = true
-		in.Push(NewSlice(in.File(), in.Line(), []Token{Make(macroName, macro.name)}))
+		in.Push(NewSlice(in.Base(), in.Line(), []Token{Make(macroName, macro.name)}))
 		return
 	}
 	actuals := in.argsFor(macro)
@@ -317,7 +319,7 @@ func (in *Input) invokeMacro(macro *Macro) {
 		}
 		tokens = append(tokens, substitution...)
 	}
-	in.Push(NewSlice(in.File(), in.Line(), tokens))
+	in.Push(NewSlice(in.Base(), in.Line(), tokens))
 }
 
 // argsFor returns a map from formal name to actual value for this argumented macro invocation.
@@ -452,8 +454,8 @@ func (in *Input) line() {
 	if tok != '\n' {
 		in.Error("unexpected token at end of #line: ", tok)
 	}
-	linkCtxt.LineHist.Update(histLine, file, line)
-	in.Stack.SetPos(line, file)
+	pos := src.MakePos(in.Base(), uint(in.Line())+1, 1) // +1 because #line nnn means line nnn starts on next line
+	in.Stack.SetBase(src.NewLinePragmaBase(pos, file, objabi.AbsFile(objabi.WorkingDir(), file, *flags.TrimPath), uint(line), 1))
 }
 
 // #undef processing

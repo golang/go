@@ -46,10 +46,24 @@ func trim(f *Func) {
 						v.resetArgs()
 						continue
 					}
-					// Pad the arguments of the remaining phi-ops, so
+					// Pad the arguments of the remaining phi-ops so
 					// they match the new predecessor count of `s`.
-					for len(v.Args) < len(s.Preds) {
-						v.AddArg(v.Args[0])
+					// Since s did not have a Phi op corresponding to
+					// the phi op in b, the other edges coming into s
+					// must be loopback edges from s, so v is the right
+					// argument to v!
+					args := make([]*Value, len(v.Args))
+					copy(args, v.Args)
+					v.resetArgs()
+					for x := 0; x < j; x++ {
+						v.AddArg(v)
+					}
+					v.AddArg(args[0])
+					for x := j + 1; x < ns; x++ {
+						v.AddArg(v)
+					}
+					for _, a := range args[1:] {
+						v.AddArg(a)
 					}
 				}
 				b.Values[k] = v
@@ -80,7 +94,7 @@ func trim(f *Func) {
 	}
 }
 
-// emptyBlock returns true if the block does not contain actual
+// emptyBlock reports whether the block does not contain actual
 // instructions
 func emptyBlock(b *Block) bool {
 	for _, v := range b.Values {
@@ -91,7 +105,7 @@ func emptyBlock(b *Block) bool {
 	return true
 }
 
-// trimmableBlock returns true if the block can be trimmed from the CFG,
+// trimmableBlock reports whether the block can be trimmed from the CFG,
 // subject to the following criteria:
 //  - it should not be the first block
 //  - it should be BlockPlain
@@ -107,9 +121,8 @@ func trimmableBlock(b *Block) bool {
 }
 
 // mergePhi adjusts the number of `v`s arguments to account for merge
-// of `b`, which was `i`th predecessor of the `v`s block. Returns
-// `v`.
-func mergePhi(v *Value, i int, b *Block) *Value {
+// of `b`, which was `i`th predecessor of the `v`s block.
+func mergePhi(v *Value, i int, b *Block) {
 	u := v.Args[i]
 	if u.Block == b {
 		if u.Op != OpPhi {
@@ -133,5 +146,4 @@ func mergePhi(v *Value, i int, b *Block) *Value {
 			v.AddArg(v.Args[i])
 		}
 	}
-	return v
 }

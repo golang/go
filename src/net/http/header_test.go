@@ -6,6 +6,7 @@ package http
 
 import (
 	"bytes"
+	"internal/race"
 	"runtime"
 	"testing"
 	"time"
@@ -196,7 +197,7 @@ func TestHeaderWriteSubsetAllocs(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping alloc test in short mode")
 	}
-	if raceEnabled {
+	if race.Enabled {
 		t.Skip("skipping test under race detector")
 	}
 	if runtime.GOMAXPROCS(0) > 1 {

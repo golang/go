@@ -23,7 +23,7 @@ TEXT runtime·lwp_create(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
-	
+
 	// Set FS to point at m->tls.
 	LEAQ	m_tls(R8), DI
 	CALL	runtime·settls(SB)
@@ -48,13 +48,15 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·lwp_park(SB),NOSPLIT,$0
-	MOVQ	abstime+0(FP), DI		// arg 1 - abstime
-	MOVL	unpark+8(FP), SI		// arg 2 - unpark
-	MOVQ	hint+16(FP), DX		// arg 3 - hint
-	MOVQ	unparkhint+24(FP), R10		// arg 4 - unparkhint
-	MOVL	$434, AX		// sys__lwp_park
+	MOVL	clockid+0(FP), DI		// arg 1 - clockid
+	MOVL	flags+4(FP), SI			// arg 2 - flags
+	MOVQ	ts+8(FP), DX			// arg 3 - ts
+	MOVL	unpark+16(FP), R10		// arg 4 - unpark
+	MOVQ	hint+24(FP), R8			// arg 5 - hint
+	MOVQ	unparkhint+32(FP), R9		// arg 6 - unparkhint
+	MOVL	$478, AX			// sys__lwp_park
 	SYSCALL
-	MOVL	AX, ret+32(FP)
+	MOVL	AX, ret+40(FP)
 	RET
 
 TEXT runtime·lwp_unpark(SB),NOSPLIT,$0
@@ -79,11 +81,15 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-8
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+	MOVQ	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
 	MOVL	$310, AX		// sys__lwp_exit
 	SYSCALL
 	MOVL	$0xf1, 0xf1		// crash
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVQ	name+0(FP), DI		// arg 1 pathname
@@ -169,8 +175,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
 	SYSCALL
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVQ	$0, DI			// arg 1 - clock_id
 	LEAQ	8(SP), SI		// arg 2 - tp
 	MOVL	$427, AX		// sys_clock_gettime
@@ -184,7 +190,7 @@ TEXT time·now(SB), NOSPLIT, $32
 	RET
 
 TEXT runtime·nanotime(SB),NOSPLIT,$32
-	MOVQ	$0, DI			// arg 1 - clock_id
+	MOVQ	$3, DI			// arg 1 - clock_id CLOCK_MONOTONIC
 	LEAQ	8(SP), SI		// arg 2 - tp
 	MOVL	$427, AX		// sys_clock_gettime
 	SYSCALL
@@ -250,13 +256,28 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	POPQ	BP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$32
-	MOVQ	DI, 0(SP)   // signum
-	MOVQ	SI, 8(SP)   // info
-	MOVQ	DX, 16(SP)  // ctx
-	MOVQ	R15, 24(SP) // for sigreturn
+TEXT runtime·sigtramp(SB),NOSPLIT,$72
+	// Save callee-saved C registers, since the caller may be a C signal handler.
+	MOVQ	BX,  bx-8(SP)
+	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
+	MOVQ	R12, r12-24(SP)
+	MOVQ	R13, r13-32(SP)
+	MOVQ	R14, r14-40(SP)
+	MOVQ	R15, r15-48(SP)
+	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+	// modify them.
+
+	MOVQ	DX, ctx-56(SP)
+	MOVQ	SI, info-64(SP)
+	MOVQ	DI, signum-72(SP)
 	CALL	runtime·sigtrampgo(SB)
-	MOVQ	24(SP), R15
+
+	MOVQ	r15-48(SP), R15
+	MOVQ	r14-40(SP), R14
+	MOVQ	r13-32(SP), R13
+	MOVQ	r12-24(SP), R12
+	MOVQ	bp-16(SP),  BP
+	MOVQ	bx-8(SP),   BX
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
@@ -271,8 +292,15 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	$0, R9			// arg 6 - pad
 	MOVL	$197, AX		// sys_mmap
 	SYSCALL
+	JCC	ok
 	ADDQ	$16, SP
-	MOVQ	AX, ret+32(FP)
+	MOVQ	$0, p+32(FP)
+	MOVQ	AX, err+40(FP)
+	RET
+ok:
+	ADDQ	$16, SP
+	MOVQ	AX, p+32(FP)
+	MOVQ	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
@@ -291,7 +319,9 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	flags+16(FP), DX	// arg 3 - behav
 	MOVQ	$75, AX			// sys_madvise
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	JCC	2(PC)
+	MOVL	$-1, AX
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8

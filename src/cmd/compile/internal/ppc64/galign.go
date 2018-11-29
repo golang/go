@@ -6,25 +6,23 @@ package ppc64
 
 import (
 	"cmd/compile/internal/gc"
-	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
+	"cmd/internal/objabi"
 )
 
-func Init() {
-	gc.Thearch.LinkArch = &ppc64.Linkppc64
-	if obj.GOARCH == "ppc64le" {
-		gc.Thearch.LinkArch = &ppc64.Linkppc64le
+func Init(arch *gc.Arch) {
+	arch.LinkArch = &ppc64.Linkppc64
+	if objabi.GOARCH == "ppc64le" {
+		arch.LinkArch = &ppc64.Linkppc64le
 	}
-	gc.Thearch.REGSP = ppc64.REGSP
-	gc.Thearch.MAXWIDTH = 1 << 50
+	arch.REGSP = ppc64.REGSP
+	arch.MAXWIDTH = 1 << 60
 
-	gc.Thearch.Defframe = defframe
-	gc.Thearch.Proginfo = proginfo
+	arch.ZeroRange = zerorange
+	arch.ZeroAuto = zeroAuto
+	arch.Ginsnop = ginsnop2
 
-	gc.Thearch.SSAMarkMoves = ssaMarkMoves
-	gc.Thearch.SSAGenValue = ssaGenValue
-	gc.Thearch.SSAGenBlock = ssaGenBlock
-
-	initvariants()
-	initproginfo()
+	arch.SSAMarkMoves = ssaMarkMoves
+	arch.SSAGenValue = ssaGenValue
+	arch.SSAGenBlock = ssaGenBlock
 }

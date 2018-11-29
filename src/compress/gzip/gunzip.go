@@ -66,7 +66,7 @@ type Header struct {
 // Only the first header is recorded in the Reader fields.
 //
 // Gzip files store a length and checksum of the uncompressed data.
-// The Reader will return a ErrChecksum when Read
+// The Reader will return an ErrChecksum when Read
 // reaches the end of the uncompressed data if it does not
 // have the expected length or checksum. Clients should treat data
 // returned by Read as tentative until they receive the io.EOF

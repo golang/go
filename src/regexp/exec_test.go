@@ -681,6 +681,29 @@ func BenchmarkMatch(b *testing.B) {
 	}
 }
 
+func BenchmarkMatch_onepass_regex(b *testing.B) {
+	isRaceBuilder := strings.HasSuffix(testenv.Builder(), "-race")
+	r := MustCompile(`(?s)\A.*\z`)
+	if r.onepass == nil {
+		b.Fatalf("want onepass regex, but %q is not onepass", r)
+	}
+	for _, size := range benchSizes {
+		if isRaceBuilder && size.n > 1<<10 {
+			continue
+		}
+		t := makeText(size.n)
+		b.Run(size.name, func(b *testing.B) {
+			b.SetBytes(int64(size.n))
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				if !r.Match(t) {
+					b.Fatal("not match!")
+				}
+			}
+		})
+	}
+}
+
 var benchData = []struct{ name, re string }{
 	{"Easy0", "ABCDEFGHIJKLMNOPQRSTUVWXYZ$"},
 	{"Easy0i", "(?i)ABCDEFGHIJklmnopqrstuvwxyz$"},

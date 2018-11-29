@@ -20,7 +20,7 @@ trap cleanup 0 INT
 rm -f get.bin final-test.bin a.out
 
 # If called with -all, check that all code snippets compile.
-if [ "$1" == "-all" ]; then
+if [ "$1" = "-all" ]; then
 	for fn in *.go; do
 		go build -o a.out $fn
 	done

@@ -5,7 +5,6 @@
 package testing
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -72,7 +71,7 @@ func runExample(eg InternalExample) (ok bool) {
 	os.Stdout = w
 	outC := make(chan string)
 	go func() {
-		var buf bytes.Buffer
+		var buf strings.Builder
 		_, err := io.Copy(&buf, r)
 		r.Close()
 		if err != nil {
@@ -87,7 +86,7 @@ func runExample(eg InternalExample) (ok bool) {
 
 	// Clean up in a deferred call so we can recover if the example panics.
 	defer func() {
-		dstr := fmtDuration(time.Now().Sub(start))
+		dstr := fmtDuration(time.Since(start))
 
 		// Close pipe, restore stdout, get output.
 		w.Close()

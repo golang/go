@@ -8,7 +8,6 @@ package syntax
 // In this package, re is always a *Regexp and r is always a rune.
 
 import (
-	"bytes"
 	"strconv"
 	"strings"
 	"unicode"
@@ -26,6 +25,8 @@ type Regexp struct {
 	Cap      int        // capturing index, for OpCapture
 	Name     string     // capturing name, for OpCapture
 }
+
+//go:generate stringer -type Op -trimprefix Op
 
 // An Op is a single regular expression operator.
 type Op uint8
@@ -58,7 +59,7 @@ const (
 
 const opPseudo Op = 128 // where pseudo-ops start
 
-// Equal returns true if x and y have identical structure.
+// Equal reports whether x and y have identical structure.
 func (x *Regexp) Equal(y *Regexp) bool {
 	if x == nil || y == nil {
 		return x == y
@@ -112,7 +113,7 @@ func (x *Regexp) Equal(y *Regexp) bool {
 }
 
 // writeRegexp writes the Perl syntax for the regular expression re to b.
-func writeRegexp(b *bytes.Buffer, re *Regexp) {
+func writeRegexp(b *strings.Builder, re *Regexp) {
 	switch re.Op {
 	default:
 		b.WriteString("<invalid op" + strconv.Itoa(int(re.Op)) + ">")
@@ -243,14 +244,14 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
 }
 
 func (re *Regexp) String() string {
-	var b bytes.Buffer
+	var b strings.Builder
 	writeRegexp(&b, re)
 	return b.String()
 }
 
 const meta = `\.+*?()|[]{}^$`
 
-func escape(b *bytes.Buffer, r rune, force bool) {
+func escape(b *strings.Builder, r rune, force bool) {
 	if unicode.IsPrint(r) {
 		if strings.ContainsRune(meta, r) || force {
 			b.WriteRune('\\')

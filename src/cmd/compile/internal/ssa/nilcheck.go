@@ -4,6 +4,11 @@
 
 package ssa
 
+import (
+	"cmd/internal/objabi"
+	"cmd/internal/src"
+)
+
 // nilcheckelim eliminates unnecessary nil checks.
 // runs on machine-independent code.
 func nilcheckelim(f *Func) {
@@ -39,27 +44,46 @@ func nilcheckelim(f *Func) {
 
 	// make an initial pass identifying any non-nil values
 	for _, b := range f.Blocks {
-		// a value resulting from taking the address of a
-		// value, or a value constructed from an offset of a
-		// non-nil ptr (OpAddPtr) implies it is non-nil
 		for _, v := range b.Values {
-			if v.Op == OpAddr || v.Op == OpAddPtr {
+			// a value resulting from taking the address of a
+			// value, or a value constructed from an offset of a
+			// non-nil ptr (OpAddPtr) implies it is non-nil
+			// We also assume unsafe pointer arithmetic generates non-nil pointers. See #27180.
+			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr || v.Op == OpOffPtr || v.Op == OpAdd32 || v.Op == OpAdd64 || v.Op == OpSub32 || v.Op == OpSub64 {
 				nonNilValues[v.ID] = true
-			} else if v.Op == OpPhi {
+			}
+		}
+	}
+
+	for changed := true; changed; {
+		changed = false
+		for _, b := range f.Blocks {
+			for _, v := range b.Values {
 				// phis whose arguments are all non-nil
 				// are non-nil
-				argsNonNil := true
-				for _, a := range v.Args {
-					if !nonNilValues[a.ID] {
-						argsNonNil = false
+				if v.Op == OpPhi {
+					argsNonNil := true
+					for _, a := range v.Args {
+						if !nonNilValues[a.ID] {
+							argsNonNil = false
+							break
+						}
 					}
-				}
-				if argsNonNil {
-					nonNilValues[v.ID] = true
+					if argsNonNil {
+						if !nonNilValues[v.ID] {
+							changed = true
+						}
+						nonNilValues[v.ID] = true
+					}
 				}
 			}
 		}
 	}
+
+	// allocate auxiliary date structures for computing store order
+	sset := f.newSparseSet(f.NumValues())
+	defer f.retSparseSet(sset)
+	storeNumber := make([]int32, f.NumValues())
 
 	// perform a depth first walk of the dominee tree
 	for len(work) > 0 {
@@ -82,6 +106,12 @@ func nilcheckelim(f *Func) {
 				}
 			}
 
+			// Next, order values in the current block w.r.t. stores.
+			b.Values = storeOrder(b.Values, sset, storeNumber)
+
+			pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+			pendingLines.clear()
+
 			// Next, process values in the block.
 			i := 0
 			for _, v := range b.Values {
@@ -91,6 +121,10 @@ func nilcheckelim(f *Func) {
 				case OpIsNonNil:
 					ptr := v.Args[0]
 					if nonNilValues[ptr.ID] {
+						if v.Pos.IsStmt() == src.PosIsStmt { // Boolean true is a terrible statement boundary.
+							pendingLines.add(v.Pos.Line())
+							v.Pos = v.Pos.WithNotStmt()
+						}
 						// This is a redundant explicit nil check.
 						v.reset(OpConstBool)
 						v.AuxInt = 1 // true
@@ -101,10 +135,14 @@ func nilcheckelim(f *Func) {
 						// This is a redundant implicit nil check.
 						// Logging in the style of the former compiler -- and omit line 1,
 						// which is usually in generated code.
-						if f.Config.Debug_checknil() && v.Line > 1 {
-							f.Config.Warnl(v.Line, "removed nil check")
+						if f.fe.Debug_checknil() && v.Pos.Line() > 1 {
+							f.Warnl(v.Pos, "removed nil check")
+						}
+						if v.Pos.IsStmt() == src.PosIsStmt { // About to lose a statement boundary
+							pendingLines.add(v.Pos.Line())
 						}
 						v.reset(OpUnknown)
+						f.freeValue(v)
 						i--
 						continue
 					}
@@ -112,7 +150,17 @@ func nilcheckelim(f *Func) {
 					// undo that information when this dominator subtree is done.
 					nonNilValues[ptr.ID] = true
 					work = append(work, bp{op: ClearPtr, ptr: ptr})
+					fallthrough // a non-eliminated nil check might be a good place for a statement boundary.
+				default:
+					if pendingLines.contains(v.Pos.Line()) && v.Pos.IsStmt() != src.PosNotStmt {
+						v.Pos = v.Pos.WithIsStmt()
+						pendingLines.remove(v.Pos.Line())
+					}
 				}
+			}
+			if pendingLines.contains(b.Pos.Line()) {
+				b.Pos = b.Pos.WithIsStmt()
+				pendingLines.remove(b.Pos.Line())
 			}
 			for j := i; j < len(b.Values); j++ {
 				b.Values[j] = nil
@@ -132,25 +180,40 @@ func nilcheckelim(f *Func) {
 }
 
 // All platforms are guaranteed to fault if we load/store to anything smaller than this address.
+//
+// This should agree with minLegalPointer in the runtime.
 const minZeroPage = 4096
+
+// faultOnLoad is true if a load to an address below minZeroPage will trigger a SIGSEGV.
+var faultOnLoad = objabi.GOOS != "aix"
 
 // nilcheckelim2 eliminates unnecessary nil checks.
 // Runs after lowering and scheduling.
 func nilcheckelim2(f *Func) {
 	unnecessary := f.newSparseSet(f.NumValues())
 	defer f.retSparseSet(unnecessary)
+
+	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+
 	for _, b := range f.Blocks {
 		// Walk the block backwards. Find instructions that will fault if their
 		// input pointer is nil. Remove nil checks on those pointers, as the
 		// faulting instruction effectively does the nil check for free.
 		unnecessary.clear()
+		pendingLines.clear()
+		// Optimization: keep track of removed nilcheck with smallest index
+		firstToRemove := len(b.Values)
 		for i := len(b.Values) - 1; i >= 0; i-- {
 			v := b.Values[i]
 			if opcodeTable[v.Op].nilCheck && unnecessary.contains(v.Args[0].ID) {
-				if f.Config.Debug_checknil() && int(v.Line) > 1 {
-					f.Config.Warnl(v.Line, "removed nil check")
+				if f.fe.Debug_checknil() && v.Pos.Line() > 1 {
+					f.Warnl(v.Pos, "removed nil check")
+				}
+				if v.Pos.IsStmt() == src.PosIsStmt {
+					pendingLines.add(v.Pos.Line())
 				}
 				v.reset(OpUnknown)
+				firstToRemove = i
 				continue
 			}
 			if v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
@@ -166,12 +229,16 @@ func nilcheckelim2(f *Func) {
 			// Find any pointers that this op is guaranteed to fault on if nil.
 			var ptrstore [2]*Value
 			ptrs := ptrstore[:0]
-			if opcodeTable[v.Op].faultOnNilArg0 {
+			if opcodeTable[v.Op].faultOnNilArg0 && (faultOnLoad || v.Type.IsMemory()) {
+				// On AIX, only writing will fault.
 				ptrs = append(ptrs, v.Args[0])
 			}
-			if opcodeTable[v.Op].faultOnNilArg1 {
+			if opcodeTable[v.Op].faultOnNilArg1 && (faultOnLoad || (v.Type.IsMemory() && v.Op != OpPPC64LoweredMove)) {
+				// On AIX, only writing will fault.
+				// LoweredMove is a special case because it's considered as a "mem" as it stores on arg0 but arg1 is accessed as a load and should be checked.
 				ptrs = append(ptrs, v.Args[1])
 			}
+
 			for _, ptr := range ptrs {
 				// Check to make sure the offset is small.
 				switch opcodeTable[v.Op].auxType {
@@ -200,19 +267,29 @@ func nilcheckelim2(f *Func) {
 			}
 		}
 		// Remove values we've clobbered with OpUnknown.
-		i := 0
-		for _, v := range b.Values {
+		i := firstToRemove
+		for j := i; j < len(b.Values); j++ {
+			v := b.Values[j]
 			if v.Op != OpUnknown {
+				if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.contains(v.Pos.Line()) {
+					v.Pos = v.Pos.WithIsStmt()
+					pendingLines.remove(v.Pos.Line())
+				}
 				b.Values[i] = v
 				i++
 			}
 		}
+
+		if pendingLines.contains(b.Pos.Line()) {
+			b.Pos = b.Pos.WithIsStmt()
+		}
+
 		for j := i; j < len(b.Values); j++ {
 			b.Values[j] = nil
 		}
 		b.Values = b.Values[:i]
 
 		// TODO: if b.Kind == BlockPlain, start the analysis in the subsequent block to find
-		// more unnecessary nil checks.  Would fix test/nilptr3_ssa.go:157.
+		// more unnecessary nil checks.  Would fix test/nilptr3.go:159.
 	}
 }

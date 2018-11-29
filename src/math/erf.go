@@ -185,7 +185,9 @@ const (
 //	Erf(+Inf) = 1
 //	Erf(-Inf) = -1
 //	Erf(NaN) = NaN
-func Erf(x float64) float64 {
+func Erf(x float64) float64
+
+func erf(x float64) float64 {
 	const (
 		VeryTiny = 2.848094538889218e-306 // 0x0080000000000000
 		Small    = 1.0 / (1 << 28)        // 2**-28
@@ -262,7 +264,9 @@ func Erf(x float64) float64 {
 //	Erfc(+Inf) = 0
 //	Erfc(-Inf) = 2
 //	Erfc(NaN) = NaN
-func Erfc(x float64) float64 {
+func Erfc(x float64) float64
+
+func erfc(x float64) float64 {
 	const Tiny = 1.0 / (1 << 56) // 2**-56
 	// special cases
 	switch {

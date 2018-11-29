@@ -6,7 +6,11 @@
 
 package ssa
 
-import "fmt"
+import (
+	"cmd/compile/internal/types"
+	"cmd/internal/src"
+	"fmt"
+)
 
 type stackAllocState struct {
 	f *Func
@@ -32,12 +36,12 @@ type stackAllocState struct {
 }
 
 func newStackAllocState(f *Func) *stackAllocState {
-	s := f.Config.stackAllocState
+	s := f.Cache.stackAllocState
 	if s == nil {
 		return new(stackAllocState)
 	}
 	if s.f != nil {
-		f.Config.Fatalf(0, "newStackAllocState called without previous free")
+		f.fe.Fatalf(src.NoXPos, "newStackAllocState called without previous free")
 	}
 	return s
 }
@@ -58,16 +62,17 @@ func putStackAllocState(s *stackAllocState) {
 	for i := range s.used {
 		s.used[i] = false
 	}
-	s.f.Config.stackAllocState = s
+	s.f.Cache.stackAllocState = s
 	s.f = nil
 	s.live = nil
 	s.nArgSlot, s.nNotNeed, s.nNamedSlot, s.nReuse, s.nAuto, s.nSelfInterfere = 0, 0, 0, 0, 0, 0
 }
 
 type stackValState struct {
-	typ      Type
+	typ      *types.Type
 	spill    *Value
 	needSlot bool
+	isArg    bool
 }
 
 // stackalloc allocates storage in the stack frame for
@@ -105,7 +110,8 @@ func (s *stackAllocState) init(f *Func, spillLive [][]ID) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			s.values[v.ID].typ = v.Type
-			s.values[v.ID].needSlot = !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && f.getHome(v.ID) == nil && !v.rematerializeable()
+			s.values[v.ID].needSlot = !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && f.getHome(v.ID) == nil && !v.rematerializeable() && !v.OnWasmStack
+			s.values[v.ID].isArg = v.Op == OpArg
 			if f.pass.debug > stackDebug && s.values[v.ID].needSlot {
 				fmt.Printf("%s needs a stack slot\n", v)
 			}
@@ -147,9 +153,9 @@ func (s *stackAllocState) stackalloc() {
 		if v.Op != OpArg {
 			continue
 		}
-		loc := LocalSlot{v.Aux.(GCNode), v.Type, v.AuxInt}
+		loc := LocalSlot{N: v.Aux.(GCNode), Type: v.Type, Off: v.AuxInt}
 		if f.pass.debug > stackDebug {
-			fmt.Printf("stackalloc %s to %s\n", v, loc.Name())
+			fmt.Printf("stackalloc %s to %s\n", v, loc)
 		}
 		f.setHome(v, loc)
 	}
@@ -159,7 +165,7 @@ func (s *stackAllocState) stackalloc() {
 	// TODO: share slots among equivalent types. We would need to
 	// only share among types with the same GC signature. See the
 	// type.Equal calls below for where this matters.
-	locations := map[Type][]LocalSlot{}
+	locations := map[*types.Type][]LocalSlot{}
 
 	// Each time we assign a stack slot to a value v, we remember
 	// the slot we used via an index into locations[v.Type].
@@ -201,18 +207,18 @@ func (s *stackAllocState) stackalloc() {
 			} else {
 				name = names[v.ID]
 			}
-			if name.N != nil && v.Type.Compare(name.Type) == CMPeq {
+			if name.N != nil && v.Type.Compare(name.Type) == types.CMPeq {
 				for _, id := range s.interfere[v.ID] {
 					h := f.getHome(id)
 					if h != nil && h.(LocalSlot).N == name.N && h.(LocalSlot).Off == name.Off {
 						// A variable can interfere with itself.
-						// It is rare, but but it can happen.
+						// It is rare, but it can happen.
 						s.nSelfInterfere++
 						goto noname
 					}
 				}
 				if f.pass.debug > stackDebug {
-					fmt.Printf("stackalloc %s to %s\n", v, name.Name())
+					fmt.Printf("stackalloc %s to %s\n", v, name)
 				}
 				s.nNamedSlot++
 				f.setHome(v, name)
@@ -243,13 +249,13 @@ func (s *stackAllocState) stackalloc() {
 			// If there is no unused stack slot, allocate a new one.
 			if i == len(locs) {
 				s.nAuto++
-				locs = append(locs, LocalSlot{N: f.Config.fe.Auto(v.Type), Type: v.Type, Off: 0})
+				locs = append(locs, LocalSlot{N: f.fe.Auto(v.Pos, v.Type), Type: v.Type, Off: 0})
 				locations[v.Type] = locs
 			}
 			// Use the stack variable at that index for v.
 			loc := locs[i]
 			if f.pass.debug > stackDebug {
-				fmt.Printf("stackalloc %s to %s\n", v, loc.Name())
+				fmt.Printf("stackalloc %s to %s\n", v, loc)
 			}
 			f.setHome(v, loc)
 			slots[v.ID] = i
@@ -373,7 +379,9 @@ func (s *stackAllocState) buildInterferenceGraph() {
 			if s.values[v.ID].needSlot {
 				live.remove(v.ID)
 				for _, id := range live.contents() {
-					if s.values[v.ID].typ.Compare(s.values[id].typ) == CMPeq {
+					// Note: args can have different types and still interfere
+					// (with each other or with other values). See issue 23522.
+					if s.values[v.ID].typ.Compare(s.values[id].typ) == types.CMPeq || v.Op == OpArg || s.values[id].isArg {
 						s.interfere[v.ID] = append(s.interfere[v.ID], id)
 						s.interfere[id] = append(s.interfere[id], v.ID)
 					}

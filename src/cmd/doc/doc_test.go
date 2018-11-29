@@ -7,11 +7,30 @@ package main
 import (
 	"bytes"
 	"flag"
+	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	// Clear GOPATH so we don't access the user's own packages in the test.
+	buildCtx.GOPATH = ""
+	testGOPATH = true // force GOPATH mode; module test is in cmd/go/testdata/script/mod_doc.txt
+
+	// Add $GOROOT/src/cmd/doc/testdata explicitly so we can access its contents in the test.
+	// Normally testdata directories are ignored, but sending it to dirs.scan directly is
+	// a hack that works around the check.
+	testdataDir, err := filepath.Abs("testdata")
+	if err != nil {
+		panic(err)
+	}
+	dirsInit(Dir{"testdata", testdataDir}, Dir{"testdata/nested", filepath.Join(testdataDir, "nested")}, Dir{"testdata/nested/nested", filepath.Join(testdataDir, "nested", "nested")})
+
+	os.Exit(m.Run())
+}
 
 func maybeSkip(t *testing.T) {
 	if strings.HasPrefix(runtime.GOOS, "nacl") {
@@ -19,6 +38,39 @@ func maybeSkip(t *testing.T) {
 	}
 	if runtime.GOOS == "darwin" && strings.HasPrefix(runtime.GOARCH, "arm") {
 		t.Skip("darwin/arm does not have a full file tree")
+	}
+}
+
+type isDotSlashTest struct {
+	str    string
+	result bool
+}
+
+var isDotSlashTests = []isDotSlashTest{
+	{``, false},
+	{`x`, false},
+	{`...`, false},
+	{`.../`, false},
+	{`...\`, false},
+
+	{`.`, true},
+	{`./`, true},
+	{`.\`, true},
+	{`./x`, true},
+	{`.\x`, true},
+
+	{`..`, true},
+	{`../`, true},
+	{`..\`, true},
+	{`../x`, true},
+	{`..\x`, true},
+}
+
+func TestIsDotSlashPath(t *testing.T) {
+	for _, test := range isDotSlashTests {
+		if result := isDotSlash(test.str); result != test.result {
+			t.Errorf("isDotSlash(%q) = %t; expected %t", test.str, result, test.result)
+		}
 	}
 }
 
@@ -71,24 +123,91 @@ var tests = []test{
 			`const MultiLineConst = ...`,                                   // Multi line constant.
 			`var MultiLineVar = map\[struct{ ... }\]struct{ ... }{ ... }`,  // Multi line variable.
 			`func MultiLineFunc\(x interface{ ... }\) \(r struct{ ... }\)`, // Multi line function.
+			`var LongLine = newLongLine\(("someArgument[1-4]", ){4}...\)`,  // Long list of arguments.
+			`type T1 = T2`,                                                 // Type alias
 		},
 		[]string{
-			`const internalConstant = 2`,        // No internal constants.
-			`var internalVariable = 2`,          // No internal variables.
-			`func internalFunc(a int) bool`,     // No internal functions.
-			`Comment about exported constant`,   // No comment for single constant.
-			`Comment about exported variable`,   // No comment for single variable.
-			`Comment about block of constants.`, // No comment for constant block.
-			`Comment about block of variables.`, // No comment for variable block.
-			`Comment before ConstOne`,           // No comment for first entry in constant block.
-			`Comment before VarOne`,             // No comment for first entry in variable block.
-			`ConstTwo = 2`,                      // No second entry in constant block.
-			`VarTwo = 2`,                        // No second entry in variable block.
-			`VarFive = 5`,                       // From block starting with unexported variable.
-			`type unexportedType`,               // No unexported type.
-			`unexportedTypedConstant`,           // No unexported typed constant.
-			`Field`,                             // No fields.
-			`Method`,                            // No methods.
+			`const internalConstant = 2`,       // No internal constants.
+			`var internalVariable = 2`,         // No internal variables.
+			`func internalFunc(a int) bool`,    // No internal functions.
+			`Comment about exported constant`,  // No comment for single constant.
+			`Comment about exported variable`,  // No comment for single variable.
+			`Comment about block of constants`, // No comment for constant block.
+			`Comment about block of variables`, // No comment for variable block.
+			`Comment before ConstOne`,          // No comment for first entry in constant block.
+			`Comment before VarOne`,            // No comment for first entry in variable block.
+			`ConstTwo = 2`,                     // No second entry in constant block.
+			`VarTwo = 2`,                       // No second entry in variable block.
+			`VarFive = 5`,                      // From block starting with unexported variable.
+			`type unexportedType`,              // No unexported type.
+			`unexportedTypedConstant`,          // No unexported typed constant.
+			`\bField`,                          // No fields.
+			`Method`,                           // No methods.
+			`someArgument[5-8]`,                // No truncated arguments.
+			`type T1 T2`,                       // Type alias does not display as type declaration.
+		},
+	},
+	// Package dump -all
+	{
+		"full package",
+		[]string{"-all", p},
+		[]string{
+			`package pkg .*import`,
+			`Package comment`,
+			`CONSTANTS`,
+			`Comment before ConstOne`,
+			`ConstOne = 1`,
+			`ConstTwo = 2 // Comment on line with ConstTwo`,
+			`ConstFive`,
+			`ConstSix`,
+			`Const block where first entry is unexported`,
+			`ConstLeft2, constRight2 uint64`,
+			`constLeft3, ConstRight3`,
+			`ConstLeft4, ConstRight4`,
+			`Duplicate = iota`,
+			`const CaseMatch = 1`,
+			`const Casematch = 2`,
+			`const ExportedConstant = 1`,
+			`const MultiLineConst = `,
+			`MultiLineString1`,
+			`VARIABLES`,
+			`Comment before VarOne`,
+			`VarOne = 1`,
+			`Comment about block of variables`,
+			`VarFive = 5`,
+			`var ExportedVariable = 1`,
+			`var LongLine = newLongLine\(`,
+			`var MultiLineVar = map\[struct {`,
+			`FUNCTIONS`,
+			`func ExportedFunc\(a int\) bool`,
+			`Comment about exported function`,
+			`func MultiLineFunc\(x interface`,
+			`func ReturnUnexported\(\) unexportedType`,
+			`TYPES`,
+			`type ExportedInterface interface`,
+			`type ExportedStructOneField struct`,
+			`type ExportedType struct`,
+			`Comment about exported type`,
+			`const ConstGroup4 ExportedType = ExportedType`,
+			`ExportedTypedConstant ExportedType = iota`,
+			`Constants tied to ExportedType`,
+			`func ExportedTypeConstructor\(\) \*ExportedType`,
+			`Comment about constructor for exported type`,
+			`func ReturnExported\(\) ExportedType`,
+			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
+			`Comment about exported method`,
+			`type T1 = T2`,
+			`type T2 int`,
+		},
+		[]string{
+			`constThree`,
+			`_, _ uint64 = 2 \* iota, 1 << iota`,
+			`constLeft1, constRight1`,
+			`duplicate`,
+			`varFour`,
+			`func internalFunc`,
+			`unexportedField`,
+			`func \(unexportedType\)`,
 		},
 	},
 	// Package dump -u
@@ -107,6 +226,58 @@ var tests = []test{
 			`Comment about internal function`,  // No comment for internal function.
 			`MultiLine(String|Method|Field)`,   // No data from multi line portions.
 		},
+	},
+	// Package dump -u -all
+	{
+		"full package",
+		[]string{"-u", "-all", p},
+		[]string{
+			`package pkg .*import`,
+			`Package comment`,
+			`CONSTANTS`,
+			`Comment before ConstOne`,
+			`ConstOne += 1`,
+			`ConstTwo += 2 // Comment on line with ConstTwo`,
+			`constThree = 3 // Comment on line with constThree`,
+			`ConstFive`,
+			`const internalConstant += 2`,
+			`Comment about internal constant`,
+			`VARIABLES`,
+			`Comment before VarOne`,
+			`VarOne += 1`,
+			`Comment about block of variables`,
+			`varFour += 4`,
+			`VarFive += 5`,
+			`varSix += 6`,
+			`var ExportedVariable = 1`,
+			`var LongLine = newLongLine\(`,
+			`var MultiLineVar = map\[struct {`,
+			`var internalVariable = 2`,
+			`Comment about internal variable`,
+			`FUNCTIONS`,
+			`func ExportedFunc\(a int\) bool`,
+			`Comment about exported function`,
+			`func MultiLineFunc\(x interface`,
+			`func internalFunc\(a int\) bool`,
+			`Comment about internal function`,
+			`func newLongLine\(ss .*string\)`,
+			`TYPES`,
+			`type ExportedType struct`,
+			`type T1 = T2`,
+			`type T2 int`,
+			`type unexportedType int`,
+			`Comment about unexported type`,
+			`ConstGroup1 unexportedType = iota`,
+			`ConstGroup2`,
+			`ConstGroup3`,
+			`ExportedTypedConstant_unexported unexportedType = iota`,
+			`Constants tied to unexportedType`,
+			`const unexportedTypedConstant unexportedType = 1`,
+			`func ReturnUnexported\(\) unexportedType`,
+			`func \(unexportedType\) ExportedMethod\(\) bool`,
+			`func \(unexportedType\) unexportedMethod\(\) bool`,
+		},
+		nil,
 	},
 
 	// Single constant.
@@ -148,6 +319,18 @@ var tests = []test{
 		[]string{"-u", p, `constThree`},
 		[]string{
 			`constThree = 3.*Comment on line with constThree`,
+		},
+		nil,
+	},
+	// Block of constants -src.
+	{
+		"block of constants with -src",
+		[]string{"-src", p, `ConstTwo`},
+		[]string{
+			`Comment about block of constants`, // Top comment.
+			`ConstOne.*=.*1`,                   // Each constant seen.
+			`ConstTwo.*=.*2.*Comment on line with ConstTwo`,
+			`constThree`, // Even unexported constants.
 		},
 		nil,
 	},
@@ -239,6 +422,17 @@ var tests = []test{
 		},
 		nil,
 	},
+	// Function with -src.
+	{
+		"function with -src",
+		[]string{"-src", p, `ExportedFunc`},
+		[]string{
+			`Comment about exported function`, // Include comment.
+			`func ExportedFunc\(a int\) bool`,
+			`return true != false`, // Include body.
+		},
+		nil,
+	},
 
 	// Type.
 	{
@@ -248,21 +442,75 @@ var tests = []test{
 			`Comment about exported type`, // Include comment.
 			`type ExportedType struct`,    // Type definition.
 			`Comment before exported field.*\n.*ExportedField +int` +
-				`.*Comment on line with exported field.`,
-			`ExportedEmbeddedType.*Comment on line with exported embedded field.`,
+				`.*Comment on line with exported field`,
+			`ExportedEmbeddedType.*Comment on line with exported embedded field`,
 			`Has unexported fields`,
 			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
 			`const ExportedTypedConstant ExportedType = iota`, // Must include associated constant.
 			`func ExportedTypeConstructor\(\) \*ExportedType`, // Must include constructor.
-			`io.Reader.*Comment on line with embedded Reader.`,
+			`io.Reader.*Comment on line with embedded Reader`,
 		},
 		[]string{
-			`unexportedField`,                // No unexported field.
-			`int.*embedded`,                  // No unexported embedded field.
-			`Comment about exported method.`, // No comment about exported method.
-			`unexportedMethod`,               // No unexported method.
-			`unexportedTypedConstant`,        // No unexported constant.
-			`error`,                          // No embedded error.
+			`unexportedField`,               // No unexported field.
+			`int.*embedded`,                 // No unexported embedded field.
+			`Comment about exported method`, // No comment about exported method.
+			`unexportedMethod`,              // No unexported method.
+			`unexportedTypedConstant`,       // No unexported constant.
+			`error`,                         // No embedded error.
+		},
+	},
+	// Type with -src. Will see unexported fields.
+	{
+		"type",
+		[]string{"-src", p, `ExportedType`},
+		[]string{
+			`Comment about exported type`, // Include comment.
+			`type ExportedType struct`,    // Type definition.
+			`Comment before exported field`,
+			`ExportedField.*Comment on line with exported field`,
+			`ExportedEmbeddedType.*Comment on line with exported embedded field`,
+			`unexportedType.*Comment on line with unexported embedded field`,
+			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
+			`const ExportedTypedConstant ExportedType = iota`, // Must include associated constant.
+			`func ExportedTypeConstructor\(\) \*ExportedType`, // Must include constructor.
+			`io.Reader.*Comment on line with embedded Reader`,
+		},
+		[]string{
+			`Comment about exported method`, // No comment about exported method.
+			`unexportedMethod`,              // No unexported method.
+			`unexportedTypedConstant`,       // No unexported constant.
+		},
+	},
+	// Type -all.
+	{
+		"type",
+		[]string{"-all", p, `ExportedType`},
+		[]string{
+			`type ExportedType struct {`,                        // Type definition as source.
+			`Comment about exported type`,                       // Include comment afterwards.
+			`const ConstGroup4 ExportedType = ExportedType\{\}`, // Related constants.
+			`ExportedTypedConstant ExportedType = iota`,
+			`Constants tied to ExportedType`,
+			`func ExportedTypeConstructor\(\) \*ExportedType`,
+			`Comment about constructor for exported type.`,
+			`func ReturnExported\(\) ExportedType`,
+			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
+			`Comment about exported method.`,
+		},
+		[]string{
+			`unexportedType`,
+		},
+	},
+	// Type T1 dump (alias).
+	{
+		"type T1",
+		[]string{p + ".T1"},
+		[]string{
+			`type T1 = T2`,
+		},
+		[]string{
+			`type T1 T2`,
+			`type ExportedType`,
 		},
 	},
 	// Type -u with unexported fields.
@@ -273,13 +521,14 @@ var tests = []test{
 			`Comment about exported type`, // Include comment.
 			`type ExportedType struct`,    // Type definition.
 			`Comment before exported field.*\n.*ExportedField +int`,
-			`unexportedField.*int.*Comment on line with unexported field.`,
-			`ExportedEmbeddedType.*Comment on line with exported embedded field.`,
-			`\*ExportedEmbeddedType.*Comment on line with exported embedded \*field.`,
-			`unexportedType.*Comment on line with unexported embedded field.`,
-			`\*unexportedType.*Comment on line with unexported embedded \*field.`,
-			`io.Reader.*Comment on line with embedded Reader.`,
-			`error.*Comment on line with embedded error.`,
+			`unexportedField.*int.*Comment on line with unexported field`,
+			`ExportedEmbeddedType.*Comment on line with exported embedded field`,
+			`\*ExportedEmbeddedType.*Comment on line with exported embedded \*field`,
+			`\*qualified.ExportedEmbeddedType.*Comment on line with exported embedded \*selector.field`,
+			`unexportedType.*Comment on line with unexported embedded field`,
+			`\*unexportedType.*Comment on line with unexported embedded \*field`,
+			`io.Reader.*Comment on line with embedded Reader`,
+			`error.*Comment on line with embedded error`,
 			`func \(ExportedType\) unexportedMethod\(a int\) bool`,
 			`unexportedTypedConstant`,
 		},
@@ -311,8 +560,8 @@ var tests = []test{
 			`type ExportedInterface interface`, // Interface definition.
 			`Comment before exported method.*\n.*ExportedMethod\(\)` +
 				`.*Comment on line with exported method`,
-			`io.Reader.*Comment on line with embedded Reader.`,
-			`error.*Comment on line with embedded error.`,
+			`io.Reader.*Comment on line with embedded Reader`,
+			`error.*Comment on line with embedded error`,
 			`Has unexported methods`,
 		},
 		[]string{
@@ -331,9 +580,9 @@ var tests = []test{
 			`type ExportedInterface interface`, // Interface definition.
 			`Comment before exported method.*\n.*ExportedMethod\(\)` +
 				`.*Comment on line with exported method`,
-			`unexportedMethod\(\).*Comment on line with unexported method.`,
-			`io.Reader.*Comment on line with embedded Reader.`,
-			`error.*Comment on line with embedded error.`,
+			`unexportedMethod\(\).*Comment on line with unexported method`,
+			`io.Reader.*Comment on line with embedded Reader`,
+			`error.*Comment on line with embedded error`,
 		},
 		[]string{
 			`Has unexported methods`,
@@ -349,7 +598,7 @@ var tests = []test{
 				`.*Comment on line with exported method`,
 		},
 		[]string{
-			`Comment about exported interface.`,
+			`Comment about exported interface`,
 		},
 	},
 
@@ -359,7 +608,7 @@ var tests = []test{
 		[]string{p, `ExportedType.ExportedMethod`},
 		[]string{
 			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
-			`Comment about exported method.`,
+			`Comment about exported method`,
 		},
 		nil,
 	},
@@ -369,9 +618,53 @@ var tests = []test{
 		[]string{"-u", p, `ExportedType.unexportedMethod`},
 		[]string{
 			`func \(ExportedType\) unexportedMethod\(a int\) bool`,
-			`Comment about unexported method.`,
+			`Comment about unexported method`,
 		},
 		nil,
+	},
+	// Method with -src.
+	{
+		"method with -src",
+		[]string{"-src", p, `ExportedType.ExportedMethod`},
+		[]string{
+			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
+			`Comment about exported method`,
+			`return true != true`,
+		},
+		nil,
+	},
+
+	// Field.
+	{
+		"field",
+		[]string{p, `ExportedType.ExportedField`},
+		[]string{
+			`type ExportedType struct`,
+			`ExportedField int`,
+			`Comment before exported field`,
+			`Comment on line with exported field`,
+			`other fields elided`,
+		},
+		nil,
+	},
+
+	// Field with -u.
+	{
+		"method with -u",
+		[]string{"-u", p, `ExportedType.unexportedField`},
+		[]string{
+			`unexportedField int`,
+			`Comment on line with unexported field`,
+		},
+		nil,
+	},
+
+	// Field of struct with only one field.
+	{
+		"single-field struct",
+		[]string{p, `ExportedStructOneField.OnlyField`},
+		[]string{`the only field`},
+		[]string{`other fields elided`},
 	},
 
 	// Case matching off.
@@ -396,6 +689,37 @@ var tests = []test{
 			`CaseMatch`,
 		},
 	},
+
+	// No dups with -u. Issue 21797.
+	{
+		"case matching on, no dups",
+		[]string{"-u", p, `duplicate`},
+		[]string{
+			`Duplicate`,
+			`duplicate`,
+		},
+		[]string{
+			"\\)\n+const", // This will appear if the const decl appears twice.
+		},
+	},
+	{
+		"non-imported: pkg.sym",
+		[]string{"nested.Foo"},
+		[]string{"Foo struct"},
+		nil,
+	},
+	{
+		"non-imported: pkg only",
+		[]string{"nested"},
+		[]string{"Foo struct"},
+		nil,
+	},
+	{
+		"non-imported: pkg sym",
+		[]string{"nested", "Foo"},
+		[]string{"Foo struct"},
+		nil,
+	},
 }
 
 func TestDoc(t *testing.T) {
@@ -405,7 +729,7 @@ func TestDoc(t *testing.T) {
 		var flagSet flag.FlagSet
 		err := do(&b, &flagSet, test.args)
 		if err != nil {
-			t.Fatalf("%s: %s\n", test.name, err)
+			t.Fatalf("%s %v: %s\n", test.name, test.args, err)
 		}
 		output := b.Bytes()
 		failed := false
@@ -428,6 +752,9 @@ func TestDoc(t *testing.T) {
 				t.Errorf("%s.%d: incorrect match for %s %#q", test.name, j, test.args, no)
 				failed = true
 			}
+		}
+		if bytes.Count(output, []byte("TYPES\n")) > 1 {
+			t.Fatalf("%s: repeating headers", test.name)
 		}
 		if failed {
 			t.Logf("\n%s", output)
@@ -489,6 +816,85 @@ func TestMultiplePackages(t *testing.T) {
 				t.Errorf("error %q should contain math/rand", errStr)
 			}
 		}
+	}
+}
+
+// Test the code to look up packages when given two args. First test case is
+//	go doc binary BigEndian
+// This needs to find encoding/binary.BigEndian, which means
+// finding the package encoding/binary given only "binary".
+// Second case is
+//	go doc rand Float64
+// which again needs to find math/rand and not give up after crypto/rand,
+// which has no such function.
+func TestTwoArgLookup(t *testing.T) {
+	if testing.Short() {
+		t.Skip("scanning file system takes too long")
+	}
+	maybeSkip(t)
+	var b bytes.Buffer // We don't care about the output.
+	{
+		var flagSet flag.FlagSet
+		err := do(&b, &flagSet, []string{"binary", "BigEndian"})
+		if err != nil {
+			t.Errorf("unexpected error %q from binary BigEndian", err)
+		}
+	}
+	{
+		var flagSet flag.FlagSet
+		err := do(&b, &flagSet, []string{"rand", "Float64"})
+		if err != nil {
+			t.Errorf("unexpected error %q from rand Float64", err)
+		}
+	}
+	{
+		var flagSet flag.FlagSet
+		err := do(&b, &flagSet, []string{"bytes", "Foo"})
+		if err == nil {
+			t.Errorf("expected error from bytes Foo")
+		} else if !strings.Contains(err.Error(), "no symbol Foo") {
+			t.Errorf("unexpected error %q from bytes Foo", err)
+		}
+	}
+	{
+		var flagSet flag.FlagSet
+		err := do(&b, &flagSet, []string{"nosuchpackage", "Foo"})
+		if err == nil {
+			// actually present in the user's filesystem
+		} else if !strings.Contains(err.Error(), "no such package") {
+			t.Errorf("unexpected error %q from nosuchpackage Foo", err)
+		}
+	}
+}
+
+// Test the code to look up packages when the first argument starts with "./".
+// Our test case is in effect "cd src/text; doc ./template". This should get
+// text/template but before Issue 23383 was fixed would give html/template.
+func TestDotSlashLookup(t *testing.T) {
+	if testing.Short() {
+		t.Skip("scanning file system takes too long")
+	}
+	maybeSkip(t)
+	where := pwd()
+	defer func() {
+		if err := os.Chdir(where); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	if err := os.Chdir(filepath.Join(buildCtx.GOROOT, "src", "text")); err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	var flagSet flag.FlagSet
+	err := do(&b, &flagSet, []string{"./template"})
+	if err != nil {
+		t.Errorf("unexpected error %q from ./template", err)
+	}
+	// The output should contain information about the text/template package.
+	const want = `package template // import "text/template"`
+	output := b.String()
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("wrong package: %.*q...", len(want), output)
 	}
 }
 

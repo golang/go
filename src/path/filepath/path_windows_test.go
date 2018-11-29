@@ -7,6 +7,7 @@ package filepath_test
 import (
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -67,6 +68,9 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 		}
 	}
 
+	// on some systems, SystemRoot is required for cmd to work
+	systemRoot := os.Getenv("SystemRoot")
+
 	for i, d := range tt.result {
 		if d == "" {
 			continue
@@ -75,7 +79,7 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 		cmd := &exec.Cmd{
 			Path: comspec,
 			Args: []string{`/c`, cmdfile},
-			Env:  []string{`Path=` + tt.list},
+			Env:  []string{`Path=` + systemRoot + "/System32;" + tt.list, `SystemRoot=` + systemRoot},
 			Dir:  tmp,
 		}
 		out, err := cmd.CombinedOutput()
@@ -94,6 +98,64 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 			}
 		}
 	}
+}
+
+func TestWindowsEvalSymlinks(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
+	tmpDir, err := ioutil.TempDir("", "TestWindowsEvalSymlinks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// /tmp may itself be a symlink! Avoid the confusion, although
+	// it means trusting the thing we're testing.
+	tmpDir, err = filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(tmpDir) < 3 {
+		t.Fatalf("tmpDir path %q is too short", tmpDir)
+	}
+	if tmpDir[1] != ':' {
+		t.Fatalf("tmpDir path %q must have drive letter in it", tmpDir)
+	}
+	test := EvalSymlinksTest{"test/linkabswin", tmpDir[:3]}
+
+	// Create the symlink farm using relative paths.
+	testdirs := append(EvalSymlinksTestDirs, test)
+	for _, d := range testdirs {
+		var err error
+		path := simpleJoin(tmpDir, d.path)
+		if d.dest == "" {
+			err = os.Mkdir(path, 0755)
+		} else {
+			err = os.Symlink(d.dest, path)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	path := simpleJoin(tmpDir, test.path)
+
+	testEvalSymlinks(t, path, test.dest)
+
+	testEvalSymlinksAfterChdir(t, path, ".", test.dest)
+
+	testEvalSymlinksAfterChdir(t,
+		path,
+		filepath.VolumeName(tmpDir)+".",
+		test.dest)
+
+	testEvalSymlinksAfterChdir(t,
+		simpleJoin(tmpDir, "test"),
+		simpleJoin("..", test.path),
+		test.dest)
+
+	testEvalSymlinksAfterChdir(t, tmpDir, test.path, test.dest)
 }
 
 // TestEvalSymlinksCanonicalNames verify that EvalSymlinks
@@ -369,7 +431,7 @@ func TestToNorm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = os.MkdirAll(strings.Replace(testPath, "{{tmp}}", ctmp, -1), 0777)
+	err = os.MkdirAll(strings.ReplaceAll(testPath, "{{tmp}}", ctmp), 0777)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -429,4 +491,62 @@ func TestUNC(t *testing.T) {
 	// See golang.org/issue/15879.
 	defer debug.SetMaxStack(debug.SetMaxStack(1e6))
 	filepath.Glob(`\\?\c:\*`)
+}
+
+func testWalkMklink(t *testing.T, linktype string) {
+	output, _ := exec.Command("cmd", "/c", "mklink", "/?").Output()
+	if !strings.Contains(string(output), fmt.Sprintf(" /%s ", linktype)) {
+		t.Skipf(`skipping test; mklink does not supports /%s parameter`, linktype)
+	}
+	testWalkSymlink(t, func(target, link string) error {
+		output, err := exec.Command("cmd", "/c", "mklink", "/"+linktype, link, target).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf(`"mklink /%s %v %v" command failed: %v\n%v`, linktype, link, target, err, string(output))
+		}
+		return nil
+	})
+}
+
+func TestWalkDirectoryJunction(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+	testWalkMklink(t, "J")
+}
+
+func TestWalkDirectorySymlink(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+	testWalkMklink(t, "D")
+}
+
+func TestNTNamespaceSymlink(t *testing.T) {
+	output, _ := exec.Command("cmd", "/c", "mklink", "/?").Output()
+	if !strings.Contains(string(output), " /J ") {
+		t.Skip("skipping test because mklink command does not support junctions")
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestNTNamespaceSymlink")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	vol := filepath.VolumeName(tmpdir)
+	output, err = exec.Command("cmd", "/c", "mountvol", vol, "/L").CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run mountvol %v /L: %v %q", vol, err, output)
+	}
+	target := strings.Trim(string(output), " \n\r")
+
+	link := filepath.Join(tmpdir, "link")
+	output, err = exec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run mklink %v %v: %v %q", link, target, err, output)
+	}
+
+	got, err := filepath.EvalSymlinks(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := vol + `\`; got != want {
+		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, link, got, want)
+	}
 }

@@ -93,6 +93,8 @@ func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
 
 const (
 	attrBitMapCount = 5
+	attrCmnModtime  = 0x00000400
+	attrCmnAcctime  = 0x00001000
 	attrCmnFullpath = 0x08000000
 )
 
@@ -118,8 +120,8 @@ func getAttrList(path string, attrList attrList, attrBuf []byte, options uint) (
 		return nil, err
 	}
 
-	_, _, e1 := Syscall6(
-		SYS_GETATTRLIST,
+	_, _, e1 := syscall6(
+		funcPC(libc_getattrlist_trampoline),
 		uintptr(unsafe.Pointer(_p0)),
 		uintptr(unsafe.Pointer(&attrList)),
 		uintptr(unsafe.Pointer(&attrBuf[0])),
@@ -127,7 +129,6 @@ func getAttrList(path string, attrList attrList, attrBuf []byte, options uint) (
 		uintptr(options),
 		0,
 	)
-	use(unsafe.Pointer(_p0))
 	if e1 != 0 {
 		return nil, e1
 	}
@@ -162,13 +163,21 @@ func getAttrList(path string, attrList attrList, attrBuf []byte, options uint) (
 	return
 }
 
-//sysnb pipe() (r int, w int, err error)
+func libc_getattrlist_trampoline()
+
+//go:linkname libc_getattrlist libc_getattrlist
+//go:cgo_import_dynamic libc_getattrlist getattrlist "/usr/lib/libSystem.B.dylib"
+
+//sysnb pipe(p *[2]int32) (err error)
 
 func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
 	}
-	p[0], p[1], err = pipe()
+	var q [2]int32
+	err = pipe(&q)
+	p[0] = int(q[0])
+	p[1] = int(q[1])
 	return
 }
 
@@ -179,13 +188,55 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 		_p0 = unsafe.Pointer(&buf[0])
 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
 	}
-	r0, _, e1 := Syscall(SYS_GETFSSTAT64, uintptr(_p0), bufsize, uintptr(flags))
-	use(unsafe.Pointer(_p0))
+	r0, _, e1 := syscall(funcPC(libc_getfsstat64_trampoline), uintptr(_p0), bufsize, uintptr(flags))
 	n = int(r0)
 	if e1 != 0 {
 		err = e1
 	}
 	return
+}
+
+func libc_getfsstat64_trampoline()
+
+//go:linkname libc_getfsstat64 libc_getfsstat64
+//go:cgo_import_dynamic libc_getfsstat64 getfsstat64 "/usr/lib/libSystem.B.dylib"
+
+func setattrlistTimes(path string, times []Timespec) error {
+	_p0, err := BytePtrFromString(path)
+	if err != nil {
+		return err
+	}
+
+	var attrList attrList
+	attrList.bitmapCount = attrBitMapCount
+	attrList.CommonAttr = attrCmnModtime | attrCmnAcctime
+
+	// order is mtime, atime: the opposite of Chtimes
+	attributes := [2]Timespec{times[1], times[0]}
+	const options = 0
+	_, _, e1 := syscall6(
+		funcPC(libc_setattrlist_trampoline),
+		uintptr(unsafe.Pointer(_p0)),
+		uintptr(unsafe.Pointer(&attrList)),
+		uintptr(unsafe.Pointer(&attributes)),
+		uintptr(unsafe.Sizeof(attributes)),
+		uintptr(options),
+		0,
+	)
+	if e1 != 0 {
+		return e1
+	}
+	return nil
+}
+
+func libc_setattrlist_trampoline()
+
+//go:linkname libc_setattrlist libc_setattrlist
+//go:cgo_import_dynamic libc_setattrlist setattrlist "/usr/lib/libSystem.B.dylib"
+
+func utimensat(dirfd int, path string, times *[2]Timespec, flag int) error {
+	// Darwin doesn't support SYS_UTIMENSAT
+	return ENOSYS
 }
 
 /*
@@ -210,18 +261,18 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Dup2(from int, to int) (err error)
 //sys	Exchangedata(path1 string, path2 string, options int) (err error)
-//sys	Exit(code int)
 //sys	Fchdir(fd int) (err error)
 //sys	Fchflags(fd int, flags int) (err error)
 //sys	Fchmod(fd int, mode uint32) (err error)
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Flock(fd int, how int) (err error)
 //sys	Fpathconf(fd int, name int) (val int, err error)
-//sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
-//sys	Fstatfs(fd int, stat *Statfs_t) (err error) = SYS_FSTATFS64
+//sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_fstat64
+//sys	Fstatfs(fd int, stat *Statfs_t) (err error) = SYS_fstatfs64
 //sys	Fsync(fd int) (err error)
+//  Fsync is not called for os.File.Sync(). Please see internal/poll/fd_fsync_darwin.go
 //sys	Ftruncate(fd int, length int64) (err error)
-//sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) = SYS_GETDIRENTRIES64
+//sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) = SYS___getdirentries64
 //sys	Getdtablesize() (size int)
 //sysnb	Getegid() (egid int)
 //sysnb	Geteuid() (uid int)
@@ -240,7 +291,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Lchown(path string, uid int, gid int) (err error)
 //sys	Link(path string, link string) (err error)
 //sys	Listen(s int, backlog int) (err error)
-//sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
+//sys	Lstat(path string, stat *Stat_t) (err error) = SYS_lstat64
 //sys	Mkdir(path string, mode uint32) (err error)
 //sys	Mkfifo(path string, mode uint32) (err error)
 //sys	Mknod(path string, mode uint32, dev int) (err error)
@@ -258,7 +309,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Rename(from string, to string) (err error)
 //sys	Revoke(path string) (err error)
 //sys	Rmdir(path string) (err error)
-//sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = SYS_LSEEK
+//sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = SYS_lseek
 //sys	Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (err error)
 //sys	Setegid(egid int) (err error)
 //sysnb	Seteuid(euid int) (err error)
@@ -273,8 +324,8 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
-//sys	Stat(path string, stat *Stat_t) (err error) = SYS_STAT64
-//sys	Statfs(path string, stat *Statfs_t) (err error) = SYS_STATFS64
+//sys	Stat(path string, stat *Stat_t) (err error) = SYS_stat64
+//sys	Statfs(path string, stat *Statfs_t) (err error) = SYS_statfs64
 //sys	Symlink(path string, link string) (err error)
 //sys	Sync() (err error)
 //sys	Truncate(path string, length int64) (err error)
@@ -283,212 +334,52 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Unlink(path string) (err error)
 //sys	Unmount(path string, flags int) (err error)
 //sys	write(fd int, p []byte) (n int, err error)
+//sys	writev(fd int, iovecs []Iovec) (cnt uintptr, err error)
 //sys   mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys   munmap(addr uintptr, length uintptr) (err error)
-//sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+//sysnb fork() (pid int, err error)
+//sysnb ioctl(fd int, req int, arg int) (err error)
+//sysnb ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_ioctl
+//sysnb execve(path *byte, argv **byte, envp **byte) (err error)
+//sysnb exit(res int) (err error)
+//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error)
+//sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) = SYS_fcntl
+//sys   unlinkat(fd int, path string, flags int) (err error)
+//sys   openat(fd int, path string, flags int, perm uint32) (fdret int, err error)
+//sys   fstatat(fd int, path string, stat *Stat_t, flags int) (err error) = SYS_fstatat64
 
-/*
- * Unimplemented
- */
-// Profil
-// Sigaction
-// Sigprocmask
-// Getlogin
-// Sigpending
-// Sigaltstack
-// Ioctl
-// Reboot
-// Execve
-// Vfork
-// Sbrk
-// Sstk
-// Ovadvise
-// Mincore
-// Setitimer
-// Swapon
-// Select
-// Sigsuspend
-// Readv
-// Writev
-// Nfssvc
-// Getfh
-// Quotactl
-// Mount
-// Csops
-// Waitid
-// Add_profil
-// Kdebug_trace
-// Sigreturn
-// Mmap
-// Mlock
-// Munlock
-// Atsocket
-// Kqueue_from_portset_np
-// Kqueue_portset
-// Getattrlist
-// Setattrlist
-// Getdirentriesattr
-// Searchfs
-// Delete
-// Copyfile
-// Poll
-// Watchevent
-// Waitevent
-// Modwatch
-// Getxattr
-// Fgetxattr
-// Setxattr
-// Fsetxattr
-// Removexattr
-// Fremovexattr
-// Listxattr
-// Flistxattr
-// Fsctl
-// Initgroups
-// Posix_spawn
-// Nfsclnt
-// Fhopen
-// Minherit
-// Semsys
-// Msgsys
-// Shmsys
-// Semctl
-// Semget
-// Semop
-// Msgctl
-// Msgget
-// Msgsnd
-// Msgrcv
-// Shmat
-// Shmctl
-// Shmdt
-// Shmget
-// Shm_open
-// Shm_unlink
-// Sem_open
-// Sem_close
-// Sem_unlink
-// Sem_wait
-// Sem_trywait
-// Sem_post
-// Sem_getvalue
-// Sem_init
-// Sem_destroy
-// Open_extended
-// Umask_extended
-// Stat_extended
-// Lstat_extended
-// Fstat_extended
-// Chmod_extended
-// Fchmod_extended
-// Access_extended
-// Settid
-// Gettid
-// Setsgroups
-// Getsgroups
-// Setwgroups
-// Getwgroups
-// Mkfifo_extended
-// Mkdir_extended
-// Identitysvc
-// Shared_region_check_np
-// Shared_region_map_np
-// __pthread_mutex_destroy
-// __pthread_mutex_init
-// __pthread_mutex_lock
-// __pthread_mutex_trylock
-// __pthread_mutex_unlock
-// __pthread_cond_init
-// __pthread_cond_destroy
-// __pthread_cond_broadcast
-// __pthread_cond_signal
-// Setsid_with_pid
-// __pthread_cond_timedwait
-// Aio_fsync
-// Aio_return
-// Aio_suspend
-// Aio_cancel
-// Aio_error
-// Aio_read
-// Aio_write
-// Lio_listio
-// __pthread_cond_wait
-// Iopolicysys
-// Mlockall
-// Munlockall
-// __pthread_kill
-// __pthread_sigmask
-// __sigwait
-// __disable_threadsignal
-// __pthread_markcancel
-// __pthread_canceled
-// __semwait_signal
-// Proc_info
-// sendfile
-// Stat64_extended
-// Lstat64_extended
-// Fstat64_extended
-// __pthread_chdir
-// __pthread_fchdir
-// Audit
-// Auditon
-// Getauid
-// Setauid
-// Getaudit
-// Setaudit
-// Getaudit_addr
-// Setaudit_addr
-// Auditctl
-// Bsdthread_create
-// Bsdthread_terminate
-// Stack_snapshot
-// Bsdthread_register
-// Workq_open
-// Workq_ops
-// __mac_execve
-// __mac_syscall
-// __mac_get_file
-// __mac_set_file
-// __mac_get_link
-// __mac_set_link
-// __mac_get_proc
-// __mac_set_proc
-// __mac_get_fd
-// __mac_set_fd
-// __mac_get_pid
-// __mac_get_lcid
-// __mac_get_lctx
-// __mac_set_lctx
-// Setlcid
-// Read_nocancel
-// Write_nocancel
-// Open_nocancel
-// Close_nocancel
-// Wait4_nocancel
-// Recvmsg_nocancel
-// Sendmsg_nocancel
-// Recvfrom_nocancel
-// Accept_nocancel
-// Msync_nocancel
-// Fcntl_nocancel
-// Select_nocancel
-// Fsync_nocancel
-// Connect_nocancel
-// Sigsuspend_nocancel
-// Readv_nocancel
-// Writev_nocancel
-// Sendto_nocancel
-// Pread_nocancel
-// Pwrite_nocancel
-// Waitid_nocancel
-// Poll_nocancel
-// Msgsnd_nocancel
-// Msgrcv_nocancel
-// Sem_wait_nocancel
-// Aio_suspend_nocancel
-// __sigwait_nocancel
-// __semwait_signal_nocancel
-// __mac_mount
-// __mac_get_mount
-// __mac_getfsstat
+func init() {
+	execveDarwin = execve
+}
+
+func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+	r0, _, e1 := syscall(funcPC(libc_read_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+	n = int(r0)
+	if e1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+	r0, _, e1 := syscall(funcPC(libc_write_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+	n = int(r0)
+	if e1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+// Implemented in the runtime package (runtime/sys_darwin.go)
+func syscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+func syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+func rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
+// Find the entry point for f. See comments in runtime/proc.go for the
+// function of the same name.
+//go:nosplit
+func funcPC(f func()) uintptr {
+	return **(**uintptr)(unsafe.Pointer(&f))
+}

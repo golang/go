@@ -1,0 +1,12 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Check error message for use of = instead of == .
+
+package p
+
+func f() {
+	if true || 0 = 1 /* ERROR assignment .* used as value */ {
+	}
+}

@@ -169,7 +169,6 @@ func genLine(buf *bytes.Buffer, lineNum, n int, addNewline bool) {
 		}
 		buf.WriteByte('\n')
 	}
-	return
 }
 
 // Test the line splitter, including some carriage returns but no long lines.

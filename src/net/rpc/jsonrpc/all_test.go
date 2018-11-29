@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/rpc"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -55,8 +56,26 @@ func (t *Arith) Error(args *Args, reply *Reply) error {
 	panic("ERROR")
 }
 
+type BuiltinTypes struct{}
+
+func (BuiltinTypes) Map(i int, reply *map[int]int) error {
+	(*reply)[i] = i
+	return nil
+}
+
+func (BuiltinTypes) Slice(i int, reply *[]int) error {
+	*reply = append(*reply, i)
+	return nil
+}
+
+func (BuiltinTypes) Array(i int, reply *[1]int) error {
+	(*reply)[0] = i
+	return nil
+}
+
 func init() {
 	rpc.Register(new(Arith))
+	rpc.Register(BuiltinTypes{})
 }
 
 func TestServerNoParams(t *testing.T) {
@@ -179,6 +198,45 @@ func TestClient(t *testing.T) {
 		t.Error("Div: expected error")
 	} else if err.Error() != "divide by zero" {
 		t.Error("Div: expected divide by zero error; got", err)
+	}
+}
+
+func TestBuiltinTypes(t *testing.T) {
+	cli, srv := net.Pipe()
+	go ServeConn(srv)
+
+	client := NewClient(cli)
+	defer client.Close()
+
+	// Map
+	arg := 7
+	replyMap := map[int]int{}
+	err := client.Call("BuiltinTypes.Map", arg, &replyMap)
+	if err != nil {
+		t.Errorf("Map: expected no error but got string %q", err.Error())
+	}
+	if replyMap[arg] != arg {
+		t.Errorf("Map: expected %d got %d", arg, replyMap[arg])
+	}
+
+	// Slice
+	replySlice := []int{}
+	err = client.Call("BuiltinTypes.Slice", arg, &replySlice)
+	if err != nil {
+		t.Errorf("Slice: expected no error but got string %q", err.Error())
+	}
+	if e := []int{arg}; !reflect.DeepEqual(replySlice, e) {
+		t.Errorf("Slice: expected %v got %v", e, replySlice)
+	}
+
+	// Array
+	replyArray := [1]int{}
+	err = client.Call("BuiltinTypes.Array", arg, &replyArray)
+	if err != nil {
+		t.Errorf("Array: expected no error but got string %q", err.Error())
+	}
+	if e := [1]int{arg}; !reflect.DeepEqual(replyArray, e) {
+		t.Errorf("Array: expected %v got %v", e, replyArray)
 	}
 }
 

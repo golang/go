@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -163,7 +164,7 @@ func TestSkipInternal(t *testing.T) {
 }
 
 func BenchmarkAll(b *testing.B) {
-	stds, err := exec.Command("go", "list", "std").Output()
+	stds, err := exec.Command(testenv.GoToolPath(b), "list", "std").Output()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -185,5 +186,20 @@ func BenchmarkAll(b *testing.B) {
 			}
 			w.Features()
 		}
+	}
+}
+
+func TestIssue21181(t *testing.T) {
+	for _, c := range contexts {
+		c.Compiler = build.Default.Compiler
+	}
+	for _, context := range contexts {
+		w := NewWalker(context, "testdata/src/issue21181")
+		pkg, err := w.Import("p")
+		if err != nil {
+			t.Fatalf("%s: (%s-%s) %s %v", err, context.GOOS, context.GOARCH,
+				pkg.Name(), w.imported)
+		}
+		w.export(pkg)
 	}
 }

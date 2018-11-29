@@ -6,6 +6,8 @@ package des
 
 import (
 	"crypto/cipher"
+	"crypto/internal/subtle"
+	"encoding/binary"
 	"strconv"
 )
 
@@ -36,9 +38,31 @@ func NewCipher(key []byte) (cipher.Block, error) {
 
 func (c *desCipher) BlockSize() int { return BlockSize }
 
-func (c *desCipher) Encrypt(dst, src []byte) { encryptBlock(c.subkeys[:], dst, src) }
+func (c *desCipher) Encrypt(dst, src []byte) {
+	if len(src) < BlockSize {
+		panic("crypto/des: input not full block")
+	}
+	if len(dst) < BlockSize {
+		panic("crypto/des: output not full block")
+	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/des: invalid buffer overlap")
+	}
+	encryptBlock(c.subkeys[:], dst, src)
+}
 
-func (c *desCipher) Decrypt(dst, src []byte) { decryptBlock(c.subkeys[:], dst, src) }
+func (c *desCipher) Decrypt(dst, src []byte) {
+	if len(src) < BlockSize {
+		panic("crypto/des: input not full block")
+	}
+	if len(dst) < BlockSize {
+		panic("crypto/des: output not full block")
+	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/des: invalid buffer overlap")
+	}
+	decryptBlock(c.subkeys[:], dst, src)
+}
 
 // A tripleDESCipher is an instance of TripleDES encryption.
 type tripleDESCipher struct {
@@ -61,13 +85,71 @@ func NewTripleDESCipher(key []byte) (cipher.Block, error) {
 func (c *tripleDESCipher) BlockSize() int { return BlockSize }
 
 func (c *tripleDESCipher) Encrypt(dst, src []byte) {
-	c.cipher1.Encrypt(dst, src)
-	c.cipher2.Decrypt(dst, dst)
-	c.cipher3.Encrypt(dst, dst)
+	if len(src) < BlockSize {
+		panic("crypto/des: input not full block")
+	}
+	if len(dst) < BlockSize {
+		panic("crypto/des: output not full block")
+	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/des: invalid buffer overlap")
+	}
+
+	b := binary.BigEndian.Uint64(src)
+	b = permuteInitialBlock(b)
+	left, right := uint32(b>>32), uint32(b)
+
+	left = (left << 1) | (left >> 31)
+	right = (right << 1) | (right >> 31)
+
+	for i := 0; i < 8; i++ {
+		left, right = feistel(left, right, c.cipher1.subkeys[2*i], c.cipher1.subkeys[2*i+1])
+	}
+	for i := 0; i < 8; i++ {
+		right, left = feistel(right, left, c.cipher2.subkeys[15-2*i], c.cipher2.subkeys[15-(2*i+1)])
+	}
+	for i := 0; i < 8; i++ {
+		left, right = feistel(left, right, c.cipher3.subkeys[2*i], c.cipher3.subkeys[2*i+1])
+	}
+
+	left = (left << 31) | (left >> 1)
+	right = (right << 31) | (right >> 1)
+
+	preOutput := (uint64(right) << 32) | uint64(left)
+	binary.BigEndian.PutUint64(dst, permuteFinalBlock(preOutput))
 }
 
 func (c *tripleDESCipher) Decrypt(dst, src []byte) {
-	c.cipher3.Decrypt(dst, src)
-	c.cipher2.Encrypt(dst, dst)
-	c.cipher1.Decrypt(dst, dst)
+	if len(src) < BlockSize {
+		panic("crypto/des: input not full block")
+	}
+	if len(dst) < BlockSize {
+		panic("crypto/des: output not full block")
+	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/des: invalid buffer overlap")
+	}
+
+	b := binary.BigEndian.Uint64(src)
+	b = permuteInitialBlock(b)
+	left, right := uint32(b>>32), uint32(b)
+
+	left = (left << 1) | (left >> 31)
+	right = (right << 1) | (right >> 31)
+
+	for i := 0; i < 8; i++ {
+		left, right = feistel(left, right, c.cipher3.subkeys[15-2*i], c.cipher3.subkeys[15-(2*i+1)])
+	}
+	for i := 0; i < 8; i++ {
+		right, left = feistel(right, left, c.cipher2.subkeys[2*i], c.cipher2.subkeys[2*i+1])
+	}
+	for i := 0; i < 8; i++ {
+		left, right = feistel(left, right, c.cipher1.subkeys[15-2*i], c.cipher1.subkeys[15-(2*i+1)])
+	}
+
+	left = (left << 31) | (left >> 1)
+	right = (right << 31) | (right >> 1)
+
+	preOutput := (uint64(right) << 32) | uint64(left)
+	binary.BigEndian.PutUint64(dst, permuteFinalBlock(preOutput))
 }

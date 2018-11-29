@@ -6,8 +6,11 @@
 package importer
 
 import (
+	"go/build"
 	"go/internal/gccgoimporter"
 	"go/internal/gcimporter"
+	"go/internal/srcimporter"
+	"go/token"
 	"go/types"
 	"io"
 	"runtime"
@@ -17,24 +20,34 @@ import (
 // a given import path, or an error if no matching package is found.
 type Lookup func(path string) (io.ReadCloser, error)
 
-// For returns an Importer for the given compiler and lookup interface,
-// or nil. Supported compilers are "gc", and "gccgo". If lookup is nil,
-// the default package lookup mechanism for the given compiler is used.
-// BUG(issue13847): For does not support non-nil lookup functions.
+// For returns an Importer for importing from installed packages
+// for the compilers "gc" and "gccgo", or for importing directly
+// from the source if the compiler argument is "source". In this
+// latter case, importing may fail under circumstances where the
+// exported API is not entirely defined in pure Go source code
+// (if the package API depends on cgo-defined entities, the type
+// checker won't have access to those).
+//
+// If lookup is nil, the default package lookup mechanism for the
+// given compiler is used, and the resulting importer attempts
+// to resolve relative and absolute import paths to canonical
+// import path IDs before finding the imported file.
+//
+// If lookup is non-nil, then the returned importer calls lookup
+// each time it needs to resolve an import path. In this mode
+// the importer can only be invoked with canonical import paths
+// (not relative or absolute ones); it is assumed that the translation
+// to canonical import paths is being done by the client of the
+// importer.
 func For(compiler string, lookup Lookup) types.Importer {
 	switch compiler {
 	case "gc":
-		if lookup != nil {
-			panic("gc importer for custom import path lookup not yet implemented")
+		return &gcimports{
+			packages: make(map[string]*types.Package),
+			lookup:   lookup,
 		}
-
-		return make(gcimports)
 
 	case "gccgo":
-		if lookup != nil {
-			panic("gccgo importer for custom import path lookup not yet implemented")
-		}
-
 		var inst gccgoimporter.GccgoInstallation
 		if err := inst.InitFromDriver("gccgo"); err != nil {
 			return nil
@@ -42,7 +55,15 @@ func For(compiler string, lookup Lookup) types.Importer {
 		return &gccgoimports{
 			packages: make(map[string]*types.Package),
 			importer: inst.GetImporter(nil, nil),
+			lookup:   lookup,
 		}
+
+	case "source":
+		if lookup != nil {
+			panic("source importer for custom import path lookup not supported (issue #13847).")
+		}
+
+		return srcimporter.New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))
 	}
 
 	// compiler not supported
@@ -55,26 +76,30 @@ func Default() types.Importer {
 	return For(runtime.Compiler, nil)
 }
 
-// gc support
+// gc importer
 
-type gcimports map[string]*types.Package
+type gcimports struct {
+	packages map[string]*types.Package
+	lookup   Lookup
+}
 
-func (m gcimports) Import(path string) (*types.Package, error) {
+func (m *gcimports) Import(path string) (*types.Package, error) {
 	return m.ImportFrom(path, "" /* no vendoring */, 0)
 }
 
-func (m gcimports) ImportFrom(path, srcDir string, mode types.ImportMode) (*types.Package, error) {
+func (m *gcimports) ImportFrom(path, srcDir string, mode types.ImportMode) (*types.Package, error) {
 	if mode != 0 {
 		panic("mode must be 0")
 	}
-	return gcimporter.Import(m, path, srcDir)
+	return gcimporter.Import(m.packages, path, srcDir, m.lookup)
 }
 
-// gccgo support
+// gccgo importer
 
 type gccgoimports struct {
 	packages map[string]*types.Package
 	importer gccgoimporter.Importer
+	lookup   Lookup
 }
 
 func (m *gccgoimports) Import(path string) (*types.Package, error) {
@@ -85,6 +110,5 @@ func (m *gccgoimports) ImportFrom(path, srcDir string, mode types.ImportMode) (*
 	if mode != 0 {
 		panic("mode must be 0")
 	}
-	// TODO(gri) pass srcDir
-	return m.importer(m.packages, path)
+	return m.importer(m.packages, path, srcDir, m.lookup)
 }

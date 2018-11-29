@@ -16,6 +16,9 @@ const (
 
 	_PAGE_READWRITE = 0x0004
 	_PAGE_NOACCESS  = 0x0001
+
+	_ERROR_NOT_ENOUGH_MEMORY = 8
+	_ERROR_COMMITMENT_LIMIT  = 1455
 )
 
 // Don't split the stack as this function may be invoked without a valid G,
@@ -95,10 +98,10 @@ func sysFault(v unsafe.Pointer, n uintptr) {
 	sysUnused(v, n)
 }
 
-func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
-	*reserved = true
+func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	// v is just a hint.
 	// First try at v.
+	// This will fail if any of [v, v+n) is already reserved.
 	v = unsafe.Pointer(stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_RESERVE, _PAGE_READWRITE))
 	if v != nil {
 		return v
@@ -108,11 +111,17 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE))
 }
 
-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 	mSysStatInc(sysStat, n)
 	p := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
 	if p != uintptr(v) {
-		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", getlasterror(), "\n")
-		throw("runtime: cannot map pages in arena address space")
+		errno := getlasterror()
+		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, "\n")
+		switch errno {
+		case _ERROR_NOT_ENOUGH_MEMORY, _ERROR_COMMITMENT_LIMIT:
+			throw("out of memory")
+		default:
+			throw("runtime: cannot map pages in arena address space")
+		}
 	}
 }

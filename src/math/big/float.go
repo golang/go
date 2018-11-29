@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This file implements multi-precision floating-point numbers.
-// Like in the GNU MPFR library (http://www.mpfr.org/), operands
+// Like in the GNU MPFR library (https://www.mpfr.org/), operands
 // can be of mixed precision. Unlike MPFR, the rounding mode is
 // not specified with each operation, but with each operand. The
 // rounding mode of the result operand determines the rounding
@@ -14,6 +14,7 @@ package big
 import (
 	"fmt"
 	"math"
+	"math/bits"
 )
 
 const debugFloat = false // enable for debugging
@@ -42,7 +43,7 @@ const debugFloat = false // enable for debugging
 // precision of the argument with the largest precision value before any
 // rounding takes place, and the rounding mode remains unchanged. Thus,
 // uninitialized Floats provided as result arguments will have their
-// precision set to a reasonable value determined by the operands and
+// precision set to a reasonable value determined by the operands, and
 // their mode is the zero value for RoundingMode (ToNearestEven).
 //
 // By setting the desired precision to 24 or 53 and using matching rounding
@@ -55,6 +56,12 @@ const debugFloat = false // enable for debugging
 // The zero (uninitialized) value for a Float is ready to use and represents
 // the number +0.0 exactly, with precision 0 and rounding mode ToNearestEven.
 //
+// Operations always take pointer arguments (*Float) rather
+// than Float values, and each unique Float value requires
+// its own unique *Float pointer. To "copy" a Float value,
+// an existing (or newly allocated) Float must be set to
+// a new value using the Float.Set method; shallow copies
+// of Floats are not supported and may lead to errors.
 type Float struct {
 	prec uint32
 	mode RoundingMode
@@ -97,7 +104,7 @@ const (
 // the slice may (but doesn't have to) be shorter if the mantissa contains
 // trailing 0 bits. x.mant is normalized if the msb of x.mant == 1 (i.e.,
 // the msb is shifted all the way "to the left"). Thus, if the mantissa has
-// trailing 0 bits or x.prec is not a multiple of the the Word size _W,
+// trailing 0 bits or x.prec is not a multiple of the Word size _W,
 // x.mant[0] has trailing zero bits. The msb of the mantissa corresponds
 // to the value 0.5; the exponent x.exp shifts the binary point as needed.
 //
@@ -292,7 +299,7 @@ func (z *Float) setExpAndRound(exp int64, sbit uint) {
 	z.round(sbit)
 }
 
-// SetMantExp sets z to mant × 2**exp and and returns z.
+// SetMantExp sets z to mant × 2**exp and returns z.
 // The result z has the same precision and rounding mode
 // as mant. SetMantExp is an inverse of MantExp but does
 // not require 0.5 <= |mant| < 1.0. Specifically:
@@ -320,7 +327,7 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 	return z
 }
 
-// Signbit returns true if x is negative or negative zero.
+// Signbit reports whether x is negative or negative zero.
 func (x *Float) Signbit() bool {
 	return x.neg
 }
@@ -414,8 +421,9 @@ func (z *Float) round(sbit uint) {
 	// bits > z.prec: mantissa too large => round
 	r := uint(bits - z.prec - 1) // rounding bit position; r >= 0
 	rbit := z.mant.bit(r) & 1    // rounding bit; be safe and ensure it's a single bit
-	if sbit == 0 {
-		// TODO(gri) if rbit != 0 we don't need to compute sbit for some rounding modes (optimization)
+	// The sticky bit is only needed for rounding ToNearestEven
+	// or when the rounding bit is zero. Avoid computation otherwise.
+	if sbit == 0 && (rbit == 0 || z.mode == ToNearestEven) {
 		sbit = z.mant.sticky(r)
 	}
 	sbit &= 1 // be safe and ensure it's a single bit
@@ -498,8 +506,8 @@ func (z *Float) setBits64(neg bool, x uint64) *Float {
 	}
 	// x != 0
 	z.form = finite
-	s := nlz64(x)
-	z.mant = z.mant.setUint64(x << s)
+	s := bits.LeadingZeros64(x)
+	z.mant = z.mant.setUint64(x << uint(s))
 	z.exp = int32(64 - s) // always fits
 	if z.prec < 64 {
 		z.round(0)
@@ -1309,8 +1317,11 @@ func (z *Float) umul(x, y *Float) {
 	// TODO(gri) Optimize this for the common case.
 
 	e := int64(x.exp) + int64(y.exp)
-	z.mant = z.mant.mul(x.mant, y.mant)
-
+	if x == y {
+		z.mant = z.mant.sqr(x.mant)
+	} else {
+		z.mant = z.mant.mul(x.mant, y.mant)
+	}
 	z.setExpAndRound(e-fnorm(z.mant), 0)
 }
 
@@ -1424,8 +1435,6 @@ func (x *Float) ucmp(y *Float) int {
 // z's accuracy reports the result error relative to the exact (not rounded)
 // result. Add panics with ErrNaN if x and y are infinities with opposite
 // signs. The value of z is undefined in that case.
-//
-// BUG(gri) When rounding ToNegativeInf, the sign of Float values rounded to 0 is incorrect.
 func (z *Float) Add(x, y *Float) *Float {
 	if debugFloat {
 		x.validate()
@@ -1438,8 +1447,16 @@ func (z *Float) Add(x, y *Float) *Float {
 
 	if x.form == finite && y.form == finite {
 		// x + y (common case)
+
+		// Below we set z.neg = x.neg, and when z aliases y this will
+		// change the y operand's sign. This is fine, because if an
+		// operand aliases the receiver it'll be overwritten, but we still
+		// want the original x.neg and y.neg values when we evaluate
+		// x.neg != y.neg, so we need to save y.neg before setting z.neg.
+		yneg := y.neg
+
 		z.neg = x.neg
-		if x.neg == y.neg {
+		if x.neg == yneg {
 			// x + y == x + y
 			// (-x) + (-y) == -(x + y)
 			z.uadd(x, y)
@@ -1452,6 +1469,9 @@ func (z *Float) Add(x, y *Float) *Float {
 				z.neg = !z.neg
 				z.usub(y, x)
 			}
+		}
+		if z.form == zero && z.mode == ToNegativeInf && z.acc == Exact {
+			z.neg = true
 		}
 		return z
 	}
@@ -1501,8 +1521,9 @@ func (z *Float) Sub(x, y *Float) *Float {
 
 	if x.form == finite && y.form == finite {
 		// x - y (common case)
+		yneg := y.neg
 		z.neg = x.neg
-		if x.neg != y.neg {
+		if x.neg != yneg {
 			// x - (-y) == x + y
 			// (-x) - y == -(x + y)
 			z.uadd(x, y)
@@ -1515,6 +1536,9 @@ func (z *Float) Sub(x, y *Float) *Float {
 				z.neg = !z.neg
 				z.usub(y, x)
 			}
+		}
+		if z.form == zero && z.mode == ToNegativeInf && z.acc == Exact {
+			z.neg = true
 		}
 		return z
 	}

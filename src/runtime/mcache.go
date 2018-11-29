@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 // Per-thread (in Go, per-P) cache for small objects.
 // No locking needed because it is per-thread (per-P).
@@ -33,15 +36,21 @@ type mcache struct {
 	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
 
 	// The rest is not accessed on every malloc.
-	alloc [_NumSizeClasses]*mspan // spans to allocate from
+
+	alloc [numSpanClasses]*mspan // spans to allocate from, indexed by spanClass
 
 	stackcache [_NumStackOrders]stackfreelist
 
 	// Local allocator stats, flushed during GC.
-	local_nlookup    uintptr                  // number of pointer lookups
 	local_largefree  uintptr                  // bytes freed for large objects (>maxsmallsize)
 	local_nlargefree uintptr                  // number of frees for large objects (>maxsmallsize)
 	local_nsmallfree [_NumSizeClasses]uintptr // number of frees for small objects (<=maxsmallsize)
+
+	// flushGen indicates the sweepgen during which this mcache
+	// was last flushed. If flushGen != mheap_.sweepgen, the spans
+	// in this mcache are stale and need to the flushed so they
+	// can be swept. This is done in acquirep.
+	flushGen uint32
 }
 
 // A gclink is a node in a linked list of blocks, like mlink,
@@ -70,14 +79,15 @@ type stackfreelist struct {
 	size uintptr   // total size of stacks in list
 }
 
-// dummy MSpan that contains no free objects.
+// dummy mspan that contains no free objects.
 var emptymspan mspan
 
 func allocmcache() *mcache {
 	lock(&mheap_.lock)
 	c := (*mcache)(mheap_.cachealloc.alloc())
+	c.flushGen = mheap_.sweepgen
 	unlock(&mheap_.lock)
-	for i := 0; i < _NumSizeClasses; i++ {
+	for i := range c.alloc {
 		c.alloc[i] = &emptymspan
 	}
 	c.next_sample = nextSample()
@@ -101,25 +111,28 @@ func freemcache(c *mcache) {
 	})
 }
 
-// Gets a span that has a free object in it and assigns it
-// to be the cached span for the given sizeclass. Returns this span.
-func (c *mcache) refill(sizeclass int32) *mspan {
-	_g_ := getg()
-
-	_g_.m.locks++
+// refill acquires a new span of span class spc for c. This span will
+// have at least one free object. The current span in c must be full.
+//
+// Must run in a non-preemptible context since otherwise the owner of
+// c could change.
+func (c *mcache) refill(spc spanClass) {
 	// Return the current cached span to the central lists.
-	s := c.alloc[sizeclass]
+	s := c.alloc[spc]
 
 	if uintptr(s.allocCount) != s.nelems {
 		throw("refill of span with free space remaining")
 	}
-
 	if s != &emptymspan {
-		s.incache = false
+		// Mark this span as no longer cached.
+		if s.sweepgen != mheap_.sweepgen+3 {
+			throw("bad sweepgen in refill")
+		}
+		atomic.Store(&s.sweepgen, mheap_.sweepgen)
 	}
 
 	// Get a new cached span from the central lists.
-	s = mheap_.central[sizeclass].mcentral.cacheSpan()
+	s = mheap_.central[spc].mcentral.cacheSpan()
 	if s == nil {
 		throw("out of memory")
 	}
@@ -128,13 +141,15 @@ func (c *mcache) refill(sizeclass int32) *mspan {
 		throw("span has no free space")
 	}
 
-	c.alloc[sizeclass] = s
-	_g_.m.locks--
-	return s
+	// Indicate that this span is cached and prevent asynchronous
+	// sweeping in the next sweep phase.
+	s.sweepgen = mheap_.sweepgen + 3
+
+	c.alloc[spc] = s
 }
 
 func (c *mcache) releaseAll() {
-	for i := 0; i < _NumSizeClasses; i++ {
+	for i := range c.alloc {
 		s := c.alloc[i]
 		if s != &emptymspan {
 			mheap_.central[i].mcentral.uncacheSpan(s)
@@ -144,4 +159,27 @@ func (c *mcache) releaseAll() {
 	// Clear tinyalloc pool.
 	c.tiny = 0
 	c.tinyoffset = 0
+}
+
+// prepareForSweep flushes c if the system has entered a new sweep phase
+// since c was populated. This must happen between the sweep phase
+// starting and the first allocation from c.
+func (c *mcache) prepareForSweep() {
+	// Alternatively, instead of making sure we do this on every P
+	// between starting the world and allocating on that P, we
+	// could leave allocate-black on, allow allocation to continue
+	// as usual, use a ragged barrier at the beginning of sweep to
+	// ensure all cached spans are swept, and then disable
+	// allocate-black. However, with this approach it's difficult
+	// to avoid spilling mark bits into the *next* GC cycle.
+	sg := mheap_.sweepgen
+	if c.flushGen == sg {
+		return
+	} else if c.flushGen != sg-2 {
+		println("bad flushGen", c.flushGen, "in prepareForSweep; sweepgen", sg)
+		throw("bad flushGen")
+	}
+	c.releaseAll()
+	stackcache_clear(c)
+	atomic.Store(&c.flushGen, mheap_.sweepgen) // Synchronizes with gcStart
 }

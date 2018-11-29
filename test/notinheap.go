@@ -13,15 +13,15 @@ type nih struct{}
 
 // Types embedding notinheap types must be notinheap.
 
-type embed1 struct {
+type embed1 struct { // ERROR "must be go:notinheap"
 	x nih
-} // ERROR "must be go:notinheap"
+}
 
 type embed2 [1]nih // ERROR "must be go:notinheap"
 
-type embed3 struct {
+type embed3 struct { // ERROR "must be go:notinheap"
 	x [1]nih
-} // ERROR "must be go:notinheap"
+}
 
 type embed4 map[nih]int // ERROR "go:notinheap map key not allowed"
 
@@ -46,10 +46,18 @@ type t1 struct{ x int }
 //go:notinheap
 type t2 t1
 
+//go:notinheap
+type t3 byte
+
+//go:notinheap
+type t4 rune
+
 var sink interface{}
 
 func i() {
 	sink = new(t1)                     // no error
 	sink = (*t2)(new(t1))              // ERROR "cannot convert(.|\n)*t2 is go:notinheap"
 	sink = (*t2)(new(struct{ x int })) // ERROR "cannot convert(.|\n)*t2 is go:notinheap"
+	sink = []t3("foo")                 // ERROR "cannot convert(.|\n)*t3 is go:notinheap"
+	sink = []t4("bar")                 // ERROR "cannot convert(.|\n)*t4 is go:notinheap"
 }

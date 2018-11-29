@@ -139,6 +139,9 @@ var indexTests = []BinOpTest{
 	{"barfoobarfooyyyzzzyyyzzzyyyzzzyyyxxxzzzyyy", "x", 33},
 	{"foofyfoobarfoobar", "y", 4},
 	{"oooooooooooooooooooooo", "r", -1},
+	// test fallback to Rabin-Karp.
+	{"oxoxoxoxoxoxoxoxoxoxoxoy", "oy", 22},
+	{"oxoxoxoxoxoxoxoxoxoxoxox", "oy", -1},
 }
 
 var lastIndexTests = []BinOpTest{
@@ -396,6 +399,71 @@ func TestIndexRune(t *testing.T) {
 	}
 }
 
+// test count of a single byte across page offsets
+func TestCountByte(t *testing.T) {
+	b := make([]byte, 5015) // bigger than a page
+	windows := []int{1, 2, 3, 4, 15, 16, 17, 31, 32, 33, 63, 64, 65, 128}
+	testCountWindow := func(i, window int) {
+		for j := 0; j < window; j++ {
+			b[i+j] = byte(100)
+			p := Count(b[i:i+window], []byte{100})
+			if p != j+1 {
+				t.Errorf("TestCountByte.Count(%q, 100) = %d", b[i:i+window], p)
+			}
+		}
+	}
+
+	maxWnd := windows[len(windows)-1]
+
+	for i := 0; i <= 2*maxWnd; i++ {
+		for _, window := range windows {
+			if window > len(b[i:]) {
+				window = len(b[i:])
+			}
+			testCountWindow(i, window)
+			for j := 0; j < window; j++ {
+				b[i+j] = byte(0)
+			}
+		}
+	}
+	for i := 4096 - (maxWnd + 1); i < len(b); i++ {
+		for _, window := range windows {
+			if window > len(b[i:]) {
+				window = len(b[i:])
+			}
+			testCountWindow(i, window)
+			for j := 0; j < window; j++ {
+				b[i+j] = byte(0)
+			}
+		}
+	}
+}
+
+// Make sure we don't count bytes outside our window
+func TestCountByteNoMatch(t *testing.T) {
+	b := make([]byte, 5015)
+	windows := []int{1, 2, 3, 4, 15, 16, 17, 31, 32, 33, 63, 64, 65, 128}
+	for i := 0; i <= len(b); i++ {
+		for _, window := range windows {
+			if window > len(b[i:]) {
+				window = len(b[i:])
+			}
+			// Fill the window with non-match
+			for j := 0; j < window; j++ {
+				b[i+j] = byte(100)
+			}
+			// Try to find something that doesn't exist
+			p := Count(b[i:i+window], []byte{0})
+			if p != 0 {
+				t.Errorf("TestCountByteNoMatch(%q, 0) = %d", b[i:i+window], p)
+			}
+			for j := 0; j < window; j++ {
+				b[i+j] = byte(0)
+			}
+		}
+	}
+}
+
 var bmbuf []byte
 
 func valName(x int) string {
@@ -589,6 +657,26 @@ func BenchmarkCountEasy(b *testing.B) {
 	})
 }
 
+func BenchmarkCountSingle(b *testing.B) {
+	benchBytes(b, indexSizes, func(b *testing.B, n int) {
+		buf := bmbuf[0:n]
+		step := 8
+		for i := 0; i < len(buf); i += step {
+			buf[i] = 1
+		}
+		expect := (len(buf) + (step - 1)) / step
+		for i := 0; i < b.N; i++ {
+			j := Count(buf, []byte{1})
+			if j != expect {
+				b.Fatal("bad count", j, expect)
+			}
+		}
+		for i := 0; i < len(buf); i++ {
+			buf[i] = 0
+		}
+	})
+}
+
 type ExplodeTest struct {
 	s string
 	n int
@@ -643,6 +731,13 @@ var splittests = []SplitTest{
 func TestSplit(t *testing.T) {
 	for _, tt := range splittests {
 		a := SplitN([]byte(tt.s), []byte(tt.sep), tt.n)
+
+		// Appending to the results should not change future results.
+		var x []byte
+		for _, v := range a {
+			x = append(v, 'z')
+		}
+
 		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
@@ -651,6 +746,11 @@ func TestSplit(t *testing.T) {
 		if tt.n == 0 {
 			continue
 		}
+
+		if want := tt.a[len(tt.a)-1] + "z"; string(x) != want {
+			t.Errorf("last appended result was %s; want %s", x, want)
+		}
+
 		s := Join(a, []byte(tt.sep))
 		if string(s) != tt.s {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
@@ -689,11 +789,23 @@ var splitaftertests = []SplitTest{
 func TestSplitAfter(t *testing.T) {
 	for _, tt := range splitaftertests {
 		a := SplitAfterN([]byte(tt.s), []byte(tt.sep), tt.n)
+
+		// Appending to the results should not change future results.
+		var x []byte
+		for _, v := range a {
+			x = append(v, 'z')
+		}
+
 		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
 			continue
 		}
+
+		if want := tt.a[len(tt.a)-1] + "z"; string(x) != want {
+			t.Errorf("last appended result was %s; want %s", x, want)
+		}
+
 		s := Join(a, nil)
 		if string(s) != tt.s {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
@@ -728,11 +840,28 @@ var fieldstests = []FieldsTest{
 
 func TestFields(t *testing.T) {
 	for _, tt := range fieldstests {
-		a := Fields([]byte(tt.s))
+		b := []byte(tt.s)
+		a := Fields(b)
+
+		// Appending to the results should not change future results.
+		var x []byte
+		for _, v := range a {
+			x = append(v, 'z')
+		}
+
 		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
 			continue
+		}
+
+		if string(b) != tt.s {
+			t.Errorf("slice changed to %s; want %s", string(b), tt.s)
+		}
+		if len(tt.a) > 0 {
+			if want := tt.a[len(tt.a)-1] + "z"; string(x) != want {
+				t.Errorf("last appended result was %s; want %s", x, want)
+			}
 		}
 	}
 }
@@ -754,10 +883,27 @@ func TestFieldsFunc(t *testing.T) {
 		{"aXXbXXXcX", []string{"a", "b", "c"}},
 	}
 	for _, tt := range fieldsFuncTests {
-		a := FieldsFunc([]byte(tt.s), pred)
+		b := []byte(tt.s)
+		a := FieldsFunc(b, pred)
+
+		// Appending to the results should not change future results.
+		var x []byte
+		for _, v := range a {
+			x = append(v, 'z')
+		}
+
 		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+		}
+
+		if string(b) != tt.s {
+			t.Errorf("slice changed to %s; want %s", b, tt.s)
+		}
+		if len(tt.a) > 0 {
+			if want := tt.a[len(tt.a)-1] + "z"; string(x) != want {
+				t.Errorf("last appended result was %s; want %s", x, want)
+			}
 		}
 	}
 }
@@ -1216,6 +1362,12 @@ func TestReplace(t *testing.T) {
 		if cap(in) == cap(out) && &in[:1][0] == &out[:1][0] {
 			t.Errorf("Replace(%q, %q, %q, %d) didn't copy", tt.in, tt.old, tt.new, tt.n)
 		}
+		if tt.n == -1 {
+			out := ReplaceAll(in, []byte(tt.old), []byte(tt.new))
+			if s := string(out); s != tt.out {
+				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
+			}
+		}
 	}
 }
 
@@ -1409,19 +1561,58 @@ var makeFieldsInput = func() []byte {
 	return x
 }
 
-var fieldsInput = makeFieldsInput()
+var makeFieldsInputASCII = func() []byte {
+	x := make([]byte, 1<<20)
+	// Input is ~10% space, rest ASCII non-space.
+	for i := range x {
+		if rand.Intn(10) == 0 {
+			x[i] = ' '
+		} else {
+			x[i] = 'x'
+		}
+	}
+	return x
+}
+
+var bytesdata = []struct {
+	name string
+	data []byte
+}{
+	{"ASCII", makeFieldsInputASCII()},
+	{"Mixed", makeFieldsInput()},
+}
 
 func BenchmarkFields(b *testing.B) {
-	b.SetBytes(int64(len(fieldsInput)))
-	for i := 0; i < b.N; i++ {
-		Fields(fieldsInput)
+	for _, sd := range bytesdata {
+		b.Run(sd.name, func(b *testing.B) {
+			for j := 1 << 4; j <= 1<<20; j <<= 4 {
+				b.Run(fmt.Sprintf("%d", j), func(b *testing.B) {
+					b.ReportAllocs()
+					b.SetBytes(int64(j))
+					data := sd.data[:j]
+					for i := 0; i < b.N; i++ {
+						Fields(data)
+					}
+				})
+			}
+		})
 	}
 }
 
 func BenchmarkFieldsFunc(b *testing.B) {
-	b.SetBytes(int64(len(fieldsInput)))
-	for i := 0; i < b.N; i++ {
-		FieldsFunc(fieldsInput, unicode.IsSpace)
+	for _, sd := range bytesdata {
+		b.Run(sd.name, func(b *testing.B) {
+			for j := 1 << 4; j <= 1<<20; j <<= 4 {
+				b.Run(fmt.Sprintf("%d", j), func(b *testing.B) {
+					b.ReportAllocs()
+					b.SetBytes(int64(j))
+					data := sd.data[:j]
+					for i := 0; i < b.N; i++ {
+						FieldsFunc(data, unicode.IsSpace)
+					}
+				})
+			}
+		})
 	}
 }
 
@@ -1429,6 +1620,59 @@ func BenchmarkTrimSpace(b *testing.B) {
 	s := []byte("  Some text.  \n")
 	for i := 0; i < b.N; i++ {
 		TrimSpace(s)
+	}
+}
+
+func makeBenchInputHard() []byte {
+	tokens := [...]string{
+		"<a>", "<p>", "<b>", "<strong>",
+		"</a>", "</p>", "</b>", "</strong>",
+		"hello", "world",
+	}
+	x := make([]byte, 0, 1<<20)
+	for {
+		i := rand.Intn(len(tokens))
+		if len(x)+len(tokens[i]) >= 1<<20 {
+			break
+		}
+		x = append(x, tokens[i]...)
+	}
+	return x
+}
+
+var benchInputHard = makeBenchInputHard()
+
+func BenchmarkSplitEmptySeparator(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Split(benchInputHard, nil)
+	}
+}
+
+func BenchmarkSplitSingleByteSeparator(b *testing.B) {
+	sep := []byte("/")
+	for i := 0; i < b.N; i++ {
+		Split(benchInputHard, sep)
+	}
+}
+
+func BenchmarkSplitMultiByteSeparator(b *testing.B) {
+	sep := []byte("hello")
+	for i := 0; i < b.N; i++ {
+		Split(benchInputHard, sep)
+	}
+}
+
+func BenchmarkSplitNSingleByteSeparator(b *testing.B) {
+	sep := []byte("/")
+	for i := 0; i < b.N; i++ {
+		SplitN(benchInputHard, sep, 10)
+	}
+}
+
+func BenchmarkSplitNMultiByteSeparator(b *testing.B) {
+	sep := []byte("hello")
+	for i := 0; i < b.N; i++ {
+		SplitN(benchInputHard, sep, 10)
 	}
 }
 
@@ -1485,5 +1729,20 @@ func BenchmarkTrimASCII(b *testing.B) {
 				}
 			})
 		}
+	}
+}
+
+func BenchmarkIndexPeriodic(b *testing.B) {
+	key := []byte{1, 1}
+	for _, skip := range [...]int{2, 4, 8, 16, 32, 64} {
+		b.Run(fmt.Sprintf("IndexPeriodic%d", skip), func(b *testing.B) {
+			buf := make([]byte, 1<<16)
+			for i := 0; i < len(buf); i += skip {
+				buf[i] = 1
+			}
+			for i := 0; i < b.N; i++ {
+				Index(buf, key)
+			}
+		})
 	}
 }

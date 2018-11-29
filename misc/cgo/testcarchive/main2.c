@@ -39,7 +39,6 @@ static void recur(int i, char *p) {
 	}
 }
 
-// Signal handler that uses up more stack space than a goroutine will have.
 static void pipeHandler(int signo, siginfo_t* info, void* ctxt) {
 	sigpipeSeen = 1;
 }
@@ -200,7 +199,7 @@ int main(int argc, char** argv) {
 		ts.tv_nsec = 1000000;
 		nanosleep(&ts, NULL);
 		i++;
-		if (i > 1000) {
+		if (i > 5000) {
 			fprintf(stderr, "looping too long waiting for SIGPIPE\n");
 			exit(EXIT_FAILURE);
 		}

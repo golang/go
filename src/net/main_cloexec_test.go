@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build freebsd linux
+// +build dragonfly freebsd linux netbsd openbsd
 
 package net
+
+import "internal/poll"
 
 func init() {
 	extraTestHookInstallers = append(extraTestHookInstallers, installAccept4TestHook)
@@ -13,13 +15,13 @@ func init() {
 
 var (
 	// Placeholders for saving original socket system calls.
-	origAccept4 = accept4Func
+	origAccept4 = poll.Accept4Func
 )
 
 func installAccept4TestHook() {
-	accept4Func = sw.Accept4
+	poll.Accept4Func = sw.Accept4
 }
 
 func uninstallAccept4TestHook() {
-	accept4Func = origAccept4
+	poll.Accept4Func = origAccept4
 }

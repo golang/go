@@ -6,6 +6,7 @@ package flate
 
 import (
 	"math"
+	"math/bits"
 	"sort"
 )
 
@@ -342,3 +343,7 @@ func (s byFreq) Less(i, j int) bool {
 }
 
 func (s byFreq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+func reverseBits(number uint16, bitLength byte) uint16 {
+	return bits.Reverse16(number << (16 - bitLength))
+}

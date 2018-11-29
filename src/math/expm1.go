@@ -205,33 +205,33 @@ func expm1(x float64) float64 {
 	r1 := 1 + hxs*(Q1+hxs*(Q2+hxs*(Q3+hxs*(Q4+hxs*Q5))))
 	t := 3 - r1*hfx
 	e := hxs * ((r1 - t) / (6.0 - x*t))
-	if k != 0 {
-		e = (x*(e-c) - c)
-		e -= hxs
-		switch {
-		case k == -1:
-			return 0.5*(x-e) - 0.5
-		case k == 1:
-			if x < -0.25 {
-				return -2 * (e - (x + 0.5))
-			}
-			return 1 + 2*(x-e)
-		case k <= -2 || k > 56: // suffice to return exp(x)-1
-			y := 1 - (e - x)
-			y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
-			return y - 1
+	if k == 0 {
+		return x - (x*e - hxs) // c is 0
+	}
+	e = (x*(e-c) - c)
+	e -= hxs
+	switch {
+	case k == -1:
+		return 0.5*(x-e) - 0.5
+	case k == 1:
+		if x < -0.25 {
+			return -2 * (e - (x + 0.5))
 		}
-		if k < 20 {
-			t := Float64frombits(0x3ff0000000000000 - (0x20000000000000 >> uint(k))) // t=1-2**-k
-			y := t - (e - x)
-			y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
-			return y
-		}
-		t := Float64frombits(uint64(0x3ff-k) << 52) // 2**-k
-		y := x - (e + t)
-		y++
+		return 1 + 2*(x-e)
+	case k <= -2 || k > 56: // suffice to return exp(x)-1
+		y := 1 - (e - x)
+		y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
+		return y - 1
+	}
+	if k < 20 {
+		t := Float64frombits(0x3ff0000000000000 - (0x20000000000000 >> uint(k))) // t=1-2**-k
+		y := t - (e - x)
 		y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
 		return y
 	}
-	return x - (x*e - hxs) // c is 0
+	t = Float64frombits(uint64(0x3ff-k) << 52) // 2**-k
+	y := x - (e + t)
+	y++
+	y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
+	return y
 }

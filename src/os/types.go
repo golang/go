@@ -45,7 +45,7 @@ const (
 	ModeDir        FileMode = 1 << (32 - 1 - iota) // d: is a directory
 	ModeAppend                                     // a: append-only
 	ModeExclusive                                  // l: exclusive use
-	ModeTemporary                                  // T: temporary file (not backed up)
+	ModeTemporary                                  // T: temporary file; Plan 9 only
 	ModeSymlink                                    // L: symbolic link
 	ModeDevice                                     // D: device file
 	ModeNamedPipe                                  // p: named pipe (FIFO)
@@ -54,15 +54,16 @@ const (
 	ModeSetgid                                     // g: setgid
 	ModeCharDevice                                 // c: Unix character device, when ModeDevice is set
 	ModeSticky                                     // t: sticky
+	ModeIrregular                                  // ?: non-regular file; nothing else is known about this file
 
 	// Mask for the type bits. For regular files, none will be set.
-	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice
+	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice | ModeCharDevice | ModeIrregular
 
 	ModePerm FileMode = 0777 // Unix permission bits
 )
 
 func (m FileMode) String() string {
-	const str = "dalTLDpSugct"
+	const str = "dalTLDpSugct?"
 	var buf [32]byte // Mode is uint32.
 	w := 0
 	for i, c := range str {

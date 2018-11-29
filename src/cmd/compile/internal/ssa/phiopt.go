@@ -81,7 +81,7 @@ func phiopt(f *Func) {
 					v.reset(ops[v.Args[reverse].AuxInt])
 					v.AddArg(b0.Control)
 					if f.pass.debug > 0 {
-						f.Config.Warnl(b.Line, "converted OpPhi to %v", v.Op)
+						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
 					}
 					continue
 				}
@@ -97,7 +97,7 @@ func phiopt(f *Func) {
 					v.reset(OpOrB)
 					v.SetArgs2(b0.Control, tmp)
 					if f.pass.debug > 0 {
-						f.Config.Warnl(b.Line, "converted OpPhi to %v", v.Op)
+						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
 					}
 					continue
 				}
@@ -113,7 +113,7 @@ func phiopt(f *Func) {
 					v.reset(OpAndB)
 					v.SetArgs2(b0.Control, tmp)
 					if f.pass.debug > 0 {
-						f.Config.Warnl(b.Line, "converted OpPhi to %v", v.Op)
+						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
 					}
 					continue
 				}
@@ -163,12 +163,12 @@ func phioptint(v *Value, b0 *Block, reverse int) {
 
 	a := b0.Control
 	if negate {
-		a = v.Block.NewValue1(v.Line, OpNot, a.Type, a)
+		a = v.Block.NewValue1(v.Pos, OpNot, a.Type, a)
 	}
 	v.AddArg(a)
 
 	f := b0.Func
 	if f.pass.debug > 0 {
-		f.Config.Warnl(v.Block.Line, "converted OpPhi bool -> int%d", v.Type.Size()*8)
+		f.Warnl(v.Block.Pos, "converted OpPhi bool -> int%d", v.Type.Size()*8)
 	}
 }

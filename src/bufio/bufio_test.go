@@ -285,6 +285,24 @@ func TestUnreadRune(t *testing.T) {
 	}
 }
 
+func TestNoUnreadRuneAfterPeek(t *testing.T) {
+	br := NewReader(strings.NewReader("example"))
+	br.ReadRune()
+	br.Peek(1)
+	if err := br.UnreadRune(); err == nil {
+		t.Error("UnreadRune didn't fail after Peek")
+	}
+}
+
+func TestNoUnreadByteAfterPeek(t *testing.T) {
+	br := NewReader(strings.NewReader("example"))
+	br.ReadByte()
+	br.Peek(1)
+	if err := br.UnreadByte(); err == nil {
+		t.Error("UnreadByte didn't fail after Peek")
+	}
+}
+
 func TestUnreadByte(t *testing.T) {
 	segments := []string{"Hello, ", "world"}
 	r := NewReader(&StringReader{data: segments})
@@ -550,7 +568,7 @@ func TestWriter(t *testing.T) {
 				t.Errorf("%s: %d bytes written", context, len(written))
 			}
 			for l := 0; l < len(written); l++ {
-				if written[i] != data[i] {
+				if written[l] != data[l] {
 					t.Errorf("wrong bytes written")
 					t.Errorf("want=%q", data[0:len(written)])
 					t.Errorf("have=%q", written)
@@ -1416,6 +1434,24 @@ func TestReaderDiscard(t *testing.T) {
 		}
 	}
 
+}
+
+func TestReaderSize(t *testing.T) {
+	if got, want := NewReader(nil).Size(), DefaultBufSize; got != want {
+		t.Errorf("NewReader's Reader.Size = %d; want %d", got, want)
+	}
+	if got, want := NewReaderSize(nil, 1234).Size(), 1234; got != want {
+		t.Errorf("NewReaderSize's Reader.Size = %d; want %d", got, want)
+	}
+}
+
+func TestWriterSize(t *testing.T) {
+	if got, want := NewWriter(nil).Size(), DefaultBufSize; got != want {
+		t.Errorf("NewWriter's Writer.Size = %d; want %d", got, want)
+	}
+	if got, want := NewWriterSize(nil, 1234).Size(), 1234; got != want {
+		t.Errorf("NewWriterSize's Writer.Size = %d; want %d", got, want)
+	}
 }
 
 // An onlyReader only implements io.Reader, no matter what other methods the underlying implementation may have.

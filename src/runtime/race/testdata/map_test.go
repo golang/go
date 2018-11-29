@@ -130,6 +130,7 @@ func TestRaceMapLenDelete(t *testing.T) {
 func TestRaceMapVariable(t *testing.T) {
 	ch := make(chan bool, 1)
 	m := make(map[int]int)
+	_ = m
 	go func() {
 		m = make(map[int]int)
 		ch <- true
@@ -230,6 +231,7 @@ func TestRaceMapAssignMultipleReturn(t *testing.T) {
 	conns[1] = []int{0}
 	ch := make(chan bool, 1)
 	var err error
+	_ = err
 	go func() {
 		conns[1][0], err = connect()
 		ch <- true

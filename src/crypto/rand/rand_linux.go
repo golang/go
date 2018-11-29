@@ -4,36 +4,11 @@
 
 package rand
 
-import (
-	"internal/syscall/unix"
-	"sync"
-)
-
-func init() {
-	altGetRandom = getRandomLinux
-}
-
-var (
-	once       sync.Once
-	useSyscall bool
-)
-
-func pickStrategy() {
-	// Test whether we should use the system call or /dev/urandom.
-	// We'll fall back to urandom if:
-	// - the kernel is too old (before 3.17)
-	// - the machine has no entropy available (early boot + no hardware
-	//   entropy source?) and we want to avoid blocking later.
-	var buf [1]byte
-	n, err := unix.GetRandom(buf[:], unix.GRND_NONBLOCK)
-	useSyscall = n == 1 && err == nil
-}
-
-func getRandomLinux(p []byte) (ok bool) {
-	once.Do(pickStrategy)
-	if !useSyscall {
-		return false
-	}
-	n, err := unix.GetRandom(p, 0)
-	return n == len(p) && err == nil
-}
+// maxGetRandomRead is the maximum number of bytes to ask for in one call to the
+// getrandom() syscall. In linux at most 2^25-1 bytes will be returned per call.
+// From the manpage
+//
+//	*  When reading from the urandom source, a maximum of 33554431 bytes
+//	   is returned by a single call to getrandom() on systems where int
+//	   has a size of 32 bits.
+const maxGetRandomRead = (1 << 25) - 1

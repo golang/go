@@ -4,257 +4,179 @@
 
 package ssa
 
-// A copy of the code in ../gc/subr.go.
-// We can't use it directly because it would generate
-// an import cycle. TODO: move to a common support package.
+import "math/big"
 
-// argument passing to/from
-// smagic and umagic
-type magic struct {
-	W   int // input for both - width
-	S   int // output for both - shift
-	Bad int // output for both - unexpected failure
+// So you want to compute x / c for some constant c?
+// Machine division instructions are slow, so we try to
+// compute this division with a multiplication + a few
+// other cheap instructions instead.
+// (We assume here that c != 0, +/- 1, or +/- 2^i.  Those
+// cases are easy to handle in different ways).
 
-	// magic multiplier for signed literal divisors
-	Sd int64 // input - literal divisor
-	Sm int64 // output - multiplier
+// Technique from https://gmplib.org/~tege/divcnst-pldi94.pdf
 
-	// magic multiplier for unsigned literal divisors
-	Ud uint64 // input - literal divisor
-	Um uint64 // output - multiplier
-	Ua int    // output - adder
+// First consider unsigned division.
+// Our strategy is to precompute 1/c then do
+//   ⎣x / c⎦ = ⎣x * (1/c)⎦.
+// 1/c is less than 1, so we can't compute it directly in
+// integer arithmetic.  Let's instead compute 2^e/c
+// for a value of e TBD (^ = exponentiation).  Then
+//   ⎣x / c⎦ = ⎣x * (2^e/c) / 2^e⎦.
+// Dividing by 2^e is easy.  2^e/c isn't an integer, unfortunately.
+// So we must approximate it.  Let's call its approximation m.
+// We'll then compute
+//   ⎣x * m / 2^e⎦
+// Which we want to be equal to ⎣x / c⎦ for 0 <= x < 2^n-1
+// where n is the word size.
+// Setting x = c gives us c * m >= 2^e.
+// We'll chose m = ⎡2^e/c⎤ to satisfy that equation.
+// What remains is to choose e.
+// Let m = 2^e/c + delta, 0 <= delta < 1
+//   ⎣x * (2^e/c + delta) / 2^e⎦
+//   ⎣x / c + x * delta / 2^e⎦
+// We must have x * delta / 2^e < 1/c so that this
+// additional term never rounds differently than ⎣x / c⎦ does.
+// Rearranging,
+//   2^e > x * delta * c
+// x can be at most 2^n-1 and delta can be at most 1.
+// So it is sufficient to have 2^e >= 2^n*c.
+// So we'll choose e = n + s, with s = ⎡log2(c)⎤.
+//
+// An additional complication arises because m has n+1 bits in it.
+// Hardware restricts us to n bit by n bit multiplies.
+// We divide into 3 cases:
+//
+// Case 1: m is even.
+//   ⎣x / c⎦ = ⎣x * m / 2^(n+s)⎦
+//   ⎣x / c⎦ = ⎣x * (m/2) / 2^(n+s-1)⎦
+//   ⎣x / c⎦ = ⎣x * (m/2) / 2^n / 2^(s-1)⎦
+//   ⎣x / c⎦ = ⎣⎣x * (m/2) / 2^n⎦ / 2^(s-1)⎦
+//   multiply + shift
+//
+// Case 2: c is even.
+//   ⎣x / c⎦ = ⎣(x/2) / (c/2)⎦
+//   ⎣x / c⎦ = ⎣⎣x/2⎦ / (c/2)⎦
+//     This is just the original problem, with x' = ⎣x/2⎦, c' = c/2, n' = n-1.
+//       s' = s-1
+//       m' = ⎡2^(n'+s')/c'⎤
+//          = ⎡2^(n+s-1)/c⎤
+//          = ⎡m/2⎤
+//   ⎣x / c⎦ = ⎣x' * m' / 2^(n'+s')⎦
+//   ⎣x / c⎦ = ⎣⎣x/2⎦ * ⎡m/2⎤ / 2^(n+s-2)⎦
+//   ⎣x / c⎦ = ⎣⎣⎣x/2⎦ * ⎡m/2⎤ / 2^n⎦ / 2^(s-2)⎦
+//   shift + multiply + shift
+//
+// Case 3: everything else
+//   let k = m - 2^n. k fits in n bits.
+//   ⎣x / c⎦ = ⎣x * m / 2^(n+s)⎦
+//   ⎣x / c⎦ = ⎣x * (2^n + k) / 2^(n+s)⎦
+//   ⎣x / c⎦ = ⎣(x + x * k / 2^n) / 2^s⎦
+//   ⎣x / c⎦ = ⎣(x + ⎣x * k / 2^n⎦) / 2^s⎦
+//   ⎣x / c⎦ = ⎣(x + ⎣x * k / 2^n⎦) / 2^s⎦
+//   ⎣x / c⎦ = ⎣⎣(x + ⎣x * k / 2^n⎦) / 2⎦ / 2^(s-1)⎦
+//   multiply + avg + shift
+//
+// These can be implemented in hardware using:
+//  ⎣a * b / 2^n⎦ - aka high n bits of an n-bit by n-bit multiply.
+//  ⎣(a+b) / 2⎦   - aka "average" of two n-bit numbers.
+//                  (Not just a regular add & shift because the intermediate result
+//                   a+b has n+1 bits in it.  Nevertheless, can be done
+//                   in 2 instructions on x86.)
+
+// umagicOK returns whether we should strength reduce a n-bit divide by c.
+func umagicOK(n uint, c int64) bool {
+	// Convert from ConstX auxint values to the real uint64 constant they represent.
+	d := uint64(c) << (64 - n) >> (64 - n)
+
+	// Doesn't work for 0.
+	// Don't use for powers of 2.
+	return d&(d-1) != 0
 }
 
-// magic number for signed division
-// see hacker's delight chapter 10
-func smagic(m *magic) {
-	var mask uint64
+type umagicData struct {
+	s int64  // ⎡log2(c)⎤
+	m uint64 // ⎡2^(n+s)/c⎤ - 2^n
+}
 
-	m.Bad = 0
-	switch m.W {
-	default:
-		m.Bad = 1
-		return
+// umagic computes the constants needed to strength reduce unsigned n-bit divides by the constant uint64(c).
+// The return values satisfy for all 0 <= x < 2^n
+//  floor(x / uint64(c)) = x * (m + 2^n) >> (n+s)
+func umagic(n uint, c int64) umagicData {
+	// Convert from ConstX auxint values to the real uint64 constant they represent.
+	d := uint64(c) << (64 - n) >> (64 - n)
 
-	case 8:
-		mask = 0xff
-
-	case 16:
-		mask = 0xffff
-
-	case 32:
-		mask = 0xffffffff
-
-	case 64:
-		mask = 0xffffffffffffffff
+	C := new(big.Int).SetUint64(d)
+	s := C.BitLen()
+	M := big.NewInt(1)
+	M.Lsh(M, n+uint(s))     // 2^(n+s)
+	M.Add(M, C)             // 2^(n+s)+c
+	M.Sub(M, big.NewInt(1)) // 2^(n+s)+c-1
+	M.Div(M, C)             // ⎡2^(n+s)/c⎤
+	if M.Bit(int(n)) != 1 {
+		panic("n+1st bit isn't set")
 	}
+	M.SetBit(M, int(n), 0)
+	m := M.Uint64()
+	return umagicData{s: int64(s), m: m}
+}
 
-	two31 := mask ^ (mask >> 1)
+// For signed division, we use a similar strategy.
+// First, we enforce a positive c.
+//   x / c = -(x / (-c))
+// This will require an additional Neg op for c<0.
+//
+// If x is positive we're in a very similar state
+// to the unsigned case above.  We define:
+//   s = ⎡log2(c)⎤-1
+//   m = ⎡2^(n+s)/c⎤
+// Then
+//   ⎣x / c⎦ = ⎣x * m / 2^(n+s)⎦
+// If x is negative we have
+//   ⎡x / c⎤ = ⎣x * m / 2^(n+s)⎦ + 1
+// (TODO: derivation?)
+//
+// The multiply is a bit odd, as it is a signed n-bit value
+// times an unsigned n-bit value.  For n smaller than the
+// word size, we can extend x and m appropriately and use the
+// signed multiply instruction.  For n == word size,
+// we must use the signed multiply high and correct
+// the result by adding x*2^n.
+//
+// Adding 1 if x<0 is done by subtracting x>>(n-1).
 
-	p := m.W - 1
-	ad := uint64(m.Sd)
-	if m.Sd < 0 {
-		ad = -uint64(m.Sd)
+func smagicOK(n uint, c int64) bool {
+	if c < 0 {
+		// Doesn't work for negative c.
+		return false
 	}
+	// Doesn't work for 0.
+	// Don't use it for powers of 2.
+	return c&(c-1) != 0
+}
 
-	// bad denominators
-	if ad == 0 || ad == 1 || ad == two31 {
-		m.Bad = 1
-		return
+type smagicData struct {
+	s int64  // ⎡log2(c)⎤-1
+	m uint64 // ⎡2^(n+s)/c⎤
+}
+
+// magic computes the constants needed to strength reduce signed n-bit divides by the constant c.
+// Must have c>0.
+// The return values satisfy for all -2^(n-1) <= x < 2^(n-1)
+//  trunc(x / c) = x * m >> (n+s) + (x < 0 ? 1 : 0)
+func smagic(n uint, c int64) smagicData {
+	C := new(big.Int).SetInt64(c)
+	s := C.BitLen() - 1
+	M := big.NewInt(1)
+	M.Lsh(M, n+uint(s))     // 2^(n+s)
+	M.Add(M, C)             // 2^(n+s)+c
+	M.Sub(M, big.NewInt(1)) // 2^(n+s)+c-1
+	M.Div(M, C)             // ⎡2^(n+s)/c⎤
+	if M.Bit(int(n)) != 0 {
+		panic("n+1st bit is set")
 	}
-
-	t := two31
-	ad &= mask
-
-	anc := t - 1 - t%ad
-	anc &= mask
-
-	q1 := two31 / anc
-	r1 := two31 - q1*anc
-	q1 &= mask
-	r1 &= mask
-
-	q2 := two31 / ad
-	r2 := two31 - q2*ad
-	q2 &= mask
-	r2 &= mask
-
-	var delta uint64
-	for {
-		p++
-		q1 <<= 1
-		r1 <<= 1
-		q1 &= mask
-		r1 &= mask
-		if r1 >= anc {
-			q1++
-			r1 -= anc
-			q1 &= mask
-			r1 &= mask
-		}
-
-		q2 <<= 1
-		r2 <<= 1
-		q2 &= mask
-		r2 &= mask
-		if r2 >= ad {
-			q2++
-			r2 -= ad
-			q2 &= mask
-			r2 &= mask
-		}
-
-		delta = ad - r2
-		delta &= mask
-		if q1 < delta || (q1 == delta && r1 == 0) {
-			continue
-		}
-
-		break
+	if M.Bit(int(n-1)) == 0 {
+		panic("nth bit is not set")
 	}
-
-	m.Sm = int64(q2 + 1)
-	if uint64(m.Sm)&two31 != 0 {
-		m.Sm |= ^int64(mask)
-	}
-	m.S = p - m.W
-}
-
-// magic number for unsigned division
-// see hacker's delight chapter 10
-func umagic(m *magic) {
-	var mask uint64
-
-	m.Bad = 0
-	m.Ua = 0
-
-	switch m.W {
-	default:
-		m.Bad = 1
-		return
-
-	case 8:
-		mask = 0xff
-
-	case 16:
-		mask = 0xffff
-
-	case 32:
-		mask = 0xffffffff
-
-	case 64:
-		mask = 0xffffffffffffffff
-	}
-
-	two31 := mask ^ (mask >> 1)
-
-	m.Ud &= mask
-	if m.Ud == 0 || m.Ud == two31 {
-		m.Bad = 1
-		return
-	}
-
-	nc := mask - (-m.Ud&mask)%m.Ud
-	p := m.W - 1
-
-	q1 := two31 / nc
-	r1 := two31 - q1*nc
-	q1 &= mask
-	r1 &= mask
-
-	q2 := (two31 - 1) / m.Ud
-	r2 := (two31 - 1) - q2*m.Ud
-	q2 &= mask
-	r2 &= mask
-
-	var delta uint64
-	for {
-		p++
-		if r1 >= nc-r1 {
-			q1 <<= 1
-			q1++
-			r1 <<= 1
-			r1 -= nc
-		} else {
-			q1 <<= 1
-			r1 <<= 1
-		}
-
-		q1 &= mask
-		r1 &= mask
-		if r2+1 >= m.Ud-r2 {
-			if q2 >= two31-1 {
-				m.Ua = 1
-			}
-
-			q2 <<= 1
-			q2++
-			r2 <<= 1
-			r2++
-			r2 -= m.Ud
-		} else {
-			if q2 >= two31 {
-				m.Ua = 1
-			}
-
-			q2 <<= 1
-			r2 <<= 1
-			r2++
-		}
-
-		q2 &= mask
-		r2 &= mask
-
-		delta = m.Ud - 1 - r2
-		delta &= mask
-
-		if p < m.W+m.W {
-			if q1 < delta || (q1 == delta && r1 == 0) {
-				continue
-			}
-		}
-
-		break
-	}
-
-	m.Um = q2 + 1
-	m.S = p - m.W
-}
-
-// adaptors for use by rewrite rules
-func smagic64ok(d int64) bool {
-	m := magic{W: 64, Sd: d}
-	smagic(&m)
-	return m.Bad == 0
-}
-func smagic64m(d int64) int64 {
-	m := magic{W: 64, Sd: d}
-	smagic(&m)
-	return m.Sm
-}
-func smagic64s(d int64) int64 {
-	m := magic{W: 64, Sd: d}
-	smagic(&m)
-	return int64(m.S)
-}
-
-func umagic64ok(d int64) bool {
-	m := magic{W: 64, Ud: uint64(d)}
-	umagic(&m)
-	return m.Bad == 0
-}
-func umagic64m(d int64) int64 {
-	m := magic{W: 64, Ud: uint64(d)}
-	umagic(&m)
-	return int64(m.Um)
-}
-func umagic64s(d int64) int64 {
-	m := magic{W: 64, Ud: uint64(d)}
-	umagic(&m)
-	return int64(m.S)
-}
-func umagic64a(d int64) bool {
-	m := magic{W: 64, Ud: uint64(d)}
-	umagic(&m)
-	return m.Ua != 0
+	m := M.Uint64()
+	return smagicData{s: int64(s), m: m}
 }

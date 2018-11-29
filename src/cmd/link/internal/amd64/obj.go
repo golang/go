@@ -31,56 +31,54 @@
 package amd64
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
 )
 
-func Init() {
-	ld.SysArch = sys.ArchAMD64
-	if obj.GOARCH == "amd64p32" {
-		ld.SysArch = sys.ArchAMD64P32
+func Init() (*sys.Arch, ld.Arch) {
+	arch := sys.ArchAMD64
+	if objabi.GOARCH == "amd64p32" {
+		arch = sys.ArchAMD64P32
 	}
 
-	ld.Thearch.Funcalign = funcAlign
-	ld.Thearch.Maxalign = maxAlign
-	ld.Thearch.Minalign = minAlign
-	ld.Thearch.Dwarfregsp = dwarfRegSP
-	ld.Thearch.Dwarfreglr = dwarfRegLR
+	theArch := ld.Arch{
+		Funcalign:  funcAlign,
+		Maxalign:   maxAlign,
+		Minalign:   minAlign,
+		Dwarfregsp: dwarfRegSP,
+		Dwarfreglr: dwarfRegLR,
 
-	ld.Thearch.Adddynrel = adddynrel
-	ld.Thearch.Archinit = archinit
-	ld.Thearch.Archreloc = archreloc
-	ld.Thearch.Archrelocvariant = archrelocvariant
-	ld.Thearch.Asmb = asmb
-	ld.Thearch.Elfreloc1 = elfreloc1
-	ld.Thearch.Elfsetupplt = elfsetupplt
-	ld.Thearch.Gentext = gentext
-	ld.Thearch.Machoreloc1 = machoreloc1
-	ld.Thearch.PEreloc1 = pereloc1
-	ld.Thearch.Lput = ld.Lputl
-	ld.Thearch.Wput = ld.Wputl
-	ld.Thearch.Vput = ld.Vputl
-	ld.Thearch.Append16 = ld.Append16l
-	ld.Thearch.Append32 = ld.Append32l
-	ld.Thearch.Append64 = ld.Append64l
-	ld.Thearch.TLSIEtoLE = tlsIEtoLE
+		Adddynrel:        adddynrel,
+		Archinit:         archinit,
+		Archreloc:        archreloc,
+		Archrelocvariant: archrelocvariant,
+		Asmb:             asmb,
+		Elfreloc1:        elfreloc1,
+		Elfsetupplt:      elfsetupplt,
+		Gentext:          gentext,
+		Machoreloc1:      machoreloc1,
+		PEreloc1:         pereloc1,
+		TLSIEtoLE:        tlsIEtoLE,
 
-	ld.Thearch.Linuxdynld = "/lib64/ld-linux-x86-64.so.2"
-	ld.Thearch.Freebsddynld = "/libexec/ld-elf.so.1"
-	ld.Thearch.Openbsddynld = "/usr/libexec/ld.so"
-	ld.Thearch.Netbsddynld = "/libexec/ld.elf_so"
-	ld.Thearch.Dragonflydynld = "/usr/libexec/ld-elf.so.2"
-	ld.Thearch.Solarisdynld = "/lib/amd64/ld.so.1"
+		Linuxdynld:     "/lib64/ld-linux-x86-64.so.2",
+		Freebsddynld:   "/libexec/ld-elf.so.1",
+		Openbsddynld:   "/usr/libexec/ld.so",
+		Netbsddynld:    "/libexec/ld.elf_so",
+		Dragonflydynld: "/usr/libexec/ld-elf.so.2",
+		Solarisdynld:   "/lib/amd64/ld.so.1",
+	}
+
+	return arch, theArch
 }
 
 func archinit(ctxt *ld.Link) {
-	switch ld.Headtype {
+	switch ctxt.HeadType {
 	default:
-		ld.Exitf("unknown -H option: %v", ld.Headtype)
+		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
 
-	case obj.Hplan9: /* plan 9 */
+	case objabi.Hplan9: /* plan 9 */
 		ld.HEADR = 32 + 8
 
 		if *ld.FlagTextAddr == -1 {
@@ -93,9 +91,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x200000
 		}
 
-	case obj.Hdarwin: /* apple MACH */
-		ld.Machoinit()
-
+	case objabi.Hdarwin: /* apple MACH */
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 4096
@@ -107,12 +103,12 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagDataAddr = 0
 		}
 
-	case obj.Hlinux, /* elf64 executable */
-		obj.Hfreebsd,   /* freebsd */
-		obj.Hnetbsd,    /* netbsd */
-		obj.Hopenbsd,   /* openbsd */
-		obj.Hdragonfly, /* dragonfly */
-		obj.Hsolaris:   /* solaris */
+	case objabi.Hlinux, /* elf64 executable */
+		objabi.Hfreebsd,   /* freebsd */
+		objabi.Hnetbsd,    /* netbsd */
+		objabi.Hopenbsd,   /* openbsd */
+		objabi.Hdragonfly, /* dragonfly */
+		objabi.Hsolaris:   /* solaris */
 		ld.Elfinit(ctxt)
 
 		ld.HEADR = ld.ELFRESERVE
@@ -126,7 +122,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 
-	case obj.Hnacl:
+	case objabi.Hnacl:
 		ld.Elfinit(ctxt)
 		*ld.FlagW = true // disable dwarf, which gets confused and is useless anyway
 		ld.HEADR = 0x10000
@@ -141,19 +137,9 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x10000
 		}
 
-	case obj.Hwindows, obj.Hwindowsgui: /* PE executable */
-		ld.Peinit(ctxt)
-
-		ld.HEADR = ld.PEFILEHEADR
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = ld.PEBASE + int64(ld.PESECTHEADR)
-		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
-		if *ld.FlagRound == -1 {
-			*ld.FlagRound = ld.PESECTALIGN
-		}
+	case objabi.Hwindows: /* PE executable */
+		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
+		return
 	}
 
 	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {

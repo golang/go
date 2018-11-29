@@ -54,11 +54,18 @@ type Pool struct {
 }
 
 // Local per-P Pool appendix.
-type poolLocal struct {
+type poolLocalInternal struct {
 	private interface{}   // Can be used only by the respective P.
 	shared  []interface{} // Can be used by any P.
 	Mutex                 // Protects shared.
-	pad     [128]byte     // Prevents false sharing.
+}
+
+type poolLocal struct {
+	poolLocalInternal
+
+	// Prevents false sharing on widespread platforms with
+	// 128 mod (cache line size) = 0 .
+	pad [128 - unsafe.Sizeof(poolLocalInternal{})%128]byte
 }
 
 // from runtime
@@ -241,7 +248,8 @@ func init() {
 }
 
 func indexLocal(l unsafe.Pointer, i int) *poolLocal {
-	return &(*[1000000]poolLocal)(l)[i]
+	lp := unsafe.Pointer(uintptr(l) + uintptr(i)*unsafe.Sizeof(poolLocal{}))
+	return (*poolLocal)(lp)
 }
 
 // Implemented in runtime.

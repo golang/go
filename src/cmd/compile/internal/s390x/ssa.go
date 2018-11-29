@@ -9,6 +9,7 @@ import (
 
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/s390x"
 )
@@ -37,7 +38,7 @@ func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
 }
 
 // loadByType returns the load instruction of the given type.
-func loadByType(t ssa.Type) obj.As {
+func loadByType(t *types.Type) obj.As {
 	if t.IsFloat() {
 		switch t.Size() {
 		case 4:
@@ -73,7 +74,7 @@ func loadByType(t ssa.Type) obj.As {
 }
 
 // storeByType returns the store instruction of the given type.
-func storeByType(t ssa.Type) obj.As {
+func storeByType(t *types.Type) obj.As {
 	width := t.Size()
 	if t.IsFloat() {
 		switch width {
@@ -98,7 +99,7 @@ func storeByType(t ssa.Type) obj.As {
 }
 
 // moveByType returns the reg->reg move instruction of the given type.
-func moveByType(t ssa.Type) obj.As {
+func moveByType(t *types.Type) obj.As {
 	if t.IsFloat() {
 		return s390x.AFMOVD
 	} else {
@@ -132,8 +133,8 @@ func moveByType(t ssa.Type) obj.As {
 //     dest := dest(To) op src(From)
 // and also returns the created obj.Prog so it
 // may be further adjusted (offset, scale, etc).
-func opregreg(op obj.As, dest, src int16) *obj.Prog {
-	p := gc.Prog(op)
+func opregreg(s *gc.SSAGenState, op obj.As, dest, src int16) *obj.Prog {
+	p := s.Prog(op)
 	p.From.Type = obj.TYPE_REG
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = dest
@@ -145,8 +146,8 @@ func opregreg(op obj.As, dest, src int16) *obj.Prog {
 //	dest := src(From) op off
 // and also returns the created obj.Prog so it
 // may be further adjusted (offset, scale, etc).
-func opregregimm(op obj.As, dest, src int16, off int64) *obj.Prog {
-	p := gc.Prog(op)
+func opregregimm(s *gc.SSAGenState, op obj.As, dest, src int16, off int64) *obj.Prog {
+	p := s.Prog(op)
 	p.From.Type = obj.TYPE_CONST
 	p.From.Offset = off
 	p.Reg = src
@@ -156,18 +157,18 @@ func opregregimm(op obj.As, dest, src int16, off int64) *obj.Prog {
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
-	s.SetLineno(v.Line)
 	switch v.Op {
 	case ssa.OpS390XSLD, ssa.OpS390XSLW,
 		ssa.OpS390XSRD, ssa.OpS390XSRW,
-		ssa.OpS390XSRAD, ssa.OpS390XSRAW:
+		ssa.OpS390XSRAD, ssa.OpS390XSRAW,
+		ssa.OpS390XRLLG, ssa.OpS390XRLL:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()
 		if r2 == s390x.REG_R0 {
 			v.Fatalf("cannot use R0 as shift value %s", v.LongString())
 		}
-		p := opregreg(v.Op.Asm(), r, r2)
+		p := opregreg(s, v.Op.Asm(), r, r2)
 		if r != r1 {
 			p.Reg = r1
 		}
@@ -179,7 +180,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r := v.Reg()
 		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()
-		p := opregreg(v.Op.Asm(), r, r2)
+		p := opregreg(s, v.Op.Asm(), r, r2)
 		if r != r1 {
 			p.Reg = r1
 		}
@@ -192,7 +193,31 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if r != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
-		opregreg(v.Op.Asm(), r, v.Args[1].Reg())
+		opregreg(s, v.Op.Asm(), r, v.Args[1].Reg())
+	case ssa.OpS390XFMADD, ssa.OpS390XFMADDS,
+		ssa.OpS390XFMSUB, ssa.OpS390XFMSUBS:
+		r := v.Reg()
+		if r != v.Args[0].Reg() {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
+		r1 := v.Args[1].Reg()
+		r2 := v.Args[2].Reg()
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r1
+		p.Reg = r2
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	case ssa.OpS390XFIDBR:
+		switch v.AuxInt {
+		case 0, 1, 3, 4, 5, 6, 7:
+			opregregimm(s, v.Op.Asm(), v.Reg(), v.Args[0].Reg(), v.AuxInt)
+		default:
+			v.Fatalf("invalid FIDBR mask: %v", v.AuxInt)
+		}
+	case ssa.OpS390XCPSDR:
+		p := opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
+		p.Reg = v.Args[0].Reg()
 	case ssa.OpS390XDIVD, ssa.OpS390XDIVW,
 		ssa.OpS390XDIVDU, ssa.OpS390XDIVWU,
 		ssa.OpS390XMODD, ssa.OpS390XMODW,
@@ -209,8 +234,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			v.Op == ssa.OpS390XMODD || v.Op == ssa.OpS390XMODW {
 
 			var c *obj.Prog
-			c = gc.Prog(s390x.ACMP)
-			j = gc.Prog(s390x.ABEQ)
+			c = s.Prog(s390x.ACMP)
+			j = s.Prog(s390x.ABEQ)
 
 			c.From.Type = obj.TYPE_REG
 			c.From.Reg = divisor
@@ -221,7 +246,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 		}
 
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = divisor
 		p.Reg = 0
@@ -230,18 +255,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 		// signed division, rest of the check for -1 case
 		if j != nil {
-			j2 := gc.Prog(s390x.ABR)
+			j2 := s.Prog(s390x.ABR)
 			j2.To.Type = obj.TYPE_BRANCH
 
 			var n *obj.Prog
 			if v.Op == ssa.OpS390XDIVD || v.Op == ssa.OpS390XDIVW {
 				// n * -1 = -n
-				n = gc.Prog(s390x.ANEG)
+				n = s.Prog(s390x.ANEG)
 				n.To.Type = obj.TYPE_REG
 				n.To.Reg = dividend
 			} else {
 				// n % -1 == 0
-				n = gc.Prog(s390x.AXOR)
+				n = s.Prog(s390x.AXOR)
 				n.From.Type = obj.TYPE_REG
 				n.From.Reg = dividend
 				n.To.Type = obj.TYPE_REG
@@ -252,7 +277,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			j2.To.Val = s.Pc()
 		}
 	case ssa.OpS390XADDconst, ssa.OpS390XADDWconst:
-		opregregimm(v.Op.Asm(), v.Reg(), v.Args[0].Reg(), v.AuxInt)
+		opregregimm(s, v.Op.Asm(), v.Reg(), v.Args[0].Reg(), v.AuxInt)
 	case ssa.OpS390XMULLDconst, ssa.OpS390XMULLWconst,
 		ssa.OpS390XSUBconst, ssa.OpS390XSUBWconst,
 		ssa.OpS390XANDconst, ssa.OpS390XANDWconst,
@@ -262,7 +287,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if r != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
@@ -271,7 +296,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpS390XSRDconst, ssa.OpS390XSRWconst,
 		ssa.OpS390XSRADconst, ssa.OpS390XSRAWconst,
 		ssa.OpS390XRLLGconst, ssa.OpS390XRLLconst:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		r := v.Reg()
@@ -281,17 +306,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpS390XSUBEcarrymask, ssa.OpS390XSUBEWcarrymask:
-		r := v.Reg()
-		p := gc.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = r
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
 	case ssa.OpS390XMOVDaddridx:
 		r := v.Args[0].Reg()
 		i := v.Args[1].Reg()
-		p := gc.Prog(s390x.AMOVD)
+		p := s.Prog(s390x.AMOVD)
 		p.From.Scale = 1
 		if i == s390x.REGSP {
 			r, i = i, r
@@ -303,32 +321,38 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpS390XMOVDaddr:
-		p := gc.Prog(s390x.AMOVD)
+		p := s.Prog(s390x.AMOVD)
 		p.From.Type = obj.TYPE_ADDR
 		p.From.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpS390XCMP, ssa.OpS390XCMPW, ssa.OpS390XCMPU, ssa.OpS390XCMPWU:
-		opregreg(v.Op.Asm(), v.Args[1].Reg(), v.Args[0].Reg())
+		opregreg(s, v.Op.Asm(), v.Args[1].Reg(), v.Args[0].Reg())
 	case ssa.OpS390XFCMPS, ssa.OpS390XFCMP:
-		opregreg(v.Op.Asm(), v.Args[1].Reg(), v.Args[0].Reg())
-	case ssa.OpS390XCMPconst, ssa.OpS390XCMPWconst, ssa.OpS390XCMPUconst, ssa.OpS390XCMPWUconst:
-		p := gc.Prog(v.Op.Asm())
+		opregreg(s, v.Op.Asm(), v.Args[1].Reg(), v.Args[0].Reg())
+	case ssa.OpS390XCMPconst, ssa.OpS390XCMPWconst:
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_CONST
 		p.To.Offset = v.AuxInt
+	case ssa.OpS390XCMPUconst, ssa.OpS390XCMPWUconst:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_CONST
+		p.To.Offset = int64(uint32(v.AuxInt))
 	case ssa.OpS390XMOVDconst:
 		x := v.Reg()
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
 	case ssa.OpS390XFMOVSconst, ssa.OpS390XFMOVDconst:
 		x := v.Reg()
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_FCONST
 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
 		p.To.Type = obj.TYPE_REG
@@ -343,7 +367,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if r != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[1].Reg()
 		gc.AddAux(&p.From, v)
@@ -354,13 +378,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpS390XMOVDBRload, ssa.OpS390XMOVWBRload, ssa.OpS390XMOVHBRload,
 		ssa.OpS390XMOVBload, ssa.OpS390XMOVHload, ssa.OpS390XMOVWload,
 		ssa.OpS390XFMOVSload, ssa.OpS390XFMOVDload:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpS390XMOVBZloadidx, ssa.OpS390XMOVHZloadidx, ssa.OpS390XMOVWZloadidx, ssa.OpS390XMOVDloadidx,
+	case ssa.OpS390XMOVBZloadidx, ssa.OpS390XMOVHZloadidx, ssa.OpS390XMOVWZloadidx,
+		ssa.OpS390XMOVBloadidx, ssa.OpS390XMOVHloadidx, ssa.OpS390XMOVWloadidx, ssa.OpS390XMOVDloadidx,
 		ssa.OpS390XMOVHBRloadidx, ssa.OpS390XMOVWBRloadidx, ssa.OpS390XMOVDBRloadidx,
 		ssa.OpS390XFMOVSloadidx, ssa.OpS390XFMOVDloadidx:
 		r := v.Args[0].Reg()
@@ -368,7 +393,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if i == s390x.REGSP {
 			r, i = i, r
 		}
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = r
 		p.From.Scale = 1
@@ -379,7 +404,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpS390XMOVBstore, ssa.OpS390XMOVHstore, ssa.OpS390XMOVWstore, ssa.OpS390XMOVDstore,
 		ssa.OpS390XMOVHBRstore, ssa.OpS390XMOVWBRstore, ssa.OpS390XMOVDBRstore,
 		ssa.OpS390XFMOVSstore, ssa.OpS390XFMOVDstore:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
@@ -393,7 +418,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if i == s390x.REGSP {
 			r, i = i, r
 		}
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
 		p.To.Type = obj.TYPE_MEM
@@ -402,7 +427,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Index = i
 		gc.AddAux(&p.To, v)
 	case ssa.OpS390XMOVDstoreconst, ssa.OpS390XMOVWstoreconst, ssa.OpS390XMOVHstoreconst, ssa.OpS390XMOVBstoreconst:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
 		p.From.Offset = sc.Val()
@@ -411,34 +436,41 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux2(&p.To, v, sc.Off())
 	case ssa.OpS390XMOVBreg, ssa.OpS390XMOVHreg, ssa.OpS390XMOVWreg,
 		ssa.OpS390XMOVBZreg, ssa.OpS390XMOVHZreg, ssa.OpS390XMOVWZreg,
+		ssa.OpS390XLDGR, ssa.OpS390XLGDR,
 		ssa.OpS390XCEFBRA, ssa.OpS390XCDFBRA, ssa.OpS390XCEGBRA, ssa.OpS390XCDGBRA,
 		ssa.OpS390XCFEBRA, ssa.OpS390XCFDBRA, ssa.OpS390XCGEBRA, ssa.OpS390XCGDBRA,
 		ssa.OpS390XLDEBR, ssa.OpS390XLEDBR,
-		ssa.OpS390XFNEG, ssa.OpS390XFNEGS:
-		opregreg(v.Op.Asm(), v.Reg(), v.Args[0].Reg())
+		ssa.OpS390XFNEG, ssa.OpS390XFNEGS,
+		ssa.OpS390XLPDFR, ssa.OpS390XLNDFR:
+		opregreg(s, v.Op.Asm(), v.Reg(), v.Args[0].Reg())
 	case ssa.OpS390XCLEAR:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
 		p.From.Offset = sc.Val()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux2(&p.To, v, sc.Off())
-	case ssa.OpCopy, ssa.OpS390XMOVDconvert:
+	case ssa.OpCopy, ssa.OpS390XMOVDreg:
 		if v.Type.IsMemory() {
 			return
 		}
 		x := v.Args[0].Reg()
 		y := v.Reg()
 		if x != y {
-			opregreg(moveByType(v.Type), y, x)
+			opregreg(s, moveByType(v.Type), y, x)
 		}
+	case ssa.OpS390XMOVDnop:
+		if v.Reg() != v.Args[0].Reg() {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
+		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("load flags not implemented: %v", v.LongString())
 			return
 		}
-		p := gc.Prog(loadByType(v.Type))
+		p := s.Prog(loadByType(v.Type))
 		gc.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -447,84 +479,53 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			v.Fatalf("store flags not implemented: %v", v.LongString())
 			return
 		}
-		p := gc.Prog(storeByType(v.Type))
+		p := s.Prog(storeByType(v.Type))
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		gc.AddrAuto(&p.To, v)
-	case ssa.OpPhi:
-		gc.CheckLoweredPhi(v)
-	case ssa.OpInitMem:
-		// memory arg needs no code
-	case ssa.OpArg:
-		// input args need no code
 	case ssa.OpS390XLoweredGetClosurePtr:
 		// Closure pointer is R12 (already)
 		gc.CheckLoweredGetClosurePtr(v)
+	case ssa.OpS390XLoweredRound32F, ssa.OpS390XLoweredRound64F:
+		// input is already rounded
 	case ssa.OpS390XLoweredGetG:
 		r := v.Reg()
-		p := gc.Prog(s390x.AMOVD)
+		p := s.Prog(s390x.AMOVD)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = s390x.REGG
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpS390XCALLstatic:
-		if v.Aux.(*gc.Sym) == gc.Deferreturn.Sym {
-			// Deferred calls will appear to be returning to
-			// the CALL deferreturn(SB) that we are about to emit.
-			// However, the stack trace code will show the line
-			// of the instruction byte before the return PC.
-			// To avoid that being an unrelated instruction,
-			// insert an actual hardware NOP that will have the right line number.
-			// This is different from obj.ANOP, which is a virtual no-op
-			// that doesn't make it into the instruction stream.
-			ginsnop()
-		}
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Linksym(v.Aux.(*gc.Sym))
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
-	case ssa.OpS390XCALLclosure:
-		p := gc.Prog(obj.ACALL)
+	case ssa.OpS390XLoweredGetCallerSP:
+		// caller's SP is FixedFrameSize below the address of the first arg
+		p := s.Prog(s390x.AMOVD)
+		p.From.Type = obj.TYPE_ADDR
+		p.From.Offset = -gc.Ctxt.FixedFrameSize()
+		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Args[0].Reg()
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
-	case ssa.OpS390XCALLdefer:
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Linksym(gc.Deferproc.Sym)
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
-	case ssa.OpS390XCALLgo:
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Linksym(gc.Newproc.Sym)
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
-	case ssa.OpS390XCALLinter:
-		p := gc.Prog(obj.ACALL)
+		p.To.Reg = v.Reg()
+	case ssa.OpS390XLoweredGetCallerPC:
+		p := s.Prog(obj.AGETCALLERPC)
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Args[0].Reg()
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
-	case ssa.OpS390XFLOGR, ssa.OpS390XNEG, ssa.OpS390XNEGW,
+		p.To.Reg = v.Reg()
+	case ssa.OpS390XCALLstatic, ssa.OpS390XCALLclosure, ssa.OpS390XCALLinter:
+		s.Call(v)
+	case ssa.OpS390XLoweredWB:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = v.Aux.(*obj.LSym)
+	case ssa.OpS390XFLOGR, ssa.OpS390XPOPCNT,
+		ssa.OpS390XNEG, ssa.OpS390XNEGW,
 		ssa.OpS390XMOVWBR, ssa.OpS390XMOVDBR:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpS390XNOT, ssa.OpS390XNOTW:
 		v.Fatalf("NOT/NOTW generated %s", v.LongString())
+	case ssa.OpS390XSumBytes2, ssa.OpS390XSumBytes4, ssa.OpS390XSumBytes8:
+		v.Fatalf("SumBytes generated %s", v.LongString())
 	case ssa.OpS390XMOVDEQ, ssa.OpS390XMOVDNE,
 		ssa.OpS390XMOVDLT, ssa.OpS390XMOVDLE,
 		ssa.OpS390XMOVDGT, ssa.OpS390XMOVDGE,
@@ -533,29 +534,17 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if r != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpS390XFSQRT:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpSP, ssa.OpSB:
-		// nothing to do
-	case ssa.OpSelect0, ssa.OpSelect1:
-		// nothing to do
-	case ssa.OpVarDef:
-		gc.Gvardef(v.Aux.(*gc.Node))
-	case ssa.OpVarKill:
-		gc.Gvarkill(v.Aux.(*gc.Node))
-	case ssa.OpVarLive:
-		gc.Gvarlive(v.Aux.(*gc.Node))
-	case ssa.OpKeepAlive:
-		gc.KeepAlive(v)
 	case ssa.OpS390XInvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
 	case ssa.OpS390XFlagEQ, ssa.OpS390XFlagLT, ssa.OpS390XFlagGT:
@@ -564,27 +553,28 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		v.Fatalf("AddTupleFirst* should never make it to codegen %v", v.LongString())
 	case ssa.OpS390XLoweredNilCheck:
 		// Issue a load which will fault if the input is nil.
-		p := gc.Prog(s390x.AMOVBZ)
+		p := s.Prog(s390x.AMOVBZ)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = s390x.REGTMP
-		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
-			gc.Warnl(v.Line, "generated nil check")
+		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+			gc.Warnl(v.Pos, "generated nil check")
 		}
 	case ssa.OpS390XMVC:
 		vo := v.AuxValAndOff()
-		p := gc.Prog(s390x.AMVC)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = v.Args[1].Reg()
-		p.From.Offset = vo.Off()
+		p := s.Prog(s390x.AMVC)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = vo.Val()
+		p.SetFrom3(obj.Addr{
+			Type:   obj.TYPE_MEM,
+			Reg:    v.Args[1].Reg(),
+			Offset: vo.Off(),
+		})
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		p.To.Offset = vo.Off()
-		p.From3 = new(obj.Addr)
-		p.From3.Type = obj.TYPE_CONST
-		p.From3.Offset = vo.Val()
 	case ssa.OpS390XSTMG2, ssa.OpS390XSTMG3, ssa.OpS390XSTMG4,
 		ssa.OpS390XSTM2, ssa.OpS390XSTM3, ssa.OpS390XSTM4:
 		for i := 2; i < len(v.Args)-1; i++ {
@@ -592,7 +582,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				v.Fatalf("invalid store multiple %s", v.LongString())
 			}
 		}
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.Reg = v.Args[len(v.Args)-2].Reg()
@@ -611,17 +601,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		//      BNE  mvc
 		//      MVC  $rem, 0(R2), 0(R1) // if rem > 0
 		// arg2 is the last address to move in the loop + 256
-		mvc := gc.Prog(s390x.AMVC)
-		mvc.From.Type = obj.TYPE_MEM
-		mvc.From.Reg = v.Args[1].Reg()
+		mvc := s.Prog(s390x.AMVC)
+		mvc.From.Type = obj.TYPE_CONST
+		mvc.From.Offset = 256
+		mvc.SetFrom3(obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()})
 		mvc.To.Type = obj.TYPE_MEM
 		mvc.To.Reg = v.Args[0].Reg()
-		mvc.From3 = new(obj.Addr)
-		mvc.From3.Type = obj.TYPE_CONST
-		mvc.From3.Offset = 256
 
 		for i := 0; i < 2; i++ {
-			movd := gc.Prog(s390x.AMOVD)
+			movd := s.Prog(s390x.AMOVD)
 			movd.From.Type = obj.TYPE_ADDR
 			movd.From.Reg = v.Args[i].Reg()
 			movd.From.Offset = 256
@@ -629,25 +617,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			movd.To.Reg = v.Args[i].Reg()
 		}
 
-		cmpu := gc.Prog(s390x.ACMPU)
+		cmpu := s.Prog(s390x.ACMPU)
 		cmpu.From.Reg = v.Args[1].Reg()
 		cmpu.From.Type = obj.TYPE_REG
 		cmpu.To.Reg = v.Args[2].Reg()
 		cmpu.To.Type = obj.TYPE_REG
 
-		bne := gc.Prog(s390x.ABLT)
+		bne := s.Prog(s390x.ABLT)
 		bne.To.Type = obj.TYPE_BRANCH
 		gc.Patch(bne, mvc)
 
 		if v.AuxInt > 0 {
-			mvc := gc.Prog(s390x.AMVC)
-			mvc.From.Type = obj.TYPE_MEM
-			mvc.From.Reg = v.Args[1].Reg()
+			mvc := s.Prog(s390x.AMVC)
+			mvc.From.Type = obj.TYPE_CONST
+			mvc.From.Offset = v.AuxInt
+			mvc.SetFrom3(obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[1].Reg()})
 			mvc.To.Type = obj.TYPE_MEM
 			mvc.To.Reg = v.Args[0].Reg()
-			mvc.From3 = new(obj.Addr)
-			mvc.From3.Type = obj.TYPE_CONST
-			mvc.From3.Offset = v.AuxInt
 		}
 	case ssa.OpS390XLoweredZero:
 		// Input must be valid pointers to memory,
@@ -660,52 +646,52 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		//        BNE   clear
 		//        CLEAR $rem, 0(R1) // if rem > 0
 		// arg1 is the last address to zero in the loop + 256
-		clear := gc.Prog(s390x.ACLEAR)
+		clear := s.Prog(s390x.ACLEAR)
 		clear.From.Type = obj.TYPE_CONST
 		clear.From.Offset = 256
 		clear.To.Type = obj.TYPE_MEM
 		clear.To.Reg = v.Args[0].Reg()
 
-		movd := gc.Prog(s390x.AMOVD)
+		movd := s.Prog(s390x.AMOVD)
 		movd.From.Type = obj.TYPE_ADDR
 		movd.From.Reg = v.Args[0].Reg()
 		movd.From.Offset = 256
 		movd.To.Type = obj.TYPE_REG
 		movd.To.Reg = v.Args[0].Reg()
 
-		cmpu := gc.Prog(s390x.ACMPU)
+		cmpu := s.Prog(s390x.ACMPU)
 		cmpu.From.Reg = v.Args[0].Reg()
 		cmpu.From.Type = obj.TYPE_REG
 		cmpu.To.Reg = v.Args[1].Reg()
 		cmpu.To.Type = obj.TYPE_REG
 
-		bne := gc.Prog(s390x.ABLT)
+		bne := s.Prog(s390x.ABLT)
 		bne.To.Type = obj.TYPE_BRANCH
 		gc.Patch(bne, clear)
 
 		if v.AuxInt > 0 {
-			clear := gc.Prog(s390x.ACLEAR)
+			clear := s.Prog(s390x.ACLEAR)
 			clear.From.Type = obj.TYPE_CONST
 			clear.From.Offset = v.AuxInt
 			clear.To.Type = obj.TYPE_MEM
 			clear.To.Reg = v.Args[0].Reg()
 		}
 	case ssa.OpS390XMOVWZatomicload, ssa.OpS390XMOVDatomicload:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 	case ssa.OpS390XMOVWatomicstore, ssa.OpS390XMOVDatomicstore:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
 	case ssa.OpS390XLAA, ssa.OpS390XLAAG:
-		p := gc.Prog(v.Op.Asm())
+		p := s.Prog(v.Op.Asm())
 		p.Reg = v.Reg0()
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
@@ -721,7 +707,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		//    NOP (so the BNE has somewhere to land)
 
 		// CS{,G} arg1, arg2, arg0
-		cs := gc.Prog(v.Op.Asm())
+		cs := s.Prog(v.Op.Asm())
 		cs.From.Type = obj.TYPE_REG
 		cs.From.Reg = v.Args[1].Reg() // old
 		cs.Reg = v.Args[2].Reg()      // new
@@ -730,25 +716,25 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&cs.To, v)
 
 		// MOVD $0, ret
-		movd := gc.Prog(s390x.AMOVD)
+		movd := s.Prog(s390x.AMOVD)
 		movd.From.Type = obj.TYPE_CONST
 		movd.From.Offset = 0
 		movd.To.Type = obj.TYPE_REG
 		movd.To.Reg = v.Reg0()
 
 		// BNE 2(PC)
-		bne := gc.Prog(s390x.ABNE)
+		bne := s.Prog(s390x.ABNE)
 		bne.To.Type = obj.TYPE_BRANCH
 
 		// MOVD $1, ret
-		movd = gc.Prog(s390x.AMOVD)
+		movd = s.Prog(s390x.AMOVD)
 		movd.From.Type = obj.TYPE_CONST
 		movd.From.Offset = 1
 		movd.To.Type = obj.TYPE_REG
 		movd.To.Reg = v.Reg0()
 
 		// NOP (so the BNE has somewhere to land)
-		nop := gc.Prog(obj.ANOP)
+		nop := s.Prog(obj.ANOP)
 		gc.Patch(bne, nop)
 	case ssa.OpS390XLoweredAtomicExchange32, ssa.OpS390XLoweredAtomicExchange64:
 		// Loop until the CS{,G} succeeds.
@@ -757,7 +743,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		//     BNE       cs
 
 		// MOV{WZ,D} arg0, ret
-		load := gc.Prog(loadByType(v.Type.FieldType(0)))
+		load := s.Prog(loadByType(v.Type.FieldType(0)))
 		load.From.Type = obj.TYPE_MEM
 		load.From.Reg = v.Args[0].Reg()
 		load.To.Type = obj.TYPE_REG
@@ -765,7 +751,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&load.From, v)
 
 		// CS{,G} ret, arg1, arg0
-		cs := gc.Prog(v.Op.Asm())
+		cs := s.Prog(v.Op.Asm())
 		cs.From.Type = obj.TYPE_REG
 		cs.From.Reg = v.Reg0()   // old
 		cs.Reg = v.Args[1].Reg() // new
@@ -774,9 +760,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&cs.To, v)
 
 		// BNE cs
-		bne := gc.Prog(s390x.ABNE)
+		bne := s.Prog(s390x.ABNE)
 		bne.To.Type = obj.TYPE_BRANCH
 		gc.Patch(bne, cs)
+	case ssa.OpClobber:
+		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())
 	}
@@ -796,12 +784,10 @@ var blockJump = [...]struct {
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
-	s.SetLineno(b.Line)
-
 	switch b.Kind {
 	case ssa.BlockPlain:
 		if b.Succs[0].Block() != next {
-			p := gc.Prog(s390x.ABR)
+			p := s.Prog(s390x.ABR)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
@@ -809,52 +795,46 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		// defer returns in R3:
 		// 0 if we should continue executing
 		// 1 if we should jump to deferreturn call
-		p := gc.Prog(s390x.ACMPW)
+		p := s.Prog(s390x.ACMPW)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = s390x.REG_R3
 		p.To.Type = obj.TYPE_CONST
 		p.To.Offset = 0
-		p = gc.Prog(s390x.ABNE)
+		p = s.Prog(s390x.ABNE)
 		p.To.Type = obj.TYPE_BRANCH
 		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
 		if b.Succs[0].Block() != next {
-			p := gc.Prog(s390x.ABR)
+			p := s.Prog(s390x.ABR)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
 	case ssa.BlockExit:
-		gc.Prog(obj.AUNDEF) // tell plive.go that we never reach here
+		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 	case ssa.BlockRet:
-		gc.Prog(obj.ARET)
+		s.Prog(obj.ARET)
 	case ssa.BlockRetJmp:
-		p := gc.Prog(s390x.ABR)
+		p := s.Prog(s390x.ABR)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Linksym(b.Aux.(*gc.Sym))
+		p.To.Sym = b.Aux.(*obj.LSym)
 	case ssa.BlockS390XEQ, ssa.BlockS390XNE,
 		ssa.BlockS390XLT, ssa.BlockS390XGE,
 		ssa.BlockS390XLE, ssa.BlockS390XGT,
 		ssa.BlockS390XGEF, ssa.BlockS390XGTF:
 		jmp := blockJump[b.Kind]
-		likely := b.Likely
-		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
-			p = gc.Prog(jmp.invasm)
-			likely *= -1
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+			s.Br(jmp.invasm, b.Succs[1].Block())
 		case b.Succs[1].Block():
-			p = gc.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			p = gc.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-			q := gc.Prog(s390x.ABR)
-			q.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+			if b.Likely != ssa.BranchUnlikely {
+				s.Br(jmp.asm, b.Succs[0].Block())
+				s.Br(s390x.ABR, b.Succs[1].Block())
+			} else {
+				s.Br(jmp.invasm, b.Succs[1].Block())
+				s.Br(s390x.ABR, b.Succs[0].Block())
+			}
 		}
 	default:
 		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())

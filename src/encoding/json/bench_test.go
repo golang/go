@@ -13,9 +13,14 @@ package json
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
+	"reflect"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -82,12 +87,14 @@ func BenchmarkCodeEncoder(b *testing.B) {
 		codeInit()
 		b.StartTimer()
 	}
-	enc := NewEncoder(ioutil.Discard)
-	for i := 0; i < b.N; i++ {
-		if err := enc.Encode(&codeStruct); err != nil {
-			b.Fatal("Encode:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		enc := NewEncoder(ioutil.Discard)
+		for pb.Next() {
+			if err := enc.Encode(&codeStruct); err != nil {
+				b.Fatal("Encode:", err)
+			}
 		}
-	}
+	})
 	b.SetBytes(int64(len(codeJSON)))
 }
 
@@ -97,12 +104,42 @@ func BenchmarkCodeMarshal(b *testing.B) {
 		codeInit()
 		b.StartTimer()
 	}
-	for i := 0; i < b.N; i++ {
-		if _, err := Marshal(&codeStruct); err != nil {
-			b.Fatal("Marshal:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if _, err := Marshal(&codeStruct); err != nil {
+				b.Fatal("Marshal:", err)
+			}
+		}
+	})
+	b.SetBytes(int64(len(codeJSON)))
+}
+
+func benchMarshalBytes(n int) func(*testing.B) {
+	sample := []byte("hello world")
+	// Use a struct pointer, to avoid an allocation when passing it as an
+	// interface parameter to Marshal.
+	v := &struct {
+		Bytes []byte
+	}{
+		bytes.Repeat(sample, (n/len(sample))+1)[:n],
+	}
+	return func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if _, err := Marshal(v); err != nil {
+				b.Fatal("Marshal:", err)
+			}
 		}
 	}
-	b.SetBytes(int64(len(codeJSON)))
+}
+
+func BenchmarkMarshalBytes(b *testing.B) {
+	// 32 fits within encodeState.scratch.
+	b.Run("32", benchMarshalBytes(32))
+	// 256 doesn't fit in encodeState.scratch, but is small enough to
+	// allocate and avoid the slower base64.NewEncoder.
+	b.Run("256", benchMarshalBytes(256))
+	// 4096 is large enough that we want to avoid allocating for it.
+	b.Run("4096", benchMarshalBytes(4096))
 }
 
 func BenchmarkCodeDecoder(b *testing.B) {
@@ -111,20 +148,37 @@ func BenchmarkCodeDecoder(b *testing.B) {
 		codeInit()
 		b.StartTimer()
 	}
-	var buf bytes.Buffer
-	dec := NewDecoder(&buf)
-	var r codeResponse
+	b.RunParallel(func(pb *testing.PB) {
+		var buf bytes.Buffer
+		dec := NewDecoder(&buf)
+		var r codeResponse
+		for pb.Next() {
+			buf.Write(codeJSON)
+			// hide EOF
+			buf.WriteByte('\n')
+			buf.WriteByte('\n')
+			buf.WriteByte('\n')
+			if err := dec.Decode(&r); err != nil {
+				b.Fatal("Decode:", err)
+			}
+		}
+	})
+	b.SetBytes(int64(len(codeJSON)))
+}
+
+func BenchmarkUnicodeDecoder(b *testing.B) {
+	j := []byte(`"\uD83D\uDE01"`)
+	b.SetBytes(int64(len(j)))
+	r := bytes.NewReader(j)
+	dec := NewDecoder(r)
+	var out string
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		buf.Write(codeJSON)
-		// hide EOF
-		buf.WriteByte('\n')
-		buf.WriteByte('\n')
-		buf.WriteByte('\n')
-		if err := dec.Decode(&r); err != nil {
+		if err := dec.Decode(&out); err != nil {
 			b.Fatal("Decode:", err)
 		}
+		r.Seek(0, 0)
 	}
-	b.SetBytes(int64(len(codeJSON)))
 }
 
 func BenchmarkDecoderStream(b *testing.B) {
@@ -155,12 +209,14 @@ func BenchmarkCodeUnmarshal(b *testing.B) {
 		codeInit()
 		b.StartTimer()
 	}
-	for i := 0; i < b.N; i++ {
-		var r codeResponse
-		if err := Unmarshal(codeJSON, &r); err != nil {
-			b.Fatal("Unmarshal:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var r codeResponse
+			if err := Unmarshal(codeJSON, &r); err != nil {
+				b.Fatal("Unmarshal:", err)
+			}
 		}
-	}
+	})
 	b.SetBytes(int64(len(codeJSON)))
 }
 
@@ -170,54 +226,138 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
 		codeInit()
 		b.StartTimer()
 	}
-	var r codeResponse
-	for i := 0; i < b.N; i++ {
-		if err := Unmarshal(codeJSON, &r); err != nil {
-			b.Fatal("Unmarshal:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		var r codeResponse
+		for pb.Next() {
+			if err := Unmarshal(codeJSON, &r); err != nil {
+				b.Fatal("Unmarshal:", err)
+			}
 		}
-	}
+	})
+	// TODO(bcmills): Is there a missing b.SetBytes here?
 }
 
 func BenchmarkUnmarshalString(b *testing.B) {
 	data := []byte(`"hello, world"`)
-	var s string
-
-	for i := 0; i < b.N; i++ {
-		if err := Unmarshal(data, &s); err != nil {
-			b.Fatal("Unmarshal:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		var s string
+		for pb.Next() {
+			if err := Unmarshal(data, &s); err != nil {
+				b.Fatal("Unmarshal:", err)
+			}
 		}
-	}
+	})
 }
 
 func BenchmarkUnmarshalFloat64(b *testing.B) {
-	var f float64
 	data := []byte(`3.14`)
-
-	for i := 0; i < b.N; i++ {
-		if err := Unmarshal(data, &f); err != nil {
-			b.Fatal("Unmarshal:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		var f float64
+		for pb.Next() {
+			if err := Unmarshal(data, &f); err != nil {
+				b.Fatal("Unmarshal:", err)
+			}
 		}
-	}
+	})
 }
 
 func BenchmarkUnmarshalInt64(b *testing.B) {
-	var x int64
 	data := []byte(`3`)
-
-	for i := 0; i < b.N; i++ {
-		if err := Unmarshal(data, &x); err != nil {
-			b.Fatal("Unmarshal:", err)
+	b.RunParallel(func(pb *testing.PB) {
+		var x int64
+		for pb.Next() {
+			if err := Unmarshal(data, &x); err != nil {
+				b.Fatal("Unmarshal:", err)
+			}
 		}
-	}
+	})
 }
 
 func BenchmarkIssue10335(b *testing.B) {
 	b.ReportAllocs()
-	var s struct{}
 	j := []byte(`{"a":{ }}`)
-	for n := 0; n < b.N; n++ {
-		if err := Unmarshal(j, &s); err != nil {
-			b.Fatal(err)
+	b.RunParallel(func(pb *testing.PB) {
+		var s struct{}
+		for pb.Next() {
+			if err := Unmarshal(j, &s); err != nil {
+				b.Fatal(err)
+			}
 		}
+	})
+}
+
+func BenchmarkUnmapped(b *testing.B) {
+	b.ReportAllocs()
+	j := []byte(`{"s": "hello", "y": 2, "o": {"x": 0}, "a": [1, 99, {"x": 1}]}`)
+	b.RunParallel(func(pb *testing.PB) {
+		var s struct{}
+		for pb.Next() {
+			if err := Unmarshal(j, &s); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
+func BenchmarkTypeFieldsCache(b *testing.B) {
+	var maxTypes int = 1e6
+	if testenv.Builder() != "" {
+		maxTypes = 1e3 // restrict cache sizes on builders
+	}
+
+	// Dynamically generate many new types.
+	types := make([]reflect.Type, maxTypes)
+	fs := []reflect.StructField{{
+		Type:  reflect.TypeOf(""),
+		Index: []int{0},
+	}}
+	for i := range types {
+		fs[0].Name = fmt.Sprintf("TypeFieldsCache%d", i)
+		types[i] = reflect.StructOf(fs)
+	}
+
+	// clearClear clears the cache. Other JSON operations, must not be running.
+	clearCache := func() {
+		fieldCache = sync.Map{}
+	}
+
+	// MissTypes tests the performance of repeated cache misses.
+	// This measures the time to rebuild a cache of size nt.
+	for nt := 1; nt <= maxTypes; nt *= 10 {
+		ts := types[:nt]
+		b.Run(fmt.Sprintf("MissTypes%d", nt), func(b *testing.B) {
+			nc := runtime.GOMAXPROCS(0)
+			for i := 0; i < b.N; i++ {
+				clearCache()
+				var wg sync.WaitGroup
+				for j := 0; j < nc; j++ {
+					wg.Add(1)
+					go func(j int) {
+						for _, t := range ts[(j*len(ts))/nc : ((j+1)*len(ts))/nc] {
+							cachedTypeFields(t)
+						}
+						wg.Done()
+					}(j)
+				}
+				wg.Wait()
+			}
+		})
+	}
+
+	// HitTypes tests the performance of repeated cache hits.
+	// This measures the average time of each cache lookup.
+	for nt := 1; nt <= maxTypes; nt *= 10 {
+		// Pre-warm a cache of size nt.
+		clearCache()
+		for _, t := range types[:nt] {
+			cachedTypeFields(t)
+		}
+		b.Run(fmt.Sprintf("HitTypes%d", nt), func(b *testing.B) {
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					cachedTypeFields(types[0])
+				}
+			})
+		})
 	}
 }

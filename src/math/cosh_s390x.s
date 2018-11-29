@@ -64,7 +64,7 @@ GLOBL coshe6<>+0(SB), RODATA, $8
 TEXT ·coshAsm(SB),NOSPLIT,$0-16
 	FMOVD   x+0(FP), F0
 	MOVD    $coshrodataL23<>+0(SB), R9
-	WORD    $0xB3120000     //ltdbr %f0,%f0
+	LTDBR	F0, F0
 	MOVD    $0x4086000000000000, R2
 	MOVD    $0x4086000000000000, R3
 	BLTU    L19
@@ -109,7 +109,7 @@ L14:
 	FMOVD   0(R1), F3
 	WFMADB  V1, V7, V3, V7
 	FNEG    F2, F3
-	WORD    $0xB3CD0015     //lgdr %r1,%f5
+	LGDR    F5, R1
 	MOVD    $coshe2<>+0(SB), R3
 	WFCEDBS V4, V0, V0
 	FMOVD   0(R3), F5
@@ -127,15 +127,15 @@ L14:
 	MOVD    $coshtab<>+0(SB), R3
 	WFMADB  V3, V6, V1, V6
 	WORD    $0x68043000     //ld    %f0,0(%r4,%r3)
-	FMSUB   F0, F3, F2, F2
+	FMSUB   F0, F3, F2
 	WORD    $0xA71AF000     //ahi   %r1,-4096
 	WFMADB  V2, V6, V0, V6
 L17:
 	WORD    $0xEC21000F     //risbgn %r2,%r1,64-64+0,64-64+0+16-1,64-0-16
 	BYTE    $0x30
 	BYTE    $0x59
-	WORD    $0xB3C10022     //ldgr %f2,%r2
-	FMADD   F2, F6, F2, F2
+	LDGR    R2, F2
+	FMADD   F2, F6, F2
 	MOVD    $coshx4ff<>+0(SB), R1
 	FMOVD   0(R1), F0
 	FMUL    F2, F0
@@ -153,7 +153,7 @@ L20:
 	FMOVD   coshrodataL23<>+8(SB), F4
 	FADD    F3, F2
 	MOVD    $coshe6<>+0(SB), R1
-	FMSUB   F4, F2, F0, F0
+	FMSUB   F4, F2, F0
 	FMOVD   0(R1), F6
 	WFMDB   V0, V0, V1
 	MOVD    $coshe4<>+0(SB), R1
@@ -161,7 +161,7 @@ L20:
 	MOVD    $coshe5<>+0(SB), R1
 	FMOVD   coshrodataL23<>+0(SB), F5
 	WFMADB  V1, V6, V4, V6
-	FMADD   F5, F2, F0, F0
+	FMADD   F5, F2, F0
 	FMOVD   0(R1), F2
 	MOVD    $coshe3<>+0(SB), R1
 	FMOVD   0(R1), F4
@@ -173,7 +173,7 @@ L20:
 	MOVD    $coshe1<>+0(SB), R1
 	FMOVD   0(R1), F5
 	WFMADB  V1, V2, V5, V1
-	WORD    $0xB3CD0013     //lgdr  %r1,%f3
+	LGDR    F3, R1
 	MOVD    $coshtab<>+0(SB), R5
 	WFMADB  V4, V6, V1, V3
 	WORD    $0xEC4139BC     //risbg %r4,%r1,57,128+60,3
@@ -183,13 +183,13 @@ L20:
 	WORD    $0x68145000     //ld %f1,0(%r4,%r5)
 	WFMSDB  V4, V1, V0, V2
 	WORD    $0xA7487FBE     //lhi %r4,32702
-	FMADD   F3, F2, F1, F1
+	FMADD   F3, F2, F1
 	SUBW    R1, R4
 	WORD    $0xECC439BC     //risbg %r12,%r4,57,128+60,3
 	BYTE    $0x03
 	BYTE    $0x55
 	WORD    $0x682C5000     //ld %f2,0(%r12,%r5)
-	FMSUB   F2, F4, F0, F0
+	FMSUB   F2, F4, F0
 	WORD    $0xEC21000F     //risbgn %r2,%r1,64-64+0,64-64+0+16-1,64-0-16
 	BYTE    $0x30
 	BYTE    $0x59
@@ -197,10 +197,10 @@ L20:
 	WORD    $0xEC34000F     //risbgn %r3,%r4,64-64+0,64-64+0+16-1,64-0-16
 	BYTE    $0x30
 	BYTE    $0x59
-	WORD    $0xB3C10022     //ldgr %f2,%r2
-	WORD    $0xB3C10003     //ldgr %f0,%r3
-	FMADD   F2, F1, F2, F2
-	FMADD   F0, F6, F0, F0
+	LDGR    R2, F2
+	LDGR    R3, F0
+	FMADD   F2, F1, F2
+	FMADD   F0, F6, F0
 	FADD    F2, F0
 	FMOVD   F0, ret+8(FP)
 	RET
@@ -214,7 +214,7 @@ L22:
 	BYTE    $0x03
 	BYTE    $0x55
 	WORD    $0x68034000     //ld %f0,0(%r3,%r4)
-	FMSUB   F0, F3, F2, F2
+	FMSUB   F0, F3, F2
 	WORD    $0xA7386FBE     //lhi %r3,28606
 	WFMADB  V2, V6, V0, V6
 	SUBW    R1, R3, R1

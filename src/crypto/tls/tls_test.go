@@ -7,19 +7,18 @@ package tls
 import (
 	"bytes"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"math"
-	"math/rand"
 	"net"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
-	"testing/quick"
 	"time"
 )
 
@@ -254,6 +253,9 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 	}()
 
 	clientConfig := testConfig.Clone()
+	// In TLS 1.3, alerts are encrypted and disguised as application data, so
+	// the opportunistic peek won't work.
+	clientConfig.MaxVersion = VersionTLS12
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
 		t.Fatal(err)
@@ -299,6 +301,7 @@ func TestTLSUniqueMatches(t *testing.T) {
 				return
 			}
 			serverConfig := testConfig.Clone()
+			serverConfig.MaxVersion = VersionTLS12 // TLSUnique is not defined in TLS 1.3
 			srv := Server(sconn, serverConfig)
 			if err := srv.Handshake(); err != nil {
 				t.Error(err)
@@ -353,19 +356,22 @@ func TestVerifyHostname(t *testing.T) {
 	if err := c.VerifyHostname("www.google.com"); err == nil {
 		t.Fatalf("verify www.google.com succeeded with InsecureSkipVerify=true")
 	}
-	if err := c.VerifyHostname("www.yahoo.com"); err == nil {
-		t.Fatalf("verify www.google.com succeeded with InsecureSkipVerify=true")
-	}
 }
 
 func TestVerifyHostnameResumed(t *testing.T) {
+	t.Run("TLSv12", func(t *testing.T) { testVerifyHostnameResumed(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testVerifyHostnameResumed(t, VersionTLS13) })
+}
+
+func testVerifyHostnameResumed(t *testing.T, version uint16) {
 	testenv.MustHaveExternalNetwork(t)
 
 	config := &Config{
+		MaxVersion:         version,
 		ClientSessionCache: NewLRUClientSessionCache(32),
 	}
 	for i := 0; i < 2; i++ {
-		c, err := Dial("tcp", "www.google.com:https", config)
+		c, err := Dial("tcp", "mail.google.com:https", config)
 		if err != nil {
 			t.Fatalf("Dial #%d: %v", i, err)
 		}
@@ -373,11 +379,21 @@ func TestVerifyHostnameResumed(t *testing.T) {
 		if i > 0 && !cs.DidResume {
 			t.Fatalf("Subsequent connection unexpectedly didn't resume")
 		}
+		if cs.Version != version {
+			t.Fatalf("Unexpectedly negotiated version %x", cs.Version)
+		}
 		if cs.VerifiedChains == nil {
 			t.Fatalf("Dial #%d: cs.VerifiedChains == nil", i)
 		}
-		if err := c.VerifyHostname("www.google.com"); err != nil {
-			t.Fatalf("verify www.google.com #%d: %v", i, err)
+		if err := c.VerifyHostname("mail.google.com"); err != nil {
+			t.Fatalf("verify mail.google.com #%d: %v", i, err)
+		}
+		// Give the client a chance to read the server session tickets.
+		c.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+		if _, err := c.Read(make([]byte, 1)); err != nil {
+			if err, ok := err.(net.Error); !ok || !err.Timeout() {
+				t.Fatal(err)
+			}
 		}
 		c.Close()
 	}
@@ -568,11 +584,103 @@ func TestConnCloseWrite(t *testing.T) {
 	}
 }
 
-func TestClone(t *testing.T) {
+func TestWarningAlertFlood(t *testing.T) {
+	ln := newLocalListener(t)
+	defer ln.Close()
+
+	server := func() error {
+		sconn, err := ln.Accept()
+		if err != nil {
+			return fmt.Errorf("accept: %v", err)
+		}
+		defer sconn.Close()
+
+		serverConfig := testConfig.Clone()
+		srv := Server(sconn, serverConfig)
+		if err := srv.Handshake(); err != nil {
+			return fmt.Errorf("handshake: %v", err)
+		}
+		defer srv.Close()
+
+		_, err = ioutil.ReadAll(srv)
+		if err == nil {
+			return errors.New("unexpected lack of error from server")
+		}
+		const expected = "too many ignored"
+		if str := err.Error(); !strings.Contains(str, expected) {
+			return fmt.Errorf("expected error containing %q, but saw: %s", expected, str)
+		}
+
+		return nil
+	}
+
+	errChan := make(chan error, 1)
+	go func() { errChan <- server() }()
+
+	clientConfig := testConfig.Clone()
+	clientConfig.MaxVersion = VersionTLS12 // there are no warning alerts in TLS 1.3
+	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if err := conn.Handshake(); err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < maxUselessRecords+1; i++ {
+		conn.sendAlert(alertNoRenegotiation)
+	}
+
+	if err := <-errChan; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCloneFuncFields(t *testing.T) {
+	const expectedCount = 5
+	called := 0
+
+	c1 := Config{
+		Time: func() time.Time {
+			called |= 1 << 0
+			return time.Time{}
+		},
+		GetCertificate: func(*ClientHelloInfo) (*Certificate, error) {
+			called |= 1 << 1
+			return nil, nil
+		},
+		GetClientCertificate: func(*CertificateRequestInfo) (*Certificate, error) {
+			called |= 1 << 2
+			return nil, nil
+		},
+		GetConfigForClient: func(*ClientHelloInfo) (*Config, error) {
+			called |= 1 << 3
+			return nil, nil
+		},
+		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			called |= 1 << 4
+			return nil
+		},
+	}
+
+	c2 := c1.Clone()
+
+	c2.Time()
+	c2.GetCertificate(nil)
+	c2.GetClientCertificate(nil)
+	c2.GetConfigForClient(nil)
+	c2.VerifyPeerCertificate(nil, nil)
+
+	if called != (1<<expectedCount)-1 {
+		t.Fatalf("expected %d calls but saw calls %b", expectedCount, called)
+	}
+}
+
+func TestCloneNonFuncFields(t *testing.T) {
 	var c1 Config
 	v := reflect.ValueOf(&c1).Elem()
 
-	rnd := rand.New(rand.NewSource(time.Now().Unix()))
 	typ := v.Type()
 	for i := 0; i < typ.NumField(); i++ {
 		f := v.Field(i)
@@ -581,40 +689,49 @@ func TestClone(t *testing.T) {
 			continue
 		}
 
-		// testing/quick can't handle functions or interfaces.
-		fn := typ.Field(i).Name
-		switch fn {
+		// testing/quick can't handle functions or interfaces and so
+		// isn't used here.
+		switch fn := typ.Field(i).Name; fn {
 		case "Rand":
 			f.Set(reflect.ValueOf(io.Reader(os.Stdin)))
-			continue
 		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "GetClientCertificate":
-			// DeepEqual can't compare functions.
-			continue
+			// DeepEqual can't compare functions. If you add a
+			// function field to this list, you must also change
+			// TestCloneFuncFields to ensure that the func field is
+			// cloned.
 		case "Certificates":
 			f.Set(reflect.ValueOf([]Certificate{
 				{Certificate: [][]byte{{'b'}}},
 			}))
-			continue
 		case "NameToCertificate":
 			f.Set(reflect.ValueOf(map[string]*Certificate{"a": nil}))
-			continue
 		case "RootCAs", "ClientCAs":
 			f.Set(reflect.ValueOf(x509.NewCertPool()))
-			continue
 		case "ClientSessionCache":
 			f.Set(reflect.ValueOf(NewLRUClientSessionCache(10)))
-			continue
 		case "KeyLogWriter":
 			f.Set(reflect.ValueOf(io.Writer(os.Stdout)))
-			continue
-
+		case "NextProtos":
+			f.Set(reflect.ValueOf([]string{"a", "b"}))
+		case "ServerName":
+			f.Set(reflect.ValueOf("b"))
+		case "ClientAuth":
+			f.Set(reflect.ValueOf(VerifyClientCertIfGiven))
+		case "InsecureSkipVerify", "SessionTicketsDisabled", "DynamicRecordSizingDisabled", "PreferServerCipherSuites":
+			f.Set(reflect.ValueOf(true))
+		case "MinVersion", "MaxVersion":
+			f.Set(reflect.ValueOf(uint16(VersionTLS12)))
+		case "SessionTicketKey":
+			f.Set(reflect.ValueOf([32]byte{}))
+		case "CipherSuites":
+			f.Set(reflect.ValueOf([]uint16{1, 2}))
+		case "CurvePreferences":
+			f.Set(reflect.ValueOf([]CurveID{CurveP256}))
+		case "Renegotiation":
+			f.Set(reflect.ValueOf(RenegotiateOnceAsClient))
+		default:
+			t.Errorf("all fields must be accounted for, but saw unknown field %q", fn)
 		}
-
-		q, ok := quick.Value(f.Type(), rnd)
-		if !ok {
-			t.Fatalf("quick.Value failed on field %s", fn)
-		}
-		f.Set(q)
 	}
 
 	c2 := c1.Clone()
@@ -650,7 +767,7 @@ func (w *changeImplConn) Close() error {
 	return w.Conn.Close()
 }
 
-func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool) {
+func throughput(b *testing.B, version uint16, totalBytes int64, dynamicRecordSizingDisabled bool) {
 	ln := newLocalListener(b)
 	defer ln.Close()
 
@@ -686,6 +803,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 	clientConfig := testConfig.Clone()
 	clientConfig.CipherSuites = nil // the defaults may prefer faster ciphers
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+	clientConfig.MaxVersion = version
 
 	buf := make([]byte, bufsize)
 	chunks := int(math.Ceil(float64(totalBytes) / float64(len(buf))))
@@ -713,7 +831,12 @@ func BenchmarkThroughput(b *testing.B) {
 		for size := 1; size <= 64; size <<= 1 {
 			name := fmt.Sprintf("%sPacket/%dMB", mode, size)
 			b.Run(name, func(b *testing.B) {
-				throughput(b, int64(size<<20), mode == "Max")
+				b.Run("TLSv12", func(b *testing.B) {
+					throughput(b, VersionTLS12, int64(size<<20), mode == "Max")
+				})
+				b.Run("TLSv13", func(b *testing.B) {
+					throughput(b, VersionTLS13, int64(size<<20), mode == "Max")
+				})
 			})
 		}
 	}
@@ -747,7 +870,7 @@ func (c *slowConn) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
+func latency(b *testing.B, version uint16, bps int, dynamicRecordSizingDisabled bool) {
 	ln := newLocalListener(b)
 	defer ln.Close()
 
@@ -773,6 +896,7 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
 
 	clientConfig := testConfig.Clone()
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+	clientConfig.MaxVersion = version
 
 	buf := make([]byte, 16384)
 	peek := make([]byte, 1)
@@ -804,8 +928,184 @@ func BenchmarkLatency(b *testing.B) {
 		for _, kbps := range []int{200, 500, 1000, 2000, 5000} {
 			name := fmt.Sprintf("%sPacket/%dkbps", mode, kbps)
 			b.Run(name, func(b *testing.B) {
-				latency(b, kbps*1000, mode == "Max")
+				b.Run("TLSv12", func(b *testing.B) {
+					latency(b, VersionTLS12, kbps*1000, mode == "Max")
+				})
+				b.Run("TLSv13", func(b *testing.B) {
+					latency(b, VersionTLS13, kbps*1000, mode == "Max")
+				})
 			})
 		}
+	}
+}
+
+func TestConnectionStateMarshal(t *testing.T) {
+	cs := &ConnectionState{}
+	_, err := json.Marshal(cs)
+	if err != nil {
+		t.Errorf("json.Marshal failed on ConnectionState: %v", err)
+	}
+}
+
+func TestConnectionState(t *testing.T) {
+	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	if err != nil {
+		panic(err)
+	}
+	rootCAs := x509.NewCertPool()
+	rootCAs.AddCert(issuer)
+
+	now := func() time.Time { return time.Unix(1476984729, 0) }
+
+	const alpnProtocol = "golang"
+	const serverName = "example.golang"
+	var scts = [][]byte{[]byte("dummy sct 1"), []byte("dummy sct 2")}
+	var ocsp = []byte("dummy ocsp")
+
+	for _, v := range []uint16{VersionTLS12, VersionTLS13} {
+		var name string
+		switch v {
+		case VersionTLS12:
+			name = "TLSv12"
+		case VersionTLS13:
+			name = "TLSv13"
+		}
+		t.Run(name, func(t *testing.T) {
+			config := &Config{
+				Time:         now,
+				Rand:         zeroSource{},
+				Certificates: make([]Certificate, 1),
+				MaxVersion:   v,
+				RootCAs:      rootCAs,
+				ClientCAs:    rootCAs,
+				ClientAuth:   RequireAndVerifyClientCert,
+				NextProtos:   []string{alpnProtocol},
+				ServerName:   serverName,
+			}
+			config.Certificates[0].Certificate = [][]byte{testRSACertificate}
+			config.Certificates[0].PrivateKey = testRSAPrivateKey
+			config.Certificates[0].SignedCertificateTimestamps = scts
+			config.Certificates[0].OCSPStaple = ocsp
+
+			ss, cs, err := testHandshake(t, config, config)
+			if err != nil {
+				t.Fatalf("Handshake failed: %v", err)
+			}
+
+			if ss.Version != v || cs.Version != v {
+				t.Errorf("Got versions %x (server) and %x (client), expected %x", ss.Version, cs.Version, v)
+			}
+
+			if !ss.HandshakeComplete || !cs.HandshakeComplete {
+				t.Errorf("Got HandshakeComplete %v (server) and %v (client), expected true", ss.HandshakeComplete, cs.HandshakeComplete)
+			}
+
+			if ss.DidResume || cs.DidResume {
+				t.Errorf("Got DidResume %v (server) and %v (client), expected false", ss.DidResume, cs.DidResume)
+			}
+
+			if ss.CipherSuite == 0 || cs.CipherSuite == 0 {
+				t.Errorf("Got invalid cipher suite: %v (server) and %v (client)", ss.CipherSuite, cs.CipherSuite)
+			}
+
+			if ss.NegotiatedProtocol != alpnProtocol || cs.NegotiatedProtocol != alpnProtocol {
+				t.Errorf("Got negotiated protocol %q (server) and %q (client), expected %q", ss.NegotiatedProtocol, cs.NegotiatedProtocol, alpnProtocol)
+			}
+
+			if !cs.NegotiatedProtocolIsMutual {
+				t.Errorf("Got false NegotiatedProtocolIsMutual on the client side")
+			}
+			// NegotiatedProtocolIsMutual on the server side is unspecified.
+
+			if ss.ServerName != serverName {
+				t.Errorf("Got server name %q, expected %q", ss.ServerName, serverName)
+			}
+			if cs.ServerName != "" {
+				t.Errorf("Got unexpected server name on the client side")
+			}
+
+			if len(ss.PeerCertificates) != 1 || len(cs.PeerCertificates) != 1 {
+				t.Errorf("Got %d (server) and %d (client) peer certificates, expected %d", len(ss.PeerCertificates), len(cs.PeerCertificates), 1)
+			}
+
+			if len(ss.VerifiedChains) != 1 || len(cs.VerifiedChains) != 1 {
+				t.Errorf("Got %d (server) and %d (client) verified chains, expected %d", len(ss.VerifiedChains), len(cs.VerifiedChains), 1)
+			} else if len(ss.VerifiedChains[0]) != 2 || len(cs.VerifiedChains[0]) != 2 {
+				t.Errorf("Got %d (server) and %d (client) long verified chain, expected %d", len(ss.VerifiedChains[0]), len(cs.VerifiedChains[0]), 2)
+			}
+
+			if len(cs.SignedCertificateTimestamps) != 2 {
+				t.Errorf("Got %d SCTs, expected %d", len(cs.SignedCertificateTimestamps), 2)
+			}
+			if !bytes.Equal(cs.OCSPResponse, ocsp) {
+				t.Errorf("Got OCSPs %x, expected %x", cs.OCSPResponse, ocsp)
+			}
+			// Only TLS 1.3 supports OCSP and SCTs on client certs.
+			if v == VersionTLS13 {
+				if len(ss.SignedCertificateTimestamps) != 2 {
+					t.Errorf("Got %d client SCTs, expected %d", len(ss.SignedCertificateTimestamps), 2)
+				}
+				if !bytes.Equal(ss.OCSPResponse, ocsp) {
+					t.Errorf("Got client OCSPs %x, expected %x", ss.OCSPResponse, ocsp)
+				}
+			}
+
+			if v == VersionTLS13 {
+				if ss.TLSUnique != nil || cs.TLSUnique != nil {
+					t.Errorf("Got TLSUnique %x (server) and %x (client), expected nil in TLS 1.3", ss.TLSUnique, cs.TLSUnique)
+				}
+			} else {
+				if ss.TLSUnique == nil || cs.TLSUnique == nil {
+					t.Errorf("Got TLSUnique %x (server) and %x (client), expected non-nil", ss.TLSUnique, cs.TLSUnique)
+				}
+			}
+		})
+	}
+}
+
+// TestEscapeRoute tests that the library will still work if support for TLS 1.3
+// is dropped later in the Go 1.12 cycle.
+func TestEscapeRoute(t *testing.T) {
+	defer func(savedSupportedVersions []uint16) {
+		supportedVersions = savedSupportedVersions
+	}(supportedVersions)
+	supportedVersions = []uint16{
+		VersionTLS12,
+		VersionTLS11,
+		VersionTLS10,
+		VersionSSL30,
+	}
+
+	ss, cs, err := testHandshake(t, testConfig, testConfig)
+	if err != nil {
+		t.Fatalf("Handshake failed when support for TLS 1.3 was dropped: %v", err)
+	}
+	if ss.Version != VersionTLS12 {
+		t.Errorf("Server negotiated version %x, expected %x", cs.Version, VersionTLS12)
+	}
+	if cs.Version != VersionTLS12 {
+		t.Errorf("Client negotiated version %x, expected %x", cs.Version, VersionTLS12)
+	}
+}
+
+// Issue 28744: Ensure that we don't modify memory
+// that Config doesn't own such as Certificates.
+func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
+	c0 := Certificate{
+		Certificate: [][]byte{testRSACertificate},
+		PrivateKey:  testRSAPrivateKey,
+	}
+	c1 := Certificate{
+		Certificate: [][]byte{testSNICertificate},
+		PrivateKey:  testRSAPrivateKey,
+	}
+	config := testConfig.Clone()
+	config.Certificates = []Certificate{c0, c1}
+
+	config.BuildNameToCertificate()
+	got := config.Certificates
+	want := []Certificate{c0, c1}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Certificates were mutated by BuildNameToCertificate\nGot: %#v\nWant: %#v\n", got, want)
 	}
 }

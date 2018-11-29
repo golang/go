@@ -7,9 +7,9 @@
 package types
 
 import (
-	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // A MethodSet is an ordered set of concrete or abstract (interface) methods;
@@ -24,7 +24,7 @@ func (s *MethodSet) String() string {
 		return "MethodSet {}"
 	}
 
-	var buf bytes.Buffer
+	var buf strings.Builder
 	fmt.Fprintln(&buf, "MethodSet {")
 	for _, f := range s.list {
 		fmt.Fprintf(&buf, "\t%s\n", f)
@@ -72,24 +72,22 @@ func NewMethodSet(T Type) *MethodSet {
 	var base methodSet
 
 	typ, isPtr := deref(T)
-	named, _ := typ.(*Named)
 
 	// *typ where typ is an interface has no methods.
-	if isPtr {
-		utyp := typ
-		if named != nil {
-			utyp = named.underlying
-		}
-		if _, ok := utyp.(*Interface); ok {
-			return &emptyMethodSet
-		}
+	if isPtr && IsInterface(typ) {
+		return &emptyMethodSet
 	}
 
 	// Start with typ as single entry at shallowest depth.
-	// If typ is not a named type, insert a nil type instead.
-	current := []embeddedType{{named, nil, isPtr, false}}
+	current := []embeddedType{{typ, nil, isPtr, false}}
 
-	// named types that we have seen already, allocated lazily
+	// Named types that we have seen already, allocated lazily.
+	// Used to avoid endless searches in case of recursive types.
+	// Since only Named types can be used for recursive types, we
+	// only need to track those.
+	// (If we ever allow type aliases to construct recursive types,
+	// we must use type identity rather than pointer equality for
+	// the map key comparison, as we do in consolidateMultiples.)
 	var seen map[*Named]bool
 
 	// collect methods at current depth
@@ -101,11 +99,12 @@ func NewMethodSet(T Type) *MethodSet {
 		var mset methodSet
 
 		for _, e := range current {
-			// The very first time only, e.typ may be nil.
-			// In this case, we don't have a named type and
-			// we simply continue with the underlying type.
-			if e.typ != nil {
-				if seen[e.typ] {
+			typ := e.typ
+
+			// If we have a named type, we may have associated methods.
+			// Look for those first.
+			if named, _ := typ.(*Named); named != nil {
+				if seen[named] {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth
 					// were consolidated before). The type at that depth shadows
@@ -116,12 +115,12 @@ func NewMethodSet(T Type) *MethodSet {
 				if seen == nil {
 					seen = make(map[*Named]bool)
 				}
-				seen[e.typ] = true
+				seen[named] = true
 
-				mset = mset.add(e.typ.methods, e.index, e.indirect, e.multiples)
+				mset = mset.add(named.methods, e.index, e.indirect, e.multiples)
 
 				// continue with underlying type
-				typ = e.typ.underlying
+				typ = named.underlying
 			}
 
 			switch t := typ.(type) {
@@ -130,16 +129,15 @@ func NewMethodSet(T Type) *MethodSet {
 					fset = fset.add(f, e.multiples)
 
 					// Embedded fields are always of the form T or *T where
-					// T is a named type. If typ appeared multiple times at
+					// T is a type name. If typ appeared multiple times at
 					// this depth, f.Type appears multiple times at the next
 					// depth.
-					if f.anonymous {
-						// Ignore embedded basic types - only user-defined
-						// named types can have methods or struct fields.
+					if f.embedded {
 						typ, isPtr := deref(f.typ)
-						if t, _ := typ.(*Named); t != nil {
-							next = append(next, embeddedType{t, concat(e.index, i), e.indirect || isPtr, e.multiples})
-						}
+						// TODO(gri) optimization: ignore types that can't
+						// have fields or methods (only Named, Struct, and
+						// Interface types need to be considered).
+						next = append(next, embeddedType{typ, concat(e.index, i), e.indirect || isPtr, e.multiples})
 					}
 				}
 
@@ -192,7 +190,10 @@ func NewMethodSet(T Type) *MethodSet {
 			list = append(list, m)
 		}
 	}
-	sort.Sort(byUniqueName(list))
+	// sort by unique name
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].obj.Id() < list[j].obj.Id()
+	})
 	return &MethodSet{list}
 }
 
@@ -254,15 +255,20 @@ func (s methodSet) add(list []*Func, index []int, indirect bool, multiples bool)
 }
 
 // ptrRecv reports whether the receiver is of the form *T.
-// The receiver must exist.
 func ptrRecv(f *Func) bool {
-	_, isPtr := deref(f.typ.(*Signature).recv.typ)
-	return isPtr
+	// If a method's receiver type is set, use that as the source of truth for the receiver.
+	// Caution: Checker.funcDecl (decl.go) marks a function by setting its type to an empty
+	// signature. We may reach here before the signature is fully set up: we must explicitly
+	// check if the receiver is set (we cannot just look for non-nil f.typ).
+	if sig, _ := f.typ.(*Signature); sig != nil && sig.recv != nil {
+		_, isPtr := deref(sig.recv.typ)
+		return isPtr
+	}
+
+	// If a method's type is not set it may be a method/function that is:
+	// 1) client-supplied (via NewFunc with no signature), or
+	// 2) internally created but not yet type-checked.
+	// For case 1) we can't do anything; the client must know what they are doing.
+	// For case 2) we can use the information gathered by the resolver.
+	return f.hasPtrRecv
 }
-
-// byUniqueName function lists can be sorted by their unique names.
-type byUniqueName []*Selection
-
-func (a byUniqueName) Len() int           { return len(a) }
-func (a byUniqueName) Less(i, j int) bool { return a[i].obj.Id() < a[j].obj.Id() }
-func (a byUniqueName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }

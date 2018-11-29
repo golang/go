@@ -39,5 +39,4 @@ func catchError(err *error) {
 		}
 		*err = ge.err
 	}
-	return
 }

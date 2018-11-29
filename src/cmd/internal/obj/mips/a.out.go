@@ -29,7 +29,9 @@
 
 package mips
 
-import "cmd/internal/obj"
+import (
+	"cmd/internal/obj"
+)
 
 //go:generate go run ../stringer.go -i $GOFILE -o anames.go -p mips
 
@@ -199,6 +201,24 @@ const (
 	FREGRET = REG_F0
 )
 
+// https://llvm.org/svn/llvm-project/llvm/trunk/lib/Target/Mips/MipsRegisterInfo.td search for DwarfRegNum
+// https://gcc.gnu.org/viewcvs/gcc/trunk/gcc/config/mips/mips.c?view=co&revision=258099&content-type=text%2Fplain search for mips_dwarf_regno
+// For now, this is adequate for both 32 and 64 bit.
+var MIPSDWARFRegisters = map[int16]int16{}
+
+func init() {
+	// f assigns dwarfregisters[from:to] = (base):(to-from+base)
+	f := func(from, to, base int16) {
+		for r := int16(from); r <= to; r++ {
+			MIPSDWARFRegisters[r] = (r - from) + base
+		}
+	}
+	f(REG_R0, REG_R31, 0)
+	f(REG_F0, REG_F31, 32) // For 32-bit MIPS, compiler only uses even numbered registers --  see cmd/compile/internal/ssa/gen/MIPSOps.go
+	MIPSDWARFRegisters[REG_HI] = 64
+	MIPSDWARFRegisters[REG_LO] = 65
+}
+
 const (
 	BIG = 32766
 )
@@ -215,11 +235,6 @@ const (
 	NOSCHED = 1 << 7
 
 	NSCHED = 20
-)
-
-const (
-	Mips32 = 32
-	Mips64 = 64
 )
 
 const (
@@ -302,6 +317,7 @@ const (
 	ADIVW
 	AGOK
 	ALL
+	ALLV
 	ALUI
 	AMOVB
 	AMOVBU
@@ -326,12 +342,15 @@ const (
 	ANEGD
 	ANEGF
 	ANEGW
+	ANEGV
+	ANOOP // hardware nop
 	ANOR
 	AOR
 	AREM
 	AREMU
 	ARFE
 	ASC
+	ASCV
 	ASGT
 	ASGTU
 	ASLL

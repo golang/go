@@ -30,3 +30,17 @@ func f1(e interface{}) {
 	default: // ERROR "multiple defaults in switch"
 	}
 }
+
+type I interface {
+	Foo()
+}
+
+type X int
+
+func (*X) Foo() {}
+func f2() {
+	var i I
+	switch i.(type) {
+	case X: // ERROR "impossible type switch case: i \(type I\) cannot have dynamic type X \(Foo method has pointer receiver\)"
+	}
+}

@@ -14,6 +14,10 @@ than binary-rewriting coverage tools, but also a little less capable.
 For instance, it does not probe inside && and || expressions, and can
 be mildly confused by single statements with multiple function literals.
 
+When computing coverage of a package that uses cgo, the cover tool
+must be applied to the output of cgo preprocessing, not the input,
+because cover deletes comments that are significant to cgo.
+
 For usage information, please see:
 	go help testflag
 	go tool cover -help

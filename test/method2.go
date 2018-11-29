@@ -35,3 +35,7 @@ var pv = &v
 
 var _ = pv.val() // ERROR "pv.val undefined"
 var _ = pv.val   // ERROR "pv.val undefined"
+
+func (t *T) g() int { return t.a }
+
+var _ = (T).g() // ERROR "needs pointer receiver|undefined"

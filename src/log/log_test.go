@@ -88,6 +88,17 @@ func TestOutput(t *testing.T) {
 	}
 }
 
+func TestOutputRace(t *testing.T) {
+	var b bytes.Buffer
+	l := New(&b, "", 0)
+	for i := 0; i < 100; i++ {
+		go func() {
+			l.SetFlags(0)
+		}()
+		l.Output(0, "")
+	}
+}
+
 func TestFlagAndPrefixSetting(t *testing.T) {
 	var b bytes.Buffer
 	l := New(&b, "Test:", LstdFlags)
@@ -177,6 +188,16 @@ func BenchmarkPrintln(b *testing.B) {
 	const testString = "test"
 	var buf bytes.Buffer
 	l := New(&buf, "", LstdFlags)
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		l.Println(testString)
+	}
+}
+
+func BenchmarkPrintlnNoFlags(b *testing.B) {
+	const testString = "test"
+	var buf bytes.Buffer
+	l := New(&buf, "", 0)
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		l.Println(testString)

@@ -5,8 +5,10 @@
 package syntax
 
 import (
+	"bytes"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -22,7 +24,7 @@ func TestScanner(t *testing.T) {
 	defer src.Close()
 
 	var s scanner
-	s.init(src, nil, nil)
+	s.init(src, nil, 0)
 	for {
 		s.next()
 		if s.tok == _EOF {
@@ -41,23 +43,23 @@ func TestScanner(t *testing.T) {
 
 func TestTokens(t *testing.T) {
 	// make source
-	var buf []byte
+	var buf bytes.Buffer
 	for i, s := range sampleTokens {
-		buf = append(buf, "\t\t\t\t"[:i&3]...)     // leading indentation
-		buf = append(buf, s.src...)                // token
-		buf = append(buf, "        "[:i&7]...)     // trailing spaces
-		buf = append(buf, "/* foo */ // bar\n"...) // comments
+		buf.WriteString("\t\t\t\t"[:i&3])           // leading indentation
+		buf.WriteString(s.src)                      // token
+		buf.WriteString("        "[:i&7])           // trailing spaces
+		buf.WriteString("/*line foo:1 */ // bar\n") // comments (don't crash w/o directive handler)
 	}
 
 	// scan source
 	var got scanner
-	got.init(&bytesReader{buf}, nil, nil)
+	got.init(&buf, nil, 0)
 	got.next()
 	for i, want := range sampleTokens {
 		nlsemi := false
 
-		if got.line != i+1 {
-			t.Errorf("got line %d; want %d", got.line, i+1)
+		if got.line != uint(i+linebase) {
+			t.Errorf("got line %d; want %d", got.line, i+linebase)
 		}
 
 		if got.tok != want.tok {
@@ -66,6 +68,11 @@ func TestTokens(t *testing.T) {
 		}
 
 		switch want.tok {
+		case _Semi:
+			if got.lit != "semicolon" {
+				t.Errorf("got %s; want semicolon", got.lit)
+			}
+
 		case _Name, _Literal:
 			if got.lit != want.src {
 				t.Errorf("got lit = %q; want %q", got.lit, want.src)
@@ -93,6 +100,9 @@ func TestTokens(t *testing.T) {
 			if got.tok != _Semi {
 				t.Errorf("got tok = %s; want ;", got.tok)
 				continue
+			}
+			if got.lit != "newline" {
+				t.Errorf("got %s; want newline", got.lit)
 			}
 		}
 
@@ -253,93 +263,158 @@ var sampleTokens = [...]struct {
 	{_Var, "var", 0, 0},
 }
 
+func TestComments(t *testing.T) {
+	type comment struct {
+		line, col uint // 0-based
+		text      string
+	}
+
+	for _, test := range []struct {
+		src  string
+		want comment
+	}{
+		// no comments
+		{"no comment here", comment{0, 0, ""}},
+		{" /", comment{0, 0, ""}},
+		{"\n /*/", comment{0, 0, ""}},
+
+		//-style comments
+		{"// line comment\n", comment{0, 0, "// line comment"}},
+		{"package p // line comment\n", comment{0, 10, "// line comment"}},
+		{"//\n//\n\t// want this one\r\n", comment{2, 1, "// want this one\r"}},
+		{"\n\n//\n", comment{2, 0, "//"}},
+		{"//", comment{0, 0, "//"}},
+
+		/*-style comments */
+		{"/* regular comment */", comment{0, 0, "/* regular comment */"}},
+		{"package p /* regular comment", comment{0, 0, ""}},
+		{"\n\n\n/*\n*//* want this one */", comment{4, 2, "/* want this one */"}},
+		{"\n\n/**/", comment{2, 0, "/**/"}},
+		{"/*", comment{0, 0, ""}},
+	} {
+		var s scanner
+		var got comment
+		s.init(strings.NewReader(test.src),
+			func(line, col uint, msg string) {
+				if msg[0] != '/' {
+					// error
+					if msg != "comment not terminated" {
+						t.Errorf("%q: %s", test.src, msg)
+					}
+					return
+				}
+				got = comment{line - linebase, col - colbase, msg} // keep last one
+			}, comments)
+
+		for {
+			s.next()
+			if s.tok == _EOF {
+				break
+			}
+		}
+
+		want := test.want
+		if got.line != want.line || got.col != want.col {
+			t.Errorf("%q: got position %d:%d; want %d:%d", test.src, got.line, got.col, want.line, want.col)
+		}
+		if got.text != want.text {
+			t.Errorf("%q: got %q; want %q", test.src, got.text, want.text)
+		}
+	}
+}
+
 func TestScanErrors(t *testing.T) {
 	for _, test := range []struct {
 		src, msg  string
-		pos, line int
+		line, col uint // 0-based
 	}{
 		// Note: Positions for lexical errors are the earliest position
 		// where the error is apparent, not the beginning of the respective
 		// token.
 
 		// rune-level errors
-		{"fo\x00o", "invalid NUL character", 2, 1},
-		{"foo\n\ufeff bar", "invalid BOM in the middle of the file", 4, 2},
-		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 5, 3},
+		{"fo\x00o", "invalid NUL character", 0, 2},
+		{"foo\n\ufeff bar", "invalid BOM in the middle of the file", 1, 0},
+		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 2, 0},
 
 		// token-level errors
-		{"x + ~y", "bitwise complement operator is ^", 4, 1},
-		{"foo$bar = 0", "illegal character U+0024 '$'", 3, 1},
-		{"const x = 0xyz", "malformed hex constant", 12, 1},
-		{"0123456789", "malformed octal constant", 10, 1},
-		{"0123456789. /* foobar", "comment not terminated", 12, 1},   // valid float constant
-		{"0123456789e0 /*\nfoobar", "comment not terminated", 13, 1}, // valid float constant
-		{"var a, b = 08, 07\n", "malformed octal constant", 13, 1},
-		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 10, 1},
+		{"\u00BD" /* ½ */, "invalid identifier character U+00BD '½'", 0, 0},
+		{"\U0001d736\U0001d737\U0001d738_½" /* 𝜶𝜷𝜸_½ */, "invalid identifier character U+00BD '½'", 0, 13 /* byte offset */},
+		{"\U0001d7d8" /* 𝟘 */, "identifier cannot begin with digit U+1D7D8 '𝟘'", 0, 0},
+		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid identifier character U+00BD '½'", 0, 8 /* byte offset */},
 
-		{`''`, "empty character literal or unescaped ' in character literal", 1, 1},
-		{"'\n", "newline in character literal", 1, 1},
-		{`'\`, "missing '", 2, 1},
-		{`'\'`, "missing '", 3, 1},
-		{`'\x`, "missing '", 3, 1},
-		{`'\x'`, "non-hex character in escape sequence: '", 3, 1},
-		{`'\y'`, "unknown escape sequence", 2, 1},
-		{`'\x0'`, "non-hex character in escape sequence: '", 4, 1},
-		{`'\00'`, "non-octal character in escape sequence: '", 4, 1},
-		{`'\377' /*`, "comment not terminated", 7, 1}, // valid octal escape
-		{`'\378`, "non-octal character in escape sequence: 8", 4, 1},
-		{`'\400'`, "octal escape value > 255: 256", 5, 1},
-		{`'xx`, "missing '", 2, 1},
+		{"x + ~y", "invalid character U+007E '~'", 0, 4},
+		{"foo$bar = 0", "invalid character U+0024 '$'", 0, 3},
+		{"const x = 0xyz", "malformed hex constant", 0, 12},
+		{"0123456789", "malformed octal constant", 0, 10},
+		{"0123456789. /* foobar", "comment not terminated", 0, 12},   // valid float constant
+		{"0123456789e0 /*\nfoobar", "comment not terminated", 0, 13}, // valid float constant
+		{"var a, b = 08, 07\n", "malformed octal constant", 0, 13},
+		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 0, 10},
 
-		{"\"\n", "newline in string", 1, 1},
-		{`"`, "string not terminated", 0, 1},
-		{`"foo`, "string not terminated", 0, 1},
-		{"`", "string not terminated", 0, 1},
-		{"`foo", "string not terminated", 0, 1},
-		{"/*/", "comment not terminated", 0, 1},
-		{"/*\n\nfoo", "comment not terminated", 0, 1},
-		{"/*\n\nfoo", "comment not terminated", 0, 1},
-		{`"\`, "string not terminated", 0, 1},
-		{`"\"`, "string not terminated", 0, 1},
-		{`"\x`, "string not terminated", 0, 1},
-		{`"\x"`, "non-hex character in escape sequence: \"", 3, 1},
-		{`"\y"`, "unknown escape sequence", 2, 1},
-		{`"\x0"`, "non-hex character in escape sequence: \"", 4, 1},
-		{`"\00"`, "non-octal character in escape sequence: \"", 4, 1},
-		{`"\377" /*`, "comment not terminated", 7, 1}, // valid octal escape
-		{`"\378"`, "non-octal character in escape sequence: 8", 4, 1},
-		{`"\400"`, "octal escape value > 255: 256", 5, 1},
+		{`''`, "empty character literal or unescaped ' in character literal", 0, 1},
+		{"'\n", "newline in character literal", 0, 1},
+		{`'\`, "invalid character literal (missing closing ')", 0, 0},
+		{`'\'`, "invalid character literal (missing closing ')", 0, 0},
+		{`'\x`, "invalid character literal (missing closing ')", 0, 0},
+		{`'\x'`, "non-hex character in escape sequence: '", 0, 3},
+		{`'\y'`, "unknown escape sequence", 0, 2},
+		{`'\x0'`, "non-hex character in escape sequence: '", 0, 4},
+		{`'\00'`, "non-octal character in escape sequence: '", 0, 4},
+		{`'\377' /*`, "comment not terminated", 0, 7}, // valid octal escape
+		{`'\378`, "non-octal character in escape sequence: 8", 0, 4},
+		{`'\400'`, "octal escape value > 255: 256", 0, 5},
+		{`'xx`, "invalid character literal (missing closing ')", 0, 0},
+		{`'xx'`, "invalid character literal (more than one character)", 0, 0},
 
-		{`s := "foo\z"`, "unknown escape sequence", 10, 1},
-		{`s := "foo\z00\nbar"`, "unknown escape sequence", 10, 1},
-		{`"\x`, "string not terminated", 0, 1},
-		{`"\x"`, "non-hex character in escape sequence: \"", 3, 1},
-		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 18, 1},
-		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 18, 1},
+		{"\"\n", "newline in string", 0, 1},
+		{`"`, "string not terminated", 0, 0},
+		{`"foo`, "string not terminated", 0, 0},
+		{"`", "string not terminated", 0, 0},
+		{"`foo", "string not terminated", 0, 0},
+		{"/*/", "comment not terminated", 0, 0},
+		{"/*\n\nfoo", "comment not terminated", 0, 0},
+		{`"\`, "string not terminated", 0, 0},
+		{`"\"`, "string not terminated", 0, 0},
+		{`"\x`, "string not terminated", 0, 0},
+		{`"\x"`, "non-hex character in escape sequence: \"", 0, 3},
+		{`"\y"`, "unknown escape sequence", 0, 2},
+		{`"\x0"`, "non-hex character in escape sequence: \"", 0, 4},
+		{`"\00"`, "non-octal character in escape sequence: \"", 0, 4},
+		{`"\377" /*`, "comment not terminated", 0, 7}, // valid octal escape
+		{`"\378"`, "non-octal character in escape sequence: 8", 0, 4},
+		{`"\400"`, "octal escape value > 255: 256", 0, 5},
+
+		{`s := "foo\z"`, "unknown escape sequence", 0, 10},
+		{`s := "foo\z00\nbar"`, "unknown escape sequence", 0, 10},
+		{`"\x`, "string not terminated", 0, 0},
+		{`"\x"`, "non-hex character in escape sequence: \"", 0, 3},
+		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 0, 18},
+		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 0, 18},
 
 		// former problem cases
-		{"package p\n\n\xef", "invalid UTF-8 encoding", 11, 3},
+		{"package p\n\n\xef", "invalid UTF-8 encoding", 2, 0},
 	} {
 		var s scanner
 		nerrors := 0
-		s.init(&bytesReader{[]byte(test.src)}, func(err error) {
+		s.init(strings.NewReader(test.src), func(line, col uint, msg string) {
 			nerrors++
 			// only check the first error
-			e := err.(Error) // we know it's an Error
 			if nerrors == 1 {
-				if e.Msg != test.msg {
-					t.Errorf("%q: got msg = %q; want %q", test.src, e.Msg, test.msg)
+				if msg != test.msg {
+					t.Errorf("%q: got msg = %q; want %q", test.src, msg, test.msg)
 				}
-				if e.Pos != test.pos {
-					t.Errorf("%q: got pos = %d; want %d", test.src, e.Pos, test.pos)
+				if line != test.line+linebase {
+					t.Errorf("%q: got line = %d; want %d", test.src, line, test.line+linebase)
 				}
-				if e.Line != test.line {
-					t.Errorf("%q: got line = %d; want %d", test.src, e.Line, test.line)
+				if col != test.col+colbase {
+					t.Errorf("%q: got col = %d; want %d", test.src, col, test.col+colbase)
 				}
 			} else if nerrors > 1 {
-				t.Errorf("%q: got unexpected %q at pos = %d, line = %d", test.src, e.Msg, e.Pos, e.Line)
+				// TODO(gri) make this use position info
+				t.Errorf("%q: got unexpected %q at line = %d", test.src, msg, line)
 			}
-		}, nil)
+		}, 0)
 
 		for {
 			s.next()
@@ -351,5 +426,17 @@ func TestScanErrors(t *testing.T) {
 		if nerrors == 0 {
 			t.Errorf("%q: got no error; want %q", test.src, test.msg)
 		}
+	}
+}
+
+func TestIssue21938(t *testing.T) {
+	s := "/*" + strings.Repeat(" ", 4089) + "*/ .5"
+
+	var got scanner
+	got.init(strings.NewReader(s), nil, 0)
+	got.next()
+
+	if got.tok != _Literal || got.lit != ".5" {
+		t.Errorf("got %s %q; want %s %q", got.tok, got.lit, _Literal, ".5")
 	}
 }

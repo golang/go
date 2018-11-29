@@ -4,6 +4,24 @@
 
 // Garbage collector: sweeping
 
+// The sweeper consists of two different algorithms:
+//
+// * The object reclaimer finds and frees unmarked slots in spans. It
+//   can free a whole span if none of the objects are marked, but that
+//   isn't its goal. This can be driven either synchronously by
+//   mcentral.cacheSpan for mcentral spans, or asynchronously by
+//   sweepone from the list of all in-use spans in mheap_.sweepSpans.
+//
+// * The span reclaimer looks for spans that contain no marked objects
+//   and frees whole spans. This is a separate algorithm because
+//   freeing whole spans is the hardest task for the object reclaimer,
+//   but is critical when allocating new spans. The entry point for
+//   this is mheap_.reclaim and it's driven by a sequential scan of
+//   the page marks bitmap in the heap arenas.
+//
+// Both algorithms ultimately call mspan.sweep, which sweeps a single
+// heap span.
+
 package runtime
 
 import (
@@ -22,10 +40,6 @@ type sweepdata struct {
 
 	nbgsweep    uint32
 	npausesweep uint32
-
-	// pacertracegen is the sweepgen at which the last pacer trace
-	// "sweep finished" message was printed.
-	pacertracegen uint32
 }
 
 // finishsweep_m ensures that all spans are swept.
@@ -53,15 +67,18 @@ func bgsweep(c chan int) {
 	lock(&sweep.lock)
 	sweep.parked = true
 	c <- 1
-	goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock, 1)
+	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
 
 	for {
-		for gosweepone() != ^uintptr(0) {
+		for sweepone() != ^uintptr(0) {
 			sweep.nbgsweep++
 			Gosched()
 		}
+		for freeSomeWbufs(true) {
+			Gosched()
+		}
 		lock(&sweep.lock)
-		if !gosweepdone() {
+		if !isSweepDone() {
 			// This can happen if a GC runs between
 			// gosweepone returning ^0 above
 			// and the lock being acquired.
@@ -69,66 +86,84 @@ func bgsweep(c chan int) {
 			continue
 		}
 		sweep.parked = true
-		goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock, 1)
+		goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
 	}
 }
 
-// sweeps one span
-// returns number of pages returned to heap, or ^uintptr(0) if there is nothing to sweep
-//go:nowritebarrier
+// sweepone sweeps some unswept heap span and returns the number of pages returned
+// to the heap, or ^uintptr(0) if there was nothing to sweep.
 func sweepone() uintptr {
 	_g_ := getg()
+	sweepRatio := mheap_.sweepPagesPerByte // For debugging
 
 	// increment locks to ensure that the goroutine is not preempted
 	// in the middle of sweep thus leaving the span in an inconsistent state for next GC
 	_g_.m.locks++
+	if atomic.Load(&mheap_.sweepdone) != 0 {
+		_g_.m.locks--
+		return ^uintptr(0)
+	}
+	atomic.Xadd(&mheap_.sweepers, +1)
+
+	// Find a span to sweep.
+	var s *mspan
 	sg := mheap_.sweepgen
 	for {
-		s := mheap_.sweepSpans[1-sg/2%2].pop()
+		s = mheap_.sweepSpans[1-sg/2%2].pop()
 		if s == nil {
-			mheap_.sweepdone = 1
-			_g_.m.locks--
-			if debug.gcpacertrace > 0 && atomic.Cas(&sweep.pacertracegen, sg-2, sg) {
-				print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", mheap_.spanBytesAlloc>>20, "MB of spans; swept ", mheap_.pagesSwept, " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
-			}
-			return ^uintptr(0)
+			atomic.Store(&mheap_.sweepdone, 1)
+			break
 		}
 		if s.state != mSpanInUse {
 			// This can happen if direct sweeping already
 			// swept this span, but in that case the sweep
 			// generation should always be up-to-date.
-			if s.sweepgen != sg {
+			if !(s.sweepgen == sg || s.sweepgen == sg+3) {
 				print("runtime: bad span s.state=", s.state, " s.sweepgen=", s.sweepgen, " sweepgen=", sg, "\n")
 				throw("non in-use span in unswept list")
 			}
 			continue
 		}
-		if s.sweepgen != sg-2 || !atomic.Cas(&s.sweepgen, sg-2, sg-1) {
-			continue
+		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
+			break
 		}
-		npages := s.npages
-		if !s.sweep(false) {
+	}
+
+	// Sweep the span we found.
+	npages := ^uintptr(0)
+	if s != nil {
+		npages = s.npages
+		if s.sweep(false) {
+			// Whole span was freed. Count it toward the
+			// page reclaimer credit since these pages can
+			// now be used for span allocation.
+			atomic.Xadduintptr(&mheap_.reclaimCredit, npages)
+		} else {
 			// Span is still in-use, so this returned no
 			// pages to the heap and the span needs to
 			// move to the swept in-use list.
 			npages = 0
 		}
-		_g_.m.locks--
-		return npages
 	}
+
+	// Decrement the number of active sweepers and if this is the
+	// last one print trace information.
+	if atomic.Xadd(&mheap_.sweepers, -1) == 0 && atomic.Load(&mheap_.sweepdone) != 0 {
+		if debug.gcpacertrace > 0 {
+			print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", (memstats.heap_live-mheap_.sweepHeapLiveBasis)>>20, "MB during sweep; swept ", mheap_.pagesSwept, " pages at ", sweepRatio, " pages/byte\n")
+		}
+	}
+	_g_.m.locks--
+	return npages
 }
 
-//go:nowritebarrier
-func gosweepone() uintptr {
-	var ret uintptr
-	systemstack(func() {
-		ret = sweepone()
-	})
-	return ret
-}
-
-//go:nowritebarrier
-func gosweepdone() bool {
+// isSweepDone reports whether all spans are swept or currently being swept.
+//
+// Note that this condition may transition from false to true at any
+// time as the sweeper runs. It may transition from true to false if a
+// GC runs; to prevent that the caller must be non-preemptible or must
+// somehow block GC progress.
+func isSweepDone() bool {
 	return mheap_.sweepdone != 0
 }
 
@@ -140,20 +175,25 @@ func (s *mspan) ensureSwept() {
 	// (if GC is triggered on another goroutine).
 	_g_ := getg()
 	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
-		throw("MSpan_EnsureSwept: m is not locked")
+		throw("mspan.ensureSwept: m is not locked")
 	}
 
 	sg := mheap_.sweepgen
-	if atomic.Load(&s.sweepgen) == sg {
+	spangen := atomic.Load(&s.sweepgen)
+	if spangen == sg || spangen == sg+3 {
 		return
 	}
-	// The caller must be sure that the span is a MSpanInUse span.
+	// The caller must be sure that the span is a mSpanInUse span.
 	if atomic.Cas(&s.sweepgen, sg-2, sg-1) {
 		s.sweep(false)
 		return
 	}
 	// unfortunate condition, and we don't have efficient means to wait
-	for atomic.Load(&s.sweepgen) != sg {
+	for {
+		spangen := atomic.Load(&s.sweepgen)
+		if spangen == sg || spangen == sg+3 {
+			break
+		}
 		osyield()
 	}
 }
@@ -161,7 +201,7 @@ func (s *mspan) ensureSwept() {
 // Sweep frees or collects finalizers for blocks not marked in the mark phase.
 // It clears the mark bits in preparation for the next GC round.
 // Returns true if the span was returned to heap.
-// If preserve=true, don't return it to heap nor relink in MCentral lists;
+// If preserve=true, don't return it to heap nor relink in mcentral lists;
 // caller takes care of it.
 //TODO go:nowritebarrier
 func (s *mspan) sweep(preserve bool) bool {
@@ -169,24 +209,23 @@ func (s *mspan) sweep(preserve bool) bool {
 	// GC must not start while we are in the middle of this function.
 	_g_ := getg()
 	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
-		throw("MSpan_Sweep: m is not locked")
+		throw("mspan.sweep: m is not locked")
 	}
 	sweepgen := mheap_.sweepgen
 	if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
-		print("MSpan_Sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
-		throw("MSpan_Sweep: bad span state")
+		print("mspan.sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
+		throw("mspan.sweep: bad span state")
 	}
 
 	if trace.enabled {
-		traceGCSweepStart()
+		traceGCSweepSpan(s.npages * _PageSize)
 	}
 
 	atomic.Xadd64(&mheap_.pagesSwept, int64(s.npages))
 
-	cl := s.sizeclass
+	spc := s.spanclass
 	size := s.elemsize
 	res := false
-	nfree := 0
 
 	c := _g_.m.mcache
 	freeToHeap := false
@@ -276,21 +315,23 @@ func (s *mspan) sweep(preserve bool) bool {
 	}
 
 	// Count the number of free objects in this span.
-	nfree = s.countFree()
-	if cl == 0 && nfree != 0 {
+	nalloc := uint16(s.countAlloc())
+	if spc.sizeclass() == 0 && nalloc == 0 {
 		s.needzero = 1
 		freeToHeap = true
 	}
-	nalloc := uint16(s.nelems) - uint16(nfree)
 	nfreed := s.allocCount - nalloc
 	if nalloc > s.allocCount {
-		print("runtime: nelems=", s.nelems, " nfree=", nfree, " nalloc=", nalloc, " previous allocCount=", s.allocCount, " nfreed=", nfreed, "\n")
+		print("runtime: nelems=", s.nelems, " nalloc=", nalloc, " previous allocCount=", s.allocCount, " nfreed=", nfreed, "\n")
 		throw("sweep increased allocation count")
 	}
 
 	s.allocCount = nalloc
 	wasempty := s.nextFreeIndex() == s.nelems
 	s.freeindex = 0 // reset allocation index to start of span.
+	if trace.enabled {
+		getg().m.p.ptr().traceReclaimed += uintptr(nfreed) * s.elemsize
+	}
 
 	// gcmarkBits becomes the allocBits.
 	// get a fresh cleared gcmarkBits in preparation for next GC
@@ -309,8 +350,8 @@ func (s *mspan) sweep(preserve bool) bool {
 		// The span must be in our exclusive ownership until we update sweepgen,
 		// check for potential races.
 		if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
-			print("MSpan_Sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
-			throw("MSpan_Sweep: bad span state after sweep")
+			print("mspan.sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
+			throw("mspan.sweep: bad span state after sweep")
 		}
 		// Serialization point.
 		// At this point the mark bits are cleared and allocation ready
@@ -318,32 +359,32 @@ func (s *mspan) sweep(preserve bool) bool {
 		atomic.Store(&s.sweepgen, sweepgen)
 	}
 
-	if nfreed > 0 && cl != 0 {
-		c.local_nsmallfree[cl] += uintptr(nfreed)
-		res = mheap_.central[cl].mcentral.freeSpan(s, preserve, wasempty)
-		// MCentral_FreeSpan updates sweepgen
+	if nfreed > 0 && spc.sizeclass() != 0 {
+		c.local_nsmallfree[spc.sizeclass()] += uintptr(nfreed)
+		res = mheap_.central[spc].mcentral.freeSpan(s, preserve, wasempty)
+		// mcentral.freeSpan updates sweepgen
 	} else if freeToHeap {
 		// Free large span to heap
 
 		// NOTE(rsc,dvyukov): The original implementation of efence
-		// in CL 22060046 used SysFree instead of SysFault, so that
+		// in CL 22060046 used sysFree instead of sysFault, so that
 		// the operating system would eventually give the memory
 		// back to us again, so that an efence program could run
 		// longer without running out of memory. Unfortunately,
-		// calling SysFree here without any kind of adjustment of the
+		// calling sysFree here without any kind of adjustment of the
 		// heap data structures means that when the memory does
 		// come back to us, we have the wrong metadata for it, either in
-		// the MSpan structures or in the garbage collection bitmap.
-		// Using SysFault here means that the program will run out of
+		// the mspan structures or in the garbage collection bitmap.
+		// Using sysFault here means that the program will run out of
 		// memory fairly quickly in efence mode, but at least it won't
 		// have mysterious crashes due to confused memory reuse.
-		// It should be possible to switch back to SysFree if we also
-		// implement and then call some kind of MHeap_DeleteSpan.
+		// It should be possible to switch back to sysFree if we also
+		// implement and then call some kind of mheap.deleteSpan.
 		if debug.efence > 0 {
 			s.limit = 0 // prevent mlookup from finding this span
 			sysFault(unsafe.Pointer(s.base()), size)
 		} else {
-			mheap_.freeSpan(s, 1)
+			mheap_.freeSpan(s, true)
 		}
 		c.local_nlargefree++
 		c.local_largefree += size
@@ -353,9 +394,6 @@ func (s *mspan) sweep(preserve bool) bool {
 		// The span has been swept and is still in-use, so put
 		// it on the swept in-use list.
 		mheap_.sweepSpans[sweepgen/2%2].push(s)
-	}
-	if trace.enabled {
-		traceGCSweepDone()
 	}
 	return res
 }
@@ -369,8 +407,7 @@ func (s *mspan) sweep(preserve bool) bool {
 //
 // deductSweepCredit makes a worst-case assumption that all spanBytes
 // bytes of the ultimately allocated span will be available for object
-// allocation. The caller should call reimburseSweepCredit if that
-// turns out not to be the case once the span is allocated.
+// allocation.
 //
 // deductSweepCredit is the core of the "proportional sweep" system.
 // It uses statistics gathered by the garbage collector to perform
@@ -384,28 +421,28 @@ func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
 		return
 	}
 
-	// Account for this span allocation.
-	spanBytesAlloc := atomic.Xadd64(&mheap_.spanBytesAlloc, int64(spanBytes))
+	if trace.enabled {
+		traceGCSweepStart()
+	}
+
+retry:
+	sweptBasis := atomic.Load64(&mheap_.pagesSweptBasis)
 
 	// Fix debt if necessary.
-	pagesOwed := int64(mheap_.sweepPagesPerByte * float64(spanBytesAlloc))
-	for pagesOwed-int64(atomic.Load64(&mheap_.pagesSwept)) > int64(callerSweepPages) {
-		if gosweepone() == ^uintptr(0) {
+	newHeapLive := uintptr(atomic.Load64(&memstats.heap_live)-mheap_.sweepHeapLiveBasis) + spanBytes
+	pagesTarget := int64(mheap_.sweepPagesPerByte*float64(newHeapLive)) - int64(callerSweepPages)
+	for pagesTarget > int64(atomic.Load64(&mheap_.pagesSwept)-sweptBasis) {
+		if sweepone() == ^uintptr(0) {
 			mheap_.sweepPagesPerByte = 0
 			break
 		}
+		if atomic.Load64(&mheap_.pagesSweptBasis) != sweptBasis {
+			// Sweep pacing changed. Recompute debt.
+			goto retry
+		}
 	}
-}
 
-// reimburseSweepCredit records that unusableBytes bytes of a
-// just-allocated span are not available for object allocation. This
-// offsets the worst-case charge performed by deductSweepCredit.
-func reimburseSweepCredit(unusableBytes uintptr) {
-	if mheap_.sweepPagesPerByte == 0 {
-		// Nobody cares about the credit. Avoid the atomic.
-		return
-	}
-	if int64(atomic.Xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))) < 0 {
-		throw("spanBytesAlloc underflow")
+	if trace.enabled {
+		traceGCSweepDone()
 	}
 }

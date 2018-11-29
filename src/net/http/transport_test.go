@@ -16,10 +16,11 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"internal/nettrace"
-	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"log"
@@ -29,6 +30,7 @@ import (
 	"net/http/httptrace"
 	"net/http/httputil"
 	"net/http/internal"
+	"net/textproto"
 	"net/url"
 	"os"
 	"reflect"
@@ -36,8 +38,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"internal/x/net/http/httpguts"
 )
 
 // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close
@@ -122,6 +127,34 @@ func (tcs *testConnSet) check(t *testing.T) {
 	}
 }
 
+func TestReuseRequest(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Write([]byte("{}"))
+	}))
+	defer ts.Close()
+
+	c := ts.Client()
+	req, _ := NewRequest("GET", ts.URL, nil)
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err = c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Two subsequent requests and verify their response is the same.
 // The response from the server is our own IP:port
 func TestTransportKeepAlives(t *testing.T) {
@@ -129,11 +162,9 @@ func TestTransportKeepAlives(t *testing.T) {
 	ts := httptest.NewServer(hostPortHandler)
 	defer ts.Close()
 
+	c := ts.Client()
 	for _, disableKeepAlive := range []bool{false, true} {
-		tr := &Transport{DisableKeepAlives: disableKeepAlive}
-		defer tr.CloseIdleConnections()
-		c := &Client{Transport: tr}
-
+		c.Transport.(*Transport).DisableKeepAlives = disableKeepAlive
 		fetch := func(n int) string {
 			res, err := c.Get(ts.URL)
 			if err != nil {
@@ -164,12 +195,11 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
 
 	connSet, testDial := makeTestDial(t)
 
-	for _, connectionClose := range []bool{false, true} {
-		tr := &Transport{
-			Dial: testDial,
-		}
-		c := &Client{Transport: tr}
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
+	tr.Dial = testDial
 
+	for _, connectionClose := range []bool{false, true} {
 		fetch := func(n int) string {
 			req := new(Request)
 			var err error
@@ -215,12 +245,10 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
 
 	connSet, testDial := makeTestDial(t)
 
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
+	tr.Dial = testDial
 	for _, connectionClose := range []bool{false, true} {
-		tr := &Transport{
-			Dial: testDial,
-		}
-		c := &Client{Transport: tr}
-
 		fetch := func(n int) string {
 			req := new(Request)
 			var err error
@@ -271,10 +299,9 @@ func TestTransportConnectionCloseOnRequestDisableKeepAlive(t *testing.T) {
 	ts := httptest.NewServer(hostPortHandler)
 	defer ts.Close()
 
-	tr := &Transport{
-		DisableKeepAlives: true,
-	}
-	c := &Client{Transport: tr}
+	c := ts.Client()
+	c.Transport.(*Transport).DisableKeepAlives = true
+
 	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -285,13 +312,64 @@ func TestTransportConnectionCloseOnRequestDisableKeepAlive(t *testing.T) {
 	}
 }
 
+// Test that Transport only sends one "Connection: close", regardless of
+// how "close" was indicated.
+func TestTransportRespectRequestWantsClose(t *testing.T) {
+	tests := []struct {
+		disableKeepAlives bool
+		close             bool
+	}{
+		{disableKeepAlives: false, close: false},
+		{disableKeepAlives: false, close: true},
+		{disableKeepAlives: true, close: false},
+		{disableKeepAlives: true, close: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(fmt.Sprintf("DisableKeepAlive=%v,RequestClose=%v", tc.disableKeepAlives, tc.close),
+			func(t *testing.T) {
+				defer afterTest(t)
+				ts := httptest.NewServer(hostPortHandler)
+				defer ts.Close()
+
+				c := ts.Client()
+				c.Transport.(*Transport).DisableKeepAlives = tc.disableKeepAlives
+				req, err := NewRequest("GET", ts.URL, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				count := 0
+				trace := &httptrace.ClientTrace{
+					WroteHeaderField: func(key string, field []string) {
+						if key != "Connection" {
+							return
+						}
+						if httpguts.HeaderValuesContainsToken(field, "close") {
+							count += 1
+						}
+					},
+				}
+				req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+				req.Close = tc.close
+				res, err := c.Do(req)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer res.Body.Close()
+				if want := tc.disableKeepAlives || tc.close; count > 1 || (count == 1) != want {
+					t.Errorf("expecting want:%v, got 'Connection: close':%d", want, count)
+				}
+			})
+	}
+
+}
+
 func TestTransportIdleCacheKeys(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewServer(hostPortHandler)
 	defer ts.Close()
-
-	tr := &Transport{DisableKeepAlives: false}
-	c := &Client{Transport: tr}
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
 
 	if e, g := 0, len(tr.IdleConnKeysForTesting()); e != g {
 		t.Errorf("After CloseIdleConnections expected %d idle conn cache keys; got %d", e, g)
@@ -383,9 +461,11 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
+
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
 	maxIdleConnsPerHost := 2
-	tr := &Transport{DisableKeepAlives: false, MaxIdleConnsPerHost: maxIdleConnsPerHost}
-	c := &Client{Transport: tr}
+	tr.MaxIdleConnsPerHost = maxIdleConnsPerHost
 
 	// Start 3 outstanding requests and wait for the server to get them.
 	// Their responses will hang until we write to resch, though.
@@ -419,25 +499,93 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 	if e, g := 1, len(keys); e != g {
 		t.Fatalf("after first response, expected %d idle conn cache keys; got %d", e, g)
 	}
-	cacheKey := "|http|" + ts.Listener.Addr().String()
+	addr := ts.Listener.Addr().String()
+	cacheKey := "|http|" + addr
 	if keys[0] != cacheKey {
 		t.Fatalf("Expected idle cache key %q; got %q", cacheKey, keys[0])
 	}
-	if e, g := 1, tr.IdleConnCountForTesting(cacheKey); e != g {
+	if e, g := 1, tr.IdleConnCountForTesting("http", addr); e != g {
 		t.Errorf("after first response, expected %d idle conns; got %d", e, g)
 	}
 
 	resch <- "res2"
 	<-donech
-	if g, w := tr.IdleConnCountForTesting(cacheKey), 2; g != w {
+	if g, w := tr.IdleConnCountForTesting("http", addr), 2; g != w {
 		t.Errorf("after second response, idle conns = %d; want %d", g, w)
 	}
 
 	resch <- "res3"
 	<-donech
-	if g, w := tr.IdleConnCountForTesting(cacheKey), maxIdleConnsPerHost; g != w {
+	if g, w := tr.IdleConnCountForTesting("http", addr), maxIdleConnsPerHost; g != w {
 		t.Errorf("after third response, idle conns = %d; want %d", g, w)
 	}
+}
+
+func TestTransportMaxConnsPerHostIncludeDialInProgress(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		_, err := w.Write([]byte("foo"))
+		if err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+	}))
+	defer ts.Close()
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
+	dialStarted := make(chan struct{})
+	stallDial := make(chan struct{})
+	tr.Dial = func(network, addr string) (net.Conn, error) {
+		dialStarted <- struct{}{}
+		<-stallDial
+		return net.Dial(network, addr)
+	}
+
+	tr.DisableKeepAlives = true
+	tr.MaxConnsPerHost = 1
+
+	preDial := make(chan struct{})
+	reqComplete := make(chan struct{})
+	doReq := func(reqId string) {
+		req, _ := NewRequest("GET", ts.URL, nil)
+		trace := &httptrace.ClientTrace{
+			GetConn: func(hostPort string) {
+				preDial <- struct{}{}
+			},
+		}
+		req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+		resp, err := tr.RoundTrip(req)
+		if err != nil {
+			t.Errorf("unexpected error for request %s: %v", reqId, err)
+		}
+		_, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Errorf("unexpected error for request %s: %v", reqId, err)
+		}
+		reqComplete <- struct{}{}
+	}
+	// get req1 to dial-in-progress
+	go doReq("req1")
+	<-preDial
+	<-dialStarted
+
+	// get req2 to waiting on conns per host to go down below max
+	go doReq("req2")
+	<-preDial
+	select {
+	case <-dialStarted:
+		t.Error("req2 dial started while req1 dial in progress")
+		return
+	default:
+	}
+
+	// let req1 complete
+	stallDial <- struct{}{}
+	<-reqComplete
+
+	// let req2 complete
+	<-dialStarted
+	stallDial <- struct{}{}
+	<-reqComplete
 }
 
 func TestTransportRemovesDeadIdleConnections(t *testing.T) {
@@ -448,9 +596,8 @@ func TestTransportRemovesDeadIdleConnections(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
 
 	doReq := func(name string) string {
 		// Do a POST instead of a GET to prevent the Transport's
@@ -494,9 +641,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewServer(hostPortHandler)
 	defer ts.Close()
-
-	tr := &Transport{}
-	c := &Client{Transport: tr}
+	c := ts.Client()
 
 	fetch := func(n, retries int) string {
 		condFatalf := func(format string, arg ...interface{}) {
@@ -562,10 +707,7 @@ func TestStressSurpriseServerCloses(t *testing.T) {
 		conn.Close()
 	}))
 	defer ts.Close()
-
-	tr := &Transport{DisableKeepAlives: false}
-	c := &Client{Transport: tr}
-	defer tr.CloseIdleConnections()
+	c := ts.Client()
 
 	// Do a bunch of traffic from different goroutines. Send to activityc
 	// after each request completes, regardless of whether it failed.
@@ -618,9 +760,8 @@ func TestTransportHeadResponses(t *testing.T) {
 		w.WriteHeader(200)
 	}))
 	defer ts.Close()
+	c := ts.Client()
 
-	tr := &Transport{DisableKeepAlives: false}
-	c := &Client{Transport: tr}
 	for i := 0; i < 2; i++ {
 		res, err := c.Head(ts.URL)
 		if err != nil {
@@ -654,10 +795,7 @@ func TestTransportHeadChunkedResponse(t *testing.T) {
 		w.WriteHeader(200)
 	}))
 	defer ts.Close()
-
-	tr := &Transport{DisableKeepAlives: false}
-	c := &Client{Transport: tr}
-	defer tr.CloseIdleConnections()
+	c := ts.Client()
 
 	// Ensure that we wait for the readLoop to complete before
 	// calling Head again
@@ -718,6 +856,7 @@ func TestRoundTripGzip(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
+	tr := ts.Client().Transport.(*Transport)
 
 	for i, test := range roundTripTests {
 		// Test basic request (no accept-encoding)
@@ -725,7 +864,7 @@ func TestRoundTripGzip(t *testing.T) {
 		if test.accept != "" {
 			req.Header.Set("Accept-Encoding", test.accept)
 		}
-		res, err := DefaultTransport.RoundTrip(req)
+		res, err := tr.RoundTrip(req)
 		var body []byte
 		if test.compressed {
 			var r *gzip.Reader
@@ -790,10 +929,9 @@ func TestTransportGzip(t *testing.T) {
 		gz.Close()
 	}))
 	defer ts.Close()
+	c := ts.Client()
 
 	for _, chunked := range []string{"1", "0"} {
-		c := &Client{Transport: &Transport{}}
-
 		// First fetch something large, but only read some of it.
 		res, err := c.Get(ts.URL + "/?body=large&chunked=" + chunked)
 		if err != nil {
@@ -843,7 +981,6 @@ func TestTransportGzip(t *testing.T) {
 	}
 
 	// And a HEAD request too, because they're always weird.
-	c := &Client{Transport: &Transport{}}
 	res, err := c.Head(ts.URL)
 	if err != nil {
 		t.Fatalf("Head: %v", err)
@@ -913,11 +1050,13 @@ func TestTransportExpect100Continue(t *testing.T) {
 		{path: "/timeout", body: []byte("hello"), sent: 5, status: 200},   // Timeout exceeded and entire body is sent.
 	}
 
+	c := ts.Client()
 	for i, v := range tests {
-		tr := &Transport{ExpectContinueTimeout: 2 * time.Second}
+		tr := &Transport{
+			ExpectContinueTimeout: 2 * time.Second,
+		}
 		defer tr.CloseIdleConnections()
-		c := &Client{Transport: tr}
-
+		c.Transport = tr
 		body := bytes.NewReader(v.body)
 		req, err := NewRequest("PUT", ts.URL+v.path, body)
 		if err != nil {
@@ -942,28 +1081,251 @@ func TestTransportExpect100Continue(t *testing.T) {
 	}
 }
 
-func TestTransportProxy(t *testing.T) {
+func TestSOCKS5Proxy(t *testing.T) {
 	defer afterTest(t)
 	ch := make(chan string, 1)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		ch <- "real server"
-	}))
-	defer ts.Close()
-	proxy := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		ch <- "proxy for " + r.URL.String()
-	}))
-	defer proxy.Close()
+	l := newLocalListener(t)
+	defer l.Close()
+	defer close(ch)
+	proxy := func(t *testing.T) {
+		s, err := l.Accept()
+		if err != nil {
+			t.Errorf("socks5 proxy Accept(): %v", err)
+			return
+		}
+		defer s.Close()
+		var buf [22]byte
+		if _, err := io.ReadFull(s, buf[:3]); err != nil {
+			t.Errorf("socks5 proxy initial read: %v", err)
+			return
+		}
+		if want := []byte{5, 1, 0}; !bytes.Equal(buf[:3], want) {
+			t.Errorf("socks5 proxy initial read: got %v, want %v", buf[:3], want)
+			return
+		}
+		if _, err := s.Write([]byte{5, 0}); err != nil {
+			t.Errorf("socks5 proxy initial write: %v", err)
+			return
+		}
+		if _, err := io.ReadFull(s, buf[:4]); err != nil {
+			t.Errorf("socks5 proxy second read: %v", err)
+			return
+		}
+		if want := []byte{5, 1, 0}; !bytes.Equal(buf[:3], want) {
+			t.Errorf("socks5 proxy second read: got %v, want %v", buf[:3], want)
+			return
+		}
+		var ipLen int
+		switch buf[3] {
+		case 1:
+			ipLen = net.IPv4len
+		case 4:
+			ipLen = net.IPv6len
+		default:
+			t.Errorf("socks5 proxy second read: unexpected address type %v", buf[4])
+			return
+		}
+		if _, err := io.ReadFull(s, buf[4:ipLen+6]); err != nil {
+			t.Errorf("socks5 proxy address read: %v", err)
+			return
+		}
+		ip := net.IP(buf[4 : ipLen+4])
+		port := binary.BigEndian.Uint16(buf[ipLen+4 : ipLen+6])
+		copy(buf[:3], []byte{5, 0, 0})
+		if _, err := s.Write(buf[:ipLen+6]); err != nil {
+			t.Errorf("socks5 proxy connect write: %v", err)
+			return
+		}
+		ch <- fmt.Sprintf("proxy for %s:%d", ip, port)
 
-	pu, err := url.Parse(proxy.URL)
+		// Implement proxying.
+		targetHost := net.JoinHostPort(ip.String(), strconv.Itoa(int(port)))
+		targetConn, err := net.Dial("tcp", targetHost)
+		if err != nil {
+			t.Errorf("net.Dial failed")
+			return
+		}
+		go io.Copy(targetConn, s)
+		io.Copy(s, targetConn) // Wait for the client to close the socket.
+		targetConn.Close()
+	}
+
+	pu, err := url.Parse("socks5://" + l.Addr().String())
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := &Client{Transport: &Transport{Proxy: ProxyURL(pu)}}
-	c.Head(ts.URL)
-	got := <-ch
-	want := "proxy for " + ts.URL + "/"
-	if got != want {
-		t.Errorf("want %q, got %q", want, got)
+
+	sentinelHeader := "X-Sentinel"
+	sentinelValue := "12345"
+	h := HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set(sentinelHeader, sentinelValue)
+	})
+	for _, useTLS := range []bool{false, true} {
+		t.Run(fmt.Sprintf("useTLS=%v", useTLS), func(t *testing.T) {
+			var ts *httptest.Server
+			if useTLS {
+				ts = httptest.NewTLSServer(h)
+			} else {
+				ts = httptest.NewServer(h)
+			}
+			go proxy(t)
+			c := ts.Client()
+			c.Transport.(*Transport).Proxy = ProxyURL(pu)
+			r, err := c.Head(ts.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r.Header.Get(sentinelHeader) != sentinelValue {
+				t.Errorf("Failed to retrieve sentinel value")
+			}
+			var got string
+			select {
+			case got = <-ch:
+			case <-time.After(5 * time.Second):
+				t.Fatal("timeout connecting to socks5 proxy")
+			}
+			ts.Close()
+			tsu, err := url.Parse(ts.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := "proxy for " + tsu.Host
+			if got != want {
+				t.Errorf("got %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestTransportProxy(t *testing.T) {
+	defer afterTest(t)
+	testCases := []struct{ httpsSite, httpsProxy bool }{
+		{false, false},
+		{false, true},
+		{true, false},
+		{true, true},
+	}
+	for _, testCase := range testCases {
+		httpsSite := testCase.httpsSite
+		httpsProxy := testCase.httpsProxy
+		t.Run(fmt.Sprintf("httpsSite=%v, httpsProxy=%v", httpsSite, httpsProxy), func(t *testing.T) {
+			siteCh := make(chan *Request, 1)
+			h1 := HandlerFunc(func(w ResponseWriter, r *Request) {
+				siteCh <- r
+			})
+			proxyCh := make(chan *Request, 1)
+			h2 := HandlerFunc(func(w ResponseWriter, r *Request) {
+				proxyCh <- r
+				// Implement an entire CONNECT proxy
+				if r.Method == "CONNECT" {
+					hijacker, ok := w.(Hijacker)
+					if !ok {
+						t.Errorf("hijack not allowed")
+						return
+					}
+					clientConn, _, err := hijacker.Hijack()
+					if err != nil {
+						t.Errorf("hijacking failed")
+						return
+					}
+					res := &Response{
+						StatusCode: StatusOK,
+						Proto:      "HTTP/1.1",
+						ProtoMajor: 1,
+						ProtoMinor: 1,
+						Header:     make(Header),
+					}
+
+					targetConn, err := net.Dial("tcp", r.URL.Host)
+					if err != nil {
+						t.Errorf("net.Dial(%q) failed: %v", r.URL.Host, err)
+						return
+					}
+
+					if err := res.Write(clientConn); err != nil {
+						t.Errorf("Writing 200 OK failed: %v", err)
+						return
+					}
+
+					go io.Copy(targetConn, clientConn)
+					go func() {
+						io.Copy(clientConn, targetConn)
+						targetConn.Close()
+					}()
+				}
+			})
+			var ts *httptest.Server
+			if httpsSite {
+				ts = httptest.NewTLSServer(h1)
+			} else {
+				ts = httptest.NewServer(h1)
+			}
+			var proxy *httptest.Server
+			if httpsProxy {
+				proxy = httptest.NewTLSServer(h2)
+			} else {
+				proxy = httptest.NewServer(h2)
+			}
+
+			pu, err := url.Parse(proxy.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// If neither server is HTTPS or both are, then c may be derived from either.
+			// If only one server is HTTPS, c must be derived from that server in order
+			// to ensure that it is configured to use the fake root CA from testcert.go.
+			c := proxy.Client()
+			if httpsSite {
+				c = ts.Client()
+			}
+
+			c.Transport.(*Transport).Proxy = ProxyURL(pu)
+			if _, err := c.Head(ts.URL); err != nil {
+				t.Error(err)
+			}
+			var got *Request
+			select {
+			case got = <-proxyCh:
+			case <-time.After(5 * time.Second):
+				t.Fatal("timeout connecting to http proxy")
+			}
+			c.Transport.(*Transport).CloseIdleConnections()
+			ts.Close()
+			proxy.Close()
+			if httpsSite {
+				// First message should be a CONNECT, asking for a socket to the real server,
+				if got.Method != "CONNECT" {
+					t.Errorf("Wrong method for secure proxying: %q", got.Method)
+				}
+				gotHost := got.URL.Host
+				pu, err := url.Parse(ts.URL)
+				if err != nil {
+					t.Fatal("Invalid site URL")
+				}
+				if wantHost := pu.Host; gotHost != wantHost {
+					t.Errorf("Got CONNECT host %q, want %q", gotHost, wantHost)
+				}
+
+				// The next message on the channel should be from the site's server.
+				next := <-siteCh
+				if next.Method != "HEAD" {
+					t.Errorf("Wrong method at destination: %s", next.Method)
+				}
+				if nextURL := next.URL.String(); nextURL != "/" {
+					t.Errorf("Wrong URL at destination: %s", nextURL)
+				}
+			} else {
+				if got.Method != "HEAD" {
+					t.Errorf("Wrong method for destination: %q", got.Method)
+				}
+				gotURL := got.URL.String()
+				wantURL := ts.URL + "/"
+				if gotURL != wantURL {
+					t.Errorf("Got URL %q, want %q", gotURL, wantURL)
+				}
+			}
+		})
 	}
 }
 
@@ -1021,9 +1383,7 @@ func TestTransportGzipRecursive(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
 	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -1051,9 +1411,7 @@ func TestTransportGzipShort(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
 	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -1083,8 +1441,10 @@ func waitNumGoroutine(nmax int) int {
 func TestTransportPersistConnLeak(t *testing.T) {
 	// Not parallel: counts goroutines
 	defer afterTest(t)
-	gotReqCh := make(chan bool)
-	unblockCh := make(chan bool)
+
+	const numReq = 25
+	gotReqCh := make(chan bool, numReq)
+	unblockCh := make(chan bool, numReq)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		gotReqCh <- true
 		<-unblockCh
@@ -1092,20 +1452,20 @@ func TestTransportPersistConnLeak(t *testing.T) {
 		w.WriteHeader(204)
 	}))
 	defer ts.Close()
-
-	tr := &Transport{}
-	c := &Client{Transport: tr}
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
 
 	n0 := runtime.NumGoroutine()
 
-	const numReq = 25
-	didReqCh := make(chan bool)
+	didReqCh := make(chan bool, numReq)
+	failed := make(chan bool, numReq)
 	for i := 0; i < numReq; i++ {
 		go func() {
 			res, err := c.Get(ts.URL)
 			didReqCh <- true
 			if err != nil {
 				t.Errorf("client fetch error: %v", err)
+				failed <- true
 				return
 			}
 			res.Body.Close()
@@ -1114,7 +1474,13 @@ func TestTransportPersistConnLeak(t *testing.T) {
 
 	// Wait for all goroutines to be stuck in the Handler.
 	for i := 0; i < numReq; i++ {
-		<-gotReqCh
+		select {
+		case <-gotReqCh:
+			// ok
+		case <-failed:
+			close(unblockCh)
+			return
+		}
 	}
 
 	nhigh := runtime.NumGoroutine()
@@ -1150,9 +1516,8 @@ func TestTransportPersistConnLeakShortBody(t *testing.T) {
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 	}))
 	defer ts.Close()
-
-	tr := &Transport{}
-	c := &Client{Transport: tr}
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
 
 	n0 := runtime.NumGoroutine()
 	body := []byte("Hello")
@@ -1184,8 +1549,7 @@ func TestTransportPersistConnLeakShortBody(t *testing.T) {
 // This used to crash; https://golang.org/issue/3266
 func TestTransportIdleConnCrash(t *testing.T) {
 	defer afterTest(t)
-	tr := &Transport{}
-	c := &Client{Transport: tr}
+	var tr *Transport
 
 	unblockCh := make(chan bool, 1)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -1193,6 +1557,8 @@ func TestTransportIdleConnCrash(t *testing.T) {
 		tr.CloseIdleConnections()
 	}))
 	defer ts.Close()
+	c := ts.Client()
+	tr = c.Transport.(*Transport)
 
 	didreq := make(chan bool)
 	go func() {
@@ -1222,8 +1588,7 @@ func TestIssue3644(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	tr := &Transport{}
-	c := &Client{Transport: tr}
+	c := ts.Client()
 	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -1248,8 +1613,7 @@ func TestIssue3595(t *testing.T) {
 		Error(w, deniedMsg, StatusUnauthorized)
 	}))
 	defer ts.Close()
-	tr := &Transport{}
-	c := &Client{Transport: tr}
+	c := ts.Client()
 	res, err := c.Post(ts.URL, "application/octet-stream", neverEnding('a'))
 	if err != nil {
 		t.Errorf("Post: %v", err)
@@ -1273,8 +1637,8 @@ func TestChunkedNoContent(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	c := ts.Client()
 	for _, closeBody := range []bool{true, false} {
-		c := &Client{Transport: &Transport{}}
 		const n = 4
 		for i := 1; i <= n; i++ {
 			res, err := c.Get(ts.URL)
@@ -1314,10 +1678,7 @@ func TestTransportConcurrency(t *testing.T) {
 	SetPendingDialHooks(func() { wg.Add(1) }, wg.Done)
 	defer SetPendingDialHooks(nil, nil)
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-
-	c := &Client{Transport: tr}
+	c := ts.Client()
 	reqs := make(chan string)
 	defer close(reqs)
 
@@ -1359,23 +1720,20 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
 		io.Copy(w, neverEnding('a'))
 	})
 	ts := httptest.NewServer(mux)
+	defer ts.Close()
 	timeout := 100 * time.Millisecond
 
-	client := &Client{
-		Transport: &Transport{
-			Dial: func(n, addr string) (net.Conn, error) {
-				conn, err := net.Dial(n, addr)
-				if err != nil {
-					return nil, err
-				}
-				conn.SetDeadline(time.Now().Add(timeout))
-				if debug {
-					conn = NewLoggingConn("client", conn)
-				}
-				return conn, nil
-			},
-			DisableKeepAlives: true,
-		},
+	c := ts.Client()
+	c.Transport.(*Transport).Dial = func(n, addr string) (net.Conn, error) {
+		conn, err := net.Dial(n, addr)
+		if err != nil {
+			return nil, err
+		}
+		conn.SetDeadline(time.Now().Add(timeout))
+		if debug {
+			conn = NewLoggingConn("client", conn)
+		}
+		return conn, nil
 	}
 
 	getFailed := false
@@ -1387,7 +1745,7 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
 		if debug {
 			println("run", i+1, "of", nRuns)
 		}
-		sres, err := client.Get(ts.URL + "/get")
+		sres, err := c.Get(ts.URL + "/get")
 		if err != nil {
 			if !getFailed {
 				// Make the timeout longer, once.
@@ -1409,7 +1767,6 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
 	if debug {
 		println("tests complete; waiting for handlers to finish")
 	}
-	ts.Close()
 }
 
 func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
@@ -1427,21 +1784,17 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
 	ts := httptest.NewServer(mux)
 	timeout := 100 * time.Millisecond
 
-	client := &Client{
-		Transport: &Transport{
-			Dial: func(n, addr string) (net.Conn, error) {
-				conn, err := net.Dial(n, addr)
-				if err != nil {
-					return nil, err
-				}
-				conn.SetDeadline(time.Now().Add(timeout))
-				if debug {
-					conn = NewLoggingConn("client", conn)
-				}
-				return conn, nil
-			},
-			DisableKeepAlives: true,
-		},
+	c := ts.Client()
+	c.Transport.(*Transport).Dial = func(n, addr string) (net.Conn, error) {
+		conn, err := net.Dial(n, addr)
+		if err != nil {
+			return nil, err
+		}
+		conn.SetDeadline(time.Now().Add(timeout))
+		if debug {
+			conn = NewLoggingConn("client", conn)
+		}
+		return conn, nil
 	}
 
 	getFailed := false
@@ -1453,7 +1806,7 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
 		if debug {
 			println("run", i+1, "of", nRuns)
 		}
-		sres, err := client.Get(ts.URL + "/get")
+		sres, err := c.Get(ts.URL + "/get")
 		if err != nil {
 			if !getFailed {
 				// Make the timeout longer, once.
@@ -1467,7 +1820,7 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
 			break
 		}
 		req, _ := NewRequest("PUT", ts.URL+"/put", sres.Body)
-		_, err = client.Do(req)
+		_, err = c.Do(req)
 		if err == nil {
 			sres.Body.Close()
 			t.Errorf("Unexpected successful PUT")
@@ -1499,11 +1852,8 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
-	tr := &Transport{
-		ResponseHeaderTimeout: 500 * time.Millisecond,
-	}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
+	c.Transport.(*Transport).ResponseHeaderTimeout = 500 * time.Millisecond
 
 	tests := []struct {
 		path    string
@@ -1515,7 +1865,9 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
 		{path: "/fast", want: 200},
 	}
 	for i, tt := range tests {
-		res, err := c.Get(ts.URL + tt.path)
+		req, _ := NewRequest("GET", ts.URL+tt.path, nil)
+		req = req.WithT(t)
+		res, err := c.Do(req)
 		select {
 		case <-inHandler:
 		case <-time.After(5 * time.Second):
@@ -1568,9 +1920,8 @@ func TestTransportCancelRequest(t *testing.T) {
 	defer ts.Close()
 	defer close(unblockc)
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
 
 	req, _ := NewRequest("GET", ts.URL, nil)
 	res, err := c.Do(req)
@@ -1678,9 +2029,8 @@ func TestCancelRequestWithChannel(t *testing.T) {
 	defer ts.Close()
 	defer close(unblockc)
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
 
 	req, _ := NewRequest("GET", ts.URL, nil)
 	ch := make(chan struct{})
@@ -1737,9 +2087,7 @@ func testCancelRequestWithChannelBeforeDo(t *testing.T, withCtx bool) {
 	defer ts.Close()
 	defer close(unblockc)
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
 
 	req, _ := NewRequest("GET", ts.URL, nil)
 	if withCtx {
@@ -1827,9 +2175,8 @@ func TestTransportCloseResponseBody(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
 
 	req, _ := NewRequest("GET", ts.URL, nil)
 	defer tr.CancelRequest(req)
@@ -1949,18 +2296,12 @@ func TestTransportSocketLateBinding(t *testing.T) {
 	defer ts.Close()
 
 	dialGate := make(chan bool, 1)
-	tr := &Transport{
-		Dial: func(n, addr string) (net.Conn, error) {
-			if <-dialGate {
-				return net.Dial(n, addr)
-			}
-			return nil, errors.New("manually closed")
-		},
-		DisableKeepAlives: false,
-	}
-	defer tr.CloseIdleConnections()
-	c := &Client{
-		Transport: tr,
+	c := ts.Client()
+	c.Transport.(*Transport).Dial = func(n, addr string) (net.Conn, error) {
+		if <-dialGate {
+			return net.Dial(n, addr)
+		}
+		return nil, errors.New("manually closed")
 	}
 
 	dialGate <- true // only allow one dial
@@ -2068,6 +2409,7 @@ Content-Length: %d
 	c := &Client{Transport: tr}
 
 	testResponse := func(req *Request, name string, wantCode int) {
+		t.Helper()
 		res, err := c.Do(req)
 		if err != nil {
 			t.Fatalf("%s: Do: %v", name, err)
@@ -2090,13 +2432,90 @@ Content-Length: %d
 		req.Header.Set("Request-Id", reqID(i))
 		testResponse(req, fmt.Sprintf("100, %d/%d", i, numReqs), 200)
 	}
+}
 
-	// And some other informational 1xx but non-100 responses, to test
-	// we return them but don't re-use the connection.
-	for i := 1; i <= numReqs; i++ {
-		req, _ := NewRequest("POST", "http://other.tld/", strings.NewReader(reqBody(i)))
-		req.Header.Set("X-Want-Response-Code", "123 Sesame Street")
-		testResponse(req, fmt.Sprintf("123, %d/%d", i, numReqs), 123)
+// Issue 17739: the HTTP client must ignore any unknown 1xx
+// informational responses before the actual response.
+func TestTransportIgnore1xxResponses(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		conn, buf, _ := w.(Hijacker).Hijack()
+		buf.Write([]byte("HTTP/1.1 123 OneTwoThree\r\nFoo: bar\r\n\r\nHTTP/1.1 200 OK\r\nBar: baz\r\nContent-Length: 5\r\n\r\nHello"))
+		buf.Flush()
+		conn.Close()
+	}))
+	defer cst.close()
+	cst.tr.DisableKeepAlives = true // prevent log spam; our test server is hanging up anyway
+
+	var got bytes.Buffer
+
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	req = req.WithContext(httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
+			fmt.Fprintf(&got, "1xx: code=%v, header=%v\n", code, header)
+			return nil
+		},
+	}))
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	res.Write(&got)
+	want := "1xx: code=123, header=map[Foo:[bar]]\nHTTP/1.1 200 OK\r\nContent-Length: 5\r\nBar: baz\r\n\r\nHello"
+	if got.String() != want {
+		t.Errorf(" got: %q\nwant: %q\n", got.Bytes(), want)
+	}
+}
+
+func TestTransportLimits1xxResponses(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		conn, buf, _ := w.(Hijacker).Hijack()
+		for i := 0; i < 10; i++ {
+			buf.Write([]byte("HTTP/1.1 123 OneTwoThree\r\n\r\n"))
+		}
+		buf.Write([]byte("HTTP/1.1 204 No Content\r\n\r\n"))
+		buf.Flush()
+		conn.Close()
+	}))
+	defer cst.close()
+	cst.tr.DisableKeepAlives = true // prevent log spam; our test server is hanging up anyway
+
+	res, err := cst.c.Get(cst.ts.URL)
+	if res != nil {
+		defer res.Body.Close()
+	}
+	got := fmt.Sprint(err)
+	wantSub := "too many 1xx informational responses"
+	if !strings.Contains(got, wantSub) {
+		t.Errorf("Get error = %v; want substring %q", err, wantSub)
+	}
+}
+
+// Issue 26161: the HTTP client must treat 101 responses
+// as the final response.
+func TestTransportTreat101Terminal(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		conn, buf, _ := w.(Hijacker).Hijack()
+		buf.Write([]byte("HTTP/1.1 101 Switching Protocols\r\n\r\n"))
+		buf.Write([]byte("HTTP/1.1 204 No Content\r\n\r\n"))
+		buf.Flush()
+		conn.Close()
+	}))
+	defer cst.close()
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != StatusSwitchingProtocols {
+		t.Errorf("StatusCode = %v; want 101 Switching Protocols", res.StatusCode)
 	}
 }
 
@@ -2150,6 +2569,7 @@ var proxyFromEnvTests = []proxyFromEnvTest{
 	{env: "https://cache.corp.example.com", want: "https://cache.corp.example.com"},
 	{env: "http://127.0.0.1:8080", want: "http://127.0.0.1:8080"},
 	{env: "https://127.0.0.1:8080", want: "https://127.0.0.1:8080"},
+	{env: "socks5://127.0.0.1", want: "socks5://127.0.0.1"},
 
 	// Don't use secure for http
 	{req: "http://insecure.tld/", env: "http.proxy.tld", httpsenv: "secure.proxy.tld", want: "http://http.proxy.tld"},
@@ -2161,38 +2581,61 @@ var proxyFromEnvTests = []proxyFromEnvTest{
 	// where HTTP_PROXY can be attacker-controlled.
 	{env: "http://10.1.2.3:8080", reqmeth: "POST",
 		want:    "<nil>",
-		wanterr: errors.New("net/http: refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")},
+		wanterr: errors.New("refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")},
 
 	{want: "<nil>"},
 
 	{noenv: "example.com", req: "http://example.com/", env: "proxy", want: "<nil>"},
-	{noenv: ".example.com", req: "http://example.com/", env: "proxy", want: "<nil>"},
+	{noenv: ".example.com", req: "http://example.com/", env: "proxy", want: "http://proxy"},
 	{noenv: "ample.com", req: "http://example.com/", env: "proxy", want: "http://proxy"},
 	{noenv: "example.com", req: "http://foo.example.com/", env: "proxy", want: "<nil>"},
 	{noenv: ".foo.com", req: "http://example.com/", env: "proxy", want: "http://proxy"},
 }
 
+func testProxyForRequest(t *testing.T, tt proxyFromEnvTest, proxyForRequest func(req *Request) (*url.URL, error)) {
+	t.Helper()
+	reqURL := tt.req
+	if reqURL == "" {
+		reqURL = "http://example.com"
+	}
+	req, _ := NewRequest("GET", reqURL, nil)
+	url, err := proxyForRequest(req)
+	if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.wanterr); g != e {
+		t.Errorf("%v: got error = %q, want %q", tt, g, e)
+		return
+	}
+	if got := fmt.Sprintf("%s", url); got != tt.want {
+		t.Errorf("%v: got URL = %q, want %q", tt, url, tt.want)
+	}
+}
+
 func TestProxyFromEnvironment(t *testing.T) {
 	ResetProxyEnv()
+	defer ResetProxyEnv()
 	for _, tt := range proxyFromEnvTests {
-		os.Setenv("HTTP_PROXY", tt.env)
-		os.Setenv("HTTPS_PROXY", tt.httpsenv)
-		os.Setenv("NO_PROXY", tt.noenv)
-		os.Setenv("REQUEST_METHOD", tt.reqmeth)
-		ResetCachedEnvironment()
-		reqURL := tt.req
-		if reqURL == "" {
-			reqURL = "http://example.com"
-		}
-		req, _ := NewRequest("GET", reqURL, nil)
-		url, err := ProxyFromEnvironment(req)
-		if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.wanterr); g != e {
-			t.Errorf("%v: got error = %q, want %q", tt, g, e)
-			continue
-		}
-		if got := fmt.Sprintf("%s", url); got != tt.want {
-			t.Errorf("%v: got URL = %q, want %q", tt, url, tt.want)
-		}
+		testProxyForRequest(t, tt, func(req *Request) (*url.URL, error) {
+			os.Setenv("HTTP_PROXY", tt.env)
+			os.Setenv("HTTPS_PROXY", tt.httpsenv)
+			os.Setenv("NO_PROXY", tt.noenv)
+			os.Setenv("REQUEST_METHOD", tt.reqmeth)
+			ResetCachedEnvironment()
+			return ProxyFromEnvironment(req)
+		})
+	}
+}
+
+func TestProxyFromEnvironmentLowerCase(t *testing.T) {
+	ResetProxyEnv()
+	defer ResetProxyEnv()
+	for _, tt := range proxyFromEnvTests {
+		testProxyForRequest(t, tt, func(req *Request) (*url.URL, error) {
+			os.Setenv("http_proxy", tt.env)
+			os.Setenv("https_proxy", tt.httpsenv)
+			os.Setenv("no_proxy", tt.noenv)
+			os.Setenv("REQUEST_METHOD", tt.reqmeth)
+			ResetCachedEnvironment()
+			return ProxyFromEnvironment(req)
+		})
 	}
 }
 
@@ -2213,14 +2656,11 @@ func TestIdleConnChannelLeak(t *testing.T) {
 	SetReadLoopBeforeNextReadHook(func() { didRead <- true })
 	defer SetReadLoopBeforeNextReadHook(nil)
 
-	tr := &Transport{
-		Dial: func(netw, addr string) (net.Conn, error) {
-			return net.Dial(netw, ts.Listener.Addr().String())
-		},
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
+	tr.Dial = func(netw, addr string) (net.Conn, error) {
+		return net.Dial(netw, ts.Listener.Addr().String())
 	}
-	defer tr.CloseIdleConnections()
-
-	c := &Client{Transport: tr}
 
 	// First, without keep-alives.
 	for _, disableKeep := range []bool{true, false} {
@@ -2263,13 +2703,11 @@ func TestTransportClosesRequestBody(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	cl := &Client{Transport: tr}
+	c := ts.Client()
 
 	closes := 0
 
-	res, err := cl.Post(ts.URL, "text/plain", countCloseReader{&closes, strings.NewReader("hello")})
+	res, err := c.Post(ts.URL, "text/plain", countCloseReader{&closes, strings.NewReader("hello")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2341,7 +2779,6 @@ func TestTransportTLSHandshakeTimeout(t *testing.T) {
 // Trying to repro golang.org/issue/3514
 func TestTLSServerClosesConnection(t *testing.T) {
 	defer afterTest(t)
-	testenv.SkipFlaky(t, 7634)
 
 	closedc := make(chan bool, 1)
 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -2355,20 +2792,16 @@ func TestTLSServerClosesConnection(t *testing.T) {
 		fmt.Fprintf(w, "hello")
 	}))
 	defer ts.Close()
-	tr := &Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	}
-	defer tr.CloseIdleConnections()
-	client := &Client{Transport: tr}
+
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
 
 	var nSuccess = 0
 	var errs []error
 	const trials = 20
 	for i := 0; i < trials; i++ {
 		tr.CloseIdleConnections()
-		res, err := client.Get(ts.URL + "/keep-alive-then-die")
+		res, err := c.Get(ts.URL + "/keep-alive-then-die")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2383,7 +2816,7 @@ func TestTLSServerClosesConnection(t *testing.T) {
 
 		// Now try again and see if we successfully
 		// pick a new connection.
-		res, err = client.Get(ts.URL + "/")
+		res, err = c.Get(ts.URL + "/")
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -2462,22 +2895,20 @@ func TestTransportNoReuseAfterEarlyResponse(t *testing.T) {
 		go io.Copy(ioutil.Discard, conn)
 	}))
 	defer ts.Close()
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	client := &Client{Transport: tr}
+	c := ts.Client()
 
 	const bodySize = 256 << 10
 	finalBit := make(byteFromChanReader, 1)
 	req, _ := NewRequest("POST", ts.URL, io.MultiReader(io.LimitReader(neverEnding('x'), bodySize-1), finalBit))
 	req.ContentLength = bodySize
-	res, err := client.Do(req)
+	res, err := c.Do(req)
 	if err := wantBody(res, err, "foo"); err != nil {
 		t.Errorf("POST response: %v", err)
 	}
 	donec := make(chan bool)
 	go func() {
 		defer close(donec)
-		res, err = client.Get(ts.URL)
+		res, err = c.Get(ts.URL)
 		if err := wantBody(res, err, "bar"); err != nil {
 			t.Errorf("GET response: %v", err)
 			return
@@ -2509,10 +2940,9 @@ func TestTransportIssue10457(t *testing.T) {
 		conn.Close()
 	}))
 	defer ts.Close()
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	cl := &Client{Transport: tr}
-	res, err := cl.Get(ts.URL)
+	c := ts.Client()
+
+	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -2536,78 +2966,175 @@ type closerFunc func() error
 
 func (f closerFunc) Close() error { return f() }
 
-// Issue 4677. If we try to reuse a connection that the server is in the
-// process of closing, we may end up successfully writing out our request (or a
-// portion of our request) only to find a connection error when we try to read
-// from (or finish writing to) the socket.
+type writerFuncConn struct {
+	net.Conn
+	write func(p []byte) (n int, err error)
+}
+
+func (c writerFuncConn) Write(p []byte) (n int, err error) { return c.write(p) }
+
+// Issues 4677, 18241, and 17844. If we try to reuse a connection that the
+// server is in the process of closing, we may end up successfully writing out
+// our request (or a portion of our request) only to find a connection error
+// when we try to read from (or finish writing to) the socket.
 //
-// NOTE: we resend a request only if the request is idempotent, we reused a
-// keep-alive connection, and we haven't yet received any header data. This
-// automatically prevents an infinite resend loop because we'll run out of the
-// cached keep-alive connections eventually.
-func TestRetryIdempotentRequestsOnError(t *testing.T) {
-	defer afterTest(t)
-
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-	}))
-	defer ts.Close()
-
-	tr := &Transport{}
-	c := &Client{Transport: tr}
-
-	const N = 2
-	retryc := make(chan struct{}, N)
-	SetRoundTripRetried(func() {
-		retryc <- struct{}{}
-	})
-	defer SetRoundTripRetried(nil)
-
-	for n := 0; n < 100; n++ {
-		// open 2 conns
-		errc := make(chan error, N)
-		for i := 0; i < N; i++ {
-			// start goroutines, send on errc
-			go func() {
-				res, err := c.Get(ts.URL)
-				if err == nil {
-					res.Body.Close()
-				}
-				errc <- err
-			}()
+// NOTE: we resend a request only if:
+//   - we reused a keep-alive connection
+//   - we haven't yet received any header data
+//   - either we wrote no bytes to the server, or the request is idempotent
+// This automatically prevents an infinite resend loop because we'll run out of
+// the cached keep-alive connections eventually.
+func TestRetryRequestsOnError(t *testing.T) {
+	newRequest := func(method, urlStr string, body io.Reader) *Request {
+		req, err := NewRequest(method, urlStr, body)
+		if err != nil {
+			t.Fatal(err)
 		}
-		for i := 0; i < N; i++ {
-			if err := <-errc; err != nil {
-				t.Fatal(err)
-			}
-		}
-
-		ts.CloseClientConnections()
-		for i := 0; i < N; i++ {
-			go func() {
-				res, err := c.Get(ts.URL)
-				if err == nil {
-					res.Body.Close()
-				}
-				errc <- err
-			}()
-		}
-
-		for i := 0; i < N; i++ {
-			if err := <-errc; err != nil {
-				t.Fatal(err)
-			}
-		}
-		for i := 0; i < N; i++ {
-			select {
-			case <-retryc:
-				// we triggered a retry, test was successful
-				t.Logf("finished after %d runs\n", n)
-				return
-			default:
-			}
-		}
+		return req
 	}
-	t.Fatal("did not trigger any retries")
+
+	testCases := []struct {
+		name       string
+		failureN   int
+		failureErr error
+		// Note that we can't just re-use the Request object across calls to c.Do
+		// because we need to rewind Body between calls.  (GetBody is only used to
+		// rewind Body on failure and redirects, not just because it's done.)
+		req       func() *Request
+		reqString string
+	}{
+		{
+			name: "IdempotentNoBodySomeWritten",
+			// Believe that we've written some bytes to the server, so we know we're
+			// not just in the "retry when no bytes sent" case".
+			failureN: 1,
+			// Use the specific error that shouldRetryRequest looks for with idempotent requests.
+			failureErr: ExportErrServerClosedIdle,
+			req: func() *Request {
+				return newRequest("GET", "http://fake.golang", nil)
+			},
+			reqString: `GET / HTTP/1.1\r\nHost: fake.golang\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n`,
+		},
+		{
+			name: "IdempotentGetBodySomeWritten",
+			// Believe that we've written some bytes to the server, so we know we're
+			// not just in the "retry when no bytes sent" case".
+			failureN: 1,
+			// Use the specific error that shouldRetryRequest looks for with idempotent requests.
+			failureErr: ExportErrServerClosedIdle,
+			req: func() *Request {
+				return newRequest("GET", "http://fake.golang", strings.NewReader("foo\n"))
+			},
+			reqString: `GET / HTTP/1.1\r\nHost: fake.golang\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 4\r\nAccept-Encoding: gzip\r\n\r\nfoo\n`,
+		},
+		{
+			name: "NothingWrittenNoBody",
+			// It's key that we return 0 here -- that's what enables Transport to know
+			// that nothing was written, even though this is a non-idempotent request.
+			failureN:   0,
+			failureErr: errors.New("second write fails"),
+			req: func() *Request {
+				return newRequest("DELETE", "http://fake.golang", nil)
+			},
+			reqString: `DELETE / HTTP/1.1\r\nHost: fake.golang\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n`,
+		},
+		{
+			name: "NothingWrittenGetBody",
+			// It's key that we return 0 here -- that's what enables Transport to know
+			// that nothing was written, even though this is a non-idempotent request.
+			failureN:   0,
+			failureErr: errors.New("second write fails"),
+			// Note that NewRequest will set up GetBody for strings.Reader, which is
+			// required for the retry to occur
+			req: func() *Request {
+				return newRequest("POST", "http://fake.golang", strings.NewReader("foo\n"))
+			},
+			reqString: `POST / HTTP/1.1\r\nHost: fake.golang\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 4\r\nAccept-Encoding: gzip\r\n\r\nfoo\n`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer afterTest(t)
+
+			var (
+				mu     sync.Mutex
+				logbuf bytes.Buffer
+			)
+			logf := func(format string, args ...interface{}) {
+				mu.Lock()
+				defer mu.Unlock()
+				fmt.Fprintf(&logbuf, format, args...)
+				logbuf.WriteByte('\n')
+			}
+
+			ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+				logf("Handler")
+				w.Header().Set("X-Status", "ok")
+			}))
+			defer ts.Close()
+
+			var writeNumAtomic int32
+			c := ts.Client()
+			c.Transport.(*Transport).Dial = func(network, addr string) (net.Conn, error) {
+				logf("Dial")
+				c, err := net.Dial(network, ts.Listener.Addr().String())
+				if err != nil {
+					logf("Dial error: %v", err)
+					return nil, err
+				}
+				return &writerFuncConn{
+					Conn: c,
+					write: func(p []byte) (n int, err error) {
+						if atomic.AddInt32(&writeNumAtomic, 1) == 2 {
+							logf("intentional write failure")
+							return tc.failureN, tc.failureErr
+						}
+						logf("Write(%q)", p)
+						return c.Write(p)
+					},
+				}, nil
+			}
+
+			SetRoundTripRetried(func() {
+				logf("Retried.")
+			})
+			defer SetRoundTripRetried(nil)
+
+			for i := 0; i < 3; i++ {
+				t0 := time.Now()
+				res, err := c.Do(tc.req())
+				if err != nil {
+					if time.Since(t0) < MaxWriteWaitBeforeConnReuse/2 {
+						mu.Lock()
+						got := logbuf.String()
+						mu.Unlock()
+						t.Fatalf("i=%d: Do = %v; log:\n%s", i, err, got)
+					}
+					t.Skipf("connection likely wasn't recycled within %d, interfering with actual test; skipping", MaxWriteWaitBeforeConnReuse)
+				}
+				res.Body.Close()
+			}
+
+			mu.Lock()
+			got := logbuf.String()
+			mu.Unlock()
+			want := fmt.Sprintf(`Dial
+Write("%s")
+Handler
+intentional write failure
+Retried.
+Dial
+Write("%s")
+Handler
+Write("%s")
+Handler
+`, tc.reqString, tc.reqString, tc.reqString)
+			if got != want {
+				t.Errorf("Log of events differs. Got:\n%s\nWant:\n%s", got, want)
+			}
+		})
+	}
 }
 
 // Issue 6981
@@ -2620,6 +3147,7 @@ func TestTransportClosesBodyOnError(t *testing.T) {
 		readBody <- err
 	}))
 	defer ts.Close()
+	c := ts.Client()
 	fakeErr := errors.New("fake error")
 	didClose := make(chan bool, 1)
 	req, _ := NewRequest("POST", ts.URL, struct {
@@ -2635,7 +3163,7 @@ func TestTransportClosesBodyOnError(t *testing.T) {
 			return nil
 		}),
 	})
-	res, err := DefaultClient.Do(req)
+	res, err := c.Do(req)
 	if res != nil {
 		defer res.Body.Close()
 	}
@@ -2669,23 +3197,19 @@ func TestTransportDialTLS(t *testing.T) {
 		mu.Unlock()
 	}))
 	defer ts.Close()
-	tr := &Transport{
-		DialTLS: func(netw, addr string) (net.Conn, error) {
-			mu.Lock()
-			didDial = true
-			mu.Unlock()
-			c, err := tls.Dial(netw, addr, &tls.Config{
-				InsecureSkipVerify: true,
-			})
-			if err != nil {
-				return nil, err
-			}
-			return c, c.Handshake()
-		},
+	c := ts.Client()
+	c.Transport.(*Transport).DialTLS = func(netw, addr string) (net.Conn, error) {
+		mu.Lock()
+		didDial = true
+		mu.Unlock()
+		c, err := tls.Dial(netw, addr, c.Transport.(*Transport).TLSClientConfig)
+		if err != nil {
+			return nil, err
+		}
+		return c, c.Handshake()
 	}
-	defer tr.CloseIdleConnections()
-	client := &Client{Transport: tr}
-	res, err := client.Get(ts.URL)
+
+	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2721,7 +3245,7 @@ func TestRoundTripReturnsProxyError(t *testing.T) {
 func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 	tr := &Transport{}
 	wantIdle := func(when string, n int) bool {
-		got := tr.IdleConnCountForTesting("|http|example.com") // key used by PutIdleTestConn
+		got := tr.IdleConnCountForTesting("http", "example.com") // key used by PutIdleTestConn
 		if got == n {
 			return true
 		}
@@ -2729,10 +3253,10 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 		return false
 	}
 	wantIdle("start", 0)
-	if !tr.PutIdleTestConn() {
+	if !tr.PutIdleTestConn("http", "example.com") {
 		t.Fatal("put failed")
 	}
-	if !tr.PutIdleTestConn() {
+	if !tr.PutIdleTestConn("http", "example.com") {
 		t.Fatal("second put failed")
 	}
 	wantIdle("after put", 2)
@@ -2741,7 +3265,7 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 		t.Error("should be idle after CloseIdleConnections")
 	}
 	wantIdle("after close idle", 0)
-	if tr.PutIdleTestConn() {
+	if tr.PutIdleTestConn("http", "example.com") {
 		t.Fatal("put didn't fail")
 	}
 	wantIdle("after second put", 0)
@@ -2750,7 +3274,7 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 	if tr.IsIdleForTesting() {
 		t.Error("shouldn't be idle after RequestIdleConnChForTesting")
 	}
-	if !tr.PutIdleTestConn() {
+	if !tr.PutIdleTestConn("http", "example.com") {
 		t.Fatal("after re-activation")
 	}
 	wantIdle("after final put", 1)
@@ -2767,10 +3291,11 @@ func TestTransportRangeAndGzip(t *testing.T) {
 		reqc <- r
 	}))
 	defer ts.Close()
+	c := ts.Client()
 
 	req, _ := NewRequest("GET", ts.URL, nil)
 	req.Header.Set("Range", "bytes=7-11")
-	res, err := DefaultClient.Do(req)
+	res, err := c.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2799,9 +3324,7 @@ func TestTransportResponseCancelRace(t *testing.T) {
 		w.Write(b[:])
 	}))
 	defer ts.Close()
-
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
+	tr := ts.Client().Transport.(*Transport)
 
 	req, err := NewRequest("GET", ts.URL, nil)
 	if err != nil {
@@ -2830,14 +3353,46 @@ func TestTransportResponseCancelRace(t *testing.T) {
 	res.Body.Close()
 }
 
+// Test for issue 19248: Content-Encoding's value is case insensitive.
+func TestTransportContentEncodingCaseInsensitive(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	for _, ce := range []string{"gzip", "GZIP"} {
+		ce := ce
+		t.Run(ce, func(t *testing.T) {
+			const encodedString = "Hello Gopher"
+			ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+				w.Header().Set("Content-Encoding", ce)
+				gz := gzip.NewWriter(w)
+				gz.Write([]byte(encodedString))
+				gz.Close()
+			}))
+			defer ts.Close()
+
+			res, err := ts.Client().Get(ts.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			body, err := ioutil.ReadAll(res.Body)
+			res.Body.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if string(body) != encodedString {
+				t.Fatalf("Expected body %q, got: %q\n", encodedString, string(body))
+			}
+		})
+	}
+}
+
 func TestTransportDialCancelRace(t *testing.T) {
 	defer afterTest(t)
 
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
 	defer ts.Close()
-
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
+	tr := ts.Client().Transport.(*Transport)
 
 	req, err := NewRequest("GET", ts.URL, nil)
 	if err != nil {
@@ -2937,8 +3492,8 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
 	defer res.Body.Close()
 
 	want := []string{
-		"POST / HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: x\r\nTransfer-Encoding: chunked\r\nAccept-Encoding: gzip\r\n\r\n" +
-			"5\r\nnum0\n\r\n",
+		"POST / HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: x\r\nTransfer-Encoding: chunked\r\nAccept-Encoding: gzip\r\n\r\n",
+		"5\r\nnum0\n\r\n",
 		"5\r\nnum1\n\r\n",
 		"5\r\nnum2\n\r\n",
 		"0\r\n\r\n",
@@ -2946,6 +3501,40 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
 	if !reflect.DeepEqual(lw.writes, want) {
 		t.Errorf("Writes differed.\n Got: %q\nWant: %q\n", lw.writes, want)
 	}
+}
+
+// Issue 22088: flush Transport request headers if we're not sure the body won't block on read.
+func TestTransportFlushesRequestHeader(t *testing.T) {
+	defer afterTest(t)
+	gotReq := make(chan struct{})
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		close(gotReq)
+	}))
+	defer cst.close()
+
+	pr, pw := io.Pipe()
+	req, err := NewRequest("POST", cst.ts.URL, pr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotRes := make(chan struct{})
+	go func() {
+		defer close(gotRes)
+		res, err := cst.tr.RoundTrip(req)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		res.Body.Close()
+	}()
+
+	select {
+	case <-gotReq:
+		pw.Close()
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for handler to get request")
+	}
+	<-gotRes
 }
 
 // Issue 11745.
@@ -2964,6 +3553,7 @@ func TestTransportPrefersResponseOverWriteError(t *testing.T) {
 		w.WriteHeader(StatusOK)
 	}))
 	defer ts.Close()
+	c := ts.Client()
 
 	fail := 0
 	count := 100
@@ -2973,10 +3563,7 @@ func TestTransportPrefersResponseOverWriteError(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		tr := new(Transport)
-		defer tr.CloseIdleConnections()
-		client := &Client{Transport: tr}
-		resp, err := client.Do(req)
+		resp, err := c.Do(req)
 		if err != nil {
 			fail++
 			t.Logf("%d = %#v", i, err)
@@ -3189,10 +3776,8 @@ func testTransportReuseConnection_Gzip(t *testing.T, chunked bool) {
 		w.Write(rgz) // arbitrary gzip response
 	}))
 	defer ts.Close()
+	c := ts.Client()
 
-	tr := &Transport{}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
 	for i := 0; i < 2; i++ {
 		res, err := c.Get(ts.URL)
 		if err != nil {
@@ -3221,12 +3806,9 @@ func TestTransportResponseHeaderLength(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
+	c := ts.Client()
+	c.Transport.(*Transport).MaxResponseHeaderBytes = 512 << 10
 
-	tr := &Transport{
-		MaxResponseHeaderBytes: 512 << 10,
-	}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
 	if res, err := c.Get(ts.URL); err != nil {
 		t.Fatal(err)
 	} else {
@@ -3259,8 +3841,12 @@ func TestTransportEventTrace_NoHooks_h2(t *testing.T) { testTransportEventTrace(
 func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	defer afterTest(t)
 	const resBody = "some body"
-	gotWroteReqEvent := make(chan struct{})
+	gotWroteReqEvent := make(chan struct{}, 500)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.Method == "GET" {
+			// Do nothing for the second request.
+			return
+		}
 		if _, err := ioutil.ReadAll(r.Body); err != nil {
 			t.Error(err)
 		}
@@ -3293,15 +3879,17 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	}
 
 	// Install a fake DNS server.
-	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, host string) ([]net.IPAddr, error) {
+	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, network, host string) ([]net.IPAddr, error) {
 		if host != "dns-is-faked.golang" {
-			t.Errorf("unexpected DNS host lookup for %q", host)
+			t.Errorf("unexpected DNS host lookup for %q/%q", network, host)
 			return nil, nil
 		}
 		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
 	})
 
-	req, _ := NewRequest("POST", cst.scheme()+"://dns-is-faked.golang:"+port, strings.NewReader("some body"))
+	body := "some body"
+	req, _ := NewRequest("POST", cst.scheme()+"://dns-is-faked.golang:"+port, strings.NewReader(body))
+	req.Header["X-Foo-Multiple-Vals"] = []string{"bar", "baz"}
 	trace := &httptrace.ClientTrace{
 		GetConn:              func(hostPort string) { logf("Getting conn for %v ...", hostPort) },
 		GotConn:              func(ci httptrace.GotConnInfo) { logf("got conn: %+v", ci) },
@@ -3316,11 +3904,17 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 			}
 			logf("ConnectDone: connected to %s %s = %v", network, addr, err)
 		},
+		WroteHeaderField: func(key string, value []string) {
+			logf("WroteHeaderField: %s: %v", key, value)
+		},
+		WroteHeaders: func() {
+			logf("WroteHeaders")
+		},
 		Wait100Continue: func() { logf("Wait100Continue") },
 		Got100Continue:  func() { logf("Got100Continue") },
 		WroteRequest: func(e httptrace.WroteRequestInfo) {
 			logf("WroteRequest: %+v", e)
-			close(gotWroteReqEvent)
+			gotWroteReqEvent <- struct{}{}
 		},
 	}
 	if h2 {
@@ -3385,7 +3979,15 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 		wantOnce("tls handshake done")
 	} else {
 		wantOnce("PutIdleConn = <nil>")
+		wantOnce("WroteHeaderField: User-Agent: [Go-http-client/1.1]")
+		// TODO(meirf): issue 19761. Make these agnostic to h1/h2. (These are not h1 specific, but the
+		// WroteHeaderField hook is not yet implemented in h2.)
+		wantOnce(fmt.Sprintf("WroteHeaderField: Host: [dns-is-faked.golang:%s]", port))
+		wantOnce(fmt.Sprintf("WroteHeaderField: Content-Length: [%d]", len(body)))
+		wantOnce("WroteHeaderField: X-Foo-Multiple-Vals: [bar baz]")
+		wantOnce("WroteHeaderField: Accept-Encoding: [gzip]")
 	}
+	wantOnce("WroteHeaders")
 	wantOnce("Wait100Continue")
 	wantOnce("Got100Continue")
 	wantOnce("WroteRequest: {Err:<nil>}")
@@ -3395,18 +3997,112 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	if t.Failed() {
 		t.Errorf("Output:\n%s", got)
 	}
+
+	// And do a second request:
+	req, _ = NewRequest("GET", cst.scheme()+"://dns-is-faked.golang:"+port, nil)
+	req = req.WithContext(httptrace.WithClientTrace(ctx, trace))
+	res, err = cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 200 {
+		t.Fatal(res.Status)
+	}
+	res.Body.Close()
+
+	mu.Lock()
+	got = buf.String()
+	mu.Unlock()
+
+	sub := "Getting conn for dns-is-faked.golang:"
+	if gotn, want := strings.Count(got, sub), 2; gotn != want {
+		t.Errorf("substring %q appeared %d times; want %d. Log:\n%s", sub, gotn, want, got)
+	}
+
+}
+
+func TestTransportEventTraceTLSVerify(t *testing.T) {
+	var mu sync.Mutex
+	var buf bytes.Buffer
+	logf := func(format string, args ...interface{}) {
+		mu.Lock()
+		defer mu.Unlock()
+		fmt.Fprintf(&buf, format, args...)
+		buf.WriteByte('\n')
+	}
+
+	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		t.Error("Unexpected request")
+	}))
+	defer ts.Close()
+	ts.Config.ErrorLog = log.New(funcWriter(func(p []byte) (int, error) {
+		logf("%s", p)
+		return len(p), nil
+	}), "", 0)
+
+	certpool := x509.NewCertPool()
+	certpool.AddCert(ts.Certificate())
+
+	c := &Client{Transport: &Transport{
+		TLSClientConfig: &tls.Config{
+			ServerName: "dns-is-faked.golang",
+			RootCAs:    certpool,
+		},
+	}}
+
+	trace := &httptrace.ClientTrace{
+		TLSHandshakeStart: func() { logf("TLSHandshakeStart") },
+		TLSHandshakeDone: func(s tls.ConnectionState, err error) {
+			logf("TLSHandshakeDone: ConnectionState = %v \n err = %v", s, err)
+		},
+	}
+
+	req, _ := NewRequest("GET", ts.URL, nil)
+	req = req.WithContext(httptrace.WithClientTrace(context.Background(), trace))
+	_, err := c.Do(req)
+	if err == nil {
+		t.Error("Expected request to fail TLS verification")
+	}
+
+	mu.Lock()
+	got := buf.String()
+	mu.Unlock()
+
+	wantOnce := func(sub string) {
+		if strings.Count(got, sub) != 1 {
+			t.Errorf("expected substring %q exactly once in output.", sub)
+		}
+	}
+
+	wantOnce("TLSHandshakeStart")
+	wantOnce("TLSHandshakeDone")
+	wantOnce("err = x509: certificate is valid for example.com")
+
+	if t.Failed() {
+		t.Errorf("Output:\n%s", got)
+	}
+}
+
+var (
+	isDNSHijackedOnce sync.Once
+	isDNSHijacked     bool
+)
+
+func skipIfDNSHijacked(t *testing.T) {
+	// Skip this test if the user is using a shady/ISP
+	// DNS server hijacking queries.
+	// See issues 16732, 16716.
+	isDNSHijackedOnce.Do(func() {
+		addrs, _ := net.LookupHost("dns-should-not-resolve.golang")
+		isDNSHijacked = len(addrs) != 0
+	})
+	if isDNSHijacked {
+		t.Skip("skipping; test requires non-hijacking DNS server")
+	}
 }
 
 func TestTransportEventTraceRealDNS(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" {
-		// Skip this test in short mode (the default for
-		// all.bash), in case the user is using a shady/ISP
-		// DNS server hijacking queries.
-		// See issues 16732, 16716.
-		// Our builders use 8.8.8.8, though, which correctly
-		// returns NXDOMAIN, so still run this test there.
-		t.Skip("skipping in short mode")
-	}
+	skipIfDNSHijacked(t)
 	defer afterTest(t)
 	tr := &Transport{}
 	defer tr.CloseIdleConnections()
@@ -3477,8 +4173,8 @@ func TestTransportRejectsAlphaPort(t *testing.T) {
 // connections. The http2 test is done in TestTransportEventTrace_h2
 func TestTLSHandshakeTrace(t *testing.T) {
 	defer afterTest(t)
-	s := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
-	defer s.Close()
+	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	defer ts.Close()
 
 	var mu sync.Mutex
 	var start, done bool
@@ -3498,10 +4194,8 @@ func TestTLSHandshakeTrace(t *testing.T) {
 		},
 	}
 
-	tr := &Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
-	req, err := NewRequest("GET", s.URL, nil)
+	c := ts.Client()
+	req, err := NewRequest("GET", ts.URL, nil)
 	if err != nil {
 		t.Fatal("Unable to construct test request:", err)
 	}
@@ -3528,17 +4222,15 @@ func TestTransportMaxIdleConns(t *testing.T) {
 		// No body for convenience.
 	}))
 	defer ts.Close()
-	tr := &Transport{
-		MaxIdleConns: 4,
-	}
-	defer tr.CloseIdleConnections()
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
+	tr.MaxIdleConns = 4
 
 	ip, port, err := net.SplitHostPort(ts.Listener.Addr().String())
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := &Client{Transport: tr}
-	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, host string) ([]net.IPAddr, error) {
+	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, _, host string) ([]net.IPAddr, error) {
 		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
 	})
 
@@ -3641,7 +4333,7 @@ func testTransportIdleConnTimeout(t *testing.T, h2 bool) {
 }
 
 // Issue 16208: Go 1.7 crashed after Transport.IdleConnTimeout if an
-// HTTP/2 connection was established but but its caller no longer
+// HTTP/2 connection was established but its caller no longer
 // wanted it. (Assuming the connection cache was enabled, which it is
 // by default)
 //
@@ -3778,9 +4470,9 @@ func testTransportIDNA(t *testing.T, h2 bool) {
 	}
 
 	// Install a fake DNS server.
-	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, host string) ([]net.IPAddr, error) {
+	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, network, host string) ([]net.IPAddr, error) {
 		if host != punyDomain {
-			t.Errorf("got DNS host lookup for %q; want %q", host, punyDomain)
+			t.Errorf("got DNS host lookup for %q/%q; want %q", network, host, punyDomain)
 			return nil, nil
 		}
 		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
@@ -3833,17 +4525,16 @@ func TestTransportProxyConnectHeader(t *testing.T) {
 		c.Close()
 	}))
 	defer ts.Close()
-	tr := &Transport{
-		ProxyConnectHeader: Header{
-			"User-Agent": {"foo"},
-			"Other":      {"bar"},
-		},
-		Proxy: func(r *Request) (*url.URL, error) {
-			return url.Parse(ts.URL)
-		},
+
+	c := ts.Client()
+	c.Transport.(*Transport).Proxy = func(r *Request) (*url.URL, error) {
+		return url.Parse(ts.URL)
 	}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	c.Transport.(*Transport).ProxyConnectHeader = Header{
+		"User-Agent": {"foo"},
+		"Other":      {"bar"},
+	}
+
 	res, err := c.Get("https://dummy.tld/") // https to force a CONNECT
 	if err == nil {
 		res.Body.Close()
@@ -3943,4 +4634,428 @@ var rgz = []byte{
 	0xf7, 0xff, 0x3d, 0xb1, 0x20, 0x85, 0xfa, 0x00,
 	0x00, 0x00, 0x3d, 0xb1, 0x20, 0x85, 0xfa, 0x00,
 	0x00, 0x00,
+}
+
+// Ensure that a missing status doesn't make the server panic
+// See Issue https://golang.org/issues/21701
+func TestMissingStatusNoPanic(t *testing.T) {
+	t.Parallel()
+
+	const want = "unknown status code"
+
+	ln := newLocalListener(t)
+	addr := ln.Addr().String()
+	shutdown := make(chan bool, 1)
+	done := make(chan bool)
+	fullAddrURL := fmt.Sprintf("http://%s", addr)
+	raw := "HTTP/1.1 400\r\n" +
+		"Date: Wed, 30 Aug 2017 19:09:27 GMT\r\n" +
+		"Content-Type: text/html; charset=utf-8\r\n" +
+		"Content-Length: 10\r\n" +
+		"Last-Modified: Wed, 30 Aug 2017 19:02:02 GMT\r\n" +
+		"Vary: Accept-Encoding\r\n\r\n" +
+		"Aloha Olaa"
+
+	go func() {
+		defer func() {
+			ln.Close()
+			close(done)
+		}()
+
+		conn, _ := ln.Accept()
+		if conn != nil {
+			io.WriteString(conn, raw)
+			ioutil.ReadAll(conn)
+			conn.Close()
+		}
+	}()
+
+	proxyURL, err := url.Parse(fullAddrURL)
+	if err != nil {
+		t.Fatalf("proxyURL: %v", err)
+	}
+
+	tr := &Transport{Proxy: ProxyURL(proxyURL)}
+
+	req, _ := NewRequest("GET", "https://golang.org/", nil)
+	res, err, panicked := doFetchCheckPanic(tr, req)
+	if panicked {
+		t.Error("panicked, expecting an error")
+	}
+	if res != nil && res.Body != nil {
+		io.Copy(ioutil.Discard, res.Body)
+		res.Body.Close()
+	}
+
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("got=%v want=%q", err, want)
+	}
+
+	close(shutdown)
+	<-done
+}
+
+func doFetchCheckPanic(tr *Transport, req *Request) (res *Response, err error, panicked bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			panicked = true
+		}
+	}()
+	res, err = tr.RoundTrip(req)
+	return
+}
+
+// Issue 22330: do not allow the response body to be read when the status code
+// forbids a response body.
+func TestNoBodyOnChunked304Response(t *testing.T) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		conn, buf, _ := w.(Hijacker).Hijack()
+		buf.Write([]byte("HTTP/1.1 304 NOT MODIFIED\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n"))
+		buf.Flush()
+		conn.Close()
+	}))
+	defer cst.close()
+
+	// Our test server above is sending back bogus data after the
+	// response (the "0\r\n\r\n" part), which causes the Transport
+	// code to log spam. Disable keep-alives so we never even try
+	// to reuse the connection.
+	cst.tr.DisableKeepAlives = true
+
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.Body != NoBody {
+		t.Errorf("Unexpected body on 304 response")
+	}
+}
+
+type funcWriter func([]byte) (int, error)
+
+func (f funcWriter) Write(p []byte) (int, error) { return f(p) }
+
+type doneContext struct {
+	context.Context
+	err error
+}
+
+func (doneContext) Done() <-chan struct{} {
+	c := make(chan struct{})
+	close(c)
+	return c
+}
+
+func (d doneContext) Err() error { return d.err }
+
+// Issue 25852: Transport should check whether Context is done early.
+func TestTransportCheckContextDoneEarly(t *testing.T) {
+	tr := &Transport{}
+	req, _ := NewRequest("GET", "http://fake.example/", nil)
+	wantErr := errors.New("some error")
+	req = req.WithContext(doneContext{context.Background(), wantErr})
+	_, err := tr.RoundTrip(req)
+	if err != wantErr {
+		t.Errorf("error = %v; want %v", err, wantErr)
+	}
+}
+
+// Issue 23399: verify that if a client request times out, the Transport's
+// conn is closed so that it's not reused.
+//
+// This is the test variant that times out before the server replies with
+// any response headers.
+func TestClientTimeoutKillsConn_BeforeHeaders(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	inHandler := make(chan net.Conn, 1)
+	handlerReadReturned := make(chan bool, 1)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		conn, _, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		inHandler <- conn
+		n, err := conn.Read([]byte{0})
+		if n != 0 || err != io.EOF {
+			t.Errorf("unexpected Read result: %v, %v", n, err)
+		}
+		handlerReadReturned <- true
+	}))
+	defer cst.close()
+
+	const timeout = 50 * time.Millisecond
+	cst.c.Timeout = timeout
+
+	_, err := cst.c.Get(cst.ts.URL)
+	if err == nil {
+		t.Fatal("unexpected Get succeess")
+	}
+
+	select {
+	case c := <-inHandler:
+		select {
+		case <-handlerReadReturned:
+			// Success.
+			return
+		case <-time.After(5 * time.Second):
+			t.Error("Handler's conn.Read seems to be stuck in Read")
+			c.Close() // close it to unblock Handler
+		}
+	case <-time.After(timeout * 10):
+		// If we didn't get into the Handler in 50ms, that probably means
+		// the builder was just slow and the Get failed in that time
+		// but never made it to the server. That's fine. We'll usually
+		// test the part above on faster machines.
+		t.Skip("skipping test on slow builder")
+	}
+}
+
+// Issue 23399: verify that if a client request times out, the Transport's
+// conn is closed so that it's not reused.
+//
+// This is the test variant that has the server send response headers
+// first, and time out during the write of the response body.
+func TestClientTimeoutKillsConn_AfterHeaders(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	inHandler := make(chan net.Conn, 1)
+	handlerResult := make(chan error, 1)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Length", "100")
+		w.(Flusher).Flush()
+		conn, _, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		conn.Write([]byte("foo"))
+		inHandler <- conn
+		n, err := conn.Read([]byte{0})
+		// The error should be io.EOF or "read tcp
+		// 127.0.0.1:35827->127.0.0.1:40290: read: connection
+		// reset by peer" depending on timing. Really we just
+		// care that it returns at all. But if it returns with
+		// data, that's weird.
+		if n != 0 || err == nil {
+			handlerResult <- fmt.Errorf("unexpected Read result: %v, %v", n, err)
+			return
+		}
+		handlerResult <- nil
+	}))
+	defer cst.close()
+
+	// Set Timeout to something very long but non-zero to exercise
+	// the codepaths that check for it. But rather than wait for it to fire
+	// (which would make the test slow), we send on the req.Cancel channel instead,
+	// which happens to exercise the same code paths.
+	cst.c.Timeout = time.Minute // just to be non-zero, not to hit it.
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	cancel := make(chan struct{})
+	req.Cancel = cancel
+
+	res, err := cst.c.Do(req)
+	if err != nil {
+		select {
+		case <-inHandler:
+			t.Fatalf("Get error: %v", err)
+		default:
+			// Failed before entering handler. Ignore result.
+			t.Skip("skipping test on slow builder")
+		}
+	}
+
+	close(cancel)
+	got, err := ioutil.ReadAll(res.Body)
+	if err == nil {
+		t.Fatalf("unexpected success; read %q, nil", got)
+	}
+
+	select {
+	case c := <-inHandler:
+		select {
+		case err := <-handlerResult:
+			if err != nil {
+				t.Errorf("handler: %v", err)
+			}
+			return
+		case <-time.After(5 * time.Second):
+			t.Error("Handler's conn.Read seems to be stuck in Read")
+			c.Close() // close it to unblock Handler
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout")
+	}
+}
+
+func TestTransportResponseBodyWritableOnProtocolSwitch(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	done := make(chan struct{})
+	defer close(done)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		conn, _, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer conn.Close()
+		io.WriteString(conn, "HTTP/1.1 101 Switching Protocols Hi\r\nConnection: upgRADe\r\nUpgrade: foo\r\n\r\nSome buffered data\n")
+		bs := bufio.NewScanner(conn)
+		bs.Scan()
+		fmt.Fprintf(conn, "%s\n", strings.ToUpper(bs.Text()))
+		<-done
+	}))
+	defer cst.close()
+
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	req.Header.Set("Upgrade", "foo")
+	req.Header.Set("Connection", "upgrade")
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 101 {
+		t.Fatalf("expected 101 switching protocols; got %v, %v", res.Status, res.Header)
+	}
+	rwc, ok := res.Body.(io.ReadWriteCloser)
+	if !ok {
+		t.Fatalf("expected a ReadWriteCloser; got a %T", res.Body)
+	}
+	defer rwc.Close()
+	bs := bufio.NewScanner(rwc)
+	if !bs.Scan() {
+		t.Fatalf("expected readable input")
+	}
+	if got, want := bs.Text(), "Some buffered data"; got != want {
+		t.Errorf("read %q; want %q", got, want)
+	}
+	io.WriteString(rwc, "echo\n")
+	if !bs.Scan() {
+		t.Fatalf("expected another line")
+	}
+	if got, want := bs.Text(), "ECHO"; got != want {
+		t.Errorf("read %q; want %q", got, want)
+	}
+}
+
+func TestTransportCONNECTBidi(t *testing.T) {
+	defer afterTest(t)
+	const target = "backend:443"
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.Method != "CONNECT" {
+			t.Errorf("unexpected method %q", r.Method)
+			w.WriteHeader(500)
+			return
+		}
+		if r.RequestURI != target {
+			t.Errorf("unexpected CONNECT target %q", r.RequestURI)
+			w.WriteHeader(500)
+			return
+		}
+		nc, brw, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer nc.Close()
+		nc.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+		// Switch to a little protocol that capitalize its input lines:
+		for {
+			line, err := brw.ReadString('\n')
+			if err != nil {
+				if err != io.EOF {
+					t.Error(err)
+				}
+				return
+			}
+			io.WriteString(brw, strings.ToUpper(line))
+			brw.Flush()
+		}
+	}))
+	defer cst.close()
+	pr, pw := io.Pipe()
+	defer pw.Close()
+	req, err := NewRequest("CONNECT", cst.ts.URL, pr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.URL.Opaque = target
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		t.Fatalf("status code = %d; want 200", res.StatusCode)
+	}
+	br := bufio.NewReader(res.Body)
+	for _, str := range []string{"foo", "bar", "baz"} {
+		fmt.Fprintf(pw, "%s\n", str)
+		got, err := br.ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		got = strings.TrimSpace(got)
+		want := strings.ToUpper(str)
+		if got != want {
+			t.Fatalf("got %q; want %q", got, want)
+		}
+	}
+}
+
+func TestTransportRequestReplayable(t *testing.T) {
+	someBody := ioutil.NopCloser(strings.NewReader(""))
+	tests := []struct {
+		name string
+		req  *Request
+		want bool
+	}{
+		{
+			name: "GET",
+			req:  &Request{Method: "GET"},
+			want: true,
+		},
+		{
+			name: "GET_http.NoBody",
+			req:  &Request{Method: "GET", Body: NoBody},
+			want: true,
+		},
+		{
+			name: "GET_body",
+			req:  &Request{Method: "GET", Body: someBody},
+			want: false,
+		},
+		{
+			name: "POST",
+			req:  &Request{Method: "POST"},
+			want: false,
+		},
+		{
+			name: "POST_idempotency-key",
+			req:  &Request{Method: "POST", Header: Header{"Idempotency-Key": {"x"}}},
+			want: true,
+		},
+		{
+			name: "POST_x-idempotency-key",
+			req:  &Request{Method: "POST", Header: Header{"X-Idempotency-Key": {"x"}}},
+			want: true,
+		},
+		{
+			name: "POST_body",
+			req:  &Request{Method: "POST", Header: Header{"Idempotency-Key": {"x"}}, Body: someBody},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.req.ExportIsReplayable()
+			if got != tt.want {
+				t.Errorf("replyable = %v; want %v", got, tt.want)
+			}
+		})
+	}
 }

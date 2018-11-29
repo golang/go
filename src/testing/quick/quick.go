@@ -14,6 +14,7 @@ import (
 	"math/rand"
 	"reflect"
 	"strings"
+	"time"
 )
 
 var defaultMaxCount *int = flag.Int("quickchecks", 100, "The default number of iterations for each check")
@@ -43,8 +44,10 @@ func randFloat64(rand *rand.Rand) float64 {
 	return f
 }
 
-// randInt64 returns a random integer taking half the range of an int64.
-func randInt64(rand *rand.Rand) int64 { return rand.Int63() - 1<<62 }
+// randInt64 returns a random int64.
+func randInt64(rand *rand.Rand) int64 {
+	return int64(rand.Uint64())
+}
 
 // complexSize is the maximum length of arbitrary values that contain other
 // values.
@@ -172,19 +175,20 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
 
 // A Config structure contains options for running a test.
 type Config struct {
-	// MaxCount sets the maximum number of iterations. If zero,
-	// MaxCountScale is used.
+	// MaxCount sets the maximum number of iterations.
+	// If zero, MaxCountScale is used.
 	MaxCount int
-	// MaxCountScale is a non-negative scale factor applied to the default
-	// maximum. If zero, the default is unchanged.
+	// MaxCountScale is a non-negative scale factor applied to the
+	// default maximum.
+	// If zero, the default is unchanged.
 	MaxCountScale float64
-	// If non-nil, rand is a source of random numbers. Otherwise a default
-	// pseudo-random source will be used.
+	// Rand specifies a source of random numbers.
+	// If nil, a default pseudo-random source will be used.
 	Rand *rand.Rand
-	// If non-nil, the Values function generates a slice of arbitrary
-	// reflect.Values that are congruent with the arguments to the function
-	// being tested. Otherwise, the top-level Value function is used
-	// to generate them.
+	// Values specifies a function to generate a slice of
+	// arbitrary reflect.Values that are congruent with the
+	// arguments to the function being tested.
+	// If nil, the top-level Value function is used to generate them.
 	Values func([]reflect.Value, *rand.Rand)
 }
 
@@ -193,7 +197,7 @@ var defaultConfig Config
 // getRand returns the *rand.Rand to use for a given Config.
 func (c *Config) getRand() *rand.Rand {
 	if c.Rand == nil {
-		return rand.New(rand.NewSource(0))
+		return rand.New(rand.NewSource(time.Now().UnixNano()))
 	}
 	return c.Rand
 }

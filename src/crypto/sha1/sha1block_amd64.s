@@ -13,7 +13,7 @@
 
 #include "textflag.h"
 
-// SHA1 block routine. See sha1block.go for Go equivalent.
+// SHA-1 block routine. See sha1block.go for Go equivalent.
 //
 // There are 80 rounds of 4 types:
 //   - rounds 0-15 are type 1 and load data (ROUND1 macro).
@@ -60,7 +60,7 @@
 	MOVL	b, R9; \
 	ANDL	c, R9; \
 	ORL	R8, R9
-	
+
 #define FUNC4 FUNC2
 
 #define MIX(a, b, c, d, e, const) \
@@ -102,7 +102,7 @@ TEXT ·blockAMD64(SB),NOSPLIT,$64-32
 	MOVQ	p_len+16(FP),	DX
 	SHRQ	$6,		DX
 	SHLQ	$6,		DX
-	
+
 	LEAQ	(SI)(DX*1),	DI
 	MOVL	(0*4)(BP),	AX
 	MOVL	(1*4)(BP),	BX
@@ -141,7 +141,7 @@ loop:
 	ROUND1x(DX, BP, AX, BX, CX, 17)
 	ROUND1x(CX, DX, BP, AX, BX, 18)
 	ROUND1x(BX, CX, DX, BP, AX, 19)
-	
+
 	ROUND2(AX, BX, CX, DX, BP, 20)
 	ROUND2(BP, AX, BX, CX, DX, 21)
 	ROUND2(DX, BP, AX, BX, CX, 22)
@@ -162,7 +162,7 @@ loop:
 	ROUND2(DX, BP, AX, BX, CX, 37)
 	ROUND2(CX, DX, BP, AX, BX, 38)
 	ROUND2(BX, CX, DX, BP, AX, 39)
-	
+
 	ROUND3(AX, BX, CX, DX, BP, 40)
 	ROUND3(BP, AX, BX, CX, DX, 41)
 	ROUND3(DX, BP, AX, BX, CX, 42)
@@ -183,7 +183,7 @@ loop:
 	ROUND3(DX, BP, AX, BX, CX, 57)
 	ROUND3(CX, DX, BP, AX, BX, 58)
 	ROUND3(BX, CX, DX, BP, AX, 59)
-	
+
 	ROUND4(AX, BX, CX, DX, BP, 60)
 	ROUND4(BP, AX, BX, CX, DX, 61)
 	ROUND4(DX, BP, AX, BX, CX, 62)
@@ -225,7 +225,7 @@ end:
 	RET
 
 
-// This is the implementation using AVX2. It is based on:
+// This is the implementation using AVX2, BMI1 and BMI2. It is based on:
 // "SHA-1 implementation with Intel(R) AVX2 instruction set extensions"
 // From http://software.intel.com/en-us/articles
 // (look for improving-the-performance-of-the-secure-hash-algorithm-1)
@@ -395,7 +395,7 @@ end:
 	PRECALC_32_79(Y13,Y14,Y15,Y5,Y12,0x60,0x240) \
 	PRECALC_32_79(Y12,Y13,Y14,Y3,Y8,0x60,0x260)
 
-// Macros calculating individual rounds have general forn
+// Macros calculating individual rounds have general form
 // CALC_ROUND_PRE + PRECALC_ROUND + CALC_ROUND_POST
 // CALC_ROUND_{PRE,POST} macros follow
 
@@ -413,7 +413,7 @@ end:
 	LEAL (REG_E)(R12*1), REG_E     // E += A >>> 5
 
 
-// Registers are cycleickly rotated DX -> AX -> DI -> SI -> BX -> CX
+// Registers are cyclically rotated DX -> AX -> DI -> SI -> BX -> CX
 #define CALC_0 \
 	MOVL SI, BX \ // Precalculating first round
 	RORXL $2, SI, SI \
@@ -1451,24 +1451,9 @@ TEXT ·blockAVX2(SB),$1408-32
 	CMPQ	R13, R11
 	CMOVQCC	R8, R13
 
-	MOVQ    $BSWAP_SHUFB_CTL<>(SB), R8
-	VMOVDQU (R8), Y10
-	MOVQ	$K_XMM_AR<>(SB), R8 //restore R8
+	VMOVDQU	BSWAP_SHUFB_CTL<>(SB), Y10
 
 	CALC // RET is inside macros
-
-
-// func checkAVX2() bool
-// returns whether AVX2 is supported
-TEXT ·checkAVX2(SB),NOSPLIT,$0
-	CMPB runtime·support_avx2(SB), $1
-	JE   has
-        MOVB    $0, ret+0(FP)
-	RET
-has:
-        MOVB    $1, ret+0(FP)
-	RET
-
 
 DATA K_XMM_AR<>+0x00(SB)/4,$0x5a827999
 DATA K_XMM_AR<>+0x04(SB)/4,$0x5a827999

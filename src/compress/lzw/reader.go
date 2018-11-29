@@ -57,8 +57,14 @@ type decoder struct {
 	// The next two codes mean clear and EOF.
 	// Other valid codes are in the range [lo, hi] where lo := clear + 2,
 	// with the upper bound incrementing on each code seen.
-	// overflow is the code at which hi overflows the code width.
+	//
+	// overflow is the code at which hi overflows the code width. It always
+	// equals 1 << width.
+	//
 	// last is the most recently seen code, or decoderInvalidCode.
+	//
+	// An invariant is that
+	// (hi < overflow) || (hi == overflow && last == decoderInvalidCode)
 	clear, eof, hi, overflow, last uint16
 
 	// Each code c in [lo, hi] expands to two or more bytes. For c != hi:
@@ -163,7 +169,7 @@ loop:
 			break loop
 		case code <= d.hi:
 			c, i := code, len(d.output)-1
-			if code == d.hi {
+			if code == d.hi && d.last != decoderInvalidCode {
 				// code == hi is a special case which expands to the last expansion
 				// followed by the head of the last expansion. To find the head, we walk
 				// the prefix chain until we find a literal code.
@@ -196,6 +202,10 @@ loop:
 		if d.hi >= d.overflow {
 			if d.width == maxWidth {
 				d.last = decoderInvalidCode
+				// Undo the d.hi++ a few lines above, so that (1) we maintain
+				// the invariant that d.hi <= d.overflow, and (2) d.hi does not
+				// eventually overflow a uint16.
+				d.hi--
 			} else {
 				d.width++
 				d.overflow <<= 1

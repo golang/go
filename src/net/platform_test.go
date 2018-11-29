@@ -7,7 +7,9 @@ package net
 import (
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -35,6 +37,16 @@ func testableNetwork(network string) bool {
 		switch runtime.GOOS {
 		case "android", "nacl", "plan9", "windows":
 			return false
+		case "aix":
+			// Unix network isn't properly working on AIX 7.2 with Technical Level < 2
+			out, err := exec.Command("oslevel", "-s").Output()
+			if err != nil {
+				return false
+			}
+			if tl, err := strconv.Atoi(string(out[5:7])); err != nil || tl < 2 {
+				return false
+			}
+			return true
 		}
 		// iOS does not support unix, unixgram.
 		if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
@@ -42,19 +54,22 @@ func testableNetwork(network string) bool {
 		}
 	case "unixpacket":
 		switch runtime.GOOS {
-		case "android", "darwin", "nacl", "plan9", "windows":
-			fallthrough
-		case "freebsd": // FreeBSD 8 and below don't support unixpacket
+		case "aix", "android", "darwin", "nacl", "plan9", "windows":
 			return false
+		case "netbsd":
+			// It passes on amd64 at least. 386 fails (Issue 22927). arm is unknown.
+			if runtime.GOARCH == "386" {
+				return false
+			}
 		}
 	}
 	switch ss[0] {
 	case "tcp4", "udp4", "ip4":
-		if !supportsIPv4 {
+		if !supportsIPv4() {
 			return false
 		}
 	case "tcp6", "udp6", "ip6":
-		if !supportsIPv6 {
+		if !supportsIPv6() {
 			return false
 		}
 	}
@@ -117,25 +132,25 @@ func testableListenArgs(network, address, client string) bool {
 
 	// Test functionality of IPv4 communication using AF_INET and
 	// IPv6 communication using AF_INET6 sockets.
-	if !supportsIPv4 && ip.To4() != nil {
+	if !supportsIPv4() && ip.To4() != nil {
 		return false
 	}
-	if !supportsIPv6 && ip.To16() != nil && ip.To4() == nil {
+	if !supportsIPv6() && ip.To16() != nil && ip.To4() == nil {
 		return false
 	}
 	cip := ParseIP(client)
 	if cip != nil {
-		if !supportsIPv4 && cip.To4() != nil {
+		if !supportsIPv4() && cip.To4() != nil {
 			return false
 		}
-		if !supportsIPv6 && cip.To16() != nil && cip.To4() == nil {
+		if !supportsIPv6() && cip.To16() != nil && cip.To4() == nil {
 			return false
 		}
 	}
 
 	// Test functionality of IPv4 communication using AF_INET6
 	// sockets.
-	if !supportsIPv4map && supportsIPv4 && (network == "tcp" || network == "udp" || network == "ip") && wildcard {
+	if !supportsIPv4map() && supportsIPv4() && (network == "tcp" || network == "udp" || network == "ip") && wildcard {
 		// At this point, we prefer IPv4 when ip is nil.
 		// See favoriteAddrFamily for further information.
 		if ip.To16() != nil && ip.To4() == nil && cip.To4() != nil { // a pair of IPv6 server and IPv4 client
@@ -149,12 +164,19 @@ func testableListenArgs(network, address, client string) bool {
 	return true
 }
 
-var condFatalf = func() func(*testing.T, string, ...interface{}) {
-	// A few APIs, File, Read/WriteMsg{UDP,IP}, are not
-	// implemented yet on both Plan 9 and Windows.
+func condFatalf(t *testing.T, network string, format string, args ...interface{}) {
+	t.Helper()
+	// A few APIs like File and Read/WriteMsg{UDP,IP} are not
+	// fully implemented yet on Plan 9 and Windows.
 	switch runtime.GOOS {
-	case "plan9", "windows":
-		return (*testing.T).Logf
+	case "windows":
+		if network == "file+net" {
+			t.Logf(format, args...)
+			return
+		}
+	case "plan9":
+		t.Logf(format, args...)
+		return
 	}
-	return (*testing.T).Fatalf
-}()
+	t.Fatalf(format, args...)
+}

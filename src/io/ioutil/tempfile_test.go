@@ -8,26 +8,42 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 )
 
 func TestTempFile(t *testing.T) {
-	f, err := TempFile("/_not_exists_", "foo")
-	if f != nil || err == nil {
-		t.Errorf("TempFile(`/_not_exists_`, `foo`) = %v, %v", f, err)
+	dir, err := TempDir("", "TestTempFile_BadDir")
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer os.RemoveAll(dir)
 
-	dir := os.TempDir()
-	f, err = TempFile(dir, "ioutil_test")
-	if f == nil || err != nil {
-		t.Errorf("TempFile(dir, `ioutil_test`) = %v, %v", f, err)
+	nonexistentDir := filepath.Join(dir, "_not_exists_")
+	f, err := TempFile(nonexistentDir, "foo")
+	if f != nil || err == nil {
+		t.Errorf("TempFile(%q, `foo`) = %v, %v", nonexistentDir, f, err)
 	}
-	if f != nil {
+}
+
+func TestTempFile_pattern(t *testing.T) {
+	tests := []struct{ pattern, prefix, suffix string }{
+		{"ioutil_test", "ioutil_test", ""},
+		{"ioutil_test*", "ioutil_test", ""},
+		{"ioutil_test*xyz", "ioutil_test", "xyz"},
+	}
+	for _, test := range tests {
+		f, err := TempFile("", test.pattern)
+		if err != nil {
+			t.Errorf("TempFile(..., %q) error: %v", test.pattern, err)
+			continue
+		}
+		defer os.Remove(f.Name())
+		base := filepath.Base(f.Name())
 		f.Close()
-		os.Remove(f.Name())
-		re := regexp.MustCompile("^" + regexp.QuoteMeta(filepath.Join(dir, "ioutil_test")) + "[0-9]+$")
-		if !re.MatchString(f.Name()) {
-			t.Errorf("TempFile(`"+dir+"`, `ioutil_test`) created bad name %s", f.Name())
+		if !(strings.HasPrefix(base, test.prefix) && strings.HasSuffix(base, test.suffix)) {
+			t.Errorf("TempFile pattern %q created bad name %q; want prefix %q & suffix %q",
+				test.pattern, base, test.prefix, test.suffix)
 		}
 	}
 }

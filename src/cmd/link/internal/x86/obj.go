@@ -31,51 +31,49 @@
 package x86
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
 )
 
-func Init() {
-	ld.SysArch = sys.Arch386
+func Init() (*sys.Arch, ld.Arch) {
+	arch := sys.Arch386
 
-	ld.Thearch.Funcalign = funcAlign
-	ld.Thearch.Maxalign = maxAlign
-	ld.Thearch.Minalign = minAlign
-	ld.Thearch.Dwarfregsp = dwarfRegSP
-	ld.Thearch.Dwarfreglr = dwarfRegLR
+	theArch := ld.Arch{
+		Funcalign:  funcAlign,
+		Maxalign:   maxAlign,
+		Minalign:   minAlign,
+		Dwarfregsp: dwarfRegSP,
+		Dwarfreglr: dwarfRegLR,
 
-	ld.Thearch.Adddynrel = adddynrel
-	ld.Thearch.Archinit = archinit
-	ld.Thearch.Archreloc = archreloc
-	ld.Thearch.Archrelocvariant = archrelocvariant
-	ld.Thearch.Asmb = asmb
-	ld.Thearch.Elfreloc1 = elfreloc1
-	ld.Thearch.Elfsetupplt = elfsetupplt
-	ld.Thearch.Gentext = gentext
-	ld.Thearch.Machoreloc1 = machoreloc1
-	ld.Thearch.PEreloc1 = pereloc1
-	ld.Thearch.Lput = ld.Lputl
-	ld.Thearch.Wput = ld.Wputl
-	ld.Thearch.Vput = ld.Vputl
-	ld.Thearch.Append16 = ld.Append16l
-	ld.Thearch.Append32 = ld.Append32l
-	ld.Thearch.Append64 = ld.Append64l
+		Adddynrel:        adddynrel,
+		Archinit:         archinit,
+		Archreloc:        archreloc,
+		Archrelocvariant: archrelocvariant,
+		Asmb:             asmb,
+		Elfreloc1:        elfreloc1,
+		Elfsetupplt:      elfsetupplt,
+		Gentext:          gentext,
+		Machoreloc1:      machoreloc1,
+		PEreloc1:         pereloc1,
 
-	ld.Thearch.Linuxdynld = "/lib/ld-linux.so.2"
-	ld.Thearch.Freebsddynld = "/usr/libexec/ld-elf.so.1"
-	ld.Thearch.Openbsddynld = "/usr/libexec/ld.so"
-	ld.Thearch.Netbsddynld = "/usr/libexec/ld.elf_so"
-	ld.Thearch.Solarisdynld = "/lib/ld.so.1"
+		Linuxdynld:   "/lib/ld-linux.so.2",
+		Freebsddynld: "/usr/libexec/ld-elf.so.1",
+		Openbsddynld: "/usr/libexec/ld.so",
+		Netbsddynld:  "/usr/libexec/ld.elf_so",
+		Solarisdynld: "/lib/ld.so.1",
+	}
+
+	return arch, theArch
 }
 
 func archinit(ctxt *ld.Link) {
-	switch ld.Headtype {
+	switch ctxt.HeadType {
 	default:
-		ld.Exitf("unknown -H option: %v", ld.Headtype)
+		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
 
-	case obj.Hplan9: /* plan 9 */
+	case objabi.Hplan9: /* plan 9 */
 		ld.HEADR = 32
 
 		if *ld.FlagTextAddr == -1 {
@@ -88,9 +86,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 
-	case obj.Hdarwin: /* apple MACH */
-		ld.Machoinit()
-
+	case objabi.Hdarwin: /* apple MACH */
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
@@ -102,10 +98,10 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 
-	case obj.Hlinux, /* elf32 executable */
-		obj.Hfreebsd,
-		obj.Hnetbsd,
-		obj.Hopenbsd:
+	case objabi.Hlinux, /* elf32 executable */
+		objabi.Hfreebsd,
+		objabi.Hnetbsd,
+		objabi.Hopenbsd:
 		ld.Elfinit(ctxt)
 
 		ld.HEADR = ld.ELFRESERVE
@@ -119,7 +115,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 
-	case obj.Hnacl:
+	case objabi.Hnacl:
 		ld.Elfinit(ctxt)
 		ld.HEADR = 0x10000
 		ld.Funcalign = 32
@@ -133,19 +129,9 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x10000
 		}
 
-	case obj.Hwindows, obj.Hwindowsgui: /* PE executable */
-		ld.Peinit(ctxt)
-
-		ld.HEADR = ld.PEFILEHEADR
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = ld.PEBASE + int64(ld.PESECTHEADR)
-		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
-		if *ld.FlagRound == -1 {
-			*ld.FlagRound = ld.PESECTALIGN
-		}
+	case objabi.Hwindows: /* PE executable */
+		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
+		return
 	}
 
 	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {

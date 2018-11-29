@@ -8,14 +8,12 @@ import (
 	"bytes"
 	"io"
 	"os"
-	"regexp"
 	"strings"
 	"testing"
 )
 
 func TestReadForm(t *testing.T) {
-	testBody := regexp.MustCompile("\n").ReplaceAllString(message, "\r\n")
-	b := strings.NewReader(testBody)
+	b := strings.NewReader(strings.ReplaceAll(message, "\n", "\r\n"))
 	r := NewReader(b, boundary)
 	f, err := r.ReadForm(25)
 	if err != nil {
@@ -40,9 +38,41 @@ func TestReadForm(t *testing.T) {
 	fd.Close()
 }
 
+func TestReadFormWithNamelessFile(t *testing.T) {
+	b := strings.NewReader(strings.ReplaceAll(messageWithFileWithoutName, "\n", "\r\n"))
+	r := NewReader(b, boundary)
+	f, err := r.ReadForm(25)
+	if err != nil {
+		t.Fatal("ReadForm:", err)
+	}
+	defer f.RemoveAll()
+
+	if g, e := f.Value["hiddenfile"][0], filebContents; g != e {
+		t.Errorf("hiddenfile value = %q, want %q", g, e)
+	}
+}
+
+func TestReadFormWithTextContentType(t *testing.T) {
+	// From https://github.com/golang/go/issues/24041
+	b := strings.NewReader(strings.ReplaceAll(messageWithTextContentType, "\n", "\r\n"))
+	r := NewReader(b, boundary)
+	f, err := r.ReadForm(25)
+	if err != nil {
+		t.Fatal("ReadForm:", err)
+	}
+	defer f.RemoveAll()
+
+	if g, e := f.Value["texta"][0], textaValue; g != e {
+		t.Errorf("texta value = %q, want %q", g, e)
+	}
+}
+
 func testFile(t *testing.T, fh *FileHeader, efn, econtent string) File {
 	if fh.Filename != efn {
 		t.Errorf("filename = %q, want %q", fh.Filename, efn)
+	}
+	if fh.Size != int64(len(econtent)) {
+		t.Errorf("size = %d, want %d", fh.Size, len(econtent))
 	}
 	f, err := fh.Open()
 	if err != nil {
@@ -66,6 +96,24 @@ const (
 	textbValue    = "bar"
 	boundary      = `MyBoundary`
 )
+
+const messageWithFileWithoutName = `
+--MyBoundary
+Content-Disposition: form-data; name="hiddenfile"; filename=""
+Content-Type: text/plain
+
+` + filebContents + `
+--MyBoundary--
+`
+
+const messageWithTextContentType = `
+--MyBoundary
+Content-Disposition: form-data; name="texta"
+Content-Type: text/plain
+
+` + textaValue + `
+--MyBoundary
+`
 
 const message = `
 --MyBoundary
@@ -123,4 +171,45 @@ func (r *failOnReadAfterErrorReader) Read(p []byte) (n int, err error) {
 	n, err = r.r.Read(p)
 	r.sawErr = err
 	return
+}
+
+// TestReadForm_NonFileMaxMemory asserts that the ReadForm maxMemory limit is applied
+// while processing non-file form data as well as file form data.
+func TestReadForm_NonFileMaxMemory(t *testing.T) {
+	largeTextValue := strings.Repeat("1", (10<<20)+25)
+	message := `--MyBoundary
+Content-Disposition: form-data; name="largetext"
+
+` + largeTextValue + `
+--MyBoundary--
+`
+
+	testBody := strings.ReplaceAll(message, "\n", "\r\n")
+	testCases := []struct {
+		name      string
+		maxMemory int64
+		err       error
+	}{
+		{"smaller", 50, nil},
+		{"exact-fit", 25, nil},
+		{"too-large", 0, ErrMessageTooLarge},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			b := strings.NewReader(testBody)
+			r := NewReader(b, boundary)
+			f, err := r.ReadForm(tc.maxMemory)
+			if err == nil {
+				defer f.RemoveAll()
+			}
+			if tc.err != err {
+				t.Fatalf("ReadForm error - got: %v; expected: %v", tc.err, err)
+			}
+			if err == nil {
+				if g := f.Value["largetext"][0]; g != largeTextValue {
+					t.Errorf("largetext mismatch: got size: %v, expected size: %v", len(g), len(largeTextValue))
+				}
+			}
+		})
+	}
 }

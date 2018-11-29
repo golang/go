@@ -3,5 +3,10 @@ package main
 import "fmt"
 
 func main() {
-	fmt.Println("hello, world")
+	Println("hello, world")
+}
+
+//go:noinline
+func Println(s string) {
+	fmt.Println(s)
 }

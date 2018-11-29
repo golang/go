@@ -6,7 +6,7 @@ package ssa
 
 // checkbce prints all bounds checks that are present in the function.
 // Useful to find regressions. checkbce is only activated when with
-// corresponsing debug options, so it's off by default.
+// corresponding debug options, so it's off by default.
 // See test/checkbce.go
 func checkbce(f *Func) {
 	if f.pass.debug <= 0 {
@@ -16,7 +16,7 @@ func checkbce(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op == OpIsInBounds || v.Op == OpIsSliceInBounds {
-				f.Config.Warnl(v.Line, "Found %v", v.Op)
+				f.Warnl(v.Pos, "Found %v", v.Op)
 			}
 		}
 	}

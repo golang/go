@@ -105,7 +105,7 @@ never read data
 
 useless trailer
 `
-	testBody = strings.Replace(testBody, "\n", sep, -1)
+	testBody = strings.ReplaceAll(testBody, "\n", sep)
 	return strings.Replace(testBody, "[longline]", longLine, 1)
 }
 
@@ -151,7 +151,7 @@ func testMultipart(t *testing.T, r io.Reader, onlyNewlines bool) {
 
 	adjustNewlines := func(s string) string {
 		if onlyNewlines {
-			return strings.Replace(s, "\r\n", "\n", -1)
+			return strings.ReplaceAll(s, "\r\n", "\n")
 		}
 		return s
 	}
@@ -299,7 +299,7 @@ foo-bar: baz
 
 Oh no, premature EOF!
 `
-	body := strings.Replace(testBody, "\n", "\r\n", -1)
+	body := strings.ReplaceAll(testBody, "\n", "\r\n")
 	bodyReader := strings.NewReader(body)
 	r := NewReader(bodyReader, "MyBoundary")
 
@@ -419,8 +419,16 @@ func TestLineContinuation(t *testing.T) {
 }
 
 func TestQuotedPrintableEncoding(t *testing.T) {
+	for _, cte := range []string{"quoted-printable", "Quoted-PRINTABLE"} {
+		t.Run(cte, func(t *testing.T) {
+			testQuotedPrintableEncoding(t, cte)
+		})
+	}
+}
+
+func testQuotedPrintableEncoding(t *testing.T, cte string) {
 	// From https://golang.org/issue/4411
-	body := "--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=text\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words\r\n--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=submit\r\n\r\nSubmit\r\n--0016e68ee29c5d515f04cedf6733--"
+	body := "--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=text\r\nContent-Transfer-Encoding: " + cte + "\r\n\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words\r\n--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=submit\r\n\r\nSubmit\r\n--0016e68ee29c5d515f04cedf6733--"
 	r := NewReader(strings.NewReader(body), "0016e68ee29c5d515f04cedf6733")
 	part, err := r.NextPart()
 	if err != nil {
@@ -879,4 +887,12 @@ func roundTripParseTest() parseTest {
 	t.in = buf.String()
 	t.sep = w.Boundary()
 	return t
+}
+
+func TestNoBoundary(t *testing.T) {
+	mr := NewReader(strings.NewReader(""), "")
+	_, err := mr.NextPart()
+	if got, want := fmt.Sprint(err), "multipart: boundary is empty"; got != want {
+		t.Errorf("NextPart error = %v; want %v", got, want)
+	}
 }

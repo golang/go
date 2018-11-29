@@ -12,6 +12,8 @@
 
 package net
 
+import "internal/bytealg"
+
 // IP address lengths (bytes).
 const (
 	IPv4len = 4
@@ -90,7 +92,7 @@ func CIDRMask(ones, bits int) IPMask {
 
 // Well-known IPv4 addresses
 var (
-	IPv4bcast     = IPv4(255, 255, 255, 255) // broadcast
+	IPv4bcast     = IPv4(255, 255, 255, 255) // limited broadcast
 	IPv4allsys    = IPv4(224, 0, 0, 1)       // all systems
 	IPv4allrouter = IPv4(224, 0, 0, 2)       // all routers
 	IPv4zero      = IPv4(0, 0, 0, 0)         // all zeros
@@ -106,7 +108,8 @@ var (
 	IPv6linklocalallrouters    = IP{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02}
 )
 
-// IsUnspecified reports whether ip is an unspecified address.
+// IsUnspecified reports whether ip is an unspecified address, either
+// the IPv4 address "0.0.0.0" or the IPv6 address "::".
 func (ip IP) IsUnspecified() bool {
 	return ip.Equal(IPv4zero) || ip.Equal(IPv6unspecified)
 }
@@ -153,6 +156,12 @@ func (ip IP) IsLinkLocalUnicast() bool {
 
 // IsGlobalUnicast reports whether ip is a global unicast
 // address.
+//
+// The identification of global unicast addresses uses address type
+// identification as defined in RFC 1122, RFC 4632 and RFC 4291 with
+// the exception of IPv4 directed broadcast addresses.
+// It returns true even if ip is in IPv4 private address space or
+// local IPv6 unicast address space.
 func (ip IP) IsGlobalUnicast() bool {
 	return (len(ip) == IPv4len || len(ip) == IPv6len) &&
 		!ip.Equal(IPv4bcast) &&
@@ -213,7 +222,7 @@ func (ip IP) DefaultMask() IPMask {
 	if ip = ip.To4(); ip == nil {
 		return nil
 	}
-	switch true {
+	switch {
 	case ip[0] < 0x80:
 		return classAMask
 	case ip[0] < 0xC0:
@@ -237,7 +246,7 @@ func (ip IP) Mask(mask IPMask) IP {
 	if len(mask) == IPv6len && len(ip) == IPv4len && allFF(mask[:12]) {
 		mask = mask[12:]
 	}
-	if len(mask) == IPv4len && len(ip) == IPv6len && bytesEqual(ip[:12], v4InV6Prefix) {
+	if len(mask) == IPv4len && len(ip) == IPv6len && bytealg.Equal(ip[:12], v4InV6Prefix) {
 		ip = ip[12:]
 	}
 	n := len(ip)
@@ -249,6 +258,25 @@ func (ip IP) Mask(mask IPMask) IP {
 		out[i] = ip[i] & mask[i]
 	}
 	return out
+}
+
+// ubtoa encodes the string form of the integer v to dst[start:] and
+// returns the number of bytes written to dst. The caller must ensure
+// that dst has sufficient length.
+func ubtoa(dst []byte, start int, v byte) int {
+	if v < 10 {
+		dst[start] = v + '0'
+		return 1
+	} else if v < 100 {
+		dst[start+1] = v%10 + '0'
+		dst[start] = v/10 + '0'
+		return 2
+	}
+
+	dst[start+2] = v%10 + '0'
+	dst[start+1] = (v/10)%10 + '0'
+	dst[start] = v/100 + '0'
+	return 3
 }
 
 // String returns the string form of the IP address ip.
@@ -266,10 +294,23 @@ func (ip IP) String() string {
 
 	// If IPv4, use dotted notation.
 	if p4 := p.To4(); len(p4) == IPv4len {
-		return uitoa(uint(p4[0])) + "." +
-			uitoa(uint(p4[1])) + "." +
-			uitoa(uint(p4[2])) + "." +
-			uitoa(uint(p4[3]))
+		const maxIPv4StringLen = len("255.255.255.255")
+		b := make([]byte, maxIPv4StringLen)
+
+		n := ubtoa(b, 0, p4[0])
+		b[n] = '.'
+		n++
+
+		n += ubtoa(b, n, p4[1])
+		b[n] = '.'
+		n++
+
+		n += ubtoa(b, n, p4[2])
+		b[n] = '.'
+		n++
+
+		n += ubtoa(b, n, p4[3])
+		return string(b[:n])
 	}
 	if len(p) != IPv6len {
 		return "?" + hexString(ip)
@@ -332,7 +373,8 @@ func ipEmptyString(ip IP) string {
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.
-// The encoding is the same as returned by String.
+// The encoding is the same as returned by String, with one exception:
+// When len(ip) is zero, it returns an empty slice.
 func (ip IP) MarshalText() ([]byte, error) {
 	if len(ip) == 0 {
 		return []byte(""), nil
@@ -364,27 +406,15 @@ func (ip *IP) UnmarshalText(text []byte) error {
 // considered to be equal.
 func (ip IP) Equal(x IP) bool {
 	if len(ip) == len(x) {
-		return bytesEqual(ip, x)
+		return bytealg.Equal(ip, x)
 	}
 	if len(ip) == IPv4len && len(x) == IPv6len {
-		return bytesEqual(x[0:12], v4InV6Prefix) && bytesEqual(ip, x[12:])
+		return bytealg.Equal(x[0:12], v4InV6Prefix) && bytealg.Equal(ip, x[12:])
 	}
 	if len(ip) == IPv6len && len(x) == IPv4len {
-		return bytesEqual(ip[0:12], v4InV6Prefix) && bytesEqual(ip[12:], x)
+		return bytealg.Equal(ip[0:12], v4InV6Prefix) && bytealg.Equal(ip[12:], x)
 	}
 	return false
-}
-
-func bytesEqual(x, y []byte) bool {
-	if len(x) != len(y) {
-		return false
-	}
-	for i, b := range x {
-		if y[i] != b {
-			return false
-		}
-	}
-	return true
 }
 
 func (ip IP) matchAddrFamily(x IP) bool {
@@ -528,17 +558,18 @@ func parseIPv4(s string) IP {
 	return IPv4(p[0], p[1], p[2], p[3])
 }
 
-// parseIPv6 parses s as a literal IPv6 address described in RFC 4291
-// and RFC 5952.  It can also parse a literal scoped IPv6 address with
-// zone identifier which is described in RFC 4007 when zoneAllowed is
-// true.
-func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
+// parseIPv6Zone parses s as a literal IPv6 address and its associated zone
+// identifier which is described in RFC 4007.
+func parseIPv6Zone(s string) (IP, string) {
+	s, zone := splitHostZone(s)
+	return parseIPv6(s), zone
+}
+
+// parseIPv6Zone parses s as a literal IPv6 address described in RFC 4291
+// and RFC 5952.
+func parseIPv6(s string) (ip IP) {
 	ip = make(IP, IPv6len)
 	ellipsis := -1 // position of ellipsis in ip
-
-	if zoneAllowed {
-		s, zone = splitHostZone(s)
-	}
 
 	// Might have leading ellipsis
 	if len(s) >= 2 && s[0] == ':' && s[1] == ':' {
@@ -546,7 +577,7 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
 		s = s[2:]
 		// Might be only ellipsis
 		if len(s) == 0 {
-			return ip, zone
+			return ip
 		}
 	}
 
@@ -556,22 +587,22 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
 		// Hex number.
 		n, c, ok := xtoi(s)
 		if !ok || n > 0xFFFF {
-			return nil, zone
+			return nil
 		}
 
 		// If followed by dot, might be in trailing IPv4.
 		if c < len(s) && s[c] == '.' {
 			if ellipsis < 0 && i != IPv6len-IPv4len {
 				// Not the right place.
-				return nil, zone
+				return nil
 			}
 			if i+IPv4len > IPv6len {
 				// Not enough room.
-				return nil, zone
+				return nil
 			}
 			ip4 := parseIPv4(s)
 			if ip4 == nil {
-				return nil, zone
+				return nil
 			}
 			ip[i] = ip4[12]
 			ip[i+1] = ip4[13]
@@ -595,14 +626,14 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
 
 		// Otherwise must be followed by colon and more.
 		if s[0] != ':' || len(s) == 1 {
-			return nil, zone
+			return nil
 		}
 		s = s[1:]
 
 		// Look for ellipsis.
 		if s[0] == ':' {
 			if ellipsis >= 0 { // already have one
-				return nil, zone
+				return nil
 			}
 			ellipsis = i
 			s = s[1:]
@@ -614,13 +645,13 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
 
 	// Must have used entire string.
 	if len(s) != 0 {
-		return nil, zone
+		return nil
 	}
 
 	// If didn't parse enough, expand ellipsis.
 	if i < IPv6len {
 		if ellipsis < 0 {
-			return nil, zone
+			return nil
 		}
 		n := IPv6len - i
 		for j := i - 1; j >= ellipsis; j-- {
@@ -631,9 +662,9 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
 		}
 	} else if ellipsis >= 0 {
 		// Ellipsis must represent at least one 0 group.
-		return nil, zone
+		return nil
 	}
-	return ip, zone
+	return ip
 }
 
 // ParseIP parses s as an IP address, returning the result.
@@ -647,22 +678,36 @@ func ParseIP(s string) IP {
 		case '.':
 			return parseIPv4(s)
 		case ':':
-			ip, _ := parseIPv6(s, false)
-			return ip
+			return parseIPv6(s)
 		}
 	}
 	return nil
 }
 
-// ParseCIDR parses s as a CIDR notation IP address and mask,
+// parseIPZone parses s as an IP address, return it and its associated zone
+// identifier (IPv6 only).
+func parseIPZone(s string) (IP, string) {
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '.':
+			return parseIPv4(s), ""
+		case ':':
+			return parseIPv6Zone(s)
+		}
+	}
+	return nil, ""
+}
+
+// ParseCIDR parses s as a CIDR notation IP address and prefix length,
 // like "192.0.2.0/24" or "2001:db8::/32", as defined in
 // RFC 4632 and RFC 4291.
 //
-// It returns the IP address and the network implied by the IP
-// and mask. For example, ParseCIDR("198.51.100.1/24") returns
-// the IP address 198.51.100.1 and the network 198.51.100.0/24.
+// It returns the IP address and the network implied by the IP and
+// prefix length.
+// For example, ParseCIDR("192.0.2.1/24") returns the IP address
+// 192.0.2.1 and the network 192.0.2.0/24.
 func ParseCIDR(s string) (IP, *IPNet, error) {
-	i := byteIndex(s, '/')
+	i := bytealg.IndexByteString(s, '/')
 	if i < 0 {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}
@@ -671,7 +716,7 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
 	ip := parseIPv4(addr)
 	if ip == nil {
 		iplen = IPv6len
-		ip, _ = parseIPv6(addr, false)
+		ip = parseIPv6(addr)
 	}
 	n, i, ok := dtoi(mask)
 	if ip == nil || !ok || i != len(mask) || n < 0 || n > 8*iplen {

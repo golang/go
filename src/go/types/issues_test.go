@@ -292,3 +292,155 @@ func main() {
 	f("src1", src1)
 	f("src2", src2)
 }
+
+func TestIssue22525(t *testing.T) {
+	src := `package p; func f() { var a, b, c, d, e int }`
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := "\n"
+	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
+	conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
+	want := `
+1:27: a declared but not used
+1:30: b declared but not used
+1:33: c declared but not used
+1:36: d declared but not used
+1:39: e declared but not used
+`
+	if got != want {
+		t.Errorf("got: %swant: %s", got, want)
+	}
+}
+
+func TestIssue25627(t *testing.T) {
+	const prefix = `package p; import "unsafe"; type P *struct{}; type I interface{}; type T `
+	// The src strings (without prefix) are constructed such that the number of semicolons
+	// plus one corresponds to the number of fields expected in the respective struct.
+	for _, src := range []string{
+		`struct { x Missing }`,
+		`struct { Missing }`,
+		`struct { *Missing }`,
+		`struct { unsafe.Pointer }`,
+		`struct { P }`,
+		`struct { *I }`,
+		`struct { a int; b Missing; *Missing }`,
+	} {
+		f, err := parser.ParseFile(fset, "", prefix+src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		cfg := Config{Importer: importer.Default(), Error: func(err error) {}}
+		info := &Info{Types: make(map[ast.Expr]TypeAndValue)}
+		_, err = cfg.Check(f.Name.Name, fset, []*ast.File{f}, info)
+		if err != nil {
+			if _, ok := err.(Error); !ok {
+				t.Fatal(err)
+			}
+		}
+
+		ast.Inspect(f, func(n ast.Node) bool {
+			if spec, _ := n.(*ast.TypeSpec); spec != nil {
+				if tv, ok := info.Types[spec.Type]; ok && spec.Name.Name == "T" {
+					want := strings.Count(src, ";") + 1
+					if got := tv.Type.(*Struct).NumFields(); got != want {
+						t.Errorf("%s: got %d fields; want %d", src, got, want)
+					}
+				}
+			}
+			return true
+		})
+	}
+}
+
+func TestIssue28005(t *testing.T) {
+	// method names must match defining interface name for this test
+	// (see last comment in this function)
+	sources := [...]string{
+		"package p; type A interface{ A() }",
+		"package p; type B interface{ B() }",
+		"package p; type X interface{ A; B }",
+	}
+
+	// compute original file ASTs
+	var orig [len(sources)]*ast.File
+	for i, src := range sources {
+		f, err := parser.ParseFile(fset, "", src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		orig[i] = f
+	}
+
+	// run the test for all order permutations of the incoming files
+	for _, perm := range [][len(sources)]int{
+		{0, 1, 2},
+		{0, 2, 1},
+		{1, 0, 2},
+		{1, 2, 0},
+		{2, 0, 1},
+		{2, 1, 0},
+	} {
+		// create file order permutation
+		files := make([]*ast.File, len(sources))
+		for i := range perm {
+			files[i] = orig[perm[i]]
+		}
+
+		// type-check package with given file order permutation
+		var conf Config
+		info := &Info{Defs: make(map[*ast.Ident]Object)}
+		_, err := conf.Check("", fset, files, info)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// look for interface object X
+		var obj Object
+		for name, def := range info.Defs {
+			if name.Name == "X" {
+				obj = def
+				break
+			}
+		}
+		if obj == nil {
+			t.Fatal("interface not found")
+		}
+		iface := obj.Type().Underlying().(*Interface) // I must be an interface
+
+		// Each iface method m is embedded; and m's receiver base type name
+		// must match the method's name per the choice in the source file.
+		for i := 0; i < iface.NumMethods(); i++ {
+			m := iface.Method(i)
+			recvName := m.Type().(*Signature).Recv().Type().(*Named).Obj().Name()
+			if recvName != m.Name() {
+				t.Errorf("perm %v: got recv %s; want %s", perm, recvName, m.Name())
+			}
+		}
+	}
+}
+
+func TestIssue28282(t *testing.T) {
+	// create type interface { error }
+	et := Universe.Lookup("error").Type()
+	it := NewInterfaceType(nil, []Type{et})
+	it.Complete()
+	// verify that after completing the interface, the embedded method remains unchanged
+	want := et.Underlying().(*Interface).Method(0)
+	got := it.Method(0)
+	if got != want {
+		t.Fatalf("%s.Method(0): got %q (%p); want %q (%p)", it, got, got, want, want)
+	}
+	// verify that lookup finds the same method in both interfaces (redundant check)
+	obj, _, _ := LookupFieldOrMethod(et, false, nil, "Error")
+	if obj != want {
+		t.Fatalf("%s.Lookup: got %q (%p); want %q (%p)", et, obj, obj, want, want)
+	}
+	obj, _, _ = LookupFieldOrMethod(it, false, nil, "Error")
+	if obj != want {
+		t.Fatalf("%s.Lookup: got %q (%p); want %q (%p)", it, obj, obj, want, want)
+	}
+}

@@ -68,7 +68,7 @@ func TestRace(t *testing.T) {
 	}
 
 	if totalTests == 0 {
-		t.Fatalf("failed to parse test output")
+		t.Fatalf("failed to parse test output:\n%s", testOutput)
 	}
 	fmt.Printf("\nPassed %d of %d tests (%.02f%%, %d+, %d-)\n",
 		passedTests, totalTests, 100*float64(passedTests)/float64(totalTests), falsePos, falseNeg)

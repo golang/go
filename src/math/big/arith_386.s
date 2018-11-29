@@ -183,7 +183,7 @@ L9:	MOVL AX, DX		// w = w1
 	SHRL CX, DX:AX		// w>>s | w1<<ŝ
 	MOVL DX, (DI)(BX*4)	// z[i] = w>>s | w1<<ŝ
 	ADDL $1, BX		// i++
-	
+
 E9:	CMPL BX, BP
 	JL L9			// i < n-1
 
@@ -268,15 +268,4 @@ E7:	SUBL $1, BX		// i--
 	JGE L7			// i >= 0
 
 	MOVL DX, r+32(FP)
-	RET
-
-// func bitLen(x Word) (n int)
-TEXT ·bitLen(SB),NOSPLIT,$0
-	BSRL x+0(FP), AX
-	JZ Z1
-	INCL AX
-	MOVL AX, n+4(FP)
-	RET
-
-Z1:	MOVL $0, n+4(FP)
 	RET

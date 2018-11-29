@@ -4,7 +4,7 @@
 
 // Package png implements a PNG image decoder and encoder.
 //
-// The PNG specification is at http://www.w3.org/TR/PNG/.
+// The PNG specification is at https://www.w3.org/TR/PNG/.
 package png
 
 import (
@@ -73,7 +73,7 @@ type interlaceScan struct {
 }
 
 // interlacing defines Adam7 interlacing, with 7 passes of reduced images.
-// See http://www.w3.org/TR/PNG/#8Interlace
+// See https://www.w3.org/TR/PNG/#8Interlace
 var interlacing = []interlaceScan{
 	{8, 8, 0, 0},
 	{8, 8, 4, 0},
@@ -89,7 +89,7 @@ var interlacing = []interlaceScan{
 // present), IDAT and IEND chunks must appear in that order. There may be
 // multiple IDAT chunks, and IDAT chunks must be sequential (i.e. they may not
 // have any other chunks between them).
-// http://www.w3.org/TR/PNG/#5ChunkOrdering
+// https://www.w3.org/TR/PNG/#5ChunkOrdering
 const (
 	dsStart = iota
 	dsSeenIHDR
@@ -157,6 +157,7 @@ func (d *decoder) parseIHDR(length uint32) error {
 		return FormatError("invalid interlace method")
 	}
 	d.interlace = int(d.tmp[12])
+
 	w := int32(binary.BigEndian.Uint32(d.tmp[0:4]))
 	h := int32(binary.BigEndian.Uint32(d.tmp[4:8]))
 	if w <= 0 || h <= 0 {
@@ -166,6 +167,11 @@ func (d *decoder) parseIHDR(length uint32) error {
 	if nPixels != int64(int(nPixels)) {
 		return UnsupportedError("dimension overflow")
 	}
+	// There can be up to 8 bytes per pixel, for 16 bits per channel RGBA.
+	if nPixels != (nPixels*8)/8 {
+		return UnsupportedError("dimension overflow")
+	}
+
 	d.cb = cbInvalid
 	d.depth = int(d.tmp[8])
 	switch d.depth {
@@ -612,8 +618,20 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 				}
 			}
 		case cbG8:
-			copy(gray.Pix[pixOffset:], cdat)
-			pixOffset += gray.Stride
+			if d.useTransparent {
+				ty := d.transparent[1]
+				for x := 0; x < width; x++ {
+					ycol := cdat[x]
+					acol := uint8(0xff)
+					if ycol == ty {
+						acol = 0x00
+					}
+					nrgba.SetNRGBA(x, y, color.NRGBA{ycol, ycol, ycol, acol})
+				}
+			} else {
+				copy(gray.Pix[pixOffset:], cdat)
+				pixOffset += gray.Stride
+			}
 		case cbGA8:
 			for x := 0; x < width; x++ {
 				ycol := cdat[2*x+0]

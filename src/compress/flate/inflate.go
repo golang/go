@@ -10,6 +10,7 @@ package flate
 import (
 	"bufio"
 	"io"
+	"math/bits"
 	"strconv"
 	"sync"
 )
@@ -64,7 +65,7 @@ func (e *WriteError) Error() string {
 	return "flate: write error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
 }
 
-// Resetter resets a ReadCloser returned by NewReader or NewReaderDict to
+// Resetter resets a ReadCloser returned by NewReader or NewReaderDict
 // to switch to a new underlying Reader. This permits reusing a ReadCloser
 // instead of allocating a new one.
 type Resetter interface {
@@ -112,7 +113,7 @@ type huffmanDecoder struct {
 // tree (i.e., neither over-subscribed nor under-subscribed). The exception is a
 // degenerate case where the tree has only a single symbol with length 1. Empty
 // trees are permitted.
-func (h *huffmanDecoder) init(bits []int) bool {
+func (h *huffmanDecoder) init(lengths []int) bool {
 	// Sanity enables additional runtime tests during Huffman
 	// table construction. It's intended to be used during
 	// development to supplement the currently ad-hoc unit tests.
@@ -126,7 +127,7 @@ func (h *huffmanDecoder) init(bits []int) bool {
 	// compute min and max length.
 	var count [maxCodeLen]int
 	var min, max int
-	for _, n := range bits {
+	for _, n := range lengths {
 		if n == 0 {
 			continue
 		}
@@ -176,7 +177,7 @@ func (h *huffmanDecoder) init(bits []int) bool {
 		link := nextcode[huffmanChunkBits+1] >> 1
 		h.links = make([][]uint32, huffmanNumChunks-link)
 		for j := uint(link); j < huffmanNumChunks; j++ {
-			reverse := int(reverseByte[j>>8]) | int(reverseByte[j&0xff])<<8
+			reverse := int(bits.Reverse16(uint16(j)))
 			reverse >>= uint(16 - huffmanChunkBits)
 			off := j - uint(link)
 			if sanity && h.chunks[reverse] != 0 {
@@ -187,14 +188,14 @@ func (h *huffmanDecoder) init(bits []int) bool {
 		}
 	}
 
-	for i, n := range bits {
+	for i, n := range lengths {
 		if n == 0 {
 			continue
 		}
 		code := nextcode[n]
 		nextcode[n]++
 		chunk := uint32(i<<huffmanValueShift | n)
-		reverse := int(reverseByte[code>>8]) | int(reverseByte[code&0xff])<<8
+		reverse := int(bits.Reverse16(uint16(code)))
 		reverse >>= uint(16 - n)
 		if n <= huffmanChunkBits {
 			for off := reverse; off < len(h.chunks); off += 1 << uint(n) {
@@ -556,7 +557,7 @@ readLiteral:
 					return
 				}
 			}
-			dist = int(reverseByte[(f.b&0x1F)<<3])
+			dist = int(bits.Reverse8(uint8(f.b & 0x1F << 3)))
 			f.b >>= 5
 			f.nb -= 5
 		} else {
@@ -628,10 +629,7 @@ func (f *decompressor) dataBlock() {
 	nr, err := io.ReadFull(f.r, f.buf[0:4])
 	f.roffset += int64(nr)
 	if err != nil {
-		if err == io.EOF {
-			err = io.ErrUnexpectedEOF
-		}
-		f.err = err
+		f.err = noEOF(err)
 		return
 	}
 	n := int(f.buf[0]) | int(f.buf[1])<<8
@@ -664,10 +662,7 @@ func (f *decompressor) copyData() {
 	f.copyLen -= cnt
 	f.dict.writeMark(cnt)
 	if err != nil {
-		if err == io.EOF {
-			err = io.ErrUnexpectedEOF
-		}
-		f.err = err
+		f.err = noEOF(err)
 		return
 	}
 
@@ -689,13 +684,18 @@ func (f *decompressor) finishBlock() {
 	f.step = (*decompressor).nextBlock
 }
 
+// noEOF returns err, unless err == io.EOF, in which case it returns io.ErrUnexpectedEOF.
+func noEOF(e error) error {
+	if e == io.EOF {
+		return io.ErrUnexpectedEOF
+	}
+	return e
+}
+
 func (f *decompressor) moreBits() error {
 	c, err := f.r.ReadByte()
 	if err != nil {
-		if err == io.EOF {
-			err = io.ErrUnexpectedEOF
-		}
-		return err
+		return noEOF(err)
 	}
 	f.roffset++
 	f.b |= uint32(c) << f.nb
@@ -710,25 +710,37 @@ func (f *decompressor) huffSym(h *huffmanDecoder) (int, error) {
 	// cases, the chunks slice will be 0 for the invalid sequence, leading it
 	// satisfy the n == 0 check below.
 	n := uint(h.min)
+	// Optimization. Compiler isn't smart enough to keep f.b,f.nb in registers,
+	// but is smart enough to keep local variables in registers, so use nb and b,
+	// inline call to moreBits and reassign b,nb back to f on return.
+	nb, b := f.nb, f.b
 	for {
-		for f.nb < n {
-			if err := f.moreBits(); err != nil {
-				return 0, err
+		for nb < n {
+			c, err := f.r.ReadByte()
+			if err != nil {
+				f.b = b
+				f.nb = nb
+				return 0, noEOF(err)
 			}
+			f.roffset++
+			b |= uint32(c) << (nb & 31)
+			nb += 8
 		}
-		chunk := h.chunks[f.b&(huffmanNumChunks-1)]
+		chunk := h.chunks[b&(huffmanNumChunks-1)]
 		n = uint(chunk & huffmanCountMask)
 		if n > huffmanChunkBits {
-			chunk = h.links[chunk>>huffmanValueShift][(f.b>>huffmanChunkBits)&h.linkMask]
+			chunk = h.links[chunk>>huffmanValueShift][(b>>huffmanChunkBits)&h.linkMask]
 			n = uint(chunk & huffmanCountMask)
 		}
-		if n <= f.nb {
+		if n <= nb {
 			if n == 0 {
+				f.b = b
+				f.nb = nb
 				f.err = CorruptInputError(f.roffset)
 				return 0, f.err
 			}
-			f.b >>= n
-			f.nb -= n
+			f.b = b >> (n & 31)
+			f.nb = nb - n
 			return int(chunk >> huffmanValueShift), nil
 		}
 	}

@@ -11,7 +11,6 @@ package url
 // contain references to issue numbers with details.
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"sort"
@@ -159,22 +158,39 @@ func shouldEscape(c byte, mode encoding) bool {
 		}
 	}
 
+	if mode == encodeFragment {
+		// RFC 3986 §2.2 allows not escaping sub-delims. A subset of sub-delims are
+		// included in reserved from RFC 2396 §2.2. The remaining sub-delims do not
+		// need to be escaped. To minimize potential breakage, we apply two restrictions:
+		// (1) we always escape sub-delims outside of the fragment, and (2) we always
+		// escape single quote to avoid breaking callers that had previously assumed that
+		// single quotes would be escaped. See issue #19917.
+		switch c {
+		case '!', '(', ')', '*':
+			return false
+		}
+	}
+
 	// Everything else must be escaped.
 	return true
 }
 
-// QueryUnescape does the inverse transformation of QueryEscape, converting
-// %AB into the byte 0xAB and '+' into ' ' (space). It returns an error if
-// any % is not followed by two hexadecimal digits.
+// QueryUnescape does the inverse transformation of QueryEscape,
+// converting each 3-byte encoded substring of the form "%AB" into the
+// hex-decoded byte 0xAB.
+// It returns an error if any % is not followed by two hexadecimal
+// digits.
 func QueryUnescape(s string) (string, error) {
 	return unescape(s, encodeQueryComponent)
 }
 
-// PathUnescape does the inverse transformation of PathEscape, converting
-// %AB into the byte 0xAB. It returns an error if any % is not followed by
-// two hexadecimal digits.
+// PathUnescape does the inverse transformation of PathEscape,
+// converting each 3-byte encoded substring of the form "%AB" into the
+// hex-decoded byte 0xAB. It returns an error if any % is not followed
+// by two hexadecimal digits.
 //
-// PathUnescape is identical to QueryUnescape except that it does not unescape '+' to ' ' (space).
+// PathUnescape is identical to QueryUnescape except that it does not
+// unescape '+' to ' ' (space).
 func PathUnescape(s string) (string, error) {
 	return unescape(s, encodePathSegment)
 }
@@ -288,7 +304,26 @@ func escape(s string, mode encoding) string {
 		return s
 	}
 
-	t := make([]byte, len(s)+2*hexCount)
+	var buf [64]byte
+	var t []byte
+
+	required := len(s) + 2*hexCount
+	if required <= len(buf) {
+		t = buf[:required]
+	} else {
+		t = make([]byte, required)
+	}
+
+	if hexCount == 0 {
+		copy(t, s)
+		for i := 0; i < len(s); i++ {
+			if s[i] == ' ' {
+				t[i] = '+'
+			}
+		}
+		return string(t)
+	}
+
 	j := 0
 	for i := 0; i < len(s); i++ {
 		switch c := s[i]; {
@@ -309,9 +344,10 @@ func escape(s string, mode encoding) string {
 }
 
 // A URL represents a parsed URL (technically, a URI reference).
+//
 // The general form represented is:
 //
-//	scheme://[userinfo@]host/path[?query][#fragment]
+//	[scheme:][//[userinfo@]host][/]path[?query][#fragment]
 //
 // URLs that do not start with a slash after the scheme are interpreted as:
 //
@@ -321,26 +357,19 @@ func escape(s string, mode encoding) string {
 // A consequence is that it is impossible to tell which slashes in the Path were
 // slashes in the raw URL and which were %2f. This distinction is rarely important,
 // but when it is, code must not use Path directly.
-//
-// Go 1.5 introduced the RawPath field to hold the encoded form of Path.
 // The Parse function sets both Path and RawPath in the URL it returns,
 // and URL's String method uses RawPath if it is a valid encoding of Path,
 // by calling the EscapedPath method.
-//
-// In earlier versions of Go, the more indirect workarounds were that an
-// HTTP server could consult req.RequestURI and an HTTP client could
-// construct a URL struct directly and set the Opaque field instead of Path.
-// These still work as well.
 type URL struct {
 	Scheme     string
 	Opaque     string    // encoded opaque data
 	User       *Userinfo // username and password information
 	Host       string    // host or host:port
-	Path       string
-	RawPath    string // encoded path hint (Go 1.5 and later only; see EscapedPath method)
-	ForceQuery bool   // append a query ('?') even if RawQuery is empty
-	RawQuery   string // encoded query values, without '?'
-	Fragment   string // fragment for references, without '#'
+	Path       string    // path (relative paths may omit leading slash)
+	RawPath    string    // encoded path hint (see EscapedPath method)
+	ForceQuery bool      // append a query ('?') even if RawQuery is empty
+	RawQuery   string    // encoded query values, without '?'
+	Fragment   string    // fragment for references, without '#'
 }
 
 // User returns a Userinfo containing the provided username
@@ -351,6 +380,7 @@ func User(username string) *Userinfo {
 
 // UserPassword returns a Userinfo containing the provided username
 // and password.
+//
 // This functionality should only be used with legacy web sites.
 // RFC 2396 warns that interpreting Userinfo this way
 // ``is NOT RECOMMENDED, because the passing of authentication
@@ -372,17 +402,26 @@ type Userinfo struct {
 
 // Username returns the username.
 func (u *Userinfo) Username() string {
+	if u == nil {
+		return ""
+	}
 	return u.username
 }
 
 // Password returns the password in case it is set, and whether it is set.
 func (u *Userinfo) Password() (string, bool) {
+	if u == nil {
+		return "", false
+	}
 	return u.password, u.passwordSet
 }
 
 // String returns the encoded userinfo information in the standard form
 // of "username[:password]".
 func (u *Userinfo) String() string {
+	if u == nil {
+		return ""
+	}
 	s := escape(u.username, encodeUserPassword)
 	if u.passwordSet {
 		s += ":" + escape(u.password, encodeUserPassword)
@@ -432,7 +471,11 @@ func split(s string, c string, cutc bool) (string, string) {
 }
 
 // Parse parses rawurl into a URL structure.
-// The rawurl may be relative or absolute.
+//
+// The rawurl may be relative (a path, without a host) or absolute
+// (starting with a scheme). Trying to parse a hostname and path
+// without a scheme is invalid but may not necessarily return an
+// error, due to parsing ambiguities.
 func Parse(rawurl string) (*URL, error) {
 	// Cut off #frag
 	u, frag := split(rawurl, "#", true)
@@ -550,6 +593,9 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 		return nil, host, nil
 	}
 	userinfo := authority[:i]
+	if !validUserinfo(userinfo) {
+		return nil, "", errors.New("net/url: invalid userinfo")
+	}
 	if !strings.Contains(userinfo, ":") {
 		if userinfo, err = unescape(userinfo, encodeUserPassword); err != nil {
 			return nil, "", err
@@ -722,7 +768,7 @@ func validOptionalPort(port string) bool {
 //	- if u.RawQuery is empty, ?query is omitted.
 //	- if u.Fragment is empty, #fragment is omitted.
 func (u *URL) String() string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	if u.Scheme != "" {
 		buf.WriteString(u.Scheme)
 		buf.WriteByte(':')
@@ -731,7 +777,9 @@ func (u *URL) String() string {
 		buf.WriteString(u.Opaque)
 	} else {
 		if u.Scheme != "" || u.Host != "" || u.User != nil {
-			buf.WriteString("//")
+			if u.Host != "" || u.Path != "" || u.User != nil {
+				buf.WriteString("//")
+			}
 			if ui := u.User; ui != nil {
 				buf.WriteString(ui.String())
 				buf.WriteByte('@')
@@ -861,7 +909,7 @@ func (v Values) Encode() string {
 	if v == nil {
 		return ""
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	keys := make([]string, 0, len(v))
 	for k := range v {
 		keys = append(keys, k)
@@ -869,12 +917,13 @@ func (v Values) Encode() string {
 	sort.Strings(keys)
 	for _, k := range keys {
 		vs := v[k]
-		prefix := QueryEscape(k) + "="
+		keyEscaped := QueryEscape(k)
 		for _, v := range vs {
 			if buf.Len() > 0 {
 				buf.WriteByte('&')
 			}
-			buf.WriteString(prefix)
+			buf.WriteString(keyEscaped)
+			buf.WriteByte('=')
 			buf.WriteString(QueryEscape(v))
 		}
 	}
@@ -914,7 +963,7 @@ func resolvePath(base, ref string) string {
 		// Add final slash to the joined path.
 		dst = append(dst, "")
 	}
-	return "/" + strings.TrimLeft(strings.Join(dst, "/"), "/")
+	return "/" + strings.TrimPrefix(strings.Join(dst, "/"), "/")
 }
 
 // IsAbs reports whether the URL is absolute.
@@ -935,7 +984,7 @@ func (u *URL) Parse(ref string) (*URL, error) {
 }
 
 // ResolveReference resolves a URI reference to an absolute URI from
-// an absolute base URI, per RFC 3986 Section 5.2.  The URI reference
+// an absolute base URI u, per RFC 3986 Section 5.2. The URI reference
 // may be relative or absolute. ResolveReference always returns a new
 // URL instance, even if the returned URL is identical to either the
 // base or reference. If ref is an absolute URL, then ResolveReference
@@ -958,12 +1007,10 @@ func (u *URL) ResolveReference(ref *URL) *URL {
 		url.Path = ""
 		return &url
 	}
-	if ref.Path == "" {
-		if ref.RawQuery == "" {
-			url.RawQuery = u.RawQuery
-			if ref.Fragment == "" {
-				url.Fragment = u.Fragment
-			}
+	if ref.Path == "" && ref.RawQuery == "" {
+		url.RawQuery = u.RawQuery
+		if ref.Fragment == "" {
+			url.Fragment = u.Fragment
 		}
 	}
 	// The "abs_path" or "rel_path" cases.
@@ -974,6 +1021,8 @@ func (u *URL) ResolveReference(ref *URL) *URL {
 }
 
 // Query parses RawQuery and returns the corresponding values.
+// It silently discards malformed value pairs.
+// To check errors use ParseQuery.
 func (u *URL) Query() Values {
 	v, _ := ParseQuery(u.RawQuery)
 	return v
@@ -1053,4 +1102,34 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 	}
 	*u = *u1
 	return nil
+}
+
+// validUserinfo reports whether s is a valid userinfo string per RFC 3986
+// Section 3.2.1:
+//     userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
+//     unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
+//     sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"
+//                   / "*" / "+" / "," / ";" / "="
+//
+// It doesn't validate pct-encoded. The caller does that via func unescape.
+func validUserinfo(s string) bool {
+	for _, r := range s {
+		if 'A' <= r && r <= 'Z' {
+			continue
+		}
+		if 'a' <= r && r <= 'z' {
+			continue
+		}
+		if '0' <= r && r <= '9' {
+			continue
+		}
+		switch r {
+		case '-', '.', '_', ':', '~', '!', '$', '&', '\'',
+			'(', ')', '*', '+', ',', ';', '=', '%', '@':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }

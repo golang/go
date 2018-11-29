@@ -9,6 +9,7 @@ import (
 	"regexp/syntax"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 var goodRe = []string{
@@ -354,6 +355,7 @@ type MetaTest struct {
 var metaTests = []MetaTest{
 	{``, ``, ``, true},
 	{`foo`, `foo`, `foo`, true},
+	{`日本語+`, `日本語\+`, `日本語`, false},
 	{`foo\.\$`, `foo\\\.\\\$`, `foo.$`, true}, // has meta but no operator
 	{`foo.\$`, `foo\.\\\$`, `foo`, false},     // has escaped operators and real operators
 	{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[\{\]\}\\\|,<\.>/\?~`, `!@#`, false},
@@ -548,8 +550,8 @@ func TestOnePassCutoff(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}
-	if compileOnePass(p) != notOnePass {
-		t.Fatalf("makeOnePass succeeded; wanted notOnePass")
+	if compileOnePass(p) != nil {
+		t.Fatalf("makeOnePass succeeded; wanted nil")
 	}
 }
 
@@ -575,6 +577,19 @@ func BenchmarkFind(b *testing.B) {
 		subs := re.Find(s)
 		if string(subs) != wantSubs {
 			b.Fatalf("Find(%q) = %q; want %q", s, subs, wantSubs)
+		}
+	}
+}
+
+func BenchmarkFindAllNoMatches(b *testing.B) {
+	re := MustCompile("a+b+")
+	s := []byte("acddee")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		all := re.FindAll(s, -1)
+		if all != nil {
+			b.Fatalf("FindAll(%q) = %q; want nil", s, all)
 		}
 	}
 }
@@ -822,7 +837,13 @@ func BenchmarkMatchParallelCopied(b *testing.B) {
 var sink string
 
 func BenchmarkQuoteMetaAll(b *testing.B) {
-	s := string(specialBytes)
+	specials := make([]byte, 0)
+	for i := byte(0); i < utf8.RuneSelf; i++ {
+		if special(i) {
+			specials = append(specials, i)
+		}
+	}
+	s := string(specials)
 	b.SetBytes(int64(len(s)))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -836,5 +857,28 @@ func BenchmarkQuoteMetaNone(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		sink = QuoteMeta(s)
+	}
+}
+
+func TestDeepEqual(t *testing.T) {
+	re1 := MustCompile("a.*b.*c.*d")
+	re2 := MustCompile("a.*b.*c.*d")
+	if !reflect.DeepEqual(re1, re2) { // has always been true, since Go 1.
+		t.Errorf("DeepEqual(re1, re2) = false, want true")
+	}
+
+	re1.MatchString("abcdefghijklmn")
+	if !reflect.DeepEqual(re1, re2) {
+		t.Errorf("DeepEqual(re1, re2) = false, want true")
+	}
+
+	re2.MatchString("abcdefghijklmn")
+	if !reflect.DeepEqual(re1, re2) {
+		t.Errorf("DeepEqual(re1, re2) = false, want true")
+	}
+
+	re2.MatchString(strings.Repeat("abcdefghijklmn", 100))
+	if !reflect.DeepEqual(re1, re2) {
+		t.Errorf("DeepEqual(re1, re2) = false, want true")
 	}
 }

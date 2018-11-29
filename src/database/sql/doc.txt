@@ -31,7 +31,7 @@ Goals of the sql and sql/driver packages:
 * Handle concurrency well.  Users shouldn't need to care about the
   database's per-connection thread safety issues (or lack thereof),
   and shouldn't have to maintain their own free pools of connections.
-  The 'db' package should deal with that bookkeeping as needed.  Given
+  The 'sql' package should deal with that bookkeeping as needed.  Given
   an *sql.DB, it should be possible to share that instance between
   multiple goroutines, without any extra synchronization.
 

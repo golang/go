@@ -51,6 +51,7 @@ type Celsius float64
 func (c Celsius) String() string { return fmt.Sprintf("%g°C", c) }
 func FToC(f float64) Celsius { return Celsius(f - 32 / 9 * 5) }
 const Boiling Celsius = 100
+func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get printed
 `},
 	} {
 		f, err := parser.ParseFile(fset, file.name, file.input, 0)
@@ -81,23 +82,33 @@ const Boiling Celsius = 100
 	// .  const temperature.Boiling temperature.Celsius
 	// .  type temperature.Celsius float64
 	// .  func temperature.FToC(f float64) temperature.Celsius
+	// .  func temperature.Unused()
 	// .  func temperature.main()
-	//
 	// .  main.go scope {
 	// .  .  package fmt
-	//
 	// .  .  function scope {
 	// .  .  .  var freezing temperature.Celsius
-	// .  .  }.  }
+	// .  .  }
+	// .  }
 	// .  celsius.go scope {
 	// .  .  package fmt
-	//
 	// .  .  function scope {
 	// .  .  .  var c temperature.Celsius
 	// .  .  }
 	// .  .  function scope {
 	// .  .  .  var f float64
-	// .  .  }.  }}
+	// .  .  }
+	// .  .  function scope {
+	// .  .  .  block scope {
+	// .  .  .  }
+	// .  .  .  block scope {
+	// .  .  .  .  block scope {
+	// .  .  .  .  .  var x int
+	// .  .  .  .  }
+	// .  .  .  }
+	// .  .  }
+	// .  }
+	// }
 }
 
 // ExampleMethodSet prints the method sets of various types.
@@ -239,10 +250,10 @@ func fib(x int) int {
 	// type S string:
 	//   defined at fib.go:4:6
 	//   used at 6:23
-	// type int int:
+	// type int:
 	//   defined at -
 	//   used at 8:12, 8:17
-	// type string string:
+	// type string:
 	//   defined at -
 	//   used at 4:8
 	// var b S:

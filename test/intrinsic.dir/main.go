@@ -22,7 +22,7 @@ func logf(f string, args ...interface{}) {
 	}
 }
 
-func test(i, x uint64) {
+func test(i int, x uint64) {
 	t := T.Ctz64(x) // ERROR "intrinsic substitution for Ctz64"
 	if i != t {
 		logf("Ctz64(0x%x) expected %d but got %d\n", x, i, t)
@@ -36,12 +36,12 @@ func test(i, x uint64) {
 	if i <= 32 {
 		x32 := uint32(x)
 		t32 := T.Ctz32(x32) // ERROR "intrinsic substitution for Ctz32"
-		if uint32(i) != t32 {
+		if i != t32 {
 			logf("Ctz32(0x%x) expected %d but got %d\n", x32, i, t32)
 		}
 		x32 = -x32
 		t32 = T.Ctz32(x32) // ERROR "intrinsic substitution for Ctz32"
-		if uint32(i) != t32 {
+		if i != t32 {
 			logf("Ctz32(0x%x) expected %d but got %d\n", x32, i, t32)
 		}
 	}
@@ -83,10 +83,10 @@ func main() {
 		logf("ctz64(0) != 64")
 	}
 
-	for i := uint64(0); i <= 64; i++ {
+	for i := 0; i <= 64; i++ {
 		for j := uint64(1); j <= 255; j += 2 {
 			for k := uint64(1); k <= 65537; k += 128 {
-				x := (j * k) << i
+				x := (j * k) << uint(i)
 				test(i, x)
 			}
 		}

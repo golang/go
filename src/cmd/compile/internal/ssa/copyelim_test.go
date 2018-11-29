@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/types"
 	"fmt"
 	"testing"
 )
@@ -20,11 +21,11 @@ func benchmarkCopyElim(b *testing.B, n int) {
 	c := testConfig(b)
 
 	values := make([]interface{}, 0, n+2)
-	values = append(values, Valu("mem", OpInitMem, TypeMem, 0, nil))
+	values = append(values, Valu("mem", OpInitMem, types.TypeMem, 0, nil))
 	last := "mem"
 	for i := 0; i < n; i++ {
 		name := fmt.Sprintf("copy%d", i)
-		values = append(values, Valu(name, OpCopy, TypeMem, 0, nil, last))
+		values = append(values, Valu(name, OpCopy, types.TypeMem, 0, nil, last))
 		last = name
 	}
 	values = append(values, Exit(last))
@@ -34,8 +35,7 @@ func benchmarkCopyElim(b *testing.B, n int) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		fun := Fun(c, "entry", Bloc("entry", values...))
+		fun := c.Fun("entry", Bloc("entry", values...))
 		Copyelim(fun.f)
-		fun.f.Free()
 	}
 }

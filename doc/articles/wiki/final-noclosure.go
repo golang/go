@@ -8,6 +8,7 @@ import (
 	"errors"
 	"html/template"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"regexp"
 )
@@ -98,5 +99,5 @@ func main() {
 	http.HandleFunc("/view/", viewHandler)
 	http.HandleFunc("/edit/", editHandler)
 	http.HandleFunc("/save/", saveHandler)
-	http.ListenAndServe(":8080", nil)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

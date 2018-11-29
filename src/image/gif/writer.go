@@ -70,25 +70,54 @@ type blockWriter struct {
 	e *encoder
 }
 
-func (b blockWriter) Write(data []byte) (int, error) {
-	if b.e.err != nil {
-		return 0, b.e.err
-	}
-	if len(data) == 0 {
-		return 0, nil
-	}
-	total := 0
-	for total < len(data) {
-		n := copy(b.e.buf[1:256], data[total:])
-		total += n
-		b.e.buf[0] = uint8(n)
+func (b blockWriter) setup() {
+	b.e.buf[0] = 0
+}
 
-		_, b.e.err = b.e.w.Write(b.e.buf[:n+1])
-		if b.e.err != nil {
-			return 0, b.e.err
+func (b blockWriter) Flush() error {
+	return b.e.err
+}
+
+func (b blockWriter) WriteByte(c byte) error {
+	if b.e.err != nil {
+		return b.e.err
+	}
+
+	// Append c to buffered sub-block.
+	b.e.buf[0]++
+	b.e.buf[b.e.buf[0]] = c
+	if b.e.buf[0] < 255 {
+		return nil
+	}
+
+	// Flush block
+	b.e.write(b.e.buf[:256])
+	b.e.buf[0] = 0
+	return b.e.err
+}
+
+// blockWriter must be an io.Writer for lzw.NewWriter, but this is never
+// actually called.
+func (b blockWriter) Write(data []byte) (int, error) {
+	for i, c := range data {
+		if err := b.WriteByte(c); err != nil {
+			return i, err
 		}
 	}
-	return total, b.e.err
+	return len(data), nil
+}
+
+func (b blockWriter) close() {
+	// Write the block terminator (0x00), either by itself, or along with a
+	// pending sub-block.
+	if b.e.buf[0] == 0 {
+		b.e.writeByte(0)
+	} else {
+		n := uint(b.e.buf[0])
+		b.e.buf[n+1] = 0
+		b.e.write(b.e.buf[:n+2])
+	}
+	b.e.flush()
 }
 
 func (e *encoder) flush() {
@@ -132,7 +161,12 @@ func (e *encoder) writeHeader() {
 		e.buf[1] = e.g.BackgroundIndex
 		e.buf[2] = 0x00 // Pixel Aspect Ratio.
 		e.write(e.buf[:3])
-		e.globalCT = encodeColorTable(e.globalColorTable[:], p, paddedSize)
+		var err error
+		e.globalCT, err = encodeColorTable(e.globalColorTable[:], p, paddedSize)
+		if err != nil && e.err == nil {
+			e.err = err
+			return
+		}
 		e.write(e.globalColorTable[:e.globalCT])
 	} else {
 		// All frames have a local color table, so a global color table
@@ -144,13 +178,14 @@ func (e *encoder) writeHeader() {
 	}
 
 	// Add animation info if necessary.
-	if len(e.g.Image) > 1 {
+	if len(e.g.Image) > 1 && e.g.LoopCount >= 0 {
 		e.buf[0] = 0x21 // Extension Introducer.
 		e.buf[1] = 0xff // Application Label.
 		e.buf[2] = 0x0b // Block Size.
 		e.write(e.buf[:3])
-		_, e.err = io.WriteString(e.w, "NETSCAPE2.0") // Application Identifier.
-		if e.err != nil {
+		_, err := io.WriteString(e.w, "NETSCAPE2.0") // Application Identifier.
+		if err != nil && e.err == nil {
+			e.err = err
 			return
 		}
 		e.buf[0] = 0x03 // Block Size.
@@ -161,22 +196,46 @@ func (e *encoder) writeHeader() {
 	}
 }
 
-func encodeColorTable(dst []byte, p color.Palette, size int) int {
-	n := log2Lookup[size]
-	for i := 0; i < n; i++ {
-		if i < len(p) {
-			r, g, b, _ := p[i].RGBA()
-			dst[3*i+0] = uint8(r >> 8)
-			dst[3*i+1] = uint8(g >> 8)
-			dst[3*i+2] = uint8(b >> 8)
+func encodeColorTable(dst []byte, p color.Palette, size int) (int, error) {
+	if uint(size) >= uint(len(log2Lookup)) {
+		return 0, errors.New("gif: cannot encode color table with more than 256 entries")
+	}
+	for i, c := range p {
+		if c == nil {
+			return 0, errors.New("gif: cannot encode color table with nil entries")
+		}
+		var r, g, b uint8
+		// It is most likely that the palette is full of color.RGBAs, so they
+		// get a fast path.
+		if rgba, ok := c.(color.RGBA); ok {
+			r, g, b = rgba.R, rgba.G, rgba.B
 		} else {
-			// Pad with black.
-			dst[3*i+0] = 0x00
-			dst[3*i+1] = 0x00
-			dst[3*i+2] = 0x00
+			rr, gg, bb, _ := c.RGBA()
+			r, g, b = uint8(rr>>8), uint8(gg>>8), uint8(bb>>8)
+		}
+		dst[3*i+0] = r
+		dst[3*i+1] = g
+		dst[3*i+2] = b
+	}
+	n := log2Lookup[size]
+	if n > len(p) {
+		// Pad with black.
+		fill := dst[3*len(p) : 3*n]
+		for i := range fill {
+			fill[i] = 0
 		}
 	}
-	return 3 * n
+	return 3 * n, nil
+}
+
+func (e *encoder) colorTablesMatch(localLen, transparentIndex int) bool {
+	localSize := 3 * localLen
+	if transparentIndex >= 0 {
+		trOff := 3 * transparentIndex
+		return bytes.Equal(e.globalColorTable[:trOff], e.localColorTable[:trOff]) &&
+			bytes.Equal(e.globalColorTable[trOff+3:localSize], e.localColorTable[trOff+3:localSize])
+	}
+	return bytes.Equal(e.globalColorTable[:localSize], e.localColorTable[:localSize])
 }
 
 func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) {
@@ -201,6 +260,10 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 
 	transparentIndex := -1
 	for i, c := range pm.Palette {
+		if c == nil {
+			e.err = errors.New("gif: cannot encode color table with nil entries")
+			return
+		}
 		if _, _, _, a := c.RGBA(); a == 0 {
 			transparentIndex = i
 			break
@@ -234,15 +297,31 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 	writeUint16(e.buf[7:9], uint16(b.Dy()))
 	e.write(e.buf[:9])
 
+	// To determine whether or not this frame's palette is the same as the
+	// global palette, we can check a couple things. First, do they actually
+	// point to the same []color.Color? If so, they are equal so long as the
+	// frame's palette is not longer than the global palette...
 	paddedSize := log2(len(pm.Palette)) // Size of Local Color Table: 2^(1+n).
-	ct := encodeColorTable(e.localColorTable[:], pm.Palette, paddedSize)
-	if ct != e.globalCT || !bytes.Equal(e.globalColorTable[:ct], e.localColorTable[:ct]) {
-		// Use a local color table.
-		e.writeByte(fColorTable | uint8(paddedSize))
-		e.write(e.localColorTable[:ct])
+	if gp, ok := e.g.Config.ColorModel.(color.Palette); ok && len(pm.Palette) <= len(gp) && &gp[0] == &pm.Palette[0] {
+		e.writeByte(0) // Use the global color table.
 	} else {
-		// Use the global color table.
-		e.writeByte(0)
+		ct, err := encodeColorTable(e.localColorTable[:], pm.Palette, paddedSize)
+		if err != nil {
+			if e.err == nil {
+				e.err = err
+			}
+			return
+		}
+		// This frame's palette is not the very same slice as the global
+		// palette, but it might be a copy, possibly with one value turned into
+		// transparency by DecodeAll.
+		if ct <= e.globalCT && e.colorTablesMatch(len(pm.Palette), transparentIndex) {
+			e.writeByte(0) // Use the global color table.
+		} else {
+			// Use a local color table.
+			e.writeByte(fColorTable | uint8(paddedSize))
+			e.write(e.localColorTable[:ct])
+		}
 	}
 
 	litWidth := paddedSize + 1
@@ -251,9 +330,11 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 	}
 	e.writeByte(uint8(litWidth)) // LZW Minimum Code Size.
 
-	lzww := lzw.NewWriter(blockWriter{e: e}, lzw.LSB, litWidth)
+	bw := blockWriter{e: e}
+	bw.setup()
+	lzww := lzw.NewWriter(bw, lzw.LSB, litWidth)
 	if dx := b.Dx(); dx == pm.Stride {
-		_, e.err = lzww.Write(pm.Pix)
+		_, e.err = lzww.Write(pm.Pix[:dx*b.Dy()])
 		if e.err != nil {
 			lzww.Close()
 			return
@@ -267,8 +348,8 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 			}
 		}
 	}
-	lzww.Close()
-	e.writeByte(0x00) // Block Terminator.
+	lzww.Close() // flush to bw
+	bw.close()   // flush to e.w
 }
 
 // Options are the encoding parameters.
@@ -295,9 +376,6 @@ func EncodeAll(w io.Writer, g *GIF) error {
 
 	if len(g.Image) != len(g.Delay) {
 		return errors.New("gif: mismatched image and delay lengths")
-	}
-	if g.LoopCount < 0 {
-		g.LoopCount = 0
 	}
 
 	e := encoder{g: *g}

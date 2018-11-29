@@ -25,7 +25,11 @@ inittls(void **tlsg, void **tlsbase)
 		fatalf("pthread_key_create failed: %d", err);
 	}
 	pthread_setspecific(k, (void*)magic1);
-	for (i=0; i<PTHREAD_KEYS_MAX; i++) {
+	// If thread local slots are laid out as we expect, our magic word will
+	// be located at some low offset from tlsbase. However, just in case something went
+	// wrong, the search is limited to sensible offsets. PTHREAD_KEYS_MAX was the
+	// original limit, but issue 19472 made a higher limit necessary.
+	for (i=0; i<384; i++) {
 		if (*(tlsbase+i) == (void*)magic1) {
 			*tlsg = (void*)(i*sizeof(void *));
 			pthread_setspecific(k, 0);

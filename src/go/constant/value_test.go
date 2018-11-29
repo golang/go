@@ -5,6 +5,7 @@
 package constant
 
 import (
+	"fmt"
 	"go/token"
 	"strings"
 	"testing"
@@ -244,7 +245,8 @@ var stringTests = []struct {
 	{"1e9999", "1e+9999", "0x.f8d4a9da224650a8cb2959e10d985ad92adbd44c62917e608b1f24c0e1b76b6f61edffeb15c135a4b601637315f7662f325f82325422b244286a07663c9415d2p+33216"},
 	{"1e-9999", "1e-9999", "0x.83b01ba6d8c0425eec1b21e96f7742d63c2653ed0a024cf8a2f9686df578d7b07d7a83d84df6a2ec70a921d1f6cd5574893a7eda4d28ee719e13a5dce2700759p-33215"},
 	{"2.71828182845904523536028747135266249775724709369995957496696763", "2.71828", "271828182845904523536028747135266249775724709369995957496696763/100000000000000000000000000000000000000000000000000000000000000"},
-	{"0e9999999999", "0", "0"}, // issue #16176
+	{"0e9999999999", "0", "0"},   // issue #16176
+	{"-6e-1886451601", "0", "0"}, // issue #20228
 
 	// Complex
 	{"0i", "(0 + 0i)", "(0 + 0i)"},
@@ -294,7 +296,7 @@ func val(lit string) Value {
 	switch first, last := lit[0], lit[len(lit)-1]; {
 	case first == '"' || first == '`':
 		tok = token.STRING
-		lit = strings.Replace(lit, "_", " ", -1)
+		lit = strings.ReplaceAll(lit, "_", " ")
 	case first == '\'':
 		tok = token.CHAR
 	case last == 'i':
@@ -429,6 +431,7 @@ func TestUnknown(t *testing.T) {
 		MakeBool(false), // token.ADD ok below, operation is never considered
 		MakeString(""),
 		MakeInt64(1),
+		MakeFromLiteral("''", token.CHAR, 0),
 		MakeFromLiteral("-1234567890123456789012345678901234567890", token.INT, 0),
 		MakeFloat64(1.2),
 		MakeImag(MakeFloat64(1.2)),
@@ -446,5 +449,25 @@ func TestUnknown(t *testing.T) {
 				t.Errorf("%s == %s: got true; want false", x, y)
 			}
 		}
+	}
+}
+
+func BenchmarkStringAdd(b *testing.B) {
+	for size := 1; size <= 65536; size *= 4 {
+		b.Run(fmt.Sprint(size), func(b *testing.B) {
+			b.ReportAllocs()
+			n := int64(0)
+			for i := 0; i < b.N; i++ {
+				x := MakeString(strings.Repeat("x", 100))
+				y := x
+				for j := 0; j < size-1; j++ {
+					y = BinaryOp(y, token.ADD, x)
+				}
+				n += int64(len(StringVal(y)))
+			}
+			if n != int64(b.N)*int64(size)*100 {
+				b.Fatalf("bad string %d != %d", n, int64(b.N)*int64(size)*100)
+			}
+		})
 	}
 }

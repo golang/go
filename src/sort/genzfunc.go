@@ -82,7 +82,7 @@ func main() {
 	}
 
 	out.Reset()
-	out.WriteString(`// DO NOT EDIT; AUTO-GENERATED from sort.go using genzfunc.go
+	out.WriteString(`// Code generated from sort.go using genzfunc.go; DO NOT EDIT.
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -113,6 +113,10 @@ func rewriteCall(ce *ast.CallExpr) {
 	ident, ok := ce.Fun.(*ast.Ident)
 	if !ok {
 		// e.g. skip SelectorExpr (data.Less(..) calls)
+		return
+	}
+	// skip casts
+	if ident.Name == "int" || ident.Name == "uint" {
 		return
 	}
 	if len(ce.Args) < 1 {

@@ -4,7 +4,10 @@
 
 package socktest
 
-import "syscall"
+import (
+	"internal/syscall/windows"
+	"syscall"
+)
 
 // Socket wraps syscall.Socket.
 func (sw *Switch) Socket(family, sotype, proto int) (s syscall.Handle, err error) {
@@ -34,6 +37,38 @@ func (sw *Switch) Socket(family, sotype, proto int) (s syscall.Handle, err error
 		return syscall.InvalidHandle, so.Err
 	}
 	nso := sw.addLocked(s, family, sotype, proto)
+	sw.stats.getLocked(nso.Cookie).Opened++
+	return s, nil
+}
+
+// WSASocket wraps syscall.WSASocket.
+func (sw *Switch) WSASocket(family, sotype, proto int32, protinfo *syscall.WSAProtocolInfo, group uint32, flags uint32) (s syscall.Handle, err error) {
+	sw.once.Do(sw.init)
+
+	so := &Status{Cookie: cookie(int(family), int(sotype), int(proto))}
+	sw.fmu.RLock()
+	f, _ := sw.fltab[FilterSocket]
+	sw.fmu.RUnlock()
+
+	af, err := f.apply(so)
+	if err != nil {
+		return syscall.InvalidHandle, err
+	}
+	s, so.Err = windows.WSASocket(family, sotype, proto, protinfo, group, flags)
+	if err = af.apply(so); err != nil {
+		if so.Err == nil {
+			syscall.Closesocket(s)
+		}
+		return syscall.InvalidHandle, err
+	}
+
+	sw.smu.Lock()
+	defer sw.smu.Unlock()
+	if so.Err != nil {
+		sw.stats.getLocked(so.Cookie).OpenFailed++
+		return syscall.InvalidHandle, so.Err
+	}
+	nso := sw.addLocked(s, int(family), int(sotype), int(proto))
 	sw.stats.getLocked(nso.Cookie).Opened++
 	return s, nil
 }

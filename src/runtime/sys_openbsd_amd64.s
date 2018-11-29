@@ -88,12 +88,13 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-8
-	MOVQ	$0, DI			// arg 1 - notdead
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+	MOVQ	wait+0(FP), DI		// arg 1 - notdead
 	MOVL	$302, AX		// sys___threxit
 	SYSCALL
 	MOVL	$0xf1, 0xf1		// crash
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVQ	name+0(FP), DI		// arg 1 pathname
@@ -156,9 +157,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 TEXT runtime·raise(SB),NOSPLIT,$16
 	MOVL	$299, AX		// sys_getthrid
 	SYSCALL
-	MOVQ	AX, DI			// arg 1 - pid
+	MOVQ	AX, DI			// arg 1 - tid
 	MOVL	sig+0(FP), SI		// arg 2 - signum
-	MOVL	$37, AX			// sys_kill
+	MOVQ	$0, DX			// arg 3 - tcb
+	MOVL	$119, AX		// sys_thrkill
 	SYSCALL
 	RET
 
@@ -167,7 +169,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$16
 	SYSCALL
 	MOVQ	AX, DI			// arg 1 - pid
 	MOVL	sig+0(FP), SI		// arg 2 - signum
-	MOVL	$37, AX			// sys_kill
+	MOVL	$122, AX		// sys_kill
 	SYSCALL
 	RET
 
@@ -179,8 +181,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
 	SYSCALL
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVQ	$0, DI			// arg 1 - clock_id
 	LEAQ	8(SP), SI		// arg 2 - tp
 	MOVL	$87, AX			// sys_clock_gettime
@@ -241,11 +243,28 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	POPQ	BP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$24
-	MOVQ	DI, 0(SP)
-	MOVQ	SI, 8(SP)
-	MOVQ	DX, 16(SP)
+TEXT runtime·sigtramp(SB),NOSPLIT,$72
+	// Save callee-saved C registers, since the caller may be a C signal handler.
+	MOVQ	BX,  bx-8(SP)
+	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
+	MOVQ	R12, r12-24(SP)
+	MOVQ	R13, r13-32(SP)
+	MOVQ	R14, r14-40(SP)
+	MOVQ	R15, r15-48(SP)
+	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+	// modify them.
+
+	MOVQ	DX, ctx-56(SP)
+	MOVQ	SI, info-64(SP)
+	MOVQ	DI, signum-72(SP)
 	CALL	runtime·sigtrampgo(SB)
+
+	MOVQ	r15-48(SP), R15
+	MOVQ	r14-40(SP), R14
+	MOVQ	r13-32(SP), R13
+	MOVQ	r12-24(SP), R12
+	MOVQ	bp-16(SP),  BP
+	MOVQ	bx-8(SP),   BX
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
@@ -260,8 +279,15 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	$0, R9			// arg 6 - pad
 	MOVL	$197, AX
 	SYSCALL
+	JCC	ok
 	ADDQ	$16, SP
-	MOVQ	AX, ret+32(FP)
+	MOVQ	$0, p+32(FP)
+	MOVQ	AX, err+40(FP)
+	RET
+ok:
+	ADDQ	$16, SP
+	MOVQ	AX, p+32(FP)
+	MOVQ	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
@@ -279,7 +305,9 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	flags+16(FP), DX	// arg 3 - behav
 	MOVQ	$75, AX			// sys_madvise
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	JCC	2(PC)
+	MOVL	$-1, AX
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8

@@ -25,8 +25,10 @@
 
 // +build !plan9
 
+#include "go_asm.h"
 #include "textflag.h"
 
+// func memmove(to, from unsafe.Pointer, n uintptr)
 TEXT runtime·memmove(SB), NOSPLIT, $0-12
 	MOVL	to+0(FP), DI
 	MOVL	from+4(FP), SI
@@ -38,6 +40,7 @@ TEXT runtime·memmove(SB), NOSPLIT, $0-12
 	// 128 because that is the maximum SSE register load (loading all data
 	// into registers lets us ignore copy direction).
 tail:
+	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
 	TESTL	BX, BX
 	JEQ	move_0
 	CMPL	BX, $2
@@ -49,15 +52,14 @@ tail:
 	JBE	move_5through8
 	CMPL	BX, $16
 	JBE	move_9through16
-	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
-	JEQ	nosse2
+	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+	JNE	nosse2
 	CMPL	BX, $32
 	JBE	move_17through32
 	CMPL	BX, $64
 	JBE	move_33through64
 	CMPL	BX, $128
 	JBE	move_65through128
-	// TODO: use branch table and BSR to make this just a single dispatch
 
 nosse2:
 /*
@@ -71,8 +73,8 @@ nosse2:
  */
 forward:
 	// If REP MOVSB isn't fast, don't use it
-	TESTL	$(1<<9), runtime·cpuid_ebx7(SB) // erms, aka enhanced REP MOVSB/STOSB
-	JEQ	fwdBy4
+	CMPB	internal∕cpu·X86+const_offsetX86HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
+	JNE	fwdBy4
 
 	// Check alignment
 	MOVL	SI, AX

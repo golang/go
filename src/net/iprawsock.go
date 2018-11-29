@@ -9,8 +9,20 @@ import (
 	"syscall"
 )
 
-// BUG(mikio): On NaCl, Plan 9 and Windows, the ReadMsgIP and
-// WriteMsgIP methods of IPConn are not implemented.
+// BUG(mikio): On every POSIX platform, reads from the "ip4" network
+// using the ReadFrom or ReadFromIP method might not return a complete
+// IPv4 packet, including its header, even if there is space
+// available. This can occur even in cases where Read or ReadMsgIP
+// could return a complete packet. For this reason, it is recommended
+// that you do not use these methods if it is important to receive a
+// full packet.
+//
+// The Go 1 compatibility guidelines make it impossible for us to
+// change the behavior of these methods; use Read or ReadMsgIP
+// instead.
+
+// BUG(mikio): On JS, NaCl and Plan 9, methods and functions related
+// to IPConn are not implemented.
 
 // BUG(mikio): On Windows, the File method of IPConn is not
 // implemented.
@@ -49,30 +61,37 @@ func (a *IPAddr) opAddr() Addr {
 	return a
 }
 
-// ResolveIPAddr parses addr as an IP address of the form "host" or
-// "ipv6-host%zone" and resolves the domain name on the network net,
-// which must be "ip", "ip4" or "ip6".
+// ResolveIPAddr returns an address of IP end point.
 //
-// Resolving a hostname is not recommended because this returns at most
-// one of its IP addresses.
-func ResolveIPAddr(net, addr string) (*IPAddr, error) {
-	if net == "" { // a hint wildcard for Go 1.0 undocumented behavior
-		net = "ip"
+// The network must be an IP network name.
+//
+// If the host in the address parameter is not a literal IP address,
+// ResolveIPAddr resolves the address to an address of IP end point.
+// Otherwise, it parses the address as a literal IP address.
+// The address parameter can use a host name, but this is not
+// recommended, because it will return at most one of the host name's
+// IP addresses.
+//
+// See func Dial for a description of the network and address
+// parameters.
+func ResolveIPAddr(network, address string) (*IPAddr, error) {
+	if network == "" { // a hint wildcard for Go 1.0 undocumented behavior
+		network = "ip"
 	}
-	afnet, _, err := parseNetwork(context.Background(), net)
+	afnet, _, err := parseNetwork(context.Background(), network, false)
 	if err != nil {
 		return nil, err
 	}
 	switch afnet {
 	case "ip", "ip4", "ip6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, UnknownNetworkError(network)
 	}
-	addrs, err := DefaultResolver.internetAddrList(context.Background(), afnet, addr)
+	addrs, err := DefaultResolver.internetAddrList(context.Background(), afnet, address)
 	if err != nil {
 		return nil, err
 	}
-	return addrs.first(isIPv4).(*IPAddr), nil
+	return addrs.forResolve(network, address).(*IPAddr), nil
 }
 
 // IPConn is the implementation of the Conn and PacketConn interfaces
@@ -81,13 +100,16 @@ type IPConn struct {
 	conn
 }
 
-// ReadFromIP reads an IP packet from c, copying the payload into b.
-// It returns the number of bytes copied into b and the return address
-// that was on the packet.
-//
-// ReadFromIP can be made to time out and return an error with
-// Timeout() == true after a fixed time limit; see SetDeadline and
-// SetReadDeadline.
+// SyscallConn returns a raw network connection.
+// This implements the syscall.Conn interface.
+func (c *IPConn) SyscallConn() (syscall.RawConn, error) {
+	if !c.ok() {
+		return nil, syscall.EINVAL
+	}
+	return newRawConn(c.fd)
+}
+
+// ReadFromIP acts like ReadFrom but returns an IPAddr.
 func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
@@ -114,10 +136,13 @@ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
 	return n, addr, err
 }
 
-// ReadMsgIP reads a packet from c, copying the payload into b and the
-// associated out-of-band data into oob. It returns the number of
+// ReadMsgIP reads a message from c, copying the payload into b and
+// the associated out-of-band data into oob. It returns the number of
 // bytes copied into b, the number of bytes copied into oob, the flags
-// that were set on the packet and the source address of the packet.
+// that were set on the message and the source address of the message.
+//
+// The packages golang.org/x/net/ipv4 and golang.org/x/net/ipv6 can be
+// used to manipulate IP-level socket options in oob.
 func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err error) {
 	if !c.ok() {
 		return 0, 0, 0, nil, syscall.EINVAL
@@ -129,13 +154,7 @@ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err
 	return
 }
 
-// WriteToIP writes an IP packet to addr via c, copying the payload
-// from b.
-//
-// WriteToIP can be made to time out and return an error with
-// Timeout() == true after a fixed time limit; see SetDeadline and
-// SetWriteDeadline. On packet-oriented connections, write timeouts
-// are rare.
+// WriteToIP acts like WriteTo but takes an IPAddr.
 func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
@@ -163,9 +182,12 @@ func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
 	return n, err
 }
 
-// WriteMsgIP writes a packet to addr via c, copying the payload from
+// WriteMsgIP writes a message to addr via c, copying the payload from
 // b and the associated out-of-band data from oob. It returns the
 // number of payload and out-of-band bytes written.
+//
+// The packages golang.org/x/net/ipv4 and golang.org/x/net/ipv6 can be
+// used to manipulate IP-level socket options in oob.
 func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error) {
 	if !c.ok() {
 		return 0, 0, syscall.EINVAL
@@ -179,25 +201,40 @@ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error
 
 func newIPConn(fd *netFD) *IPConn { return &IPConn{conn{fd}} }
 
-// DialIP connects to the remote address raddr on the network protocol
-// netProto, which must be "ip", "ip4", or "ip6" followed by a colon
-// and a protocol number or name.
-func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
-	c, err := dialIP(context.Background(), netProto, laddr, raddr)
+// DialIP acts like Dial for IP networks.
+//
+// The network must be an IP network name; see func Dial for details.
+//
+// If laddr is nil, a local address is automatically chosen.
+// If the IP field of raddr is nil or an unspecified IP address, the
+// local system is assumed.
+func DialIP(network string, laddr, raddr *IPAddr) (*IPConn, error) {
+	if raddr == nil {
+		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
+	}
+	sd := &sysDialer{network: network, address: raddr.String()}
+	c, err := sd.dialIP(context.Background(), laddr, raddr)
 	if err != nil {
-		return nil, &OpError{Op: "dial", Net: netProto, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
 	return c, nil
 }
 
-// ListenIP listens for incoming IP packets addressed to the local
-// address laddr. The returned connection's ReadFrom and WriteTo
-// methods can be used to receive and send IP packets with per-packet
-// addressing.
-func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
-	c, err := listenIP(context.Background(), netProto, laddr)
+// ListenIP acts like ListenPacket for IP networks.
+//
+// The network must be an IP network name; see func Dial for details.
+//
+// If the IP field of laddr is nil or an unspecified IP address,
+// ListenIP listens on all available IP addresses of the local system
+// except multicast IP addresses.
+func ListenIP(network string, laddr *IPAddr) (*IPConn, error) {
+	if laddr == nil {
+		laddr = &IPAddr{}
+	}
+	sl := &sysListener{network: network, address: laddr.String()}
+	c, err := sl.listenIP(context.Background(), laddr)
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: netProto, Source: nil, Addr: laddr.opAddr(), Err: err}
+		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
 	return c, nil
 }

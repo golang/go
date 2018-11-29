@@ -26,8 +26,8 @@ func ctxDriverPrepare(ctx context.Context, ci driver.Conn, query string) (driver
 	return si, err
 }
 
-func ctxDriverExec(ctx context.Context, execer driver.Execer, query string, nvdargs []driver.NamedValue) (driver.Result, error) {
-	if execerCtx, is := execer.(driver.ExecerContext); is {
+func ctxDriverExec(ctx context.Context, execerCtx driver.ExecerContext, execer driver.Execer, query string, nvdargs []driver.NamedValue) (driver.Result, error) {
+	if execerCtx != nil {
 		return execerCtx.ExecContext(ctx, query, nvdargs)
 	}
 	dargs, err := namedValueToValue(nvdargs)
@@ -35,37 +35,29 @@ func ctxDriverExec(ctx context.Context, execer driver.Execer, query string, nvda
 		return nil, err
 	}
 
-	resi, err := execer.Exec(query, dargs)
-	if err == nil {
-		select {
-		default:
-		case <-ctx.Done():
-			return resi, ctx.Err()
-		}
+	select {
+	default:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	return resi, err
+	return execer.Exec(query, dargs)
 }
 
-func ctxDriverQuery(ctx context.Context, queryer driver.Queryer, query string, nvdargs []driver.NamedValue) (driver.Rows, error) {
-	if queryerCtx, is := queryer.(driver.QueryerContext); is {
-		ret, err := queryerCtx.QueryContext(ctx, query, nvdargs)
-		return ret, err
+func ctxDriverQuery(ctx context.Context, queryerCtx driver.QueryerContext, queryer driver.Queryer, query string, nvdargs []driver.NamedValue) (driver.Rows, error) {
+	if queryerCtx != nil {
+		return queryerCtx.QueryContext(ctx, query, nvdargs)
 	}
 	dargs, err := namedValueToValue(nvdargs)
 	if err != nil {
 		return nil, err
 	}
 
-	rowsi, err := queryer.Query(query, dargs)
-	if err == nil {
-		select {
-		default:
-		case <-ctx.Done():
-			rowsi.Close()
-			return nil, ctx.Err()
-		}
+	select {
+	default:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	return rowsi, err
+	return queryer.Query(query, dargs)
 }
 
 func ctxDriverStmtExec(ctx context.Context, si driver.Stmt, nvdargs []driver.NamedValue) (driver.Result, error) {
@@ -77,15 +69,12 @@ func ctxDriverStmtExec(ctx context.Context, si driver.Stmt, nvdargs []driver.Nam
 		return nil, err
 	}
 
-	resi, err := si.Exec(dargs)
-	if err == nil {
-		select {
-		default:
-		case <-ctx.Done():
-			return resi, ctx.Err()
-		}
+	select {
+	default:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	return resi, err
+	return si.Exec(dargs)
 }
 
 func ctxDriverStmtQuery(ctx context.Context, si driver.Stmt, nvdargs []driver.NamedValue) (driver.Rows, error) {
@@ -97,39 +86,42 @@ func ctxDriverStmtQuery(ctx context.Context, si driver.Stmt, nvdargs []driver.Na
 		return nil, err
 	}
 
-	rowsi, err := si.Query(dargs)
-	if err == nil {
-		select {
-		default:
-		case <-ctx.Done():
-			rowsi.Close()
-			return nil, ctx.Err()
-		}
+	select {
+	default:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	return rowsi, err
+	return si.Query(dargs)
 }
 
 var errLevelNotSupported = errors.New("sql: selected isolation level is not supported")
 
-func ctxDriverBegin(ctx context.Context, ci driver.Conn) (driver.Tx, error) {
-	if ciCtx, is := ci.(driver.ConnBeginContext); is {
-		return ciCtx.BeginContext(ctx)
+func ctxDriverBegin(ctx context.Context, opts *TxOptions, ci driver.Conn) (driver.Tx, error) {
+	if ciCtx, is := ci.(driver.ConnBeginTx); is {
+		dopts := driver.TxOptions{}
+		if opts != nil {
+			dopts.Isolation = driver.IsolationLevel(opts.Isolation)
+			dopts.ReadOnly = opts.ReadOnly
+		}
+		return ciCtx.BeginTx(ctx, dopts)
 	}
 
-	if ctx.Done() == context.Background().Done() {
+	if opts != nil {
+		// Check the transaction level. If the transaction level is non-default
+		// then return an error here as the BeginTx driver value is not supported.
+		if opts.Isolation != LevelDefault {
+			return nil, errors.New("sql: driver does not support non-default isolation level")
+		}
+
+		// If a read-only transaction is requested return an error as the
+		// BeginTx driver value is not supported.
+		if opts.ReadOnly {
+			return nil, errors.New("sql: driver does not support read-only transactions")
+		}
+	}
+
+	if ctx.Done() == nil {
 		return ci.Begin()
-	}
-
-	// Check the transaction level in ctx. If set and non-default
-	// then return an error here as the BeginContext driver value is not supported.
-	if level, ok := driver.IsolationFromContext(ctx); ok && level != driver.IsolationLevel(LevelDefault) {
-		return nil, errors.New("sql: driver does not support non-default isolation level")
-	}
-
-	// Check for a read-only parameter in ctx. If a read-only transaction is
-	// requested return an error as the BeginContext driver value is not supported.
-	if ro := driver.ReadOnlyFromContext(ctx); ro {
-		return nil, errors.New("sql: driver does not support read-only transactions")
 	}
 
 	txi, err := ci.Begin()

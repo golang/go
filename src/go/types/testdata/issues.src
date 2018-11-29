@@ -84,7 +84,7 @@ func issue10979() {
 		nosuchtype /* ERROR undeclared name: nosuchtype */
 	}
 	type _ interface {
-		fmt /* ERROR Nosuchtype not declared by package fmt */ .Nosuchtype
+		fmt.Nosuchtype /* ERROR Nosuchtype not declared by package fmt */
 	}
 	type _ interface {
 		nosuchpkg /* ERROR undeclared name: nosuchpkg */ .Nosuchtype
@@ -98,8 +98,8 @@ func issue10979() {
 // issue11347
 // These should not crash.
 var a1, b1 /* ERROR cycle */ , c1 /* ERROR cycle */ b1 = 0 > 0<<""[""[c1]]>c1
-var a2, b2 /* ERROR cycle */ = 0 /* ERROR mismatch */ /* ERROR mismatch */ > 0<<""[b2]
-var a3, b3 /* ERROR cycle */ = int /* ERROR mismatch */ /* ERROR mismatch */ (1<<""[b3])
+var a2, b2 /* ERROR cycle */ = 0 /* ERROR cannot initialize */ /* ERROR cannot initialize */ > 0<<""[b2]
+var a3, b3 /* ERROR cycle */ = int /* ERROR cannot initialize */ /* ERROR cannot initialize */ (1<<""[b3])
 
 // issue10260
 // Check that error messages explain reason for interface assignment failures.
@@ -186,3 +186,130 @@ func issue15755() {
 	_ = u
 	_ = v
 }
+
+// Test that we don't get "declared but not used"
+// errors in the context of invalid/C objects.
+func issue20358() {
+	var F C /* ERROR "undeclared" */ .F
+	var A C /* ERROR "undeclared" */ .A
+	var S C /* ERROR "undeclared" */ .S
+	type T C /* ERROR "undeclared" */ .T
+	type P C /* ERROR "undeclared" */ .P
+
+	// these variables must be "used" even though
+	// the LHS expressions/types below in which
+	// context they are used are unknown/invalid
+	var f, a, s1, s2, s3, t, p int
+
+	_ = F(f)
+	_ = A[a]
+	_ = S[s1:s2:s3]
+	_ = T{t}
+	_ = P{f: p}
+}
+
+// Test that we don't declare lhs variables in short variable
+// declarations before we type-check function literals on the
+// rhs.
+func issue24026() {
+	f := func() int { f(0) /* must refer to outer f */; return 0 }
+	_ = f
+
+	_ = func() {
+		f := func() { _ = f() /* must refer to outer f */ }
+		_ = f
+	}
+
+	// b and c must not be visible inside function literal
+	a := 0
+	a, b, c := func() (int, int, int) {
+		return a, b /* ERROR undeclared */ , c /* ERROR undeclared */
+	}()
+	_, _ = b, c
+}
+
+func f(int) {} // for issue24026
+
+// Test that we don't report a "missing return statement" error
+// (due to incorrect context when type-checking interfaces).
+func issue24140(x interface{}) int {
+        switch x.(type) {
+        case interface{}:
+                return 0
+        default:
+                panic(0)
+        }
+}
+
+// Test that we don't crash when the 'if' condition is missing.
+func issue25438() {
+	if { /* ERROR missing condition */ }
+	if x := 0; /* ERROR missing condition */ { _ = x }
+	if
+	{ /* ERROR missing condition */ }
+}
+
+// Test that we can embed alias type names in interfaces.
+type issue25301 interface {
+	E
+}
+
+type E = interface {
+	m()
+}
+
+// Test case from issue. Eventually we may disallow this due
+// to the cycle via the alias type name. But for now we make
+// sure this is accepted.
+type issue25301b = interface {
+	m() interface{ issue25301b }
+}
+
+type issue25301c interface {
+	notE // ERROR struct\{\} is not an interface
+}
+
+type notE = struct{}
+
+// Test that method declarations don't introduce artificial cycles
+// (issue #26124).
+const CC TT = 1
+type TT int
+func (TT) MM() [CC]TT
+
+// Reduced test case from issue #26124.
+const preloadLimit LNumber = 128
+type LNumber float64
+func (LNumber) assertFunction() *LFunction
+type LFunction struct {
+	GFunction LGFunction
+}
+type LGFunction func(*LState)
+type LState struct {
+	reg *registry
+}
+type registry struct {
+	alloc *allocator
+}
+type allocator struct {
+	_ [int(preloadLimit)]int
+}
+
+// Test that we don't crash when type-checking composite literals
+// containing errors in the type.
+var issue27346 = [][n /* ERROR undeclared */ ]int{
+	0: {},
+}
+
+var issue22467 = map[int][... /* ERROR invalid use of ... */ ]int{0: {}}
+
+// Test that invalid use of ... in parameter lists is recognized
+// (issue #28281).
+func issue28281a(int, int, ...int)
+func issue28281b(a, b int, c ...int)
+func issue28281c(a, b, c ... /* ERROR can only use ... with final parameter */ int)
+func issue28281d(... /* ERROR can only use ... with final parameter */ int, int)
+func issue28281e(a, b, c  ... /* ERROR can only use ... with final parameter */ int, d int)
+func issue28281f(... /* ERROR can only use ... with final parameter */ int, ... /* ERROR can only use ... with final parameter */ int, int)
+func (... /* ERROR expected type */ TT) f()
+func issue28281g() (... /* ERROR expected type */ TT)

@@ -14,7 +14,7 @@ import (
 )
 
 // cfbTests contains the test vectors from
-// http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf, section
+// https://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf, section
 // F.3.13.
 var cfbTests = []struct {
 	key, iv, plaintext, ciphertext string

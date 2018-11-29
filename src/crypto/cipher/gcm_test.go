@@ -188,6 +188,35 @@ var aesGCMTests = []struct {
 		"0feccdfae8ed65fa31a0858a1c466f79e8aa658c2f3ba93c3f92158b4e30955e1c62580450beff",
 		"b69a7e17bb5af688883274550a4ded0d1aff49a0b18343f4b382f745c163f7f714c9206a32a1ff012427e19431951edd0a755e5f491b0eedfd7df68bbc6085dd2888607a2f998c3e881eb1694109250db28291e71f4ad344a125624fb92e16ea9815047cd1111cabfdc9cb8c3b4b0f40aa91d31774009781231400789ed545404af6c3f76d07ddc984a7bd8f52728159782832e298cc4d529be96d17be898efd83e44dc7b0e2efc645849fd2bba61fef0ae7be0dcab233cc4e2b7ba4e887de9c64b97f2a1818aa54371a8d629dae37975f7784e5e3cc77055ed6e975b1e5f55e6bbacdc9f295ce4ada2c16113cd5b323cf78b7dde39f4a87aa8c141a31174e3584ccbd380cf5ec6d1dba539928b084fa9683e9c0953acf47cc3ac384a2c38914f1da01fb2cfd78905c2b58d36b2574b9df15535d82",
 	},
+	// These cases test non-standard tag sizes.
+	{
+		"89c54b0d3bc3c397d5039058c220685f",
+		"bc7f45c00868758d62d4bb4d",
+		"582670b0baf5540a3775b6615605bd05",
+		"48d16cda0337105a50e2ed76fd18e114",
+		"fc2d4c4eee2209ddbba6663c02765e6955e783b00156f5da0446e2970b877f",
+	},
+	{
+		"bad6049678bf75c9087b3e3ae7e72c13",
+		"a0a017b83a67d8f1b883e561",
+		"a1be93012f05a1958440f74a5311f4a1",
+		"f7c27b51d5367161dc2ff1e9e3edc6f2",
+		"36f032f7e3dc3275ca22aedcdc68436b99a2227f8bb69d45ea5d8842cd08",
+	},
+	{
+		"66a3c722ccf9709525650973ecc100a9",
+		"1621d42d3a6d42a2d2bf9494",
+		"61fa9dbbed2190fbc2ffabf5d2ea4ff8",
+		"d7a9b6523b8827068a6354a6d166c6b9",
+		"fef3b20f40e08a49637cc82f4c89b8603fd5c0132acfab97b5fff651c4",
+	},
+	{
+		"562ae8aadb8d23e0f271a99a7d1bd4d1",
+		"f7a5e2399413b89b6ad31aff",
+		"bbdc3504d803682aa08a773cde5f231a",
+		"2b9680b886b3efb7c6354b38c63b5373",
+		"e2b7e5ed5ff27fc8664148f5a628a46dcbf2015184fffb82f2651c36",
+	},
 }
 
 func TestAESGCM(t *testing.T) {
@@ -201,9 +230,29 @@ func TestAESGCM(t *testing.T) {
 		nonce, _ := hex.DecodeString(test.nonce)
 		plaintext, _ := hex.DecodeString(test.plaintext)
 		ad, _ := hex.DecodeString(test.ad)
-		aesgcm, err := cipher.NewGCMWithNonceSize(aes, len(nonce))
-		if err != nil {
-			t.Fatal(err)
+		tagSize := (len(test.result) - len(test.plaintext)) / 2
+
+		var aesgcm cipher.AEAD
+		switch {
+		// Handle non-standard nonce sizes
+		case tagSize != 16:
+			aesgcm, err = cipher.NewGCMWithTagSize(aes, tagSize)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+		// Handle non-standard tag sizes
+		case len(nonce) != 12:
+			aesgcm, err = cipher.NewGCMWithNonceSize(aes, len(nonce))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+		default:
+			aesgcm, err = cipher.NewGCM(aes)
+			if err != nil {
+				t.Fatal(err)
+			}
 		}
 
 		ct := aesgcm.Seal(nil, nonce, plaintext, ad)
@@ -242,6 +291,19 @@ func TestAESGCM(t *testing.T) {
 			t.Errorf("#%d: Open was successful after altering ciphertext", i)
 		}
 		ct[0] ^= 0x80
+	}
+}
+
+func TestGCMInvalidTagSize(t *testing.T) {
+	key, _ := hex.DecodeString("ab72c77b97cb5fe9a382d9fe81ffdbed")
+
+	aes, _ := aes.NewCipher(key)
+
+	for _, tagSize := range []int{0, 1, aes.BlockSize() + 1} {
+		aesgcm, err := cipher.NewGCMWithTagSize(aes, tagSize)
+		if aesgcm != nil || err == nil {
+			t.Fatalf("NewGCMWithNonceAndTagSize was successful with an invalid %d-byte tag size", tagSize)
+		}
 	}
 }
 
@@ -362,7 +424,7 @@ func TestGCMAsm(t *testing.T) {
 
 	// generate permutations
 	type pair struct{ align, length int }
-	lengths := []int{0, 8192, 8193, 8208}
+	lengths := []int{0, 156, 8192, 8193, 8208}
 	keySizes := []int{16, 24, 32}
 	alignments := []int{0, 1, 2, 3}
 	if testing.Short() {

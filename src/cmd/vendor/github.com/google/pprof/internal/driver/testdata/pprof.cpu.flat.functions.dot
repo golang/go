@@ -1,0 +1,20 @@
+digraph "testbinary" {
+node [style=filled fillcolor="#f8f8f8"]
+subgraph cluster_L { "File: testbinary" [shape=box fontsize=16 label="File: testbinary\lType: cpu\lDuration: 10s, Total samples = 1.12s (11.20%)\lShowing nodes accounting for 1.12s, 100% of 1.12s total\l" tooltip="testbinary"] }
+N1 [label="line1000\n1.10s (98.21%)" id="node1" fontsize=24 shape=box tooltip="line1000 (1.10s)" color="#b20000" fillcolor="#edd5d5"]
+N1_0 [label = "key1:tag1\nkey2:tag1" id="N1_0" fontsize=8 shape=box3d tooltip="1s"]
+N1 -> N1_0 [label=" 1s" weight=100 tooltip="1s" labeltooltip="1s"]
+N1_1 [label = "key1:tag2\nkey3:tag2" id="N1_1" fontsize=8 shape=box3d tooltip="0.10s"]
+N1 -> N1_1 [label=" 0.10s" weight=100 tooltip="0.10s" labeltooltip="0.10s"]
+N2 [label="line3000\n0 of 1.12s (100%)" id="node2" fontsize=8 shape=box tooltip="line3000 (1.12s)" color="#b20000" fillcolor="#edd5d5"]
+N3 [label="line3001\n0 of 1.11s (99.11%)" id="node3" fontsize=8 shape=box tooltip="line3001 (1.11s)" color="#b20000" fillcolor="#edd5d5"]
+N4 [label="line3002\n0.01s (0.89%)\nof 1.02s (91.07%)" id="node4" fontsize=10 shape=box tooltip="line3002 (1.02s)" color="#b20400" fillcolor="#edd6d5"]
+N5 [label="line2001\n0.01s (0.89%)\nof 1.01s (90.18%)" id="node5" fontsize=10 shape=box tooltip="line2001 (1.01s)" color="#b20500" fillcolor="#edd6d5"]
+N6 [label="line2000\n0 of 1.01s (90.18%)" id="node6" fontsize=8 shape=box tooltip="line2000 (1.01s)" color="#b20500" fillcolor="#edd6d5"]
+N2 -> N3 [label=" 1.11s\n (inline)" weight=100 penwidth=5 color="#b20000" tooltip="line3000 -> line3001 (1.11s)" labeltooltip="line3000 -> line3001 (1.11s)"]
+N6 -> N5 [label=" 1.01s\n (inline)" weight=91 penwidth=5 color="#b20500" tooltip="line2000 -> line2001 (1.01s)" labeltooltip="line2000 -> line2001 (1.01s)"]
+N3 -> N4 [label=" 1.01s\n (inline)" weight=91 penwidth=5 color="#b20500" tooltip="line3001 -> line3002 (1.01s)" labeltooltip="line3001 -> line3002 (1.01s)"]
+N4 -> N6 [label=" 1.01s" weight=91 penwidth=5 color="#b20500" tooltip="line3002 -> line2000 (1.01s)" labeltooltip="line3002 -> line2000 (1.01s)"]
+N5 -> N1 [label=" 1s" weight=90 penwidth=5 color="#b20500" tooltip="line2001 -> line1000 (1s)" labeltooltip="line2001 -> line1000 (1s)"]
+N3 -> N1 [label=" 0.10s" weight=9 color="#b28b62" tooltip="line3001 -> line1000 (0.10s)" labeltooltip="line3001 -> line1000 (0.10s)"]
+}

@@ -10,8 +10,8 @@ var c chan int
 var v int
 
 func main() {
-	if c <- v { // ERROR "used as value|missing condition|invalid condition"
+	if c <- v { // ERROR "used as value"
 	}
 }
 
-var _ = c <- v // ERROR "used as value|unexpected <-"
+var _ = c <- v // ERROR "unexpected <-"

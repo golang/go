@@ -35,7 +35,7 @@ func main() {
 
 		d, err := s.Data()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "reading data of note section %d: %v", i, err)
+			fmt.Fprintf(os.Stderr, "reading data of note section %d: %v\n", i, err)
 			continue
 		}
 

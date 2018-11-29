@@ -4,7 +4,7 @@
 
 // Package jpeg implements a JPEG image decoder and encoder.
 //
-// JPEG is defined in ITU-T T.81: http://www.w3.org/Graphics/JPEG/itu-t81.pdf.
+// JPEG is defined in ITU-T T.81: https://www.w3.org/Graphics/JPEG/itu-t81.pdf.
 package jpeg
 
 import (
@@ -48,7 +48,7 @@ const (
 )
 
 const (
-	sof0Marker = 0xc0 // Start Of Frame (Baseline).
+	sof0Marker = 0xc0 // Start Of Frame (Baseline Sequential).
 	sof1Marker = 0xc1 // Start Of Frame (Extended Sequential).
 	sof2Marker = 0xc2 // Start Of Frame (Progressive).
 	dhtMarker  = 0xc4 // Define Huffman Table.
@@ -62,13 +62,13 @@ const (
 	comMarker  = 0xfe // COMment.
 	// "APPlication specific" markers aren't part of the JPEG spec per se,
 	// but in practice, their use is described at
-	// http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html
+	// https://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html
 	app0Marker  = 0xe0
 	app14Marker = 0xee
 	app15Marker = 0xef
 )
 
-// See http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
+// See https://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
 const (
 	adobeTransformUnknown = 0
 	adobeTransformYCbCr   = 1
@@ -89,7 +89,8 @@ var unzig = [blockSize]int{
 	53, 60, 61, 54, 47, 55, 62, 63,
 }
 
-// Deprecated: Reader is deprecated.
+// Deprecated: Reader is not used by the image/jpeg package and should
+// not be used by others. It is kept for compatibility.
 type Reader interface {
 	io.ByteReader
 	io.Reader
@@ -126,9 +127,17 @@ type decoder struct {
 	blackPix    []byte
 	blackStride int
 
-	ri                  int // Restart Interval.
-	nComp               int
-	progressive         bool
+	ri    int // Restart Interval.
+	nComp int
+
+	// As per section 4.5, there are four modes of operation (selected by the
+	// SOF? markers): sequential DCT, progressive DCT, lossless and
+	// hierarchical, although this implementation does not support the latter
+	// two non-DCT modes. Sequential DCT is further split into baseline and
+	// extended, as per section 4.11.
+	baseline    bool
+	progressive bool
+
 	jfif                bool
 	adobeTransformValid bool
 	adobeTransform      uint8
@@ -596,6 +605,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 
 		switch marker {
 		case sof0Marker, sof1Marker, sof2Marker:
+			d.baseline = marker == sof0Marker
 			d.progressive = marker == sof2Marker
 			err = d.processSOF(n)
 			if configOnly && d.jfif {
@@ -675,7 +685,7 @@ func (d *decoder) applyBlack() (image.Image, error) {
 
 	// If the 4-component JPEG image isn't explicitly marked as "Unknown (RGB
 	// or CMYK)" as per
-	// http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
+	// https://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
 	// we assume that it is YCbCrK. This matches libjpeg's jdapimin.c.
 	if d.adobeTransform != adobeTransformUnknown {
 		// Convert the YCbCr part of the YCbCrK to RGB, invert the RGB to get
@@ -738,7 +748,7 @@ func (d *decoder) isRGB() bool {
 		return false
 	}
 	if d.adobeTransformValid && d.adobeTransform == adobeTransformUnknown {
-		// http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
+		// https://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
 		// says that 0 means Unknown (and in practice RGB) and 1 means YCbCr.
 		return true
 	}

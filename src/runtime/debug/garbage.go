@@ -89,9 +89,7 @@ func ReadGCStats(stats *GCStats) {
 // at startup, or 100 if the variable is not set.
 // A negative percentage disables garbage collection.
 func SetGCPercent(percent int) int {
-	old := setGCPercent(int32(percent))
-	runtime.GC()
-	return int(old)
+	return int(setGCPercent(int32(percent)))
 }
 
 // FreeOSMemory forces a garbage collection followed by an

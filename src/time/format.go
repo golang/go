@@ -6,7 +6,7 @@ package time
 
 import "errors"
 
-// These are predefined layouts for use in Time.Format and Time.Parse.
+// These are predefined layouts for use in Time.Format and time.Parse.
 // The reference time used in the layouts is the specific time:
 //	Mon Jan 2 15:04:05 MST 2006
 // which is Unix time 1136239445. Since MST is GMT-0700,
@@ -17,6 +17,9 @@ import "errors"
 // StampMicro or Kitchen for examples. The model is to demonstrate what the
 // reference time looks like so that the Format and Parse methods can apply
 // the same transformation to a general time value.
+//
+// Some valid layouts are invalid time values for time.Parse, due to formats
+// such as _ for space padding and Z for zone information.
 //
 // Within the format string, an underscore _ represents a space that may be
 // replaced by a digit if the following number (a day) has two digits; for
@@ -49,7 +52,7 @@ import "errors"
 // time is echoed verbatim during Format and expected to appear verbatim
 // in the input to Parse.
 //
-// The executable example for time.Format demonstrates the working
+// The executable example for Time.Format demonstrates the working
 // of the layout string in detail and is a good reference.
 //
 // Note that the RFC822, RFC850, and RFC1123 formats should be applied
@@ -58,9 +61,11 @@ import "errors"
 // use of "GMT" in that case.
 // In general RFC1123Z should be used instead of RFC1123 for servers
 // that insist on that format, and RFC3339 should be preferred for new protocols.
-// RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
+// RFC3339, RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
 // when used with time.Parse they do not accept all the time formats
 // permitted by the RFCs.
+// The RFC3339Nano format removes trailing zeros from the seconds field
+// and thus may not sort correctly once formatted.
 const (
 	ANSIC       = "Mon Jan _2 15:04:05 2006"
 	UnixDate    = "Mon Jan _2 15:04:05 MST 2006"
@@ -287,7 +292,6 @@ var shortDayNames = []string{
 }
 
 var shortMonthNames = []string{
-	"---",
 	"Jan",
 	"Feb",
 	"Mar",
@@ -303,7 +307,6 @@ var shortMonthNames = []string{
 }
 
 var longMonthNames = []string{
-	"---",
 	"January",
 	"February",
 	"March",
@@ -424,8 +427,41 @@ func formatNano(b []byte, nanosec uint, n int, trim bool) []byte {
 
 // String returns the time formatted using the format string
 //	"2006-01-02 15:04:05.999999999 -0700 MST"
+//
+// If the time has a monotonic clock reading, the returned string
+// includes a final field "m=±<value>", where value is the monotonic
+// clock reading formatted as a decimal number of seconds.
+//
+// The returned string is meant for debugging; for a stable serialized
+// representation, use t.MarshalText, t.MarshalBinary, or t.Format
+// with an explicit format string.
 func (t Time) String() string {
-	return t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
+	s := t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
+
+	// Format monotonic clock reading as m=±ddd.nnnnnnnnn.
+	if t.wall&hasMonotonic != 0 {
+		m2 := uint64(t.ext)
+		sign := byte('+')
+		if t.ext < 0 {
+			sign = '-'
+			m2 = -m2
+		}
+		m1, m2 := m2/1e9, m2%1e9
+		m0, m1 := m1/1e9, m1%1e9
+		var buf []byte
+		buf = append(buf, " m="...)
+		buf = append(buf, sign)
+		wid := 0
+		if m0 != 0 {
+			buf = appendInt(buf, int(m0), 0)
+			wid = 9
+		}
+		buf = appendInt(buf, int(m1), wid)
+		buf = append(buf, '.')
+		buf = appendInt(buf, int(m2), 9)
+		s += string(buf)
+	}
+	return s
 }
 
 // Format returns a textual representation of the time value formatted
@@ -697,7 +733,7 @@ func skip(value, prefix string) (string, error) {
 }
 
 // Parse parses a formatted string and returns the time value it represents.
-// The layout  defines the format by showing how the reference time,
+// The layout defines the format by showing how the reference time,
 // defined to be
 //	Mon Jan 2 15:04:05 -0700 MST 2006
 // would be interpreted if it were the value; it serves as an example of
@@ -708,7 +744,7 @@ func skip(value, prefix string) (string, error) {
 // and convenient representations of the reference time. For more information
 // about the formats and the definition of the reference time, see the
 // documentation for ANSIC and the other constants defined by this package.
-// Also, the executable example for time.Format demonstrates the working
+// Also, the executable example for Time.Format demonstrates the working
 // of the layout string in detail and is a good reference.
 //
 // Elements omitted from the value are assumed to be zero or, when
@@ -724,11 +760,6 @@ func skip(value, prefix string) (string, error) {
 // to a time zone used by the current location (Local), then Parse uses that
 // location and zone in the returned time. Otherwise it records the time as
 // being in a fabricated location with time fixed at the given zone offset.
-//
-// No checking is done that the day of the month is within the month's
-// valid dates; any one- or two-digit value is accepted. For example
-// February 31 and even February 99 are valid dates, specifying dates
-// in March and May. This behavior is consistent with time.Date.
 //
 // When parsing a time with a zone abbreviation like MST, if the zone abbreviation
 // has a defined offset in the current location, then that offset is used.
@@ -811,8 +842,10 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			year, err = atoi(p)
 		case stdMonth:
 			month, value, err = lookup(shortMonthNames, value)
+			month++
 		case stdLongMonth:
 			month, value, err = lookup(longMonthNames, value)
+			month++
 		case stdNumMonth, stdZeroMonth:
 			month, value, err = getnum(value, std == stdZeroMonth)
 			if month <= 0 || 12 < month {
@@ -1022,11 +1055,11 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 
 	if zoneOffset != -1 {
 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
-		t.sec -= int64(zoneOffset)
+		t.addSec(-int64(zoneOffset))
 
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		name, offset, _, _, _ := local.lookup(t.sec + internalToUnix)
+		name, offset, _, _ := local.lookup(t.unixSec())
 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
 			t.setLoc(local)
 			return t, nil
@@ -1041,9 +1074,9 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		offset, _, ok := local.lookupName(zoneName, t.sec+internalToUnix)
+		offset, ok := local.lookupName(zoneName, t.unixSec())
 		if ok {
-			t.sec -= int64(offset)
+			t.addSec(-int64(offset))
 			t.setLoc(local)
 			return t, nil
 		}
@@ -1084,6 +1117,12 @@ func parseTimeZone(value string) (length int, ok bool) {
 		length = parseGMT(value)
 		return length, true
 	}
+	// Special Case 3: Some time zones are not named, but have +/-00 format
+	if value[0] == '+' || value[0] == '-' {
+		length = parseSignedOffset(value)
+		ok := length > 0 // parseSignedOffset returns 0 in case of bad input
+		return length, ok
+	}
 	// How many upper-case letters are there? Need at least three, at most five.
 	var nUpper int
 	for nUpper = 0; nUpper < 6; nUpper++ {
@@ -1101,8 +1140,9 @@ func parseTimeZone(value string) (length int, ok bool) {
 		if value[4] == 'T' {
 			return 5, true
 		}
-	case 4: // Must end in T to match.
-		if value[3] == 'T' {
+	case 4:
+		// Must end in T, except one special case.
+		if value[3] == 'T' || value[:4] == "WITA" {
 			return 4, true
 		}
 	case 3:
@@ -1113,27 +1153,37 @@ func parseTimeZone(value string) (length int, ok bool) {
 
 // parseGMT parses a GMT time zone. The input string is known to start "GMT".
 // The function checks whether that is followed by a sign and a number in the
-// range -14 through 12 excluding zero.
+// range -23 through +23 excluding zero.
 func parseGMT(value string) int {
 	value = value[3:]
 	if len(value) == 0 {
 		return 3
 	}
+
+	return 3 + parseSignedOffset(value)
+}
+
+// parseSignedOffset parses a signed timezone offset (e.g. "+03" or "-04").
+// The function checks for a signed number in the range -23 through +23 excluding zero.
+// Returns length of the found offset string or 0 otherwise
+func parseSignedOffset(value string) int {
 	sign := value[0]
 	if sign != '-' && sign != '+' {
-		return 3
+		return 0
 	}
 	x, rem, err := leadingInt(value[1:])
-	if err != nil {
-		return 3
+
+	// fail if nothing consumed by leadingInt
+	if err != nil || value[1:] == rem {
+		return 0
 	}
 	if sign == '-' {
 		x = -x
 	}
-	if x == 0 || x < -14 || 12 < x {
-		return 3
+	if x < -23 || 23 < x {
+		return 0
 	}
-	return 3 + len(value) - len(rem)
+	return len(value) - len(rem)
 }
 
 func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, err error) {

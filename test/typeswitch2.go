@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Verify that various erroneous type switches are caught be the compiler.
+// Verify that various erroneous type switches are caught by the compiler.
 // Does not compile.
 
 package main
@@ -26,10 +26,10 @@ func whatis(x interface{}) string {
 		w()
 	}:
 		return "rw"
-	case interface {	// GCCGO_ERROR "duplicate"
+	case interface {	// ERROR "duplicate"
 		w()
 		r()
-	}: // GC_ERROR "duplicate"
+	}:
 		return "wr"
 
 	}

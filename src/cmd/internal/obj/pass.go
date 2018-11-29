@@ -32,59 +32,40 @@ package obj
 
 // Code and data passes.
 
-func Brchain(ctxt *Link, p *Prog) *Prog {
-	for i := 0; i < 20; i++ {
-		if p == nil || p.As != AJMP || p.Pcond == nil {
-			return p
-		}
-		p = p.Pcond
-	}
-
-	return nil
-}
-
-func brloop(ctxt *Link, p *Prog) *Prog {
-	var q *Prog
-
+// brloop returns the ultimate destination of the series of unconditional jumps beginning at p.
+// In the case of an infinite loop, brloop returns nil.
+func brloop(p *Prog) *Prog {
 	c := 0
-	for q = p; q != nil; q = q.Pcond {
+	for q := p; q != nil; q = q.Pcond {
 		if q.As != AJMP || q.Pcond == nil {
-			break
+			return q
 		}
 		c++
 		if c >= 5000 {
+			// infinite loop
 			return nil
 		}
 	}
-
-	return q
+	panic("unreachable")
 }
 
+// checkaddr checks that a has an expected encoding, especially TYPE_CONST vs TYPE_ADDR.
 func checkaddr(ctxt *Link, p *Prog, a *Addr) {
-	// Check expected encoding, especially TYPE_CONST vs TYPE_ADDR.
 	switch a.Type {
-	case TYPE_NONE:
+	case TYPE_NONE, TYPE_REGREG2, TYPE_REGLIST:
 		return
 
-	case TYPE_BRANCH:
+	case TYPE_BRANCH, TYPE_TEXTSIZE:
 		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 {
 			break
 		}
 		return
 
-	case TYPE_TEXTSIZE:
-		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 {
-			break
-		}
-		return
-
-		//if(a->u.bits != 0)
-	//	break;
 	case TYPE_MEM:
 		return
 
-		// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
 	case TYPE_CONST:
+		// TODO(rsc): After fixing SHRQ, check a.Index != 0 too.
 		if a.Name != 0 || a.Sym != nil || a.Reg != 0 {
 			ctxt.Diag("argument is TYPE_CONST, should be TYPE_ADDR, in %v", p)
 			return
@@ -101,9 +82,9 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 		}
 		return
 
-	// TODO(rsc): After fixing PINSRQ, check a->offset != 0 too.
-	// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
 	case TYPE_REG:
+		// TODO(rsc): After fixing PINSRQ, check a.Offset != 0 too.
+		// TODO(rsc): After fixing SHRQ, check a.Index != 0 too.
 		if a.Scale != 0 || a.Name != 0 || a.Sym != nil {
 			break
 		}
@@ -118,27 +99,15 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 		}
 		return
 
-	case TYPE_SHIFT:
+	case TYPE_SHIFT, TYPE_REGREG:
 		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.Val != nil {
 			break
 		}
 		return
 
-	case TYPE_REGREG:
-		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.Val != nil {
-			break
-		}
-		return
-
-	case TYPE_REGREG2:
-		return
-
-	case TYPE_REGLIST:
-		return
-
-	// Expect sym and name to be set, nothing else.
-	// Technically more is allowed, but this is only used for *name(SB).
 	case TYPE_INDIR:
+		// Expect sym and name to be set, nothing else.
+		// Technically more is allowed, but this is only used for *name(SB).
 		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name == 0 || a.Offset != 0 || a.Sym == nil || a.Val != nil {
 			break
 		}
@@ -148,22 +117,16 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 	ctxt.Diag("invalid encoding for argument %v", p)
 }
 
-func linkpatch(ctxt *Link, sym *LSym) {
-	var c int32
-	var name string
-	var q *Prog
-
-	ctxt.Cursym = sym
-
-	for p := sym.Text; p != nil; p = p.Link {
+func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
+	for p := sym.Func.Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
-		if p.From3 != nil {
-			checkaddr(ctxt, p, p.From3)
+		if p.GetFrom3() != nil {
+			checkaddr(ctxt, p, p.GetFrom3())
 		}
 		checkaddr(ctxt, p, &p.To)
 
 		if ctxt.Arch.Progedit != nil {
-			ctxt.Arch.Progedit(ctxt, p)
+			ctxt.Arch.Progedit(ctxt, p, newprog)
 		}
 		if p.To.Type != TYPE_BRANCH {
 			continue
@@ -177,12 +140,12 @@ func linkpatch(ctxt *Link, sym *LSym) {
 		if p.To.Sym != nil {
 			continue
 		}
-		c = int32(p.To.Offset)
-		for q = sym.Text; q != nil; {
-			if int64(c) == q.Pc {
+		q := sym.Func.Text
+		for q != nil {
+			if p.To.Offset == q.Pc {
 				break
 			}
-			if q.Forwd != nil && int64(c) >= q.Forwd.Pc {
+			if q.Forwd != nil && p.To.Offset >= q.Forwd.Pc {
 				q = q.Forwd
 			} else {
 				q = q.Link
@@ -190,11 +153,11 @@ func linkpatch(ctxt *Link, sym *LSym) {
 		}
 
 		if q == nil {
-			name = "<nil>"
+			name := "<nil>"
 			if p.To.Sym != nil {
 				name = p.To.Sym.Name
 			}
-			ctxt.Diag("branch out of range (%#x)\n%v [%s]", uint32(c), p, name)
+			ctxt.Diag("branch out of range (%#x)\n%v [%s]", uint32(p.To.Offset), p, name)
 			p.To.Type = TYPE_NONE
 		}
 
@@ -202,16 +165,18 @@ func linkpatch(ctxt *Link, sym *LSym) {
 		p.Pcond = q
 	}
 
-	if ctxt.Flag_optimize {
-		for p := sym.Text; p != nil; p = p.Link {
-			if p.Pcond != nil {
-				p.Pcond = brloop(ctxt, p.Pcond)
-				if p.Pcond != nil {
-					if p.To.Type == TYPE_BRANCH {
-						p.To.Offset = p.Pcond.Pc
-					}
-				}
-			}
+	if !ctxt.Flag_optimize {
+		return
+	}
+
+	// Collapse series of jumps to jumps.
+	for p := sym.Func.Text; p != nil; p = p.Link {
+		if p.Pcond == nil {
+			continue
+		}
+		p.Pcond = brloop(p.Pcond)
+		if p.Pcond != nil && p.To.Type == TYPE_BRANCH {
+			p.To.Offset = p.Pcond.Pc
 		}
 	}
 }

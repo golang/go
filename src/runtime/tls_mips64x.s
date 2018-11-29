@@ -12,7 +12,7 @@
 // If !iscgo, this is a no-op.
 //
 // NOTE: mcall() assumes this clobbers only R23 (REGTMP).
-TEXT runtime·save_g(SB),NOSPLIT,$-8-0
+TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
 	MOVB	runtime·iscgo(SB), R23
 	BEQ	R23, nocgo
 
@@ -23,7 +23,7 @@ TEXT runtime·save_g(SB),NOSPLIT,$-8-0
 nocgo:
 	RET
 
-TEXT runtime·load_g(SB),NOSPLIT,$-8-0
+TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
 	MOVV	runtime·tls_g(SB), g // TLS relocation clobbers R3
 	RET
 

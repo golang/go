@@ -9,7 +9,7 @@ type Writer struct {
 
 func NewWriter() *Writer {
 	w := new(Writer)
-	w.Write([]byte("go 1.7 trace\x00\x00\x00\x00"))
+	w.Write([]byte("go 1.9 trace\x00\x00\x00\x00"))
 	return w
 }
 

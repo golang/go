@@ -21,19 +21,22 @@ type opInfo struct {
 	name              string
 	reg               regInfo
 	auxType           auxType
-	argLen            int32 // the number of arugments, -1 if variable length
+	argLen            int32 // the number of arguments, -1 if variable length
 	asm               obj.As
-	generic           bool // this is a generic (arch-independent) opcode
-	rematerializeable bool // this op is rematerializeable
-	commutative       bool // this operation is commutative (e.g. addition)
-	resultInArg0      bool // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
-	resultNotInArgs   bool // outputs must not be allocated to the same registers as inputs
-	clobberFlags      bool // this op clobbers flags register
-	call              bool // is a function call
-	nilCheck          bool // this op is a nil check on arg0
-	faultOnNilArg0    bool // this op will fault if arg0 is nil (and aux encodes a small offset)
-	faultOnNilArg1    bool // this op will fault if arg1 is nil (and aux encodes a small offset)
-	usesScratch       bool // this op requires scratch memory space
+	generic           bool      // this is a generic (arch-independent) opcode
+	rematerializeable bool      // this op is rematerializeable
+	commutative       bool      // this operation is commutative (e.g. addition)
+	resultInArg0      bool      // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
+	resultNotInArgs   bool      // outputs must not be allocated to the same registers as inputs
+	clobberFlags      bool      // this op clobbers flags register
+	call              bool      // is a function call
+	nilCheck          bool      // this op is a nil check on arg0
+	faultOnNilArg0    bool      // this op will fault if arg0 is nil (and aux encodes a small offset)
+	faultOnNilArg1    bool      // this op will fault if arg1 is nil (and aux encodes a small offset)
+	usesScratch       bool      // this op requires scratch memory space
+	hasSideEffects    bool      // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+	zeroWidth         bool      // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
+	symEffect         SymEffect // effect this op has on symbol in aux
 }
 
 type inputInfo struct {
@@ -47,31 +50,54 @@ type outputInfo struct {
 }
 
 type regInfo struct {
-	inputs   []inputInfo // ordered in register allocation order
+	// inputs encodes the register restrictions for an instruction's inputs.
+	// Each entry specifies an allowed register set for a particular input.
+	// They are listed in the order in which regalloc should pick a register
+	// from the register set (most constrained first).
+	// Inputs which do not need registers are not listed.
+	inputs []inputInfo
+	// clobbers encodes the set of registers that are overwritten by
+	// the instruction (other than the output registers).
 	clobbers regMask
-	outputs  []outputInfo // ordered in register allocation order
+	// outputs is the same as inputs, but for the outputs of the instruction.
+	outputs []outputInfo
 }
 
 type auxType int8
 
 const (
-	auxNone            auxType = iota
-	auxBool                    // auxInt is 0/1 for false/true
-	auxInt8                    // auxInt is an 8-bit integer
-	auxInt16                   // auxInt is a 16-bit integer
-	auxInt32                   // auxInt is a 32-bit integer
-	auxInt64                   // auxInt is a 64-bit integer
-	auxInt128                  // auxInt represents a 128-bit integer.  Always 0.
-	auxFloat32                 // auxInt is a float32 (encoded with math.Float64bits)
-	auxFloat64                 // auxInt is a float64 (encoded with math.Float64bits)
-	auxSizeAndAlign            // auxInt is a SizeAndAlign
-	auxString                  // aux is a string
-	auxSym                     // aux is a symbol
-	auxSymOff                  // aux is a symbol, auxInt is an offset
-	auxSymValAndOff            // aux is a symbol, auxInt is a ValAndOff
-	auxSymSizeAndAlign         // aux is a symbol, auxInt is a SizeAndAlign
+	auxNone         auxType = iota
+	auxBool                 // auxInt is 0/1 for false/true
+	auxInt8                 // auxInt is an 8-bit integer
+	auxInt16                // auxInt is a 16-bit integer
+	auxInt32                // auxInt is a 32-bit integer
+	auxInt64                // auxInt is a 64-bit integer
+	auxInt128               // auxInt represents a 128-bit integer.  Always 0.
+	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
+	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
+	auxString               // aux is a string
+	auxSym                  // aux is a symbol (a *gc.Node for locals or an *obj.LSym for globals)
+	auxSymOff               // aux is a symbol, auxInt is an offset
+	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
+	auxTyp                  // aux is a type
+	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
+	auxCCop                 // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
 
 	auxSymInt32 // aux is a symbol, auxInt is a 32-bit integer
+)
+
+// A SymEffect describes the effect that an SSA Value has on the variable
+// identified by the symbol in its Aux field.
+type SymEffect int8
+
+const (
+	SymRead SymEffect = 1 << iota
+	SymWrite
+	SymAddr
+
+	SymRdWr = SymRead | SymWrite
+
+	SymNone SymEffect = 0
 )
 
 // A ValAndOff is used by the several opcodes. It holds
@@ -137,32 +163,4 @@ func (x ValAndOff) add(off int64) int64 {
 		panic("invalid ValAndOff.add")
 	}
 	return makeValAndOff(x.Val(), x.Off()+off)
-}
-
-// SizeAndAlign holds both the size and the alignment of a type,
-// used in Zero and Move ops.
-// The high 8 bits hold the alignment.
-// The low 56 bits hold the size.
-type SizeAndAlign int64
-
-func (x SizeAndAlign) Size() int64 {
-	return int64(x) & (1<<56 - 1)
-}
-func (x SizeAndAlign) Align() int64 {
-	return int64(uint64(x) >> 56)
-}
-func (x SizeAndAlign) Int64() int64 {
-	return int64(x)
-}
-func (x SizeAndAlign) String() string {
-	return fmt.Sprintf("size=%d,align=%d", x.Size(), x.Align())
-}
-func MakeSizeAndAlign(size, align int64) SizeAndAlign {
-	if size&^(1<<56-1) != 0 {
-		panic("size too big in SizeAndAlign")
-	}
-	if align >= 1<<8 {
-		panic("alignment too big in SizeAndAlign")
-	}
-	return SizeAndAlign(size | align<<56)
 }

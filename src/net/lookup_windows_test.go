@@ -24,7 +24,7 @@ func toJson(v interface{}) string {
 	return string(data)
 }
 
-func TestLookupMX(t *testing.T) {
+func TestNSLookupMX(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	for _, server := range nslookupTestServers {
@@ -49,7 +49,7 @@ func TestLookupMX(t *testing.T) {
 	}
 }
 
-func TestLookupCNAME(t *testing.T) {
+func TestNSLookupCNAME(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	for _, server := range nslookupTestServers {
@@ -72,7 +72,7 @@ func TestLookupCNAME(t *testing.T) {
 	}
 }
 
-func TestLookupNS(t *testing.T) {
+func TestNSLookupNS(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	for _, server := range nslookupTestServers {
@@ -98,7 +98,7 @@ func TestLookupNS(t *testing.T) {
 	}
 }
 
-func TestLookupTXT(t *testing.T) {
+func TestNSLookupTXT(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	for _, server := range nslookupTestServers {
@@ -150,7 +150,7 @@ func nslookup(qtype, name string) (string, error) {
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}
-	r := strings.Replace(out.String(), "\r\n", "\n", -1)
+	r := strings.ReplaceAll(out.String(), "\r\n", "\n")
 	// nslookup stderr output contains also debug information such as
 	// "Non-authoritative answer" and it doesn't return the correct errcode
 	if strings.Contains(err.String(), "can't find") {

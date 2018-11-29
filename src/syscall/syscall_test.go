@@ -62,8 +62,8 @@ func TestExecErrPermutedFds(t *testing.T) {
 }
 
 func TestGettimeofday(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		t.Skip("not implemented on nacl")
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+		t.Skip("not implemented on " + runtime.GOOS)
 	}
 	tv := &syscall.Timeval{}
 	if err := syscall.Gettimeofday(tv); err != nil {

@@ -1,0 +1,97 @@
+=== RUN   TestVet
+=== PAUSE TestVet
+=== RUN   TestVetAsm
+=== PAUSE TestVetAsm
+=== RUN   TestVetDirs
+=== PAUSE TestVetDirs
+=== RUN   TestTags
+=== PAUSE TestTags
+=== RUN   TestVetVerbose
+=== PAUSE TestVetVerbose
+=== CONT  TestVet
+=== CONT  TestTags
+=== CONT  TestVetVerbose
+=== RUN   TestTags/testtag
+=== PAUSE TestTags/testtag
+=== CONT  TestVetDirs
+=== CONT  TestVetAsm
+=== RUN   TestVet/0
+=== PAUSE TestVet/0
+=== RUN   TestVet/1
+=== PAUSE TestVet/1
+=== RUN   TestVet/2
+=== PAUSE TestVet/2
+=== RUN   TestVet/3
+=== PAUSE TestVet/3
+=== RUN   TestVet/4
+=== RUN   TestTags/x_testtag_y
+=== PAUSE TestVet/4
+=== RUN   TestVet/5
+=== PAUSE TestVet/5
+=== PAUSE TestTags/x_testtag_y
+=== RUN   TestVet/6
+=== RUN   TestTags/x,testtag,y
+=== PAUSE TestTags/x,testtag,y
+=== RUN   TestVetDirs/testingpkg
+=== PAUSE TestVet/6
+=== CONT  TestTags/x,testtag,y
+=== PAUSE TestVetDirs/testingpkg
+=== RUN   TestVetDirs/divergent
+=== RUN   TestVet/7
+=== PAUSE TestVet/7
+=== PAUSE TestVetDirs/divergent
+=== CONT  TestTags/x_testtag_y
+=== CONT  TestTags/testtag
+=== RUN   TestVetDirs/buildtag
+=== PAUSE TestVetDirs/buildtag
+=== CONT  TestVet/0
+=== CONT  TestVet/4
+=== RUN   TestVetDirs/incomplete
+=== PAUSE TestVetDirs/incomplete
+=== RUN   TestVetDirs/cgo
+=== PAUSE TestVetDirs/cgo
+=== CONT  TestVet/7
+=== CONT  TestVet/6
+--- PASS: TestVetVerbose (0.04s)
+=== CONT  TestVet/5
+=== CONT  TestVet/3
+=== CONT  TestVet/2
+--- PASS: TestTags (0.00s)
+    --- PASS: TestTags/x_testtag_y (0.04s)
+    	vet_test.go:187: -tags=x testtag y
+    --- PASS: TestTags/x,testtag,y (0.04s)
+    	vet_test.go:187: -tags=x,testtag,y
+    --- PASS: TestTags/testtag (0.04s)
+    	vet_test.go:187: -tags=testtag
+=== CONT  TestVet/1
+=== CONT  TestVetDirs/testingpkg
+=== CONT  TestVetDirs/buildtag
+=== CONT  TestVetDirs/divergent
+=== CONT  TestVetDirs/incomplete
+=== CONT  TestVetDirs/cgo
+--- PASS: TestVet (0.39s)
+    --- PASS: TestVet/5 (0.07s)
+    	vet_test.go:114: files: ["testdata/copylock_func.go" "testdata/rangeloop.go"]
+    --- PASS: TestVet/3 (0.07s)
+    	vet_test.go:114: files: ["testdata/composite.go" "testdata/nilfunc.go"]
+    --- PASS: TestVet/6 (0.07s)
+    	vet_test.go:114: files: ["testdata/copylock_range.go" "testdata/shadow.go"]
+    --- PASS: TestVet/2 (0.07s)
+    	vet_test.go:114: files: ["testdata/bool.go" "testdata/method.go" "testdata/unused.go"]
+    --- PASS: TestVet/0 (0.13s)
+    	vet_test.go:114: files: ["testdata/assign.go" "testdata/httpresponse.go" "testdata/structtag.go"]
+    --- PASS: TestVet/4 (0.16s)
+    	vet_test.go:114: files: ["testdata/copylock.go" "testdata/print.go"]
+    --- PASS: TestVet/1 (0.07s)
+    	vet_test.go:114: files: ["testdata/atomic.go" "testdata/lostcancel.go" "testdata/unsafeptr.go"]
+    --- PASS: TestVet/7 (0.19s)
+    	vet_test.go:114: files: ["testdata/deadcode.go" "testdata/shift.go"]
+--- PASS: TestVetDirs (0.01s)
+    --- PASS: TestVetDirs/testingpkg (0.06s)
+    --- PASS: TestVetDirs/divergent (0.05s)
+    --- PASS: TestVetDirs/buildtag (0.06s)
+    --- PASS: TestVetDirs/incomplete (0.05s)
+    --- PASS: TestVetDirs/cgo (0.04s)
+--- PASS: TestVetAsm (0.75s)
+PASS
+ok  	cmd/vet	(cached)

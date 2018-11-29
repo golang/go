@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#undef nil
 #define nil ((void*)0)
 #define nelem(x) (sizeof(x)/sizeof((x)[0]))
 
@@ -96,6 +97,16 @@ struct context_arg {
 extern void (*(_cgo_get_context_function(void)))(struct context_arg*);
 
 /*
+ * The argument for the cgo traceback callback. See runtime.SetCgoTraceback.
+ */
+struct cgoTracebackArg {
+	uintptr_t  Context;
+	uintptr_t  SigContext;
+	uintptr_t* Buf;
+	uintptr_t  Max;
+};
+
+/*
  * TSAN support.  This is only useful when building with
  *   CGO_CFLAGS="-fsanitize=thread" CGO_LDFLAGS="-fsanitize=thread" go install
  */
@@ -111,6 +122,11 @@ extern void (*(_cgo_get_context_function(void)))(struct context_arg*);
 #ifdef CGO_TSAN
 
 // These must match the definitions in yesTsanProlog in cmd/cgo/out.go.
+// In general we should call _cgo_tsan_acquire when we enter C code,
+// and call _cgo_tsan_release when we return to Go code.
+// This is only necessary when calling code that might be instrumented
+// by TSAN, which mostly means system library calls that TSAN intercepts.
+// See the comment in cmd/cgo/out.go for more details.
 
 long long _cgo_sync __attribute__ ((common));
 

@@ -11,7 +11,7 @@ import (
 	"debug/plan9obj"
 	"errors"
 	"fmt"
-	"os"
+	"io"
 	"sort"
 )
 
@@ -28,7 +28,7 @@ type plan9File struct {
 	plan9 *plan9obj.File
 }
 
-func openPlan9(r *os.File) (rawFile, error) {
+func openPlan9(r io.ReaderAt) (rawFile, error) {
 	f, err := plan9obj.NewFile(r)
 	if err != nil {
 		return nil, err

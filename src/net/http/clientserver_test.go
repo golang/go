@@ -9,8 +9,11 @@ package http_test
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/rand"
+	"crypto/sha1"
 	"crypto/tls"
 	"fmt"
+	"hash"
 	"io"
 	"io/ioutil"
 	"log"
@@ -249,7 +252,7 @@ type slurpResult struct {
 func (sr slurpResult) String() string { return fmt.Sprintf("body %q; err %v", sr.body, sr.err) }
 
 func (tt h12Compare) normalizeRes(t *testing.T, res *Response, wantProto string) {
-	if res.Proto == wantProto {
+	if res.Proto == wantProto || res.Proto == "HTTP/IGNORE" {
 		res.Proto, res.ProtoMajor, res.ProtoMinor = "", 0, 0
 	} else {
 		t.Errorf("got %q response; want %q", res.Proto, wantProto)
@@ -1141,27 +1144,6 @@ func testTransportRejectsInvalidHeaders(t *testing.T, h2 bool) {
 	}
 }
 
-// Tests that we support bogus under-100 HTTP statuses, because we historically
-// have. This might change at some point, but not yet in Go 1.6.
-func TestBogusStatusWorks_h1(t *testing.T) { testBogusStatusWorks(t, h1Mode) }
-func TestBogusStatusWorks_h2(t *testing.T) { testBogusStatusWorks(t, h2Mode) }
-func testBogusStatusWorks(t *testing.T, h2 bool) {
-	defer afterTest(t)
-	const code = 7
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.WriteHeader(code)
-	}))
-	defer cst.close()
-
-	res, err := cst.c.Get(cst.ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.StatusCode != code {
-		t.Errorf("StatusCode = %d; want %d", res.StatusCode, code)
-	}
-}
-
 func TestInterruptWithPanic_h1(t *testing.T)     { testInterruptWithPanic(t, h1Mode, "boom") }
 func TestInterruptWithPanic_h2(t *testing.T)     { testInterruptWithPanic(t, h2Mode, "boom") }
 func TestInterruptWithPanic_nil_h1(t *testing.T) { testInterruptWithPanic(t, h1Mode, nil) }
@@ -1253,7 +1235,6 @@ func TestH12_AutoGzipWithDumpResponse(t *testing.T) {
 			h := w.Header()
 			h.Set("Content-Encoding", "gzip")
 			h.Set("Content-Length", "23")
-			h.Set("Connection", "keep-alive")
 			io.WriteString(w, "\x1f\x8b\b\x00\x00\x00\x00\x00\x00\x00s\xf3\xf7\a\x00\xab'\xd4\x1a\x03\x00\x00\x00")
 		},
 		EarlyCheckResponse: func(proto string, res *Response) {
@@ -1380,4 +1361,210 @@ func testServerUndeclaredTrailers(t *testing.T, h2 bool) {
 	if want := (Header{"Foo": {"Baz", "Baz2"}, "Bar": {"Quux"}}); !reflect.DeepEqual(res.Trailer, want) {
 		t.Errorf("Trailer = %#v; want %#v", res.Trailer, want)
 	}
+}
+
+func TestBadResponseAfterReadingBody(t *testing.T) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, false, HandlerFunc(func(w ResponseWriter, r *Request) {
+		_, err := io.Copy(ioutil.Discard, r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c, _, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
+		fmt.Fprintln(c, "some bogus crap")
+	}))
+	defer cst.close()
+
+	closes := 0
+	res, err := cst.c.Post(cst.ts.URL, "text/plain", countCloseReader{&closes, strings.NewReader("hello")})
+	if err == nil {
+		res.Body.Close()
+		t.Fatal("expected an error to be returned from Post")
+	}
+	if closes != 1 {
+		t.Errorf("closes = %d; want 1", closes)
+	}
+}
+
+func TestWriteHeader0_h1(t *testing.T) { testWriteHeader0(t, h1Mode) }
+func TestWriteHeader0_h2(t *testing.T) { testWriteHeader0(t, h2Mode) }
+func testWriteHeader0(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	gotpanic := make(chan bool, 1)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		defer close(gotpanic)
+		defer func() {
+			if e := recover(); e != nil {
+				got := fmt.Sprintf("%T, %v", e, e)
+				want := "string, invalid WriteHeader code 0"
+				if got != want {
+					t.Errorf("unexpected panic value:\n got: %v\nwant: %v\n", got, want)
+				}
+				gotpanic <- true
+
+				// Set an explicit 503. This also tests that the WriteHeader call panics
+				// before it recorded that an explicit value was set and that bogus
+				// value wasn't stuck.
+				w.WriteHeader(503)
+			}
+		}()
+		w.WriteHeader(0)
+	}))
+	defer cst.close()
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 503 {
+		t.Errorf("Response: %v %q; want 503", res.StatusCode, res.Status)
+	}
+	if !<-gotpanic {
+		t.Error("expected panic in handler")
+	}
+}
+
+// Issue 23010: don't be super strict checking WriteHeader's code if
+// it's not even valid to call WriteHeader then anyway.
+func TestWriteHeaderNoCodeCheck_h1(t *testing.T)       { testWriteHeaderAfterWrite(t, h1Mode, false) }
+func TestWriteHeaderNoCodeCheck_h1hijack(t *testing.T) { testWriteHeaderAfterWrite(t, h1Mode, true) }
+func TestWriteHeaderNoCodeCheck_h2(t *testing.T)       { testWriteHeaderAfterWrite(t, h2Mode, false) }
+func testWriteHeaderAfterWrite(t *testing.T, h2, hijack bool) {
+	setParallel(t)
+	defer afterTest(t)
+
+	var errorLog lockedBytesBuffer
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		if hijack {
+			conn, _, _ := w.(Hijacker).Hijack()
+			defer conn.Close()
+			conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nfoo"))
+			w.WriteHeader(0) // verify this doesn't panic if there's already output; Issue 23010
+			conn.Write([]byte("bar"))
+			return
+		}
+		io.WriteString(w, "foo")
+		w.(Flusher).Flush()
+		w.WriteHeader(0) // verify this doesn't panic if there's already output; Issue 23010
+		io.WriteString(w, "bar")
+	}), func(ts *httptest.Server) {
+		ts.Config.ErrorLog = log.New(&errorLog, "", 0)
+	})
+	defer cst.close()
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := string(body), "foobar"; got != want {
+		t.Errorf("got = %q; want %q", got, want)
+	}
+
+	// Also check the stderr output:
+	if h2 {
+		// TODO: also emit this log message for HTTP/2?
+		// We historically haven't, so don't check.
+		return
+	}
+	gotLog := strings.TrimSpace(errorLog.String())
+	wantLog := "http: superfluous response.WriteHeader call from net/http_test.testWriteHeaderAfterWrite.func1 (clientserver_test.go:"
+	if hijack {
+		wantLog = "http: response.WriteHeader on hijacked connection from net/http_test.testWriteHeaderAfterWrite.func1 (clientserver_test.go:"
+	}
+	if !strings.HasPrefix(gotLog, wantLog) {
+		t.Errorf("stderr output = %q; want %q", gotLog, wantLog)
+	}
+}
+
+func TestBidiStreamReverseProxy(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	backend := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		if _, err := io.Copy(w, r.Body); err != nil {
+			log.Printf("bidi backend copy: %v", err)
+		}
+	}))
+	defer backend.close()
+
+	backURL, err := url.Parse(backend.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rp := httputil.NewSingleHostReverseProxy(backURL)
+	rp.Transport = backend.tr
+	proxy := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		rp.ServeHTTP(w, r)
+	}))
+	defer proxy.close()
+
+	bodyRes := make(chan interface{}, 1) // error or hash.Hash
+	pr, pw := io.Pipe()
+	req, _ := NewRequest("PUT", proxy.ts.URL, pr)
+	const size = 4 << 20
+	go func() {
+		h := sha1.New()
+		_, err := io.CopyN(io.MultiWriter(h, pw), rand.Reader, size)
+		go pw.Close()
+		if err != nil {
+			bodyRes <- err
+		} else {
+			bodyRes <- h
+		}
+	}()
+	res, err := backend.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	hgot := sha1.New()
+	n, err := io.Copy(hgot, res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != size {
+		t.Fatalf("got %d bytes; want %d", n, size)
+	}
+	select {
+	case v := <-bodyRes:
+		switch v := v.(type) {
+		default:
+			t.Fatalf("body copy: %v", err)
+		case hash.Hash:
+			if !bytes.Equal(v.Sum(nil), hgot.Sum(nil)) {
+				t.Errorf("written bytes didn't match received bytes")
+			}
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout")
+	}
+
+}
+
+// Always use HTTP/1.1 for WebSocket upgrades.
+func TestH12_WebSocketUpgrade(t *testing.T) {
+	h12Compare{
+		Handler: func(w ResponseWriter, r *Request) {
+			h := w.Header()
+			h.Set("Foo", "bar")
+		},
+		ReqFunc: func(c *Client, url string) (*Response, error) {
+			req, _ := NewRequest("GET", url, nil)
+			req.Header.Set("Connection", "Upgrade")
+			req.Header.Set("Upgrade", "WebSocket")
+			return c.Do(req)
+		},
+		EarlyCheckResponse: func(proto string, res *Response) {
+			if res.Proto != "HTTP/1.1" {
+				t.Errorf("%s: expected HTTP/1.1, got %q", proto, res.Proto)
+			}
+			res.Proto = "HTTP/IGNORE" // skip later checks that Proto must be 1.1 vs 2.0
+		},
+	}.run(t)
 }

@@ -122,6 +122,16 @@ func IsARMMRC(op obj.As) bool {
 	return false
 }
 
+// IsARMBFX reports whether the op (as defined by an arm.A* constant) is one the
+// BFX-like instructions which are in the form of "op $width, $LSB, (Reg,) Reg".
+func IsARMBFX(op obj.As) bool {
+	switch op {
+	case arm.ABFX, arm.ABFXU, arm.ABFC, arm.ABFI:
+		return true
+	}
+	return false
+}
+
 // IsARMFloatCmp reports whether the op is a floating comparison instruction.
 func IsARMFloatCmp(op obj.As) bool {
 	switch op {
@@ -158,10 +168,10 @@ func ARMMRCOffset(op obj.As, cond string, x0, x1, x2, x3, x4, x5 int64) (offset 
 }
 
 // IsARMMULA reports whether the op (as defined by an arm.A* constant) is
-// MULA, MULAWT or MULAWB, the 4-operand instructions.
+// MULA, MULS, MMULA, MMULS, MULABB, MULAWB or MULAWT, the 4-operand instructions.
 func IsARMMULA(op obj.As) bool {
 	switch op {
-	case arm.AMULA, arm.AMULAWB, arm.AMULAWT:
+	case arm.AMULA, arm.AMULS, arm.AMMULA, arm.AMMULS, arm.AMULABB, arm.AMULAWB, arm.AMULAWT:
 		return true
 	}
 	return false
@@ -213,9 +223,7 @@ func ParseARMCondition(cond string) (uint8, bool) {
 }
 
 func parseARMCondition(cond string, ls, scond map[string]uint8) (uint8, bool) {
-	if strings.HasPrefix(cond, ".") {
-		cond = cond[1:]
-	}
+	cond = strings.TrimPrefix(cond, ".")
 	if cond == "" {
 		return arm.C_SCOND_NONE, true
 	}

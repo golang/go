@@ -65,8 +65,10 @@ func (g *Group) Do(key string, fn func() (interface{}, error)) (v interface{}, e
 }
 
 // DoChan is like Do but returns a channel that will receive the
-// results when they are ready.
-func (g *Group) DoChan(key string, fn func() (interface{}, error)) <-chan Result {
+// results when they are ready. The second result is true if the function
+// will eventually be called, false if it will not (because there is
+// a pending request with this key).
+func (g *Group) DoChan(key string, fn func() (interface{}, error)) (<-chan Result, bool) {
 	ch := make(chan Result, 1)
 	g.mu.Lock()
 	if g.m == nil {
@@ -76,7 +78,7 @@ func (g *Group) DoChan(key string, fn func() (interface{}, error)) <-chan Result
 		c.dups++
 		c.chans = append(c.chans, ch)
 		g.mu.Unlock()
-		return ch
+		return ch, false
 	}
 	c := &call{chans: []chan<- Result{ch}}
 	c.wg.Add(1)
@@ -85,7 +87,7 @@ func (g *Group) DoChan(key string, fn func() (interface{}, error)) <-chan Result
 
 	go g.doCall(c, key, fn)
 
-	return ch
+	return ch, true
 }
 
 // doCall handles the single call for a key.
@@ -101,11 +103,21 @@ func (g *Group) doCall(c *call, key string, fn func() (interface{}, error)) {
 	g.mu.Unlock()
 }
 
-// Forget tells the singleflight to forget about a key.  Future calls
-// to Do for this key will call the function rather than waiting for
-// an earlier call to complete.
-func (g *Group) Forget(key string) {
+// ForgetUnshared tells the singleflight to forget about a key if it is not
+// shared with any other goroutines. Future calls to Do for a forgotten key
+// will call the function rather than waiting for an earlier call to complete.
+// Returns whether the key was forgotten or unknown--that is, whether no
+// other goroutines are waiting for the result.
+func (g *Group) ForgetUnshared(key string) bool {
 	g.mu.Lock()
-	delete(g.m, key)
-	g.mu.Unlock()
+	defer g.mu.Unlock()
+	c, ok := g.m[key]
+	if !ok {
+		return true
+	}
+	if c.dups == 0 {
+		delete(g.m, key)
+		return true
+	}
+	return false
 }

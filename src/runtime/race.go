@@ -4,21 +4,18 @@
 
 // +build race
 
-// Public race detection API, present iff build with -race.
-
 package runtime
 
 import (
 	"unsafe"
 )
 
+// Public race detection API, present iff build with -race.
+
 func RaceRead(addr unsafe.Pointer)
 func RaceWrite(addr unsafe.Pointer)
 func RaceReadRange(addr unsafe.Pointer, len int)
 func RaceWriteRange(addr unsafe.Pointer, len int)
-
-func RaceSemacquire(s *uint32)
-func RaceSemrelease(s *uint32)
 
 func RaceErrors() int {
 	var n uint64
@@ -26,7 +23,69 @@ func RaceErrors() int {
 	return int(n)
 }
 
-// private interface for the runtime
+//go:nosplit
+
+// RaceAcquire/RaceRelease/RaceReleaseMerge establish happens-before relations
+// between goroutines. These inform the race detector about actual synchronization
+// that it can't see for some reason (e.g. synchronization within RaceDisable/RaceEnable
+// sections of code).
+// RaceAcquire establishes a happens-before relation with the preceding
+// RaceReleaseMerge on addr up to and including the last RaceRelease on addr.
+// In terms of the C memory model (C11 §5.1.2.4, §7.17.3),
+// RaceAcquire is equivalent to atomic_load(memory_order_acquire).
+func RaceAcquire(addr unsafe.Pointer) {
+	raceacquire(addr)
+}
+
+//go:nosplit
+
+// RaceRelease performs a release operation on addr that
+// can synchronize with a later RaceAcquire on addr.
+//
+// In terms of the C memory model, RaceRelease is equivalent to
+// atomic_store(memory_order_release).
+func RaceRelease(addr unsafe.Pointer) {
+	racerelease(addr)
+}
+
+//go:nosplit
+
+// RaceReleaseMerge is like RaceRelease, but also establishes a happens-before
+// relation with the preceding RaceRelease or RaceReleaseMerge on addr.
+//
+// In terms of the C memory model, RaceReleaseMerge is equivalent to
+// atomic_exchange(memory_order_release).
+func RaceReleaseMerge(addr unsafe.Pointer) {
+	racereleasemerge(addr)
+}
+
+//go:nosplit
+
+// RaceDisable disables handling of race synchronization events in the current goroutine.
+// Handling is re-enabled with RaceEnable. RaceDisable/RaceEnable can be nested.
+// Non-synchronization events (memory accesses, function entry/exit) still affect
+// the race detector.
+func RaceDisable() {
+	_g_ := getg()
+	if _g_.raceignore == 0 {
+		racecall(&__tsan_go_ignore_sync_begin, _g_.racectx, 0, 0, 0)
+	}
+	_g_.raceignore++
+}
+
+//go:nosplit
+
+// RaceEnable re-enables handling of race events in the current goroutine.
+func RaceEnable() {
+	_g_ := getg()
+	_g_.raceignore--
+	if _g_.raceignore == 0 {
+		racecall(&__tsan_go_ignore_sync_end, _g_.racectx, 0, 0, 0)
+	}
+}
+
+// Private interface for the runtime.
+
 const raceenabled = true
 
 // For all functions accepting callerpc and pc,
@@ -101,7 +160,7 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
 	if f != nil {
 		file, line := f.FileLine(ctx.pc)
 		if line != 0 {
-			ctx.fn = cfuncname(f.raw())
+			ctx.fn = cfuncname(f.funcInfo())
 			ctx.line = uintptr(line)
 			ctx.file = &bytes(file)[0] // assume NUL-terminated
 			ctx.off = ctx.pc - f.Entry()
@@ -128,10 +187,10 @@ type symbolizeDataContext struct {
 }
 
 func raceSymbolizeData(ctx *symbolizeDataContext) {
-	if _, x, n := findObject(unsafe.Pointer(ctx.addr)); x != nil {
+	if base, span, _ := findObject(ctx.addr, 0, 0); base != 0 {
 		ctx.heap = 1
-		ctx.start = uintptr(x)
-		ctx.size = n
+		ctx.start = base
+		ctx.size = span.elemsize
 		ctx.res = 1
 	}
 }
@@ -233,7 +292,12 @@ var racearenastart uintptr
 var racearenaend uintptr
 
 func racefuncenter(uintptr)
+func racefuncenterfp()
 func racefuncexit()
+func raceread(uintptr)
+func racewrite(uintptr)
+func racereadrange(addr, size uintptr)
+func racewriterange(addr, size uintptr)
 func racereadrangepc1(uintptr, uintptr, uintptr)
 func racewriterangepc1(uintptr, uintptr, uintptr)
 func racecallbackthunk(uintptr)
@@ -437,42 +501,75 @@ func racefingo() {
 	racecall(&__tsan_finalizer_goroutine, getg().racectx, 0, 0, 0)
 }
 
-//go:nosplit
+// The declarations below generate ABI wrappers for functions
+// implemented in assembly in this package but declared in another
+// package.
 
-func RaceAcquire(addr unsafe.Pointer) {
-	raceacquire(addr)
-}
+//go:linkname abigen_sync_atomic_LoadInt32 sync/atomic.LoadInt32
+func abigen_sync_atomic_LoadInt32(addr *int32) (val int32)
 
-//go:nosplit
+//go:linkname abigen_sync_atomic_LoadInt64 sync/atomic.LoadInt64
+func abigen_sync_atomic_LoadInt64(addr *int64) (val int64)
 
-func RaceRelease(addr unsafe.Pointer) {
-	racerelease(addr)
-}
+//go:linkname abigen_sync_atomic_LoadUint32 sync/atomic.LoadUint32
+func abigen_sync_atomic_LoadUint32(addr *uint32) (val uint32)
 
-//go:nosplit
+//go:linkname abigen_sync_atomic_LoadUint64 sync/atomic.LoadUint64
+func abigen_sync_atomic_LoadUint64(addr *uint64) (val uint64)
 
-func RaceReleaseMerge(addr unsafe.Pointer) {
-	racereleasemerge(addr)
-}
+//go:linkname abigen_sync_atomic_LoadUintptr sync/atomic.LoadUintptr
+func abigen_sync_atomic_LoadUintptr(addr *uintptr) (val uintptr)
 
-//go:nosplit
+//go:linkname abigen_sync_atomic_LoadPointer sync/atomic.LoadPointer
+func abigen_sync_atomic_LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer)
 
-// RaceDisable disables handling of race events in the current goroutine.
-func RaceDisable() {
-	_g_ := getg()
-	if _g_.raceignore == 0 {
-		racecall(&__tsan_go_ignore_sync_begin, _g_.racectx, 0, 0, 0)
-	}
-	_g_.raceignore++
-}
+//go:linkname abigen_sync_atomic_StoreInt32 sync/atomic.StoreInt32
+func abigen_sync_atomic_StoreInt32(addr *int32, val int32)
 
-//go:nosplit
+//go:linkname abigen_sync_atomic_StoreInt64 sync/atomic.StoreInt64
+func abigen_sync_atomic_StoreInt64(addr *int64, val int64)
 
-// RaceEnable re-enables handling of race events in the current goroutine.
-func RaceEnable() {
-	_g_ := getg()
-	_g_.raceignore--
-	if _g_.raceignore == 0 {
-		racecall(&__tsan_go_ignore_sync_end, _g_.racectx, 0, 0, 0)
-	}
-}
+//go:linkname abigen_sync_atomic_StoreUint32 sync/atomic.StoreUint32
+func abigen_sync_atomic_StoreUint32(addr *uint32, val uint32)
+
+//go:linkname abigen_sync_atomic_StoreUint64 sync/atomic.StoreUint64
+func abigen_sync_atomic_StoreUint64(addr *uint64, val uint64)
+
+//go:linkname abigen_sync_atomic_SwapInt32 sync/atomic.SwapInt32
+func abigen_sync_atomic_SwapInt32(addr *int32, new int32) (old int32)
+
+//go:linkname abigen_sync_atomic_SwapInt64 sync/atomic.SwapInt64
+func abigen_sync_atomic_SwapInt64(addr *int64, new int64) (old int64)
+
+//go:linkname abigen_sync_atomic_SwapUint32 sync/atomic.SwapUint32
+func abigen_sync_atomic_SwapUint32(addr *uint32, new uint32) (old uint32)
+
+//go:linkname abigen_sync_atomic_SwapUint64 sync/atomic.SwapUint64
+func abigen_sync_atomic_SwapUint64(addr *uint64, new uint64) (old uint64)
+
+//go:linkname abigen_sync_atomic_AddInt32 sync/atomic.AddInt32
+func abigen_sync_atomic_AddInt32(addr *int32, delta int32) (new int32)
+
+//go:linkname abigen_sync_atomic_AddUint32 sync/atomic.AddUint32
+func abigen_sync_atomic_AddUint32(addr *uint32, delta uint32) (new uint32)
+
+//go:linkname abigen_sync_atomic_AddInt64 sync/atomic.AddInt64
+func abigen_sync_atomic_AddInt64(addr *int64, delta int64) (new int64)
+
+//go:linkname abigen_sync_atomic_AddUint64 sync/atomic.AddUint64
+func abigen_sync_atomic_AddUint64(addr *uint64, delta uint64) (new uint64)
+
+//go:linkname abigen_sync_atomic_AddUintptr sync/atomic.AddUintptr
+func abigen_sync_atomic_AddUintptr(addr *uintptr, delta uintptr) (new uintptr)
+
+//go:linkname abigen_sync_atomic_CompareAndSwapInt32 sync/atomic.CompareAndSwapInt32
+func abigen_sync_atomic_CompareAndSwapInt32(addr *int32, old, new int32) (swapped bool)
+
+//go:linkname abigen_sync_atomic_CompareAndSwapInt64 sync/atomic.CompareAndSwapInt64
+func abigen_sync_atomic_CompareAndSwapInt64(addr *int64, old, new int64) (swapped bool)
+
+//go:linkname abigen_sync_atomic_CompareAndSwapUint32 sync/atomic.CompareAndSwapUint32
+func abigen_sync_atomic_CompareAndSwapUint32(addr *uint32, old, new uint32) (swapped bool)
+
+//go:linkname abigen_sync_atomic_CompareAndSwapUint64 sync/atomic.CompareAndSwapUint64
+func abigen_sync_atomic_CompareAndSwapUint64(addr *uint64, old, new uint64) (swapped bool)

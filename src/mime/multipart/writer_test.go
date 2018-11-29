@@ -80,8 +80,6 @@ func TestWriter(t *testing.T) {
 }
 
 func TestWriterSetBoundary(t *testing.T) {
-	var b bytes.Buffer
-	w := NewWriter(&b)
 	tests := []struct {
 		b  string
 		ok bool
@@ -90,12 +88,16 @@ func TestWriterSetBoundary(t *testing.T) {
 		{"", false},
 		{"ungültig", false},
 		{"!", false},
-		{strings.Repeat("x", 69), true},
-		{strings.Repeat("x", 70), false},
+		{strings.Repeat("x", 70), true},
+		{strings.Repeat("x", 71), false},
 		{"bad!ascii!", false},
 		{"my-separator", true},
+		{"with space", true},
+		{"badspace ", false},
 	}
 	for i, tt := range tests {
+		var b bytes.Buffer
+		w := NewWriter(&b)
 		err := w.SetBoundary(tt.b)
 		got := err == nil
 		if got != tt.ok {
@@ -105,11 +107,12 @@ func TestWriterSetBoundary(t *testing.T) {
 			if got != tt.b {
 				t.Errorf("boundary = %q; want %q", got, tt.b)
 			}
+			w.Close()
+			wantSub := "\r\n--" + tt.b + "--\r\n"
+			if got := b.String(); !strings.Contains(got, wantSub) {
+				t.Errorf("expected %q in output. got: %q", wantSub, got)
+			}
 		}
-	}
-	w.Close()
-	if got := b.String(); !strings.Contains(got, "\r\n--my-separator--\r\n") {
-		t.Errorf("expected my-separator in output. got: %q", got)
 	}
 }
 

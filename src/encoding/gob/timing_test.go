@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"reflect"
 	"runtime"
 	"testing"
 )
@@ -132,89 +133,60 @@ func TestCountDecodeMallocs(t *testing.T) {
 	}
 }
 
+func benchmarkEncodeSlice(b *testing.B, a interface{}) {
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		var buf bytes.Buffer
+		enc := NewEncoder(&buf)
+
+		for pb.Next() {
+			buf.Reset()
+			err := enc.Encode(a)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
 func BenchmarkEncodeComplex128Slice(b *testing.B) {
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
 	a := make([]complex128, 1000)
 	for i := range a {
 		a[i] = 1.2 + 3.4i
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		buf.Reset()
-		err := enc.Encode(a)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
+	benchmarkEncodeSlice(b, a)
 }
 
 func BenchmarkEncodeFloat64Slice(b *testing.B) {
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
 	a := make([]float64, 1000)
 	for i := range a {
 		a[i] = 1.23e4
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		buf.Reset()
-		err := enc.Encode(a)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
+	benchmarkEncodeSlice(b, a)
 }
 
 func BenchmarkEncodeInt32Slice(b *testing.B) {
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
 	a := make([]int32, 1000)
 	for i := range a {
-		a[i] = 1234
+		a[i] = int32(i * 100)
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		buf.Reset()
-		err := enc.Encode(a)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
+	benchmarkEncodeSlice(b, a)
 }
 
 func BenchmarkEncodeStringSlice(b *testing.B) {
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
 	a := make([]string, 1000)
 	for i := range a {
 		a[i] = "now is the time"
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		buf.Reset()
-		err := enc.Encode(a)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
+	benchmarkEncodeSlice(b, a)
 }
 
 func BenchmarkEncodeInterfaceSlice(b *testing.B) {
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
 	a := make([]interface{}, 1000)
 	for i := range a {
 		a[i] = "now is the time"
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		buf.Reset()
-		err := enc.Encode(a)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
+	benchmarkEncodeSlice(b, a)
 }
 
 // benchmarkBuf is a read buffer we can reset
@@ -245,120 +217,96 @@ func (b *benchmarkBuf) reset() {
 	b.offset = 0
 }
 
-func BenchmarkDecodeComplex128Slice(b *testing.B) {
+func benchmarkDecodeSlice(b *testing.B, a interface{}) {
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
+	err := enc.Encode(a)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	ra := reflect.ValueOf(a)
+	rt := ra.Type()
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		// TODO(#19025): Move per-thread allocation before ResetTimer.
+		rp := reflect.New(rt)
+		rp.Elem().Set(reflect.MakeSlice(rt, ra.Len(), ra.Cap()))
+		p := rp.Interface()
+
+		bbuf := benchmarkBuf{data: buf.Bytes()}
+
+		for pb.Next() {
+			bbuf.reset()
+			dec := NewDecoder(&bbuf)
+			err := dec.Decode(p)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
+func BenchmarkDecodeComplex128Slice(b *testing.B) {
 	a := make([]complex128, 1000)
 	for i := range a {
 		a[i] = 1.2 + 3.4i
 	}
-	err := enc.Encode(a)
-	if err != nil {
-		b.Fatal(err)
-	}
-	x := make([]complex128, 1000)
-	bbuf := benchmarkBuf{data: buf.Bytes()}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bbuf.reset()
-		dec := NewDecoder(&bbuf)
-		err := dec.Decode(&x)
-		if err != nil {
-			b.Fatal(i, err)
-		}
-	}
+	benchmarkDecodeSlice(b, a)
 }
 
 func BenchmarkDecodeFloat64Slice(b *testing.B) {
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
 	a := make([]float64, 1000)
 	for i := range a {
 		a[i] = 1.23e4
 	}
-	err := enc.Encode(a)
-	if err != nil {
-		b.Fatal(err)
-	}
-	x := make([]float64, 1000)
-	bbuf := benchmarkBuf{data: buf.Bytes()}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bbuf.reset()
-		dec := NewDecoder(&bbuf)
-		err := dec.Decode(&x)
-		if err != nil {
-			b.Fatal(i, err)
-		}
-	}
+	benchmarkDecodeSlice(b, a)
 }
 
 func BenchmarkDecodeInt32Slice(b *testing.B) {
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
 	a := make([]int32, 1000)
 	for i := range a {
 		a[i] = 1234
 	}
-	err := enc.Encode(a)
-	if err != nil {
-		b.Fatal(err)
-	}
-	x := make([]int32, 1000)
-	bbuf := benchmarkBuf{data: buf.Bytes()}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bbuf.reset()
-		dec := NewDecoder(&bbuf)
-		err := dec.Decode(&x)
-		if err != nil {
-			b.Fatal(i, err)
-		}
-	}
+	benchmarkDecodeSlice(b, a)
 }
 
 func BenchmarkDecodeStringSlice(b *testing.B) {
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
 	a := make([]string, 1000)
 	for i := range a {
 		a[i] = "now is the time"
 	}
-	err := enc.Encode(a)
-	if err != nil {
-		b.Fatal(err)
-	}
-	x := make([]string, 1000)
-	bbuf := benchmarkBuf{data: buf.Bytes()}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bbuf.reset()
-		dec := NewDecoder(&bbuf)
-		err := dec.Decode(&x)
-		if err != nil {
-			b.Fatal(i, err)
-		}
-	}
+	benchmarkDecodeSlice(b, a)
 }
 
 func BenchmarkDecodeInterfaceSlice(b *testing.B) {
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
 	a := make([]interface{}, 1000)
 	for i := range a {
 		a[i] = "now is the time"
 	}
-	err := enc.Encode(a)
+	benchmarkDecodeSlice(b, a)
+}
+
+func BenchmarkDecodeMap(b *testing.B) {
+	count := 1000
+	m := make(map[int]int, count)
+	for i := 0; i < count; i++ {
+		m[i] = i
+	}
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	err := enc.Encode(m)
 	if err != nil {
 		b.Fatal(err)
 	}
-	x := make([]interface{}, 1000)
 	bbuf := benchmarkBuf{data: buf.Bytes()}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		var rm map[int]int
 		bbuf.reset()
 		dec := NewDecoder(&bbuf)
-		err := dec.Decode(&x)
+		err := dec.Decode(&rm)
 		if err != nil {
 			b.Fatal(i, err)
 		}

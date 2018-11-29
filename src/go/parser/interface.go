@@ -35,11 +35,7 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 				return s.Bytes(), nil
 			}
 		case io.Reader:
-			var buf bytes.Buffer
-			if _, err := io.Copy(&buf, s); err != nil {
-				return nil, err
-			}
-			return buf.Bytes(), nil
+			return ioutil.ReadAll(s)
 		}
 		return nil, errors.New("invalid source")
 	}
@@ -173,7 +169,7 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
 }
 
 // ParseExprFrom is a convenience function for parsing an expression.
-// The arguments have the same meaning as for Parse, but the source must
+// The arguments have the same meaning as for ParseFile, but the source must
 // be a valid Go (type or value) expression. Specifically, fset must not
 // be nil.
 //

@@ -13,11 +13,11 @@ package p
 const _ int64 = 1e-10000 // ERROR "1e\-10000 truncated"
 
 const (
-	_ int64 = 1e10000000 // ERROR "1e\+10000000 overflows"
-	_ int64 = 1e1000000  // ERROR "1e\+1000000 overflows"
-	_ int64 = 1e100000   // ERROR "1e\+100000 overflows"
-	_ int64 = 1e10000    // ERROR "1e\+10000 overflows"
-	_ int64 = 1e1000     // ERROR "1e\+1000 overflows"
+	_ int64 = 1e10000000 // ERROR "integer too large"
+	_ int64 = 1e1000000  // ERROR "integer too large"
+	_ int64 = 1e100000   // ERROR "integer too large"
+	_ int64 = 1e10000    // ERROR "integer too large"
+	_ int64 = 1e1000     // ERROR "integer too large"
 	_ int64 = 1e100      // ERROR "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows"
 	_ int64 = 1e10
 	_ int64 = 1e1
@@ -32,11 +32,11 @@ const (
 )
 
 const (
-	_ int64 = -1e10000000 // ERROR "\-1e\+10000000 overflows"
-	_ int64 = -1e1000000  // ERROR "\-1e\+1000000 overflows"
-	_ int64 = -1e100000   // ERROR "\-1e\+100000 overflows"
-	_ int64 = -1e10000    // ERROR "\-1e\+10000 overflows"
-	_ int64 = -1e1000     // ERROR "\-1e\+1000 overflows"
+	_ int64 = -1e10000000 // ERROR "integer too large"
+	_ int64 = -1e1000000  // ERROR "integer too large"
+	_ int64 = -1e100000   // ERROR "integer too large"
+	_ int64 = -1e10000    // ERROR "integer too large"
+	_ int64 = -1e1000     // ERROR "integer too large"
 	_ int64 = -1e100      // ERROR "\-10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows"
 	_ int64 = -1e10
 	_ int64 = -1e1
@@ -51,11 +51,11 @@ const (
 )
 
 const (
-	_ int64 = 1.23456789e10000000 // ERROR "1\.23457e\+10000000 overflows"
-	_ int64 = 1.23456789e1000000  // ERROR "1\.23457e\+1000000 overflows"
-	_ int64 = 1.23456789e100000   // ERROR "1\.23457e\+100000 overflows"
-	_ int64 = 1.23456789e10000    // ERROR "1\.23457e\+10000 overflows"
-	_ int64 = 1.23456789e1000     // ERROR "1\.23457e\+1000 overflows"
+	_ int64 = 1.23456789e10000000 // ERROR "integer too large"
+	_ int64 = 1.23456789e1000000  // ERROR "integer too large"
+	_ int64 = 1.23456789e100000   // ERROR "integer too large"
+	_ int64 = 1.23456789e10000    // ERROR "integer too large"
+	_ int64 = 1.23456789e1000     // ERROR "integer too large"
 	_ int64 = 1.23456789e100      // ERROR "12345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows"
 	_ int64 = 1.23456789e10
 	_ int64 = 1.23456789e1        // ERROR "12\.3457 truncated"
@@ -70,11 +70,11 @@ const (
 )
 
 const (
-	_ int64 = -1.23456789e10000000 // ERROR "\-1\.23457e\+10000000 overflows"
-	_ int64 = -1.23456789e1000000  // ERROR "\-1\.23457e\+1000000 overflows"
-	_ int64 = -1.23456789e100000   // ERROR "\-1\.23457e\+100000 overflows"
-	_ int64 = -1.23456789e10000    // ERROR "\-1\.23457e\+10000 overflows"
-	_ int64 = -1.23456789e1000     // ERROR "\-1\.23457e\+1000 overflows"
+	_ int64 = -1.23456789e10000000 // ERROR "integer too large"
+	_ int64 = -1.23456789e1000000  // ERROR "integer too large"
+	_ int64 = -1.23456789e100000   // ERROR "integer too large"
+	_ int64 = -1.23456789e10000    // ERROR "integer too large"
+	_ int64 = -1.23456789e1000     // ERROR "integer too large"
 	_ int64 = -1.23456789e100      // ERROR "\-12345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows"
 	_ int64 = -1.23456789e10
 	_ int64 = -1.23456789e1        // ERROR "\-12\.3457 truncated"

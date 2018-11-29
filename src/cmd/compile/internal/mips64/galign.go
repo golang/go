@@ -7,22 +7,23 @@ package mips64
 import (
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ssa"
-	"cmd/internal/obj"
 	"cmd/internal/obj/mips"
+	"cmd/internal/objabi"
 )
 
-func Init() {
-	gc.Thearch.LinkArch = &mips.Linkmips64
-	if obj.GOARCH == "mips64le" {
-		gc.Thearch.LinkArch = &mips.Linkmips64le
+func Init(arch *gc.Arch) {
+	arch.LinkArch = &mips.Linkmips64
+	if objabi.GOARCH == "mips64le" {
+		arch.LinkArch = &mips.Linkmips64le
 	}
-	gc.Thearch.REGSP = mips.REGSP
-	gc.Thearch.MAXWIDTH = 1 << 50
+	arch.REGSP = mips.REGSP
+	arch.MAXWIDTH = 1 << 50
+	arch.SoftFloat = objabi.GOMIPS64 == "softfloat"
+	arch.ZeroRange = zerorange
+	arch.ZeroAuto = zeroAuto
+	arch.Ginsnop = ginsnop
 
-	gc.Thearch.Defframe = defframe
-	gc.Thearch.Proginfo = proginfo
-
-	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
-	gc.Thearch.SSAGenValue = ssaGenValue
-	gc.Thearch.SSAGenBlock = ssaGenBlock
+	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+	arch.SSAGenValue = ssaGenValue
+	arch.SSAGenBlock = ssaGenBlock
 }

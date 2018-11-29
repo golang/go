@@ -26,40 +26,25 @@ type mstats struct {
 	alloc       uint64 // bytes allocated and not yet freed
 	total_alloc uint64 // bytes allocated (even if freed)
 	sys         uint64 // bytes obtained from system (should be sum of xxx_sys below, no locking, approximate)
-	nlookup     uint64 // number of pointer lookups
+	nlookup     uint64 // number of pointer lookups (unused)
 	nmalloc     uint64 // number of mallocs
 	nfree       uint64 // number of frees
 
 	// Statistics about malloc heap.
 	// Protected by mheap.lock
 	//
-	// In mstats, heap_sys and heap_inuse includes stack memory,
-	// while in MemStats stack memory is separated out from the
-	// heap stats.
+	// Like MemStats, heap_sys and heap_inuse do not count memory
+	// in manually-managed spans.
 	heap_alloc    uint64 // bytes allocated and not yet freed (same as alloc above)
-	heap_sys      uint64 // virtual address space obtained from system
+	heap_sys      uint64 // virtual address space obtained from system for GC'd heap
 	heap_idle     uint64 // bytes in idle spans
-	heap_inuse    uint64 // bytes in non-idle spans
+	heap_inuse    uint64 // bytes in mSpanInUse spans
 	heap_released uint64 // bytes released to the os
 	heap_objects  uint64 // total number of allocated objects
 
-	// TODO(austin): heap_released is both useless and inaccurate
-	// in its current form. It's useless because, from the user's
-	// and OS's perspectives, there's no difference between a page
-	// that has not yet been faulted in and a page that has been
-	// released back to the OS. We could fix this by considering
-	// newly mapped spans to be "released". It's inaccurate
-	// because when we split a large span for allocation, we
-	// "unrelease" all pages in the large span and not just the
-	// ones we split off for use. This is trickier to fix because
-	// we currently don't know which pages of a span we've
-	// released. We could fix it by separating "free" and
-	// "released" spans, but then we have to allocate from runs of
-	// free and released spans.
-
 	// Statistics about allocation of low-level fixed-size structures.
 	// Protected by FixAlloc locks.
-	stacks_inuse uint64 // this number is included in heap_inuse above; differs from MemStats.StackInuse
+	stacks_inuse uint64 // bytes in manually-managed stack spans
 	stacks_sys   uint64 // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
 	mspan_inuse  uint64 // mspan structures
 	mspan_sys    uint64
@@ -72,11 +57,12 @@ type mstats struct {
 	// Statistics about garbage collector.
 	// Protected by mheap or stopping the world during GC.
 	next_gc         uint64 // goal heap_live for when next GC ends; ^0 if disabled
-	last_gc         uint64 // last gc (in absolute time)
+	last_gc_unix    uint64 // last gc (in unix time)
 	pause_total_ns  uint64
 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
 	pause_end       [256]uint64 // circular buffer of recent gc end times (nanoseconds since 1970)
 	numgc           uint32
+	numforcedgc     uint32  // number of user-forced GCs
 	gc_cpu_fraction float64 // fraction of CPU time used by GC
 	enablegc        bool
 	debuggc         bool
@@ -91,16 +77,27 @@ type mstats struct {
 
 	// Statistics below here are not exported to MemStats directly.
 
-	tinyallocs uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
+	last_gc_nanotime uint64 // last gc (monotonic time)
+	tinyallocs       uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
+
+	// triggerRatio is the heap growth ratio that triggers marking.
+	//
+	// E.g., if this is 0.6, then GC should start when the live
+	// heap has reached 1.6 times the heap size marked by the
+	// previous cycle. This should be ≤ GOGC/100 so the trigger
+	// heap size is less than the goal heap size. This is set
+	// during mark termination for the next cycle's trigger.
+	triggerRatio float64
 
 	// gc_trigger is the heap size that triggers marking.
 	//
 	// When heap_live ≥ gc_trigger, the mark phase will start.
 	// This is also the heap size by which proportional sweeping
 	// must be complete.
+	//
+	// This is computed from triggerRatio during mark termination
+	// for the next cycle's trigger.
 	gc_trigger uint64
-
-	_ uint32 // force 8-byte alignment of heap_live and prevent an alignment check crash on MIPS32.
 
 	// heap_live is the number of bytes considered live by the GC.
 	// That is: retained by the most recent GC plus allocated
@@ -121,6 +118,8 @@ type mstats struct {
 	// necessary rather than potentially too late and 2) this
 	// leads to a conservative GC rate rather than a GC rate that
 	// is potentially too low.
+	//
+	// Reads should likewise be atomic (or during STW).
 	//
 	// Whenever this is updated, call traceHeapAlloc() and
 	// gcController.revise().
@@ -175,6 +174,7 @@ type MemStats struct {
 	Lookups uint64
 
 	// Mallocs is the cumulative count of heap objects allocated.
+	// The number of live objects is Mallocs - Frees.
 	Mallocs uint64
 
 	// Frees is the cumulative count of heap objects freed.
@@ -248,7 +248,7 @@ type MemStats struct {
 	// can only be used for other objects of roughly the same
 	// size.
 	//
-	// HeapInuse minus HeapAlloc esimates the amount of memory
+	// HeapInuse minus HeapAlloc estimates the amount of memory
 	// that has been dedicated to particular size classes, but is
 	// not currently being used. This is an upper bound on
 	// fragmentation, but in general this memory can be reused
@@ -365,6 +365,10 @@ type MemStats struct {
 	// NumGC is the number of completed GC cycles.
 	NumGC uint32
 
+	// NumForcedGC is the number of GC cycles that were forced by
+	// the application calling the GC function.
+	NumForcedGC uint32
+
 	// GCCPUFraction is the fraction of this program's available
 	// CPU time used by the GC since the program started.
 	//
@@ -394,9 +398,19 @@ type MemStats struct {
 	//
 	// This does not report allocations larger than BySize[60].Size.
 	BySize [61]struct {
-		Size    uint32
+		// Size is the maximum byte size of an object in this
+		// size class.
+		Size uint32
+
+		// Mallocs is the cumulative count of heap objects
+		// allocated in this size class. The cumulative bytes
+		// of allocation is Size*Mallocs. The number of live
+		// objects in this size class is Mallocs - Frees.
 		Mallocs uint64
-		Frees   uint64
+
+		// Frees is the cumulative count of heap objects freed
+		// in this size class.
+		Frees uint64
 	}
 }
 
@@ -437,17 +451,16 @@ func ReadMemStats(m *MemStats) {
 }
 
 func readmemstats_m(stats *MemStats) {
-	updatememstats(nil)
+	updatememstats()
 
 	// The size of the trailing by_size array differs between
 	// mstats and MemStats. NumSizeClasses was changed, but we
 	// cannot change MemStats because of backward compatibility.
 	memmove(unsafe.Pointer(stats), unsafe.Pointer(&memstats), sizeof_C_MStats)
 
-	// Stack numbers are part of the heap numbers, separate those out for user consumption
+	// memstats.stacks_sys is only memory mapped directly for OS stacks.
+	// Add in heap-allocated stack memory for user consumption.
 	stats.StackSys += stats.StackInuse
-	stats.HeapInuse -= stats.StackInuse
-	stats.HeapSys -= stats.StackInuse
 }
 
 //go:linkname readGCStats runtime/debug.readGCStats
@@ -483,7 +496,7 @@ func readGCStats_m(pauses *[]uint64) {
 		p[n+i] = memstats.pause_end[j]
 	}
 
-	p[n+n] = memstats.last_gc
+	p[n+n] = memstats.last_gc_unix
 	p[n+n+1] = uint64(memstats.numgc)
 	p[n+n+2] = memstats.pause_total_ns
 	unlock(&mheap_.lock)
@@ -491,25 +504,14 @@ func readGCStats_m(pauses *[]uint64) {
 }
 
 //go:nowritebarrier
-func updatememstats(stats *gcstats) {
-	if stats != nil {
-		*stats = gcstats{}
-	}
-	for mp := allm; mp != nil; mp = mp.alllink {
-		if stats != nil {
-			src := (*[unsafe.Sizeof(gcstats{}) / 8]uint64)(unsafe.Pointer(&mp.gcstats))
-			dst := (*[unsafe.Sizeof(gcstats{}) / 8]uint64)(unsafe.Pointer(stats))
-			for i, v := range src {
-				dst[i] += v
-			}
-			mp.gcstats = gcstats{}
-		}
-	}
-
+func updatememstats() {
 	memstats.mcache_inuse = uint64(mheap_.cachealloc.inuse)
 	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
 	memstats.sys = memstats.heap_sys + memstats.stacks_sys + memstats.mspan_sys +
 		memstats.mcache_sys + memstats.buckhash_sys + memstats.gc_sys + memstats.other_sys
+
+	// We also count stacks_inuse as sys memory.
+	memstats.sys += memstats.stacks_inuse
 
 	// Calculate memory allocator stats.
 	// During program execution we only count number of frees and amount of freed memory.
@@ -527,54 +529,59 @@ func updatememstats(stats *gcstats) {
 		memstats.by_size[i].nfree = 0
 	}
 
-	// Flush MCache's to MCentral.
+	// Flush mcache's to mcentral.
 	systemstack(flushallmcaches)
 
 	// Aggregate local stats.
 	cachestats()
 
-	// Scan all spans and count number of alive objects.
-	lock(&mheap_.lock)
-	for _, s := range mheap_.allspans {
-		if s.state != mSpanInUse {
+	// Collect allocation stats. This is safe and consistent
+	// because the world is stopped.
+	var smallFree, totalAlloc, totalFree uint64
+	// Collect per-spanclass stats.
+	for spc := range mheap_.central {
+		// The mcaches are now empty, so mcentral stats are
+		// up-to-date.
+		c := &mheap_.central[spc].mcentral
+		memstats.nmalloc += c.nmalloc
+		i := spanClass(spc).sizeclass()
+		memstats.by_size[i].nmalloc += c.nmalloc
+		totalAlloc += c.nmalloc * uint64(class_to_size[i])
+	}
+	// Collect per-sizeclass stats.
+	for i := 0; i < _NumSizeClasses; i++ {
+		if i == 0 {
+			memstats.nmalloc += mheap_.nlargealloc
+			totalAlloc += mheap_.largealloc
+			totalFree += mheap_.largefree
+			memstats.nfree += mheap_.nlargefree
 			continue
 		}
-		if s.sizeclass == 0 {
-			memstats.nmalloc++
-			memstats.alloc += uint64(s.elemsize)
-		} else {
-			memstats.nmalloc += uint64(s.allocCount)
-			memstats.by_size[s.sizeclass].nmalloc += uint64(s.allocCount)
-			memstats.alloc += uint64(s.allocCount) * uint64(s.elemsize)
-		}
-	}
-	unlock(&mheap_.lock)
 
-	// Aggregate by size class.
-	smallfree := uint64(0)
-	memstats.nfree = mheap_.nlargefree
-	for i := 0; i < len(memstats.by_size); i++ {
+		// The mcache stats have been flushed to mheap_.
 		memstats.nfree += mheap_.nsmallfree[i]
 		memstats.by_size[i].nfree = mheap_.nsmallfree[i]
-		memstats.by_size[i].nmalloc += mheap_.nsmallfree[i]
-		smallfree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
+		smallFree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
 	}
+	totalFree += smallFree
+
 	memstats.nfree += memstats.tinyallocs
-	memstats.nmalloc += memstats.nfree
+	memstats.nmalloc += memstats.tinyallocs
 
 	// Calculate derived stats.
-	memstats.total_alloc = memstats.alloc + mheap_.largefree + smallfree
+	memstats.total_alloc = totalAlloc
+	memstats.alloc = totalAlloc - totalFree
 	memstats.heap_alloc = memstats.alloc
 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
 }
 
+// cachestats flushes all mcache stats.
+//
+// The world must be stopped.
+//
 //go:nowritebarrier
 func cachestats() {
-	for i := 0; ; i++ {
-		p := allp[i]
-		if p == nil {
-			break
-		}
+	for _, p := range allp {
 		c := p.mcache
 		if c == nil {
 			continue
@@ -590,9 +597,6 @@ func cachestats() {
 //go:nowritebarrier
 func flushmcache(i int) {
 	p := allp[i]
-	if p == nil {
-		return
-	}
 	c := p.mcache
 	if c == nil {
 		return
@@ -620,8 +624,6 @@ func purgecachedstats(c *mcache) {
 	c.local_scan = 0
 	memstats.tinyallocs += uint64(c.local_tinyallocs)
 	c.local_tinyallocs = 0
-	memstats.nlookup += uint64(c.local_nlookup)
-	c.local_nlookup = 0
 	h.largefree += uint64(c.local_largefree)
 	c.local_largefree = 0
 	h.nlargefree += uint64(c.local_nlargefree)
@@ -646,7 +648,10 @@ func purgecachedstats(c *mcache) {
 // overflow errors.
 //go:nosplit
 func mSysStatInc(sysStat *uint64, n uintptr) {
-	if sys.BigEndian != 0 {
+	if sysStat == nil {
+		return
+	}
+	if sys.BigEndian {
 		atomic.Xadd64(sysStat, int64(n))
 		return
 	}
@@ -660,7 +665,10 @@ func mSysStatInc(sysStat *uint64, n uintptr) {
 // mSysStatInc apply.
 //go:nosplit
 func mSysStatDec(sysStat *uint64, n uintptr) {
-	if sys.BigEndian != 0 {
+	if sysStat == nil {
+		return
+	}
+	if sys.BigEndian {
 		atomic.Xadd64(sysStat, -int64(n))
 		return
 	}

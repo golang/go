@@ -5,20 +5,54 @@
 package testing
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"internal/race"
 	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
 var matchBenchmarks = flag.String("test.bench", "", "run only benchmarks matching `regexp`")
-var benchTime = flag.Duration("test.benchtime", 1*time.Second, "run each benchmark for duration `d`")
+var benchTime = benchTimeFlag{d: 1 * time.Second}
 var benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
+
+func init() {
+	flag.Var(&benchTime, "test.benchtime", "run each benchmark for duration `d`")
+}
+
+type benchTimeFlag struct {
+	d time.Duration
+	n int
+}
+
+func (f *benchTimeFlag) String() string {
+	if f.n > 0 {
+		return fmt.Sprintf("%dx", f.n)
+	}
+	return time.Duration(f.d).String()
+}
+
+func (f *benchTimeFlag) Set(s string) error {
+	if strings.HasSuffix(s, "x") {
+		n, err := strconv.ParseInt(s[:len(s)-1], 10, 0)
+		if err != nil || n <= 0 {
+			return fmt.Errorf("invalid count")
+		}
+		*f = benchTimeFlag{n: int(n)}
+		return nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil || d <= 0 {
+		return fmt.Errorf("invalid duration")
+	}
+	*f = benchTimeFlag{d: d}
+	return nil
+}
 
 // Global lock to ensure only one benchmark runs at a time.
 var benchmarkLock sync.Mutex
@@ -48,12 +82,13 @@ type InternalBenchmark struct {
 // affecting benchmark results.
 type B struct {
 	common
+	importPath       string // import path of the package containing the benchmark
 	context          *benchContext
 	N                int
 	previousN        int           // number of iterations in the previous run
 	previousDuration time.Duration // total duration of the previous run
 	benchFunc        func(b *B)
-	benchTime        time.Duration
+	benchTime        benchTimeFlag
 	bytes            int64
 	missingBytes     bool // one of the subbenchmarks does not have bytes set.
 	timerOn          bool
@@ -86,7 +121,7 @@ func (b *B) StartTimer() {
 // want to measure.
 func (b *B) StopTimer() {
 	if b.timerOn {
-		b.duration += time.Now().Sub(b.start)
+		b.duration += time.Since(b.start)
 		runtime.ReadMemStats(&memStats)
 		b.netAllocs += memStats.Mallocs - b.startAllocs
 		b.netBytes += memStats.TotalAlloc - b.startBytes
@@ -128,9 +163,6 @@ func (b *B) nsPerOp() int64 {
 
 // runN runs a single benchmark for the specified number of iterations.
 func (b *B) runN(n int) {
-	b.ctx, b.cancel = context.WithCancel(b.parentContext())
-	defer b.cancel()
-
 	benchmarkLock.Lock()
 	defer benchmarkLock.Unlock()
 	// Try to get a comparable environment for each run
@@ -223,7 +255,7 @@ func (b *B) run1() bool {
 	}
 	// Only print the output if we know we are not going to proceed.
 	// Otherwise it is printed in processBench.
-	if b.hasSub || b.finished {
+	if atomic.LoadInt32(&b.hasSub) != 0 || b.finished {
 		tag := "BENCH"
 		if b.skipped {
 			tag = "SKIP"
@@ -237,9 +269,18 @@ func (b *B) run1() bool {
 	return true
 }
 
+var labelsOnce sync.Once
+
 // run executes the benchmark in a separate goroutine, including all of its
 // subbenchmarks. b must not have subbenchmarks.
-func (b *B) run() BenchmarkResult {
+func (b *B) run() {
+	labelsOnce.Do(func() {
+		fmt.Fprintf(b.w, "goos: %s\n", runtime.GOOS)
+		fmt.Fprintf(b.w, "goarch: %s\n", runtime.GOARCH)
+		if b.importPath != "" {
+			fmt.Fprintf(b.w, "pkg: %s\n", b.importPath)
+		}
+	})
 	if b.context != nil {
 		// Running go test --test.bench
 		b.context.processBench(b) // Must call doBench.
@@ -247,7 +288,6 @@ func (b *B) run() BenchmarkResult {
 		// Running func Benchmark.
 		b.doBench()
 	}
-	return b.result
 }
 
 func (b *B) doBench() BenchmarkResult {
@@ -268,21 +308,25 @@ func (b *B) launch() {
 	}()
 
 	// Run the benchmark for at least the specified amount of time.
-	d := b.benchTime
-	for n := 1; !b.failed && b.duration < d && n < 1e9; {
-		last := n
-		// Predict required iterations.
-		n = int(d.Nanoseconds())
-		if nsop := b.nsPerOp(); nsop != 0 {
-			n /= int(nsop)
+	if b.benchTime.n > 0 {
+		b.runN(b.benchTime.n)
+	} else {
+		d := b.benchTime.d
+		for n := 1; !b.failed && b.duration < d && n < 1e9; {
+			last := n
+			// Predict required iterations.
+			n = int(d.Nanoseconds())
+			if nsop := b.nsPerOp(); nsop != 0 {
+				n /= int(nsop)
+			}
+			// Run more iterations than we think we'll need (1.2x).
+			// Don't grow too fast in case we had timing errors previously.
+			// Be sure to run at least one more than last time.
+			n = max(min(n+n/5, 100*last), last+1)
+			// Round up to something easy to read.
+			n = roundUp(n)
+			b.runN(n)
 		}
-		// Run more iterations than we think we'll need (1.2x).
-		// Don't grow too fast in case we had timing errors previously.
-		// Be sure to run at least one more than last time.
-		n = max(min(n+n/5, 100*last), last+1)
-		// Round up to something easy to read.
-		n = roundUp(n)
-		b.runN(n)
 	}
 	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes}
 }
@@ -310,6 +354,7 @@ func (r BenchmarkResult) mbPerSec() float64 {
 	return (float64(r.Bytes) * float64(r.N) / 1e6) / r.T.Seconds()
 }
 
+// AllocsPerOp returns r.MemAllocs / r.N.
 func (r BenchmarkResult) AllocsPerOp() int64 {
 	if r.N <= 0 {
 		return 0
@@ -317,6 +362,7 @@ func (r BenchmarkResult) AllocsPerOp() int64 {
 	return int64(r.MemAllocs) / int64(r.N)
 }
 
+// AllocedBytesPerOp returns r.MemBytes / r.N.
 func (r BenchmarkResult) AllocedBytesPerOp() int64 {
 	if r.N <= 0 {
 		return 0
@@ -344,6 +390,7 @@ func (r BenchmarkResult) String() string {
 	return fmt.Sprintf("%8d\t%s%s", r.N, ns, mb)
 }
 
+// MemString returns r.AllocedBytesPerOp and r.AllocsPerOp in the same format as 'go test'.
 func (r BenchmarkResult) MemString() string {
 	return fmt.Sprintf("%8d B/op\t%8d allocs/op",
 		r.AllocedBytesPerOp(), r.AllocsPerOp())
@@ -367,10 +414,10 @@ type benchContext struct {
 // An internal function but exported because it is cross-package; part of the implementation
 // of the "go test" command.
 func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
-	runBenchmarks(matchString, benchmarks)
+	runBenchmarks("", matchString, benchmarks)
 }
 
-func runBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
+func runBenchmarks(importPath string, matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
 	// If no flag was specified, don't run benchmarks.
 	if len(*matchBenchmarks) == 0 {
 		return true
@@ -388,7 +435,7 @@ func runBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 	}
 	var bs []InternalBenchmark
 	for _, Benchmark := range benchmarks {
-		if _, matched := ctx.match.fullName(nil, Benchmark.Name); matched {
+		if _, matched, _ := ctx.match.fullName(nil, Benchmark.Name); matched {
 			bs = append(bs, Benchmark)
 			benchName := benchmarkName(Benchmark.Name, maxprocs)
 			if l := len(benchName) + ctx.extLen + 1; l > ctx.maxLen {
@@ -402,12 +449,13 @@ func runBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 			w:      os.Stdout,
 			chatty: *chatty,
 		},
+		importPath: importPath,
 		benchFunc: func(b *B) {
 			for _, Benchmark := range bs {
 				b.Run(Benchmark.Name, Benchmark.F)
 			}
 		},
-		benchTime: *benchTime,
+		benchTime: benchTime,
 		context:   ctx,
 	}
 	main.runN(1)
@@ -417,44 +465,46 @@ func runBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 // processBench runs bench b for the configured CPU counts and prints the results.
 func (ctx *benchContext) processBench(b *B) {
 	for i, procs := range cpuList {
-		runtime.GOMAXPROCS(procs)
-		benchName := benchmarkName(b.name, procs)
-		fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
-		// Recompute the running time for all but the first iteration.
-		if i > 0 {
-			b = &B{
-				common: common{
-					signal: make(chan bool),
-					name:   b.name,
-					w:      b.w,
-					chatty: b.chatty,
-				},
-				benchFunc: b.benchFunc,
-				benchTime: b.benchTime,
+		for j := uint(0); j < *count; j++ {
+			runtime.GOMAXPROCS(procs)
+			benchName := benchmarkName(b.name, procs)
+			fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
+			// Recompute the running time for all but the first iteration.
+			if i > 0 || j > 0 {
+				b = &B{
+					common: common{
+						signal: make(chan bool),
+						name:   b.name,
+						w:      b.w,
+						chatty: b.chatty,
+					},
+					benchFunc: b.benchFunc,
+					benchTime: b.benchTime,
+				}
+				b.run1()
 			}
-			b.run1()
-		}
-		r := b.doBench()
-		if b.failed {
-			// The output could be very long here, but probably isn't.
-			// We print it all, regardless, because we don't want to trim the reason
-			// the benchmark failed.
-			fmt.Fprintf(b.w, "--- FAIL: %s\n%s", benchName, b.output)
-			continue
-		}
-		results := r.String()
-		if *benchmarkMemory || b.showAllocResult {
-			results += "\t" + r.MemString()
-		}
-		fmt.Fprintln(b.w, results)
-		// Unlike with tests, we ignore the -chatty flag and always print output for
-		// benchmarks since the output generation time will skew the results.
-		if len(b.output) > 0 {
-			b.trimOutput()
-			fmt.Fprintf(b.w, "--- BENCH: %s\n%s", benchName, b.output)
-		}
-		if p := runtime.GOMAXPROCS(-1); p != procs {
-			fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
+			r := b.doBench()
+			if b.failed {
+				// The output could be very long here, but probably isn't.
+				// We print it all, regardless, because we don't want to trim the reason
+				// the benchmark failed.
+				fmt.Fprintf(b.w, "--- FAIL: %s\n%s", benchName, b.output)
+				continue
+			}
+			results := r.String()
+			if *benchmarkMemory || b.showAllocResult {
+				results += "\t" + r.MemString()
+			}
+			fmt.Fprintln(b.w, results)
+			// Unlike with tests, we ignore the -chatty flag and always print output for
+			// benchmarks since the output generation time will skew the results.
+			if len(b.output) > 0 {
+				b.trimOutput()
+				fmt.Fprintf(b.w, "--- BENCH: %s\n%s", benchName, b.output)
+			}
+			if p := runtime.GOMAXPROCS(-1); p != procs {
+				fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
+			}
 		}
 	}
 }
@@ -467,29 +517,38 @@ func (ctx *benchContext) processBench(b *B) {
 func (b *B) Run(name string, f func(b *B)) bool {
 	// Since b has subbenchmarks, we will no longer run it as a benchmark itself.
 	// Release the lock and acquire it on exit to ensure locks stay paired.
-	b.hasSub = true
+	atomic.StoreInt32(&b.hasSub, 1)
 	benchmarkLock.Unlock()
 	defer benchmarkLock.Lock()
 
-	benchName, ok := b.name, true
+	benchName, ok, partial := b.name, true, false
 	if b.context != nil {
-		benchName, ok = b.context.match.fullName(&b.common, name)
+		benchName, ok, partial = b.context.match.fullName(&b.common, name)
 	}
 	if !ok {
 		return true
 	}
+	var pc [maxStackLen]uintptr
+	n := runtime.Callers(2, pc[:])
 	sub := &B{
 		common: common{
-			signal: make(chan bool),
-			name:   benchName,
-			parent: &b.common,
-			level:  b.level + 1,
-			w:      b.w,
-			chatty: b.chatty,
+			signal:  make(chan bool),
+			name:    benchName,
+			parent:  &b.common,
+			level:   b.level + 1,
+			creator: pc[:n],
+			w:       b.w,
+			chatty:  b.chatty,
 		},
-		benchFunc: f,
-		benchTime: b.benchTime,
-		context:   b.context,
+		importPath: b.importPath,
+		benchFunc:  f,
+		benchTime:  b.benchTime,
+		context:    b.context,
+	}
+	if partial {
+		// Partial name match, like -bench=X/Y matching BenchmarkX.
+		// Only process sub-benchmarks, if any.
+		atomic.StoreInt32(&sub.hasSub, 1)
 	}
 	if sub.run1() {
 		sub.run()
@@ -633,12 +692,12 @@ func Benchmark(f func(b *B)) BenchmarkResult {
 			w:      discard{},
 		},
 		benchFunc: f,
-		benchTime: *benchTime,
+		benchTime: benchTime,
 	}
-	if !b.run1() {
-		return BenchmarkResult{}
+	if b.run1() {
+		b.run()
 	}
-	return b.run()
+	return b.result
 }
 
 type discard struct{}

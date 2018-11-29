@@ -5,11 +5,31 @@
 package reflect_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"reflect"
 )
+
+func ExampleKind() {
+	for _, v := range []interface{}{"hi", 42, func() {}} {
+		switch v := reflect.ValueOf(v); v.Kind() {
+		case reflect.String:
+			fmt.Println(v.String())
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			fmt.Println(v.Int())
+		default:
+			fmt.Printf("unhandled kind %s", v.Kind())
+		}
+	}
+
+	// Output:
+	// hi
+	// 42
+	// unhandled kind func
+}
 
 func ExampleMakeFunc() {
 	// swap is the implementation passed to MakeFunc.
@@ -106,4 +126,43 @@ func ExampleTypeOf() {
 
 	// Output:
 	// true
+}
+
+func ExampleStructOf() {
+	typ := reflect.StructOf([]reflect.StructField{
+		{
+			Name: "Height",
+			Type: reflect.TypeOf(float64(0)),
+			Tag:  `json:"height"`,
+		},
+		{
+			Name: "Age",
+			Type: reflect.TypeOf(int(0)),
+			Tag:  `json:"age"`,
+		},
+	})
+
+	v := reflect.New(typ).Elem()
+	v.Field(0).SetFloat(0.4)
+	v.Field(1).SetInt(2)
+	s := v.Addr().Interface()
+
+	w := new(bytes.Buffer)
+	if err := json.NewEncoder(w).Encode(s); err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("value: %+v\n", s)
+	fmt.Printf("json:  %s", w.Bytes())
+
+	r := bytes.NewReader([]byte(`{"height":1.5,"age":10}`))
+	if err := json.NewDecoder(r).Decode(s); err != nil {
+		panic(err)
+	}
+	fmt.Printf("value: %+v\n", s)
+
+	// Output:
+	// value: &{Height:0.4 Age:2}
+	// json:  {"height":0.4,"age":2}
+	// value: &{Height:1.5 Age:10}
 }

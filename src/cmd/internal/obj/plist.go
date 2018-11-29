@@ -5,129 +5,74 @@
 package obj
 
 import (
+	"cmd/internal/objabi"
 	"fmt"
-	"log"
 	"strings"
 )
 
 type Plist struct {
 	Firstpc *Prog
+	Curfn   interface{} // holds a *gc.Node, if non-nil
 }
 
-/*
- * start a new Prog list.
- */
-func Linknewplist(ctxt *Link) *Plist {
-	pl := new(Plist)
-	ctxt.Plists = append(ctxt.Plists, pl)
-	return pl
-}
+// ProgAlloc is a function that allocates Progs.
+// It is used to provide access to cached/bulk-allocated Progs to the assemblers.
+type ProgAlloc func() *Prog
 
-func Flushplist(ctxt *Link) {
-	flushplist(ctxt, ctxt.Debugasm == 0)
-}
-func FlushplistNoFree(ctxt *Link) {
-	flushplist(ctxt, false)
-}
-func flushplist(ctxt *Link, freeProgs bool) {
+func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string) {
 	// Build list of symbols, and assign instructions to lists.
-	// Ignore ctxt->plist boundaries. There are no guarantees there,
-	// and the assemblers just use one big list.
 	var curtext *LSym
 	var etext *Prog
 	var text []*LSym
 
-	for _, pl := range ctxt.Plists {
-		var plink *Prog
-		for p := pl.Firstpc; p != nil; p = plink {
-			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
-				fmt.Printf("obj: %v\n", p)
-			}
-			plink = p.Link
-			p.Link = nil
-
-			switch p.As {
-			case AEND:
-				continue
-
-			case ATYPE:
-				// Assume each TYPE instruction describes
-				// a different local variable or parameter,
-				// so no dedup.
-				// Using only the TYPE instructions means
-				// that we discard location information about local variables
-				// in C and assembly functions; that information is inferred
-				// from ordinary references, because there are no TYPE
-				// instructions there. Without the type information, gdb can't
-				// use the locations, so we don't bother to save them.
-				// If something else could use them, we could arrange to
-				// preserve them.
-				if curtext == nil {
-					continue
-				}
-				a := new(Auto)
-				a.Asym = p.From.Sym
-				a.Aoffset = int32(p.From.Offset)
-				a.Name = int16(p.From.Name)
-				a.Gotype = p.To.Sym
-				a.Link = curtext.Autom
-				curtext.Autom = a
-				continue
-
-			case ATEXT:
-				s := p.From.Sym
-				if s == nil {
-					// func _() { }
-					curtext = nil
-
-					continue
-				}
-
-				if s.Text != nil {
-					log.Fatalf("duplicate TEXT for %s", s.Name)
-				}
-				if s.OnList() {
-					log.Fatalf("symbol %s listed multiple times", s.Name)
-				}
-				s.Set(AttrOnList, true)
-				text = append(text, s)
-				flag := int(p.From3Offset())
-				if flag&DUPOK != 0 {
-					s.Set(AttrDuplicateOK, true)
-				}
-				if flag&NOSPLIT != 0 {
-					s.Set(AttrNoSplit, true)
-				}
-				if flag&REFLECTMETHOD != 0 {
-					s.Set(AttrReflectMethod, true)
-				}
-				s.Type = STEXT
-				s.Text = p
-				etext = p
-				curtext = s
-				continue
-
-			case AFUNCDATA:
-				// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
-				if curtext == nil { // func _() {}
-					continue
-				}
-				if p.To.Sym.Name == "go_args_stackmap" {
-					if p.From.Type != TYPE_CONST || p.From.Offset != FUNCDATA_ArgsPointerMaps {
-						ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
-					}
-					p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
-				}
-
-			}
-
-			if curtext == nil {
-				etext = nil
-				continue
-			}
-			etext.Link = p
-			etext = p
+	var plink *Prog
+	for p := plist.Firstpc; p != nil; p = plink {
+		if ctxt.Debugasm && ctxt.Debugvlog {
+			fmt.Printf("obj: %v\n", p)
 		}
+		plink = p.Link
+		p.Link = nil
+
+		switch p.As {
+		case AEND:
+			continue
+
+		case ATEXT:
+			s := p.From.Sym
+			if s == nil {
+				// func _() { }
+				curtext = nil
+				continue
+			}
+			text = append(text, s)
+			etext = p
+			curtext = s
+			continue
+
+		case AFUNCDATA:
+			// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
+			if curtext == nil { // func _() {}
+				continue
+			}
+			if p.To.Sym.Name == "go_args_stackmap" {
+				if p.From.Type != TYPE_CONST || p.From.Offset != objabi.FUNCDATA_ArgsPointerMaps {
+					ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
+				}
+				p.To.Sym = ctxt.LookupDerived(curtext, curtext.Name+".args_stackmap")
+			}
+
+		}
+
+		if curtext == nil {
+			etext = nil
+			continue
+		}
+		etext.Link = p
+		etext = p
+	}
+
+	if newprog == nil {
+		newprog = ctxt.NewProg
 	}
 
 	// Add reference to Go arguments for C or assembly functions without them.
@@ -136,49 +81,72 @@ func flushplist(ctxt *Link, freeProgs bool) {
 			continue
 		}
 		found := false
-		var p *Prog
-		for p = s.Text; p != nil; p = p.Link {
-			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == FUNCDATA_ArgsPointerMaps {
+		for p := s.Func.Text; p != nil; p = p.Link {
+			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == objabi.FUNCDATA_ArgsPointerMaps {
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			p = Appendp(ctxt, s.Text)
+			p := Appendp(s.Func.Text, newprog)
 			p.As = AFUNCDATA
 			p.From.Type = TYPE_CONST
-			p.From.Offset = FUNCDATA_ArgsPointerMaps
+			p.From.Offset = objabi.FUNCDATA_ArgsPointerMaps
 			p.To.Type = TYPE_MEM
 			p.To.Name = NAME_EXTERN
-			p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", s.Name), int(s.Version))
+			p.To.Sym = ctxt.LookupDerived(s, s.Name+".args_stackmap")
 		}
 	}
 
 	// Turn functions into machine code images.
 	for _, s := range text {
 		mkfwd(s)
-		linkpatch(ctxt, s)
-		if ctxt.Flag_optimize {
-			ctxt.Arch.Follow(ctxt, s)
-		}
-		ctxt.Arch.Preprocess(ctxt, s)
-		ctxt.Arch.Assemble(ctxt, s)
-		fieldtrack(ctxt, s)
+		linkpatch(ctxt, s, newprog)
+		ctxt.Arch.Preprocess(ctxt, s, newprog)
+		ctxt.Arch.Assemble(ctxt, s, newprog)
 		linkpcln(ctxt, s)
-		if freeProgs {
-			s.Text = nil
-		}
+		ctxt.populateDWARF(plist.Curfn, s, myimportpath)
 	}
+}
 
-	// Add to running list in ctxt.
-	ctxt.Text = append(ctxt.Text, text...)
-	ctxt.Data = append(ctxt.Data, gendwarf(ctxt, text)...)
-	ctxt.Plists = nil
-	ctxt.Curp = nil
-	if freeProgs {
-		ctxt.freeProgs()
+func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+	if s == nil {
+		// func _() { }
+		return
 	}
+	if s.Func != nil {
+		ctxt.Diag("InitTextSym double init for %s", s.Name)
+	}
+	s.Func = new(FuncInfo)
+	if s.OnList() {
+		ctxt.Diag("symbol %s listed multiple times", s.Name)
+	}
+	s.Set(AttrOnList, true)
+	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
+	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
+	s.Set(AttrReflectMethod, flag&REFLECTMETHOD != 0)
+	s.Set(AttrWrapper, flag&WRAPPER != 0)
+	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
+	s.Set(AttrNoFrame, flag&NOFRAME != 0)
+	s.Type = objabi.STEXT
+	ctxt.Text = append(ctxt.Text, s)
+
+	// Set up DWARF entries for s.
+	info, loc, ranges, _, isstmt := ctxt.dwarfSym(s)
+	info.Type = objabi.SDWARFINFO
+	info.Set(AttrDuplicateOK, s.DuplicateOK())
+	if loc != nil {
+		loc.Type = objabi.SDWARFLOC
+		loc.Set(AttrDuplicateOK, s.DuplicateOK())
+		ctxt.Data = append(ctxt.Data, loc)
+	}
+	ranges.Type = objabi.SDWARFRANGE
+	ranges.Set(AttrDuplicateOK, s.DuplicateOK())
+	ctxt.Data = append(ctxt.Data, info, ranges)
+	isstmt.Type = objabi.SDWARFMISC
+	isstmt.Set(AttrDuplicateOK, s.DuplicateOK())
+	ctxt.Data = append(ctxt.Data, isstmt)
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
@@ -187,22 +155,50 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 	}
 	s.Set(AttrSeenGlobl, true)
 	if s.OnList() {
-		log.Fatalf("symbol %s listed multiple times", s.Name)
+		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
 	s.Set(AttrOnList, true)
 	ctxt.Data = append(ctxt.Data, s)
 	s.Size = size
-	if s.Type == 0 || s.Type == SXREF {
-		s.Type = SBSS
+	if s.Type == 0 {
+		s.Type = objabi.SBSS
 	}
 	if flag&DUPOK != 0 {
 		s.Set(AttrDuplicateOK, true)
 	}
 	if flag&RODATA != 0 {
-		s.Type = SRODATA
+		s.Type = objabi.SRODATA
 	} else if flag&NOPTR != 0 {
-		s.Type = SNOPTRBSS
+		if s.Type == objabi.SDATA {
+			s.Type = objabi.SNOPTRDATA
+		} else {
+			s.Type = objabi.SNOPTRBSS
+		}
 	} else if flag&TLSBSS != 0 {
-		s.Type = STLSBSS
+		s.Type = objabi.STLSBSS
 	}
+}
+
+// EmitEntryLiveness generates PCDATA Progs after p to switch to the
+// liveness map active at the entry of function s. It returns the last
+// Prog generated.
+func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+	pcdata := Appendp(p, newprog)
+	pcdata.Pos = s.Func.Text.Pos
+	pcdata.As = APCDATA
+	pcdata.From.Type = TYPE_CONST
+	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+	pcdata.To.Type = TYPE_CONST
+	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+
+	// Same, with register map.
+	pcdata = Appendp(pcdata, newprog)
+	pcdata.Pos = s.Func.Text.Pos
+	pcdata.As = APCDATA
+	pcdata.From.Type = TYPE_CONST
+	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+	pcdata.To.Type = TYPE_CONST
+	pcdata.To.Offset = -1
+
+	return pcdata
 }

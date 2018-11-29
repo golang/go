@@ -139,13 +139,16 @@ func dirname(path string) string {
 func fixLongPath(path string) string {
 	// Do nothing (and don't allocate) if the path is "short".
 	// Empirically (at least on the Windows Server 2013 builder),
-	// the kernel is arbitrarily okay with <= 248 bytes. That
+	// the kernel is arbitrarily okay with < 248 bytes. That
 	// matches what the docs above say:
 	// "When using an API to create a directory, the specified
 	// path cannot be so long that you cannot append an 8.3 file
 	// name (that is, the directory name cannot exceed MAX_PATH
 	// minus 12)." Since MAX_PATH is 260, 260 - 12 = 248.
-	if len(path) <= 248 {
+	//
+	// The MSDN docs appear to say that a normal path that is 248 bytes long
+	// will work; empirically the path must be less then 248 bytes long.
+	if len(path) < 248 {
 		// Don't fix. (This is how Go 1.7 and earlier worked,
 		// not automatically generating the \\?\ form)
 		return path
@@ -203,4 +206,15 @@ func fixLongPath(path string) string {
 		w++
 	}
 	return string(pathbuf[:w])
+}
+
+// fixRootDirectory fixes a reference to a drive's root directory to
+// have the required trailing slash.
+func fixRootDirectory(p string) string {
+	if len(p) == len(`\\?\c:`) {
+		if IsPathSeparator(p[0]) && IsPathSeparator(p[1]) && p[2] == '?' && IsPathSeparator(p[3]) && p[5] == ':' {
+			return p + `\`
+		}
+	}
+	return p
 }

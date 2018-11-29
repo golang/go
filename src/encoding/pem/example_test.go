@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
+	"os"
 )
 
 func ExampleDecode() {
@@ -41,4 +42,24 @@ and some more`)
 
 	fmt.Printf("Got a %T, with remaining data: %q", pub, rest)
 	// Output: Got a *rsa.PublicKey, with remaining data: "and some more"
+}
+
+func ExampleEncode() {
+	block := &pem.Block{
+		Type: "MESSAGE",
+		Headers: map[string]string{
+			"Animal": "Gopher",
+		},
+		Bytes: []byte("test"),
+	}
+
+	if err := pem.Encode(os.Stdout, block); err != nil {
+		log.Fatal(err)
+	}
+	// Output:
+	// -----BEGIN MESSAGE-----
+	// Animal: Gopher
+	//
+	// dGVzdA==
+	// -----END MESSAGE-----
 }

@@ -4,11 +4,18 @@
 
 // Package aes implements AES encryption (formerly Rijndael), as defined in
 // U.S. Federal Information Processing Standards Publication 197.
+//
+// The AES operations in this package are not implemented using constant-time algorithms.
+// An exception is when running on systems with enabled hardware support for AES
+// that makes these operations constant-time. Examples include amd64 systems using AES-NI
+// extensions and s390x systems using Message-Security-Assist extensions.
+// On such systems, when the result of NewCipher is passed to cipher.NewGCM,
+// the GHASH operation used by GCM is also constant-time.
 package aes
 
 // This file contains AES constants - 8720 bytes of initialized data.
 
-// http://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf
+// https://csrc.nist.gov/publications/fips/fips197/fips-197.pdf
 
 // AES is based on the mathematical behavior of binary polynomials
 // (polynomials over GF(2)) modulo the irreducible polynomial x⁸ + x⁴ + x³ + x + 1.

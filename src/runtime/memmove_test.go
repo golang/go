@@ -6,8 +6,10 @@ package runtime_test
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"internal/race"
+	"internal/testenv"
 	. "runtime"
 	"testing"
 )
@@ -87,6 +89,10 @@ func TestMemmoveAlias(t *testing.T) {
 }
 
 func TestMemmoveLarge0x180000(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("-short")
+	}
+
 	t.Parallel()
 	if race.Enabled {
 		t.Skip("skipping large memmove test under race detector")
@@ -95,6 +101,10 @@ func TestMemmoveLarge0x180000(t *testing.T) {
 }
 
 func TestMemmoveOverlapLarge0x120000(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("-short")
+	}
+
 	t.Parallel()
 	if race.Enabled {
 		t.Skip("skipping large memmove test under race detector")
@@ -440,6 +450,13 @@ func BenchmarkCopyFat512(b *testing.B) {
 		_ = y
 	}
 }
+func BenchmarkCopyFat520(b *testing.B) {
+	var x [520 / 4]uint32
+	for i := 0; i < b.N; i++ {
+		y := x
+		_ = y
+	}
+}
 func BenchmarkCopyFat1024(b *testing.B) {
 	var x [1024 / 4]uint32
 	for i := 0; i < b.N; i++ {
@@ -447,3 +464,22 @@ func BenchmarkCopyFat1024(b *testing.B) {
 		_ = y
 	}
 }
+
+func BenchmarkIssue18740(b *testing.B) {
+	// This tests that memmove uses one 4-byte load/store to move 4 bytes.
+	// It used to do 2 2-byte load/stores, which leads to a pipeline stall
+	// when we try to read the result with one 4-byte load.
+	var buf [4]byte
+	for j := 0; j < b.N; j++ {
+		s := uint32(0)
+		for i := 0; i < 4096; i += 4 {
+			copy(buf[:], g[i:])
+			s += binary.LittleEndian.Uint32(buf[:])
+		}
+		sink = uint64(s)
+	}
+}
+
+// TODO: 2 byte and 8 byte benchmarks also.
+
+var g [4096]byte

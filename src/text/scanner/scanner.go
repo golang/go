@@ -166,7 +166,8 @@ type Scanner struct {
 	// The Filename field is always left untouched by the Scanner.
 	// If an error is reported (via Error) and Position is invalid,
 	// the scanner is not inside a token. Call Pos to obtain an error
-	// position in that case.
+	// position in that case, or to obtain the position immediately
+	// after the most recently scanned token.
 	Position
 }
 
@@ -382,6 +383,9 @@ func (s *Scanner) scanExponent(ch rune) rune {
 		ch = s.next()
 		if ch == '-' || ch == '+' {
 			ch = s.next()
+		}
+		if !isDecimal(ch) {
+			s.error("illegal exponent")
 		}
 		ch = s.scanMantissa(ch)
 	}
@@ -620,7 +624,7 @@ redo:
 		case '`':
 			if s.Mode&ScanRawStrings != 0 {
 				s.scanRawString()
-				tok = String
+				tok = RawString
 			}
 			ch = s.next()
 		default:
@@ -637,6 +641,8 @@ redo:
 
 // Pos returns the position of the character immediately after
 // the character or token returned by the last call to Next or Scan.
+// Use the Scanner's Position field for the start position of the most
+// recently scanned token.
 func (s *Scanner) Pos() (pos Position) {
 	pos.Filename = s.Filename
 	pos.Offset = s.srcBufOffset + s.srcPos - s.lastCharLen

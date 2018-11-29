@@ -39,7 +39,7 @@ func (c *sigctxt) lr() uint32  { return c.regs().lr }
 func (c *sigctxt) pc() uint32 { return c.regs().pc }
 
 func (c *sigctxt) cpsr() uint32    { return c.regs().cpsr }
-func (c *sigctxt) fault() uint32   { return c.regs().fault_address }
+func (c *sigctxt) fault() uintptr  { return uintptr(c.regs().fault_address) }
 func (c *sigctxt) trap() uint32    { return c.regs().trap_no }
 func (c *sigctxt) error() uint32   { return c.regs().error_code }
 func (c *sigctxt) oldmask() uint32 { return c.regs().oldmask }
