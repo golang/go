@@ -77,6 +77,7 @@ func parse(fset *token.FileSet, base token.Pos, text string) ([]*Note, error) {
 	var scanErr error
 	s := new(scanner.Scanner).Init(strings.NewReader(text))
 	s.Mode = scanner.GoTokens
+	s.Whitespace ^= 1 << '\n' // don't skip new lines
 	s.Error = func(s *scanner.Scanner, msg string) {
 		scanErr = fmt.Errorf("%v:%s", fset.Position(base+token.Pos(s.Position.Offset)), msg)
 	}
@@ -100,10 +101,13 @@ func parseComment(s *scanner.Scanner) ([]*Note, error) {
 		if err != nil {
 			return nil, err
 		}
-		notes = append(notes, n)
-		tok := s.Scan()
+		var tok rune = scanner.EOF
+		if n != nil {
+			notes = append(notes, n)
+			tok = s.Scan()
+		}
 		switch tok {
-		case ',':
+		case ',', '\n':
 			// continue
 		case scanner.EOF:
 			return notes, nil
@@ -114,7 +118,11 @@ func parseComment(s *scanner.Scanner) ([]*Note, error) {
 }
 
 func parseNote(s *scanner.Scanner) (*Note, error) {
-	if tok := s.Scan(); tok != scanner.Ident {
+	tok := s.Scan()
+	if tok == scanner.EOF || tok == '\n' {
+		return nil, nil
+	}
+	if tok != scanner.Ident {
 		return nil, fmt.Errorf("expected identifier, got %s", scanner.TokenString(tok))
 	}
 	n := &Note{
@@ -122,19 +130,17 @@ func parseNote(s *scanner.Scanner) (*Note, error) {
 		Name: s.TokenText(),
 	}
 	switch s.Peek() {
-	case ',', scanner.EOF:
+	case ',', '\n', scanner.EOF:
 		// no argument list present
 		return n, nil
 	case '(':
-		// parse the argument list
-		if tok := s.Scan(); tok != '(' {
-			return nil, fmt.Errorf("expected ( got %s", scanner.TokenString(tok))
+		s.Scan() // consume the '('
+		for s.Peek() == '\n' {
+			s.Scan() // consume all '\n'
 		}
 		// special case the empty argument list
 		if s.Peek() == ')' {
-			if tok := s.Scan(); tok != ')' {
-				return nil, fmt.Errorf("expected ) got %s", scanner.TokenString(tok))
-			}
+			s.Scan()                 // consume the ')'
 			n.Args = []interface{}{} // @name() is represented by a non-nil empty slice.
 			return n, nil
 		}
@@ -147,15 +153,13 @@ func parseNote(s *scanner.Scanner) (*Note, error) {
 			n.Args = append(n.Args, arg)
 			switch s.Peek() {
 			case ')':
-				if tok := s.Scan(); tok != ')' {
-					return nil, fmt.Errorf("expected ) got %s", scanner.TokenString(tok))
-				}
+				s.Scan() // consume the ')'
 				return n, nil
 			case ',':
-				if tok := s.Scan(); tok != ',' {
-					return nil, fmt.Errorf("expected , got %s", scanner.TokenString(tok))
+				s.Scan() // consume the ','
+				for s.Peek() == '\n' {
+					s.Scan() // consume all '\n'
 				}
-				// continue
 			default:
 				return nil, fmt.Errorf("unexpected %s parsing argument list", scanner.TokenString(s.Scan()))
 			}
