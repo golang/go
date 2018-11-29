@@ -22,5 +22,5 @@ const issue28772Constant = C.issue28772Constant
 func issue28545G(p **C.char) {
 	C.issue28545F(p, -1, (0))
 	C.issue28545F(p, 2+3, complex(1, 1))
-	C.issue28545F(p, issue28772Constant, (0))
+	C.issue28545F(p, issue28772Constant, issue28772Constant2)
 }
