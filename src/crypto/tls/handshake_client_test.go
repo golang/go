@@ -124,9 +124,8 @@ func (o *opensslOutputSink) Write(data []byte) (n int, err error) {
 	return len(data), nil
 }
 
-func (o *opensslOutputSink) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(o.all)
-	return int64(n), err
+func (o *opensslOutputSink) String() string {
+	return string(o.all)
 }
 
 // clientTest represents a test of the TLS client handshake against a reference
@@ -275,9 +274,9 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 	}
 	if err != nil {
 		close(stdin)
-		out.WriteTo(os.Stdout)
 		cmd.Process.Kill()
-		return nil, nil, nil, nil, cmd.Wait()
+		err = fmt.Errorf("error connecting to the OpenSSL server: %v (%v)\n\n%s", err, cmd.Wait(), out)
+		return nil, nil, nil, nil, err
 	}
 
 	record := &recordingConn{
@@ -316,11 +315,20 @@ func (test *clientTest) run(t *testing.T, write bool) {
 			t.Fatalf("Failed to start subcommand: %s", err)
 		}
 		clientConn = recordingConn
+		defer func() {
+			if t.Failed() {
+				t.Logf("OpenSSL output:\n\n%s", stdout.all)
+			}
+		}()
 	} else {
 		clientConn, serverConn = localPipe(t)
 	}
 
 	doneChan := make(chan bool)
+	defer func() {
+		clientConn.Close()
+		<-doneChan
+	}()
 	go func() {
 		defer close(doneChan)
 
@@ -488,11 +496,10 @@ func (test *clientTest) run(t *testing.T, write bool) {
 		childProcess.Process.Kill()
 		childProcess.Wait()
 		if len(recordingConn.flows) < 3 {
-			os.Stdout.Write(stdout.all)
 			t.Fatalf("Client connection didn't work")
 		}
 		recordingConn.WriteTo(out)
-		fmt.Printf("Wrote %s\n", path)
+		t.Logf("Wrote %s\n", path)
 	}
 }
 
@@ -745,7 +752,7 @@ func TestHandshakeClientCertRSA(t *testing.T) {
 
 	test := &clientTest{
 		name:   "ClientCert-RSA-RSA",
-		args:   []string{"-cipher", "AES128", "-verify", "1"},
+		args:   []string{"-cipher", "AES128", "-Verify", "1"},
 		config: config,
 	}
 
@@ -754,7 +761,7 @@ func TestHandshakeClientCertRSA(t *testing.T) {
 
 	test = &clientTest{
 		name:   "ClientCert-RSA-ECDSA",
-		args:   []string{"-cipher", "ECDHE-ECDSA-AES128-SHA", "-verify", "1"},
+		args:   []string{"-cipher", "ECDHE-ECDSA-AES128-SHA", "-Verify", "1"},
 		config: config,
 		cert:   testECDSACertificate,
 		key:    testECDSAPrivateKey,
@@ -766,7 +773,7 @@ func TestHandshakeClientCertRSA(t *testing.T) {
 
 	test = &clientTest{
 		name:   "ClientCert-RSA-AES256-GCM-SHA384",
-		args:   []string{"-cipher", "ECDHE-RSA-AES256-GCM-SHA384", "-verify", "1"},
+		args:   []string{"-cipher", "ECDHE-RSA-AES256-GCM-SHA384", "-Verify", "1"},
 		config: config,
 		cert:   testRSACertificate,
 		key:    testRSAPrivateKey,
@@ -782,7 +789,7 @@ func TestHandshakeClientCertECDSA(t *testing.T) {
 
 	test := &clientTest{
 		name:   "ClientCert-ECDSA-RSA",
-		args:   []string{"-cipher", "AES128", "-verify", "1"},
+		args:   []string{"-cipher", "AES128", "-Verify", "1"},
 		config: config,
 	}
 
@@ -792,7 +799,7 @@ func TestHandshakeClientCertECDSA(t *testing.T) {
 
 	test = &clientTest{
 		name:   "ClientCert-ECDSA-ECDSA",
-		args:   []string{"-cipher", "ECDHE-ECDSA-AES128-SHA", "-verify", "1"},
+		args:   []string{"-cipher", "ECDHE-ECDSA-AES128-SHA", "-Verify", "1"},
 		config: config,
 		cert:   testECDSACertificate,
 		key:    testECDSAPrivateKey,
@@ -822,7 +829,7 @@ func TestHandshakeClientCertRSAPSS(t *testing.T) {
 
 	test := &clientTest{
 		name: "ClientCert-RSA-RSAPSS",
-		args: []string{"-cipher", "AES128", "-verify", "1", "-client_sigalgs",
+		args: []string{"-cipher", "AES128", "-Verify", "1", "-client_sigalgs",
 			"rsa_pss_rsae_sha256", "-sigalgs", "rsa_pss_rsae_sha256"},
 		config: config,
 		cert:   testRSAPSSCertificate,
@@ -840,7 +847,7 @@ func TestHandshakeClientCertRSAPKCS1v15(t *testing.T) {
 
 	test := &clientTest{
 		name: "ClientCert-RSA-RSAPKCS1v15",
-		args: []string{"-cipher", "AES128", "-verify", "1", "-client_sigalgs",
+		args: []string{"-cipher", "AES128", "-Verify", "1", "-client_sigalgs",
 			"rsa_pkcs1_sha256", "-sigalgs", "rsa_pkcs1_sha256"},
 		config: config,
 	}

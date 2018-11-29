@@ -291,7 +291,7 @@ type ClientSessionCache interface {
 type SignatureScheme uint16
 
 const (
-	PKCS1WithSHA1   SignatureScheme = 0x0201
+	// RSASSA-PKCS1-v1_5 algorithms.
 	PKCS1WithSHA256 SignatureScheme = 0x0401
 	PKCS1WithSHA384 SignatureScheme = 0x0501
 	PKCS1WithSHA512 SignatureScheme = 0x0601
@@ -301,11 +301,13 @@ const (
 	PSSWithSHA384 SignatureScheme = 0x0805
 	PSSWithSHA512 SignatureScheme = 0x0806
 
+	// ECDSA algorithms. Only constrained to a specific curve in TLS 1.3.
 	ECDSAWithP256AndSHA256 SignatureScheme = 0x0403
 	ECDSAWithP384AndSHA384 SignatureScheme = 0x0503
 	ECDSAWithP521AndSHA512 SignatureScheme = 0x0603
 
 	// Legacy signature and hash algorithms for TLS 1.2.
+	PKCS1WithSHA1 SignatureScheme = 0x0201
 	ECDSAWithSHA1 SignatureScheme = 0x0203
 )
 
@@ -917,11 +919,10 @@ var writerMutex sync.Mutex
 // A Certificate is a chain of one or more certificates, leaf first.
 type Certificate struct {
 	Certificate [][]byte
-	// PrivateKey contains the private key corresponding to the public key
-	// in Leaf. For a server, this must implement crypto.Signer and/or
-	// crypto.Decrypter, with an RSA or ECDSA PublicKey. For a client
-	// (performing client authentication), this must be a crypto.Signer
-	// with an RSA or ECDSA PublicKey.
+	// PrivateKey contains the private key corresponding to the public key in
+	// Leaf. This must implement crypto.Signer with an RSA or ECDSA PublicKey.
+	// For a server up to TLS 1.2, it can also implement crypto.Decrypter with
+	// an RSA PublicKey.
 	PrivateKey crypto.PrivateKey
 	// OCSPStaple contains an optional OCSP response which will be served
 	// to clients that request it.
