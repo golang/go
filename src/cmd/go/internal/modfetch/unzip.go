@@ -12,7 +12,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"cmd/go/internal/modfetch/codehost"
@@ -98,18 +97,12 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 	}
 
 	// Unzip, enforcing sizes checked earlier.
-	dirs := map[string]bool{dir: true}
 	for _, zf := range z.File {
 		if zf.Name == prefix || strings.HasSuffix(zf.Name, "/") {
 			continue
 		}
 		name := zf.Name[len(prefix):]
 		dst := filepath.Join(dir, name)
-		parent := filepath.Dir(dst)
-		for parent != dir {
-			dirs[parent] = true
-			parent = filepath.Dir(parent)
-		}
 		if err := os.MkdirAll(filepath.Dir(dst), 0777); err != nil {
 			return err
 		}
@@ -137,19 +130,30 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 		}
 	}
 
-	// Mark directories unwritable, best effort.
-	var dirlist []string
-	for dir := range dirs {
-		dirlist = append(dirlist, dir)
-	}
-	sort.Strings(dirlist)
-	// Run over list backward to chmod children before parents.
-	for i := len(dirlist) - 1; i >= 0; i-- {
-		// TODO(bcmills): Does this end up stomping on the umask of the cache directory?
-		os.Chmod(dirlist[i], 0555)
-	}
-
 	return nil
+}
+
+// makeDirsReadOnly makes a best-effort attempt to remove write permissions for dir
+// and its transitive contents.
+func makeDirsReadOnly(dir string) {
+	type pathMode struct {
+		path string
+		mode os.FileMode
+	}
+	var dirs []pathMode // in lexical order
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err == nil && info.Mode()&0222 != 0 {
+			if info.IsDir() {
+				dirs = append(dirs, pathMode{path, info.Mode()})
+			}
+		}
+		return nil
+	})
+
+	// Run over list backward to chmod children before parents.
+	for i := len(dirs) - 1; i >= 0; i-- {
+		os.Chmod(dirs[i].path, dirs[i].mode&^0222)
+	}
 }
 
 // RemoveAll removes a directory written by Download or Unzip, first applying
