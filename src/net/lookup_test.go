@@ -618,6 +618,9 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 }
 
 func TestLookupDotsWithRemoteSource(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		testenv.SkipFlaky(t, 27992)
+	}
 	mustHaveExternalNetwork(t)
 
 	if !supportsIPv4() || !*testIPv4 {
