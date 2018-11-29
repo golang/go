@@ -369,7 +369,7 @@ func (hs *serverHandshakeStateTLS13) pickCertificate() error {
 		c.sendAlert(alertInternalError)
 		return err
 	}
-	supportedAlgs := signatureSchemesForCertificate(certificate)
+	supportedAlgs := signatureSchemesForCertificate(c.vers, certificate)
 	if supportedAlgs == nil {
 		c.sendAlert(alertInternalError)
 		return fmt.Errorf("tls: unsupported certificate key (%T)", certificate.PrivateKey)
@@ -383,6 +383,8 @@ func (hs *serverHandshakeStateTLS13) pickCertificate() error {
 		}
 	}
 	if hs.sigAlg == 0 {
+		// getCertificate returned a certificate incompatible with the
+		// ClientHello supported signature algorithms.
 		c.sendAlert(alertHandshakeFailure)
 		return errors.New("tls: client doesn't support selected certificate")
 	}
@@ -623,10 +625,7 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 	sigType := signatureFromSignatureScheme(hs.sigAlg)
 	sigHash, err := hashFromSignatureScheme(hs.sigAlg)
 	if sigType == 0 || err != nil {
-		// getCertificate returned a certificate incompatible with the
-		// ClientHello supported signature algorithms.
-		c.sendAlert(alertInternalError)
-		return err
+		return c.sendAlert(alertInternalError)
 	}
 	h := sigHash.New()
 	writeSignedMessage(h, serverSignatureContext, hs.transcript)

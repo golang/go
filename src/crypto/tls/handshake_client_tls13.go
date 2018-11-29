@@ -548,7 +548,7 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 		return err
 	}
 
-	// If the client is sending an empty certificate message, skip the CertificateVerify.
+	// If we sent an empty certificate message, skip the CertificateVerify.
 	if len(cert.Certificate) == 0 {
 		return nil
 	}
@@ -556,7 +556,7 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 	certVerifyMsg := new(certificateVerifyMsg)
 	certVerifyMsg.hasSignatureAlgorithm = true
 
-	supportedAlgs := signatureSchemesForCertificate(cert)
+	supportedAlgs := signatureSchemesForCertificate(c.vers, cert)
 	if supportedAlgs == nil {
 		c.sendAlert(alertInternalError)
 		return fmt.Errorf("tls: unsupported certificate key (%T)", cert.PrivateKey)
@@ -569,14 +569,17 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 			break
 		}
 	}
+	if certVerifyMsg.signatureAlgorithm == 0 {
+		// getClientCertificate returned a certificate incompatible with the
+		// CertificateRequestInfo supported signature algorithms.
+		c.sendAlert(alertHandshakeFailure)
+		return errors.New("tls: server doesn't support selected certificate")
+	}
 
 	sigType := signatureFromSignatureScheme(certVerifyMsg.signatureAlgorithm)
 	sigHash, err := hashFromSignatureScheme(certVerifyMsg.signatureAlgorithm)
 	if sigType == 0 || err != nil {
-		// getClientCertificate returned a certificate incompatible with the
-		// CertificateRequestInfo supported signature algorithms.
-		c.sendAlert(alertInternalError)
-		return err
+		return c.sendAlert(alertInternalError)
 	}
 	h := sigHash.New()
 	writeSignedMessage(h, clientSignatureContext, hs.transcript)
