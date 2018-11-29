@@ -120,7 +120,14 @@ func download(mod module.Version, dir string) (err error) {
 		return err
 	}
 
-	return os.Rename(tmpDir, dir)
+	if err := os.Rename(tmpDir, dir); err != nil {
+		return err
+	}
+
+	// Make dir read-only only *after* renaming it.
+	// os.Rename was observed to fail for read-only directories on macOS.
+	makeDirsReadOnly(dir)
+	return nil
 }
 
 var downloadZipCache par.Cache
