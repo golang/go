@@ -10,7 +10,6 @@ import (
 	"crypto/hmac"
 	"crypto/rsa"
 	"errors"
-	"fmt"
 	"hash"
 	"sync/atomic"
 	"time"
@@ -559,7 +558,7 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 	supportedAlgs := signatureSchemesForCertificate(c.vers, cert)
 	if supportedAlgs == nil {
 		c.sendAlert(alertInternalError)
-		return fmt.Errorf("tls: unsupported certificate key (%T)", cert.PrivateKey)
+		return unsupportedCertificateError(cert)
 	}
 	// Pick signature scheme in server preference order, as the client
 	// preference order is not configurable.
