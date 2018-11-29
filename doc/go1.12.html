@@ -66,6 +66,48 @@ Go 1.13 will require macOS 10.11 El Capitan or later.
   has no effect in Go 1.12.
 </p>
 
+<h3 id="compiler">Compiler toolchain</h3>
+
+<p><!-- CL 134155, 134156 -->
+  The compiler's live variable analysis has improved. This may mean that
+  finalizers will be executed sooner in this release than in previous
+  releases. If that is a problem, consider the appropriate addition of a
+  <a href="/pkg/runtime/#KeepAlive"><code>runtime.KeepAlive</code></a> call.
+</p>
+
+<p><!-- CL 147361 -->
+  More functions are now eligible for inlining by default, including
+  functions that do nothing but call another function.
+  This extra inlining makes it additionally important to use
+  <a href="/pkg/runtime/#CallersFrames"><code>runtime.CallersFrames</code></a>
+  instead of iterating over the result of
+  <a href="/pkg/runtime/#Callers"><code>runtime.Callers</code></a> directly.
+<pre>
+// Old code which no longer works correctly (it will miss inlined call frames).
+var pcs [10]uintptr
+n := runtime.Callers(1, pcs[:])
+for _, pc := range pcs[:n] {
+	f := runtime.FuncForPC(pc)
+	if f != nil {
+		fmt.Println(f.Name())
+	}
+}
+</pre>
+<pre>
+// New code which will work correctly.
+var pcs [10]uintptr
+n := runtime.Callers(1, pcs[:])
+frames := runtime.CallersFrames(pcs[:n])
+for {
+	frame, more := frames.Next()
+	fmt.Println(frame.Function)
+	if !more {
+		break
+	}
+}
+</pre>
+</p>
+
 <h3 id="godoc">Godoc</h3>
 
 <p>
