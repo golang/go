@@ -131,3 +131,26 @@ func ReadVarint(r io.ByteReader) (int64, error) {
 	}
 	return x, err
 }
+
+// WriteUvarint encodes a uint64 onto w
+func WriteUvarint(w io.ByteWriter, x uint64) error {
+	i := 0
+	for x >= 0x80 {
+		err := w.WriteByte(byte(x) | 0x80)
+		if err != nil {
+			return err
+		}
+		x >>= 7
+		i++
+	}
+	return w.WriteByte(byte(x))
+}
+
+// WriteVarint encodes an int64 onto w
+func WriteVarint(w io.ByteWriter, x int64) error {
+	ux := uint64(x) << 1
+	if x < 0 {
+		ux = ^ux
+	}
+	return WriteUvarint(w, ux)
+}
