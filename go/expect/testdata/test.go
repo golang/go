@@ -25,6 +25,13 @@ func someFunc(a, b int) int {
 }
 
 // And some extra checks for interesting action parameters
-//@check(αSimpleMarker)
-//@check(StringAndInt, "Number %d", 12)
-//@check(Bool, true)
+// Also checks for multi-line expectations
+/*@
+check(αSimpleMarker)
+check(StringAndInt,
+	"Number %d",
+	12,
+)
+
+check(Bool, true)
+*/

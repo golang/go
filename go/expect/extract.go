@@ -73,153 +73,191 @@ func Extract(fset *token.FileSet, file *ast.File) ([]*Note, error) {
 	return notes, nil
 }
 
+const invalidToken rune = 0
+
+type tokens struct {
+	scanner scanner.Scanner
+	current rune
+	err     error
+	base    token.Pos
+}
+
+func (t *tokens) Init(base token.Pos, text string) *tokens {
+	t.base = base
+	t.scanner.Init(strings.NewReader(text))
+	t.scanner.Mode = scanner.GoTokens
+	t.scanner.Whitespace ^= 1 << '\n' // don't skip new lines
+	t.scanner.Error = func(s *scanner.Scanner, msg string) {
+		t.Errorf("%v", msg)
+	}
+	return t
+}
+
+func (t *tokens) Consume() string {
+	t.current = invalidToken
+	return t.scanner.TokenText()
+}
+
+func (t *tokens) Token() rune {
+	if t.err != nil {
+		return scanner.EOF
+	}
+	if t.current == invalidToken {
+		t.current = t.scanner.Scan()
+	}
+	return t.current
+}
+
+func (t *tokens) Skip(r rune) int {
+	i := 0
+	for t.Token() == '\n' {
+		t.Consume()
+		i++
+	}
+	return i
+}
+
+func (t *tokens) TokenString() string {
+	return scanner.TokenString(t.Token())
+}
+
+func (t *tokens) Pos() token.Pos {
+	return t.base + token.Pos(t.scanner.Position.Offset)
+}
+
+func (t *tokens) Errorf(msg string, args ...interface{}) {
+	if t.err != nil {
+		return
+	}
+	t.err = fmt.Errorf(msg, args...)
+}
+
 func parse(fset *token.FileSet, base token.Pos, text string) ([]*Note, error) {
-	var scanErr error
-	s := new(scanner.Scanner).Init(strings.NewReader(text))
-	s.Mode = scanner.GoTokens
-	s.Whitespace ^= 1 << '\n' // don't skip new lines
-	s.Error = func(s *scanner.Scanner, msg string) {
-		scanErr = fmt.Errorf("%v:%s", fset.Position(base+token.Pos(s.Position.Offset)), msg)
-	}
-	notes, err := parseComment(s)
-	if err != nil {
-		return nil, fmt.Errorf("%v:%s", fset.Position(base+token.Pos(s.Position.Offset)), err)
-	}
-	if scanErr != nil {
-		return nil, scanErr
-	}
-	for _, n := range notes {
-		n.Pos += base
+	t := new(tokens).Init(base, text)
+	notes := parseComment(t)
+	if t.err != nil {
+		return nil, fmt.Errorf("%v:%s", fset.Position(t.Pos()), t.err)
 	}
 	return notes, nil
 }
 
-func parseComment(s *scanner.Scanner) ([]*Note, error) {
+func parseComment(t *tokens) []*Note {
 	var notes []*Note
 	for {
-		n, err := parseNote(s)
-		if err != nil {
-			return nil, err
-		}
-		var tok rune = scanner.EOF
-		if n != nil {
-			notes = append(notes, n)
-			tok = s.Scan()
-		}
-		switch tok {
-		case ',', '\n':
-			// continue
+		t.Skip('\n')
+		switch t.Token() {
 		case scanner.EOF:
-			return notes, nil
+			return notes
+		case scanner.Ident:
+			notes = append(notes, parseNote(t))
 		default:
-			return nil, fmt.Errorf("unexpected %s parsing comment", scanner.TokenString(tok))
+			t.Errorf("unexpected %s parsing comment, expect identifier", t.TokenString())
+			return nil
+		}
+		switch t.Token() {
+		case scanner.EOF:
+			return notes
+		case ',', '\n':
+			t.Consume()
+		default:
+			t.Errorf("unexpected %s parsing comment, expect separator", t.TokenString())
+			return nil
 		}
 	}
 }
 
-func parseNote(s *scanner.Scanner) (*Note, error) {
-	tok := s.Scan()
-	if tok == scanner.EOF || tok == '\n' {
-		return nil, nil
-	}
-	if tok != scanner.Ident {
-		return nil, fmt.Errorf("expected identifier, got %s", scanner.TokenString(tok))
-	}
+func parseNote(t *tokens) *Note {
 	n := &Note{
-		Pos:  token.Pos(s.Position.Offset),
-		Name: s.TokenText(),
+		Pos:  t.Pos(),
+		Name: t.Consume(),
 	}
-	switch s.Peek() {
+
+	switch t.Token() {
 	case ',', '\n', scanner.EOF:
 		// no argument list present
-		return n, nil
+		return n
 	case '(':
-		s.Scan() // consume the '('
-		for s.Peek() == '\n' {
-			s.Scan() // consume all '\n'
-		}
-		// special case the empty argument list
-		if s.Peek() == ')' {
-			s.Scan()                 // consume the ')'
-			n.Args = []interface{}{} // @name() is represented by a non-nil empty slice.
-			return n, nil
-		}
-		// handle a normal argument list
-		for {
-			arg, err := parseArgument(s)
-			if err != nil {
-				return nil, err
-			}
-			n.Args = append(n.Args, arg)
-			switch s.Peek() {
-			case ')':
-				s.Scan() // consume the ')'
-				return n, nil
-			case ',':
-				s.Scan() // consume the ','
-				for s.Peek() == '\n' {
-					s.Scan() // consume all '\n'
-				}
-			default:
-				return nil, fmt.Errorf("unexpected %s parsing argument list", scanner.TokenString(s.Scan()))
-			}
-		}
+		n.Args = parseArgumentList(t)
+		return n
 	default:
-		return nil, fmt.Errorf("unexpected %s parsing note", scanner.TokenString(s.Scan()))
+		t.Errorf("unexpected %s parsing note", t.TokenString())
+		return nil
 	}
 }
 
-func parseArgument(s *scanner.Scanner) (interface{}, error) {
-	tok := s.Scan()
-	switch tok {
+func parseArgumentList(t *tokens) []interface{} {
+	args := []interface{}{} // @name() is represented by a non-nil empty slice.
+	t.Consume()             // '('
+	t.Skip('\n')
+	for t.Token() != ')' {
+		args = append(args, parseArgument(t))
+		if t.Token() != ',' {
+			break
+		}
+		t.Consume()
+		t.Skip('\n')
+	}
+	if t.Token() != ')' {
+		t.Errorf("unexpected %s parsing argument list", t.TokenString())
+		return nil
+	}
+	t.Consume() // ')'
+	return args
+}
+
+func parseArgument(t *tokens) interface{} {
+	switch t.Token() {
 	case scanner.Ident:
-		v := s.TokenText()
+		v := t.Consume()
 		switch v {
 		case "true":
-			return true, nil
+			return true
 		case "false":
-			return false, nil
+			return false
 		case "nil":
-			return nil, nil
+			return nil
 		case "re":
-			tok := s.Scan()
-			switch tok {
-			case scanner.String, scanner.RawString:
-				pattern, _ := strconv.Unquote(s.TokenText()) // can't fail
-				re, err := regexp.Compile(pattern)
-				if err != nil {
-					return nil, fmt.Errorf("invalid regular expression %s: %v", pattern, err)
-				}
-				return re, nil
-			default:
-				return nil, fmt.Errorf("re must be followed by string, got %s", scanner.TokenString(tok))
+			if t.Token() != scanner.String && t.Token() != scanner.RawString {
+				t.Errorf("re must be followed by string, got %s", t.TokenString())
+				return nil
 			}
+			pattern, _ := strconv.Unquote(t.Consume()) // can't fail
+			re, err := regexp.Compile(pattern)
+			if err != nil {
+				t.Errorf("invalid regular expression %s: %v", pattern, err)
+				return nil
+			}
+			return re
 		default:
-			return Identifier(v), nil
+			return Identifier(v)
 		}
 
 	case scanner.String, scanner.RawString:
-		v, _ := strconv.Unquote(s.TokenText()) // can't fail
-		return v, nil
+		v, _ := strconv.Unquote(t.Consume()) // can't fail
+		return v
 
 	case scanner.Int:
-		v, err := strconv.ParseInt(s.TokenText(), 0, 0)
+		s := t.Consume()
+		v, err := strconv.ParseInt(s, 0, 0)
 		if err != nil {
-			return nil, fmt.Errorf("cannot convert %v to int: %v", s.TokenText(), err)
+			t.Errorf("cannot convert %v to int: %v", s, err)
 		}
-		return v, nil
+		return v
 
 	case scanner.Float:
-		v, err := strconv.ParseFloat(s.TokenText(), 64)
+		s := t.Consume()
+		v, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			return nil, fmt.Errorf("cannot convert %v to float: %v", s.TokenText(), err)
+			t.Errorf("cannot convert %v to float: %v", s, err)
 		}
-		return v, nil
+		return v
 
 	case scanner.Char:
-		return nil, fmt.Errorf("unexpected char literal %s", s.TokenText())
+		t.Errorf("unexpected char literal %s", t.Consume())
+		return nil
 
 	default:
-		return nil, fmt.Errorf("unexpected %s parsing argument", scanner.TokenString(tok))
+		t.Errorf("unexpected %s parsing argument", t.TokenString())
+		return nil
 	}
 }
