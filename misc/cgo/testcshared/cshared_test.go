@@ -602,3 +602,46 @@ func copyFile(t *testing.T, dst, src string) {
 		t.Fatal(err)
 	}
 }
+
+func TestGo2C2Go(t *testing.T) {
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "cshared-TestGo2C2Go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	shlib := filepath.Join(tmpdir, "libtestgo2c2go."+libSuffix)
+	run(t, gopathEnv, "go", "build", "-buildmode=c-shared", "-o", shlib, "go2c2go/go")
+
+	cgoCflags := os.Getenv("CGO_CFLAGS")
+	if cgoCflags != "" {
+		cgoCflags += " "
+	}
+	cgoCflags += "-I" + tmpdir
+
+	cgoLdflags := os.Getenv("CGO_LDFLAGS")
+	if cgoLdflags != "" {
+		cgoLdflags += " "
+	}
+	cgoLdflags += "-L" + tmpdir + " -ltestgo2c2go"
+
+	goenv := append(gopathEnv[:len(gopathEnv):len(gopathEnv)], "CGO_CFLAGS="+cgoCflags, "CGO_LDFLAGS="+cgoLdflags)
+
+	ldLibPath := os.Getenv("LD_LIBRARY_PATH")
+	if ldLibPath != "" {
+		ldLibPath += ":"
+	}
+	ldLibPath += tmpdir
+
+	runenv := append(gopathEnv[:len(gopathEnv):len(gopathEnv)], "LD_LIBRARY_PATH="+ldLibPath)
+
+	bin := filepath.Join(tmpdir, "m1") + exeSuffix
+	run(t, goenv, "go", "build", "-o", bin, "go2c2go/m1")
+	runExe(t, runenv, bin)
+
+	bin = filepath.Join(tmpdir, "m2") + exeSuffix
+	run(t, goenv, "go", "build", "-o", bin, "go2c2go/m2")
+	runExe(t, runenv, bin)
+}
