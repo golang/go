@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"testing"
 )
 
@@ -120,6 +122,25 @@ func TestObjImporter(t *testing.T) {
 		t.Skip("This test needs gccgo")
 	}
 
+	verout, err := exec.Command(gpath, "--version").CombinedOutput()
+	if err != nil {
+		t.Logf("%s", verout)
+		t.Fatal(err)
+	}
+	vers := regexp.MustCompile(`([0-9]+)\.([0-9]+)`).FindSubmatch(verout)
+	if len(vers) == 0 {
+		t.Fatalf("could not find version number in %s", verout)
+	}
+	major, err := strconv.Atoi(string(vers[1]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	minor, err := strconv.Atoi(string(vers[2]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("gccgo version %d.%d", major, minor)
+
 	tmpdir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
@@ -135,6 +156,14 @@ func TestObjImporter(t *testing.T) {
 	arimp := GetImporter([]string{artmpdir}, arinitmap)
 
 	for _, test := range importerTests {
+		// Support for type aliases was added in GCC 7.
+		if test.pkgpath == "aliases" || test.pkgpath == "issue27856" {
+			if major < 7 {
+				t.Logf("skipping %q: not supported before gccgo version 7", test.pkgpath)
+				continue
+			}
+		}
+
 		gofile := filepath.Join("testdata", test.pkgpath+".go")
 		if _, err := os.Stat(gofile); os.IsNotExist(err) {
 			continue
