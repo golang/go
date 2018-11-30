@@ -29,7 +29,28 @@ type parser struct {
 	imports  map[string]*types.Package // package path -> package object
 	typeList []types.Type              // type number -> type
 	typeData []string                  // unparsed type data (v3 and later)
+	fixups   []fixupRecord             // fixups to apply at end of parsing
 	initdata InitData                  // package init priority data
+}
+
+// When reading V1 export data it's possible to encounter a defined
+// type N1 with an underlying defined type N2 while we are still
+// reading in that defined type N2; see issue #29006 for an instance
+// of this. Example:
+//
+//   type N1 N2
+//   type N2 struct {
+//      ...
+//      p *N1
+//   }
+//
+// To handle such cases, the parser generates a fixup record (below) and
+// delays setting of N1's underlying type until parsing is complete, at
+// which point fixups are applied.
+
+type fixupRecord struct {
+	toUpdate *types.Named // type to modify when fixup is processed
+	target   types.Type   // type that was incomplete when fixup was created
 }
 
 func (p *parser) init(filename string, src io.Reader, imports map[string]*types.Package) {
@@ -504,7 +525,15 @@ func (p *parser) parseNamedType(nlist []int) types.Type {
 
 	underlying := p.parseType(pkg)
 	if nt.Underlying() == nil {
-		nt.SetUnderlying(underlying.Underlying())
+		if underlying.Underlying() == nil {
+			if p.version != "v1" {
+				p.errorf("internal error: unexpected fixup required for %v", nt)
+			}
+			fix := fixupRecord{toUpdate: nt, target: underlying}
+			p.fixups = append(p.fixups, fix)
+		} else {
+			nt.SetUnderlying(underlying.Underlying())
+		}
 	}
 
 	if p.tok == '\n' {
@@ -1175,6 +1204,13 @@ func (p *parser) parsePackage() *types.Package {
 	for p.tok != scanner.EOF {
 		p.parseDirective()
 	}
+	for _, f := range p.fixups {
+		if f.target.Underlying() == nil {
+			p.errorf("internal error: fixup can't be applied, loop required")
+		}
+		f.toUpdate.SetUnderlying(f.target.Underlying())
+	}
+	p.fixups = nil
 	for _, typ := range p.typeList {
 		if it, ok := typ.(*types.Interface); ok {
 			it.Complete()
