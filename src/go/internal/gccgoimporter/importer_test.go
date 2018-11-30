@@ -86,6 +86,7 @@ var importerTests = [...]importerTest{
 	{pkgpath: "aliases", name: "C0", want: "type C0 struct{f1 C1; f2 C1}"},
 	{pkgpath: "escapeinfo", name: "NewT", want: "func NewT(data []byte) *T"},
 	{pkgpath: "issue27856", name: "M", want: "type M struct{E F}"},
+	{pkgpath: "v1reflect", name: "Type", want: "type Type interface{Align() int; AssignableTo(u Type) bool; Bits() int; ChanDir() ChanDir; Elem() Type; Field(i int) StructField; FieldAlign() int; FieldByIndex(index []int) StructField; FieldByName(name string) (StructField, bool); FieldByNameFunc(match func(string) bool) (StructField, bool); Implements(u Type) bool; In(i int) Type; IsVariadic() bool; Key() Type; Kind() Kind; Len() int; Method(int) Method; MethodByName(string) (Method, bool); Name() string; NumField() int; NumIn() int; NumMethod() int; NumOut() int; Out(i int) Type; PkgPath() string; Size() uintptr; String() string; common() *commonType; rawString() string; runtimeType() *runtimeType; uncommon() *uncommonType}"},
 }
 
 func TestGoxImporter(t *testing.T) {
