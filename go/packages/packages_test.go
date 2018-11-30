@@ -824,8 +824,18 @@ func testOverlay(t *testing.T, exporter packagestest.Exporter) {
 		{map[string][]byte{}, `"abc"`, nil}, // empty overlay
 		{map[string][]byte{exported.File("golang.org/fake", "c/c.go"): []byte(`package c; const C = "C"`)}, `"abC"`, nil},
 		{map[string][]byte{exported.File("golang.org/fake", "b/b.go"): []byte(`package b; import "golang.org/fake/c"; const B = "B" + c.C`)}, `"aBc"`, nil},
-		{map[string][]byte{exported.File("golang.org/fake", "b/b.go"): []byte(`package b; import "d"; const B = "B" + d.D`)}, `unknown`,
-			[]string{`could not import d (no metadata for d)`}},
+		// Overlay with an existing file in an existing package adding a new import.
+		{map[string][]byte{exported.File("golang.org/fake", "b/b.go"): []byte(`package b; import "golang.org/fake/d"; const B = "B" + d.D`)}, `"aBd"`, nil},
+		// Overlay with a new file in an existing package.
+		{map[string][]byte{
+			exported.File("golang.org/fake", "c/c.go"):                                               []byte(`package c;`),
+			filepath.Join(filepath.Dir(exported.File("golang.org/fake", "c/c.go")), "c_new_file.go"): []byte(`package c; const C = "Ç"`)},
+			`"abÇ"`, nil},
+		// Overlay with a new file in an existing package, adding a new dependency to that package.
+		{map[string][]byte{
+			exported.File("golang.org/fake", "c/c.go"):                                               []byte(`package c;`),
+			filepath.Join(filepath.Dir(exported.File("golang.org/fake", "c/c.go")), "c_new_file.go"): []byte(`package c; import "golang.org/fake/d"; const C = "c" + d.D`)},
+			`"abcd"`, nil},
 	} {
 		exported.Config.Overlay = test.overlay
 		exported.Config.Mode = packages.LoadAllSyntax

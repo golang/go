@@ -118,10 +118,6 @@ extractQueries:
 	// types.SizesFor always returns nil or a *types.StdSizes
 	response.Sizes, _ = sizes.(*types.StdSizes)
 
-	if len(containFiles) == 0 && len(packagesNamed) == 0 {
-		return response, nil
-	}
-
 	seenPkgs := make(map[string]*Package) // for deduplication. different containing queries could produce same packages
 	for _, pkg := range response.Packages {
 		seenPkgs[pkg.ID] = pkg
@@ -134,18 +130,42 @@ extractQueries:
 		response.Packages = append(response.Packages, p)
 	}
 
-	containsResults, err := runContainsQueries(cfg, listfunc, isFallback, addPkg, containFiles)
-	if err != nil {
-		return nil, err
+	if len(containFiles) != 0 {
+		containsResults, err := runContainsQueries(cfg, listfunc, isFallback, addPkg, containFiles)
+		if err != nil {
+			return nil, err
+		}
+		response.Roots = append(response.Roots, containsResults...)
 	}
-	response.Roots = append(response.Roots, containsResults...)
 
-	namedResults, err := runNamedQueries(cfg, listfunc, addPkg, packagesNamed)
+	if len(packagesNamed) != 0 {
+		namedResults, err := runNamedQueries(cfg, listfunc, addPkg, packagesNamed)
+		if err != nil {
+			return nil, err
+		}
+		response.Roots = append(response.Roots, namedResults...)
+	}
+
+	needPkgs, err := processGolistOverlay(cfg, response)
 	if err != nil {
 		return nil, err
 	}
-	response.Roots = append(response.Roots, namedResults...)
+	if len(needPkgs) > 0 {
+		addNeededOverlayPackages(cfg, listfunc, addPkg, needPkgs)
+	}
+
 	return response, nil
+}
+
+func addNeededOverlayPackages(cfg *Config, driver driver, addPkg func(*Package), pkgs []string) error {
+	response, err := driver(cfg, pkgs...)
+	if err != nil {
+		return err
+	}
+	for _, pkg := range response.Packages {
+		addPkg(pkg)
+	}
+	return nil
 }
 
 func runContainsQueries(cfg *Config, driver driver, isFallback bool, addPkg func(*Package), queries []string) ([]string, error) {
