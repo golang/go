@@ -39,7 +39,7 @@ const (
 	inlineMaxBudget       = 80
 	inlineExtraAppendCost = 0
 	// default is to inline if there's at most one call. -l=4 overrides this by using 1 instead.
-	inlineExtraCallCost  = inlineMaxBudget * 3 / 4
+	inlineExtraCallCost  = 57              // 57 was benchmarked to provided most benefit with no bad surprises; see https://github.com/golang/go/issues/19348#issuecomment-439370742
 	inlineExtraPanicCost = 1               // do not penalize inlining panics.
 	inlineExtraThrowCost = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
 
