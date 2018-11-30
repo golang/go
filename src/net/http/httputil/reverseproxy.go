@@ -297,11 +297,6 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 	res.Body.Close() // close now, instead of defer, to populate res.Trailer
 
-	if len(res.Trailer) == announcedTrailers {
-		copyHeader(rw.Header(), res.Trailer)
-		return
-	}
-
 	if len(res.Trailer) > 0 {
 		// Force chunking if we saw a response trailer.
 		// This prevents net/http from calculating the length for short
@@ -309,6 +304,11 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		if fl, ok := rw.(http.Flusher); ok {
 			fl.Flush()
 		}
+	}
+
+	if len(res.Trailer) == announcedTrailers {
+		copyHeader(rw.Header(), res.Trailer)
+		return
 	}
 
 	for k, vv := range res.Trailer {
