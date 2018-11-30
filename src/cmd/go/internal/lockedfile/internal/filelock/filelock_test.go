@@ -8,6 +8,7 @@ package filelock_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -183,6 +184,8 @@ func TestRLockExcludesOnlyLock(t *testing.T) {
 }
 
 func TestLockNotDroppedByExecCommand(t *testing.T) {
+	testenv.MustHaveExec(t)
+
 	f, remove := mustTempFile(t)
 	defer remove()
 
