@@ -9,6 +9,11 @@ import (
 	"testing"
 )
 
+// importablePackages is a list of packages that we verify that we can
+// import. This should be all standard library packages in all relevant
+// versions of gccgo. Note that since gccgo follows a different release
+// cycle, and since different systems have different versions installed,
+// we can't use the last-two-versions rule of the gc toolchain.
 var importablePackages = [...]string{
 	"archive/tar",
 	"archive/zip",
@@ -55,7 +60,7 @@ var importablePackages = [...]string{
 	"encoding/binary",
 	"encoding/csv",
 	"encoding/gob",
-	"encoding",
+	// "encoding", // Added in GCC 4.9.
 	"encoding/hex",
 	"encoding/json",
 	"encoding/pem",
@@ -67,7 +72,7 @@ var importablePackages = [...]string{
 	"go/ast",
 	"go/build",
 	"go/doc",
-	"go/format",
+	// "go/format", // Added in GCC 4.8.
 	"go/parser",
 	"go/printer",
 	"go/scanner",
@@ -80,7 +85,7 @@ var importablePackages = [...]string{
 	"html",
 	"html/template",
 	"image/color",
-	"image/color/palette",
+	// "image/color/palette", // Added in GCC 4.9.
 	"image/draw",
 	"image/gif",
 	"image",
@@ -99,7 +104,7 @@ var importablePackages = [...]string{
 	"mime/multipart",
 	"net",
 	"net/http/cgi",
-	"net/http/cookiejar",
+	// "net/http/cookiejar", // Added in GCC 4.8.
 	"net/http/fcgi",
 	"net/http",
 	"net/http/httptest",
