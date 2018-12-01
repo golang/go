@@ -350,7 +350,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 				continue
 			}
 			ll := n.sepcopy()
-			if staticassign(ll, e.Expr, out) {
+			if staticcopy(ll, e.Expr, out) {
 				continue
 			}
 			// Requires computation, but we're
