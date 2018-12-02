@@ -70,6 +70,18 @@ func BenchmarkEfaceCmpDiff(b *testing.B) {
 	}
 }
 
+func BenchmarkEfaceCmpDiffIndirect(b *testing.B) {
+	efaceCmp1 = [2]int{1, 2}
+	efaceCmp2 = [2]int{1, 2}
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 100; j++ {
+			if efaceCmp1 != efaceCmp2 {
+				b.Fatal("bad comparison")
+			}
+		}
+	}
+}
+
 func BenchmarkDefer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		defer1()

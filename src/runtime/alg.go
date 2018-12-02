@@ -224,7 +224,10 @@ func efaceeq(t *_type, x, y unsafe.Pointer) bool {
 		panic(errorString("comparing uncomparable type " + t.string()))
 	}
 	if isDirectIface(t) {
-		return eq(noescape(unsafe.Pointer(&x)), noescape(unsafe.Pointer(&y)))
+		// Direct interface types are ptr, chan, map, func, and single-element structs/arrays thereof.
+		// Maps and funcs are not comparable, so they can't reach here.
+		// Ptrs, chans, and single-element items can be compared directly using ==.
+		return x == y
 	}
 	return eq(x, y)
 }
@@ -238,7 +241,8 @@ func ifaceeq(tab *itab, x, y unsafe.Pointer) bool {
 		panic(errorString("comparing uncomparable type " + t.string()))
 	}
 	if isDirectIface(t) {
-		return eq(noescape(unsafe.Pointer(&x)), noescape(unsafe.Pointer(&y)))
+		// See comment in efaceeq.
+		return x == y
 	}
 	return eq(x, y)
 }
