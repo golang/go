@@ -15,12 +15,15 @@ import (
 )
 
 // A Header represents the key-value pairs in an HTTP header.
+//
+// The keys should be in canonical form, as returned by
+// CanonicalHeaderKey.
 type Header map[string][]string
 
 // Add adds the key, value pair to the header.
 // It appends to any existing values associated with key.
 // The key is case insensitive; it is canonicalized by
-// textproto.CanonicalMIMEHeaderKey.
+// CanonicalHeaderKey.
 func (h Header) Add(key, value string) {
 	textproto.MIMEHeader(h).Add(key, value)
 }
@@ -61,7 +64,7 @@ func (h Header) has(key string) bool {
 
 // Del deletes the values associated with key.
 // The key is case insensitive; it is canonicalized by
-// textproto.CanonicalMIMEHeaderKey.
+// CanonicalHeaderKey.
 func (h Header) Del(key string) {
 	textproto.MIMEHeader(h).Del(key)
 }
