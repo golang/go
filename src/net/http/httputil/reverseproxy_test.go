@@ -7,23 +7,23 @@
 package httputil
 
 import (
-	"bufio"
-	"bytes"
-	"errors"
-	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"reflect"
-	"strconv"
-	"strings"
-	"sync"
 	"testing"
 	"time"
+	"reflect"
+	"io"
+	"strings"
+	"bufio"
+	"sync"
+	"strconv"
+	"bytes"
+	"errors"
+	"fmt"
+	"os"
 )
 
 const fakeHopHeader = "X-Fake-Hop-Header-For-Test"
@@ -1047,4 +1047,34 @@ func TestReverseProxyWebSocket(t *testing.T) {
 	if got != want {
 		t.Errorf("got %#q, want %#q", got, want)
 	}
+}
+
+func TestUnannouncedTrailer(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		w.Header().Set(http.TrailerPrefix+"X-Unannounced-Trailer", "unannounced_trailer_value")
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+	frontendClient := frontend.Client()
+
+	res, err := frontendClient.Get(frontend.URL)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+
+	ioutil.ReadAll(res.Body)
+
+	if g, w := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != w {
+		t.Errorf("Trailer(X-Unannounced-Trailer) = %q; want %q", g, w)
+	}
+
 }
