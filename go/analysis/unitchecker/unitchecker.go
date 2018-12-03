@@ -112,7 +112,7 @@ Usage of %[1]s:
 		os.Exit(0)
 	}
 	if len(args) != 1 || !strings.HasSuffix(args[0], ".cfg") {
-		log.Fatalf("invalid command: want .cfg file (this reduced version of %s is intended to be run only by the 'go vet' command)", progname)
+		log.Fatalf(`invoking "go tool vet" directly is unsupported; use "go vet"`)
 	}
 	Run(args[0], analyzers)
 }
