@@ -82,19 +82,23 @@ func buildModeInit() {
 		pkgsFilter = pkgsNotMain
 	case "c-archive":
 		pkgsFilter = oneMainPkg
-		switch platform {
-		case "darwin/arm", "darwin/arm64":
-			codegenArg = "-shared"
-		default:
-			switch cfg.Goos {
-			case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
-				if platform == "linux/ppc64" {
-					base.Fatalf("-buildmode=c-archive not supported on %s\n", platform)
-				}
-				// Use -shared so that the result is
-				// suitable for inclusion in a PIE or
-				// shared library.
+		if gccgo {
+			codegenArg = "-fPIC"
+		} else {
+			switch platform {
+			case "darwin/arm", "darwin/arm64":
 				codegenArg = "-shared"
+			default:
+				switch cfg.Goos {
+				case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+					if platform == "linux/ppc64" {
+						base.Fatalf("-buildmode=c-archive not supported on %s\n", platform)
+					}
+					// Use -shared so that the result is
+					// suitable for inclusion in a PIE or
+					// shared library.
+					codegenArg = "-shared"
+				}
 			}
 		}
 		cfg.ExeSuffix = ".a"
@@ -129,6 +133,9 @@ func buildModeInit() {
 		default:
 			ldBuildmode = "exe"
 		}
+		if gccgo {
+			codegenArg = ""
+		}
 	case "exe":
 		pkgsFilter = pkgsMain
 		ldBuildmode = "exe"
@@ -143,7 +150,7 @@ func buildModeInit() {
 			base.Fatalf("-buildmode=pie not supported when -race is enabled")
 		}
 		if gccgo {
-			base.Fatalf("-buildmode=pie not supported by gccgo")
+			codegenArg = "-fPIE"
 		} else {
 			switch platform {
 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
