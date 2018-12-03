@@ -47,7 +47,14 @@ type Package struct {
 	GccFiles    []string        // list of gcc output files
 	Preamble    string          // collected preamble for _cgo_export.h
 	typedefs    map[string]bool // type names that appear in the types of the objects we're interested in
-	typedefList []string
+	typedefList []typedefInfo
+}
+
+// A typedefInfo is an element on Package.typedefList: a typedef name
+// and the position where it was required.
+type typedefInfo struct {
+	typedef string
+	pos     token.Pos
 }
 
 // A File collects information about a single Go input file.
