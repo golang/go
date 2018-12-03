@@ -604,6 +604,12 @@ func copyFile(t *testing.T, dst, src string) {
 }
 
 func TestGo2C2Go(t *testing.T) {
+	if GOOS == "darwin" {
+		// Darwin shared libraries don't support the multiple
+		// copies of the runtime package implied by this test.
+		t.Skip("linking c-shared into Go programs not supported on Darwin; issue 29061")
+	}
+
 	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "cshared-TestGo2C2Go")
