@@ -144,7 +144,7 @@
 // 		link against shared libraries previously created with
 // 		-buildmode=shared.
 // 	-mod mode
-// 		module download mode to use: readonly, release, or vendor.
+// 		module download mode to use: readonly or vendor.
 // 		See 'go help modules' for more.
 // 	-pkgdir dir
 // 		install and load all packages from dir instead of the usual locations.
@@ -889,7 +889,7 @@
 //
 // Usage:
 //
-// 	go mod download [-dir] [-json] [modules]
+// 	go mod download [-json] [modules]
 //
 // Download downloads the named modules, which can be module patterns selecting
 // dependencies of the main module or module queries of the form path@version.
@@ -1448,6 +1448,12 @@
 // 	GOTMPDIR
 // 		The directory where the go command will write
 // 		temporary source files, packages, and binaries.
+//
+// Each entry in the GOFLAGS list must be a standalone flag.
+// Because the entries are space-separated, flag values must
+// not contain spaces. In some cases, you can provide multiple flag
+// values instead: for example, to set '-ldflags=-s -w'
+// you can use 'GOFLAGS=-ldflags=-s -ldflags=-w'.
 //
 // Environment variables for use with cgo:
 //

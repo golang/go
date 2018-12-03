@@ -1324,9 +1324,24 @@ func (ctxt *Link) hostlink() {
 		ctxt.Logf("\n")
 	}
 
-	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
+	out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput()
+	if err != nil {
 		Exitf("running %s failed: %v\n%s", argv[0], err, out)
-	} else if len(out) > 0 {
+	}
+
+	// Filter out useless linker warnings caused by bugs outside Go.
+	// See also cmd/go/internal/work/exec.go's gccld method.
+	var save [][]byte
+	for _, line := range bytes.SplitAfter(out, []byte("\n")) {
+		// golang.org/issue/26073 - Apple Xcode bug
+		if bytes.Contains(line, []byte("ld: warning: text-based stub file")) {
+			continue
+		}
+		save = append(save, line)
+	}
+	out = bytes.Join(save, nil)
+
+	if len(out) > 0 {
 		// always print external output even if the command is successful, so that we don't
 		// swallow linker warnings (see https://golang.org/issue/17935).
 		ctxt.Logf("%s", out)

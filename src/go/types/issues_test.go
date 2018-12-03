@@ -355,3 +355,70 @@ func TestIssue25627(t *testing.T) {
 		})
 	}
 }
+
+func TestIssue28005(t *testing.T) {
+	// method names must match defining interface name for this test
+	// (see last comment in this function)
+	sources := [...]string{
+		"package p; type A interface{ A() }",
+		"package p; type B interface{ B() }",
+		"package p; type X interface{ A; B }",
+	}
+
+	// compute original file ASTs
+	var orig [len(sources)]*ast.File
+	for i, src := range sources {
+		f, err := parser.ParseFile(fset, "", src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		orig[i] = f
+	}
+
+	// run the test for all order permutations of the incoming files
+	for _, perm := range [][len(sources)]int{
+		{0, 1, 2},
+		{0, 2, 1},
+		{1, 0, 2},
+		{1, 2, 0},
+		{2, 0, 1},
+		{2, 1, 0},
+	} {
+		// create file order permutation
+		files := make([]*ast.File, len(sources))
+		for i := range perm {
+			files[i] = orig[perm[i]]
+		}
+
+		// type-check package with given file order permutation
+		var conf Config
+		info := &Info{Defs: make(map[*ast.Ident]Object)}
+		_, err := conf.Check("", fset, files, info)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// look for interface object X
+		var obj Object
+		for name, def := range info.Defs {
+			if name.Name == "X" {
+				obj = def
+				break
+			}
+		}
+		if obj == nil {
+			t.Fatal("interface not found")
+		}
+		iface := obj.Type().Underlying().(*Interface) // I must be an interface
+
+		// Each iface method m is embedded; and m's receiver base type name
+		// must match the method's name per the choice in the source file.
+		for i := 0; i < iface.NumMethods(); i++ {
+			m := iface.Method(i)
+			recvName := m.Type().(*Signature).Recv().Type().(*Named).Obj().Name()
+			if recvName != m.Name() {
+				t.Errorf("perm %v: got recv %s; want %s", perm, recvName, m.Name())
+			}
+		}
+	}
+}

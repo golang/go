@@ -299,11 +299,21 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 				Server: server,
 			}
 		}
-		if len(txts) == 0 {
-			txts = txt.TXT
-		} else {
-			txts = append(txts, txt.TXT...)
+		// Multiple strings in one TXT record need to be
+		// concatenated without separator to be consistent
+		// with previous Go resolver.
+		n := 0
+		for _, s := range txt.TXT {
+			n += len(s)
 		}
+		txtJoin := make([]byte, 0, n)
+		for _, s := range txt.TXT {
+			txtJoin = append(txtJoin, s...)
+		}
+		if len(txts) == 0 {
+			txts = make([]string, 0, 1)
+		}
+		txts = append(txts, string(txtJoin))
 	}
 	return txts, nil
 }

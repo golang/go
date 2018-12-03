@@ -1427,28 +1427,35 @@ func TestDNSGoroutineRace(t *testing.T) {
 	}
 }
 
+func lookupWithFake(fake fakeDNSServer, name string, typ dnsmessage.Type) error {
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+
+	resolvConf.mu.RLock()
+	conf := resolvConf.dnsConfig
+	resolvConf.mu.RUnlock()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, _, err := r.tryOneName(ctx, conf, name, typ)
+	return err
+}
+
 // Issue 8434: verify that Temporary returns true on an error when rcode
 // is SERVFAIL
 func TestIssue8434(t *testing.T) {
-	msg := dnsmessage.Message{
-		Header: dnsmessage.Header{
-			RCode: dnsmessage.RCodeServerFailure,
+	err := lookupWithFake(fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			return dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeServerFailure,
+				},
+				Questions: q.Questions,
+			}, nil
 		},
-	}
-	b, err := msg.Pack()
-	if err != nil {
-		t.Fatal("Pack failed:", err)
-	}
-	var p dnsmessage.Parser
-	h, err := p.Start(b)
-	if err != nil {
-		t.Fatal("Start failed:", err)
-	}
-	if err := p.SkipAllQuestions(); err != nil {
-		t.Fatal("SkipAllQuestions failed:", err)
-	}
-
-	err = checkHeader(&p, h, "golang.org", "foo:53")
+	}, "golang.org.", dnsmessage.TypeALL)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -1464,50 +1471,76 @@ func TestIssue8434(t *testing.T) {
 	}
 }
 
-// Issue 12778: verify that NXDOMAIN without RA bit errors as
-// "no such host" and not "server misbehaving"
+// TestNoSuchHost verifies that tryOneName works correctly when the domain does
+// not exist.
+//
+// Issue 12778: verify that NXDOMAIN without RA bit errors as "no such host"
+// and not "server misbehaving"
 //
 // Issue 25336: verify that NXDOMAIN errors fail fast.
-func TestIssue12778(t *testing.T) {
-	lookups := 0
-	fake := fakeDNSServer{
-		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
-			lookups++
-			return dnsmessage.Message{
-				Header: dnsmessage.Header{
-					ID:                 q.ID,
-					Response:           true,
-					RCode:              dnsmessage.RCodeNameError,
-					RecursionAvailable: false,
-				},
-				Questions: q.Questions,
-			}, nil
+//
+// Issue 27525: verify that empty answers fail fast.
+func TestNoSuchHost(t *testing.T) {
+	tests := []struct {
+		name string
+		f    func(string, string, dnsmessage.Message, time.Time) (dnsmessage.Message, error)
+	}{
+		{
+			"NXDOMAIN",
+			func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+				return dnsmessage.Message{
+					Header: dnsmessage.Header{
+						ID:                 q.ID,
+						Response:           true,
+						RCode:              dnsmessage.RCodeNameError,
+						RecursionAvailable: false,
+					},
+					Questions: q.Questions,
+				}, nil
+			},
+		},
+		{
+			"no answers",
+			func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+				return dnsmessage.Message{
+					Header: dnsmessage.Header{
+						ID:                 q.ID,
+						Response:           true,
+						RCode:              dnsmessage.RCodeSuccess,
+						RecursionAvailable: false,
+						Authoritative:      true,
+					},
+					Questions: q.Questions,
+				}, nil
+			},
 		},
 	}
-	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 
-	resolvConf.mu.RLock()
-	conf := resolvConf.dnsConfig
-	resolvConf.mu.RUnlock()
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			lookups := 0
+			err := lookupWithFake(fakeDNSServer{
+				rh: func(n, s string, q dnsmessage.Message, d time.Time) (dnsmessage.Message, error) {
+					lookups++
+					return test.f(n, s, q, d)
+				},
+			}, ".", dnsmessage.TypeALL)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+			if lookups != 1 {
+				t.Errorf("got %d lookups, wanted 1", lookups)
+			}
 
-	_, _, err := r.tryOneName(ctx, conf, ".", dnsmessage.TypeALL)
-
-	if lookups != 1 {
-		t.Errorf("got %d lookups, wanted 1", lookups)
-	}
-
-	if err == nil {
-		t.Fatal("expected an error")
-	}
-	de, ok := err.(*DNSError)
-	if !ok {
-		t.Fatalf("err = %#v; wanted a *net.DNSError", err)
-	}
-	if de.Err != errNoSuchHost.Error() {
-		t.Fatalf("Err = %#v; wanted %q", de.Err, errNoSuchHost.Error())
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			de, ok := err.(*DNSError)
+			if !ok {
+				t.Fatalf("err = %#v; wanted a *net.DNSError", err)
+			}
+			if de.Err != errNoSuchHost.Error() {
+				t.Fatalf("Err = %#v; wanted %q", de.Err, errNoSuchHost.Error())
+			}
+		})
 	}
 }
 
@@ -1533,5 +1566,58 @@ func TestDNSDialTCP(t *testing.T) {
 	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second)
 	if err != nil {
 		t.Fatal("exhange failed:", err)
+	}
+}
+
+// Issue 27763: verify that two strings in one TXT record are concatenated.
+func TestTXTRecordTwoStrings(t *testing.T) {
+	fake := fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			r := dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.Header.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeSuccess,
+				},
+				Questions: q.Questions,
+				Answers: []dnsmessage.Resource{
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:  q.Questions[0].Name,
+							Type:  dnsmessage.TypeA,
+							Class: dnsmessage.ClassINET,
+						},
+						Body: &dnsmessage.TXTResource{
+							TXT: []string{"string1 ", "string2"},
+						},
+					},
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:  q.Questions[0].Name,
+							Type:  dnsmessage.TypeA,
+							Class: dnsmessage.ClassINET,
+						},
+						Body: &dnsmessage.TXTResource{
+							TXT: []string{"onestring"},
+						},
+					},
+				},
+			}
+			return r, nil
+		},
+	}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+	txt, err := r.lookupTXT(context.Background(), "golang.org")
+	if err != nil {
+		t.Fatal("LookupTXT failed:", err)
+	}
+	if want := 2; len(txt) != want {
+		t.Fatalf("len(txt), got %d, want %d", len(txt), want)
+	}
+	if want := "string1 string2"; txt[0] != want {
+		t.Errorf("txt[0], got %q, want %q", txt[0], want)
+	}
+	if want := "onestring"; txt[1] != want {
+		t.Errorf("txt[1], got %q, want %q", txt[1], want)
 	}
 }

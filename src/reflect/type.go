@@ -3022,8 +3022,8 @@ func toType(t *rtype) Type {
 }
 
 type layoutKey struct {
-	t    *rtype // function signature
-	rcvr *rtype // receiver type, or nil if none
+	ftyp *funcType // function signature
+	rcvr *rtype    // receiver type, or nil if none
 }
 
 type layoutType struct {
@@ -3042,7 +3042,7 @@ var layoutCache sync.Map // map[layoutKey]layoutType
 // The returned type exists only for GC, so we only fill out GC relevant info.
 // Currently, that's just size and the GC program. We also fill in
 // the name for possible debugging use.
-func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr, stk *bitVector, framePool *sync.Pool) {
+func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr, stk *bitVector, framePool *sync.Pool) {
 	if t.Kind() != Func {
 		panic("reflect: funcLayout of non-func type")
 	}
@@ -3055,8 +3055,6 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 		return lt.t, lt.argSize, lt.retOffset, lt.stack, lt.framePool
 	}
 
-	tt := (*funcType)(unsafe.Pointer(t))
-
 	// compute gc program & stack bitmap for arguments
 	ptrmap := new(bitVector)
 	var offset uintptr
@@ -3066,22 +3064,23 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 		// space no matter how big they actually are.
 		if ifaceIndir(rcvr) || rcvr.pointers() {
 			ptrmap.append(1)
+		} else {
+			ptrmap.append(0)
 		}
 		offset += ptrSize
 	}
-	for _, arg := range tt.in() {
+	for _, arg := range t.in() {
 		offset += -offset & uintptr(arg.align-1)
 		addTypeBits(ptrmap, offset, arg)
 		offset += arg.size
 	}
-	argN := ptrmap.n
 	argSize = offset
 	if runtime.GOARCH == "amd64p32" {
 		offset += -offset & (8 - 1)
 	}
 	offset += -offset & (ptrSize - 1)
 	retOffset = offset
-	for _, res := range tt.out() {
+	for _, res := range t.out() {
 		offset += -offset & uintptr(res.align-1)
 		addTypeBits(ptrmap, offset, res)
 		offset += res.size
@@ -3102,7 +3101,6 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 	} else {
 		x.kind |= kindNoPointers
 	}
-	ptrmap.n = argN
 
 	var s string
 	if rcvr != nil {

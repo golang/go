@@ -371,6 +371,10 @@ func (b *intWithPtrMarshalText) UnmarshalText(data []byte) error {
 	return (*intWithMarshalText)(b).UnmarshalText(data)
 }
 
+type mapStringToStringData struct {
+	Data map[string]string `json:"data"`
+}
+
 type unmarshalTest struct {
 	in                    string
 	ptr                   interface{}
@@ -401,6 +405,7 @@ var unmarshalTests = []unmarshalTest{
 	{in: `"invalid: \uD834x\uDD1E"`, ptr: new(string), out: "invalid: \uFFFDx\uFFFD"},
 	{in: "null", ptr: new(interface{}), out: nil},
 	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7, "T", "X"}},
+	{in: `{"X": 23}`, ptr: new(T), out: T{}, err: &UnmarshalTypeError{"number", reflect.TypeOf(""), 8, "T", "X"}}, {in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"x": 1}`, ptr: new(tx), err: fmt.Errorf("json: unknown field \"x\""), disallowUnknownFields: true},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
@@ -865,6 +870,18 @@ var unmarshalTests = []unmarshalTest{
 		ptr:                   new(Top),
 		err:                   fmt.Errorf("json: unknown field \"extra\""),
 		disallowUnknownFields: true,
+	},
+	// issue 26444
+	// UnmarshalTypeError without field & struct values
+	{
+		in:  `{"data":{"test1": "bob", "test2": 123}}`,
+		ptr: new(mapStringToStringData),
+		err: &UnmarshalTypeError{Value: "number", Type: reflect.TypeOf(""), Offset: 37, Struct: "mapStringToStringData", Field: "data"},
+	},
+	{
+		in:  `{"data":{"test1": 123, "test2": "bob"}}`,
+		ptr: new(mapStringToStringData),
+		err: &UnmarshalTypeError{Value: "number", Type: reflect.TypeOf(""), Offset: 21, Struct: "mapStringToStringData", Field: "data"},
 	},
 }
 

@@ -557,8 +557,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 // reflectMethodValue is a partial duplicate of reflect.makeFuncImpl
 // and reflect.methodValue.
 type reflectMethodValue struct {
-	fn    uintptr
-	stack *bitvector // args bitmap
+	fn     uintptr
+	stack  *bitvector // ptrmap for both args and results
+	argLen uintptr    // just args
 }
 
 // getArgInfoFast returns the argument frame information for a call to f.
@@ -587,6 +588,7 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
 			// These take a *reflect.methodValue as their
 			// context register.
 			var mv *reflectMethodValue
+			var retValid bool
 			if ctxt != nil {
 				// This is not an actual call, but a
 				// deferred call. The function value
@@ -600,6 +602,10 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
 				// 0(SP).
 				arg0 := frame.sp + sys.MinFrameSize
 				mv = *(**reflectMethodValue)(unsafe.Pointer(arg0))
+				// Figure out whether the return values are valid.
+				// Reflect will update this value after it copies
+				// in the return values.
+				retValid = *(*bool)(unsafe.Pointer(arg0 + 3*sys.PtrSize))
 			}
 			if mv.fn != f.entry {
 				print("runtime: confused by ", funcname(f), "\n")
@@ -607,6 +613,9 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
 			}
 			bv := mv.stack
 			arglen = uintptr(bv.n * sys.PtrSize)
+			if !retValid {
+				arglen = uintptr(mv.argLen) &^ (sys.PtrSize - 1)
+			}
 			argmap = bv
 		}
 	}

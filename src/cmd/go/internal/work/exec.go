@@ -224,7 +224,9 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		if len(p.SFiles) > 0 {
 			fmt.Fprintf(h, "asm %q %q %q\n", b.toolID("asm"), forcedAsmflags, p.Internal.Asmflags)
 		}
-		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(cfg.BuildContext.GOARCH))) // GO386, GOARM, etc
+		// GO386, GOARM, GOMIPS, etc.
+		baseArch := strings.TrimSuffix(cfg.BuildContext.GOARCH, "le")
+		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(baseArch)))
 
 		// TODO(rsc): Convince compiler team not to add more magic environment variables,
 		// or perhaps restrict the environment variables passed to subprocesses.
@@ -2075,14 +2077,37 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 }
 
 // gccld runs the gcc linker to create an executable from a set of object files.
-func (b *Builder) gccld(p *load.Package, objdir, out string, flags []string, objs []string) error {
+func (b *Builder) gccld(p *load.Package, objdir, outfile string, flags []string, objs []string) error {
 	var cmd []string
 	if len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0 {
 		cmd = b.GxxCmd(p.Dir, objdir)
 	} else {
 		cmd = b.GccCmd(p.Dir, objdir)
 	}
-	return b.run(nil, p.Dir, p.ImportPath, b.cCompilerEnv(), cmd, "-o", out, objs, flags)
+
+	cmdargs := []interface{}{cmd, "-o", outfile, objs, flags}
+	dir := p.Dir
+	out, err := b.runOut(dir, b.cCompilerEnv(), cmdargs...)
+	if len(out) > 0 {
+		// Filter out useless linker warnings caused by bugs outside Go.
+		// See also cmd/link/internal/ld's hostlink method.
+		var save [][]byte
+		for _, line := range bytes.SplitAfter(out, []byte("\n")) {
+			// golang.org/issue/26073 - Apple Xcode bug
+			if bytes.Contains(line, []byte("ld: warning: text-based stub file")) {
+				continue
+			}
+			save = append(save, line)
+		}
+		out = bytes.Join(save, nil)
+		if len(out) > 0 {
+			b.showOutput(nil, dir, p.ImportPath, b.processOutput(out))
+			if err != nil {
+				err = errPrintedOutput
+			}
+		}
+	}
+	return err
 }
 
 // Grab these before main helpfully overwrites them.
