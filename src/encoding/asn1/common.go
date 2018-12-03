@@ -80,6 +80,7 @@ type fieldParameters struct {
 	tag          *int   // the EXPLICIT or IMPLICIT tag (maybe nil).
 	stringType   int    // the string tag to use when marshaling.
 	timeType     int    // the time tag to use when marshaling.
+	timeFormat   string // the time format to use when unmarshalling. Format appropriate for time.Parse()
 	set          bool   // true iff this should be encoded as a SET
 	omitEmpty    bool   // true iff this should be omitted if empty when marshaling.
 
@@ -102,6 +103,8 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 			}
 		case part == "generalized":
 			ret.timeType = TagGeneralizedTime
+		case strings.HasPrefix(part, "timeFormat:"):
+			ret.timeFormat = part[11:]
 		case part == "utc":
 			ret.timeType = TagUTCTime
 		case part == "ia5":

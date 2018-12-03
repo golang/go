@@ -329,17 +329,26 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) 
 
 // UTCTime
 
-func parseUTCTime(bytes []byte) (ret time.Time, err error) {
+func parseUTCTime(bytes []byte, format string) (ret time.Time, err error) {
 	s := string(bytes)
+	var formatStr string
 
-	formatStr := "0601021504Z0700"
-	ret, err = time.Parse(formatStr, s)
-	if err != nil {
-		formatStr = "060102150405Z0700"
+	if format != "" {
+		formatStr = format
 		ret, err = time.Parse(formatStr, s)
-	}
-	if err != nil {
-		return
+		if err != nil {
+			return
+		}
+	} else {
+		formatStr = "0601021504Z0700"
+		ret, err = time.Parse(formatStr, s)
+		if err != nil {
+			formatStr = "060102150405Z0700"
+			ret, err = time.Parse(formatStr, s)
+		}
+		if err != nil {
+			return
+		}
 	}
 
 	if serialized := ret.Format(formatStr); serialized != s {
@@ -357,8 +366,11 @@ func parseUTCTime(bytes []byte) (ret time.Time, err error) {
 
 // parseGeneralizedTime parses the GeneralizedTime from the given byte slice
 // and returns the resulting time.
-func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
-	const formatStr = "20060102150405Z0700"
+func parseGeneralizedTime(bytes []byte, format string) (ret time.Time, err error) {
+	formatStr := "20060102150405Z0700"
+	if format != "" {
+		formatStr = format
+	}
 	s := string(bytes)
 
 	if ret, err = time.Parse(formatStr, s); err != nil {
@@ -686,9 +698,9 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			case TagOID:
 				result, err = parseObjectIdentifier(innerBytes)
 			case TagUTCTime:
-				result, err = parseUTCTime(innerBytes)
+				result, err = parseUTCTime(innerBytes, params.timeFormat)
 			case TagGeneralizedTime:
-				result, err = parseGeneralizedTime(innerBytes)
+				result, err = parseGeneralizedTime(innerBytes, params.timeFormat)
 			case TagOctetString:
 				result = innerBytes
 			default:
@@ -843,9 +855,9 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		var time time.Time
 		var err1 error
 		if universalTag == TagUTCTime {
-			time, err1 = parseUTCTime(innerBytes)
+			time, err1 = parseUTCTime(innerBytes, params.timeFormat)
 		} else {
-			time, err1 = parseGeneralizedTime(innerBytes)
+			time, err1 = parseGeneralizedTime(innerBytes, params.timeFormat)
 		}
 		if err1 == nil {
 			v.Set(reflect.ValueOf(time))

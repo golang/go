@@ -258,51 +258,54 @@ func TestObjectIdentifier(t *testing.T) {
 }
 
 type timeTest struct {
-	in  string
-	ok  bool
-	out time.Time
+	in     string
+	ok     bool
+	out    time.Time
+	format string
 }
 
 var utcTestData = []timeTest{
-	{"910506164540-0700", true, time.Date(1991, 05, 06, 16, 45, 40, 0, time.FixedZone("", -7*60*60))},
-	{"910506164540+0730", true, time.Date(1991, 05, 06, 16, 45, 40, 0, time.FixedZone("", 7*60*60+30*60))},
-	{"910506234540Z", true, time.Date(1991, 05, 06, 23, 45, 40, 0, time.UTC)},
-	{"9105062345Z", true, time.Date(1991, 05, 06, 23, 45, 0, 0, time.UTC)},
-	{"5105062345Z", true, time.Date(1951, 05, 06, 23, 45, 0, 0, time.UTC)},
-	{"a10506234540Z", false, time.Time{}},
-	{"91a506234540Z", false, time.Time{}},
-	{"9105a6234540Z", false, time.Time{}},
-	{"910506a34540Z", false, time.Time{}},
-	{"910506334a40Z", false, time.Time{}},
-	{"91050633444aZ", false, time.Time{}},
-	{"910506334461Z", false, time.Time{}},
-	{"910506334400Za", false, time.Time{}},
+	{"910506164540-0700", true, time.Date(1991, 05, 06, 16, 45, 40, 0, time.FixedZone("", -7*60*60)), ""},
+	{"910506164540+0730", true, time.Date(1991, 05, 06, 16, 45, 40, 0, time.FixedZone("", 7*60*60+30*60)), ""},
+	{"910506234540Z", true, time.Date(1991, 05, 06, 23, 45, 40, 0, time.UTC), ""},
+	{"9105062345Z", true, time.Date(1991, 05, 06, 23, 45, 0, 0, time.UTC), ""},
+	{"5105062345Z", true, time.Date(1951, 05, 06, 23, 45, 0, 0, time.UTC), ""},
+	// Test the use of specified custom formats that can be supplied using the timeFormat tag
+	{"19510506234500.123456Z", true, time.Date(1951, 05, 06, 23, 45, 0, 123456000, time.UTC), "20060102150405.999999Z0700"},
+	{"a10506234540Z", false, time.Time{}, ""},
+	{"91a506234540Z", false, time.Time{}, ""},
+	{"9105a6234540Z", false, time.Time{}, ""},
+	{"910506a34540Z", false, time.Time{}, ""},
+	{"910506334a40Z", false, time.Time{}, ""},
+	{"91050633444aZ", false, time.Time{}, ""},
+	{"910506334461Z", false, time.Time{}, ""},
+	{"910506334400Za", false, time.Time{}, ""},
 	/* These are invalid times. However, the time package normalises times
 	 * and they were accepted in some versions. See #11134. */
-	{"000100000000Z", false, time.Time{}},
-	{"101302030405Z", false, time.Time{}},
-	{"100002030405Z", false, time.Time{}},
-	{"100100030405Z", false, time.Time{}},
-	{"100132030405Z", false, time.Time{}},
-	{"100231030405Z", false, time.Time{}},
-	{"100102240405Z", false, time.Time{}},
-	{"100102036005Z", false, time.Time{}},
-	{"100102030460Z", false, time.Time{}},
-	{"-100102030410Z", false, time.Time{}},
-	{"10-0102030410Z", false, time.Time{}},
-	{"10-0002030410Z", false, time.Time{}},
-	{"1001-02030410Z", false, time.Time{}},
-	{"100102-030410Z", false, time.Time{}},
-	{"10010203-0410Z", false, time.Time{}},
-	{"1001020304-10Z", false, time.Time{}},
+	{"000100000000Z", false, time.Time{}, ""},
+	{"101302030405Z", false, time.Time{}, ""},
+	{"100002030405Z", false, time.Time{}, ""},
+	{"100100030405Z", false, time.Time{}, ""},
+	{"100132030405Z", false, time.Time{}, ""},
+	{"100231030405Z", false, time.Time{}, ""},
+	{"100102240405Z", false, time.Time{}, ""},
+	{"100102036005Z", false, time.Time{}, ""},
+	{"100102030460Z", false, time.Time{}, ""},
+	{"-100102030410Z", false, time.Time{}, ""},
+	{"10-0102030410Z", false, time.Time{}, ""},
+	{"10-0002030410Z", false, time.Time{}, ""},
+	{"1001-02030410Z", false, time.Time{}, ""},
+	{"100102-030410Z", false, time.Time{}, ""},
+	{"10010203-0410Z", false, time.Time{}, ""},
+	{"1001020304-10Z", false, time.Time{}, ""},
 }
 
 func TestUTCTime(t *testing.T) {
 	for i, test := range utcTestData {
-		ret, err := parseUTCTime([]byte(test.in))
+		ret, err := parseUTCTime([]byte(test.in), test.format)
 		if err != nil {
 			if test.ok {
-				t.Errorf("#%d: parseUTCTime(%q) = error %v", i, test.in, err)
+				t.Errorf("#%d: parseUTCTime(%q, %q) = error %v", i, test.in, test.format, err)
 			}
 			continue
 		}
@@ -320,33 +323,35 @@ func TestUTCTime(t *testing.T) {
 }
 
 var generalizedTimeTestData = []timeTest{
-	{"20100102030405Z", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.UTC)},
-	{"20100102030405", false, time.Time{}},
-	{"20100102030405+0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", 6*60*60+7*60))},
-	{"20100102030405-0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", -6*60*60-7*60))},
+	{"20100102030405Z", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.UTC), ""},
+	{"20100102030405", false, time.Time{}, ""},
+	{"20100102030405+0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", 6*60*60+7*60)), ""},
+	{"20100102030405-0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", -6*60*60-7*60)), ""},
+	// Test the use of specified custom formats that can be supplied using the timeFormat tag
+	{"19510506234500.123456Z", true, time.Date(1951, 05, 06, 23, 45, 0, 123456000, time.UTC), "20060102150405.999999Z0700"},
 	/* These are invalid times. However, the time package normalises times
 	 * and they were accepted in some versions. See #11134. */
-	{"00000100000000Z", false, time.Time{}},
-	{"20101302030405Z", false, time.Time{}},
-	{"20100002030405Z", false, time.Time{}},
-	{"20100100030405Z", false, time.Time{}},
-	{"20100132030405Z", false, time.Time{}},
-	{"20100231030405Z", false, time.Time{}},
-	{"20100102240405Z", false, time.Time{}},
-	{"20100102036005Z", false, time.Time{}},
-	{"20100102030460Z", false, time.Time{}},
-	{"-20100102030410Z", false, time.Time{}},
-	{"2010-0102030410Z", false, time.Time{}},
-	{"2010-0002030410Z", false, time.Time{}},
-	{"201001-02030410Z", false, time.Time{}},
-	{"20100102-030410Z", false, time.Time{}},
-	{"2010010203-0410Z", false, time.Time{}},
-	{"201001020304-10Z", false, time.Time{}},
+	{"00000100000000Z", false, time.Time{}, ""},
+	{"20101302030405Z", false, time.Time{}, ""},
+	{"20100002030405Z", false, time.Time{}, ""},
+	{"20100100030405Z", false, time.Time{}, ""},
+	{"20100132030405Z", false, time.Time{}, ""},
+	{"20100231030405Z", false, time.Time{}, ""},
+	{"20100102240405Z", false, time.Time{}, ""},
+	{"20100102036005Z", false, time.Time{}, ""},
+	{"20100102030460Z", false, time.Time{}, ""},
+	{"-20100102030410Z", false, time.Time{}, ""},
+	{"2010-0102030410Z", false, time.Time{}, ""},
+	{"2010-0002030410Z", false, time.Time{}, ""},
+	{"201001-02030410Z", false, time.Time{}, ""},
+	{"20100102-030410Z", false, time.Time{}, ""},
+	{"2010010203-0410Z", false, time.Time{}, ""},
+	{"201001020304-10Z", false, time.Time{}, ""},
 }
 
 func TestGeneralizedTime(t *testing.T) {
 	for i, test := range generalizedTimeTestData {
-		ret, err := parseGeneralizedTime([]byte(test.in))
+		ret, err := parseGeneralizedTime([]byte(test.in), test.format)
 		if (err == nil) != test.ok {
 			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
