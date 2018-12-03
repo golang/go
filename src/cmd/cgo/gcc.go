@@ -171,11 +171,13 @@ func (p *Package) Translate(f *File) {
 	for len(p.typedefs) > numTypedefs {
 		numTypedefs = len(p.typedefs)
 		// Also ask about any typedefs we've seen so far.
-		for _, a := range p.typedefList {
-			f.Name[a] = &Name{
-				Go: a,
-				C:  a,
+		for _, info := range p.typedefList {
+			n := &Name{
+				Go: info.typedef,
+				C:  info.typedef,
 			}
+			f.Name[info.typedef] = n
+			f.NamePos[n] = info.pos
 		}
 		needType := p.guessKinds(f)
 		if len(needType) > 0 {
@@ -573,7 +575,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 				fatalf("malformed __cgo__ name: %s", name)
 			}
 			types[i] = t.Type
-			p.recordTypedefs(t.Type)
+			p.recordTypedefs(t.Type, f.NamePos[names[i]])
 		}
 		if e.Tag != dwarf.TagCompileUnit {
 			r.SkipChildren()
@@ -641,10 +643,11 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 }
 
 // recordTypedefs remembers in p.typedefs all the typedefs used in dtypes and its children.
-func (p *Package) recordTypedefs(dtype dwarf.Type) {
-	p.recordTypedefs1(dtype, map[dwarf.Type]bool{})
+func (p *Package) recordTypedefs(dtype dwarf.Type, pos token.Pos) {
+	p.recordTypedefs1(dtype, pos, map[dwarf.Type]bool{})
 }
-func (p *Package) recordTypedefs1(dtype dwarf.Type, visited map[dwarf.Type]bool) {
+
+func (p *Package) recordTypedefs1(dtype dwarf.Type, pos token.Pos, visited map[dwarf.Type]bool) {
 	if dtype == nil {
 		return
 	}
@@ -660,23 +663,23 @@ func (p *Package) recordTypedefs1(dtype dwarf.Type, visited map[dwarf.Type]bool)
 		}
 		if !p.typedefs[dt.Name] {
 			p.typedefs[dt.Name] = true
-			p.typedefList = append(p.typedefList, dt.Name)
-			p.recordTypedefs1(dt.Type, visited)
+			p.typedefList = append(p.typedefList, typedefInfo{dt.Name, pos})
+			p.recordTypedefs1(dt.Type, pos, visited)
 		}
 	case *dwarf.PtrType:
-		p.recordTypedefs1(dt.Type, visited)
+		p.recordTypedefs1(dt.Type, pos, visited)
 	case *dwarf.ArrayType:
-		p.recordTypedefs1(dt.Type, visited)
+		p.recordTypedefs1(dt.Type, pos, visited)
 	case *dwarf.QualType:
-		p.recordTypedefs1(dt.Type, visited)
+		p.recordTypedefs1(dt.Type, pos, visited)
 	case *dwarf.FuncType:
-		p.recordTypedefs1(dt.ReturnType, visited)
+		p.recordTypedefs1(dt.ReturnType, pos, visited)
 		for _, a := range dt.ParamType {
-			p.recordTypedefs1(a, visited)
+			p.recordTypedefs1(a, pos, visited)
 		}
 	case *dwarf.StructType:
 		for _, f := range dt.Field {
-			p.recordTypedefs1(f.Type, visited)
+			p.recordTypedefs1(f.Type, pos, visited)
 		}
 	}
 }
