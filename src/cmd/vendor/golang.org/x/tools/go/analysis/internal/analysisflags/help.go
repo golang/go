@@ -18,7 +18,7 @@ string. It uses heuristics that do not guarantee all reports are
 genuine problems, but it can find errors not caught by the compilers.
 `
 
-// Help implements the help subcommand for a multichecker or vet-lite
+// Help implements the help subcommand for a multichecker or unitchecker
 // style command. The optional args specify the analyzers to describe.
 // Help calls log.Fatal if no such analyzer exists.
 func Help(progname string, analyzers []*analysis.Analyzer, args []string) {
