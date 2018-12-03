@@ -14,7 +14,7 @@ func Foo() { //@item(Foo, "Foo()", "", "func")
 
 func _() {
 	var sFoo StructFoo           //@complete("t", StructFoo)
-	if x := sFoo; x.Value == 1 { //@complete("V", Value)
+	if x := sFoo; x.Value == 1 { //@complete("V", Value),typdef("sFoo", StructFoo)
 		return
 	}
 }

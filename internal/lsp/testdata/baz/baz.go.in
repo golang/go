@@ -12,7 +12,7 @@ func Baz() {
 	defer bar.Bar() //@complete("B", Bar)
 	// TODO(rstambler): Test completion here.
 	defer bar.B
-	var _ f.IntFoo  //@complete("n", IntFoo)
+	var x f.IntFoo  //@complete("n", IntFoo),typdef("x", IntFoo)
 	bar.Bar()       //@complete("B", Bar)
 }
 

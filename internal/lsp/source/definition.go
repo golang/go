@@ -48,6 +48,43 @@ func Definition(ctx context.Context, f *File, pos token.Pos) (Range, error) {
 	return objToRange(f.view.Config.Fset, obj), nil
 }
 
+func TypeDefinition(ctx context.Context, f *File, pos token.Pos) (Range, error) {
+	fAST, err := f.GetAST()
+	if err != nil {
+		return Range{}, err
+	}
+	pkg, err := f.GetPackage()
+	if err != nil {
+		return Range{}, err
+	}
+	i, err := findIdentifier(fAST, pos)
+	if err != nil {
+		return Range{}, err
+	}
+	if i.ident == nil {
+		return Range{}, fmt.Errorf("not a valid identifier")
+	}
+	typ := pkg.TypesInfo.TypeOf(i.ident)
+	if typ == nil {
+		return Range{}, fmt.Errorf("no type for %s", i.ident.Name)
+	}
+	obj := typeToObject(typ)
+	if obj == nil {
+		return Range{}, fmt.Errorf("no object for type %s", typ.String())
+	}
+	return objToRange(f.view.Config.Fset, obj), nil
+}
+
+func typeToObject(typ types.Type) (obj types.Object) {
+	switch typ := typ.(type) {
+	case *types.Named:
+		obj = typ.Obj()
+	case *types.Pointer:
+		obj = typeToObject(typ.Elem())
+	}
+	return obj
+}
+
 // ident returns the ident plus any extra information needed
 type ident struct {
 	ident            *ast.Ident

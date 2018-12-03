@@ -64,6 +64,7 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 				Change:    float64(protocol.Full), // full contents of file sent on each update
 				OpenClose: true,
 			},
+			TypeDefinitionProvider: true,
 		},
 	}, nil
 }
@@ -215,8 +216,18 @@ func (s *server) Definition(ctx context.Context, params *protocol.TextDocumentPo
 	return []protocol.Location{toProtocolLocation(s.view.Config.Fset, r)}, nil
 }
 
-func (s *server) TypeDefinition(context.Context, *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
-	return nil, notImplemented("TypeDefinition")
+func (s *server) TypeDefinition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
+	f := s.view.GetFile(source.URI(params.TextDocument.URI))
+	tok, err := f.GetToken()
+	if err != nil {
+		return nil, err
+	}
+	pos := fromProtocolPosition(tok, params.Position)
+	r, err := source.TypeDefinition(ctx, f, pos)
+	if err != nil {
+		return nil, err
+	}
+	return []protocol.Location{toProtocolLocation(s.view.Config.Fset, r)}, nil
 }
 
 func (s *server) Implementation(context.Context, *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
