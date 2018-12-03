@@ -1049,7 +1049,7 @@ func TestReverseProxyWebSocket(t *testing.T) {
 	}
 }
 
-func TestUnannoncedTrailer(t *testing.T) {
+func TestUnannouncedTrailer(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.(http.Flusher).Flush()
@@ -1073,8 +1073,8 @@ func TestUnannoncedTrailer(t *testing.T) {
 
 	ioutil.ReadAll(res.Body)
 
-	if g, e := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != e {
-		t.Errorf("Trailer(X-Unannounced-Trailer) = %q ; want %q", g, e)
+	if g, w := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != w {
+		t.Errorf("Trailer(X-Unannounced-Trailer) = %q; want %q", g, w)
 	}
 
 }
