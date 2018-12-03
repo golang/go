@@ -56,6 +56,19 @@ Go 1.13 will require macOS 10.11 El Capitan or later.
 
 <h2 id="tools">Tools</h2>
 
+<h3 id="vet"><code>go tool vet</code> no longer supported</h3>
+
+<p>
+  The <code>go vet</code> command has been rewritten to serve as the
+  base for a range of different source code analysis tools. See
+  the <a href="https://godoc.org/golang.org/x/tools/go/analysis">golang.org/x/tools/go/analysis</a>
+  package for details. A side-effect is that <code>go tool vet</code>
+  is no longer supported. External tools that use <code>go tool
+  vet</code> must be changed to use <code>go
+  vet</code>. Using <code>go vet</code> instead of <code>go tool
+  vet</code> should work with all supported versions of Go.
+</p>
+
 <h3 id="gocache">Build cache requirement</h3>
 
 <p>
