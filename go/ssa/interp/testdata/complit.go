@@ -82,7 +82,7 @@ func init() {
 	}
 }
 
-// Regression test for https://github.com/golang/go/issues/10127:
+// Regression test for https://golang.org/issue/10127:
 // composite literal clobbers destination before reading from it.
 func init() {
 	// map
@@ -166,7 +166,7 @@ func init() {
 	}
 }
 
-// Regression test for https://github.com/golang/go/issues/13341:
+// Regression test for https://golang.org/issue/13341:
 // within a map literal, if a key expression is a composite literal,
 // Go 1.5 allows its type to be omitted.  An & operation may be implied.
 func init() {

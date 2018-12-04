@@ -156,9 +156,9 @@ var testdataTests = []string{
 type successPredicate func(exitcode int, output string) error
 
 func run(t *testing.T, dir, input string, success successPredicate) bool {
-	t.Skip("golang.org/issue/27292")
+	t.Skip("https://golang.org/issue/27292")
 	if runtime.GOOS == "darwin" {
-		t.Skip("skipping on darwin until golang.org/issue/23166 is fixed")
+		t.Skip("skipping on darwin until https://golang.org/issue/23166 is fixed")
 	}
 	fmt.Printf("Input: %s\n", input)
 

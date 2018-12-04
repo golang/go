@@ -780,7 +780,7 @@ func (imp *importer) doImport(from *PackageInfo, to string) (*types.Package, err
 	if to == "C" {
 		// This should be unreachable, but ad hoc packages are
 		// not currently subject to cgo preprocessing.
-		// See https://github.com/golang/go/issues/11627.
+		// See https://golang.org/issue/11627.
 		return nil, fmt.Errorf(`the loader doesn't cgo-process ad hoc packages like %q; see Go issue 11627`,
 			from.Pkg.Path())
 	}

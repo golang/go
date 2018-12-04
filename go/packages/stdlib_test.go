@@ -59,7 +59,7 @@ func TestStdlibMetadata(t *testing.T) {
 
 func TestCgoOption(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping in short mode; uses tons of memory (golang.org/issue/14113)")
+		t.Skip("skipping in short mode; uses tons of memory (https://golang.org/issue/14113)")
 	}
 
 	// TODO(adonovan): see if we can get away without these old

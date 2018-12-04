@@ -48,7 +48,7 @@ func RatherStupidConditions() {
 
 	// The various r.* patterns are intended to match duplicate
 	// diagnostics reported for the same underlying problem.
-	// See github.com/golang/go/issues/28086.
+	// See https://golang.org/issue/28086.
 	// TODO(adonovan): fix the checker.
 
 	_ = i == 1 || i == 1 || f() == 1 // want `redundant or: i == 1 \|\| i == 1` `r.*`

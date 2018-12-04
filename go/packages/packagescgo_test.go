@@ -7,10 +7,11 @@
 package packages_test
 
 import (
-	"golang.org/x/tools/go/packages"
 	"runtime"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/go/packages"
 )
 
 func TestLoadImportsC(t *testing.T) {
@@ -24,7 +25,7 @@ func TestLoadImportsC(t *testing.T) {
 		t.Skipf("skipping on windows; packages on windows do not satisfy conditions for test.")
 	}
 	if runtime.GOOS == "plan9" {
-		// See https://github.com/golang/go/issues/27100.
+		// See https://golang.org/issue/27100.
 		t.Skip(`skipping on plan9; for some reason "net [syscall.test]" is not loaded`)
 	}
 

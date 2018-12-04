@@ -580,7 +580,7 @@ func golistDriverCurrent(cfg *Config, words ...string) (*driverResponse, error) 
 			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
 		}
 
-		// Workaround for github.com/golang/go/issues/28749.
+		// Workaround for https://golang.org/issue/28749.
 		// TODO(adonovan): delete before go1.12 release.
 		out := pkg.CompiledGoFiles[:0]
 		for _, f := range pkg.CompiledGoFiles {
@@ -726,7 +726,7 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 
 	// As of writing, go list -export prints some non-fatal compilation
 	// errors to stderr, even with -e set. We would prefer that it put
-	// them in the Package.Error JSON (see http://golang.org/issue/26319).
+	// them in the Package.Error JSON (see https://golang.org/issue/26319).
 	// In the meantime, there's nowhere good to put them, but they can
 	// be useful for debugging. Print them if $GOPACKAGESPRINTGOLISTERRORS
 	// is set.

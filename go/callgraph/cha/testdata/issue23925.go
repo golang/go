@@ -1,6 +1,6 @@
 package main
 
-// Regression test for https://github.com/golang/go/issues/23925
+// Regression test for https://golang.org/issue/23925
 
 type stringFlagImpl string
 

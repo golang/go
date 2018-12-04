@@ -48,7 +48,7 @@ func bytesAllocated() uint64 {
 
 func TestStdlib(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping in short mode; too slow (golang.org/issue/14113)")
+		t.Skip("skipping in short mode; too slow (https://golang.org/issue/14113)")
 	}
 	// Load, parse and type-check the program.
 	t0 := time.Now()

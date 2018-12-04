@@ -514,7 +514,7 @@ func asmParseDecl(pass *analysis.Pass, decl *ast.FuncDecl) map[string]*asmFunc {
 		for _, fld := range list {
 			t := pass.TypesInfo.Types[fld.Type].Type
 
-			// Work around github.com/golang/go/issues/28277.
+			// Work around https://golang.org/issue/28277.
 			if t == nil {
 				if ell, ok := fld.Type.(*ast.Ellipsis); ok {
 					t = types.NewSlice(pass.TypesInfo.Types[ell.Elt].Type)
