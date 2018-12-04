@@ -719,6 +719,19 @@ func (p *Package) mangleName(n *Name) {
 	n.Mangle = prefix + n.Kind + "_" + n.Go
 }
 
+func (f *File) isMangledName(s string) bool {
+	prefix := "_C"
+	if strings.HasPrefix(s, prefix) {
+		t := s[len(prefix):]
+		for _, k := range nameKinds {
+			if strings.HasPrefix(t, k+"_") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // rewriteCalls rewrites all calls that pass pointers to check that
 // they follow the rules for passing pointers between Go and C.
 // This reports whether the package needs to import unsafe as _cgo_unsafe.
