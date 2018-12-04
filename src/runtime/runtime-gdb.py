@@ -528,11 +528,17 @@ class GoroutineCmd(gdb.Command):
 		save_frame = gdb.selected_frame()
 		gdb.parse_and_eval('$save_sp = $sp')
 		gdb.parse_and_eval('$save_pc = $pc')
+		# In GDB, assignments to sp must be done from the
+		# top-most frame, so select frame 0 first.
+		gdb.execute('select-frame 0')
 		gdb.parse_and_eval('$sp = {0}'.format(str(sp)))
 		gdb.parse_and_eval('$pc = {0}'.format(str(pc)))
 		try:
 			gdb.execute(cmd)
 		finally:
+			# In GDB, assignments to sp must be done from the
+			# top-most frame, so select frame 0 first.
+			gdb.execute('select-frame 0')
 			gdb.parse_and_eval('$sp = $save_sp')
 			gdb.parse_and_eval('$pc = $save_pc')
 			save_frame.select()
