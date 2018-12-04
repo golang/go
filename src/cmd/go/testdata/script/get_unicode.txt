@@ -1,0 +1,28 @@
+[!exec:git] skip
+
+cd $WORK/_origin/example.com/unicode
+exec git init
+exec git add unicode.go
+exec git commit -m 'add unicode.go'
+
+mkdir $GOPATH/src/example.com/unicode
+cd $GOPATH/src/example.com/unicode
+exec git clone $WORK/_origin/example.com/unicode .
+
+cd $WORK/_origin/example.com/испытание
+exec git init
+exec git add испытание.go
+exec git commit -m 'add испытание.go'
+
+mkdir $GOPATH/src/example.com/испытание
+cd $GOPATH/src/example.com/испытание
+exec git clone $WORK/_origin/example.com/испытание .
+
+cd $GOPATH
+go get -u example.com/unicode
+
+-- $WORK/_origin/example.com/unicode/unicode.go --
+package unicode
+import _ "example.com/испытание"
+-- $WORK/_origin/example.com/испытание/испытание.go --
+package испытание

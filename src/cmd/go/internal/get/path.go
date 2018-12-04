@@ -12,10 +12,13 @@ import (
 )
 
 // The following functions are copied verbatim from cmd/go/internal/module/module.go,
-// with one change to additionally reject Windows short-names.
+// with a change to additionally reject Windows short-names,
+// and one to accept arbitrary letters (golang.org/issue/29101).
 //
 // TODO(bcmills): After the call site for this function is backported,
 // consolidate this back down to a single copy.
+//
+// NOTE: DO NOT MERGE THESE UNTIL WE DECIDE ABOUT ARBITRARY LETTERS IN MODULE MODE.
 
 // CheckImportPath checks that an import path is valid.
 func CheckImportPath(path string) error {
@@ -120,10 +123,8 @@ func checkElem(elem string, fileName bool) error {
 }
 
 // pathOK reports whether r can appear in an import path element.
-// Paths can be ASCII letters, ASCII digits, and limited ASCII punctuation: + - . _ and ~.
-// This matches what "go get" has historically recognized in import paths.
-// TODO(rsc): We would like to allow Unicode letters, but that requires additional
-// care in the safe encoding (see note below).
+//
+// NOTE: This function DIVERGES from module mode pathOK by accepting Unicode letters.
 func pathOK(r rune) bool {
 	if r < utf8.RuneSelf {
 		return r == '+' || r == '-' || r == '.' || r == '_' || r == '~' ||
@@ -131,7 +132,7 @@ func pathOK(r rune) bool {
 			'A' <= r && r <= 'Z' ||
 			'a' <= r && r <= 'z'
 	}
-	return false
+	return unicode.IsLetter(r)
 }
 
 // fileNameOK reports whether r can appear in a file name.
