@@ -106,13 +106,15 @@ func (r *Ref) Pos() token.Pos {
 	return (*r.Expr).Pos()
 }
 
+var nameKinds = []string{"iconst", "fconst", "sconst", "type", "var", "fpvar", "func", "macro", "not-type"}
+
 // A Name collects information about C.xxx.
 type Name struct {
 	Go       string // name used in Go referring to package C
 	Mangle   string // name used in generated Go
 	C        string // name used in C
 	Define   string // #define expansion
-	Kind     string // "iconst", "fconst", "sconst", "type", "var", "fpvar", "func", "macro", "not-type"
+	Kind     string // one of the nameKinds
 	Type     *Type  // the type of xxx
 	FuncType *FuncType
 	AddError bool
