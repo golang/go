@@ -30,7 +30,7 @@ func Definition(ctx context.Context, f *File, pos token.Pos) (Range, error) {
 		return Range{}, err
 	}
 	if i.ident == nil {
-		return Range{}, fmt.Errorf("definition was not a valid identifier")
+		return Range{}, fmt.Errorf("not a valid identifier")
 	}
 	obj := pkg.TypesInfo.ObjectOf(i.ident)
 	if obj == nil {

@@ -101,8 +101,8 @@ func completions(file *ast.File, pos token.Pos, fset *token.FileSet, pkg *types.
 	}
 
 	// The position is within a composite literal.
-	if items, ok := complit(path, pos, pkg, info, found); ok {
-		return items, "", nil
+	if items, prefix, ok := complit(path, pos, pkg, info, found); ok {
+		return items, prefix, nil
 	}
 	switch n := path[0].(type) {
 	case *ast.Ident:
@@ -250,7 +250,7 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 
 // complit finds completions for field names inside a composite literal.
 // It reports whether the node was handled as part of a composite literal.
-func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder) (items []CompletionItem, ok bool) {
+func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder) (items []CompletionItem, prefix string, ok bool) {
 	var lit *ast.CompositeLit
 
 	// First, determine if the pos is within a composite literal.
@@ -286,6 +286,8 @@ func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 			}
 		}
 	case *ast.Ident:
+		prefix = n.Name[:pos-n.Pos()]
+
 		// If the enclosing node is an identifier, it can either be an identifier that is
 		// part of a composite literal (e.g. &x{fo<>}), or it can be an identifier that is
 		// part of a key-value expression, which is part of a composite literal (e.g. &x{foo: ba<>).
@@ -311,7 +313,7 @@ func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 	}
 	// We are not in a composite literal.
 	if lit == nil {
-		return nil, false
+		return nil, prefix, false
 	}
 	// Mark fields of the composite literal that have already been set,
 	// except for the current field.
@@ -351,10 +353,10 @@ func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 			if !hasKeys && structPkg == pkg {
 				items = append(items, lexical(path, pos, pkg, info, found)...)
 			}
-			return items, true
+			return items, prefix, true
 		}
 	}
-	return items, false
+	return items, prefix, false
 }
 
 // formatCompletion creates a completion item for a given types.Object.
