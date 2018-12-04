@@ -963,10 +963,14 @@ func matchGoImport(imports []metaImport, importPath string) (metaImport, error) 
 
 // expand rewrites s to replace {k} with match[k] for each key k in match.
 func expand(match map[string]string, s string) string {
+	// We want to replace each match exactly once, and the result of expansion
+	// must not depend on the iteration order through the map.
+	// A strings.Replacer has exactly the properties we're looking for.
+	oldNew := make([]string, 0, 2*len(match))
 	for k, v := range match {
-		s = strings.ReplaceAll(s, "{"+k+"}", v)
+		oldNew = append(oldNew, "{"+k+"}", v)
 	}
-	return s
+	return strings.NewReplacer(oldNew...).Replace(s)
 }
 
 // vcsPaths defines the meaning of import paths referring to
