@@ -181,6 +181,11 @@ func readConfig(filename string) (*Config, error) {
 	return cfg, nil
 }
 
+var importerForCompiler = func(_ *token.FileSet, compiler string, lookup importer.Lookup) types.Importer {
+	// broken legacy implementation (github.com/golang/go/issues/28995)
+	return importer.For(compiler, lookup)
+}
+
 func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]result, error) {
 	// Load, parse, typecheck.
 	var files []*ast.File
@@ -196,7 +201,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		}
 		files = append(files, f)
 	}
-	compilerImporter := importer.For(cfg.Compiler, func(path string) (io.ReadCloser, error) {
+	compilerImporter := importerForCompiler(fset, cfg.Compiler, func(path string) (io.ReadCloser, error) {
 		// path is a resolved package path, not an import path.
 		file, ok := cfg.PackageFile[path]
 		if !ok {
