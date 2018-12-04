@@ -7,23 +7,23 @@
 package httputil
 
 import (
+	"bufio"
+	"bytes"
+	"errors"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"reflect"
+	"strconv"
+	"strings"
+	"sync"
 	"testing"
 	"time"
-	"reflect"
-	"io"
-	"strings"
-	"bufio"
-	"sync"
-	"strconv"
-	"bytes"
-	"errors"
-	"fmt"
-	"os"
 )
 
 const fakeHopHeader = "X-Fake-Hop-Header-For-Test"
@@ -1077,4 +1077,27 @@ func TestUnannouncedTrailer(t *testing.T) {
 		t.Errorf("Trailer(X-Unannounced-Trailer) = %q; want %q", g, w)
 	}
 
+}
+
+func TestSingleJoinSlash(t *testing.T) {
+	tests := []struct {
+		slasha   string
+		slashb   string
+		expected string
+	}{
+		{"https://www.google.com/", "/favicon.ico", "https://www.google.com/favicon.ico"},
+		{"https://www.google.com", "/favicon.ico", "https://www.google.com/favicon.ico"},
+		{"https://www.google.com", "favicon.ico", "https://www.google.com/favicon.ico"},
+		{"https://www.google.com", "", "https://www.google.com/"},
+		{"", "favicon.ico", "/favicon.ico"},
+	}
+	for _, tt := range tests {
+		if got := singleJoiningSlash(tt.slasha, tt.slashb); got != tt.expected {
+			t.Errorf("singleJoiningSlash(%s,%s) want %s got %s",
+				tt.slasha,
+				tt.slashb,
+				tt.expected,
+				got)
+		}
+	}
 }
