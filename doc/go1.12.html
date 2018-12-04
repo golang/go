@@ -151,6 +151,7 @@ for {
 <!-- CL 141977: https://golang.org/cl/141977: cmd/doc: add -all flag to print all documentation for package -->
 <!-- CL 126656: https://golang.org/cl/126656: cmd/go: add $GOFLAGS environment variable -->
 <!-- CL 147282: https://golang.org/cl/147282: cmd/go: add go mod edit -go flag -->
+<!-- CL 148517: https://golang.org/cl/148517: cmd/go: enable module mode without a main module when GO111MODULE=on -->
 <!-- CL 146898: https://golang.org/cl/146898: cmd/link, runtime: add initial cgo support for ppc64 -->
 <!-- CL 60790: https://golang.org/cl/60790: The trace tool now supports plotting mutator utilization curves, including cross-references to the execution trace. These are useful for analyzing the impact of the garbage collector on application latency and throughput.: cmd/trace: add minimum mutator utilization (MMU) plot -->
 <!-- CL 115677: https://golang.org/cl/115677: cmd/vet: check embedded field tags too -->
@@ -344,6 +345,10 @@ for {
       TODO: <a href="https://golang.org/cl/146659">https://golang.org/cl/146659</a>: enable RFC 6555 Fast Fallback by default
     </p>
 
+    <p><!-- CL 107196 -->
+      TODO: <a href="https://golang.org/cl/107196">https://golang.org/cl/107196</a>: enable TCP keepalives by default
+    </p>
+
 </dl><!-- net -->
 
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
@@ -354,6 +359,10 @@ for {
 
     <p><!-- CL 145398 -->
       TODO: <a href="https://golang.org/cl/145398">https://golang.org/cl/145398</a>: in Transport, don&#39;t error on non-chunked response with Trailer header
+    </p>
+
+    <p><!-- CL 152080 -->
+      TODO: <a href="https://golang.org/cl/152080">https://golang.org/cl/152080</a>: update bundled x/net/http2
     </p>
 
 </dl><!-- net/http -->
