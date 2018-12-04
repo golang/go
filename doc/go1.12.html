@@ -171,17 +171,20 @@ for {
 
 </dl><!-- build -->
 
-<dl id="bytes, strings"><dt><a href="/pkg/bytes, strings/">bytes, strings</a></dt>
+<dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
   <dd>
     <p><!-- CL 137855 -->
-      TODO: <a href="https://golang.org/cl/137855">https://golang.org/cl/137855</a>: add ReplaceAll
+      The new function <a href="/pkg/bytes/#ReplaceAll"><code>ReplaceAll</code></a> returns a copy of
+      a byte slice with all non-overlapping instances of a value replaced by another.
     </p>
 
     <p><!-- CL 145098 -->
-      TODO: <a href="https://golang.org/cl/145098">https://golang.org/cl/145098</a>: fix Reader.UnreadRune returning without error on a zero Reader
+      A pointer to a zero-value <a href="/pkg/bytes/#Reader"><code>Reader</code></a> is now
+      functionally equivalent to <a href="/pkg/bytes/#NewReader"><code>NewReader</code></a><code>(nil)</code>.
+      Prior to Go 1.12, the former could not be used as a substitute for the latter in all cases.
     </p>
 
-</dl><!-- bytes, strings -->
+</dl><!-- bytes -->
 
 <dl id="cmd,runtime"><dt><a href="/pkg/cmd,runtime/">cmd,runtime</a></dt>
   <dd>
@@ -214,7 +217,9 @@ for {
 <dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
   <dd>
     <p><!-- CL 145738 -->
-      TODO: <a href="https://golang.org/cl/145738">https://golang.org/cl/145738</a>: add support for returning cursors to client
+      A query cursor can now be obtained by passing a
+      <a href="/pkg/database/sql/#Rows"><code>*Rows</code></a>
+      value to the <a href="/pkg/database/sql/#Row.Scan"><code>Row.Scan</code></a> method.
     </p>
 
 </dl><!-- database/sql -->
@@ -222,19 +227,34 @@ for {
 <dl id="expvar"><dt><a href="/pkg/expvar/">expvar</a></dt>
   <dd>
     <p><!-- CL 139537 -->
-      TODO: <a href="https://golang.org/cl/139537">https://golang.org/cl/139537</a>: add Map.Delete
+      The new <a href="/pkg/expvar/#Map.Delete"><code>Delete</code></a> method allows
+      for deletion of key/value pairs from a <a href="/pkg/expvar/#Map"><code>Map</code></a>.
     </p>
 
 </dl><!-- expvar -->
 
 <dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
   <dd>
-    <p><!-- CL 129777 -->
-      TODO: <a href="https://golang.org/cl/129777">https://golang.org/cl/129777</a>: print values for map keys with non-reflexive equality
+    <p><!-- CL 142737 -->
+      Maps are now printed in key-sorted order to ease testing. The ordering rules are:
+      <ul>
+        <li>When applicable, nil compares low
+        <li>ints, floats, and strings order by <
+        <li>NaN compares less than non-NaN floats
+        <li>bool compares false before true
+        <li>Complex compares real, then imaginary
+        <li>Pointers compare by machine address
+        <li>Channel values compare by machine address
+        <li>Structs compare each field in turn
+        <li>Arrays compare each element in turn
+        <li>Interface values compare first by <code>reflect.Type</code> describing the concrete type
+            and then by concrete value as described in the previous rules.
+      </ul>
     </p>
 
-    <p><!-- CL 142737 -->
-      TODO: <a href="https://golang.org/cl/142737">https://golang.org/cl/142737</a>: print maps in key-sorted order
+    <p><!-- CL 129777 -->
+      When printing maps, non-reflexive key values like <code>NaN</code> were previously
+      displayed as <code>&lt;nil&gt;</code>. As of this release, the correct values are printed.
     </p>
 
 </dl><!-- fmt -->
@@ -457,6 +477,17 @@ for {
 
 <dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
   <dd>
+    <p><!-- CL 137855 -->
+      The new function <a href="/pkg/strings/#ReplaceAll"><code>ReplaceAll</code></a> returns a copy of
+      a string with all non-overlapping instances of a value replaced by another.
+    </p>
+
+    <p><!-- CL 145098 -->
+      A pointer to a zero-value <a href="/pkg/strings/#Reader"><code>Reader</code></a> is now
+      functionally equivalent to <a href="/pkg/strings/#NewReader"><code>NewReader</code></a><code>(nil)</code>.
+      Prior to Go 1.12, the former could not be used as a substitute for the latter in all cases.
+    </p>
+
     <p><!-- CL 122835 -->
       The new <a href="/pkg/strings/#Builder.Cap"><code>Builder.Cap</code></a> method returns the capacity of the builder's underlying byte slice.
     </p>
