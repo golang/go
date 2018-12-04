@@ -8,7 +8,6 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
 	"fmt"
-	"math"
 	"strings"
 )
 
@@ -2913,64 +2912,6 @@ func fielddup(name string, hash map[string]bool) {
 	hash[name] = true
 }
 
-func keydup(n *Node, hash map[uint32][]*Node) {
-	orign := n
-	if n.Op == OCONVIFACE {
-		n = n.Left
-	}
-	evconst(n)
-	if n.Op != OLITERAL {
-		return // we don't check variables
-	}
-
-	const PRIME1 = 3
-
-	var h uint32
-	switch v := n.Val().U.(type) {
-	default: // unknown, bool, nil
-		h = 23
-
-	case *Mpint:
-		h = uint32(v.Int64())
-
-	case *Mpflt:
-		x := math.Float64bits(v.Float64())
-		for i := 0; i < 8; i++ {
-			h = h*PRIME1 + uint32(x&0xFF)
-			x >>= 8
-		}
-
-	case string:
-		for i := 0; i < len(v); i++ {
-			h = h*PRIME1 + uint32(v[i])
-		}
-	}
-
-	var cmp Node
-	for _, a := range hash[h] {
-		cmp.Op = OEQ
-		cmp.Left = n
-		if a.Op == OCONVIFACE && orign.Op == OCONVIFACE {
-			a = a.Left
-		}
-		if !types.Identical(a.Type, n.Type) {
-			continue
-		}
-		cmp.Right = a
-		evconst(&cmp)
-		if cmp.Op != OLITERAL {
-			// Sometimes evconst fails. See issue 12536.
-			continue
-		}
-		if cmp.Val().U.(bool) {
-			yyerror("duplicate key %v in map literal", n)
-			return
-		}
-	}
-
-	hash[h] = append(hash[h], orign)
-}
-
 // iscomptype reports whether type t is a composite literal type
 // or a pointer to one.
 func iscomptype(t *types.Type) bool {
@@ -3131,7 +3072,7 @@ func typecheckcomplit(n *Node) (res *Node) {
 		}
 
 	case TMAP:
-		hash := make(map[uint32][]*Node)
+		var cs constSet
 		for i3, l := range n.List.Slice() {
 			setlineno(l)
 			if l.Op != OKEY {
@@ -3145,8 +3086,8 @@ func typecheckcomplit(n *Node) (res *Node) {
 			r = typecheck(r, ctxExpr)
 			r = defaultlit(r, t.Key())
 			l.Left = assignconv(r, t.Key(), "map key")
-			if l.Left.Op != OCONV {
-				keydup(l.Left, hash)
+			if cs.add(l.Left) != nil {
+				yyerror("duplicate key %v in map literal", l.Left)
 			}
 
 			r = l.Right
