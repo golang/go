@@ -211,14 +211,6 @@ for {
 
 </dl><!-- crypto/rc4 -->
 
-<dl id="crypto/tls, net/http"><dt><a href="/pkg/crypto/tls, net/http/">crypto/tls, net/http</a></dt>
-  <dd>
-    <p><!-- CL 143177 -->
-      TODO: <a href="https://golang.org/cl/143177">https://golang.org/cl/143177</a>: reject HTTP requests to HTTPS server
-    </p>
-
-</dl><!-- crypto/tls, net/http -->
-
 <dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
   <dd>
     <p><!-- CL 145738 -->
@@ -337,32 +329,54 @@ for {
 
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
-    <p><!-- CL 113997 -->
-      TODO: <a href="https://golang.org/cl/113997">https://golang.org/cl/113997</a>: use splice(2) on Linux when reading from UnixConn, rework splice tests
-    </p>
-
     <p><!-- CL 146659 -->
-      TODO: <a href="https://golang.org/cl/146659">https://golang.org/cl/146659</a>: enable RFC 6555 Fast Fallback by default
+      The
+      <a href="/pkg/net/#Dialer.DualStack"><code>Dialer.DualStack</code></a> setting is now ignored and deprecated;
+      RFC 6555 Fast Fallback ("Happy Eyeballs") is now enabled by default. To disable, set
+      <a href="/pkg/net/#Dialer.FallbackDelay"><code>Dialer.FallbackDelay</code></a> to a negative value.
     </p>
 
     <p><!-- CL 107196 -->
-      TODO: <a href="https://golang.org/cl/107196">https://golang.org/cl/107196</a>: enable TCP keepalives by default
+      Similarly, TCP keep-alives are now enabled by default if
+      <a href="/pkg/net/#Dialer.KeepAlive"><code>Dialer.KeepAlive</code></a> is zero.
+      To disable, set it to a negative value.
     </p>
 
+    <p><!-- CL 113997 -->
+      On Linux, the <a href="http://man7.org/linux/man-pages/man2/splice.2.html"><code>splice</code> system call</a> is now used when copying from a
+      <a href="/pkg/net/#UnixConn"><code>UnixConn</code></a> to a
+      <a href="/pkg/net/#TCPConn"><code>TCPConn</code></a>.
+    </p>
 </dl><!-- net -->
 
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
+    <p><!-- CL 143177 -->
+      The HTTP server now rejects misdirected HTTP requests to HTTPS servers with a plaintext "400 Bad Request" response.
+    </p>
+
     <p><!-- CL 130115 -->
-      TODO: <a href="https://golang.org/cl/130115">https://golang.org/cl/130115</a>: add Client.CloseIdleConnections
+      The new <a href="/pkg/net/http/#Client.CloseIdleConnections"><code>Client.CloseIdleConnections</code></a>
+      method calls the <code>Client</code>'s underlying <code>Transport</code>'s <code>CloseIdleConnections</code>
+      if it has one.
     </p>
 
     <p><!-- CL 145398 -->
-      TODO: <a href="https://golang.org/cl/145398">https://golang.org/cl/145398</a>: in Transport, don&#39;t error on non-chunked response with Trailer header
+      The <a href="/pkg/net/http/#Transport"><code>Transport</code></a> no longer rejects HTTP responses which declare
+      HTTP Trailers but don't use chunked encoding. Instead, the declared trailers are now just ignored.
     </p>
 
-    <p><!-- CL 152080 -->
-      TODO: <a href="https://golang.org/cl/152080">https://golang.org/cl/152080</a>: update bundled x/net/http2
+    <p><!-- CL 152080 --> <!-- CL 151857 -->
+      The <a href="/pkg/net/http/#Transport"><code>Transport</code></a> no longer handles <code>MAX_CONCURRENT_STREAMS</code> values
+      advertised from HTTP/2 servers as strictly as it did during Go 1.10 and Go 1.11. The default behavior is now back
+      to how it was in Go 1.9: each connection to a server can have up to <code>MAX_CONCURRENT_STREAMS</code> requests
+      active and then new TCP connections are created as needed. In Go 1.10 and Go 1.11 the <code>http2</code> package
+      would block and wait for requests to finish instead of creating new connections.
+      To get the stricter behavior back, import the
+      <a href="https://godoc.org/golang.org/x/net/http2"><code>golang.org/x/net/http2</code></a> package
+      directly and set
+      <a href="https://godoc.org/golang.org/x/net/http2#Transport.StrictMaxConcurrentStreams"><code>Transport.StrictMaxConcurrentStreams</code></a> to
+      <code>true</code>.
     </p>
 
 </dl><!-- net/http -->
@@ -370,7 +384,8 @@ for {
 <dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
   <dd>
     <p><!-- CL 146437 -->
-      TODO: <a href="https://golang.org/cl/146437">https://golang.org/cl/146437</a>: make ReverseProxy automatically proxy WebSocket requests
+      The <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a> now automatically
+      proxies WebSocket requests.
     </p>
 
 </dl><!-- net/http/httputil -->
@@ -378,7 +393,8 @@ for {
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
     <p><!-- CL 125443 -->
-      TODO: <a href="https://golang.org/cl/125443">https://golang.org/cl/125443</a>: add ExitCode method to ProcessState
+      The new <a href="/pkg/os/#ProcessState.ExitCode"><code>ProcessState.ExitCode</code></a> method
+      returns the process's exit code.
     </p>
 
     <p><!-- CL 135075 -->
@@ -442,7 +458,7 @@ for {
 <dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
   <dd>
     <p><!-- CL 122835 -->
-      TODO: <a href="https://golang.org/cl/122835">https://golang.org/cl/122835</a>: add Builder.Cap
+      The new <a href="/pkg/strings/#Builder.Cap"><code>Builder.Cap</code></a> method returns the capacity of the builder's underlying byte slice.
     </p>
 
     <p><!-- CL 131495 -->
