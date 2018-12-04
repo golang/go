@@ -318,6 +318,7 @@ overwrite:
 			pc.InlTree[i].File = r.readSymIndex()
 			pc.InlTree[i].Line = r.readInt32()
 			pc.InlTree[i].Func = r.readSymIndex()
+			pc.InlTree[i].ParentPC = r.readInt32()
 		}
 
 		if !dupok {

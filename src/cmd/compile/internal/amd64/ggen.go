@@ -141,7 +141,7 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
 	}
 }
 
-func ginsnop(pp *gc.Progs) {
+func ginsnop(pp *gc.Progs) *obj.Prog {
 	// This is actually not the x86 NOP anymore,
 	// but at the point where it gets used, AX is dead
 	// so it's okay if we lose the high bits.
@@ -150,4 +150,5 @@ func ginsnop(pp *gc.Progs) {
 	p.From.Reg = x86.REG_AX
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = x86.REG_AX
+	return p
 }

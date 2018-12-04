@@ -179,7 +179,6 @@ func testCallbackCallers(t *testing.T) {
 	pc := make([]uintptr, 100)
 	n := 0
 	name := []string{
-		"runtime.call16",
 		"runtime.cgocallbackg1",
 		"runtime.cgocallbackg",
 		"runtime.cgocallback_gofunc",
@@ -192,9 +191,6 @@ func testCallbackCallers(t *testing.T) {
 		"test.TestCallbackCallers",
 		"testing.tRunner",
 		"runtime.goexit",
-	}
-	if unsafe.Sizeof((*byte)(nil)) == 8 {
-		name[0] = "runtime.call32"
 	}
 	nestedCall(func() {
 		n = runtime.Callers(4, pc)
