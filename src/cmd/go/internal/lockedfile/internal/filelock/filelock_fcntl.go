@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build aix solaris
+
 // This code implements the filelock API using POSIX 'fcntl' locks, which attach
 // to an (inode, process) pair rather than a file descriptor. To avoid unlocking
 // files prematurely when the same file is opened through different descriptors,
@@ -13,8 +15,8 @@
 //
 // TODO(bcmills): If we add a build tag for Illumos (see golang.org/issue/20603)
 // then Illumos should use F_OFD_SETLK, and the resulting code would be as
-// simple as filelock_unix.go. We will still need the code in this file as long
-// as Oracle Solaris provides only F_SETLK.
+// simple as filelock_unix.go. We will still need the code in this file for AIX
+// or as long as Oracle Solaris provides only F_SETLK.
 
 package filelock
 
