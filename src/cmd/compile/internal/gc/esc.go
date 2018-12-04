@@ -1652,49 +1652,79 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 			Fatalf("graph inconsistency")
 		}
 
-		sawRcvr := false
-		for _, n := range fn.Name.Defn.Func.Dcl {
-			switch n.Class() {
-			case PPARAM:
-				if call.Op != OCALLFUNC && !sawRcvr {
-					e.escassignWhyWhere(n, call.Left.Left, "call receiver", call)
-					sawRcvr = true
-					continue
-				}
-				if len(args) == 0 {
-					continue
-				}
-				arg := args[0]
-				if n.IsDDD() && !call.IsDDD() {
-					// Introduce ODDDARG node to represent ... allocation.
-					arg = nod(ODDDARG, nil, nil)
-					arr := types.NewArray(n.Type.Elem(), int64(len(args)))
-					arg.Type = types.NewPtr(arr) // make pointer so it will be tracked
-					arg.Pos = call.Pos
-					e.track(arg)
-					call.Right = arg
-				}
-				e.escassignWhyWhere(n, arg, "arg to recursive call", call) // TODO this message needs help.
-				if arg == args[0] {
-					args = args[1:]
-					continue
-				}
-				// "..." arguments are untracked
-				for _, a := range args {
-					if Debug['m'] > 3 {
-						fmt.Printf("%v::esccall:: ... <- %S, untracked\n", linestr(lineno), a)
-					}
-					e.escassignSinkWhyWhere(arg, a, "... arg to recursive call", call)
-				}
-				// No more PPARAM processing, but keep
-				// going for PPARAMOUT.
-				args = nil
+		i := 0
 
-			case PPARAMOUT:
+		// Receiver.
+		if call.Op != OCALLFUNC {
+			rf := fntype.Recv()
+			if rf.Sym != nil && !rf.Sym.IsBlank() {
+				n := fn.Name.Defn.Func.Dcl[0]
+				i++
+				if n.Class() != PPARAM {
+					Fatalf("esccall: not a parameter %+v", n)
+				}
+				e.escassignWhyWhere(n, call.Left.Left, "recursive call receiver", call)
+			}
+		}
+
+		// Parameters.
+		for _, param := range fntype.Params().FieldSlice() {
+			if param.Sym == nil || param.Sym.IsBlank() {
+				// Unnamed parameter is not listed in Func.Dcl.
+				// But we need to consume the arg.
+				if param.IsDDD() && !call.IsDDD() {
+					args = nil
+				} else {
+					args = args[1:]
+				}
+				continue
+			}
+
+			n := fn.Name.Defn.Func.Dcl[i]
+			i++
+			if n.Class() != PPARAM {
+				Fatalf("esccall: not a parameter %+v", n)
+			}
+			if len(args) == 0 {
+				continue
+			}
+			arg := args[0]
+			if n.IsDDD() && !call.IsDDD() {
+				// Introduce ODDDARG node to represent ... allocation.
+				arg = nod(ODDDARG, nil, nil)
+				arr := types.NewArray(n.Type.Elem(), int64(len(args)))
+				arg.Type = types.NewPtr(arr) // make pointer so it will be tracked
+				arg.Pos = call.Pos
+				e.track(arg)
+				call.Right = arg
+			}
+			e.escassignWhyWhere(n, arg, "arg to recursive call", call) // TODO this message needs help.
+			if arg == args[0] {
+				args = args[1:]
+				continue
+			}
+			// "..." arguments are untracked
+			for _, a := range args {
+				if Debug['m'] > 3 {
+					fmt.Printf("%v::esccall:: ... <- %S, untracked\n", linestr(lineno), a)
+				}
+				e.escassignSinkWhyWhere(arg, a, "... arg to recursive call", call)
+			}
+			// ... arg consumes all remaining arguments
+			args = nil
+		}
+
+		// Results.
+		for _, n := range fn.Name.Defn.Func.Dcl[i:] {
+			if n.Class() == PPARAMOUT {
 				cE.Retval.Append(n)
 			}
 		}
 
+		// Sanity check: all arguments must be consumed.
+		if len(args) != 0 {
+			Fatalf("esccall not consumed all args %+v\n", call)
+		}
 		return
 	}
 
