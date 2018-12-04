@@ -11,7 +11,8 @@ import (
 	"unicode/utf8"
 )
 
-// The following functions are copied verbatim from cmd/go/internal/module/module.go.
+// The following functions are copied verbatim from cmd/go/internal/module/module.go,
+// with one change to additionally reject Windows short-names.
 //
 // TODO(bcmills): After the call site for this function is backported,
 // consolidate this back down to a single copy.
@@ -76,6 +77,7 @@ func checkElem(elem string, fileName bool) error {
 	if elem[len(elem)-1] == '.' {
 		return fmt.Errorf("trailing dot in path element")
 	}
+
 	charOK := pathOK
 	if fileName {
 		charOK = fileNameOK
@@ -97,6 +99,23 @@ func checkElem(elem string, fileName bool) error {
 			return fmt.Errorf("disallowed path element %q", elem)
 		}
 	}
+
+	// Reject path components that look like Windows short-names.
+	// Those usually end in a tilde followed by one or more ASCII digits.
+	if tilde := strings.LastIndexByte(short, '~'); tilde >= 0 && tilde < len(short)-1 {
+		suffix := short[tilde+1:]
+		suffixIsDigits := true
+		for _, r := range suffix {
+			if r < '0' || r > '9' {
+				suffixIsDigits = false
+				break
+			}
+		}
+		if suffixIsDigits {
+			return fmt.Errorf("trailing tilde and digits in path element")
+		}
+	}
+
 	return nil
 }
 
