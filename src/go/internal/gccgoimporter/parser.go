@@ -541,6 +541,14 @@ func (p *parser) parseNamedType(nlist []int) types.Type {
 		// collect associated methods
 		for p.tok == scanner.Ident {
 			p.expectKeyword("func")
+			if p.tok == '/' {
+				// Skip a /*nointerface*/ comment.
+				p.expect('/')
+				p.expect('*')
+				p.expect(scanner.Ident)
+				p.expect('*')
+				p.expect('/')
+			}
 			p.expect('(')
 			receiver, _ := p.parseParam(pkg)
 			p.expect(')')
