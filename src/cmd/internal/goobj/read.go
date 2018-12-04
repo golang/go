@@ -119,10 +119,11 @@ type FuncData struct {
 // An InlinedCall is a node in an InlTree.
 // See cmd/internal/obj.InlTree for details.
 type InlinedCall struct {
-	Parent int64
-	File   string
-	Line   int64
-	Func   SymID
+	Parent   int64
+	File     string
+	Line     int64
+	Func     SymID
+	ParentPC int64
 }
 
 // A Package is a parsed Go object file or archive defining a Go package.
@@ -610,6 +611,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 				f.InlTree[i].File = r.readSymID().Name
 				f.InlTree[i].Line = r.readInt()
 				f.InlTree[i].Func = r.readSymID()
+				f.InlTree[i].ParentPC = r.readInt()
 			}
 		}
 	}

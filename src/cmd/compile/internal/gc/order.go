@@ -553,7 +553,7 @@ func (o *Order) stmt(n *Node) {
 	default:
 		Fatalf("orderstmt %v", n.Op)
 
-	case OVARKILL, OVARLIVE:
+	case OVARKILL, OVARLIVE, OINLMARK:
 		o.out = append(o.out, n)
 
 	case OAS:

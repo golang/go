@@ -243,7 +243,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	for p := s.Func.Text; p != nil; p = p.Link {
 		prevBase := base
 		base = ctxt.PosTable.Pos(p.Pos).Base()
-
 		switch p.As {
 		case ABlock, ALoop, AIf:
 			explicitBlockDepth++
@@ -279,7 +278,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		// more often to avoid bloat of the BrTable instruction.
 		// The "base != prevBase" condition detects inlined instructions. They are an
 		// implicit call, so entering and leaving this section affects the stack trace.
-		if p.As == ACALLNORESUME || p.As == obj.ANOP || p.Spadj != 0 || base != prevBase {
+		if p.As == ACALLNORESUME || p.As == obj.ANOP || p.As == ANop || p.Spadj != 0 || base != prevBase {
 			pc++
 		}
 	}

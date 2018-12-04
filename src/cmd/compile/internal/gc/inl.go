@@ -1063,6 +1063,15 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
 	}
 	newIndex := Ctxt.InlTree.Add(parent, n.Pos, fn.Sym.Linksym())
 
+	// Add a inline mark just before the inlined body.
+	// This mark is inline in the code so that it's a reasonable spot
+	// to put a breakpoint. Not sure if that's really necessary or not
+	// (in which case it could go at the end of the function instead).
+	inlMark := nod(OINLMARK, nil, nil)
+	inlMark.Pos = n.Pos
+	inlMark.Xoffset = int64(newIndex)
+	ninit.Append(inlMark)
+
 	if genDwarfInline > 0 {
 		if !fn.Sym.Linksym().WasInlined() {
 			Ctxt.DwFixups.SetPrecursorFunc(fn.Sym.Linksym(), fn)

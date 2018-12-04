@@ -56,11 +56,11 @@ func testCallersFrames(skp int) (frames []string) {
 }
 
 var expectedFrames [][]string = [][]string{
-	0: {"runtime.Callers", "main.testCallers", "main.main"},
-	1: {"main.testCallers", "main.main"},
-	2: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
-	3: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
-	4: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
+	0: {"runtime.Callers", "main.testCallers", "main.testCallers", "main.testCallers", "main.testCallers", "main.main"},
+	1: {"main.testCallers", "main.testCallers", "main.testCallers", "main.testCallers", "main.main"},
+	2: {"main.testCallers", "main.testCallers", "main.testCallers", "main.main"},
+	3: {"main.testCallers", "main.testCallers", "main.main"},
+	4: {"main.testCallers", "main.main"},
 	5: {"main.main"},
 }
 

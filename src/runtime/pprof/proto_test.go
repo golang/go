@@ -133,11 +133,11 @@ func TestConvertCPUProfile(t *testing.T) {
 	samples := []*profile.Sample{
 		{Value: []int64{20, 20 * 2000 * 1000}, Location: []*profile.Location{
 			{ID: 1, Mapping: map1, Address: addr1},
-			{ID: 2, Mapping: map1, Address: addr1 + 1},
+			{ID: 2, Mapping: map1, Address: addr1 + 2},
 		}},
 		{Value: []int64{40, 40 * 2000 * 1000}, Location: []*profile.Location{
 			{ID: 3, Mapping: map2, Address: addr2},
-			{ID: 4, Mapping: map2, Address: addr2 + 1},
+			{ID: 4, Mapping: map2, Address: addr2 + 2},
 		}},
 	}
 	checkProfile(t, p, period, periodType, sampleType, samples, "")
