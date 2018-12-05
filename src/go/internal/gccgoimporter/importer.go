@@ -6,9 +6,11 @@
 package gccgoimporter // import "go/internal/gccgoimporter"
 
 import (
+	"bytes"
 	"debug/elf"
 	"fmt"
 	"go/types"
+	"internal/xcoff"
 	"io"
 	"os"
 	"path/filepath"
@@ -65,6 +67,7 @@ const (
 	gccgov3Magic    = "v3;\n"
 	goimporterMagic = "\n$$ "
 	archiveMagic    = "!<ar"
+	aixbigafMagic   = "<big"
 )
 
 // Opens the export data file at the given path. If this is an ELF file,
@@ -89,33 +92,44 @@ func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err e
 		return
 	}
 
-	var elfreader io.ReaderAt
+	var objreader io.ReaderAt
 	switch string(magic[:]) {
 	case gccgov1Magic, gccgov2Magic, gccgov3Magic, goimporterMagic:
 		// Raw export data.
 		reader = f
 		return
 
-	case archiveMagic:
+	case archiveMagic, aixbigafMagic:
 		reader, err = arExportData(f)
 		return
 
 	default:
-		elfreader = f
+		objreader = f
 	}
 
-	ef, err := elf.NewFile(elfreader)
-	if err != nil {
+	ef, err := elf.NewFile(objreader)
+	if err == nil {
+		sec := ef.Section(".go_export")
+		if sec == nil {
+			err = fmt.Errorf("%s: .go_export section not found", fpath)
+			return
+		}
+		reader = sec.Open()
 		return
 	}
 
-	sec := ef.Section(".go_export")
-	if sec == nil {
-		err = fmt.Errorf("%s: .go_export section not found", fpath)
+	xf, err := xcoff.NewFile(objreader)
+	if err == nil {
+		sdat := xf.CSect(".go_export")
+		if sdat == nil {
+			err = fmt.Errorf("%s: .go_export section not found", fpath)
+			return
+		}
+		reader = bytes.NewReader(sdat)
 		return
 	}
 
-	reader = sec.Open()
+	err = fmt.Errorf("%s: unrecognized file format", fpath)
 	return
 }
 
