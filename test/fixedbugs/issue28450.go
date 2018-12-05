@@ -6,13 +6,13 @@
 
 package p
 
-func f(a, b, c, d ...int)       {} // ERROR "non-final parameter a" "non-final parameter b" "non-final parameter c"
+func f(a, b, c, d ...int)       {} // ERROR "non-final parameter a"
 func g(a ...int, b ...int)      {} // ERROR "non-final parameter a"
 func h(...int, ...int, float32) {} // ERROR "non-final parameter"
 
 type a func(...float32, ...interface{}) // ERROR "non-final parameter"
 type b interface {
 	f(...int, ...int)                // ERROR "non-final parameter"
-	g(a ...int, b ...int, c float32) // ERROR "non-final parameter a" "non-final parameter b"
+	g(a ...int, b ...int, c float32) // ERROR "non-final parameter a"
 	valid(...int)
 }
