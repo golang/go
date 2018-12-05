@@ -37,9 +37,6 @@ go	src=..
 				buildid
 					testdata
 						+
-				xcoff
-					testdata
-						+
 			gofmt
 				gofmt.go
 				gofmt_test.go
@@ -155,6 +152,9 @@ go	src=..
 					+
 		internal
 			trace
+				testdata
+					+
+			xcoff
 				testdata
 					+
 		io

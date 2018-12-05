@@ -273,6 +273,7 @@ var pkgDeps = map[string][]string{
 	"internal/goroot":                {"L4", "OS"},
 	"internal/singleflight":          {"sync"},
 	"internal/trace":                 {"L4", "OS", "container/heap"},
+	"internal/xcoff":                 {"L4", "OS", "debug/dwarf"},
 	"math/big":                       {"L4"},
 	"mime":                           {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
 	"mime/quotedprintable":           {"L4"},

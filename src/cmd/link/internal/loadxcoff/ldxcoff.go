@@ -9,10 +9,10 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
-	"cmd/internal/xcoff"
 	"cmd/link/internal/sym"
 	"errors"
 	"fmt"
+	"internal/xcoff"
 )
 
 // ldSection is an XCOFF section with its symbols.

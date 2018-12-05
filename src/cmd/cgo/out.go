@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"cmd/internal/xcoff"
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
@@ -14,6 +13,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"internal/xcoff"
 	"io"
 	"io/ioutil"
 	"os"

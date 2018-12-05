@@ -7,9 +7,9 @@
 package objfile
 
 import (
-	"cmd/internal/xcoff"
 	"debug/dwarf"
 	"fmt"
+	"internal/xcoff"
 	"io"
 	"unicode"
 )

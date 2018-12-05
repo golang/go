@@ -64,7 +64,7 @@ func TestNonGoExecs(t *testing.T) {
 		"debug/pe/testdata/gcc-386-mingw-exec",
 		"debug/plan9obj/testdata/amd64-plan9-exec",
 		"debug/plan9obj/testdata/386-plan9-exec",
-		"cmd/internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec",
+		"internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec",
 	}
 	for _, f := range testfiles {
 		exepath := filepath.Join(runtime.GOROOT(), "src", f)
