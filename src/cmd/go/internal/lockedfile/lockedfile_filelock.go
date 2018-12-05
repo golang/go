@@ -29,22 +29,23 @@ func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
 	default:
 		err = filelock.RLock(f)
 	}
-	if err == nil && flag&os.O_TRUNC == os.O_TRUNC {
-		if err = f.Truncate(0); err != nil {
+	if err != nil {
+		f.Close()
+		return nil, err
+	}
+
+	if flag&os.O_TRUNC == os.O_TRUNC {
+		if err := f.Truncate(0); err != nil {
 			// The documentation for os.O_TRUNC says “if possible, truncate file when
 			// opened”, but doesn't define “possible” (golang.org/issue/28699).
 			// We'll treat regular files (and symlinks to regular files) as “possible”
 			// and ignore errors for the rest.
-			if fi, statErr := f.Stat(); statErr == nil && !fi.Mode().IsRegular() {
-				err = nil
+			if fi, statErr := f.Stat(); statErr != nil || fi.Mode().IsRegular() {
+				filelock.Unlock(f)
+				f.Close()
+				return nil, err
 			}
 		}
-	}
-
-	if err != nil {
-		filelock.Unlock(f)
-		f.Close()
-		return nil, err
 	}
 
 	return f, nil
