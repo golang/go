@@ -16,9 +16,10 @@ import (
 // - adding test and non-test files to test variants of packages
 // - determining the correct package to add given a new import path
 // - creating packages that don't exist
-func processGolistOverlay(cfg *Config, response *driverResponse) (needPkgs []string, err error) {
+func processGolistOverlay(cfg *Config, response *driverResponse) (modifiedPkgs, needPkgs []string, err error) {
 	havePkgs := make(map[string]string) // importPath -> non-test package ID
 	needPkgsSet := make(map[string]bool)
+	modifiedPkgsSet := make(map[string]bool)
 
 	for _, pkg := range response.Packages {
 		// This is an approximation of import path to id. This can be
@@ -49,6 +50,7 @@ outer:
 				if !fileExists {
 					pkg.GoFiles = append(pkg.GoFiles, path) // TODO(matloob): should the file just be added to GoFiles?
 					pkg.CompiledGoFiles = append(pkg.CompiledGoFiles, path)
+					modifiedPkgsSet[pkg.ID] = true
 				}
 				imports, err := extractImports(path, contents)
 				if err != nil {
@@ -77,7 +79,11 @@ outer:
 	for pkg := range needPkgsSet {
 		needPkgs = append(needPkgs, pkg)
 	}
-	return needPkgs, err
+	modifiedPkgs = make([]string, 0, len(modifiedPkgsSet))
+	for pkg := range modifiedPkgsSet {
+		modifiedPkgs = append(modifiedPkgs, pkg)
+	}
+	return modifiedPkgs, needPkgs, err
 }
 
 func extractImports(filename string, contents []byte) ([]string, error) {

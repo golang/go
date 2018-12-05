@@ -130,12 +130,13 @@ extractQueries:
 		response.Packages = append(response.Packages, p)
 	}
 
+	var containsCandidates []string
+
 	if len(containFiles) != 0 {
-		containsResults, err := runContainsQueries(cfg, listfunc, isFallback, addPkg, containFiles)
+		containsCandidates, err = runContainsQueries(cfg, listfunc, isFallback, addPkg, containFiles)
 		if err != nil {
 			return nil, err
 		}
-		response.Roots = append(response.Roots, containsResults...)
 	}
 
 	if len(packagesNamed) != 0 {
@@ -146,12 +147,33 @@ extractQueries:
 		response.Roots = append(response.Roots, namedResults...)
 	}
 
-	needPkgs, err := processGolistOverlay(cfg, response)
+	modifiedPkgs, needPkgs, err := processGolistOverlay(cfg, response)
 	if err != nil {
 		return nil, err
 	}
+	if len(containFiles) > 0 {
+		containsCandidates = append(containsCandidates, modifiedPkgs...)
+		containsCandidates = append(containsCandidates, needPkgs...)
+	}
+
 	if len(needPkgs) > 0 {
 		addNeededOverlayPackages(cfg, listfunc, addPkg, needPkgs)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// Check candidate packages for containFiles.
+	if len(containFiles) > 0 {
+		for _, id := range containsCandidates {
+			pkg := seenPkgs[id]
+			for _, f := range containFiles {
+				for _, g := range pkg.GoFiles {
+					if sameFile(f, g) {
+						response.Roots = append(response.Roots, id)
+					}
+				}
+			}
+		}
 	}
 
 	return response, nil
