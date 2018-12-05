@@ -1017,6 +1017,7 @@ func hostobjCopy() (paths []string) {
 			if err != nil {
 				Exitf("cannot reopen %s: %v", h.pn, err)
 			}
+			defer f.Close()
 			if _, err := f.Seek(h.off, 0); err != nil {
 				Exitf("cannot seek %s: %v", h.pn, err)
 			}
