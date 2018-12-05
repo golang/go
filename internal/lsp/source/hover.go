@@ -11,7 +11,7 @@ import (
 	"go/types"
 )
 
-func Hover(ctx context.Context, f *File, pos token.Pos) (string, Range, error) {
+func Hover(ctx context.Context, f File, pos token.Pos) (string, Range, error) {
 	fAST, err := f.GetAST()
 	if err != nil {
 		return "", Range{}, err

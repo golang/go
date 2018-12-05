@@ -7,6 +7,7 @@ package lsp
 import (
 	"go/token"
 
+	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 )
@@ -14,7 +15,7 @@ import (
 // fromProtocolLocation converts from a protocol location to a source range.
 // It will return an error if the file of the location was not valid.
 // It uses fromProtocolRange to convert the start and end positions.
-func fromProtocolLocation(v *source.View, loc protocol.Location) (source.Range, error) {
+func fromProtocolLocation(v *cache.View, loc protocol.Location) (source.Range, error) {
 	f := v.GetFile(source.URI(loc.URI))
 	tok, err := f.GetToken()
 	if err != nil {
@@ -81,6 +82,14 @@ func toProtocolPosition(f *token.File, pos token.Pos) protocol.Position {
 		Line:      float64(p.Line - 1),
 		Character: float64(p.Column - 1),
 	}
+}
+
+// fromTokenPosition converts a token.Position (1-based line and column
+// number) to a token.Pos (byte offset value).
+// It requires the token file the pos belongs to in order to do this.
+func fromTokenPosition(f *token.File, pos token.Position) token.Pos {
+	line := lineStart(f, pos.Line)
+	return line + token.Pos(pos.Column-1) // TODO: this is wrong, bytes not characters
 }
 
 // this functionality was borrowed from the analysisutil package

@@ -14,21 +14,11 @@ import (
 )
 
 type Diagnostic struct {
-	Range    Range
-	Severity DiagnosticSeverity
-	Message  string
+	token.Position
+	Message string
 }
 
-type DiagnosticSeverity int
-
-const (
-	SeverityError DiagnosticSeverity = iota
-	SeverityWarning
-	SeverityHint
-	SeverityInformation
-)
-
-func Diagnostics(ctx context.Context, v *View, f *File) (map[string][]Diagnostic, error) {
+func Diagnostics(ctx context.Context, f File) (map[string][]Diagnostic, error) {
 	pkg, err := f.GetPackage()
 	if err != nil {
 		return nil, err
@@ -56,25 +46,27 @@ func Diagnostics(ctx context.Context, v *View, f *File) (map[string][]Diagnostic
 		diags = parseErrors
 	}
 	for _, diag := range diags {
-		filename, start := v.errorPos(diag)
-		// TODO(rstambler): Add support for diagnostic ranges.
-		end := start
+		pos := errorPos(diag)
 		diagnostic := Diagnostic{
-			Range: Range{
-				Start: start,
-				End:   end,
-			},
+			Position: pos,
 			Message:  diag.Msg,
-			Severity: SeverityError,
 		}
-		if _, ok := reports[filename]; ok {
-			reports[filename] = append(reports[filename], diagnostic)
+		if _, ok := reports[pos.Filename]; ok {
+			reports[pos.Filename] = append(reports[pos.Filename], diagnostic)
 		}
 	}
 	return reports, nil
 }
 
-func (v *View) errorPos(pkgErr packages.Error) (string, token.Pos) {
+// FromTokenPosition converts a token.Position (1-based line and column
+// number) to a token.Pos (byte offset value).
+// It requires the token file the pos belongs to in order to do this.
+func FromTokenPosition(f *token.File, pos token.Position) token.Pos {
+	line := lineStart(f, pos.Line)
+	return line + token.Pos(pos.Column-1) // TODO: this is wrong, bytes not characters
+}
+
+func errorPos(pkgErr packages.Error) token.Position {
 	remainder1, first, hasLine := chop(pkgErr.Pos)
 	remainder2, second, hasColumn := chop(remainder1)
 	var pos token.Position
@@ -86,15 +78,7 @@ func (v *View) errorPos(pkgErr packages.Error) (string, token.Pos) {
 		pos.Filename = remainder1
 		pos.Line = first
 	}
-	f := v.GetFile(ToURI(pos.Filename))
-	if f == nil {
-		return "", token.NoPos
-	}
-	tok, err := f.GetToken()
-	if err != nil {
-		return "", token.NoPos
-	}
-	return pos.Filename, fromTokenPosition(tok, pos)
+	return pos
 }
 
 func chop(text string) (remainder string, value int, ok bool) {
@@ -107,42 +91,4 @@ func chop(text string) (remainder string, value int, ok bool) {
 		return text, 0, false
 	}
 	return text[:i], int(v), true
-}
-
-// fromTokenPosition converts a token.Position (1-based line and column
-// number) to a token.Pos (byte offset value).
-// It requires the token file the pos belongs to in order to do this.
-func fromTokenPosition(f *token.File, pos token.Position) token.Pos {
-	line := lineStart(f, pos.Line)
-	return line + token.Pos(pos.Column-1) // TODO: this is wrong, bytes not characters
-}
-
-// this functionality was borrowed from the analysisutil package
-func lineStart(f *token.File, line int) token.Pos {
-	// Use binary search to find the start offset of this line.
-	//
-	// TODO(adonovan): eventually replace this function with the
-	// simpler and more efficient (*go/token.File).LineStart, added
-	// in go1.12.
-
-	min := 0        // inclusive
-	max := f.Size() // exclusive
-	for {
-		offset := (min + max) / 2
-		pos := f.Pos(offset)
-		posn := f.Position(pos)
-		if posn.Line == line {
-			return pos - (token.Pos(posn.Column) - 1)
-		}
-
-		if min+1 >= max {
-			return token.NoPos
-		}
-
-		if posn.Line < line {
-			min = offset
-		} else {
-			max = offset
-		}
-	}
 }

@@ -6,11 +6,11 @@ package lsp
 
 import (
 	"context"
-	"go/token"
 	"os"
 	"sync"
 
 	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 )
@@ -33,7 +33,7 @@ type server struct {
 	signatureHelpEnabled bool
 	snippetsSupported    bool
 
-	view *source.View
+	view *cache.View
 }
 
 func (s *server) Initialize(ctx context.Context, params *protocol.InitializeParams) (*protocol.InitializeResult, error) {
@@ -42,7 +42,7 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 	if s.initialized {
 		return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidRequest, "server already initialized")
 	}
-	s.view = source.NewView()
+	s.view = cache.NewView()
 	s.initialized = true // mark server as initialized now
 
 	// Check if the client supports snippets in completion items.
@@ -113,7 +113,7 @@ func (s *server) ExecuteCommand(context.Context, *protocol.ExecuteCommandParams)
 }
 
 func (s *server) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
-	s.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, params.TextDocument.Text)
+	s.CacheAndDiagnose(ctx, params.TextDocument.URI, params.TextDocument.Text)
 	return nil
 }
 
@@ -123,27 +123,9 @@ func (s *server) DidChange(ctx context.Context, params *protocol.DidChangeTextDo
 	}
 	// We expect the full content of file, i.e. a single change with no range.
 	if change := params.ContentChanges[0]; change.RangeLength == 0 {
-		s.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, change.Text)
+		s.CacheAndDiagnose(ctx, params.TextDocument.URI, change.Text)
 	}
 	return nil
-}
-
-func (s *server) cacheAndDiagnoseFile(ctx context.Context, uri protocol.DocumentURI, text string) {
-	f := s.view.GetFile(source.URI(uri))
-	f.SetContent([]byte(text))
-	go func() {
-		f := s.view.GetFile(source.URI(uri))
-		reports, err := source.Diagnostics(ctx, s.view, f)
-		if err != nil {
-			return // handle error?
-		}
-		for filename, diagnostics := range reports {
-			s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-				URI:         protocol.DocumentURI(source.ToURI(filename)),
-				Diagnostics: toProtocolDiagnostics(s.view, diagnostics),
-			})
-		}
-	}()
 }
 
 func (s *server) WillSave(context.Context, *protocol.WillSaveTextDocumentParams) error {
@@ -297,56 +279,6 @@ func (s *server) Formatting(ctx context.Context, params *protocol.DocumentFormat
 
 func (s *server) RangeFormatting(ctx context.Context, params *protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
 	return formatRange(ctx, s.view, params.TextDocument.URI, &params.Range)
-}
-
-// formatRange formats a document with a given range.
-func formatRange(ctx context.Context, v *source.View, uri protocol.DocumentURI, rng *protocol.Range) ([]protocol.TextEdit, error) {
-	f := v.GetFile(source.URI(uri))
-	tok, err := f.GetToken()
-	if err != nil {
-		return nil, err
-	}
-	var r source.Range
-	if rng == nil {
-		r.Start = tok.Pos(0)
-		r.End = tok.Pos(tok.Size())
-	} else {
-		r = fromProtocolRange(tok, *rng)
-	}
-	content, err := f.Read()
-	if err != nil {
-		return nil, err
-	}
-	edits, err := source.Format(ctx, f, r)
-	if err != nil {
-		return nil, err
-	}
-	return toProtocolEdits(tok, content, edits), nil
-}
-
-func toProtocolEdits(tok *token.File, content []byte, edits []source.TextEdit) []protocol.TextEdit {
-	if edits == nil {
-		return nil
-	}
-	// When a file ends with an empty line, the newline character is counted
-	// as part of the previous line. This causes the formatter to insert
-	// another unnecessary newline on each formatting. We handle this case by
-	// checking if the file already ends with a newline character.
-	hasExtraNewline := content[len(content)-1] == '\n'
-	result := make([]protocol.TextEdit, len(edits))
-	for i, edit := range edits {
-		rng := toProtocolRange(tok, edit.Range)
-		// If the edit ends at the end of the file, add the extra line.
-		if hasExtraNewline && tok.Offset(edit.Range.End) == len(content) {
-			rng.End.Line++
-			rng.End.Character = 0
-		}
-		result[i] = protocol.TextEdit{
-			Range:   rng,
-			NewText: edit.NewText,
-		}
-	}
-	return result
 }
 
 func (s *server) OnTypeFormatting(context.Context, *protocol.DocumentOnTypeFormattingParams) ([]protocol.TextEdit, error) {

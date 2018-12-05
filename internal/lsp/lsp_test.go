@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/packages/packagestest"
+	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 )
@@ -57,7 +58,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	defer exported.Cleanup()
 
 	s := &server{
-		view: source.NewView(),
+		view: cache.NewView(),
 	}
 	// Merge the exported.Config with the view.Config.
 	cfg := *exported.Config
@@ -150,11 +151,11 @@ type completions map[token.Position][]token.Pos
 type formats map[string]string
 type definitions map[protocol.Location]protocol.Location
 
-func (d diagnostics) test(t *testing.T, exported *packagestest.Exported, v *source.View) int {
+func (d diagnostics) test(t *testing.T, exported *packagestest.Exported, v *cache.View) int {
 	count := 0
 	for filename, want := range d {
 		f := v.GetFile(source.ToURI(filename))
-		sourceDiagnostics, err := source.Diagnostics(context.Background(), v, f)
+		sourceDiagnostics, err := source.Diagnostics(context.Background(), f)
 		if err != nil {
 			t.Fatal(err)
 		}

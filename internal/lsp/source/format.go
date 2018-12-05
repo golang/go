@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package source provides core features for use by Go editors and tools.
 package source
 
 import (
@@ -15,7 +16,7 @@ import (
 )
 
 // Format formats a document with a given range.
-func Format(ctx context.Context, f *File, rng Range) ([]TextEdit, error) {
+func Format(ctx context.Context, f File, rng Range) ([]TextEdit, error) {
 	fAST, err := f.GetAST()
 	if err != nil {
 		return nil, err
@@ -45,8 +46,12 @@ func Format(ctx context.Context, f *File, rng Range) ([]TextEdit, error) {
 	// of Go used to build the LSP server will determine how it formats code.
 	// This should be acceptable for all users, who likely be prompted to rebuild
 	// the LSP server on each Go release.
+	fset, err := f.GetFileSet()
+	if err != nil {
+		return nil, err
+	}
 	buf := &bytes.Buffer{}
-	if err := format.Node(buf, f.view.Config.Fset, node); err != nil {
+	if err := format.Node(buf, fset, node); err != nil {
 		return nil, err
 	}
 	// TODO(rstambler): Compute text edits instead of replacing whole file.

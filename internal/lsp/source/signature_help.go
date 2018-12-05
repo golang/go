@@ -24,7 +24,7 @@ type ParameterInformation struct {
 	Label string
 }
 
-func SignatureHelp(ctx context.Context, f *File, pos token.Pos) (*SignatureInformation, error) {
+func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInformation, error) {
 	fAST, err := f.GetAST()
 	if err != nil {
 		return nil, err
