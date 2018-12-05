@@ -763,7 +763,7 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 	if opts.Roots.contains(c) {
 		candidateChains = append(candidateChains, []*Certificate{c})
 	} else {
-		if candidateChains, err = c.buildChains(make(map[int][][]*Certificate), []*Certificate{c}, &opts); err != nil {
+		if candidateChains, err = c.buildChains(nil, []*Certificate{c}, nil, &opts); err != nil {
 			return nil, err
 		}
 	}
@@ -800,58 +800,74 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate 
 	return n
 }
 
-func (c *Certificate) buildChains(cache map[int][][]*Certificate, currentChain []*Certificate, opts *VerifyOptions) (chains [][]*Certificate, err error) {
-	possibleRoots, failedRoot, rootErr := opts.Roots.findVerifiedParents(c)
-nextRoot:
-	for _, rootNum := range possibleRoots {
-		root := opts.Roots.certs[rootNum]
+// maxChainSignatureChecks is the maximum number of CheckSignatureFrom calls
+// that an invocation of buildChains will (tranistively) make. Most chains are
+// less than 15 certificates long, so this leaves space for multiple chains and
+// for failed checks due to different intermediates having the same Subject.
+const maxChainSignatureChecks = 100
 
+func (c *Certificate) buildChains(cache map[*Certificate][][]*Certificate, currentChain []*Certificate, sigChecks *int, opts *VerifyOptions) (chains [][]*Certificate, err error) {
+	var (
+		hintErr  error
+		hintCert *Certificate
+	)
+
+	considerCandidate := func(certType int, candidate *Certificate) {
 		for _, cert := range currentChain {
-			if cert.Equal(root) {
-				continue nextRoot
+			if cert.Equal(candidate) {
+				return
 			}
 		}
 
-		err = root.isValid(rootCertificate, currentChain, opts)
-		if err != nil {
-			continue
+		if sigChecks == nil {
+			sigChecks = new(int)
 		}
-		chains = append(chains, appendToFreshChain(currentChain, root))
+		*sigChecks++
+		if *sigChecks > maxChainSignatureChecks {
+			err = errors.New("x509: signature check attempts limit reached while verifying certificate chain")
+			return
+		}
+
+		if err := c.CheckSignatureFrom(candidate); err != nil {
+			if hintErr == nil {
+				hintErr = err
+				hintCert = candidate
+			}
+			return
+		}
+
+		err = candidate.isValid(certType, currentChain, opts)
+		if err != nil {
+			return
+		}
+
+		switch certType {
+		case rootCertificate:
+			chains = append(chains, appendToFreshChain(currentChain, candidate))
+		case intermediateCertificate:
+			if cache == nil {
+				cache = make(map[*Certificate][][]*Certificate)
+			}
+			childChains, ok := cache[candidate]
+			if !ok {
+				childChains, err = candidate.buildChains(cache, appendToFreshChain(currentChain, candidate), sigChecks, opts)
+				cache[candidate] = childChains
+			}
+			chains = append(chains, childChains...)
+		}
 	}
 
-	possibleIntermediates, failedIntermediate, intermediateErr := opts.Intermediates.findVerifiedParents(c)
-nextIntermediate:
-	for _, intermediateNum := range possibleIntermediates {
-		intermediate := opts.Intermediates.certs[intermediateNum]
-		for _, cert := range currentChain {
-			if cert.Equal(intermediate) {
-				continue nextIntermediate
-			}
-		}
-		err = intermediate.isValid(intermediateCertificate, currentChain, opts)
-		if err != nil {
-			continue
-		}
-		var childChains [][]*Certificate
-		childChains, ok := cache[intermediateNum]
-		if !ok {
-			childChains, err = intermediate.buildChains(cache, appendToFreshChain(currentChain, intermediate), opts)
-			cache[intermediateNum] = childChains
-		}
-		chains = append(chains, childChains...)
+	for _, rootNum := range opts.Roots.findPotentialParents(c) {
+		considerCandidate(rootCertificate, opts.Roots.certs[rootNum])
+	}
+	for _, intermediateNum := range opts.Intermediates.findPotentialParents(c) {
+		considerCandidate(intermediateCertificate, opts.Intermediates.certs[intermediateNum])
 	}
 
 	if len(chains) > 0 {
 		err = nil
 	}
-
 	if len(chains) == 0 && err == nil {
-		hintErr := rootErr
-		hintCert := failedRoot
-		if hintErr == nil {
-			hintErr = intermediateErr
-			hintCert = failedIntermediate
-		}
 		err = UnknownAuthorityError{c, hintErr, hintCert}
 	}
 
