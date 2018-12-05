@@ -54,6 +54,25 @@ Go 1.12 is the last release that will run on macOS 10.10 Yosemite.
 Go 1.13 will require macOS 10.11 El Capitan or later.
 </p>
 
+<h3 id="windows">Windows</h3>
+
+<p>
+  TODO: status of ARM32 port?
+</p>
+
+<h3 id="aix">AIX</h3>
+
+<p>
+  TODO: status of AIX port?
+</p>
+
+<h3 id="hurd">Hurd</h3>
+
+<p><!-- CL 146023 -->
+  <code>hurd</code> is now a recognized value for <code>GOOS</code>, reserved
+  for the GNU/Hurd system for use with <code>gccgo</code>.
+</p>
+
 <h2 id="tools">Tools</h2>
 
 <h3 id="vet"><code>go tool vet</code> no longer supported</h3>
@@ -77,6 +96,40 @@ Go 1.13 will require macOS 10.11 El Capitan or later.
   <code>GOCACHE=off</code> to disable the
   <a href="/cmd/go/#hdr-Build_and_test_caching">build cache</a>
   has no effect in Go 1.12.
+</p>
+
+<h3 id="modules">Modules</h3>
+
+<p><!-- CL 148517 -->
+  When <code>GO111MODULE</code> is set to <code>on</code>, the <code>go</code>
+  command now supports module-aware operations outside of a module directory,
+  provided that those operations do not need to resolve import paths relative to
+  the current directory or explicitly edit the <code>go.mod</code> file.
+  Commands such as <code>go</code> <code>get</code>,
+  <code>go</code> <code>list</code>, and
+  <code>go</code> <code>mod</code> <code>download</code> behave as if in a
+  module with initially-empty requirements.
+  In this mode, <code>go</code> <code>env</code> <code>GOMOD</code> reports
+  the system's null device (<code>/dev/null</code> or <code>NUL</code>).
+</p>
+
+<p><!-- CL 146382 -->
+  <code>go</code> commands that download and extract modules are now safe to
+  invoke concurrently.
+  The module cache (<code>GOPATH/pkg/mod</code>) must reside in a filesystem that
+  supports file locking.
+</p>
+
+<p><!-- CL 147282, 147281 -->
+  The <code>go</code> directive in a <code>go.mod</code> file now indicates the
+  version of the language used by the files within that module, and
+  <code>go</code> <code>mod</code> <code>tidy</code> sets it to the
+  current release (<code>go</code> <code>1.12</code>) if no existing
+  version is present.
+  If the <code>go</code> directive for a module specifies a
+  version <em>newer</em> than the toolchain in use, the <code>go</code> command
+  will attempt to build the packages regardless, and will note the mismatch only if
+  that build fails.
 </p>
 
 <h3 id="compiler">Compiler toolchain</h3>
@@ -121,6 +174,13 @@ for {
 </pre>
 </p>
 
+<p><!-- CL 144340 -->
+  The compiler now accepts a <code>-lang</code> flag to set the Go language
+  version to use. For example, <code>-lang=go1.8</code> causes the compiler to
+  emit an error if the program uses type aliases, which were added in Go 1.9.
+  Language changes made before Go 1.12 are not consistently enforced.
+</p>
+
 <h3 id="godoc">Godoc</h3>
 
 <p>
@@ -146,12 +206,8 @@ for {
 <!-- CL 147218: https://golang.org/cl/147218: cmd/asm: rename R18 to R18_PLATFORM on ARM64 -->
 <!-- CL 116275: https://golang.org/cl/116275: cmd/compile: avoid string allocations when map key is struct or array literal -->
 <!-- CL 142717: https://golang.org/cl/142717: cmd/compile: remove obsolete "safe" mode -->
-<!-- CL 144340: https://golang.org/cl/144340: cmd/compile: add -lang flag to specify language version -->
 <!-- CL 146058: https://golang.org/cl/146058: It is invalid to convert a nil unsafe.Pointer to uintptr and back, with arithmetic.: cmd/compile: assume unsafe pointer arithmetic generates non-nil results -->
 <!-- CL 141977: https://golang.org/cl/141977: cmd/doc: add -all flag to print all documentation for package -->
-<!-- CL 126656: https://golang.org/cl/126656: cmd/go: add $GOFLAGS environment variable -->
-<!-- CL 147282: https://golang.org/cl/147282: cmd/go: add go mod edit -go flag -->
-<!-- CL 148517: https://golang.org/cl/148517: cmd/go: enable module mode without a main module when GO111MODULE=on -->
 <!-- CL 146898: https://golang.org/cl/146898: cmd/link, runtime: add initial cgo support for ppc64 -->
 <!-- CL 60790: https://golang.org/cl/60790: The trace tool now supports plotting mutator utilization curves, including cross-references to the execution trace. These are useful for analyzing the impact of the garbage collector on application latency and throughput.: cmd/trace: add minimum mutator utilization (MMU) plot -->
 <!-- CL 115677: https://golang.org/cl/115677: cmd/vet: check embedded field tags too -->
@@ -258,14 +314,6 @@ for {
     </p>
 
 </dl><!-- fmt -->
-
-<dl id="go/build, cmd/go"><dt><a href="/pkg/go/build, cmd/go/">go/build, cmd/go</a></dt>
-  <dd>
-    <p><!-- CL 146023 -->
-      TODO: <a href="https://golang.org/cl/146023">https://golang.org/cl/146023</a>: add &#34;hurd&#34; as a GOOS value
-    </p>
-
-</dl><!-- go/build, cmd/go -->
 
 <dl id="go/doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
   <dd>
