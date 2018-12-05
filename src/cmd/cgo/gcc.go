@@ -9,7 +9,6 @@ package main
 
 import (
 	"bytes"
-	"cmd/internal/xcoff"
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
@@ -21,6 +20,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"internal/xcoff"
 	"math"
 	"os"
 	"strconv"
