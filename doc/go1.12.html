@@ -289,18 +289,10 @@ for {
 
 </dl><!-- go/token -->
 
-<dl id="godoc, cmd/godoc"><dt><a href="/pkg/godoc, cmd/godoc/">godoc, cmd/godoc</a></dt>
-  <dd>
-    <p><!-- CL 141397 -->
-      TODO: <a href="https://golang.org/cl/141397">https://golang.org/cl/141397</a>: remove CLI support
-    </p>
-
-</dl><!-- godoc, cmd/godoc -->
-
 <dl id="image"><dt><a href="/pkg/image/">image</a></dt>
   <dd>
     <p><!-- CL 118755 -->
-      TODO: <a href="https://golang.org/cl/118755">https://golang.org/cl/118755</a>: make RegisterFormat safe for concurrent use
+      The <a href="/pkg/image/#RegisterFormat"><code>RegisterFormat</code></a> function is now safe for concurrent use.
     </p>
 
 </dl><!-- image -->
@@ -308,7 +300,7 @@ for {
 <dl id="image/png"><dt><a href="/pkg/image/png/">image/png</a></dt>
   <dd>
     <p><!-- CL 134235 -->
-      TODO: <a href="https://golang.org/cl/134235">https://golang.org/cl/134235</a>: pack image data for small bitdepth paletted images
+      Paletted images with fewer than 16 colors now encode to smaller outputs.
     </p>
 
 </dl><!-- image/png -->
@@ -332,7 +324,8 @@ for {
 <dl id="io"><dt><a href="/pkg/io/">io</a></dt>
   <dd>
     <p><!-- CL 139457 -->
-      TODO: <a href="https://golang.org/cl/139457">https://golang.org/cl/139457</a>: export StringWriter
+      The new <a href="/pkg/io#StringWriter"><code>StringWriter</code></a> interface wraps the
+      <a href="/pkg/io/#WriteString"><code>WriteString</code></a> function.
     </p>
 
 </dl><!-- io -->
@@ -424,15 +417,19 @@ for {
     </p>
 
     <p><!-- CL 135075 -->
-      TODO: <a href="https://golang.org/cl/135075">https://golang.org/cl/135075</a>: add ModeCharDevice to ModeType
+      <code>ModeCharDevice</code> has been added to the <code>ModeType</code> bitmask, allowing for
+      <code>ModeDevice | ModeCharDevice</code> to be recovered when masking a
+      <a href="/pkg/os/#FileMode"><code>FileMode</code></a> with <code>ModeType</code>.
     </p>
 
     <p><!-- CL 139418 -->
-      TODO: <a href="https://golang.org/cl/139418">https://golang.org/cl/139418</a>: add UserHomeDir
+      The new function <a href="/pkg/os/#UserHomeDir"><code>UserHomeDir</code></a> returns the
+      current user's home directory.
     </p>
 
     <p><!-- CL 146020 -->
-      TODO: <a href="https://golang.org/cl/146020">https://golang.org/cl/146020</a>: add support for long path names on unix RemoveAll
+      <a href="/pkg/os/#RemoveAll"><code>RemoveAll</code></a> now supports paths longer than 4096 characters
+      on most Unix systems.
     </p>
 
 </dl><!-- os -->
@@ -440,7 +437,9 @@ for {
 <dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
   <dd>
     <p><!-- CL 145220 -->
-      TODO: <a href="https://golang.org/cl/145220">https://golang.org/cl/145220</a>: change IsAbs(&#34;NUL&#34;) to return true
+      The <a href="/pkg/path/filepath/#IsAbs"><code>IsAbs</code></a> function now returns true when passed
+      a reserved filename on Windows such as <code>NUL</code>.
+      <a href="https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file#naming-conventions">List of reserved names.</a>
     </p>
 
 </dl><!-- path/filepath -->
@@ -504,7 +503,16 @@ for {
     </p>
 
     <p><!-- CL 131495 -->
-      TODO: <a href="https://golang.org/cl/131495">https://golang.org/cl/131495</a>: correctly handle invalid utf8 sequences in Map
+      The character mapping functions <a href="/pkg/strings/#Map"><code>Map</code></a>,
+      <a href="/pkg/strings/#Title"><code>Title</code></a>,
+      <a href="/pkg/strings/#ToLower"><code>ToLower</code></a>,
+      <a href="/pkg/strings/#ToLowerSpecial"><code>ToLowerSpecial</code></a>,
+      <a href="/pkg/strings/#ToTitle"><code>ToTitle</code></a>,
+      <a href="/pkg/strings/#ToTitleSpecial"><code>ToTitleSpecial</code></a>,
+      <a href="/pkg/strings/#ToUpper"><code>ToUpper</code></a>, and
+      <a href="/pkg/strings/#ToUpperSpecial"><code>ToUpperSpecial</code></a>
+      now always guarantee to return valid UTF-8. In earlier releases, if the input was invalid UTF-8 but no character replacements
+      needed to be applied, these routines incorrectly returned the invalid UTF-8 unmodified.
     </p>
 
 </dl><!-- strings -->
@@ -560,7 +568,16 @@ for {
 <dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
   <dd>
     <p><!-- CL 142217 -->
-      TODO: <a href="https://golang.org/cl/142217">https://golang.org/cl/142217</a>: removed truncation of context in error message
+      When executing a template, long context values are no longer truncated in errors.
+    </p>
+    <p>
+      <code>executing "tmpl" at <.very.deep.context.v...>: map has no entry for key "notpresent"</code>
+    </p>
+    <p>
+      is now
+    </p>
+    <p>
+      <code>executing "tmpl" at <.very.deep.context.value.notpresent>: map has no entry for key "notpresent"</code>
     </p>
 
 </dl><!-- text/template -->
