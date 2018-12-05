@@ -2860,6 +2860,7 @@ func extendslice(n *Node, init *Nodes) *Node {
 	hasPointers := types.Haspointers(elemtype)
 	if hasPointers {
 		clrname = "memclrHasPointers"
+		Curfn.Func.setWBPos(n.Pos)
 	}
 
 	var clr Nodes
