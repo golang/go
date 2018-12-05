@@ -531,12 +531,12 @@ for {
 
 <dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
   <dd>
-    <p><!-- CL 139783 -->
-      TODO: <a href="https://golang.org/cl/139783">https://golang.org/cl/139783</a>: add DeepEqual test
-    </p>
-
     <p><!-- CL 139784 -->
-      TODO: <a href="https://golang.org/cl/139784">https://golang.org/cl/139784</a>: add partial Deprecation comment to Copy
+      <a href="/pkg/regexp/#Regexp.Copy"><code>Copy</code></a> is no longer necessary
+      to avoid lock contention, so it has been given a partial deprecation comment.
+      <a href="/pkg/regexp/#Regexp.Copy"><code>Copy</code></a>
+      may still be appropriate if the reason for its use is to make two copies with
+      different <a href="/pkg/regexp/#Regexp.Longest"><code>Longest</code></a> settings.
     </p>
 
 </dl><!-- regexp -->
@@ -544,7 +544,9 @@ for {
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p><!-- CL 135395 -->
-      TODO: <a href="https://golang.org/cl/135395">https://golang.org/cl/135395</a>: use MADV_FREE on Linux if available
+      On Linux, the Go runtime now releases memory only when the OS is under memory
+      pressure. This is more efficient, but means a process's RSS (resident set size)
+      won't decrease unless the OS is running out of memory.
     </p>
 
 </dl><!-- runtime -->
@@ -552,7 +554,12 @@ for {
 <dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
   <dd>
     <p><!-- CL 144220 -->
-      TODO: <a href="https://golang.org/cl/144220">https://golang.org/cl/144220</a>: add API to read module info in binary
+      A new <a href="/pkg/runtime/debug/#BuildInfo"><code>BuildInfo</code></a> type
+      exposes the build information read from the running binary, available only in
+      binaries built with module support. This includes the main package path, main
+      module information, and the module dependencies. This type is given though the
+      <a href="/pkg/runtime/debug/#ReadBuildInfo"><code>ReadBuildInfo</code></a> function
+      on <a href="/pkg/runtime/debug/#BuildInfo"><code>BuildInfo</code></a>.
     </p>
 
 </dl><!-- runtime/debug -->
