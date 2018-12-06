@@ -620,12 +620,8 @@ for {
 
 <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
   <dd>
-    <p><!-- CL 121936 -->
-      TODO: <a href="https://golang.org/cl/121936">https://golang.org/cl/121936</a>: exit with error if testing.Short is called before flag.Parse
-    </p>
-
     <p><!-- CL 139258 -->
-      TODO: <a href="https://golang.org/cl/139258">https://golang.org/cl/139258</a>: implement -benchtime=100x
+    The <a href="/cmd/go/#hdr-Testing_flags"><code>-benchtime</code></a> flag now supports setting an explicit iteration count instead of a time when the value ends with an "<code>x</code>". For example, <code>-benchtime=100x</code> runs the benchmark 100 times.
     </p>
 
 </dl><!-- testing -->
