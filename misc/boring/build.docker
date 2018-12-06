@@ -40,7 +40,7 @@ sed "s!UUU!$url!; s/SSS/$sha256/" dockerfile.in >$dir/Dockerfile
 cp go-wrapper $dir/go-wrapper
 
 dversion=$(echo "$version" | sed 's/^go//')
-docker build -t goboring/golang:$dversion $dir
+docker build --pull -t goboring/golang:$dversion $dir
 docker run goboring/golang:$dversion go version
 docker run goboring/golang:$dversion go tool nm /usr/local/go/bin/go >$dir/nm
 if ! grep crypto/sha1.boringNewSHA1 $dir/nm >/dev/null; then
