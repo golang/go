@@ -290,6 +290,6 @@ func nilcheckelim2(f *Func) {
 		b.Values = b.Values[:i]
 
 		// TODO: if b.Kind == BlockPlain, start the analysis in the subsequent block to find
-		// more unnecessary nil checks.  Would fix test/nilptr3_ssa.go:157.
+		// more unnecessary nil checks.  Would fix test/nilptr3.go:159.
 	}
 }

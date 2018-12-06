@@ -608,7 +608,6 @@ func (test *serverTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 		}
 		tcpConn = connOrError.(net.Conn)
 	case <-time.After(2 * time.Second):
-		output.WriteTo(os.Stdout)
 		return nil, nil, errors.New("timed out waiting for connection from child process")
 	}
 
@@ -646,6 +645,11 @@ func (test *serverTest) run(t *testing.T, write bool) {
 			t.Fatalf("Failed to start subcommand: %s", err)
 		}
 		serverConn = recordingConn
+		defer func() {
+			if t.Failed() {
+				t.Logf("OpenSSL output:\n\n%s", childProcess.Stdout)
+			}
+		}()
 	} else {
 		clientConn, serverConn = localPipe(t)
 	}
@@ -725,13 +729,12 @@ func (test *serverTest) run(t *testing.T, write bool) {
 		defer out.Close()
 		recordingConn.Close()
 		if len(recordingConn.flows) < 3 {
-			childProcess.Stdout.(*bytes.Buffer).WriteTo(os.Stdout)
 			if len(test.expectHandshakeErrorIncluding) == 0 {
 				t.Fatalf("Handshake failed")
 			}
 		}
 		recordingConn.WriteTo(out)
-		fmt.Printf("Wrote %s\n", path)
+		t.Logf("Wrote %s\n", path)
 		childProcess.Wait()
 	}
 }

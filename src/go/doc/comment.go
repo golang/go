@@ -7,6 +7,7 @@
 package doc
 
 import (
+	"bytes"
 	"io"
 	"strings"
 	"text/template" // for HTMLEscape
@@ -14,32 +15,38 @@ import (
 	"unicode/utf8"
 )
 
+const (
+	ldquo = "&ldquo;"
+	rdquo = "&rdquo;"
+	ulquo = "“"
+	urquo = "”"
+)
+
 var (
-	ldquo = []byte("&ldquo;")
-	rdquo = []byte("&rdquo;")
+	htmlQuoteReplacer    = strings.NewReplacer(ulquo, ldquo, urquo, rdquo)
+	unicodeQuoteReplacer = strings.NewReplacer("``", ulquo, "''", urquo)
 )
 
 // Escape comment text for HTML. If nice is set,
 // also turn `` into &ldquo; and '' into &rdquo;.
 func commentEscape(w io.Writer, text string, nice bool) {
-	last := 0
 	if nice {
-		for i := 0; i < len(text)-1; i++ {
-			ch := text[i]
-			if ch == text[i+1] && (ch == '`' || ch == '\'') {
-				template.HTMLEscape(w, []byte(text[last:i]))
-				last = i + 2
-				switch ch {
-				case '`':
-					w.Write(ldquo)
-				case '\'':
-					w.Write(rdquo)
-				}
-				i++ // loop will add one more
-			}
-		}
+		// In the first pass, we convert `` and '' into their unicode equivalents.
+		// This prevents them from being escaped in HTMLEscape.
+		text = convertQuotes(text)
+		var buf bytes.Buffer
+		template.HTMLEscape(&buf, []byte(text))
+		// Now we convert the unicode quotes to their HTML escaped entities to maintain old behavior.
+		// We need to use a temp buffer to read the string back and do the conversion,
+		// otherwise HTMLEscape will escape & to &amp;
+		htmlQuoteReplacer.WriteString(w, buf.String())
+		return
 	}
-	template.HTMLEscape(w, []byte(text[last:]))
+	template.HTMLEscape(w, []byte(text))
+}
+
+func convertQuotes(text string) string {
+	return unicodeQuoteReplacer.Replace(text)
 }
 
 const (
@@ -248,7 +255,7 @@ func heading(line string) string {
 	}
 
 	// allow "." when followed by non-space
-	for b := line;; {
+	for b := line; ; {
 		i := strings.IndexRune(b, '.')
 		if i < 0 {
 			break
@@ -429,12 +436,14 @@ func ToText(w io.Writer, text string, indent, preIndent string, width int) {
 		case opPara:
 			// l.write will add leading newline if required
 			for _, line := range b.lines {
+				line = convertQuotes(line)
 				l.write(line)
 			}
 			l.flush()
 		case opHead:
 			w.Write(nl)
 			for _, line := range b.lines {
+				line = convertQuotes(line)
 				l.write(line + "\n")
 			}
 			l.flush()
@@ -445,6 +454,7 @@ func ToText(w io.Writer, text string, indent, preIndent string, width int) {
 					w.Write([]byte("\n"))
 				} else {
 					w.Write([]byte(preIndent))
+					line = convertQuotes(line)
 					w.Write([]byte(line))
 				}
 			}

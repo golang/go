@@ -58,9 +58,6 @@ func Import(path string) (m module.Version, dir string, err error) {
 
 	// Is the package in the standard library?
 	if search.IsStandardImportPath(path) {
-		if strings.HasPrefix(path, "golang_org/") {
-			return module.Version{}, filepath.Join(cfg.GOROOT, "src/vendor", path), nil
-		}
 		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
 			dir := filepath.Join(cfg.GOROOT, "src", path)
 			return module.Version{}, dir, nil
@@ -70,8 +67,8 @@ func Import(path string) (m module.Version, dir string, err error) {
 	// -mod=vendor is special.
 	// Everything must be in the main module or the main module's vendor directory.
 	if cfg.BuildMod == "vendor" {
-		mainDir, mainOK := dirInModule(path, Target.Path, ModRoot, true)
-		vendorDir, vendorOK := dirInModule(path, "", filepath.Join(ModRoot, "vendor"), false)
+		mainDir, mainOK := dirInModule(path, Target.Path, ModRoot(), true)
+		vendorDir, vendorOK := dirInModule(path, "", filepath.Join(ModRoot(), "vendor"), false)
 		if mainOK && vendorOK {
 			return module.Version{}, "", fmt.Errorf("ambiguous import: found %s in multiple directories:\n\t%s\n\t%s", path, mainDir, vendorDir)
 		}

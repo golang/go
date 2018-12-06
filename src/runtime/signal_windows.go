@@ -38,6 +38,23 @@ func initExceptionHandler() {
 	}
 }
 
+// isAbort returns true, if context r describes exception raised
+// by calling runtime.abort function.
+//
+//go:nosplit
+func isAbort(r *context) bool {
+	switch GOARCH {
+	case "386", "amd64":
+		// In the case of an abort, the exception IP is one byte after
+		// the INT3 (this differs from UNIX OSes).
+		return isAbortPC(r.ip() - 1)
+	case "arm":
+		return isAbortPC(r.ip())
+	default:
+		return false
+	}
+}
+
 // isgoexception reports whether this exception should be translated
 // into a Go panic.
 //
@@ -53,9 +70,7 @@ func isgoexception(info *exceptionrecord, r *context) bool {
 		return false
 	}
 
-	// In the case of an abort, the exception IP is one byte after
-	// the INT3 (this differs from UNIX OSes).
-	if isAbortPC(r.ip() - 1) {
+	if isAbort(r) {
 		// Never turn abort into a panic.
 		return false
 	}

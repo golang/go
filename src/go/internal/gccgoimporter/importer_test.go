@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"testing"
 )
 
@@ -86,6 +88,8 @@ var importerTests = [...]importerTest{
 	{pkgpath: "aliases", name: "C0", want: "type C0 struct{f1 C1; f2 C1}"},
 	{pkgpath: "escapeinfo", name: "NewT", want: "func NewT(data []byte) *T"},
 	{pkgpath: "issue27856", name: "M", want: "type M struct{E F}"},
+	{pkgpath: "v1reflect", name: "Type", want: "type Type interface{Align() int; AssignableTo(u Type) bool; Bits() int; ChanDir() ChanDir; Elem() Type; Field(i int) StructField; FieldAlign() int; FieldByIndex(index []int) StructField; FieldByName(name string) (StructField, bool); FieldByNameFunc(match func(string) bool) (StructField, bool); Implements(u Type) bool; In(i int) Type; IsVariadic() bool; Key() Type; Kind() Kind; Len() int; Method(int) Method; MethodByName(string) (Method, bool); Name() string; NumField() int; NumIn() int; NumMethod() int; NumOut() int; Out(i int) Type; PkgPath() string; Size() uintptr; String() string; common() *commonType; rawString() string; runtimeType() *runtimeType; uncommon() *uncommonType}"},
+	{pkgpath: "nointerface", name: "I", want: "type I int"},
 }
 
 func TestGoxImporter(t *testing.T) {
@@ -119,6 +123,25 @@ func TestObjImporter(t *testing.T) {
 		t.Skip("This test needs gccgo")
 	}
 
+	verout, err := exec.Command(gpath, "--version").CombinedOutput()
+	if err != nil {
+		t.Logf("%s", verout)
+		t.Fatal(err)
+	}
+	vers := regexp.MustCompile(`([0-9]+)\.([0-9]+)`).FindSubmatch(verout)
+	if len(vers) == 0 {
+		t.Fatalf("could not find version number in %s", verout)
+	}
+	major, err := strconv.Atoi(string(vers[1]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	minor, err := strconv.Atoi(string(vers[2]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("gccgo version %d.%d", major, minor)
+
 	tmpdir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
@@ -134,6 +157,14 @@ func TestObjImporter(t *testing.T) {
 	arimp := GetImporter([]string{artmpdir}, arinitmap)
 
 	for _, test := range importerTests {
+		// Support for type aliases was added in GCC 7.
+		if test.pkgpath == "aliases" || test.pkgpath == "issue27856" {
+			if major < 7 {
+				t.Logf("skipping %q: not supported before gccgo version 7", test.pkgpath)
+				continue
+			}
+		}
+
 		gofile := filepath.Join("testdata", test.pkgpath+".go")
 		if _, err := os.Stat(gofile); os.IsNotExist(err) {
 			continue

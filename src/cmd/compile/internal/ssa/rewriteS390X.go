@@ -4799,7 +4799,7 @@ func rewriteValueS390X_OpMove_10(v *Value) bool {
 	}
 	// match: (Move [s] dst src mem)
 	// cond: s > 1024
-	// result: (LoweredMove [s%256] dst src (ADDconst <src.Type> src [(s/256)*256]) mem)
+	// result: (LoweredMove [s%256] dst src (ADD <src.Type> src (MOVDconst [(s/256)*256])) mem)
 	for {
 		s := v.AuxInt
 		_ = v.Args[2]
@@ -4813,9 +4813,11 @@ func rewriteValueS390X_OpMove_10(v *Value) bool {
 		v.AuxInt = s % 256
 		v.AddArg(dst)
 		v.AddArg(src)
-		v0 := b.NewValue0(v.Pos, OpS390XADDconst, src.Type)
-		v0.AuxInt = (s / 256) * 256
+		v0 := b.NewValue0(v.Pos, OpS390XADD, src.Type)
 		v0.AddArg(src)
+		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
+		v1.AuxInt = (s / 256) * 256
+		v0.AddArg(v1)
 		v.AddArg(v0)
 		v.AddArg(mem)
 		return true

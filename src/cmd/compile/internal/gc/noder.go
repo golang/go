@@ -546,9 +546,15 @@ func (p *noder) param(param *syntax.Field, dddOk, final bool) *Node {
 	// rewrite ...T parameter
 	if typ.Op == ODDD {
 		if !dddOk {
-			yyerror("cannot use ... in receiver or result parameter list")
+			// We mark these as syntax errors to get automatic elimination
+			// of multiple such errors per line (see yyerrorl in subr.go).
+			yyerror("syntax error: cannot use ... in receiver or result parameter list")
 		} else if !final {
-			yyerror("can only use ... with final parameter in list")
+			if param.Name == nil {
+				yyerror("syntax error: cannot use ... with non-final parameter")
+			} else {
+				p.yyerrorpos(param.Name.Pos(), "syntax error: cannot use ... with non-final parameter %s", param.Name.Value)
+			}
 		}
 		typ.Op = OTARRAY
 		typ.Right = typ.Left

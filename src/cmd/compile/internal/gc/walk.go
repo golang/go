@@ -1305,7 +1305,11 @@ opswitch:
 			}
 			// var arr [r]T
 			// n = arr[:l]
-			t = types.NewArray(t.Elem(), nonnegintconst(r)) // [r]T
+			i := indexconst(r)
+			if i < 0 {
+				Fatalf("walkexpr: invalid index %v", r)
+			}
+			t = types.NewArray(t.Elem(), i) // [r]T
 			var_ := temp(t)
 			a := nod(OAS, var_, nil) // zero temp
 			a = typecheck(a, ctxStmt)
@@ -2856,6 +2860,7 @@ func extendslice(n *Node, init *Nodes) *Node {
 	hasPointers := types.Haspointers(elemtype)
 	if hasPointers {
 		clrname = "memclrHasPointers"
+		Curfn.Func.setWBPos(n.Pos)
 	}
 
 	var clr Nodes

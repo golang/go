@@ -1048,3 +1048,56 @@ func TestReverseProxyWebSocket(t *testing.T) {
 		t.Errorf("got %#q, want %#q", got, want)
 	}
 }
+
+func TestUnannouncedTrailer(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		w.Header().Set(http.TrailerPrefix+"X-Unannounced-Trailer", "unannounced_trailer_value")
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+	frontendClient := frontend.Client()
+
+	res, err := frontendClient.Get(frontend.URL)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+
+	ioutil.ReadAll(res.Body)
+
+	if g, w := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != w {
+		t.Errorf("Trailer(X-Unannounced-Trailer) = %q; want %q", g, w)
+	}
+
+}
+
+func TestSingleJoinSlash(t *testing.T) {
+	tests := []struct {
+		slasha   string
+		slashb   string
+		expected string
+	}{
+		{"https://www.google.com/", "/favicon.ico", "https://www.google.com/favicon.ico"},
+		{"https://www.google.com", "/favicon.ico", "https://www.google.com/favicon.ico"},
+		{"https://www.google.com", "favicon.ico", "https://www.google.com/favicon.ico"},
+		{"https://www.google.com", "", "https://www.google.com/"},
+		{"", "favicon.ico", "/favicon.ico"},
+	}
+	for _, tt := range tests {
+		if got := singleJoiningSlash(tt.slasha, tt.slashb); got != tt.expected {
+			t.Errorf("singleJoiningSlash(%s,%s) want %s got %s",
+				tt.slasha,
+				tt.slashb,
+				tt.expected,
+				got)
+		}
+	}
+}

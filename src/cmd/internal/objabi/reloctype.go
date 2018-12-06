@@ -198,7 +198,7 @@ const (
 	R_WASMIMPORT
 )
 
-// IsDirectJump returns whether r is a relocation for a direct jump.
+// IsDirectJump reports whether r is a relocation for a direct jump.
 // A direct jump is a CALL or JMP instruction that takes the target address
 // as immediate. The address is embedded into the instruction, possibly
 // with limited width.

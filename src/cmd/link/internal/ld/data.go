@@ -48,7 +48,7 @@ import (
 	"sync"
 )
 
-// isRuntimeDepPkg returns whether pkg is the runtime package or its dependency
+// isRuntimeDepPkg reports whether pkg is the runtime package or its dependency
 func isRuntimeDepPkg(pkg string) bool {
 	switch pkg {
 	case "runtime",

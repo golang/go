@@ -4592,7 +4592,7 @@ func schedEnableUser(enable bool) {
 	}
 }
 
-// schedEnabled returns whether gp should be scheduled. It returns
+// schedEnabled reports whether gp should be scheduled. It returns
 // false is scheduling of gp is disabled.
 func schedEnabled(gp *g) bool {
 	if sched.disable.user {

@@ -618,6 +618,9 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 }
 
 func TestLookupDotsWithRemoteSource(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		testenv.SkipFlaky(t, 27992)
+	}
 	mustHaveExternalNetwork(t)
 
 	if !supportsIPv4() || !*testIPv4 {
@@ -925,8 +928,8 @@ func TestLookupHostCancel(t *testing.T) {
 
 	const (
 		google        = "www.google.com"
-		invalidDomain = "nonexistentdomain.golang.org"
-		n             = 600 // this needs to be larger than threadLimit size
+		invalidDomain = "invalid.invalid" // RFC 2606 reserves .invalid
+		n             = 600               // this needs to be larger than threadLimit size
 	)
 
 	_, err := LookupHost(google)

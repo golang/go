@@ -1363,6 +1363,19 @@ func gcStart(trigger gcTrigger) {
 // This is protected by markDoneSema.
 var gcMarkDoneFlushed uint32
 
+// debugCachedWork enables extra checks for debugging premature mark
+// termination.
+//
+// For debugging issue #27993.
+const debugCachedWork = true
+
+// gcWorkPauseGen is for debugging the mark completion algorithm.
+// gcWork put operations spin while gcWork.pauseGen == gcWorkPauseGen.
+// Only used if debugCachedWork is true.
+//
+// For debugging issue #27993.
+var gcWorkPauseGen uint32 = 1
+
 // gcMarkDone transitions the GC from mark to mark termination if all
 // reachable objects have been marked (that is, there are no grey
 // objects and can be no more in the future). Otherwise, it flushes
@@ -1408,6 +1421,14 @@ top:
 			// Flush the write barrier buffer, since this may add
 			// work to the gcWork.
 			wbBufFlush1(_p_)
+			// For debugging, shrink the write barrier
+			// buffer so it flushes immediately.
+			// wbBuf.reset will keep it at this size as
+			// long as throwOnGCWork is set.
+			if debugCachedWork {
+				b := &_p_.wbBuf
+				b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
+			}
 			// Flush the gcWork, since this may create global work
 			// and set the flushedWork flag.
 			//
@@ -1418,11 +1439,23 @@ top:
 			if _p_.gcw.flushedWork {
 				atomic.Xadd(&gcMarkDoneFlushed, 1)
 				_p_.gcw.flushedWork = false
+			} else if debugCachedWork {
+				// For debugging, freeze the gcWork
+				// until we know whether we've reached
+				// completion or not. If we think
+				// we've reached completion, but
+				// there's a paused gcWork, then
+				// that's a bug.
+				_p_.gcw.pauseGen = gcWorkPauseGen
 			}
 		})
 	})
 
 	if gcMarkDoneFlushed != 0 {
+		if debugCachedWork {
+			// Release paused gcWorks.
+			atomic.Xadd(&gcWorkPauseGen, 1)
+		}
 		// More grey objects were discovered since the
 		// previous termination check, so there may be more
 		// work to do. Keep going. It's possible the
@@ -1431,7 +1464,12 @@ top:
 		goto top
 	}
 
-	throwOnGCWork = true
+	if debugCachedWork {
+		throwOnGCWork = true
+		// Release paused gcWorks. If there are any, they
+		// should now observe throwOnGCWork and panic.
+		atomic.Xadd(&gcWorkPauseGen, 1)
+	}
 
 	// There was no global work, no local work, and no Ps
 	// communicated work since we took markDoneSema. Therefore
@@ -1448,6 +1486,30 @@ top:
 	// The gcphase is _GCmark, it will transition to _GCmarktermination
 	// below. The important thing is that the wb remains active until
 	// all marking is complete. This includes writes made by the GC.
+
+	if debugCachedWork {
+		// For debugging, double check that no work was added after we
+		// went around above and disable write barrier buffering.
+		for _, p := range allp {
+			gcw := &p.gcw
+			if !gcw.empty() {
+				printlock()
+				print("runtime: P ", p.id, " flushedWork ", gcw.flushedWork)
+				if gcw.wbuf1 == nil {
+					print(" wbuf1=<nil>")
+				} else {
+					print(" wbuf1.n=", gcw.wbuf1.nobj)
+				}
+				if gcw.wbuf2 == nil {
+					print(" wbuf2=<nil>")
+				} else {
+					print(" wbuf2.n=", gcw.wbuf2.nobj)
+				}
+				print("\n")
+				throw("throwOnGCWork")
+			}
+		}
+	}
 
 	// Disable assists and background workers. We must do
 	// this before waking blocked assists.

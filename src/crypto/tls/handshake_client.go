@@ -934,7 +934,7 @@ func (c *Conn) getClientCertificate(cri *CertificateRequestInfo) (*Certificate, 
 	// Issuer is in AcceptableCAs.
 	for i, chain := range c.config.Certificates {
 		sigOK := false
-		for _, alg := range signatureSchemesForCertificate(&chain) {
+		for _, alg := range signatureSchemesForCertificate(c.vers, &chain) {
 			if isSupportedSignatureAlgorithm(alg, cri.SignatureSchemes) {
 				sigOK = true
 				break

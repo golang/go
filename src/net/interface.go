@@ -188,7 +188,7 @@ var zoneCache = ipv6ZoneCache{
 }
 
 // update refreshes the network interface information if the cache was last
-// updated more than 1 minute ago, or if force is set. It returns whether the
+// updated more than 1 minute ago, or if force is set. It reports whether the
 // cache was updated.
 func (zc *ipv6ZoneCache) update(ift []Interface, force bool) (updated bool) {
 	zc.Lock()

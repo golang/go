@@ -104,6 +104,7 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Buffer).Bytes",
 			"(*Buffer).Cap",
 			"(*Buffer).Len",
+			"(*Buffer).Grow",
 			"(*Buffer).Next",
 			"(*Buffer).Read",
 			"(*Buffer).ReadByte",

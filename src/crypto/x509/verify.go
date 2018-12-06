@@ -858,7 +858,7 @@ nextIntermediate:
 	return
 }
 
-// validHostname returns whether host is a valid hostname that can be matched or
+// validHostname reports whether host is a valid hostname that can be matched or
 // matched against according to RFC 6125 2.2, with some leniency to accommodate
 // legacy values.
 func validHostname(host string) bool {

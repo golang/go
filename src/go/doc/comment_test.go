@@ -7,6 +7,7 @@ package doc
 import (
 	"bytes"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -208,6 +209,23 @@ var pairedParensPrefixLenTests = []struct {
 func TestPairedParensPrefixLen(t *testing.T) {
 	for i, tt := range pairedParensPrefixLenTests {
 		if out := tt.in[:pairedParensPrefixLen(tt.in)]; out != tt.out {
+			t.Errorf("#%d: mismatch\nhave: %q\nwant: %q", i, out, tt.out)
+		}
+	}
+}
+
+func TestCommentEscape(t *testing.T) {
+	commentTests := []struct {
+		in, out string
+	}{
+		{"typically invoked as ``go tool asm'',", "typically invoked as " + ldquo + "go tool asm" + rdquo + ","},
+		{"For more detail, run ``go help test'' and ``go help testflag''", "For more detail, run " + ldquo + "go help test" + rdquo + " and " + ldquo + "go help testflag" + rdquo},
+	}
+	for i, tt := range commentTests {
+		var buf strings.Builder
+		commentEscape(&buf, tt.in, true)
+		out := buf.String()
+		if out != tt.out {
 			t.Errorf("#%d: mismatch\nhave: %q\nwant: %q", i, out, tt.out)
 		}
 	}

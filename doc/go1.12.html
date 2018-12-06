@@ -47,7 +47,27 @@ Do not send CLs removing the interior tags from such phrases.
   12.0+.
 </p>
 
+<h3 id="darwin">Darwin</h3>
+
+<p>
+Go 1.12 is the last release that will run on macOS 10.10 Yosemite.
+Go 1.13 will require macOS 10.11 El Capitan or later.
+</p>
+
 <h2 id="tools">Tools</h2>
+
+<h3 id="vet"><code>go tool vet</code> no longer supported</h3>
+
+<p>
+  The <code>go vet</code> command has been rewritten to serve as the
+  base for a range of different source code analysis tools. See
+  the <a href="https://godoc.org/golang.org/x/tools/go/analysis">golang.org/x/tools/go/analysis</a>
+  package for details. A side-effect is that <code>go tool vet</code>
+  is no longer supported. External tools that use <code>go tool
+  vet</code> must be changed to use <code>go
+  vet</code>. Using <code>go vet</code> instead of <code>go tool
+  vet</code> should work with all supported versions of Go.
+</p>
 
 <h3 id="gocache">Build cache requirement</h3>
 
@@ -57,6 +77,48 @@ Do not send CLs removing the interior tags from such phrases.
   <code>GOCACHE=off</code> to disable the
   <a href="/cmd/go/#hdr-Build_and_test_caching">build cache</a>
   has no effect in Go 1.12.
+</p>
+
+<h3 id="compiler">Compiler toolchain</h3>
+
+<p><!-- CL 134155, 134156 -->
+  The compiler's live variable analysis has improved. This may mean that
+  finalizers will be executed sooner in this release than in previous
+  releases. If that is a problem, consider the appropriate addition of a
+  <a href="/pkg/runtime/#KeepAlive"><code>runtime.KeepAlive</code></a> call.
+</p>
+
+<p><!-- CL 147361 -->
+  More functions are now eligible for inlining by default, including
+  functions that do nothing but call another function.
+  This extra inlining makes it additionally important to use
+  <a href="/pkg/runtime/#CallersFrames"><code>runtime.CallersFrames</code></a>
+  instead of iterating over the result of
+  <a href="/pkg/runtime/#Callers"><code>runtime.Callers</code></a> directly.
+<pre>
+// Old code which no longer works correctly (it will miss inlined call frames).
+var pcs [10]uintptr
+n := runtime.Callers(1, pcs[:])
+for _, pc := range pcs[:n] {
+	f := runtime.FuncForPC(pc)
+	if f != nil {
+		fmt.Println(f.Name())
+	}
+}
+</pre>
+<pre>
+// New code which will work correctly.
+var pcs [10]uintptr
+n := runtime.Callers(1, pcs[:])
+frames := runtime.CallersFrames(pcs[:n])
+for {
+	frame, more := frames.Next()
+	fmt.Println(frame.Function)
+	if !more {
+		break
+	}
+}
+</pre>
 </p>
 
 <h3 id="godoc">Godoc</h3>
@@ -81,11 +143,26 @@ Do not send CLs removing the interior tags from such phrases.
   in mind.
 </p>
 
+<!-- CL 147218: https://golang.org/cl/147218: cmd/asm: rename R18 to R18_PLATFORM on ARM64 -->
+<!-- CL 116275: https://golang.org/cl/116275: cmd/compile: avoid string allocations when map key is struct or array literal -->
 <!-- CL 142717: https://golang.org/cl/142717: cmd/compile: remove obsolete "safe" mode -->
 <!-- CL 144340: https://golang.org/cl/144340: cmd/compile: add -lang flag to specify language version -->
+<!-- CL 146058: https://golang.org/cl/146058: It is invalid to convert a nil unsafe.Pointer to uintptr and back, with arithmetic.: cmd/compile: assume unsafe pointer arithmetic generates non-nil results -->
 <!-- CL 141977: https://golang.org/cl/141977: cmd/doc: add -all flag to print all documentation for package -->
 <!-- CL 126656: https://golang.org/cl/126656: cmd/go: add $GOFLAGS environment variable -->
+<!-- CL 147282: https://golang.org/cl/147282: cmd/go: add go mod edit -go flag -->
+<!-- CL 148517: https://golang.org/cl/148517: cmd/go: enable module mode without a main module when GO111MODULE=on -->
+<!-- CL 146898: https://golang.org/cl/146898: cmd/link, runtime: add initial cgo support for ppc64 -->
+<!-- CL 60790: https://golang.org/cl/60790: The trace tool now supports plotting mutator utilization curves, including cross-references to the execution trace. These are useful for analyzing the impact of the garbage collector on application latency and throughput.: cmd/trace: add minimum mutator utilization (MMU) plot -->
 <!-- CL 115677: https://golang.org/cl/115677: cmd/vet: check embedded field tags too -->
+<dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
+  <dd>
+    <p><!-- CL 149297 -->
+      TODO: <a href="https://golang.org/cl/149297">https://golang.org/cl/149297</a>: make Reader.Peek invalidate Unreads
+    </p>
+
+</dl><!-- bufio -->
+
 <dl id="build"><dt><a href="/pkg/build/">build</a></dt>
   <dd>
     <p><!-- CL 61511 -->
@@ -94,30 +171,64 @@ Do not send CLs removing the interior tags from such phrases.
 
 </dl><!-- build -->
 
-<dl id="bytes, strings"><dt><a href="/pkg/bytes, strings/">bytes, strings</a></dt>
+<dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
   <dd>
     <p><!-- CL 137855 -->
-      TODO: <a href="https://golang.org/cl/137855">https://golang.org/cl/137855</a>: add ReplaceAll
+      The new function <a href="/pkg/bytes/#ReplaceAll"><code>ReplaceAll</code></a> returns a copy of
+      a byte slice with all non-overlapping instances of a value replaced by another.
     </p>
 
     <p><!-- CL 145098 -->
-      TODO: <a href="https://golang.org/cl/145098">https://golang.org/cl/145098</a>: fix Reader.UnreadRune returning without error on a zero Reader
+      A pointer to a zero-value <a href="/pkg/bytes/#Reader"><code>Reader</code></a> is now
+      functionally equivalent to <a href="/pkg/bytes/#NewReader"><code>NewReader</code></a><code>(nil)</code>.
+      Prior to Go 1.12, the former could not be used as a substitute for the latter in all cases.
     </p>
 
-</dl><!-- bytes, strings -->
+</dl><!-- bytes -->
 
-<dl id="crypto/tls, net/http"><dt><a href="/pkg/crypto/tls, net/http/">crypto/tls, net/http</a></dt>
+<dl id="cmd,runtime"><dt><a href="/pkg/cmd,runtime/">cmd,runtime</a></dt>
   <dd>
-    <p><!-- CL 143177 -->
-      TODO: <a href="https://golang.org/cl/143177">https://golang.org/cl/143177</a>: reject HTTP requests to HTTPS server
+    <p><!-- CL 138675 -->
+      TODO: <a href="https://golang.org/cl/138675">https://golang.org/cl/138675</a>: enable race detector on arm64
     </p>
 
-</dl><!-- crypto/tls, net/http -->
+</dl><!-- cmd,runtime -->
+
+<dl id="crypto/rand"><dt><a href="/pkg/crypto/rand/">crypto/rand</a></dt>
+  <dd>
+    <p><!-- CL 120055 -->
+      TODO: <a href="https://golang.org/cl/120055">https://golang.org/cl/120055</a>: use the new getrandom syscall on FreeBSD
+    </p>
+
+    <p><!-- CL 139419 -->
+      TODO: <a href="https://golang.org/cl/139419">https://golang.org/cl/139419</a>: warn to stderr if blocked 60+ sec on first Reader.Read call
+    </p>
+
+</dl><!-- crypto/rand -->
+
+<dl id="crypto/rc4"><dt><a href="/pkg/crypto/rc4/">crypto/rc4</a></dt>
+  <dd>
+    <p><!-- CL 130397 -->
+      TODO: <a href="https://golang.org/cl/130397">https://golang.org/cl/130397</a>: remove assembler implementations
+    </p>
+
+</dl><!-- crypto/rc4 -->
+
+<dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
+  <dd>
+    <p><!-- CL 145738 -->
+      A query cursor can now be obtained by passing a
+      <a href="/pkg/database/sql/#Rows"><code>*Rows</code></a>
+      value to the <a href="/pkg/database/sql/#Row.Scan"><code>Row.Scan</code></a> method.
+    </p>
+
+</dl><!-- database/sql -->
 
 <dl id="expvar"><dt><a href="/pkg/expvar/">expvar</a></dt>
   <dd>
     <p><!-- CL 139537 -->
-      TODO: <a href="https://golang.org/cl/139537">https://golang.org/cl/139537</a>: add Map.Delete
+      The new <a href="/pkg/expvar/#Map.Delete"><code>Delete</code></a> method allows
+      for deletion of key/value pairs from a <a href="/pkg/expvar/#Map"><code>Map</code></a>.
     </p>
 
 </dl><!-- expvar -->
@@ -125,7 +236,25 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
   <dd>
     <p><!-- CL 142737 -->
-      TODO: <a href="https://golang.org/cl/142737">https://golang.org/cl/142737</a>: print maps in key-sorted order
+      Maps are now printed in key-sorted order to ease testing. The ordering rules are:
+      <ul>
+        <li>When applicable, nil compares low
+        <li>ints, floats, and strings order by <
+        <li>NaN compares less than non-NaN floats
+        <li>bool compares false before true
+        <li>Complex compares real, then imaginary
+        <li>Pointers compare by machine address
+        <li>Channel values compare by machine address
+        <li>Structs compare each field in turn
+        <li>Arrays compare each element in turn
+        <li>Interface values compare first by <code>reflect.Type</code> describing the concrete type
+            and then by concrete value as described in the previous rules.
+      </ul>
+    </p>
+
+    <p><!-- CL 129777 -->
+      When printing maps, non-reflexive key values like <code>NaN</code> were previously
+      displayed as <code>&lt;nil&gt;</code>. As of this release, the correct values are printed.
     </p>
 
 </dl><!-- fmt -->
@@ -141,23 +270,29 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="go/doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
   <dd>
     <p><!-- CL 140958 -->
-      TODO: <a href="https://golang.org/cl/140958">https://golang.org/cl/140958</a>: add new mode bit PreserveAST to control clearing of data in AST
+      To address some outstanding issues in <a href="/cmd/doc/"><code>cmd/doc</code></a>,
+      this package has a new <a href="/pkg/go/doc/#Mode"><code>Mode</code></a> bit,
+      <code>PreserveAST</code>, which controls whether AST data is cleared.
     </p>
 
 </dl><!-- go/doc -->
 
-<dl id="godoc, cmd/godoc"><dt><a href="/pkg/godoc, cmd/godoc/">godoc, cmd/godoc</a></dt>
+<dl id="go/token"><dt><a href="/pkg/go/token/">go/token</a></dt>
   <dd>
-    <p><!-- CL 141397 -->
-      TODO: <a href="https://golang.org/cl/141397">https://golang.org/cl/141397</a>: remove CLI support
+    <p><!-- CL 134075 -->
+      The <a href="/pkg/go/token#File"><code>File</code></a> type has a new
+      <a href="/pkg/go/token#File.LineStart"><code>LineStart</code></a> field,
+      which returns the position of the start of a given line. This is especially useful
+      in programs that occassionally handle non-Go files, such as assembly, but wish to use
+      the <code>token.Pos</code> mechanism to identify file positions.
     </p>
 
-</dl><!-- godoc, cmd/godoc -->
+</dl><!-- go/token -->
 
 <dl id="image"><dt><a href="/pkg/image/">image</a></dt>
   <dd>
     <p><!-- CL 118755 -->
-      TODO: <a href="https://golang.org/cl/118755">https://golang.org/cl/118755</a>: make RegisterFormat safe for concurrent use
+      The <a href="/pkg/image/#RegisterFormat"><code>RegisterFormat</code></a> function is now safe for concurrent use.
     </p>
 
 </dl><!-- image -->
@@ -165,10 +300,18 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="image/png"><dt><a href="/pkg/image/png/">image/png</a></dt>
   <dd>
     <p><!-- CL 134235 -->
-      TODO: <a href="https://golang.org/cl/134235">https://golang.org/cl/134235</a>: pack image data for small bitdepth paletted images
+      Paletted images with fewer than 16 colors now encode to smaller outputs.
     </p>
 
 </dl><!-- image/png -->
+
+<dl id="internal/cpu"><dt><a href="/pkg/internal/cpu/">internal/cpu</a></dt>
+  <dd>
+    <p><!-- CL 149578 -->
+      TODO: <a href="https://golang.org/cl/149578">https://golang.org/cl/149578</a>: move GODEBUGCPU options into GODEBUG
+    </p>
+
+</dl><!-- internal/cpu -->
 
 <dl id="internal/poll"><dt><a href="/pkg/internal/poll/">internal/poll</a></dt>
   <dd>
@@ -181,10 +324,19 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="io"><dt><a href="/pkg/io/">io</a></dt>
   <dd>
     <p><!-- CL 139457 -->
-      TODO: <a href="https://golang.org/cl/139457">https://golang.org/cl/139457</a>: export StringWriter
+      The new <a href="/pkg/io#StringWriter"><code>StringWriter</code></a> interface wraps the
+      <a href="/pkg/io/#WriteString"><code>WriteString</code></a> function.
     </p>
 
 </dl><!-- io -->
+
+<dl id="lib/time"><dt><a href="/pkg/lib/time/">lib/time</a></dt>
+  <dd>
+    <p><!-- CL 151299 -->
+      TODO: <a href="https://golang.org/cl/151299">https://golang.org/cl/151299</a>: update tzdata to 2018g
+    </p>
+
+</dl><!-- lib/time -->
 
 <dl id="math/bits"><dt><a href="/pkg/math/bits/">math/bits</a></dt>
   <dd>
@@ -196,47 +348,126 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
-    <p><!-- CL 113997 -->
-      TODO: <a href="https://golang.org/cl/113997">https://golang.org/cl/113997</a>: use splice(2) on Linux when reading from UnixConn, rework splice tests
+    <p><!-- CL 146659 -->
+      The
+      <a href="/pkg/net/#Dialer.DualStack"><code>Dialer.DualStack</code></a> setting is now ignored and deprecated;
+      RFC 6555 Fast Fallback ("Happy Eyeballs") is now enabled by default. To disable, set
+      <a href="/pkg/net/#Dialer.FallbackDelay"><code>Dialer.FallbackDelay</code></a> to a negative value.
     </p>
 
+    <p><!-- CL 107196 -->
+      Similarly, TCP keep-alives are now enabled by default if
+      <a href="/pkg/net/#Dialer.KeepAlive"><code>Dialer.KeepAlive</code></a> is zero.
+      To disable, set it to a negative value.
+    </p>
+
+    <p><!-- CL 113997 -->
+      On Linux, the <a href="http://man7.org/linux/man-pages/man2/splice.2.html"><code>splice</code> system call</a> is now used when copying from a
+      <a href="/pkg/net/#UnixConn"><code>UnixConn</code></a> to a
+      <a href="/pkg/net/#TCPConn"><code>TCPConn</code></a>.
+    </p>
 </dl><!-- net -->
 
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
+    <p><!-- CL 143177 -->
+      The HTTP server now rejects misdirected HTTP requests to HTTPS servers with a plaintext "400 Bad Request" response.
+    </p>
+
     <p><!-- CL 130115 -->
-      TODO: <a href="https://golang.org/cl/130115">https://golang.org/cl/130115</a>: add Client.CloseIdleConnections
+      The new <a href="/pkg/net/http/#Client.CloseIdleConnections"><code>Client.CloseIdleConnections</code></a>
+      method calls the <code>Client</code>'s underlying <code>Transport</code>'s <code>CloseIdleConnections</code>
+      if it has one.
     </p>
 
     <p><!-- CL 145398 -->
-      TODO: <a href="https://golang.org/cl/145398">https://golang.org/cl/145398</a>: in Transport, don&#39;t error on non-chunked response with Trailer header
+      The <a href="/pkg/net/http/#Transport"><code>Transport</code></a> no longer rejects HTTP responses which declare
+      HTTP Trailers but don't use chunked encoding. Instead, the declared trailers are now just ignored.
+    </p>
+
+    <p><!-- CL 152080 --> <!-- CL 151857 -->
+      The <a href="/pkg/net/http/#Transport"><code>Transport</code></a> no longer handles <code>MAX_CONCURRENT_STREAMS</code> values
+      advertised from HTTP/2 servers as strictly as it did during Go 1.10 and Go 1.11. The default behavior is now back
+      to how it was in Go 1.9: each connection to a server can have up to <code>MAX_CONCURRENT_STREAMS</code> requests
+      active and then new TCP connections are created as needed. In Go 1.10 and Go 1.11 the <code>http2</code> package
+      would block and wait for requests to finish instead of creating new connections.
+      To get the stricter behavior back, import the
+      <a href="https://godoc.org/golang.org/x/net/http2"><code>golang.org/x/net/http2</code></a> package
+      directly and set
+      <a href="https://godoc.org/golang.org/x/net/http2#Transport.StrictMaxConcurrentStreams"><code>Transport.StrictMaxConcurrentStreams</code></a> to
+      <code>true</code>.
     </p>
 
 </dl><!-- net/http -->
 
+<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+  <dd>
+    <p><!-- CL 146437 -->
+      The <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a> now automatically
+      proxies WebSocket requests.
+    </p>
+
+</dl><!-- net/http/httputil -->
+
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
     <p><!-- CL 125443 -->
-      TODO: <a href="https://golang.org/cl/125443">https://golang.org/cl/125443</a>: add ExitCode method to ProcessState
+      The new <a href="/pkg/os/#ProcessState.ExitCode"><code>ProcessState.ExitCode</code></a> method
+      returns the process's exit code.
     </p>
 
     <p><!-- CL 135075 -->
-      TODO: <a href="https://golang.org/cl/135075">https://golang.org/cl/135075</a>: add ModeCharDevice to ModeType
+      <code>ModeCharDevice</code> has been added to the <code>ModeType</code> bitmask, allowing for
+      <code>ModeDevice | ModeCharDevice</code> to be recovered when masking a
+      <a href="/pkg/os/#FileMode"><code>FileMode</code></a> with <code>ModeType</code>.
     </p>
 
     <p><!-- CL 139418 -->
-      TODO: <a href="https://golang.org/cl/139418">https://golang.org/cl/139418</a>: add UserHomeDir
+      The new function <a href="/pkg/os/#UserHomeDir"><code>UserHomeDir</code></a> returns the
+      current user's home directory.
+    </p>
+
+    <p><!-- CL 146020 -->
+      <a href="/pkg/os/#RemoveAll"><code>RemoveAll</code></a> now supports paths longer than 4096 characters
+      on most Unix systems.
     </p>
 
 </dl><!-- os -->
 
+<dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
+  <dd>
+    <p><!-- CL 145220 -->
+      The <a href="/pkg/path/filepath/#IsAbs"><code>IsAbs</code></a> function now returns true when passed
+      a reserved filename on Windows such as <code>NUL</code>.
+      <a href="https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file#naming-conventions">List of reserved names.</a>
+    </p>
+
+</dl><!-- path/filepath -->
+
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
     <p><!-- CL 33572 -->
-      TODO: <a href="https://golang.org/cl/33572">https://golang.org/cl/33572</a>: add Value.MapRange method and MapIter type
+      A new <a href="/pkg/reflect#MapIter"><code>MapIter</code></a> type is
+      an iterator for ranging over a map. This type is exposed through the
+      <a href="/pkg/reflect#Value"><code>Value</code></a> type's new
+      <a href="/pkg/reflect#Value.MapRange"><code>MapRange</code></a> method.
+      This follows the same iteration semantics as a range statment, with <code>Next</code>
+      to advance the iterator, and <code>Key</code>/<code>Value</code> to access each entry.
     </p>
 
 </dl><!-- reflect -->
+
+<dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
+  <dd>
+    <p><!-- CL 139783 -->
+      TODO: <a href="https://golang.org/cl/139783">https://golang.org/cl/139783</a>: add DeepEqual test
+    </p>
+
+    <p><!-- CL 139784 -->
+      TODO: <a href="https://golang.org/cl/139784">https://golang.org/cl/139784</a>: add partial Deprecation comment to Copy
+    </p>
+
+</dl><!-- regexp -->
 
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
@@ -246,10 +477,42 @@ Do not send CLs removing the interior tags from such phrases.
 
 </dl><!-- runtime -->
 
+<dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
+  <dd>
+    <p><!-- CL 144220 -->
+      TODO: <a href="https://golang.org/cl/144220">https://golang.org/cl/144220</a>: add API to read module info in binary
+    </p>
+
+</dl><!-- runtime/debug -->
+
 <dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
   <dd>
+    <p><!-- CL 137855 -->
+      The new function <a href="/pkg/strings/#ReplaceAll"><code>ReplaceAll</code></a> returns a copy of
+      a string with all non-overlapping instances of a value replaced by another.
+    </p>
+
+    <p><!-- CL 145098 -->
+      A pointer to a zero-value <a href="/pkg/strings/#Reader"><code>Reader</code></a> is now
+      functionally equivalent to <a href="/pkg/strings/#NewReader"><code>NewReader</code></a><code>(nil)</code>.
+      Prior to Go 1.12, the former could not be used as a substitute for the latter in all cases.
+    </p>
+
     <p><!-- CL 122835 -->
-      TODO: <a href="https://golang.org/cl/122835">https://golang.org/cl/122835</a>: add Builder.Cap
+      The new <a href="/pkg/strings/#Builder.Cap"><code>Builder.Cap</code></a> method returns the capacity of the builder's underlying byte slice.
+    </p>
+
+    <p><!-- CL 131495 -->
+      The character mapping functions <a href="/pkg/strings/#Map"><code>Map</code></a>,
+      <a href="/pkg/strings/#Title"><code>Title</code></a>,
+      <a href="/pkg/strings/#ToLower"><code>ToLower</code></a>,
+      <a href="/pkg/strings/#ToLowerSpecial"><code>ToLowerSpecial</code></a>,
+      <a href="/pkg/strings/#ToTitle"><code>ToTitle</code></a>,
+      <a href="/pkg/strings/#ToTitleSpecial"><code>ToTitleSpecial</code></a>,
+      <a href="/pkg/strings/#ToUpper"><code>ToUpper</code></a>, and
+      <a href="/pkg/strings/#ToUpperSpecial"><code>ToUpperSpecial</code></a>
+      now always guarantee to return valid UTF-8. In earlier releases, if the input was invalid UTF-8 but no character replacements
+      needed to be applied, these routines incorrectly returned the invalid UTF-8 unmodified.
     </p>
 
 </dl><!-- strings -->
@@ -262,6 +525,14 @@ Do not send CLs removing the interior tags from such phrases.
 
     <p><!-- CL 138595 -->
       TODO: <a href="https://golang.org/cl/138595">https://golang.org/cl/138595</a>: FreeBSD 12 ino64 support
+    </p>
+
+    <p><!-- CL 141639 -->
+      TODO: <a href="https://golang.org/cl/141639">https://golang.org/cl/141639</a>: implement syscalls on Darwin using libSystem
+    </p>
+
+    <p><!-- CL 147117 -->
+      TODO: <a href="https://golang.org/cl/147117">https://golang.org/cl/147117</a>: add Syscall18 on Windows
     </p>
 
 </dl><!-- syscall -->
@@ -284,9 +555,30 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
   <dd>
+    <p><!-- CL 121936 -->
+      TODO: <a href="https://golang.org/cl/121936">https://golang.org/cl/121936</a>: exit with error if testing.Short is called before flag.Parse
+    </p>
+
     <p><!-- CL 139258 -->
       TODO: <a href="https://golang.org/cl/139258">https://golang.org/cl/139258</a>: implement -benchtime=100x
     </p>
 
 </dl><!-- testing -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 142217 -->
+      When executing a template, long context values are no longer truncated in errors.
+    </p>
+    <p>
+      <code>executing "tmpl" at <.very.deep.context.v...>: map has no entry for key "notpresent"</code>
+    </p>
+    <p>
+      is now
+    </p>
+    <p>
+      <code>executing "tmpl" at <.very.deep.context.value.notpresent>: map has no entry for key "notpresent"</code>
+    </p>
+
+</dl><!-- text/template -->
 

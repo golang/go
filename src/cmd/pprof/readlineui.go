@@ -101,7 +101,7 @@ func colorize(msg string) string {
 	return colorEscape + msg + colorResetEscape
 }
 
-// IsTerminal returns whether the UI is known to be tied to an
+// IsTerminal reports whether the UI is known to be tied to an
 // interactive terminal (as opposed to being redirected to a file).
 func (r *readlineUI) IsTerminal() bool {
 	const stdout = 1

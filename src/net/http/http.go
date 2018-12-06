@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"golang_org/x/net/http/httpguts"
+	"internal/x/net/http/httpguts"
 )
 
 // maxInt64 is the effective "infinite" value for the Server and

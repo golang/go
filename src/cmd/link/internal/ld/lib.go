@@ -158,7 +158,7 @@ const (
 	MINFUNC = 16 // minimum size for a function
 )
 
-// DynlinkingGo returns whether we are producing Go code that can live
+// DynlinkingGo reports whether we are producing Go code that can live
 // in separate shared libraries linked together at runtime.
 func (ctxt *Link) DynlinkingGo() bool {
 	if !ctxt.Loaded {
@@ -167,12 +167,12 @@ func (ctxt *Link) DynlinkingGo() bool {
 	return ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins()
 }
 
-// CanUsePlugins returns whether a plugins can be used
+// CanUsePlugins reports whether a plugins can be used
 func (ctxt *Link) CanUsePlugins() bool {
 	return ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil
 }
 
-// UseRelro returns whether to make use of "read only relocations" aka
+// UseRelro reports whether to make use of "read only relocations" aka
 // relro.
 func (ctxt *Link) UseRelro() bool {
 	switch ctxt.BuildMode {
@@ -1017,6 +1017,7 @@ func hostobjCopy() (paths []string) {
 			if err != nil {
 				Exitf("cannot reopen %s: %v", h.pn, err)
 			}
+			defer f.Close()
 			if _, err := f.Seek(h.off, 0); err != nil {
 				Exitf("cannot seek %s: %v", h.pn, err)
 			}

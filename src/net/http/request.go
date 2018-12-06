@@ -26,7 +26,7 @@ import (
 	"strings"
 	"sync"
 
-	"golang_org/x/net/idna"
+	"internal/x/net/idna"
 )
 
 const (
@@ -1330,6 +1330,9 @@ func (r *Request) wantsHttp10KeepAlive() bool {
 }
 
 func (r *Request) wantsClose() bool {
+	if r.Close {
+		return true
+	}
 	return hasToken(r.Header.get("Connection"), "close")
 }
 

@@ -5,15 +5,18 @@
 package importer
 
 import (
+	"go/token"
 	"internal/testenv"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 )
 
-func TestFor(t *testing.T) {
+func TestForCompiler(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	const thePackage = "math/big"
@@ -32,14 +35,31 @@ func TestFor(t *testing.T) {
 		t.Skip("golang.org/issue/22500")
 	}
 
+	fset := token.NewFileSet()
+
 	t.Run("LookupDefault", func(t *testing.T) {
-		imp := For(compiler, nil)
+		imp := ForCompiler(fset, compiler, nil)
 		pkg, err := imp.Import(thePackage)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if pkg.Path() != thePackage {
 			t.Fatalf("Path() = %q, want %q", pkg.Path(), thePackage)
+		}
+
+		// Check that the fileset positions are accurate.
+		// https://github.com/golang/go#28995
+		mathBigInt := pkg.Scope().Lookup("Int")
+		posn := fset.Position(mathBigInt.Pos()) // "$GOROOT/src/math/big/int.go:25:1"
+		filename := strings.Replace(posn.Filename, "$GOROOT", runtime.GOROOT(), 1)
+		data, err := ioutil.ReadFile(filename)
+		if err != nil {
+			t.Fatalf("can't read file containing declaration of math/big.Int: %v", err)
+		}
+		lines := strings.Split(string(data), "\n")
+		if posn.Line > len(lines) || !strings.HasPrefix(lines[posn.Line-1], "type Int") {
+			t.Fatalf("Object %v position %s does not contain its declaration",
+				mathBigInt, posn)
 		}
 	})
 
@@ -54,7 +74,7 @@ func TestFor(t *testing.T) {
 			}
 			return f, nil
 		}
-		imp := For(compiler, lookup)
+		imp := ForCompiler(fset, compiler, lookup)
 		pkg, err := imp.Import("math/bigger")
 		if err != nil {
 			t.Fatal(err)

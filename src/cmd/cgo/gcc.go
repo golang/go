@@ -171,11 +171,13 @@ func (p *Package) Translate(f *File) {
 	for len(p.typedefs) > numTypedefs {
 		numTypedefs = len(p.typedefs)
 		// Also ask about any typedefs we've seen so far.
-		for _, a := range p.typedefList {
-			f.Name[a] = &Name{
-				Go: a,
-				C:  a,
+		for _, info := range p.typedefList {
+			n := &Name{
+				Go: info.typedef,
+				C:  info.typedef,
 			}
+			f.Name[info.typedef] = n
+			f.NamePos[n] = info.pos
 		}
 		needType := p.guessKinds(f)
 		if len(needType) > 0 {
@@ -573,7 +575,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 				fatalf("malformed __cgo__ name: %s", name)
 			}
 			types[i] = t.Type
-			p.recordTypedefs(t.Type)
+			p.recordTypedefs(t.Type, f.NamePos[names[i]])
 		}
 		if e.Tag != dwarf.TagCompileUnit {
 			r.SkipChildren()
@@ -641,10 +643,11 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 }
 
 // recordTypedefs remembers in p.typedefs all the typedefs used in dtypes and its children.
-func (p *Package) recordTypedefs(dtype dwarf.Type) {
-	p.recordTypedefs1(dtype, map[dwarf.Type]bool{})
+func (p *Package) recordTypedefs(dtype dwarf.Type, pos token.Pos) {
+	p.recordTypedefs1(dtype, pos, map[dwarf.Type]bool{})
 }
-func (p *Package) recordTypedefs1(dtype dwarf.Type, visited map[dwarf.Type]bool) {
+
+func (p *Package) recordTypedefs1(dtype dwarf.Type, pos token.Pos, visited map[dwarf.Type]bool) {
 	if dtype == nil {
 		return
 	}
@@ -660,23 +663,23 @@ func (p *Package) recordTypedefs1(dtype dwarf.Type, visited map[dwarf.Type]bool)
 		}
 		if !p.typedefs[dt.Name] {
 			p.typedefs[dt.Name] = true
-			p.typedefList = append(p.typedefList, dt.Name)
-			p.recordTypedefs1(dt.Type, visited)
+			p.typedefList = append(p.typedefList, typedefInfo{dt.Name, pos})
+			p.recordTypedefs1(dt.Type, pos, visited)
 		}
 	case *dwarf.PtrType:
-		p.recordTypedefs1(dt.Type, visited)
+		p.recordTypedefs1(dt.Type, pos, visited)
 	case *dwarf.ArrayType:
-		p.recordTypedefs1(dt.Type, visited)
+		p.recordTypedefs1(dt.Type, pos, visited)
 	case *dwarf.QualType:
-		p.recordTypedefs1(dt.Type, visited)
+		p.recordTypedefs1(dt.Type, pos, visited)
 	case *dwarf.FuncType:
-		p.recordTypedefs1(dt.ReturnType, visited)
+		p.recordTypedefs1(dt.ReturnType, pos, visited)
 		for _, a := range dt.ParamType {
-			p.recordTypedefs1(a, visited)
+			p.recordTypedefs1(a, pos, visited)
 		}
 	case *dwarf.StructType:
 		for _, f := range dt.Field {
-			p.recordTypedefs1(f.Type, visited)
+			p.recordTypedefs1(f.Type, pos, visited)
 		}
 	}
 }
@@ -716,9 +719,22 @@ func (p *Package) mangleName(n *Name) {
 	n.Mangle = prefix + n.Kind + "_" + n.Go
 }
 
+func (f *File) isMangledName(s string) bool {
+	prefix := "_C"
+	if strings.HasPrefix(s, prefix) {
+		t := s[len(prefix):]
+		for _, k := range nameKinds {
+			if strings.HasPrefix(t, k+"_") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // rewriteCalls rewrites all calls that pass pointers to check that
 // they follow the rules for passing pointers between Go and C.
-// This returns whether the package needs to import unsafe as _cgo_unsafe.
+// This reports whether the package needs to import unsafe as _cgo_unsafe.
 func (p *Package) rewriteCalls(f *File) bool {
 	needsUnsafe := false
 	// Walk backward so that in C.f1(C.f2()) we rewrite C.f2 first.
@@ -941,7 +957,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 	return sb.String(), needsUnsafe
 }
 
-// needsPointerCheck returns whether the type t needs a pointer check.
+// needsPointerCheck reports whether the type t needs a pointer check.
 // This is true if t is a pointer and if the value to which it points
 // might contain a pointer.
 func (p *Package) needsPointerCheck(f *File, t ast.Expr, arg ast.Expr) bool {
@@ -958,7 +974,7 @@ func (p *Package) needsPointerCheck(f *File, t ast.Expr, arg ast.Expr) bool {
 
 // hasPointer is used by needsPointerCheck. If top is true it returns
 // whether t is or contains a pointer that might point to a pointer.
-// If top is false it returns whether t is or contains a pointer.
+// If top is false it reports whether t is or contains a pointer.
 // f may be nil.
 func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
 	switch t := t.(type) {
@@ -1172,7 +1188,7 @@ func (p *Package) checkAddr(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool
 	return true
 }
 
-// isType returns whether the expression is definitely a type.
+// isType reports whether the expression is definitely a type.
 // This is conservative--it returns false for an unknown identifier.
 func (p *Package) isType(t ast.Expr) bool {
 	switch t := t.(type) {
@@ -1214,7 +1230,7 @@ func (p *Package) isType(t ast.Expr) bool {
 	return false
 }
 
-// isConst returns whether x is an untyped constant expression.
+// isConst reports whether x is an untyped constant expression.
 func (p *Package) isConst(f *File, x ast.Expr) bool {
 	switch x := x.(type) {
 	case *ast.BasicLit:
@@ -1233,7 +1249,7 @@ func (p *Package) isConst(f *File, x ast.Expr) bool {
 			strings.HasPrefix(x.Name, "_Ciconst_") ||
 			strings.HasPrefix(x.Name, "_Cfconst_") ||
 			strings.HasPrefix(x.Name, "_Csconst_") ||
-			f.Consts[x.Name]
+			consts[x.Name]
 	case *ast.UnaryExpr:
 		return p.isConst(f, x.X)
 	case *ast.BinaryExpr:
@@ -2717,11 +2733,6 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 
 	anon := 0
 	for _, f := range dt.Field {
-		if f.ByteOffset > off {
-			fld, sizes = c.pad(fld, sizes, f.ByteOffset-off)
-			off = f.ByteOffset
-		}
-
 		name := f.Name
 		ft := f.Type
 
@@ -2770,6 +2781,19 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 			// structs are in system headers that cannot be corrected.
 			continue
 		}
+
+		// Round off up to talign, assumed to be a power of 2.
+		off = (off + talign - 1) &^ (talign - 1)
+
+		if f.ByteOffset > off {
+			fld, sizes = c.pad(fld, sizes, f.ByteOffset-off)
+			off = f.ByteOffset
+		}
+		if f.ByteOffset < off {
+			// Drop a packed field that we can't represent.
+			continue
+		}
+
 		n := len(fld)
 		fld = fld[0 : n+1]
 		if name == "" {
@@ -2819,7 +2843,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 	return
 }
 
-// dwarfHasPointer returns whether the DWARF type dt contains a pointer.
+// dwarfHasPointer reports whether the DWARF type dt contains a pointer.
 func (c *typeConv) dwarfHasPointer(dt dwarf.Type, pos token.Pos) bool {
 	switch dt := dt.(type) {
 	default:

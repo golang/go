@@ -1051,20 +1051,6 @@ func disallowVendor(srcDir string, importer *Package, importerPath, path string,
 		return p
 	}
 
-	// Modules must not import vendor packages in the standard library,
-	// but the usual vendor visibility check will not catch them
-	// because the module loader presents them with an ImportPath starting
-	// with "golang_org/" instead of "vendor/".
-	if p.Standard && !importer.Standard && strings.HasPrefix(p.ImportPath, "golang_org") {
-		perr := *p
-		perr.Error = &PackageError{
-			ImportStack: stk.Copy(),
-			Err:         "use of vendored package " + path + " not allowed",
-		}
-		perr.Incomplete = true
-		return &perr
-	}
-
 	if perr := disallowVendorVisibility(srcDir, p, stk); perr != p {
 		return perr
 	}
@@ -1529,7 +1515,9 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 	}
 
 	if cfg.ModulesEnabled {
-		p.Module = ModPackageModuleInfo(p.ImportPath)
+		if !p.Internal.CmdlineFiles {
+			p.Module = ModPackageModuleInfo(p.ImportPath)
+		}
 		if p.Name == "main" {
 			p.Internal.BuildInfo = ModPackageBuildInfo(p.ImportPath, p.Deps)
 		}
@@ -1781,9 +1769,6 @@ func loadPackage(arg string, stk *ImportStack) *Package {
 		bp.ImportPath = arg
 		bp.Goroot = true
 		bp.BinDir = cfg.GOROOTbin
-		if cfg.GOROOTbin != "" {
-			bp.BinDir = cfg.GOROOTbin
-		}
 		bp.Root = cfg.GOROOT
 		bp.SrcRoot = cfg.GOROOTsrc
 		p := new(Package)

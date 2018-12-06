@@ -14,7 +14,7 @@ import (
 	"sync"
 )
 
-// IsStandardPackage returns whether path is a standard package,
+// IsStandardPackage reports whether path is a standard package,
 // given goroot and compiler.
 func IsStandardPackage(goroot, compiler, path string) bool {
 	switch compiler {
@@ -95,7 +95,7 @@ func (gd *gccgoDirs) init() {
 	gd.dirs = append(gd.dirs, lastDirs...)
 }
 
-// isStandard returns whether path is a standard library for gccgo.
+// isStandard reports whether path is a standard library for gccgo.
 func (gd *gccgoDirs) isStandard(path string) bool {
 	// Quick check: if the first path component has a '.', it's not
 	// in the standard library. This skips most GOPATH directories.

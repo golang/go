@@ -350,7 +350,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 				continue
 			}
 			ll := n.sepcopy()
-			if staticassign(ll, e.Expr, out) {
+			if staticcopy(ll, e.Expr, out) {
 				continue
 			}
 			// Requires computation, but we're
@@ -711,7 +711,10 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 		var k int64
 		splitnode = func(r *Node) (*Node, *Node) {
 			if r.Op == OKEY {
-				k = nonnegintconst(r.Left)
+				k = indexconst(r.Left)
+				if k < 0 {
+					Fatalf("fixedlit: invalid index %v", r.Left)
+				}
 				r = r.Right
 			}
 			a := nod(OINDEX, var_, nodintconst(k))
@@ -893,7 +896,10 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	var index int64
 	for _, value := range n.List.Slice() {
 		if value.Op == OKEY {
-			index = nonnegintconst(value.Left)
+			index = indexconst(value.Left)
+			if index < 0 {
+				Fatalf("slicelit: invalid index %v", value.Left)
+			}
 			value = value.Right
 		}
 		a := nod(OINDEX, vauto, nodintconst(index))
@@ -1250,7 +1256,10 @@ func initplan(n *Node) {
 		var k int64
 		for _, a := range n.List.Slice() {
 			if a.Op == OKEY {
-				k = nonnegintconst(a.Left)
+				k = indexconst(a.Left)
+				if k < 0 {
+					Fatalf("initplan arraylit: invalid index %v", a.Left)
+				}
 				a = a.Right
 			}
 			addvalue(p, k*n.Type.Elem().Width, a)
@@ -1260,7 +1269,7 @@ func initplan(n *Node) {
 	case OSTRUCTLIT:
 		for _, a := range n.List.Slice() {
 			if a.Op != OSTRUCTKEY {
-				Fatalf("initplan fixedlit")
+				Fatalf("initplan structlit")
 			}
 			addvalue(p, a.Xoffset, a.Left)
 		}
