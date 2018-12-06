@@ -1417,6 +1417,12 @@ top:
 	// Flush all local buffers and collect flushedWork flags.
 	gcMarkDoneFlushed = 0
 	systemstack(func() {
+		gp := getg().m.curg
+		// Mark the user stack as preemptible so that it may be scanned.
+		// Otherwise, our attempt to force all P's to a safepoint could
+		// result in a deadlock as we attempt to preempt a worker that's
+		// trying to preempt us (e.g. for a stack scan).
+		casgstatus(gp, _Grunning, _Gwaiting)
 		forEachP(func(_p_ *p) {
 			// Flush the write barrier buffer, since this may add
 			// work to the gcWork.
@@ -1449,6 +1455,7 @@ top:
 				_p_.gcw.pauseGen = gcWorkPauseGen
 			}
 		})
+		casgstatus(gp, _Gwaiting, _Grunning)
 	})
 
 	if gcMarkDoneFlushed != 0 {
