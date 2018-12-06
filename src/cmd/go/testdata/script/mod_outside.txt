@@ -36,6 +36,9 @@ stdout '^cmd/go$'
 go list $GOROOT/src/fmt
 stdout '^fmt$'
 
+# 'go list' should work with file arguments.
+go list ./foo/foo.go
+stdout 'command-line-arguments'
 
 # 'go list -m' with an explicit version should resolve that version.
 go list -m example.com/version@latest
@@ -186,11 +189,27 @@ stdout 'path is \.$'
 stdout 'main is main \(devel\)'
 stdout 'using example.com/version v1.1.0'
 
+# 'go generate' should work with file arguments.
+[exec:touch] go generate ./foo/foo.go
+[exec:touch] exists ./foo/gen.txt
+
+# 'go install' should work with file arguments.
+go install ./foo/foo.go
+
+# 'go test' should work with file arguments.
+go test -v ./foo/foo_test.go
+stdout 'foo was tested'
+
+# 'go vet' should work with file arguments.
+go vet ./foo/foo.go
+
 
 -- README.txt --
 There is no go.mod file in the working directory.
 
 -- foo/foo.go --
+//go:generate touch gen.txt
+
 package main
 
 import (
@@ -211,4 +230,16 @@ func main() {
 	for _, m := range info.Deps {
 		fmt.Fprintf(os.Stdout, "using %s %s\n", m.Path, m.Version)
 	}
+}
+
+-- foo/foo_test.go --
+package main
+
+import (
+	"fmt"
+	"testing"
+)
+
+func TestFoo(t *testing.T) {
+	fmt.Println("foo was tested")
 }
