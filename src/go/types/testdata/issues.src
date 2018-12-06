@@ -5,6 +5,7 @@
 package issues
 
 import "fmt"
+import syn "cmd/compile/internal/syntax"
 
 func issue7035() {
 	type T struct{ X int }
@@ -313,3 +314,27 @@ func issue28281e(a, b, c  ... /* ERROR can only use ... with final parameter */ 
 func issue28281f(... /* ERROR can only use ... with final parameter */ int, ... /* ERROR can only use ... with final parameter */ int, int)
 func (... /* ERROR expected type */ TT) f()
 func issue28281g() (... /* ERROR expected type */ TT)
+
+// Issue #26234: Make various field/method lookup errors easier to read by matching cmd/compile's output
+func issue26234a(f *syn.File) {
+	// The error message below should refer to the actual package path base (syntax)
+	// not the local package name (syn).
+	f.foo /* ERROR f.foo undefined \(type \*syntax.File has no field or method foo\) */
+}
+
+type T struct {
+	x int
+	E1
+	E2
+}
+
+type E1 struct{ f int }
+type E2 struct{ f int }
+
+func issue26234b(x T) {
+	_ = x.f /* ERROR ambiguous selector f */
+}
+
+func issue26234c() {
+	T.x /* ERROR T.x undefined \(type T has no method x\) */ ()
+}

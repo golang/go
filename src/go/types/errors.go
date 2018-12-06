@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"path"
 	"strings"
 )
 
@@ -25,7 +26,7 @@ func unreachable() {
 
 func (check *Checker) qualifier(pkg *Package) string {
 	if pkg != check.pkg {
-		return pkg.path
+		return path.Base(pkg.path) // avoid excessively long path names in error messages
 	}
 	return ""
 }
