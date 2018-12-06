@@ -1731,3 +1731,19 @@ func BenchmarkJoin(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkTrimSpace(b *testing.B) {
+	tests := []struct{ name, input string }{
+		{"NoTrim", "typical"},
+		{"ASCII", "  foo bar  "},
+		{"SomeNonASCII", "    \u2000\t\r\n x\t\t\r\r\ny\n \u3000    "},
+		{"JustNonASCII", "\u2000\u2000\u2000☺☺☺☺\u3000\u3000\u3000"},
+	}
+	for _, test := range tests {
+		b.Run(test.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				TrimSpace(test.input)
+			}
+		})
+	}
+}
