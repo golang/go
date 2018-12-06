@@ -2191,7 +2191,12 @@ type muxEntry struct {
 
 // NewServeMux allocates and returns a new ServeMux.
 func NewServeMux() *ServeMux { return new(ServeMux) }
-
+// 清除已经绑定的路由表 目前只测试了HandeFunc的
+func CleanServeMuxMap(){
+	for k,_ = range defaultServeMux.m {
+		delete(defaultServeMux.m,k)
+	}
+}
 // DefaultServeMux is the default ServeMux used by Serve.
 var DefaultServeMux = &defaultServeMux
 
