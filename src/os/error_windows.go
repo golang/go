@@ -14,12 +14,14 @@ func isExist(err error) bool {
 }
 
 const _ERROR_BAD_NETPATH = syscall.Errno(53)
+const _ERROR_INVALID_PARAMETER =  syscall.Errno(87)
 
 func isNotExist(err error) bool {
 	err = underlyingError(err)
 	return err == syscall.ERROR_FILE_NOT_FOUND ||
 		err == _ERROR_BAD_NETPATH ||
-		err == syscall.ERROR_PATH_NOT_FOUND || err == ErrNotExist
+		err == syscall.ERROR_PATH_NOT_FOUND ||
+		err == _ERROR_INVALID_PARAMETER || err == ErrNotExist
 }
 
 func isPermission(err error) bool {

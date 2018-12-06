@@ -563,6 +563,13 @@ func TestBadNetPathError(t *testing.T) {
 	}
 }
 
+func TestInvalidParameterError(t *testing.T) {
+	const ERROR_INVALID_PARAMETER = syscall.Errno(87)
+	if !os.IsNotExist(ERROR_INVALID_PARAMETER) {
+		t.Fatal("os.IsNotExist(syscall.Errno(87)) is false, but want true")
+	}
+}
+
 func TestStatDir(t *testing.T) {
 	defer chtmpdir(t)()
 
