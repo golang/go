@@ -215,7 +215,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugD
 					CFIndex maxSize = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8) + 1;
 					char *buffer = malloc(maxSize);
 					if (CFStringGetCString(summary, buffer, maxSize, kCFStringEncodingUTF8)) {
-						printf("crypto/x509: %s returned %d\n", buffer, result);
+						printf("crypto/x509: %s returned %d\n", buffer, (int)result);
 					}
 					free(buffer);
 					CFRelease(summary);
