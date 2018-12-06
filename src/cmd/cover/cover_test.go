@@ -30,9 +30,10 @@ const (
 
 var (
 	// Input files.
-	testMain     = filepath.Join(testdata, "main.go")
-	testTest     = filepath.Join(testdata, "test.go")
-	coverProfile = filepath.Join(testdata, "profile.cov")
+	testMain       = filepath.Join(testdata, "main.go")
+	testTest       = filepath.Join(testdata, "test.go")
+	coverProfile   = filepath.Join(testdata, "profile.cov")
+	toolexecSource = filepath.Join(testdata, "toolexec.go")
 
 	// The HTML test files are in a separate directory
 	// so they are a complete package.
@@ -53,11 +54,17 @@ var (
 	// testcover is a newly built version of the cover program.
 	testcover string
 
-	// testcoverErr records an error building testcover.
+	// toolexec is a program to use as the go tool's -toolexec argument.
+	toolexec string
+
+	// testcoverErr records an error building testcover or toolexec.
 	testcoverErr error
 
 	// testcoverOnce is used to build testcover once.
 	testcoverOnce sync.Once
+
+	// toolexecArg is the argument to pass to the go tool.
+	toolexecArg string
 )
 
 var debug = flag.Bool("debug", false, "keep rewritten files for debugging")
@@ -94,14 +101,43 @@ func buildCover(t *testing.T) {
 	t.Helper()
 	testenv.MustHaveGoBuild(t)
 	testcoverOnce.Do(func() {
-		testcover = filepath.Join(testTempDir, "testcover.exe")
-		t.Logf("running [go build -o %s]", testcover)
-		out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", testcover).CombinedOutput()
-		t.Logf("%s", out)
-		testcoverErr = err
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		var err1, err2 error
+		go func() {
+			defer wg.Done()
+			testcover = filepath.Join(testTempDir, "cover.exe")
+			t.Logf("running [go build -o %s]", testcover)
+			out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", testcover).CombinedOutput()
+			if len(out) > 0 {
+				t.Logf("%s", out)
+			}
+			err1 = err
+		}()
+
+		go func() {
+			defer wg.Done()
+			toolexec = filepath.Join(testTempDir, "toolexec.exe")
+			t.Logf("running [go -build -o %s %s]", toolexec, toolexecSource)
+			out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", toolexec, toolexecSource).CombinedOutput()
+			if len(out) > 0 {
+				t.Logf("%s", out)
+			}
+			err2 = err
+		}()
+
+		wg.Wait()
+
+		testcoverErr = err1
+		if err2 != nil && err1 == nil {
+			testcoverErr = err2
+		}
+
+		toolexecArg = "-toolexec=" + toolexec + " " + testcover
 	})
 	if testcoverErr != nil {
-		t.Fatal("failed to build testcover program:", testcoverErr)
+		t.Fatal("failed to build testcover or toolexec program:", testcoverErr)
 	}
 }
 
@@ -335,7 +371,7 @@ func TestCoverHTML(t *testing.T) {
 	buildCover(t)
 
 	// go test -coverprofile testdata/html/html.cov cmd/cover/testdata/html
-	cmd := exec.Command(testenv.GoToolPath(t), "test", "-coverprofile", htmlProfile, "cmd/cover/testdata/html")
+	cmd := exec.Command(testenv.GoToolPath(t), "test", toolexecArg, "-coverprofile", htmlProfile, "cmd/cover/testdata/html")
 	run(cmd, t)
 	// testcover -html testdata/html/html.cov -o testdata/html/html.html
 	cmd = exec.Command(testcover, "-html", htmlProfile, "-o", htmlHTML)
