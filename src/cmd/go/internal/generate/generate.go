@@ -161,7 +161,7 @@ func runGenerate(cmd *base.Command, args []string) {
 	// Even if the arguments are .go files, this loop suffices.
 	printed := false
 	for _, pkg := range load.Packages(args) {
-		if modload.Enabled() && !pkg.Module.Main {
+		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
 			if !printed {
 				fmt.Fprintf(os.Stderr, "go: not generating in packages in dependency modules\n")
 				printed = true
