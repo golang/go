@@ -2193,7 +2193,7 @@ type muxEntry struct {
 func NewServeMux() *ServeMux { return new(ServeMux) }
 // 清除已经绑定的路由表 目前只测试了HandeFunc的
 func CleanServeMuxMap(){
-	for k,_ = range defaultServeMux.m {
+	for k,_ := range defaultServeMux.m {
 		delete(defaultServeMux.m,k)
 	}
 }
