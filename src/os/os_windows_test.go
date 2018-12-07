@@ -1010,3 +1010,15 @@ func TestStatOfInvalidName(t *testing.T) {
 		t.Fatal(`os.Stat("*.go") unexpectedly succeeded`)
 	}
 }
+
+func TestStatOfInvalidNameWithTrailingSlash(t *testing.T) {
+	const ERROR_INVALID_PARAMETER = syscall.Errno(87)
+	_, err := os.Stat("doesnotexist/")
+	if err == nil {
+		t.Fatal(`os.Stat("doesnotexist/") unexpectedly succeeded`)
+	}
+	if perr, ok := err.(*os.PathError); !ok {
+		t.Errorf("got %v, want %v", perr.Err, ERROR_INVALID_PARAMETER)
+	}
+}
+
