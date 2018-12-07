@@ -40,11 +40,16 @@ var (
 	htmlGolden = filepath.Join(testdata, "html", "html.golden")
 
 	// Temporary files.
-	tmpTestMain string
-	coverInput  string
-	coverOutput string
-	htmlProfile string
-	htmlHTML    string
+	tmpTestMain  string
+	coverInput   string
+	coverOutput  string
+	htmlProfile  string
+	htmlHTML     string
+	htmlUDir     string
+	htmlU        string
+	htmlUTest    string
+	htmlUProfile string
+	htmlUHTML    string
 )
 
 var (
@@ -85,6 +90,11 @@ func TestMain(m *testing.M) {
 	coverOutput = filepath.Join(dir, "test_cover.go")
 	htmlProfile = filepath.Join(dir, "html.cov")
 	htmlHTML = filepath.Join(dir, "html.html")
+	htmlUDir = filepath.Join(dir, "htmlunformatted")
+	htmlU = filepath.Join(htmlUDir, "htmlunformatted.go")
+	htmlUTest = filepath.Join(htmlUDir, "htmlunformatted_test.go")
+	htmlUProfile = filepath.Join(htmlUDir, "htmlunformatted.cov")
+	htmlUHTML = filepath.Join(htmlUDir, "htmlunformatted.html")
 
 	status := m.Run()
 
@@ -427,12 +437,54 @@ func TestCoverHTML(t *testing.T) {
 	}
 }
 
+// Test HTML processing with a source file not run through gofmt.
+// Issue #27350.
+func TestHtmlUnformatted(t *testing.T) {
+	t.Parallel()
+	testenv.MustHaveGoRun(t)
+	buildCover(t)
+
+	if err := os.Mkdir(htmlUDir, 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	const htmlUContents = `
+package htmlunformatted
+
+var g int
+
+func F() {
+//line x.go:1
+	{ { F(); goto lab } }
+lab:
+}`
+
+	const htmlUTestContents = `package htmlunformatted`
+
+	if err := ioutil.WriteFile(htmlU, []byte(htmlUContents), 0444); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(htmlUTest, []byte(htmlUTestContents), 0444); err != nil {
+		t.Fatal(err)
+	}
+
+	// go test -covermode=count -coverprofile TMPDIR/htmlunformatted.cov
+	cmd := exec.Command(testenv.GoToolPath(t), "test", toolexecArg, "-covermode=count", "-coverprofile", htmlUProfile)
+	cmd.Dir = htmlUDir
+	run(cmd, t)
+
+	// testcover -html TMPDIR/htmlunformatted.cov -o unformatted.html
+	cmd = exec.Command(testcover, "-html", htmlUProfile, "-o", htmlUHTML)
+	run(cmd, t)
+}
+
 func run(c *exec.Cmd, t *testing.T) {
 	t.Helper()
 	t.Log("running", c.Args)
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-	err := c.Run()
+	out, err := c.CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
