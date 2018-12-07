@@ -17,6 +17,9 @@ const REG_NONE = 0
 func (p *Prog) Line() string {
 	return p.Ctxt.OutermostPos(p.Pos).Format(false, true)
 }
+func (p *Prog) InnermostLine() string {
+	return p.Ctxt.InnermostPos(p.Pos).Format(false, true)
+}
 
 // InnermostLineNumber returns a string containing the line number for the
 // innermost inlined function (if any inlining) at p's position
@@ -118,6 +121,16 @@ func (p *Prog) String() string {
 	return fmt.Sprintf("%.5d (%v)\t%s", p.Pc, p.Line(), p.InstructionString())
 }
 
+func (p *Prog) InnermostString() string {
+	if p == nil {
+		return "<nil Prog>"
+	}
+	if p.Ctxt == nil {
+		return "<Prog without ctxt>"
+	}
+	return fmt.Sprintf("%.5d (%v)\t%s", p.Pc, p.InnermostLine(), p.InstructionString())
+}
+
 // InstructionString returns a string representation of the instruction without preceding
 // program counter or file and line number.
 func (p *Prog) InstructionString() string {
@@ -177,7 +190,7 @@ func (ctxt *Link) NewProg() *Prog {
 }
 
 func (ctxt *Link) CanReuseProgs() bool {
-	return !ctxt.Debugasm
+	return ctxt.Debugasm == 0
 }
 
 func Dconv(p *Prog, a *Addr) string {

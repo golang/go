@@ -39,7 +39,6 @@ var (
 
 var (
 	Debug_append       int
-	Debug_asm          bool
 	Debug_closure      int
 	Debug_compilelater int
 	debug_dclstack     int
@@ -195,7 +194,7 @@ func Main(archInit func(*Arch)) {
 	objabi.Flagcount("K", "debug missing line numbers", &Debug['K'])
 	objabi.Flagcount("L", "show full file names in error messages", &Debug['L'])
 	objabi.Flagcount("N", "disable optimizations", &Debug['N'])
-	flag.BoolVar(&Debug_asm, "S", false, "print assembly listing")
+	objabi.Flagcount("S", "print assembly listing", &Debug['S'])
 	objabi.AddVersionFlag() // -V
 	objabi.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
 	flag.StringVar(&asmhdr, "asmhdr", "", "write assembly header to `file`")
@@ -265,7 +264,7 @@ func Main(archInit func(*Arch)) {
 	Ctxt.Flag_dynlink = flag_dynlink
 	Ctxt.Flag_optimize = Debug['N'] == 0
 
-	Ctxt.Debugasm = Debug_asm
+	Ctxt.Debugasm = Debug['S']
 	Ctxt.Debugvlog = Debug_vlog
 	if flagDWARF {
 		Ctxt.DebugInfo = debuginfo
@@ -1330,6 +1329,7 @@ var concurrentFlagOK = [256]bool{
 	'l': true, // disable inlining
 	'w': true, // all printing happens before compilation
 	'W': true, // all printing happens before compilation
+	'S': true, // printing disassembly happens at the end (but see concurrentBackendAllowed below)
 }
 
 func concurrentBackendAllowed() bool {
@@ -1338,9 +1338,9 @@ func concurrentBackendAllowed() bool {
 			return false
 		}
 	}
-	// Debug_asm by itself is ok, because all printing occurs
+	// Debug['S'] by itself is ok, because all printing occurs
 	// while writing the object file, and that is non-concurrent.
-	// Adding Debug_vlog, however, causes Debug_asm to also print
+	// Adding Debug_vlog, however, causes Debug['S'] to also print
 	// while flushing the plist, which happens concurrently.
 	if Debug_vlog || debugstr != "" || debuglive > 0 {
 		return false
