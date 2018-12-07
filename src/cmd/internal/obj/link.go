@@ -599,7 +599,7 @@ type Pcdata struct {
 type Link struct {
 	Headtype           objabi.HeadType
 	Arch               *LinkArch
-	Debugasm           bool
+	Debugasm           int
 	Debugvlog          bool
 	Debugpcln          string
 	Flag_shared        bool

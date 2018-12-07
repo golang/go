@@ -642,7 +642,8 @@ func (t *test) run() {
 		// against a set of regexps in comments.
 		ops := t.wantedAsmOpcodes(long)
 		for _, env := range ops.Envs() {
-			cmdline := []string{"build", "-gcflags", "-S"}
+			// -S=2 forces outermost line numbers when disassembling inlined code.
+			cmdline := []string{"build", "-gcflags", "-S=2"}
 			cmdline = append(cmdline, flags...)
 			cmdline = append(cmdline, long)
 			cmd := exec.Command(goTool(), cmdline...)
