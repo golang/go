@@ -16,6 +16,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
@@ -29,10 +30,10 @@ var (
 	cpuprofile = flag.String("cpuprofile", "", "write CPU profile to this file")
 	memprofile = flag.String("memprofile", "", "write memory profile to this file")
 	traceFlag  = flag.String("trace", "", "write trace log to this file")
+	logfile    = flag.String("logfile", "", "filename to log to. if value is \"auto\", then logging to a default output file is enabled")
 
 	// Flags for compatitibility with VSCode.
-	logfile = flag.String("logfile", "", "filename to log to")
-	mode    = flag.String("mode", "", "no effect")
+	mode = flag.String("mode", "", "no effect")
 )
 
 func main() {
@@ -90,7 +91,11 @@ func main() {
 
 	out := os.Stderr
 	if *logfile != "" {
-		f, err := os.Create(*logfile)
+		filename := *logfile
+		if filename == "auto" {
+			filename = filepath.Join(os.TempDir(), fmt.Sprintf("golsp-%d.log", os.Getpid()))
+		}
+		f, err := os.Create(filename)
 		if err != nil {
 			log.Fatalf("Unable to create log file: %v", err)
 		}
