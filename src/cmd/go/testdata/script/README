@@ -86,6 +86,10 @@ The commands are:
 - cd dir
   Change to the given directory for future commands.
 
+- chmod perm path...
+  Change the permissions of the files or directories named by the path arguments
+  to be equal to perm. Only numerical permissions are supported.
+
 - cmp file1 file2
   Check that the named files have the same content.
   By convention, file1 is the actual data and file2 the expected data.
