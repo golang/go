@@ -137,9 +137,10 @@ func (h server) uploadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h server) getHandler(w http.ResponseWriter, r *http.Request) {
-	// For go get golang.org/dl/go1.x.y, we need to serve the
-	// same meta tags at /dl for cmd/go to validate against /dl/go1.x.y:
-	if r.URL.Path == "/dl" && (r.Method == "GET" || r.Method == "HEAD") && r.FormValue("go-get") == "1" {
+	isGoGet := (r.Method == "GET" || r.Method == "HEAD") && r.FormValue("go-get") == "1"
+	// For go get, we need to serve the same meta tags at /dl for cmd/go to
+	// validate against the import path.
+	if r.URL.Path == "/dl" && isGoGet {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, `<!DOCTYPE html><html><head>
 <meta name="go-import" content="golang.org/dl git https://go.googlesource.com/dl">
@@ -152,39 +153,37 @@ func (h server) getHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	name := strings.TrimPrefix(r.URL.Path, "/dl/")
-	if name == "" {
+	var redirectURL string
+	switch {
+	case name == "":
 		h.listHandler(w, r)
 		return
-	}
-	if fileRe.MatchString(name) {
+	case fileRe.MatchString(name):
 		http.Redirect(w, r, downloadBaseURL+name, http.StatusFound)
 		return
-	}
-	if goGetRe.MatchString(name) {
-		var isGoGet bool
-		if r.Method == "GET" || r.Method == "HEAD" {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			isGoGet = r.FormValue("go-get") == "1"
-		}
-		if !isGoGet {
-			w.Header().Set("Location", "https://golang.org/dl/#"+name)
-			w.WriteHeader(http.StatusFound)
-		}
-		fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-<meta name="go-import" content="golang.org/dl git https://go.googlesource.com/dl">
-<meta http-equiv="refresh" content="0; url=https://golang.org/dl/#%s">
-</head>
-<body>
-Nothing to see here; <a href="https://golang.org/dl/#%s">move along</a>.
-</body>
-</html>
-`, html.EscapeString(name), html.EscapeString(name))
+	case name == "gotip":
+		redirectURL = "https://godoc.org/golang.org/dl/gotip"
+	case goGetRe.MatchString(name):
+		redirectURL = "https://golang.org/dl/#" + name
+	default:
+		http.NotFound(w, r)
 		return
 	}
-	http.NotFound(w, r)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if !isGoGet {
+		w.Header().Set("Location", redirectURL)
+	}
+	fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+<meta name="go-import" content="golang.org/dl git https://go.googlesource.com/dl">
+<meta http-equiv="refresh" content="0; url=%s">
+</head>
+<body>
+Nothing to see here; <a href="%s">move along</a>.
+</body>
+</html>
+`, html.EscapeString(redirectURL), html.EscapeString(redirectURL))
 }
 
 func (h server) initHandler(w http.ResponseWriter, r *http.Request) {
