@@ -1,0 +1,19 @@
+# Set GOCACHE to a directory that doesn't allow writes.
+[windows] skip # Does not support unwritable directories.
+[root] skip # Can write to unwritable directories.
+
+mkdir $WORK/unwritable/home
+chmod 0555 $WORK/unwritable/home
+[!plan9] env HOME=$WORK/unwritable/home
+[plan9] env home=$WORK/unwritable/home
+
+env GOCACHE=$WORK/unwritable/home
+
+# As of Go 1.12, the module cache is required:
+# failure to write to it should cause builds to fail.
+! go build -o triv triv.go
+stderr 'failed to initialize build cache.* permission denied'
+
+-- triv.go --
+package main
+func main() {}
