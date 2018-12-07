@@ -885,6 +885,12 @@ func TestLockOSThreadNesting(t *testing.T) {
 
 func TestLockOSThreadExit(t *testing.T) {
 	testLockOSThreadExit(t, "testprog")
+
+	want := "OK\n"
+	output := runTestProg(t, "testprog", "LockOSThreadAvoidsStatePropagation", "GOMAXPROCS=1")
+	if output != want {
+		t.Errorf("want %s, got %s\n", want, output)
+	}
 }
 
 func testLockOSThreadExit(t *testing.T, prog string) {
