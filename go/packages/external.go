@@ -18,8 +18,7 @@ import (
 
 // Driver
 type driverRequest struct {
-	// TODO(matloob): Add a "command" option, so the "list" argument
-	// to the command is instead supplied in the driverRequest?
+	Command    string            `json "command"`
 	Mode       LoadMode          `json:"mode"`
 	Env        []string          `json:"env"`
 	BuildFlags []string          `json:"build_flags"`
