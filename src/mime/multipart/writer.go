@@ -138,11 +138,18 @@ func escapeQuotes(s string) string {
 // CreateFormFile is a convenience wrapper around CreatePart. It creates
 // a new form-data header with the provided field name and file name.
 func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, error) {
+	return w.CreateFormFileWithContentType(fieldname, filename,
+		"application/octet-stream")
+}
+
+// CreateFormFileWithContentType is a convenience wrapper around CreatePart.
+// It creates a new form-data header with the provided field name, file name and content type.
+func (w *Writer) CreateFormFileWithContentType(fieldname, filename, contentType string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition",
 		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
 			escapeQuotes(fieldname), escapeQuotes(filename)))
-	h.Set("Content-Type", "application/octet-stream")
+	h.Set("Content-Type", contentType)
 	return w.CreatePart(h)
 }
 
