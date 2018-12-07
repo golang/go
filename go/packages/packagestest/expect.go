@@ -146,7 +146,11 @@ func (e *Exported) getNotes() error {
 	}
 	for _, pkg := range pkgs {
 		for _, filename := range pkg.GoFiles {
-			l, err := expect.Parse(e.fset, filename, nil)
+			content, err := e.FileContents(filename)
+			if err != nil {
+				return err
+			}
+			l, err := expect.Parse(e.fset, filename, content)
 			if err != nil {
 				return fmt.Errorf("Failed to extract expectations: %v", err)
 			}
@@ -337,7 +341,7 @@ func (e *Exported) rangeConverter(n *expect.Note, args []interface{}) (Range, []
 			return mark, args, nil
 		}
 	case string:
-		start, end, err := expect.MatchBefore(e.fset, e.fileContents, n.Pos, arg)
+		start, end, err := expect.MatchBefore(e.fset, e.FileContents, n.Pos, arg)
 		if err != nil {
 			return Range{}, nil, err
 		}
@@ -346,7 +350,7 @@ func (e *Exported) rangeConverter(n *expect.Note, args []interface{}) (Range, []
 		}
 		return Range{Start: start, End: end}, args, nil
 	case *regexp.Regexp:
-		start, end, err := expect.MatchBefore(e.fset, e.fileContents, n.Pos, arg)
+		start, end, err := expect.MatchBefore(e.fset, e.FileContents, n.Pos, arg)
 		if err != nil {
 			return Range{}, nil, err
 		}
