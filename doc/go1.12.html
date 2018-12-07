@@ -91,11 +91,11 @@ Go 1.13 will require macOS 10.11 El Capitan or later.
 <h3 id="gocache">Build cache requirement</h3>
 
 <p>
-  The build cache is now required as a step toward eliminating
+  The <a href="/cmd/go/#hdr-Build_and_test_caching">build cache</a> is now
+  required as a step toward eliminating
   <code>$GOPATH/pkg</code>. Setting the environment variable
-  <code>GOCACHE=off</code> to disable the
-  <a href="/cmd/go/#hdr-Build_and_test_caching">build cache</a>
-  has no effect in Go 1.12.
+  <code>GOCACHE=off</code> will cause <code>go</code> commands that write to the
+  cache to fail.
 </p>
 
 <h3 id="binary-only">Binary-only packages</h3>
