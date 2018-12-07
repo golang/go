@@ -432,7 +432,7 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 				ld.Mode >= LoadTypes && rootIndex >= 0,
 			needsrc: ld.Mode >= LoadAllSyntax ||
 				ld.Mode >= LoadSyntax && rootIndex >= 0 ||
-				ld.Overlay != nil || // Overlays can invalidate export data. TODO(matloob): make this check fine-grained based on dependencies on overlaid files
+				len(ld.Overlay) > 0 || // Overlays can invalidate export data. TODO(matloob): make this check fine-grained based on dependencies on overlaid files
 				pkg.ExportFile == "" && pkg.PkgPath != "unsafe",
 		}
 		ld.pkgs[lpkg.ID] = lpkg
