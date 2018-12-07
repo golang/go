@@ -342,6 +342,7 @@ Script:
 var scriptCmds = map[string]func(*testScript, bool, []string){
 	"addcrlf": (*testScript).cmdAddcrlf,
 	"cd":      (*testScript).cmdCd,
+	"chmod":   (*testScript).cmdChmod,
 	"cmp":     (*testScript).cmdCmp,
 	"cmpenv":  (*testScript).cmdCmpenv,
 	"cp":      (*testScript).cmdCp,
@@ -398,6 +399,24 @@ func (ts *testScript) cmdCd(neg bool, args []string) {
 	}
 	ts.cd = dir
 	fmt.Fprintf(&ts.log, "%s\n", ts.cd)
+}
+
+// chmod changes permissions for a file or directory.
+func (ts *testScript) cmdChmod(neg bool, args []string) {
+	if neg {
+		ts.fatalf("unsupported: ! chmod")
+	}
+	if len(args) < 2 {
+		ts.fatalf("usage: chmod perm paths...")
+	}
+	perm, err := strconv.ParseUint(args[0], 0, 32)
+	if err != nil || perm&uint64(os.ModePerm) != perm {
+		ts.fatalf("invalid mode: %s", args[0])
+	}
+	for _, path := range args[1:] {
+		err := os.Chmod(path, os.FileMode(perm))
+		ts.check(err)
+	}
 }
 
 // cmp compares two files.
