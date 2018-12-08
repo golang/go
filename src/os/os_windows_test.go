@@ -1017,8 +1017,12 @@ func TestStatOfInvalidNameWithTrailingSlash(t *testing.T) {
 	if err == nil {
 		t.Fatal(`os.Stat("doesnotexist/") unexpectedly succeeded`)
 	}
-	if perr, ok := err.(*os.PathError); !ok {
-		t.Errorf("got %v, want %v", perr.Err, ERROR_INVALID_PARAMETER)
+	perr, ok := err.(*os.PathError)
+	if !ok {
+		t.Fatalf("got %v, want %v", perr, err)
+	}
+	if ok && perr.Err != ERROR_INVALID_PARAMETER {
+		t.Fatalf("got %v, want %v", perr.Err, ERROR_INVALID_PARAMETER)
 	}
 }
 
