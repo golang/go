@@ -9,6 +9,7 @@ package os
 import (
 	"internal/poll"
 	"internal/syscall/unix"
+	"io"
 	"runtime"
 	"syscall"
 )
@@ -155,13 +156,6 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	return f
 }
 
-// Auxiliary information if the File describes a directory
-type dirInfo struct {
-	buf  []byte // buffer for directory I/O
-	nbuf int    // length of buf; return value from Getdirentries
-	bufp int    // location of next record in buf.
-}
-
 // epipecheck raises SIGPIPE if we get an EPIPE error on standard
 // output or standard error. See the SIGPIPE docs in os/signal, and
 // issue 11845.
@@ -229,6 +223,9 @@ func (f *File) Close() error {
 func (file *file) close() error {
 	if file == nil {
 		return syscall.EINVAL
+	}
+	if file.dirinfo != nil {
+		file.dirinfo.close()
 	}
 	var err error
 	if e := file.pfd.Close(); e != nil {
@@ -357,4 +354,31 @@ func Symlink(oldname, newname string) error {
 		return &LinkError{"symlink", oldname, newname, e}
 	}
 	return nil
+}
+
+func (f *File) readdir(n int) (fi []FileInfo, err error) {
+	dirname := f.name
+	if dirname == "" {
+		dirname = "."
+	}
+	names, err := f.Readdirnames(n)
+	fi = make([]FileInfo, 0, len(names))
+	for _, filename := range names {
+		fip, lerr := lstat(dirname + "/" + filename)
+		if IsNotExist(lerr) {
+			// File disappeared between readdir + stat.
+			// Just treat it as if it didn't exist.
+			continue
+		}
+		if lerr != nil {
+			return fi, lerr
+		}
+		fi = append(fi, fip)
+	}
+	if len(fi) == 0 && err == nil && n > 0 {
+		// Per File.Readdir, the slice must be non-empty or err
+		// must be non-nil if n > 0.
+		err = io.EOF
+	}
+	return fi, err
 }

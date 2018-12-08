@@ -270,7 +270,6 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Fsync(fd int) (err error)
 //  Fsync is not called for os.File.Sync(). Please see internal/poll/fd_fsync_darwin.go
 //sys	Ftruncate(fd int, length int64) (err error)
-//sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) = SYS___getdirentries64
 //sys	Getdtablesize() (size int)
 //sysnb	Getegid() (egid int)
 //sysnb	Geteuid() (uid int)

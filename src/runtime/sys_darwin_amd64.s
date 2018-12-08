@@ -637,6 +637,11 @@ ok:
 	POPQ	BP
 	RET
 
+// Not used on amd64.
+TEXT runtime·syscallXPtr(SB),NOSPLIT,$0
+	MOVL	$0xf1, 0xf1  // crash
+	RET
+
 // syscall6 calls a function in libc on behalf of the syscall package.
 // syscall6 takes a pointer to a struct like:
 // struct {
