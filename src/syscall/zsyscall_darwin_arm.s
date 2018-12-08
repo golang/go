@@ -9,6 +9,8 @@ TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_setattrlist(SB)
 TEXT ·libc_sendfile_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_sendfile(SB)
+TEXT ·libc_fdopendir_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_fdopendir(SB)
 TEXT ·libc_getgroups_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_getgroups(SB)
 TEXT ·libc_setgroups_trampoline(SB),NOSPLIT,$0-0
@@ -95,8 +97,6 @@ TEXT ·libc_fsync_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fsync(SB)
 TEXT ·libc_ftruncate_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_ftruncate(SB)
-TEXT ·libc___getdirentries64_trampoline(SB),NOSPLIT,$0-0
-	JMP	libc___getdirentries64(SB)
 TEXT ·libc_getdtablesize_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_getdtablesize(SB)
 TEXT ·libc_getegid_trampoline(SB),NOSPLIT,$0-0
@@ -233,6 +233,8 @@ TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_unlinkat(SB)
 TEXT ·libc_openat_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_openat(SB)
+TEXT ·libc_closedir_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_closedir(SB)
 TEXT ·libc_fstat_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fstat(SB)
 TEXT ·libc_fstatfs_trampoline(SB),NOSPLIT,$0-0
@@ -241,6 +243,8 @@ TEXT ·libc_gettimeofday_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_gettimeofday(SB)
 TEXT ·libc_lstat_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_lstat(SB)
+TEXT ·libc_readdir_r_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_readdir_r(SB)
 TEXT ·libc_stat_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_stat(SB)
 TEXT ·libc_statfs_trampoline(SB),NOSPLIT,$0-0
