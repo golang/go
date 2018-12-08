@@ -911,3 +911,9 @@ func TestGlobal(t *testing.T) {
 func TestTestInstalledShared(t *testing.T) {
 	goCmd(nil, "test", "-linkshared", "-test.short", "sync/atomic")
 }
+
+// Test generated pointer method with -linkshared.
+// Issue 25065.
+func TestGeneratedMethod(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "issue25065")
+}

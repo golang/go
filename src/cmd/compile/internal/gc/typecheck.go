@@ -2514,6 +2514,12 @@ func typecheckMethodExpr(n *Node) (res *Node) {
 	n.Xoffset = 0
 	n.SetClass(PFUNC)
 	// methodSym already marked n.Sym as a function.
+
+	// Issue 25065. Make sure that we emit the symbol for a local method.
+	if Ctxt.Flag_dynlink && !inimport && (t.Sym == nil || t.Sym.Pkg == localpkg) {
+		makefuncsym(n.Sym)
+	}
+
 	return n
 }
 
