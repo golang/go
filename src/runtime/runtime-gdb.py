@@ -353,7 +353,7 @@ class IfacePrinter:
 			return "<bad dynamic type>"
 
 		if dtype is None:  # trouble looking up, print something reasonable
-			return "({0}){0}".format(iface_dtype_name(self.val), self.val['data'])
+			return "({0}){1}".format(iface_dtype_name(self.val), self.val['data'])
 
 		try:
 			return self.val['data'].cast(dtype).dereference()
