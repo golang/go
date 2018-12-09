@@ -65,7 +65,7 @@ func TrailingZeros8(x uint8) int {
 }
 
 // TrailingZeros16 returns the number of trailing zero bits in x; the result is 16 for x == 0.
-func TrailingZeros16(x uint16) (n int) {
+func TrailingZeros16(x uint16) int {
 	if x == 0 {
 		return 16
 	}
