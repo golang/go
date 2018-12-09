@@ -1349,20 +1349,64 @@ func TestBlock(t *testing.T) {
 	}
 }
 
-// Check that calling an invalid field on nil pointer prints
-// a field error instead of a distracting nil pointer error.
-// https://golang.org/issue/15125
-func TestMissingFieldOnNil(t *testing.T) {
-	tmpl := Must(New("tmpl").Parse("{{.MissingField}}"))
-	var d *T
-	err := tmpl.Execute(ioutil.Discard, d)
-	got := "<nil>"
-	if err != nil {
-		got = err.Error()
+func TestEvalFieldErrors(t *testing.T) {
+	tests := []struct {
+		name, src string
+		value     interface{}
+		want      string
+	}{
+		{
+			// Check that calling an invalid field on nil pointer
+			// prints a field error instead of a distracting nil
+			// pointer error. https://golang.org/issue/15125
+			"MissingFieldOnNil",
+			"{{.MissingField}}",
+			(*T)(nil),
+			"can't evaluate field MissingField in type *template.T",
+		},
+		{
+			"MissingFieldOnNonNil",
+			"{{.MissingField}}",
+			&T{},
+			"can't evaluate field MissingField in type *template.T",
+		},
+		{
+			"ExistingFieldOnNil",
+			"{{.X}}",
+			(*T)(nil),
+			"nil pointer evaluating *template.T.X",
+		},
+		{
+			"MissingKeyOnNilMap",
+			"{{.MissingKey}}",
+			(*map[string]string)(nil),
+			"nil pointer evaluating *map[string]string.MissingKey",
+		},
+		{
+			"MissingKeyOnNilMapPtr",
+			"{{.MissingKey}}",
+			(*map[string]string)(nil),
+			"nil pointer evaluating *map[string]string.MissingKey",
+		},
+		{
+			"MissingKeyOnMapPtrToNil",
+			"{{.MissingKey}}",
+			&map[string]string{},
+			"<nil>",
+		},
 	}
-	want := "can't evaluate field MissingField in type *template.T"
-	if !strings.HasSuffix(got, want) {
-		t.Errorf("got error %q, want %q", got, want)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpl := Must(New("tmpl").Parse(tc.src))
+			err := tmpl.Execute(ioutil.Discard, tc.value)
+			got := "<nil>"
+			if err != nil {
+				got = err.Error()
+			}
+			if !strings.HasSuffix(got, tc.want) {
+				t.Fatalf("got error %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 
