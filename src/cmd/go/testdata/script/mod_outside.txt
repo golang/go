@@ -12,8 +12,8 @@ stdout 'NUL|/dev/null'
 # which is not in a module.
 ! go list
 stderr 'cannot find main module'
-! go list -m
-stderr 'cannot find main module'
+go list -m
+stdout '^command-line-arguments$'
 # 'go list' in the working directory should fail even if there is a a 'package
 # main' present: without a main module, we do not know its package path.
 ! go list ./foo
@@ -148,6 +148,10 @@ stderr 'no such package'
 stderr 'can only use path@version syntax with'
 
 
+# 'go fmt' should be able to format files outside of a module.
+go fmt foo/foo.go
+
+
 # The remainder of the test checks dependencies by linking and running binaries.
 [short] stop
 
@@ -185,8 +189,8 @@ stdout 'using example.com/version v1.0.0'
 
 # 'go run' should use 'main' as the effective module and import path.
 go run ./foo/foo.go
-stdout 'path is \.$'
-stdout 'main is main \(devel\)'
+stdout 'path is command-line-arguments$'
+stdout 'main is command-line-arguments \(devel\)'
 stdout 'using example.com/version v1.1.0'
 
 # 'go generate' should work with file arguments.

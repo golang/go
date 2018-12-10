@@ -39,8 +39,8 @@ stdout z[/\\]go.mod
 cd $GOPATH/src/x/y
 go env GOMOD
 stdout 'NUL|/dev/null'
-! go list -m
-stderr 'cannot find main module'
+go list -m
+stdout '^command-line-arguments$'
 
 cd $GOPATH/foo
 go env GOMOD

@@ -314,7 +314,7 @@ func InitMod() {
 
 	Init()
 	if modRoot == "" {
-		Target = module.Version{Path: "main"}
+		Target = module.Version{Path: "command-line-arguments"}
 		buildList = []module.Version{Target}
 		return
 	}
