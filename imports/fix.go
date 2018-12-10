@@ -401,7 +401,14 @@ func (p *pass) addCandidate(imp *importInfo, pkg *packageInfo) {
 	}
 }
 
-func fixImports(fset *token.FileSet, f *ast.File, filename string) error {
+// fixImports adds and removes imports from f so that all its references are
+// satisfied and there are no unused imports.
+//
+// This is declared as a variable rather than a function so goimports can
+// easily be extended by adding a file with an init function.
+var fixImports = fixImportsDefault
+
+func fixImportsDefault(fset *token.FileSet, f *ast.File, filename string) error {
 	abs, err := filepath.Abs(filename)
 	if err != nil {
 		return err
@@ -510,7 +517,7 @@ func addGoPathCandidates(pass *pass, refs map[string]map[string]bool, filename s
 		go func(pkgName string, symbols map[string]bool) {
 			defer wg.Done()
 
-			ipath, _, err := findImport(ctx, pkgName, symbols, filename)
+			ipath, err := findImport(ctx, pkgName, symbols, filename)
 
 			if err != nil {
 				firstErrOnce.Do(func() {
@@ -551,9 +558,6 @@ func addGoPathCandidates(pass *pass, refs map[string]map[string]bool, filename s
 	return firstErr
 }
 
-// importPathToName returns the package name for the given import path.
-var importPathToName func(importPath, srcDir string) (packageName string) = importPathToNameGoPath
-
 // importPathToNameBasic assumes the package name is the base of import path,
 // except that if the path ends in foo/vN, it assumes the package name is foo.
 func importPathToNameBasic(importPath, srcDir string) (packageName string) {
@@ -571,7 +575,7 @@ func importPathToNameBasic(importPath, srcDir string) (packageName string) {
 
 // importPathToNameGoPath finds out the actual package name, as declared in its .go files.
 // If there's a problem, it falls back to using importPathToNameBasic.
-func importPathToNameGoPath(importPath, srcDir string) (packageName string) {
+func importPathToName(importPath, srcDir string) (packageName string) {
 	// Fast path for standard library without going to disk.
 	if _, ok := stdlib[importPath]; ok {
 		return path.Base(importPath) // stdlib packages always match their paths.
@@ -735,9 +739,7 @@ func VendorlessPath(ipath string) string {
 
 // loadExports returns the set of exported symbols in the package at dir.
 // It returns nil on error or if the package name in dir does not match expectPackage.
-var loadExports func(ctx context.Context, expectPackage, dir string) (map[string]bool, error) = loadExportsGoPath
-
-func loadExportsGoPath(ctx context.Context, expectPackage, dir string) (map[string]bool, error) {
+func loadExports(ctx context.Context, expectPackage, dir string) (map[string]bool, error) {
 	if Debug {
 		log.Printf("loading exports in dir %s (seeking package %s)", dir, expectPackage)
 	}
@@ -823,19 +825,10 @@ func loadExportsGoPath(ctx context.Context, expectPackage, dir string) (map[stri
 
 // findImport searches for a package with the given symbols.
 // If no package is found, findImport returns ("", false, nil)
-//
-// This is declared as a variable rather than a function so goimports
-// can be easily extended by adding a file with an init function.
-//
-// The rename value is ignored.
-var findImport func(ctx context.Context, pkgName string, symbols map[string]bool, filename string) (foundPkg string, rename bool, err error) = findImportGoPath
-
-// findImportGoPath is the normal implementation of findImport.
-// (Some companies have their own internally.)
-func findImportGoPath(ctx context.Context, pkgName string, symbols map[string]bool, filename string) (foundPkg string, rename bool, err error) {
+func findImport(ctx context.Context, pkgName string, symbols map[string]bool, filename string) (foundPkg string, err error) {
 	pkgDir, err := filepath.Abs(filename)
 	if err != nil {
-		return "", false, err
+		return "", err
 	}
 	pkgDir = filepath.Dir(pkgDir)
 	// Scan $GOROOT and each $GOPATH.
@@ -920,9 +913,9 @@ func findImportGoPath(ctx context.Context, pkgName string, symbols map[string]bo
 		if pkg == nil {
 			continue
 		}
-		return pkg.importPathShort, false, nil
+		return pkg.importPathShort, nil
 	}
-	return "", false, nil
+	return "", nil
 }
 
 // pkgIsCandidate reports whether pkg is a candidate for satisfying the
