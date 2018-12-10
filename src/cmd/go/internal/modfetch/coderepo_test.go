@@ -284,10 +284,10 @@ var codeRepoTests = []struct {
 	{
 		path:    "gopkg.in/yaml.v2",
 		rev:     "v2",
-		version: "v2.2.1",
-		name:    "5420a8b6744d3b0345ab293f6fcba19c978f1183",
-		short:   "5420a8b6744d",
-		time:    time.Date(2018, 3, 28, 19, 50, 20, 0, time.UTC),
+		version: "v2.2.2",
+		name:    "51d6538a90f86fe93ac480b35f37b2be17fef232",
+		short:   "51d6538a90f8",
+		time:    time.Date(2018, 11, 15, 11, 05, 04, 0, time.UTC),
 		gomod:   "module \"gopkg.in/yaml.v2\"\n\nrequire (\n\t\"gopkg.in/check.v1\" v0.0.0-20161208181325-20d25e280405\n)\n",
 	},
 	{
