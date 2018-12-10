@@ -1882,6 +1882,33 @@ var time Time
 	}.processTest(t, "foo.com", "pkg/uses.go", nil, nil, usesGlobal)
 }
 
+// Some people put multiple packages' files in the same directory. Globals
+// declared in other packages should be ignored.
+func TestGlobalImports_DifferentPackage(t *testing.T) {
+	const declaresGlobal = `package main
+var fmt int
+`
+	const input = `package pkg
+var _ = fmt.Printf
+`
+	const want = `package pkg
+
+import "fmt"
+
+var _ = fmt.Printf
+`
+
+	testConfig{
+		module: packagestest.Module{
+			Name: "foo.com",
+			Files: fm{
+				"pkg/main.go": declaresGlobal,
+				"pkg/uses.go": input,
+			},
+		},
+	}.processTest(t, "foo.com", "pkg/uses.go", nil, nil, want)
+}
+
 // Tests that sibling files - other files in the same package - can provide an
 // import that may not be the default one otherwise.
 func TestSiblingImports(t *testing.T) {

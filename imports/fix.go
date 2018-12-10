@@ -282,7 +282,11 @@ func (p *pass) load() bool {
 	// that we might want to mimic.
 	globals := map[string]bool{}
 	for _, otherFile := range p.otherFiles {
-		addGlobals(otherFile, globals)
+		// Don't load globals from files that are in the same directory
+		// but a different package. Using them to suggest imports is OK.
+		if p.f.Name.Name == otherFile.Name.Name {
+			addGlobals(otherFile, globals)
+		}
 		p.candidates = append(p.candidates, collectImports(otherFile)...)
 	}
 
