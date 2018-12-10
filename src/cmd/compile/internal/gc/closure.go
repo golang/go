@@ -434,7 +434,14 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	sym.SetUniq(true)
 
 	savecurfn := Curfn
+	saveLineNo := lineno
 	Curfn = nil
+
+	// Set line number equal to the line number where the method is declared.
+	var m *types.Field
+	if lookdot0(meth, rcvrtype, &m, false) == 1 {
+		lineno = m.Pos
+	}
 
 	tfn := nod(OTFUNC, nil, nil)
 	tfn.List.Set(structargs(t0.Params(), true))
@@ -482,6 +489,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	sym.Def = asTypesNode(xfunc)
 	xtop = append(xtop, xfunc)
 	Curfn = savecurfn
+	lineno = saveLineNo
 
 	return xfunc
 }
