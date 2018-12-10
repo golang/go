@@ -1918,10 +1918,12 @@ func TestSiblingImports(t *testing.T) {
 
 import "local/log"
 import "my/bytes"
+import renamed "fmt"
 
 func LogSomething() {
 	log.Print("Something")
 	bytes.SomeFunc()
+	renamed.Println("Something")
 }
 `
 
@@ -1932,6 +1934,7 @@ var _ = bytes.Buffer{}
 
 func LogSomethingElse() {
 	log.Print("Something else")
+	renamed.Println("Yet another")
 }
 `
 
@@ -1940,6 +1943,7 @@ func LogSomethingElse() {
 
 import (
 	"bytes"
+	renamed "fmt"
 	"local/log"
 )
 
@@ -1947,6 +1951,7 @@ var _ = bytes.Buffer{}
 
 func LogSomethingElse() {
 	log.Print("Something else")
+	renamed.Println("Yet another")
 }
 `
 

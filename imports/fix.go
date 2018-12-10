@@ -200,10 +200,7 @@ func (p *pass) findMissingImport(pkg string, syms map[string]bool) *importInfo {
 		if !ok {
 			continue
 		}
-		if candidate.name != "" && candidate.name != pkg {
-			continue
-		}
-		if pkgInfo.name != pkg {
+		if candidate.name != pkg && pkgInfo.name != pkg {
 			continue
 		}
 
@@ -377,7 +374,7 @@ func (p *pass) assumeSiblingImportsValid() {
 			if imp, ok := importsByName[left]; ok {
 				if _, ok := stdlib[imp.importPath]; ok {
 					// We have the stdlib in memory; no need to guess.
-					continue
+					rights = stdlib[imp.importPath]
 				}
 				p.addCandidate(imp, &packageInfo{
 					// no name; we already know it.
