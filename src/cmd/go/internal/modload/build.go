@@ -17,6 +17,7 @@ import (
 	"internal/goroot"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 )
 
@@ -98,11 +99,13 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 			Path:    m.Path,
 			Version: m.Version,
 			Main:    true,
-			Dir:     ModRoot(),
-			GoMod:   filepath.Join(ModRoot(), "go.mod"),
 		}
-		if modFile.Go != nil {
-			info.GoVersion = modFile.Go.Version
+		if HasModRoot() {
+			info.Dir = ModRoot()
+			info.GoMod = filepath.Join(info.Dir, "go.mod")
+			if modFile.Go != nil {
+				info.GoVersion = modFile.Go.Version
+			}
 		}
 		return info
 	}
@@ -184,6 +187,7 @@ func PackageBuildInfo(path string, deps []string) string {
 	if isStandardImportPath(path) || !Enabled() {
 		return ""
 	}
+
 	target := findModule(path, path)
 	mdeps := make(map[module.Version]bool)
 	for _, dep := range deps {
@@ -223,19 +227,23 @@ func PackageBuildInfo(path string, deps []string) string {
 	return buf.String()
 }
 
+// findModule returns the module containing the package at path,
+// needed to build the package at target.
 func findModule(target, path string) module.Version {
-	// TODO: This should use loaded.
-	if path == "." {
-		return buildList[0]
-	}
-	if cfg.BuildMod == "vendor" {
-		readVendorList()
-		return vendorMap[path]
-	}
-	for _, mod := range buildList {
-		if maybeInModule(path, mod.Path) {
-			return mod
+	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+	if ok {
+		if pkg.err != nil {
+			base.Fatalf("build %v: cannot load %v: %v", target, path, pkg.err)
 		}
+		return pkg.mod
+	}
+
+	if path == "command-line-arguments" {
+		return Target
+	}
+
+	if printStackInDie {
+		debug.PrintStack()
 	}
 	base.Fatalf("build %v: cannot find module for path %v", target, path)
 	panic("unreachable")

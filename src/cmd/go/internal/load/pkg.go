@@ -997,10 +997,12 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
 	} else {
 		// p is in a module, so make it available based on the importer's import path instead
 		// of the file path (https://golang.org/issue/23970).
-		if importerPath == "." {
+		if importer.Internal.CmdlineFiles {
 			// The importer is a list of command-line files.
 			// Pretend that the import path is the import path of the
 			// directory containing them.
+			// If the directory is outside the main module, this will resolve to ".",
+			// which is not a prefix of any valid module.
 			importerPath = ModDirImportPath(importer.Dir)
 		}
 		parentOfInternal := p.ImportPath[:i]
@@ -1515,11 +1517,13 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 	}
 
 	if cfg.ModulesEnabled {
-		if !p.Internal.CmdlineFiles {
-			p.Module = ModPackageModuleInfo(p.ImportPath)
+		mainPath := p.ImportPath
+		if p.Internal.CmdlineFiles {
+			mainPath = "command-line-arguments"
 		}
+		p.Module = ModPackageModuleInfo(mainPath)
 		if p.Name == "main" {
-			p.Internal.BuildInfo = ModPackageBuildInfo(p.ImportPath, p.Deps)
+			p.Internal.BuildInfo = ModPackageBuildInfo(mainPath, p.Deps)
 		}
 	}
 }
@@ -1986,11 +1990,6 @@ func GoFilesPackage(gofiles []string) *Package {
 	}
 
 	bp, err := ctxt.ImportDir(dir, 0)
-	if ModDirImportPath != nil {
-		// Use the effective import path of the directory
-		// for deciding visibility during pkg.load.
-		bp.ImportPath = ModDirImportPath(dir)
-	}
 	pkg := new(Package)
 	pkg.Internal.Local = true
 	pkg.Internal.CmdlineFiles = true
