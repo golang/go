@@ -92,5 +92,8 @@ func GetFuncID(name, file string) FuncID {
 			return FuncID_wrapper
 		}
 	}
+	if strings.HasSuffix(name, "-fm") {
+		return FuncID_wrapper
+	}
 	return FuncID_normal
 }
