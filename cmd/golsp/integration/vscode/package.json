@@ -1,0 +1,52 @@
+{
+    "name": "golsp",
+    "description": "Go Language Server Client for testing",
+    "author": "The Go authors",
+    "license": "SEE LICENSE IN ../../../../LICENSE",
+    "version": "1.0.0",
+    "repository": {
+        "type": "git",
+        "url": "https://golang.org/x/tools"
+    },
+    "publisher": "golang",
+    "engines": {
+        "vscode": "^1.23.0"
+    },
+    "activationEvents": [
+        "onLanguage:go"
+    ],
+    "main": "./out/extension",
+    "scripts": {
+        "vscode:prepublish": "tsc -p ./",
+        "compile": "tsc -watch -p ./",
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "lint": "node ./node_modules/tslint/bin/tslint ./src/*.ts"
+    },
+    "extensionDependencies": [],
+    "dependencies": {
+        "vscode-languageclient": "~4.3.0"
+    },
+    "devDependencies": {
+        "@types/mocha": "^5.2.5",
+        "@types/node": "^8.0.0",
+        "tslint": "^5.11.0",
+        "typescript": "^3.1.3",
+        "vscode": "^1.1.24"
+    },
+    "contributes": {
+        "configuration": {
+            "title": "Go LSP",
+            "properties": {
+                "golsp.flags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "description": "Flags to pass to golsp",
+                    "scope": "resource"
+                }
+            }
+        }
+    }
+}

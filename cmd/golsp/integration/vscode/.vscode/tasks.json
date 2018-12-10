@@ -1,0 +1,29 @@
+// Available variables which can be used inside of strings.
+// ${workspaceFolder}: the root folder of the team
+// ${file}: the current opened file
+// ${fileBasename}: the current opened file's basename
+// ${fileDirname}: the current opened file's dirname
+// ${fileExtname}: the current opened file's extension
+// ${cwd}: the current working directory of the spawned process
+// A task runner that calls the Typescript compiler (tsc) and
+// compiles the extension.
+{
+    "version": "2.0.0",
+    // we want to run npm
+    "command": "npm",
+    // the command is a shell script
+    "type": "shell",
+    // show the output window only if unrecognized errors occur.
+    "presentation": {
+        "reveal": "silent"
+    },
+    // we run the custom script "compile" as defined in package.json
+    "args": [
+        "run",
+        "compile"
+    ],
+    // The tsc compiler is started in watching mode
+    "isBackground": true,
+    // use the standard tsc in watch mode problem matcher to find compile problems in the output.
+    "problemMatcher": "$tsc-watch"
+}
