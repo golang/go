@@ -2177,12 +2177,22 @@ func (c *typeConv) FinishType(pos token.Pos) {
 // Type returns a *Type with the same memory layout as
 // dtype when used as the type of a variable or a struct field.
 func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+	// Always recompute bad pointer typedefs, as the set of such
+	// typedefs changes as we see more types.
+	checkCache := true
+	if dtt, ok := dtype.(*dwarf.TypedefType); ok && c.badPointerTypedef(dtt) {
+		checkCache = false
+	}
+
 	key := dtype.String()
-	if t, ok := c.m[key]; ok {
-		if t.Go == nil {
-			fatalf("%s: type conversion loop at %s", lineno(pos), dtype)
+
+	if checkCache {
+		if t, ok := c.m[key]; ok {
+			if t.Go == nil {
+				fatalf("%s: type conversion loop at %s", lineno(pos), dtype)
+			}
+			return t
 		}
-		return t
 	}
 
 	t := new(Type)
