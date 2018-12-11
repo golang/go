@@ -300,9 +300,9 @@ func TestZeroValue(t *testing.T) {
 	}
 }
 
-func TestCallback(t *testing.T) {
+func TestFuncOf(t *testing.T) {
 	c := make(chan struct{})
-	cb := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+	cb := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		if got := args[0].Int(); got != 42 {
 			t.Errorf("got %#v, want %#v", got, 42)
 		}
@@ -314,10 +314,10 @@ func TestCallback(t *testing.T) {
 	<-c
 }
 
-func TestInvokeCallback(t *testing.T) {
+func TestInvokeFunction(t *testing.T) {
 	called := false
-	cb := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
-		cb2 := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+	cb := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		cb2 := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			called = true
 			return 42
 		})
@@ -329,15 +329,15 @@ func TestInvokeCallback(t *testing.T) {
 		t.Errorf("got %#v, want %#v", got, 42)
 	}
 	if !called {
-		t.Error("callback not called")
+		t.Error("function not called")
 	}
 }
 
-func ExampleNewCallback() {
-	var cb js.Callback
-	cb = js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+func ExampleFuncOf() {
+	var cb js.Func
+	cb = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		fmt.Println("button clicked")
-		cb.Release() // release the callback if the button will not be clicked again
+		cb.Release() // release the function if the button will not be clicked again
 		return nil
 	})
 	js.Global().Get("document").Call("getElementById", "myButton").Call("addEventListener", "click", cb)
