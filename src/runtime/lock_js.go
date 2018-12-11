@@ -127,7 +127,7 @@ func notetsleepg(n *note, ns int64) bool {
 func checkTimeouts() {
 	now := nanotime()
 	for n, nt := range notesWithTimeout {
-		if n.key == note_cleared && now > nt.deadline {
+		if n.key == note_cleared && now >= nt.deadline {
 			n.key = note_timeout
 			goready(nt.gp, 1)
 		}
