@@ -812,7 +812,7 @@ func TestNumCPU(t *testing.T) {
 
 	const (
 		_CREATE_SUSPENDED   = 0x00000004
-		_PROCESS_ALL_ACCESS = syscall.STANDARD_RIGHTS_REQUIRED | syscall.SYNCHRONIZE | 0xfff
+		_PROCESS_ALL_ACCESS = syscall.STANDARD_RIGHTS_REQUIRED | syscall.SYNCHRONIZE | 0xfff | 0xffff
 	)
 
 	kernel32 := syscall.MustLoadDLL("kernel32.dll")
