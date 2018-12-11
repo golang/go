@@ -1,0 +1,8 @@
+package rank
+
+func _() {
+  _ = 5 +  ; //@complete(" ;", apple, pear)
+  y :=  + 5; //@complete(" +", apple, pear)
+
+  if 6 ==  {} //@complete(" {", apple, pear)
+}

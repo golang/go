@@ -1,0 +1,23 @@
+package anon
+
+func _() {
+	for _, _ := range []struct {
+		i, j int //@item(anonI, "i", "int", "field"),item(anonJ, "j", "int", "field")
+	}{
+		{
+			i: 1,
+			//@complete("", anonJ)
+		},
+		{
+			//@complete("", anonI, anonJ)
+		},
+	} {
+		continue
+	}
+
+	s := struct{ f int }{  } //@item(anonF, "f", "int", "field"),item(structS, "s", "struct{...}", "var"),complete("  }", anonF)
+
+	_ = map[struct{ x int }]int{ //@item(anonX, "x", "int", "field")
+		struct{ x int }{  }: 1, //@complete("  }", anonX, structS)
+	}
+}

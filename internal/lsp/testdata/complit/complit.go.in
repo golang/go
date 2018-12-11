@@ -1,0 +1,26 @@
+package complit
+
+type position struct { //@item(structPosition, "position", "struct{...}", "struct")
+	X, Y int //@item(fieldX, "X", "int", "field"),item(fieldY, "Y", "int", "field")
+}
+
+func _() {
+	_ := position{
+		//@complete("", fieldX, fieldY, structPosition)
+	}
+	_ := position{
+		X: 1,
+		//@complete("", fieldY)
+	}
+	_ := position{
+		//@complete("", fieldX)
+		Y: 1,
+	}
+}
+
+func _() {
+	_ := position{
+		X: 1, //@complete("X", fieldX),complete(" 1", structPosition)
+		Y: ,  //@complete(":", fieldY),complete(" ,", structPosition)
+	}
+}
