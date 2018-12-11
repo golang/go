@@ -193,6 +193,10 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 	switch runtime.GOOS {
 	case "darwin", "dragonfly", "netbsd", "solaris":
 		t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
+	case "openbsd":
+		if runtime.GOARCH == "arm" {
+			t.Skipf("ignoring failure on %s/%s; see golang.org/issue/13841", runtime.GOOS, runtime.GOARCH)
+		}
 	}
 	// Ignore the failure if the tests are running in a QEMU-based emulator,
 	// QEMU is not perfect at emulating everything.
