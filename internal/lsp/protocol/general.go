@@ -33,11 +33,11 @@ type InitializeParams struct {
 	RootPath *string `json:"rootPath"`
 
 	/**
-	 * The rootURI of the workspace. Is null if no
-	 * folder is open. If both `rootPath` and `rootURI` are set
-	 * `rootURI` wins.
+	 * The rootUri of the workspace. Is null if no
+	 * folder is open. If both `rootPath` and `rootUri` are set
+	 * `rootUri` wins.
 	 */
-	RootURI *DocumentURI `json:"rootURI"`
+	RootURI *DocumentURI `json:"rootUri"`
 
 	/**
 	 * User provided initialization options.
