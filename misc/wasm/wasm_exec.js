@@ -87,8 +87,8 @@
 			this._exitPromise = new Promise((resolve) => {
 				this._resolveExitPromise = resolve;
 			});
-			this._pendingCallback = null;
-			this._callbackTimeouts = new Map();
+			this._pendingEvent = null;
+			this._scheduledTimeouts = new Map();
 			this._nextCallbackTimeoutID = 1;
 
 			const mem = () => {
@@ -204,7 +204,7 @@
 			this.importObject = {
 				go: {
 					// Go's SP does not change as long as no Go code is running. Some operations (e.g. calls, getters and setters)
-					// may trigger a synchronous callback to Go. This makes Go code get executed in the middle of the imported
+					// may synchronously trigger a Go event handler. This makes Go code get executed in the middle of the imported
 					// function. A goroutine can switch to a new stack if the current stack is too small (see morestack function).
 					// This changes the SP, thus we have to update the SP used by the imported function.
 
@@ -238,22 +238,22 @@
 						mem().setInt32(sp + 16, (msec % 1000) * 1000000, true);
 					},
 
-					// func scheduleCallback(delay int64) int32
-					"runtime.scheduleCallback": (sp) => {
+					// func scheduleTimeoutEvent(delay int64) int32
+					"runtime.scheduleTimeoutEvent": (sp) => {
 						const id = this._nextCallbackTimeoutID;
 						this._nextCallbackTimeoutID++;
-						this._callbackTimeouts.set(id, setTimeout(
+						this._scheduledTimeouts.set(id, setTimeout(
 							() => { this._resume(); },
 							getInt64(sp + 8) + 1, // setTimeout has been seen to fire up to 1 millisecond early
 						));
 						mem().setInt32(sp + 16, id, true);
 					},
 
-					// func clearScheduledCallback(id int32)
-					"runtime.clearScheduledCallback": (sp) => {
+					// func clearTimeoutEvent(id int32)
+					"runtime.clearTimeoutEvent": (sp) => {
 						const id = mem().getInt32(sp + 8, true);
-						clearTimeout(this._callbackTimeouts.get(id));
-						this._callbackTimeouts.delete(id);
+						clearTimeout(this._scheduledTimeouts.get(id));
+						this._scheduledTimeouts.delete(id);
 					},
 
 					// func getRandomData(r []byte)
@@ -420,7 +420,7 @@
 
 		_resume() {
 			if (this.exited) {
-				throw new Error("bad callback: Go program has already exited");
+				throw new Error("Go program has already exited");
 			}
 			this._inst.exports.resume();
 			if (this.exited) {
@@ -428,13 +428,13 @@
 			}
 		}
 
-		_makeCallbackHelper(id) {
+		_makeFuncWrapper(id) {
 			const go = this;
 			return function () {
-				const cb = { id: id, this: this, args: arguments };
-				go._pendingCallback = cb;
+				const event = { id: id, this: this, args: arguments };
+				go._pendingEvent = event;
 				go._resume();
-				return cb.result;
+				return event.result;
 			};
 		}
 	}
@@ -450,10 +450,10 @@
 		go.env = Object.assign({ TMPDIR: require("os").tmpdir() }, process.env);
 		go.exit = process.exit;
 		WebAssembly.instantiate(fs.readFileSync(process.argv[2]), go.importObject).then((result) => {
-			process.on("exit", (code) => { // Node.js exits if no callback is pending
+			process.on("exit", (code) => { // Node.js exits if no event handler is pending
 				if (code === 0 && !go.exited) {
 					// deadlock, make Go print error and stack traces
-					go._pendingCallback = { id: 0 };
+					go._pendingEvent = { id: 0 };
 					go._resume();
 				}
 			});

@@ -107,7 +107,7 @@ func Global() Value {
 //  | ---------------------- | ---------------------- |
 //  | js.Value               | [its value]            |
 //  | js.TypedArray          | typed array            |
-//  | js.Callback            | function               |
+//  | js.Func                | function               |
 //  | nil                    | null                   |
 //  | bool                   | boolean                |
 //  | integers and floats    | number                 |

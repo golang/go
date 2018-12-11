@@ -187,11 +187,11 @@ TEXT ·walltime(SB), NOSPLIT, $0
 	CallImport
 	RET
 
-TEXT ·scheduleCallback(SB), NOSPLIT, $0
+TEXT ·scheduleTimeoutEvent(SB), NOSPLIT, $0
 	CallImport
 	RET
 
-TEXT ·clearScheduledCallback(SB), NOSPLIT, $0
+TEXT ·clearTimeoutEvent(SB), NOSPLIT, $0
 	CallImport
 	RET
 

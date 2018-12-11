@@ -15,7 +15,7 @@ TEXT _rt0_wasm_js(SB),NOSPLIT,$0
 	Drop
 
 // wasm_export_run gets called from JavaScript. It initializes the Go runtime and executes Go code until it needs
-// to wait for a callback. It does NOT follow the Go ABI. It has two WebAssembly parameters:
+// to wait for an event. It does NOT follow the Go ABI. It has two WebAssembly parameters:
 // R0: argc (i32)
 // R1: argv (i32)
 TEXT wasm_export_run(SB),NOSPLIT,$0
@@ -44,9 +44,9 @@ TEXT wasm_export_run(SB),NOSPLIT,$0
 	Return
 
 // wasm_export_resume gets called from JavaScript. It resumes the execution of Go code until it needs to wait for
-// a callback.
+// an event.
 TEXT wasm_export_resume(SB),NOSPLIT,$0
-	I32Const $runtime·handleCallback(SB)
+	I32Const $runtime·handleEvent(SB)
 	I32Const $16
 	I32ShrU
 	Set PC_F
