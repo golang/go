@@ -274,6 +274,8 @@ Script:
 				ok = testenv.HasExternalNetwork()
 			case "link":
 				ok = testenv.HasLink()
+			case "root":
+				ok = os.Geteuid() == 0
 			case "symlink":
 				ok = testenv.HasSymlink()
 			default:
