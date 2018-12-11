@@ -118,7 +118,7 @@ func parseFlags() error {
 	}
 
 	if *varVar != "" && !isValidIdentifier(*varVar) {
-		return fmt.Errorf("argument of -var is not a valid identifier: %v", *varVar)
+		return fmt.Errorf("-var: %q is not a valid identifier", *varVar)
 	}
 
 	if *mode != "" {
@@ -683,12 +683,17 @@ func (f *File) addVariables(w io.Writer) {
 }
 
 func isValidIdentifier(ident string) bool {
-	first := true
-	for _, c := range ident {
-		if !unicode.IsLetter(c) && c != '_' && (first || !unicode.IsDigit(c)) {
-			return false // invalid identifier
+	if len(ident) == 0 {
+		return false
+	}
+	for i, c := range ident {
+		if i > 0 && unicode.IsDigit(c) {
+			continue
 		}
-		first = false
+		if c == '_' || unicode.IsLetter(c) {
+			continue
+		}
+		return false
 	}
 	return true
 }
