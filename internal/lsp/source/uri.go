@@ -12,8 +12,6 @@ import (
 	"strings"
 )
 
-const fileSchemePrefix = "file://"
-
 // URI represents the full uri for a file.
 type URI string
 
