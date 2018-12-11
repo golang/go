@@ -180,22 +180,13 @@ Instead, ssadump no longer requests the runtime package,
 but seeks it among the dependencies of the user-specified packages,
 and emits an error if it is not found.
 
-Overlays: the ParseFile hook in the API permits clients to vary the way
-in which ASTs are obtained from filenames; the default implementation is
-based on parser.ParseFile. This features enables editor-integrated tools
-that analyze the contents of modified but unsaved buffers: rather than
-read from the file system, a tool can read from an archive of modified
-buffers provided by the editor.
-This approach has its limits. Because package metadata is obtained by
-fork/execing an external query command for each build system, we can
-fake only the file contents seen by the parser, type-checker, and
-application, but not by the metadata query, so, for example:
-- additional imports in the fake file will not be described by the
-  metadata, so the type checker will fail to load imports that create
-  new dependencies.
-- in TypeCheck mode, because export data is produced by the query
-  command, it will not reflect the fake file contents.
-- this mechanism cannot add files to a package without first saving them.
+Overlays: The Overlay field in the Config allows providing alternate contents
+for Go source files, by providing a mapping from file path to contents.
+go/packages will pull in new imports added in overlay files when go/packages
+is run in LoadImports mode or greater.
+Overlay support for the go list driver isn't complete yet: if the file doesn't
+exist on disk, it will only be recognized in an overlay if it is a non-test file
+and the package would be reported even without the overlay.
 
 Questions & Tasks
 

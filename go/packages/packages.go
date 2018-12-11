@@ -125,9 +125,8 @@ type Config struct {
 	// If the file  with the given path already exists, the parser will use the
 	// alternative file contents provided by the map.
 	//
-	// The Package.Imports map may not include packages that are imported only
-	// by the alternative file contents provided by Overlay. This may cause
-	// type-checking to fail.
+	// Overlays provide incomplete support for when a given file doesn't
+	// already exist on disk. See the package doc above for more details.
 	Overlay map[string][]byte
 }
 
