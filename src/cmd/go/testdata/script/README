@@ -75,6 +75,7 @@ should only run when the condition is satisfied. The available conditions are:
    - [cgo], [msan], [race] for whether cgo, msan, and the race detector can be used
    - [net] for whether the external network can be used
    - [link] for testenv.HasLink()
+   - [root] for os.Geteuid() == 0
    - [symlink] for testenv.HasSymlink()
    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
 
