@@ -321,6 +321,10 @@ func TestCPUProfileWithFork(t *testing.T) {
 		// Use smaller size for Android to avoid crash.
 		heap = 100 << 20
 	}
+	if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
+		// Use smaller heap for Windows/ARM to avoid crash.
+		heap = 100 << 20
+	}
 	if testing.Short() {
 		heap = 100 << 20
 	}
