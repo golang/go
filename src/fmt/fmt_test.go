@@ -1683,18 +1683,18 @@ var panictests = []struct {
 }{
 	// String
 	{"%s", (*PanicS)(nil), "<nil>"}, // nil pointer special case
-	{"%s", PanicS{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
-	{"%s", PanicS{3}, "%!s(PANIC=3)"},
+	{"%s", PanicS{io.ErrUnexpectedEOF}, "%!s(PANIC=String method: unexpected EOF)"},
+	{"%s", PanicS{3}, "%!s(PANIC=String method: 3)"},
 	// GoString
 	{"%#v", (*PanicGo)(nil), "<nil>"}, // nil pointer special case
-	{"%#v", PanicGo{io.ErrUnexpectedEOF}, "%!v(PANIC=unexpected EOF)"},
-	{"%#v", PanicGo{3}, "%!v(PANIC=3)"},
+	{"%#v", PanicGo{io.ErrUnexpectedEOF}, "%!v(PANIC=GoString method: unexpected EOF)"},
+	{"%#v", PanicGo{3}, "%!v(PANIC=GoString method: 3)"},
 	// Issue 18282. catchPanic should not clear fmtFlags permanently.
-	{"%#v", []interface{}{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=3), %!v(PANIC=3)}"},
+	{"%#v", []interface{}{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=GoString method: 3), %!v(PANIC=GoString method: 3)}"},
 	// Format
 	{"%s", (*PanicF)(nil), "<nil>"}, // nil pointer special case
-	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
-	{"%s", PanicF{3}, "%!s(PANIC=3)"},
+	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=Format method: unexpected EOF)"},
+	{"%s", PanicF{3}, "%!s(PANIC=Format method: 3)"},
 }
 
 func TestPanics(t *testing.T) {
