@@ -2075,10 +2075,10 @@ const (
 	OpWasmF64Sub
 	OpWasmF64Mul
 	OpWasmF64Div
-	OpWasmI64TruncSF64
-	OpWasmI64TruncUF64
-	OpWasmF64ConvertSI64
-	OpWasmF64ConvertUI64
+	OpWasmI64TruncF64S
+	OpWasmI64TruncF64U
+	OpWasmF64ConvertI64S
+	OpWasmF64ConvertI64U
 
 	OpAdd8
 	OpAdd16
@@ -28000,9 +28000,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "I64TruncSF64",
+		name:   "I64TruncF64S",
 		argLen: 1,
-		asm:    wasm.AI64TruncSF64,
+		asm:    wasm.AI64TruncF64S,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -28013,9 +28013,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "I64TruncUF64",
+		name:   "I64TruncF64U",
 		argLen: 1,
-		asm:    wasm.AI64TruncUF64,
+		asm:    wasm.AI64TruncF64U,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -28026,9 +28026,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "F64ConvertSI64",
+		name:   "F64ConvertI64S",
 		argLen: 1,
-		asm:    wasm.AF64ConvertSI64,
+		asm:    wasm.AF64ConvertI64S,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
@@ -28039,9 +28039,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "F64ConvertUI64",
+		name:   "F64ConvertI64U",
 		argLen: 1,
-		asm:    wasm.AF64ConvertUI64,
+		asm:    wasm.AF64ConvertI64U,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15

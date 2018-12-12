@@ -16,7 +16,7 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
 
 	Get SP
 	Get SP
-	I64ExtendUI32
+	I64ExtendI32U
 	I64Const $argframe+0(FP)
 	I64Add
 	I64Store $8
@@ -38,7 +38,7 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
 
 	Get SP
 	Get SP
-	I64ExtendUI32
+	I64ExtendI32U
 	I64Const $argframe+0(FP)
 	I64Add
 	I64Store $8

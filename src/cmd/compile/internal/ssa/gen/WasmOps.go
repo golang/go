@@ -187,10 +187,10 @@ func init() {
 		{name: "F64Mul", asm: "F64Mul", argLength: 2, reg: fp21, typ: "Float64"}, // arg0 * arg1
 		{name: "F64Div", asm: "F64Div", argLength: 2, reg: fp21, typ: "Float64"}, // arg0 / arg1
 
-		{name: "I64TruncSF64", asm: "I64TruncSF64", argLength: 1, reg: regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}, typ: "Int64"},       // truncates the float arg0 to a signed integer
-		{name: "I64TruncUF64", asm: "I64TruncUF64", argLength: 1, reg: regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}, typ: "Int64"},       // truncates the float arg0 to an unsigned integer
-		{name: "F64ConvertSI64", asm: "F64ConvertSI64", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the signed integer arg0 to a float
-		{name: "F64ConvertUI64", asm: "F64ConvertUI64", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the unsigned integer arg0 to a float
+		{name: "I64TruncF64S", asm: "I64TruncF64S", argLength: 1, reg: regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}, typ: "Int64"},       // truncates the float arg0 to a signed integer
+		{name: "I64TruncF64U", asm: "I64TruncF64U", argLength: 1, reg: regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}, typ: "Int64"},       // truncates the float arg0 to an unsigned integer
+		{name: "F64ConvertI64S", asm: "F64ConvertI64S", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the signed integer arg0 to a float
+		{name: "F64ConvertI64U", asm: "F64ConvertI64U", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the unsigned integer arg0 to a float
 	}
 
 	archs = append(archs, arch{

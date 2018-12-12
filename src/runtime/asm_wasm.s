@@ -366,7 +366,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-32; \
 	Set RET1; \
 	\
 	Get SP; \
-	I64ExtendUI32; \
+	I64ExtendI32U; \
 	Get R0; \
 	I64Add; \
 	Set RET2; \

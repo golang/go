@@ -117,7 +117,7 @@ TEXT runtime·wasmTruncS(SB), NOSPLIT, $0-0
 	End
 
 	Get R0
-	I64TruncSF64
+	I64TruncF64S
 	Return
 
 TEXT runtime·wasmTruncU(SB), NOSPLIT, $0-0
@@ -146,7 +146,7 @@ TEXT runtime·wasmTruncU(SB), NOSPLIT, $0-0
 	End
 
 	Get R0
-	I64TruncUF64
+	I64TruncF64U
 	Return
 
 TEXT runtime·exitThread(SB), NOSPLIT, $0-0
