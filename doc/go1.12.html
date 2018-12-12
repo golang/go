@@ -54,6 +54,11 @@ Go 1.12 is the last release that will run on macOS 10.10 Yosemite.
 Go 1.13 will require macOS 10.11 El Capitan or later.
 </p>
 
+<p><!-- CL 141639 -->
+  <code>libSystem</code> is now used when making syscalls on Darwin, ensuring forward-compatibility
+  with future versions of macOS.
+</p>
+
 <h3 id="windows">Windows</h3>
 
 <p>
@@ -231,7 +236,9 @@ for {
 <dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
   <dd>
     <p><!-- CL 149297 -->
-      TODO: <a href="https://golang.org/cl/149297">https://golang.org/cl/149297</a>: make Reader.Peek invalidate Unreads
+      <code>Reader</code>'s <a href="/pkg/bufio/#Reader.UnreadRune"><code>UnreadRune</code></a> and
+      <a href="/pkg/bufio/#Reader.UnreadByte"><code>UnreadByte</code></a> methods will now return an error
+      if they are called after <a href="/pkg/bufio/#Reader.Peek"><code>Peek</code></a>.
     </p>
 
 </dl><!-- bufio -->
@@ -584,20 +591,19 @@ for {
 
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
-    <p><!-- CL 125456 -->
-      TODO: <a href="https://golang.org/cl/125456">https://golang.org/cl/125456</a>: implement Unix Socket for Windows
-    </p>
-
     <p><!-- CL 138595 -->
-      TODO: <a href="https://golang.org/cl/138595">https://golang.org/cl/138595</a>: FreeBSD 12 ino64 support
+      64-bit inodes are now supported on FreeBSD 12. Some types have been adjusted accordingly.
     </p>
 
-    <p><!-- CL 141639 -->
-      TODO: <a href="https://golang.org/cl/141639">https://golang.org/cl/141639</a>: implement syscalls on Darwin using libSystem
+    <p><!-- CL 125456 -->
+      The Unix socket
+      (<a href="https://blogs.msdn.microsoft.com/commandline/2017/12/19/af_unix-comes-to-windows/"><code>AF_UNIX</code></a>)
+      address family is now supported for compatible versions of Windows.
     </p>
 
     <p><!-- CL 147117 -->
-      TODO: <a href="https://golang.org/cl/147117">https://golang.org/cl/147117</a>: add Syscall18 on Windows
+      The new function  <a href="/pkg/syscall/?GOOS=windows&GOARCH=armd64#Syscall18"><code>Syscall18</code></a>
+      has been introduced for Windows, allowing for calls with up to 18 arguments.
     </p>
 
 </dl><!-- syscall -->
