@@ -380,66 +380,12 @@ func (o *Order) init(n *Node) {
 	n.Ninit.Set(nil)
 }
 
-// Ismulticall reports whether the list l is f() for a multi-value function.
-// Such an f() could appear as the lone argument to a multi-arg function.
-func ismulticall(l Nodes) bool {
-	// one arg only
-	if l.Len() != 1 {
-		return false
-	}
-	n := l.First()
-
-	// must be call
-	switch n.Op {
-	default:
-		return false
-	case OCALLFUNC, OCALLMETH, OCALLINTER:
-		// call must return multiple values
-		return n.Left.Type.NumResults() > 1
-	}
-}
-
-// copyRet emits t1, t2, ... = n, where n is a function call,
-// and then returns the list t1, t2, ....
-func (o *Order) copyRet(n *Node) []*Node {
-	if !n.Type.IsFuncArgStruct() {
-		Fatalf("copyret %v %d", n.Type, n.Left.Type.NumResults())
-	}
-
-	slice := n.Type.Fields().Slice()
-	l1 := make([]*Node, len(slice))
-	l2 := make([]*Node, len(slice))
-	for i, t := range slice {
-		tmp := temp(t.Type)
-		l1[i] = tmp
-		l2[i] = tmp
-	}
-
-	as := nod(OAS2, nil, nil)
-	as.List.Set(l1)
-	as.Rlist.Set1(n)
-	as = typecheck(as, ctxStmt)
-	o.stmt(as)
-
-	return l2
-}
-
-// callArgs orders the list of call arguments *l.
-func (o *Order) callArgs(l *Nodes) {
-	if ismulticall(*l) {
-		// return f() where f() is multiple values.
-		l.Set(o.copyRet(l.First()))
-	} else {
-		o.exprList(*l)
-	}
-}
-
 // call orders the call expression n.
 // n.Op is OCALLMETH/OCALLFUNC/OCALLINTER or a builtin like OCOPY.
 func (o *Order) call(n *Node) {
 	n.Left = o.expr(n.Left, nil)
 	n.Right = o.expr(n.Right, nil) // ODDDARG temp
-	o.callArgs(&n.List)
+	o.exprList(n.List)
 
 	if n.Op != OCALLFUNC {
 		return
@@ -811,7 +757,7 @@ func (o *Order) stmt(n *Node) {
 		o.cleanTemp(t)
 
 	case ORETURN:
-		o.callArgs(&n.List)
+		o.exprList(n.List)
 		o.out = append(o.out, n)
 
 	// Special: clean case temporaries in each block entry.
@@ -1200,7 +1146,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			n.List.SetFirst(o.expr(n.List.First(), nil))             // order x
 			n.List.Second().Left = o.expr(n.List.Second().Left, nil) // order y
 		} else {
-			o.callArgs(&n.List)
+			o.exprList(n.List)
 		}
 
 		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.First()) {

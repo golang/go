@@ -1604,13 +1604,6 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 	}
 
 	argList := call.List
-	if argList.Len() == 1 {
-		arg := argList.First()
-		if arg.Type.IsFuncArgStruct() { // f(g())
-			argList = e.nodeEscState(arg).Retval
-		}
-	}
-
 	args := argList.Slice()
 
 	if indirect {
