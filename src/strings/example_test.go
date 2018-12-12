@@ -205,6 +205,12 @@ func ExampleReplace() {
 	// moo moo moo
 }
 
+func ExampleReplaceAll() {
+	fmt.Println(strings.ReplaceAll("oink oink oink", "oink", "moo"))
+	// Output:
+	// moo moo moo
+}
+
 func ExampleSplit() {
 	fmt.Printf("%q\n", strings.Split("a,b,c", ","))
 	fmt.Printf("%q\n", strings.Split("a man a plan a canal panama", "a "))
