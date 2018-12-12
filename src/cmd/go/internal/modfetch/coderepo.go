@@ -498,6 +498,11 @@ func (r *codeRepo) Zip(version string, tmpdir string) (tmpfile string, err error
 		}
 	}
 	for _, zf := range zr.File {
+		if !zf.FileInfo().Mode().IsRegular() {
+			// Skip symlinks (golang.org/issue/27093).
+			continue
+		}
+
 		if topPrefix == "" {
 			i := strings.Index(zf.Name, "/")
 			if i < 0 {
