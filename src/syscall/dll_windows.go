@@ -132,7 +132,7 @@ func (p *Proc) Addr() uintptr {
 
 //go:uintptrescapes
 
-// Call executes procedure p with arguments a. It will panic, if more than 15 arguments
+// Call executes procedure p with arguments a. It will panic if more than 18 arguments
 // are supplied.
 //
 // The returned error is always non-nil, constructed from the result of GetLastError.
