@@ -112,7 +112,7 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
 	if err = getsockname(fd, &rsa, &len); err != nil {
 		return
 	}
-	return anyToSockaddr(&rsa)
+	return anyToSockaddr(fd, &rsa)
 }
 
 // GetsockoptString returns the string value of the socket option opt for the
@@ -360,7 +360,7 @@ func Futimes(fd int, tv []Timeval) error {
 	return futimesat(fd, nil, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
-func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 	switch rsa.Addr.Family {
 	case AF_UNIX:
 		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa))
@@ -411,7 +411,7 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	if nfd == -1 {
 		return
 	}
-	sa, err = anyToSockaddr(&rsa)
+	sa, err = anyToSockaddr(fd, &rsa)
 	if err != nil {
 		Close(nfd)
 		nfd = 0
@@ -448,7 +448,7 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 	oobn = int(msg.Accrightslen)
 	// source address is only specified if the socket is unconnected
 	if rsa.Addr.Family != AF_UNSPEC {
-		from, err = anyToSockaddr(&rsa)
+		from, err = anyToSockaddr(fd, &rsa)
 	}
 	return
 }
@@ -540,11 +540,11 @@ func IoctlSetInt(fd int, req uint, value int) (err error) {
 	return ioctl(fd, req, uintptr(value))
 }
 
-func IoctlSetWinsize(fd int, req uint, value *Winsize) (err error) {
+func ioctlSetWinsize(fd int, req uint, value *Winsize) (err error) {
 	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
 }
 
-func IoctlSetTermios(fd int, req uint, value *Termios) (err error) {
+func ioctlSetTermios(fd int, req uint, value *Termios) (err error) {
 	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
 }
 

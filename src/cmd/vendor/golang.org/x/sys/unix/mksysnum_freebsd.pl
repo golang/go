@@ -27,7 +27,7 @@ const (
 EOF
 
 while(<>){
-	if(/^([0-9]+)\s+\S+\s+STD\s+({ \S+\s+(\w+).*)$/){
+	if(/^([0-9]+)\s+\S+\s+(?:NO)?STD\s+({ \S+\s+(\w+).*)$/){
 		my $num = $1;
 		my $proto = $2;
 		my $name = "SYS_$3";
