@@ -42,12 +42,17 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 	if s.initialized {
 		return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidRequest, "server already initialized")
 	}
-	s.view = cache.NewView()
 	s.initialized = true // mark server as initialized now
 
 	// Check if the client supports snippets in completion items.
 	s.snippetsSupported = params.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport
 	s.signatureHelpEnabled = true
+
+	rootPath, err := source.URI(*params.RootURI).Filename()
+	if err != nil {
+		return nil, err
+	}
+	s.view = cache.NewView(rootPath)
 
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{

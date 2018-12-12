@@ -21,9 +21,10 @@ type View struct {
 	files map[source.URI]*File
 }
 
-func NewView() *View {
+func NewView(rootPath string) *View {
 	return &View{
 		Config: &packages.Config{
+			Dir:     rootPath,
 			Mode:    packages.LoadSyntax,
 			Fset:    token.NewFileSet(),
 			Tests:   true,

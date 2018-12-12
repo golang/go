@@ -58,7 +58,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	defer exported.Cleanup()
 
 	s := &server{
-		view: cache.NewView(),
+		view: cache.NewView(exported.Config.Dir),
 	}
 	// Merge the exported.Config with the view.Config.
 	cfg := *exported.Config
