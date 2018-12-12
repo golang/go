@@ -306,6 +306,8 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	//
 	// Addr is a read also, as any subseqent holder of the pointer must be able
 	// to see all the values (including initialization) written so far.
+	// This also prevents a variable from "coming back from the dead" and presenting
+	// stale pointers to the garbage collector. See issue 28445.
 	if e&(ssa.SymRead|ssa.SymAddr) != 0 {
 		effect |= uevar
 	}
