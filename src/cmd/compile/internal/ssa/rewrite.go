@@ -264,6 +264,20 @@ func canMergeLoad(target, load *Value) bool {
 			// to be very rare.
 			return false
 		}
+		if v.Op.SymEffect()&SymAddr != 0 {
+			// This case prevents an operation that calculates the
+			// address of a local variable from being forced to schedule
+			// before its corresponding VarDef.
+			// See issue 28445.
+			//   v1 = LOAD ...
+			//   v2 = VARDEF
+			//   v3 = LEAQ
+			//   v4 = CMPQ v1 v3
+			// We don't want to combine the CMPQ with the load, because
+			// that would force the CMPQ to schedule before the VARDEF, which
+			// in turn requires the LEAQ to schedule before the VARDEF.
+			return false
+		}
 		if v.Type.IsMemory() {
 			if memPreds == nil {
 				// Initialise a map containing memory states
