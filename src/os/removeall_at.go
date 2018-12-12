@@ -25,6 +25,12 @@ func RemoveAll(path string) error {
 		return &PathError{"RemoveAll", path, syscall.EINVAL}
 	}
 
+	// Simple case: if Remove works, we're done.
+	err := Remove(path)
+	if err == nil || IsNotExist(err) {
+		return nil
+	}
+
 	// RemoveAll recurses by deleting the path base from
 	// its parent directory
 	parentDir, base := splitPath(path)
