@@ -24,8 +24,8 @@ var a64k *[64 * 1024]byte
 
 // This test checks that heap sampling produces reasonable
 // results. Note that heap sampling uses randomization, so the results
-// vary for run to run. This test only checks that the resulting
-// values appear reasonable.
+// vary for run to run. To avoid flakes, this test performs multiple
+// experiments and only complains if all of them consistently fail.
 func main() {
 	// Sample at 16K instead of default 512K to exercise sampling more heavily.
 	runtime.MemProfileRate = 16 * 1024
@@ -81,7 +81,7 @@ func allocInterleaved3(n int) {
 	allocInterleaved(n)
 }
 
-// alloc performs only small allocations for sanity testing.
+// allocSmall performs only small allocations for sanity testing.
 func allocSmall(n int) {
 	for i := 0; i < n; i++ {
 		// Test verification depends on these lines being contiguous.
@@ -91,7 +91,8 @@ func allocSmall(n int) {
 	}
 }
 
-// Three separate instances of testing to avoid flakes.
+// Three separate instances of testing to avoid flakes. Will report an error
+// only if they all consistently report failures.
 func allocSmall1(n int) {
 	allocSmall(n)
 }
@@ -109,10 +110,15 @@ func allocSmall3(n int) {
 // of the specified sizes.
 // Check multiple functions and only report consistent failures across
 // multiple tests.
+// Look only at samples that contain a frame in fnames, and group the
+// allocations by their line number. All these allocations are done from
+// the same leaf function, so their line numbers are the same.
 func checkAllocations(records []runtime.MemProfileRecord, fnames []string, count int64, size []int64) {
 	objectsPerLine := map[int][]int64{}
 	bytesPerLine := map[int][]int64{}
 	totalCount := []int64{}
+	// Compute the line number of the first allocation. All the
+	// allocations are from the same leaf, so pick the first one.
 	var firstLine int
 	for ln := range allocObjects(records, fnames[0]) {
 		if firstLine == 0 || firstLine > ln {
@@ -122,8 +128,9 @@ func checkAllocations(records []runtime.MemProfileRecord, fnames []string, count
 	for _, fname := range fnames {
 		var objectCount int64
 		a := allocObjects(records, fname)
-		for i := range size {
-			ln := firstLine + i
+		for s := range size {
+			// Allocations of size size[s] are  from line firstLine + s.
+			ln := firstLine + s
 			objectsPerLine[ln] = append(objectsPerLine[ln], a[ln].objects)
 			bytesPerLine[ln] = append(bytesPerLine[ln], a[ln].bytes)
 			objectCount += a[ln].objects
@@ -141,7 +148,7 @@ func checkAllocations(records []runtime.MemProfileRecord, fnames []string, count
 // checkValue checks an unsampled value against its expected value.
 // Given that this is a sampled value, it will be unexact and will change
 // from run to run. Only report it as a failure if all the values land
-// consistently land far from the expected value.
+// consistently far from the expected value.
 func checkValue(fname string, ln int, testName string, want int64, got []int64) {
 	if got == nil {
 		panic("Unexpected empty result")
@@ -199,27 +206,35 @@ type allocStat struct {
 	bytes, objects int64
 }
 
-// allocObjects examines the profile records for the named function
-// and returns the allocation stats aggregated by source line number.
+// allocObjects examines the profile records for samples including the
+// named function and returns the allocation stats aggregated by
+// source line number of the allocation (at the leaf frame).
 func allocObjects(records []runtime.MemProfileRecord, function string) map[int]allocStat {
 	a := make(map[int]allocStat)
 	for _, r := range records {
-		var line int
+		var pcs []uintptr
 		for _, s := range r.Stack0 {
 			if s == 0 {
 				break
 			}
-			if f := runtime.FuncForPC(s); f != nil {
-				name := f.Name()
-				if line == 0 {
-					_, line = f.FileLine(s)
-				}
-				if name == function {
-					allocStat := a[line]
-					allocStat.bytes += r.AllocBytes
-					allocStat.objects += r.AllocObjects
-					a[line] = allocStat
-				}
+			pcs = append(pcs, s)
+		}
+		frames := runtime.CallersFrames(pcs)
+		line := 0
+		for {
+			frame, more := frames.Next()
+			name := frame.Function
+			if line == 0 {
+				line = frame.Line
+			}
+			if name == function {
+				allocStat := a[line]
+				allocStat.bytes += r.AllocBytes
+				allocStat.objects += r.AllocObjects
+				a[line] = allocStat
+			}
+			if !more {
+				break
 			}
 		}
 	}
