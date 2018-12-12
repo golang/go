@@ -1277,6 +1277,7 @@ func (w *exportWriter) expr(n *Node) {
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
 		w.op(OCALL)
 		w.pos(n.Pos)
+		w.stmtList(n.Ninit)
 		w.expr(n.Left)
 		w.exprList(n.List)
 		w.bool(n.IsDDD())
@@ -1387,7 +1388,8 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
 		return
 	}
 
-	if i := strings.LastIndex(name, "."); i >= 0 {
+	// TODO(mdempsky): Fix autotmp hack.
+	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".autotmp_") {
 		Fatalf("unexpected dot in identifier: %v", name)
 	}
 
