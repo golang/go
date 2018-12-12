@@ -199,9 +199,13 @@ func ExampleRepeat() {
 
 func ExampleReplace() {
 	fmt.Println(strings.Replace("oink oink oink", "k", "ky", 2))
-	fmt.Println(strings.ReplaceAll("oink oink oink", "oink", "moo"))
 	// Output:
 	// oinky oinky oink
+}
+
+func ExampleReplaceAll() {
+	fmt.Println(strings.ReplaceAll("oink oink oink", "oink", "moo"))
+	// Output:
 	// moo moo moo
 }
 
