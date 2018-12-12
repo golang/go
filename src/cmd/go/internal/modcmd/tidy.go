@@ -77,7 +77,17 @@ func modTidyGoSum() {
 	keep := make(map[module.Version]bool)
 	var walk func(module.Version)
 	walk = func(m module.Version) {
-		keep[m] = true
+		// If we build using a replacement module, keep the sum for the replacement,
+		// since that's the code we'll actually use during a build.
+		//
+		// TODO(golang.org/issue/29182): Perhaps we should keep both sums, and the
+		// sums for both sets of transitive requirements.
+		r := modload.Replacement(m)
+		if r.Path == "" {
+			keep[m] = true
+		} else {
+			keep[r] = true
+		}
 		list, _ := reqs.Required(m)
 		for _, r := range list {
 			if !keep[r] {
