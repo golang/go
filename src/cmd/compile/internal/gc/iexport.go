@@ -1387,7 +1387,8 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
 		return
 	}
 
-	if i := strings.LastIndex(name, "."); i >= 0 {
+	// TODO(mdempsky): Fix autotmp hack.
+	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".autotmp_") {
 		Fatalf("unexpected dot in identifier: %v", name)
 	}
 
