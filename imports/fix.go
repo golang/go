@@ -200,7 +200,12 @@ func (p *pass) findMissingImport(pkg string, syms map[string]bool) *importInfo {
 		if !ok {
 			continue
 		}
-		if candidate.name != pkg && pkgInfo.name != pkg {
+		// If the candidate import has a name, it must match pkg.
+		if candidate.name != "" && candidate.name != pkg {
+			continue
+		}
+		// Otherwise, the real name of the package must match.
+		if candidate.name == "" && pkgInfo.name != pkg {
 			continue
 		}
 

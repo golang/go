@@ -1966,6 +1966,34 @@ func LogSomethingElse() {
 	}.processTest(t, "foo.com", "p/needs_import.go", nil, nil, want)
 }
 
+// Tests #29180: a sibling import of the right package with the wrong name is used.
+func TestSiblingImport_Misnamed(t *testing.T) {
+	const sibling = `package main
+import renamed "fmt"
+var _ = renamed.Printf
+`
+	const input = `package pkg
+var _ = fmt.Printf
+`
+	const want = `package pkg
+
+import "fmt"
+
+var _ = fmt.Printf
+`
+
+	testConfig{
+		module: packagestest.Module{
+			Name: "foo.com",
+			Files: fm{
+				"pkg/main.go": sibling,
+				"pkg/uses.go": input,
+			},
+		},
+	}.processTest(t, "foo.com", "pkg/uses.go", nil, nil, want)
+
+}
+
 func TestPkgIsCandidate(t *testing.T) {
 	tests := []struct {
 		name     string
