@@ -87,7 +87,7 @@ func TestMain(m *testing.M) {
 func init() {
 	testProcs["pledge"] = testProc{
 		func() {
-			fmt.Println(unix.Pledge("", nil))
+			fmt.Println(unix.Pledge("", ""))
 			os.Exit(0)
 		},
 		func() error {

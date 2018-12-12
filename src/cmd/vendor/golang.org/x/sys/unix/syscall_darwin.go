@@ -199,7 +199,13 @@ func Lgetxattr(link string, attr string, dest []byte) (sz int, err error) {
 	return getxattr(link, attr, xattrPointer(dest), len(dest), 0, XATTR_NOFOLLOW)
 }
 
-//sys  setxattr(path string, attr string, data *byte, size int, position uint32, options int) (err error)
+//sys	fgetxattr(fd int, attr string, dest *byte, size int, position uint32, options int) (sz int, err error)
+
+func Fgetxattr(fd int, attr string, dest []byte) (sz int, err error) {
+	return fgetxattr(fd, attr, xattrPointer(dest), len(dest), 0, 0)
+}
+
+//sys	setxattr(path string, attr string, data *byte, size int, position uint32, options int) (err error)
 
 func Setxattr(path string, attr string, data []byte, flags int) (err error) {
 	// The parameters for the OS X implementation vary slightly compared to the
@@ -235,7 +241,13 @@ func Lsetxattr(link string, attr string, data []byte, flags int) (err error) {
 	return setxattr(link, attr, xattrPointer(data), len(data), 0, flags|XATTR_NOFOLLOW)
 }
 
-//sys removexattr(path string, attr string, options int) (err error)
+//sys	fsetxattr(fd int, attr string, data *byte, size int, position uint32, options int) (err error)
+
+func Fsetxattr(fd int, attr string, data []byte, flags int) (err error) {
+	return fsetxattr(fd, attr, xattrPointer(data), len(data), 0, 0)
+}
+
+//sys	removexattr(path string, attr string, options int) (err error)
 
 func Removexattr(path string, attr string) (err error) {
 	// We wrap around and explicitly zero out the options provided to the OS X
@@ -248,6 +260,12 @@ func Lremovexattr(link string, attr string) (err error) {
 	return removexattr(link, attr, XATTR_NOFOLLOW)
 }
 
+//sys	fremovexattr(fd int, attr string, options int) (err error)
+
+func Fremovexattr(fd int, attr string) (err error) {
+	return fremovexattr(fd, attr, 0)
+}
+
 //sys	listxattr(path string, dest *byte, size int, options int) (sz int, err error)
 
 func Listxattr(path string, dest []byte) (sz int, err error) {
@@ -256,6 +274,12 @@ func Listxattr(path string, dest []byte) (sz int, err error) {
 
 func Llistxattr(link string, dest []byte) (sz int, err error) {
 	return listxattr(link, xattrPointer(dest), len(dest), XATTR_NOFOLLOW)
+}
+
+//sys	flistxattr(fd int, dest *byte, size int, options int) (sz int, err error)
+
+func Flistxattr(fd int, dest []byte) (sz int, err error) {
+	return flistxattr(fd, xattrPointer(dest), len(dest), 0)
 }
 
 func setattrlistTimes(path string, times []Timespec, flags int) error {
@@ -313,11 +337,11 @@ func IoctlSetInt(fd int, req uint, value int) error {
 	return ioctl(fd, req, uintptr(value))
 }
 
-func IoctlSetWinsize(fd int, req uint, value *Winsize) error {
+func ioctlSetWinsize(fd int, req uint, value *Winsize) error {
 	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
 }
 
-func IoctlSetTermios(fd int, req uint, value *Termios) error {
+func ioctlSetTermios(fd int, req uint, value *Termios) error {
 	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
 }
 
@@ -529,10 +553,6 @@ func Uname(uname *Utsname) error {
 // Watchevent
 // Waitevent
 // Modwatch
-// Fgetxattr
-// Fsetxattr
-// Fremovexattr
-// Flistxattr
 // Fsctl
 // Initgroups
 // Posix_spawn

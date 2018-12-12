@@ -116,6 +116,7 @@ const (
 	SYS_PSELECT        = 110 // { int sys_pselect(int nd, fd_set *in, fd_set *ou, \
 	SYS_SIGSUSPEND     = 111 // { int sys_sigsuspend(int mask); }
 	SYS_SENDSYSLOG     = 112 // { int sys_sendsyslog(const char *buf, size_t nbyte, \
+	SYS_UNVEIL         = 114 // { int sys_unveil(const char *path, \
 	SYS_GETSOCKOPT     = 118 // { int sys_getsockopt(int s, int level, int name, \
 	SYS_THRKILL        = 119 // { int sys_thrkill(pid_t tid, int signum, void *tcb); }
 	SYS_READV          = 120 // { ssize_t sys_readv(int fd, \

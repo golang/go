@@ -131,10 +131,10 @@
 			"revisionTime": "2018-05-24T11:38:20Z"
 		},
 		{
-			"checksumSHA1": "VQyr/RTSmHpXD2wh988ZnWCVO6w=",
+			"checksumSHA1": "6AYGJTfvoIblJAxlh0AEIQrRKgo=",
 			"path": "golang.org/x/sys/unix",
-			"revision": "7138fd3d9dc8335c567ca206f4333fb75eb05d56",
-			"revisionTime": "2018-06-27T13:57:12Z"
+			"revision": "b05ddf57801d2239d6ab0ee35f9d981e0420f4ac",
+			"revisionTime": "2018-12-11T16:24:22Z"
 		},
 		{
 			"checksumSHA1": "s+lofQ+SCdhmy0cQp9FpdQncuuI=",
@@ -377,5 +377,5 @@
 			"revisionTime": "2018-11-05T19:48:08Z"
 		}
 	],
-	"rootPath": "cmd"
+	"rootPath": "/cmd"
 }
