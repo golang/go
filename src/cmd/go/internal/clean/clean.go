@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
@@ -103,18 +105,16 @@ func init() {
 }
 
 func runClean(cmd *base.Command, args []string) {
-	if len(args) == 0 && modload.Failed() {
-		// Don't try to clean current directory,
-		// which will cause modload to base.Fatalf.
-	} else {
+	if len(args) > 0 || !modload.Enabled() || modload.HasModRoot() {
 		for _, pkg := range load.PackagesAndErrors(args) {
 			clean(pkg)
 		}
 	}
 
+	var b work.Builder
+	b.Print = fmt.Print
+
 	if cleanCache {
-		var b work.Builder
-		b.Print = fmt.Print
 		dir := cache.DefaultDir()
 		if dir != "off" {
 			// Remove the cache subdirectories but not the top cache directory.
@@ -145,7 +145,20 @@ func runClean(cmd *base.Command, args []string) {
 		// right now are to be ignored.
 		dir := cache.DefaultDir()
 		if dir != "off" {
-			err := ioutil.WriteFile(filepath.Join(dir, "testexpire.txt"), []byte(fmt.Sprintf("%d\n", time.Now().UnixNano())), 0666)
+			f, err := lockedfile.Edit(filepath.Join(dir, "testexpire.txt"))
+			if err == nil {
+				now := time.Now().UnixNano()
+				buf, _ := ioutil.ReadAll(f)
+				prev, _ := strconv.ParseInt(strings.TrimSpace(string(buf)), 10, 64)
+				if now > prev {
+					if err = f.Truncate(0); err == nil {
+						_, err = fmt.Fprintf(f, "%d\n", now)
+					}
+				}
+				if closeErr := f.Close(); err == nil {
+					err = closeErr
+				}
+			}
 			if err != nil {
 				base.Errorf("go clean -testcache: %v", err)
 			}
@@ -156,24 +169,15 @@ func runClean(cmd *base.Command, args []string) {
 		if modfetch.PkgMod == "" {
 			base.Fatalf("go clean -modcache: no module cache")
 		}
-		if err := removeAll(modfetch.PkgMod); err != nil {
-			base.Errorf("go clean -modcache: %v", err)
+		if cfg.BuildN || cfg.BuildX {
+			b.Showcmd("", "rm -rf %s", modfetch.PkgMod)
+		}
+		if !cfg.BuildN {
+			if err := modfetch.RemoveAll(modfetch.PkgMod); err != nil {
+				base.Errorf("go clean -modcache: %v", err)
+			}
 		}
 	}
-}
-
-func removeAll(dir string) error {
-	// Module cache has 0555 directories; make them writable in order to remove content.
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // ignore errors walking in file system
-		}
-		if info.IsDir() {
-			os.Chmod(path, 0777)
-		}
-		return nil
-	})
-	return os.RemoveAll(dir)
 }
 
 var cleaned = map[*load.Package]bool{}

@@ -15,7 +15,7 @@ import (
 func TestCgoLookupIP(t *testing.T) {
 	defer dnsWaitGroup.Wait()
 	ctx := context.Background()
-	_, err, ok := cgoLookupIP(ctx, "localhost")
+	_, err, ok := cgoLookupIP(ctx, "ip", "localhost")
 	if !ok {
 		t.Errorf("cgoLookupIP must not be a placeholder")
 	}
@@ -28,7 +28,7 @@ func TestCgoLookupIPWithCancel(t *testing.T) {
 	defer dnsWaitGroup.Wait()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, err, ok := cgoLookupIP(ctx, "localhost")
+	_, err, ok := cgoLookupIP(ctx, "ip", "localhost")
 	if !ok {
 		t.Errorf("cgoLookupIP must not be a placeholder")
 	}

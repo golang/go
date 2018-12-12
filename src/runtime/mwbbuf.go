@@ -79,7 +79,7 @@ const (
 func (b *wbBuf) reset() {
 	start := uintptr(unsafe.Pointer(&b.buf[0]))
 	b.next = start
-	if gcBlackenPromptly || writeBarrier.cgo {
+	if writeBarrier.cgo || (debugCachedWork && throwOnGCWork) {
 		// Effectively disable the buffer by forcing a flush
 		// on every barrier.
 		b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
@@ -105,6 +105,11 @@ func (b *wbBuf) reset() {
 //go:nosplit
 func (b *wbBuf) discard() {
 	b.next = uintptr(unsafe.Pointer(&b.buf[0]))
+}
+
+// empty reports whether b contains no pointers.
+func (b *wbBuf) empty() bool {
+	return b.next == uintptr(unsafe.Pointer(&b.buf[0]))
 }
 
 // putFast adds old and new to the write barrier buffer and returns
@@ -270,9 +275,4 @@ func wbBufFlush1(_p_ *p) {
 
 	// Enqueue the greyed objects.
 	gcw.putBatch(ptrs[:pos])
-	if gcphase == _GCmarktermination || gcBlackenPromptly {
-		// Ps aren't allowed to cache work during mark
-		// termination.
-		gcw.dispose()
-	}
 }

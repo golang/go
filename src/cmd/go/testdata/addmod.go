@@ -142,7 +142,7 @@ func main() {
 		}
 
 		data := txtar.Format(a)
-		target := filepath.Join("mod", strings.Replace(path, "/", "_", -1)+"_"+vers+".txt")
+		target := filepath.Join("mod", strings.ReplaceAll(path, "/", "_")+"_"+vers+".txt")
 		if err := ioutil.WriteFile(target, data, 0666); err != nil {
 			log.Printf("%s: %v", arg, err)
 			exitCode = 1

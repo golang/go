@@ -130,11 +130,18 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	mp.incgo = true
 	errno := asmcgocall(fn, arg)
 
-	// Call endcgo before exitsyscall because exitsyscall may
+	// Update accounting before exitsyscall because exitsyscall may
 	// reschedule us on to a different M.
-	endcgo(mp)
+	mp.incgo = false
+	mp.ncgo--
 
 	exitsyscall()
+
+	// Note that raceacquire must be called only after exitsyscall has
+	// wired this M to a P.
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&racecgosync))
+	}
 
 	// From the garbage collector's perspective, time can move
 	// backwards in the sequence above. If there's a callback into
@@ -151,16 +158,6 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	KeepAlive(mp)
 
 	return errno
-}
-
-//go:nosplit
-func endcgo(mp *m) {
-	mp.incgo = false
-	mp.ncgo--
-
-	if raceenabled {
-		raceacquire(unsafe.Pointer(&racecgosync))
-	}
 }
 
 // Call from C back to Go.
@@ -268,7 +265,8 @@ func cgocallbackg1(ctxt uintptr) {
 	case "arm64":
 		// On arm64, stack frame is four words and there's a saved LR between
 		// SP and the stack frame and between the stack frame and the arguments.
-		cb = (*args)(unsafe.Pointer(sp + 5*sys.PtrSize))
+		// Additional two words (16-byte alignment) are for saving FP.
+		cb = (*args)(unsafe.Pointer(sp + 7*sys.PtrSize))
 	case "amd64":
 		// On amd64, stack frame is two words, plus caller PC.
 		if framepointer_enabled {
@@ -346,13 +344,14 @@ func unwindm(restore *bool) {
 			sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))
 		}
 
-		// Call endcgo to do the accounting that cgocall will not have a
-		// chance to do during an unwind.
+		// Do the accounting that cgocall will not have a chance to do
+		// during an unwind.
 		//
 		// In the case where a Go call originates from C, ncgo is 0
 		// and there is no matching cgocall to end.
 		if mp.ncgo > 0 {
-			endcgo(mp)
+			mp.incgo = false
+			mp.ncgo--
 		}
 
 		releasem(mp)
@@ -607,7 +606,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 	return
 }
 
-// cgoIsGoPointer returns whether the pointer is a Go pointer--a
+// cgoIsGoPointer reports whether the pointer is a Go pointer--a
 // pointer to Go memory. We only care about Go memory that might
 // contain pointers.
 //go:nosplit
@@ -630,7 +629,7 @@ func cgoIsGoPointer(p unsafe.Pointer) bool {
 	return false
 }
 
-// cgoInRange returns whether p is between start and end.
+// cgoInRange reports whether p is between start and end.
 //go:nosplit
 //go:nowritebarrierrec
 func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {

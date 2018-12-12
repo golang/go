@@ -110,15 +110,12 @@ func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, erro
 		if err != nil {
 			if tt.err == "" {
 				t.Errorf("#%d: err=%q, expected success (%q)", i, err, string(buf))
-				continue
-			}
-			if !strings.Contains(err.Error(), tt.err) {
+			} else if !strings.Contains(err.Error(), tt.err) {
 				t.Errorf("#%d: err=%q, expected %q", i, err, tt.err)
-				continue
 			}
 			continue
 		}
-		if err == nil && tt.err != "" {
+		if tt.err != "" {
 			t.Errorf("#%d: success, expected %q", i, tt.err)
 			continue
 		}

@@ -435,11 +435,11 @@ func TestEmptyKeyAndValue(t *testing.T) {
 // ("quick keys") as well as long keys.
 func TestSingleBucketMapStringKeys_DupLen(t *testing.T) {
 	testMapLookups(t, map[string]string{
-		"x":    "x1val",
-		"xx":   "x2val",
-		"foo":  "fooval",
-		"bar":  "barval", // same key length as "foo"
-		"xxxx": "x4val",
+		"x":                      "x1val",
+		"xx":                     "x2val",
+		"foo":                    "fooval",
+		"bar":                    "barval", // same key length as "foo"
+		"xxxx":                   "x4val",
 		strings.Repeat("x", 128): "longval1",
 		strings.Repeat("y", 128): "longval2",
 	})
@@ -1130,4 +1130,29 @@ func TestIncrementAfterBulkClearKeyStringValueInt(t *testing.T) {
 	if n2 := m[key2]; n2 != 1 {
 		t.Errorf("incremented 0 to %d", n2)
 	}
+}
+
+func TestMapTombstones(t *testing.T) {
+	m := map[int]int{}
+	const N = 10000
+	// Fill a map.
+	for i := 0; i < N; i++ {
+		m[i] = i
+	}
+	runtime.MapTombstoneCheck(m)
+	// Delete half of the entries.
+	for i := 0; i < N; i += 2 {
+		delete(m, i)
+	}
+	runtime.MapTombstoneCheck(m)
+	// Add new entries to fill in holes.
+	for i := N; i < 3*N/2; i++ {
+		m[i] = i
+	}
+	runtime.MapTombstoneCheck(m)
+	// Delete everything.
+	for i := 0; i < 3*N/2; i++ {
+		delete(m, i)
+	}
+	runtime.MapTombstoneCheck(m)
 }

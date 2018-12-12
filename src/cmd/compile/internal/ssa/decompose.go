@@ -214,6 +214,10 @@ func decomposeInterfacePhi(v *Value) {
 	v.AddArg(data)
 }
 
+func decomposeArgs(f *Func) {
+	applyRewrite(f, rewriteBlockdecArgs, rewriteValuedecArgs)
+}
+
 func decomposeUser(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {

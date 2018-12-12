@@ -197,23 +197,23 @@ func semacreate(mp *m) {
 //go:nosplit
 func semasleep(ns int64) int32 {
 	var ret int32
-
 	systemstack(func() {
 		_g_ := getg()
 		if nacl_mutex_lock(_g_.m.waitsemalock) < 0 {
 			throw("semasleep")
 		}
-
+		var ts timespec
+		if ns >= 0 {
+			end := ns + nanotime()
+			ts.tv_sec = end / 1e9
+			ts.tv_nsec = int32(end % 1e9)
+		}
 		for _g_.m.waitsemacount == 0 {
 			if ns < 0 {
 				if nacl_cond_wait(_g_.m.waitsema, _g_.m.waitsemalock) < 0 {
 					throw("semasleep")
 				}
 			} else {
-				var ts timespec
-				end := ns + nanotime()
-				ts.tv_sec = end / 1e9
-				ts.tv_nsec = int32(end % 1e9)
 				r := nacl_cond_timed_wait_abs(_g_.m.waitsema, _g_.m.waitsemalock, &ts)
 				if r == -_ETIMEDOUT {
 					nacl_mutex_unlock(_g_.m.waitsemalock)
@@ -317,3 +317,12 @@ int8 nacl_irt_thread_v0_1_str[] = "nacl-irt-thread-0.1";
 void *nacl_irt_thread_v0_1[3]; // thread_create, thread_exit, thread_nice
 int32 nacl_irt_thread_v0_1_size = sizeof(nacl_irt_thread_v0_1);
 */
+
+// The following functions are implemented in runtime assembly.
+// Provide a Go declaration to go with its assembly definitions.
+
+//go:linkname syscall_naclWrite syscall.naclWrite
+func syscall_naclWrite(fd int, b []byte) int
+
+//go:linkname syscall_now syscall.now
+func syscall_now() (sec int64, nsec int32)

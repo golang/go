@@ -92,7 +92,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	ANDQ	$~15, SP
 	MOVQ	AX, 16(SP)
 	MOVQ	BX, 24(SP)
-	
+
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
 	MOVQ	$runtime·g0(SB), DI
@@ -228,7 +228,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
  *  go-routine
  */
 
-// void gosave(Gobuf*)
+// func gosave(buf *gobuf)
 // save state in Gobuf; setjmp
 TEXT runtime·gosave(SB), NOSPLIT, $0-8
 	MOVQ	buf+0(FP), AX		// gobuf
@@ -248,7 +248,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-8
 	MOVQ	BX, gobuf_g(AX)
 	RET
 
-// void gogo(Gobuf*)
+// func gogo(buf *gobuf)
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), NOSPLIT, $16-8
 	MOVQ	buf+0(FP), BX		// gobuf
@@ -273,7 +273,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
 // to keep running g.
 TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	MOVQ	fn+0(FP), DI
-	
+
 	get_tls(CX)
 	MOVQ	g(CX), AX	// save state in g->sched
 	MOVQ	0(SP), BX	// caller's PC
@@ -448,9 +448,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 	JMP	AX
 // Note: can't just "JMP NAME(SB)" - bad inlining results.
 
-TEXT reflect·call(SB), NOSPLIT, $0-0
-	JMP	·reflectcall(SB)
-
 TEXT ·reflectcall(SB), NOSPLIT, $0-32
 	MOVLQZX argsize+24(FP), CX
 	DISPATCH(runtime·call32, 32)
@@ -560,7 +557,8 @@ TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
 	// compile barrier.
 	RET
 
-// void jmpdefer(fn, sp);
+// func jmpdefer(fv *funcval, argp uintptr)
+// argp is a caller SP.
 // called from deferreturn.
 // 1. pop the caller
 // 2. sub 5 bytes from the callers return
@@ -616,7 +614,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVQ	m_gsignal(R8), SI
 	CMPQ	SI, DI
 	JEQ	nosave
-	
+
 	// Switch to system stack.
 	MOVQ	m_g0(R8), SI
 	CALL	gosave<>(SB)
@@ -670,7 +668,7 @@ nosave:
 	MOVL	AX, ret+16(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
+// func cgocallback(fn, frame unsafe.Pointer, framesize, ctxt uintptr)
 // Turn the fn into a Go func (by taking its address) and call
 // cgocallback_gofunc.
 TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
@@ -686,7 +684,7 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
 	CALL	AX
 	RET
 
-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+// func cgocallback_gofunc(fn, frame, framesize, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
 	NO_LOCAL_POINTERS
@@ -716,7 +714,7 @@ needm:
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	g_m(BX), BX
-	
+
 	// Set m->sched.sp = SP, so that if a panic happens
 	// during the function we are about to execute, it will
 	// have a valid SP to run on the g0 stack.
@@ -800,7 +798,7 @@ havem:
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
 	MOVQ	0(SP), AX
 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
-	
+
 	// If the m on entry was nil, we called needm above to borrow an m
 	// for the duration of the call. Since the call is over, return it with dropm.
 	CMPQ	R8, $0
@@ -811,7 +809,8 @@ havem:
 	// Done!
 	RET
 
-// void setg(G*); set g. for use by needm.
+// func setg(gg *g)
+// set g. for use by needm.
 TEXT runtime·setg(SB), NOSPLIT, $0-8
 	MOVQ	gg+0(FP), BX
 #ifdef GOOS_windows
@@ -866,6 +865,7 @@ done:
 	MOVQ	AX, ret+0(FP)
 	RET
 
+// func aeshash(p unsafe.Pointer, h, s uintptr) uintptr
 // hash function using AES hardware instructions
 TEXT runtime·aeshash(SB),NOSPLIT,$0-32
 	MOVQ	p+0(FP), AX	// ptr to data
@@ -873,6 +873,7 @@ TEXT runtime·aeshash(SB),NOSPLIT,$0-32
 	LEAQ	ret+24(FP), DX
 	JMP	runtime·aeshashbody(SB)
 
+// func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
 TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
 	MOVQ	p+0(FP), AX	// ptr to string struct
 	MOVQ	8(AX), CX	// length of string
@@ -949,7 +950,7 @@ aes17to32:
 	// make second starting seed
 	PXOR	runtime·aeskeysched+16(SB), X1
 	AESENC	X1, X1
-	
+
 	// load data to be hashed
 	MOVOU	(AX), X2
 	MOVOU	-16(AX)(CX*1), X3
@@ -981,7 +982,7 @@ aes33to64:
 	AESENC	X1, X1
 	AESENC	X2, X2
 	AESENC	X3, X3
-	
+
 	MOVOU	(AX), X4
 	MOVOU	16(AX), X5
 	MOVOU	-32(AX)(CX*1), X6
@@ -991,17 +992,17 @@ aes33to64:
 	PXOR	X1, X5
 	PXOR	X2, X6
 	PXOR	X3, X7
-	
+
 	AESENC	X4, X4
 	AESENC	X5, X5
 	AESENC	X6, X6
 	AESENC	X7, X7
-	
+
 	AESENC	X4, X4
 	AESENC	X5, X5
 	AESENC	X6, X6
 	AESENC	X7, X7
-	
+
 	AESENC	X4, X4
 	AESENC	X5, X5
 	AESENC	X6, X6
@@ -1117,7 +1118,7 @@ aes129plus:
 	AESENC	X5, X5
 	AESENC	X6, X6
 	AESENC	X7, X7
-	
+
 	// start with last (possibly overlapping) block
 	MOVOU	-128(AX)(CX*1), X8
 	MOVOU	-112(AX)(CX*1), X9
@@ -1137,11 +1138,11 @@ aes129plus:
 	PXOR	X5, X13
 	PXOR	X6, X14
 	PXOR	X7, X15
-	
+
 	// compute number of remaining 128-byte blocks
 	DECQ	CX
 	SHRQ	$7, CX
-	
+
 aesloop:
 	// scramble state
 	AESENC	X8, X8
@@ -1210,7 +1211,8 @@ aesloop:
 	PXOR	X9, X8
 	MOVQ	X8, (DX)
 	RET
-	
+
+// func aeshash32(p unsafe.Pointer, h uintptr) uintptr
 TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	h+8(FP), X0	// seed
@@ -1221,6 +1223,7 @@ TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
 	MOVQ	X0, ret+16(FP)
 	RET
 
+// func aeshash64(p unsafe.Pointer, h uintptr) uintptr
 TEXT runtime·aeshash64(SB),NOSPLIT,$0-24
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	h+8(FP), X0	// seed
@@ -1266,6 +1269,7 @@ DATA masks<>+0xf0(SB)/8, $0xffffffffffffffff
 DATA masks<>+0xf8(SB)/8, $0x00ffffffffffffff
 GLOBL masks<>(SB),RODATA,$256
 
+// func checkASM() bool
 TEXT ·checkASM(SB),NOSPLIT,$0-1
 	// check that masks<>(SB) and shifts<>(SB) are aligned to 16-byte
 	MOVQ	$masks<>(SB), AX
@@ -1465,7 +1469,7 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $0x14	// Size duplicated below
 // This function communicates back to the debugger by setting RAX and
 // invoking INT3 to raise a breakpoint signal. See the comments in the
 // implementation for the protocol the debugger is expected to
-// follow. InjectDebugCall in the runtime tests demonstates this protocol.
+// follow. InjectDebugCall in the runtime tests demonstrates this protocol.
 //
 // The debugger must ensure that any pointers passed to the function
 // obey escape analysis requirements. Specifically, it must not pass
@@ -1616,6 +1620,7 @@ DEBUG_CALL_FN(debugCall16384<>, 16384)
 DEBUG_CALL_FN(debugCall32768<>, 32768)
 DEBUG_CALL_FN(debugCall65536<>, 65536)
 
+// func debugCallPanicked(val interface{})
 TEXT runtime·debugCallPanicked(SB),NOSPLIT,$16-16
 	// Copy the panic value to the top of stack.
 	MOVQ	val_type+0(FP), AX

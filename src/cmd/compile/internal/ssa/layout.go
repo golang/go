@@ -12,7 +12,7 @@ func layout(f *Func) {
 }
 
 // Register allocation may use a different order which has constraints
-// imposed by the linear-scan algorithm. Note that that f.pass here is
+// imposed by the linear-scan algorithm. Note that f.pass here is
 // regalloc, so the switch is conditional on -d=ssa/regalloc/test=N
 func layoutRegallocOrder(f *Func) []*Block {
 
@@ -143,5 +143,7 @@ blockloop:
 			}
 		}
 	}
+	f.laidout = true
 	return order
+	//f.Blocks = order
 }

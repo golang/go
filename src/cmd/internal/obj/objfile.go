@@ -25,12 +25,6 @@ type objWriter struct {
 	// Temporary buffer for zigzag int writing.
 	varintbuf [10]uint8
 
-	// Provide the index of a symbol reference by symbol name.
-	// One map for versioned symbols and one for unversioned symbols.
-	// Used for deduplicating the symbol reference list.
-	refIdx  map[string]int
-	vrefIdx map[string]int
-
 	// Number of objects written of each type.
 	nRefs     int
 	nData     int
@@ -79,10 +73,8 @@ func (w *objWriter) writeLengths() {
 
 func newObjWriter(ctxt *Link, b *bufio.Writer) *objWriter {
 	return &objWriter{
-		ctxt:    ctxt,
-		wr:      b,
-		vrefIdx: make(map[string]int),
-		refIdx:  make(map[string]int),
+		ctxt: ctxt,
+		wr:   b,
 	}
 }
 
@@ -90,7 +82,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 	w := newObjWriter(ctxt, b)
 
 	// Magic header
-	w.wr.WriteString("\x00\x00go19ld")
+	w.wr.WriteString("\x00go112ld")
 
 	// Version
 	w.wr.WriteByte(1)
@@ -106,7 +98,22 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 		w.writeRefs(s)
 		w.addLengths(s)
 	}
+
+	if ctxt.Headtype == objabi.Haix {
+		// Data must be sorted to keep a constant order in TOC symbols.
+		// As they are created during Progedit, two symbols can be switched between
+		// two different compilations. Therefore, BuildID will be different.
+		// TODO: find a better place and optimize to only sort TOC symbols
+		SortSlice(ctxt.Data, func(i, j int) bool {
+			return ctxt.Data[i].Name < ctxt.Data[j].Name
+		})
+	}
+
 	for _, s := range ctxt.Data {
+		w.writeRefs(s)
+		w.addLengths(s)
+	}
+	for _, s := range ctxt.ABIAliases {
 		w.writeRefs(s)
 		w.addLengths(s)
 	}
@@ -145,9 +152,12 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 	for _, s := range ctxt.Data {
 		w.writeSym(s)
 	}
+	for _, s := range ctxt.ABIAliases {
+		w.writeSym(s)
+	}
 
 	// Magic footer
-	w.wr.WriteString("\xff\xffgo19ld")
+	w.wr.WriteString("\xffgo112ld")
 }
 
 // Symbols are prefixed so their content doesn't get confused with the magic footer.
@@ -157,28 +167,20 @@ func (w *objWriter) writeRef(s *LSym, isPath bool) {
 	if s == nil || s.RefIdx != 0 {
 		return
 	}
-	var m map[string]int
-	if !s.Static() {
-		m = w.refIdx
-	} else {
-		m = w.vrefIdx
-	}
-
-	if idx := m[s.Name]; idx != 0 {
-		s.RefIdx = idx
-		return
-	}
 	w.wr.WriteByte(symPrefix)
 	if isPath {
 		w.writeString(filepath.ToSlash(s.Name))
 	} else {
 		w.writeString(s.Name)
 	}
-	// Write "version".
-	w.writeBool(s.Static())
+	// Write ABI/static information.
+	abi := int64(s.ABI())
+	if s.Static() {
+		abi = -1
+	}
+	w.writeInt(abi)
 	w.nRefs++
 	s.RefIdx = w.nRefs
-	m[s.Name] = w.nRefs
 }
 
 func (w *objWriter) writeRefs(s *LSym) {
@@ -238,7 +240,13 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 	fmt.Fprintf(ctxt.Bso, "\n")
 	if s.Type == objabi.STEXT {
 		for p := s.Func.Text; p != nil; p = p.Link {
-			fmt.Fprintf(ctxt.Bso, "\t%#04x %v\n", uint(int(p.Pc)), p)
+			var s string
+			if ctxt.Debugasm > 1 {
+				s = p.String()
+			} else {
+				s = p.InnermostString()
+			}
+			fmt.Fprintf(ctxt.Bso, "\t%#04x %s\n", uint(int(p.Pc)), s)
 		}
 	}
 	for i := 0; i < len(s.P); i += 16 {
@@ -281,7 +289,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 
 func (w *objWriter) writeSym(s *LSym) {
 	ctxt := w.ctxt
-	if ctxt.Debugasm {
+	if ctxt.Debugasm > 0 {
 		w.writeSymDebug(s)
 	}
 
@@ -459,7 +467,12 @@ func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
 	panic("should be used only in the linker")
 }
-func (c dwCtxt) AddDWARFSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+func (c dwCtxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64) {
+	size := 4
+	if isDwarf64(c.Link) {
+		size = 8
+	}
+
 	ls := s.(*LSym)
 	rsym := t.(*LSym)
 	ls.WriteAddr(c.Link, ls.Size, size, rsym, ofs)
@@ -498,6 +511,10 @@ func (c dwCtxt) RecordChildDieOffsets(s dwarf.Sym, vars []*dwarf.Var, offsets []
 
 func (c dwCtxt) Logf(format string, args ...interface{}) {
 	c.Link.Logf(format, args...)
+}
+
+func isDwarf64(ctxt *Link) bool {
+	return ctxt.Headtype == objabi.Haix
 }
 
 func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfIsStmtSym *LSym) {

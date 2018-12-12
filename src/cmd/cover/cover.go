@@ -16,7 +16,7 @@ import (
 	"log"
 	"os"
 	"sort"
-	"strconv"
+	"unicode"
 
 	"cmd/internal/edit"
 	"cmd/internal/objabi"
@@ -115,6 +115,10 @@ func parseFlags() error {
 	// Must either display a profile or rewrite Go source.
 	if (profile == "") == (*mode == "") {
 		return fmt.Errorf("too many options")
+	}
+
+	if *varVar != "" && !isValidIdentifier(*varVar) {
+		return fmt.Errorf("-var: %q is not a valid identifier", *varVar)
 	}
 
 	if *mode != "" {
@@ -293,17 +297,6 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 	}
 	return f
 }
-
-// unquote returns the unquoted string.
-func unquote(s string) string {
-	t, err := strconv.Unquote(s)
-	if err != nil {
-		log.Fatalf("cover: improperly quoted string %q\n", s)
-	}
-	return t
-}
-
-var slashslash = []byte("//")
 
 func annotate(name string) {
 	fset := token.NewFileSet()
@@ -687,4 +680,20 @@ func (f *File) addVariables(w io.Writer) {
 	if *mode == "atomic" {
 		fmt.Fprintf(w, "var _ = %s.LoadUint32\n", atomicPackageName)
 	}
+}
+
+func isValidIdentifier(ident string) bool {
+	if len(ident) == 0 {
+		return false
+	}
+	for i, c := range ident {
+		if i > 0 && unicode.IsDigit(c) {
+			continue
+		}
+		if c == '_' || unicode.IsLetter(c) {
+			continue
+		}
+		return false
+	}
+	return true
 }

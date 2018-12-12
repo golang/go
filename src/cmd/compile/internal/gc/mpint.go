@@ -299,13 +299,10 @@ func (a *Mpint) SetString(as string) {
 	}
 }
 
-func (x *Mpint) String() string {
-	return bconv(x, 0)
+func (a *Mpint) GoString() string {
+	return a.Val.String()
 }
 
-func bconv(xval *Mpint, flag FmtFlag) string {
-	if flag&FmtSharp != 0 {
-		return fmt.Sprintf("%#x", &xval.Val)
-	}
-	return xval.Val.String()
+func (a *Mpint) String() string {
+	return fmt.Sprintf("%#x", &a.Val)
 }

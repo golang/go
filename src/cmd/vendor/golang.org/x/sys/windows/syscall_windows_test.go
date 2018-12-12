@@ -105,3 +105,9 @@ func ExampleLoadLibrary() {
 	build := uint16(r >> 16)
 	print("windows version ", major, ".", minor, " (Build ", build, ")\n")
 }
+
+func TestTOKEN_ALL_ACCESS(t *testing.T) {
+	if windows.TOKEN_ALL_ACCESS != 0xF01FF {
+		t.Errorf("TOKEN_ALL_ACCESS = %x, want 0xF01FF", windows.TOKEN_ALL_ACCESS)
+	}
+}

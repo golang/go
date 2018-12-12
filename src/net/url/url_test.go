@@ -848,18 +848,18 @@ func TestUnescape(t *testing.T) {
 		in := tt.in
 		out := tt.out
 		if strings.Contains(tt.in, "+") {
-			in = strings.Replace(tt.in, "+", "%20", -1)
+			in = strings.ReplaceAll(tt.in, "+", "%20")
 			actual, err := PathUnescape(in)
 			if actual != tt.out || (err != nil) != (tt.err != nil) {
 				t.Errorf("PathUnescape(%q) = %q, %s; want %q, %s", in, actual, err, tt.out, tt.err)
 			}
 			if tt.err == nil {
-				s, err := QueryUnescape(strings.Replace(tt.in, "+", "XXX", -1))
+				s, err := QueryUnescape(strings.ReplaceAll(tt.in, "+", "XXX"))
 				if err != nil {
 					continue
 				}
 				in = tt.in
-				out = strings.Replace(s, "XXX", "+", -1)
+				out = strings.ReplaceAll(s, "XXX", "+")
 			}
 		}
 
@@ -1741,5 +1741,108 @@ func TestInvalidUserPassword(t *testing.T) {
 	_, err := Parse("http://us\ner:pass\nword@foo.com/")
 	if got, wantsub := fmt.Sprint(err), "net/url: invalid userinfo"; !strings.Contains(got, wantsub) {
 		t.Errorf("error = %q; want substring %q", got, wantsub)
+	}
+}
+
+var escapeBenchmarks = []struct {
+	unescaped string
+	query     string
+	path      string
+}{
+	{
+		unescaped: "one two",
+		query:     "one+two",
+		path:      "one%20two",
+	},
+	{
+		unescaped: "Фотки собак",
+		query:     "%D0%A4%D0%BE%D1%82%D0%BA%D0%B8+%D1%81%D0%BE%D0%B1%D0%B0%D0%BA",
+		path:      "%D0%A4%D0%BE%D1%82%D0%BA%D0%B8%20%D1%81%D0%BE%D0%B1%D0%B0%D0%BA",
+	},
+
+	{
+		unescaped: "shortrun(break)shortrun",
+		query:     "shortrun%28break%29shortrun",
+		path:      "shortrun%28break%29shortrun",
+	},
+
+	{
+		unescaped: "longerrunofcharacters(break)anotherlongerrunofcharacters",
+		query:     "longerrunofcharacters%28break%29anotherlongerrunofcharacters",
+		path:      "longerrunofcharacters%28break%29anotherlongerrunofcharacters",
+	},
+
+	{
+		unescaped: strings.Repeat("padded/with+various%characters?that=need$some@escaping+paddedsowebreak/256bytes", 4),
+		query:     strings.Repeat("padded%2Fwith%2Bvarious%25characters%3Fthat%3Dneed%24some%40escaping%2Bpaddedsowebreak%2F256bytes", 4),
+		path:      strings.Repeat("padded%2Fwith+various%25characters%3Fthat=need$some@escaping+paddedsowebreak%2F256bytes", 4),
+	},
+}
+
+func BenchmarkQueryEscape(b *testing.B) {
+	for _, tc := range escapeBenchmarks {
+		b.Run("", func(b *testing.B) {
+			b.ReportAllocs()
+			var g string
+			for i := 0; i < b.N; i++ {
+				g = QueryEscape(tc.unescaped)
+			}
+			b.StopTimer()
+			if g != tc.query {
+				b.Errorf("QueryEscape(%q) == %q, want %q", tc.unescaped, g, tc.query)
+			}
+
+		})
+	}
+}
+
+func BenchmarkPathEscape(b *testing.B) {
+	for _, tc := range escapeBenchmarks {
+		b.Run("", func(b *testing.B) {
+			b.ReportAllocs()
+			var g string
+			for i := 0; i < b.N; i++ {
+				g = PathEscape(tc.unescaped)
+			}
+			b.StopTimer()
+			if g != tc.path {
+				b.Errorf("PathEscape(%q) == %q, want %q", tc.unescaped, g, tc.path)
+			}
+
+		})
+	}
+}
+
+func BenchmarkQueryUnescape(b *testing.B) {
+	for _, tc := range escapeBenchmarks {
+		b.Run("", func(b *testing.B) {
+			b.ReportAllocs()
+			var g string
+			for i := 0; i < b.N; i++ {
+				g, _ = QueryUnescape(tc.query)
+			}
+			b.StopTimer()
+			if g != tc.unescaped {
+				b.Errorf("QueryUnescape(%q) == %q, want %q", tc.query, g, tc.unescaped)
+			}
+
+		})
+	}
+}
+
+func BenchmarkPathUnescape(b *testing.B) {
+	for _, tc := range escapeBenchmarks {
+		b.Run("", func(b *testing.B) {
+			b.ReportAllocs()
+			var g string
+			for i := 0; i < b.N; i++ {
+				g, _ = PathUnescape(tc.path)
+			}
+			b.StopTimer()
+			if g != tc.unescaped {
+				b.Errorf("PathUnescape(%q) == %q, want %q", tc.path, g, tc.unescaped)
+			}
+
+		})
 	}
 }

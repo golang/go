@@ -4,7 +4,10 @@
 
 package ssa
 
-import "math"
+import (
+	"cmd/compile/internal/types"
+	"math"
+)
 
 func softfloat(f *Func) {
 	if !f.Config.SoftFloat {
@@ -25,7 +28,7 @@ func softfloat(f *Func) {
 				case OpConst32F:
 					v.Op = OpConst32
 					v.Type = f.Config.Types.UInt32
-					v.AuxInt = int64(int32(math.Float32bits(i2f32(v.AuxInt))))
+					v.AuxInt = int64(int32(math.Float32bits(auxTo32F(v.AuxInt))))
 				case OpConst64F:
 					v.Op = OpConst64
 					v.Type = f.Config.Types.UInt64
@@ -53,6 +56,15 @@ func softfloat(f *Func) {
 					v.Type = f.Config.Types.UInt64
 				}
 				newInt64 = newInt64 || v.Type.Size() == 8
+			} else if (v.Op == OpStore || v.Op == OpZero || v.Op == OpMove) && v.Aux.(*types.Type).IsFloat() {
+				switch size := v.Aux.(*types.Type).Size(); size {
+				case 4:
+					v.Aux = f.Config.Types.UInt32
+				case 8:
+					v.Aux = f.Config.Types.UInt64
+				default:
+					v.Fatalf("bad float type with size %d", size)
+				}
 			}
 		}
 	}

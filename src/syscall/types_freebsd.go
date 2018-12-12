@@ -14,7 +14,11 @@ Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
 package syscall
 
 /*
-#define KERNEL
+#define	_WANT_FREEBSD11_STAT	1
+#define	_WANT_FREEBSD11_STATFS	1
+#define	_WANT_FREEBSD11_DIRENT	1
+#define	_WANT_FREEBSD11_KEVENT	1
+
 #include <dirent.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -60,50 +64,6 @@ struct sockaddr_any {
 	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
 };
 
-// This structure is a duplicate of stat on FreeBSD 8-STABLE.
-// See /usr/include/sys/stat.h.
-struct stat8 {
-#undef st_atimespec	st_atim
-#undef st_mtimespec	st_mtim
-#undef st_ctimespec	st_ctim
-#undef st_birthtimespec	st_birthtim
-	__dev_t   st_dev;
-	ino_t     st_ino;
-	mode_t    st_mode;
-	nlink_t   st_nlink;
-	uid_t     st_uid;
-	gid_t     st_gid;
-	__dev_t   st_rdev;
-#if __BSD_VISIBLE
-	struct  timespec st_atimespec;
-	struct  timespec st_mtimespec;
-	struct  timespec st_ctimespec;
-#else
-	time_t    st_atime;
-	long      __st_atimensec;
-	time_t    st_mtime;
-	long      __st_mtimensec;
-	time_t    st_ctime;
-	long      __st_ctimensec;
-#endif
-	off_t     st_size;
-	blkcnt_t st_blocks;
-	blksize_t st_blksize;
-	fflags_t  st_flags;
-	__uint32_t st_gen;
-	__int32_t st_lspare;
-#if __BSD_VISIBLE
-	struct timespec st_birthtimespec;
-	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec));
-	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec));
-#else
-	time_t    st_birthtime;
-	long      st_birthtimensec;
-	unsigned int :(8 / 2) * (16 - (int)sizeof(struct __timespec));
-	unsigned int :(8 / 2) * (16 - (int)sizeof(struct __timespec));
-#endif
-};
-
 // This structure is a duplicate of if_data on FreeBSD 8-STABLE.
 // See /usr/include/net/if.h.
 struct if_data8 {
@@ -130,7 +90,10 @@ struct if_data8 {
 	u_long  ifi_iqdrops;
 	u_long  ifi_noproto;
 	u_long  ifi_hwassist;
+// FIXME: these are now unions, so maybe need to change definitions?
+#undef ifi_epoch
 	time_t  ifi_epoch;
+#undef ifi_lastchange
 	struct  timeval ifi_lastchange;
 };
 
@@ -198,15 +161,28 @@ const ( // Directory mode bits
 	S_IRUSR  = C.S_IRUSR
 	S_IWUSR  = C.S_IWUSR
 	S_IXUSR  = C.S_IXUSR
+	S_IRWXG  = C.S_IRWXG
+	S_IRWXO  = C.S_IRWXO
 )
 
-type Stat_t C.struct_stat8
+const (
+	_statfsVersion = C.STATFS_VERSION
+	_dirblksiz     = C.DIRBLKSIZ
+)
+
+type Stat_t C.struct_stat
+
+type stat_freebsd11_t C.struct_freebsd11_stat
 
 type Statfs_t C.struct_statfs
+
+type statfs_freebsd11_t C.struct_freebsd11_statfs
 
 type Flock_t C.struct_flock
 
 type Dirent C.struct_dirent
+
+type dirent_freebsd11 C.struct_freebsd11_dirent
 
 type Fsid C.struct_fsid
 
@@ -279,7 +255,7 @@ const (
 
 // Events (kqueue, kevent)
 
-type Kevent_t C.struct_kevent
+type Kevent_t C.struct_kevent_freebsd11
 
 // Select
 
@@ -346,7 +322,9 @@ type BpfZbufHeader C.struct_bpf_zbuf_header
 // Misc
 
 const (
-	_AT_FDCWD = C.AT_FDCWD
+	_AT_FDCWD            = C.AT_FDCWD
+	_AT_SYMLINK_FOLLOW   = C.AT_SYMLINK_FOLLOW
+	_AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
 )
 
 // Terminal handling

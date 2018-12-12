@@ -23,25 +23,6 @@ eq:
 	MOVB	$1, ret+24(FP)
 	RET
 
-TEXT bytes·Equal(SB),NOSPLIT,$0-25
-	FUNCDATA $0, ·Equal·args_stackmap(SB)
-	MOVL	a_len+4(FP), BX
-	MOVL	b_len+16(FP), CX
-	CMPL	BX, CX
-	JNE	neq
-	MOVL	a_base+0(FP), SI
-	MOVL	b_base+12(FP), DI
-	CMPL	SI, DI
-	JEQ	eq
-	LEAL	ret+24(FP), AX
-	JMP	memeqbody<>(SB)
-neq:
-	MOVB	$0, ret+24(FP)
-	RET
-eq:
-	MOVB	$1, ret+24(FP)
-	RET
-
 // memequal(a, b unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal(SB),NOSPLIT,$0-13
 	MOVL	a+0(FP), SI
@@ -80,7 +61,7 @@ TEXT memeqbody<>(SB),NOSPLIT,$0-0
 hugeloop:
 	CMPL	BX, $64
 	JB	bigloop
-	CMPB	internal∕cpu·X86+const_x86_HasSSE2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
 	JNE	bigloop
 	MOVOU	(SI), X0
 	MOVOU	(DI), X1

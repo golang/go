@@ -116,11 +116,17 @@ func (o *operation) InitBufs(buf *[][]byte) {
 		o.bufs = o.bufs[:0]
 	}
 	for _, b := range *buf {
-		var p *byte
-		if len(b) > 0 {
-			p = &b[0]
+		if len(b) == 0 {
+			o.bufs = append(o.bufs, syscall.WSABuf{})
+			continue
 		}
-		o.bufs = append(o.bufs, syscall.WSABuf{Len: uint32(len(b)), Buf: p})
+		for len(b) > maxRW {
+			o.bufs = append(o.bufs, syscall.WSABuf{Len: maxRW, Buf: &b[0]})
+			b = b[maxRW:]
+		}
+		if len(b) > 0 {
+			o.bufs = append(o.bufs, syscall.WSABuf{Len: uint32(len(b)), Buf: &b[0]})
+		}
 	}
 }
 
@@ -461,12 +467,21 @@ func (fd *FD) Shutdown(how int) error {
 	return syscall.Shutdown(fd.Sysfd, how)
 }
 
+// Windows ReadFile and WSARecv use DWORD (uint32) parameter to pass buffer length.
+// This prevents us reading blocks larger than 4GB.
+// See golang.org/issue/26923.
+const maxRW = 1 << 30 // 1GB is large enough and keeps subsequent reads aligned
+
 // Read implements io.Reader.
 func (fd *FD) Read(buf []byte) (int, error) {
 	if err := fd.readLock(); err != nil {
 		return 0, err
 	}
 	defer fd.readUnlock()
+
+	if len(buf) > maxRW {
+		buf = buf[:maxRW]
+	}
 
 	var n int
 	var err error
@@ -581,6 +596,10 @@ func (fd *FD) Pread(b []byte, off int64) (int, error) {
 	}
 	defer fd.decref()
 
+	if len(b) > maxRW {
+		b = b[:maxRW]
+	}
+
 	fd.l.Lock()
 	defer fd.l.Unlock()
 	curoffset, e := syscall.Seek(fd.Sysfd, 0, io.SeekCurrent)
@@ -611,6 +630,9 @@ func (fd *FD) ReadFrom(buf []byte) (int, syscall.Sockaddr, error) {
 	if len(buf) == 0 {
 		return 0, nil, nil
 	}
+	if len(buf) > maxRW {
+		buf = buf[:maxRW]
+	}
 	if err := fd.readLock(); err != nil {
 		return 0, nil, err
 	}
@@ -639,30 +661,42 @@ func (fd *FD) Write(buf []byte) (int, error) {
 	}
 	defer fd.writeUnlock()
 
-	var n int
-	var err error
-	if fd.isFile || fd.isDir || fd.isConsole {
-		fd.l.Lock()
-		defer fd.l.Unlock()
-		if fd.isConsole {
-			n, err = fd.writeConsole(buf)
+	ntotal := 0
+	for len(buf) > 0 {
+		b := buf
+		if len(b) > maxRW {
+			b = b[:maxRW]
+		}
+		var n int
+		var err error
+		if fd.isFile || fd.isDir || fd.isConsole {
+			fd.l.Lock()
+			defer fd.l.Unlock()
+			if fd.isConsole {
+				n, err = fd.writeConsole(b)
+			} else {
+				n, err = syscall.Write(fd.Sysfd, b)
+			}
+			if err != nil {
+				n = 0
+			}
 		} else {
-			n, err = syscall.Write(fd.Sysfd, buf)
+			if race.Enabled {
+				race.ReleaseMerge(unsafe.Pointer(&ioSync))
+			}
+			o := &fd.wop
+			o.InitBuf(b)
+			n, err = wsrv.ExecIO(o, func(o *operation) error {
+				return syscall.WSASend(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, &o.o, nil)
+			})
 		}
+		ntotal += n
 		if err != nil {
-			n = 0
+			return ntotal, err
 		}
-	} else {
-		if race.Enabled {
-			race.ReleaseMerge(unsafe.Pointer(&ioSync))
-		}
-		o := &fd.wop
-		o.InitBuf(buf)
-		n, err = wsrv.ExecIO(o, func(o *operation) error {
-			return syscall.WSASend(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, &o.o, nil)
-		})
+		buf = buf[n:]
 	}
-	return n, err
+	return ntotal, nil
 }
 
 // writeConsole writes len(b) bytes to the console File.
@@ -709,7 +743,7 @@ func (fd *FD) writeConsole(b []byte) (int, error) {
 }
 
 // Pwrite emulates the Unix pwrite system call.
-func (fd *FD) Pwrite(b []byte, off int64) (int, error) {
+func (fd *FD) Pwrite(buf []byte, off int64) (int, error) {
 	// Call incref, not writeLock, because since pwrite specifies the
 	// offset it is independent from other writes.
 	if err := fd.incref(); err != nil {
@@ -724,16 +758,27 @@ func (fd *FD) Pwrite(b []byte, off int64) (int, error) {
 		return 0, e
 	}
 	defer syscall.Seek(fd.Sysfd, curoffset, io.SeekStart)
-	o := syscall.Overlapped{
-		OffsetHigh: uint32(off >> 32),
-		Offset:     uint32(off),
+
+	ntotal := 0
+	for len(buf) > 0 {
+		b := buf
+		if len(b) > maxRW {
+			b = b[:maxRW]
+		}
+		var n uint32
+		o := syscall.Overlapped{
+			OffsetHigh: uint32(off >> 32),
+			Offset:     uint32(off),
+		}
+		e = syscall.WriteFile(fd.Sysfd, b, &n, &o)
+		ntotal += int(n)
+		if e != nil {
+			return ntotal, e
+		}
+		buf = buf[n:]
+		off += int64(n)
 	}
-	var done uint32
-	e = syscall.WriteFile(fd.Sysfd, b, &done, &o)
-	if e != nil {
-		return 0, e
-	}
-	return int(done), nil
+	return ntotal, nil
 }
 
 // Writev emulates the Unix writev system call.
@@ -761,20 +806,41 @@ func (fd *FD) Writev(buf *[][]byte) (int64, error) {
 
 // WriteTo wraps the sendto network call.
 func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
-	if len(buf) == 0 {
-		return 0, nil
-	}
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
 	defer fd.writeUnlock()
-	o := &fd.wop
-	o.InitBuf(buf)
-	o.sa = sa
-	n, err := wsrv.ExecIO(o, func(o *operation) error {
-		return syscall.WSASendto(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa, &o.o, nil)
-	})
-	return n, err
+
+	if len(buf) == 0 {
+		// handle zero-byte payload
+		o := &fd.wop
+		o.InitBuf(buf)
+		o.sa = sa
+		n, err := wsrv.ExecIO(o, func(o *operation) error {
+			return syscall.WSASendto(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa, &o.o, nil)
+		})
+		return n, err
+	}
+
+	ntotal := 0
+	for len(buf) > 0 {
+		b := buf
+		if len(b) > maxRW {
+			b = b[:maxRW]
+		}
+		o := &fd.wop
+		o.InitBuf(b)
+		o.sa = sa
+		n, err := wsrv.ExecIO(o, func(o *operation) error {
+			return syscall.WSASendto(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa, &o.o, nil)
+		})
+		ntotal += int(n)
+		if err != nil {
+			return ntotal, err
+		}
+		buf = buf[n:]
+	}
+	return ntotal, nil
 }
 
 // Call ConnectEx. This doesn't need any locking, since it is only
@@ -989,6 +1055,10 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
 	}
 	defer fd.readUnlock()
 
+	if len(p) > maxRW {
+		p = p[:maxRW]
+	}
+
 	o := &fd.rop
 	o.InitMsg(p, oob)
 	o.rsa = new(syscall.RawSockaddrAny)
@@ -1007,6 +1077,10 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
 
 // WriteMsg wraps the WSASendMsg network call.
 func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, error) {
+	if len(p) > maxRW {
+		return 0, 0, errors.New("packet is too large (only 1GB is allowed)")
+	}
+
 	if err := fd.writeLock(); err != nil {
 		return 0, 0, err
 	}

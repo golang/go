@@ -6,8 +6,10 @@ package modfetch
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 
 	"cmd/go/internal/cfg"
@@ -45,11 +47,8 @@ type Repo interface {
 	// GoMod returns the go.mod file for the given version.
 	GoMod(version string) (data []byte, err error)
 
-	// Zip downloads a zip file for the given version
-	// to a new file in a given temporary directory.
-	// It returns the name of the new file.
-	// The caller should remove the file when finished with it.
-	Zip(version, tmpdir string) (tmpfile string, err error)
+	// Zip writes a zip file for the given version to dst.
+	Zip(dst io.Writer, version string) error
 }
 
 // A Rev describes a single revision in a module repository.
@@ -216,7 +215,11 @@ func lookup(path string) (r Repo, err error) {
 		return lookupProxy(path)
 	}
 
-	rr, err := get.RepoRootForImportPath(path, get.PreferMod, web.Secure)
+	security := web.Secure
+	if get.Insecure {
+		security = web.Insecure
+	}
+	rr, err := get.RepoRootForImportPath(path, get.PreferMod, security)
 	if err != nil {
 		// We don't know where to find code for a module with this path.
 		return nil, err
@@ -237,6 +240,9 @@ func lookup(path string) (r Repo, err error) {
 func lookupCodeRepo(rr *get.RepoRoot) (codehost.Repo, error) {
 	code, err := codehost.NewRepo(rr.VCS, rr.Repo)
 	if err != nil {
+		if _, ok := err.(*codehost.VCSError); ok {
+			return nil, err
+		}
 		return nil, fmt.Errorf("lookup %s: %v", rr.Root, err)
 	}
 	return code, nil
@@ -254,7 +260,11 @@ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
 	// Note: Because we are converting a code reference from a legacy
 	// version control system, we ignore meta tags about modules
 	// and use only direct source control entries (get.IgnoreMod).
-	rr, err := get.RepoRootForImportPath(path, get.IgnoreMod, web.Secure)
+	security := web.Secure
+	if get.Insecure {
+		security = web.Insecure
+	}
+	rr, err := get.RepoRootForImportPath(path, get.IgnoreMod, security)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -346,7 +356,11 @@ func (l *loggingRepo) GoMod(version string) ([]byte, error) {
 	return l.r.GoMod(version)
 }
 
-func (l *loggingRepo) Zip(version, tmpdir string) (string, error) {
-	defer logCall("Repo[%s]: Zip(%q, %q)", l.r.ModulePath(), version, tmpdir)()
-	return l.r.Zip(version, tmpdir)
+func (l *loggingRepo) Zip(dst io.Writer, version string) error {
+	dstName := "_"
+	if dst, ok := dst.(interface{ Name() string }); ok {
+		dstName = strconv.Quote(dst.Name())
+	}
+	defer logCall("Repo[%s]: Zip(%s, %q)", l.r.ModulePath(), dstName, version)()
+	return l.r.Zip(dst, version)
 }

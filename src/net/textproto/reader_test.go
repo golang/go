@@ -382,31 +382,25 @@ Non-Interned: test
 
 func BenchmarkReadMIMEHeader(b *testing.B) {
 	b.ReportAllocs()
-	var buf bytes.Buffer
-	br := bufio.NewReader(&buf)
-	r := NewReader(br)
-	for i := 0; i < b.N; i++ {
-		var want int
-		var find string
-		if (i & 1) == 1 {
-			buf.WriteString(clientHeaders)
-			want = 10
-			find = "Cookie"
-		} else {
-			buf.WriteString(serverHeaders)
-			want = 9
-			find = "Via"
-		}
-		h, err := r.ReadMIMEHeader()
-		if err != nil {
-			b.Fatal(err)
-		}
-		if len(h) != want {
-			b.Fatalf("wrong number of headers: got %d, want %d", len(h), want)
-		}
-		if _, ok := h[find]; !ok {
-			b.Fatalf("did not find key %s", find)
-		}
+	for _, set := range []struct {
+		name    string
+		headers string
+	}{
+		{"client_headers", clientHeaders},
+		{"server_headers", serverHeaders},
+	} {
+		b.Run(set.name, func(b *testing.B) {
+			var buf bytes.Buffer
+			br := bufio.NewReader(&buf)
+			r := NewReader(br)
+
+			for i := 0; i < b.N; i++ {
+				buf.WriteString(set.headers)
+				if _, err := r.ReadMIMEHeader(); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }
 

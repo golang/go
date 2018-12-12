@@ -36,7 +36,7 @@
 #define SYS_getpid		172
 #define SYS_gettid		178
 #define SYS_kill		129
-#define SYS_tkill		130
+#define SYS_tgkill		131
 #define SYS_futex		98
 #define SYS_sched_getaffinity	123
 #define SYS_exit_group		94
@@ -143,11 +143,15 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
+	MOVD	$SYS_getpid, R8
+	SVC
+	MOVW	R0, R19
 	MOVD	$SYS_gettid, R8
 	SVC
-	MOVW	R0, R0	// arg 1 tid
-	MOVW	sig+0(FP), R1	// arg 2
-	MOVD	$SYS_tkill, R8
+	MOVW	R0, R1	// arg 2 tid
+	MOVW	R19, R0	// arg 1 pid
+	MOVW	sig+0(FP), R2	// arg 3
+	MOVD	$SYS_tgkill, R8
 	SVC
 	RET
 
@@ -239,7 +243,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$24-8
 	MOVD	(g_sched+gobuf_sp)(R3), R1	// Set RSP to g0 stack
 
 noswitch:
-	SUB	$16, R1
+	SUB	$32, R1
 	BIC	$15, R1
 	MOVD	R1, RSP
 
@@ -298,7 +302,9 @@ TEXT runtime·callCgoSigaction(SB),NOSPLIT,$0
 	MOVD	new+8(FP), R1
 	MOVD	old+16(FP), R2
 	MOVD	 _cgo_sigaction(SB), R3
+	SUB	$16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
 	BL	R3
+	ADD	$16, RSP
 	MOVW	R0, ret+24(FP)
 	RET
 
@@ -361,7 +367,9 @@ TEXT runtime·callCgoMmap(SB),NOSPLIT,$0
 	MOVW	fd+24(FP), R4
 	MOVW	off+28(FP), R5
 	MOVD	_cgo_mmap(SB), R9
+	SUB	$16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
 	BL	R9
+	ADD	$16, RSP
 	MOVD	R0, ret+32(FP)
 	RET
 
@@ -382,7 +390,9 @@ TEXT runtime·callCgoMunmap(SB),NOSPLIT,$0
 	MOVD	addr+0(FP), R0
 	MOVD	n+8(FP), R1
 	MOVD	_cgo_munmap(SB), R9
+	SUB	$16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
 	BL	R9
+	ADD	$16, RSP
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
@@ -391,7 +401,7 @@ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+16(FP), R2
 	MOVD	$SYS_madvise, R8
 	SVC
-	// ignore failure - maybe pages are locked
+	MOVW	R0, ret+24(FP)
 	RET
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,

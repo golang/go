@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"golang_org/x/net/nettest"
+	"internal/x/net/nettest"
 )
 
 func TestPipe(t *testing.T) {

@@ -26,7 +26,8 @@ func TestIntendedInlining(t *testing.T) {
 	t.Parallel()
 
 	// want is the list of function names (by package) that should
-	// be inlined.
+	// be inlinable. If they have no callers in thier packages, they
+	// might not actually be inlined anywhere.
 	want := map[string][]string{
 		"runtime": {
 			// TODO(mvdan): enable these once mid-stack
@@ -53,8 +54,8 @@ func TestIntendedInlining(t *testing.T) {
 			"getm",
 			"isDirectIface",
 			"itabHashFunc",
-			"maxSliceCap",
 			"noescape",
+			"pcvalueCacheKey",
 			"readUnaligned32",
 			"readUnaligned64",
 			"releasem",
@@ -84,7 +85,7 @@ func TestIntendedInlining(t *testing.T) {
 			"puintptr.ptr",
 			"spanOf",
 			"spanOfUnchecked",
-			"(*gcWork).putFast",
+			//"(*gcWork).putFast", // TODO(austin): For debugging #27993
 			"(*gcWork).tryGetFast",
 			"(*guintptr).set",
 			"(*markBits).advance",
@@ -96,10 +97,14 @@ func TestIntendedInlining(t *testing.T) {
 			"(*puintptr).set",
 		},
 		"runtime/internal/sys": {},
+		"runtime/internal/math": {
+			"MulUintptr",
+		},
 		"bytes": {
 			"(*Buffer).Bytes",
 			"(*Buffer).Cap",
 			"(*Buffer).Len",
+			"(*Buffer).Grow",
 			"(*Buffer).Next",
 			"(*Buffer).Read",
 			"(*Buffer).ReadByte",
@@ -107,6 +112,11 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Buffer).String",
 			"(*Buffer).UnreadByte",
 			"(*Buffer).tryGrowByReslice",
+		},
+		"compress/flate": {
+			"byLiteral.Len",
+			"byLiteral.Less",
+			"byLiteral.Swap",
 		},
 		"unicode/utf8": {
 			"FullRune",
@@ -159,6 +169,13 @@ func TestIntendedInlining(t *testing.T) {
 		want["runtime"] = append(want["runtime"], "rotl_31")
 	}
 
+	// Functions that must actually be inlined; they must have actual callers.
+	must := map[string]bool{
+		"compress/flate.byLiteral.Len":  true,
+		"compress/flate.byLiteral.Less": true,
+		"compress/flate.byLiteral.Swap": true,
+	}
+
 	notInlinedReason := make(map[string]string)
 	pkgs := make([]string, 0, len(want))
 	for pname, fnames := range want {
@@ -185,6 +202,7 @@ func TestIntendedInlining(t *testing.T) {
 	scanner := bufio.NewScanner(pr)
 	curPkg := ""
 	canInline := regexp.MustCompile(`: can inline ([^ ]*)`)
+	haveInlined := regexp.MustCompile(`: inlining call to ([^ ]*)`)
 	cannotInline := regexp.MustCompile(`: cannot inline ([^ ]*): (.*)`)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -192,10 +210,19 @@ func TestIntendedInlining(t *testing.T) {
 			curPkg = line[2:]
 			continue
 		}
-		if m := canInline.FindStringSubmatch(line); m != nil {
+		if m := haveInlined.FindStringSubmatch(line); m != nil {
 			fname := m[1]
 			delete(notInlinedReason, curPkg+"."+fname)
 			continue
+		}
+		if m := canInline.FindStringSubmatch(line); m != nil {
+			fname := m[1]
+			fullname := curPkg + "." + fname
+			// If function must be inlined somewhere, beeing inlinable is not enough
+			if _, ok := must[fullname]; !ok {
+				delete(notInlinedReason, fullname)
+				continue
+			}
 		}
 		if m := cannotInline.FindStringSubmatch(line); m != nil {
 			fname, reason := m[1], m[2]

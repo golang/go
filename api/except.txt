@@ -3,8 +3,11 @@ pkg math/big, const MaxBase = 36
 pkg math/big, type Word uintptr
 pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
 pkg os, const ModeType = 2399141888
+pkg os, const ModeType = 2399666176
 pkg os (linux-arm), const O_SYNC = 4096
 pkg os (linux-arm-cgo), const O_SYNC = 4096
+pkg os (linux-arm), const O_SYNC = 1052672
+pkg os (linux-arm-cgo), const O_SYNC = 1052672
 pkg syscall (darwin-386), const ImplementsGetwd = false
 pkg syscall (darwin-386), func Fchflags(string, int) error
 pkg syscall (darwin-386-cgo), const ImplementsGetwd = false
@@ -370,6 +373,7 @@ pkg syscall (windows-386), type CertContext struct, CertInfo uintptr
 pkg syscall (windows-386), type CertRevocationInfo struct, CrlInfo uintptr
 pkg syscall (windows-386), type CertRevocationInfo struct, OidSpecificInfo uintptr
 pkg syscall (windows-386), type CertSimpleChain struct, TrustListInfo uintptr
+pkg syscall (windows-386), type RawSockaddrAny struct, Pad [96]int8
 pkg syscall (windows-amd64), const TOKEN_ALL_ACCESS = 983295
 pkg syscall (windows-amd64), type AddrinfoW struct, Addr uintptr
 pkg syscall (windows-amd64), type CertChainPolicyPara struct, ExtraPolicyPara uintptr
@@ -378,3 +382,102 @@ pkg syscall (windows-amd64), type CertContext struct, CertInfo uintptr
 pkg syscall (windows-amd64), type CertRevocationInfo struct, CrlInfo uintptr
 pkg syscall (windows-amd64), type CertRevocationInfo struct, OidSpecificInfo uintptr
 pkg syscall (windows-amd64), type CertSimpleChain struct, TrustListInfo uintptr
+pkg syscall (windows-amd64), type RawSockaddrAny struct, Pad [96]int8
+pkg syscall (freebsd-386), func Mknod(string, uint32, int) error
+pkg syscall (freebsd-386), type Dirent struct, Fileno uint32
+pkg syscall (freebsd-386), type Dirent struct, Namlen uint8
+pkg syscall (freebsd-386), type Stat_t struct, Atimespec Timespec
+pkg syscall (freebsd-386), type Stat_t struct, Birthtimespec Timespec
+pkg syscall (freebsd-386), type Stat_t struct, Blksize uint32
+pkg syscall (freebsd-386), type Stat_t struct, Ctimespec Timespec
+pkg syscall (freebsd-386), type Stat_t struct, Dev uint32
+pkg syscall (freebsd-386), type Stat_t struct, Gen uint32
+pkg syscall (freebsd-386), type Stat_t struct, Ino uint32
+pkg syscall (freebsd-386), type Stat_t struct, Lspare int32
+pkg syscall (freebsd-386), type Stat_t struct, Mtimespec Timespec
+pkg syscall (freebsd-386), type Stat_t struct, Nlink uint16
+pkg syscall (freebsd-386), type Stat_t struct, Pad_cgo_0 [8]uint8
+pkg syscall (freebsd-386), type Stat_t struct, Rdev uint32
+pkg syscall (freebsd-386), type Statfs_t struct, Mntfromname [88]int8
+pkg syscall (freebsd-386), type Statfs_t struct, Mntonname [88]int8
+pkg syscall (freebsd-386-cgo), func Mknod(string, uint32, int) error
+pkg syscall (freebsd-386-cgo), type Dirent struct, Fileno uint32
+pkg syscall (freebsd-386-cgo), type Dirent struct, Namlen uint8
+pkg syscall (freebsd-386-cgo), type Stat_t struct, Atimespec Timespec
+pkg syscall (freebsd-386-cgo), type Stat_t struct, Birthtimespec Timespec
+pkg syscall (freebsd-386-cgo), type Stat_t struct, Blksize uint32
+pkg syscall (freebsd-386-cgo), type Stat_t struct, Ctimespec Timespec
+pkg syscall (freebsd-386-cgo), type Stat_t struct, Dev uint32
+pkg syscall (freebsd-386-cgo), type Stat_t struct, Gen uint32
+pkg syscall (freebsd-386-cgo), type Stat_t struct, Ino uint32
+pkg syscall (freebsd-386-cgo), type Stat_t struct, Lspare int32
+pkg syscall (freebsd-386-cgo), type Stat_t struct, Mtimespec Timespec
+pkg syscall (freebsd-386-cgo), type Stat_t struct, Nlink uint16
+pkg syscall (freebsd-386-cgo), type Stat_t struct, Pad_cgo_0 [8]uint8
+pkg syscall (freebsd-386-cgo), type Stat_t struct, Rdev uint32
+pkg syscall (freebsd-386-cgo), type Statfs_t struct, Mntfromname [88]int8
+pkg syscall (freebsd-386-cgo), type Statfs_t struct, Mntonname [88]int8
+pkg syscall (freebsd-amd64), func Mknod(string, uint32, int) error
+pkg syscall (freebsd-amd64), type Dirent struct, Fileno uint32
+pkg syscall (freebsd-amd64), type Dirent struct, Namlen uint8
+pkg syscall (freebsd-amd64), type Stat_t struct, Atimespec Timespec
+pkg syscall (freebsd-amd64), type Stat_t struct, Birthtimespec Timespec
+pkg syscall (freebsd-amd64), type Stat_t struct, Blksize uint32
+pkg syscall (freebsd-amd64), type Stat_t struct, Ctimespec Timespec
+pkg syscall (freebsd-amd64), type Stat_t struct, Dev uint32
+pkg syscall (freebsd-amd64), type Stat_t struct, Gen uint32
+pkg syscall (freebsd-amd64), type Stat_t struct, Ino uint32
+pkg syscall (freebsd-amd64), type Stat_t struct, Lspare int32
+pkg syscall (freebsd-amd64), type Stat_t struct, Mtimespec Timespec
+pkg syscall (freebsd-amd64), type Stat_t struct, Nlink uint16
+pkg syscall (freebsd-amd64), type Stat_t struct, Rdev uint32
+pkg syscall (freebsd-amd64), type Statfs_t struct, Mntfromname [88]int8
+pkg syscall (freebsd-amd64), type Statfs_t struct, Mntonname [88]int8
+pkg syscall (freebsd-amd64-cgo), func Mknod(string, uint32, int) error
+pkg syscall (freebsd-amd64-cgo), type Dirent struct, Fileno uint32
+pkg syscall (freebsd-amd64-cgo), type Dirent struct, Namlen uint8
+pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Atimespec Timespec
+pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Birthtimespec Timespec
+pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Blksize uint32
+pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Ctimespec Timespec
+pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Dev uint32
+pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Gen uint32
+pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Ino uint32
+pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Lspare int32
+pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Mtimespec Timespec
+pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Nlink uint16
+pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Rdev uint32
+pkg syscall (freebsd-amd64-cgo), type Statfs_t struct, Mntfromname [88]int8
+pkg syscall (freebsd-amd64-cgo), type Statfs_t struct, Mntonname [88]int8
+pkg syscall (freebsd-arm), func Mknod(string, uint32, int) error
+pkg syscall (freebsd-arm), type Dirent struct, Fileno uint32
+pkg syscall (freebsd-arm), type Dirent struct, Namlen uint8
+pkg syscall (freebsd-arm), type Stat_t struct, Atimespec Timespec
+pkg syscall (freebsd-arm), type Stat_t struct, Birthtimespec Timespec
+pkg syscall (freebsd-arm), type Stat_t struct, Blksize uint32
+pkg syscall (freebsd-arm), type Stat_t struct, Ctimespec Timespec
+pkg syscall (freebsd-arm), type Stat_t struct, Dev uint32
+pkg syscall (freebsd-arm), type Stat_t struct, Gen uint32
+pkg syscall (freebsd-arm), type Stat_t struct, Ino uint32
+pkg syscall (freebsd-arm), type Stat_t struct, Lspare int32
+pkg syscall (freebsd-arm), type Stat_t struct, Mtimespec Timespec
+pkg syscall (freebsd-arm), type Stat_t struct, Nlink uint16
+pkg syscall (freebsd-arm), type Stat_t struct, Rdev uint32
+pkg syscall (freebsd-arm), type Statfs_t struct, Mntfromname [88]int8
+pkg syscall (freebsd-arm), type Statfs_t struct, Mntonname [88]int8
+pkg syscall (freebsd-arm-cgo), func Mknod(string, uint32, int) error
+pkg syscall (freebsd-arm-cgo), type Dirent struct, Fileno uint32
+pkg syscall (freebsd-arm-cgo), type Dirent struct, Namlen uint8
+pkg syscall (freebsd-arm-cgo), type Stat_t struct, Atimespec Timespec
+pkg syscall (freebsd-arm-cgo), type Stat_t struct, Birthtimespec Timespec
+pkg syscall (freebsd-arm-cgo), type Stat_t struct, Blksize uint32
+pkg syscall (freebsd-arm-cgo), type Stat_t struct, Ctimespec Timespec
+pkg syscall (freebsd-arm-cgo), type Stat_t struct, Dev uint32
+pkg syscall (freebsd-arm-cgo), type Stat_t struct, Gen uint32
+pkg syscall (freebsd-arm-cgo), type Stat_t struct, Ino uint32
+pkg syscall (freebsd-arm-cgo), type Stat_t struct, Lspare int32
+pkg syscall (freebsd-arm-cgo), type Stat_t struct, Mtimespec Timespec
+pkg syscall (freebsd-arm-cgo), type Stat_t struct, Nlink uint16
+pkg syscall (freebsd-arm-cgo), type Stat_t struct, Rdev uint32
+pkg syscall (freebsd-arm-cgo), type Statfs_t struct, Mntfromname [88]int8
+pkg syscall (freebsd-arm-cgo), type Statfs_t struct, Mntonname [88]int8

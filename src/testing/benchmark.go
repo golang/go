@@ -10,14 +10,49 @@ import (
 	"internal/race"
 	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
 var matchBenchmarks = flag.String("test.bench", "", "run only benchmarks matching `regexp`")
-var benchTime = flag.Duration("test.benchtime", 1*time.Second, "run each benchmark for duration `d`")
+var benchTime = benchTimeFlag{d: 1 * time.Second}
 var benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
+
+func init() {
+	flag.Var(&benchTime, "test.benchtime", "run each benchmark for duration `d`")
+}
+
+type benchTimeFlag struct {
+	d time.Duration
+	n int
+}
+
+func (f *benchTimeFlag) String() string {
+	if f.n > 0 {
+		return fmt.Sprintf("%dx", f.n)
+	}
+	return time.Duration(f.d).String()
+}
+
+func (f *benchTimeFlag) Set(s string) error {
+	if strings.HasSuffix(s, "x") {
+		n, err := strconv.ParseInt(s[:len(s)-1], 10, 0)
+		if err != nil || n <= 0 {
+			return fmt.Errorf("invalid count")
+		}
+		*f = benchTimeFlag{n: int(n)}
+		return nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil || d <= 0 {
+		return fmt.Errorf("invalid duration")
+	}
+	*f = benchTimeFlag{d: d}
+	return nil
+}
 
 // Global lock to ensure only one benchmark runs at a time.
 var benchmarkLock sync.Mutex
@@ -53,7 +88,7 @@ type B struct {
 	previousN        int           // number of iterations in the previous run
 	previousDuration time.Duration // total duration of the previous run
 	benchFunc        func(b *B)
-	benchTime        time.Duration
+	benchTime        benchTimeFlag
 	bytes            int64
 	missingBytes     bool // one of the subbenchmarks does not have bytes set.
 	timerOn          bool
@@ -195,7 +230,7 @@ func roundUp(n int) int {
 	}
 }
 
-// run1 runs the first iteration of benchFunc. It returns whether more
+// run1 runs the first iteration of benchFunc. It reports whether more
 // iterations of this benchmarks should be run.
 func (b *B) run1() bool {
 	if ctx := b.context; ctx != nil {
@@ -273,21 +308,25 @@ func (b *B) launch() {
 	}()
 
 	// Run the benchmark for at least the specified amount of time.
-	d := b.benchTime
-	for n := 1; !b.failed && b.duration < d && n < 1e9; {
-		last := n
-		// Predict required iterations.
-		n = int(d.Nanoseconds())
-		if nsop := b.nsPerOp(); nsop != 0 {
-			n /= int(nsop)
+	if b.benchTime.n > 0 {
+		b.runN(b.benchTime.n)
+	} else {
+		d := b.benchTime.d
+		for n := 1; !b.failed && b.duration < d && n < 1e9; {
+			last := n
+			// Predict required iterations.
+			n = int(d.Nanoseconds())
+			if nsop := b.nsPerOp(); nsop != 0 {
+				n /= int(nsop)
+			}
+			// Run more iterations than we think we'll need (1.2x).
+			// Don't grow too fast in case we had timing errors previously.
+			// Be sure to run at least one more than last time.
+			n = max(min(n+n/5, 100*last), last+1)
+			// Round up to something easy to read.
+			n = roundUp(n)
+			b.runN(n)
 		}
-		// Run more iterations than we think we'll need (1.2x).
-		// Don't grow too fast in case we had timing errors previously.
-		// Be sure to run at least one more than last time.
-		n = max(min(n+n/5, 100*last), last+1)
-		// Round up to something easy to read.
-		n = roundUp(n)
-		b.runN(n)
 	}
 	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes}
 }
@@ -416,7 +455,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 				b.Run(Benchmark.Name, Benchmark.F)
 			}
 		},
-		benchTime: *benchTime,
+		benchTime: benchTime,
 		context:   ctx,
 	}
 	main.runN(1)
@@ -653,7 +692,7 @@ func Benchmark(f func(b *B)) BenchmarkResult {
 			w:      discard{},
 		},
 		benchFunc: f,
-		benchTime: *benchTime,
+		benchTime: benchTime,
 	}
 	if b.run1() {
 		b.run()

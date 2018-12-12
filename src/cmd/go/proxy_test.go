@@ -78,7 +78,7 @@ func readModList() {
 		if i < 0 {
 			continue
 		}
-		encPath := strings.Replace(name[:i], "_", "/", -1)
+		encPath := strings.ReplaceAll(name[:i], "_", "/")
 		path, err := module.DecodePath(encPath)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
@@ -197,7 +197,13 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 				if strings.HasPrefix(f.Name, ".") {
 					continue
 				}
-				zf, err := z.Create(path + "@" + vers + "/" + f.Name)
+				var zipName string
+				if strings.HasPrefix(f.Name, "/") {
+					zipName = f.Name[1:]
+				} else {
+					zipName = path + "@" + vers + "/" + f.Name
+				}
+				zf, err := z.Create(zipName)
 				if err != nil {
 					return cached{nil, err}
 				}
@@ -256,7 +262,7 @@ func readArchive(path, vers string) *txtar.Archive {
 		return nil
 	}
 
-	prefix := strings.Replace(enc, "/", "_", -1)
+	prefix := strings.ReplaceAll(enc, "/", "_")
 	name := filepath.Join(cmdGoDir, "testdata/mod", prefix+"_"+encVers+".txt")
 	a := archiveCache.Do(name, func() interface{} {
 		a, err := txtar.ParseFile(name)

@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"golang_org/x/net/http/httpguts"
+	"internal/x/net/http/httpguts"
 )
 
 // maxInt64 is the effective "infinite" value for the Server and
@@ -134,6 +134,10 @@ type Pusher interface {
 	// Handlers that wish to push URL X should call Push before sending any
 	// data that may trigger a request for URL X. This avoids a race where the
 	// client issues requests for X before receiving the PUSH_PROMISE for X.
+	//
+	// Push will run in a separate goroutine making the order of arrival
+	// non-deterministic. Any required synchronization needs to be implemented
+	// by the caller.
 	//
 	// Push returns ErrNotSupported if the client has disabled push or if push
 	// is not supported on the underlying connection.

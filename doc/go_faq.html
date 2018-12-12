@@ -108,6 +108,26 @@ by Renée at Gophercon in 2016.
 He has unique features; he's the <em>Go gopher</em>, not just any old gopher.
 </p>
 
+<h3 id="go_or_golang">
+Is the language called Go or Golang?</h3>
+
+<p>
+The language is called Go.
+The "golang" moniker arose because the web site is
+<a href="https://golang.org">golang.org</a>, not
+go.org, which was not available to us.
+Many use the golang name, though, and it is handy as
+a label.
+For instance, the Twitter tag for the language is "#golang".
+The language's name is just plain Go, regardless.
+</p>
+
+<p>
+A side note: Although the
+<a href="https://blog.golang.org/go-brand">official logo</a>
+has two capital letters, the language name is written Go, not GO.
+</p>
+
 <h3 id="creating_a_new_language">
 Why did you create a new language?</h3>
 
@@ -784,7 +804,7 @@ type Fooer interface {
 <p>
 A type must then implement the <code>ImplementsFooer</code> method to be a
 <code>Fooer</code>, clearly documenting the fact and announcing it in
-<a href="/cmd/godoc/">godoc</a>'s output.
+<a href="/cmd/go/#hdr-Show_documentation_for_package_or_symbol">go doc</a>'s output.
 </p>
 
 <pre>
@@ -1749,7 +1769,7 @@ while that of the corresponding pointer
 type <code>*T</code> consists of all methods with receiver <code>*T</code> or
 <code>T</code>.
 That means the method set of <code>*T</code>
-includes that of <code>T</code>),
+includes that of <code>T</code>,
 but not the reverse.
 </p>
 
@@ -2438,7 +2458,7 @@ in networked servers.
 Work continues to refine the algorithm, reduce overhead and
 latency further, and to explore new approaches.
 The 2018
-<a href="https://talks.golang.org/2018/ismmkeynote">ISMM keynote</a>
+<a href="https://blog.golang.org/ismmkeynote">ISMM keynote</a>
 by Rick Hudson of the Go team
 describes the progress so far and suggests some future approaches.
 </p>

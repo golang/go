@@ -78,7 +78,7 @@ to use newer patch releases when available. Continuing the previous example,
 In general, adding a new dependency may require upgrading
 existing dependencies to keep a working build, and 'go get' does
 this automatically. Similarly, downgrading one dependency may
-require downgrading other dependenceis, and 'go get' does
+require downgrading other dependencies, and 'go get' does
 this automatically as well.
 
 The -m flag instructs get to stop here, after resolving, upgrading,
@@ -229,7 +229,7 @@ func runGet(cmd *base.Command, args []string) {
 	// and a list of install targets (for the "go install" at the end).
 	var tasks []*task
 	var install []string
-	for _, arg := range search.CleanImportPaths(args) {
+	for _, arg := range search.CleanPatterns(args) {
 		// Argument is module query path@vers, or else path with implicit @latest.
 		path := arg
 		vers := ""
@@ -247,7 +247,7 @@ func runGet(cmd *base.Command, args []string) {
 		// Deciding which module to upgrade/downgrade for a particular argument is difficult.
 		// Patterns only make it more difficult.
 		// We impose restrictions to avoid needing to interlace pattern expansion,
-		// like in in modload.ImportPaths.
+		// like in modload.ImportPaths.
 		// Specifically, these patterns are supported:
 		//
 		//	- Relative paths like ../../foo or ../../foo... are restricted to matching directories
@@ -281,8 +281,8 @@ func runGet(cmd *base.Command, args []string) {
 				base.Errorf("go get %s: %v", arg, err)
 				continue
 			}
-			if !str.HasFilePathPrefix(abs, modload.ModRoot) {
-				base.Errorf("go get %s: directory %s is outside module root %s", arg, abs, modload.ModRoot)
+			if !str.HasFilePathPrefix(abs, modload.ModRoot()) {
+				base.Errorf("go get %s: directory %s is outside module root %s", arg, abs, modload.ModRoot())
 				continue
 			}
 			// TODO: Check if abs is inside a nested module.
@@ -519,8 +519,9 @@ func runGet(cmd *base.Command, args []string) {
 		// Note that 'go get -u' without any arguments results in len(install) == 1:
 		// search.CleanImportPaths returns "." for empty args.
 		work.BuildInit()
-		var pkgs []string
-		for _, p := range load.PackagesAndErrors(install) {
+		pkgs := load.PackagesAndErrors(install)
+		var todo []*load.Package
+		for _, p := range pkgs {
 			// Ignore "no Go source files" errors for 'go get' operations on modules.
 			if p.Error != nil {
 				if len(args) == 0 && getU != "" && strings.HasPrefix(p.Error.Err, "no Go files") {
@@ -533,15 +534,17 @@ func runGet(cmd *base.Command, args []string) {
 					// module root.
 					continue
 				}
+				base.Errorf("%s", p.Error)
 			}
-			pkgs = append(pkgs, p.ImportPath)
+			todo = append(todo, p)
 		}
+		base.ExitIfErrors()
 
 		// If -d was specified, we're done after the download: no build.
 		// (The load.PackagesAndErrors is what did the download
 		// of the named packages and their dependencies.)
-		if len(pkgs) > 0 && !*getD {
-			work.InstallPackages(pkgs)
+		if len(todo) > 0 && !*getD {
+			work.InstallPackages(install, todo)
 		}
 	}
 }

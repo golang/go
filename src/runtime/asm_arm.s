@@ -439,9 +439,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$NAME(SB), R1;		\
 	B	(R1)
 
-TEXT reflect·call(SB), NOSPLIT, $0-0
-	B	·reflectcall(SB)
-
 TEXT ·reflectcall(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW	argsize+12(FP), R0
 	DISPATCH(runtime·call16, 16)
@@ -514,7 +511,7 @@ TEXT callRet<>(SB), NOSPLIT, $16-0
 	MOVW	R1, 12(R13)
 	MOVW	R2, 16(R13)
 	BL	runtime·reflectcallmove(SB)
-	RET	
+	RET
 
 CALLFN(·call16, 16)
 CALLFN(·call32, 32)
@@ -673,7 +670,7 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$16-16
 // See cgocall.go for more details.
 TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-16
 	NO_LOCAL_POINTERS
-	
+
 	// Load m and g from thread-local storage.
 	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
@@ -784,6 +781,9 @@ TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	R0, g
 
 	// Save g to thread-local storage.
+#ifdef GOOS_windows
+	B	runtime·save_g(SB)
+#else
 	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
 	B.EQ	2(PC)
@@ -791,6 +791,7 @@ TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
 
 	MOVW	g, R0
 	RET
+#endif
 
 TEXT runtime·emptyfunc(SB),0,$0-0
 	RET
@@ -851,12 +852,12 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$8
 	// callee-save in the gcc calling convention, so save them here.
 	MOVW	R11, saveR11-4(SP)
 	MOVW	g, saveG-8(SP)
-	
+
 	BL	runtime·load_g(SB)
 	MOVW	g_m(g), R0
 	MOVW	m_curg(R0), R0
 	MOVW	(g_stack+stack_hi)(R0), R0
-	
+
 	MOVW	saveG-8(SP), g
 	MOVW	saveR11-4(SP), R11
 	RET

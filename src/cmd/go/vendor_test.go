@@ -37,7 +37,7 @@ func TestVendorImports(t *testing.T) {
 		vend/x/vendor/p/p [notfound]
 		vend/x/vendor/r []
 	`
-	want = strings.Replace(want+"\t", "\n\t\t", "\n", -1)
+	want = strings.ReplaceAll(want+"\t", "\n\t\t", "\n")
 	want = strings.TrimPrefix(want, "\n")
 
 	have := tg.stdout.String()

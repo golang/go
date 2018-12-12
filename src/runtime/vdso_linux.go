@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build linux
-// +build 386 amd64 arm arm64
+// +build 386 amd64 arm arm64 ppc64 ppc64le
 
 package runtime
 
@@ -41,6 +41,8 @@ const (
 	_SHT_DYNSYM = 11 /* Dynamic linker symbol table */
 
 	_STT_FUNC = 2 /* Symbol is a code object */
+
+	_STT_NOTYPE = 0 /* Symbol type is not specified */
 
 	_STB_GLOBAL = 1 /* Global symbol */
 	_STB_WEAK   = 2 /* Weak symbol */
@@ -212,7 +214,8 @@ func vdsoParseSymbols(info *vdsoInfo, version int32) {
 		sym := &info.symtab[symIndex]
 		typ := _ELF_ST_TYPE(sym.st_info)
 		bind := _ELF_ST_BIND(sym.st_info)
-		if typ != _STT_FUNC || bind != _STB_GLOBAL && bind != _STB_WEAK || sym.st_shndx == _SHN_UNDEF {
+		// On ppc64x, VDSO functions are of type _STT_NOTYPE.
+		if typ != _STT_FUNC && typ != _STT_NOTYPE || bind != _STB_GLOBAL && bind != _STB_WEAK || sym.st_shndx == _SHN_UNDEF {
 			return false
 		}
 		if k.name != gostringnocopy(&info.symstrings[sym.st_name]) {
@@ -277,7 +280,7 @@ func vdsoauxv(tag, val uintptr) {
 	}
 }
 
-// vdsoMarker returns whether PC is on the VDSO page.
+// vdsoMarker reports whether PC is on the VDSO page.
 func inVDSOPage(pc uintptr) bool {
 	for _, k := range vdsoSymbolKeys {
 		if *k.ptr != 0 {

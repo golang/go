@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
 
 import (
+	"internal/bytealg"
 	"os"
 	"runtime"
 	"sync"
@@ -132,7 +133,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
 		return fallbackOrder
 	}
-	if byteIndex(hostname, '\\') != -1 || byteIndex(hostname, '%') != -1 {
+	if bytealg.IndexByteString(hostname, '\\') != -1 || bytealg.IndexByteString(hostname, '%') != -1 {
 		// Don't deal with special form hostnames with backslashes
 		// or '%'.
 		return fallbackOrder
@@ -301,7 +302,7 @@ func goDebugNetDNS() (dnsMode string, debugLevel int) {
 			dnsMode = s
 		}
 	}
-	if i := byteIndex(goDebug, '+'); i != -1 {
+	if i := bytealg.IndexByteString(goDebug, '+'); i != -1 {
 		parsePart(goDebug[:i])
 		parsePart(goDebug[i+1:])
 		return

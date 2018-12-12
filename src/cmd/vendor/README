@@ -19,3 +19,7 @@ make govendor work and will create the .cache folder in
 $GOROOT as a side-effect. Please make sure to delete
 the directory and not to include the directory in the
 commit by accident.
+
+The vendored copy of golang.org/x/tools is maintained by
+running the update-xtools.sh script in this directory,
+not by govendor.

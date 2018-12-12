@@ -122,6 +122,9 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 					r.SkipChildren()
 					continue
 				}
+				if cu.Val(dwarf.AttrStmtList) == nil {
+					continue
+				}
 				lr, err := d.LineReader(cu)
 				if err != nil {
 					t.Fatal(err)

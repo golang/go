@@ -9,7 +9,7 @@
 set -e
 
 function usage {
-	echo 'race detector is only supported on linux/amd64, linux/ppc64le, freebsd/amd64, netbsd/amd64 and darwin/amd64' 1>&2
+	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64 and darwin/amd64' 1>&2
 	exit 1
 }
 
@@ -21,7 +21,7 @@ case $(uname) in
 	fi
 	;;
 "Linux")
-	if [ $(uname -m) != "x86_64" ] && [ $(uname -m) != "ppc64le" ]; then
+	if [ $(uname -m) != "x86_64" ] && [ $(uname -m) != "ppc64le" ] && [ $(uname -m) != "aarch64" ]; then
 		usage
 	fi
 	;;

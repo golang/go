@@ -53,8 +53,8 @@ func stdRef(ref string) string {
 
 // Convert a reference string to URL-encoding
 func urlRef(ref string) string {
-	ref = strings.Replace(ref, "+", "-", -1)
-	ref = strings.Replace(ref, "/", "_", -1)
+	ref = strings.ReplaceAll(ref, "+", "-")
+	ref = strings.ReplaceAll(ref, "/", "_")
 	return ref
 }
 
@@ -72,7 +72,7 @@ func rawURLRef(ref string) string {
 var funnyEncoding = NewEncoding(encodeStd).WithPadding(rune('@'))
 
 func funnyRef(ref string) string {
-	return strings.Replace(ref, "=", "@", -1)
+	return strings.ReplaceAll(ref, "=", "@")
 }
 
 type encodingTest struct {
@@ -418,7 +418,7 @@ j+mSARB/17pKVXYWHXjsj7yIex0PadzXMO1zT5KHoNA3HT8ietoGhgjsfA+CSnvvqh/jJtqsrwOv
 2b6NGNzXfTYexzJ+nU7/ALkf4P8Awv6P9KvTQQ4AgyDqCF85Pho3CTB7eHwXoH+LT65uZbX9X+o2
 bqbPb06551Y4
 `
-	encodedShort := strings.Replace(encoded, "\n", "", -1)
+	encodedShort := strings.ReplaceAll(encoded, "\n", "")
 
 	dec := NewDecoder(StdEncoding, strings.NewReader(encoded))
 	res1, err := ioutil.ReadAll(dec)

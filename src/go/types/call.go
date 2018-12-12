@@ -374,20 +374,28 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		switch {
 		case index != nil:
 			// TODO(gri) should provide actual type where the conflict happens
-			check.invalidOp(e.Sel.Pos(), "ambiguous selector %s", sel)
+			check.errorf(e.Sel.Pos(), "ambiguous selector %s", sel)
 		case indirect:
-			check.invalidOp(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
+			// TODO(gri) be more specific with this error message
+			check.errorf(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
 		default:
-			check.invalidOp(e.Sel.Pos(), "%s has no field or method %s", x, sel)
+			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
+			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no field or method %s)", x.expr, sel, x.typ, sel)
 		}
 		goto Error
+	}
+
+	// methods may not have a fully set up signature yet
+	if m, _ := obj.(*Func); m != nil {
+		check.objDecl(m, nil)
 	}
 
 	if x.mode == typexpr {
 		// method expression
 		m, _ := obj.(*Func)
 		if m == nil {
-			check.invalidOp(e.Sel.Pos(), "%s has no method %s", x, sel)
+			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
+			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
 			goto Error
 		}
 

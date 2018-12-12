@@ -130,8 +130,9 @@ type stackt struct {
 }
 
 type timespec struct {
-	tv_sec  int64
-	tv_nsec int32
+	tv_sec    int64
+	tv_nsec   int32
+	pad_cgo_0 [4]byte
 }
 
 func (ts *timespec) set_sec(x int64) {
@@ -143,8 +144,9 @@ func (ts *timespec) set_nsec(x int32) {
 }
 
 type timeval struct {
-	tv_sec  int64
-	tv_usec int32
+	tv_sec    int64
+	tv_usec   int32
+	pad_cgo_0 [4]byte
 }
 
 func (tv *timeval) set_usec(x int32) {
@@ -157,10 +159,12 @@ type itimerval struct {
 }
 
 type keventt struct {
-	ident  uint32
-	filter int16
-	flags  uint16
-	fflags uint32
-	data   int64
-	udata  *byte
+	ident     uint32
+	filter    int16
+	flags     uint16
+	fflags    uint32
+	pad_cgo_0 [4]byte
+	data      int64
+	udata     *byte
+	pad_cgo_1 [4]byte
 }

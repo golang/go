@@ -70,16 +70,10 @@ func ExampleFileMode() {
 func ExampleIsNotExist() {
 	filename := "a-nonexistent-file"
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		fmt.Printf("file does not exist")
+		fmt.Println("file does not exist")
 	}
 	// Output:
 	// file does not exist
-}
-
-func init() {
-	os.Setenv("USER", "gopher")
-	os.Setenv("HOME", "/usr/gopher")
-	os.Unsetenv("GOPATH")
 }
 
 func ExampleExpand() {
@@ -87,21 +81,24 @@ func ExampleExpand() {
 		switch placeholderName {
 		case "DAY_PART":
 			return "morning"
-		case "USER":
+		case "NAME":
 			return "Gopher"
 		}
 
 		return ""
 	}
 
-	fmt.Println(os.Expand("Good ${DAY_PART}, $USER!", mapper))
+	fmt.Println(os.Expand("Good ${DAY_PART}, $NAME!", mapper))
 
 	// Output:
 	// Good morning, Gopher!
 }
 
 func ExampleExpandEnv() {
-	fmt.Println(os.ExpandEnv("$USER lives in ${HOME}."))
+	os.Setenv("NAME", "gopher")
+	os.Setenv("BURROW", "/usr/gopher")
+
+	fmt.Println(os.ExpandEnv("$NAME lives in ${BURROW}."))
 
 	// Output:
 	// gopher lives in /usr/gopher.
@@ -117,16 +114,24 @@ func ExampleLookupEnv() {
 		}
 	}
 
-	show("USER")
-	show("GOPATH")
+	os.Setenv("SOME_KEY", "value")
+	os.Setenv("EMPTY_KEY", "")
+
+	show("SOME_KEY")
+	show("EMPTY_KEY")
+	show("MISSING_KEY")
 
 	// Output:
-	// USER=gopher
-	// GOPATH not set
+	// SOME_KEY=value
+	// EMPTY_KEY=
+	// MISSING_KEY not set
 }
 
 func ExampleGetenv() {
-	fmt.Printf("%s lives in %s.\n", os.Getenv("USER"), os.Getenv("HOME"))
+	os.Setenv("NAME", "gopher")
+	os.Setenv("BURROW", "/usr/gopher")
+
+	fmt.Printf("%s lives in %s.\n", os.Getenv("NAME"), os.Getenv("BURROW"))
 
 	// Output:
 	// gopher lives in /usr/gopher.

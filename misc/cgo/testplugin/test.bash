@@ -32,6 +32,14 @@ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=unnamed1.so u
 GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=unnamed2.so unnamed2/main.go
 GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" host
 
+# test that DWARF sections are emitted for plugins and programs importing "plugin"
+if [ $GOOS != "darwin" ]; then
+	# On macOS, for some reason, the linker doesn't add debug sections to .so,
+	# see issue #27502.
+	go run src/checkdwarf/main.go plugin2.so plugin2.UnexportedNameReuse
+fi
+go run src/checkdwarf/main.go host main.main
+
 LD_LIBRARY_PATH=$(pwd) ./host
 
 # Test that types and itabs get properly uniqified.

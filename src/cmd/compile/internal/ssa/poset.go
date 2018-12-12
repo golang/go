@@ -114,7 +114,7 @@ type posetNode struct {
 // given that non-equality is not transitive, the only effect is that a later call
 // to SetEqual for the same values will fail. NonEqual checks whether it is known that
 // the nodes are different, either because SetNonEqual was called before, or because
-// we know that that they are strictly ordered.
+// we know that they are strictly ordered.
 //
 // It is implemented as a forest of DAGs; in each DAG, if node A dominates B,
 // it means that A<B. Equality is represented by mapping two SSA values to the same
@@ -781,7 +781,7 @@ func (po *poset) DotDump(fn string, title string) error {
 	return nil
 }
 
-// Ordered returns true if n1<n2. It returns false either when it is
+// Ordered reports whether n1<n2. It returns false either when it is
 // certain that n1<n2 is false, or if there is not enough information
 // to tell.
 // Complexity is O(n).
@@ -799,7 +799,7 @@ func (po *poset) Ordered(n1, n2 *Value) bool {
 	return i1 != i2 && po.dominates(i1, i2, true)
 }
 
-// Ordered returns true if n1<=n2. It returns false either when it is
+// Ordered reports whether n1<=n2. It returns false either when it is
 // certain that n1<=n2 is false, or if there is not enough information
 // to tell.
 // Complexity is O(n).
@@ -818,7 +818,7 @@ func (po *poset) OrderedOrEqual(n1, n2 *Value) bool {
 		(po.dominates(i2, i1, false) && !po.dominates(i2, i1, true))
 }
 
-// Equal returns true if n1==n2. It returns false either when it is
+// Equal reports whether n1==n2. It returns false either when it is
 // certain that n1==n2 is false, or if there is not enough information
 // to tell.
 // Complexity is O(1).
@@ -832,7 +832,7 @@ func (po *poset) Equal(n1, n2 *Value) bool {
 	return f1 && f2 && i1 == i2
 }
 
-// NonEqual returns true if n1!=n2. It returns false either when it is
+// NonEqual reports whether n1!=n2. It returns false either when it is
 // certain that n1!=n2 is false, or if there is not enough information
 // to tell.
 // Complexity is O(n) (because it internally calls Ordered to see if we

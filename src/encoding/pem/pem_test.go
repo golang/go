@@ -26,6 +26,10 @@ var getLineTests = []GetLineTest{
 	{"abc\r\nd", "abc", "d"},
 	{"\nabc", "", "abc"},
 	{"\r\nabc", "", "abc"},
+	{"abc\t \nd", "abc", "d"},
+	{"\t abc\nd", "\t abc", "d"},
+	{"abc\n\t d", "abc", "\t d"},
+	{"abc\nd\t ", "abc", "d\t "},
 }
 
 func TestGetLine(t *testing.T) {
@@ -213,7 +217,9 @@ func TestFuzz(t *testing.T) {
 	}
 
 	testRoundtrip := func(block Block) bool {
-		if isBad(block.Type) {
+		// Reject bad Type
+		// Type with colons will proceed as key/val pair and cause an error.
+		if isBad(block.Type) || strings.Contains(block.Type, ":") {
 			return true
 		}
 		for key, val := range block.Headers {

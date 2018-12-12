@@ -7,7 +7,7 @@
 package atomic
 
 import (
-	"runtime/internal/sys"
+	"internal/cpu"
 	"unsafe"
 )
 
@@ -31,7 +31,7 @@ func (l *spinlock) unlock() {
 
 var locktab [57]struct {
 	l   spinlock
-	pad [sys.CacheLineSize - unsafe.Sizeof(spinlock{})]byte
+	pad [cpu.CacheLinePadSize - unsafe.Sizeof(spinlock{})]byte
 }
 
 func addrLock(addr *uint64) *spinlock {
@@ -73,6 +73,9 @@ func StorepNoWB(addr unsafe.Pointer, v unsafe.Pointer)
 
 //go:noescape
 func Store(addr *uint32, v uint32)
+
+//go:noescape
+func StoreRel(addr *uint32, v uint32)
 
 //go:nosplit
 func goCas64(addr *uint64, old, new uint64) bool {
@@ -182,7 +185,13 @@ func Load(addr *uint32) uint32
 func Loadp(addr unsafe.Pointer) unsafe.Pointer
 
 //go:noescape
+func LoadAcq(addr *uint32) uint32
+
+//go:noescape
 func Cas64(addr *uint64, old, new uint64) bool
+
+//go:noescape
+func CasRel(addr *uint32, old, new uint32) bool
 
 //go:noescape
 func Xadd64(addr *uint64, delta int64) uint64

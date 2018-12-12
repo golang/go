@@ -83,6 +83,13 @@ func syscall_close(fd int32) int32 {
 	return int32(sysvicall1(&libc_close, uintptr(fd)))
 }
 
+const _F_DUP2FD = 0x9
+
+//go:nosplit
+func syscall_dup2(oldfd, newfd uintptr) (val, err uintptr) {
+	return syscall_fcntl(oldfd, _F_DUP2FD, newfd)
+}
+
 //go:nosplit
 func syscall_execve(path, argv, envp uintptr) (err uintptr) {
 	call := libcall{

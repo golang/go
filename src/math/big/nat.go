@@ -58,6 +58,10 @@ func (z nat) make(n int) nat {
 	if n <= cap(z) {
 		return z[:n] // reuse z
 	}
+	if n == 1 {
+		// Most nats start small and stay that way; don't over-allocate.
+		return make(nat, 1)
+	}
 	// Choosing a good value for e has significant performance impact
 	// because it increases the chance that a value can be reused.
 	const e = 4 // extra capacity
@@ -680,43 +684,36 @@ func putNat(x *nat) {
 
 var natPool sync.Pool
 
-// q = (uIn-r)/v, with 0 <= r < y
+// q = (uIn-r)/vIn, with 0 <= r < y
 // Uses z as storage for q, and u as storage for r if possible.
 // See Knuth, Volume 2, section 4.3.1, Algorithm D.
 // Preconditions:
-//    len(v) >= 2
-//    len(uIn) >= len(v)
-func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
-	n := len(v)
+//    len(vIn) >= 2
+//    len(uIn) >= len(vIn)
+//    u must not alias z
+func (z nat) divLarge(u, uIn, vIn nat) (q, r nat) {
+	n := len(vIn)
 	m := len(uIn) - n
 
-	// determine if z can be reused
-	// TODO(gri) should find a better solution - this if statement
-	//           is very costly (see e.g. time pidigits -s -n 10000)
-	if alias(z, u) || alias(z, uIn) || alias(z, v) {
-		z = nil // z is an alias for u or uIn or v - cannot reuse
+	// D1.
+	shift := nlz(vIn[n-1])
+	// do not modify vIn, it may be used by another goroutine simultaneously
+	vp := getNat(n)
+	v := *vp
+	shlVU(v, vIn, shift)
+
+	// u may safely alias uIn or vIn, the value of uIn is used to set u and vIn was already used
+	u = u.make(len(uIn) + 1)
+	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
+
+	// z may safely alias uIn or vIn, both values were used already
+	if alias(z, u) {
+		z = nil // z is an alias for u - cannot reuse
 	}
 	q = z.make(m + 1)
 
 	qhatvp := getNat(n + 1)
 	qhatv := *qhatvp
-	if alias(u, uIn) || alias(u, v) {
-		u = nil // u is an alias for uIn or v - cannot reuse
-	}
-	u = u.make(len(uIn) + 1)
-	u.clear() // TODO(gri) no need to clear if we allocated a new u
-
-	// D1.
-	var v1p *nat
-	shift := nlz(v[n-1])
-	if shift > 0 {
-		// do not modify v, it may be used by another goroutine simultaneously
-		v1p = getNat(n)
-		v1 := *v1p
-		shlVU(v1, v, shift)
-		v = v1
-	}
-	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
 
 	// D2.
 	vn1 := v[n-1]
@@ -756,9 +753,8 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 
 		q[j] = qhat
 	}
-	if v1p != nil {
-		putNat(v1p)
-	}
+
+	putNat(vp)
 	putNat(qhatvp)
 
 	q = q.norm()

@@ -75,7 +75,10 @@
 //
 package time
 
-import "errors"
+import (
+	"errors"
+	_ "unsafe" // for go:linkname
+)
 
 // A Time represents an instant in time with nanosecond precision.
 //
@@ -101,6 +104,10 @@ import "errors"
 // Changing the location in this way changes only the presentation; it does not
 // change the instant in time being denoted and therefore does not affect the
 // computations described in earlier paragraphs.
+//
+// Representations of a Time value saved by the GobEncode, MarshalBinary,
+// MarshalJSON, and MarshalText methods store the Time.Location's offset, but not
+// the location name. They therefore lose information about Daylight Saving Time.
 //
 // In addition to the required “wall clock” reading, a Time may contain an optional
 // reading of the current process's monotonic clock, to provide additional precision
@@ -908,13 +915,27 @@ func (t Time) Sub(u Time) Duration {
 // Since returns the time elapsed since t.
 // It is shorthand for time.Now().Sub(t).
 func Since(t Time) Duration {
-	return Now().Sub(t)
+	var now Time
+	if t.wall&hasMonotonic != 0 {
+		// Common case optimization: if t has monotomic time, then Sub will use only it.
+		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
+	} else {
+		now = Now()
+	}
+	return now.Sub(t)
 }
 
 // Until returns the duration until t.
 // It is shorthand for t.Sub(time.Now()).
 func Until(t Time) Duration {
-	return t.Sub(Now())
+	var now Time
+	if t.wall&hasMonotonic != 0 {
+		// Common case optimization: if t has monotomic time, then Sub will use only it.
+		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
+	} else {
+		now = Now()
+	}
+	return t.Sub(now)
 }
 
 // AddDate returns the time corresponding to adding the
@@ -933,7 +954,7 @@ func (t Time) AddDate(years int, months int, days int) Time {
 
 const (
 	secondsPerMinute = 60
-	secondsPerHour   = 60 * 60
+	secondsPerHour   = 60 * secondsPerMinute
 	secondsPerDay    = 24 * secondsPerHour
 	secondsPerWeek   = 7 * secondsPerDay
 	daysPer400Years  = 365*400 + 97
@@ -1050,9 +1071,22 @@ func daysIn(m Month, year int) int {
 // Provided by package runtime.
 func now() (sec int64, nsec int32, mono int64)
 
+// runtimeNano returns the current value of the runtime clock in nanoseconds.
+//go:linkname runtimeNano runtime.nanotime
+func runtimeNano() int64
+
+// Monotonic times are reported as offsets from startNano.
+// We initialize startNano to runtimeNano() - 1 so that on systems where
+// monotonic time resolution is fairly low (e.g. Windows 2008
+// which appears to have a default resolution of 15ms),
+// we avoid ever reporting a monotonic time of 0.
+// (Callers may want to use 0 as "time not set".)
+var startNano int64 = runtimeNano() - 1
+
 // Now returns the current local time.
 func Now() Time {
 	sec, nsec, mono := now()
+	mono -= startNano
 	sec += unixToInternal - minWall
 	if uint64(sec)>>33 != 0 {
 		return Time{uint64(nsec), sec + minWall, Local}
@@ -1076,7 +1110,7 @@ func (t Time) Local() Time {
 	return t
 }
 
-// In returns a copy of t representating the same time instant, but
+// In returns a copy of t representing the same time instant, but
 // with the copy's location information set to loc for display
 // purposes.
 //

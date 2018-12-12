@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
 )
 
@@ -57,22 +58,29 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
 	r := &gitRepo{remote: remote}
 	if strings.Contains(remote, "://") {
 		// This is a remote path.
-		dir, err := WorkDir(gitWorkDirType, r.remote)
+		var err error
+		r.dir, r.mu.Path, err = WorkDir(gitWorkDirType, r.remote)
 		if err != nil {
 			return nil, err
 		}
-		r.dir = dir
-		if _, err := os.Stat(filepath.Join(dir, "objects")); err != nil {
-			if _, err := Run(dir, "git", "init", "--bare"); err != nil {
-				os.RemoveAll(dir)
+
+		unlock, err := r.mu.Lock()
+		if err != nil {
+			return nil, err
+		}
+		defer unlock()
+
+		if _, err := os.Stat(filepath.Join(r.dir, "objects")); err != nil {
+			if _, err := Run(r.dir, "git", "init", "--bare"); err != nil {
+				os.RemoveAll(r.dir)
 				return nil, err
 			}
 			// We could just say git fetch https://whatever later,
 			// but this lets us say git fetch origin instead, which
 			// is a little nicer. More importantly, using a named remote
 			// avoids a problem with Git LFS. See golang.org/issue/25605.
-			if _, err := Run(dir, "git", "remote", "add", "origin", r.remote); err != nil {
-				os.RemoveAll(dir)
+			if _, err := Run(r.dir, "git", "remote", "add", "origin", r.remote); err != nil {
+				os.RemoveAll(r.dir)
 				return nil, err
 			}
 			r.remote = "origin"
@@ -97,6 +105,7 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
 			return nil, fmt.Errorf("%s exists but is not a directory", remote)
 		}
 		r.dir = remote
+		r.mu.Path = r.dir + ".lock"
 	}
 	return r, nil
 }
@@ -106,7 +115,8 @@ type gitRepo struct {
 	local  bool
 	dir    string
 
-	mu         sync.Mutex // protects fetchLevel, some git repo state
+	mu lockedfile.Mutex // protects fetchLevel and git repo state
+
 	fetchLevel int
 
 	statCache par.Cache
@@ -304,11 +314,11 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 	}
 
 	// Protect r.fetchLevel and the "fetch more and more" sequence.
-	// TODO(rsc): Add LockDir and use it for protecting that
-	// sequence, so that multiple processes don't collide in their
-	// git commands.
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 
 	// Perhaps r.localTags did not have the ref when we loaded local tags,
 	// but we've since done fetches that pulled down the hash we need
@@ -347,9 +357,9 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 		if err == nil {
 			return r.statLocal(rev, ref)
 		}
-		if !strings.Contains(err.Error(), "unadvertised object") && !strings.Contains(err.Error(), "no such remote ref") && !strings.Contains(err.Error(), "does not support shallow") {
-			return nil, err
-		}
+		// Don't try to be smart about parsing the error.
+		// It's too complex and varies too much by git version.
+		// No matter what went wrong, fall back to a complete fetch.
 	}
 
 	// Last resort.
@@ -495,8 +505,11 @@ func (r *gitRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[s
 
 	// Protect r.fetchLevel and the "fetch more and more" sequence.
 	// See stat method above.
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 
 	var refs []string
 	var protoFlag []string
@@ -658,8 +671,11 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
 	// There are plausible tags, but we don't know if rev is a descendent of any of them.
 	// Fetch the history to find out.
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
 
 	if r.fetchLevel < fetchAll {
 		// Fetch all heads and tags and see if that gives us enough history.
@@ -678,7 +694,7 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
 	// unreachable for a reason).
 	//
 	// Try one last time in case some other goroutine fetched rev while we were
-	// waiting on r.mu.
+	// waiting on the lock.
 	describe()
 	return tag, err
 }
@@ -691,6 +707,16 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 	}
 	info, err := r.Stat(rev) // download rev into local git repo
 	if err != nil {
+		return nil, "", err
+	}
+
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return nil, "", err
+	}
+	defer unlock()
+
+	if err := ensureGitAttributes(r.dir); err != nil {
 		return nil, "", err
 	}
 
@@ -708,4 +734,44 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 	}
 
 	return ioutil.NopCloser(bytes.NewReader(archive)), "", nil
+}
+
+// ensureGitAttributes makes sure export-subst and export-ignore features are
+// disabled for this repo. This is intended to be run prior to running git
+// archive so that zip files are generated that produce consistent ziphashes
+// for a given revision, independent of variables such as git version and the
+// size of the repo.
+//
+// See: https://github.com/golang/go/issues/27153
+func ensureGitAttributes(repoDir string) (err error) {
+	const attr = "\n* -export-subst -export-ignore\n"
+
+	d := repoDir + "/info"
+	p := d + "/attributes"
+
+	if err := os.MkdirAll(d, 0755); err != nil {
+		return err
+	}
+
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		closeErr := f.Close()
+		if closeErr != nil {
+			err = closeErr
+		}
+	}()
+
+	b, err := ioutil.ReadAll(f)
+	if err != nil {
+		return err
+	}
+	if !bytes.HasSuffix(b, []byte(attr)) {
+		_, err := f.WriteString(attr)
+		return err
+	}
+
+	return nil
 }

@@ -43,9 +43,7 @@ const (
 
 	TBOOL
 
-	TPTR32
-	TPTR64
-
+	TPTR
 	TFUNC
 	TSLICE
 	TARRAY
@@ -137,13 +135,13 @@ type Type struct {
 	// TFUNCARGS: FuncArgs
 	// TCHANARGS: ChanArgs
 	// TCHAN: *Chan
-	// TPTR32, TPTR64: Ptr
+	// TPTR: Ptr
 	// TARRAY: *Array
 	// TSLICE: Slice
 	Extra interface{}
 
 	// Width is the width of this Type in bytes.
-	Width int64
+	Width int64 // valid if Align > 0
 
 	methods    Fields
 	allMethods Fields
@@ -151,23 +149,26 @@ type Type struct {
 	Nod  *Node // canonical OTYPE node
 	Orig *Type // original type (type literal or predefined type)
 
-	SliceOf *Type
-	PtrBase *Type
+	// Cache of composite types, with this type being the element type.
+	Cache struct {
+		ptr   *Type // *T, or nil
+		slice *Type // []T, or nil
+	}
 
 	Sym    *Sym  // symbol containing name, for named types
 	Vargen int32 // unique name for OTYPE/ONAME
 
 	Etype EType // kind of type
-	Align uint8 // the required alignment of this type, in bytes
+	Align uint8 // the required alignment of this type, in bytes (0 means Width and Align have not yet been computed)
 
 	flags bitset8
 }
 
 const (
-	typeNotInHeap = 1 << iota // type cannot be heap allocated
-	typeBroke                 // broken type definition
-	typeNoalg                 // suppress hash and eq algorithm generation
-	typeDeferwidth
+	typeNotInHeap  = 1 << iota // type cannot be heap allocated
+	typeBroke                  // broken type definition
+	typeNoalg                  // suppress hash and eq algorithm generation
+	typeDeferwidth             // width computation has been deferred and type is on deferredTypeStack
 	typeRecur
 )
 
@@ -373,16 +374,16 @@ type Field struct {
 }
 
 const (
-	fieldIsddd = 1 << iota // field is ... argument
+	fieldIsDDD = 1 << iota // field is ... argument
 	fieldBroke             // broken field definition
 	fieldNointerface
 )
 
-func (f *Field) Isddd() bool       { return f.flags&fieldIsddd != 0 }
+func (f *Field) IsDDD() bool       { return f.flags&fieldIsDDD != 0 }
 func (f *Field) Broke() bool       { return f.flags&fieldBroke != 0 }
 func (f *Field) Nointerface() bool { return f.flags&fieldNointerface != 0 }
 
-func (f *Field) SetIsddd(b bool)       { f.flags.set(fieldIsddd, b) }
+func (f *Field) SetIsDDD(b bool)       { f.flags.set(fieldIsDDD, b) }
 func (f *Field) SetBroke(b bool)       { f.flags.set(fieldBroke, b) }
 func (f *Field) SetNointerface(b bool) { f.flags.set(fieldNointerface, b) }
 
@@ -461,7 +462,7 @@ func New(et EType) *Type {
 		t.Extra = new(Struct)
 	case TINTER:
 		t.Extra = new(Interface)
-	case TPTR32, TPTR64:
+	case TPTR:
 		t.Extra = Ptr{}
 	case TCHANARGS:
 		t.Extra = ChanArgs{}
@@ -490,7 +491,7 @@ func NewArray(elem *Type, bound int64) *Type {
 
 // NewSlice returns the slice Type with element type elem.
 func NewSlice(elem *Type) *Type {
-	if t := elem.SliceOf; t != nil {
+	if t := elem.Cache.slice; t != nil {
 		if t.Elem() != elem {
 			Fatalf("elem mismatch")
 		}
@@ -499,7 +500,7 @@ func NewSlice(elem *Type) *Type {
 
 	t := New(TSLICE)
 	t.Extra = Slice{Elem: elem}
-	elem.SliceOf = t
+	elem.Cache.slice = t
 	return t
 }
 
@@ -553,23 +554,19 @@ func NewPtr(elem *Type) *Type {
 		Fatalf("NewPtr: pointer to elem Type is nil")
 	}
 
-	if t := elem.PtrBase; t != nil {
+	if t := elem.Cache.ptr; t != nil {
 		if t.Elem() != elem {
 			Fatalf("NewPtr: elem mismatch")
 		}
 		return t
 	}
 
-	if Tptr == 0 {
-		Fatalf("NewPtr: Tptr not initialized")
-	}
-
-	t := New(Tptr)
+	t := New(TPTR)
 	t.Extra = Ptr{Elem: elem}
 	t.Width = int64(Widthptr)
 	t.Align = uint8(Widthptr)
 	if NewPtrCacheEnabled {
-		elem.PtrBase = t
+		elem.Cache.ptr = t
 	}
 	return t
 }
@@ -619,7 +616,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 		t = (*types)[0]
 		*types = (*types)[1:]
 
-	case TPTR32, TPTR64:
+	case TPTR:
 		elem := SubstAny(t.Elem(), types)
 		if elem != t.Elem() {
 			t = t.copy()
@@ -668,23 +665,18 @@ func SubstAny(t *Type, types *[]*Type) *Type {
 		}
 
 	case TSTRUCT:
+		// Make a copy of all fields, including ones whose type does not change.
+		// This prevents aliasing across functions, which can lead to later
+		// fields getting their Offset incorrectly overwritten.
 		fields := t.FieldSlice()
-		var nfs []*Field
+		nfs := make([]*Field, len(fields))
 		for i, f := range fields {
 			nft := SubstAny(f.Type, types)
-			if nft == f.Type {
-				continue
-			}
-			if nfs == nil {
-				nfs = append([]*Field(nil), fields...)
-			}
 			nfs[i] = f.Copy()
 			nfs[i].Type = nft
 		}
-		if nfs != nil {
-			t = t.copy()
-			t.SetFields(nfs)
-		}
+		t = t.copy()
+		t.SetFields(nfs)
 	}
 
 	return t
@@ -751,7 +743,7 @@ func (t *Type) NumResults() int { return t.FuncType().Results.NumFields() }
 // IsVariadic reports whether function type t is variadic.
 func (t *Type) IsVariadic() bool {
 	n := t.NumParams()
-	return n > 0 && t.Params().Field(n-1).Isddd()
+	return n > 0 && t.Params().Field(n-1).IsDDD()
 }
 
 // Recv returns the receiver of function type t, if any.
@@ -790,7 +782,7 @@ func (t *Type) Key() *Type {
 // Usable with pointers, channels, arrays, slices, and maps.
 func (t *Type) Elem() *Type {
 	switch t.Etype {
-	case TPTR32, TPTR64:
+	case TPTR:
 		return t.Extra.(Ptr).Elem
 	case TARRAY:
 		return t.Extra.(*Array).Elem
@@ -817,7 +809,7 @@ func (t *Type) ChanArgs() *Type {
 	return t.Extra.(ChanArgs).T
 }
 
-// FuncArgs returns the channel type for TFUNCARGS type t.
+// FuncArgs returns the func type for TFUNCARGS type t.
 func (t *Type) FuncArgs() *Type {
 	t.wantEtype(TFUNCARGS)
 	return t.Extra.(FuncArgs).T
@@ -1101,7 +1093,7 @@ func (t *Type) cmp(x *Type) Cmp {
 		}
 		return t.Elem().cmp(x.Elem())
 
-	case TPTR32, TPTR64, TSLICE:
+	case TPTR, TSLICE:
 		// No special cases for these, they are handled
 		// by the general code after the switch.
 
@@ -1171,8 +1163,8 @@ func (t *Type) cmp(x *Type) Cmp {
 			for i := 0; i < len(tfs) && i < len(xfs); i++ {
 				ta := tfs[i]
 				tb := xfs[i]
-				if ta.Isddd() != tb.Isddd() {
-					return cmpForNe(!ta.Isddd())
+				if ta.IsDDD() != tb.IsDDD() {
+					return cmpForNe(!ta.IsDDD())
 				}
 				if c := ta.Type.cmp(tb.Type); c != CMPeq {
 					return c
@@ -1199,7 +1191,7 @@ func (t *Type) cmp(x *Type) Cmp {
 		panic(e)
 	}
 
-	// Common element type comparison for TARRAY, TCHAN, TPTR32, TPTR64, and TSLICE.
+	// Common element type comparison for TARRAY, TCHAN, TPTR, and TSLICE.
 	return t.Elem().cmp(x.Elem())
 }
 
@@ -1261,7 +1253,12 @@ func (t *Type) IsComplex() bool {
 // IsPtr reports whether t is a regular Go pointer type.
 // This does not include unsafe.Pointer.
 func (t *Type) IsPtr() bool {
-	return t.Etype == TPTR32 || t.Etype == TPTR64
+	return t.Etype == TPTR
+}
+
+// IsPtrElem reports whether t is the element of a pointer (to t).
+func (t *Type) IsPtrElem() bool {
+	return t.Cache.ptr != nil
 }
 
 // IsUnsafePtr reports whether t is an unsafe pointer.
@@ -1275,7 +1272,7 @@ func (t *Type) IsUnsafePtr() bool {
 // that consist of a single pointer shaped type.
 // TODO(mdempsky): Should it? See golang.org/issue/15028.
 func (t *Type) IsPtrShaped() bool {
-	return t.Etype == TPTR32 || t.Etype == TPTR64 || t.Etype == TUNSAFEPTR ||
+	return t.Etype == TPTR || t.Etype == TUNSAFEPTR ||
 		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC
 }
 
@@ -1449,7 +1446,7 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
 		}
 		return false
 
-	case TPTR32, TPTR64, TSLICE:
+	case TPTR, TSLICE:
 		return !(ignoreNotInHeap && t.Elem().NotInHeap())
 
 	case TTUPLE:
@@ -1460,7 +1457,7 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
 	return true
 }
 
-// HasHeapPointer returns whether t contains a heap pointer.
+// HasHeapPointer reports whether t contains a heap pointer.
 // This is used for write barrier insertion, so it ignores
 // pointers to go:notinheap types.
 func (t *Type) HasHeapPointer() bool {

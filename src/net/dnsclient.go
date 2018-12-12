@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"sort"
 
-	"golang_org/x/net/dns/dnsmessage"
+	"internal/x/net/dns/dnsmessage"
 )
 
 // reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
@@ -27,10 +27,10 @@ func reverseaddr(addr string) (arpa string, err error) {
 	// Add it, in reverse, to the buffer
 	for i := len(ip) - 1; i >= 0; i-- {
 		v := ip[i]
-		buf = append(buf, hexDigit[v&0xF])
-		buf = append(buf, '.')
-		buf = append(buf, hexDigit[v>>4])
-		buf = append(buf, '.')
+		buf = append(buf, hexDigit[v&0xF],
+			'.',
+			hexDigit[v>>4],
+			'.')
 	}
 	// Append "ip6.arpa." and return (buf already has the final .)
 	buf = append(buf, "ip6.arpa."...)
@@ -75,7 +75,7 @@ func isDomainName(s string) bool {
 	}
 
 	last := byte('.')
-	ok := false // Ok once we've seen a letter.
+	nonNumeric := false // true once we've seen a letter or hyphen
 	partlen := 0
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -83,7 +83,7 @@ func isDomainName(s string) bool {
 		default:
 			return false
 		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '_':
-			ok = true
+			nonNumeric = true
 			partlen++
 		case '0' <= c && c <= '9':
 			// fine
@@ -94,6 +94,7 @@ func isDomainName(s string) bool {
 				return false
 			}
 			partlen++
+			nonNumeric = true
 		case c == '.':
 			// Byte before dot cannot be dot, dash.
 			if last == '.' || last == '-' {
@@ -110,7 +111,7 @@ func isDomainName(s string) bool {
 		return false
 	}
 
-	return ok
+	return nonNumeric
 }
 
 // absDomainName returns an absolute domain name which ends with a

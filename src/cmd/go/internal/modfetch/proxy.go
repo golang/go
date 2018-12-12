@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"strings"
@@ -209,44 +208,31 @@ func (p *proxyRepo) GoMod(version string) ([]byte, error) {
 	return data, nil
 }
 
-func (p *proxyRepo) Zip(version string, tmpdir string) (tmpfile string, err error) {
+func (p *proxyRepo) Zip(dst io.Writer, version string) error {
 	var body io.ReadCloser
 	encVer, err := module.EncodeVersion(version)
 	if err != nil {
-		return "", err
+		return err
 	}
 	err = webGetBody(p.url+"/@v/"+pathEscape(encVer)+".zip", &body)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer body.Close()
 
-	// Spool to local file.
-	f, err := ioutil.TempFile(tmpdir, "go-proxy-download-")
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	maxSize := int64(codehost.MaxZipFile)
-	lr := &io.LimitedReader{R: body, N: maxSize + 1}
-	if _, err := io.Copy(f, lr); err != nil {
-		os.Remove(f.Name())
-		return "", err
+	lr := &io.LimitedReader{R: body, N: codehost.MaxZipFile + 1}
+	if _, err := io.Copy(dst, lr); err != nil {
+		return err
 	}
 	if lr.N <= 0 {
-		os.Remove(f.Name())
-		return "", fmt.Errorf("downloaded zip file too large")
+		return fmt.Errorf("downloaded zip file too large")
 	}
-	if err := f.Close(); err != nil {
-		os.Remove(f.Name())
-		return "", err
-	}
-	return f.Name(), nil
+	return nil
 }
 
 // pathEscape escapes s so it can be used in a path.
 // That is, it escapes things like ? and # (which really shouldn't appear anyway).
 // It does not escape / to %2F: our REST API is designed so that / can be left as is.
 func pathEscape(s string) string {
-	return strings.Replace(url.PathEscape(s), "%2F", "/", -1)
+	return strings.ReplaceAll(url.PathEscape(s), "%2F", "/")
 }

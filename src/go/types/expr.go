@@ -187,9 +187,18 @@ func roundFloat64(x constant.Value) constant.Value {
 // representable floating-point and complex values, and to an Int
 // value for integer values; it is left alone otherwise.
 // It is ok to provide the addressof the first argument for rounded.
-func representableConst(x constant.Value, conf *Config, typ *Basic, rounded *constant.Value) bool {
+//
+// The check parameter may be nil if representableConst is invoked
+// (indirectly) through an exported API call (AssignableTo, ConvertibleTo)
+// because we don't need the Checker's config for those calls.
+func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *constant.Value) bool {
 	if x.Kind() == constant.Unknown {
 		return true // avoid follow-up errors
+	}
+
+	var conf *Config
+	if check != nil {
+		conf = check.conf
 	}
 
 	switch {
@@ -323,7 +332,7 @@ func representableConst(x constant.Value, conf *Config, typ *Basic, rounded *con
 // representable checks that a constant operand is representable in the given basic type.
 func (check *Checker) representable(x *operand, typ *Basic) {
 	assert(x.mode == constant_)
-	if !representableConst(x.val, check.conf, typ, &x.val) {
+	if !representableConst(x.val, check, typ, &x.val) {
 		var msg string
 		if isNumeric(x.typ) && isNumeric(typ) {
 			// numeric conversion : error msg
@@ -452,7 +461,11 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 			check.invalidOp(x.Pos(), "shifted operand %s (type %s) must be integer", x, typ)
 			return
 		}
-	} else if old.val != nil {
+		// Even if we have an integer, if the value is a constant we
+		// still must check that it is representable as the specific
+		// int type requested (was issue #22969). Fall through here.
+	}
+	if old.val != nil {
 		// If x is a constant, it must be representable as a value of typ.
 		c := operand{old.mode, x, old.typ, old.val, 0}
 		check.convertUntyped(&c, typ)
@@ -576,15 +589,15 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
 	// spec: "In any comparison, the first operand must be assignable
 	// to the type of the second operand, or vice versa."
 	err := ""
-	if x.assignableTo(check.conf, y.typ, nil) || y.assignableTo(check.conf, x.typ, nil) {
+	if x.assignableTo(check, y.typ, nil) || y.assignableTo(check, x.typ, nil) {
 		defined := false
 		switch op {
 		case token.EQL, token.NEQ:
 			// spec: "The equality operators == and != apply to operands that are comparable."
-			defined = Comparable(x.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
+			defined = Comparable(x.typ) && Comparable(y.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
 		case token.LSS, token.LEQ, token.GTR, token.GEQ:
 			// spec: The ordering operators <, <=, >, and >= apply to operands that are ordered."
-			defined = isOrdered(x.typ)
+			defined = isOrdered(x.typ) && isOrdered(y.typ)
 		default:
 			unreachable()
 		}
@@ -1010,7 +1023,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		goto Error // error was reported before
 
 	case *ast.Ident:
-		check.ident(x, e, nil, nil)
+		check.ident(x, e, nil, false)
 
 	case *ast.Ellipsis:
 		// ellipses are handled explicitly where they are legal
@@ -1064,7 +1077,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					break
 				}
 			}
-			typ = check.typExpr(e.Type, nil, nil)
+			typ = check.typ(e.Type)
 			base = typ
 
 		case hint != nil:
@@ -1156,12 +1169,23 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				goto Error
 			}
 			n := check.indexedElts(e.Elts, utyp.elem, utyp.len)
-			// If we have an "open" [...]T array, set the length now that we know it
-			// and record the type for [...] (usually done by check.typExpr which is
-			// not called for [...]).
+			// If we have an array of unknown length (usually [...]T arrays, but also
+			// arrays [n]T where n is invalid) set the length now that we know it and
+			// record the type for the array (usually done by check.typ which is not
+			// called for [...]T). We handle [...]T arrays and arrays with invalid
+			// length the same here because it makes sense to "guess" the length for
+			// the latter if we have a composite literal; e.g. for [n]int{1, 2, 3}
+			// where n is invalid for some reason, it seems fair to assume it should
+			// be 3 (see also Checked.arrayLength and issue #27346).
 			if utyp.len < 0 {
 				utyp.len = n
-				check.recordTypeAndValue(e.Type, typexpr, utyp, nil)
+				// e.Type is missing if we have a composite literal element
+				// that is itself a composite literal with omitted type. In
+				// that case there is nothing to record (there is no type in
+				// the source at that point).
+				if e.Type != nil {
+					check.recordTypeAndValue(e.Type, typexpr, utyp, nil)
+				}
 			}
 
 		case *Slice:
@@ -1433,7 +1457,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.invalidAST(e.Pos(), "use of .(type) outside type switch")
 			goto Error
 		}
-		T := check.typExpr(e.Type, nil, nil)
+		T := check.typ(e.Type)
 		if T == Typ[Invalid] {
 			goto Error
 		}
@@ -1536,7 +1560,7 @@ func keyVal(x constant.Value) interface{} {
 
 // typeAssertion checks that x.(T) is legal; xtyp must be the type of x.
 func (check *Checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface, T Type) {
-	method, wrongType := assertableTo(xtyp, T)
+	method, wrongType := check.assertableTo(xtyp, T)
 	if method == nil {
 		return
 	}

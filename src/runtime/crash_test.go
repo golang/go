@@ -623,6 +623,9 @@ func TestBadTraceback(t *testing.T) {
 }
 
 func TestTimePprof(t *testing.T) {
+	if runtime.GOOS == "aix" {
+		t.Skip("pprof not yet available on AIX (see golang.org/issue/28555)")
+	}
 	fn := runTestProg(t, "testprog", "TimeProf")
 	fn = strings.TrimSpace(fn)
 	defer os.Remove(fn)
@@ -686,7 +689,7 @@ func init() {
 
 func TestRuntimePanic(t *testing.T) {
 	testenv.MustHaveExec(t)
-	cmd := exec.Command(os.Args[0], "-test.run=TestRuntimePanic")
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestRuntimePanic"))
 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_PANIC=1")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)

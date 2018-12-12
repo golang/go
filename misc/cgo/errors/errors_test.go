@@ -121,12 +121,19 @@ func TestReportsTypeErrors(t *testing.T) {
 		"issue16591.go",
 		"issue18452.go",
 		"issue18889.go",
+		"issue26745.go",
+		"issue28721.go",
 	} {
 		check(t, file)
 	}
 
 	if sizeofLongDouble(t) > 8 {
-		check(t, "err4.go")
+		for _, file := range []string{
+			"err4.go",
+			"issue28069.go",
+		} {
+			check(t, file)
+		}
 	}
 }
 

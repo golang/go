@@ -12,8 +12,6 @@ import (
 )
 
 var (
-	flagiexport bool // if set, use indexed export data format
-
 	Debug_export int // if set, print debugging information about export data
 )
 
@@ -75,11 +73,7 @@ func dumpexport(bout *bio.Writer) {
 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
 	exportf(bout, "\n$$B\n") // indicate binary export format
 	off := bout.Offset()
-	if flagiexport {
-		iexport(bout.Writer)
-	} else {
-		export(bout.Writer, Debug_export != 0)
-	}
+	iexport(bout.Writer)
 	size := bout.Offset() - off
 	exportf(bout, "\n$$\n")
 
@@ -88,14 +82,14 @@ func dumpexport(bout *bio.Writer) {
 	}
 }
 
-func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
+func importsym(ipkg *types.Pkg, s *types.Sym, op Op) *Node {
 	n := asNode(s.PkgDef())
 	if n == nil {
 		// iimport should have created a stub ONONAME
 		// declaration for all imported symbols. The exception
 		// is declarations for Runtimepkg, which are populated
 		// by loadsys instead.
-		if flagiexport && s.Pkg != Runtimepkg {
+		if s.Pkg != Runtimepkg {
 			Fatalf("missing ONONAME for %v\n", s)
 		}
 
@@ -113,7 +107,7 @@ func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
 // If no such type has been declared yet, a forward declaration is returned.
 // ipkg is the package being imported
 func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
-	n := importsym(ipkg, pos, s, OTYPE)
+	n := importsym(ipkg, s, OTYPE)
 	if n.Op != OTYPE {
 		t := types.New(TFORW)
 		t.Sym = s
@@ -135,9 +129,9 @@ func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
 // importobj declares symbol s as an imported object representable by op.
 // ipkg is the package being imported
 func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op, ctxt Class, t *types.Type) *Node {
-	n := importsym(ipkg, pos, s, op)
+	n := importsym(ipkg, s, op)
 	if n.Op != ONONAME {
-		if n.Op == op && (n.Class() != ctxt || !eqtype(n.Type, t)) {
+		if n.Op == op && (n.Class() != ctxt || !types.Identical(n.Type, t)) {
 			redeclare(lineno, s, fmt.Sprintf("during import %q", ipkg.Path))
 		}
 		return nil
@@ -146,6 +140,9 @@ func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op, ctxt Class, t
 	n.Op = op
 	n.Pos = pos
 	n.SetClass(ctxt)
+	if ctxt == PFUNC {
+		n.Sym.SetFunc(true)
+	}
 	n.Type = t
 	return n
 }

@@ -1,4 +1,4 @@
-// +build !nacl,!js
+// +build !nacl,!js,!aix,!gcflags_noopt
 // run
 
 // Copyright 2014 The Go Authors. All rights reserved.
@@ -118,11 +118,11 @@ main 136
 # (CallSize is 32 on ppc64, 8 on amd64 for frame pointer.)
 main 96 nosplit
 main 100 nosplit; REJECT ppc64 ppc64le
-main 104 nosplit; REJECT ppc64 ppc64le
+main 104 nosplit; REJECT ppc64 ppc64le arm64
 main 108 nosplit; REJECT ppc64 ppc64le
-main 112 nosplit; REJECT ppc64 ppc64le
+main 112 nosplit; REJECT ppc64 ppc64le arm64
 main 116 nosplit; REJECT ppc64 ppc64le
-main 120 nosplit; REJECT ppc64 ppc64le amd64
+main 120 nosplit; REJECT ppc64 ppc64le amd64 arm64
 main 124 nosplit; REJECT ppc64 ppc64le amd64
 main 128 nosplit; REJECT
 main 132 nosplit; REJECT
@@ -136,11 +136,11 @@ main 136 nosplit; REJECT
 # Because AMD64 uses frame pointer, it has 8 fewer bytes.
 main 96 nosplit call f; f 0 nosplit
 main 100 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
-main 104 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
+main 104 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le arm64
 main 108 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
-main 112 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64
+main 112 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 arm64
 main 116 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64
-main 120 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64
+main 120 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 arm64
 main 124 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 386
 main 128 nosplit call f; f 0 nosplit; REJECT
 main 132 nosplit call f; f 0 nosplit; REJECT
@@ -152,11 +152,11 @@ main 136 nosplit call f; f 0 nosplit; REJECT
 # Architectures differ in the same way as before.
 main 96 nosplit call f; f 0 call f
 main 100 nosplit call f; f 0 call f; REJECT ppc64 ppc64le
-main 104 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
+main 104 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 arm64
 main 108 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
-main 112 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
+main 112 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 arm64
 main 116 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
-main 120 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386
+main 120 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386 arm64
 main 124 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386
 main 128 nosplit call f; f 0 call f; REJECT
 main 132 nosplit call f; f 0 call f; REJECT
@@ -165,11 +165,11 @@ main 136 nosplit call f; f 0 call f; REJECT
 # Indirect calls are assumed to be splitting functions.
 main 96 nosplit callind
 main 100 nosplit callind; REJECT ppc64 ppc64le
-main 104 nosplit callind; REJECT ppc64 ppc64le amd64
+main 104 nosplit callind; REJECT ppc64 ppc64le amd64 arm64
 main 108 nosplit callind; REJECT ppc64 ppc64le amd64
-main 112 nosplit callind; REJECT ppc64 ppc64le amd64
+main 112 nosplit callind; REJECT ppc64 ppc64le amd64 arm64
 main 116 nosplit callind; REJECT ppc64 ppc64le amd64
-main 120 nosplit callind; REJECT ppc64 ppc64le amd64 386
+main 120 nosplit callind; REJECT ppc64 ppc64le amd64 386 arm64
 main 124 nosplit callind; REJECT ppc64 ppc64le amd64 386
 main 128 nosplit callind; REJECT
 main 132 nosplit callind; REJECT
@@ -319,7 +319,7 @@ TestCases:
 					}
 				}
 
-				if size%ptrSize == 4 || goarch == "arm64" && size != 0 && (size+8)%16 != 0 {
+				if size%ptrSize == 4 {
 					continue TestCases
 				}
 				nosplit := m[3]

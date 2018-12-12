@@ -6,6 +6,7 @@ package modload
 
 import (
 	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/module"
 	"cmd/go/internal/semver"
 	"fmt"
@@ -206,23 +207,30 @@ func matchSemverPrefix(p, v string) bool {
 // If multiple modules with revisions matching the query provide the requested
 // package, QueryPackage picks the one with the longest module path.
 //
-// If the path is in the the main module and the query is "latest",
+// If the path is in the main module and the query is "latest",
 // QueryPackage returns Target as the version.
 func QueryPackage(path, query string, allowed func(module.Version) bool) (module.Version, *modfetch.RevInfo, error) {
-	if _, ok := dirInModule(path, Target.Path, ModRoot, true); ok {
-		if query != "latest" {
-			return module.Version{}, nil, fmt.Errorf("can't query specific version (%q) for package %s in the main module (%s)", query, path, Target.Path)
+	if HasModRoot() {
+		if _, ok := dirInModule(path, Target.Path, modRoot, true); ok {
+			if query != "latest" {
+				return module.Version{}, nil, fmt.Errorf("can't query specific version (%q) for package %s in the main module (%s)", query, path, Target.Path)
+			}
+			if !allowed(Target) {
+				return module.Version{}, nil, fmt.Errorf("internal error: package %s is in the main module (%s), but version is not allowed", path, Target.Path)
+			}
+			return Target, &modfetch.RevInfo{Version: Target.Version}, nil
 		}
-		if !allowed(Target) {
-			return module.Version{}, nil, fmt.Errorf("internal error: package %s is in the main module (%s), but version is not allowed", path, Target.Path)
-		}
-		return Target, &modfetch.RevInfo{Version: Target.Version}, nil
 	}
 
 	finalErr := errMissing
-	for p := path; p != "."; p = pathpkg.Dir(p) {
+	for p := path; p != "." && p != "/"; p = pathpkg.Dir(p) {
 		info, err := Query(p, query, allowed)
 		if err != nil {
+			if _, ok := err.(*codehost.VCSError); ok {
+				// A VCSError means we know where to find the code,
+				// we just can't. Abort search.
+				return module.Version{}, nil, err
+			}
 			if finalErr == errMissing {
 				finalErr = err
 			}

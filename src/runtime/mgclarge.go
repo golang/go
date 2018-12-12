@@ -46,13 +46,57 @@ type treapNode struct {
 	priority  uint32     // random number used by treap algorithm to keep tree probabilistically balanced
 }
 
-func (t *treapNode) init() {
-	t.right = nil
-	t.left = nil
-	t.parent = nil
-	t.spanKey = nil
-	t.npagesKey = 0
-	t.priority = 0
+func (t *treapNode) pred() *treapNode {
+	if t.left != nil {
+		// If it has a left child, its predecessor will be
+		// its right most left (grand)child.
+		t = t.left
+		for t.right != nil {
+			t = t.right
+		}
+		return t
+	}
+	// If it has no left child, its predecessor will be
+	// the first grandparent who's right child is its
+	// ancestor.
+	//
+	// We compute this by walking up the treap until the
+	// current node's parent is its parent's right child.
+	//
+	// If we find at any point walking up the treap
+	// that the current node doesn't have a parent,
+	// we've hit the root. This means that t is already
+	// the left-most node in the treap and therefore
+	// has no predecessor.
+	for t.parent != nil && t.parent.right != t {
+		if t.parent.left != t {
+			println("runtime: predecessor t=", t, "t.spanKey=", t.spanKey)
+			throw("node is not its parent's child")
+		}
+		t = t.parent
+	}
+	return t.parent
+}
+
+func (t *treapNode) succ() *treapNode {
+	if t.right != nil {
+		// If it has a right child, its successor will be
+		// its left-most right (grand)child.
+		t = t.right
+		for t.left != nil {
+			t = t.left
+		}
+		return t
+	}
+	// See pred.
+	for t.parent != nil && t.parent.left != t {
+		if t.parent.right != t {
+			println("runtime: predecessor t=", t, "t.spanKey=", t.spanKey)
+			throw("node is not its parent's child")
+		}
+		t = t.parent
+	}
+	return t.parent
 }
 
 // isSpanInTreap is handy for debugging. One should hold the heap lock, usually
@@ -120,10 +164,10 @@ func (root *mTreap) insert(span *mspan) {
 			pt = &t.right
 		} else if t.npagesKey > npages {
 			pt = &t.left
-		} else if uintptr(unsafe.Pointer(t.spanKey)) < uintptr(unsafe.Pointer(span)) {
+		} else if t.spanKey.base() < span.base() {
 			// t.npagesKey == npages, so sort on span addresses.
 			pt = &t.right
-		} else if uintptr(unsafe.Pointer(t.spanKey)) > uintptr(unsafe.Pointer(span)) {
+		} else if t.spanKey.base() > span.base() {
 			pt = &t.left
 		} else {
 			throw("inserting span already in treap")
@@ -140,7 +184,6 @@ func (root *mTreap) insert(span *mspan) {
 	// https://faculty.washington.edu/aragon/pubs/rst89.pdf
 
 	t := (*treapNode)(mheap_.treapalloc.alloc())
-	t.init()
 	t.npagesKey = span.npages
 	t.priority = fastrand()
 	t.spanKey = span
@@ -168,7 +211,6 @@ func (root *mTreap) removeNode(t *treapNode) {
 	if t.spanKey.npages != t.npagesKey {
 		throw("span and treap node npages do not match")
 	}
-
 	// Rotate t down to be leaf of tree for removal, respecting priorities.
 	for t.right != nil || t.left != nil {
 		if t.right == nil || t.left != nil && t.left.priority < t.right.priority {
@@ -188,8 +230,6 @@ func (root *mTreap) removeNode(t *treapNode) {
 		root.treap = nil
 	}
 	// Return the found treapNode's span after freeing the treapNode.
-	t.spanKey = nil
-	t.npagesKey = 0
 	mheap_.treapalloc.free(unsafe.Pointer(t))
 }
 
@@ -231,24 +271,13 @@ func (root *mTreap) removeSpan(span *mspan) {
 			t = t.right
 		} else if t.npagesKey > npages {
 			t = t.left
-		} else if uintptr(unsafe.Pointer(t.spanKey)) < uintptr(unsafe.Pointer(span)) {
+		} else if t.spanKey.base() < span.base() {
 			t = t.right
-		} else if uintptr(unsafe.Pointer(t.spanKey)) > uintptr(unsafe.Pointer(span)) {
+		} else if t.spanKey.base() > span.base() {
 			t = t.left
 		}
 	}
 	root.removeNode(t)
-}
-
-// scavengetreap visits each node in the treap and scavenges the
-// treapNode's span.
-func scavengetreap(treap *treapNode, now, limit uint64) uintptr {
-	if treap == nil {
-		return 0
-	}
-	return scavengeTreapNode(treap, now, limit) +
-		scavengetreap(treap.left, now, limit) +
-		scavengetreap(treap.right, now, limit)
 }
 
 // rotateLeft rotates the tree rooted at node x.

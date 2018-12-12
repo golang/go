@@ -298,6 +298,17 @@ const (
 	linkCgoExternal
 )
 
+func getImageBase(f *File) uintptr {
+	switch oh := f.OptionalHeader.(type) {
+	case *OptionalHeader32:
+		return uintptr(oh.ImageBase)
+	case *OptionalHeader64:
+		return uintptr(oh.ImageBase)
+	default:
+		panic("unexpected optionalheader type")
+	}
+}
+
 func testDWARF(t *testing.T, linktype int) {
 	if runtime.GOOS != "windows" {
 		t.Skip("skipping windows only test")
@@ -347,14 +358,15 @@ func testDWARF(t *testing.T, linktype int) {
 	if err != nil {
 		t.Fatalf("running test executable failed: %s %s", err, out)
 	}
+	t.Logf("Testprog output:\n%s", string(out))
 
-	matches := regexp.MustCompile("main=(.*)\n").FindStringSubmatch(string(out))
+	matches := regexp.MustCompile("offset=(.*)\n").FindStringSubmatch(string(out))
 	if len(matches) < 2 {
 		t.Fatalf("unexpected program output: %s", out)
 	}
-	wantaddr, err := strconv.ParseUint(matches[1], 0, 64)
+	wantoffset, err := strconv.ParseUint(matches[1], 0, 64)
 	if err != nil {
-		t.Fatalf("unexpected main address %q: %s", matches[1], err)
+		t.Fatalf("unexpected main offset %q: %s", matches[1], err)
 	}
 
 	f, err := Open(exe)
@@ -362,6 +374,8 @@ func testDWARF(t *testing.T, linktype int) {
 		t.Fatal(err)
 	}
 	defer f.Close()
+
+	imageBase := getImageBase(f)
 
 	var foundDebugGDBScriptsSection bool
 	for _, sect := range f.Sections {
@@ -389,10 +403,20 @@ func testDWARF(t *testing.T, linktype int) {
 			break
 		}
 		if e.Tag == dwarf.TagSubprogram {
-			if name, ok := e.Val(dwarf.AttrName).(string); ok && name == "main.main" {
-				if addr, ok := e.Val(dwarf.AttrLowpc).(uint64); ok && addr == wantaddr {
-					return
+			name, ok := e.Val(dwarf.AttrName).(string)
+			if ok && name == "main.main" {
+				t.Logf("Found main.main")
+				addr, ok := e.Val(dwarf.AttrLowpc).(uint64)
+				if !ok {
+					t.Fatal("Failed to get AttrLowpc")
 				}
+				offset := uintptr(addr) - imageBase
+				if offset != uintptr(wantoffset) {
+					t.Fatal("Runtime offset (0x%x) did "+
+						"not match dwarf offset "+
+						"(0x%x)", wantoffset, offset)
+				}
+				return
 			}
 		}
 	}
@@ -479,11 +503,52 @@ const testprog = `
 package main
 
 import "fmt"
+import "syscall"
+import "unsafe"
 {{if .}}import "C"
 {{end}}
 
+// struct MODULEINFO from the Windows SDK
+type moduleinfo struct {
+	BaseOfDll uintptr
+	SizeOfImage uint32
+	EntryPoint uintptr
+}
+
+func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(p) + x)
+}
+
+func funcPC(f interface{}) uintptr {
+	var a uintptr
+	return **(**uintptr)(add(unsafe.Pointer(&f), unsafe.Sizeof(a)))
+}
+
 func main() {
+	kernel32 := syscall.MustLoadDLL("kernel32.dll")
+	psapi := syscall.MustLoadDLL("psapi.dll")
+	getModuleHandle := kernel32.MustFindProc("GetModuleHandleW")
+	getCurrentProcess := kernel32.MustFindProc("GetCurrentProcess")
+	getModuleInformation := psapi.MustFindProc("GetModuleInformation")
+
+	procHandle, _, _ := getCurrentProcess.Call()
+	moduleHandle, _, err := getModuleHandle.Call(0)
+	if moduleHandle == 0 {
+		panic(fmt.Sprintf("GetModuleHandle() failed: %d", err))
+	}
+
+	var info moduleinfo
+	ret, _, err := getModuleInformation.Call(procHandle, moduleHandle,
+		uintptr(unsafe.Pointer(&info)), unsafe.Sizeof(info))
+
+	if ret == 0 {
+		panic(fmt.Sprintf("GetModuleInformation() failed: %d", err))
+	}
+
+	offset := funcPC(main) - info.BaseOfDll
+	fmt.Printf("base=0x%x\n", info.BaseOfDll)
 	fmt.Printf("main=%p\n", main)
+	fmt.Printf("offset=0x%x\n", offset)
 }
 `
 
@@ -535,13 +600,15 @@ func TestBuildingWindowsGUI(t *testing.T) {
 
 func TestImportTableInUnknownSection(t *testing.T) {
 	if runtime.GOOS != "windows" {
-		t.Skip("skipping windows only test")
+		t.Skip("skipping Windows-only test")
 	}
 
-	// first we need to find this font driver
-	path, err := exec.LookPath("atmfd.dll")
+	// ws2_32.dll import table is located in ".rdata" section,
+	// so it is good enough to test issue #16103.
+	const filename = "ws2_32.dll"
+	path, err := exec.LookPath(filename)
 	if err != nil {
-		t.Fatalf("unable to locate required file %q in search path: %s", "atmfd.dll", err)
+		t.Fatalf("unable to locate required file %q in search path: %s", filename, err)
 	}
 
 	f, err := Open(path)

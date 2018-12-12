@@ -179,7 +179,7 @@ type Context interface {
 	AddBytes(s Sym, b []byte)
 	AddAddress(s Sym, t interface{}, ofs int64)
 	AddSectionOffset(s Sym, size int, t interface{}, ofs int64)
-	AddDWARFSectionOffset(s Sym, size int, t interface{}, ofs int64)
+	AddDWARFAddrSectionOffset(s Sym, t interface{}, ofs int64)
 	CurrentOffset(s Sym) int64
 	RecordDclReference(from Sym, to Sym, dclIdx int, inlIndex int)
 	RecordChildDieOffsets(s Sym, vars []*Var, offsets []int32)
@@ -304,6 +304,7 @@ const (
 const (
 	DW_ABRV_NULL = iota
 	DW_ABRV_COMPUNIT
+	DW_ABRV_COMPUNIT_TEXTLESS
 	DW_ABRV_FUNCTION
 	DW_ABRV_FUNCTION_ABSTRACT
 	DW_ABRV_FUNCTION_CONCRETE
@@ -363,6 +364,18 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_stmt_list, DW_FORM_sec_offset},
 			{DW_AT_low_pc, DW_FORM_addr},
 			{DW_AT_ranges, DW_FORM_sec_offset},
+			{DW_AT_comp_dir, DW_FORM_string},
+			{DW_AT_producer, DW_FORM_string},
+		},
+	},
+
+	/* COMPUNIT_TEXTLESS */
+	{
+		DW_TAG_compile_unit,
+		DW_CHILDREN_yes,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_language, DW_FORM_data1},
 			{DW_AT_comp_dir, DW_FORM_string},
 			{DW_AT_producer, DW_FORM_string},
 		},
@@ -882,7 +895,7 @@ func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, da
 
 	case DW_FORM_data4: // constant, {line,loclist,mac,rangelist}ptr
 		if cls == DW_CLS_PTR { // DW_AT_stmt_list and DW_AT_ranges
-			ctxt.AddDWARFSectionOffset(s, 4, data, value)
+			ctxt.AddDWARFAddrSectionOffset(s, data, value)
 			break
 		}
 		ctxt.AddInt(s, 4, value)
@@ -919,7 +932,7 @@ func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, da
 		if data == nil {
 			return fmt.Errorf("dwarf: null reference in %d", abbrev)
 		}
-		ctxt.AddDWARFSectionOffset(s, 4, data, value)
+		ctxt.AddDWARFAddrSectionOffset(s, data, value)
 
 	case DW_FORM_ref1, // reference within the compilation unit
 		DW_FORM_ref2,      // reference
@@ -954,7 +967,7 @@ Outer:
 	}
 }
 
-// HasChildren returns true if 'die' uses an abbrev that supports children.
+// HasChildren reports whether 'die' uses an abbrev that supports children.
 func HasChildren(die *DWDie) bool {
 	return abbrevs[die.Abbrev].children != 0
 }

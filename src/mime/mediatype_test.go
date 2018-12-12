@@ -40,6 +40,8 @@ func TestConsumeValue(t *testing.T) {
 		{`"\\" rest`, "\\", " rest"},
 		{`"My \" value"end`, "My \" value", "end"},
 		{`"\" rest`, "", `"\" rest`},
+		{`"C:\dev\go\robots.txt"`, `C:\dev\go\robots.txt`, ""},
+		{`"C:\新建文件件\中文第二次测试.mp4"`, `C:\新建文件件\中文第二次测试.mp4`, ""},
 	}
 	for _, test := range tests {
 		value, rest := consumeValue(test[0])
@@ -393,6 +395,7 @@ func TestParseMediaType(t *testing.T) {
 
 		// Microsoft browers in intranet mode do not think they need to escape \ in file name.
 		{`form-data; name="file"; filename="C:\dev\go\robots.txt"`, "form-data", m("name", "file", "filename", `C:\dev\go\robots.txt`)},
+		{`form-data; name="file"; filename="C:\新建文件件\中文第二次测试.mp4"`, "form-data", m("name", "file", "filename", `C:\新建文件件\中文第二次测试.mp4`)},
 	}
 	for _, test := range tests {
 		mt, params, err := ParseMediaType(test.in)
@@ -478,6 +481,8 @@ var formatTests = []formatTest{
 	{"noslash", map[string]string{"X": "Y"}, "noslash; x=Y"}, // e.g. Content-Disposition values (RFC 2183); issue 11289
 	{"foo bar/baz", nil, ""},
 	{"foo/bar baz", nil, ""},
+	{"attachment", map[string]string{"filename": "ĄĄŽŽČČŠŠ"}, ""},
+	{"attachment", map[string]string{"filename": "ÁÁÊÊÇÇÎÎ"}, ""},
 	{"foo/BAR", nil, "foo/bar"},
 	{"foo/BAR", map[string]string{"X": "Y"}, "foo/bar; x=Y"},
 	{"foo/BAR", map[string]string{"space": "With space"}, `foo/bar; space="With space"`},

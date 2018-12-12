@@ -68,12 +68,12 @@ func badsystemstack() {
 // used only when the caller knows that *ptr contains no heap pointers
 // because either:
 //
-// 1. *ptr is initialized memory and its type is pointer-free.
+// *ptr is initialized memory and its type is pointer-free, or
 //
-// 2. *ptr is uninitialized memory (e.g., memory that's being reused
-//    for a new allocation) and hence contains only "junk".
+// *ptr is uninitialized memory (e.g., memory that's being reused
+// for a new allocation) and hence contains only "junk".
 //
-// in memclr_*.s
+// The (CPU-specific) implementations of this function are in memclr_*.s.
 //go:noescape
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 
@@ -154,6 +154,8 @@ func breakpoint()
 // one call that copies results back, in cgocallbackg1, and it does NOT pass a
 // frame type, meaning there are no write barriers invoked. See that call
 // site for justification.
+//
+// Package reflect accesses this symbol through a linkname.
 func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
 
 func procyield(cycles uint32)
@@ -178,7 +180,7 @@ func goexit(neverCallThisFunction)
 // cgocallback_gofunc is not called from go, only from cgocallback,
 // so the arguments will be found via cgocallback's pointer-declared arguments.
 // See the assembly implementations for more details.
-func cgocallback_gofunc(fv uintptr, frame uintptr, framesize, ctxt uintptr)
+func cgocallback_gofunc(fv, frame, framesize, ctxt uintptr)
 
 // publicationBarrier performs a store/store barrier (a "publication"
 // or "export" barrier). Some form of synchronization is required
@@ -296,7 +298,7 @@ func round(n, a uintptr) uintptr {
 	return (n + a - 1) &^ (a - 1)
 }
 
-// checkASM returns whether assembly runtime checks have passed.
+// checkASM reports whether assembly runtime checks have passed.
 func checkASM() bool
 
 func memequal_varlen(a, b unsafe.Pointer) bool

@@ -133,7 +133,7 @@ func genplt(ctxt *ld.Link) {
 }
 
 func genaddmoduledata(ctxt *ld.Link) {
-	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", 0)
+	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", sym.SymVerABI0)
 	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
 		return
 	}
@@ -236,7 +236,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
 
 	r.Off = int32(stub.Size)
 	r.Sym = plt
-	r.Add = int64(targ.Plt)
+	r.Add = int64(targ.Plt())
 	r.Siz = 2
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
 		r.Off += int32(r.Siz)
@@ -247,7 +247,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
 	r = stub.AddRel()
 	r.Off = int32(stub.Size)
 	r.Sym = plt
-	r.Add = int64(targ.Plt)
+	r.Add = int64(targ.Plt())
 	r.Siz = 2
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
 		r.Off += int32(r.Siz)
@@ -262,6 +262,14 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
 }
 
 func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+	if ctxt.IsELF {
+		return addelfdynrel(ctxt, s, r)
+	} else if ctxt.HeadType == objabi.Haix {
+		return ld.Xcoffadddynrel(ctxt, s, r)
+	}
+	return false
+}
+func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
 
 	switch r.Type {
@@ -280,7 +288,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		// callee. Hence, we need to go to the local entry
 		// point.  (If we don't do this, the callee will try
 		// to use r12 to compute r2.)
-		r.Add += int64(r.Sym.Localentry) * 4
+		r.Add += int64(r.Sym.Localentry()) * 4
 
 		if targ.Type == sym.SDYNIMPORT {
 			// Should have been handled in elfsetupplt
@@ -374,6 +382,13 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 }
 
 func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+	// Beware that bit0~bit15 start from the third byte of a instruction in Big-Endian machines.
+	if r.Type == objabi.R_ADDR || r.Type == objabi.R_POWER_TLS ||  r.Type == objabi.R_CALLPOWER {
+	} else {
+		if ctxt.Arch.ByteOrder == binary.BigEndian {
+			sectoff += 2
+		}
+	}
 	ctxt.Out.Write64(uint64(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
@@ -474,14 +489,47 @@ func symtoc(ctxt *ld.Link, s *sym.Symbol) int64 {
 	return toc.Value
 }
 
-func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+	var o1, o2 uint32
+
+	o1 = uint32(val >> 32)
+	o2 = uint32(val)
+
+	t := ld.Symaddr(r.Sym) + r.Add - ctxt.Syms.ROLookup("TOC", 0).Value // sym addr
+	if t != int64(int32(t)) {
+		ld.Errorf(s, "TOC relocation for %s is too big to relocate %s: 0x%x", s.Name, r.Sym, t)
+	}
+
+	if t&0x8000 != 0 {
+		t += 0x10000
+	}
+
+	o1 |= uint32((t >> 16) & 0xFFFF)
+
+	switch r.Type {
+	case objabi.R_ADDRPOWER_TOCREL_DS:
+		if t&3 != 0 {
+			ld.Errorf(s, "bad DS reloc for %s: %d", s.Name, ld.Symaddr(r.Sym))
+		}
+		o2 |= uint32(t) & 0xFFFC
+	default:
+		return -1
+	}
+
+	return int64(o1)<<32 | int64(o2)
+}
+
+func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+	if ctxt.HeadType == objabi.Haix {
+		ld.Errorf(s, "archrelocaddr called for %s relocation\n", r.Sym.Name)
+	}
 	var o1, o2 uint32
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
-		o1 = uint32(*val >> 32)
-		o2 = uint32(*val)
+		o1 = uint32(val >> 32)
+		o2 = uint32(val)
 	} else {
-		o1 = uint32(*val)
-		o2 = uint32(*val >> 32)
+		o1 = uint32(val)
+		o2 = uint32(val >> 32)
 	}
 
 	// We are spreading a 31-bit address across two instructions, putting the
@@ -493,7 +541,7 @@ func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool 
 
 	t := ld.Symaddr(r.Sym) + r.Add
 	if t < 0 || t >= 1<<31 {
-		ld.Errorf(s, "relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(r.Sym))
+		ld.Errorf(s, "relocation for %s is too big (>=2G): 0x%x", s.Name, ld.Symaddr(r.Sym))
 	}
 	if t&0x8000 != 0 {
 		t += 0x10000
@@ -510,15 +558,13 @@ func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool 
 		}
 		o2 |= uint32(t) & 0xfffc
 	default:
-		return false
+		return -1
 	}
 
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
-		*val = int64(o1)<<32 | int64(o2)
-	} else {
-		*val = int64(o2)<<32 | int64(o1)
+		return int64(o1)<<32 | int64(o2)
 	}
-	return true
+	return int64(o2)<<32 | int64(o1)
 }
 
 // resolve direct jump relocation r in s, and add trampoline if necessary
@@ -623,17 +669,17 @@ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, tramp, target *sym.Symbol, o
 	arch.ByteOrder.PutUint32(tramp.P[12:], o4)
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
 	if ctxt.LinkMode == ld.LinkExternal {
 		switch r.Type {
 		default:
-			return false
+			return val, false
 		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
 			r.Done = false
 			// check Outer is nil, Type is TLSBSS?
 			r.Xadd = r.Add
 			r.Xsym = r.Sym
-			return true
+			return val, true
 		case objabi.R_ADDRPOWER,
 			objabi.R_ADDRPOWER_DS,
 			objabi.R_ADDRPOWER_TOCREL,
@@ -655,24 +701,24 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 			}
 			r.Xsym = rs
 
-			return true
+			return val, true
 		case objabi.R_CALLPOWER:
 			r.Done = false
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
-			return true
+			return val, true
 		}
 	}
 
 	switch r.Type {
 	case objabi.R_CONST:
-		*val = r.Add
-		return true
+		return r.Add, true
 	case objabi.R_GOTOFF:
-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
-		return true
+		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
+	case objabi.R_ADDRPOWER_TOCREL, objabi.R_ADDRPOWER_TOCREL_DS:
+		return archreloctoc(ctxt, r, s, val), true
 	case objabi.R_ADDRPOWER, objabi.R_ADDRPOWER_DS:
-		return archrelocaddr(ctxt, r, s, val)
+		return archrelocaddr(ctxt, r, s, val), true
 	case objabi.R_CALLPOWER:
 		// Bits 6 through 29 = (S + A - P) >> 2
 
@@ -686,26 +732,28 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 		if int64(int32(t<<6)>>6) != t {
 			ld.Errorf(s, "direct call too far: %s %x", r.Sym.Name, t)
 		}
-		*val |= int64(uint32(t) &^ 0xfc000003)
-		return true
+		return val | int64(uint32(t)&^0xfc000003), true
 	case objabi.R_POWER_TOC: // S + A - .TOC.
-		*val = ld.Symaddr(r.Sym) + r.Add - symtoc(ctxt, s)
+		return ld.Symaddr(r.Sym) + r.Add - symtoc(ctxt, s), true
 
-		return true
 	case objabi.R_POWER_TLS_LE:
 		// The thread pointer points 0x7000 bytes after the start of the
 		// thread local storage area as documented in section "3.7.2 TLS
 		// Runtime Handling" of "Power Architecture 64-Bit ELF V2 ABI
 		// Specification".
 		v := r.Sym.Value - 0x7000
+		if ctxt.HeadType == objabi.Haix {
+			// On AIX, the thread pointer points 0x7800 bytes after
+			// the TLS.
+			v -= 0x800
+		}
 		if int64(int16(v)) != v {
 			ld.Errorf(s, "TLS offset out of range %d", v)
 		}
-		*val = (*val &^ 0xffff) | (v & 0xffff)
-		return true
+		return (val &^ 0xffff) | (v & 0xffff), true
 	}
 
-	return false
+	return val, false
 }
 
 func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
@@ -723,9 +771,9 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
 			// overflow depends on the instruction
 			var o1 uint32
 			if ctxt.Arch.ByteOrder == binary.BigEndian {
-				o1 = ld.Be32(s.P[r.Off-2:])
+				o1 = binary.BigEndian.Uint32(s.P[r.Off-2:])
 			} else {
-				o1 = ld.Le32(s.P[r.Off:])
+				o1 = binary.LittleEndian.Uint32(s.P[r.Off:])
 			}
 			switch o1 >> 26 {
 			case 24, // ori
@@ -757,9 +805,9 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
 			// overflow depends on the instruction
 			var o1 uint32
 			if ctxt.Arch.ByteOrder == binary.BigEndian {
-				o1 = ld.Be32(s.P[r.Off-2:])
+				o1 = binary.BigEndian.Uint32(s.P[r.Off-2:])
 			} else {
-				o1 = ld.Le32(s.P[r.Off:])
+				o1 = binary.LittleEndian.Uint32(s.P[r.Off:])
 			}
 			switch o1 >> 26 {
 			case 25, // oris
@@ -781,9 +829,9 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
 	case sym.RV_POWER_DS:
 		var o1 uint32
 		if ctxt.Arch.ByteOrder == binary.BigEndian {
-			o1 = uint32(ld.Be16(s.P[r.Off:]))
+			o1 = uint32(binary.BigEndian.Uint16(s.P[r.Off:]))
 		} else {
-			o1 = uint32(ld.Le16(s.P[r.Off:]))
+			o1 = uint32(binary.LittleEndian.Uint16(s.P[r.Off:]))
 		}
 		if t&3 != 0 {
 			ld.Errorf(s, "relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
@@ -800,7 +848,7 @@ overflow:
 }
 
 func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Plt >= 0 {
+	if s.Plt() >= 0 {
 		return
 	}
 
@@ -832,11 +880,11 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		// JMP_SLOT dynamic relocation for it.
 		//
 		// TODO(austin): ABI v1 is different
-		s.Plt = int32(plt.Size)
+		s.SetPlt(int32(plt.Size))
 
 		plt.Size += 8
 
-		rela.AddAddrPlus(ctxt.Arch, plt, int64(s.Plt))
+		rela.AddAddrPlus(ctxt.Arch, plt, int64(s.Plt()))
 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_PPC64_JMP_SLOT)))
 		rela.AddUint64(ctxt.Arch, 0)
 	} else {
@@ -967,6 +1015,9 @@ func asmb(ctxt *ld.Link) {
 
 		case objabi.Hplan9:
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+
+		case objabi.Haix:
+			// Nothing to do
 		}
 
 		ctxt.Out.SeekSet(int64(symo))
@@ -995,6 +1046,10 @@ func asmb(ctxt *ld.Link) {
 				ctxt.Out.Write(sym.P)
 				ctxt.Out.Flush()
 			}
+
+		case objabi.Haix:
+			// symtab must be added once sections have been created in ld.Asmbxcoff
+			ctxt.Out.Flush()
 		}
 	}
 
@@ -1020,6 +1075,11 @@ func asmb(ctxt *ld.Link) {
 		objabi.Hopenbsd,
 		objabi.Hnacl:
 		ld.Asmbelf(ctxt, int64(symo))
+
+	case objabi.Haix:
+		fileoff := uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+		fileoff = uint32(ld.Rnd(int64(fileoff), int64(*ld.FlagRound)))
+		ld.Asmbxcoff(ctxt, int64(fileoff))
 	}
 
 	ctxt.Out.Flush()

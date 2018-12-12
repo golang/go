@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 9, 2018",
+	"Subtitle": "Version of November 16, 2018",
 	"Path": "/ref/spec"
 }-->
 
@@ -811,7 +811,7 @@ To avoid portability issues all numeric types are <a href="#Type_definitions">de
 types</a> and thus distinct except
 <code>byte</code>, which is an <a href="#Alias_declarations">alias</a> for <code>uint8</code>, and
 <code>rune</code>, which is an alias for <code>int32</code>.
-Conversions
+Explicit conversions
 are required when different numeric types are mixed in an expression
 or assignment. For instance, <code>int32</code> and <code>int</code>
 are not the same type even though they may have the same size on a
@@ -823,6 +823,7 @@ particular architecture.
 <p>
 A <i>string type</i> represents the set of string values.
 A string value is a (possibly empty) sequence of bytes.
+The number of bytes is called the length of the string and is never negative.
 Strings are immutable: once created,
 it is impossible to change the contents of a string.
 The predeclared string type is <code>string</code>;
@@ -830,7 +831,7 @@ it is a <a href="#Type_definitions">defined type</a>.
 </p>
 
 <p>
-The length of a string <code>s</code> (its size in bytes) can be discovered using
+The length of a string <code>s</code> can be discovered using
 the built-in function <a href="#Length_and_capacity"><code>len</code></a>.
 The length is a compile-time constant if the string is a constant.
 A string's bytes can be accessed by integer <a href="#Index_expressions">indices</a>
@@ -846,8 +847,7 @@ string, <code>&amp;s[i]</code> is invalid.
 <p>
 An array is a numbered sequence of elements of a single
 type, called the element type.
-The number of elements is called the length and is never
-negative.
+The number of elements is called the length of the array and is never negative.
 </p>
 
 <pre class="ebnf">
@@ -883,6 +883,7 @@ multi-dimensional types.
 A slice is a descriptor for a contiguous segment of an <i>underlying array</i> and
 provides access to a numbered sequence of elements from that array.
 A slice type denotes the set of all slices of arrays of its element type.
+The number of elements is called the length of the slice and is never negative.
 The value of an uninitialized slice is <code>nil</code>.
 </p>
 
@@ -891,8 +892,7 @@ SliceType = "[" "]" ElementType .
 </pre>
 
 <p>
-Like arrays, slices are indexable and have a length.  The length of a
-slice <code>s</code> can be discovered by the built-in function
+The length of a slice <code>s</code> can be discovered by the built-in function
 <a href="#Length_and_capacity"><code>len</code></a>; unlike with arrays it may change during
 execution.  The elements can be addressed by integer <a href="#Index_expressions">indices</a>
 0 through <code>len(s)-1</code>.  The slice index of a
@@ -1349,7 +1349,8 @@ The optional <code>&lt;-</code> operator specifies the channel <i>direction</i>,
 <i>send</i> or <i>receive</i>. If no direction is given, the channel is
 <i>bidirectional</i>.
 A channel may be constrained only to send or only to receive by
-<a href="#Conversions">conversion</a> or <a href="#Assignments">assignment</a>.
+<a href="#Assignments">assignment</a> or
+explicit <a href="#Conversions">conversion</a>.
 </p>
 
 <pre>
@@ -2069,9 +2070,9 @@ Otherwise, each variable is initialized to its <a href="#The_zero_value">zero va
 If a type is present, each variable is given that type.
 Otherwise, each variable is given the type of the corresponding
 initialization value in the assignment.
-If that value is an untyped constant, it is first
+If that value is an untyped constant, it is first implicitly
 <a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>;
-if it is an untyped boolean value, it is first converted to type <code>bool</code>.
+if it is an untyped boolean value, it is first implicitly converted to type <code>bool</code>.
 The predeclared value <code>nil</code> cannot be used to initialize a variable
 with no explicit type.
 </p>
@@ -2112,8 +2113,8 @@ with initializer expressions but no types:
 i, j := 0, 10
 f := func() int { return 7 }
 ch := make(chan int)
-r, w := os.Pipe(fd)  // os.Pipe() returns two values
-_, y, _ := coord(p)  // coord() returns three values; only interested in y coordinate
+r, w, _ := os.Pipe()  // os.Pipe() returns a connected pair of Files and an error, if any
+_, y, _ := coord(p)   // coord() returns three values; only interested in y coordinate
 </pre>
 
 <p>
@@ -2202,11 +2203,11 @@ Receiver   = Parameters .
 <p>
 The receiver is specified via an extra parameter section preceding the method
 name. That parameter section must declare a single non-variadic parameter, the receiver.
-Its type must be of the form <code>T</code> or <code>*T</code> (possibly using
-parentheses) where <code>T</code> is a type name. The type denoted by <code>T</code> is called
-the receiver <i>base type</i>; it must not be a pointer or interface type and
-it must be <a href="#Type_definitions">defined</a> in the same package as the method.
-The method is said to be <i>bound</i> to the base type and the method name
+Its type must be a <a href="#Type_definitions">defined</a> type <code>T</code> or a
+pointer to a defined type <code>T</code>. <code>T</code> is called the receiver
+<i>base type</i>. A receiver base type cannot be a pointer or interface type and
+it must be defined in the same package as the method.
+The method is said to be <i>bound</i> to its receiver base type and the method name
 is visible only within <a href="#Selectors">selectors</a> for type <code>T</code>
 or <code>*T</code>.
 </p>
@@ -2226,7 +2227,7 @@ the non-blank method and field names must be distinct.
 </p>
 
 <p>
-Given type <code>Point</code>, the declarations
+Given defined type <code>Point</code>, the declarations
 </p>
 
 <pre>
@@ -3260,7 +3261,7 @@ var v, ok T1 = x.(T)
 yields an additional untyped boolean value. The value of <code>ok</code> is <code>true</code>
 if the assertion holds. Otherwise it is <code>false</code> and the value of <code>v</code> is
 the <a href="#The_zero_value">zero value</a> for type <code>T</code>.
-No run-time panic occurs in this case.
+No <a href="#Run_time_panics">run-time panic</a> occurs in this case.
 </p>
 
 
@@ -3433,7 +3434,7 @@ For operations involving constants only, see the section on
 
 <p>
 Except for shift operations, if one operand is an untyped <a href="#Constants">constant</a>
-and the other operand is not, the constant is <a href="#Conversions">converted</a>
+and the other operand is not, the constant is implicitly <a href="#Conversions">converted</a>
 to the type of the other operand.
 </p>
 
@@ -3442,7 +3443,7 @@ The right operand in a shift expression must have unsigned integer type
 or be an untyped constant <a href="#Representability">representable</a> by a
 value of type <code>uint</code>.
 If the left operand of a non-constant shift expression is an untyped constant,
-it is first converted to the type it would assume if the shift expression were
+it is first implicitly converted to the type it would assume if the shift expression were
 replaced by its left operand alone.
 </p>
 
@@ -3624,7 +3625,7 @@ For signed integers, the operations <code>+</code>,
 <code>-</code>, <code>*</code>, <code>/</code>, and <code>&lt;&lt;</code> may legally
 overflow and the resulting value exists and is deterministically defined
 by the signed integer representation, the operation, and its operands.
-No exception is raised as a result of overflow.
+Overflow does not cause a <a href="#Run_time_panics">run-time panic</a>.
 A compiler may not optimize code under the assumption that overflow does
 not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is always true.
 </p>
@@ -3645,7 +3646,7 @@ occurs is implementation-specific.
 An implementation may combine multiple floating-point operations into a single
 fused operation, possibly across statements, and produce a result that differs
 from the value obtained by executing and rounding the instructions individually.
-A floating-point type <a href="#Conversions">conversion</a> explicitly rounds to
+An explicit floating-point type <a href="#Conversions">conversion</a> rounds to
 the precision of the target type, preventing fusion that would discard that rounding.
 </p>
 
@@ -3907,7 +3908,14 @@ channel is closed and empty.
 <h3 id="Conversions">Conversions</h3>
 
 <p>
-Conversions are expressions of the form <code>T(x)</code>
+A conversion changes the <a href="#Types">type</a> of an expression
+to the type specified by the conversion.
+A conversion may appear literally in the source, or it may be <i>implied</i>
+by the context in which an expression appears.
+</p>
+
+<p>
+An <i>explicit</i> conversion is an expression of the form <code>T(x)</code>
 where <code>T</code> is a type and <code>x</code> is an expression
 that can be converted to type <code>T</code>.
 </p>
@@ -3938,7 +3946,7 @@ func() int(x)    // x is converted to func() int (unambiguous)
 A <a href="#Constants">constant</a> value <code>x</code> can be converted to
 type <code>T</code> if <code>x</code> is <a href="#Representability">representable</a>
 by a value of <code>T</code>.
-As a special case, an integer constant <code>x</code> can be converted to a
+As a special case, an integer constant <code>x</code> can be explicitly converted to a
 <a href="#String_types">string type</a> using the
 <a href="#Conversions_to_and_from_a_string_type">same rule</a>
 as for non-constant <code>x</code>.
@@ -4672,13 +4680,13 @@ to the type of the operand to which it is assigned, with the following special c
 <li>
 	If an untyped constant
 	is assigned to a variable of interface type or the blank identifier,
-	the constant is first <a href="#Conversions">converted</a> to its
+	the constant is first implicitly <a href="#Conversions">converted</a> to its
 	 <a href="#Constants">default type</a>.
 </li>
 
 <li>
 	If an untyped boolean value is assigned to a variable of interface type or
-	the blank identifier, it is first converted to type <code>bool</code>.
+	the blank identifier, it is first implicitly converted to type <code>bool</code>.
 </li>
 </ol>
 
@@ -4764,14 +4772,14 @@ ExprSwitchCase = "case" ExpressionList | "default" .
 </pre>
 
 <p>
-If the switch expression evaluates to an untyped constant, it is first
+If the switch expression evaluates to an untyped constant, it is first implicitly
 <a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>;
-if it is an untyped boolean value, it is first converted to type <code>bool</code>.
+if it is an untyped boolean value, it is first implicitly converted to type <code>bool</code>.
 The predeclared untyped value <code>nil</code> cannot be used as a switch expression.
 </p>
 
 <p>
-If a case expression is untyped, it is first <a href="#Conversions">converted</a>
+If a case expression is untyped, it is first implicitly <a href="#Conversions">converted</a>
 to the type of the switch expression.
 For each (possibly converted) case expression <code>x</code> and the value <code>t</code>
 of the switch expression, <code>x == t</code> must be a valid <a href="#Comparison_operators">comparison</a>.
@@ -5546,7 +5554,10 @@ executes, the function value and parameters to the call are
 and saved anew but the actual function is not invoked.
 Instead, deferred functions are invoked immediately before
 the surrounding function returns, in the reverse order
-they were deferred.
+they were deferred. That is, if the surrounding function
+returns through an explicit <a href="#Return_statements">return statement</a>,
+deferred functions are executed <i>after</i> any result parameters are set
+by that return statement but <i>before</i> the function returns to its caller.
 If a deferred function value evaluates
 to <code>nil</code>, execution <a href="#Handling_panics">panics</a>
 when the function is invoked, not when the "defer" statement is executed.
@@ -5572,12 +5583,13 @@ for i := 0; i &lt;= 3; i++ {
 	defer fmt.Print(i)
 }
 
-// f returns 1
+// f returns 42
 func f() (result int) {
 	defer func() {
-		result++
+		// result is accessed after it was set to 6 by the return statement
+		result *= 7
 	}()
-	return 0
+	return 6
 }
 </pre>
 
@@ -5877,7 +5889,7 @@ floating-point type and the return type is the complex type
 with the corresponding floating-point constituents:
 <code>complex64</code> for <code>float32</code> arguments, and
 <code>complex128</code> for <code>float64</code> arguments.
-If one of the arguments evaluates to an untyped constant, it is first
+If one of the arguments evaluates to an untyped constant, it is first implicitly
 <a href="#Conversions">converted</a> to the type of the other argument.
 If both arguments evaluate to untyped constants, they must be non-complex
 numbers or their imaginary parts must be zero, and the return value of

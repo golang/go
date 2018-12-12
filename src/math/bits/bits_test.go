@@ -6,6 +6,7 @@ package bits_test
 
 import (
 	. "math/bits"
+	"runtime"
 	"testing"
 	"unsafe"
 )
@@ -703,6 +704,385 @@ func TestLen(t *testing.T) {
 			}
 		}
 	}
+}
+
+const (
+	_M   = 1<<UintSize - 1
+	_M32 = 1<<32 - 1
+	_M64 = 1<<64 - 1
+)
+
+func TestAddSubUint(t *testing.T) {
+	test := func(msg string, f func(x, y, c uint) (z, cout uint), x, y, c, z, cout uint) {
+		z1, cout1 := f(x, y, c)
+		if z1 != z || cout1 != cout {
+			t.Errorf("%s: got z:cout = %#x:%#x; want %#x:%#x", msg, z1, cout1, z, cout)
+		}
+	}
+	for _, a := range []struct{ x, y, c, z, cout uint }{
+		{0, 0, 0, 0, 0},
+		{0, 1, 0, 1, 0},
+		{0, 0, 1, 1, 0},
+		{0, 1, 1, 2, 0},
+		{12345, 67890, 0, 80235, 0},
+		{12345, 67890, 1, 80236, 0},
+		{_M, 1, 0, 0, 1},
+		{_M, 0, 1, 0, 1},
+		{_M, 1, 1, 1, 1},
+		{_M, _M, 0, _M - 1, 1},
+		{_M, _M, 1, _M, 1},
+	} {
+		test("Add", Add, a.x, a.y, a.c, a.z, a.cout)
+		test("Add symmetric", Add, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub", Sub, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub symmetric", Sub, a.z, a.y, a.c, a.x, a.cout)
+	}
+}
+
+func TestAddSubUint32(t *testing.T) {
+	test := func(msg string, f func(x, y, c uint32) (z, cout uint32), x, y, c, z, cout uint32) {
+		z1, cout1 := f(x, y, c)
+		if z1 != z || cout1 != cout {
+			t.Errorf("%s: got z:cout = %#x:%#x; want %#x:%#x", msg, z1, cout1, z, cout)
+		}
+	}
+	for _, a := range []struct{ x, y, c, z, cout uint32 }{
+		{0, 0, 0, 0, 0},
+		{0, 1, 0, 1, 0},
+		{0, 0, 1, 1, 0},
+		{0, 1, 1, 2, 0},
+		{12345, 67890, 0, 80235, 0},
+		{12345, 67890, 1, 80236, 0},
+		{_M32, 1, 0, 0, 1},
+		{_M32, 0, 1, 0, 1},
+		{_M32, 1, 1, 1, 1},
+		{_M32, _M32, 0, _M32 - 1, 1},
+		{_M32, _M32, 1, _M32, 1},
+	} {
+		test("Add32", Add32, a.x, a.y, a.c, a.z, a.cout)
+		test("Add32 symmetric", Add32, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub32", Sub32, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub32 symmetric", Sub32, a.z, a.y, a.c, a.x, a.cout)
+	}
+}
+
+func TestAddSubUint64(t *testing.T) {
+	test := func(msg string, f func(x, y, c uint64) (z, cout uint64), x, y, c, z, cout uint64) {
+		z1, cout1 := f(x, y, c)
+		if z1 != z || cout1 != cout {
+			t.Errorf("%s: got z:cout = %#x:%#x; want %#x:%#x", msg, z1, cout1, z, cout)
+		}
+	}
+	for _, a := range []struct{ x, y, c, z, cout uint64 }{
+		{0, 0, 0, 0, 0},
+		{0, 1, 0, 1, 0},
+		{0, 0, 1, 1, 0},
+		{0, 1, 1, 2, 0},
+		{12345, 67890, 0, 80235, 0},
+		{12345, 67890, 1, 80236, 0},
+		{_M64, 1, 0, 0, 1},
+		{_M64, 0, 1, 0, 1},
+		{_M64, 1, 1, 1, 1},
+		{_M64, _M64, 0, _M64 - 1, 1},
+		{_M64, _M64, 1, _M64, 1},
+	} {
+		test("Add64", Add64, a.x, a.y, a.c, a.z, a.cout)
+		test("Add64 symmetric", Add64, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub64", Sub64, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub64 symmetric", Sub64, a.z, a.y, a.c, a.x, a.cout)
+	}
+}
+
+func TestMulDiv(t *testing.T) {
+	testMul := func(msg string, f func(x, y uint) (hi, lo uint), x, y, hi, lo uint) {
+		hi1, lo1 := f(x, y)
+		if hi1 != hi || lo1 != lo {
+			t.Errorf("%s: got hi:lo = %#x:%#x; want %#x:%#x", msg, hi1, lo1, hi, lo)
+		}
+	}
+	testDiv := func(msg string, f func(hi, lo, y uint) (q, r uint), hi, lo, y, q, r uint) {
+		q1, r1 := f(hi, lo, y)
+		if q1 != q || r1 != r {
+			t.Errorf("%s: got q:r = %#x:%#x; want %#x:%#x", msg, q1, r1, q, r)
+		}
+	}
+	for _, a := range []struct {
+		x, y      uint
+		hi, lo, r uint
+	}{
+		{1 << (UintSize - 1), 2, 1, 0, 1},
+		{_M, _M, _M - 1, 1, 42},
+	} {
+		testMul("Mul", Mul, a.x, a.y, a.hi, a.lo)
+		testMul("Mul symmetric", Mul, a.y, a.x, a.hi, a.lo)
+		testDiv("Div", Div, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div symmetric", Div, a.hi, a.lo+a.r, a.x, a.y, a.r)
+	}
+}
+
+func TestMulDiv32(t *testing.T) {
+	testMul := func(msg string, f func(x, y uint32) (hi, lo uint32), x, y, hi, lo uint32) {
+		hi1, lo1 := f(x, y)
+		if hi1 != hi || lo1 != lo {
+			t.Errorf("%s: got hi:lo = %#x:%#x; want %#x:%#x", msg, hi1, lo1, hi, lo)
+		}
+	}
+	testDiv := func(msg string, f func(hi, lo, y uint32) (q, r uint32), hi, lo, y, q, r uint32) {
+		q1, r1 := f(hi, lo, y)
+		if q1 != q || r1 != r {
+			t.Errorf("%s: got q:r = %#x:%#x; want %#x:%#x", msg, q1, r1, q, r)
+		}
+	}
+	for _, a := range []struct {
+		x, y      uint32
+		hi, lo, r uint32
+	}{
+		{1 << 31, 2, 1, 0, 1},
+		{0xc47dfa8c, 50911, 0x98a4, 0x998587f4, 13},
+		{_M32, _M32, _M32 - 1, 1, 42},
+	} {
+		testMul("Mul32", Mul32, a.x, a.y, a.hi, a.lo)
+		testMul("Mul32 symmetric", Mul32, a.y, a.x, a.hi, a.lo)
+		testDiv("Div32", Div32, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div32 symmetric", Div32, a.hi, a.lo+a.r, a.x, a.y, a.r)
+	}
+}
+
+func TestMulDiv64(t *testing.T) {
+	testMul := func(msg string, f func(x, y uint64) (hi, lo uint64), x, y, hi, lo uint64) {
+		hi1, lo1 := f(x, y)
+		if hi1 != hi || lo1 != lo {
+			t.Errorf("%s: got hi:lo = %#x:%#x; want %#x:%#x", msg, hi1, lo1, hi, lo)
+		}
+	}
+	testDiv := func(msg string, f func(hi, lo, y uint64) (q, r uint64), hi, lo, y, q, r uint64) {
+		q1, r1 := f(hi, lo, y)
+		if q1 != q || r1 != r {
+			t.Errorf("%s: got q:r = %#x:%#x; want %#x:%#x", msg, q1, r1, q, r)
+		}
+	}
+	for _, a := range []struct {
+		x, y      uint64
+		hi, lo, r uint64
+	}{
+		{1 << 63, 2, 1, 0, 1},
+		{0x3626229738a3b9, 0xd8988a9f1cc4a61, 0x2dd0712657fe8, 0x9dd6a3364c358319, 13},
+		{_M64, _M64, _M64 - 1, 1, 42},
+	} {
+		testMul("Mul64", Mul64, a.x, a.y, a.hi, a.lo)
+		testMul("Mul64 symmetric", Mul64, a.y, a.x, a.hi, a.lo)
+		testDiv("Div64", Div64, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div64 symmetric", Div64, a.hi, a.lo+a.r, a.x, a.y, a.r)
+	}
+}
+
+const (
+	divZeroError  = "runtime error: integer divide by zero"
+	overflowError = "runtime error: integer overflow"
+)
+
+func TestDivPanicOverflow(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div should have panicked when y<=hi")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != overflowError {
+			t.Errorf("Div expected panic: %q, got: %q ", overflowError, e.Error())
+		}
+	}()
+	q, r := Div(1, 0, 1)
+	t.Errorf("undefined q, r = %v, %v calculated when Div should have panicked", q, r)
+}
+
+func TestDiv32PanicOverflow(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div32 should have panicked when y<=hi")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != overflowError {
+			t.Errorf("Div32 expected panic: %q, got: %q ", overflowError, e.Error())
+		}
+	}()
+	q, r := Div32(1, 0, 1)
+	t.Errorf("undefined q, r = %v, %v calculated when Div32 should have panicked", q, r)
+}
+
+func TestDiv64PanicOverflow(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div64 should have panicked when y<=hi")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != overflowError {
+			t.Errorf("Div64 expected panic: %q, got: %q ", overflowError, e.Error())
+		}
+	}()
+	q, r := Div64(1, 0, 1)
+	t.Errorf("undefined q, r = %v, %v calculated when Div64 should have panicked", q, r)
+}
+
+func TestDivPanicZero(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div should have panicked when y==0")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != divZeroError {
+			t.Errorf("Div expected panic: %q, got: %q ", divZeroError, e.Error())
+		}
+	}()
+	q, r := Div(1, 1, 0)
+	t.Errorf("undefined q, r = %v, %v calculated when Div should have panicked", q, r)
+}
+
+func TestDiv32PanicZero(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div32 should have panicked when y==0")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != divZeroError {
+			t.Errorf("Div32 expected panic: %q, got: %q ", divZeroError, e.Error())
+		}
+	}()
+	q, r := Div32(1, 1, 0)
+	t.Errorf("undefined q, r = %v, %v calculated when Div32 should have panicked", q, r)
+}
+
+func TestDiv64PanicZero(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div64 should have panicked when y==0")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != divZeroError {
+			t.Errorf("Div64 expected panic: %q, got: %q ", divZeroError, e.Error())
+		}
+	}()
+	q, r := Div64(1, 1, 0)
+	t.Errorf("undefined q, r = %v, %v calculated when Div64 should have panicked", q, r)
+}
+
+func BenchmarkAdd(b *testing.B) {
+	var z, c uint
+	for i := 0; i < b.N; i++ {
+		z, c = Add(uint(Input), uint(i), c)
+	}
+	Output = int(z + c)
+}
+
+func BenchmarkAdd32(b *testing.B) {
+	var z, c uint32
+	for i := 0; i < b.N; i++ {
+		z, c = Add32(uint32(Input), uint32(i), c)
+	}
+	Output = int(z + c)
+}
+
+func BenchmarkAdd64(b *testing.B) {
+	var z, c uint64
+	for i := 0; i < b.N; i++ {
+		z, c = Add64(uint64(Input), uint64(i), c)
+	}
+	Output = int(z + c)
+}
+
+func BenchmarkAdd64multiple(b *testing.B) {
+	var z0 = uint64(Input)
+	var z1 = uint64(Input)
+	var z2 = uint64(Input)
+	var z3 = uint64(Input)
+	for i := 0; i < b.N; i++ {
+		var c uint64
+		z0, c = Add64(z0, uint64(i), c)
+		z1, c = Add64(z1, uint64(i), c)
+		z2, c = Add64(z2, uint64(i), c)
+		z3, _ = Add64(z3, uint64(i), c)
+	}
+	Output = int(z0 + z1 + z2 + z3)
+}
+
+func BenchmarkSub(b *testing.B) {
+	var z, c uint
+	for i := 0; i < b.N; i++ {
+		z, c = Sub(uint(Input), uint(i), c)
+	}
+	Output = int(z + c)
+}
+
+func BenchmarkSub32(b *testing.B) {
+	var z, c uint32
+	for i := 0; i < b.N; i++ {
+		z, c = Sub32(uint32(Input), uint32(i), c)
+	}
+	Output = int(z + c)
+}
+
+func BenchmarkSub64(b *testing.B) {
+	var z, c uint64
+	for i := 0; i < b.N; i++ {
+		z, c = Sub64(uint64(Input), uint64(i), c)
+	}
+	Output = int(z + c)
+}
+
+func BenchmarkSub64multiple(b *testing.B) {
+	var z0 = uint64(Input)
+	var z1 = uint64(Input)
+	var z2 = uint64(Input)
+	var z3 = uint64(Input)
+	for i := 0; i < b.N; i++ {
+		var c uint64
+		z0, c = Sub64(z0, uint64(i), c)
+		z1, c = Sub64(z1, uint64(i), c)
+		z2, c = Sub64(z2, uint64(i), c)
+		z3, _ = Sub64(z3, uint64(i), c)
+	}
+	Output = int(z0 + z1 + z2 + z3)
+}
+
+func BenchmarkMul(b *testing.B) {
+	var hi, lo uint
+	for i := 0; i < b.N; i++ {
+		hi, lo = Mul(uint(Input), uint(i))
+	}
+	Output = int(hi + lo)
+}
+
+func BenchmarkMul32(b *testing.B) {
+	var hi, lo uint32
+	for i := 0; i < b.N; i++ {
+		hi, lo = Mul32(uint32(Input), uint32(i))
+	}
+	Output = int(hi + lo)
+}
+
+func BenchmarkMul64(b *testing.B) {
+	var hi, lo uint64
+	for i := 0; i < b.N; i++ {
+		hi, lo = Mul64(uint64(Input), uint64(i))
+	}
+	Output = int(hi + lo)
+}
+
+func BenchmarkDiv(b *testing.B) {
+	var q, r uint
+	for i := 0; i < b.N; i++ {
+		q, r = Div(1, uint(i), uint(Input))
+	}
+	Output = int(q + r)
+}
+
+func BenchmarkDiv32(b *testing.B) {
+	var q, r uint32
+	for i := 0; i < b.N; i++ {
+		q, r = Div32(1, uint32(i), uint32(Input))
+	}
+	Output = int(q + r)
+}
+
+func BenchmarkDiv64(b *testing.B) {
+	var q, r uint64
+	for i := 0; i < b.N; i++ {
+		q, r = Div64(1, uint64(i), uint64(Input))
+	}
+	Output = int(q + r)
 }
 
 // ----------------------------------------------------------------------------

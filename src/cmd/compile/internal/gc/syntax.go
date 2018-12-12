@@ -45,7 +45,7 @@ type Node struct {
 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
 	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
 	// - OSTRUCTKEY uses it to store the named field's offset.
-	// - Named OLITERALs use it to to store their ambient iota value.
+	// - Named OLITERALs use it to store their ambient iota value.
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
@@ -65,7 +65,7 @@ func (n *Node) ResetAux() {
 
 func (n *Node) SubOp() Op {
 	switch n.Op {
-	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
+	case OASOP, ONAME:
 	default:
 		Fatalf("unexpected op: %v", n.Op)
 	}
@@ -74,7 +74,7 @@ func (n *Node) SubOp() Op {
 
 func (n *Node) SetSubOp(op Op) {
 	switch n.Op {
-	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
+	case OASOP, ONAME:
 	default:
 		Fatalf("unexpected op: %v", n.Op)
 	}
@@ -144,7 +144,7 @@ const (
 	_, nodeAssigned  // is the variable ever assigned to
 	_, nodeAddrtaken // address taken, even if not moved to heap
 	_, nodeImplicit
-	_, nodeIsddd     // is the argument variadic
+	_, nodeIsDDD     // is the argument variadic
 	_, nodeDiag      // already printed error about this
 	_, nodeColas     // OAS resulting from :=
 	_, nodeNonNil    // guaranteed to be non-nil
@@ -172,7 +172,7 @@ func (n *Node) IsOutputParamHeapAddr() bool { return n.flags&nodeIsOutputParamHe
 func (n *Node) Assigned() bool              { return n.flags&nodeAssigned != 0 }
 func (n *Node) Addrtaken() bool             { return n.flags&nodeAddrtaken != 0 }
 func (n *Node) Implicit() bool              { return n.flags&nodeImplicit != 0 }
-func (n *Node) Isddd() bool                 { return n.flags&nodeIsddd != 0 }
+func (n *Node) IsDDD() bool                 { return n.flags&nodeIsDDD != 0 }
 func (n *Node) Diag() bool                  { return n.flags&nodeDiag != 0 }
 func (n *Node) Colas() bool                 { return n.flags&nodeColas != 0 }
 func (n *Node) NonNil() bool                { return n.flags&nodeNonNil != 0 }
@@ -199,7 +199,7 @@ func (n *Node) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nodeIsOutputParamH
 func (n *Node) SetAssigned(b bool)              { n.flags.set(nodeAssigned, b) }
 func (n *Node) SetAddrtaken(b bool)             { n.flags.set(nodeAddrtaken, b) }
 func (n *Node) SetImplicit(b bool)              { n.flags.set(nodeImplicit, b) }
-func (n *Node) SetIsddd(b bool)                 { n.flags.set(nodeIsddd, b) }
+func (n *Node) SetIsDDD(b bool)                 { n.flags.set(nodeIsDDD, b) }
 func (n *Node) SetDiag(b bool)                  { n.flags.set(nodeDiag, b) }
 func (n *Node) SetColas(b bool)                 { n.flags.set(nodeColas, b) }
 func (n *Node) SetNonNil(b bool)                { n.flags.set(nodeNonNil, b) }
@@ -477,7 +477,7 @@ type Func struct {
 	FieldTrack map[*types.Sym]struct{}
 	DebugInfo  *ssa.FuncDebug
 	Ntype      *Node // signature
-	Top        int   // top context (Ecall, Eproc, etc)
+	Top        int   // top context (ctxCallee, etc)
 	Closure    *Node // OCLOSURE <-> ODCLFUNC
 	Nname      *Node
 	lsym       *obj.LSym
@@ -574,55 +574,61 @@ const (
 	OXXX Op = iota
 
 	// names
-	ONAME    // var, const or func name
+	ONAME    // var or func name
 	ONONAME  // unnamed arg or return value: f(int, string) (int, error) { etc }
 	OTYPE    // type name
 	OPACK    // import
 	OLITERAL // literal
 
 	// expressions
-	OADD             // Left + Right
-	OSUB             // Left - Right
-	OOR              // Left | Right
-	OXOR             // Left ^ Right
-	OADDSTR          // +{List} (string addition, list elements are strings)
-	OADDR            // &Left
-	OANDAND          // Left && Right
-	OAPPEND          // append(List); after walk, Left may contain elem type descriptor
-	OARRAYBYTESTR    // Type(Left) (Type is string, Left is a []byte)
-	OARRAYBYTESTRTMP // Type(Left) (Type is string, Left is a []byte, ephemeral)
-	OARRAYRUNESTR    // Type(Left) (Type is string, Left is a []rune)
-	OSTRARRAYBYTE    // Type(Left) (Type is []byte, Left is a string)
-	OSTRARRAYBYTETMP // Type(Left) (Type is []byte, Left is a string, ephemeral)
-	OSTRARRAYRUNE    // Type(Left) (Type is []rune, Left is a string)
-	OAS              // Left = Right or (if Colas=true) Left := Right
-	OAS2             // List = Rlist (x, y, z = a, b, c)
-	OAS2FUNC         // List = Rlist (x, y = f())
-	OAS2RECV         // List = Rlist (x, ok = <-c)
-	OAS2MAPR         // List = Rlist (x, ok = m["foo"])
-	OAS2DOTTYPE      // List = Rlist (x, ok = I.(int))
-	OASOP            // Left Etype= Right (x += y)
-	OCALL            // Left(List) (function call, method call or type conversion)
-	OCALLFUNC        // Left(List) (function call f(args))
-	OCALLMETH        // Left(List) (direct method call x.Method(args))
-	OCALLINTER       // Left(List) (interface method call x.Method(args))
-	OCALLPART        // Left.Right (method expression x.Method, not called)
-	OCAP             // cap(Left)
-	OCLOSE           // close(Left)
-	OCLOSURE         // func Type { Body } (func literal)
-	OCMPIFACE        // Left Etype Right (interface comparison, x == y or x != y)
-	OCMPSTR          // Left Etype Right (string comparison, x == y, x < y, etc)
-	OCOMPLIT         // Right{List} (composite literal, not yet lowered to specific form)
-	OMAPLIT          // Type{List} (composite literal, Type is map)
-	OSTRUCTLIT       // Type{List} (composite literal, Type is struct)
-	OARRAYLIT        // Type{List} (composite literal, Type is array)
-	OSLICELIT        // Type{List} (composite literal, Type is slice)
-	OPTRLIT          // &Left (left is composite literal)
-	OCONV            // Type(Left) (type conversion)
-	OCONVIFACE       // Type(Left) (type conversion, to interface)
-	OCONVNOP         // Type(Left) (type conversion, no effect)
-	OCOPY            // copy(Left, Right)
-	ODCL             // var Left (declares Left of type Left.Type)
+	OADD          // Left + Right
+	OSUB          // Left - Right
+	OOR           // Left | Right
+	OXOR          // Left ^ Right
+	OADDSTR       // +{List} (string addition, list elements are strings)
+	OADDR         // &Left
+	OANDAND       // Left && Right
+	OAPPEND       // append(List); after walk, Left may contain elem type descriptor
+	OBYTES2STR    // Type(Left) (Type is string, Left is a []byte)
+	OBYTES2STRTMP // Type(Left) (Type is string, Left is a []byte, ephemeral)
+	ORUNES2STR    // Type(Left) (Type is string, Left is a []rune)
+	OSTR2BYTES    // Type(Left) (Type is []byte, Left is a string)
+	OSTR2BYTESTMP // Type(Left) (Type is []byte, Left is a string, ephemeral)
+	OSTR2RUNES    // Type(Left) (Type is []rune, Left is a string)
+	OAS           // Left = Right or (if Colas=true) Left := Right
+	OAS2          // List = Rlist (x, y, z = a, b, c)
+	OAS2FUNC      // List = Rlist (x, y = f())
+	OAS2RECV      // List = Rlist (x, ok = <-c)
+	OAS2MAPR      // List = Rlist (x, ok = m["foo"])
+	OAS2DOTTYPE   // List = Rlist (x, ok = I.(int))
+	OASOP         // Left Etype= Right (x += y)
+	OCALL         // Left(List) (function call, method call or type conversion)
+
+	// OCALLFUNC, OCALLMETH, and OCALLINTER have the same structure.
+	// Prior to walk, they are: Left(List), where List is all regular arguments.
+	// If present, Right is an ODDDARG that holds the
+	// generated slice used in a call to a variadic function.
+	// After walk, List is a series of assignments to temporaries,
+	// and Rlist is an updated set of arguments, including any ODDDARG slice.
+	// TODO(josharian/khr): Use Ninit instead of List for the assignments to temporaries. See CL 114797.
+	OCALLFUNC  // Left(List/Rlist) (function call f(args))
+	OCALLMETH  // Left(List/Rlist) (direct method call x.Method(args))
+	OCALLINTER // Left(List/Rlist) (interface method call x.Method(args))
+	OCALLPART  // Left.Right (method expression x.Method, not called)
+	OCAP       // cap(Left)
+	OCLOSE     // close(Left)
+	OCLOSURE   // func Type { Body } (func literal)
+	OCOMPLIT   // Right{List} (composite literal, not yet lowered to specific form)
+	OMAPLIT    // Type{List} (composite literal, Type is map)
+	OSTRUCTLIT // Type{List} (composite literal, Type is struct)
+	OARRAYLIT  // Type{List} (composite literal, Type is array)
+	OSLICELIT  // Type{List} (composite literal, Type is slice) Right.Int64() = slice length.
+	OPTRLIT    // &Left (left is composite literal)
+	OCONV      // Type(Left) (type conversion)
+	OCONVIFACE // Type(Left) (type conversion, to interface)
+	OCONVNOP   // Type(Left) (type conversion, no effect)
+	OCOPY      // copy(Left, Right)
+	ODCL       // var Left (declares Left of type Left.Type)
 
 	// Used during parsing but don't last.
 	ODCLFUNC  // func f() or func (r) f()
@@ -630,72 +636,73 @@ const (
 	ODCLCONST // const pi = 3.14
 	ODCLTYPE  // type Int int or type Int = int
 
-	ODELETE    // delete(Left, Right)
-	ODOT       // Left.Sym (Left is of struct type)
-	ODOTPTR    // Left.Sym (Left is of pointer to struct type)
-	ODOTMETH   // Left.Sym (Left is non-interface, Right is method name)
-	ODOTINTER  // Left.Sym (Left is interface, Right is method name)
-	OXDOT      // Left.Sym (before rewrite to one of the preceding)
-	ODOTTYPE   // Left.Right or Left.Type (.Right during parsing, .Type once resolved); after walk, .Right contains address of interface type descriptor and .Right.Right contains address of concrete type descriptor
-	ODOTTYPE2  // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE); after walk, .Right contains address of interface type descriptor
-	OEQ        // Left == Right
-	ONE        // Left != Right
-	OLT        // Left < Right
-	OLE        // Left <= Right
-	OGE        // Left >= Right
-	OGT        // Left > Right
-	OIND       // *Left
-	OINDEX     // Left[Right] (index of array or slice)
-	OINDEXMAP  // Left[Right] (index of map)
-	OKEY       // Left:Right (key:value in struct/array/map literal)
-	OSTRUCTKEY // Sym:Left (key:value in struct literal, after type checking)
-	OLEN       // len(Left)
-	OMAKE      // make(List) (before type checking converts to one of the following)
-	OMAKECHAN  // make(Type, Left) (type is chan)
-	OMAKEMAP   // make(Type, Left) (type is map)
-	OMAKESLICE // make(Type, Left, Right) (type is slice)
-	OMUL       // Left * Right
-	ODIV       // Left / Right
-	OMOD       // Left % Right
-	OLSH       // Left << Right
-	ORSH       // Left >> Right
-	OAND       // Left & Right
-	OANDNOT    // Left &^ Right
-	ONEW       // new(Left)
-	ONOT       // !Left
-	OCOM       // ^Left
-	OPLUS      // +Left
-	OMINUS     // -Left
-	OOROR      // Left || Right
-	OPANIC     // panic(Left)
-	OPRINT     // print(List)
-	OPRINTN    // println(List)
-	OPAREN     // (Left)
-	OSEND      // Left <- Right
-	OSLICE     // Left[List[0] : List[1]] (Left is untypechecked or slice)
-	OSLICEARR  // Left[List[0] : List[1]] (Left is array)
-	OSLICESTR  // Left[List[0] : List[1]] (Left is string)
-	OSLICE3    // Left[List[0] : List[1] : List[2]] (Left is untypedchecked or slice)
-	OSLICE3ARR // Left[List[0] : List[1] : List[2]] (Left is array)
-	ORECOVER   // recover()
-	ORECV      // <-Left
-	ORUNESTR   // Type(Left) (Type is string, Left is rune)
-	OSELRECV   // Left = <-Right.Left: (appears as .Left of OCASE; Right.Op == ORECV)
-	OSELRECV2  // List = <-Right.Left: (apperas as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
-	OIOTA      // iota
-	OREAL      // real(Left)
-	OIMAG      // imag(Left)
-	OCOMPLEX   // complex(Left, Right)
-	OALIGNOF   // unsafe.Alignof(Left)
-	OOFFSETOF  // unsafe.Offsetof(Left)
-	OSIZEOF    // unsafe.Sizeof(Left)
+	ODELETE      // delete(Left, Right)
+	ODOT         // Left.Sym (Left is of struct type)
+	ODOTPTR      // Left.Sym (Left is of pointer to struct type)
+	ODOTMETH     // Left.Sym (Left is non-interface, Right is method name)
+	ODOTINTER    // Left.Sym (Left is interface, Right is method name)
+	OXDOT        // Left.Sym (before rewrite to one of the preceding)
+	ODOTTYPE     // Left.Right or Left.Type (.Right during parsing, .Type once resolved); after walk, .Right contains address of interface type descriptor and .Right.Right contains address of concrete type descriptor
+	ODOTTYPE2    // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE); after walk, .Right contains address of interface type descriptor
+	OEQ          // Left == Right
+	ONE          // Left != Right
+	OLT          // Left < Right
+	OLE          // Left <= Right
+	OGE          // Left >= Right
+	OGT          // Left > Right
+	ODEREF       // *Left
+	OINDEX       // Left[Right] (index of array or slice)
+	OINDEXMAP    // Left[Right] (index of map)
+	OKEY         // Left:Right (key:value in struct/array/map literal)
+	OSTRUCTKEY   // Sym:Left (key:value in struct literal, after type checking)
+	OLEN         // len(Left)
+	OMAKE        // make(List) (before type checking converts to one of the following)
+	OMAKECHAN    // make(Type, Left) (type is chan)
+	OMAKEMAP     // make(Type, Left) (type is map)
+	OMAKESLICE   // make(Type, Left, Right) (type is slice)
+	OMUL         // Left * Right
+	ODIV         // Left / Right
+	OMOD         // Left % Right
+	OLSH         // Left << Right
+	ORSH         // Left >> Right
+	OAND         // Left & Right
+	OANDNOT      // Left &^ Right
+	ONEW         // new(Left)
+	ONOT         // !Left
+	OBITNOT      // ^Left
+	OPLUS        // +Left
+	ONEG         // -Left
+	OOROR        // Left || Right
+	OPANIC       // panic(Left)
+	OPRINT       // print(List)
+	OPRINTN      // println(List)
+	OPAREN       // (Left)
+	OSEND        // Left <- Right
+	OSLICE       // Left[List[0] : List[1]] (Left is untypechecked or slice)
+	OSLICEARR    // Left[List[0] : List[1]] (Left is array)
+	OSLICESTR    // Left[List[0] : List[1]] (Left is string)
+	OSLICE3      // Left[List[0] : List[1] : List[2]] (Left is untypedchecked or slice)
+	OSLICE3ARR   // Left[List[0] : List[1] : List[2]] (Left is array)
+	OSLICEHEADER // sliceheader{Left, List[0], List[1]} (Left is unsafe.Pointer, List[0] is length, List[1] is capacity)
+	ORECOVER     // recover()
+	ORECV        // <-Left
+	ORUNESTR     // Type(Left) (Type is string, Left is rune)
+	OSELRECV     // Left = <-Right.Left: (appears as .Left of OCASE; Right.Op == ORECV)
+	OSELRECV2    // List = <-Right.Left: (apperas as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
+	OIOTA        // iota
+	OREAL        // real(Left)
+	OIMAG        // imag(Left)
+	OCOMPLEX     // complex(Left, Right) or complex(List[0]) where List[0] is a 2-result function call
+	OALIGNOF     // unsafe.Alignof(Left)
+	OOFFSETOF    // unsafe.Offsetof(Left)
+	OSIZEOF      // unsafe.Sizeof(Left)
 
 	// statements
 	OBLOCK    // { List } (block of code)
-	OBREAK    // break
+	OBREAK    // break [Sym]
 	OCASE     // case Left or List[0]..List[1]: Nbody (select case after processing; Left==nil and List==nil means default)
 	OXCASE    // case List: Nbody (select case before processing; List==nil means default)
-	OCONTINUE // continue
+	OCONTINUE // continue [Sym]
 	ODEFER    // defer Left (Left must be call)
 	OEMPTY    // no-op (empty statement)
 	OFALL     // fallthrough
@@ -710,10 +717,10 @@ const (
 	// 	}
 	// OFORUNTIL is created by walk. There's no way to write this in Go code.
 	OFORUNTIL
-	OGOTO   // goto Left
+	OGOTO   // goto Sym
 	OIF     // if Ninit; Left { Nbody } else { Rlist }
-	OLABEL  // Left:
-	OPROC   // go Left (Left must be call)
+	OLABEL  // Sym:
+	OGO     // go Left (Left must be call)
 	ORANGE  // for List = range Right { Nbody }
 	ORETURN // return List
 	OSELECT // select { List } (List is list of OXCASE or OCASE)
@@ -739,6 +746,7 @@ const (
 	OCLOSUREVAR // variable reference at beginning of closure function
 	OCFUNC      // reference to c function pointer (not go func value)
 	OCHECKNIL   // emit code to ensure pointer/interface not nil
+	OVARDEF     // variable is about to be fully initialized
 	OVARKILL    // variable is dead
 	OVARLIVE    // variable is alive
 	OINDREGSP   // offset plus indirect of REGSP, such as 8(SP).
@@ -921,7 +929,7 @@ type nodeQueue struct {
 	head, tail int
 }
 
-// empty returns true if q contains no Nodes.
+// empty reports whether q contains no Nodes.
 func (q *nodeQueue) empty() bool {
 	return q.head == q.tail
 }

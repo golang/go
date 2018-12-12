@@ -9,14 +9,20 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	"internal/goroot"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/module"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
+	"cmd/go/internal/semver"
 )
 
 type ImportMissingError struct {
@@ -56,11 +62,8 @@ func Import(path string) (m module.Version, dir string, err error) {
 
 	// Is the package in the standard library?
 	if search.IsStandardImportPath(path) {
-		if strings.HasPrefix(path, "golang_org/") {
-			return module.Version{}, filepath.Join(cfg.GOROOT, "src/vendor", path), nil
-		}
-		dir := filepath.Join(cfg.GOROOT, "src", path)
-		if _, err := os.Stat(dir); err == nil {
+		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+			dir := filepath.Join(cfg.GOROOT, "src", path)
 			return module.Version{}, dir, nil
 		}
 	}
@@ -68,8 +71,8 @@ func Import(path string) (m module.Version, dir string, err error) {
 	// -mod=vendor is special.
 	// Everything must be in the main module or the main module's vendor directory.
 	if cfg.BuildMod == "vendor" {
-		mainDir, mainOK := dirInModule(path, Target.Path, ModRoot, true)
-		vendorDir, vendorOK := dirInModule(path, "", filepath.Join(ModRoot, "vendor"), false)
+		mainDir, mainOK := dirInModule(path, Target.Path, ModRoot(), true)
+		vendorDir, vendorOK := dirInModule(path, "", filepath.Join(ModRoot(), "vendor"), false)
 		if mainOK && vendorOK {
 			return module.Version{}, "", fmt.Errorf("ambiguous import: found %s in multiple directories:\n\t%s\n\t%s", path, mainDir, vendorDir)
 		}
@@ -123,16 +126,63 @@ func Import(path string) (m module.Version, dir string, err error) {
 		return module.Version{}, "", errors.New(buf.String())
 	}
 
-	// Not on build list.
-
 	// Look up module containing the package, for addition to the build list.
 	// Goal is to determine the module, download it to dir, and return m, dir, ErrMissing.
 	if cfg.BuildMod == "readonly" {
 		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
 	}
 
+	// Not on build list.
+	// To avoid spurious remote fetches, next try the latest replacement for each module.
+	// (golang.org/issue/26241)
+	if modFile != nil {
+		latest := map[string]string{} // path -> version
+		for _, r := range modFile.Replace {
+			if maybeInModule(path, r.Old.Path) {
+				latest[r.Old.Path] = semver.Max(r.Old.Version, latest[r.Old.Path])
+			}
+		}
+
+		mods = make([]module.Version, 0, len(latest))
+		for p, v := range latest {
+			// If the replacement didn't specify a version, synthesize a
+			// pseudo-version with an appropriate major version and a timestamp below
+			// any real timestamp. That way, if the main module is used from within
+			// some other module, the user will be able to upgrade the requirement to
+			// any real version they choose.
+			if v == "" {
+				if _, pathMajor, ok := module.SplitPathVersion(p); ok && len(pathMajor) > 0 {
+					v = modfetch.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
+				} else {
+					v = modfetch.PseudoVersion("v0", "", time.Time{}, "000000000000")
+				}
+			}
+			mods = append(mods, module.Version{Path: p, Version: v})
+		}
+
+		// Every module path in mods is a prefix of the import path.
+		// As in QueryPackage, prefer the longest prefix that satisfies the import.
+		sort.Slice(mods, func(i, j int) bool {
+			return len(mods[i].Path) > len(mods[j].Path)
+		})
+		for _, m := range mods {
+			root, isLocal, err := fetch(m)
+			if err != nil {
+				// Report fetch error as above.
+				return module.Version{}, "", err
+			}
+			_, ok := dirInModule(path, m.Path, root, isLocal)
+			if ok {
+				return m, "", &ImportMissingError{ImportPath: path, Module: m}
+			}
+		}
+	}
+
 	m, _, err = QueryPackage(path, "latest", Allowed)
 	if err != nil {
+		if _, ok := err.(*codehost.VCSError); ok {
+			return module.Version{}, "", err
+		}
 		return module.Version{}, "", &ImportMissingError{ImportPath: path}
 	}
 	return m, "", &ImportMissingError{ImportPath: path, Module: m}
@@ -177,7 +227,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// So we only check local module trees
 	// (the main module, and any directory trees pointed at by replace directives).
 	if isLocal {
-		for d := dir; d != mdir && len(d) > len(mdir); d = filepath.Dir(d) {
+		for d := dir; d != mdir && len(d) > len(mdir); {
 			haveGoMod := haveGoModCache.Do(d, func() interface{} {
 				_, err := os.Stat(filepath.Join(d, "go.mod"))
 				return err == nil
@@ -186,6 +236,13 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 			if haveGoMod {
 				return "", false
 			}
+			parent := filepath.Dir(d)
+			if parent == d {
+				// Break the loop, as otherwise we'd loop
+				// forever if d=="." and mdir=="".
+				break
+			}
+			d = parent
 		}
 	}
 

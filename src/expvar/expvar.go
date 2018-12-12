@@ -137,7 +137,7 @@ func (v *Map) Init() *Map {
 	return v
 }
 
-// updateKeys updates the sorted list of keys in v.keys.
+// addKey updates the sorted list of keys in v.keys.
 func (v *Map) addKey(key string) {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
@@ -199,6 +199,17 @@ func (v *Map) AddFloat(key string, delta float64) {
 	}
 }
 
+// Deletes the given key from the map.
+func (v *Map) Delete(key string) {
+	v.keysMu.Lock()
+	defer v.keysMu.Unlock()
+	i := sort.SearchStrings(v.keys, key)
+	if i < len(v.keys) && key == v.keys[i] {
+		v.keys = append(v.keys[:i], v.keys[i+1:]...)
+		v.m.Delete(key)
+	}
+}
+
 // Do calls f for each entry in the map.
 // The map is locked during the iteration,
 // but existing entries may be concurrently updated.
@@ -221,7 +232,7 @@ func (v *String) Value() string {
 	return p
 }
 
-// String implements the Val interface. To get the unquoted string
+// String implements the Var interface. To get the unquoted string
 // use Value.
 func (v *String) String() string {
 	s := v.Value()

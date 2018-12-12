@@ -93,9 +93,6 @@ func archinit(ctxt *ld.Link) {
 		}
 
 	case objabi.Hlinux: /* ppc64 elf */
-		if ctxt.Arch == sys.ArchPPC64 {
-			*ld.FlagD = true // TODO(austin): ELF ABI v1 not supported yet
-		}
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if *ld.FlagTextAddr == -1 {
@@ -121,6 +118,10 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x10000
 		}
+
+	case objabi.Haix:
+		ld.Xcoffinit(ctxt)
+
 	}
 
 	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {

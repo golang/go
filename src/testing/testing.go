@@ -17,13 +17,13 @@
 // package builds but will be included when the ``go test'' command is run.
 // For more detail, run ``go help test'' and ``go help testflag''.
 //
-// Tests and benchmarks may be skipped if not applicable with a call to
-// the Skip method of *T and *B:
-//     func TestTimeConsuming(t *testing.T) {
-//         if testing.Short() {
-//             t.Skip("skipping test in short mode.")
+// A simple test function looks like this:
+//
+//     func TestAbs(t *testing.T) {
+//         got := Abs(-1)
+//         if got != 1 {
+//             t.Errorf("Abs(-1) = %d; want 1", got)
 //         }
-//         ...
 //     }
 //
 // Benchmarks
@@ -131,6 +131,18 @@
 // The entire test file is presented as the example when it contains a single
 // example function, at least one other function, type, variable, or constant
 // declaration, and no test or benchmark functions.
+//
+// Skipping
+//
+// Tests or benchmarks may be skipped at run time with a call to
+// the Skip method of *T or *B:
+//
+//     func TestTimeConsuming(t *testing.T) {
+//         if testing.Short() {
+//             t.Skip("skipping test in short mode.")
+//         }
+//         ...
+//     }
 //
 // Subtests and Sub-benchmarks
 //
@@ -316,6 +328,13 @@ type common struct {
 
 // Short reports whether the -test.short flag is set.
 func Short() bool {
+	// Catch code that calls this from TestMain without first
+	// calling flag.Parse. This shouldn't really be a panic
+	if !flag.Parsed() {
+		fmt.Fprintf(os.Stderr, "testing: testing.Short called before flag.Parse\n")
+		os.Exit(2)
+	}
+
 	return *short
 }
 
@@ -396,8 +415,8 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 // decorate prefixes the string with the file and line of the call site
 // and inserts the final newline if needed and indentation spaces for formatting.
 // This function must be called with c.mu held.
-func (c *common) decorate(s string) string {
-	frame := c.frameSkip(3) // decorate + log + public function.
+func (c *common) decorate(s string, skip int) string {
+	frame := c.frameSkip(skip)
 	file := frame.File
 	line := frame.Line
 	if file != "" {
@@ -592,9 +611,25 @@ func (c *common) FailNow() {
 
 // log generates the output. It's always at the same stack depth.
 func (c *common) log(s string) {
+	c.logDepth(s, 3) // logDepth + log + public function
+}
+
+// logDepth generates the output. At an arbitary stack depth
+func (c *common) logDepth(s string, depth int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.output = append(c.output, c.decorate(s)...)
+	// If this test has already finished try and log this message with our parent
+	// with this test name tagged so we know where it came from.
+	// If we don't have a parent panic.
+	if c.done {
+		if c.parent != nil {
+			c.parent.logDepth(s, depth+1)
+		} else {
+			panic("Log in goroutine after " + c.name + " has completed")
+		}
+	} else {
+		c.output = append(c.output, c.decorate(s, depth+1)...)
+	}
 }
 
 // Log formats its arguments using default formatting, analogous to Println,

@@ -146,6 +146,11 @@ func LastIndex(s, substr string) int {
 	return -1
 }
 
+// IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
+func IndexByte(s string, c byte) int {
+	return bytealg.IndexByteString(s, c)
+}
+
 // IndexRune returns the index of the first instance of the Unicode code point
 // r, or -1 if rune is not present in s.
 // If r is utf8.RuneError, it returns the first instance of any
@@ -423,27 +428,20 @@ func Join(a []string, sep string) string {
 		return ""
 	case 1:
 		return a[0]
-	case 2:
-		// Special case for common small values.
-		// Remove if golang.org/issue/6714 is fixed
-		return a[0] + sep + a[1]
-	case 3:
-		// Special case for common small values.
-		// Remove if golang.org/issue/6714 is fixed
-		return a[0] + sep + a[1] + sep + a[2]
 	}
 	n := len(sep) * (len(a) - 1)
 	for i := 0; i < len(a); i++ {
 		n += len(a[i])
 	}
 
-	b := make([]byte, n)
-	bp := copy(b, a[0])
+	var b Builder
+	b.Grow(n)
+	b.WriteString(a[0])
 	for _, s := range a[1:] {
-		bp += copy(b[bp:], sep)
-		bp += copy(b[bp:], s)
+		b.WriteString(sep)
+		b.WriteString(s)
 	}
-	return string(b)
+	return b.String()
 }
 
 // HasPrefix tests whether the string s begins with prefix.
@@ -466,68 +464,56 @@ func Map(mapping func(rune) rune, s string) string {
 
 	// The output buffer b is initialized on demand, the first
 	// time a character differs.
-	var b []byte
-	// nbytes is the number of bytes encoded in b.
-	var nbytes int
+	var b Builder
 
 	for i, c := range s {
 		r := mapping(c)
-		if r == c {
+		if r == c && c != utf8.RuneError {
 			continue
 		}
 
-		b = make([]byte, len(s)+utf8.UTFMax)
-		nbytes = copy(b, s[:i])
-		if r >= 0 {
-			if r < utf8.RuneSelf {
-				b[nbytes] = byte(r)
-				nbytes++
-			} else {
-				nbytes += utf8.EncodeRune(b[nbytes:], r)
-			}
-		}
-
+		var width int
 		if c == utf8.RuneError {
-			// RuneError is the result of either decoding
-			// an invalid sequence or '\uFFFD'. Determine
-			// the correct number of bytes we need to advance.
-			_, w := utf8.DecodeRuneInString(s[i:])
-			i += w
+			c, width = utf8.DecodeRuneInString(s[i:])
+			if width != 1 && r == c {
+				continue
+			}
 		} else {
-			i += utf8.RuneLen(c)
+			width = utf8.RuneLen(c)
 		}
 
-		s = s[i:]
+		b.Grow(len(s) + utf8.UTFMax)
+		b.WriteString(s[:i])
+		if r >= 0 {
+			b.WriteRune(r)
+		}
+
+		s = s[i+width:]
 		break
 	}
 
-	if b == nil {
+	// Fast path for unchanged input
+	if b.Cap() == 0 { // didn't call b.Grow above
 		return s
 	}
 
 	for _, c := range s {
 		r := mapping(c)
 
-		// common case
-		if (0 <= r && r < utf8.RuneSelf) && nbytes < len(b) {
-			b[nbytes] = byte(r)
-			nbytes++
-			continue
-		}
-
-		// b is not big enough or r is not a ASCII rune.
 		if r >= 0 {
-			if nbytes+utf8.UTFMax >= len(b) {
-				// Grow the buffer.
-				nb := make([]byte, 2*len(b))
-				copy(nb, b[:nbytes])
-				b = nb
+			// common case
+			// Due to inlining, it is more performant to determine if WriteByte should be
+			// invoked rather than always call WriteRune
+			if r < utf8.RuneSelf {
+				b.WriteByte(byte(r))
+			} else {
+				// r is not a ASCII rune.
+				b.WriteRune(r)
 			}
-			nbytes += utf8.EncodeRune(b[nbytes:], r)
 		}
 	}
 
-	return string(b[:nbytes])
+	return b.String()
 }
 
 // Repeat returns a new string consisting of count copies of the string s.
@@ -535,23 +521,33 @@ func Map(mapping func(rune) rune, s string) string {
 // It panics if count is negative or if
 // the result of (len(s) * count) overflows.
 func Repeat(s string, count int) string {
+	if count == 0 {
+		return ""
+	}
+
 	// Since we cannot return an error on overflow,
 	// we should panic if the repeat will generate
 	// an overflow.
 	// See Issue golang.org/issue/16237
 	if count < 0 {
 		panic("strings: negative Repeat count")
-	} else if count > 0 && len(s)*count/count != len(s) {
+	} else if len(s)*count/count != len(s) {
 		panic("strings: Repeat count causes overflow")
 	}
 
-	b := make([]byte, len(s)*count)
-	bp := copy(b, s)
-	for bp < len(b) {
-		copy(b[bp:], b[:bp])
-		bp *= 2
+	n := len(s) * count
+	var b Builder
+	b.Grow(n)
+	b.WriteString(s)
+	for b.Len() < n {
+		if b.Len() <= n/2 {
+			b.WriteString(b.String())
+		} else {
+			b.WriteString(b.String()[:n-b.Len()])
+			break
+		}
 	}
-	return string(b)
+	return b.String()
 }
 
 // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
@@ -570,15 +566,16 @@ func ToUpper(s string) string {
 		if !hasLower {
 			return s
 		}
-		b := make([]byte, len(s))
+		var b Builder
+		b.Grow(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
 			if c >= 'a' && c <= 'z' {
 				c -= 'a' - 'A'
 			}
-			b[i] = c
+			b.WriteByte(c)
 		}
-		return string(b)
+		return b.String()
 	}
 	return Map(unicode.ToUpper, s)
 }
@@ -599,15 +596,16 @@ func ToLower(s string) string {
 		if !hasUpper {
 			return s
 		}
-		b := make([]byte, len(s))
+		var b Builder
+		b.Grow(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
 			if c >= 'A' && c <= 'Z' {
 				c += 'a' - 'A'
 			}
-			b[i] = c
+			b.WriteByte(c)
 		}
-		return string(b)
+		return b.String()
 	}
 	return Map(unicode.ToLower, s)
 }
@@ -616,21 +614,21 @@ func ToLower(s string) string {
 func ToTitle(s string) string { return Map(unicode.ToTitle, s) }
 
 // ToUpperSpecial returns a copy of the string s with all Unicode letters mapped to their
-// upper case, giving priority to the special casing rules.
+// upper case using the case mapping specified by c.
 func ToUpperSpecial(c unicode.SpecialCase, s string) string {
-	return Map(func(r rune) rune { return c.ToUpper(r) }, s)
+	return Map(c.ToUpper, s)
 }
 
 // ToLowerSpecial returns a copy of the string s with all Unicode letters mapped to their
-// lower case, giving priority to the special casing rules.
+// lower case using the case mapping specified by c.
 func ToLowerSpecial(c unicode.SpecialCase, s string) string {
-	return Map(func(r rune) rune { return c.ToLower(r) }, s)
+	return Map(c.ToLower, s)
 }
 
 // ToTitleSpecial returns a copy of the string s with all Unicode letters mapped to their
 // title case, giving priority to the special casing rules.
 func ToTitleSpecial(c unicode.SpecialCase, s string) string {
-	return Map(func(r rune) rune { return c.ToTitle(r) }, s)
+	return Map(c.ToTitle, s)
 }
 
 // isSeparator reports whether the rune could mark a word boundary.
@@ -881,6 +879,15 @@ func Replace(s, old, new string, n int) string {
 	return string(t[0:w])
 }
 
+// ReplaceAll returns a copy of the string s with all
+// non-overlapping instances of old replaced by new.
+// If old is empty, it matches at the beginning of the string
+// and after each UTF-8 sequence, yielding up to k+1 replacements
+// for a k-rune string.
+func ReplaceAll(s, old, new string) string {
+	return Replace(s, old, new, -1)
+}
+
 // EqualFold reports whether s and t, interpreted as UTF-8 strings,
 // are equal under Unicode case-folding.
 func EqualFold(s, t string) bool {
@@ -956,21 +963,22 @@ func Index(s, substr string) int {
 		if len(s) <= bytealg.MaxBruteForce {
 			return bytealg.IndexString(s, substr)
 		}
-		c := substr[0]
+		c0 := substr[0]
+		c1 := substr[1]
 		i := 0
-		t := s[:len(s)-n+1]
+		t := len(s) - n + 1
 		fails := 0
-		for i < len(t) {
-			if t[i] != c {
+		for i < t {
+			if s[i] != c0 {
 				// IndexByte is faster than bytealg.IndexString, so use it as long as
 				// we're not getting lots of false positives.
-				o := IndexByte(t[i:], c)
+				o := IndexByte(s[i:t], c0)
 				if o < 0 {
 					return -1
 				}
 				i += o
 			}
-			if s[i:i+n] == substr {
+			if s[i+1] == c1 && s[i:i+n] == substr {
 				return i
 			}
 			fails++
@@ -986,24 +994,25 @@ func Index(s, substr string) int {
 		}
 		return -1
 	}
-	c := substr[0]
+	c0 := substr[0]
+	c1 := substr[1]
 	i := 0
-	t := s[:len(s)-n+1]
+	t := len(s) - n + 1
 	fails := 0
-	for i < len(t) {
-		if t[i] != c {
-			o := IndexByte(t[i:], c)
+	for i < t {
+		if s[i] != c0 {
+			o := IndexByte(s[i:t], c0)
 			if o < 0 {
 				return -1
 			}
 			i += o
 		}
-		if s[i:i+n] == substr {
+		if s[i+1] == c1 && s[i:i+n] == substr {
 			return i
 		}
 		i++
 		fails++
-		if fails >= 4+i>>4 && i < len(t) {
+		if fails >= 4+i>>4 && i < t {
 			// See comment in ../bytes/bytes_generic.go.
 			j := indexRabinKarp(s[i:], substr)
 			if j < 0 {
@@ -1036,5 +1045,4 @@ func indexRabinKarp(s, substr string) int {
 		}
 	}
 	return -1
-
 }

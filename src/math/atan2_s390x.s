@@ -142,8 +142,8 @@ Normal:
 	FMOVD	x+0(FP), F0
 	FMOVD	y+8(FP), F2
 	MOVD	$·atan2rodataL25<>+0(SB), R9
-	WORD	$0xB3CD0020	//lgdr	%r2,%f0
-	WORD	$0xB3CD0012	//lgdr	%r1,%f2
+	LGDR	F0, R2
+	LGDR	F2, R1
 	WORD	$0xEC2220BF	//risbgn	%r2,%r2,64-32,128+63,64+0+32
 	BYTE	$0x60
 	BYTE	$0x59
@@ -229,7 +229,7 @@ L18:
 	BYTE	$0x55
 	MOVD	$·atan2xpi2h<>+0(SB), R1
 	MOVD	·atan2xpim<>+0(SB), R3
-	WORD	$0xB3C10003	//ldgr	%f0,%r3
+	LDGR	R3, F0
 	WORD	$0xED021000	//madb	%f4,%f0,0(%r2,%r1)
 	BYTE	$0x40
 	BYTE	$0x1E

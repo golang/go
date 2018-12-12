@@ -115,8 +115,10 @@ func findEnv(env []cfg.EnvVar, name string) string {
 // ExtraEnvVars returns environment variables that should not leak into child processes.
 func ExtraEnvVars() []cfg.EnvVar {
 	gomod := ""
-	if modload.Init(); modload.ModRoot != "" {
-		gomod = filepath.Join(modload.ModRoot, "go.mod")
+	if modload.HasModRoot() {
+		gomod = filepath.Join(modload.ModRoot(), "go.mod")
+	} else if modload.Enabled() {
+		gomod = os.DevNull
 	}
 	return []cfg.EnvVar{
 		{Name: "GOMOD", Value: gomod},
@@ -203,7 +205,7 @@ func runEnv(cmd *base.Command, args []string) {
 				fmt.Printf("%s=\"%s\"\n", e.Name, e.Value)
 			case "plan9":
 				if strings.IndexByte(e.Value, '\x00') < 0 {
-					fmt.Printf("%s='%s'\n", e.Name, strings.Replace(e.Value, "'", "''", -1))
+					fmt.Printf("%s='%s'\n", e.Name, strings.ReplaceAll(e.Value, "'", "''"))
 				} else {
 					v := strings.Split(e.Value, "\x00")
 					fmt.Printf("%s=(", e.Name)

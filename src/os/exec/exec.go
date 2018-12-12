@@ -152,6 +152,15 @@ type Cmd struct {
 // followed by the elements of arg, so arg should not include the
 // command name itself. For example, Command("echo", "hello").
 // Args[0] is always name, not the possibly resolved Path.
+//
+// On Windows, processes receive the whole command line as a single string
+// and do their own parsing. Command combines and quotes Args into a command
+// line string with an algorithm compatible with applications using
+// CommandLineToArgvW (which is the most common way). Notable exceptions are
+// msiexec.exe and cmd.exe (and thus, all batch files), which have a different
+// unquoting algorithm. In these or other similar cases, you can do the
+// quoting yourself and provide the full command line in SysProcAttr.CmdLine,
+// leaving Args empty.
 func Command(name string, arg ...string) *Cmd {
 	cmd := &Cmd{
 		Path: name,

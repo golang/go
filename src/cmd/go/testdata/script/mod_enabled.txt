@@ -38,9 +38,9 @@ stdout z[/\\]go.mod
 
 cd $GOPATH/src/x/y
 go env GOMOD
-! stdout .
-! go list -m
-stderr 'cannot find main module'
+stdout 'NUL|/dev/null'
+go list -m
+stdout '^command-line-arguments$'
 
 cd $GOPATH/foo
 go env GOMOD
@@ -64,6 +64,15 @@ go env GOMOD
 cd $GOPATH/foo/bar/baz
 go env GOMOD
 ! stdout .+
+
+# GO111MODULE=auto should ignore and warn about /tmp/go.mod
+env GO111MODULE=auto
+cp $GOPATH/src/x/y/z/go.mod $WORK/tmp/go.mod
+mkdir $WORK/tmp/mydir
+cd $WORK/tmp/mydir
+go env GOMOD
+! stdout .+
+stderr '^go: warning: ignoring go.mod in system temp root '
 
 -- $GOPATH/src/x/y/z/go.mod --
 module x/y/z

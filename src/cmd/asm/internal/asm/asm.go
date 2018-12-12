@@ -308,6 +308,28 @@ func (p *Parser) asmPCData(operands [][]lex.Token) {
 	p.append(prog, "", true)
 }
 
+// asmPCAlign assembles a PCALIGN pseudo-op.
+// PCALIGN $16
+func (p *Parser) asmPCAlign(operands [][]lex.Token) {
+	if len(operands) != 1 {
+		p.errorf("expect one operand for PCALIGN")
+		return
+	}
+
+	// Operand 0 must be an immediate constant.
+	key := p.address(operands[0])
+	if !p.validImmediate("PCALIGN", &key) {
+		return
+	}
+
+	prog := &obj.Prog{
+		Ctxt: p.ctxt,
+		As:   obj.APCALIGN,
+		From: key,
+	}
+	p.append(prog, "", true)
+}
+
 // asmFuncData assembles a FUNCDATA pseudo-op.
 // FUNCDATA $1, funcdata<>+4(SB)
 func (p *Parser) asmFuncData(operands [][]lex.Token) {

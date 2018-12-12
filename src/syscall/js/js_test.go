@@ -4,6 +4,15 @@
 
 // +build js,wasm
 
+// To run these tests:
+//
+// - Install Node
+// - Add /path/to/go/misc/wasm to your $PATH (so that "go test" can find
+//   "go_js_wasm_exec").
+// - GOOS=js GOARCH=wasm go test
+//
+// See -exec in "go help test", and "go help run" for details.
+
 package js_test
 
 import (
@@ -19,10 +28,19 @@ var dummys = js.Global().Call("eval", `({
 	someInt: 42,
 	someFloat: 42.123,
 	someArray: [41, 42, 43],
+	someDate: new Date(),
 	add: function(a, b) {
 		return a + b;
 	},
+	zero: 0,
+	stringZero: "0",
 	NaN: NaN,
+	emptyObj: {},
+	emptyArray: [],
+	Infinity: Infinity,
+	NegInfinity: -Infinity,
+	objNumber0: new Number(0),
+	objBooleanFalse: new Boolean(false),
 })`)
 
 func TestBool(t *testing.T) {
@@ -73,6 +91,9 @@ func TestInt(t *testing.T) {
 	}
 	if dummys.Get("someInt") != dummys.Get("someInt") {
 		t.Errorf("same value not equal")
+	}
+	if got := dummys.Get("zero").Int(); got != 0 {
+		t.Errorf("got %#v, want %#v", got, 0)
 	}
 }
 
@@ -237,6 +258,9 @@ func TestType(t *testing.T) {
 	if got, want := js.ValueOf(true).Type(), js.TypeBoolean; got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}
+	if got, want := js.ValueOf(0).Type(), js.TypeNumber; got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
 	if got, want := js.ValueOf(42).Type(), js.TypeNumber; got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}
@@ -269,51 +293,89 @@ func TestValueOf(t *testing.T) {
 	}
 }
 
+func TestZeroValue(t *testing.T) {
+	var v js.Value
+	if v != js.Undefined() {
+		t.Error("zero js.Value is not js.Undefined()")
+	}
+}
+
 func TestCallback(t *testing.T) {
 	c := make(chan struct{})
-	cb := js.NewCallback(func(args []js.Value) {
+	cb := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
 		if got := args[0].Int(); got != 42 {
 			t.Errorf("got %#v, want %#v", got, 42)
 		}
 		c <- struct{}{}
+		return nil
 	})
 	defer cb.Release()
 	js.Global().Call("setTimeout", cb, 0, 42)
 	<-c
 }
 
-func TestEventCallback(t *testing.T) {
-	for _, name := range []string{"preventDefault", "stopPropagation", "stopImmediatePropagation"} {
-		c := make(chan struct{})
-		var flags js.EventCallbackFlag
-		switch name {
-		case "preventDefault":
-			flags = js.PreventDefault
-		case "stopPropagation":
-			flags = js.StopPropagation
-		case "stopImmediatePropagation":
-			flags = js.StopImmediatePropagation
-		}
-		cb := js.NewEventCallback(flags, func(event js.Value) {
-			c <- struct{}{}
+func TestInvokeCallback(t *testing.T) {
+	called := false
+	cb := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+		cb2 := js.NewCallback(func(this js.Value, args []js.Value) interface{} {
+			called = true
+			return 42
 		})
-		defer cb.Release()
-
-		event := js.Global().Call("eval", fmt.Sprintf("({ called: false, %s: function() { this.called = true; } })", name))
-		cb.Invoke(event)
-		if !event.Get("called").Bool() {
-			t.Errorf("%s not called", name)
-		}
-
-		<-c
+		defer cb2.Release()
+		return cb2.Invoke()
+	})
+	defer cb.Release()
+	if got := cb.Invoke().Int(); got != 42 {
+		t.Errorf("got %#v, want %#v", got, 42)
+	}
+	if !called {
+		t.Error("callback not called")
 	}
 }
 
 func ExampleNewCallback() {
 	var cb js.Callback
-	cb = js.NewCallback(func(args []js.Value) {
+	cb = js.NewCallback(func(this js.Value, args []js.Value) interface{} {
 		fmt.Println("button clicked")
 		cb.Release() // release the callback if the button will not be clicked again
+		return nil
 	})
 	js.Global().Get("document").Call("getElementById", "myButton").Call("addEventListener", "click", cb)
+}
+
+// See
+// - https://developer.mozilla.org/en-US/docs/Glossary/Truthy
+// - https://stackoverflow.com/questions/19839952/all-falsey-values-in-javascript/19839953#19839953
+// - http://www.ecma-international.org/ecma-262/5.1/#sec-9.2
+func TestTruthy(t *testing.T) {
+	want := true
+	for _, key := range []string{
+		"someBool", "someString", "someInt", "someFloat", "someArray", "someDate",
+		"stringZero", // "0" is truthy
+		"add",        // functions are truthy
+		"emptyObj", "emptyArray", "Infinity", "NegInfinity",
+		// All objects are truthy, even if they're Number(0) or Boolean(false).
+		"objNumber0", "objBooleanFalse",
+	} {
+		if got := dummys.Get(key).Truthy(); got != want {
+			t.Errorf("%s: got %#v, want %#v", key, got, want)
+		}
+	}
+
+	want = false
+	if got := dummys.Get("zero").Truthy(); got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got := dummys.Get("NaN").Truthy(); got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got := js.ValueOf("").Truthy(); got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got := js.Null().Truthy(); got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got := js.Undefined().Truthy(); got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
 }

@@ -30,8 +30,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang_org/x/net/http/httpguts"
-	"golang_org/x/net/http/httpproxy"
+	"internal/x/net/http/httpguts"
+	"internal/x/net/http/httpproxy"
 )
 
 // DefaultTransport is the default implementation of Transport and is
@@ -85,21 +85,21 @@ func init() {
 // To explicitly enable HTTP/2 on a transport, use golang.org/x/net/http2
 // and call ConfigureTransport. See the package docs for more about HTTP/2.
 //
-// The Transport will send CONNECT requests to a proxy for its own use
-// when processing HTTPS requests, but Transport should generally not
-// be used to send a CONNECT request. That is, the Request passed to
-// the RoundTrip method should not have a Method of "CONNECT", as Go's
-// HTTP/1.x implementation does not support full-duplex request bodies
-// being written while the response body is streamed. Go's HTTP/2
-// implementation does support full duplex, but many CONNECT proxies speak
-// HTTP/1.x.
-//
 // Responses with status codes in the 1xx range are either handled
 // automatically (100 expect-continue) or ignored. The one
 // exception is HTTP status code 101 (Switching Protocols), which is
 // considered a terminal status and returned by RoundTrip. To see the
 // ignored 1xx responses, use the httptrace trace package's
 // ClientTrace.Got1xxResponse.
+//
+// Transport only retries a request upon encountering a network error
+// if the request is idempotent and either has no body or has its
+// Request.GetBody defined. HTTP requests are considered idempotent if
+// they have HTTP methods GET, HEAD, OPTIONS, or TRACE; or if their
+// Header map contains an "Idempotency-Key" or "X-Idempotency-Key"
+// entry. If the idempotency key value is an zero-length slice, the
+// request is treated as idempotent but the header is not sent on the
+// wire.
 type Transport struct {
 	idleMu     sync.Mutex
 	wantIdle   bool                                // user has requested to close all idle conns
@@ -278,7 +278,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
 
 	// If they've already configured http2 with
 	// golang.org/x/net/http2 instead of the bundled copy, try to
-	// get at its http2.Transport value (via the the "https"
+	// get at its http2.Transport value (via the "https"
 	// altproto map) so we can call CloseIdleConnections on it if
 	// requested. (Issue 22891)
 	altProto, _ := t.altProto.Load().(map[string]RoundTripper)
@@ -286,6 +286,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
 		if v := rv.Field(0); v.CanInterface() {
 			if h2i, ok := v.Interface().(h2Transport); ok {
 				t.h2transport = h2i
+				return
 			}
 		}
 	}
@@ -381,6 +382,19 @@ func (tr *transportRequest) setError(err error) {
 	tr.mu.Unlock()
 }
 
+// useRegisteredProtocol reports whether an alternate protocol (as reqistered
+// with Transport.RegisterProtocol) should be respected for this request.
+func (t *Transport) useRegisteredProtocol(req *Request) bool {
+	if req.URL.Scheme == "https" && req.requiresHTTP1() {
+		// If this request requires HTTP/1, don't use the
+		// "https" alternate protocol, which is used by the
+		// HTTP/2 code to take over requests if there's an
+		// existing cached HTTP/2 connection.
+		return false
+	}
+	return true
+}
+
 // roundTrip implements a RoundTripper over HTTP.
 func (t *Transport) roundTrip(req *Request) (*Response, error) {
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
@@ -410,10 +424,12 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		}
 	}
 
-	altProto, _ := t.altProto.Load().(map[string]RoundTripper)
-	if altRT := altProto[scheme]; altRT != nil {
-		if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
-			return resp, err
+	if t.useRegisteredProtocol(req) {
+		altProto, _ := t.altProto.Load().(map[string]RoundTripper)
+		if altRT := altProto[scheme]; altRT != nil {
+			if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
+				return resp, err
+			}
 		}
 	}
 	if !isHTTP {
@@ -477,9 +493,8 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		}
 		testHookRoundTripRetried()
 
-		// Rewind the body if we're able to.  (HTTP/2 does this itself so we only
-		// need to do it for HTTP/1.1 connections.)
-		if req.GetBody != nil && pconn.alt == nil {
+		// Rewind the body if we're able to.
+		if req.GetBody != nil {
 			newReq := *req
 			var err error
 			newReq.Body, err = req.GetBody()
@@ -653,6 +668,7 @@ func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectM
 			}
 		}
 	}
+	cm.onlyH1 = treq.requiresHTTP1()
 	return cm, err
 }
 
@@ -1155,6 +1171,9 @@ func (pconn *persistConn) addTLS(name string, trace *httptrace.ClientTrace) erro
 	if cfg.ServerName == "" {
 		cfg.ServerName = name
 	}
+	if pconn.cacheKey.onlyH1 {
+		cfg.NextProtos = nil
+	}
 	plainConn := pconn.conn
 	tlsConn := tls.Client(plainConn, cfg)
 	errc := make(chan error, 2)
@@ -1361,10 +1380,11 @@ func (w persistConnWriter) Write(p []byte) (n int, err error) {
 //
 // A connect method may be of the following types:
 //
-//	Cache key form                    Description
-//	-----------------                 -------------------------
+//	connectMethod.key().String()      Description
+//	------------------------------    -------------------------
 //	|http|foo.com                     http directly to server, no proxy
 //	|https|foo.com                    https directly to server, no proxy
+//	|https,h1|foo.com                 https directly to server w/o HTTP/2, no proxy
 //	http://proxy.com|https|foo.com    http to proxy, then CONNECT to foo.com
 //	http://proxy.com|http             http to proxy, http to anywhere after that
 //	socks5://proxy.com|http|foo.com   socks5 to proxy, then http to foo.com
@@ -1379,6 +1399,7 @@ type connectMethod struct {
 	// then targetAddr is not included in the connect method key, because the socket can
 	// be reused for different targetAddr values.
 	targetAddr string
+	onlyH1     bool // whether to disable HTTP/2 and force HTTP/1
 }
 
 func (cm *connectMethod) key() connectMethodKey {
@@ -1394,6 +1415,7 @@ func (cm *connectMethod) key() connectMethodKey {
 		proxy:  proxyStr,
 		scheme: cm.targetScheme,
 		addr:   targetAddr,
+		onlyH1: cm.onlyH1,
 	}
 }
 
@@ -1428,11 +1450,16 @@ func (cm *connectMethod) tlsHost() string {
 // a URL.
 type connectMethodKey struct {
 	proxy, scheme, addr string
+	onlyH1              bool
 }
 
 func (k connectMethodKey) String() string {
 	// Only used by tests.
-	return fmt.Sprintf("%s|%s|%s", k.proxy, k.scheme, k.addr)
+	var h1 string
+	if k.onlyH1 {
+		h1 = ",h1"
+	}
+	return fmt.Sprintf("%s|%s%s|%s", k.proxy, k.scheme, h1, k.addr)
 }
 
 // persistConn wraps a connection, usually a persistent one
@@ -1607,6 +1634,11 @@ func (pc *persistConn) mapRoundTripError(req *transportRequest, startBytesWritte
 	return err
 }
 
+// errCallerOwnsConn is an internal sentinel error used when we hand
+// off a writable response.Body to the caller. We use this to prevent
+// closing a net.Conn that is now owned by the caller.
+var errCallerOwnsConn = errors.New("read loop ending; caller owns writable underlying conn")
+
 func (pc *persistConn) readLoop() {
 	closeErr := errReadLoopExiting // default value, if not changed below
 	defer func() {
@@ -1681,16 +1713,17 @@ func (pc *persistConn) readLoop() {
 		pc.numExpectedResponses--
 		pc.mu.Unlock()
 
+		bodyWritable := resp.bodyIsWritable()
 		hasBody := rc.req.Method != "HEAD" && resp.ContentLength != 0
 
-		if resp.Close || rc.req.Close || resp.StatusCode <= 199 {
+		if resp.Close || rc.req.Close || resp.StatusCode <= 199 || bodyWritable {
 			// Don't do keep-alive on error if either party requested a close
 			// or we get an unexpected informational (1xx) response.
 			// StatusCode 100 is already handled above.
 			alive = false
 		}
 
-		if !hasBody {
+		if !hasBody || bodyWritable {
 			pc.t.setReqCanceler(rc.req, nil)
 
 			// Put the idle conn back into the pool before we send the response
@@ -1703,6 +1736,10 @@ func (pc *persistConn) readLoop() {
 				!pc.sawEOF &&
 				pc.wroteRequest() &&
 				tryPutIdleConn(trace)
+
+			if bodyWritable {
+				closeErr = errCallerOwnsConn
+			}
 
 			select {
 			case rc.ch <- responseAndError{res: resp}:
@@ -1848,6 +1885,10 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 		}
 		break
 	}
+	if resp.isProtocolSwitch() {
+		resp.Body = newReadWriteCloserBody(pc.br, pc.conn)
+	}
+
 	resp.TLS = pc.tlsState
 	return
 }
@@ -1872,6 +1913,38 @@ func (pc *persistConn) waitForContinue(continueCh <-chan struct{}) func() bool {
 			return false
 		}
 	}
+}
+
+func newReadWriteCloserBody(br *bufio.Reader, rwc io.ReadWriteCloser) io.ReadWriteCloser {
+	body := &readWriteCloserBody{ReadWriteCloser: rwc}
+	if br.Buffered() != 0 {
+		body.br = br
+	}
+	return body
+}
+
+// readWriteCloserBody is the Response.Body type used when we want to
+// give users write access to the Body through the underlying
+// connection (TCP, unless using custom dialers). This is then
+// the concrete type for a Response.Body on the 101 Switching
+// Protocols response, as used by WebSockets, h2c, etc.
+type readWriteCloserBody struct {
+	br *bufio.Reader // used until empty
+	io.ReadWriteCloser
+}
+
+func (b *readWriteCloserBody) Read(p []byte) (n int, err error) {
+	if b.br != nil {
+		if n := b.br.Buffered(); len(p) > n {
+			p = p[:n]
+		}
+		n, err = b.br.Read(p)
+		if b.br.Buffered() == 0 {
+			b.br = nil
+		}
+		return n, err
+	}
+	return b.ReadWriteCloser.Read(p)
 }
 
 // nothingWrittenError wraps a write errors which ended up writing zero bytes.
@@ -2062,7 +2135,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		continueCh = make(chan struct{}, 1)
 	}
 
-	if pc.t.DisableKeepAlives {
+	if pc.t.DisableKeepAlives && !req.wantsClose() {
 		req.extraHeaders().Set("Connection", "close")
 	}
 
@@ -2193,7 +2266,9 @@ func (pc *persistConn) closeLocked(err error) {
 			// freelist for http2. That's done by the
 			// alternate protocol's RoundTripper.
 		} else {
-			pc.conn.Close()
+			if err != errCallerOwnsConn {
+				pc.conn.Close()
+			}
 			close(pc.closech)
 		}
 	}
@@ -2341,7 +2416,7 @@ type fakeLocker struct{}
 func (fakeLocker) Lock()   {}
 func (fakeLocker) Unlock() {}
 
-// clneTLSConfig returns a shallow clone of cfg, or a new zero tls.Config if
+// cloneTLSConfig returns a shallow clone of cfg, or a new zero tls.Config if
 // cfg is nil. This is safe to call even if cfg is in active use by a TLS
 // client or server.
 func cloneTLSConfig(cfg *tls.Config) *tls.Config {

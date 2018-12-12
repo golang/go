@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Check correctness of various closure corner cases that
+// Check correctness of various closure corner cases
 // that are expected to be inlined
 
 package main
@@ -237,6 +237,8 @@ func main() {
 			func() { // ERROR "func literal does not escape"
 				if c != 4 {
 					ppanic("c != 4")
+				}
+				for i := 0; i < 10; i++ { // prevent inlining
 				}
 			}()
 		}()

@@ -4,14 +4,19 @@
 
 package ssa
 
-import "container/heap"
+import (
+	"container/heap"
+	"sort"
+)
 
 const (
 	ScorePhi = iota // towards top of block
+	ScoreArg
 	ScoreNilCheck
 	ScoreReadTuple
 	ScoreVarDef
 	ScoreMemory
+	ScoreReadFlags
 	ScoreDefault
 	ScoreFlags
 	ScoreControl // towards bottom of block
@@ -57,6 +62,16 @@ func (h ValHeap) Less(i, j int) bool {
 	return x.ID > y.ID
 }
 
+func (op Op) isLoweredGetClosurePtr() bool {
+	switch op {
+	case OpAMD64LoweredGetClosurePtr, OpPPC64LoweredGetClosurePtr, OpARMLoweredGetClosurePtr, OpARM64LoweredGetClosurePtr,
+		Op386LoweredGetClosurePtr, OpMIPS64LoweredGetClosurePtr, OpS390XLoweredGetClosurePtr, OpMIPSLoweredGetClosurePtr,
+		OpWasmLoweredGetClosurePtr:
+		return true
+	}
+	return false
+}
+
 // Schedule the Values in each Block. After this phase returns, the
 // order of b.Values matters and is the order in which those values
 // will appear in the assembly output. For now it generates a
@@ -87,11 +102,7 @@ func schedule(f *Func) {
 		// Compute score. Larger numbers are scheduled closer to the end of the block.
 		for _, v := range b.Values {
 			switch {
-			case v.Op == OpAMD64LoweredGetClosurePtr || v.Op == OpPPC64LoweredGetClosurePtr ||
-				v.Op == OpARMLoweredGetClosurePtr || v.Op == OpARM64LoweredGetClosurePtr ||
-				v.Op == Op386LoweredGetClosurePtr || v.Op == OpMIPS64LoweredGetClosurePtr ||
-				v.Op == OpS390XLoweredGetClosurePtr || v.Op == OpMIPSLoweredGetClosurePtr ||
-				v.Op == OpWasmLoweredGetClosurePtr:
+			case v.Op.isLoweredGetClosurePtr():
 				// We also score GetLoweredClosurePtr as early as possible to ensure that the
 				// context register is not stomped. GetLoweredClosurePtr should only appear
 				// in the entry block where there are no phi functions, so there is no
@@ -113,6 +124,9 @@ func schedule(f *Func) {
 			case v.Op == OpVarDef:
 				// We want all the vardefs next.
 				score[v.ID] = ScoreVarDef
+			case v.Op == OpArg:
+				// We want all the args as early as possible, for better debugging.
+				score[v.ID] = ScoreArg
 			case v.Type.IsMemory():
 				// Schedule stores as early as possible. This tends to
 				// reduce register pressure. It also helps make sure
@@ -125,13 +139,19 @@ func schedule(f *Func) {
 				// false dependency on the other part of the tuple.
 				// Also ensures tuple is never spilled.
 				score[v.ID] = ScoreReadTuple
-			case v.Type.IsFlags() || v.Type.IsTuple():
+			case v.Type.IsFlags() || v.Type.IsTuple() && v.Type.FieldType(1).IsFlags():
 				// Schedule flag register generation as late as possible.
 				// This makes sure that we only have one live flags
 				// value at a time.
 				score[v.ID] = ScoreFlags
 			default:
 				score[v.ID] = ScoreDefault
+				// If we're reading flags, schedule earlier to keep flag lifetime short.
+				for _, a := range v.Args {
+					if a.Type.IsFlags() {
+						score[v.ID] = ScoreReadFlags
+					}
+				}
 			}
 		}
 	}
@@ -175,9 +195,11 @@ func schedule(f *Func) {
 			}
 		}
 
-		if b.Control != nil && b.Control.Op != OpPhi {
+		if b.Control != nil && b.Control.Op != OpPhi && b.Control.Op != OpArg {
 			// Force the control value to be scheduled at the end,
 			// unless it is a phi value (which must be first).
+			// OpArg also goes first -- if it is stack it register allocates
+			// to a LoadReg, if it is register it is from the beginning anyway.
 			score[b.Control.ID] = ScoreControl
 
 			// Schedule values dependent on the control value at the end.
@@ -436,5 +458,33 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 		count[s-1]++
 	}
 
+	// Order nil checks in source order. We want the first in source order to trigger.
+	// If two are on the same line, we don't really care which happens first.
+	// See issue 18169.
+	if hasNilCheck {
+		start := -1
+		for i, v := range order {
+			if v.Op == OpNilCheck {
+				if start == -1 {
+					start = i
+				}
+			} else {
+				if start != -1 {
+					sort.Sort(bySourcePos(order[start:i]))
+					start = -1
+				}
+			}
+		}
+		if start != -1 {
+			sort.Sort(bySourcePos(order[start:]))
+		}
+	}
+
 	return order
 }
+
+type bySourcePos []*Value
+
+func (s bySourcePos) Len() int           { return len(s) }
+func (s bySourcePos) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s bySourcePos) Less(i, j int) bool { return s[i].Pos.Before(s[j].Pos) }

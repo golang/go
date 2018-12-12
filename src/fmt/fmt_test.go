@@ -131,15 +131,10 @@ func (byteFormatter) Format(f State, _ rune) {
 
 var byteFormatterSlice = []byteFormatter{'h', 'e', 'l', 'l', 'o'}
 
-// Copy of io.stringWriter interface used by writeStringFormatter for type assertion.
-type stringWriter interface {
-	WriteString(s string) (n int, err error)
-}
-
 type writeStringFormatter string
 
 func (sf writeStringFormatter) Format(f State, c rune) {
-	if sw, ok := f.(stringWriter); ok {
+	if sw, ok := f.(io.StringWriter); ok {
 		sw.WriteString("***" + string(sf) + "***")
 	}
 }
@@ -303,20 +298,30 @@ var fmtTests = []struct {
 
 	// width
 	{"%5s", "abc", "  abc"},
+	{"%5s", []byte("abc"), "  abc"},
 	{"%2s", "\u263a", " ☺"},
+	{"%2s", []byte("\u263a"), " ☺"},
 	{"%-5s", "abc", "abc  "},
-	{"%-8q", "abc", `"abc"   `},
+	{"%-5s", []byte("abc"), "abc  "},
 	{"%05s", "abc", "00abc"},
-	{"%08q", "abc", `000"abc"`},
+	{"%05s", []byte("abc"), "00abc"},
 	{"%5s", "abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz"},
+	{"%5s", []byte("abcdefghijklmnopqrstuvwxyz"), "abcdefghijklmnopqrstuvwxyz"},
 	{"%.5s", "abcdefghijklmnopqrstuvwxyz", "abcde"},
+	{"%.5s", []byte("abcdefghijklmnopqrstuvwxyz"), "abcde"},
 	{"%.0s", "日本語日本語", ""},
+	{"%.0s", []byte("日本語日本語"), ""},
 	{"%.5s", "日本語日本語", "日本語日本"},
-	{"%.10s", "日本語日本語", "日本語日本語"},
 	{"%.5s", []byte("日本語日本語"), "日本語日本"},
+	{"%.10s", "日本語日本語", "日本語日本語"},
+	{"%.10s", []byte("日本語日本語"), "日本語日本語"},
+	{"%08q", "abc", `000"abc"`},
+	{"%08q", []byte("abc"), `000"abc"`},
+	{"%-8q", "abc", `"abc"   `},
+	{"%-8q", []byte("abc"), `"abc"   `},
 	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
-	{"%.5x", "abcdefghijklmnopqrstuvwxyz", "6162636465"},
 	{"%.5q", []byte("abcdefghijklmnopqrstuvwxyz"), `"abcde"`},
+	{"%.5x", "abcdefghijklmnopqrstuvwxyz", "6162636465"},
 	{"%.5x", []byte("abcdefghijklmnopqrstuvwxyz"), "6162636465"},
 	{"%.3q", "日本語日本語", `"日本語"`},
 	{"%.3q", []byte("日本語日本語"), `"日本語"`},
@@ -325,6 +330,7 @@ var fmtTests = []struct {
 	{"%.1x", "日本語", "e6"},
 	{"%.1X", []byte("日本語"), "E6"},
 	{"%10.1q", "日本語日本語", `       "日"`},
+	{"%10.1q", []byte("日本語日本語"), `       "日"`},
 	{"%10v", nil, "     <nil>"},
 	{"%-10v", nil, "<nil>     "},
 
@@ -690,6 +696,13 @@ var fmtTests = []struct {
 	{"%#v", []int32(nil), "[]int32(nil)"},
 	{"%#v", 1.2345678, "1.2345678"},
 	{"%#v", float32(1.2345678), "1.2345678"},
+
+	// Whole number floats are printed without decimals. See Issue 27634.
+	{"%#v", 1.0, "1"},
+	{"%#v", 1000000.0, "1e+06"},
+	{"%#v", float32(1.0), "1"},
+	{"%#v", float32(1000000.0), "1e+06"},
+
 	// Only print []byte and []uint8 as type []byte if they appear at the top level.
 	{"%#v", []byte(nil), "[]byte(nil)"},
 	{"%#v", []uint8(nil), "[]byte(nil)"},
@@ -861,13 +874,8 @@ var fmtTests = []struct {
 	// Extra argument errors should format without flags set.
 	{"%010.2", "12345", "%!(NOVERB)%!(EXTRA string=12345)"},
 
-	// The "<nil>" show up because maps are printed by
-	// first obtaining a list of keys and then looking up
-	// each key. Since NaNs can be map keys but cannot
-	// be fetched directly, the lookup fails and returns a
-	// zero reflect.Value, which formats as <nil>.
-	// This test is just to check that it shows the two NaNs at all.
-	{"%v", map[float64]int{NaN: 1, NaN: 2}, "map[NaN:<nil> NaN:<nil>]"},
+	// Test that maps with non-reflexive keys print all keys and values.
+	{"%v", map[float64]int{NaN: 1, NaN: 1}, "map[NaN:1 NaN:1]"},
 
 	// Comparison of padding rules with C printf.
 	/*
@@ -1033,7 +1041,7 @@ var fmtTests = []struct {
 	{"%☠", &[]interface{}{I(1), G(2)}, "&[%!☠(fmt_test.I=1) %!☠(fmt_test.G=2)]"},
 	{"%☠", SI{&[]interface{}{I(1), G(2)}}, "{%!☠(*[]interface {}=&[1 2])}"},
 	{"%☠", reflect.Value{}, "<invalid reflect.Value>"},
-	{"%☠", map[float64]int{NaN: 1}, "map[%!☠(float64=NaN):%!☠(<nil>)]"},
+	{"%☠", map[float64]int{NaN: 1}, "map[%!☠(float64=NaN):%!☠(int=1)]"},
 }
 
 // zeroFill generates zero-filled strings of the specified width. The length
@@ -1214,7 +1222,16 @@ func BenchmarkSprintfString(b *testing.B) {
 func BenchmarkSprintfTruncateString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%.3s", "日本語日本語日本語")
+			Sprintf("%.3s", "日本語日本語日本語日本語")
+		}
+	})
+}
+
+func BenchmarkSprintfTruncateBytes(b *testing.B) {
+	var bytes interface{} = []byte("日本語日本語日本語日本語")
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%.3s", bytes)
 		}
 	})
 }

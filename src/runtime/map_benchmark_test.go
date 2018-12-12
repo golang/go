@@ -5,6 +5,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"testing"
@@ -206,6 +207,67 @@ func BenchmarkIntMap(b *testing.B) {
 	}
 }
 
+func BenchmarkMapFirst(b *testing.B) {
+	for n := 1; n <= 16; n++ {
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			m := make(map[int]bool)
+			for i := 0; i < n; i++ {
+				m[i] = true
+			}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = m[0]
+			}
+		})
+	}
+}
+func BenchmarkMapMid(b *testing.B) {
+	for n := 1; n <= 16; n++ {
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			m := make(map[int]bool)
+			for i := 0; i < n; i++ {
+				m[i] = true
+			}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = m[n>>1]
+			}
+		})
+	}
+}
+func BenchmarkMapLast(b *testing.B) {
+	for n := 1; n <= 16; n++ {
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			m := make(map[int]bool)
+			for i := 0; i < n; i++ {
+				m[i] = true
+			}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = m[n-1]
+			}
+		})
+	}
+}
+
+func BenchmarkMapCycle(b *testing.B) {
+	// Arrange map entries to be a permuation, so that
+	// we hit all entries, and one lookup is data dependent
+	// on the previous lookup.
+	const N = 3127
+	p := rand.New(rand.NewSource(1)).Perm(N)
+	m := map[int]int{}
+	for i := 0; i < N; i++ {
+		m[i] = p[i]
+	}
+	b.ResetTimer()
+	j := 0
+	for i := 0; i < b.N; i++ {
+		j = m[j]
+	}
+	sink = uint64(j)
+}
+
 // Accessing the same keys in a row.
 func benchmarkRepeatedLookup(b *testing.B, lookupKeySize int) {
 	m := make(map[string]bool)
@@ -227,6 +289,23 @@ func benchmarkRepeatedLookup(b *testing.B, lookupKeySize int) {
 
 func BenchmarkRepeatedLookupStrMapKey32(b *testing.B) { benchmarkRepeatedLookup(b, 32) }
 func BenchmarkRepeatedLookupStrMapKey1M(b *testing.B) { benchmarkRepeatedLookup(b, 1<<20) }
+
+func BenchmarkMakeMap(b *testing.B) {
+	b.Run("[Byte]Byte", func(b *testing.B) {
+		var m map[byte]byte
+		for i := 0; i < b.N; i++ {
+			m = make(map[byte]byte, 10)
+		}
+		hugeSink = m
+	})
+	b.Run("[Int]Int", func(b *testing.B) {
+		var m map[int]int
+		for i := 0; i < b.N; i++ {
+			m = make(map[int]int, 10)
+		}
+		hugeSink = m
+	})
+}
 
 func BenchmarkNewEmptyMap(b *testing.B) {
 	b.ReportAllocs()
@@ -369,4 +448,38 @@ func BenchmarkGoMapClear(b *testing.B) {
 			})
 		}
 	})
+}
+
+func BenchmarkMapStringConversion(b *testing.B) {
+	for _, length := range []int{32, 64} {
+		b.Run(strconv.Itoa(length), func(b *testing.B) {
+			bytes := make([]byte, length)
+			b.Run("simple", func(b *testing.B) {
+				b.ReportAllocs()
+				m := make(map[string]int)
+				m[string(bytes)] = 0
+				for i := 0; i < b.N; i++ {
+					_ = m[string(bytes)]
+				}
+			})
+			b.Run("struct", func(b *testing.B) {
+				b.ReportAllocs()
+				type stringstruct struct{ s string }
+				m := make(map[stringstruct]int)
+				m[stringstruct{string(bytes)}] = 0
+				for i := 0; i < b.N; i++ {
+					_ = m[stringstruct{string(bytes)}]
+				}
+			})
+			b.Run("array", func(b *testing.B) {
+				b.ReportAllocs()
+				type stringarray [1]string
+				m := make(map[stringarray]int)
+				m[stringarray{string(bytes)}] = 0
+				for i := 0; i < b.N; i++ {
+					_ = m[stringarray{string(bytes)}]
+				}
+			})
+		})
+	}
 }

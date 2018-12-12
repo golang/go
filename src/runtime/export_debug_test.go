@@ -115,7 +115,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 		return false
 	}
 	f := findfunc(uintptr(ctxt.rip()))
-	if !(hasprefix(funcname(f), "runtime.debugCall") || hasprefix(funcname(f), "debugCall")) {
+	if !(hasPrefix(funcname(f), "runtime.debugCall") || hasPrefix(funcname(f), "debugCall")) {
 		println("trap in unknown function", funcname(f))
 		return false
 	}

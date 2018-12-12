@@ -177,11 +177,8 @@ func typeinit() {
 		simtype[et] = et
 	}
 
-	types.Types[TPTR32] = types.New(TPTR32)
-	dowidth(types.Types[TPTR32])
-
-	types.Types[TPTR64] = types.New(TPTR64)
-	dowidth(types.Types[TPTR64])
+	types.Types[TPTR] = types.New(TPTR)
+	dowidth(types.Types[TPTR])
 
 	t := types.New(TUNSAFEPTR)
 	types.Types[TUNSAFEPTR] = t
@@ -189,11 +186,6 @@ func typeinit() {
 	t.Sym.Def = asTypesNode(typenod(t))
 	asNode(t.Sym.Def).Name = new(Name)
 	dowidth(types.Types[TUNSAFEPTR])
-
-	types.Tptr = TPTR32
-	if Widthptr == 8 {
-		types.Tptr = TPTR64
-	}
 
 	for et := TINT8; et <= TUINT64; et++ {
 		isInt[et] = true
@@ -207,8 +199,6 @@ func typeinit() {
 
 	isComplex[TCOMPLEX64] = true
 	isComplex[TCOMPLEX128] = true
-
-	isforw[TFORW] = true
 
 	// initialize okfor
 	for et := types.EType(0); et < NTYPE; et++ {
@@ -263,8 +253,7 @@ func typeinit() {
 	okforlen[TSLICE] = true
 	okforlen[TSTRING] = true
 
-	okforeq[TPTR32] = true
-	okforeq[TPTR64] = true
+	okforeq[TPTR] = true
 	okforeq[TUNSAFEPTR] = true
 	okforeq[TINTER] = true
 	okforeq[TCHAN] = true
@@ -305,8 +294,8 @@ func typeinit() {
 	okfor[ORSH] = okforand[:]
 
 	// unary
-	okfor[OCOM] = okforand[:]
-	okfor[OMINUS] = okforarith[:]
+	okfor[OBITNOT] = okforand[:]
+	okfor[ONEG] = okforarith[:]
 	okfor[ONOT] = okforbool[:]
 	okfor[OPLUS] = okforarith[:]
 
@@ -357,10 +346,10 @@ func typeinit() {
 	types.Types[TINTER] = types.New(TINTER)
 
 	// simple aliases
-	simtype[TMAP] = types.Tptr
-	simtype[TCHAN] = types.Tptr
-	simtype[TFUNC] = types.Tptr
-	simtype[TUNSAFEPTR] = types.Tptr
+	simtype[TMAP] = TPTR
+	simtype[TCHAN] = TPTR
+	simtype[TFUNC] = TPTR
+	simtype[TUNSAFEPTR] = TPTR
 
 	array_array = int(Rnd(0, int64(Widthptr)))
 	array_nel = int(Rnd(int64(array_array)+int64(Widthptr), int64(Widthptr)))

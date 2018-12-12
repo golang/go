@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// needwb returns whether we need write barrier for store op v.
+// needwb reports whether we need write barrier for store op v.
 // v must be Store/Move/Zero.
 func needwb(v *Value) bool {
 	t, ok := v.Aux.(*types.Type)
@@ -23,6 +23,14 @@ func needwb(v *Value) bool {
 	}
 	if IsStackAddr(v.Args[0]) {
 		return false // write on stack doesn't need write barrier
+	}
+	if v.Op == OpStore && IsGlobalAddr(v.Args[1]) && IsNewObject(v.Args[0], v.MemoryArg()) {
+		// Storing pointers to non-heap locations into a fresh object doesn't need a write barrier.
+		return false
+	}
+	if v.Op == OpMove && IsReadOnlyGlobalAddr(v.Args[1]) && IsNewObject(v.Args[0], v.MemoryArg()) {
+		// Copying data from readonly memory into a fresh object doesn't need a write barrier.
+		return false
 	}
 	return true
 }
@@ -353,7 +361,7 @@ func round(o int64, r int64) int64 {
 	return (o + r - 1) &^ (r - 1)
 }
 
-// IsStackAddr returns whether v is known to be an address of a stack slot
+// IsStackAddr reports whether v is known to be an address of a stack slot.
 func IsStackAddr(v *Value) bool {
 	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
 		v = v.Args[0]
@@ -363,6 +371,51 @@ func IsStackAddr(v *Value) bool {
 		return true
 	}
 	return false
+}
+
+// IsGlobalAddr reports whether v is known to be an address of a global.
+func IsGlobalAddr(v *Value) bool {
+	return v.Op == OpAddr && v.Args[0].Op == OpSB
+}
+
+// IsReadOnlyGlobalAddr reports whether v is known to be an address of a read-only global.
+func IsReadOnlyGlobalAddr(v *Value) bool {
+	if !IsGlobalAddr(v) {
+		return false
+	}
+	// See TODO in OpAddr case in IsSanitizerSafeAddr below.
+	return strings.HasPrefix(v.Aux.(*obj.LSym).Name, `"".statictmp_`)
+}
+
+// IsNewObject reports whether v is a pointer to a freshly allocated & zeroed object at memory state mem.
+// TODO: Be more precise. We really want "IsNilPointer" for the particular field in question.
+// Right now, we can only detect a new object before any writes have been done to it.
+// We could ignore non-pointer writes, writes to offsets which
+// are known not to overlap the write in question, etc.
+func IsNewObject(v *Value, mem *Value) bool {
+	if v.Op != OpLoad {
+		return false
+	}
+	if v.MemoryArg() != mem {
+		return false
+	}
+	if mem.Op != OpStaticCall {
+		return false
+	}
+	if !isSameSym(mem.Aux, "runtime.newobject") {
+		return false
+	}
+	if v.Args[0].Op != OpOffPtr {
+		return false
+	}
+	if v.Args[0].Args[0].Op != OpSP {
+		return false
+	}
+	c := v.Block.Func.Config
+	if v.Args[0].AuxInt != c.ctxt.FixedFrameSize()+c.RegSize { // offset of return value
+		return false
+	}
+	return true
 }
 
 // IsSanitizerSafeAddr reports whether v is known to be an address
@@ -393,7 +446,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
 	return false
 }
 
-// isVolatile returns whether v is a pointer to argument region on stack which
+// isVolatile reports whether v is a pointer to argument region on stack which
 // will be clobbered by a function call.
 func isVolatile(v *Value) bool {
 	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {

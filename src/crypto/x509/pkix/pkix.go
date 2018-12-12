@@ -95,7 +95,7 @@ func (r RDNSequence) String() string {
 type RelativeDistinguishedNameSET []AttributeTypeAndValue
 
 // AttributeTypeAndValue mirrors the ASN.1 structure of the same name in
-// https://tools.ietf.org/html/rfc5280#section-4.1.2.4
+// RFC 5280, Section 4.1.2.4.
 type AttributeTypeAndValue struct {
 	Type  asn1.ObjectIdentifier
 	Value interface{}
@@ -227,7 +227,7 @@ func (n Name) String() string {
 	return n.ToRDNSequence().String()
 }
 
-// oidInAttributeTypeAndValue returns whether a type with the given OID exists
+// oidInAttributeTypeAndValue reports whether a type with the given OID exists
 // in atv.
 func oidInAttributeTypeAndValue(oid asn1.ObjectIdentifier, atv []AttributeTypeAndValue) bool {
 	for _, a := range atv {

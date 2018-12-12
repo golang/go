@@ -35,6 +35,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"math"
 	"sort"
 )
 
@@ -286,6 +287,7 @@ var optab = []Optab{
 	{AMOVD, C_TLS_IE, C_NONE, C_NONE, C_REG, 80, 8, 0},
 
 	{AMOVD, C_GOTADDR, C_NONE, C_NONE, C_REG, 81, 8, 0},
+	{AMOVD, C_TOCADDR, C_NONE, C_NONE, C_REG, 95, 8, 0},
 
 	/* load constant */
 	{AMOVD, C_SECON, C_NONE, C_NONE, C_REG, 3, 4, REGSB},
@@ -342,6 +344,8 @@ var optab = []Optab{
 	{AFMOVD, C_LEXT, C_NONE, C_NONE, C_FREG, 36, 8, REGSB},
 	{AFMOVD, C_LAUTO, C_NONE, C_NONE, C_FREG, 36, 8, REGSP},
 	{AFMOVD, C_LOREG, C_NONE, C_NONE, C_FREG, 36, 8, REGZERO},
+	{AFMOVD, C_ZCON, C_NONE, C_NONE, C_FREG, 24, 4, 0},
+	{AFMOVD, C_ADDCON, C_NONE, C_NONE, C_FREG, 24, 8, 0},
 	{AFMOVD, C_ADDR, C_NONE, C_NONE, C_FREG, 75, 8, 0},
 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_SEXT, 7, 4, REGSB},
 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_SAUTO, 7, 4, REGSP},
@@ -599,6 +603,7 @@ var optab = []Optab{
 	{obj.ANOP, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0},
 	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_LBRA, 11, 4, 0}, // same as ABR/ABL
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_LBRA, 11, 4, 0}, // same as ABR/ABL
+	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0},   // align code
 
 	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0},
 }
@@ -606,6 +611,28 @@ var optab = []Optab{
 var oprange [ALAST & obj.AMask][]Optab
 
 var xcmp [C_NCLASS][C_NCLASS]bool
+
+// padding bytes to add to align code as requested
+func addpad(pc, a int64, ctxt *obj.Link) int {
+	switch a {
+	case 8:
+		if pc%8 != 0 {
+			return 4
+		}
+	case 16:
+		switch pc % 16 {
+		// When currently aligned to 4, avoid 3 NOPs and set to
+		// 8 byte alignment which should still help.
+		case 4, 12:
+			return 4
+		case 8:
+			return 8
+		}
+	default:
+		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)
+	}
+	return 0
+}
 
 func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	p := cursym.Func.Text
@@ -629,12 +656,16 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		o = c.oplook(p)
 		m = int(o.size)
 		if m == 0 {
-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
-				c.ctxt.Diag("zero-width instruction\n%v", p)
+			if p.As == obj.APCALIGN {
+				a := c.vregoff(&p.From)
+				m = addpad(pc, a, ctxt)
+			} else {
+				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+					ctxt.Diag("zero-width instruction\n%v", p)
+				}
+				continue
 			}
-			continue
 		}
-
 		pc += int64(m)
 	}
 
@@ -683,10 +714,15 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			m = int(o.size)
 			if m == 0 {
-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
-					c.ctxt.Diag("zero-width instruction\n%v", p)
+				if p.As == obj.APCALIGN {
+					a := c.vregoff(&p.From)
+					m = addpad(pc, a, ctxt)
+				} else {
+					if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+						ctxt.Diag("zero-width instruction\n%v", p)
+					}
+					continue
 				}
-				continue
 			}
 
 			pc += int64(m)
@@ -695,7 +731,10 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		c.cursym.Size = pc
 	}
 
-	pc += -pc & (funcAlign - 1)
+	if pc%funcAlign != 0 {
+		pc += funcAlign - (pc % funcAlign)
+	}
+
 	c.cursym.Size = pc
 
 	/*
@@ -713,10 +752,19 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if int(o.size) > 4*len(out) {
 			log.Fatalf("out array in span9 is too small, need at least %d for %v", o.size/4, p)
 		}
+		origsize := o.size
 		c.asmout(p, o, out[:])
-		for i = 0; i < int32(o.size/4); i++ {
-			c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
-			bp = bp[4:]
+		if origsize == 0 && o.size > 0 {
+			for i = 0; i < int32(o.size/4); i++ {
+				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[0])
+				bp = bp[4:]
+			}
+			o.size = origsize
+		} else {
+			for i = 0; i < int32(o.size/4); i++ {
+				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
+				bp = bp[4:]
+			}
 		}
 	}
 }
@@ -799,6 +847,9 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 		case obj.NAME_GOTREF:
 			return C_GOTADDR
 
+		case obj.NAME_TOCREF:
+			return C_TOCADDR
+
 		case obj.NAME_AUTO:
 			c.instoffset = int64(c.autosize) + a.Offset
 			if c.instoffset >= -BIG && c.instoffset < BIG {
@@ -828,6 +879,18 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 
 	case obj.TYPE_TEXTSIZE:
 		return C_TEXTSIZE
+
+	case obj.TYPE_FCONST:
+		// The only cases where FCONST will occur are with float64 +/- 0.
+		// All other float constants are generated in memory.
+		f64 := a.Val.(float64)
+		if f64 == 0 {
+			if math.Signbit(f64) {
+				return C_ADDCON
+			}
+			return C_ZCON
+		}
+		log.Fatalf("Unexpected nonzero FCONST operand %v", a)
 
 	case obj.TYPE_CONST,
 		obj.TYPE_ADDR:
@@ -960,7 +1023,7 @@ func (c *ctxt9) oplook(p *obj.Prog) *Optab {
 		}
 	}
 
-	//print("oplook %v %d %d %d %d\n", p, a1, a2, a3, a4);
+	// c.ctxt.Logf("oplook %v %d %d %d %d\n", p, a1, a2, a3, a4)
 	ops := oprange[p.As&obj.AMask]
 	c1 := &xcmp[a1]
 	c3 := &xcmp[a3]
@@ -1435,7 +1498,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AVCMPNEZBCC, r0)
 
 		case AVPERM: /* vperm */
-			opset(AVPERM, r0)
+			opset(AVPERMXOR, r0)
 
 		case AVBPERMQ: /* vbpermq, vbpermd */
 			opset(AVBPERMD, r0)
@@ -1882,6 +1945,7 @@ func buildop(ctxt *obj.Link) {
 			obj.ATEXT,
 			obj.AUNDEF,
 			obj.AFUNCDATA,
+			obj.APCALIGN,
 			obj.APCDATA,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
@@ -2147,6 +2211,10 @@ func (c *ctxt9) opform(insn uint32) int {
 // Encode instructions and create relocation for accessing s+d according to the
 // instruction op with source or destination (as appropriate) register reg.
 func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32) (o1, o2 uint32) {
+	if c.ctxt.Headtype == objabi.Haix {
+		// Every symbol accesses must be made via a TOC anchor.
+		c.ctxt.Diag("symbolAccess called for %s", s.Name)
+	}
 	var base uint32
 	form := c.opform(op)
 	if c.ctxt.Flag_shared {
@@ -2290,6 +2358,19 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		prasm(p)
 
 	case 0: /* pseudo ops */
+		if p.As == obj.APCALIGN {
+			aln := c.vregoff(&p.From)
+			v := addpad(p.Pc, aln, c.ctxt)
+			if v > 0 {
+				for i := 0; i < 6; i++ {
+					out[i] = uint32(0)
+				}
+				o.size = int8(v)
+				out[0] = LOP_RRR(OP_OR, REGZERO, REGZERO, REGZERO)
+				return
+			}
+			o.size = 0
+		}
 		break
 
 	case 1: /* mov r1,r2 ==> OR Rs,Rs,Ra */
@@ -2761,6 +2842,13 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		if p.From.Sym != nil {
 			c.ctxt.Diag("%v is not supported", p)
+		}
+
+	case 24: /* lfd fA,float64(0) -> xxlxor xsA,xsaA,xsaA + fneg for -0 */
+		o1 = AOP_XX3I(c.oprrr(AXXLXOR), uint32(p.To.Reg), uint32(p.To.Reg), uint32(p.To.Reg), uint32(0))
+		// This is needed for -0.
+		if o.size == 8 {
+			o2 = AOP_RRR(c.oprrr(AFNEG), uint32(p.To.Reg), 0, uint32(p.To.Reg))
 		}
 
 	case 25:
@@ -3567,6 +3655,24 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		/* operand order: RA, RB, CY, RT */
 		cy := int(c.regoff(p.GetFrom3()))
 		o1 = AOP_Z23I(c.oprrr(p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), uint32(cy))
+
+	case 95: /* Retrieve TOC symbol */
+		v := c.vregoff(&p.To)
+		if v != 0 {
+			c.ctxt.Diag("invalid offset against TOC slot %v", p)
+		}
+
+		if c.opform(c.opload(p.As)) != DS_FORM {
+			c.ctxt.Diag("invalid form for a TOC access in %v", p)
+		}
+
+		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
+		o2 = AOP_IRR(c.opload(AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 8
+		rel.Sym = p.From.Sym
+		rel.Type = objabi.R_ADDRPOWER_TOCREL_DS
 	}
 
 	out[0] = o1
@@ -4397,6 +4503,8 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 
 	case AVPERM:
 		return OPVX(4, 43, 0, 0) /* vperm - v2.03 */
+	case AVPERMXOR:
+		return OPVX(4, 45, 0, 0) /* vpermxor - v2.03 */
 
 	case AVSEL:
 		return OPVX(4, 42, 0, 0) /* vsel - v2.03 */

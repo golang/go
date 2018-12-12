@@ -26,7 +26,7 @@ scheme.
 # Download NaCl
 
 Download nacl_sdk.zip file from
-	https://developers.google.com/native-client/dev/sdk/download
+	https://developer.chrome.com/native-client/sdk/download
 and unpack it. I chose /opt/nacl_sdk.
 
 # Update
@@ -37,7 +37,7 @@ sdk. These are released every 6-8 weeks, in line with Chrome releases.
 	% cd /opt/nacl_sdk
 	% ./naclsdk update
 
-At this time pepper_40 is the stable version. The NaCl port needs at least pepper_39
+At this time pepper_49 is the stable version. The NaCl port needs at least pepper_39
 to work. If naclsdk downloads a later version, please adjust accordingly.
 
 The cmd/go helper scripts expect that the loaders sel_ldr_{x86_{32,64},arm} and

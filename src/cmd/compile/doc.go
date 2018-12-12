@@ -64,6 +64,9 @@ Flags:
 		instead of $GOROOT/pkg/$GOOS_$GOARCH.
 	-l
 		Disable inlining.
+	-lang version
+		Set language version to compile, as in -lang=go1.12.
+		Default is current version.
 	-largemodel
 		Generate code that assumes a large memory model.
 	-linkobj file
@@ -92,8 +95,6 @@ Flags:
 		Compile with race detector enabled.
 	-trimpath prefix
 		Remove prefix from recorded source file paths.
-	-u
-		Disallow importing packages not marked as safe; implies -nolocalimports.
 
 There are also a number of debugging flags; run the command with no arguments
 for a usage message.
@@ -125,7 +126,7 @@ directive can skip over a directive like any other comment.
 // For a //line comment, this is the first character of the next line, and
 // for a /*line comment this is the character position immediately following the closing */.
 // If no filename is given, the recorded filename is empty if there is also no column number;
-// otherwise is is the most recently recorded filename (actual filename or filename specified
+// otherwise it is the most recently recorded filename (actual filename or filename specified
 // by previous line directive).
 // If a line directive doesn't specify a column number, the column is "unknown" until
 // the next directive and the compiler does not report column numbers for that range.
@@ -146,7 +147,7 @@ directive can skip over a directive like any other comment.
 // will report positions in the original input to the generator.
 /*
 The line directive is an historical special case; all other directives are of the form
-//go:name and must start at the begnning of a line, indicating that the directive is defined
+//go:name and must start at the beginning of a line, indicating that the directive is defined
 by the Go toolchain.
 
 	//go:noescape

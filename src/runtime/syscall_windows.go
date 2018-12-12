@@ -25,18 +25,32 @@ func (c *wincallbackcontext) setCleanstack(cleanstack bool) {
 var (
 	cbs     callbacks
 	cbctxts **wincallbackcontext = &cbs.ctxt[0] // to simplify access to cbs.ctxt in sys_windows_*.s
-
-	callbackasm byte // type isn't really byte, it's code in runtime
 )
+
+func callbackasm()
 
 // callbackasmAddr returns address of runtime.callbackasm
 // function adjusted by i.
-// runtime.callbackasm is just a series of CALL instructions
-// (each is 5 bytes long), and we want callback to arrive at
+// On x86 and amd64, runtime.callbackasm is a series of CALL instructions,
+// and we want callback to arrive at
 // correspondent call instruction instead of start of
 // runtime.callbackasm.
+// On ARM, runtime.callbackasm is a series of mov and branch instructions.
+// R12 is loaded with the callback index. Each entry is two instructions,
+// hence 8 bytes.
 func callbackasmAddr(i int) uintptr {
-	return uintptr(add(unsafe.Pointer(&callbackasm), uintptr(i*5)))
+	var entrySize int
+	switch GOARCH {
+	default:
+		panic("unsupported architecture")
+	case "386", "amd64":
+		entrySize = 5
+	case "arm":
+		// On ARM, each entry is a MOV instruction
+		// followed by a branch instruction
+		entrySize = 8
+	}
+	return funcPC(callbackasm) + uintptr(i*entrySize)
 }
 
 //go:linkname compileCallback syscall.compileCallback
@@ -215,6 +229,19 @@ func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, 
 //go:linkname syscall_Syscall15 syscall.Syscall15
 //go:nosplit
 func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
+	lockOSThread()
+	defer unlockOSThread()
+	c := &getg().m.syscall
+	c.fn = fn
+	c.n = nargs
+	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	return c.r1, c.r2, c.err
+}
+
+//go:linkname syscall_Syscall18 syscall.Syscall18
+//go:nosplit
+func syscall_Syscall18(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2, err uintptr) {
 	lockOSThread()
 	defer unlockOSThread()
 	c := &getg().m.syscall

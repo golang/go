@@ -4,12 +4,17 @@
 
 package strings
 
-import "io"
+import (
+	"io"
+	"sync"
+)
 
 // Replacer replaces a list of strings with replacements.
 // It is safe for concurrent use by multiple goroutines.
 type Replacer struct {
-	r replacer
+	once   sync.Once // guards buildOnce method
+	r      replacer
+	oldnew []string
 }
 
 // replacer is the interface that a replacement algorithm needs to implement.
@@ -25,15 +30,24 @@ func NewReplacer(oldnew ...string) *Replacer {
 	if len(oldnew)%2 == 1 {
 		panic("strings.NewReplacer: odd argument count")
 	}
+	return &Replacer{oldnew: append([]string(nil), oldnew...)}
+}
 
+func (r *Replacer) buildOnce() {
+	r.r = r.build()
+	r.oldnew = nil
+}
+
+func (b *Replacer) build() replacer {
+	oldnew := b.oldnew
 	if len(oldnew) == 2 && len(oldnew[0]) > 1 {
-		return &Replacer{r: makeSingleStringReplacer(oldnew[0], oldnew[1])}
+		return makeSingleStringReplacer(oldnew[0], oldnew[1])
 	}
 
 	allNewBytes := true
 	for i := 0; i < len(oldnew); i += 2 {
 		if len(oldnew[i]) != 1 {
-			return &Replacer{r: makeGenericReplacer(oldnew)}
+			return makeGenericReplacer(oldnew)
 		}
 		if len(oldnew[i+1]) != 1 {
 			allNewBytes = false
@@ -52,7 +66,7 @@ func NewReplacer(oldnew ...string) *Replacer {
 			n := oldnew[i+1][0]
 			r[o] = n
 		}
-		return &Replacer{r: &r}
+		return &r
 	}
 
 	r := byteStringReplacer{toReplace: make([]string, 0, len(oldnew)/2)}
@@ -71,16 +85,18 @@ func NewReplacer(oldnew ...string) *Replacer {
 		r.replacements[o] = []byte(n)
 
 	}
-	return &Replacer{r: &r}
+	return &r
 }
 
 // Replace returns a copy of s with all replacements performed.
 func (r *Replacer) Replace(s string) string {
+	r.once.Do(r.buildOnce)
 	return r.r.Replace(s)
 }
 
 // WriteString writes s to w with all replacements performed.
 func (r *Replacer) WriteString(w io.Writer, s string) (n int, err error) {
+	r.once.Do(r.buildOnce)
 	return r.r.WriteString(w, s)
 }
 
@@ -292,10 +308,6 @@ func (w *appendSliceWriter) WriteString(s string) (int, error) {
 	return len(s), nil
 }
 
-type stringWriterIface interface {
-	WriteString(string) (int, error)
-}
-
 type stringWriter struct {
 	w io.Writer
 }
@@ -304,8 +316,8 @@ func (w stringWriter) WriteString(s string) (int, error) {
 	return w.w.Write([]byte(s))
 }
 
-func getStringWriter(w io.Writer) stringWriterIface {
-	sw, ok := w.(stringWriterIface)
+func getStringWriter(w io.Writer) io.StringWriter {
+	sw, ok := w.(io.StringWriter)
 	if !ok {
 		sw = stringWriter{w}
 	}
@@ -447,7 +459,7 @@ func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err error) {
 	buf := make([]byte, bufsize)
 
 	for len(s) > 0 {
-		ncopy := copy(buf, s[:])
+		ncopy := copy(buf, s)
 		s = s[ncopy:]
 		for i, b := range buf[:ncopy] {
 			buf[i] = r[b]

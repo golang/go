@@ -13,8 +13,34 @@ func isSlash(c uint8) bool {
 	return c == '\\' || c == '/'
 }
 
+// reservedNames lists reserved Windows names. Search for PRN in
+// https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file
+// for details.
+var reservedNames = []string{
+	"CON", "PRN", "AUX", "NUL",
+	"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+	"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+}
+
+// isReservedName returns true, if path is Windows reserved name.
+// See reservedNames for the full list.
+func isReservedName(path string) bool {
+	if len(path) == 0 {
+		return false
+	}
+	for _, reserved := range reservedNames {
+		if strings.EqualFold(path, reserved) {
+			return true
+		}
+	}
+	return false
+}
+
 // IsAbs reports whether the path is absolute.
 func IsAbs(path string) (b bool) {
+	if isReservedName(path) {
+		return true
+	}
 	l := volumeNameLen(path)
 	if l == 0 {
 		return false
@@ -100,7 +126,7 @@ func splitList(path string) []string {
 
 	// Remove quotes.
 	for i, s := range list {
-		list[i] = strings.Replace(s, `"`, ``, -1)
+		list[i] = strings.ReplaceAll(s, `"`, ``)
 	}
 
 	return list
@@ -134,7 +160,14 @@ func joinNonEmpty(elem []string) string {
 	if len(elem[0]) == 2 && elem[0][1] == ':' {
 		// First element is drive letter without terminating slash.
 		// Keep path relative to current directory on that drive.
-		return Clean(elem[0] + strings.Join(elem[1:], string(Separator)))
+		// Skip empty elements.
+		i := 1
+		for ; i < len(elem); i++ {
+			if elem[i] != "" {
+				break
+			}
+		}
+		return Clean(elem[0] + strings.Join(elem[i:], string(Separator)))
 	}
 	// The following logic prevents Join from inadvertently creating a
 	// UNC path on Windows. Unless the first element is a UNC path, Join

@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -522,6 +523,11 @@ func TestAmbientCaps(t *testing.T) {
 	// See Issue 12815.
 	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
 		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+	}
+
+	// skip on android, due to lack of lookup support
+	if runtime.GOOS == "android" {
+		t.Skip("skipping test on android; see Issue 27327")
 	}
 
 	caps, err := getCaps()

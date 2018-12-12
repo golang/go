@@ -246,14 +246,16 @@ func Compile(str string) (*Regexp, error) {
 
 <p>
 If every doc comment begins with the name of the item it describes,
-the output of <code>godoc</code> can usefully be run through <code>grep</code>.
+you can use the <a href="/cmd/go/#hdr-Show_documentation_for_package_or_symbol">doc</a>
+subcommand of the <a href="/cmd/go/">go</a> tool
+and run the output through <code>grep</code>.
 Imagine you couldn't remember the name "Compile" but were looking for
 the parsing function for regular expressions, so you ran
 the command,
 </p>
 
 <pre>
-$ godoc regexp | grep -i parse
+$ go doc -all regexp | grep -i parse
 </pre>
 
 <p>
@@ -264,10 +266,10 @@ which recalls the word you're looking for.
 </p>
 
 <pre>
-$ godoc regexp | grep parse
+$ go doc -all regexp | grep -i parse
     Compile parses a regular expression and returns, if successful, a Regexp
+    MustCompile is like Compile but panics if the expression cannot be parsed.
     parsed. It simplifies safe initialization of global variables holding
-    cannot be parsed. It simplifies safe initialization of global variables
 $
 </pre>
 
@@ -1402,11 +1404,11 @@ the moment, the following snippet would also read the first 32 bytes of the buff
     var err error
     for i := 0; i &lt; 32; i++ {
         nbytes, e := f.Read(buf[i:i+1])  // Read one byte.
+        n += nbytes
         if nbytes == 0 || e != nil {
             err = e
             break
         }
-        n += nbytes
     }
 </pre>
 <p>
@@ -2104,12 +2106,14 @@ In this contrived example <code>Sequence</code> satisfies both.
 
 <p>
 The <code>String</code> method of <code>Sequence</code> is recreating the
-work that <code>Sprint</code> already does for slices.  We can share the
-effort if we convert the <code>Sequence</code> to a plain
+work that <code>Sprint</code> already does for slices.
+(It also has complexity O(N²), which is poor.) We can share the
+effort (and also speed it up) if we convert the <code>Sequence</code> to a plain
 <code>[]int</code> before calling <code>Sprint</code>.
 </p>
 <pre>
 func (s Sequence) String() string {
+    s = s.Copy()
     sort.Sort(s)
     return fmt.Sprint([]int(s))
 }
@@ -2136,6 +2140,7 @@ type Sequence []int
 
 // Method for printing - sorts the elements before printing
 func (s Sequence) String() string {
+    s = s.Copy()
     sort.IntSlice(s).Sort()
     return fmt.Sprint([]int(s))
 }
@@ -2762,7 +2767,7 @@ type Job struct {
 }
 </pre>
 <p>
-The <code>Job</code> type now has the <code>Log</code>, <code>Logf</code>
+The <code>Job</code> type now has the <code>Print</code>, <code>Printf</code>, <code>Println</code>
 and other
 methods of <code>*log.Logger</code>.  We could have given the <code>Logger</code>
 a field name, of course, but it's not necessary to do so.  And now, once
@@ -2770,7 +2775,7 @@ initialized, we can
 log to the <code>Job</code>:
 </p>
 <pre>
-job.Log("starting now...")
+job.Println("starting now...")
 </pre>
 <p>
 The <code>Logger</code> is a regular field of the <code>Job</code> struct,
@@ -2797,8 +2802,8 @@ we would write <code>job.Logger</code>,
 which would be useful if we wanted to refine the methods of <code>Logger</code>.
 </p>
 <pre>
-func (job *Job) Logf(format string, args ...interface{}) {
-    job.Logger.Logf("%q: %s", job.Command, fmt.Sprintf(format, args...))
+func (job *Job) Printf(format string, args ...interface{}) {
+    job.Logger.Printf("%q: %s", job.Command, fmt.Sprintf(format, args...))
 }
 </pre>
 <p>

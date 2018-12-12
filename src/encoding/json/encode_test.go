@@ -405,6 +405,19 @@ func TestAnonymousFields(t *testing.T) {
 			return S{s1{1, 2, s2{3, 4}}, 6}
 		},
 		want: `{"MyInt1":1,"MyInt2":3}`,
+	}, {
+		// If an anonymous struct pointer field is nil, we should ignore
+		// the embedded fields behind it. Not properly doing so may
+		// result in the wrong output or reflect panics.
+		label: "EmbeddedFieldBehindNilPointer",
+		makeInput: func() interface{} {
+			type (
+				S2 struct{ Field string }
+				S  struct{ *S2 }
+			)
+			return S{}
+		},
+		want: `{}`,
 	}}
 
 	for _, tt := range tests {
@@ -994,4 +1007,19 @@ func TestMarshalPanic(t *testing.T) {
 	}()
 	Marshal(&marshalPanic{})
 	t.Error("Marshal should have panicked")
+}
+
+func TestMarshalUncommonFieldNames(t *testing.T) {
+	v := struct {
+		A0, À, Aβ int
+	}{}
+	b, err := Marshal(v)
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	want := `{"A0":0,"À":0,"Aβ":0}`
+	got := string(b)
+	if got != want {
+		t.Fatalf("Marshal: got %s want %s", got, want)
+	}
 }

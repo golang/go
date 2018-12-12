@@ -36,7 +36,6 @@
 #define SYS_madvise		205
 #define SYS_mincore		206
 #define SYS_gettid		207
-#define SYS_tkill		208
 #define SYS_futex		221
 #define SYS_sched_getaffinity	223
 #define SYS_exit_group		234
@@ -44,6 +43,7 @@
 #define SYS_epoll_ctl		237
 #define SYS_epoll_wait		238
 #define SYS_clock_gettime	246
+#define SYS_tgkill		250
 #define SYS_epoll_create1	315
 
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
@@ -123,10 +123,13 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
+	SYSCALL	$SYS_getpid
+	MOVW	R3, R14
 	SYSCALL	$SYS_gettid
-	MOVW	R3, R3	// arg 1 tid
-	MOVW	sig+0(FP), R4	// arg 2
-	SYSCALL	$SYS_tkill
+	MOVW	R3, R4	// arg 2 tid
+	MOVW	R14, R3	// arg 1 pid
+	MOVW	sig+0(FP), R5	// arg 3
+	SYSCALL	$SYS_tgkill
 	RET
 
 TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
@@ -154,21 +157,87 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 
 // func walltime() (sec int64, nsec int32)
 TEXT runtime·walltime(SB),NOSPLIT,$16
-	MOVD	$0, R3 // CLOCK_REALTIME
-	MOVD	$0(R1), R4
-	SYSCALL	$SYS_clock_gettime
-	MOVD	0(R1), R3	// sec
-	MOVD	8(R1), R5	// nsec
+	MOVD	R1, R15		// R15 is unchanged by C code
+	MOVD	g_m(g), R21	// R21 = m
+
+	MOVD	$0, R3		// CLOCK_REALTIME
+
+	MOVD	runtime·vdsoClockgettimeSym(SB), R12	// Check for VDSO availability
+	CMP	R12, R0
+	BEQ	fallback
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVD	LR, R14
+	MOVD	R14, m_vdsoPC(R21)
+	MOVD	R15, m_vdsoSP(R21)
+
+	MOVD	m_curg(R21), R6
+	CMP	g, R6
+	BNE	noswitch
+
+	MOVD	m_g0(R21), R7
+	MOVD	(g_sched+gobuf_sp)(R7), R1	// Set SP to g0 stack
+
+noswitch:
+	SUB	$16, R1			// Space for results
+	RLDICR	$0, R1, $59, R1		// Align for C code
+	MOVD	R12, CTR
+	MOVD	R1, R4
+	BL	(CTR)			// Call from VDSO
+	MOVD	$0, R0			// Restore R0
+	MOVD	R0, m_vdsoSP(R21)	// Clear vdsoSP
+	MOVD	0(R1), R3		// sec
+	MOVD	8(R1), R5		// nsec
+	MOVD	R15, R1			// Restore SP
+
+finish:
 	MOVD	R3, sec+0(FP)
 	MOVW	R5, nsec+8(FP)
 	RET
 
+	// Syscall fallback
+fallback:
+	ADD	$32, R1, R4
+	SYSCALL $SYS_clock_gettime
+	MOVD	32(R1), R3
+	MOVD	40(R1), R5
+	JMP	finish
+
 TEXT runtime·nanotime(SB),NOSPLIT,$16
-	MOVW	$1, R3 // CLOCK_MONOTONIC
-	MOVD	$0(R1), R4
-	SYSCALL	$SYS_clock_gettime
-	MOVD	0(R1), R3	// sec
-	MOVD	8(R1), R5	// nsec
+	MOVD	$1, R3		// CLOCK_MONOTONIC
+
+	MOVD	R1, R15		// R15 is unchanged by C code
+	MOVD	g_m(g), R21	// R21 = m
+
+	MOVD	runtime·vdsoClockgettimeSym(SB), R12	// Check for VDSO availability
+	CMP	R12, R0
+	BEQ	fallback
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVD	LR, R14		// R14 is unchanged by C code
+	MOVD	R14, m_vdsoPC(R21)
+	MOVD	R15, m_vdsoSP(R21)
+
+	MOVD	m_curg(R21), R6
+	CMP	g, R6
+	BNE	noswitch
+
+	MOVD	m_g0(R21), R7
+	MOVD	(g_sched+gobuf_sp)(R7), R1	// Set SP to g0 stack
+
+noswitch:
+	SUB	$16, R1			// Space for results
+	RLDICR	$0, R1, $59, R1		// Align for C code
+	MOVD	R12, CTR
+	MOVD	R1, R4
+	BL	(CTR)			// Call from VDSO
+	MOVD	$0, R0			// Restore R0
+	MOVD	$0, m_vdsoSP(R21)	// Clear vdsoSP
+	MOVD	0(R1), R3		// sec
+	MOVD	8(R1), R5		// nsec
+	MOVD	R15, R1			// Restore SP
+
+finish:
 	// sec is in R3, nsec in R5
 	// return nsec in R3
 	MOVD	$1000000000, R4
@@ -176,6 +245,14 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
 	ADD	R5, R3
 	MOVD	R3, ret+0(FP)
 	RET
+
+	// Syscall fallback
+fallback:
+	ADD	$32, R1, R4
+	SYSCALL $SYS_clock_gettime
+	MOVD	32(R1), R3
+	MOVD	48(R1), R5
+	JMP	finish
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	how+0(FP), R3
@@ -224,7 +301,7 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 
 	// this might be called in external code context,
 	// where g is not set.
-	MOVB	runtime·iscgo(SB), R6
+	MOVBZ	runtime·iscgo(SB), R6
 	CMP 	R6, $0
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
@@ -243,7 +320,7 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
 	// The stack unwinder, presumably written in C, may not be able to
 	// handle Go frame correctly. So, this function is NOFRAME, and we
-	// we save/restore LR manually.
+	// save/restore LR manually.
 	MOVD	LR, R10
 
 	// We're coming from C code, initialize essential registers.
@@ -337,7 +414,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
 	DWORD	$0
 	DWORD	$0
 TEXT runtime·_cgoSigtramp(SB),NOSPLIT,$0
-	JMP	runtime·sigtramp(SB)
+	JMP	runtime·_sigtramp(SB)
 #endif
 
 TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
@@ -377,7 +454,7 @@ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
 	MOVD	n+8(FP), R4
 	MOVW	flags+16(FP), R5
 	SYSCALL	$SYS_madvise
-	// ignore failure - maybe pages are locked
+	MOVW	R3, ret+24(FP)
 	RET
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,

@@ -99,6 +99,12 @@ type ArbitraryType int
 //	u := uintptr(p)
 //	p = unsafe.Pointer(u + offset)
 //
+// Note that the pointer must point into an allocated object, so it may not be nil.
+//
+//	// INVALID: conversion of nil pointer
+//	u := unsafe.Pointer(nil)
+//	p := unsafe.Pointer(uintptr(u) + offset)
+//
 // (4) Conversion of a Pointer to a uintptr when calling syscall.Syscall.
 //
 // The Syscall functions in package syscall pass their uintptr arguments directly
@@ -178,11 +184,13 @@ type Pointer *ArbitraryType
 // The size does not include any memory possibly referenced by x.
 // For instance, if x is a slice, Sizeof returns the size of the slice
 // descriptor, not the size of the memory referenced by the slice.
+// The return value of Sizeof is a Go constant.
 func Sizeof(x ArbitraryType) uintptr
 
 // Offsetof returns the offset within the struct of the field represented by x,
 // which must be of the form structValue.field. In other words, it returns the
 // number of bytes between the start of the struct and the start of the field.
+// The return value of Offsetof is a Go constant.
 func Offsetof(x ArbitraryType) uintptr
 
 // Alignof takes an expression x of any type and returns the required alignment
@@ -193,4 +201,5 @@ func Offsetof(x ArbitraryType) uintptr
 // within that struct, then Alignof(s.f) will return the required alignment
 // of a field of that type within a struct. This case is the same as the
 // value returned by reflect.TypeOf(s.f).FieldAlign().
+// The return value of Alignof is a Go constant.
 func Alignof(x ArbitraryType) uintptr

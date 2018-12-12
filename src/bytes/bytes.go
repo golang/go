@@ -12,6 +12,13 @@ import (
 	"unicode/utf8"
 )
 
+// Equal returns a boolean reporting whether a and b
+// are the same length and contain the same bytes.
+// A nil argument is equivalent to an empty slice.
+func Equal(a, b []byte) bool {
+	return bytealg.Equal(a, b)
+}
+
 func equalPortable(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
@@ -22,6 +29,13 @@ func equalPortable(a, b []byte) bool {
 		}
 	}
 	return true
+}
+
+// Compare returns an integer comparing two byte slices lexicographically.
+// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+// A nil argument is equivalent to an empty slice.
+func Compare(a, b []byte) int {
+	return bytealg.Compare(a, b)
 }
 
 // explode splits s into a slice of UTF-8 sequences, one per Unicode code point (still slices of bytes),
@@ -81,6 +95,11 @@ func ContainsAny(b []byte, chars string) bool {
 // ContainsRune reports whether the rune is contained in the UTF-8-encoded byte slice b.
 func ContainsRune(b []byte, r rune) bool {
 	return IndexRune(b, r) >= 0
+}
+
+// IndexByte returns the index of the first instance of c in b, or -1 if c is not present in b.
+func IndexByte(b []byte, c byte) int {
+	return bytealg.IndexByte(b, c)
 }
 
 func indexBytePortable(s []byte, c byte) int {
@@ -489,19 +508,19 @@ func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
 // ToUpperSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
 // upper case, giving priority to the special casing rules.
 func ToUpperSpecial(c unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return c.ToUpper(r) }, s)
+	return Map(c.ToUpper, s)
 }
 
 // ToLowerSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
 // lower case, giving priority to the special casing rules.
 func ToLowerSpecial(c unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return c.ToLower(r) }, s)
+	return Map(c.ToLower, s)
 }
 
 // ToTitleSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
 // title case, giving priority to the special casing rules.
 func ToTitleSpecial(c unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return c.ToTitle(r) }, s)
+	return Map(c.ToTitle, s)
 }
 
 // isSeparator reports whether the rune could mark a word boundary.
@@ -774,6 +793,15 @@ func Replace(s, old, new []byte, n int) []byte {
 	return t[0:w]
 }
 
+// ReplaceAll returns a copy of the slice s with all
+// non-overlapping instances of old replaced by new.
+// If old is empty, it matches at the beginning of the slice
+// and after each UTF-8 sequence, yielding up to k+1 replacements
+// for a k-rune slice.
+func ReplaceAll(s, old, new []byte) []byte {
+	return Replace(s, old, new, -1)
+}
+
 // EqualFold reports whether s and t, interpreted as UTF-8 strings,
 // are equal under Unicode case-folding.
 func EqualFold(s, t []byte) bool {
@@ -849,21 +877,22 @@ func Index(s, sep []byte) int {
 		if len(s) <= bytealg.MaxBruteForce {
 			return bytealg.Index(s, sep)
 		}
-		c := sep[0]
+		c0 := sep[0]
+		c1 := sep[1]
 		i := 0
-		t := s[:len(s)-n+1]
+		t := len(s) - n + 1
 		fails := 0
-		for i < len(t) {
-			if t[i] != c {
+		for i < t {
+			if s[i] != c0 {
 				// IndexByte is faster than bytealg.Index, so use it as long as
 				// we're not getting lots of false positives.
-				o := IndexByte(t[i:], c)
+				o := IndexByte(s[i:t], c0)
 				if o < 0 {
 					return -1
 				}
 				i += o
 			}
-			if Equal(s[i:i+n], sep) {
+			if s[i+1] == c1 && Equal(s[i:i+n], sep) {
 				return i
 			}
 			fails++
@@ -879,24 +908,25 @@ func Index(s, sep []byte) int {
 		}
 		return -1
 	}
-	c := sep[0]
+	c0 := sep[0]
+	c1 := sep[1]
 	i := 0
 	fails := 0
-	t := s[:len(s)-n+1]
-	for i < len(t) {
-		if t[i] != c {
-			o := IndexByte(t[i:], c)
+	t := len(s) - n + 1
+	for i < t {
+		if s[i] != c0 {
+			o := IndexByte(s[i:t], c0)
 			if o < 0 {
 				break
 			}
 			i += o
 		}
-		if Equal(s[i:i+n], sep) {
+		if s[i+1] == c1 && Equal(s[i:i+n], sep) {
 			return i
 		}
 		i++
 		fails++
-		if fails >= 4+i>>4 && i < len(t) {
+		if fails >= 4+i>>4 && i < t {
 			// Give up on IndexByte, it isn't skipping ahead
 			// far enough to be better than Rabin-Karp.
 			// Experiments (using IndexPeriodic) suggest

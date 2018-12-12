@@ -56,7 +56,8 @@ func FormatMediaType(t string, param map[string]string) string {
 
 		b.WriteByte('"')
 		offset := 0
-		for index, character := range value {
+		for index := 0; index < len(value); index++ {
+			character := value[index]
 			if character == '"' || character == '\\' {
 				b.WriteString(value[offset:index])
 				offset = index
@@ -280,7 +281,7 @@ func consumeValue(v string) (value, rest string) {
 		// and intended as a literal backslash. This makes Go servers deal better
 		// with MSIE without affecting the way they handle conforming MIME
 		// generators.
-		if r == '\\' && i+1 < len(v) && !isTokenChar(rune(v[i+1])) {
+		if r == '\\' && i+1 < len(v) && isTSpecial(rune(v[i+1])) {
 			buffer.WriteByte(v[i+1])
 			i++
 			continue

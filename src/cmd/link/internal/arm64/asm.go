@@ -234,19 +234,19 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return true
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
+func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
 	if ctxt.LinkMode == ld.LinkExternal {
 		switch r.Type {
 		default:
-			return false
+			return val, false
 		case objabi.R_ARM64_GOTPCREL:
 			var o1, o2 uint32
 			if ctxt.Arch.ByteOrder == binary.BigEndian {
-				o1 = uint32(*val >> 32)
-				o2 = uint32(*val)
+				o1 = uint32(val >> 32)
+				o2 = uint32(val)
 			} else {
-				o1 = uint32(*val)
-				o2 = uint32(*val >> 32)
+				o1 = uint32(val)
+				o2 = uint32(val >> 32)
 			}
 			// Any relocation against a function symbol is redirected to
 			// be against a local symbol instead (see putelfsym in
@@ -256,7 +256,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
 			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
 			// add + R_ADDRARM64.
-			if !(r.Sym.Version != 0 || r.Sym.Attr.VisibilityHidden() || r.Sym.Attr.Local()) && r.Sym.Type == sym.STEXT && ctxt.DynlinkingGo() {
+			if !(r.Sym.IsFileLocal() || r.Sym.Attr.VisibilityHidden() || r.Sym.Attr.Local()) && r.Sym.Type == sym.STEXT && ctxt.DynlinkingGo() {
 				if o2&0xffc00000 != 0xf9400000 {
 					ld.Errorf(s, "R_ARM64_GOTPCREL against unexpected instruction %x", o2)
 				}
@@ -264,9 +264,9 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 				r.Type = objabi.R_ADDRARM64
 			}
 			if ctxt.Arch.ByteOrder == binary.BigEndian {
-				*val = int64(o1)<<32 | int64(o2)
+				val = int64(o1)<<32 | int64(o2)
 			} else {
-				*val = int64(o2)<<32 | int64(o1)
+				val = int64(o2)<<32 | int64(o1)
 			}
 			fallthrough
 		case objabi.R_ADDRARM64:
@@ -294,11 +294,11 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 				var o0, o1 uint32
 
 				if ctxt.Arch.ByteOrder == binary.BigEndian {
-					o0 = uint32(*val >> 32)
-					o1 = uint32(*val)
+					o0 = uint32(val >> 32)
+					o1 = uint32(val)
 				} else {
-					o0 = uint32(*val)
-					o1 = uint32(*val >> 32)
+					o0 = uint32(val)
+					o1 = uint32(val >> 32)
 				}
 				// Mach-O wants the addend to be encoded in the instruction
 				// Note that although Mach-O supports ARM64_RELOC_ADDEND, it
@@ -311,30 +311,28 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 
 				// when laid out, the instruction order must always be o1, o2.
 				if ctxt.Arch.ByteOrder == binary.BigEndian {
-					*val = int64(o0)<<32 | int64(o1)
+					val = int64(o0)<<32 | int64(o1)
 				} else {
-					*val = int64(o1)<<32 | int64(o0)
+					val = int64(o1)<<32 | int64(o0)
 				}
 			}
 
-			return true
+			return val, true
 		case objabi.R_CALLARM64,
 			objabi.R_ARM64_TLS_LE,
 			objabi.R_ARM64_TLS_IE:
 			r.Done = false
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
-			return true
+			return val, true
 		}
 	}
 
 	switch r.Type {
 	case objabi.R_CONST:
-		*val = r.Add
-		return true
+		return r.Add, true
 	case objabi.R_GOTOFF:
-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0))
-		return true
+		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
 	case objabi.R_ADDRARM64:
 		t := ld.Symaddr(r.Sym) + r.Add - ((s.Value + int64(r.Off)) &^ 0xfff)
 		if t >= 1<<32 || t < -1<<32 {
@@ -344,11 +342,11 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 		var o0, o1 uint32
 
 		if ctxt.Arch.ByteOrder == binary.BigEndian {
-			o0 = uint32(*val >> 32)
-			o1 = uint32(*val)
+			o0 = uint32(val >> 32)
+			o1 = uint32(val)
 		} else {
-			o0 = uint32(*val)
-			o1 = uint32(*val >> 32)
+			o0 = uint32(val)
+			o1 = uint32(val >> 32)
 		}
 
 		o0 |= (uint32((t>>12)&3) << 29) | (uint32((t>>12>>2)&0x7ffff) << 5)
@@ -356,11 +354,9 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 
 		// when laid out, the instruction order must always be o1, o2.
 		if ctxt.Arch.ByteOrder == binary.BigEndian {
-			*val = int64(o0)<<32 | int64(o1)
-		} else {
-			*val = int64(o1)<<32 | int64(o0)
+			return int64(o0)<<32 | int64(o1), true
 		}
-		return true
+		return int64(o1)<<32 | int64(o0), true
 	case objabi.R_ARM64_TLS_LE:
 		r.Done = false
 		if ctxt.HeadType != objabi.Hlinux {
@@ -372,18 +368,16 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool {
 		if v < 0 || v >= 32678 {
 			ld.Errorf(s, "TLS offset out of range %d", v)
 		}
-		*val |= v << 5
-		return true
+		return val | (v << 5), true
 	case objabi.R_CALLARM64:
 		t := (ld.Symaddr(r.Sym) + r.Add) - (s.Value + int64(r.Off))
 		if t >= 1<<27 || t < -1<<27 {
 			ld.Errorf(s, "program too large, call relocation distance = %d", t)
 		}
-		*val |= (t >> 2) & 0x03ffffff
-		return true
+		return val | ((t >> 2) & 0x03ffffff), true
 	}
 
-	return false
+	return val, false
 }
 
 func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {

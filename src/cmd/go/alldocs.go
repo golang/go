@@ -40,6 +40,7 @@
 // 	cache       build and test caching
 // 	environment environment variables
 // 	filetype    file types
+// 	go.mod      the go.mod file
 // 	gopath      GOPATH environment variable
 // 	gopath-get  legacy GOPATH go get
 // 	goproxy     module proxy protocol
@@ -143,7 +144,7 @@
 // 		link against shared libraries previously created with
 // 		-buildmode=shared.
 // 	-mod mode
-// 		module download mode to use: readonly, release, or vendor.
+// 		module download mode to use: readonly or vendor.
 // 		See 'go help modules' for more.
 // 	-pkgdir dir
 // 		install and load all packages from dir instead of the usual locations.
@@ -341,12 +342,21 @@
 // 	cd go/src/encoding/json; go doc decode
 //
 // Flags:
+// 	-all
+// 		Show all the documentation for the package.
 // 	-c
 // 		Respect case when matching symbols.
 // 	-cmd
 // 		Treat a command (package main) like a regular package.
 // 		Otherwise package main's exported symbols are hidden
 // 		when showing the package's top-level documentation.
+// 	-src
+// 		Show the full source code for the symbol. This will
+// 		display the full Go source of its declaration and
+// 		definition, such as a function definition (including
+// 		the body), type declaration or enclosing const
+// 		block. The output may therefore include unexported
+// 		details.
 // 	-u
 // 		Show documentation for unexported as well as exported
 // 		symbols, methods, and fields.
@@ -622,24 +632,25 @@
 // to -f '{{.ImportPath}}'. The struct being passed to the template is:
 //
 //     type Package struct {
-//         Dir           string  // directory containing package sources
-//         ImportPath    string  // import path of package in dir
-//         ImportComment string  // path in import comment on package statement
-//         Name          string  // package name
-//         Doc           string  // package documentation string
-//         Target        string  // install path
-//         Shlib         string  // the shared library that contains this package (only set when -linkshared)
-//         Goroot        bool    // is this package in the Go root?
-//         Standard      bool    // is this package part of the standard Go library?
-//         Stale         bool    // would 'go install' do anything for this package?
-//         StaleReason   string  // explanation for Stale==true
-//         Root          string  // Go root or Go path dir containing this package
-//         ConflictDir   string  // this directory shadows Dir in $GOPATH
-//         BinaryOnly    bool    // binary-only package: cannot be recompiled from sources
-//         ForTest       string  // package is only for use in named test
-//         DepOnly       bool    // package is only a dependency, not explicitly listed
-//         Export        string  // file containing export data (when using -export)
-//         Module        *Module // info about package's containing module, if any (can be nil)
+//         Dir           string   // directory containing package sources
+//         ImportPath    string   // import path of package in dir
+//         ImportComment string   // path in import comment on package statement
+//         Name          string   // package name
+//         Doc           string   // package documentation string
+//         Target        string   // install path
+//         Shlib         string   // the shared library that contains this package (only set when -linkshared)
+//         Goroot        bool     // is this package in the Go root?
+//         Standard      bool     // is this package part of the standard Go library?
+//         Stale         bool     // would 'go install' do anything for this package?
+//         StaleReason   string   // explanation for Stale==true
+//         Root          string   // Go root or Go path dir containing this package
+//         ConflictDir   string   // this directory shadows Dir in $GOPATH
+//         BinaryOnly    bool     // binary-only package: cannot be recompiled from sources
+//         ForTest       string   // package is only for use in named test
+//         Export        string   // file containing export data (when using -export)
+//         Module        *Module  // info about package's containing module, if any (can be nil)
+//         Match         []string // command-line patterns matching this package
+//         DepOnly       bool     // package is only a dependency, not explicitly listed
 //
 //         // Source files
 //         GoFiles         []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
@@ -722,7 +733,8 @@
 // The -compiled flag causes list to set CompiledGoFiles to the Go source
 // files presented to the compiler. Typically this means that it repeats
 // the files listed in GoFiles and then also adds the Go code generated
-// by processing CgoFiles and SwigFiles.
+// by processing CgoFiles and SwigFiles. The Imports list contains the
+// union of all imports from both GoFiles and CompiledGoFiles.
 //
 // The -deps flag causes list to iterate over not just the named packages
 // but also all their dependencies. It visits them in a depth-first post-order
@@ -842,7 +854,7 @@
 // module paths match the pattern.
 // A query of the form path@version specifies the result of that query,
 // which is not limited to active modules.
-// See 'go help module' for more about module queries.
+// See 'go help modules' for more about module queries.
 //
 // The template function "module" takes a single string argument
 // that must be a module path or query and returns the specified
@@ -873,7 +885,6 @@
 //
 // 	download    download modules to local cache
 // 	edit        edit go.mod from tools or scripts
-// 	fix         make go.mod semantically consistent
 // 	graph       print module requirement graph
 // 	init        initialize new module in current directory
 // 	tidy        add missing and remove unused modules
@@ -887,7 +898,7 @@
 //
 // Usage:
 //
-// 	go mod download [-dir] [-json] [modules]
+// 	go mod download [-json] [modules]
 //
 // Download downloads the named modules, which can be module patterns selecting
 // dependencies of the main module or module queries of the form path@version.
@@ -903,16 +914,18 @@
 // corresponding to this Go struct:
 //
 //     type Module struct {
-//         Path    string // module path
-//         Version string // module version
-//         Error   string // error loading module
-//         Info    string // absolute path to cached .info file
-//         GoMod   string // absolute path to cached .mod file
-//         Zip     string // absolute path to cached .zip file
-//         Dir     string // absolute path to cached source root directory
+//         Path     string // module path
+//         Version  string // module version
+//         Error    string // error loading module
+//         Info     string // absolute path to cached .info file
+//         GoMod    string // absolute path to cached .mod file
+//         Zip      string // absolute path to cached .zip file
+//         Dir      string // absolute path to cached source root directory
+//         Sum      string // checksum for path, version (as in go.sum)
+//         GoModSum string // checksum for go.mod (as in go.sum)
 //     }
 //
-// See 'go help module' for more about module queries.
+// See 'go help modules' for more about module queries.
 //
 //
 // Edit go.mod from tools or scripts
@@ -959,6 +972,8 @@
 // and -dropreplace editing flags may be repeated, and the changes
 // are applied in the order given.
 //
+// The -go=version flag sets the expected Go language version.
+//
 // The -print flag prints the final go.mod in its text format instead of
 // writing it back to go.mod.
 //
@@ -971,7 +986,8 @@
 // 	}
 //
 // 	type GoMod struct {
-// 		Module Module
+// 		Module  Module
+// 		Go      string
 // 		Require []Require
 // 		Exclude []Module
 // 		Replace []Replace
@@ -995,52 +1011,6 @@
 // For example, a tool can obtain the go.mod as a data structure by
 // parsing the output of 'go mod edit -json' and can then make changes
 // by invoking 'go mod edit' with -require, -exclude, and so on.
-//
-//
-// Make go.mod semantically consistent
-//
-// Usage:
-//
-// 	go mod fix
-//
-// Fix updates go.mod to use canonical version identifiers and
-// to be semantically consistent. For example, consider this go.mod file:
-//
-// 	module M
-//
-// 	require (
-// 		A v1
-// 		B v1.0.0
-// 		C v1.0.0
-// 		D v1.2.3
-// 		E dev
-// 	)
-//
-// 	exclude D v1.2.3
-//
-// First, fix rewrites non-canonical version identifiers to semver form, so
-// A's v1 becomes v1.0.0 and E's dev becomes the pseudo-version for the latest
-// commit on the dev branch, perhaps v0.0.0-20180523231146-b3f5c0f6e5f1.
-//
-// Next, fix updates requirements to respect exclusions, so the requirement
-// on the excluded D v1.2.3 is updated to use the next available version of D,
-// perhaps D v1.2.4 or D v1.3.0.
-//
-// Finally, fix removes redundant or misleading requirements.
-// For example, if A v1.0.0 itself requires B v1.2.0 and C v1.0.0, then go.mod's
-// requirement of B v1.0.0 is misleading (superseded by A's need for v1.2.0),
-// and its requirement of C v1.0.0 is redundant (implied by A's need for the
-// same version), so both will be removed. If module M contains packages
-// that directly import packages from B or C, then the requirements will be
-// kept but updated to the actual versions being used.
-//
-// Although fix runs the fix-up operation in isolation, the fix-up also
-// runs automatically any time a go command uses the module graph,
-// to update go.mod to reflect reality. Because the module graph defines
-// the meaning of import statements, any commands that load packages
-// also use and therefore fix the module graph. For example,
-// go build, go get, go install, go list, go test, go mod graph, go mod tidy,
-// and other commands all effectively imply go mod fix.
 //
 //
 // Print module requirement graph
@@ -1329,15 +1299,24 @@
 //
 // Usage:
 //
-// 	go vet [-n] [-x] [build flags] [vet flags] [packages]
+// 	go vet [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
 //
 // Vet runs the Go vet command on the packages named by the import paths.
 //
 // For more about vet and its flags, see 'go doc cmd/vet'.
 // For more about specifying packages, see 'go help packages'.
+// For a list of checkers and their flags, see 'go tool vet help'.
+// For details of a specific checker such as 'printf', see 'go tool vet help printf'.
 //
 // The -n flag prints commands that would be executed.
 // The -x flag prints commands as they are executed.
+//
+// The -vettool=prog flag selects a different analysis tool with alternative
+// or additional checks.
+// For example, the 'shadow' analyzer can be built and run using these commands:
+//
+//   go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+//   go vet -vettool=$(which shadow)
 //
 // The build flags supported by go vet are those that control package resolution
 // and execution, such as -n, -x, -v, -tags, and -toolexec.
@@ -1491,6 +1470,10 @@
 // 		The directory where the go command will write
 // 		temporary source files, packages, and binaries.
 //
+// Each entry in the GOFLAGS list must be a standalone flag.
+// Because the entries are space-separated, flag values must
+// not contain spaces.
+//
 // Environment variables for use with cgo:
 //
 // 	CC
@@ -1524,6 +1507,10 @@
 // 		The command to use to compile C++ code.
 // 	PKG_CONFIG
 // 		Path to pkg-config tool.
+// 	AR
+// 		The command to use to manipulate library archives when
+// 		building with the gccgo compiler.
+// 		The default is 'ar'.
 //
 // Architecture-specific environment variables:
 //
@@ -1617,6 +1604,88 @@
 // accurate import blocks listing required dependencies, so that
 // those dependencies can be supplied when linking the resulting
 // command.
+//
+//
+// The go.mod file
+//
+// A module version is defined by a tree of source files, with a go.mod
+// file in its root. When the go command is run, it looks in the current
+// directory and then successive parent directories to find the go.mod
+// marking the root of the main (current) module.
+//
+// The go.mod file itself is line-oriented, with // comments but
+// no /* */ comments. Each line holds a single directive, made up of a
+// verb followed by arguments. For example:
+//
+// 	module my/thing
+// 	go 1.12
+// 	require other/thing v1.0.2
+// 	require new/thing/v2 v2.3.4
+// 	exclude old/thing v1.2.3
+// 	replace bad/thing v1.4.5 => good/thing v1.4.5
+//
+// The verbs are
+// 	module, to define the module path;
+// 	go, to set the expected language version;
+// 	require, to require a particular module at a given version or later;
+// 	exclude, to exclude a particular module version from use; and
+// 	replace, to replace a module version with a different module version.
+// Exclude and replace apply only in the main module's go.mod and are ignored
+// in dependencies.  See https://research.swtch.com/vgo-mvs for details.
+//
+// The leading verb can be factored out of adjacent lines to create a block,
+// like in Go imports:
+//
+// 	require (
+// 		new/thing v2.3.4
+// 		old/thing v1.2.3
+// 	)
+//
+// The go.mod file is designed both to be edited directly and to be
+// easily updated by tools. The 'go mod edit' command can be used to
+// parse and edit the go.mod file from programs and tools.
+// See 'go help mod edit'.
+//
+// The go command automatically updates go.mod each time it uses the
+// module graph, to make sure go.mod always accurately reflects reality
+// and is properly formatted. For example, consider this go.mod file:
+//
+//         module M
+//
+//         require (
+//                 A v1
+//                 B v1.0.0
+//                 C v1.0.0
+//                 D v1.2.3
+//                 E dev
+//         )
+//
+//         exclude D v1.2.3
+//
+// The update rewrites non-canonical version identifiers to semver form,
+// so A's v1 becomes v1.0.0 and E's dev becomes the pseudo-version for the
+// latest commit on the dev branch, perhaps v0.0.0-20180523231146-b3f5c0f6e5f1.
+//
+// The update modifies requirements to respect exclusions, so the
+// requirement on the excluded D v1.2.3 is updated to use the next
+// available version of D, perhaps D v1.2.4 or D v1.3.0.
+//
+// The update removes redundant or misleading requirements.
+// For example, if A v1.0.0 itself requires B v1.2.0 and C v1.0.0,
+// then go.mod's requirement of B v1.0.0 is misleading (superseded by
+// A's need for v1.2.0), and its requirement of C v1.0.0 is redundant
+// (implied by A's need for the same version), so both will be removed.
+// If module M contains packages that directly import packages from B or
+// C, then the requirements will be kept but updated to the actual
+// versions being used.
+//
+// Finally, the update reformats the go.mod in a canonical formatting, so
+// that future mechanical changes will result in minimal diffs.
+//
+// Because the module graph defines the meaning of import statements, any
+// commands that load packages also use and therefore update go.mod,
+// including go build, go get, go install, go list, go test, go mod graph,
+// go mod tidy, and go mod why.
 //
 //
 // GOPATH environment variable
@@ -2094,7 +2163,7 @@
 // The go.mod file can also specify replacements and excluded versions
 // that only apply when building the module directly; they are ignored
 // when the module is incorporated into a larger build.
-// For more about the go.mod file, see https://research.swtch.com/vgo-module.
+// For more about the go.mod file, see 'go help go.mod'.
 //
 // To start a new module, simply create a go.mod file in the root of the
 // module's directory tree, containing only a module statement.
@@ -2349,8 +2418,6 @@
 // about how source code in version control systems is mapped to
 // module file trees.
 //
-// TODO: Add documentation to go command.
-//
 // Module downloading and verification
 //
 // The go command maintains, in the main module's root directory alongside
@@ -2449,7 +2516,7 @@
 // In general, adding a new dependency may require upgrading
 // existing dependencies to keep a working build, and 'go get' does
 // this automatically. Similarly, downgrading one dependency may
-// require downgrading other dependenceis, and 'go get' does
+// require downgrading other dependencies, and 'go get' does
 // this automatically as well.
 //
 // The -m flag instructs get to stop here, after resolving, upgrading,
@@ -2611,6 +2678,8 @@
 // 	    Run enough iterations of each benchmark to take t, specified
 // 	    as a time.Duration (for example, -benchtime 1h30s).
 // 	    The default is 1 second (1s).
+// 	    The special syntax Nx means to run the benchmark N times
+// 	    (for example, -benchtime 100x).
 //
 // 	-count n
 // 	    Run each test and benchmark n times (default 1).

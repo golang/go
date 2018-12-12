@@ -211,7 +211,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 // Adds stack x to the free pool. Must be called with stackpoolmu held.
 func stackpoolfree(x gclinkptr, order uint8) {
 	s := spanOfUnchecked(uintptr(x))
-	if s.state != _MSpanManual {
+	if s.state != mSpanManual {
 		throw("freeing stack not in a stack span")
 	}
 	if s.manualFreeList.ptr() == nil {
@@ -350,7 +350,7 @@ func stackalloc(n uint32) stack {
 		}
 		var x gclinkptr
 		c := thisg.m.mcache
-		if stackNoCache != 0 || c == nil || thisg.m.preemptoff != "" || thisg.m.helpgc != 0 {
+		if stackNoCache != 0 || c == nil || thisg.m.preemptoff != "" {
 			// c == nil can happen in the guts of exitsyscall or
 			// procresize. Just get a stack from the global pool.
 			// Also don't touch stackcache during gc
@@ -445,7 +445,7 @@ func stackfree(stk stack) {
 		}
 		x := gclinkptr(v)
 		c := gp.m.mcache
-		if stackNoCache != 0 || c == nil || gp.m.preemptoff != "" || gp.m.helpgc != 0 {
+		if stackNoCache != 0 || c == nil || gp.m.preemptoff != "" {
 			lock(&stackpoolmu)
 			stackpoolfree(x, order)
 			unlock(&stackpoolmu)
@@ -459,7 +459,7 @@ func stackfree(stk stack) {
 		}
 	} else {
 		s := spanOfUnchecked(uintptr(v))
-		if s.state != _MSpanManual {
+		if s.state != mSpanManual {
 			println(hex(s.base()), v)
 			throw("bad span state")
 		}
@@ -625,7 +625,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 		return true
 	}
 
-	locals, args := getStackMap(frame, &adjinfo.cache, true)
+	locals, args, objs := getStackMap(frame, &adjinfo.cache, true)
 
 	// Adjust local variables if stack frame has been allocated.
 	if locals.n > 0 {
@@ -663,6 +663,42 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 		}
 		adjustpointers(unsafe.Pointer(frame.argp), &args, adjinfo, funcInfo{})
 	}
+
+	// Adjust pointers in all stack objects (whether they are live or not).
+	// See comments in mgcmark.go:scanframeworker.
+	if frame.varp != 0 {
+		for _, obj := range objs {
+			off := obj.off
+			base := frame.varp // locals base pointer
+			if off >= 0 {
+				base = frame.argp // arguments and return values base pointer
+			}
+			p := base + uintptr(off)
+			if p < frame.sp {
+				// Object hasn't been allocated in the frame yet.
+				// (Happens when the stack bounds check fails and
+				// we call into morestack.)
+				continue
+			}
+			t := obj.typ
+			gcdata := t.gcdata
+			var s *mspan
+			if t.kind&kindGCProg != 0 {
+				// See comments in mgcmark.go:scanstack
+				s = materializeGCProg(t.ptrdata, gcdata)
+				gcdata = (*byte)(unsafe.Pointer(s.startAddr))
+			}
+			for i := uintptr(0); i < t.ptrdata; i += sys.PtrSize {
+				if *addb(gcdata, i/(8*sys.PtrSize))>>(i/sys.PtrSize&7)&1 != 0 {
+					adjustpointer(adjinfo, unsafe.Pointer(p+i))
+				}
+			}
+			if s != nil {
+				dematerializeGCProg(s)
+			}
+		}
+	}
+
 	return true
 }
 
@@ -981,9 +1017,6 @@ func newstack() {
 				// system stack.
 				gcw := &gp.m.p.ptr().gcw
 				scanstack(gp, gcw)
-				if gcBlackenPromptly {
-					gcw.dispose()
-				}
 				gp.gcscandone = true
 			}
 			gp.preemptscan = false
@@ -1139,9 +1172,9 @@ func freeStackSpans() {
 	unlock(&stackLarge.lock)
 }
 
-// getStackMap returns the locals and arguments live pointer maps for
-// frame.
-func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args bitvector) {
+// getStackMap returns the locals and arguments live pointer maps, and
+// stack object list for frame.
+func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args bitvector, objs []stackObjectRecord) {
 	targetpc := frame.continpc
 	if targetpc == 0 {
 		// Frame is dead. Return empty bitvectors.
@@ -1221,7 +1254,14 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 	// Arguments.
 	if frame.arglen > 0 {
 		if frame.argmap != nil {
+			// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
+			// In this case, arglen specifies how much of the args section is actually live.
+			// (It could be either all the args + results, or just the args.)
 			args = *frame.argmap
+			n := int32(frame.arglen / sys.PtrSize)
+			if n < args.n {
+				args.n = n // Don't use more of the arguments than arglen.
+			}
 		} else {
 			stackmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
 			if stackmap == nil || stackmap.n <= 0 {
@@ -1238,7 +1278,31 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 			}
 		}
 	}
+
+	// stack objects.
+	p := funcdata(f, _FUNCDATA_StackObjects)
+	if p != nil {
+		n := *(*uintptr)(p)
+		p = add(p, sys.PtrSize)
+		*(*slice)(unsafe.Pointer(&objs)) = slice{array: noescape(p), len: int(n), cap: int(n)}
+		// Note: the noescape above is needed to keep
+		// getStackMap from "leaking param content:
+		// frame".  That leak propagates up to getgcmask, then
+		// GCMask, then verifyGCInfo, which converts the stack
+		// gcinfo tests into heap gcinfo tests :(
+	}
+
 	return
+}
+
+// A stackObjectRecord is generated by the compiler for each stack object in a stack frame.
+// This record must match the generator code in cmd/compile/internal/gc/ssa.go:emitStackObjects.
+type stackObjectRecord struct {
+	// offset in frame
+	// if negative, offset from varp
+	// if non-negative, offset from argp
+	off int
+	typ *_type
 }
 
 //go:nosplit

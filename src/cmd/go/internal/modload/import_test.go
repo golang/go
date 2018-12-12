@@ -21,7 +21,7 @@ var importTests = []struct {
 	},
 	{
 		path: "golang.org/x/net",
-		err:  "missing module for import: golang.org/x/net@.* provides golang.org/x/net",
+		err:  "cannot find module providing package golang.org/x/net",
 	},
 	{
 		path: "golang.org/x/text",
@@ -45,7 +45,7 @@ func TestImport(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	for _, tt := range importTests {
-		t.Run(strings.Replace(tt.path, "/", "_", -1), func(t *testing.T) {
+		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
 			// Note that there is no build list, so Import should always fail.
 			m, dir, err := Import(tt.path)
 			if err == nil {

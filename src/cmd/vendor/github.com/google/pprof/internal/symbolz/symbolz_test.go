@@ -16,6 +16,7 @@ package symbolz
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -138,4 +139,31 @@ func fetchSymbols(source, post string) ([]byte, error) {
 		symbolz += fmt.Sprintf("%s\t%s\n", address, address)
 	}
 	return []byte(symbolz), nil
+}
+
+func TestAdjust(t *testing.T) {
+	for _, tc := range []struct {
+		addr         uint64
+		offset       int64
+		wantAdj      uint64
+		wantOverflow bool
+	}{{math.MaxUint64, 0, math.MaxUint64, false},
+		{math.MaxUint64, 1, 0, true},
+		{math.MaxUint64 - 1, 1, math.MaxUint64, false},
+		{math.MaxUint64 - 1, 2, 0, true},
+		{math.MaxInt64 + 1, math.MaxInt64, math.MaxUint64, false},
+		{0, 0, 0, false},
+		{0, -1, 0, true},
+		{1, -1, 0, false},
+		{2, -1, 1, false},
+		{2, -2, 0, false},
+		{2, -3, 0, true},
+		{-math.MinInt64, math.MinInt64, 0, false},
+		{-math.MinInt64 + 1, math.MinInt64, 1, false},
+		{-math.MinInt64 - 1, math.MinInt64, 0, true},
+	} {
+		if adj, overflow := adjust(tc.addr, tc.offset); adj != tc.wantAdj || overflow != tc.wantOverflow {
+			t.Errorf("adjust(%d, %d) = (%d, %t), want (%d, %t)", tc.addr, tc.offset, adj, overflow, tc.wantAdj, tc.wantOverflow)
+		}
+	}
 }

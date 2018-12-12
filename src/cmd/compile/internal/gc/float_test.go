@@ -6,6 +6,8 @@ package gc
 
 import (
 	"math"
+	"os"
+	"runtime"
 	"testing"
 )
 
@@ -359,6 +361,125 @@ func TestFloatConvertFolded(t *testing.T) {
 	}
 	if int8(si8) != i8 {
 		t.Errorf("int8(si8) != i8")
+	}
+}
+
+func TestFloat32StoreToLoadConstantFold(t *testing.T) {
+	// Test that math.Float32{,from}bits constant fold correctly.
+	// In particular we need to be careful that signaling NaN (sNaN) values
+	// are not converted to quiet NaN (qNaN) values during compilation.
+	// See issue #27193 for more information.
+
+	// TODO: this method for detecting 387 won't work if the compiler has been
+	// built using GOARCH=386 GO386=387 and either the target is a different
+	// architecture or the GO386=387 environment variable is not set when the
+	// test is run.
+	if runtime.GOARCH == "386" && os.Getenv("GO386") == "387" {
+		t.Skip("signaling NaNs are not propagated on 387 (issue #27516)")
+	}
+
+	// signaling NaNs
+	{
+		const nan = uint32(0x7f800001) // sNaN
+		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
+			t.Errorf("got %#x, want %#x", x, nan)
+		}
+	}
+	{
+		const nan = uint32(0x7fbfffff) // sNaN
+		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
+			t.Errorf("got %#x, want %#x", x, nan)
+		}
+	}
+	{
+		const nan = uint32(0xff800001) // sNaN
+		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
+			t.Errorf("got %#x, want %#x", x, nan)
+		}
+	}
+	{
+		const nan = uint32(0xffbfffff) // sNaN
+		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
+			t.Errorf("got %#x, want %#x", x, nan)
+		}
+	}
+
+	// quiet NaNs
+	{
+		const nan = uint32(0x7fc00000) // qNaN
+		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
+			t.Errorf("got %#x, want %#x", x, nan)
+		}
+	}
+	{
+		const nan = uint32(0x7fffffff) // qNaN
+		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
+			t.Errorf("got %#x, want %#x", x, nan)
+		}
+	}
+	{
+		const nan = uint32(0x8fc00000) // qNaN
+		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
+			t.Errorf("got %#x, want %#x", x, nan)
+		}
+	}
+	{
+		const nan = uint32(0x8fffffff) // qNaN
+		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {
+			t.Errorf("got %#x, want %#x", x, nan)
+		}
+	}
+
+	// infinities
+	{
+		const inf = uint32(0x7f800000) // +∞
+		if x := math.Float32bits(math.Float32frombits(inf)); x != inf {
+			t.Errorf("got %#x, want %#x", x, inf)
+		}
+	}
+	{
+		const negInf = uint32(0xff800000) // -∞
+		if x := math.Float32bits(math.Float32frombits(negInf)); x != negInf {
+			t.Errorf("got %#x, want %#x", x, negInf)
+		}
+	}
+
+	// numbers
+	{
+		const zero = uint32(0) // +0.0
+		if x := math.Float32bits(math.Float32frombits(zero)); x != zero {
+			t.Errorf("got %#x, want %#x", x, zero)
+		}
+	}
+	{
+		const negZero = uint32(1 << 31) // -0.0
+		if x := math.Float32bits(math.Float32frombits(negZero)); x != negZero {
+			t.Errorf("got %#x, want %#x", x, negZero)
+		}
+	}
+	{
+		const one = uint32(0x3f800000) // 1.0
+		if x := math.Float32bits(math.Float32frombits(one)); x != one {
+			t.Errorf("got %#x, want %#x", x, one)
+		}
+	}
+	{
+		const negOne = uint32(0xbf800000) // -1.0
+		if x := math.Float32bits(math.Float32frombits(negOne)); x != negOne {
+			t.Errorf("got %#x, want %#x", x, negOne)
+		}
+	}
+	{
+		const frac = uint32(0x3fc00000) // +1.5
+		if x := math.Float32bits(math.Float32frombits(frac)); x != frac {
+			t.Errorf("got %#x, want %#x", x, frac)
+		}
+	}
+	{
+		const negFrac = uint32(0xbfc00000) // -1.5
+		if x := math.Float32bits(math.Float32frombits(negFrac)); x != negFrac {
+			t.Errorf("got %#x, want %#x", x, negFrac)
+		}
 	}
 }
 

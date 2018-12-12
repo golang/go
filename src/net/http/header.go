@@ -14,30 +14,35 @@ import (
 	"time"
 )
 
-var raceEnabled = false // set by race.go
-
 // A Header represents the key-value pairs in an HTTP header.
+//
+// The keys should be in canonical form, as returned by
+// CanonicalHeaderKey.
 type Header map[string][]string
 
 // Add adds the key, value pair to the header.
 // It appends to any existing values associated with key.
+// The key is case insensitive; it is canonicalized by
+// CanonicalHeaderKey.
 func (h Header) Add(key, value string) {
 	textproto.MIMEHeader(h).Add(key, value)
 }
 
-// Set sets the header entries associated with key to
-// the single element value. It replaces any existing
-// values associated with key.
+// Set sets the header entries associated with key to the
+// single element value. It replaces any existing values
+// associated with key. The key is case insensitive; it is
+// canonicalized by textproto.CanonicalMIMEHeaderKey.
+// To use non-canonical keys, assign to the map directly.
 func (h Header) Set(key, value string) {
 	textproto.MIMEHeader(h).Set(key, value)
 }
 
-// Get gets the first value associated with the given key.
-// It is case insensitive; textproto.CanonicalMIMEHeaderKey is used
-// to canonicalize the provided key.
-// If there are no values associated with the key, Get returns "".
-// To access multiple values of a key, or to use non-canonical keys,
-// access the map directly.
+// Get gets the first value associated with the given key. If
+// there are no values associated with the key, Get returns "".
+// It is case insensitive; textproto.CanonicalMIMEHeaderKey is
+// used to canonicalize the provided key. To access multiple
+// values of a key, or to use non-canonical keys, access the
+// map directly.
 func (h Header) Get(key string) string {
 	return textproto.MIMEHeader(h).Get(key)
 }
@@ -50,7 +55,16 @@ func (h Header) get(key string) string {
 	return ""
 }
 
+// has reports whether h has the provided key defined, even if it's
+// set to 0-length slice.
+func (h Header) has(key string) bool {
+	_, ok := h[key]
+	return ok
+}
+
 // Del deletes the values associated with key.
+// The key is case insensitive; it is canonicalized by
+// CanonicalHeaderKey.
 func (h Header) Del(key string) {
 	textproto.MIMEHeader(h).Del(key)
 }
@@ -94,10 +108,6 @@ func ParseTime(text string) (t time.Time, err error) {
 }
 
 var headerNewlineToSpace = strings.NewReplacer("\n", " ", "\r", " ")
-
-type writeStringer interface {
-	WriteString(string) (int, error)
-}
 
 // stringWriter implements WriteString on a Writer.
 type stringWriter struct {
@@ -154,7 +164,7 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
 }
 
 func (h Header) writeSubset(w io.Writer, exclude map[string]bool, trace *httptrace.ClientTrace) error {
-	ws, ok := w.(writeStringer)
+	ws, ok := w.(io.StringWriter)
 	if !ok {
 		ws = stringWriter{w}
 	}
@@ -230,14 +240,4 @@ func hasToken(v, token string) bool {
 
 func isTokenBoundary(b byte) bool {
 	return b == ' ' || b == ',' || b == '\t'
-}
-
-func cloneHeader(h Header) Header {
-	h2 := make(Header, len(h))
-	for k, vv := range h {
-		vv2 := make([]string, len(vv))
-		copy(vv2, vv)
-		h2[k] = vv2
-	}
-	return h2
 }

@@ -208,9 +208,11 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	ctxt.dostrdata()
 	deadcode(ctxt)
+	dwarfGenerateDebugInfo(ctxt)
 	if objabi.Fieldtrack_enabled != 0 {
 		fieldtrack(ctxt)
 	}
+	ctxt.mangleTypeSym()
 	ctxt.callgraph()
 
 	ctxt.doelf()
@@ -220,7 +222,12 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.dostkcheck()
 	if ctxt.HeadType == objabi.Hwindows {
 		ctxt.dope()
+		ctxt.windynrelocsyms()
 	}
+	if ctxt.HeadType == objabi.Haix {
+		ctxt.doxcoff()
+	}
+
 	ctxt.addexport()
 	thearch.Gentext(ctxt) // trampolines, call stubs, etc.
 	ctxt.textbuildid()

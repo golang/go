@@ -95,14 +95,12 @@ type Client struct {
 	// A Timeout of zero means no timeout.
 	//
 	// The Client cancels requests to the underlying Transport
-	// using the Request.Cancel mechanism. Requests passed
-	// to Client.Do may still set Request.Cancel; both will
-	// cancel the request.
+	// as if the Request's Context ended.
 	//
 	// For compatibility, the Client will also use the deprecated
 	// CancelRequest method on Transport if found. New
-	// RoundTripper implementations should use Request.Cancel
-	// instead of implementing CancelRequest.
+	// RoundTripper implementations should use the Request's Context
+	// for cancelation instead of implementing CancelRequest.
 	Timeout time.Duration
 }
 
@@ -240,7 +238,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 		username := u.Username()
 		password, _ := u.Password()
 		forkReq()
-		req.Header = cloneHeader(ireq.Header)
+		req.Header = ireq.Header.clone()
 		req.Header.Set("Authorization", "Basic "+basicAuth(username, password))
 	}
 
@@ -833,6 +831,22 @@ func (c *Client) Head(url string) (resp *Response, err error) {
 		return nil, err
 	}
 	return c.Do(req)
+}
+
+// CloseIdleConnections closes any connections on its Transport which
+// were previously connected from previous requests but are now
+// sitting idle in a "keep-alive" state. It does not interrupt any
+// connections currently in use.
+//
+// If the Client's Transport does not have a CloseIdleConnections method
+// then this method does nothing.
+func (c *Client) CloseIdleConnections() {
+	type closeIdler interface {
+		CloseIdleConnections()
+	}
+	if tr, ok := c.transport().(closeIdler); ok {
+		tr.CloseIdleConnections()
+	}
 }
 
 // cancelTimerBody is an io.ReadCloser that wraps rc with two features:

@@ -93,6 +93,10 @@ func TestEncoderIndent(t *testing.T) {
 func TestEncoderSetEscapeHTML(t *testing.T) {
 	var c C
 	var ct CText
+	var tagStruct struct {
+		Valid   int `json:"<>&#! "`
+		Invalid int `json:"\\"`
+	}
 	for _, tt := range []struct {
 		name       string
 		v          interface{}
@@ -102,6 +106,11 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 		{"c", c, `"\u003c\u0026\u003e"`, `"<&>"`},
 		{"ct", ct, `"\"\u003c\u0026\u003e\""`, `"\"<&>\""`},
 		{`"<&>"`, "<&>", `"\u003c\u0026\u003e"`, `"<&>"`},
+		{
+			"tagStruct", tagStruct,
+			`{"\u003c\u003e\u0026#! ":0,"Invalid":0}`,
+			`{"<>&#! ":0,"Invalid":0}`,
+		},
 	} {
 		var buf bytes.Buffer
 		enc := NewEncoder(&buf)
@@ -192,10 +201,9 @@ func nlines(s string, n int) string {
 }
 
 func TestRawMessage(t *testing.T) {
-	// TODO(rsc): Should not need the * in *RawMessage
 	var data struct {
 		X  float64
-		Id *RawMessage
+		Id RawMessage
 		Y  float32
 	}
 	const raw = `["\u0056",null]`
@@ -204,8 +212,8 @@ func TestRawMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	if string([]byte(*data.Id)) != raw {
-		t.Fatalf("Raw mismatch: have %#q want %#q", []byte(*data.Id), raw)
+	if string([]byte(data.Id)) != raw {
+		t.Fatalf("Raw mismatch: have %#q want %#q", []byte(data.Id), raw)
 	}
 	b, err := Marshal(&data)
 	if err != nil {
@@ -217,20 +225,22 @@ func TestRawMessage(t *testing.T) {
 }
 
 func TestNullRawMessage(t *testing.T) {
-	// TODO(rsc): Should not need the * in *RawMessage
 	var data struct {
-		X  float64
-		Id *RawMessage
-		Y  float32
+		X     float64
+		Id    RawMessage
+		IdPtr *RawMessage
+		Y     float32
 	}
-	data.Id = new(RawMessage)
-	const msg = `{"X":0.1,"Id":null,"Y":0.2}`
+	const msg = `{"X":0.1,"Id":null,"IdPtr":null,"Y":0.2}`
 	err := Unmarshal([]byte(msg), &data)
 	if err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	if data.Id != nil {
-		t.Fatalf("Raw mismatch: have non-nil, want nil")
+	if want, got := "null", string(data.Id); want != got {
+		t.Fatalf("Raw mismatch: have %q, want %q", got, want)
+	}
+	if data.IdPtr != nil {
+		t.Fatalf("Raw pointer mismatch: have non-nil, want nil")
 	}
 	b, err := Marshal(&data)
 	if err != nil {

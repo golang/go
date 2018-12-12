@@ -10,3 +10,4 @@ race_linux_amd64.syso built with LLVM fe2c72c59aa7f4afa45e3f65a5d16a374b6cce26 a
 race_linux_ppc64le.syso built with LLVM fe2c72c59aa7f4afa45e3f65a5d16a374b6cce26 and Go 323c85862a7afbde66a3bba0776bf4ba6cd7c030.
 race_netbsd_amd64.syso built with LLVM fe2c72c59aa7f4afa45e3f65a5d16a374b6cce26 and Go 323c85862a7afbde66a3bba0776bf4ba6cd7c030.
 race_windows_amd64.syso built with LLVM ae08a22cc215448aa3ad5a6fb099f6df77e9fa01 and Go 323c85862a7afbde66a3bba0776bf4ba6cd7c030.
+race_linux_arm64.syso built with LLVM 3aa2b775d08f903f804246af10b80a439c16b436 and Go ef2c48659880c7e8a989e6721a21f018790f7793.

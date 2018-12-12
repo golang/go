@@ -88,23 +88,11 @@ func (s *Service) Config() (Config, error) {
 		}
 	}
 
-	var p2 *windows.SERVICE_DESCRIPTION
-	n = uint32(1024)
-	for {
-		b := make([]byte, n)
-		p2 = (*windows.SERVICE_DESCRIPTION)(unsafe.Pointer(&b[0]))
-		err := windows.QueryServiceConfig2(s.Handle,
-			windows.SERVICE_CONFIG_DESCRIPTION, &b[0], n, &n)
-		if err == nil {
-			break
-		}
-		if err.(syscall.Errno) != syscall.ERROR_INSUFFICIENT_BUFFER {
-			return Config{}, err
-		}
-		if n <= uint32(len(b)) {
-			return Config{}, err
-		}
+	b, err := s.queryServiceConfig2(windows.SERVICE_CONFIG_DESCRIPTION)
+	if err != nil {
+		return Config{}, err
 	}
+	p2 := (*windows.SERVICE_DESCRIPTION)(unsafe.Pointer(&b[0]))
 
 	return Config{
 		ServiceType:      p.ServiceType,
@@ -136,4 +124,22 @@ func (s *Service) UpdateConfig(c Config) error {
 		return err
 	}
 	return updateDescription(s.Handle, c.Description)
+}
+
+// queryServiceConfig2 calls Windows QueryServiceConfig2 with infoLevel parameter and returns retrieved service configuration information.
+func (s *Service) queryServiceConfig2(infoLevel uint32) ([]byte, error) {
+	n := uint32(1024)
+	for {
+		b := make([]byte, n)
+		err := windows.QueryServiceConfig2(s.Handle, infoLevel, &b[0], n, &n)
+		if err == nil {
+			return b, nil
+		}
+		if err.(syscall.Errno) != syscall.ERROR_INSUFFICIENT_BUFFER {
+			return nil, err
+		}
+		if n <= uint32(len(b)) {
+			return nil, err
+		}
+	}
 }

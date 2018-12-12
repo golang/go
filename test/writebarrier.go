@@ -250,3 +250,14 @@ func f23c() {
 	// also test partial assignments
 	t23 = T23{p: &i23} // ERROR "write barrier"
 }
+
+var g int
+
+func f24() **int {
+	p := new(*int)
+	*p = &g // no write barrier here
+	return p
+}
+func f25() []string {
+	return []string{"abc", "def", "ghi"} // no write barrier here
+}

@@ -550,7 +550,7 @@ label1:
 //	ftsqrt	BF, FRB
 	FTSQRT	F2,$7
 
-//	FCFID	
+//	FCFID
 //	FCFIDS
 
 	FCFID	F2,F3
@@ -948,6 +948,7 @@ label1:
 //	<MNEMONIC> VRA,VRB,VRC,VRT produces
 //	<mnemonic> VRT,VRA,VRB,VRC
 	VPERM V3, V2, V1, V0
+	VPERMXOR V3, V2, V1, V0
 
 //	Vector bit permute, VX-form
 //	<MNEMONIC> VRA,VRB,VRT produces

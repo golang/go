@@ -48,7 +48,9 @@ TEXT _rt0_arm64_linux_lib(SB),NOSPLIT,$184
 	BEQ	nocgo
 	MOVD	$_rt0_arm64_linux_lib_go(SB), R0
 	MOVD	$0, R1
+	SUB	$16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
 	BL	(R4)
+	ADD	$16, RSP
 	B	restore
 
 nocgo:

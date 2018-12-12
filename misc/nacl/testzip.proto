@@ -47,6 +47,9 @@ go	src=..
 					google
 						pprof
 							internal
+								binutils
+									testdata
+										+
 								driver
 									testdata
 										+
@@ -151,6 +154,9 @@ go	src=..
 			trace
 				testdata
 					+
+			xcoff
+				testdata
+					+
 		io
 			+
 		mime
@@ -177,6 +183,8 @@ go	src=..
 		strconv
 			testdata
 				+
+		testdata
+			+
 		text
 			template
 				testdata

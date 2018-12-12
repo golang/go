@@ -10,6 +10,7 @@ import (
 	"io"
 	"math/rand"
 	"reflect"
+	"strconv"
 	. "strings"
 	"testing"
 	"unicode"
@@ -645,10 +646,10 @@ func TestMap(t *testing.T) {
 		if unicode.Is(unicode.Latin, r) {
 			return r
 		}
-		return '?'
+		return utf8.RuneError
 	}
 	m = Map(replaceNotLatin, "Hello\255World")
-	expect = "Hello?World"
+	expect = "Hello\uFFFDWorld"
 	if m != expect {
 		t.Errorf("replace invalid sequence: expected %q got %q", expect, m)
 	}
@@ -672,6 +673,19 @@ func TestMap(t *testing.T) {
 	m = Map(encode, r)
 	if m != s {
 		t.Errorf("encoding not handled correctly: expected %q got %q", s, m)
+	}
+
+	// 9. Check mapping occurs in the front, middle and back
+	trimSpaces := func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}
+	m = Map(trimSpaces, "   abc    123   ")
+	expect = "abc123"
+	if m != expect {
+		t.Errorf("trimSpaces: expected %q got %q", expect, m)
 	}
 }
 
@@ -1229,6 +1243,12 @@ func TestReplace(t *testing.T) {
 		if s := Replace(tt.in, tt.old, tt.new, tt.n); s != tt.out {
 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
 		}
+		if tt.n == -1 {
+			s := ReplaceAll(tt.in, tt.old, tt.new)
+			if s != tt.out {
+				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
+			}
+		}
 	}
 }
 
@@ -1647,8 +1667,15 @@ func BenchmarkSplitNMultiByteSeparator(b *testing.B) {
 }
 
 func BenchmarkRepeat(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Repeat("-", 80)
+	s := "0123456789"
+	for _, n := range []int{5, 10} {
+		for _, c := range []int{1, 2, 6} {
+			b.Run(fmt.Sprintf("%dx%d", n, c), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					Repeat(s[:n], c)
+				}
+			})
+		}
 	}
 }
 
@@ -1687,6 +1714,19 @@ func BenchmarkIndexPeriodic(b *testing.B) {
 			s := Repeat("a"+Repeat(" ", skip-1), 1<<16/skip)
 			for i := 0; i < b.N; i++ {
 				Index(s, key)
+			}
+		})
+	}
+}
+
+func BenchmarkJoin(b *testing.B) {
+	vals := []string{"red", "yellow", "pink", "green", "purple", "orange", "blue"}
+	for l := 0; l <= len(vals); l++ {
+		b.Run(strconv.Itoa(l), func(b *testing.B) {
+			b.ReportAllocs()
+			vals := vals[:l]
+			for i := 0; i < b.N; i++ {
+				Join(vals, " and ")
 			}
 		})
 	}

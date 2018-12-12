@@ -99,3 +99,11 @@ func ExampleReadFile() {
 	// Output:
 	// File contents: Hello, Gophers!
 }
+
+func ExampleWriteFile() {
+	message := []byte("Hello, Gophers!")
+	err := ioutil.WriteFile("testdata/hello", message, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+}

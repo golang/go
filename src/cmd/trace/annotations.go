@@ -438,8 +438,8 @@ func (task *taskDesc) complete() bool {
 	return task.create != nil && task.end != nil
 }
 
-// descendents returns all the task nodes in the subtree rooted from this task.
-func (task *taskDesc) decendents() []*taskDesc {
+// descendants returns all the task nodes in the subtree rooted from this task.
+func (task *taskDesc) descendants() []*taskDesc {
 	if task == nil {
 		return nil
 	}
@@ -507,7 +507,7 @@ func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping tim
 	return overlapping
 }
 
-// overlappingInstant returns true if the instantaneous event, ev, occurred during
+// overlappingInstant reports whether the instantaneous event, ev, occurred during
 // any of the task's region if ev is a goroutine-local event, or overlaps with the
 // task's lifetime if ev is a global event.
 func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
@@ -538,7 +538,7 @@ func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
 	return false
 }
 
-// overlappingDuration returns whether the durational event, ev, overlaps with
+// overlappingDuration reports whether the durational event, ev, overlaps with
 // any of the task's region if ev is a goroutine-local event, or overlaps with
 // the task's lifetime if ev is a global event. It returns the overlapping time
 // as well.
