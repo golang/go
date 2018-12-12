@@ -879,7 +879,7 @@ func profilem(mp *m, thread uintptr) {
 		gp = *((**g)(unsafe.Pointer(tls)))
 	}
 
-	sigprof(r.ip(), r.sp(), 0, gp, mp)
+	sigprof(r.ip(), r.sp(), r.lr(), gp, mp)
 }
 
 func profileloop1(param uintptr) uint32 {
