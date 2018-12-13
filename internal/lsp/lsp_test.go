@@ -215,6 +215,9 @@ func (c completions) test(t *testing.T, exported *packagestest.Exported, s *serv
 				},
 			},
 		})
+		if err != nil {
+			t.Fatal(err)
+		}
 		var got []protocol.CompletionItem
 		for _, item := range list.Items {
 			// Skip all types with no details (builtin types).

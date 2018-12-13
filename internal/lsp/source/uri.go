@@ -10,36 +10,80 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"unicode"
 )
 
-// URI represents the full uri for a file.
+const fileScheme = "file"
+
+// URI represents the full URI for a file.
 type URI string
 
 // Filename gets the file path for the URI.
 // It will return an error if the uri is not valid, or if the URI was not
 // a file URI
 func (uri URI) Filename() (string, error) {
-	s := string(uri)
-	if !strings.HasPrefix(s, fileSchemePrefix) {
-		return "", fmt.Errorf("only file URI's are supported, got %v", uri)
-	}
-	s = s[len(fileSchemePrefix):]
-	s, err := url.PathUnescape(s)
+	filename, err := filename(uri)
 	if err != nil {
-		return s, err
+		return "", err
 	}
-	s = filepath.FromSlash(s)
-	return s, nil
+	return filepath.FromSlash(filename), nil
+}
+
+func filename(uri URI) (string, error) {
+	u, err := url.ParseRequestURI(string(uri))
+	if err != nil {
+		return "", err
+	}
+	if u.Scheme != fileScheme {
+		return "", fmt.Errorf("only file URIs are supported, got %v", u.Scheme)
+	}
+	if isWindowsDriveURI(u.Path) {
+		u.Path = u.Path[1:]
+	}
+	return u.Path, nil
 }
 
 // ToURI returns a protocol URI for the supplied path.
 // It will always have the file scheme.
 func ToURI(path string) URI {
+	u := toURI(path)
+	u.Path = filepath.ToSlash(u.Path)
+	return URI(u.String())
+}
+
+func toURI(path string) *url.URL {
+	// Handle standard library paths that contain the literal "$GOROOT".
+	// TODO(rstambler): The go/packages API should allow one to determine a user's $GOROOT.
 	const prefix = "$GOROOT"
 	if strings.EqualFold(prefix, path[:len(prefix)]) {
 		suffix := path[len(prefix):]
-		//TODO: we need a better way to get the GOROOT that uses the packages api
 		path = runtime.GOROOT() + suffix
 	}
-	return URI(fileSchemePrefix + filepath.ToSlash(path))
+	if isWindowsDrivePath(path) {
+		path = "/" + path
+	}
+	return &url.URL{
+		Scheme: fileScheme,
+		Path:   path,
+	}
+}
+
+// isWindowsDrivePath returns true if the file path is of the form used by
+// Windows. We check if the path begins with a drive letter, followed by a ":".
+func isWindowsDrivePath(path string) bool {
+	if len(path) < 4 {
+		return false
+	}
+	return unicode.IsLetter(rune(path[0])) && path[1] == ':'
+}
+
+// isWindowsDriveURI returns true if the file URI is of the format used by
+// Windows URIs. The url.Parse package does not specially handle Windows paths
+// (see https://github.com/golang/go/issues/6027). We check if the URI path has
+// a drive prefix (e.g. "/C:"). If so, we trim the leading "/".
+func isWindowsDriveURI(uri string) bool {
+	if len(uri) < 4 {
+		return false
+	}
+	return uri[0] == '/' && unicode.IsLetter(rune(uri[1])) && uri[2] == ':'
 }
