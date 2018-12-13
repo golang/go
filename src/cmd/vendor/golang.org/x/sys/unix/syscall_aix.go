@@ -13,10 +13,7 @@
 
 package unix
 
-import (
-	"syscall"
-	"unsafe"
-)
+import "unsafe"
 
 /*
  * Wrapped
@@ -384,10 +381,6 @@ func IoctlGetTermios(fd int, req uint) (*Termios, error) {
 //sys	FcntlFlock(fd uintptr, cmd int, lk *Flock_t) (err error) = fcntl
 
 //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
-
-func Flock(fd int, how int) (err error) {
-	return syscall.Flock(fd, how)
-}
 
 /*
  * Direct access
