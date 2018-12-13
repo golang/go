@@ -114,13 +114,17 @@ type sigcontext struct {
 	sc_usr_lr uint32
 	sc_svc_lr uint32
 	sc_pc     uint32
+	sc_fpused uint32
+	sc_fpscr  uint32
+	sc_fpreg  [32]uint64
 }
 
 type siginfo struct {
-	si_signo int32
-	si_code  int32
-	si_errno int32
-	_data    [116]byte
+	si_signo  int32
+	si_code   int32
+	si_errno  int32
+	pad_cgo_0 [4]byte
+	_data     [120]byte
 }
 
 type stackt struct {
