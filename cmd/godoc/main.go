@@ -163,15 +163,13 @@ func main() {
 
 	playEnabled = *showPlayground
 
-	// Check usage: server and no args.
-	if (*httpAddr != "" || *urlFlag != "") && (flag.NArg() > 0) {
-		fmt.Fprintln(os.Stderr, "Unexpected arguments.")
+	// Check usage.
+	if flag.NArg() > 0 {
+		fmt.Fprintln(os.Stderr, `Unexpected arguments. Use "go doc" for command-line help output instead. For example, "go doc -all net/http".`)
 		usage()
 	}
-
-	// Check usage: command line args or index creation mode.
-	if (*httpAddr != "" || *urlFlag != "") != (flag.NArg() == 0) && !*writeIndex {
-		fmt.Fprintln(os.Stderr, "missing args.")
+	if *httpAddr != "" && *urlFlag != "" && !*writeIndex {
+		fmt.Fprintln(os.Stderr, "Missing args.")
 		usage()
 	}
 
