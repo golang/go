@@ -299,7 +299,7 @@ func ExampleReplace() {
 }
 
 func ExampleReplaceAll() {
-	fmt.Printf("%s\n", bytes.ReplaceAll([]byte("oink oink oink"), []byte("oink"), []byte("moo"))
+	fmt.Printf("%s\n", bytes.ReplaceAll([]byte("oink oink oink"), []byte("oink"), []byte("moo")))
 	// Output:
 	// moo moo moo
 }
