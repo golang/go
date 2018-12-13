@@ -92,6 +92,8 @@ type Decoder struct {
 	// saveBuf is previous data passed to Write which we weren't able
 	// to fully parse before. Unlike buf, we own this data.
 	saveBuf bytes.Buffer
+
+	firstField bool // processing the first field of the header block
 }
 
 // NewDecoder returns a new decoder with the provided maximum dynamic
@@ -101,6 +103,7 @@ func NewDecoder(maxDynamicTableSize uint32, emitFunc func(f HeaderField)) *Decod
 	d := &Decoder{
 		emit:        emitFunc,
 		emitEnabled: true,
+		firstField:  true,
 	}
 	d.dynTab.table.init()
 	d.dynTab.allowedMaxSize = maxDynamicTableSize
@@ -226,11 +229,15 @@ func (d *Decoder) DecodeFull(p []byte) ([]HeaderField, error) {
 	return hf, nil
 }
 
+// Close declares that the decoding is complete and resets the Decoder
+// to be reused again for a new header block. If there is any remaining
+// data in the decoder's buffer, Close returns an error.
 func (d *Decoder) Close() error {
 	if d.saveBuf.Len() > 0 {
 		d.saveBuf.Reset()
 		return DecodingError{errors.New("truncated headers")}
 	}
+	d.firstField = true
 	return nil
 }
 
@@ -266,6 +273,7 @@ func (d *Decoder) Write(p []byte) (n int, err error) {
 			d.saveBuf.Write(d.buf)
 			return len(p), nil
 		}
+		d.firstField = false
 		if err != nil {
 			break
 		}
@@ -391,7 +399,7 @@ func (d *Decoder) callEmit(hf HeaderField) error {
 func (d *Decoder) parseDynamicTableSizeUpdate() error {
 	// RFC 7541, sec 4.2: This dynamic table size update MUST occur at the
 	// beginning of the first header block following the change to the dynamic table size.
-	if d.dynTab.size > 0 {
+	if !d.firstField && d.dynTab.size > 0 {
 		return DecodingError{errors.New("dynamic table size update MUST occur at the beginning of a header block")}
 	}
 
