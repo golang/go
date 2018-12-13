@@ -870,6 +870,10 @@ func TestRuntimeTypeAttrInternal(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
+	if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
+		t.Skip("skipping on windows/arm; test is incompatible with relocatable binaries")
+	}
+
 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
 }
 
