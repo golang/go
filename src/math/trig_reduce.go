@@ -68,8 +68,8 @@ func trigReduce(x float64) (j uint64, z float64) {
 
 // mPi4 is the binary digits of 4/pi as a uint64 array,
 // that is, 4/pi = Sum mPi4[i]*2^(-64*i)
-// 19 64-bit digits gives 1153 bits of precision to handle
-// the largest possible float64 exponent.
+// 19 64-bit digits and the leading one bit give 1217 bits
+// of precision to handle the largest possible float64 exponent.
 var mPi4 = [...]uint64{
 	0x0000000000000001,
 	0x45f306dc9c882a53,
