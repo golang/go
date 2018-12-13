@@ -227,8 +227,8 @@ func TestRespectSetgidDir(t *testing.T) {
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
 			t.Skip("can't set SetGID bit with chmod on iOS")
 		}
-	case "windows", "plan9":
-		t.Skip("chown/chmod setgid are not supported on Windows and Plan 9")
+	case "windows", "plan9", "js":
+		t.Skip("chown/chmod setgid are not supported on Windows, Plan 9, or JS")
 	}
 
 	var b Builder
