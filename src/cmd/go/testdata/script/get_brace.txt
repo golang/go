@@ -3,11 +3,15 @@
 # Set up some empty repositories.
 cd $WORK/_origin/foo
 exec git init
+exec git config user.name 'Nameless Gopher'
+exec git config user.email 'nobody@golang.org'
 exec git commit --allow-empty -m 'create master branch'
 
 cd $WORK
 cd '_origin/{confusing}'
 exec git init
+exec git config user.name 'Nameless Gopher'
+exec git config user.email 'nobody@golang.org'
 exec git commit --allow-empty -m 'create master branch'
 
 # Clone the empty repositories into GOPATH.
