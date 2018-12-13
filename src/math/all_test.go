@@ -176,47 +176,6 @@ var cosLarge = []float64{
 	-7.3924135157173099849e-01,
 }
 
-// Inputs to test trig_reduce
-var trigHuge = []float64{
-	1 << 120,
-	1 << 240,
-	1 << 480,
-	1234567891234567 << 180,
-	1234567891234567 << 300,
-	MaxFloat64,
-}
-
-// Results for trigHuge[i] calculated with https://github.com/robpike/ivy
-// using 4096 bits of working precision.   Values requiring less than
-// 102 decimal digits (1 << 120, 1 << 240, 1 << 480, 1234567891234567 << 180)
-// were confirmed via https://keisan.casio.com/
-var cosHuge = []float64{
-	-0.92587902285483787,
-	0.93601042593353793,
-	-0.28282777640193788,
-	-0.14616431394103619,
-	-0.79456058210671406,
-	-0.99998768942655994,
-}
-
-var sinHuge = []float64{
-	0.37782010936075202,
-	-0.35197227524865778,
-	0.95917070894368716,
-	0.98926032637023618,
-	-0.60718488235646949,
-	0.00496195478918406,
-}
-
-var tanHuge = []float64{
-	-0.40806638884180424,
-	-0.37603456702698076,
-	-3.39135965054779932,
-	-6.76813854009065030,
-	0.76417695016604922,
-	-0.00496201587444489,
-}
-
 var cosh = []float64{
 	7.2668796942212842775517446e+01,
 	1.1479413465659254502011135e+03,
@@ -3099,49 +3058,6 @@ func TestTrigReduce(t *testing.T) {
 		fred, gred := Sincos(xred)
 		if !close(f, fred) || !close(g, gred) {
 			t.Errorf(" Sincos(trigReduce(%g)) != Sincos(%g), got %g, %g, want %g, %g", x, x, fred, gred, f, g)
-		}
-	}
-}
-
-// Check that trig values of huge angles return accurate results.
-// This confirms that argument reduction works for very large values
-// up to MaxFloat64.
-func TestHugeCos(t *testing.T) {
-	for i := 0; i < len(trigHuge); i++ {
-		f1 := cosHuge[i]
-		f2 := Cos(trigHuge[i])
-		if !close(f1, f2) {
-			t.Errorf("Cos(%g) = %g, want %g", trigHuge[i], f2, f1)
-		}
-	}
-}
-
-func TestHugeSin(t *testing.T) {
-	for i := 0; i < len(trigHuge); i++ {
-		f1 := sinHuge[i]
-		f2 := Sin(trigHuge[i])
-		if !close(f1, f2) {
-			t.Errorf("Sin(%g) = %g, want %g", trigHuge[i], f2, f1)
-		}
-	}
-}
-
-func TestHugeSinCos(t *testing.T) {
-	for i := 0; i < len(trigHuge); i++ {
-		f1, g1 := sinHuge[i], cosHuge[i]
-		f2, g2 := Sincos(trigHuge[i])
-		if !close(f1, f2) || !close(g1, g2) {
-			t.Errorf("Sincos(%g) = %g, %g, want %g, %g", trigHuge[i], f2, g2, f1, g1)
-		}
-	}
-}
-
-func TestHugeTan(t *testing.T) {
-	for i := 0; i < len(trigHuge); i++ {
-		f1 := tanHuge[i]
-		f2 := Tan(trigHuge[i])
-		if !close(f1, f2) {
-			t.Errorf("Tan(%g) = %g, want %g", trigHuge[i], f2, f1)
 		}
 	}
 }
