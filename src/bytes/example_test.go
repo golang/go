@@ -298,6 +298,12 @@ func ExampleReplace() {
 	// moo moo moo
 }
 
+func ExampleReplaceAll() {
+	fmt.Printf("%s\n", bytes.ReplaceAll([]byte("oink oink oink"), []byte("oink"), []byte("moo")))
+	// Output:
+	// moo moo moo
+}
+
 func ExampleRunes() {
 	rs := bytes.Runes([]byte("go gopher"))
 	for _, r := range rs {
