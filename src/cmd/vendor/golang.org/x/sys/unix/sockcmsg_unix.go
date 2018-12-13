@@ -13,28 +13,26 @@ import (
 	"unsafe"
 )
 
-var cmsgAlign = SizeofPtr
+// Round the length of a raw sockaddr up to align it properly.
+func cmsgAlignOf(salen int) int {
+	salign := SizeofPtr
 
-func init() {
 	switch runtime.GOOS {
 	case "darwin", "dragonfly", "solaris":
 		// NOTE: It seems like 64-bit Darwin, DragonFly BSD and
 		// Solaris kernels still require 32-bit aligned access to
 		// network subsystem.
 		if SizeofPtr == 8 {
-			cmsgAlign = 4
+			salign = 4
 		}
 	case "openbsd":
 		// OpenBSD armv7 requires 64-bit alignment.
 		if runtime.GOARCH == "arm" {
-			cmsgAlign = 8
+			salign = 8
 		}
 	}
-}
 
-// Round the length of a raw sockaddr up to align it properly.
-func cmsgAlignOf(salen int) int {
-	return (salen + cmsgAlign - 1) & ^(cmsgAlign - 1)
+	return (salen + salign - 1) & ^(salign - 1)
 }
 
 // CmsgLen returns the value to store in the Len field of the Cmsghdr

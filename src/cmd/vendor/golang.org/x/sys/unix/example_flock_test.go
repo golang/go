@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package unix_test
 
@@ -12,11 +12,6 @@ import (
 
 	"golang.org/x/sys/unix"
 )
-
-func ExampleExec() {
-	err := unix.Exec("/bin/ls", []string{"ls", "-al"}, os.Environ())
-	log.Fatal(err)
-}
 
 func ExampleFlock() {
 	f, _ := os.Create("example.lock")
