@@ -159,7 +159,7 @@ func TestObjImporter(t *testing.T) {
 
 	for _, test := range importerTests {
 		// Support for type aliases was added in GCC 7.
-		if test.pkgpath == "aliases" || test.pkgpath == "issue27856" {
+		if test.pkgpath == "aliases" || test.pkgpath == "issue27856" || test.pkgpath == "issue29198" {
 			if major < 7 {
 				t.Logf("skipping %q: not supported before gccgo version 7", test.pkgpath)
 				continue
