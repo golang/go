@@ -2416,7 +2416,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	// a := &s
 	// ptr, len, cap := s
 	// newlen := len + 3
-	// if newlen > cap {
+	// if uint(newlen) > uint(cap) {
 	//    newptr, len, newcap = growslice(ptr, len, cap, newlen)
 	//    vardef(a)       // if necessary, advise liveness we are writing a new a
 	//    *a.cap = newcap // write before ptr to avoid a spill
@@ -2454,7 +2454,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	c := s.newValue1(ssa.OpSliceCap, types.Types[TINT], slice)
 	nl := s.newValue2(s.ssaOp(OADD, types.Types[TINT]), types.Types[TINT], l, s.constInt(types.Types[TINT], nargs))
 
-	cmp := s.newValue2(s.ssaOp(OGT, types.Types[TINT]), types.Types[TBOOL], nl, c)
+	cmp := s.newValue2(s.ssaOp(OGT, types.Types[TUINT]), types.Types[TBOOL], nl, c)
 	s.vars[&ptrVar] = p
 
 	if !inplace {

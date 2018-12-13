@@ -530,7 +530,7 @@ func fence1(b []int, x, y int) {
 	}
 	if len(b) < cap(b) {
 		// This eliminates the growslice path.
-		b = append(b, 1) // ERROR "Disproved Greater64$"
+		b = append(b, 1) // ERROR "Disproved Greater64U$"
 	}
 }
 
