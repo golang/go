@@ -376,6 +376,10 @@ func downloadPackage(p *load.Package) error {
 		security = web.Insecure
 	}
 
+	if err := CheckImportPath(p.ImportPath); err != nil {
+		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
+	}
+
 	if p.Internal.Build.SrcRoot != "" {
 		// Directory exists. Look for checkout along path to src.
 		vcs, rootPath, err = vcsFromDir(p.Dir, p.Internal.Build.SrcRoot)
