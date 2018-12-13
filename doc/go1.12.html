@@ -266,8 +266,48 @@ for {
 
 <h2 id="library">Core library</h2>
 
+<h3 id="tls_1_3">TLS 1.3</h3>
+
 <p>
-  All of the changes to the standard library are minor.
+  Go 1.12 adds support in the <code>crypto/tls</code> package for TLS 1.3 as
+  specified in <a href="https://www.rfc-editor.org/info/rfc8446">RFC 8446</a>.
+
+  Programs that did not set an explicit <code>MaxVersion</code> in
+  <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> will automatically negotiate
+  TLS 1.3 if available. All TLS 1.2 features except <code>TLSUnique</code> in
+  <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>
+  and renegotiation are available in TLS 1.3 and provide equivalent or
+  better security and performance.
+</p>
+
+<p>
+  TLS 1.3 cipher suites are not configurable. All supported cipher suites are
+  safe, and if <code>PreferServerCipherSuites</code> is set in
+  <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> the preference order
+  is based on the available hardware.
+</p>
+
+<p>
+  Early data (also called "0-RTT mode") is not currently supported as a
+  client or server. Additionally, a Go 1.12 server does not support skipping
+  unexpected early data if a client sends it. Since TLS 1.3 0-RTT mode
+  involves clients keeping state regarding which servers support 0-RTT,
+  a Go 1.12 server cannot be part of a load-balancing pool where some other
+  servers do support 0-RTT. If switching a domain from a server that supported
+  0-RTT to a Go 1.12 server, 0-RTT would have to be disabled for at least the
+  lifetime of the issued session tickets before the switch to ensure
+  uninterrupted operation.
+</p>
+
+<p>
+  In TLS 1.3 the client is the last one to speak in the handshake, so if it causes
+  an error to occur on the server, it will be returned on the client by the first
+  <a href="/pkg/crypto/tls/#Conn.Read"><code>Read</code></a>, not by
+  <a href="/pkg/crypto/tls/#Conn.Handshake"><code>Handshake</code></a>. For
+  example, that will be the case if the server rejects the client certificate.
+  Similarly, session tickets are now post-handshake messages, so are only
+  received by the client upon its first
+  <a href="/pkg/crypto/tls/#Conn.Read"><code>Read</code></a>.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
@@ -327,12 +367,15 @@ for {
 
 <dl id="crypto/rand"><dt><a href="/pkg/crypto/rand/">crypto/rand</a></dt>
   <dd>
-    <p><!-- CL 120055 -->
-      TODO: <a href="https://golang.org/cl/120055">https://golang.org/cl/120055</a>: use the new getrandom syscall on FreeBSD
+    <p><!-- CL 139419 -->
+      A warning will now be printed to standard error the first time
+      <code>Reader.Read</code> is blocked for more than 60 seconds waiting
+      to read entropy from the kernel.
     </p>
 
-    <p><!-- CL 139419 -->
-      TODO: <a href="https://golang.org/cl/139419">https://golang.org/cl/139419</a>: warn to stderr if blocked 60+ sec on first Reader.Read call
+    <p><!-- CL 120055 -->
+      On FreeBSD, <code>Reader</code> now uses the <code>getrandom</code>
+      system call if available, <code>/dev/urandom</code> otherwise.
     </p>
 
 </dl><!-- crypto/rand -->
@@ -340,10 +383,22 @@ for {
 <dl id="crypto/rc4"><dt><a href="/pkg/crypto/rc4/">crypto/rc4</a></dt>
   <dd>
     <p><!-- CL 130397 -->
-      TODO: <a href="https://golang.org/cl/130397">https://golang.org/cl/130397</a>: remove assembler implementations
+      This release removes the optimized assembly implementations. RC4 is insecure
+      and should only be used for compatibility with legacy systems.
     </p>
 
 </dl><!-- crypto/rc4 -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 143177 -->
+      If a client sends an initial message that does not look like TLS, the server
+      will now not reply with an alert, and it will expose the underlying
+      <code>net.Conn</code> in the new field <code>Conn</code> of
+      <a href="/pkg/crypto/tls/#RecordHeaderError"><code>RecordHeaderError</code></a>.
+    </p>
+
+</dl><!-- crypto/tls -->
 
 <dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
   <dd>
