@@ -199,11 +199,12 @@ type Signature struct {
 	// and store it in the Func Object) because when type-checking a function
 	// literal we call the general type checker which returns a general Type.
 	// We then unpack the *Signature and use the scope for the literal body.
-	scope    *Scope // function scope, present for package-local signatures
-	recv     *Var   // nil if not a method
-	params   *Tuple // (incoming) parameters from left to right; or nil
-	results  *Tuple // (outgoing) results from left to right; or nil
-	variadic bool   // true if the last parameter's type is of the form ...T (or string, for append built-in only)
+	scope    *Scope      // function scope, present for package-local signatures
+	recv     *Var        // nil if not a method
+	tparams  []*TypeName // type parameters from left to right; or nil
+	params   *Tuple      // (incoming) parameters from left to right; or nil
+	results  *Tuple      // (outgoing) results from left to right; or nil
+	variadic bool        // true if the last parameter's type is of the form ...T (or string, for append built-in only)
 }
 
 // NewSignature returns a new function type for the given receiver, parameters,
@@ -220,7 +221,7 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 			panic("types.NewSignature: variadic parameter must be of unnamed slice type")
 		}
 	}
-	return &Signature{nil, recv, params, results, variadic}
+	return &Signature{nil, recv, nil, params, results, variadic}
 }
 
 // Recv returns the receiver of signature s (if a method), or nil if a
@@ -496,6 +497,21 @@ func (t *Named) AddMethod(m *Func) {
 	}
 }
 
+// A TypeParam represents a type parameter type.
+type TypeParam struct {
+	obj   *TypeName
+	index int
+}
+
+// NewTypeParam returns a new TypeParam.
+func NewTypeParam(obj *TypeName, index int) *TypeParam {
+	typ := &TypeParam{obj, index}
+	if obj.typ == nil {
+		obj.typ = typ
+	}
+	return typ
+}
+
 // Implementations for Type methods.
 
 func (b *Basic) Underlying() Type     { return b }
@@ -509,6 +525,7 @@ func (t *Interface) Underlying() Type { return t }
 func (m *Map) Underlying() Type       { return m }
 func (c *Chan) Underlying() Type      { return c }
 func (t *Named) Underlying() Type     { return t.underlying }
+func (c *TypeParam) Underlying() Type { return c }
 
 func (b *Basic) String() string     { return TypeString(b, nil) }
 func (a *Array) String() string     { return TypeString(a, nil) }
@@ -521,3 +538,4 @@ func (t *Interface) String() string { return TypeString(t, nil) }
 func (m *Map) String() string       { return TypeString(m, nil) }
 func (c *Chan) String() string      { return TypeString(c, nil) }
 func (t *Named) String() string     { return TypeString(t, nil) }
+func (c *TypeParam) String() string { return TypeString(c, nil) }

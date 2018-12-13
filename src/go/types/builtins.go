@@ -29,8 +29,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	// For len(x) and cap(x) we need to know if x contains any function calls or
 	// receive operations. Save/restore current setting and set hasCallOrRecv to
 	// false for the evaluation of x so that we can check it afterwards.
-	// Note: We must do this _before_ calling unpack because unpack evaluates the
-	//       first argument before we even call arg(x, 0)!
+	// Note: We must do this _before_ calling exprList because exprList evaluates
+	//       all arguments.
 	if id == _Len || id == _Cap {
 		defer func(b bool) {
 			check.hasCallOrRecv = b
@@ -39,15 +39,14 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	}
 
 	// determine actual arguments
-	var arg getter
+	var arg func(*operand, int) // TODO(gri) remove use of arg getter in favor of using xlist directly
 	nargs := len(call.Args)
 	switch id {
 	default:
 		// make argument getter
-		arg, nargs, _ = unpack(func(x *operand, i int) { check.multiExpr(x, call.Args[i]) }, nargs, false)
-		if arg == nil {
-			return
-		}
+		xlist, _ := check.exprList(call.Args, false)
+		arg = func(x *operand, i int) { *x = *xlist[i] }
+		nargs = len(xlist)
 		// evaluate first argument, if present
 		if nargs > 0 {
 			arg(x, 0)
@@ -117,14 +116,17 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// check general case by creating custom signature
 		sig := makeSig(S, S, NewSlice(T)) // []T required for variadic signature
 		sig.variadic = true
-		check.arguments(x, call, sig, func(x *operand, i int) {
-			// only evaluate arguments that have not been evaluated before
-			if i < len(alist) {
-				*x = alist[i]
-				return
-			}
-			arg(x, i)
-		}, nargs)
+		var xlist []*operand
+		// convert []operand to []*operand
+		for i := range alist {
+			xlist = append(xlist, &alist[i])
+		}
+		for i := len(alist); i < nargs; i++ {
+			var x operand
+			arg(&x, i)
+			xlist = append(xlist, &x)
+		}
+		check.arguments(call, sig, xlist) // discard result (we know the result type)
 		// ok to continue even if check.arguments reported errors
 
 		x.mode = value

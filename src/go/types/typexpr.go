@@ -143,12 +143,19 @@ func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
 }
 
 // funcType type-checks a function or method type.
-func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
+func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, tpar *ast.TypeParamList, ftyp *ast.FuncType) {
+	// type parameters are in a scope enclosing the function scope
+	// TODO(gri) should we always have this extra scope?
+	if tpar != nil && len(tpar.Names) > 0 {
+		check.scope = NewScope(check.scope, token.NoPos, token.NoPos, "function type parameters") // TODO(gri) replace with check.openScope call
+		defer check.closeScope()
+	}
 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
 	scope.isFunc = true
 	check.recordScope(ftyp, scope)
 
 	recvList, _ := check.collectParams(scope, recvPar, false)
+	tparams := check.collectTypeParams(check.scope, tpar)
 	params, variadic := check.collectParams(scope, ftyp.Params, true)
 	results, _ := check.collectParams(scope, ftyp.Results, false)
 
@@ -199,9 +206,14 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			}
 		}
 		sig.recv = recv
+		// A method cannot have type parameters - this should be checked by the parser.
+		if len(tparams) > 0 {
+			check.invalidAST(tpar.Pos(), "method cannot have type parameters")
+		}
 	}
 
 	sig.scope = scope
+	sig.tparams = tparams
 	sig.params = NewTuple(params...)
 	sig.results = NewTuple(results...)
 	sig.variadic = variadic
@@ -282,7 +294,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 	case *ast.FuncType:
 		typ := new(Signature)
 		def.setUnderlying(typ)
-		check.funcType(typ, nil, e)
+		check.funcType(typ, nil, nil, e)
 		return typ
 
 	case *ast.InterfaceType:
@@ -392,6 +404,21 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 	}
 	check.errorf(x.pos(), "array length %s must be integer", &x)
 	return -1
+}
+
+func (check *Checker) collectTypeParams(scope *Scope, list *ast.TypeParamList) (tparams []*TypeName) {
+	if list == nil {
+		return
+	}
+
+	for i, name := range list.Names {
+		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+		NewTypeParam(tpar, i) // assigns type to tpar as a side-effect
+		check.declare(scope, name, tpar, scope.pos)
+		tparams = append(tparams, tpar)
+	}
+
+	return
 }
 
 func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {

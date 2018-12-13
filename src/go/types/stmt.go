@@ -49,6 +49,11 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 		check.error(body.Rbrace, "missing return")
 	}
 
+	// TODO(gri) Should we make it an error to declare generic functions
+	//           where the type parameters are not used?
+	// 12/19/2018: Probably not - it can make sense to have an API with
+	//           all functions uniformly sharing the same type parameters.
+
 	// spec: "Implementation restriction: A compiler may make it illegal to
 	// declare a variable inside a function body if the variable is never used."
 	check.usage(sig.scope)

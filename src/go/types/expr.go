@@ -1579,42 +1579,26 @@ func (check *Checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface, 
 	check.errorf(pos, "%s cannot have dynamic type %s (%s)", x, T, msg)
 }
 
-func (check *Checker) singleValue(x *operand) {
-	if x.mode == value {
-		// tuple types are never named - no need for underlying type below
-		if t, ok := x.typ.(*Tuple); ok {
-			assert(t.Len() != 1)
-			check.errorf(x.pos(), "%d-valued %s where single value is expected", t.Len(), x)
-			x.mode = invalid
-		}
-	}
-}
-
 // expr typechecks expression e and initializes x with the expression value.
 // The result must be a single value.
 // If an error occurred, x.mode is set to invalid.
 //
 func (check *Checker) expr(x *operand, e ast.Expr) {
-	check.multiExpr(x, e)
+	check.rawExpr(x, e, nil)
+	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
 	check.singleValue(x)
 }
 
-// multiExpr is like expr but the result may be a multi-value.
+// multiExpr is like expr but the result may also be a multi-value.
 func (check *Checker) multiExpr(x *operand, e ast.Expr) {
 	check.rawExpr(x, e, nil)
-	var msg string
-	switch x.mode {
-	default:
-		return
-	case novalue:
-		msg = "%s used as value"
-	case builtin:
-		msg = "%s must be called"
-	case typexpr:
-		msg = "%s is not an expression"
-	}
-	check.errorf(x.pos(), msg, x)
-	x.mode = invalid
+	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
+}
+
+// multiExprOrType is like multiExpr but the result may also be a type.
+func (check *Checker) multiExprOrType(x *operand, e ast.Expr) {
+	check.rawExpr(x, e, nil)
+	check.exclude(x, 1<<novalue|1<<builtin)
 }
 
 // exprWithHint typechecks expression e and initializes x with the expression value;
@@ -1624,20 +1608,8 @@ func (check *Checker) multiExpr(x *operand, e ast.Expr) {
 func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
 	assert(hint != nil)
 	check.rawExpr(x, e, hint)
+	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
 	check.singleValue(x)
-	var msg string
-	switch x.mode {
-	default:
-		return
-	case novalue:
-		msg = "%s used as value"
-	case builtin:
-		msg = "%s must be called"
-	case typexpr:
-		msg = "%s is not an expression"
-	}
-	check.errorf(x.pos(), msg, x)
-	x.mode = invalid
 }
 
 // exprOrType typechecks expression or type e and initializes x with the expression value or type.
@@ -1645,9 +1617,42 @@ func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
 //
 func (check *Checker) exprOrType(x *operand, e ast.Expr) {
 	check.rawExpr(x, e, nil)
+	check.exclude(x, 1<<novalue)
 	check.singleValue(x)
-	if x.mode == novalue {
-		check.errorf(x.pos(), "%s used as value or type", x)
+}
+
+// exclude reports an error if x.mode is in modeset and sets x.mode to invalid.
+// The modeset may contain any of 1<<novalue, 1<<builtin, 1<<typexpr.
+func (check *Checker) exclude(x *operand, modeset uint) {
+	if modeset&(1<<x.mode) != 0 {
+		var msg string
+		switch x.mode {
+		case novalue:
+			if modeset&(1<<typexpr) != 0 {
+				msg = "%s used as value"
+			} else {
+				msg = "%s used as value or type"
+			}
+		case builtin:
+			msg = "%s must be called"
+		case typexpr:
+			msg = "%s is not an expression"
+		default:
+			unreachable()
+		}
+		check.errorf(x.pos(), msg, x)
 		x.mode = invalid
+	}
+}
+
+// singleValue reports an error if x describes a tuple and sets x.mode to invalid.
+func (check *Checker) singleValue(x *operand) {
+	if x.mode == value {
+		// tuple types are never named - no need for underlying type below
+		if t, ok := x.typ.(*Tuple); ok {
+			assert(t.Len() != 1)
+			check.errorf(x.pos(), "%d-valued %s where single value is expected", t.Len(), x)
+			x.mode = invalid
+		}
 	}
 }

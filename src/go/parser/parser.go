@@ -880,19 +880,32 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 	return
 }
 
-func (p *parser) parseParameters(scope *ast.Scope, ellipsisOk bool) *ast.FieldList {
+func (p *parser) parseParameters(scope *ast.Scope, typeParamsOk, ellipsisOk bool) (tparams *ast.TypeParamList, params *ast.FieldList) {
 	if p.trace {
 		defer un(trace(p, "Parameters"))
 	}
 
-	var params []*ast.Field
 	lparen := p.expect(token.LPAREN)
+	if typeParamsOk && p.tok == token.TYPE {
+		p.next()
+		var names []*ast.Ident
+		if p.tok != token.RPAREN {
+			names = p.parseIdentList()
+		}
+		rparen := p.expect(token.RPAREN)
+		tparams = &ast.TypeParamList{Lparen: lparen, Names: names, Rparen: rparen}
+		p.declare(tparams, nil, scope, ast.Typ, names...)
+		lparen = p.expect(token.LPAREN)
+	}
+
+	var fields []*ast.Field
 	if p.tok != token.RPAREN {
-		params = p.parseParameterList(scope, ellipsisOk)
+		fields = p.parseParameterList(scope, ellipsisOk)
 	}
 	rparen := p.expect(token.RPAREN)
+	params = &ast.FieldList{Opening: lparen, List: fields, Closing: rparen}
 
-	return &ast.FieldList{Opening: lparen, List: params, Closing: rparen}
+	return
 }
 
 func (p *parser) parseResult(scope *ast.Scope) *ast.FieldList {
@@ -901,7 +914,8 @@ func (p *parser) parseResult(scope *ast.Scope) *ast.FieldList {
 	}
 
 	if p.tok == token.LPAREN {
-		return p.parseParameters(scope, false)
+		_, results := p.parseParameters(scope, false, false)
+		return results
 	}
 
 	typ := p.tryType()
@@ -914,17 +928,6 @@ func (p *parser) parseResult(scope *ast.Scope) *ast.FieldList {
 	return nil
 }
 
-func (p *parser) parseSignature(scope *ast.Scope) (params, results *ast.FieldList) {
-	if p.trace {
-		defer un(trace(p, "Signature"))
-	}
-
-	params = p.parseParameters(scope, true)
-	results = p.parseResult(scope)
-
-	return
-}
-
 func (p *parser) parseFuncType() (*ast.FuncType, *ast.Scope) {
 	if p.trace {
 		defer un(trace(p, "FuncType"))
@@ -932,7 +935,8 @@ func (p *parser) parseFuncType() (*ast.FuncType, *ast.Scope) {
 
 	pos := p.expect(token.FUNC)
 	scope := ast.NewScope(p.topScope) // function scope
-	params, results := p.parseSignature(scope)
+	_, params := p.parseParameters(scope, false, true)
+	results := p.parseResult(scope)
 
 	return &ast.FuncType{Func: pos, Params: params, Results: results}, scope
 }
@@ -950,7 +954,8 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 		// method
 		idents = []*ast.Ident{ident}
 		scope := ast.NewScope(nil) // method scope
-		params, results := p.parseSignature(scope)
+		_, params := p.parseParameters(scope, false, true)
+		results := p.parseResult(scope)
 		typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
 	} else {
 		// embedded interface
@@ -2440,12 +2445,13 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 
 	var recv *ast.FieldList
 	if p.tok == token.LPAREN {
-		recv = p.parseParameters(scope, false)
+		_, recv = p.parseParameters(scope, false, false)
 	}
 
 	ident := p.parseIdent()
 
-	params, results := p.parseSignature(scope)
+	tparams, params := p.parseParameters(scope, recv == nil, true)
+	results := p.parseResult(scope)
 
 	var body *ast.BlockStmt
 	if p.tok == token.LBRACE {
@@ -2467,6 +2473,7 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 		Doc:  doc,
 		Recv: recv,
 		Name: ident,
+		TPar: tparams,
 		Type: &ast.FuncType{
 			Func:    pos,
 			Params:  params,

@@ -257,6 +257,16 @@ func (f *FieldList) NumFields() int {
 	return n
 }
 
+// A TypeParamList represents a list of type parameters, enclosed by parentheses.
+type TypeParamList struct {
+	Lparen token.Pos // position of "("
+	Names  []*Ident  // type parameter names; or nil
+	Rparen token.Pos // position of ")"
+}
+
+func (t *TypeParamList) Pos() token.Pos { return t.Lparen }
+func (t *TypeParamList) End() token.Pos { return t.Rparen }
+
 // An expression is represented by a tree consisting of one
 // or more of the following concrete expression nodes.
 //
@@ -962,11 +972,12 @@ type (
 
 	// A FuncDecl node represents a function declaration.
 	FuncDecl struct {
-		Doc  *CommentGroup // associated documentation; or nil
-		Recv *FieldList    // receiver (methods); or nil (functions)
-		Name *Ident        // function/method name
-		Type *FuncType     // function signature: parameters, results, and position of "func" keyword
-		Body *BlockStmt    // function body; or nil for external (non-Go) function
+		Doc  *CommentGroup  // associated documentation; or nil
+		Recv *FieldList     // receiver (methods); or nil (functions)
+		Name *Ident         // function/method name
+		TPar *TypeParamList // type parameters; or nil
+		Type *FuncType      // function signature: parameters, results, and position of "func" keyword
+		Body *BlockStmt     // function body; or nil for external (non-Go) function
 	}
 )
 

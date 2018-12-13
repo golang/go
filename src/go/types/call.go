@@ -19,7 +19,6 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 	switch x.mode {
 	case invalid:
 		check.use(e.Args...)
-		x.mode = invalid
 		x.expr = e
 		return statement
 
@@ -66,12 +65,37 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 			return statement
 		}
 
-		arg, n, _ := unpack(func(x *operand, i int) { check.multiExpr(x, e.Args[i]) }, len(e.Args), false)
-		if arg != nil {
-			check.arguments(x, e, sig, arg, n)
-		} else {
-			x.mode = invalid
+		// evaluate arguments
+		args := check.exprOrTypeList(e.Args)
+
+		// instantiate function if needed
+		if n := len(args); len(sig.tparams) > 0 && n > 0 && args[0].mode == typexpr {
+			// if the first argument is a type, assume we have explicit type arguments
+			if len(sig.tparams) != n {
+				check.errorf(args[n-1].pos(), "got %d type arguments but want %d", n, len(sig.tparams))
+				x.mode = invalid
+				x.expr = e
+				return expression
+			}
+			// collect types
+			targs := make([]Type, n)
+			for i, a := range args {
+				if a.mode != typexpr {
+					// error was reported earlier
+					x.mode = invalid
+					x.expr = e
+					return expression
+				}
+				targs[i] = a.typ
+			}
+			// result is type-instantiated function value
+			x.mode = value
+			x.expr = e
+			x.typ = subst(sig, targs)
+			return expression
 		}
+
+		sig = check.arguments(e, sig, args)
 
 		// determine result
 		switch sig.results.Len() {
@@ -88,229 +112,200 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 			x.mode = value
 			x.typ = sig.results
 		}
-
 		x.expr = e
 		check.hasCallOrRecv = true
+
+		// if type inference failed, a parametrized result must be invalidated
+		// (operands cannot have a parametrized type)
+		if x.mode == value && len(sig.tparams) > 0 && isParametrized(x.typ) {
+			x.mode = invalid
+		}
 
 		return statement
 	}
 }
 
-// use type-checks each argument.
-// Useful to make sure expressions are evaluated
-// (and variables are "used") in the presence of other errors.
-// The arguments may be nil.
-func (check *Checker) use(arg ...ast.Expr) {
-	var x operand
-	for _, e := range arg {
-		// The nil check below is necessary since certain AST fields
-		// may legally be nil (e.g., the ast.SliceExpr.High field).
-		if e != nil {
-			check.rawExpr(&x, e, nil)
-		}
-	}
-}
+// exprOrTypeList returns a list of operands and reports an error if the
+// list contains a mix of values and types (ignoring invalid operands).
+func (check *Checker) exprOrTypeList(elist []ast.Expr) (xlist []*operand) {
+	switch len(elist) {
+	case 0:
+		// nothing to do
 
-// useLHS is like use, but doesn't "use" top-level identifiers.
-// It should be called instead of use if the arguments are
-// expressions on the lhs of an assignment.
-// The arguments must not be nil.
-func (check *Checker) useLHS(arg ...ast.Expr) {
-	var x operand
-	for _, e := range arg {
-		// If the lhs is an identifier denoting a variable v, this assignment
-		// is not a 'use' of v. Remember current value of v.used and restore
-		// after evaluating the lhs via check.rawExpr.
-		var v *Var
-		var v_used bool
-		if ident, _ := unparen(e).(*ast.Ident); ident != nil {
-			// never type-check the blank name on the lhs
-			if ident.Name == "_" {
-				continue
+	case 1:
+		// single (possibly comma-ok) value or type, or function returning multiple values
+		e := elist[0]
+		var x operand
+		check.multiExprOrType(&x, e)
+		if t, ok := x.typ.(*Tuple); ok && x.mode != invalid && x.mode != typexpr {
+			// multiple values
+			xlist = make([]*operand, t.Len())
+			for i, v := range t.vars {
+				xlist[i] = &operand{mode: value, expr: e, typ: v.typ}
 			}
-			if _, obj := check.scope.LookupParent(ident.Name, token.NoPos); obj != nil {
-				// It's ok to mark non-local variables, but ignore variables
-				// from other packages to avoid potential race conditions with
-				// dot-imported variables.
-				if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
-					v = w
-					v_used = v.used
-				}
+			break
+		}
+
+		// exactly one (possibly invalid or comma-ok) value or type
+		xlist = []*operand{&x}
+
+	default:
+		// multiple (possibly invalid) values or types
+		xlist = make([]*operand, len(elist))
+		ntypes := 0
+		for i, e := range elist {
+			var x operand
+			check.exprOrType(&x, e)
+			xlist[i] = &x
+			switch x.mode {
+			case invalid:
+				ntypes = len(xlist) // make 'if' condition fail below (no additional error in this case)
+			case typexpr:
+				ntypes++
 			}
 		}
-		check.rawExpr(&x, e, nil)
-		if v != nil {
-			v.used = v_used // restore v.used
+		if 0 < ntypes && ntypes < len(xlist) {
+			check.errorf(xlist[0].pos(), "mix of value and type expressions")
 		}
 	}
+
+	return
 }
 
-// useGetter is like use, but takes a getter instead of a list of expressions.
-// It should be called instead of use if a getter is present to avoid repeated
-// evaluation of the first argument (since the getter was likely obtained via
-// unpack, which may have evaluated the first argument already).
-func (check *Checker) useGetter(get getter, n int) {
-	var x operand
-	for i := 0; i < n; i++ {
-		get(&x, i)
-	}
-}
+func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
+	switch len(elist) {
+	case 0:
+		// nothing to do
 
-// A getter sets x as the i'th operand, where 0 <= i < n and n is the total
-// number of operands (context-specific, and maintained elsewhere). A getter
-// type-checks the i'th operand; the details of the actual check are getter-
-// specific.
-type getter func(x *operand, i int)
+	case 1:
+		// single (possibly comma-ok) value, or function returning multiple values
+		e := elist[0]
+		var x operand
+		check.multiExpr(&x, e)
+		if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
+			// multiple values
+			xlist = make([]*operand, t.Len())
+			for i, v := range t.vars {
+				xlist[i] = &operand{mode: value, expr: e, typ: v.typ}
+			}
+			break
+		}
 
-// unpack takes a getter get and a number of operands n. If n == 1, unpack
-// calls the incoming getter for the first operand. If that operand is
-// invalid, unpack returns (nil, 0, false). Otherwise, if that operand is a
-// function call, or a comma-ok expression and allowCommaOk is set, the result
-// is a new getter and operand count providing access to the function results,
-// or comma-ok values, respectively. The third result value reports if it
-// is indeed the comma-ok case. In all other cases, the incoming getter and
-// operand count are returned unchanged, and the third result value is false.
-//
-// In other words, if there's exactly one operand that - after type-checking
-// by calling get - stands for multiple operands, the resulting getter provides
-// access to those operands instead.
-//
-// If the returned getter is called at most once for a given operand index i
-// (including i == 0), that operand is guaranteed to cause only one call of
-// the incoming getter with that i.
-//
-func unpack(get getter, n int, allowCommaOk bool) (getter, int, bool) {
-	if n != 1 {
-		// zero or multiple values
-		return get, n, false
-	}
-	// possibly result of an n-valued function call or comma,ok value
-	var x0 operand
-	get(&x0, 0)
-	if x0.mode == invalid {
-		return nil, 0, false
-	}
-
-	if t, ok := x0.typ.(*Tuple); ok {
-		// result of an n-valued function call
-		return func(x *operand, i int) {
+		// exactly one (possibly invalid or comma-ok) value
+		xlist = []*operand{&x}
+		if allowCommaOk && (x.mode == mapindex || x.mode == commaok || x.mode == commaerr) {
 			x.mode = value
-			x.expr = x0.expr
-			x.typ = t.At(i).typ
-		}, t.Len(), false
+			xlist = append(xlist, &operand{mode: value, expr: e, typ: Typ[UntypedBool]})
+			commaOk = true
+		}
+
+	default:
+		// multiple (possibly invalid) values
+		xlist = make([]*operand, len(elist))
+		for i, e := range elist {
+			var x operand
+			check.expr(&x, e)
+			xlist[i] = &x
+		}
 	}
 
-	if x0.mode == mapindex || x0.mode == commaok || x0.mode == commaerr {
-		// comma-ok value
-		if allowCommaOk {
-			a := [2]Type{x0.typ, Typ[UntypedBool]}
-			if x0.mode == commaerr {
-				a[1] = universeError
-			}
-			return func(x *operand, i int) {
-				x.mode = value
-				x.expr = x0.expr
-				x.typ = a[i]
-			}, 2, true
-		}
-		x0.mode = value
-	}
-
-	// single value
-	return func(x *operand, i int) {
-		if i != 0 {
-			unreachable()
-		}
-		*x = x0
-	}, 1, false
+	return
 }
 
-// arguments checks argument passing for the call with the given signature.
-// The arg function provides the operand for the i'th argument.
-func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, arg getter, n int) {
-	if call.Ellipsis.IsValid() {
-		// last argument is of the form x...
-		if !sig.variadic {
-			check.errorf(call.Ellipsis, "cannot use ... in call to non-variadic %s", call.Fun)
-			check.useGetter(arg, n)
+func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*operand) (rsig *Signature) {
+	rsig = sig
+
+	// TODO(gri) try to eliminate this extra verification loop
+	for _, a := range args {
+		switch a.mode {
+		case typexpr:
+			check.errorf(a.pos(), "%s used as value", a)
 			return
-		}
-		if len(call.Args) == 1 && n > 1 {
-			// f()... is not permitted if f() is multi-valued
-			check.errorf(call.Ellipsis, "cannot use ... with %d-valued %s", n, call.Args[0])
-			check.useGetter(arg, n)
+		case invalid:
 			return
 		}
 	}
 
-	// evaluate arguments
-	context := check.sprintf("argument to %s", call.Fun)
-	for i := 0; i < n; i++ {
-		arg(x, i)
-		if x.mode != invalid {
-			var ellipsis token.Pos
-			if i == n-1 && call.Ellipsis.IsValid() {
-				ellipsis = call.Ellipsis
+	// Function call argument/parameter count requirements
+	//
+	//               | standard call    | dotdotdot call |
+	// --------------+------------------+----------------+
+	// standard func | nargs == npars   | invalid        |
+	// --------------+------------------+----------------+
+	// variadic func | nargs >= npars-1 | nargs == npars |
+	// --------------+------------------+----------------+
+
+	nargs := len(args)
+	npars := sig.params.Len()
+	ddd := call.Ellipsis.IsValid()
+
+	// set up parameters
+	params := sig.params
+	if sig.variadic {
+		if ddd {
+			// variadic_func(a, b, c...)
+			if len(call.Args) == 1 && nargs > 1 {
+				// f()... is not permitted if f() is multi-valued
+				check.errorf(call.Ellipsis, "cannot use ... with %d-valued %s", nargs, call.Args[0])
+				return
 			}
-			check.argument(sig, i, x, ellipsis, context)
+		} else {
+			// variadic_func(a, b, c)
+			if nargs >= npars-1 {
+				// Create custom parameters for arguments: keep
+				// the first npars-1 parameters and add one for
+				// each argument mapping to the ... parameter.
+				vars := make([]*Var, npars-1) // npars > 0 for variadic functions
+				copy(vars, sig.params.vars)
+				last := sig.params.vars[npars-1]
+				typ := last.typ.(*Slice).elem
+				for len(vars) < nargs {
+					vars = append(vars, NewParam(last.pos, last.pkg, last.name, typ))
+				}
+				params = NewTuple(vars...)
+				npars = nargs
+			} else {
+				// nargs < npars-1
+				npars-- // for correct error message below
+			}
 		}
+	} else {
+		if ddd {
+			// standard_func(a, b, c...)
+			check.errorf(call.Ellipsis, "cannot use ... in call to non-variadic %s", call.Fun)
+			return
+		}
+		// standard_func(a, b, c)
 	}
 
 	// check argument count
-	if sig.variadic {
-		// a variadic function accepts an "empty"
-		// last argument: count one extra
-		n++
-	}
-	if n < sig.params.Len() {
-		check.errorf(call.Rparen, "too few arguments in call to %s", call.Fun)
-		// ok to continue
-	}
-}
-
-// argument checks passing of argument x to the i'th parameter of the given signature.
-// If ellipsis is valid, the argument is followed by ... at that position in the call.
-func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token.Pos, context string) {
-	check.singleValue(x)
-	if x.mode == invalid {
-		return
-	}
-
-	n := sig.params.Len()
-
-	// determine parameter type
-	var typ Type
 	switch {
-	case i < n:
-		typ = sig.params.vars[i].typ
-	case sig.variadic:
-		typ = sig.params.vars[n-1].typ
-		if debug {
-			if _, ok := typ.(*Slice); !ok {
-				check.dump("%v: expected unnamed slice type, got %s", sig.params.vars[n-1].Pos(), typ)
-			}
-		}
-	default:
-		check.errorf(x.pos(), "too many arguments")
+	case nargs < npars:
+		check.errorf(call.Rparen, "not enough arguments in call to %s", call.Fun)
+		return
+	case nargs > npars:
+		check.errorf(args[npars].pos(), "too many arguments in call to %s", call.Fun) // report at first extra argument
 		return
 	}
 
-	if ellipsis.IsValid() {
-		// argument is of the form x... and x is single-valued
-		if i != n-1 {
-			check.errorf(ellipsis, "can only use ... with matching parameter")
+	// infer type arguments and instantiate signature if necessary
+	if len(sig.tparams) > 0 {
+		targs := check.infer(call.Rparen, sig.tparams, params, args)
+		if targs == nil {
 			return
 		}
-		if _, ok := x.typ.Underlying().(*Slice); !ok && x.typ != Typ[UntypedNil] { // see issue #18268
-			check.errorf(x.pos(), "cannot use %s as parameter of type %s", x, typ)
-			return
-		}
-	} else if sig.variadic && i >= n-1 {
-		// use the variadic parameter slice's element type
-		typ = typ.(*Slice).elem
+		rsig = subst(sig, targs).(*Signature)
+		params = subst(params, targs).(*Tuple)
+		// TODO(gri) Optimization: We don't need to check arguments
+		//           from which we inferred parameter types.
 	}
 
-	check.assignment(x, typ, context)
+	// check arguments
+	for i, a := range args {
+		check.assignment(a, params.vars[i].typ, "argument")
+	}
+
+	return
 }
 
 var cgoPrefixes = [...]string{
@@ -562,4 +557,53 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 Error:
 	x.mode = invalid
 	x.expr = e
+}
+
+// use type-checks each argument.
+// Useful to make sure expressions are evaluated
+// (and variables are "used") in the presence of other errors.
+// The arguments may be nil.
+func (check *Checker) use(arg ...ast.Expr) {
+	var x operand
+	for _, e := range arg {
+		// The nil check below is necessary since certain AST fields
+		// may legally be nil (e.g., the ast.SliceExpr.High field).
+		if e != nil {
+			check.rawExpr(&x, e, nil)
+		}
+	}
+}
+
+// useLHS is like use, but doesn't "use" top-level identifiers.
+// It should be called instead of use if the arguments are
+// expressions on the lhs of an assignment.
+// The arguments must not be nil.
+func (check *Checker) useLHS(arg ...ast.Expr) {
+	var x operand
+	for _, e := range arg {
+		// If the lhs is an identifier denoting a variable v, this assignment
+		// is not a 'use' of v. Remember current value of v.used and restore
+		// after evaluating the lhs via check.rawExpr.
+		var v *Var
+		var v_used bool
+		if ident, _ := unparen(e).(*ast.Ident); ident != nil {
+			// never type-check the blank name on the lhs
+			if ident.Name == "_" {
+				continue
+			}
+			if _, obj := check.scope.LookupParent(ident.Name, token.NoPos); obj != nil {
+				// It's ok to mark non-local variables, but ignore variables
+				// from other packages to avoid potential race conditions with
+				// dot-imported variables.
+				if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
+					v = w
+					v_used = v.used
+				}
+			}
+		}
+		check.rawExpr(&x, e, nil)
+		if v != nil {
+			v.used = v_used // restore v.used
+		}
+	}
 }
