@@ -647,14 +647,7 @@ var httpPrefixRE = regexp.MustCompile(`^https?:`)
 func repoRootForImportPath(importPath string, security web.SecurityMode) (*repoRoot, error) {
 	rr, err := repoRootFromVCSPaths(importPath, "", security, vcsPaths)
 	if err == errUnknownSite {
-		// If there are wildcards, look up the thing before the wildcard,
-		// hoping it applies to the wildcarded parts too.
-		// This makes 'go get rsc.io/pdf/...' work in a fresh GOPATH.
-		lookup := strings.TrimSuffix(importPath, "/...")
-		if i := strings.Index(lookup, "/.../"); i >= 0 {
-			lookup = lookup[:i]
-		}
-		rr, err = repoRootForImportDynamic(lookup, security)
+		rr, err = repoRootForImportDynamic(importPath, security)
 		if err != nil {
 			err = fmt.Errorf("unrecognized import path %q (%v)", importPath, err)
 		}
@@ -667,6 +660,7 @@ func repoRootForImportPath(importPath string, security web.SecurityMode) (*repoR
 		}
 	}
 
+	// Should have been taken care of above, but make sure.
 	if err == nil && strings.Contains(importPath, "...") && strings.Contains(rr.root, "...") {
 		// Do not allow wildcards in the repo root.
 		rr = nil
