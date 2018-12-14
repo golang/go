@@ -1,5 +1,22 @@
-# Set GOCACHE to a directory that doesn't allow writes.
-[windows] skip # Does not support unwritable directories.
+# As of Go 1.12, the module cache is required.
+
+# If none of the variables we use to locate GOCACHE are set, the cache is off
+# and we cannot build.
+env GOCACHE=
+env XDG_CACHE_HOME=
+env HOME=
+[plan9] env home=
+[windows] env LocalAppData=
+! go build -o triv triv.go
+stderr 'build cache is required, but could not be located: GOCACHE is not defined and .*'
+
+# An explicit GOCACHE=off also disables builds.
+env GOCACHE=off
+! go build -o triv triv.go
+stderr 'build cache is disabled by GOCACHE=off'
+
+# If GOCACHE is set to an unwritable directory, we should diagnose it as such.
+[windows] stop # Does not support unwritable directories.
 [root] skip # Can write to unwritable directories.
 
 mkdir $WORK/unwritable/home
@@ -8,9 +25,6 @@ chmod 0555 $WORK/unwritable/home
 [plan9] env home=$WORK/unwritable/home
 
 env GOCACHE=$WORK/unwritable/home
-
-# As of Go 1.12, the module cache is required:
-# failure to write to it should cause builds to fail.
 ! go build -o triv triv.go
 stderr 'failed to initialize build cache.* permission denied'
 
