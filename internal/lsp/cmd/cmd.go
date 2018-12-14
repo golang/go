@@ -11,39 +11,45 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go/token"
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/tool"
 )
 
 // Application is the main application as passed to tool.Main
 // It handles the main command line parsing and dispatch to the sub commands.
 type Application struct {
+	// Core application flags
+
 	// Embed the basic profiling flags supported by the tool package
 	tool.Profile
 
-	// we also include the server directly for now, so the flags work even without
-	// the verb. We should remove this when we stop allowing the server verb by
-	// default
+	// We include the server directly for now, so the flags work even without the verb.
+	// TODO: Remove this when we stop allowing the server verb by default.
 	Server Server
+
+	// An initial, common go/packages configuration
+	Config packages.Config
 }
 
 // Name implements tool.Application returning the binary name.
 func (app *Application) Name() string { return "gopls" }
 
 // Usage implements tool.Application returning empty extra argument usage.
-func (app *Application) Usage() string { return "<mode> [mode-flags] [mode-args]" }
+func (app *Application) Usage() string { return "<command> [command-flags] [command-args]" }
 
 // ShortHelp implements tool.Application returning the main binary help.
 func (app *Application) ShortHelp() string {
-	return "The Go Language Smartness Provider."
+	return "The Go Language source tools."
 }
 
 // DetailedHelp implements tool.Application returning the main binary help.
 // This includes the short help for all the sub commands.
 func (app *Application) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
-Available modes are:
+Available commands are:
 `)
-	for _, c := range app.modes() {
+	for _, c := range app.commands() {
 		fmt.Fprintf(f.Output(), "  %s : %v\n", c.Name(), c.ShortHelp())
 	}
 	fmt.Fprint(f.Output(), `
@@ -61,21 +67,27 @@ func (app *Application) Run(ctx context.Context, args ...string) error {
 		tool.Main(ctx, &app.Server, args)
 		return nil
 	}
-	mode, args := args[0], args[1:]
-	for _, m := range app.modes() {
-		if m.Name() == mode {
-			tool.Main(ctx, m, args)
+	app.Config.Mode = packages.LoadSyntax
+	app.Config.Tests = true
+	if app.Config.Fset == nil {
+		app.Config.Fset = token.NewFileSet()
+	}
+	command, args := args[0], args[1:]
+	for _, c := range app.commands() {
+		if c.Name() == command {
+			tool.Main(ctx, c, args)
 			return nil
 		}
 	}
-	return tool.CommandLineErrorf("Unknown mode %v", mode)
+	return tool.CommandLineErrorf("Unknown command %v", command)
 }
 
-// modes returns the set of command modes supported by the gopls tool on the
+// commands returns the set of commands supported by the gopls tool on the
 // command line.
-// The mode is specified by the first non flag argument.
-func (app *Application) modes() []tool.Application {
+// The command is specified by the first non flag argument.
+func (app *Application) commands() []tool.Application {
 	return []tool.Application{
 		&app.Server,
+		&query{app: app},
 	}
 }

@@ -38,7 +38,10 @@ func (s *Server) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 The server communicates using JSONRPC2 on stdin and stdout, and is intended to be run directly as
 a child of an editor process.
+
+gopls server flags are:
 `)
+	f.PrintDefaults()
 }
 
 // Run configures a server based on the flags, and then runs it.
