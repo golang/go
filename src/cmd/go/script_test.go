@@ -27,6 +27,7 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/par"
 	"cmd/go/internal/txtar"
+	"cmd/go/internal/work"
 )
 
 // TestScript runs the tests in testdata/script/*.txt.
@@ -343,6 +344,7 @@ Script:
 //
 var scriptCmds = map[string]func(*testScript, bool, []string){
 	"addcrlf": (*testScript).cmdAddcrlf,
+	"cc":      (*testScript).cmdCc,
 	"cd":      (*testScript).cmdCd,
 	"chmod":   (*testScript).cmdChmod,
 	"cmp":     (*testScript).cmdCmp,
@@ -376,6 +378,17 @@ func (ts *testScript) cmdAddcrlf(neg bool, args []string) {
 		ts.check(err)
 		ts.check(ioutil.WriteFile(file, bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n")), 0666))
 	}
+}
+
+// cc runs the C compiler along with platform specific options.
+func (ts *testScript) cmdCc(neg bool, args []string) {
+	if len(args) < 1 || (len(args) == 1 && args[0] == "&") {
+		ts.fatalf("usage: cc args... [&]")
+	}
+
+	var b work.Builder
+	b.Init()
+	ts.cmdExec(neg, append(b.GccCmd(".", ""), args...))
 }
 
 // cd changes to a different directory.

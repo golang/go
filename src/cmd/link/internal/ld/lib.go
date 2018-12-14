@@ -872,8 +872,10 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
 		// Skip other special (non-object-file) sections that
 		// build tools may have added. Such sections must have
 		// short names so that the suffix is not truncated.
-		if len(arhdr.name) < 16 && !strings.HasSuffix(arhdr.name, ".o") {
-			continue
+		if len(arhdr.name) < 16 {
+			if ext := filepath.Ext(arhdr.name); ext != ".o" && ext != ".syso" {
+				continue
+			}
 		}
 
 		pname := fmt.Sprintf("%s(%s)", lib.File, arhdr.name)
