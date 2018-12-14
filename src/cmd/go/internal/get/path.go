@@ -41,9 +41,6 @@ func checkPath(path string, fileName bool) error {
 	if path == "" {
 		return fmt.Errorf("empty string")
 	}
-	if strings.Contains(path, "..") {
-		return fmt.Errorf("double dot")
-	}
 	if strings.Contains(path, "//") {
 		return fmt.Errorf("double slash")
 	}
@@ -59,8 +56,10 @@ func checkPath(path string, fileName bool) error {
 			elemStart = i + 1
 		}
 	}
-	if err := checkElem(path[elemStart:], fileName); err != nil {
-		return err
+	if path[elemStart:] != "..." {
+		if err := checkElem(path[elemStart:], fileName); err != nil {
+			return err
+		}
 	}
 	return nil
 }
