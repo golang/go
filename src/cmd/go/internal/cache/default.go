@@ -37,8 +37,11 @@ See golang.org to learn more about Go.
 // the first time Default is called.
 func initDefaultCache() {
 	dir := DefaultDir()
-	if dir == "off" {
-		die()
+	if dir == "off" || dir == "" {
+		if defaultDirErr != nil {
+			base.Fatalf("build cache is required, but could not be located: %v", defaultDirErr)
+		}
+		base.Fatalf("build cache is disabled by GOCACHE=off, but required as of Go 1.12")
 	}
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		base.Fatalf("failed to initialize build cache at %s: %s\n", dir, err)
@@ -55,29 +58,35 @@ func initDefaultCache() {
 	defaultCache = c
 }
 
+var (
+	defaultDirOnce sync.Once
+	defaultDir     string
+	defaultDirErr  error
+)
+
 // DefaultDir returns the effective GOCACHE setting.
 // It returns "off" if the cache is disabled.
 func DefaultDir() string {
-	dir := os.Getenv("GOCACHE")
-	if dir != "" {
-		return dir
-	}
+	// Save the result of the first call to DefaultDir for later use in
+	// initDefaultCache. cmd/go/main.go explicitly sets GOCACHE so that
+	// subprocesses will inherit it, but that means initDefaultCache can't
+	// otherwise distinguish between an explicit "off" and a UserCacheDir error.
 
-	// Compute default location.
-	dir, err := os.UserCacheDir()
-	if err != nil {
-		return "off"
-	}
-	return filepath.Join(dir, "go-build")
-}
+	defaultDirOnce.Do(func() {
+		defaultDir = os.Getenv("GOCACHE")
+		if defaultDir != "" {
+			return
+		}
 
-// die calls base.Fatalf with a message explaining why DefaultDir was "off".
-func die() {
-	if os.Getenv("GOCACHE") == "off" {
-		base.Fatalf("build cache is disabled by GOCACHE=off, but required as of Go 1.12")
-	}
-	if _, err := os.UserCacheDir(); err != nil {
-		base.Fatalf("build cache is required, but could not be located: %v", err)
-	}
-	panic(fmt.Sprintf("cache.die called unexpectedly with cache.DefaultDir() = %s", DefaultDir()))
+		// Compute default location.
+		dir, err := os.UserCacheDir()
+		if err != nil {
+			defaultDir = "off"
+			defaultDirErr = fmt.Errorf("GOCACHE is not defined and %v", err)
+			return
+		}
+		defaultDir = filepath.Join(dir, "go-build")
+	})
+
+	return defaultDir
 }
