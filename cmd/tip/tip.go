@@ -100,7 +100,7 @@ func main() {
 type Proxy struct {
 	builder Builder
 
-	mu       sync.Mutex // protects the followin'
+	mu       sync.Mutex // protects following fields
 	proxy    http.Handler
 	cur      string    // signature of gorepo+toolsrepo
 	cmd      *exec.Cmd // live godoc instance, or nil for none
@@ -111,7 +111,7 @@ type Proxy struct {
 
 type Builder interface {
 	Signature(heads map[string]string) string
-	Init(dir, hostport string, heads map[string]string) (*exec.Cmd, error)
+	Init(logger *log.Logger, dir, hostport string, heads map[string]string) (*exec.Cmd, error)
 	HealthCheck(hostport string) error
 }
 
@@ -177,7 +177,9 @@ func (p *Proxy) serveHealthCheck(w http.ResponseWriter, r *http.Request) {
 
 // run runs in its own goroutine.
 func (p *Proxy) run() {
+	p.mu.Lock()
 	p.side = "a"
+	p.mu.Unlock()
 	for {
 		p.poll()
 		time.Sleep(30 * time.Second)
@@ -225,14 +227,20 @@ func (p *Proxy) poll() {
 	if newSide == "b" {
 		hostport = "localhost:8082"
 	}
-	cmd, err := p.builder.Init(dir, hostport, heads)
+	logger := log.New(os.Stderr, sig+": ", log.LstdFlags)
+
+	cmd, err := p.builder.Init(logger, dir, hostport, heads)
 	if err != nil {
+		logger.Printf("Init failed: %v", err)
 		err = fmt.Errorf("builder.Init: %v", err)
 	} else {
 		go func() {
 			// TODO(adg,bradfitz): be smarter about dead processes
 			if err := cmd.Wait(); err != nil {
-				log.Printf("process in %v exited: %v", dir, err)
+				logger.Printf("process in %v exited: %v (%T)", dir, err, err)
+				if ee, ok := err.(*exec.ExitError); ok {
+					logger.Printf("ProcessState.Sys() = %v", ee.ProcessState.Sys())
+				}
 			}
 		}()
 		err = waitReady(p.builder, hostport)
@@ -302,7 +310,7 @@ func checkout(repo, hash, path string) error {
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			return fmt.Errorf("mkdir: %v", err)
 		}
-		if err := runErr(exec.Command("git", "clone", repo, path)); err != nil {
+		if err := runErr(exec.Command("git", "clone", "--depth", "1", repo, path)); err != nil {
 			return fmt.Errorf("clone: %v", err)
 		}
 	} else if err != nil {
@@ -423,4 +431,11 @@ func (h httpsOnlyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 	}
 	h.h.ServeHTTP(w, r)
+}
+
+type toLoggerWriter struct{ logger *log.Logger }
+
+func (w toLoggerWriter) Write(p []byte) (int, error) {
+	w.logger.Printf("%s", p)
+	return len(p), nil
 }
