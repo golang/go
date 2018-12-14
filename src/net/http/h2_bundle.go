@@ -7705,6 +7705,7 @@ func (cc *http2ClientConn) roundTrip(req *Request) (res *Response, gotErrAfterRe
 			default:
 			}
 			if err != nil {
+				cc.forgetStreamID(cs.ID)
 				return nil, cs.getStartedWrite(), err
 			}
 			bodyWritten = true
@@ -7826,6 +7827,7 @@ func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Clos
 			sawEOF = true
 			err = nil
 		} else if err != nil {
+			cc.writeStreamReset(cs.ID, http2ErrCodeCancel, err)
 			return err
 		}
 
