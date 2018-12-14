@@ -13,9 +13,10 @@ import (
 	"go/format"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/imports"
 )
 
-// Format formats a document with a given range.
+// Format formats a file with a given range.
 func Format(ctx context.Context, f File, rng Range) ([]TextEdit, error) {
 	fAST, err := f.GetAST()
 	if err != nil {
@@ -54,11 +55,24 @@ func Format(ctx context.Context, f File, rng Range) ([]TextEdit, error) {
 	if err := format.Node(buf, fset, node); err != nil {
 		return nil, err
 	}
-	// TODO(rstambler): Compute text edits instead of replacing whole file.
+	return computeTextEdits(rng, buf.String()), nil
+}
+
+// Imports formats a file using the goimports tool.
+func Imports(ctx context.Context, filename string, content []byte, rng Range) ([]TextEdit, error) {
+	content, err := imports.Process(filename, content, nil)
+	if err != nil {
+		return nil, err
+	}
+	return computeTextEdits(rng, string(content)), nil
+}
+
+// TODO(rstambler): Compute text edits instead of replacing whole file.
+func computeTextEdits(rng Range, content string) []TextEdit {
 	return []TextEdit{
 		{
 			Range:   rng,
-			NewText: buf.String(),
+			NewText: content,
 		},
-	}, nil
+	}
 }

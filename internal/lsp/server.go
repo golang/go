@@ -56,6 +56,7 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
+			CodeActionProvider: true,
 			CompletionProvider: protocol.CompletionOptions{
 				TriggerCharacters: []string{"."},
 			},
@@ -250,8 +251,22 @@ func (s *server) DocumentSymbol(context.Context, *protocol.DocumentSymbolParams)
 	return nil, notImplemented("DocumentSymbol")
 }
 
-func (s *server) CodeAction(context.Context, *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
-	return nil, notImplemented("CodeAction")
+func (s *server) CodeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
+	edits, err := organizeImports(ctx, s.view, params.TextDocument.URI)
+	if err != nil {
+		return nil, err
+	}
+	return []protocol.CodeAction{
+		{
+			Title: "Organize Imports",
+			Kind:  protocol.SourceOrganizeImports,
+			Edit: protocol.WorkspaceEdit{
+				Changes: map[protocol.DocumentURI][]protocol.TextEdit{
+					params.TextDocument.URI: edits,
+				},
+			},
+		},
+	}, nil
 }
 
 func (s *server) CodeLens(context.Context, *protocol.CodeLensParams) ([]protocol.CodeLens, error) {
