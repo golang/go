@@ -56,6 +56,9 @@ func main() {
 
 	gohostos = runtime.GOOS
 	switch gohostos {
+	case "aix":
+		// uname -m doesn't work under AIX
+		gohostarch = "ppc64"
 	case "darwin":
 		// Even on 64-bit platform, darwin uname -m prints i386.
 		// We don't support any of the OS X versions that run on 32-bit-only hardware anymore.
@@ -72,6 +75,11 @@ func main() {
 		if runtime.GOARCH == "arm" {
 			defaultclang = true
 		}
+	case "plan9":
+		gohostarch = os.Getenv("objtype")
+		if gohostarch == "" {
+			fatalf("$objtype is unset")
+		}
 	case "solaris":
 		// Even on 64-bit platform, solaris uname -m prints i86pc.
 		out := run("", CheckExit, "isainfo", "-n")
@@ -81,16 +89,8 @@ func main() {
 		if strings.Contains(out, "i386") {
 			gohostarch = "386"
 		}
-	case "plan9":
-		gohostarch = os.Getenv("objtype")
-		if gohostarch == "" {
-			fatalf("$objtype is unset")
-		}
 	case "windows":
 		exe = ".exe"
-	case "aix":
-		// uname -m doesn't work under AIX
-		gohostarch = "ppc64"
 	}
 
 	sysinit()
