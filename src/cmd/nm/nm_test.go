@@ -151,6 +151,9 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 				return true
 			}
 		}
+		if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
+			return true
+		}
 		return false
 	}
 
