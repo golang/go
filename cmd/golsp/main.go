@@ -20,6 +20,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
+	"strings"
 	"time"
 
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -108,43 +109,47 @@ func main() {
 		jsonrpc2.NewHeaderStream(os.Stdin, os.Stdout),
 		func(direction jsonrpc2.Direction, id *jsonrpc2.ID, elapsed time.Duration, method string, payload *json.RawMessage, err *jsonrpc2.Error) {
 
+			const eol = "\r\n\r\n\r\n"
 			if err != nil {
-				fmt.Fprintf(out, "[Error - %v] %s %s%s %v", time.Now().Format("3:04:05 PM"), direction, method, id, err)
+				fmt.Fprintf(out, "[Error - %v] %s %s%s %v%s", time.Now().Format("3:04:05 PM"),
+					direction, method, id, err, eol)
 				return
 			}
-			fmt.Fprintf(out, "[Trace - %v] ", time.Now().Format("3:04:05 PM"))
+			outx := new(strings.Builder)
+			fmt.Fprintf(outx, "[Trace - %v] ", time.Now().Format("3:04:05 PM"))
 			switch direction {
 			case jsonrpc2.Send:
-				fmt.Fprint(out, "Received ")
+				fmt.Fprint(outx, "Received ")
 			case jsonrpc2.Receive:
-				fmt.Fprint(out, "Sending ")
+				fmt.Fprint(outx, "Sending ")
 			}
 			switch {
 			case id == nil:
-				fmt.Fprint(out, "notification ")
+				fmt.Fprint(outx, "notification ")
 			case elapsed >= 0:
-				fmt.Fprint(out, "response ")
+				fmt.Fprint(outx, "response ")
 			default:
-				fmt.Fprint(out, "request ")
+				fmt.Fprint(outx, "request ")
 			}
-			fmt.Fprintf(out, "'%s", method)
+			fmt.Fprintf(outx, "'%s", method)
 			switch {
 			case id == nil:
 				// do nothing
 			case id.Name != "":
-				fmt.Fprintf(out, " - (%s)", id.Name)
+				fmt.Fprintf(outx, " - (%s)", id.Name)
 			default:
-				fmt.Fprintf(out, " - (%d)", id.Number)
+				fmt.Fprintf(outx, " - (%d)", id.Number)
 			}
-			fmt.Fprint(out, "'")
+			fmt.Fprint(outx, "'")
 			if elapsed >= 0 {
-				fmt.Fprintf(out, " in %vms", elapsed.Nanoseconds()/1000)
+				fmt.Fprintf(outx, " in %vms", elapsed.Nanoseconds()/1000)
 			}
 			params := string(*payload)
 			if params == "null" {
 				params = "{}"
 			}
-			fmt.Fprintf(out, ".\r\nParams: %s\r\n\r\n\r\n", params)
+			fmt.Fprintf(outx, ".\r\nParams: %s%s", params, eol)
+			fmt.Fprintf(out, "%s", outx.String())
 		},
 	); err != nil {
 		log.Fatal(err)
