@@ -167,6 +167,7 @@ var validLinkerFlags = []*regexp.Regexp{
 	re(`-Wl,-e[=,][a-zA-Z0-9]*`),
 	re(`-Wl,--enable-new-dtags`),
 	re(`-Wl,--end-group`),
+	re(`-Wl,--(no-)?export-dynamic`),
 	re(`-Wl,-framework,[^,@\-][^,]+`),
 	re(`-Wl,-headerpad_max_install_names`),
 	re(`-Wl,--no-undefined`),

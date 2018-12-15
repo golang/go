@@ -5,6 +5,7 @@
 package net
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -82,6 +83,67 @@ func TestSendfile(t *testing.T) {
 
 	if res := hex.EncodeToString(h.Sum(nil)); res != twainSHA256 {
 		t.Error("retrieved data hash did not match")
+	}
+
+	for err := range errc {
+		t.Error(err)
+	}
+}
+
+func TestSendfileSeeked(t *testing.T) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	const seekTo = 65 << 10
+	const sendSize = 10 << 10
+
+	errc := make(chan error, 1)
+	go func(ln Listener) {
+		// Wait for a connection.
+		conn, err := ln.Accept()
+		if err != nil {
+			errc <- err
+			close(errc)
+			return
+		}
+
+		go func() {
+			defer close(errc)
+			defer conn.Close()
+
+			f, err := os.Open(twain)
+			if err != nil {
+				errc <- err
+				return
+			}
+			defer f.Close()
+			if _, err := f.Seek(seekTo, os.SEEK_SET); err != nil {
+				errc <- err
+				return
+			}
+
+			_, err = io.CopyN(conn, f, sendSize)
+			if err != nil {
+				errc <- err
+				return
+			}
+		}()
+	}(ln)
+
+	c, err := Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(c)
+
+	if buf.Len() != sendSize {
+		t.Errorf("Got %d bytes; want %d", buf.Len(), sendSize)
 	}
 
 	for err := range errc {
