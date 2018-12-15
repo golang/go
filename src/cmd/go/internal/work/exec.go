@@ -434,10 +434,6 @@ func (b *Builder) build(a *Action) (err error) {
 		return fmt.Errorf("missing or invalid binary-only package; expected file %q", a.Package.Target)
 	}
 
-	if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
-		return fmt.Errorf("module requires Go %s", p.Module.GoVersion)
-	}
-
 	if err := b.Mkdir(a.Objdir); err != nil {
 		return err
 	}
@@ -638,12 +634,19 @@ func (b *Builder) build(a *Action) (err error) {
 	objpkg := objdir + "_pkg_.a"
 	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), len(sfiles) > 0, gofiles)
 	if len(out) > 0 {
-		b.showOutput(a, a.Package.Dir, a.Package.Desc(), b.processOutput(out))
+		output := b.processOutput(out)
+		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
+			output += "note: module requires Go " + p.Module.GoVersion
+		}
+		b.showOutput(a, a.Package.Dir, a.Package.Desc(), output)
 		if err != nil {
 			return errPrintedOutput
 		}
 	}
 	if err != nil {
+		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
+			b.showOutput(a, a.Package.Dir, a.Package.Desc(), "note: module requires Go "+p.Module.GoVersion)
+		}
 		return err
 	}
 	if ofile != objpkg {

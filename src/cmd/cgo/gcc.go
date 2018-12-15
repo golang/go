@@ -163,6 +163,10 @@ func (p *Package) Translate(f *File) {
 		// Convert C.ulong to C.unsigned long, etc.
 		cref.Name.C = cname(cref.Name.Go)
 	}
+
+	var conv typeConv
+	conv.Init(p.PtrSize, p.IntSize)
+
 	p.loadDefines(f)
 	p.typedefs = map[string]bool{}
 	p.typedefList = nil
@@ -178,7 +182,7 @@ func (p *Package) Translate(f *File) {
 		}
 		needType := p.guessKinds(f)
 		if len(needType) > 0 {
-			p.loadDWARF(f, needType)
+			p.loadDWARF(f, &conv, needType)
 		}
 
 		// In godefs mode we're OK with the typedefs, which
@@ -472,7 +476,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 // loadDWARF parses the DWARF debug information generated
 // by gcc to learn the details of the constants, variables, and types
 // being referred to as C.xxx.
-func (p *Package) loadDWARF(f *File, names []*Name) {
+func (p *Package) loadDWARF(f *File, conv *typeConv, names []*Name) {
 	// Extract the types from the DWARF section of an object
 	// from a well-formed C program. Gcc only generates DWARF info
 	// for symbols in the object file, so it is not enough to print the
@@ -579,8 +583,6 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 	}
 
 	// Record types and typedef information.
-	var conv typeConv
-	conv.Init(p.PtrSize, p.IntSize)
 	for i, n := range names {
 		if strings.HasSuffix(n.Go, "GetTypeID") && types[i].String() == "func() CFTypeID" {
 			conv.getTypeIDs[n.Go[:len(n.Go)-9]] = true
@@ -1734,10 +1736,10 @@ func runGcc(stdin []byte, args []string) (string, string) {
 // with equivalent memory layout.
 type typeConv struct {
 	// Cache of already-translated or in-progress types.
-	m map[dwarf.Type]*Type
+	m map[string]*Type
 
 	// Map from types to incomplete pointers to those types.
-	ptrs map[dwarf.Type][]*Type
+	ptrs map[string][]*Type
 	// Keys of ptrs in insertion order (deterministic worklist)
 	// ptrKeys contains exactly the keys in ptrs.
 	ptrKeys []dwarf.Type
@@ -1772,8 +1774,8 @@ var unionWithPointer = make(map[ast.Expr]bool)
 func (c *typeConv) Init(ptrSize, intSize int64) {
 	c.ptrSize = ptrSize
 	c.intSize = intSize
-	c.m = make(map[dwarf.Type]*Type)
-	c.ptrs = make(map[dwarf.Type][]*Type)
+	c.m = make(map[string]*Type)
+	c.ptrs = make(map[string][]*Type)
 	c.getTypeIDs = make(map[string]bool)
 	c.bool = c.Ident("bool")
 	c.byte = c.Ident("byte")
@@ -1881,11 +1883,12 @@ func (c *typeConv) FinishType(pos token.Pos) {
 	// Keep looping until they're all done.
 	for len(c.ptrKeys) > 0 {
 		dtype := c.ptrKeys[0]
+		dtypeKey := dtype.String()
 		c.ptrKeys = c.ptrKeys[1:]
-		ptrs := c.ptrs[dtype]
-		delete(c.ptrs, dtype)
+		ptrs := c.ptrs[dtypeKey]
+		delete(c.ptrs, dtypeKey)
 
-		// Note Type might invalidate c.ptrs[dtype].
+		// Note Type might invalidate c.ptrs[dtypeKey].
 		t := c.Type(dtype, pos)
 		for _, ptr := range ptrs {
 			ptr.Go.(*ast.StarExpr).X = t.Go
@@ -1897,18 +1900,29 @@ func (c *typeConv) FinishType(pos token.Pos) {
 // Type returns a *Type with the same memory layout as
 // dtype when used as the type of a variable or a struct field.
 func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
-	if t, ok := c.m[dtype]; ok {
-		if t.Go == nil {
-			fatalf("%s: type conversion loop at %s", lineno(pos), dtype)
+	// Always recompute bad pointer typedefs, as the set of such
+	// typedefs changes as we see more types.
+	checkCache := true
+	if dtt, ok := dtype.(*dwarf.TypedefType); ok && c.badPointerTypedef(dtt) {
+		checkCache = false
+	}
+
+	key := dtype.String()
+
+	if checkCache {
+		if t, ok := c.m[key]; ok {
+			if t.Go == nil {
+				fatalf("%s: type conversion loop at %s", lineno(pos), dtype)
+			}
+			return t
 		}
-		return t
 	}
 
 	t := new(Type)
 	t.Size = dtype.Size() // note: wrong for array of pointers, corrected below
 	t.Align = -1
 	t.C = &TypeRepr{Repr: dtype.Common().Name}
-	c.m[dtype] = t
+	c.m[key] = t
 
 	switch dt := dtype.(type) {
 	default:
@@ -2071,10 +2085,11 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		// Placeholder initialization; completed in FinishType.
 		t.Go = &ast.StarExpr{}
 		t.C.Set("<incomplete>*")
-		if _, ok := c.ptrs[dt.Type]; !ok {
+		key := dt.Type.String()
+		if _, ok := c.ptrs[key]; !ok {
 			c.ptrKeys = append(c.ptrKeys, dt.Type)
 		}
-		c.ptrs[dt.Type] = append(c.ptrs[dt.Type], t)
+		c.ptrs[key] = append(c.ptrs[key], t)
 
 	case *dwarf.QualType:
 		t1 := c.Type(dt.Type, pos)
@@ -2462,11 +2477,6 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 
 	anon := 0
 	for _, f := range dt.Field {
-		if f.ByteOffset > off {
-			fld, sizes = c.pad(fld, sizes, f.ByteOffset-off)
-			off = f.ByteOffset
-		}
-
 		name := f.Name
 		ft := f.Type
 
@@ -2515,6 +2525,19 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 			// structs are in system headers that cannot be corrected.
 			continue
 		}
+
+		// Round off up to talign, assumed to be a power of 2.
+		off = (off + talign - 1) &^ (talign - 1)
+
+		if f.ByteOffset > off {
+			fld, sizes = c.pad(fld, sizes, f.ByteOffset-off)
+			off = f.ByteOffset
+		}
+		if f.ByteOffset < off {
+			// Drop a packed field that we can't represent.
+			continue
+		}
+
 		n := len(fld)
 		fld = fld[0 : n+1]
 		if name == "" {
