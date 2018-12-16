@@ -413,6 +413,41 @@ func TestExampleInspectSignature(t *testing.T) {
 	}
 }
 
+const exampleEmpty = `
+package p
+func Example() {}
+func Example_a()
+`
+
+const exampleEmptyOutput = `package main
+
+func main() {}
+func main()
+`
+
+func TestExampleEmpty(t *testing.T) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "test.go", strings.NewReader(exampleEmpty), parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	es := doc.Examples(file)
+	if len(es) != 1 {
+		t.Fatalf("wrong number of examples; got %d want 1", len(es))
+	}
+	e := es[0]
+	if e.Name != "" {
+		t.Errorf("got Name == %q, want %q", e.Name, "")
+	}
+	if g, w := formatFile(t, fset, e.Play), exampleEmptyOutput; g != w {
+		t.Errorf("got Play == %q, want %q", g, w)
+	}
+	if g, w := e.Output, ""; g != w {
+		t.Errorf("got Output == %q, want %q", g, w)
+	}
+}
+
 func formatFile(t *testing.T, fset *token.FileSet, n *ast.File) string {
 	if n == nil {
 		return "<nil>"
