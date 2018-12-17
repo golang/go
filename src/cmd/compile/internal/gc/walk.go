@@ -563,7 +563,6 @@ opswitch:
 		n = walkinrange(n, init)
 
 	case OPRINT, OPRINTN:
-		walkexprlist(n.List.Slice(), init)
 		n = walkprint(n, init)
 
 	case OPANIC:
