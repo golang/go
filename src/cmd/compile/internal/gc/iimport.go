@@ -1053,7 +1053,7 @@ func (r *importReader) node() *Node {
 
 	default:
 		Fatalf("cannot import %v (%d) node\n"+
-			"==> please file an issue and assign to gri@\n", op, int(op))
+			"\t==> please file an issue and assign to gri@", op, int(op))
 		panic("unreachable") // satisfy compiler
 	}
 }
