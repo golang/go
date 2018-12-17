@@ -203,12 +203,59 @@ for {
   Language changes made before Go 1.12 are not consistently enforced.
 </p>
 
+<p><!-- CL 147160 -->
+  The compiler toolchain now uses different conventions to call Go
+  functions and assembly functions. This should be invisible to users,
+  except for calls that simultaneously cross between Go and
+  assembly <em>and</em> cross a package boundary. If linking results
+  in an error like "relocation target not defined for ABIInternal (but
+  is defined for ABI0)", please refer to help section of the ABI
+  design document.
+  TODO(austin): Link to the design doc.
+</p>
+
+<p><!-- CL 145179 -->
+  There have been many improvements to the DWARF debug information
+  produced by the compiler, including improvements to argument
+  printing and variable location information.
+</p>
+
 <h3 id="godoc">Godoc</h3>
 
 <p>
   In Go 1.12, <code>godoc</code> no longer has a command-line interface and
   is only a web server. Users should use <code>go</code> <code>doc</code>
   for command-line help output instead.
+</p>
+
+<h3 id="trace">Trace</h3>
+
+<p><!-- CL 60790 -->
+  The trace tool now supports plotting mutator utilization curves,
+  including cross-references to the execution trace. These are useful
+  for analyzing the impact of the garbage collector on application
+  latency and throughput.
+</p>
+
+<h2 id="runtime">Runtime</h2>
+
+<p><!-- CL 138959 -->
+  Go 1.12 significantly improves the performance of sweeping when a
+  large fraction of the heap remains live. This reduces allocation
+  latency immediately following a garbage collection.
+</p>
+
+<p><!-- CL 139719 -->
+  The Go runtime now releases memory back to the operating system more
+  aggressively, particularly in response to large allocations that
+  can't reuse existing heap space.
+</p>
+
+<p><!-- CL 135395 -->
+  On Linux, the Go runtime now releases memory back to the operating
+  system only when the OS is under memory pressure. This is more
+  efficient, but means a process's RSS (resident set size) won't
+  decrease unless the OS is running out of memory.
 </p>
 
 <h2 id="library">Core library</h2>
@@ -231,7 +278,6 @@ for {
 <!-- CL 146058: https://golang.org/cl/146058: It is invalid to convert a nil unsafe.Pointer to uintptr and back, with arithmetic.: cmd/compile: assume unsafe pointer arithmetic generates non-nil results -->
 <!-- CL 141977: https://golang.org/cl/141977: cmd/doc: add -all flag to print all documentation for package -->
 <!-- CL 146898: https://golang.org/cl/146898: cmd/link, runtime: add initial cgo support for ppc64 -->
-<!-- CL 60790: https://golang.org/cl/60790: The trace tool now supports plotting mutator utilization curves, including cross-references to the execution trace. These are useful for analyzing the impact of the garbage collector on application latency and throughput.: cmd/trace: add minimum mutator utilization (MMU) plot -->
 <!-- CL 115677: https://golang.org/cl/115677: cmd/vet: check embedded field tags too -->
 <dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
   <dd>
@@ -540,16 +586,6 @@ for {
     </p>
 
 </dl><!-- regexp -->
-
-<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
-  <dd>
-    <p><!-- CL 135395 -->
-      On Linux, the Go runtime now releases memory only when the OS is under memory
-      pressure. This is more efficient, but means a process's RSS (resident set size)
-      won't decrease unless the OS is running out of memory.
-    </p>
-
-</dl><!-- runtime -->
 
 <dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
   <dd>
