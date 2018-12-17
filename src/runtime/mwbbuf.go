@@ -197,8 +197,30 @@ func wbBufFlush(dst *uintptr, src uintptr) {
 	// Switch to the system stack so we don't have to worry about
 	// the untyped stack slots or safe points.
 	systemstack(func() {
-		wbBufFlush1(getg().m.p.ptr())
+		if debugCachedWork {
+			// For debugging, include the old value of the
+			// slot and some other data in the traceback.
+			wbBuf := &getg().m.p.ptr().wbBuf
+			var old uintptr
+			if dst != nil {
+				// dst may be nil in direct calls to wbBufFlush.
+				old = *dst
+			}
+			wbBufFlush1Debug(old, wbBuf.buf[0], wbBuf.buf[1], &wbBuf.buf[0], wbBuf.next)
+		} else {
+			wbBufFlush1(getg().m.p.ptr())
+		}
 	})
+}
+
+// wbBufFlush1Debug is a temporary function for debugging issue
+// #27993. It exists solely to add some context to the traceback.
+//
+//go:nowritebarrierrec
+//go:systemstack
+//go:noinline
+func wbBufFlush1Debug(old, buf1, buf2 uintptr, start *uintptr, next uintptr) {
+	wbBufFlush1(getg().m.p.ptr())
 }
 
 // wbBufFlush1 flushes p's write barrier buffer to the GC work queue.
