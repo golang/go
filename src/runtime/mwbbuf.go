@@ -217,14 +217,16 @@ func wbBufFlush1(_p_ *p) {
 	n := (_p_.wbBuf.next - start) / unsafe.Sizeof(_p_.wbBuf.buf[0])
 	ptrs := _p_.wbBuf.buf[:n]
 
-	// Reset the buffer.
-	_p_.wbBuf.reset()
+	// Poison the buffer to make extra sure nothing is enqueued
+	// while we're processing the buffer.
+	_p_.wbBuf.next = 0
 
 	if useCheckmark {
 		// Slow path for checkmark mode.
 		for _, ptr := range ptrs {
 			shade(ptr)
 		}
+		_p_.wbBuf.reset()
 		return
 	}
 
@@ -275,4 +277,6 @@ func wbBufFlush1(_p_ *p) {
 
 	// Enqueue the greyed objects.
 	gcw.putBatch(ptrs[:pos])
+
+	_p_.wbBuf.reset()
 }
