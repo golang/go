@@ -45,7 +45,7 @@ const (
 // When invoking a method the expressions in the parameter list need to be
 // converted to values to be passed to the method.
 // There are a very limited set of types the arguments are allowed to be.
-//   expect.Comment : passed the Comment instance being evaluated.
+//   expect.Note : passed the Note instance being evaluated.
 //   string : can be supplied either a string literal or an identifier.
 //   int : can only be supplied an integer literal.
 //   *regexp.Regexp : can only be supplied a regular expression literal
