@@ -258,7 +258,7 @@ func deadcode(f *Func) {
 			if !live[v.ID] {
 				v.resetArgs()
 				if v.Pos.IsStmt() == src.PosIsStmt && reachable[b.ID] {
-					pendingLines.set(v.Pos.Line(), int32(i)) // TODO could be more than one pos for a line
+					pendingLines.set(v.Pos, int32(i)) // TODO could be more than one pos for a line
 				}
 			}
 		}
@@ -267,20 +267,19 @@ func deadcode(f *Func) {
 	// Find new homes for lost lines -- require earliest in data flow with same line that is also in same block
 	for i := len(order) - 1; i >= 0; i-- {
 		w := order[i]
-		if j := pendingLines.get(w.Pos.Line()); j > -1 && f.Blocks[j] == w.Block {
+		if j := pendingLines.get(w.Pos); j > -1 && f.Blocks[j] == w.Block {
 			w.Pos = w.Pos.WithIsStmt()
-			pendingLines.remove(w.Pos.Line())
+			pendingLines.remove(w.Pos)
 		}
 	}
 
 	// Any boundary that failed to match a live value can move to a block end
-	for i := 0; i < pendingLines.size(); i++ {
-		l, bi := pendingLines.getEntry(i)
+	pendingLines.foreachEntry(func(j int32, l uint, bi int32) {
 		b := f.Blocks[bi]
-		if b.Pos.Line() == l {
+		if b.Pos.Line() == l && b.Pos.FileIndex() == j {
 			b.Pos = b.Pos.WithIsStmt()
 		}
-	}
+	})
 
 	// Remove dead values from blocks' value list. Return dead
 	// values to the allocator.

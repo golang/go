@@ -65,11 +65,11 @@ type Func struct {
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
-	cachedPostorder  []*Block         // cached postorder traversal
-	cachedIdom       []*Block         // cached immediate dominators
-	cachedSdom       SparseTree       // cached dominator tree
-	cachedLoopnest   *loopnest        // cached loop nest information
-	cachedLineStarts *biasedSparseMap // cached map/set of line numbers to integers
+	cachedPostorder  []*Block   // cached postorder traversal
+	cachedIdom       []*Block   // cached immediate dominators
+	cachedSdom       SparseTree // cached dominator tree
+	cachedLoopnest   *loopnest  // cached loop nest information
+	cachedLineStarts *xposmap   // cached map/set of xpos to integers
 
 	auxmap    auxmap             // map from aux values to opaque ids used by CSE
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type

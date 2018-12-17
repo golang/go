@@ -152,7 +152,7 @@ func (c *Conf) Fun(entry string, blocs ...bloc) fun {
 	// But not both.
 	f.Cache = new(Cache)
 	f.pass = &emptyPass
-	f.cachedLineStarts = newBiasedSparseMap(0, 100)
+	f.cachedLineStarts = newXposmap(map[int]lineRange{0: {0, 100}, 1: {0, 100}, 2: {0, 100}, 3: {0, 100}, 4: {0, 100}})
 
 	blocks := make(map[string]*Block)
 	values := make(map[string]*Value)

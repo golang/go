@@ -64,7 +64,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 							// TODO: it's possible (in FOR loops, in particular) for statement boundaries for the same
 							// line to appear in more than one block, but only one block is stored, so if both end
 							// up here, then one will be lost.
-							pendingLines.set(a.Pos.Line(), int32(a.Block.ID))
+							pendingLines.set(a.Pos, int32(a.Block.ID))
 						}
 						a.Pos = a.Pos.WithNotStmt()
 					}
@@ -97,7 +97,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 	for _, b := range f.Blocks {
 		j := 0
 		for i, v := range b.Values {
-			vl := v.Pos.Line()
+			vl := v.Pos
 			if v.Op == OpInvalid {
 				if v.Pos.IsStmt() == src.PosIsStmt {
 					pendingLines.set(vl, int32(b.ID))
@@ -114,9 +114,9 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 			}
 			j++
 		}
-		if pendingLines.get(b.Pos.Line()) == int32(b.ID) {
+		if pendingLines.get(b.Pos) == int32(b.ID) {
 			b.Pos = b.Pos.WithIsStmt()
-			pendingLines.remove(b.Pos.Line())
+			pendingLines.remove(b.Pos)
 		}
 		if j != len(b.Values) {
 			tail := b.Values[j:]
