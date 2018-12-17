@@ -741,7 +741,10 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 		// If that build fails, errors appear on stderr
 		// (despite the -e flag) and the Export field is blank.
 		// Do not fail in that case.
-		if !usesExportData(cfg) {
+		// The same is true if an ad-hoc package given to go list doesn't exist.
+		// TODO(matloob): Remove these once we can depend on go list to exit with a zero status with -e even when
+		// packages don't exist or a build fails.
+		if !usesExportData(cfg) && !containsGoFile(args) {
 			return nil, fmt.Errorf("go %v: %s: %s", args, exitErr, stderr)
 		}
 	}
@@ -762,6 +765,15 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 	}
 
 	return stdout, nil
+}
+
+func containsGoFile(s []string) bool {
+	for _, f := range s {
+		if strings.HasSuffix(f, ".go") {
+			return true
+		}
+	}
+	return false
 }
 
 func cmdDebugStr(cfg *Config, args ...string) string {
