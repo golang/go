@@ -27,7 +27,7 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   The latest Go release, version 1.12, arrives six months after <a href="go1.11">Go 1.11</a>.
   Most of its changes are in TODO.
-  As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat">promise of compatibility</a>.
   We expect almost all Go programs to continue to compile and run as before.
 </p>
 
@@ -732,19 +732,35 @@ for {
       This is a breaking change, but WebAssembly support is still experimental
       and not yet subject to the
       <a href="/doc/go1compat">Go 1 compatibility promise</a>. Any code using the
-      old name will need to be updated.
+      old names will need to be updated.
     </p>
 
     <p><!-- CL 141644 -->
-      TODO: <a href="https://golang.org/cl/141644">https://golang.org/cl/141644</a>: add Wrapper interface to support external Value wrapper types
+      If a type implements the new
+      <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#Wrapper"><code>Wrapper</code></a>
+      interface,
+      <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#ValueOf"><code>ValueOf</code></a>
+      will use it to return the JavaScript value for that type.
     </p>
 
     <p><!-- CL 143137 -->
-      TODO: <a href="https://golang.org/cl/143137">https://golang.org/cl/143137</a>: make zero js.Value represent &#34;undefined&#34;
+      The meaning of the zero
+      <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#Value"><code>Value</code></a>
+      has changed. It now represents the JavaScript <code>undefined</code> value
+      instead of the number zero.
+      This is a breaking change, but WebAssembly support is still experimental
+      and not yet subject to the
+      <a href="/doc/go1compat">Go 1 compatibility promise</a>. Any code relying on
+      the zero <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#Value"><code>Value</code></a>
+      to mean the number zero will need to be updated.
     </p>
 
     <p><!-- CL 144384 -->
-      TODO: <a href="https://golang.org/cl/144384">https://golang.org/cl/144384</a>: add the Value.Truthy method
+      The new
+      <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#Value.Truthy"><code>Value.Truthy</code></a>
+      method reports the
+      <a href="https://developer.mozilla.org/en-US/docs/Glossary/Truthy">JavaScript "truthiness"</a>
+      of a given value.
     </p>
 
 </dl><!-- syscall/js -->
