@@ -76,11 +76,19 @@ func (p XPos) WithXlogue(x PosXlogue) XPos {
 	return p
 }
 
+// LineNumber returns a string for the line number, "?" if it is not known.
 func (p XPos) LineNumber() string {
 	if !p.IsKnown() {
 		return "?"
 	}
 	return p.lico.lineNumber()
+}
+
+// FileIndex returns a smallish non-negative integer corresponding to the
+// file for this source position.  Smallish is relative; it can be thousands
+// large, but not millions.
+func (p XPos) FileIndex() int32 {
+	return p.index
 }
 
 func (p XPos) LineNumberHTML() string {
