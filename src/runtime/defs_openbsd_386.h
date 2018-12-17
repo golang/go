@@ -14,6 +14,7 @@ enum {
 	MAP_ANON	= 0x1000,
 	MAP_PRIVATE	= 0x2,
 	MAP_FIXED	= 0x10,
+	MAP_STACK	= 0x4000,
 
 	MADV_FREE	= 0x6,
 

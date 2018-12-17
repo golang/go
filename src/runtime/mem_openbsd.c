@@ -27,6 +27,29 @@ runtime·sysAlloc(uintptr n, uint64 *stat)
 	return v;
 }
 
+#pragma textflag NOSPLIT
+void
+runtime·sysMarkStack(void *v, uintptr n)
+{
+	void *p;
+
+	// Stack regions on OpenBSD 6.4+ must be marked with MAP_STACK.
+	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE|MAP_FIXED|MAP_STACK, -1, 0);
+	if (p == ((void *)-1) || p != v)
+		runtime·throw("runtime: failed to mark stack");
+}
+
+#pragma textflag NOSPLIT
+void
+runtime·sysUnmarkStack(void *v, uintptr n)
+{
+	void *p;
+
+	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE|MAP_FIXED, -1, 0);
+	if (p == ((void *)-1) || p != v)
+		runtime·throw("runtime: failed to unmark stack");
+}
+
 void
 runtime·SysUnused(void *v, uintptr n)
 {

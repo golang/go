@@ -197,6 +197,8 @@ struct MLink
 // if accessed.  Used only for debugging the runtime.
 
 void*	runtime·sysAlloc(uintptr nbytes, uint64 *stat);
+void	runtime·sysMarkStack(void *v, uintptr nbytes);
+void	runtime·sysUnmarkStack(void *v, uintptr nbytes);
 void	runtime·SysFree(void *v, uintptr nbytes, uint64 *stat);
 void	runtime·SysUnused(void *v, uintptr nbytes);
 void	runtime·SysUsed(void *v, uintptr nbytes);

@@ -71,6 +71,9 @@ poolalloc(uint8 order)
 			runtime·throw("bad ref");
 		if(s->freelist != nil)
 			runtime·throw("bad freelist");
+#ifdef GOOS_openbsd
+		runtime·sysMarkStack((void *)(s->start << PageShift), s->npages << PageShift);
+#endif
 		for(i = 0; i < StackCacheSize; i += FixedStack << order) {
 			x = (MLink*)((s->start << PageShift) + i);
 			x->next = s->freelist;
@@ -110,6 +113,9 @@ poolfree(MLink *x, uint8 order)
 		// span is completely free - return to heap
 		runtime·MSpanList_Remove(s);
 		s->freelist = nil;
+#ifdef GOOS_openbsd
+		runtime·sysUnmarkStack((void *)(s->start << PageShift), s->npages << PageShift);
+#endif
 		runtime·MHeap_FreeStack(&runtime·mheap, s);
 	}
 }
@@ -246,6 +252,9 @@ runtime·stackalloc(uint32 n)
 		s = runtime·MHeap_AllocStack(&runtime·mheap, ROUND(n, PageSize) >> PageShift);
 		if(s == nil)
 			runtime·throw("out of memory");
+#ifdef GOOS_openbsd
+		runtime·sysMarkStack((void *)(s->start << PageShift), s->npages << PageShift);
+#endif
 		v = (byte*)(s->start<<PageShift);
 	}
 	
@@ -307,6 +316,9 @@ runtime·stackfree(Stack stk)
 			runtime·printf("%p %p\n", s->start<<PageShift, v);
 			runtime·throw("bad span state");
 		}
+#ifdef GOOS_openbsd
+		runtime·sysUnmarkStack((void *)(s->start << PageShift), s->npages << PageShift);
+#endif
 		runtime·MHeap_FreeStack(&runtime·mheap, s);
 	}
 }

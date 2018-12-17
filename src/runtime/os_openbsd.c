@@ -167,7 +167,10 @@ runtime·newosproc(M *mp, void *stk)
 
 	param.tf_tcb = (byte*)&mp->tls[0];
 	param.tf_tid = (int32*)&mp->procid;
-	param.tf_stack = stk;
+
+	// Stack pointer must point inside stack area (as marked with MAP_STACK),
+	// rather than at the top of it.
+	param.tf_stack = (void*)((uintptr)stk - sizeof(uintptr));
 
 	oset = runtime·sigprocmask(SIG_SETMASK, sigset_all);
 	ret = runtime·tfork(&param, sizeof(param), mp, mp->g0, runtime·mstart);
