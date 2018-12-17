@@ -3223,6 +3223,25 @@ type timeoutWriter struct {
 	code        int
 }
 
+var _ Pusher = (*timeoutWriter)(nil)
+var _ Flusher = (*timeoutWriter)(nil)
+
+// Push implements the Pusher interface.
+func (tw *timeoutWriter) Push(target string, opts *PushOptions) error {
+	if pusher, ok := tw.w.(Pusher); ok {
+		return pusher.Push(target, opts)
+	}
+	return ErrNotSupported
+}
+
+// Flush implements the Flusher interface.
+func (tw *timeoutWriter) Flush() {
+	f, ok := tw.w.(Flusher)
+	if ok {
+		f.Flush()
+	}
+}
+
 func (tw *timeoutWriter) Header() Header { return tw.h }
 
 func (tw *timeoutWriter) Write(p []byte) (int, error) {
