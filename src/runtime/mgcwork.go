@@ -97,6 +97,10 @@ type gcWork struct {
 	// pauseGen causes put operations to spin while pauseGen ==
 	// gcWorkPauseGen if debugCachedWork is true.
 	pauseGen uint32
+
+	// pauseStack is the stack at which this P was paused if
+	// debugCachedWork is true.
+	pauseStack [16]uintptr
 }
 
 // Most of the methods of gcWork are go:nowritebarrierrec because the
@@ -127,6 +131,23 @@ func (w *gcWork) checkPut(ptr uintptr, ptrs []uintptr) {
 			}
 			for _, ptr := range ptrs {
 				gcDumpObject("ptrs", ptr, ^uintptr(0))
+			}
+			println("runtime: paused at")
+			for _, pc := range w.pauseStack {
+				if pc == 0 {
+					break
+				}
+				f := findfunc(pc)
+				if f.valid() {
+					// Obviously this doesn't
+					// relate to ancestor
+					// tracebacks, but this
+					// function prints what we
+					// want.
+					printAncestorTracebackFuncInfo(f, pc)
+				} else {
+					println("\tunknown PC ", hex(pc), "\n")
+				}
 			}
 			throw("throwOnGCWork")
 		}
