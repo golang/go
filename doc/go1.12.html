@@ -274,6 +274,14 @@ for {
   decrease unless the OS is running out of memory.
 </p>
 
+<p><!-- CL 149578 -->
+  Adding cpu.<em>extension</em>=off to the
+  <a href="/doc/diagnostics.html#godebug">GODEBUG</a> environment
+  variable now disables the use of optional CPU instruction
+  set extensions in the standard library and runtime. This is not
+  yet supported on Windows.
+</p>
+
 <h2 id="library">Core library</h2>
 
 <h3 id="tls_1_3">TLS 1.3</h3>
@@ -492,14 +500,6 @@ for {
     </p>
 
 </dl><!-- image/png -->
-
-<dl id="internal/cpu"><dt><a href="/pkg/internal/cpu/">internal/cpu</a></dt>
-  <dd>
-    <p><!-- CL 149578 -->
-      TODO: <a href="https://golang.org/cl/149578">https://golang.org/cl/149578</a>: move GODEBUGCPU options into GODEBUG
-    </p>
-
-</dl><!-- internal/cpu -->
 
 <dl id="internal/poll"><dt><a href="/pkg/internal/poll/">internal/poll</a></dt>
   <dd>
