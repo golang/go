@@ -87,6 +87,11 @@ Do not send CLs removing the interior tags from such phrases.
 <p><!-- CL 141639 -->
   <code>libSystem</code> is now used when making syscalls on Darwin,
   ensuring forward-compatibility with future versions of macOS and iOS.
+  <!-- CL 153338 -->
+  The switch to <code>libSystem</code> triggered additional App Store
+  checks for private API usage. Since it is considered private,
+  <code>syscall.Getdirentries</code> now always fails with
+  <code>ENOSYS</code> on iOS.
 </p>
 
 <h2 id="tools">Tools</h2>
