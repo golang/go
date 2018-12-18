@@ -151,12 +151,31 @@ var asmsyscall6 libFunc
 //go:nowritebarrier
 //go:nosplit
 func syscall0(fn *libFunc) (r, err uintptr) {
-	c := &getg().m.libcall
+	gp := getg()
+	var mp *m
+	if gp != nil {
+		mp = gp.m
+	}
+	if mp != nil && mp.libcallsp == 0 {
+		mp.libcallg.set(gp)
+		mp.libcallpc = getcallerpc()
+		// sp must be the last, because once async cpu profiler finds
+		// all three values to be non-zero, it will use them
+		mp.libcallsp = getcallersp()
+	} else {
+		mp = nil // See comment in sys_darwin.go:libcCall
+	}
+
+	c := &gp.m.libcall
 	c.fn = uintptr(unsafe.Pointer(fn))
 	c.n = 0
 	c.args = uintptr(noescape(unsafe.Pointer(&fn))) // it's unused but must be non-nil, otherwise crashes
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
+
+	if mp != nil {
+		mp.libcallsp = 0
+	}
 
 	return c.r1, c.err
 }
@@ -164,12 +183,31 @@ func syscall0(fn *libFunc) (r, err uintptr) {
 //go:nowritebarrier
 //go:nosplit
 func syscall1(fn *libFunc, a0 uintptr) (r, err uintptr) {
-	c := &getg().m.libcall
+	gp := getg()
+	var mp *m
+	if gp != nil {
+		mp = gp.m
+	}
+	if mp != nil && mp.libcallsp == 0 {
+		mp.libcallg.set(gp)
+		mp.libcallpc = getcallerpc()
+		// sp must be the last, because once async cpu profiler finds
+		// all three values to be non-zero, it will use them
+		mp.libcallsp = getcallersp()
+	} else {
+		mp = nil // See comment in sys_darwin.go:libcCall
+	}
+
+	c := &gp.m.libcall
 	c.fn = uintptr(unsafe.Pointer(fn))
 	c.n = 1
 	c.args = uintptr(noescape(unsafe.Pointer(&a0)))
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
+
+	if mp != nil {
+		mp.libcallsp = 0
+	}
 
 	return c.r1, c.err
 }
@@ -177,12 +215,31 @@ func syscall1(fn *libFunc, a0 uintptr) (r, err uintptr) {
 //go:nowritebarrier
 //go:nosplit
 func syscall2(fn *libFunc, a0, a1 uintptr) (r, err uintptr) {
-	c := &getg().m.libcall
+	gp := getg()
+	var mp *m
+	if gp != nil {
+		mp = gp.m
+	}
+	if mp != nil && mp.libcallsp == 0 {
+		mp.libcallg.set(gp)
+		mp.libcallpc = getcallerpc()
+		// sp must be the last, because once async cpu profiler finds
+		// all three values to be non-zero, it will use them
+		mp.libcallsp = getcallersp()
+	} else {
+		mp = nil // See comment in sys_darwin.go:libcCall
+	}
+
+	c := &gp.m.libcall
 	c.fn = uintptr(unsafe.Pointer(fn))
 	c.n = 2
 	c.args = uintptr(noescape(unsafe.Pointer(&a0)))
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
+
+	if mp != nil {
+		mp.libcallsp = 0
+	}
 
 	return c.r1, c.err
 }
@@ -190,12 +247,31 @@ func syscall2(fn *libFunc, a0, a1 uintptr) (r, err uintptr) {
 //go:nowritebarrier
 //go:nosplit
 func syscall3(fn *libFunc, a0, a1, a2 uintptr) (r, err uintptr) {
-	c := &getg().m.libcall
+	gp := getg()
+	var mp *m
+	if gp != nil {
+		mp = gp.m
+	}
+	if mp != nil && mp.libcallsp == 0 {
+		mp.libcallg.set(gp)
+		mp.libcallpc = getcallerpc()
+		// sp must be the last, because once async cpu profiler finds
+		// all three values to be non-zero, it will use them
+		mp.libcallsp = getcallersp()
+	} else {
+		mp = nil // See comment in sys_darwin.go:libcCall
+	}
+
+	c := &gp.m.libcall
 	c.fn = uintptr(unsafe.Pointer(fn))
 	c.n = 3
 	c.args = uintptr(noescape(unsafe.Pointer(&a0)))
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
+
+	if mp != nil {
+		mp.libcallsp = 0
+	}
 
 	return c.r1, c.err
 }
@@ -203,12 +279,31 @@ func syscall3(fn *libFunc, a0, a1, a2 uintptr) (r, err uintptr) {
 //go:nowritebarrier
 //go:nosplit
 func syscall4(fn *libFunc, a0, a1, a2, a3 uintptr) (r, err uintptr) {
-	c := &getg().m.libcall
+	gp := getg()
+	var mp *m
+	if gp != nil {
+		mp = gp.m
+	}
+	if mp != nil && mp.libcallsp == 0 {
+		mp.libcallg.set(gp)
+		mp.libcallpc = getcallerpc()
+		// sp must be the last, because once async cpu profiler finds
+		// all three values to be non-zero, it will use them
+		mp.libcallsp = getcallersp()
+	} else {
+		mp = nil // See comment in sys_darwin.go:libcCall
+	}
+
+	c := &gp.m.libcall
 	c.fn = uintptr(unsafe.Pointer(fn))
 	c.n = 4
 	c.args = uintptr(noescape(unsafe.Pointer(&a0)))
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
+
+	if mp != nil {
+		mp.libcallsp = 0
+	}
 
 	return c.r1, c.err
 }
@@ -216,12 +311,31 @@ func syscall4(fn *libFunc, a0, a1, a2, a3 uintptr) (r, err uintptr) {
 //go:nowritebarrier
 //go:nosplit
 func syscall5(fn *libFunc, a0, a1, a2, a3, a4 uintptr) (r, err uintptr) {
-	c := &getg().m.libcall
+	gp := getg()
+	var mp *m
+	if gp != nil {
+		mp = gp.m
+	}
+	if mp != nil && mp.libcallsp == 0 {
+		mp.libcallg.set(gp)
+		mp.libcallpc = getcallerpc()
+		// sp must be the last, because once async cpu profiler finds
+		// all three values to be non-zero, it will use them
+		mp.libcallsp = getcallersp()
+	} else {
+		mp = nil // See comment in sys_darwin.go:libcCall
+	}
+
+	c := &gp.m.libcall
 	c.fn = uintptr(unsafe.Pointer(fn))
 	c.n = 5
 	c.args = uintptr(noescape(unsafe.Pointer(&a0)))
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
+
+	if mp != nil {
+		mp.libcallsp = 0
+	}
 
 	return c.r1, c.err
 }
@@ -229,12 +343,31 @@ func syscall5(fn *libFunc, a0, a1, a2, a3, a4 uintptr) (r, err uintptr) {
 //go:nowritebarrier
 //go:nosplit
 func syscall6(fn *libFunc, a0, a1, a2, a3, a4, a5 uintptr) (r, err uintptr) {
-	c := &getg().m.libcall
+	gp := getg()
+	var mp *m
+	if gp != nil {
+		mp = gp.m
+	}
+	if mp != nil && mp.libcallsp == 0 {
+		mp.libcallg.set(gp)
+		mp.libcallpc = getcallerpc()
+		// sp must be the last, because once async cpu profiler finds
+		// all three values to be non-zero, it will use them
+		mp.libcallsp = getcallersp()
+	} else {
+		mp = nil // See comment in sys_darwin.go:libcCall
+	}
+
+	c := &gp.m.libcall
 	c.fn = uintptr(unsafe.Pointer(fn))
 	c.n = 6
 	c.args = uintptr(noescape(unsafe.Pointer(&a0)))
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
+
+	if mp != nil {
+		mp.libcallsp = 0
+	}
 
 	return c.r1, c.err
 }
