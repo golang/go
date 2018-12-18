@@ -26,9 +26,15 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p>
   The latest Go release, version 1.12, arrives six months after <a href="go1.11">Go 1.11</a>.
-  Most of its changes are in TODO.
+  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
   As always, the release maintains the Go 1 <a href="/doc/go1compat">promise of compatibility</a>.
   We expect almost all Go programs to continue to compile and run as before.
+</p>
+
+<p>
+  There is a <a href="https://golang.org/issue/27993"><strong>known issue</strong> in
+  the garbage collector</a> that can cause rare crashes. It is being investigated.
+  Please <a href="https://golang.org/issue/new">report</a> any issues you encounter.
 </p>
 
 <h2 id="language">Changes to the language</h2>
@@ -39,30 +45,30 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="ports">Ports</h2>
 
-<h3 id="freebsd">FreeBSD</h3>
+<p><!-- CL 138675 -->
+  The race detector is now supported on <code>linux/arm64</code>.
+</p>
 
-<p>
+<p id="freebsd">
   Go 1.12 is the last release that is supported on FreeBSD 10.x, which has
   already reached end-of-life. Go 1.13 will require FreeBSD 11.2+ or FreeBSD
   12.0+.
 </p>
 
-<h3 id="darwin">Darwin</h3>
-
-<p>
-Go 1.12 is the last release that will run on macOS 10.10 Yosemite.
-Go 1.13 will require macOS 10.11 El Capitan or later.
+<p><!-- CL 146898 -->
+  cgo is now supported on <code>linux/ppc64</code>.
 </p>
 
-<p><!-- CL 141639 -->
-  <code>libSystem</code> is now used when making syscalls on Darwin, ensuring forward-compatibility
-  with future versions of macOS.
+<p id="hurd"><!-- CL 146023 -->
+  <code>hurd</code> is now a recognized value for <code>GOOS</code>, reserved
+  for the GNU/Hurd system for use with <code>gccgo</code>.
 </p>
 
 <h3 id="windows">Windows</h3>
 
 <p>
-  TODO: status of ARM32 port?
+  Go's new <code>windows/arm</code> port supports running Go on Windows 10
+  IoT Core on 32-bit ARM chips such as the Raspberry Pi 3.
 </p>
 
 <h3 id="aix">AIX</h3>
@@ -71,11 +77,16 @@ Go 1.13 will require macOS 10.11 El Capitan or later.
   Go now supports AIX 7.2 and later on POWER8 architectures (<code>aix/ppc64</code>). External linking, cgo, pprof and the race detector aren't yet supported.
 </p>
 
-<h3 id="hurd">Hurd</h3>
+<h3 id="darwin">Darwin</h3>
 
-<p><!-- CL 146023 -->
-  <code>hurd</code> is now a recognized value for <code>GOOS</code>, reserved
-  for the GNU/Hurd system for use with <code>gccgo</code>.
+<p>
+  Go 1.12 is the last release that will run on macOS 10.10 Yosemite.
+  Go 1.13 will require macOS 10.11 El Capitan or later.
+</p>
+
+<p><!-- CL 141639 -->
+  <code>libSystem</code> is now used when making syscalls on Darwin,
+  ensuring forward-compatibility with future versions of macOS and iOS.
 </p>
 
 <h2 id="tools">Tools</h2>
@@ -221,13 +232,25 @@ for {
   in an error like "relocation target not defined for ABIInternal (but
   is defined for ABI0)", please refer to help section of the ABI
   design document.
-  TODO(austin): Link to the design doc.
+  <!-- TODO(austin): Link to the design doc. -->
 </p>
 
 <p><!-- CL 145179 -->
   There have been many improvements to the DWARF debug information
   produced by the compiler, including improvements to argument
   printing and variable location information.
+</p>
+
+<p><!-- CL 61511 -->
+  Go programs now also maintain stack frame pointers on <code>linux/arm64</code>
+  for the benefit of profiling tools like <code>perf</code>. The frame pointer
+  maintenance has a small run-time overhead that varies but averages around 3%.
+  To build a toolchain that does not use frame pointers, set
+  <code>GOEXPERIMENT=noframepointer</code> when running <code>make.bash</code>.
+</p>
+
+<p><!-- CL 142717 -->
+  The obsolete "safe" compiler mode (enabled by the <code>-u</code> gcflag) has been removed.
 </p>
 
 <h3 id="godoc"><code>godoc</code> and <code>go</code> <code>doc</code></h3>
@@ -251,6 +274,14 @@ for {
   including cross-references to the execution trace. These are useful
   for analyzing the impact of the garbage collector on application
   latency and throughput.
+</p>
+
+<h3 id="assembler">Assembler</h3>
+
+<p><!-- CL 147218 -->
+  On <code>arm64</code>, the platform register was renamed from
+  <code>R18</code> to <code>R18_PLATFORM</code> to prevent accidental
+  use, as the OS could choose to reserve this register.
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -336,12 +367,8 @@ for {
   in mind.
 </p>
 
-<!-- CL 147218: https://golang.org/cl/147218: cmd/asm: rename R18 to R18_PLATFORM on ARM64 -->
-<!-- CL 116275: https://golang.org/cl/116275: cmd/compile: avoid string allocations when map key is struct or array literal -->
-<!-- CL 142717: https://golang.org/cl/142717: cmd/compile: remove obsolete "safe" mode -->
-<!-- CL 146058: https://golang.org/cl/146058: It is invalid to convert a nil unsafe.Pointer to uintptr and back, with arithmetic.: cmd/compile: assume unsafe pointer arithmetic generates non-nil results -->
-<!-- CL 146898: https://golang.org/cl/146898: cmd/link, runtime: add initial cgo support for ppc64 -->
-<!-- CL 115677: https://golang.org/cl/115677: cmd/vet: check embedded field tags too -->
+<!-- TODO: CL 115677: https://golang.org/cl/115677: cmd/vet: check embedded field tags too -->
+
 <dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
   <dd>
     <p><!-- CL 149297 -->
@@ -351,14 +378,6 @@ for {
     </p>
 
 </dl><!-- bufio -->
-
-<dl id="build"><dt><a href="/pkg/build/">build</a></dt>
-  <dd>
-    <p><!-- CL 61511 -->
-      TODO: <a href="https://golang.org/cl/61511">https://golang.org/cl/61511</a>: support frame-pointer for arm64
-    </p>
-
-</dl><!-- build -->
 
 <dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
   <dd>
@@ -374,14 +393,6 @@ for {
     </p>
 
 </dl><!-- bytes -->
-
-<dl id="cmd,runtime"><dt><a href="/pkg/cmd,runtime/">cmd,runtime</a></dt>
-  <dd>
-    <p><!-- CL 138675 -->
-      TODO: <a href="https://golang.org/cl/138675">https://golang.org/cl/138675</a>: enable race detector on arm64
-    </p>
-
-</dl><!-- cmd,runtime -->
 
 <dl id="crypto/rand"><dt><a href="/pkg/crypto/rand/">crypto/rand</a></dt>
   <dd>
@@ -501,14 +512,6 @@ for {
 
 </dl><!-- image/png -->
 
-<dl id="internal/poll"><dt><a href="/pkg/internal/poll/">internal/poll</a></dt>
-  <dd>
-    <p><!-- CL 130676 -->
-      TODO: <a href="https://golang.org/cl/130676">https://golang.org/cl/130676</a>: use F_FULLFSYNC fcntl for FD.Fsync on OS X
-    </p>
-
-</dl><!-- internal/poll -->
-
 <dl id="io"><dt><a href="/pkg/io/">io</a></dt>
   <dd>
     <p><!-- CL 139457 -->
@@ -618,6 +621,11 @@ for {
     <p><!-- CL 146020 -->
       <a href="/pkg/os/#RemoveAll"><code>RemoveAll</code></a> now supports paths longer than 4096 characters
       on most Unix systems.
+    </p>
+
+    <p><!-- CL 130676 -->
+      <a href="/pkg/os/#File.Sync"><code>File.Sync</code></a> now uses <code>F_FULLFSYNC</code> on macOS
+      to properly flush content to permanent storage. Note that this might have a negative performance impact.
     </p>
 
 </dl><!-- os -->
@@ -790,3 +798,11 @@ for {
 
 </dl><!-- text/template -->
 
+<dl id="unsafe"><dt><a href="/pkg/unsafe/">unsafe</a></dt>
+  <dd>
+    <p><!-- CL 146058 -->
+      It is invalid to convert a nil <code>unsafe.Pointer</code> to <code>uintptr</code> and back with arithmetic.
+      (This was already invalid, but will now cause the compiler to misbehave.)
+    </p>
+
+</dl><!-- unsafe -->
