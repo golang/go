@@ -688,7 +688,7 @@
 (GEZ (MOVWconst [c]) yes no) && int32(c) <  0 -> (First nil no yes)
 
 // conditional move
-(CMOVZ _ b (MOVWconst [0])) -> b
+(CMOVZ _ f (MOVWconst [0])) -> f
 (CMOVZ a _ (MOVWconst [c])) && c!=0 -> a
 (CMOVZzero _ (MOVWconst [0])) -> (MOVWconst [0])
 (CMOVZzero a (MOVWconst [c])) && c!=0 -> a

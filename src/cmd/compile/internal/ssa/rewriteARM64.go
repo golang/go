@@ -1159,9 +1159,7 @@ func rewriteValueARM64_OpARM64ADD_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64ADD_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (ADD x (NEG y))
 	// cond:
 	// result: (SUB x y)
@@ -1550,9 +1548,7 @@ func rewriteValueARM64_OpARM64ADD_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64ADD_20(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (ADD (SRL <typ.UInt64> x (ANDconst <t> [63] y)) (CSEL0 <typ.UInt64> {cc} (SLL x (SUB <t> (MOVDconst [64]) (ANDconst <t> [63] y))) (CMPconst [64] (SUB <t> (MOVDconst [64]) (ANDconst <t> [63] y)))))
 	// cond: cc.(Op) == OpARM64LessThanU
 	// result: (ROR x y)
@@ -2323,9 +2319,7 @@ func rewriteValueARM64_OpARM64ADDconst_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64ADDshiftLL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (ADDshiftLL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (ADDconst [c] (SLLconst <x.Type> x [d]))
@@ -2486,7 +2480,6 @@ func rewriteValueARM64_OpARM64ADDshiftLL_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64ADDshiftRA_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (ADDshiftRA (MOVDconst [c]) x [d])
 	// cond:
 	// result: (ADDconst [c] (SRAconst <x.Type> x [d]))
@@ -2528,7 +2521,6 @@ func rewriteValueARM64_OpARM64ADDshiftRA_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64ADDshiftRL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (ADDshiftRL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (ADDconst [c] (SRLconst <x.Type> x [d]))
@@ -2972,7 +2964,6 @@ func rewriteValueARM64_OpARM64ANDconst_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64ANDshiftLL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (ANDshiftLL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (ANDconst [c] (SLLconst <x.Type> x [d]))
@@ -3037,7 +3028,6 @@ func rewriteValueARM64_OpARM64ANDshiftLL_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64ANDshiftRA_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (ANDshiftRA (MOVDconst [c]) x [d])
 	// cond:
 	// result: (ANDconst [c] (SRAconst <x.Type> x [d]))
@@ -3102,7 +3092,6 @@ func rewriteValueARM64_OpARM64ANDshiftRA_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64ANDshiftRL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (ANDshiftRL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (ANDconst [c] (SRLconst <x.Type> x [d]))
@@ -3750,7 +3739,6 @@ func rewriteValueARM64_OpARM64CMNconst_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64CMNshiftLL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (CMNshiftLL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (CMNconst [c] (SLLconst <x.Type> x [d]))
@@ -3792,7 +3780,6 @@ func rewriteValueARM64_OpARM64CMNshiftLL_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64CMNshiftRA_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (CMNshiftRA (MOVDconst [c]) x [d])
 	// cond:
 	// result: (CMNconst [c] (SRAconst <x.Type> x [d]))
@@ -3834,7 +3821,6 @@ func rewriteValueARM64_OpARM64CMNshiftRA_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64CMNshiftRL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (CMNshiftRL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (CMNconst [c] (SRLconst <x.Type> x [d]))
@@ -3876,7 +3862,6 @@ func rewriteValueARM64_OpARM64CMNshiftRL_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64CMP_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (CMP x (MOVDconst [c]))
 	// cond:
 	// result: (CMPconst [c] x)
@@ -4047,7 +4032,6 @@ func rewriteValueARM64_OpARM64CMP_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64CMPW_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (CMPW x (MOVDconst [c]))
 	// cond:
 	// result: (CMPWconst [int64(int32(c))] x)
@@ -4359,7 +4343,6 @@ func rewriteValueARM64_OpARM64CMPconst_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64CMPshiftLL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (CMPshiftLL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (InvertFlags (CMPconst [c] (SLLconst <x.Type> x [d])))
@@ -4403,7 +4386,6 @@ func rewriteValueARM64_OpARM64CMPshiftLL_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64CMPshiftRA_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (CMPshiftRA (MOVDconst [c]) x [d])
 	// cond:
 	// result: (InvertFlags (CMPconst [c] (SRAconst <x.Type> x [d])))
@@ -4447,7 +4429,6 @@ func rewriteValueARM64_OpARM64CMPshiftRA_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64CMPshiftRL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (CMPshiftRL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (InvertFlags (CMPconst [c] (SRLconst <x.Type> x [d])))
@@ -5238,7 +5219,6 @@ func rewriteValueARM64_OpARM64FADDS_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64FCMPD_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (FCMPD x (FMOVDconst [0]))
 	// cond:
 	// result: (FCMPD0 x)
@@ -5279,7 +5259,6 @@ func rewriteValueARM64_OpARM64FCMPD_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64FCMPS_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (FCMPS x (FMOVSconst [0]))
 	// cond:
 	// result: (FCMPS0 x)
@@ -5320,7 +5299,6 @@ func rewriteValueARM64_OpARM64FCMPS_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64FMOVDfpgp_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (FMOVDfpgp <t> (Arg [off] {sym}))
 	// cond:
 	// result: @b.Func.Entry (Arg <t> [off] {sym})
@@ -5344,7 +5322,6 @@ func rewriteValueARM64_OpARM64FMOVDfpgp_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64FMOVDgpfp_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (FMOVDgpfp <t> (Arg [off] {sym}))
 	// cond:
 	// result: @b.Func.Entry (Arg <t> [off] {sym})
@@ -5368,9 +5345,7 @@ func rewriteValueARM64_OpARM64FMOVDgpfp_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64FMOVDload_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (FMOVDload [off] {sym} ptr (MOVDstore [off] {sym} ptr val _))
 	// cond:
 	// result: (FMOVDgpfp val)
@@ -5514,9 +5489,7 @@ func rewriteValueARM64_OpARM64FMOVDloadidx_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64FMOVDstore_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (FMOVDstore [off] {sym} ptr (FMOVDgpfp val) mem)
 	// cond:
 	// result: (MOVDstore [off] {sym} ptr val mem)
@@ -5665,9 +5638,7 @@ func rewriteValueARM64_OpARM64FMOVDstoreidx_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64FMOVSload_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (FMOVSload [off] {sym} ptr (MOVWstore [off] {sym} ptr val _))
 	// cond:
 	// result: (FMOVSgpfp val)
@@ -5811,9 +5782,7 @@ func rewriteValueARM64_OpARM64FMOVSloadidx_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64FMOVSstore_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (FMOVSstore [off] {sym} ptr (FMOVSgpfp val) mem)
 	// cond:
 	// result: (MOVWstore [off] {sym} ptr val mem)
@@ -7002,7 +6971,6 @@ func rewriteValueARM64_OpARM64LessThanU_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MADD_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MADD a x (MOVDconst [-1]))
 	// cond:
 	// result: (SUB a x)
@@ -7232,7 +7200,6 @@ func rewriteValueARM64_OpARM64MADD_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MADD_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MADD a (MOVDconst [-1]) x)
 	// cond:
 	// result: (SUB a x)
@@ -7462,7 +7429,6 @@ func rewriteValueARM64_OpARM64MADD_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MADD_20(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MADD (MOVDconst [c]) x y)
 	// cond:
 	// result: (ADDconst [c] (MUL <x.Type> x y))
@@ -7508,7 +7474,6 @@ func rewriteValueARM64_OpARM64MADD_20(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MADDW_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MADDW a x (MOVDconst [c]))
 	// cond: int32(c)==-1
 	// result: (SUB a x)
@@ -7741,7 +7706,6 @@ func rewriteValueARM64_OpARM64MADDW_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MADDW_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MADDW a (MOVDconst [c]) x)
 	// cond: int32(c)==-1
 	// result: (SUB a x)
@@ -7974,7 +7938,6 @@ func rewriteValueARM64_OpARM64MADDW_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MADDW_20(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MADDW (MOVDconst [c]) x y)
 	// cond:
 	// result: (ADDconst [c] (MULW <x.Type> x y))
@@ -8020,7 +7983,6 @@ func rewriteValueARM64_OpARM64MADDW_20(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MNEG_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MNEG x (MOVDconst [-1]))
 	// cond:
 	// result: x
@@ -8213,7 +8175,6 @@ func rewriteValueARM64_OpARM64MNEG_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MNEG_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MNEG x (MOVDconst [c]))
 	// cond: isPowerOfTwo(c+1) && c >= 7
 	// result: (NEG (ADDshiftLL <x.Type> (NEG <x.Type> x) x [log2(c+1)]))
@@ -8503,7 +8464,6 @@ func rewriteValueARM64_OpARM64MNEG_20(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MNEGW_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MNEGW x (MOVDconst [c]))
 	// cond: int32(c)==-1
 	// result: x
@@ -8702,7 +8662,6 @@ func rewriteValueARM64_OpARM64MNEGW_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MNEGW_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MNEGW x (MOVDconst [c]))
 	// cond: isPowerOfTwo(c+1) && int32(c) >= 7
 	// result: (NEG (ADDshiftLL <x.Type> (NEG <x.Type> x) x [log2(c+1)]))
@@ -9036,9 +8995,7 @@ func rewriteValueARM64_OpARM64MODW_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVBUload_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVBUload [off1+off2] {sym} ptr mem)
@@ -9334,9 +9291,7 @@ func rewriteValueARM64_OpARM64MOVBUreg_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVBload_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVBload [off1] {sym} (ADDconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVBload [off1+off2] {sym} ptr mem)
@@ -9569,9 +9524,7 @@ func rewriteValueARM64_OpARM64MOVBreg_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVBstore_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem)
 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVBstore [off1+off2] {sym} ptr val mem)
@@ -10271,7 +10224,6 @@ func rewriteValueARM64_OpARM64MOVBstore_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVBstore_20(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MOVBstore [i] {s} ptr0 (UBFX [bfc] w) x:(MOVBstore [i-1] {s} ptr1 w0:(UBFX [bfc2] w) mem))
 	// cond: x.Uses == 1 && isSamePtr(ptr0, ptr1) && getARM64BFwidth(bfc) == 32 - getARM64BFlsb(bfc) && getARM64BFwidth(bfc2) == 32 - getARM64BFlsb(bfc2) && getARM64BFlsb(bfc2) == getARM64BFlsb(bfc) - 8 && clobber(x)
 	// result: (MOVHstore [i-1] {s} ptr0 w0 mem)
@@ -11264,7 +11216,6 @@ func rewriteValueARM64_OpARM64MOVBstore_20(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVBstore_30(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MOVBstore [i] {s} ptr w x0:(MOVBstore [i-1] {s} ptr (SRLconst [8] w) x1:(MOVBstore [i-2] {s} ptr (SRLconst [16] w) x2:(MOVBstore [i-3] {s} ptr (SRLconst [24] w) mem))))
 	// cond: x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && clobber(x0) && clobber(x1) && clobber(x2)
 	// result: (MOVWstore [i-3] {s} ptr (REVW <w.Type> w) mem)
@@ -11841,7 +11792,6 @@ func rewriteValueARM64_OpARM64MOVBstore_30(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVBstore_40(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (SRLconst [8] (MOVDreg w)) mem))
 	// cond: x.Uses == 1 && clobber(x)
 	// result: (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
@@ -12179,7 +12129,6 @@ func rewriteValueARM64_OpARM64MOVBstoreidx_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVBstoreidx_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MOVBstoreidx ptr (ADDconst [3] idx) w x0:(MOVBstoreidx ptr (ADDconst [2] idx) (UBFX [armBFAuxInt(8, 24)] w) x1:(MOVBstoreidx ptr (ADDconst [1] idx) (UBFX [armBFAuxInt(16, 16)] w) x2:(MOVBstoreidx ptr idx (UBFX [armBFAuxInt(24, 8)] w) mem))))
 	// cond: x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && clobber(x0) && clobber(x1) && clobber(x2)
 	// result: (MOVWstoreidx ptr idx (REVW <w.Type> w) mem)
@@ -12488,9 +12437,7 @@ func rewriteValueARM64_OpARM64MOVBstoreidx_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVBstorezero_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVBstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVBstorezero [off1+off2] {sym} ptr mem)
@@ -12704,9 +12651,7 @@ func rewriteValueARM64_OpARM64MOVBstorezeroidx_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVDload_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVDload [off] {sym} ptr (FMOVDstore [off] {sym} ptr val _))
 	// cond:
 	// result: (FMOVDfpgp val)
@@ -13051,9 +12996,7 @@ func rewriteValueARM64_OpARM64MOVDreg_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVDstore_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVDstore [off] {sym} ptr (FMOVDfpgp val) mem)
 	// cond:
 	// result: (FMOVDstore [off] {sym} ptr val mem)
@@ -13365,9 +13308,7 @@ func rewriteValueARM64_OpARM64MOVDstoreidx8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVDstorezero_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVDstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVDstorezero [off1+off2] {sym} ptr mem)
@@ -13674,9 +13615,7 @@ func rewriteValueARM64_OpARM64MOVDstorezeroidx8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVHUload_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVHUload [off1+off2] {sym} ptr mem)
@@ -14148,9 +14087,7 @@ func rewriteValueARM64_OpARM64MOVHUreg_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVHload_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVHload [off1] {sym} (ADDconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVHload [off1+off2] {sym} ptr mem)
@@ -14609,9 +14546,7 @@ func rewriteValueARM64_OpARM64MOVHreg_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVHstore_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem)
 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVHstore [off1+off2] {sym} ptr val mem)
@@ -14878,7 +14813,6 @@ func rewriteValueARM64_OpARM64MOVHstore_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVHstore_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MOVHstore [2] {s} (ADD ptr0 idx0) (SRLconst [16] w) x:(MOVHstoreidx ptr1 idx1 w mem))
 	// cond: x.Uses == 1 && s == nil && (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1)) && clobber(x)
 	// result: (MOVWstoreidx ptr1 idx1 w mem)
@@ -15367,7 +15301,6 @@ func rewriteValueARM64_OpARM64MOVHstore_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVHstore_20(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MOVHstore [2] {s} (ADDshiftLL [1] ptr0 idx0) (SRLconst [j] w) x:(MOVHstoreidx2 ptr1 idx1 w0:(SRLconst [j-16] w) mem))
 	// cond: x.Uses == 1 && s == nil && isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) && clobber(x)
 	// result: (MOVWstoreidx ptr1 (SLLconst <idx1.Type> [1] idx1) w0 mem)
@@ -15840,9 +15773,7 @@ func rewriteValueARM64_OpARM64MOVHstoreidx2_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVHstorezero_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVHstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVHstorezero [off1+off2] {sym} ptr mem)
@@ -16229,9 +16160,7 @@ func rewriteValueARM64_OpARM64MOVHstorezeroidx2_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVQstorezero_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVQstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVQstorezero [off1+off2] {sym} ptr mem)
@@ -16285,9 +16214,7 @@ func rewriteValueARM64_OpARM64MOVQstorezero_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVWUload_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVWUload [off] {sym} ptr (FMOVSstore [off] {sym} ptr val _))
 	// cond:
 	// result: (FMOVSfpgp val)
@@ -16814,9 +16741,7 @@ func rewriteValueARM64_OpARM64MOVWUreg_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVWload_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVWload [off1] {sym} (ADDconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVWload [off1+off2] {sym} ptr mem)
@@ -17354,9 +17279,7 @@ func rewriteValueARM64_OpARM64MOVWreg_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVWstore_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVWstore [off] {sym} ptr (FMOVSfpgp val) mem)
 	// cond:
 	// result: (FMOVSstore [off] {sym} ptr val mem)
@@ -17646,7 +17569,6 @@ func rewriteValueARM64_OpARM64MOVWstore_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVWstore_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MOVWstore [4] {s} (ADDshiftLL [2] ptr0 idx0) (SRLconst [32] w) x:(MOVWstoreidx4 ptr1 idx1 w mem))
 	// cond: x.Uses == 1 && s == nil && isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) && clobber(x)
 	// result: (MOVDstoreidx ptr1 (SLLconst <idx1.Type> [2] idx1) w mem)
@@ -18137,9 +18059,7 @@ func rewriteValueARM64_OpARM64MOVWstoreidx4_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVWstorezero_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (MOVWstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (MOVWstorezero [off1+off2] {sym} ptr mem)
@@ -18482,7 +18402,6 @@ func rewriteValueARM64_OpARM64MOVWstorezeroidx4_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MSUB_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MSUB a x (MOVDconst [-1]))
 	// cond:
 	// result: (ADD a x)
@@ -18712,7 +18631,6 @@ func rewriteValueARM64_OpARM64MSUB_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MSUB_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MSUB a (MOVDconst [-1]) x)
 	// cond:
 	// result: (ADD a x)
@@ -18942,7 +18860,6 @@ func rewriteValueARM64_OpARM64MSUB_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MSUB_20(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MSUB (MOVDconst [c]) x y)
 	// cond:
 	// result: (ADDconst [c] (MNEG <x.Type> x y))
@@ -18988,7 +18905,6 @@ func rewriteValueARM64_OpARM64MSUB_20(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MSUBW_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MSUBW a x (MOVDconst [c]))
 	// cond: int32(c)==-1
 	// result: (ADD a x)
@@ -19221,7 +19137,6 @@ func rewriteValueARM64_OpARM64MSUBW_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MSUBW_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MSUBW a (MOVDconst [c]) x)
 	// cond: int32(c)==-1
 	// result: (ADD a x)
@@ -19454,7 +19369,6 @@ func rewriteValueARM64_OpARM64MSUBW_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MSUBW_20(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MSUBW (MOVDconst [c]) x y)
 	// cond:
 	// result: (ADDconst [c] (MNEGW <x.Type> x y))
@@ -19675,7 +19589,6 @@ func rewriteValueARM64_OpARM64MUL_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MUL_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MUL x (MOVDconst [c]))
 	// cond: isPowerOfTwo(c-1) && c >= 3
 	// result: (ADDshiftLL x x [log2(c-1)])
@@ -19906,7 +19819,6 @@ func rewriteValueARM64_OpARM64MUL_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MUL_20(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MUL x (MOVDconst [c]))
 	// cond: c%9 == 0 && isPowerOfTwo(c/9)
 	// result: (SLLconst [log2(c/9)] (ADDshiftLL <x.Type> x x [3]))
@@ -20176,7 +20088,6 @@ func rewriteValueARM64_OpARM64MULW_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MULW_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MULW x (MOVDconst [c]))
 	// cond: isPowerOfTwo(c-1) && int32(c) >= 3
 	// result: (ADDshiftLL x x [log2(c-1)])
@@ -20407,7 +20318,6 @@ func rewriteValueARM64_OpARM64MULW_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MULW_20(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (MULW x (MOVDconst [c]))
 	// cond: c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)
 	// result: (SLLconst [log2(c/9)] (ADDshiftLL <x.Type> x x [3]))
@@ -21032,9 +20942,7 @@ func rewriteValueARM64_OpARM64OR_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64OR_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (OR x1:(SRAconst [c] y) x0)
 	// cond: clobberIfDead(x1)
 	// result: (ORshiftRA x0 y [c])
@@ -21998,7 +21906,6 @@ func rewriteValueARM64_OpARM64OR_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64OR_20(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (OR (ANDconst [ac] y) (UBFIZ [bfc] x))
 	// cond: ac == ^((1<<uint(getARM64BFwidth(bfc))-1) << uint(getARM64BFlsb(bfc)))
 	// result: (BFI [bfc] y x)
@@ -23019,7 +22926,6 @@ func rewriteValueARM64_OpARM64OR_20(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64OR_30(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (OR <t> y7:(MOVDnop x7:(MOVBUload [i0] {s} p mem)) o0:(ORshiftLL [8] o1:(ORshiftLL [16] o2:(ORshiftLL [24] o3:(ORshiftLL [32] o4:(ORshiftLL [40] o5:(ORshiftLL [48] s0:(SLLconst [56] y0:(MOVDnop x0:(MOVBUload [i7] {s} p mem))) y1:(MOVDnop x1:(MOVBUload [i6] {s} p mem))) y2:(MOVDnop x2:(MOVBUload [i5] {s} p mem))) y3:(MOVDnop x3:(MOVBUload [i4] {s} p mem))) y4:(MOVDnop x4:(MOVBUload [i3] {s} p mem))) y5:(MOVDnop x5:(MOVBUload [i2] {s} p mem))) y6:(MOVDnop x6:(MOVBUload [i1] {s} p mem))))
 	// cond: i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && y0.Uses == 1 && y1.Uses == 1 && y2.Uses == 1 && y3.Uses == 1 && y4.Uses == 1 && y5.Uses == 1 && y6.Uses == 1 && y7.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1 && mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7) && clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3) && clobber(y4) && clobber(y5) && clobber(y6) && clobber(y7) && clobber(o0) && clobber(o1) && clobber(o2) && clobber(o3) && clobber(o4) && clobber(o5) && clobber(s0)
 	// result: @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (MOVDload <t> {s} (OffPtr <p.Type> [i0] p) mem)
@@ -24828,7 +24734,6 @@ func rewriteValueARM64_OpARM64OR_30(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64OR_40(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (OR <t> y3:(MOVDnop x3:(MOVBUloadidx ptr (ADDconst [3] idx) mem)) o0:(ORshiftLL [8] o1:(ORshiftLL [16] s0:(SLLconst [24] y0:(MOVDnop x0:(MOVBUloadidx ptr idx mem))) y1:(MOVDnop x1:(MOVBUloadidx ptr (ADDconst [1] idx) mem))) y2:(MOVDnop x2:(MOVBUloadidx ptr (ADDconst [2] idx) mem))))
 	// cond: x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && y0.Uses == 1 && y1.Uses == 1 && y2.Uses == 1 && y3.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && s0.Uses == 1 && mergePoint(b,x0,x1,x2,x3) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3) && clobber(o0) && clobber(o1) && clobber(s0)
 	// result: @mergePoint(b,x0,x1,x2,x3) (REVW <t> (MOVWUloadidx <t> ptr idx mem))
@@ -26700,9 +26605,7 @@ func rewriteValueARM64_OpARM64ORconst_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64ORshiftLL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (ORshiftLL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (ORconst [c] (SLLconst <x.Type> x [d]))
@@ -26971,7 +26874,6 @@ func rewriteValueARM64_OpARM64ORshiftLL_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64ORshiftLL_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (ORshiftLL <t> [8] y0:(MOVDnop x0:(MOVBUloadidx ptr0 idx0 mem)) y1:(MOVDnop x1:(MOVBUload [1] {s} p1:(ADD ptr1 idx1) mem)))
 	// cond: s == nil && x0.Uses == 1 && x1.Uses == 1 && y0.Uses == 1 && y1.Uses == 1 && mergePoint(b,x0,x1) != nil && (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1)) && clobber(x0) && clobber(x1) && clobber(y0) && clobber(y1)
 	// result: @mergePoint(b,x0,x1) (MOVHUloadidx <t> ptr0 idx0 mem)
@@ -27986,7 +27888,6 @@ func rewriteValueARM64_OpARM64ORshiftLL_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64ORshiftLL_20(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (ORshiftLL <t> [8] y0:(MOVDnop x0:(MOVBUload [i1] {s} p mem)) y1:(MOVDnop x1:(MOVBUload [i0] {s} p mem)))
 	// cond: i1 == i0+1 && x0.Uses == 1 && x1.Uses == 1 && y0.Uses == 1 && y1.Uses == 1 && mergePoint(b,x0,x1) != nil && clobber(x0) && clobber(x1) && clobber(y0) && clobber(y1)
 	// result: @mergePoint(b,x0,x1) (REV16W <t> (MOVHUload <t> [i0] {s} p mem))
@@ -28869,7 +28770,6 @@ func rewriteValueARM64_OpARM64ORshiftLL_20(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64ORshiftRA_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (ORshiftRA (MOVDconst [c]) x [d])
 	// cond:
 	// result: (ORconst [c] (SRAconst <x.Type> x [d]))
@@ -28934,7 +28834,6 @@ func rewriteValueARM64_OpARM64ORshiftRA_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64ORshiftRL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (ORshiftRL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (ORconst [c] (SRLconst <x.Type> x [d]))
@@ -29678,9 +29577,7 @@ func rewriteValueARM64_OpARM64SRLconst_10(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64STP_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (STP [off1] {sym} (ADDconst [off2] ptr) val1 val2 mem)
 	// cond: is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
 	// result: (STP [off1+off2] {sym} ptr val1 val2 mem)
@@ -29772,7 +29669,6 @@ func rewriteValueARM64_OpARM64STP_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64SUB_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (SUB x (MOVDconst [c]))
 	// cond:
 	// result: (SUBconst [c] x)
@@ -30488,7 +30384,6 @@ func rewriteValueARM64_OpARM64TSTconst_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64TSTshiftLL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (TSTshiftLL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (TSTconst [c] (SLLconst <x.Type> x [d]))
@@ -30530,7 +30425,6 @@ func rewriteValueARM64_OpARM64TSTshiftLL_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64TSTshiftRA_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (TSTshiftRA (MOVDconst [c]) x [d])
 	// cond:
 	// result: (TSTconst [c] (SRAconst <x.Type> x [d]))
@@ -30572,7 +30466,6 @@ func rewriteValueARM64_OpARM64TSTshiftRA_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64TSTshiftRL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (TSTshiftRL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (TSTconst [c] (SRLconst <x.Type> x [d]))
@@ -30834,9 +30727,7 @@ func rewriteValueARM64_OpARM64UDIVW_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64UMOD_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (UMOD <typ.UInt64> x y)
 	// cond:
 	// result: (MSUB <typ.UInt64> x y (UDIV <typ.UInt64> x y))
@@ -30915,9 +30806,7 @@ func rewriteValueARM64_OpARM64UMOD_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64UMODW_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (UMODW <typ.UInt32> x y)
 	// cond:
 	// result: (MSUBW <typ.UInt32> x y (UDIVW <typ.UInt32> x y))
@@ -31182,9 +31071,7 @@ func rewriteValueARM64_OpARM64XOR_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64XOR_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (XOR x1:(SRAconst [c] y) x0)
 	// cond: clobberIfDead(x1)
 	// result: (XORshiftRA x0 y [c])
@@ -32180,9 +32067,7 @@ func rewriteValueARM64_OpARM64XORconst_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64XORshiftLL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (XORshiftLL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (XORconst [c] (SLLconst <x.Type> x [d]))
@@ -32365,7 +32250,6 @@ func rewriteValueARM64_OpARM64XORshiftLL_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64XORshiftRA_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (XORshiftRA (MOVDconst [c]) x [d])
 	// cond:
 	// result: (XORconst [c] (SRAconst <x.Type> x [d]))
@@ -32429,7 +32313,6 @@ func rewriteValueARM64_OpARM64XORshiftRA_0(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64XORshiftRL_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (XORshiftRL (MOVDconst [c]) x [d])
 	// cond:
 	// result: (XORconst [c] (SRLconst <x.Type> x [d]))
@@ -32801,9 +32684,7 @@ func rewriteValueARM64_OpAtomicAdd64Variant_0(v *Value) bool {
 }
 func rewriteValueARM64_OpAtomicAnd8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (AtomicAnd8 ptr val mem)
 	// cond:
 	// result: (Select1 (LoweredAtomicAnd8 ptr val mem))
@@ -32933,9 +32814,7 @@ func rewriteValueARM64_OpAtomicLoadPtr_0(v *Value) bool {
 }
 func rewriteValueARM64_OpAtomicOr8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (AtomicOr8 ptr val mem)
 	// cond:
 	// result: (Select1 (LoweredAtomicOr8 ptr val mem))
@@ -33003,7 +32882,6 @@ func rewriteValueARM64_OpAtomicStorePtrNoWB_0(v *Value) bool {
 }
 func rewriteValueARM64_OpAvg64u_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Avg64u <t> x y)
 	// cond:
 	// result: (ADD (SRLconst <t> (SUB <t> x y) [1]) y)
@@ -33026,9 +32904,7 @@ func rewriteValueARM64_OpAvg64u_0(v *Value) bool {
 }
 func rewriteValueARM64_OpBitLen32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (BitLen32 x)
 	// cond:
 	// result: (SUB (MOVDconst [32]) (CLZW <typ.Int> x))
@@ -33046,9 +32922,7 @@ func rewriteValueARM64_OpBitLen32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpBitLen64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (BitLen64 x)
 	// cond:
 	// result: (SUB (MOVDconst [64]) (CLZ <typ.Int> x))
@@ -33066,9 +32940,7 @@ func rewriteValueARM64_OpBitLen64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpBitRev16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (BitRev16 x)
 	// cond:
 	// result: (SRLconst [48] (RBIT <typ.UInt64> x))
@@ -33106,9 +32978,7 @@ func rewriteValueARM64_OpBitRev64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpBitRev8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (BitRev8 x)
 	// cond:
 	// result: (SRLconst [56] (RBIT <typ.UInt64> x))
@@ -33219,7 +33089,6 @@ func rewriteValueARM64_OpCom8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpCondSelect_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (CondSelect x y bool)
 	// cond: flagArg(bool) != nil
 	// result: (CSEL {bool.Op} x y flagArg(bool))
@@ -33350,9 +33219,7 @@ func rewriteValueARM64_OpConstNil_0(v *Value) bool {
 }
 func rewriteValueARM64_OpCtz16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Ctz16 <t> x)
 	// cond:
 	// result: (CLZW <t> (RBITW <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
@@ -33383,7 +33250,6 @@ func rewriteValueARM64_OpCtz16NonZero_0(v *Value) bool {
 }
 func rewriteValueARM64_OpCtz32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Ctz32 <t> x)
 	// cond:
 	// result: (CLZW (RBITW <t> x))
@@ -33410,7 +33276,6 @@ func rewriteValueARM64_OpCtz32NonZero_0(v *Value) bool {
 }
 func rewriteValueARM64_OpCtz64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Ctz64 <t> x)
 	// cond:
 	// result: (CLZ (RBIT <t> x))
@@ -33437,9 +33302,7 @@ func rewriteValueARM64_OpCtz64NonZero_0(v *Value) bool {
 }
 func rewriteValueARM64_OpCtz8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Ctz8 <t> x)
 	// cond:
 	// result: (CLZW <t> (RBITW <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
@@ -33668,9 +33531,7 @@ func rewriteValueARM64_OpCvt64to64F_0(v *Value) bool {
 }
 func rewriteValueARM64_OpDiv16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Div16 x y)
 	// cond:
 	// result: (DIVW (SignExt16to32 x) (SignExt16to32 y))
@@ -33690,9 +33551,7 @@ func rewriteValueARM64_OpDiv16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpDiv16u_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Div16u x y)
 	// cond:
 	// result: (UDIVW (ZeroExt16to32 x) (ZeroExt16to32 y))
@@ -33796,9 +33655,7 @@ func rewriteValueARM64_OpDiv64u_0(v *Value) bool {
 }
 func rewriteValueARM64_OpDiv8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Div8 x y)
 	// cond:
 	// result: (DIVW (SignExt8to32 x) (SignExt8to32 y))
@@ -33818,9 +33675,7 @@ func rewriteValueARM64_OpDiv8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpDiv8u_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Div8u x y)
 	// cond:
 	// result: (UDIVW (ZeroExt8to32 x) (ZeroExt8to32 y))
@@ -33840,9 +33695,7 @@ func rewriteValueARM64_OpDiv8u_0(v *Value) bool {
 }
 func rewriteValueARM64_OpEq16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Eq16 x y)
 	// cond:
 	// result: (Equal (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -33864,7 +33717,6 @@ func rewriteValueARM64_OpEq16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpEq32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Eq32 x y)
 	// cond:
 	// result: (Equal (CMPW x y))
@@ -33882,7 +33734,6 @@ func rewriteValueARM64_OpEq32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpEq32F_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Eq32F x y)
 	// cond:
 	// result: (Equal (FCMPS x y))
@@ -33900,7 +33751,6 @@ func rewriteValueARM64_OpEq32F_0(v *Value) bool {
 }
 func rewriteValueARM64_OpEq64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Eq64 x y)
 	// cond:
 	// result: (Equal (CMP x y))
@@ -33918,7 +33768,6 @@ func rewriteValueARM64_OpEq64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpEq64F_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Eq64F x y)
 	// cond:
 	// result: (Equal (FCMPD x y))
@@ -33936,9 +33785,7 @@ func rewriteValueARM64_OpEq64F_0(v *Value) bool {
 }
 func rewriteValueARM64_OpEq8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Eq8 x y)
 	// cond:
 	// result: (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
@@ -33960,9 +33807,7 @@ func rewriteValueARM64_OpEq8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpEqB_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (EqB x y)
 	// cond:
 	// result: (XOR (MOVDconst [1]) (XOR <typ.Bool> x y))
@@ -33983,7 +33828,6 @@ func rewriteValueARM64_OpEqB_0(v *Value) bool {
 }
 func rewriteValueARM64_OpEqPtr_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (EqPtr x y)
 	// cond:
 	// result: (Equal (CMP x y))
@@ -34012,9 +33856,7 @@ func rewriteValueARM64_OpFloor_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGeq16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Geq16 x y)
 	// cond:
 	// result: (GreaterEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
@@ -34036,9 +33878,7 @@ func rewriteValueARM64_OpGeq16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGeq16U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Geq16U x y)
 	// cond:
 	// result: (GreaterEqualU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -34060,7 +33900,6 @@ func rewriteValueARM64_OpGeq16U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGeq32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Geq32 x y)
 	// cond:
 	// result: (GreaterEqual (CMPW x y))
@@ -34078,7 +33917,6 @@ func rewriteValueARM64_OpGeq32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGeq32F_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Geq32F x y)
 	// cond:
 	// result: (GreaterEqualF (FCMPS x y))
@@ -34096,7 +33934,6 @@ func rewriteValueARM64_OpGeq32F_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGeq32U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Geq32U x y)
 	// cond:
 	// result: (GreaterEqualU (CMPW x y))
@@ -34114,7 +33951,6 @@ func rewriteValueARM64_OpGeq32U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGeq64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Geq64 x y)
 	// cond:
 	// result: (GreaterEqual (CMP x y))
@@ -34132,7 +33968,6 @@ func rewriteValueARM64_OpGeq64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGeq64F_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Geq64F x y)
 	// cond:
 	// result: (GreaterEqualF (FCMPD x y))
@@ -34150,7 +33985,6 @@ func rewriteValueARM64_OpGeq64F_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGeq64U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Geq64U x y)
 	// cond:
 	// result: (GreaterEqualU (CMP x y))
@@ -34168,9 +34002,7 @@ func rewriteValueARM64_OpGeq64U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGeq8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Geq8 x y)
 	// cond:
 	// result: (GreaterEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
@@ -34192,9 +34024,7 @@ func rewriteValueARM64_OpGeq8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGeq8U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Geq8U x y)
 	// cond:
 	// result: (GreaterEqualU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
@@ -34243,9 +34073,7 @@ func rewriteValueARM64_OpGetClosurePtr_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGreater16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Greater16 x y)
 	// cond:
 	// result: (GreaterThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
@@ -34267,9 +34095,7 @@ func rewriteValueARM64_OpGreater16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGreater16U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Greater16U x y)
 	// cond:
 	// result: (GreaterThanU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -34291,7 +34117,6 @@ func rewriteValueARM64_OpGreater16U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGreater32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Greater32 x y)
 	// cond:
 	// result: (GreaterThan (CMPW x y))
@@ -34309,7 +34134,6 @@ func rewriteValueARM64_OpGreater32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGreater32F_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Greater32F x y)
 	// cond:
 	// result: (GreaterThanF (FCMPS x y))
@@ -34327,7 +34151,6 @@ func rewriteValueARM64_OpGreater32F_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGreater32U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Greater32U x y)
 	// cond:
 	// result: (GreaterThanU (CMPW x y))
@@ -34345,7 +34168,6 @@ func rewriteValueARM64_OpGreater32U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGreater64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Greater64 x y)
 	// cond:
 	// result: (GreaterThan (CMP x y))
@@ -34363,7 +34185,6 @@ func rewriteValueARM64_OpGreater64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGreater64F_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Greater64F x y)
 	// cond:
 	// result: (GreaterThanF (FCMPD x y))
@@ -34381,7 +34202,6 @@ func rewriteValueARM64_OpGreater64F_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGreater64U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Greater64U x y)
 	// cond:
 	// result: (GreaterThanU (CMP x y))
@@ -34399,9 +34219,7 @@ func rewriteValueARM64_OpGreater64U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGreater8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Greater8 x y)
 	// cond:
 	// result: (GreaterThan (CMPW (SignExt8to32 x) (SignExt8to32 y)))
@@ -34423,9 +34241,7 @@ func rewriteValueARM64_OpGreater8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpGreater8U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Greater8U x y)
 	// cond:
 	// result: (GreaterThanU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
@@ -34447,9 +34263,7 @@ func rewriteValueARM64_OpGreater8U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpHmul32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Hmul32 x y)
 	// cond:
 	// result: (SRAconst (MULL <typ.Int64> x y) [32])
@@ -34468,9 +34282,7 @@ func rewriteValueARM64_OpHmul32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpHmul32u_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Hmul32u x y)
 	// cond:
 	// result: (SRAconst (UMULL <typ.UInt64> x y) [32])
@@ -34533,7 +34345,6 @@ func rewriteValueARM64_OpInterCall_0(v *Value) bool {
 }
 func rewriteValueARM64_OpIsInBounds_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (IsInBounds idx len)
 	// cond:
 	// result: (LessThanU (CMP idx len))
@@ -34551,7 +34362,6 @@ func rewriteValueARM64_OpIsInBounds_0(v *Value) bool {
 }
 func rewriteValueARM64_OpIsNonNil_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (IsNonNil ptr)
 	// cond:
 	// result: (NotEqual (CMPconst [0] ptr))
@@ -34567,7 +34377,6 @@ func rewriteValueARM64_OpIsNonNil_0(v *Value) bool {
 }
 func rewriteValueARM64_OpIsSliceInBounds_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (IsSliceInBounds idx len)
 	// cond:
 	// result: (LessEqualU (CMP idx len))
@@ -34585,9 +34394,7 @@ func rewriteValueARM64_OpIsSliceInBounds_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLeq16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Leq16 x y)
 	// cond:
 	// result: (LessEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
@@ -34609,9 +34416,7 @@ func rewriteValueARM64_OpLeq16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLeq16U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Leq16U x y)
 	// cond:
 	// result: (LessEqualU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -34633,7 +34438,6 @@ func rewriteValueARM64_OpLeq16U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLeq32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Leq32 x y)
 	// cond:
 	// result: (LessEqual (CMPW x y))
@@ -34651,7 +34455,6 @@ func rewriteValueARM64_OpLeq32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLeq32F_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Leq32F x y)
 	// cond:
 	// result: (LessEqualF (FCMPS x y))
@@ -34669,7 +34472,6 @@ func rewriteValueARM64_OpLeq32F_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLeq32U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Leq32U x y)
 	// cond:
 	// result: (LessEqualU (CMPW x y))
@@ -34687,7 +34489,6 @@ func rewriteValueARM64_OpLeq32U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLeq64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Leq64 x y)
 	// cond:
 	// result: (LessEqual (CMP x y))
@@ -34705,7 +34506,6 @@ func rewriteValueARM64_OpLeq64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLeq64F_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Leq64F x y)
 	// cond:
 	// result: (LessEqualF (FCMPD x y))
@@ -34723,7 +34523,6 @@ func rewriteValueARM64_OpLeq64F_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLeq64U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Leq64U x y)
 	// cond:
 	// result: (LessEqualU (CMP x y))
@@ -34741,9 +34540,7 @@ func rewriteValueARM64_OpLeq64U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLeq8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Leq8 x y)
 	// cond:
 	// result: (LessEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
@@ -34765,9 +34562,7 @@ func rewriteValueARM64_OpLeq8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLeq8U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Leq8U x y)
 	// cond:
 	// result: (LessEqualU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
@@ -34789,9 +34584,7 @@ func rewriteValueARM64_OpLeq8U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLess16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Less16 x y)
 	// cond:
 	// result: (LessThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
@@ -34813,9 +34606,7 @@ func rewriteValueARM64_OpLess16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLess16U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Less16U x y)
 	// cond:
 	// result: (LessThanU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -34837,7 +34628,6 @@ func rewriteValueARM64_OpLess16U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLess32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Less32 x y)
 	// cond:
 	// result: (LessThan (CMPW x y))
@@ -34855,7 +34645,6 @@ func rewriteValueARM64_OpLess32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLess32F_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Less32F x y)
 	// cond:
 	// result: (LessThanF (FCMPS x y))
@@ -34873,7 +34662,6 @@ func rewriteValueARM64_OpLess32F_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLess32U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Less32U x y)
 	// cond:
 	// result: (LessThanU (CMPW x y))
@@ -34891,7 +34679,6 @@ func rewriteValueARM64_OpLess32U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLess64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Less64 x y)
 	// cond:
 	// result: (LessThan (CMP x y))
@@ -34909,7 +34696,6 @@ func rewriteValueARM64_OpLess64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLess64F_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Less64F x y)
 	// cond:
 	// result: (LessThanF (FCMPD x y))
@@ -34927,7 +34713,6 @@ func rewriteValueARM64_OpLess64F_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLess64U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Less64U x y)
 	// cond:
 	// result: (LessThanU (CMP x y))
@@ -34945,9 +34730,7 @@ func rewriteValueARM64_OpLess64U_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLess8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Less8 x y)
 	// cond:
 	// result: (LessThan (CMPW (SignExt8to32 x) (SignExt8to32 y)))
@@ -34969,9 +34752,7 @@ func rewriteValueARM64_OpLess8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLess8U_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Less8U x y)
 	// cond:
 	// result: (LessThanU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
@@ -35170,9 +34951,7 @@ func rewriteValueARM64_OpLocalAddr_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh16x16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Lsh16x16 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
@@ -35203,9 +34982,7 @@ func rewriteValueARM64_OpLsh16x16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh16x32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Lsh16x32 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
@@ -35236,7 +35013,6 @@ func rewriteValueARM64_OpLsh16x32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh16x64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Lsh16x64 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
@@ -35263,9 +35039,7 @@ func rewriteValueARM64_OpLsh16x64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh16x8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Lsh16x8 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt8to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64 y)))
@@ -35296,9 +35070,7 @@ func rewriteValueARM64_OpLsh16x8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh32x16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Lsh32x16 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
@@ -35329,9 +35101,7 @@ func rewriteValueARM64_OpLsh32x16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh32x32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Lsh32x32 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
@@ -35362,7 +35132,6 @@ func rewriteValueARM64_OpLsh32x32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh32x64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Lsh32x64 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
@@ -35389,9 +35158,7 @@ func rewriteValueARM64_OpLsh32x64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh32x8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Lsh32x8 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt8to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64 y)))
@@ -35422,9 +35189,7 @@ func rewriteValueARM64_OpLsh32x8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh64x16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Lsh64x16 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
@@ -35455,9 +35220,7 @@ func rewriteValueARM64_OpLsh64x16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh64x32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Lsh64x32 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
@@ -35488,7 +35251,6 @@ func rewriteValueARM64_OpLsh64x32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh64x64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Lsh64x64 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
@@ -35515,9 +35277,7 @@ func rewriteValueARM64_OpLsh64x64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh64x8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Lsh64x8 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt8to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64 y)))
@@ -35548,9 +35308,7 @@ func rewriteValueARM64_OpLsh64x8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh8x16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Lsh8x16 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
@@ -35581,9 +35339,7 @@ func rewriteValueARM64_OpLsh8x16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh8x32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Lsh8x32 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
@@ -35614,7 +35370,6 @@ func rewriteValueARM64_OpLsh8x32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh8x64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Lsh8x64 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
@@ -35641,9 +35396,7 @@ func rewriteValueARM64_OpLsh8x64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpLsh8x8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Lsh8x8 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt8to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64 y)))
@@ -35674,9 +35427,7 @@ func rewriteValueARM64_OpLsh8x8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpMod16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Mod16 x y)
 	// cond:
 	// result: (MODW (SignExt16to32 x) (SignExt16to32 y))
@@ -35696,9 +35447,7 @@ func rewriteValueARM64_OpMod16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpMod16u_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Mod16u x y)
 	// cond:
 	// result: (UMODW (ZeroExt16to32 x) (ZeroExt16to32 y))
@@ -35774,9 +35523,7 @@ func rewriteValueARM64_OpMod64u_0(v *Value) bool {
 }
 func rewriteValueARM64_OpMod8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Mod8 x y)
 	// cond:
 	// result: (MODW (SignExt8to32 x) (SignExt8to32 y))
@@ -35796,9 +35543,7 @@ func rewriteValueARM64_OpMod8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpMod8u_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Mod8u x y)
 	// cond:
 	// result: (UMODW (ZeroExt8to32 x) (ZeroExt8to32 y))
@@ -35818,9 +35563,7 @@ func rewriteValueARM64_OpMod8u_0(v *Value) bool {
 }
 func rewriteValueARM64_OpMove_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Move [0] _ _ mem)
 	// cond:
 	// result: mem
@@ -36073,11 +35816,8 @@ func rewriteValueARM64_OpMove_0(v *Value) bool {
 }
 func rewriteValueARM64_OpMove_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Move [16] dst src mem)
 	// cond:
 	// result: (MOVDstore [8] dst (MOVDload [8] src mem) (MOVDstore dst (MOVDload src mem) mem))
@@ -36412,9 +36152,7 @@ func rewriteValueARM64_OpNeg8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpNeq16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Neq16 x y)
 	// cond:
 	// result: (NotEqual (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -36436,7 +36174,6 @@ func rewriteValueARM64_OpNeq16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpNeq32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Neq32 x y)
 	// cond:
 	// result: (NotEqual (CMPW x y))
@@ -36454,7 +36191,6 @@ func rewriteValueARM64_OpNeq32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpNeq32F_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Neq32F x y)
 	// cond:
 	// result: (NotEqual (FCMPS x y))
@@ -36472,7 +36208,6 @@ func rewriteValueARM64_OpNeq32F_0(v *Value) bool {
 }
 func rewriteValueARM64_OpNeq64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Neq64 x y)
 	// cond:
 	// result: (NotEqual (CMP x y))
@@ -36490,7 +36225,6 @@ func rewriteValueARM64_OpNeq64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpNeq64F_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Neq64F x y)
 	// cond:
 	// result: (NotEqual (FCMPD x y))
@@ -36508,9 +36242,7 @@ func rewriteValueARM64_OpNeq64F_0(v *Value) bool {
 }
 func rewriteValueARM64_OpNeq8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Neq8 x y)
 	// cond:
 	// result: (NotEqual (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
@@ -36546,7 +36278,6 @@ func rewriteValueARM64_OpNeqB_0(v *Value) bool {
 }
 func rewriteValueARM64_OpNeqPtr_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (NeqPtr x y)
 	// cond:
 	// result: (NotEqual (CMP x y))
@@ -36578,9 +36309,7 @@ func rewriteValueARM64_OpNilCheck_0(v *Value) bool {
 }
 func rewriteValueARM64_OpNot_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Not x)
 	// cond:
 	// result: (XOR (MOVDconst [1]) x)
@@ -36693,9 +36422,7 @@ func rewriteValueARM64_OpOrB_0(v *Value) bool {
 }
 func rewriteValueARM64_OpPopCount16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (PopCount16 <t> x)
 	// cond:
 	// result: (FMOVDfpgp <t> (VUADDLV <typ.Float64> (VCNT <typ.Float64> (FMOVDgpfp <typ.Float64> (ZeroExt16to64 x)))))
@@ -36718,9 +36445,7 @@ func rewriteValueARM64_OpPopCount16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpPopCount32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (PopCount32 <t> x)
 	// cond:
 	// result: (FMOVDfpgp <t> (VUADDLV <typ.Float64> (VCNT <typ.Float64> (FMOVDgpfp <typ.Float64> (ZeroExt32to64 x)))))
@@ -36743,9 +36468,7 @@ func rewriteValueARM64_OpPopCount32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpPopCount64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (PopCount64 <t> x)
 	// cond:
 	// result: (FMOVDfpgp <t> (VUADDLV <typ.Float64> (VCNT <typ.Float64> (FMOVDgpfp <typ.Float64> x))))
@@ -36766,7 +36489,6 @@ func rewriteValueARM64_OpPopCount64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRotateLeft32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (RotateLeft32 x y)
 	// cond:
 	// result: (RORW x (NEG <y.Type> y))
@@ -36784,7 +36506,6 @@ func rewriteValueARM64_OpRotateLeft32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRotateLeft64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (RotateLeft64 x y)
 	// cond:
 	// result: (ROR x (NEG <y.Type> y))
@@ -36846,9 +36567,7 @@ func rewriteValueARM64_OpRoundToEven_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh16Ux16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh16Ux16 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt16to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
@@ -36881,9 +36600,7 @@ func rewriteValueARM64_OpRsh16Ux16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh16Ux32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh16Ux32 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt16to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
@@ -36916,9 +36633,7 @@ func rewriteValueARM64_OpRsh16Ux32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh16Ux64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh16Ux64 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt16to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
@@ -36947,9 +36662,7 @@ func rewriteValueARM64_OpRsh16Ux64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh16Ux8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh16Ux8 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt16to64 x) (ZeroExt8to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64 y)))
@@ -36982,9 +36695,7 @@ func rewriteValueARM64_OpRsh16Ux8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh16x16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh16x16 x y)
 	// cond:
 	// result: (SRA (SignExt16to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
@@ -37016,9 +36727,7 @@ func rewriteValueARM64_OpRsh16x16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh16x32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh16x32 x y)
 	// cond:
 	// result: (SRA (SignExt16to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
@@ -37050,9 +36759,7 @@ func rewriteValueARM64_OpRsh16x32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh16x64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh16x64 x y)
 	// cond:
 	// result: (SRA (SignExt16to64 x) (CSEL {OpARM64LessThanU} <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
@@ -37080,9 +36787,7 @@ func rewriteValueARM64_OpRsh16x64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh16x8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh16x8 x y)
 	// cond:
 	// result: (SRA (SignExt16to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt8to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64 y))))
@@ -37114,9 +36819,7 @@ func rewriteValueARM64_OpRsh16x8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh32Ux16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh32Ux16 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt32to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
@@ -37149,9 +36852,7 @@ func rewriteValueARM64_OpRsh32Ux16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh32Ux32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh32Ux32 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt32to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
@@ -37184,9 +36885,7 @@ func rewriteValueARM64_OpRsh32Ux32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh32Ux64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh32Ux64 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt32to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
@@ -37215,9 +36914,7 @@ func rewriteValueARM64_OpRsh32Ux64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh32Ux8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh32Ux8 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt32to64 x) (ZeroExt8to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64 y)))
@@ -37250,9 +36947,7 @@ func rewriteValueARM64_OpRsh32Ux8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh32x16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh32x16 x y)
 	// cond:
 	// result: (SRA (SignExt32to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
@@ -37284,9 +36979,7 @@ func rewriteValueARM64_OpRsh32x16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh32x32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh32x32 x y)
 	// cond:
 	// result: (SRA (SignExt32to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
@@ -37318,9 +37011,7 @@ func rewriteValueARM64_OpRsh32x32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh32x64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh32x64 x y)
 	// cond:
 	// result: (SRA (SignExt32to64 x) (CSEL {OpARM64LessThanU} <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
@@ -37348,9 +37039,7 @@ func rewriteValueARM64_OpRsh32x64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh32x8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh32x8 x y)
 	// cond:
 	// result: (SRA (SignExt32to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt8to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64 y))))
@@ -37382,9 +37071,7 @@ func rewriteValueARM64_OpRsh32x8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh64Ux16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh64Ux16 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
@@ -37415,9 +37102,7 @@ func rewriteValueARM64_OpRsh64Ux16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh64Ux32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh64Ux32 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
@@ -37448,7 +37133,6 @@ func rewriteValueARM64_OpRsh64Ux32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh64Ux64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Rsh64Ux64 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
@@ -37475,9 +37159,7 @@ func rewriteValueARM64_OpRsh64Ux64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh64Ux8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh64Ux8 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> x (ZeroExt8to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64 y)))
@@ -37508,9 +37190,7 @@ func rewriteValueARM64_OpRsh64Ux8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh64x16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh64x16 x y)
 	// cond:
 	// result: (SRA x (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
@@ -37540,9 +37220,7 @@ func rewriteValueARM64_OpRsh64x16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh64x32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh64x32 x y)
 	// cond:
 	// result: (SRA x (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
@@ -37572,7 +37250,6 @@ func rewriteValueARM64_OpRsh64x32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh64x64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Rsh64x64 x y)
 	// cond:
 	// result: (SRA x (CSEL {OpARM64LessThanU} <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
@@ -37598,9 +37275,7 @@ func rewriteValueARM64_OpRsh64x64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh64x8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh64x8 x y)
 	// cond:
 	// result: (SRA x (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt8to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64 y))))
@@ -37630,9 +37305,7 @@ func rewriteValueARM64_OpRsh64x8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh8Ux16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh8Ux16 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt8to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
@@ -37665,9 +37338,7 @@ func rewriteValueARM64_OpRsh8Ux16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh8Ux32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh8Ux32 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt8to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
@@ -37700,9 +37371,7 @@ func rewriteValueARM64_OpRsh8Ux32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh8Ux64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh8Ux64 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt8to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
@@ -37731,9 +37400,7 @@ func rewriteValueARM64_OpRsh8Ux64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh8Ux8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh8Ux8 <t> x y)
 	// cond:
 	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt8to64 x) (ZeroExt8to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64 y)))
@@ -37766,9 +37433,7 @@ func rewriteValueARM64_OpRsh8Ux8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh8x16_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh8x16 x y)
 	// cond:
 	// result: (SRA (SignExt8to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
@@ -37800,9 +37465,7 @@ func rewriteValueARM64_OpRsh8x16_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh8x32_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh8x32 x y)
 	// cond:
 	// result: (SRA (SignExt8to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
@@ -37834,9 +37497,7 @@ func rewriteValueARM64_OpRsh8x32_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh8x64_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh8x64 x y)
 	// cond:
 	// result: (SRA (SignExt8to64 x) (CSEL {OpARM64LessThanU} <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
@@ -37864,9 +37525,7 @@ func rewriteValueARM64_OpRsh8x64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpRsh8x8_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Rsh8x8 x y)
 	// cond:
 	// result: (SRA (SignExt8to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt8to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64 y))))
@@ -37964,7 +37623,6 @@ func rewriteValueARM64_OpSignExt8to64_0(v *Value) bool {
 }
 func rewriteValueARM64_OpSlicemask_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	// match: (Slicemask <t> x)
 	// cond:
 	// result: (SRAconst (NEG <t> x) [63])
@@ -38373,9 +38031,7 @@ func rewriteValueARM64_OpXor8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpZero_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Zero [0] _ mem)
 	// cond:
 	// result: mem
@@ -38598,9 +38254,7 @@ func rewriteValueARM64_OpZero_0(v *Value) bool {
 }
 func rewriteValueARM64_OpZero_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Zero [10] ptr mem)
 	// cond:
 	// result: (MOVHstore [8] ptr (MOVDconst [0]) (MOVDstore ptr (MOVDconst [0]) mem))
@@ -38938,9 +38592,7 @@ func rewriteValueARM64_OpZero_10(v *Value) bool {
 }
 func rewriteValueARM64_OpZero_20(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	// match: (Zero [s] ptr mem)
 	// cond: s%16 != 0 && s%16 <= 8 && s > 16
 	// result: (Zero [8] (OffPtr <ptr.Type> ptr [s-8]) (Zero [s-s%16] ptr mem))

@@ -97,8 +97,6 @@ func rewriteValuedec_OpIData_0(v *Value) bool {
 	return false
 }
 func rewriteValuedec_OpITab_0(v *Value) bool {
-	b := v.Block
-	_ = b
 	// match: (ITab (IMake itab _))
 	// cond:
 	// result: itab
@@ -118,11 +116,8 @@ func rewriteValuedec_OpITab_0(v *Value) bool {
 }
 func rewriteValuedec_OpLoad_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Load <t> ptr mem)
 	// cond: t.IsComplex() && t.Size() == 8
 	// result: (ComplexMake (Load <typ.Float32> ptr mem) (Load <typ.Float32> (OffPtr <typ.Float32Ptr> [4] ptr) mem) )
@@ -313,11 +308,8 @@ func rewriteValuedec_OpSlicePtr_0(v *Value) bool {
 }
 func rewriteValuedec_OpStore_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Store {t} dst (ComplexMake real imag) mem)
 	// cond: t.(*types.Type).Size() == 8
 	// result: (Store {typ.Float32} (OffPtr <typ.Float32Ptr> [4] dst) imag (Store {typ.Float32} dst real mem))
