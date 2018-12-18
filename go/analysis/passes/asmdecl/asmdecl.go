@@ -490,7 +490,7 @@ func appendComponentsRecursive(arch *asmArch, t types.Type, cc []component, suff
 		offsets := arch.sizes.Offsetsof(fields)
 		elemoff := int(offsets[1])
 		for i := 0; i < int(tu.Len()); i++ {
-			cc = appendComponentsRecursive(arch, elem, cc, suffix+"_"+strconv.Itoa(i), i*elemoff)
+			cc = appendComponentsRecursive(arch, elem, cc, suffix+"_"+strconv.Itoa(i), off+i*elemoff)
 		}
 	}
 

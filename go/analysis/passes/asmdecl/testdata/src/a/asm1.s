@@ -312,3 +312,9 @@ TEXT ·f17584(SB), NOSPLIT, $12
 	MOVSS	y_real+4(FP), X0
 	MOVSS	y_imag+8(FP), X0
 	RET
+
+// issue 29318
+TEXT ·f29318(SB), NOSPLIT, $32
+	MOVQ	x_0_1+8(FP), AX
+	MOVQ	x_1_1+24(FP), CX
+	RET
