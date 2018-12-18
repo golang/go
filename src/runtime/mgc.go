@@ -1434,6 +1434,7 @@ top:
 			if debugCachedWork {
 				b := &_p_.wbBuf
 				b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
+				b.debugGen = gcWorkPauseGen
 			}
 			// Flush the gcWork, since this may create global work
 			// and set the flushedWork flag.

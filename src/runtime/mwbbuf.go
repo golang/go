@@ -23,6 +23,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -56,6 +57,12 @@ type wbBuf struct {
 	// on. This must be a multiple of wbBufEntryPointers because
 	// the write barrier only checks for overflow once per entry.
 	buf [wbBufEntryPointers * wbBufEntries]uintptr
+
+	// debugGen causes the write barrier buffer to flush after
+	// every write barrier if equal to gcWorkPauseGen. This is for
+	// debugging #27993. This is only set if debugCachedWork is
+	// set.
+	debugGen uint32
 }
 
 const (
@@ -79,7 +86,7 @@ const (
 func (b *wbBuf) reset() {
 	start := uintptr(unsafe.Pointer(&b.buf[0]))
 	b.next = start
-	if writeBarrier.cgo || (debugCachedWork && throwOnGCWork) {
+	if writeBarrier.cgo || (debugCachedWork && (throwOnGCWork || b.debugGen == atomic.Load(&gcWorkPauseGen))) {
 		// Effectively disable the buffer by forcing a flush
 		// on every barrier.
 		b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
