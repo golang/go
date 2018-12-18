@@ -1931,6 +1931,35 @@ var _ = fmt.Printf
 	}.processTest(t, "foo.com", "pkg/uses.go", nil, nil, want)
 }
 
+func TestGlobalImports_MultipleMains(t *testing.T) {
+	const declaresGlobal = `package main
+var fmt int
+`
+	const input = `package main
+import "fmt"
+var _, _ = fmt.Printf, bytes.Equal
+`
+	const want = `package main
+
+import (
+	"bytes"
+	"fmt"
+)
+
+var _, _ = fmt.Printf, bytes.Equal
+`
+
+	testConfig{
+		module: packagestest.Module{
+			Name: "foo.com",
+			Files: fm{
+				"pkg/main.go": declaresGlobal,
+				"pkg/uses.go": input,
+			},
+		},
+	}.processTest(t, "foo.com", "pkg/uses.go", nil, nil, want)
+}
+
 // Tests that sibling files - other files in the same package - can provide an
 // import that may not be the default one otherwise.
 func TestSiblingImports(t *testing.T) {
