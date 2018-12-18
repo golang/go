@@ -24,13 +24,9 @@ func rewriteValuedecArgs(v *Value) bool {
 }
 func rewriteValuedecArgs_OpArg_0(v *Value) bool {
 	b := v.Block
-	_ = b
 	config := b.Func.Config
-	_ = config
 	fe := b.Func.fe
-	_ = fe
 	typ := &b.Func.Config.Types
-	_ = typ
 	// match: (Arg {n} [off])
 	// cond: v.Type.IsString()
 	// result: (StringMake (Arg <typ.BytePtr> {n} [off]) (Arg <typ.Int> {n} [off+config.PtrSize]))
@@ -242,9 +238,7 @@ func rewriteValuedecArgs_OpArg_0(v *Value) bool {
 }
 func rewriteValuedecArgs_OpArg_10(v *Value) bool {
 	b := v.Block
-	_ = b
 	fe := b.Func.fe
-	_ = fe
 	// match: (Arg <t>)
 	// cond: t.IsArray() && t.NumElem() == 0
 	// result: (ArrayMake0)
