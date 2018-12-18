@@ -11,6 +11,14 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+// View abstracts the underlying architecture of the package using the source
+// package. The view provides access to files and their contents, so the source
+// package does not directly access the file system.
+type View interface {
+	// Consider adding an error to this method, if users require it.
+	GetFile(uri URI) File
+}
+
 // File represents a Go source file that has been type-checked. It is the input
 // to most of the exported functions in this package, as it wraps up the
 // building blocks for most queries. Users of the source package can abstract
@@ -20,6 +28,7 @@ type File interface {
 	GetFileSet() (*token.FileSet, error)
 	GetPackage() (*packages.Package, error)
 	GetToken() (*token.File, error)
+	Read() ([]byte, error)
 }
 
 // Range represents a start and end position.

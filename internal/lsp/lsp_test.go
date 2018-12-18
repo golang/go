@@ -11,7 +11,6 @@ import (
 	"go/token"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -36,7 +35,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	// We hardcode the expected number of test cases to ensure that all tests
 	// are being executed. If a test is added, this number must be changed.
 	const expectedCompletionsCount = 60
-	const expectedDiagnosticsCount = 15
+	const expectedDiagnosticsCount = 13
 	const expectedFormatCount = 3
 	const expectedDefinitionsCount = 16
 	const expectedTypeDefinitionsCount = 2
@@ -155,47 +154,94 @@ func (d diagnostics) test(t *testing.T, exported *packagestest.Exported, v *cach
 	count := 0
 	for filename, want := range d {
 		f := v.GetFile(source.ToURI(filename))
-		sourceDiagnostics, err := source.Diagnostics(context.Background(), f)
+		sourceDiagnostics, err := source.Diagnostics(context.Background(), v, f)
 		if err != nil {
 			t.Fatal(err)
 		}
-		got := toProtocolDiagnostics(v, sourceDiagnostics[filename])
+		got := toProtocolDiagnostics(v, source.ToURI(filename), sourceDiagnostics[filename])
 		sorted(got)
-		if equal := reflect.DeepEqual(want, got); !equal {
-			t.Error(diffD(filename, want, got))
+		if diff := diffDiagnostics(filename, want, got); diff != "" {
+			t.Error(diff)
 		}
 		count += len(want)
 	}
 	return count
 }
 
-func (d diagnostics) collect(pos token.Position, msg string) {
-	if _, ok := d[pos.Filename]; !ok {
-		d[pos.Filename] = []protocol.Diagnostic{}
+func (d diagnostics) collect(rng packagestest.RangePosition, msg string) {
+	if rng.Start.Filename != rng.End.Filename {
+		return
+	}
+	filename := rng.Start.Filename
+	if _, ok := d[filename]; !ok {
+		d[filename] = []protocol.Diagnostic{}
 	}
 	// If a file has an empty diagnostics, mark that and return. This allows us
 	// to avoid testing diagnostics in files that may have a lot of them.
 	if msg == "" {
 		return
 	}
-	line := float64(pos.Line - 1)
-	col := float64(pos.Column - 1)
 	want := protocol.Diagnostic{
 		Range: protocol.Range{
 			Start: protocol.Position{
-				Line:      line,
-				Character: col,
+				Line:      float64(rng.Start.Line - 1),
+				Character: float64(rng.Start.Column - 1),
 			},
 			End: protocol.Position{
-				Line:      line,
-				Character: col,
+				Line:      float64(rng.End.Line - 1),
+				Character: float64(rng.End.Column - 1),
 			},
 		},
 		Severity: protocol.SeverityError,
 		Source:   "LSP",
 		Message:  msg,
 	}
-	d[pos.Filename] = append(d[pos.Filename], want)
+	d[filename] = append(d[filename], want)
+}
+
+// diffDiagnostics prints the diff between expected and actual diagnostics test
+// results.
+func diffDiagnostics(filename string, want, got []protocol.Diagnostic) string {
+	if len(got) != len(want) {
+		goto Failed
+	}
+	for i, w := range want {
+		g := got[i]
+		if w.Message != g.Message {
+			goto Failed
+		}
+		if w.Range.Start != g.Range.Start {
+			goto Failed
+		}
+		// Special case for diagnostics on parse errors.
+		if strings.Contains(filename, "noparse") {
+			if g.Range.Start != g.Range.End || w.Range.Start != g.Range.End {
+				goto Failed
+			}
+		} else {
+			if w.Range.End != g.Range.End {
+				goto Failed
+			}
+		}
+		if w.Severity != g.Severity {
+			goto Failed
+		}
+		if w.Source != g.Source {
+			goto Failed
+		}
+	}
+	return ""
+Failed:
+	msg := &bytes.Buffer{}
+	fmt.Fprintf(msg, "diagnostics failed for %s:\nexpected:\n", filename)
+	for _, d := range want {
+		fmt.Fprintf(msg, "  %v\n", d)
+	}
+	fmt.Fprintf(msg, "got:\n")
+	for _, d := range got {
+		fmt.Fprintf(msg, "  %v\n", d)
+	}
+	return msg.String()
 }
 
 func (c completions) test(t *testing.T, exported *packagestest.Exported, s *server, items completionItems) {
@@ -240,7 +286,7 @@ func (c completions) test(t *testing.T, exported *packagestest.Exported, s *serv
 		if err != nil {
 			t.Fatalf("completion failed for %s:%v:%v: %v", filepath.Base(src.Filename), src.Line, src.Column, err)
 		}
-		if diff := diffC(src, want, got); diff != "" {
+		if diff := diffCompletionItems(src, want, got); diff != "" {
 			t.Errorf(diff)
 		}
 	}
@@ -277,6 +323,38 @@ func (i completionItems) collect(pos token.Pos, label, detail, kind string) {
 		Detail: detail,
 		Kind:   float64(k),
 	}
+}
+
+// diffCompletionItems prints the diff between expected and actual completion
+// test results.
+func diffCompletionItems(pos token.Position, want, got []protocol.CompletionItem) string {
+	if len(got) != len(want) {
+		goto Failed
+	}
+	for i, w := range want {
+		g := got[i]
+		if w.Label != g.Label {
+			goto Failed
+		}
+		if w.Detail != g.Detail {
+			goto Failed
+		}
+		if w.Kind != g.Kind {
+			goto Failed
+		}
+	}
+	return ""
+Failed:
+	msg := &bytes.Buffer{}
+	fmt.Fprintf(msg, "completion failed for %s:%v:%v:\nexpected:\n", filepath.Base(pos.Filename), pos.Line, pos.Column)
+	for _, d := range want {
+		fmt.Fprintf(msg, "  %v\n", d)
+	}
+	fmt.Fprintf(msg, "got:\n")
+	for _, d := range got {
+		fmt.Fprintf(msg, "  %v\n", d)
+	}
+	return msg.String()
 }
 
 func (f formats) test(t *testing.T, s *server) {
@@ -340,49 +418,4 @@ func (d definitions) collect(fset *token.FileSet, src, target packagestest.Range
 	tRange := source.Range{Start: target.Start, End: target.End}
 	tLoc := toProtocolLocation(fset, tRange)
 	d[sLoc] = tLoc
-}
-
-// diffD prints the diff between expected and actual diagnostics test results.
-func diffD(filename string, want, got []protocol.Diagnostic) string {
-	msg := &bytes.Buffer{}
-	fmt.Fprintf(msg, "diagnostics failed for %s:\nexpected:\n", filename)
-	for _, d := range want {
-		fmt.Fprintf(msg, "  %v\n", d)
-	}
-	fmt.Fprintf(msg, "got:\n")
-	for _, d := range got {
-		fmt.Fprintf(msg, "  %v\n", d)
-	}
-	return msg.String()
-}
-
-// diffC prints the diff between expected and actual completion test results.
-func diffC(pos token.Position, want, got []protocol.CompletionItem) string {
-	if len(got) != len(want) {
-		goto Failed
-	}
-	for i, w := range want {
-		g := got[i]
-		if w.Label != g.Label {
-			goto Failed
-		}
-		if w.Detail != g.Detail {
-			goto Failed
-		}
-		if w.Kind != g.Kind {
-			goto Failed
-		}
-	}
-	return ""
-Failed:
-	msg := &bytes.Buffer{}
-	fmt.Fprintf(msg, "completion failed for %s:%v:%v:\nexpected:\n", filepath.Base(pos.Filename), pos.Line, pos.Column)
-	for _, d := range want {
-		fmt.Fprintf(msg, "  %v\n", d)
-	}
-	fmt.Fprintf(msg, "got:\n")
-	for _, d := range got {
-		fmt.Fprintf(msg, "  %v\n", d)
-	}
-	return msg.String()
 }

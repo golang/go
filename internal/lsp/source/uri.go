@@ -55,7 +55,7 @@ func toURI(path string) *url.URL {
 	// Handle standard library paths that contain the literal "$GOROOT".
 	// TODO(rstambler): The go/packages API should allow one to determine a user's $GOROOT.
 	const prefix = "$GOROOT"
-	if strings.EqualFold(prefix, path[:len(prefix)]) {
+	if len(path) >= len(prefix) && strings.EqualFold(prefix, path[:len(prefix)]) {
 		suffix := path[len(prefix):]
 		path = runtime.GOROOT() + suffix
 	}

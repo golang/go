@@ -5,7 +5,9 @@
 package source
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"go/token"
 	"strconv"
 	"strings"
@@ -14,11 +16,11 @@ import (
 )
 
 type Diagnostic struct {
-	token.Position
+	Range
 	Message string
 }
 
-func Diagnostics(ctx context.Context, f File) (map[string][]Diagnostic, error) {
+func Diagnostics(ctx context.Context, v View, f File) (map[string][]Diagnostic, error) {
 	pkg, err := f.GetPackage()
 	if err != nil {
 		return nil, err
@@ -47,9 +49,26 @@ func Diagnostics(ctx context.Context, f File) (map[string][]Diagnostic, error) {
 	}
 	for _, diag := range diags {
 		pos := errorPos(diag)
+		diagFile := v.GetFile(ToURI(pos.Filename))
+		diagTok, err := diagFile.GetToken()
+		if err != nil {
+			continue
+		}
+		content, err := diagFile.Read()
+		if err != nil {
+			continue
+		}
+		end, err := identifierEnd(content, pos.Line, pos.Column)
+		// Don't set a range if it's anything other than a type error.
+		if err != nil || diag.Kind != packages.TypeError {
+			end = 0
+		}
 		diagnostic := Diagnostic{
-			Position: pos,
-			Message:  diag.Msg,
+			Range: Range{
+				Start: fromTokenPosition(diagTok, pos.Line, pos.Column),
+				End:   fromTokenPosition(diagTok, pos.Line, pos.Column+end),
+			},
+			Message: diag.Msg,
 		}
 		if _, ok := reports[pos.Filename]; ok {
 			reports[pos.Filename] = append(reports[pos.Filename], diagnostic)
@@ -58,12 +77,14 @@ func Diagnostics(ctx context.Context, f File) (map[string][]Diagnostic, error) {
 	return reports, nil
 }
 
-// FromTokenPosition converts a token.Position (1-based line and column
-// number) to a token.Pos (byte offset value).
-// It requires the token file the pos belongs to in order to do this.
-func FromTokenPosition(f *token.File, pos token.Position) token.Pos {
-	line := lineStart(f, pos.Line)
-	return line + token.Pos(pos.Column-1) // TODO: this is wrong, bytes not characters
+// fromTokenPosition converts a token.Position (1-based line and column
+// number) to a token.Pos (byte offset value). This requires the token.File
+// to which the token.Pos belongs.
+func fromTokenPosition(f *token.File, line, col int) token.Pos {
+	linePos := lineStart(f, line)
+	// TODO: This is incorrect, as pos.Column represents bytes, not characters.
+	// This needs to be handled to address golang.org/issue/29149.
+	return linePos + token.Pos(col-1)
 }
 
 func errorPos(pkgErr packages.Error) token.Position {
@@ -91,4 +112,18 @@ func chop(text string) (remainder string, value int, ok bool) {
 		return text, 0, false
 	}
 	return text[:i], int(v), true
+}
+
+// identifierEnd returns the length of an identifier within a string,
+// given the starting line and column numbers of the identifier.
+func identifierEnd(content []byte, l, c int) (int, error) {
+	lines := bytes.Split(content, []byte("\n"))
+	if len(lines) < l {
+		return 0, fmt.Errorf("invalid line number: got %v, but only %v lines", l, len(lines))
+	}
+	line := lines[l-1]
+	if len(line) < c {
+		return 0, fmt.Errorf("invalid column number: got %v, but the length of the line is %v", c, len(line))
+	}
+	return bytes.IndexAny(line[c-1:], " \n,():;[]"), nil
 }

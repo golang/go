@@ -143,12 +143,14 @@ func (s *server) WillSaveWaitUntil(context.Context, *protocol.WillSaveTextDocume
 }
 
 func (s *server) DidSave(context.Context, *protocol.DidSaveTextDocumentParams) error {
-	// TODO(rstambler): Should we clear the cache here?
 	return nil // ignore
 }
 
 func (s *server) DidClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
-	s.view.GetFile(source.URI(params.TextDocument.URI)).SetContent(nil)
+	f := s.view.GetFile(source.URI(params.TextDocument.URI))
+	if f, ok := f.(*cache.File); ok {
+		f.SetContent(nil)
+	}
 	return nil
 }
 
@@ -214,7 +216,7 @@ func (s *server) Definition(ctx context.Context, params *protocol.TextDocumentPo
 		return nil, err
 	}
 	pos := fromProtocolPosition(tok, params.Position)
-	r, err := source.Definition(ctx, f, pos)
+	r, err := source.Definition(ctx, s.view, f, pos)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +230,7 @@ func (s *server) TypeDefinition(ctx context.Context, params *protocol.TextDocume
 		return nil, err
 	}
 	pos := fromProtocolPosition(tok, params.Position)
-	r, err := source.TypeDefinition(ctx, f, pos)
+	r, err := source.TypeDefinition(ctx, s.view, f, pos)
 	if err != nil {
 		return nil, err
 	}

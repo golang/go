@@ -34,9 +34,9 @@ func NewView(rootPath string) *View {
 	}
 }
 
-// GetFile returns a File for the given uri.
-// It will always succeed, adding the file to the managed set if needed.
-func (v *View) GetFile(uri source.URI) *File {
+// GetFile returns a File for the given URI. It will always succeed because it
+// adds the file to the managed set if needed.
+func (v *View) GetFile(uri source.URI) source.File {
 	v.mu.Lock()
 	f := v.getFile(uri)
 	v.mu.Unlock()
