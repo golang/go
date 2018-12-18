@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/tools/go/internal/packagesdriver"
 	"golang.org/x/tools/internal/gopathwalk"
 	"golang.org/x/tools/internal/semver"
 )
@@ -390,15 +391,7 @@ func runNamedQueries(cfg *Config, driver driver, addPkg func(*Package), queries 
 }
 
 func getSizes(cfg *Config) (types.Sizes, error) {
-	stdout, err := invokeGo(cfg, "env", "GOARCH")
-	if err != nil {
-		return nil, err
-	}
-
-	goarch := strings.TrimSpace(stdout.String())
-	// Assume "gc" because SizesFor doesn't respond to other compilers.
-	// TODO(matloob): add support for gccgo as needed.
-	return types.SizesFor("gc", goarch), nil
+	return packagesdriver.GetSizesGolist(cfg.Context, cfg.BuildFlags, cfg.Env, cfg.Dir, usesExportData(cfg))
 }
 
 // roots selects the appropriate paths to walk based on the passed-in configuration,
