@@ -198,9 +198,12 @@ func loadOptionalSyscalls() {
 	}
 	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
 
-	if windowsFindfunc(n32, []byte("wine_get_version\000")) != nil {
-		// running on Wine
-		initWine(k32)
+	underWine := windowsFindfunc(n32, []byte("wine_get_version\000")) != nil
+	if underWine || GOARCH == "arm" {
+		initQPC(k32)
+	}
+	if underWine {
+		initWine()
 	}
 }
 
@@ -357,7 +360,7 @@ func nowQPC() (sec int64, nsec int32, mono int64) {
 	return
 }
 
-func initWine(k32 uintptr) {
+func initQPC(k32 uintptr) {
 	_GetSystemTimeAsFileTime = windowsFindfunc(k32, []byte("GetSystemTimeAsFileTime\000"))
 	if _GetSystemTimeAsFileTime == nil {
 		throw("could not find GetSystemTimeAsFileTime() syscall")
@@ -394,7 +397,9 @@ func initWine(k32 uintptr) {
 	// We have to do it this way (or similar), since multiplying QPC counter by 100 millions overflows
 	// int64 and resulted time will always be invalid.
 	qpcMultiplier = int64(timediv(1000000000, qpcFrequency, nil))
+}
 
+func initWine() {
 	useQPCTime = 1
 }
 
