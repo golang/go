@@ -56,15 +56,14 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, modules)
 	defer exported.Cleanup()
 
-	s := &server{
-		view: cache.NewView(exported.Config.Dir),
-	}
 	// Merge the exported.Config with the view.Config.
 	cfg := *exported.Config
-	cfg.Fset = s.view.Config.Fset
+	cfg.Fset = token.NewFileSet()
 	cfg.Mode = packages.LoadSyntax
-	s.view.Config = &cfg
 
+	s := &server{
+		view: cache.NewView(&cfg),
+	}
 	// Do a first pass to collect special markers for completion.
 	if err := exported.Expect(map[string]interface{}{
 		"item": func(name string, r packagestest.Range, _, _ string) {
@@ -150,15 +149,15 @@ type completions map[token.Position][]token.Pos
 type formats map[string]string
 type definitions map[protocol.Location]protocol.Location
 
-func (d diagnostics) test(t *testing.T, exported *packagestest.Exported, v *cache.View) int {
+func (d diagnostics) test(t *testing.T, exported *packagestest.Exported, v source.View) int {
 	count := 0
+	ctx := context.Background()
 	for filename, want := range d {
-		f := v.GetFile(source.ToURI(filename))
-		sourceDiagnostics, err := source.Diagnostics(context.Background(), v, f)
+		sourceDiagnostics, err := source.Diagnostics(context.Background(), v, source.ToURI(filename))
 		if err != nil {
 			t.Fatal(err)
 		}
-		got := toProtocolDiagnostics(v, source.ToURI(filename), sourceDiagnostics[filename])
+		got := toProtocolDiagnostics(ctx, v, source.ToURI(filename), sourceDiagnostics[filename])
 		sorted(got)
 		if diff := diffDiagnostics(filename, want, got); diff != "" {
 			t.Error(diff)

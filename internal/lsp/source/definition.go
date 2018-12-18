@@ -48,7 +48,7 @@ func Definition(ctx context.Context, v View, f File, pos token.Pos) (Range, erro
 	if err != nil {
 		return Range{}, err
 	}
-	return objToRange(v, fset, obj), nil
+	return objToRange(ctx, v, fset, obj), nil
 }
 
 func TypeDefinition(ctx context.Context, v View, f File, pos token.Pos) (Range, error) {
@@ -79,7 +79,7 @@ func TypeDefinition(ctx context.Context, v View, f File, pos token.Pos) (Range, 
 	if err != nil {
 		return Range{}, err
 	}
-	return objToRange(v, fset, obj), nil
+	return objToRange(ctx, v, fset, obj), nil
 }
 
 func typeToObject(typ types.Type) (obj types.Object) {
@@ -137,7 +137,7 @@ func checkIdentifier(f *ast.File, pos token.Pos) (ident, error) {
 	return result, nil
 }
 
-func objToRange(v View, fset *token.FileSet, obj types.Object) Range {
+func objToRange(ctx context.Context, v View, fset *token.FileSet, obj types.Object) Range {
 	p := obj.Pos()
 	f := fset.File(p)
 	pos := f.Position(p)
@@ -148,7 +148,10 @@ func objToRange(v View, fset *token.FileSet, obj types.Object) Range {
 		// column to match its offset.
 		//
 		// TODO: If we parse from source, we will never need this hack.
-		f := v.GetFile(ToURI(pos.Filename))
+		f, err := v.GetFile(ctx, ToURI(pos.Filename))
+		if err != nil {
+			goto Return
+		}
 		tok, err := f.GetToken()
 		if err != nil {
 			goto Return

@@ -25,35 +25,6 @@ type File struct {
 	pkg     *packages.Package
 }
 
-// SetContent sets the overlay contents for a file.
-// Setting it to nil will revert it to the on disk contents, and remove it
-// from the active set.
-func (f *File) SetContent(content []byte) {
-	f.view.mu.Lock()
-	defer f.view.mu.Unlock()
-	f.content = content
-	// the ast and token fields are invalid
-	f.ast = nil
-	f.token = nil
-	f.pkg = nil
-	// and we might need to update the overlay
-	switch {
-	case f.active && content == nil:
-		// we were active, and want to forget the content
-		f.active = false
-		if filename, err := f.URI.Filename(); err == nil {
-			delete(f.view.Config.Overlay, filename)
-		}
-		f.content = nil
-	case content != nil:
-		// an active overlay, update the map
-		f.active = true
-		if filename, err := f.URI.Filename(); err == nil {
-			f.view.Config.Overlay[filename] = f.content
-		}
-	}
-}
-
 // Read returns the contents of the file, reading it from file system if needed.
 func (f *File) Read() ([]byte, error) {
 	f.view.mu.Lock()
@@ -62,9 +33,6 @@ func (f *File) Read() ([]byte, error) {
 }
 
 func (f *File) GetFileSet() (*token.FileSet, error) {
-	if f.view.Config == nil {
-		return nil, fmt.Errorf("no config for file view")
-	}
 	if f.view.Config.Fset == nil {
 		return nil, fmt.Errorf("no fileset for file view config")
 	}

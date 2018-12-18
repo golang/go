@@ -20,7 +20,11 @@ type Diagnostic struct {
 	Message string
 }
 
-func Diagnostics(ctx context.Context, v View, f File) (map[string][]Diagnostic, error) {
+func Diagnostics(ctx context.Context, v View, uri URI) (map[string][]Diagnostic, error) {
+	f, err := v.GetFile(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
 	pkg, err := f.GetPackage()
 	if err != nil {
 		return nil, err
@@ -49,7 +53,10 @@ func Diagnostics(ctx context.Context, v View, f File) (map[string][]Diagnostic, 
 	}
 	for _, diag := range diags {
 		pos := errorPos(diag)
-		diagFile := v.GetFile(ToURI(pos.Filename))
+		diagFile, err := v.GetFile(ctx, ToURI(pos.Filename))
+		if err != nil {
+			continue
+		}
 		diagTok, err := diagFile.GetToken()
 		if err != nil {
 			continue

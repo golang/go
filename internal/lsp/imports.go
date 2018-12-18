@@ -7,13 +7,15 @@ package lsp
 import (
 	"context"
 
-	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 )
 
-func organizeImports(ctx context.Context, v *cache.View, uri protocol.DocumentURI) ([]protocol.TextEdit, error) {
-	f := v.GetFile(source.URI(uri))
+func organizeImports(ctx context.Context, v source.View, uri protocol.DocumentURI) ([]protocol.TextEdit, error) {
+	f, err := v.GetFile(ctx, fromProtocolURI(uri))
+	if err != nil {
+		return nil, err
+	}
 	tok, err := f.GetToken()
 	if err != nil {
 		return nil, err
