@@ -1116,7 +1116,6 @@ func testSizes(t *testing.T, exporter packagestest.Exporter) {
 			t.Errorf("for GOARCH=%s, got word size %d, want %d", arch, gotWordSize, wantWordSize)
 		}
 	}
-
 }
 
 // TestContains_FallbackSticks ensures that when there are both contains and non-contains queries
@@ -1257,6 +1256,25 @@ func TestName_ModulesDedup(t *testing.T) {
 		}
 	}
 	t.Errorf("didn't find v2.0.2 of pkg in Load results: %v", initial)
+}
+
+// Test that Load doesn't get confused when two different patterns match the same package. See #29297.
+func TestRedundantQueries(t *testing.T) { packagestest.TestAll(t, testRedundantQueries) }
+func testRedundantQueries(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go": `package a;`,
+		}}})
+	defer exported.Cleanup()
+
+	initial, err := packages.Load(exported.Config, "errors", "name=errors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(initial) != 1 || initial[0].Name != "errors" {
+		t.Fatalf(`Load("errors", "name=errors") = %v, wanted just the errors package`, initial)
+	}
 }
 
 func TestJSON(t *testing.T) { packagestest.TestAll(t, testJSON) }
