@@ -1992,8 +1992,10 @@ func (p *Package) gccErrors(stdin []byte) string {
 		}
 	}
 
-	// Force -O0 optimization
+	// Force -O0 optimization but keep the trailing "-" at the end.
 	nargs = append(nargs, "-O0")
+	nl := len(nargs)
+	nargs[nl-2], nargs[nl-1] = nargs[nl-1], nargs[nl-2]
 
 	if *debugGcc {
 		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(nargs, " "))
