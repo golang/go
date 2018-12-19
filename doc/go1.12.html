@@ -113,10 +113,10 @@ Do not send CLs removing the interior tags from such phrases.
   As part of this change, the experimental <code>-shadow</code> option
   is no longer available with <code>go vet</code>. Checking for
   variable shadowing may now be done using
-  <pre>
-    go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
-    go vet -vettool=$(which shadow)
-  </pre>
+<pre>
+go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+go vet -vettool=$(which shadow)
+</pre>
 </p>
 
 <h3 id="gocache">Build cache requirement</h3>
@@ -505,7 +505,7 @@ for {
       The <a href="/pkg/go/token#File"><code>File</code></a> type has a new
       <a href="/pkg/go/token#File.LineStart"><code>LineStart</code></a> field,
       which returns the position of the start of a given line. This is especially useful
-      in programs that occassionally handle non-Go files, such as assembly, but wish to use
+      in programs that occasionally handle non-Go files, such as assembly, but wish to use
       the <code>token.Pos</code> mechanism to identify file positions.
     </p>
 
@@ -662,7 +662,7 @@ for {
       an iterator for ranging over a map. This type is exposed through the
       <a href="/pkg/reflect#Value"><code>Value</code></a> type's new
       <a href="/pkg/reflect#Value.MapRange"><code>MapRange</code></a> method.
-      This follows the same iteration semantics as a range statment, with <code>Next</code>
+      This follows the same iteration semantics as a range statement, with <code>Next</code>
       to advance the iterator, and <code>Key</code>/<code>Value</code> to access each entry.
     </p>
 
