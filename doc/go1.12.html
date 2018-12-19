@@ -640,7 +640,8 @@ for {
 
     <p><!-- CL 130676 -->
       <a href="/pkg/os/#File.Sync"><code>File.Sync</code></a> now uses <code>F_FULLFSYNC</code> on macOS
-      to properly flush content to permanent storage. Note that this might have a negative performance impact.
+      to correctly flush the file contents to permanent storage.
+      This may cause the method to run more slowly than in previous releases.
     </p>
 
 </dl><!-- os -->
