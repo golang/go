@@ -135,6 +135,16 @@ Do not send CLs removing the interior tags from such phrases.
   Go 1.12 is the last release that will support binary-only packages.
 </p>
 
+<h3 id="cgo">Cgo</h3>
+
+<p>
+	Go 1.12 will translate the C type <code>EGLDisplay</code> to the Go type <code>uintptr</code>.
+	This change is similar to how Go 1.10 and newer treats Darwin's CoreFoundation
+	and Java's JNI types. See the
+	<a href="https://golang.org/cmd/cgo/#hdr-Special_cases">cgo documentation</a>
+	for more information.
+</p>
+
 <h3 id="modules">Modules</h3>
 
 <p><!-- CL 148517 -->
