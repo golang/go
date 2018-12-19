@@ -43,7 +43,7 @@ func sysFault(v unsafe.Pointer, n uintptr) {
 
 func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	flags := int32(_MAP_ANON | _MAP_PRIVATE)
-	if raceenabled {
+	if raceenabled && GOOS == "darwin" {
 		// Currently the race detector expects memory to live within a certain
 		// range, and on Darwin 10.10 mmap is prone to ignoring hints, moreso
 		// than later versions and other BSDs (#26475). So, even though it's
