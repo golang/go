@@ -97,7 +97,8 @@ func (s *server) Run(ctx context.Context, args ...string) error {
 			}
 			fmt.Fprint(outx, "'")
 			if elapsed >= 0 {
-				fmt.Fprintf(outx, " in %vms", elapsed.Nanoseconds()/1000)
+				msec := int(elapsed.Round(time.Millisecond) / time.Millisecond)
+				fmt.Fprintf(outx, " in %dms", msec)
 			}
 			params := string(*payload)
 			if params == "null" {
