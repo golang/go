@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
 	"golang.org/x/tools/go/analysis/passes/assign"
 	"golang.org/x/tools/go/analysis/passes/atomic"
+	"golang.org/x/tools/go/analysis/passes/atomicalign"
 	"golang.org/x/tools/go/analysis/passes/bools"
 	"golang.org/x/tools/go/analysis/passes/buildtag"
 	"golang.org/x/tools/go/analysis/passes/cgocall"
@@ -51,6 +52,7 @@ func main() {
 		asmdecl.Analyzer,
 		assign.Analyzer,
 		atomic.Analyzer,
+		atomicalign.Analyzer,
 		bools.Analyzer,
 		buildtag.Analyzer,
 		cgocall.Analyzer,
