@@ -157,7 +157,7 @@ func (d diagnostics) test(t *testing.T, exported *packagestest.Exported, v sourc
 		if err != nil {
 			t.Fatal(err)
 		}
-		got := toProtocolDiagnostics(ctx, v, source.ToURI(filename), sourceDiagnostics[filename])
+		got := toProtocolDiagnostics(ctx, v, sourceDiagnostics[filename])
 		sorted(got)
 		if diff := diffDiagnostics(filename, want, got); diff != "" {
 			t.Error(diff)

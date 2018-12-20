@@ -70,10 +70,18 @@ func Diagnostics(ctx context.Context, v View, uri URI) (map[string][]Diagnostic,
 		if err != nil || diag.Kind != packages.TypeError {
 			end = 0
 		}
+		startPos := fromTokenPosition(diagTok, pos.Line, pos.Column)
+		if !startPos.IsValid() {
+			continue
+		}
+		endPos := fromTokenPosition(diagTok, pos.Line, pos.Column+end)
+		if !endPos.IsValid() {
+			continue
+		}
 		diagnostic := Diagnostic{
 			Range: Range{
-				Start: fromTokenPosition(diagTok, pos.Line, pos.Column),
-				End:   fromTokenPosition(diagTok, pos.Line, pos.Column+end),
+				Start: startPos,
+				End:   endPos,
 			},
 			Message: diag.Msg,
 		}

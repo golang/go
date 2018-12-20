@@ -139,8 +139,8 @@ func checkIdentifier(f *ast.File, pos token.Pos) (ident, error) {
 
 func objToRange(ctx context.Context, v View, fset *token.FileSet, obj types.Object) Range {
 	p := obj.Pos()
-	f := fset.File(p)
-	pos := f.Position(p)
+	tok := fset.File(p)
+	pos := tok.Position(p)
 	if pos.Column == 1 {
 		// We do not have full position information because exportdata does not
 		// store the column. For now, we attempt to read the original source

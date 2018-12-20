@@ -23,10 +23,9 @@ func (s *server) cacheAndDiagnose(ctx context.Context, uri protocol.DocumentURI,
 			return // handle error?
 		}
 		for filename, diagnostics := range reports {
-			uri := source.ToURI(filename)
 			s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-				URI:         protocol.DocumentURI(uri),
-				Diagnostics: toProtocolDiagnostics(ctx, s.view, uri, diagnostics),
+				URI:         protocol.DocumentURI(source.ToURI(filename)),
+				Diagnostics: toProtocolDiagnostics(ctx, s.view, diagnostics),
 			})
 		}
 	}()
@@ -45,17 +44,10 @@ func (s *server) setContent(ctx context.Context, uri source.URI, content []byte)
 	return nil
 }
 
-func toProtocolDiagnostics(ctx context.Context, v source.View, uri source.URI, diagnostics []source.Diagnostic) []protocol.Diagnostic {
+func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []source.Diagnostic) []protocol.Diagnostic {
 	reports := []protocol.Diagnostic{}
 	for _, diag := range diagnostics {
-		f, err := v.GetFile(ctx, uri)
-		if err != nil {
-			continue // handle error?
-		}
-		tok, err := f.GetToken()
-		if err != nil {
-			continue // handle error?
-		}
+		tok := v.FileSet().File(diag.Start)
 		reports = append(reports, protocol.Diagnostic{
 			Message:  diag.Message,
 			Range:    toProtocolRange(tok, diag.Range),
