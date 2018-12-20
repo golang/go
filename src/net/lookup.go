@@ -123,6 +123,11 @@ type Resolver struct {
 	// GODEBUG=netdns=go, but scoped to just this resolver.
 	PreferGo bool
 
+	// PreferTCP controls whether Go's built-in DNS resolver will use
+	// TCP instead of UDP with a fallback to TCP. It is equivalent to setting
+	// GODEBUG=netdns=go+tcp, but scoped to just this resolver.
+	PreferTCP bool
+
 	// StrictErrors controls the behavior of temporary errors
 	// (including timeout, socket errors, and SERVFAIL) when using
 	// Go's built-in resolver. For a query composed of multiple

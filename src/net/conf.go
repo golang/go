@@ -22,6 +22,9 @@ type conf struct {
 	netGo  bool // go DNS resolution forced
 	netCgo bool // cgo DNS resolution forced
 
+	// use TCP for netGo DNS queries
+	preferTCP bool
+
 	// machine has an /etc/mdns.allow file
 	hasMDNSAllow bool
 
@@ -44,10 +47,11 @@ func systemConf() *conf {
 }
 
 func initConfVal() {
-	dnsMode, debugLevel := goDebugNetDNS()
+	dnsMode, debugLevel, preferTCP := goDebugNetDNS()
 	confVal.dnsDebugLevel = debugLevel
 	confVal.netGo = netGo || dnsMode == "go"
 	confVal.netCgo = netCgo || dnsMode == "cgo"
+	confVal.preferTCP = preferTCP
 
 	if confVal.dnsDebugLevel > 0 {
 		defer func() {
@@ -286,11 +290,13 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 //    2       // debug level 2
 //    cgo     // use cgo for DNS lookups
 //    go      // use go for DNS lookups
+//    tcp     // use TCP for DNS lookups (go resolver only)
 //    cgo+1   // use cgo for DNS lookups + debug level 1
 //    1+cgo   // same
 //    cgo+2   // same, but debug level 2
+//    go+tcp  // use go and TCP
 // etc.
-func goDebugNetDNS() (dnsMode string, debugLevel int) {
+func goDebugNetDNS() (dnsMode string, debugLevel int, preferTCP bool) {
 	goDebug := goDebugString("netdns")
 	parsePart := func(s string) {
 		if s == "" {
@@ -298,6 +304,8 @@ func goDebugNetDNS() (dnsMode string, debugLevel int) {
 		}
 		if '0' <= s[0] && s[0] <= '9' {
 			debugLevel, _, _ = dtoi(s)
+		} else if s == "tcp" {
+			preferTCP = true
 		} else {
 			dnsMode = s
 		}
