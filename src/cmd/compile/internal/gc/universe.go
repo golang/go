@@ -386,6 +386,7 @@ func lexinit1() {
 	types.Errortype.Sym = s
 	types.Errortype.Orig = makeErrorInterface()
 	s.Def = asTypesNode(typenod(types.Errortype))
+	dowidth(types.Errortype)
 
 	// We create separate byte and rune types for better error messages
 	// rather than just creating type alias *types.Sym's for the uint8 and
@@ -401,6 +402,7 @@ func lexinit1() {
 	types.Bytetype.Sym = s
 	s.Def = asTypesNode(typenod(types.Bytetype))
 	asNode(s.Def).Name = new(Name)
+	dowidth(types.Bytetype)
 
 	// rune alias
 	s = builtinpkg.Lookup("rune")
@@ -408,6 +410,7 @@ func lexinit1() {
 	types.Runetype.Sym = s
 	s.Def = asTypesNode(typenod(types.Runetype))
 	asNode(s.Def).Name = new(Name)
+	dowidth(types.Runetype)
 
 	// backend-dependent builtin types (e.g. int).
 	for _, s := range typedefs {
