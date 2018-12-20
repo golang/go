@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -26,7 +27,7 @@ import (
 )
 
 // debug controls verbose logging.
-const debug = false
+var debug, _ = strconv.ParseBool(os.Getenv("GOPACKAGESDEBUG"))
 
 // A goTooOldError reports that the go command
 // found by exec.LookPath is too old to use the new go list behavior.
@@ -711,6 +712,9 @@ func golistargs(cfg *Config, words []string) []string {
 		fmt.Sprintf("-test=%t", cfg.Tests),
 		fmt.Sprintf("-export=%t", usesExportData(cfg)),
 		fmt.Sprintf("-deps=%t", cfg.Mode >= LoadImports),
+		// go list doesn't let you pass -test and -find together,
+		// probably because you'd just get the TestMain.
+		fmt.Sprintf("-find=%t", cfg.Mode < LoadImports && !cfg.Tests),
 	}
 	fullargs = append(fullargs, cfg.BuildFlags...)
 	fullargs = append(fullargs, "--")
