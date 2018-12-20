@@ -314,10 +314,9 @@ for {
 </p>
 
 <p><!-- CL 135395 -->
-  On Linux, the Go runtime now releases memory back to the operating
-  system only when the OS is under memory pressure. This is more
-  efficient, but means a process's RSS (resident set size) won't
-  decrease unless the OS is running out of memory.
+  On Linux, the runtime now uses MADV_FREE to release unused
+  memory. This is more efficient but may result in higher reported
+  RSS. The kernel will reclaim the unused data when it is needed.
 </p>
 
 <p><!-- CL 149578 -->
