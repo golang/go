@@ -580,7 +580,7 @@ func scanGoPackages(refs map[string]map[string]bool) ([]*pkg, error) {
 		loadQueries = append(loadQueries, "name="+pkgName)
 	}
 	sort.Strings(loadQueries)
-	cfg := newPackagesConfig(packages.LoadTypes)
+	cfg := newPackagesConfig(packages.LoadFiles)
 	goPackages, err := packages.Load(cfg, loadQueries...)
 	if err != nil {
 		return nil, err
@@ -846,19 +846,29 @@ func VendorlessPath(ipath string) string {
 // loadExports returns the set of exported symbols in the package at dir.
 // It returns nil on error or if the package name in dir does not match expectPackage.
 func loadExports(ctx context.Context, expectPackage string, pkg *pkg) (map[string]bool, error) {
+	if Debug {
+		log.Printf("loading exports in dir %s (seeking package %s)", pkg.dir, expectPackage)
+	}
 	if pkg.goPackage != nil {
 		exports := map[string]bool{}
-		for _, name := range pkg.goPackage.Types.Scope().Names() {
-			if ast.IsExported(name) {
-				exports[name] = true
+		fset := token.NewFileSet()
+		for _, fname := range pkg.goPackage.CompiledGoFiles {
+			f, err := parser.ParseFile(fset, fname, nil, 0)
+			if err != nil {
+				if Debug {
+					log.Printf("Parsing %s: %v", fname, err)
+				}
+				return nil, err
+			}
+			for name := range f.Scope.Objects {
+				if ast.IsExported(name) {
+					exports[name] = true
+				}
 			}
 		}
 		return exports, nil
 	}
 
-	if Debug {
-		log.Printf("loading exports in dir %s (seeking package %s)", pkg.dir, expectPackage)
-	}
 	exports := make(map[string]bool)
 
 	buildCtx := build.Default
