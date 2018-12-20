@@ -5,11 +5,6 @@
 /*
 Package packages loads Go packages for inspection and analysis.
 
-Note: Though this package is ready for widespread use, we may make minor
-breaking changes if absolutely necessary. Any such change will be
-announced on golang-tools@ at least one week before it is committed. No
-more breaking changes will be made after December 1, 2018.
-
 The Load function takes as input a list of patterns and return a list of Package
 structs describing individual packages matched by those patterns.
 The LoadMode controls the amount of detail in the loaded packages.
