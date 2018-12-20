@@ -2116,7 +2116,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		req.Method != "HEAD" {
 		// Request gzip only, not deflate. Deflate is ambiguous and
 		// not as universally supported anyway.
-		// See: http://www.gzip.org/zlib/zlib_faq.html#faq38
+		// See: https://zlib.net/zlib_faq.html#faq39
 		//
 		// Note that we don't request this for HEAD requests,
 		// due to a bug in nginx:
