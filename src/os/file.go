@@ -473,3 +473,12 @@ func (f *File) SetReadDeadline(t time.Time) error {
 func (f *File) SetWriteDeadline(t time.Time) error {
 	return f.setWriteDeadline(t)
 }
+
+// SyscallConn returns a raw file.
+// This implements the syscall.Conn interface.
+func (f *File) SyscallConn() (syscall.RawConn, error) {
+	if err := f.checkValid("SyscallConn"); err != nil {
+		return nil, err
+	}
+	return newRawConn(f)
+}
