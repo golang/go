@@ -66,6 +66,9 @@ GODEBUG environment variable (see package runtime) to go or cgo, as in:
 The decision can also be forced while building the Go source tree
 by setting the netgo or netcgo build tag.
 
+The pure Go resolver can be configured to use only TCP to communicate
+by using the tcp option, as in GODEBUG=netdns=go,tcp.
+
 A numeric netdns setting, as in GODEBUG=netdns=1, causes the resolver
 to print debugging information about its decisions.
 To force a particular resolver while also printing debugging information,
