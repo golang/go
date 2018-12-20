@@ -144,6 +144,10 @@ func LockOSThreadAvoidsStatePropagation() {
 		// the rest of the process on this thread.
 		// On systems other than Linux, this is a no-op.
 		if err := unshareFs(); err != nil {
+			if err == errNotPermitted {
+				println("unshare not permitted")
+				os.Exit(0)
+			}
 			println("failed to unshare fs:", err.Error())
 			os.Exit(1)
 		}
