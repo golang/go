@@ -534,3 +534,21 @@ func (f *File) checkValid(op string) error {
 	}
 	return nil
 }
+
+type rawConn struct{}
+
+func (c *rawConn) Control(f func(uintptr)) error {
+	return syscall.EPLAN9
+}
+
+func (c *rawConn) Read(f func(uintptr) bool) error {
+	return syscall.EPLAN9
+}
+
+func (c *rawConn) Write(f func(uintptr) bool) error {
+	return syscall.EPLAN9
+}
+
+func newRawConn(file *File) (*rawConn, error) {
+	return nil, syscall.EPLAN9
+}
