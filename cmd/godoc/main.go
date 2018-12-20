@@ -165,7 +165,7 @@ func main() {
 
 	// Check usage.
 	if flag.NArg() > 0 {
-		fmt.Fprintln(os.Stderr, `Unexpected arguments. Use "go doc" for command-line help output instead. For example, "go doc -all net/http".`)
+		fmt.Fprintln(os.Stderr, `Unexpected arguments. Use "go doc" for command-line help output instead. For example, "go doc fmt.Printf".`)
 		usage()
 	}
 	if *httpAddr != "" && *urlFlag != "" && !*writeIndex {
