@@ -386,6 +386,13 @@ func (b *Builder) build(a *Action) (err error) {
 			cached = true
 			a.output = []byte{} // start saving output in case we miss any cache results
 		}
+
+		// Source files might be cached, even if the full action is not
+		// (e.g., go list -compiled -find).
+		if !cached && need&needCompiledGoFiles != 0 && b.loadCachedSrcFiles(a) {
+			need &^= needCompiledGoFiles
+		}
+
 		if need == 0 {
 			return nil
 		}
