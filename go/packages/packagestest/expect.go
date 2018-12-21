@@ -121,10 +121,6 @@ type Range struct {
 	End   token.Pos
 }
 
-type RangePosition struct {
-	Start, End token.Position
-}
-
 // Mark adds a new marker to the known set.
 func (e *Exported) Mark(name string, r Range) {
 	if e.markers == nil {
@@ -177,14 +173,13 @@ func (e *Exported) getMarkers() error {
 }
 
 var (
-	noteType          = reflect.TypeOf((*expect.Note)(nil))
-	identifierType    = reflect.TypeOf(expect.Identifier(""))
-	posType           = reflect.TypeOf(token.Pos(0))
-	positionType      = reflect.TypeOf(token.Position{})
-	rangeType         = reflect.TypeOf(Range{})
-	rangePositionType = reflect.TypeOf(RangePosition{})
-	fsetType          = reflect.TypeOf((*token.FileSet)(nil))
-	regexType         = reflect.TypeOf((*regexp.Regexp)(nil))
+	noteType       = reflect.TypeOf((*expect.Note)(nil))
+	identifierType = reflect.TypeOf(expect.Identifier(""))
+	posType        = reflect.TypeOf(token.Pos(0))
+	positionType   = reflect.TypeOf(token.Position{})
+	rangeType      = reflect.TypeOf(Range{})
+	fsetType       = reflect.TypeOf((*token.FileSet)(nil))
+	regexType      = reflect.TypeOf((*regexp.Regexp)(nil))
 )
 
 // converter converts from a marker's argument parsed from the comment to
@@ -238,17 +233,6 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 				return reflect.Value{}, nil, err
 			}
 			return reflect.ValueOf(r), remains, nil
-		}, nil
-	case pt == rangePositionType:
-		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
-			r, remains, err := e.rangeConverter(n, args)
-			if err != nil {
-				return reflect.Value{}, nil, err
-			}
-			return reflect.ValueOf(RangePosition{
-				Start: e.fset.Position(r.Start),
-				End:   e.fset.Position(r.End),
-			}), remains, nil
 		}, nil
 	case pt == identifierType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {

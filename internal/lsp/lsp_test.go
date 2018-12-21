@@ -104,7 +104,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 
 	t.Run("Diagnostics", func(t *testing.T) {
 		t.Helper()
-		diagnosticsCount := expectedDiagnostics.test(t, exported, s.view)
+		diagnosticsCount := expectedDiagnostics.test(t, s.view)
 		if goVersion111 { // TODO(rstambler): Remove this when we no longer support Go 1.10.
 			if diagnosticsCount != expectedDiagnosticsCount {
 				t.Errorf("got %v diagnostics expected %v", diagnosticsCount, expectedDiagnosticsCount)
@@ -149,7 +149,7 @@ type completions map[token.Position][]token.Pos
 type formats map[string]string
 type definitions map[protocol.Location]protocol.Location
 
-func (d diagnostics) test(t *testing.T, exported *packagestest.Exported, v source.View) int {
+func (d diagnostics) test(t *testing.T, v source.View) int {
 	count := 0
 	ctx := context.Background()
 	for filename, want := range d {
@@ -167,35 +167,23 @@ func (d diagnostics) test(t *testing.T, exported *packagestest.Exported, v sourc
 	return count
 }
 
-func (d diagnostics) collect(rng packagestest.RangePosition, msg string) {
-	if rng.Start.Filename != rng.End.Filename {
-		return
+func (d diagnostics) collect(fset *token.FileSet, rng packagestest.Range, msg string) {
+	f := fset.File(rng.Start)
+	if _, ok := d[f.Name()]; !ok {
+		d[f.Name()] = []protocol.Diagnostic{}
 	}
-	filename := rng.Start.Filename
-	if _, ok := d[filename]; !ok {
-		d[filename] = []protocol.Diagnostic{}
-	}
-	// If a file has an empty diagnostics, mark that and return. This allows us
-	// to avoid testing diagnostics in files that may have a lot of them.
+	// If a file has an empty diagnostic message, return. This allows us to
+	// avoid testing diagnostics in files that may have a lot of them.
 	if msg == "" {
 		return
 	}
 	want := protocol.Diagnostic{
-		Range: protocol.Range{
-			Start: protocol.Position{
-				Line:      float64(rng.Start.Line - 1),
-				Character: float64(rng.Start.Column - 1),
-			},
-			End: protocol.Position{
-				Line:      float64(rng.End.Line - 1),
-				Character: float64(rng.End.Column - 1),
-			},
-		},
+		Range:    toProtocolRange(f, source.Range(rng)),
 		Severity: protocol.SeverityError,
 		Source:   "LSP",
 		Message:  msg,
 	}
-	d[filename] = append(d[filename], want)
+	d[f.Name()] = append(d[f.Name()], want)
 }
 
 // diffDiagnostics prints the diff between expected and actual diagnostics test
@@ -412,9 +400,6 @@ func (d definitions) test(t *testing.T, s *server, typ bool) {
 }
 
 func (d definitions) collect(fset *token.FileSet, src, target packagestest.Range) {
-	sRange := source.Range{Start: src.Start, End: src.End}
-	sLoc := toProtocolLocation(fset, sRange)
-	tRange := source.Range{Start: target.Start, End: target.End}
-	tLoc := toProtocolLocation(fset, tRange)
-	d[sLoc] = tLoc
+	loc := toProtocolLocation(fset, source.Range(src))
+	d[loc] = toProtocolLocation(fset, source.Range(target))
 }

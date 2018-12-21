@@ -44,11 +44,7 @@ func Definition(ctx context.Context, v View, f File, pos token.Pos) (Range, erro
 			}
 		}
 	}
-	fset, err := f.GetFileSet()
-	if err != nil {
-		return Range{}, err
-	}
-	return objToRange(ctx, v, fset, obj), nil
+	return objToRange(ctx, v, obj), nil
 }
 
 func TypeDefinition(ctx context.Context, v View, f File, pos token.Pos) (Range, error) {
@@ -75,11 +71,7 @@ func TypeDefinition(ctx context.Context, v View, f File, pos token.Pos) (Range, 
 	if obj == nil {
 		return Range{}, fmt.Errorf("no object for type %s", typ.String())
 	}
-	fset, err := f.GetFileSet()
-	if err != nil {
-		return Range{}, err
-	}
-	return objToRange(ctx, v, fset, obj), nil
+	return objToRange(ctx, v, obj), nil
 }
 
 func typeToObject(typ types.Type) (obj types.Object) {
@@ -137,9 +129,9 @@ func checkIdentifier(f *ast.File, pos token.Pos) (ident, error) {
 	return result, nil
 }
 
-func objToRange(ctx context.Context, v View, fset *token.FileSet, obj types.Object) Range {
+func objToRange(ctx context.Context, v View, obj types.Object) Range {
 	p := obj.Pos()
-	tok := fset.File(p)
+	tok := v.FileSet().File(p)
 	pos := tok.Position(p)
 	if pos.Column == 1 {
 		// We do not have full position information because exportdata does not
@@ -152,11 +144,11 @@ func objToRange(ctx context.Context, v View, fset *token.FileSet, obj types.Obje
 		if err != nil {
 			goto Return
 		}
-		tok, err := f.GetToken()
+		src, err := f.Read()
 		if err != nil {
 			goto Return
 		}
-		src, err := f.Read()
+		tok, err := f.GetToken()
 		if err != nil {
 			goto Return
 		}
