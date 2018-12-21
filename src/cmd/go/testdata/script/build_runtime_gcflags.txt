@@ -1,0 +1,4 @@
+# This test verifies the standard library (specifically runtime/internal/atomic)
+# can be built with -gcflags when -n is given. See golang.org/issue/26092.
+go build -n -gcflags=all='-l' std
+stderr 'compile.* -l .* runtime/internal/atomic'
