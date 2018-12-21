@@ -755,6 +755,7 @@ func validOptionalPort(port string) bool {
 //
 // If u.Opaque is non-empty, String uses the first form;
 // otherwise it uses the second form.
+// Any non-ASCII characters in host are escaped.
 // To obtain the path, String uses u.EscapedPath().
 //
 // In the second form, the following rules apply:
