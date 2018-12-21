@@ -481,13 +481,13 @@ func Parse(rawurl string) (*URL, error) {
 	u, frag := split(rawurl, "#", true)
 	url, err := parse(u, false)
 	if err != nil {
-		return nil, &Error{"parse", u, err}
+		return nil, &Error{"parse", strconv.Quote(u), err}
 	}
 	if frag == "" {
 		return url, nil
 	}
 	if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
-		return nil, &Error{"parse", rawurl, err}
+		return nil, &Error{"parse", strconv.Quote(rawurl), err}
 	}
 	return url, nil
 }
@@ -500,7 +500,7 @@ func Parse(rawurl string) (*URL, error) {
 func ParseRequestURI(rawurl string) (*URL, error) {
 	url, err := parse(rawurl, true)
 	if err != nil {
-		return nil, &Error{"parse", rawurl, err}
+		return nil, &Error{"parse", strconv.Quote(rawurl), err}
 	}
 	return url, nil
 }
