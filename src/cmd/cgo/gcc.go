@@ -1389,7 +1389,9 @@ func (p *Package) rewriteRef(f *File) {
 
 		// Record source-level edit for cgo output.
 		if !r.Done {
-			repl := gofmtPos(expr, old.Pos())
+			// Prepend a space in case the earlier code ends
+			// with '/', which would give us a "//" comment.
+			repl := " " + gofmtPos(expr, old.Pos())
 			end := fset.Position(old.End())
 			// Subtract 1 from the column if we are going to
 			// append a close parenthesis. That will set the
@@ -1399,7 +1401,7 @@ func (p *Package) rewriteRef(f *File) {
 				sub = 1
 			}
 			if end.Column > sub {
-				repl = fmt.Sprintf("%s/*line :%d:%d*/", repl, end.Line, end.Column-sub)
+				repl = fmt.Sprintf("%s /*line :%d:%d*/", repl, end.Line, end.Column-sub)
 			}
 			if r.Name.Kind != "type" {
 				repl = "(" + repl + ")"
