@@ -442,9 +442,14 @@ for {
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
+    <p><!-- CL 146258 -->
+      TLS 1.2 clients and servers will now advertise and accept RSA-PSS
+      signature algorithms for use with regular RSA public keys.
+    </p>
+
     <p><!-- CL 143177 -->
       If a client sends an initial message that does not look like TLS, the server
-      will now not reply with an alert, and it will expose the underlying
+      will no longer reply with an alert, and it will expose the underlying
       <code>net.Conn</code> in the new field <code>Conn</code> of
       <a href="/pkg/crypto/tls/#RecordHeaderError"><code>RecordHeaderError</code></a>.
     </p>
