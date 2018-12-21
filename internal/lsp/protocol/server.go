@@ -373,7 +373,7 @@ func serverHandler(server Server) jsonrpc2.Handler {
 			resp, err := server.Rename(ctx, &params)
 			unhandledError(conn.Reply(ctx, r, resp, err))
 
-		case "textDocument/foldingRanges":
+		case "textDocument/foldingRange":
 			var params FoldingRangeRequestParam
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				sendParseError(ctx, conn, r, err)
