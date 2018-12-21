@@ -439,9 +439,14 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 
 	// Set line number equal to the line number where the method is declared.
 	var m *types.Field
-	if lookdot0(meth, rcvrtype, &m, false) == 1 {
+	if lookdot0(meth, rcvrtype, &m, false) == 1 && m.Pos.IsKnown() {
 		lineno = m.Pos
 	}
+	// Note: !m.Pos.IsKnown() happens for method expressions where
+	// the method is implicitly declared. The Error method of the
+	// built-in error type is one such method.  We leave the line
+	// number at the use of the method expression in this
+	// case. See issue 29389.
 
 	tfn := nod(OTFUNC, nil, nil)
 	tfn.List.Set(structargs(t0.Params(), true))
