@@ -86,6 +86,9 @@ func GetSizesGolist(ctx context.Context, buildFlags, env []string, dir string, u
 		return nil, err
 	}
 	fields := strings.Fields(stdout.String())
+	if len(fields) < 2 {
+		return nil, fmt.Errorf("could not determine GOARCH and Go compiler")
+	}
 	goarch := fields[0]
 	compiler := fields[1]
 	return types.SizesFor(compiler, goarch), nil
