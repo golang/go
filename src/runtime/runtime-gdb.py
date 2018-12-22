@@ -354,7 +354,7 @@ class IfacePrinter:
 
 		if dtype is None:  # trouble looking up, print something reasonable
 			return "({typename}){data}".format(
-                typename=iface_dtype_name(self.val), data=self.val['data'])
+				typename=iface_dtype_name(self.val), data=self.val['data'])
 
 		try:
 			return self.val['data'].cast(dtype).dereference()
