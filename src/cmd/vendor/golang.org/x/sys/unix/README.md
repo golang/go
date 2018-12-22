@@ -14,7 +14,7 @@ migrating the build system to use containers so the builds are reproducible.
 This is being done on an OS-by-OS basis. Please update this documentation as
 components of the build system change.
 
-### Old Build System (currently for `GOOS != "Linux" || GOARCH == "sparc64"`)
+### Old Build System (currently for `GOOS != "linux"`)
 
 The old build system generates the Go files based on the C header files
 present on your system. This means that files
@@ -34,7 +34,7 @@ your specific system. Running `mkall.sh -n` shows the commands that will be run.
 
 Requirements: bash, perl, go
 
-### New Build System (currently for `GOOS == "Linux" && GOARCH != "sparc64"`)
+### New Build System (currently for `GOOS == "linux"`)
 
 The new build system uses a Docker container to generate the go files directly
 from source checkouts of the kernel and various system libraries. This means

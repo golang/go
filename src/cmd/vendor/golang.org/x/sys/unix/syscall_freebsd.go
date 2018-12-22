@@ -500,6 +500,13 @@ func convertFromDirents11(buf []byte, old []byte) int {
 	return dstPos
 }
 
+func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+	if raceenabled {
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	return sendfile(outfd, infd, offset, count)
+}
+
 /*
  * Exposed directly
  */
