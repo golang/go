@@ -406,6 +406,24 @@ var ptrTests = []ptrTest{
 		body:    `var b bytes.Buffer; b.WriteString("a"); C.f(unsafe.Pointer(&b.Bytes()[0]))`,
 		fail:    false,
 	},
+	{
+		// Test that bgsweep releasing a finalizer is OK.
+		name:    "finalizer",
+		c:       `// Nothing to declare.`,
+		imports: []string{"os"},
+		support: `func open() { os.Open(os.Args[0]) }; var G [][]byte`,
+		body:    `for i := 0; i < 10000; i++ { G = append(G, make([]byte, 4096)); if i % 100 == 0 { G = nil; open() } }`,
+		fail:    false,
+	},
+	{
+		// Test that converting generated struct to interface is OK.
+		name:    "structof",
+		c:       `// Nothing to declare.`,
+		imports: []string{"reflect"},
+		support: `type MyInt int; func (i MyInt) Get() int { return int(i) }; type Getter interface { Get() int }`,
+		body:    `t := reflect.StructOf([]reflect.StructField{{Name: "MyInt", Type: reflect.TypeOf(MyInt(0)), Anonymous: true}}); v := reflect.New(t).Elem(); v.Interface().(Getter).Get()`,
+		fail:    false,
+	},
 }
 
 func TestPointerChecks(t *testing.T) {
@@ -478,7 +496,7 @@ func testOne(t *testing.T, pt ptrTest) {
 
 	cmd := exec.Command("go", "build")
 	cmd.Dir = src
-	cmd.Env = addEnv("GOPATH", gopath)
+	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 	buf, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Logf("%#q:\n%s", args(cmd), buf)
@@ -550,16 +568,5 @@ func testOne(t *testing.T, pt ptrTest) {
 }
 
 func cgocheckEnv(val string) []string {
-	return addEnv("GODEBUG", "cgocheck="+val)
-}
-
-func addEnv(key, val string) []string {
-	env := []string{key + "=" + val}
-	look := key + "="
-	for _, e := range os.Environ() {
-		if !strings.HasPrefix(e, look) {
-			env = append(env, e)
-		}
-	}
-	return env
+	return append(os.Environ(), "GODEBUG=cgocheck="+val)
 }
