@@ -1360,6 +1360,13 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 	return mount(source, target, fstype, flags, datap)
 }
 
+func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+	if raceenabled {
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	return sendfile(outfd, infd, offset, count)
+}
+
 // Sendto
 // Recvfrom
 // Socketpair

@@ -17,12 +17,10 @@ if test -z "$GOARCH" -o -z "$GOOS"; then
 fi
 
 # Check that we are using the new build system if we should
-if [[ "$GOOS" = "linux" ]] && [[ "$GOARCH" != "sparc64" ]]; then
-	if [[ "$GOLANG_SYS_BUILD" != "docker" ]]; then
-		echo 1>&2 "In the new build system, mkerrors should not be called directly."
-		echo 1>&2 "See README.md"
-		exit 1
-	fi
+if [[ "$GOOS" = "linux" ]] && [[ "$GOLANG_SYS_BUILD" != "docker" ]]; then
+	echo 1>&2 "In the Docker based build system, mkerrors should not be called directly."
+	echo 1>&2 "See README.md"
+	exit 1
 fi
 
 if [[ "$GOOS" = "aix" ]]; then
@@ -223,7 +221,15 @@ struct ltchars {
 #include <linux/if_xdp.h>
 #include <mtd/ubi-user.h>
 #include <net/route.h>
+
+#if defined(__sparc__)
+// On sparc{,64}, the kernel defines struct termios2 itself which clashes with the
+// definition in glibc. As only the error constants are needed here, include the
+// generic termibits.h (which is included by termbits.h on sparc).
+#include <asm-generic/termbits.h>
+#else
 #include <asm/termbits.h>
+#endif
 
 #ifndef MSG_FASTOPEN
 #define MSG_FASTOPEN    0x20000000
