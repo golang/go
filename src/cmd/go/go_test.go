@@ -2612,6 +2612,14 @@ func TestCoverageDepLoop(t *testing.T) {
 	tg.grepStdout("coverage: 100.0% of statements", "expected 100.0% coverage")
 }
 
+func TestCoverageNoStatements(t *testing.T) {
+	tooSlow(t)
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-cover", "./testdata/testcover/pkg4")
+	tg.grepStdout("[no statements]", "expected [no statements] for pkg4")
+}
+
 func TestCoverageImportMainLoop(t *testing.T) {
 	skipIfGccgo(t, "gccgo has no cover tool")
 	tg := testgo(t)
