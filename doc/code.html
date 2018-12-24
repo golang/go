@@ -27,12 +27,13 @@ A similar explanation is available as a
 <h3 id="Overview">Overview</h3>
 
 <ul>
-	<li>Go programmers typically keep all their Go code in a single <i>workspace</i>.</li>
 	<li>A workspace contains many version control <i>repositories</i>
 	    (managed by Git, for example).</li>
-	<li>Each repository contains one or more <i>packages</i>.</li>
+	<li>Each repository can contain one or more <i>modules</i>.</li>
+	<li>Each of these modules can contain one or more <i>packages</i>.</li>
 	<li>Each package consists of one or more Go source files in a single directory.</li>
-	<li>The path to a package's directory determines its <i>import path</i>.</li>
+	<li>The path to a package is determined by a combination of the module path in the go.mod file,
+		and the relative path from the go.mod file to the package directory.</li>
 </ul>
 
 <p>
@@ -202,25 +203,36 @@ as long as it is unique to the standard library and greater Go ecosystem.
 </p>
 
 <p>
-We'll use <code>github.com/user</code> as our base path. Create a directory
-inside your workspace in which to keep source code:
+Create a new directory on your machine in a location you find most convenient, this
+will contain all of the source code for our Go program:
 </p>
 
 <pre>
-$ <b>mkdir -p $GOPATH/src/github.com/user</b>
+$ <b>mkdir -p ~/myproject/hello</b>
 </pre>
-
 
 <h3 id="Command">Your first program</h3>
 
 <p>
 To compile and run a simple program, first choose a package path (we'll use
-<code>github.com/user/hello</code>) and create a corresponding package directory
-inside your workspace:
+<code>github.com/user/hello</code>) and create a new directory on your machine in which your Go program will live.
+<b>Note:</b> you should ensure this directory lies outside your <code>$GOPATH</code> unless you have explicitly set
+<code>GO111MODULE</code> to <code>on</code>. You can find more about this here: <a href="https://golang.org/wiki/Modules#how-to-use-modules">How to Use Modules</a>
+</p>
+<pre>
+$ <b>mkdir -p ~/myproject/hello</b>
+$ <b>cd ~/myproject/hello</b>
+$ <b>go mod init github.com/user/hello</b>
+</pre>
+
+<p>
+This will generate a <code>go.mod</code> file within your project's root directory.
+The <code>go.mod</code> file will contain the name of our newly created module, in this case,
+<code>github.com/user/hello</code>.
 </p>
 
 <pre>
-$ <b>mkdir $GOPATH/src/github.com/user/hello</b>
+module github.com/user/hello
 </pre>
 
 <p>
@@ -239,28 +251,27 @@ func main() {
 </pre>
 
 <p>
-Now you can build and install that program with the <code>go</code> tool:
+Now you can build that program with the <code>go</code> tool:
+</p>
+
+<pre>
+$ <b>go build ./...</b>
+</pre>
+
+<p>This will compile your Go code into a <code>hello</code> binary that can be executed.</p>
+
+<pre>
+$ <b>./hello</b>
+<b>Hello, world.</b>
+</pre>
+
+<p>
+Note that you can also use the <code>install</code> command to add your compiled binary
+executable to <code>$HOME/go/bin/hello</code>.
 </p>
 
 <pre>
 $ <b>go install github.com/user/hello</b>
-</pre>
-
-<p>
-Note that you can run this command from anywhere on your system. The
-<code>go</code> tool finds the source code by looking for the
-<code>github.com/user/hello</code> package inside the workspace specified by
-<code>GOPATH</code>.
-</p>
-
-<p>
-You can also omit the package path if you run <code>go install</code> from the
-package directory:
-</p>
-
-<pre>
-$ <b>cd $GOPATH/src/github.com/user/hello</b>
-$ <b>go install</b>
 </pre>
 
 <p>
@@ -302,9 +313,9 @@ optional: you do not need to use source control to write Go code.
 </p>
 
 <pre>
-$ <b>cd $GOPATH/src/github.com/user/hello</b>
+$ <b>cd ~/myproject/hello</b>
 $ <b>git init</b>
-Initialized empty Git repository in /home/user/work/src/github.com/user/hello/.git/
+Initialized empty Git repository in ~/myproject/hello/.git/
 $ <b>git add hello.go</b>
 $ <b>git commit -m "initial commit"</b>
 [master (root-commit) 0b4507d] initial commit
@@ -324,12 +335,13 @@ Let's write a library and use it from the <code>hello</code> program.
 </p>
 
 <p>
-Again, the first step is to choose a package path (we'll use
-<code>github.com/user/stringutil</code>) and create the package directory:
+Add a new directory within your <code>~/myproject/hello</code> directory
+called <code>stringutil</code>. This directory will contain all of our new 
+library code
 </p>
 
 <pre>
-$ <b>mkdir $GOPATH/src/github.com/user/stringutil</b>
+$ <b>mkdir ~/myproject/hello/stringutil</b>
 </pre>
 
 <p>
@@ -352,19 +364,11 @@ func Reverse(s string) string {
 </pre>
 
 <p>
-Now, test that the package compiles with <code>go build</code>:
+Now, test that your package compiles with <code>go build</code>:
 </p>
 
 <pre>
-$ <b>go build github.com/user/stringutil</b>
-</pre>
-
-<p>
-Or, if you are working in the package's source directory, just:
-</p>
-
-<pre>
-$ <b>go build</b>
+$ <b>go build github.com/user/hello/stringutil</b>
 </pre>
 
 <p>
@@ -373,9 +377,9 @@ Instead it saves the compiled package in the local build cache.
 </p>
 
 <p>
-After confirming that the <code>stringutil</code> package builds,
+Once you have verified your new package builds, you can then
 modify your original <code>hello.go</code> (which is in
-<code>$GOPATH/src/github.com/user/hello</code>) to use it:
+<code>~/myProject/hello</code>) to use it:
 </p>
 
 <pre>
@@ -384,7 +388,7 @@ package main
 import (
 	"fmt"
 
-	<b>"github.com/user/stringutil"</b>
+	<b>"github.com/user/hello/stringutil"</b>
 )
 
 func main() {
@@ -414,14 +418,15 @@ After the steps above, your workspace should look like this:
 </p>
 
 <pre>
-bin/
-    hello                 # command executable
-src/
-    github.com/user/
-        hello/
-            hello.go      # command source
-        stringutil/
-            reverse.go    # package source
+$GOPATH/bin/
+    hello            # command executable
+
+~/myproject/hello/
+    stringutil/
+      reverse.go     # package source
+    hello.go         # command source
+    go.mod
+    go.sum
 </pre>
 
 <h3 id="PackageNames">Package names</h3>
@@ -460,7 +465,6 @@ See <a href="/doc/effective_go.html#names">Effective Go</a> to learn more about
 Go's naming conventions.
 </p>
 
-
 <h2 id="Testing">Testing</h2>
 
 <p>
@@ -479,7 +483,7 @@ if the function calls a failure function such as <code>t.Error</code> or
 
 <p>
 Add a test to the <code>stringutil</code> package by creating the file
-<code>$GOPATH/src/github.com/user/stringutil/reverse_test.go</code> containing
+<code>~/myproject/hello/stringutil/reverse_test.go</code> containing
 the following Go code.
 </p>
 
@@ -510,8 +514,8 @@ Then run the test with <code>go test</code>:
 </p>
 
 <pre>
-$ <b>go test github.com/user/stringutil</b>
-ok  	github.com/user/stringutil 0.165s
+$ <b>go test github.com/user/hello/stringutil</b>
+ok  	github.com/user/hello/stringutil 0.165s
 </pre>
 
 <p>
@@ -521,7 +525,7 @@ directory, you can omit the package path:
 
 <pre>
 $ <b>go test</b>
-ok  	github.com/user/stringutil 0.165s
+ok  	github.com/user/hello/stringutil 0.165s
 </pre>
 
 <p>
@@ -562,22 +566,24 @@ tree should now look like this:
 </p>
 
 <pre>
-bin/
-    hello                           # command executable
-src/
-    github.com/golang/example/
-	.git/                       # Git repository metadata
-        hello/
-            hello.go                # command source
+~/myProject/hello/
+    stringutil/
+        reverse.go              # package source
+        reverse_test.go         # test source
+    hello.go                    # command source
+    go.mod
+		go.sum
+
+$GOPATH/
+  bin/
+      hello                           # command executable
+  src/github.com/golang/
+      example/
         stringutil/
-            reverse.go              # package source
-            reverse_test.go         # test source
-    github.com/user/
+              reverse.go              # package source
+              reverse_test.go         # test source
         hello/
-            hello.go                # command source
-        stringutil/
-            reverse.go              # package source
-            reverse_test.go         # test source
+            ...
 </pre>
 
 <p>
@@ -603,6 +609,45 @@ provide lists of external Go projects.
 <p>
 For more information on using remote repositories with the <code>go</code> tool, see
 <code><a href="/cmd/go/#hdr-Remote_import_paths">go help importpath</a></code>.
+</p>
+
+
+<h2 id="Modules">Modules</h2>
+
+<p>
+Go recently introduced support for modules in the v1.12 release. A <i>Module</i> is
+a collection of related Go packages that are versioned together as a single unit.
+</p>
+
+<p>
+You'll tend to find one module map to one version-control repository. However, there are
+exceptions to this rule.
+</p>
+
+<p>
+With the introduction of modules came the introduction of the <code>go.mod</code> file which
+encapsulates a module's definition as well as it's dependencies like so:
+</p>
+
+<pre>
+module github.com/my/thing
+
+require (
+		github.com/some/dependency v1.2.3
+		github.com/another/dependency/v4 v4.0.0
+)
+</pre>
+
+<p>
+We have already seen how to initialize a project with the <code>go mod init github.com/user/hello</code>
+command at the root of our project. And when we include new dependencies at the
+top of any of our Go packages, the <code>go build</code> command will automatically
+fetch in any of the dependencies needed for our program before compiling.
+</p>
+
+<p>
+For more help, run <code>go mod help</code> to see a full list of commands and see the
+<a href="https://github.com/golang/go/wiki/Modules">Go Modules</a> Wiki page for more detail.
 </p>
 
 
