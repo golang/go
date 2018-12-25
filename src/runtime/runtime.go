@@ -22,7 +22,7 @@ var ticks struct {
 // input flag 1:FunName 2:CallerFunName
 func GetFuncName(flag int) string {
 	if flag != 1 && flag != 2 {
-			flag = 1
+		flag = 1
 	}
 	pc, _, _, _ := Caller(flag)
 	return FuncForPC(pc).Name()
