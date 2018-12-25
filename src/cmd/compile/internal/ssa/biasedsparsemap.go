@@ -14,6 +14,8 @@ import (
 // (The motivating use case is the line numbers of statements for a single function.)
 // Not all features of a SparseMap are exported, and it is also easy to treat a
 // biasedSparseMap like a SparseSet.
+// biase:有偏见的
+// sparse:稀疏的
 type biasedSparseMap struct {
 	s     *sparseMap
 	first int
