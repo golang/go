@@ -91,3 +91,5 @@ func (s *sparseMap) clear() {
 func (s *sparseMap) contents() []sparseEntry {
 	return s.dense
 }
+
+// done
