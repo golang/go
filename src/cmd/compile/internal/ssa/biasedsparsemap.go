@@ -112,3 +112,5 @@ func (s *biasedSparseMap) clear() {
 		s.s.clear()
 	}
 }
+
+// done
