@@ -1940,6 +1940,16 @@ func callnew(t *types.Type) *Node {
 		yyerror("%v is go:notinheap; heap allocation disallowed", t)
 	}
 	dowidth(t)
+
+	if t.Size() == 0 {
+		// Return &runtime.zerobase if we know that the requested size is 0.
+		// This is what runtime.mallocgc would return.
+		z := newname(Runtimepkg.Lookup("zerobase"))
+		z.SetClass(PEXTERN)
+		z.Type = t
+		return typecheck(nod(OADDR, z, nil), ctxExpr)
+	}
+
 	fn := syslook("newobject")
 	fn = substArgTypes(fn, t)
 	v := mkcall1(fn, types.NewPtr(t), nil, typename(t))
