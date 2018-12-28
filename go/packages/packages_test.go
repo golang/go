@@ -1277,6 +1277,30 @@ func testRedundantQueries(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+// Test that Load with no patterns is equivalent to loading "." via the golist
+// driver.
+func TestNoPatterns(t *testing.T) { packagestest.TestAll(t, testNoPatterns) }
+func testNoPatterns(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go":   `package a;`,
+			"a/b/b.go": `package b;`,
+		}}})
+	defer exported.Cleanup()
+
+	aDir := filepath.Dir(exported.File("golang.org/fake", "a/a.go"))
+	exported.Config.Dir = aDir
+
+	initial, err := packages.Load(exported.Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(initial) != 1 || initial[0].Name != "a" {
+		t.Fatalf(`Load() = %v, wanted just the package in the current directory`, initial)
+	}
+}
+
 func TestJSON(t *testing.T) { packagestest.TestAll(t, testJSON) }
 func testJSON(t *testing.T, exporter packagestest.Exporter) {
 	//TODO: add in some errors

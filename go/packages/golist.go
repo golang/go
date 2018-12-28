@@ -120,7 +120,6 @@ extractQueries:
 			}
 		}
 	}
-	patterns = restPatterns
 
 	// TODO(matloob): Remove the definition of listfunc and just use golistPackages once go1.12 is released.
 	var listfunc driver
@@ -139,8 +138,10 @@ extractQueries:
 	response := &responseDeduper{}
 	var err error
 
-	// see if we have any patterns to pass through to go list.
-	if len(restPatterns) > 0 {
+	// See if we have any patterns to pass through to go list. Zero initial
+	// patterns also requires a go list call, since it's the equivalent of
+	// ".".
+	if len(restPatterns) > 0 || len(patterns) == 0 {
 		dr, err := listfunc(cfg, restPatterns...)
 		if err != nil {
 			return nil, err
