@@ -1111,7 +1111,8 @@ func needRaceCleanup(sym interface{}, v *Value) bool {
 	}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Op == OpStaticCall {
+			switch v.Op {
+			case OpStaticCall:
 				switch v.Aux.(fmt.Stringer).String() {
 				case "runtime.racefuncenter", "runtime.racefuncexit", "runtime.panicindex",
 					"runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap":
@@ -1122,6 +1123,9 @@ func needRaceCleanup(sym interface{}, v *Value) bool {
 					// for accurate stacktraces.
 					return false
 				}
+			case OpClosureCall, OpInterCall:
+				// We must keep the race functions if there are any other call types.
+				return false
 			}
 		}
 	}
