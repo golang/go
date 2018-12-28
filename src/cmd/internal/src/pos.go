@@ -170,6 +170,7 @@ func format(filename string, line, col uint, showCol bool) string {
 // A PosBase encodes a filename and base position.
 // Typically, each file and line directive introduce a PosBase.
 type PosBase struct {
+	// if nil, meaningless PosBase
 	pos         Pos    // position at which the relative position is (line, col)
 	filename    string // file name used to open source file, for error messages
 	absFilename string // absolute file name, for PC-Line tables
