@@ -47,7 +47,7 @@ func RegisterFlags() {
 	// When adding flags here, remember to update
 	// the list of suppressed flags in analysisflags.
 
-	flag.StringVar(&Debug, "debug", Debug, `debug flags, any subset of "lpsv"`)
+	flag.StringVar(&Debug, "debug", Debug, `debug flags, any subset of "fpstv"`)
 
 	flag.StringVar(&CPUProfile, "cpuprofile", "", "write CPU profile to this file")
 	flag.StringVar(&MemProfile, "memprofile", "", "write memory profile to this file")
