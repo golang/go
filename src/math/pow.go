@@ -84,10 +84,26 @@ func pow(x, y float64) float64 {
 			return 1.0 / pow(x, -y)
 		}
 		var (
-			i uint8   = 0
+			i uint8
 			n uint8   = uint8(y)
 			r float64 = 1.0
+
+			// variables for iterations
+			tmp float64
+			c   uint8
 		)
+
+		for n > 1 {
+			tmp = x
+			c = 1
+			for 2*c <= n {
+				tmp *= tmp
+				c *= 2
+			}
+			n = n - c
+			r *= tmp
+		}
+
 		for i = 0; i < n; i++ {
 			r *= x
 		}
