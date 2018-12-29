@@ -62,13 +62,6 @@ func autoexport(n *Node, ctxt Class) {
 	}
 }
 
-// methodbyname sorts types by symbol name.
-type methodbyname []*types.Field
-
-func (x methodbyname) Len() int           { return len(x) }
-func (x methodbyname) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x methodbyname) Less(i, j int) bool { return x[i].Sym.Name < x[j].Sym.Name }
-
 func dumpexport(bout *bio.Writer) {
 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
 	exportf(bout, "\n$$B\n") // indicate binary export format
