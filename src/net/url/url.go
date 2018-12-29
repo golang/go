@@ -435,6 +435,9 @@ func (u *Userinfo) String() string {
 func getscheme(rawurl string) (scheme, path string, err error) {
 	for i := 0; i < len(rawurl); i++ {
 		c := rawurl[i]
+		if i == 0 && c != '/' && c != '.' && c != '?' && c != ';' && (c < 'A' || (c > 'Z' && c < 'a') || c > 'z') {
+			return "", "", errors.New("URL scheme has invalid character")
+		}
 		switch {
 		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z':
 		// do nothing
