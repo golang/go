@@ -41,8 +41,6 @@ func pow(x, y float64) float64 {
 	switch {
 	case y == 0 || x == 1:
 		return 1
-	case y == 1:
-		return x
 	case IsNaN(x) || IsNaN(y):
 		return NaN()
 	case x == 0:
@@ -81,6 +79,19 @@ func pow(x, y float64) float64 {
 		return Sqrt(x)
 	case y == -0.5:
 		return 1 / Sqrt(x)
+	case float64(int8(y)) == y:
+		if y < 0 {
+			return 1.0 / pow(x, -y)
+		}
+		var (
+			i uint8   = 0
+			n uint8   = uint8(y)
+			r float64 = 1.0
+		)
+		for i = 0; i < n; i++ {
+			r *= x
+		}
+		return r
 	}
 
 	yi, yf := Modf(Abs(y))
