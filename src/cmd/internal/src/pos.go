@@ -170,7 +170,7 @@ func format(filename string, line, col uint, showCol bool) string {
 // A PosBase encodes a filename and base position.
 // Typically, each file and line directive introduce a PosBase.
 type PosBase struct {
-	// if nil, meaningless PosBase
+	// 该位置的文件名无意义，只去它的行列号码部分。
 	pos         Pos    // position at which the relative position is (line, col)
 	filename    string // file name used to open source file, for error messages
 	absFilename string // absolute file name, for PC-Line tables
@@ -190,6 +190,7 @@ func NewFileBase(filename, absFilename string) *PosBase {
 		col:         1,
 		inl:         -1,
 	}
+	// pos为自己，代表参照自己。所以是该文件的1:1位置。
 	base.pos = MakePos(base, 1, 1)
 	return base
 }
