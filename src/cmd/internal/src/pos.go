@@ -170,8 +170,9 @@ func format(filename string, line, col uint, showCol bool) string {
 // A PosBase encodes a filename and base position.
 // Typically, each file and line directive introduce a PosBase.
 type PosBase struct {
-	// 该位置的文件名无意义，只去它的行列号码部分。
-	pos         Pos    // position at which the relative position is (line, col)
+	pos Pos // position at which the relative position is (line, col)
+
+	// pos 文件名为该PosBase的很是文件名
 	filename    string // file name used to open source file, for error messages
 	absFilename string // absolute file name, for PC-Line tables
 	symFilename string // cached symbol file name, to avoid repeated string concatenation
@@ -296,14 +297,14 @@ func (b *PosBase) InliningIndex() int {
 // A lico is a compact encoding of a LIne and COlumn number.
 type lico uint32
 
-// Layout constants: 20 bits for line, 8 bits for column, 2 for isStmt, 2 for pro/epilogue
+// Layout constants: 20 bits for line, 8 bits for column, 2 for isStmt, 2 for pro/epilogue(开场白/后记)
 // (If this is too tight, we can either make lico 64b wide,
-// or we can introduce a tiered encoding where we remove column
+// or we can introduce a tiered(层层排列) encoding where we remove column
 // information as line numbers grow bigger; similar to what gcc
 // does.)
 // The bitfield order is chosen to make IsStmt be the least significant
 // part of a position; its use is to communicate statement edges through
-// instruction scrambling in code generation, not to impose an order.
+// instruction scrambling(攀爬) in code generation, not to impose an order.
 // TODO: Prologue and epilogue are perhaps better handled as psuedoops for the assembler,
 // because they have almost no interaction with other uses of the position.
 const (
