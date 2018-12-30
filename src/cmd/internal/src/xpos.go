@@ -116,3 +116,5 @@ func (t *PosTable) Pos(p XPos) Pos {
 	}
 	return Pos{base, p.lico}
 }
+
+// DONE
