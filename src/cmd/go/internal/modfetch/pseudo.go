@@ -37,7 +37,7 @@ package modfetch
 import (
 	"cmd/go/internal/semver"
 	"fmt"
-	"regexp"
+	"internal/lazyregexp"
 	"strings"
 	"time"
 )
@@ -86,7 +86,7 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
 	return v + patch + "-0." + segment + build
 }
 
-var pseudoVersionRE = regexp.MustCompile(`^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+incompatible)?$`)
+var pseudoVersionRE = lazyregexp.New(`^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+incompatible)?$`)
 
 // IsPseudoVersion reports whether v is a pseudo-version.
 func IsPseudoVersion(v string) bool {
