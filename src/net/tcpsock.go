@@ -154,7 +154,7 @@ func (c *TCPConn) SetLinger(sec int) error {
 }
 
 // SetKeepAlive sets whether the operating system should send
-// keepalive messages on the connection.
+// keep-alive messages on the connection.
 func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	if !c.ok() {
 		return syscall.EINVAL
@@ -165,7 +165,7 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	return nil
 }
 
-// SetKeepAlivePeriod sets period between keep alives.
+// SetKeepAlivePeriod sets period between keep-alives.
 func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
 	if !c.ok() {
 		return syscall.EINVAL
