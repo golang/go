@@ -15,10 +15,10 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"internal/lazytemplate"
 	"path/filepath"
 	"sort"
 	"strings"
-	"text/template"
 	"unicode"
 	"unicode/utf8"
 )
@@ -556,7 +556,7 @@ func checkTestFunc(fn *ast.FuncDecl, arg string) error {
 	return nil
 }
 
-var testmainTmpl = template.Must(template.New("main").Parse(`
+var testmainTmpl = lazytemplate.New("main", `
 package main
 
 import (
@@ -657,4 +657,4 @@ func main() {
 {{end}}
 }
 
-`))
+`)
