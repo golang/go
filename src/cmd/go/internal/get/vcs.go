@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/lazyregexp"
 	"internal/singleflight"
 	"log"
 	"net/url"
@@ -170,7 +171,7 @@ var vcsGit = &vcsCmd{
 
 // scpSyntaxRe matches the SCP-like addresses used by Git to access
 // repositories by SSH.
-var scpSyntaxRe = regexp.MustCompile(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
+var scpSyntaxRe = lazyregexp.New(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
 
 func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error) {
 	cmd := "config remote.origin.url"
@@ -525,13 +526,11 @@ func (v *vcsCmd) tagSync(dir, tag string) error {
 // version control system and repository name.
 type vcsPath struct {
 	prefix string                              // prefix this description applies to
-	re     string                              // pattern for import path
+	regexp *lazyregexp.Regexp                  // compiled pattern for import path
 	repo   string                              // repository to use (expand with match of re)
 	vcs    string                              // version control system to use (expand with match of re)
 	check  func(match map[string]string) error // additional checks
 	ping   bool                                // ping for scheme to use to download repo
-
-	regexp *regexp.Regexp // cached compiled form of re
 }
 
 // vcsFromDir inspects dir and its parents to determine the
@@ -632,7 +631,14 @@ type RepoRoot struct {
 	vcs *vcsCmd // internal: vcs command access
 }
 
-var httpPrefixRE = regexp.MustCompile(`^https?:`)
+func httpPrefix(s string) string {
+	for _, prefix := range [...]string{"http:", "https:"} {
+		if strings.HasPrefix(s, prefix) {
+			return prefix
+		}
+	}
+	return ""
+}
 
 // ModuleMode specifies whether to prefer modules when looking up code sources.
 type ModuleMode int
@@ -677,10 +683,10 @@ var errUnknownSite = errors.New("dynamic lookup required to find mapping")
 func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, vcsPaths []*vcsPath) (*RepoRoot, error) {
 	// A common error is to use https://packagepath because that's what
 	// hg and git require. Diagnose this helpfully.
-	if loc := httpPrefixRE.FindStringIndex(importPath); loc != nil {
+	if prefix := httpPrefix(importPath); prefix != "" {
 		// The importPath has been cleaned, so has only one slash. The pattern
 		// ignores the slashes; the error message puts them back on the RHS at least.
-		return nil, fmt.Errorf("%q not allowed in import path", importPath[loc[0]:loc[1]]+"//")
+		return nil, fmt.Errorf("%q not allowed in import path", prefix+"//")
 	}
 	for _, srv := range vcsPaths {
 		if !strings.HasPrefix(importPath, srv.prefix) {
@@ -975,7 +981,7 @@ var vcsPaths = []*vcsPath{
 	// Github
 	{
 		prefix: "github.com/",
-		re:     `^(?P<root>github\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(/[\p{L}0-9_.\-]+)*$`,
+		regexp: lazyregexp.New(`^(?P<root>github\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(/[\p{L}0-9_.\-]+)*$`),
 		vcs:    "git",
 		repo:   "https://{root}",
 		check:  noVCSSuffix,
@@ -984,7 +990,7 @@ var vcsPaths = []*vcsPath{
 	// Bitbucket
 	{
 		prefix: "bitbucket.org/",
-		re:     `^(?P<root>bitbucket\.org/(?P<bitname>[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`,
+		regexp: lazyregexp.New(`^(?P<root>bitbucket\.org/(?P<bitname>[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`),
 		repo:   "https://{root}",
 		check:  bitbucketVCS,
 	},
@@ -992,7 +998,7 @@ var vcsPaths = []*vcsPath{
 	// IBM DevOps Services (JazzHub)
 	{
 		prefix: "hub.jazz.net/git/",
-		re:     `^(?P<root>hub\.jazz\.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
+		regexp: lazyregexp.New(`^(?P<root>hub\.jazz\.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`),
 		vcs:    "git",
 		repo:   "https://{root}",
 		check:  noVCSSuffix,
@@ -1001,7 +1007,7 @@ var vcsPaths = []*vcsPath{
 	// Git at Apache
 	{
 		prefix: "git.apache.org/",
-		re:     `^(?P<root>git\.apache\.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
+		regexp: lazyregexp.New(`^(?P<root>git\.apache\.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`),
 		vcs:    "git",
 		repo:   "https://{root}",
 	},
@@ -1009,7 +1015,7 @@ var vcsPaths = []*vcsPath{
 	// Git at OpenStack
 	{
 		prefix: "git.openstack.org/",
-		re:     `^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`,
+		regexp: lazyregexp.New(`^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`),
 		vcs:    "git",
 		repo:   "https://{root}",
 	},
@@ -1017,7 +1023,7 @@ var vcsPaths = []*vcsPath{
 	// chiselapp.com for fossil
 	{
 		prefix: "chiselapp.com/",
-		re:     `^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-Za-z0-9_.\-]+)$`,
+		regexp: lazyregexp.New(`^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-Za-z0-9_.\-]+)$`),
 		vcs:    "fossil",
 		repo:   "https://{root}",
 	},
@@ -1025,8 +1031,8 @@ var vcsPaths = []*vcsPath{
 	// General syntax for any server.
 	// Must be last.
 	{
-		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[A-Za-z0-9_.\-]+)+?)\.(?P<vcs>bzr|fossil|git|hg|svn))(/~?[A-Za-z0-9_.\-]+)*$`,
-		ping: true,
+		regexp: lazyregexp.New(`(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[A-Za-z0-9_.\-]+)+?)\.(?P<vcs>bzr|fossil|git|hg|svn))(/~?[A-Za-z0-9_.\-]+)*$`),
+		ping:   true,
 	},
 }
 
@@ -1038,23 +1044,11 @@ var vcsPathsAfterDynamic = []*vcsPath{
 	// Launchpad. See golang.org/issue/11436.
 	{
 		prefix: "launchpad.net/",
-		re:     `^(?P<root>launchpad\.net/((?P<project>[A-Za-z0-9_.\-]+)(?P<series>/[A-Za-z0-9_.\-]+)?|~[A-Za-z0-9_.\-]+/(\+junk|[A-Za-z0-9_.\-]+)/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`,
+		regexp: lazyregexp.New(`^(?P<root>launchpad\.net/((?P<project>[A-Za-z0-9_.\-]+)(?P<series>/[A-Za-z0-9_.\-]+)?|~[A-Za-z0-9_.\-]+/(\+junk|[A-Za-z0-9_.\-]+)/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`),
 		vcs:    "bzr",
 		repo:   "https://{root}",
 		check:  launchpadVCS,
 	},
-}
-
-func init() {
-	// fill in cached regexps.
-	// Doing this eagerly discovers invalid regexp syntax
-	// without having to run a command that needs that regexp.
-	for _, srv := range vcsPaths {
-		srv.regexp = regexp.MustCompile(srv.re)
-	}
-	for _, srv := range vcsPathsAfterDynamic {
-		srv.regexp = regexp.MustCompile(srv.re)
-	}
 }
 
 // noVCSSuffix checks that the repository name does not

@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/lazyregexp"
 	"io"
 	"io/ioutil"
 	"log"
@@ -1838,8 +1839,8 @@ func (b *Builder) showOutput(a *Action, dir, desc, out string) {
 // print this error.
 var errPrintedOutput = errors.New("already printed output - no need to show error")
 
-var cgoLine = regexp.MustCompile(`\[[^\[\]]+\.(cgo1|cover)\.go:[0-9]+(:[0-9]+)?\]`)
-var cgoTypeSigRe = regexp.MustCompile(`\b_C2?(type|func|var|macro)_\B`)
+var cgoLine = lazyregexp.New(`\[[^\[\]]+\.(cgo1|cover)\.go:[0-9]+(:[0-9]+)?\]`)
+var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
 
 // run runs the command given by cmdline in the directory dir.
 // If the command fails, run prints information about the failure
@@ -2412,7 +2413,7 @@ func buildFlags(name, defaults string, fromPackage []string, check func(string, 
 	return str.StringList(envList("CGO_"+name, defaults), fromPackage), nil
 }
 
-var cgoRe = regexp.MustCompile(`[/\\:]`)
+var cgoRe = lazyregexp.New(`[/\\:]`)
 
 func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgofiles, gccfiles, gxxfiles, mfiles, ffiles []string) (outGo, outObj []string, err error) {
 	p := a.Package

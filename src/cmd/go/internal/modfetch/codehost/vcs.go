@@ -7,11 +7,11 @@ package codehost
 import (
 	"encoding/xml"
 	"fmt"
+	"internal/lazyregexp"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -124,10 +124,10 @@ type vcsCmd struct {
 	vcs           string                                            // vcs name "hg"
 	init          func(remote string) []string                      // cmd to init repo to track remote
 	tags          func(remote string) []string                      // cmd to list local tags
-	tagRE         *regexp.Regexp                                    // regexp to extract tag names from output of tags cmd
+	tagRE         *lazyregexp.Regexp                                // regexp to extract tag names from output of tags cmd
 	branches      func(remote string) []string                      // cmd to list local branches
-	branchRE      *regexp.Regexp                                    // regexp to extract branch names from output of tags cmd
-	badLocalRevRE *regexp.Regexp                                    // regexp of names that must not be served out of local cache without doing fetch first
+	branchRE      *lazyregexp.Regexp                                // regexp to extract branch names from output of tags cmd
+	badLocalRevRE *lazyregexp.Regexp                                // regexp of names that must not be served out of local cache without doing fetch first
 	statLocal     func(rev, remote string) []string                 // cmd to stat local rev
 	parseStat     func(rev, out string) (*RevInfo, error)           // cmd to parse output of statLocal
 	fetch         []string                                          // cmd to fetch everything from remote
@@ -136,7 +136,7 @@ type vcsCmd struct {
 	readZip       func(rev, subdir, remote, target string) []string // cmd to read rev's subdir as zip file
 }
 
-var re = regexp.MustCompile
+var re = lazyregexp.New
 
 var vcsCmds = map[string]*vcsCmd{
 	"hg": {

@@ -32,14 +32,15 @@ package work
 import (
 	"cmd/go/internal/load"
 	"fmt"
+	"internal/lazyregexp"
 	"os"
 	"regexp"
 	"strings"
 )
 
-var re = regexp.MustCompile
+var re = lazyregexp.New
 
-var validCompilerFlags = []*regexp.Regexp{
+var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-D([A-Za-z_].*)`),
 	re(`-F([^@\-].*)`),
 	re(`-I([^@\-].*)`),
@@ -130,7 +131,7 @@ var validCompilerFlagsWithNextArg = []string{
 	"-x",
 }
 
-var validLinkerFlags = []*regexp.Regexp{
+var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-F([^@\-].*)`),
 	re(`-l([^@\-].*)`),
 	re(`-L([^@\-].*)`),
@@ -217,7 +218,7 @@ func checkLinkerFlags(name, source string, list []string) error {
 	return checkFlags(name, source, list, validLinkerFlags, validLinkerFlagsWithNextArg)
 }
 
-func checkFlags(name, source string, list []string, valid []*regexp.Regexp, validNext []string) error {
+func checkFlags(name, source string, list []string, valid []*lazyregexp.Regexp, validNext []string) error {
 	// Let users override rules with $CGO_CFLAGS_ALLOW, $CGO_CFLAGS_DISALLOW, etc.
 	var (
 		allow    *regexp.Regexp
