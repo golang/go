@@ -80,8 +80,10 @@ func pow(x, y float64) float64 {
 	case y == -0.5:
 		return 1 / Sqrt(x)
 	case float64(int8(y)) == y:
+		isNegative := false
 		if y < 0 {
-			return 1.0 / pow(x, -y)
+			isNegative = true
+			y = -y
 		}
 		var (
 			i uint8
@@ -96,7 +98,7 @@ func pow(x, y float64) float64 {
 		for n > 1 {
 			tmp = x
 			c = 1
-			for 2*c <= n {
+			for c <= n/2 {
 				tmp *= tmp
 				c *= 2
 			}
@@ -106,6 +108,9 @@ func pow(x, y float64) float64 {
 
 		for i = 0; i < n; i++ {
 			r *= x
+		}
+		if isNegative {
+			return 1 / r
 		}
 		return r
 	}
