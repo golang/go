@@ -1602,6 +1602,26 @@ var nextafter64SC = []float64{
 	NaN(),
 }
 
+// Issue #29457
+// value `y` is integer
+var powInteger = []struct {
+	x, y   float64
+	result float64
+}{
+	{Pi, 125, 1.392304051057404453E+62},
+	{-Pi, 125, -1.392304051057404453E+62},
+	{Pi, -125, 7.182339225692378308E-63},
+	{-Pi, -125, -7.182339225692378308E-63},
+	{200, 125, 4.25352958651173248E+287},
+	{-200, 125, -4.25352958651173248E+287},
+	{200, -125, 2.35098870164457404E-288},
+	{-200, -125, -2.35098870164457404E-288},
+	{0.003, 125, 4.36673503164046280E-316},
+	{-0.003, 125, -4.36673503164046280E-316},
+	{0.006, 124, 3.0956727735707076e-276},
+	{-0.006, -124, 3.230315582892015e+275},
+}
+
 var vfpowSC = [][2]float64{
 	{Inf(-1), -Pi},
 	{Inf(-1), -3},
@@ -2766,6 +2786,11 @@ func TestPow(t *testing.T) {
 	for i := 0; i < len(vfpowSC); i++ {
 		if f := Pow(vfpowSC[i][0], vfpowSC[i][1]); !alike(powSC[i], f) {
 			t.Errorf("Pow(%g, %g) = %g, want %g", vfpowSC[i][0], vfpowSC[i][1], f, powSC[i])
+		}
+	}
+	for i := range powInteger {
+		if f := Pow(powInteger[i].x, powInteger[i].y); !alike(powInteger[i].result, f) {
+			t.Errorf("Pow(%g, %g) = %g, want %g", powInteger[i].x, powInteger[i].y, f, powInteger[i].result)
 		}
 	}
 }
