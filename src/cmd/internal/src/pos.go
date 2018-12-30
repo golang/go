@@ -434,3 +434,5 @@ func (x lico) lineNumberHTML() string {
 	}
 	return fmt.Sprintf("<%s>%s%d</%s>", style, pfx, x.Line(), style)
 }
+
+// DONE
