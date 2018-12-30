@@ -157,7 +157,7 @@ func TestEnumWindows(t *testing.T) {
 	}
 }
 
-func callback(hwnd syscall.Handle, lparam uintptr) uintptr {
+func callback(timeFormatString unsafe.Pointer, lparam uintptr) uintptr {
 	(*(*func())(unsafe.Pointer(&lparam)))()
 	return 0 // stop enumeration
 }
@@ -165,9 +165,10 @@ func callback(hwnd syscall.Handle, lparam uintptr) uintptr {
 // nestedCall calls into Windows, back into Go, and finally to f.
 func nestedCall(t *testing.T, f func()) {
 	c := syscall.NewCallback(callback)
-	d := GetDLL(t, "user32.dll")
+	d := GetDLL(t, "kernel32.dll")
 	defer d.Release()
-	d.Proc("EnumWindows").Call(c, uintptr(*(*unsafe.Pointer)(unsafe.Pointer(&f))))
+	const LOCALE_NAME_USER_DEFAULT = 0
+	d.Proc("EnumTimeFormatsEx").Call(c, LOCALE_NAME_USER_DEFAULT, 0, uintptr(*(*unsafe.Pointer)(unsafe.Pointer(&f))))
 }
 
 func TestCallback(t *testing.T) {
