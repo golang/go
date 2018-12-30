@@ -63,12 +63,13 @@ type Dialer struct {
 	// A negative value disables Fast Fallback support.
 	FallbackDelay time.Duration
 
-	// KeepAlive specifies the keep-alive period for an active
-	// network connection.
-	// If zero, keep-alives are enabled if supported by the protocol
-	// and operating system. Network protocols or operating systems
-	// that do not support keep-alives ignore this field.
-	// If negative, keep-alives are disabled.
+	// KeepAlive specifies the interval between keep-alive
+	// probes for an active network connection.
+	// If zero, keep-alive probes are sent with a default value
+	// (currently 15 seconds), if supported by the protocol and operating
+	// system. Network protocols or operating systems that do
+	// not support keep-alives ignore this field.
+	// If negative, keep-alive probes are disabled.
 	KeepAlive time.Duration
 
 	// Resolver optionally specifies an alternate resolver to use.
