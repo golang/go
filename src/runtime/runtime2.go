@@ -468,6 +468,8 @@ type m struct {
 	vdsoSP uintptr // SP for traceback while in VDSO call (0 if not in call)
 	vdsoPC uintptr // PC for traceback while in VDSO call
 
+	dlogPerM
+
 	mOS
 }
 
