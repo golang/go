@@ -925,6 +925,8 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
 		lock(&deadlock)
 	}
 
+	printDebugLog()
+
 	return docrash
 }
 
