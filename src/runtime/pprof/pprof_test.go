@@ -1010,3 +1010,38 @@ func TestAtomicLoadStore64(t *testing.T) {
 	atomic.StoreUint64(&flag, 1)
 	<-done
 }
+
+func TestTracebackAll(t *testing.T) {
+	// With gccgo, if a profiling signal arrives at the wrong time
+	// during traceback, it may crash or hang. See issue #29448.
+	f, err := ioutil.TempFile("", "proftraceback")
+	if err != nil {
+		t.Fatalf("TempFile: %v", err)
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+
+	if err := StartCPUProfile(f); err != nil {
+		t.Fatal(err)
+	}
+	defer StopCPUProfile()
+
+	ch := make(chan int)
+	defer close(ch)
+
+	count := 10
+	for i := 0; i < count; i++ {
+		go func() {
+			<-ch // block
+		}()
+	}
+
+	N := 10000
+	if testing.Short() {
+		N = 500
+	}
+	buf := make([]byte, 10*1024)
+	for i := 0; i < N; i++ {
+		runtime.Stack(buf, true)
+	}
+}
