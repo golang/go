@@ -1519,6 +1519,9 @@ top:
 					print(" wbuf2.n=", gcw.wbuf2.nobj)
 				}
 				print("\n")
+				if gcw.pauseGen == gcw.putGen {
+					println("runtime: checkPut already failed at this generation")
+				}
 				throw("throwOnGCWork")
 			}
 		}
