@@ -31,4 +31,4 @@
 // TODO(mwhudson): only implemented for ppc64x at present.
 #define NOFRAME 512
 // Function can call reflect.Type.Method or reflect.Type.MethodByName.
-#define REFLECTMETHOD = 1024
+#define REFLECTMETHOD 1024
