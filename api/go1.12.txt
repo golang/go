@@ -37,6 +37,7 @@ pkg net/http, const StatusTooEarly ideal-int
 pkg net/http, method (*Client) CloseIdleConnections()
 pkg os, const ModeType = 2401763328
 pkg os, func UserHomeDir() (string, error)
+pkg os, method (*File) SyscallConn() (syscall.RawConn, error)
 pkg os, method (*ProcessState) ExitCode() int
 pkg os/exec, method (ExitError) ExitCode() int
 pkg reflect, method (*MapIter) Key() Value
