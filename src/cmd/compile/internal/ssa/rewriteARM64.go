@@ -427,6 +427,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpAtomicStorePtrNoWB_0(v)
 	case OpAvg64u:
 		return rewriteValueARM64_OpAvg64u_0(v)
+	case OpBitLen32:
+		return rewriteValueARM64_OpBitLen32_0(v)
 	case OpBitLen64:
 		return rewriteValueARM64_OpBitLen64_0(v)
 	case OpBitRev16:
@@ -32712,6 +32714,26 @@ func rewriteValueARM64_OpAvg64u_0(v *Value) bool {
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM64_OpBitLen32_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (BitLen32 x)
+	// cond:
+	// result: (SUB (MOVDconst [32]) (CLZW <typ.Int> x))
+	for {
+		x := v.Args[0]
+		v.reset(OpARM64SUB)
+		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v0.AuxInt = 32
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Pos, OpARM64CLZW, typ.Int)
+		v1.AddArg(x)
+		v.AddArg(v1)
 		return true
 	}
 }

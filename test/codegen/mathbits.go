@@ -31,7 +31,7 @@ func LeadingZeros64(n uint64) int {
 func LeadingZeros32(n uint32) int {
 	// amd64:"BSRQ","LEAQ",-"CMOVQEQ"
 	// s390x:"FLOGR"
-	// arm:"CLZ" arm64:"CLZ"
+	// arm:"CLZ" arm64:"CLZW"
 	// mips:"CLZ"
 	return bits.LeadingZeros32(n)
 }
