@@ -497,6 +497,9 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch protocol %q when %q was requested", resUpType, reqUpType))
 		return
 	}
+
+	copyHeader(res.Header, rw.Header())
+
 	hj, ok := rw.(http.Hijacker)
 	if !ok {
 		p.getErrorHandler()(rw, req, fmt.Errorf("can't switch protocols using non-Hijacker ResponseWriter type %T", rw))
