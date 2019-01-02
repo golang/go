@@ -277,6 +277,16 @@ func (e *Exported) Cleanup() {
 		log.Printf("Skipping cleanup of temp dir: %s", e.temp)
 		return
 	}
+	// Make everything read-write so that the Module exporter's module cache can be deleted.
+	filepath.Walk(e.temp, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			os.Chmod(path, 0777)
+		}
+		return nil
+	})
 	os.RemoveAll(e.temp) // ignore errors
 	e.temp = ""
 }
