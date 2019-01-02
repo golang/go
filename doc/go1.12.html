@@ -313,10 +313,18 @@ for {
   can't reuse existing heap space.
 </p>
 
+<p><!-- CL 146342, CL 146340, CL 146345, CL 146339, CL 146343, CL 146337, CL 146341, CL 146338 -->
+  The Go runtime's timer and deadline code is faster and scales better
+  with higher numbers of CPUs. In particular, this improves the
+  performance of manipulating network connection deadlines.
+</p>
+
 <p><!-- CL 135395 -->
-  On Linux, the runtime now uses MADV_FREE to release unused
+  On Linux, the runtime now uses <code>MADV_FREE</code> to release unused
   memory. This is more efficient but may result in higher reported
   RSS. The kernel will reclaim the unused data when it is needed.
+  To revert to the Go 1.11 behavior (<code>MADV_DONTNEED</code>), set the
+  environment variable <code>GODEBUG=madvdontneed=1</code>.
 </p>
 
 <p><!-- CL 149578 -->
