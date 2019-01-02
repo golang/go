@@ -121,6 +121,7 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/ssa.rbrank %d":              "",
 	"cmd/compile/internal/ssa.regMask %d":             "",
 	"cmd/compile/internal/ssa.register %d":            "",
+	"cmd/compile/internal/ssa.relation %s":            "",
 	"cmd/compile/internal/syntax.Error %q":            "",
 	"cmd/compile/internal/syntax.Expr %#v":            "",
 	"cmd/compile/internal/syntax.Node %T":             "",
