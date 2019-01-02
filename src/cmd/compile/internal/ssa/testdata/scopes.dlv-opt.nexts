@@ -15,6 +15,7 @@
 26:		for i := x; i < 3; i++ {
 31:		fmt.Println(x, y)
 30:		y = x + y //gdb-dbg=(x,y)//gdb-opt=(x,y)
+31:		fmt.Println(x, y)
 33:		for x := 0; x <= 1; x++ { // From delve scopetest.go
 35:			f1(a)
 38:				f2(b)
@@ -42,5 +43,4 @@
 58:				if i == f {
 59:					fmt.Println("foo")
 64:			helloworld()
-66:	}
 15:	}
