@@ -473,6 +473,10 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpConstBool_0(v)
 	case OpConstNil:
 		return rewriteValueARM64_OpConstNil_0(v)
+	case OpCtz16:
+		return rewriteValueARM64_OpCtz16_0(v)
+	case OpCtz16NonZero:
+		return rewriteValueARM64_OpCtz16NonZero_0(v)
 	case OpCtz32:
 		return rewriteValueARM64_OpCtz32_0(v)
 	case OpCtz32NonZero:
@@ -481,6 +485,10 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpCtz64_0(v)
 	case OpCtz64NonZero:
 		return rewriteValueARM64_OpCtz64NonZero_0(v)
+	case OpCtz8:
+		return rewriteValueARM64_OpCtz8_0(v)
+	case OpCtz8NonZero:
+		return rewriteValueARM64_OpCtz8NonZero_0(v)
 	case OpCvt32Fto32:
 		return rewriteValueARM64_OpCvt32Fto32_0(v)
 	case OpCvt32Fto32U:
@@ -33182,6 +33190,39 @@ func rewriteValueARM64_OpConstNil_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueARM64_OpCtz16_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Ctz16 <t> x)
+	// cond:
+	// result: (CLZW <t> (RBITW <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v.reset(OpARM64CLZW)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpARM64RBITW, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpARM64ORconst, typ.UInt32)
+		v1.AuxInt = 0x10000
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM64_OpCtz16NonZero_0(v *Value) bool {
+	// match: (Ctz16NonZero x)
+	// cond:
+	// result: (Ctz32 x)
+	for {
+		x := v.Args[0]
+		v.reset(OpCtz32)
+		v.AddArg(x)
+		return true
+	}
+}
 func rewriteValueARM64_OpCtz32_0(v *Value) bool {
 	b := v.Block
 	_ = b
@@ -33232,6 +33273,39 @@ func rewriteValueARM64_OpCtz64NonZero_0(v *Value) bool {
 	for {
 		x := v.Args[0]
 		v.reset(OpCtz64)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_OpCtz8_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (Ctz8 <t> x)
+	// cond:
+	// result: (CLZW <t> (RBITW <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v.reset(OpARM64CLZW)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpARM64RBITW, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpARM64ORconst, typ.UInt32)
+		v1.AuxInt = 0x100
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM64_OpCtz8NonZero_0(v *Value) bool {
+	// match: (Ctz8NonZero x)
+	// cond:
+	// result: (Ctz32 x)
+	for {
+		x := v.Args[0]
+		v.reset(OpCtz32)
 		v.AddArg(x)
 		return true
 	}
