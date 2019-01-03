@@ -73,7 +73,7 @@ const (
 	O_CREATE int = syscall.O_CREAT  // create a new file if none exists.
 	O_EXCL   int = syscall.O_EXCL   // used with O_CREATE, file must not exist.
 	O_SYNC   int = syscall.O_SYNC   // open for synchronous I/O.
-	O_TRUNC  int = syscall.O_TRUNC  // truncate regular writable file when opened.
+	O_TRUNC  int = syscall.O_TRUNC  // truncate (empty) regular writable file when opened.
 )
 
 // Seek whence values.
