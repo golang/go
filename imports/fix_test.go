@@ -752,6 +752,16 @@ func main() { fmt.Println() }
 `,
 	},
 
+	{
+		name: "ignore_unexported_identifier",
+		in: `package main
+var _ = fmt.unexported`,
+		out: `package main
+
+var _ = fmt.unexported
+`,
+	},
+
 	// FormatOnly
 	{
 		name:       "formatonly_works",

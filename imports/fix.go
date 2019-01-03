@@ -157,7 +157,11 @@ func collectReferences(f *ast.File) map[string]map[string]bool {
 				break
 			}
 			if xident.Obj != nil {
-				// if the parser can resolve it, it's not a package ref
+				// If the parser can resolve it, it's not a package ref.
+				break
+			}
+			if !ast.IsExported(v.Sel.Name) {
+				// Whatever this is, it's not exported from a package.
 				break
 			}
 			pkgName := xident.Name
@@ -166,9 +170,7 @@ func collectReferences(f *ast.File) map[string]map[string]bool {
 				r = make(map[string]bool)
 				refs[pkgName] = r
 			}
-			if ast.IsExported(v.Sel.Name) {
-				r[v.Sel.Name] = true
-			}
+			r[v.Sel.Name] = true
 		}
 		return visitor
 	}
@@ -855,10 +857,7 @@ func loadExports(ctx context.Context, expectPackage string, pkg *pkg) (map[strin
 		for _, fname := range pkg.goPackage.CompiledGoFiles {
 			f, err := parser.ParseFile(fset, fname, nil, 0)
 			if err != nil {
-				if Debug {
-					log.Printf("Parsing %s: %v", fname, err)
-				}
-				return nil, err
+				return nil, fmt.Errorf("parsing %s: %v", fname, err)
 			}
 			for name := range f.Scope.Objects {
 				if ast.IsExported(name) {
@@ -871,34 +870,29 @@ func loadExports(ctx context.Context, expectPackage string, pkg *pkg) (map[strin
 
 	exports := make(map[string]bool)
 
-	buildCtx := build.Default
-
-	// ReadDir is like ioutil.ReadDir, but only returns *.go files
-	// and filters out _test.go files since they're not relevant
-	// and only slow things down.
-	buildCtx.ReadDir = func(dir string) (notTests []os.FileInfo, err error) {
-		all, err := ioutil.ReadDir(dir)
-		if err != nil {
-			return nil, err
+	// Look for non-test, buildable .go files which could provide exports.
+	all, err := ioutil.ReadDir(pkg.dir)
+	if err != nil {
+		return nil, err
+	}
+	var files []os.FileInfo
+	for _, fi := range all {
+		name := fi.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
 		}
-		notTests = all[:0]
-		for _, fi := range all {
-			name := fi.Name()
-			if strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go") {
-				notTests = append(notTests, fi)
-			}
+		match, err := build.Default.MatchFile(pkg.dir, fi.Name())
+		if err != nil || !match {
+			continue
 		}
-		return notTests, nil
+		files = append(files, fi)
 	}
 
-	files, err := buildCtx.ReadDir(pkg.dir)
-	if err != nil {
-		log.Print(err)
-		return nil, err
+	if len(files) == 0 {
+		return nil, fmt.Errorf("dir %v contains no buildable, non-test .go files", pkg.dir)
 	}
 
 	fset := token.NewFileSet()
-
 	for _, fi := range files {
 		select {
 		case <-ctx.Done():
@@ -906,30 +900,19 @@ func loadExports(ctx context.Context, expectPackage string, pkg *pkg) (map[strin
 		default:
 		}
 
-		match, err := buildCtx.MatchFile(pkg.dir, fi.Name())
-		if err != nil || !match {
-			continue
-		}
 		fullFile := filepath.Join(pkg.dir, fi.Name())
 		f, err := parser.ParseFile(fset, fullFile, nil, 0)
 		if err != nil {
-			if Debug {
-				log.Printf("Parsing %s: %v", fullFile, err)
-			}
-			return nil, err
+			return nil, fmt.Errorf("parsing %s: %v", fullFile, err)
 		}
 		pkgName := f.Name.Name
 		if pkgName == "documentation" {
 			// Special case from go/build.ImportDir, not
-			// handled by buildCtx.MatchFile.
+			// handled by MatchFile above.
 			continue
 		}
 		if pkgName != expectPackage {
-			err := fmt.Errorf("scan of dir %v is not expected package %v (actually %v)", pkg.dir, expectPackage, pkgName)
-			if Debug {
-				log.Print(err)
-			}
-			return nil, err
+			return nil, fmt.Errorf("scan of dir %v is not expected package %v (actually %v)", pkg.dir, expectPackage, pkgName)
 		}
 		for name := range f.Scope.Objects {
 			if ast.IsExported(name) {
@@ -1015,6 +998,9 @@ func findImport(ctx context.Context, dirScan []*pkg, pkgName string, symbols map
 
 				exports, err := loadExports(ctx, pkgName, c.pkg)
 				if err != nil {
+					if Debug {
+						log.Printf("loading exports in dir %s (seeking package %s): %v", c.pkg.dir, pkgName, err)
+					}
 					resc <- nil
 					return
 				}
