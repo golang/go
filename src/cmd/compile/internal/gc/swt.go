@@ -243,7 +243,7 @@ func walkswitch(sw *Node) {
 func (s *exprSwitch) walk(sw *Node) {
 	// Guard against double walk, see #25776.
 	if sw.List.Len() == 0 && sw.Nbody.Len() > 0 {
-		Fatalf("second walk of switch")
+		return // Was fatal, but eliminating every possible source of double-walking is hard
 	}
 
 	casebody(sw, nil)
@@ -302,7 +302,7 @@ func (s *exprSwitch) walk(sw *Node) {
 		s.exprname = cond
 	} else {
 		s.exprname = temp(cond.Type)
-		cas = []*Node{nod(OAS, s.exprname, cond)}
+		cas = []*Node{nod(OAS, s.exprname, cond)} // This gets walk()ed again in walkstmtlist just before end of this function.  See #29562.
 		typecheckslice(cas, ctxStmt)
 	}
 
