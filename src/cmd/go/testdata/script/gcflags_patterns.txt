@@ -2,28 +2,28 @@
 
 # -gcflags=-e applies to named packages, not dependencies
 go build -n -v -gcflags=-e z1 z2
-stderr 'compile.* -e .*-p z1'
-stderr 'compile.* -e .*-p z2'
+stderr 'compile.* -e.* -p z1'
+stderr 'compile.* -e.* -p z2'
 stderr 'compile.* -p y'
-! stderr 'compile.* -e .*-p [^z]'
+! stderr 'compile.* -e.* -p [^z]'
 
 # -gcflags can specify package=flags, and can be repeated; last match wins
 go build -n -v -gcflags=-e -gcflags=z1=-N z1 z2
-stderr 'compile.* -N .*-p z1'
-! stderr 'compile.* -e .*-p z1'
-! stderr 'compile.* -N .*-p z2'
-stderr 'compile.* -e .*-p z2'
+stderr 'compile.* -N.* -p z1'
+! stderr 'compile.* -e.* -p z1'
+! stderr 'compile.* -N.* -p z2'
+stderr 'compile.* -e.* -p z2'
 stderr 'compile.* -p y'
-! stderr 'compile.* -e .*-p [^z]'
-! stderr 'compile.* -N .*-p [^z]'
+! stderr 'compile.* -e.* -p [^z]'
+! stderr 'compile.* -N.* -p [^z]'
 
 # -gcflags can have arbitrary spaces around the flags
 go build -n -v -gcflags='  z1 =  	-e 	' z1
-stderr 'compile.* -e .*-p z1'
+stderr 'compile.* -e.* -p z1'
 
-# -gcflags='all=-N -l' should apply to all packages, even with go test
-go test -c -n -gcflags='all=-N -l' z1
-stderr 'compile.* -N -l .*-p z3 '
+# -gcflags='all=-e' should apply to all packages, even with go test
+go test -c -n -gcflags='all=-e' z1
+stderr 'compile.* -e.* -p z3 '
 
 # -ldflags for implicit test package applies to test binary
 go test -c -n -gcflags=-N -ldflags=-X=x.y=z z1
