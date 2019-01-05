@@ -466,9 +466,28 @@ func moduledataverify1(datap *moduledata) {
 // given program counter address, or else nil.
 //
 // If pc represents multiple functions because of inlining, it returns
-// the *Func describing the outermost function.
+// the a *Func describing the innermost function, but with an entry
+// of the outermost function.
 func FuncForPC(pc uintptr) *Func {
-	return findfunc(pc)._Func()
+	f := findfunc(pc)
+	if !f.valid() {
+		return nil
+	}
+	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
+		if ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil); ix >= 0 {
+			inltree := (*[1 << 20]inlinedCall)(inldata)
+			name := funcnameFromNameoff(f, inltree[ix].func_)
+			file, line := funcline(f, pc)
+			fi := &funcinl{
+				entry: f.entry, // entry of the real (the outermost) function.
+				name:  name,
+				file:  file,
+				line:  int(line),
+			}
+			return (*Func)(unsafe.Pointer(fi))
+		}
+	}
+	return f._Func()
 }
 
 // Name returns the name of the function.
@@ -476,12 +495,22 @@ func (f *Func) Name() string {
 	if f == nil {
 		return ""
 	}
+	fn := f.raw()
+	if fn.entry == 0 { // inlined version
+		fi := (*funcinl)(unsafe.Pointer(fn))
+		return fi.name
+	}
 	return funcname(f.funcInfo())
 }
 
 // Entry returns the entry address of the function.
 func (f *Func) Entry() uintptr {
-	return f.raw().entry
+	fn := f.raw()
+	if fn.entry == 0 { // inlined version
+		fi := (*funcinl)(unsafe.Pointer(fn))
+		return fi.entry
+	}
+	return fn.entry
 }
 
 // FileLine returns the file name and line number of the
@@ -489,6 +518,11 @@ func (f *Func) Entry() uintptr {
 // The result will not be accurate if pc is not a program
 // counter within f.
 func (f *Func) FileLine(pc uintptr) (file string, line int) {
+	fn := f.raw()
+	if fn.entry == 0 { // inlined version
+		fi := (*funcinl)(unsafe.Pointer(fn))
+		return fi.file, fi.line
+	}
 	// Pass strict=false here, because anyone can call this function,
 	// and they might just be wrong about targetpc belonging to f.
 	file, line32 := funcline1(f.funcInfo(), pc, false)
