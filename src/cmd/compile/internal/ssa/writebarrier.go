@@ -11,9 +11,18 @@ import (
 	"strings"
 )
 
+// A ZeroRegion records a range of an object which is known to be zero.
+// A ZeroRegion only applies to a single memory state.
+type ZeroRegion struct {
+	base *Value
+	min  int64
+	max  int64
+}
+
 // needwb reports whether we need write barrier for store op v.
 // v must be Store/Move/Zero.
-func needwb(v *Value) bool {
+// zeroes provides known zero information (keyed by ID of memory-type values).
+func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
 	t, ok := v.Aux.(*types.Type)
 	if !ok {
 		v.Fatalf("store aux is not a type: %s", v.LongString())
@@ -24,13 +33,23 @@ func needwb(v *Value) bool {
 	if IsStackAddr(v.Args[0]) {
 		return false // write on stack doesn't need write barrier
 	}
-	if v.Op == OpStore && IsGlobalAddr(v.Args[1]) && IsNewObject(v.Args[0], v.MemoryArg()) {
-		// Storing pointers to non-heap locations into a fresh object doesn't need a write barrier.
-		return false
-	}
 	if v.Op == OpMove && IsReadOnlyGlobalAddr(v.Args[1]) && IsNewObject(v.Args[0], v.MemoryArg()) {
 		// Copying data from readonly memory into a fresh object doesn't need a write barrier.
 		return false
+	}
+	if v.Op == OpStore && IsGlobalAddr(v.Args[1]) {
+		// Storing pointers to non-heap locations into zeroed memory doesn't need a write barrier.
+		ptr := v.Args[0]
+		var off int64
+		size := v.Aux.(*types.Type).Size()
+		for ptr.Op == OpOffPtr {
+			off += ptr.AuxInt
+			ptr = ptr.Args[0]
+		}
+		z := zeroes[v.MemoryArg().ID]
+		if ptr == z.base && off >= z.min && off+size <= z.max {
+			return false
+		}
 	}
 	return true
 }
@@ -58,6 +77,7 @@ func writebarrier(f *Func) {
 	var sset *sparseSet
 	var storeNumber []int32
 
+	zeroes := f.computeZeroMap()
 	for _, b := range f.Blocks { // range loop is safe since the blocks we added contain no stores to expand
 		// first, identify all the stores that need to insert a write barrier.
 		// mark them with WB ops temporarily. record presence of WB ops.
@@ -65,7 +85,7 @@ func writebarrier(f *Func) {
 		for _, v := range b.Values {
 			switch v.Op {
 			case OpStore, OpMove, OpZero:
-				if needwb(v) {
+				if needwb(v, zeroes) {
 					switch v.Op {
 					case OpStore:
 						v.Op = OpStoreWB
@@ -301,6 +321,87 @@ func writebarrier(f *Func) {
 	}
 }
 
+// computeZeroMap returns a map from an ID of a memory value to
+// a set of locations that are known to be zeroed at that memory value.
+func (f *Func) computeZeroMap() map[ID]ZeroRegion {
+	// Keep track of which parts of memory are known to be zero.
+	// This helps with removing write barriers for various initialization patterns.
+	// This analysis is conservative. We only keep track, for each memory state, of
+	// a single constant range of a single object which is known to be zero.
+	zeroes := map[ID]ZeroRegion{}
+	// Find new objects.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Op != OpLoad {
+				continue
+			}
+			mem := v.MemoryArg()
+			if IsNewObject(v, mem) {
+				zeroes[mem.ID] = ZeroRegion{v, 0, v.Type.Elem().Size()}
+			}
+		}
+	}
+	// Find stores to those new objects.
+	for {
+		changed := false
+		for _, b := range f.Blocks {
+			// Note: iterating forwards helps convergence, as values are
+			// typically (but not always!) in store order.
+			for _, v := range b.Values {
+				if v.Op != OpStore {
+					continue
+				}
+				z, ok := zeroes[v.MemoryArg().ID]
+				if !ok {
+					continue
+				}
+				ptr := v.Args[0]
+				var off int64
+				size := v.Aux.(*types.Type).Size()
+				for ptr.Op == OpOffPtr {
+					off += ptr.AuxInt
+					ptr = ptr.Args[0]
+				}
+				if ptr != z.base {
+					// Different base object - we don't know anything.
+					// We could even be writing to the base object we know
+					// about, but through an aliased but offset pointer.
+					// So we have to throw all the zero information we have away.
+					continue
+				}
+				if off < z.min || off+size > z.max {
+					// Writing, at least partially, outside the known zeroes.
+					// We could salvage some zero information, but probably
+					// not worth it.
+					continue
+				}
+				// We now know we're storing to a zeroed area.
+				// We need to make a smaller zero range for the result of this store.
+				if off == z.min {
+					z.min += size
+				} else if off+size == z.max {
+					z.max -= size
+				} else {
+					// The store splits the known zero range in two.
+					// Keep track of the upper one, as we tend to initialize
+					// things in increasing memory order.
+					// TODO: keep track of larger one instead?
+					z.min = off + size
+				}
+				// Save updated zero range.
+				if zeroes[v.ID] != z {
+					zeroes[v.ID] = z
+					changed = true
+				}
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+	return zeroes
+}
+
 // wbcall emits write barrier runtime call in b, returns memory.
 // if valIsVolatile, it moves val into temp space before making the call.
 func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
@@ -373,9 +474,15 @@ func IsStackAddr(v *Value) bool {
 	return false
 }
 
-// IsGlobalAddr reports whether v is known to be an address of a global.
+// IsGlobalAddr reports whether v is known to be an address of a global (or nil).
 func IsGlobalAddr(v *Value) bool {
-	return v.Op == OpAddr && v.Args[0].Op == OpSB
+	if v.Op == OpAddr && v.Args[0].Op == OpSB {
+		return true // address of a global
+	}
+	if v.Op == OpConst64 || v.Op == OpConst32 {
+		return true // nil, the only possible pointer constant
+	}
+	return false
 }
 
 // IsReadOnlyGlobalAddr reports whether v is known to be an address of a read-only global.
@@ -388,10 +495,6 @@ func IsReadOnlyGlobalAddr(v *Value) bool {
 }
 
 // IsNewObject reports whether v is a pointer to a freshly allocated & zeroed object at memory state mem.
-// TODO: Be more precise. We really want "IsNilPointer" for the particular field in question.
-// Right now, we can only detect a new object before any writes have been done to it.
-// We could ignore non-pointer writes, writes to offsets which
-// are known not to overlap the write in question, etc.
 func IsNewObject(v *Value, mem *Value) bool {
 	if v.Op != OpLoad {
 		return false
