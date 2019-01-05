@@ -55,7 +55,7 @@ golsp flags are:
 // Run takes the args after top level flag processing, and invokes the correct
 // sub command as specified by the first argument.
 // If no arguments are passed it will invoke the server sub command, as a
-// temporary measure for compatability.
+// temporary measure for compatibility.
 func (app *Application) Run(ctx context.Context, args ...string) error {
 	if len(args) == 0 {
 		tool.Main(ctx, &app.Server, args)
