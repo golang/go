@@ -729,6 +729,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 			if r.Sym.IsBlank() {
 				return nblank, r.Left
 			}
+			setlineno(r)
 			return nodSym(ODOT, var_, r.Sym), r.Left
 		}
 	default:
@@ -756,7 +757,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 		}
 
 		// build list of assignments: var[index] = expr
-		setlineno(value)
+		setlineno(a)
 		a = nod(OAS, a, value)
 		a = typecheck(a, ctxStmt)
 		switch kind {

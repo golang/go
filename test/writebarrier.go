@@ -261,3 +261,31 @@ func f24() **int {
 func f25() []string {
 	return []string{"abc", "def", "ghi"} // no write barrier here
 }
+
+type T26 struct {
+	a, b, c int
+	d, e, f *int
+}
+
+var g26 int
+
+func f26(p *int) *T26 { // see issue 29573
+	return &T26{
+		a: 5,
+		b: 6,
+		c: 7,
+		d: &g26, // no write barrier: global ptr
+		e: nil,  // no write barrier: nil ptr
+		f: p,    // ERROR "write barrier"
+	}
+}
+
+func f27(p *int) []interface{} {
+	return []interface{}{
+		nil,         // no write barrier: zeroed memory, nil ptr
+		(*T26)(nil), // no write barrier: zeroed memory, type ptr & nil ptr
+		&g26,        // no write barrier: zeroed memory, type ptr & global ptr
+		7,           // no write barrier: zeroed memory, type ptr & global ptr
+		p,           // ERROR "write barrier"
+	}
+}
