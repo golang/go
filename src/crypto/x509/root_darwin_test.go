@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"crypto/rsa"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -101,6 +102,14 @@ func TestSystemRoots(t *testing.T) {
 		now := time.Now()
 		if now.Before(c.NotBefore) || now.After(c.NotAfter) {
 			t.Logf("expired certificate only present in cgo pool (acceptable): %v", c.Subject)
+			continue
+		}
+
+		// On 10.11 there are five unexplained roots that only show up from the
+		// C API. They have in common the fact that they are old, 1024-bit
+		// certificates. It's arguably better to ignore them anyway.
+		if key, ok := c.PublicKey.(*rsa.PublicKey); ok && key.N.BitLen() == 1024 {
+			t.Logf("1024-bit certificate only present in cgo pool (acceptable): %v", c.Subject)
 			continue
 		}
 
