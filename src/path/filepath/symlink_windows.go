@@ -159,18 +159,6 @@ func evalSymlinksUsingGetFinalPathNameByHandle(path string) (string, error) {
 	return "", errors.New("GetFinalPathNameByHandle returned unexpected path=" + s)
 }
 
-func symlinkOrDir(path string) (string, error) {
-	fi, err := os.Lstat(path)
-	if err != nil {
-		return "", err
-	}
-
-	if fi.Mode()&os.ModeSymlink == 0 && !fi.Mode().IsDir() {
-		return "", syscall.ENOTDIR
-	}
-	return path, nil
-}
-
 func samefile(path1, path2 string) bool {
 	fi1, err := os.Lstat(path1)
 	if err != nil {
@@ -183,16 +171,20 @@ func samefile(path1, path2 string) bool {
 	return os.SameFile(fi1, fi2)
 }
 
+// walkSymlinks returns slashAfterFilePathError error for paths like
+// //path/to/existing_file/ and /path/to/existing_file/. and /path/to/existing_file/..
+
+var slashAfterFilePathError = errors.New("attempting to walk past file path.")
+
 func evalSymlinks(path string) (string, error) {
 	newpath, err := walkSymlinks(path)
+	if err == slashAfterFilePathError {
+		return "", syscall.ENOTDIR
+	}
 	if err != nil {
 		newpath2, err2 := evalSymlinksUsingGetFinalPathNameByHandle(path)
 		if err2 == nil {
-			normPath, toNormErr := toNorm(newpath2, normBase)
-			if toNormErr != nil {
-				return "", toNormErr
-			}
-			return symlinkOrDir(normPath)
+			return toNorm(newpath2, normBase)
 		}
 		return "", err
 	}

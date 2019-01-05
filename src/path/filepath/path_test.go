@@ -1382,27 +1382,18 @@ func TestIssue29372(t *testing.T) {
 	path := f.Name()
 	defer os.Remove(path)
 
-	isWin := runtime.GOOS == "windows"
 	pathSeparator := string(filepath.Separator)
-	tests := []struct {
-		path string
-		skip bool
-	}{
-		{path + strings.Repeat(pathSeparator, 1), false},
-		{path + strings.Repeat(pathSeparator, 2), false},
-		{path + strings.Repeat(pathSeparator, 1) + ".", false},
-		{path + strings.Repeat(pathSeparator, 2) + ".", false},
-		// windows.GetFinalPathNameByHandle return the directory part with trailing dot dot
-		// C:\path\to\existing_dir\existing_file\.. returns C:\path\to\existing_dir
-		{path + strings.Repeat(pathSeparator, 1) + "..", isWin},
-		{path + strings.Repeat(pathSeparator, 2) + "..", isWin},
+	tests := []string{
+		path + strings.Repeat(pathSeparator, 1),
+		path + strings.Repeat(pathSeparator, 2),
+		path + strings.Repeat(pathSeparator, 1) + ".",
+		path + strings.Repeat(pathSeparator, 2) + ".",
+		path + strings.Repeat(pathSeparator, 1) + "..",
+		path + strings.Repeat(pathSeparator, 2) + "..",
 	}
 
 	for i, test := range tests {
-		if test.skip {
-			continue
-		}
-		_, err = filepath.EvalSymlinks(test.path)
+		_, err = filepath.EvalSymlinks(test)
 		if err != syscall.ENOTDIR {
 			t.Fatalf("test#%d: want %q, got %q", i, syscall.ENOTDIR, err)
 		}
