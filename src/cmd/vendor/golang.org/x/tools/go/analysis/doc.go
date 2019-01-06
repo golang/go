@@ -3,10 +3,6 @@
 The analysis package defines the interface between a modular static
 analysis and an analysis driver program.
 
-
-THIS INTERFACE IS EXPERIMENTAL AND SUBJECT TO CHANGE.
-We aim to finalize it by November 2018.
-
 Background
 
 A static analysis is a function that inspects a package of Go code and
