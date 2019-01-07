@@ -39,9 +39,7 @@ func checkGdbEnvironment(t *testing.T) {
 	case "aix":
 		t.Skip("gdb does not work on AIX; see https://golang.org/issue/28558")
 	case "freebsd":
-		if runtime.GOARCH == "arm" {
-			t.Skip("skipping gdb tests on freebsd/arm; see https://golang.org/issue/29508")
-		}
+		t.Skip("skipping gdb tests on FreeBSD; see https://golang.org/issue/29508")
 	}
 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
 		t.Skip("gdb test can fail with GOROOT_FINAL pending")
