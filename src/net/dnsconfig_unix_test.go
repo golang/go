@@ -129,7 +129,7 @@ var dnsReadConfigTests = []struct {
 		want: &dnsConfig{
 			servers:  defaultNS,
 			ndots:    1,
-			usetcp:   true,
+			useTCP:   true,
 			timeout:  5 * time.Second,
 			attempts: 2,
 			search:   []string{"domain.local."},

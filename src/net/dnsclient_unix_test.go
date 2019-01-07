@@ -81,7 +81,7 @@ func TestDNSTransportFallback(t *testing.T) {
 	for _, tt := range dnsTransportFallbackTests {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		_, h, err := r.exchange(ctx, tt.server, tt.question, time.Second, false)
+		_, h, err := r.exchange(ctx, tt.server, tt.question, time.Second, useUDPOrTCP)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -137,7 +137,7 @@ func TestSpecialDomainName(t *testing.T) {
 	for _, tt := range specialDomainNameTests {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		_, h, err := r.exchange(ctx, server, tt.question, 3*time.Second, false)
+		_, h, err := r.exchange(ctx, server, tt.question, 3*time.Second, useUDPOrTCP)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -1564,7 +1564,7 @@ func TestDNSDialTCP(t *testing.T) {
 	}
 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 	ctx := context.Background()
-	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, false)
+	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useUDPOrTCP)
 	if err != nil {
 		t.Fatal("exhange failed:", err)
 	}
@@ -1717,7 +1717,7 @@ func TestDNSUseTCP(t *testing.T) {
 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, true)
+	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useTCPOnly)
 	if err != nil {
 		t.Fatal("exchange failed:", err)
 	}
