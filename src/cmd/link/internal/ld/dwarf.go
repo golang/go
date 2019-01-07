@@ -1391,13 +1391,22 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 	fs.Type = sym.SDWARFSECT
 	syms = append(syms, fs)
 
+	// Length field is 4 bytes on Dwarf32 and 12 bytes on Dwarf64
+	lengthFieldSize := int64(4)
+	if isDwarf64(ctxt) {
+		lengthFieldSize += 8
+	}
+
 	// Emit the CIE, Section 6.4.1
 	cieReserve := uint32(16)
 	if haslinkregister(ctxt) {
 		cieReserve = 32
 	}
+	if isDwarf64(ctxt) {
+		cieReserve += 4 // 4 bytes added for cid
+	}
 	createUnitLength(ctxt, fs, uint64(cieReserve))             // initial length, must be multiple of thearch.ptrsize
-	addDwarfAddrField(ctxt, fs, 0xffffffff)                    // cid.
+	addDwarfAddrField(ctxt, fs, ^uint64(0))                    // cid
 	fs.AddUint8(3)                                             // dwarf version (appendix F)
 	fs.AddUint8(0)                                             // augmentation ""
 	dwarf.Uleb128put(dwarfctxt, fs, 1)                         // code_alignment_factor
@@ -1423,8 +1432,7 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 		dwarf.Uleb128put(dwarfctxt, fs, int64(-ctxt.Arch.PtrSize)/dataAlignmentFactor) // ...is saved at [CFA - (PtrSize/4)].
 	}
 
-	// 4 is to exclude the length field.
-	pad := int64(cieReserve) + 4 - fs.Size
+	pad := int64(cieReserve) + lengthFieldSize - fs.Size
 
 	if pad < 0 {
 		Exitf("dwarf: cieReserve too small by %d bytes.", -pad)
@@ -1480,10 +1488,16 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 
 		// Emit the FDE header, Section 6.4.1.
 		//	4 bytes: length, must be multiple of thearch.ptrsize
-		//	4 bytes: Pointer to the CIE above, at offset 0
+		//	4/8 bytes: Pointer to the CIE above, at offset 0
 		//	ptrsize: initial location
 		//	ptrsize: address range
-		fs.AddUint32(ctxt.Arch, uint32(4+2*ctxt.Arch.PtrSize+len(deltaBuf))) // length (excludes itself)
+
+		fdeLength := uint64(4 + 2*ctxt.Arch.PtrSize + len(deltaBuf))
+		if isDwarf64(ctxt) {
+			fdeLength += 4 // 4 bytes added for CIE pointer
+		}
+		createUnitLength(ctxt, fs, fdeLength)
+
 		if ctxt.LinkMode == LinkExternal {
 			addDwarfAddrRef(ctxt, fs, fs)
 		} else {
