@@ -86,14 +86,16 @@ const (
 func fdct(b *block) {
 	// Pass 1: process rows.
 	for y := 0; y < 8; y++ {
-		x0 := b[y*8+0]
-		x1 := b[y*8+1]
-		x2 := b[y*8+2]
-		x3 := b[y*8+3]
-		x4 := b[y*8+4]
-		x5 := b[y*8+5]
-		x6 := b[y*8+6]
-		x7 := b[y*8+7]
+		y8 := y * 8
+		s := b[y8 : y8+8 : y8+8] // Small cap improves performance, see https://golang.org/issue/27857
+		x0 := s[0]
+		x1 := s[1]
+		x2 := s[2]
+		x3 := s[3]
+		x4 := s[4]
+		x5 := s[5]
+		x6 := s[6]
+		x7 := s[7]
 
 		tmp0 := x0 + x7
 		tmp1 := x1 + x6
@@ -110,12 +112,12 @@ func fdct(b *block) {
 		tmp2 = x2 - x5
 		tmp3 = x3 - x4
 
-		b[y*8+0] = (tmp10 + tmp11 - 8*centerJSample) << pass1Bits
-		b[y*8+4] = (tmp10 - tmp11) << pass1Bits
+		s[0] = (tmp10 + tmp11 - 8*centerJSample) << pass1Bits
+		s[4] = (tmp10 - tmp11) << pass1Bits
 		z1 := (tmp12 + tmp13) * fix_0_541196100
 		z1 += 1 << (constBits - pass1Bits - 1)
-		b[y*8+2] = (z1 + tmp12*fix_0_765366865) >> (constBits - pass1Bits)
-		b[y*8+6] = (z1 - tmp13*fix_1_847759065) >> (constBits - pass1Bits)
+		s[2] = (z1 + tmp12*fix_0_765366865) >> (constBits - pass1Bits)
+		s[6] = (z1 - tmp13*fix_1_847759065) >> (constBits - pass1Bits)
 
 		tmp10 = tmp0 + tmp3
 		tmp11 = tmp1 + tmp2
@@ -134,10 +136,10 @@ func fdct(b *block) {
 
 		tmp12 += z1
 		tmp13 += z1
-		b[y*8+1] = (tmp0 + tmp10 + tmp12) >> (constBits - pass1Bits)
-		b[y*8+3] = (tmp1 + tmp11 + tmp13) >> (constBits - pass1Bits)
-		b[y*8+5] = (tmp2 + tmp11 + tmp12) >> (constBits - pass1Bits)
-		b[y*8+7] = (tmp3 + tmp10 + tmp13) >> (constBits - pass1Bits)
+		s[1] = (tmp0 + tmp10 + tmp12) >> (constBits - pass1Bits)
+		s[3] = (tmp1 + tmp11 + tmp13) >> (constBits - pass1Bits)
+		s[5] = (tmp2 + tmp11 + tmp12) >> (constBits - pass1Bits)
+		s[7] = (tmp3 + tmp10 + tmp13) >> (constBits - pass1Bits)
 	}
 	// Pass 2: process columns.
 	// We remove pass1Bits scaling, but leave results scaled up by an overall factor of 8.
