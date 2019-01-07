@@ -94,6 +94,29 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	return pid, 0
 }
 
+const _LINUX_CAPABILITY_VERSION_3 = 0x20080522
+
+type capHeader struct {
+	version uint32
+	pid     int32
+}
+
+type capData struct {
+	effective   uint32
+	permitted   uint32
+	inheritable uint32
+}
+type caps struct {
+	hdr  capHeader
+	data [2]capData
+}
+
+// See CAP_TO_INDEX in linux/capability.h:
+func capToIndex(cap uintptr) uintptr { return cap >> 5 }
+
+// See CAP_TO_MASK in linux/capability.h:
+func capToMask(cap uintptr) uint32 { return 1 << uint(cap&31) }
+
 // forkAndExecInChild1 implements the body of forkAndExecInChild up to
 // the parent's post-fork path. This is a separate function so we can
 // separate the child's and parent's stack frames if we're using
@@ -122,6 +145,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		err2   Errno
 		nextfd int
 		i      int
+		caps   caps
 	)
 
 	// Record parent PID so child can test if it has died.
@@ -286,10 +310,31 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		}
 	}
 
-	for _, c := range sys.AmbientCaps {
-		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_CAP_AMBIENT, uintptr(PR_CAP_AMBIENT_RAISE), c, 0, 0, 0)
-		if err1 != 0 {
+	if len(sys.AmbientCaps) != 0 {
+		// Ambient capabilities were added in the 4.3 kernel,
+		// so it is safe to always use _LINUX_CAPABILITY_VERSION_3.
+		caps.hdr.version = _LINUX_CAPABILITY_VERSION_3
+
+		if _, _, err1 := RawSyscall(SYS_CAPGET, uintptr(unsafe.Pointer(&caps.hdr)), uintptr(unsafe.Pointer(&caps.data[0])), 0); err1 != 0 {
 			goto childerror
+		}
+
+		for _, c := range sys.AmbientCaps {
+			// Add the c capability to the permitted and inheritable capability mask,
+			// otherwise we will not be able to add it to the ambient capability mask.
+			caps.data[capToIndex(c)].permitted |= capToMask(c)
+			caps.data[capToIndex(c)].inheritable |= capToMask(c)
+		}
+
+		if _, _, err1 := RawSyscall(SYS_CAPSET, uintptr(unsafe.Pointer(&caps.hdr)), uintptr(unsafe.Pointer(&caps.data[0])), 0); err1 != 0 {
+			goto childerror
+		}
+
+		for _, c := range sys.AmbientCaps {
+			_, _, err1 = RawSyscall6(SYS_PRCTL, PR_CAP_AMBIENT, uintptr(PR_CAP_AMBIENT_RAISE), c, 0, 0, 0)
+			if err1 != 0 {
+				goto childerror
+			}
 		}
 	}
 
