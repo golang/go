@@ -33,6 +33,7 @@ type dnsConfig struct {
 	mtime         time.Time     // time of resolv.conf modification
 	soffset       uint32        // used by serverOffset
 	singleRequest bool          // use sequential A and AAAA queries instead of parallel queries
+	usetcp        bool          // force usage of TCP for DNS resolutions
 }
 
 // See resolv.conf(5) on a Linux machine.
@@ -123,6 +124,8 @@ func dnsReadConfig(filename string) *dnsConfig {
 					//  This option disables the behavior and makes glibc
 					//  perform the IPv6 and IPv4 requests sequentially."
 					conf.singleRequest = true
+				case s == "use-vc":
+					conf.usetcp = true
 				default:
 					conf.unknownOpt = true
 				}

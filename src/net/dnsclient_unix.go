@@ -131,13 +131,19 @@ func dnsStreamRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte) 
 }
 
 // exchange sends a query on the connection and hopes for a response.
-func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Question, timeout time.Duration) (dnsmessage.Parser, dnsmessage.Header, error) {
+func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Question, timeout time.Duration, usetcp bool) (dnsmessage.Parser, dnsmessage.Header, error) {
 	q.Class = dnsmessage.ClassINET
 	id, udpReq, tcpReq, err := newRequest(q)
 	if err != nil {
 		return dnsmessage.Parser{}, dnsmessage.Header{}, errCannotMarshalDNSMessage
 	}
-	for _, network := range []string{"udp", "tcp"} {
+	var networks []string
+	if usetcp {
+		networks = []string{"tcp"}
+	} else {
+		networks = []string{"udp", "tcp"}
+	}
+	for _, network := range networks {
 		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
 		defer cancel()
 
@@ -241,7 +247,7 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 		for j := uint32(0); j < sLen; j++ {
 			server := cfg.servers[(serverOffset+j)%sLen]
 
-			p, h, err := r.exchange(ctx, server, q, cfg.timeout)
+			p, h, err := r.exchange(ctx, server, q, cfg.timeout, cfg.usetcp)
 			if err != nil {
 				dnsErr := &DNSError{
 					Err:    err.Error(),

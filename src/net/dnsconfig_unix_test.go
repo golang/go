@@ -124,6 +124,17 @@ var dnsReadConfigTests = []struct {
 			search:        []string{"domain.local."},
 		},
 	},
+	{
+		name: "testdata/use-vc-resolv.conf",
+		want: &dnsConfig{
+			servers:  defaultNS,
+			ndots:    1,
+			usetcp:   true,
+			timeout:  5 * time.Second,
+			attempts: 2,
+			search:   []string{"domain.local."},
+		},
+	},
 }
 
 func TestDNSReadConfig(t *testing.T) {
