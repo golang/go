@@ -63,6 +63,32 @@ type Location struct {
 	Range Range       `json:"range"`
 }
 
+// LocationLink rerpesents a link betwee a source and a target location.AfterDelay
+type LocationLink struct {
+	/**
+	 * Span of the origin of this link.
+	 *
+	 * Used as the underlined span for mouse interaction. Defaults to the word range at
+	 * the mouse position.
+	 */
+	OriginSelectionRange *Range `json:"originSelectionRange,omitempty"`
+
+	/**
+	 * The target resource identifier of this link.
+	 */
+	TargetURI string `json:"targetUri"`
+
+	/**
+	 * The full target range of this link.
+	 */
+	TargetRange Range `json:"targetRange"`
+
+	/**
+	 * The span of this link.
+	 */
+	TargetSelectionRange *Range `json:"targetSeletionRange,omitempty"`
+}
+
 // Diagnostic represents a diagnostic, such as a compiler error or warning.
 // Diagnostic objects are only valid in the scope of a resource.
 type Diagnostic struct {
