@@ -344,8 +344,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		}
 
 		if pcbuf != nil {
+			pc := frame.pc
 			// backup to CALL instruction to read inlining info (same logic as below)
-			tracepc := frame.pc
+			tracepc := pc
 			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
 				tracepc--
 			}
@@ -363,12 +364,13 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					} else if skip > 0 {
 						skip--
 					} else if n < max {
-						(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = tracepc
+						(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
 						n++
 					}
 					lastFuncID = inltree[ix].funcID
 					// Back up to an instruction in the "caller".
 					tracepc = frame.fn.entry + uintptr(inltree[ix].parentPc)
+					pc = tracepc + 1
 				}
 			}
 			// Record the main frame.
@@ -377,7 +379,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			} else if skip > 0 {
 				skip--
 			} else if n < max {
-				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = tracepc
+				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
 				n++
 			}
 			lastFuncID = f.funcID

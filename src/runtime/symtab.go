@@ -87,6 +87,13 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		}
 		f := funcInfo._Func()
 		entry := f.Entry()
+		if pc > entry {
+			// We store the pc of the start of the instruction following
+			// the instruction in question (the call or the inline mark).
+			// This is done for historical reasons, and to make FuncForPC
+			// work correctly for entries in the result of runtime.Callers.
+			pc--
+		}
 		name := funcname(funcInfo)
 		file, line := funcline1(funcInfo, pc, false)
 		if inldata := funcdata(funcInfo, _FUNCDATA_InlTree); inldata != nil {
