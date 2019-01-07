@@ -436,7 +436,7 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 
 type capHeader struct {
 	version uint32
-	pid     int
+	pid     int32
 }
 
 type capData struct {
@@ -446,6 +446,7 @@ type capData struct {
 }
 
 const CAP_SYS_TIME = 25
+const CAP_SYSLOG = 34
 
 type caps struct {
 	hdr  capHeader
@@ -506,15 +507,28 @@ func TestAmbientCapsHelper(*testing.T) {
 		fmt.Fprintln(os.Stderr, "CAP_SYS_TIME unexpectedly not in the effective capability mask")
 		os.Exit(2)
 	}
+	if caps.data[1].effective&(1<<uint(CAP_SYSLOG&31)) == 0 {
+		fmt.Fprintln(os.Stderr, "CAP_SYSLOG unexpectedly not in the effective capability mask")
+		os.Exit(2)
+	}
 }
 
 func TestAmbientCaps(t *testing.T) {
-	skipInContainer(t)
 	// Make sure we are running as root so we have permissions to use unshare
 	// and create a network namespace.
 	if os.Getuid() != 0 {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
 	}
+
+	testAmbientCaps(t, false)
+}
+
+func TestAmbientCapsUserns(t *testing.T) {
+	testAmbientCaps(t, true)
+}
+
+func testAmbientCaps(t *testing.T, userns bool) {
+	skipInContainer(t)
 	mustSupportAmbientCaps(t)
 
 	// When running under the Go continuous build, skip tests for
@@ -528,20 +542,6 @@ func TestAmbientCaps(t *testing.T) {
 	// skip on android, due to lack of lookup support
 	if runtime.GOOS == "android" {
 		t.Skip("skipping test on android; see Issue 27327")
-	}
-
-	caps, err := getCaps()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Add CAP_SYS_TIME to the permitted and inheritable capability mask,
-	// otherwise we will not be able to add it to the ambient capability mask.
-	caps.data[0].permitted |= 1 << uint(CAP_SYS_TIME)
-	caps.data[0].inheritable |= 1 << uint(CAP_SYS_TIME)
-
-	if _, _, errno := syscall.Syscall(syscall.SYS_CAPSET, uintptr(unsafe.Pointer(&caps.hdr)), uintptr(unsafe.Pointer(&caps.data[0])), 0); errno != 0 {
-		t.Fatalf("SYS_CAPSET: %v", errno)
 	}
 
 	u, err := user.Lookup("nobody")
@@ -588,7 +588,29 @@ func TestAmbientCaps(t *testing.T) {
 			Uid: uint32(uid),
 			Gid: uint32(gid),
 		},
-		AmbientCaps: []uintptr{CAP_SYS_TIME},
+		AmbientCaps: []uintptr{CAP_SYS_TIME, CAP_SYSLOG},
+	}
+	if userns {
+		cmd.SysProcAttr.Cloneflags = syscall.CLONE_NEWUSER
+		const nobody = 65534
+		uid := os.Getuid()
+		gid := os.Getgid()
+		cmd.SysProcAttr.UidMappings = []syscall.SysProcIDMap{{
+			ContainerID: int(nobody),
+			HostID:      int(uid),
+			Size:        int(1),
+		}}
+		cmd.SysProcAttr.GidMappings = []syscall.SysProcIDMap{{
+			ContainerID: int(nobody),
+			HostID:      int(gid),
+			Size:        int(1),
+		}}
+
+		// Set credentials to run as user and group nobody.
+		cmd.SysProcAttr.Credential = &syscall.Credential{
+			Uid: nobody,
+			Gid: nobody,
+		}
 	}
 	if err := cmd.Run(); err != nil {
 		t.Fatal(err.Error())
