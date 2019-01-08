@@ -3407,22 +3407,6 @@ func TestGoGetDotSlashDownload(t *testing.T) {
 	tg.run("get", "./pprof_mac_fix")
 }
 
-// Issue 13037: Was not parsing <meta> tags in 404 served over HTTPS
-func TestGoGetHTTPS404(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	switch runtime.GOOS {
-	case "darwin", "linux", "freebsd":
-	default:
-		t.Skipf("test case does not work on %s", runtime.GOOS)
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.tempDir("src")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.run("get", "bazil.org/fuse/fs/fstestutil")
-}
-
 // Test that you cannot import a main package.
 // See golang.org/issue/4210 and golang.org/issue/17475.
 func TestImportMain(t *testing.T) {
