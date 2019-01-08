@@ -21,7 +21,7 @@ import (
 // TODO(matloob): Delete this file once Go 1.12 is released.
 
 // This file provides backwards compatibility support for
-// loading for versions of Go earlier than 1.10.4. This support is meant to
+// loading for versions of Go earlier than 1.11. This support is meant to
 // assist with migration to the Package API until there's
 // widespread adoption of these newer Go versions.
 // This support will be removed once Go 1.12 is released
