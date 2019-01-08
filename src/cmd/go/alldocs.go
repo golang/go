@@ -2054,7 +2054,7 @@
 // (See 'go help gopath-get' and 'go help gopath'.)
 //
 // When using modules, downloaded packages are stored in the module cache.
-// (See 'go help modules-get' and 'go help goproxy'.)
+// (See 'go help module-get' and 'go help goproxy'.)
 //
 // When using modules, an additional variant of the go-import meta tag is
 // recognized and is preferred over those listing version control systems.
