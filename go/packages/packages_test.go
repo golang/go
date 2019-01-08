@@ -1413,19 +1413,19 @@ func testJSON(t *testing.T, exporter packagestest.Exporter) {
 		ID:   "golang.org/fake/b",
 		Name: "b",
 		Imports: map[string]*packages.Package{
-			"golang.org/fake/a": &packages.Package{ID: "golang.org/fake/a"},
+			"golang.org/fake/a": {ID: "golang.org/fake/a"},
 		},
 	}, {
 		ID:   "golang.org/fake/c",
 		Name: "c",
 		Imports: map[string]*packages.Package{
-			"golang.org/fake/b": &packages.Package{ID: "golang.org/fake/b"},
+			"golang.org/fake/b": {ID: "golang.org/fake/b"},
 		},
 	}, {
 		ID:   "golang.org/fake/d",
 		Name: "d",
 		Imports: map[string]*packages.Package{
-			"golang.org/fake/b": &packages.Package{ID: "golang.org/fake/b"},
+			"golang.org/fake/b": {ID: "golang.org/fake/b"},
 		},
 	}} {
 		got := decoded[i]
@@ -1646,12 +1646,13 @@ func srcs(p *packages.Package) []string {
 func cleanPaths(paths []string) []string {
 	result := make([]string, len(paths))
 	for i, src := range paths {
-		// The default location for cache data is a subdirectory named go-build
-		// in the standard user cache directory for the current operating system.
-		if strings.Contains(filepath.ToSlash(src), "/go-build/") {
+		// If the source file doesn't have an extension like .go or .s,
+		// it comes from GOCACHE. The names there aren't predictable.
+		name := filepath.Base(src)
+		if !strings.Contains(name, ".") {
 			result[i] = fmt.Sprintf("%d.go", i) // make cache names predictable
 		} else {
-			result[i] = filepath.Base(src)
+			result[i] = name
 		}
 	}
 	return result
