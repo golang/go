@@ -653,6 +653,15 @@ for {
       This may cause the method to run more slowly than in previous releases.
     </p>
 
+    <p><!--CL 155517 -->
+      <a href="/pkg/os/#File"><code>File</code></a> now supports
+      a <a href="/pkg/os/#File.SyscallConn"><code>SyscallConn</code></a>
+      method returning
+      a <a href="/pkg/syscall/#RawConn"><code>syscall.RawConn</code></a>
+      interface value. This may be used to invoke system-specific
+      operations on the underlying file descriptor.
+    </p>
+
 </dl><!-- os -->
 
 <dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
