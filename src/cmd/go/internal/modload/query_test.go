@@ -149,3 +149,20 @@ func TestQuery(t *testing.T) {
 		})
 	}
 }
+
+var(
+	queryPackagePath = "github.com/google/codesearch/cmd/..."
+	queryPackageQuery = "latest"
+)
+func TestQueryPackage(t *testing.T) {
+	m, _, err := QueryPackage(queryPackagePath, queryPackageQuery, Allowed)
+	if err != nil{
+		t.Error(err)
+	}
+	if m.Version != "v1.1.0"{
+		t.Errorf("queryPackage get wrong info: %s, expect: %s",m.Version, "v1.1.0" )
+	}
+	if m.Path != "github.com/google/codesearch"{
+		t.Errorf("queryPackage get wrong path: %s, expect: %s",m.Path, "github.com/google/codesearch" )
+	}
+}
