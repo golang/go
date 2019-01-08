@@ -104,7 +104,11 @@ func (v *View) parse(uri source.URI) error {
 		}
 		return err
 	}
+
 	for _, pkg := range pkgs {
+		if len(pkg.Syntax) == 0 {
+			return fmt.Errorf("no syntax trees for %s", pkg.PkgPath)
+		}
 		// Add every file in this package to our cache.
 		for _, fAST := range pkg.Syntax {
 			// TODO: If a file is in multiple packages, which package do we store?
