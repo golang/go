@@ -7837,7 +7837,7 @@ func rewriteValueS390X_OpS390XADDload_0(v *Value) bool {
 		}
 		v.reset(OpS390XADD)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpS390XLGDR, t)
+		v0 := b.NewValue0(v_2.Pos, OpS390XLGDR, t)
 		v0.AddArg(y)
 		v.AddArg(v0)
 		return true
@@ -8756,7 +8756,7 @@ func rewriteValueS390X_OpS390XANDload_0(v *Value) bool {
 		}
 		v.reset(OpS390XAND)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpS390XLGDR, t)
+		v0 := b.NewValue0(v_2.Pos, OpS390XLGDR, t)
 		v0.AddArg(y)
 		v.AddArg(v0)
 		return true
@@ -10884,11 +10884,11 @@ func rewriteValueS390X_OpS390XLDGR_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XLNDFR, t)
+		v0 := b.NewValue0(x.Pos, OpS390XLNDFR, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XLDGR, t)
-		v2 := b.NewValue0(v.Pos, OpS390XMOVDload, t1)
+		v1 := b.NewValue0(x.Pos, OpS390XLDGR, t)
+		v2 := b.NewValue0(x.Pos, OpS390XMOVDload, t1)
 		v2.AuxInt = off
 		v2.Aux = sym
 		v2.AddArg(ptr)
@@ -11539,7 +11539,7 @@ func rewriteValueS390X_OpS390XMOVBZreg_10(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVBZload, v.Type)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVBZload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -11565,7 +11565,7 @@ func rewriteValueS390X_OpS390XMOVBZreg_10(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVBZload, v.Type)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVBZload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -11979,7 +11979,7 @@ func rewriteValueS390X_OpS390XMOVBreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVBload, v.Type)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVBload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -12005,7 +12005,7 @@ func rewriteValueS390X_OpS390XMOVBreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVBload, v.Type)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVBload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15359,7 +15359,7 @@ func rewriteValueS390X_OpS390XMOVDnop_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVBZload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVBZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15386,7 +15386,7 @@ func rewriteValueS390X_OpS390XMOVDnop_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVBload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVBload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15413,7 +15413,7 @@ func rewriteValueS390X_OpS390XMOVDnop_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHZload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVHZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15440,7 +15440,7 @@ func rewriteValueS390X_OpS390XMOVDnop_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVHload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15467,7 +15467,7 @@ func rewriteValueS390X_OpS390XMOVDnop_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWZload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVWZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15494,7 +15494,7 @@ func rewriteValueS390X_OpS390XMOVDnop_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVWload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15521,7 +15521,7 @@ func rewriteValueS390X_OpS390XMOVDnop_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15800,7 +15800,7 @@ func rewriteValueS390X_OpS390XMOVDreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVBZload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVBZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15827,7 +15827,7 @@ func rewriteValueS390X_OpS390XMOVDreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVBload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVBload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15854,7 +15854,7 @@ func rewriteValueS390X_OpS390XMOVDreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHZload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVHZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15881,7 +15881,7 @@ func rewriteValueS390X_OpS390XMOVDreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVHload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15908,7 +15908,7 @@ func rewriteValueS390X_OpS390XMOVDreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWZload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVWZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15935,7 +15935,7 @@ func rewriteValueS390X_OpS390XMOVDreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVWload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -15962,7 +15962,7 @@ func rewriteValueS390X_OpS390XMOVDreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDload, t)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -17997,7 +17997,7 @@ func rewriteValueS390X_OpS390XMOVHZreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHZload, v.Type)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVHZload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -18023,7 +18023,7 @@ func rewriteValueS390X_OpS390XMOVHZreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHZload, v.Type)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVHZload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -18493,7 +18493,7 @@ func rewriteValueS390X_OpS390XMOVHreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHload, v.Type)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVHload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -18526,7 +18526,7 @@ func rewriteValueS390X_OpS390XMOVHreg_10(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHload, v.Type)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVHload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -19071,7 +19071,7 @@ func rewriteValueS390X_OpS390XMOVHstoreconst_0(v *Value) bool {
 		v.AuxInt = ValAndOff(a).Off()
 		v.Aux = s
 		v.AddArg(p)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVDconst, typ.UInt64)
 		v0.AuxInt = int64(int32(ValAndOff(c).Val()&0xffff | ValAndOff(a).Val()<<16))
 		v.AddArg(v0)
 		v.AddArg(mem)
@@ -20937,7 +20937,7 @@ func rewriteValueS390X_OpS390XMOVWZreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWZload, v.Type)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVWZload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -20968,7 +20968,7 @@ func rewriteValueS390X_OpS390XMOVWZreg_10(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWZload, v.Type)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVWZload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -21467,7 +21467,7 @@ func rewriteValueS390X_OpS390XMOVWreg_10(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWload, v.Type)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVWload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -21493,7 +21493,7 @@ func rewriteValueS390X_OpS390XMOVWreg_10(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWload, v.Type)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVWload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -22040,7 +22040,7 @@ func rewriteValueS390X_OpS390XMOVWstoreconst_0(v *Value) bool {
 		v.AuxInt = ValAndOff(a).Off()
 		v.Aux = s
 		v.AddArg(p)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
+		v0 := b.NewValue0(x.Pos, OpS390XMOVDconst, typ.UInt64)
 		v0.AuxInt = ValAndOff(c).Val()&0xffffffff | ValAndOff(a).Val()<<32
 		v.AddArg(v0)
 		v.AddArg(mem)
@@ -22873,7 +22873,7 @@ func rewriteValueS390X_OpS390XMULLDload_0(v *Value) bool {
 		}
 		v.reset(OpS390XMULLD)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpS390XLGDR, t)
+		v0 := b.NewValue0(v_2.Pos, OpS390XLGDR, t)
 		v0.AddArg(y)
 		v.AddArg(v0)
 		return true
@@ -23963,7 +23963,7 @@ func rewriteValueS390X_OpS390XOR_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHZload, typ.UInt16)
+		v0 := b.NewValue0(x0.Pos, OpS390XMOVHZload, typ.UInt16)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -24012,7 +24012,7 @@ func rewriteValueS390X_OpS390XOR_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHZload, typ.UInt16)
+		v0 := b.NewValue0(x1.Pos, OpS390XMOVHZload, typ.UInt16)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -24061,7 +24061,7 @@ func rewriteValueS390X_OpS390XOR_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWZload, typ.UInt32)
+		v0 := b.NewValue0(x0.Pos, OpS390XMOVWZload, typ.UInt32)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -24117,7 +24117,7 @@ func rewriteValueS390X_OpS390XOR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWZload, typ.UInt32)
+		v0 := b.NewValue0(x1.Pos, OpS390XMOVWZload, typ.UInt32)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -24166,7 +24166,7 @@ func rewriteValueS390X_OpS390XOR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDload, typ.UInt64)
+		v0 := b.NewValue0(x0.Pos, OpS390XMOVDload, typ.UInt64)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -24215,7 +24215,7 @@ func rewriteValueS390X_OpS390XOR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDload, typ.UInt64)
+		v0 := b.NewValue0(x1.Pos, OpS390XMOVDload, typ.UInt64)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -24273,12 +24273,12 @@ func rewriteValueS390X_OpS390XOR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x1.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x1.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j1
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZload, typ.UInt16)
+		v2 := b.NewValue0(x1.Pos, OpS390XMOVHZload, typ.UInt16)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -24337,12 +24337,12 @@ func rewriteValueS390X_OpS390XOR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x1.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x1.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j1
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZload, typ.UInt16)
+		v2 := b.NewValue0(x1.Pos, OpS390XMOVHZload, typ.UInt16)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -24401,12 +24401,12 @@ func rewriteValueS390X_OpS390XOR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x0.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x0.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j1
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZload, typ.UInt16)
+		v2 := b.NewValue0(x0.Pos, OpS390XMOVHZload, typ.UInt16)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -24465,12 +24465,12 @@ func rewriteValueS390X_OpS390XOR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x0.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x0.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j1
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZload, typ.UInt16)
+		v2 := b.NewValue0(x0.Pos, OpS390XMOVHZload, typ.UInt16)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -24529,12 +24529,12 @@ func rewriteValueS390X_OpS390XOR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x1.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x1.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j1
-		v2 := b.NewValue0(v.Pos, OpS390XMOVWZload, typ.UInt32)
+		v2 := b.NewValue0(x1.Pos, OpS390XMOVWZload, typ.UInt32)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -24593,12 +24593,12 @@ func rewriteValueS390X_OpS390XOR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x1.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x1.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j1
-		v2 := b.NewValue0(v.Pos, OpS390XMOVWZload, typ.UInt32)
+		v2 := b.NewValue0(x1.Pos, OpS390XMOVWZload, typ.UInt32)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -24657,12 +24657,12 @@ func rewriteValueS390X_OpS390XOR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x0.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x0.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j1
-		v2 := b.NewValue0(v.Pos, OpS390XMOVWZload, typ.UInt32)
+		v2 := b.NewValue0(x0.Pos, OpS390XMOVWZload, typ.UInt32)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -24728,12 +24728,12 @@ func rewriteValueS390X_OpS390XOR_30(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x0.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x0.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j1
-		v2 := b.NewValue0(v.Pos, OpS390XMOVWZload, typ.UInt32)
+		v2 := b.NewValue0(x0.Pos, OpS390XMOVWZload, typ.UInt32)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -28322,10 +28322,10 @@ func rewriteValueS390X_OpS390XOR_80(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
+		v0 := b.NewValue0(x1.Pos, OpS390XMOVHZreg, typ.UInt64)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVHBRload, typ.UInt16)
+		v1 := b.NewValue0(x1.Pos, OpS390XMOVHBRload, typ.UInt16)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -28373,10 +28373,10 @@ func rewriteValueS390X_OpS390XOR_80(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
+		v0 := b.NewValue0(x0.Pos, OpS390XMOVHZreg, typ.UInt64)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVHBRload, typ.UInt16)
+		v1 := b.NewValue0(x0.Pos, OpS390XMOVHBRload, typ.UInt16)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -28432,10 +28432,10 @@ func rewriteValueS390X_OpS390XOR_80(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWZreg, typ.UInt64)
+		v0 := b.NewValue0(x1.Pos, OpS390XMOVWZreg, typ.UInt64)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVWBRload, typ.UInt32)
+		v1 := b.NewValue0(x1.Pos, OpS390XMOVWBRload, typ.UInt32)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -28498,10 +28498,10 @@ func rewriteValueS390X_OpS390XOR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWZreg, typ.UInt64)
+		v0 := b.NewValue0(x0.Pos, OpS390XMOVWZreg, typ.UInt64)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVWBRload, typ.UInt32)
+		v1 := b.NewValue0(x0.Pos, OpS390XMOVWBRload, typ.UInt32)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -28557,7 +28557,7 @@ func rewriteValueS390X_OpS390XOR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDBRload, typ.UInt64)
+		v0 := b.NewValue0(x1.Pos, OpS390XMOVDBRload, typ.UInt64)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -28614,7 +28614,7 @@ func rewriteValueS390X_OpS390XOR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDBRload, typ.UInt64)
+		v0 := b.NewValue0(x0.Pos, OpS390XMOVDBRload, typ.UInt64)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -28672,13 +28672,13 @@ func rewriteValueS390X_OpS390XOR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x0.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x0.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j0
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVHBRload, typ.UInt16)
+		v2 := b.NewValue0(x0.Pos, OpS390XMOVHZreg, typ.UInt64)
+		v3 := b.NewValue0(x0.Pos, OpS390XMOVHBRload, typ.UInt16)
 		v3.AuxInt = i0
 		v3.Aux = s
 		v3.AddArg(p)
@@ -28738,13 +28738,13 @@ func rewriteValueS390X_OpS390XOR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x0.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x0.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j0
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVHBRload, typ.UInt16)
+		v2 := b.NewValue0(x0.Pos, OpS390XMOVHZreg, typ.UInt64)
+		v3 := b.NewValue0(x0.Pos, OpS390XMOVHBRload, typ.UInt16)
 		v3.AuxInt = i0
 		v3.Aux = s
 		v3.AddArg(p)
@@ -28804,13 +28804,13 @@ func rewriteValueS390X_OpS390XOR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x1.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x1.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j0
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVHBRload, typ.UInt16)
+		v2 := b.NewValue0(x1.Pos, OpS390XMOVHZreg, typ.UInt64)
+		v3 := b.NewValue0(x1.Pos, OpS390XMOVHBRload, typ.UInt16)
 		v3.AuxInt = i0
 		v3.Aux = s
 		v3.AddArg(p)
@@ -28870,13 +28870,13 @@ func rewriteValueS390X_OpS390XOR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x1.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x1.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j0
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVHBRload, typ.UInt16)
+		v2 := b.NewValue0(x1.Pos, OpS390XMOVHZreg, typ.UInt64)
+		v3 := b.NewValue0(x1.Pos, OpS390XMOVHBRload, typ.UInt16)
 		v3.AuxInt = i0
 		v3.Aux = s
 		v3.AddArg(p)
@@ -28944,13 +28944,13 @@ func rewriteValueS390X_OpS390XOR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x0.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x0.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j0
-		v2 := b.NewValue0(v.Pos, OpS390XMOVWZreg, typ.UInt64)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVWBRload, typ.UInt32)
+		v2 := b.NewValue0(x0.Pos, OpS390XMOVWZreg, typ.UInt64)
+		v3 := b.NewValue0(x0.Pos, OpS390XMOVWBRload, typ.UInt32)
 		v3.AuxInt = i0
 		v3.Aux = s
 		v3.AddArg(p)
@@ -29018,13 +29018,13 @@ func rewriteValueS390X_OpS390XOR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x0.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x0.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j0
-		v2 := b.NewValue0(v.Pos, OpS390XMOVWZreg, typ.UInt64)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVWBRload, typ.UInt32)
+		v2 := b.NewValue0(x0.Pos, OpS390XMOVWZreg, typ.UInt64)
+		v3 := b.NewValue0(x0.Pos, OpS390XMOVWBRload, typ.UInt32)
 		v3.AuxInt = i0
 		v3.Aux = s
 		v3.AddArg(p)
@@ -29092,13 +29092,13 @@ func rewriteValueS390X_OpS390XOR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x1.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x1.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j0
-		v2 := b.NewValue0(v.Pos, OpS390XMOVWZreg, typ.UInt64)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVWBRload, typ.UInt32)
+		v2 := b.NewValue0(x1.Pos, OpS390XMOVWZreg, typ.UInt64)
+		v3 := b.NewValue0(x1.Pos, OpS390XMOVWBRload, typ.UInt32)
 		v3.AuxInt = i0
 		v3.Aux = s
 		v3.AddArg(p)
@@ -29173,13 +29173,13 @@ func rewriteValueS390X_OpS390XOR_100(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XOR, v.Type)
+		v0 := b.NewValue0(x1.Pos, OpS390XOR, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLDconst, v.Type)
+		v1 := b.NewValue0(x1.Pos, OpS390XSLDconst, v.Type)
 		v1.AuxInt = j0
-		v2 := b.NewValue0(v.Pos, OpS390XMOVWZreg, typ.UInt64)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVWBRload, typ.UInt32)
+		v2 := b.NewValue0(x1.Pos, OpS390XMOVWZreg, typ.UInt64)
+		v3 := b.NewValue0(x1.Pos, OpS390XMOVWBRload, typ.UInt32)
 		v3.AuxInt = i0
 		v3.Aux = s
 		v3.AddArg(p)
@@ -33455,7 +33455,7 @@ func rewriteValueS390X_OpS390XORW_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHZload, typ.UInt16)
+		v0 := b.NewValue0(x0.Pos, OpS390XMOVHZload, typ.UInt16)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -33504,7 +33504,7 @@ func rewriteValueS390X_OpS390XORW_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHZload, typ.UInt16)
+		v0 := b.NewValue0(x1.Pos, OpS390XMOVHZload, typ.UInt16)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -33553,7 +33553,7 @@ func rewriteValueS390X_OpS390XORW_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWZload, typ.UInt32)
+		v0 := b.NewValue0(x0.Pos, OpS390XMOVWZload, typ.UInt32)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -33602,7 +33602,7 @@ func rewriteValueS390X_OpS390XORW_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWZload, typ.UInt32)
+		v0 := b.NewValue0(x1.Pos, OpS390XMOVWZload, typ.UInt32)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -33660,12 +33660,12 @@ func rewriteValueS390X_OpS390XORW_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XORW, v.Type)
+		v0 := b.NewValue0(x1.Pos, OpS390XORW, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLWconst, v.Type)
+		v1 := b.NewValue0(x1.Pos, OpS390XSLWconst, v.Type)
 		v1.AuxInt = j1
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZload, typ.UInt16)
+		v2 := b.NewValue0(x1.Pos, OpS390XMOVHZload, typ.UInt16)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -33724,12 +33724,12 @@ func rewriteValueS390X_OpS390XORW_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XORW, v.Type)
+		v0 := b.NewValue0(x1.Pos, OpS390XORW, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLWconst, v.Type)
+		v1 := b.NewValue0(x1.Pos, OpS390XSLWconst, v.Type)
 		v1.AuxInt = j1
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZload, typ.UInt16)
+		v2 := b.NewValue0(x1.Pos, OpS390XMOVHZload, typ.UInt16)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -33788,12 +33788,12 @@ func rewriteValueS390X_OpS390XORW_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XORW, v.Type)
+		v0 := b.NewValue0(x0.Pos, OpS390XORW, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLWconst, v.Type)
+		v1 := b.NewValue0(x0.Pos, OpS390XSLWconst, v.Type)
 		v1.AuxInt = j1
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZload, typ.UInt16)
+		v2 := b.NewValue0(x0.Pos, OpS390XMOVHZload, typ.UInt16)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -33859,12 +33859,12 @@ func rewriteValueS390X_OpS390XORW_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XORW, v.Type)
+		v0 := b.NewValue0(x0.Pos, OpS390XORW, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLWconst, v.Type)
+		v1 := b.NewValue0(x0.Pos, OpS390XSLWconst, v.Type)
 		v1.AuxInt = j1
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZload, typ.UInt16)
+		v2 := b.NewValue0(x0.Pos, OpS390XMOVHZload, typ.UInt16)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -35903,10 +35903,10 @@ func rewriteValueS390X_OpS390XORW_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
+		v0 := b.NewValue0(x1.Pos, OpS390XMOVHZreg, typ.UInt64)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVHBRload, typ.UInt16)
+		v1 := b.NewValue0(x1.Pos, OpS390XMOVHBRload, typ.UInt16)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -35954,10 +35954,10 @@ func rewriteValueS390X_OpS390XORW_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
+		v0 := b.NewValue0(x0.Pos, OpS390XMOVHZreg, typ.UInt64)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVHBRload, typ.UInt16)
+		v1 := b.NewValue0(x0.Pos, OpS390XMOVHBRload, typ.UInt16)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -36013,7 +36013,7 @@ func rewriteValueS390X_OpS390XORW_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWBRload, typ.UInt32)
+		v0 := b.NewValue0(x1.Pos, OpS390XMOVWBRload, typ.UInt32)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -36070,7 +36070,7 @@ func rewriteValueS390X_OpS390XORW_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XMOVWBRload, typ.UInt32)
+		v0 := b.NewValue0(x0.Pos, OpS390XMOVWBRload, typ.UInt32)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -36128,13 +36128,13 @@ func rewriteValueS390X_OpS390XORW_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XORW, v.Type)
+		v0 := b.NewValue0(x0.Pos, OpS390XORW, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLWconst, v.Type)
+		v1 := b.NewValue0(x0.Pos, OpS390XSLWconst, v.Type)
 		v1.AuxInt = j0
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVHBRload, typ.UInt16)
+		v2 := b.NewValue0(x0.Pos, OpS390XMOVHZreg, typ.UInt64)
+		v3 := b.NewValue0(x0.Pos, OpS390XMOVHBRload, typ.UInt16)
 		v3.AuxInt = i0
 		v3.Aux = s
 		v3.AddArg(p)
@@ -36194,13 +36194,13 @@ func rewriteValueS390X_OpS390XORW_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XORW, v.Type)
+		v0 := b.NewValue0(x0.Pos, OpS390XORW, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLWconst, v.Type)
+		v1 := b.NewValue0(x0.Pos, OpS390XSLWconst, v.Type)
 		v1.AuxInt = j0
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVHBRload, typ.UInt16)
+		v2 := b.NewValue0(x0.Pos, OpS390XMOVHZreg, typ.UInt64)
+		v3 := b.NewValue0(x0.Pos, OpS390XMOVHBRload, typ.UInt16)
 		v3.AuxInt = i0
 		v3.Aux = s
 		v3.AddArg(p)
@@ -36260,13 +36260,13 @@ func rewriteValueS390X_OpS390XORW_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XORW, v.Type)
+		v0 := b.NewValue0(x1.Pos, OpS390XORW, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLWconst, v.Type)
+		v1 := b.NewValue0(x1.Pos, OpS390XSLWconst, v.Type)
 		v1.AuxInt = j0
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVHBRload, typ.UInt16)
+		v2 := b.NewValue0(x1.Pos, OpS390XMOVHZreg, typ.UInt64)
+		v3 := b.NewValue0(x1.Pos, OpS390XMOVHBRload, typ.UInt16)
 		v3.AuxInt = i0
 		v3.Aux = s
 		v3.AddArg(p)
@@ -36333,13 +36333,13 @@ func rewriteValueS390X_OpS390XORW_60(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpS390XORW, v.Type)
+		v0 := b.NewValue0(x1.Pos, OpS390XORW, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XSLWconst, v.Type)
+		v1 := b.NewValue0(x1.Pos, OpS390XSLWconst, v.Type)
 		v1.AuxInt = j0
-		v2 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVHBRload, typ.UInt16)
+		v2 := b.NewValue0(x1.Pos, OpS390XMOVHZreg, typ.UInt64)
+		v3 := b.NewValue0(x1.Pos, OpS390XMOVHBRload, typ.UInt16)
 		v3.AuxInt = i0
 		v3.Aux = s
 		v3.AddArg(p)
@@ -38624,7 +38624,7 @@ func rewriteValueS390X_OpS390XORload_0(v *Value) bool {
 		}
 		v.reset(OpS390XOR)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpS390XLGDR, t)
+		v0 := b.NewValue0(v_2.Pos, OpS390XLGDR, t)
 		v0.AddArg(y)
 		v.AddArg(v0)
 		return true
@@ -40523,7 +40523,7 @@ func rewriteValueS390X_OpS390XSUBload_0(v *Value) bool {
 		}
 		v.reset(OpS390XSUB)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpS390XLGDR, t)
+		v0 := b.NewValue0(v_2.Pos, OpS390XLGDR, t)
 		v0.AddArg(y)
 		v.AddArg(v0)
 		return true
@@ -41382,7 +41382,7 @@ func rewriteValueS390X_OpS390XXORload_0(v *Value) bool {
 		}
 		v.reset(OpS390XXOR)
 		v.AddArg(x)
-		v0 := b.NewValue0(v.Pos, OpS390XLGDR, t)
+		v0 := b.NewValue0(v_2.Pos, OpS390XLGDR, t)
 		v0.AddArg(y)
 		v.AddArg(v0)
 		return true
