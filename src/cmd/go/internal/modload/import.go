@@ -252,18 +252,27 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// We don't care about build tags, not even "+build ignore".
 	// We're just looking for a plausible directory.
 	haveGoFiles = haveGoFilesCache.Do(dir, func() interface{} {
-		f, err := os.Open(dir)
+		var pattern string
+		if strings.HasSuffix(dir, "/...") {
+			dir = strings.TrimSuffix(dir, "/...")
+			pattern = filepath.Join(dir, "**", "*.go")
+		} else {
+			pattern = filepath.Join(dir, "*.go")
+		}
+		goSourceFiles, err := filepath.Glob(pattern)
 		if err != nil {
 			return false
 		}
-		defer f.Close()
-		names, _ := f.Readdirnames(-1)
-		for _, name := range names {
-			if strings.HasSuffix(name, ".go") {
-				info, err := os.Stat(filepath.Join(dir, name))
-				if err == nil && info.Mode().IsRegular() {
-					return true
-				}
+		// no go source file
+		if len(goSourceFiles) == 0 {
+			return false
+		}
+		// no regular file
+		for _, fullPath := range goSourceFiles {
+			info, err := os.Stat(fullPath)
+			// just one success, we are done
+			if err == nil && info.Mode().IsRegular() {
+				return true
 			}
 		}
 		return false
