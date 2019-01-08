@@ -124,11 +124,13 @@ func dnsReadConfig(filename string) *dnsConfig {
 					//  This option disables the behavior and makes glibc
 					//  perform the IPv6 and IPv4 requests sequentially."
 					conf.singleRequest = true
-				case s == "use-vc":
-					// Linux glibc option:
+				case s == "use-vc" || s == "usevc" || s == "tcp":
+					// Linux (use-vc), FreeBSD (usevc) and OpenBSD (tcp) option:
 					// http://man7.org/linux/man-pages/man5/resolv.conf.5.html
 					// "Sets RES_USEVC in _res.options.
 					//  This option forces the use of TCP for DNS resolutions."
+					// https://www.freebsd.org/cgi/man.cgi?query=resolv.conf&sektion=5&manpath=freebsd-release-ports
+					// https://man.openbsd.org/resolv.conf.5
 					conf.useTCP = true
 				default:
 					conf.unknownOpt = true
