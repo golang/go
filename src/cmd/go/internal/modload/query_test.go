@@ -150,19 +150,61 @@ func TestQuery(t *testing.T) {
 	}
 }
 
-var(
-	queryPackagePath = "github.com/google/codesearch/cmd/..."
-	queryPackageQuery = "latest"
+var (
+	_queryPackage = []struct {
+		path     string
+		query    string
+		err      string
+		realPath string
+		version  string
+	}{
+		{
+			path:     "github.com/google/codesearch/cmd/...",
+			query:    "latest",
+			err:      "",
+			realPath: "github.com/google/codesearch",
+			version:  "v1.1.0",
+		},
+		{
+			path:     "github.com/google/codesearch/cmd",
+			query:    "latest",
+			err:      `no matching versions for query "latest"`,
+			realPath: "github.com/google/codesearch",
+			version:  "v1.1.0",
+		},
+		{
+			path:     "github.com/google/codesearch/...",
+			query:    "latest",
+			err:      ``,
+			realPath: "github.com/google/codesearch",
+			version:  "v1.1.0",
+		},
+		{
+			path:     "github.com/google/codesearch",
+			query:    "latest",
+			err:      `invalid github.com/ import path "github.com/google"`,
+			realPath: "github.com/google/codesearch",
+			version:  "v1.1.0",
+		},
+	}
 )
+
 func TestQueryPackage(t *testing.T) {
-	m, _, err := QueryPackage(queryPackagePath, queryPackageQuery, Allowed)
-	if err != nil{
-		t.Error(err)
-	}
-	if m.Version != "v1.1.0"{
-		t.Errorf("queryPackage get wrong info: %s, expect: %s",m.Version, "v1.1.0" )
-	}
-	if m.Path != "github.com/google/codesearch"{
-		t.Errorf("queryPackage get wrong path: %s, expect: %s",m.Path, "github.com/google/codesearch" )
+	for _, tt := range _queryPackage {
+		t.Run(strings.Replace(tt.path, "/", "_", -1)+"@"+tt.query, func(t *testing.T) {
+			m, _, err := QueryPackage(tt.path, tt.query, Allowed)
+			if err != nil {
+				if err.Error() != tt.err {
+					t.Errorf("queryPackage %s get wrong err: %s, expect: %s", tt.path, err, tt.err)
+				}
+				return
+			}
+			if m.Version != tt.version {
+				t.Errorf("queryPackage get wrong info: %s, expect: %s", m.Version, tt.version)
+			}
+			if m.Path != tt.realPath {
+				t.Errorf("queryPackage get wrong path: %s, expect: %s", m.Path, tt.realPath)
+			}
+		})
 	}
 }
