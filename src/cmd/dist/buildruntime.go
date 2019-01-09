@@ -31,7 +31,7 @@ func mkzversion(dir, file string) {
 	fmt.Fprintln(&buf)
 	fmt.Fprintf(&buf, "const TheVersion = `%s`\n", findgoversion())
 	fmt.Fprintf(&buf, "const Goexperiment = `%s`\n", os.Getenv("GOEXPERIMENT"))
-	fmt.Fprintf(&buf, "const StackGuardMultiplier = %d\n", stackGuardMultiplier())
+	fmt.Fprintf(&buf, "const StackGuardMultiplierDefault = %d\n", stackGuardMultiplierDefault())
 
 	writefile(buf.String(), file, writeSkipSame)
 }
@@ -49,7 +49,7 @@ func mkzversion(dir, file string) {
 //	const defaultGOARCH = runtime.GOARCH
 //	const defaultGO_EXTLINK_ENABLED = <goextlinkenabled>
 //	const version = <version>
-//	const stackGuardMultiplier = <multiplier value>
+//	const stackGuardMultiplierDefault = <multiplier value>
 //	const goexperiment = <goexperiment>
 //
 // The use of runtime.GOOS and runtime.GOARCH makes sure that
@@ -77,20 +77,16 @@ func mkzbootstrap(file string) {
 	fmt.Fprintf(&buf, "const defaultGOARCH = runtime.GOARCH\n")
 	fmt.Fprintf(&buf, "const defaultGO_EXTLINK_ENABLED = `%s`\n", goextlinkenabled)
 	fmt.Fprintf(&buf, "const version = `%s`\n", findgoversion())
-	fmt.Fprintf(&buf, "const stackGuardMultiplier = %d\n", stackGuardMultiplier())
+	fmt.Fprintf(&buf, "const stackGuardMultiplierDefault = %d\n", stackGuardMultiplierDefault())
 	fmt.Fprintf(&buf, "const goexperiment = `%s`\n", os.Getenv("GOEXPERIMENT"))
 
 	writefile(buf.String(), file, writeSkipSame)
 }
 
-// stackGuardMultiplier returns a multiplier to apply to the default
+// stackGuardMultiplierDefault returns a multiplier to apply to the default
 // stack guard size. Larger multipliers are used for non-optimized
 // builds that have larger stack frames.
-func stackGuardMultiplier() int {
-	// On AIX, a larger stack is needed for syscalls
-	if goos == "aix" {
-		return 2
-	}
+func stackGuardMultiplierDefault() int {
 	for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
 		if s == "-N" {
 			return 2
