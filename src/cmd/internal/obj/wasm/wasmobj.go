@@ -280,6 +280,13 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		// implicit call, so entering and leaving this section affects the stack trace.
 		if p.As == ACALLNORESUME || p.As == obj.ANOP || p.As == ANop || p.Spadj != 0 || base != prevBase {
 			pc++
+			if p.To.Sym == sigpanic {
+				// The panic stack trace expects the PC at the call of sigpanic,
+				// not the next one. However, runtime.Caller subtracts 1 from the
+				// PC. To make both PC and PC-1 work (have the same line number),
+				// we advance the PC by 2 at sigpanic.
+				pc++
+			}
 		}
 	}
 	tableIdxs = append(tableIdxs, uint64(numResumePoints))
