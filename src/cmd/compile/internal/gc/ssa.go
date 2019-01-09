@@ -106,7 +106,7 @@ func initssaconfig() {
 	WasmDiv = sysvar("wasmDiv")
 	WasmTruncS = sysvar("wasmTruncS")
 	WasmTruncU = sysvar("wasmTruncU")
-	SigPanic = sysvar("sigpanic")
+	SigPanic = sysfunc("sigpanic")
 }
 
 // buildssa builds an SSA function for fn.

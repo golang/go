@@ -626,8 +626,9 @@ type Link struct {
 	Flag_locationlists bool
 	Bso                *bufio.Writer
 	Pathname           string
-	hashmu             sync.Mutex       // protects hash
+	hashmu             sync.Mutex       // protects hash, funchash
 	hash               map[string]*LSym // name -> sym mapping
+	funchash           map[string]*LSym // name -> sym mapping for ABIInternal syms
 	statichash         map[string]*LSym // name -> sym mapping for static syms
 	PosTable           src.PosTable
 	InlTree            InlTree // global inlining tree used by gc/inl.go
