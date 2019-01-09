@@ -1012,6 +1012,10 @@ func TestReverseProxyWebSocket(t *testing.T) {
 	backURL, _ := url.Parse(backendServer.URL)
 	rproxy := NewSingleHostReverseProxy(backURL)
 	rproxy.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	rproxy.ModifyResponse = func(res *http.Response) error {
+		res.Header.Add("X-Modified", "true")
+		return nil
+	}
 
 	handler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("X-Header", "X-Value")
@@ -1048,6 +1052,10 @@ func TestReverseProxyWebSocket(t *testing.T) {
 		t.Fatalf("response body is of type %T; does not implement ReadWriteCloser", res.Body)
 	}
 	defer rwc.Close()
+
+	if got, want := res.Header.Get("X-Modified"), "true"; got != want {
+		t.Errorf("response X-Modified header = %q; want %q", got, want)
+	}
 
 	io.WriteString(rwc, "Hello\n")
 	bs := bufio.NewScanner(rwc)
