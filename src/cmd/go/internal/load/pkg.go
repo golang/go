@@ -7,6 +7,7 @@ package load
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/build"
 	"go/token"
@@ -14,6 +15,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,6 +25,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modinfo"
+	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
 )
@@ -356,25 +359,40 @@ func (sp *ImportStack) shorterThan(t []string) bool {
 	return false // they are equal
 }
 
-// packageCache is a lookup cache for loadPackage,
+// packageCache is a lookup cache for LoadImport,
 // so that if we look up a package multiple times
 // we return the same pointer each time.
 var packageCache = map[string]*Package{}
 
+// ClearPackageCache clears the in-memory package cache and the preload caches.
+// It is only for use by GOPATH-based "go get".
+// TODO(jayconrod): When GOPATH-based "go get" is removed, delete this function.
 func ClearPackageCache() {
 	for name := range packageCache {
 		delete(packageCache, name)
 	}
+	resolvedImportCache.Clear()
+	packageDataCache.Clear()
 }
 
+// ClearPackageCachePartial clears packages with the given import paths from the
+// in-memory package cache and the preload caches. It is only for use by
+// GOPATH-based "go get".
+// TODO(jayconrod): When GOPATH-based "go get" is removed, delete this function.
 func ClearPackageCachePartial(args []string) {
+	shouldDelete := make(map[string]bool)
 	for _, arg := range args {
-		p := packageCache[arg]
-		if p != nil {
-			delete(packageCache, p.Dir)
-			delete(packageCache, p.ImportPath)
+		shouldDelete[arg] = true
+		if p := packageCache[arg]; p != nil {
+			delete(packageCache, arg)
 		}
 	}
+	resolvedImportCache.DeleteIf(func(key interface{}) bool {
+		return shouldDelete[key.(importSpec).path]
+	})
+	packageDataCache.DeleteIf(func(key interface{}) bool {
+		return shouldDelete[key.(string)]
+	})
 }
 
 // ReloadPackageNoFlags is like LoadImport but makes sure
@@ -384,8 +402,11 @@ func ClearPackageCachePartial(args []string) {
 func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
 	p := packageCache[arg]
 	if p != nil {
-		delete(packageCache, p.Dir)
-		delete(packageCache, p.ImportPath)
+		delete(packageCache, arg)
+		resolvedImportCache.DeleteIf(func(key interface{}) bool {
+			return key.(importSpec).path == p.ImportPath
+		})
+		packageDataCache.Delete(p.ImportPath)
 	}
 	return LoadImport(arg, base.Cwd, nil, stk, nil, 0)
 }
@@ -440,6 +461,10 @@ const (
 // this package, as part of a bigger load operation, and by GOPATH-based "go get".
 // TODO(rsc): When GOPATH-based "go get" is removed, unexport this function.
 func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
+	return loadImport(nil, path, srcDir, parent, stk, importPos, mode)
+}
+
+func loadImport(pre *preload, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
 	if path == "" {
 		panic("LoadImport called with empty package path")
 	}
@@ -447,127 +472,51 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 	stk.Push(path)
 	defer stk.Pop()
 
-	if strings.HasPrefix(path, "mod/") {
-		// Paths beginning with "mod/" might accidentally
-		// look in the module cache directory tree in $GOPATH/pkg/mod/.
-		// This prefix is owned by the Go core for possible use in the
-		// standard library (since it does not begin with a domain name),
-		// so it's OK to disallow entirely.
-		return &Package{
-			PackagePublic: PackagePublic{
-				ImportPath: path,
-				Error: &PackageError{
-					ImportStack: stk.Copy(),
-					Err:         fmt.Sprintf("disallowed import path %q", path),
-				},
-			},
-		}
-	}
-
-	if strings.Contains(path, "@") {
-		var text string
-		if cfg.ModulesEnabled {
-			text = "can only use path@version syntax with 'go get'"
-		} else {
-			text = "cannot use path@version syntax in GOPATH mode"
-		}
-		return &Package{
-			PackagePublic: PackagePublic{
-				ImportPath: path,
-				Error: &PackageError{
-					ImportStack: stk.Copy(),
-					Err:         text,
-				},
-			},
-		}
-	}
-
-	parentPath := ""
+	var parentPath, parentRoot string
 	parentIsStd := false
 	if parent != nil {
 		parentPath = parent.ImportPath
+		parentRoot = parent.Root
 		parentIsStd = parent.Standard
 	}
-
-	// Determine canonical identifier for this package.
-	// For a local import the identifier is the pseudo-import path
-	// we create from the full directory to the package.
-	// Otherwise it is the usual import path.
-	// For vendored imports, it is the expanded form.
-	importPath := path
-	origPath := path
-	isLocal := build.IsLocalImport(path)
-	var modDir string
-	var modErr error
-	if isLocal {
-		importPath = dirToImportPath(filepath.Join(srcDir, path))
-	} else if cfg.ModulesEnabled {
-		var p string
-		modDir, p, modErr = ModLookup(parentPath, parentIsStd, path)
-		if modErr == nil {
-			importPath = p
+	bp, loaded, err := loadPackageData(path, parentPath, srcDir, parentRoot, parentIsStd, mode)
+	if loaded && pre != nil && !IgnoreImports {
+		pre.preloadImports(bp.Imports, bp)
+	}
+	if bp == nil {
+		return &Package{
+			PackagePublic: PackagePublic{
+				ImportPath: path,
+				Error: &PackageError{
+					ImportStack: stk.Copy(),
+					Err:         err.Error(),
+				},
+			},
 		}
-	} else if mode&ResolveImport != 0 {
-		// We do our own path resolution, because we want to
-		// find out the key to use in packageCache without the
-		// overhead of repeated calls to buildContext.Import.
-		// The code is also needed in a few other places anyway.
-		path = ResolveImportPath(parent, path)
-		importPath = path
-	} else if mode&ResolveModule != 0 {
-		path = ModuleImportPath(parent, path)
-		importPath = path
 	}
 
+	importPath := bp.ImportPath
 	p := packageCache[importPath]
 	if p != nil {
 		p = reusePackage(p, stk)
 	} else {
 		p = new(Package)
-		p.Internal.Local = isLocal
+		p.Internal.Local = build.IsLocalImport(path)
 		p.ImportPath = importPath
 		packageCache[importPath] = p
 
 		// Load package.
-		// Import always returns bp != nil, even if an error occurs,
+		// loadPackageData may return bp != nil even if an error occurs,
 		// in order to return partial information.
-		var bp *build.Package
-		var err error
-		if modDir != "" {
-			bp, err = cfg.BuildContext.ImportDir(modDir, 0)
-		} else if modErr != nil {
-			bp = new(build.Package)
-			err = fmt.Errorf("unknown import path %q: %v", importPath, modErr)
-		} else if cfg.ModulesEnabled && path != "unsafe" {
-			bp = new(build.Package)
-			err = fmt.Errorf("unknown import path %q: internal error: module loader did not resolve import", importPath)
-		} else {
-			buildMode := build.ImportComment
-			if mode&ResolveImport == 0 || path != origPath {
-				// Not vendoring, or we already found the vendored path.
-				buildMode |= build.IgnoreVendor
-			}
-			bp, err = cfg.BuildContext.Import(path, srcDir, buildMode)
-		}
-		bp.ImportPath = importPath
-		if cfg.GOBIN != "" {
-			bp.BinDir = cfg.GOBIN
-		} else if cfg.ModulesEnabled && !bp.Goroot {
-			bp.BinDir = ModBinDir()
-		}
-		if modDir == "" && err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
-			!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
-			err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
-		}
 		p.load(stk, bp, err)
 		if p.Error != nil && p.Error.Pos == "" {
 			p = setErrorPos(p, importPos)
 		}
 
-		if modDir == "" && origPath != cleanImport(origPath) {
+		if !cfg.ModulesEnabled && path != cleanImport(path) {
 			p.Error = &PackageError{
 				ImportStack: stk.Copy(),
-				Err:         fmt.Sprintf("non-canonical import path: %q should be %q", origPath, pathpkg.Clean(origPath)),
+				Err:         fmt.Sprintf("non-canonical import path: %q should be %q", path, pathpkg.Clean(path)),
 			}
 			p.Incomplete = true
 		}
@@ -578,7 +527,7 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 		return setErrorPos(perr, importPos)
 	}
 	if mode&ResolveImport != 0 {
-		if perr := disallowVendor(srcDir, parent, parentPath, origPath, p, stk); perr != p {
+		if perr := disallowVendor(srcDir, parent, parentPath, path, p, stk); perr != p {
 			return setErrorPos(perr, importPos)
 		}
 	}
@@ -613,6 +562,244 @@ func setErrorPos(p *Package, importPos []token.Position) *Package {
 	return p
 }
 
+// loadPackageData loads information needed to construct a *Package. The result
+// is cached, and later calls to loadPackageData for the same package will return
+// the same data.
+//
+// loadPackageData returns a non-nil package even if err is non-nil unless
+// the package path is malformed (for example, the path contains "mod/" or "@").
+//
+// loadPackageData returns a boolean, loaded, which is true if this is the
+// first time the package was loaded. Callers may preload imports in this case.
+func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd bool, mode int) (bp *build.Package, loaded bool, err error) {
+	if path == "" {
+		panic("loadPackageData called with empty package path")
+	}
+
+	if strings.HasPrefix(path, "mod/") {
+		// Paths beginning with "mod/" might accidentally
+		// look in the module cache directory tree in $GOPATH/pkg/mod/.
+		// This prefix is owned by the Go core for possible use in the
+		// standard library (since it does not begin with a domain name),
+		// so it's OK to disallow entirely.
+		return nil, false, fmt.Errorf("disallowed import path %q", path)
+	}
+
+	if strings.Contains(path, "@") {
+		if cfg.ModulesEnabled {
+			return nil, false, errors.New("can only use path@version syntax with 'go get'")
+		} else {
+			return nil, false, errors.New("cannot use path@version syntax in GOPATH mode")
+		}
+	}
+
+	// Determine canonical package path and directory.
+	// For a local import the identifier is the pseudo-import path
+	// we create from the full directory to the package.
+	// Otherwise it is the usual import path.
+	// For vendored imports, it is the expanded form.
+	importKey := importSpec{
+		path:        path,
+		parentPath:  parentPath,
+		parentDir:   parentDir,
+		parentRoot:  parentRoot,
+		parentIsStd: parentIsStd,
+		mode:        mode,
+	}
+	r := resolvedImportCache.Do(importKey, func() interface{} {
+		var r resolvedImport
+		if build.IsLocalImport(path) {
+			r.dir = filepath.Join(parentDir, path)
+			r.path = dirToImportPath(r.dir)
+		} else if cfg.ModulesEnabled {
+			r.dir, r.path, r.err = ModLookup(parentPath, parentIsStd, path)
+		} else if mode&ResolveImport != 0 {
+			// We do our own path resolution, because we want to
+			// find out the key to use in packageCache without the
+			// overhead of repeated calls to buildContext.Import.
+			// The code is also needed in a few other places anyway.
+			r.path = resolveImportPath(path, parentPath, parentDir, parentRoot, parentIsStd)
+		} else if mode&ResolveModule != 0 {
+			r.path = moduleImportPath(path, parentPath, parentDir, parentRoot)
+		}
+		if r.path == "" {
+			r.path = path
+		}
+		return r
+	}).(resolvedImport)
+	// Invariant: r.path is set to the resolved import path. If the path cannot
+	// be resolved, r.path is set to path, the source import path.
+	// r.path is never empty.
+
+	// Load the package from its directory. If we already found the package's
+	// directory when resolving its import path, use that.
+	data := packageDataCache.Do(r.path, func() interface{} {
+		loaded = true
+		var data packageData
+		if r.dir != "" {
+			var buildMode build.ImportMode
+			if !cfg.ModulesEnabled {
+				buildMode = build.ImportComment
+			}
+			data.p, data.err = cfg.BuildContext.ImportDir(r.dir, buildMode)
+		} else if r.err != nil {
+			data.p = new(build.Package)
+			data.err = fmt.Errorf("unknown import path %q: %v", r.path, r.err)
+		} else if cfg.ModulesEnabled && path != "unsafe" {
+			data.p = new(build.Package)
+			data.err = fmt.Errorf("unknown import path %q: internal error: module loader did not resolve import", r.path)
+		} else {
+			buildMode := build.ImportComment
+			if mode&ResolveImport == 0 || r.path != path {
+				// Not vendoring, or we already found the vendored path.
+				buildMode |= build.IgnoreVendor
+			}
+			data.p, data.err = cfg.BuildContext.Import(r.path, parentDir, buildMode)
+		}
+		data.p.ImportPath = r.path
+		if cfg.GOBIN != "" {
+			data.p.BinDir = cfg.GOBIN
+		} else if cfg.ModulesEnabled && !data.p.Goroot {
+			data.p.BinDir = ModBinDir()
+		}
+		if !cfg.ModulesEnabled && data.err == nil &&
+			data.p.ImportComment != "" && data.p.ImportComment != path &&
+			!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
+			data.err = fmt.Errorf("code in directory %s expects import %q", data.p.Dir, data.p.ImportComment)
+		}
+		return data
+	}).(packageData)
+
+	return data.p, loaded, data.err
+}
+
+// importSpec describes an import declaration in source code. It is used as a
+// cache key for resolvedImportCache.
+type importSpec struct {
+	path                              string
+	parentPath, parentDir, parentRoot string
+	parentIsStd                       bool
+	mode                              int
+}
+
+// resolvedImport holds a canonical identifier for a package. It may also contain
+// a path to the package's directory and an error if one occurred. resolvedImport
+// is the value type in resolvedImportCache.
+type resolvedImport struct {
+	path, dir string
+	err       error
+}
+
+// packageData holds information loaded from a package. It is the value type
+// in packageDataCache.
+type packageData struct {
+	p   *build.Package
+	err error
+}
+
+// resolvedImportCache maps import strings (importSpec) to canonical package names
+// (resolvedImport).
+var resolvedImportCache par.Cache
+
+// packageDataCache maps canonical package names (string) to package metadata
+// (packageData).
+var packageDataCache par.Cache
+
+// preloadWorkerCount is the number of concurrent goroutines that can load
+// packages. Experimentally, there are diminishing returns with more than
+// 4 workers. This was measured on the following machines.
+//
+// * MacBookPro with a 4-core Intel Core i7 CPU
+// * Linux workstation with 6-core Intel Xeon CPU
+// * Linux workstation with 24-core Intel Xeon CPU
+//
+// It is very likely (though not confirmed) that this workload is limited
+// by memory bandwidth. We don't have a good way to determine the number of
+// workers that would saturate the bus though, so runtime.GOMAXPROCS
+// seems like a reasonable default.
+var preloadWorkerCount = runtime.GOMAXPROCS(0)
+
+// preload holds state for managing concurrent preloading of package data.
+//
+// A preload should be created with newPreload before loading a large
+// package graph. flush must be called when package loading is complete
+// to ensure preload goroutines are no longer active. This is necessary
+// because of global mutable state that cannot safely be read and written
+// concurrently. In particular, packageDataCache may be cleared by "go get"
+// in GOPATH mode, and modload.loaded (accessed via ModLookup) may be
+// modified by modload.ImportPaths (ModImportPaths).
+type preload struct {
+	cancel chan struct{}
+	sema   chan struct{}
+}
+
+// newPreload creates a new preloader. flush must be called later to avoid
+// accessing global state while it is being modified.
+func newPreload() *preload {
+	pre := &preload{
+		cancel: make(chan struct{}),
+		sema:   make(chan struct{}, preloadWorkerCount),
+	}
+	return pre
+}
+
+// preloadMatches loads data for package paths matched by patterns.
+// When preloadMatches returns, some packages may not be loaded yet, but
+// loadPackageData and loadImport are always safe to call.
+func (pre *preload) preloadMatches(matches []*search.Match) {
+	for _, m := range matches {
+		for _, pkg := range m.Pkgs {
+			select {
+			case <-pre.cancel:
+				return
+			case pre.sema <- struct{}{}:
+				go func(pkg string) {
+					mode := 0 // don't use vendoring or module import resolution
+					bp, loaded, err := loadPackageData(pkg, "", base.Cwd, "", false, mode)
+					<-pre.sema
+					if bp != nil && loaded && err == nil && !IgnoreImports {
+						pre.preloadImports(bp.Imports, bp)
+					}
+				}(pkg)
+			}
+		}
+	}
+}
+
+// preloadImports queues a list of imports for preloading.
+// When preloadImports returns, some packages may not be loaded yet,
+// but loadPackageData and loadImport are always safe to call.
+func (pre *preload) preloadImports(imports []string, parent *build.Package) {
+	parentIsStd := parent.Goroot && parent.ImportPath != "" && search.IsStandardImportPath(parent.ImportPath)
+	for _, path := range imports {
+		if path == "C" || path == "unsafe" {
+			continue
+		}
+		select {
+		case <-pre.cancel:
+			return
+		case pre.sema <- struct{}{}:
+			go func(path string) {
+				bp, loaded, err := loadPackageData(path, parent.ImportPath, parent.Dir, parent.Root, parentIsStd, ResolveImport)
+				<-pre.sema
+				if bp != nil && loaded && err == nil && !IgnoreImports {
+					pre.preloadImports(bp.Imports, bp)
+				}
+			}(path)
+		}
+	}
+}
+
+// flush stops pending preload operations. flush blocks until preload calls to
+// loadPackageData have completed. The preloader will not make any new calls
+// to loadPackageData.
+func (pre *preload) flush() {
+	close(pre.cancel)
+	for i := 0; i < preloadWorkerCount; i++ {
+		pre.sema <- struct{}{}
+	}
+}
+
 func cleanImport(path string) string {
 	orig := path
 	path = pathpkg.Clean(path)
@@ -622,18 +809,13 @@ func cleanImport(path string) string {
 	return path
 }
 
-var isDirCache = map[string]bool{}
+var isDirCache par.Cache
 
 func isDir(path string) bool {
-	result, ok := isDirCache[path]
-	if ok {
-		return result
-	}
-
-	fi, err := os.Stat(path)
-	result = err == nil && fi.IsDir()
-	isDirCache[path] = result
-	return result
+	return isDirCache.Do(path, func() interface{} {
+		fi, err := os.Stat(path)
+		return err == nil && fi.IsDir()
+	}).(bool)
 }
 
 // ResolveImportPath returns the true meaning of path when it appears in parent.
@@ -642,37 +824,44 @@ func isDir(path string) bool {
 // If vendor expansion doesn't trigger, then the path is also subject to
 // Go 1.11 module legacy conversion (golang.org/issue/25069).
 func ResolveImportPath(parent *Package, path string) (found string) {
+	var parentPath, parentDir, parentRoot string
+	parentIsStd := false
+	if parent != nil {
+		parentPath = parent.ImportPath
+		parentDir = parent.Dir
+		parentRoot = parent.Root
+		parentIsStd = parent.Standard
+	}
+	return resolveImportPath(path, parentPath, parentDir, parentRoot, parentIsStd)
+}
+
+func resolveImportPath(path, parentPath, parentDir, parentRoot string, parentIsStd bool) (found string) {
 	if cfg.ModulesEnabled {
-		parentPath := ""
-		parentIsStd := false
-		if parent != nil {
-			parentPath = parent.ImportPath
-			parentIsStd = parent.Standard
-		}
 		if _, p, e := ModLookup(parentPath, parentIsStd, path); e == nil {
 			return p
 		}
 		return path
 	}
-	found = VendoredImportPath(parent, path)
+	found = vendoredImportPath(path, parentPath, parentDir, parentRoot)
 	if found != path {
 		return found
 	}
-	return ModuleImportPath(parent, path)
+	return moduleImportPath(path, parentPath, parentDir, parentRoot)
 }
 
 // dirAndRoot returns the source directory and workspace root
 // for the package p, guaranteeing that root is a path prefix of dir.
-func dirAndRoot(p *Package) (dir, root string) {
-	dir = filepath.Clean(p.Dir)
-	root = filepath.Join(p.Root, "src")
-	if !str.HasFilePathPrefix(dir, root) || p.ImportPath != "command-line-arguments" && filepath.Join(root, p.ImportPath) != dir {
+func dirAndRoot(path string, dir, root string) (string, string) {
+	origDir, origRoot := dir, root
+	dir = filepath.Clean(dir)
+	root = filepath.Join(root, "src")
+	if !str.HasFilePathPrefix(dir, root) || path != "command-line-arguments" && filepath.Join(root, path) != dir {
 		// Look for symlinks before reporting error.
 		dir = expandPath(dir)
 		root = expandPath(root)
 	}
 
-	if !str.HasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || p.ImportPath != "command-line-arguments" && !p.Internal.Local && filepath.Join(root, p.ImportPath) != dir {
+	if !str.HasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || path != "command-line-arguments" && !build.IsLocalImport(path) && filepath.Join(root, path) != dir {
 		base.Fatalf("unexpected directory layout:\n"+
 			"	import path: %s\n"+
 			"	root: %s\n"+
@@ -680,27 +869,27 @@ func dirAndRoot(p *Package) (dir, root string) {
 			"	expand root: %s\n"+
 			"	expand dir: %s\n"+
 			"	separator: %s",
-			p.ImportPath,
-			filepath.Join(p.Root, "src"),
-			filepath.Clean(p.Dir),
-			root,
-			dir,
+			path,
+			filepath.Join(origRoot, "src"),
+			filepath.Clean(origDir),
+			origRoot,
+			origDir,
 			string(filepath.Separator))
 	}
 
 	return dir, root
 }
 
-// VendoredImportPath returns the vendor-expansion of path when it appears in parent.
+// vendoredImportPath returns the vendor-expansion of path when it appears in parent.
 // If parent is x/y/z, then path might expand to x/y/z/vendor/path, x/y/vendor/path,
 // x/vendor/path, vendor/path, or else stay path if none of those exist.
-// VendoredImportPath returns the expanded path or, if no expansion is found, the original.
-func VendoredImportPath(parent *Package, path string) (found string) {
-	if parent == nil || parent.Root == "" {
+// vendoredImportPath returns the expanded path or, if no expansion is found, the original.
+func vendoredImportPath(path, parentPath, parentDir, parentRoot string) (found string) {
+	if parentRoot == "" {
 		return path
 	}
 
-	dir, root := dirAndRoot(parent)
+	dir, root := dirAndRoot(parentPath, parentDir, parentRoot)
 
 	vpath := "vendor/" + path
 	for i := len(dir); i >= len(root); i-- {
@@ -716,7 +905,7 @@ func VendoredImportPath(parent *Package, path string) (found string) {
 		}
 		targ := filepath.Join(dir[:i], vpath)
 		if isDir(targ) && hasGoFiles(targ) {
-			importPath := parent.ImportPath
+			importPath := parentPath
 			if importPath == "command-line-arguments" {
 				// If parent.ImportPath is 'command-line-arguments'.
 				// set to relative directory to root (also chopped root directory)
@@ -746,54 +935,48 @@ func VendoredImportPath(parent *Package, path string) (found string) {
 
 var (
 	modulePrefix   = []byte("\nmodule ")
-	goModPathCache = make(map[string]string)
+	goModPathCache par.Cache
 )
 
 // goModPath returns the module path in the go.mod in dir, if any.
 func goModPath(dir string) (path string) {
-	path, ok := goModPathCache[dir]
-	if ok {
-		return path
-	}
-	defer func() {
-		goModPathCache[dir] = path
-	}()
-
-	data, err := ioutil.ReadFile(filepath.Join(dir, "go.mod"))
-	if err != nil {
-		return ""
-	}
-	var i int
-	if bytes.HasPrefix(data, modulePrefix[1:]) {
-		i = 0
-	} else {
-		i = bytes.Index(data, modulePrefix)
-		if i < 0 {
-			return ""
-		}
-		i++
-	}
-	line := data[i:]
-
-	// Cut line at \n, drop trailing \r if present.
-	if j := bytes.IndexByte(line, '\n'); j >= 0 {
-		line = line[:j]
-	}
-	if line[len(line)-1] == '\r' {
-		line = line[:len(line)-1]
-	}
-	line = line[len("module "):]
-
-	// If quoted, unquote.
-	path = strings.TrimSpace(string(line))
-	if path != "" && path[0] == '"' {
-		s, err := strconv.Unquote(path)
+	return goModPathCache.Do(dir, func() interface{} {
+		data, err := ioutil.ReadFile(filepath.Join(dir, "go.mod"))
 		if err != nil {
 			return ""
 		}
-		path = s
-	}
-	return path
+		var i int
+		if bytes.HasPrefix(data, modulePrefix[1:]) {
+			i = 0
+		} else {
+			i = bytes.Index(data, modulePrefix)
+			if i < 0 {
+				return ""
+			}
+			i++
+		}
+		line := data[i:]
+
+		// Cut line at \n, drop trailing \r if present.
+		if j := bytes.IndexByte(line, '\n'); j >= 0 {
+			line = line[:j]
+		}
+		if line[len(line)-1] == '\r' {
+			line = line[:len(line)-1]
+		}
+		line = line[len("module "):]
+
+		// If quoted, unquote.
+		path = strings.TrimSpace(string(line))
+		if path != "" && path[0] == '"' {
+			s, err := strconv.Unquote(path)
+			if err != nil {
+				return ""
+			}
+			path = s
+		}
+		return path
+	}).(string)
 }
 
 // findVersionElement returns the slice indices of the final version element /vN in path.
@@ -825,7 +1008,7 @@ func isVersionElement(s string) bool {
 	return true
 }
 
-// ModuleImportPath translates import paths found in go modules
+// moduleImportPath translates import paths found in go modules
 // back down to paths that can be resolved in ordinary builds.
 //
 // Define “new” code as code with a go.mod file in the same directory
@@ -833,8 +1016,8 @@ func isVersionElement(s string) bool {
 // x/y/v2/z does not exist and x/y/go.mod says “module x/y/v2”,
 // then go build will read the import as x/y/z instead.
 // See golang.org/issue/25069.
-func ModuleImportPath(parent *Package, path string) (found string) {
-	if parent == nil || parent.Root == "" {
+func moduleImportPath(path, parentPath, parentDir, parentRoot string) (found string) {
+	if parentRoot == "" {
 		return path
 	}
 
@@ -846,7 +1029,7 @@ func ModuleImportPath(parent *Package, path string) (found string) {
 		return path
 	}
 
-	dir, root := dirAndRoot(parent)
+	dir, root := dirAndRoot(parentPath, parentDir, parentRoot)
 
 	// Consider dir and parents, up to and including root.
 	for i := len(dir); i >= len(root); i-- {
@@ -1763,12 +1946,16 @@ func PackagesAndErrors(patterns []string) []*Package {
 		seenPkg = make(map[*Package]bool)
 	)
 
+	pre := newPreload()
+	defer pre.flush()
+	pre.preloadMatches(matches)
+
 	for _, m := range matches {
 		for _, pkg := range m.Pkgs {
 			if pkg == "" {
 				panic(fmt.Sprintf("ImportPaths returned empty package for pattern %s", m.Pattern))
 			}
-			p := LoadImport(pkg, base.Cwd, nil, &stk, nil, 0)
+			p := loadImport(pre, pkg, base.Cwd, nil, &stk, nil, 0)
 			p.Match = append(p.Match, m.Pattern)
 			p.Internal.CmdlinePkg = true
 			if m.Literal {
