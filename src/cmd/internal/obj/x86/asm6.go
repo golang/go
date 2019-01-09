@@ -2064,8 +2064,7 @@ func instinit(ctxt *obj.Link) {
 	case objabi.Hplan9:
 		plan9privates = ctxt.Lookup("_privates")
 	case objabi.Hnacl:
-		deferreturn = ctxt.Lookup("runtime.deferreturn")
-		deferreturn.SetABI(obj.ABIInternal)
+		deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
 	}
 
 	for i := range avxOptab {
