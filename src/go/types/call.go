@@ -233,6 +233,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 	}
 
 	// evaluate arguments
+	context := check.sprintf("argument to %s", call.Fun)
 	for i := 0; i < n; i++ {
 		arg(x, i)
 		if x.mode != invalid {
@@ -240,7 +241,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 			if i == n-1 && call.Ellipsis.IsValid() {
 				ellipsis = call.Ellipsis
 			}
-			check.argument(call.Fun, sig, i, x, ellipsis)
+			check.argument(call.Fun, sig, i, x, ellipsis, context)
 		}
 	}
 
@@ -258,7 +259,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 
 // argument checks passing of argument x to the i'th parameter of the given signature.
 // If ellipsis is valid, the argument is followed by ... at that position in the call.
-func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, ellipsis token.Pos) {
+func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, ellipsis token.Pos, context string) {
 	check.singleValue(x)
 	if x.mode == invalid {
 		return
@@ -298,7 +299,7 @@ func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, 
 		typ = typ.(*Slice).elem
 	}
 
-	check.assignment(x, typ, check.sprintf("argument to %s", fun))
+	check.assignment(x, typ, context)
 }
 
 func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
