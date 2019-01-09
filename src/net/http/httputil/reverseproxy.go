@@ -45,7 +45,7 @@ type ReverseProxy struct {
 	// after each write to the client.
 	// The FlushInterval is ignored when ReverseProxy
 	// recognizes a response as a streaming response;
-	// for such reponses, writes are flushed to the client
+	// for such responses, writes are flushed to the client
 	// immediately.
 	FlushInterval time.Duration
 
