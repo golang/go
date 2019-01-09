@@ -2007,7 +2007,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 		if s.FuncInfo != nil {
 			locals = s.FuncInfo.Locals
 		}
-		limit = int(objabi.StackLimit+locals) + int(ctxt.FixedFrameSize())
+		limit = objabi.StackLimit + int(locals) + int(ctxt.FixedFrameSize())
 	}
 
 	// Walk through sp adjustments in function, consuming relocs.
