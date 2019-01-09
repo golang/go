@@ -123,15 +123,25 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	if kind == kindOpenFile {
 		var st syscall.Stat_t
 		switch runtime.GOOS {
-		// Don't try to use kqueue with regular files on *BSDs.
-		// on FreeBSD with older kernels it used to crash the system unpredictably while running all.bash.
-		// while with newer kernels a regular file is always reported as ready for writing.
-		// on Dragonfly, NetBSD and OpenBSD the fd is signaled only once as ready (both read and write).
-		// Issue 19093.
-		case "dragonfly", "freebsd", "netbsd", "openbsd":
+		case "freebsd":
+			// On FreeBSD before 10.4 it used to crash the
+			// system unpredictably while running all.bash.
+			// When we stop supporting FreeBSD 10 we can merge
+			// this into the dragonfly/netbsd/openbsd case.
+			// Issue 27619.
+			pollable = false
+
+		case "dragonfly", "netbsd", "openbsd":
+			// Don't try to use kqueue with regular files on *BSDs.
+			// On FreeBSD a regular file is always
+			// reported as ready for writing.
+			// On Dragonfly, NetBSD and OpenBSD the fd is signaled
+			// only once as ready (both read and write).
+			// Issue 19093.
 			if err := syscall.Fstat(fdi, &st); err == nil && st.Mode&syscall.S_IFMT == syscall.S_IFREG {
 				pollable = false
 			}
+
 		case "darwin":
 			// In addition to the behavior described above for regular files,
 			// on Darwin, kqueue does not work properly with fifos:
