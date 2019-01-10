@@ -553,6 +553,20 @@ for {
 
 </dl><!-- lib/time -->
 
+<dl id="math"><dt><a href="/pkg/math/">math</a></dt>
+  <dd>
+    <p><!-- CL 153059 -->
+      The functions
+      <a href="/pkg/math/#Sin"><code>Sin</code></a>,
+      <a href="/pkg/math/#Cos"><code>Cos</code></a>,
+      <a href="/pkg/math/#Tan"><code>Tan</code></a>,
+      and <a href="/pkg/math/#Sincos"><code>Sincos</code></a> now
+      apply Payne-Hanek range reduction to huge arguments. This
+      produces more accurate answers, but they will not be bit-for-bit
+      identical with the results in earlier releases.
+    </p>
+</dl><!-- math -->
+
 <dl id="math/bits"><dt><a href="/pkg/math/bits/">math/bits</a></dt>
   <dd>
     <p><!-- CL 123157 -->
