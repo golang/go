@@ -1373,13 +1373,13 @@ var (
 
 // Test for correctly identifying the name of a vendored package when it
 // differs from its directory name. In this test, the import line
-// "mypkg.com/mypkg.v1" would be removed if goimports wasn't able to detect
+// "mypkg.com/mypkg_v1" would be removed if goimports wasn't able to detect
 // that the package name is "mypkg".
 func TestVendorPackage(t *testing.T) {
 	const input = `package p
 import (
 	"fmt"
-	"mypkg.com/mypkg.v1"
+	"mypkg.com/mypkg_v1"
 )
 var _, _ = fmt.Print, mypkg.Foo
 `
@@ -1389,7 +1389,7 @@ var _, _ = fmt.Print, mypkg.Foo
 import (
 	"fmt"
 
-	mypkg "mypkg.com/mypkg.v1"
+	mypkg "mypkg.com/mypkg_v1"
 )
 
 var _, _ = fmt.Print, mypkg.Foo
@@ -1400,7 +1400,7 @@ var _, _ = fmt.Print, mypkg.Foo
 		module: packagestest.Module{
 			Name: "mypkg.com/outpkg",
 			Files: fm{
-				"vendor/mypkg.com/mypkg.v1/f.go": "package mypkg\nvar Foo = 123\n",
+				"vendor/mypkg.com/mypkg_v1/f.go": "package mypkg\nvar Foo = 123\n",
 				"toformat.go":                    input,
 			},
 		},
@@ -1626,28 +1626,43 @@ func TestAddNameToMismatchedImport(t *testing.T) {
 	const input = `package main
 
 import (
+"foo.com/a.thing"
 "foo.com/surprise"
 "foo.com/v1"
+"foo.com/other/v2"
+"foo.com/other/v3"
+"foo.com/go-thing"
+"foo.com/go-wrong"
 )
 
-var _, _ = bar.X, v1.Y`
+var _ = []interface{}{bar.X, v1.Y, a.A, v2.V2, other.V3, thing.Thing, gow.Wrong}`
 
 	const want = `package main
 
 import (
+	"foo.com/a.thing"
+	"foo.com/go-thing"
+	gow "foo.com/go-wrong"
+	v2 "foo.com/other/v2"
+	"foo.com/other/v3"
 	bar "foo.com/surprise"
 	v1 "foo.com/v1"
 )
 
-var _, _ = bar.X, v1.Y
+var _ = []interface{}{bar.X, v1.Y, a.A, v2.V2, other.V3, thing.Thing, gow.Wrong}
 `
 
 	testConfig{
 		module: packagestest.Module{
 			Name: "foo.com",
 			Files: fm{
+				"a.thing/a.go":  "package a \n const A = 1",
 				"surprise/x.go": "package bar \n const X = 1",
 				"v1/x.go":       "package v1 \n const Y = 1",
+				"other/v2/y.go": "package v2 \n const V2 = 1",
+				"other/v3/z.go": "package other \n const V3 = 1",
+				"go-thing/b.go": "package thing \n const Thing = 1",
+				"go-wrong/b.go": "package gow \n const Wrong = 1",
 				"test/t.go":     input,
 			},
 		},

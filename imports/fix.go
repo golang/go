@@ -23,6 +23,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
@@ -289,7 +291,7 @@ func (p *pass) importIdentifier(imp *importInfo) string {
 	if known != nil && known.name != "" {
 		return known.name
 	}
-	return importPathToNameBasic(imp.importPath, p.srcDir)
+	return importPathToAssumedName(imp.importPath)
 }
 
 // load reads in everything necessary to run a pass, and reports whether the
@@ -389,7 +391,7 @@ func (p *pass) fix() bool {
 			}
 			path := strings.Trim(imp.Path.Value, `""`)
 			ident := p.importIdentifier(&importInfo{importPath: path})
-			if ident != importPathToNameBasic(path, p.srcDir) {
+			if ident != importPathToAssumedName(path) {
 				imp.Name = &ast.Ident{Name: ident, NamePos: imp.Pos()}
 			}
 		}
@@ -648,7 +650,7 @@ func (r *goPackagesResolver) loadPackageNames(importPaths []string, srcDir strin
 		if _, ok := names[path]; ok {
 			continue
 		}
-		names[path] = importPathToNameBasic(path, srcDir)
+		names[path] = importPathToAssumedName(path)
 	}
 	return names, nil
 
@@ -741,17 +743,35 @@ func addExternalCandidates(pass *pass, refs references, filename string) error {
 	return firstErr
 }
 
-// importPathToNameBasic assumes the package name is the base of import path,
-// except that if the path ends in foo/vN, it assumes the package name is foo.
-func importPathToNameBasic(importPath, srcDir string) (packageName string) {
+// notIdentifier reports whether ch is an invalid identifier character.
+func notIdentifier(ch rune) bool {
+	return !('a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' ||
+		'0' <= ch && ch <= '9' ||
+		ch == '_' ||
+		ch >= utf8.RuneSelf && (unicode.IsLetter(ch) || unicode.IsDigit(ch)))
+}
+
+// importPathToAssumedName returns the assumed package name of an import path.
+// It does this using only string parsing of the import path.
+// It picks the last element of the path that does not look like a major
+// version, and then picks the valid identifier off the start of that element.
+// It is used to determine if a local rename should be added to an import for
+// clarity.
+// This function could be moved to a standard package and exported if we want
+// for use in other tools.
+func importPathToAssumedName(importPath string) string {
 	base := path.Base(importPath)
 	if strings.HasPrefix(base, "v") {
 		if _, err := strconv.Atoi(base[1:]); err == nil {
 			dir := path.Dir(importPath)
 			if dir != "." {
-				return path.Base(dir)
+				base = path.Base(dir)
 			}
 		}
+	}
+	base = strings.TrimPrefix(base, "go-")
+	if i := strings.IndexFunc(base, notIdentifier); i >= 0 {
+		base = base[:i]
 	}
 	return base
 }
