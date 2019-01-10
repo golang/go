@@ -576,9 +576,18 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 	}
 	lane := make(chan racer, 1)
 	qtypes := [...]dnsmessage.Type{dnsmessage.TypeA, dnsmessage.TypeAAAA}
-	var lastErr error
-	for _, fqdn := range conf.nameList(name) {
-		for _, qtype := range qtypes {
+	var queryFn func(fqdn string, qtype dnsmessage.Type)
+	var responseFn func(fqdn string, qtype dnsmessage.Type) racer
+	if conf.singleRequest {
+		queryFn = func(fqdn string, qtype dnsmessage.Type) {}
+		responseFn = func(fqdn string, qtype dnsmessage.Type) racer {
+			dnsWaitGroup.Add(1)
+			defer dnsWaitGroup.Done()
+			p, server, err := r.tryOneName(ctx, conf, fqdn, qtype)
+			return racer{p, server, err}
+		}
+	} else {
+		queryFn = func(fqdn string, qtype dnsmessage.Type) {
 			dnsWaitGroup.Add(1)
 			go func(qtype dnsmessage.Type) {
 				p, server, err := r.tryOneName(ctx, conf, fqdn, qtype)
@@ -586,9 +595,18 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 				dnsWaitGroup.Done()
 			}(qtype)
 		}
+		responseFn = func(fqdn string, qtype dnsmessage.Type) racer {
+			return <-lane
+		}
+	}
+	var lastErr error
+	for _, fqdn := range conf.nameList(name) {
+		for _, qtype := range qtypes {
+			queryFn(fqdn, qtype)
+		}
 		hitStrictError := false
-		for range qtypes {
-			racer := <-lane
+		for _, qtype := range qtypes {
+			racer := responseFn(fqdn, qtype)
 			if racer.error != nil {
 				if nerr, ok := racer.error.(Error); ok && nerr.Temporary() && r.strictErrors() {
 					// This error will abort the nameList loop.

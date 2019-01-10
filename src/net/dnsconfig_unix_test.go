@@ -102,6 +102,28 @@ var dnsReadConfigTests = []struct {
 			search:   []string{"c.symbolic-datum-552.internal."},
 		},
 	},
+	{
+		name: "testdata/single-request-resolv.conf",
+		want: &dnsConfig{
+			servers:       defaultNS,
+			ndots:         1,
+			singleRequest: true,
+			timeout:       5 * time.Second,
+			attempts:      2,
+			search:        []string{"domain.local."},
+		},
+	},
+	{
+		name: "testdata/single-request-reopen-resolv.conf",
+		want: &dnsConfig{
+			servers:       defaultNS,
+			ndots:         1,
+			singleRequest: true,
+			timeout:       5 * time.Second,
+			attempts:      2,
+			search:        []string{"domain.local."},
+		},
+	},
 }
 
 func TestDNSReadConfig(t *testing.T) {
