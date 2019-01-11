@@ -86,21 +86,14 @@ func TestFilesToReleases(t *testing.T) {
 		{Version: "go1.5beta1", OS: "windows"},
 	}
 	stable, unstable, archive := filesToReleases(fs)
-	if got, want := len(stable), 2; want != got {
-		t.Errorf("len(stable): got %v, want %v", got, want)
-	} else {
-		if got, want := stable[0].Version, "go1.7.4"; want != got {
-			t.Errorf("stable[0].Version: got %v, want %v", got, want)
-		}
-		if got, want := stable[1].Version, "go1.6.2"; want != got {
-			t.Errorf("stable[1].Version: got %v, want %v", got, want)
-		}
+	if got, want := list(stable), "go1.7.4, go1.6.2"; got != want {
+		t.Errorf("stable = %q; want %q", got, want)
 	}
-	if got, want := len(unstable), 0; want != got {
-		t.Errorf("len(unstable): got %v, want %v", got, want)
+	if got, want := list(unstable), ""; got != want {
+		t.Errorf("unstable = %q; want %q", got, want)
 	}
-	if got, want := len(archive), 4; want != got {
-		t.Errorf("len(archive): got %v, want %v", got, want)
+	if got, want := list(archive), "go1.7, go1.6, go1.5.2, go1.5"; got != want {
+		t.Errorf("archive = %q; want %q", got, want)
 	}
 }
 
@@ -116,6 +109,28 @@ func TestOldUnstableNotShown(t *testing.T) {
 	}
 }
 
+// A new beta should show up under unstable, but not show up under archive. See golang.org/issue/29669.
+func TestNewUnstableShownOnce(t *testing.T) {
+	fs := []File{
+		{Version: "go1.12beta2"},
+		{Version: "go1.11.4"},
+		{Version: "go1.11"},
+		{Version: "go1.10.7"},
+		{Version: "go1.10"},
+		{Version: "go1.9"},
+	}
+	stable, unstable, archive := filesToReleases(fs)
+	if got, want := list(stable), "go1.11.4, go1.10.7"; got != want {
+		t.Errorf("stable = %q; want %q", got, want)
+	}
+	if got, want := list(unstable), "go1.12beta2"; got != want {
+		t.Errorf("unstable = %q; want %q", got, want)
+	}
+	if got, want := list(archive), "go1.11, go1.10, go1.9"; got != want {
+		t.Errorf("archive = %q; want %q", got, want)
+	}
+}
+
 func TestUnstableShown(t *testing.T) {
 	fs := []File{
 		{Version: "go1.8beta2"},
@@ -125,11 +140,20 @@ func TestUnstableShown(t *testing.T) {
 		{Version: "go1.7beta1"},
 	}
 	_, unstable, _ := filesToReleases(fs)
-	if got, want := len(unstable), 1; got != want {
-		t.Fatalf("len(unstable): got %v, want %v", got, want)
+	// Show RCs ahead of betas.
+	if got, want := list(unstable), "go1.8rc1"; got != want {
+		t.Errorf("unstable = %q; want %q", got, want)
 	}
-	// show rcs ahead of betas.
-	if got, want := unstable[0].Version, "go1.8rc1"; got != want {
-		t.Fatalf("unstable[0].Version: got %v, want %v", got, want)
+}
+
+// list returns a version list string for the given releases.
+func list(rs []Release) string {
+	var s string
+	for i, r := range rs {
+		if i > 0 {
+			s += ", "
+		}
+		s += r.Version
 	}
+	return s
 }

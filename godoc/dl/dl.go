@@ -203,6 +203,7 @@ func filesToReleases(fs []File) (stable, unstable, archive []Release) {
 				return
 			}
 			unstable = append(unstable, *r)
+			return
 		}
 
 		// Reports whether the release is the most recent minor version of the
