@@ -1397,7 +1397,6 @@
 // in the standard user cache directory for the current operating system.
 // Setting the GOCACHE environment variable overrides this default,
 // and running 'go env GOCACHE' prints the current cache directory.
-// You can set the variable to 'off' to disable the cache.
 //
 // The go command periodically deletes cached data that has not been
 // used recently. Running 'go clean -cache' deletes all cached data.
