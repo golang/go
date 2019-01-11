@@ -45,6 +45,12 @@
                     "default": [],
                     "description": "Flags to pass to golsp",
                     "scope": "resource"
+                },
+                "golsp.command": {
+                    "type": "string",
+                    "default": "golsp",
+                    "description": "Name of the GoLSP binary",
+                    "scope": "resource"
                 }
             }
         }

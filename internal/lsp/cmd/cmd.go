@@ -23,7 +23,7 @@ type Application struct {
 	// we also include the server directly for now, so the flags work even without
 	// the verb. We should remove this when we stop allowing the server verb by
 	// default
-	Server server
+	Server Server
 }
 
 // Name implements tool.Application returning the binary name.

@@ -12,9 +12,10 @@ import path = require('path');
 export function activate(ctx: vscode.ExtensionContext): void {
   let document = vscode.window.activeTextEditor.document;
   let config = vscode.workspace.getConfiguration('golsp', document.uri);
+  let golspCommand: string = config['command'];
   let golspFlags: string[] = config['flags'];
   let serverOptions:
-      lsp.ServerOptions = {command: getBinPath('golsp'), args: golspFlags};
+      lsp.ServerOptions = {command: getBinPath(golspCommand), args: golspFlags};
   let clientOptions: lsp.LanguageClientOptions = {
     initializationOptions: {},
     documentSelector: ['go'],
