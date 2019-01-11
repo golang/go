@@ -36,15 +36,15 @@ func Definition(ctx context.Context, v View, f File, pos token.Pos) (Range, erro
 		return Range{}, fmt.Errorf("no object")
 	}
 	if i.wasEmbeddedField {
-		// the original position was on the embedded field declaration
-		// so we try to dig out the type and jump to that instead
+		// The original position was on the embedded field declaration, so we
+		// try to dig out the type and jump to that instead.
 		if v, ok := obj.(*types.Var); ok {
 			if n, ok := v.Type().(*types.Named); ok {
 				obj = n.Obj()
 			}
 		}
 	}
-	return objToRange(ctx, v, obj), nil
+	return objToRange(ctx, v, obj)
 }
 
 func TypeDefinition(ctx context.Context, v View, f File, pos token.Pos) (Range, error) {
@@ -71,7 +71,7 @@ func TypeDefinition(ctx context.Context, v View, f File, pos token.Pos) (Range, 
 	if obj == nil {
 		return Range{}, fmt.Errorf("no object for type %s", typ.String())
 	}
-	return objToRange(ctx, v, obj), nil
+	return objToRange(ctx, v, obj)
 }
 
 func typeToObject(typ types.Type) (obj types.Object) {
@@ -129,8 +129,11 @@ func checkIdentifier(f *ast.File, pos token.Pos) (ident, error) {
 	return result, nil
 }
 
-func objToRange(ctx context.Context, v View, obj types.Object) Range {
+func objToRange(ctx context.Context, v View, obj types.Object) (Range, error) {
 	p := obj.Pos()
+	if !p.IsValid() {
+		return Range{}, fmt.Errorf("invalid position for %v", obj.Name())
+	}
 	tok := v.FileSet().File(p)
 	pos := tok.Position(p)
 	if pos.Column == 1 {
@@ -161,7 +164,7 @@ Return:
 	return Range{
 		Start: p,
 		End:   p + token.Pos(identifierLen(obj.Name())),
-	}
+	}, nil
 }
 
 // TODO: This needs to be fixed to address golang.org/issue/29149.
