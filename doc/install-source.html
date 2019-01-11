@@ -627,6 +627,17 @@ contains further details regarding Go's ARM support.
 </p>
 </li>
 
+<li><code>$GOPPC64</code> (for <code>ppc64</code> and <code>ppc64le</code> only)
+<p>
+This variable sets the processor level (i.e. Instruction Set Architecture version)
+for which the compiler will target. The default is <code>power8</code>.
+</p>
+<ul>
+	<li><code>GOPPC64=power8</code>: generate ISA v2.07 instructions</li>
+	<li><code>GOPPC64=power9</code>: generate ISA v3.00 instructions</li>
+</ul>
+</li>
+
 </ul>
 
 <p>
