@@ -1382,8 +1382,8 @@ var (
 		"arm64":   {},
 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
 		"mips64":  {"GOMIPS64", "hardfloat", "softfloat"},
-		"ppc64":   {},
-		"ppc64le": {},
+		"ppc64":   {"GOPPC64", "power8", "power9"},
+		"ppc64le": {"GOPPC64", "power8", "power9"},
 		"s390x":   {},
 	}
 )

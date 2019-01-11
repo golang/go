@@ -33,6 +33,7 @@ var (
 	go386            string
 	gomips           string
 	gomips64         string
+	goppc64          string
 	goroot           string
 	goroot_final     string
 	goextlinkenabled string
@@ -159,6 +160,12 @@ func xinit() {
 	}
 	gomips64 = b
 
+	b = os.Getenv("GOPPC64")
+	if b == "" {
+		b = "power8"
+	}
+	goppc64 = b
+
 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
 		fatalf("$GOROOT is not set correctly or not exported\n"+
 			"\tGOROOT=%s\n"+
@@ -219,6 +226,7 @@ func xinit() {
 	os.Setenv("GOOS", goos)
 	os.Setenv("GOMIPS", gomips)
 	os.Setenv("GOMIPS64", gomips64)
+	os.Setenv("GOPPC64", goppc64)
 	os.Setenv("GOROOT", goroot)
 	os.Setenv("GOROOT_FINAL", goroot_final)
 
@@ -1116,6 +1124,9 @@ func cmdenv() {
 	}
 	if goarch == "mips64" || goarch == "mips64le" {
 		xprintf(format, "GOMIPS64", gomips64)
+	}
+	if goarch == "ppc64" || goarch == "ppc64le" {
+		xprintf(format, "GOPPC64", goppc64)
 	}
 
 	if *path {
