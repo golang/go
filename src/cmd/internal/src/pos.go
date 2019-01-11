@@ -343,7 +343,7 @@ const (
 	// positions.
 	//
 	PosDefaultStmt uint = iota // Default; position is not a statement boundary, but might be if optimization removes the designated statement boundary
-	PosIsStmt                  // Position is a statement bounday; if optimization removes the corresponding instruction, it should attempt to find a new instruction to be the boundary.
+	PosIsStmt                  // Position is a statement boundary; if optimization removes the corresponding instruction, it should attempt to find a new instruction to be the boundary.
 	PosNotStmt                 // Position should not be a statement boundary, but line should be preserved for profiling and low-level debugging purposes.
 )
 
