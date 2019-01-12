@@ -26,6 +26,17 @@ A similar explanation is available as a
 
 <h3 id="Overview">Overview</h3>
 
+<p>
+When it comes to structuring our Go projects, we have two options
+to choose from. We can either leverage the more traditional <i>GOPATH</i>,
+or we could use <i>modules</i> which have recently been added to the language.
+</p>
+
+<p>
+If you are just starting out with Go, then it is recommended that you start your 
+journey into Go using the new modules feature.
+</p>
+
 <ul>
 	<li>A workspace contains many version control <i>repositories</i>
 	    (managed by Git, for example).</li>
@@ -40,6 +51,20 @@ A similar explanation is available as a
 Note that this differs from other programming environments in which every
 project has a separate workspace and workspaces are closely tied to version
 control repositories.
+</p>
+
+<h4 id="GOPATH">The GOPATH Way</h4>
+
+<p>
+If you choose to use the <i>GOPATH</i> over <i>modules</i>, then you should be aware of
+some subtle differences in the organization of your Go projects. 
+By choosing to use the <i>GOPATH</i>, you will be constrained to
+developing your applications in a folder structure underneath your <i>GOPATH</i>.
+</p>
+
+<p>
+<b>Note: </b>For the rest of this document, I'll be highlighting the differences and
+showing both methods of approaching our task. 
 </p>
 
 <h3 id="Workspaces">Workspaces</h3>
@@ -126,7 +151,7 @@ and <code>%USERPROFILE%\go</code> (usually <code>C:\Users\YourName\go</code>) on
 </p>
 
 <p>
-If you would like to work in a different location, you will need to
+If you would like to work in a different location, you can choose to use
 <a href="https://golang.org/wiki/SettingGOPATH">set <code>GOPATH</code></a>
 to the path to that directory.
 (Another common setup is to set <code>GOPATH=$HOME</code>.)
@@ -208,7 +233,8 @@ will contain all of the source code for our Go program:
 </p>
 
 <pre>
-$ <b>mkdir -p ~/myproject/hello</b>
+$ <b>mkdir -p ~/myproject/hello</b> // using Go Modules.
+$ <b>mkdir -p $GOPATH/src/myproject/hello</b> // Using the GOPATH.
 </pre>
 
 <h3 id="Command">Your first program</h3>
@@ -219,6 +245,7 @@ To compile and run a simple program, first choose a package path (we'll use
 <b>Note:</b> you should ensure this directory lies outside your <code>$GOPATH</code> unless you have explicitly set
 <code>GO111MODULE</code> to <code>on</code>. You can find more about this here: <a href="https://golang.org/wiki/Modules#how-to-use-modules">How to Use Modules</a>
 </p>
+
 <pre>
 $ <b>mkdir -p ~/myproject/hello</b>
 $ <b>cd ~/myproject/hello</b>
@@ -233,6 +260,15 @@ The <code>go.mod</code> file will contain the name of our newly created module, 
 
 <pre>
 module github.com/user/hello
+</pre>
+
+<p>
+If we to do this using the <i>GOPATH</i>, there would be some subtle differences:
+</p>
+
+<pre>
+$ <b>mkdir -p $GOPATH/src/github.com/user/hello</b>
+$ <b>cd $GOPATH/src/github.com/user/hello</b>
 </pre>
 
 <p>
@@ -255,7 +291,8 @@ Now you can build that program with the <code>go</code> tool:
 </p>
 
 <pre>
-$ <b>go build ./...</b>
+$ <b>go build ./...</b> # Using Go Modules
+$ <b>go build main.go</b> # Using the GOPATH
 </pre>
 
 <p>This will compile your Go code into a <code>hello</code> binary that can be executed.</p>
@@ -341,7 +378,8 @@ library code
 </p>
 
 <pre>
-$ <b>mkdir ~/myproject/hello/stringutil</b>
+$ <b>mkdir -p ~/myproject/hello/stringutil</b> # Using Go Modules
+$ <b>mkdir -p $GOPATH/src/myproject/hello/stringutil</b> # Using the GOPATH
 </pre>
 
 <p>
@@ -378,8 +416,8 @@ Instead it saves the compiled package in the local build cache.
 
 <p>
 Once you have verified your new package builds, you can then
-modify your original <code>hello.go</code> (which is in
-<code>~/myProject/hello</code>) to use it:
+modify your original <code>hello.go</code> (which is in either
+<code>~/myProject/hello</code>, or <code>$OPATH/src/myProject/hello</code>) to use it:
 </p>
 
 <pre>
@@ -414,7 +452,8 @@ Hello, Go!
 </pre>
 
 <p>
-After the steps above, your workspace should look like this:
+After the steps above, your workspace should look like this if you are
+using Go Modules:
 </p>
 
 <pre>
@@ -427,6 +466,20 @@ $GOPATH/bin/
     hello.go         # command source
     go.mod
     go.sum
+</pre>
+
+<p>
+Or this, if you are using the <i>GOPATH</i>
+</p>
+
+<pre>
+/bin/
+	hello            # command executable
+src/
+	myproject/hello/
+		hello.go         # command source
+		stringutil/
+			reverse.go     # package source
 </pre>
 
 <h3 id="PackageNames">Package names</h3>
@@ -483,8 +536,8 @@ if the function calls a failure function such as <code>t.Error</code> or
 
 <p>
 Add a test to the <code>stringutil</code> package by creating the file
-<code>~/myproject/hello/stringutil/reverse_test.go</code> containing
-the following Go code.
+<code>reverse_test.go</code> within the same location as your existing
+<code>reverse.go</code> file containing the following Go code.
 </p>
 
 <pre>
