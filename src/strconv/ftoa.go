@@ -289,39 +289,80 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	// would round to the original mantissa and not the neighbors.
 	inclusive := mant%2 == 0
 
+	// As we walk the digits we want to know whether rounding up would fall
+	// within the upper bound. This is tracked by upperdelta:
+	//
+	// If upperdelta == 0, the digits of d and upper are the same so far.
+	//
+	// If upperdelta == 1, we saw a difference of 1 between d and upper on a
+	// previous digit and subsequently only 9s for d and 0s for upper.
+	// (Thus rounding up may fall outside the bound, if it is exclusive.)
+	//
+	// If upperdelta == 2, then the difference is greater than 1
+	// and we know that rounding up falls within the bound.
+	var upperdelta uint8
+
 	// Now we can figure out the minimum number of digits required.
 	// Walk along until d has distinguished itself from upper and lower.
-	for i := 0; i < d.nd; i++ {
-		l := byte('0') // lower digit
-		if i < lower.nd {
-			l = lower.d[i]
+	for ui := 0; ; ui++ {
+		// lower, d, and upper may have the decimal points at different
+		// places. In this case upper is the longest, so we iterate from
+		// ui==0 and start li and mi at (possibly) -1.
+		mi := ui - upper.dp + d.dp
+		if mi >= d.nd {
+			break
 		}
-		m := d.d[i]    // middle digit
+		li := ui - upper.dp + lower.dp
+		l := byte('0') // lower digit
+		if li >= 0 && li < lower.nd {
+			l = lower.d[li]
+		}
+		m := byte('0') // middle digit
+		if mi >= 0 {
+			m = d.d[mi]
+		}
 		u := byte('0') // upper digit
-		if i < upper.nd {
-			u = upper.d[i]
+		if ui < upper.nd {
+			u = upper.d[ui]
 		}
 
 		// Okay to round down (truncate) if lower has a different digit
 		// or if lower is inclusive and is exactly the result of rounding
 		// down (i.e., and we have reached the final digit of lower).
-		okdown := l != m || inclusive && i+1 == lower.nd
+		okdown := l != m || inclusive && li+1 == lower.nd
 
+		switch {
+		case upperdelta == 0 && m+1 < u:
+			// Example:
+			// m = 12345xxx
+			// u = 12347xxx
+			upperdelta = 2
+		case upperdelta == 0 && m != u:
+			// Example:
+			// m = 12345xxx
+			// u = 12346xxx
+			upperdelta = 1
+		case upperdelta == 1 && (m != '9' || u != '0'):
+			// Example:
+			// m = 1234598x
+			// u = 1234600x
+			upperdelta = 2
+		}
 		// Okay to round up if upper has a different digit and either upper
 		// is inclusive or upper is bigger than the result of rounding up.
-		okup := m != u && (inclusive || m+1 < u || i+1 < upper.nd)
+		okup := upperdelta > 0 && (inclusive || upperdelta > 1 || ui+1 < upper.nd)
 
 		// If it's okay to do either, then round to the nearest one.
 		// If it's okay to do only one, do it.
 		switch {
 		case okdown && okup:
-			d.Round(i + 1)
+			d.Round(mi + 1)
 			return
 		case okdown:
-			d.RoundDown(i + 1)
+			d.RoundDown(mi + 1)
 			return
 		case okup:
-			d.RoundUp(i + 1)
+			d.RoundUp(mi + 1)
 			return
 		}
 	}
