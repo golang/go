@@ -207,6 +207,9 @@ var lookupGmailTXTTests = []struct {
 }
 
 func TestLookupGmailTXT(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; see https://golang.org/issue/29722")
+	}
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
