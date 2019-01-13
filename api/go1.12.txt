@@ -37,6 +37,7 @@ pkg net/http, const StatusTooEarly ideal-int
 pkg net/http, method (*Client) CloseIdleConnections()
 pkg os, const ModeType = 2401763328
 pkg os, func UserHomeDir() (string, error)
+pkg os, method (*File) SyscallConn() (syscall.RawConn, error)
 pkg os, method (*ProcessState) ExitCode() int
 pkg os/exec, method (ExitError) ExitCode() int
 pkg reflect, method (*MapIter) Key() Value
@@ -67,17 +68,13 @@ pkg syscall (freebsd-386), type Dirent struct, Namlen uint16
 pkg syscall (freebsd-386), type Dirent struct, Off int64
 pkg syscall (freebsd-386), type Dirent struct, Pad0 uint8
 pkg syscall (freebsd-386), type Dirent struct, Pad1 uint16
-pkg syscall (freebsd-386), type Stat_t struct, Atim Timespec
 pkg syscall (freebsd-386), type Stat_t struct, Atim_ext int32
-pkg syscall (freebsd-386), type Stat_t struct, Birthtim Timespec
 pkg syscall (freebsd-386), type Stat_t struct, Blksize int32
 pkg syscall (freebsd-386), type Stat_t struct, Btim_ext int32
-pkg syscall (freebsd-386), type Stat_t struct, Ctim Timespec
 pkg syscall (freebsd-386), type Stat_t struct, Ctim_ext int32
 pkg syscall (freebsd-386), type Stat_t struct, Dev uint64
 pkg syscall (freebsd-386), type Stat_t struct, Gen uint64
 pkg syscall (freebsd-386), type Stat_t struct, Ino uint64
-pkg syscall (freebsd-386), type Stat_t struct, Mtim Timespec
 pkg syscall (freebsd-386), type Stat_t struct, Mtim_ext int32
 pkg syscall (freebsd-386), type Stat_t struct, Nlink uint64
 pkg syscall (freebsd-386), type Stat_t struct, Padding0 int16
@@ -97,17 +94,13 @@ pkg syscall (freebsd-386-cgo), type Dirent struct, Namlen uint16
 pkg syscall (freebsd-386-cgo), type Dirent struct, Off int64
 pkg syscall (freebsd-386-cgo), type Dirent struct, Pad0 uint8
 pkg syscall (freebsd-386-cgo), type Dirent struct, Pad1 uint16
-pkg syscall (freebsd-386-cgo), type Stat_t struct, Atim Timespec
 pkg syscall (freebsd-386-cgo), type Stat_t struct, Atim_ext int32
-pkg syscall (freebsd-386-cgo), type Stat_t struct, Birthtim Timespec
 pkg syscall (freebsd-386-cgo), type Stat_t struct, Blksize int32
 pkg syscall (freebsd-386-cgo), type Stat_t struct, Btim_ext int32
-pkg syscall (freebsd-386-cgo), type Stat_t struct, Ctim Timespec
 pkg syscall (freebsd-386-cgo), type Stat_t struct, Ctim_ext int32
 pkg syscall (freebsd-386-cgo), type Stat_t struct, Dev uint64
 pkg syscall (freebsd-386-cgo), type Stat_t struct, Gen uint64
 pkg syscall (freebsd-386-cgo), type Stat_t struct, Ino uint64
-pkg syscall (freebsd-386-cgo), type Stat_t struct, Mtim Timespec
 pkg syscall (freebsd-386-cgo), type Stat_t struct, Mtim_ext int32
 pkg syscall (freebsd-386-cgo), type Stat_t struct, Nlink uint64
 pkg syscall (freebsd-386-cgo), type Stat_t struct, Padding0 int16
@@ -127,14 +120,10 @@ pkg syscall (freebsd-amd64), type Dirent struct, Namlen uint16
 pkg syscall (freebsd-amd64), type Dirent struct, Off int64
 pkg syscall (freebsd-amd64), type Dirent struct, Pad0 uint8
 pkg syscall (freebsd-amd64), type Dirent struct, Pad1 uint16
-pkg syscall (freebsd-amd64), type Stat_t struct, Atim Timespec
-pkg syscall (freebsd-amd64), type Stat_t struct, Birthtim Timespec
 pkg syscall (freebsd-amd64), type Stat_t struct, Blksize int32
-pkg syscall (freebsd-amd64), type Stat_t struct, Ctim Timespec
 pkg syscall (freebsd-amd64), type Stat_t struct, Dev uint64
 pkg syscall (freebsd-amd64), type Stat_t struct, Gen uint64
 pkg syscall (freebsd-amd64), type Stat_t struct, Ino uint64
-pkg syscall (freebsd-amd64), type Stat_t struct, Mtim Timespec
 pkg syscall (freebsd-amd64), type Stat_t struct, Nlink uint64
 pkg syscall (freebsd-amd64), type Stat_t struct, Padding0 int16
 pkg syscall (freebsd-amd64), type Stat_t struct, Padding1 int32
@@ -153,14 +142,10 @@ pkg syscall (freebsd-amd64-cgo), type Dirent struct, Namlen uint16
 pkg syscall (freebsd-amd64-cgo), type Dirent struct, Off int64
 pkg syscall (freebsd-amd64-cgo), type Dirent struct, Pad0 uint8
 pkg syscall (freebsd-amd64-cgo), type Dirent struct, Pad1 uint16
-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Atim Timespec
-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Birthtim Timespec
 pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Blksize int32
-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Ctim Timespec
 pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Dev uint64
 pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Gen uint64
 pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Ino uint64
-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Mtim Timespec
 pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Nlink uint64
 pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Padding0 int16
 pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Padding1 int32
@@ -179,14 +164,10 @@ pkg syscall (freebsd-arm), type Dirent struct, Namlen uint16
 pkg syscall (freebsd-arm), type Dirent struct, Off int64
 pkg syscall (freebsd-arm), type Dirent struct, Pad0 uint8
 pkg syscall (freebsd-arm), type Dirent struct, Pad1 uint16
-pkg syscall (freebsd-arm), type Stat_t struct, Atim Timespec
-pkg syscall (freebsd-arm), type Stat_t struct, Birthtim Timespec
 pkg syscall (freebsd-arm), type Stat_t struct, Blksize int32
-pkg syscall (freebsd-arm), type Stat_t struct, Ctim Timespec
 pkg syscall (freebsd-arm), type Stat_t struct, Dev uint64
 pkg syscall (freebsd-arm), type Stat_t struct, Gen uint64
 pkg syscall (freebsd-arm), type Stat_t struct, Ino uint64
-pkg syscall (freebsd-arm), type Stat_t struct, Mtim Timespec
 pkg syscall (freebsd-arm), type Stat_t struct, Nlink uint64
 pkg syscall (freebsd-arm), type Stat_t struct, Padding0 int16
 pkg syscall (freebsd-arm), type Stat_t struct, Padding1 int32
@@ -205,14 +186,10 @@ pkg syscall (freebsd-arm-cgo), type Dirent struct, Namlen uint16
 pkg syscall (freebsd-arm-cgo), type Dirent struct, Off int64
 pkg syscall (freebsd-arm-cgo), type Dirent struct, Pad0 uint8
 pkg syscall (freebsd-arm-cgo), type Dirent struct, Pad1 uint16
-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Atim Timespec
-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Birthtim Timespec
 pkg syscall (freebsd-arm-cgo), type Stat_t struct, Blksize int32
-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Ctim Timespec
 pkg syscall (freebsd-arm-cgo), type Stat_t struct, Dev uint64
 pkg syscall (freebsd-arm-cgo), type Stat_t struct, Gen uint64
 pkg syscall (freebsd-arm-cgo), type Stat_t struct, Ino uint64
-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Mtim Timespec
 pkg syscall (freebsd-arm-cgo), type Stat_t struct, Nlink uint64
 pkg syscall (freebsd-arm-cgo), type Stat_t struct, Padding0 int16
 pkg syscall (freebsd-arm-cgo), type Stat_t struct, Padding1 int32

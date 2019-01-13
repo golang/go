@@ -1367,7 +1367,7 @@ var gcMarkDoneFlushed uint32
 // termination.
 //
 // For debugging issue #27993.
-const debugCachedWork = true
+const debugCachedWork = false
 
 // gcWorkPauseGen is for debugging the mark completion algorithm.
 // gcWork put operations spin while gcWork.pauseGen == gcWorkPauseGen.
@@ -1519,8 +1519,38 @@ top:
 					print(" wbuf2.n=", gcw.wbuf2.nobj)
 				}
 				print("\n")
+				if gcw.pauseGen == gcw.putGen {
+					println("runtime: checkPut already failed at this generation")
+				}
 				throw("throwOnGCWork")
 			}
+		}
+	} else {
+		// For unknown reasons (see issue #27993), there is
+		// sometimes work left over when we enter mark
+		// termination. Detect this and resume concurrent
+		// mark. This is obviously unfortunate.
+		//
+		// Switch to the system stack to call wbBufFlush1,
+		// though in this case it doesn't matter because we're
+		// non-preemptible anyway.
+		restart := false
+		systemstack(func() {
+			for _, p := range allp {
+				wbBufFlush1(p)
+				if !p.gcw.empty() {
+					restart = true
+					break
+				}
+			}
+		})
+		if restart {
+			getg().m.preemptoff = ""
+			systemstack(func() {
+				now := startTheWorldWithSema(true)
+				work.pauseNS += now - work.pauseStart
+			})
+			goto top
 		}
 	}
 

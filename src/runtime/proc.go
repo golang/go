@@ -3303,9 +3303,11 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callergp *g, callerpc uintpt
 		if writeBarrier.needed && !_g_.m.curg.gcscandone {
 			f := findfunc(fn.fn)
 			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
-			// We're in the prologue, so it's always stack map index 0.
-			bv := stackmapdata(stkmap, 0)
-			bulkBarrierBitmap(spArg, spArg, uintptr(narg), 0, bv.bytedata)
+			if stkmap.nbit > 0 {
+				// We're in the prologue, so it's always stack map index 0.
+				bv := stackmapdata(stkmap, 0)
+				bulkBarrierBitmap(spArg, spArg, uintptr(bv.n)*sys.PtrSize, 0, bv.bytedata)
+			}
 		}
 	}
 

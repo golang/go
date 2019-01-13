@@ -13,8 +13,8 @@ import (
 // BUG(mikio): On JS and NaCl, methods and functions related to
 // Interface are not implemented.
 
-// BUG(mikio): On DragonFly BSD, NetBSD, OpenBSD, Plan 9 and Solaris,
-// the MulticastAddrs method of Interface is not implemented.
+// BUG(mikio): On AIX, DragonFly BSD, NetBSD, OpenBSD, Plan 9 and
+// Solaris, the MulticastAddrs method of Interface is not implemented.
 
 var (
 	errInvalidInterface         = errors.New("invalid network interface")

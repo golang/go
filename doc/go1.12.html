@@ -31,12 +31,6 @@ Do not send CLs removing the interior tags from such phrases.
   We expect almost all Go programs to continue to compile and run as before.
 </p>
 
-<p>
-  There is a <a href="https://golang.org/issue/27993"><strong>known issue</strong> in
-  the garbage collector</a> that can cause rare crashes. It is being investigated.
-  Please <a href="https://golang.org/issue/new">report</a> any issues you encounter.
-</p>
-
 <h2 id="language">Changes to the language</h2>
 
 <p>
@@ -141,7 +135,7 @@ go vet -vettool=$(which shadow)
 	Go 1.12 will translate the C type <code>EGLDisplay</code> to the Go type <code>uintptr</code>.
 	This change is similar to how Go 1.10 and newer treats Darwin's CoreFoundation
 	and Java's JNI types. See the
-	<a href="https://golang.org/cmd/cgo/#hdr-Special_cases">cgo documentation</a>
+	<a href="/cmd/cgo/#hdr-Special_cases">cgo documentation</a>
 	for more information.
 </p>
 
@@ -313,11 +307,18 @@ for {
   can't reuse existing heap space.
 </p>
 
+<p><!-- CL 146342, CL 146340, CL 146345, CL 146339, CL 146343, CL 146337, CL 146341, CL 146338 -->
+  The Go runtime's timer and deadline code is faster and scales better
+  with higher numbers of CPUs. In particular, this improves the
+  performance of manipulating network connection deadlines.
+</p>
+
 <p><!-- CL 135395 -->
-  On Linux, the Go runtime now releases memory back to the operating
-  system only when the OS is under memory pressure. This is more
-  efficient, but means a process's RSS (resident set size) won't
-  decrease unless the OS is running out of memory.
+  On Linux, the runtime now uses <code>MADV_FREE</code> to release unused
+  memory. This is more efficient but may result in higher reported
+  RSS. The kernel will reclaim the unused data when it is needed.
+  To revert to the Go 1.11 behavior (<code>MADV_DONTNEED</code>), set the
+  environment variable <code>GODEBUG=madvdontneed=1</code>.
 </p>
 
 <p><!-- CL 149578 -->
@@ -435,9 +436,14 @@ for {
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
+    <p><!-- CL 146258 -->
+      TLS 1.2 clients and servers will now advertise and accept RSA-PSS
+      signature algorithms for use with regular RSA public keys.
+    </p>
+
     <p><!-- CL 143177 -->
       If a client sends an initial message that does not look like TLS, the server
-      will now not reply with an alert, and it will expose the underlying
+      will no longer reply with an alert, and it will expose the underlying
       <code>net.Conn</code> in the new field <code>Conn</code> of
       <a href="/pkg/crypto/tls/#RecordHeaderError"><code>RecordHeaderError</code></a>.
     </p>
@@ -539,10 +545,27 @@ for {
 <dl id="lib/time"><dt><a href="/pkg/lib/time/">lib/time</a></dt>
   <dd>
     <p><!-- CL 151299 -->
-    The time zone database in <code>$GOROOT/lib/time/zoneinfo.zip</code> has been updated to version 2018g. Note that this ZIP file is only used if a time zone database is not provided by the operating system.
+      The time zone database in <code>$GOROOT/lib/time/zoneinfo.zip</code>
+      has been updated to version 2018i. Note that this ZIP file is
+      only used if a time zone database is not provided by the operating
+      system.
     </p>
 
 </dl><!-- lib/time -->
+
+<dl id="math"><dt><a href="/pkg/math/">math</a></dt>
+  <dd>
+    <p><!-- CL 153059 -->
+      The functions
+      <a href="/pkg/math/#Sin"><code>Sin</code></a>,
+      <a href="/pkg/math/#Cos"><code>Cos</code></a>,
+      <a href="/pkg/math/#Tan"><code>Tan</code></a>,
+      and <a href="/pkg/math/#Sincos"><code>Sincos</code></a> now
+      apply Payne-Hanek range reduction to huge arguments. This
+      produces more accurate answers, but they will not be bit-for-bit
+      identical with the results in earlier releases.
+    </p>
+</dl><!-- math -->
 
 <dl id="math/bits"><dt><a href="/pkg/math/bits/">math/bits</a></dt>
   <dd>
@@ -642,6 +665,15 @@ for {
       <a href="/pkg/os/#File.Sync"><code>File.Sync</code></a> now uses <code>F_FULLFSYNC</code> on macOS
       to correctly flush the file contents to permanent storage.
       This may cause the method to run more slowly than in previous releases.
+    </p>
+
+    <p><!--CL 155517 -->
+      <a href="/pkg/os/#File"><code>File</code></a> now supports
+      a <a href="/pkg/os/#File.SyscallConn"><code>SyscallConn</code></a>
+      method returning
+      a <a href="/pkg/syscall/#RawConn"><code>syscall.RawConn</code></a>
+      interface value. This may be used to invoke system-specific
+      operations on the underlying file descriptor.
     </p>
 
 </dl><!-- os -->

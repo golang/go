@@ -1287,7 +1287,7 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
 	// Iterate over the treap backwards (from largest to smallest) scavenging spans
 	// until we've reached our quota of nbytes.
 	released := uintptr(0)
-	for t := h.free.rev(); released < nbytes && t.valid(); {
+	for t := h.free.end(); released < nbytes && t.valid(); {
 		s := t.span()
 		r := s.scavenge()
 		if r == 0 {
@@ -1302,7 +1302,9 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
 			// those which have it unset are only in the `free` treap.
 			return
 		}
-		t = h.free.erase(t)
+		n := t.prev()
+		h.free.erase(t)
+		t = n
 		h.scav.insert(s)
 		released += r
 	}
@@ -1314,18 +1316,18 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
 func (h *mheap) scavengeAll(now, limit uint64) uintptr {
 	// Iterate over the treap scavenging spans if unused for at least limit time.
 	released := uintptr(0)
-	for t := h.free.iter(); t.valid(); {
+	for t := h.free.start(); t.valid(); {
 		s := t.span()
+		n := t.next()
 		if (now - uint64(s.unusedsince)) > limit {
 			r := s.scavenge()
 			if r != 0 {
-				t = h.free.erase(t)
+				h.free.erase(t)
 				h.scav.insert(s)
 				released += r
-				continue
 			}
 		}
-		t = t.next()
+		t = n
 	}
 	return released
 }

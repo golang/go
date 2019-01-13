@@ -125,11 +125,13 @@ func instinit(ctxt *obj.Link) {
 	morestack = ctxt.Lookup("runtime.morestack")
 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
 	gcWriteBarrier = ctxt.Lookup("runtime.gcWriteBarrier")
-	sigpanic = ctxt.Lookup("runtime.sigpanic")
-	sigpanic.SetABI(obj.ABIInternal)
-	deferreturn = ctxt.Lookup("runtime.deferreturn")
-	deferreturn.SetABI(obj.ABIInternal)
-	jmpdefer = ctxt.Lookup(`"".jmpdefer`)
+	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
+	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
+	// jmpdefer is defined in assembly as ABI0, but what we're
+	// looking for is the *call* to jmpdefer from the Go function
+	// deferreturn, so we're looking for the ABIInternal version
+	// of jmpdefer that's called by Go.
+	jmpdefer = ctxt.LookupABI(`"".jmpdefer`, obj.ABIInternal)
 }
 
 func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
@@ -280,6 +282,13 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		// implicit call, so entering and leaving this section affects the stack trace.
 		if p.As == ACALLNORESUME || p.As == obj.ANOP || p.As == ANop || p.Spadj != 0 || base != prevBase {
 			pc++
+			if p.To.Sym == sigpanic {
+				// The panic stack trace expects the PC at the call of sigpanic,
+				// not the next one. However, runtime.Caller subtracts 1 from the
+				// PC. To make both PC and PC-1 work (have the same line number),
+				// we advance the PC by 2 at sigpanic.
+				pc++
+			}
 		}
 	}
 	tableIdxs = append(tableIdxs, uint64(numResumePoints))

@@ -1115,7 +1115,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.As = lea
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = REG_SP
-		p.From.Offset = objabi.StackGuard
+		p.From.Offset = int64(objabi.StackGuard)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_AX
 
@@ -1131,7 +1131,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_AX
 		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = int64(framesize) + (objabi.StackGuard - objabi.StackSmall)
+		p.To.Offset = int64(framesize) + (int64(objabi.StackGuard) - objabi.StackSmall)
 	}
 
 	// common

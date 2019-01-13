@@ -337,7 +337,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			slow.BySize[i].Frees = bySize[i].Frees
 		}
 
-		for i := mheap_.scav.iter(); i.valid(); i = i.next() {
+		for i := mheap_.scav.start(); i.valid(); i = i.next() {
 			slow.HeapReleased += uint64(i.span().released())
 		}
 

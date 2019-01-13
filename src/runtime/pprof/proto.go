@@ -208,7 +208,7 @@ func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file
 }
 
 // locForPC returns the location ID for addr.
-// addr must a PC which is part of a call or the PC of an inline marker. This returns the location of the call.
+// addr must a return PC or 1 + the PC of an inline marker. This returns the location of the corresponding call.
 // It may emit to b.pb, so there must be no message encoding in progress.
 func (b *profileBuilder) locForPC(addr uintptr) uint64 {
 	id := uint64(b.locs[addr])
@@ -236,7 +236,7 @@ func (b *profileBuilder) locForPC(addr uintptr) uint64 {
 	if frame.PC == 0 {
 		// If we failed to resolve the frame, at least make up
 		// a reasonable call PC. This mostly happens in tests.
-		frame.PC = addr
+		frame.PC = addr - 1
 	}
 
 	// We can't write out functions while in the middle of the
@@ -403,7 +403,16 @@ func (b *profileBuilder) build() {
 		}
 
 		locs = locs[:0]
-		for _, addr := range e.stk {
+		for i, addr := range e.stk {
+			// Addresses from stack traces point to the
+			// next instruction after each call, except
+			// for the leaf, which points to where the
+			// signal occurred. locForPC expects return
+			// PCs, so increment the leaf address to look
+			// like a return PC.
+			if i == 0 {
+				addr++
+			}
 			l := b.locForPC(addr)
 			if l == 0 { // runtime.goexit
 				continue

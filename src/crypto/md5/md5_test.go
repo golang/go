@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"encoding"
 	"fmt"
+	"hash"
 	"io"
 	"testing"
 	"unsafe"
@@ -150,6 +151,63 @@ func TestBlockGeneric(t *testing.T) {
 	block(asm, buf)
 	if *gen != *asm {
 		t.Error("block and blockGeneric resulted in different states")
+	}
+}
+
+// Tests for unmarshaling hashes that have hashed a large amount of data
+// The initial hash generation is omitted from the test, because it takes a long time.
+// The test contains some already-generated states, and their expected sums
+// Tests a problem that is outlined in Github issue #29541
+// The problem is triggered when an amount of data has been hashed for which
+// the data length has a 1 in the 32nd bit. When casted to int, this changes
+// the sign of the value, and causes the modulus operation to return a
+// different result.
+type unmarshalTest struct {
+	state string
+	sum   string
+}
+
+var largeUnmarshalTests = []unmarshalTest{
+	// Data length: 7_102_415_735
+	unmarshalTest{
+		state: "md5\x01\xa5\xf7\xf0=\xd6S\x85\xd9M\n}\xc3\u0601\x89\xe7@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuv\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\xa7VCw",
+		sum:   "cddefcf74ffec709a0b45a6a987564d5",
+	},
+	// Data length: 6_565_544_823
+	unmarshalTest{
+		state: "md5\x01{\xda\x1a\xc7\xc9'?\x83EX\xe0\x88q\xfeG\x18@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuv\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x87VCw",
+		sum:   "fd9f41874ab240698e7bc9c3ae70c8e4",
+	},
+}
+
+func safeSum(h hash.Hash) (sum []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("sum panic: %v", r)
+		}
+	}()
+
+	return h.Sum(nil), nil
+}
+
+func TestLargeHashes(t *testing.T) {
+	for i, test := range largeUnmarshalTests {
+
+		h := New()
+		if err := h.(encoding.BinaryUnmarshaler).UnmarshalBinary([]byte(test.state)); err != nil {
+			t.Errorf("test %d could not unmarshal: %v", i, err)
+			continue
+		}
+
+		sum, err := safeSum(h)
+		if err != nil {
+			t.Errorf("test %d could not sum: %v", i, err)
+			continue
+		}
+
+		if fmt.Sprintf("%x", sum) != test.sum {
+			t.Errorf("test %d sum mismatch: expect %s got %x", i, test.sum, sum)
+		}
 	}
 }
 
