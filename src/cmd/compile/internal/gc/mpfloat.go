@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 )
 
 // implements float arithmetic
@@ -177,11 +178,14 @@ func (a *Mpflt) Neg() {
 }
 
 func (a *Mpflt) SetString(as string) {
+	// TODO(gri) remove this code once math/big.Float.Parse can handle separators
+	as = strings.Replace(as, "_", "", -1) // strip separators
+
 	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
 		as = as[1:]
 	}
 
-	f, _, err := a.Val.Parse(as, 10)
+	f, _, err := a.Val.Parse(as, 0)
 	if err != nil {
 		yyerror("malformed constant: %s (%v)", as, err)
 		a.Val.SetFloat64(0)
