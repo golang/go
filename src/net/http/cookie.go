@@ -173,7 +173,7 @@ func (c *Cookie) String() string {
 	const extraCookieLength = 110
 	var b strings.Builder
 	b.Grow(len(c.Name) + len(c.Value) + len(c.Domain) + len(c.Path) + extraCookieLength)
-	b.WriteString(sanitizeCookieName(c.Name))
+	b.WriteString(c.Name)
 	b.WriteRune('=')
 	b.WriteString(sanitizeCookieValue(c.Value))
 
