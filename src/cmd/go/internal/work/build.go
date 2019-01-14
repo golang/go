@@ -10,7 +10,6 @@ import (
 	"go/build"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -285,7 +284,7 @@ func runBuild(cmd *base.Command, args []string) {
 	pkgs := load.PackagesForBuild(args)
 
 	if len(pkgs) == 1 && pkgs[0].Name == "main" && cfg.BuildO == "" {
-		_, cfg.BuildO = path.Split(pkgs[0].ImportPath)
+		cfg.BuildO = load.DefaultExecName(pkgs[0])
 		cfg.BuildO += cfg.ExeSuffix
 	}
 
