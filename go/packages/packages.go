@@ -52,7 +52,7 @@ const (
 
 	// LoadAllSyntax adds typed syntax trees for the packages matching the patterns
 	// and all dependencies.
-	// Package fields added: Types, Fset, Illtyped, Syntax, and TypesInfo,
+	// Package fields added: Types, Fset, IllTyped, Syntax, and TypesInfo,
 	// for all packages in the import graph.
 	LoadAllSyntax
 )
