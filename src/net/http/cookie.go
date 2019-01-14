@@ -169,7 +169,7 @@ func (c *Cookie) String() string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString(sanitizeCookieName(c.Name))
+	b.WriteString(c.Name)
 	b.WriteRune('=')
 	b.WriteString(sanitizeCookieValue(c.Value))
 
