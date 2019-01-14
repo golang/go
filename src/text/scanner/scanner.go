@@ -322,6 +322,7 @@ func (s *Scanner) Peek() rune {
 }
 
 func (s *Scanner) error(msg string) {
+	s.tokEnd = s.srcPos - s.lastCharLen // make sure token text is terminated
 	s.ErrorCount++
 	if s.Error != nil {
 		s.Error(s, msg)
@@ -664,17 +665,18 @@ func (s *Scanner) Pos() (pos Position) {
 }
 
 // TokenText returns the string corresponding to the most recently scanned token.
-// Valid after calling Scan().
+// Valid after calling Scan and in calls of Scanner.Error.
 func (s *Scanner) TokenText() string {
 	if s.tokPos < 0 {
 		// no token text
 		return ""
 	}
 
-	if s.tokEnd < 0 {
+	if s.tokEnd < s.tokPos {
 		// if EOF was reached, s.tokEnd is set to -1 (s.srcPos == 0)
 		s.tokEnd = s.tokPos
 	}
+	// s.tokEnd >= s.tokPos
 
 	if s.tokBuf.Len() == 0 {
 		// common case: the entire token text is still in srcBuf

@@ -293,6 +293,12 @@ func TestScan(t *testing.T) {
 func TestIllegalExponent(t *testing.T) {
 	const src = "1.5e 1.5E 1e+ 1e- 1.5z"
 	s := new(Scanner).Init(strings.NewReader(src))
+	s.Error = func(s *Scanner, msg string) {
+		const want = "illegal exponent"
+		if msg != want {
+			t.Errorf("%s: got error %q; want %q", s.TokenText(), msg, want)
+		}
+	}
 	checkTokErr(t, s, 1, Float, "1.5e")
 	checkTokErr(t, s, 1, Float, "1.5E")
 	checkTokErr(t, s, 1, Float, "1e+")
@@ -690,5 +696,18 @@ func TestScanEOFHandling(t *testing.T) {
 
 	if r != 1 {
 		t.Errorf("scanner called Read %d times, not once", r)
+	}
+}
+
+func TestIssue29723(t *testing.T) {
+	s := new(Scanner).Init(strings.NewReader(`x "`))
+	s.Error = func(s *Scanner, _ string) {
+		got := s.TokenText() // this call shouldn't panic
+		const want = `"`
+		if got != want {
+			t.Errorf("got %q; want %q", got, want)
+		}
+	}
+	for r := s.Scan(); r != EOF; r = s.Scan() {
 	}
 }
