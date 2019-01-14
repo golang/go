@@ -144,6 +144,12 @@
 (UMOD <typ.UInt64> x y) -> (MSUB <typ.UInt64> x y (UDIV <typ.UInt64> x y))
 (UMODW <typ.UInt32> x y) -> (MSUBW <typ.UInt32> x y (UDIVW <typ.UInt32> x y))
 
+// 64-bit addition with carry.
+(Select0 (Add64carry x y c)) -> (Select0 <typ.UInt64> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c))))
+(Select1 (Add64carry x y c)) -> (ADCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c)))))
+// The carry flag of c doesn't change.
+(ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (ADCzerocarry <typ.UInt64> c)))) -> (ADCSflags x y c)
+
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
 (OrB x y) -> (OR x y)

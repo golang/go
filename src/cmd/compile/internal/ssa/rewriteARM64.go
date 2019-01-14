@@ -17,6 +17,8 @@ var _ = types.TypeMem // in case not otherwise used
 
 func rewriteValueARM64(v *Value) bool {
 	switch v.Op {
+	case OpARM64ADCSflags:
+		return rewriteValueARM64_OpARM64ADCSflags_0(v)
 	case OpARM64ADD:
 		return rewriteValueARM64_OpARM64ADD_0(v) || rewriteValueARM64_OpARM64ADD_10(v) || rewriteValueARM64_OpARM64ADD_20(v)
 	case OpARM64ADDconst:
@@ -873,6 +875,10 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpRsh8x64_0(v)
 	case OpRsh8x8:
 		return rewriteValueARM64_OpRsh8x8_0(v)
+	case OpSelect0:
+		return rewriteValueARM64_OpSelect0_0(v)
+	case OpSelect1:
+		return rewriteValueARM64_OpSelect1_0(v)
 	case OpSignExt16to32:
 		return rewriteValueARM64_OpSignExt16to32_0(v)
 	case OpSignExt16to64:
@@ -945,6 +951,46 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpZeroExt8to32_0(v)
 	case OpZeroExt8to64:
 		return rewriteValueARM64_OpZeroExt8to64_0(v)
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64ADCSflags_0(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (ADCzerocarry <typ.UInt64> c))))
+	// cond:
+	// result: (ADCSflags x y c)
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpSelect1 {
+			break
+		}
+		if v_2.Type != types.TypeFlags {
+			break
+		}
+		v_2_0 := v_2.Args[0]
+		if v_2_0.Op != OpARM64ADDSconstflags {
+			break
+		}
+		if v_2_0.AuxInt != -1 {
+			break
+		}
+		v_2_0_0 := v_2_0.Args[0]
+		if v_2_0_0.Op != OpARM64ADCzerocarry {
+			break
+		}
+		if v_2_0_0.Type != typ.UInt64 {
+			break
+		}
+		c := v_2_0_0.Args[0]
+		v.reset(OpARM64ADCSflags)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(c)
+		return true
 	}
 	return false
 }
@@ -36793,6 +36839,68 @@ func rewriteValueARM64_OpRsh8x8_0(v *Value) bool {
 		v.AddArg(v1)
 		return true
 	}
+}
+func rewriteValueARM64_OpSelect0_0(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Select0 (Add64carry x y c))
+	// cond:
+	// result: (Select0 <typ.UInt64> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c))))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAdd64carry {
+			break
+		}
+		c := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(OpSelect0)
+		v.Type = typ.UInt64
+		v0 := b.NewValue0(v.Pos, OpARM64ADCSflags, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v1 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v2 := b.NewValue0(v.Pos, OpARM64ADDSconstflags, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v2.AuxInt = -1
+		v2.AddArg(c)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpSelect1_0(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Select1 (Add64carry x y c))
+	// cond:
+	// result: (ADCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c)))))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAdd64carry {
+			break
+		}
+		c := v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v.reset(OpARM64ADCzerocarry)
+		v.Type = typ.UInt64
+		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpARM64ADCSflags, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v1.AddArg(x)
+		v1.AddArg(y)
+		v2 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v3 := b.NewValue0(v.Pos, OpARM64ADDSconstflags, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v3.AuxInt = -1
+		v3.AddArg(c)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	return false
 }
 func rewriteValueARM64_OpSignExt16to32_0(v *Value) bool {
 	// match: (SignExt16to32 x)
