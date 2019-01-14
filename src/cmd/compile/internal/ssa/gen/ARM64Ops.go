@@ -137,60 +137,66 @@ func init() {
 	)
 	// Common regInfo
 	var (
-		gp01      = regInfo{inputs: nil, outputs: []regMask{gp}}
-		gp11      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
-		gp11sp    = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
-		gp1flags  = regInfo{inputs: []regMask{gpg}}
-		gp1flags1 = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
-		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
-		gp31      = regInfo{inputs: []regMask{gpg, gpg, gpg}, outputs: []regMask{gp}}
-		gp21nog   = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
-		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}}
-		gp2flags1 = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
-		gp22      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
-		gpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
-		gp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
-		gpstore   = regInfo{inputs: []regMask{gpspsbg, gpg}}
-		gpstore0  = regInfo{inputs: []regMask{gpspsbg}}
-		gpstore2  = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
-		gpxchg    = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
-		gpcas     = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
-		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
-		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
-		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
-		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
-		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
-		fp31      = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
-		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
-		fp1flags  = regInfo{inputs: []regMask{fp}}
-		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
-		fp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{fp}}
-		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
-		fpstore2  = regInfo{inputs: []regMask{gpspsbg, gpg, fp}}
-		readflags = regInfo{inputs: nil, outputs: []regMask{gp}}
+		gp01           = regInfo{inputs: nil, outputs: []regMask{gp}}
+		gp0flags1      = regInfo{inputs: []regMask{0}, outputs: []regMask{gp}}
+		gp11           = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
+		gp11sp         = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
+		gp1flags       = regInfo{inputs: []regMask{gpg}}
+		gp1flags1      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
+		gp11flags      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp, 0}}
+		gp21           = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
+		gp21nog        = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+		gp2flags       = regInfo{inputs: []regMask{gpg, gpg}}
+		gp2flags1      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+		gp2flags1flags = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp, 0}}
+		gp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+		gp22           = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
+		gp31           = regInfo{inputs: []regMask{gpg, gpg, gpg}, outputs: []regMask{gp}}
+		gpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
+		gpstore        = regInfo{inputs: []regMask{gpspsbg, gpg}}
+		gpstore0       = regInfo{inputs: []regMask{gpspsbg}}
+		gpstore2       = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
+		gpxchg         = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+		gpcas          = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
+		fp01           = regInfo{inputs: nil, outputs: []regMask{fp}}
+		fp11           = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+		fpgp           = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
+		gpfp           = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
+		fp21           = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+		fp31           = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
+		fp2flags       = regInfo{inputs: []regMask{fp, fp}}
+		fp1flags       = regInfo{inputs: []regMask{fp}}
+		fpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+		fp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{fp}}
+		fpstore        = regInfo{inputs: []regMask{gpspsbg, fp}}
+		fpstore2       = regInfo{inputs: []regMask{gpspsbg, gpg, fp}}
+		readflags      = regInfo{inputs: nil, outputs: []regMask{gp}}
 	)
 	ops := []opData{
 		// binary ops
-		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
-		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int64"},   // arg0 + auxInt
-		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0 - arg1
-		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int64"},     // arg0 - auxInt
-		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},     // arg0 * arg1
-		{name: "MULW", argLength: 2, reg: gp21, asm: "MULW", commutative: true},   // arg0 * arg1, 32-bit
-		{name: "MNEG", argLength: 2, reg: gp21, asm: "MNEG", commutative: true},   // -arg0 * arg1
-		{name: "MNEGW", argLength: 2, reg: gp21, asm: "MNEGW", commutative: true}, // -arg0 * arg1, 32-bit
-		{name: "MULH", argLength: 2, reg: gp21, asm: "SMULH", commutative: true},  // (arg0 * arg1) >> 64, signed
-		{name: "UMULH", argLength: 2, reg: gp21, asm: "UMULH", commutative: true}, // (arg0 * arg1) >> 64, unsigned
-		{name: "MULL", argLength: 2, reg: gp21, asm: "SMULL", commutative: true},  // arg0 * arg1, signed, 32-bit mult results in 64-bit
-		{name: "UMULL", argLength: 2, reg: gp21, asm: "UMULL", commutative: true}, // arg0 * arg1, unsigned, 32-bit mult results in 64-bit
-		{name: "DIV", argLength: 2, reg: gp21, asm: "SDIV"},                       // arg0 / arg1, signed
-		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV"},                      // arg0 / arg1, unsighed
-		{name: "DIVW", argLength: 2, reg: gp21, asm: "SDIVW"},                     // arg0 / arg1, signed, 32 bit
-		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW"},                    // arg0 / arg1, unsighed, 32 bit
-		{name: "MOD", argLength: 2, reg: gp21, asm: "REM"},                        // arg0 % arg1, signed
-		{name: "UMOD", argLength: 2, reg: gp21, asm: "UREM"},                      // arg0 % arg1, unsigned
-		{name: "MODW", argLength: 2, reg: gp21, asm: "REMW"},                      // arg0 % arg1, signed, 32 bit
-		{name: "UMODW", argLength: 2, reg: gp21, asm: "UREMW"},                    // arg0 % arg1, unsigned, 32 bit
+		{name: "ADCSflags", argLength: 3, reg: gp2flags1flags, typ: "(UInt64,Flags)", asm: "ADCS", commutative: true}, // arg0+arg1+carry, set flags.
+		{name: "ADCzerocarry", argLength: 1, reg: gp0flags1, typ: "UInt64", asm: "ADC"},                               // ZR+ZR+carry
+		{name: "ADDSconstflags", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "ADDS", aux: "Int64"},      // arg0+auxint, set flags.
+		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},                                         // arg0 + arg1
+		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int64"},                                       // arg0 + auxInt
+		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                                                            // arg0 - arg1
+		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int64"},                                         // arg0 - auxInt
+		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},                                         // arg0 * arg1
+		{name: "MULW", argLength: 2, reg: gp21, asm: "MULW", commutative: true},                                       // arg0 * arg1, 32-bit
+		{name: "MNEG", argLength: 2, reg: gp21, asm: "MNEG", commutative: true},                                       // -arg0 * arg1
+		{name: "MNEGW", argLength: 2, reg: gp21, asm: "MNEGW", commutative: true},                                     // -arg0 * arg1, 32-bit
+		{name: "MULH", argLength: 2, reg: gp21, asm: "SMULH", commutative: true},                                      // (arg0 * arg1) >> 64, signed
+		{name: "UMULH", argLength: 2, reg: gp21, asm: "UMULH", commutative: true},                                     // (arg0 * arg1) >> 64, unsigned
+		{name: "MULL", argLength: 2, reg: gp21, asm: "SMULL", commutative: true},                                      // arg0 * arg1, signed, 32-bit mult results in 64-bit
+		{name: "UMULL", argLength: 2, reg: gp21, asm: "UMULL", commutative: true},                                     // arg0 * arg1, unsigned, 32-bit mult results in 64-bit
+		{name: "DIV", argLength: 2, reg: gp21, asm: "SDIV"},                                                           // arg0 / arg1, signed
+		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV"},                                                          // arg0 / arg1, unsighed
+		{name: "DIVW", argLength: 2, reg: gp21, asm: "SDIVW"},                                                         // arg0 / arg1, signed, 32 bit
+		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW"},                                                        // arg0 / arg1, unsighed, 32 bit
+		{name: "MOD", argLength: 2, reg: gp21, asm: "REM"},                                                            // arg0 % arg1, signed
+		{name: "UMOD", argLength: 2, reg: gp21, asm: "UREM"},                                                          // arg0 % arg1, unsigned
+		{name: "MODW", argLength: 2, reg: gp21, asm: "REMW"},                                                          // arg0 % arg1, signed, 32 bit
+		{name: "UMODW", argLength: 2, reg: gp21, asm: "UREMW"},                                                        // arg0 % arg1, unsigned, 32 bit
 
 		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true},   // arg0 + arg1
 		{name: "FADDD", argLength: 2, reg: fp21, asm: "FADDD", commutative: true},   // arg0 + arg1
@@ -214,6 +220,7 @@ func init() {
 		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                    // arg0 | ^arg1
 
 		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, returns (hi, lo)
+
 		// unary ops
 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},         // ^arg0
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},         // -arg0
