@@ -170,7 +170,8 @@ func buildModeInit() {
 			codegenArg = "-fPIC"
 		} else {
 			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
+			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
+				"freebsd/amd64":
 			default:
 				base.Fatalf("-buildmode=shared not supported on %s\n", platform)
 			}
@@ -206,7 +207,8 @@ func buildModeInit() {
 			codegenArg = "-fPIC"
 		} else {
 			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
+			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
+				"freebsd/amd64":
 				forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1")
 			default:
 				base.Fatalf("-linkshared not supported on %s\n", platform)
