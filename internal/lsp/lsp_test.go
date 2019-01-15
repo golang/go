@@ -21,8 +21,8 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 )
 
-// TODO(rstambler): Remove this once Go 1.12 is released as we will end support
-// for versions of Go <= 1.10.
+// TODO(rstambler): Remove this once Go 1.12 is released as we end support for
+// versions of Go <= 1.10.
 var goVersion111 = true
 
 func TestLSP(t *testing.T) {
@@ -251,21 +251,10 @@ func (c completions) test(t *testing.T, exported *packagestest.Exported, s *serv
 		if err != nil {
 			t.Fatal(err)
 		}
+		wantBuiltins := strings.Contains(src.Filename, "builtins")
 		var got []protocol.CompletionItem
 		for _, item := range list.Items {
-			// Skip all types with no details (builtin types).
-			if item.Detail == "" && item.Kind == float64(protocol.TypeParameterCompletion) {
-				continue
-			}
-			// Skip remaining builtin types.
-			trimmed := item.Label
-			if i := strings.Index(trimmed, "("); i >= 0 {
-				trimmed = trimmed[:i]
-			}
-			switch trimmed {
-			case "append", "cap", "close", "complex", "copy", "delete",
-				"error", "false", "imag", "iota", "len", "make", "new",
-				"nil", "panic", "print", "println", "real", "recover", "true":
+			if !wantBuiltins && isBuiltin(item) {
 				continue
 			}
 			got = append(got, item)
@@ -277,6 +266,25 @@ func (c completions) test(t *testing.T, exported *packagestest.Exported, s *serv
 			t.Errorf(diff)
 		}
 	}
+}
+
+func isBuiltin(item protocol.CompletionItem) bool {
+	// If a type has no detail, it is a builtin type.
+	if item.Detail == "" && item.Kind == float64(protocol.TypeParameterCompletion) {
+		return true
+	}
+	// Remaining builtin constants, variables, interfaces, and functions.
+	trimmed := item.Label
+	if i := strings.Index(trimmed, "("); i >= 0 {
+		trimmed = trimmed[:i]
+	}
+	switch trimmed {
+	case "append", "cap", "close", "complex", "copy", "delete",
+		"error", "false", "imag", "iota", "len", "make", "new",
+		"nil", "panic", "print", "println", "real", "recover", "true":
+		return true
+	}
+	return false
 }
 
 func (c completions) collect(src token.Position, expected []token.Pos) {

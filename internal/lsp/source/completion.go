@@ -144,7 +144,6 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 		// fallback to lexical completions
 		return lexical(path, pos, pkg.Types, pkg.TypesInfo, found), "", nil
 	}
-
 	return items, prefix, nil
 }
 
@@ -691,11 +690,11 @@ var builtinDetails = map[string]itemDetails{
 		label: "close(c chan<- T)",
 	},
 	"complex": { // complex(r, i float64) complex128
-		label:  "complex(real, imag float64)",
+		label:  "complex(real float64, imag float64)",
 		detail: "complex128",
 	},
 	"copy": { // copy(dst, src []T) int
-		label:  "copy(dst, src []T)",
+		label:  "copy(dst []T, src []T)",
 		detail: "int",
 	},
 	"delete": { // delete(m map[T]T1, key T)
