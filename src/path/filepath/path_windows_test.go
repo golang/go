@@ -550,6 +550,9 @@ func TestNTNamespaceSymlink(t *testing.T) {
 		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, dirlink, got, want)
 	}
 
+	// Make sure we have sufficient privilege to run mklink command.
+	testenv.MustHaveSymlink(t)
+
 	file := filepath.Join(tmpdir, "file")
 	err = ioutil.WriteFile(file, []byte(""), 0666)
 	if err != nil {
