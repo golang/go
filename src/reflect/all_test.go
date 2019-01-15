@@ -3729,7 +3729,6 @@ var convertTests = []struct {
 	{V((**MyByte)(nil)), V((**MyByte)(nil))},
 	{V((chan byte)(nil)), V((chan byte)(nil))},
 	{V((chan MyByte)(nil)), V((chan MyByte)(nil))},
-	{V((chan MyByte)(nil)), V((chan MyByte)(nil))},
 	{V(MyFuncChan(nil)), V(MyFuncChan(nil))},
 	{V(MyFuncChanRcv(nil)), V(MyFuncChanRcv(nil))},
 	{V(MyFuncChanSend(nil)), V(MyFuncChanSend(nil))},
