@@ -425,41 +425,41 @@ func (h *mheap) coalesce(s *mspan) {
 	needsScavenge := false
 	prescavenged := s.released() // number of bytes already scavenged.
 
-	// Coalesce with earlier, later spans.
-	if before := spanOf(s.base() - 1); before != nil && before.state == mSpanFree {
-		// Now adjust s.
-		s.startAddr = before.startAddr
-		s.npages += before.npages
-		s.needzero |= before.needzero
-		h.setSpan(before.base(), s)
+	// merge is a helper which merges other into s, deletes references to other
+	// in heap metadata, and then discards it.
+	merge := func(other *mspan) {
+		// Adjust s via base and npages.
+		if other.startAddr < s.startAddr {
+			s.startAddr = other.startAddr
+		}
+		s.npages += other.npages
+		s.needzero |= other.needzero
+
 		// If before or s are scavenged, then we need to scavenge the final coalesced span.
-		needsScavenge = needsScavenge || before.scavenged || s.scavenged
-		prescavenged += before.released()
+		needsScavenge = needsScavenge || other.scavenged || s.scavenged
+		prescavenged += other.released()
+
 		// The size is potentially changing so the treap needs to delete adjacent nodes and
 		// insert back as a combined node.
-		if before.scavenged {
-			h.scav.removeSpan(before)
+		if other.scavenged {
+			h.scav.removeSpan(other)
 		} else {
-			h.free.removeSpan(before)
+			h.free.removeSpan(other)
 		}
-		before.state = mSpanDead
-		h.spanalloc.free(unsafe.Pointer(before))
+		other.state = mSpanDead
+		h.spanalloc.free(unsafe.Pointer(other))
+	}
+
+	// Coalesce with earlier, later spans.
+	if before := spanOf(s.base() - 1); before != nil && before.state == mSpanFree {
+		merge(before)
+		h.setSpan(s.base(), s)
 	}
 
 	// Now check to see if next (greater addresses) span is free and can be coalesced.
 	if after := spanOf(s.base() + s.npages*pageSize); after != nil && after.state == mSpanFree {
-		s.npages += after.npages
-		s.needzero |= after.needzero
+		merge(after)
 		h.setSpan(s.base()+s.npages*pageSize-1, s)
-		needsScavenge = needsScavenge || after.scavenged || s.scavenged
-		prescavenged += after.released()
-		if after.scavenged {
-			h.scav.removeSpan(after)
-		} else {
-			h.free.removeSpan(after)
-		}
-		after.state = mSpanDead
-		h.spanalloc.free(unsafe.Pointer(after))
 	}
 
 	if needsScavenge {
