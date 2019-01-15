@@ -1608,7 +1608,8 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 	case Chan:
 		// Special case:
 		// x is a bidirectional channel value, T is a channel type,
-		// and x's type V and T have identical element types.
+		// x's type V and T have identical element types,
+		// and at least one of V or T is not a defined type.
 		if V.ChanDir() == BothDir && (T.Name() == "" || V.Name() == "") && haveIdenticalType(T.Elem(), V.Elem(), cmpTags) {
 			return true
 		}
