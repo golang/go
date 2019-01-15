@@ -82,5 +82,12 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
 go mod download -json rsc.io/quote@v1.5.1
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
 
+# allow go mod download without go.mod
+env GO111MODULE=auto
+rm go.mod
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
+go mod download rsc.io/quote@v1.2.1
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
+
 -- go.mod --
 module m
