@@ -253,9 +253,11 @@ func Init() {
 func init() {
 	load.ModInit = Init
 
-	// Set modfetch.PkgMod unconditionally, so that go clean -modcache can run even without modules enabled.
+	// Set modfetch.PkgMod and codehost.WorkRoot unconditionally,
+	// so that go clean -modcache and go mod download can run even without modules enabled.
 	if list := filepath.SplitList(cfg.BuildContext.GOPATH); len(list) > 0 && list[0] != "" {
 		modfetch.PkgMod = filepath.Join(list[0], "pkg/mod")
+		codehost.WorkRoot = filepath.Join(list[0], "pkg/mod/cache/vcs")
 	}
 }
 
