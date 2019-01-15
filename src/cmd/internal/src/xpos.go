@@ -80,6 +80,12 @@ func (p XPos) LineNumberHTML() string {
 	return p.lico.lineNumberHTML()
 }
 
+// AtColumn1 returns the same location but shifted to column 1.
+func (p XPos) AtColumn1() XPos {
+	p.lico = p.lico.atColumn1()
+	return p
+}
+
 // A PosTable tracks Pos -> XPos conversions and vice versa.
 // Its zero value is a ready-to-use PosTable.
 type PosTable struct {

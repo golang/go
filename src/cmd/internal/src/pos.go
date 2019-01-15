@@ -430,3 +430,7 @@ func (x lico) lineNumberHTML() string {
 	}
 	return fmt.Sprintf("<%s>%s%d</%s>", style, pfx, x.Line(), style)
 }
+
+func (x lico) atColumn1() lico {
+	return makeLico(x.Line(), 1)
+}
