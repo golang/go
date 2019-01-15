@@ -5239,6 +5239,16 @@ func genssa(f *ssa.Func, pp *Progs) {
 		}
 	}
 
+	// inlMarks has an entry for each Prog that implements an inline mark.
+	// It maps from that Prog to the global inlining id of the inlined body
+	// which should unwind to this Prog's location.
+	var inlMarks map[*obj.Prog]int32
+	var inlMarkList []*obj.Prog
+
+	// inlMarksByPos maps from a (column 1) source position to the set of
+	// Progs that are in the set above and have that source position.
+	var inlMarksByPos map[src.XPos][]*obj.Prog
+
 	// Emit basic blocks
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = s.pp.next
@@ -5276,8 +5286,14 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 			case ssa.OpInlMark:
 				p := thearch.Ginsnop(s.pp)
-				pp.curfn.Func.lsym.Func.AddInlMark(p, v.AuxInt32())
-				// TODO: if matching line number, merge somehow with previous instruction?
+				if inlMarks == nil {
+					inlMarks = map[*obj.Prog]int32{}
+					inlMarksByPos = map[src.XPos][]*obj.Prog{}
+				}
+				inlMarks[p] = v.AuxInt32()
+				inlMarkList = append(inlMarkList, p)
+				pos := v.Pos.AtColumn1()
+				inlMarksByPos[pos] = append(inlMarksByPos[pos], p)
 
 			default:
 				// let the backend handle it
@@ -5314,6 +5330,50 @@ func genssa(f *ssa.Func, pp *Progs) {
 		if f.PrintOrHtmlSSA {
 			for ; x != s.pp.next; x = x.Link {
 				progToBlock[x] = b
+			}
+		}
+	}
+
+	if inlMarks != nil {
+		// We have some inline marks. Try to find other instructions we're
+		// going to emit anyway, and use those instructions instead of the
+		// inline marks.
+		for p := pp.Text; p != nil; p = p.Link {
+			if p.As == obj.ANOP || p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT || p.As == obj.APCALIGN || thearch.LinkArch.Family == sys.Wasm {
+				// Don't use 0-sized instructions as inline marks, because we need
+				// to identify inline mark instructions by pc offset.
+				// (Some of these instructions are sometimes zero-sized, sometimes not.
+				// We must not use anything that even might be zero-sized.)
+				// TODO: are there others?
+				continue
+			}
+			if _, ok := inlMarks[p]; ok {
+				// Don't use inline marks themselves. We don't know
+				// whether they will be zero-sized or not yet.
+				continue
+			}
+			pos := p.Pos.AtColumn1()
+			s := inlMarksByPos[pos]
+			if len(s) == 0 {
+				continue
+			}
+			for _, m := range s {
+				// We found an instruction with the same source position as
+				// some of the inline marks.
+				// Use this instruction instead.
+				pp.curfn.Func.lsym.Func.AddInlMark(p, inlMarks[m])
+				// Make the inline mark a real nop, so it doesn't generate any code.
+				m.As = obj.ANOP
+				m.Pos = src.NoXPos
+				m.From = obj.Addr{}
+				m.To = obj.Addr{}
+			}
+			delete(inlMarksByPos, pos)
+		}
+		// Any unmatched inline marks now need to be added to the inlining tree (and will generate a nop instruction).
+		for _, p := range inlMarkList {
+			if p.As != obj.ANOP {
+				pp.curfn.Func.lsym.Func.AddInlMark(p, inlMarks[p])
 			}
 		}
 	}
