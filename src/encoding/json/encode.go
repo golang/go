@@ -259,6 +259,8 @@ func (e *InvalidUTF8Error) Error() string {
 	return "json: invalid UTF-8 in string: " + strconv.Quote(e.S)
 }
 
+// A MarshalerError is used as the basis for composing
+// error handling in the Marshal function call.
 type MarshalerError struct {
 	Type reflect.Type
 	Err  error
