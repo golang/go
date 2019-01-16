@@ -232,7 +232,7 @@ var downloadCache = map[string]bool{}
 var downloadRootCache = map[string]bool{}
 
 // download runs the download half of the get command
-// for the package named by the argument.
+// for the package or pattern named by the argument.
 func download(arg string, parent *load.Package, stk *load.ImportStack, mode int) {
 	if mode&load.ResolveImport != 0 {
 		// Caller is responsible for expanding vendor paths.
@@ -402,6 +402,23 @@ func downloadPackage(p *load.Package) error {
 		security = web.Insecure
 	}
 
+	// p can be either a real package, or a pseudo-package whose “import path” is
+	// actually a wildcard pattern.
+	// Trim the path at the element containing the first wildcard,
+	// and hope that it applies to the wildcarded parts too.
+	// This makes 'go get rsc.io/pdf/...' work in a fresh GOPATH.
+	importPrefix := p.ImportPath
+	if i := strings.Index(importPrefix, "..."); i >= 0 {
+		slash := strings.LastIndexByte(importPrefix[:i], '/')
+		if slash < 0 {
+			return fmt.Errorf("cannot expand ... in %q", p.ImportPath)
+		}
+		importPrefix = importPrefix[:slash]
+	}
+	if err := CheckImportPath(importPrefix); err != nil {
+		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
+	}
+
 	if p.Internal.Build.SrcRoot != "" {
 		// Directory exists. Look for checkout along path to src.
 		vcs, rootPath, err = vcsFromDir(p.Dir, p.Internal.Build.SrcRoot)
@@ -421,7 +438,7 @@ func downloadPackage(p *load.Package) error {
 			}
 			repo = remote
 			if !*getF && err == nil {
-				if rr, err := RepoRootForImportPath(p.ImportPath, IgnoreMod, security); err == nil {
+				if rr, err := RepoRootForImportPath(importPrefix, IgnoreMod, security); err == nil {
 					repo := rr.Repo
 					if rr.vcs.resolveRepo != nil {
 						resolved, err := rr.vcs.resolveRepo(rr.vcs, dir, repo)
@@ -438,7 +455,7 @@ func downloadPackage(p *load.Package) error {
 	} else {
 		// Analyze the import path to determine the version control system,
 		// repository, and the import path for the root of the repository.
-		rr, err := RepoRootForImportPath(p.ImportPath, IgnoreMod, security)
+		rr, err := RepoRootForImportPath(importPrefix, IgnoreMod, security)
 		if err != nil {
 			return err
 		}

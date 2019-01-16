@@ -61,7 +61,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 
 func sysUsed(v unsafe.Pointer, n uintptr) {
 	r := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
-	if r == uintptr(v) {
+	if r != 0 {
 		return
 	}
 

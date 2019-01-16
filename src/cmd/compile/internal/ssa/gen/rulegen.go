@@ -209,7 +209,11 @@ func genRules(arch arch) {
 
 				canFail = false
 				fmt.Fprintf(buf, "for {\n")
-				if genMatch(buf, arch, match, rule.loc) {
+				pos, matchCanFail := genMatch(buf, arch, match, rule.loc)
+				if pos == "" {
+					pos = "v.Pos"
+				}
+				if matchCanFail {
 					canFail = true
 				}
 
@@ -221,7 +225,7 @@ func genRules(arch arch) {
 					log.Fatalf("unconditional rule %s is followed by other rules", match)
 				}
 
-				genResult(buf, arch, result, rule.loc)
+				genResult(buf, arch, result, rule.loc, pos)
 				if *genLog {
 					fmt.Fprintf(buf, "logRule(\"%s\")\n", rule.loc)
 				}
@@ -291,10 +295,11 @@ func genRules(arch arch) {
 			_, _, _, aux, s := extract(match) // remove parens, then split
 
 			// check match of control value
+			pos := ""
 			if s[0] != "nil" {
 				fmt.Fprintf(w, "v := b.Control\n")
 				if strings.Contains(s[0], "(") {
-					genMatch0(w, arch, s[0], "v", map[string]struct{}{}, false, rule.loc)
+					pos, _ = genMatch0(w, arch, s[0], "v", map[string]struct{}{}, false, rule.loc)
 				} else {
 					fmt.Fprintf(w, "_ = v\n") // in case we don't use v
 					fmt.Fprintf(w, "%s := b.Control\n", s[0])
@@ -335,7 +340,10 @@ func genRules(arch arch) {
 			if t[0] == "nil" {
 				fmt.Fprintf(w, "b.SetControl(nil)\n")
 			} else {
-				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[0], new(int), false, false, rule.loc))
+				if pos == "" {
+					pos = "v.Pos"
+				}
+				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[0], new(int), false, false, rule.loc, pos))
 			}
 			if aux != "" {
 				fmt.Fprintf(w, "b.Aux = %s\n", aux)
@@ -386,15 +394,17 @@ func genRules(arch arch) {
 	}
 }
 
-// genMatch reports whether the match can fail.
-func genMatch(w io.Writer, arch arch, match string, loc string) bool {
+// genMatch returns the variable whose source position should be used for the
+// result (or "" if no opinion), and a boolean that reports whether the match can fail.
+func genMatch(w io.Writer, arch arch, match string, loc string) (string, bool) {
 	return genMatch0(w, arch, match, "v", map[string]struct{}{}, true, loc)
 }
 
-func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, top bool, loc string) bool {
+func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, top bool, loc string) (string, bool) {
 	if match[0] != '(' || match[len(match)-1] != ')' {
 		panic("non-compound expr in genMatch0: " + match)
 	}
+	pos := ""
 	canFail := false
 
 	op, oparch, typ, auxint, aux, args := parseValue(match, arch, loc)
@@ -403,6 +413,10 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 	if !top {
 		fmt.Fprintf(w, "if %s.Op != Op%s%s {\nbreak\n}\n", v, oparch, op.name)
 		canFail = true
+	}
+	if op.faultOnNilArg0 || op.faultOnNilArg1 {
+		// Prefer the position of an instruction which could fault.
+		pos = v + ".Pos"
 	}
 
 	if typ != "" {
@@ -494,7 +508,16 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 			argname = fmt.Sprintf("%s_%d", v, i)
 		}
 		fmt.Fprintf(w, "%s := %s.Args[%d]\n", argname, v, i)
-		if genMatch0(w, arch, arg, argname, m, false, loc) {
+		argPos, argCanFail := genMatch0(w, arch, arg, argname, m, false, loc)
+		if argPos != "" {
+			// Keep the argument in preference to the parent, as the
+			// argument is normally earlier in program flow.
+			// Keep the argument in preference to an earlier argument,
+			// as that prefers the memory argument which is also earlier
+			// in the program flow.
+			pos = argPos
+		}
+		if argCanFail {
 			canFail = true
 		}
 	}
@@ -503,10 +526,10 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 		fmt.Fprintf(w, "if len(%s.Args) != %d {\nbreak\n}\n", v, len(args))
 		canFail = true
 	}
-	return canFail
+	return pos, canFail
 }
 
-func genResult(w io.Writer, arch arch, result string, loc string) {
+func genResult(w io.Writer, arch arch, result string, loc string, pos string) {
 	move := false
 	if result[0] == '@' {
 		// parse @block directive
@@ -515,9 +538,9 @@ func genResult(w io.Writer, arch arch, result string, loc string) {
 		result = s[1]
 		move = true
 	}
-	genResult0(w, arch, result, new(int), true, move, loc)
+	genResult0(w, arch, result, new(int), true, move, loc, pos)
 }
-func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move bool, loc string) string {
+func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move bool, loc string, pos string) string {
 	// TODO: when generating a constant result, use f.constVal to avoid
 	// introducing copies just to clean them up again.
 	if result[0] != '(' {
@@ -554,7 +577,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move boo
 		}
 		v = fmt.Sprintf("v%d", *alloc)
 		*alloc++
-		fmt.Fprintf(w, "%s := b.NewValue0(v.Pos, Op%s%s, %s)\n", v, oparch, op.name, typ)
+		fmt.Fprintf(w, "%s := b.NewValue0(%s, Op%s%s, %s)\n", v, pos, oparch, op.name, typ)
 		if move && top {
 			// Rewrite original into a copy
 			fmt.Fprintf(w, "v.reset(OpCopy)\n")
@@ -569,7 +592,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move boo
 		fmt.Fprintf(w, "%s.Aux = %s\n", v, aux)
 	}
 	for _, arg := range args {
-		x := genResult0(w, arch, arg, alloc, false, move, loc)
+		x := genResult0(w, arch, arg, alloc, false, move, loc, pos)
 		fmt.Fprintf(w, "%s.AddArg(%s)\n", v, x)
 	}
 

@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -1370,4 +1371,31 @@ func testWalkSymlink(t *testing.T, mklink func(target, link string) error) {
 func TestWalkSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 	testWalkSymlink(t, os.Symlink)
+}
+
+func TestIssue29372(t *testing.T) {
+	f, err := ioutil.TempFile("", "issue29372")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	path := f.Name()
+	defer os.Remove(path)
+
+	pathSeparator := string(filepath.Separator)
+	tests := []string{
+		path + strings.Repeat(pathSeparator, 1),
+		path + strings.Repeat(pathSeparator, 2),
+		path + strings.Repeat(pathSeparator, 1) + ".",
+		path + strings.Repeat(pathSeparator, 2) + ".",
+		path + strings.Repeat(pathSeparator, 1) + "..",
+		path + strings.Repeat(pathSeparator, 2) + "..",
+	}
+
+	for i, test := range tests {
+		_, err = filepath.EvalSymlinks(test)
+		if err != syscall.ENOTDIR {
+			t.Fatalf("test#%d: want %q, got %q", i, syscall.ENOTDIR, err)
+		}
+	}
 }

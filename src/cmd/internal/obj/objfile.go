@@ -388,6 +388,7 @@ func (w *objWriter) writeSym(s *LSym) {
 		w.writeRefIndex(fsym)
 		w.writeInt(int64(l))
 		w.writeRefIndex(call.Func)
+		w.writeInt(int64(call.ParentPC))
 	}
 }
 

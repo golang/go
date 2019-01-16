@@ -54,7 +54,7 @@ const (
 	identRx = `[\pL_][\pL_0-9]*`
 
 	// Regexp for URLs
-	// Match parens, and check in pairedParensPrefixLen for balance - see #5043
+	// Match parens, and check later for balance - see #5043, #22285
 	// Match .,:;?! within path, but not at end - see #18139, #16565
 	// This excludes some rare yet valid urls ending in common punctuation
 	// in order to allow sentences ending in URLs.
@@ -86,29 +86,6 @@ var (
 	html_endh   = []byte("</h3>\n")
 )
 
-// pairedParensPrefixLen returns the length of the longest prefix of s containing paired parentheses.
-func pairedParensPrefixLen(s string) int {
-	parens := 0
-	l := len(s)
-	for i, ch := range s {
-		switch ch {
-		case '(':
-			if parens == 0 {
-				l = i
-			}
-			parens++
-		case ')':
-			parens--
-			if parens == 0 {
-				l = len(s)
-			} else if parens < 0 {
-				return i
-			}
-		}
-	}
-	return l
-}
-
 // Emphasize and escape a line of text for HTML. URLs are converted into links;
 // if the URL also appears in the words map, the link is taken from the map (if
 // the corresponding map value is the empty string, the URL is not converted
@@ -128,13 +105,27 @@ func emphasize(w io.Writer, line string, words map[string]string, nice bool) {
 		// write text before match
 		commentEscape(w, line[0:m[0]], nice)
 
-		// adjust match if necessary
+		// adjust match for URLs
 		match := line[m[0]:m[1]]
-		if n := pairedParensPrefixLen(match); n < len(match) {
-			// match contains unpaired parentheses (rare);
-			// redo matching with shortened line for correct indices
-			m = matchRx.FindStringSubmatchIndex(line[:m[0]+n])
-			match = match[:n]
+		if strings.Contains(match, "://") {
+			m0, m1 := m[0], m[1]
+			for _, s := range []string{"()", "{}", "[]"} {
+				open, close := s[:1], s[1:] // E.g., "(" and ")"
+				// require opening parentheses before closing parentheses (#22285)
+				if i := strings.Index(match, close); i >= 0 && i < strings.Index(match, open) {
+					m1 = m0 + i
+					match = line[m0:m1]
+				}
+				// require balanced pairs of parentheses (#5043)
+				for i := 0; strings.Count(match, open) != strings.Count(match, close) && i < 10; i++ {
+					m1 = strings.LastIndexAny(line[:m1], s)
+					match = line[m0:m1]
+				}
+			}
+			if m1 != m[1] {
+				// redo matching with shortened line for correct indices
+				m = matchRx.FindStringSubmatchIndex(line[:m[0]+len(match)])
+			}
 		}
 
 		// analyze match

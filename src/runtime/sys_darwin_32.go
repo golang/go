@@ -19,3 +19,14 @@ func syscall_syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, e
 	return
 }
 func syscall9()
+
+//go:linkname syscall_syscallPtr syscall.syscallPtr
+//go:nosplit
+//go:cgo_unsafe_args
+func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+	entersyscallblock()
+	libcCall(unsafe.Pointer(funcPC(syscallPtr)), unsafe.Pointer(&fn))
+	exitsyscall()
+	return
+}
+func syscallPtr()

@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin freebsd linux
+// +build darwin freebsd linux netbsd
 
 package unix_test
 
 import (
+	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
@@ -23,10 +24,16 @@ func TestXattr(t *testing.T) {
 
 	xattrName := "user.test"
 	xattrDataSet := "gopher"
-	err := unix.Setxattr(f, xattrName, []byte(xattrDataSet), 0)
+
+	err := unix.Setxattr(f, xattrName, []byte{}, 0)
 	if err == unix.ENOTSUP || err == unix.EOPNOTSUPP {
 		t.Skip("filesystem does not support extended attributes, skipping test")
 	} else if err != nil {
+		t.Fatalf("Setxattr: %v", err)
+	}
+
+	err = unix.Setxattr(f, xattrName, []byte(xattrDataSet), 0)
+	if err != nil {
 		t.Fatalf("Setxattr: %v", err)
 	}
 
@@ -115,5 +122,86 @@ func TestXattr(t *testing.T) {
 		if (runtime.GOOS != "linux" && runtime.GOOS != "android") || err != unix.EPERM {
 			t.Fatalf("Lsetxattr: %v", err)
 		}
+	}
+}
+
+func TestFdXattr(t *testing.T) {
+	file, err := ioutil.TempFile("", "TestFdXattr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+	defer file.Close()
+
+	fd := int(file.Fd())
+	xattrName := "user.test"
+	xattrDataSet := "gopher"
+
+	err = unix.Fsetxattr(fd, xattrName, []byte(xattrDataSet), 0)
+	if err == unix.ENOTSUP || err == unix.EOPNOTSUPP {
+		t.Skip("filesystem does not support extended attributes, skipping test")
+	} else if err != nil {
+		t.Fatalf("Fsetxattr: %v", err)
+	}
+
+	// find size
+	size, err := unix.Flistxattr(fd, nil)
+	if err != nil {
+		t.Fatalf("Flistxattr: %v", err)
+	}
+
+	if size <= 0 {
+		t.Fatalf("Flistxattr returned an empty list of attributes")
+	}
+
+	buf := make([]byte, size)
+	read, err := unix.Flistxattr(fd, buf)
+	if err != nil {
+		t.Fatalf("Flistxattr: %v", err)
+	}
+
+	xattrs := stringsFromByteSlice(buf[:read])
+
+	xattrWant := xattrName
+	if runtime.GOOS == "freebsd" {
+		// On FreeBSD, the namespace is stored separately from the xattr
+		// name and Listxattr doesn't return the namespace prefix.
+		xattrWant = strings.TrimPrefix(xattrWant, "user.")
+	}
+	found := false
+	for _, name := range xattrs {
+		if name == xattrWant {
+			found = true
+		}
+	}
+
+	if !found {
+		t.Errorf("Flistxattr did not return previously set attribute '%s'", xattrName)
+	}
+
+	// find size
+	size, err = unix.Fgetxattr(fd, xattrName, nil)
+	if err != nil {
+		t.Fatalf("Fgetxattr: %v", err)
+	}
+
+	if size <= 0 {
+		t.Fatalf("Fgetxattr returned an empty attribute")
+	}
+
+	xattrDataGet := make([]byte, size)
+	_, err = unix.Fgetxattr(fd, xattrName, xattrDataGet)
+	if err != nil {
+		t.Fatalf("Fgetxattr: %v", err)
+	}
+
+	got := string(xattrDataGet)
+	if got != xattrDataSet {
+		t.Errorf("Fgetxattr: expected attribute value %s, got %s", xattrDataSet, got)
+	}
+
+	err = unix.Fremovexattr(fd, xattrName)
+	if err != nil {
+		t.Fatalf("Fremovexattr: %v", err)
 	}
 }

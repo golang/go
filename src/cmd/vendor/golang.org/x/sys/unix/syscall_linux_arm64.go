@@ -191,12 +191,9 @@ func Dup2(oldfd int, newfd int) (err error) {
 	return Dup3(oldfd, newfd, 0)
 }
 
-func Pause() (err error) {
-	_, _, e1 := Syscall6(SYS_PPOLL, 0, 0, 0, 0, 0, 0)
-	if e1 != 0 {
-		err = errnoErr(e1)
-	}
-	return
+func Pause() error {
+	_, err := ppoll(nil, 0, nil, nil)
+	return err
 }
 
 func Poll(fds []PollFd, timeout int) (n int, err error) {

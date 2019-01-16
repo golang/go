@@ -226,6 +226,69 @@ func TestBlockGeneric(t *testing.T) {
 	}
 }
 
+// Tests for unmarshaling hashes that have hashed a large amount of data
+// The initial hash generation is omitted from the test, because it takes a long time.
+// The test contains some already-generated states, and their expected sums
+// Tests a problem that is outlined in Github issue #29517
+// The problem is triggered when an amount of data has been hashed for which
+// the data length has a 1 in the 32nd bit. When casted to int, this changes
+// the sign of the value, and causes the modulus operation to return a
+// different result.
+type unmarshalTest struct {
+	state string
+	sum   string
+}
+
+var largeUnmarshalTests = []unmarshalTest{
+	// Data length: 7_115_087_207
+	unmarshalTest{
+		state: "sha\x03yX\xaf\xb7\x04*\x8f\xaa\x9bx\xc5#\x1f\xeb\x94\xfdz1\xaf\xfbk֗\n\xc93\xcf\x02\v.\xa5\xe4\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\xa8\x17\x9dg",
+		sum:   "f5e06371f0c115e9968455c8e48a318aba548b9f15676fa41de123f7d1c99c55",
+	},
+
+	// Data length: 7_070_038_086
+	unmarshalTest{
+		state: "sha\x03$\x933u\nV\v\xe2\xf7:0!ʳ\xa4\x13\xd3 6\xdcBB\xb5\x19\xcd=\xc1h\xee=\xb4\x9c@ABCDE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\xa5h8F",
+		sum:   "a280b08df5eba060fcd0eb3d29320bbc038afb95781661f91bbfd0a6fc9fdd6e",
+	},
+
+	// Data length: 6_464_878_887
+	unmarshalTest{
+		state: "sha\x03\x9f\x12\x87G\xf2\xdf<\x82\xa0\x11/*W\x02&IKWlh\x03\x95\xb1\xab\f\n\xf6Ze\xf9\x1d\x1b\x00\x01\x02\x03\x04\x05\x06\a\b\t\n\v\f\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !\"#$%&\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x81V9'",
+		sum:   "d2fffb762f105ab71e2d70069346c44c38c4fe183aad8cfcf5a76397c0457806",
+	},
+}
+
+func safeSum(h hash.Hash) (sum []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("sum panic: %v", r)
+		}
+	}()
+
+	return h.Sum(nil), nil
+}
+func TestLargeHashes(t *testing.T) {
+	for i, test := range largeUnmarshalTests {
+
+		h := New()
+		if err := h.(encoding.BinaryUnmarshaler).UnmarshalBinary([]byte(test.state)); err != nil {
+			t.Errorf("test %d could not unmarshal: %v", i, err)
+			continue
+		}
+
+		sum, err := safeSum(h)
+		if err != nil {
+			t.Errorf("test %d could not sum: %v", i, err)
+			continue
+		}
+
+		if fmt.Sprintf("%x", sum) != test.sum {
+			t.Errorf("test %d sum mismatch: expect %s got %x", i, test.sum, sum)
+		}
+	}
+}
+
 var bench = New()
 var buf = make([]byte, 8192)
 

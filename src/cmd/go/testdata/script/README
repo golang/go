@@ -84,6 +84,10 @@ when testing.Short() is false.
 
 The commands are:
 
+- [!] cc args... [&]
+  Run the C compiler, the platform specific flags (i.e. `go env GOGCCFLAGS`) will be
+  added automatically before args.
+
 - cd dir
   Change to the given directory for future commands.
 

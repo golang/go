@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"crypto/rsa"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,13 +64,15 @@ func TestSystemRoots(t *testing.T) {
 		if _, ok := sysPool[string(c.Raw)]; ok {
 			delete(sysPool, string(c.Raw))
 		} else {
-			// verify-cert lets in certificates that are not trusted roots, but are
-			// signed by trusted roots. This should not be a problem, so confirm that's
-			// the case and skip them.
+			// verify-cert lets in certificates that are not trusted roots, but
+			// are signed by trusted roots. This is not great, but unavoidable
+			// until we parse real policies without cgo, so confirm that's the
+			// case and skip them.
 			if _, err := c.Verify(VerifyOptions{
 				Roots:         sysRoots,
 				Intermediates: allCerts,
 				KeyUsages:     []ExtKeyUsage{ExtKeyUsageAny},
+				CurrentTime:   c.NotBefore, // verify-cert does not check expiration
 			}); err != nil {
 				t.Errorf("certificate only present in non-cgo pool: %v (verify error: %v)", c.Subject, err)
 			} else {
@@ -101,6 +104,14 @@ func TestSystemRoots(t *testing.T) {
 		now := time.Now()
 		if now.Before(c.NotBefore) || now.After(c.NotAfter) {
 			t.Logf("expired certificate only present in cgo pool (acceptable): %v", c.Subject)
+			continue
+		}
+
+		// On 10.11 there are five unexplained roots that only show up from the
+		// C API. They have in common the fact that they are old, 1024-bit
+		// certificates. It's arguably better to ignore them anyway.
+		if key, ok := c.PublicKey.(*rsa.PublicKey); ok && key.N.BitLen() == 1024 {
+			t.Logf("1024-bit certificate only present in cgo pool (acceptable): %v", c.Subject)
 			continue
 		}
 

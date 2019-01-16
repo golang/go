@@ -174,6 +174,7 @@ var goopnames = []string{
 	OGT:       ">",
 	OIF:       "if",
 	OIMAG:     "imag",
+	OINLMARK:  "inlmark",
 	ODEREF:    "*",
 	OLEN:      "len",
 	OLE:       "<=",
@@ -941,6 +942,9 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 
 	case ORETJMP:
 		mode.Fprintf(s, "retjmp %v", n.Sym)
+
+	case OINLMARK:
+		mode.Fprintf(s, "inlmark %d", n.Xoffset)
 
 	case OGO:
 		mode.Fprintf(s, "go %v", n.Left)
@@ -1749,7 +1753,11 @@ func tconv(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 		return t.FieldType(0).String() + "," + t.FieldType(1).String()
 	}
 
-	if depth > 100 {
+	// Avoid endless recursion by setting an upper limit. This also
+	// limits the depths of valid composite types, but they are likely
+	// artificially created.
+	// TODO(gri) should have proper cycle detection here, eventually (issue #29312)
+	if depth > 250 {
 		return "<...>"
 	}
 

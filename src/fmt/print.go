@@ -538,7 +538,7 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
 	}
 }
 
-func (p *pp) catchPanic(arg interface{}, verb rune) {
+func (p *pp) catchPanic(arg interface{}, verb rune, method string) {
 	if err := recover(); err != nil {
 		// If it's a nil pointer, just say "<nil>". The likeliest causes are a
 		// Stringer that fails to guard against nil or a nil pointer for a
@@ -561,6 +561,8 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
 		p.buf.WriteString(percentBangString)
 		p.buf.WriteRune(verb)
 		p.buf.WriteString(panicString)
+		p.buf.WriteString(method)
+		p.buf.WriteString(" method: ")
 		p.panicking = true
 		p.printArg(err, 'v')
 		p.panicking = false
@@ -577,7 +579,7 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 	// Is it a Formatter?
 	if formatter, ok := p.arg.(Formatter); ok {
 		handled = true
-		defer p.catchPanic(p.arg, verb)
+		defer p.catchPanic(p.arg, verb, "Format")
 		formatter.Format(p, verb)
 		return
 	}
@@ -586,7 +588,7 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 	if p.fmt.sharpV {
 		if stringer, ok := p.arg.(GoStringer); ok {
 			handled = true
-			defer p.catchPanic(p.arg, verb)
+			defer p.catchPanic(p.arg, verb, "GoString")
 			// Print the result of GoString unadorned.
 			p.fmt.fmtS(stringer.GoString())
 			return
@@ -604,13 +606,13 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 			switch v := p.arg.(type) {
 			case error:
 				handled = true
-				defer p.catchPanic(p.arg, verb)
+				defer p.catchPanic(p.arg, verb, "Error")
 				p.fmtString(v.Error(), verb)
 				return
 
 			case Stringer:
 				handled = true
-				defer p.catchPanic(p.arg, verb)
+				defer p.catchPanic(p.arg, verb, "String")
 				p.fmtString(v.String(), verb)
 				return
 			}

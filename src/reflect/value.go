@@ -1031,7 +1031,7 @@ func (v Value) InterfaceData() [2]uintptr {
 func (v Value) IsNil() bool {
 	k := v.kind()
 	switch k {
-	case Chan, Func, Map, Ptr:
+	case Chan, Func, Map, Ptr, UnsafePointer:
 		if v.flag&flagMethod != 0 {
 			return false
 		}

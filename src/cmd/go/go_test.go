@@ -1771,11 +1771,11 @@ func TestGoListDeps(t *testing.T) {
 	if runtime.Compiler != "gccgo" {
 		// Check the list is in dependency order.
 		tg.run("list", "-deps", "math")
-		want := "internal/cpu\nunsafe\nmath\n"
+		want := "internal/cpu\nunsafe\nmath/bits\nmath\n"
 		out := tg.stdout.String()
 		if !strings.Contains(out, "internal/cpu") {
 			// Some systems don't use internal/cpu.
-			want = "unsafe\nmath\n"
+			want = "unsafe\nmath/bits\nmath\n"
 		}
 		if tg.stdout.String() != want {
 			t.Fatalf("list -deps math: wrong order\nhave %q\nwant %q", tg.stdout.String(), want)
@@ -5011,7 +5011,8 @@ func TestExecBuildX(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 
-	tg.setenv("GOCACHE", "off")
+	tg.tempDir("cache")
+	tg.setenv("GOCACHE", tg.path("cache"))
 
 	tg.tempFile("main.go", `package main; import "C"; func main() { print("hello") }`)
 	src := tg.path("main.go")
@@ -5542,30 +5543,6 @@ func TestTestCacheInputs(t *testing.T) {
 	}
 }
 
-func TestNoCache(t *testing.T) {
-	switch runtime.GOOS {
-	case "windows":
-		t.Skipf("no unwritable directories on %s", runtime.GOOS)
-	}
-	if os.Getuid() == 0 {
-		t.Skip("skipping test because running as root")
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempFile("triv.go", `package main; func main() {}`)
-	tg.must(os.MkdirAll(tg.path("unwritable"), 0555))
-	home := "HOME"
-	if runtime.GOOS == "plan9" {
-		home = "home"
-	}
-	tg.setenv(home, tg.path(filepath.Join("unwritable", "home")))
-	tg.unsetenv("GOCACHE")
-	tg.run("build", "-o", tg.path("triv"), tg.path("triv.go"))
-	tg.grepStderr("disabling cache", "did not disable cache")
-}
-
 func TestTestVet(t *testing.T) {
 	tooSlow(t)
 	tg := testgo(t)
@@ -5713,17 +5690,6 @@ func TestFmtLoadErrors(t *testing.T) {
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("fmt", "does-not-exist")
 	tg.run("fmt", "-n", "exclude")
-}
-
-func TestRelativePkgdir(t *testing.T) {
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOCACHE", "off")
-	tg.cd(tg.tempdir)
-
-	tg.run("build", "-i", "-pkgdir=.", "runtime")
 }
 
 func TestGoTestMinusN(t *testing.T) {
@@ -6105,28 +6071,6 @@ func TestDontReportRemoveOfEmptyDir(t *testing.T) {
 	if bytes.Count(tg.stdout.Bytes(), []byte{'\n'})+bytes.Count(tg.stderr.Bytes(), []byte{'\n'}) > 1 {
 		t.Error("unnecessary output when installing installed package")
 	}
-}
-
-// Issue 23264.
-func TestNoRelativeTmpdir(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-
-	tg.tempFile("src/a/a.go", `package a`)
-	tg.cd(tg.path("."))
-	tg.must(os.Mkdir("tmp", 0777))
-
-	tg.setenv("GOCACHE", "off")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.setenv("GOTMPDIR", "tmp")
-	tg.run("build", "-work", "a")
-	tg.grepStderr("WORK=[^t]", "work should be absolute path")
-
-	tg.unsetenv("GOTMPDIR")
-	tg.setenv("TMP", "tmp")    // windows
-	tg.setenv("TMPDIR", "tmp") // unix
-	tg.run("build", "-work", "a")
-	tg.grepStderr("WORK=[^t]", "work should be absolute path")
 }
 
 // Issue 24704.

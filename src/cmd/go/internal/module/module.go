@@ -226,7 +226,7 @@ func checkElem(elem string, fileName bool) error {
 	}
 	for _, bad := range badWindowsNames {
 		if strings.EqualFold(bad, short) {
-			return fmt.Errorf("disallowed path element %q", elem)
+			return fmt.Errorf("%q disallowed as path element component on Windows", short)
 		}
 	}
 	return nil

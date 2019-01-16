@@ -17,17 +17,20 @@ import (
 // as PE and XCOFF are based on COFF files.
 // XCOFF files generated are 64 bits.
 
-// Total amount of space to reserve at the start of the file
-// for FileHeader, Auxiliary Header, and Section Headers.
-// May waste some.
-// Based on 24(fhdr) + 120(ahdr) + 23(max sections number) * 72(scnhdr)
 const (
-	XCOFFHDRRESERVE = FILHSZ_64 + AOUTHSZ_EXEC64 + SCNHSZ_64*23
-)
+	// Total amount of space to reserve at the start of the file
+	// for File Header, Auxiliary Header, and Section Headers.
+	// May waste some.
+	XCOFFHDRRESERVE       = FILHSZ_64 + AOUTHSZ_EXEC64 + SCNHSZ_64*23
+	XCOFFSECTALIGN  int64 = 32 // base on dump -o
 
-const (
-	XCOFFSECTALIGN int64 = 32          // base on dump -o
-	XCOFFBASE            = 0x100000000 // Address on 64 bits must start at this value.
+	// XCOFF binaries should normally have all its sections position-independent.
+	// However, this is not yet possible for .text because of some R_ADDR relocations
+	// inside RODATA symbols.
+	// .data and .bss are position-independent so their address start inside a unreachable
+	// segment during execution to force segfault if something is wrong.
+	XCOFFTEXTBASE = 0x100000000 // Start of text address
+	XCOFFDATABASE = 0x200000000 // Start of data address
 )
 
 // File Header
@@ -367,12 +370,6 @@ type xcoffFile struct {
 	loaderReloc     []*xcoffLoaderReloc  // Reloc that must be made inside loader
 }
 
-// Those values will latter be computed in XcoffInit
-var (
-	XCOFFFILEHDR int
-	XCOFFSECTHDR int
-)
-
 // Var used by XCOFF Generation algorithms
 var (
 	xfile xcoffFile
@@ -489,14 +486,11 @@ func (f *xcoffFile) getXCOFFscnum(sect *sym.Section) int16 {
 func Xcoffinit(ctxt *Link) {
 	xfile.dynLibraries = make(map[string]int)
 
-	XCOFFFILEHDR = int(Rnd(XCOFFHDRRESERVE, XCOFFSECTALIGN))
-	XCOFFSECTHDR = int(Rnd(int64(XCOFFFILEHDR), XCOFFSECTALIGN))
-
-	HEADR = int32(XCOFFFILEHDR)
+	HEADR = int32(Rnd(XCOFFHDRRESERVE, XCOFFSECTALIGN))
 	if *FlagTextAddr != -1 {
 		Errorf(nil, "-T not available on AIX")
 	}
-	*FlagTextAddr = XCOFFBASE + int64(XCOFFSECTHDR)
+	*FlagTextAddr = XCOFFTEXTBASE + int64(HEADR)
 	*FlagDataAddr = 0
 	if *FlagRound != -1 {
 		Errorf(nil, "-R not available on AIX")

@@ -127,8 +127,21 @@ func gofmt(n interface{}) string {
 	return gofmtBuf.String()
 }
 
+// gofmtLineReplacer is used to put a gofmt-formatted string for an
+// AST expression onto a single line. The lexer normally inserts a
+// semicolon at each newline, so we can replace newline with semicolon.
+// However, we can't do that in cases where the lexer would not insert
+// a semicolon. Fortunately we only have to worry about cases that
+// can occur in an expression passed through gofmt, which just means
+// composite literals.
+var gofmtLineReplacer = strings.NewReplacer(
+	"{\n", "{",
+	",\n", ",",
+	"\n", ";",
+)
+
 // gofmtLine returns the gofmt-formatted string for an AST node,
 // ensuring that it is on a single line.
 func gofmtLine(n interface{}) string {
-	return strings.Replace(gofmt(n), "\n", ";", -1)
+	return gofmtLineReplacer.Replace(gofmt(n))
 }

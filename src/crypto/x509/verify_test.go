@@ -5,10 +5,15 @@
 package x509
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
 	"runtime"
 	"strings"
 	"testing"
@@ -1888,4 +1893,118 @@ func TestValidHostname(t *testing.T) {
 			t.Errorf("validHostname(%q) = %v, want %v", tt.host, got, tt.want)
 		}
 	}
+}
+
+func generateCert(cn string, isCA bool, issuer *Certificate, issuerKey crypto.PrivateKey) (*Certificate, crypto.PrivateKey, error) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
+
+	template := &Certificate{
+		SerialNumber: serialNumber,
+		Subject:      pkix.Name{CommonName: cn},
+		NotBefore:    time.Now().Add(-1 * time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+
+		KeyUsage:              KeyUsageKeyEncipherment | KeyUsageDigitalSignature | KeyUsageCertSign,
+		ExtKeyUsage:           []ExtKeyUsage{ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  isCA,
+	}
+	if issuer == nil {
+		issuer = template
+		issuerKey = priv
+	}
+
+	derBytes, err := CreateCertificate(rand.Reader, template, issuer, priv.Public(), issuerKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	cert, err := ParseCertificate(derBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return cert, priv, nil
+}
+
+func TestPathologicalChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping generation of a long chain of certificates in short mode")
+	}
+
+	// Build a chain where all intermediates share the same subject, to hit the
+	// path building worst behavior.
+	roots, intermediates := NewCertPool(), NewCertPool()
+
+	parent, parentKey, err := generateCert("Root CA", true, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots.AddCert(parent)
+
+	for i := 1; i < 100; i++ {
+		parent, parentKey, err = generateCert("Intermediate CA", true, parent, parentKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		intermediates.AddCert(parent)
+	}
+
+	leaf, _, err := generateCert("Leaf", false, parent, parentKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	_, err = leaf.Verify(VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+	})
+	t.Logf("verification took %v", time.Since(start))
+
+	if err == nil || !strings.Contains(err.Error(), "signature check attempts limit") {
+		t.Errorf("expected verification to fail with a signature checks limit error; got %v", err)
+	}
+}
+
+func TestLongChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping generation of a long chain of certificates in short mode")
+	}
+
+	roots, intermediates := NewCertPool(), NewCertPool()
+
+	parent, parentKey, err := generateCert("Root CA", true, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots.AddCert(parent)
+
+	for i := 1; i < 15; i++ {
+		name := fmt.Sprintf("Intermediate CA #%d", i)
+		parent, parentKey, err = generateCert(name, true, parent, parentKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		intermediates.AddCert(parent)
+	}
+
+	leaf, _, err := generateCert("Leaf", false, parent, parentKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	if _, err := leaf.Verify(VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+	}); err != nil {
+		t.Error(err)
+	}
+	t.Logf("verification took %v", time.Since(start))
 }

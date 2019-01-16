@@ -535,6 +535,12 @@ func (ctxt *Link) loadlib() {
 			if *flagLibGCC == "" {
 				*flagLibGCC = ctxt.findLibPathCmd("--print-libgcc-file-name", "libgcc")
 			}
+			if runtime.GOOS == "openbsd" && *flagLibGCC == "libgcc.a" {
+				// On OpenBSD `clang --print-libgcc-file-name` returns "libgcc.a".
+				// In this case we fail to load libgcc.a and can encounter link
+				// errors - see if we can find libcompiler_rt.a instead.
+				*flagLibGCC = ctxt.findLibPathCmd("--print-file-name=libcompiler_rt.a", "libcompiler_rt")
+			}
 			if *flagLibGCC != "none" {
 				hostArchive(ctxt, *flagLibGCC)
 			}
@@ -872,8 +878,10 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
 		// Skip other special (non-object-file) sections that
 		// build tools may have added. Such sections must have
 		// short names so that the suffix is not truncated.
-		if len(arhdr.name) < 16 && !strings.HasSuffix(arhdr.name, ".o") {
-			continue
+		if len(arhdr.name) < 16 {
+			if ext := filepath.Ext(arhdr.name); ext != ".o" && ext != ".syso" {
+				continue
+			}
 		}
 
 		pname := fmt.Sprintf("%s(%s)", lib.File, arhdr.name)
@@ -1999,7 +2007,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 		if s.FuncInfo != nil {
 			locals = s.FuncInfo.Locals
 		}
-		limit = int(objabi.StackLimit+locals) + int(ctxt.FixedFrameSize())
+		limit = objabi.StackLimit + int(locals) + int(ctxt.FixedFrameSize())
 	}
 
 	// Walk through sp adjustments in function, consuming relocs.

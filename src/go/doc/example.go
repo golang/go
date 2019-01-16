@@ -426,6 +426,9 @@ func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast
 
 // lastComment returns the last comment inside the provided block.
 func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.CommentGroup) {
+	if b == nil {
+		return
+	}
 	pos, end := b.Pos(), b.End()
 	for j, cg := range c {
 		if cg.Pos() < pos {

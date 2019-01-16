@@ -1325,7 +1325,7 @@ func (w *exportWriter) expr(n *Node) {
 
 	default:
 		Fatalf("cannot export %v (%d) node\n"+
-			"==> please file an issue and assign to gri@\n", n.Op, int(n.Op))
+			"\t==> please file an issue and assign to gri@", n.Op, int(n.Op))
 	}
 }
 

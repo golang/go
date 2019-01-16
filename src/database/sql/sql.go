@@ -1698,7 +1698,7 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 		}
 	}
 	if err == driver.ErrBadConn {
-		dc, err = db.conn(ctx, cachedOrNewConn)
+		dc, err = db.conn(ctx, alwaysNewConn)
 	}
 	if err != nil {
 		return nil, err

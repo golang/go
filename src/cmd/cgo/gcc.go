@@ -1389,7 +1389,9 @@ func (p *Package) rewriteRef(f *File) {
 
 		// Record source-level edit for cgo output.
 		if !r.Done {
-			repl := gofmtPos(expr, old.Pos())
+			// Prepend a space in case the earlier code ends
+			// with '/', which would give us a "//" comment.
+			repl := " " + gofmtPos(expr, old.Pos())
 			end := fset.Position(old.End())
 			// Subtract 1 from the column if we are going to
 			// append a close parenthesis. That will set the
@@ -1399,7 +1401,7 @@ func (p *Package) rewriteRef(f *File) {
 				sub = 1
 			}
 			if end.Column > sub {
-				repl = fmt.Sprintf("%s/*line :%d:%d*/", repl, end.Line, end.Column-sub)
+				repl = fmt.Sprintf("%s /*line :%d:%d*/", repl, end.Line, end.Column-sub)
 			}
 			if r.Name.Kind != "type" {
 				repl = "(" + repl + ")"
@@ -1992,8 +1994,10 @@ func (p *Package) gccErrors(stdin []byte) string {
 		}
 	}
 
-	// Force -O0 optimization
+	// Force -O0 optimization but keep the trailing "-" at the end.
 	nargs = append(nargs, "-O0")
+	nl := len(nargs)
+	nargs[nl-2], nargs[nl-1] = nargs[nl-1], nargs[nl-2]
 
 	if *debugGcc {
 		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(nargs, " "))
@@ -3004,6 +3008,9 @@ func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
 	if c.badJNI(dt) {
 		return true
 	}
+	if c.badEGLDisplay(dt) {
+		return true
+	}
 	return false
 }
 
@@ -3135,6 +3142,19 @@ func (c *typeConv) badJNI(dt *dwarf.TypedefType) bool {
 					}
 				}
 			}
+		}
+	}
+	return false
+}
+
+func (c *typeConv) badEGLDisplay(dt *dwarf.TypedefType) bool {
+	if dt.Name != "EGLDisplay" {
+		return false
+	}
+	// Check that the typedef is "typedef void *EGLDisplay".
+	if ptr, ok := dt.Type.(*dwarf.PtrType); ok {
+		if _, ok := ptr.Type.(*dwarf.VoidType); ok {
+			return true
 		}
 	}
 	return false

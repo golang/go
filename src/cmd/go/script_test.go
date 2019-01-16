@@ -27,6 +27,7 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/par"
 	"cmd/go/internal/txtar"
+	"cmd/go/internal/work"
 )
 
 // TestScript runs the tests in testdata/script/*.txt.
@@ -282,6 +283,11 @@ Script:
 				if strings.HasPrefix(cond, "exec:") {
 					prog := cond[len("exec:"):]
 					ok = execCache.Do(prog, func() interface{} {
+						if runtime.GOOS == "plan9" && prog == "git" {
+							// The Git command is usually not the real Git on Plan 9.
+							// See https://golang.org/issues/29640.
+							return false
+						}
 						_, err := exec.LookPath(prog)
 						return err == nil
 					}).(bool)
@@ -343,6 +349,7 @@ Script:
 //
 var scriptCmds = map[string]func(*testScript, bool, []string){
 	"addcrlf": (*testScript).cmdAddcrlf,
+	"cc":      (*testScript).cmdCc,
 	"cd":      (*testScript).cmdCd,
 	"chmod":   (*testScript).cmdChmod,
 	"cmp":     (*testScript).cmdCmp,
@@ -376,6 +383,17 @@ func (ts *testScript) cmdAddcrlf(neg bool, args []string) {
 		ts.check(err)
 		ts.check(ioutil.WriteFile(file, bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n")), 0666))
 	}
+}
+
+// cc runs the C compiler along with platform specific options.
+func (ts *testScript) cmdCc(neg bool, args []string) {
+	if len(args) < 1 || (len(args) == 1 && args[0] == "&") {
+		ts.fatalf("usage: cc args... [&]")
+	}
+
+	var b work.Builder
+	b.Init()
+	ts.cmdExec(neg, append(b.GccCmd(".", ""), args...))
 }
 
 // cd changes to a different directory.

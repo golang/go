@@ -325,7 +325,10 @@ func tempDir() string {
 		if n > uint32(len(b)) {
 			continue
 		}
-		if n > 0 && b[n-1] == '\\' {
+		if n == 3 && b[1] == ':' && b[2] == '\\' {
+			// Do nothing for path, like C:\.
+		} else if n > 0 && b[n-1] == '\\' {
+			// Otherwise remove terminating \.
 			n--
 		}
 		return string(utf16.Decode(b[:n]))

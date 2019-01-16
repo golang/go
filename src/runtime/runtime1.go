@@ -308,6 +308,7 @@ var debug struct {
 	gcstoptheworld     int32
 	gctrace            int32
 	invalidptr         int32
+	madvdontneed       int32 // for Linux; issue 28466
 	sbrk               int32
 	scavenge           int32
 	scheddetail        int32
@@ -325,6 +326,7 @@ var dbgvars = []dbgVar{
 	{"gcstoptheworld", &debug.gcstoptheworld},
 	{"gctrace", &debug.gctrace},
 	{"invalidptr", &debug.invalidptr},
+	{"madvdontneed", &debug.madvdontneed},
 	{"sbrk", &debug.sbrk},
 	{"scavenge", &debug.scavenge},
 	{"scheddetail", &debug.scheddetail},

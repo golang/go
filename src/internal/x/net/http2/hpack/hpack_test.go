@@ -748,14 +748,22 @@ func TestDynamicSizeUpdate(t *testing.T) {
 	enc.SetMaxDynamicTableSize(255)
 	enc.WriteField(HeaderField{Name: "foo", Value: "bar"})
 
-	d := NewDecoder(4096, nil)
-	_, err := d.DecodeFull(buf.Bytes())
+	d := NewDecoder(4096, func(_ HeaderField) {})
+	_, err := d.Write(buf.Bytes())
+	if err != nil {
+		t.Fatalf("unexpected error: got = %v", err)
+	}
+
+	d.Close()
+
+	// Start a new header
+	_, err = d.Write(buf.Bytes())
 	if err != nil {
 		t.Fatalf("unexpected error: got = %v", err)
 	}
 
 	// must fail since the dynamic table update must be at the beginning
-	_, err = d.DecodeFull(buf.Bytes())
+	_, err = d.Write(buf.Bytes())
 	if err == nil {
 		t.Fatalf("dynamic table size update not at the beginning of a header block")
 	}

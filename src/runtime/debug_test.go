@@ -33,11 +33,17 @@ func startDebugCallWorker(t *testing.T) (g *runtime.G, after func()) {
 	skipUnderDebugger(t)
 
 	// This can deadlock if there aren't enough threads or if a GC
-	// tries to interrupt an atomic loop (see issue #10958).
-	ogomaxprocs := runtime.GOMAXPROCS(2)
+	// tries to interrupt an atomic loop (see issue #10958). We
+	// use 8 Ps so there's room for the debug call worker,
+	// something that's trying to preempt the call worker, and the
+	// goroutine that's trying to stop the call worker.
+	ogomaxprocs := runtime.GOMAXPROCS(8)
 	ogcpercent := debug.SetGCPercent(-1)
 
-	ready := make(chan *runtime.G)
+	// ready is a buffered channel so debugCallWorker won't block
+	// on sending to it. This makes it less likely we'll catch
+	// debugCallWorker while it's in the runtime.
+	ready := make(chan *runtime.G, 1)
 	var stop uint32
 	done := make(chan error)
 	go debugCallWorker(ready, &stop, done)
@@ -67,6 +73,10 @@ func debugCallWorker(ready chan<- *runtime.G, stop *uint32, done chan<- error) {
 	close(done)
 }
 
+// Don't inline this function, since we want to test adjusting
+// pointers in the arguments.
+//
+//go:noinline
 func debugCallWorker2(stop *uint32, x *int) {
 	for atomic.LoadUint32(stop) == 0 {
 		// Strongly encourage x to live in a register so we
@@ -193,7 +203,7 @@ func TestDebugCallUnsafePoint(t *testing.T) {
 
 	// This can deadlock if there aren't enough threads or if a GC
 	// tries to interrupt an atomic loop (see issue #10958).
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 
 	// Test that the runtime refuses call injection at unsafe points.
@@ -215,7 +225,7 @@ func TestDebugCallPanic(t *testing.T) {
 	skipUnderDebugger(t)
 
 	// This can deadlock if there aren't enough threads.
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
 
 	ready := make(chan *runtime.G)
 	var stop uint32

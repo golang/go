@@ -337,9 +337,9 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			slow.BySize[i].Frees = bySize[i].Frees
 		}
 
-		mheap_.scav.treap.walkTreap(func(tn *treapNode) {
-			slow.HeapReleased += uint64(tn.spanKey.released())
-		})
+		for i := mheap_.scav.start(); i.valid(); i = i.next() {
+			slow.HeapReleased += uint64(i.span().released())
+		}
 
 		getg().m.mallocing--
 	})

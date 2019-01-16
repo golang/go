@@ -465,6 +465,34 @@ TEXT runtime·syscallX(SB),NOSPLIT,$0
 ok:
 	RET
 
+// syscallXPtr is like syscallX except that the libc function reports an
+// error by returning NULL.
+TEXT runtime·syscallXPtr(SB),NOSPLIT,$0
+	SUB	$16, RSP	// push structure pointer
+	MOVD	R0, (RSP)
+
+	MOVD	0(R0), R12	// fn
+	MOVD	16(R0), R1	// a2
+	MOVD	24(R0), R2	// a3
+	MOVD	8(R0), R0	// a1
+	BL	(R12)
+
+	MOVD	(RSP), R2	// pop structure pointer
+	ADD	$16, RSP
+	MOVD	R0, 32(R2)	// save r1
+	MOVD	R1, 40(R2)	// save r2
+	CMP	$0, R0
+	BNE	ok
+	SUB	$16, RSP	// push structure pointer
+	MOVD	R2, (RSP)
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	MOVD	(RSP), R2	// pop structure pointer
+	ADD	$16, RSP
+	MOVD	R0, 48(R2)	// save err
+ok:
+	RET
+
 // syscall6 calls a function in libc on behalf of the syscall package.
 // syscall6 takes a pointer to a struct like:
 // struct {

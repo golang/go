@@ -65,6 +65,13 @@ func main() {
 	case "freebsd":
 		// Since FreeBSD 10 gcc is no longer part of the base system.
 		defaultclang = true
+	case "openbsd":
+		// The gcc available on OpenBSD armv7 is old/inadequate (for example, lacks
+		// __sync_fetch_and_*/__sync_*_and_fetch) and will likely be removed in the
+		// not-to-distant future - use clang instead.
+		if runtime.GOARCH == "arm" {
+			defaultclang = true
+		}
 	case "solaris":
 		// Even on 64-bit platform, solaris uname -m prints i86pc.
 		out := run("", CheckExit, "isainfo", "-n")

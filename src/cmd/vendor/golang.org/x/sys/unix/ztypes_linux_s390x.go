@@ -6,11 +6,11 @@
 package unix
 
 const (
-	sizeofPtr      = 0x8
-	sizeofShort    = 0x2
-	sizeofInt      = 0x4
-	sizeofLong     = 0x8
-	sizeofLongLong = 0x8
+	SizeofPtr      = 0x8
+	SizeofShort    = 0x2
+	SizeofInt      = 0x4
+	SizeofLong     = 0x8
+	SizeofLongLong = 0x8
 	PathMax        = 0x1000
 )
 
@@ -33,13 +33,11 @@ type Timeval struct {
 
 type Timex struct {
 	Modes     uint32
-	_         [4]byte
 	Offset    int64
 	Freq      int64
 	Maxerror  int64
 	Esterror  int64
 	Status    int32
-	_         [4]byte
 	Constant  int64
 	Precision int64
 	Tolerance int64
@@ -48,7 +46,6 @@ type Timex struct {
 	Ppsfreq   int64
 	Jitter    int64
 	Shift     int32
-	_         [4]byte
 	Stabil    int64
 	Jitcnt    int64
 	Calcnt    int64
@@ -162,7 +159,6 @@ type Fsid struct {
 type Flock_t struct {
 	Type   int16
 	Whence int16
-	_      [4]byte
 	Start  int64
 	Len    int64
 	Pid    int32
@@ -250,9 +246,15 @@ type RawSockaddrL2 struct {
 	_           [1]byte
 }
 
+type RawSockaddrRFCOMM struct {
+	Family  uint16
+	Bdaddr  [6]uint8
+	Channel uint8
+	_       [1]byte
+}
+
 type RawSockaddrCAN struct {
 	Family  uint16
-	_       [2]byte
 	Ifindex int32
 	Addr    [8]byte
 }
@@ -272,6 +274,16 @@ type RawSockaddrVM struct {
 	Cid       uint32
 	Zero      [4]uint8
 }
+
+type RawSockaddrXDP struct {
+	Family         uint16
+	Flags          uint16
+	Ifindex        uint32
+	Queue_id       uint32
+	Shared_umem_fd uint32
+}
+
+type RawSockaddrPPPoX [0x1e]byte
 
 type RawSockaddr struct {
 	Family uint16
@@ -321,7 +333,6 @@ type PacketMreq struct {
 type Msghdr struct {
 	Name       *byte
 	Namelen    uint32
-	_          [4]byte
 	Iov        *Iovec
 	Iovlen     uint64
 	Control    *byte
@@ -369,7 +380,6 @@ type TCPInfo struct {
 	Probes         uint8
 	Backoff        uint8
 	Options        uint8
-	_              [2]byte
 	Rto            uint32
 	Ato            uint32
 	Snd_mss        uint32
@@ -405,9 +415,12 @@ const (
 	SizeofSockaddrNetlink   = 0xc
 	SizeofSockaddrHCI       = 0x6
 	SizeofSockaddrL2        = 0xe
+	SizeofSockaddrRFCOMM    = 0xa
 	SizeofSockaddrCAN       = 0x10
 	SizeofSockaddrALG       = 0x58
 	SizeofSockaddrVM        = 0x10
+	SizeofSockaddrXDP       = 0x10
+	SizeofSockaddrPPPoX     = 0x1e
 	SizeofLinger            = 0x8
 	SizeofIovec             = 0x10
 	SizeofIPMreq            = 0x8
@@ -437,6 +450,7 @@ const (
 	IFLA_ADDRESS         = 0x1
 	IFLA_BROADCAST       = 0x2
 	IFLA_IFNAME          = 0x3
+	IFLA_INFO_KIND       = 0x1
 	IFLA_MTU             = 0x4
 	IFLA_LINK            = 0x5
 	IFLA_QDISC           = 0x6
@@ -480,7 +494,7 @@ const (
 	IFLA_EVENT           = 0x2c
 	IFLA_NEW_NETNSID     = 0x2d
 	IFLA_IF_NETNSID      = 0x2e
-	IFLA_MAX             = 0x31
+	IFLA_MAX             = 0x33
 	RT_SCOPE_UNIVERSE    = 0x0
 	RT_SCOPE_SITE        = 0xc8
 	RT_SCOPE_LINK        = 0xfd
@@ -505,6 +519,20 @@ const (
 	RTA_FLOW             = 0xb
 	RTA_CACHEINFO        = 0xc
 	RTA_TABLE            = 0xf
+	RTA_MARK             = 0x10
+	RTA_MFC_STATS        = 0x11
+	RTA_VIA              = 0x12
+	RTA_NEWDST           = 0x13
+	RTA_PREF             = 0x14
+	RTA_ENCAP_TYPE       = 0x15
+	RTA_ENCAP            = 0x16
+	RTA_EXPIRES          = 0x17
+	RTA_PAD              = 0x18
+	RTA_UID              = 0x19
+	RTA_TTL_PROPAGATE    = 0x1a
+	RTA_IP_PROTO         = 0x1b
+	RTA_SPORT            = 0x1c
+	RTA_DPORT            = 0x1d
 	RTN_UNSPEC           = 0x0
 	RTN_UNICAST          = 0x1
 	RTN_LOCAL            = 0x2
@@ -621,7 +649,6 @@ type SockFilter struct {
 
 type SockFprog struct {
 	Len    uint16
-	_      [6]byte
 	Filter *SockFilter
 }
 
@@ -651,18 +678,15 @@ type PtracePsw struct {
 
 type PtraceFpregs struct {
 	Fpc  uint32
-	_    [4]byte
 	Fprs [16]float64
 }
 
 type PtracePer struct {
 	_             [0]uint64
-	_             [24]byte
-	_             [8]byte
+	_             [32]byte
 	Starting_addr uint64
 	Ending_addr   uint64
 	Perc_atmid    uint16
-	_             [6]byte
 	Address       uint64
 	Access_id     uint8
 	_             [7]byte
@@ -683,7 +707,6 @@ type Sysinfo_t struct {
 	Freeswap  uint64
 	Procs     uint16
 	Pad       uint16
-	_         [4]byte
 	Totalhigh uint64
 	Freehigh  uint64
 	Unit      uint32
@@ -702,7 +725,6 @@ type Utsname struct {
 
 type Ustat_t struct {
 	Tfree  int32
-	_      [4]byte
 	Tinode uint64
 	Fname  [6]int8
 	Fpack  [6]int8
@@ -776,11 +798,9 @@ type Winsize struct {
 
 type Taskstats struct {
 	Version                   uint16
-	_                         [2]byte
 	Ac_exitcode               uint32
 	Ac_flag                   uint8
 	Ac_nice                   uint8
-	_                         [6]byte
 	Cpu_count                 uint64
 	Cpu_delay_total           uint64
 	Blkio_count               uint64
@@ -798,7 +818,6 @@ type Taskstats struct {
 	Ac_pid                    uint32
 	Ac_ppid                   uint32
 	Ac_btime                  uint32
-	_                         [4]byte
 	Ac_etime                  uint64
 	Ac_utime                  uint64
 	Ac_stime                  uint64
@@ -822,6 +841,8 @@ type Taskstats struct {
 	Cpu_scaled_run_real_total uint64
 	Freepages_count           uint64
 	Freepages_delay_total     uint64
+	Thrashing_count           uint64
+	Thrashing_delay_total     uint64
 }
 
 const (
@@ -1170,7 +1191,6 @@ type HDGeometry struct {
 	Heads     uint8
 	Sectors   uint8
 	Cylinders uint16
-	_         [4]byte
 	Start     uint64
 }
 
@@ -1857,7 +1877,6 @@ type RTCTime struct {
 type RTCWkAlrm struct {
 	Enabled uint8
 	Pending uint8
-	_       [2]byte
 	Time    RTCTime
 }
 
@@ -1870,3 +1889,114 @@ type RTCPLLInfo struct {
 	Negmult int32
 	Clock   int64
 }
+
+type BlkpgIoctlArg struct {
+	Op      int32
+	Flags   int32
+	Datalen int32
+	Data    *byte
+}
+
+type BlkpgPartition struct {
+	Start   int64
+	Length  int64
+	Pno     int32
+	Devname [64]uint8
+	Volname [64]uint8
+	_       [4]byte
+}
+
+const (
+	BLKPG                  = 0x1269
+	BLKPG_ADD_PARTITION    = 0x1
+	BLKPG_DEL_PARTITION    = 0x2
+	BLKPG_RESIZE_PARTITION = 0x3
+)
+
+const (
+	NETNSA_NONE = 0x0
+	NETNSA_NSID = 0x1
+	NETNSA_PID  = 0x2
+	NETNSA_FD   = 0x3
+)
+
+type XDPRingOffset struct {
+	Producer uint64
+	Consumer uint64
+	Desc     uint64
+}
+
+type XDPMmapOffsets struct {
+	Rx XDPRingOffset
+	Tx XDPRingOffset
+	Fr XDPRingOffset
+	Cr XDPRingOffset
+}
+
+type XDPUmemReg struct {
+	Addr     uint64
+	Len      uint64
+	Size     uint32
+	Headroom uint32
+}
+
+type XDPStatistics struct {
+	Rx_dropped       uint64
+	Rx_invalid_descs uint64
+	Tx_invalid_descs uint64
+}
+
+type XDPDesc struct {
+	Addr    uint64
+	Len     uint32
+	Options uint32
+}
+
+const (
+	NCSI_CMD_UNSPEC                 = 0x0
+	NCSI_CMD_PKG_INFO               = 0x1
+	NCSI_CMD_SET_INTERFACE          = 0x2
+	NCSI_CMD_CLEAR_INTERFACE        = 0x3
+	NCSI_ATTR_UNSPEC                = 0x0
+	NCSI_ATTR_IFINDEX               = 0x1
+	NCSI_ATTR_PACKAGE_LIST          = 0x2
+	NCSI_ATTR_PACKAGE_ID            = 0x3
+	NCSI_ATTR_CHANNEL_ID            = 0x4
+	NCSI_PKG_ATTR_UNSPEC            = 0x0
+	NCSI_PKG_ATTR                   = 0x1
+	NCSI_PKG_ATTR_ID                = 0x2
+	NCSI_PKG_ATTR_FORCED            = 0x3
+	NCSI_PKG_ATTR_CHANNEL_LIST      = 0x4
+	NCSI_CHANNEL_ATTR_UNSPEC        = 0x0
+	NCSI_CHANNEL_ATTR               = 0x1
+	NCSI_CHANNEL_ATTR_ID            = 0x2
+	NCSI_CHANNEL_ATTR_VERSION_MAJOR = 0x3
+	NCSI_CHANNEL_ATTR_VERSION_MINOR = 0x4
+	NCSI_CHANNEL_ATTR_VERSION_STR   = 0x5
+	NCSI_CHANNEL_ATTR_LINK_STATE    = 0x6
+	NCSI_CHANNEL_ATTR_ACTIVE        = 0x7
+	NCSI_CHANNEL_ATTR_FORCED        = 0x8
+	NCSI_CHANNEL_ATTR_VLAN_LIST     = 0x9
+	NCSI_CHANNEL_ATTR_VLAN_ID       = 0xa
+)
+
+const (
+	SOF_TIMESTAMPING_TX_HARDWARE  = 0x1
+	SOF_TIMESTAMPING_TX_SOFTWARE  = 0x2
+	SOF_TIMESTAMPING_RX_HARDWARE  = 0x4
+	SOF_TIMESTAMPING_RX_SOFTWARE  = 0x8
+	SOF_TIMESTAMPING_SOFTWARE     = 0x10
+	SOF_TIMESTAMPING_SYS_HARDWARE = 0x20
+	SOF_TIMESTAMPING_RAW_HARDWARE = 0x40
+	SOF_TIMESTAMPING_OPT_ID       = 0x80
+	SOF_TIMESTAMPING_TX_SCHED     = 0x100
+	SOF_TIMESTAMPING_TX_ACK       = 0x200
+	SOF_TIMESTAMPING_OPT_CMSG     = 0x400
+	SOF_TIMESTAMPING_OPT_TSONLY   = 0x800
+	SOF_TIMESTAMPING_OPT_STATS    = 0x1000
+	SOF_TIMESTAMPING_OPT_PKTINFO  = 0x2000
+	SOF_TIMESTAMPING_OPT_TX_SWHW  = 0x4000
+
+	SOF_TIMESTAMPING_LAST = 0x4000
+	SOF_TIMESTAMPING_MASK = 0x7fff
+)

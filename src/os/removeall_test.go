@@ -264,3 +264,31 @@ func TestRemoveAllDotDot(t *testing.T) {
 		}
 	}
 }
+
+// Issue #29178.
+func TestRemoveReadOnlyDir(t *testing.T) {
+	t.Parallel()
+
+	tempDir, err := ioutil.TempDir("", "TestRemoveReadOnlyDir-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer RemoveAll(tempDir)
+
+	subdir := filepath.Join(tempDir, "x")
+	if err := Mkdir(subdir, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	// If an error occurs make it more likely that removing the
+	// temporary directory will succeed.
+	defer Chmod(subdir, 0777)
+
+	if err := RemoveAll(subdir); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Stat(subdir); err == nil {
+		t.Error("subdirectory was not removed")
+	}
+}

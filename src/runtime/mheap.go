@@ -998,19 +998,34 @@ func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
 	}
 }
 
+// pickFreeSpan acquires a free span from internal free list
+// structures if one is available. Otherwise returns nil.
+// h must be locked.
+func (h *mheap) pickFreeSpan(npage uintptr) *mspan {
+	tf := h.free.find(npage)
+	ts := h.scav.find(npage)
+
+	// Check for whichever treap gave us the smaller, non-nil result.
+	// Note that we want the _smaller_ free span, i.e. the free span
+	// closer in size to the amount we requested (npage).
+	var s *mspan
+	if tf != nil && (ts == nil || tf.spanKey.npages <= ts.spanKey.npages) {
+		s = tf.spanKey
+		h.free.removeNode(tf)
+	} else if ts != nil && (tf == nil || tf.spanKey.npages > ts.spanKey.npages) {
+		s = ts.spanKey
+		h.scav.removeNode(ts)
+	}
+	return s
+}
+
 // Allocates a span of the given size.  h must be locked.
 // The returned span has been removed from the
 // free structures, but its state is still mSpanFree.
 func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
 	var s *mspan
 
-	// First, attempt to allocate from free spans, then from
-	// scavenged spans, looking for best fit in each.
-	s = h.free.remove(npage)
-	if s != nil {
-		goto HaveSpan
-	}
-	s = h.scav.remove(npage)
+	s = h.pickFreeSpan(npage)
 	if s != nil {
 		goto HaveSpan
 	}
@@ -1018,23 +1033,19 @@ func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
 	if !h.grow(npage) {
 		return nil
 	}
-	s = h.free.remove(npage)
+	s = h.pickFreeSpan(npage)
 	if s != nil {
 		goto HaveSpan
 	}
-	s = h.scav.remove(npage)
-	if s != nil {
-		goto HaveSpan
-	}
-	return nil
+	throw("grew heap, but no adequate free span found")
 
 HaveSpan:
 	// Mark span in use.
 	if s.state != mSpanFree {
-		throw("mheap.allocLocked - mspan not free")
+		throw("candidate mspan for allocation is not free")
 	}
 	if s.npages < npage {
-		throw("mheap.allocLocked - bad npages")
+		throw("candidate mspan for allocation is too small")
 	}
 
 	// First, subtract any memory that was released back to
@@ -1273,21 +1284,11 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 // starting from the largest span and working down. It then takes those spans
 // and places them in scav. h must be locked.
 func (h *mheap) scavengeLargest(nbytes uintptr) {
-	// Find the largest child.
-	t := h.free.treap
-	if t == nil {
-		return
-	}
-	for t.right != nil {
-		t = t.right
-	}
-	// Iterate over the treap from the largest child to the smallest by
-	// starting from the largest and finding its predecessor until we've
-	// recovered nbytes worth of physical memory, or it no longer has a
-	// predecessor (meaning the treap is now empty).
+	// Iterate over the treap backwards (from largest to smallest) scavenging spans
+	// until we've reached our quota of nbytes.
 	released := uintptr(0)
-	for t != nil && released < nbytes {
-		s := t.spanKey
+	for t := h.free.end(); released < nbytes && t.valid(); {
+		s := t.span()
 		r := s.scavenge()
 		if r == 0 {
 			// Since we're going in order of largest-to-smallest span, this
@@ -1301,9 +1302,9 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
 			// those which have it unset are only in the `free` treap.
 			return
 		}
-		prev := t.pred()
-		h.free.removeNode(t)
-		t = prev
+		n := t.prev()
+		h.free.erase(t)
+		t = n
 		h.scav.insert(s)
 		released += r
 	}
@@ -1313,34 +1314,20 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
 // treapNode's span. It then removes the scavenged span from
 // unscav and adds it into scav before continuing. h must be locked.
 func (h *mheap) scavengeAll(now, limit uint64) uintptr {
-	// Compute the left-most child in unscav to start iteration from.
-	t := h.free.treap
-	if t == nil {
-		return 0
-	}
-	for t.left != nil {
-		t = t.left
-	}
-	// Iterate over the treap be computing t's successor before
-	// potentially scavenging it.
+	// Iterate over the treap scavenging spans if unused for at least limit time.
 	released := uintptr(0)
-	for t != nil {
-		s := t.spanKey
-		next := t.succ()
+	for t := h.free.start(); t.valid(); {
+		s := t.span()
+		n := t.next()
 		if (now - uint64(s.unusedsince)) > limit {
 			r := s.scavenge()
 			if r != 0 {
-				// If we ended up scavenging s, then remove it from unscav
-				// and add it to scav. This is safe to do since we've already
-				// moved to t's successor.
-				h.free.removeNode(t)
+				h.free.erase(t)
 				h.scav.insert(s)
 				released += r
 			}
 		}
-		// Move t forward to its successor to iterate over the whole
-		// treap.
-		t = next
+		t = n
 	}
 	return released
 }
