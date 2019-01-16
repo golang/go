@@ -283,7 +283,10 @@ func runNamedQueries(cfg *Config, driver driver, response *responseDeduper, quer
 		matchesMu.Lock()
 		defer matchesMu.Unlock()
 
-		path := dir[len(root.Path)+1:]
+		path := dir
+		if dir != root.Path {
+			path = dir[len(root.Path)+1:]
+		}
 		if pathMatchesQueries(path, queries) {
 			switch root.Type {
 			case gopathwalk.RootModuleCache:

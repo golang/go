@@ -1511,9 +1511,10 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 		c.modules = []packagestest.Module{c.module}
 	}
 
-	kinds := []string{"GOPATH_GoPackages"}
+	var kinds []string
 	for _, exporter := range packagestest.All {
 		kinds = append(kinds, exporter.Name())
+		kinds = append(kinds, exporter.Name()+"_GoPackages")
 	}
 	for _, kind := range kinds {
 		t.Run(kind, func(t *testing.T) {
@@ -1532,6 +1533,12 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 					t.Skip("test marked GOPATH-only")
 				}
 				exporter = packagestest.Modules
+			case "Modules_GoPackages":
+				if c.gopathOnly {
+					t.Skip("test marked GOPATH-only")
+				}
+				exporter = packagestest.Modules
+				forceGoPackages = true
 			default:
 				panic("unknown test type")
 			}
@@ -1792,7 +1799,6 @@ const Y = foo.X
 // never make it that far).
 func TestImportPathToNameGoPathParse(t *testing.T) {
 	testConfig{
-		gopathOnly: true,
 		module: packagestest.Module{
 			Name: "example.net/pkg",
 			Files: fm{
@@ -1803,13 +1809,18 @@ func TestImportPathToNameGoPathParse(t *testing.T) {
 			},
 		},
 	}.test(t, func(t *goimportTest) {
-		got, err := importPathToNameGoPathParse(t.fixEnv, "example.net/pkg", filepath.Join(t.fixEnv.GOPATH, "src", "other.net"))
+		if strings.Contains(t.Name(), "GoPackages") {
+			t.Skip("go/packages does not ignore package main")
+		}
+		r := t.fixEnv.getResolver()
+		srcDir := filepath.Dir(t.exported.File("example.net/pkg", "z.go"))
+		names, err := r.loadPackageNames([]string{"example.net/pkg"}, srcDir)
 		if err != nil {
 			t.Fatal(err)
 		}
 		const want = "the_pkg_name_to_find"
-		if got != want {
-			t.Errorf("importPathToNameGoPathParse(..) = %q; want %q", got, want)
+		if got := names["example.net/pkg"]; got != want {
+			t.Errorf("loadPackageNames(..) = %q; want %q", got, want)
 		}
 	})
 }

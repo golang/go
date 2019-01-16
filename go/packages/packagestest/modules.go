@@ -170,6 +170,9 @@ func writeModuleProxy(dir, module string, files map[string]string) error {
 	if err := z.Close(); err != nil {
 		return err
 	}
+	if err := f.Close(); err != nil {
+		return err
+	}
 
 	return nil
 }
