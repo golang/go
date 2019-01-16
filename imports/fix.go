@@ -85,7 +85,7 @@ type importInfo struct {
 
 // A packageInfo represents what's known about a package.
 type packageInfo struct {
-	name    string          // discovered package name.
+	name    string          // real package name, if known.
 	exports map[string]bool // known exports.
 }
 
@@ -207,12 +207,7 @@ func (p *pass) findMissingImport(pkg string, syms map[string]bool) *importInfo {
 		if !ok {
 			continue
 		}
-		// If the candidate import has a name, it must match pkg.
-		if candidate.name != "" && candidate.name != pkg {
-			continue
-		}
-		// Otherwise, the real name of the package must match.
-		if candidate.name == "" && pkgInfo.name != pkg {
+		if p.importIdentifier(candidate) != pkg {
 			continue
 		}
 
@@ -263,14 +258,14 @@ func (p *pass) loadPackageNames(imports []*importInfo) error {
 		unknown = append(unknown, imp.importPath)
 	}
 
-	if !p.useGoPackages || !p.loadRealPackageNames {
-		pathToName := importPathToNameBasic
-		if p.loadRealPackageNames {
-			pathToName = importPathToName
-		}
+	if !p.useGoPackages {
 		for _, path := range unknown {
+			name := importPathToName(path, p.srcDir)
+			if name == "" {
+				continue
+			}
 			p.knownPackages[path] = &packageInfo{
-				name:    pathToName(path, p.srcDir),
+				name:    name,
 				exports: map[string]bool{},
 			}
 		}
@@ -288,25 +283,21 @@ func (p *pass) loadPackageNames(imports []*importInfo) error {
 			exports: map[string]bool{},
 		}
 	}
-	// We may not have found all the packages. Guess the rest.
-	for _, path := range unknown {
-		if _, ok := p.knownPackages[path]; ok {
-			continue
-		}
-		p.knownPackages[path] = &packageInfo{
-			name:    importPathToNameBasic(path, p.srcDir),
-			exports: map[string]bool{},
-		}
-	}
 	return nil
 }
 
-// importIdentifier returns the indentifier that imp will introduce.
+// importIdentifier returns the identifier that imp will introduce. It will
+// guess if the package name has not been loaded, e.g. because the source
+// is not available.
 func (p *pass) importIdentifier(imp *importInfo) string {
 	if imp.name != "" {
 		return imp.name
 	}
-	return p.knownPackages[imp.importPath].name
+	known := p.knownPackages[imp.importPath]
+	if known != nil && known.name != "" {
+		return known.name
+	}
+	return importPathToNameBasic(imp.importPath, p.srcDir)
 }
 
 // load reads in everything necessary to run a pass, and reports whether the
@@ -336,7 +327,9 @@ func (p *pass) load() bool {
 	// Resolve all the import paths we've seen to package names, and store
 	// f's imports by the identifier they introduce.
 	imports := collectImports(p.f)
-	p.loadPackageNames(append(imports, p.candidates...))
+	if p.loadRealPackageNames {
+		p.loadPackageNames(append(imports, p.candidates...))
+	}
 	for _, imp := range imports {
 		p.existingImports[p.importIdentifier(imp)] = imp
 	}
@@ -397,12 +390,9 @@ func (p *pass) fix() bool {
 				continue
 			}
 			path := strings.Trim(imp.Path.Value, `""`)
-			pkg, ok := p.knownPackages[path]
-			if !ok {
-				continue
-			}
-			if pkg.name != importPathToNameBasic(path, p.srcDir) {
-				imp.Name = &ast.Ident{Name: pkg.name, NamePos: imp.Pos()}
+			ident := p.importIdentifier(&importInfo{importPath: path})
+			if ident != importPathToNameBasic(path, p.srcDir) {
+				imp.Name = &ast.Ident{Name: ident, NamePos: imp.Pos()}
 			}
 		}
 	}
@@ -687,7 +677,7 @@ func importPathToNameBasic(importPath, srcDir string) (packageName string) {
 }
 
 // importPathToNameGoPath finds out the actual package name, as declared in its .go files.
-// If there's a problem, it falls back to using importPathToNameBasic.
+// If there's a problem, it returns "".
 func importPathToName(importPath, srcDir string) (packageName string) {
 	// Fast path for standard library without going to disk.
 	if _, ok := stdlib[importPath]; ok {
@@ -698,10 +688,10 @@ func importPathToName(importPath, srcDir string) (packageName string) {
 	if Debug {
 		log.Printf("importPathToNameGoPathParse(%q, srcDir=%q) = %q, %v", importPath, srcDir, pkgName, err)
 	}
-	if err == nil {
-		return pkgName
+	if err != nil {
+		return ""
 	}
-	return importPathToNameBasic(importPath, srcDir)
+	return pkgName
 }
 
 // importPathToNameGoPathParse is a faster version of build.Import if
