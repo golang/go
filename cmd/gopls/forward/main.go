@@ -1,4 +1,4 @@
-// The forward command writes and reads to a golsp server on a network socket.
+// The forward command writes and reads to a gopls server on a network socket.
 package main
 
 import (

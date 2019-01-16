@@ -1,5 +1,5 @@
 {
-    "name": "golsp",
+    "name": "gopls",
     "description": "Go Language Server Client for testing",
     "author": "The Go authors",
     "license": "SEE LICENSE IN ../../../../LICENSE",
@@ -35,21 +35,21 @@
     },
     "contributes": {
         "configuration": {
-            "title": "Go LSP",
+            "title": "gopls",
             "properties": {
-                "golsp.flags": {
+                "gopls.flags": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     },
                     "default": [],
-                    "description": "Flags to pass to golsp",
+                    "description": "Flags to pass to gopls",
                     "scope": "resource"
                 },
-                "golsp.command": {
+                "gopls.command": {
                     "type": "string",
-                    "default": "golsp",
-                    "description": "Name of the GoLSP binary",
+                    "default": "gopls",
+                    "description": "Name of the gopls binary",
                     "scope": "resource"
                 }
             }

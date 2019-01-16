@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package cmd handles the golsp command line.
+// Package cmd handles the gopls command line.
 // It contains a handler for each of the modes, along with all the flag handling
 // and the command line output format.
 package cmd
@@ -27,7 +27,7 @@ type Application struct {
 }
 
 // Name implements tool.Application returning the binary name.
-func (app *Application) Name() string { return "golsp" }
+func (app *Application) Name() string { return "gopls" }
 
 // Usage implements tool.Application returning empty extra argument usage.
 func (app *Application) Usage() string { return "<mode> [mode-flags] [mode-args]" }
@@ -47,7 +47,7 @@ Available modes are:
 		fmt.Fprintf(f.Output(), "  %s : %v\n", c.Name(), c.ShortHelp())
 	}
 	fmt.Fprint(f.Output(), `
-golsp flags are:
+gopls flags are:
 `)
 	f.PrintDefaults()
 }
@@ -71,7 +71,7 @@ func (app *Application) Run(ctx context.Context, args ...string) error {
 	return tool.CommandLineErrorf("Unknown mode %v", mode)
 }
 
-// modes returns the set of command modes supported by the golsp tool on the
+// modes returns the set of command modes supported by the gopls tool on the
 // command line.
 // The mode is specified by the first non flag argument.
 func (app *Application) modes() []tool.Application {

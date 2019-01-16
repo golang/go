@@ -26,7 +26,7 @@ import (
 type Server struct {
 	Logfile string `flag:"logfile" help:"filename to log to. if value is \"auto\", then logging to a default output file is enabled"`
 	Mode    string `flag:"mode" help:"no effect"`
-	Port    int    `flag:"port" help:"port on which to run golsp for debugging purposes"`
+	Port    int    `flag:"port" help:"port on which to run gopls for debugging purposes"`
 }
 
 func (s *Server) Name() string  { return "server" }
@@ -51,7 +51,7 @@ func (s *Server) Run(ctx context.Context, args ...string) error {
 	if s.Logfile != "" {
 		filename := s.Logfile
 		if filename == "auto" {
-			filename = filepath.Join(os.TempDir(), fmt.Sprintf("golsp-%d.log", os.Getpid()))
+			filename = filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.log", os.Getpid()))
 		}
 		f, err := os.Create(filename)
 		if err != nil {
