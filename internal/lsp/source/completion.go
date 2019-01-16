@@ -59,6 +59,7 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 	if path == nil {
 		return nil, "", fmt.Errorf("cannot find node enclosing position")
 	}
+
 	// If the position is not an identifier but immediately follows
 	// an identifier or selector period (as is common when
 	// requesting a completion), use the path to the preceding node.
@@ -69,6 +70,11 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 				path = p // use preceding ident/selector
 			}
 		}
+	}
+
+	// Skip completion inside comment blocks.
+	if p, ok := path[0].(*ast.File); ok && isCommentNode(p, pos) {
+		return items, prefix, nil
 	}
 
 	// Save certain facts about the query position, including the expected type
@@ -244,6 +250,24 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 		}
 	}
 	return items
+}
+
+// isCommentNode checks if given token position is inside ast.Comment node.
+func isCommentNode(root ast.Node, pos token.Pos) bool {
+	var found bool
+	ast.Inspect(root, func(n ast.Node) bool {
+		if n == nil {
+			return false
+		}
+		if n.Pos() <= pos && pos <= n.End() {
+			if _, ok := n.(*ast.Comment); ok {
+				found = true
+				return false
+			}
+		}
+		return true
+	})
+	return found
 }
 
 // complit finds completions for field names inside a composite literal.

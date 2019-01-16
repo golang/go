@@ -20,4 +20,5 @@ func _() {
 }
 
 //@complete("", Foo, IntFoo, StructFoo)
+
 type IntFoo int //@item(IntFoo, "IntFoo", "int", "type")
