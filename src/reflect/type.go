@@ -1554,7 +1554,7 @@ func implements(T, V *rtype) bool {
 // specialChannelAssignability reports whether a value x of channel type V
 // can be directly assigned (using memmove) to another channel type T.
 // https://golang.org/doc/go_spec.html#Assignability
-// T and V must be both Chan kind.
+// T and V must be both of Chan kind.
 func specialChannelAssignability(T, V *rtype) bool {
 	// Special case:
 	// x is a bidirectional channel value, T is a channel type,
