@@ -434,6 +434,49 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 	}
 }
 
+func TestUnshareUidGidMappingHelper(*testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	defer os.Exit(0)
+	if err := syscall.Chroot(os.TempDir()); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+}
+
+// Test for Issue 29789: unshare fails when uid/gid mapping is specified
+func TestUnshareUidGidMapping(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("test exercises unprivileged user namespace, fails with privileges")
+	}
+	checkUserNS(t)
+	cmd := exec.Command(os.Args[0], "-test.run=TestUnshareUidGidMappingHelper")
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Unshareflags:               syscall.CLONE_NEWNS | syscall.CLONE_NEWUSER,
+		GidMappingsEnableSetgroups: false,
+		UidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      syscall.Getuid(),
+				Size:        1,
+			},
+		},
+		GidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      syscall.Getgid(),
+				Size:        1,
+			},
+		},
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+	}
+}
+
 type capHeader struct {
 	version uint32
 	pid     int32
