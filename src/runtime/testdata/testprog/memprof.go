@@ -14,6 +14,8 @@ import (
 )
 
 func init() {
+	// Force heap sampling for determinism.
+	runtime.MemProfileRate = 1
 	register("MemProf", MemProf)
 }
 
