@@ -44,10 +44,10 @@ type Root struct {
 }
 
 // SrcDirsRoots returns the roots from build.Default.SrcDirs(). Not modules-compatible.
-func SrcDirsRoots() []Root {
+func SrcDirsRoots(ctx *build.Context) []Root {
 	var roots []Root
-	roots = append(roots, Root{filepath.Join(build.Default.GOROOT, "src"), RootGOROOT})
-	for _, p := range filepath.SplitList(build.Default.GOPATH) {
+	roots = append(roots, Root{filepath.Join(ctx.GOROOT, "src"), RootGOROOT})
+	for _, p := range filepath.SplitList(ctx.GOPATH) {
 		roots = append(roots, Root{filepath.Join(p, "src"), RootGOPATH})
 	}
 	return roots
