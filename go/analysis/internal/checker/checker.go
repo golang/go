@@ -492,6 +492,7 @@ func (act *action) execOnce() {
 		OtherFiles:        act.pkg.OtherFiles,
 		Pkg:               act.pkg.Types,
 		TypesInfo:         act.pkg.TypesInfo,
+		TypesSizes:        act.pkg.TypesSizes,
 		ResultOf:          inputs,
 		Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
 		ImportObjectFact:  act.importObjectFact,

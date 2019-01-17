@@ -87,6 +87,7 @@ type Pass struct {
 	OtherFiles []string       // names of non-Go files of this package
 	Pkg        *types.Package // type information about the package
 	TypesInfo  *types.Info    // type information about the syntax trees
+	TypesSizes types.Sizes    // function for computing sizes of types
 
 	// Report reports a Diagnostic, a finding about a specific location
 	// in the analyzed source code such as a potential mistake.

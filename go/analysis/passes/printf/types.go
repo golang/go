@@ -2,7 +2,6 @@ package printf
 
 import (
 	"go/ast"
-	"go/build"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
@@ -235,5 +234,3 @@ func matchStructArgType(pass *analysis.Pass, t printfArgType, typ *types.Struct,
 	}
 	return true
 }
-
-var archSizes = types.SizesFor("gc", build.Default.GOARCH)
