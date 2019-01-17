@@ -11,9 +11,12 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
+	"go/token"
+	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/imports"
+	"golang.org/x/tools/internal/lsp/diff"
 )
 
 // Format formats a file with a given range.
@@ -55,24 +58,49 @@ func Format(ctx context.Context, f File, rng Range) ([]TextEdit, error) {
 	if err := format.Node(buf, fset, node); err != nil {
 		return nil, err
 	}
-	return computeTextEdits(rng, buf.String()), nil
-}
-
-// Imports formats a file using the goimports tool.
-func Imports(ctx context.Context, filename string, content []byte, rng Range) ([]TextEdit, error) {
-	content, err := imports.Process(filename, content, nil)
+	content, err := f.Read()
 	if err != nil {
 		return nil, err
 	}
-	return computeTextEdits(rng, string(content)), nil
+	tok, err := f.GetToken()
+	if err != nil {
+		return nil, err
+	}
+	return computeTextEdits(rng, tok, string(content), buf.String()), nil
 }
 
-// TODO(rstambler): Compute text edits instead of replacing whole file.
-func computeTextEdits(rng Range, content string) []TextEdit {
-	return []TextEdit{
-		{
-			Range:   rng,
-			NewText: content,
-		},
+// Imports formats a file using the goimports tool.
+func Imports(ctx context.Context, tok *token.File, content []byte, rng Range) ([]TextEdit, error) {
+	formatted, err := imports.Process(tok.Name(), content, nil)
+	if err != nil {
+		return nil, err
 	}
+	return computeTextEdits(rng, tok, string(content), string(formatted)), nil
+}
+
+func computeTextEdits(rng Range, tok *token.File, unformatted, formatted string) (edits []TextEdit) {
+	u := strings.SplitAfter(unformatted, "\n")
+	f := strings.SplitAfter(formatted, "\n")
+	for _, op := range diff.Operations(u, f) {
+		switch op.Kind {
+		case diff.Delete:
+			// Delete: unformatted[i1:i2] is deleted.
+			edits = append(edits, TextEdit{
+				Range: Range{
+					Start: lineStart(tok, op.I1+1),
+					End:   lineStart(tok, op.I2+1),
+				},
+			})
+		case diff.Insert:
+			// Insert: formatted[j1:j2] is inserted at unformatted[i1:i1].
+			edits = append(edits, TextEdit{
+				Range: Range{
+					Start: lineStart(tok, op.I1+1),
+					End:   lineStart(tok, op.I1+1),
+				},
+				NewText: op.Content,
+			})
+		}
+	}
+	return edits
 }

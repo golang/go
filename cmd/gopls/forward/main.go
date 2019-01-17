@@ -24,7 +24,7 @@ type app struct {
 
 func (*app) Name() string               { return "forward" }
 func (*app) Usage() string              { return "[-port=<value>]" }
-func (*app) ShortHelp() string          { return "An intermediary between an editor and GoLSP." }
+func (*app) ShortHelp() string          { return "An intermediary between an editor and gopls." }
 func (*app) DetailedHelp(*flag.FlagSet) {}
 
 func (a *app) Run(ctx context.Context, args ...string) error {

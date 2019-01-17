@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 )
@@ -262,7 +263,7 @@ func (c completions) test(t *testing.T, exported *packagestest.Exported, s *serv
 		if err != nil {
 			t.Fatalf("completion failed for %s:%v:%v: %v", filepath.Base(src.Filename), src.Line, src.Column, err)
 		}
-		if diff := diffCompletionItems(src, want, got); diff != "" {
+		if diff := diffCompletionItems(t, src, want, got); diff != "" {
 			t.Errorf(diff)
 		}
 	}
@@ -322,7 +323,7 @@ func (i completionItems) collect(pos token.Pos, label, detail, kind string) {
 
 // diffCompletionItems prints the diff between expected and actual completion
 // test results.
-func diffCompletionItems(pos token.Position, want, got []protocol.CompletionItem) string {
+func diffCompletionItems(t *testing.T, pos token.Position, want, got []protocol.CompletionItem) string {
 	if len(got) != len(want) {
 		goto Failed
 	}
@@ -359,15 +360,41 @@ func (f formats) test(t *testing.T, s *server) {
 				URI: protocol.DocumentURI(source.ToURI(filename)),
 			},
 		})
-		if err != nil || len(edits) == 0 {
+		if err != nil {
 			if gofmted != "" {
 				t.Error(err)
 			}
 			continue
 		}
-		edit := edits[0]
-		if edit.NewText != gofmted {
-			t.Errorf("formatting failed: (got: %s), (expected: %s)", edit.NewText, gofmted)
+		f, err := s.view.GetFile(context.Background(), source.ToURI(filename))
+		if err != nil {
+			t.Error(err)
+		}
+		original, err := f.Read()
+		if err != nil {
+			t.Error(err)
+		}
+		var ops []*diff.Op
+		for _, edit := range edits {
+			if edit.NewText == "" { // deletion
+				ops = append(ops, &diff.Op{
+					Kind: diff.Delete,
+					I1:   int(edit.Range.Start.Line),
+					I2:   int(edit.Range.End.Line),
+				})
+			} else if edit.Range.Start == edit.Range.End { // insertion
+				ops = append(ops, &diff.Op{
+					Kind:    diff.Insert,
+					Content: edit.NewText,
+					I1:      int(edit.Range.Start.Line),
+					I2:      int(edit.Range.End.Line),
+				})
+			}
+		}
+		split := strings.SplitAfter(string(original), "\n")
+		got := strings.Join(diff.ApplyEdits(split, ops), "")
+		if gofmted != got {
+			t.Errorf("format failed for %s: expected %v, got %v", filename, gofmted, got)
 		}
 	}
 }

@@ -106,7 +106,7 @@ func fromTokenPosition(f *token.File, pos token.Position) token.Pos {
 func lineStart(f *token.File, line int) token.Pos {
 	// Use binary search to find the start offset of this line.
 	//
-	// TODO(adonovan): eventually replace this function with the
+	// TODO(rstambler): eventually replace this function with the
 	// simpler and more efficient (*go/token.File).LineStart, added
 	// in go1.12.
 
