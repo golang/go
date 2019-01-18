@@ -111,12 +111,12 @@ func testSmallAllocations() error {
 	allocSmall1(iters)
 	if checkAllocations(getMemProfileRecords(), frames[0:1], iters, sizes) == nil {
 		// Passed on first try, report no error.
-		return err
+		return nil
 	}
 	allocSmall2(iters)
 	if checkAllocations(getMemProfileRecords(), frames[0:2], iters, sizes) == nil {
 		// Passed on second try, report no error.
-		return err
+		return nil
 	}
 	allocSmall3(iters)
 	// If it fails a third time, we may be onto something.
