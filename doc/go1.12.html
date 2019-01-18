@@ -443,7 +443,9 @@ for {
   <dd>
     <p><!-- CL 146258 -->
       TLS 1.2 clients and servers will now advertise and accept RSA-PSS
-      signature algorithms for use with regular RSA public keys.
+      signature algorithms for use with regular RSA public keys. Certain
+      insecure certificate keys (including 512-bit RSA keys) will
+      now cause a handshake failure if RSA-PSS is selected.
     </p>
 
     <p><!-- CL 143177 -->
