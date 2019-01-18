@@ -42,7 +42,7 @@ func main() {
 // profile collected by the runtime unsamples to a reasonable
 // value. Because sampling is based on randomization, there can be
 // significant variability on the unsampled data. To account for that,
-// the testcase allows for a 10% margin of error, but only fails it it
+// the testcase allows for a 10% margin of error, but only fails if it
 // consistently fails across three experiments, avoiding flakes.
 func testInterleavedAllocations() error {
 	const iters = 100000
@@ -52,14 +52,17 @@ func testInterleavedAllocations() error {
 	// Pass if at least one of three experiments has no errors. Use a separate
 	// function for each experiment to identify each experiment in the profile.
 	allocInterleaved1(iters)
-	if err := checkAllocations(getMemProfileRecords(), frames[0:1], iters, allocInterleavedSizes); err == nil {
+	if checkAllocations(getMemProfileRecords(), frames[0:1], iters, allocInterleavedSizes) == nil {
+		// Passed on first try, report no error.
 		return nil
 	}
 	allocInterleaved2(iters)
-	if err := checkAllocations(getMemProfileRecords(), frames[0:2], iters, allocInterleavedSizes); err == nil {
+	if checkAllocations(getMemProfileRecords(), frames[0:2], iters, allocInterleavedSizes) == nil {
+		// Passed on second try, report no error.
 		return nil
 	}
 	allocInterleaved3(iters)
+	// If it fails a third time, we may be onto something.
 	return checkAllocations(getMemProfileRecords(), frames[0:3], iters, allocInterleavedSizes)
 }
 
@@ -95,7 +98,7 @@ func allocInterleaved3(n int) {
 // profile collected by the runtime unsamples to a reasonable
 // value. Because sampling is based on randomization, there can be
 // significant variability on the unsampled data. To account for that,
-// the testcase allows for a 10% margin of error, but only fails it it
+// the testcase allows for a 10% margin of error, but only fails if it
 // consistently fails across three experiments, avoiding flakes.
 func testSmallAllocations() error {
 	const iters = 100000
@@ -106,14 +109,17 @@ func testSmallAllocations() error {
 	// Pass if at least one of three experiments has no errors. Use a separate
 	// function for each experiment to identify each experiment in the profile.
 	allocSmall1(iters)
-	if err := checkAllocations(getMemProfileRecords(), frames[0:1], iters, sizes); err == nil {
+	if checkAllocations(getMemProfileRecords(), frames[0:1], iters, sizes) == nil {
+		// Passed on first try, report no error.
 		return err
 	}
 	allocSmall2(iters)
-	if err := checkAllocations(getMemProfileRecords(), frames[0:2], iters, sizes); err == nil {
+	if checkAllocations(getMemProfileRecords(), frames[0:2], iters, sizes) == nil {
+		// Passed on second try, report no error.
 		return err
 	}
 	allocSmall3(iters)
+	// If it fails a third time, we may be onto something.
 	return checkAllocations(getMemProfileRecords(), frames[0:3], iters, sizes)
 }
 
