@@ -14,7 +14,6 @@ import (
 )
 
 func init() {
-	runtime.MemProfileRate = 1
 	register("MemProf", MemProf)
 }
 
