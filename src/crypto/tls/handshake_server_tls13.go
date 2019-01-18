@@ -635,7 +635,13 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 	}
 	sig, err := hs.cert.PrivateKey.(crypto.Signer).Sign(c.config.rand(), h.Sum(nil), signOpts)
 	if err != nil {
-		c.sendAlert(alertInternalError)
+		public := hs.cert.PrivateKey.(crypto.Signer).Public()
+		if rsaKey, ok := public.(*rsa.PublicKey); ok && sigType == signatureRSAPSS &&
+			rsaKey.N.BitLen()/8 < sigHash.Size()*2+2 { // key too small for RSA-PSS
+			c.sendAlert(alertHandshakeFailure)
+		} else {
+			c.sendAlert(alertInternalError)
+		}
 		return errors.New("tls: failed to sign handshake: " + err.Error())
 	}
 	certVerifyMsg.signature = sig
