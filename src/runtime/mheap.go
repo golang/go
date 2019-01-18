@@ -419,6 +419,115 @@ func (s *mspan) physPageBounds() (uintptr, uintptr) {
 	return start, end
 }
 
+func (h *mheap) coalesce(s *mspan) {
+	// We scavenge s at the end after coalescing if s or anything
+	// it merged with is marked scavenged.
+	needsScavenge := false
+	prescavenged := s.released() // number of bytes already scavenged.
+
+	// merge is a helper which merges other into s, deletes references to other
+	// in heap metadata, and then discards it. other must be adjacent to s.
+	merge := func(other *mspan) {
+		// Adjust s via base and npages and also in heap metadata.
+		s.npages += other.npages
+		s.needzero |= other.needzero
+		if other.startAddr < s.startAddr {
+			s.startAddr = other.startAddr
+			h.setSpan(s.base(), s)
+		} else {
+			h.setSpan(s.base()+s.npages*pageSize-1, s)
+		}
+
+		// If before or s are scavenged, then we need to scavenge the final coalesced span.
+		needsScavenge = needsScavenge || other.scavenged || s.scavenged
+		prescavenged += other.released()
+
+		// The size is potentially changing so the treap needs to delete adjacent nodes and
+		// insert back as a combined node.
+		if other.scavenged {
+			h.scav.removeSpan(other)
+		} else {
+			h.free.removeSpan(other)
+		}
+		other.state = mSpanDead
+		h.spanalloc.free(unsafe.Pointer(other))
+	}
+
+	// realign is a helper which shrinks other and grows s such that their
+	// boundary is on a physical page boundary.
+	realign := func(a, b, other *mspan) {
+		// Caller must ensure a.startAddr < b.startAddr and that either a or
+		// b is s. a and b must be adjacent. other is whichever of the two is
+		// not s.
+
+		// If pageSize <= physPageSize then spans are always aligned
+		// to physical page boundaries, so just exit.
+		if pageSize <= physPageSize {
+			return
+		}
+		// Since we're resizing other, we must remove it from the treap.
+		if other.scavenged {
+			h.scav.removeSpan(other)
+		} else {
+			h.free.removeSpan(other)
+		}
+		// Round boundary to the nearest physical page size, toward the
+		// scavenged span.
+		boundary := b.startAddr
+		if a.scavenged {
+			boundary &^= (physPageSize - 1)
+		} else {
+			boundary = (boundary + physPageSize - 1) &^ (physPageSize - 1)
+		}
+		a.npages = (boundary - a.startAddr) / pageSize
+		b.npages = (b.startAddr + b.npages*pageSize - boundary) / pageSize
+		b.startAddr = boundary
+
+		h.setSpan(boundary-1, a)
+		h.setSpan(boundary, b)
+
+		// Re-insert other now that it has a new size.
+		if other.scavenged {
+			h.scav.insert(other)
+		} else {
+			h.free.insert(other)
+		}
+	}
+
+	// Coalesce with earlier, later spans.
+	if before := spanOf(s.base() - 1); before != nil && before.state == mSpanFree {
+		if s.scavenged == before.scavenged {
+			merge(before)
+		} else {
+			realign(before, s, before)
+		}
+	}
+
+	// Now check to see if next (greater addresses) span is free and can be coalesced.
+	if after := spanOf(s.base() + s.npages*pageSize); after != nil && after.state == mSpanFree {
+		if s.scavenged == after.scavenged {
+			merge(after)
+		} else {
+			realign(s, after, after)
+		}
+	}
+
+	if needsScavenge {
+		// When coalescing spans, some physical pages which
+		// were not returned to the OS previously because
+		// they were only partially covered by the span suddenly
+		// become available for scavenging. We want to make sure
+		// those holes are filled in, and the span is properly
+		// scavenged. Rather than trying to detect those holes
+		// directly, we collect how many bytes were already
+		// scavenged above and subtract that from heap_released
+		// before re-scavenging the entire newly-coalesced span,
+		// which will implicitly bump up heap_released.
+		memstats.heap_released -= uint64(prescavenged)
+		s.scavenge()
+	}
+}
+
 func (s *mspan) scavenge() uintptr {
 	// start and end must be rounded in, otherwise madvise
 	// will round them *out* and release more memory
@@ -1215,62 +1324,8 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 		s.unusedsince = nanotime()
 	}
 
-	// We scavenge s at the end after coalescing if s or anything
-	// it merged with is marked scavenged.
-	needsScavenge := false
-	prescavenged := s.released() // number of bytes already scavenged.
-
-	// Coalesce with earlier, later spans.
-	if before := spanOf(s.base() - 1); before != nil && before.state == mSpanFree {
-		// Now adjust s.
-		s.startAddr = before.startAddr
-		s.npages += before.npages
-		s.needzero |= before.needzero
-		h.setSpan(before.base(), s)
-		// If before or s are scavenged, then we need to scavenge the final coalesced span.
-		needsScavenge = needsScavenge || before.scavenged || s.scavenged
-		prescavenged += before.released()
-		// The size is potentially changing so the treap needs to delete adjacent nodes and
-		// insert back as a combined node.
-		if before.scavenged {
-			h.scav.removeSpan(before)
-		} else {
-			h.free.removeSpan(before)
-		}
-		before.state = mSpanDead
-		h.spanalloc.free(unsafe.Pointer(before))
-	}
-
-	// Now check to see if next (greater addresses) span is free and can be coalesced.
-	if after := spanOf(s.base() + s.npages*pageSize); after != nil && after.state == mSpanFree {
-		s.npages += after.npages
-		s.needzero |= after.needzero
-		h.setSpan(s.base()+s.npages*pageSize-1, s)
-		needsScavenge = needsScavenge || after.scavenged || s.scavenged
-		prescavenged += after.released()
-		if after.scavenged {
-			h.scav.removeSpan(after)
-		} else {
-			h.free.removeSpan(after)
-		}
-		after.state = mSpanDead
-		h.spanalloc.free(unsafe.Pointer(after))
-	}
-
-	if needsScavenge {
-		// When coalescing spans, some physical pages which
-		// were not returned to the OS previously because
-		// they were only partially covered by the span suddenly
-		// become available for scavenging. We want to make sure
-		// those holes are filled in, and the span is properly
-		// scavenged. Rather than trying to detect those holes
-		// directly, we collect how many bytes were already
-		// scavenged above and subtract that from heap_released
-		// before re-scavenging the entire newly-coalesced span,
-		// which will implicitly bump up heap_released.
-		memstats.heap_released -= uint64(prescavenged)
-		s.scavenge()
-	}
+	// Coalesce span with neighbors.
+	h.coalesce(s)
 
 	// Insert s into the appropriate treap.
 	if s.scavenged {
@@ -1304,6 +1359,10 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
 		}
 		n := t.prev()
 		h.free.erase(t)
+		// Now that s is scavenged, we must eagerly coalesce it
+		// with its neighbors to prevent having two spans with
+		// the same scavenged state adjacent to each other.
+		h.coalesce(s)
 		t = n
 		h.scav.insert(s)
 		released += r
@@ -1323,6 +1382,10 @@ func (h *mheap) scavengeAll(now, limit uint64) uintptr {
 			r := s.scavenge()
 			if r != 0 {
 				h.free.erase(t)
+				// Now that s is scavenged, we must eagerly coalesce it
+				// with its neighbors to prevent having two spans with
+				// the same scavenged state adjacent to each other.
+				h.coalesce(s)
 				h.scav.insert(s)
 				released += r
 			}
