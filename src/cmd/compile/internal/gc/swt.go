@@ -184,23 +184,23 @@ func typecheckswitch(n *Node) {
 			}
 		}
 
-		if n.Type == nil || n.Type.IsUntyped() {
-			// if the value we're switching on has no type or is untyped,
-			// we've already printed an error and don't need to continue
-			// typechecking the body
-			return
-		}
-
 		if top == Etype {
 			ll := ncase.List
 			if ncase.Rlist.Len() != 0 {
 				nvar := ncase.Rlist.First()
-				if ll.Len() == 1 && ll.First().Type != nil && !ll.First().Type.IsKind(TNIL) {
+				if ll.Len() == 1 && (ll.First().Type == nil || !ll.First().Type.IsKind(TNIL)) {
 					// single entry type switch
 					nvar.Type = ll.First().Type
 				} else {
 					// multiple entry type switch or default
 					nvar.Type = n.Type
+				}
+
+				if nvar.Type == nil || nvar.Type.IsUntyped() {
+					// if the value we're switching on has no type or is untyped,
+					// we've already printed an error and don't need to continue
+					// typechecking the body
+					continue
 				}
 
 				nvar = typecheck(nvar, ctxExpr|ctxAssign)
