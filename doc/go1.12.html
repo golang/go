@@ -113,6 +113,18 @@ go vet -vettool=$(which shadow)
 </pre>
 </p>
 
+<h3 id="tour">Tour</h3>
+
+<p> <!-- CL 152657 -->
+The Go tour is no longer included in the main binary distribution. To
+run the tour locally, instead of running <code>go</code> <code>tool</code> <code>tour</code>,
+manually install it:
+<pre>
+go install golang.org/x/tour
+tour
+</pre>
+</p>
+
 <h3 id="gocache">Build cache requirement</h3>
 
 <p>
