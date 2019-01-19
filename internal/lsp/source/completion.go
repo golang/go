@@ -73,8 +73,11 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 	}
 
 	// Skip completion inside comment blocks.
-	if p, ok := path[0].(*ast.File); ok && isCommentNode(p, pos) {
-		return items, prefix, nil
+	switch path[0].(type) {
+	case *ast.File, *ast.BlockStmt:
+		if inComment(pos, file.Comments) {
+			return items, prefix, nil
+		}
 	}
 
 	// Save certain facts about the query position, including the expected type
@@ -252,22 +255,16 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 	return items
 }
 
-// isCommentNode checks if given token position is inside ast.Comment node.
-func isCommentNode(root ast.Node, pos token.Pos) bool {
-	var found bool
-	ast.Inspect(root, func(n ast.Node) bool {
-		if n == nil {
-			return false
-		}
-		if n.Pos() <= pos && pos <= n.End() {
-			if _, ok := n.(*ast.Comment); ok {
-				found = true
-				return false
+// inComment checks if given token position is inside ast.Comment node.
+func inComment(pos token.Pos, commentGroups []*ast.CommentGroup) bool {
+	for _, g := range commentGroups {
+		for _, c := range g.List {
+			if c.Pos() <= pos && pos <= c.End() {
+				return true
 			}
 		}
-		return true
-	})
-	return found
+	}
+	return false
 }
 
 // complit finds completions for field names inside a composite literal.
