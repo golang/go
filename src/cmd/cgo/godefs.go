@@ -151,7 +151,6 @@ var gofmtLineReplacer = strings.NewReplacer(
 	"<\n", "<",
 	">\n", ">",
 	"=\n", "=",
-	",\n", ",",
 	"\n", ";",
 )
 
