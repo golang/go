@@ -660,8 +660,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 			r = defaultlit(r, types.Types[TUINT])
 			n.Right = r
 			t := r.Type
-			if !t.IsInteger() || t.IsSigned() {
-				yyerror("invalid operation: %v (shift count type %v, must be unsigned integer)", n, r.Type)
+			if !t.IsInteger() {
+				yyerror("invalid operation: %v (shift count type %v, must be integer)", n, r.Type)
 				n.Type = nil
 				return n
 			}
