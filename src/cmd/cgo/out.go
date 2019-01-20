@@ -1255,7 +1255,7 @@ func determineGccgoManglingScheme() bool {
 	cmd := exec.Command(gccgocmd, "-S", "-o", "-", gofilename)
 	buf, cerr := cmd.CombinedOutput()
 	if cerr != nil {
-		fatalf("%s", err)
+		fatalf("%s", cerr)
 	}
 
 	// New mangling: expect go.l..u00e4ufer.Run
