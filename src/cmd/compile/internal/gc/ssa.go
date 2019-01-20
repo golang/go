@@ -84,6 +84,7 @@ func initssaconfig() {
 	panicnildottype = sysfunc("panicnildottype")
 	panicoverflow = sysfunc("panicoverflow")
 	panicslice = sysfunc("panicslice")
+	panicshift = sysfunc("panicshift")
 	raceread = sysfunc("raceread")
 	racereadrange = sysfunc("racereadrange")
 	racewrite = sysfunc("racewrite")
@@ -2128,7 +2129,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OLSH, ORSH:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		return s.newValue2(s.ssaShiftOp(n.Op, n.Type, n.Right.Type), a.Type, a, b)
+		bt := b.Type
+		if bt.IsSigned() {
+			cmp := s.newValue2(s.ssaOp(OGE, bt), types.Types[TBOOL], b, s.zeroVal(bt))
+			s.check(cmp, panicshift)
+			bt = bt.ToUnsigned()
+		}
+		return s.newValue2(s.ssaShiftOp(n.Op, n.Type, bt), a.Type, a, b)
 	case OANDAND, OOROR:
 		// To implement OANDAND (and OOROR), we introduce a
 		// new temporary variable to hold the result. The

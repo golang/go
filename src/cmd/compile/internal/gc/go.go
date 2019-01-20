@@ -296,6 +296,7 @@ var (
 	msanwrite,
 	newproc,
 	panicdivide,
+	panicshift,
 	panicdottypeE,
 	panicdottypeI,
 	panicindex,

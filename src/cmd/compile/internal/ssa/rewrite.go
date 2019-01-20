@@ -1115,7 +1115,8 @@ func needRaceCleanup(sym interface{}, v *Value) bool {
 			case OpStaticCall:
 				switch v.Aux.(fmt.Stringer).String() {
 				case "runtime.racefuncenter", "runtime.racefuncexit", "runtime.panicindex",
-					"runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap":
+					"runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap",
+					"runtime.panicshift":
 				// Check for racefuncenter will encounter racefuncexit and vice versa.
 				// Allow calls to panic*
 				default:

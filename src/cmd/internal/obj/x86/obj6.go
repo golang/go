@@ -968,7 +968,7 @@ func isZeroArgRuntimeCall(s *obj.LSym) bool {
 		return false
 	}
 	switch s.Name {
-	case "runtime.panicindex", "runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap":
+	case "runtime.panicindex", "runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap", "runtime.panicshift":
 		return true
 	}
 	return false
