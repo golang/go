@@ -139,6 +139,12 @@ go vet -vettool=$(which shadow)
 	for more information.
 </p>
 
+<p><!-- CL 152657 -->
+  Mangled C names are no longer accepted in packages that use Cgo. Use the Cgo
+  names instead. For example, use the documented cgo name <code>C.char</code>
+  rather than the mangled name <code>_Ctype_char</code> that cgo generates.
+</p>
+
 <h3 id="modules">Modules</h3>
 
 <p><!-- CL 148517 -->
