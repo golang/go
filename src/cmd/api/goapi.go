@@ -169,7 +169,13 @@ func main() {
 					// w.Import(name) will return nil
 					continue
 				}
-				pkg, _ := w.Import(name)
+				pkg, err := w.Import(name)
+				if _, nogo := err.(*build.NoGoError); nogo {
+					continue
+				}
+				if err != nil {
+					log.Fatalf("Import(%q): %v", name, err)
+				}
 				w.export(pkg)
 			}
 		}
@@ -470,7 +476,7 @@ func (w *Walker) Import(name string) (*types.Package, error) {
 	info, err := context.ImportDir(dir, 0)
 	if err != nil {
 		if _, nogo := err.(*build.NoGoError); nogo {
-			return nil, nil
+			return nil, err
 		}
 		log.Fatalf("pkg %q, dir %q: ScanDir: %v", name, dir, err)
 	}
