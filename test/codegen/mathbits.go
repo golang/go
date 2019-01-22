@@ -476,6 +476,11 @@ func Div(hi, lo, x uint) (q, r uint) {
 	return bits.Div(hi, lo, x)
 }
 
+func Div32(hi, lo, x uint32) (q, r uint32) {
+	// arm64:"ORR","UDIV","MSUB",-"UREM"
+	return bits.Div32(hi, lo, x)
+}
+
 func Div64(hi, lo, x uint64) (q, r uint64) {
 	// amd64:"DIVQ"
 	return bits.Div64(hi, lo, x)

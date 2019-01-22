@@ -30667,6 +30667,30 @@ func rewriteValueARM64_OpARM64UDIVW_0(v *Value) bool {
 	return false
 }
 func rewriteValueARM64_OpARM64UMOD_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (UMOD <typ.UInt64> x y)
+	// cond:
+	// result: (MSUB <typ.UInt64> x y (UDIV <typ.UInt64> x y))
+	for {
+		if v.Type != typ.UInt64 {
+			break
+		}
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARM64MSUB)
+		v.Type = typ.UInt64
+		v.AddArg(x)
+		v.AddArg(y)
+		v0 := b.NewValue0(v.Pos, OpARM64UDIV, typ.UInt64)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (UMOD _ (MOVDconst [1]))
 	// cond:
 	// result: (MOVDconst [0])
@@ -30724,6 +30748,30 @@ func rewriteValueARM64_OpARM64UMOD_0(v *Value) bool {
 	return false
 }
 func rewriteValueARM64_OpARM64UMODW_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (UMODW <typ.UInt32> x y)
+	// cond:
+	// result: (MSUBW <typ.UInt32> x y (UDIVW <typ.UInt32> x y))
+	for {
+		if v.Type != typ.UInt32 {
+			break
+		}
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARM64MSUBW)
+		v.Type = typ.UInt32
+		v.AddArg(x)
+		v.AddArg(y)
+		v0 := b.NewValue0(v.Pos, OpARM64UDIVW, typ.UInt32)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (UMODW _ (MOVDconst [c]))
 	// cond: uint32(c)==1
 	// result: (MOVDconst [0])
