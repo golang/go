@@ -133,6 +133,13 @@
 (BitRev16 x) -> (SRLconst [48] (RBIT <typ.UInt64> x))
 (BitRev8 x) -> (SRLconst [56] (RBIT <typ.UInt64> x))
 
+// In fact, UMOD will be translated into UREM instruction, and UREM is originally translated into
+// UDIV and MSUB instructions. But if there is already an identical UDIV instruction just before or
+// after UREM (case like quo, rem := z/y, z%y), then the second UDIV instruction becomes redundant.
+// The purpose of this rule is to have this extra UDIV instruction removed in CSE pass.
+(UMOD <typ.UInt64> x y) -> (MSUB <typ.UInt64> x y (UDIV <typ.UInt64> x y))
+(UMODW <typ.UInt32> x y) -> (MSUBW <typ.UInt32> x y (UDIVW <typ.UInt32> x y))
+
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
 (OrB x y) -> (OR x y)
