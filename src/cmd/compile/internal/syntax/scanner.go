@@ -150,7 +150,7 @@ redo:
 	case '.':
 		c = s.getr()
 		if isDigit(c) {
-			s.ungetr2()
+			s.unread(1)
 			s.number('.')
 			break
 		}
@@ -160,7 +160,7 @@ redo:
 				s.tok = _DotDotDot
 				break
 			}
-			s.ungetr2()
+			s.unread(1)
 		}
 		s.ungetr()
 		s.tok = _Dot
