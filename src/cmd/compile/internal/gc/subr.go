@@ -537,26 +537,6 @@ func methtype(t *types.Type) *types.Type {
 	return nil
 }
 
-// Are t1 and t2 equal struct types when field names are ignored?
-// For deciding whether the result struct from g can be copied
-// directly when compiling f(g()).
-func eqtypenoname(t1 *types.Type, t2 *types.Type) bool {
-	if t1 == nil || t2 == nil || !t1.IsStruct() || !t2.IsStruct() {
-		return false
-	}
-
-	if t1.NumFields() != t2.NumFields() {
-		return false
-	}
-	for i, f1 := range t1.FieldSlice() {
-		f2 := t2.Field(i)
-		if !types.Identical(f1.Type, f2.Type) {
-			return false
-		}
-	}
-	return true
-}
-
 // Is type src assignment compatible to type dst?
 // If so, return op code to use in conversion.
 // If not, return 0.
