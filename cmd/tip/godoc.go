@@ -25,13 +25,18 @@ func prefix8(s string) string {
 }
 
 func (b godocBuilder) Signature(heads map[string]string) string {
+	// x/net is intentionally not a part of the signature, because
+	// at this time it does not contribute substantially to the deployed
+	// website, and so we don't want tip.golang.org redeployed whenever
+	// x/net changes. This will no longer matter when the Go website uses
+	// modules to pin its dependencies to specific versions.
 	return fmt.Sprintf("go=%v/tools=%v", prefix8(heads["go"]), prefix8(heads["tools"]))
 }
 
 func (b godocBuilder) Init(logger *log.Logger, dir, hostport string, heads map[string]string) (*exec.Cmd, error) {
-
 	goDir := filepath.Join(dir, "go")
 	toolsDir := filepath.Join(dir, "gopath/src/golang.org/x/tools")
+	netDir := filepath.Join(dir, "gopath/src/golang.org/x/net")
 	logger.Printf("checking out go repo ...")
 	if err := checkout(repoURL+"go", heads["go"], goDir); err != nil {
 		return nil, fmt.Errorf("checkout of go: %v", err)
@@ -39,6 +44,10 @@ func (b godocBuilder) Init(logger *log.Logger, dir, hostport string, heads map[s
 	logger.Printf("checking out tools repo ...")
 	if err := checkout(repoURL+"tools", heads["tools"], toolsDir); err != nil {
 		return nil, fmt.Errorf("checkout of tools: %v", err)
+	}
+	logger.Printf("checking out net repo ...")
+	if err := checkout(repoURL+"net", heads["net"], netDir); err != nil {
+		return nil, fmt.Errorf("checkout of net: %v", err)
 	}
 
 	var logWriter io.Writer = toLoggerWriter{logger}
