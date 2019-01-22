@@ -5175,10 +5175,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 			case ssa.OpInlMark:
 				p := thearch.Ginsnop(s.pp)
-				if pp.curfn.Func.lsym != nil {
-					// lsym is nil if the function name is "_".
-					pp.curfn.Func.lsym.Func.AddInlMark(p, v.AuxInt32())
-				}
+				pp.curfn.Func.lsym.Func.AddInlMark(p, v.AuxInt32())
 				// TODO: if matching line number, merge somehow with previous instruction?
 
 			default:
