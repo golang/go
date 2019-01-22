@@ -4158,10 +4158,9 @@ func (sc *http2serverConn) state(streamID uint32) (http2streamState, *http2strea
 // setConnState calls the net/http ConnState hook for this connection, if configured.
 // Note that the net/http package does StateNew and StateClosed for us.
 // There is currently no plan for StateHijacked or hijacking HTTP/2 connections.
+// TODO update this comment because it's a lie
 func (sc *http2serverConn) setConnState(state ConnState) {
-	if sc.hs.ConnState != nil {
-		sc.hs.ConnState(sc.conn, state)
-	}
+	sc.hs.SetConnState(sc.conn, state)
 }
 
 func (sc *http2serverConn) vlogf(format string, args ...interface{}) {

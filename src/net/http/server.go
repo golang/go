@@ -2556,6 +2556,16 @@ type Server struct {
 	onShutdown []func()
 }
 
+func (s *Server) SetConnState(nc net.Conn, state ConnState) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for c := range s.activeConn {
+		if c.rwc == nc {
+			c.setState(nc, state)
+		}
+	}
+}
+
 func (s *Server) getDoneChan() <-chan struct{} {
 	s.mu.Lock()
 	defer s.mu.Unlock()

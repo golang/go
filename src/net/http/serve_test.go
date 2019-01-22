@@ -5538,11 +5538,10 @@ func testServerShutdown(t *testing.T, h2 bool) {
 	var gotOnShutdown = make(chan struct{}, 1)
 	handler := HandlerFunc(func(w ResponseWriter, r *Request) {
 		go doShutdown()
-		// Shutdown is graceful, so it should not interrupt
-		// this in-flight response. Add a tiny sleep here to
-		// increase the odds of a failure if shutdown has
-		// bugs.
-		time.Sleep(20 * time.Millisecond)
+		// Shutdown is graceful, so it should not interrupt this in-flight
+		// response. Add a nice big sleep here to increase the odds of a
+		// failure if shutdown has bugs.
+		time.Sleep(6 * time.Second)
 		io.WriteString(w, r.RemoteAddr)
 	})
 	cst := newClientServerTest(t, h2, handler, func(srv *httptest.Server) {
