@@ -15,103 +15,67 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
-func Definition(ctx context.Context, v View, f File, pos token.Pos) (Range, error) {
-	fAST, err := f.GetAST()
-	if err != nil {
-		return Range{}, err
+// IdentifierInfo holds information about an identifier in Go source.
+type IdentifierInfo struct {
+	Name  string
+	Range Range
+	File  File
+	Type  struct {
+		Range  Range
+		Object types.Object
 	}
-	pkg, err := f.GetPackage()
-	if err != nil {
-		return Range{}, err
+	Declaration struct {
+		Range  Range
+		Object types.Object
 	}
-	i, err := findIdentifier(fAST, pos)
-	if err != nil {
-		return Range{}, err
-	}
-	if i.ident == nil {
-		return Range{}, fmt.Errorf("not a valid identifier")
-	}
-	obj := pkg.TypesInfo.ObjectOf(i.ident)
-	if obj == nil {
-		return Range{}, fmt.Errorf("no object")
-	}
-	if i.wasEmbeddedField {
-		// The original position was on the embedded field declaration, so we
-		// try to dig out the type and jump to that instead.
-		if v, ok := obj.(*types.Var); ok {
-			if n, ok := v.Type().(*types.Named); ok {
-				obj = n.Obj()
-			}
-		}
-	}
-	return objToRange(ctx, v, obj)
-}
 
-func TypeDefinition(ctx context.Context, v View, f File, pos token.Pos) (Range, error) {
-	fAST, err := f.GetAST()
-	if err != nil {
-		return Range{}, err
-	}
-	pkg, err := f.GetPackage()
-	if err != nil {
-		return Range{}, err
-	}
-	i, err := findIdentifier(fAST, pos)
-	if err != nil {
-		return Range{}, err
-	}
-	if i.ident == nil {
-		return Range{}, fmt.Errorf("not a valid identifier")
-	}
-	typ := pkg.TypesInfo.TypeOf(i.ident)
-	if typ == nil {
-		return Range{}, fmt.Errorf("no type for %s", i.ident.Name)
-	}
-	obj := typeToObject(typ)
-	if obj == nil {
-		return Range{}, fmt.Errorf("no object for type %s", typ.String())
-	}
-	return objToRange(ctx, v, obj)
-}
-
-func typeToObject(typ types.Type) (obj types.Object) {
-	switch typ := typ.(type) {
-	case *types.Named:
-		obj = typ.Obj()
-	case *types.Pointer:
-		obj = typeToObject(typ.Elem())
-	}
-	return obj
-}
-
-// ident returns the ident plus any extra information needed
-type ident struct {
 	ident            *ast.Ident
 	wasEmbeddedField bool
 }
 
-// findIdentifier returns the ast.Ident for a position
+// Identifier returns identifier information for a position
 // in a file, accounting for a potentially incomplete selector.
-func findIdentifier(f *ast.File, pos token.Pos) (ident, error) {
-	m, err := checkIdentifier(f, pos)
-	if err != nil {
-		return ident{}, err
-	}
-	if m.ident != nil {
-		return m, nil
+func Identifier(ctx context.Context, v View, f File, pos token.Pos) (*IdentifierInfo, error) {
+	if result, err := identifier(ctx, v, f, pos); err != nil || result != nil {
+		return result, err
 	}
 	// If the position is not an identifier but immediately follows
 	// an identifier or selector period (as is common when
 	// requesting a completion), use the path to the preceding node.
-	return checkIdentifier(f, pos-1)
+	return identifier(ctx, v, f, pos-1)
 }
 
-// checkIdentifier checks a single position for a potential identifier.
-func checkIdentifier(f *ast.File, pos token.Pos) (ident, error) {
-	path, _ := astutil.PathEnclosingInterval(f, pos, pos)
-	result := ident{}
+func (i *IdentifierInfo) Hover(q types.Qualifier) (string, error) {
+	if q == nil {
+		fAST, err := i.File.GetAST()
+		if err != nil {
+			return "", err
+		}
+		pkg, err := i.File.GetPackage()
+		if err != nil {
+			return "", err
+		}
+		q = qualifier(fAST, pkg.Types, pkg.TypesInfo)
+	}
+	return types.ObjectString(i.Declaration.Object, q), nil
+}
+
+// identifier checks a single position for a potential identifier.
+func identifier(ctx context.Context, v View, f File, pos token.Pos) (*IdentifierInfo, error) {
+	fAST, err := f.GetAST()
+	if err != nil {
+		return nil, err
+	}
+	pkg, err := f.GetPackage()
+	if err != nil {
+		return nil, err
+	}
+	path, _ := astutil.PathEnclosingInterval(fAST, pos, pos)
+	result := &IdentifierInfo{
+		File: f,
+	}
 	if path == nil {
-		return result, fmt.Errorf("can't find node enclosing position")
+		return nil, fmt.Errorf("can't find node enclosing position")
 	}
 	switch node := path[0].(type) {
 	case *ast.Ident:
@@ -119,14 +83,54 @@ func checkIdentifier(f *ast.File, pos token.Pos) (ident, error) {
 	case *ast.SelectorExpr:
 		result.ident = node.Sel
 	}
-	if result.ident != nil {
-		for _, n := range path[1:] {
-			if field, ok := n.(*ast.Field); ok {
-				result.wasEmbeddedField = len(field.Names) == 0
+	if result.ident == nil {
+		return nil, nil
+	}
+	for _, n := range path[1:] {
+		if field, ok := n.(*ast.Field); ok {
+			result.wasEmbeddedField = len(field.Names) == 0
+		}
+	}
+	result.Name = result.ident.Name
+	result.Range = Range{Start: result.ident.Pos(), End: result.ident.End()}
+	result.Declaration.Object = pkg.TypesInfo.ObjectOf(result.ident)
+	if result.Declaration.Object == nil {
+		return nil, fmt.Errorf("no object for ident %v", result.Name)
+	}
+	if result.wasEmbeddedField {
+		// The original position was on the embedded field declaration, so we
+		// try to dig out the type and jump to that instead.
+		if v, ok := result.Declaration.Object.(*types.Var); ok {
+			if n, ok := v.Type().(*types.Named); ok {
+				result.Declaration.Object = n.Obj()
 			}
 		}
 	}
+	if result.Declaration.Range, err = objToRange(ctx, v, result.Declaration.Object); err != nil {
+		return nil, err
+	}
+	typ := pkg.TypesInfo.TypeOf(result.ident)
+	if typ == nil {
+		return nil, fmt.Errorf("no type for %s", result.Name)
+	}
+	result.Type.Object = typeToObject(typ)
+	if result.Type.Object != nil {
+		if result.Type.Range, err = objToRange(ctx, v, result.Type.Object); err != nil {
+			return nil, err
+		}
+	}
 	return result, nil
+}
+
+func typeToObject(typ types.Type) types.Object {
+	switch typ := typ.(type) {
+	case *types.Named:
+		return typ.Obj()
+	case *types.Pointer:
+		return typeToObject(typ.Elem())
+	default:
+		return nil
+	}
 }
 
 func objToRange(ctx context.Context, v View, obj types.Object) (Range, error) {
