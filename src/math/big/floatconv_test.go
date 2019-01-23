@@ -108,6 +108,7 @@ func TestFloatSetFloat64String(t *testing.T) {
 		{"0b001p-3", 0.125},
 		{"0b.001p3", 1},
 		{"0b0.01p2", 1},
+		{"0b0.01P+2", 1},
 
 		// hexadecimal mantissa and exponent
 		{"0x0", 0},
@@ -117,6 +118,7 @@ func TestFloatSetFloat64String(t *testing.T) {
 		{"0xff", 255},
 		{"0X.8p1", 1},
 		{"-0X0.00008p16", -0.5},
+		{"-0X0.00008P+16", -0.5},
 		{"0x0.0000000000001p-1022", math.SmallestNonzeroFloat64},
 		{"0x1.fffffffffffffp1023", math.MaxFloat64},
 	} {
