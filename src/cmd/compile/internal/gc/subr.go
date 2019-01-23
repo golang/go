@@ -1180,7 +1180,7 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) 
 	c := 0
 	if u.IsStruct() || u.IsInterface() {
 		for _, f := range u.Fields().Slice() {
-			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Recv() != nil && strings.EqualFold(f.Sym.Name, s.Name)) {
+			if f.Sym == s || (ignorecase && f.IsMethod() && strings.EqualFold(f.Sym.Name, s.Name)) {
 				if save != nil {
 					*save = f
 				}
@@ -1420,7 +1420,7 @@ func expandmeth(t *types.Type) {
 		}
 
 		// dotpath may have dug out arbitrary fields, we only want methods.
-		if f.Type.Etype != TFUNC || f.Type.Recv() == nil {
+		if !f.IsMethod() {
 			continue
 		}
 
@@ -1631,7 +1631,7 @@ func ifacelookdot(s *types.Sym, t *types.Type, ignorecase bool) (m *types.Field,
 		}
 	}
 
-	if m.Type.Etype != TFUNC || m.Type.Recv() == nil {
+	if !m.IsMethod() {
 		yyerror("%v.%v is a field, not a method", t, s)
 		return nil, followptr
 	}
