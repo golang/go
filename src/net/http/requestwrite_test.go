@@ -576,6 +576,17 @@ var reqWriteTests = []reqWriteTest{
 			"User-Agent: Go-http-client/1.1\r\n" +
 			"X-Foo: X-Bar\r\n\r\n",
 	},
+
+	25: {
+		Req: Request{
+			Method: "GET",
+			URL: &url.URL{
+				Host:     "www.example.com",
+				RawQuery: "new\nline", // or any CTL
+			},
+		},
+		WantError: errors.New("net/http: can't write control character in Request.URL"),
+	},
 }
 
 func TestRequestWrite(t *testing.T) {

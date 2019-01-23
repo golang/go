@@ -513,6 +513,10 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
 	var rest string
 	var err error
 
+	if strings.IndexFunc(rawurl, isCTL) != -1 {
+		return nil, errors.New("net/url: invalid control character in URL")
+	}
+
 	if rawurl == "" && viaRequest {
 		return nil, errors.New("empty url")
 	}
@@ -1133,4 +1137,10 @@ func validUserinfo(s string) bool {
 		}
 	}
 	return true
+}
+
+// isCTL reports whether r is an ASCII control character, including
+// the Extended ASCII control characters included in Unicode.
+func isCTL(r rune) bool {
+	return r < ' ' || 0x7f <= r && r <= 0x9f
 }

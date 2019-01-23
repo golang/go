@@ -550,7 +550,12 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 			ruri = r.URL.Opaque
 		}
 	}
-	// TODO(bradfitz): escape at least newlines in ruri?
+	if strings.IndexFunc(ruri, isCTL) != -1 {
+		return errors.New("net/http: can't write control character in Request.URL")
+	}
+	// TODO: validate r.Method too? At least it's less likely to
+	// come from an attacker (more likely to be a constant in
+	// code).
 
 	// Wrap the writer in a bufio Writer if it's not already buffered.
 	// Don't always call NewWriter, as that forces a bytes.Buffer
