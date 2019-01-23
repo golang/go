@@ -824,8 +824,10 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 		for i := range sym.R {
 			r := &sym.R[i] // Copying sym.Reloc has measurable impact on performance
 			rsname := ""
+			rsval := int64(0)
 			if r.Sym != nil {
 				rsname = r.Sym.Name
+				rsval = r.Sym.Value
 			}
 			typ := "?"
 			switch r.Type {
@@ -836,7 +838,7 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 			case objabi.R_CALL:
 				typ = "call"
 			}
-			ctxt.Logf("\treloc %.8x/%d %s %s+%#x [%#x]\n", uint(sym.Value+int64(r.Off)), r.Siz, typ, rsname, r.Add, r.Sym.Value+r.Add)
+			ctxt.Logf("\treloc %.8x/%d %s %s+%#x [%#x]\n", uint(sym.Value+int64(r.Off)), r.Siz, typ, rsname, r.Add, rsval+r.Add)
 		}
 	}
 
