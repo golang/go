@@ -17,4 +17,5 @@ const (
 	MethodConnect = "CONNECT"
 	MethodOptions = "OPTIONS"
 	MethodTrace   = "TRACE"
+	MethodSearch  = "SEARCH"
 )
