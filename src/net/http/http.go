@@ -59,6 +59,12 @@ func isASCII(s string) bool {
 	return true
 }
 
+// isCTL reports whether r is an ASCII control character, including
+// the Extended ASCII control characters included in Unicode.
+func isCTL(r rune) bool {
+	return r < ' ' || 0x7f <= r && r <= 0x9f
+}
+
 func hexEscapeNonASCII(s string) string {
 	newLen := 0
 	for i := 0; i < len(s); i++ {
