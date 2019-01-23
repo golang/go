@@ -23,6 +23,7 @@ import (
 	"internal/xcoff"
 	"math"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -2046,6 +2047,8 @@ type typeConv struct {
 
 	ptrSize int64
 	intSize int64
+
+	exactWidthIntegerTypes map[string]*Type
 }
 
 var tagGen int
@@ -2087,6 +2090,21 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 		c.goVoidPtr = &ast.StarExpr{X: c.byte}
 	} else {
 		c.goVoidPtr = c.Ident("unsafe.Pointer")
+	}
+
+	c.exactWidthIntegerTypes = make(map[string]*Type)
+	for _, t := range []ast.Expr{
+		c.int8, c.int16, c.int32, c.int64,
+		c.uint8, c.uint16, c.uint32, c.uint64,
+	} {
+		name := t.(*ast.Ident).Name
+		u := new(Type)
+		*u = *goTypes[name]
+		if u.Align > ptrSize {
+			u.Align = ptrSize
+		}
+		u.Go = t
+		c.exactWidthIntegerTypes[name] = u
 	}
 }
 
@@ -2459,6 +2477,24 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			t.Align = c.ptrSize
 			break
 		}
+		// Exact-width integer types.  These are always compatible with
+		// the corresponding Go types since the C standard requires
+		// them to have no padding bit and use the two’s complement
+		// representation.
+		if exactWidthIntegerType.MatchString(dt.Name) {
+			sub := c.Type(dt.Type, pos)
+			u := c.exactWidthIntegerTypes[strings.TrimSuffix(dt.Name, "_t")]
+			if sub.Size != u.Size {
+				fatalf("%s: unexpected size: %d vs. %d – %s", lineno(pos), sub.Size, u.Size, dtype)
+			}
+			if sub.Align != u.Align {
+				fatalf("%s: unexpected alignment: %d vs. %d – %s", lineno(pos), sub.Align, u.Align, dtype)
+			}
+			t.Size = u.Size
+			t.Align = u.Align
+			t.Go = u.Go
+			break
+		}
 		name := c.Ident("_Ctype_" + dt.Name)
 		goIdent[name.Name] = name
 		sub := c.Type(dt.Type, pos)
@@ -2593,6 +2629,8 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 
 	return t
 }
+
+var exactWidthIntegerType = regexp.MustCompile(`^u?int(8|16|32|64)_t$`)
 
 // isStructUnionClass reports whether the type described by the Go syntax x
 // is a struct, union, or class with a tag.
