@@ -3250,8 +3250,9 @@ func typecheckcomplit(n *Node) (res *Node) {
 						}
 						continue
 					}
-					p, _ := dotpath(l.Sym, t, nil, true)
-					if p == nil {
+					var f *types.Field
+					p, _ := dotpath(l.Sym, t, &f, true)
+					if p == nil || f.IsMethod() {
 						yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
 						continue
 					}
