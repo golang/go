@@ -32,7 +32,7 @@ x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
 }
 
 uintptr_t
-_cgo_wait_runtime_init_done() {
+_cgo_wait_runtime_init_done(void) {
 	void (*pfn)(struct context_arg*);
 
 	pthread_mutex_lock(&runtime_init_mu);
