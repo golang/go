@@ -196,6 +196,7 @@ var optab = []Optab{
 	Optab{i: 7, as: ASLD, a1: C_REG, a2: C_REG, a6: C_REG},
 	Optab{i: 7, as: ASLD, a1: C_SCON, a2: C_REG, a6: C_REG},
 	Optab{i: 7, as: ASLD, a1: C_SCON, a6: C_REG},
+	Optab{i: 13, as: ARNSBG, a1: C_SCON, a3: C_SCON, a4: C_SCON, a5: C_REG, a6: C_REG},
 
 	// compare and swap
 	Optab{i: 79, as: ACSG, a1: C_REG, a2: C_REG, a6: C_SOREG},
@@ -953,6 +954,20 @@ func buildop(ctxt *obj.Link) {
 			opset(ASRAW, r)
 			opset(ARLL, r)
 			opset(ARLLG, r)
+		case ARNSBG:
+			opset(ARXSBG, r)
+			opset(AROSBG, r)
+			opset(ARNSBGT, r)
+			opset(ARXSBGT, r)
+			opset(AROSBGT, r)
+			opset(ARISBG, r)
+			opset(ARISBGN, r)
+			opset(ARISBGZ, r)
+			opset(ARISBGNZ, r)
+			opset(ARISBHG, r)
+			opset(ARISBLG, r)
+			opset(ARISBHGZ, r)
+			opset(ARISBLGZ, r)
 		case ACSG:
 			opset(ACS, r)
 		case ASUB:
@@ -2992,6 +3007,37 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		} else {
 			zRXY(opxy, uint32(r1), uint32(x2), uint32(b2), uint32(d2), asm)
 		}
+
+	case 13: // rotate, followed by operation
+		r1 := p.To.Reg
+		r2 := p.RestArgs[2].Reg
+		i3 := uint8(p.From.Offset)        // start
+		i4 := uint8(p.RestArgs[0].Offset) // end
+		i5 := uint8(p.RestArgs[1].Offset) // rotate amount
+		switch p.As {
+		case ARNSBGT, ARXSBGT, AROSBGT:
+			i3 |= 0x80 // test-results
+		case ARISBGZ, ARISBGNZ, ARISBHGZ, ARISBLGZ:
+			i4 |= 0x80 // zero-remaining-bits
+		}
+		var opcode uint32
+		switch p.As {
+		case ARNSBG, ARNSBGT:
+			opcode = op_RNSBG
+		case ARXSBG, ARXSBGT:
+			opcode = op_RXSBG
+		case AROSBG, AROSBGT:
+			opcode = op_ROSBG
+		case ARISBG, ARISBGZ:
+			opcode = op_RISBG
+		case ARISBGN, ARISBGNZ:
+			opcode = op_RISBGN
+		case ARISBHG, ARISBHGZ:
+			opcode = op_RISBHG
+		case ARISBLG, ARISBLGZ:
+			opcode = op_RISBLG
+		}
+		zRIE(_f, uint32(opcode), uint32(r1), uint32(r2), 0, uint32(i3), uint32(i4), 0, uint32(i5), asm)
 
 	case 15: // br/bl (reg)
 		r := p.To.Reg
