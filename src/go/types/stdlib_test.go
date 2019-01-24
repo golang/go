@@ -167,7 +167,6 @@ func TestStdFixed(t *testing.T) {
 	}
 
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
-		"bug073.go",                           // checks for unsigned integer shift - disabled for now
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
 		"issue6889.go",   // gc-specific test
 		"issue7746.go",   // large constants - consumes too much memory
