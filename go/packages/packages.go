@@ -773,6 +773,11 @@ func (ld *loader) parseFiles(filenames []string) ([]*ast.File, []error) {
 	parsed := make([]*ast.File, n)
 	errors := make([]error, n)
 	for i, file := range filenames {
+		if ld.Config.Context.Err() != nil {
+			parsed[i] = nil
+			errors[i] = ld.Config.Context.Err()
+			continue
+		}
 		wg.Add(1)
 		go func(i int, filename string) {
 			ioLimit <- true // wait
