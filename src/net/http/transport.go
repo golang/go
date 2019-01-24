@@ -1112,10 +1112,12 @@ func (t *Transport) decHostConnCount(cmKey connectMethodKey) {
 	}
 	t.connCountMu.Lock()
 	defer t.connCountMu.Unlock()
-	t.connPerHostCount[cmKey]--
 	select {
 	case t.connPerHostAvailable[cmKey] <- struct{}{}:
 	default:
+		// if other is block on connPerHostAvailable,
+		// we should not dec count
+		t.connPerHostCount[cmKey]--
 		// close channel before deleting avoids getConn waiting forever in
 		// case getConn has reference to channel but hasn't started waiting.
 		// This could lead to more than MaxConnsPerHost in the unlikely case

@@ -5059,3 +5059,109 @@ func TestTransportRequestReplayable(t *testing.T) {
 		})
 	}
 }
+
+func TestTransportMaxConnsPerHost(t *testing.T) {
+	defer afterTest(t)
+	allowResponse := make(chan struct{})
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		// simulation server timeout
+		<-allowResponse
+		_, err := w.Write([]byte("foo"))
+		if err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+	}))
+	defer ts.Close()
+
+	c := ts.Client()
+	tr := c.Transport.(*Transport)
+	tr.MaxConnsPerHost = 1
+	tr.ResponseHeaderTimeout = 2 * time.Millisecond
+
+	allowGetConn := make(chan struct{})
+	assertGotConn := make(chan struct{})
+	errCh := make(chan error)
+	assertResponse := make(chan struct{})
+	doReq := func(reqId string) {
+		defer func() { assertResponse<- struct{}{} }()
+		req, _ := NewRequest("GET", ts.URL, nil)
+		trace := &httptrace.ClientTrace{
+			GetConn: func(hostPort string) {
+				<-allowGetConn
+			},
+			GotConn: func(connInfo httptrace.GotConnInfo) {
+				assertGotConn<- struct{}{}
+			},
+		}
+		req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+		resp, err := tr.RoundTrip(req)
+		if err != nil {
+			errCh<- err
+			return
+		}
+		_, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Errorf("unexpected error for request %s: %v", reqId, err)
+		}
+		return
+	}
+
+	// Time 1 reqA got connA and wait response
+	go doReq("reqA")
+	allowGetConn<- struct{}{}
+	<-assertGotConn
+
+	// Time 2 reqB wait on chan connPerHostAvailable
+	go doReq("reqB")
+	allowGetConn<- struct{}{}
+	select {
+	case <-assertGotConn:
+		t.Fatalf("expected request wait for conn")
+	default:
+		// fmt.Printf("req2 wati on chan\n")
+	}
+
+	// Time 3
+	// reqA timeout and close connA, notify reqB and dec connPerHost
+	timer1 := time.NewTimer(2 * tr.ResponseHeaderTimeout)
+	defer timer1.Stop()
+	select {
+	case err := <-errCh:
+		if "net/http: timeout awaiting response headers" != err.Error() {
+			t.Fatalf("expected timeout for request")
+		}
+	case <-timer1.C:
+		t.Fatalf("expected timeout for request")
+	}
+
+	// return response of reqA, although client had closed conn
+	allowResponse<- struct{}{}
+	<-assertResponse
+	// reqB got new connB
+	<-assertGotConn
+
+	// Time 4
+	// MaxConnPerHost is one, and repB had got connB
+	// reqC should block
+	go doReq("reqC")
+	allowGetConn<- struct{}{}
+	timer2 := time.NewTimer(tr.ResponseHeaderTimeout / 2)
+	defer timer2.Stop()
+	select {
+	case <-assertGotConn:
+		close(allowGetConn)
+		close(allowResponse)
+		t.Fatalf("expected req3 wait for conn")
+	case <-timer2.C:
+		// req3 can't get conn before req2 release conn?
+	}
+
+	// response of req2
+	allowResponse<- struct{}{}
+	<- assertResponse
+	// reqC got conn
+	<-assertGotConn
+	// response of req3
+	allowResponse<- struct{}{}
+	<- assertResponse
+}
