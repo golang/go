@@ -789,6 +789,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.To = a[4]
 			break
 		}
+		if p.arch.Family == sys.S390X {
+			prog.From = a[0]
+			prog.RestArgs = []obj.Addr{a[1], a[2], a[3]}
+			prog.To = a[4]
+			break
+		}
 		p.errorf("can't handle %s instruction with 5 operands", op)
 		return
 	case 6:
