@@ -49,6 +49,7 @@ var xMap = map[string]xRepo{
 	"tour":       {"https://go.googlesource.com/tour", "git"},
 	"vgo":        {"https://go.googlesource.com/vgo", "git"},     // Not included at https://golang.org/pkg/#subrepo.
 	"website":    {"https://go.googlesource.com/website", "git"}, // Not included at https://golang.org/pkg/#subrepo.
+	"xerrors":    {"https://go.googlesource.com/xerrors", "git"}, // Not included at https://golang.org/pkg/#subrepo.
 }
 
 func init() {
