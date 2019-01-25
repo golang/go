@@ -657,7 +657,7 @@ func (r *goPackagesResolver) loadPackageNames(importPaths []string, srcDir strin
 func (r *goPackagesResolver) scan(refs references) ([]*pkg, error) {
 	var loadQueries []string
 	for pkgName := range refs {
-		loadQueries = append(loadQueries, "name="+pkgName)
+		loadQueries = append(loadQueries, "iamashamedtousethedisabledqueryname="+pkgName)
 	}
 	sort.Strings(loadQueries)
 	cfg := r.env.newPackagesConfig(packages.LoadFiles)

@@ -104,7 +104,7 @@ extractQueries:
 				containFiles = append(containFiles, value)
 			case "pattern":
 				restPatterns = append(restPatterns, value)
-			case "name":
+			case "iamashamedtousethedisabledqueryname":
 				packagesNamed = append(packagesNamed, value)
 			case "": // not a reserved query
 				restPatterns = append(restPatterns, pattern)

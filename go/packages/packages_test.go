@@ -59,8 +59,8 @@ func TestLoadZeroConfig(t *testing.T) {
 	hash := initial[0]
 	// Even though the hash package has imports,
 	// they are not reported.
-	got := fmt.Sprintf("name=%s srcs=%v imports=%v", hash.Name, srcs(hash), hash.Imports)
-	want := "name=hash srcs=[hash.go] imports=map[]"
+	got := fmt.Sprintf("iamashamedtousethedisabledqueryname=%s srcs=%v imports=%v", hash.Name, srcs(hash), hash.Imports)
+	want := "iamashamedtousethedisabledqueryname=hash srcs=[hash.go] imports=map[]"
 	if got != want {
 		t.Fatalf("got %s, want %s", got, want)
 	}
@@ -1165,7 +1165,7 @@ func testName(t *testing.T, exporter packagestest.Exporter) {
 	defer exported.Cleanup()
 
 	exported.Config.Mode = packages.LoadImports
-	initial, err := packages.Load(exported.Config, "name=needle")
+	initial, err := packages.Load(exported.Config, "iamashamedtousethedisabledqueryname=needle")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1206,7 +1206,7 @@ func TestName_Modules(t *testing.T) {
 	// - src/b/pkg
 	exported.Config.Mode = packages.LoadImports
 	exported.Config.Env = append(exported.Config.Env, "GOPATH="+wd+"/testdata/TestName_Modules")
-	initial, err := packages.Load(exported.Config, "name=pkg")
+	initial, err := packages.Load(exported.Config, "iamashamedtousethedisabledqueryname=pkg")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1244,7 +1244,7 @@ func TestName_ModulesDedup(t *testing.T) {
 	// but, inexplicably, not v2.0.0. Nobody knows why.
 	exported.Config.Mode = packages.LoadImports
 	exported.Config.Env = append(exported.Config.Env, "GOPATH="+wd+"/testdata/TestName_ModulesDedup")
-	initial, err := packages.Load(exported.Config, "name=pkg")
+	initial, err := packages.Load(exported.Config, "iamashamedtousethedisabledqueryname=pkg")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1268,12 +1268,12 @@ func testRedundantQueries(t *testing.T, exporter packagestest.Exporter) {
 		}}})
 	defer exported.Cleanup()
 
-	initial, err := packages.Load(exported.Config, "errors", "name=errors")
+	initial, err := packages.Load(exported.Config, "errors", "iamashamedtousethedisabledqueryname=errors")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(initial) != 1 || initial[0].Name != "errors" {
-		t.Fatalf(`Load("errors", "name=errors") = %v, wanted just the errors package`, initial)
+		t.Fatalf(`Load("errors", "iamashamedtousethedisabledqueryname=errors") = %v, wanted just the errors package`, initial)
 	}
 }
 
