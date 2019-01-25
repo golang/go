@@ -351,7 +351,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	ADDQ	$64, SP
 	POPFQ
 
-	MOVL	-8(CX)(DX*1), AX  // return value
+	MOVQ	-8(CX)(DX*1), AX  // return value
 	POPQ	-8(CX)(DX*1)      // restore bytes just after the args
 	RET
 
