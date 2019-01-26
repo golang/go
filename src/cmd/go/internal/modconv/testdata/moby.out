@@ -3,7 +3,7 @@ github.com/Microsoft/hcsshim v0.6.5
 github.com/Microsoft/go-winio v0.4.5
 github.com/davecgh/go-spew 346938d642f2ec3594ed81d874461961cd0faa76
 github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
-github.com/go-check/check 4ed411733c5785b40214c70bce814c3a3a689609
+github.com/go-check/check latest
 github.com/gorilla/context v1.1
 github.com/gorilla/mux v1.1
 github.com/Microsoft/opengcs v0.3.4
@@ -97,9 +97,12 @@ github.com/prometheus/procfs abf152e5f3e97f2fafac028d2cc06c1feb87ffa5
 github.com/matttproud/golang_protobuf_extensions v1.0.0
 github.com/pkg/errors 839d9e913e063e28dfd0e6c7b7512793e0a48be9
 github.com/grpc-ecosystem/go-grpc-prometheus 6b7015e65d366bf3f19b2b2a000a831940f0f7e0
-github.com/spf13/cobra v1.5.1
+github.com/spf13/cobra latest
 github.com/spf13/pflag 9ff6c6923cfffbcd502984b8e0c80539a94968b7
 github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
-github.com/Nvveen/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c
+github.com/Nvveen/Gotty latest
 github.com/docker/go-metrics d466d4f6fd960e01820085bd7e1a24426ee7ef18
 github.com/opencontainers/selinux v1.0.0-rc1
+github.com/go-check/check  -> github.com/cpuguy83/check 4ed411733c5785b40214c70bce814c3a3a689609
+github.com/spf13/cobra  -> github.com/dnephin/cobra v1.5.1
+github.com/Nvveen/Gotty  -> github.com/ijc25/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c
