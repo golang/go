@@ -30296,12 +30296,13 @@ func rewriteValuePPC64_OpTrunc_0(v *Value) bool {
 	}
 }
 func rewriteValuePPC64_OpTrunc16to8_0(v *Value) bool {
-	// match: (Trunc16to8 x)
-	// cond: isSigned(x.Type)
+	// match: (Trunc16to8 <t> x)
+	// cond: isSigned(t)
 	// result: (MOVBreg x)
 	for {
+		t := v.Type
 		x := v.Args[0]
-		if !(isSigned(x.Type)) {
+		if !(isSigned(t)) {
 			break
 		}
 		v.reset(OpPPC64MOVBreg)
@@ -30319,12 +30320,13 @@ func rewriteValuePPC64_OpTrunc16to8_0(v *Value) bool {
 	}
 }
 func rewriteValuePPC64_OpTrunc32to16_0(v *Value) bool {
-	// match: (Trunc32to16 x)
-	// cond: isSigned(x.Type)
+	// match: (Trunc32to16 <t> x)
+	// cond: isSigned(t)
 	// result: (MOVHreg x)
 	for {
+		t := v.Type
 		x := v.Args[0]
-		if !(isSigned(x.Type)) {
+		if !(isSigned(t)) {
 			break
 		}
 		v.reset(OpPPC64MOVHreg)
@@ -30342,12 +30344,13 @@ func rewriteValuePPC64_OpTrunc32to16_0(v *Value) bool {
 	}
 }
 func rewriteValuePPC64_OpTrunc32to8_0(v *Value) bool {
-	// match: (Trunc32to8 x)
-	// cond: isSigned(x.Type)
+	// match: (Trunc32to8 <t> x)
+	// cond: isSigned(t)
 	// result: (MOVBreg x)
 	for {
+		t := v.Type
 		x := v.Args[0]
-		if !(isSigned(x.Type)) {
+		if !(isSigned(t)) {
 			break
 		}
 		v.reset(OpPPC64MOVBreg)
@@ -30365,12 +30368,13 @@ func rewriteValuePPC64_OpTrunc32to8_0(v *Value) bool {
 	}
 }
 func rewriteValuePPC64_OpTrunc64to16_0(v *Value) bool {
-	// match: (Trunc64to16 x)
-	// cond: isSigned(x.Type)
+	// match: (Trunc64to16 <t> x)
+	// cond: isSigned(t)
 	// result: (MOVHreg x)
 	for {
+		t := v.Type
 		x := v.Args[0]
-		if !(isSigned(x.Type)) {
+		if !(isSigned(t)) {
 			break
 		}
 		v.reset(OpPPC64MOVHreg)
@@ -30388,12 +30392,13 @@ func rewriteValuePPC64_OpTrunc64to16_0(v *Value) bool {
 	}
 }
 func rewriteValuePPC64_OpTrunc64to32_0(v *Value) bool {
-	// match: (Trunc64to32 x)
-	// cond: isSigned(x.Type)
+	// match: (Trunc64to32 <t> x)
+	// cond: isSigned(t)
 	// result: (MOVWreg x)
 	for {
+		t := v.Type
 		x := v.Args[0]
-		if !(isSigned(x.Type)) {
+		if !(isSigned(t)) {
 			break
 		}
 		v.reset(OpPPC64MOVWreg)
@@ -30411,12 +30416,13 @@ func rewriteValuePPC64_OpTrunc64to32_0(v *Value) bool {
 	}
 }
 func rewriteValuePPC64_OpTrunc64to8_0(v *Value) bool {
-	// match: (Trunc64to8 x)
-	// cond: isSigned(x.Type)
+	// match: (Trunc64to8 <t> x)
+	// cond: isSigned(t)
 	// result: (MOVBreg x)
 	for {
+		t := v.Type
 		x := v.Args[0]
-		if !(isSigned(x.Type)) {
+		if !(isSigned(t)) {
 			break
 		}
 		v.reset(OpPPC64MOVBreg)
