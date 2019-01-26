@@ -98,6 +98,51 @@ type File interface {
 	Stat() (os.FileInfo, error)
 }
 
+// Assign a user function to this which will output HTTP headers and HTML header/body
+// preamble to directory listings served by http.FileServer().
+type dirPreHook func(r *Request) (map[string]string, string)
+
+// Assign a user function to this which will output HTML for empty directories
+// served by http.FileServer().
+type dirEHook func() string
+
+// Assign a user function to this which will output HTTP footers and closing tags
+// following directory listings served by http.FileServer().
+type dirPostHook func() string
+
+// The following three hooks allow basic styling of directory listings served out
+// by http.FileServer(). List items (ie., subdirs and files of a given dir) can
+// be styled by the CSS href class 'go-http-fs-item'.
+var usrDirListPre dirPreHook   // HTML header and body preceding dirlist items
+var usrDirListE dirEHook       // Whatever to display for empty directories
+var usrDirListPost dirPostHook // HTML post-dirlist items, footer, body/html terminators
+
+func defDirListPre(r *Request) (hdrs map[string]string, preamble string) {
+	hdrs = make(map[string]string)
+	hdrs["Content-Type"] = "text/html; charset=utf-8"
+	preamble = "<pre>\n"
+	return
+}
+
+func defDirListPost() string {
+	return "</pre>\n"
+}
+
+// SetDirListDecorators gives basic application-wide style control of directory
+// listings served by http.FileServer(). This should be called once just prior
+// to http.FileServer().
+func SetDirListDecorators(pre dirPreHook, empty dirEHook, post dirPostHook) {
+	if pre != nil {
+		usrDirListPre = pre
+	}
+	if empty != nil {
+		usrDirListE = empty
+	}
+	if post != nil {
+		usrDirListPost = post
+	}
+}
+
 func dirList(w ResponseWriter, r *Request, f File) {
 	dirs, err := f.Readdir(-1)
 	if err != nil {
@@ -107,8 +152,25 @@ func dirList(w ResponseWriter, r *Request, f File) {
 	}
 	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, "<pre>\n")
+	var headers map[string]string
+	var preamble string
+	if usrDirListPre == nil {
+		headers, preamble = defDirListPre(r)
+	} else {
+		headers, preamble = usrDirListPre(r)
+	}
+
+	for h, v := range headers {
+		w.Header().Set(h, v)
+	}
+
+	fmt.Fprintf(w, preamble)
+
+	if len(dirs) == 0 {
+		if usrDirListE != nil {
+			fmt.Fprintf(w, usrDirListE())
+		}
+	} else {
 	for _, d := range dirs {
 		name := d.Name()
 		if d.IsDir() {
@@ -118,9 +180,15 @@ func dirList(w ResponseWriter, r *Request, f File) {
 		// part of the URL path, and not indicate the start of a query
 		// string or fragment.
 		url := url.URL{Path: name}
-		fmt.Fprintf(w, "<a href=\"%s\">%s</a>\n", url.String(), htmlReplacer.Replace(name))
+			fmt.Fprintf(w, "<a class=\"go-http-fs-item\" href=\"%s\">%s</a>\n", url.String(), htmlReplacer.Replace(name))
+		}
 	}
-	fmt.Fprintf(w, "</pre>\n")
+
+	if usrDirListPost == nil {
+		fmt.Fprintf(w, defDirListPost())
+	} else {
+		fmt.Fprintf(w, usrDirListPost())
+	}
 }
 
 // ServeContent replies to the request using the content in the
