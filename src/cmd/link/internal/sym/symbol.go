@@ -68,6 +68,16 @@ func ABIToVersion(abi obj.ABI) int {
 	return -1
 }
 
+func VersionToABI(v int) (obj.ABI, bool) {
+	switch v {
+	case SymVerABI0:
+		return obj.ABI0, true
+	case SymVerABIInternal:
+		return obj.ABIInternal, true
+	}
+	return ^obj.ABI(0), false
+}
+
 func (s *Symbol) String() string {
 	if s.Version == 0 {
 		return s.Name

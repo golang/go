@@ -113,15 +113,16 @@ func (ctxt *Link) ErrorUnresolved(s *sym.Symbol, r *sym.Reloc) {
 		// Try to find symbol under another ABI.
 		var reqABI, haveABI obj.ABI
 		haveABI = ^obj.ABI(0)
-		for abi := obj.ABI(0); abi < obj.ABICount; abi++ {
-			v := sym.ABIToVersion(abi)
-			if v == -1 {
-				continue
-			}
-			if v == int(r.Sym.Version) {
-				reqABI = abi
-			} else if ctxt.Syms.ROLookup(r.Sym.Name, v) != nil {
-				haveABI = abi
+		reqABI, ok := sym.VersionToABI(int(r.Sym.Version))
+		if ok {
+			for abi := obj.ABI(0); abi < obj.ABICount; abi++ {
+				v := sym.ABIToVersion(abi)
+				if v == -1 {
+					continue
+				}
+				if rs := ctxt.Syms.ROLookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx {
+					haveABI = abi
+				}
 			}
 		}
 
