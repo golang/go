@@ -5236,7 +5236,10 @@ func genssa(f *ssa.Func, pp *Progs) {
 		br.P.To.Val = s.bstart[br.B.ID]
 		if br.P.Pos.IsStmt() != src.PosIsStmt {
 			br.P.Pos = br.P.Pos.WithNotStmt()
+		} else if v0 := br.B.FirstPossibleStmtValue(); v0 != nil && v0.Pos.Line() == br.P.Pos.Line() && v0.Pos.IsStmt() == src.PosIsStmt {
+			br.P.Pos = br.P.Pos.WithNotStmt()
 		}
+
 	}
 
 	if e.log { // spew to stdout

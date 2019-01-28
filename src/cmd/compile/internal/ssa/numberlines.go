@@ -73,6 +73,16 @@ func notStmtBoundary(op Op) bool {
 	return false
 }
 
+func (b *Block) FirstPossibleStmtValue() *Value {
+	for _, v := range b.Values {
+		if notStmtBoundary(v.Op) {
+			continue
+		}
+		return v
+	}
+	return nil
+}
+
 func numberLines(f *Func) {
 	po := f.Postorder()
 	endlines := make(map[ID]src.XPos)
