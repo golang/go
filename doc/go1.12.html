@@ -357,6 +357,14 @@ for {
   overcounting of large heap allocations.
 </p>
 
+<p><!-- CL 159717 -->
+  Tracebacks, <code>runtime.Caller</code>,
+  and <code>runtime.Callers</code> no longer include
+  compiler-generated initialization functions.  Doing a traceback
+  during the initialization of a global variable will now show a
+  function named <code>PKG.init.ializers</code>.
+</p>
+
 <h2 id="library">Core library</h2>
 
 <h3 id="tls_1_3">TLS 1.3</h3>
