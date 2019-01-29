@@ -550,7 +550,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 			ruri = r.URL.Opaque
 		}
 	}
-	if strings.IndexFunc(ruri, isCTL) != -1 {
+	if stringContainsCTLByte(ruri) {
 		return errors.New("net/http: can't write control character in Request.URL")
 	}
 	// TODO: validate r.Method too? At least it's less likely to

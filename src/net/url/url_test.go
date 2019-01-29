@@ -1757,6 +1757,12 @@ func TestRejectControlCharacters(t *testing.T) {
 			t.Errorf("Parse(%q) error = %q; want substring %q", s, got, wantSub)
 		}
 	}
+
+	// But don't reject non-ASCII CTLs, at least for now:
+	if _, err := Parse("http://foo.com/ctl\x80"); err != nil {
+		t.Errorf("error parsing URL with non-ASCII control byte: %v", err)
+	}
+
 }
 
 var escapeBenchmarks = []struct {
