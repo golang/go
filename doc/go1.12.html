@@ -882,6 +882,12 @@ for {
       <code>executing "tmpl" at <.very.deep.context.value.notpresent>: map has no entry for key "notpresent"</code>
     </p>
 
+  <dd>
+    <p><!-- CL 143097 -->
+      If a user-defined function called by a template panics, the
+      panic is now caught and returned as an error by
+      the <code>Execute</code> or <code>ExecuteTemplate</code> method.
+    </p>
 </dl><!-- text/template -->
 
 <dl id="unsafe"><dt><a href="/pkg/unsafe/">unsafe</a></dt>
