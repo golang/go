@@ -133,37 +133,6 @@ func main() {
 		os.Exit(2)
 	}
 
-	// TODO(rsc): Remove all these helper prints in Go 1.12.
-	switch args[0] {
-	case "mod":
-		if len(args) >= 2 {
-			flag := args[1]
-			if strings.HasPrefix(flag, "--") {
-				flag = flag[1:]
-			}
-			if i := strings.Index(flag, "="); i >= 0 {
-				flag = flag[:i]
-			}
-			switch flag {
-			case "-sync", "-fix":
-				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod tidy\n", flag)
-				os.Exit(2)
-			case "-init", "-graph", "-vendor", "-verify":
-				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod %s\n", flag, flag[1:])
-				os.Exit(2)
-			case "-fmt", "-json", "-module", "-require", "-droprequire", "-replace", "-dropreplace", "-exclude", "-dropexclude":
-				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod edit %s\n", flag, flag)
-				os.Exit(2)
-			}
-		}
-	case "vendor":
-		fmt.Fprintf(os.Stderr, "go: vgo vendor is now go mod vendor\n")
-		os.Exit(2)
-	case "verify":
-		fmt.Fprintf(os.Stderr, "go: vgo verify is now go mod verify\n")
-		os.Exit(2)
-	}
-
 	// Set environment (GOOS, GOARCH, etc) explicitly.
 	// In theory all the commands we invoke should have
 	// the same default computation of these as we do,
