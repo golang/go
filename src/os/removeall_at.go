@@ -57,8 +57,13 @@ func removeAllFrom(parent *File, path string) error {
 		return nil
 	}
 
-	// If not a "is directory" error, we have a problem
-	if err != syscall.EISDIR && err != syscall.EPERM {
+	// EISDIR means that we have a directory, and we need to
+	// remove its contents.
+	// EPERM or EACCES means that we don't have write permission on
+	// the parent directory, but this entry might still be a directory
+	// whose contents need to be removed.
+	// Otherwise just return the error.
+	if err != syscall.EISDIR && err != syscall.EPERM && err != syscall.EACCES {
 		return err
 	}
 
@@ -69,11 +74,11 @@ func removeAllFrom(parent *File, path string) error {
 		return statErr
 	}
 	if statInfo.Mode&syscall.S_IFMT != syscall.S_IFDIR {
-		// Not a directory; return the error from the Remove
+		// Not a directory; return the error from the Remove.
 		return err
 	}
 
-	// Remove the directory's entries
+	// Remove the directory's entries.
 	var recurseErr error
 	for {
 		const request = 1024
@@ -88,7 +93,7 @@ func removeAllFrom(parent *File, path string) error {
 		}
 
 		names, readErr := file.Readdirnames(request)
-		// Errors other than EOF should stop us from continuing
+		// Errors other than EOF should stop us from continuing.
 		if readErr != nil && readErr != io.EOF {
 			file.Close()
 			if IsNotExist(readErr) {
@@ -117,7 +122,7 @@ func removeAllFrom(parent *File, path string) error {
 		}
 	}
 
-	// Remove the directory itself
+	// Remove the directory itself.
 	unlinkError := unix.Unlinkat(parentFd, path, unix.AT_REMOVEDIR)
 	if unlinkError == nil || IsNotExist(unlinkError) {
 		return nil
