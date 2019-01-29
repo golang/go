@@ -75,7 +75,12 @@ func TestTags(t *testing.T) {
 		}
 
 	}
-	err := run(stringer, "-type", "Const", dir)
+	// Run stringer in the directory that contains the package files.
+	// We cannot run stringer in the current directory for the following reasons:
+	// - Versions of Go earlier than Go 1.11, do not support absolute directories as a pattern.
+	// - When the current directory is inside a go module, the path will not be considered
+	//   a valid path to a package.
+	err := runInDir(dir, stringer, "-type", "Const", ".")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +95,7 @@ func TestTags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = run(stringer, "-type", "Const", "-tags", "tag", dir)
+	err = runInDir(dir, stringer, "-type", "Const", "-tags", "tag", ".")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +165,14 @@ func copy(to, from string) error {
 // run runs a single command and returns an error if it does not succeed.
 // os/exec should have this function, to be honest.
 func run(name string, arg ...string) error {
+	return runInDir(".", name, arg...)
+}
+
+// runInDir runs a single command in directory dir and returns an error if
+// it does not succeed.
+func runInDir(dir, name string, arg ...string) error {
 	cmd := exec.Command(name, arg...)
+	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

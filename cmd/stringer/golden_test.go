@@ -10,6 +10,9 @@
 package main
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -297,6 +300,12 @@ func (i Token) String() string {
 `
 
 func TestGolden(t *testing.T) {
+	dir, err := ioutil.TempDir("", "stringer")
+	if err != nil {
+		t.Error(err)
+	}
+	defer os.RemoveAll(dir)
+
 	for _, test := range golden {
 		g := Generator{
 			trimPrefix:  test.trimPrefix,
@@ -304,7 +313,13 @@ func TestGolden(t *testing.T) {
 		}
 		input := "package test\n" + test.input
 		file := test.name + ".go"
-		g.parsePackage(".", []string{file}, input)
+		absFile := filepath.Join(dir, file)
+		err := ioutil.WriteFile(absFile, []byte(input), 0644)
+		if err != nil {
+			t.Error(err)
+		}
+
+		g.parsePackage([]string{absFile}, nil)
 		// Extract the name and type of the constant from the first line.
 		tokens := strings.SplitN(test.input, " ", 3)
 		if len(tokens) != 3 {
