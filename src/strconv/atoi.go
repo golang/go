@@ -6,6 +6,14 @@ package strconv
 
 import "errors"
 
+// lower(c) is a lower-case letter if and only if
+// c is either that lower-case letter or the equivalent upper-case letter.
+// Instead of writing c == 'x' || c == 'X' one can write lower(c) == 'x'.
+// Note that lower of non-letters can produce other non-letters.
+func lower(c byte) byte {
+	return c | ('x' - 'X')
+}
+
 // ErrRange indicates that a value is out of range for the target type.
 var ErrRange = errors.New("value out of range")
 
