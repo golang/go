@@ -40,7 +40,7 @@ func (o *Once) Do(f func()) {
 	o.m.Lock()
 	defer o.m.Unlock()
 	if o.done == 0 {
-		defer atomic.StoreUint32(&o.done, 1)
 		f()
+		o.done = 1
 	}
 }
