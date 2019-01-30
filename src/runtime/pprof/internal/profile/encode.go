@@ -291,7 +291,7 @@ func (p *Profile) postDecode() error {
 	p.commentX = nil
 	p.DefaultSampleType, err = getString(p.stringTable, &p.defaultSampleTypeX, err)
 	p.stringTable = nil
-	return nil
+	return err
 }
 
 func (p *ValueType) decoder() []decoder {
