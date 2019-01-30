@@ -71,18 +71,22 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 
 	case base == 0:
 		// Look for octal, hex prefix.
-		switch {
-		case s[0] == '0' && len(s) >= 3 && lower(s[1]) == 'x':
-			if len(s) < 3 {
-				return 0, syntaxError(fnParseUint, s0)
+		base = 10
+		if s[0] == '0' {
+			switch {
+			case len(s) >= 3 && lower(s[1]) == 'b':
+				base = 2
+				s = s[2:]
+			case len(s) >= 3 && lower(s[1]) == 'o':
+				base = 8
+				s = s[2:]
+			case len(s) >= 3 && lower(s[1]) == 'x':
+				base = 16
+				s = s[2:]
+			default:
+				base = 8
+				s = s[1:]
 			}
-			base = 16
-			s = s[2:]
-		case s[0] == '0':
-			base = 8
-			s = s[1:]
-		default:
-			base = 10
 		}
 
 	default:
@@ -149,13 +153,14 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 // bit size (0 to 64) and returns the corresponding value i.
 //
 // If base == 0, the base is implied by the string's prefix:
-// base 16 for "0x", base 8 for "0", and base 10 otherwise.
-// For bases 1, below 0 or above 36 an error is returned.
+// base 2 for "0b", base 8 for "0" or "0o", base 16 for "0x",
+// and base 10 otherwise.
+// If base is below 0, is 1, or is above 36, an error is returned.
 //
 // The bitSize argument specifies the integer type
 // that the result must fit into. Bit sizes 0, 8, 16, 32, and 64
 // correspond to int, int8, int16, int32, and int64.
-// For a bitSize below 0 or above 64 an error is returned.
+// If bitSize is below 0 or above 64, an error is returned.
 //
 // The errors that ParseInt returns have concrete type *NumError
 // and include err.Num = s. If s is empty or contains invalid

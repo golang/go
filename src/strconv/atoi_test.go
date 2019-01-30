@@ -65,42 +65,69 @@ var parseUint64BaseTests = []parseUint64BaseTest{
 	{"01777777777777777777778", 0, 0, ErrSyntax},
 	{"02000000000000000000000", 0, 1<<64 - 1, ErrRange},
 	{"0200000000000000000000", 0, 1 << 61, nil},
+	{"0b", 0, 0, ErrSyntax},
+	{"0B", 0, 0, ErrSyntax},
+	{"0b101", 0, 5, nil},
+	{"0B101", 0, 5, nil},
+	{"0o", 0, 0, ErrSyntax},
+	{"0O", 0, 0, ErrSyntax},
+	{"0o377", 0, 255, nil},
+	{"0O377", 0, 255, nil},
 
 	// underscores allowed with base == 0 only
-	{"1_2_3_4_5", 0, 12345, nil},
+	{"1_2_3_4_5", 0, 12345, nil}, // base 0 => 10
 	{"_12345", 0, 0, ErrSyntax},
 	{"1__2345", 0, 0, ErrSyntax},
 	{"12345_", 0, 0, ErrSyntax},
 
-	{"1_2_3_4_5", 10, 0, ErrSyntax},
+	{"1_2_3_4_5", 10, 0, ErrSyntax}, // base 10
 	{"_12345", 10, 0, ErrSyntax},
 	{"1__2345", 10, 0, ErrSyntax},
 	{"12345_", 10, 0, ErrSyntax},
 
-	{"0x_1_2_3_4_5", 0, 0x12345, nil},
+	{"0x_1_2_3_4_5", 0, 0x12345, nil}, // base 0 => 16
 	{"_0x12345", 0, 0, ErrSyntax},
 	{"0x__12345", 0, 0, ErrSyntax},
 	{"0x1__2345", 0, 0, ErrSyntax},
 	{"0x1234__5", 0, 0, ErrSyntax},
 	{"0x12345_", 0, 0, ErrSyntax},
 
-	{"1_2_3_4_5", 16, 0, ErrSyntax},
+	{"1_2_3_4_5", 16, 0, ErrSyntax}, // base 16
 	{"_12345", 16, 0, ErrSyntax},
 	{"1__2345", 16, 0, ErrSyntax},
 	{"1234__5", 16, 0, ErrSyntax},
 	{"12345_", 16, 0, ErrSyntax},
 
-	{"0_1_2_3_4_5", 0, 012345, nil},
+	{"0_1_2_3_4_5", 0, 012345, nil}, // base 0 => 8 (0377)
 	{"_012345", 0, 0, ErrSyntax},
 	{"0__12345", 0, 0, ErrSyntax},
 	{"01234__5", 0, 0, ErrSyntax},
 	{"012345_", 0, 0, ErrSyntax},
 
-	{"0_1_2_3_4_5", 8, 0, ErrSyntax},
+	{"0o_1_2_3_4_5", 0, 012345, nil}, // base 0 => 8 (0o377)
+	{"_0o12345", 0, 0, ErrSyntax},
+	{"0o__12345", 0, 0, ErrSyntax},
+	{"0o1234__5", 0, 0, ErrSyntax},
+	{"0o12345_", 0, 0, ErrSyntax},
+
+	{"0_1_2_3_4_5", 8, 0, ErrSyntax}, // base 8
 	{"_012345", 8, 0, ErrSyntax},
 	{"0__12345", 8, 0, ErrSyntax},
 	{"01234__5", 8, 0, ErrSyntax},
 	{"012345_", 8, 0, ErrSyntax},
+
+	{"0b_1_0_1", 0, 5, nil}, // base 0 => 2 (0b101)
+	{"_0b101", 0, 0, ErrSyntax},
+	{"0b__101", 0, 0, ErrSyntax},
+	{"0b1__01", 0, 0, ErrSyntax},
+	{"0b10__1", 0, 0, ErrSyntax},
+	{"0b101_", 0, 0, ErrSyntax},
+
+	{"1_0_1", 2, 0, ErrSyntax}, // base 2
+	{"_101", 2, 0, ErrSyntax},
+	{"1_01", 2, 0, ErrSyntax},
+	{"10_1", 2, 0, ErrSyntax},
+	{"101_", 2, 0, ErrSyntax},
 }
 
 type parseInt64Test struct {
