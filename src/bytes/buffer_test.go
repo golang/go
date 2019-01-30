@@ -131,11 +131,11 @@ func TestBasicOperations(t *testing.T) {
 		check(t, "TestBasicOperations (3)", &buf, "")
 
 		n, err := buf.Write(testBytes[0:1])
-		if n != 1 {
-			t.Errorf("wrote 1 byte, but n == %d", n)
-		}
 		if err != nil {
 			t.Errorf("err should always be nil, but err == %s", err)
+		}
+		if n != 1 {
+			t.Errorf("wrote 1 byte, but n == %d", n)
 		}
 		check(t, "TestBasicOperations (4)", &buf, "a")
 
