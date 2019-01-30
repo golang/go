@@ -541,6 +541,9 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 			return err
 		}
 		w, err := zw.Create(r.modPrefix(version) + "/" + name)
+		if err != nil {
+			return err
+		}
 		lr := &io.LimitedReader{R: rc, N: size + 1}
 		if _, err := io.Copy(w, lr); err != nil {
 			return err
