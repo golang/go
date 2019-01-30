@@ -115,6 +115,12 @@ func TestRedefineOtherParsers(t *testing.T) {
 	}
 }
 
+func TestNumbers(t *testing.T) {
+	c := newTestCase(t)
+	c.mustParse(c.root, `{{print 1_2.3_4}} {{print 0x0_1.e_0p+02}}`)
+	c.mustExecute(c.root, nil, "12.34 7.5")
+}
+
 type testCase struct {
 	t    *testing.T
 	root *Template
