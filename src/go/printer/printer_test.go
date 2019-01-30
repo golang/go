@@ -153,6 +153,10 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 		// (This is very difficult to achieve in general and for now
 		// it is only checked for files explicitly marked as such.)
 		res, err = format(gld, mode)
+		if err != nil {
+			t.Error(err)
+			return
+		}
 		if err := diff(golden, fmt.Sprintf("format(%s)", golden), gld, res); err != nil {
 			t.Errorf("golden is not idempotent: %s", err)
 		}
@@ -744,6 +748,9 @@ func TestParenthesizedDecl(t *testing.T) {
 	const src = "package p; var ( a float64; b int )"
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// print the original package
 	var buf bytes.Buffer
