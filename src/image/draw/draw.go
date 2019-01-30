@@ -90,8 +90,8 @@ func clip(dst Image, r *image.Rectangle, src image.Image, sp *image.Point, mask 
 	}
 }
 
-func processBackward(dst Image, r image.Rectangle, src image.Image, sp image.Point) bool {
-	return image.Image(dst) == src &&
+func processBackward(dst image.Image, r image.Rectangle, src image.Image, sp image.Point) bool {
+	return dst == src &&
 		r.Overlaps(r.Add(sp.Sub(r.Min))) &&
 		(sp.Y < r.Min.Y || (sp.Y == r.Min.Y && sp.X < r.Min.X))
 }
