@@ -9,6 +9,7 @@ package os
 import (
 	"internal/syscall/unix"
 	"io"
+	"runtime"
 	"syscall"
 )
 
@@ -128,11 +129,31 @@ func removeAllFrom(parent *File, path string) error {
 	return unlinkError
 }
 
-func openFdAt(fd int, path string) (*File, error) {
-	fd, err := unix.Openat(fd, path, O_RDONLY, 0)
-	if err != nil {
-		return nil, err
+// openFdAt opens path relative to the directory in fd.
+// Other than that this should act like openFileNolog.
+// This acts like openFileNolog rather than OpenFile because
+// we are going to (try to) remove the file.
+// The contents of this file are not relevant for test caching.
+func openFdAt(dirfd int, name string) (*File, error) {
+	var r int
+	for {
+		var e error
+		r, e = unix.Openat(dirfd, name, O_RDONLY, 0)
+		if e == nil {
+			break
+		}
+
+		// See comment in openFileNolog.
+		if runtime.GOOS == "darwin" && e == syscall.EINTR {
+			continue
+		}
+
+		return nil, &PathError{"openat", name, e}
 	}
 
-	return NewFile(uintptr(fd), path), nil
+	if !supportsCloseOnExec {
+		syscall.CloseOnExec(r)
+	}
+
+	return newFile(uintptr(r), name, kindOpenFile), nil
 }
