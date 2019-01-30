@@ -145,7 +145,8 @@ func NewReader(r io.Reader, t Transformer) *Reader {
 
 // Read implements the io.Reader interface.
 func (r *Reader) Read(p []byte) (int, error) {
-	n, err := 0, error(nil)
+	var n int
+	var err error
 	for {
 		// Copy out any transformed bytes and return the final error if we are done.
 		if r.dst0 != r.dst1 {
