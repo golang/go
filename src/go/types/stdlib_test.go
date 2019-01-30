@@ -155,7 +155,6 @@ func TestStdTest(t *testing.T) {
 	}
 
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
-		"literal2.go",    // go/scanner cannot handle new number literals yet - TODO(gri) enable once fixed
 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
 	)
 }
