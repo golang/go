@@ -539,7 +539,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 				f.ByteOffset = loc
 			}
 
-			haveBitOffset := false
+			var haveBitOffset bool
 			f.Name, _ = kid.Val(AttrName).(string)
 			f.ByteSize, _ = kid.Val(AttrByteSize).(int64)
 			f.BitOffset, haveBitOffset = kid.Val(AttrBitOffset).(int64)
