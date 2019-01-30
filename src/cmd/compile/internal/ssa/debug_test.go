@@ -934,7 +934,8 @@ func expect(want string, got tstring) {
 		if match {
 			return
 		}
-		match, err = regexp.MatchString(want, got.e)
+		// Ignore error as we have already checked for it before
+		match, _ = regexp.MatchString(want, got.e)
 		if match {
 			return
 		}
