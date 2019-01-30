@@ -1,6 +1,7 @@
 package p
 
 const (
+	// 0-octals
 	_ = 0
 	_ = 0123
 	_ = 0123456
@@ -136,6 +137,7 @@ const (
 
 	_ = 0X_dead_cafe.p-10
 	_ = 0x12_34.P1_2_3
+	_ = 0X1_2_3_4.P-1_2_3
 
 	// imaginaries
 	_ = 0i
