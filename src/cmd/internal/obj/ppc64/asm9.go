@@ -3553,21 +3553,14 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		xs := int32(p.From.Reg)
 		/* We need to treat the special case of extended mnemonics that may have a FREG/VREG as an argument */
 		if REG_V0 <= xt && xt <= REG_V31 {
-			/* Convert V0-V31 to VS32-VS63 */
-			xt = xt + 64
 			o1 = AOP_XX1(c.oprrr(p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg))
 		} else if REG_F0 <= xt && xt <= REG_F31 {
-			/* Convert F0-F31 to VS0-VS31 */
-			xt = xt + 64
 			o1 = AOP_XX1(c.oprrr(p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg))
 		} else if REG_VS0 <= xt && xt <= REG_VS63 {
 			o1 = AOP_XX1(c.oprrr(p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg))
 		} else if REG_V0 <= xs && xs <= REG_V31 {
-			/* Likewise for XS */
-			xs = xs + 64
 			o1 = AOP_XX1(c.oprrr(p.As), uint32(p.From.Reg), uint32(p.To.Reg), uint32(p.Reg))
 		} else if REG_F0 <= xs && xs <= REG_F31 {
-			xs = xs + 64
 			o1 = AOP_XX1(c.oprrr(p.As), uint32(p.From.Reg), uint32(p.To.Reg), uint32(p.Reg))
 		} else if REG_VS0 <= xs && xs <= REG_VS63 {
 			o1 = AOP_XX1(c.oprrr(p.As), uint32(p.From.Reg), uint32(p.To.Reg), uint32(p.Reg))
