@@ -83,6 +83,9 @@ func (b *decimal) set(s string) (ok bool) {
 	sawdigits := false
 	for ; i < len(s); i++ {
 		switch {
+		case s[i] == '_':
+			// underscoreOK already called
+			continue
 		case s[i] == '.':
 			if sawdot {
 				return
@@ -135,7 +138,11 @@ func (b *decimal) set(s string) (ok bool) {
 			return
 		}
 		e := 0
-		for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+		for ; i < len(s) && ('0' <= s[i] && s[i] <= '9' || s[i] == '_'); i++ {
+			if s[i] == '_' {
+				// underscoreOK already called
+				continue
+			}
 			if e < 10000 {
 				e = e*10 + int(s[i]) - '0'
 			}
@@ -187,6 +194,10 @@ func readFloat(s string) (mantissa uint64, exp int, neg, trunc, hex, ok bool) {
 	dp := 0
 	for ; i < len(s); i++ {
 		switch c := s[i]; true {
+		case c == '_':
+			// underscoreOK already called
+			continue
+
 		case c == '.':
 			if sawdot {
 				return
@@ -258,7 +269,11 @@ func readFloat(s string) (mantissa uint64, exp int, neg, trunc, hex, ok bool) {
 			return
 		}
 		e := 0
-		for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+		for ; i < len(s) && ('0' <= s[i] && s[i] <= '9' || s[i] == '_'); i++ {
+			if s[i] == '_' {
+				// underscoreOK already called
+				continue
+			}
 			if e < 10000 {
 				e = e*10 + int(s[i]) - '0'
 			}
@@ -640,6 +655,9 @@ func atof64(s string) (f float64, err error) {
 // away from the largest floating point number of the given size,
 // ParseFloat returns f = ±Inf, err.Err = ErrRange.
 func ParseFloat(s string, bitSize int) (float64, error) {
+	if !underscoreOK(s) {
+		return 0, syntaxError(fnParseFloat, s)
+	}
 	if bitSize == 32 {
 		f, err := atof32(s)
 		return float64(f), err

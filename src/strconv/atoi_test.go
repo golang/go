@@ -29,6 +29,10 @@ var parseUint64Tests = []parseUint64Test{
 	{"18446744073709551615", 1<<64 - 1, nil},
 	{"18446744073709551616", 1<<64 - 1, ErrRange},
 	{"18446744073709551620", 1<<64 - 1, ErrRange},
+	{"1_2_3_4_5", 0, ErrSyntax}, // base=10 so no underscores allowed
+	{"_12345", 0, ErrSyntax},
+	{"1__2345", 0, ErrSyntax},
+	{"12345_", 0, ErrSyntax},
 }
 
 type parseUint64BaseTest struct {
@@ -61,6 +65,42 @@ var parseUint64BaseTests = []parseUint64BaseTest{
 	{"01777777777777777777778", 0, 0, ErrSyntax},
 	{"02000000000000000000000", 0, 1<<64 - 1, ErrRange},
 	{"0200000000000000000000", 0, 1 << 61, nil},
+
+	// underscores allowed with base == 0 only
+	{"1_2_3_4_5", 0, 12345, nil},
+	{"_12345", 0, 0, ErrSyntax},
+	{"1__2345", 0, 0, ErrSyntax},
+	{"12345_", 0, 0, ErrSyntax},
+
+	{"1_2_3_4_5", 10, 0, ErrSyntax},
+	{"_12345", 10, 0, ErrSyntax},
+	{"1__2345", 10, 0, ErrSyntax},
+	{"12345_", 10, 0, ErrSyntax},
+
+	{"0x_1_2_3_4_5", 0, 0x12345, nil},
+	{"_0x12345", 0, 0, ErrSyntax},
+	{"0x__12345", 0, 0, ErrSyntax},
+	{"0x1__2345", 0, 0, ErrSyntax},
+	{"0x1234__5", 0, 0, ErrSyntax},
+	{"0x12345_", 0, 0, ErrSyntax},
+
+	{"1_2_3_4_5", 16, 0, ErrSyntax},
+	{"_12345", 16, 0, ErrSyntax},
+	{"1__2345", 16, 0, ErrSyntax},
+	{"1234__5", 16, 0, ErrSyntax},
+	{"12345_", 16, 0, ErrSyntax},
+
+	{"0_1_2_3_4_5", 0, 012345, nil},
+	{"_012345", 0, 0, ErrSyntax},
+	{"0__12345", 0, 0, ErrSyntax},
+	{"01234__5", 0, 0, ErrSyntax},
+	{"012345_", 0, 0, ErrSyntax},
+
+	{"0_1_2_3_4_5", 8, 0, ErrSyntax},
+	{"_012345", 8, 0, ErrSyntax},
+	{"0__12345", 8, 0, ErrSyntax},
+	{"01234__5", 8, 0, ErrSyntax},
+	{"012345_", 8, 0, ErrSyntax},
 }
 
 type parseInt64Test struct {
@@ -87,6 +127,11 @@ var parseInt64Tests = []parseInt64Test{
 	{"-9223372036854775808", -1 << 63, nil},
 	{"9223372036854775809", 1<<63 - 1, ErrRange},
 	{"-9223372036854775809", -1 << 63, ErrRange},
+	{"-1_2_3_4_5", 0, ErrSyntax}, // base=10 so no underscores allowed
+	{"-_12345", 0, ErrSyntax},
+	{"_12345", 0, ErrSyntax},
+	{"1__2345", 0, ErrSyntax},
+	{"12345_", 0, ErrSyntax},
 }
 
 type parseInt64BaseTest struct {
@@ -144,6 +189,26 @@ var parseInt64BaseTests = []parseInt64BaseTest{
 	{"10", 16, 16, nil},
 	{"-123456789abcdef", 16, -0x123456789abcdef, nil},
 	{"7fffffffffffffff", 16, 1<<63 - 1, nil},
+
+	// underscores
+	{"-0x_1_2_3_4_5", 0, -0x12345, nil},
+	{"0x_1_2_3_4_5", 0, 0x12345, nil},
+	{"-_0x12345", 0, 0, ErrSyntax},
+	{"_-0x12345", 0, 0, ErrSyntax},
+	{"_0x12345", 0, 0, ErrSyntax},
+	{"0x__12345", 0, 0, ErrSyntax},
+	{"0x1__2345", 0, 0, ErrSyntax},
+	{"0x1234__5", 0, 0, ErrSyntax},
+	{"0x12345_", 0, 0, ErrSyntax},
+
+	{"-0_1_2_3_4_5", 0, -012345, nil}, // octal
+	{"0_1_2_3_4_5", 0, 012345, nil},   // octal
+	{"-_012345", 0, 0, ErrSyntax},
+	{"_-012345", 0, 0, ErrSyntax},
+	{"_012345", 0, 0, ErrSyntax},
+	{"0__12345", 0, 0, ErrSyntax},
+	{"01234__5", 0, 0, ErrSyntax},
+	{"012345_", 0, 0, ErrSyntax},
 }
 
 type parseUint32Test struct {
@@ -162,6 +227,11 @@ var parseUint32Tests = []parseUint32Test{
 	{"987654321", 987654321, nil},
 	{"4294967295", 1<<32 - 1, nil},
 	{"4294967296", 1<<32 - 1, ErrRange},
+	{"1_2_3_4_5", 0, ErrSyntax}, // base=10 so no underscores allowed
+	{"_12345", 0, ErrSyntax},
+	{"_12345", 0, ErrSyntax},
+	{"1__2345", 0, ErrSyntax},
+	{"12345_", 0, ErrSyntax},
 }
 
 type parseInt32Test struct {
@@ -190,6 +260,11 @@ var parseInt32Tests = []parseInt32Test{
 	{"-2147483648", -1 << 31, nil},
 	{"2147483649", 1<<31 - 1, ErrRange},
 	{"-2147483649", -1 << 31, ErrRange},
+	{"-1_2_3_4_5", 0, ErrSyntax}, // base=10 so no underscores allowed
+	{"-_12345", 0, ErrSyntax},
+	{"_12345", 0, ErrSyntax},
+	{"1__2345", 0, ErrSyntax},
+	{"12345_", 0, ErrSyntax},
 }
 
 type numErrorTest struct {
