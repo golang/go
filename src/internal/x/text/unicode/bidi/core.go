@@ -487,9 +487,6 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
 		if t == NSM {
 			s.types[i] = preceedingCharacterType
 		} else {
-			if t.in(LRI, RLI, FSI, PDI) {
-				preceedingCharacterType = ON
-			}
 			preceedingCharacterType = t
 		}
 	}
