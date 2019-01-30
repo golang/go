@@ -26,6 +26,7 @@
 		%c	the character represented by the corresponding Unicode code point
 		%d	base 10
 		%o	base 8
+		%O	base 8 with 0o prefix
 		%q	a single-quoted character literal safely escaped with Go syntax.
 		%x	base 16, with lower-case letters for a-f
 		%X	base 16, with upper-case letters for A-F
@@ -113,8 +114,8 @@
 		+	always print a sign for numeric values;
 			guarantee ASCII-only output for %q (%+q)
 		-	pad with spaces on the right rather than the left (left-justify the field)
-		#	alternate format: add leading 0 for octal (%#o), 0x for hex (%#x);
-			0X for hex (%#X); suppress 0x for %p (%#p);
+		#	alternate format: add leading 0b for binary (%#b), 0 for octal (%#o),
+			0x or 0X for hex (%#x or %#X); suppress 0x for %p (%#p);
 			for %q, print a raw (backquoted) string if strconv.CanBackquote
 			returns true;
 			always print a decimal point for %e, %E, %f, %F, %g and %G;
