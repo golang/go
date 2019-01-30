@@ -13,7 +13,7 @@ import (
 	"syscall"
 )
 
-func RemoveAll(path string) error {
+func removeAll(path string) error {
 	if path == "" {
 		// fail silently to retain compatibility with previous behavior
 		// of RemoveAll. See issue 28830.
