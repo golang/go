@@ -252,7 +252,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 	for i := 0; i < len(s.P); i += 16 {
 		fmt.Fprintf(ctxt.Bso, "\t%#04x", uint(i))
 		j := i
-		for j = i; j < i+16 && j < len(s.P); j++ {
+		for ; j < i+16 && j < len(s.P); j++ {
 			fmt.Fprintf(ctxt.Bso, " %02x", s.P[j])
 		}
 		for ; j < i+16; j++ {
