@@ -1275,7 +1275,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = REGZERO
 		}
 		/* only use 10 bits of trap code */
-		o1 = OP_IRR(c.opirr(p.As), (uint32(v)&0x3FF)<<6, uint32(p.Reg), uint32(p.To.Reg))
+		o1 = OP_IRR(c.opirr(p.As), (uint32(v)&0x3FF)<<6, uint32(r), uint32(p.To.Reg))
 
 	case 16: /* sll $c,[r1],r2 */
 		v := c.regoff(&p.From)
