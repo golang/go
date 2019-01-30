@@ -219,7 +219,7 @@ func PackageBuildInfo(path string, deps []string) string {
 		if r.Path == "" {
 			h = "\t" + modfetch.Sum(mod)
 		}
-		fmt.Fprintf(&buf, "dep\t%s\t%s%s\n", mod.Path, mod.Version, h)
+		fmt.Fprintf(&buf, "dep\t%s\t%s%s\n", mod.Path, mv, h)
 		if r.Path != "" {
 			fmt.Fprintf(&buf, "=>\t%s\t%s\t%s\n", r.Path, r.Version, modfetch.Sum(r))
 		}
