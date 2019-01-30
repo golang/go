@@ -14,13 +14,13 @@ import (
 func foo() {
 	var sa StringAttributes
 	var p Paragraph
-	n, _ := p.SetString(s)
+	_, _ = p.SetString(s)
 	for i, o := 0, p.Ordering(); i < o.NumRuns(); i++ {
-		b := o.Run(i).Bytes()
+		_ = o.Run(i).Bytes()
 
 		start, end := o.Run(i).Pos()
 		for p := start; p < end; {
-			style, n := sa.StyleAt(start)
+			_, n := sa.StyleAt(start)
 			render()
 			p += n
 		}
