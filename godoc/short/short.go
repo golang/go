@@ -52,11 +52,11 @@ func RegisterHandlers(mux *http.ServeMux, dc *datastore.Client, mc *memcache.Cli
 	// TODO(cbro): move storage of the links to a text file in Gerrit.
 	// Disable the admin handler until that happens, since GAE Flex doesn't support
 	// the "google.golang.org/appengine/user" package.
-	// See golang.org/issue/27205#issuecomment-418673218
+	// See golang.org/issue/29988 and golang.org/issue/27205#issuecomment-418673218.
 	// mux.HandleFunc(prefix, adminHandler)
 	mux.HandleFunc(prefix, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		io.WriteString(w, "Link creation temporarily unavailable. See golang.org/issue/27205.")
+		io.WriteString(w, "Link creation temporarily unavailable. See golang.org/issue/29988.")
 	})
 }
 
