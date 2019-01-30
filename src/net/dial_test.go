@@ -338,6 +338,11 @@ func TestDialParallel(t *testing.T) {
 		if c != nil {
 			c.Close()
 		}
+		if tt.expectOk && err != nil {
+			t.Errorf("#%d (cancel): got %v; want nil", i, err)
+		} else if !tt.expectOk && err == nil {
+			t.Errorf("#%d (cancel): got nil; want non-nil", i)
+		}
 		elapsed = time.Now().Sub(startTime)
 		if elapsed > 100*time.Millisecond {
 			t.Errorf("#%d (cancel): got %v; want <= 100ms", i, elapsed)
