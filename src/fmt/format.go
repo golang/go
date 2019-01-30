@@ -510,7 +510,7 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 	if f.sharp && verb != 'b' {
 		digits := 0
 		switch verb {
-		case 'v', 'g', 'G':
+		case 'v', 'g', 'G', 'x':
 			digits = prec
 			// If no precision is set explicitly use a precision of 6.
 			if digits == -1 {
@@ -519,8 +519,8 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 		}
 
 		// Buffer pre-allocated with enough room for
-		// exponent notations of the form "e+123".
-		var tailBuf [5]byte
+		// exponent notations of the form "e+123" or "p-1023".
+		var tailBuf [6]byte
 		tail := tailBuf[:0]
 
 		hasDecimalPoint := false
@@ -529,9 +529,16 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 			switch num[i] {
 			case '.':
 				hasDecimalPoint = true
-			case 'e', 'E':
+			case 'p', 'P':
 				tail = append(tail, num[i:]...)
 				num = num[:i]
+			case 'e', 'E':
+				if verb != 'x' && verb != 'X' {
+					tail = append(tail, num[i:]...)
+					num = num[:i]
+					break
+				}
+				fallthrough
 			default:
 				digits--
 			}

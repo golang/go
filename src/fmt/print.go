@@ -407,7 +407,7 @@ func (p *pp) fmtFloat(v float64, size int, verb rune) {
 	switch verb {
 	case 'v':
 		p.fmt.fmtFloat(v, size, 'g', -1)
-	case 'b', 'g', 'G':
+	case 'b', 'g', 'G', 'x', 'X':
 		p.fmt.fmtFloat(v, size, verb, -1)
 	case 'f', 'e', 'E':
 		p.fmt.fmtFloat(v, size, verb, 6)
@@ -425,7 +425,7 @@ func (p *pp) fmtComplex(v complex128, size int, verb rune) {
 	// Make sure any unsupported verbs are found before the
 	// calls to fmtFloat to not generate an incorrect error string.
 	switch verb {
-	case 'v', 'b', 'g', 'G', 'f', 'F', 'e', 'E':
+	case 'v', 'b', 'g', 'G', 'x', 'X', 'f', 'F', 'e', 'E':
 		oldPlus := p.fmt.plus
 		p.buf.WriteByte('(')
 		p.fmtFloat(real(v), size/2, verb)
