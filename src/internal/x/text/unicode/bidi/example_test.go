@@ -83,8 +83,8 @@ func renderDirectionalRun(text string, offset int, d bidi.Direction, styles []st
 	// iterate over style runs
 	if run.Direction() == bidi.LeftToRight {
 		styleEnd := 0
-		for _, sr := range styles {
-			styleEnd = styleRuns[i].end
+		for range styles {
+			styleEnd = styleRuns[i].end // TODO: Where does i come from?
 			if start < styleEnd {
 				if styleEnd > end {
 					styleEnd = end
