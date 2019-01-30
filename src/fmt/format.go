@@ -191,7 +191,7 @@ func (f *fmt) fmtUnicode(u uint64) {
 }
 
 // fmtInteger formats signed and unsigned integers.
-func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
+func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, verb rune, digits string) {
 	negative := isSigned && int64(u) < 0
 	if negative {
 		u = -u
@@ -275,6 +275,12 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
 	// Various prefixes: 0x, -, etc.
 	if f.sharp {
 		switch base {
+		case 2:
+			// Add a leading 0b.
+			i--
+			buf[i] = 'b'
+			i--
+			buf[i] = '0'
 		case 8:
 			if buf[i] != '0' {
 				i--
@@ -287,6 +293,12 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
 			i--
 			buf[i] = '0'
 		}
+	}
+	if verb == 'O' {
+		i--
+		buf[i] = 'o'
+		i--
+		buf[i] = '0'
 	}
 
 	if negative {
