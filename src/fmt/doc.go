@@ -286,10 +286,10 @@
 	For example, %x will scan an integer as a hexadecimal number,
 	and %v will scan the default representation format for the value.
 	The Printf verbs %p and %T and the flags # and + are not implemented.
-	The verbs %e %E %f %F %g and %G are all equivalent and scan any
-	floating-point or complex value. For float and complex literals in
-	scientific notation, both the decimal (e) and binary (p) exponent
-	formats are supported (for example: "2.3e+7" and "4.5p-8").
+	For floating-point and complex values, all valid formatting verbs
+	(%b %e %E %f %F %g %G %x %X and %v) are equivalent and accept
+	both decimal and hexadecimal notation (for example: "2.3e+7", "0x4.5p-8")
+	and digit-separating underscores (for example: "3.14159_26535_89793").
 
 	Input processed by verbs is implicitly space-delimited: the
 	implementation of every verb except %c starts by discarding
@@ -297,9 +297,10 @@
 	(and %v reading into a string) stops consuming input at the first
 	space or newline character.
 
-	The familiar base-setting prefixes 0 (octal) and 0x
-	(hexadecimal) are accepted when scanning integers without
-	a format or with the %v verb.
+	The familiar base-setting prefixes 0b (binary), 0o and 0 (octal),
+	and 0x (hexadecimal) are accepted when scanning integers
+	without a format or with the %v verb, as are digit-separating
+	underscores.
 
 	Width is interpreted in the input text but there is no
 	syntax for scanning with a precision (no %5.2f, just %5f).
