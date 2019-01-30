@@ -112,6 +112,8 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 		simplify(file)
 	}
 
+	ast.Inspect(file, normalizeNumbers)
+
 	res, err := format(fileSet, file, sourceAdj, indentAdj, src, printer.Config{Mode: printerMode, Tabwidth: tabWidth})
 	if err != nil {
 		return err
@@ -325,4 +327,49 @@ func backupFile(filename string, data []byte, perm os.FileMode) (string, error) 
 	}
 
 	return bakname, err
+}
+
+// normalizeNumbers rewrites base prefixes and exponents to
+// use lower-case letters. It leaves hexadecimal digits alone.
+func normalizeNumbers(n ast.Node) bool {
+	lit, _ := n.(*ast.BasicLit)
+	if lit == nil {
+		return true
+	}
+	if len(lit.Value) < 2 {
+		return false // only one digit - nothing to do
+	}
+	// lit.Value >= 2
+
+	switch lit.Kind {
+	case token.INT:
+		switch lit.Value[:2] {
+		case "0X":
+			lit.Value = "0x" + lit.Value[2:]
+		case "0O":
+			lit.Value = "0o" + lit.Value[2:]
+		case "0B":
+			lit.Value = "0b" + lit.Value[2:]
+		}
+
+	case token.FLOAT:
+		switch lit.Value[:2] {
+		default:
+			if i := strings.LastIndexByte(lit.Value, 'E'); i >= 0 {
+				lit.Value = lit.Value[:i] + "e" + lit.Value[i+1:]
+			}
+		case "0x":
+			if i := strings.LastIndexByte(lit.Value, 'P'); i >= 0 {
+				lit.Value = lit.Value[:i] + "p" + lit.Value[i+1:]
+			}
+		case "0X":
+			if i := strings.LastIndexByte(lit.Value, 'P'); i >= 0 {
+				lit.Value = "0x" + lit.Value[2:i] + "p" + lit.Value[i+1:]
+			} else {
+				lit.Value = "0x" + lit.Value[2:]
+			}
+		}
+	}
+
+	return false
 }
