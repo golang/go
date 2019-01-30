@@ -6,6 +6,11 @@ body {
 	text-align: center;
 	color: #222;
 }
+textarea {
+	/* Inherit text color from body avoiding illegible text in the case where the
+ 	* user has inverted the browsers custom text and background colors. */
+	color: inherit;
+}
 pre,
 code {
 	font-family: Menlo, monospace;
