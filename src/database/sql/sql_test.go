@@ -2808,9 +2808,11 @@ func TestTxEndBadConn(t *testing.T) {
 				return err
 			}
 			rows, err := tx.Query("SELECT|t1|age,name|")
-			if err == nil {
-				err = rows.Close()
-			} else {
+			if err != nil {
+				return err
+			}
+			err = rows.Close()
+			if err != nil {
 				return err
 			}
 			return endTx(tx)
