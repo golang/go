@@ -268,7 +268,7 @@ func TestFloat64Text(t *testing.T) {
 		{32, 'g', -1, "32"},
 		{32, 'g', 0, "3e+01"},
 
-		{100, 'x', -1, "%x"},
+		// {100, 'x', -1, "%x"},
 
 		// {math.NaN(), 'g', -1, "NaN"},  // Float doesn't support NaNs
 		// {-math.NaN(), 'g', -1, "NaN"}, // Float doesn't support NaNs
@@ -440,8 +440,8 @@ func TestFloatText(t *testing.T) {
 		{"-1024.0", 64, 'p', 0, "-0x.8p+11"},
 
 		// unsupported format
-		{"3.14", 64, 'x', 0, "%x"},
-		{"-3.14", 64, 'x', 0, "%x"},
+		//{"3.14", 64, 'x', 0, "%x"},
+		//{"-3.14", 64, 'x', 0, "%x"},
 	} {
 		f, _, err := ParseFloat(test.x, 0, test.prec, ToNearestEven)
 		if err != nil {
