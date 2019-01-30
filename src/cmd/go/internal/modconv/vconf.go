@@ -13,8 +13,7 @@ import (
 
 func ParseVendorConf(file string, data []byte) (*modfile.File, error) {
 	mf := new(modfile.File)
-	for lineno, line := range strings.Split(string(data), "\n") {
-		lineno++
+	for _, line := range strings.Split(string(data), "\n") {
 		if i := strings.Index(line, "#"); i >= 0 {
 			line = line[:i]
 		}
