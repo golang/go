@@ -143,6 +143,9 @@ func TestBasicOperations(t *testing.T) {
 		check(t, "TestBasicOperations (5)", &buf, "ab")
 
 		n, err = buf.Write(testBytes[2:26])
+		if err != nil {
+			t.Errorf("err should always be nil, but err == %s", err)
+		}
 		if n != 24 {
 			t.Errorf("wrote 24 bytes, but n == %d", n)
 		}
