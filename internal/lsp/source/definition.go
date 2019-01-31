@@ -42,7 +42,11 @@ func Identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 	// If the position is not an identifier but immediately follows
 	// an identifier or selector period (as is common when
 	// requesting a completion), use the path to the preceding node.
-	return identifier(ctx, v, f, pos-1)
+	result, err := identifier(ctx, v, f, pos-1)
+	if result == nil && err == nil {
+		err = fmt.Errorf("no identifier found")
+	}
+	return result, err
 }
 
 func (i *IdentifierInfo) Hover(q types.Qualifier) (string, error) {

@@ -423,7 +423,7 @@ func (d definitions) test(t *testing.T, s *server, typ bool) {
 			locs, err = s.Definition(context.Background(), params)
 		}
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("failed for %s: %v", src, err)
 		}
 		if len(locs) != 1 {
 			t.Errorf("got %d locations for definition, expected 1", len(locs))
