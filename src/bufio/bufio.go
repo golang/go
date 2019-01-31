@@ -381,6 +381,7 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
 // Calling UnreadByte after ReadLine will always unread the last byte read
 // (possibly a character belonging to the line end) even if that byte is not
 // part of the line returned by ReadLine.
+// At EOF, the line will be nil and err will be io.EOF.
 func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
 	line, err = b.ReadSlice('\n')
 	if err == ErrBufferFull {
