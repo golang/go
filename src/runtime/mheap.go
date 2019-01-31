@@ -1381,7 +1381,7 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
 			// This check also preserves the invariant that spans that have
 			// `scavenged` set are only ever in the `scav` treap, and
 			// those which have it unset are only in the `free` treap.
-			return
+			break
 		}
 		n := t.prev()
 		h.free.erase(t)
