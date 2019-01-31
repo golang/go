@@ -483,6 +483,10 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
 	var rest string
 	var err error
 
+	if stringContainsCTLByte(rawurl) {
+		return nil, errors.New("net/url: invalid control character in URL")
+	}
+
 	if rawurl == "" && viaRequest {
 		return nil, errors.New("empty url")
 	}
@@ -1101,4 +1105,15 @@ func validUserinfo(s string) bool {
 		}
 	}
 	return true
+}
+
+// stringContainsCTLByte reports whether s contains any ASCII control character.
+func stringContainsCTLByte(s string) bool {
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if b < ' ' || b == 0x7f {
+			return true
+		}
+	}
+	return false
 }
