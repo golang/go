@@ -1021,18 +1021,24 @@ label1:
 //	VSX move from VSR, XX1-form
 //	<MNEMONIC> XS,RA produces
 //	<mnemonic> RA,XS
+//	Extended mnemonics accept VMX and FP registers as sources
 	MFVSRD	    VS0, R1
 	MFVSRWZ	    VS33, R1
 	MFVSRLD	    VS63, R1
+	MFVRD       V0, R1
+	MFFPRD      F0, R1
 
 //	VSX move to VSR, XX1-form
 //	<MNEMONIC> RA,XT produces
 //	<mnemonic> XT,RA
+//	Extended mnemonics accept VMX and FP registers as targets
 	MTVSRD	    R1, VS0
 	MTVSRWA	    R1, VS31
 	MTVSRWZ	    R1, VS63
 	MTVSRDD	    R1, R2, VS0
 	MTVSRWS	    R1, VS32
+	MTVRD       R1, V13
+	MTFPRD      R1, F24
 
 //	VSX AND, XX3-form
 //	<MNEMONIC> XA,XB,XT produces
