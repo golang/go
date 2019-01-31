@@ -560,7 +560,7 @@ func FindModulePath(dir string) (string, error) {
 		return "github.com/" + string(m[1]), nil
 	}
 
-	return "", fmt.Errorf("cannot determine module path for source directory %s (outside GOPATH, no import comments)", dir)
+	return "", fmt.Errorf("cannot determine module path for source directory %s (outside GOPATH, no import comments). \nplease provide a module for init, go mod init [module]. go to https://golang.org/cmd/go/#hdr-Initialize_new_module_in_current_directory for more information.", dir)
 }
 
 var (
