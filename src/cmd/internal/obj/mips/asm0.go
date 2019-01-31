@@ -722,8 +722,6 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
 		a2 = C_REG
 	}
 
-	//print("oplook %P %d %d %d\n", p, a1, a2, a3);
-
 	ops := oprange[p.As&obj.AMask]
 	c1 := &xcmp[a1]
 	c3 := &xcmp[a3]

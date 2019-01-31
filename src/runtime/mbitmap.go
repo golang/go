@@ -1667,15 +1667,12 @@ Run:
 			if n == 0 {
 				// Program is over; continue in trailer if present.
 				if trailer != nil {
-					//println("trailer")
 					p = trailer
 					trailer = nil
 					continue
 				}
-				//println("done")
 				break Run
 			}
-			//println("lit", n, dst)
 			nbyte := n / 8
 			for i := uintptr(0); i < nbyte; i++ {
 				bits |= uintptr(*p) << nbits

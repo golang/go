@@ -1211,7 +1211,6 @@ HaveSpan:
 	*stat += uint64(npage << _PageShift)
 	memstats.heap_idle -= uint64(npage << _PageShift)
 
-	//println("spanalloc", hex(s.start<<_PageShift))
 	if s.inList() {
 		throw("still in list")
 	}
