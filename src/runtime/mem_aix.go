@@ -22,7 +22,6 @@ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
 			print("runtime: mmap: too much locked memory (check 'ulimit -l').\n")
 			exit(2)
 		}
-		//println("sysAlloc failed: ", err)
 		return nil
 	}
 	mSysStatInc(sysStat, n)
