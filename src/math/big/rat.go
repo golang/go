@@ -339,6 +339,13 @@ func (z *Rat) SetInt64(x int64) *Rat {
 	return z
 }
 
+// SetUint64 sets z to x and returns z.
+func (z *Rat) SetUint64(x uint64) *Rat {
+	z.a.SetUint64(x)
+	z.b.abs = z.b.abs[:0]
+	return z
+}
+
 // Set sets z to x (by making a copy of x) and returns z.
 func (z *Rat) Set(x *Rat) *Rat {
 	if z != x {
