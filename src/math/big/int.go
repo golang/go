@@ -448,6 +448,12 @@ func (x *Int) BitLen() int {
 	return x.abs.bitLen()
 }
 
+// TrailingZeroBits returns the number of consecutive least significant zero
+// bits of |x|.
+func (x *Int) TrailingZeroBits() uint {
+	return x.abs.trailingZeroBits()
+}
+
 // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
 // If m == nil or m == 0, z = x**y unless y <= 0 then z = 1.
 //

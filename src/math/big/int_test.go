@@ -1335,6 +1335,31 @@ func TestBitSet(t *testing.T) {
 	}
 }
 
+var tzbTests = []struct {
+	in  string
+	out uint
+}{
+	{"0", 0},
+	{"1", 0},
+	{"-1", 0},
+	{"4", 2},
+	{"-8", 3},
+	{"0x4000000000000000000", 74},
+	{"-0x8000000000000000000", 75},
+}
+
+func TestTrailingZeroBits(t *testing.T) {
+	for i, test := range tzbTests {
+		in, _ := new(Int).SetString(test.in, 0)
+		want := test.out
+		got := in.TrailingZeroBits()
+
+		if got != want {
+			t.Errorf("#%d: got %v want %v", i, got, want)
+		}
+	}
+}
+
 func BenchmarkBitset(b *testing.B) {
 	z := new(Int)
 	z.SetBit(z, 512, 1)
