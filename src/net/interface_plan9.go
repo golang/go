@@ -159,7 +159,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 		}
 		line, ok := statusf.readLine()
 		if !ok {
-			return nil, errors.New("cannot parse IP address for interface: " + status)
+			return nil, errors.New("cannot read IP address for interface: " + status)
 		}
 
 		// This assumes only a single address for the interface.
