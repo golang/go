@@ -1,0 +1,12 @@
+package func_rank
+
+var stringAVar = "var" //@item(stringAVar, "stringAVar", "string", "var")
+func stringBFunc() string { return "str" } //@item(stringBFunc, "stringBFunc()", "string", "func")
+type stringer struct{}   //@item(stringer, "stringer", "struct{...}", "struct")
+
+func _() stringer //@complete("tr", stringer, stringAVar, stringBFunc)
+
+func _(val stringer) {} //@complete("tr", stringer, stringAVar, stringBFunc)
+
+func (stringer) _() {} //@complete("tr", stringer, stringAVar, stringBFunc)
+
