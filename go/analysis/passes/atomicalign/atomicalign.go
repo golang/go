@@ -21,7 +21,7 @@ import (
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "atomicalign",
-	Doc:      "check for non-64-bit-aligned arguments to sync/atomic functions",
+	Doc:      "check for non-64-bits-aligned arguments to sync/atomic functions",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -70,7 +70,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func check64BitAlignment(pass *analysis.Pass, funcName string, arg ast.Expr) {
-	// Checks the argument is made of the address operator (&) applied
+	// Checks the argument is made of the address operator (&) applied to
 	// to a struct field (as opposed to a variable as the first word of
 	// uint64 and int64 variables can be relied upon to be 64-bit aligned.
 	unary, ok := arg.(*ast.UnaryExpr)
@@ -80,18 +80,16 @@ func check64BitAlignment(pass *analysis.Pass, funcName string, arg ast.Expr) {
 
 	// Retrieve the types.Struct in order to get the offset of the
 	// atomically accessed field.
-	selector, ok := unary.X.(*ast.SelectorExpr)
+	sel, ok := unary.X.(*ast.SelectorExpr)
 	if !ok {
 		return
 	}
-
-	sel := pass.TypesInfo.Selections[selector]
-	tvar, ok := sel.Obj().(*types.Var)
+	tvar, ok := pass.TypesInfo.Selections[sel].Obj().(*types.Var)
 	if !ok || !tvar.IsField() {
 		return
 	}
 
-	stype, ok := sel.Recv().Underlying().(*types.Struct)
+	stype, ok := pass.TypesInfo.Types[sel.X].Type.Underlying().(*types.Struct)
 	if !ok {
 		return
 	}

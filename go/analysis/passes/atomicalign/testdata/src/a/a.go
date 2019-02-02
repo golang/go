@@ -228,22 +228,3 @@ func embeddedStructFields() {
 	atomic.AddUint64(&s1.b, 9) // want "address of non 64-bit aligned field .b passed to atomic.AddUint64"
 	atomic.AddInt64(&s1.c, 9)
 }
-
-type t struct {
-	_ int32
-	a int64
-	_ int16
-	_ int16
-	b uint64
-}
-
-func (t *t) structPointerReceiver() {
-	atomic.LoadInt64(&t.a) // want "address of non 64-bit aligned field .a passed to atomic.LoadInt64"
-	atomic.LoadUint64(&t.b)
-}
-
-func structPointer() {
-	t := &t{}
-	atomic.StoreInt64(&t.a, -1) // want "address of non 64-bit aligned field .a passed to atomic.StoreInt64"
-	atomic.StoreUint64(&t.b, 1)
-}
