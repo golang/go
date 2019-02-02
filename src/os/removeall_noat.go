@@ -11,11 +11,7 @@ import (
 	"syscall"
 )
 
-// RemoveAll removes path and any children it contains.
-// It removes everything it can but returns the first error
-// it encounters. If the path does not exist, RemoveAll
-// returns nil (no error).
-func RemoveAll(path string) error {
+func removeAll(path string) error {
 	if path == "" {
 		// fail silently to retain compatibility with previous behavior
 		// of RemoveAll. See issue 28830.

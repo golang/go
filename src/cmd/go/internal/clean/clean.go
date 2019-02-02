@@ -152,7 +152,9 @@ func runClean(cmd *base.Command, args []string) {
 				prev, _ := strconv.ParseInt(strings.TrimSpace(string(buf)), 10, 64)
 				if now > prev {
 					if err = f.Truncate(0); err == nil {
-						_, err = fmt.Fprintf(f, "%d\n", now)
+						if _, err = f.Seek(0, 0); err == nil {
+							_, err = fmt.Fprintf(f, "%d\n", now)
+						}
 					}
 				}
 				if closeErr := f.Close(); err == nil {

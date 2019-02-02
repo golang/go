@@ -1374,13 +1374,27 @@ func TestWalkSymlink(t *testing.T) {
 }
 
 func TestIssue29372(t *testing.T) {
-	f, err := ioutil.TempFile("", "issue29372")
+	tmpDir, err := ioutil.TempDir("", "TestIssue29372")
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
-	path := f.Name()
-	defer os.Remove(path)
+	defer os.RemoveAll(tmpDir)
+
+	if runtime.GOOS == "windows" {
+		// This test is broken on windows, if temporary directory
+		// is a symlink. See issue 29746.
+		// TODO(brainman): Remove this hack once issue #29746 is fixed.
+		tmpDir, err = filepath.EvalSymlinks(tmpDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	path := filepath.Join(tmpDir, "file.txt")
+	err = ioutil.WriteFile(path, nil, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	pathSeparator := string(filepath.Separator)
 	tests := []string{

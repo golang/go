@@ -3197,7 +3197,7 @@ func rewriteValue386_Op386CMPB_0(v *Value) bool {
 			break
 		}
 		v.reset(Op386InvertFlags)
-		v0 := b.NewValue0(v.Pos, Op386CMPBload, types.TypeFlags)
+		v0 := b.NewValue0(l.Pos, Op386CMPBload, types.TypeFlags)
 		v0.AuxInt = off
 		v0.Aux = sym
 		v0.AddArg(ptr)
@@ -3381,7 +3381,7 @@ func rewriteValue386_Op386CMPBconst_0(v *Value) bool {
 			break
 		}
 		b = l.Block
-		v0 := b.NewValue0(v.Pos, Op386CMPBconstload, types.TypeFlags)
+		v0 := b.NewValue0(l.Pos, Op386CMPBconstload, types.TypeFlags)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = makeValAndOff(c, off)
@@ -3501,7 +3501,7 @@ func rewriteValue386_Op386CMPL_0(v *Value) bool {
 			break
 		}
 		v.reset(Op386InvertFlags)
-		v0 := b.NewValue0(v.Pos, Op386CMPLload, types.TypeFlags)
+		v0 := b.NewValue0(l.Pos, Op386CMPLload, types.TypeFlags)
 		v0.AuxInt = off
 		v0.Aux = sym
 		v0.AddArg(ptr)
@@ -3704,7 +3704,7 @@ func rewriteValue386_Op386CMPLconst_10(v *Value) bool {
 			break
 		}
 		b = l.Block
-		v0 := b.NewValue0(v.Pos, Op386CMPLconstload, types.TypeFlags)
+		v0 := b.NewValue0(l.Pos, Op386CMPLconstload, types.TypeFlags)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = makeValAndOff(c, off)
@@ -3824,7 +3824,7 @@ func rewriteValue386_Op386CMPW_0(v *Value) bool {
 			break
 		}
 		v.reset(Op386InvertFlags)
-		v0 := b.NewValue0(v.Pos, Op386CMPWload, types.TypeFlags)
+		v0 := b.NewValue0(l.Pos, Op386CMPWload, types.TypeFlags)
 		v0.AuxInt = off
 		v0.Aux = sym
 		v0.AddArg(ptr)
@@ -4008,7 +4008,7 @@ func rewriteValue386_Op386CMPWconst_0(v *Value) bool {
 			break
 		}
 		b = l.Block
-		v0 := b.NewValue0(v.Pos, Op386CMPWconstload, types.TypeFlags)
+		v0 := b.NewValue0(l.Pos, Op386CMPWconstload, types.TypeFlags)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = makeValAndOff(c, off)
@@ -4957,7 +4957,7 @@ func rewriteValue386_Op386MOVBLSX_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, Op386MOVBLSXload, v.Type)
+		v0 := b.NewValue0(x.Pos, Op386MOVBLSXload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -5062,7 +5062,7 @@ func rewriteValue386_Op386MOVBLZX_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, Op386MOVBload, v.Type)
+		v0 := b.NewValue0(x.Pos, Op386MOVBload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -10726,7 +10726,7 @@ func rewriteValue386_Op386MOVWLSX_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, Op386MOVWLSXload, v.Type)
+		v0 := b.NewValue0(x.Pos, Op386MOVWLSXload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -10831,7 +10831,7 @@ func rewriteValue386_Op386MOVWLZX_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, Op386MOVWload, v.Type)
+		v0 := b.NewValue0(x.Pos, Op386MOVWload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -14209,7 +14209,7 @@ func rewriteValue386_Op386ORL_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, Op386MOVWload, typ.UInt16)
+		v0 := b.NewValue0(x1.Pos, Op386MOVWload, typ.UInt16)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -14258,7 +14258,7 @@ func rewriteValue386_Op386ORL_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, Op386MOVWload, typ.UInt16)
+		v0 := b.NewValue0(x0.Pos, Op386MOVWload, typ.UInt16)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -14334,7 +14334,7 @@ func rewriteValue386_Op386ORL_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+		v0 := b.NewValue0(x2.Pos, Op386MOVLload, typ.UInt32)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -14410,7 +14410,7 @@ func rewriteValue386_Op386ORL_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+		v0 := b.NewValue0(x2.Pos, Op386MOVLload, typ.UInt32)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -14486,7 +14486,7 @@ func rewriteValue386_Op386ORL_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+		v0 := b.NewValue0(x1.Pos, Op386MOVLload, typ.UInt32)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -14562,7 +14562,7 @@ func rewriteValue386_Op386ORL_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+		v0 := b.NewValue0(x0.Pos, Op386MOVLload, typ.UInt32)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0

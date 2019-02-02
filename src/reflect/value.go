@@ -561,10 +561,11 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
 				continue
 			}
 			addr := add(ptr, off, "typ.size > 0")
+			// We are writing to stack. No write barrier.
 			if v.flag&flagIndir != 0 {
-				typedmemmove(typ, addr, v.ptr)
+				memmove(addr, v.ptr, typ.size)
 			} else {
-				*(*unsafe.Pointer)(addr) = v.ptr
+				*(*uintptr)(addr) = uintptr(v.ptr)
 			}
 			off += typ.size
 		}

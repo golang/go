@@ -474,7 +474,11 @@ func FuncForPC(pc uintptr) *Func {
 		return nil
 	}
 	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
-		if ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil); ix >= 0 {
+		// Note: strict=false so bad PCs (those between functions) don't crash the runtime.
+		// We just report the preceeding function in that situation. See issue 29735.
+		// TODO: Perhaps we should report no function at all in that case.
+		// The runtime currently doesn't have function end info, alas.
+		if ix := pcdatavalue1(f, _PCDATA_InlTreeIndex, pc, nil, false); ix >= 0 {
 			inltree := (*[1 << 20]inlinedCall)(inldata)
 			name := funcnameFromNameoff(f, inltree[ix].func_)
 			file, line := funcline(f, pc)
@@ -756,12 +760,22 @@ func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
 	return x
 }
 
+func pcdatastart(f funcInfo, table int32) int32 {
+	return *(*int32)(add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(table)*4))
+}
+
 func pcdatavalue(f funcInfo, table int32, targetpc uintptr, cache *pcvalueCache) int32 {
 	if table < 0 || table >= f.npcdata {
 		return -1
 	}
-	off := *(*int32)(add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(table)*4))
-	return pcvalue(f, off, targetpc, cache, true)
+	return pcvalue(f, pcdatastart(f, table), targetpc, cache, true)
+}
+
+func pcdatavalue1(f funcInfo, table int32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
+	if table < 0 || table >= f.npcdata {
+		return -1
+	}
+	return pcvalue(f, pcdatastart(f, table), targetpc, cache, strict)
 }
 
 func funcdata(f funcInfo, i uint8) unsafe.Pointer {

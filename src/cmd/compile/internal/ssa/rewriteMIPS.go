@@ -3502,7 +3502,7 @@ func rewriteValueMIPS_OpMIPSMOVBUreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpMIPSMOVBUload, t)
+		v0 := b.NewValue0(x.Pos, OpMIPSMOVBUload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -3663,7 +3663,7 @@ func rewriteValueMIPS_OpMIPSMOVBreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpMIPSMOVBload, t)
+		v0 := b.NewValue0(x.Pos, OpMIPSMOVBload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -4359,7 +4359,7 @@ func rewriteValueMIPS_OpMIPSMOVHUreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpMIPSMOVHUload, t)
+		v0 := b.NewValue0(x.Pos, OpMIPSMOVHUload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -4570,7 +4570,7 @@ func rewriteValueMIPS_OpMIPSMOVHreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpMIPSMOVHload, t)
+		v0 := b.NewValue0(x.Pos, OpMIPSMOVHload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off

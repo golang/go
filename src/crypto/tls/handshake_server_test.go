@@ -1697,3 +1697,46 @@ func TestCloneHash(t *testing.T) {
 		t.Error("cloned hash generated a different sum")
 	}
 }
+
+func TestKeyTooSmallForRSAPSS(t *testing.T) {
+	clientConn, serverConn := localPipe(t)
+	client := Client(clientConn, testConfig)
+	cert, err := X509KeyPair([]byte(`-----BEGIN CERTIFICATE-----
+MIIBcTCCARugAwIBAgIQGjQnkCFlUqaFlt6ixyz/tDANBgkqhkiG9w0BAQsFADAS
+MRAwDgYDVQQKEwdBY21lIENvMB4XDTE5MDExODIzMjMyOFoXDTIwMDExODIzMjMy
+OFowEjEQMA4GA1UEChMHQWNtZSBDbzBcMA0GCSqGSIb3DQEBAQUAA0sAMEgCQQDd
+ez1rFUDwax2HTxbcnFUP9AhcgEGMHVV2nn4VVEWFJB6I8C/Nkx0XyyQlrmFYBzEQ
+nIPhKls4T0hFoLvjJnXpAgMBAAGjTTBLMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUE
+DDAKBggrBgEFBQcDATAMBgNVHRMBAf8EAjAAMBYGA1UdEQQPMA2CC2V4YW1wbGUu
+Y29tMA0GCSqGSIb3DQEBCwUAA0EAxDuUS+BrrS3c+h+k+fQPOmOScy6yTX9mHw0Q
+KbucGamXYEy0URIwOdO0tQ3LHPc1YGvYSPwkDjkjqECs2Vm/AA==
+-----END CERTIFICATE-----`), []byte(`-----BEGIN RSA PRIVATE KEY-----
+MIIBOgIBAAJBAN17PWsVQPBrHYdPFtycVQ/0CFyAQYwdVXaefhVURYUkHojwL82T
+HRfLJCWuYVgHMRCcg+EqWzhPSEWgu+MmdekCAwEAAQJBALjQYNTdXF4CFBbXwUz/
+yt9QFDYT9B5WT/12jeGAe653gtYS6OOi/+eAkGmzg1GlRnw6fOfn+HYNFDORST7z
+4j0CIQDn2xz9hVWQEu9ee3vecNT3f60huDGTNoRhtqgweQGX0wIhAPSLj1VcRZEz
+nKpbtU22+PbIMSJ+e80fmY9LIPx5N4HTAiAthGSimMR9bloz0EY3GyuUEyqoDgMd
+hXxjuno2WesoJQIgemilbcALXpxsLmZLgcQ2KSmaVr7jb5ECx9R+hYKTw1sCIG4s
+T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
+-----END RSA PRIVATE KEY-----`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		config := testConfig.Clone()
+		config.Certificates = []Certificate{cert}
+		config.MinVersion = VersionTLS13
+		server := Server(serverConn, config)
+		err := server.Handshake()
+		if !strings.Contains(err.Error(), "key size too small for PSS signature") {
+			t.Errorf(`expected "key size too small for PSS signature", got %q`, err)
+		}
+		close(done)
+	}()
+	err = client.Handshake()
+	if !strings.Contains(err.Error(), "handshake failure") {
+		t.Errorf(`expected "handshake failure", got %q`, err)
+	}
+	<-done
+}

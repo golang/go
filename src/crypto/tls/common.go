@@ -199,7 +199,7 @@ type ConnectionState struct {
 	Version                     uint16                // TLS version used by the connection (e.g. VersionTLS12)
 	HandshakeComplete           bool                  // TLS handshake is complete
 	DidResume                   bool                  // connection resumes a previous TLS connection
-	CipherSuite                 uint16                // cipher suite in use (TLS_RSA_WITH_RC4_128_SHA, ...)
+	CipherSuite                 uint16                // cipher suite in use (TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, ...)
 	NegotiatedProtocol          string                // negotiated next protocol (not guaranteed to be from Config.NextProtos)
 	NegotiatedProtocolIsMutual  bool                  // negotiated protocol was advertised by server (client side only)
 	ServerName                  string                // server name requested by client, if any (server side only)
@@ -315,7 +315,7 @@ const (
 // guide certificate selection in the GetCertificate callback.
 type ClientHelloInfo struct {
 	// CipherSuites lists the CipherSuites supported by the client (e.g.
-	// TLS_RSA_WITH_RC4_128_SHA).
+	// TLS_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256).
 	CipherSuites []uint16
 
 	// ServerName indicates the name of the server requested by the client
@@ -521,8 +521,11 @@ type Config struct {
 	// This should be used only for testing.
 	InsecureSkipVerify bool
 
-	// CipherSuites is a list of supported cipher suites. If CipherSuites
-	// is nil, TLS uses a list of suites supported by the implementation.
+	// CipherSuites is a list of supported cipher suites for TLS versions up to
+	// TLS 1.2. If CipherSuites is nil, a default list of secure cipher suites
+	// is used, with a preference order based on hardware performance. The
+	// default cipher suites might change over Go versions. Note that TLS 1.3
+	// ciphersuites are not configurable.
 	CipherSuites []uint16
 
 	// PreferServerCipherSuites controls whether the server selects the
