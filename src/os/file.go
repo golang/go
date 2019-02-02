@@ -382,6 +382,57 @@ func UserCacheDir() (string, error) {
 	return dir, nil
 }
 
+// UserConfigDir returns the default root directory to use for user-specific
+// configuration data. Users should create their own application-specific
+// subdirectory within this one and use that.
+//
+// On Unix systems, it returns $XDG_CONFIG_HOME as specified by
+// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html if
+// non-empty, else $HOME/.config.
+// On Darwin, it returns $HOME/Library/Preferences.
+// On Windows, it returns %AppData%.
+// On Plan 9, it returns $home/lib.
+//
+// If the location cannot be determined (for example, $HOME is not defined),
+// then it will return an error.
+func UserConfigDir() (string, error) {
+	var dir string
+
+	switch runtime.GOOS {
+	case "windows":
+		dir = Getenv("AppData")
+		if dir == "" {
+			return "", errors.New("%AppData% is not defined")
+		}
+
+	case "darwin":
+		dir = Getenv("HOME")
+		if dir == "" {
+			return "", errors.New("$HOME is not defined")
+		}
+		dir += "/Library/Preferences"
+
+	case "plan9":
+		dir = Getenv("home")
+		if dir == "" {
+			return "", errors.New("$home is not defined")
+		}
+		dir += "/lib"
+
+	default: // Unix
+		dir = Getenv("XDG_CONFIG_HOME")
+		if dir == "" {
+			dir = Getenv("HOME")
+			if dir == "" {
+				return "", errors.New("neither $XDG_CONFIG_HOME nor $HOME are defined")
+			}
+			dir += "/.config"
+		}
+	}
+
+	return dir, nil
+}
+
 // UserHomeDir returns the current user's home directory.
 //
 // On Unix, including macOS, it returns the $HOME environment variable.
