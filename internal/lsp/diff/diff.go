@@ -8,7 +8,7 @@ package diff
 import "strings"
 
 // Sources:
-// https://blog.jcoglan.com/2017/02/15/the-myers-diff-algorithm-part-3/
+// https://blog.jcoglan.com/2017/02/17/the-myers-diff-algorithm-part-3/
 // https://www.codeproject.com/Articles/42279/%2FArticles%2F42279%2FInvestigating-Myers-diff-algorithm-Part-1-of-2
 
 type Op struct {
