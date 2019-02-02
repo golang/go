@@ -359,7 +359,7 @@ func FormatText(w io.Writer, text []byte, line int, goSource bool, pattern strin
 		if line >= 0 {
 			lineTag = func(w io.Writer, _ int, start bool) {
 				if start {
-					fmt.Fprintf(w, "<span id=\"L%d\" class=\"ln\">%6d</span>\t", line, line)
+					fmt.Fprintf(w, "<span id=\"L%d\" class=\"ln\">%6d</span>", line, line)
 					line++
 				}
 			}
