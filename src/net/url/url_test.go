@@ -681,12 +681,6 @@ var parseRequestURLTests = []struct {
 	// RFC 6874.
 	{"http://[fe80::1%en0]/", false},
 	{"http://[fe80::1%en0]:8080/", false},
-
-	// Testing valid and invalid URL schemes
-	{"ahttp://example.com", true},
-	{" http://example.com", false},
-	{"+http://example.com", false},
-	{"1http://example.com", false},
 }
 
 func TestParseRequestURI(t *testing.T) {
@@ -1871,5 +1865,29 @@ func BenchmarkPathUnescape(b *testing.B) {
 			}
 
 		})
+	}
+}
+
+var urlSchemeValidTests = []struct {
+	url           string
+	expectedValid bool
+}{
+	{"ahttp://example.com", true},
+	{" http://example.com", false},
+	{"+http://example.com", false},
+	{"example.com", false},
+}
+
+func TestValidUrlSchemes(t *testing.T) {
+	for _, test := range urlSchemeValidTests {
+		_, err := ParseRequestURI(test.url)
+		if test.expectedValid && err != nil {
+			t.Errorf("ParseRequestURI(%q) gave err %v; want no error", test.url, err)
+		} else if !test.expectedValid && err == nil {
+			t.Errorf("ParseRequestURI(%q) gave nil error; want some error", test.url)
+		} else if !test.expectedValid && err != nil && !strings.ContainsAny(err.Error(), "Url scheme has invalid character!!") {
+			//t.Errorf("Error was %v", err.Error())
+			t.Errorf("ParseRequestURI(%q) gave error %v; want Invalid scheme error", test.url, err)
+		}
 	}
 }
