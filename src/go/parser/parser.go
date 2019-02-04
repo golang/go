@@ -63,6 +63,7 @@ type parser struct {
 	topScope   *ast.Scope        // top-most scope; may be pkgScope
 	unresolved []*ast.Ident      // unresolved identifiers
 	imports    []*ast.ImportSpec // list of imports
+	inStruct   bool              // if set, parser is parsing a struct or interface (for comment collection)
 
 	// Label scopes
 	// (maintained by open/close LabelScope)
@@ -337,7 +338,15 @@ func (p *parser) next() {
 		// consume successor comments, if any
 		endline = -1
 		for p.tok == token.COMMENT {
-			comment, endline = p.consumeCommentGroup(1)
+			n := 1
+			// When inside a struct (or interface), we don't want to lose comments
+			// separated from individual field (or method) documentation by empty
+			// lines. Allow for some white space in this case and collect those
+			// comments as a group. See issue #10858 for details.
+			if p.inStruct {
+				n = 2
+			}
+			comment, endline = p.consumeCommentGroup(n)
 		}
 
 		if endline+1 == p.file.Line(p.pos) {
@@ -748,6 +757,7 @@ func (p *parser) parseStructType() *ast.StructType {
 	}
 
 	pos := p.expect(token.STRUCT)
+	p.inStruct = true
 	lbrace := p.expect(token.LBRACE)
 	scope := ast.NewScope(nil) // struct scope
 	var list []*ast.Field
@@ -758,6 +768,7 @@ func (p *parser) parseStructType() *ast.StructType {
 		list = append(list, p.parseFieldDecl(scope))
 	}
 	rbrace := p.expect(token.RBRACE)
+	p.inStruct = false
 
 	return &ast.StructType{
 		Struct: pos,
@@ -959,6 +970,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	}
 
 	pos := p.expect(token.INTERFACE)
+	p.inStruct = true
 	lbrace := p.expect(token.LBRACE)
 	scope := ast.NewScope(nil) // interface scope
 	var list []*ast.Field
@@ -966,6 +978,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 		list = append(list, p.parseMethodSpec(scope))
 	}
 	rbrace := p.expect(token.RBRACE)
+	p.inStruct = false
 
 	return &ast.InterfaceType{
 		Interface: pos,
