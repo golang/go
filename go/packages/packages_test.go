@@ -554,17 +554,14 @@ func testLoadTypes(t *testing.T, exporter packagestest.Exporter) {
 		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
 	}
 
-	for _, test := range []struct {
-		id         string
-		wantSyntax bool
-	}{
-		{"golang.org/fake/a", true},  // need src, no export data for c
-		{"golang.org/fake/b", false}, // use export data
-		{"golang.org/fake/c", true},  // need src, no export data for c
+	for _, id := range []string{
+		"golang.org/fake/a",
+		"golang.org/fake/b",
+		"golang.org/fake/c",
 	} {
-		p := all[test.id]
+		p := all[id]
 		if p == nil {
-			t.Errorf("missing package: %s", test.id)
+			t.Errorf("missing package: %s", id)
 			continue
 		}
 		if p.Types == nil {
@@ -573,13 +570,7 @@ func testLoadTypes(t *testing.T, exporter packagestest.Exporter) {
 		} else if !p.Types.Complete() {
 			t.Errorf("incomplete types.Package for %s", p)
 		}
-		if (p.Syntax != nil) != test.wantSyntax {
-			if test.wantSyntax {
-				t.Errorf("missing ast.Files for %s", p)
-			} else {
-				t.Errorf("unexpected ast.Files for for %s", p)
-			}
-		}
+
 	}
 }
 
@@ -622,17 +613,18 @@ func testLoadSyntaxOK(t *testing.T, exporter packagestest.Exporter) {
 	}
 
 	for _, test := range []struct {
-		id           string
-		wantSyntax   bool
-		wantComplete bool
+		id string
 	}{
-		{"golang.org/fake/a", true, true},   // source package
-		{"golang.org/fake/b", true, true},   // source package
-		{"golang.org/fake/c", true, true},   // source package
-		{"golang.org/fake/d", false, true},  // export data package
-		{"golang.org/fake/e", false, false}, // export data package
-		{"golang.org/fake/f", false, false}, // export data package
+		{"golang.org/fake/a"}, // source package
+		{"golang.org/fake/b"}, // source package
+		{"golang.org/fake/c"}, // source package
+		{"golang.org/fake/d"}, // export data package
+		{"golang.org/fake/e"}, // export data package
+		{"golang.org/fake/f"}, // export data package
 	} {
+		// TODO(matloob): LoadSyntax and LoadAllSyntax are now equivalent, wantSyntax and wantComplete
+		// are true for all packages in the transitive dependency set. Add test cases on the individual
+		// Need* fields to check the equivalents on the new API.
 		p := all[test.id]
 		if p == nil {
 			t.Errorf("missing package: %s", test.id)
@@ -641,19 +633,9 @@ func testLoadSyntaxOK(t *testing.T, exporter packagestest.Exporter) {
 		if p.Types == nil {
 			t.Errorf("missing types.Package for %s", p)
 			continue
-		} else if p.Types.Complete() != test.wantComplete {
-			if test.wantComplete {
-				t.Errorf("incomplete types.Package for %s", p)
-			} else {
-				t.Errorf("unexpected complete types.Package for %s", p)
-			}
 		}
-		if (p.Syntax != nil) != test.wantSyntax {
-			if test.wantSyntax {
-				t.Errorf("missing ast.Files for %s", p)
-			} else {
-				t.Errorf("unexpected ast.Files for for %s", p)
-			}
+		if p.Syntax == nil {
+			t.Errorf("missing ast.Files for %s", p)
 		}
 		if p.Errors != nil {
 			t.Errorf("errors in package: %s: %s", p, p.Errors)
@@ -749,7 +731,7 @@ func testLoadSyntaxError(t *testing.T, exporter packagestest.Exporter) {
 		{"golang.org/fake/c", true, true},
 		{"golang.org/fake/d", true, true},
 		{"golang.org/fake/e", true, true},
-		{"golang.org/fake/f", false, false},
+		{"golang.org/fake/f", true, false},
 	} {
 		p := all[test.id]
 		if p == nil {
