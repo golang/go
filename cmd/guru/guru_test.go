@@ -236,10 +236,9 @@ func TestGuru(t *testing.T) {
 	}
 
 	for _, filename := range []string{
-		"testdata/src/alias/alias.go", // iff guru.HasAlias (go1.9)
+		"testdata/src/alias/alias.go",
 		"testdata/src/calls/main.go",
 		"testdata/src/describe/main.go",
-		"testdata/src/describe/main19.go", // iff go1.9
 		"testdata/src/freevars/main.go",
 		"testdata/src/implements/main.go",
 		"testdata/src/implements-methods/main.go",
@@ -256,7 +255,6 @@ func TestGuru(t *testing.T) {
 		"testdata/src/calls-json/main.go",
 		"testdata/src/peers-json/main.go",
 		"testdata/src/definition-json/main.go",
-		"testdata/src/definition-json/main19.go",
 		"testdata/src/describe-json/main.go",
 		"testdata/src/implements-json/main.go",
 		"testdata/src/implements-methods-json/main.go",
@@ -273,15 +271,6 @@ func TestGuru(t *testing.T) {
 				// wording for a "no such file or directory" error.
 				t.Skip()
 			}
-			if filename == "testdata/src/alias/alias.go" && !guru.HasAlias {
-				t.Skip()
-			}
-			if strings.HasSuffix(filename, "19.go") && !contains(build.Default.ReleaseTags, "go1.9") {
-				// TODO(adonovan): recombine the 'describe' and 'definition'
-				// tests once we drop support for go1.8.
-				t.Skip()
-			}
-
 			json := strings.Contains(filename, "-json/")
 			queries := parseQueries(t, filename)
 			golden := filename + "lden"
@@ -323,15 +312,6 @@ func TestGuru(t *testing.T) {
 			}
 		})
 	}
-}
-
-func contains(haystack []string, needle string) bool {
-	for _, x := range haystack {
-		if needle == x {
-			return true
-		}
-	}
-	return false
 }
 
 func TestIssue14684(t *testing.T) {

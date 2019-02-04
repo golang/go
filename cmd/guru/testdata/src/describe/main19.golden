@@ -1,6 +1,0 @@
--------- @describe badimport1 --------
-import of package "nosuchpkg"
-
--------- @describe badimport2 --------
-reference to package "nosuchpkg"
-
