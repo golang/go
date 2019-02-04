@@ -56,7 +56,8 @@ If a module under consideration is already a dependency of the current
 development module, then get will update the required version.
 Specifying a version earlier than the current required version is valid and
 downgrades the dependency. The version suffix @none indicates that the
-dependency should be removed entirely.
+dependency should be removed entirely, downgrading or removing modules
+depending on it as needed.
 
 Although get defaults to using the latest version of the module containing
 a named package, it does not use the latest version of that module's
