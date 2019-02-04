@@ -15,8 +15,6 @@
 //				http://godoc/pkg/compress/zlib)
 //
 
-// +build !golangorg
-
 package main
 
 import (
