@@ -13,7 +13,10 @@ import (
 )
 
 func (s *server) cacheAndDiagnose(ctx context.Context, uri protocol.DocumentURI, content string) {
-	sourceURI := fromProtocolURI(uri)
+	sourceURI, err := fromProtocolURI(uri)
+	if err != nil {
+		return // handle error?
+	}
 	if err := s.setContent(ctx, sourceURI, []byte(content)); err != nil {
 		return // handle error?
 	}

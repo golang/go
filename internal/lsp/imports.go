@@ -12,7 +12,11 @@ import (
 )
 
 func organizeImports(ctx context.Context, v source.View, uri protocol.DocumentURI) ([]protocol.TextEdit, error) {
-	f, err := v.GetFile(ctx, fromProtocolURI(uri))
+	sourceURI, err := fromProtocolURI(uri)
+	if err != nil {
+		return nil, err
+	}
+	f, err := v.GetFile(ctx, sourceURI)
 	if err != nil {
 		return nil, err
 	}

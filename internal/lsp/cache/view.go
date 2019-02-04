@@ -104,7 +104,7 @@ func (v *View) parse(uri source.URI) error {
 		}
 		return err
 	}
-
+	var foundPkg bool // true if we found a package for uri
 	for _, pkg := range pkgs {
 		if len(pkg.Syntax) == 0 {
 			return fmt.Errorf("no syntax trees for %s", pkg.PkgPath)
@@ -118,7 +118,13 @@ func (v *View) parse(uri source.URI) error {
 			f.token = fToken
 			f.ast = fAST
 			f.pkg = pkg
+			if fURI == uri {
+				foundPkg = true
+			}
 		}
+	}
+	if !foundPkg {
+		return fmt.Errorf("no package found for %v", uri)
 	}
 	return nil
 }
