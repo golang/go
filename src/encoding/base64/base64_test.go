@@ -175,7 +175,7 @@ func TestDecoder(t *testing.T) {
 		testEqual(t, "Read from %q = length %v, want %v", p.encoded, count, len(p.decoded))
 		testEqual(t, "Decoding of %q = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded)
 		if err != io.EOF {
-			count, err = decoder.Read(dbuf)
+			_, err = decoder.Read(dbuf)
 		}
 		testEqual(t, "Read from %q = %v, want %v", p.encoded, err, io.EOF)
 	}
