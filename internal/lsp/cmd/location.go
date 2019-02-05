@@ -99,43 +99,43 @@ func parseLocation(value string) (Location, error) {
 	}
 	loc.Filename = m[posReFile]
 	if m[posReSLine] != "" {
-		if v, err := strconv.ParseInt(m[posReSLine], 10, 32); err != nil {
+		v, err := strconv.ParseInt(m[posReSLine], 10, 32)
+		if err != nil {
 			return loc, err
-		} else {
-			loc.Start.Line = int(v)
 		}
-		if v, err := strconv.ParseInt(m[posReSCol], 10, 32); err != nil {
+		loc.Start.Line = int(v)
+		v, err = strconv.ParseInt(m[posReSCol], 10, 32)
+		if err != nil {
 			return loc, err
-		} else {
-			loc.Start.Column = int(v)
 		}
+		loc.Start.Column = int(v)
 	} else {
-		if v, err := strconv.ParseInt(m[posReSOff], 10, 32); err != nil {
+		v, err := strconv.ParseInt(m[posReSOff], 10, 32)
+		if err != nil {
 			return loc, err
-		} else {
-			loc.Start.Offset = int(v)
 		}
+		loc.Start.Offset = int(v)
 	}
 	if m[posReEnd] == "" {
 		loc.End = loc.Start
 	} else {
 		if m[posReELine] != "" {
-			if v, err := strconv.ParseInt(m[posReELine], 10, 32); err != nil {
+			v, err := strconv.ParseInt(m[posReELine], 10, 32)
+			if err != nil {
 				return loc, err
-			} else {
-				loc.End.Line = int(v)
 			}
-			if v, err := strconv.ParseInt(m[posReECol], 10, 32); err != nil {
+			loc.End.Line = int(v)
+			v, err = strconv.ParseInt(m[posReECol], 10, 32)
+			if err != nil {
 				return loc, err
-			} else {
-				loc.End.Column = int(v)
 			}
+			loc.End.Column = int(v)
 		} else {
-			if v, err := strconv.ParseInt(m[posReEOff], 10, 32); err != nil {
+			v, err := strconv.ParseInt(m[posReEOff], 10, 32)
+			if err != nil {
 				return loc, err
-			} else {
-				loc.End.Offset = int(v)
 			}
+			loc.End.Offset = int(v)
 		}
 	}
 	return loc, nil

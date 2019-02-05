@@ -101,7 +101,10 @@ func (s *Server) Run(ctx context.Context, args ...string) error {
 			msec := int(elapsed.Round(time.Millisecond) / time.Millisecond)
 			fmt.Fprintf(outx, " in %dms", msec)
 		}
-		params := string(*payload)
+		params := "null"
+		if payload != nil {
+			params = string(*payload)
+		}
 		if params == "null" {
 			params = "{}"
 		}

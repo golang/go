@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"go/token"
+
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/tool"
 )
