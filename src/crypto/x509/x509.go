@@ -2272,21 +2272,25 @@ type CertificateRequest struct {
 
 	Subject pkix.Name
 
-	// Attributes is the dried husk of a bug and shouldn't be used.
+	// Attributes contains the CSR attributes that can parse as
+	// pkix.AttributeTypeAndValueSET.
+	//
+	// Deprecated: use Extensions and ExtraExtensions instead for parsing and
+	// generating the requestedExtensions attribute.
 	Attributes []pkix.AttributeTypeAndValueSET
 
-	// Extensions contains raw X.509 extensions. When parsing CSRs, this
-	// can be used to extract extensions that are not parsed by this
+	// Extensions contains all requested extensions, in raw form. When parsing
+	// CSRs, this can be used to extract extensions that are not parsed by this
 	// package.
 	Extensions []pkix.Extension
 
-	// ExtraExtensions contains extensions to be copied, raw, into any
-	// marshaled CSR. Values override any extensions that would otherwise
-	// be produced based on the other fields but are overridden by any
-	// extensions specified in Attributes.
+	// ExtraExtensions contains extensions to be copied, raw, into any CSR
+	// marshaled by CreateCertificateRequest. Values override any extensions
+	// that would otherwise be produced based on the other fields but are
+	// overridden by any extensions specified in Attributes.
 	//
-	// The ExtraExtensions field is not populated when parsing CSRs, see
-	// Extensions.
+	// The ExtraExtensions field is not populated by ParseCertificateRequest,
+	// see Extensions instead.
 	ExtraExtensions []pkix.Extension
 
 	// Subject Alternate Name values.
@@ -2385,21 +2389,21 @@ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error)
 // CreateCertificateRequest creates a new certificate request based on a
 // template. The following members of template are used:
 //
-//  - Attributes
-//  - DNSNames
-//  - EmailAddresses
-//  - ExtraExtensions
-//  - IPAddresses
-//  - URIs
 //  - SignatureAlgorithm
 //  - Subject
+//  - DNSNames
+//  - EmailAddresses
+//  - IPAddresses
+//  - URIs
+//  - ExtraExtensions
+//  - Attributes (deprecated)
 //
-// The private key is the private key of the signer.
+// priv is the private key to sign the CSR with, and the corresponding public
+// key will be included in the CSR. It must implement crypto.Signer and its
+// Public() method must return a *rsa.PublicKey or a *ecdsa.PublicKey. (A
+// *rsa.PrivateKey or *ecdsa.PrivateKey satisfies this.)
 //
 // The returned slice is the certificate request in DER encoding.
-//
-// All keys types that are implemented via crypto.Signer are supported (This
-// includes *rsa.PublicKey and *ecdsa.PublicKey.)
 func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv interface{}) (csr []byte, err error) {
 	key, ok := priv.(crypto.Signer)
 	if !ok {
