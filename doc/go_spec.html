@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of November 16, 2018",
+	"Subtitle": "Version of February 16, 2019",
 	"Path": "/ref/spec"
 }-->
 
@@ -3439,7 +3439,7 @@ to the type of the other operand.
 </p>
 
 <p>
-The right operand in a shift expression must have unsigned integer type
+The right operand in a shift expression must have integer type
 or be an untyped constant <a href="#Representability">representable</a> by a
 value of type <code>uint</code>.
 If the left operand of a non-constant shift expression is an untyped constant,
@@ -3586,7 +3586,9 @@ be replaced by a bitwise AND operation:
 
 <p>
 The shift operators shift the left operand by the shift count specified by the
-right operand. They implement arithmetic shifts if the left operand is a signed
+right operand, which must be positive. If the shift count is negative at run time,
+a <a href="#Run_time_panics">run-time panic</a> occurs.
+The shift operators implement arithmetic shifts if the left operand is a signed
 integer and logical shifts if it is an unsigned integer.
 There is no upper limit on the shift count. Shifts behave
 as if the left operand is shifted <code>n</code> times by 1 for a shift
@@ -5921,7 +5923,7 @@ var a = complex(2, -2)             // complex128
 const b = complex(1.0, -1.4)       // untyped complex constant 1 - 1.4i
 x := float32(math.Cos(math.Pi/2))  // float32
 var c64 = complex(5, -x)           // complex64
-var s uint = complex(1, 0)         // untyped complex constant 1 + 0i can be converted to uint
+var s int = complex(1, 0)          // untyped complex constant 1 + 0i can be converted to int
 _ = complex(1, 2&lt;&lt;s)               // illegal: 2 assumes floating-point type, cannot shift
 var rl = real(c64)                 // float32
 var im = imag(a)                   // float64
