@@ -1612,6 +1612,8 @@ restore:
 
 	RET
 
+// runtime.debugCallCheck assumes that functions defined with the
+// DEBUG_CALL_FN macro are safe points to inject calls.
 #define DEBUG_CALL_FN(NAME,MAXSIZE)		\
 TEXT NAME(SB),WRAPPER,$MAXSIZE-0;		\
 	NO_LOCAL_POINTERS;			\
