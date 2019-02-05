@@ -406,7 +406,8 @@ for {
   and renegotiation are available in TLS 1.3 and provide equivalent or
   better security and performance. Note that even though TLS 1.3 is backwards
   compatible with previous versions, certain legacy systems might not work
-  correctly when attempting to negotiate it.
+  correctly when attempting to negotiate it. RSA certificate keys too small
+  to be secure (including 512-bit keys) will not work with TLS 1.3.
 </p>
 
 <p>
@@ -500,13 +501,6 @@ for {
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
-    <p><!-- CL 146258 -->
-      TLS 1.2 clients and servers will now advertise and accept RSA-PSS
-      signature algorithms for use with regular RSA public keys. Certain
-      insecure certificate keys (including 512-bit RSA keys) will
-      now cause a handshake failure if RSA-PSS is selected.
-    </p>
-
     <p><!-- CL 143177 -->
       If a client sends an initial message that does not look like TLS, the server
       will no longer reply with an alert, and it will expose the underlying

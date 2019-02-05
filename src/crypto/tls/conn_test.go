@@ -142,6 +142,7 @@ func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 
 	handshakeDone := make(chan struct{})
 	recordSizesChan := make(chan []int, 1)
+	defer func() { <-recordSizesChan }() // wait for the goroutine to exit
 	go func() {
 		// This goroutine performs a TLS handshake over clientConn and
 		// then reads TLS records until EOF. It writes a slice that

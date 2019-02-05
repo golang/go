@@ -1211,6 +1211,33 @@ func TestHandshakeServerRSAPSS(t *testing.T) {
 	runServerTestTLS13(t, test)
 }
 
+func TestHandshakeServerPSSDisabled(t *testing.T) {
+	test := &serverTest{
+		name:    "RSA-PSS-Disabled",
+		command: []string{"openssl", "s_client", "-no_ticket"},
+		wait:    true,
+	}
+
+	// Restore the default signature algorithms, disabling RSA-PSS in TLS 1.2,
+	// and check that handshakes still work.
+	testSupportedSignatureAlgorithmsTLS12 := supportedSignatureAlgorithmsTLS12
+	defer func() { supportedSignatureAlgorithmsTLS12 = testSupportedSignatureAlgorithmsTLS12 }()
+	supportedSignatureAlgorithmsTLS12 = savedSupportedSignatureAlgorithmsTLS12
+
+	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
+
+	test = &serverTest{
+		name:    "RSA-PSS-Disabled-Required",
+		command: []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha256"},
+		wait:    true,
+
+		expectHandshakeErrorIncluding: "peer doesn't support any common signature algorithms",
+	}
+
+	runServerTestTLS12(t, test)
+}
+
 func benchmarkHandshakeServer(b *testing.B, version uint16, cipherSuite uint16, curve CurveID, cert []byte, key crypto.PrivateKey) {
 	config := testConfig.Clone()
 	config.CipherSuites = []uint16{cipherSuite}
@@ -1390,49 +1417,82 @@ func TestClientAuth(t *testing.T) {
 		defer os.Remove(ecdsaCertPath)
 		ecdsaKeyPath = tempFile(clientECDSAKeyPEM)
 		defer os.Remove(ecdsaKeyPath)
-	} else {
-		t.Parallel()
 	}
 
-	config := testConfig.Clone()
-	config.ClientAuth = RequestClientCert
+	t.Run("Normal", func(t *testing.T) {
+		config := testConfig.Clone()
+		config.ClientAuth = RequestClientCert
 
-	test := &serverTest{
-		name:    "ClientAuthRequestedNotGiven",
-		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA"},
-		config:  config,
-	}
-	runServerTestTLS12(t, test)
-	runServerTestTLS13(t, test)
+		test := &serverTest{
+			name:    "ClientAuthRequestedNotGiven",
+			command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA"},
+			config:  config,
+		}
+		runServerTestTLS12(t, test)
+		runServerTestTLS13(t, test)
 
-	test = &serverTest{
-		name: "ClientAuthRequestedAndGiven",
-		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
-			"-cert", certPath, "-key", keyPath, "-sigalgs", "rsa_pss_rsae_sha256"},
-		config:            config,
-		expectedPeerCerts: []string{clientCertificatePEM},
-	}
-	runServerTestTLS12(t, test)
-	runServerTestTLS13(t, test)
+		config.ClientAuth = RequireAnyClientCert
 
-	test = &serverTest{
-		name: "ClientAuthRequestedAndECDSAGiven",
-		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
-			"-cert", ecdsaCertPath, "-key", ecdsaKeyPath},
-		config:            config,
-		expectedPeerCerts: []string{clientECDSACertificatePEM},
-	}
-	runServerTestTLS12(t, test)
-	runServerTestTLS13(t, test)
+		test = &serverTest{
+			name: "ClientAuthRequestedAndGiven",
+			command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
+				"-cert", certPath, "-key", keyPath, "-sigalgs", "rsa_pss_rsae_sha256"},
+			config:            config,
+			expectedPeerCerts: []string{clientCertificatePEM},
+		}
+		runServerTestTLS12(t, test)
+		runServerTestTLS13(t, test)
 
-	test = &serverTest{
-		name: "ClientAuthRequestedAndPKCS1v15Given",
-		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
-			"-cert", certPath, "-key", keyPath, "-sigalgs", "rsa_pkcs1_sha256"},
-		config:            config,
-		expectedPeerCerts: []string{clientCertificatePEM},
-	}
-	runServerTestTLS12(t, test)
+		test = &serverTest{
+			name: "ClientAuthRequestedAndECDSAGiven",
+			command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
+				"-cert", ecdsaCertPath, "-key", ecdsaKeyPath},
+			config:            config,
+			expectedPeerCerts: []string{clientECDSACertificatePEM},
+		}
+		runServerTestTLS12(t, test)
+		runServerTestTLS13(t, test)
+
+		test = &serverTest{
+			name: "ClientAuthRequestedAndPKCS1v15Given",
+			command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
+				"-cert", certPath, "-key", keyPath, "-sigalgs", "rsa_pkcs1_sha256"},
+			config:            config,
+			expectedPeerCerts: []string{clientCertificatePEM},
+		}
+		runServerTestTLS12(t, test)
+	})
+
+	// Restore the default signature algorithms, disabling RSA-PSS in TLS 1.2,
+	// and check that handshakes still work.
+	testSupportedSignatureAlgorithmsTLS12 := supportedSignatureAlgorithmsTLS12
+	defer func() { supportedSignatureAlgorithmsTLS12 = testSupportedSignatureAlgorithmsTLS12 }()
+	supportedSignatureAlgorithmsTLS12 = savedSupportedSignatureAlgorithmsTLS12
+
+	t.Run("PSSDisabled", func(t *testing.T) {
+		config := testConfig.Clone()
+		config.ClientAuth = RequireAnyClientCert
+
+		test := &serverTest{
+			name: "ClientAuthRequestedAndGiven-PSS-Disabled",
+			command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
+				"-cert", certPath, "-key", keyPath},
+			config:            config,
+			expectedPeerCerts: []string{clientCertificatePEM},
+		}
+		runServerTestTLS12(t, test)
+		runServerTestTLS13(t, test)
+
+		test = &serverTest{
+			name: "ClientAuthRequestedAndGiven-PSS-Disabled-Required",
+			command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
+				"-cert", certPath, "-key", keyPath, "-client_sigalgs", "rsa_pss_rsae_sha256"},
+			config: config,
+
+			expectHandshakeErrorIncluding: "client didn't provide a certificate",
+		}
+		runServerTestTLS12(t, test)
+	})
 }
 
 func TestSNIGivenOnFailure(t *testing.T) {
@@ -1722,6 +1782,7 @@ T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	done := make(chan struct{})
 	go func() {
 		config := testConfig.Clone()
@@ -1739,4 +1800,15 @@ T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
 		t.Errorf(`expected "handshake failure", got %q`, err)
 	}
 	<-done
+
+	// With RSA-PSS disabled and TLS 1.2, this should work.
+
+	testSupportedSignatureAlgorithmsTLS12 := supportedSignatureAlgorithmsTLS12
+	defer func() { supportedSignatureAlgorithmsTLS12 = testSupportedSignatureAlgorithmsTLS12 }()
+	supportedSignatureAlgorithmsTLS12 = savedSupportedSignatureAlgorithmsTLS12
+
+	serverConfig := testConfig.Clone()
+	serverConfig.Certificates = []Certificate{cert}
+	serverConfig.MaxVersion = VersionTLS12
+	testHandshake(t, testConfig, serverConfig)
 }

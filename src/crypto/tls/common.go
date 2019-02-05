@@ -161,7 +161,7 @@ const (
 )
 
 // supportedSignatureAlgorithms contains the signature and hash algorithms that
-// the code advertises as supported in a TLS 1.2 ClientHello and in a TLS 1.2
+// the code advertises as supported in a TLS 1.2+ ClientHello and in a TLS 1.2+
 // CertificateRequest. The two fields are merged to match with TLS 1.3.
 // Note that in TLS 1.2, the ECDSA algorithms are not constrained to P-256, etc.
 var supportedSignatureAlgorithms = []SignatureScheme{
@@ -177,6 +177,9 @@ var supportedSignatureAlgorithms = []SignatureScheme{
 	PKCS1WithSHA1,
 	ECDSAWithSHA1,
 }
+
+// RSA-PSS is disabled in TLS 1.2 for Go 1.12. See Issue 30055.
+var supportedSignatureAlgorithmsTLS12 = supportedSignatureAlgorithms[3:]
 
 // helloRetryRequestRandom is set as the Random value of a ServerHello
 // to signal that the message is actually a HelloRetryRequest.
