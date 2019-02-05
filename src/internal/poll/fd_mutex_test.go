@@ -8,6 +8,7 @@ import (
 	. "internal/poll"
 	"math/rand"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -119,6 +120,27 @@ func TestMutexPanic(t *testing.T) {
 	mu.RWUnlock(true)
 	mu.RWLock(false)
 	mu.RWUnlock(false)
+}
+
+func TestMutexOverflowPanic(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("did not panic")
+		}
+		msg, ok := r.(string)
+		if !ok {
+			t.Fatalf("unexpected panic type %T", r)
+		}
+		if !strings.Contains(msg, "too many") || strings.Contains(msg, "inconsistent") {
+			t.Fatalf("wrong panic message %q", msg)
+		}
+	}()
+
+	var mu1 FDMutex
+	for i := 0; i < 1<<21; i++ {
+		mu1.Incref()
+	}
 }
 
 func TestMutexStress(t *testing.T) {

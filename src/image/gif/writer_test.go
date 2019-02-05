@@ -64,6 +64,10 @@ func averageDelta(m0, m1 image.Image) int64 {
 	return sum / n
 }
 
+// lzw.NewWriter wants an interface which is basically the same thing as gif's
+// writer interface.  This ensures we're compatible.
+var _ writer = blockWriter{}
+
 var testCase = []struct {
 	filename  string
 	tolerance int64
@@ -471,9 +475,64 @@ func TestEncodeBadPalettes(t *testing.T) {
 	}
 }
 
-func BenchmarkEncode(b *testing.B) {
-	b.StopTimer()
+func TestColorTablesMatch(t *testing.T) {
+	const trIdx = 100
+	global := color.Palette(palette.Plan9)
+	if rgb := global[trIdx].(color.RGBA); rgb.R == 0 && rgb.G == 0 && rgb.B == 0 {
+		t.Fatalf("trIdx (%d) is already black", trIdx)
+	}
 
+	// Make a copy of the palette, substituting trIdx's slot with transparent,
+	// just like decoder.decode.
+	local := append(color.Palette(nil), global...)
+	local[trIdx] = color.RGBA{}
+
+	const testLen = 3 * 256
+	const padded = 7
+	e := new(encoder)
+	if l, err := encodeColorTable(e.globalColorTable[:], global, padded); err != nil || l != testLen {
+		t.Fatalf("Failed to encode global color table: got %d, %v; want nil, %d", l, err, testLen)
+	}
+	if l, err := encodeColorTable(e.localColorTable[:], local, padded); err != nil || l != testLen {
+		t.Fatalf("Failed to encode local color table: got %d, %v; want nil, %d", l, err, testLen)
+	}
+	if bytes.Equal(e.globalColorTable[:testLen], e.localColorTable[:testLen]) {
+		t.Fatal("Encoded color tables are equal, expected mismatch")
+	}
+	if !e.colorTablesMatch(len(local), trIdx) {
+		t.Fatal("colorTablesMatch() == false, expected true")
+	}
+}
+
+func TestEncodeCroppedSubImages(t *testing.T) {
+	// This test means to ensure that Encode honors the Bounds and Strides of
+	// images correctly when encoding.
+	whole := image.NewPaletted(image.Rect(0, 0, 100, 100), palette.Plan9)
+	subImages := []image.Rectangle{
+		image.Rect(0, 0, 50, 50),
+		image.Rect(50, 0, 100, 50),
+		image.Rect(0, 50, 50, 50),
+		image.Rect(50, 50, 100, 100),
+		image.Rect(25, 25, 75, 75),
+		image.Rect(0, 0, 100, 50),
+		image.Rect(0, 50, 100, 100),
+		image.Rect(0, 0, 50, 100),
+		image.Rect(50, 0, 100, 100),
+	}
+	for _, sr := range subImages {
+		si := whole.SubImage(sr)
+		buf := bytes.NewBuffer(nil)
+		if err := Encode(buf, si, nil); err != nil {
+			t.Errorf("Encode: sr=%v: %v", sr, err)
+			continue
+		}
+		if _, err := Decode(buf); err != nil {
+			t.Errorf("Decode: sr=%v: %v", sr, err)
+		}
+	}
+}
+
+func BenchmarkEncode(b *testing.B) {
 	bo := image.Rect(0, 0, 640, 480)
 	rnd := rand.New(rand.NewSource(123))
 
@@ -495,14 +554,14 @@ func BenchmarkEncode(b *testing.B) {
 	}
 
 	b.SetBytes(640 * 480 * 4)
-	b.StartTimer()
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Encode(ioutil.Discard, img, nil)
 	}
 }
 
 func BenchmarkQuantizedEncode(b *testing.B) {
-	b.StopTimer()
 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
 	bo := img.Bounds()
 	rnd := rand.New(rand.NewSource(123))
@@ -517,7 +576,8 @@ func BenchmarkQuantizedEncode(b *testing.B) {
 		}
 	}
 	b.SetBytes(640 * 480 * 4)
-	b.StartTimer()
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Encode(ioutil.Discard, img, nil)
 	}

@@ -42,7 +42,7 @@ import (
 )
 
 var (
-	listErrors = flag.Bool("list", false, "list errors")
+	listErrors = flag.Bool("errlist", false, "list errors")
 	testFiles  = flag.String("files", "", "space-separated list of test files")
 )
 
@@ -61,6 +61,7 @@ var tests = [][]string{
 	{"testdata/cycles2.src"},
 	{"testdata/cycles3.src"},
 	{"testdata/cycles4.src"},
+	{"testdata/cycles5.src"},
 	{"testdata/init0.src"},
 	{"testdata/init1.src"},
 	{"testdata/init2.src"},
@@ -69,6 +70,7 @@ var tests = [][]string{
 	{"testdata/decls2a.src", "testdata/decls2b.src"},
 	{"testdata/decls3.src"},
 	{"testdata/decls4.src"},
+	{"testdata/decls5.src"},
 	{"testdata/const0.src"},
 	{"testdata/const1.src"},
 	{"testdata/constdecl.src"},
@@ -88,6 +90,11 @@ var tests = [][]string{
 	{"testdata/labels.src"},
 	{"testdata/issues.src"},
 	{"testdata/blank.src"},
+	{"testdata/issue25008b.src", "testdata/issue25008a.src"}, // order (b before a) is crucial!
+	{"testdata/issue26390.src"},                              // stand-alone test to ensure case is triggered
+	{"testdata/issue23203a.src"},
+	{"testdata/issue23203b.src"},
+	{"testdata/issue28251.src"},
 }
 
 var fset = token.NewFileSet()

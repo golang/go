@@ -37,6 +37,10 @@ func TestGetBase(t *testing.T) {
 	kernelHeader := &elf.ProgHeader{
 		Vaddr: 0xffffffff81000000,
 	}
+	kernelAslrHeader := &elf.ProgHeader{
+		Vaddr: 0xffffffff80200000,
+		Off:   0x1000,
+	}
 	ppc64KernelHeader := &elf.ProgHeader{
 		Vaddr: 0xc000000000000000,
 	}
@@ -51,19 +55,25 @@ func TestGetBase(t *testing.T) {
 		wanterr              bool
 	}{
 		{"exec", fhExec, nil, nil, 0x400000, 0, 0, 0, false},
-		{"exec offset", fhExec, lsOffset, nil, 0x400000, 0x800000, 0, 0, false},
+		{"exec offset", fhExec, lsOffset, nil, 0x400000, 0x800000, 0, 0x200000, false},
 		{"exec offset 2", fhExec, lsOffset, nil, 0x200000, 0x600000, 0, 0, false},
 		{"exec nomap", fhExec, nil, nil, 0, 0, 0, 0, false},
 		{"exec kernel", fhExec, kernelHeader, uint64p(0xffffffff81000198), 0xffffffff82000198, 0xffffffff83000198, 0, 0x1000000, false},
-		{"exec PPC64 kernel", fhExec, ppc64KernelHeader, uint64p(0xc000000000000000), 0xc000000000000000, 0xd00000001a730000, 0xc000000000000000, 0x0, false},
+		{"exec kernel", fhExec, kernelHeader, uint64p(0xffffffff810002b8), 0xffffffff81000000, 0xffffffffa0000000, 0x0, 0x0, false},
+		{"exec kernel ASLR", fhExec, kernelHeader, uint64p(0xffffffff810002b8), 0xffffffff81000000, 0xffffffffa0000000, 0xffffffff81000000, 0x0, false},
+		// TODO(aalexand): Figure out where this test case exactly comes from and
+		// whether it's still relevant.
+		{"exec kernel ASLR 2", fhExec, kernelAslrHeader, nil, 0xffffffff83e00000, 0xfffffffffc3fffff, 0x3c00000, 0x3c00000, false},
+		{"exec PPC64 kernel", fhExec, ppc64KernelHeader, uint64p(0xc000000000000000), 0xc000000000000000, 0xd00000001a730000, 0x0, 0x0, false},
 		{"exec chromeos kernel", fhExec, kernelHeader, uint64p(0xffffffff81000198), 0, 0x10197, 0, 0x7efffe68, false},
 		{"exec chromeos kernel 2", fhExec, kernelHeader, uint64p(0xffffffff81000198), 0, 0x10198, 0, 0x7efffe68, false},
 		{"exec chromeos kernel 3", fhExec, kernelHeader, uint64p(0xffffffff81000198), 0x198, 0x100000, 0, 0x7f000000, false},
 		{"exec chromeos kernel 4", fhExec, kernelHeader, uint64p(0xffffffff81200198), 0x198, 0x100000, 0, 0x7ee00000, false},
 		{"exec chromeos kernel unremapped", fhExec, kernelHeader, uint64p(0xffffffff810001c8), 0xffffffff834001c8, 0xffffffffc0000000, 0xffffffff834001c8, 0x2400000, false},
 		{"dyn", fhDyn, nil, nil, 0x200000, 0x300000, 0, 0x200000, false},
-		{"dyn offset", fhDyn, lsOffset, nil, 0x0, 0x300000, 0, 0xFFFFFFFFFFC00000, false},
+		{"dyn map", fhDyn, lsOffset, nil, 0x0, 0x300000, 0, 0xFFFFFFFFFFE00000, false},
 		{"dyn nomap", fhDyn, nil, nil, 0x0, 0x0, 0, 0, false},
+		{"dyn map+offset", fhDyn, lsOffset, nil, 0x900000, 0xa00000, 0x200000, 0x500000, false},
 		{"rel", fhRel, nil, nil, 0x2000000, 0x3000000, 0, 0x2000000, false},
 		{"rel nomap", fhRel, nil, nil, 0x0, ^uint64(0), 0, 0, false},
 		{"rel offset", fhRel, nil, nil, 0x100000, 0x200000, 0x1, 0, true},
@@ -82,7 +92,7 @@ func TestGetBase(t *testing.T) {
 			continue
 		}
 		if base != tc.want {
-			t.Errorf("%s: want %x, got %x", tc.label, tc.want, base)
+			t.Errorf("%s: want 0x%x, got 0x%x", tc.label, tc.want, base)
 		}
 	}
 }

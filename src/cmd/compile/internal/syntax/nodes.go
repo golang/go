@@ -4,8 +4,6 @@
 
 package syntax
 
-import "cmd/internal/src"
-
 // ----------------------------------------------------------------------------
 // Nodes
 
@@ -18,18 +16,18 @@ type Node interface {
 	//    (IndexExpr, IfStmt, etc.) is the position of a token uniquely
 	//    associated with that production; usually the left-most one
 	//    ('[' for IndexExpr, 'if' for IfStmt, etc.)
-	Pos() src.Pos
+	Pos() Pos
 	aNode()
 }
 
 type node struct {
 	// commented out for now since not yet used
 	// doc  *Comment // nil means no comment(s) attached
-	pos src.Pos
+	pos Pos
 }
 
-func (n *node) Pos() src.Pos { return n.pos }
-func (*node) aNode()         {}
+func (n *node) Pos() Pos { return n.pos }
+func (*node) aNode()     {}
 
 // ----------------------------------------------------------------------------
 // Files
@@ -149,7 +147,7 @@ type (
 		Type     Expr // nil means no literal type
 		ElemList []Expr
 		NKeys    int // number of elements with keys
-		Rbrace   src.Pos
+		Rbrace   Pos
 		expr
 	}
 
@@ -200,9 +198,16 @@ type (
 
 	// X.(Type)
 	AssertExpr struct {
-		X Expr
-		// TODO(gri) consider using Name{"..."} instead of nil (permits attaching of comments)
+		X    Expr
 		Type Expr
+		expr
+	}
+
+	// X.(type)
+	// Lhs := X.(type)
+	TypeSwitchGuard struct {
+		Lhs *Name // nil means no Lhs :=
+		X   Expr  // X.(type)
 		expr
 	}
 
@@ -215,8 +220,8 @@ type (
 	// Fun(ArgList[0], ArgList[1], ...)
 	CallExpr struct {
 		Fun     Expr
-		ArgList []Expr
-		HasDots bool // last argument is followed by ...
+		ArgList []Expr // nil means no arguments
+		HasDots bool   // last argument is followed by ...
 		expr
 	}
 
@@ -275,8 +280,7 @@ type (
 
 	// map[Key]Value
 	MapType struct {
-		Key   Expr
-		Value Expr
+		Key, Value Expr
 		expr
 	}
 
@@ -328,7 +332,7 @@ type (
 
 	BlockStmt struct {
 		List   []Stmt
-		Rbrace src.Pos
+		Rbrace Pos
 		stmt
 	}
 
@@ -380,7 +384,7 @@ type (
 		Init SimpleStmt
 		Cond Expr
 		Then *BlockStmt
-		Else Stmt // either *IfStmt or *BlockStmt
+		Else Stmt // either nil, *IfStmt, or *BlockStmt
 		stmt
 	}
 
@@ -394,15 +398,15 @@ type (
 
 	SwitchStmt struct {
 		Init   SimpleStmt
-		Tag    Expr
+		Tag    Expr // incl. *TypeSwitchGuard
 		Body   []*CaseClause
-		Rbrace src.Pos
+		Rbrace Pos
 		stmt
 	}
 
 	SelectStmt struct {
 		Body   []*CommClause
-		Rbrace src.Pos
+		Rbrace Pos
 		stmt
 	}
 )
@@ -415,24 +419,17 @@ type (
 		simpleStmt
 	}
 
-	TypeSwitchGuard struct {
-		// TODO(gri) consider using Name{"..."} instead of nil (permits attaching of comments)
-		Lhs *Name // nil means no Lhs :=
-		X   Expr  // X.(type)
-		expr
-	}
-
 	CaseClause struct {
 		Cases Expr // nil means default clause
 		Body  []Stmt
-		Colon src.Pos
+		Colon Pos
 		node
 	}
 
 	CommClause struct {
 		Comm  SimpleStmt // send or receive stmt; nil means default clause
 		Body  []Stmt
-		Colon src.Pos
+		Colon Pos
 		node
 	}
 )

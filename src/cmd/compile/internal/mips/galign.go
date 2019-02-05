@@ -18,6 +18,7 @@ func Init(arch *gc.Arch) {
 	}
 	arch.REGSP = mips.REGSP
 	arch.MAXWIDTH = (1 << 31) - 1
+	arch.SoftFloat = (objabi.GOMIPS == "softfloat")
 	arch.ZeroRange = zerorange
 	arch.ZeroAuto = zeroAuto
 	arch.Ginsnop = ginsnop

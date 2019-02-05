@@ -45,6 +45,8 @@ var tokens = [...]elt{
 	{token.COMMENT, "/* a comment */", special},
 	{token.COMMENT, "// a comment \n", special},
 	{token.COMMENT, "/*\r*/", special},
+	{token.COMMENT, "/**\r/*/", special}, // issue 11151
+	{token.COMMENT, "/**\r\r/*/", special},
 	{token.COMMENT, "//\r\n", special},
 
 	// Identifiers and basic type literals
@@ -203,7 +205,9 @@ func newlineCount(s string) int {
 
 func checkPos(t *testing.T, lit string, p token.Pos, expected token.Position) {
 	pos := fset.Position(p)
-	if pos.Filename != expected.Filename {
+	// Check cleaned filenames so that we don't have to worry about
+	// different os.PathSeparator values.
+	if pos.Filename != expected.Filename && filepath.Clean(pos.Filename) != filepath.Clean(expected.Filename) {
 		t.Errorf("bad filename for %q: got %s, expected %s", lit, pos.Filename, expected.Filename)
 	}
 	if pos.Offset != expected.Offset {
@@ -270,7 +274,7 @@ func TestScan(t *testing.T) {
 		switch e.tok {
 		case token.COMMENT:
 			// no CRs in comments
-			elit = string(stripCR([]byte(e.lit)))
+			elit = string(stripCR([]byte(e.lit), e.lit[1] == '*'))
 			//-style comment literal doesn't contain newline
 			if elit[1] == '/' {
 				elit = elit[0 : len(elit)-1]
@@ -284,7 +288,7 @@ func TestScan(t *testing.T) {
 				// no CRs in raw string literals
 				elit = e.lit
 				if elit[0] == '`' {
-					elit = string(stripCR([]byte(elit)))
+					elit = string(stripCR([]byte(elit), false))
 				}
 			} else if e.tok.IsKeyword() {
 				elit = e.lit
@@ -306,6 +310,26 @@ func TestScan(t *testing.T) {
 
 	if s.ErrorCount != 0 {
 		t.Errorf("found %d errors", s.ErrorCount)
+	}
+}
+
+func TestStripCR(t *testing.T) {
+	for _, test := range []struct{ have, want string }{
+		{"//\n", "//\n"},
+		{"//\r\n", "//\n"},
+		{"//\r\r\r\n", "//\n"},
+		{"//\r*\r/\r\n", "//*/\n"},
+		{"/**/", "/**/"},
+		{"/*\r/*/", "/*/*/"},
+		{"/*\r*/", "/**/"},
+		{"/**\r/*/", "/**\r/*/"},
+		{"/*\r/\r*\r/*/", "/*/*\r/*/"},
+		{"/*\r\r\r\r*/", "/**/"},
+	} {
+		got := string(stripCR([]byte(test.have), len(test.have) >= 2 && test.have[1] == '*'))
+		if got != test.want {
+			t.Errorf("stripCR(%q) = %q; want %q", test.have, got, test.want)
+		}
 	}
 }
 
@@ -481,69 +505,130 @@ func TestSemis(t *testing.T) {
 }
 
 type segment struct {
-	srcline  string // a line of source text
-	filename string // filename for current token
-	line     int    // line number for current token
+	srcline      string // a line of source text
+	filename     string // filename for current token; error message for invalid line directives
+	line, column int    // line and column for current token; error position for invalid line directives
 }
 
 var segments = []segment{
 	// exactly one token per line since the test consumes one token per segment
-	{"  line1", filepath.Join("dir", "TestLineComments"), 1},
-	{"\nline2", filepath.Join("dir", "TestLineComments"), 2},
-	{"\nline3  //line File1.go:100", filepath.Join("dir", "TestLineComments"), 3}, // bad line comment, ignored
-	{"\nline4", filepath.Join("dir", "TestLineComments"), 4},
-	{"\n//line File1.go:100\n  line100", filepath.Join("dir", "File1.go"), 100},
-	{"\n//line  \t :42\n  line1", "", 42},
-	{"\n//line File2.go:200\n  line200", filepath.Join("dir", "File2.go"), 200},
-	{"\n//line foo\t:42\n  line42", filepath.Join("dir", "foo"), 42},
-	{"\n //line foo:42\n  line44", filepath.Join("dir", "foo"), 44},           // bad line comment, ignored
-	{"\n//line foo 42\n  line46", filepath.Join("dir", "foo"), 46},            // bad line comment, ignored
-	{"\n//line foo:42 extra text\n  line48", filepath.Join("dir", "foo"), 48}, // bad line comment, ignored
-	{"\n//line ./foo:42\n  line42", filepath.Join("dir", "foo"), 42},
-	{"\n//line a/b/c/File1.go:100\n  line100", filepath.Join("dir", "a", "b", "c", "File1.go"), 100},
+	{"  line1", "TestLineDirectives", 1, 3},
+	{"\nline2", "TestLineDirectives", 2, 1},
+	{"\nline3  //line File1.go:100", "TestLineDirectives", 3, 1}, // bad line comment, ignored
+	{"\nline4", "TestLineDirectives", 4, 1},
+	{"\n//line File1.go:100\n  line100", "File1.go", 100, 0},
+	{"\n//line  \t :42\n  line1", " \t ", 42, 0},
+	{"\n//line File2.go:200\n  line200", "File2.go", 200, 0},
+	{"\n//line foo\t:42\n  line42", "foo\t", 42, 0},
+	{"\n //line foo:42\n  line43", "foo\t", 44, 0}, // bad line comment, ignored (use existing, prior filename)
+	{"\n//line foo 42\n  line44", "foo\t", 46, 0},  // bad line comment, ignored (use existing, prior filename)
+	{"\n//line /bar:42\n  line45", "/bar", 42, 0},
+	{"\n//line ./foo:42\n  line46", "foo", 42, 0},
+	{"\n//line a/b/c/File1.go:100\n  line100", "a/b/c/File1.go", 100, 0},
+	{"\n//line c:\\bar:42\n  line200", "c:\\bar", 42, 0},
+	{"\n//line c:\\dir\\File1.go:100\n  line201", "c:\\dir\\File1.go", 100, 0},
+
+	// tests for new line directive syntax
+	{"\n//line :100\na1", "", 100, 0}, // missing filename means empty filename
+	{"\n//line bar:100\nb1", "bar", 100, 0},
+	{"\n//line :100:10\nc1", "bar", 100, 10}, // missing filename means current filename
+	{"\n//line foo:100:10\nd1", "foo", 100, 10},
+
+	{"\n/*line :100*/a2", "", 100, 0}, // missing filename means empty filename
+	{"\n/*line bar:100*/b2", "bar", 100, 0},
+	{"\n/*line :100:10*/c2", "bar", 100, 10}, // missing filename means current filename
+	{"\n/*line foo:100:10*/d2", "foo", 100, 10},
+	{"\n/*line foo:100:10*/    e2", "foo", 100, 14}, // line-directive relative column
+	{"\n/*line foo:100:10*/\n\nf2", "foo", 102, 1},  // absolute column since on new line
 }
 
-var unixsegments = []segment{
-	{"\n//line /bar:42\n  line42", "/bar", 42},
+var dirsegments = []segment{
+	// exactly one token per line since the test consumes one token per segment
+	{"  line1", "TestLineDir/TestLineDirectives", 1, 3},
+	{"\n//line File1.go:100\n  line100", "TestLineDir/File1.go", 100, 0},
 }
 
-var winsegments = []segment{
-	{"\n//line c:\\bar:42\n  line42", "c:\\bar", 42},
-	{"\n//line c:\\dir\\File1.go:100\n  line100", "c:\\dir\\File1.go", 100},
+var dirUnixSegments = []segment{
+	{"\n//line /bar:42\n  line42", "/bar", 42, 0},
 }
 
-// Verify that comments of the form "//line filename:line" are interpreted correctly.
-func TestLineComments(t *testing.T) {
-	segs := segments
+var dirWindowsSegments = []segment{
+	{"\n//line c:\\bar:42\n  line42", "c:\\bar", 42, 0},
+}
+
+// Verify that line directives are interpreted correctly.
+func TestLineDirectives(t *testing.T) {
+	testSegments(t, segments, "TestLineDirectives")
+	testSegments(t, dirsegments, "TestLineDir/TestLineDirectives")
 	if runtime.GOOS == "windows" {
-		segs = append(segs, winsegments...)
+		testSegments(t, dirWindowsSegments, "TestLineDir/TestLineDirectives")
 	} else {
-		segs = append(segs, unixsegments...)
+		testSegments(t, dirUnixSegments, "TestLineDir/TestLineDirectives")
 	}
+}
 
-	// make source
+func testSegments(t *testing.T, segments []segment, filename string) {
 	var src string
-	for _, e := range segs {
+	for _, e := range segments {
 		src += e.srcline
 	}
 
 	// verify scan
 	var S Scanner
-	file := fset.AddFile(filepath.Join("dir", "TestLineComments"), fset.Base(), len(src))
-	S.Init(file, []byte(src), nil, dontInsertSemis)
-	for _, s := range segs {
+	file := fset.AddFile(filename, fset.Base(), len(src))
+	S.Init(file, []byte(src), func(pos token.Position, msg string) { t.Error(Error{pos, msg}) }, dontInsertSemis)
+	for _, s := range segments {
 		p, _, lit := S.Scan()
 		pos := file.Position(p)
 		checkPos(t, lit, p, token.Position{
 			Filename: s.filename,
 			Offset:   pos.Offset,
 			Line:     s.line,
-			Column:   pos.Column,
+			Column:   s.column,
 		})
 	}
 
 	if S.ErrorCount != 0 {
-		t.Errorf("found %d errors", S.ErrorCount)
+		t.Errorf("got %d errors", S.ErrorCount)
+	}
+}
+
+// The filename is used for the error message in these test cases.
+// The first line directive is valid and used to control the expected error line.
+var invalidSegments = []segment{
+	{"\n//line :1:1\n//line foo:42 extra text\ndummy", "invalid line number: 42 extra text", 1, 12},
+	{"\n//line :2:1\n//line foobar:\ndummy", "invalid line number: ", 2, 15},
+	{"\n//line :5:1\n//line :0\ndummy", "invalid line number: 0", 5, 9},
+	{"\n//line :10:1\n//line :1:0\ndummy", "invalid column number: 0", 10, 11},
+	{"\n//line :1:1\n//line :foo:0\ndummy", "invalid line number: 0", 1, 13}, // foo is considered part of the filename
+}
+
+// Verify that invalid line directives get the correct error message.
+func TestInvalidLineDirectives(t *testing.T) {
+	// make source
+	var src string
+	for _, e := range invalidSegments {
+		src += e.srcline
+	}
+
+	// verify scan
+	var S Scanner
+	var s segment // current segment
+	file := fset.AddFile(filepath.Join("dir", "TestInvalidLineDirectives"), fset.Base(), len(src))
+	S.Init(file, []byte(src), func(pos token.Position, msg string) {
+		if msg != s.filename {
+			t.Errorf("got error %q; want %q", msg, s.filename)
+		}
+		if pos.Line != s.line || pos.Column != s.column {
+			t.Errorf("got position %d:%d; want %d:%d", pos.Line, pos.Column, s.line, s.column)
+		}
+	}, dontInsertSemis)
+	for _, s = range invalidSegments {
+		S.Scan()
+	}
+
+	if S.ErrorCount != len(invalidSegments) {
+		t.Errorf("go %d errors; want %d", S.ErrorCount, len(invalidSegments))
 	}
 }
 
@@ -672,6 +757,7 @@ var errors = []struct {
 	{"\a", token.ILLEGAL, 0, "", "illegal character U+0007"},
 	{`#`, token.ILLEGAL, 0, "", "illegal character U+0023 '#'"},
 	{`…`, token.ILLEGAL, 0, "", "illegal character U+2026 '…'"},
+	{"..", token.PERIOD, 0, "", ""}, // two periods, not invalid token (issue #28112)
 	{`' '`, token.CHAR, 0, `' '`, ""},
 	{`''`, token.CHAR, 0, `''`, "illegal rune literal"},
 	{`'12'`, token.CHAR, 0, `'12'`, "illegal rune literal"},
@@ -737,7 +823,7 @@ func TestScanErrors(t *testing.T) {
 
 // Verify that no comments show up as literal values when skipping comments.
 func TestIssue10213(t *testing.T) {
-	var src = `
+	const src = `
 		var (
 			A = 1 // foo
 		)
@@ -766,6 +852,23 @@ func TestIssue10213(t *testing.T) {
 		}
 		if tok <= token.EOF {
 			break
+		}
+	}
+}
+
+func TestIssue28112(t *testing.T) {
+	const src = "... .. 0.. .." // make sure to have stand-alone ".." immediately before EOF to test EOF behavior
+	tokens := []token.Token{token.ELLIPSIS, token.PERIOD, token.PERIOD, token.FLOAT, token.PERIOD, token.PERIOD, token.PERIOD, token.EOF}
+	var s Scanner
+	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), nil, 0)
+	for _, want := range tokens {
+		pos, got, lit := s.Scan()
+		if got != want {
+			t.Errorf("%s: got %s, want %s", fset.Position(pos), got, want)
+		}
+		// literals expect to have a (non-empty) literal string and we don't care about other tokens for this test
+		if tokenclass(got) == literal && lit == "" {
+			t.Errorf("%s: for %s got empty literal string", fset.Position(pos), got)
 		}
 	}
 }

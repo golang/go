@@ -39,22 +39,22 @@ type exprInfo struct {
 	val   constant.Value // constant value; or nil (if not a constant)
 }
 
-// funcInfo stores the information required for type-checking a function.
-type funcInfo struct {
-	name string    // for debugging/tracing only
-	decl *declInfo // for cycle detection
-	sig  *Signature
-	body *ast.BlockStmt
-}
-
 // A context represents the context within which an object is type-checked.
 type context struct {
-	decl          *declInfo      // package-level declaration whose init expression/function body is checked
-	scope         *Scope         // top-most scope for lookups
-	iota          constant.Value // value of iota in a constant declaration; nil otherwise
-	sig           *Signature     // function signature if inside a function; nil otherwise
-	hasLabel      bool           // set if a function makes use of labels (only ~1% of functions); unused outside functions
-	hasCallOrRecv bool           // set if an expression contains a function call or channel receive operation
+	decl          *declInfo              // package-level declaration whose init expression/function body is checked
+	scope         *Scope                 // top-most scope for lookups
+	pos           token.Pos              // if valid, identifiers are looked up as if at position pos (used by Eval)
+	iota          constant.Value         // value of iota in a constant declaration; nil otherwise
+	sig           *Signature             // function signature if inside a function; nil otherwise
+	isPanic       map[*ast.CallExpr]bool // set of panic call expressions (used for termination check)
+	hasLabel      bool                   // set if a function makes use of labels (only ~1% of functions); unused outside functions
+	hasCallOrRecv bool                   // set if an expression contains a function call or channel receive operation
+}
+
+// lookup looks up name in the current context and returns the matching object, or nil.
+func (ctxt *context) lookup(name string) Object {
+	_, obj := ctxt.scope.LookupParent(name, ctxt.pos)
+	return obj
 }
 
 // An importKey identifies an imported package by import path and source directory
@@ -76,7 +76,7 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	objMap map[Object]*declInfo   // maps package-level object to declaration info
+	objMap map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
 	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
 
 	// information collected during type-checking of a set of package files
@@ -86,15 +86,16 @@ type Checker struct {
 	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
 
 	firstErr error                 // first error encountered
-	methods  map[string][]*Func    // maps type names to associated methods
-	untyped  map[ast.Expr]exprInfo // map of expressions without final type
-	funcs    []funcInfo            // list of functions to type-check
-	delayed  []func()              // delayed checks requiring fully setup types
+	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank, non-interface methods
+	// TODO(gri) move interfaces up to the group of fields persistent across check.Files invocations (see also comment in Checker.initFiles)
+	interfaces map[*TypeName]*ifaceInfo // maps interface type names to corresponding interface infos
+	untyped    map[ast.Expr]exprInfo    // map of expressions without final type
+	delayed    []func()                 // stack of delayed actions
+	objPath    []Object                 // path of object dependencies during type inference (for cycle reporting)
 
 	// context within which the current object is type-checked
 	// (valid only for the duration of type-checking a specific object)
 	context
-	pos token.Pos // if valid, identifiers are looked up as if at position pos (used by Eval)
 
 	// debugging
 	indent int // indentation for tracing
@@ -128,15 +129,6 @@ func (check *Checker) addDeclDep(to Object) {
 	from.addDep(to)
 }
 
-func (check *Checker) assocMethod(tname string, meth *Func) {
-	m := check.methods
-	if m == nil {
-		m = make(map[string][]*Func)
-		check.methods = m
-	}
-	m[tname] = append(m[tname], meth)
-}
-
 func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
 	m := check.untyped
 	if m == nil {
@@ -146,12 +138,27 @@ func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, ty
 	m[e] = exprInfo{lhs, mode, typ, val}
 }
 
-func (check *Checker) later(name string, decl *declInfo, sig *Signature, body *ast.BlockStmt) {
-	check.funcs = append(check.funcs, funcInfo{name, decl, sig, body})
+// later pushes f on to the stack of actions that will be processed later;
+// either at the end of the current statement, or in case of a local constant
+// or variable declaration, before the constant or variable is in scope
+// (so that f still sees the scope before any new declarations).
+func (check *Checker) later(f func()) {
+	check.delayed = append(check.delayed, f)
 }
 
-func (check *Checker) delay(f func()) {
-	check.delayed = append(check.delayed, f)
+// push pushes obj onto the object path and returns its index in the path.
+func (check *Checker) push(obj Object) int {
+	check.objPath = append(check.objPath, obj)
+	return len(check.objPath) - 1
+}
+
+// pop pops and returns the topmost object from the object path.
+func (check *Checker) pop() Object {
+	i := len(check.objPath) - 1
+	obj := check.objPath[i]
+	check.objPath[i] = nil
+	check.objPath = check.objPath[:i]
+	return obj
 }
 
 // NewChecker returns a new Checker instance for a given package.
@@ -186,8 +193,16 @@ func (check *Checker) initFiles(files []*ast.File) {
 
 	check.firstErr = nil
 	check.methods = nil
+	// Don't clear the interfaces cache! It's important that we don't recompute
+	// ifaceInfos repeatedly (due to multiple check.Files calls) because when
+	// they are recomputed, they are not used in the context of their original
+	// declaration (because those types are already type-checked, typically) and
+	// then they will get the wrong receiver types, which matters for go/types
+	// clients. It is also safe to not reset the interfaces cache because files
+	// added to a package cannot change (add methods to) existing interface types;
+	// they can only add new interfaces. See also the respective comment in
+	// checker.infoFromTypeName (interfaces.go). Was bug - see issue #29029.
 	check.untyped = nil
-	check.funcs = nil
 	check.delayed = nil
 
 	// determine package name and collect valid files
@@ -236,19 +251,14 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 
 	check.collectObjects()
 
-	check.packageObjects(check.resolveOrder())
+	check.packageObjects()
 
-	check.functionBodies()
+	check.processDelayed(0) // incl. all functions
 
 	check.initOrder()
 
 	if !check.conf.DisableUnusedImportCheck {
 		check.unusedImports()
-	}
-
-	// perform delayed checks
-	for _, f := range check.delayed {
-		f()
 	}
 
 	check.recordUntyped()
@@ -264,7 +274,7 @@ func (check *Checker) recordUntyped() {
 
 	for x, info := range check.untyped {
 		if debug && isTyped(info.typ) {
-			check.dump("%s: %s (type %s) is typed", x.Pos(), x, info.typ)
+			check.dump("%v: %s (type %s) is typed", x.Pos(), x, info.typ)
 			unreachable()
 		}
 		check.recordTypeAndValue(x, info.mode, info.typ, info.val)

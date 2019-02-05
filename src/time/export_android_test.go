@@ -5,8 +5,8 @@
 package time
 
 func ForceAndroidTzdataForTest(tzdata bool) {
-	tzdataPaths = origTzdataPaths
+	forceZipFileForTesting(false)
 	if tzdata {
-		tzdataPaths = tzdataPaths[:1]
+		zoneSources = zoneSources[:len(zoneSources)-1]
 	}
 }

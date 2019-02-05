@@ -1,4 +1,4 @@
-// run -gcflags -l=4
+// run -gcflags=-l=4
 
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -7,7 +7,7 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"runtime"
 )
 
@@ -31,7 +31,7 @@ func testCallers(skp int) (frames []string) {
 	skip = skp
 	f()
 	for i := 0; i < npcs; i++ {
-		fn := runtime.FuncForPC(pcs[i])
+		fn := runtime.FuncForPC(pcs[i] - 1)
 		frames = append(frames, fn.Name())
 		if fn.Name() == "main.main" {
 			break
@@ -56,11 +56,11 @@ func testCallersFrames(skp int) (frames []string) {
 }
 
 var expectedFrames [][]string = [][]string{
-	0: {"runtime.Callers", "main.testCallers", "main.main"},
-	1: {"main.testCallers", "main.main"},
-	2: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
-	3: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
-	4: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
+	0: {"runtime.Callers", "main.h", "main.g", "main.f", "main.testCallers", "main.main"},
+	1: {"main.h", "main.g", "main.f", "main.testCallers", "main.main"},
+	2: {"main.g", "main.f", "main.testCallers", "main.main"},
+	3: {"main.f", "main.testCallers", "main.main"},
+	4: {"main.testCallers", "main.main"},
 	5: {"main.main"},
 }
 
@@ -83,13 +83,13 @@ func main() {
 		frames := testCallers(i)
 		expected := expectedFrames[i]
 		if !same(frames, expected) {
-			log.Fatalf("testCallers(%d):\n got %v\n want %v", i, frames, expected)
+			fmt.Printf("testCallers(%d):\n got %v\n want %v\n", i, frames, expected)
 		}
 
 		frames = testCallersFrames(i)
 		expected = allFrames[i:]
 		if !same(frames, expected) {
-			log.Fatalf("testCallersFrames(%d):\n got %v\n want %v", i, frames, expected)
+			fmt.Printf("testCallersFrames(%d):\n got %v\n want %v\n", i, frames, expected)
 		}
 	}
 }

@@ -43,8 +43,10 @@ const (
 //go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SuspendThread SuspendThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SwitchToThread SwitchToThread%0 "kernel32.dll"
+//go:cgo_import_dynamic runtime._TlsAlloc TlsAlloc%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
+//go:cgo_import_dynamic runtime._VirtualQuery VirtualQuery%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult%5 "ws2_32.dll"
 //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
@@ -90,8 +92,10 @@ var (
 	_SetWaitableTimer,
 	_SuspendThread,
 	_SwitchToThread,
+	_TlsAlloc,
 	_VirtualAlloc,
 	_VirtualFree,
+	_VirtualQuery,
 	_WSAGetOverlappedResult,
 	_WaitForSingleObject,
 	_WriteConsoleW,
@@ -194,6 +198,13 @@ func loadOptionalSyscalls() {
 	}
 	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
 
+	if GOARCH == "arm" {
+		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
+		if _QueryPerformanceCounter == nil {
+			throw("could not find QPC syscalls")
+		}
+	}
+
 	if windowsFindfunc(n32, []byte("wine_get_version\000")) != nil {
 		// running on Wine
 		initWine(k32)
@@ -270,6 +281,12 @@ var useLoadLibraryEx bool
 
 var timeBeginPeriodRetValue uint32
 
+// osRelaxMinNS indicates that sysmon shouldn't osRelax if the next
+// timer is less than 60 ms from now. Since osRelaxing may reduce
+// timer resolution to 15.6 ms, this keeps timer error under roughly 1
+// part in 4.
+const osRelaxMinNS = 60 * 1e6
+
 // osRelax is called by the scheduler when transitioning to and from
 // all Ps being idle.
 //
@@ -297,8 +314,6 @@ func osinit() {
 	useLoadLibraryEx = (_LoadLibraryExW != nil && _AddDllDirectory != nil)
 
 	disableWER()
-
-	externalthreadhandlerp = funcPC(externalthreadhandler)
 
 	initExceptionHandler()
 
@@ -614,11 +629,11 @@ func semacreate(mp *m) {
 // operate without stack guards.
 //go:nowritebarrierrec
 //go:nosplit
-func newosproc(mp *m, stk unsafe.Pointer) {
-	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
-	thandle := stdcall6(_CreateThread, 0, 0x20000,
+func newosproc(mp *m) {
+	// We pass 0 for the stack size to use the default for this binary.
+	thandle := stdcall6(_CreateThread, 0, 0,
 		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
-		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
+		0, 0)
 
 	if thandle == 0 {
 		if atomic.Load(&exiting) != 0 {
@@ -632,6 +647,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")\n")
 		throw("runtime.newosproc")
 	}
+
+	// Close thandle to avoid leaking the thread object if it exits.
+	stdcall1(_CloseHandle, thandle)
 }
 
 // Used by the C library build mode. On Linux this function would allocate a
@@ -640,7 +658,16 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 //go:nowritebarrierrec
 //go:nosplit
 func newosproc0(mp *m, stk unsafe.Pointer) {
-	newosproc(mp, stk)
+	// TODO: this is completely broken. The args passed to newosproc0 (in asm_amd64.s)
+	// are stacksize and function, not *m and stack.
+	// Check os_linux.go for an implemention that might actually work.
+	throw("bad newosproc0")
+}
+
+func exitThread(wait *uint32) {
+	// We should never reach exitThread on Windows because we let
+	// the OS clean up threads.
+	throw("exitThread")
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -657,6 +684,11 @@ func msigrestore(sigmask sigset) {
 }
 
 //go:nosplit
+//go:nowritebarrierrec
+func clearSignalHandlers() {
+}
+
+//go:nosplit
 func sigblock() {
 }
 
@@ -666,6 +698,33 @@ func minit() {
 	var thandle uintptr
 	stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS)
 	atomic.Storeuintptr(&getg().m.thread, thandle)
+
+	// Query the true stack base from the OS. Currently we're
+	// running on a small assumed stack.
+	var mbi memoryBasicInformation
+	res := stdcall3(_VirtualQuery, uintptr(unsafe.Pointer(&mbi)), uintptr(unsafe.Pointer(&mbi)), unsafe.Sizeof(mbi))
+	if res == 0 {
+		print("runtime: VirtualQuery failed; errno=", getlasterror(), "\n")
+		throw("VirtualQuery for stack base failed")
+	}
+	// The system leaves an 8K PAGE_GUARD region at the bottom of
+	// the stack (in theory VirtualQuery isn't supposed to include
+	// that, but it does). Add an additional 8K of slop for
+	// calling C functions that don't have stack checks and for
+	// lastcontinuehandler. We shouldn't be anywhere near this
+	// bound anyway.
+	base := mbi.allocationBase + 16<<10
+	// Sanity check the stack bounds.
+	g0 := getg()
+	if base > g0.stack.hi || g0.stack.hi-base > 64<<20 {
+		print("runtime: g0 stack [", hex(base), ",", hex(g0.stack.hi), ")\n")
+		throw("bad g0 stack")
+	}
+	g0.stack.lo = base
+	g0.stackguard0 = g0.stack.lo + _StackGuard
+	g0.stackguard1 = g0.stackguard0
+	// Sanity check the SP.
+	stackcheck()
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -684,17 +743,20 @@ func stdcall(fn stdFunction) uintptr {
 	gp := getg()
 	mp := gp.m
 	mp.libcall.fn = uintptr(unsafe.Pointer(fn))
-
-	if mp.profilehz != 0 {
+	resetLibcall := false
+	if mp.profilehz != 0 && mp.libcallsp == 0 {
 		// leave pc/sp for cpu profiler
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc(unsafe.Pointer(&fn))
+		mp.libcallpc = getcallerpc()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
-		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
+		mp.libcallsp = getcallersp()
+		resetLibcall = true // See comment in sys_darwin.go:libcCall
 	}
 	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
-	mp.libcallsp = 0
+	if resetLibcall {
+		mp.libcallsp = 0
+	}
 	return mp.libcall.r1
 }
 
@@ -803,18 +865,28 @@ func profileloop()
 
 var profiletimer uintptr
 
-func profilem(mp *m) {
+func profilem(mp *m, thread uintptr) {
 	var r *context
 	rbuf := make([]byte, unsafe.Sizeof(*r)+15)
-
-	tls := &mp.tls[0]
-	gp := *((**g)(unsafe.Pointer(tls)))
 
 	// align Context to 16 bytes
 	r = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&rbuf[15]))) &^ 15))
 	r.contextflags = _CONTEXT_CONTROL
-	stdcall2(_GetThreadContext, mp.thread, uintptr(unsafe.Pointer(r)))
-	sigprof(r.ip(), r.sp(), 0, gp, mp)
+	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(r)))
+
+	var gp *g
+	switch GOARCH {
+	default:
+		panic("unsupported architecture")
+	case "arm":
+		tls := &mp.tls[0]
+		gp = **((***g)(unsafe.Pointer(tls)))
+	case "386", "amd64":
+		tls := &mp.tls[0]
+		gp = *((**g)(unsafe.Pointer(tls)))
+	}
+
+	sigprof(r.ip(), r.sp(), r.lr(), gp, mp)
 }
 
 func profileloop1(param uintptr) uint32 {
@@ -831,9 +903,16 @@ func profileloop1(param uintptr) uint32 {
 			if thread == 0 || mp.profilehz == 0 || mp.blocked {
 				continue
 			}
-			stdcall1(_SuspendThread, thread)
+			// mp may exit between the load above and the
+			// SuspendThread, so be careful.
+			if int32(stdcall1(_SuspendThread, thread)) == -1 {
+				// The thread no longer exists.
+				continue
+			}
 			if mp.profilehz != 0 && !mp.blocked {
-				profilem(mp)
+				// Pass the thread handle in case mp
+				// was in the process of shutting down.
+				profilem(mp, thread)
 			}
 			stdcall1(_ResumeThread, thread)
 		}
@@ -862,8 +941,4 @@ func setThreadCPUProfiler(hz int32) {
 	}
 	stdcall6(_SetWaitableTimer, profiletimer, uintptr(unsafe.Pointer(&due)), uintptr(ms), 0, 0, 0)
 	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
-}
-
-func memlimit() uintptr {
-	return 0
 }

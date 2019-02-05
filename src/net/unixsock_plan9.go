@@ -26,7 +26,7 @@ func (c *UnixConn) writeMsg(b, oob []byte, addr *UnixAddr) (n, oobn int, err err
 	return 0, 0, syscall.EPLAN9
 }
 
-func dialUnix(ctx context.Context, network string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+func (sd *sysDialer) dialUnix(ctx context.Context, laddr, raddr *UnixAddr) (*UnixConn, error) {
 	return nil, syscall.EPLAN9
 }
 
@@ -42,10 +42,10 @@ func (ln *UnixListener) file() (*os.File, error) {
 	return nil, syscall.EPLAN9
 }
 
-func listenUnix(ctx context.Context, network string, laddr *UnixAddr) (*UnixListener, error) {
+func (sl *sysListener) listenUnix(ctx context.Context, laddr *UnixAddr) (*UnixListener, error) {
 	return nil, syscall.EPLAN9
 }
 
-func listenUnixgram(ctx context.Context, network string, laddr *UnixAddr) (*UnixConn, error) {
+func (sl *sysListener) listenUnixgram(ctx context.Context, laddr *UnixAddr) (*UnixConn, error) {
 	return nil, syscall.EPLAN9
 }

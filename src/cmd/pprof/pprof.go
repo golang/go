@@ -13,11 +13,13 @@ import (
 	"crypto/tls"
 	"debug/dwarf"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,6 +33,7 @@ func main() {
 	options := &driver.Options{
 		Fetch: new(fetcher),
 		Obj:   new(objTool),
+		UI:    newUI(),
 	}
 	if err := driver.PProf(options); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -73,8 +76,8 @@ func getProfile(source string, timeout time.Duration) (*profile.Profile, error) 
 	client := &http.Client{
 		Transport: &http.Transport{
 			ResponseHeaderTimeout: timeout + 5*time.Second,
-			Proxy:           http.ProxyFromEnvironment,
-			TLSClientConfig: tlsConfig,
+			Proxy:                 http.ProxyFromEnvironment,
+			TLSClientConfig:       tlsConfig,
 		},
 	}
 	resp, err := client.Get(source)
@@ -82,9 +85,20 @@ func getProfile(source string, timeout time.Duration) (*profile.Profile, error) 
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("server response: %s", resp.Status)
+		defer resp.Body.Close()
+		return nil, statusCodeError(resp)
 	}
 	return profile.Parse(resp.Body)
+}
+
+func statusCodeError(resp *http.Response) error {
+	if resp.Header.Get("X-Go-Pprof") != "" && strings.Contains(resp.Header.Get("Content-Type"), "text/plain") {
+		// error is from pprof endpoint
+		if body, err := ioutil.ReadAll(resp.Body); err == nil {
+			return fmt.Errorf("server response: %s - %s", resp.Status, body)
+		}
+	}
+	return fmt.Errorf("server response: %s", resp.Status)
 }
 
 // cpuProfileHandler is the Go pprof CPU profile handler URL.
@@ -356,3 +370,7 @@ func (f *file) Close() error {
 	f.file.Close()
 	return nil
 }
+
+// newUI will be set in readlineui.go in some platforms
+// for interactive readline functionality.
+var newUI = func() driver.UI { return nil }

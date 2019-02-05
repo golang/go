@@ -14,6 +14,40 @@ import (
 	"unsafe"
 )
 
+func TestMemHash32Equality(t *testing.T) {
+	if *UseAeshash {
+		t.Skip("skipping since AES hash implementation is used")
+	}
+	var b [4]byte
+	r := rand.New(rand.NewSource(1234))
+	seed := uintptr(r.Uint64())
+	for i := 0; i < 100; i++ {
+		randBytes(r, b[:])
+		got := MemHash32(unsafe.Pointer(&b), seed)
+		want := MemHash(unsafe.Pointer(&b), seed, 4)
+		if got != want {
+			t.Errorf("MemHash32(%x, %v) = %v; want %v", b, seed, got, want)
+		}
+	}
+}
+
+func TestMemHash64Equality(t *testing.T) {
+	if *UseAeshash {
+		t.Skip("skipping since AES hash implementation is used")
+	}
+	var b [8]byte
+	r := rand.New(rand.NewSource(1234))
+	seed := uintptr(r.Uint64())
+	for i := 0; i < 100; i++ {
+		randBytes(r, b[:])
+		got := MemHash64(unsafe.Pointer(&b), seed)
+		want := MemHash(unsafe.Pointer(&b), seed, 8)
+		if got != want {
+			t.Errorf("MemHash64(%x, %v) = %v; want %v", b, seed, got, want)
+		}
+	}
+}
+
 // Smhasher is a torture test for hash functions.
 // https://code.google.com/p/smhasher/
 // This code is a port of some of the Smhasher tests to Go.
@@ -127,6 +161,9 @@ func TestSmhasherZeros(t *testing.T) {
 
 // Strings with up to two nonzero bytes all have distinct hashes.
 func TestSmhasherTwoNonzero(t *testing.T) {
+	if GOARCH == "wasm" {
+		t.Skip("Too slow on wasm")
+	}
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
@@ -140,13 +177,13 @@ func twoNonZero(h *HashSet, n int) {
 	b := make([]byte, n)
 
 	// all zero
-	h.addB(b[:])
+	h.addB(b)
 
 	// one non-zero byte
 	for i := 0; i < n; i++ {
 		for x := 1; x < 256; x++ {
 			b[i] = byte(x)
-			h.addB(b[:])
+			h.addB(b)
 			b[i] = 0
 		}
 	}
@@ -158,7 +195,7 @@ func twoNonZero(h *HashSet, n int) {
 			for j := i + 1; j < n; j++ {
 				for y := 1; y < 256; y++ {
 					b[j] = byte(y)
-					h.addB(b[:])
+					h.addB(b)
 					b[j] = 0
 				}
 			}
@@ -195,6 +232,9 @@ func TestSmhasherCyclic(t *testing.T) {
 
 // Test strings with only a few bits set
 func TestSmhasherSparse(t *testing.T) {
+	if GOARCH == "wasm" {
+		t.Skip("Too slow on wasm")
+	}
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
@@ -230,6 +270,9 @@ func setbits(h *HashSet, b []byte, i int, k int) {
 // Test all possible combinations of n blocks from the set s.
 // "permutation" is a bad name here, but it is what Smhasher uses.
 func TestSmhasherPermutation(t *testing.T) {
+	if GOARCH == "wasm" {
+		t.Skip("Too slow on wasm")
+	}
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
@@ -399,6 +442,9 @@ func (k *IfaceKey) name() string {
 
 // Flipping a single bit of a key should flip each output bit with 50% probability.
 func TestSmhasherAvalanche(t *testing.T) {
+	if GOARCH == "wasm" {
+		t.Skip("Too slow on wasm")
+	}
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
@@ -474,6 +520,9 @@ func TestSmhasherWindowed(t *testing.T) {
 	windowed(t, &BytesKey{make([]byte, 128)})
 }
 func windowed(t *testing.T, k Key) {
+	if GOARCH == "wasm" {
+		t.Skip("Too slow on wasm")
+	}
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}

@@ -29,13 +29,13 @@ func StringList(args ...interface{}) []string {
 	return x
 }
 
-// toFold returns a string with the property that
-//	strings.EqualFold(s, t) iff toFold(s) == toFold(t)
+// ToFold returns a string with the property that
+//	strings.EqualFold(s, t) iff ToFold(s) == ToFold(t)
 // This lets us test a large set of strings for fold-equivalent
 // duplicates without making a quadratic number of calls
 // to EqualFold. Note that strings.ToUpper and strings.ToLower
 // do not have the desired property in some corner cases.
-func toFold(s string) string {
+func ToFold(s string) string {
 	// Fast path: all ASCII, no upper case.
 	// Most paths look like this already.
 	for i := 0; i < len(s); i++ {
@@ -74,7 +74,7 @@ Slow:
 func FoldDup(list []string) (string, string) {
 	clash := map[string]string{}
 	for _, s := range list {
-		fold := toFold(s)
+		fold := ToFold(s)
 		if t := clash[fold]; t != "" {
 			if s > t {
 				s, t = t, s

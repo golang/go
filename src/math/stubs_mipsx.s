@@ -27,9 +27,6 @@ TEXT ·Atan(SB),NOSPLIT,$0
 TEXT ·Atanh(SB),NOSPLIT,$0
 	JMP	·atanh(SB)
 
-TEXT ·Dim(SB),NOSPLIT,$0
-	JMP	·dim(SB)
-
 TEXT ·Min(SB),NOSPLIT,$0
 	JMP	·min(SB)
 

@@ -15,13 +15,14 @@ import (
 	"sync"
 )
 
-const digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+const digits = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-// Note: MaxBase = len(digits), but it must remain a rune constant
+// Note: MaxBase = len(digits), but it must remain an untyped rune constant
 //       for API compatibility.
 
 // MaxBase is the largest number base accepted for string conversions.
-const MaxBase = 'z' - 'a' + 10 + 1
+const MaxBase = 10 + ('z' - 'a' + 1) + ('Z' - 'A' + 1)
+const maxBaseSmall = 10 + ('z' - 'a' + 1)
 
 // maxPow returns (b**n, n) such that b**n is the largest power b**n <= _M.
 // For instance maxPow(10) == (1e19, 19) for 19 decimal digits in a 64bit Word.
@@ -59,11 +60,11 @@ func pow(x Word, n int) (p Word) {
 // It returns the corresponding natural number res, the actual base b,
 // a digit count, and a read or syntax error err, if any.
 //
-//	number   = [ prefix ] mantissa .
-//	prefix   = "0" [ "x" | "X" | "b" | "B" ] .
-//      mantissa = digits | digits "." [ digits ] | "." digits .
-//	digits   = digit { digit } .
-//	digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
+//     number   = [ prefix ] mantissa .
+//     prefix   = "0" [ "x" | "X" | "b" | "B" ] .
+//     mantissa = digits | digits "." [ digits ] | "." digits .
+//     digits   = digit { digit } .
+//     digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
 //
 // Unless fracOk is set, the base argument must be 0 or a value between
 // 2 and MaxBase. If fracOk is set, the base argument must be one of
@@ -79,6 +80,11 @@ func pow(x Word, n int) (p Word) {
 // stands for a zero digit), and a period followed by a fractional part
 // is permitted. The result value is computed as if there were no period
 // present; and the count value is used to determine the fractional part.
+//
+// For bases <= 36, lower and upper case letters are considered the same:
+// The letters 'a' to 'z' and 'A' to 'Z' represent digit values 10 to 35.
+// For bases > 36, the upper case letters 'A' to 'Z' represent the digit
+// values 36 to 61.
 //
 // A result digit count > 0 corresponds to the number of (non-prefix) digits
 // parsed. A digit count <= 0 indicates the presence of a period (if fracOk
@@ -173,7 +179,11 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 		case 'a' <= ch && ch <= 'z':
 			d1 = Word(ch - 'a' + 10)
 		case 'A' <= ch && ch <= 'Z':
-			d1 = Word(ch - 'A' + 10)
+			if b <= maxBaseSmall {
+				d1 = Word(ch - 'A' + 10)
+			} else {
+				d1 = Word(ch - 'A' + maxBaseSmall)
+			}
 		default:
 			d1 = MaxBase + 1
 		}
@@ -469,7 +479,7 @@ func divisors(m int, b Word, ndigits int, bb Word) []divisor {
 					table[0].bbb = nat(nil).expWW(bb, Word(leafSize))
 					table[0].ndigits = ndigits * leafSize
 				} else {
-					table[i].bbb = nat(nil).mul(table[i-1].bbb, table[i-1].bbb)
+					table[i].bbb = nat(nil).sqr(table[i-1].bbb)
 					table[i].ndigits = 2 * table[i-1].ndigits
 				}
 

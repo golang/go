@@ -9,35 +9,38 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
-	"os"
-	"strconv"
 )
 
 // A Config holds readonly compilation information.
 // It is created once, early during compilation,
 // and shared across all compilations.
 type Config struct {
-	arch            string // "amd64", etc.
-	PtrSize         int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
-	RegSize         int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
-	Types           Types
-	lowerBlock      blockRewriter // lowering function
-	lowerValue      valueRewriter // lowering function
-	registers       []Register    // machine registers
-	gpRegMask       regMask       // general purpose integer register mask
-	fpRegMask       regMask       // floating point register mask
-	specialRegMask  regMask       // special register mask
-	FPReg           int8          // register number of frame pointer, -1 if not used
-	LinkReg         int8          // register number of link register if it is a general purpose register, -1 if not used
-	hasGReg         bool          // has hardware g register
-	ctxt            *obj.Link     // Generic arch information
-	optimize        bool          // Do optimization
-	noDuffDevice    bool          // Don't use Duff's device
-	nacl            bool          // GOOS=nacl
-	use387          bool          // GO386=387
-	NeedsFpScratch  bool          // No direct move between GP and FP register sets
-	BigEndian       bool          //
-	sparsePhiCutoff uint64        // Sparse phi location algorithm used above this #blocks*#variables score
+	arch           string // "amd64", etc.
+	PtrSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
+	RegSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
+	Types          Types
+	lowerBlock     blockRewriter // lowering function
+	lowerValue     valueRewriter // lowering function
+	registers      []Register    // machine registers
+	gpRegMask      regMask       // general purpose integer register mask
+	fpRegMask      regMask       // floating point register mask
+	specialRegMask regMask       // special register mask
+	GCRegMap       []*Register   // garbage collector register map, by GC register index
+	FPReg          int8          // register number of frame pointer, -1 if not used
+	LinkReg        int8          // register number of link register if it is a general purpose register, -1 if not used
+	hasGReg        bool          // has hardware g register
+	ctxt           *obj.Link     // Generic arch information
+	optimize       bool          // Do optimization
+	noDuffDevice   bool          // Don't use Duff's device
+	useSSE         bool          // Use SSE for non-float operations
+	useAvg         bool          // Use optimizations that need Avg* operations
+	useHmul        bool          // Use optimizations that need Hmul* operations
+	nacl           bool          // GOOS=nacl
+	use387         bool          // GO386=387
+	SoftFloat      bool          //
+	Race           bool          // race detector enabled
+	NeedsFpScratch bool          // No direct move between GP and FP register sets
+	BigEndian      bool          //
 }
 
 type (
@@ -58,6 +61,7 @@ type Types struct {
 	Int        *types.Type
 	Float32    *types.Type
 	Float64    *types.Type
+	UInt       *types.Type
 	Uintptr    *types.Type
 	String     *types.Type
 	BytePtr    *types.Type // TODO: use unsafe.Pointer instead?
@@ -70,11 +74,45 @@ type Types struct {
 	BytePtrPtr *types.Type
 }
 
+// NewTypes creates and populates a Types.
+func NewTypes() *Types {
+	t := new(Types)
+	t.SetTypPtrs()
+	return t
+}
+
+// SetTypPtrs populates t.
+func (t *Types) SetTypPtrs() {
+	t.Bool = types.Types[types.TBOOL]
+	t.Int8 = types.Types[types.TINT8]
+	t.Int16 = types.Types[types.TINT16]
+	t.Int32 = types.Types[types.TINT32]
+	t.Int64 = types.Types[types.TINT64]
+	t.UInt8 = types.Types[types.TUINT8]
+	t.UInt16 = types.Types[types.TUINT16]
+	t.UInt32 = types.Types[types.TUINT32]
+	t.UInt64 = types.Types[types.TUINT64]
+	t.Int = types.Types[types.TINT]
+	t.Float32 = types.Types[types.TFLOAT32]
+	t.Float64 = types.Types[types.TFLOAT64]
+	t.UInt = types.Types[types.TUINT]
+	t.Uintptr = types.Types[types.TUINTPTR]
+	t.String = types.Types[types.TSTRING]
+	t.BytePtr = types.NewPtr(types.Types[types.TUINT8])
+	t.Int32Ptr = types.NewPtr(types.Types[types.TINT32])
+	t.UInt32Ptr = types.NewPtr(types.Types[types.TUINT32])
+	t.IntPtr = types.NewPtr(types.Types[types.TINT])
+	t.UintptrPtr = types.NewPtr(types.Types[types.TUINTPTR])
+	t.Float32Ptr = types.NewPtr(types.Types[types.TFLOAT32])
+	t.Float64Ptr = types.NewPtr(types.Types[types.TFLOAT64])
+	t.BytePtrPtr = types.NewPtr(types.NewPtr(types.Types[types.TUINT8]))
+}
+
 type Logger interface {
 	// Logf logs a message from the compiler.
 	Logf(string, ...interface{})
 
-	// Log returns true if logging is not a no-op
+	// Log reports whether logging is not a no-op
 	// some logging calls account for more than a few heap allocations.
 	Log() bool
 
@@ -86,7 +124,6 @@ type Logger interface {
 
 	// Forwards the Debug flags from gc
 	Debug_checknil() bool
-	Debug_wb() bool
 }
 
 type Frontend interface {
@@ -127,20 +164,37 @@ type Frontend interface {
 	// given name.
 	Syslook(string) *obj.LSym
 
-	// UseWriteBarrier returns whether write barrier is enabled
+	// UseWriteBarrier reports whether write barrier is enabled
 	UseWriteBarrier() bool
+
+	// SetWBPos indicates that a write barrier has been inserted
+	// in this function at position pos.
+	SetWBPos(pos src.XPos)
 }
 
-// interface used to hold *gc.Node. We'd use *gc.Node directly but
-// that would lead to an import cycle.
+// interface used to hold a *gc.Node (a stack variable).
+// We'd use *gc.Node directly but that would lead to an import cycle.
 type GCNode interface {
 	Typ() *types.Type
 	String() string
+	IsSynthetic() bool
+	IsAutoTmp() bool
+	StorageClass() StorageClass
 }
+
+type StorageClass uint8
+
+const (
+	ClassAuto     StorageClass = iota // local stack variable
+	ClassParam                        // argument
+	ClassParamOut                     // return value
+)
 
 // NewConfig returns a new configuration object for the given architecture.
 func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
 	c := &Config{arch: arch, Types: types}
+	c.useAvg = true
+	c.useHmul = true
 	switch arch {
 	case "amd64":
 		c.PtrSize = 8
@@ -258,40 +312,66 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.LinkReg = linkRegMIPS
 		c.hasGReg = true
 		c.noDuffDevice = true
+	case "wasm":
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockWasm
+		c.lowerValue = rewriteValueWasm
+		c.registers = registersWasm[:]
+		c.gpRegMask = gpRegMaskWasm
+		c.fpRegMask = fpRegMaskWasm
+		c.FPReg = framepointerRegWasm
+		c.LinkReg = linkRegWasm
+		c.hasGReg = true
+		c.noDuffDevice = true
+		c.useAvg = false
+		c.useHmul = false
 	default:
 		ctxt.Diag("arch %s not implemented", arch)
 	}
 	c.ctxt = ctxt
 	c.optimize = optimize
 	c.nacl = objabi.GOOS == "nacl"
+	c.useSSE = true
 
-	// Don't use Duff's device on Plan 9 AMD64, because floating
-	// point operations are not allowed in note handler.
+	// Don't use Duff's device nor SSE on Plan 9 AMD64, because
+	// floating point operations are not allowed in note handler.
 	if objabi.GOOS == "plan9" && arch == "amd64" {
 		c.noDuffDevice = true
+		c.useSSE = false
 	}
 
 	if c.nacl {
 		c.noDuffDevice = true // Don't use Duff's device on NaCl
 
-		// runtime call clobber R12 on nacl
-		opcodeTable[OpARMCALLudiv].reg.clobbers |= 1 << 12 // R12
+		// Returns clobber BP on nacl/386, so the write
+		// barrier does.
+		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 5 // BP
+
+		// ... and SI on nacl/amd64.
+		opcodeTable[OpAMD64LoweredWB].reg.clobbers |= 1 << 6 // SI
 	}
 
-	// cutoff is compared with product of numblocks and numvalues,
-	// if product is smaller than cutoff, use old non-sparse method.
-	// cutoff == 0 implies all sparse.
-	// cutoff == -1 implies none sparse.
-	// Good cutoff values seem to be O(million) depending on constant factor cost of sparse.
-	// TODO: get this from a flag, not an environment variable
-	c.sparsePhiCutoff = 2500000 // 0 for testing. // 2500000 determined with crude experiments w/ make.bash
-	ev := os.Getenv("GO_SSA_PHI_LOC_CUTOFF")
-	if ev != "" {
-		v, err := strconv.ParseInt(ev, 10, 64)
-		if err != nil {
-			ctxt.Diag("Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
+	if ctxt.Flag_shared {
+		// LoweredWB is secretly a CALL and CALLs on 386 in
+		// shared mode get rewritten by obj6.go to go through
+		// the GOT, which clobbers BX.
+		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 3 // BX
+	}
+
+	// Create the GC register map index.
+	// TODO: This is only used for debug printing. Maybe export config.registers?
+	gcRegMapSize := int16(0)
+	for _, r := range c.registers {
+		if r.gcNum+1 > gcRegMapSize {
+			gcRegMapSize = r.gcNum + 1
 		}
-		c.sparsePhiCutoff = uint64(v) // convert -1 to maxint, for never use sparse
+	}
+	c.GCRegMap = make([]*Register, gcRegMapSize)
+	for i, r := range c.registers {
+		if r.gcNum != -1 {
+			c.GCRegMap[r.gcNum] = &c.registers[i]
+		}
 	}
 
 	return c
@@ -302,5 +382,4 @@ func (c *Config) Set387(b bool) {
 	c.use387 = b
 }
 
-func (c *Config) SparsePhiCutoff() uint64 { return c.sparsePhiCutoff }
-func (c *Config) Ctxt() *obj.Link         { return c.ctxt }
+func (c *Config) Ctxt() *obj.Link { return c.ctxt }

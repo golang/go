@@ -10,7 +10,9 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
+	"cmd/internal/objabi"
 	"math"
+	"strings"
 )
 
 // iselOp encodes mapping of comparison operations onto ISEL operands
@@ -124,14 +126,14 @@ func ssaGenISEL(s *gc.SSAGenState, v *ssa.Value, cr int64, r1, r2 int16) {
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = r
 	p.Reg = r1
-	p.From3 = &obj.Addr{Type: obj.TYPE_REG, Reg: r2}
+	p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r2})
 	p.From.Type = obj.TYPE_CONST
 	p.From.Offset = cr
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpCopy, ssa.OpPPC64MOVDconvert:
+	case ssa.OpCopy:
 		t := v.Type
 		if t.IsMemory() {
 			return
@@ -152,41 +154,37 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Reg = y
 		}
 
-	case ssa.OpPPC64Xf2i64:
-		{
-			x := v.Args[0].Reg()
-			y := v.Reg()
-
-			p := s.Prog(ppc64.AMFVSRD)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = y
-		}
-	case ssa.OpPPC64Xi2f64:
-		{
-			x := v.Args[0].Reg()
-			y := v.Reg()
-
-			p := s.Prog(ppc64.AMTVSRD)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = y
-		}
+	case ssa.OpPPC64LoweredMuluhilo:
+		// MULHDU	Rarg1, Rarg0, Reg0
+		// MULLD	Rarg1, Rarg0, Reg1
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		p := s.Prog(ppc64.AMULHDU)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r1
+		p.Reg = r0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+		p1 := s.Prog(ppc64.AMULLD)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.Reg = r0
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = v.Reg1()
 
 	case ssa.OpPPC64LoweredAtomicAnd8,
 		ssa.OpPPC64LoweredAtomicOr8:
-		// SYNC
+		// LWSYNC
 		// LBAR		(Rarg0), Rtmp
 		// AND/OR	Rarg1, Rtmp
 		// STBCCC	Rtmp, (Rarg0)
 		// BNE		-3(PC)
-		// ISYNC
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
-		psync := s.Prog(ppc64.ASYNC)
-		psync.To.Type = obj.TYPE_NONE
+		// LWSYNC - Assuming shared data not write-through-required nor
+		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
+		plwsync := s.Prog(ppc64.ALWSYNC)
+		plwsync.To.Type = obj.TYPE_NONE
 		p := s.Prog(ppc64.ALBAR)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = r0
@@ -206,17 +204,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3 := s.Prog(ppc64.ABNE)
 		p3.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p3, p)
-		pisync := s.Prog(ppc64.AISYNC)
-		pisync.To.Type = obj.TYPE_NONE
 
 	case ssa.OpPPC64LoweredAtomicAdd32,
 		ssa.OpPPC64LoweredAtomicAdd64:
-		// SYNC
+		// LWSYNC
 		// LDAR/LWAR    (Rarg0), Rout
 		// ADD		Rarg1, Rout
 		// STDCCC/STWCCC Rout, (Rarg0)
 		// BNE         -3(PC)
-		// ISYNC
 		// MOVW		Rout,Rout (if Add32)
 		ld := ppc64.ALDAR
 		st := ppc64.ASTDCCC
@@ -227,9 +222,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
 		out := v.Reg0()
-		// SYNC
-		psync := s.Prog(ppc64.ASYNC)
-		psync.To.Type = obj.TYPE_NONE
+		// LWSYNC - Assuming shared data not write-through-required nor
+		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
+		plwsync := s.Prog(ppc64.ALWSYNC)
+		plwsync.To.Type = obj.TYPE_NONE
 		// LDAR or LWAR
 		p := s.Prog(ld)
 		p.From.Type = obj.TYPE_MEM
@@ -252,9 +248,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p4 := s.Prog(ppc64.ABNE)
 		p4.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p4, p)
-		// ISYNC
-		pisync := s.Prog(ppc64.AISYNC)
-		pisync.To.Type = obj.TYPE_NONE
 
 		// Ensure a 32 bit result
 		if v.Op == ssa.OpPPC64LoweredAtomicAdd32 {
@@ -267,7 +260,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 	case ssa.OpPPC64LoweredAtomicExchange32,
 		ssa.OpPPC64LoweredAtomicExchange64:
-		// SYNC
+		// LWSYNC
 		// LDAR/LWAR    (Rarg0), Rout
 		// STDCCC/STWCCC Rout, (Rarg0)
 		// BNE         -2(PC)
@@ -281,9 +274,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
 		out := v.Reg0()
-		// SYNC
-		psync := s.Prog(ppc64.ASYNC)
-		psync.To.Type = obj.TYPE_NONE
+		// LWSYNC - Assuming shared data not write-through-required nor
+		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
+		plwsync := s.Prog(ppc64.ALWSYNC)
+		plwsync.To.Type = obj.TYPE_NONE
 		// LDAR or LWAR
 		p := s.Prog(ld)
 		p.From.Type = obj.TYPE_MEM
@@ -320,9 +314,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		arg0 := v.Args[0].Reg()
 		out := v.Reg0()
-		// SYNC
-		psync := s.Prog(ppc64.ASYNC)
-		psync.To.Type = obj.TYPE_NONE
+		// SYNC when AuxInt == 1; otherwise, load-acquire
+		if v.AuxInt == 1 {
+			psync := s.Prog(ppc64.ASYNC)
+			psync.To.Type = obj.TYPE_NONE
+		}
 		// Load
 		p := s.Prog(ld)
 		p.From.Type = obj.TYPE_MEM
@@ -345,7 +341,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 	case ssa.OpPPC64LoweredAtomicStore32,
 		ssa.OpPPC64LoweredAtomicStore64:
-		// SYNC
+		// SYNC or LWSYNC
 		// MOVD/MOVW arg1,(arg0)
 		st := ppc64.AMOVD
 		if v.Op == ssa.OpPPC64LoweredAtomicStore32 {
@@ -353,8 +349,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		arg0 := v.Args[0].Reg()
 		arg1 := v.Args[1].Reg()
+		// If AuxInt == 0, LWSYNC (Store-Release), else SYNC
 		// SYNC
-		psync := s.Prog(ppc64.ASYNC)
+		syncOp := ppc64.ASYNC
+		if v.AuxInt == 0 {
+			syncOp = ppc64.ALWSYNC
+		}
+		psync := s.Prog(syncOp)
 		psync.To.Type = obj.TYPE_NONE
 		// Store
 		p := s.Prog(st)
@@ -365,14 +366,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 	case ssa.OpPPC64LoweredAtomicCas64,
 		ssa.OpPPC64LoweredAtomicCas32:
-		// SYNC
+		// LWSYNC
 		// loop:
-		// LDAR        (Rarg0), Rtmp
+		// LDAR        (Rarg0), MutexHint, Rtmp
 		// CMP         Rarg1, Rtmp
 		// BNE         fail
 		// STDCCC      Rarg2, (Rarg0)
 		// BNE         loop
-		// ISYNC
+		// LWSYNC      // Only for sequential consistency; not required in CasRel.
 		// MOVD        $1, Rout
 		// BR          end
 		// fail:
@@ -390,15 +391,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r1 := v.Args[1].Reg()
 		r2 := v.Args[2].Reg()
 		out := v.Reg0()
-		// SYNC
-		psync := s.Prog(ppc64.ASYNC)
-		psync.To.Type = obj.TYPE_NONE
+		// LWSYNC - Assuming shared data not write-through-required nor
+		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
+		plwsync1 := s.Prog(ppc64.ALWSYNC)
+		plwsync1.To.Type = obj.TYPE_NONE
 		// LDAR or LWAR
 		p := s.Prog(ld)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = r0
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REGTMP
+		// If it is a Compare-and-Swap-Release operation, set the EH field with
+		// the release hint.
+		if v.AuxInt == 0 {
+			p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: 0})
+		}
 		// CMP reg1,reg2
 		p1 := s.Prog(cmp)
 		p1.From.Type = obj.TYPE_REG
@@ -418,9 +425,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p4 := s.Prog(ppc64.ABNE)
 		p4.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p4, p)
-		// ISYNC
-		pisync := s.Prog(ppc64.AISYNC)
-		pisync.To.Type = obj.TYPE_NONE
+		// LWSYNC - Assuming shared data not write-through-required nor
+		// caching-inhibited. See Appendix B.2.1.1 in the ISA 2.07b.
+		// If the operation is a CAS-Release, then synchronization is not necessary.
+		if v.AuxInt != 0 {
+			plwsync2 := s.Prog(ppc64.ALWSYNC)
+			plwsync2.To.Type = obj.TYPE_NONE
+		}
 		// return true
 		p5 := s.Prog(ppc64.AMOVD)
 		p5.From.Type = obj.TYPE_CONST
@@ -444,6 +455,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpPPC64LoweredGetClosurePtr:
 		// Closure pointer is R11 (already)
 		gc.CheckLoweredGetClosurePtr(v)
+
+	case ssa.OpPPC64LoweredGetCallerSP:
+		// caller's SP is FixedFrameSize below the address of the first arg
+		p := s.Prog(ppc64.AMOVD)
+		p.From.Type = obj.TYPE_ADDR
+		p.From.Offset = -gc.Ctxt.FixedFrameSize()
+		p.From.Name = obj.NAME_PARAM
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
+	case ssa.OpPPC64LoweredGetCallerPC:
+		p := s.Prog(obj.AGETCALLERPC)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 
 	case ssa.OpPPC64LoweredRound32F, ssa.OpPPC64LoweredRound64F:
 		// input is already rounded
@@ -542,9 +567,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpPPC64ADD, ssa.OpPPC64FADD, ssa.OpPPC64FADDS, ssa.OpPPC64SUB, ssa.OpPPC64FSUB, ssa.OpPPC64FSUBS,
 		ssa.OpPPC64MULLD, ssa.OpPPC64MULLW, ssa.OpPPC64DIVDU, ssa.OpPPC64DIVWU,
 		ssa.OpPPC64SRAD, ssa.OpPPC64SRAW, ssa.OpPPC64SRD, ssa.OpPPC64SRW, ssa.OpPPC64SLD, ssa.OpPPC64SLW,
+		ssa.OpPPC64ROTL, ssa.OpPPC64ROTLW,
 		ssa.OpPPC64MULHD, ssa.OpPPC64MULHW, ssa.OpPPC64MULHDU, ssa.OpPPC64MULHWU,
-		ssa.OpPPC64FMUL, ssa.OpPPC64FMULS, ssa.OpPPC64FDIV, ssa.OpPPC64FDIVS,
-		ssa.OpPPC64AND, ssa.OpPPC64OR, ssa.OpPPC64ANDN, ssa.OpPPC64ORN, ssa.OpPPC64NOR, ssa.OpPPC64XOR, ssa.OpPPC64EQV:
+		ssa.OpPPC64FMUL, ssa.OpPPC64FMULS, ssa.OpPPC64FDIV, ssa.OpPPC64FDIVS, ssa.OpPPC64FCPSGN,
+		ssa.OpPPC64AND, ssa.OpPPC64ANDCC, ssa.OpPPC64OR, ssa.OpPPC64ORCC, ssa.OpPPC64ANDN, ssa.OpPPC64ORN, ssa.OpPPC64NOR, ssa.OpPPC64XOR, ssa.OpPPC64XORCC, ssa.OpPPC64EQV:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()
@@ -573,9 +599,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r1
 		p.Reg = r3
-		p.From3 = new(obj.Addr)
-		p.From3.Type = obj.TYPE_REG
-		p.From3.Reg = r2
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r2})
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
@@ -596,7 +620,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
 
-	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB:
+	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD, ssa.OpPPC64FABS, ssa.OpPPC64FNABS, ssa.OpPPC64FROUND:
 		r := v.Reg()
 		p := s.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
@@ -608,15 +632,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpPPC64SRADconst, ssa.OpPPC64SRAWconst, ssa.OpPPC64SRDconst, ssa.OpPPC64SRWconst, ssa.OpPPC64SLDconst, ssa.OpPPC64SLWconst:
 		p := s.Prog(v.Op.Asm())
 		p.Reg = v.Args[0].Reg()
-
-		if v.Aux != nil {
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = gc.AuxOffset(v)
-		} else {
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = v.AuxInt
-		}
-
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
@@ -636,35 +653,31 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = ppc64.REGTMP // discard result
 
 	case ssa.OpPPC64MOVDaddr:
-		p := s.Prog(ppc64.AMOVD)
-		p.From.Type = obj.TYPE_ADDR
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
-
-		var wantreg string
-		// Suspect comment, copied from ARM code
-		// MOVD $sym+off(base), R
-		// the assembler expands it as the following:
-		// - base is SP: add constant offset to SP
-		//               when constant is large, tmp register (R11) may be used
-		// - base is SB: load external address from constant pool (use relocation)
 		switch v.Aux.(type) {
 		default:
-			v.Fatalf("aux is of unknown type %T", v.Aux)
-		case *ssa.ExternSymbol:
-			wantreg = "SB"
-			gc.AddAux(&p.From, v)
-		case *ssa.ArgSymbol, *ssa.AutoSymbol:
-			wantreg = "SP"
-			gc.AddAux(&p.From, v)
+			v.Fatalf("aux in MOVDaddr is of unknown type %T", v.Aux)
 		case nil:
-			// No sym, just MOVD $off(SP), R
-			wantreg = "SP"
-			p.From.Reg = ppc64.REGSP
-			p.From.Offset = v.AuxInt
-		}
-		if reg := v.Args[0].RegName(); reg != wantreg {
-			v.Fatalf("bad reg %s for symbol type %T, want %s", reg, v.Aux, wantreg)
+			// If aux offset and aux int are both 0, and the same
+			// input and output regs are used, no instruction
+			// needs to be generated, since it would just be
+			// addi rx, rx, 0.
+			if v.AuxInt != 0 || v.Args[0].Reg() != v.Reg() {
+				p := s.Prog(ppc64.AMOVD)
+				p.From.Type = obj.TYPE_ADDR
+				p.From.Reg = v.Args[0].Reg()
+				p.From.Offset = v.AuxInt
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = v.Reg()
+			}
+
+		case *obj.LSym, *gc.Node:
+			p := s.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_ADDR
+			p.From.Reg = v.Args[0].Reg()
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = v.Reg()
+			gc.AddAux(&p.From, v)
+
 		}
 
 	case ssa.OpPPC64MOVDconst:
@@ -703,7 +716,42 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 		p.To.Type = obj.TYPE_REG
 
-	case ssa.OpPPC64MOVDload, ssa.OpPPC64MOVWload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload:
+	case ssa.OpPPC64MOVDload:
+
+		// MOVDload uses a DS instruction which requires the offset value of the data to be a multiple of 4.
+		// For offsets known at compile time, a MOVDload won't be selected, but in the case of a go.string,
+		// the offset is not known until link time. If the load of a go.string uses relocation for the
+		// offset field of the instruction, and if the offset is not aligned to 4, then a link error will occur.
+		// To avoid this problem, the full address of the go.string is computed and loaded into the base register,
+		// and that base register is used for the MOVDload using a 0 offset. This problem can only occur with
+		// go.string types because other types will have proper alignment.
+
+		gostring := false
+		switch n := v.Aux.(type) {
+		case *obj.LSym:
+			gostring = strings.HasPrefix(n.Name, "go.string.")
+		}
+		if gostring {
+			// Generate full addr of the go.string const
+			// including AuxInt
+			p := s.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_ADDR
+			p.From.Reg = v.Args[0].Reg()
+			gc.AddAux(&p.From, v)
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = v.Reg()
+			// Load go.string using 0 offset
+			p = s.Prog(v.Op.Asm())
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = v.Reg()
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = v.Reg()
+			break
+		}
+		// Not a go.string, generate a normal load
+		fallthrough
+
+	case ssa.OpPPC64MOVWload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload, ssa.OpPPC64FMOVDload, ssa.OpPPC64FMOVSload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
@@ -711,10 +759,27 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
-	case ssa.OpPPC64FMOVDload, ssa.OpPPC64FMOVSload:
+	case ssa.OpPPC64MOVDBRload, ssa.OpPPC64MOVWBRload, ssa.OpPPC64MOVHBRload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
+	case ssa.OpPPC64MOVDBRstore, ssa.OpPPC64MOVWBRstore, ssa.OpPPC64MOVHBRstore:
+		p := s.Prog(v.Op.Asm())
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+
+	case ssa.OpPPC64MOVDloadidx, ssa.OpPPC64MOVWloadidx, ssa.OpPPC64MOVHloadidx, ssa.OpPPC64MOVWZloadidx,
+		ssa.OpPPC64MOVBZloadidx, ssa.OpPPC64MOVHZloadidx, ssa.OpPPC64FMOVDloadidx, ssa.OpPPC64FMOVSloadidx,
+		ssa.OpPPC64MOVDBRloadidx, ssa.OpPPC64MOVWBRloadidx, ssa.OpPPC64MOVHBRloadidx:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.From.Index = v.Args[1].Reg()
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -727,17 +792,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
 
-	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVWstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVBstore:
+	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVWstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVBstore, ssa.OpPPC64FMOVDstore, ssa.OpPPC64FMOVSstore:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
-	case ssa.OpPPC64FMOVDstore, ssa.OpPPC64FMOVSstore:
+
+	case ssa.OpPPC64MOVDstoreidx, ssa.OpPPC64MOVWstoreidx, ssa.OpPPC64MOVHstoreidx, ssa.OpPPC64MOVBstoreidx,
+		ssa.OpPPC64FMOVDstoreidx, ssa.OpPPC64FMOVSstoreidx, ssa.OpPPC64MOVDBRstoreidx, ssa.OpPPC64MOVWBRstoreidx,
+		ssa.OpPPC64MOVHBRstoreidx:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[1].Reg()
+		p.From.Reg = v.Args[2].Reg()
+		p.To.Index = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
@@ -914,7 +983,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpPPC64LoweredMove:
 
 		// This will be used when moving more
-		// than 8 bytes.  Moves start with as
+		// than 8 bytes.  Moves start with
 		// as many 8 byte moves as possible, then
 		// 4, 2, or 1 byte(s) as remaining.  This will
 		// work and be efficient for power8 or later.
@@ -1088,17 +1157,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REG_CTR
 
-		if gc.Ctxt.Flag_shared && p.From.Reg != ppc64.REG_R12 {
-			// Make sure function pointer is in R12 as well when
-			// compiling Go into PIC.
-			// TODO(mwhudson): it would obviously be better to
-			// change the register allocation to put the value in
-			// R12 already, but I don't know how to do that.
-			// TODO: We have the technology now to implement TODO above.
-			q := s.Prog(ppc64.AMOVD)
-			q.From = p.From
-			q.To.Type = obj.TYPE_REG
-			q.To.Reg = ppc64.REG_R12
+		if v.Args[0].Reg() != ppc64.REG_R12 {
+			v.Fatalf("Function address for %v should be in R12 %d but is in %d", v.LongString(), ppc64.REG_R12, p.From.Reg)
 		}
 
 		pp := s.Call(v)
@@ -1117,14 +1177,51 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			q.To.Reg = ppc64.REG_R2
 		}
 
+	case ssa.OpPPC64LoweredWB:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = v.Aux.(*obj.LSym)
+
 	case ssa.OpPPC64LoweredNilCheck:
-		// Issue a load which will fault if arg is nil.
-		p := s.Prog(ppc64.AMOVBZ)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.From, v)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = ppc64.REGTMP
+		if objabi.GOOS == "aix" {
+			// CMP Rarg0, R0
+			// BNE 2(PC)
+			// STW R0, 0(R0)
+			// NOP (so the BNE has somewhere to land)
+
+			// CMP Rarg0, R0
+			p := s.Prog(ppc64.ACMP)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = v.Args[0].Reg()
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REG_R0
+
+			// BNE 2(PC)
+			p2 := s.Prog(ppc64.ABNE)
+			p2.To.Type = obj.TYPE_BRANCH
+
+			// STW R0, 0(R0)
+			// Write at 0 is forbidden and will trigger a SIGSEGV
+			p = s.Prog(ppc64.AMOVW)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = ppc64.REG_R0
+			p.To.Type = obj.TYPE_MEM
+			p.To.Reg = ppc64.REG_R0
+
+			// NOP (so the BNE has somewhere to land)
+			nop := s.Prog(obj.ANOP)
+			gc.Patch(p2, nop)
+
+		} else {
+			// Issue a load which will fault if arg is nil.
+			p := s.Prog(ppc64.AMOVBZ)
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = v.Args[0].Reg()
+			gc.AddAux(&p.From, v)
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REGTMP
+		}
 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
 			gc.Warnl(v.Pos, "generated nil check")
 		}
@@ -1202,41 +1299,34 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		ssa.BlockPPC64FLT, ssa.BlockPPC64FGE,
 		ssa.BlockPPC64FLE, ssa.BlockPPC64FGT:
 		jmp := blockJump[b.Kind]
-		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
-			p = s.Prog(jmp.invasm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+			s.Br(jmp.invasm, b.Succs[1].Block())
 			if jmp.invasmun {
 				// TODO: The second branch is probably predict-not-taken since it is for FP unordered
-				q := s.Prog(ppc64.ABVS)
-				q.To.Type = obj.TYPE_BRANCH
-				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+				s.Br(ppc64.ABVS, b.Succs[1].Block())
 			}
 		case b.Succs[1].Block():
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			s.Br(jmp.asm, b.Succs[0].Block())
 			if jmp.asmeq {
-				q := s.Prog(ppc64.ABEQ)
-				q.To.Type = obj.TYPE_BRANCH
-				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[0].Block()})
+				s.Br(ppc64.ABEQ, b.Succs[0].Block())
 			}
 		default:
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-			if jmp.asmeq {
-				q := s.Prog(ppc64.ABEQ)
-				q.To.Type = obj.TYPE_BRANCH
-				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[0].Block()})
+			if b.Likely != ssa.BranchUnlikely {
+				s.Br(jmp.asm, b.Succs[0].Block())
+				if jmp.asmeq {
+					s.Br(ppc64.ABEQ, b.Succs[0].Block())
+				}
+				s.Br(obj.AJMP, b.Succs[1].Block())
+			} else {
+				s.Br(jmp.invasm, b.Succs[1].Block())
+				if jmp.invasmun {
+					// TODO: The second branch is probably predict-not-taken since it is for FP unordered
+					s.Br(ppc64.ABVS, b.Succs[1].Block())
+				}
+				s.Br(obj.AJMP, b.Succs[0].Block())
 			}
-			q := s.Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
 		}
-
 	default:
 		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
 	}

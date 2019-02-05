@@ -52,7 +52,7 @@ func WithLabels(ctx context.Context, labels LabelSet) context.Context {
 }
 
 // Labels takes an even number of strings representing key-value pairs
-// and makes a LabelList containing them.
+// and makes a LabelSet containing them.
 // A label overwrites a prior label with the same key.
 func Labels(args ...string) LabelSet {
 	if len(args)%2 != 0 {

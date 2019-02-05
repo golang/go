@@ -13,6 +13,7 @@ import (
 	"text/scanner"
 
 	"cmd/asm/internal/flags"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -138,7 +139,7 @@ func (in *Input) Text() string {
 	return in.text
 }
 
-// hash processes a # preprocessor directive. It returns true iff it completes.
+// hash processes a # preprocessor directive. It reports whether it completes.
 func (in *Input) hash() bool {
 	// We have a '#'; it must be followed by a known word (define, include, etc.).
 	tok := in.Stack.Next()
@@ -453,8 +454,8 @@ func (in *Input) line() {
 	if tok != '\n' {
 		in.Error("unexpected token at end of #line: ", tok)
 	}
-	pos := src.MakePos(in.Base(), uint(in.Line()), uint(in.Col()))
-	in.Stack.SetBase(src.NewLinePragmaBase(pos, file, uint(line)))
+	pos := src.MakePos(in.Base(), uint(in.Line())+1, 1) // +1 because #line nnn means line nnn starts on next line
+	in.Stack.SetBase(src.NewLinePragmaBase(pos, file, objabi.AbsFile(objabi.WorkingDir(), file, *flags.TrimPath), uint(line), 1))
 }
 
 // #undef processing

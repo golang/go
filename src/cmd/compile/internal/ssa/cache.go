@@ -4,7 +4,10 @@
 
 package ssa
 
-import "sort"
+import (
+	"cmd/internal/obj"
+	"sort"
+)
 
 // A Cache holds reusable compiler state.
 // It is intended to be re-used for multiple Func compilations.
@@ -19,7 +22,14 @@ type Cache struct {
 	stackAllocState *stackAllocState
 
 	domblockstore []ID         // scratch space for computing dominators
-	scrSparse     []*sparseSet // scratch sparse sets to be re-used.
+	scrSparseSet  []*sparseSet // scratch sparse sets to be re-used.
+	scrSparseMap  []*sparseMap // scratch sparse maps to be re-used.
+	scrPoset      []*poset     // scratch poset to be reused
+
+	ValueToProgAfter []*obj.Prog
+	debugState       debugState
+
+	Liveness interface{} // *gc.livenessFuncCache
 }
 
 func (c *Cache) Reset() {
@@ -38,4 +48,5 @@ func (c *Cache) Reset() {
 	for i := range xl {
 		xl[i] = nil
 	}
+
 }

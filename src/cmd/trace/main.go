@@ -16,7 +16,11 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
+	"runtime/debug"
 	"sync"
+
+	_ "net/http/pprof" // Required to use pprof
 )
 
 const usageMessage = "" +
@@ -42,6 +46,7 @@ Supported profile types are:
 Flags:
 	-http=addr: HTTP service address (e.g., ':6060')
 	-pprof=type: print a pprof-like profile instead
+	-d: print debug info such as parsed events
 
 Note that while the various profiles available when launching
 'go tool trace' work on every browser, the trace viewer itself
@@ -52,6 +57,7 @@ and is only actively tested on that browser.
 var (
 	httpFlag  = flag.String("http", "localhost:0", "HTTP service address (e.g., ':6060')")
 	pprofFlag = flag.String("pprof", "", "print a pprof-like profile instead")
+	debugFlag = flag.Bool("d", false, "print debug information such as parsed events list")
 
 	// The binary file name, left here for serveSVGProfile.
 	programBinary string
@@ -77,19 +83,19 @@ func main() {
 		flag.Usage()
 	}
 
-	var pprofFunc func(io.Writer) error
+	var pprofFunc func(io.Writer, *http.Request) error
 	switch *pprofFlag {
 	case "net":
-		pprofFunc = pprofIO
+		pprofFunc = pprofByGoroutine(computePprofIO)
 	case "sync":
-		pprofFunc = pprofBlock
+		pprofFunc = pprofByGoroutine(computePprofBlock)
 	case "syscall":
-		pprofFunc = pprofSyscall
+		pprofFunc = pprofByGoroutine(computePprofSyscall)
 	case "sched":
-		pprofFunc = pprofSched
+		pprofFunc = pprofByGoroutine(computePprofSched)
 	}
 	if pprofFunc != nil {
-		if err := pprofFunc(os.Stdout); err != nil {
+		if err := pprofFunc(os.Stdout, &http.Request{}); err != nil {
 			dief("failed to generate pprof: %v\n", err)
 		}
 		os.Exit(0)
@@ -103,29 +109,27 @@ func main() {
 		dief("failed to create server socket: %v\n", err)
 	}
 
-	log.Printf("Parsing trace...")
-	events, err := parseEvents()
+	log.Print("Parsing trace...")
+	res, err := parseTrace()
 	if err != nil {
 		dief("%v\n", err)
 	}
 
-	log.Printf("Serializing trace...")
-	params := &traceParams{
-		events:  events,
-		endTime: int64(1<<63 - 1),
+	if *debugFlag {
+		trace.Print(res.Events)
+		os.Exit(0)
 	}
-	data, err := generateTrace(params)
-	if err != nil {
-		dief("%v\n", err)
-	}
+	reportMemoryUsage("after parsing trace")
+	debug.FreeOSMemory()
 
-	log.Printf("Splitting trace...")
-	ranges = splitTrace(data)
+	log.Print("Splitting trace...")
+	ranges = splitTrace(res)
+	reportMemoryUsage("after spliting trace")
+	debug.FreeOSMemory()
 
-	log.Printf("Opening browser")
-	if !browser.Open("http://" + ln.Addr().String()) {
-		fmt.Fprintf(os.Stderr, "Trace viewer is listening on http://%s\n", ln.Addr().String())
-	}
+	addr := "http://" + ln.Addr().String()
+	log.Printf("Opening browser. Trace viewer is listening on %s", addr)
+	browser.Open(addr)
 
 	// Start http server.
 	http.HandleFunc("/", httpMain)
@@ -136,12 +140,22 @@ func main() {
 var ranges []Range
 
 var loader struct {
-	once   sync.Once
-	events []*trace.Event
-	err    error
+	once sync.Once
+	res  trace.ParseResult
+	err  error
 }
 
+// parseEvents is a compatibility wrapper that returns only
+// the Events part of trace.ParseResult returned by parseTrace.
 func parseEvents() ([]*trace.Event, error) {
+	res, err := parseTrace()
+	if err != nil {
+		return nil, err
+	}
+	return res.Events, err
+}
+
+func parseTrace() (trace.ParseResult, error) {
 	loader.once.Do(func() {
 		tracef, err := os.Open(traceFile)
 		if err != nil {
@@ -151,14 +165,14 @@ func parseEvents() ([]*trace.Event, error) {
 		defer tracef.Close()
 
 		// Parse and symbolize.
-		events, err := trace.Parse(bufio.NewReader(tracef), programBinary)
+		res, err := trace.Parse(bufio.NewReader(tracef), programBinary)
 		if err != nil {
 			loader.err = fmt.Errorf("failed to parse trace: %v", err)
 			return
 		}
-		loader.events = events
+		loader.res = res
 	})
-	return loader.events, loader.err
+	return loader.res, loader.err
 }
 
 // httpMain serves the starting page.
@@ -174,17 +188,20 @@ var templMain = template.Must(template.New("").Parse(`
 <body>
 {{if $}}
 	{{range $e := $}}
-		<a href="/trace?start={{$e.Start}}&end={{$e.End}}">View trace ({{$e.Name}})</a><br>
+		<a href="{{$e.URL}}">View trace ({{$e.Name}})</a><br>
 	{{end}}
 	<br>
 {{else}}
 	<a href="/trace">View trace</a><br>
 {{end}}
 <a href="/goroutines">Goroutine analysis</a><br>
-<a href="/io">Network blocking profile</a><br>
-<a href="/block">Synchronization blocking profile</a><br>
-<a href="/syscall">Syscall blocking profile</a><br>
-<a href="/sched">Scheduler latency profile</a><br>
+<a href="/io">Network blocking profile</a> (<a href="/io?raw=1" download="io.profile">⬇</a>)<br>
+<a href="/block">Synchronization blocking profile</a> (<a href="/block?raw=1" download="block.profile">⬇</a>)<br>
+<a href="/syscall">Syscall blocking profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)<br>
+<a href="/sched">Scheduler latency profile</a> (<a href="/sche?raw=1" download="sched.profile">⬇</a>)<br>
+<a href="/usertasks">User-defined tasks</a><br>
+<a href="/userregions">User-defined regions</a><br>
+<a href="/mmu">Minimum mutator utilization</a><br>
 </body>
 </html>
 `))
@@ -192,4 +209,30 @@ var templMain = template.Must(template.New("").Parse(`
 func dief(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg, args...)
 	os.Exit(1)
+}
+
+var debugMemoryUsage bool
+
+func init() {
+	v := os.Getenv("DEBUG_MEMORY_USAGE")
+	debugMemoryUsage = v != ""
+}
+
+func reportMemoryUsage(msg string) {
+	if !debugMemoryUsage {
+		return
+	}
+	var s runtime.MemStats
+	runtime.ReadMemStats(&s)
+	w := os.Stderr
+	fmt.Fprintf(w, "%s\n", msg)
+	fmt.Fprintf(w, " Alloc:\t%d Bytes\n", s.Alloc)
+	fmt.Fprintf(w, " Sys:\t%d Bytes\n", s.Sys)
+	fmt.Fprintf(w, " HeapReleased:\t%d Bytes\n", s.HeapReleased)
+	fmt.Fprintf(w, " HeapSys:\t%d Bytes\n", s.HeapSys)
+	fmt.Fprintf(w, " HeapInUse:\t%d Bytes\n", s.HeapInuse)
+	fmt.Fprintf(w, " HeapAlloc:\t%d Bytes\n", s.HeapAlloc)
+	var dummy string
+	fmt.Printf("Enter to continue...")
+	fmt.Scanf("%s", &dummy)
 }

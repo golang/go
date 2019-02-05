@@ -11,6 +11,7 @@ import (
 
 func TestNoRaceSelect1(t *testing.T) {
 	var x int
+	_ = x
 	compl := make(chan bool)
 	c := make(chan bool)
 	c1 := make(chan bool)
@@ -36,6 +37,7 @@ func TestNoRaceSelect1(t *testing.T) {
 
 func TestNoRaceSelect2(t *testing.T) {
 	var x int
+	_ = x
 	compl := make(chan bool)
 	c := make(chan bool)
 	c1 := make(chan bool)
@@ -55,6 +57,7 @@ func TestNoRaceSelect2(t *testing.T) {
 
 func TestNoRaceSelect3(t *testing.T) {
 	var x int
+	_ = x
 	compl := make(chan bool)
 	c := make(chan bool, 10)
 	c1 := make(chan bool)
@@ -112,6 +115,7 @@ func TestNoRaceSelect4(t *testing.T) {
 func TestNoRaceSelect5(t *testing.T) {
 	test := func(sel, needSched bool) {
 		var x int
+		_ = x
 		ch := make(chan bool)
 		c1 := make(chan bool)
 
@@ -158,6 +162,7 @@ func TestNoRaceSelect5(t *testing.T) {
 
 func TestRaceSelect1(t *testing.T) {
 	var x int
+	_ = x
 	compl := make(chan bool, 2)
 	c := make(chan bool)
 	c1 := make(chan bool)
@@ -182,6 +187,7 @@ func TestRaceSelect1(t *testing.T) {
 
 func TestRaceSelect2(t *testing.T) {
 	var x int
+	_ = x
 	compl := make(chan bool)
 	c := make(chan bool)
 	c1 := make(chan bool)
@@ -200,6 +206,7 @@ func TestRaceSelect2(t *testing.T) {
 
 func TestRaceSelect3(t *testing.T) {
 	var x int
+	_ = x
 	compl := make(chan bool)
 	c := make(chan bool)
 	c1 := make(chan bool)

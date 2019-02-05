@@ -209,10 +209,10 @@ var tokenList = []token{
 	{String, `"` + f100 + `"`},
 
 	{Comment, "// raw strings"},
-	{String, "``"},
-	{String, "`\\`"},
-	{String, "`" + "\n\n/* foobar */\n\n" + "`"},
-	{String, "`" + f100 + "`"},
+	{RawString, "``"},
+	{RawString, "`\\`"},
+	{RawString, "`" + "\n\n/* foobar */\n\n" + "`"},
+	{RawString, "`" + f100 + "`"},
 
 	{Comment, "// individual characters"},
 	// NUL character is not allowed
@@ -252,6 +252,14 @@ func checkTok(t *testing.T, s *Scanner, line int, got, want rune, text string) {
 	}
 }
 
+func checkTokErr(t *testing.T, s *Scanner, line int, want rune, text string) {
+	prevCount := s.ErrorCount
+	checkTok(t, s, line, s.Scan(), want, text)
+	if s.ErrorCount != prevCount+1 {
+		t.Fatalf("want error for %q", text)
+	}
+}
+
 func countNewlines(s string) int {
 	n := 0
 	for _, ch := range s {
@@ -280,6 +288,21 @@ func testScan(t *testing.T, mode uint) {
 func TestScan(t *testing.T) {
 	testScan(t, GoTokens)
 	testScan(t, GoTokens&^SkipComments)
+}
+
+func TestIllegalExponent(t *testing.T) {
+	const src = "1.5e 1.5E 1e+ 1e- 1.5z"
+	s := new(Scanner).Init(strings.NewReader(src))
+	checkTokErr(t, s, 1, Float, "1.5e")
+	checkTokErr(t, s, 1, Float, "1.5E")
+	checkTokErr(t, s, 1, Float, "1e+")
+	checkTokErr(t, s, 1, Float, "1e-")
+	checkTok(t, s, 1, s.Scan(), Float, "1.5")
+	checkTok(t, s, 1, s.Scan(), Ident, "z")
+	checkTok(t, s, 1, s.Scan(), EOF, "")
+	if s.ErrorCount != 4 {
+		t.Errorf("%d errors, want 4", s.ErrorCount)
+	}
 }
 
 func TestPosition(t *testing.T) {
@@ -463,9 +486,9 @@ func TestError(t *testing.T) {
 	testError(t, `"ab`+"\x80", "<input>:1:4", "illegal UTF-8 encoding", String)
 	testError(t, `"abc`+"\xff", "<input>:1:5", "illegal UTF-8 encoding", String)
 
-	testError(t, "`a"+"\x00", "<input>:1:3", "illegal character NUL", String)
-	testError(t, "`ab"+"\x80", "<input>:1:4", "illegal UTF-8 encoding", String)
-	testError(t, "`abc"+"\xff", "<input>:1:5", "illegal UTF-8 encoding", String)
+	testError(t, "`a"+"\x00", "<input>:1:3", "illegal character NUL", RawString)
+	testError(t, "`ab"+"\x80", "<input>:1:4", "illegal UTF-8 encoding", RawString)
+	testError(t, "`abc"+"\xff", "<input>:1:5", "illegal UTF-8 encoding", RawString)
 
 	testError(t, `'\"'`, "<input>:1:3", "illegal char escape", Char)
 	testError(t, `"\'"`, "<input>:1:3", "illegal char escape", String)
@@ -475,12 +498,16 @@ func TestError(t *testing.T) {
 	testError(t, `0x`, "<input>:1:3", "illegal hexadecimal number", Int)
 	testError(t, `0xg`, "<input>:1:3", "illegal hexadecimal number", Int)
 	testError(t, `'aa'`, "<input>:1:4", "illegal char literal", Char)
+	testError(t, `1.5e`, "<input>:1:5", "illegal exponent", Float)
+	testError(t, `1.5E`, "<input>:1:5", "illegal exponent", Float)
+	testError(t, `1.5e+`, "<input>:1:6", "illegal exponent", Float)
+	testError(t, `1.5e-`, "<input>:1:6", "illegal exponent", Float)
 
 	testError(t, `'`, "<input>:1:2", "literal not terminated", Char)
 	testError(t, `'`+"\n", "<input>:1:2", "literal not terminated", Char)
 	testError(t, `"abc`, "<input>:1:5", "literal not terminated", String)
 	testError(t, `"abc`+"\n", "<input>:1:5", "literal not terminated", String)
-	testError(t, "`abc\n", "<input>:2:1", "literal not terminated", String)
+	testError(t, "`abc\n", "<input>:2:1", "literal not terminated", RawString)
 	testError(t, `/*/`, "<input>:1:4", "comment not terminated", EOF)
 }
 

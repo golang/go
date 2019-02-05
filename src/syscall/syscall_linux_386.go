@@ -11,7 +11,6 @@ import "unsafe"
 
 const (
 	_SYS_dup       = SYS_DUP2
-	_SYS_getdents  = SYS_GETDENTS64
 	_SYS_setgroups = SYS_SETGROUPS32
 )
 
@@ -54,6 +53,7 @@ func Pipe2(p []int, flags int) (err error) {
 //sys	Dup2(oldfd int, newfd int) (err error)
 //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
+//sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
 //sys	Ftruncate(fd int, length int64) (err error) = SYS_FTRUNCATE64
 //sysnb	Getegid() (egid int) = SYS_GETEGID32
 //sysnb	Geteuid() (euid int) = SYS_GETEUID32
@@ -62,8 +62,6 @@ func Pipe2(p []int, flags int) (err error) {
 //sysnb	InotifyInit() (fd int, err error)
 //sys	Ioperm(from int, num int, on int) (err error)
 //sys	Iopl(level int) (err error)
-//sys	Lchown(path string, uid int, gid int) (err error) = SYS_LCHOWN32
-//sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
 //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
@@ -74,7 +72,6 @@ func Pipe2(p []int, flags int) (err error) {
 //sysnb	Setresuid(ruid int, euid int, suid int) (err error) = SYS_SETRESUID32
 //sysnb	Setreuid(ruid int, euid int) (err error) = SYS_SETREUID32
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
-//sys	Stat(path string, stat *Stat_t) (err error) = SYS_STAT64
 //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
 //sys	Truncate(path string, length int64) (err error) = SYS_TRUNCATE64
 //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error) = SYS_GETGROUPS32
@@ -82,6 +79,19 @@ func Pipe2(p []int, flags int) (err error) {
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
 
 //sys	mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, err error)
+//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+
+func Stat(path string, stat *Stat_t) (err error) {
+	return fstatat(_AT_FDCWD, path, stat, 0)
+}
+
+func Lchown(path string, uid int, gid int) (err error) {
+	return Fchownat(_AT_FDCWD, path, uid, gid, _AT_SYMLINK_NOFOLLOW)
+}
+
+func Lstat(path string, stat *Stat_t) (err error) {
+	return fstatat(_AT_FDCWD, path, stat, _AT_SYMLINK_NOFOLLOW)
+}
 
 func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error) {
 	page := uintptr(offset / 4096)

@@ -14,7 +14,7 @@ import (
 
 // This file contains the algorithm to place phi nodes in a function.
 // For small functions, we use Braun, Buchwald, Hack, Leißa, Mallon, and Zwinkau.
-// http://pp.info.uni-karlsruhe.de/uploads/publikationen/braun13cc.pdf
+// https://pp.info.uni-karlsruhe.de/uploads/publikationen/braun13cc.pdf
 // For large functions, we use Sreedhar & Gao: A Linear Time Algorithm for Placing Φ-Nodes.
 // http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.8.1979&rep=rep1&type=pdf
 
@@ -233,24 +233,25 @@ func (s *phiState) insertVarPhis(n int, var_ *Node, defs []*ssa.Block, typ *type
 					// a D-edge, or an edge whose target is in currentRoot's subtree.
 					continue
 				}
-				if !hasPhi.contains(c.ID) {
-					// Add a phi to block c for variable n.
-					hasPhi.add(c.ID)
-					v := c.NewValue0I(currentRoot.Pos, ssa.OpPhi, typ, int64(n)) // TODO: line number right?
-					// Note: we store the variable number in the phi's AuxInt field. Used temporarily by phi building.
-					s.s.addNamedValue(var_, v)
-					for i := 0; i < len(c.Preds); i++ {
-						v.AddArg(s.placeholder) // Actual args will be filled in by resolveFwdRefs.
-					}
-					if debugPhi {
-						fmt.Printf("new phi for var%d in %s: %s\n", n, c, v)
-					}
-					if !hasDef.contains(c.ID) {
-						// There's now a new definition of this variable in block c.
-						// Add it to the priority queue to explore.
-						heap.Push(priq, c)
-						hasDef.add(c.ID)
-					}
+				if hasPhi.contains(c.ID) {
+					continue
+				}
+				// Add a phi to block c for variable n.
+				hasPhi.add(c.ID)
+				v := c.NewValue0I(currentRoot.Pos, ssa.OpPhi, typ, int64(n)) // TODO: line number right?
+				// Note: we store the variable number in the phi's AuxInt field. Used temporarily by phi building.
+				s.s.addNamedValue(var_, v)
+				for range c.Preds {
+					v.AddArg(s.placeholder) // Actual args will be filled in by resolveFwdRefs.
+				}
+				if debugPhi {
+					fmt.Printf("new phi for var%d in %s: %s\n", n, c, v)
+				}
+				if !hasDef.contains(c.ID) {
+					// There's now a new definition of this variable in block c.
+					// Add it to the priority queue to explore.
+					heap.Push(priq, c)
+					hasDef.add(c.ID)
 				}
 			}
 

@@ -13,7 +13,7 @@ import (
 	"unicode/utf8"
 )
 
-// ErrBadPattern indicates a globbing pattern was malformed.
+// ErrBadPattern indicates a pattern was malformed.
 var ErrBadPattern = errors.New("syntax error in pattern")
 
 // Match reports whether name matches the shell file name pattern.
@@ -339,6 +339,9 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
 // hasMeta reports whether path contains any of the magic characters
 // recognized by Match.
 func hasMeta(path string) bool {
-	// TODO(niemeyer): Should other magic characters be added here?
-	return strings.ContainsAny(path, "*?[")
+	magicChars := `*?[`
+	if runtime.GOOS != "windows" {
+		magicChars = `*?[\`
+	}
+	return strings.ContainsAny(path, magicChars)
 }

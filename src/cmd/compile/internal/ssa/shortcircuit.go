@@ -37,12 +37,12 @@ func shortcircuit(f *Func) {
 				}
 				if e.i == 0 {
 					if ct == nil {
-						ct = f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, true)
+						ct = f.ConstBool(f.Config.Types.Bool, true)
 					}
 					v.SetArg(i, ct)
 				} else {
 					if cf == nil {
-						cf = f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, false)
+						cf = f.ConstBool(f.Config.Types.Bool, false)
 					}
 					v.SetArg(i, cf)
 				}

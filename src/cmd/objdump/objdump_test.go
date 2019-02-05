@@ -63,7 +63,7 @@ var x86Need = []string{
 }
 
 var armNeed = []string{
-	//"B.LS main.main(SB)", // TODO(rsc): restore; golang.org/issue/9021
+	"B main.main(SB)",
 	"BL main.Println(SB)",
 	"RET",
 }
@@ -148,6 +148,13 @@ func testDisasm(t *testing.T, printCode bool, flags ...string) {
 			ok = false
 		}
 	}
+	if goarch == "386" {
+		if strings.Contains(text, "(IP)") {
+			t.Errorf("disassembly contains PC-Relative addressing on 386")
+			ok = false
+		}
+	}
+
 	if !ok {
 		t.Logf("full disassembly:\n%s", text)
 	}
@@ -155,8 +162,6 @@ func testDisasm(t *testing.T, printCode bool, flags ...string) {
 
 func TestDisasm(t *testing.T) {
 	switch runtime.GOARCH {
-	case "arm64":
-		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
 	case "mips", "mipsle", "mips64", "mips64le":
 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
 	case "s390x":
@@ -167,8 +172,6 @@ func TestDisasm(t *testing.T) {
 
 func TestDisasmCode(t *testing.T) {
 	switch runtime.GOARCH {
-	case "arm64":
-		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
 	case "mips", "mipsle", "mips64", "mips64le":
 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
 	case "s390x":
@@ -185,8 +188,6 @@ func TestDisasmExtld(t *testing.T) {
 	switch runtime.GOARCH {
 	case "ppc64":
 		t.Skipf("skipping on %s, no support for external linking, issue 9038", runtime.GOARCH)
-	case "arm64":
-		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
 	case "mips64", "mips64le", "mips", "mipsle":
 		t.Skipf("skipping on %s, issue 12559 and 12560", runtime.GOARCH)
 	case "s390x":
@@ -204,10 +205,6 @@ func TestDisasmExtld(t *testing.T) {
 
 func TestDisasmGoobj(t *testing.T) {
 	switch runtime.GOARCH {
-	case "arm":
-		t.Skipf("skipping on %s, issue 19811", runtime.GOARCH)
-	case "arm64":
-		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
 	case "mips", "mipsle", "mips64", "mips64le":
 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
 	case "s390x":
@@ -241,6 +238,12 @@ func TestDisasmGoobj(t *testing.T) {
 	for _, s := range need {
 		if !strings.Contains(text, s) {
 			t.Errorf("disassembly missing '%s'", s)
+			ok = false
+		}
+	}
+	if runtime.GOARCH == "386" {
+		if strings.Contains(text, "(IP)") {
+			t.Errorf("disassembly contains PC-Relative addressing on 386")
 			ok = false
 		}
 	}

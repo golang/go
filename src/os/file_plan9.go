@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/poll"
 	"io"
 	"runtime"
 	"syscall"
@@ -28,6 +29,7 @@ type file struct {
 
 // Fd returns the integer Plan 9 file descriptor referencing the open file.
 // The file descriptor is valid only until f.Close is called or f is garbage collected.
+// On Unix systems this will cause the SetDeadline methods to stop working.
 func (f *File) Fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
@@ -77,12 +79,8 @@ func syscallMode(i FileMode) (o uint32) {
 	return
 }
 
-// OpenFile is the generalized open call; most users will use Open
-// or Create instead. It opens the named file with specified flag
-// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
-// methods on the returned File can be used for I/O.
-// If there is an error, it will be of type *PathError.
-func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+// openFileNolog is the Plan 9 implementation of OpenFile.
+func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	var (
 		fd     int
 		e      error
@@ -135,7 +133,8 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 }
 
 // Close closes the File, rendering it unusable for I/O.
-// It returns an error, if any.
+// On files that support SetDeadline, any pending I/O operations will
+// be canceled and return immediately with an error.
 func (f *File) Close() error {
 	if err := f.checkValid("close"); err != nil {
 		return err
@@ -196,9 +195,7 @@ func (f *File) Truncate(size int64) error {
 
 const chmodMask = uint32(syscall.DMAPPEND | syscall.DMEXCL | syscall.DMTMP | ModePerm)
 
-// Chmod changes the mode of the file to mode.
-// If there is an error, it will be of type *PathError.
-func (f *File) Chmod(mode FileMode) error {
+func (f *File) chmod(mode FileMode) error {
 	if f == nil {
 		return ErrInvalid
 	}
@@ -375,10 +372,8 @@ func rename(oldname, newname string) error {
 	return nil
 }
 
-// Chmod changes the mode of the named file to mode.
-// If the file is a symbolic link, it changes the mode of the link's target.
-// If there is an error, it will be of type *PathError.
-func Chmod(name string, mode FileMode) error {
+// See docs in file.go:Chmod.
+func chmod(name string, mode FileMode) error {
 	var d syscall.Dir
 
 	odir, e := dirstat(name)
@@ -457,7 +452,11 @@ func Readlink(name string) (string, error) {
 
 // Chown changes the numeric uid and gid of the named file.
 // If the file is a symbolic link, it changes the uid and gid of the link's target.
+// A uid or gid of -1 means to not change that value.
 // If there is an error, it will be of type *PathError.
+//
+// On Windows or Plan 9, Chown always returns the syscall.EWINDOWS or
+// EPLAN9 error, wrapped in *PathError.
 func Chown(name string, uid, gid int) error {
 	return &PathError{"chown", name, syscall.EPLAN9}
 }
@@ -478,9 +477,13 @@ func (f *File) Chown(uid, gid int) error {
 	return &PathError{"chown", f.name, syscall.EPLAN9}
 }
 
-// TempDir returns the default directory to use for temporary files.
-func TempDir() string {
-	return "/tmp"
+func tempDir() string {
+	dir := Getenv("TMPDIR")
+	if dir == "" {
+		dir = "/tmp"
+	}
+	return dir
+
 }
 
 // Chdir changes the current working directory to the file,
@@ -496,6 +499,30 @@ func (f *File) Chdir() error {
 	return nil
 }
 
+// setDeadline sets the read and write deadline.
+func (f *File) setDeadline(time.Time) error {
+	if err := f.checkValid("SetDeadline"); err != nil {
+		return err
+	}
+	return poll.ErrNoDeadline
+}
+
+// setReadDeadline sets the read deadline.
+func (f *File) setReadDeadline(time.Time) error {
+	if err := f.checkValid("SetReadDeadline"); err != nil {
+		return err
+	}
+	return poll.ErrNoDeadline
+}
+
+// setWriteDeadline sets the write deadline.
+func (f *File) setWriteDeadline(time.Time) error {
+	if err := f.checkValid("SetWriteDeadline"); err != nil {
+		return err
+	}
+	return poll.ErrNoDeadline
+}
+
 // checkValid checks whether f is valid for use.
 // If not, it returns an appropriate error, perhaps incorporating the operation name op.
 func (f *File) checkValid(op string) error {
@@ -506,4 +533,22 @@ func (f *File) checkValid(op string) error {
 		return &PathError{op, f.name, ErrClosed}
 	}
 	return nil
+}
+
+type rawConn struct{}
+
+func (c *rawConn) Control(f func(uintptr)) error {
+	return syscall.EPLAN9
+}
+
+func (c *rawConn) Read(f func(uintptr) bool) error {
+	return syscall.EPLAN9
+}
+
+func (c *rawConn) Write(f func(uintptr) bool) error {
+	return syscall.EPLAN9
+}
+
+func newRawConn(file *File) (*rawConn, error) {
+	return nil, syscall.EPLAN9
 }

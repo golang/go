@@ -96,7 +96,7 @@ TEXT	·log1pAsm(SB), NOSPLIT, $0-16
 	MOVD	$·log1pc5<>+0(SB), R1
 	VLEG	$0, 0(R1), V16
 	MOVD	R2, R5
-	WORD	$0xB3CD0034	//lgdr	%r3,%f4
+	LGDR	F4, R3
 	WORD	$0xC0190006	//iilf	%r1,425983
 	BYTE	$0x7F
 	BYTE	$0xFF
@@ -118,7 +118,7 @@ TEXT	·log1pAsm(SB), NOSPLIT, $0-16
 	MOVD	$·log1pxzero<>+0(SB), R1
 	FMOVD	0(R1), F2
 	BVS	LEXITTAGlog1p
-	WORD	$0xB3130044
+	WORD	$0xB3130044	// lcdbr %f4,%f4
 	WFCEDBS	V2, V4, V6
 	BEQ	L9
 	WFCHDBS	V4, V2, V2
@@ -129,11 +129,11 @@ TEXT	·log1pAsm(SB), NOSPLIT, $0-16
 	RET
 
 L8:
-	WORD	$0xB3C10022	//ldgr	%f2,%r2
+	LDGR	R2, F2
 	FSUB	F4, F3
 	FMADD	F2, F4, F1
 	MOVD	$·log1pc4<>+0(SB), R2
-	WORD	$0xB3130041
+	WORD	$0xB3130041	// lcdbr %f4,%f1
 	FMOVD	0(R2), F7
 	FSUB	F3, F0
 	MOVD	$·log1pc3<>+0(SB), R2
@@ -164,7 +164,7 @@ L8:
 	FMOVD	0(R3), F2
 	WFMADB	V0, V6, V1, V0
 	MOVD	$·log1pyout<>+0(SB), R1
-	WORD	$0xB3C10065	//ldgr	%f6,%r5
+	LDGR	R5, F6
 	FMOVD	0(R1), F4
 	WFMSDB	V2, V6, V4, V2
 	MOVD	$·log1pxl2<>+0(SB), R1

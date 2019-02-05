@@ -9,12 +9,9 @@
 // System calls for arm, Linux
 //
 
-// TODO(kaib): handle error returns
-
 // func Syscall(syscall uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
-
-TEXT	·Syscall(SB),NOSPLIT,$0-28
-	BL		runtime·entersyscall(SB)
+TEXT ·Syscall(SB),NOSPLIT,$0-28
+	BL	runtime·entersyscall(SB)
 	MOVW	trap+0(FP), R7
 	MOVW	a1+4(FP), R0
 	MOVW	a2+8(FP), R1
@@ -22,30 +19,30 @@ TEXT	·Syscall(SB),NOSPLIT,$0-28
 	MOVW	$0, R3
 	MOVW	$0, R4
 	MOVW	$0, R5
-	SWI		$0
+	SWI	$0
 	MOVW	$0xfffff001, R1
-	CMP		R1, R0
-	BLS		ok
+	CMP	R1, R0
+	BLS	ok
 	MOVW	$-1, R1
 	MOVW	R1, r1+16(FP)
 	MOVW	$0, R2
 	MOVW	R2, r2+20(FP)
-	RSB		$0, R0, R0
+	RSB	$0, R0, R0
 	MOVW	R0, err+24(FP)
-	BL		runtime·exitsyscall(SB)
+	BL	runtime·exitsyscall(SB)
 	RET
 ok:
 	MOVW	R0, r1+16(FP)
 	MOVW	$0, R0
 	MOVW	R0, r2+20(FP)
 	MOVW	R0, err+24(FP)
-	BL		runtime·exitsyscall(SB)
+	BL	runtime·exitsyscall(SB)
 	RET
 
 // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
 // Actually Syscall5 but the rest of the code expects it to be named Syscall6.
-TEXT	·Syscall6(SB),NOSPLIT,$0-40
-	BL		runtime·entersyscall(SB)
+TEXT ·Syscall6(SB),NOSPLIT,$0-40
+	BL	runtime·entersyscall(SB)
 	MOVW	trap+0(FP), R7	// syscall entry
 	MOVW	a1+4(FP), R0
 	MOVW	a2+8(FP), R1
@@ -53,24 +50,24 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	MOVW	a4+16(FP), R3
 	MOVW	a5+20(FP), R4
 	MOVW	a6+24(FP), R5
-	SWI		$0
+	SWI	$0
 	MOVW	$0xfffff001, R6
-	CMP		R6, R0
-	BLS		ok6
+	CMP	R6, R0
+	BLS	ok6
 	MOVW	$-1, R1
 	MOVW	R1, r1+28(FP)
 	MOVW	$0, R2
 	MOVW	R2, r2+32(FP)
-	RSB		$0, R0, R0
+	RSB	$0, R0, R0
 	MOVW	R0, err+36(FP)
-	BL		runtime·exitsyscall(SB)
+	BL	runtime·exitsyscall(SB)
 	RET
 ok6:
 	MOVW	R0, r1+28(FP)
 	MOVW	R1, r2+32(FP)
 	MOVW	$0, R0
 	MOVW	R0, err+36(FP)
-	BL		runtime·exitsyscall(SB)
+	BL	runtime·exitsyscall(SB)
 	RET
 
 // func RawSyscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
@@ -83,15 +80,15 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVW	a4+16(FP), R3
 	MOVW	a5+20(FP), R4
 	MOVW	a6+24(FP), R5
-	SWI		$0
+	SWI	$0
 	MOVW	$0xfffff001, R6
-	CMP		R6, R0
-	BLS		ok2
+	CMP	R6, R0
+	BLS	ok2
 	MOVW	$-1, R1
 	MOVW	R1, r1+28(FP)
 	MOVW	$0, R2
 	MOVW	R2, r2+32(FP)
-	RSB		$0, R0, R0
+	RSB	$0, R0, R0
 	MOVW	R0, err+36(FP)
 	RET
 ok2:
@@ -131,7 +128,7 @@ okseek:
 	MOVW	$0, R0
 	MOVW	R0, err+24(FP)
 	BL	runtime·exitsyscall(SB)
-	RET	
+	RET
 
 // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 TEXT ·RawSyscall(SB),NOSPLIT,$0-28
@@ -139,15 +136,15 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	MOVW	a1+4(FP), R0
 	MOVW	a2+8(FP), R1
 	MOVW	a3+12(FP), R2
-	SWI		$0
+	SWI	$0
 	MOVW	$0xfffff001, R1
-	CMP		R1, R0
-	BLS		ok1
+	CMP	R1, R0
+	BLS	ok1
 	MOVW	$-1, R1
 	MOVW	R1, r1+16(FP)
 	MOVW	$0, R2
 	MOVW	R2, r2+20(FP)
-	RSB		$0, R0, R0
+	RSB	$0, R0, R0
 	MOVW	R0, err+24(FP)
 	RET
 ok1:
@@ -157,3 +154,14 @@ ok1:
 	MOVW	R0, err+24(FP)
 	RET
 
+// func rawSyscallNoError(trap uintptr, a1, a2, a3 uintptr) (r1, r2 uintptr);
+TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-24
+	MOVW	trap+0(FP), R7	// syscall entry
+	MOVW	a1+4(FP), R0
+	MOVW	a2+8(FP), R1
+	MOVW	a3+12(FP), R2
+	SWI	$0
+	MOVW	R0, r1+16(FP)
+	MOVW	$0, R0
+	MOVW	R0, r2+20(FP)
+	RET

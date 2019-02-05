@@ -17,13 +17,9 @@ import (
 const executable_EnvVar = "OSTEST_OUTPUT_EXECPATH"
 
 func TestExecutable(t *testing.T) {
-	testenv.MustHaveExec(t) // will also execlude nacl, which doesn't support Executable anyway
+	testenv.MustHaveExec(t) // will also exclude nacl, which doesn't support Executable anyway
 	ep, err := os.Executable()
 	if err != nil {
-		switch goos := runtime.GOOS; goos {
-		case "openbsd": // procfs is not mounted by default
-			t.Skipf("Executable failed on %s: %v, expected", goos, err)
-		}
 		t.Fatalf("Executable failed: %v", err)
 	}
 	// we want fn to be of the form "dir/prog"
@@ -32,6 +28,7 @@ func TestExecutable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("filepath.Rel: %v", err)
 	}
+
 	cmd := &osexec.Cmd{}
 	// make child start with a relative program path
 	cmd.Dir = dir
@@ -39,6 +36,10 @@ func TestExecutable(t *testing.T) {
 	// forge argv[0] for child, so that we can verify we could correctly
 	// get real path of the executable without influenced by argv[0].
 	cmd.Args = []string{"-", "-test.run=XXXX"}
+	if runtime.GOOS == "openbsd" || runtime.GOOS == "aix" {
+		// OpenBSD and AIX rely on argv[0]
+		cmd.Args[0] = fn
+	}
 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=1", executable_EnvVar))
 	out, err := cmd.CombinedOutput()
 	if err != nil {

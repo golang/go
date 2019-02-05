@@ -28,9 +28,17 @@ type Error struct {
 
 var errors []Error
 
+// largeStack is info about a function whose stack frame is too large (rare).
+type largeStack struct {
+	locals int64
+	args   int64
+	callee int64
+	pos    src.XPos
+}
+
 var (
 	largeStackFramesMu sync.Mutex // protects largeStackFrames
-	largeStackFrames   []src.XPos // positions of functions whose stack frames are too large (rare)
+	largeStackFrames   []largeStack
 )
 
 func errorexit() {
@@ -73,9 +81,9 @@ func flusherrors() {
 		return
 	}
 	sort.Stable(byPos(errors))
-	for i := 0; i < len(errors); i++ {
-		if i == 0 || errors[i].msg != errors[i-1].msg {
-			fmt.Printf("%s", errors[i].msg)
+	for i, err := range errors {
+		if i == 0 || err.msg != errors[i-1].msg {
+			fmt.Printf("%s", err.msg)
 		}
 	}
 	errors = errors[:0]
@@ -93,7 +101,7 @@ func hcrash() {
 }
 
 func linestr(pos src.XPos) string {
-	return Ctxt.OutermostPos(pos).Format(Debug['C'] == 0)
+	return Ctxt.OutermostPos(pos).Format(Debug['C'] == 0, Debug['L'] == 1)
 }
 
 // lasterror keeps track of the most recently issued error.
@@ -166,20 +174,22 @@ func Warnl(line src.XPos, fmt_ string, args ...interface{}) {
 func Fatalf(fmt_ string, args ...interface{}) {
 	flusherrors()
 
-	fmt.Printf("%v: internal compiler error: ", linestr(lineno))
-	fmt.Printf(fmt_, args...)
-	fmt.Printf("\n")
-
-	// If this is a released compiler version, ask for a bug report.
-	if strings.HasPrefix(objabi.Version, "release") {
+	if Debug_panic != 0 || nsavederrors+nerrors == 0 {
+		fmt.Printf("%v: internal compiler error: ", linestr(lineno))
+		fmt.Printf(fmt_, args...)
 		fmt.Printf("\n")
-		fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
-		fmt.Printf("https://golang.org/issue/new\n")
-	} else {
-		// Not a release; dump a stack trace, too.
-		fmt.Println()
-		os.Stdout.Write(debug.Stack())
-		fmt.Println()
+
+		// If this is a released compiler version, ask for a bug report.
+		if strings.HasPrefix(objabi.Version, "go") {
+			fmt.Printf("\n")
+			fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
+			fmt.Printf("https://golang.org/issue/new\n")
+		} else {
+			// Not a release; dump a stack trace, too.
+			fmt.Println()
+			os.Stdout.Write(debug.Stack())
+			fmt.Println()
+		}
 	}
 
 	hcrash()
@@ -232,7 +242,7 @@ func lookupN(prefix string, n int) *types.Sym {
 // to help with debugging.
 // It should begin with "." to avoid conflicts with
 // user labels.
-func autolabel(prefix string) *Node {
+func autolabel(prefix string) *types.Sym {
 	if prefix[0] != '.' {
 		Fatalf("autolabel prefix must start with '.', have %q", prefix)
 	}
@@ -242,11 +252,11 @@ func autolabel(prefix string) *Node {
 	}
 	n := fn.Func.Label
 	fn.Func.Label++
-	return newname(lookupN(prefix, int(n)))
+	return lookupN(prefix, int(n))
 }
 
 func restrictlookup(name string, pkg *types.Pkg) *types.Sym {
-	if !exportname(name) && pkg != localpkg {
+	if !types.IsExported(name) && pkg != localpkg {
 		yyerror("cannot refer to unexported name %s.%s", pkg.Name, name)
 	}
 	return pkg.Lookup(name)
@@ -255,21 +265,18 @@ func restrictlookup(name string, pkg *types.Pkg) *types.Sym {
 // find all the exported symbols in package opkg
 // and make them available in the current package
 func importdot(opkg *types.Pkg, pack *Node) {
-	var s1 *types.Sym
-	var pkgerror string
-
 	n := 0
 	for _, s := range opkg.Syms {
 		if s.Def == nil {
 			continue
 		}
-		if !exportname(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
+		if !types.IsExported(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
 			continue
 		}
-		s1 = lookup(s.Name)
+		s1 := lookup(s.Name)
 		if s1.Def != nil {
-			pkgerror = fmt.Sprintf("during import %q", opkg.Path)
-			redeclare(s1, pkgerror)
+			pkgerror := fmt.Sprintf("during import %q", opkg.Path)
+			redeclare(lineno, s1, pkgerror)
 			continue
 		}
 
@@ -365,87 +372,66 @@ func nodSym(op Op, left *Node, sym *types.Sym) *Node {
 	return n
 }
 
-func saveorignode(n *Node) {
-	if n.Orig != nil {
-		return
-	}
-	norig := nod(n.Op, nil, nil)
-	*norig = *n
-	n.Orig = norig
+// rawcopy returns a shallow copy of n.
+// Note: copy or sepcopy (rather than rawcopy) is usually the
+//       correct choice (see comment with Node.copy, below).
+func (n *Node) rawcopy() *Node {
+	copy := *n
+	return &copy
 }
 
-// methcmp sorts by symbol, then by package path for unexported symbols.
+// sepcopy returns a separate shallow copy of n, with the copy's
+// Orig pointing to itself.
+func (n *Node) sepcopy() *Node {
+	copy := *n
+	copy.Orig = &copy
+	return &copy
+}
+
+// copy returns shallow copy of n and adjusts the copy's Orig if
+// necessary: In general, if n.Orig points to itself, the copy's
+// Orig should point to itself as well. Otherwise, if n is modified,
+// the copy's Orig node appears modified, too, and then doesn't
+// represent the original node anymore.
+// (This caused the wrong complit Op to be used when printing error
+// messages; see issues #26855, #27765).
+func (n *Node) copy() *Node {
+	copy := *n
+	if n.Orig == n {
+		copy.Orig = &copy
+	}
+	return &copy
+}
+
+// methcmp sorts methods by symbol.
 type methcmp []*types.Field
 
-func (x methcmp) Len() int      { return len(x) }
-func (x methcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-func (x methcmp) Less(i, j int) bool {
-	a := x[i]
-	b := x[j]
-	if a.Sym == nil && b.Sym == nil {
-		return false
-	}
-	if a.Sym == nil {
-		return true
-	}
-	if b.Sym == nil {
-		return false
-	}
-	if a.Sym.Name != b.Sym.Name {
-		return a.Sym.Name < b.Sym.Name
-	}
-	if !exportname(a.Sym.Name) {
-		if a.Sym.Pkg.Path != b.Sym.Pkg.Path {
-			return a.Sym.Pkg.Path < b.Sym.Pkg.Path
-		}
-	}
-
-	return false
-}
+func (x methcmp) Len() int           { return len(x) }
+func (x methcmp) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+func (x methcmp) Less(i, j int) bool { return x[i].Sym.Less(x[j].Sym) }
 
 func nodintconst(v int64) *Node {
-	c := nod(OLITERAL, nil, nil)
-	c.SetAddable(true)
-	c.SetVal(Val{new(Mpint)})
-	c.Val().U.(*Mpint).SetInt64(v)
-	c.Type = types.Types[TIDEAL]
-	return c
+	u := new(Mpint)
+	u.SetInt64(v)
+	return nodlit(Val{u})
 }
 
 func nodfltconst(v *Mpflt) *Node {
-	c := nod(OLITERAL, nil, nil)
-	c.SetAddable(true)
-	c.SetVal(Val{newMpflt()})
-	c.Val().U.(*Mpflt).Set(v)
-	c.Type = types.Types[TIDEAL]
-	return c
-}
-
-func nodconst(n *Node, t *types.Type, v int64) {
-	*n = Node{}
-	n.Op = OLITERAL
-	n.SetAddable(true)
-	n.SetVal(Val{new(Mpint)})
-	n.Val().U.(*Mpint).SetInt64(v)
-	n.Type = t
-
-	if t.IsFloat() {
-		Fatalf("nodconst: bad type %v", t)
-	}
+	u := newMpflt()
+	u.Set(v)
+	return nodlit(Val{u})
 }
 
 func nodnil() *Node {
-	c := nodintconst(0)
-	c.SetVal(Val{new(NilVal)})
-	c.Type = types.Types[TNIL]
-	return c
+	return nodlit(Val{new(NilVal)})
 }
 
 func nodbool(b bool) *Node {
-	c := nodintconst(0)
-	c.SetVal(Val{b})
-	c.Type = types.Idealbool
-	return c
+	return nodlit(Val{b})
+}
+
+func nodstr(s string) *Node {
+	return nodlit(Val{s})
 }
 
 // treecopy recursively copies n, with the exception of
@@ -460,8 +446,7 @@ func treecopy(n *Node, pos src.XPos) *Node {
 
 	switch n.Op {
 	default:
-		m := *n
-		m.Orig = &m
+		m := n.sepcopy()
 		m.Left = treecopy(n.Left, pos)
 		m.Right = treecopy(n.Right, pos)
 		m.List.Set(listtreecopy(n.List.Slice(), pos))
@@ -472,7 +457,7 @@ func treecopy(n *Node, pos src.XPos) *Node {
 			Dump("treecopy", n)
 			Fatalf("treecopy Name")
 		}
-		return &m
+		return m
 
 	case OPACK:
 		// OPACK nodes are never valid in const value declarations,
@@ -486,8 +471,8 @@ func treecopy(n *Node, pos src.XPos) *Node {
 	}
 }
 
-// isnil reports whether n represents the universal untyped zero value "nil".
-func isnil(n *Node) bool {
+// isNil reports whether n represents the universal untyped zero value "nil".
+func (n *Node) isNil() bool {
 	// Check n.Orig because constant propagation may produce typed nil constants,
 	// which don't exist in the Go spec.
 	return Isconst(n.Orig, CTNIL)
@@ -510,7 +495,7 @@ func isptrto(t *types.Type, et types.EType) bool {
 	return true
 }
 
-func isblank(n *Node) bool {
+func (n *Node) isBlank() bool {
 	if n == nil {
 		return false
 	}
@@ -552,133 +537,6 @@ func methtype(t *types.Type) *types.Type {
 	return nil
 }
 
-func cplxsubtype(et types.EType) types.EType {
-	switch et {
-	case TCOMPLEX64:
-		return TFLOAT32
-
-	case TCOMPLEX128:
-		return TFLOAT64
-	}
-
-	Fatalf("cplxsubtype: %v\n", et)
-	return 0
-}
-
-// eqtype reports whether t1 and t2 are identical, following the spec rules.
-//
-// Any cyclic type must go through a named type, and if one is
-// named, it is only identical to the other if they are the same
-// pointer (t1 == t2), so there's no chance of chasing cycles
-// ad infinitum, so no need for a depth counter.
-func eqtype(t1, t2 *types.Type) bool {
-	return eqtype1(t1, t2, true, nil)
-}
-
-// eqtypeIgnoreTags is like eqtype but it ignores struct tags for struct identity.
-func eqtypeIgnoreTags(t1, t2 *types.Type) bool {
-	return eqtype1(t1, t2, false, nil)
-}
-
-type typePair struct {
-	t1 *types.Type
-	t2 *types.Type
-}
-
-func eqtype1(t1, t2 *types.Type, cmpTags bool, assumedEqual map[typePair]struct{}) bool {
-	if t1 == t2 {
-		return true
-	}
-	if t1 == nil || t2 == nil || t1.Etype != t2.Etype || t1.Broke() || t2.Broke() {
-		return false
-	}
-	if t1.Sym != nil || t2.Sym != nil {
-		// Special case: we keep byte/uint8 and rune/int32
-		// separate for error messages. Treat them as equal.
-		switch t1.Etype {
-		case TUINT8:
-			return (t1 == types.Types[TUINT8] || t1 == types.Bytetype) && (t2 == types.Types[TUINT8] || t2 == types.Bytetype)
-		case TINT32:
-			return (t1 == types.Types[TINT32] || t1 == types.Runetype) && (t2 == types.Types[TINT32] || t2 == types.Runetype)
-		default:
-			return false
-		}
-	}
-
-	if assumedEqual == nil {
-		assumedEqual = make(map[typePair]struct{})
-	} else if _, ok := assumedEqual[typePair{t1, t2}]; ok {
-		return true
-	}
-	assumedEqual[typePair{t1, t2}] = struct{}{}
-
-	switch t1.Etype {
-	case TINTER:
-		if t1.NumFields() != t2.NumFields() {
-			return false
-		}
-		for i, f1 := range t1.FieldSlice() {
-			f2 := t2.Field(i)
-			if f1.Sym != f2.Sym || !eqtype1(f1.Type, f2.Type, cmpTags, assumedEqual) {
-				return false
-			}
-		}
-		return true
-
-	case TSTRUCT:
-		if t1.NumFields() != t2.NumFields() {
-			return false
-		}
-		for i, f1 := range t1.FieldSlice() {
-			f2 := t2.Field(i)
-			if f1.Sym != f2.Sym || f1.Embedded != f2.Embedded || !eqtype1(f1.Type, f2.Type, cmpTags, assumedEqual) {
-				return false
-			}
-			if cmpTags && f1.Note != f2.Note {
-				return false
-			}
-		}
-		return true
-
-	case TFUNC:
-		// Check parameters and result parameters for type equality.
-		// We intentionally ignore receiver parameters for type
-		// equality, because they're never relevant.
-		for _, f := range types.ParamsResults {
-			// Loop over fields in structs, ignoring argument names.
-			fs1, fs2 := f(t1).FieldSlice(), f(t2).FieldSlice()
-			if len(fs1) != len(fs2) {
-				return false
-			}
-			for i, f1 := range fs1 {
-				f2 := fs2[i]
-				if f1.Isddd() != f2.Isddd() || !eqtype1(f1.Type, f2.Type, cmpTags, assumedEqual) {
-					return false
-				}
-			}
-		}
-		return true
-
-	case TARRAY:
-		if t1.NumElem() != t2.NumElem() {
-			return false
-		}
-
-	case TCHAN:
-		if t1.ChanDir() != t2.ChanDir() {
-			return false
-		}
-
-	case TMAP:
-		if !eqtype1(t1.Key(), t2.Key(), cmpTags, assumedEqual) {
-			return false
-		}
-		return eqtype1(t1.Val(), t2.Val(), cmpTags, assumedEqual)
-	}
-
-	return eqtype1(t1.Elem(), t2.Elem(), cmpTags, assumedEqual)
-}
-
 // Are t1 and t2 equal struct types when field names are ignored?
 // For deciding whether the result struct from g can be copied
 // directly when compiling f(g()).
@@ -692,7 +550,7 @@ func eqtypenoname(t1 *types.Type, t2 *types.Type) bool {
 	}
 	for i, f1 := range t1.FieldSlice() {
 		f2 := t2.Field(i)
-		if !eqtype(f1.Type, f2.Type) {
+		if !types.Identical(f1.Type, f2.Type) {
 			return false
 		}
 	}
@@ -707,13 +565,6 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 		*why = ""
 	}
 
-	// TODO(rsc,lvd): This behaves poorly in the presence of inlining.
-	// https://golang.org/issue/2795
-	if safemode && !inimport && src != nil && src.Etype == TUNSAFEPTR {
-		yyerror("cannot use unsafe.Pointer")
-		errorexit()
-	}
-
 	if src == dst {
 		return OCONVNOP
 	}
@@ -722,7 +573,7 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 	}
 
 	// 1. src type is identical to dst.
-	if eqtype(src, dst) {
+	if types.Identical(src, dst) {
 		return OCONVNOP
 	}
 
@@ -733,7 +584,7 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 	// we want to recompute the itab. Recomputing the itab ensures
 	// that itabs are unique (thus an interface with a compile-time
 	// type I has an itab with interface type I).
-	if eqtype(src.Orig, dst.Orig) {
+	if types.Identical(src.Orig, dst.Orig) {
 		if src.IsEmptyInterface() {
 			// Conversion between two empty interfaces
 			// requires no code.
@@ -801,7 +652,7 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 	// src and dst have identical element types, and
 	// either src or dst is not a named type.
 	if src.IsChan() && src.ChanDir() == types.Cboth && dst.IsChan() {
-		if eqtype(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
+		if types.Identical(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
 			return OCONVNOP
 		}
 	}
@@ -809,8 +660,7 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 	// 5. src is the predeclared identifier nil and dst is a nillable type.
 	if src.Etype == TNIL {
 		switch dst.Etype {
-		case TPTR32,
-			TPTR64,
+		case TPTR,
 			TFUNC,
 			TMAP,
 			TCHAN,
@@ -846,11 +696,19 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 	}
 
 	// Conversions from regular to go:notinheap are not allowed
-	// (unless it's unsafe.Pointer). This is a runtime-specific
-	// rule.
+	// (unless it's unsafe.Pointer). These are runtime-specific
+	// rules.
+	// (a) Disallow (*T) to (*U) where T is go:notinheap but U isn't.
 	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap() && !src.Elem().NotInHeap() {
 		if why != nil {
 			*why = fmt.Sprintf(":\n\t%v is go:notinheap, but %v is not", dst.Elem(), src.Elem())
+		}
+		return 0
+	}
+	// (b) Disallow string to []T where T is go:notinheap.
+	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Etype == types.Bytetype.Etype || dst.Elem().Etype == types.Runetype.Etype) {
+		if why != nil {
+			*why = fmt.Sprintf(":\n\t%v is go:notinheap", dst.Elem())
 		}
 		return 0
 	}
@@ -873,14 +731,14 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 	}
 
 	// 2. Ignoring struct tags, src and dst have identical underlying types.
-	if eqtypeIgnoreTags(src.Orig, dst.Orig) {
+	if types.IdenticalIgnoreTags(src.Orig, dst.Orig) {
 		return OCONVNOP
 	}
 
 	// 3. src and dst are unnamed pointer types and, ignoring struct tags,
 	// their base types have identical underlying types.
 	if src.IsPtr() && dst.IsPtr() && src.Sym == nil && dst.Sym == nil {
-		if eqtypeIgnoreTags(src.Elem().Orig, dst.Elem().Orig) {
+		if types.IdenticalIgnoreTags(src.Elem().Orig, dst.Elem().Orig) {
 			return OCONVNOP
 		}
 	}
@@ -909,10 +767,10 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 
 	if src.IsSlice() && dst.IsString() {
 		if src.Elem().Etype == types.Bytetype.Etype {
-			return OARRAYBYTESTR
+			return OBYTES2STR
 		}
 		if src.Elem().Etype == types.Runetype.Etype {
-			return OARRAYRUNESTR
+			return ORUNES2STR
 		}
 	}
 
@@ -920,10 +778,10 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 	// String to slice.
 	if src.IsString() && dst.IsSlice() {
 		if dst.Elem().Etype == types.Bytetype.Etype {
-			return OSTRARRAYBYTE
+			return OSTR2BYTES
 		}
 		if dst.Elem().Etype == types.Runetype.Etype {
-			return OSTRARRAYRUNE
+			return OSTR2RUNES
 		}
 	}
 
@@ -934,6 +792,14 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 
 	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
 	if src.Etype == TUNSAFEPTR && (dst.IsPtr() || dst.Etype == TUINTPTR) {
+		return OCONVNOP
+	}
+
+	// src is map and dst is a pointer to corresponding hmap.
+	// This rule is needed for the implementation detail that
+	// go gc maps are implemented as a pointer to a hmap struct.
+	if src.Etype == TMAP && dst.IsPtr() &&
+		src.MapType().Hmap == dst.Elem() {
 		return OCONVNOP
 	}
 
@@ -975,7 +841,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 		}
 	}
 
-	if eqtype(n.Type, t) {
+	if types.Identical(n.Type, t) {
 		return n
 	}
 
@@ -1104,89 +970,63 @@ func typehash(t *types.Type) uint32 {
 	return binary.LittleEndian.Uint32(h[:4])
 }
 
-func frame(context int) {
-	if context != 0 {
-		fmt.Printf("--- external frame ---\n")
-		for _, n := range externdcl {
-			printframenode(n)
-		}
-		return
-	}
-
-	if Curfn != nil {
-		fmt.Printf("--- %v frame ---\n", Curfn.Func.Nname.Sym)
-		for _, ln := range Curfn.Func.Dcl {
-			printframenode(ln)
-		}
-	}
-}
-
-func printframenode(n *Node) {
-	w := int64(-1)
-	if n.Type != nil {
-		w = n.Type.Width
-	}
-	switch n.Op {
-	case ONAME:
-		fmt.Printf("%v %v G%d %v width=%d\n", n.Op, n.Sym, n.Name.Vargen, n.Type, w)
-	case OTYPE:
-		fmt.Printf("%v %v width=%d\n", n.Op, n.Type, w)
-	}
-}
-
 // updateHasCall checks whether expression n contains any function
 // calls and sets the n.HasCall flag if so.
 func updateHasCall(n *Node) {
 	if n == nil {
 		return
 	}
+	n.SetHasCall(calcHasCall(n))
+}
 
-	b := false
+func calcHasCall(n *Node) bool {
 	if n.Ninit.Len() != 0 {
 		// TODO(mdempsky): This seems overly conservative.
-		b = true
-		goto out
+		return true
 	}
 
 	switch n.Op {
 	case OLITERAL, ONAME, OTYPE:
-		if b || n.HasCall() {
+		if n.HasCall() {
 			Fatalf("OLITERAL/ONAME/OTYPE should never have calls: %+v", n)
 		}
-		return
-	case OAS:
-		if needwritebarrier(n.Left) {
-			b = true
-			goto out
-		}
+		return false
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
-		b = true
-		goto out
+		return true
 	case OANDAND, OOROR:
 		// hard with instrumented code
 		if instrumenting {
-			b = true
-			goto out
+			return true
 		}
 	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR,
-		OIND, ODOTPTR, ODOTTYPE, ODIV, OMOD:
+		ODEREF, ODOTPTR, ODOTTYPE, ODIV, OMOD:
 		// These ops might panic, make sure they are done
 		// before we start marshaling args for a call. See issue 16760.
-		b = true
-		goto out
+		return true
+
+	// When using soft-float, these ops might be rewritten to function calls
+	// so we ensure they are evaluated first.
+	case OADD, OSUB, ONEG, OMUL:
+		if thearch.SoftFloat && (isFloat[n.Type.Etype] || isComplex[n.Type.Etype]) {
+			return true
+		}
+	case OLT, OEQ, ONE, OLE, OGE, OGT:
+		if thearch.SoftFloat && (isFloat[n.Left.Type.Etype] || isComplex[n.Left.Type.Etype]) {
+			return true
+		}
+	case OCONV:
+		if thearch.SoftFloat && ((isFloat[n.Type.Etype] || isComplex[n.Type.Etype]) || (isFloat[n.Left.Type.Etype] || isComplex[n.Left.Type.Etype])) {
+			return true
+		}
 	}
 
 	if n.Left != nil && n.Left.HasCall() {
-		b = true
-		goto out
+		return true
 	}
 	if n.Right != nil && n.Right.HasCall() {
-		b = true
-		goto out
+		return true
 	}
-
-out:
-	n.SetHasCall(b)
+	return false
 }
 
 func badtype(op Op, tl *types.Type, tr *types.Type) {
@@ -1274,20 +1114,18 @@ func safeexpr(n *Node, init *Nodes) *Node {
 		if l == n.Left {
 			return n
 		}
-		r := nod(OXXX, nil, nil)
-		*r = *n
+		r := n.copy()
 		r.Left = l
-		r = typecheck(r, Erv)
+		r = typecheck(r, ctxExpr)
 		r = walkexpr(r, init)
 		return r
 
-	case ODOTPTR, OIND:
+	case ODOTPTR, ODEREF:
 		l := safeexpr(n.Left, init)
 		if l == n.Left {
 			return n
 		}
-		a := nod(OXXX, nil, nil)
-		*a = *n
+		a := n.copy()
 		a.Left = l
 		a = walkexpr(a, init)
 		return a
@@ -1298,8 +1136,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
 		if l == n.Left && r == n.Right {
 			return n
 		}
-		a := nod(OXXX, nil, nil)
-		*a = *n
+		a := n.copy()
 		a.Left = l
 		a.Right = r
 		a = walkexpr(a, init)
@@ -1321,7 +1158,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
 func copyexpr(n *Node, t *types.Type, init *Nodes) *Node {
 	l := temp(t)
 	a := nod(OAS, l, n)
-	a = typecheck(a, Etop)
+	a = typecheck(a, ctxStmt)
 	a = walkexpr(a, init)
 	init.Append(a)
 	return l
@@ -1398,6 +1235,7 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase 
 		return
 	}
 	t.SetRecur(true)
+	defer t.SetRecur(false)
 
 	var u *types.Type
 	d--
@@ -1407,7 +1245,7 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase 
 		// below for embedded fields.
 		c = lookdot0(s, t, save, ignorecase)
 		if c != 0 {
-			goto out
+			return c, false
 		}
 	}
 
@@ -1416,7 +1254,7 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase 
 		u = u.Elem()
 	}
 	if !u.IsStruct() && !u.IsInterface() {
-		goto out
+		return c, false
 	}
 
 	for _, f := range u.Fields().Slice() {
@@ -1425,8 +1263,7 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase 
 		}
 		if d < 0 {
 			// Found an embedded field at target depth.
-			more = true
-			goto out
+			return c, true
 		}
 		a, more1 := adddot1(s, f.Type, d, save, ignorecase)
 		if a != 0 && c == 0 {
@@ -1438,8 +1275,6 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase 
 		}
 	}
 
-out:
-	t.SetRecur(false)
 	return c, more
 }
 
@@ -1473,7 +1308,7 @@ func dotpath(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) (
 // will give shortest unique addressing.
 // modify the tree with missing type names.
 func adddot(n *Node) *Node {
-	n.Left = typecheck(n.Left, Etype|Erv)
+	n.Left = typecheck(n.Left, Etype|ctxExpr)
 	if n.Left.Diag() {
 		n.SetDiag(true)
 	}
@@ -1506,25 +1341,20 @@ func adddot(n *Node) *Node {
 	return n
 }
 
-// code to help generate trampoline
-// functions for methods on embedded
-// subtypes.
-// these are approx the same as
-// the corresponding adddot routines
-// except that they expect to be called
-// with unique tasks and they return
-// the actual methods.
+// Code to help generate trampoline functions for methods on embedded
+// types. These are approx the same as the corresponding adddot
+// routines except that they expect to be called with unique tasks and
+// they return the actual methods.
+
 type Symlink struct {
-	field     *types.Field
-	followptr bool
+	field *types.Field
 }
 
 var slist []Symlink
 
-func expand0(t *types.Type, followptr bool) {
+func expand0(t *types.Type) {
 	u := t
 	if u.IsPtr() {
-		followptr = true
 		u = u.Elem()
 	}
 
@@ -1534,7 +1364,7 @@ func expand0(t *types.Type, followptr bool) {
 				continue
 			}
 			f.Sym.SetUniq(true)
-			slist = append(slist, Symlink{field: f, followptr: followptr})
+			slist = append(slist, Symlink{field: f})
 		}
 
 		return
@@ -1547,42 +1377,38 @@ func expand0(t *types.Type, followptr bool) {
 				continue
 			}
 			f.Sym.SetUniq(true)
-			slist = append(slist, Symlink{field: f, followptr: followptr})
+			slist = append(slist, Symlink{field: f})
 		}
 	}
 }
 
-func expand1(t *types.Type, top, followptr bool) {
+func expand1(t *types.Type, top bool) {
 	if t.Recur() {
 		return
 	}
 	t.SetRecur(true)
 
 	if !top {
-		expand0(t, followptr)
+		expand0(t)
 	}
 
 	u := t
 	if u.IsPtr() {
-		followptr = true
 		u = u.Elem()
 	}
 
-	if !u.IsStruct() && !u.IsInterface() {
-		goto out
+	if u.IsStruct() || u.IsInterface() {
+		for _, f := range u.Fields().Slice() {
+			if f.Embedded == 0 {
+				continue
+			}
+			if f.Sym == nil {
+				continue
+			}
+			expand1(f.Type, false)
+		}
 	}
 
-	for _, f := range u.Fields().Slice() {
-		if f.Embedded == 0 {
-			continue
-		}
-		if f.Sym == nil {
-			continue
-		}
-		expand1(f.Type, false, followptr)
-	}
-
-out:
 	t.SetRecur(false)
 }
 
@@ -1599,7 +1425,7 @@ func expandmeth(t *types.Type) {
 
 	// generate all reachable methods
 	slist = slist[:0]
-	expand1(t, true, false)
+	expand1(t, true)
 
 	// check each method to be uniquely reachable
 	var ms []*types.Field
@@ -1608,7 +1434,8 @@ func expandmeth(t *types.Type) {
 		sl.field.Sym.SetUniq(false)
 
 		var f *types.Field
-		if path, _ := dotpath(sl.field.Sym, t, &f, false); path == nil {
+		path, _ := dotpath(sl.field.Sym, t, &f, false)
+		if path == nil {
 			continue
 		}
 
@@ -1620,8 +1447,11 @@ func expandmeth(t *types.Type) {
 		// add it to the base type method list
 		f = f.Copy()
 		f.Embedded = 1 // needs a trampoline
-		if sl.followptr {
-			f.Embedded = 2
+		for _, d := range path {
+			if d.field.Type.IsPtr() {
+				f.Embedded = 2
+				break
+			}
 		}
 		ms = append(ms, f)
 	}
@@ -1631,6 +1461,7 @@ func expandmeth(t *types.Type) {
 	}
 
 	ms = append(ms, t.Methods().Slice()...)
+	sort.Sort(methcmp(ms))
 	t.AllMethods().Set(ms)
 }
 
@@ -1639,20 +1470,15 @@ func structargs(tl *types.Type, mustname bool) []*Node {
 	var args []*Node
 	gen := 0
 	for _, t := range tl.Fields().Slice() {
-		var n *Node
-		if mustname && (t.Sym == nil || t.Sym.Name == "_") {
+		s := t.Sym
+		if mustname && (s == nil || s.Name == "_") {
 			// invent a name so that we can refer to it in the trampoline
-			buf := fmt.Sprintf(".anon%d", gen)
+			s = lookupN(".anon", gen)
 			gen++
-			n = newname(lookup(buf))
-		} else if t.Sym != nil {
-			n = newname(t.Sym)
 		}
-		a := nod(ODCLFIELD, n, typenod(t.Type))
-		a.SetIsddd(t.Isddd())
-		if n != nil {
-			n.SetIsddd(t.Isddd())
-		}
+		a := symfield(s, t.Type)
+		a.Pos = t.Pos
+		a.SetIsDDD(t.IsDDD())
 		args = append(args, a)
 	}
 
@@ -1680,49 +1506,36 @@ func structargs(tl *types.Type, mustname bool) []*Node {
 //	rcvr - U
 //	method - M func (t T)(), a TFIELD type struct
 //	newnam - the eventual mangled name of this function
-func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface int) {
+func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	if false && Debug['r'] != 0 {
 		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
 	}
 
+	// Only generate (*T).M wrappers for T.M in T's own package.
+	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type &&
+		rcvr.Elem().Sym != nil && rcvr.Elem().Sym.Pkg != localpkg {
+		return
+	}
+
+	// Only generate I.M wrappers for I in I's own package
+	// but keep doing it for error.Error (was issue #29304).
+	if rcvr.IsInterface() && rcvr.Sym != nil && rcvr.Sym.Pkg != localpkg && rcvr != types.Errortype {
+		return
+	}
+
 	lineno = autogeneratedPos
-
 	dclcontext = PEXTERN
-	types.Markdcl()
 
-	this := namedfield(".this", rcvr)
-	this.Left.Name.Param.Ntype = this.Right
-	in := structargs(method.Type.Params(), true)
-	out := structargs(method.Type.Results(), false)
+	tfn := nod(OTFUNC, nil, nil)
+	tfn.Left = namedfield(".this", rcvr)
+	tfn.List.Set(structargs(method.Type.Params(), true))
+	tfn.Rlist.Set(structargs(method.Type.Results(), false))
 
-	t := nod(OTFUNC, nil, nil)
-	l := []*Node{this}
-	if iface != 0 && rcvr.Width < int64(Widthptr) {
-		// Building method for interface table and receiver
-		// is smaller than the single pointer-sized word
-		// that the interface call will pass in.
-		// Add a dummy padding argument after the
-		// receiver to make up the difference.
-		tpad := types.NewArray(types.Types[TUINT8], int64(Widthptr)-rcvr.Width)
-		pad := namedfield(".pad", tpad)
-		l = append(l, pad)
-	}
-
-	t.List.Set(append(l, in...))
-	t.Rlist.Set(out)
-
-	fn := dclfunc(newnam, t)
+	disableExport(newnam)
+	fn := dclfunc(newnam, tfn)
 	fn.Func.SetDupok(true)
-	fn.Func.Nname.Sym.SetExported(true) // prevent export; see closure.go
 
-	// arg list
-	var args []*Node
-
-	isddd := false
-	for _, n := range in {
-		args = append(args, n.Left)
-		isddd = n.Left.Isddd()
-	}
+	nthis := asNode(tfn.Type.Recv().Nname)
 
 	methodrcvr := method.Type.Recv().Type
 
@@ -1730,13 +1543,13 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 	if rcvr.IsPtr() && rcvr.Elem() == methodrcvr {
 		// generating wrapper from *T to T.
 		n := nod(OIF, nil, nil)
-		n.Left = nod(OEQ, this.Left, nodnil())
+		n.Left = nod(OEQ, nthis, nodnil())
 		call := nod(OCALL, syslook("panicwrap"), nil)
 		n.Nbody.Set1(call)
 		fn.Nbody.Append(n)
 	}
 
-	dot := adddot(nodSym(OXDOT, this.Left, method.Sym))
+	dot := adddot(nodSym(OXDOT, nthis, method.Sym))
 
 	// generate call
 	// It's not possible to use a tail call when dynamic linking on ppc64le. The
@@ -1752,25 +1565,19 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 		if !dotlist[0].field.Type.IsPtr() {
 			dot = nod(OADDR, dot, nil)
 		}
-		as := nod(OAS, this.Left, nod(OCONVNOP, dot, nil))
-		as.Right.Type = rcvr
+		as := nod(OAS, nthis, convnop(dot, rcvr))
 		fn.Nbody.Append(as)
-		n := nod(ORETJMP, nil, nil)
-		n.Left = newname(methodsym(method.Sym, methodrcvr, false))
-		fn.Nbody.Append(n)
-		// When tail-calling, we can't use a frame pointer.
-		fn.Func.SetNoFramePointer(true)
+		fn.Nbody.Append(nodSym(ORETJMP, nil, methodSym(methodrcvr, method.Sym)))
 	} else {
 		fn.Func.SetWrapper(true) // ignore frame for panic+recover matching
 		call := nod(OCALL, dot, nil)
-		call.List.Set(args)
-		call.SetIsddd(isddd)
-		if method.Type.Results().NumFields() > 0 {
+		call.List.Set(paramNnames(tfn.Type))
+		call.SetIsDDD(tfn.Type.IsVariadic())
+		if method.Type.NumResults() > 0 {
 			n := nod(ORETURN, nil, nil)
 			n.List.Set1(call)
 			call = n
 		}
-
 		fn.Nbody.Append(call)
 	}
 
@@ -1778,25 +1585,34 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface 
 		dumplist("genwrapper body", fn.Nbody)
 	}
 
-	funcbody(fn)
-	Curfn = fn
-	types.Popdcl()
+	funcbody()
 	if debug_dclstack != 0 {
 		testdclstack()
 	}
 
-	// wrappers where T is anonymous (struct or interface) can be duplicated.
-	if rcvr.IsStruct() || rcvr.IsInterface() || rcvr.IsPtr() && rcvr.Elem().IsStruct() {
-		fn.Func.SetDupok(true)
-	}
-	fn = typecheck(fn, Etop)
-	typecheckslice(fn.Nbody.Slice(), Etop)
+	fn = typecheck(fn, ctxStmt)
 
-	inlcalls(fn)
+	Curfn = fn
+	typecheckslice(fn.Nbody.Slice(), ctxStmt)
+
+	// Inline calls within (*T).M wrappers. This is safe because we only
+	// generate those wrappers within the same compilation unit as (T).M.
+	// TODO(mdempsky): Investigate why we can't enable this more generally.
+	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym != nil {
+		inlcalls(fn)
+	}
 	escAnalyze([]*Node{fn}, false)
 
 	Curfn = nil
 	funccompile(fn)
+}
+
+func paramNnames(ft *types.Type) []*Node {
+	args := make([]*Node, ft.NumParams())
+	for i, f := range ft.Params().FieldSlice() {
+		args[i] = asNode(f.Nname)
+	}
+	return args
 }
 
 func hashmem(t *types.Type) *Node {
@@ -1804,45 +1620,43 @@ func hashmem(t *types.Type) *Node {
 
 	n := newname(sym)
 	n.SetClass(PFUNC)
-	tfn := nod(OTFUNC, nil, nil)
-	tfn.List.Append(anonfield(types.NewPtr(t)))
-	tfn.List.Append(anonfield(types.Types[TUINTPTR]))
-	tfn.List.Append(anonfield(types.Types[TUINTPTR]))
-	tfn.Rlist.Append(anonfield(types.Types[TUINTPTR]))
-	tfn = typecheck(tfn, Etype)
-	n.Type = tfn.Type
+	n.Sym.SetFunc(true)
+	n.Type = functype(nil, []*Node{
+		anonfield(types.NewPtr(t)),
+		anonfield(types.Types[TUINTPTR]),
+		anonfield(types.Types[TUINTPTR]),
+	}, []*Node{
+		anonfield(types.Types[TUINTPTR]),
+	})
 	return n
 }
 
-func ifacelookdot(s *types.Sym, t *types.Type, followptr *bool, ignorecase bool) *types.Field {
-	*followptr = false
-
+func ifacelookdot(s *types.Sym, t *types.Type, ignorecase bool) (m *types.Field, followptr bool) {
 	if t == nil {
-		return nil
+		return nil, false
 	}
 
-	var m *types.Field
 	path, ambig := dotpath(s, t, &m, ignorecase)
 	if path == nil {
 		if ambig {
 			yyerror("%v.%v is ambiguous", t, s)
 		}
-		return nil
+		return nil, false
 	}
 
 	for _, d := range path {
 		if d.field.Type.IsPtr() {
-			*followptr = true
+			followptr = true
 			break
 		}
 	}
 
 	if m.Type.Etype != TFUNC || m.Type.Recv() == nil {
 		yyerror("%v.%v is a field, not a method", t, s)
-		return nil
+		return nil, followptr
 	}
 
-	return m
+	return m, followptr
 }
 
 func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool {
@@ -1851,58 +1665,63 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 		return false
 	}
 
-	// if this is too slow,
-	// could sort these first
-	// and then do one loop.
-
 	if t.IsInterface() {
+		i := 0
+		tms := t.Fields().Slice()
 		for _, im := range iface.Fields().Slice() {
-			for _, tm := range t.Fields().Slice() {
-				if tm.Sym == im.Sym {
-					if eqtype(tm.Type, im.Type) {
-						goto found
-					}
-					*m = im
-					*samename = tm
-					*ptr = 0
-					return false
-				}
+			for i < len(tms) && tms[i].Sym != im.Sym {
+				i++
 			}
-
-			*m = im
-			*samename = nil
-			*ptr = 0
-			return false
-		found:
+			if i == len(tms) {
+				*m = im
+				*samename = nil
+				*ptr = 0
+				return false
+			}
+			tm := tms[i]
+			if !types.Identical(tm.Type, im.Type) {
+				*m = im
+				*samename = tm
+				*ptr = 0
+				return false
+			}
 		}
 
 		return true
 	}
 
 	t = methtype(t)
+	var tms []*types.Field
 	if t != nil {
 		expandmeth(t)
+		tms = t.AllMethods().Slice()
 	}
+	i := 0
 	for _, im := range iface.Fields().Slice() {
 		if im.Broke() {
 			continue
 		}
-		var followptr bool
-		tm := ifacelookdot(im.Sym, t, &followptr, false)
-		if tm == nil || tm.Nointerface() || !eqtype(tm.Type, im.Type) {
-			if tm == nil {
-				tm = ifacelookdot(im.Sym, t, &followptr, true)
-			}
+		for i < len(tms) && tms[i].Sym != im.Sym {
+			i++
+		}
+		if i == len(tms) {
+			*m = im
+			*samename, _ = ifacelookdot(im.Sym, t, true)
+			*ptr = 0
+			return false
+		}
+		tm := tms[i]
+		if tm.Nointerface() || !types.Identical(tm.Type, im.Type) {
 			*m = im
 			*samename = tm
 			*ptr = 0
 			return false
 		}
+		followptr := tm.Embedded == 2
 
 		// if pointer receiver in method,
 		// the method does not exist for value types.
 		rcvr := tm.Type.Recv().Type
-
 		if rcvr.IsPtr() && !t0.IsPtr() && !followptr && !isifacemethod(tm.Type) {
 			if false && Debug['r'] != 0 {
 				yyerror("interface pointer mismatch")
@@ -1977,12 +1796,17 @@ func addinit(n *Node, init []*Node) *Node {
 	return n
 }
 
+// The linker uses the magic symbol prefixes "go." and "type."
+// Avoid potential confusion between import paths and symbols
+// by rejecting these reserved imports for now. Also, people
+// "can do weird things in GOPATH and we'd prefer they didn't
+// do _that_ weird thing" (per rsc). See also #4257.
 var reservedimports = []string{
 	"go",
 	"type",
 }
 
-func isbadimport(path string) bool {
+func isbadimport(path string, allowSpace bool) bool {
 	if strings.Contains(path, "\x00") {
 		yyerror("import path contains NUL")
 		return true
@@ -2011,7 +1835,7 @@ func isbadimport(path string) bool {
 			return true
 		}
 
-		if unicode.IsSpace(r) {
+		if !allowSpace && unicode.IsSpace(r) {
 			yyerror("import path contains space character: %q", path)
 			return true
 		}
@@ -2029,7 +1853,7 @@ func checknil(x *Node, init *Nodes) {
 	x = walkexpr(x, nil) // caller has not done this yet
 	if x.Type.IsInterface() {
 		x = nod(OITAB, x, nil)
-		x = typecheck(x, Erv)
+		x = typecheck(x, ctxExpr)
 	}
 
 	n := nod(OCHECKNIL, x, nil)
@@ -2040,9 +1864,12 @@ func checknil(x *Node, init *Nodes) {
 // Can this type be stored directly in an interface word?
 // Yes, if the representation is a single pointer.
 func isdirectiface(t *types.Type) bool {
+	if t.Broke() {
+		return false
+	}
+
 	switch t.Etype {
-	case TPTR32,
-		TPTR64,
+	case TPTR,
 		TCHAN,
 		TMAP,
 		TFUNC,
@@ -2084,7 +1911,7 @@ func ifaceData(n *Node, t *types.Type) *Node {
 	ptr.Type = types.NewPtr(t)
 	ptr.SetBounded(true)
 	ptr.SetTypecheck(1)
-	ind := nod(OIND, ptr, nil)
+	ind := nod(ODEREF, ptr, nil)
 	ind.Type = t
 	ind.SetTypecheck(1)
 	return ind

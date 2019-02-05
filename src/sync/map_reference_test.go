@@ -64,8 +64,17 @@ func (m *RWMutexMap) Delete(key interface{}) {
 
 func (m *RWMutexMap) Range(f func(key, value interface{}) (shouldContinue bool)) {
 	m.mu.RLock()
-	defer m.mu.RUnlock()
-	for k, v := range m.dirty {
+	keys := make([]interface{}, 0, len(m.dirty))
+	for k := range m.dirty {
+		keys = append(keys, k)
+	}
+	m.mu.RUnlock()
+
+	for _, k := range keys {
+		v, ok := m.Load(k)
+		if !ok {
+			continue
+		}
 		if !f(k, v) {
 			break
 		}

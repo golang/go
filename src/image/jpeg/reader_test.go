@@ -323,7 +323,6 @@ func TestExtraneousData(t *testing.T) {
 }
 
 func benchmarkDecode(b *testing.B, filename string) {
-	b.StopTimer()
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		b.Fatal(err)
@@ -333,7 +332,8 @@ func benchmarkDecode(b *testing.B, filename string) {
 		b.Fatal(err)
 	}
 	b.SetBytes(int64(cfg.Width * cfg.Height * 4))
-	b.StartTimer()
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Decode(bytes.NewReader(data))
 	}

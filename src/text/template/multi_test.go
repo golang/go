@@ -247,6 +247,9 @@ func TestAddParseTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	added, err := root.AddParseTree("c", tree["c"])
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Execute.
 	var b bytes.Buffer
 	err = added.ExecuteTemplate(&b, "a", 0)

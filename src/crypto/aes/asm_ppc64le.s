@@ -2,21 +2,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This is a derived work from OpenSSL of AES using assembly optimizations. The
-// original code was written by Andy Polyakov <appro@openssl.org> and it's dual
-// licensed under OpenSSL and CRYPTOGAMS licenses depending on where you obtain
-// it. For further details see http://www.openssl.org/~appro/cryptogams/.
+// Based on CRYPTOGAMS code with the following comment:
+// # ====================================================================
+// # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+// # project. The module is, however, dual licensed under OpenSSL and
+// # CRYPTOGAMS licenses depending on where you obtain it. For further
+// # details see http://www.openssl.org/~appro/cryptogams/.
+// # ====================================================================
 
 // Original code can be found at the link below:
-// https://git.openssl.org/?p=openssl.git;a=blob;f=crypto/aes/asm/aesp8-ppc.pl
+// https://github.com/dot-asm/cryptogams/blob/master/ppc/aesp8-ppc.pl
 
-// The code is based on 627c953376 from 4 Jun 2016. I changed some function
-// names in order to be more likely to go standards. For instance, function
-// aes_p8_set_{en,de}crypt_key become set{En,De}cryptKeyAsm. I also split
-// setEncryptKeyAsm in two parts and a new session was created
-// (doEncryptKeyAsm). This was necessary to avoid arguments overwriting when
-// setDecryptKeyAsm calls setEncryptKeyAsm. There were other modifications as
-// well but kept the same functionality.
+// I changed some function names in order to be more likely to go standards.
+// For instance, function aes_p8_set_{en,de}crypt_key become
+// set{En,De}cryptKeyAsm. I also split setEncryptKeyAsm in two parts
+// and a new session was created (doEncryptKeyAsm). This was necessary to
+// avoid arguments overwriting when setDecryptKeyAsm calls setEncryptKeyAsm.
+// There were other modifications as well but kept the same functionality.
 
 #include "textflag.h"
 

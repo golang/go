@@ -69,17 +69,25 @@ func SyntaxError(cmd, msg string) {
 	os.Exit(2)
 }
 
+// AddKnownFlags registers the flags in defns with base.AddKnownFlag.
+func AddKnownFlags(cmd string, defns []*Defn) {
+	for _, f := range defns {
+		base.AddKnownFlag(f.Name)
+		base.AddKnownFlag(cmd + "." + f.Name)
+	}
+}
+
 // Parse sees if argument i is present in the definitions and if so,
 // returns its definition, value, and whether it consumed an extra word.
-// If the flag begins (cmd+".") it is ignored for the purpose of this function.
-func Parse(cmd string, defns []*Defn, args []string, i int) (f *Defn, value string, extra bool) {
+// If the flag begins (cmd.Name()+".") it is ignored for the purpose of this function.
+func Parse(cmd string, usage func(), defns []*Defn, args []string, i int) (f *Defn, value string, extra bool) {
 	arg := args[i]
 	if strings.HasPrefix(arg, "--") { // reduce two minuses to one
 		arg = arg[1:]
 	}
 	switch arg {
 	case "-?", "-h", "-help":
-		base.Usage()
+		usage()
 	}
 	if arg == "" || arg[0] != '-' {
 		return
@@ -120,4 +128,32 @@ func Parse(cmd string, defns []*Defn, args []string, i int) (f *Defn, value stri
 	}
 	f = nil
 	return
+}
+
+// FindGOFLAGS extracts and returns the flags matching defns from GOFLAGS.
+// Ideally the caller would mention that the flags were from GOFLAGS
+// when reporting errors, but that's too hard for now.
+func FindGOFLAGS(defns []*Defn) []string {
+	var flags []string
+	for _, flag := range base.GOFLAGS() {
+		// Flags returned by base.GOFLAGS are well-formed, one of:
+		//	-x
+		//	--x
+		//	-x=value
+		//	--x=value
+		if strings.HasPrefix(flag, "--") {
+			flag = flag[1:]
+		}
+		name := flag[1:]
+		if i := strings.Index(name, "="); i >= 0 {
+			name = name[:i]
+		}
+		for _, f := range defns {
+			if name == f.Name {
+				flags = append(flags, flag)
+				break
+			}
+		}
+	}
+	return flags
 }

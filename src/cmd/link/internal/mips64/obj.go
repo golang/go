@@ -37,57 +37,43 @@ import (
 	"fmt"
 )
 
-func Init() {
+func Init() (*sys.Arch, ld.Arch) {
+	arch := sys.ArchMIPS64
 	if objabi.GOARCH == "mips64le" {
-		ld.SysArch = sys.ArchMIPS64LE
-	} else {
-		ld.SysArch = sys.ArchMIPS64
+		arch = sys.ArchMIPS64LE
 	}
 
-	ld.Thearch.Funcalign = funcAlign
-	ld.Thearch.Maxalign = maxAlign
-	ld.Thearch.Minalign = minAlign
-	ld.Thearch.Dwarfregsp = dwarfRegSP
-	ld.Thearch.Dwarfreglr = dwarfRegLR
+	theArch := ld.Arch{
+		Funcalign:        funcAlign,
+		Maxalign:         maxAlign,
+		Minalign:         minAlign,
+		Dwarfregsp:       dwarfRegSP,
+		Dwarfreglr:       dwarfRegLR,
+		Adddynrel:        adddynrel,
+		Archinit:         archinit,
+		Archreloc:        archreloc,
+		Archrelocvariant: archrelocvariant,
+		Asmb:             asmb,
+		Elfreloc1:        elfreloc1,
+		Elfsetupplt:      elfsetupplt,
+		Gentext:          gentext,
+		Machoreloc1:      machoreloc1,
 
-	ld.Thearch.Adddynrel = adddynrel
-	ld.Thearch.Archinit = archinit
-	ld.Thearch.Archreloc = archreloc
-	ld.Thearch.Archrelocvariant = archrelocvariant
-	ld.Thearch.Asmb = asmb
-	ld.Thearch.Elfreloc1 = elfreloc1
-	ld.Thearch.Elfsetupplt = elfsetupplt
-	ld.Thearch.Gentext = gentext
-	ld.Thearch.Machoreloc1 = machoreloc1
-	if ld.SysArch == sys.ArchMIPS64LE {
-		ld.Thearch.Lput = ld.Lputl
-		ld.Thearch.Wput = ld.Wputl
-		ld.Thearch.Vput = ld.Vputl
-		ld.Thearch.Append16 = ld.Append16l
-		ld.Thearch.Append32 = ld.Append32l
-		ld.Thearch.Append64 = ld.Append64l
-	} else {
-		ld.Thearch.Lput = ld.Lputb
-		ld.Thearch.Wput = ld.Wputb
-		ld.Thearch.Vput = ld.Vputb
-		ld.Thearch.Append16 = ld.Append16b
-		ld.Thearch.Append32 = ld.Append32b
-		ld.Thearch.Append64 = ld.Append64b
+		Linuxdynld:     "/lib64/ld64.so.1",
+		Freebsddynld:   "XXX",
+		Openbsddynld:   "XXX",
+		Netbsddynld:    "XXX",
+		Dragonflydynld: "XXX",
+		Solarisdynld:   "XXX",
 	}
 
-	ld.Thearch.Linuxdynld = "/lib64/ld64.so.1"
-
-	ld.Thearch.Freebsddynld = "XXX"
-	ld.Thearch.Openbsddynld = "XXX"
-	ld.Thearch.Netbsddynld = "XXX"
-	ld.Thearch.Dragonflydynld = "XXX"
-	ld.Thearch.Solarisdynld = "XXX"
+	return arch, theArch
 }
 
 func archinit(ctxt *ld.Link) {
-	switch ld.Headtype {
+	switch ctxt.HeadType {
 	default:
-		ld.Exitf("unknown -H option: %v", ld.Headtype)
+		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
 
 	case objabi.Hplan9: /* plan 9 */
 		ld.HEADR = 32

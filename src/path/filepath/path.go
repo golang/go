@@ -4,6 +4,11 @@
 
 // Package filepath implements utility routines for manipulating filename paths
 // in a way compatible with the target operating system-defined file paths.
+//
+// The filepath package uses either forward slashes or backslashes,
+// depending on the operating system. To process paths such as URLs
+// that always use forward slashes regardless of the operating
+// system, see the path package.
 package filepath
 
 import (
@@ -91,14 +96,19 @@ func Clean(path string) string {
 		}
 		return originalPath + "."
 	}
+
+	n := len(path)
+	if volLen > 2 && n == 1 && os.IsPathSeparator(path[0]) {
+		// UNC volume name with trailing slash.
+		return FromSlash(originalPath[:volLen])
+	}
 	rooted := os.IsPathSeparator(path[0])
 
 	// Invariants:
 	//	reading from path; r is index of next byte to process.
-	//	writing to buf; w is index of next byte to write.
-	//	dotdot is index in buf where .. must stop, either because
+	//	writing to out; w is index of next byte to write.
+	//	dotdot is index in out where .. must stop, either because
 	//		it is the leading slash or it is a leading ../../.. prefix.
-	n := len(path)
 	out := lazybuf{path: path, volAndPath: originalPath, volLen: volLen}
 	r, dotdot := 0, 0
 	if rooted {
@@ -161,7 +171,7 @@ func ToSlash(path string) string {
 	if Separator == '/' {
 		return path
 	}
-	return strings.Replace(path, string(Separator), "/", -1)
+	return strings.ReplaceAll(path, string(Separator), "/")
 }
 
 // FromSlash returns the result of replacing each slash ('/') character
@@ -171,7 +181,7 @@ func FromSlash(path string) string {
 	if Separator == '/' {
 		return path
 	}
-	return strings.Replace(path, "/", string(Separator), -1)
+	return strings.ReplaceAll(path, "/", string(Separator))
 }
 
 // SplitList splits a list of paths joined by the OS-specific ListSeparator,
@@ -336,33 +346,34 @@ var SkipDir = errors.New("skip this directory")
 //
 // If there was a problem walking to the file or directory named by path, the
 // incoming error will describe the problem and the function can decide how
-// to handle that error (and Walk will not descend into that directory). If
-// an error is returned, processing stops. The sole exception is when the function
-// returns the special value SkipDir. If the function returns SkipDir when invoked
-// on a directory, Walk skips the directory's contents entirely.
-// If the function returns SkipDir when invoked on a non-directory file,
-// Walk skips the remaining files in the containing directory.
+// to handle that error (and Walk will not descend into that directory). In the
+// case of an error, the info argument will be nil. If an error is returned,
+// processing stops. The sole exception is when the function returns the special
+// value SkipDir. If the function returns SkipDir when invoked on a directory,
+// Walk skips the directory's contents entirely. If the function returns SkipDir
+// when invoked on a non-directory file, Walk skips the remaining files in the
+// containing directory.
 type WalkFunc func(path string, info os.FileInfo, err error) error
 
 var lstat = os.Lstat // for testing
 
-// walk recursively descends path, calling w.
+// walk recursively descends path, calling walkFn.
 func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
-	err := walkFn(path, info, nil)
-	if err != nil {
-		if info.IsDir() && err == SkipDir {
-			return nil
-		}
-		return err
-	}
-
 	if !info.IsDir() {
-		return nil
+		return walkFn(path, info, nil)
 	}
 
 	names, err := readDirNames(path)
-	if err != nil {
-		return walkFn(path, info, err)
+	err1 := walkFn(path, info, err)
+	// If err != nil, walk can't walk into this directory.
+	// err1 != nil means walkFn want walk to skip this directory or stop walking.
+	// Therefore, if one of err and err1 isn't nil, walk will return.
+	if err != nil || err1 != nil {
+		// The caller's behavior is controlled by the return value, which is decided
+		// by walkFn. walkFn may ignore err and return nil.
+		// If walkFn returns SkipDir, it will be handled by the caller.
+		// So walk should return whatever walkFn returns.
+		return err1
 	}
 
 	for _, name := range names {

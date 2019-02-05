@@ -88,43 +88,44 @@ func TestMatcher(t *T) {
 		pattern     string
 		parent, sub string
 		ok          bool
+		partial     bool
 	}{
 		// Behavior without subtests.
-		{"", "", "TestFoo", true},
-		{"TestFoo", "", "TestFoo", true},
-		{"TestFoo/", "", "TestFoo", true},
-		{"TestFoo/bar/baz", "", "TestFoo", true},
-		{"TestFoo", "", "TestBar", false},
-		{"TestFoo/", "", "TestBar", false},
-		{"TestFoo/bar/baz", "", "TestBar/bar/baz", false},
+		{"", "", "TestFoo", true, false},
+		{"TestFoo", "", "TestFoo", true, false},
+		{"TestFoo/", "", "TestFoo", true, true},
+		{"TestFoo/bar/baz", "", "TestFoo", true, true},
+		{"TestFoo", "", "TestBar", false, false},
+		{"TestFoo/", "", "TestBar", false, false},
+		{"TestFoo/bar/baz", "", "TestBar/bar/baz", false, false},
 
 		// with subtests
-		{"", "TestFoo", "x", true},
-		{"TestFoo", "TestFoo", "x", true},
-		{"TestFoo/", "TestFoo", "x", true},
-		{"TestFoo/bar/baz", "TestFoo", "bar", true},
+		{"", "TestFoo", "x", true, false},
+		{"TestFoo", "TestFoo", "x", true, false},
+		{"TestFoo/", "TestFoo", "x", true, false},
+		{"TestFoo/bar/baz", "TestFoo", "bar", true, true},
 		// Subtest with a '/' in its name still allows for copy and pasted names
 		// to match.
-		{"TestFoo/bar/baz", "TestFoo", "bar/baz", true},
-		{"TestFoo/bar/baz", "TestFoo/bar", "baz", true},
-		{"TestFoo/bar/baz", "TestFoo", "x", false},
-		{"TestFoo", "TestBar", "x", false},
-		{"TestFoo/", "TestBar", "x", false},
-		{"TestFoo/bar/baz", "TestBar", "x/bar/baz", false},
+		{"TestFoo/bar/baz", "TestFoo", "bar/baz", true, false},
+		{"TestFoo/bar/baz", "TestFoo/bar", "baz", true, false},
+		{"TestFoo/bar/baz", "TestFoo", "x", false, false},
+		{"TestFoo", "TestBar", "x", false, false},
+		{"TestFoo/", "TestBar", "x", false, false},
+		{"TestFoo/bar/baz", "TestBar", "x/bar/baz", false, false},
 
 		// subtests only
-		{"", "TestFoo", "x", true},
-		{"/", "TestFoo", "x", true},
-		{"./", "TestFoo", "x", true},
-		{"./.", "TestFoo", "x", true},
-		{"/bar/baz", "TestFoo", "bar", true},
-		{"/bar/baz", "TestFoo", "bar/baz", true},
-		{"//baz", "TestFoo", "bar/baz", true},
-		{"//", "TestFoo", "bar/baz", true},
-		{"/bar/baz", "TestFoo/bar", "baz", true},
-		{"//foo", "TestFoo", "bar/baz", false},
-		{"/bar/baz", "TestFoo", "x", false},
-		{"/bar/baz", "TestBar", "x/bar/baz", false},
+		{"", "TestFoo", "x", true, false},
+		{"/", "TestFoo", "x", true, false},
+		{"./", "TestFoo", "x", true, false},
+		{"./.", "TestFoo", "x", true, false},
+		{"/bar/baz", "TestFoo", "bar", true, true},
+		{"/bar/baz", "TestFoo", "bar/baz", true, false},
+		{"//baz", "TestFoo", "bar/baz", true, false},
+		{"//", "TestFoo", "bar/baz", true, false},
+		{"/bar/baz", "TestFoo/bar", "baz", true, false},
+		{"//foo", "TestFoo", "bar/baz", false, false},
+		{"/bar/baz", "TestFoo", "x", false, false},
+		{"/bar/baz", "TestBar", "x/bar/baz", false, false},
 	}
 
 	for _, tc := range testCases {
@@ -134,9 +135,9 @@ func TestMatcher(t *T) {
 		if tc.parent != "" {
 			parent.level = 1
 		}
-		if n, ok := m.fullName(parent, tc.sub); ok != tc.ok {
-			t.Errorf("for pattern %q, fullName(parent=%q, sub=%q) = %q, ok %v; want ok %v",
-				tc.pattern, tc.parent, tc.sub, n, ok, tc.ok)
+		if n, ok, partial := m.fullName(parent, tc.sub); ok != tc.ok || partial != tc.partial {
+			t.Errorf("for pattern %q, fullName(parent=%q, sub=%q) = %q, ok %v partial %v; want ok %v partial %v",
+				tc.pattern, tc.parent, tc.sub, n, ok, partial, tc.ok, tc.partial)
 		}
 	}
 }
@@ -178,7 +179,7 @@ func TestNaming(t *T) {
 	}
 
 	for i, tc := range testCases {
-		if got, _ := m.fullName(parent, tc.name); got != tc.want {
+		if got, _, _ := m.fullName(parent, tc.name); got != tc.want {
 			t.Errorf("%d:%s: got %q; want %q", i, tc.name, got, tc.want)
 		}
 	}

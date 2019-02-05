@@ -7,19 +7,18 @@
 package types
 
 import (
-	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
+	"sort"
 )
 
-func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt) {
+func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt, iota constant.Value) {
 	if trace {
-		if name == "" {
-			name = "<function literal>"
-		}
-		fmt.Printf("--- %s: %s {\n", name, sig)
-		defer fmt.Println("--- <end>")
+		check.trace(body.Pos(), "--- %s: %s", name, sig)
+		defer func() {
+			check.trace(body.End(), "--- <end>")
+		}()
 	}
 
 	// set function scope extent
@@ -35,6 +34,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	check.context = context{
 		decl:  decl,
 		scope: sig.scope,
+		iota:  iota,
 		sig:   sig,
 	}
 	check.indent = 0
@@ -51,19 +51,29 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 
 	// spec: "Implementation restriction: A compiler may make it illegal to
 	// declare a variable inside a function body if the variable is never used."
-	// (One could check each scope after use, but that distributes this check
-	// over several places because CloseScope is not always called explicitly.)
 	check.usage(sig.scope)
 }
 
 func (check *Checker) usage(scope *Scope) {
-	for _, obj := range scope.elems {
-		if v, _ := obj.(*Var); v != nil && !v.used {
-			check.softErrorf(v.pos, "%s declared but not used", v.name)
+	var unused []*Var
+	for _, elem := range scope.elems {
+		if v, _ := elem.(*Var); v != nil && !v.used {
+			unused = append(unused, v)
 		}
 	}
+	sort.Slice(unused, func(i, j int) bool {
+		return unused[i].pos < unused[j].pos
+	})
+	for _, v := range unused {
+		check.softErrorf(v.pos, "%s declared but not used", v.name)
+	}
+
 	for _, scope := range scope.children {
-		check.usage(scope)
+		// Don't go inside function literal scopes a second time;
+		// they are handled explicitly by funcBody.
+		if !scope.isFunc {
+			check.usage(scope)
+		}
 	}
 }
 
@@ -236,15 +246,13 @@ L:
 		}
 		// look for duplicate values
 		if val := goVal(v.val); val != nil {
-			if list := seen[val]; list != nil {
-				// look for duplicate types for a given value
-				// (quadratic algorithm, but these lists tend to be very short)
-				for _, vt := range list {
-					if Identical(v.typ, vt.typ) {
-						check.errorf(v.pos(), "duplicate case %s in expression switch", &v)
-						check.error(vt.pos, "\tprevious case") // secondary error, \t indented
-						continue L
-					}
+			// look for duplicate types for a given value
+			// (quadratic algorithm, but these lists tend to be very short)
+			for _, vt := range seen[val] {
+				if Identical(v.typ, vt.typ) {
+					check.errorf(v.pos(), "duplicate case %s in expression switch", &v)
+					check.error(vt.pos, "\tprevious case") // secondary error, \t indented
+					continue L
 				}
 			}
 			seen[val] = append(seen[val], valueType{v.pos(), v.typ})
@@ -283,10 +291,6 @@ L:
 
 // stmt typechecks statement s.
 func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
-	// statements cannot use iota in general
-	// (constant declarations set it explicitly)
-	assert(check.iota == nil)
-
 	// statements must end with the same top scope as they started with
 	if debug {
 		defer func(scope *Scope) {
@@ -297,6 +301,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			assert(scope == check.scope)
 		}(check.scope)
 	}
+
+	// process collected function literals before scope changes
+	defer check.processDelayed(len(check.delayed))
 
 	inner := ctxt &^ (fallthroughOk | finalSwitchCase)
 	switch s := s.(type) {
@@ -429,7 +436,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				// list in a "return" statement if a different entity (constant, type, or variable)
 				// with the same name as a result parameter is in scope at the place of the return."
 				for _, obj := range res.vars {
-					if _, alt := check.scope.LookupParent(obj.name, check.pos); alt != nil && alt != obj {
+					if alt := check.lookup(obj.name); alt != nil && alt != obj {
 						check.errorf(s.Pos(), "result parameter %s not in scope at return", obj.name)
 						check.errorf(alt.Pos(), "\tinner declaration of %s", obj)
 						// ok to continue
@@ -720,6 +727,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		// declaration, but the post statement must not."
 		if s, _ := s.Post.(*ast.AssignStmt); s != nil && s.Tok == token.DEFINE {
 			check.softErrorf(s.Pos(), "cannot declare in post statement")
+			// Don't call useLHS here because we want to use the lhs in
+			// this erroneous statement so that we don't get errors about
+			// these lhs variables being declared but not used.
 			check.use(s.Lhs...) // avoid follow-up errors
 		}
 		check.stmt(inner, s.Body)

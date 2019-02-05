@@ -64,7 +64,7 @@ GLOBL coshe6<>+0(SB), RODATA, $8
 TEXT ·coshAsm(SB),NOSPLIT,$0-16
 	FMOVD   x+0(FP), F0
 	MOVD    $coshrodataL23<>+0(SB), R9
-	WORD    $0xB3120000     //ltdbr %f0,%f0
+	LTDBR	F0, F0
 	MOVD    $0x4086000000000000, R2
 	MOVD    $0x4086000000000000, R3
 	BLTU    L19

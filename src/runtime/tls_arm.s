@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !windows
+
 #include "go_asm.h"
 #include "go_tls.h"
 #include "funcdata.h"
@@ -30,7 +32,7 @@
 // NOTE: runtime.gogo assumes that R1 is preserved by this function.
 //       runtime.mcall assumes this function only clobbers R0 and R11.
 // Returns with g in R0.
-TEXT runtime·save_g(SB),NOSPLIT,$-4
+TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0
 #ifdef GOOS_nacl
 	// nothing to do as nacl/arm does not use TLS at all.
 	MOVW	g, R0 // preserve R0 across call to setg<>

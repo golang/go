@@ -21,6 +21,10 @@ func TestGZIPFilesHaveZeroMTimes(t *testing.T) {
 	if testenv.Builder() == "" {
 		t.Skip("skipping test on non-builder")
 	}
+	if !testenv.HasSrc() {
+		t.Skip("skipping; no GOROOT available")
+	}
+
 	goroot, err := filepath.EvalSymlinks(runtime.GOROOT())
 	if err != nil {
 		t.Fatal("error evaluating GOROOT: ", err)

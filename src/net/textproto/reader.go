@@ -129,12 +129,13 @@ func (r *Reader) readContinuedLineSlice() ([]byte, error) {
 	}
 
 	// Optimistically assume that we have started to buffer the next line
-	// and it starts with an ASCII letter (the next header key), so we can
-	// avoid copying that buffered data around in memory and skipping over
-	// non-existent whitespace.
+	// and it starts with an ASCII letter (the next header key), or a blank
+	// line, so we can avoid copying that buffered data around in memory
+	// and skipping over non-existent whitespace.
 	if r.R.Buffered() > 1 {
-		peek, err := r.R.Peek(1)
-		if err == nil && isASCIILetter(peek[0]) {
+		peek, _ := r.R.Peek(2)
+		if len(peek) > 0 && (isASCIILetter(peek[0]) || peek[0] == '\n') ||
+			len(peek) == 2 && peek[0] == '\r' && peek[1] == '\n' {
 			return trim(line), nil
 		}
 	}
@@ -236,7 +237,7 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err err
 // with the same code followed by a space. Each line in message is
 // separated by a newline (\n).
 //
-// See page 36 of RFC 959 (http://www.ietf.org/rfc/rfc959.txt) for
+// See page 36 of RFC 959 (https://www.ietf.org/rfc/rfc959.txt) for
 // details of another form of response accepted:
 //
 //  code-message line 1
@@ -476,15 +477,25 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 	}
 
 	m := make(MIMEHeader, hint)
+
+	// The first line cannot start with a leading space.
+	if buf, err := r.R.Peek(1); err == nil && (buf[0] == ' ' || buf[0] == '\t') {
+		line, err := r.readLineSlice()
+		if err != nil {
+			return m, err
+		}
+		return m, ProtocolError("malformed MIME header initial line: " + string(line))
+	}
+
 	for {
 		kv, err := r.readContinuedLineSlice()
 		if len(kv) == 0 {
 			return m, err
 		}
 
-		// Key ends at first colon; should not have spaces but
-		// they appear in the wild, violating specs, so we
-		// remove them if present.
+		// Key ends at first colon; should not have trailing spaces
+		// but they appear in the wild, violating specs, so we remove
+		// them if present.
 		i := bytes.IndexByte(kv, ':')
 		if i < 0 {
 			return m, ProtocolError("malformed MIME header line: " + string(kv))

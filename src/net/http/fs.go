@@ -30,6 +30,12 @@ import (
 // value is a filename on the native file system, not a URL, so it is separated
 // by filepath.Separator, which isn't necessarily '/'.
 //
+// Note that Dir will allow access to files and directories starting with a
+// period, which could expose sensitive directories like a .git directory or
+// sensitive files like .htpasswd. To exclude files with a leading period,
+// remove the files/directories from the server or create a custom FileSystem
+// implementation.
+//
 // An empty Dir is treated as ".".
 type Dir string
 
@@ -92,12 +98,10 @@ type File interface {
 	Stat() (os.FileInfo, error)
 }
 
-func dirList(w ResponseWriter, f File) {
+func dirList(w ResponseWriter, r *Request, f File) {
 	dirs, err := f.Readdir(-1)
 	if err != nil {
-		// TODO: log err.Error() to the Server.ErrorLog, once it's possible
-		// for a handler to get at its Server via the ResponseWriter. See
-		// Issue 12438.
+		logf(r, "http: error reading directory: %v", err)
 		Error(w, "Error reading directory", StatusInternalServerError)
 		return
 	}
@@ -231,17 +235,17 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 		}
 		switch {
 		case len(ranges) == 1:
-			// RFC 2616, Section 14.16:
-			// "When an HTTP message includes the content of a single
-			// range (for example, a response to a request for a
-			// single range, or to a request for a set of ranges
-			// that overlap without any holes), this content is
-			// transmitted with a Content-Range header, and a
-			// Content-Length header showing the number of bytes
-			// actually transferred.
+			// RFC 7233, Section 4.1:
+			// "If a single part is being transferred, the server
+			// generating the 206 response MUST generate a
+			// Content-Range header field, describing what range
+			// of the selected representation is enclosed, and a
+			// payload consisting of the range.
 			// ...
-			// A response to a request for a single range MUST NOT
-			// be sent using the multipart/byteranges media type."
+			// A server MUST NOT generate a multipart response to
+			// a request for a single range, since a client that
+			// does not request multiple parts might not support
+			// multipart responses."
 			ra := ranges[0]
 			if _, err := content.Seek(ra.start, io.SeekStart); err != nil {
 				Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
@@ -313,7 +317,7 @@ func scanETag(s string) (etag string, remain string) {
 		// Character values allowed in ETags.
 		case c == 0x21 || c >= 0x23 && c <= 0x7E || c >= 0x80:
 		case c == '"':
-			return string(s[:i+1]), s[i+1:]
+			return s[:i+1], s[i+1:]
 		default:
 			return "", ""
 		}
@@ -439,7 +443,7 @@ func checkIfModifiedSince(r *Request, modtime time.Time) condResult {
 }
 
 func checkIfRange(w ResponseWriter, r *Request, modtime time.Time) condResult {
-	if r.Method != "GET" {
+	if r.Method != "GET" && r.Method != "HEAD" {
 		return condNone
 	}
 	ir := r.Header.get("If-Range")
@@ -526,10 +530,8 @@ func checkPreconditions(w ResponseWriter, r *Request, modtime time.Time) (done b
 	}
 
 	rangeHeader = r.Header.get("Range")
-	if rangeHeader != "" {
-		if checkIfRange(w, r, modtime) == condFalse {
-			rangeHeader = ""
-		}
+	if rangeHeader != "" && checkIfRange(w, r, modtime) == condFalse {
+		rangeHeader = ""
 	}
 	return false, rangeHeader
 }
@@ -609,7 +611,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 			return
 		}
 		w.Header().Set("Last-Modified", d.ModTime().UTC().Format(TimeFormat))
-		dirList(w, f)
+		dirList(w, r, f)
 		return
 	}
 
@@ -648,15 +650,23 @@ func localRedirect(w ResponseWriter, r *Request, newPath string) {
 // file or directory.
 //
 // If the provided file or directory name is a relative path, it is
-// interpreted relative to the current directory and may ascend to parent
-// directories. If the provided name is constructed from user input, it
-// should be sanitized before calling ServeFile. As a precaution, ServeFile
-// will reject requests where r.URL.Path contains a ".." path element.
+// interpreted relative to the current directory and may ascend to
+// parent directories. If the provided name is constructed from user
+// input, it should be sanitized before calling ServeFile.
 //
-// As a special case, ServeFile redirects any request where r.URL.Path
+// As a precaution, ServeFile will reject requests where r.URL.Path
+// contains a ".." path element; this protects against callers who
+// might unsafely use filepath.Join on r.URL.Path without sanitizing
+// it and then use that filepath.Join result as the name argument.
+//
+// As another special case, ServeFile redirects any request where r.URL.Path
 // ends in "/index.html" to the same path, without the final
 // "index.html". To avoid such redirects either modify the path or
 // use ServeContent.
+//
+// Outside of those two special cases, ServeFile does not use
+// r.URL.Path for selecting the file or directory to serve; only the
+// file or directory provided in the name argument is used.
 func ServeFile(w ResponseWriter, r *Request, name string) {
 	if containsDotDot(r.URL.Path) {
 		// Too many programs use r.URL.Path to construct the argument to
@@ -729,7 +739,7 @@ func (r httpRange) mimeHeader(contentType string, size int64) textproto.MIMEHead
 	}
 }
 
-// parseRange parses a Range header string as per RFC 2616.
+// parseRange parses a Range header string as per RFC 7233.
 // errNoOverlap is returned if none of the ranges overlap.
 func parseRange(s string, size int64) ([]httpRange, error) {
 	if s == "" {

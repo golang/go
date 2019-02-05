@@ -6,8 +6,7 @@ package sys
 
 const (
 	ArchFamily          = AMD64
-	BigEndian           = 0
-	CacheLineSize       = 64
+	BigEndian           = false
 	DefaultPhysPageSize = 65536*GoosNacl + 4096*(1-GoosNacl)
 	PCQuantum           = 1
 	Int64Align          = 8

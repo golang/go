@@ -126,12 +126,22 @@ func main() {
 		log.Fatalf(`plugin1.F()=%d, want 17`, gotf)
 	}
 
-	// plugin2 has no exported symbols, only an init function.
-	if _, err := plugin.Open("plugin2.so"); err != nil {
+	p2, err := plugin.Open("plugin2.so")
+	if err != nil {
 		log.Fatalf("plugin.Open failed: %v", err)
 	}
+	// Check that plugin2's init function was called, and
+	// that it modifies the same global variable as the host.
 	if got, want := common.X, 2; got != want {
 		log.Fatalf("after loading plugin2, common.X=%d, want %d", got, want)
+	}
+
+	_, err = plugin.Open("plugin2-dup.so")
+	if err == nil {
+		log.Fatal(`plugin.Open("plugin2-dup.so"): duplicate open should have failed`)
+	}
+	if s := err.Error(); !strings.Contains(s, "already loaded") {
+		log.Fatal(`plugin.Open("plugin2.so"): error does not mention "already loaded"`)
 	}
 
 	_, err = plugin.Open("plugin-mismatch.so")
@@ -141,6 +151,24 @@ func main() {
 	if s := err.Error(); !strings.Contains(s, "different version") {
 		log.Fatalf(`plugin.Open("plugin-mismatch.so"): error does not mention "different version": %v`, s)
 	}
+
+	_, err = plugin.Open("plugin2-dup.so")
+	if err == nil {
+		log.Fatal(`plugin.Open("plugin2-dup.so"): duplicate open after bad plugin should have failed`)
+	}
+	_, err = plugin.Open("plugin2.so")
+	if err != nil {
+		log.Fatalf(`plugin.Open("plugin2.so"): second open with same name failed: %v`, err)
+	}
+
+	// Test that unexported types with the same names in
+	// different plugins do not interfere with each other.
+	//
+	// See Issue #21386.
+	UnexportedNameReuse, _ := p.Lookup("UnexportedNameReuse")
+	UnexportedNameReuse.(func())()
+	UnexportedNameReuse, _ = p2.Lookup("UnexportedNameReuse")
+	UnexportedNameReuse.(func())()
 
 	testUnnamed()
 

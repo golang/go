@@ -52,6 +52,8 @@ var testF = []*Function{
 	{ID: 1, Name: "func1", SystemName: "func1", Filename: "file1"},
 	{ID: 2, Name: "func2", SystemName: "func2", Filename: "file1"},
 	{ID: 3, Name: "func3", SystemName: "func3", Filename: "file2"},
+	{ID: 4, Name: "func4", SystemName: "func4", Filename: "file3"},
+	{ID: 5, Name: "func5", SystemName: "func5", Filename: "file4"},
 }
 
 var testL = []*Location{
@@ -86,6 +88,22 @@ var testL = []*Location{
 		Mapping: testM[1],
 		Address: 12,
 	},
+	{
+		ID:      4,
+		Mapping: testM[1],
+		Address: 12,
+		Line: []Line{
+			{
+				Function: testF[4],
+				Line:     6,
+			},
+			{
+				Function: testF[4],
+				Line:     6,
+			},
+		},
+		IsFolded: true,
+	},
 }
 
 var all = &Profile{
@@ -100,8 +118,8 @@ var all = &Profile{
 		{
 			Location: []*Location{testL[0], testL[1], testL[2], testL[1], testL[1]},
 			Label: map[string][]string{
-				"key1": []string{"value1"},
-				"key2": []string{"value2"},
+				"key1": {"value1"},
+				"key2": {"value2"},
 			},
 			Value: []int64{10, 20},
 		},
@@ -109,12 +127,19 @@ var all = &Profile{
 			Location: []*Location{testL[1], testL[2], testL[0], testL[1]},
 			Value:    []int64{30, 40},
 			Label: map[string][]string{
-				"key1": []string{"value1"},
-				"key2": []string{"value2"},
+				"key1": {"value1"},
+				"key2": {"value2"},
 			},
 			NumLabel: map[string][]int64{
-				"key1": []int64{1, 2},
-				"key2": []int64{3, 4},
+				"key1":      {1, 2},
+				"key2":      {3, 4},
+				"bytes":     {3, 4},
+				"requests":  {1, 1, 3, 4, 5},
+				"alignment": {3, 4},
+			},
+			NumUnit: map[string][]string{
+				"requests":  {"", "", "seconds", "", "s"},
+				"alignment": {"kilobytes", "kilobytes"},
 			},
 		},
 	},
@@ -126,9 +151,9 @@ var all = &Profile{
 
 func TestMarshalUnmarshal(t *testing.T) {
 	// Write the profile, parse it, and ensure they're equal.
-	buf := bytes.NewBuffer(nil)
-	all.Write(buf)
-	all2, err := Parse(buf)
+	var buf bytes.Buffer
+	all.Write(&buf)
+	all2, err := Parse(&buf)
 	if err != nil {
 		t.Fatal(err)
 	}

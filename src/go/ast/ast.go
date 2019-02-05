@@ -153,10 +153,12 @@ func (g *CommentGroup) Text() string {
 // A Field represents a Field declaration list in a struct type,
 // a method list in an interface type, or a parameter/result declaration
 // in a signature.
+// Field.Names is nil for unnamed parameters (parameter lists which only contain types)
+// and embedded struct fields. In the latter case, the field name is the type name.
 //
 type Field struct {
 	Doc     *CommentGroup // associated documentation; or nil
-	Names   []*Ident      // field/method/parameter names; or nil if anonymous field
+	Names   []*Ident      // field/method/parameter names; or nil
 	Type    Expr          // field/method/parameter type
 	Tag     *BasicLit     // field tag; or nil
 	Comment *CommentGroup // line comments; or nil
@@ -207,14 +209,14 @@ func (f *FieldList) End() token.Pos {
 	return token.NoPos
 }
 
-// NumFields returns the number of (named and anonymous fields) in a FieldList.
+// NumFields returns the number of parameters or struct fields represented by a FieldList.
 func (f *FieldList) NumFields() int {
 	n := 0
 	if f != nil {
 		for _, g := range f.List {
 			m := len(g.Names)
 			if m == 0 {
-				m = 1 // anonymous field
+				m = 1
 			}
 			n += m
 		}
@@ -264,10 +266,11 @@ type (
 
 	// A CompositeLit node represents a composite literal.
 	CompositeLit struct {
-		Type   Expr      // literal type; or nil
-		Lbrace token.Pos // position of "{"
-		Elts   []Expr    // list of composite elements; or nil
-		Rbrace token.Pos // position of "}"
+		Type       Expr      // literal type; or nil
+		Lbrace     token.Pos // position of "{"
+		Elts       []Expr    // list of composite elements; or nil
+		Rbrace     token.Pos // position of "}"
+		Incomplete bool      // true if (source) expressions are missing in the Elts list
 	}
 
 	// A ParenExpr node represents a parenthesized expression.
@@ -356,8 +359,8 @@ type (
 	}
 )
 
-// The direction of a channel type is indicated by one
-// of the following constants.
+// The direction of a channel type is indicated by a bit
+// mask including one or both of the following constants.
 //
 type ChanDir int
 
@@ -927,7 +930,7 @@ type (
 		Recv *FieldList    // receiver (methods); or nil (functions)
 		Name *Ident        // function/method name
 		Type *FuncType     // function signature: parameters, results, and position of "func" keyword
-		Body *BlockStmt    // function body; or nil (forward declaration)
+		Body *BlockStmt    // function body; or nil for external (non-Go) function
 	}
 )
 
@@ -966,6 +969,19 @@ func (*FuncDecl) declNode() {}
 // The Comments list contains all comments in the source file in order of
 // appearance, including the comments that are pointed to from other nodes
 // via Doc and Comment fields.
+//
+// For correct printing of source code containing comments (using packages
+// go/format and go/printer), special care must be taken to update comments
+// when a File's syntax tree is modified: For printing, comments are interspersed
+// between tokens based on their position. If syntax tree nodes are
+// removed or moved, relevant comments in their vicinity must also be removed
+// (from the File.Comments list) or moved accordingly (by updating their
+// positions). A CommentMap may be used to facilitate some of these operations.
+//
+// Whether and how a comment is associated with a node depends on the
+// interpretation of the syntax tree by the manipulating program: Except for Doc
+// and Comment comments directly associated with nodes, the remaining comments
+// are "free-floating" (see also issues #18593, #20744).
 //
 type File struct {
 	Doc        *CommentGroup   // associated documentation; or nil

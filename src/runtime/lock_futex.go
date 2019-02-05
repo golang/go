@@ -38,6 +38,7 @@ const (
 // affect mutex's state.
 
 // We use the uintptr mutex.key and note.key as a uint32.
+//go:nosplit
 func key32(p *uintptr) *uint32 {
 	return (*uint32)(unsafe.Pointer(p))
 }
@@ -223,8 +224,14 @@ func notetsleepg(n *note, ns int64) bool {
 		throw("notetsleepg on g0")
 	}
 
-	entersyscallblock(0)
+	entersyscallblock()
 	ok := notetsleep_internal(n, ns)
-	exitsyscall(0)
+	exitsyscall()
 	return ok
 }
+
+func beforeIdle() bool {
+	return false
+}
+
+func checkTimeouts() {}

@@ -9,16 +9,16 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
 )
 
 // architecture-independent object file output
-const (
-	ArhdrSize = 60
-)
+const ArhdrSize = 60
 
 func formathdr(arhdr []byte, name string, size int64) {
 	copy(arhdr[:], fmt.Sprintf("%-16s%-12d%-6d%-6d%-8o%-10d`\n", name, 0, 0, 0, 0644, size))
@@ -43,10 +43,6 @@ const (
 )
 
 func dumpobj() {
-	if !dolinkobj {
-		dumpobj1(outfile, modeCompilerObj)
-		return
-	}
 	if linkobj == "" {
 		dumpobj1(outfile, modeCompilerObj|modeLinkerObj)
 		return
@@ -56,79 +52,75 @@ func dumpobj() {
 }
 
 func dumpobj1(outfile string, mode int) {
-	var err error
-	bout, err = bio.Create(outfile)
+	bout, err := bio.Create(outfile)
 	if err != nil {
 		flusherrors()
 		fmt.Printf("can't create %s: %v\n", outfile, err)
 		errorexit()
 	}
-
-	startobj := int64(0)
-	var arhdr [ArhdrSize]byte
-	if writearchive {
-		bout.WriteString("!<arch>\n")
-		arhdr = [ArhdrSize]byte{}
-		bout.Write(arhdr[:])
-		startobj = bout.Offset()
-	}
-
-	printheader := func() {
-		fmt.Fprintf(bout, "go object %s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
-		if buildid != "" {
-			fmt.Fprintf(bout, "build id %q\n", buildid)
-		}
-		if localpkg.Name == "main" {
-			fmt.Fprintf(bout, "main\n")
-		}
-		if safemode {
-			fmt.Fprintf(bout, "safe\n")
-		} else {
-			fmt.Fprintf(bout, "----\n") // room for some other tool to write "safe"
-		}
-		fmt.Fprintf(bout, "\n") // header ends with blank line
-	}
-
-	printheader()
+	defer bout.Close()
+	bout.WriteString("!<arch>\n")
 
 	if mode&modeCompilerObj != 0 {
-		dumpexport()
+		start := startArchiveEntry(bout)
+		dumpCompilerObj(bout)
+		finishArchiveEntry(bout, start, "__.PKGDEF")
 	}
-
-	if writearchive {
-		bout.Flush()
-		size := bout.Offset() - startobj
-		if size&1 != 0 {
-			bout.WriteByte(0)
-		}
-		bout.Seek(startobj-ArhdrSize, 0)
-		formathdr(arhdr[:], "__.PKGDEF", size)
-		bout.Write(arhdr[:])
-		bout.Flush()
-		bout.Seek(startobj+size+(size&1), 0)
+	if mode&modeLinkerObj != 0 {
+		start := startArchiveEntry(bout)
+		dumpLinkerObj(bout)
+		finishArchiveEntry(bout, start, "_go_.o")
 	}
+}
 
-	if mode&modeLinkerObj == 0 {
-		bout.Close()
-		return
+func printObjHeader(bout *bio.Writer) {
+	fmt.Fprintf(bout, "go object %s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
+	if buildid != "" {
+		fmt.Fprintf(bout, "build id %q\n", buildid)
 	}
-
-	if writearchive {
-		// start object file
-		arhdr = [ArhdrSize]byte{}
-		bout.Write(arhdr[:])
-		startobj = bout.Offset()
-		printheader()
+	if localpkg.Name == "main" {
+		fmt.Fprintf(bout, "main\n")
 	}
+	fmt.Fprintf(bout, "\n") // header ends with blank line
+}
 
-	if pragcgobuf != "" {
-		if writearchive {
-			// write empty export section; must be before cgo section
-			fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
-		}
+func startArchiveEntry(bout *bio.Writer) int64 {
+	var arhdr [ArhdrSize]byte
+	bout.Write(arhdr[:])
+	return bout.Offset()
+}
 
+func finishArchiveEntry(bout *bio.Writer, start int64, name string) {
+	bout.Flush()
+	size := bout.Offset() - start
+	if size&1 != 0 {
+		bout.WriteByte(0)
+	}
+	bout.Seek(start-ArhdrSize, 0)
+
+	var arhdr [ArhdrSize]byte
+	formathdr(arhdr[:], name, size)
+	bout.Write(arhdr[:])
+	bout.Flush()
+	bout.Seek(start+size+(size&1), 0)
+}
+
+func dumpCompilerObj(bout *bio.Writer) {
+	printObjHeader(bout)
+	dumpexport(bout)
+}
+
+func dumpLinkerObj(bout *bio.Writer) {
+	printObjHeader(bout)
+
+	if len(pragcgobuf) != 0 {
+		// write empty export section; must be before cgo section
+		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
 		fmt.Fprintf(bout, "\n$$  // cgo\n")
-		fmt.Fprintf(bout, "%s\n$$\n\n", pragcgobuf)
+		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
+			Fatalf("serializing pragcgobuf: %v", err)
+		}
+		fmt.Fprintf(bout, "\n$$\n\n")
 	}
 
 	fmt.Fprintf(bout, "\n!\n")
@@ -142,6 +134,18 @@ func dumpobj1(outfile string, mode int) {
 	dumptabs()
 	dumpimportstrings()
 	dumpbasictypes()
+
+	// Calls to dumpsignats can generate functions,
+	// like method wrappers and hash and equality routines.
+	// Compile any generated functions, process any new resulting types, repeat.
+	// This can't loop forever, because there is no way to generate an infinite
+	// number of types in a finite amount of code.
+	// In the typical case, we loop 0 or 1 times.
+	// It was not until issue 24761 that we found any code that required a loop at all.
+	for len(compilequeue) > 0 {
+		compileFunctions()
+		dumpsignats()
+	}
 
 	// Dump extra globals.
 	tmp := externdcl
@@ -160,19 +164,6 @@ func dumpobj1(outfile string, mode int) {
 	addGCLocals()
 
 	obj.WriteObjFile(Ctxt, bout.Writer)
-
-	if writearchive {
-		bout.Flush()
-		size := bout.Offset() - startobj
-		if size&1 != 0 {
-			bout.WriteByte(0)
-		}
-		bout.Seek(startobj-ArhdrSize, 0)
-		formathdr(arhdr[:], "_go_.o", size)
-		bout.Write(arhdr[:])
-	}
-
-	bout.Close()
 }
 
 func addptabs() {
@@ -188,7 +179,7 @@ func addptabs() {
 		if n.Op != ONAME {
 			continue
 		}
-		if !exportname(s.Name) {
+		if !types.IsExported(s.Name) {
 			continue
 		}
 		if s.Pkg.Name != "main" {
@@ -204,24 +195,68 @@ func addptabs() {
 	}
 }
 
+func dumpGlobal(n *Node) {
+	if n.Type == nil {
+		Fatalf("external %v nil type\n", n)
+	}
+	if n.Class() == PFUNC {
+		return
+	}
+	if n.Sym.Pkg != localpkg {
+		return
+	}
+	dowidth(n.Type)
+	ggloblnod(n)
+}
+
+func dumpGlobalConst(n *Node) {
+	// only export typed constants
+	t := n.Type
+	if t == nil {
+		return
+	}
+	if n.Sym.Pkg != localpkg {
+		return
+	}
+	// only export integer constants for now
+	switch t.Etype {
+	case TINT8:
+	case TINT16:
+	case TINT32:
+	case TINT64:
+	case TINT:
+	case TUINT8:
+	case TUINT16:
+	case TUINT32:
+	case TUINT64:
+	case TUINT:
+	case TUINTPTR:
+		// ok
+	case TIDEAL:
+		if !Isconst(n, CTINT) {
+			return
+		}
+		x := n.Val().U.(*Mpint)
+		if x.Cmp(minintval[TINT]) < 0 || x.Cmp(maxintval[TINT]) > 0 {
+			return
+		}
+		// Ideal integers we export as int (if they fit).
+		t = types.Types[TINT]
+	default:
+		return
+	}
+	Ctxt.DwarfIntConst(myimportpath, n.Sym.Name, typesymname(t), n.Int64())
+}
+
 func dumpglobls() {
 	// add globals
 	for _, n := range externdcl {
-		if n.Op != ONAME {
-			continue
+		switch n.Op {
+		case ONAME:
+			dumpGlobal(n)
+		case OLITERAL:
+			dumpGlobalConst(n)
 		}
-
-		if n.Type == nil {
-			Fatalf("external %v nil type\n", n)
-		}
-		if n.Class() == PFUNC {
-			continue
-		}
-		if n.Sym.Pkg != localpkg {
-			continue
-		}
-		dowidth(n.Type)
-		ggloblnod(n)
 	}
 
 	obj.SortSlice(funcsyms, func(i, j int) bool {
@@ -237,23 +272,22 @@ func dumpglobls() {
 	funcsyms = nil
 }
 
-// addGCLocals adds gcargs and gclocals symbols to Ctxt.Data.
-// It takes care not to add any duplicates.
-// Though the object file format handles duplicates efficiently,
-// storing only a single copy of the data,
-// failure to remove these duplicates adds a few percent to object file size.
+// addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
+//
+// This is done during the sequential phase after compilation, since
+// global symbols can't be declared during parallel compilation.
 func addGCLocals() {
-	seen := make(map[string]bool)
 	for _, s := range Ctxt.Text {
 		if s.Func == nil {
 			continue
 		}
-		for _, gcsym := range []*obj.LSym{&s.Func.GCArgs, &s.Func.GCLocals} {
-			if seen[gcsym.Name] {
-				continue
+		for _, gcsym := range []*obj.LSym{s.Func.GCArgs, s.Func.GCLocals, s.Func.GCRegs} {
+			if gcsym != nil && !gcsym.OnList() {
+				ggloblsym(gcsym, int32(len(gcsym.P)), obj.RODATA|obj.DUPOK)
 			}
-			Ctxt.Data = append(Ctxt.Data, gcsym)
-			seen[gcsym.Name] = true
+		}
+		if x := s.Func.StackObjects; x != nil {
+			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
 		}
 	}
 }
@@ -291,7 +325,7 @@ func dbvec(s *obj.LSym, off int, bv bvec) int {
 	return off
 }
 
-func stringsym(s string) (data *obj.LSym) {
+func stringsym(pos src.XPos, s string) (data *obj.LSym) {
 	var symname string
 	if len(s) > 100 {
 		// Huge strings are hashed to avoid long names in object files.
@@ -312,7 +346,7 @@ func stringsym(s string) (data *obj.LSym) {
 
 	if !symdata.SeenGlobl() {
 		// string data
-		off := dsname(symdata, 0, s)
+		off := dsname(symdata, 0, s, pos, "string")
 		ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
 	}
 
@@ -328,7 +362,7 @@ func slicebytes(nam *Node, s string, len int) {
 	sym.Def = asTypesNode(newname(sym))
 
 	lsym := sym.Linksym()
-	off := dsname(lsym, 0, s)
+	off := dsname(lsym, 0, s, nam.Pos, "slice")
 	ggloblsym(lsym, int32(off), obj.NOPTR|obj.LOCAL)
 
 	if nam.Op != ONAME {
@@ -341,7 +375,15 @@ func slicebytes(nam *Node, s string, len int) {
 	duintptr(nsym, off, uint64(len))
 }
 
-func dsname(s *obj.LSym, off int, t string) int {
+func dsname(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
+	// Objects that are too large will cause the data section to overflow right away,
+	// causing a cryptic error message by the linker. Check for oversize objects here
+	// and provide a useful error message instead.
+	if int64(len(t)) > 2e9 {
+		yyerrorl(pos, "%v with length %v is too big", what, len(t))
+		return 0
+	}
+
 	s.WriteString(Ctxt, int64(off), len(t), t)
 	return off + len(t)
 }
@@ -353,8 +395,8 @@ func dsymptr(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 	return off
 }
 
-func dsymptrOff(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
-	s.WriteOff(Ctxt, int64(off), x, int64(xoff))
+func dsymptrOff(s *obj.LSym, off int, x *obj.LSym) int {
+	s.WriteOff(Ctxt, int64(off), x, 0)
 	off += 4
 	return off
 }
@@ -406,7 +448,7 @@ func gdata(nam *Node, nr *Node, wid int) {
 			}
 
 		case string:
-			symdata := stringsym(u)
+			symdata := stringsym(nam.Pos, u)
 			s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, symdata, 0)
 			s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthptr, int64(len(u)))
 

@@ -7,6 +7,7 @@ package httptest
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"testing"
 )
@@ -35,6 +36,19 @@ func TestRecorder(t *testing.T) {
 		return func(rec *ResponseRecorder) error {
 			if rec.Result().StatusCode != wantCode {
 				return fmt.Errorf("Result().StatusCode = %d; want %d", rec.Result().StatusCode, wantCode)
+			}
+			return nil
+		}
+	}
+	hasResultContents := func(want string) checkFunc {
+		return func(rec *ResponseRecorder) error {
+			contentBytes, err := ioutil.ReadAll(rec.Result().Body)
+			if err != nil {
+				return err
+			}
+			contents := string(contentBytes)
+			if contents != want {
+				return fmt.Errorf("Result().Body = %s; want %s", contents, want)
 			}
 			return nil
 		}
@@ -111,7 +125,7 @@ func TestRecorder(t *testing.T) {
 		}
 	}
 
-	tests := []struct {
+	for _, tt := range [...]struct {
 		name   string
 		h      func(w http.ResponseWriter, r *http.Request)
 		checks []checkFunc
@@ -273,16 +287,26 @@ func TestRecorder(t *testing.T) {
 			},
 			check(hasStatus(200), hasContents("Some body"), hasContentLength(9)),
 		},
-	}
-	r, _ := http.NewRequest("GET", "http://foo.com/", nil)
-	for _, tt := range tests {
-		h := http.HandlerFunc(tt.h)
-		rec := NewRecorder()
-		h.ServeHTTP(rec, r)
-		for _, check := range tt.checks {
-			if err := check(rec); err != nil {
-				t.Errorf("%s: %v", tt.name, err)
+		{
+			"nil ResponseRecorder.Body", // Issue 26642
+			func(w http.ResponseWriter, r *http.Request) {
+				w.(*ResponseRecorder).Body = nil
+				io.WriteString(w, "hi")
+			},
+			check(hasResultContents("")), // check we don't crash reading the body
+
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			r, _ := http.NewRequest("GET", "http://foo.com/", nil)
+			h := http.HandlerFunc(tt.h)
+			rec := NewRecorder()
+			h.ServeHTTP(rec, r)
+			for _, check := range tt.checks {
+				if err := check(rec); err != nil {
+					t.Error(err)
+				}
 			}
-		}
+		})
 	}
 }

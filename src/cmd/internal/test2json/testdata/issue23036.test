@@ -1,0 +1,9 @@
+=== RUN   TestActualCase
+--- FAIL: TestActualCase (0.00s)
+        foo_test.go:14: Differed.
+                Expected: MyTest:
+                --- FAIL: Test output from other tool
+                Actual: not expected
+FAIL
+exit status 1
+FAIL    github.com/org/project/badtest     0.049s

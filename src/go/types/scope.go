@@ -15,9 +15,6 @@ import (
 	"strings"
 )
 
-// TODO(gri) Provide scopes with a name or other mechanism so that
-//           objects can use that information for better printing.
-
 // A Scope maintains a set of objects and links to its containing
 // (parent) and contained (children) scopes. Objects may be inserted
 // and looked up by name. The zero value for Scope is a ready-to-use
@@ -28,12 +25,13 @@ type Scope struct {
 	elems    map[string]Object // lazily allocated
 	pos, end token.Pos         // scope extent; may be invalid
 	comment  string            // for debugging only
+	isFunc   bool              // set if this is a function scope (internal use only)
 }
 
 // NewScope returns a new, empty scope contained in the given parent
 // scope, if any. The comment is for debugging only.
 func NewScope(parent *Scope, pos, end token.Pos, comment string) *Scope {
-	s := &Scope{parent, nil, nil, pos, end, comment}
+	s := &Scope{parent, nil, nil, pos, end, comment, false}
 	// don't add children to Universe scope!
 	if parent != nil && parent != Universe {
 		parent.children = append(parent.children, s)
@@ -117,7 +115,7 @@ func (s *Scope) Insert(obj Object) Object {
 func (s *Scope) Pos() token.Pos { return s.pos }
 func (s *Scope) End() token.Pos { return s.end }
 
-// Contains returns true if pos is within the scope's extent.
+// Contains reports whether pos is within the scope's extent.
 // The result is guaranteed to be valid only if the type-checked
 // AST has complete position information.
 func (s *Scope) Contains(pos token.Pos) bool {
@@ -160,13 +158,8 @@ func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
 	const ind = ".  "
 	indn := strings.Repeat(ind, n)
 
-	fmt.Fprintf(w, "%s%s scope %p {", indn, s.comment, s)
-	if len(s.elems) == 0 {
-		fmt.Fprintf(w, "}\n")
-		return
-	}
+	fmt.Fprintf(w, "%s%s scope %p {\n", indn, s.comment, s)
 
-	fmt.Fprintln(w)
 	indn1 := indn + ind
 	for _, name := range s.Names() {
 		fmt.Fprintf(w, "%s%s\n", indn1, s.elems[name])
@@ -174,12 +167,11 @@ func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
 
 	if recurse {
 		for _, s := range s.children {
-			fmt.Fprintln(w)
 			s.WriteTo(w, n+1, recurse)
 		}
 	}
 
-	fmt.Fprintf(w, "%s}", indn)
+	fmt.Fprintf(w, "%s}\n", indn)
 }
 
 // String returns a string representation of the scope, for debugging.

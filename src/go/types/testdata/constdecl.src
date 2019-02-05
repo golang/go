@@ -5,6 +5,7 @@
 package constdecl
 
 import "math"
+import "unsafe"
 
 var v int
 
@@ -92,6 +93,18 @@ func _() {
 	    x string = missing /* ERROR "undeclared name" */
 	    y = x + ""
 	)
+}
+
+// Test case for constants depending on function literals (see also #22992).
+const A /* ERROR initialization cycle */ = unsafe.Sizeof(func() { _ = A })
+
+func _() {
+	// The function literal below must not see a.
+	const a = unsafe.Sizeof(func() { _ = a /* ERROR "undeclared name" */ })
+	const b = unsafe.Sizeof(func() { _ = a })
+
+	// The function literal below must not see x, y, or z.
+	const x, y, z = 0, 1, unsafe.Sizeof(func() { _ = x /* ERROR "undeclared name" */ + y /* ERROR "undeclared name" */ + z /* ERROR "undeclared name" */ })
 }
 
 // TODO(gri) move extra tests from testdata/const0.src into here

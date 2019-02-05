@@ -1,0 +1,10 @@
+# check that error for missing binary-only says where it should be
+! go build b
+stderr pkg[\\/].*a\.a
+
+-- a/a.go --
+//go:binary-only-package
+
+package a
+-- b/b.go --
+package b; import "a"

@@ -6,9 +6,9 @@
 // code but require careful thought to use correctly.
 package subtle
 
-// ConstantTimeCompare returns 1 if and only if the two slices, x
-// and y, have equal contents. The time taken is a function of the length of
-// the slices and is independent of the contents.
+// ConstantTimeCompare returns 1 if the two slices, x and y, have equal contents
+// and 0 otherwise. The time taken is a function of the length of the slices and
+// is independent of the contents.
 func ConstantTimeCompare(x, y []byte) int {
 	if len(x) != len(y) {
 		return 0
@@ -23,30 +23,18 @@ func ConstantTimeCompare(x, y []byte) int {
 	return ConstantTimeByteEq(v, 0)
 }
 
-// ConstantTimeSelect returns x if v is 1 and y if v is 0.
+// ConstantTimeSelect returns x if v == 1 and y if v == 0.
 // Its behavior is undefined if v takes any other value.
 func ConstantTimeSelect(v, x, y int) int { return ^(v-1)&x | (v-1)&y }
 
 // ConstantTimeByteEq returns 1 if x == y and 0 otherwise.
 func ConstantTimeByteEq(x, y uint8) int {
-	z := ^(x ^ y)
-	z &= z >> 4
-	z &= z >> 2
-	z &= z >> 1
-
-	return int(z)
+	return int((uint32(x^y) - 1) >> 31)
 }
 
 // ConstantTimeEq returns 1 if x == y and 0 otherwise.
 func ConstantTimeEq(x, y int32) int {
-	z := ^(x ^ y)
-	z &= z >> 16
-	z &= z >> 8
-	z &= z >> 4
-	z &= z >> 2
-	z &= z >> 1
-
-	return int(z & 1)
+	return int((uint64(uint32(x^y)) - 1) >> 63)
 }
 
 // ConstantTimeCopy copies the contents of y into x (a slice of equal length)

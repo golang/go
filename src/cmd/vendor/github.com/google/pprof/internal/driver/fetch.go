@@ -16,7 +16,6 @@ package driver
 
 import (
 	"bytes"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -41,38 +40,54 @@ import (
 // there are some failures. It will return an error if it is unable to
 // fetch any profiles.
 func fetchProfiles(s *source, o *plugin.Options) (*profile.Profile, error) {
-	sources := make([]profileSource, 0, len(s.Sources)+len(s.Base))
+	sources := make([]profileSource, 0, len(s.Sources))
 	for _, src := range s.Sources {
 		sources = append(sources, profileSource{
 			addr:   src,
 			source: s,
-			scale:  1,
 		})
 	}
+
+	bases := make([]profileSource, 0, len(s.Base))
 	for _, src := range s.Base {
-		sources = append(sources, profileSource{
+		bases = append(bases, profileSource{
 			addr:   src,
 			source: s,
-			scale:  -1,
 		})
 	}
-	p, msrcs, save, cnt, err := chunkedGrab(sources, o.Fetch, o.Obj, o.UI)
+
+	p, pbase, m, mbase, save, err := grabSourcesAndBases(sources, bases, o.Fetch, o.Obj, o.UI, o.HTTPTransport)
 	if err != nil {
 		return nil, err
 	}
-	if cnt == 0 {
-		return nil, fmt.Errorf("failed to fetch any profiles")
-	}
-	if want, got := len(sources), cnt; want != got {
-		o.UI.PrintErr(fmt.Sprintf("fetched %d profiles out of %d", got, want))
+
+	if pbase != nil {
+		if s.DiffBase {
+			pbase.SetLabel("pprof::base", []string{"true"})
+		}
+		if s.Normalize {
+			err := p.Normalize(pbase)
+			if err != nil {
+				return nil, err
+			}
+		}
+		pbase.Scale(-1)
+		p, m, err = combineProfiles([]*profile.Profile{p, pbase}, []plugin.MappingSources{m, mbase})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Symbolize the merged profile.
-	if err := o.Sym.Symbolize(s.Symbolize, msrcs, p); err != nil {
+	if err := o.Sym.Symbolize(s.Symbolize, m, p); err != nil {
 		return nil, err
 	}
 	p.RemoveUninteresting()
 	unsourceMappings(p)
+
+	if s.Comment != "" {
+		p.Comments = append(p.Comments, s.Comment)
+	}
 
 	// Save a copy of the merged profile if there is at least one remote source.
 	if save {
@@ -107,10 +122,51 @@ func fetchProfiles(s *source, o *plugin.Options) (*profile.Profile, error) {
 	return p, nil
 }
 
+func grabSourcesAndBases(sources, bases []profileSource, fetch plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI, tr http.RoundTripper) (*profile.Profile, *profile.Profile, plugin.MappingSources, plugin.MappingSources, bool, error) {
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	var psrc, pbase *profile.Profile
+	var msrc, mbase plugin.MappingSources
+	var savesrc, savebase bool
+	var errsrc, errbase error
+	var countsrc, countbase int
+	go func() {
+		defer wg.Done()
+		psrc, msrc, savesrc, countsrc, errsrc = chunkedGrab(sources, fetch, obj, ui, tr)
+	}()
+	go func() {
+		defer wg.Done()
+		pbase, mbase, savebase, countbase, errbase = chunkedGrab(bases, fetch, obj, ui, tr)
+	}()
+	wg.Wait()
+	save := savesrc || savebase
+
+	if errsrc != nil {
+		return nil, nil, nil, nil, false, fmt.Errorf("problem fetching source profiles: %v", errsrc)
+	}
+	if errbase != nil {
+		return nil, nil, nil, nil, false, fmt.Errorf("problem fetching base profiles: %v,", errbase)
+	}
+	if countsrc == 0 {
+		return nil, nil, nil, nil, false, fmt.Errorf("failed to fetch any source profiles")
+	}
+	if countbase == 0 && len(bases) > 0 {
+		return nil, nil, nil, nil, false, fmt.Errorf("failed to fetch any base profiles")
+	}
+	if want, got := len(sources), countsrc; want != got {
+		ui.PrintErr(fmt.Sprintf("Fetched %d source profiles out of %d", got, want))
+	}
+	if want, got := len(bases), countbase; want != got {
+		ui.PrintErr(fmt.Sprintf("Fetched %d base profiles out of %d", got, want))
+	}
+
+	return psrc, pbase, msrc, mbase, save, nil
+}
+
 // chunkedGrab fetches the profiles described in source and merges them into
 // a single profile. It fetches a chunk of profiles concurrently, with a maximum
 // chunk size to limit its memory usage.
-func chunkedGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI) (*profile.Profile, plugin.MappingSources, bool, int, error) {
+func chunkedGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI, tr http.RoundTripper) (*profile.Profile, plugin.MappingSources, bool, int, error) {
 	const chunkSize = 64
 
 	var p *profile.Profile
@@ -123,7 +179,7 @@ func chunkedGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTo
 		if end > len(sources) {
 			end = len(sources)
 		}
-		chunkP, chunkMsrc, chunkSave, chunkCount, chunkErr := concurrentGrab(sources[start:end], fetch, obj, ui)
+		chunkP, chunkMsrc, chunkSave, chunkCount, chunkErr := concurrentGrab(sources[start:end], fetch, obj, ui, tr)
 		switch {
 		case chunkErr != nil:
 			return nil, nil, false, 0, chunkErr
@@ -142,17 +198,18 @@ func chunkedGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTo
 			count += chunkCount
 		}
 	}
+
 	return p, msrc, save, count, nil
 }
 
 // concurrentGrab fetches multiple profiles concurrently
-func concurrentGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI) (*profile.Profile, plugin.MappingSources, bool, int, error) {
+func concurrentGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI, tr http.RoundTripper) (*profile.Profile, plugin.MappingSources, bool, int, error) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(sources))
 	for i := range sources {
 		go func(s *profileSource) {
 			defer wg.Done()
-			s.p, s.msrc, s.remote, s.err = grabProfile(s.source, s.addr, s.scale, fetch, obj, ui)
+			s.p, s.msrc, s.remote, s.err = grabProfile(s.source, s.addr, fetch, obj, ui, tr)
 		}(&sources[i])
 	}
 	wg.Wait()
@@ -207,7 +264,6 @@ func combineProfiles(profiles []*profile.Profile, msrcs []plugin.MappingSources)
 type profileSource struct {
 	addr   string
 	source *source
-	scale  float64
 
 	p      *profile.Profile
 	msrc   plugin.MappingSources
@@ -227,12 +283,18 @@ func homeEnv() string {
 }
 
 // setTmpDir prepares the directory to use to save profiles retrieved
-// remotely. It is selected from PPROF_TMPDIR, defaults to $HOME/pprof.
+// remotely. It is selected from PPROF_TMPDIR, defaults to $HOME/pprof, and, if
+// $HOME is not set, falls back to os.TempDir().
 func setTmpDir(ui plugin.UI) (string, error) {
+	var dirs []string
 	if profileDir := os.Getenv("PPROF_TMPDIR"); profileDir != "" {
-		return profileDir, nil
+		dirs = append(dirs, profileDir)
 	}
-	for _, tmpDir := range []string{os.Getenv(homeEnv()) + "/pprof", os.TempDir()} {
+	if homeDir := os.Getenv(homeEnv()); homeDir != "" {
+		dirs = append(dirs, filepath.Join(homeDir, "pprof"))
+	}
+	dirs = append(dirs, os.TempDir())
+	for _, tmpDir := range dirs {
 		if err := os.MkdirAll(tmpDir, 0755); err != nil {
 			ui.PrintErr("Could not use temp dir ", tmpDir, ": ", err.Error())
 			continue
@@ -242,10 +304,12 @@ func setTmpDir(ui plugin.UI) (string, error) {
 	return "", fmt.Errorf("failed to identify temp dir")
 }
 
+const testSourceAddress = "pproftest.local"
+
 // grabProfile fetches a profile. Returns the profile, sources for the
 // profile mappings, a bool indicating if the profile was fetched
 // remotely, and an error.
-func grabProfile(s *source, source string, scale float64, fetcher plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI) (p *profile.Profile, msrc plugin.MappingSources, remote bool, err error) {
+func grabProfile(s *source, source string, fetcher plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI, tr http.RoundTripper) (p *profile.Profile, msrc plugin.MappingSources, remote bool, err error) {
 	var src string
 	duration, timeout := time.Duration(s.Seconds)*time.Second, time.Duration(s.Timeout)*time.Second
 	if fetcher != nil {
@@ -256,7 +320,7 @@ func grabProfile(s *source, source string, scale float64, fetcher plugin.Fetcher
 	}
 	if err != nil || p == nil {
 		// Fetch the profile over HTTP or from a file.
-		p, src, err = fetch(source, duration, timeout, ui)
+		p, src, err = fetch(source, duration, timeout, ui, tr)
 		if err != nil {
 			return
 		}
@@ -266,9 +330,6 @@ func grabProfile(s *source, source string, scale float64, fetcher plugin.Fetcher
 		return
 	}
 
-	// Apply local changes to the profile.
-	p.Scale(scale)
-
 	// Update the binary locations from command line and paths.
 	locateBinaries(p, s, obj, ui)
 
@@ -276,6 +337,11 @@ func grabProfile(s *source, source string, scale float64, fetcher plugin.Fetcher
 	if src != "" {
 		msrc = collectMappingSources(p, src)
 		remote = true
+		if strings.HasPrefix(src, "http://"+testSourceAddress) {
+			// Treat test inputs as local to avoid saving
+			// testcase profiles during driver testing.
+			remote = false
+		}
 	}
 	return
 }
@@ -343,6 +409,7 @@ mapping:
 				if matches, err := filepath.Glob(filepath.Join(path, m.BuildID, "*")); err == nil {
 					fileNames = append(fileNames, matches...)
 				}
+				fileNames = append(fileNames, filepath.Join(path, m.File, m.BuildID)) // perf path format
 			}
 			if m.File != "" {
 				// Try both the basename and the full path, to support the same directory
@@ -366,20 +433,20 @@ mapping:
 			}
 		}
 	}
+	if len(p.Mapping) == 0 {
+		// If there are no mappings, add a fake mapping to attempt symbolization.
+		// This is useful for some profiles generated by the golang runtime, which
+		// do not include any mappings. Symbolization with a fake mapping will only
+		// be successful against a non-PIE binary.
+		m := &profile.Mapping{ID: 1}
+		p.Mapping = []*profile.Mapping{m}
+		for _, l := range p.Location {
+			l.Mapping = m
+		}
+	}
 	// Replace executable filename/buildID with the overrides from source.
 	// Assumes the executable is the first Mapping entry.
 	if execName, buildID := s.ExecName, s.BuildID; execName != "" || buildID != "" {
-		if len(p.Mapping) == 0 {
-			// If there are no mappings, add a fake mapping to attempt symbolization.
-			// This is useful for some profiles generated by the golang runtime, which
-			// do not include any mappings. Symbolization with a fake mapping will only
-			// be successful against a non-PIE binary.
-			m := &profile.Mapping{ID: 1}
-			p.Mapping = []*profile.Mapping{m}
-			for _, l := range p.Location {
-				l.Mapping = m
-			}
-		}
 		m := p.Mapping[0]
 		if execName != "" {
 			m.File = execName
@@ -393,7 +460,7 @@ mapping:
 // fetch fetches a profile from source, within the timeout specified,
 // producing messages through the ui. It returns the profile and the
 // url of the actual source of the profile for remote profiles.
-func fetch(source string, duration, timeout time.Duration, ui plugin.UI) (p *profile.Profile, src string, err error) {
+func fetch(source string, duration, timeout time.Duration, ui plugin.UI, tr http.RoundTripper) (p *profile.Profile, src string, err error) {
 	var f io.ReadCloser
 
 	if sourceURL, timeout := adjustURL(source, duration, timeout); sourceURL != "" {
@@ -401,7 +468,7 @@ func fetch(source string, duration, timeout time.Duration, ui plugin.UI) (p *pro
 		if duration > 0 {
 			ui.Print(fmt.Sprintf("Please wait... (%v)", duration))
 		}
-		f, err = fetchURL(sourceURL, timeout)
+		f, err = fetchURL(sourceURL, timeout, tr)
 		src = sourceURL
 	} else if isPerfFile(source) {
 		f, err = convertPerfData(source, ui)
@@ -416,8 +483,12 @@ func fetch(source string, duration, timeout time.Duration, ui plugin.UI) (p *pro
 }
 
 // fetchURL fetches a profile from a URL using HTTP.
-func fetchURL(source string, timeout time.Duration) (io.ReadCloser, error) {
-	resp, err := httpGet(source, timeout)
+func fetchURL(source string, timeout time.Duration, tr http.RoundTripper) (io.ReadCloser, error) {
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   timeout + 5*time.Second,
+	}
+	resp, err := client.Get(source)
 	if err != nil {
 		return nil, fmt.Errorf("http fetch: %v", err)
 	}
@@ -470,7 +541,8 @@ func convertPerfData(perfPath string, ui plugin.UI) (*os.File, error) {
 		return nil, err
 	}
 	deferDeleteTempFile(profile.Name())
-	cmd := exec.Command("perf_to_profile", perfPath, profile.Name())
+	cmd := exec.Command("perf_to_profile", "-i", perfPath, "-o", profile.Name(), "-f")
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {
 		profile.Close()
 		return nil, fmt.Errorf("failed to convert perf.data file. Try github.com/google/perf_data_converter: %v", err)
@@ -512,31 +584,4 @@ func adjustURL(source string, duration, timeout time.Duration) (string, time.Dur
 	}
 	u.RawQuery = values.Encode()
 	return u.String(), timeout
-}
-
-// httpGet is a wrapper around http.Get; it is defined as a variable
-// so it can be redefined during for testing.
-var httpGet = func(source string, timeout time.Duration) (*http.Response, error) {
-	url, err := url.Parse(source)
-	if err != nil {
-		return nil, err
-	}
-
-	var tlsConfig *tls.Config
-	if url.Scheme == "https+insecure" {
-		tlsConfig = &tls.Config{
-			InsecureSkipVerify: true,
-		}
-		url.Scheme = "https"
-		source = url.String()
-	}
-
-	client := &http.Client{
-		Transport: &http.Transport{
-			ResponseHeaderTimeout: timeout + 5*time.Second,
-			Proxy:           http.ProxyFromEnvironment,
-			TLSClientConfig: tlsConfig,
-		},
-	}
-	return client.Get(source)
 }

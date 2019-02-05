@@ -45,7 +45,7 @@ func copySource(v *Value) *Value {
 	// but we take some extra care to make sure we
 	// don't get stuck in an infinite loop.
 	// Infinite copy loops may happen in unreachable code.
-	// (TODO: or can they?  Needs a test.)
+	// (TODO: or can they? Needs a test.)
 	slow := w
 	var advance bool
 	for w.Op == OpCopy {

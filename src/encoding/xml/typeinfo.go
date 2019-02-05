@@ -40,6 +40,8 @@ const (
 	fOmitEmpty
 
 	fMode = fElement | fAttr | fCDATA | fCharData | fInnerXml | fComment | fAny
+
+	xmlName = "XMLName"
 )
 
 var tinfoMap sync.Map // map[reflect.Type]*typeInfo
@@ -91,7 +93,7 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 				return nil, err
 			}
 
-			if f.Name == "XMLName" {
+			if f.Name == xmlName {
 				tinfo.xmlname = finfo
 				continue
 			}
@@ -148,7 +150,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 		case 0:
 			finfo.flags |= fElement
 		case fAttr, fCDATA, fCharData, fInnerXml, fComment, fAny, fAny | fAttr:
-			if f.Name == "XMLName" || tag != "" && mode != fAttr {
+			if f.Name == xmlName || tag != "" && mode != fAttr {
 				valid = false
 			}
 		default:
@@ -173,7 +175,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 			f.Name, typ, f.Tag.Get("xml"))
 	}
 
-	if f.Name == "XMLName" {
+	if f.Name == xmlName {
 		// The XMLName field records the XML element name. Don't
 		// process it as usual because its name should default to
 		// empty rather than to the field name.
@@ -235,11 +237,11 @@ func lookupXMLName(typ reflect.Type) (xmlname *fieldInfo) {
 	}
 	for i, n := 0, typ.NumField(); i < n; i++ {
 		f := typ.Field(i)
-		if f.Name != "XMLName" {
+		if f.Name != xmlName {
 			continue
 		}
 		finfo, err := structFieldInfo(typ, &f)
-		if finfo.name != "" && err == nil {
+		if err == nil && finfo.name != "" {
 			return finfo
 		}
 		// Also consider errors as a non-existent field tag

@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+type SymLookup func(uint64) (string, uint64)
+
 // GoSyntax returns the Go assembler syntax for the instruction.
 // The syntax was originally defined by Plan 9.
 // The pc is the program counter of the instruction, used for expanding
@@ -16,7 +18,7 @@ import (
 // The symname function queries the symbol table for the program
 // being disassembled. Given a target address it returns the name and base
 // address of the symbol containing the target, if any; otherwise it returns "", 0.
-func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) string {
+func GoSyntax(inst Inst, pc uint64, symname SymLookup) string {
 	if symname == nil {
 		symname = func(uint64) (string, uint64) { return "", 0 }
 	}
@@ -119,14 +121,12 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 		}
 		return fmt.Sprintf("$%#x", uint64(a))
 	case Mem:
-		if a.Segment == 0 && a.Disp != 0 && a.Base == 0 && (a.Index == 0 || a.Scale == 0) {
-			if s, base := symname(uint64(a.Disp)); s != "" {
-				suffix := ""
-				if uint64(a.Disp) != base {
-					suffix = fmt.Sprintf("%+d", uint64(a.Disp)-base)
-				}
-				return fmt.Sprintf("%s%s(SB)", s, suffix)
+		if s, disp := memArgToSymbol(a, pc, inst.Len, symname); s != "" {
+			suffix := ""
+			if disp != 0 {
+				suffix = fmt.Sprintf("%+d", disp)
 			}
+			return fmt.Sprintf("%s%s(SB)", s, suffix)
 		}
 		s := ""
 		if a.Segment != 0 {
@@ -146,6 +146,25 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 		return s
 	}
 	return arg.String()
+}
+
+func memArgToSymbol(a Mem, pc uint64, instrLen int, symname SymLookup) (string, int64) {
+	if a.Segment != 0 || a.Disp == 0 || a.Index != 0 || a.Scale != 0 {
+		return "", 0
+	}
+
+	var disp uint64
+	switch a.Base {
+	case IP, EIP, RIP:
+		disp = uint64(a.Disp + int64(pc) + int64(instrLen))
+	case 0:
+		disp = uint64(a.Disp)
+	default:
+		return "", 0
+	}
+
+	s, base := symname(disp)
+	return s, int64(disp) - int64(base)
 }
 
 var plan9Suffix = [maxOp + 1]bool{

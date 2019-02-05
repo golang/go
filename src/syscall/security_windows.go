@@ -30,7 +30,7 @@ const (
 )
 
 // This function returns 1 byte BOOLEAN rather than the 4 byte BOOL.
-// http://blogs.msdn.com/b/drnick/archive/2007/12/19/windows-and-upn-format-credentials.aspx
+// https://blogs.msdn.com/b/drnick/archive/2007/12/19/windows-and-upn-format-credentials.aspx
 //sys	TranslateName(accName *uint16, accNameFormat uint32, desiredNameFormat uint32, translatedName *uint16, nSize *uint32) (err error) [failretval&0xff==0] = secur32.TranslateNameW
 //sys	GetUserNameEx(nameFormat uint32, nameBuffre *uint16, nSize *uint32) (err error) [failretval&0xff==0] = secur32.GetUserNameExW
 
@@ -221,6 +221,7 @@ const (
 	TOKEN_ADJUST_PRIVILEGES
 	TOKEN_ADJUST_GROUPS
 	TOKEN_ADJUST_DEFAULT
+	TOKEN_ADJUST_SESSIONID
 
 	TOKEN_ALL_ACCESS = STANDARD_RIGHTS_REQUIRED |
 		TOKEN_ASSIGN_PRIMARY |
@@ -230,7 +231,8 @@ const (
 		TOKEN_QUERY_SOURCE |
 		TOKEN_ADJUST_PRIVILEGES |
 		TOKEN_ADJUST_GROUPS |
-		TOKEN_ADJUST_DEFAULT
+		TOKEN_ADJUST_DEFAULT |
+		TOKEN_ADJUST_SESSIONID
 	TOKEN_READ  = STANDARD_RIGHTS_READ | TOKEN_QUERY
 	TOKEN_WRITE = STANDARD_RIGHTS_WRITE |
 		TOKEN_ADJUST_PRIVILEGES |

@@ -267,6 +267,34 @@ func TestShiftRight(t *testing.T) {
 	}
 }
 
+func BenchmarkZeroShifts(b *testing.B) {
+	x := rndNat(800)
+
+	b.Run("Shl", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var z nat
+			z.shl(x, 0)
+		}
+	})
+	b.Run("ShlSame", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			x.shl(x, 0)
+		}
+	})
+
+	b.Run("Shr", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var z nat
+			z.shr(x, 0)
+		}
+	})
+	b.Run("ShrSame", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			x.shr(x, 0)
+		}
+	})
+}
+
 type modWTest struct {
 	in       string
 	dividend string
@@ -617,5 +645,70 @@ func TestSticky(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func testSqr(t *testing.T, x nat) {
+	got := make(nat, 2*len(x))
+	want := make(nat, 2*len(x))
+	got = got.sqr(x)
+	want = want.mul(x, x)
+	if got.cmp(want) != 0 {
+		t.Errorf("basicSqr(%v), got %v, want %v", x, got, want)
+	}
+}
+
+func TestSqr(t *testing.T) {
+	for _, a := range prodNN {
+		if a.x != nil {
+			testSqr(t, a.x)
+		}
+		if a.y != nil {
+			testSqr(t, a.y)
+		}
+		if a.z != nil {
+			testSqr(t, a.z)
+		}
+	}
+}
+
+func benchmarkNatSqr(b *testing.B, nwords int) {
+	x := rndNat(nwords)
+	var z nat
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		z.sqr(x)
+	}
+}
+
+var sqrBenchSizes = []int{1, 2, 3, 5, 8, 10, 20, 30, 50, 80, 100, 200, 300, 500, 800, 1000}
+
+func BenchmarkNatSqr(b *testing.B) {
+	for _, n := range sqrBenchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			benchmarkNatSqr(b, n)
+		})
+	}
+}
+
+func BenchmarkNatSetBytes(b *testing.B) {
+	const maxLength = 128
+	lengths := []int{
+		// No remainder:
+		8, 24, maxLength,
+		// With remainder:
+		7, 23, maxLength - 1,
+	}
+	n := make(nat, maxLength/_W) // ensure n doesn't need to grow during the test
+	buf := make([]byte, maxLength)
+	for _, l := range lengths {
+		b.Run(fmt.Sprint(l), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				n.setBytes(buf[:l])
+			}
+		})
 	}
 }

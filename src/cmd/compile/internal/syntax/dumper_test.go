@@ -14,9 +14,13 @@ func TestDump(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	ast, err := ParseFile(*src_, nil, nil, CheckBranches)
+	// provide a dummy error handler so parsing doesn't stop after first error
+	ast, err := ParseFile(*src_, func(error) {}, nil, CheckBranches)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-	Fdump(os.Stdout, ast)
+
+	if ast != nil {
+		Fdump(os.Stdout, ast)
+	}
 }

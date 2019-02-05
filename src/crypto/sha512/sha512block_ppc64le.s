@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This is a derived work from OpenSSL of SHA-2 using assembly optimizations. The
-// original code was written by Andy Polyakov <appro@openssl.org> and it's dual
-// licensed under OpenSSL and CRYPTOGAMS licenses depending on where you obtain
-// it. For further details see http://www.openssl.org/~appro/cryptogams/.
+// Based on CRYPTOGAMS code with the following comment:
+// # ====================================================================
+// # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+// # project. The module is, however, dual licensed under OpenSSL and
+// # CRYPTOGAMS licenses depending on where you obtain it. For further
+// # details see http://www.openssl.org/~appro/cryptogams/.
+// # ====================================================================
 
 #include "textflag.h"
 
@@ -13,7 +16,7 @@
 //
 // The algorithm is detailed in FIPS 180-4:
 //
-//  http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
 //
 // Wt = Mt; for 0 <= t <= 15
 // Wt = SIGMA1(Wt-2) + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 79

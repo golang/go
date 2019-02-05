@@ -5,6 +5,7 @@
 package constant
 
 import (
+	"fmt"
 	"go/token"
 	"strings"
 	"testing"
@@ -295,7 +296,7 @@ func val(lit string) Value {
 	switch first, last := lit[0], lit[len(lit)-1]; {
 	case first == '"' || first == '`':
 		tok = token.STRING
-		lit = strings.Replace(lit, "_", " ", -1)
+		lit = strings.ReplaceAll(lit, "_", " ")
 	case first == '\'':
 		tok = token.CHAR
 	case last == 'i':
@@ -430,6 +431,7 @@ func TestUnknown(t *testing.T) {
 		MakeBool(false), // token.ADD ok below, operation is never considered
 		MakeString(""),
 		MakeInt64(1),
+		MakeFromLiteral("''", token.CHAR, 0),
 		MakeFromLiteral("-1234567890123456789012345678901234567890", token.INT, 0),
 		MakeFloat64(1.2),
 		MakeImag(MakeFloat64(1.2)),
@@ -447,5 +449,25 @@ func TestUnknown(t *testing.T) {
 				t.Errorf("%s == %s: got true; want false", x, y)
 			}
 		}
+	}
+}
+
+func BenchmarkStringAdd(b *testing.B) {
+	for size := 1; size <= 65536; size *= 4 {
+		b.Run(fmt.Sprint(size), func(b *testing.B) {
+			b.ReportAllocs()
+			n := int64(0)
+			for i := 0; i < b.N; i++ {
+				x := MakeString(strings.Repeat("x", 100))
+				y := x
+				for j := 0; j < size-1; j++ {
+					y = BinaryOp(y, token.ADD, x)
+				}
+				n += int64(len(StringVal(y)))
+			}
+			if n != int64(b.N)*int64(size)*100 {
+				b.Fatalf("bad string %d != %d", n, int64(b.N)*int64(size)*100)
+			}
+		})
 	}
 }

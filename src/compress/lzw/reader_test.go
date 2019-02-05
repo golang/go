@@ -66,7 +66,7 @@ var lzwTests = []lzwTest{
 		"\x54\x9e\x08\x29\xf2\x44\x8a\x93\x27\x54\x04",
 		io.ErrUnexpectedEOF,
 	},
-	// This example comes from http://en.wikipedia.org/wiki/Graphics_Interchange_Format.
+	// This example comes from https://en.wikipedia.org/wiki/Graphics_Interchange_Format.
 	{
 		"gif;LSB;8",
 		"\x28\xff\xff\xff\x28\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff",
@@ -143,6 +143,77 @@ func TestHiCodeDoesNotOverflow(t *testing.T) {
 			t.Fatalf("i=%d: hi=%d decreased from previous value %d", i, d.hi, oldHi)
 		}
 		oldHi = d.hi
+	}
+}
+
+// TestNoLongerSavingPriorExpansions tests the decoder state when codes other
+// than clear codes continue to be seen after decoder.hi and decoder.width
+// reach their maximum values (4095 and 12), i.e. after we no longer save prior
+// expansions. In particular, it tests seeing the highest possible code, 4095.
+func TestNoLongerSavingPriorExpansions(t *testing.T) {
+	// Iterations is used to calculate how many input bits are needed to get
+	// the decoder.hi and decoder.width values up to their maximum.
+	iterations := []struct {
+		width, n int
+	}{
+		// The final term is 257, not 256, as NewReader initializes d.hi to
+		// d.clear+1 and the clear code is 256.
+		{9, 512 - 257},
+		{10, 1024 - 512},
+		{11, 2048 - 1024},
+		{12, 4096 - 2048},
+	}
+	nCodes, nBits := 0, 0
+	for _, e := range iterations {
+		nCodes += e.n
+		nBits += e.n * e.width
+	}
+	if nCodes != 3839 {
+		t.Fatalf("nCodes: got %v, want %v", nCodes, 3839)
+	}
+	if nBits != 43255 {
+		t.Fatalf("nBits: got %v, want %v", nBits, 43255)
+	}
+
+	// Construct our input of 43255 zero bits (which gets d.hi and d.width up
+	// to 4095 and 12), followed by 0xfff (4095) as 12 bits, followed by 0x101
+	// (EOF) as 12 bits.
+	//
+	// 43255 = 5406*8 + 7, and codes are read in LSB order. The final bytes are
+	// therefore:
+	//
+	// xwwwwwww xxxxxxxx yyyyyxxx zyyyyyyy
+	// 10000000 11111111 00001111 00001000
+	//
+	// or split out:
+	//
+	// .0000000 ........ ........ ........   w = 0x000
+	// 1....... 11111111 .....111 ........   x = 0xfff
+	// ........ ........ 00001... .0001000   y = 0x101
+	//
+	// The 12 'w' bits (not all are shown) form the 3839'th code, with value
+	// 0x000. Just after decoder.read returns that code, d.hi == 4095 and
+	// d.last == 0.
+	//
+	// The 12 'x' bits form the 3840'th code, with value 0xfff or 4095. Just
+	// after decoder.read returns that code, d.hi == 4095 and d.last ==
+	// decoderInvalidCode.
+	//
+	// The 12 'y' bits form the 3841'st code, with value 0x101, the EOF code.
+	//
+	// The 'z' bit is unused.
+	in := make([]byte, 5406)
+	in = append(in, 0x80, 0xff, 0x0f, 0x08)
+
+	r := NewReader(bytes.NewReader(in), LSB, 8)
+	nDecoded, err := io.Copy(ioutil.Discard, r)
+	if err != nil {
+		t.Fatalf("Copy: %v", err)
+	}
+	// nDecoded should be 3841: 3839 literal codes and then 2 decoded bytes
+	// from 1 non-literal code. The EOF code contributes 0 decoded bytes.
+	if nDecoded != int64(nCodes+2) {
+		t.Fatalf("nDecoded: got %v, want %v", nDecoded, nCodes+2)
 	}
 }
 

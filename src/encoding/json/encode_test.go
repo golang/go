@@ -71,14 +71,16 @@ func TestOmitEmpty(t *testing.T) {
 }
 
 type StringTag struct {
-	BoolStr bool   `json:",string"`
-	IntStr  int64  `json:",string"`
-	StrStr  string `json:",string"`
+	BoolStr    bool    `json:",string"`
+	IntStr     int64   `json:",string"`
+	UintptrStr uintptr `json:",string"`
+	StrStr     string  `json:",string"`
 }
 
 var stringTagExpected = `{
  "BoolStr": "true",
  "IntStr": "42",
+ "UintptrStr": "44",
  "StrStr": "\"xzbit\""
 }`
 
@@ -86,6 +88,7 @@ func TestStringTag(t *testing.T) {
 	var s StringTag
 	s.BoolStr = true
 	s.IntStr = 42
+	s.UintptrStr = 44
 	s.StrStr = "xzbit"
 	got, err := MarshalIndent(&s, "", " ")
 	if err != nil {
@@ -253,23 +256,180 @@ func TestMarshalerEscaping(t *testing.T) {
 	}
 }
 
-type IntType int
+func TestAnonymousFields(t *testing.T) {
+	tests := []struct {
+		label     string             // Test name
+		makeInput func() interface{} // Function to create input value
+		want      string             // Expected JSON output
+	}{{
+		// Both S1 and S2 have a field named X. From the perspective of S,
+		// it is ambiguous which one X refers to.
+		// This should not serialize either field.
+		label: "AmbiguousField",
+		makeInput: func() interface{} {
+			type (
+				S1 struct{ x, X int }
+				S2 struct{ x, X int }
+				S  struct {
+					S1
+					S2
+				}
+			)
+			return S{S1{1, 2}, S2{3, 4}}
+		},
+		want: `{}`,
+	}, {
+		label: "DominantField",
+		// Both S1 and S2 have a field named X, but since S has an X field as
+		// well, it takes precedence over S1.X and S2.X.
+		makeInput: func() interface{} {
+			type (
+				S1 struct{ x, X int }
+				S2 struct{ x, X int }
+				S  struct {
+					S1
+					S2
+					x, X int
+				}
+			)
+			return S{S1{1, 2}, S2{3, 4}, 5, 6}
+		},
+		want: `{"X":6}`,
+	}, {
+		// Unexported embedded field of non-struct type should not be serialized.
+		label: "UnexportedEmbeddedInt",
+		makeInput: func() interface{} {
+			type (
+				myInt int
+				S     struct{ myInt }
+			)
+			return S{5}
+		},
+		want: `{}`,
+	}, {
+		// Exported embedded field of non-struct type should be serialized.
+		label: "ExportedEmbeddedInt",
+		makeInput: func() interface{} {
+			type (
+				MyInt int
+				S     struct{ MyInt }
+			)
+			return S{5}
+		},
+		want: `{"MyInt":5}`,
+	}, {
+		// Unexported embedded field of pointer to non-struct type
+		// should not be serialized.
+		label: "UnexportedEmbeddedIntPointer",
+		makeInput: func() interface{} {
+			type (
+				myInt int
+				S     struct{ *myInt }
+			)
+			s := S{new(myInt)}
+			*s.myInt = 5
+			return s
+		},
+		want: `{}`,
+	}, {
+		// Exported embedded field of pointer to non-struct type
+		// should be serialized.
+		label: "ExportedEmbeddedIntPointer",
+		makeInput: func() interface{} {
+			type (
+				MyInt int
+				S     struct{ *MyInt }
+			)
+			s := S{new(MyInt)}
+			*s.MyInt = 5
+			return s
+		},
+		want: `{"MyInt":5}`,
+	}, {
+		// Exported fields of embedded structs should have their
+		// exported fields be serialized regardless of whether the struct types
+		// themselves are exported.
+		label: "EmbeddedStruct",
+		makeInput: func() interface{} {
+			type (
+				s1 struct{ x, X int }
+				S2 struct{ y, Y int }
+				S  struct {
+					s1
+					S2
+				}
+			)
+			return S{s1{1, 2}, S2{3, 4}}
+		},
+		want: `{"X":2,"Y":4}`,
+	}, {
+		// Exported fields of pointers to embedded structs should have their
+		// exported fields be serialized regardless of whether the struct types
+		// themselves are exported.
+		label: "EmbeddedStructPointer",
+		makeInput: func() interface{} {
+			type (
+				s1 struct{ x, X int }
+				S2 struct{ y, Y int }
+				S  struct {
+					*s1
+					*S2
+				}
+			)
+			return S{&s1{1, 2}, &S2{3, 4}}
+		},
+		want: `{"X":2,"Y":4}`,
+	}, {
+		// Exported fields on embedded unexported structs at multiple levels
+		// of nesting should still be serialized.
+		label: "NestedStructAndInts",
+		makeInput: func() interface{} {
+			type (
+				MyInt1 int
+				MyInt2 int
+				myInt  int
+				s2     struct {
+					MyInt2
+					myInt
+				}
+				s1 struct {
+					MyInt1
+					myInt
+					s2
+				}
+				S struct {
+					s1
+					myInt
+				}
+			)
+			return S{s1{1, 2, s2{3, 4}}, 6}
+		},
+		want: `{"MyInt1":1,"MyInt2":3}`,
+	}, {
+		// If an anonymous struct pointer field is nil, we should ignore
+		// the embedded fields behind it. Not properly doing so may
+		// result in the wrong output or reflect panics.
+		label: "EmbeddedFieldBehindNilPointer",
+		makeInput: func() interface{} {
+			type (
+				S2 struct{ Field string }
+				S  struct{ *S2 }
+			)
+			return S{}
+		},
+		want: `{}`,
+	}}
 
-type MyStruct struct {
-	IntType
-}
-
-func TestAnonymousNonstruct(t *testing.T) {
-	var i IntType = 11
-	a := MyStruct{i}
-	const want = `{"IntType":11}`
-
-	b, err := Marshal(a)
-	if err != nil {
-		t.Fatalf("Marshal: %v", err)
-	}
-	if got := string(b); got != want {
-		t.Errorf("got %q, want %q", got, want)
+	for _, tt := range tests {
+		t.Run(tt.label, func(t *testing.T) {
+			b, err := Marshal(tt.makeInput())
+			if err != nil {
+				t.Fatalf("Marshal() = %v, want nil error", err)
+			}
+			if string(b) != tt.want {
+				t.Fatalf("Marshal() = %q, want %q", b, tt.want)
+			}
+		})
 	}
 }
 
@@ -799,7 +959,7 @@ func TestMarshalRawMessageValue(t *testing.T) {
 		//
 		// The tests below marked with Issue6458 used to generate "ImZvbyI=" instead "foo".
 		// This behavior was intentionally changed in Go 1.8.
-		// See https://github.com/golang/go/issues/14493#issuecomment-255857318
+		// See https://golang.org/issues/14493#issuecomment-255857318
 		{rawText, `"foo"`, true}, // Issue6458
 		{&rawText, `"foo"`, true},
 		{[]interface{}{rawText}, `["foo"]`, true},  // Issue6458
@@ -832,5 +992,34 @@ func TestMarshalRawMessageValue(t *testing.T) {
 		if got := string(b); got != tt.want {
 			t.Errorf("test %d, Marshal(%#v) = %q, want %q", i, tt.in, got, tt.want)
 		}
+	}
+}
+
+type marshalPanic struct{}
+
+func (marshalPanic) MarshalJSON() ([]byte, error) { panic(0xdead) }
+
+func TestMarshalPanic(t *testing.T) {
+	defer func() {
+		if got := recover(); !reflect.DeepEqual(got, 0xdead) {
+			t.Errorf("panic() = (%T)(%v), want 0xdead", got, got)
+		}
+	}()
+	Marshal(&marshalPanic{})
+	t.Error("Marshal should have panicked")
+}
+
+func TestMarshalUncommonFieldNames(t *testing.T) {
+	v := struct {
+		A0, À, Aβ int
+	}{}
+	b, err := Marshal(v)
+	if err != nil {
+		t.Fatal("Marshal:", err)
+	}
+	want := `{"A0":0,"À":0,"Aβ":0}`
+	got := string(b)
+	if got != want {
+		t.Fatalf("Marshal: got %s want %s", got, want)
 	}
 }

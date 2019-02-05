@@ -110,6 +110,25 @@ func TestFormatNumeric(t *testing.T) {
 		want string
 		ok   bool
 	}{
+		// Test base-8 (octal) encoded values.
+		{0, "0\x00", true},
+		{7, "7\x00", true},
+		{8, "\x80\x08", true},
+		{077, "77\x00", true},
+		{0100, "\x80\x00\x40", true},
+		{0, "0000000\x00", true},
+		{0123, "0000123\x00", true},
+		{07654321, "7654321\x00", true},
+		{07777777, "7777777\x00", true},
+		{010000000, "\x80\x00\x00\x00\x00\x20\x00\x00", true},
+		{0, "00000000000\x00", true},
+		{000001234567, "00001234567\x00", true},
+		{076543210321, "76543210321\x00", true},
+		{012345670123, "12345670123\x00", true},
+		{077777777777, "77777777777\x00", true},
+		{0100000000000, "\x80\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00", true},
+		{math.MaxInt64, "777777777777777777777\x00", true},
+
 		// Test base-256 (binary) encoded values.
 		{-1, "\xff", true},
 		{-1, "\xff\xff", true},
@@ -151,6 +170,45 @@ func TestFormatNumeric(t *testing.T) {
 		}
 		if string(got) != v.want {
 			t.Errorf("formatNumeric(%d): got %q, want %q", v.in, got, v.want)
+		}
+	}
+}
+
+func TestFitsInOctal(t *testing.T) {
+	vectors := []struct {
+		input int64
+		width int
+		ok    bool
+	}{
+		{-1, 1, false},
+		{-1, 2, false},
+		{-1, 3, false},
+		{0, 1, true},
+		{0 + 1, 1, false},
+		{0, 2, true},
+		{07, 2, true},
+		{07 + 1, 2, false},
+		{0, 4, true},
+		{0777, 4, true},
+		{0777 + 1, 4, false},
+		{0, 8, true},
+		{07777777, 8, true},
+		{07777777 + 1, 8, false},
+		{0, 12, true},
+		{077777777777, 12, true},
+		{077777777777 + 1, 12, false},
+		{math.MaxInt64, 22, true},
+		{012345670123, 12, true},
+		{01564164, 12, true},
+		{-012345670123, 12, false},
+		{-01564164, 12, false},
+		{-1564164, 30, false},
+	}
+
+	for _, v := range vectors {
+		ok := fitsInOctal(v.width, v.input)
+		if ok != v.ok {
+			t.Errorf("checkOctal(%d, %d): got %v, want %v", v.input, v.width, ok, v.ok)
 		}
 	}
 }
@@ -236,6 +294,51 @@ func TestParsePAXTime(t *testing.T) {
 	}
 }
 
+func TestFormatPAXTime(t *testing.T) {
+	vectors := []struct {
+		sec, nsec int64
+		want      string
+	}{
+		{1350244992, 0, "1350244992"},
+		{1350244992, 300000000, "1350244992.3"},
+		{1350244992, 23960100, "1350244992.0239601"},
+		{1350244992, 23960108, "1350244992.023960108"},
+		{+1, +1E9 - 1E0, "1.999999999"},
+		{+1, +1E9 - 1E3, "1.999999"},
+		{+1, +1E9 - 1E6, "1.999"},
+		{+1, +0E0 - 0E0, "1"},
+		{+1, +1E6 - 0E0, "1.001"},
+		{+1, +1E3 - 0E0, "1.000001"},
+		{+1, +1E0 - 0E0, "1.000000001"},
+		{0, 1E9 - 1E0, "0.999999999"},
+		{0, 1E9 - 1E3, "0.999999"},
+		{0, 1E9 - 1E6, "0.999"},
+		{0, 0E0, "0"},
+		{0, 1E6 + 0E0, "0.001"},
+		{0, 1E3 + 0E0, "0.000001"},
+		{0, 1E0 + 0E0, "0.000000001"},
+		{-1, -1E9 + 1E0, "-1.999999999"},
+		{-1, -1E9 + 1E3, "-1.999999"},
+		{-1, -1E9 + 1E6, "-1.999"},
+		{-1, -0E0 + 0E0, "-1"},
+		{-1, -1E6 + 0E0, "-1.001"},
+		{-1, -1E3 + 0E0, "-1.000001"},
+		{-1, -1E0 + 0E0, "-1.000000001"},
+		{-1350244992, 0, "-1350244992"},
+		{-1350244992, -300000000, "-1350244992.3"},
+		{-1350244992, -23960100, "-1350244992.0239601"},
+		{-1350244992, -23960108, "-1350244992.023960108"},
+	}
+
+	for _, v := range vectors {
+		got := formatPAXTime(time.Unix(v.sec, v.nsec))
+		if got != v.want {
+			t.Errorf("formatPAXTime(%ds, %dns): got %q, want %q",
+				v.sec, v.nsec, got, v.want)
+		}
+	}
+}
+
 func TestParsePAXRecord(t *testing.T) {
 	medName := strings.Repeat("CD", 50)
 	longName := strings.Repeat("AB", 100)
@@ -256,7 +359,7 @@ func TestParsePAXRecord(t *testing.T) {
 		{"18 foo=b=\nar=\n==\x00\n", "", "foo", "b=\nar=\n==\x00", true},
 		{"27 foo=hello9 foo=ba\nworld\n", "", "foo", "hello9 foo=ba\nworld", true},
 		{"27 ☺☻☹=日a本b語ç\nmeow mix", "meow mix", "☺☻☹", "日a本b語ç", true},
-		{"17 \x00hello=\x00world\n", "", "\x00hello", "\x00world", true},
+		{"17 \x00hello=\x00world\n", "17 \x00hello=\x00world\n", "", "", false},
 		{"1 k=1\n", "1 k=1\n", "", "", false},
 		{"6 k~1\n", "6 k~1\n", "", "", false},
 		{"6_k=1\n", "6_k=1\n", "", "", false},
@@ -296,21 +399,33 @@ func TestFormatPAXRecord(t *testing.T) {
 		inKey string
 		inVal string
 		want  string
+		ok    bool
 	}{
-		{"k", "v", "6 k=v\n"},
-		{"path", "/etc/hosts", "19 path=/etc/hosts\n"},
-		{"path", longName, "210 path=" + longName + "\n"},
-		{"path", medName, "110 path=" + medName + "\n"},
-		{"foo", "ba", "9 foo=ba\n"},
-		{"foo", "bar", "11 foo=bar\n"},
-		{"foo", "b=\nar=\n==\x00", "18 foo=b=\nar=\n==\x00\n"},
-		{"foo", "hello9 foo=ba\nworld", "27 foo=hello9 foo=ba\nworld\n"},
-		{"☺☻☹", "日a本b語ç", "27 ☺☻☹=日a本b語ç\n"},
-		{"\x00hello", "\x00world", "17 \x00hello=\x00world\n"},
+		{"k", "v", "6 k=v\n", true},
+		{"path", "/etc/hosts", "19 path=/etc/hosts\n", true},
+		{"path", longName, "210 path=" + longName + "\n", true},
+		{"path", medName, "110 path=" + medName + "\n", true},
+		{"foo", "ba", "9 foo=ba\n", true},
+		{"foo", "bar", "11 foo=bar\n", true},
+		{"foo", "b=\nar=\n==\x00", "18 foo=b=\nar=\n==\x00\n", true},
+		{"foo", "hello9 foo=ba\nworld", "27 foo=hello9 foo=ba\nworld\n", true},
+		{"☺☻☹", "日a本b語ç", "27 ☺☻☹=日a本b語ç\n", true},
+		{"xhello", "\x00world", "17 xhello=\x00world\n", true},
+		{"path", "null\x00", "", false},
+		{"null\x00", "value", "", false},
+		{paxSchilyXattr + "key", "null\x00", "26 SCHILY.xattr.key=null\x00\n", true},
 	}
 
 	for _, v := range vectors {
-		got := formatPAXRecord(v.inKey, v.inVal)
+		got, err := formatPAXRecord(v.inKey, v.inVal)
+		ok := (err == nil)
+		if ok != v.ok {
+			if v.ok {
+				t.Errorf("formatPAXRecord(%q, %q): got format failure, want success", v.inKey, v.inVal)
+			} else {
+				t.Errorf("formatPAXRecord(%q, %q): got format success, want failure", v.inKey, v.inVal)
+			}
+		}
 		if got != v.want {
 			t.Errorf("formatPAXRecord(%q, %q): got %q, want %q",
 				v.inKey, v.inVal, got, v.want)

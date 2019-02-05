@@ -8,10 +8,3 @@ package ssa
 func opt(f *Func) {
 	applyRewrite(f, rewriteBlockgeneric, rewriteValuegeneric)
 }
-
-func dec(f *Func) {
-	applyRewrite(f, rewriteBlockdec, rewriteValuedec)
-	if f.Config.RegSize == 4 {
-		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64)
-	}
-}

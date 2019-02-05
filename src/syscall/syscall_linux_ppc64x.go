@@ -9,13 +9,13 @@ package syscall
 
 const (
 	_SYS_dup       = SYS_DUP2
-	_SYS_getdents  = SYS_GETDENTS64
 	_SYS_setgroups = SYS_SETGROUPS
 )
 
 //sys	Dup2(oldfd int, newfd int) (err error)
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Fstat(fd int, stat *Stat_t) (err error)
+//sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
 //sysnb	Getegid() (egid int)
@@ -32,7 +32,7 @@ const (
 //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
 //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
-//sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
+//sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
@@ -45,7 +45,6 @@ const (
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 //sys	Stat(path string, stat *Stat_t) (err error)
 //sys	Statfs(path string, buf *Statfs_t) (err error)
-//sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error) = SYS_SYNC_FILE_RANGE2
 //sys	Truncate(path string, length int64) (err error)
 //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
 //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
@@ -67,6 +66,7 @@ const (
 
 //sysnb	Gettimeofday(tv *Timeval) (err error)
 //sysnb	Time(t *Time_t) (tt Time_t, err error)
+//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 
 func setTimespec(sec, nsec int64) Timespec {
 	return Timespec{Sec: sec, Nsec: nsec}
@@ -118,4 +118,12 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 
 func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
 	panic("not implemented")
+}
+
+//sys	syncFileRange2(fd int, flags int, off int64, n int64) (err error) = SYS_SYNC_FILE_RANGE2
+
+func SyncFileRange(fd int, off int64, n int64, flags int) error {
+	// The sync_file_range and sync_file_range2 syscalls differ only in the
+	// order of their arguments.
+	return syncFileRange2(fd, flags, off, n)
 }

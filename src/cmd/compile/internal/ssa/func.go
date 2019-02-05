@@ -28,7 +28,7 @@ type Func struct {
 	Cache  *Cache      // re-usable cache
 	fe     Frontend    // frontend state associated with this Func, callbacks into compiler frontend
 	pass   *pass       // current pass information (name, options, etc.)
-	Name   string      // e.g. bytes·Compare
+	Name   string      // e.g. NewFunc or (*Func).NumBlocks (no package prefix)
 	Type   *types.Type // type signature of the function.
 	Blocks []*Block    // unordered set of all basic blocks (note: not indexable by ID)
 	Entry  *Block      // the entry basic block
@@ -37,14 +37,14 @@ type Func struct {
 
 	// Given an environment variable used for debug hash match,
 	// what file (if any) receives the yes/no logging?
-	logfiles   map[string]writeSyncer
-	HTMLWriter *HTMLWriter // html writer, for debugging
-	DebugTest  bool        // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
+	logfiles       map[string]writeSyncer
+	HTMLWriter     *HTMLWriter // html writer, for debugging
+	DebugTest      bool        // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
+	PrintOrHtmlSSA bool        // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
 
 	scheduled bool // Values in Blocks are in final order
+	laidout   bool // Blocks are ordered
 	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
-
-	WBPos src.XPos // line number of first write barrier
 
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
@@ -55,16 +55,22 @@ type Func struct {
 	// of keys to make iteration order deterministic.
 	Names []LocalSlot
 
+	// WBLoads is a list of Blocks that branch on the write
+	// barrier flag. Safe-points are disabled from the OpLoad that
+	// reads the write-barrier flag until the control flow rejoins
+	// below the two successors of this block.
+	WBLoads []*Block
+
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
-	cachedPostorder []*Block   // cached postorder traversal
-	cachedIdom      []*Block   // cached immediate dominators
-	cachedSdom      SparseTree // cached dominator tree
-	cachedLoopnest  *loopnest  // cached loop nest information
+	cachedPostorder  []*Block         // cached postorder traversal
+	cachedIdom       []*Block         // cached immediate dominators
+	cachedSdom       SparseTree       // cached dominator tree
+	cachedLoopnest   *loopnest        // cached loop nest information
+	cachedLineStarts *biasedSparseMap // cached map/set of line numbers to integers
 
-	auxmap auxmap // map from aux values to opaque ids used by CSE
-
+	auxmap    auxmap             // map from aux values to opaque ids used by CSE
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
 }
 
@@ -86,9 +92,9 @@ func (f *Func) NumValues() int {
 
 // newSparseSet returns a sparse set that can store at least up to n integers.
 func (f *Func) newSparseSet(n int) *sparseSet {
-	for i, scr := range f.Cache.scrSparse {
+	for i, scr := range f.Cache.scrSparseSet {
 		if scr != nil && scr.cap() >= n {
-			f.Cache.scrSparse[i] = nil
+			f.Cache.scrSparseSet[i] = nil
 			scr.clear()
 			return scr
 		}
@@ -96,15 +102,55 @@ func (f *Func) newSparseSet(n int) *sparseSet {
 	return newSparseSet(n)
 }
 
-// retSparseSet returns a sparse set to the config's cache of sparse sets to be reused by f.newSparseSet.
+// retSparseSet returns a sparse set to the config's cache of sparse
+// sets to be reused by f.newSparseSet.
 func (f *Func) retSparseSet(ss *sparseSet) {
-	for i, scr := range f.Cache.scrSparse {
+	for i, scr := range f.Cache.scrSparseSet {
 		if scr == nil {
-			f.Cache.scrSparse[i] = ss
+			f.Cache.scrSparseSet[i] = ss
 			return
 		}
 	}
-	f.Cache.scrSparse = append(f.Cache.scrSparse, ss)
+	f.Cache.scrSparseSet = append(f.Cache.scrSparseSet, ss)
+}
+
+// newSparseMap returns a sparse map that can store at least up to n integers.
+func (f *Func) newSparseMap(n int) *sparseMap {
+	for i, scr := range f.Cache.scrSparseMap {
+		if scr != nil && scr.cap() >= n {
+			f.Cache.scrSparseMap[i] = nil
+			scr.clear()
+			return scr
+		}
+	}
+	return newSparseMap(n)
+}
+
+// retSparseMap returns a sparse map to the config's cache of sparse
+// sets to be reused by f.newSparseMap.
+func (f *Func) retSparseMap(ss *sparseMap) {
+	for i, scr := range f.Cache.scrSparseMap {
+		if scr == nil {
+			f.Cache.scrSparseMap[i] = ss
+			return
+		}
+	}
+	f.Cache.scrSparseMap = append(f.Cache.scrSparseMap, ss)
+}
+
+// newPoset returns a new poset from the internal cache
+func (f *Func) newPoset() *poset {
+	if len(f.Cache.scrPoset) > 0 {
+		po := f.Cache.scrPoset[len(f.Cache.scrPoset)-1]
+		f.Cache.scrPoset = f.Cache.scrPoset[:len(f.Cache.scrPoset)-1]
+		return po
+	}
+	return newPoset()
+}
+
+// retPoset returns a poset to the internal cache
+func (f *Func) retPoset(po *poset) {
+	f.Cache.scrPoset = append(f.Cache.scrPoset, po)
 }
 
 // newValue allocates a new Value with the given fields and places it at the end of b.Values.
@@ -126,6 +172,9 @@ func (f *Func) newValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
 	v.Op = op
 	v.Type = t
 	v.Block = b
+	if notStmtBoundary(op) {
+		pos = pos.WithNotStmt()
+	}
 	v.Pos = pos
 	b.Values = append(b.Values, v)
 	return v
@@ -153,6 +202,9 @@ func (f *Func) newValueNoBlock(op Op, t *types.Type, pos src.XPos) *Value {
 	v.Op = op
 	v.Type = t
 	v.Block = nil // caller must fix this.
+	if notStmtBoundary(op) {
+		pos = pos.WithNotStmt()
+	}
 	v.Pos = pos
 	return v
 }
@@ -175,13 +227,16 @@ func (f *Func) LogStat(key string, args ...interface{}) {
 	f.Warnl(f.Entry.Pos, "\t%s\t%s%s\t%s", n, key, value, f.Name)
 }
 
-// freeValue frees a value. It must no longer be referenced.
+// freeValue frees a value. It must no longer be referenced or have any args.
 func (f *Func) freeValue(v *Value) {
 	if v.Block == nil {
 		f.Fatalf("trying to free an already freed value")
 	}
 	if v.Uses != 0 {
 		f.Fatalf("value %s still has %d uses", v, v.Uses)
+	}
+	if len(v.Args) != 0 {
+		f.Fatalf("value %s still has %d args", v, len(v.Args))
 	}
 	// Clear everything but ID (which we reuse).
 	id := v.ID
@@ -337,10 +392,36 @@ func (b *Block) NewValue2(pos src.XPos, op Op, t *types.Type, arg0, arg1 *Value)
 	return v
 }
 
+// NewValue2A returns a new value in the block with two arguments and one aux values.
+func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg0, arg1 *Value) *Value {
+	v := b.Func.newValue(op, t, b, pos)
+	v.AuxInt = 0
+	v.Aux = aux
+	v.Args = v.argstorage[:2]
+	v.argstorage[0] = arg0
+	v.argstorage[1] = arg1
+	arg0.Uses++
+	arg1.Uses++
+	return v
+}
+
 // NewValue2I returns a new value in the block with two arguments and an auxint value.
 func (b *Block) NewValue2I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
+	v.Args = v.argstorage[:2]
+	v.argstorage[0] = arg0
+	v.argstorage[1] = arg1
+	arg0.Uses++
+	arg1.Uses++
+	return v
+}
+
+// NewValue2IA returns a new value in the block with two arguments and both an auxint and aux values.
+func (b *Block) NewValue2IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}, arg0, arg1 *Value) *Value {
+	v := b.Func.newValue(op, t, b, pos)
+	v.AuxInt = auxint
+	v.Aux = aux
 	v.Args = v.argstorage[:2]
 	v.argstorage[0] = arg0
 	v.argstorage[1] = arg1
@@ -405,7 +486,7 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, 
 }
 
 // constVal returns a constant value for c.
-func (f *Func) constVal(pos src.XPos, op Op, t *types.Type, c int64, setAuxInt bool) *Value {
+func (f *Func) constVal(op Op, t *types.Type, c int64, setAuxInt bool) *Value {
 	if f.constants == nil {
 		f.constants = make(map[int64][]*Value)
 	}
@@ -420,9 +501,9 @@ func (f *Func) constVal(pos src.XPos, op Op, t *types.Type, c int64, setAuxInt b
 	}
 	var v *Value
 	if setAuxInt {
-		v = f.Entry.NewValue0I(pos, op, t, c)
+		v = f.Entry.NewValue0I(src.NoXPos, op, t, c)
 	} else {
-		v = f.Entry.NewValue0(pos, op, t)
+		v = f.Entry.NewValue0(src.NoXPos, op, t)
 	}
 	f.constants[c] = append(vv, v)
 	return v
@@ -440,48 +521,48 @@ const (
 )
 
 // ConstInt returns an int constant representing its argument.
-func (f *Func) ConstBool(pos src.XPos, t *types.Type, c bool) *Value {
+func (f *Func) ConstBool(t *types.Type, c bool) *Value {
 	i := int64(0)
 	if c {
 		i = 1
 	}
-	return f.constVal(pos, OpConstBool, t, i, true)
+	return f.constVal(OpConstBool, t, i, true)
 }
-func (f *Func) ConstInt8(pos src.XPos, t *types.Type, c int8) *Value {
-	return f.constVal(pos, OpConst8, t, int64(c), true)
+func (f *Func) ConstInt8(t *types.Type, c int8) *Value {
+	return f.constVal(OpConst8, t, int64(c), true)
 }
-func (f *Func) ConstInt16(pos src.XPos, t *types.Type, c int16) *Value {
-	return f.constVal(pos, OpConst16, t, int64(c), true)
+func (f *Func) ConstInt16(t *types.Type, c int16) *Value {
+	return f.constVal(OpConst16, t, int64(c), true)
 }
-func (f *Func) ConstInt32(pos src.XPos, t *types.Type, c int32) *Value {
-	return f.constVal(pos, OpConst32, t, int64(c), true)
+func (f *Func) ConstInt32(t *types.Type, c int32) *Value {
+	return f.constVal(OpConst32, t, int64(c), true)
 }
-func (f *Func) ConstInt64(pos src.XPos, t *types.Type, c int64) *Value {
-	return f.constVal(pos, OpConst64, t, c, true)
+func (f *Func) ConstInt64(t *types.Type, c int64) *Value {
+	return f.constVal(OpConst64, t, c, true)
 }
-func (f *Func) ConstFloat32(pos src.XPos, t *types.Type, c float64) *Value {
-	return f.constVal(pos, OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
+func (f *Func) ConstFloat32(t *types.Type, c float64) *Value {
+	return f.constVal(OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
 }
-func (f *Func) ConstFloat64(pos src.XPos, t *types.Type, c float64) *Value {
-	return f.constVal(pos, OpConst64F, t, int64(math.Float64bits(c)), true)
+func (f *Func) ConstFloat64(t *types.Type, c float64) *Value {
+	return f.constVal(OpConst64F, t, int64(math.Float64bits(c)), true)
 }
 
-func (f *Func) ConstSlice(pos src.XPos, t *types.Type) *Value {
-	return f.constVal(pos, OpConstSlice, t, constSliceMagic, false)
+func (f *Func) ConstSlice(t *types.Type) *Value {
+	return f.constVal(OpConstSlice, t, constSliceMagic, false)
 }
-func (f *Func) ConstInterface(pos src.XPos, t *types.Type) *Value {
-	return f.constVal(pos, OpConstInterface, t, constInterfaceMagic, false)
+func (f *Func) ConstInterface(t *types.Type) *Value {
+	return f.constVal(OpConstInterface, t, constInterfaceMagic, false)
 }
-func (f *Func) ConstNil(pos src.XPos, t *types.Type) *Value {
-	return f.constVal(pos, OpConstNil, t, constNilMagic, false)
+func (f *Func) ConstNil(t *types.Type) *Value {
+	return f.constVal(OpConstNil, t, constNilMagic, false)
 }
-func (f *Func) ConstEmptyString(pos src.XPos, t *types.Type) *Value {
-	v := f.constVal(pos, OpConstString, t, constEmptyStringMagic, false)
+func (f *Func) ConstEmptyString(t *types.Type) *Value {
+	v := f.constVal(OpConstString, t, constEmptyStringMagic, false)
 	v.Aux = ""
 	return v
 }
-func (f *Func) ConstOffPtrSP(pos src.XPos, t *types.Type, c int64, sp *Value) *Value {
-	v := f.constVal(pos, OpOffPtr, t, c, true)
+func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
+	v := f.constVal(OpOffPtr, t, c, true)
 	if len(v.Args) == 0 {
 		v.AddArg(sp)
 	}
@@ -541,7 +622,7 @@ func (f *Func) invalidateCFG() {
 	f.cachedLoopnest = nil
 }
 
-// DebugHashMatch returns true if environment variable evname
+// DebugHashMatch reports whether environment variable evname
 // 1) is empty (this is a special more-quickly implemented case of 3)
 // 2) is "y" or "Y"
 // 3) is a suffix of the sha1 hash of name

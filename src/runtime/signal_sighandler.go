@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux nacl netbsd openbsd solaris
 
 package runtime
 
@@ -13,6 +13,11 @@ import (
 // crashing is the number of m's we have waited for when implementing
 // GOTRACEBACK=crash when a signal is received.
 var crashing int32
+
+// testSigtrap is used by the runtime tests. If non-nil, it is called
+// on SIGTRAP. If it returns true, the normal behavior on SIGTRAP is
+// suppressed.
+var testSigtrap func(info *siginfo, ctxt *sigctxt, gp *g) bool
 
 // sighandler is invoked when a signal occurs. The global g will be
 // set to a gsignal goroutine and we will be running on the alternate
@@ -34,9 +39,23 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		return
 	}
 
+	if sig == _SIGTRAP && testSigtrap != nil && testSigtrap(info, (*sigctxt)(noescape(unsafe.Pointer(c))), gp) {
+		return
+	}
+
 	flags := int32(_SigThrow)
 	if sig < uint32(len(sigtable)) {
 		flags = sigtable[sig].flags
+	}
+	if flags&_SigPanic != 0 && gp.throwsplit {
+		// We can't safely sigpanic because it may grow the
+		// stack. Abort in the signal handler instead.
+		flags = (flags &^ _SigPanic) | _SigThrow
+	}
+	if isAbortPC(c.sigpc()) {
+		// On many architectures, the abort function just
+		// causes a memory fault. Don't turn that into a panic.
+		flags = _SigThrow
 	}
 	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
 		// The signal is going to cause a panic.
@@ -78,7 +97,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	_g_.m.caughtsig.set(gp)
 
 	if crashing == 0 {
-		startpanic()
+		startpanic_m()
 	}
 
 	if sig < uint32(len(sigtable)) {
@@ -88,9 +107,9 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	print("PC=", hex(c.sigpc()), " m=", _g_.m.id, " sigcode=", c.sigcode(), "\n")
-	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+	if _g_.m.lockedg != 0 && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
 		print("signal arrived during cgo execution\n")
-		gp = _g_.m.lockedg
+		gp = _g_.m.lockedg.ptr()
 	}
 	print("\n")
 
@@ -111,7 +130,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 
 	if docrash {
 		crashing++
-		if crashing < sched.mcount-int32(extraMCount) {
+		if crashing < mcount()-int32(extraMCount) {
 			// There are other m's that need to dump their stacks.
 			// Relay SIGQUIT to the next m by sending it to the current process.
 			// All m's that have already received SIGQUIT have signal masks blocking

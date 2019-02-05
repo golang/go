@@ -1,0 +1,5 @@
+Showing nodes accounting for 1.11s, 100% of 1.11s total
+      flat  flat%   sum%        cum   cum%
+     1.10s 99.10% 99.10%      1.10s 99.10%  path/to/package1.object.function1
+     0.01s   0.9%   100%      1.01s 90.99%  java.bar.foo.FooBar.run(java.lang.Runnable)
+         0     0%   100%      1.10s 99.10%  (anonymous namespace)::Bar::Foo

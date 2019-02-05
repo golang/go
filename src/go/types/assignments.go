@@ -57,7 +57,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
-	if reason := ""; !x.assignableTo(check.conf, T, &reason) {
+	if reason := ""; !x.assignableTo(check, T, &reason) {
 		if reason != "" {
 			check.errorf(x.pos(), "cannot use %s as %s value in %s: %s", x, T, context, reason)
 		} else {
@@ -153,9 +153,12 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 	var v *Var
 	var v_used bool
 	if ident != nil {
-		if _, obj := check.scope.LookupParent(ident.Name, token.NoPos); obj != nil {
-			v, _ = obj.(*Var)
-			if v != nil {
+		if obj := check.lookup(ident.Name); obj != nil {
+			// It's ok to mark non-local variables, but ignore variables
+			// from other packages to avoid potential race conditions with
+			// dot-imported variables.
+			if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
+				v = w
 				v_used = v.used
 			}
 		}
@@ -249,6 +252,7 @@ func (check *Checker) assignVars(lhs, rhs []ast.Expr) {
 	l := len(lhs)
 	get, r, commaOk := unpack(func(x *operand, i int) { check.multiExpr(x, rhs[i]) }, len(rhs), l == 2)
 	if get == nil {
+		check.useLHS(lhs...)
 		return // error reported by unpack
 	}
 	if l != r {
@@ -275,6 +279,7 @@ func (check *Checker) assignVars(lhs, rhs []ast.Expr) {
 }
 
 func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
+	top := len(check.delayed)
 	scope := check.scope
 
 	// collect lhs variables
@@ -305,6 +310,7 @@ func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 				check.recordDef(ident, obj)
 			}
 		} else {
+			check.useLHS(lhs)
 			check.errorf(lhs.Pos(), "cannot declare %s", lhs)
 		}
 		if obj == nil {
@@ -314,6 +320,9 @@ func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 	}
 
 	check.initVars(lhsVars, rhs, token.NoPos)
+
+	// process function literals in rhs expressions before scope changes
+	check.processDelayed(top)
 
 	// declare new variables
 	if len(newVars) > 0 {

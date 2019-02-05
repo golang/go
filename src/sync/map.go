@@ -9,12 +9,21 @@ import (
 	"unsafe"
 )
 
-// Map is a concurrent map with amortized-constant-time loads, stores, and deletes.
-// It is safe for multiple goroutines to call a Map's methods concurrently.
+// Map is like a Go map[interface{}]interface{} but is safe for concurrent use
+// by multiple goroutines without additional locking or coordination.
+// Loads, stores, and deletes run in amortized constant time.
 //
-// The zero Map is valid and empty.
+// The Map type is specialized. Most code should use a plain Go map instead,
+// with separate locking or coordination, for better type safety and to make it
+// easier to maintain other invariants along with the map content.
 //
-// A Map must not be copied after first use.
+// The Map type is optimized for two common use cases: (1) when the entry for a given
+// key is only ever written once but read many times, as in caches that only grow,
+// or (2) when multiple goroutines read, write, and overwrite entries for disjoint
+// sets of keys. In these two cases, use of a Map may significantly reduce lock
+// contention compared to a Go map paired with a separate Mutex or RWMutex.
+//
+// The zero Map is empty and ready for use. A Map must not be copied after first use.
 type Map struct {
 	mu Mutex
 
@@ -158,17 +167,13 @@ func (m *Map) Store(key, value interface{}) {
 // If the entry is expunged, tryStore returns false and leaves the entry
 // unchanged.
 func (e *entry) tryStore(i *interface{}) bool {
-	p := atomic.LoadPointer(&e.p)
-	if p == expunged {
-		return false
-	}
 	for {
-		if atomic.CompareAndSwapPointer(&e.p, p, unsafe.Pointer(i)) {
-			return true
-		}
-		p = atomic.LoadPointer(&e.p)
+		p := atomic.LoadPointer(&e.p)
 		if p == expunged {
 			return false
+		}
+		if atomic.CompareAndSwapPointer(&e.p, p, unsafe.Pointer(i)) {
+			return true
 		}
 	}
 }

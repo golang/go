@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !js
+
 package net
 
 import (
@@ -20,6 +22,7 @@ var dnsNameTests = []dnsNameTest{
 	{"foo.com", true},
 	{"1foo.com", true},
 	{"26.0.0.73.com", true},
+	{"10-0-0-1", true},
 	{"fo-o.com", true},
 	{"fo1o.com", true},
 	{"foo1.com", true},

@@ -16,6 +16,18 @@ type testpair struct {
 	decoded, encoded string
 }
 
+var bigtest = testpair{
+	"Man is distinguished, not only by his reason, but by this singular passion from " +
+		"other animals, which is a lust of the mind, that by a perseverance of delight in " +
+		"the continued and indefatigable generation of knowledge, exceeds the short " +
+		"vehemence of any carnal pleasure.",
+	"9jqo^BlbD-BleB1DJ+*+F(f,q/0JhKF<GL>Cj@.4Gp$d7F!,L7@<6@)/0JDEF<G%<+EV:2F!,\n" +
+		"O<DJ+*.@<*K0@<6L(Df-\\0Ec5e;DffZ(EZee.Bl.9pF\"AGXBPCsi+DGm>@3BB/F*&OCAfu2/AKY\n" +
+		"i(DIb:@FD,*)+C]U=@3BN#EcYf8ATD3s@q?d$AftVqCh[NqF<G:8+EV:.+Cf>-FD5W8ARlolDIa\n" +
+		"l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G\n" +
+		">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c\n",
+}
+
 var pairs = []testpair{
 	// Encode returns 0 when len(src) is 0
 	{
@@ -23,17 +35,7 @@ var pairs = []testpair{
 		"",
 	},
 	// Wikipedia example
-	{
-		"Man is distinguished, not only by his reason, but by this singular passion from " +
-			"other animals, which is a lust of the mind, that by a perseverance of delight in " +
-			"the continued and indefatigable generation of knowledge, exceeds the short " +
-			"vehemence of any carnal pleasure.",
-		"9jqo^BlbD-BleB1DJ+*+F(f,q/0JhKF<GL>Cj@.4Gp$d7F!,L7@<6@)/0JDEF<G%<+EV:2F!,\n" +
-			"O<DJ+*.@<*K0@<6L(Df-\\0Ec5e;DffZ(EZee.Bl.9pF\"AGXBPCsi+DGm>@3BB/F*&OCAfu2/AKY\n" +
-			"i(DIb:@FD,*)+C]U=@3BN#EcYf8ATD3s@q?d$AftVqCh[NqF<G:8+EV:.+Cf>-FD5W8ARlolDIa\n" +
-			"l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G\n" +
-			">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c\n",
-	},
+	bigtest,
 	// Special case when shortening !!!!! to z.
 	{
 		"\000\000\000\000",
@@ -41,9 +43,8 @@ var pairs = []testpair{
 	},
 }
 
-var bigtest = pairs[len(pairs)-1]
-
 func testEqual(t *testing.T, msg string, args ...interface{}) bool {
+	t.Helper()
 	if args[len(args)-2] != args[len(args)-1] {
 		t.Errorf(msg, args...)
 		return false
@@ -134,10 +135,14 @@ func TestDecoderBuffering(t *testing.T) {
 		decoder := NewDecoder(strings.NewReader(bigtest.encoded))
 		buf := make([]byte, len(bigtest.decoded)+12)
 		var total int
-		for total = 0; total < len(bigtest.decoded); {
-			n, err := decoder.Read(buf[total : total+bs])
-			testEqual(t, "Read from %q at pos %d = %d, %v, want _, %v", bigtest.encoded, total, n, err, error(nil))
+		var n int
+		var err error
+		for total = 0; total < len(bigtest.decoded) && err == nil; {
+			n, err = decoder.Read(buf[total : total+bs])
 			total += n
+		}
+		if err != nil && err != io.EOF {
+			t.Errorf("Read from %q at pos %d = %d, unexpected error %v", bigtest.encoded, total, n, err)
 		}
 		testEqual(t, "Decoding/%d of %q = %q, want %q", bs, bigtest.encoded, string(buf[0:total]), bigtest.decoded)
 	}

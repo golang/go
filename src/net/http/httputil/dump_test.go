@@ -27,7 +27,6 @@ type dumpTest struct {
 }
 
 var dumpTests = []dumpTest{
-
 	// HTTP/1.1 => chunked coding; body; empty trailer
 	{
 		Req: http.Request{
@@ -214,7 +213,6 @@ func TestDumpRequest(t *testing.T) {
 				t.Fatalf("Test %d: unsupported Body of %T", i, tt.Body)
 			}
 		}
-		setBody()
 		if tt.Req.Header == nil {
 			tt.Req.Header = make(http.Header)
 		}
@@ -372,7 +370,7 @@ func TestDumpResponse(t *testing.T) {
 		}
 		got := string(gotb)
 		got = strings.TrimSpace(got)
-		got = strings.Replace(got, "\r", "", -1)
+		got = strings.ReplaceAll(got, "\r", "")
 
 		if got != tt.want {
 			t.Errorf("%d.\nDumpResponse got:\n%s\n\nWant:\n%s\n", i, got, tt.want)

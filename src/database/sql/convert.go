@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -38,17 +37,10 @@ func validateNamedValueName(name string) error {
 	return fmt.Errorf("name %q does not begin with a letter", name)
 }
 
-func driverNumInput(ds *driverStmt) int {
-	ds.Lock()
-	defer ds.Unlock() // in case NumInput panics
-	return ds.si.NumInput()
-}
-
 // ccChecker wraps the driver.ColumnConverter and allows it to be used
 // as if it were a NamedValueChecker. If the driver ColumnConverter
 // is not present then the NamedValueChecker will return driver.ErrSkip.
 type ccChecker struct {
-	sync.Locker
 	cci  driver.ColumnConverter
 	want int
 }
@@ -88,9 +80,7 @@ func (c ccChecker) CheckNamedValue(nv *driver.NamedValue) error {
 	// same error.
 	var err error
 	arg := nv.Value
-	c.Lock()
 	nv.Value, err = c.cci.ColumnConverter(index).ConvertValue(arg)
-	c.Unlock()
 	if err != nil {
 		return err
 	}
@@ -112,7 +102,7 @@ func defaultCheckNamedValue(nv *driver.NamedValue) (err error) {
 // Stmt.Query into driver Values.
 //
 // The statement ds may be nil, if no statement is available.
-func driverArgs(ci driver.Conn, ds *driverStmt, args []interface{}) ([]driver.NamedValue, error) {
+func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []interface{}) ([]driver.NamedValue, error) {
 	nvargs := make([]driver.NamedValue, len(args))
 
 	// -1 means the driver doesn't know how to count the number of
@@ -124,8 +114,7 @@ func driverArgs(ci driver.Conn, ds *driverStmt, args []interface{}) ([]driver.Na
 	var cc ccChecker
 	if ds != nil {
 		si = ds.si
-		want = driverNumInput(ds)
-		cc.Locker = ds.Locker
+		want = ds.si.NumInput()
 		cc.want = want
 	}
 
@@ -204,7 +193,7 @@ func driverArgs(ci driver.Conn, ds *driverStmt, args []interface{}) ([]driver.Na
 		}
 	}
 
-	// Check the length of arguments after convertion to allow for omitted
+	// Check the length of arguments after conversion to allow for omitted
 	// arguments.
 	if want != -1 && len(nvargs) != want {
 		return nil, fmt.Errorf("sql: expected %d arguments, got %d", want, len(nvargs))
@@ -214,10 +203,18 @@ func driverArgs(ci driver.Conn, ds *driverStmt, args []interface{}) ([]driver.Na
 
 }
 
-// convertAssign copies to dest the value in src, converting it if possible.
-// An error is returned if the copy would result in loss of information.
-// dest should be a pointer type.
+// convertAssign is the same as convertAssignRows, but without the optional
+// rows argument.
 func convertAssign(dest, src interface{}) error {
+	return convertAssignRows(dest, src, nil)
+}
+
+// convertAssignRows copies to dest the value in src, converting it if possible.
+// An error is returned if the copy would result in loss of information.
+// dest should be a pointer type. If rows is passed in, the rows will
+// be used as the parent for any cursor values converted from a
+// driver.Rows to a *Rows.
+func convertAssignRows(dest, src interface{}, rows *Rows) error {
 	// Common cases, without reflect.
 	switch s := src.(type) {
 	case string:
@@ -233,6 +230,12 @@ func convertAssign(dest, src interface{}) error {
 				return errNilPtr
 			}
 			*d = []byte(s)
+			return nil
+		case *RawBytes:
+			if d == nil {
+				return errNilPtr
+			}
+			*d = append((*d)[:0], s...)
 			return nil
 		}
 	case []byte:
@@ -264,6 +267,9 @@ func convertAssign(dest, src interface{}) error {
 		}
 	case time.Time:
 		switch d := dest.(type) {
+		case *time.Time:
+			*d = s
+			return nil
 		case *string:
 			*d = s.Format(time.RFC3339Nano)
 			return nil
@@ -272,6 +278,12 @@ func convertAssign(dest, src interface{}) error {
 				return errNilPtr
 			}
 			*d = []byte(s.Format(time.RFC3339Nano))
+			return nil
+		case *RawBytes:
+			if d == nil {
+				return errNilPtr
+			}
+			*d = s.AppendFormat((*d)[:0], time.RFC3339Nano)
 			return nil
 		}
 	case nil:
@@ -293,6 +305,35 @@ func convertAssign(dest, src interface{}) error {
 				return errNilPtr
 			}
 			*d = nil
+			return nil
+		}
+	// The driver is returning a cursor the client may iterate over.
+	case driver.Rows:
+		switch d := dest.(type) {
+		case *Rows:
+			if d == nil {
+				return errNilPtr
+			}
+			if rows == nil {
+				return errors.New("invalid context to convert cursor rows, missing parent *Rows")
+			}
+			rows.closemu.Lock()
+			*d = Rows{
+				dc:          rows.dc,
+				releaseConn: func(error) {},
+				rowsi:       s,
+			}
+			// Chain the cancel function.
+			parentCancel := rows.cancel
+			rows.cancel = func() {
+				// When Rows.cancel is called, the closemu will be locked as well.
+				// So we can access rs.lasterr.
+				d.close(rows.lasterr)
+				if parentCancel != nil {
+					parentCancel()
+				}
+			}
+			rows.closemu.Unlock()
 			return nil
 		}
 	}
@@ -375,10 +416,9 @@ func convertAssign(dest, src interface{}) error {
 		if src == nil {
 			dv.Set(reflect.Zero(dv.Type()))
 			return nil
-		} else {
-			dv.Set(reflect.New(dv.Type().Elem()))
-			return convertAssign(dv.Interface(), src)
 		}
+		dv.Set(reflect.New(dv.Type().Elem()))
+		return convertAssignRows(dv.Interface(), src, rows)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		s := asString(src)
 		i64, err := strconv.ParseInt(s, 10, dv.Type().Bits())
@@ -430,11 +470,10 @@ func strconvErr(err error) error {
 func cloneBytes(b []byte) []byte {
 	if b == nil {
 		return nil
-	} else {
-		c := make([]byte, len(b))
-		copy(c, b)
-		return c
 	}
+	c := make([]byte, len(b))
+	copy(c, b)
+	return c
 }
 
 func asString(src interface{}) string {

@@ -20,6 +20,8 @@ export GOPATH
 
 unset CDPATH	# in case user has it set
 unset GOBIN     # Issue 14340
+unset GOFLAGS
+unset GO111MODULE
 
 export GOHOSTOS
 export CC
@@ -35,7 +37,7 @@ ulimit -c 0
 # non-root process is allowed to set the high limit.
 # This is a system misconfiguration and should be fixed on the
 # broken system, not "fixed" by ignoring the failure here.
-# See longer discussion on golang.org/issue/7381. 
+# See longer discussion on golang.org/issue/7381.
 [ "$(ulimit -H -n)" = "unlimited" ] || ulimit -S -n $(ulimit -H -n)
 [ "$(ulimit -H -d)" = "unlimited" ] || ulimit -S -d $(ulimit -H -d)
 

@@ -393,13 +393,13 @@ func (p *printer) printRawNode(n Node) {
 		p.print(_Rbrack)
 
 	case *AssertExpr:
-		p.print(n.X, _Dot, _Lparen)
-		if n.Type != nil {
-			p.printNode(n.Type)
-		} else {
-			p.print(_Type)
+		p.print(n.X, _Dot, _Lparen, n.Type, _Rparen)
+
+	case *TypeSwitchGuard:
+		if n.Lhs != nil {
+			p.print(n.Lhs, blank, _Define, blank)
 		}
-		p.print(_Rparen)
+		p.print(n.X, _Dot, _Lparen, _Type, _Rparen)
 
 	case *CallExpr:
 		p.print(n.Fun, _Lparen)
@@ -556,12 +556,6 @@ func (p *printer) printRawNode(n Node) {
 			p.print(n.Tag, blank)
 		}
 		p.printSwitchBody(n.Body)
-
-	case *TypeSwitchGuard:
-		if n.Lhs != nil {
-			p.print(n.Lhs, blank, _Define, blank)
-		}
-		p.print(n.X, _Dot, _Lparen, _Type, _Rparen)
 
 	case *SelectStmt:
 		p.print(_Select, blank) // for now

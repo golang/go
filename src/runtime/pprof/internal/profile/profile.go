@@ -22,11 +22,13 @@ import (
 
 // Profile is an in-memory representation of profile.proto.
 type Profile struct {
-	SampleType []*ValueType
-	Sample     []*Sample
-	Mapping    []*Mapping
-	Location   []*Location
-	Function   []*Function
+	SampleType        []*ValueType
+	DefaultSampleType string
+	Sample            []*Sample
+	Mapping           []*Mapping
+	Location          []*Location
+	Function          []*Function
+	Comments          []string
 
 	DropFrames string
 	KeepFrames string
@@ -36,9 +38,11 @@ type Profile struct {
 	PeriodType    *ValueType
 	Period        int64
 
-	dropFramesX int64
-	keepFramesX int64
-	stringTable []string
+	commentX           []int64
+	dropFramesX        int64
+	keepFramesX        int64
+	stringTable        []string
+	defaultSampleTypeX int64
 }
 
 // ValueType corresponds to Profile.ValueType
@@ -196,7 +200,7 @@ var libRx = regexp.MustCompile(`([.]so$|[.]so[._][0-9]+)`)
 // first.
 func (p *Profile) setMain() {
 	for i := 0; i < len(p.Mapping); i++ {
-		file := strings.TrimSpace(strings.Replace(p.Mapping[i].File, "(deleted)", "", -1))
+		file := strings.TrimSpace(strings.ReplaceAll(p.Mapping[i].File, "(deleted)", ""))
 		if len(file) == 0 {
 			continue
 		}
@@ -411,16 +415,16 @@ func (p *Profile) String() string {
 	for _, m := range p.Mapping {
 		bits := ""
 		if m.HasFunctions {
-			bits = bits + "[FN]"
+			bits += "[FN]"
 		}
 		if m.HasFilenames {
-			bits = bits + "[FL]"
+			bits += "[FL]"
 		}
 		if m.HasLineNumbers {
-			bits = bits + "[LN]"
+			bits += "[LN]"
 		}
 		if m.HasInlineFrames {
-			bits = bits + "[IN]"
+			bits += "[IN]"
 		}
 		ss = append(ss, fmt.Sprintf("%d: %#x/%#x/%#x %s %s %s",
 			m.ID,
@@ -569,7 +573,7 @@ func (p *Profile) Demangle(d Demangler) error {
 	return nil
 }
 
-// Empty returns true if the profile contains no samples.
+// Empty reports whether the profile contains no samples.
 func (p *Profile) Empty() bool {
 	return len(p.Sample) == 0
 }

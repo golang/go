@@ -19,10 +19,12 @@ TEXT runtime·exit(SB),NOSPLIT,$0
 	NACL_SYSCALL(SYS_exit)
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$0
-	MOVL code+0(FP), DI
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+	MOVL wait+0(FP), DI
+	// SYS_thread_exit will clear *wait when the stack is free.
 	NACL_SYSCALL(SYS_thread_exit)
-	RET
+	JMP 0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL name+0(FP), DI
@@ -86,6 +88,22 @@ playback:
 	XCHGL	runtime·writelock(SB), BX
 	CMPL BX, $0
 	JNE playback
+
+	MOVQ runtime·lastfaketime(SB), CX
+	MOVL runtime·lastfaketimefd(SB), BX
+	CMPL DI, BX
+	JE samefd
+
+	// If the current fd doesn't match the fd of the previous write,
+	// ensure that the timestamp is strictly greater. That way, we can
+	// recover the original order even if we read the fds separately.
+	INCQ CX
+	MOVL DI, runtime·lastfaketimefd(SB)
+
+samefd:
+	CMPQ AX, CX
+	CMOVQLT CX, AX
+	MOVQ AX, runtime·lastfaketime(SB)
 
 	// Playback header: 0 0 P B <8-byte time> <4-byte data length>
 	MOVL $(('B'<<24) | ('P'<<16)), 0(SP)
@@ -237,9 +255,14 @@ TEXT runtime·mmap(SB),NOSPLIT,$8
 	MOVL SP, R9
 	NACL_SYSCALL(SYS_mmap)
 	CMPL AX, $-4095
-	JNA 2(PC)
+	JNA ok
 	NEGL AX
-	MOVL	AX, ret+24(FP)
+	MOVL	$0, p+24(FP)
+	MOVL	AX, err+28(FP)
+	RET
+ok:
+	MOVL	AX, p+24(FP)
+	MOVL	$0, err+28(FP)
 	RET
 
 TEXT runtime·walltime(SB),NOSPLIT,$16
@@ -311,13 +334,13 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
 	// check that g exists
 	get_tls(CX)
 	MOVL	g(CX), DI
-	
+
 	CMPL	DI, $0
 	JEQ	nog
 
 	// save g
 	MOVL	DI, 20(SP)
-	
+
 	// g = m->gsignal
 	MOVL	g_m(DI), BX
 	MOVL	m_gsignal(BX), BX

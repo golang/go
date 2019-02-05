@@ -17,7 +17,6 @@ import (
 // which must be held when changing the condition and
 // when calling the Wait method.
 //
-// A Cond can be created as part of other structures.
 // A Cond must not be copied after first use.
 type Cond struct {
 	noCopy noCopy
@@ -90,9 +89,10 @@ func (c *copyChecker) check() {
 // noCopy may be embedded into structs which must not be copied
 // after the first use.
 //
-// See https://github.com/golang/go/issues/8005#issuecomment-190753527
+// See https://golang.org/issues/8005#issuecomment-190753527
 // for details.
 type noCopy struct{}
 
 // Lock is a no-op used by -copylocks checker from `go vet`.
-func (*noCopy) Lock() {}
+func (*noCopy) Lock()   {}
+func (*noCopy) Unlock() {}

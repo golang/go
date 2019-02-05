@@ -31,6 +31,7 @@ _testmain.go
 /pkg/
 /src/*.*/
 /src/cmd/cgo/zdefaultcc.go
+/src/cmd/dist/dist
 /src/cmd/go/internal/cfg/zdefaultcc.go
 /src/cmd/go/internal/cfg/zosarch.go
 /src/cmd/internal/objabi/zbootstrap.go
@@ -43,3 +44,8 @@ _testmain.go
 /test/pass.out
 /test/run.out
 /test/times.out
+
+# This file includes artifacts of Go build that should not be checked in.
+# For files created by specific development environment (e.g. editor),
+# use alternative ways to exclude files from git.
+# For example, set up .git/info/exclude or use a global .gitignore.

@@ -11,6 +11,7 @@ import (
 	"go/build"
 	"go/token"
 	"go/types"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -84,36 +85,58 @@ func FindPkg(path, srcDir string) (filename, id string) {
 // the corresponding package object to the packages map, and returns the object.
 // The packages map must contain all packages already imported.
 //
-func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types.Package, err error) {
-	filename, id := FindPkg(path, srcDir)
-	if filename == "" {
+func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types.Package, err error) {
+	var rc io.ReadCloser
+	var id string
+	if lookup != nil {
+		// With custom lookup specified, assume that caller has
+		// converted path to a canonical import path for use in the map.
 		if path == "unsafe" {
 			return types.Unsafe, nil
 		}
-		err = fmt.Errorf("can't find import: %q", id)
-		return
-	}
+		id = path
 
-	// no need to re-import if the package was imported completely before
-	if pkg = packages[id]; pkg != nil && pkg.Complete() {
-		return
-	}
-
-	// open file
-	f, err := os.Open(filename)
-	if err != nil {
-		return
-	}
-	defer func() {
-		f.Close()
-		if err != nil {
-			// add file name to error
-			err = fmt.Errorf("%s: %v", filename, err)
+		// No need to re-import if the package was imported completely before.
+		if pkg = packages[id]; pkg != nil && pkg.Complete() {
+			return
 		}
-	}()
+		f, err := lookup(path)
+		if err != nil {
+			return nil, err
+		}
+		rc = f
+	} else {
+		var filename string
+		filename, id = FindPkg(path, srcDir)
+		if filename == "" {
+			if path == "unsafe" {
+				return types.Unsafe, nil
+			}
+			return nil, fmt.Errorf("can't find import: %q", id)
+		}
+
+		// no need to re-import if the package was imported completely before
+		if pkg = packages[id]; pkg != nil && pkg.Complete() {
+			return
+		}
+
+		// open file
+		f, err := os.Open(filename)
+		if err != nil {
+			return nil, err
+		}
+		defer func() {
+			if err != nil {
+				// add file name to error
+				err = fmt.Errorf("%s: %v", filename, err)
+			}
+		}()
+		rc = f
+	}
+	defer rc.Close()
 
 	var hdr string
-	buf := bufio.NewReader(f)
+	buf := bufio.NewReader(rc)
 	if hdr, err = FindExportData(buf); err != nil {
 		return
 	}
@@ -121,16 +144,23 @@ func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types
 	switch hdr {
 	case "$$\n":
 		err = fmt.Errorf("import %q: old export format no longer supported (recompile library)", path)
+
 	case "$$B\n":
 		var data []byte
 		data, err = ioutil.ReadAll(buf)
-		if err == nil {
-			// TODO(gri): allow clients of go/importer to provide a FileSet.
-			// Or, define a new standard go/types/gcexportdata package.
-			fset := token.NewFileSet()
-			_, pkg, err = BImportData(fset, packages, data, id)
-			return
+		if err != nil {
+			break
 		}
+
+		// The indexed export format starts with an 'i'; the older
+		// binary export format starts with a 'c', 'd', or 'v'
+		// (from "version"). Select appropriate importer.
+		if len(data) > 0 && data[0] == 'i' {
+			_, pkg, err = iImportData(fset, packages, data[1:], id)
+		} else {
+			_, pkg, err = BImportData(fset, packages, data, id)
+		}
+
 	default:
 		err = fmt.Errorf("unknown export data header: %q", hdr)
 	}

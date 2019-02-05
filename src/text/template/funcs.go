@@ -65,7 +65,7 @@ func createValueFuncs(funcMap FuncMap) map[string]reflect.Value {
 func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
 	for name, fn := range in {
 		if !goodName(name) {
-			panic(fmt.Errorf("function name %s is not a valid identifier", name))
+			panic(fmt.Errorf("function name %q is not a valid identifier", name))
 		}
 		v := reflect.ValueOf(fn)
 		if v.Kind() != reflect.Func {
@@ -139,10 +139,24 @@ func prepareArg(value reflect.Value, argType reflect.Type) (reflect.Value, error
 		}
 		value = reflect.Zero(argType)
 	}
-	if !value.Type().AssignableTo(argType) {
-		return reflect.Value{}, fmt.Errorf("value has type %s; should be %s", value.Type(), argType)
+	if value.Type().AssignableTo(argType) {
+		return value, nil
 	}
-	return value, nil
+	if intLike(value.Kind()) && intLike(argType.Kind()) && value.Type().ConvertibleTo(argType) {
+		value = value.Convert(argType)
+		return value, nil
+	}
+	return reflect.Value{}, fmt.Errorf("value has type %s; should be %s", value.Type(), argType)
+}
+
+func intLike(typ reflect.Kind) bool {
+	switch typ {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return true
+	}
+	return false
 }
 
 // Indexing.
@@ -261,11 +275,26 @@ func call(fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
 			return reflect.Value{}, fmt.Errorf("arg %d: %s", i, err)
 		}
 	}
-	result := v.Call(argv)
-	if len(result) == 2 && !result[1].IsNil() {
-		return result[0], result[1].Interface().(error)
+	return safeCall(v, argv)
+}
+
+// safeCall runs fun.Call(args), and returns the resulting value and error, if
+// any. If the call panics, the panic value is returned as an error.
+func safeCall(fun reflect.Value, args []reflect.Value) (val reflect.Value, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(error); ok {
+				err = e
+			} else {
+				err = fmt.Errorf("%v", r)
+			}
+		}
+	}()
+	ret := fun.Call(args)
+	if len(ret) == 2 && !ret[1].IsNil() {
+		return ret[0], ret[1].Interface().(error)
 	}
-	return result[0], nil
+	return ret[0], nil
 }
 
 // Boolean logic.

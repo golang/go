@@ -4,7 +4,7 @@
 
 package runtime
 
-import _ "unsafe" // for go:linkname
+import "internal/bytealg"
 
 // The Error interface identifies a run time error.
 type Error interface {
@@ -19,27 +19,37 @@ type Error interface {
 
 // A TypeAssertionError explains a failed type assertion.
 type TypeAssertionError struct {
-	interfaceString string
-	concreteString  string
-	assertedString  string
-	missingMethod   string // one method needed by Interface, missing from Concrete
+	_interface    *_type
+	concrete      *_type
+	asserted      *_type
+	missingMethod string // one method needed by Interface, missing from Concrete
 }
 
 func (*TypeAssertionError) RuntimeError() {}
 
 func (e *TypeAssertionError) Error() string {
-	inter := e.interfaceString
-	if inter == "" {
-		inter = "interface"
+	inter := "interface"
+	if e._interface != nil {
+		inter = e._interface.string()
 	}
-	if e.concreteString == "" {
-		return "interface conversion: " + inter + " is nil, not " + e.assertedString
+	as := e.asserted.string()
+	if e.concrete == nil {
+		return "interface conversion: " + inter + " is nil, not " + as
 	}
+	cs := e.concrete.string()
 	if e.missingMethod == "" {
-		return "interface conversion: " + inter + " is " + e.concreteString +
-			", not " + e.assertedString
+		msg := "interface conversion: " + inter + " is " + cs + ", not " + as
+		if cs == as {
+			// provide slightly clearer error message
+			if e.concrete.pkgpath() != e.asserted.pkgpath() {
+				msg += " (types from different packages)"
+			} else {
+				msg += " (types from different scopes)"
+			}
+		}
+		return msg
 	}
-	return "interface conversion: " + e.concreteString + " is not " + e.assertedString +
+	return "interface conversion: " + cs + " is not " + as +
 		": missing method " + e.missingMethod
 }
 
@@ -72,16 +82,13 @@ func typestring(x interface{}) string {
 	return e._type.string()
 }
 
-// For calling from C.
-// Prints an argument passed to panic.
+// printany prints an argument passed to panic.
+// If panic is called with a value that has a String or Error method,
+// it has already been converted into a string by preprintpanics.
 func printany(i interface{}) {
 	switch v := i.(type) {
 	case nil:
 		print("nil")
-	case stringer:
-		print(v.String())
-	case error:
-		print(v.Error())
 	case bool:
 		print(v)
 	case int:
@@ -121,39 +128,31 @@ func printany(i interface{}) {
 	}
 }
 
-// strings.IndexByte is implemented in runtime/asm_$goarch.s
-// but amusingly we need go:linkname to get access to it here in the runtime.
-//go:linkname stringsIndexByte strings.IndexByte
-func stringsIndexByte(s string, c byte) int
-
-// called from generated code
+// panicwrap generates a panic for a call to a wrapped value method
+// with a nil pointer receiver.
+//
+// It is called from the generated wrapper code.
 func panicwrap() {
-	pc := make([]uintptr, 1)
-	n := Callers(2, pc)
-	if n == 0 {
-		throw("panicwrap: Callers failed")
-	}
-	frames := CallersFrames(pc)
-	frame, _ := frames.Next()
-	name := frame.Function
+	pc := getcallerpc()
+	name := funcname(findfunc(pc))
 	// name is something like "main.(*T).F".
 	// We want to extract pkg ("main"), typ ("T"), and meth ("F").
 	// Do it by finding the parens.
-	i := stringsIndexByte(name, '(')
+	i := bytealg.IndexByteString(name, '(')
 	if i < 0 {
-		throw("panicwrap: no ( in " + frame.Function)
+		throw("panicwrap: no ( in " + name)
 	}
 	pkg := name[:i-1]
 	if i+2 >= len(name) || name[i-1:i+2] != ".(*" {
-		throw("panicwrap: unexpected string after package name: " + frame.Function)
+		throw("panicwrap: unexpected string after package name: " + name)
 	}
 	name = name[i+2:]
-	i = stringsIndexByte(name, ')')
+	i = bytealg.IndexByteString(name, ')')
 	if i < 0 {
-		throw("panicwrap: no ) in " + frame.Function)
+		throw("panicwrap: no ) in " + name)
 	}
 	if i+2 >= len(name) || name[i:i+2] != ")." {
-		throw("panicwrap: unexpected string after type name: " + frame.Function)
+		throw("panicwrap: unexpected string after type name: " + name)
 	}
 	typ := name[:i]
 	meth := name[i+2:]

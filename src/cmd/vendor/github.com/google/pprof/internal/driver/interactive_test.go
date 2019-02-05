@@ -16,13 +16,14 @@ package driver
 
 import (
 	"fmt"
-	"io"
 	"math/rand"
 	"strings"
 	"testing"
 
 	"github.com/google/pprof/internal/plugin"
+	"github.com/google/pprof/internal/proftest"
 	"github.com/google/pprof/internal/report"
+	"github.com/google/pprof/internal/transport"
 	"github.com/google/pprof/profile"
 )
 
@@ -41,7 +42,10 @@ func TestShell(t *testing.T) {
 
 	// Random interleave of independent scripts
 	pprofVariables = testVariables(savedVariables)
-	o := setDefaults(nil)
+
+	// pass in HTTPTransport when setting defaults, because otherwise default
+	// transport will try to add flags to the default flag set.
+	o := setDefaults(&plugin.Options{HTTPTransport: transport.New(nil)})
 	o.UI = newUI(t, interleave(script, 0))
 	if err := interactive(p, o); err != nil {
 		t.Error("first attempt:", err)
@@ -70,6 +74,21 @@ func TestShell(t *testing.T) {
 		t.Error("second shortcut attempt:", err)
 	}
 
+	// Group with invalid value
+	pprofVariables = testVariables(savedVariables)
+	ui := &proftest.TestUI{
+		T:       t,
+		Input:   []string{"cumulative=this"},
+		AllowRx: `Unrecognized value for cumulative: "this". Use one of cum, flat`,
+	}
+	o.UI = ui
+	if err := interactive(p, o); err != nil {
+		t.Error("invalid group value:", err)
+	}
+	// Confirm error message written out once.
+	if ui.NumAllowRxMatches != 1 {
+		t.Errorf("want error message to be printed 1 time, got %v", ui.NumAllowRxMatches)
+	}
 	// Verify propagation of IO errors
 	pprofVariables = testVariables(savedVariables)
 	o.UI = newUI(t, []string{"**error**"})
@@ -144,45 +163,10 @@ func makeShortcuts(input []string, seed int) (shortcuts, []string) {
 }
 
 func newUI(t *testing.T, input []string) plugin.UI {
-	return &testUI{
-		t:     t,
-		input: input,
+	return &proftest.TestUI{
+		T:     t,
+		Input: input,
 	}
-}
-
-type testUI struct {
-	t     *testing.T
-	input []string
-	index int
-}
-
-func (ui *testUI) ReadLine(_ string) (string, error) {
-	if ui.index >= len(ui.input) {
-		return "", io.EOF
-	}
-	input := ui.input[ui.index]
-	if input == "**error**" {
-		return "", fmt.Errorf("Error: %s", input)
-	}
-	ui.index++
-	return input, nil
-}
-
-func (ui *testUI) Print(args ...interface{}) {
-}
-
-func (ui *testUI) PrintErr(args ...interface{}) {
-	output := fmt.Sprint(args)
-	if output != "" {
-		ui.t.Error(output)
-	}
-}
-
-func (ui *testUI) IsTerminal() bool {
-	return false
-}
-
-func (ui *testUI) SetAutoComplete(func(string) string) {
 }
 
 func checkValue(p *profile.Profile, cmd []string, vars variables, o *plugin.Options) error {
@@ -279,12 +263,13 @@ func TestInteractiveCommands(t *testing.T) {
 		{
 			"weblist  find -test",
 			map[string]string{
-				"functions":        "false",
-				"addressnoinlines": "true",
-				"nodecount":        "0",
-				"cum":              "false",
-				"flat":             "true",
-				"ignore":           "test",
+				"functions": "false",
+				"addresses": "true",
+				"noinlines": "true",
+				"nodecount": "0",
+				"cum":       "false",
+				"flat":      "true",
+				"ignore":    "test",
 			},
 		},
 		{
@@ -314,7 +299,13 @@ func TestInteractiveCommands(t *testing.T) {
 			t.Errorf("failed on %q: %v", tc.input, err)
 			continue
 		}
-		vars = applyCommandOverrides(cmd, vars)
+
+		// Get report output format
+		c := pprofCommands[cmd[0]]
+		if c == nil {
+			t.Errorf("unexpected nil command")
+		}
+		vars = applyCommandOverrides(cmd[0], c.format, vars)
 
 		for n, want := range tc.want {
 			if got := vars[n].stringValue(); got != want {

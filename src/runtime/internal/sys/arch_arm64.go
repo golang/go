@@ -6,8 +6,7 @@ package sys
 
 const (
 	ArchFamily          = ARM64
-	BigEndian           = 0
-	CacheLineSize       = 32
+	BigEndian           = false
 	DefaultPhysPageSize = 65536
 	PCQuantum           = 4
 	Int64Align          = 8

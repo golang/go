@@ -7,6 +7,7 @@ package png
 import (
 	"bufio"
 	"compress/zlib"
+	"encoding/binary"
 	"hash/crc32"
 	"image"
 	"image/color"
@@ -62,14 +63,6 @@ const (
 	// compression level, although that is not implemented yet.
 )
 
-// Big-endian.
-func writeUint32(b []uint8, u uint32) {
-	b[0] = uint8(u >> 24)
-	b[1] = uint8(u >> 16)
-	b[2] = uint8(u >> 8)
-	b[3] = uint8(u >> 0)
-}
-
 type opaquer interface {
 	Opaque() bool
 }
@@ -108,7 +101,7 @@ func (e *encoder) writeChunk(b []byte, name string) {
 		e.err = UnsupportedError(name + " chunk is too large: " + strconv.Itoa(len(b)))
 		return
 	}
-	writeUint32(e.header[:4], n)
+	binary.BigEndian.PutUint32(e.header[:4], n)
 	e.header[4] = name[0]
 	e.header[5] = name[1]
 	e.header[6] = name[2]
@@ -116,7 +109,7 @@ func (e *encoder) writeChunk(b []byte, name string) {
 	crc := crc32.NewIEEE()
 	crc.Write(e.header[4:8])
 	crc.Write(b)
-	writeUint32(e.footer[:4], crc.Sum32())
+	binary.BigEndian.PutUint32(e.footer[:4], crc.Sum32())
 
 	_, e.err = e.w.Write(e.header[:8])
 	if e.err != nil {
@@ -131,8 +124,8 @@ func (e *encoder) writeChunk(b []byte, name string) {
 
 func (e *encoder) writeIHDR() {
 	b := e.m.Bounds()
-	writeUint32(e.tmp[0:4], uint32(b.Dx()))
-	writeUint32(e.tmp[4:8], uint32(b.Dy()))
+	binary.BigEndian.PutUint32(e.tmp[0:4], uint32(b.Dx()))
+	binary.BigEndian.PutUint32(e.tmp[4:8], uint32(b.Dy()))
 	// Set bit depth and color type.
 	switch e.cb {
 	case cbG8:
@@ -143,6 +136,15 @@ func (e *encoder) writeIHDR() {
 		e.tmp[9] = ctTrueColor
 	case cbP8:
 		e.tmp[8] = 8
+		e.tmp[9] = ctPaletted
+	case cbP4:
+		e.tmp[8] = 4
+		e.tmp[9] = ctPaletted
+	case cbP2:
+		e.tmp[8] = 2
+		e.tmp[9] = ctPaletted
+	case cbP1:
+		e.tmp[8] = 1
 		e.tmp[9] = ctPaletted
 	case cbTCA8:
 		e.tmp[8] = 8
@@ -312,31 +314,38 @@ func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) erro
 	}
 	defer e.zw.Close()
 
-	bpp := 0 // Bytes per pixel.
+	bitsPerPixel := 0
 
 	switch cb {
 	case cbG8:
-		bpp = 1
+		bitsPerPixel = 8
 	case cbTC8:
-		bpp = 3
+		bitsPerPixel = 24
 	case cbP8:
-		bpp = 1
+		bitsPerPixel = 8
+	case cbP4:
+		bitsPerPixel = 4
+	case cbP2:
+		bitsPerPixel = 2
+	case cbP1:
+		bitsPerPixel = 1
 	case cbTCA8:
-		bpp = 4
+		bitsPerPixel = 32
 	case cbTC16:
-		bpp = 6
+		bitsPerPixel = 48
 	case cbTCA16:
-		bpp = 8
+		bitsPerPixel = 64
 	case cbG16:
-		bpp = 2
+		bitsPerPixel = 16
 	}
+
 	// cr[*] and pr are the bytes for the current and previous row.
 	// cr[0] is unfiltered (or equivalently, filtered with the ftNone filter).
 	// cr[ft], for non-zero filter types ft, are buffers for transforming cr[0] under the
 	// other PNG filter types. These buffers are allocated once and re-used for each row.
 	// The +1 is for the per-row filter type, which is at cr[*][0].
 	b := m.Bounds()
-	sz := 1 + bpp*b.Dx()
+	sz := 1 + (bitsPerPixel*b.Dx()+7)/8
 	for i := range e.cr {
 		if cap(e.cr[i]) < sz {
 			e.cr[i] = make([]uint8, sz)
@@ -412,6 +421,30 @@ func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) erro
 					i += 1
 				}
 			}
+
+		case cbP4, cbP2, cbP1:
+			pi := m.(image.PalettedImage)
+
+			var a uint8
+			var c int
+			for x := b.Min.X; x < b.Max.X; x++ {
+				a = a<<uint(bitsPerPixel) | pi.ColorIndexAt(x, y)
+				c++
+				if c == 8/bitsPerPixel {
+					cr[0][i] = a
+					i += 1
+					a = 0
+					c = 0
+				}
+			}
+			if c != 0 {
+				for c != 8/bitsPerPixel {
+					a = a << uint(bitsPerPixel)
+					c++
+				}
+				cr[0][i] = a
+			}
+
 		case cbTCA8:
 			if nrgba != nil {
 				offset := (y - b.Min.Y) * nrgba.Stride
@@ -467,7 +500,10 @@ func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) erro
 		// "filters are rarely useful on palette images" and will result
 		// in larger files (see http://www.libpng.org/pub/png/book/chapter09.html).
 		f := ftNone
-		if level != zlib.NoCompression && cb != cbP8 {
+		if level != zlib.NoCompression && cb != cbP8 && cb != cbP4 && cb != cbP2 && cb != cbP1 {
+			// Since we skip paletted images we don't have to worry about
+			// bitsPerPixel not being a multiple of 8
+			bpp := bitsPerPixel / 8
 			f = filter(&cr, pr, bpp)
 		}
 
@@ -558,7 +594,15 @@ func (enc *Encoder) Encode(w io.Writer, m image.Image) error {
 		pal, _ = m.ColorModel().(color.Palette)
 	}
 	if pal != nil {
-		e.cb = cbP8
+		if len(pal) <= 2 {
+			e.cb = cbP1
+		} else if len(pal) <= 4 {
+			e.cb = cbP2
+		} else if len(pal) <= 16 {
+			e.cb = cbP4
+		} else {
+			e.cb = cbP8
+		}
 	} else {
 		switch m.ColorModel() {
 		case color.GrayModel:

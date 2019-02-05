@@ -1,4 +1,4 @@
-// mips64-specific vet whitelist. See readme.txt for details.
+// mipsle-specific vet whitelist. See readme.txt for details.
 
 // Work around if-def'd code. Will be fixed by golang.org/issue/17544.
 runtime/sys_linux_mipsx.s: [mipsle] walltime: invalid offset sec_lo+4(FP); expected sec_lo+0(FP)

@@ -15,13 +15,13 @@
 // even if, due to races, the wakeup happens before the sleep.
 //
 // See Mullender and Cox, ``Semaphores in Plan 9,''
-// http://swtch.com/semaphore.pdf
+// https://swtch.com/semaphore.pdf
 
 package runtime
 
 import (
+	"internal/cpu"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -48,7 +48,7 @@ const semTabSize = 251
 
 var semtable [semTabSize]struct {
 	root semaRoot
-	pad  [sys.CacheLineSize - unsafe.Sizeof(semaRoot{})]byte
+	pad  [cpu.CacheLinePadSize - unsafe.Sizeof(semaRoot{})]byte
 }
 
 //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
@@ -141,7 +141,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
 		// Any semrelease after the cansemacquire knows we're waiting
 		// (we set nwait above), so go to sleep.
 		root.queue(addr, s, lifo)
-		goparkunlock(&root.lock, "semacquire", traceEvGoBlockSync, 4)
+		goparkunlock(&root.lock, waitReasonSemacquire, traceEvGoBlockSync, 4)
 		if s.ticket != 0 || cansemacquire(addr) {
 			break
 		}
@@ -182,6 +182,9 @@ func semrelease1(addr *uint32, handoff bool) {
 	unlock(&root.lock)
 	if s != nil { // May be slow, so unlock first
 		acquiretime := s.acquiretime
+		if acquiretime != 0 {
+			mutexevent(t0-acquiretime, 3)
+		}
 		if s.ticket != 0 {
 			throw("corrupted semaphore ticket")
 		}
@@ -189,9 +192,6 @@ func semrelease1(addr *uint32, handoff bool) {
 			s.ticket = 1
 		}
 		readyWithTime(s, 5)
-		if acquiretime != 0 {
-			mutexevent(t0-acquiretime, 3)
-		}
 	}
 }
 
@@ -274,8 +274,11 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 	// addresses, it is kept balanced on average by maintaining a heap ordering
 	// on the ticket: s.ticket <= both s.prev.ticket and s.next.ticket.
 	// https://en.wikipedia.org/wiki/Treap
-	// http://faculty.washington.edu/aragon/pubs/rst89.pdf
-	s.ticket = fastrand()
+	// https://faculty.washington.edu/aragon/pubs/rst89.pdf
+	//
+	// s.ticket compared with zero in couple of places, therefore set lowest bit.
+	// It will not affect treap's quality noticeably.
+	s.ticket = fastrand() | 1
 	s.parent = last
 	*pt = s
 
@@ -504,7 +507,7 @@ func notifyListWait(l *notifyList, t uint32) {
 		l.tail.next = s
 	}
 	l.tail = s
-	goparkunlock(&l.lock, "semacquire", traceEvGoBlockCond, 3)
+	goparkunlock(&l.lock, waitReasonSyncCondWait, traceEvGoBlockCond, 3)
 	if t0 != 0 {
 		blockevent(s.releasetime-t0, 2)
 	}

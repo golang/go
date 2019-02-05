@@ -5,11 +5,10 @@
 package ld
 
 import (
-	"bytes"
+	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -21,58 +20,6 @@ func Cputime() float64 {
 		startTime = time.Now()
 	}
 	return time.Since(startTime).Seconds()
-}
-
-func cstring(x []byte) string {
-	i := bytes.IndexByte(x, '\x00')
-	if i >= 0 {
-		x = x[:i]
-	}
-	return string(x)
-}
-
-func tokenize(s string) []string {
-	var f []string
-	for {
-		s = strings.TrimLeft(s, " \t\r\n")
-		if s == "" {
-			break
-		}
-		quote := false
-		i := 0
-		for ; i < len(s); i++ {
-			if s[i] == '\'' {
-				if quote && i+1 < len(s) && s[i+1] == '\'' {
-					i++
-					continue
-				}
-				quote = !quote
-			}
-			if !quote && (s[i] == ' ' || s[i] == '\t' || s[i] == '\r' || s[i] == '\n') {
-				break
-			}
-		}
-		next := s[:i]
-		s = s[i:]
-		if strings.Contains(next, "'") {
-			var buf []byte
-			quote := false
-			for i := 0; i < len(next); i++ {
-				if next[i] == '\'' {
-					if quote && i+1 < len(next) && next[i+1] == '\'' {
-						i++
-						buf = append(buf, '\'')
-					}
-					quote = !quote
-					continue
-				}
-				buf = append(buf, next[i])
-			}
-			next = string(buf)
-		}
-		f = append(f, next)
-	}
-	return f
 }
 
 var atExitFuncs []func()
@@ -92,10 +39,7 @@ func Exit(code int) {
 // Exitf logs an error message then calls Exit(2).
 func Exitf(format string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, os.Args[0]+": "+format+"\n", a...)
-	if coutbuf.f != nil {
-		coutbuf.f.Close()
-		mayberemoveoutfile()
-	}
+	nerrors++
 	Exit(2)
 }
 
@@ -105,7 +49,7 @@ func Exitf(format string, a ...interface{}) {
 //
 // Logging an error means that on exit cmd/link will delete any
 // output file and return a non-zero error code.
-func Errorf(s *Symbol, format string, args ...interface{}) {
+func Errorf(s *sym.Symbol, format string, args ...interface{}) {
 	if s != nil {
 		format = s.Name + ": " + format
 	}
@@ -144,4 +88,14 @@ var start = time.Now()
 
 func elapsed() float64 {
 	return time.Since(start).Seconds()
+}
+
+// contains reports whether v is in s.
+func contains(s []string, v string) bool {
+	for _, x := range s {
+		if x == v {
+			return true
+		}
+	}
+	return false
 }

@@ -33,3 +33,19 @@ func zero() ([20]byte, [20]byte) {
 	_ = x
 	return [20]byte{}, [20]byte{} // the second return value is not 8-byte aligned to SP
 }
+
+// Issue 21992: unaligned offset between 256 and 504 and handled
+// incorrectly.
+type T2 struct {
+	a [257]byte
+	// fields below are not 8-, 4-, 2-byte aligned
+	b [8]byte
+	c [4]byte
+	d [2]byte
+}
+
+func f2(x *T2) {
+	x.b = [8]byte{}
+	x.c = [4]byte{}
+	x.d = [2]byte{}
+}

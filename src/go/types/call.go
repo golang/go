@@ -34,6 +34,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 				check.conversion(x, T)
 			}
 		default:
+			check.use(e.Args...)
 			check.errorf(e.Args[n-1].Pos(), "too many arguments in conversion to %s", T)
 		}
 		x.expr = e
@@ -90,11 +91,48 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 // use type-checks each argument.
 // Useful to make sure expressions are evaluated
 // (and variables are "used") in the presence of other errors.
+// The arguments may be nil.
 func (check *Checker) use(arg ...ast.Expr) {
 	var x operand
 	for _, e := range arg {
-		if e != nil { // be safe
+		// The nil check below is necessary since certain AST fields
+		// may legally be nil (e.g., the ast.SliceExpr.High field).
+		if e != nil {
 			check.rawExpr(&x, e, nil)
+		}
+	}
+}
+
+// useLHS is like use, but doesn't "use" top-level identifiers.
+// It should be called instead of use if the arguments are
+// expressions on the lhs of an assignment.
+// The arguments must not be nil.
+func (check *Checker) useLHS(arg ...ast.Expr) {
+	var x operand
+	for _, e := range arg {
+		// If the lhs is an identifier denoting a variable v, this assignment
+		// is not a 'use' of v. Remember current value of v.used and restore
+		// after evaluating the lhs via check.rawExpr.
+		var v *Var
+		var v_used bool
+		if ident, _ := unparen(e).(*ast.Ident); ident != nil {
+			// never type-check the blank name on the lhs
+			if ident.Name == "_" {
+				continue
+			}
+			if _, obj := check.scope.LookupParent(ident.Name, token.NoPos); obj != nil {
+				// It's ok to mark non-local variables, but ignore variables
+				// from other packages to avoid potential race conditions with
+				// dot-imported variables.
+				if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
+					v = w
+					v_used = v.used
+				}
+			}
+		}
+		check.rawExpr(&x, e, nil)
+		if v != nil {
+			v.used = v_used // restore v.used
 		}
 	}
 }
@@ -134,47 +172,46 @@ type getter func(x *operand, i int)
 // the incoming getter with that i.
 //
 func unpack(get getter, n int, allowCommaOk bool) (getter, int, bool) {
-	if n == 1 {
-		// possibly result of an n-valued function call or comma,ok value
-		var x0 operand
-		get(&x0, 0)
-		if x0.mode == invalid {
-			return nil, 0, false
-		}
+	if n != 1 {
+		// zero or multiple values
+		return get, n, false
+	}
+	// possibly result of an n-valued function call or comma,ok value
+	var x0 operand
+	get(&x0, 0)
+	if x0.mode == invalid {
+		return nil, 0, false
+	}
 
-		if t, ok := x0.typ.(*Tuple); ok {
-			// result of an n-valued function call
+	if t, ok := x0.typ.(*Tuple); ok {
+		// result of an n-valued function call
+		return func(x *operand, i int) {
+			x.mode = value
+			x.expr = x0.expr
+			x.typ = t.At(i).typ
+		}, t.Len(), false
+	}
+
+	if x0.mode == mapindex || x0.mode == commaok {
+		// comma-ok value
+		if allowCommaOk {
+			a := [2]Type{x0.typ, Typ[UntypedBool]}
 			return func(x *operand, i int) {
 				x.mode = value
 				x.expr = x0.expr
-				x.typ = t.At(i).typ
-			}, t.Len(), false
+				x.typ = a[i]
+			}, 2, true
 		}
-
-		if x0.mode == mapindex || x0.mode == commaok {
-			// comma-ok value
-			if allowCommaOk {
-				a := [2]Type{x0.typ, Typ[UntypedBool]}
-				return func(x *operand, i int) {
-					x.mode = value
-					x.expr = x0.expr
-					x.typ = a[i]
-				}, 2, true
-			}
-			x0.mode = value
-		}
-
-		// single value
-		return func(x *operand, i int) {
-			if i != 0 {
-				unreachable()
-			}
-			*x = x0
-		}, 1, false
+		x0.mode = value
 	}
 
-	// zero or multiple values
-	return get, n, false
+	// single value
+	return func(x *operand, i int) {
+		if i != 0 {
+			unreachable()
+		}
+		*x = x0
+	}, 1, false
 }
 
 // arguments checks argument passing for the call with the given signature.
@@ -196,6 +233,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 	}
 
 	// evaluate arguments
+	context := check.sprintf("argument to %s", call.Fun)
 	for i := 0; i < n; i++ {
 		arg(x, i)
 		if x.mode != invalid {
@@ -203,7 +241,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 			if i == n-1 && call.Ellipsis.IsValid() {
 				ellipsis = call.Ellipsis
 			}
-			check.argument(call.Fun, sig, i, x, ellipsis)
+			check.argument(call.Fun, sig, i, x, ellipsis, context)
 		}
 	}
 
@@ -221,7 +259,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 
 // argument checks passing of argument x to the i'th parameter of the given signature.
 // If ellipsis is valid, the argument is followed by ... at that position in the call.
-func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, ellipsis token.Pos) {
+func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, ellipsis token.Pos, context string) {
 	check.singleValue(x)
 	if x.mode == invalid {
 		return
@@ -238,7 +276,7 @@ func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, 
 		typ = sig.params.vars[n-1].typ
 		if debug {
 			if _, ok := typ.(*Slice); !ok {
-				check.dump("%s: expected unnamed slice type, got %s", sig.params.vars[n-1].Pos(), typ)
+				check.dump("%v: expected unnamed slice type, got %s", sig.params.vars[n-1].Pos(), typ)
 			}
 		}
 	default:
@@ -261,7 +299,7 @@ func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, 
 		typ = typ.(*Slice).elem
 	}
 
-	check.assignment(x, typ, check.sprintf("argument to %s", fun))
+	check.assignment(x, typ, context)
 }
 
 func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
@@ -278,7 +316,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 	// can only appear in qualified identifiers which are mapped to
 	// selector expressions.
 	if ident, ok := e.X.(*ast.Ident); ok {
-		_, obj := check.scope.LookupParent(ident.Name, check.pos)
+		obj := check.lookup(ident.Name)
 		if pname, _ := obj.(*PkgName); pname != nil {
 			assert(pname.pkg == check.pkg)
 			check.recordUse(ident, pname)
@@ -287,12 +325,12 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			exp := pkg.scope.Lookup(sel)
 			if exp == nil {
 				if !pkg.fake {
-					check.errorf(e.Pos(), "%s not declared by package %s", sel, pkg.name)
+					check.errorf(e.Sel.Pos(), "%s not declared by package %s", sel, pkg.name)
 				}
 				goto Error
 			}
 			if !exp.Exported() {
-				check.errorf(e.Pos(), "%s not exported by package %s", sel, pkg.name)
+				check.errorf(e.Sel.Pos(), "%s not exported by package %s", sel, pkg.name)
 				// ok to continue
 			}
 			check.recordUse(e.Sel, exp)
@@ -337,20 +375,28 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		switch {
 		case index != nil:
 			// TODO(gri) should provide actual type where the conflict happens
-			check.invalidOp(e.Pos(), "ambiguous selector %s", sel)
+			check.errorf(e.Sel.Pos(), "ambiguous selector %s", sel)
 		case indirect:
-			check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x.typ)
+			// TODO(gri) be more specific with this error message
+			check.errorf(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
 		default:
-			check.invalidOp(e.Pos(), "%s has no field or method %s", x, sel)
+			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
+			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no field or method %s)", x.expr, sel, x.typ, sel)
 		}
 		goto Error
+	}
+
+	// methods may not have a fully set up signature yet
+	if m, _ := obj.(*Func); m != nil {
+		check.objDecl(m, nil)
 	}
 
 	if x.mode == typexpr {
 		// method expression
 		m, _ := obj.(*Func)
 		if m == nil {
-			check.invalidOp(e.Pos(), "%s has no method %s", x, sel)
+			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
+			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
 			goto Error
 		}
 
@@ -412,7 +458,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 				// lookup.
 				mset := NewMethodSet(typ)
 				if m := mset.Lookup(check.pkg, sel); m == nil || m.obj != obj {
-					check.dump("%s: (%s).%v -> %s", e.Pos(), typ, obj.name, m)
+					check.dump("%v: (%s).%v -> %s", e.Pos(), typ, obj.name, m)
 					check.dump("%s\n", mset)
 					panic("method sets and lookup don't agree")
 				}

@@ -10,7 +10,7 @@
  * void crosscall2(void (*fn)(void*, int32, uintptr), void*, int32, uintptr)
  * Save registers and call fn with two arguments.
  */
-TEXT crosscall2(SB),NOSPLIT,$-4
+TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	/*
 	 * We still need to save all callee save register as before, and then
 	 *  push 3 args for fn (R5, R6, R7).
@@ -20,7 +20,11 @@ TEXT crosscall2(SB),NOSPLIT,$-4
 
 	// Space for 9 caller-saved GPR + LR + 6 caller-saved FPR.
 	// O32 ABI allows us to smash 16 bytes argument area of caller frame.
+#ifndef GOMIPS_softfloat
 	SUBU	$(4*14+8*6-16), R29
+#else
+	SUBU	$(4*14-16), R29	// For soft-float, no FPR.
+#endif
 	MOVW	R5, (4*1)(R29)
 	MOVW	R6, (4*2)(R29)
 	MOVW	R7, (4*3)(R29)
@@ -34,14 +38,14 @@ TEXT crosscall2(SB),NOSPLIT,$-4
 	MOVW	R23, (4*11)(R29)
 	MOVW	g, (4*12)(R29)
 	MOVW	R31, (4*13)(R29)
-
+#ifndef GOMIPS_softfloat
 	MOVD	F20, (4*14)(R29)
 	MOVD	F22, (4*14+8*1)(R29)
 	MOVD	F24, (4*14+8*2)(R29)
 	MOVD	F26, (4*14+8*3)(R29)
 	MOVD	F28, (4*14+8*4)(R29)
 	MOVD	F30, (4*14+8*5)(R29)
-
+#endif
 	JAL	runtime·load_g(SB)
 	JAL	(R4)
 
@@ -55,7 +59,7 @@ TEXT crosscall2(SB),NOSPLIT,$-4
 	MOVW	(4*11)(R29), R23
 	MOVW	(4*12)(R29), g
 	MOVW	(4*13)(R29), R31
-
+#ifndef GOMIPS_softfloat
 	MOVD	(4*14)(R29), F20
 	MOVD	(4*14+8*1)(R29), F22
 	MOVD	(4*14+8*2)(R29), F24
@@ -64,4 +68,7 @@ TEXT crosscall2(SB),NOSPLIT,$-4
 	MOVD	(4*14+8*5)(R29), F30
 
 	ADDU	$(4*14+8*6-16), R29
+#else
+	ADDU	$(4*14-16), R29
+#endif
 	RET

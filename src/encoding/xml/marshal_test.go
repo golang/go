@@ -583,16 +583,6 @@ var marshalTests = []struct {
 		ExpectXML: `<PresenceTest></PresenceTest>`,
 	},
 
-	// A pointer to struct{} may be used to test for an element's presence.
-	{
-		Value:     &PresenceTest{new(struct{})},
-		ExpectXML: `<PresenceTest><Exists></Exists></PresenceTest>`,
-	},
-	{
-		Value:     &PresenceTest{},
-		ExpectXML: `<PresenceTest></PresenceTest>`,
-	},
-
 	// A []byte field is only nil if the element was not found.
 	{
 		Value:         &Data{},
@@ -646,7 +636,7 @@ var marshalTests = []struct {
 	{Value: &Universe{Visible: 9.3e13}, ExpectXML: `<universe>9.3e+13</universe>`},
 	{Value: &Particle{HasMass: true}, ExpectXML: `<particle>true</particle>`},
 	{Value: &Departure{When: ParseTime("2013-01-09T00:15:00-09:00")}, ExpectXML: `<departure>2013-01-09T00:15:00-09:00</departure>`},
-	{Value: atomValue, ExpectXML: atomXml},
+	{Value: atomValue, ExpectXML: atomXML},
 	{
 		Value: &Ship{
 			Name:  "Heart of Gold",
@@ -1910,7 +1900,7 @@ func BenchmarkMarshal(b *testing.B) {
 
 func BenchmarkUnmarshal(b *testing.B) {
 	b.ReportAllocs()
-	xml := []byte(atomXml)
+	xml := []byte(atomXML)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Unmarshal(xml, &Feed{})
@@ -2439,5 +2429,24 @@ func TestIssue16158(t *testing.T) {
 	}{})
 	if err == nil {
 		t.Errorf("Unmarshal: expected error, got nil")
+	}
+}
+
+// Issue 20953. Crash on invalid XMLName attribute.
+
+type InvalidXMLName struct {
+	XMLName Name `xml:"error"`
+	Type    struct {
+		XMLName Name `xml:"type,attr"`
+	}
+}
+
+func TestInvalidXMLName(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	if err := enc.Encode(InvalidXMLName{}); err == nil {
+		t.Error("unexpected success")
+	} else if want := "invalid tag"; !strings.Contains(err.Error(), want) {
+		t.Errorf("error %q does not contain %q", err, want)
 	}
 }

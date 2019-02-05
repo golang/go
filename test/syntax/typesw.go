@@ -7,7 +7,7 @@
 package main
 
 func main() {
-	switch main() := interface{}(nil).(type) {	// ERROR "invalid variable name"
+	switch main() := interface{}(nil).(type) {	// ERROR "invalid variable name|used as value"
 	default:
 	}
 }

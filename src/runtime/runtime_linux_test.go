@@ -8,6 +8,7 @@ import (
 	. "runtime"
 	"syscall"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -21,6 +22,17 @@ func init() {
 	// for how it is used in init (must be on main thread).
 	pid, tid = syscall.Getpid(), syscall.Gettid()
 	LockOSThread()
+
+	sysNanosleep = func(d time.Duration) {
+		// Invoke a blocking syscall directly; calling time.Sleep()
+		// would deschedule the goroutine instead.
+		ts := syscall.NsecToTimespec(d.Nanoseconds())
+		for {
+			if err := syscall.Nanosleep(&ts, &ts); err != syscall.EINTR {
+				return
+			}
+		}
+	}
 }
 
 func TestLockOSThread(t *testing.T) {
@@ -38,5 +50,14 @@ func TestMincoreErrorSign(t *testing.T) {
 	const EINVAL = 0x16
 	if v != -EINVAL {
 		t.Errorf("mincore = %v, want %v", v, -EINVAL)
+	}
+}
+
+func TestEpollctlErrorSign(t *testing.T) {
+	v := Epollctl(-1, 1, -1, unsafe.Pointer(&struct{}{}))
+
+	const EBADF = 0x09
+	if v != -EBADF {
+		t.Errorf("epollctl = %v, want %v", v, -EBADF)
 	}
 }

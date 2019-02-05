@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build aix dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
 
 package x509
 
@@ -19,6 +19,7 @@ var certDirectories = []string{
 	"/usr/local/share/certs",       // FreeBSD
 	"/etc/pki/tls/certs",           // Fedora/RHEL
 	"/etc/openssl/certs",           // NetBSD
+	"/var/ssl/certs",               // AIX
 }
 
 const (
@@ -80,7 +81,7 @@ func loadSystemRoots() (*CertPool, error) {
 		}
 	}
 
-	if len(roots.certs) > 0 {
+	if len(roots.certs) > 0 || firstErr == nil {
 		return roots, nil
 	}
 

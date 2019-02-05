@@ -99,8 +99,15 @@ const (
 	// of a JMP instruction, by encoding the address into the instruction.
 	// The stack nosplit check ignores this since it is not a function call.
 	R_JMPMIPS
-	// R_DWARFREF resolves to the offset of the symbol from its section.
-	R_DWARFREF
+
+	// R_DWARFSECREF resolves to the offset of the symbol from its section.
+	// Target of relocation must be size 4 (in current implementation).
+	R_DWARFSECREF
+
+	// R_DWARFFILEREF resolves to an index into the DWARF .debug_line
+	// file table for the specified file symbol. Must be applied to an
+	// attribute of form DW_FORM_data4.
+	R_DWARFFILEREF
 
 	// Platform dependent relocations. Architectures with fixed width instructions
 	// have the inherent issue that a 32-bit (or 64-bit!) displacement cannot be
@@ -160,7 +167,7 @@ const (
 
 	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
 	// inserts the displacement from the place being relocated to the address of the
-	// the relocated symbol instead of just its address.
+	// relocated symbol instead of just its address.
 	R_ADDRPOWER_PCREL
 
 	// R_ADDRPOWER_TOCREL relocates two D-form instructions like R_ADDRPOWER, but
@@ -169,7 +176,7 @@ const (
 	R_ADDRPOWER_TOCREL
 
 	// R_ADDRPOWER_TOCREL relocates a D-form, DS-form instruction sequence like
-	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the the
+	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the
 	// relocated symbol rather than the symbol's address.
 	R_ADDRPOWER_TOCREL_DS
 
@@ -183,9 +190,15 @@ const (
 	// R_ADDRMIPSTLS (only used on mips64) resolves to the low 16 bits of a TLS
 	// address (offset from thread pointer), by encoding it into the instruction.
 	R_ADDRMIPSTLS
+	// R_ADDRCUOFF resolves to a pointer-sized offset from the start of the
+	// symbol's DWARF compile unit.
+	R_ADDRCUOFF
+
+	// R_WASMIMPORT resolves to the index of the WebAssembly function import.
+	R_WASMIMPORT
 )
 
-// IsDirectJump returns whether r is a relocation for a direct jump.
+// IsDirectJump reports whether r is a relocation for a direct jump.
 // A direct jump is a CALL or JMP instruction that takes the target address
 // as immediate. The address is embedded into the instruction, possibly
 // with limited width.

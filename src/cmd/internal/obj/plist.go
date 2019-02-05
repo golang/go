@@ -19,7 +19,7 @@ type Plist struct {
 // It is used to provide access to cached/bulk-allocated Progs to the assemblers.
 type ProgAlloc func() *Prog
 
-func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
+func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string) {
 	// Build list of symbols, and assign instructions to lists.
 	var curtext *LSym
 	var etext *Prog
@@ -27,7 +27,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 
 	var plink *Prog
 	for p := plist.Firstpc; p != nil; p = plink {
-		if ctxt.Debugasm && ctxt.Debugvlog {
+		if ctxt.Debugasm > 0 && ctxt.Debugvlog {
 			fmt.Printf("obj: %v\n", p)
 		}
 		plink = p.Link
@@ -106,7 +106,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
 		ctxt.Arch.Preprocess(ctxt, s, newprog)
 		ctxt.Arch.Assemble(ctxt, s, newprog)
 		linkpcln(ctxt, s)
-		ctxt.populateDWARF(plist.Curfn, s)
+		ctxt.populateDWARF(plist.Curfn, s, myimportpath)
 	}
 }
 
@@ -119,9 +119,6 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 		ctxt.Diag("InitTextSym double init for %s", s.Name)
 	}
 	s.Func = new(FuncInfo)
-	if s.Func.Text != nil {
-		ctxt.Diag("duplicate TEXT for %s", s.Name)
-	}
 	if s.OnList() {
 		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
@@ -136,22 +133,20 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	ctxt.Text = append(ctxt.Text, s)
 
 	// Set up DWARF entries for s.
-	dsym, drsym := ctxt.dwarfSym(s)
-	dsym.Type = objabi.SDWARFINFO
-	dsym.Set(AttrDuplicateOK, s.DuplicateOK())
-	drsym.Type = objabi.SDWARFRANGE
-	drsym.Set(AttrDuplicateOK, s.DuplicateOK())
-	ctxt.Data = append(ctxt.Data, dsym)
-	ctxt.Data = append(ctxt.Data, drsym)
-
-	// Set up the function's gcargs and gclocals.
-	// They will be filled in later if needed.
-	gcargs := &s.Func.GCArgs
-	gcargs.Set(AttrDuplicateOK, true)
-	gcargs.Type = objabi.SRODATA
-	gclocals := &s.Func.GCLocals
-	gclocals.Set(AttrDuplicateOK, true)
-	gclocals.Type = objabi.SRODATA
+	info, loc, ranges, _, isstmt := ctxt.dwarfSym(s)
+	info.Type = objabi.SDWARFINFO
+	info.Set(AttrDuplicateOK, s.DuplicateOK())
+	if loc != nil {
+		loc.Type = objabi.SDWARFLOC
+		loc.Set(AttrDuplicateOK, s.DuplicateOK())
+		ctxt.Data = append(ctxt.Data, loc)
+	}
+	ranges.Type = objabi.SDWARFRANGE
+	ranges.Set(AttrDuplicateOK, s.DuplicateOK())
+	ctxt.Data = append(ctxt.Data, info, ranges)
+	isstmt.Type = objabi.SDWARFMISC
+	isstmt.Set(AttrDuplicateOK, s.DuplicateOK())
+	ctxt.Data = append(ctxt.Data, isstmt)
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
@@ -182,4 +177,28 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 	} else if flag&TLSBSS != 0 {
 		s.Type = objabi.STLSBSS
 	}
+}
+
+// EmitEntryLiveness generates PCDATA Progs after p to switch to the
+// liveness map active at the entry of function s. It returns the last
+// Prog generated.
+func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+	pcdata := Appendp(p, newprog)
+	pcdata.Pos = s.Func.Text.Pos
+	pcdata.As = APCDATA
+	pcdata.From.Type = TYPE_CONST
+	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+	pcdata.To.Type = TYPE_CONST
+	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+
+	// Same, with register map.
+	pcdata = Appendp(pcdata, newprog)
+	pcdata.Pos = s.Func.Text.Pos
+	pcdata.As = APCDATA
+	pcdata.From.Type = TYPE_CONST
+	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+	pcdata.To.Type = TYPE_CONST
+	pcdata.To.Offset = -1
+
+	return pcdata
 }

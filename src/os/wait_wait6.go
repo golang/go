@@ -14,7 +14,7 @@ import (
 const _P_PID = 0
 
 // blockUntilWaitable attempts to block until a call to p.Wait will
-// succeed immediately, and returns whether it has done so.
+// succeed immediately, and reports whether it has done so.
 // It does not actually call p.Wait.
 func (p *Process) blockUntilWaitable() (bool, error) {
 	var errno syscall.Errno
@@ -30,11 +30,6 @@ func (p *Process) blockUntilWaitable() (bool, error) {
 	}
 	runtime.KeepAlive(p)
 	if errno != 0 {
-		// The wait6 system call is supported only on FreeBSD
-		// 9.3 and above, so it may return an ENOSYS error.
-		if errno == syscall.ENOSYS {
-			return false, nil
-		}
 		return false, NewSyscallError("wait6", errno)
 	}
 	return true, nil

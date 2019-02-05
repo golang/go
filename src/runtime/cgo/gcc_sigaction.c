@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux,amd64
+// +build linux,amd64 linux,arm64
 
 #include <errno.h>
 #include <stddef.h>
@@ -33,7 +33,7 @@ x_cgo_sigaction(intptr_t signum, const go_sigaction_t *goact, go_sigaction_t *ol
 	int32_t ret;
 	struct sigaction act;
 	struct sigaction oldact;
-	int i;
+	size_t i;
 
 	_cgo_tsan_acquire();
 

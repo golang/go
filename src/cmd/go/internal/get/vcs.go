@@ -5,7 +5,6 @@
 package get
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -93,6 +92,7 @@ var vcsList = []*vcsCmd{
 	vcsGit,
 	vcsSvn,
 	vcsBzr,
+	vcsFossil,
 }
 
 // vcsByCmd returns the version control system for the given
@@ -302,15 +302,20 @@ func svnRemoteRepo(vcsSvn *vcsCmd, rootDir string) (remoteRepo string, err error
 	out := string(outb)
 
 	// Expect:
-	// ...
-	// Repository Root: <URL>
-	// ...
-
-	i := strings.Index(out, "\nRepository Root: ")
+	//
+	//	 ...
+	// 	URL: <URL>
+	// 	...
+	//
+	// Note that we're not using the Repository Root line,
+	// because svn allows checking out subtrees.
+	// The URL will be the URL of the subtree (what we used with 'svn co')
+	// while the Repository Root may be a much higher parent.
+	i := strings.Index(out, "\nURL: ")
 	if i < 0 {
 		return "", fmt.Errorf("unable to parse output of svn info")
 	}
-	out = out[i+len("\nRepository Root: "):]
+	out = out[i+len("\nURL: "):]
 	i = strings.Index(out, "\n")
 	if i < 0 {
 		return "", fmt.Errorf("unable to parse output of svn info")
@@ -319,12 +324,40 @@ func svnRemoteRepo(vcsSvn *vcsCmd, rootDir string) (remoteRepo string, err error
 	return strings.TrimSpace(out), nil
 }
 
+// fossilRepoName is the name go get associates with a fossil repository. In the
+// real world the file can be named anything.
+const fossilRepoName = ".fossil"
+
+// vcsFossil describes how to use Fossil (fossil-scm.org)
+var vcsFossil = &vcsCmd{
+	name: "Fossil",
+	cmd:  "fossil",
+
+	createCmd:   []string{"-go-internal-mkdir {dir} clone {repo} " + filepath.Join("{dir}", fossilRepoName), "-go-internal-cd {dir} open .fossil"},
+	downloadCmd: []string{"up"},
+
+	tagCmd:         []tagCmd{{"tag ls", `(.*)`}},
+	tagSyncCmd:     []string{"up tag:{tag}"},
+	tagSyncDefault: []string{"up trunk"},
+
+	scheme:     []string{"https", "http"},
+	remoteRepo: fossilRemoteRepo,
+}
+
+func fossilRemoteRepo(vcsFossil *vcsCmd, rootDir string) (remoteRepo string, err error) {
+	out, err := vcsFossil.runOutput(rootDir, "remote-url")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 func (v *vcsCmd) String() string {
 	return v.name
 }
 
 // run runs the command line cmd in the given directory.
-// keyval is a list of key, value pairs.  run expands
+// keyval is a list of key, value pairs. run expands
 // instances of {key} in cmd into value, but only after
 // splitting cmd into individual arguments.
 // If an error occurs, run prints the command line and the
@@ -357,6 +390,19 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 		args[i] = expand(m, arg)
 	}
 
+	if len(args) >= 2 && args[0] == "-go-internal-mkdir" {
+		var err error
+		if filepath.IsAbs(args[1]) {
+			err = os.Mkdir(args[1], os.ModePerm)
+		} else {
+			err = os.Mkdir(filepath.Join(dir, args[1]), os.ModePerm)
+		}
+		if err != nil {
+			return nil, err
+		}
+		args = args[2:]
+	}
+
 	if len(args) >= 2 && args[0] == "-go-internal-cd" {
 		if filepath.IsAbs(args[1]) {
 			dir = args[1]
@@ -381,19 +427,18 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 		fmt.Printf("cd %s\n", dir)
 		fmt.Printf("%s %s\n", v.cmd, strings.Join(args, " "))
 	}
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
-	err = cmd.Run()
-	out := buf.Bytes()
+	out, err := cmd.Output()
 	if err != nil {
 		if verbose || cfg.BuildV {
 			fmt.Fprintf(os.Stderr, "# cd %s; %s %s\n", dir, v.cmd, strings.Join(args, " "))
-			os.Stderr.Write(out)
+			if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+				os.Stderr.Write(ee.Stderr)
+			} else {
+				fmt.Fprintf(os.Stderr, err.Error())
+			}
 		}
-		return out, err
 	}
-	return out, nil
+	return out, err
 }
 
 // ping pings to determine scheme to use.
@@ -501,11 +546,28 @@ func vcsFromDir(dir, srcRoot string) (vcs *vcsCmd, root string, err error) {
 		return nil, "", fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
 	}
 
+	var vcsRet *vcsCmd
+	var rootRet string
+
 	origDir := dir
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
 			if _, err := os.Stat(filepath.Join(dir, "."+vcs.cmd)); err == nil {
-				return vcs, filepath.ToSlash(dir[len(srcRoot)+1:]), nil
+				root := filepath.ToSlash(dir[len(srcRoot)+1:])
+				// Record first VCS we find, but keep looking,
+				// to detect mistakes like one kind of VCS inside another.
+				if vcsRet == nil {
+					vcsRet = vcs
+					rootRet = root
+					continue
+				}
+				// Allow .git inside .git, which can arise due to submodules.
+				if vcsRet == vcs && vcs.cmd == "git" {
+					continue
+				}
+				// Otherwise, we have one VCS inside a different VCS.
+				return nil, "", fmt.Errorf("directory %q uses %s, but parent %q uses %s",
+					filepath.Join(srcRoot, rootRet), vcsRet.cmd, filepath.Join(srcRoot, root), vcs.cmd)
 			}
 		}
 
@@ -518,40 +580,74 @@ func vcsFromDir(dir, srcRoot string) (vcs *vcsCmd, root string, err error) {
 		dir = ndir
 	}
 
+	if vcsRet != nil {
+		return vcsRet, rootRet, nil
+	}
+
 	return nil, "", fmt.Errorf("directory %q is not using a known version control system", origDir)
 }
 
-// repoRoot represents a version control system, a repo, and a root of
-// where to put it on disk.
-type repoRoot struct {
-	vcs *vcsCmd
+// checkNestedVCS checks for an incorrectly-nested VCS-inside-VCS
+// situation for dir, checking parents up until srcRoot.
+func checkNestedVCS(vcs *vcsCmd, dir, srcRoot string) error {
+	if len(dir) <= len(srcRoot) || dir[len(srcRoot)] != filepath.Separator {
+		return fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
+	}
 
-	// repo is the repository URL, including scheme
-	repo string
+	otherDir := dir
+	for len(otherDir) > len(srcRoot) {
+		for _, otherVCS := range vcsList {
+			if _, err := os.Stat(filepath.Join(otherDir, "."+otherVCS.cmd)); err == nil {
+				// Allow expected vcs in original dir.
+				if otherDir == dir && otherVCS == vcs {
+					continue
+				}
+				// Allow .git inside .git, which can arise due to submodules.
+				if otherVCS == vcs && vcs.cmd == "git" {
+					continue
+				}
+				// Otherwise, we have one VCS inside a different VCS.
+				return fmt.Errorf("directory %q uses %s, but parent %q uses %s", dir, vcs.cmd, otherDir, otherVCS.cmd)
+			}
+		}
+		// Move to parent.
+		newDir := filepath.Dir(otherDir)
+		if len(newDir) >= len(otherDir) {
+			// Shouldn't happen, but just in case, stop.
+			break
+		}
+		otherDir = newDir
+	}
 
-	// root is the import path corresponding to the root of the
-	// repository
-	root string
+	return nil
+}
 
-	// isCustom is true for custom import paths (those defined by HTML meta tags)
-	isCustom bool
+// RepoRoot describes the repository root for a tree of source code.
+type RepoRoot struct {
+	Repo     string // repository URL, including scheme
+	Root     string // import path corresponding to root of repo
+	IsCustom bool   // defined by served <meta> tags (as opposed to hard-coded pattern)
+	VCS      string // vcs type ("mod", "git", ...)
+
+	vcs *vcsCmd // internal: vcs command access
 }
 
 var httpPrefixRE = regexp.MustCompile(`^https?:`)
 
-// repoRootForImportPath analyzes importPath to determine the
+// ModuleMode specifies whether to prefer modules when looking up code sources.
+type ModuleMode int
+
+const (
+	IgnoreMod ModuleMode = iota
+	PreferMod
+)
+
+// RepoRootForImportPath analyzes importPath to determine the
 // version control system, and code repository to use.
-func repoRootForImportPath(importPath string, security web.SecurityMode) (*repoRoot, error) {
+func RepoRootForImportPath(importPath string, mod ModuleMode, security web.SecurityMode) (*RepoRoot, error) {
 	rr, err := repoRootFromVCSPaths(importPath, "", security, vcsPaths)
 	if err == errUnknownSite {
-		// If there are wildcards, look up the thing before the wildcard,
-		// hoping it applies to the wildcarded parts too.
-		// This makes 'go get rsc.io/pdf/...' work in a fresh GOPATH.
-		lookup := strings.TrimSuffix(importPath, "/...")
-		if i := strings.Index(lookup, "/.../"); i >= 0 {
-			lookup = lookup[:i]
-		}
-		rr, err = repoRootForImportDynamic(lookup, security)
+		rr, err = repoRootForImportDynamic(importPath, mod, security)
 		if err != nil {
 			err = fmt.Errorf("unrecognized import path %q (%v)", importPath, err)
 		}
@@ -564,7 +660,8 @@ func repoRootForImportPath(importPath string, security web.SecurityMode) (*repoR
 		}
 	}
 
-	if err == nil && strings.Contains(importPath, "...") && strings.Contains(rr.root, "...") {
+	// Should have been taken care of above, but make sure.
+	if err == nil && strings.Contains(importPath, "...") && strings.Contains(rr.Root, "...") {
 		// Do not allow wildcards in the repo root.
 		rr = nil
 		err = fmt.Errorf("cannot expand ... in %q", importPath)
@@ -577,7 +674,7 @@ var errUnknownSite = errors.New("dynamic lookup required to find mapping")
 // repoRootFromVCSPaths attempts to map importPath to a repoRoot
 // using the mappings defined in vcsPaths.
 // If scheme is non-empty, that scheme is forced.
-func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, vcsPaths []*vcsPath) (*repoRoot, error) {
+func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, vcsPaths []*vcsPath) (*RepoRoot, error) {
 	// A common error is to use https://packagepath because that's what
 	// hg and git require. Diagnose this helpfully.
 	if loc := httpPrefixRE.FindStringIndex(importPath); loc != nil {
@@ -630,28 +727,32 @@ func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, 
 					if security == web.Secure && !vcs.isSecureScheme(scheme) {
 						continue
 					}
-					if vcs.ping(scheme, match["repo"]) == nil {
+					if vcs.pingCmd != "" && vcs.ping(scheme, match["repo"]) == nil {
 						match["repo"] = scheme + "://" + match["repo"]
-						break
+						goto Found
 					}
 				}
+				// No scheme found. Fall back to the first one.
+				match["repo"] = vcs.scheme[0] + "://" + match["repo"]
+			Found:
 			}
 		}
-		rr := &repoRoot{
+		rr := &RepoRoot{
+			Repo: match["repo"],
+			Root: match["root"],
+			VCS:  vcs.cmd,
 			vcs:  vcs,
-			repo: match["repo"],
-			root: match["root"],
 		}
 		return rr, nil
 	}
 	return nil, errUnknownSite
 }
 
-// repoRootForImportDynamic finds a *repoRoot for a custom domain that's not
+// repoRootForImportDynamic finds a *RepoRoot for a custom domain that's not
 // statically known by repoRootForImportPathStatic.
 //
 // This handles custom import paths like "name.tld/pkg/foo" or just "name.tld".
-func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*repoRoot, error) {
+func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.SecurityMode) (*RepoRoot, error) {
 	slash := strings.Index(importPath, "/")
 	if slash < 0 {
 		slash = len(importPath)
@@ -669,7 +770,7 @@ func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*re
 		return nil, fmt.Errorf(msg, err)
 	}
 	defer body.Close()
-	imports, err := parseMetaGoImports(body)
+	imports, err := parseMetaGoImports(body, mod)
 	if err != nil {
 		return nil, fmt.Errorf("parsing %s: %v", importPath, err)
 	}
@@ -688,7 +789,7 @@ func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*re
 	// prefix was "uni.edu" and the RepoRoot was "evilroot.com",
 	// make sure we don't trust Bob and check out evilroot.com to
 	// "uni.edu" yet (possibly overwriting/preempting another
-	// non-evil student).  Instead, first verify the root and see
+	// non-evil student). Instead, first verify the root and see
 	// if it matches Bob's claim.
 	if mmi.Prefix != importPath {
 		if cfg.BuildV {
@@ -696,7 +797,7 @@ func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*re
 		}
 		urlStr0 := urlStr
 		var imports []metaImport
-		urlStr, imports, err = metaImportsForPrefix(mmi.Prefix, security)
+		urlStr, imports, err = metaImportsForPrefix(mmi.Prefix, mod, security)
 		if err != nil {
 			return nil, err
 		}
@@ -706,19 +807,35 @@ func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*re
 		}
 	}
 
-	if !strings.Contains(mmi.RepoRoot, "://") {
-		return nil, fmt.Errorf("%s: invalid repo root %q; no scheme", urlStr, mmi.RepoRoot)
+	if err := validateRepoRoot(mmi.RepoRoot); err != nil {
+		return nil, fmt.Errorf("%s: invalid repo root %q: %v", urlStr, mmi.RepoRoot, err)
 	}
-	rr := &repoRoot{
-		vcs:      vcsByCmd(mmi.VCS),
-		repo:     mmi.RepoRoot,
-		root:     mmi.Prefix,
-		isCustom: true,
-	}
-	if rr.vcs == nil {
+	vcs := vcsByCmd(mmi.VCS)
+	if vcs == nil && mmi.VCS != "mod" {
 		return nil, fmt.Errorf("%s: unknown vcs %q", urlStr, mmi.VCS)
 	}
+
+	rr := &RepoRoot{
+		Repo:     mmi.RepoRoot,
+		Root:     mmi.Prefix,
+		IsCustom: true,
+		VCS:      mmi.VCS,
+		vcs:      vcs,
+	}
 	return rr, nil
+}
+
+// validateRepoRoot returns an error if repoRoot does not seem to be
+// a valid URL with scheme.
+func validateRepoRoot(repoRoot string) error {
+	url, err := url.Parse(repoRoot)
+	if err != nil {
+		return err
+	}
+	if url.Scheme == "" {
+		return errors.New("no scheme")
+	}
+	return nil
 }
 
 var fetchGroup singleflight.Group
@@ -735,7 +852,7 @@ var (
 // It is an error if no imports are found.
 // urlStr will still be valid if err != nil.
 // The returned urlStr will be of the form "https://golang.org/x/tools?go-get=1"
-func metaImportsForPrefix(importPrefix string, security web.SecurityMode) (urlStr string, imports []metaImport, err error) {
+func metaImportsForPrefix(importPrefix string, mod ModuleMode, security web.SecurityMode) (urlStr string, imports []metaImport, err error) {
 	setCache := func(res fetchResult) (fetchResult, error) {
 		fetchCacheMu.Lock()
 		defer fetchCacheMu.Unlock()
@@ -755,7 +872,7 @@ func metaImportsForPrefix(importPrefix string, security web.SecurityMode) (urlSt
 		if err != nil {
 			return setCache(fetchResult{urlStr: urlStr, err: fmt.Errorf("fetch %s: %v", urlStr, err)})
 		}
-		imports, err := parseMetaGoImports(body)
+		imports, err := parseMetaGoImports(body, mod)
 		if err != nil {
 			return setCache(fetchResult{urlStr: urlStr, err: fmt.Errorf("parsing %s: %v", urlStr, err)})
 		}
@@ -780,16 +897,16 @@ type metaImport struct {
 	Prefix, VCS, RepoRoot string
 }
 
-func splitPathHasPrefix(path, prefix []string) bool {
-	if len(path) < len(prefix) {
+// pathPrefix reports whether sub is a prefix of s,
+// only considering entire path components.
+func pathPrefix(s, sub string) bool {
+	// strings.HasPrefix is necessary but not sufficient.
+	if !strings.HasPrefix(s, sub) {
 		return false
 	}
-	for i, p := range prefix {
-		if path[i] != p {
-			return false
-		}
-	}
-	return true
+	// The remainder after the prefix must either be empty or start with a slash.
+	rem := s[len(sub):]
+	return rem == "" || rem[0] == '/'
 }
 
 // A ImportMismatchError is returned where metaImport/s are present
@@ -812,18 +929,21 @@ func (m ImportMismatchError) Error() string {
 // errNoMatch is returned if none match.
 func matchGoImport(imports []metaImport, importPath string) (metaImport, error) {
 	match := -1
-	imp := strings.Split(importPath, "/")
 
 	errImportMismatch := ImportMismatchError{importPath: importPath}
 	for i, im := range imports {
-		pre := strings.Split(im.Prefix, "/")
-
-		if !splitPathHasPrefix(imp, pre) {
+		if !pathPrefix(importPath, im.Prefix) {
 			errImportMismatch.mismatches = append(errImportMismatch.mismatches, im.Prefix)
 			continue
 		}
 
-		if match != -1 {
+		if match >= 0 {
+			if imports[match].VCS == "mod" && im.VCS != "mod" {
+				// All the mod entries precede all the non-mod entries.
+				// We have a mod entry and don't care about the rest,
+				// matching or not.
+				break
+			}
 			return metaImport{}, fmt.Errorf("multiple meta tags match import path %q", importPath)
 		}
 		match = i
@@ -837,10 +957,14 @@ func matchGoImport(imports []metaImport, importPath string) (metaImport, error) 
 
 // expand rewrites s to replace {k} with match[k] for each key k in match.
 func expand(match map[string]string, s string) string {
+	// We want to replace each match exactly once, and the result of expansion
+	// must not depend on the iteration order through the map.
+	// A strings.Replacer has exactly the properties we're looking for.
+	oldNew := make([]string, 0, 2*len(match))
 	for k, v := range match {
-		s = strings.Replace(s, "{"+k+"}", v, -1)
+		oldNew = append(oldNew, "{"+k+"}", v)
 	}
-	return s
+	return strings.NewReplacer(oldNew...).Replace(s)
 }
 
 // vcsPaths defines the meaning of import paths referring to
@@ -867,8 +991,8 @@ var vcsPaths = []*vcsPath{
 
 	// IBM DevOps Services (JazzHub)
 	{
-		prefix: "hub.jazz.net/git",
-		re:     `^(?P<root>hub.jazz.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
+		prefix: "hub.jazz.net/git/",
+		re:     `^(?P<root>hub\.jazz\.net/git/[a-z0-9]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "git",
 		repo:   "https://{root}",
 		check:  noVCSSuffix,
@@ -876,24 +1000,32 @@ var vcsPaths = []*vcsPath{
 
 	// Git at Apache
 	{
-		prefix: "git.apache.org",
-		re:     `^(?P<root>git.apache.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
+		prefix: "git.apache.org/",
+		re:     `^(?P<root>git\.apache\.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "git",
 		repo:   "https://{root}",
 	},
 
 	// Git at OpenStack
 	{
-		prefix: "git.openstack.org",
+		prefix: "git.openstack.org/",
 		re:     `^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "git",
+		repo:   "https://{root}",
+	},
+
+	// chiselapp.com for fossil
+	{
+		prefix: "chiselapp.com/",
+		re:     `^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-Za-z0-9_.\-]+)$`,
+		vcs:    "fossil",
 		repo:   "https://{root}",
 	},
 
 	// General syntax for any server.
 	// Must be last.
 	{
-		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[A-Za-z0-9_.\-]+)+?)\.(?P<vcs>bzr|git|hg|svn))(/~?[A-Za-z0-9_.\-]+)*$`,
+		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[A-Za-z0-9_.\-]+)+?)\.(?P<vcs>bzr|fossil|git|hg|svn))(/~?[A-Za-z0-9_.\-]+)*$`,
 		ping: true,
 	},
 }

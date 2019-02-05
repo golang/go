@@ -244,7 +244,7 @@ func (t *node32) max() *node32 {
 }
 
 func (t *node32) glb(key int32, allow_eq bool) *node32 {
-	var best *node32 = nil
+	var best *node32
 	for t != nil {
 		if key <= t.key {
 			if key == t.key && allow_eq {
@@ -262,7 +262,7 @@ func (t *node32) glb(key int32, allow_eq bool) *node32 {
 }
 
 func (t *node32) lub(key int32, allow_eq bool) *node32 {
-	var best *node32 = nil
+	var best *node32
 	for t != nil {
 		if key >= t.key {
 			if key == t.key && allow_eq {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package runtime_test
 
@@ -24,11 +24,24 @@ import (
 // Send SIGQUIT to get a stack trace.
 var sigquit = syscall.SIGQUIT
 
+func init() {
+	if runtime.Sigisblocked(int(syscall.SIGQUIT)) {
+		// We can't use SIGQUIT to kill subprocesses because
+		// it's blocked. Use SIGKILL instead. See issue
+		// #19196 for an example of when this happens.
+		sigquit = syscall.SIGKILL
+	}
+}
+
 func TestCrashDumpsAllThreads(t *testing.T) {
 	switch runtime.GOOS {
 	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
 	default:
 		t.Skipf("skipping; not supported on %v", runtime.GOOS)
+	}
+
+	if runtime.Sigisblocked(int(syscall.SIGQUIT)) {
+		t.Skip("skipping; SIGQUIT is blocked, see golang.org/issue/19196")
 	}
 
 	// We don't use executeTest because we need to kill the
@@ -52,13 +65,13 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
 	cmd.Dir = dir
-	out, err := testEnv(cmd).CombinedOutput()
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
 		t.Fatalf("building source: %v\n%s", err, out)
 	}
 
 	cmd = exec.Command(filepath.Join(dir, "a.exe"))
-	cmd = testEnv(cmd)
+	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
 
 	// Set GOGC=off. Because of golang.org/issue/10958, the tight
@@ -165,9 +178,13 @@ func TestPanicSystemstack(t *testing.T) {
 		t.Skip("Skipping in short mode (GOTRACEBACK=crash is slow)")
 	}
 
+	if runtime.Sigisblocked(int(syscall.SIGQUIT)) {
+		t.Skip("skipping; SIGQUIT is blocked, see golang.org/issue/19196")
+	}
+
 	t.Parallel()
 	cmd := exec.Command(os.Args[0], "testPanicSystemstackInternal")
-	cmd = testEnv(cmd)
+	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
 	pr, pw, err := os.Pipe()
 	if err != nil {
@@ -232,7 +249,7 @@ func TestSignalExitStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = testEnv(exec.Command(exe, "SignalExitStatus")).Run()
+	err = testenv.CleanCmdEnv(exec.Command(exe, "SignalExitStatus")).Run()
 	if err == nil {
 		t.Error("test program succeeded unexpectedly")
 	} else if ee, ok := err.(*exec.ExitError); !ok {
@@ -246,6 +263,19 @@ func TestSignalExitStatus(t *testing.T) {
 
 func TestSignalIgnoreSIGTRAP(t *testing.T) {
 	output := runTestProg(t, "testprognet", "SignalIgnoreSIGTRAP")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
+func TestSignalDuringExec(t *testing.T) {
+	switch runtime.GOOS {
+	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
+	default:
+		t.Skipf("skipping test on %s", runtime.GOOS)
+	}
+	output := runTestProg(t, "testprognet", "SignalDuringExec")
 	want := "OK\n"
 	if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)

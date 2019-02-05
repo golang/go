@@ -72,6 +72,7 @@ type stackValState struct {
 	typ      *types.Type
 	spill    *Value
 	needSlot bool
+	isArg    bool
 }
 
 // stackalloc allocates storage in the stack frame for
@@ -109,7 +110,8 @@ func (s *stackAllocState) init(f *Func, spillLive [][]ID) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			s.values[v.ID].typ = v.Type
-			s.values[v.ID].needSlot = !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && f.getHome(v.ID) == nil && !v.rematerializeable()
+			s.values[v.ID].needSlot = !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && f.getHome(v.ID) == nil && !v.rematerializeable() && !v.OnWasmStack
+			s.values[v.ID].isArg = v.Op == OpArg
 			if f.pass.debug > stackDebug && s.values[v.ID].needSlot {
 				fmt.Printf("%s needs a stack slot\n", v)
 			}
@@ -151,9 +153,9 @@ func (s *stackAllocState) stackalloc() {
 		if v.Op != OpArg {
 			continue
 		}
-		loc := LocalSlot{v.Aux.(GCNode), v.Type, v.AuxInt}
+		loc := LocalSlot{N: v.Aux.(GCNode), Type: v.Type, Off: v.AuxInt}
 		if f.pass.debug > stackDebug {
-			fmt.Printf("stackalloc %s to %s\n", v, loc.Name())
+			fmt.Printf("stackalloc %s to %s\n", v, loc)
 		}
 		f.setHome(v, loc)
 	}
@@ -210,13 +212,13 @@ func (s *stackAllocState) stackalloc() {
 					h := f.getHome(id)
 					if h != nil && h.(LocalSlot).N == name.N && h.(LocalSlot).Off == name.Off {
 						// A variable can interfere with itself.
-						// It is rare, but but it can happen.
+						// It is rare, but it can happen.
 						s.nSelfInterfere++
 						goto noname
 					}
 				}
 				if f.pass.debug > stackDebug {
-					fmt.Printf("stackalloc %s to %s\n", v, name.Name())
+					fmt.Printf("stackalloc %s to %s\n", v, name)
 				}
 				s.nNamedSlot++
 				f.setHome(v, name)
@@ -253,7 +255,7 @@ func (s *stackAllocState) stackalloc() {
 			// Use the stack variable at that index for v.
 			loc := locs[i]
 			if f.pass.debug > stackDebug {
-				fmt.Printf("stackalloc %s to %s\n", v, loc.Name())
+				fmt.Printf("stackalloc %s to %s\n", v, loc)
 			}
 			f.setHome(v, loc)
 			slots[v.ID] = i
@@ -377,7 +379,9 @@ func (s *stackAllocState) buildInterferenceGraph() {
 			if s.values[v.ID].needSlot {
 				live.remove(v.ID)
 				for _, id := range live.contents() {
-					if s.values[v.ID].typ.Compare(s.values[id].typ) == types.CMPeq {
+					// Note: args can have different types and still interfere
+					// (with each other or with other values). See issue 23522.
+					if s.values[v.ID].typ.Compare(s.values[id].typ) == types.CMPeq || v.Op == OpArg || s.values[id].isArg {
 						s.interfere[v.ID] = append(s.interfere[v.ID], id)
 						s.interfere[id] = append(s.interfere[id], v.ID)
 					}

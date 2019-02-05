@@ -47,11 +47,15 @@ func ExampleClean() {
 func ExampleDir() {
 	fmt.Println(path.Dir("/a/b/c"))
 	fmt.Println(path.Dir("a/b/c"))
+	fmt.Println(path.Dir("/a/"))
+	fmt.Println(path.Dir("a/"))
 	fmt.Println(path.Dir("/"))
 	fmt.Println(path.Dir(""))
 	// Output:
 	// /a/b
 	// a/b
+	// /a
+	// a
 	// /
 	// .
 }
@@ -85,6 +89,16 @@ func ExampleJoin() {
 	//
 	// a
 	// a
+}
+
+func ExampleMatch() {
+	fmt.Println(path.Match("abc", "abc"))
+	fmt.Println(path.Match("a*", "abc"))
+	fmt.Println(path.Match("a*/b", "a/c/b"))
+	// Output:
+	// true <nil>
+	// true <nil>
+	// false <nil>
 }
 
 func ExampleSplit() {

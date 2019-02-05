@@ -1,6 +1,15 @@
 package main
 
-import "testing"
+import (
+	"internal/testenv"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"testing"
+)
 
 var AuthorPaidByTheColumnInch struct {
 	fog int `
@@ -27,4 +36,138 @@ func TestLargeSymName(t *testing.T) {
 	// type. This tests that the linker can read symbol names larger than
 	// the bufio buffer. Issue #15104.
 	_ = AuthorPaidByTheColumnInch
+}
+
+func TestIssue21703(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	const source = `
+package main
+const X = "\n!\n"
+func main() {}
+`
+
+	tmpdir, err := ioutil.TempDir("", "issue21703")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v\n", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	err = ioutil.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
+	if err != nil {
+		t.Fatalf("failed to write main.go: %v\n", err)
+	}
+
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "main.go")
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to compile main.go: %v, output: %s\n", err, out)
+	}
+
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "main.o")
+	cmd.Dir = tmpdir
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to link main.o: %v, output: %s\n", err, out)
+	}
+}
+
+// TestIssue28429 ensures that the linker does not attempt to link
+// sections not named *.o. Such sections may be used by a build system
+// to, for example, save facts produced by a modular static analysis
+// such as golang.org/x/tools/go/analysis.
+func TestIssue28429(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "issue28429-")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	write := func(name, content string) {
+		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	runGo := func(args ...string) {
+		cmd := exec.Command(testenv.GoToolPath(t), args...)
+		cmd.Dir = tmpdir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("'go %s' failed: %v, output: %s",
+				strings.Join(args, " "), err, out)
+		}
+	}
+
+	// Compile a main package.
+	write("main.go", "package main; func main() {}")
+	runGo("tool", "compile", "-p", "main", "main.go")
+	runGo("tool", "pack", "c", "main.a", "main.o")
+
+	// Add an extra section with a short, non-.o name.
+	// This simulates an alternative build system.
+	write(".facts", "this is not an object file")
+	runGo("tool", "pack", "r", "main.a", ".facts")
+
+	// Verify that the linker does not attempt
+	// to compile the extra section.
+	runGo("tool", "link", "main.a")
+}
+
+func TestUnresolved(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "unresolved-")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	write := func(name, content string) {
+		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Test various undefined references. Because of issue #29852,
+	// this used to give confusing error messages because the
+	// linker would find an undefined reference to "zero" created
+	// by the runtime package.
+
+	write("main.go", `package main
+
+func main() {
+        x()
+}
+
+func x()
+`)
+	write("main.s", `
+TEXT ·x(SB),0,$0
+        MOVD zero<>(SB), AX
+        MOVD zero(SB), AX
+        MOVD ·zero(SB), AX
+        RET
+`)
+	cmd := exec.Command(testenv.GoToolPath(t), "build")
+	cmd.Dir = tmpdir
+	cmd.Env = append(os.Environ(), []string{"GOARCH=amd64", "GOOS=linux"}...)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected build to fail, but it succeeded")
+	}
+	out = regexp.MustCompile("(?m)^#.*\n").ReplaceAll(out, nil)
+	got := string(out)
+	want := `main.x: relocation target zero not defined
+main.x: relocation target zero not defined
+main.x: relocation target main.zero not defined
+`
+	if want != got {
+		t.Fatalf("want:\n%sgot:\n%s", want, got)
+	}
 }

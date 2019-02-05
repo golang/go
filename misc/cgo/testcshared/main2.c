@@ -9,7 +9,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#define fd (100)
+#define fd (30)
 
 // Tests libgo2.so, which does not export any functions.
 // Read a string from the file descriptor and print it.
@@ -21,7 +21,7 @@ int main(void) {
 
   // The descriptor will be initialized in a thread, so we have to
   // give a chance to get opened.
-  for (i = 0; i < 1000; i++) {
+  for (i = 0; i < 200; i++) {
     n = read(fd, buf, sizeof buf);
     if (n >= 0)
       break;
@@ -33,7 +33,7 @@ int main(void) {
     // An EBADF error means that the shared library has not opened the
     // descriptor yet.
     ts.tv_sec = 0;
-    ts.tv_nsec = 1000000;
+    ts.tv_nsec = 10000000;
     nanosleep(&ts, NULL);
   }
 

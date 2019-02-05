@@ -19,14 +19,12 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$8
-	MOVL	$0, 0(SP)
-	MOVL	$0, 4(SP)		// arg 1 - notdead
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVL	$302, AX		// sys___threxit
 	INT	$0x80
-	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
@@ -118,7 +116,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$36
 	STOSL
 	MOVL	$197, AX		// sys_mmap
 	INT	$0x80
-	MOVL	AX, ret+24(FP)
+	JAE	ok
+	MOVL	$0, p+24(FP)
+	MOVL	AX, err+28(FP)
+	RET
+ok:
+	MOVL	AX, p+24(FP)
+	MOVL	$0, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$-4
@@ -132,7 +136,8 @@ TEXT runtime·madvise(SB),NOSPLIT,$-4
 	MOVL	$75, AX			// sys_madvise
 	INT	$0x80
 	JAE	2(PC)
-	MOVL	$0xf1, 0xf1		// crash
+	MOVL	$-1, AX
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$-4
@@ -290,7 +295,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
 	CALL	runtime·settls(SB)
 	POPL	AX
 	POPAL
-	
+
 	// Now segment is established. Initialize m, g.
 	get_tls(AX)
 	MOVL	DX, g(AX)
@@ -308,7 +313,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
 	// Call fn.
 	CALL	SI
 
-	CALL	runtime·exit1(SB)
+	// fn should never return.
 	MOVL	$0x1234, 0x1005
 	RET
 

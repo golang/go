@@ -1321,6 +1321,7 @@ func TestUnexportedFields(t *testing.T) {
 var singletons = []interface{}{
 	true,
 	7,
+	uint(10),
 	3.2,
 	"hello",
 	[3]int{11, 22, 33},
@@ -1476,6 +1477,10 @@ func TestFuzzOneByte(t *testing.T) {
 	for i := 0; i < len(s); i++ {
 		switch i {
 		case 14, 167, 231, 265: // a slice length, corruptions are not handled yet.
+			continue
+		case 248:
+			// Large map size, which currently causes an out of memory panic.
+			// See golang.org/issue/24308 and golang.org/issue/20221.
 			continue
 		}
 		indices = append(indices, i)

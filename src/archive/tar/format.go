@@ -4,37 +4,132 @@
 
 package tar
 
+import "strings"
+
+// Format represents the tar archive format.
+//
+// The original tar format was introduced in Unix V7.
+// Since then, there have been multiple competing formats attempting to
+// standardize or extend the V7 format to overcome its limitations.
+// The most common formats are the USTAR, PAX, and GNU formats,
+// each with their own advantages and limitations.
+//
+// The following table captures the capabilities of each format:
+//
+//	                  |  USTAR |       PAX |       GNU
+//	------------------+--------+-----------+----------
+//	Name              |   256B | unlimited | unlimited
+//	Linkname          |   100B | unlimited | unlimited
+//	Size              | uint33 | unlimited |    uint89
+//	Mode              | uint21 |    uint21 |    uint57
+//	Uid/Gid           | uint21 | unlimited |    uint57
+//	Uname/Gname       |    32B | unlimited |       32B
+//	ModTime           | uint33 | unlimited |     int89
+//	AccessTime        |    n/a | unlimited |     int89
+//	ChangeTime        |    n/a | unlimited |     int89
+//	Devmajor/Devminor | uint21 |    uint21 |    uint57
+//	------------------+--------+-----------+----------
+//	string encoding   |  ASCII |     UTF-8 |    binary
+//	sub-second times  |     no |       yes |        no
+//	sparse files      |     no |       yes |       yes
+//
+// The table's upper portion shows the Header fields, where each format reports
+// the maximum number of bytes allowed for each string field and
+// the integer type used to store each numeric field
+// (where timestamps are stored as the number of seconds since the Unix epoch).
+//
+// The table's lower portion shows specialized features of each format,
+// such as supported string encodings, support for sub-second timestamps,
+// or support for sparse files.
+//
+// The Writer currently provides no support for sparse files.
+type Format int
+
 // Constants to identify various tar formats.
 const (
-	// The format is unknown.
-	formatUnknown = (1 << iota) / 2 // Sequence of 0, 1, 2, 4, 8, etc...
+	// Deliberately hide the meaning of constants from public API.
+	_ Format = (1 << iota) / 4 // Sequence of 0, 0, 1, 2, 4, 8, etc...
+
+	// FormatUnknown indicates that the format is unknown.
+	FormatUnknown
 
 	// The format of the original Unix V7 tar tool prior to standardization.
 	formatV7
 
-	// The old and new GNU formats, which are incompatible with USTAR.
-	// This does cover the old GNU sparse extension.
-	// This does not cover the GNU sparse extensions using PAX headers,
-	// versions 0.0, 0.1, and 1.0; these fall under the PAX format.
-	formatGNU
+	// FormatUSTAR represents the USTAR header format defined in POSIX.1-1988.
+	//
+	// While this format is compatible with most tar readers,
+	// the format has several limitations making it unsuitable for some usages.
+	// Most notably, it cannot support sparse files, files larger than 8GiB,
+	// filenames larger than 256 characters, and non-ASCII filenames.
+	//
+	// Reference:
+	//	http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_06
+	FormatUSTAR
+
+	// FormatPAX represents the PAX header format defined in POSIX.1-2001.
+	//
+	// PAX extends USTAR by writing a special file with Typeflag TypeXHeader
+	// preceding the original header. This file contains a set of key-value
+	// records, which are used to overcome USTAR's shortcomings, in addition to
+	// providing the ability to have sub-second resolution for timestamps.
+	//
+	// Some newer formats add their own extensions to PAX by defining their
+	// own keys and assigning certain semantic meaning to the associated values.
+	// For example, sparse file support in PAX is implemented using keys
+	// defined by the GNU manual (e.g., "GNU.sparse.map").
+	//
+	// Reference:
+	//	http://pubs.opengroup.org/onlinepubs/009695399/utilities/pax.html
+	FormatPAX
+
+	// FormatGNU represents the GNU header format.
+	//
+	// The GNU header format is older than the USTAR and PAX standards and
+	// is not compatible with them. The GNU format supports
+	// arbitrary file sizes, filenames of arbitrary encoding and length,
+	// sparse files, and other features.
+	//
+	// It is recommended that PAX be chosen over GNU unless the target
+	// application can only parse GNU formatted archives.
+	//
+	// Reference:
+	//	https://www.gnu.org/software/tar/manual/html_node/Standard.html
+	FormatGNU
 
 	// Schily's tar format, which is incompatible with USTAR.
 	// This does not cover STAR extensions to the PAX format; these fall under
 	// the PAX format.
 	formatSTAR
 
-	// USTAR is the former standardization of tar defined in POSIX.1-1988.
-	// This is incompatible with the GNU and STAR formats.
-	formatUSTAR
-
-	// PAX is the latest standardization of tar defined in POSIX.1-2001.
-	// This is an extension of USTAR and is "backwards compatible" with it.
-	//
-	// Some newer formats add their own extensions to PAX, such as GNU sparse
-	// files and SCHILY extended attributes. Since they are backwards compatible
-	// with PAX, they will be labelled as "PAX".
-	formatPAX
+	formatMax
 )
+
+func (f Format) has(f2 Format) bool   { return f&f2 != 0 }
+func (f *Format) mayBe(f2 Format)     { *f |= f2 }
+func (f *Format) mayOnlyBe(f2 Format) { *f &= f2 }
+func (f *Format) mustNotBe(f2 Format) { *f &^= f2 }
+
+var formatNames = map[Format]string{
+	formatV7: "V7", FormatUSTAR: "USTAR", FormatPAX: "PAX", FormatGNU: "GNU", formatSTAR: "STAR",
+}
+
+func (f Format) String() string {
+	var ss []string
+	for f2 := Format(1); f2 < formatMax; f2 <<= 1 {
+		if f.has(f2) {
+			ss = append(ss, formatNames[f2])
+		}
+	}
+	switch len(ss) {
+	case 0:
+		return "<unknown>"
+	case 1:
+		return ss[0]
+	default:
+		return "(" + strings.Join(ss, " | ") + ")"
+	}
+}
 
 // Magics used to identify various formats.
 const (
@@ -50,6 +145,12 @@ const (
 	prefixSize = 155 // Max length of the prefix field in USTAR format
 )
 
+// blockPadding computes the number of bytes needed to pad offset up to the
+// nearest block edge where 0 <= n < blockSize.
+func blockPadding(offset int64) (n int64) {
+	return -offset & (blockSize - 1)
+}
+
 var zeroBlock block
 
 type block [blockSize]byte
@@ -59,18 +160,18 @@ func (b *block) V7() *headerV7       { return (*headerV7)(b) }
 func (b *block) GNU() *headerGNU     { return (*headerGNU)(b) }
 func (b *block) STAR() *headerSTAR   { return (*headerSTAR)(b) }
 func (b *block) USTAR() *headerUSTAR { return (*headerUSTAR)(b) }
-func (b *block) Sparse() sparseArray { return (sparseArray)(b[:]) }
+func (b *block) Sparse() sparseArray { return sparseArray(b[:]) }
 
 // GetFormat checks that the block is a valid tar header based on the checksum.
 // It then attempts to guess the specific format based on magic values.
-// If the checksum fails, then formatUnknown is returned.
-func (b *block) GetFormat() (format int) {
+// If the checksum fails, then FormatUnknown is returned.
+func (b *block) GetFormat() Format {
 	// Verify checksum.
 	var p parser
 	value := p.parseOctal(b.V7().Chksum())
 	chksum1, chksum2 := b.ComputeChecksum()
 	if p.err != nil || (value != chksum1 && value != chksum2) {
-		return formatUnknown
+		return FormatUnknown
 	}
 
 	// Guess the magic values.
@@ -81,9 +182,9 @@ func (b *block) GetFormat() (format int) {
 	case magic == magicUSTAR && trailer == trailerSTAR:
 		return formatSTAR
 	case magic == magicUSTAR:
-		return formatUSTAR
+		return FormatUSTAR | FormatPAX
 	case magic == magicGNU && version == versionGNU:
-		return formatGNU
+		return FormatGNU
 	default:
 		return formatV7
 	}
@@ -91,19 +192,19 @@ func (b *block) GetFormat() (format int) {
 
 // SetFormat writes the magic values necessary for specified format
 // and then updates the checksum accordingly.
-func (b *block) SetFormat(format int) {
+func (b *block) SetFormat(format Format) {
 	// Set the magic values.
-	switch format {
-	case formatV7:
+	switch {
+	case format.has(formatV7):
 		// Do nothing.
-	case formatGNU:
+	case format.has(FormatGNU):
 		copy(b.GNU().Magic(), magicGNU)
 		copy(b.GNU().Version(), versionGNU)
-	case formatSTAR:
+	case format.has(formatSTAR):
 		copy(b.STAR().Magic(), magicUSTAR)
 		copy(b.STAR().Version(), versionUSTAR)
 		copy(b.STAR().Trailer(), trailerSTAR)
-	case formatUSTAR, formatPAX:
+	case format.has(FormatUSTAR | FormatPAX):
 		copy(b.USTAR().Magic(), magicUSTAR)
 		copy(b.USTAR().Version(), versionUSTAR)
 	default:
@@ -128,10 +229,15 @@ func (b *block) ComputeChecksum() (unsigned, signed int64) {
 		if 148 <= i && i < 156 {
 			c = ' ' // Treat the checksum field itself as all spaces.
 		}
-		unsigned += int64(uint8(c))
+		unsigned += int64(c)
 		signed += int64(int8(c))
 	}
 	return unsigned, signed
+}
+
+// Reset clears the block with all zeros.
+func (b *block) Reset() {
+	*b = block{}
 }
 
 type headerV7 [blockSize]byte
@@ -157,7 +263,7 @@ func (h *headerGNU) DevMajor() []byte    { return h[329:][:8] }
 func (h *headerGNU) DevMinor() []byte    { return h[337:][:8] }
 func (h *headerGNU) AccessTime() []byte  { return h[345:][:12] }
 func (h *headerGNU) ChangeTime() []byte  { return h[357:][:12] }
-func (h *headerGNU) Sparse() sparseArray { return (sparseArray)(h[386:][:24*4+1]) }
+func (h *headerGNU) Sparse() sparseArray { return sparseArray(h[386:][:24*4+1]) }
 func (h *headerGNU) RealSize() []byte    { return h[483:][:12] }
 
 type headerSTAR [blockSize]byte
@@ -187,11 +293,11 @@ func (h *headerUSTAR) Prefix() []byte    { return h[345:][:155] }
 
 type sparseArray []byte
 
-func (s sparseArray) Entry(i int) sparseNode { return (sparseNode)(s[i*24:]) }
+func (s sparseArray) Entry(i int) sparseElem { return sparseElem(s[i*24:]) }
 func (s sparseArray) IsExtended() []byte     { return s[24*s.MaxEntries():][:1] }
 func (s sparseArray) MaxEntries() int        { return len(s) / 24 }
 
-type sparseNode []byte
+type sparseElem []byte
 
-func (s sparseNode) Offset() []byte   { return s[00:][:12] }
-func (s sparseNode) NumBytes() []byte { return s[12:][:12] }
+func (s sparseElem) Offset() []byte { return s[00:][:12] }
+func (s sparseElem) Length() []byte { return s[12:][:12] }

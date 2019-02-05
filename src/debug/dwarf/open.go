@@ -23,7 +23,7 @@ type Data struct {
 	str      []byte
 
 	// parsed data
-	abbrevCache map[uint32]abbrevTable
+	abbrevCache map[uint64]abbrevTable
 	order       binary.ByteOrder
 	typeCache   map[Offset]Type
 	typeSigs    map[uint64]*typeUnit
@@ -48,17 +48,26 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
 		pubnames:    pubnames,
 		ranges:      ranges,
 		str:         str,
-		abbrevCache: make(map[uint32]abbrevTable),
+		abbrevCache: make(map[uint64]abbrevTable),
 		typeCache:   make(map[Offset]Type),
 		typeSigs:    make(map[uint64]*typeUnit),
 	}
 
 	// Sniff .debug_info to figure out byte order.
-	// bytes 4:6 are the version, a tiny 16-bit number (1, 2, 3).
+	// 32-bit DWARF: 4 byte length, 2 byte version.
+	// 64-bit DWARf: 4 bytes of 0xff, 8 byte length, 2 byte version.
 	if len(d.info) < 6 {
 		return nil, DecodeError{"info", Offset(len(d.info)), "too short"}
 	}
-	x, y := d.info[4], d.info[5]
+	offset := 4
+	if d.info[0] == 0xff && d.info[1] == 0xff && d.info[2] == 0xff && d.info[3] == 0xff {
+		if len(d.info) < 14 {
+			return nil, DecodeError{"info", Offset(len(d.info)), "too short"}
+		}
+		offset = 12
+	}
+	// Fetch the version, a tiny 16-bit number (1, 2, 3, 4, 5).
+	x, y := d.info[offset], d.info[offset+1]
 	switch {
 	case x == 0 && y == 0:
 		return nil, DecodeError{"info", 4, "unsupported version 0"}

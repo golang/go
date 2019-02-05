@@ -44,7 +44,7 @@ TEXT	·tanAsm(SB), NOSPLIT, $0-16
 	BEQ     atanIsZero
 
 	MOVD	$·tanrodataL13<>+0(SB), R5
-	WORD	$0xB3120000	//ltdbr	%f0,%f0
+	LTDBR	F0, F0
 	BLTU	L10
 	FMOVD	F0, F2
 L2:
@@ -68,7 +68,7 @@ L2:
 	WFMADB	V4, V3, V2, V4
 	FMUL	F2, F2
 	VLEG	$0, 48(R5), V18
-	WORD	$0xB3CD0016	//lgdr	%r1,%f6
+	LGDR	F6, R1
 	FMOVD	40(R5), F5
 	FMOVD	32(R5), F3
 	FMADD	F1, F2, F3
@@ -82,7 +82,7 @@ L2:
 	WFLCDB	V4, V16
 	WFMADB	V2, V5, V18, V5
 	WFMADB	V1, V0, V7, V0
-	WORD	$0xA7110001	//tmll	%r1,1
+	TMLL	R1, $1
 	WFMADB	V1, V5, V3, V1
 	BNE	L12
 	WFDDB	V0, V1, V0

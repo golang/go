@@ -16,6 +16,7 @@ package symbolz
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -26,13 +27,25 @@ import (
 
 func TestSymbolzURL(t *testing.T) {
 	for try, want := range map[string]string{
-		"http://host:8000/profilez":                        "http://host:8000/symbolz",
-		"http://host:8000/profilez?seconds=5":              "http://host:8000/symbolz",
-		"http://host:8000/profilez?seconds=5&format=proto": "http://host:8000/symbolz",
-		"http://host:8000/heapz?format=legacy":             "http://host:8000/symbolz",
-		"http://host:8000/debug/pprof/profile":             "http://host:8000/debug/pprof/symbol",
-		"http://host:8000/debug/pprof/profile?seconds=10":  "http://host:8000/debug/pprof/symbol",
-		"http://host:8000/debug/pprof/heap":                "http://host:8000/debug/pprof/symbol",
+		"http://host:8000/profilez":                                               "http://host:8000/symbolz",
+		"http://host:8000/profilez?seconds=5":                                     "http://host:8000/symbolz",
+		"http://host:8000/profilez?seconds=5&format=proto":                        "http://host:8000/symbolz",
+		"http://host:8000/heapz?format=legacy":                                    "http://host:8000/symbolz",
+		"http://host:8000/debug/pprof/profile":                                    "http://host:8000/debug/pprof/symbol",
+		"http://host:8000/debug/pprof/profile?seconds=10":                         "http://host:8000/debug/pprof/symbol",
+		"http://host:8000/debug/pprof/heap":                                       "http://host:8000/debug/pprof/symbol",
+		"http://some.host:8080/some/deeper/path/debug/pprof/endpoint?param=value": "http://some.host:8080/some/deeper/path/debug/pprof/symbol",
+		"http://host:8000/pprof/profile":                                          "http://host:8000/pprof/symbol",
+		"http://host:8000/pprof/profile?seconds=15":                               "http://host:8000/pprof/symbol",
+		"http://host:8000/pprof/heap":                                             "http://host:8000/pprof/symbol",
+		"http://host:8000/debug/pprof/block":                                      "http://host:8000/debug/pprof/symbol",
+		"http://host:8000/debug/pprof/trace?seconds=5":                            "http://host:8000/debug/pprof/symbol",
+		"http://host:8000/debug/pprof/mutex":                                      "http://host:8000/debug/pprof/symbol",
+		"http://host/whatever/pprof/heap":                                         "http://host/whatever/pprof/symbol",
+		"http://host/whatever/pprof/growth":                                       "http://host/whatever/pprof/symbol",
+		"http://host/whatever/pprof/profile":                                      "http://host/whatever/pprof/symbol",
+		"http://host/whatever/pprof/pmuprofile":                                   "http://host/whatever/pprof/symbol",
+		"http://host/whatever/pprof/contention":                                   "http://host/whatever/pprof/symbol",
 	} {
 		if got := symbolz(try); got != want {
 			t.Errorf(`symbolz(%s)=%s, want "%s"`, try, got, want)
@@ -41,12 +54,49 @@ func TestSymbolzURL(t *testing.T) {
 }
 
 func TestSymbolize(t *testing.T) {
+	s := plugin.MappingSources{
+		"buildid": []struct {
+			Source string
+			Start  uint64
+		}{
+			{Source: "http://localhost:80/profilez"},
+		},
+	}
+
+	for _, hasFunctions := range []bool{false, true} {
+		for _, force := range []bool{false, true} {
+			p := testProfile(hasFunctions)
+
+			if err := Symbolize(p, force, s, fetchSymbols, &proftest.TestUI{T: t}); err != nil {
+				t.Errorf("symbolz: %v", err)
+				continue
+			}
+			var wantSym, wantNoSym []*profile.Location
+			if force || !hasFunctions {
+				wantNoSym = p.Location[:1]
+				wantSym = p.Location[1:]
+			} else {
+				wantNoSym = p.Location
+			}
+
+			if err := checkSymbolized(wantSym, true); err != nil {
+				t.Errorf("symbolz hasFns=%v force=%v: %v", hasFunctions, force, err)
+			}
+			if err := checkSymbolized(wantNoSym, false); err != nil {
+				t.Errorf("symbolz hasFns=%v force=%v: %v", hasFunctions, force, err)
+			}
+		}
+	}
+}
+
+func testProfile(hasFunctions bool) *profile.Profile {
 	m := []*profile.Mapping{
 		{
-			ID:      1,
-			Start:   0x1000,
-			Limit:   0x5000,
-			BuildID: "buildid",
+			ID:           1,
+			Start:        0x1000,
+			Limit:        0x5000,
+			BuildID:      "buildid",
+			HasFunctions: hasFunctions,
 		},
 	}
 	p := &profile.Profile{
@@ -59,33 +109,25 @@ func TestSymbolize(t *testing.T) {
 		Mapping: m,
 	}
 
-	s := plugin.MappingSources{
-		"buildid": []struct {
-			Source string
-			Start  uint64
-		}{
-			{Source: "http://localhost:80/profilez"},
-		},
-	}
+	return p
+}
 
-	if err := Symbolize(s, fetchSymbols, p, &proftest.TestUI{T: t}); err != nil {
-		t.Errorf("symbolz: %v", err)
-	}
-
-	if l := p.Location[0]; len(l.Line) != 0 {
-		t.Errorf("unexpected symbolization for %#x: %v", l.Address, l.Line)
-	}
-
-	for _, l := range p.Location[1:] {
-		if len(l.Line) != 1 {
-			t.Errorf("failed to symbolize %#x", l.Address)
-			continue
+func checkSymbolized(locs []*profile.Location, wantSymbolized bool) error {
+	for _, loc := range locs {
+		if !wantSymbolized && len(loc.Line) != 0 {
+			return fmt.Errorf("unexpected symbolization for %#x: %v", loc.Address, loc.Line)
 		}
-		address := l.Address - l.Mapping.Start
-		if got, want := l.Line[0].Function.Name, fmt.Sprintf("%#x", address); got != want {
-			t.Errorf("symbolz %#x, got %s, want %s", address, got, want)
+		if wantSymbolized {
+			if len(loc.Line) != 1 {
+				return fmt.Errorf("expected symbolization for %#x: %v", loc.Address, loc.Line)
+			}
+			address := loc.Address - loc.Mapping.Start
+			if got, want := loc.Line[0].Function.Name, fmt.Sprintf("%#x", address); got != want {
+				return fmt.Errorf("symbolz %#x, got %s, want %s", address, got, want)
+			}
 		}
 	}
+	return nil
 }
 
 func fetchSymbols(source, post string) ([]byte, error) {
@@ -97,4 +139,31 @@ func fetchSymbols(source, post string) ([]byte, error) {
 		symbolz += fmt.Sprintf("%s\t%s\n", address, address)
 	}
 	return []byte(symbolz), nil
+}
+
+func TestAdjust(t *testing.T) {
+	for _, tc := range []struct {
+		addr         uint64
+		offset       int64
+		wantAdj      uint64
+		wantOverflow bool
+	}{{math.MaxUint64, 0, math.MaxUint64, false},
+		{math.MaxUint64, 1, 0, true},
+		{math.MaxUint64 - 1, 1, math.MaxUint64, false},
+		{math.MaxUint64 - 1, 2, 0, true},
+		{math.MaxInt64 + 1, math.MaxInt64, math.MaxUint64, false},
+		{0, 0, 0, false},
+		{0, -1, 0, true},
+		{1, -1, 0, false},
+		{2, -1, 1, false},
+		{2, -2, 0, false},
+		{2, -3, 0, true},
+		{-math.MinInt64, math.MinInt64, 0, false},
+		{-math.MinInt64 + 1, math.MinInt64, 1, false},
+		{-math.MinInt64 - 1, math.MinInt64, 0, true},
+	} {
+		if adj, overflow := adjust(tc.addr, tc.offset); adj != tc.wantAdj || overflow != tc.wantOverflow {
+			t.Errorf("adjust(%d, %d) = (%d, %t), want (%d, %t)", tc.addr, tc.offset, adj, overflow, tc.wantAdj, tc.wantOverflow)
+		}
+	}
 }

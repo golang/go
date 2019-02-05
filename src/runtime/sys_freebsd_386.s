@@ -9,7 +9,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
-	
+
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
 	MOVL	$454, AX
 	INT	$0x80
@@ -19,6 +19,7 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
 TEXT runtime·thr_new(SB),NOSPLIT,$-4
 	MOVL	$455, AX
 	INT	$0x80
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·thr_start(SB),NOSPLIT,$0
@@ -38,7 +39,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 	POPAL
 	get_tls(CX)
 	MOVL	BX, g(CX)
-	
+
 	MOVL	AX, g_m(BX)
 	CALL	runtime·stackcheck(SB)		// smashes AX
 	CALL	runtime·mstart(SB)
@@ -52,12 +53,23 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-4
-	MOVL	$431, AX
+GLOBL exitStack<>(SB),RODATA,$8
+DATA exitStack<>+0x00(SB)/4, $0
+DATA exitStack<>+0x04(SB)/4, $0
+
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+	MOVL	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
+	// thr_exit takes a single pointer argument, which it expects
+	// on the stack. We want to pass 0, so switch over to a fake
+	// stack of 0s. It won't write to the stack.
+	MOVL	$exitStack<>(SB), SP
+	MOVL	$431, AX	// thr_exit
 	INT	$0x80
-	JAE	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
@@ -89,12 +101,6 @@ TEXT runtime·write(SB),NOSPLIT,$-4
 	JAE	2(PC)
 	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
-	RET
-
-TEXT runtime·getrlimit(SB),NOSPLIT,$-4
-	MOVL	$194, AX
-	INT	$0x80
-	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$16
@@ -138,7 +144,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$32
 	STOSL
 	MOVL	$477, AX
 	INT	$0x80
-	MOVL	AX, ret+24(FP)
+	JAE	ok
+	MOVL	$0, p+24(FP)
+	MOVL	AX, err+28(FP)
+	RET
+ok:
+	MOVL	AX, p+24(FP)
+	MOVL	$0, err+28(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$-4
@@ -151,7 +163,9 @@ TEXT runtime·munmap(SB),NOSPLIT,$-4
 TEXT runtime·madvise(SB),NOSPLIT,$-4
 	MOVL	$75, AX	// madvise
 	INT	$0x80
-	// ignore failure - maybe pages are locked
+	JAE	2(PC)
+	MOVL	$-1, AX
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·setitimer(SB), NOSPLIT, $-4
@@ -159,8 +173,8 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-4
 	INT	$0x80
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
+// func fallback_walltime() (sec int64, nsec int32)
+TEXT runtime·fallback_walltime(SB), NOSPLIT, $32-12
 	MOVL	$232, AX // clock_gettime
 	LEAL	12(SP), BX
 	MOVL	$0, 4(SP)	// CLOCK_REALTIME
@@ -175,13 +189,10 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVL	BX, nsec+8(FP)
 	RET
 
-// int64 nanotime(void) so really
-// void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB), NOSPLIT, $32
+// func fallback_nanotime() int64
+TEXT runtime·fallback_nanotime(SB), NOSPLIT, $32-8
 	MOVL	$232, AX
 	LEAL	12(SP), BX
-	// We can use CLOCK_MONOTONIC_FAST here when we drop
-	// support for FreeBSD 8-STABLE.
 	MOVL	$4, 4(SP)	// CLOCK_MONOTONIC
 	MOVL	BX, 8(SP)
 	INT	$0x80
@@ -200,11 +211,10 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 	RET
 
 
-TEXT runtime·sigaction(SB),NOSPLIT,$-4
+TEXT runtime·asmSigaction(SB),NOSPLIT,$-4
 	MOVL	$416, AX
 	INT	$0x80
-	JAE	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$12-16

@@ -2,7 +2,7 @@
 
 package gc
 
-import "fmt"
+import "strconv"
 
 const _Class_name = "PxxxPEXTERNPAUTOPAUTOHEAPPPARAMPPARAMOUTPFUNCPDISCARD"
 
@@ -10,7 +10,7 @@ var _Class_index = [...]uint8{0, 4, 11, 16, 25, 31, 40, 45, 53}
 
 func (i Class) String() string {
 	if i >= Class(len(_Class_index)-1) {
-		return fmt.Sprintf("Class(%d)", i)
+		return "Class(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _Class_name[_Class_index[i]:_Class_index[i+1]]
 }

@@ -35,6 +35,7 @@ type opInfo struct {
 	faultOnNilArg1    bool      // this op will fault if arg1 is nil (and aux encodes a small offset)
 	usesScratch       bool      // this op requires scratch memory space
 	hasSideEffects    bool      // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+	zeroWidth         bool      // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	symEffect         SymEffect // effect this op has on symbol in aux
 }
 
@@ -49,9 +50,17 @@ type outputInfo struct {
 }
 
 type regInfo struct {
-	inputs   []inputInfo // ordered in register allocation order
+	// inputs encodes the register restrictions for an instruction's inputs.
+	// Each entry specifies an allowed register set for a particular input.
+	// They are listed in the order in which regalloc should pick a register
+	// from the register set (most constrained first).
+	// Inputs which do not need registers are not listed.
+	inputs []inputInfo
+	// clobbers encodes the set of registers that are overwritten by
+	// the instruction (other than the output registers).
 	clobbers regMask
-	outputs  []outputInfo // ordered in register allocation order
+	// outputs is the same as inputs, but for the outputs of the instruction.
+	outputs []outputInfo
 }
 
 type auxType int8
@@ -67,11 +76,12 @@ const (
 	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
 	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
 	auxString               // aux is a string
-	auxSym                  // aux is a symbol
+	auxSym                  // aux is a symbol (a *gc.Node for locals or an *obj.LSym for globals)
 	auxSymOff               // aux is a symbol, auxInt is an offset
 	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
 	auxTyp                  // aux is a type
 	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
+	auxCCop                 // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
 
 	auxSymInt32 // aux is a symbol, auxInt is a 32-bit integer
 )

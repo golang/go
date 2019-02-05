@@ -23,6 +23,9 @@ TEXT runtime∕internal∕atomic·Cas(SB), NOSPLIT, $0-17
 TEXT runtime∕internal∕atomic·Casuintptr(SB), NOSPLIT, $0-17
 	JMP	runtime∕internal∕atomic·Cas(SB)
 
+TEXT runtime∕internal∕atomic·CasRel(SB), NOSPLIT, $0-17
+	JMP	runtime∕internal∕atomic·Cas(SB)
+
 TEXT runtime∕internal∕atomic·Loaduintptr(SB), NOSPLIT, $0-12
 	JMP	runtime∕internal∕atomic·Load(SB)
 
@@ -108,6 +111,9 @@ TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-12
 TEXT runtime∕internal∕atomic·Xchg64(SB), NOSPLIT, $0-24
 	MOVL	ptr+0(FP), BX
 	MOVQ	new+8(FP), AX
+	TESTL	$7, BX
+	JZ	2(PC)
+	MOVL	0, BX // crash when unaligned
 	XCHGQ	AX, 0(BX)
 	MOVQ	AX, ret+16(FP)
 	RET
@@ -126,6 +132,9 @@ TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-8
 	MOVL	val+4(FP), AX
 	XCHGL	AX, 0(BX)
 	RET
+
+TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-8
+	JMP	runtime∕internal∕atomic·Store(SB)
 
 TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
 	MOVL	ptr+0(FP), BX

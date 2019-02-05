@@ -45,11 +45,18 @@ func CgoSignalDeadlock() {
 				}()
 				var s *string
 				*s = ""
+				fmt.Printf("continued after expected panic\n")
 			}()
 		}
 	}()
 	time.Sleep(time.Millisecond)
-	for i := 0; i < 64; i++ {
+	start := time.Now()
+	var times []time.Duration
+	n := 64
+	if os.Getenv("RUNTIME_TEST_SHORT") != "" {
+		n = 16
+	}
+	for i := 0; i < n; i++ {
 		go func() {
 			runtime.LockOSThread()
 			select {}
@@ -62,8 +69,9 @@ func CgoSignalDeadlock() {
 		ping <- false
 		select {
 		case <-ping:
+			times = append(times, time.Since(start))
 		case <-time.After(time.Second):
-			fmt.Printf("HANG\n")
+			fmt.Printf("HANG 1 %v\n", times)
 			return
 		}
 	}
@@ -71,7 +79,7 @@ func CgoSignalDeadlock() {
 	select {
 	case <-ping:
 	case <-time.After(time.Second):
-		fmt.Printf("HANG\n")
+		fmt.Printf("HANG 2 %v\n", times)
 		return
 	}
 	fmt.Printf("OK\n")

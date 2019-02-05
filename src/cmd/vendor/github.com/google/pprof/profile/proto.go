@@ -71,7 +71,7 @@ func encodeLength(b *buffer, tag int, len int) {
 
 func encodeUint64(b *buffer, tag int, x uint64) {
 	// append varint to b.data
-	encodeVarint(b, uint64(tag)<<3|0)
+	encodeVarint(b, uint64(tag)<<3)
 	encodeVarint(b, x)
 }
 
@@ -145,13 +145,6 @@ func encodeStrings(b *buffer, tag int, x []string) {
 	}
 }
 
-func encodeStringOpt(b *buffer, tag int, x string) {
-	if x == "" {
-		return
-	}
-	encodeString(b, tag, x)
-}
-
 func encodeBool(b *buffer, tag int, x bool) {
 	if x {
 		encodeUint64(b, tag, 1)
@@ -161,10 +154,9 @@ func encodeBool(b *buffer, tag int, x bool) {
 }
 
 func encodeBoolOpt(b *buffer, tag int, x bool) {
-	if x == false {
-		return
+	if x {
+		encodeBool(b, tag, x)
 	}
-	encodeBool(b, tag, x)
 }
 
 func encodeMessage(b *buffer, tag int, m message) {

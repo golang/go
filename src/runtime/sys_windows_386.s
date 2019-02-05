@@ -315,7 +315,7 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
 	// Layout new m scheduler stack on os stack.
 	MOVL	SP, AX
 	MOVL	AX, (g_stack+stack_hi)(DX)
-	SUBL	$(64*1024), AX		// stack size
+	SUBL	$(64*1024), AX		// initial stack size (adjusted later)
 	MOVL	AX, (g_stack+stack_lo)(DX)
 	ADDL	$const__StackGuard, AX
 	MOVL	AX, g_stackguard0(DX)
@@ -432,7 +432,7 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
 	MOVL	BP, SP
 	RET
 
-// See http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
+// See https://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
 // Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
 #define _INTERRUPT_TIME 0x7ffe0008
 #define _SYSTEM_TIME 0x7ffe0014
@@ -455,9 +455,7 @@ loop:
 	MULL	CX
 	IMULL	$100, DI
 	ADDL	DI, DX
-	// wintime*100 = DX:AX, subtract startNano and return
-	SUBL	runtime·startNano+0(SB), AX
-	SBBL	runtime·startNano+4(SB), DX
+	// wintime*100 = DX:AX
 	MOVL	AX, ret_lo+0(FP)
 	MOVL	DX, ret_hi+4(FP)
 	RET
@@ -482,9 +480,6 @@ loop:
 	IMULL	$100, DI
 	ADDL	DI, DX
 	// w*100 = DX:AX
-	// subtract startNano and save for return
-	SUBL	runtime·startNano+0(SB), AX
-	SBBL	runtime·startNano+4(SB), DX
 	MOVL	AX, mono+12(FP)
 	MOVL	DX, mono+16(FP)
 
@@ -494,13 +489,13 @@ wall:
 	MOVL	(_SYSTEM_TIME+time_hi2), DX
 	CMPL	CX, DX
 	JNE	wall
-	
+
 	// w = DX:AX
 	// convert to Unix epoch (but still 100ns units)
 	#define delta 116444736000000000
 	SUBL	$(delta & 0xFFFFFFFF), AX
 	SBBL $(delta >> 32), DX
-	
+
 	// nano/100 = DX:AX
 	// split into two decimal halves by div 1e9.
 	// (decimal point is two spots over from correct place,
@@ -509,7 +504,7 @@ wall:
 	DIVL	CX
 	MOVL	AX, DI
 	MOVL	DX, SI
-	
+
 	// DI = nano/100/1e9 = nano/1e11 = sec/100, DX = SI = nano/100%1e9
 	// split DX into seconds and nanoseconds by div 1e7 magic multiply.
 	MOVL	DX, AX
@@ -520,7 +515,7 @@ wall:
 	IMULL	$10000000, DX
 	MOVL	SI, CX
 	SUBL	DX, CX
-	
+
 	// DI = sec/100 (still)
 	// BX = (nano/100%1e9)/1e7 = (nano/1e9)%100 = sec%100
 	// CX = (nano/100%1e9)%1e7 = (nano%1e9)/100 = nsec/100

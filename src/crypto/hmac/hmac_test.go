@@ -25,7 +25,7 @@ type hmacTest struct {
 
 var hmacTests = []hmacTest{
 	// Tests from US FIPS 198
-	// http://csrc.nist.gov/publications/fips/fips198/fips-198a.pdf
+	// https://csrc.nist.gov/publications/fips/fips198/fips-198a.pdf
 	{
 		sha1.New,
 		[]byte{
@@ -205,7 +205,7 @@ var hmacTests = []hmacTest{
 		sha256.BlockSize,
 	},
 
-	// Tests from http://csrc.nist.gov/groups/ST/toolkit/examples.html
+	// Tests from https://csrc.nist.gov/groups/ST/toolkit/examples.html
 	// (truncated tag tests are left out)
 	{
 		sha1.New,

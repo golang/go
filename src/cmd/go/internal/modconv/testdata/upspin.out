@@ -1,0 +1,8 @@
+bazil.org/fuse 371fbbdaa8987b715bdd21d6adc4c9b20155f748
+github.com/NYTimes/gziphandler 97ae7fbaf81620fe97840685304a78a306a39c64
+github.com/golang/protobuf 1643683e1b54a9e88ad26d98f81400c8c9d9f4f9
+github.com/russross/blackfriday 6d1ef893fcb01b4f50cb6e57ed7df3e2e627b6b2
+golang.org/x/crypto 13931e22f9e72ea58bb73048bc752b48c6d4d4ac
+golang.org/x/net 4b14673ba32bee7f5ac0f990a48f033919fd418b
+golang.org/x/text 6eab0e8f74e86c598ec3b6fad4888e0c11482d48
+gopkg.in/yaml.v2 eb3733d160e74a9c7e442f435eb3bea458e1d19f

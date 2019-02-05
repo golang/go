@@ -21,6 +21,7 @@ const (
 	MIPS64
 	PPC64
 	S390X
+	Wasm
 )
 
 // Arch represents an individual architecture.
@@ -160,6 +161,15 @@ var ArchS390X = &Arch{
 	MinLC:     2,
 }
 
+var ArchWasm = &Arch{
+	Name:      "wasm",
+	Family:    Wasm,
+	ByteOrder: binary.LittleEndian,
+	PtrSize:   8,
+	RegSize:   8,
+	MinLC:     1,
+}
+
 var Archs = [...]*Arch{
 	Arch386,
 	ArchAMD64,
@@ -173,4 +183,5 @@ var Archs = [...]*Arch{
 	ArchPPC64,
 	ArchPPC64LE,
 	ArchS390X,
+	ArchWasm,
 }

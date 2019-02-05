@@ -1,0 +1,8 @@
+github.com/kr/pretty 737b74a46c4bf788349f72cb256fed10aea4d0ac
+github.com/kr/text 7cafcd837844e784b526369c9bce262804aebc60
+github.com/maruel/ut a9c9f15ccfa6f8b90182a53df32f4745586fbae3
+github.com/mattn/go-colorable 9056b7a9f2d1f2d96498d6d146acd1f9d5ed3d59
+github.com/mattn/go-isatty 56b76bdf51f7708750eac80fa38b952bb9f32639
+github.com/mgutz/ansi c286dcecd19ff979eeb73ea444e479b903f2cfcb
+github.com/pmezard/go-difflib 792786c7400a136282c1664665ae0a8db921c6c2
+golang.org/x/sys a646d33e2ee3172a661fc09bca23bb4889a41bc8

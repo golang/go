@@ -30,8 +30,6 @@ TEXT ·divWW(SB),NOSPLIT,$0
 // The carry bit is saved with SBBQ Rx, Rx: if the carry was set, Rx is -1, otherwise it is 0.
 // It is restored with ADDQ Rx, Rx: if Rx was -1 the carry is set, otherwise it is cleared.
 // This is faster than using rotate instructions.
-//
-// CAUTION: Note that MOVQ $0, Rx is translated to XORQ Rx, Rx which clears the carry bit!
 
 // func addVV(z, x, y []Word) (c Word)
 TEXT ·addVV(SB),NOSPLIT,$0
@@ -326,10 +324,10 @@ TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	MOVQ r+56(FP), CX	// c = r
 	MOVQ z_len+8(FP), R11
 	MOVQ $0, BX		// i = 0
-	
+
 	CMPQ R11, $4
 	JL E5
-	
+
 U5:	// i+4 <= n
 	// regular loop body unrolled 4x
 	MOVQ (0*8)(R8)(BX*8), AX
@@ -357,7 +355,7 @@ U5:	// i+4 <= n
 	MOVQ AX, (3*8)(R10)(BX*8)
 	MOVQ DX, CX
 	ADDQ $4, BX		// i += 4
-	
+
 	LEAQ 4(BX), DX
 	CMPQ DX, R11
 	JLE U5
@@ -380,6 +378,8 @@ E5:	CMPQ BX, R11		// i < n
 
 // func addMulVVW(z, x []Word, y Word) (c Word)
 TEXT ·addMulVVW(SB),NOSPLIT,$0
+	CMPB    ·support_adx(SB), $1
+	JEQ adx
 	MOVQ z+0(FP), R10
 	MOVQ x+24(FP), R8
 	MOVQ y+48(FP), R9
@@ -430,6 +430,97 @@ E6:	CMPQ BX, R11		// i < n
 
 	MOVQ CX, c+56(FP)
 	RET
+
+adx:
+	MOVQ z_len+8(FP), R11
+	MOVQ z+0(FP), R10
+	MOVQ x+24(FP), R8
+	MOVQ y+48(FP), DX
+	MOVQ $0, BX   // i = 0
+	MOVQ $0, CX   // carry
+	CMPQ R11, $8
+	JAE  adx_loop_header
+	CMPQ BX, R11
+	JL adx_short
+	MOVQ CX, c+56(FP)
+	RET
+
+adx_loop_header:
+	MOVQ  R11, R13
+	ANDQ  $-8, R13
+adx_loop:
+	XORQ  R9, R9  // unset flags
+	MULXQ (R8), SI, DI
+	ADCXQ CX,SI
+	ADOXQ (R10), SI
+	MOVQ  SI,(R10)
+
+	MULXQ 8(R8), AX, CX
+	ADCXQ DI, AX
+	ADOXQ 8(R10), AX
+	MOVQ  AX, 8(R10)
+
+	MULXQ 16(R8), SI, DI
+	ADCXQ CX, SI
+	ADOXQ 16(R10), SI
+	MOVQ  SI, 16(R10)
+
+	MULXQ 24(R8), AX, CX
+	ADCXQ DI, AX
+	ADOXQ 24(R10), AX
+	MOVQ  AX, 24(R10)
+
+	MULXQ 32(R8), SI, DI
+	ADCXQ CX, SI
+	ADOXQ 32(R10), SI
+	MOVQ  SI, 32(R10)
+
+	MULXQ 40(R8), AX, CX
+	ADCXQ DI, AX
+	ADOXQ 40(R10), AX
+	MOVQ  AX, 40(R10)
+
+	MULXQ 48(R8), SI, DI
+	ADCXQ CX, SI
+	ADOXQ 48(R10), SI
+	MOVQ  SI, 48(R10)
+
+	MULXQ 56(R8), AX, CX
+	ADCXQ DI, AX
+	ADOXQ 56(R10), AX
+	MOVQ  AX, 56(R10)
+
+	ADCXQ R9, CX
+	ADOXQ R9, CX
+
+	ADDQ $64, R8
+	ADDQ $64, R10
+	ADDQ $8, BX
+
+	CMPQ BX, R13
+	JL adx_loop
+	MOVQ z+0(FP), R10
+	MOVQ x+24(FP), R8
+	CMPQ BX, R11
+	JL adx_short
+	MOVQ CX, c+56(FP)
+	RET
+
+adx_short:
+	MULXQ (R8)(BX*8), SI, DI
+	ADDQ CX, SI
+	ADCQ $0, DI
+	ADDQ SI, (R10)(BX*8)
+	ADCQ $0, DI
+	MOVQ DI, CX
+	ADDQ $1, BX		// i++
+
+	CMPQ BX, R11
+	JL adx_short
+
+	MOVQ CX, c+56(FP)
+	RET
+
 
 
 // func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)

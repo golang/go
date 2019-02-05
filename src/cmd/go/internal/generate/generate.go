@@ -21,12 +21,13 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
 )
 
 var CmdGenerate = &base.Command{
 	Run:       runGenerate,
-	UsageLine: "generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]",
+	UsageLine: "go generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]",
 	Short:     "generate Go files by processing source",
 	Long: `
 Generate runs commands described by directives within existing
@@ -46,6 +47,15 @@ is the generator to be run, corresponding to an executable file
 that can be run locally. It must either be in the shell path
 (gofmt), a fully qualified path (/usr/you/bin/mytool), or a
 command alias, described below.
+
+To convey to humans and machine tools that code is generated,
+generated source should have a line that matches the following
+regular expression (in Go syntax):
+
+	^// Code generated .* DO NOT EDIT\.$
+
+The line may appear anywhere in the file, but is typically
+placed near the beginning so it is easy to find.
 
 Note that go generate does not parse the file, so lines that look
 like directives in comments or multiline strings will be treated
@@ -80,7 +90,7 @@ line.
 As a last step before running the command, any invocations of any
 environment variables with alphanumeric names, such as $GOFILE or
 $HOME, are expanded throughout the command line. The syntax for
-variable expansion is $NAME on all operating systems.  Due to the
+variable expansion is $NAME on all operating systems. Due to the
 order of evaluation, variables are expanded even inside quoted
 strings. If the variable NAME is not set, $NAME expands to the
 empty string.
@@ -152,9 +162,28 @@ func runGenerate(cmd *base.Command, args []string) {
 		}
 	}
 	// Even if the arguments are .go files, this loop suffices.
+	printed := false
 	for _, pkg := range load.Packages(args) {
-		for _, file := range pkg.Internal.GoFiles {
-			if !generate(pkg.Name, file) {
+		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
+			if !printed {
+				fmt.Fprintf(os.Stderr, "go: not generating in packages in dependency modules\n")
+				printed = true
+			}
+			continue
+		}
+
+		pkgName := pkg.Name
+
+		for _, file := range pkg.InternalGoFiles() {
+			if !generate(pkgName, file) {
+				break
+			}
+		}
+
+		pkgName += "_test"
+
+		for _, file := range pkg.InternalXGoFiles() {
+			if !generate(pkgName, file) {
 				break
 			}
 		}
@@ -385,7 +414,7 @@ func (g *Generator) setShorthand(words []string) {
 	}
 	command := words[1]
 	if g.commands[command] != nil {
-		g.errorf("command %q defined multiply defined", command)
+		g.errorf("command %q multiply defined", command)
 	}
 	g.commands[command] = words[2:len(words):len(words)] // force later append to make copy
 }

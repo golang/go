@@ -91,8 +91,8 @@ type parseContentTypeTest struct {
 
 var parseContentTypeTests = []parseContentTypeTest{
 	{false, stringMap{"Content-Type": {"text/plain"}}},
-	// Empty content type is legal - should be treated as
-	// application/octet-stream (RFC 2616, section 7.2.1)
+	// Empty content type is legal - may be treated as
+	// application/octet-stream (RFC 7231, section 3.1.1.5)
 	{false, stringMap{}},
 	{true, stringMap{"Content-Type": {"text/plain; boundary="}}},
 	{false, stringMap{"Content-Type": {"application/unknown"}}},
@@ -139,6 +139,16 @@ func TestMultipartReader(t *testing.T) {
 		Body:   ioutil.NopCloser(new(bytes.Buffer)),
 	}
 	multipart, err := req.MultipartReader()
+	if multipart == nil {
+		t.Errorf("expected multipart; error: %v", err)
+	}
+
+	req = &Request{
+		Method: "POST",
+		Header: Header{"Content-Type": {`multipart/mixed; boundary="foo123"`}},
+		Body:   ioutil.NopCloser(new(bytes.Buffer)),
+	}
+	multipart, err = req.MultipartReader()
 	if multipart == nil {
 		t.Errorf("expected multipart; error: %v", err)
 	}
@@ -597,6 +607,11 @@ var parseBasicAuthTests = []struct {
 	ok                         bool
 }{
 	{"Basic " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "Aladdin", "open sesame", true},
+
+	// Case doesn't matter:
+	{"BASIC " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "Aladdin", "open sesame", true},
+	{"basic " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "Aladdin", "open sesame", true},
+
 	{"Basic " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open:sesame")), "Aladdin", "open:sesame", true},
 	{"Basic " + base64.StdEncoding.EncodeToString([]byte(":")), "", "", true},
 	{"Basic" + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "", "", false},
@@ -799,6 +814,13 @@ func TestWithContextDeepCopiesURL(t *testing.T) {
 	if firstURL == secondURL {
 		t.Errorf("unexpected change to original request's URL")
 	}
+
+	// And also check we don't crash on nil (Issue 20601)
+	req.URL = nil
+	reqCopy = req.WithContext(context.Background())
+	if reqCopy.URL != nil {
+		t.Error("expected nil URL in cloned request")
+	}
 }
 
 // verify that NewRequest sets Request.GetBody and that it works
@@ -856,7 +878,7 @@ func testMissingFile(t *testing.T, req *Request) {
 }
 
 func newTestMultipartRequest(t *testing.T) *Request {
-	b := strings.NewReader(strings.Replace(message, "\n", "\r\n", -1))
+	b := strings.NewReader(strings.ReplaceAll(message, "\n", "\r\n"))
 	req, err := NewRequest("POST", "/", b)
 	if err != nil {
 		t.Fatal("NewRequest:", err)
@@ -948,8 +970,8 @@ Content-Disposition: form-data; name="textb"
 `
 
 func benchmarkReadRequest(b *testing.B, request string) {
-	request = request + "\n"                             // final \n
-	request = strings.Replace(request, "\n", "\r\n", -1) // expand \n to \r\n
+	request = request + "\n"                            // final \n
+	request = strings.ReplaceAll(request, "\n", "\r\n") // expand \n to \r\n
 	b.SetBytes(int64(len(request)))
 	r := bufio.NewReader(&infiniteReader{buf: []byte(request)})
 	b.ReportAllocs()

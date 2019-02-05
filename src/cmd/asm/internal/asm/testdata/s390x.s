@@ -115,6 +115,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	NEGW	R1                    // b9130011
 	NEGW	R1, R2                // b9130021
 	FLOGR	R2, R2                // b9830022
+	POPCNT	R3, R4                // b9e10043
 
 	AND	R1, R2                // b9800021
 	AND	R1, R2, R3            // b9e42031
@@ -213,6 +214,11 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	CMPWU	R1, R2                 // 1512
 	CMPWU	R3, $4294967295        // c23fffffffff
 
+	TMHH	R1, $65535             // a712ffff
+	TMHL	R2, $1                 // a7230001
+	TMLH	R3, $0                 // a7300000
+	TMLL	R4, $32768             // a7418000
+
 	BNE	0(PC)                  // a7740000
 	BEQ	0(PC)                  // a7840000
 	BLT	0(PC)                  // a7440000
@@ -296,6 +302,13 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	FMADDS	F1, F2, F3             // b30e3012
 	FMSUB	F4, F5, F5             // b31f5045
 	FMSUBS	F6, F6, F7             // b30f7066
+	LPDFR	F1, F2                 // b3700021
+	LNDFR	F3, F4                 // b3710043
+	CPSDR	F5, F6, F7             // b3725076
+	LTEBR	F1, F2                 // b3020021
+	LTDBR	F3, F4                 // b3120043
+	TCEB	F5, $8                 // ed5000080010
+	TCDB	F15, $4095             // edf00fff0011
 
 	VL	(R15), V1               // e710f0000006
 	VST	V1, (R15)               // e710f000000e
@@ -355,8 +368,13 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	VSTEF	$3, V2, (R9)            // e7209000300b
 	VSTEH	$7, V31, (R2)           // e7f020007809
 	VSTEB	$15, V29, 4094(R12)     // e7d0cffef808
+	VMSLG	V21, V22, V23, V24      // e78563007fb8
+	VMSLEG  V21, V22, V23, V24      // e78563807fb8
+	VMSLOG  V21, V22, V23, V24      // e78563407fb8
+	VMSLEOG V21, V22, V23, V24      // e78563c07fb8
 
 	RET
+	RET	foo(SB)
 
 TEXT main·init(SB),DUPOK|NOSPLIT,$0 // TEXT main.init(SB), DUPOK|NOSPLIT, $0
 	RET

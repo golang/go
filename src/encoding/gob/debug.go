@@ -594,7 +594,7 @@ func (deb *debugger) printBuiltin(indent tab, id typeId) {
 		x := deb.int64()
 		fmt.Fprintf(os.Stderr, "%s%d\n", indent, x)
 	case tUint:
-		x := deb.int64()
+		x := deb.uint64()
 		fmt.Fprintf(os.Stderr, "%s%d\n", indent, x)
 	case tFloat:
 		x := deb.uint64()

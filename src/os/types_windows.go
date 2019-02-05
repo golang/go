@@ -5,16 +5,30 @@
 package os
 
 import (
+	"internal/syscall/windows"
 	"sync"
 	"syscall"
 	"time"
+	"unsafe"
 )
 
 // A fileStat is the implementation of FileInfo returned by Stat and Lstat.
 type fileStat struct {
-	name     string
-	sys      syscall.Win32FileAttributeData
-	filetype uint32 // what syscall.GetFileType returns
+	name string
+
+	// from ByHandleFileInformation, Win32FileAttributeData and Win32finddata
+	FileAttributes uint32
+	CreationTime   syscall.Filetime
+	LastAccessTime syscall.Filetime
+	LastWriteTime  syscall.Filetime
+	FileSizeHigh   uint32
+	FileSizeLow    uint32
+
+	// from Win32finddata
+	Reserved0 uint32
+
+	// what syscall.GetFileType returns
+	filetype uint32
 
 	// used to implement SameFile
 	sync.Mutex
@@ -25,40 +39,115 @@ type fileStat struct {
 	appendNameToPath bool
 }
 
+// newFileStatFromGetFileInformationByHandle calls GetFileInformationByHandle
+// to gather all required information about the file handle h.
+func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (fs *fileStat, err error) {
+	var d syscall.ByHandleFileInformation
+	err = syscall.GetFileInformationByHandle(h, &d)
+	if err != nil {
+		return nil, &PathError{"GetFileInformationByHandle", path, err}
+	}
+
+	var ti windows.FILE_ATTRIBUTE_TAG_INFO
+	err = windows.GetFileInformationByHandleEx(h, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&ti)), uint32(unsafe.Sizeof(ti)))
+	if err != nil {
+		if errno, ok := err.(syscall.Errno); ok && errno == windows.ERROR_INVALID_PARAMETER {
+			// It appears calling GetFileInformationByHandleEx with
+			// FILE_ATTRIBUTE_TAG_INFO fails on FAT file system with
+			// ERROR_INVALID_PARAMETER. Clear ti.ReparseTag in that
+			// instance to indicate no symlinks are possible.
+			ti.ReparseTag = 0
+		} else {
+			return nil, &PathError{"GetFileInformationByHandleEx", path, err}
+		}
+	}
+
+	return &fileStat{
+		name:           basename(path),
+		FileAttributes: d.FileAttributes,
+		CreationTime:   d.CreationTime,
+		LastAccessTime: d.LastAccessTime,
+		LastWriteTime:  d.LastWriteTime,
+		FileSizeHigh:   d.FileSizeHigh,
+		FileSizeLow:    d.FileSizeLow,
+		vol:            d.VolumeSerialNumber,
+		idxhi:          d.FileIndexHigh,
+		idxlo:          d.FileIndexLow,
+		Reserved0:      ti.ReparseTag,
+		// fileStat.path is used by os.SameFile to decide if it needs
+		// to fetch vol, idxhi and idxlo. But these are already set,
+		// so set fileStat.path to "" to prevent os.SameFile doing it again.
+	}, nil
+}
+
+// newFileStatFromWin32finddata copies all required information
+// from syscall.Win32finddata d into the newly created fileStat.
+func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
+	return &fileStat{
+		FileAttributes: d.FileAttributes,
+		CreationTime:   d.CreationTime,
+		LastAccessTime: d.LastAccessTime,
+		LastWriteTime:  d.LastWriteTime,
+		FileSizeHigh:   d.FileSizeHigh,
+		FileSizeLow:    d.FileSizeLow,
+		Reserved0:      d.Reserved0,
+	}
+}
+
+func (fs *fileStat) isSymlink() bool {
+	// Use instructions described at
+	// https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
+	// to recognize whether it's a symlink.
+	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+		return false
+	}
+	return fs.Reserved0 == syscall.IO_REPARSE_TAG_SYMLINK ||
+		fs.Reserved0 == windows.IO_REPARSE_TAG_MOUNT_POINT
+}
+
 func (fs *fileStat) Size() int64 {
-	return int64(fs.sys.FileSizeHigh)<<32 + int64(fs.sys.FileSizeLow)
+	return int64(fs.FileSizeHigh)<<32 + int64(fs.FileSizeLow)
 }
 
 func (fs *fileStat) Mode() (m FileMode) {
 	if fs == &devNullStat {
 		return ModeDevice | ModeCharDevice | 0666
 	}
-	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
+	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
 		m |= 0444
 	} else {
 		m |= 0666
 	}
-	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+	if fs.isSymlink() {
 		return m | ModeSymlink
 	}
-	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
+	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
 		m |= ModeDir | 0111
 	}
 	switch fs.filetype {
 	case syscall.FILE_TYPE_PIPE:
 		m |= ModeNamedPipe
 	case syscall.FILE_TYPE_CHAR:
-		m |= ModeCharDevice
+		m |= ModeDevice | ModeCharDevice
 	}
 	return m
 }
 
 func (fs *fileStat) ModTime() time.Time {
-	return time.Unix(0, fs.sys.LastWriteTime.Nanoseconds())
+	return time.Unix(0, fs.LastWriteTime.Nanoseconds())
 }
 
 // Sys returns syscall.Win32FileAttributeData for file fs.
-func (fs *fileStat) Sys() interface{} { return &fs.sys }
+func (fs *fileStat) Sys() interface{} {
+	return &syscall.Win32FileAttributeData{
+		FileAttributes: fs.FileAttributes,
+		CreationTime:   fs.CreationTime,
+		LastAccessTime: fs.LastAccessTime,
+		LastWriteTime:  fs.LastWriteTime,
+		FileSizeHigh:   fs.FileSizeHigh,
+		FileSizeLow:    fs.FileSizeLow,
+	}
+}
 
 func (fs *fileStat) loadFileId() error {
 	fs.Lock()
@@ -77,7 +166,13 @@ func (fs *fileStat) loadFileId() error {
 	if err != nil {
 		return err
 	}
-	h, err := syscall.CreateFile(pathp, 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
+	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS)
+	if fs.isSymlink() {
+		// Use FILE_FLAG_OPEN_REPARSE_POINT, otherwise CreateFile will follow symlink.
+		// See https://docs.microsoft.com/en-us/windows/desktop/FileIO/symbolic-link-effects-on-file-systems-functions#createfile-and-createfiletransacted
+		attrs |= syscall.FILE_FLAG_OPEN_REPARSE_POINT
+	}
+	h, err := syscall.CreateFile(pathp, 0, 0, nil, syscall.OPEN_EXISTING, attrs, 0)
 	if err != nil {
 		return err
 	}

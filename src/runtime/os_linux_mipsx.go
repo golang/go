@@ -35,15 +35,9 @@ const (
 	_SIG_BLOCK   = 1
 	_SIG_UNBLOCK = 2
 	_SIG_SETMASK = 3
-	_RLIMIT_AS   = 6
 )
 
 type sigset [4]uint32
-
-type rlimit struct {
-	rlim_cur uintptr
-	rlim_max uintptr
-}
 
 var sigset_all = sigset{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}
 

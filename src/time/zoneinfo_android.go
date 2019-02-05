@@ -11,33 +11,13 @@ package time
 import (
 	"errors"
 	"runtime"
+	"syscall"
 )
 
-var tzdataPaths = []string{
+var zoneSources = []string{
 	"/system/usr/share/zoneinfo/tzdata",
 	"/data/misc/zoneinfo/current/tzdata",
 	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
-}
-
-var origTzdataPaths = tzdataPaths
-
-func forceZipFileForTesting(zipOnly bool) {
-	tzdataPaths = make([]string, len(origTzdataPaths))
-	copy(tzdataPaths, origTzdataPaths)
-	if zipOnly {
-		for i := 0; i < len(tzdataPaths)-1; i++ {
-			tzdataPaths[i] = "/XXXNOEXIST"
-		}
-	}
-}
-
-func initTestingZone() {
-	z, err := loadLocation("America/Los_Angeles")
-	if err != nil {
-		panic("cannot load America/Los_Angeles for testing: " + err.Error())
-	}
-	z.name = "Local"
-	localLoc = *z
 }
 
 func initLocal() {
@@ -45,30 +25,11 @@ func initLocal() {
 	localLoc = *UTC
 }
 
-func loadLocation(name string) (*Location, error) {
-	var firstErr error
-	for _, path := range tzdataPaths {
-		var z *Location
-		var err error
-		if len(path) > 4 && path[len(path)-4:] == ".zip" {
-			z, err = loadZoneZip(path, name)
-		} else {
-			z, err = loadTzdataFile(path, name)
-		}
-		if err == nil {
-			z.name = name
-			return z, nil
-		} else if firstErr == nil && !isNotExist(err) {
-			firstErr = err
-		}
-	}
-	if firstErr != nil {
-		return nil, firstErr
-	}
-	return nil, errors.New("unknown time zone " + name)
+func init() {
+	loadTzinfoFromTzdata = androidLoadTzinfoFromTzdata
 }
 
-func loadTzdataFile(file, name string) (*Location, error) {
+func androidLoadTzinfoFromTzdata(file, name string) ([]byte, error) {
 	const (
 		headersize = 12 + 3*4
 		namesize   = 40
@@ -87,11 +48,11 @@ func loadTzdataFile(file, name string) (*Location, error) {
 	if err := preadn(fd, buf, 0); err != nil {
 		return nil, errors.New("corrupt tzdata file " + file)
 	}
-	d := data{buf, false}
+	d := dataIO{buf, false}
 	if magic := d.read(6); string(magic) != "tzdata" {
 		return nil, errors.New("corrupt tzdata file " + file)
 	}
-	d = data{buf[12:], false}
+	d = dataIO{buf[12:], false}
 	indexOff, _ := d.big4()
 	dataOff, _ := d.big4()
 	indexSize := dataOff - indexOff
@@ -106,14 +67,14 @@ func loadTzdataFile(file, name string) (*Location, error) {
 		if string(entry[:len(name)]) != name {
 			continue
 		}
-		d := data{entry[namesize:], false}
+		d := dataIO{entry[namesize:], false}
 		off, _ := d.big4()
 		size, _ := d.big4()
 		buf := make([]byte, size)
 		if err := preadn(fd, buf, int(off+dataOff)); err != nil {
 			return nil, errors.New("corrupt tzdata file " + file)
 		}
-		return loadZoneData(buf)
+		return buf, nil
 	}
-	return nil, errors.New("cannot find " + name + " in tzdata file " + file)
+	return nil, syscall.ENOENT
 }

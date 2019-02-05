@@ -22,9 +22,9 @@ func f1() {
 
 	// Escape analysis used to miss inlined code in closures.
 
-	func() { // ERROR "func literal does not escape" "can inline f1.func1"
-		p = alloc(3) // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
-	}()
+	func() { // ERROR "can inline f1.func1"
+		p = alloc(3) // ERROR "inlining call to alloc"
+	}() // ERROR "inlining call to f1.func1" "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
 
 	f = func() { // ERROR "func literal escapes to heap" "can inline f1.func2"
 		p = alloc(3) // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
@@ -34,8 +34,8 @@ func f1() {
 
 func f2() {} // ERROR "can inline f2"
 
-// No inline for panic, recover.
-func f3() { panic(1) }
+// No inline for recover; panic now allowed to inline.
+func f3() { panic(1) } // ERROR "can inline f3"
 func f4() { recover() }
 
 func f5() *byte {

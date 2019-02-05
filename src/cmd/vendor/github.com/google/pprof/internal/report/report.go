@@ -19,12 +19,12 @@ package report
 import (
 	"fmt"
 	"io"
-	"math"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/google/pprof/internal/graph"
@@ -55,14 +55,15 @@ const (
 type Options struct {
 	OutputFormat int
 
-	CumSort             bool
-	CallTree            bool
-	DropNegative        bool
-	PositivePercentages bool
-	CompactLabels       bool
-	Ratio               float64
-	Title               string
-	ProfileLabels       []string
+	CumSort       bool
+	CallTree      bool
+	DropNegative  bool
+	CompactLabels bool
+	Ratio         float64
+	Title         string
+	ProfileLabels []string
+	ActiveFilters []string
+	NumLabelUnits map[string]string
 
 	NodeCount    int
 	NodeFraction float64
@@ -77,6 +78,7 @@ type Options struct {
 
 	Symbol     *regexp.Regexp // Symbols to include on disassembly report.
 	SourcePath string         // Search path for source files.
+	TrimPath   string         // Paths to trim from source file paths.
 }
 
 // Generate generates a report as directed by the Report.
@@ -125,6 +127,9 @@ func (rpt *Report) newTrimmedGraph() (g *graph.Graph, origCount, droppedNodes, d
 	visualMode := o.OutputFormat == Dot
 	cumSort := o.CumSort
 
+	// The call_tree option is only honored when generating visual representations of the callgraph.
+	callTree := o.CallTree && (o.OutputFormat == Dot || o.OutputFormat == Callgrind)
+
 	// First step: Build complete graph to identify low frequency nodes, based on their cum weight.
 	g = rpt.newGraph(nil)
 	totalValue, _ := g.Nodes.Sum()
@@ -133,7 +138,7 @@ func (rpt *Report) newTrimmedGraph() (g *graph.Graph, origCount, droppedNodes, d
 
 	// Filter out nodes with cum value below nodeCutoff.
 	if nodeCutoff > 0 {
-		if o.CallTree {
+		if callTree {
 			if nodesKept := g.DiscardLowFrequencyNodePtrs(nodeCutoff); len(g.Nodes) != len(nodesKept) {
 				droppedNodes = len(g.Nodes) - len(nodesKept)
 				g.TrimTree(nodesKept)
@@ -154,7 +159,7 @@ func (rpt *Report) newTrimmedGraph() (g *graph.Graph, origCount, droppedNodes, d
 		// Remove low frequency tags and edges as they affect selection.
 		g.TrimLowFrequencyTags(nodeCutoff)
 		g.TrimLowFrequencyEdges(edgeCutoff)
-		if o.CallTree {
+		if callTree {
 			if nodesKept := g.SelectTopNodePtrs(nodeCount, visualMode); len(g.Nodes) != len(nodesKept) {
 				g.TrimTree(nodesKept)
 				g.SortNodes(cumSort, visualMode)
@@ -234,18 +239,34 @@ func (rpt *Report) newGraph(nodes graph.NodeSet) *graph.Graph {
 	// Clean up file paths using heuristics.
 	prof := rpt.prof
 	for _, f := range prof.Function {
-		f.Filename = trimPath(f.Filename)
+		f.Filename = trimPath(f.Filename, o.TrimPath, o.SourcePath)
 	}
-	// Remove numeric tags not recognized by pprof.
+	// Removes all numeric tags except for the bytes tag prior
+	// to making graph.
+	// TODO: modify to select first numeric tag if no bytes tag
 	for _, s := range prof.Sample {
 		numLabels := make(map[string][]int64, len(s.NumLabel))
-		for k, v := range s.NumLabel {
+		numUnits := make(map[string][]string, len(s.NumLabel))
+		for k, vs := range s.NumLabel {
 			if k == "bytes" {
-				numLabels[k] = append(numLabels[k], v...)
+				unit := o.NumLabelUnits[k]
+				numValues := make([]int64, len(vs))
+				numUnit := make([]string, len(vs))
+				for i, v := range vs {
+					numValues[i] = v
+					numUnit[i] = unit
+				}
+				numLabels[k] = append(numLabels[k], numValues...)
+				numUnits[k] = append(numUnits[k], numUnit...)
 			}
 		}
 		s.NumLabel = numLabels
+		s.NumUnit = numUnits
 	}
+
+	// Remove label marking samples from the base profiles, so it does not appear
+	// as a nodelet in the graph view.
+	prof.RemoveLabel("pprof::base")
 
 	formatTag := func(v int64, key string) string {
 		return measurement.ScaledLabel(v, key, o.OutputUnit)
@@ -288,7 +309,10 @@ func printTopProto(w io.Writer, rpt *Report) error {
 	}
 	functionMap := make(functionMap)
 	for i, n := range g.Nodes {
-		f := functionMap.FindOrAdd(n.Info)
+		f, added := functionMap.findOrAdd(n.Info)
+		if added {
+			out.Function = append(out.Function, f)
+		}
 		flat, cum := n.FlatValue(), n.CumValue()
 		l := &profile.Location{
 			ID:      uint64(i + 1),
@@ -307,7 +331,6 @@ func printTopProto(w io.Writer, rpt *Report) error {
 			Location: []*profile.Location{l},
 			Value:    []int64{int64(cv), int64(fv)},
 		}
-		out.Function = append(out.Function, f)
 		out.Location = append(out.Location, l)
 		out.Sample = append(out.Sample, s)
 	}
@@ -317,11 +340,15 @@ func printTopProto(w io.Writer, rpt *Report) error {
 
 type functionMap map[string]*profile.Function
 
-func (fm functionMap) FindOrAdd(ni graph.NodeInfo) *profile.Function {
+// findOrAdd takes a node representing a function, adds the function
+// represented by the node to the map if the function is not already present,
+// and returns the function the node represents. This also returns a boolean,
+// which is true if the function was added and false otherwise.
+func (fm functionMap) findOrAdd(ni graph.NodeInfo) (*profile.Function, bool) {
 	fName := fmt.Sprintf("%q%q%q%d", ni.Name, ni.OrigName, ni.File, ni.StartLine)
 
 	if f := fm[fName]; f != nil {
-		return f
+		return f, false
 	}
 
 	f := &profile.Function{
@@ -332,11 +359,16 @@ func (fm functionMap) FindOrAdd(ni graph.NodeInfo) *profile.Function {
 		StartLine:  int64(ni.StartLine),
 	}
 	fm[fName] = f
-	return f
+	return f, true
 }
 
 // printAssembly prints an annotated assembly listing.
 func printAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
+	return PrintAssembly(w, rpt, obj, -1)
+}
+
+// PrintAssembly prints annotated disassembly of rpt to w.
+func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) error {
 	o := rpt.options
 	prof := rpt.prof
 
@@ -352,12 +384,34 @@ func printAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 	fmt.Fprintln(w, "Total:", rpt.formatValue(rpt.total))
 	symbols := symbolsFromBinaries(prof, g, o.Symbol, address, obj)
 	symNodes := nodesPerSymbol(g.Nodes, symbols)
-	// Sort function names for printing.
-	var syms objSymbols
+
+	// Sort for printing.
+	var syms []*objSymbol
 	for s := range symNodes {
 		syms = append(syms, s)
 	}
-	sort.Sort(syms)
+	byName := func(a, b *objSymbol) bool {
+		if na, nb := a.sym.Name[0], b.sym.Name[0]; na != nb {
+			return na < nb
+		}
+		return a.sym.Start < b.sym.Start
+	}
+	if maxFuncs < 0 {
+		sort.Sort(orderSyms{syms, byName})
+	} else {
+		byFlatSum := func(a, b *objSymbol) bool {
+			suma, _ := symNodes[a].Sum()
+			sumb, _ := symNodes[b].Sum()
+			if suma != sumb {
+				return suma > sumb
+			}
+			return byName(a, b)
+		}
+		sort.Sort(orderSyms{syms, byFlatSum})
+		if len(syms) > maxFuncs {
+			syms = syms[:maxFuncs]
+		}
+	}
 
 	// Correlate the symbols from the binary with the profile samples.
 	for _, s := range syms {
@@ -380,7 +434,7 @@ func printAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 		}
 		fmt.Fprintf(w, "%10s %10s (flat, cum) %s of Total\n",
 			rpt.formatValue(flatSum), rpt.formatValue(cumSum),
-			percentage(cumSum, rpt.total))
+			measurement.Percentage(cumSum, rpt.total))
 
 		function, file, line := "", "", 0
 		for _, n := range ns {
@@ -471,6 +525,7 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
 				&objSymbol{
 					sym:  ms,
 					base: base,
+					file: f,
 				},
 			)
 		}
@@ -485,25 +540,18 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
 type objSymbol struct {
 	sym  *plugin.Sym
 	base uint64
+	file plugin.ObjFile
 }
 
-// objSymbols is a wrapper type to enable sorting of []*objSymbol.
-type objSymbols []*objSymbol
-
-func (o objSymbols) Len() int {
-	return len(o)
+// orderSyms is a wrapper type to sort []*objSymbol by a supplied comparator.
+type orderSyms struct {
+	v    []*objSymbol
+	less func(a, b *objSymbol) bool
 }
 
-func (o objSymbols) Less(i, j int) bool {
-	if namei, namej := o[i].sym.Name[0], o[j].sym.Name[0]; namei != namej {
-		return namei < namej
-	}
-	return o[i].sym.Start < o[j].sym.Start
-}
-
-func (o objSymbols) Swap(i, j int) {
-	o[i], o[j] = o[j], o[i]
-}
+func (o orderSyms) Len() int           { return len(o.v) }
+func (o orderSyms) Less(i, j int) bool { return o.less(o.v[i], o.v[j]) }
+func (o orderSyms) Swap(i, j int)      { o.v[i], o.v[j] = o.v[j], o.v[i] }
 
 // nodesPerSymbol classifies nodes into a group of symbols.
 func nodesPerSymbol(ns graph.Nodes, symbols []*objSymbol) map[*objSymbol]graph.Nodes {
@@ -528,6 +576,13 @@ type assemblyInstruction struct {
 	line            int
 	flat, cum       int64
 	flatDiv, cumDiv int64
+	startsBlock     bool
+	inlineCalls     []callID
+}
+
+type callID struct {
+	file string
+	line int
 }
 
 func (a *assemblyInstruction) flatValue() int64 {
@@ -617,25 +672,24 @@ func printTags(w io.Writer, rpt *Report) error {
 	for _, s := range p.Sample {
 		for key, vals := range s.Label {
 			for _, val := range vals {
-				if valueMap, ok := tagMap[key]; ok {
-					valueMap[val] = valueMap[val] + s.Value[0]
-					continue
+				valueMap, ok := tagMap[key]
+				if !ok {
+					valueMap = make(map[string]int64)
+					tagMap[key] = valueMap
 				}
-				valueMap := make(map[string]int64)
-				valueMap[val] = s.Value[0]
-				tagMap[key] = valueMap
+				valueMap[val] += o.SampleValue(s.Value)
 			}
 		}
 		for key, vals := range s.NumLabel {
+			unit := o.NumLabelUnits[key]
 			for _, nval := range vals {
-				val := formatTag(nval, key)
-				if valueMap, ok := tagMap[key]; ok {
-					valueMap[val] = valueMap[val] + s.Value[0]
-					continue
+				val := formatTag(nval, unit)
+				valueMap, ok := tagMap[key]
+				if !ok {
+					valueMap = make(map[string]int64)
+					tagMap[key] = valueMap
 				}
-				valueMap := make(map[string]int64)
-				valueMap[val] = s.Value[0]
-				tagMap[key] = valueMap
+				valueMap[val] += o.SampleValue(s.Value)
 			}
 		}
 	}
@@ -644,6 +698,7 @@ func printTags(w io.Writer, rpt *Report) error {
 	for key := range tagMap {
 		tagKeys = append(tagKeys, &graph.Tag{Name: key})
 	}
+	tabw := tabwriter.NewWriter(w, 0, 0, 1, ' ', tabwriter.AlignRight)
 	for _, tagKey := range graph.SortTags(tagKeys, true) {
 		var total int64
 		key := tagKey.Name
@@ -653,18 +708,19 @@ func printTags(w io.Writer, rpt *Report) error {
 			tags = append(tags, &graph.Tag{Name: t, Flat: c})
 		}
 
-		fmt.Fprintf(w, "%s: Total %d\n", key, total)
+		f, u := measurement.Scale(total, o.SampleUnit, o.OutputUnit)
+		fmt.Fprintf(tabw, "%s:\t Total %.1f%s\n", key, f, u)
 		for _, t := range graph.SortTags(tags, true) {
+			f, u := measurement.Scale(t.FlatValue(), o.SampleUnit, o.OutputUnit)
 			if total > 0 {
-				fmt.Fprintf(w, "  %8d (%s): %s\n", t.FlatValue(),
-					percentage(t.FlatValue(), total), t.Name)
+				fmt.Fprintf(tabw, " \t%.1f%s (%s):\t %s\n", f, u, measurement.Percentage(t.FlatValue(), total), t.Name)
 			} else {
-				fmt.Fprintf(w, "  %8d: %s\n", t.FlatValue(), t.Name)
+				fmt.Fprintf(tabw, " \t%.1f%s:\t %s\n", f, u, t.Name)
 			}
 		}
-		fmt.Fprintln(w)
+		fmt.Fprintln(tabw)
 	}
-	return nil
+	return tabw.Flush()
 }
 
 // printComments prints all freeform comments in the profile.
@@ -677,16 +733,22 @@ func printComments(w io.Writer, rpt *Report) error {
 	return nil
 }
 
-// printText prints a flat text report for a profile.
-func printText(w io.Writer, rpt *Report) error {
+// TextItem holds a single text report entry.
+type TextItem struct {
+	Name                  string
+	InlineLabel           string // Not empty if inlined
+	Flat, Cum             int64  // Raw values
+	FlatFormat, CumFormat string // Formatted values
+}
+
+// TextItems returns a list of text items from the report and a list
+// of labels that describe the report.
+func TextItems(rpt *Report) ([]TextItem, []string) {
 	g, origCount, droppedNodes, _ := rpt.newTrimmedGraph()
 	rpt.selectOutputUnit(g)
+	labels := reportLabels(rpt, g, origCount, droppedNodes, 0, false)
 
-	fmt.Fprintln(w, strings.Join(reportLabels(rpt, g, origCount, droppedNodes, 0, false), "\n"))
-
-	fmt.Fprintf(w, "%10s %5s%% %5s%% %10s %5s%%\n",
-		"flat", "flat", "sum", "cum", "cum")
-
+	var items []TextItem
 	var flatSum int64
 	for _, n := range g.Nodes {
 		name, flat, cum := n.Info.PrintableName(), n.FlatValue(), n.CumValue()
@@ -700,22 +762,46 @@ func printText(w io.Writer, rpt *Report) error {
 			}
 		}
 
+		var inl string
 		if inline {
 			if noinline {
-				name = name + " (partial-inline)"
+				inl = "(partial-inline)"
 			} else {
-				name = name + " (inline)"
+				inl = "(inline)"
 			}
 		}
 
 		flatSum += flat
-		fmt.Fprintf(w, "%10s %s %s %10s %s  %s\n",
-			rpt.formatValue(flat),
-			percentage(flat, rpt.total),
-			percentage(flatSum, rpt.total),
-			rpt.formatValue(cum),
-			percentage(cum, rpt.total),
-			name)
+		items = append(items, TextItem{
+			Name:        name,
+			InlineLabel: inl,
+			Flat:        flat,
+			Cum:         cum,
+			FlatFormat:  rpt.formatValue(flat),
+			CumFormat:   rpt.formatValue(cum),
+		})
+	}
+	return items, labels
+}
+
+// printText prints a flat text report for a profile.
+func printText(w io.Writer, rpt *Report) error {
+	items, labels := TextItems(rpt)
+	fmt.Fprintln(w, strings.Join(labels, "\n"))
+	fmt.Fprintf(w, "%10s %5s%% %5s%% %10s %5s%%\n",
+		"flat", "flat", "sum", "cum", "cum")
+	var flatSum int64
+	for _, item := range items {
+		inl := item.InlineLabel
+		if inl != "" {
+			inl = " " + inl
+		}
+		flatSum += item.Flat
+		fmt.Fprintf(w, "%10s %s %s %10s %s  %s%s\n",
+			item.FlatFormat, measurement.Percentage(item.Flat, rpt.total),
+			measurement.Percentage(flatSum, rpt.total),
+			item.CumFormat, measurement.Percentage(item.Cum, rpt.total),
+			item.Name, inl)
 	}
 	return nil
 }
@@ -749,6 +835,20 @@ func printTraces(w io.Writer, rpt *Report) error {
 		}
 		sort.Strings(labels)
 		fmt.Fprint(w, strings.Join(labels, ""))
+
+		// Print any numeric labels for the sample
+		var numLabels []string
+		for key, vals := range sample.NumLabel {
+			unit := o.NumLabelUnits[key]
+			numValues := make([]string, len(vals))
+			for i, vv := range vals {
+				numValues[i] = measurement.Label(vv, unit)
+			}
+			numLabels = append(numLabels, fmt.Sprintf("%10s:  %s\n", key, strings.Join(numValues, " ")))
+		}
+		sort.Strings(numLabels)
+		fmt.Fprint(w, strings.Join(numLabels, ""))
+
 		var d, v int64
 		v = o.SampleValue(sample.Value)
 		if o.SampleMeanDivisor != nil {
@@ -939,17 +1039,17 @@ func printTree(w io.Writer, rpt *Report) error {
 				inline = " (inline)"
 			}
 			fmt.Fprintf(w, "%50s %s |   %s%s\n", rpt.formatValue(in.Weight),
-				percentage(in.Weight, cum), in.Src.Info.PrintableName(), inline)
+				measurement.Percentage(in.Weight, cum), in.Src.Info.PrintableName(), inline)
 		}
 
 		// Print current node.
 		flatSum += flat
 		fmt.Fprintf(w, "%10s %s %s %10s %s                | %s\n",
 			rpt.formatValue(flat),
-			percentage(flat, rpt.total),
-			percentage(flatSum, rpt.total),
+			measurement.Percentage(flat, rpt.total),
+			measurement.Percentage(flatSum, rpt.total),
 			rpt.formatValue(cum),
-			percentage(cum, rpt.total),
+			measurement.Percentage(cum, rpt.total),
 			name)
 
 		// Print outgoing edges.
@@ -960,7 +1060,7 @@ func printTree(w io.Writer, rpt *Report) error {
 				inline = " (inline)"
 			}
 			fmt.Fprintf(w, "%50s %s |   %s%s\n", rpt.formatValue(out.Weight),
-				percentage(out.Weight, cum), out.Dest.Info.PrintableName(), inline)
+				measurement.Percentage(out.Weight, cum), out.Dest.Info.PrintableName(), inline)
 		}
 	}
 	if len(g.Nodes) > 0 {
@@ -969,43 +1069,27 @@ func printTree(w io.Writer, rpt *Report) error {
 	return nil
 }
 
-// printDOT prints an annotated callgraph in DOT format.
-func printDOT(w io.Writer, rpt *Report) error {
+// GetDOT returns a graph suitable for dot processing along with some
+// configuration information.
+func GetDOT(rpt *Report) (*graph.Graph, *graph.DotConfig) {
 	g, origCount, droppedNodes, droppedEdges := rpt.newTrimmedGraph()
 	rpt.selectOutputUnit(g)
 	labels := reportLabels(rpt, g, origCount, droppedNodes, droppedEdges, true)
-
-	o := rpt.options
-	formatTag := func(v int64, key string) string {
-		return measurement.ScaledLabel(v, key, o.OutputUnit)
-	}
 
 	c := &graph.DotConfig{
 		Title:       rpt.options.Title,
 		Labels:      labels,
 		FormatValue: rpt.formatValue,
-		FormatTag:   formatTag,
 		Total:       rpt.total,
 	}
-	graph.ComposeDot(w, g, &graph.DotAttributes{}, c)
-	return nil
+	return g, c
 }
 
-// percentage computes the percentage of total of a value, and encodes
-// it as a string. At least two digits of precision are printed.
-func percentage(value, total int64) string {
-	var ratio float64
-	if total != 0 {
-		ratio = math.Abs(float64(value)/float64(total)) * 100
-	}
-	switch {
-	case math.Abs(ratio) >= 99.95 && math.Abs(ratio) <= 100.05:
-		return "  100%"
-	case math.Abs(ratio) >= 1.0:
-		return fmt.Sprintf("%5.2f%%", ratio)
-	default:
-		return fmt.Sprintf("%5.2g%%", ratio)
-	}
+// printDOT prints an annotated callgraph in DOT format.
+func printDOT(w io.Writer, rpt *Report) error {
+	g, c := GetDOT(rpt)
+	graph.ComposeDot(w, g, &graph.DotAttributes{}, c)
+	return nil
 }
 
 // ProfileLabels returns printable labels for a profile.
@@ -1039,7 +1123,7 @@ func ProfileLabels(rpt *Report) []string {
 		totalNanos, totalUnit := measurement.Scale(rpt.total, o.SampleUnit, "nanoseconds")
 		var ratio string
 		if totalUnit == "ns" && totalNanos != 0 {
-			ratio = "(" + percentage(int64(totalNanos), prof.DurationNanos) + ")"
+			ratio = "(" + measurement.Percentage(int64(totalNanos), prof.DurationNanos) + ")"
 		}
 		label = append(label, fmt.Sprintf("Duration: %s, Total samples = %s %s", duration, rpt.formatValue(rpt.total), ratio))
 	}
@@ -1055,9 +1139,7 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
 
 	var label []string
 	if len(rpt.options.ProfileLabels) > 0 {
-		for _, l := range rpt.options.ProfileLabels {
-			label = append(label, l)
-		}
+		label = append(label, rpt.options.ProfileLabels...)
 	} else if fullHeaders || !rpt.options.CompactLabels {
 		label = ProfileLabels(rpt)
 	}
@@ -1067,7 +1149,12 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
 		flatSum = flatSum + n.FlatValue()
 	}
 
-	label = append(label, fmt.Sprintf("Showing nodes accounting for %s, %s of %s total", rpt.formatValue(flatSum), strings.TrimSpace(percentage(flatSum, rpt.total)), rpt.formatValue(rpt.total)))
+	if len(rpt.options.ActiveFilters) > 0 {
+		activeFilters := legendActiveFilters(rpt.options.ActiveFilters)
+		label = append(label, activeFilters...)
+	}
+
+	label = append(label, fmt.Sprintf("Showing nodes accounting for %s, %s of %s total", rpt.formatValue(flatSum), strings.TrimSpace(measurement.Percentage(flatSum, rpt.total)), rpt.formatValue(rpt.total)))
 
 	if rpt.total != 0 {
 		if droppedNodes > 0 {
@@ -1084,6 +1171,18 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
 		}
 	}
 	return label
+}
+
+func legendActiveFilters(activeFilters []string) []string {
+	legendActiveFilters := make([]string, len(activeFilters)+1)
+	legendActiveFilters[0] = "Active filters:"
+	for i, s := range activeFilters {
+		if len(s) > 80 {
+			s = s[:80] + "…"
+		}
+		legendActiveFilters[i+1] = "   " + s
+	}
+	return legendActiveFilters
 }
 
 func genLabel(d int, n, l, f string) string {
@@ -1103,7 +1202,7 @@ func New(prof *profile.Profile, o *Options) *Report {
 		}
 		return measurement.ScaledLabel(v, o.SampleUnit, o.OutputUnit)
 	}
-	return &Report{prof, computeTotal(prof, o.SampleValue, o.SampleMeanDivisor, !o.PositivePercentages),
+	return &Report{prof, computeTotal(prof, o.SampleValue, o.SampleMeanDivisor),
 		o, format}
 }
 
@@ -1123,31 +1222,35 @@ func NewDefault(prof *profile.Profile, options Options) *Report {
 	return New(prof, o)
 }
 
-// computeTotal computes the sum of all sample values. This will be
-// used to compute percentages. If includeNegative is set, use use
-// absolute values to provide a meaningful percentage for both
-// negative and positive values. Otherwise only use positive values,
-// which is useful when comparing profiles from different jobs.
-func computeTotal(prof *profile.Profile, value, meanDiv func(v []int64) int64, includeNegative bool) int64 {
-	var div, ret int64
+// computeTotal computes the sum of the absolute value of all sample values.
+// If any samples have label indicating they belong to the diff base, then the
+// total will only include samples with that label.
+func computeTotal(prof *profile.Profile, value, meanDiv func(v []int64) int64) int64 {
+	var div, total, diffDiv, diffTotal int64
 	for _, sample := range prof.Sample {
 		var d, v int64
 		v = value(sample.Value)
 		if meanDiv != nil {
 			d = meanDiv(sample.Value)
 		}
-		if v >= 0 {
-			ret += v
-			div += d
-		} else if includeNegative {
-			ret -= v
-			div += d
+		if v < 0 {
+			v = -v
+		}
+		total += v
+		div += d
+		if sample.DiffBaseSample() {
+			diffTotal += v
+			diffDiv += d
 		}
 	}
-	if div != 0 {
-		return ret / div
+	if diffTotal > 0 {
+		total = diffTotal
+		div = diffDiv
 	}
-	return ret
+	if div != 0 {
+		return total / div
+	}
+	return total
 }
 
 // Report contains the data and associated routines to extract a
@@ -1158,6 +1261,9 @@ type Report struct {
 	options     *Options
 	formatValue func(int64) string
 }
+
+// Total returns the total number of samples in a report.
+func (rpt *Report) Total() int64 { return rpt.total }
 
 func abs64(i int64) int64 {
 	if i < 0 {

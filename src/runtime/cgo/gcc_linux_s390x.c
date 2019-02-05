@@ -40,7 +40,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 
 	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
 	ts->g->stackhi = size;
 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
 

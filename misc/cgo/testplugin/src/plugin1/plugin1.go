@@ -7,7 +7,10 @@ package main
 // // No C code required.
 import "C"
 
-import "common"
+import (
+	"common"
+	"reflect"
+)
 
 func F() int {
 	_ = make([]byte, 1<<21) // trigger stack unwind, Issue #18190.
@@ -31,6 +34,21 @@ func g() {
 func init() {
 	Seven = 7
 	call(g)
+}
+
+type sameNameReusedInPlugins struct {
+	X string
+}
+
+type sameNameHolder struct {
+	F *sameNameReusedInPlugins
+}
+
+func UnexportedNameReuse() {
+	h := sameNameHolder{}
+	v := reflect.ValueOf(&h).Elem().Field(0)
+	newval := reflect.New(v.Type().Elem())
+	v.Set(newval)
 }
 
 func main() {

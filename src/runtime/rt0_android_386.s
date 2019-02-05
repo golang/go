@@ -4,18 +4,13 @@
 
 #include "textflag.h"
 
-TEXT _rt0_386_android(SB),NOSPLIT,$8
-	MOVL	8(SP), AX  // argc
-	LEAL	12(SP), BX  // argv
-	MOVL	AX, 0(SP)
-	MOVL	BX, 4(SP)
-	CALL	main(SB)
-	INT	$3
+TEXT _rt0_386_android(SB),NOSPLIT,$0
+	JMP	_rt0_386(SB)
 
 TEXT _rt0_386_android_lib(SB),NOSPLIT,$0
 	PUSHL	$_rt0_386_android_argv(SB)  // argv
 	PUSHL	$1  // argc
-	CALL	_rt0_386_linux_lib(SB)
+	CALL	_rt0_386_lib(SB)
 	POPL	AX
 	POPL	AX
 	RET

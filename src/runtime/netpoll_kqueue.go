@@ -10,12 +10,6 @@ package runtime
 
 import "unsafe"
 
-func kqueue() int32
-
-//go:noescape
-func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
-func closeonexec(fd int32)
-
 var (
 	kq int32 = -1
 )
@@ -65,9 +59,9 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // Polls for ready network connections.
 // Returns list of goroutines that become runnable.
-func netpoll(block bool) *g {
+func netpoll(block bool) gList {
 	if kq == -1 {
-		return nil
+		return gList{}
 	}
 	var tp *timespec
 	var ts timespec
@@ -84,22 +78,35 @@ retry:
 		}
 		goto retry
 	}
-	var gp guintptr
+	var toRun gList
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
 		var mode int32
-		if ev.filter == _EVFILT_READ {
+		switch ev.filter {
+		case _EVFILT_READ:
 			mode += 'r'
-		}
-		if ev.filter == _EVFILT_WRITE {
+
+			// On some systems when the read end of a pipe
+			// is closed the write end will not get a
+			// _EVFILT_WRITE event, but will get a
+			// _EVFILT_READ event with EV_EOF set.
+			// Note that setting 'w' here just means that we
+			// will wake up a goroutine waiting to write;
+			// that goroutine will try the write again,
+			// and the appropriate thing will happen based
+			// on what that write returns (success, EPIPE, EAGAIN).
+			if ev.flags&_EV_EOF != 0 {
+				mode += 'w'
+			}
+		case _EVFILT_WRITE:
 			mode += 'w'
 		}
 		if mode != 0 {
-			netpollready(&gp, (*pollDesc)(unsafe.Pointer(ev.udata)), mode)
+			netpollready(&toRun, (*pollDesc)(unsafe.Pointer(ev.udata)), mode)
 		}
 	}
-	if block && gp == 0 {
+	if block && toRun.empty() {
 		goto retry
 	}
-	return gp.ptr()
+	return toRun
 }

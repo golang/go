@@ -23,6 +23,9 @@ package ssa
 //    JLT loop
 func loopRotate(f *Func) {
 	loopnest := f.loopnest()
+	if loopnest.hasIrreducible {
+		return
+	}
 	if len(loopnest.loops) == 0 {
 		return
 	}
@@ -62,7 +65,7 @@ func loopRotate(f *Func) {
 				break
 			}
 			nextb := f.Blocks[nextIdx]
-			if nextb == p { // original loop precedessor is next
+			if nextb == p { // original loop predecessor is next
 				break
 			}
 			if loopnest.b2l[nextb.ID] != loop { // about to leave loop

@@ -89,7 +89,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$48
 	MOVQ	$0, 32(SP)	// overlapped
 	MOVQ	runtime·_WriteFile(SB), AX
 	CALL	AX
-	
+
 	RET
 
 // faster get/set last error
@@ -363,7 +363,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	// Layout new m scheduler stack on os stack.
 	MOVQ	SP, AX
 	MOVQ	AX, (g_stack+stack_hi)(DX)
-	SUBQ	$(64*1024), AX		// stack size
+	SUBQ	$(64*1024), AX		// initial stack size (adjusted later)
 	MOVQ	AX, (g_stack+stack_lo)(DX)
 	ADDQ	$const__StackGuard, AX
 	MOVQ	AX, g_stackguard0(DX)
@@ -465,7 +465,7 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
 	MOVQ	32(SP), SP
 	RET
 
-// See http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
+// See https://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
 // Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
 #define _INTERRUPT_TIME 0x7ffe0008
 #define _SYSTEM_TIME 0x7ffe0014
@@ -486,7 +486,6 @@ loop:
 	SHLQ	$32, CX
 	ORQ	BX, CX
 	IMULQ	$100, CX
-	SUBQ	runtime·startNano(SB), CX
 	MOVQ	CX, ret+0(FP)
 	RET
 useQPC:
@@ -506,7 +505,6 @@ loop:
 	SHLQ	$32, AX
 	ORQ	BX, AX
 	IMULQ	$100, AX
-	SUBQ	runtime·startNano(SB), AX
 	MOVQ	AX, mono+16(FP)
 
 	MOVQ	$_SYSTEM_TIME, DI

@@ -150,3 +150,42 @@ loop:
 	MVC     $16, (R1), (R8)
 	MOVD	$0, R0
 	RET
+
+// func kmaGCM(fn code, key, dst, src, aad []byte, tag *[16]byte, cnt *gcmCount)
+TEXT ·kmaGCM(SB),NOSPLIT,$112-120
+	MOVD	fn+0(FP), R0
+	MOVD	$params-112(SP), R1
+
+	// load ptr/len pairs
+	LMG	dst+32(FP), R2, R3 // R2=base R3=len
+	LMG	src+56(FP), R4, R5 // R4=base R5=len
+	LMG	aad+80(FP), R6, R7 // R6=base R7=len
+
+	// setup parameters
+	MOVD	cnt+112(FP), R8
+	XC	$12, (R1), (R1)     // reserved
+	MVC	$4, 12(R8), 12(R1)  // set chain value
+	MVC	$16, (R8), 64(R1)   // set initial counter value
+	XC	$32, 16(R1), 16(R1) // set hash subkey and tag
+	SLD	$3, R7, R12
+	MOVD	R12, 48(R1)         // set total AAD length
+	SLD	$3, R5, R12
+	MOVD	R12, 56(R1)         // set total plaintext/ciphertext length
+
+	LMG	key+8(FP), R8, R9   // R8=base R9=len
+	MVC	$16, (R8), 80(R1)   // set key
+	CMPBEQ	R9, $16, kma
+	MVC	$8, 16(R8), 96(R1)
+	CMPBEQ	R9, $24, kma
+	MVC	$8, 24(R8), 104(R1)
+
+kma:
+	WORD	$0xb9296024 // kma %r6,%r2,%r4
+	BVS	kma
+
+	MOVD	tag+104(FP), R2
+	MVC	$16, 16(R1), 0(R2) // copy tag to output
+	MOVD	cnt+112(FP), R8
+	MVC	$4, 12(R1), 12(R8) // update counter value
+
+	RET

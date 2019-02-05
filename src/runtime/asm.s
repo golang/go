@@ -25,6 +25,9 @@ GLOBL runtime·memstats(SB), NOPTR, $0
 #ifdef GOARCH_amd64p32
 #define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
 #endif
+#ifdef GOARCH_wasm
+#define SKIP4 UNDEF; UNDEF; UNDEF; UNDEF
+#endif
 #ifndef SKIP4
 #define SKIP4 WORD $0
 #endif
@@ -35,3 +38,11 @@ GLOBL runtime·memstats(SB), NOPTR, $0
 // This function must be sizeofSkipFunction bytes.
 TEXT runtime·skipPleaseUseCallersFrames(SB),NOSPLIT,$0-0
 	SKIP64; SKIP64; SKIP64; SKIP64
+
+// abi0Syms is a dummy symbol that creates ABI0 wrappers for Go
+// functions called from assembly in other packages.
+TEXT abi0Syms<>(SB),NOSPLIT,$0-0
+	// obj assumes it can call morestack* using ABI0, but
+	// morestackc is actually defined in Go.
+	CALL ·morestackc(SB)
+	// References from syscall are automatically collected by cmd/go.

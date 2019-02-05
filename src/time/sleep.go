@@ -8,13 +8,12 @@ package time
 // A negative or zero duration causes Sleep to return immediately.
 func Sleep(d Duration)
 
-// runtimeNano returns the current value of the runtime clock in nanoseconds.
-func runtimeNano() int64
-
 // Interface to timers implemented in package runtime.
 // Must be in sync with ../runtime/time.go:/^type timer
 type runtimeTimer struct {
-	i      int
+	tb uintptr
+	i  int
+
 	when   int64
 	period int64
 	f      func(interface{}, uintptr) // NOTE: must not be closure

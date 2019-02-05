@@ -14,8 +14,13 @@ type T struct {
 	script string
 }
 
-// Hand-chosen tests from Unicode 5.1.0, 6.0.0, 6.2.0, 6.3.0, 7.0.0 and 8.0.0
+// Hand-chosen tests from Unicode 5.1.0, 6.0.0, 6.2.0, 6.3.0, 7.0.0, 8.0.0,
+// 9.0.0, 10.0.0.
 // mostly to discover when new scripts and categories arise.
+// If this tests fails, add the missing scripts to the test and add entries
+// of the form
+//     pkg unicode, var <new script> *RangeTable
+// to api/next.txt.
 var inTest = []T{
 	{0x11711, "Ahom"},
 	{0x1e900, "Adlam"},
@@ -92,6 +97,7 @@ var inTest = []T{
 	{0x0843, "Mandaic"},
 	{0x10ac8, "Manichaean"},
 	{0x11cB6, "Marchen"},
+	{0x11d59, "Masaram_Gondi"},
 	{0xabd0, "Meetei_Mayek"},
 	{0x1e800, "Mende_Kikakui"},
 	{0x1099f, "Meroitic_Hieroglyphs"},
@@ -106,6 +112,7 @@ var inTest = []T{
 	{0x11400, "Newa"},
 	{0x19c3, "New_Tai_Lue"},
 	{0x07f8, "Nko"},
+	{0x1b170, "Nushu"},
 	{0x169b, "Ogham"},
 	{0x1c6a, "Ol_Chiki"},
 	{0x10C80, "Old_Hungarian"},
@@ -134,6 +141,7 @@ var inTest = []T{
 	{0x1D920, "SignWriting"},
 	{0x0dbd, "Sinhala"},
 	{0x110d0, "Sora_Sompeng"},
+	{0x11a99, "Soyombo"},
 	{0x1ba3, "Sundanese"},
 	{0xa803, "Syloti_Nagri"},
 	{0x070f, "Syriac"},
@@ -155,6 +163,7 @@ var inTest = []T{
 	{0xa60e, "Vai"},
 	{0x118ff, "Warang_Citi"},
 	{0xa216, "Yi"},
+	{0x11a0a, "Zanabazar_Square"},
 }
 
 var outTest = []T{ // not really worth being thorough
@@ -229,6 +238,7 @@ var inPropTest = []T{
 	{0x06DD, "Prepended_Concatenation_Mark"},
 	{0x300D, "Quotation_Mark"},
 	{0x2EF3, "Radical"},
+	{0x1f1ff, "Regional_Indicator"},
 	{0x061F, "STerm"}, // Deprecated alias of Sentence_Terminal
 	{0x061F, "Sentence_Terminal"},
 	{0x2071, "Soft_Dotted"},

@@ -82,7 +82,7 @@ func nlz(x Word) uint {
 	return uint(bits.LeadingZeros(uint(x)))
 }
 
-// q = (u1<<_W + u0 - r)/y
+// q = (u1<<_W + u0 - r)/v
 // Adapted from Warren, Hacker's Delight, p. 152.
 func divWW_g(u1, u0, v Word) (q, r Word) {
 	if u1 >= v {

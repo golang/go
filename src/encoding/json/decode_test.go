@@ -41,6 +41,16 @@ type VOuter struct {
 	V V
 }
 
+type W struct {
+	S SS
+}
+
+type SS string
+
+func (*SS) UnmarshalJSON(data []byte) error {
+	return &UnmarshalTypeError{Value: "number", Type: reflect.TypeOf(SS(""))}
+}
+
 // ifaceNumAsFloat64/ifaceNumAsNumber are used to test unmarshaling with and
 // without UseNumber
 var ifaceNumAsFloat64 = map[string]interface{}{
@@ -88,7 +98,7 @@ func (u unmarshalerText) MarshalText() ([]byte, error) {
 }
 
 func (u *unmarshalerText) UnmarshalText(b []byte) error {
-	pos := bytes.Index(b, []byte(":"))
+	pos := bytes.IndexByte(b, ':')
 	if pos == -1 {
 		return errors.New("missing separator")
 	}
@@ -142,7 +152,7 @@ var (
 	umstructXY   = ustructText{unmarshalerText{"x", "y"}}
 
 	ummapType = map[unmarshalerText]bool{}
-	ummapXY   = map[unmarshalerText]bool{unmarshalerText{"x", "y"}: true}
+	ummapXY   = map[unmarshalerText]bool{{"x", "y"}: true}
 )
 
 // Test data structures for anonymous fields.
@@ -255,6 +265,10 @@ type XYZ struct {
 	Y interface{}
 	Z interface{}
 }
+
+type unexportedWithMethods struct{}
+
+func (unexportedWithMethods) F() {}
 
 func sliceAddr(x []int) *[]int                 { return &x }
 func mapAddr(x map[string]int) *map[string]int { return &x }
@@ -371,13 +385,18 @@ func (b *intWithPtrMarshalText) UnmarshalText(data []byte) error {
 	return (*intWithMarshalText)(b).UnmarshalText(data)
 }
 
+type mapStringToStringData struct {
+	Data map[string]string `json:"data"`
+}
+
 type unmarshalTest struct {
-	in        string
-	ptr       interface{}
-	out       interface{}
-	err       error
-	useNumber bool
-	golden    bool
+	in                    string
+	ptr                   interface{}
+	out                   interface{}
+	err                   error
+	useNumber             bool
+	golden                bool
+	disallowUnknownFields bool
 }
 
 type B struct {
@@ -400,7 +419,10 @@ var unmarshalTests = []unmarshalTest{
 	{in: `"invalid: \uD834x\uDD1E"`, ptr: new(string), out: "invalid: \uFFFDx\uFFFD"},
 	{in: "null", ptr: new(interface{}), out: nil},
 	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7, "T", "X"}},
+	{in: `{"X": 23}`, ptr: new(T), out: T{}, err: &UnmarshalTypeError{"number", reflect.TypeOf(""), 8, "T", "X"}}, {in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
+	{in: `{"x": 1}`, ptr: new(tx), err: fmt.Errorf("json: unknown field \"x\""), disallowUnknownFields: true},
+	{in: `{"S": 23}`, ptr: new(W), out: W{}, err: &UnmarshalTypeError{"number", reflect.TypeOf(SS("")), 0, "W", "S"}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
 	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(interface{}), out: ifaceNumAsFloat64},
@@ -415,15 +437,19 @@ var unmarshalTests = []unmarshalTest{
 
 	// Z has a "-" tag.
 	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), out: T{Y: 1}},
+	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), err: fmt.Errorf("json: unknown field \"Z\""), disallowUnknownFields: true},
 
 	{in: `{"alpha": "abc", "alphabet": "xyz"}`, ptr: new(U), out: U{Alphabet: "abc"}},
+	{in: `{"alpha": "abc", "alphabet": "xyz"}`, ptr: new(U), err: fmt.Errorf("json: unknown field \"alphabet\""), disallowUnknownFields: true},
 	{in: `{"alpha": "abc"}`, ptr: new(U), out: U{Alphabet: "abc"}},
 	{in: `{"alphabet": "xyz"}`, ptr: new(U), out: U{}},
+	{in: `{"alphabet": "xyz"}`, ptr: new(U), err: fmt.Errorf("json: unknown field \"alphabet\""), disallowUnknownFields: true},
 
 	// syntax errors
 	{in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
 	{in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element", 9}},
 	{in: `{"X":12x}`, err: &SyntaxError{"invalid character 'x' after object key:value pair", 8}, useNumber: true},
+	{in: `[2, 3`, err: &SyntaxError{msg: "unexpected end of JSON input", Offset: 5}},
 
 	// raw value errors
 	{in: "\x01 42", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
@@ -439,6 +465,7 @@ var unmarshalTests = []unmarshalTest{
 	{in: `[1, 2, 3]`, ptr: new([3]int), out: [3]int{1, 2, 3}},
 	{in: `[1, 2, 3]`, ptr: new([1]int), out: [1]int{1}},
 	{in: `[1, 2, 3]`, ptr: new([5]int), out: [5]int{1, 2, 3, 0, 0}},
+	{in: `[1, 2, 3]`, ptr: new(MustNotUnmarshalJSON), err: errors.New("MustNotUnmarshalJSON was used")},
 
 	// empty array to interface test
 	{in: `[]`, ptr: new([]interface{}), out: []interface{}{}},
@@ -531,6 +558,16 @@ var unmarshalTests = []unmarshalTest{
 		ptr: new(map[uint8]string),
 		err: &UnmarshalTypeError{Value: "number -1", Type: reflect.TypeOf(uint8(0)), Offset: 2},
 	},
+	{
+		in:  `{"F":{"a":2,"3":4}}`,
+		ptr: new(map[string]map[int]int),
+		err: &UnmarshalTypeError{Value: "number a", Type: reflect.TypeOf(int(0)), Offset: 7},
+	},
+	{
+		in:  `{"F":{"a":2,"3":4}}`,
+		ptr: new(map[string]map[uint]int),
+		err: &UnmarshalTypeError{Value: "number a", Type: reflect.TypeOf(uint(0)), Offset: 7},
+	},
 
 	// Map keys can be encoding.TextUnmarshalers.
 	{in: `{"x:y":true}`, ptr: &ummapType, out: ummapXY},
@@ -610,9 +647,21 @@ var unmarshalTests = []unmarshalTest{
 		out: S5{S8: S8{S9: S9{Y: 2}}},
 	},
 	{
+		in:                    `{"X": 1,"Y":2}`,
+		ptr:                   new(S5),
+		err:                   fmt.Errorf("json: unknown field \"X\""),
+		disallowUnknownFields: true,
+	},
+	{
 		in:  `{"X": 1,"Y":2}`,
 		ptr: new(S10),
 		out: S10{S13: S13{S8: S8{S9: S9{Y: 2}}}},
+	},
+	{
+		in:                    `{"X": 1,"Y":2}`,
+		ptr:                   new(S10),
+		err:                   fmt.Errorf("json: unknown field \"X\""),
+		disallowUnknownFields: true,
 	},
 
 	// invalid UTF-8 is coerced to valid UTF-8.
@@ -793,6 +842,87 @@ var unmarshalTests = []unmarshalTest{
 	{in: `{"B": "False"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "False" into bool`)},
 	{in: `{"B": "null"}`, ptr: new(B), out: B{false}},
 	{in: `{"B": "nul"}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal "nul" into bool`)},
+	{in: `{"B": [2, 3]}`, ptr: new(B), err: errors.New(`json: invalid use of ,string struct tag, trying to unmarshal unquoted value into bool`)},
+
+	// additional tests for disallowUnknownFields
+	{
+		in: `{
+			"Level0": 1,
+			"Level1b": 2,
+			"Level1c": 3,
+			"x": 4,
+			"Level1a": 5,
+			"LEVEL1B": 6,
+			"e": {
+				"Level1a": 8,
+				"Level1b": 9,
+				"Level1c": 10,
+				"Level1d": 11,
+				"x": 12
+			},
+			"Loop1": 13,
+			"Loop2": 14,
+			"X": 15,
+			"Y": 16,
+			"Z": 17,
+			"Q": 18,
+			"extra": true
+		}`,
+		ptr:                   new(Top),
+		err:                   fmt.Errorf("json: unknown field \"extra\""),
+		disallowUnknownFields: true,
+	},
+	{
+		in: `{
+			"Level0": 1,
+			"Level1b": 2,
+			"Level1c": 3,
+			"x": 4,
+			"Level1a": 5,
+			"LEVEL1B": 6,
+			"e": {
+				"Level1a": 8,
+				"Level1b": 9,
+				"Level1c": 10,
+				"Level1d": 11,
+				"x": 12,
+				"extra": null
+			},
+			"Loop1": 13,
+			"Loop2": 14,
+			"X": 15,
+			"Y": 16,
+			"Z": 17,
+			"Q": 18
+		}`,
+		ptr:                   new(Top),
+		err:                   fmt.Errorf("json: unknown field \"extra\""),
+		disallowUnknownFields: true,
+	},
+	// issue 26444
+	// UnmarshalTypeError without field & struct values
+	{
+		in:  `{"data":{"test1": "bob", "test2": 123}}`,
+		ptr: new(mapStringToStringData),
+		err: &UnmarshalTypeError{Value: "number", Type: reflect.TypeOf(""), Offset: 37, Struct: "mapStringToStringData", Field: "data"},
+	},
+	{
+		in:  `{"data":{"test1": 123, "test2": "bob"}}`,
+		ptr: new(mapStringToStringData),
+		err: &UnmarshalTypeError{Value: "number", Type: reflect.TypeOf(""), Offset: 21, Struct: "mapStringToStringData", Field: "data"},
+	},
+
+	// trying to decode JSON arrays or objects via TextUnmarshaler
+	{
+		in:  `[1, 2, 3]`,
+		ptr: new(MustNotUnmarshalText),
+		err: &UnmarshalTypeError{Value: "array", Type: reflect.TypeOf(&MustNotUnmarshalText{}), Offset: 1},
+	},
+	{
+		in:  `{"foo": "bar"}`,
+		ptr: new(MustNotUnmarshalText),
+		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(&MustNotUnmarshalText{}), Offset: 1},
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -910,6 +1040,9 @@ func TestUnmarshal(t *testing.T) {
 		dec := NewDecoder(bytes.NewReader(in))
 		if tt.useNumber {
 			dec.UseNumber()
+		}
+		if tt.disallowUnknownFields {
+			dec.DisallowUnknownFields()
 		}
 		if err := dec.Decode(v.Interface()); !reflect.DeepEqual(err, tt.err) {
 			t.Errorf("#%d: %v, want %v", i, err, tt.err)
@@ -1117,7 +1250,8 @@ type All struct {
 	Foo  string `json:"bar"`
 	Foo2 string `json:"bar2,dummyopt"`
 
-	IntStr int64 `json:",string"`
+	IntStr     int64   `json:",string"`
+	UintptrStr uintptr `json:",string"`
 
 	PBool    *bool
 	PInt     *int
@@ -1171,24 +1305,25 @@ type Small struct {
 }
 
 var allValue = All{
-	Bool:    true,
-	Int:     2,
-	Int8:    3,
-	Int16:   4,
-	Int32:   5,
-	Int64:   6,
-	Uint:    7,
-	Uint8:   8,
-	Uint16:  9,
-	Uint32:  10,
-	Uint64:  11,
-	Uintptr: 12,
-	Float32: 14.1,
-	Float64: 15.1,
-	Foo:     "foo",
-	Foo2:    "foo2",
-	IntStr:  42,
-	String:  "16",
+	Bool:       true,
+	Int:        2,
+	Int8:       3,
+	Int16:      4,
+	Int32:      5,
+	Int64:      6,
+	Uint:       7,
+	Uint8:      8,
+	Uint16:     9,
+	Uint32:     10,
+	Uint64:     11,
+	Uintptr:    12,
+	Float32:    14.1,
+	Float64:    15.1,
+	Foo:        "foo",
+	Foo2:       "foo2",
+	IntStr:     42,
+	UintptrStr: 44,
+	String:     "16",
 	Map: map[string]Small{
 		"17": {Tag: "tag17"},
 		"18": {Tag: "tag18"},
@@ -1250,6 +1385,7 @@ var allValueIndent = `{
 	"bar": "foo",
 	"bar2": "foo2",
 	"IntStr": "42",
+	"UintptrStr": "44",
 	"PBool": null,
 	"PInt": null,
 	"PInt8": null,
@@ -1342,6 +1478,7 @@ var pallValueIndent = `{
 	"bar": "",
 	"bar2": "",
         "IntStr": "0",
+	"UintptrStr": "0",
 	"PBool": true,
 	"PInt": 2,
 	"PInt8": 3,
@@ -1847,10 +1984,12 @@ type unexportedFields struct {
 	Name string
 	m    map[string]interface{} `json:"-"`
 	m2   map[string]interface{} `json:"abcd"`
+
+	s []int `json:"-"`
 }
 
 func TestUnmarshalUnexported(t *testing.T) {
-	input := `{"Name": "Bob", "m": {"x": 123}, "m2": {"y": 456}, "abcd": {"z": 789}}`
+	input := `{"Name": "Bob", "m": {"x": 123}, "m2": {"y": 456}, "abcd": {"z": 789}, "s": [2, 3]}`
 	want := &unexportedFields{Name: "Bob"}
 
 	out := &unexportedFields{}
@@ -2007,4 +2146,149 @@ func TestInvalidStringOption(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
+}
+
+// Test unmarshal behavior with regards to embedded unexported structs.
+//
+// (Issue 21357) If the embedded struct is a pointer and is unallocated,
+// this returns an error because unmarshal cannot set the field.
+//
+// (Issue 24152) If the embedded struct is given an explicit name,
+// ensure that the normal unmarshal logic does not panic in reflect.
+//
+// (Issue 28145) If the embedded struct is given an explicit name and has
+// exported methods, don't cause a panic trying to get its value.
+func TestUnmarshalEmbeddedUnexported(t *testing.T) {
+	type (
+		embed1 struct{ Q int }
+		embed2 struct{ Q int }
+		embed3 struct {
+			Q int64 `json:",string"`
+		}
+		S1 struct {
+			*embed1
+			R int
+		}
+		S2 struct {
+			*embed1
+			Q int
+		}
+		S3 struct {
+			embed1
+			R int
+		}
+		S4 struct {
+			*embed1
+			embed2
+		}
+		S5 struct {
+			*embed3
+			R int
+		}
+		S6 struct {
+			embed1 `json:"embed1"`
+		}
+		S7 struct {
+			embed1 `json:"embed1"`
+			embed2
+		}
+		S8 struct {
+			embed1 `json:"embed1"`
+			embed2 `json:"embed2"`
+			Q      int
+		}
+		S9 struct {
+			unexportedWithMethods `json:"embed"`
+		}
+	)
+
+	tests := []struct {
+		in  string
+		ptr interface{}
+		out interface{}
+		err error
+	}{{
+		// Error since we cannot set S1.embed1, but still able to set S1.R.
+		in:  `{"R":2,"Q":1}`,
+		ptr: new(S1),
+		out: &S1{R: 2},
+		err: fmt.Errorf("json: cannot set embedded pointer to unexported struct: json.embed1"),
+	}, {
+		// The top level Q field takes precedence.
+		in:  `{"Q":1}`,
+		ptr: new(S2),
+		out: &S2{Q: 1},
+	}, {
+		// No issue with non-pointer variant.
+		in:  `{"R":2,"Q":1}`,
+		ptr: new(S3),
+		out: &S3{embed1: embed1{Q: 1}, R: 2},
+	}, {
+		// No error since both embedded structs have field R, which annihilate each other.
+		// Thus, no attempt is made at setting S4.embed1.
+		in:  `{"R":2}`,
+		ptr: new(S4),
+		out: new(S4),
+	}, {
+		// Error since we cannot set S5.embed1, but still able to set S5.R.
+		in:  `{"R":2,"Q":1}`,
+		ptr: new(S5),
+		out: &S5{R: 2},
+		err: fmt.Errorf("json: cannot set embedded pointer to unexported struct: json.embed3"),
+	}, {
+		// Issue 24152, ensure decodeState.indirect does not panic.
+		in:  `{"embed1": {"Q": 1}}`,
+		ptr: new(S6),
+		out: &S6{embed1{1}},
+	}, {
+		// Issue 24153, check that we can still set forwarded fields even in
+		// the presence of a name conflict.
+		//
+		// This relies on obscure behavior of reflect where it is possible
+		// to set a forwarded exported field on an unexported embedded struct
+		// even though there is a name conflict, even when it would have been
+		// impossible to do so according to Go visibility rules.
+		// Go forbids this because it is ambiguous whether S7.Q refers to
+		// S7.embed1.Q or S7.embed2.Q. Since embed1 and embed2 are unexported,
+		// it should be impossible for an external package to set either Q.
+		//
+		// It is probably okay for a future reflect change to break this.
+		in:  `{"embed1": {"Q": 1}, "Q": 2}`,
+		ptr: new(S7),
+		out: &S7{embed1{1}, embed2{2}},
+	}, {
+		// Issue 24153, similar to the S7 case.
+		in:  `{"embed1": {"Q": 1}, "embed2": {"Q": 2}, "Q": 3}`,
+		ptr: new(S8),
+		out: &S8{embed1{1}, embed2{2}, 3},
+	}, {
+		// Issue 228145, similar to the cases above.
+		in:  `{"embed": {}}`,
+		ptr: new(S9),
+		out: &S9{},
+	}}
+
+	for i, tt := range tests {
+		err := Unmarshal([]byte(tt.in), tt.ptr)
+		if !reflect.DeepEqual(err, tt.err) {
+			t.Errorf("#%d: %v, want %v", i, err, tt.err)
+		}
+		if !reflect.DeepEqual(tt.ptr, tt.out) {
+			t.Errorf("#%d: mismatch\ngot:  %#+v\nwant: %#+v", i, tt.ptr, tt.out)
+		}
+	}
+}
+
+type unmarshalPanic struct{}
+
+func (unmarshalPanic) UnmarshalJSON([]byte) error { panic(0xdead) }
+
+func TestUnmarshalPanic(t *testing.T) {
+	defer func() {
+		if got := recover(); !reflect.DeepEqual(got, 0xdead) {
+			t.Errorf("panic() = (%T)(%v), want 0xdead", got, got)
+		}
+	}()
+	Unmarshal([]byte("{}"), &unmarshalPanic{})
+	t.Fatalf("Unmarshal should have panicked")
 }

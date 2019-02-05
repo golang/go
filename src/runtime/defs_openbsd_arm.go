@@ -17,6 +17,7 @@ const (
 	_MAP_ANON    = 0x1000
 	_MAP_PRIVATE = 0x2
 	_MAP_FIXED   = 0x10
+	_MAP_STACK   = 0x4000
 
 	_MADV_FREE = 0x6
 
@@ -80,6 +81,7 @@ const (
 	_EV_DELETE    = 0x2
 	_EV_CLEAR     = 0x20
 	_EV_ERROR     = 0x4000
+	_EV_EOF       = 0x8000
 	_EVFILT_READ  = -0x1
 	_EVFILT_WRITE = -0x2
 )
@@ -112,13 +114,17 @@ type sigcontext struct {
 	sc_usr_lr uint32
 	sc_svc_lr uint32
 	sc_pc     uint32
+	sc_fpused uint32
+	sc_fpscr  uint32
+	sc_fpreg  [32]uint64
 }
 
 type siginfo struct {
-	si_signo int32
-	si_code  int32
-	si_errno int32
-	_data    [116]byte
+	si_signo  int32
+	si_code   int32
+	si_errno  int32
+	pad_cgo_0 [4]byte
+	_data     [120]byte
 }
 
 type stackt struct {
@@ -128,8 +134,9 @@ type stackt struct {
 }
 
 type timespec struct {
-	tv_sec  int64
-	tv_nsec int32
+	tv_sec    int64
+	tv_nsec   int32
+	pad_cgo_0 [4]byte
 }
 
 func (ts *timespec) set_sec(x int64) {
@@ -141,8 +148,9 @@ func (ts *timespec) set_nsec(x int32) {
 }
 
 type timeval struct {
-	tv_sec  int64
-	tv_usec int32
+	tv_sec    int64
+	tv_usec   int32
+	pad_cgo_0 [4]byte
 }
 
 func (tv *timeval) set_usec(x int32) {
@@ -155,10 +163,12 @@ type itimerval struct {
 }
 
 type keventt struct {
-	ident  uint32
-	filter int16
-	flags  uint16
-	fflags uint32
-	data   int64
-	udata  *byte
+	ident     uint32
+	filter    int16
+	flags     uint16
+	fflags    uint32
+	pad_cgo_0 [4]byte
+	data      int64
+	udata     *byte
+	pad_cgo_1 [4]byte
 }

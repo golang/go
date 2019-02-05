@@ -150,7 +150,7 @@ func testStaticAddr(t *testing.T, hostsPath string, ent staticHostEntry) {
 
 func TestHostCacheModification(t *testing.T) {
 	// Ensure that programs can't modify the internals of the host cache.
-	// See https://github.com/golang/go/issues/14212.
+	// See https://golang.org/issues/14212.
 	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
 
 	testHookHostsPath = "testdata/ipv4-hosts"

@@ -67,10 +67,13 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	case AFMOVD:
 		if p.From.Type == obj.TYPE_FCONST {
 			f64 := p.From.Val.(float64)
-			p.From.Type = obj.TYPE_MEM
-			p.From.Sym = ctxt.Float64Sym(f64)
-			p.From.Name = obj.NAME_EXTERN
-			p.From.Offset = 0
+			// Constant not needed in memory for float +/- 0
+			if f64 != 0 {
+				p.From.Type = obj.TYPE_MEM
+				p.From.Sym = ctxt.Float64Sym(f64)
+				p.From.Name = obj.NAME_EXTERN
+				p.From.Offset = 0
+			}
 		}
 
 		// Put >32-bit constants in memory and load them
@@ -105,7 +108,121 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	}
 	if c.ctxt.Flag_dynlink {
 		c.rewriteToUseGot(p)
+	} else if c.ctxt.Headtype == objabi.Haix {
+		c.rewriteToUseTOC(p)
 	}
+}
+
+// Rewrite p, if necessary, to access a symbol using its TOC anchor.
+// This code is for AIX only.
+func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
+	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+		return
+	}
+
+	var source *obj.Addr
+	if p.From.Name == obj.NAME_EXTERN || p.From.Name == obj.NAME_STATIC {
+		if p.From.Type == obj.TYPE_ADDR {
+			if p.As == ADWORD {
+				// ADWORD $sym doesn't need TOC anchor
+				return
+			}
+			if p.As != AMOVD {
+				c.ctxt.Diag("do not know how to handle TYPE_ADDR in %v", p)
+				return
+			}
+			if p.To.Type != obj.TYPE_REG {
+				c.ctxt.Diag("do not know how to handle LEAQ-type insn to non-register in %v", p)
+				return
+			}
+		} else if p.From.Type != obj.TYPE_MEM {
+			c.ctxt.Diag("do not know how to handle %v without TYPE_MEM", p)
+			return
+		}
+		source = &p.From
+
+	} else if p.To.Name == obj.NAME_EXTERN || p.To.Name == obj.NAME_STATIC {
+		if p.To.Type != obj.TYPE_MEM {
+			c.ctxt.Diag("do not know how to handle %v without TYPE_MEM", p)
+			return
+		}
+		if source != nil {
+			c.ctxt.Diag("cannot handle symbols on both sides in %v", p)
+			return
+		}
+		source = &p.To
+	} else {
+		return
+
+	}
+
+	if source.Sym == nil {
+		c.ctxt.Diag("do not know how to handle nil symbol in %v", p)
+		return
+	}
+
+	if source.Sym.Type == objabi.STLSBSS {
+		return
+	}
+
+	// Retrieve or create the TOC anchor.
+	symtoc := c.ctxt.LookupInit("TOC."+source.Sym.Name, func(s *obj.LSym) {
+		s.Type = objabi.SDATA
+		s.Set(obj.AttrDuplicateOK, true)
+		c.ctxt.Data = append(c.ctxt.Data, s)
+		s.WriteAddr(c.ctxt, 0, 8, source.Sym, 0)
+	})
+
+	if source.Type == obj.TYPE_ADDR {
+		// MOVD $sym, Rx becomes MOVD symtoc, Rx
+		// MOVD $sym+<off>, Rx becomes MOVD symtoc, Rx; ADD <off>, Rx
+		p.From.Type = obj.TYPE_MEM
+		p.From.Sym = symtoc
+		p.From.Name = obj.NAME_TOCREF
+
+		if p.From.Offset != 0 {
+			q := obj.Appendp(p, c.newprog)
+			q.As = AADD
+			q.From.Type = obj.TYPE_CONST
+			q.From.Offset = p.From.Offset
+			p.From.Offset = 0
+			q.To = p.To
+		}
+		return
+
+	}
+
+	// MOVx sym, Ry becomes MOVD symtoc, REGTMP; MOVx (REGTMP), Ry
+	// MOVx Ry, sym becomes MOVD symtoc, REGTMP; MOVx Ry, (REGTMP)
+	// An addition may be inserted between the two MOVs if there is an offset.
+
+	q := obj.Appendp(p, c.newprog)
+	q.As = AMOVD
+	q.From.Type = obj.TYPE_MEM
+	q.From.Sym = symtoc
+	q.From.Name = obj.NAME_TOCREF
+	q.To.Type = obj.TYPE_REG
+	q.To.Reg = REGTMP
+
+	q = obj.Appendp(q, c.newprog)
+	q.As = p.As
+	q.From = p.From
+	q.To = p.To
+	if p.From.Name != obj.NAME_NONE {
+		q.From.Type = obj.TYPE_MEM
+		q.From.Reg = REGTMP
+		q.From.Name = obj.NAME_NONE
+		q.From.Sym = nil
+	} else if p.To.Name != obj.NAME_NONE {
+		q.To.Type = obj.TYPE_MEM
+		q.To.Reg = REGTMP
+		q.To.Name = obj.NAME_NONE
+		q.To.Sym = nil
+	} else {
+		c.ctxt.Diag("unreachable case in rewriteToUseTOC with %v", p)
+	}
+
+	obj.Nopout(p)
 }
 
 // Rewrite p, if necessary, to access global data via the global offset table.
@@ -176,7 +293,7 @@ func (c *ctxt9) rewriteToUseGot(p *obj.Prog) {
 			p.From.Offset = 0
 		}
 	}
-	if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
+	if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
 		c.ctxt.Diag("don't know how to handle %v with -dynlink", p)
 	}
 	var source *obj.Addr
@@ -502,7 +619,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = c.stacksplit(q, autosize) // emit split check
 			}
 
-			if autosize != 0 {
+			// Special handling of the racecall thunk. Assume that its asm code will
+			// save the link register and update the stack, since that code is
+			// called directly from C/C++ and can't clobber REGTMP (R31).
+			if autosize != 0 && c.cursym.Name != "runtime.racecallbackthunk" {
 				// Save the link register and update the SP.  MOVDU is used unless
 				// the frame size is too large.  The link register must be saved
 				// even for non-empty leaf functions so that traceback works.
@@ -524,7 +644,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.To.Type = obj.TYPE_MEM
 					q.To.Offset = int64(-autosize)
 					q.To.Reg = REGSP
-					q.Spadj = int32(autosize)
+					q.Spadj = autosize
 				} else {
 					// Frame size is too large for a MOVDU instruction.
 					// Store link register before decrementing SP, so if a signal comes
@@ -678,7 +798,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			retTarget := p.To.Sym
 
 			if c.cursym.Func.Text.Mark&LEAF != 0 {
-				if autosize == 0 {
+				if autosize == 0 || c.cursym.Name == "runtime.racecallbackthunk" {
 					p.As = ABR
 					p.From = obj.Addr{}
 					if retTarget == nil {
@@ -747,8 +867,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.Link = q
 				p = q
 			}
-
-			if autosize != 0 {
+			prev := p
+			if autosize != 0 && c.cursym.Name != "runtime.racecallbackthunk" {
 				q = c.newprog()
 				q.As = AADD
 				q.Pos = p.Pos
@@ -759,7 +879,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.Spadj = -autosize
 
 				q.Link = p.Link
-				p.Link = q
+				prev.Link = q
+				prev = q
 			}
 
 			q1 = c.newprog()
@@ -776,10 +897,22 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			q1.Spadj = +autosize
 
 			q1.Link = q.Link
-			q.Link = q1
+			prev.Link = q1
 		case AADD:
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
 				p.Spadj = int32(-p.From.Offset)
+			}
+		case obj.AGETCALLERPC:
+			if cursym.Leaf() {
+				/* MOVD LR, Rd */
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REG_LR
+			} else {
+				/* MOVD (RSP), Rd */
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = REGSP
 			}
 		}
 	}
@@ -908,7 +1041,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = obj.Appendp(p, c.newprog)
 		p.As = AADD
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = objabi.StackGuard
+		p.From.Offset = int64(objabi.StackGuard)
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R4
@@ -923,7 +1056,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = obj.Appendp(p, c.newprog)
 		p.As = AMOVD
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) + objabi.StackGuard - objabi.StackSmall
+		p.From.Offset = int64(framesize) + int64(objabi.StackGuard) - objabi.StackSmall
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REGTMP
 
@@ -953,6 +1086,8 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	if q != nil {
 		q.Pcond = p
 	}
+
+	p = c.ctxt.EmitEntryLiveness(c.cursym, p, c.newprog)
 
 	var morestacksym *obj.LSym
 	if c.cursym.CFunc() {
@@ -1056,17 +1191,19 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 }
 
 var Linkppc64 = obj.LinkArch{
-	Arch:       sys.ArchPPC64,
-	Init:       buildop,
-	Preprocess: preprocess,
-	Assemble:   span9,
-	Progedit:   progedit,
+	Arch:           sys.ArchPPC64,
+	Init:           buildop,
+	Preprocess:     preprocess,
+	Assemble:       span9,
+	Progedit:       progedit,
+	DWARFRegisters: PPC64DWARFRegisters,
 }
 
 var Linkppc64le = obj.LinkArch{
-	Arch:       sys.ArchPPC64LE,
-	Init:       buildop,
-	Preprocess: preprocess,
-	Assemble:   span9,
-	Progedit:   progedit,
+	Arch:           sys.ArchPPC64LE,
+	Init:           buildop,
+	Preprocess:     preprocess,
+	Assemble:       span9,
+	Progedit:       progedit,
+	DWARFRegisters: PPC64DWARFRegisters,
 }

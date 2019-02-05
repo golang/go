@@ -19,7 +19,7 @@ func _() {
 	)
 
 	var t T3
-	_ = t /* ERROR "ambiguous selector" */ .X
+	_ = t.X /* ERROR "ambiguous selector" */
 }
 
 func _() {
@@ -31,7 +31,7 @@ func _() {
 	)
 
 	var t T4
-	_ = t /* ERROR "ambiguous selector" */ .X
+	_ = t.X /* ERROR "ambiguous selector" */
 }
 
 func issue4355() {
@@ -41,10 +41,10 @@ func issue4355() {
 	    T3 struct {T2}
 	    T4 struct {T2}
 	    T5 struct {T3; T4} // X is embedded twice at the same level via T3->T2->T1->X, T4->T2->T1->X
-	)	
+	)
 
 	var t T5
-	_ = t /* ERROR "ambiguous selector" */ .X
+	_ = t.X /* ERROR "ambiguous selector" */
 }
 
 func _() {
@@ -54,7 +54,7 @@ func _() {
 	type T struct{ A; B }
 
 	var t T
-	_ = t /* ERROR "ambiguous selector" */ .State
+	_ = t.State /* ERROR "ambiguous selector" */
 }
 
 // Embedded fields can be predeclared types.
@@ -99,9 +99,9 @@ func _() {
 	// unsafe.Pointers are treated like regular pointers when embedded
 	type T2 struct {
 		unsafe /* ERROR "cannot be unsafe.Pointer" */ .Pointer
-		*/* ERROR "cannot be unsafe.Pointer" */ unsafe.Pointer
+		*/* ERROR "cannot be unsafe.Pointer" */ /* ERROR "Pointer redeclared" */ unsafe.Pointer
 		UP /* ERROR "cannot be unsafe.Pointer" */
-		* /* ERROR "cannot be unsafe.Pointer" */ UP
+		* /* ERROR "cannot be unsafe.Pointer" */  /* ERROR "UP redeclared" */ UP
 	}
 }
 
@@ -118,8 +118,8 @@ func _() {
 
 	var p P
 	_ = p.x
-	_ = p /* ERROR "no field or method" */ .m
-	_ = P /* ERROR "no field or method" */ .m
+	_ = p.m /* ERROR "no field or method" */
+	_ = P.m /* ERROR "no field or method" */
 }
 
 // Borrowed from the FieldByName test cases in reflect/all_test.go.
@@ -209,9 +209,9 @@ type S13 struct {
 }
 
 func _() {
-	_ = struct /* ERROR "no field or method" */ {}{}.Foo
+	_ = struct{}{}.Foo /* ERROR "no field or method" */
 	_ = S0{}.A
-	_ = S0 /* ERROR "no field or method" */ {}.D
+	_ = S0{}.D /* ERROR "no field or method" */
 	_ = S1{}.A
 	_ = S1{}.B
 	_ = S1{}.S0
@@ -220,17 +220,17 @@ func _() {
 	_ = S2{}.S1
 	_ = S2{}.B
 	_ = S2{}.C
-	_ = S2 /* ERROR "no field or method" */ {}.D
-	_ = S3 /* ERROR "ambiguous selector" */ {}.S1
+	_ = S2{}.D /* ERROR "no field or method" */
+	_ = S3{}.S1 /* ERROR "ambiguous selector" */
 	_ = S3{}.A
-	_ = S3 /* ERROR "ambiguous selector" */ {}.B
+	_ = S3{}.B /* ERROR "ambiguous selector" */
 	_ = S3{}.D
 	_ = S3{}.E
 	_ = S4{}.A
-	_ = S4 /* ERROR "no field or method" */ {}.B
-	_ = S5 /* ERROR "ambiguous selector" */ {}.X
+	_ = S4{}.B /* ERROR "no field or method" */
+	_ = S5{}.X /* ERROR "ambiguous selector" */
 	_ = S5{}.Y
-	_ = S10 /* ERROR "ambiguous selector" */ {}.X
+	_ = S10{}.X /* ERROR "ambiguous selector" */
 	_ = S10{}.Y
 }
 
@@ -306,4 +306,4 @@ type R22 R21
 type R23 R21
 type R24 R21
 
-var _ = R0 /* ERROR "ambiguous selector" */ {}.X
+var _ = R0{}.X /* ERROR "ambiguous selector" */

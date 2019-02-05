@@ -6,7 +6,9 @@ package http
 
 import (
 	"bufio"
+	"bytes"
 	"io"
+	"io/ioutil"
 	"strings"
 	"testing"
 )
@@ -60,5 +62,31 @@ func TestFinalChunkedBodyReadEOF(t *testing.T) {
 	}
 	if string(buf) != want {
 		t.Errorf("buf = %q; want %q", buf, want)
+	}
+}
+
+func TestDetectInMemoryReaders(t *testing.T) {
+	pr, _ := io.Pipe()
+	tests := []struct {
+		r    io.Reader
+		want bool
+	}{
+		{pr, false},
+
+		{bytes.NewReader(nil), true},
+		{bytes.NewBuffer(nil), true},
+		{strings.NewReader(""), true},
+
+		{ioutil.NopCloser(pr), false},
+
+		{ioutil.NopCloser(bytes.NewReader(nil)), true},
+		{ioutil.NopCloser(bytes.NewBuffer(nil)), true},
+		{ioutil.NopCloser(strings.NewReader("")), true},
+	}
+	for i, tt := range tests {
+		got := isKnownInMemoryReader(tt.r)
+		if got != tt.want {
+			t.Errorf("%d: got = %v; want %v", i, got, tt.want)
+		}
 	}
 }

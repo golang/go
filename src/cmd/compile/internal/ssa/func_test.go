@@ -152,6 +152,7 @@ func (c *Conf) Fun(entry string, blocs ...bloc) fun {
 	// But not both.
 	f.Cache = new(Cache)
 	f.pass = &emptyPass
+	f.cachedLineStarts = newBiasedSparseMap(0, 100)
 
 	blocks := make(map[string]*Block)
 	values := make(map[string]*Value)
@@ -437,12 +438,12 @@ func TestConstCache(t *testing.T) {
 		Bloc("entry",
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
 			Exit("mem")))
-	v1 := f.f.ConstBool(src.NoXPos, c.config.Types.Bool, false)
-	v2 := f.f.ConstBool(src.NoXPos, c.config.Types.Bool, true)
+	v1 := f.f.ConstBool(c.config.Types.Bool, false)
+	v2 := f.f.ConstBool(c.config.Types.Bool, true)
 	f.f.freeValue(v1)
 	f.f.freeValue(v2)
-	v3 := f.f.ConstBool(src.NoXPos, c.config.Types.Bool, false)
-	v4 := f.f.ConstBool(src.NoXPos, c.config.Types.Bool, true)
+	v3 := f.f.ConstBool(c.config.Types.Bool, false)
+	v4 := f.f.ConstBool(c.config.Types.Bool, true)
 	if v3.AuxInt != 0 {
 		t.Errorf("expected %s to have auxint of 0\n", v3.LongString())
 	}

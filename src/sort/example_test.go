@@ -6,6 +6,7 @@ package sort_test
 
 import (
 	"fmt"
+	"math"
 	"sort"
 )
 
@@ -14,6 +15,49 @@ func ExampleInts() {
 	sort.Ints(s)
 	fmt.Println(s)
 	// Output: [1 2 3 4 5 6]
+}
+
+func ExampleIntsAreSorted() {
+	s := []int{1, 2, 3, 4, 5, 6} // sorted ascending
+	fmt.Println(sort.IntsAreSorted(s))
+
+	s = []int{6, 5, 4, 3, 2, 1} // sorted descending
+	fmt.Println(sort.IntsAreSorted(s))
+
+	s = []int{3, 2, 4, 1, 5} // unsorted
+	fmt.Println(sort.IntsAreSorted(s))
+
+	// Output: true
+	// false
+	// false
+}
+
+func ExampleFloat64s() {
+	s := []float64{5.2, -1.3, 0.7, -3.8, 2.6} // unsorted
+	sort.Float64s(s)
+	fmt.Println(s)
+
+	s = []float64{math.Inf(1), math.NaN(), math.Inf(-1), 0.0} // unsorted
+	sort.Float64s(s)
+	fmt.Println(s)
+
+	// Output: [-3.8 -1.3 0.7 2.6 5.2]
+	// [NaN -Inf 0 +Inf]
+}
+
+func ExampleFloat64sAreSorted() {
+	s := []float64{0.7, 1.3, 2.6, 3.8, 5.2} // sorted ascending
+	fmt.Println(sort.Float64sAreSorted(s))
+
+	s = []float64{5.2, 3.8, 2.6, 1.3, 0.7} // sorted descending
+	fmt.Println(sort.Float64sAreSorted(s))
+
+	s = []float64{5.2, 1.3, 0.7, 3.8, 2.6} // unsorted
+	fmt.Println(sort.Float64sAreSorted(s))
+
+	// Output: true
+	// false
+	// false
 }
 
 func ExampleReverse() {
@@ -68,4 +112,11 @@ func ExampleSliceStable() {
 
 	// Output: By name: [{Alice 25} {Alice 75} {Alice 75} {Bob 75} {Bob 25} {Colin 25} {Elizabeth 75} {Elizabeth 25}]
 	// By age,name: [{Alice 25} {Bob 25} {Colin 25} {Elizabeth 25} {Alice 75} {Alice 75} {Bob 75} {Elizabeth 75}]
+}
+
+func ExampleStrings() {
+	s := []string{"Go", "Bravo", "Gopher", "Alpha", "Grin", "Delta"}
+	sort.Strings(s)
+	fmt.Println(s)
+	// Output: [Alpha Bravo Delta Go Gopher Grin]
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -31,7 +32,7 @@ type netFD struct {
 	// immutable until Close
 	family      int
 	sotype      int
-	isConnected bool
+	isConnected bool // handshake completed or use of association with peer
 	net         string
 	laddr       Addr
 	raddr       Addr
@@ -52,7 +53,7 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
 }
 
 func (fd *netFD) init() error {
-	errcall, err := fd.pfd.Init(fd.net)
+	errcall, err := fd.pfd.Init(fd.net, true)
 	if errcall != "" {
 		err = wrapSyscallError(errcall, err)
 	}
@@ -65,12 +66,13 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	runtime.SetFinalizer(fd, (*netFD).Close)
 }
 
-func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) error {
+// Always returns nil for connected peer address result.
+func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (syscall.Sockaddr, error) {
 	// Do not need to call fd.writeLock here,
 	// because fd is not yet accessible to user,
 	// so no concurrent operations are possible.
 	if err := fd.init(); err != nil {
-		return err
+		return nil, err
 	}
 	if deadline, ok := ctx.Deadline(); ok && !deadline.IsZero() {
 		fd.pfd.SetWriteDeadline(deadline)
@@ -78,7 +80,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) error {
 	}
 	if !canUseConnectEx(fd.net) {
 		err := connectFunc(fd.pfd.Sysfd, ra)
-		return os.NewSyscallError("connect", err)
+		return nil, os.NewSyscallError("connect", err)
 	}
 	// ConnectEx windows API requires an unconnected, previously bound socket.
 	if la == nil {
@@ -91,7 +93,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) error {
 			panic("unexpected type in connect")
 		}
 		if err := syscall.Bind(fd.pfd.Sysfd, la); err != nil {
-			return os.NewSyscallError("bind", err)
+			return nil, os.NewSyscallError("bind", err)
 		}
 	}
 
@@ -115,16 +117,16 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) error {
 	if err := fd.pfd.ConnectEx(ra); err != nil {
 		select {
 		case <-ctx.Done():
-			return mapErr(ctx.Err())
+			return nil, mapErr(ctx.Err())
 		default:
 			if _, ok := err.(syscall.Errno); ok {
 				err = os.NewSyscallError("connectex", err)
 			}
-			return err
+			return nil, err
 		}
 	}
 	// Refresh socket properties.
-	return os.NewSyscallError("setsockopt", syscall.Setsockopt(fd.pfd.Sysfd, syscall.SOL_SOCKET, syscall.SO_UPDATE_CONNECT_CONTEXT, (*byte)(unsafe.Pointer(&fd.pfd.Sysfd)), int32(unsafe.Sizeof(fd.pfd.Sysfd))))
+	return nil, os.NewSyscallError("setsockopt", syscall.Setsockopt(fd.pfd.Sysfd, syscall.SOL_SOCKET, syscall.SO_UPDATE_CONNECT_CONTEXT, (*byte)(unsafe.Pointer(&fd.pfd.Sysfd)), int32(unsafe.Sizeof(fd.pfd.Sysfd))))
 }
 
 func (fd *netFD) Close() error {
@@ -222,6 +224,18 @@ func (fd *netFD) accept() (*netFD, error) {
 	return netfd, nil
 }
 
+func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+	n, oobn, flags, sa, err = fd.pfd.ReadMsg(p, oob)
+	runtime.KeepAlive(fd)
+	return n, oobn, flags, sa, wrapSyscallError("wsarecvmsg", err)
+}
+
+func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+	n, oobn, err = fd.pfd.WriteMsg(p, oob, sa)
+	runtime.KeepAlive(fd)
+	return n, oobn, wrapSyscallError("wsasendmsg", err)
+}
+
 // Unimplemented functions.
 
 func (fd *netFD) dup() (*os.File, error) {
@@ -229,10 +243,14 @@ func (fd *netFD) dup() (*os.File, error) {
 	return nil, syscall.EWINDOWS
 }
 
-func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
-	return 0, 0, 0, nil, syscall.EWINDOWS
+func (fd *netFD) SetDeadline(t time.Time) error {
+	return fd.pfd.SetDeadline(t)
 }
 
-func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
-	return 0, 0, syscall.EWINDOWS
+func (fd *netFD) SetReadDeadline(t time.Time) error {
+	return fd.pfd.SetReadDeadline(t)
+}
+
+func (fd *netFD) SetWriteDeadline(t time.Time) error {
+	return fd.pfd.SetWriteDeadline(t)
 }

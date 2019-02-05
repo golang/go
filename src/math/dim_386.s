@@ -4,9 +4,6 @@
 
 #include "textflag.h"
 
-TEXT ·Dim(SB),NOSPLIT,$0
-	JMP ·dim(SB)
-
 TEXT ·Max(SB),NOSPLIT,$0
 	JMP ·max(SB)
 

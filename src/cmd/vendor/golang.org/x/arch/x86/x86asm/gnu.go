@@ -11,11 +11,15 @@ import (
 
 // GNUSyntax returns the GNU assembler syntax for the instruction, as defined by GNU binutils.
 // This general form is often called ``AT&T syntax'' as a reference to AT&T System V Unix.
-func GNUSyntax(inst Inst) string {
+func GNUSyntax(inst Inst, pc uint64, symname SymLookup) string {
 	// Rewrite instruction to mimic GNU peculiarities.
 	// Note that inst has been passed by value and contains
 	// no pointers, so any changes we make here are local
 	// and will not propagate back out to the caller.
+
+	if symname == nil {
+		symname = func(uint64) (string, uint64) { return "", 0 }
+	}
 
 	// Adjust opcode [sic].
 	switch inst.Op {
@@ -403,7 +407,7 @@ SuffixLoop:
 		if a == Imm(1) && (inst.Opcode>>24)&^1 == 0xD0 {
 			continue
 		}
-		args = append(args, gnuArg(&inst, a, &usedPrefixes))
+		args = append(args, gnuArg(&inst, pc, symname, a, &usedPrefixes))
 	}
 
 	// The default is to print the arguments in reverse Intel order.
@@ -513,7 +517,7 @@ SuffixLoop:
 // gnuArg returns the GNU syntax for the argument x from the instruction inst.
 // If *usedPrefixes is false and x is a Mem, then the formatting
 // includes any segment prefixes and sets *usedPrefixes to true.
-func gnuArg(inst *Inst, x Arg, usedPrefixes *bool) string {
+func gnuArg(inst *Inst, pc uint64, symname SymLookup, x Arg, usedPrefixes *bool) string {
 	if x == nil {
 		return "<nil>"
 	}
@@ -535,6 +539,13 @@ func gnuArg(inst *Inst, x Arg, usedPrefixes *bool) string {
 		}
 		return gccRegName[x]
 	case Mem:
+		if s, disp := memArgToSymbol(x, pc, inst.Len, symname); s != "" {
+			suffix := ""
+			if disp != 0 {
+				suffix = fmt.Sprintf("%+d", disp)
+			}
+			return fmt.Sprintf("%s%s", s, suffix)
+		}
 		seg := ""
 		var haveCS, haveDS, haveES, haveFS, haveGS, haveSS bool
 		switch x.Segment {
@@ -644,8 +655,25 @@ func gnuArg(inst *Inst, x Arg, usedPrefixes *bool) string {
 		}
 		return fmt.Sprintf("%s%s(%s,%s,%d)", seg, disp, base, index, x.Scale)
 	case Rel:
-		return fmt.Sprintf(".%+#x", int32(x))
+		if pc == 0 {
+			return fmt.Sprintf(".%+#x", int64(x))
+		} else {
+			addr := pc + uint64(inst.Len) + uint64(x)
+			if s, base := symname(addr); s != "" && addr == base {
+				return fmt.Sprintf("%s", s)
+			} else {
+				addr := pc + uint64(inst.Len) + uint64(x)
+				return fmt.Sprintf("%#x", addr)
+			}
+		}
 	case Imm:
+		if s, base := symname(uint64(x)); s != "" {
+			suffix := ""
+			if uint64(x) != base {
+				suffix = fmt.Sprintf("%+d", uint64(x)-base)
+			}
+			return fmt.Sprintf("$%s%s", s, suffix)
+		}
 		if inst.Mode == 32 {
 			return fmt.Sprintf("$%#x", uint32(x))
 		}

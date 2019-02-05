@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"fmt"
 	"sort"
 )
@@ -233,6 +234,15 @@ func cse(f *Func) {
 		for _, v := range b.Values {
 			for i, w := range v.Args {
 				if x := rewrite[w.ID]; x != nil {
+					if w.Pos.IsStmt() == src.PosIsStmt {
+						// about to lose a statement marker, w
+						// w is an input to v; if they're in the same block
+						// and the same line, v is a good-enough new statement boundary.
+						if w.Block == v.Block && w.Pos.Line() == v.Pos.Line() {
+							v.Pos = v.Pos.WithIsStmt()
+							w.Pos = w.Pos.WithNotStmt()
+						} // TODO and if this fails?
+					}
 					v.SetArg(i, x)
 					rewrites++
 				}

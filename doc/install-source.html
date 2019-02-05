@@ -24,7 +24,7 @@ packages, though, read on.
 <div class="detail">
 
 <p>
-There are two official Go compiler tool chains.
+There are two official Go compiler toolchains.
 This document focuses on the <code>gc</code> Go
 compiler and tools.
 For information on how to work on <code>gccgo</code>, a more traditional
@@ -98,7 +98,7 @@ goroutines, such as stacks that grow and shrink on demand.
 
 <p>
 The compilers can target the DragonFly BSD, FreeBSD, Linux, NetBSD, OpenBSD,
-OS X (Darwin), Plan 9, Solaris and Windows operating systems.
+macOS (Darwin), Plan 9, Solaris and Windows operating systems.
 The full set of supported combinations is listed in the discussion of
 <a href="#environment">environment variables</a> below.
 </p>
@@ -119,7 +119,7 @@ Go does not support CentOS 6 on these systems.
 <h2 id="go14">Install Go compiler binaries</h2>
 
 <p>
-The Go tool chain is written in Go. To build it, you need a Go compiler installed.
+The Go toolchain is written in Go. To build it, you need a Go compiler installed.
 The scripts that do the initial build of the tools look for an existing Go tool
 chain in <code>$GOROOT_BOOTSTRAP</code>.
 If unset, the default value of <code>GOROOT_BOOTSTRAP</code>
@@ -127,33 +127,34 @@ is <code>$HOME/go1.4</code>.
 </p>
 
 <p>
-There are many options for the bootstrap tool chain.
+There are many options for the bootstrap toolchain.
 After obtaining one, set <code>GOROOT_BOOTSTRAP</code> to the
 directory containing the unpacked tree.
 For example, <code>$GOROOT_BOOTSTRAP/bin/go</code> should be
-the <code>go</code> command binary for the bootstrap tool chain.
+the <code>go</code> command binary for the bootstrap toolchain.
 </p>
 
 <p>
-To use a binary release as a bootstrap tool chain, see
+To use a binary release as a bootstrap toolchain, see
 <a href="/dl/">the downloads page</a> or use any other
 packaged Go distribution.
 </p>
 
 <p>
-To build a bootstrap tool chain from source, use
+To build a bootstrap toolchain from source, use
 either the git branch <code>release-branch.go1.4</code> or
-<a href="https://storage.googleapis.com/golang/go1.4-bootstrap-20161024.tar.gz">go1.4-bootstrap-20161024.tar.gz</a>,
+<a href="https://dl.google.com/go/go1.4-bootstrap-20171003.tar.gz">go1.4-bootstrap-20171003.tar.gz</a>,
 which contains the Go 1.4 source code plus accumulated fixes
 to keep the tools running on newer operating systems.
-(Go 1.4 was the last distribution in which the tool chain was written in C.)
+(Go 1.4 was the last distribution in which the toolchain was written in C.)
 After unpacking the Go 1.4 source, <code>cd</code> to
-the <code>src</code> subdirectory and run <code>make.bash</code> (or,
+the <code>src</code> subdirectory, set <code>CGO_ENABLED=0</code> in
+the environment, and run <code>make.bash</code> (or,
 on Windows, <code>make.bat</code>).
 </p>
 
 <p>
-To cross-compile a bootstrap tool chain from source, which is
+To cross-compile a bootstrap toolchain from source, which is
 necessary on systems Go 1.4 did not target (for
 example, <code>linux/ppc64le</code>), install Go on a different system
 and run <a href="/src/bootstrap.bash">bootstrap.bash</a>.
@@ -196,7 +197,7 @@ have a <code>git</code> command before proceeding.)
 <p>
 If you do not have a working Git installation,
 follow the instructions on the
-<a href="http://git-scm.com/downloads">Git downloads</a> page.
+<a href="https://git-scm.com/downloads">Git downloads</a> page.
 </p>
 
 <h2 id="ccompiler">(Optional) Install a C compiler</h2>
@@ -221,7 +222,7 @@ To build without <code>cgo</code>, set the environment variable
 Change to the directory that will be its parent
 and make sure the <code>go</code> directory does not exist.
 Then clone the repository and check out the latest release tag
-(<code class="versionTag">go1.8.1</code>, for example):</p>
+(<code class="versionTag">go1.9</code>, for example):</p>
 
 <pre>
 $ git clone https://go.googlesource.com/go
@@ -306,7 +307,7 @@ package main
 import "fmt"
 
 func main() {
-    fmt.Printf("hello, world\n")
+	fmt.Printf("hello, world\n")
 }
 </pre>
 
@@ -387,7 +388,7 @@ You can access the latter commands with
 
 <p>
 The usual community resources such as
-<code>#go-nuts</code> on the <a href="http://freenode.net/">Freenode</a> IRC server
+<code>#go-nuts</code> on the <a href="https://freenode.net/">Freenode</a> IRC server
 and the
 <a href="//groups.google.com/group/golang-nuts">Go Nuts</a>
 mailing list have active developers that can help you with problems
@@ -409,7 +410,7 @@ New releases are announced on the
 <a href="//groups.google.com/group/golang-announce">golang-announce</a>
 mailing list.
 Each announcement mentions the latest release tag, for instance,
-<code class="versionTag">go1.8.1</code>.
+<code class="versionTag">go1.9</code>.
 </p>
 
 <p>
@@ -445,6 +446,7 @@ defaults to the parent of the directory where <code>all.bash</code> was run.
 There is no need to set this unless you want to switch between multiple
 local copies of the repository.
 </p>
+</li>
 
 <li><code>$GOROOT_FINAL</code>
 <p>
@@ -455,24 +457,27 @@ If you want to build the Go tree in one location
 but move it elsewhere after the build, set
 <code>$GOROOT_FINAL</code> to the eventual location.
 </p>
+</li>
 
 <li><code>$GOOS</code> and <code>$GOARCH</code>
 <p>
 The name of the target operating system and compilation architecture.
 These default to the values of <code>$GOHOSTOS</code> and
 <code>$GOHOSTARCH</code> respectively (described below).
+</li>
 
 <p>
 Choices for <code>$GOOS</code> are
-<code>darwin</code> (Mac OS X 10.8 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
+<code>darwin</code> (macOS 10.10 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
 <code>linux</code>, <code>netbsd</code>, <code>openbsd</code>,
 <code>plan9</code>, <code>solaris</code> and <code>windows</code>.
 Choices for <code>$GOARCH</code> are
 <code>amd64</code> (64-bit x86, the most mature port),
 <code>386</code> (32-bit x86), <code>arm</code> (32-bit ARM), <code>arm64</code> (64-bit ARM),
 <code>ppc64le</code> (PowerPC 64-bit, little-endian), <code>ppc64</code> (PowerPC 64-bit, big-endian),
-<code>mips64le</code> (MIPS 64-bit, little-endian), and <code>mips64</code> (MIPS 64-bit, big-endian).
-<code>mipsle</code> (MIPS 32-bit, little-endian), and <code>mips</code> (MIPS 32-bit, big-endian).
+<code>mips64le</code> (MIPS 64-bit, little-endian), <code>mips64</code> (MIPS 64-bit, big-endian),
+<code>mipsle</code> (MIPS 32-bit, little-endian), <code>mips</code> (MIPS 32-bit, big-endian), and
+<code>s390x</code> (IBM System z 64-bit, big-endian).
 The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <table cellpadding="0">
 <tr>
@@ -536,6 +541,9 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <td></td><td><code>linux</code></td> <td><code>mips64le</code></td>
 </tr>
 <tr>
+<td></td><td><code>linux</code></td> <td><code>s390x</code></td>
+</tr>
+<tr>
 <td></td><td><code>netbsd</code></td> <td><code>386</code></td>
 </tr>
 <tr>
@@ -577,6 +585,7 @@ The name of the host operating system and compilation architecture.
 These default to the local system's operating system and
 architecture.
 </p>
+</li>
 
 <p>
 Valid choices are the same as for <code>$GOOS</code> and
@@ -595,6 +604,7 @@ directory to your <code>$PATH</code>, so you can use the tools.
 If <code>$GOBIN</code> is set, the <a href="/cmd/go">go command</a>
 installs all commands there.
 </p>
+</li>
 
 <li><code>$GO386</code> (for <code>386</code> only, default is auto-detected
 if built on either <code>386</code> or <code>amd64</code>, <code>387</code> otherwise)
@@ -604,9 +614,10 @@ This controls the code generated by gc to use either the 387 floating-point unit
 floating point computations.
 </p>
 <ul>
-	<li><code>GO386=387</code>: use x87 for floating point operations; should support all x86 chips (Pentium MMX or later).
-	<li><code>GO386=sse2</code>: use SSE2 for floating point operations; has better performance than 387, but only available on Pentium 4/Opteron/Athlon 64 or later.
+	<li><code>GO386=387</code>: use x87 for floating point operations; should support all x86 chips (Pentium MMX or later).</li>
+	<li><code>GO386=sse2</code>: use SSE2 for floating point operations; has better performance than 387, but only available on Pentium 4/Opteron/Athlon 64 or later.</li>
 </ul>
+</li>
 
 <li><code>$GOARM</code> (for <code>arm</code> only; default is auto-detected if building
 on the target processor, 6 if not)
@@ -615,9 +626,9 @@ This sets the ARM floating point co-processor architecture version the run-time
 should target. If you are compiling on the target system, its value will be auto-detected.
 </p>
 <ul>
-	<li><code>GOARM=5</code>: use software floating point; when CPU doesn't have VFP co-processor
-	<li><code>GOARM=6</code>: use VFPv1 only; default if cross compiling; usually ARM11 or better cores (VFPv2 or better is also supported)
-	<li><code>GOARM=7</code>: use VFPv3; usually Cortex-A cores
+	<li><code>GOARM=5</code>: use software floating point; when CPU doesn't have VFP co-processor</li>
+	<li><code>GOARM=6</code>: use VFPv1 only; default if cross compiling; usually ARM11 or better cores (VFPv2 or better is also supported)</li>
+	<li><code>GOARM=7</code>: use VFPv3; usually Cortex-A cores</li>
 </ul>
 <p>
 If in doubt, leave this variable unset, and adjust it if required
@@ -626,6 +637,13 @@ The <a href="//golang.org/wiki/GoArm">GoARM</a> page
 on the <a href="//golang.org/wiki">Go community wiki</a>
 contains further details regarding Go's ARM support.
 </p>
+</li>
+
+<li><code>$GOMIPS</code> (for <code>mips</code> and <code>mipsle</code> only) <br> <code>$GOMIPS64</code> (for <code>mips64</code> and <code>mips64le</code> only)
+<p>
+	These variables set whether to use floating point instructions. Set to "<code>hardfloat</code>" to use floating point instructions; this is the default.  Set to "<code>softfloat</code>" to use soft floating point.
+</p>
+</li>
 
 </ul>
 

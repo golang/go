@@ -56,7 +56,7 @@ func Examples(files ...*ast.File) []*Example {
 				continue
 			}
 			f, ok := decl.(*ast.FuncDecl)
-			if !ok {
+			if !ok || f.Recv != nil {
 				continue
 			}
 			numDecl++
@@ -68,6 +68,9 @@ func Examples(files ...*ast.File) []*Example {
 			if !isTest(name, "Example") {
 				continue
 			}
+			if f.Body == nil { // ast.File.Body nil dereference (see issue 28044)
+				continue
+			}
 			var doc string
 			if f.Doc != nil {
 				doc = f.Doc.Text()
@@ -77,7 +80,7 @@ func Examples(files ...*ast.File) []*Example {
 				Name:        name[len("Example"):],
 				Doc:         doc,
 				Code:        f.Body,
-				Play:        playExample(file, f.Body),
+				Play:        playExample(file, f),
 				Comments:    file.Comments,
 				Output:      output,
 				Unordered:   unordered,
@@ -94,7 +97,10 @@ func Examples(files ...*ast.File) []*Example {
 		}
 		list = append(list, flist...)
 	}
-	sort.Sort(exampleByName(list))
+	// sort by name
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].Name < list[j].Name
+	})
 	return list
 }
 
@@ -135,35 +141,41 @@ func isTest(name, prefix string) bool {
 	return !unicode.IsLower(rune)
 }
 
-type exampleByName []*Example
-
-func (s exampleByName) Len() int           { return len(s) }
-func (s exampleByName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s exampleByName) Less(i, j int) bool { return s[i].Name < s[j].Name }
-
 // playExample synthesizes a new *ast.File based on the provided
 // file with the provided function body as the body of main.
-func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
+func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
+	body := f.Body
+
 	if !strings.HasSuffix(file.Name.Name, "_test") {
 		// We don't support examples that are part of the
 		// greater package (yet).
 		return nil
 	}
 
-	// Find top-level declarations in the file.
-	topDecls := make(map[*ast.Object]bool)
+	// Collect top-level declarations in the file.
+	topDecls := make(map[*ast.Object]ast.Decl)
+	typMethods := make(map[string][]ast.Decl)
+
 	for _, decl := range file.Decls {
 		switch d := decl.(type) {
 		case *ast.FuncDecl:
-			topDecls[d.Name.Obj] = true
+			if d.Recv == nil {
+				topDecls[d.Name.Obj] = d
+			} else {
+				if len(d.Recv.List) == 1 {
+					t := d.Recv.List[0].Type
+					tname, _ := baseTypeName(t)
+					typMethods[tname] = append(typMethods[tname], d)
+				}
+			}
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {
 				switch s := spec.(type) {
 				case *ast.TypeSpec:
-					topDecls[s.Name.Obj] = true
+					topDecls[s.Name.Obj] = d
 				case *ast.ValueSpec:
-					for _, id := range s.Names {
-						topDecls[id.Obj] = true
+					for _, name := range s.Names {
+						topDecls[name.Obj] = d
 					}
 				}
 			}
@@ -172,36 +184,71 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 
 	// Find unresolved identifiers and uses of top-level declarations.
 	unresolved := make(map[string]bool)
-	usesTopDecl := false
+	var depDecls []ast.Decl
+	hasDepDecls := make(map[ast.Decl]bool)
+
 	var inspectFunc func(ast.Node) bool
 	inspectFunc = func(n ast.Node) bool {
-		// For selector expressions, only inspect the left hand side.
-		// (For an expression like fmt.Println, only add "fmt" to the
-		// set of unresolved names, not "Println".)
-		if e, ok := n.(*ast.SelectorExpr); ok {
+		switch e := n.(type) {
+		case *ast.Ident:
+			if e.Obj == nil && e.Name != "_" {
+				unresolved[e.Name] = true
+			} else if d := topDecls[e.Obj]; d != nil {
+				if !hasDepDecls[d] {
+					hasDepDecls[d] = true
+					depDecls = append(depDecls, d)
+				}
+			}
+			return true
+		case *ast.SelectorExpr:
+			// For selector expressions, only inspect the left hand side.
+			// (For an expression like fmt.Println, only add "fmt" to the
+			// set of unresolved names, not "Println".)
 			ast.Inspect(e.X, inspectFunc)
 			return false
-		}
-		// For key value expressions, only inspect the value
-		// as the key should be resolved by the type of the
-		// composite literal.
-		if e, ok := n.(*ast.KeyValueExpr); ok {
+		case *ast.KeyValueExpr:
+			// For key value expressions, only inspect the value
+			// as the key should be resolved by the type of the
+			// composite literal.
 			ast.Inspect(e.Value, inspectFunc)
 			return false
-		}
-		if id, ok := n.(*ast.Ident); ok {
-			if id.Obj == nil {
-				unresolved[id.Name] = true
-			} else if topDecls[id.Obj] {
-				usesTopDecl = true
-			}
 		}
 		return true
 	}
 	ast.Inspect(body, inspectFunc)
-	if usesTopDecl {
-		// We don't support examples that are not self-contained (yet).
-		return nil
+	for i := 0; i < len(depDecls); i++ {
+		switch d := depDecls[i].(type) {
+		case *ast.FuncDecl:
+			// Inspect types of parameters and results. See #28492.
+			if d.Type.Params != nil {
+				for _, p := range d.Type.Params.List {
+					ast.Inspect(p.Type, inspectFunc)
+				}
+			}
+			if d.Type.Results != nil {
+				for _, r := range d.Type.Results.List {
+					ast.Inspect(r.Type, inspectFunc)
+				}
+			}
+
+			ast.Inspect(d.Body, inspectFunc)
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				switch s := spec.(type) {
+				case *ast.TypeSpec:
+					ast.Inspect(s.Type, inspectFunc)
+
+					depDecls = append(depDecls, typMethods[s.Name.Name]...)
+				case *ast.ValueSpec:
+					if s.Type != nil {
+						ast.Inspect(s.Type, inspectFunc)
+					}
+					for _, val := range s.Values {
+						ast.Inspect(val, inspectFunc)
+					}
+				}
+			}
+		}
 	}
 
 	// Remove predeclared identifiers from unresolved list.
@@ -220,6 +267,11 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 		p, err := strconv.Unquote(s.Path.Value)
 		if err != nil {
 			continue
+		}
+		if p == "syscall/js" {
+			// We don't support examples that import syscall/js,
+			// because the package syscall/js is not available in the playground.
+			return nil
 		}
 		n := path.Base(p)
 		if s.Name != nil {
@@ -264,6 +316,20 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 	// end position.
 	body, comments = stripOutputComment(body, comments)
 
+	// Include documentation belonging to dependent declarations.
+	for _, d := range depDecls {
+		switch d := d.(type) {
+		case *ast.GenDecl:
+			if d.Doc != nil {
+				comments = append(comments, d.Doc)
+			}
+		case *ast.FuncDecl:
+			if d.Doc != nil {
+				comments = append(comments, d.Doc)
+			}
+		}
+	}
+
 	// Synthesize import declaration.
 	importDecl := &ast.GenDecl{
 		Tok:    token.IMPORT,
@@ -282,14 +348,27 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 	// Synthesize main function.
 	funcDecl := &ast.FuncDecl{
 		Name: ast.NewIdent("main"),
-		Type: &ast.FuncType{Params: &ast.FieldList{}}, // FuncType.Params must be non-nil
+		Type: f.Type,
 		Body: body,
 	}
+
+	decls := make([]ast.Decl, 0, 2+len(depDecls))
+	decls = append(decls, importDecl)
+	decls = append(decls, depDecls...)
+	decls = append(decls, funcDecl)
+
+	sort.Slice(decls, func(i, j int) bool {
+		return decls[i].Pos() < decls[j].Pos()
+	})
+
+	sort.Slice(comments, func(i, j int) bool {
+		return comments[i].Pos() < comments[j].Pos()
+	})
 
 	// Synthesize file.
 	return &ast.File{
 		Name:     ast.NewIdent("main"),
-		Decls:    []ast.Decl{importDecl, funcDecl},
+		Decls:    decls,
 		Comments: comments,
 	}
 }
@@ -347,6 +426,9 @@ func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast
 
 // lastComment returns the last comment inside the provided block.
 func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.CommentGroup) {
+	if b == nil {
+		return
+	}
 	pos, end := b.Pos(), b.End()
 	for j, cg := range c {
 		if cg.Pos() < pos {

@@ -109,6 +109,7 @@ var little = []byte{
 
 var src = []byte{1, 2, 3, 4, 5, 6, 7, 8}
 var res = []int32{0x01020304, 0x05060708}
+var putbuf = []byte{0, 0, 0, 0, 0, 0, 0, 0}
 
 func checkResult(t *testing.T, dir string, order ByteOrder, err error, have, want interface{}) {
 	if err != nil {
@@ -502,25 +503,42 @@ func BenchmarkWriteSlice1000Int32s(b *testing.B) {
 }
 
 func BenchmarkPutUint16(b *testing.B) {
-	buf := [2]byte{}
 	b.SetBytes(2)
 	for i := 0; i < b.N; i++ {
-		BigEndian.PutUint16(buf[:], uint16(i))
+		BigEndian.PutUint16(putbuf[:], uint16(i))
 	}
 }
 
 func BenchmarkPutUint32(b *testing.B) {
-	buf := [4]byte{}
 	b.SetBytes(4)
 	for i := 0; i < b.N; i++ {
-		BigEndian.PutUint32(buf[:], uint32(i))
+		BigEndian.PutUint32(putbuf[:], uint32(i))
 	}
 }
 
 func BenchmarkPutUint64(b *testing.B) {
-	buf := [8]byte{}
 	b.SetBytes(8)
 	for i := 0; i < b.N; i++ {
-		BigEndian.PutUint64(buf[:], uint64(i))
+		BigEndian.PutUint64(putbuf[:], uint64(i))
+	}
+}
+func BenchmarkLittleEndianPutUint16(b *testing.B) {
+	b.SetBytes(2)
+	for i := 0; i < b.N; i++ {
+		LittleEndian.PutUint16(putbuf[:], uint16(i))
+	}
+}
+
+func BenchmarkLittleEndianPutUint32(b *testing.B) {
+	b.SetBytes(4)
+	for i := 0; i < b.N; i++ {
+		LittleEndian.PutUint32(putbuf[:], uint32(i))
+	}
+}
+
+func BenchmarkLittleEndianPutUint64(b *testing.B) {
+	b.SetBytes(8)
+	for i := 0; i < b.N; i++ {
+		LittleEndian.PutUint64(putbuf[:], uint64(i))
 	}
 }

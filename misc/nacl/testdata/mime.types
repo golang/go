@@ -9,7 +9,7 @@
 # content languages and encodings, so choose them carefully.
 #
 # Internet media types should be registered as described in RFC 4288.
-# The registry is at <http://www.iana.org/assignments/media-types/>.
+# The registry is at <https://www.iana.org/assignments/media-types/>.
 #
 # MIME type (lowercased)			Extensions
 # ============================================	==========

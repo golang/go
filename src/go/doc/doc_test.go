@@ -40,7 +40,7 @@ func readTemplate(filename string) *template.Template {
 func nodeFmt(node interface{}, fset *token.FileSet) string {
 	var buf bytes.Buffer
 	printer.Fprint(&buf, fset, node)
-	return strings.Replace(strings.TrimSpace(buf.String()), "\n", "\n\t", -1)
+	return strings.ReplaceAll(strings.TrimSpace(buf.String()), "\n", "\n\t")
 }
 
 func synopsisFmt(s string) string {
@@ -53,7 +53,7 @@ func synopsisFmt(s string) string {
 		}
 		s = strings.TrimSpace(s) + " ..."
 	}
-	return "// " + strings.Replace(s, "\n", " ", -1)
+	return "// " + strings.ReplaceAll(s, "\n", " ")
 }
 
 func indentFmt(indent, s string) string {
@@ -62,7 +62,7 @@ func indentFmt(indent, s string) string {
 		end = "\n"
 		s = s[:len(s)-1]
 	}
-	return indent + strings.Replace(s, "\n", "\n"+indent, -1) + end
+	return indent + strings.ReplaceAll(s, "\n", "\n"+indent) + end
 }
 
 func isGoFile(fi os.FileInfo) bool {
@@ -143,4 +143,13 @@ func Test(t *testing.T) {
 	test(t, 0)
 	test(t, AllDecls)
 	test(t, AllMethods)
+}
+
+func TestAnchorID(t *testing.T) {
+	const in = "Important Things 2 Know & Stuff"
+	const want = "hdr-Important_Things_2_Know___Stuff"
+	got := anchorID(in)
+	if got != want {
+		t.Errorf("anchorID(%q) = %q; want %q", in, got, want)
+	}
 }

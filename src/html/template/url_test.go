@@ -87,6 +87,51 @@ func TestURLFilters(t *testing.T) {
 	}
 }
 
+func TestSrcsetFilter(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			"one ok",
+			"http://example.com/img.png",
+			"http://example.com/img.png",
+		},
+		{
+			"one ok with metadata",
+			" /img.png 200w",
+			" /img.png 200w",
+		},
+		{
+			"one bad",
+			"javascript:alert(1) 200w",
+			"#ZgotmplZ",
+		},
+		{
+			"two ok",
+			"foo.png, bar.png",
+			"foo.png, bar.png",
+		},
+		{
+			"left bad",
+			"javascript:alert(1), /foo.png",
+			"#ZgotmplZ, /foo.png",
+		},
+		{
+			"right bad",
+			"/bogus#, javascript:alert(1)",
+			"/bogus#,#ZgotmplZ",
+		},
+	}
+
+	for _, test := range tests {
+		if got := srcsetFilterAndEscaper(test.input); got != test.want {
+			t.Errorf("%s: srcsetFilterAndEscaper(%q) want %q != %q", test.name, test.input, test.want, got)
+		}
+	}
+}
+
 func BenchmarkURLEscaper(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		urlEscaper("http://example.com:80/foo?q=bar%20&baz=x+y#frag")
@@ -108,5 +153,17 @@ func BenchmarkURLNormalizer(b *testing.B) {
 func BenchmarkURLNormalizerNoSpecials(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		urlNormalizer("http://example.com:80/foo?q=bar%20&baz=x+y#frag")
+	}
+}
+
+func BenchmarkSrcsetFilter(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		srcsetFilterAndEscaper(" /foo/bar.png 200w, /baz/boo(1).png")
+	}
+}
+
+func BenchmarkSrcsetFilterNoSpecials(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		srcsetFilterAndEscaper("http://example.com:80/foo?q=bar%20&baz=x+y#frag")
 	}
 }

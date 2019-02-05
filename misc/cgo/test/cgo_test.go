@@ -78,5 +78,23 @@ func Test17537(t *testing.T)                 { test17537(t) }
 func Test18126(t *testing.T)                 { test18126(t) }
 func Test20369(t *testing.T)                 { test20369(t) }
 func Test18720(t *testing.T)                 { test18720(t) }
+func Test20266(t *testing.T)                 { test20266(t) }
+func Test20129(t *testing.T)                 { test20129(t) }
+func Test20910(t *testing.T)                 { test20910(t) }
+func Test21708(t *testing.T)                 { test21708(t) }
+func Test21809(t *testing.T)                 { test21809(t) }
+func Test6907(t *testing.T)                  { test6907(t) }
+func Test6907Go(t *testing.T)                { test6907Go(t) }
+func Test21897(t *testing.T)                 { test21897(t) }
+func Test22906(t *testing.T)                 { test22906(t) }
+func Test24206(t *testing.T)                 { test24206(t) }
+func Test25143(t *testing.T)                 { test25143(t) }
+func Test23356(t *testing.T)                 { test23356(t) }
+func Test26066(t *testing.T)                 { test26066(t) }
+func Test26213(t *testing.T)                 { test26213(t) }
+func Test27660(t *testing.T)                 { test27660(t) }
+func Test28896(t *testing.T)                 { test28896(t) }
+func Test30065(t *testing.T)                 { test30065(t) }
 
-func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+func BenchmarkCgoCall(b *testing.B)  { benchCgoCall(b) }
+func BenchmarkGoString(b *testing.B) { benchGoString(b) }

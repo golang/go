@@ -43,10 +43,6 @@ func pow(x, y float64) float64 {
 		return 1
 	case y == 1:
 		return x
-	case y == 0.5:
-		return Sqrt(x)
-	case y == -0.5:
-		return 1 / Sqrt(x)
 	case IsNaN(x) || IsNaN(y):
 		return NaN()
 	case x == 0:
@@ -81,20 +77,27 @@ func pow(x, y float64) float64 {
 		case y > 0:
 			return Inf(1)
 		}
+	case y == 0.5:
+		return Sqrt(x)
+	case y == -0.5:
+		return 1 / Sqrt(x)
 	}
 
-	absy := y
-	flip := false
-	if absy < 0 {
-		absy = -absy
-		flip = true
-	}
-	yi, yf := Modf(absy)
+	yi, yf := Modf(Abs(y))
 	if yf != 0 && x < 0 {
 		return NaN()
 	}
 	if yi >= 1<<63 {
-		return Exp(y * Log(x))
+		// yi is a large even int that will lead to overflow (or underflow to 0)
+		// for all x except -1 (x == 1 was handled earlier)
+		switch {
+		case x == -1:
+			return 1
+		case (Abs(x) < 1) == (y > 0):
+			return 0
+		default:
+			return Inf(1)
+		}
 	}
 
 	// ans = a1 * 2**ae (= 1 for now).
@@ -116,6 +119,15 @@ func pow(x, y float64) float64 {
 	// accumulate powers of two into exp.
 	x1, xe := Frexp(x)
 	for i := int64(yi); i != 0; i >>= 1 {
+		if xe < -1<<12 || 1<<12 < xe {
+			// catch xe before it overflows the left shift below
+			// Since i !=0 it has at least one bit still set, so ae will accumulate xe
+			// on at least one more iteration, ae += xe is a lower bound on ae
+			// the lower bound on ae exceeds the size of a float64 exp
+			// so the final call to Ldexp will produce under/overflow (0/Inf)
+			ae += xe
+			break
+		}
 		if i&1 == 1 {
 			a1 *= x1
 			ae += xe
@@ -129,9 +141,9 @@ func pow(x, y float64) float64 {
 	}
 
 	// ans = a1*2**ae
-	// if flip { ans = 1 / ans }
+	// if y < 0 { ans = 1 / ans }
 	// but in the opposite order
-	if flip {
+	if y < 0 {
 		a1 = 1 / a1
 		ae = -ae
 	}

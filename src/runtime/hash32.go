@@ -81,6 +81,32 @@ tail:
 	return uintptr(h)
 }
 
+func memhash32(p unsafe.Pointer, seed uintptr) uintptr {
+	h := uint32(seed + 4*hashkey[0])
+	h ^= readUnaligned32(p)
+	h = rotl_15(h*m1) * m2
+	h ^= h >> 17
+	h *= m3
+	h ^= h >> 13
+	h *= m4
+	h ^= h >> 16
+	return uintptr(h)
+}
+
+func memhash64(p unsafe.Pointer, seed uintptr) uintptr {
+	h := uint32(seed + 8*hashkey[0])
+	h ^= readUnaligned32(p)
+	h = rotl_15(h*m1) * m2
+	h ^= readUnaligned32(add(p, 4))
+	h = rotl_15(h*m1) * m2
+	h ^= h >> 17
+	h *= m3
+	h ^= h >> 13
+	h *= m4
+	h ^= h >> 16
+	return uintptr(h)
+}
+
 // Note: in order to get the compiler to issue rotl instructions, we
 // need to constant fold the shift amount by hand.
 // TODO: convince the compiler to issue rotl instructions after inlining.

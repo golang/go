@@ -94,7 +94,7 @@ func trim(f *Func) {
 	}
 }
 
-// emptyBlock returns true if the block does not contain actual
+// emptyBlock reports whether the block does not contain actual
 // instructions
 func emptyBlock(b *Block) bool {
 	for _, v := range b.Values {
@@ -105,7 +105,7 @@ func emptyBlock(b *Block) bool {
 	return true
 }
 
-// trimmableBlock returns true if the block can be trimmed from the CFG,
+// trimmableBlock reports whether the block can be trimmed from the CFG,
 // subject to the following criteria:
 //  - it should not be the first block
 //  - it should be BlockPlain
@@ -121,9 +121,8 @@ func trimmableBlock(b *Block) bool {
 }
 
 // mergePhi adjusts the number of `v`s arguments to account for merge
-// of `b`, which was `i`th predecessor of the `v`s block. Returns
-// `v`.
-func mergePhi(v *Value, i int, b *Block) *Value {
+// of `b`, which was `i`th predecessor of the `v`s block.
+func mergePhi(v *Value, i int, b *Block) {
 	u := v.Args[i]
 	if u.Block == b {
 		if u.Op != OpPhi {
@@ -147,5 +146,4 @@ func mergePhi(v *Value, i int, b *Block) *Value {
 			v.AddArg(v.Args[i])
 		}
 	}
-	return v
 }

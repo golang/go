@@ -27,9 +27,6 @@ TEXT ·Atan(SB),NOSPLIT,$0
 TEXT ·Atanh(SB),NOSPLIT,$0
 	BR ·atanh(SB)
 
-TEXT ·Dim(SB),NOSPLIT,$0
-	BR ·dim(SB)
-
 TEXT ·Min(SB),NOSPLIT,$0
 	BR ·min(SB)
 
@@ -71,9 +68,6 @@ TEXT ·Log1p(SB),NOSPLIT,$0
 
 TEXT ·Log(SB),NOSPLIT,$0
 	BR ·log(SB)
-
-TEXT ·Modf(SB),NOSPLIT,$0
-	BR ·modf(SB)
 
 TEXT ·Mod(SB),NOSPLIT,$0
 	BR ·mod(SB)

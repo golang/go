@@ -17,6 +17,7 @@ package driver
 
 import (
 	"io"
+	"net/http"
 	"regexp"
 	"time"
 
@@ -29,10 +30,10 @@ import (
 // manager. Then it generates a report formatted according to the
 // options selected through the flags package.
 func PProf(o *Options) error {
-	return internaldriver.PProf(o.InternalOptions())
+	return internaldriver.PProf(o.internalOptions())
 }
 
-func (o *Options) InternalOptions() *plugin.Options {
+func (o *Options) internalOptions() *plugin.Options {
 	var obj plugin.ObjTool
 	if o.Obj != nil {
 		obj = &internalObjTool{o.Obj}
@@ -41,24 +42,38 @@ func (o *Options) InternalOptions() *plugin.Options {
 	if o.Sym != nil {
 		sym = &internalSymbolizer{o.Sym}
 	}
+	var httpServer func(args *plugin.HTTPServerArgs) error
+	if o.HTTPServer != nil {
+		httpServer = func(args *plugin.HTTPServerArgs) error {
+			return o.HTTPServer(((*HTTPServerArgs)(args)))
+		}
+	}
 	return &plugin.Options{
-		Writer:  o.Writer,
-		Flagset: o.Flagset,
-		Fetch:   o.Fetch,
-		Sym:     sym,
-		Obj:     obj,
-		UI:      o.UI,
+		Writer:        o.Writer,
+		Flagset:       o.Flagset,
+		Fetch:         o.Fetch,
+		Sym:           sym,
+		Obj:           obj,
+		UI:            o.UI,
+		HTTPServer:    httpServer,
+		HTTPTransport: o.HTTPTransport,
 	}
 }
 
+// HTTPServerArgs contains arguments needed by an HTTP server that
+// is exporting a pprof web interface.
+type HTTPServerArgs plugin.HTTPServerArgs
+
 // Options groups all the optional plugins into pprof.
 type Options struct {
-	Writer  Writer
-	Flagset FlagSet
-	Fetch   Fetcher
-	Sym     Symbolizer
-	Obj     ObjTool
-	UI      UI
+	Writer        Writer
+	Flagset       FlagSet
+	Fetch         Fetcher
+	Sym           Symbolizer
+	Obj           ObjTool
+	UI            UI
+	HTTPServer    func(*HTTPServerArgs) error
+	HTTPTransport http.RoundTripper
 }
 
 // Writer provides a mechanism to write data under a certain name,
@@ -88,11 +103,15 @@ type FlagSet interface {
 	// single flag
 	StringList(name string, def string, usage string) *[]*string
 
-	// ExtraUsage returns any additional text that should be
-	// printed after the standard usage message.
-	// The typical use of ExtraUsage is to show any custom flags
-	// defined by the specific pprof plugins being used.
+	// ExtraUsage returns any additional text that should be printed after the
+	// standard usage message. The extra usage message returned includes all text
+	// added with AddExtraUsage().
+	// The typical use of ExtraUsage is to show any custom flags defined by the
+	// specific pprof plugins being used.
 	ExtraUsage() string
+
+	// AddExtraUsage appends additional text to the end of the extra usage message.
+	AddExtraUsage(eu string)
 
 	// Parse initializes the flags with their values for this run
 	// and returns the non-flag command line arguments.
@@ -206,6 +225,9 @@ type UI interface {
 	// interactive terminal (as opposed to being redirected to a file).
 	IsTerminal() bool
 
+	// WantBrowser indicates whether browser should be opened with the -http option.
+	WantBrowser() bool
+
 	// SetAutoComplete instructs the UI to call complete(cmd) to obtain
 	// the auto-completion of cmd, if the UI supports auto-completion at all.
 	SetAutoComplete(complete func(string) string)
@@ -273,9 +295,9 @@ type internalSymbolizer struct {
 }
 
 func (s *internalSymbolizer) Symbolize(mode string, srcs plugin.MappingSources, prof *profile.Profile) error {
-	isrcs := plugin.MappingSources{}
+	isrcs := MappingSources{}
 	for m, s := range srcs {
 		isrcs[m] = s
 	}
-	return s.Symbolize(mode, isrcs, prof)
+	return s.Symbolizer.Symbolize(mode, isrcs, prof)
 }

@@ -10,6 +10,7 @@ import (
 	"io"
 	"math/rand"
 	"reflect"
+	"strconv"
 	. "strings"
 	"testing"
 	"unicode"
@@ -125,6 +126,9 @@ var indexTests = []IndexTest{
 	{"xx012345678901234567890123456789012345678901234567890123456789012"[:41], "0123456789012345678901234567890123456789", -1},
 	{"xx012345678901234567890123456789012345678901234567890123456789012", "0123456789012345678901234567890123456xxx", -1},
 	{"xx0123456789012345678901234567890123456789012345678901234567890120123456789012345678901234567890123456xxx", "0123456789012345678901234567890123456xxx", 65},
+	// test fallback to Rabin-Karp.
+	{"oxoxoxoxoxoxoxoxoxoxoxoy", "oy", 22},
+	{"oxoxoxoxoxoxoxoxoxoxoxox", "oy", -1},
 }
 
 var lastIndexTests = []IndexTest{
@@ -518,10 +522,14 @@ func runStringTests(t *testing.T, f func(string) string, funcName string, testCa
 
 var upperTests = []StringTest{
 	{"", ""},
+	{"ONLYUPPER", "ONLYUPPER"},
 	{"abc", "ABC"},
 	{"AbC123", "ABC123"},
 	{"azAZ09_", "AZAZ09_"},
+	{"longStrinGwitHmixofsmaLLandcAps", "LONGSTRINGWITHMIXOFSMALLANDCAPS"},
+	{"long\u0250string\u0250with\u0250nonascii\u2C6Fchars", "LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS"},
 	{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"}, // grows one byte per char
+	{"a\u0080\U0010FFFF", "A\u0080\U0010FFFF"},                           // test utf8.RuneSelf and utf8.MaxRune
 }
 
 var lowerTests = []StringTest{
@@ -529,7 +537,10 @@ var lowerTests = []StringTest{
 	{"abc", "abc"},
 	{"AbC123", "abc123"},
 	{"azAZ09_", "azaz09_"},
+	{"longStrinGwitHmixofsmaLLandcAps", "longstringwithmixofsmallandcaps"},
+	{"LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS", "long\u0250string\u0250with\u0250nonascii\u0250chars"},
 	{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"}, // shrinks one byte per char
+	{"A\u0080\U0010FFFF", "a\u0080\U0010FFFF"},                           // test utf8.RuneSelf and utf8.MaxRune
 }
 
 const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
@@ -635,18 +646,78 @@ func TestMap(t *testing.T) {
 		if unicode.Is(unicode.Latin, r) {
 			return r
 		}
-		return '?'
+		return utf8.RuneError
 	}
 	m = Map(replaceNotLatin, "Hello\255World")
-	expect = "Hello?World"
+	expect = "Hello\uFFFDWorld"
 	if m != expect {
 		t.Errorf("replace invalid sequence: expected %q got %q", expect, m)
+	}
+
+	// 8. Check utf8.RuneSelf and utf8.MaxRune encoding
+	encode := func(r rune) rune {
+		switch r {
+		case utf8.RuneSelf:
+			return unicode.MaxRune
+		case unicode.MaxRune:
+			return utf8.RuneSelf
+		}
+		return r
+	}
+	s := string(utf8.RuneSelf) + string(utf8.MaxRune)
+	r := string(utf8.MaxRune) + string(utf8.RuneSelf) // reverse of s
+	m = Map(encode, s)
+	if m != r {
+		t.Errorf("encoding not handled correctly: expected %q got %q", r, m)
+	}
+	m = Map(encode, r)
+	if m != s {
+		t.Errorf("encoding not handled correctly: expected %q got %q", s, m)
+	}
+
+	// 9. Check mapping occurs in the front, middle and back
+	trimSpaces := func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}
+	m = Map(trimSpaces, "   abc    123   ")
+	expect = "abc123"
+	if m != expect {
+		t.Errorf("trimSpaces: expected %q got %q", expect, m)
 	}
 }
 
 func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }
 
 func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
+
+func BenchmarkToUpper(b *testing.B) {
+	for _, tc := range upperTests {
+		b.Run(tc.in, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				actual := ToUpper(tc.in)
+				if actual != tc.out {
+					b.Errorf("ToUpper(%q) = %q; want %q", tc.in, actual, tc.out)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkToLower(b *testing.B) {
+	for _, tc := range lowerTests {
+		b.Run(tc.in, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				actual := ToLower(tc.in)
+				if actual != tc.out {
+					b.Errorf("ToLower(%q) = %q; want %q", tc.in, actual, tc.out)
+				}
+			}
+		})
+	}
+}
 
 func BenchmarkMapNoChanges(b *testing.B) {
 	identity := func(r rune) rune {
@@ -1172,6 +1243,12 @@ func TestReplace(t *testing.T) {
 		if s := Replace(tt.in, tt.old, tt.new, tt.n); s != tt.out {
 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
 		}
+		if tt.n == -1 {
+			s := ReplaceAll(tt.in, tt.old, tt.new)
+			if s != tt.out {
+				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
+			}
+		}
 	}
 }
 
@@ -1345,6 +1422,8 @@ var EqualFoldTests = []struct {
 	{"abcdefghijK", "abcdefghij\u212A", true},
 	{"abcdefghijkz", "abcdefghij\u212Ay", false},
 	{"abcdefghijKz", "abcdefghij\u212Ay", false},
+	{"1", "2", false},
+	{"utf-8", "US-ASCII", false},
 }
 
 func TestEqualFold(t *testing.T) {
@@ -1354,6 +1433,16 @@ func TestEqualFold(t *testing.T) {
 		}
 		if out := EqualFold(tt.t, tt.s); out != tt.out {
 			t.Errorf("EqualFold(%#q, %#q) = %v, want %v", tt.t, tt.s, out, tt.out)
+		}
+	}
+}
+
+func BenchmarkEqualFold(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tt := range EqualFoldTests {
+			if out := EqualFold(tt.s, tt.t); out != tt.out {
+				b.Fatal("wrong result")
+			}
 		}
 	}
 }
@@ -1578,8 +1667,15 @@ func BenchmarkSplitNMultiByteSeparator(b *testing.B) {
 }
 
 func BenchmarkRepeat(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Repeat("-", 80)
+	s := "0123456789"
+	for _, n := range []int{5, 10} {
+		for _, c := range []int{1, 2, 6} {
+			b.Run(fmt.Sprintf("%dx%d", n, c), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					Repeat(s[:n], c)
+				}
+			})
+		}
 	}
 }
 
@@ -1608,5 +1704,30 @@ func BenchmarkTrimASCII(b *testing.B) {
 				}
 			})
 		}
+	}
+}
+
+func BenchmarkIndexPeriodic(b *testing.B) {
+	key := "aa"
+	for _, skip := range [...]int{2, 4, 8, 16, 32, 64} {
+		b.Run(fmt.Sprintf("IndexPeriodic%d", skip), func(b *testing.B) {
+			s := Repeat("a"+Repeat(" ", skip-1), 1<<16/skip)
+			for i := 0; i < b.N; i++ {
+				Index(s, key)
+			}
+		})
+	}
+}
+
+func BenchmarkJoin(b *testing.B) {
+	vals := []string{"red", "yellow", "pink", "green", "purple", "orange", "blue"}
+	for l := 0; l <= len(vals); l++ {
+		b.Run(strconv.Itoa(l), func(b *testing.B) {
+			b.ReportAllocs()
+			vals := vals[:l]
+			for i := 0; i < b.N; i++ {
+				Join(vals, " and ")
+			}
+		})
 	}
 }

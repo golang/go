@@ -19,7 +19,7 @@ func TestNoXPos(t *testing.T) {
 func TestConversion(t *testing.T) {
 	b1 := NewFileBase("b1", "b1")
 	b2 := NewFileBase("b2", "b2")
-	b3 := NewLinePragmaBase(MakePos(b1, 10, 0), "b3", 123)
+	b3 := NewLinePragmaBase(MakePos(b1, 10, 0), "b3", "b3", 123, 0)
 
 	var tab PosTable
 	for _, want := range []Pos{
@@ -35,6 +35,30 @@ func TestConversion(t *testing.T) {
 		got := tab.Pos(xpos)
 		if got != want {
 			t.Errorf("got %v; want %v", got, want)
+		}
+
+		for _, x := range []struct {
+			f func(XPos) XPos
+			e uint
+		}{
+			{XPos.WithDefaultStmt, PosDefaultStmt},
+			{XPos.WithIsStmt, PosIsStmt},
+			{XPos.WithNotStmt, PosNotStmt},
+			{XPos.WithIsStmt, PosIsStmt},
+			{XPos.WithDefaultStmt, PosDefaultStmt},
+			{XPos.WithNotStmt, PosNotStmt}} {
+			xposWith := x.f(xpos)
+			expected := x.e
+			if xpos.Line() == 0 && xpos.Col() == 0 {
+				expected = PosNotStmt
+			}
+			if got := xposWith.IsStmt(); got != expected {
+				t.Errorf("expected %v; got %v", expected, got)
+			}
+			if xposWith.Col() != xpos.Col() || xposWith.Line() != xpos.Line() {
+				t.Errorf("line:col, before = %d:%d, after=%d:%d", xpos.Line(), xpos.Col(), xposWith.Line(), xposWith.Col())
+			}
+			xpos = xposWith
 		}
 	}
 

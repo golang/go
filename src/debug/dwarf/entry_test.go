@@ -135,3 +135,63 @@ func TestReaderRanges(t *testing.T) {
 		t.Errorf("saw only %d subprograms, expected %d", i, len(subprograms))
 	}
 }
+
+func Test64Bit(t *testing.T) {
+	// I don't know how to generate a 64-bit DWARF debug
+	// compilation unit except by using XCOFF, so this is
+	// hand-written.
+	tests := []struct {
+		name string
+		info []byte
+	}{
+		{
+			"32-bit little",
+			[]byte{0x30, 0, 0, 0, // comp unit length
+				4, 0, // DWARF version 4
+				0, 0, 0, 0, // abbrev offset
+				8, // address size
+				0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+			},
+		},
+		{
+			"64-bit little",
+			[]byte{0xff, 0xff, 0xff, 0xff, // 64-bit DWARF
+				0x30, 0, 0, 0, 0, 0, 0, 0, // comp unit length
+				4, 0, // DWARF version 4
+				0, 0, 0, 0, 0, 0, 0, 0, // abbrev offset
+				8, // address size
+				0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+			},
+		},
+		{
+			"64-bit big",
+			[]byte{0xff, 0xff, 0xff, 0xff, // 64-bit DWARF
+				0, 0, 0, 0, 0, 0, 0, 0x30, // comp unit length
+				0, 4, // DWARF version 4
+				0, 0, 0, 0, 0, 0, 0, 0, // abbrev offset
+				8, // address size
+				0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		_, err := New(nil, nil, nil, test.info, nil, nil, nil, nil)
+		if err != nil {
+			t.Errorf("%s: %v", test.name, err)
+		}
+	}
+}

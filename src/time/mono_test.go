@@ -51,9 +51,9 @@ func TestHasMonotonicClock(t *testing.T) {
 	yes("tm.Add(1)", tm.Add(1))
 	no("tm.AddDate(1, 1, 1)", tm.AddDate(1, 1, 1))
 	no("tm.AddDate(0, 0, 0)", tm.AddDate(0, 0, 0))
-	yes("tm.In(UTC)", tm.In(UTC))
-	yes("tm.Local()", tm.Local())
-	yes("tm.UTC()", tm.UTC())
+	no("tm.In(UTC)", tm.In(UTC))
+	no("tm.Local()", tm.Local())
+	no("tm.UTC()", tm.UTC())
 	no("tm.Round(2)", tm.Round(2))
 	no("tm.Truncate(2)", tm.Truncate(2))
 }

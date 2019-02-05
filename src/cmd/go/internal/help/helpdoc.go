@@ -12,25 +12,25 @@ var HelpC = &base.Command{
 	Long: `
 There are two different ways to call between Go and C/C++ code.
 
-The first is the cgo tool, which is part of the Go distribution.  For
+The first is the cgo tool, which is part of the Go distribution. For
 information on how to use it see the cgo documentation (go doc cmd/cgo).
 
 The second is the SWIG program, which is a general tool for
-interfacing between languages.  For information on SWIG see
-http://swig.org/.  When running go build, any file with a .swig
-extension will be passed to SWIG.  Any file with a .swigcxx extension
+interfacing between languages. For information on SWIG see
+http://swig.org/. When running go build, any file with a .swig
+extension will be passed to SWIG. Any file with a .swigcxx extension
 will be passed to SWIG with the -c++ option.
 
 When either cgo or SWIG is used, go build will pass any .c, .m, .s,
 or .S files to the C compiler, and any .cc, .cpp, .cxx files to the C++
-compiler.  The CC or CXX environment variables may be set to determine
+compiler. The CC or CXX environment variables may be set to determine
 the C or C++ compiler, respectively, to use.
 	`,
 }
 
 var HelpPackages = &base.Command{
 	UsageLine: "packages",
-	Short:     "description of package lists",
+	Short:     "package lists and patterns",
 	Long: `
 Many commands apply to a set of packages:
 
@@ -54,9 +54,11 @@ for packages to be built with the go tool:
 
 - "main" denotes the top-level package in a stand-alone executable.
 
-- "all" expands to all package directories found in all the GOPATH
+- "all" expands to all packages found in all the GOPATH
 trees. For example, 'go list all' lists all the packages on the local
-system.
+system. When using modules, "all" expands to all packages in
+the main module and their dependencies, including dependencies
+needed by tests of any of those.
 
 - "std" is like all but expands to just the packages in the standard
 Go library.
@@ -69,7 +71,7 @@ the Go repository.
 
 An import path is a pattern if it includes one or more "..." wildcards,
 each of which can match any string, including the empty string and
-strings containing slashes.  Such a pattern expands to all package
+strings containing slashes. Such a pattern expands to all package
 directories found in the GOPATH trees with names matching the
 patterns.
 
@@ -86,11 +88,11 @@ and the pattern cmd/... matches it.
 See golang.org/s/go15vendor for more about vendoring.
 
 An import path can also name a package to be downloaded from
-a remote repository.  Run 'go help importpath' for details.
+a remote repository. Run 'go help importpath' for details.
 
 Every package in a program must have a unique import path.
 By convention, this is arranged by starting each path with a
-unique prefix that belongs to you.  For example, paths used
+unique prefix that belongs to you. For example, paths used
 internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
 such as 'github.com/user/repo'.
@@ -119,7 +121,7 @@ var HelpImportPath = &base.Command{
 	Long: `
 
 An import path (see 'go help packages') denotes a package stored in the local
-file system.  In general, an import path denotes either a standard package (such
+file system. In general, an import path denotes either a standard package (such
 as "unicode/utf8") or a package found in one of the work spaces (For more
 details see: 'go help gopath').
 
@@ -190,9 +192,10 @@ To declare the code location, an import path of the form
 
 specifies the given repository, with or without the .vcs suffix,
 using the named version control system, and then the path inside
-that repository.  The supported version control systems are:
+that repository. The supported version control systems are:
 
 	Bazaar      .bzr
+	Fossil      .fossil
 	Git         .git
 	Mercurial   .hg
 	Subversion  .svn
@@ -210,7 +213,7 @@ denotes the foo/bar directory of the Git repository at
 example.org/repo or repo.git.
 
 When a version control system supports multiple protocols,
-each is tried in turn when downloading.  For example, a Git
+each is tried in turn when downloading. For example, a Git
 download tries https://, then git+ssh://.
 
 By default, downloads are restricted to known secure protocols
@@ -236,7 +239,7 @@ The meta tag should appear as early in the file as possible.
 In particular, it should appear before any raw JavaScript or CSS,
 to avoid confusing the go command's restricted parser.
 
-The vcs is one of "git", "hg", "svn", etc,
+The vcs is one of "bzr", "fossil", "git", "hg", "svn".
 
 The repo-root is the root of the version control system
 containing a scheme and not containing a .vcs qualifier.
@@ -258,12 +261,22 @@ the go tool will verify that https://example.org/?go-get=1 contains the
 same meta tag and then git clone https://code.org/r/p/exproj into
 GOPATH/src/example.org.
 
-New downloaded packages are written to the first directory listed in the GOPATH
-environment variable (For more details see: 'go help gopath').
+When using GOPATH, downloaded packages are written to the first directory
+listed in the GOPATH environment variable.
+(See 'go help gopath-get' and 'go help gopath'.)
 
-The go command attempts to download the version of the
-package appropriate for the Go release being used.
-Run 'go help get' for more.
+When using modules, downloaded packages are stored in the module cache.
+(See 'go help module-get' and 'go help goproxy'.)
+
+When using modules, an additional variant of the go-import meta tag is
+recognized and is preferred over those listing version control systems.
+That variant uses "mod" as the vcs in the content value, as in:
+
+	<meta name="go-import" content="example.org mod https://code.org/moduleproxy">
+
+This tag means to fetch modules with paths beginning with example.org
+from the module proxy available at the URL https://code.org/moduleproxy.
+See 'go help goproxy' for details about the proxy protocol.
 
 Import path checking
 
@@ -285,6 +298,9 @@ direct path to the underlying code hosting site.
 Import path checking is disabled for code found within vendor trees.
 This makes it possible to copy code into alternate locations in vendor trees
 without needing to update import comments.
+
+Import path checking is also disabled when using modules.
+Import path comments are obsoleted by the go.mod file's module statement.
 
 See https://golang.org/s/go14customimport for details.
 	`,
@@ -312,7 +328,7 @@ See https://golang.org/wiki/SettingGOPATH to set a custom GOPATH.
 
 Each directory listed in GOPATH must have a prescribed structure:
 
-The src directory holds source code.  The path below src
+The src directory holds source code. The path below src
 determines the import path or executable name.
 
 The pkg directory holds installed package objects.
@@ -326,11 +342,11 @@ has its compiled form installed to "DIR/pkg/GOOS_GOARCH/foo/bar.a".
 
 The bin directory holds compiled commands.
 Each command is named for its source directory, but only
-the final element, not the entire path.  That is, the
+the final element, not the entire path. That is, the
 command with source in DIR/src/foo/quux is installed into
-DIR/bin/quux, not DIR/bin/foo/quux.  The "foo/" prefix is stripped
+DIR/bin/quux, not DIR/bin/foo/quux. The "foo/" prefix is stripped
 so that you can add DIR/bin to your PATH to get at the
-installed commands.  If the GOBIN environment variable is
+installed commands. If the GOBIN environment variable is
 set, commands are installed to the directory it names instead
 of DIR/bin. GOBIN must be an absolute path.
 
@@ -357,6 +373,12 @@ but new packages are always downloaded into the first directory
 in the list.
 
 See https://golang.org/doc/code.html for an example.
+
+GOPATH and Modules
+
+When using modules, GOPATH is no longer used for resolving imports.
+However, it is still used to store downloaded source code (in GOPATH/pkg/mod)
+and compiled commands (in GOPATH/bin).
 
 Internal Directories
 
@@ -461,41 +483,71 @@ General-purpose environment variables:
 		Examples are amd64, 386, arm, ppc64.
 	GOBIN
 		The directory where 'go install' will install a command.
+	GOCACHE
+		The directory where the go command will store cached
+		information for reuse in future builds.
+	GOFLAGS
+		A space-separated list of -flag=value settings to apply
+		to go commands by default, when the given flag is known by
+		the current command. Flags listed on the command-line
+		are applied after this list and therefore override it.
 	GOOS
 		The operating system for which to compile code.
 		Examples are linux, darwin, windows, netbsd.
 	GOPATH
 		For more details see: 'go help gopath'.
+	GOPROXY
+		URL of Go module proxy. See 'go help goproxy'.
 	GORACE
 		Options for the race detector.
 		See https://golang.org/doc/articles/race_detector.html.
 	GOROOT
 		The root of the go tree.
+	GOTMPDIR
+		The directory where the go command will write
+		temporary source files, packages, and binaries.
+
+Each entry in the GOFLAGS list must be a standalone flag.
+Because the entries are space-separated, flag values must
+not contain spaces.
 
 Environment variables for use with cgo:
 
 	CC
 		The command to use to compile C code.
 	CGO_ENABLED
-		Whether the cgo command is supported.  Either 0 or 1.
+		Whether the cgo command is supported. Either 0 or 1.
 	CGO_CFLAGS
 		Flags that cgo will pass to the compiler when compiling
 		C code.
-	CGO_CPPFLAGS
-		Flags that cgo will pass to the compiler when compiling
-		C or C++ code.
-	CGO_CXXFLAGS
-		Flags that cgo will pass to the compiler when compiling
-		C++ code.
-	CGO_FFLAGS
-		Flags that cgo will pass to the compiler when compiling
-		Fortran code.
-	CGO_LDFLAGS
-		Flags that cgo will pass to the compiler when linking.
+	CGO_CFLAGS_ALLOW
+		A regular expression specifying additional flags to allow
+		to appear in #cgo CFLAGS source code directives.
+		Does not apply to the CGO_CFLAGS environment variable.
+	CGO_CFLAGS_DISALLOW
+		A regular expression specifying flags that must be disallowed
+		from appearing in #cgo CFLAGS source code directives.
+		Does not apply to the CGO_CFLAGS environment variable.
+	CGO_CPPFLAGS, CGO_CPPFLAGS_ALLOW, CGO_CPPFLAGS_DISALLOW
+		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+		but for the C preprocessor.
+	CGO_CXXFLAGS, CGO_CXXFLAGS_ALLOW, CGO_CXXFLAGS_DISALLOW
+		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+		but for the C++ compiler.
+	CGO_FFLAGS, CGO_FFLAGS_ALLOW, CGO_FFLAGS_DISALLOW
+		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+		but for the Fortran compiler.
+	CGO_LDFLAGS, CGO_LDFLAGS_ALLOW, CGO_LDFLAGS_DISALLOW
+		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
+		but for the linker.
 	CXX
 		The command to use to compile C++ code.
 	PKG_CONFIG
 		Path to pkg-config tool.
+	AR
+		The command to use to manipulate library archives when
+		building with the gccgo compiler.
+		The default is 'ar'.
 
 Architecture-specific environment variables:
 
@@ -505,9 +557,18 @@ Architecture-specific environment variables:
 	GO386
 		For GOARCH=386, the floating point instruction set.
 		Valid values are 387, sse2.
+	GOMIPS
+		For GOARCH=mips{,le}, whether to use floating point instructions.
+		Valid values are hardfloat (default), softfloat.
+	GOMIPS64
+		For GOARCH=mips64{,le}, whether to use floating point instructions.
+		Valid values are hardfloat (default), softfloat.
 
 Special-purpose environment variables:
 
+	GCCGOTOOLDIR
+		If set, where to find gccgo tools, such as cgo.
+		The default is based on how gccgo was configured.
 	GOROOT_FINAL
 		The root of the installed Go tree, when it is
 		installed in a location other than where it is built.
@@ -521,6 +582,20 @@ Special-purpose environment variables:
 		Defined by Git. A colon-separated list of schemes that are allowed to be used
 		with git fetch/clone. If set, any scheme not explicitly mentioned will be
 		considered insecure by 'go get'.
+
+Additional information available from 'go env' but not read from the environment:
+
+	GOEXE
+		The executable file name suffix (".exe" on Windows, "" on other systems).
+	GOHOSTARCH
+		The architecture (GOARCH) of the Go toolchain binaries.
+	GOHOSTOS
+		The operating system (GOOS) of the Go toolchain binaries.
+	GOMOD
+		The absolute path to the go.mod of the main module,
+		or the empty string if not using modules.
+	GOTOOLDIR
+		The directory where the go tools (compile, cover, doc, etc...) are installed.
 	`,
 }
 
@@ -561,18 +636,20 @@ at the first item in the file that is not a blank line or //-style
 line comment. See the go/build package documentation for
 more details.
 
-Non-test Go source files can also include a //go:binary-only-package
-comment, indicating that the package sources are included
-for documentation only and must not be used to build the
-package binary. This enables distribution of Go packages in
-their compiled form alone. See the go/build package documentation
-for more details.
+Through the Go 1.12 release, non-test Go source files can also include
+a //go:binary-only-package comment, indicating that the package
+sources are included for documentation only and must not be used to
+build the package binary. This enables distribution of Go packages in
+their compiled form alone. Even binary-only packages require accurate
+import blocks listing required dependencies, so that those
+dependencies can be supplied when linking the resulting command.
+Note that this feature is scheduled to be removed after the Go 1.12 release.
 	`,
 }
 
 var HelpBuildmode = &base.Command{
 	UsageLine: "buildmode",
-	Short:     "description of build modes",
+	Short:     "build modes",
 	Long: `
 The 'go build' and 'go install' commands take a -buildmode argument which
 indicates which kind of object file is to be built. Currently supported values
@@ -589,10 +666,10 @@ are:
 		exactly one main package to be listed.
 
 	-buildmode=c-shared
-		Build the listed main packages, plus all packages that they
-		import, into C shared libraries. The only callable symbols will
+		Build the listed main package, plus all packages it imports,
+		into a C shared library. The only callable symbols will
 		be those functions exported using a cgo //export comment.
-		Non-main packages are ignored.
+		Requires exactly one main package to be listed.
 
 	-buildmode=default
 		Listed main packages are built into executables and listed
@@ -616,5 +693,47 @@ are:
 	-buildmode=plugin
 		Build the listed main packages, plus all packages that they
 		import, into a Go plugin. Packages not named main are ignored.
+`,
+}
+
+var HelpCache = &base.Command{
+	UsageLine: "cache",
+	Short:     "build and test caching",
+	Long: `
+The go command caches build outputs for reuse in future builds.
+The default location for cache data is a subdirectory named go-build
+in the standard user cache directory for the current operating system.
+Setting the GOCACHE environment variable overrides this default,
+and running 'go env GOCACHE' prints the current cache directory.
+
+The go command periodically deletes cached data that has not been
+used recently. Running 'go clean -cache' deletes all cached data.
+
+The build cache correctly accounts for changes to Go source files,
+compilers, compiler options, and so on: cleaning the cache explicitly
+should not be necessary in typical use. However, the build cache
+does not detect changes to C libraries imported with cgo.
+If you have made changes to the C libraries on your system, you
+will need to clean the cache explicitly or else use the -a build flag
+(see 'go help build') to force rebuilding of packages that
+depend on the updated C libraries.
+
+The go command also caches successful package test results.
+See 'go help test' for details. Running 'go clean -testcache' removes
+all cached test results (but not cached build results).
+
+The GODEBUG environment variable can enable printing of debugging
+information about the state of the cache:
+
+GODEBUG=gocacheverify=1 causes the go command to bypass the
+use of any cache entries and instead rebuild everything and check
+that the results match existing cache entries.
+
+GODEBUG=gocachehash=1 causes the go command to print the inputs
+for all of the content hashes it uses to construct cache lookup keys.
+The output is voluminous but can be useful for debugging the cache.
+
+GODEBUG=gocachetest=1 causes the go command to print details of its
+decisions about whether to reuse a cached test result.
 `,
 }

@@ -64,7 +64,7 @@ TEXT ·tanhAsm(SB),NOSPLIT,$0-16
 	FCMPU   F0, F1
 	BEQ     tanhIsZero
 	MOVD    $tanhrodataL18<>+0(SB), R5
-	WORD    $0xB3120000     //ltdbr %f0,%f0
+	LTDBR	F0, F0
 	MOVD    $0x4034000000000000, R1
 	BLTU    L15
 	FMOVD   F0, F1

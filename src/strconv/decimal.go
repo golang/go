@@ -15,8 +15,8 @@ type decimal struct {
 	d     [800]byte // digits, big-endian representation
 	nd    int       // number of digits used
 	dp    int       // decimal point
-	neg   bool
-	trunc bool // discarded nonzero digits beyond d[:nd]
+	neg   bool      // negative flag
+	trunc bool      // discarded nonzero digits beyond d[:nd]
 }
 
 func (a *decimal) String() string {

@@ -138,10 +138,16 @@ import (
 //			offset = second register
 //
 //	[reg, reg, reg-reg]
-//		Register list for ARM.
+//		Register list for ARM, ARM64, 386/AMD64.
 //		Encoding:
 //			type = TYPE_REGLIST
+//		On ARM:
 //			offset = bit mask of registers in list; R0 is low bit.
+//		On ARM64:
+//			offset = register count (Q:size) | arrangement (opcode) | first register
+//		On 386/AMD64:
+//			reg = range low register
+//			offset = 2 packed registers + kind tag (see x86.EncodeRegisterRange)
 //
 //	reg, reg
 //		Register pair for ARM.
@@ -155,6 +161,27 @@ import (
 //			index = second register
 //			scale = 1
 //
+//	reg.[US]XT[BHWX]
+//		Register extension for ARM64
+//		Encoding:
+//			type = TYPE_REG
+//			reg = REG_[US]XT[BHWX] + register + shift amount
+//			offset = ((reg&31) << 16) | (exttype << 13) | (amount<<10)
+//
+//	reg.<T>
+//		Register arrangement for ARM64 SIMD register
+//		e.g.: V1.S4, V2.S2, V7.D2, V2.H4, V6.B16
+//		Encoding:
+//			type = TYPE_REG
+//			reg = REG_ARNG + register + arrangement
+//
+//	reg.<T>[index]
+//		Register element for ARM64
+//		Encoding:
+//			type = TYPE_REG
+//			reg = REG_ELEM + register + arrangement
+//			index = element index
+
 type Addr struct {
 	Reg    int16
 	Index  int16
@@ -184,7 +211,14 @@ const (
 	// A reference to name@GOT(SB) is a reference to the entry in the global offset
 	// table for 'name'.
 	NAME_GOTREF
+	// Indicates auto that was optimized away, but whose type
+	// we want to preserve in the DWARF debug info.
+	NAME_DELETED_AUTO
+	// Indicates that this is a reference to a TOC anchor.
+	NAME_TOCREF
 )
+
+//go:generate stringer -type AddrType
 
 type AddrType uint8
 
@@ -209,14 +243,19 @@ const (
 //
 // The general instruction form is:
 //
-//	As.Scond From, Reg, From3, To, RegTo2
+//	(1) As.Scond From [, ...RestArgs], To
+//	(2) As.Scond From, Reg [, ...RestArgs], To, RegTo2
 //
 // where As is an opcode and the others are arguments:
-// From, Reg, From3 are sources, and To, RegTo2 are destinations.
+// From, Reg are sources, and To, RegTo2 are destinations.
+// RestArgs can hold additional sources and destinations.
 // Usually, not all arguments are present.
 // For example, MOVL R1, R2 encodes using only As=MOVL, From=R1, To=R2.
 // The Scond field holds additional condition bits for systems (like arm)
 // that have generalized conditional execution.
+// (2) form is present for compatibility with older code,
+// to avoid too much changes in a single swing.
+// (1) scheme is enough to express any kind of operand combination.
 //
 // Jump instructions use the Pcond field to point to the target instruction,
 // which must be in the same linked list as the jump instruction.
@@ -232,35 +271,62 @@ const (
 // The other fields not yet mentioned are for use by the back ends and should
 // be left zeroed by creators of Prog lists.
 type Prog struct {
-	Ctxt   *Link    // linker context
-	Link   *Prog    // next Prog in linked list
-	From   Addr     // first source operand
-	From3  *Addr    // third source operand (second is Reg below)
-	To     Addr     // destination operand (second is RegTo2 below)
-	Pcond  *Prog    // target of conditional jump
-	Forwd  *Prog    // for x86 back end
-	Rel    *Prog    // for x86, arm back ends
-	Pc     int64    // for back ends or assembler: virtual or actual program counter, depending on phase
-	Pos    src.XPos // source position of this instruction
-	Spadj  int32    // effect of instruction on stack pointer (increment or decrement amount)
-	As     As       // assembler opcode
-	Reg    int16    // 2nd source operand
-	RegTo2 int16    // 2nd destination operand
-	Mark   uint16   // bitmask of arch-specific items
-	Optab  uint16   // arch-specific opcode index
-	Scond  uint8    // condition bits for conditional instruction (e.g., on ARM)
-	Back   uint8    // for x86 back end: backwards branch state
-	Ft     uint8    // for x86 back end: type index of Prog.From
-	Tt     uint8    // for x86 back end: type index of Prog.To
-	Isize  uint8    // for x86 back end: size of the instruction in bytes
+	Ctxt     *Link    // linker context
+	Link     *Prog    // next Prog in linked list
+	From     Addr     // first source operand
+	RestArgs []Addr   // can pack any operands that not fit into {Prog.From, Prog.To}
+	To       Addr     // destination operand (second is RegTo2 below)
+	Pcond    *Prog    // target of conditional jump
+	Forwd    *Prog    // for x86 back end
+	Rel      *Prog    // for x86, arm back ends
+	Pc       int64    // for back ends or assembler: virtual or actual program counter, depending on phase
+	Pos      src.XPos // source position of this instruction
+	Spadj    int32    // effect of instruction on stack pointer (increment or decrement amount)
+	As       As       // assembler opcode
+	Reg      int16    // 2nd source operand
+	RegTo2   int16    // 2nd destination operand
+	Mark     uint16   // bitmask of arch-specific items
+	Optab    uint16   // arch-specific opcode index
+	Scond    uint8    // bits that describe instruction suffixes (e.g. ARM conditions)
+	Back     uint8    // for x86 back end: backwards branch state
+	Ft       uint8    // for x86 back end: type index of Prog.From
+	Tt       uint8    // for x86 back end: type index of Prog.To
+	Isize    uint8    // for x86 back end: size of the instruction in bytes
 }
 
-// From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
+// From3Type returns p.GetFrom3().Type, or TYPE_NONE when
+// p.GetFrom3() returns nil.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
 func (p *Prog) From3Type() AddrType {
-	if p.From3 == nil {
+	if p.RestArgs == nil {
 		return TYPE_NONE
 	}
-	return p.From3.Type
+	return p.RestArgs[0].Type
+}
+
+// GetFrom3 returns second source operand (the first is Prog.From).
+// In combination with Prog.From and Prog.To it makes common 3 operand
+// case easier to use.
+//
+// Should be used only when RestArgs is set with SetFrom3.
+//
+// Deprecated: better use RestArgs directly or define backend-specific getters.
+// Introduced to simplify transition to []Addr.
+// Usage of this is discouraged due to fragility and lack of guarantees.
+func (p *Prog) GetFrom3() *Addr {
+	if p.RestArgs == nil {
+		return nil
+	}
+	return &p.RestArgs[0]
+}
+
+// SetFrom3 assigns []Addr{a} to p.RestArgs.
+// In pair with Prog.GetFrom3 it can help in emulation of Prog.From3.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
+func (p *Prog) SetFrom3(a Addr) {
+	p.RestArgs = []Addr{a}
 }
 
 // An As denotes an assembler opcode.
@@ -280,8 +346,10 @@ const (
 	AFUNCDATA
 	AJMP
 	ANOP
+	APCALIGN
 	APCDATA
 	ARET
+	AGETCALLERPC
 	ATEXT
 	AUNDEF
 	A_ARCHSPECIFIC
@@ -295,15 +363,16 @@ const (
 // Subspaces are aligned to a power of two so opcodes can be masked
 // with AMask and used as compact array indices.
 const (
-	ABase386 = (1 + iota) << 10
+	ABase386 = (1 + iota) << 11
 	ABaseARM
 	ABaseAMD64
 	ABasePPC64
 	ABaseARM64
 	ABaseMIPS
 	ABaseS390X
+	ABaseWasm
 
-	AllowedOpCodes = 1 << 10            // The number of opcodes available for any given architecture.
+	AllowedOpCodes = 1 << 11            // The number of opcodes available for any given architecture.
 	AMask          = AllowedOpCodes - 1 // AND with this to use the opcode as an array index.
 )
 
@@ -324,21 +393,66 @@ type LSym struct {
 
 // A FuncInfo contains extra fields for STEXT symbols.
 type FuncInfo struct {
-	Args   int32
-	Locals int32
-	Text   *Prog
-	Autom  []*Auto
-	Pcln   Pcln
+	Args     int32
+	Locals   int32
+	Text     *Prog
+	Autom    []*Auto
+	Pcln     Pcln
+	InlMarks []InlMark
 
-	dwarfSym       *LSym
+	dwarfInfoSym   *LSym
+	dwarfLocSym    *LSym
 	dwarfRangesSym *LSym
+	dwarfAbsFnSym  *LSym
+	dwarfIsStmtSym *LSym
 
-	GCArgs   LSym
-	GCLocals LSym
+	GCArgs       *LSym
+	GCLocals     *LSym
+	GCRegs       *LSym
+	StackObjects *LSym
 }
 
+type InlMark struct {
+	// When unwinding from an instruction in an inlined body, mark
+	// where we should unwind to.
+	// id records the global inlining id of the inlined body.
+	// p records the location of an instruction in the parent (inliner) frame.
+	p  *Prog
+	id int32
+}
+
+// Mark p as the instruction to set as the pc when
+// "unwinding" the inlining global frame id. Usually it should be
+// instruction with a file:line at the callsite, and occur
+// just before the body of the inlined function.
+func (fi *FuncInfo) AddInlMark(p *Prog, id int32) {
+	fi.InlMarks = append(fi.InlMarks, InlMark{p: p, id: id})
+}
+
+//go:generate stringer -type ABI
+
+// ABI is the calling convention of a text symbol.
+type ABI uint8
+
+const (
+	// ABI0 is the stable stack-based ABI. It's important that the
+	// value of this is "0": we can't distinguish between
+	// references to data and ABI0 text symbols in assembly code,
+	// and hence this doesn't distinguish between symbols without
+	// an ABI and text symbols with ABI0.
+	ABI0 ABI = iota
+
+	// ABIInternal is the internal ABI that may change between Go
+	// versions. All Go functions use the internal ABI and the
+	// compiler generates wrappers for calls to and from other
+	// ABIs.
+	ABIInternal
+
+	ABICount
+)
+
 // Attribute is a set of symbol attributes.
-type Attribute int16
+type Attribute uint16
 
 const (
 	AttrDuplicateOK Attribute = 1 << iota
@@ -370,6 +484,17 @@ const (
 	// definition. (When not compiling to support Go shared libraries, all symbols are
 	// local in this sense unless there is a cgo_export_* directive).
 	AttrLocal
+
+	// For function symbols; indicates that the specified function was the
+	// target of an inline during compilation
+	AttrWasInlined
+
+	// attrABIBase is the value at which the ABI is encoded in
+	// Attribute. This must be last; all bits after this are
+	// assumed to be an ABI value.
+	//
+	// MUST BE LAST since all bits above this comprise the ABI.
+	attrABIBase
 )
 
 func (a Attribute) DuplicateOK() bool   { return a&AttrDuplicateOK != 0 }
@@ -385,6 +510,7 @@ func (a Attribute) Wrapper() bool       { return a&AttrWrapper != 0 }
 func (a Attribute) NeedCtxt() bool      { return a&AttrNeedCtxt != 0 }
 func (a Attribute) NoFrame() bool       { return a&AttrNoFrame != 0 }
 func (a Attribute) Static() bool        { return a&AttrStatic != 0 }
+func (a Attribute) WasInlined() bool    { return a&AttrWasInlined != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
@@ -392,6 +518,12 @@ func (a *Attribute) Set(flag Attribute, value bool) {
 	} else {
 		*a &^= flag
 	}
+}
+
+func (a Attribute) ABI() ABI { return ABI(a / attrABIBase) }
+func (a *Attribute) SetABI(abi ABI) {
+	const mask = 1 // Only one ABI bit for now.
+	*a = (*a &^ (mask * attrABIBase)) | Attribute(abi)*attrABIBase
 }
 
 var textAttrStrings = [...]struct {
@@ -411,6 +543,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrNeedCtxt, s: "NEEDCTXT"},
 	{bit: AttrNoFrame, s: "NOFRAME"},
 	{bit: AttrStatic, s: "STATIC"},
+	{bit: AttrWasInlined, s: ""},
 }
 
 // TextAttrString formats a for printing in as part of a TEXT prog.
@@ -423,6 +556,12 @@ func (a Attribute) TextAttrString() string {
 			}
 			a &^= x.bit
 		}
+	}
+	switch a.ABI() {
+	case ABI0:
+	case ABIInternal:
+		s += "ABIInternal|"
+		a.SetABI(0) // Clear ABI so we don't print below.
 	}
 	if a != 0 {
 		s += fmt.Sprintf("UnknownAttribute(%d)|", a)
@@ -476,31 +615,47 @@ type Pcdata struct {
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
-	Headtype      objabi.HeadType
-	Arch          *LinkArch
-	Debugasm      bool
-	Debugvlog     bool
-	Debugpcln     string
-	Flag_shared   bool
-	Flag_dynlink  bool
-	Flag_optimize bool
-	Bso           *bufio.Writer
-	Pathname      string
-	hashmu        sync.Mutex       // protects hash
-	hash          map[string]*LSym // name -> sym mapping
-	statichash    map[string]*LSym // name -> sym mapping for static syms
-	PosTable      src.PosTable
-	InlTree       InlTree // global inlining tree used by gc/inl.go
-	Imports       []string
-	DiagFunc      func(string, ...interface{})
-	DebugInfo     func(fn *LSym, curfn interface{}) []dwarf.Scope // if non-nil, curfn is a *gc.Node
-	Errors        int
+	Headtype           objabi.HeadType
+	Arch               *LinkArch
+	Debugasm           int
+	Debugvlog          bool
+	Debugpcln          string
+	Flag_shared        bool
+	Flag_dynlink       bool
+	Flag_optimize      bool
+	Flag_locationlists bool
+	Bso                *bufio.Writer
+	Pathname           string
+	hashmu             sync.Mutex       // protects hash, funchash
+	hash               map[string]*LSym // name -> sym mapping
+	funchash           map[string]*LSym // name -> sym mapping for ABIInternal syms
+	statichash         map[string]*LSym // name -> sym mapping for static syms
+	PosTable           src.PosTable
+	InlTree            InlTree // global inlining tree used by gc/inl.go
+	DwFixups           *DwarfFixupTable
+	Imports            []string
+	DiagFunc           func(string, ...interface{})
+	DiagFlush          func()
+	DebugInfo          func(fn *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
+	GenAbstractFunc    func(fn *LSym)
+	Errors             int
 
+	InParallel           bool // parallel backend phase in effect
 	Framepointer_enabled bool
 
 	// state for writing objects
 	Text []*LSym
 	Data []*LSym
+
+	// ABIAliases are text symbols that should be aliased to all
+	// ABIs. These symbols may only be referenced and not defined
+	// by this object, since the need for an alias may appear in a
+	// different object than the definition. Hence, this
+	// information can't be carried in the symbol definition.
+	//
+	// TODO(austin): Replace this with ABI wrappers once the ABIs
+	// actually diverge.
+	ABIAliases []*LSym
 }
 
 func (ctxt *Link) Diag(format string, args ...interface{}) {
@@ -519,7 +674,7 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
 // the hardware stack pointer and the local variable area.
 func (ctxt *Link) FixedFrameSize() int64 {
 	switch ctxt.Arch.Family {
-	case sys.AMD64, sys.I386:
+	case sys.AMD64, sys.I386, sys.Wasm:
 		return 0
 	case sys.PPC64:
 		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
@@ -533,9 +688,10 @@ func (ctxt *Link) FixedFrameSize() int64 {
 // LinkArch is the definition of a single architecture.
 type LinkArch struct {
 	*sys.Arch
-	Init       func(*Link)
-	Preprocess func(*Link, *LSym, ProgAlloc)
-	Assemble   func(*Link, *LSym, ProgAlloc)
-	Progedit   func(*Link, *Prog, ProgAlloc)
-	UnaryDst   map[As]bool // Instruction takes one operand, a destination.
+	Init           func(*Link)
+	Preprocess     func(*Link, *LSym, ProgAlloc)
+	Assemble       func(*Link, *LSym, ProgAlloc)
+	Progedit       func(*Link, *Prog, ProgAlloc)
+	UnaryDst       map[As]bool // Instruction takes one operand, a destination.
+	DWARFRegisters map[int16]int16
 }

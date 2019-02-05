@@ -63,7 +63,7 @@ _cgo_wait_runtime_init_done() {
 }
 
 void
-x_cgo_notify_runtime_init_done(void* dummy) {
+x_cgo_notify_runtime_init_done(void* dummy __attribute__ ((unused))) {
 	pthread_mutex_lock(&runtime_init_mu);
 	runtime_init_done = 1;
 	pthread_cond_broadcast(&runtime_init_cond);
@@ -98,6 +98,10 @@ _cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*p
 
 	for (tries = 0; tries < 20; tries++) {
 		err = pthread_create(thread, attr, pfn, arg);
+		if (err == 0) {
+			pthread_detach(*thread);
+			return 0;
+		}
 		if (err != EAGAIN) {
 			return err;
 		}

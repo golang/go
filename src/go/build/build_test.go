@@ -176,6 +176,18 @@ func TestShouldBuild(t *testing.T) {
 	}
 }
 
+func TestGoodOSArchFile(t *testing.T) {
+	ctx := &Context{BuildTags: []string{"linux"}, GOOS: "darwin"}
+	m := map[string]bool{}
+	want := map[string]bool{"linux": true}
+	if !ctx.goodOSArchFile("hello_linux.go", m) {
+		t.Errorf("goodOSArchFile(hello_linux.go) = false, want true")
+	}
+	if !reflect.DeepEqual(m, want) {
+		t.Errorf("goodOSArchFile(hello_linux.go) tags = %v, want %v", m, want)
+	}
+}
+
 type readNopCloser struct {
 	io.Reader
 }
@@ -339,12 +351,16 @@ func TestImportDirNotExist(t *testing.T) {
 func TestImportVendor(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
-	ctxt.GOPATH = ""
-	p, err := ctxt.Import("golang_org/x/net/http2/hpack", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
+	wd, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("cannot find vendored golang_org/x/net/http2/hpack from net/http directory: %v", err)
+		t.Fatal(err)
 	}
-	want := "vendor/golang_org/x/net/http2/hpack"
+	ctxt.GOPATH = filepath.Join(wd, "testdata/withvendor")
+	p, err := ctxt.Import("c/d", filepath.Join(ctxt.GOPATH, "src/a/b"), 0)
+	if err != nil {
+		t.Fatalf("cannot find vendored c/d from testdata src/a/b directory: %v", err)
+	}
+	want := "a/vendor/c/d"
 	if p.ImportPath != want {
 		t.Fatalf("Import succeeded but found %q, want %q", p.ImportPath, want)
 	}
@@ -353,8 +369,12 @@ func TestImportVendor(t *testing.T) {
 func TestImportVendorFailure(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
-	ctxt.GOPATH = ""
-	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctxt.GOPATH = filepath.Join(wd, "testdata/withvendor")
+	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOPATH, "src/a/b"), 0)
 	if err == nil {
 		t.Fatalf("found made-up package x.com/y/z in %s", p.Dir)
 	}
@@ -368,9 +388,13 @@ func TestImportVendorFailure(t *testing.T) {
 func TestImportVendorParentFailure(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
-	ctxt.GOPATH = ""
-	// This import should fail because the vendor/golang.org/x/net/http2 directory has no source code.
-	p, err := ctxt.Import("golang_org/x/net/http2", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctxt.GOPATH = filepath.Join(wd, "testdata/withvendor")
+	// This import should fail because the vendor/c directory has no source code.
+	p, err := ctxt.Import("c", filepath.Join(ctxt.GOPATH, "src/a/b"), 0)
 	if err == nil {
 		t.Fatalf("found empty parent in %s", p.Dir)
 	}
@@ -380,5 +404,34 @@ func TestImportVendorParentFailure(t *testing.T) {
 	e := err.Error()
 	if !strings.Contains(e, " (vendor tree)") {
 		t.Fatalf("error on failed import does not mention GOROOT/src/vendor directory:\n%s", e)
+	}
+}
+
+func TestImportDirTarget(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // really must just have source
+	ctxt := Default
+	ctxt.GOPATH = ""
+	p, err := ctxt.ImportDir(filepath.Join(ctxt.GOROOT, "src/path"), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.PkgTargetRoot == "" || p.PkgObj == "" {
+		t.Errorf("p.PkgTargetRoot == %q, p.PkgObj == %q, want non-empty", p.PkgTargetRoot, p.PkgObj)
+	}
+}
+
+// TestIssue23594 prevents go/build from regressing and populating Package.Doc
+// from comments in test files.
+func TestIssue23594(t *testing.T) {
+	// Package testdata/doc contains regular and external test files
+	// with comments attached to their package declarations. The names of the files
+	// ensure that we see the comments from the test files first.
+	p, err := ImportDir("testdata/doc", 0)
+	if err != nil {
+		t.Fatalf("could not import testdata: %v", err)
+	}
+
+	if p.Doc != "Correct" {
+		t.Fatalf("incorrectly set .Doc to %q", p.Doc)
 	}
 }

@@ -5,17 +5,20 @@
 package x509
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
-
-var supportSHA2 = true
 
 type verifyTest struct {
 	leaf                 string
@@ -27,6 +30,7 @@ type verifyTest struct {
 	keyUsages            []ExtKeyUsage
 	testSystemRootsError bool
 	sha2                 bool
+	ignoreCN             bool
 
 	errorCallback  func(*testing.T, int, error) bool
 	expectedChains [][]string
@@ -73,7 +77,16 @@ var verifyTests = []verifyTest{
 		currentTime:   1395785200,
 		dnsName:       "www.example.com",
 
-		errorCallback: expectHostnameError,
+		errorCallback: expectHostnameError("certificate is valid for"),
+	},
+	{
+		leaf:          googleLeaf,
+		intermediates: []string{giag2Intermediate},
+		roots:         []string{geoTrustRoot},
+		currentTime:   1395785200,
+		dnsName:       "1.2.3.4",
+
+		errorCallback: expectHostnameError("doesn't contain any IP SANs"),
 	},
 	{
 		leaf:          googleLeaf,
@@ -250,7 +263,7 @@ var verifyTests = []verifyTest{
 		dnsName:     "notfoo.example",
 		systemSkip:  true,
 
-		errorCallback: expectHostnameError,
+		errorCallback: expectHostnameError("certificate is valid for"),
 	},
 	{
 		// The issuer name in the leaf doesn't exactly match the
@@ -283,21 +296,114 @@ var verifyTests = []verifyTest{
 		currentTime: 1486684488,
 		systemSkip:  true,
 
-		errorCallback: expectHostnameError,
+		errorCallback: expectHostnameError("certificate is not valid for any names"),
+	},
+	{
+		// Test that excluded names are respected.
+		leaf:          excludedNamesLeaf,
+		dnsName:       "bender.local",
+		intermediates: []string{excludedNamesIntermediate},
+		roots:         []string{excludedNamesRoot},
+		currentTime:   1486684488,
+		systemSkip:    true,
+
+		errorCallback: expectNameConstraintsError,
+	},
+	{
+		// Test that unknown critical extensions in a leaf cause a
+		// verify error.
+		leaf:          criticalExtLeafWithExt,
+		dnsName:       "example.com",
+		intermediates: []string{criticalExtIntermediate},
+		roots:         []string{criticalExtRoot},
+		currentTime:   1486684488,
+		systemSkip:    true,
+
+		errorCallback: expectUnhandledCriticalExtension,
+	},
+	{
+		// Test that unknown critical extensions in an intermediate
+		// cause a verify error.
+		leaf:          criticalExtLeaf,
+		dnsName:       "example.com",
+		intermediates: []string{criticalExtIntermediateWithExt},
+		roots:         []string{criticalExtRoot},
+		currentTime:   1486684488,
+		systemSkip:    true,
+
+		errorCallback: expectUnhandledCriticalExtension,
+	},
+	{
+		// Test that invalid CN are ignored.
+		leaf:        invalidCNWithoutSAN,
+		dnsName:     "foo,invalid",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+
+		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
+	},
+	{
+		// Test that valid CN are respected.
+		leaf:        validCNWithoutSAN,
+		dnsName:     "foo.example.com",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+
+		expectedChains: [][]string{
+			{"foo.example.com", "Test root"},
+		},
+	},
+	// Replicate CN tests with ignoreCN = true
+	{
+		leaf:        ignoreCNWithSANLeaf,
+		dnsName:     "foo.example.com",
+		roots:       []string{ignoreCNWithSANRoot},
+		currentTime: 1486684488,
+		systemSkip:  true,
+		ignoreCN:    true,
+
+		errorCallback: expectHostnameError("certificate is not valid for any names"),
+	},
+	{
+		leaf:        invalidCNWithoutSAN,
+		dnsName:     "foo,invalid",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+		ignoreCN:    true,
+
+		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
+	},
+	{
+		leaf:        validCNWithoutSAN,
+		dnsName:     "foo.example.com",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+		ignoreCN:    true,
+
+		errorCallback: expectHostnameError("not valid for any names"),
 	},
 }
 
-func expectHostnameError(t *testing.T, i int, err error) (ok bool) {
-	if _, ok := err.(HostnameError); !ok {
-		t.Errorf("#%d: error was not a HostnameError: %s", i, err)
-		return false
+func expectHostnameError(msg string) func(*testing.T, int, error) bool {
+	return func(t *testing.T, i int, err error) (ok bool) {
+		if _, ok := err.(HostnameError); !ok {
+			t.Errorf("#%d: error was not a HostnameError: %v", i, err)
+			return false
+		}
+		if !strings.Contains(err.Error(), msg) {
+			t.Errorf("#%d: HostnameError did not contain %q: %v", i, msg, err)
+		}
+		return true
 	}
-	return true
 }
 
 func expectExpired(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != Expired {
-		t.Errorf("#%d: error was not Expired: %s", i, err)
+		t.Errorf("#%d: error was not Expired: %v", i, err)
 		return false
 	}
 	return true
@@ -305,7 +411,7 @@ func expectExpired(t *testing.T, i int, err error) (ok bool) {
 
 func expectUsageError(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != IncompatibleUsage {
-		t.Errorf("#%d: error was not IncompatibleUsage: %s", i, err)
+		t.Errorf("#%d: error was not IncompatibleUsage: %v", i, err)
 		return false
 	}
 	return true
@@ -314,11 +420,11 @@ func expectUsageError(t *testing.T, i int, err error) (ok bool) {
 func expectAuthorityUnknown(t *testing.T, i int, err error) (ok bool) {
 	e, ok := err.(UnknownAuthorityError)
 	if !ok {
-		t.Errorf("#%d: error was not UnknownAuthorityError: %s", i, err)
+		t.Errorf("#%d: error was not UnknownAuthorityError: %v", i, err)
 		return false
 	}
 	if e.Cert == nil {
-		t.Errorf("#%d: error was UnknownAuthorityError, but missing Cert: %s", i, err)
+		t.Errorf("#%d: error was UnknownAuthorityError, but missing Cert: %v", i, err)
 		return false
 	}
 	return true
@@ -326,7 +432,7 @@ func expectAuthorityUnknown(t *testing.T, i int, err error) (ok bool) {
 
 func expectSystemRootsError(t *testing.T, i int, err error) bool {
 	if _, ok := err.(SystemRootsError); !ok {
-		t.Errorf("#%d: error was not SystemRootsError: %s", i, err)
+		t.Errorf("#%d: error was not SystemRootsError: %v", i, err)
 		return false
 	}
 	return true
@@ -338,7 +444,7 @@ func expectHashError(t *testing.T, i int, err error) bool {
 		return false
 	}
 	if expected := "algorithm unimplemented"; !strings.Contains(err.Error(), expected) {
-		t.Errorf("#%d: error resulting from invalid hash didn't contain '%s', rather it was: %s", i, expected, err)
+		t.Errorf("#%d: error resulting from invalid hash didn't contain '%s', rather it was: %v", i, expected, err)
 		return false
 	}
 	return true
@@ -346,7 +452,15 @@ func expectHashError(t *testing.T, i int, err error) bool {
 
 func expectSubjectIssuerMismatcthError(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != NameMismatch {
-		t.Errorf("#%d: error was not a NameMismatch: %s", i, err)
+		t.Errorf("#%d: error was not a NameMismatch: %v", i, err)
+		return false
+	}
+	return true
+}
+
+func expectNameConstraintsError(t *testing.T, i int, err error) (ok bool) {
+	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != CANotAuthorizedForThisName {
+		t.Errorf("#%d: error was not a CANotAuthorizedForThisName: %v", i, err)
 		return false
 	}
 	return true
@@ -354,7 +468,15 @@ func expectSubjectIssuerMismatcthError(t *testing.T, i int, err error) (ok bool)
 
 func expectNotAuthorizedError(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != NotAuthorizedToSign {
-		t.Errorf("#%d: error was not a NotAuthorizedToSign: %s", i, err)
+		t.Errorf("#%d: error was not a NotAuthorizedToSign: %v", i, err)
+		return false
+	}
+	return true
+}
+
+func expectUnhandledCriticalExtension(t *testing.T, i int, err error) (ok bool) {
+	if _, ok := err.(UnhandledCriticalExtension); !ok {
+		t.Errorf("#%d: error was not an UnhandledCriticalExtension: %v", i, err)
 		return false
 	}
 	return true
@@ -369,6 +491,9 @@ func certificateFromPEM(pemBytes string) (*Certificate, error) {
 }
 
 func testVerify(t *testing.T, useSystemRoots bool) {
+	defer func(savedIgnoreCN bool) {
+		ignoreCN = savedIgnoreCN
+	}(ignoreCN)
 	for i, test := range verifyTests {
 		if useSystemRoots && test.systemSkip {
 			continue
@@ -376,10 +501,8 @@ func testVerify(t *testing.T, useSystemRoots bool) {
 		if runtime.GOOS == "windows" && test.testSystemRootsError {
 			continue
 		}
-		if useSystemRoots && !supportSHA2 && test.sha2 {
-			continue
-		}
 
+		ignoreCN = test.ignoreCN
 		opts := VerifyOptions{
 			Intermediates: NewCertPool(),
 			DNSName:       test.dnsName,
@@ -408,7 +531,7 @@ func testVerify(t *testing.T, useSystemRoots bool) {
 
 		leaf, err := certificateFromPEM(test.leaf)
 		if err != nil {
-			t.Errorf("#%d: failed to parse leaf: %s", i, err)
+			t.Errorf("#%d: failed to parse leaf: %v", i, err)
 			return
 		}
 
@@ -426,7 +549,7 @@ func testVerify(t *testing.T, useSystemRoots bool) {
 		}
 
 		if test.errorCallback == nil && err != nil {
-			t.Errorf("#%d: unexpected error: %s", i, err)
+			t.Errorf("#%d: unexpected error: %v", i, err)
 		}
 		if test.errorCallback != nil {
 			if !test.errorCallback(t, i, err) {
@@ -1390,6 +1513,172 @@ j2kBQyvnyKsXHLAKUoUOpd6t/1PHrfXnGj+HmzZNloJ/BZ1kiWb4eLvMljoLGkZn
 xZbqP3Krgjj4XNaXjg==
 -----END CERTIFICATE-----`
 
+const excludedNamesLeaf = `
+-----BEGIN CERTIFICATE-----
+MIID4DCCAsigAwIBAgIHDUSFtJknhzANBgkqhkiG9w0BAQsFADCBnjELMAkGA1UE
+BhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExEjAQBgNVBAcMCUxvcyBHYXRvczEU
+MBIGA1UECgwLTmV0ZmxpeCBJbmMxLTArBgNVBAsMJFBsYXRmb3JtIFNlY3VyaXR5
+ICgzNzM0NTE1NTYyODA2Mzk3KTEhMB8GA1UEAwwYSW50ZXJtZWRpYXRlIENBIGZv
+ciAzMzkyMB4XDTE3MDIwODIxMTUwNFoXDTE4MDIwODIwMjQ1OFowgZAxCzAJBgNV
+BAYTAlVTMRMwEQYDVQQIDApDYWxpZm9ybmlhMRIwEAYDVQQHDAlMb3MgR2F0b3Mx
+FDASBgNVBAoMC05ldGZsaXggSW5jMS0wKwYDVQQLDCRQbGF0Zm9ybSBTZWN1cml0
+eSAoMzczNDUxNTc0ODUwMjY5NikxEzARBgNVBAMMCjE3Mi4xNi4wLjEwggEiMA0G
+CSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCZ0oP1bMv6bOeqcKbzinnGpNOpenhA
+zdFFsgea62znWsH3Wg4+1Md8uPCqlaQIsaJQKZHc50eKD3bg0Io7c6kxHkBQr1b8
+Q7cGeK3CjdqG3NwS/aizzrLKOwL693hFwwy7JY7GGCvogbhyQRKn6iV0U9zMm7bu
+/9pQVV/wx8u01u2uAlLttjyQ5LJkxo5t8cATFVqxdN5J9eY//VSDiTwXnlpQITBP
+/Ow+zYuZ3kFlzH3CtCOhOEvNG3Ar1NvP3Icq35PlHV+Eki4otnKfixwByoiGpqCB
+UEIY04VrZJjwBxk08y/3jY2B3VLYGgi+rryyCxIqkB7UpSNPMMWSG4UpAgMBAAGj
+LzAtMAwGA1UdEwEB/wQCMAAwHQYDVR0RBBYwFIIMYmVuZGVyLmxvY2FshwSsEAAB
+MA0GCSqGSIb3DQEBCwUAA4IBAQCLW3JO8L7LKByjzj2RciPjCGH5XF87Wd20gYLq
+sNKcFwCIeyZhnQy5aZ164a5G9AIk2HLvH6HevBFPhA9Ivmyv/wYEfnPd1VcFkpgP
+hDt8MCFJ8eSjCyKdtZh1MPMLrLVymmJV+Rc9JUUYM9TIeERkpl0rskcO1YGewkYt
+qKlWE+0S16+pzsWvKn831uylqwIb8ANBPsCX4aM4muFBHavSWAHgRO+P+yXVw8Q+
+VQDnMHUe5PbZd1/+1KKVs1K/CkBCtoHNHp1d/JT+2zUQJphwja9CcgfFdVhSnHL4
+oEEOFtqVMIuQfR2isi08qW/JGOHc4sFoLYB8hvdaxKWSE19A
+-----END CERTIFICATE-----
+`
+
+const excludedNamesIntermediate = `
+-----BEGIN CERTIFICATE-----
+MIIDzTCCArWgAwIBAgIHDUSFqYeczDANBgkqhkiG9w0BAQsFADCBmTELMAkGA1UE
+BhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExEjAQBgNVBAcMCUxvcyBHYXRvczEU
+MBIGA1UECgwLTmV0ZmxpeCBJbmMxLTArBgNVBAsMJFBsYXRmb3JtIFNlY3VyaXR5
+ICgzNzM0NTE1NDc5MDY0NjAyKTEcMBoGA1UEAwwTTG9jYWwgUm9vdCBmb3IgMzM5
+MjAeFw0xNzAyMDgyMTE1MDRaFw0xODAyMDgyMDI0NThaMIGeMQswCQYDVQQGEwJV
+UzETMBEGA1UECAwKQ2FsaWZvcm5pYTESMBAGA1UEBwwJTG9zIEdhdG9zMRQwEgYD
+VQQKDAtOZXRmbGl4IEluYzEtMCsGA1UECwwkUGxhdGZvcm0gU2VjdXJpdHkgKDM3
+MzQ1MTU1NjI4MDYzOTcpMSEwHwYDVQQDDBhJbnRlcm1lZGlhdGUgQ0EgZm9yIDMz
+OTIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCOyEs6tJ/t9emQTvlx
+3FS7uJSou5rKkuqVxZdIuYQ+B2ZviBYUnMRT9bXDB0nsVdKZdp0hdchdiwNXDG/I
+CiWu48jkcv/BdynVyayOT+0pOJSYLaPYpzBx1Pb9M5651ct9GSbj6Tz0ChVonoIE
+1AIZ0kkebucZRRFHd0xbAKVRKyUzPN6HJ7WfgyauUp7RmlC35wTmrmARrFohQLlL
+7oICy+hIQePMy9x1LSFTbPxZ5AUUXVC3eUACU3vLClF/Xs8XGHebZpUXCdMQjOGS
+nq1eFguFHR1poSB8uSmmLqm4vqUH9CDhEgiBAC8yekJ8//kZQ7lUEqZj3YxVbk+Y
+E4H5AgMBAAGjEzARMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEB
+ADxrnmNX5gWChgX9K5fYwhFDj5ofxZXAKVQk+WjmkwMcmCx3dtWSm++Wdksj/ZlA
+V1cLW3ohWv1/OAZuOlw7sLf98aJpX+UUmIYYQxDubq+4/q7VA7HzEf2k/i/oN1NI
+JgtrhpPcZ/LMO6k7DYx0qlfYq8pTSfd6MI4LnWKgLc+JSPJJjmvspgio2ZFcnYr7
+A264BwLo6v1Mos1o1JUvFFcp4GANlw0XFiWh7JXYRl8WmS5DoouUC+aNJ3lmyF6z
+LbIjZCSfgZnk/LK1KU1j91FI2bc2ULYZvAC1PAg8/zvIgxn6YM2Q7ZsdEgWw0FpS
+zMBX1/lk4wkFckeUIlkD55Y=
+-----END CERTIFICATE-----`
+
+const excludedNamesRoot = `
+-----BEGIN CERTIFICATE-----
+MIIEGTCCAwGgAwIBAgIHDUSFpInn/zANBgkqhkiG9w0BAQsFADCBozELMAkGA1UE
+BhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExEjAQBgNVBAcMCUxvcyBHYXRvczEU
+MBIGA1UECgwLTmV0ZmxpeCBJbmMxLTArBgNVBAsMJFBsYXRmb3JtIFNlY3VyaXR5
+ICgzNzMxNTA5NDM3NDYyNDg1KTEmMCQGA1UEAwwdTmFtZSBDb25zdHJhaW50cyBU
+ZXN0IFJvb3QgQ0EwHhcNMTcwMjA4MjExNTA0WhcNMTgwMjA4MjAyNDU4WjCBmTEL
+MAkGA1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExEjAQBgNVBAcMCUxvcyBH
+YXRvczEUMBIGA1UECgwLTmV0ZmxpeCBJbmMxLTArBgNVBAsMJFBsYXRmb3JtIFNl
+Y3VyaXR5ICgzNzM0NTE1NDc5MDY0NjAyKTEcMBoGA1UEAwwTTG9jYWwgUm9vdCBm
+b3IgMzM5MjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAJymcnX29ekc
+7+MLyr8QuAzoHWznmGdDd2sITwWRjM89/21cdlHCGKSpULUNdFp9HDLWvYECtxt+
+8TuzKiQz7qAerzGUT1zI5McIjHy0e/i4xIkfiBiNeTCuB/N9QRbZlcfM80ErkaA4
+gCAFK8qZAcWkHIl6e+KaQFMPLKk9kckgAnVDHEJe8oLNCogCJ15558b65g05p9eb
+5Lg+E98hoPRTQaDwlz3CZPfTTA2EiEZInSi8qzodFCbTpJUVTbiVUH/JtVjlibbb
+smdcx5PORK+8ZJkhLEh54AjaWOX4tB/7Tkk8stg2VBmrIARt/j4UVj7cTrIWU3bV
+m8TwHJG+YgsCAwEAAaNaMFgwDwYDVR0TAQH/BAUwAwEB/zBFBgNVHR4EPjA8oBww
+CocICgEAAP//AAAwDoIMYmVuZGVyLmxvY2FsoRwwCocICgEAAP//AAAwDoIMYmVu
+ZGVyLmxvY2FsMA0GCSqGSIb3DQEBCwUAA4IBAQAMjbheffPxtSKSv9NySW+8qmHs
+n7Mb5GGyCFu+cMZSoSaabstbml+zHEFJvWz6/1E95K4F8jKhAcu/CwDf4IZrSD2+
+Hee0DolVSQhZpnHgPyj7ZATz48e3aJaQPUlhCEOh0wwF4Y0N4FV0t7R6woLylYRZ
+yU1yRHUqUYpN0DWFpsPbBqgM6uUAVO2ayBFhPgWUaqkmSbZ/Nq7isGvknaTmcIwT
+6mOAFN0qFb4RGzfGJW7x6z7KCULS7qVDp6fU3tRoScHFEgRubks6jzQ1W5ooSm4o
++NQCZDd5eFeU8PpNX7rgaYE4GPq+EEmLVCBYmdctr8QVdqJ//8Xu3+1phjDy
+-----END CERTIFICATE-----`
+
+const invalidCNRoot = `
+-----BEGIN CERTIFICATE-----
+MIIBFjCBvgIJAIsu4r+jb70UMAoGCCqGSM49BAMCMBQxEjAQBgNVBAsMCVRlc3Qg
+cm9vdDAeFw0xODA3MTExODMyMzVaFw0yODA3MDgxODMyMzVaMBQxEjAQBgNVBAsM
+CVRlc3Qgcm9vdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABF6oDgMg0LV6YhPj
+QXaPXYCc2cIyCdqp0ROUksRz0pOLTc5iY2nraUheRUD1vRRneq7GeXOVNn7uXONg
+oCGMjNwwCgYIKoZIzj0EAwIDRwAwRAIgDSiwgIn8g1lpruYH0QD1GYeoWVunfmrI
+XzZZl0eW/ugCICgOfXeZ2GGy3wIC0352BaC3a8r5AAb2XSGNe+e9wNN6
+-----END CERTIFICATE-----
+`
+
+const invalidCNWithoutSAN = `
+Certificate:
+    Data:
+        Version: 1 (0x0)
+        Serial Number:
+            07:ba:bc:b7:d9:ab:0c:02:fe:50:1d:4e:15:a3:0d:e4:11:16:14:a2
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: OU = Test root
+        Validity
+            Not Before: Jul 11 18:35:21 2018 GMT
+            Not After : Jul  8 18:35:21 2028 GMT
+        Subject: CN = "foo,invalid"
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:a7:a6:7c:22:33:a7:47:7f:08:93:2d:5f:61:35:
+                    2e:da:45:67:76:f2:97:73:18:b0:01:12:4a:1a:d5:
+                    b7:6f:41:3c:bb:05:69:f4:06:5d:ff:eb:2b:a7:85:
+                    0b:4c:f7:45:4e:81:40:7a:a9:c6:1d:bb:ba:d9:b9:
+                    26:b3:ca:50:90
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+    Signature Algorithm: ecdsa-with-SHA256
+         30:45:02:21:00:85:96:75:b6:72:3c:67:12:a0:7f:86:04:81:
+         d2:dd:c8:67:50:d7:5f:85:c0:54:54:fc:e6:6b:45:08:93:d3:
+         2a:02:20:60:86:3e:d6:28:a6:4e:da:dd:6e:95:89:cc:00:76:
+         78:1c:03:80:85:a6:5a:0b:eb:c5:f3:9c:2e:df:ef:6e:fa
+-----BEGIN CERTIFICATE-----
+MIIBJDCBywIUB7q8t9mrDAL+UB1OFaMN5BEWFKIwCgYIKoZIzj0EAwIwFDESMBAG
+A1UECwwJVGVzdCByb290MB4XDTE4MDcxMTE4MzUyMVoXDTI4MDcwODE4MzUyMVow
+FjEUMBIGA1UEAwwLZm9vLGludmFsaWQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
+AASnpnwiM6dHfwiTLV9hNS7aRWd28pdzGLABEkoa1bdvQTy7BWn0Bl3/6yunhQtM
+90VOgUB6qcYdu7rZuSazylCQMAoGCCqGSM49BAMCA0gAMEUCIQCFlnW2cjxnEqB/
+hgSB0t3IZ1DXX4XAVFT85mtFCJPTKgIgYIY+1iimTtrdbpWJzAB2eBwDgIWmWgvr
+xfOcLt/vbvo=
+-----END CERTIFICATE-----
+`
+
+const validCNWithoutSAN = `
+Certificate:
+    Data:
+        Version: 1 (0x0)
+        Serial Number:
+            07:ba:bc:b7:d9:ab:0c:02:fe:50:1d:4e:15:a3:0d:e4:11:16:14:a4
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: OU = Test root
+        Validity
+            Not Before: Jul 11 18:47:24 2018 GMT
+            Not After : Jul  8 18:47:24 2028 GMT
+        Subject: CN = foo.example.com
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:a7:a6:7c:22:33:a7:47:7f:08:93:2d:5f:61:35:
+                    2e:da:45:67:76:f2:97:73:18:b0:01:12:4a:1a:d5:
+                    b7:6f:41:3c:bb:05:69:f4:06:5d:ff:eb:2b:a7:85:
+                    0b:4c:f7:45:4e:81:40:7a:a9:c6:1d:bb:ba:d9:b9:
+                    26:b3:ca:50:90
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+    Signature Algorithm: ecdsa-with-SHA256
+         30:44:02:20:53:6c:d7:b7:59:61:51:72:a5:18:a3:4b:0d:52:
+         ea:15:fa:d0:93:30:32:54:4b:ed:0f:58:85:b8:a8:1a:82:3b:
+         02:20:14:77:4b:0e:7e:4f:0a:4f:64:26:97:dc:d0:ed:aa:67:
+         1d:37:85:da:b4:87:ba:25:1c:2a:58:f7:23:11:8b:3d
+-----BEGIN CERTIFICATE-----
+MIIBJzCBzwIUB7q8t9mrDAL+UB1OFaMN5BEWFKQwCgYIKoZIzj0EAwIwFDESMBAG
+A1UECwwJVGVzdCByb290MB4XDTE4MDcxMTE4NDcyNFoXDTI4MDcwODE4NDcyNFow
+GjEYMBYGA1UEAwwPZm9vLmV4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0D
+AQcDQgAEp6Z8IjOnR38Iky1fYTUu2kVndvKXcxiwARJKGtW3b0E8uwVp9AZd/+sr
+p4ULTPdFToFAeqnGHbu62bkms8pQkDAKBggqhkjOPQQDAgNHADBEAiBTbNe3WWFR
+cqUYo0sNUuoV+tCTMDJUS+0PWIW4qBqCOwIgFHdLDn5PCk9kJpfc0O2qZx03hdq0
+h7olHCpY9yMRiz0=
+-----END CERTIFICATE-----
+`
+
 var unknownAuthorityErrorTests = []struct {
 	cert     string
 	expected string
@@ -1407,7 +1696,7 @@ func TestUnknownAuthorityError(t *testing.T) {
 		}
 		c, err := ParseCertificate(der.Bytes)
 		if err != nil {
-			t.Errorf("#%d: Unable to parse certificate -> %s", i, err)
+			t.Errorf("#%d: Unable to parse certificate -> %v", i, err)
 		}
 		uae := &UnknownAuthorityError{
 			Cert:     c,
@@ -1423,22 +1712,37 @@ func TestUnknownAuthorityError(t *testing.T) {
 
 var nameConstraintTests = []struct {
 	constraint, domain string
+	expectError        bool
 	shouldMatch        bool
 }{
-	{"", "anything.com", true},
-	{"example.com", "example.com", true},
-	{"example.com", "ExAmPle.coM", true},
-	{"example.com", "exampl1.com", false},
-	{"example.com", "www.ExAmPle.coM", true},
-	{"example.com", "notexample.com", false},
-	{".example.com", "example.com", false},
-	{".example.com", "www.example.com", true},
-	{".example.com", "www..example.com", false},
+	{"", "anything.com", false, true},
+	{"example.com", "example.com", false, true},
+	{"example.com.", "example.com", true, false},
+	{"example.com", "example.com.", true, false},
+	{"example.com", "ExAmPle.coM", false, true},
+	{"example.com", "exampl1.com", false, false},
+	{"example.com", "www.ExAmPle.coM", false, true},
+	{"example.com", "sub.www.ExAmPle.coM", false, true},
+	{"example.com", "notexample.com", false, false},
+	{".example.com", "example.com", false, false},
+	{".example.com", "www.example.com", false, true},
+	{".example.com", "www..example.com", true, false},
 }
 
 func TestNameConstraints(t *testing.T) {
 	for i, test := range nameConstraintTests {
-		result := matchNameConstraint(test.domain, test.constraint)
+		result, err := matchDomainConstraint(test.domain, test.constraint)
+
+		if err != nil && !test.expectError {
+			t.Errorf("unexpected error for test #%d: domain=%s, constraint=%s, err=%s", i, test.domain, test.constraint, err)
+			continue
+		}
+
+		if err == nil && test.expectError {
+			t.Errorf("unexpected success for test #%d: domain=%s, constraint=%s", i, test.domain, test.constraint)
+			continue
+		}
+
 		if result != test.shouldMatch {
 			t.Errorf("unexpected result for test #%d: domain=%s, constraint=%s, result=%t", i, test.domain, test.constraint, result)
 		}
@@ -1500,3 +1804,207 @@ w67CoNRb81dy+4Q1lGpA8ORoLWh5fIq2t2eNGc4qB8vlTIKiESzAwu7u3sRfuWQi
 4R+gnfLd37FWflMHwztFbVTuNtPOljCX0LN7KcuoXYlr05RhQrmoN7fQHsrZMNLs
 8FVjHdKKu+uPstwd04Uy4BR/H2y1yerN9j/L6ZkMl98iiA==
 -----END CERTIFICATE-----`
+
+const criticalExtRoot = `-----BEGIN CERTIFICATE-----
+MIIBqzCCAVGgAwIBAgIJAJ+mI/85cXApMAoGCCqGSM49BAMCMB0xDDAKBgNVBAoT
+A09yZzENMAsGA1UEAxMEUm9vdDAeFw0xNTAxMDEwMDAwMDBaFw0yNTAxMDEwMDAw
+MDBaMB0xDDAKBgNVBAoTA09yZzENMAsGA1UEAxMEUm9vdDBZMBMGByqGSM49AgEG
+CCqGSM49AwEHA0IABJGp9joiG2QSQA+1FczEDAsWo84rFiP3GTL+n+ugcS6TyNib
+gzMsdbJgVi+a33y0SzLZxB+YvU3/4KTk8yKLC+2jejB4MA4GA1UdDwEB/wQEAwIC
+BDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDwYDVR0TAQH/BAUwAwEB
+/zAZBgNVHQ4EEgQQQDfXAftAL7gcflQEJ4xZATAbBgNVHSMEFDASgBBAN9cB+0Av
+uBx+VAQnjFkBMAoGCCqGSM49BAMCA0gAMEUCIFeSV00fABFceWR52K+CfIgOHotY
+FizzGiLB47hGwjMuAiEA8e0um2Kr8FPQ4wmFKaTRKHMaZizCGl3m+RG5QsE1KWo=
+-----END CERTIFICATE-----`
+
+const criticalExtIntermediate = `-----BEGIN CERTIFICATE-----
+MIIBszCCAVmgAwIBAgIJAL2kcGZKpzVqMAoGCCqGSM49BAMCMB0xDDAKBgNVBAoT
+A09yZzENMAsGA1UEAxMEUm9vdDAeFw0xNTAxMDEwMDAwMDBaFw0yNTAxMDEwMDAw
+MDBaMCUxDDAKBgNVBAoTA09yZzEVMBMGA1UEAxMMSW50ZXJtZWRpYXRlMFkwEwYH
+KoZIzj0CAQYIKoZIzj0DAQcDQgAESqVq92iPEq01cL4o99WiXDc5GZjpjNlzMS1n
+rk8oHcVDp4tQRRQG3F4A6dF1rn/L923ha3b0fhDLlAvXZB+7EKN6MHgwDgYDVR0P
+AQH/BAQDAgIEMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAPBgNVHRMB
+Af8EBTADAQH/MBkGA1UdDgQSBBCMGmiotXbbXVd7H40UsgajMBsGA1UdIwQUMBKA
+EEA31wH7QC+4HH5UBCeMWQEwCgYIKoZIzj0EAwIDSAAwRQIhAOhhNRb6KV7h3wbE
+cdap8bojzvUcPD78fbsQPCNw1jPxAiBOeAJhlTwpKn9KHpeJphYSzydj9NqcS26Y
+xXbdbm27KQ==
+-----END CERTIFICATE-----`
+
+const criticalExtLeafWithExt = `-----BEGIN CERTIFICATE-----
+MIIBxTCCAWugAwIBAgIJAJZAUtw5ccb1MAoGCCqGSM49BAMCMCUxDDAKBgNVBAoT
+A09yZzEVMBMGA1UEAxMMSW50ZXJtZWRpYXRlMB4XDTE1MDEwMTAwMDAwMFoXDTI1
+MDEwMTAwMDAwMFowJDEMMAoGA1UEChMDT3JnMRQwEgYDVQQDEwtleGFtcGxlLmNv
+bTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABF3ABa2+B6gUyg6ayCaRQWYY/+No
+6PceLqEavZNUeVNuz7bS74Toy8I7R3bGMkMgbKpLSPlPTroAATvebTXoBaijgYQw
+gYEwDgYDVR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcD
+AjAMBgNVHRMBAf8EAjAAMBkGA1UdDgQSBBBRNtBL2vq8nCV3qVp7ycxMMBsGA1Ud
+IwQUMBKAEIwaaKi1dttdV3sfjRSyBqMwCgYDUQMEAQH/BAAwCgYIKoZIzj0EAwID
+SAAwRQIgVjy8GBgZFiagexEuDLqtGjIRJQtBcf7lYgf6XFPH1h4CIQCT6nHhGo6E
+I+crEm4P5q72AnA/Iy0m24l7OvLuXObAmg==
+-----END CERTIFICATE-----`
+
+const criticalExtIntermediateWithExt = `-----BEGIN CERTIFICATE-----
+MIIB2TCCAX6gAwIBAgIIQD3NrSZtcUUwCgYIKoZIzj0EAwIwHTEMMAoGA1UEChMD
+T3JnMQ0wCwYDVQQDEwRSb290MB4XDTE1MDEwMTAwMDAwMFoXDTI1MDEwMTAwMDAw
+MFowPTEMMAoGA1UEChMDT3JnMS0wKwYDVQQDEyRJbnRlcm1lZGlhdGUgd2l0aCBD
+cml0aWNhbCBFeHRlbnNpb24wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQtnmzH
+mcRm10bdDBnJE7xQEJ25cLCL5okuEphRR0Zneo6+nQZikoh+UBbtt5GV3Dms7LeP
+oF5HOplYDCd8wi/wo4GHMIGEMA4GA1UdDwEB/wQEAwICBDAdBgNVHSUEFjAUBggr
+BgEFBQcDAQYIKwYBBQUHAwIwDwYDVR0TAQH/BAUwAwEB/zAZBgNVHQ4EEgQQKxdv
+UuQZ6sO3XvBsxgNZ3zAbBgNVHSMEFDASgBBAN9cB+0AvuBx+VAQnjFkBMAoGA1ED
+BAEB/wQAMAoGCCqGSM49BAMCA0kAMEYCIQCQzTPd6XKex+OAPsKT/1DsoMsg8vcG
+c2qZ4Q0apT/kvgIhAKu2TnNQMIUdcO0BYQIl+Uhxc78dc9h4lO+YJB47pHGx
+-----END CERTIFICATE-----`
+
+const criticalExtLeaf = `-----BEGIN CERTIFICATE-----
+MIIBzzCCAXWgAwIBAgIJANoWFIlhCI9MMAoGCCqGSM49BAMCMD0xDDAKBgNVBAoT
+A09yZzEtMCsGA1UEAxMkSW50ZXJtZWRpYXRlIHdpdGggQ3JpdGljYWwgRXh0ZW5z
+aW9uMB4XDTE1MDEwMTAwMDAwMFoXDTI1MDEwMTAwMDAwMFowJDEMMAoGA1UEChMD
+T3JnMRQwEgYDVQQDEwtleGFtcGxlLmNvbTBZMBMGByqGSM49AgEGCCqGSM49AwEH
+A0IABG1Lfh8A0Ho2UvZN5H0+ONil9c8jwtC0y0xIZftyQE+Fwr9XwqG3rV2g4M1h
+GnJa9lV9MPHg8+b85Hixm0ZSw7SjdzB1MA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUE
+FjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDAYDVR0TAQH/BAIwADAZBgNVHQ4EEgQQ
+UNhY4JhezH9gQYqvDMWrWDAbBgNVHSMEFDASgBArF29S5Bnqw7de8GzGA1nfMAoG
+CCqGSM49BAMCA0gAMEUCIQClA3d4tdrDu9Eb5ZBpgyC+fU1xTZB0dKQHz6M5fPZA
+2AIgN96lM+CPGicwhN24uQI6flOsO3H0TJ5lNzBYLtnQtlc=
+-----END CERTIFICATE-----`
+
+func TestValidHostname(t *testing.T) {
+	tests := []struct {
+		host string
+		want bool
+	}{
+		{"example.com", true},
+		{"eXample123-.com", true},
+		{"-eXample123-.com", false},
+		{"", false},
+		{".", false},
+		{"example..com", false},
+		{".example.com", false},
+		{"*.example.com", true},
+		{"*foo.example.com", false},
+		{"foo.*.example.com", false},
+		{"exa_mple.com", true},
+		{"foo,bar", false},
+		{"project-dev:us-central1:main", true},
+	}
+	for _, tt := range tests {
+		if got := validHostname(tt.host); got != tt.want {
+			t.Errorf("validHostname(%q) = %v, want %v", tt.host, got, tt.want)
+		}
+	}
+}
+
+func generateCert(cn string, isCA bool, issuer *Certificate, issuerKey crypto.PrivateKey) (*Certificate, crypto.PrivateKey, error) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
+
+	template := &Certificate{
+		SerialNumber: serialNumber,
+		Subject:      pkix.Name{CommonName: cn},
+		NotBefore:    time.Now().Add(-1 * time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+
+		KeyUsage:              KeyUsageKeyEncipherment | KeyUsageDigitalSignature | KeyUsageCertSign,
+		ExtKeyUsage:           []ExtKeyUsage{ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  isCA,
+	}
+	if issuer == nil {
+		issuer = template
+		issuerKey = priv
+	}
+
+	derBytes, err := CreateCertificate(rand.Reader, template, issuer, priv.Public(), issuerKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	cert, err := ParseCertificate(derBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return cert, priv, nil
+}
+
+func TestPathologicalChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping generation of a long chain of certificates in short mode")
+	}
+
+	// Build a chain where all intermediates share the same subject, to hit the
+	// path building worst behavior.
+	roots, intermediates := NewCertPool(), NewCertPool()
+
+	parent, parentKey, err := generateCert("Root CA", true, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots.AddCert(parent)
+
+	for i := 1; i < 100; i++ {
+		parent, parentKey, err = generateCert("Intermediate CA", true, parent, parentKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		intermediates.AddCert(parent)
+	}
+
+	leaf, _, err := generateCert("Leaf", false, parent, parentKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	_, err = leaf.Verify(VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+	})
+	t.Logf("verification took %v", time.Since(start))
+
+	if err == nil || !strings.Contains(err.Error(), "signature check attempts limit") {
+		t.Errorf("expected verification to fail with a signature checks limit error; got %v", err)
+	}
+}
+
+func TestLongChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping generation of a long chain of certificates in short mode")
+	}
+
+	roots, intermediates := NewCertPool(), NewCertPool()
+
+	parent, parentKey, err := generateCert("Root CA", true, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots.AddCert(parent)
+
+	for i := 1; i < 15; i++ {
+		name := fmt.Sprintf("Intermediate CA #%d", i)
+		parent, parentKey, err = generateCert(name, true, parent, parentKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		intermediates.AddCert(parent)
+	}
+
+	leaf, _, err := generateCert("Leaf", false, parent, parentKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	if _, err := leaf.Verify(VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+	}); err != nil {
+		t.Error(err)
+	}
+	t.Logf("verification took %v", time.Since(start))
+}

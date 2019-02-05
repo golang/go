@@ -153,17 +153,17 @@ type T struct {
 func (*T) m() {}
 
 func method_expressions() {
-	_ = T /* ERROR "no field or method" */ .a
-	_ = T /* ERROR "has no method" */ .x
-	_ = T /* ERROR "not in method set" */ .m
+	_ = T.a /* ERROR "no field or method" */
+	_ = T.x /* ERROR "has no method" */
+	_ = T.m /* ERROR "not in method set" */
 	_ = (*T).m
 
-	var f func(*T) = T /* ERROR "not in method set" */ .m
+	var f func(*T) = T.m /* ERROR "not in method set" */
 	var g func(*T) = (*T).m
 	_, _ = f, g
 
-	_ = T /* ERROR "has no method" */ .y
-	_ = ( /* ERROR "has no method" */ *T).y
+	_ = T.y /* ERROR "has no method" */
+	_ = (*T).y /* ERROR "has no method" */
 }
 
 func struct_literals() {
@@ -367,6 +367,10 @@ func map_literals() {
 	_ = map[interface{}]int{"a": 1, "a" /* ERROR "duplicate key" */ : 1}
 	_ = map[interface{}]int{"a": 1, S("a"): 1}
 	_ = map[interface{}]int{S("a"): 1, S /* ERROR "duplicate key" */ ("a"): 1}
+	_ = map[interface{}]int{1.0: 1, 1.0 /* ERROR "duplicate key" */: 1}
+	_ = map[interface{}]int{int64(-1): 1, int64 /* ERROR "duplicate key" */ (-1) : 1}
+	_ = map[interface{}]int{^uint64(0): 1, ^ /* ERROR "duplicate key" */ uint64(0): 1}
+	_ = map[interface{}]int{complex(1,2): 1, complex /* ERROR "duplicate key" */ (1,2) : 1}
 
 	type I interface {
 		f()
@@ -493,7 +497,7 @@ func _calls() {
 	f1(x ... /* ERROR "cannot use ..." */ )
 	f1(g0 /* ERROR "used as value" */ ())
 	f1(g1())
-	// f1(g2()) // TODO(gri) missing position in error message
+	f1(g2 /* ERROR "cannot use g2" */ /* ERROR "too many arguments" */ ())
 
 	f2() /* ERROR "too few arguments" */
 	f2(3.14) /* ERROR "too few arguments" */

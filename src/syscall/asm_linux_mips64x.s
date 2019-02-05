@@ -12,8 +12,7 @@
 //
 
 // func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
-
-TEXT	·Syscall(SB),NOSPLIT,$0-56
+TEXT ·Syscall(SB),NOSPLIT,$0-56
 	JAL	runtime·entersyscall(SB)
 	MOVV	a1+8(FP), R4
 	MOVV	a2+16(FP), R5
@@ -101,4 +100,17 @@ ok2:
 	MOVV	R2, r1+56(FP)	// r1
 	MOVV	R3, r2+64(FP)	// r2
 	MOVV	R0, err+72(FP)	// errno
+	RET
+
+TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
+	MOVV	a1+8(FP), R4
+	MOVV	a2+16(FP), R5
+	MOVV	a3+24(FP), R6
+	MOVV	R0, R7
+	MOVV	R0, R8
+	MOVV	R0, R9
+	MOVV	trap+0(FP), R2	// syscall entry
+	SYSCALL
+	MOVV	R2, r1+32(FP)
+	MOVV	R3, r2+40(FP)
 	RET

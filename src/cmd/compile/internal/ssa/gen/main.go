@@ -54,6 +54,7 @@ type opData struct {
 	faultOnNilArg1    bool   // this op will fault if arg1 is nil (and aux encodes a small offset)
 	usesScratch       bool   // this op requires scratch memory space
 	hasSideEffects    bool   // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+	zeroWidth         bool   // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	symEffect         string // effect this op has on symbol in aux
 }
 
@@ -62,9 +63,14 @@ type blockData struct {
 }
 
 type regInfo struct {
-	inputs   []regMask
+	// inputs[i] encodes the set of registers allowed for the i'th input.
+	// Inputs that don't use registers (flags, memory, etc.) should be 0.
+	inputs []regMask
+	// clobbers encodes the set of registers that are overwritten by
+	// the instruction (other than the output registers).
 	clobbers regMask
-	outputs  []regMask
+	// outpus[i] encodes the set of registers allowed for the i'th output.
+	outputs []regMask
 }
 
 type regMask uint64
@@ -169,6 +175,9 @@ func genOp() {
 				if v.reg.clobbers != 0 {
 					log.Fatalf("%s is rematerializeable and clobbers registers", v.name)
 				}
+				if v.clobberFlags {
+					log.Fatalf("%s is rematerializeable and clobbers flags", v.name)
+				}
 				fmt.Fprintln(w, "rematerializeable: true,")
 			}
 			if v.commutative {
@@ -176,11 +185,13 @@ func genOp() {
 			}
 			if v.resultInArg0 {
 				fmt.Fprintln(w, "resultInArg0: true,")
-				if v.reg.inputs[0] != v.reg.outputs[0] {
-					log.Fatalf("input[0] and output[0] must use the same registers for %s", v.name)
+				// OpConvert's register mask is selected dynamically,
+				// so don't try to check it in the static table.
+				if v.name != "Convert" && v.reg.inputs[0] != v.reg.outputs[0] {
+					log.Fatalf("%s: input[0] and output[0] must use the same registers for %s", a.name, v.name)
 				}
-				if v.commutative && v.reg.inputs[1] != v.reg.outputs[0] {
-					log.Fatalf("input[1] and output[0] must use the same registers for %s", v.name)
+				if v.name != "Convert" && v.commutative && v.reg.inputs[1] != v.reg.outputs[0] {
+					log.Fatalf("%s: input[1] and output[0] must use the same registers for %s", a.name, v.name)
 				}
 			}
 			if v.resultNotInArgs {
@@ -213,12 +224,15 @@ func genOp() {
 			if v.hasSideEffects {
 				fmt.Fprintln(w, "hasSideEffects: true,")
 			}
+			if v.zeroWidth {
+				fmt.Fprintln(w, "zeroWidth: true,")
+			}
 			needEffect := strings.HasPrefix(v.aux, "Sym")
 			if v.symEffect != "" {
 				if !needEffect {
 					log.Fatalf("symEffect with aux %s not allowed", v.aux)
 				}
-				fmt.Fprintf(w, "symEffect: Sym%s,\n", v.symEffect)
+				fmt.Fprintf(w, "symEffect: Sym%s,\n", strings.Replace(v.symEffect, ",", "|Sym", -1))
 			} else if needEffect {
 				log.Fatalf("symEffect needed for aux %s", v.aux)
 			}
@@ -292,6 +306,7 @@ func genOp() {
 			continue
 		}
 		fmt.Fprintf(w, "var registers%s = [...]Register {\n", a.name)
+		var gcRegN int
 		for i, r := range a.regnames {
 			pkg := a.pkg[len("cmd/internal/obj/"):]
 			var objname string // name in cmd/internal/obj/$ARCH
@@ -306,7 +321,18 @@ func genOp() {
 			default:
 				objname = pkg + ".REG_" + r
 			}
-			fmt.Fprintf(w, "  {%d, %s, \"%s\"},\n", i, objname, r)
+			// Assign a GC register map index to registers
+			// that may contain pointers.
+			gcRegIdx := -1
+			if a.gpregmask&(1<<uint(i)) != 0 {
+				gcRegIdx = gcRegN
+				gcRegN++
+			}
+			fmt.Fprintf(w, "  {%d, %s, %d, \"%s\"},\n", i, objname, gcRegIdx, r)
+		}
+		if gcRegN > 32 {
+			// Won't fit in a uint32 mask.
+			log.Fatalf("too many GC registers (%d > 32) on %s", gcRegN, a.name)
 		}
 		fmt.Fprintln(w, "}")
 		fmt.Fprintf(w, "var gpRegMask%s = regMask(%d)\n", a.name, a.gpregmask)

@@ -6,7 +6,8 @@ package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/cipherhw"
+	"crypto/internal/subtle"
+	"internal/cpu"
 )
 
 type code int
@@ -19,9 +20,9 @@ const (
 )
 
 type aesCipherAsm struct {
-	function code      // code for cipher message instruction
-	key      []byte    // key (128, 192 or 256 bytes)
-	storage  [256]byte // array backing key slice
+	function code     // code for cipher message instruction
+	key      []byte   // key (128, 192 or 256 bits)
+	storage  [32]byte // array backing key slice
 }
 
 // cryptBlocks invokes the cipher message (KM) instruction with
@@ -30,10 +31,12 @@ type aesCipherAsm struct {
 //go:noescape
 func cryptBlocks(c code, key, dst, src *byte, length int)
 
-var useAsm = cipherhw.AESGCMSupport()
-
 func newCipher(key []byte) (cipher.Block, error) {
-	if !useAsm {
+	// The aesCipherAsm type implements the cbcEncAble, cbcDecAble,
+	// ctrAble and gcmAble interfaces. We therefore need to check
+	// for all the features required to implement these modes.
+	// Keep in sync with crypto/tls/common.go.
+	if !(cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)) {
 		return newCipherGeneric(key)
 	}
 
@@ -65,6 +68,9 @@ func (c *aesCipherAsm) Encrypt(dst, src []byte) {
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
 	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/aes: invalid buffer overlap")
+	}
 	cryptBlocks(c.function, &c.key[0], &dst[0], &src[0], BlockSize)
 }
 
@@ -74,6 +80,9 @@ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
 	}
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
+	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/aes: invalid buffer overlap")
 	}
 	// The decrypt function code is equal to the function code + 128.
 	cryptBlocks(c.function+128, &c.key[0], &dst[0], &src[0], BlockSize)

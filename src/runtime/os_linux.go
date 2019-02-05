@@ -24,8 +24,9 @@ func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, 
 // Futexsleep is allowed to wake up spuriously.
 
 const (
-	_FUTEX_WAIT = 0
-	_FUTEX_WAKE = 1
+	_FUTEX_PRIVATE_FLAG = 128
+	_FUTEX_WAIT_PRIVATE = 0 | _FUTEX_PRIVATE_FLAG
+	_FUTEX_WAKE_PRIVATE = 1 | _FUTEX_PRIVATE_FLAG
 )
 
 // Atomically,
@@ -42,7 +43,7 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
 	// here, and so can we: as it says a few lines up,
 	// spurious wakeups are allowed.
 	if ns < 0 {
-		futex(unsafe.Pointer(addr), _FUTEX_WAIT, val, nil, nil, 0)
+		futex(unsafe.Pointer(addr), _FUTEX_WAIT_PRIVATE, val, nil, nil, 0)
 		return
 	}
 
@@ -59,13 +60,13 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
 		ts.tv_nsec = 0
 		ts.set_sec(int64(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec)))))
 	}
-	futex(unsafe.Pointer(addr), _FUTEX_WAIT, val, unsafe.Pointer(&ts), nil, 0)
+	futex(unsafe.Pointer(addr), _FUTEX_WAIT_PRIVATE, val, unsafe.Pointer(&ts), nil, 0)
 }
 
 // If any procs are sleeping on addr, wake up at most cnt.
 //go:nosplit
 func futexwakeup(addr *uint32, cnt uint32) {
-	ret := futex(unsafe.Pointer(addr), _FUTEX_WAKE, cnt, nil, nil, 0)
+	ret := futex(unsafe.Pointer(addr), _FUTEX_WAKE_PRIVATE, cnt, nil, nil, 0)
 	if ret >= 0 {
 		return
 	}
@@ -89,13 +90,13 @@ func getproccount() int32 {
 	// buffers, but we don't have a dynamic memory allocator at the
 	// moment, so that's a bit tricky and seems like overkill.
 	const maxCPUs = 64 * 1024
-	var buf [maxCPUs / (sys.PtrSize * 8)]uintptr
+	var buf [maxCPUs / 8]byte
 	r := sched_getaffinity(0, unsafe.Sizeof(buf), &buf[0])
 	if r < 0 {
 		return 1
 	}
 	n := int32(0)
-	for _, v := range buf[:r/sys.PtrSize] {
+	for _, v := range buf[:r] {
 		for v != 0 {
 			n += int32(v & 1)
 			v >>= 1
@@ -132,6 +133,7 @@ const (
 		_CLONE_FS | /* share cwd, etc */
 		_CLONE_FILES | /* share fd table */
 		_CLONE_SIGHAND | /* share sig handler table */
+		_CLONE_SYSVSEM | /* share SysV semaphore undo lists (see issue #20763) */
 		_CLONE_THREAD /* revisit - okay for now */
 )
 
@@ -140,7 +142,8 @@ func clone(flags int32, stk, mp, gp, fn unsafe.Pointer) int32
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
-func newosproc(mp *m, stk unsafe.Pointer) {
+func newosproc(mp *m) {
+	stk := unsafe.Pointer(mp.g0.stack.hi)
 	/*
 	 * note: strace gets confused if we use CLONE_PTRACE here.
 	 */
@@ -192,6 +195,10 @@ const (
 
 var procAuxv = []byte("/proc/self/auxv\x00")
 
+var addrspace_vec [1]byte
+
+func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
@@ -205,45 +212,46 @@ func sysargs(argc int32, argv **byte) {
 
 	// now argv+n is auxv
 	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
-	if sysauxv(auxv[:]) == 0 {
-		// In some situations we don't get a loader-provided
-		// auxv, such as when loaded as a library on Android.
-		// Fall back to /proc/self/auxv.
-		fd := open(&procAuxv[0], 0 /* O_RDONLY */, 0)
-		if fd < 0 {
-			// On Android, /proc/self/auxv might be unreadable (issue 9229), so we fallback to
-			// try using mincore to detect the physical page size.
-			// mincore should return EINVAL when address is not a multiple of system page size.
-			const size = 256 << 10 // size of memory region to allocate
-			p := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
-			if uintptr(p) < 4096 {
-				return
-			}
-			var n uintptr
-			for n = 4 << 10; n < size; n <<= 1 {
-				err := mincore(unsafe.Pointer(uintptr(p)+n), 1, &addrspace_vec[0])
-				if err == 0 {
-					physPageSize = n
-					break
-				}
-			}
-			if physPageSize == 0 {
-				physPageSize = size
-			}
-			munmap(p, size)
-			return
-		}
-		var buf [128]uintptr
-		n := read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
-		closefd(fd)
-		if n < 0 {
-			return
-		}
-		// Make sure buf is terminated, even if we didn't read
-		// the whole file.
-		buf[len(buf)-2] = _AT_NULL
-		sysauxv(buf[:])
+	if sysauxv(auxv[:]) != 0 {
+		return
 	}
+	// In some situations we don't get a loader-provided
+	// auxv, such as when loaded as a library on Android.
+	// Fall back to /proc/self/auxv.
+	fd := open(&procAuxv[0], 0 /* O_RDONLY */, 0)
+	if fd < 0 {
+		// On Android, /proc/self/auxv might be unreadable (issue 9229), so we fallback to
+		// try using mincore to detect the physical page size.
+		// mincore should return EINVAL when address is not a multiple of system page size.
+		const size = 256 << 10 // size of memory region to allocate
+		p, err := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+		if err != 0 {
+			return
+		}
+		var n uintptr
+		for n = 4 << 10; n < size; n <<= 1 {
+			err := mincore(unsafe.Pointer(uintptr(p)+n), 1, &addrspace_vec[0])
+			if err == 0 {
+				physPageSize = n
+				break
+			}
+		}
+		if physPageSize == 0 {
+			physPageSize = size
+		}
+		munmap(p, size)
+		return
+	}
+	var buf [128]uintptr
+	n = read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
+	closefd(fd)
+	if n < 0 {
+		return
+	}
+	// Make sure buf is terminated, even if we didn't read
+	// the whole file.
+	buf[len(buf)-2] = _AT_NULL
+	sysauxv(buf[:])
 }
 
 func sysauxv(auxv []uintptr) int {
@@ -261,6 +269,7 @@ func sysauxv(auxv []uintptr) int {
 		}
 
 		archauxv(tag, val)
+		vdsoauxv(tag, val)
 	}
 	return i / 2
 }
@@ -320,38 +329,6 @@ func unminit() {
 	unminitSignals()
 }
 
-func memlimit() uintptr {
-	/*
-		TODO: Convert to Go when something actually uses the result.
-
-		Rlimit rl;
-		extern byte runtime·text[], runtime·end[];
-		uintptr used;
-
-		if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
-			return 0;
-		if(rl.rlim_cur >= 0x7fffffff)
-			return 0;
-
-		// Estimate our VM footprint excluding the heap.
-		// Not an exact science: use size of binary plus
-		// some room for thread stacks.
-		used = runtime·end - runtime·text + (64<<20);
-		if(used >= rl.rlim_cur)
-			return 0;
-
-		// If there's not at least 16 MB left, we're probably
-		// not going to be able to do much. Treat as no limit.
-		rl.rlim_cur -= used;
-		if(rl.rlim_cur < (16<<20))
-			return 0;
-
-		return rl.rlim_cur - used;
-	*/
-
-	return 0
-}
-
 //#ifdef GOARCH_386
 //#define sa_handler k_sa_handler
 //#endif
@@ -375,13 +352,11 @@ func sigprocmask(how int32, new, old *sigset) {
 	rtsigprocmask(how, new, old, int32(unsafe.Sizeof(*new)))
 }
 
-//go:noescape
-func getrlimit(kind int32, limit unsafe.Pointer) int32
 func raise(sig uint32)
 func raiseproc(sig uint32)
 
 //go:noescape
-func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
+func sched_getaffinity(pid, len uintptr, buf *byte) int32
 func osyield()
 
 //go:nosplit
@@ -404,28 +379,26 @@ func setsig(i uint32, fn uintptr) {
 		}
 	}
 	sa.sa_handler = fn
-	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
+	sigaction(i, &sa, nil)
 }
 
 //go:nosplit
 //go:nowritebarrierrec
 func setsigstack(i uint32) {
 	var sa sigactiont
-	rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask))
+	sigaction(i, nil, &sa)
 	if sa.sa_flags&_SA_ONSTACK != 0 {
 		return
 	}
 	sa.sa_flags |= _SA_ONSTACK
-	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
+	sigaction(i, &sa, nil)
 }
 
 //go:nosplit
 //go:nowritebarrierrec
 func getsig(i uint32) uintptr {
 	var sa sigactiont
-	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
-		throw("rt_sigaction read failure")
-	}
+	sigaction(i, nil, &sa)
 	return sa.sa_handler
 }
 
@@ -437,3 +410,31 @@ func setSignalstackSP(s *stackt, sp uintptr) {
 
 func (c *sigctxt) fixsigcode(sig uint32) {
 }
+
+// sysSigaction calls the rt_sigaction system call.
+//go:nosplit
+func sysSigaction(sig uint32, new, old *sigactiont) {
+	if rt_sigaction(uintptr(sig), new, old, unsafe.Sizeof(sigactiont{}.sa_mask)) != 0 {
+		// Workaround for bugs in QEMU user mode emulation.
+		//
+		// QEMU turns calls to the sigaction system call into
+		// calls to the C library sigaction call; the C
+		// library call rejects attempts to call sigaction for
+		// SIGCANCEL (32) or SIGSETXID (33).
+		//
+		// QEMU rejects calling sigaction on SIGRTMAX (64).
+		//
+		// Just ignore the error in these case. There isn't
+		// anything we can do about it anyhow.
+		if sig != 32 && sig != 33 && sig != 64 {
+			// Use system stack to avoid split stack overflow on ppc64/ppc64le.
+			systemstack(func() {
+				throw("sigaction failed")
+			})
+		}
+	}
+}
+
+// rt_sigaction is implemented in assembly.
+//go:noescape
+func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32

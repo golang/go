@@ -11,6 +11,7 @@ import (
 	"crypto/tls"
 	"internal/nettrace"
 	"net"
+	"net/textproto"
 	"reflect"
 	"time"
 )
@@ -107,6 +108,12 @@ type ClientTrace struct {
 	// Continue" response.
 	Got100Continue func()
 
+	// Got1xxResponse is called for each 1xx informational response header
+	// returned before the final non-1xx response. Got1xxResponse is called
+	// for "100 Continue" responses, even if Got100Continue is also defined.
+	// If it returns an error, the client request is aborted with that error value.
+	Got1xxResponse func(code int, header textproto.MIMEHeader) error
+
 	// DNSStart is called when a DNS lookup begins.
 	DNSStart func(DNSStartInfo)
 
@@ -135,8 +142,13 @@ type ClientTrace struct {
 	// failure.
 	TLSHandshakeDone func(tls.ConnectionState, error)
 
+	// WroteHeaderField is called after the Transport has written
+	// each request header. At the time of this call the values
+	// might be buffered and not yet written to the network.
+	WroteHeaderField func(key string, value []string)
+
 	// WroteHeaders is called after the Transport has written
-	// the request headers.
+	// all request headers.
 	WroteHeaders func()
 
 	// Wait100Continue is called if the Request specified

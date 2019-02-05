@@ -70,6 +70,9 @@ try_xchg:
 TEXT ·Casuintptr(SB),NOSPLIT,$0-13
 	JMP	·Cas(SB)
 
+TEXT ·CasRel(SB),NOSPLIT,$0-13
+	JMP	·Cas(SB)
+
 TEXT ·Loaduintptr(SB),NOSPLIT,$0-8
 	JMP	·Load(SB)
 
@@ -98,6 +101,9 @@ TEXT ·Xchguintptr(SB),NOSPLIT,$0-12
 	JMP	·Xchg(SB)
 
 TEXT ·StorepNoWB(SB),NOSPLIT,$0-8
+	JMP	·Store(SB)
+
+TEXT ·StoreRel(SB),NOSPLIT,$0-8
 	JMP	·Store(SB)
 
 // void	Or8(byte volatile*, byte);

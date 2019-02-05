@@ -17,7 +17,7 @@ func TestLinkgetlineFromPos(t *testing.T) {
 
 	afile := src.NewFileBase("a.go", "a.go")
 	bfile := src.NewFileBase("b.go", "/foo/bar/b.go")
-	lfile := src.NewLinePragmaBase(src.MakePos(afile, 7, 0), "linedir", 100)
+	lfile := src.NewLinePragmaBase(src.MakePos(afile, 8, 1), "linedir", "linedir", 100, 1)
 
 	var tests = []struct {
 		pos  src.Pos

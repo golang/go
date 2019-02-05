@@ -33,17 +33,13 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
 		n, err1 := syscall.Sendfile(dst, src, &pos1, n)
 		if err1 == syscall.EAGAIN || err1 == syscall.EINTR {
 			// partial write may have occurred
-			if n = int(pos1 - pos); n == 0 {
-				// nothing more to write
-				err1 = nil
-			}
+			n = int(pos1 - pos)
 		}
 		if n > 0 {
 			pos += int64(n)
 			written += int64(n)
 			remain -= int64(n)
-		}
-		if n == 0 && err1 == nil {
+		} else if n == 0 && err1 == nil {
 			break
 		}
 		if err1 == syscall.EAGAIN {

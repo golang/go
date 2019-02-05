@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
 
 package os
 
 import (
 	"internal/poll"
+	"internal/syscall/unix"
+	"io"
 	"runtime"
 	"syscall"
 )
@@ -45,14 +47,16 @@ func rename(oldname, newname string) error {
 // can overwrite this data, which could cause the finalizer
 // to close the wrong file descriptor.
 type file struct {
-	pfd      poll.FD
-	name     string
-	dirinfo  *dirInfo // nil unless directory being read
-	nonblock bool     // whether we set nonblocking mode
+	pfd         poll.FD
+	name        string
+	dirinfo     *dirInfo // nil unless directory being read
+	nonblock    bool     // whether we set nonblocking mode
+	stdoutOrErr bool     // whether this is stdout or stderr
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
 // The file descriptor is valid only until f.Close is called or f is garbage collected.
+// On Unix systems this will cause the SetDeadline methods to stop working.
 func (f *File) Fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
@@ -64,7 +68,7 @@ func (f *File) Fd() uintptr {
 	// opened in blocking mode. The File will continue to work,
 	// but any blocking operation will tie up a thread.
 	if f.nonblock {
-		syscall.SetNonblock(f.pfd.Sysfd, false)
+		f.pfd.SetBlocking()
 	}
 
 	return uintptr(f.pfd.Sysfd)
@@ -72,14 +76,31 @@ func (f *File) Fd() uintptr {
 
 // NewFile returns a new File with the given file descriptor and
 // name. The returned value will be nil if fd is not a valid file
-// descriptor.
+// descriptor. On Unix systems, if the file descriptor is in
+// non-blocking mode, NewFile will attempt to return a pollable File
+// (one for which the SetDeadline methods work).
 func NewFile(fd uintptr, name string) *File {
-	return newFile(fd, name, false)
+	kind := kindNewFile
+	if nb, err := unix.IsNonblock(int(fd)); err == nil && nb {
+		kind = kindNonBlock
+	}
+	return newFile(fd, name, kind)
 }
 
-// newFile is like NewFile, but if pollable is true it tries to add the
-// file to the runtime poller.
-func newFile(fd uintptr, name string, pollable bool) *File {
+// newFileKind describes the kind of file to newFile.
+type newFileKind int
+
+const (
+	kindNewFile newFileKind = iota
+	kindOpenFile
+	kindPipe
+	kindNonBlock
+)
+
+// newFile is like NewFile, but if called from OpenFile or Pipe
+// (as passed in the kind parameter) it tries to add the file to
+// the runtime poller.
+func newFile(fd uintptr, name string, kind newFileKind) *File {
 	fdi := int(fd)
 	if fdi < 0 {
 		return nil
@@ -90,14 +111,46 @@ func newFile(fd uintptr, name string, pollable bool) *File {
 			IsStream:      true,
 			ZeroReadIsEOF: true,
 		},
-		name: name,
+		name:        name,
+		stdoutOrErr: fdi == 1 || fdi == 2,
 	}}
 
-	// Don't try to use kqueue with regular files on FreeBSD.
-	// It crashes the system unpredictably while running all.bash.
-	// Issue 19093.
-	if runtime.GOOS == "freebsd" {
-		pollable = false
+	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindNonBlock
+
+	// If the caller passed a non-blocking filedes (kindNonBlock),
+	// we assume they know what they are doing so we allow it to be
+	// used with kqueue.
+	if kind == kindOpenFile {
+		var st syscall.Stat_t
+		switch runtime.GOOS {
+		case "freebsd":
+			// On FreeBSD before 10.4 it used to crash the
+			// system unpredictably while running all.bash.
+			// When we stop supporting FreeBSD 10 we can merge
+			// this into the dragonfly/netbsd/openbsd case.
+			// Issue 27619.
+			pollable = false
+
+		case "dragonfly", "netbsd", "openbsd":
+			// Don't try to use kqueue with regular files on *BSDs.
+			// On FreeBSD a regular file is always
+			// reported as ready for writing.
+			// On Dragonfly, NetBSD and OpenBSD the fd is signaled
+			// only once as ready (both read and write).
+			// Issue 19093.
+			if err := syscall.Fstat(fdi, &st); err == nil && st.Mode&syscall.S_IFMT == syscall.S_IFREG {
+				pollable = false
+			}
+
+		case "darwin":
+			// In addition to the behavior described above for regular files,
+			// on Darwin, kqueue does not work properly with fifos:
+			// closing the last writer does not cause a kqueue event
+			// for any readers. See issue #24164.
+			if err := syscall.Fstat(fdi, &st); err == nil && (st.Mode&syscall.S_IFMT == syscall.S_IFIFO || st.Mode&syscall.S_IFMT == syscall.S_IFREG) {
+				pollable = false
+			}
+		}
 	}
 
 	if err := f.pfd.Init("file", pollable); err != nil {
@@ -119,18 +172,11 @@ func newFile(fd uintptr, name string, pollable bool) *File {
 	return f
 }
 
-// Auxiliary information if the File describes a directory
-type dirInfo struct {
-	buf  []byte // buffer for directory I/O
-	nbuf int    // length of buf; return value from Getdirentries
-	bufp int    // location of next record in buf.
-}
-
 // epipecheck raises SIGPIPE if we get an EPIPE error on standard
 // output or standard error. See the SIGPIPE docs in os/signal, and
 // issue 11845.
 func epipecheck(file *File, e error) {
-	if e == syscall.EPIPE && (file.pfd.Sysfd == 1 || file.pfd.Sysfd == 2) {
+	if e == syscall.EPIPE && file.stdoutOrErr {
 		sigpipe()
 	}
 }
@@ -139,16 +185,13 @@ func epipecheck(file *File, e error) {
 // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
 const DevNull = "/dev/null"
 
-// OpenFile is the generalized open call; most users will use Open
-// or Create instead. It opens the named file with specified flag
-// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
-// methods on the returned File can be used for I/O.
-// If there is an error, it will be of type *PathError.
-func OpenFile(name string, flag int, perm FileMode) (*File, error) {
-	chmod := false
+// openFileNolog is the Unix implementation of OpenFile.
+// Changes here should be reflected in openFdAt, if relevant.
+func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+	setSticky := false
 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
 		if _, err := Stat(name); IsNotExist(err) {
-			chmod = true
+			setSticky = true
 		}
 	}
 
@@ -162,7 +205,7 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 
 		// On OS X, sigaction(2) doesn't guarantee that SA_RESTART will cause
 		// open(2) to be restarted for regular files. This is easy to reproduce on
-		// fuse file systems (see http://golang.org/issue/11180).
+		// fuse file systems (see https://golang.org/issue/11180).
 		if runtime.GOOS == "darwin" && e == syscall.EINTR {
 			continue
 		}
@@ -171,8 +214,8 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	}
 
 	// open(2) itself won't handle the sticky bit on *BSD and Solaris
-	if chmod {
-		Chmod(name, perm)
+	if setSticky {
+		setStickyBit(name)
 	}
 
 	// There's a race here with fork/exec, which we are
@@ -181,11 +224,12 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 		syscall.CloseOnExec(r)
 	}
 
-	return newFile(uintptr(r), name, true), nil
+	return newFile(uintptr(r), name, kindOpenFile), nil
 }
 
 // Close closes the File, rendering it unusable for I/O.
-// It returns an error, if any.
+// On files that support SetDeadline, any pending I/O operations will
+// be canceled and return immediately with an error.
 func (f *File) Close() error {
 	if f == nil {
 		return ErrInvalid
@@ -196,6 +240,9 @@ func (f *File) Close() error {
 func (file *file) close() error {
 	if file == nil {
 		return syscall.EINVAL
+	}
+	if file.dirinfo != nil {
+		file.dirinfo.close()
 	}
 	var err error
 	if e := file.pfd.Close(); e != nil {
@@ -263,7 +310,7 @@ func Truncate(name string, size int64) error {
 	return nil
 }
 
-// Remove removes the named file or directory.
+// Remove removes the named file or (empty) directory.
 // If there is an error, it will be of type *PathError.
 func Remove(name string) error {
 	// System call interface forces us to know
@@ -294,8 +341,7 @@ func Remove(name string) error {
 	return &PathError{"remove", name, e}
 }
 
-// TempDir returns the default directory to use for temporary files.
-func TempDir() string {
+func tempDir() string {
 	dir := Getenv("TMPDIR")
 	if dir == "" {
 		if runtime.GOOS == "android" {
@@ -325,4 +371,31 @@ func Symlink(oldname, newname string) error {
 		return &LinkError{"symlink", oldname, newname, e}
 	}
 	return nil
+}
+
+func (f *File) readdir(n int) (fi []FileInfo, err error) {
+	dirname := f.name
+	if dirname == "" {
+		dirname = "."
+	}
+	names, err := f.Readdirnames(n)
+	fi = make([]FileInfo, 0, len(names))
+	for _, filename := range names {
+		fip, lerr := lstat(dirname + "/" + filename)
+		if IsNotExist(lerr) {
+			// File disappeared between readdir + stat.
+			// Just treat it as if it didn't exist.
+			continue
+		}
+		if lerr != nil {
+			return fi, lerr
+		}
+		fi = append(fi, fip)
+	}
+	if len(fi) == 0 && err == nil && n > 0 {
+		// Per File.Readdir, the slice must be non-empty or err
+		// must be non-nil if n > 0.
+		err = io.EOF
+	}
+	return fi, err
 }

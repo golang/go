@@ -26,7 +26,7 @@ type mstats struct {
 	alloc       uint64 // bytes allocated and not yet freed
 	total_alloc uint64 // bytes allocated (even if freed)
 	sys         uint64 // bytes obtained from system (should be sum of xxx_sys below, no locking, approximate)
-	nlookup     uint64 // number of pointer lookups
+	nlookup     uint64 // number of pointer lookups (unused)
 	nmalloc     uint64 // number of mallocs
 	nfree       uint64 // number of frees
 
@@ -38,23 +38,9 @@ type mstats struct {
 	heap_alloc    uint64 // bytes allocated and not yet freed (same as alloc above)
 	heap_sys      uint64 // virtual address space obtained from system for GC'd heap
 	heap_idle     uint64 // bytes in idle spans
-	heap_inuse    uint64 // bytes in _MSpanInUse spans
+	heap_inuse    uint64 // bytes in mSpanInUse spans
 	heap_released uint64 // bytes released to the os
 	heap_objects  uint64 // total number of allocated objects
-
-	// TODO(austin): heap_released is both useless and inaccurate
-	// in its current form. It's useless because, from the user's
-	// and OS's perspectives, there's no difference between a page
-	// that has not yet been faulted in and a page that has been
-	// released back to the OS. We could fix this by considering
-	// newly mapped spans to be "released". It's inaccurate
-	// because when we split a large span for allocation, we
-	// "unrelease" all pages in the large span and not just the
-	// ones we split off for use. This is trickier to fix because
-	// we currently don't know which pages of a span we've
-	// released. We could fix it by separating "free" and
-	// "released" spans, but then we have to allocate from runs of
-	// free and released spans.
 
 	// Statistics about allocation of low-level fixed-size structures.
 	// Protected by FixAlloc locks.
@@ -262,7 +248,7 @@ type MemStats struct {
 	// can only be used for other objects of roughly the same
 	// size.
 	//
-	// HeapInuse minus HeapAlloc esimates the amount of memory
+	// HeapInuse minus HeapAlloc estimates the amount of memory
 	// that has been dedicated to particular size classes, but is
 	// not currently being used. This is an upper bound on
 	// fragmentation, but in general this memory can be reused
@@ -543,7 +529,7 @@ func updatememstats() {
 		memstats.by_size[i].nfree = 0
 	}
 
-	// Flush MCache's to MCentral.
+	// Flush mcache's to mcentral.
 	systemstack(flushallmcaches)
 
 	// Aggregate local stats.
@@ -589,13 +575,13 @@ func updatememstats() {
 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
 }
 
+// cachestats flushes all mcache stats.
+//
+// The world must be stopped.
+//
 //go:nowritebarrier
 func cachestats() {
-	for i := 0; ; i++ {
-		p := allp[i]
-		if p == nil {
-			break
-		}
+	for _, p := range allp {
 		c := p.mcache
 		if c == nil {
 			continue
@@ -611,9 +597,6 @@ func cachestats() {
 //go:nowritebarrier
 func flushmcache(i int) {
 	p := allp[i]
-	if p == nil {
-		return
-	}
 	c := p.mcache
 	if c == nil {
 		return
@@ -641,8 +624,6 @@ func purgecachedstats(c *mcache) {
 	c.local_scan = 0
 	memstats.tinyallocs += uint64(c.local_tinyallocs)
 	c.local_tinyallocs = 0
-	memstats.nlookup += uint64(c.local_nlookup)
-	c.local_nlookup = 0
 	h.largefree += uint64(c.local_largefree)
 	c.local_largefree = 0
 	h.nlargefree += uint64(c.local_nlargefree)
@@ -667,7 +648,10 @@ func purgecachedstats(c *mcache) {
 // overflow errors.
 //go:nosplit
 func mSysStatInc(sysStat *uint64, n uintptr) {
-	if sys.BigEndian != 0 {
+	if sysStat == nil {
+		return
+	}
+	if sys.BigEndian {
 		atomic.Xadd64(sysStat, int64(n))
 		return
 	}
@@ -681,7 +665,10 @@ func mSysStatInc(sysStat *uint64, n uintptr) {
 // mSysStatInc apply.
 //go:nosplit
 func mSysStatDec(sysStat *uint64, n uintptr) {
-	if sys.BigEndian != 0 {
+	if sysStat == nil {
+		return
+	}
+	if sys.BigEndian {
 		atomic.Xadd64(sysStat, -int64(n))
 		return
 	}

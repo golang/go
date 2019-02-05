@@ -296,7 +296,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		// Method needs three ins: receiver, *args, *reply.
 		if mtype.NumIn() != 3 {
 			if reportErr {
-				log.Println("method", mname, "has wrong number of ins:", mtype.NumIn())
+				log.Printf("rpc.Register: method %q has %d input parameters; needs exactly three\n", mname, mtype.NumIn())
 			}
 			continue
 		}
@@ -304,7 +304,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		argType := mtype.In(1)
 		if !isExportedOrBuiltinType(argType) {
 			if reportErr {
-				log.Println(mname, "argument type not exported:", argType)
+				log.Printf("rpc.Register: argument type of method %q is not exported: %q\n", mname, argType)
 			}
 			continue
 		}
@@ -312,28 +312,28 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		replyType := mtype.In(2)
 		if replyType.Kind() != reflect.Ptr {
 			if reportErr {
-				log.Println("method", mname, "reply type not a pointer:", replyType)
+				log.Printf("rpc.Register: reply type of method %q is not a pointer: %q\n", mname, replyType)
 			}
 			continue
 		}
 		// Reply type must be exported.
 		if !isExportedOrBuiltinType(replyType) {
 			if reportErr {
-				log.Println("method", mname, "reply type not exported:", replyType)
+				log.Printf("rpc.Register: reply type of method %q is not exported: %q\n", mname, replyType)
 			}
 			continue
 		}
 		// Method needs one out.
 		if mtype.NumOut() != 1 {
 			if reportErr {
-				log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
+				log.Printf("rpc.Register: method %q has %d output parameters; needs exactly one\n", mname, mtype.NumOut())
 			}
 			continue
 		}
 		// The return type of the method must be error.
 		if returnType := mtype.Out(0); returnType != typeOfError {
 			if reportErr {
-				log.Println("method", mname, "returns", returnType.String(), "not error")
+				log.Printf("rpc.Register: return type of method %q is %q, must be error\n", mname, returnType)
 			}
 			continue
 		}
@@ -372,7 +372,10 @@ func (m *methodType) NumCalls() (n uint) {
 	return n
 }
 
-func (s *service) call(server *Server, sending *sync.Mutex, mtype *methodType, req *Request, argv, replyv reflect.Value, codec ServerCodec) {
+func (s *service) call(server *Server, sending *sync.Mutex, wg *sync.WaitGroup, mtype *methodType, req *Request, argv, replyv reflect.Value, codec ServerCodec) {
+	if wg != nil {
+		defer wg.Done()
+	}
 	mtype.Lock()
 	mtype.numCalls++
 	mtype.Unlock()
@@ -441,6 +444,7 @@ func (c *gobServerCodec) Close() error {
 // The caller typically invokes ServeConn in a go statement.
 // ServeConn uses the gob wire format (see package gob) on the
 // connection. To use an alternate codec, use ServeCodec.
+// See NewClient's comment for information about concurrent access.
 func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 	buf := bufio.NewWriter(conn)
 	srv := &gobServerCodec{
@@ -456,6 +460,7 @@ func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 // decode requests and encode responses.
 func (server *Server) ServeCodec(codec ServerCodec) {
 	sending := new(sync.Mutex)
+	wg := new(sync.WaitGroup)
 	for {
 		service, mtype, req, argv, replyv, keepReading, err := server.readRequest(codec)
 		if err != nil {
@@ -472,8 +477,12 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 			}
 			continue
 		}
-		go service.call(server, sending, mtype, req, argv, replyv, codec)
+		wg.Add(1)
+		go service.call(server, sending, wg, mtype, req, argv, replyv, codec)
 	}
+	// We've seen that there are no more requests.
+	// Wait for responses to be sent before closing codec.
+	wg.Wait()
 	codec.Close()
 }
 
@@ -493,7 +502,7 @@ func (server *Server) ServeRequest(codec ServerCodec) error {
 		}
 		return err
 	}
-	service.call(server, sending, mtype, req, argv, replyv, codec)
+	service.call(server, sending, nil, mtype, req, argv, replyv, codec)
 	return nil
 }
 
@@ -645,12 +654,13 @@ func RegisterName(name string, rcvr interface{}) error {
 // write a response back. The server calls Close when finished with the
 // connection. ReadRequestBody may be called with a nil
 // argument to force the body of the request to be read and discarded.
+// See NewClient's comment for information about concurrent access.
 type ServerCodec interface {
 	ReadRequestHeader(*Request) error
 	ReadRequestBody(interface{}) error
-	// WriteResponse must be safe for concurrent use by multiple goroutines.
 	WriteResponse(*Response, interface{}) error
 
+	// Close can be called multiple times and must be idempotent.
 	Close() error
 }
 
@@ -659,6 +669,7 @@ type ServerCodec interface {
 // The caller typically invokes ServeConn in a go statement.
 // ServeConn uses the gob wire format (see package gob) on the
 // connection. To use an alternate codec, use ServeCodec.
+// See NewClient's comment for information about concurrent access.
 func ServeConn(conn io.ReadWriteCloser) {
 	DefaultServer.ServeConn(conn)
 }

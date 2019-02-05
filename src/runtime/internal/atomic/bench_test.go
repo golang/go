@@ -26,3 +26,39 @@ func BenchmarkAtomicStore64(b *testing.B) {
 		atomic.Store64(&x, 0)
 	}
 }
+
+func BenchmarkAtomicLoad(b *testing.B) {
+	var x uint32
+	sink = &x
+	for i := 0; i < b.N; i++ {
+		_ = atomic.Load(&x)
+	}
+}
+
+func BenchmarkAtomicStore(b *testing.B) {
+	var x uint32
+	sink = &x
+	for i := 0; i < b.N; i++ {
+		atomic.Store(&x, 0)
+	}
+}
+
+func BenchmarkXadd(b *testing.B) {
+	var x uint32
+	ptr := &x
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			atomic.Xadd(ptr, 1)
+		}
+	})
+}
+
+func BenchmarkXadd64(b *testing.B) {
+	var x uint64
+	ptr := &x
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			atomic.Xadd64(ptr, 1)
+		}
+	})
+}

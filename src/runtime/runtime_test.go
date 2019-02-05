@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"flag"
 	"io"
 	. "runtime"
 	"runtime/debug"
@@ -12,6 +13,8 @@ import (
 	"testing"
 	"unsafe"
 )
+
+var flagQuick = flag.Bool("quick", false, "skip slow tests, for second run in all.bash")
 
 func init() {
 	// We're testing the runtime, so make tracebacks show things
@@ -166,6 +169,9 @@ func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
 	if GOOS == "nacl" {
 		t.Skip("nacl doesn't seem to fault on high addresses")
 	}
+	if GOOS == "js" {
+		t.Skip("js does not support catching faults")
+	}
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -196,9 +202,9 @@ func eqstring_generic(s1, s2 string) bool {
 }
 
 func TestEqString(t *testing.T) {
-	// This isn't really an exhaustive test of eqstring, it's
+	// This isn't really an exhaustive test of == on strings, it's
 	// just a convenient way of documenting (via eqstring_generic)
-	// what eqstring does.
+	// what == does.
 	s := []string{
 		"",
 		"a",
@@ -213,7 +219,7 @@ func TestEqString(t *testing.T) {
 			x := s1 == s2
 			y := eqstring_generic(s1, s2)
 			if x != y {
-				t.Errorf(`eqstring("%s","%s") = %t, want %t`, s1, s2, x, y)
+				t.Errorf(`("%s" == "%s") = %t, want %t`, s1, s2, x, y)
 			}
 		}
 	}
@@ -261,7 +267,7 @@ func TestTrailingZero(t *testing.T) {
 }
 
 func TestBadOpen(t *testing.T) {
-	if GOOS == "windows" || GOOS == "nacl" {
+	if GOOS == "windows" || GOOS == "nacl" || GOOS == "js" {
 		t.Skip("skipping OS that doesn't have open/read/write/close")
 	}
 	// make sure we get the correct error code if open fails. Same for

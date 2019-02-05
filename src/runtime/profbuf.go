@@ -545,7 +545,7 @@ Read:
 	b.rNext = br.addCountsAndClearFlags(skip+di, ti)
 
 	if raceenabled {
-		// Match racewritepc in runtime_setProfLabel,
+		// Match racereleasemerge in runtime_setProfLabel,
 		// so that the setting of the labels in runtime_setProfLabel
 		// is treated as happening before any use of the labels
 		// by our caller. The synchronization on labelSync itself is a fiction

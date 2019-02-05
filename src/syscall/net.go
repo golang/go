@@ -26,7 +26,7 @@ type RawConn interface {
 	Write(f func(fd uintptr) (done bool)) error
 }
 
-// Conn is implemented by some types in the net package to provide
+// Conn is implemented by some types in the net and os packages to provide
 // access to the underlying file descriptor or handle.
 type Conn interface {
 	// SyscallConn returns a raw network connection.

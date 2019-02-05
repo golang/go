@@ -204,6 +204,28 @@ func ExampleSectionReader_Seek() {
 	// stream
 }
 
+func ExampleSeeker_Seek() {
+	r := strings.NewReader("some io.Reader stream to be read\n")
+	if _, err := io.Copy(os.Stdout, r); err != nil {
+		log.Fatal(err)
+	}
+
+	r.Seek(15, io.SeekStart)
+	if _, err := io.Copy(os.Stdout, r); err != nil {
+		log.Fatal(err)
+	}
+
+	r.Seek(-5, io.SeekEnd)
+	if _, err := io.Copy(os.Stdout, r); err != nil {
+		log.Fatal(err)
+	}
+
+	// Output:
+	// some io.Reader stream to be read
+	// stream to be read
+	// read
+}
+
 func ExampleMultiWriter() {
 	r := strings.NewReader("some io.Reader stream to be read\n")
 
@@ -220,4 +242,20 @@ func ExampleMultiWriter() {
 	// Output:
 	// some io.Reader stream to be read
 	// some io.Reader stream to be read
+}
+
+func ExamplePipe() {
+	r, w := io.Pipe()
+
+	go func() {
+		fmt.Fprint(w, "some text to be read\n")
+		w.Close()
+	}()
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r)
+	fmt.Print(buf.String())
+
+	// Output:
+	// some text to be read
 }

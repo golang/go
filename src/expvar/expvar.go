@@ -22,7 +22,6 @@
 package expvar
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -32,6 +31,7 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -111,7 +111,7 @@ type KeyValue struct {
 }
 
 func (v *Map) String() string {
-	var b bytes.Buffer
+	var b strings.Builder
 	fmt.Fprintf(&b, "{")
 	first := true
 	v.Do(func(kv KeyValue) {
@@ -125,9 +125,19 @@ func (v *Map) String() string {
 	return b.String()
 }
 
-func (v *Map) Init() *Map { return v }
+// Init removes all keys from the map.
+func (v *Map) Init() *Map {
+	v.keysMu.Lock()
+	defer v.keysMu.Unlock()
+	v.keys = v.keys[:0]
+	v.m.Range(func(k, _ interface{}) bool {
+		v.m.Delete(k)
+		return true
+	})
+	return v
+}
 
-// updateKeys updates the sorted list of keys in v.keys.
+// addKey updates the sorted list of keys in v.keys.
 func (v *Map) addKey(key string) {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
@@ -189,6 +199,17 @@ func (v *Map) AddFloat(key string, delta float64) {
 	}
 }
 
+// Deletes the given key from the map.
+func (v *Map) Delete(key string) {
+	v.keysMu.Lock()
+	defer v.keysMu.Unlock()
+	i := sort.SearchStrings(v.keys, key)
+	if i < len(v.keys) && key == v.keys[i] {
+		v.keys = append(v.keys[:i], v.keys[i+1:]...)
+		v.m.Delete(key)
+	}
+}
+
 // Do calls f for each entry in the map.
 // The map is locked during the iteration,
 // but existing entries may be concurrently updated.
@@ -211,7 +232,7 @@ func (v *String) Value() string {
 	return p
 }
 
-// String implements the Val interface. To get the unquoted string
+// String implements the Var interface. To get the unquoted string
 // use Value.
 func (v *String) String() string {
 	s := v.Value()

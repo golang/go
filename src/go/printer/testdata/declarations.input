@@ -795,6 +795,11 @@ func _() { /* multi-line function because of "long-ish" comment - much more comm
 func _() {
 /* multi-line func because block is on multiple lines */ }
 
+// test case for issue #19544
+func _() {}
+func _longer_name_() { // this comment must not force the {} from above to alignment
+	// multiple lines
+}
 
 // ellipsis parameters
 func _(...int)

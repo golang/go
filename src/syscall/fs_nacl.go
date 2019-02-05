@@ -582,8 +582,12 @@ func Chown(path string, uid, gid int) error {
 	if err != nil {
 		return err
 	}
-	ip.Uid = uint32(uid)
-	ip.Gid = uint32(gid)
+	if uid != -1 {
+		ip.Uid = uint32(uid)
+	}
+	if gid != -1 {
+		ip.Gid = uint32(gid)
+	}
 	return nil
 }
 
@@ -625,6 +629,8 @@ func UtimesNano(path string, ts []Timespec) error {
 
 func Link(path, link string) error {
 	fsinit()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 	ip, _, err := fs.namei(path, false)
 	if err != nil {
 		return err
@@ -636,12 +642,18 @@ func Link(path, link string) error {
 	if ip.Mode&S_IFMT == S_IFDIR {
 		return EPERM
 	}
+	_, _, err = fs.dirlookup(dp, elem)
+	if err == nil {
+		return EEXIST
+	}
 	fs.dirlink(dp, elem, ip)
 	return nil
 }
 
 func Rename(from, to string) error {
 	fsinit()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 	fdp, felem, err := fs.namei(from, true)
 	if err != nil {
 		return err

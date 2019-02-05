@@ -8,7 +8,7 @@
 //
 // The algorithm is detailed in FIPS 180-4:
 //
-//  http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
 //
 // Wt = Mt; for 0 <= t <= 15
 // Wt = SIGMA1(Wt-2) + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 79
@@ -274,7 +274,7 @@ end:
 
 // Version below is based on "Fast SHA512 Implementations on Intel
 // Architecture Processors" White-paper
-// http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-sha512-implementations-ia-processors-paper.pdf
+// https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-sha512-implementations-ia-processors-paper.pdf
 // AVX2 version by Intel, same algorithm in Linux kernel:
 // https://github.com/torvalds/linux/blob/master/arch/x86/crypto/sha512-avx2-asm.S
 
@@ -340,8 +340,7 @@ TEXT ·blockAVX2(SB), NOSPLIT, $56-32
 	MOVQ (6*8)(SI), R10
 	MOVQ (7*8)(SI), R11
 
-	MOVQ    $PSHUFFLE_BYTE_FLIP_MASK<>(SB), R12
-	VMOVDQU (R12), Y9
+	VMOVDQU PSHUFFLE_BYTE_FLIP_MASK<>(SB), Y9
 
 loop0:
 	MOVQ ·_K+0(SB), BP
@@ -419,9 +418,7 @@ loop1:
 
 	VPERM2F128 $0x0, Y0, Y0, Y4
 
-	MOVQ $MASK_YMM_LO<>(SB), R13
-
-	VPAND (R13), Y0, Y0
+	VPAND MASK_YMM_LO<>(SB), Y0, Y0
 
 	VPERM2F128 $0x11, Y7, Y7, Y2
 	VPSRLQ     $6, Y2, Y8
@@ -620,8 +617,7 @@ loop1:
 
 	VPERM2F128 $0x0, Y0, Y0, Y5
 
-	MOVQ  $MASK_YMM_LO<>(SB), R13
-	VPAND (R13), Y0, Y0
+	VPAND MASK_YMM_LO<>(SB), Y0, Y0
 
 	VPERM2F128 $0x11, Y4, Y4, Y2
 	VPSRLQ     $6, Y2, Y8
@@ -820,8 +816,7 @@ loop1:
 
 	VPERM2F128 $0x0, Y0, Y0, Y6
 
-	MOVQ  $MASK_YMM_LO<>(SB), R13
-	VPAND (R13), Y0, Y0
+	VPAND MASK_YMM_LO<>(SB), Y0, Y0
 
 	VPERM2F128 $0x11, Y5, Y5, Y2
 	VPSRLQ     $6, Y2, Y8
@@ -1021,8 +1016,7 @@ loop1:
 
 	VPERM2F128 $0x0, Y0, Y0, Y7
 
-	MOVQ  $MASK_YMM_LO<>(SB), R13
-	VPAND (R13), Y0, Y0
+	VPAND MASK_YMM_LO<>(SB), Y0, Y0
 
 	VPERM2F128 $0x11, Y6, Y6, Y2
 	VPSRLQ     $6, Y2, Y8

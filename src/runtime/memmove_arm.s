@@ -58,6 +58,7 @@
 #define FW3	R4
 #define FR3	R8					/* shared with TE */
 
+// func memmove(to, from unsafe.Pointer, n uintptr)
 TEXT runtime·memmove(SB), NOSPLIT, $4-12
 _memmove:
 	MOVW	to+0(FP), TS
@@ -137,7 +138,7 @@ _f32loop:
 	CMP	TMP, TS
 	BHS	_f4tail
 
-	MOVM.IA.W (FROM), [R1-R8] 
+	MOVM.IA.W (FROM), [R1-R8]
 	MOVM.IA.W [R1-R8], (TS)
 	B	_f32loop
 

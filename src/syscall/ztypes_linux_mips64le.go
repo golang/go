@@ -130,15 +130,12 @@ type Statfs_t struct {
 	Spare   [5]int64
 }
 
-// Note: on mips64, we're using the getdents syscall,
-// so the Dirent struct is different.
-
 type Dirent struct {
 	Ino       uint64
 	Off       int64
 	Reclen    uint16
-	Name      [256]int8
 	Type      uint8
+	Name      [256]int8
 	Pad_cgo_0 [5]byte
 }
 
@@ -580,6 +577,7 @@ const (
 	_AT_FDCWD            = -0x64
 	_AT_REMOVEDIR        = 0x200
 	_AT_SYMLINK_NOFOLLOW = 0x100
+	_AT_EACCESS          = 0x200
 )
 
 type Termios struct {

@@ -9,7 +9,15 @@ import (
 	"unicode/utf8"
 )
 
+func init() {
+	UnescapeString("") // force load of entity maps
+}
+
 func TestEntityLength(t *testing.T) {
+	if len(entity) == 0 || len(entity2) == 0 {
+		t.Fatal("maps not loaded")
+	}
+
 	// We verify that the length of UTF-8 encoding of each value is <= 1 + len(key).
 	// The +1 comes from the leading "&". This property implies that the length of
 	// unescaped text is <= the length of escaped text.

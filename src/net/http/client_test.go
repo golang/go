@@ -977,6 +977,7 @@ func TestResponseSetsTLSConnectionState(t *testing.T) {
 	c := ts.Client()
 	tr := c.Transport.(*Transport)
 	tr.TLSClientConfig.CipherSuites = []uint16{tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA}
+	tr.TLSClientConfig.MaxVersion = tls.VersionTLS12 // to get to pick the cipher suite
 	tr.Dial = func(netw, addr string) (net.Conn, error) {
 		return net.Dial(netw, ts.Listener.Addr().String())
 	}
@@ -1160,6 +1161,40 @@ func TestBasicAuthHeadersPreserved(t *testing.T) {
 		t.Errorf("Invalid auth %q", auth)
 	}
 
+}
+
+func TestStripPasswordFromError(t *testing.T) {
+	client := &Client{Transport: &recordingTransport{}}
+	testCases := []struct {
+		desc string
+		in   string
+		out  string
+	}{
+		{
+			desc: "Strip password from error message",
+			in:   "http://user:password@dummy.faketld/",
+			out:  "Get http://user:***@dummy.faketld/: dummy impl",
+		},
+		{
+			desc: "Don't Strip password from domain name",
+			in:   "http://user:password@password.faketld/",
+			out:  "Get http://user:***@password.faketld/: dummy impl",
+		},
+		{
+			desc: "Don't Strip password from path",
+			in:   "http://user:password@dummy.faketld/password",
+			out:  "Get http://user:***@dummy.faketld/password: dummy impl",
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			_, err := client.Get(tC.in)
+			if err.Error() != tC.out {
+				t.Errorf("Unexpected output for %q: expected %q, actual %q",
+					tC.in, tC.out, err.Error())
+			}
+		})
+	}
 }
 
 func TestClientTimeout_h1(t *testing.T) { testClientTimeout(t, h1Mode) }
@@ -1426,7 +1461,7 @@ func TestClientRedirectResponseWithoutRequest(t *testing.T) {
 	c.Get("http://dummy.tld")
 }
 
-// Issue 4800: copy (some) headers when Client follows a redirect
+// Issue 4800: copy (some) headers when Client follows a redirect.
 func TestClientCopyHeadersOnRedirect(t *testing.T) {
 	const (
 		ua   = "some-agent/1.2"
@@ -1484,6 +1519,76 @@ func TestClientCopyHeadersOnRedirect(t *testing.T) {
 	}
 	if got := res.Header.Get("Result"); got != "ok" {
 		t.Errorf("result = %q; want ok", got)
+	}
+}
+
+// Issue 22233: copy host when Client follows a relative redirect.
+func TestClientCopyHostOnRedirect(t *testing.T) {
+	// Virtual hostname: should not receive any request.
+	virtual := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		t.Errorf("Virtual host received request %v", r.URL)
+		w.WriteHeader(403)
+		io.WriteString(w, "should not see this response")
+	}))
+	defer virtual.Close()
+	virtualHost := strings.TrimPrefix(virtual.URL, "http://")
+	t.Logf("Virtual host is %v", virtualHost)
+
+	// Actual hostname: should not receive any request.
+	const wantBody = "response body"
+	var tsURL string
+	var tsHost string
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		switch r.URL.Path {
+		case "/":
+			// Relative redirect.
+			if r.Host != virtualHost {
+				t.Errorf("Serving /: Request.Host = %#v; want %#v", r.Host, virtualHost)
+				w.WriteHeader(404)
+				return
+			}
+			w.Header().Set("Location", "/hop")
+			w.WriteHeader(302)
+		case "/hop":
+			// Absolute redirect.
+			if r.Host != virtualHost {
+				t.Errorf("Serving /hop: Request.Host = %#v; want %#v", r.Host, virtualHost)
+				w.WriteHeader(404)
+				return
+			}
+			w.Header().Set("Location", tsURL+"/final")
+			w.WriteHeader(302)
+		case "/final":
+			if r.Host != tsHost {
+				t.Errorf("Serving /final: Request.Host = %#v; want %#v", r.Host, tsHost)
+				w.WriteHeader(404)
+				return
+			}
+			w.WriteHeader(200)
+			io.WriteString(w, wantBody)
+		default:
+			t.Errorf("Serving unexpected path %q", r.URL.Path)
+			w.WriteHeader(404)
+		}
+	}))
+	defer ts.Close()
+	tsURL = ts.URL
+	tsHost = strings.TrimPrefix(ts.URL, "http://")
+	t.Logf("Server host is %v", tsHost)
+
+	c := ts.Client()
+	req, _ := NewRequest("GET", ts.URL, nil)
+	req.Host = virtualHost
+	resp, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatal(resp.Status)
+	}
+	if got, err := ioutil.ReadAll(resp.Body); err != nil || string(got) != wantBody {
+		t.Errorf("body = %q; want %q", got, wantBody)
 	}
 }
 
@@ -1599,8 +1704,12 @@ func TestShouldCopyHeaderOnRedirect(t *testing.T) {
 		{"www-authenticate", "http://foo.com/", "http://foo.com/", true},
 		{"www-authenticate", "http://foo.com/", "http://sub.foo.com/", true},
 		{"www-authenticate", "http://foo.com/", "http://notfoo.com/", false},
-		// TODO(bradfitz): make this test work, once issue 16142 is fixed:
-		// {"www-authenticate", "http://foo.com:80/", "http://foo.com/", true},
+		{"www-authenticate", "http://foo.com/", "https://foo.com/", false},
+		{"www-authenticate", "http://foo.com:80/", "http://foo.com/", true},
+		{"www-authenticate", "http://foo.com:80/", "http://sub.foo.com/", true},
+		{"www-authenticate", "http://foo.com:443/", "https://foo.com/", true},
+		{"www-authenticate", "http://foo.com:443/", "https://sub.foo.com/", true},
+		{"www-authenticate", "http://foo.com:1234/", "http://foo.com/", false},
 	}
 	for i, tt := range tests {
 		u0, err := url.Parse(tt.initialURL)
@@ -1727,8 +1836,8 @@ func (b issue18239Body) Close() error {
 	return nil
 }
 
-// Issue 18239: make sure the Transport doesn't retry requests with bodies.
-// (Especially if Request.GetBody is not defined.)
+// Issue 18239: make sure the Transport doesn't retry requests with bodies
+// if Request.GetBody is not defined.
 func TestTransportBodyReadError(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
@@ -1778,5 +1887,29 @@ func TestTransportBodyReadError(t *testing.T) {
 	}
 	if closeCalls != 1 {
 		t.Errorf("close calls = %d; want 1", closeCalls)
+	}
+}
+
+type roundTripperWithoutCloseIdle struct{}
+
+func (roundTripperWithoutCloseIdle) RoundTrip(*Request) (*Response, error) { panic("unused") }
+
+type roundTripperWithCloseIdle func() // underlying func is CloseIdleConnections func
+
+func (roundTripperWithCloseIdle) RoundTrip(*Request) (*Response, error) { panic("unused") }
+func (f roundTripperWithCloseIdle) CloseIdleConnections()               { f() }
+
+func TestClientCloseIdleConnections(t *testing.T) {
+	c := &Client{Transport: roundTripperWithoutCloseIdle{}}
+	c.CloseIdleConnections() // verify we don't crash at least
+
+	closed := false
+	var tr RoundTripper = roundTripperWithCloseIdle(func() {
+		closed = true
+	})
+	c = &Client{Transport: tr}
+	c.CloseIdleConnections()
+	if !closed {
+		t.Error("not closed")
 	}
 }

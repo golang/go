@@ -45,8 +45,12 @@
 		%q	a double-quoted string safely escaped with Go syntax
 		%x	base 16, lower-case, two characters per byte
 		%X	base 16, upper-case, two characters per byte
+	Slice:
+		%p	address of 0th element in base 16 notation, with leading 0x
 	Pointer:
 		%p	base 16 notation, with leading 0x
+		The %b, %d, %o, %x and %X verbs also work with pointers,
+		formatting the value exactly as if it were an integer.
 
 	The default format for %v is:
 		bool:                    %t
@@ -60,7 +64,7 @@
 	laid out like this:
 		struct:             {field0 field1 ...}
 		array, slice:       [elem0 elem1 ...]
-		maps:               map[key1:value1 key2:value2]
+		maps:               map[key1:value1 key2:value2 ...]
 		pointer to above:   &{}, &[], &map[]
 
 	Width is specified by an optional decimal number immediately preceding the verb.
@@ -79,7 +83,8 @@
 	that is, runes. (This differs from C's printf where the
 	units are always measured in bytes.) Either or both of the flags
 	may be replaced with the character '*', causing their values to be
-	obtained from the next operand, which must be of type int.
+	obtained from the next operand (preceding the one to format),
+	which must be of type int.
 
 	For most values, width is the minimum number of runes to output,
 	padding the formatted form with spaces if necessary.
@@ -92,10 +97,11 @@
 
 	For floating-point values, width sets the minimum width of the field and
 	precision sets the number of places after the decimal, if appropriate,
-	except that for %g/%G precision sets the total number of significant
-	digits. For example, given 12.345 the format %6.3f prints 12.345 while
-	%.3g prints 12.3. The default precision for %e, %f and %#g is 6; for %g it
-	is the smallest number of digits necessary to identify the value uniquely.
+	except that for %g/%G precision sets the maximum number of significant
+	digits (trailing zeros are removed). For example, given 12.345 the format
+	%6.3f prints 12.345 while %.3g prints 12.3. The default precision for %e, %f
+	and %#g is 6; for %g it is the smallest number of digits necessary to identify
+	the value uniquely.
 
 	For complex numbers, the width and precision apply to the two
 	components independently and the result is parenthesized, so %f applied
@@ -192,9 +198,9 @@
 	For example,
 		fmt.Sprintf("%[2]d %[1]d\n", 11, 22)
 	will yield "22 11", while
-		fmt.Sprintf("%[3]*.[2]*[1]f", 12.0, 2, 6),
+		fmt.Sprintf("%[3]*.[2]*[1]f", 12.0, 2, 6)
 	equivalent to
-		fmt.Sprintf("%6.2f", 12.0),
+		fmt.Sprintf("%6.2f", 12.0)
 	will yield " 12.00". Because an explicit index affects subsequent verbs,
 	this notation can be used to print the same values multiple times
 	by resetting the index for the first argument to be repeated:
@@ -276,9 +282,11 @@
 	The verbs behave analogously to those of Printf.
 	For example, %x will scan an integer as a hexadecimal number,
 	and %v will scan the default representation format for the value.
-	The Printf verbs %p and %T and the flags # and + are not implemented,
-	and the verbs %e %E %f %F %g and %G are all equivalent and scan any
-	floating-point or complex value.
+	The Printf verbs %p and %T and the flags # and + are not implemented.
+	The verbs %e %E %f %F %g and %G are all equivalent and scan any
+	floating-point or complex value. For float and complex literals in
+	scientific notation, both the decimal (e) and binary (p) exponent
+	formats are supported (for example: "2.3e+7" and "4.5p-8").
 
 	Input processed by verbs is implicitly space-delimited: the
 	implementation of every verb except %c starts by discarding

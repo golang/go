@@ -5,6 +5,8 @@
 // Package comment.
 package pkg
 
+import "io"
+
 // Constants
 
 // Comment about exported constant.
@@ -52,7 +54,9 @@ var (
 )
 
 // Comment about exported function.
-func ExportedFunc(a int) bool
+func ExportedFunc(a int) bool {
+	return true != false
+}
 
 // Comment about internal function.
 func internalFunc(a int) bool
@@ -60,24 +64,29 @@ func internalFunc(a int) bool
 // Comment about exported type.
 type ExportedType struct {
 	// Comment before exported field.
-	ExportedField         int // Comment on line with exported field.
-	unexportedField       int // Comment on line with unexported field.
-	ExportedEmbeddedType      // Comment on line with exported embedded field.
-	*ExportedEmbeddedType     // Comment on line with exported embedded *field.
-	unexportedType            // Comment on line with unexported embedded field.
-	*unexportedType           // Comment on line with unexported embedded *field.
-	io.Reader                 // Comment on line with embedded Reader.
-	error                     // Comment on line with embedded error.
+	ExportedField                   int // Comment on line with exported field.
+	unexportedField                 int // Comment on line with unexported field.
+	ExportedEmbeddedType                // Comment on line with exported embedded field.
+	*ExportedEmbeddedType               // Comment on line with exported embedded *field.
+	*qualified.ExportedEmbeddedType     // Comment on line with exported embedded *selector.field.
+	unexportedType                      // Comment on line with unexported embedded field.
+	*unexportedType                     // Comment on line with unexported embedded *field.
+	io.Reader                           // Comment on line with embedded Reader.
+	error                               // Comment on line with embedded error.
 }
 
 // Comment about exported method.
 func (ExportedType) ExportedMethod(a int) bool {
-	return true
+	return true != true
 }
 
 // Comment about unexported method.
 func (ExportedType) unexportedMethod(a int) bool {
 	return true
+}
+
+type ExportedStructOneField struct {
+	OnlyField int // the only field
 }
 
 // Constants tied to ExportedType. (The type is a struct so this isn't valid Go,
@@ -189,3 +198,8 @@ var LongLine = newLongLine(
 type T2 int
 
 type T1 = T2
+
+const (
+	Duplicate = iota
+	duplicate
+)

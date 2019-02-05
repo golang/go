@@ -149,6 +149,32 @@ const (
 	REGSP   = REG_R15 // stack pointer
 )
 
+// LINUX for zSeries ELF Application Binary Interface Supplement
+// https://refspecs.linuxfoundation.org/ELF/zSeries/lzsabi0_zSeries/x1472.html
+var S390XDWARFRegisters = map[int16]int16{}
+
+func init() {
+	// f assigns dwarfregisters[from:to by step] = (base):((to-from)/step+base)
+	f := func(from, step, to, base int16) {
+		for r := int16(from); r <= to; r += step {
+			S390XDWARFRegisters[r] = (r-from)/step + base
+		}
+	}
+	f(REG_R0, 1, REG_R15, 0)
+
+	f(REG_F0, 2, REG_F6, 16)
+	f(REG_F1, 2, REG_F7, 20)
+	f(REG_F8, 2, REG_F14, 24)
+	f(REG_F9, 2, REG_F15, 28)
+
+	f(REG_V0, 2, REG_V6, 16) // V0:15 aliased to F0:15
+	f(REG_V1, 2, REG_V7, 20) // TODO what about V16:31?
+	f(REG_V8, 2, REG_V14, 24)
+	f(REG_V9, 2, REG_V15, 28)
+
+	f(REG_AR0, 1, REG_AR15, 48)
+}
+
 const (
 	BIG    = 32768 - 8
 	DISP12 = 4096
@@ -245,6 +271,9 @@ const (
 	// find leftmost one
 	AFLOGR
 
+	// population count
+	APOPCNT
+
 	// integer bitwise
 	AAND
 	AANDW
@@ -283,12 +312,19 @@ const (
 	AFNEGS
 	ALEDBR
 	ALDEBR
+	ALPDFR
+	ALNDFR
 	AFSUB
 	AFSUBS
 	AFSQRT
 	AFSQRTS
 	AFIEBR
 	AFIDBR
+	ACPSDR
+	ALTEBR
+	ALTDBR
+	ATCEB
+	ATCDB
 
 	// move from GPR to FPR and vice versa
 	ALDGR
@@ -323,6 +359,12 @@ const (
 	ACMPU
 	ACMPW
 	ACMPWU
+
+	// test under mask
+	ATMHH
+	ATMHL
+	ATMLH
+	ATMLL
 
 	// compare and swap
 	ACS
@@ -902,6 +944,10 @@ const (
 	AVUPLB
 	AVUPLHW
 	AVUPLF
+	AVMSLG
+	AVMSLEG
+	AVMSLOG
+	AVMSLEOG
 
 	// binary
 	ABYTE

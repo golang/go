@@ -13,7 +13,7 @@ TEXT _rt0_mips64_linux(SB),NOSPLIT,$0
 TEXT _rt0_mips64le_linux(SB),NOSPLIT,$0
 	JMP	_main<>(SB)
 
-TEXT _main<>(SB),NOSPLIT,$-8
+TEXT _main<>(SB),NOSPLIT|NOFRAME,$0
 	// In a statically linked binary, the stack contains argc,
 	// argv as argc string pointers followed by a NULL, envv as a
 	// sequence of string pointers followed by a NULL, and auxv.
@@ -26,7 +26,7 @@ TEXT _main<>(SB),NOSPLIT,$-8
 	ADDV	$8, R29, R5 // argv
 	JMP	main(SB)
 
-TEXT main(SB),NOSPLIT,$-8
+TEXT main(SB),NOSPLIT|NOFRAME,$0
 	// in external linking, glibc jumps to main with argc in R4
 	// and argv in R5
 

@@ -112,10 +112,6 @@ func (t *_type) uncommon() *uncommontype {
 	}
 }
 
-func hasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
-}
-
 func (t *_type) name() string {
 	if t.tflag&tflagNamed == 0 {
 		return ""
@@ -129,6 +125,25 @@ func (t *_type) name() string {
 		i--
 	}
 	return s[i+1:]
+}
+
+// pkgpath returns the path of the package where t was defined, if
+// available. This is not the same as the reflect package's PkgPath
+// method, in that it returns the package path for struct and interface
+// types, not just named types.
+func (t *_type) pkgpath() string {
+	if u := t.uncommon(); u != nil {
+		return t.nameOff(u.pkgpath).name()
+	}
+	switch t.kind & kindMask {
+	case kindStruct:
+		st := (*structtype)(unsafe.Pointer(t))
+		return st.pkgPath.name()
+	case kindInterface:
+		it := (*interfacetype)(unsafe.Pointer(t))
+		return it.pkgpath.name()
+	}
+	return ""
 }
 
 // reflectOffs holds type offsets defined at run time by the reflect package.
@@ -285,7 +300,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
 		res = md.text + uintptr(off)
 	}
 
-	if res > md.etext {
+	if res > md.etext && GOARCH != "wasm" { // on wasm, functions do not live in the same address space as the linear memory
 		println("runtime: textOff", hex(off), "out of range", hex(md.text), "-", hex(md.etext))
 		throw("runtime: text offset out of range")
 	}
@@ -329,7 +344,7 @@ type method struct {
 type uncommontype struct {
 	pkgpath nameOff
 	mcount  uint16 // number of methods
-	_       uint16 // unused
+	xcount  uint16 // number of exported methods
 	moff    uint32 // offset from this uncommontype to [mcount]method
 	_       uint32 // unused
 }
@@ -346,18 +361,32 @@ type interfacetype struct {
 }
 
 type maptype struct {
-	typ           _type
-	key           *_type
-	elem          *_type
-	bucket        *_type // internal type representing a hash bucket
-	hmap          *_type // internal type representing a hmap
-	keysize       uint8  // size of key slot
-	indirectkey   bool   // store ptr to key instead of key itself
-	valuesize     uint8  // size of value slot
-	indirectvalue bool   // store ptr to value instead of value itself
-	bucketsize    uint16 // size of bucket
-	reflexivekey  bool   // true if k==k for all keys
-	needkeyupdate bool   // true if we need to update key on an overwrite
+	typ        _type
+	key        *_type
+	elem       *_type
+	bucket     *_type // internal type representing a hash bucket
+	keysize    uint8  // size of key slot
+	valuesize  uint8  // size of value slot
+	bucketsize uint16 // size of bucket
+	flags      uint32
+}
+
+// Note: flag values must match those used in the TMAP case
+// in ../cmd/compile/internal/gc/reflect.go:dtypesym.
+func (mt *maptype) indirectkey() bool { // store ptr to key instead of key itself
+	return mt.flags&1 != 0
+}
+func (mt *maptype) indirectvalue() bool { // store ptr to value instead of value itself
+	return mt.flags&2 != 0
+}
+func (mt *maptype) reflexivekey() bool { // true if k==k for all keys
+	return mt.flags&4 != 0
+}
+func (mt *maptype) needkeyupdate() bool { // true if we need to update key on an overwrite
+	return mt.flags&8 != 0
+}
+func (mt *maptype) hashMightPanic() bool { // true if hash function might panic
+	return mt.flags&16 != 0
 }
 
 type arraytype struct {
@@ -655,13 +684,13 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 		if len(st.fields) != len(sv.fields) {
 			return false
 		}
+		if st.pkgPath.name() != sv.pkgPath.name() {
+			return false
+		}
 		for i := range st.fields {
 			tf := &st.fields[i]
 			vf := &sv.fields[i]
 			if tf.name.name() != vf.name.name() {
-				return false
-			}
-			if tf.name.pkgPath() != vf.name.pkgPath() {
 				return false
 			}
 			if !typesEqual(tf.typ, vf.typ, seen) {

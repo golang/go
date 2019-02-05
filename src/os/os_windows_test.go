@@ -5,9 +5,11 @@
 package os_test
 
 import (
+	"errors"
 	"fmt"
 	"internal/poll"
 	"internal/syscall/windows"
+	"internal/syscall/windows/registry"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -23,6 +25,9 @@ import (
 	"unicode/utf16"
 	"unsafe"
 )
+
+// For TestRawConnReadWrite.
+type syscallDescriptor = syscall.Handle
 
 func TestSameWindowsFile(t *testing.T) {
 	temp, err := ioutil.TempDir("", "TestSameWindowsFile")
@@ -190,7 +195,7 @@ func (rd *reparseData) addUTF16s(s []uint16) (offset uint16) {
 
 func (rd *reparseData) addString(s string) (offset, length uint16) {
 	p := syscall.StringToUTF16(s)
-	return rd.addUTF16s(p), uint16(len(p)-1) * 2 // do not include terminating NUL in the legth (as per PrintNameLength and SubstituteNameLength documentation)
+	return rd.addUTF16s(p), uint16(len(p)-1) * 2 // do not include terminating NUL in the length (as per PrintNameLength and SubstituteNameLength documentation)
 }
 
 func (rd *reparseData) addSubstituteName(name string) {
@@ -520,9 +525,16 @@ func TestNetworkSymbolicLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if got != target {
 		t.Errorf(`os.Readlink("%s"): got %v, want %v`, link, got, target)
+	}
+
+	got, err = filepath.EvalSymlinks(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != target {
+		t.Errorf(`filepath.EvalSymlinks("%s"): got %v, want %v`, link, got, target)
 	}
 }
 
@@ -811,7 +823,7 @@ func main() {
 	}
 
 	exe := filepath.Join(tmpdir, "main.exe")
-	cmd := osexec.Command("go", "build", "-o", exe, src)
+	cmd := osexec.Command(testenv.GoToolPath(t), "build", "-o", exe, src)
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -884,5 +896,157 @@ func main() {
 			t.Errorf("wrong output of executing %q: have %q want %q", args, have, want)
 			continue
 		}
+	}
+}
+
+func findOneDriveDir() (string, error) {
+	// as per https://stackoverflow.com/questions/42519624/how-to-determine-location-of-onedrive-on-windows-7-and-8-in-c
+	const onedrivekey = `SOFTWARE\Microsoft\OneDrive`
+	k, err := registry.OpenKey(registry.CURRENT_USER, onedrivekey, registry.READ)
+	if err != nil {
+		return "", fmt.Errorf("OpenKey(%q) failed: %v", onedrivekey, err)
+	}
+	defer k.Close()
+
+	path, _, err := k.GetStringValue("UserFolder")
+	if err != nil {
+		return "", fmt.Errorf("reading UserFolder failed: %v", err)
+	}
+	return path, nil
+}
+
+// TestOneDrive verifies that OneDrive folder is a directory and not a symlink.
+func TestOneDrive(t *testing.T) {
+	dir, err := findOneDriveDir()
+	if err != nil {
+		t.Skipf("Skipping, because we did not find OneDrive directory: %v", err)
+	}
+	testDirStats(t, dir)
+}
+
+func TestWindowsDevNullFile(t *testing.T) {
+	testDevNullFile(t, "NUL", true)
+	testDevNullFile(t, "nul", true)
+	testDevNullFile(t, "Nul", true)
+
+	f1, err := os.Open("NUL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f1.Close()
+
+	fi1, err := f1.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f2, err := os.Open("nul")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f2.Close()
+
+	fi2, err := f2.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !os.SameFile(fi1, fi2) {
+		t.Errorf(`"NUL" and "nul" are not the same file`)
+	}
+}
+
+// TestSymlinkCreation verifies that creating a symbolic link
+// works on Windows when developer mode is active.
+// This is supported starting Windows 10 (1703, v10.0.14972).
+func TestSymlinkCreation(t *testing.T) {
+	if !isWindowsDeveloperModeActive() {
+		t.Skip("Windows developer mode is not active")
+	}
+
+	temp, err := ioutil.TempDir("", "TestSymlinkCreation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(temp)
+
+	dummyFile := filepath.Join(temp, "file")
+	err = ioutil.WriteFile(dummyFile, []byte(""), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	linkFile := filepath.Join(temp, "link")
+	err = os.Symlink(dummyFile, linkFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// isWindowsDeveloperModeActive checks whether or not the developer mode is active on Windows 10.
+// Returns false for prior Windows versions.
+// see https://docs.microsoft.com/en-us/windows/uwp/get-started/enable-your-device-for-development
+func isWindowsDeveloperModeActive() bool {
+	key, err := registry.OpenKey(registry.LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", registry.READ)
+	if err != nil {
+		return false
+	}
+
+	val, _, err := key.GetIntegerValue("AllowDevelopmentWithoutDevLicense")
+	if err != nil {
+		return false
+	}
+
+	return val != 0
+}
+
+// TestStatOfInvalidName is regression test for issue #24999.
+func TestStatOfInvalidName(t *testing.T) {
+	_, err := os.Stat("*.go")
+	if err == nil {
+		t.Fatal(`os.Stat("*.go") unexpectedly succeeded`)
+	}
+}
+
+// findUnusedDriveLetter searches mounted drive list on the system
+// (starting from Z: and ending at D:) for unused drive letter.
+// It returns path to the found drive root directory (like Z:\) or error.
+func findUnusedDriveLetter() (string, error) {
+	// Do not use A: and B:, because they are reserved for floppy drive.
+	// Do not use C:, becasue it is normally used for main drive.
+	for l := 'Z'; l >= 'D'; l-- {
+		p := string(l) + `:\`
+		_, err := os.Stat(p)
+		if os.IsNotExist(err) {
+			return p, nil
+		}
+	}
+	return "", errors.New("Could not find unused drive letter.")
+}
+
+func TestRootDirAsTemp(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		fmt.Print(os.TempDir())
+		os.Exit(0)
+	}
+
+	newtmp, err := findUnusedDriveLetter()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := osexec.Command(os.Args[0], "-test.run=TestRootDirAsTemp")
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	cmd.Env = append(cmd.Env, "TMP="+newtmp)
+	cmd.Env = append(cmd.Env, "TEMP="+newtmp)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to spawn child process: %v %q", err, string(output))
+	}
+	if want, have := newtmp, string(output); have != want {
+		t.Fatalf("unexpected child process output %q, want %q", have, want)
 	}
 }

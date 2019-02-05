@@ -13,9 +13,14 @@ package json
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
+	"reflect"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -109,6 +114,34 @@ func BenchmarkCodeMarshal(b *testing.B) {
 	b.SetBytes(int64(len(codeJSON)))
 }
 
+func benchMarshalBytes(n int) func(*testing.B) {
+	sample := []byte("hello world")
+	// Use a struct pointer, to avoid an allocation when passing it as an
+	// interface parameter to Marshal.
+	v := &struct {
+		Bytes []byte
+	}{
+		bytes.Repeat(sample, (n/len(sample))+1)[:n],
+	}
+	return func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if _, err := Marshal(v); err != nil {
+				b.Fatal("Marshal:", err)
+			}
+		}
+	}
+}
+
+func BenchmarkMarshalBytes(b *testing.B) {
+	// 32 fits within encodeState.scratch.
+	b.Run("32", benchMarshalBytes(32))
+	// 256 doesn't fit in encodeState.scratch, but is small enough to
+	// allocate and avoid the slower base64.NewEncoder.
+	b.Run("256", benchMarshalBytes(256))
+	// 4096 is large enough that we want to avoid allocating for it.
+	b.Run("4096", benchMarshalBytes(4096))
+}
+
 func BenchmarkCodeDecoder(b *testing.B) {
 	if codeJSON == nil {
 		b.StopTimer()
@@ -131,6 +164,21 @@ func BenchmarkCodeDecoder(b *testing.B) {
 		}
 	})
 	b.SetBytes(int64(len(codeJSON)))
+}
+
+func BenchmarkUnicodeDecoder(b *testing.B) {
+	j := []byte(`"\uD83D\uDE01"`)
+	b.SetBytes(int64(len(j)))
+	r := bytes.NewReader(j)
+	dec := NewDecoder(r)
+	var out string
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := dec.Decode(&out); err != nil {
+			b.Fatal("Decode:", err)
+		}
+		r.Seek(0, 0)
+	}
 }
 
 func BenchmarkDecoderStream(b *testing.B) {
@@ -249,4 +297,67 @@ func BenchmarkUnmapped(b *testing.B) {
 			}
 		}
 	})
+}
+
+func BenchmarkTypeFieldsCache(b *testing.B) {
+	var maxTypes int = 1e6
+	if testenv.Builder() != "" {
+		maxTypes = 1e3 // restrict cache sizes on builders
+	}
+
+	// Dynamically generate many new types.
+	types := make([]reflect.Type, maxTypes)
+	fs := []reflect.StructField{{
+		Type:  reflect.TypeOf(""),
+		Index: []int{0},
+	}}
+	for i := range types {
+		fs[0].Name = fmt.Sprintf("TypeFieldsCache%d", i)
+		types[i] = reflect.StructOf(fs)
+	}
+
+	// clearClear clears the cache. Other JSON operations, must not be running.
+	clearCache := func() {
+		fieldCache = sync.Map{}
+	}
+
+	// MissTypes tests the performance of repeated cache misses.
+	// This measures the time to rebuild a cache of size nt.
+	for nt := 1; nt <= maxTypes; nt *= 10 {
+		ts := types[:nt]
+		b.Run(fmt.Sprintf("MissTypes%d", nt), func(b *testing.B) {
+			nc := runtime.GOMAXPROCS(0)
+			for i := 0; i < b.N; i++ {
+				clearCache()
+				var wg sync.WaitGroup
+				for j := 0; j < nc; j++ {
+					wg.Add(1)
+					go func(j int) {
+						for _, t := range ts[(j*len(ts))/nc : ((j+1)*len(ts))/nc] {
+							cachedTypeFields(t)
+						}
+						wg.Done()
+					}(j)
+				}
+				wg.Wait()
+			}
+		})
+	}
+
+	// HitTypes tests the performance of repeated cache hits.
+	// This measures the average time of each cache lookup.
+	for nt := 1; nt <= maxTypes; nt *= 10 {
+		// Pre-warm a cache of size nt.
+		clearCache()
+		for _, t := range types[:nt] {
+			cachedTypeFields(t)
+		}
+		b.Run(fmt.Sprintf("HitTypes%d", nt), func(b *testing.B) {
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					cachedTypeFields(types[0])
+				}
+			})
+		})
+	}
 }

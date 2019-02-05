@@ -46,19 +46,10 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 		if name == "." || name == ".." { // Useless names
 			continue
 		}
-		f := &fileStat{
-			name: name,
-			sys: syscall.Win32FileAttributeData{
-				FileAttributes: d.FileAttributes,
-				CreationTime:   d.CreationTime,
-				LastAccessTime: d.LastAccessTime,
-				LastWriteTime:  d.LastWriteTime,
-				FileSizeHigh:   d.FileSizeHigh,
-				FileSizeLow:    d.FileSizeLow,
-			},
-			path:             file.dirinfo.path,
-			appendNameToPath: true,
-		}
+		f := newFileStatFromWin32finddata(d)
+		f.name = name
+		f.path = file.dirinfo.path
+		f.appendNameToPath = true
 		n--
 		fi = append(fi, f)
 	}

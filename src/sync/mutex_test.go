@@ -155,7 +155,10 @@ func init() {
 	if len(os.Args) == 3 && os.Args[1] == "TESTMISUSE" {
 		for _, test := range misuseTests {
 			if test.name == os.Args[2] {
-				test.f()
+				func() {
+					defer func() { recover() }()
+					test.f()
+				}()
 				fmt.Printf("test completed\n")
 				os.Exit(0)
 			}

@@ -105,7 +105,7 @@ The simplest is `mutex`, which is manipulated using `lock` and
 periods. Blocking on a `mutex` directly blocks the M, without
 interacting with the Go scheduler. This means it is safe to use from
 the lowest levels of the runtime, but also prevents any associated G
-and P from being rescheduled.
+and P from being rescheduled. `rwmutex` is similar.
 
 For one-shot notifications, use `note`, which provides `notesleep` and
 `notewakeup`. Unlike traditional UNIX `sleep`/`wakeup`, `note`s are
@@ -130,10 +130,51 @@ In summary,
 <table>
 <tr><th></th><th colspan="3">Blocks</th></tr>
 <tr><th>Interface</th><th>G</th><th>M</th><th>P</th></tr>
-<tr><td>mutex</td><td>Y</td><td>Y</td><td>Y</td></tr>
+<tr><td>(rw)mutex</td><td>Y</td><td>Y</td><td>Y</td></tr>
 <tr><td>note</td><td>Y</td><td>Y</td><td>Y/N</td></tr>
 <tr><td>park</td><td>Y</td><td>N</td><td>N</td></tr>
 </table>
+
+Atomics
+=======
+
+The runtime uses its own atomics package at `runtime/internal/atomic`.
+This corresponds to `sync/atomic`, but functions have different names
+for historical reasons and there are a few additional functions needed
+by the runtime.
+
+In general, we think hard about the uses of atomics in the runtime and
+try to avoid unnecessary atomic operations. If access to a variable is
+sometimes protected by another synchronization mechanism, the
+already-protected accesses generally don't need to be atomic. There
+are several reasons for this:
+
+1. Using non-atomic or atomic access where appropriate makes the code
+   more self-documenting. Atomic access to a variable implies there's
+   somewhere else that may concurrently access the variable.
+
+2. Non-atomic access allows for automatic race detection. The runtime
+   doesn't currently have a race detector, but it may in the future.
+   Atomic access defeats the race detector, while non-atomic access
+   allows the race detector to check your assumptions.
+
+3. Non-atomic access may improve performance.
+
+Of course, any non-atomic access to a shared variable should be
+documented to explain how that access is protected.
+
+Some common patterns that mix atomic and non-atomic access are:
+
+* Read-mostly variables where updates are protected by a lock. Within
+  the locked region, reads do not need to be atomic, but the write
+  does. Outside the locked region, reads need to be atomic.
+
+* Reads that only happen during STW, where no writes can happen during
+  STW, do not need to be atomic.
+
+That said, the advice from the Go memory model stands: "Don't be
+[too] clever." The performance of the runtime matters, but its
+robustness matters more.
 
 Unmanaged memory
 ================
@@ -164,8 +205,10 @@ marked `//go:notinheap` (see below).
 Objects that are allocated in unmanaged memory **must not** contain
 heap pointers unless the following rules are also obeyed:
 
-1. Any pointers from unmanaged memory to the heap must be added as
-   explicit garbage collection roots in `runtime.markroot`.
+1. Any pointers from unmanaged memory to the heap must be garbage
+   collection roots. More specifically, any pointer must either be
+   accessible through a global variable or be added as an explicit
+   garbage collection root in `runtime.markroot`.
 
 2. If the memory is reused, the heap pointers must be zero-initialized
    before they become visible as GC roots. Otherwise, the GC may

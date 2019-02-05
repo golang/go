@@ -198,6 +198,29 @@ func (b *Block) swapSuccessors() {
 	b.Likely *= -1
 }
 
+// LackingPos indicates whether b is a block whose position should be inherited
+// from its successors.  This is true if all the values within it have unreliable positions
+// and if it is "plain", meaning that there is no control flow that is also very likely
+// to correspond to a well-understood source position.
+func (b *Block) LackingPos() bool {
+	// Non-plain predecessors are If or Defer, which both (1) have two successors,
+	// which might have different line numbers and (2) correspond to statements
+	// in the source code that have positions, so this case ought not occur anyway.
+	if b.Kind != BlockPlain {
+		return false
+	}
+	if b.Pos != src.NoXPos {
+		return false
+	}
+	for _, v := range b.Values {
+		if v.LackingPos() {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 func (b *Block) Logf(msg string, args ...interface{})   { b.Func.Logf(msg, args...) }
 func (b *Block) Log() bool                              { return b.Func.Log() }
 func (b *Block) Fatalf(msg string, args ...interface{}) { b.Func.Fatalf(msg, args...) }
