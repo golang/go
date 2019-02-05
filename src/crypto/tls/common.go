@@ -16,6 +16,7 @@ import (
 	"io"
 	"math/big"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -775,9 +776,51 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 		if isClient && v < VersionTLS10 {
 			continue
 		}
+		// TLS 1.3 is opt-in in Go 1.12.
+		if v == VersionTLS13 && !isTLS13Supported() {
+			continue
+		}
 		versions = append(versions, v)
 	}
 	return versions
+}
+
+// tls13Support caches the result for isTLS13Supported.
+var tls13Support struct {
+	sync.Once
+	cached bool
+}
+
+// isTLS13Supported returns whether the program opted into TLS 1.3 via
+// GODEBUG=tls13=1. It's cached after the first execution.
+func isTLS13Supported() bool {
+	tls13Support.Do(func() {
+		tls13Support.cached = goDebugString("tls13") == "1"
+	})
+	return tls13Support.cached
+}
+
+// goDebugString returns the value of the named GODEBUG key.
+// GODEBUG is of the form "key=val,key2=val2".
+func goDebugString(key string) string {
+	s := os.Getenv("GODEBUG")
+	for i := 0; i < len(s)-len(key)-1; i++ {
+		if i > 0 && s[i-1] != ',' {
+			continue
+		}
+		afterKey := s[i+len(key):]
+		if afterKey[0] != '=' || s[i:i+len(key)] != key {
+			continue
+		}
+		val := afterKey[1:]
+		for i, b := range val {
+			if b == ',' {
+				return val[:i]
+			}
+		}
+		return val
+	}
+	return ""
 }
 
 func (c *Config) maxSupportedVersion(isClient bool) uint16 {
