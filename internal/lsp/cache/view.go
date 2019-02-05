@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"go/token"
+	"log"
 	"sync"
 
 	"golang.org/x/tools/go/packages"
@@ -112,7 +113,15 @@ func (v *View) parse(uri source.URI) error {
 		// Add every file in this package to our cache.
 		for _, fAST := range pkg.Syntax {
 			// TODO: If a file is in multiple packages, which package do we store?
+			if !fAST.Pos().IsValid() {
+				log.Printf("invalid position for AST %v", fAST.Name)
+				continue
+			}
 			fToken := v.Config.Fset.File(fAST.Pos())
+			if fToken == nil {
+				log.Printf("no token.File for %v", fAST.Name)
+				continue
+			}
 			fURI := source.ToURI(fToken.Name())
 			f := v.getFile(fURI)
 			f.token = fToken
