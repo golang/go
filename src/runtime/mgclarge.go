@@ -6,24 +6,28 @@
 //
 // See malloc.go for the general overview.
 //
-// Large spans are the subject of this file. Spans consisting of less than
-// _MaxMHeapLists are held in lists of like sized spans. Larger spans
-// are held in a treap. See https://en.wikipedia.org/wiki/Treap or
+// Allocation policy is the subject of this file. All free spans live in
+// a treap for most of their time being free. See
+// https://en.wikipedia.org/wiki/Treap or
 // https://faculty.washington.edu/aragon/pubs/rst89.pdf for an overview.
 // sema.go also holds an implementation of a treap.
 //
-// Each treapNode holds a single span. The treap is sorted by page size
-// and for spans of the same size a secondary sort based on start address
-// is done.
-// Spans are returned based on a best fit algorithm and for spans of the same
-// size the one at the lowest address is selected.
+// Each treapNode holds a single span. The treap is sorted by base address
+// and each span necessarily has a unique base address.
+// Spans are returned based on a first-fit algorithm, acquiring the span
+// with the lowest base address which still satisfies the request.
+//
+// The first-fit algorithm is possible due to an augmentation of each
+// treapNode to maintain the size of the largest span in the subtree rooted
+// at that treapNode. Below we refer to this invariant as the maxPages
+// invariant.
 //
 // The primary routines are
 // insert: adds a span to the treap
 // remove: removes the span from that treap that best fits the required size
 // removeSpan: which removes a specific span from the treap
 //
-// _mheap.lock must be held when manipulating this data structure.
+// mheap_.lock must be held when manipulating this data structure.
 
 package runtime
 
@@ -38,12 +42,27 @@ type mTreap struct {
 
 //go:notinheap
 type treapNode struct {
-	right     *treapNode // all treapNodes > this treap node
-	left      *treapNode // all treapNodes < this treap node
-	parent    *treapNode // direct parent of this node, nil if root
-	npagesKey uintptr    // number of pages in spanKey, used as primary sort key
-	spanKey   *mspan     // span of size npagesKey, used as secondary sort key
-	priority  uint32     // random number used by treap algorithm to keep tree probabilistically balanced
+	right    *treapNode // all treapNodes > this treap node
+	left     *treapNode // all treapNodes < this treap node
+	parent   *treapNode // direct parent of this node, nil if root
+	key      uintptr    // base address of the span, used as primary sort key
+	span     *mspan     // span at base address key
+	maxPages uintptr    // the maximum size of any span in this subtree, including the root
+	priority uint32     // random number used by treap algorithm to keep tree probabilistically balanced
+}
+
+// recomputeMaxPages is a helper method which has a node
+// recompute its own maxPages value by looking at its own
+// span's length as well as the maxPages value of its
+// direct children.
+func (t *treapNode) recomputeMaxPages() {
+	t.maxPages = t.span.npages
+	if t.left != nil && t.maxPages < t.left.maxPages {
+		t.maxPages = t.left.maxPages
+	}
+	if t.right != nil && t.maxPages < t.right.maxPages {
+		t.maxPages = t.right.maxPages
+	}
 }
 
 func (t *treapNode) pred() *treapNode {
@@ -70,7 +89,7 @@ func (t *treapNode) pred() *treapNode {
 	// has no predecessor.
 	for t.parent != nil && t.parent.right != t {
 		if t.parent.left != t {
-			println("runtime: predecessor t=", t, "t.spanKey=", t.spanKey)
+			println("runtime: predecessor t=", t, "t.span=", t.span)
 			throw("node is not its parent's child")
 		}
 		t = t.parent
@@ -91,7 +110,7 @@ func (t *treapNode) succ() *treapNode {
 	// See pred.
 	for t.parent != nil && t.parent.left != t {
 		if t.parent.right != t {
-			println("runtime: predecessor t=", t, "t.spanKey=", t.spanKey)
+			println("runtime: predecessor t=", t, "t.span=", t.span)
 			throw("node is not its parent's child")
 		}
 		t = t.parent
@@ -105,10 +124,10 @@ func (t *treapNode) isSpanInTreap(s *mspan) bool {
 	if t == nil {
 		return false
 	}
-	return t.spanKey == s || t.left.isSpanInTreap(s) || t.right.isSpanInTreap(s)
+	return t.span == s || t.left.isSpanInTreap(s) || t.right.isSpanInTreap(s)
 }
 
-// walkTreap is handy for debugging.
+// walkTreap is handy for debugging and testing.
 // Starting at some treapnode t, for example the root, do a depth first preorder walk of
 // the tree executing fn at each treap node. One should hold the heap lock, usually
 // mheap_.lock().
@@ -124,36 +143,46 @@ func (t *treapNode) walkTreap(fn func(tn *treapNode)) {
 // checkTreapNode when used in conjunction with walkTreap can usually detect a
 // poorly formed treap.
 func checkTreapNode(t *treapNode) {
-	// lessThan is used to order the treap.
-	// npagesKey and npages are the primary keys.
-	// spanKey and span are the secondary keys.
-	// span == nil (0) will always be lessThan all
-	// spans of the same size.
-	lessThan := func(npages uintptr, s *mspan) bool {
-		if t.npagesKey != npages {
-			return t.npagesKey < npages
-		}
-		// t.npagesKey == npages
-		return t.spanKey.base() < s.base()
-	}
-
 	if t == nil {
 		return
 	}
-	if t.spanKey.next != nil || t.spanKey.prev != nil || t.spanKey.list != nil {
+	if t.span.next != nil || t.span.prev != nil || t.span.list != nil {
 		throw("span may be on an mSpanList while simultaneously in the treap")
 	}
-	if t.spanKey.npages != t.npagesKey {
-		println("runtime: checkTreapNode treapNode t=", t, "     t.npagesKey=", t.npagesKey,
-			"t.spanKey.npages=", t.spanKey.npages)
-		throw("span.npages and treap.npagesKey do not match")
+	if t.span.base() != t.key {
+		println("runtime: checkTreapNode treapNode t=", t, "     t.key=", t.key,
+			"t.span.base()=", t.span.base())
+		throw("why does span.base() and treap.key do not match?")
 	}
-	if t.left != nil && lessThan(t.left.npagesKey, t.left.spanKey) {
-		throw("t.lessThan(t.left.npagesKey, t.left.spanKey) is not false")
+	if t.left != nil && t.key < t.left.key {
+		throw("found out-of-order spans in treap (left child has greater base address)")
 	}
-	if t.right != nil && !lessThan(t.right.npagesKey, t.right.spanKey) {
-		throw("!t.lessThan(t.left.npagesKey, t.left.spanKey) is not false")
+	if t.right != nil && t.key > t.right.key {
+		throw("found out-of-order spans in treap (right child has lesser base address)")
 	}
+}
+
+// validateMaxPages is handy for debugging and testing.
+// It ensures that the maxPages field is appropriately maintained throughout
+// the treap by walking the treap in a post-order manner.
+func (t *treapNode) validateMaxPages() uintptr {
+	if t == nil {
+		return 0
+	}
+	leftMax := t.left.validateMaxPages()
+	rightMax := t.right.validateMaxPages()
+	max := t.span.npages
+	if leftMax > max {
+		max = leftMax
+	}
+	if rightMax > max {
+		max = rightMax
+	}
+	if max != t.maxPages {
+		println("runtime: t.maxPages=", t.maxPages, "want=", max)
+		throw("maxPages invariant violated in treap")
+	}
+	return max
 }
 
 // treapIter is a bidirectional iterator type which may be used to iterate over a
@@ -169,7 +198,7 @@ type treapIter struct {
 // span returns the span at the current position in the treap.
 // If the treap is not valid, span will panic.
 func (i *treapIter) span() *mspan {
-	return i.t.spanKey
+	return i.t.span
 }
 
 // valid returns whether the iterator represents a valid position
@@ -220,19 +249,14 @@ func (root *mTreap) end() treapIter {
 
 // insert adds span to the large span treap.
 func (root *mTreap) insert(span *mspan) {
-	npages := span.npages
+	base := span.base()
 	var last *treapNode
 	pt := &root.treap
 	for t := *pt; t != nil; t = *pt {
 		last = t
-		if t.npagesKey < npages {
+		if t.key < base {
 			pt = &t.right
-		} else if t.npagesKey > npages {
-			pt = &t.left
-		} else if t.spanKey.base() < span.base() {
-			// t.npagesKey == npages, so sort on span addresses.
-			pt = &t.right
-		} else if t.spanKey.base() > span.base() {
+		} else if t.key > base {
 			pt = &t.left
 		} else {
 			throw("inserting span already in treap")
@@ -241,25 +265,38 @@ func (root *mTreap) insert(span *mspan) {
 
 	// Add t as new leaf in tree of span size and unique addrs.
 	// The balanced tree is a treap using priority as the random heap priority.
-	// That is, it is a binary tree ordered according to the npagesKey,
+	// That is, it is a binary tree ordered according to the key,
 	// but then among the space of possible binary trees respecting those
-	// npagesKeys, it is kept balanced on average by maintaining a heap ordering
+	// keys, it is kept balanced on average by maintaining a heap ordering
 	// on the priority: s.priority <= both s.right.priority and s.right.priority.
 	// https://en.wikipedia.org/wiki/Treap
 	// https://faculty.washington.edu/aragon/pubs/rst89.pdf
 
 	t := (*treapNode)(mheap_.treapalloc.alloc())
-	t.npagesKey = span.npages
+	t.key = span.base()
 	t.priority = fastrand()
-	t.spanKey = span
+	t.span = span
+	t.maxPages = span.npages
 	t.parent = last
 	*pt = t // t now at a leaf.
+
+	// Update the tree to maintain the maxPages invariant.
+	i := t
+	for i.parent != nil {
+		if i.parent.maxPages < i.maxPages {
+			i.parent.maxPages = i.maxPages
+		} else {
+			break
+		}
+		i = i.parent
+	}
+
 	// Rotate up into tree according to priority.
 	for t.parent != nil && t.parent.priority > t.priority {
-		if t != nil && t.spanKey.npages != t.npagesKey {
-			println("runtime: insert t=", t, "t.npagesKey=", t.npagesKey)
-			println("runtime:      t.spanKey=", t.spanKey, "t.spanKey.npages=", t.spanKey.npages)
-			throw("span and treap sizes do not match?")
+		if t != nil && t.span.base() != t.key {
+			println("runtime: insert t=", t, "t.key=", t.key)
+			println("runtime:      t.span=", t.span, "t.span.base()=", t.span.base())
+			throw("span and treap node base addresses do not match")
 		}
 		if t.parent.left == t {
 			root.rotateRight(t.parent)
@@ -273,8 +310,8 @@ func (root *mTreap) insert(span *mspan) {
 }
 
 func (root *mTreap) removeNode(t *treapNode) {
-	if t.spanKey.npages != t.npagesKey {
-		throw("span and treap node npages do not match")
+	if t.span.base() != t.key {
+		throw("span and treap node base addresses do not match")
 	}
 	// Rotate t down to be leaf of tree for removal, respecting priorities.
 	for t.right != nil || t.left != nil {
@@ -286,10 +323,23 @@ func (root *mTreap) removeNode(t *treapNode) {
 	}
 	// Remove t, now a leaf.
 	if t.parent != nil {
-		if t.parent.left == t {
-			t.parent.left = nil
+		p := t.parent
+		if p.left == t {
+			p.left = nil
 		} else {
-			t.parent.right = nil
+			p.right = nil
+		}
+		// Walk up the tree updating maxPages values until
+		// it no longer changes, since the just-removed node
+		// could have contained the biggest span in any subtree
+		// up to the root.
+		for p != nil {
+			m := p.maxPages
+			p.recomputeMaxPages()
+			if p.maxPages == m {
+				break
+			}
+			p = p.parent
 		}
 	} else {
 		root.treap = nil
@@ -298,50 +348,63 @@ func (root *mTreap) removeNode(t *treapNode) {
 	mheap_.treapalloc.free(unsafe.Pointer(t))
 }
 
-// find searches for, finds, and returns the treap iterator representing
-// the position of the smallest span that can hold npages. If no span has
-// at least npages it returns an invalid iterator.
-// This is a simple binary tree search that tracks the best-fit node found
-// so far. The best-fit node is guaranteed to be on the path to a
-// (maybe non-existent) lowest-base exact match.
+// find searches for, finds, and returns the treap iterator representing the
+// position of the span with the smallest base address which is at least npages
+// in size. If no span has at least npages it returns an invalid iterator.
+//
+// This algorithm is as follows:
+// * If there's a left child and its subtree can satisfy this allocation,
+//   continue down that subtree.
+// * If there's no such left child, check if the root of this subtree can
+//   satisfy the allocation. If so, we're done.
+// * If the root cannot satisfy the allocation either, continue down the
+//   right subtree if able.
+// * Else, break and report that we cannot satisfy the allocation.
+//
+// The preference for left, then current, then right, results in us getting
+// the left-most node which will contain the span with the lowest base
+// address.
+//
+// Note that if a request cannot be satisfied the fourth case will be
+// reached immediately at the root, since neither the left subtree nor
+// the right subtree will have a sufficient maxPages, whilst the root
+// node is also unable to satisfy it.
 func (root *mTreap) find(npages uintptr) treapIter {
-	var best *treapNode
 	t := root.treap
 	for t != nil {
-		if t.spanKey == nil {
-			throw("treap node with nil spanKey found")
+		if t.span == nil {
+			throw("treap node with nil span found")
 		}
-		// If we found an exact match, try to go left anyway. There could be
-		// a span there with a lower base address.
-		//
-		// Don't bother checking nil-ness of left and right here; even if t
-		// becomes nil, we already know the other path had nothing better for
-		// us anyway.
-		if t.npagesKey >= npages {
-			best = t
+		// Iterate over the treap trying to go as far left
+		// as possible while simultaneously ensuring that the
+		// subtrees we choose always have a span which can
+		// satisfy the allocation.
+		if t.left != nil && t.left.maxPages >= npages {
 			t = t.left
-		} else {
+		} else if t.span.npages >= npages {
+			// Before going right, if this span can satisfy the
+			// request, stop here.
+			break
+		} else if t.right != nil && t.right.maxPages >= npages {
 			t = t.right
+		} else {
+			t = nil
 		}
 	}
-	return treapIter{best}
+	return treapIter{t}
 }
 
 // removeSpan searches for, finds, deletes span along with
 // the associated treap node. If the span is not in the treap
-// then t will eventually be set to nil and the t.spanKey
+// then t will eventually be set to nil and the t.span
 // will throw.
 func (root *mTreap) removeSpan(span *mspan) {
-	npages := span.npages
+	base := span.base()
 	t := root.treap
-	for t.spanKey != span {
-		if t.npagesKey < npages {
+	for t.span != span {
+		if t.key < base {
 			t = t.right
-		} else if t.npagesKey > npages {
-			t = t.left
-		} else if t.spanKey.base() < span.base() {
-			t = t.right
-		} else if t.spanKey.base() > span.base() {
+		} else if t.key > base {
 			t = t.left
 		}
 	}
@@ -390,6 +453,11 @@ func (root *mTreap) rotateLeft(x *treapNode) {
 		}
 		p.right = y
 	}
+
+	// Recomputing maxPages for x and y is sufficient
+	// for maintaining the maxPages invariant.
+	x.recomputeMaxPages()
+	y.recomputeMaxPages()
 }
 
 // rotateRight rotates the tree rooted at node y.
@@ -426,4 +494,9 @@ func (root *mTreap) rotateRight(y *treapNode) {
 		}
 		p.right = x
 	}
+
+	// Recomputing maxPages for x and y is sufficient
+	// for maintaining the maxPages invariant.
+	y.recomputeMaxPages()
+	x.recomputeMaxPages()
 }
