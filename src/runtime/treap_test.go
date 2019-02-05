@@ -58,20 +58,18 @@ func TestTreap(t *testing.T) {
 		}
 		tr.RemoveSpan(spans[0])
 	})
-	t.Run("FindBestFit", func(t *testing.T) {
+	t.Run("FindFirstFit", func(t *testing.T) {
 		// Run this 10 times, recreating the treap each time.
 		// Because of the non-deterministic structure of a treap,
 		// we'll be able to test different structures this way.
 		for i := 0; i < 10; i++ {
-			tr := treap{}
+			tr := runtime.Treap{}
 			for _, s := range spans {
 				tr.Insert(s)
 			}
 			i := tr.Find(5)
-			if i.Span().Pages() != 5 {
-				t.Fatalf("expected span of size 5, got span of size %d", i.Span().Pages())
-			} else if i.Span().Base() != 0xc0040000 {
-				t.Fatalf("expected span to have the lowest base address, instead got base %x", i.Span().Base())
+			if i.Span().Base() != 0xc0010000 {
+				t.Fatalf("expected span at lowest address which could fit 5 pages, instead found span at %x", i.Span().Base())
 			}
 			for _, s := range spans {
 				tr.RemoveSpan(s)
@@ -88,13 +86,13 @@ func TestTreap(t *testing.T) {
 				tr.Insert(s)
 			}
 			nspans := 0
-			lastSize := uintptr(0)
+			lastBase := uintptr(0)
 			for i := tr.Start(); i.Valid(); i = i.Next() {
 				nspans++
-				if lastSize > i.Span().Pages() {
-					t.Fatalf("not iterating in correct order: encountered size %d before %d", lastSize, i.Span().Pages())
+				if lastBase > i.Span().Base() {
+					t.Fatalf("not iterating in correct order: encountered base %x before %x", lastBase, i.Span().Base())
 				}
-				lastSize = i.Span().Pages()
+				lastBase = i.Span().Base()
 			}
 			if nspans != len(spans) {
 				t.Fatal("failed to iterate forwards over full treap")
@@ -112,13 +110,13 @@ func TestTreap(t *testing.T) {
 				tr.Insert(s)
 			}
 			nspans := 0
-			lastSize := ^uintptr(0)
+			lastBase := ^uintptr(0)
 			for i := tr.End(); i.Valid(); i = i.Prev() {
 				nspans++
-				if lastSize < i.Span().Pages() {
-					t.Fatalf("not iterating in correct order: encountered size %d before %d", lastSize, i.Span().Pages())
+				if lastBase < i.Span().Base() {
+					t.Fatalf("not iterating in correct order: encountered base %x before %x", lastBase, i.Span().Base())
 				}
-				lastSize = i.Span().Pages()
+				lastBase = i.Span().Base()
 			}
 			if nspans != len(spans) {
 				t.Fatal("failed to iterate backwards over full treap")

@@ -4369,7 +4369,7 @@ func sysmon() {
 		}
 		// scavenge heap once in a while
 		if lastscavenge+scavengelimit/2 < now {
-			mheap_.scavenge(int32(nscavenge), uint64(now), uint64(scavengelimit))
+			mheap_.scavengeAll(int32(nscavenge), uint64(now), uint64(scavengelimit))
 			lastscavenge = now
 			nscavenge++
 		}
