@@ -106,7 +106,7 @@ type Diagnostic struct {
 	/**
 	 * The diagnostic's code, which might appear in the user interface.
 	 */
-	Code string `json:"code,omitempty"` // number | string
+	Code interface{} `json:"code,omitempty"` // number | string
 
 	/**
 	 * A human-readable string describing the source of this
