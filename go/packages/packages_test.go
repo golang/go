@@ -99,6 +99,10 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
 * golang.org/fake/c
 * golang.org/fake/e
 * golang.org/fake/subdir/d
+* golang.org/fake/subdir/d [golang.org/fake/subdir/d.test]
+* golang.org/fake/subdir/d.test
+* golang.org/fake/subdir/d_test [golang.org/fake/subdir/d.test]
+  math/bits
   unsafe
   golang.org/fake/b -> errors
   golang.org/fake/b -> golang.org/fake/a
@@ -106,6 +110,13 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
   golang.org/fake/c -> unsafe
   golang.org/fake/e -> golang.org/fake/b
   golang.org/fake/e -> golang.org/fake/c
+  golang.org/fake/subdir/d [golang.org/fake/subdir/d.test] -> math/bits
+  golang.org/fake/subdir/d.test -> golang.org/fake/subdir/d [golang.org/fake/subdir/d.test]
+  golang.org/fake/subdir/d.test -> golang.org/fake/subdir/d_test [golang.org/fake/subdir/d.test]
+  golang.org/fake/subdir/d.test -> os (pruned)
+  golang.org/fake/subdir/d.test -> testing (pruned)
+  golang.org/fake/subdir/d.test -> testing/internal/testdeps (pruned)
+  golang.org/fake/subdir/d_test [golang.org/fake/subdir/d.test] -> golang.org/fake/subdir/d [golang.org/fake/subdir/d.test]
 `[1:]
 
 	if graph != wantGraph {
@@ -1268,7 +1279,10 @@ func testRedundantQueries(t *testing.T, exporter packagestest.Exporter) {
 		}}})
 	defer exported.Cleanup()
 
-	initial, err := packages.Load(exported.Config, "errors", "iamashamedtousethedisabledqueryname=errors")
+	cfg := *exported.Config
+	cfg.Tests = false
+
+	initial, err := packages.Load(&cfg, "errors", "iamashamedtousethedisabledqueryname=errors")
 	if err != nil {
 		t.Fatal(err)
 	}
