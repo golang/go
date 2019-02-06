@@ -831,6 +831,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpHmul64u_0(v)
 	case OpInt64Hi:
 		return rewriteValueAMD64_OpInt64Hi_0(v)
+	case OpInt64Lo:
+		return rewriteValueAMD64_OpInt64Lo_0(v)
 	case OpInterCall:
 		return rewriteValueAMD64_OpInterCall_0(v)
 	case OpIsInBounds:
@@ -991,6 +993,10 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpOr8_0(v)
 	case OpOrB:
 		return rewriteValueAMD64_OpOrB_0(v)
+	case OpPanicBounds:
+		return rewriteValueAMD64_OpPanicBounds_0(v)
+	case OpPanicExtend:
+		return rewriteValueAMD64_OpPanicExtend_0(v)
 	case OpPopCount16:
 		return rewriteValueAMD64_OpPopCount16_0(v)
 	case OpPopCount32:
@@ -59244,6 +59250,18 @@ func rewriteValueAMD64_OpInt64Hi_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueAMD64_OpInt64Lo_0(v *Value) bool {
+	// match: (Int64Lo x)
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+}
 func rewriteValueAMD64_OpInterCall_0(v *Value) bool {
 	// match: (InterCall [argwid] entry mem)
 	// cond:
@@ -61694,6 +61712,132 @@ func rewriteValueAMD64_OpOrB_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+}
+func rewriteValueAMD64_OpPanicBounds_0(v *Value) bool {
+	// match: (PanicBounds [kind] x y mem)
+	// cond: boundsABI(kind) == 0
+	// result: (LoweredPanicBoundsA [kind] x y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		mem := v.Args[2]
+		if !(boundsABI(kind) == 0) {
+			break
+		}
+		v.reset(OpAMD64LoweredPanicBoundsA)
+		v.AuxInt = kind
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (PanicBounds [kind] x y mem)
+	// cond: boundsABI(kind) == 1
+	// result: (LoweredPanicBoundsB [kind] x y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		mem := v.Args[2]
+		if !(boundsABI(kind) == 1) {
+			break
+		}
+		v.reset(OpAMD64LoweredPanicBoundsB)
+		v.AuxInt = kind
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (PanicBounds [kind] x y mem)
+	// cond: boundsABI(kind) == 2
+	// result: (LoweredPanicBoundsC [kind] x y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		mem := v.Args[2]
+		if !(boundsABI(kind) == 2) {
+			break
+		}
+		v.reset(OpAMD64LoweredPanicBoundsC)
+		v.AuxInt = kind
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpPanicExtend_0(v *Value) bool {
+	// match: (PanicExtend [kind] hi lo y mem)
+	// cond: boundsABI(kind) == 0
+	// result: (LoweredPanicExtendA [kind] hi lo y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[3]
+		hi := v.Args[0]
+		lo := v.Args[1]
+		y := v.Args[2]
+		mem := v.Args[3]
+		if !(boundsABI(kind) == 0) {
+			break
+		}
+		v.reset(OpAMD64LoweredPanicExtendA)
+		v.AuxInt = kind
+		v.AddArg(hi)
+		v.AddArg(lo)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (PanicExtend [kind] hi lo y mem)
+	// cond: boundsABI(kind) == 1
+	// result: (LoweredPanicExtendB [kind] hi lo y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[3]
+		hi := v.Args[0]
+		lo := v.Args[1]
+		y := v.Args[2]
+		mem := v.Args[3]
+		if !(boundsABI(kind) == 1) {
+			break
+		}
+		v.reset(OpAMD64LoweredPanicExtendB)
+		v.AuxInt = kind
+		v.AddArg(hi)
+		v.AddArg(lo)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (PanicExtend [kind] hi lo y mem)
+	// cond: boundsABI(kind) == 2
+	// result: (LoweredPanicExtendC [kind] hi lo y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[3]
+		hi := v.Args[0]
+		lo := v.Args[1]
+		y := v.Args[2]
+		mem := v.Args[3]
+		if !(boundsABI(kind) == 2) {
+			break
+		}
+		v.reset(OpAMD64LoweredPanicExtendC)
+		v.AuxInt = kind
+		v.AddArg(hi)
+		v.AddArg(lo)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	return false
 }
 func rewriteValueAMD64_OpPopCount16_0(v *Value) bool {
 	b := v.Block

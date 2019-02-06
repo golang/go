@@ -80,10 +80,8 @@ func initssaconfig() {
 	panicdivide = sysfunc("panicdivide")
 	panicdottypeE = sysfunc("panicdottypeE")
 	panicdottypeI = sysfunc("panicdottypeI")
-	panicindex = sysfunc("panicindex")
 	panicnildottype = sysfunc("panicnildottype")
 	panicoverflow = sysfunc("panicoverflow")
-	panicslice = sysfunc("panicslice")
 	panicshift = sysfunc("panicshift")
 	raceread = sysfunc("raceread")
 	racereadrange = sysfunc("racereadrange")
@@ -96,6 +94,59 @@ func initssaconfig() {
 	typedmemmove = sysfunc("typedmemmove")
 	Udiv = sysvar("udiv")                 // asm func with special ABI
 	writeBarrier = sysvar("writeBarrier") // struct { bool; ... }
+	if thearch.LinkArch.Family == sys.Wasm {
+		BoundsCheckFunc[ssa.BoundsIndex] = sysvar("goPanicIndex")
+		BoundsCheckFunc[ssa.BoundsIndexU] = sysvar("goPanicIndexU")
+		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysvar("goPanicSliceAlen")
+		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysvar("goPanicSliceAlenU")
+		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysvar("goPanicSliceAcap")
+		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysvar("goPanicSliceAcapU")
+		BoundsCheckFunc[ssa.BoundsSliceB] = sysvar("goPanicSliceB")
+		BoundsCheckFunc[ssa.BoundsSliceBU] = sysvar("goPanicSliceBU")
+		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysvar("goPanicSlice3Alen")
+		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysvar("goPanicSlice3AlenU")
+		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysvar("goPanicSlice3Acap")
+		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysvar("goPanicSlice3AcapU")
+		BoundsCheckFunc[ssa.BoundsSlice3B] = sysvar("goPanicSlice3B")
+		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysvar("goPanicSlice3BU")
+		BoundsCheckFunc[ssa.BoundsSlice3C] = sysvar("goPanicSlice3C")
+		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysvar("goPanicSlice3CU")
+	} else {
+		BoundsCheckFunc[ssa.BoundsIndex] = sysvar("panicIndex")
+		BoundsCheckFunc[ssa.BoundsIndexU] = sysvar("panicIndexU")
+		BoundsCheckFunc[ssa.BoundsSliceAlen] = sysvar("panicSliceAlen")
+		BoundsCheckFunc[ssa.BoundsSliceAlenU] = sysvar("panicSliceAlenU")
+		BoundsCheckFunc[ssa.BoundsSliceAcap] = sysvar("panicSliceAcap")
+		BoundsCheckFunc[ssa.BoundsSliceAcapU] = sysvar("panicSliceAcapU")
+		BoundsCheckFunc[ssa.BoundsSliceB] = sysvar("panicSliceB")
+		BoundsCheckFunc[ssa.BoundsSliceBU] = sysvar("panicSliceBU")
+		BoundsCheckFunc[ssa.BoundsSlice3Alen] = sysvar("panicSlice3Alen")
+		BoundsCheckFunc[ssa.BoundsSlice3AlenU] = sysvar("panicSlice3AlenU")
+		BoundsCheckFunc[ssa.BoundsSlice3Acap] = sysvar("panicSlice3Acap")
+		BoundsCheckFunc[ssa.BoundsSlice3AcapU] = sysvar("panicSlice3AcapU")
+		BoundsCheckFunc[ssa.BoundsSlice3B] = sysvar("panicSlice3B")
+		BoundsCheckFunc[ssa.BoundsSlice3BU] = sysvar("panicSlice3BU")
+		BoundsCheckFunc[ssa.BoundsSlice3C] = sysvar("panicSlice3C")
+		BoundsCheckFunc[ssa.BoundsSlice3CU] = sysvar("panicSlice3CU")
+	}
+	if thearch.LinkArch.PtrSize == 4 {
+		ExtendCheckFunc[ssa.BoundsIndex] = sysvar("panicExtendIndex")
+		ExtendCheckFunc[ssa.BoundsIndexU] = sysvar("panicExtendIndexU")
+		ExtendCheckFunc[ssa.BoundsSliceAlen] = sysvar("panicExtendSliceAlen")
+		ExtendCheckFunc[ssa.BoundsSliceAlenU] = sysvar("panicExtendSliceAlenU")
+		ExtendCheckFunc[ssa.BoundsSliceAcap] = sysvar("panicExtendSliceAcap")
+		ExtendCheckFunc[ssa.BoundsSliceAcapU] = sysvar("panicExtendSliceAcapU")
+		ExtendCheckFunc[ssa.BoundsSliceB] = sysvar("panicExtendSliceB")
+		ExtendCheckFunc[ssa.BoundsSliceBU] = sysvar("panicExtendSliceBU")
+		ExtendCheckFunc[ssa.BoundsSlice3Alen] = sysvar("panicExtendSlice3Alen")
+		ExtendCheckFunc[ssa.BoundsSlice3AlenU] = sysvar("panicExtendSlice3AlenU")
+		ExtendCheckFunc[ssa.BoundsSlice3Acap] = sysvar("panicExtendSlice3Acap")
+		ExtendCheckFunc[ssa.BoundsSlice3AcapU] = sysvar("panicExtendSlice3AcapU")
+		ExtendCheckFunc[ssa.BoundsSlice3B] = sysvar("panicExtendSlice3B")
+		ExtendCheckFunc[ssa.BoundsSlice3BU] = sysvar("panicExtendSlice3BU")
+		ExtendCheckFunc[ssa.BoundsSlice3C] = sysvar("panicExtendSlice3C")
+		ExtendCheckFunc[ssa.BoundsSlice3CU] = sysvar("panicExtendSlice3CU")
+	}
 
 	// GO386=387 runtime definitions
 	ControlWord64trunc = sysvar("controlWord64trunc") // uint16
@@ -573,6 +624,11 @@ func (s *state) newValue3Apos(op ssa.Op, t *types.Type, aux interface{}, arg0, a
 // newValue4 adds a new value with four arguments to the current block.
 func (s *state) newValue4(op ssa.Op, t *types.Type, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue4(s.peekPos(), op, t, arg0, arg1, arg2, arg3)
+}
+
+// newValue4 adds a new value with four arguments and an auxint value to the current block.
+func (s *state) newValue4I(op ssa.Op, t *types.Type, aux int64, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
+	return s.curBlock.NewValue4I(s.peekPos(), op, t, aux, arg0, arg1, arg2, arg3)
 }
 
 // entryNewValue0 adds a new value with no arguments to the entry block.
@@ -2262,11 +2318,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
-			i = s.extendIndex(i, panicindex)
-			if !n.Bounded() {
-				len := s.newValue1(ssa.OpStringLen, types.Types[TINT], a)
-				s.boundsCheck(i, len)
-			}
+			len := s.newValue1(ssa.OpStringLen, types.Types[TINT], a)
+			i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
 			ptrtyp := s.f.Config.Types.BytePtr
 			ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
 			if Isconst(n.Right, CTINT) {
@@ -2288,14 +2341,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 					// Bounds check will never succeed.  Might as well
 					// use constants for the bounds check.
 					z := s.constInt(types.Types[TINT], 0)
-					s.boundsCheck(z, z)
+					s.boundsCheck(z, z, ssa.BoundsIndex, false)
 					// The return value won't be live, return junk.
 					return s.newValue0(ssa.OpUnknown, n.Type)
 				}
-				i = s.extendIndex(i, panicindex)
-				if !n.Bounded() {
-					s.boundsCheck(i, s.constInt(types.Types[TINT], bound))
-				}
+				len := s.constInt(types.Types[TINT], bound)
+				i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
 				return s.newValue1I(ssa.OpArraySelect, n.Type, 0, a)
 			}
 			p := s.addr(n, false)
@@ -2353,13 +2404,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 		var i, j, k *ssa.Value
 		low, high, max := n.SliceBounds()
 		if low != nil {
-			i = s.extendIndex(s.expr(low), panicslice)
+			i = s.expr(low)
 		}
 		if high != nil {
-			j = s.extendIndex(s.expr(high), panicslice)
+			j = s.expr(high)
 		}
 		if max != nil {
-			k = s.extendIndex(s.expr(max), panicslice)
+			k = s.expr(max)
 		}
 		p, l, c := s.slice(n.Left.Type, v, i, j, k, n.Bounded())
 		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
@@ -2369,10 +2420,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 		var i, j *ssa.Value
 		low, high, _ := n.SliceBounds()
 		if low != nil {
-			i = s.extendIndex(s.expr(low), panicslice)
+			i = s.expr(low)
 		}
 		if high != nil {
-			j = s.extendIndex(s.expr(high), panicslice)
+			j = s.expr(high)
 		}
 		p, l, _ := s.slice(n.Left.Type, v, i, j, nil, n.Bounded())
 		return s.newValue2(ssa.OpStringMake, n.Type, p, l)
@@ -2680,15 +2731,15 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 				// The bounds check must fail.  Might as well
 				// ignore the actual index and just use zeros.
 				z := s.constInt(types.Types[TINT], 0)
-				s.boundsCheck(z, z)
+				s.boundsCheck(z, z, ssa.BoundsIndex, false)
 				return
 			}
 			if n != 1 {
 				s.Fatalf("assigning to non-1-length array")
 			}
 			// Rewrite to a = [1]{v}
-			i = s.extendIndex(i, panicindex)
-			s.boundsCheck(i, s.constInt(types.Types[TINT], 1))
+			len := s.constInt(types.Types[TINT], 1)
+			i = s.boundsCheck(i, len, ssa.BoundsIndex, false)
 			v := s.newValue1(ssa.OpArrayMake1, t, right)
 			s.assign(left.Left, v, false, 0)
 			return
@@ -3875,21 +3926,15 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		if n.Left.Type.IsSlice() {
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
-			i = s.extendIndex(i, panicindex)
 			len := s.newValue1(ssa.OpSliceLen, types.Types[TINT], a)
-			if !n.Bounded() {
-				s.boundsCheck(i, len)
-			}
+			i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
 			p := s.newValue1(ssa.OpSlicePtr, t, a)
 			return s.newValue2(ssa.OpPtrIndex, t, p, i)
 		} else { // array
 			a := s.addr(n.Left, bounded)
 			i := s.expr(n.Right)
-			i = s.extendIndex(i, panicindex)
 			len := s.constInt(types.Types[TINT], n.Left.Type.NumElem())
-			if !n.Bounded() {
-				s.boundsCheck(i, len)
-			}
+			i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
 			return s.newValue2(ssa.OpPtrIndex, types.NewPtr(n.Left.Type.Elem()), a, i)
 		}
 	case ODEREF:
@@ -4028,32 +4073,70 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 	s.newValue2(ssa.OpNilCheck, types.TypeVoid, ptr, s.mem())
 }
 
-// boundsCheck generates bounds checking code. Checks if 0 <= idx < len, branches to exit if not.
-// len must be known to be nonnegative.
+// boundsCheck generates bounds checking code. Checks if 0 <= idx <[=] len, branches to exit if not.
 // Starts a new block on return.
-// idx is already converted to full int width.
-func (s *state) boundsCheck(idx, len *ssa.Value) {
-	if Debug['B'] != 0 {
-		return
+// On input, len must be converted to full int width and be nonnegative.
+// Returns idx converted to full int width.
+// If bounded is true then caller guarantees the index is not out of bounds
+// (but boundsCheck will still extend the index to full int width).
+func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bool) *ssa.Value {
+	idx = s.extendIndex(idx, len, kind, bounded)
+
+	if bounded || Debug['B'] != 0 {
+		// If bounded or bounds checking is flag-disabled, then no check necessary,
+		// just return the extended index.
+		return idx
 	}
 
-	// bounds check
-	cmp := s.newValue2(ssa.OpIsInBounds, types.Types[TBOOL], idx, len)
-	s.check(cmp, panicindex)
-}
+	bNext := s.f.NewBlock(ssa.BlockPlain)
+	bPanic := s.f.NewBlock(ssa.BlockExit)
 
-// sliceBoundsCheck generates slice bounds checking code. Checks if 0 <= idx <= len, branches to exit if not.
-// len must be known to be nonnegative.
-// Starts a new block on return.
-// idx and len are already converted to full int width.
-func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
-	if Debug['B'] != 0 {
-		return
+	if !idx.Type.IsSigned() {
+		switch kind {
+		case ssa.BoundsIndex:
+			kind = ssa.BoundsIndexU
+		case ssa.BoundsSliceAlen:
+			kind = ssa.BoundsSliceAlenU
+		case ssa.BoundsSliceAcap:
+			kind = ssa.BoundsSliceAcapU
+		case ssa.BoundsSliceB:
+			kind = ssa.BoundsSliceBU
+		case ssa.BoundsSlice3Alen:
+			kind = ssa.BoundsSlice3AlenU
+		case ssa.BoundsSlice3Acap:
+			kind = ssa.BoundsSlice3AcapU
+		case ssa.BoundsSlice3B:
+			kind = ssa.BoundsSlice3BU
+		case ssa.BoundsSlice3C:
+			kind = ssa.BoundsSlice3CU
+		}
 	}
 
-	// bounds check
-	cmp := s.newValue2(ssa.OpIsSliceInBounds, types.Types[TBOOL], idx, len)
-	s.check(cmp, panicslice)
+	var cmp *ssa.Value
+	if kind == ssa.BoundsIndex || kind == ssa.BoundsIndexU {
+		cmp = s.newValue2(ssa.OpIsInBounds, types.Types[TBOOL], idx, len)
+	} else {
+		cmp = s.newValue2(ssa.OpIsSliceInBounds, types.Types[TBOOL], idx, len)
+	}
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.SetControl(cmp)
+	b.Likely = ssa.BranchLikely
+	b.AddEdgeTo(bNext)
+	b.AddEdgeTo(bPanic)
+
+	s.startBlock(bPanic)
+	if thearch.LinkArch.Family == sys.Wasm {
+		// TODO(khr): figure out how to do "register" based calling convention for bounds checks.
+		// Should be similar to gcWriteBarrier, but I can't make it work.
+		s.rtcall(BoundsCheckFunc[kind], false, nil, idx, len)
+	} else {
+		mem := s.newValue3I(ssa.OpPanicBounds, types.TypeMem, int64(kind), idx, len, s.mem())
+		s.endBlock().SetControl(mem)
+	}
+	s.startBlock(bNext)
+
+	return idx
 }
 
 // If cmp (a bool) is false, panic using the given function.
@@ -4307,21 +4390,36 @@ func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value, bounded bool) (p, l,
 	if j == nil {
 		j = len
 	}
+	three := true
 	if k == nil {
+		three = false
 		k = cap
 	}
 
-	if !bounded {
-		// Panic if slice indices are not in bounds.
-		// Make sure we check these in reverse order so that we're always
-		// comparing against a value known to be nonnegative. See issue 28797.
+	// Panic if slice indices are not in bounds.
+	// Make sure we check these in reverse order so that we're always
+	// comparing against a value known to be nonnegative. See issue 28797.
+	if three {
 		if k != cap {
-			s.sliceBoundsCheck(k, cap)
+			kind := ssa.BoundsSlice3Alen
+			if t.IsSlice() {
+				kind = ssa.BoundsSlice3Acap
+			}
+			k = s.boundsCheck(k, cap, kind, bounded)
 		}
 		if j != k {
-			s.sliceBoundsCheck(j, k)
+			j = s.boundsCheck(j, k, ssa.BoundsSlice3B, bounded)
 		}
-		s.sliceBoundsCheck(i, j)
+		i = s.boundsCheck(i, j, ssa.BoundsSlice3C, bounded)
+	} else {
+		if j != k {
+			kind := ssa.BoundsSliceAlen
+			if t.IsSlice() {
+				kind = ssa.BoundsSliceAcap
+			}
+			j = s.boundsCheck(j, k, kind, bounded)
+		}
+		i = s.boundsCheck(i, j, ssa.BoundsSliceB, bounded)
 	}
 
 	// Generate the following code assuming that indexes are in bounds.
@@ -5432,26 +5530,66 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 }
 
 // extendIndex extends v to a full int width.
-// panic using the given function if v does not fit in an int (only on 32-bit archs).
-func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
-	size := v.Type.Size()
+// panic with the given kind if v does not fit in an int (only on 32-bit archs).
+func (s *state) extendIndex(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bool) *ssa.Value {
+	size := idx.Type.Size()
 	if size == s.config.PtrSize {
-		return v
+		return idx
 	}
 	if size > s.config.PtrSize {
 		// truncate 64-bit indexes on 32-bit pointer archs. Test the
 		// high word and branch to out-of-bounds failure if it is not 0.
-		if Debug['B'] == 0 {
-			hi := s.newValue1(ssa.OpInt64Hi, types.Types[TUINT32], v)
-			cmp := s.newValue2(ssa.OpEq32, types.Types[TBOOL], hi, s.constInt32(types.Types[TUINT32], 0))
-			s.check(cmp, panicfn)
+		var lo *ssa.Value
+		if idx.Type.IsSigned() {
+			lo = s.newValue1(ssa.OpInt64Lo, types.Types[TINT], idx)
+		} else {
+			lo = s.newValue1(ssa.OpInt64Lo, types.Types[TUINT], idx)
 		}
-		return s.newValue1(ssa.OpTrunc64to32, types.Types[TINT], v)
+		if bounded || Debug['B'] != 0 {
+			return lo
+		}
+		bNext := s.f.NewBlock(ssa.BlockPlain)
+		bPanic := s.f.NewBlock(ssa.BlockExit)
+		hi := s.newValue1(ssa.OpInt64Hi, types.Types[TUINT32], idx)
+		cmp := s.newValue2(ssa.OpEq32, types.Types[TBOOL], hi, s.constInt32(types.Types[TUINT32], 0))
+		if !idx.Type.IsSigned() {
+			switch kind {
+			case ssa.BoundsIndex:
+				kind = ssa.BoundsIndexU
+			case ssa.BoundsSliceAlen:
+				kind = ssa.BoundsSliceAlenU
+			case ssa.BoundsSliceAcap:
+				kind = ssa.BoundsSliceAcapU
+			case ssa.BoundsSliceB:
+				kind = ssa.BoundsSliceBU
+			case ssa.BoundsSlice3Alen:
+				kind = ssa.BoundsSlice3AlenU
+			case ssa.BoundsSlice3Acap:
+				kind = ssa.BoundsSlice3AcapU
+			case ssa.BoundsSlice3B:
+				kind = ssa.BoundsSlice3BU
+			case ssa.BoundsSlice3C:
+				kind = ssa.BoundsSlice3CU
+			}
+		}
+		b := s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.SetControl(cmp)
+		b.Likely = ssa.BranchLikely
+		b.AddEdgeTo(bNext)
+		b.AddEdgeTo(bPanic)
+
+		s.startBlock(bPanic)
+		mem := s.newValue4I(ssa.OpPanicExtend, types.TypeMem, int64(kind), hi, lo, len, s.mem())
+		s.endBlock().SetControl(mem)
+		s.startBlock(bNext)
+
+		return lo
 	}
 
 	// Extend value to the required size
 	var op ssa.Op
-	if v.Type.IsSigned() {
+	if idx.Type.IsSigned() {
 		switch 10*size + s.config.PtrSize {
 		case 14:
 			op = ssa.OpSignExt8to32
@@ -5464,7 +5602,7 @@ func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
 		case 48:
 			op = ssa.OpSignExt32to64
 		default:
-			s.Fatalf("bad signed index extension %s", v.Type)
+			s.Fatalf("bad signed index extension %s", idx.Type)
 		}
 	} else {
 		switch 10*size + s.config.PtrSize {
@@ -5479,10 +5617,10 @@ func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
 		case 48:
 			op = ssa.OpZeroExt32to64
 		default:
-			s.Fatalf("bad unsigned index extension %s", v.Type)
+			s.Fatalf("bad unsigned index extension %s", idx.Type)
 		}
 	}
-	return s.newValue1(op, types.Types[TINT], v)
+	return s.newValue1(op, types.Types[TINT], idx)
 }
 
 // CheckLoweredPhi checks that regalloc and stackalloc correctly handled phi values.
@@ -5609,6 +5747,14 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 
 	if s.maxarg < v.AuxInt {
 		s.maxarg = v.AuxInt
+	}
+}
+
+// UseArgs records the fact that an instruction needs a certain amount of
+// callee args space for its use.
+func (s *SSAGenState) UseArgs(n int64) {
+	if s.maxarg < n {
+		s.maxarg = n
 	}
 }
 
