@@ -338,18 +338,6 @@ func nanotime() int64 {
 	return ns
 }
 
-//go:nosplit
-func itoa(buf []byte, val uint64) []byte {
-	i := len(buf) - 1
-	for val >= 10 {
-		buf[i] = byte(val%10 + '0')
-		i--
-		val /= 10
-	}
-	buf[i] = byte(val + '0')
-	return buf[i:]
-}
-
 var goexits = []byte("go: exit ")
 var emptystatus = []byte("\x00")
 var exiting uint32

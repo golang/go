@@ -20,7 +20,7 @@ var sink16 uint16
 // ------------- //
 
 func load_le64(b []byte) {
-	// amd64:`MOVQ\s\(.*\),`,-`MOV[BWL]`,-`OR`
+	// amd64:`MOVQ\s\(.*\),`,-`MOV[BWL]\t[^$]`,-`OR`
 	// s390x:`MOVDBR\s\(.*\),`
 	// arm64:`MOVD\s\(R[0-9]+\),`,-`MOV[BHW]`
 	// ppc64le:`MOVD\s`,-`MOV[BHW]Z`
@@ -28,7 +28,7 @@ func load_le64(b []byte) {
 }
 
 func load_le64_idx(b []byte, idx int) {
-	// amd64:`MOVQ\s\(.*\)\(.*\*1\),`,-`MOV[BWL]`,-`OR`
+	// amd64:`MOVQ\s\(.*\)\(.*\*1\),`,-`MOV[BWL]\t[^$]`,-`OR`
 	// s390x:`MOVDBR\s\(.*\)\(.*\*1\),`
 	// arm64:`MOVD\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[BHW]`
 	// ppc64le:`MOVD\s`,-`MOV[BHW]Z\s`
@@ -68,7 +68,7 @@ func load_le16_idx(b []byte, idx int) {
 }
 
 func load_be64(b []byte) {
-	// amd64:`BSWAPQ`,-`MOV[BWL]`,-`OR`
+	// amd64:`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
 	// s390x:`MOVD\s\(.*\),`
 	// arm64:`REV`,`MOVD\s\(R[0-9]+\),`,-`MOV[BHW]`,-`REVW`,-`REV16W`
 	// ppc64le:`MOVDBR`
@@ -76,7 +76,7 @@ func load_be64(b []byte) {
 }
 
 func load_be64_idx(b []byte, idx int) {
-	// amd64:`BSWAPQ`,-`MOV[BWL]`,-`OR`
+	// amd64:`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
 	// s390x:`MOVD\s\(.*\)\(.*\*1\),`
 	// arm64:`REV`,`MOVD\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[WHB]`,-`REVW`,-`REV16W`
 	// ppc64le:`MOVDBR`
@@ -141,7 +141,7 @@ func load_le_byte4_uint32_inv(s []byte) uint32 {
 
 func load_le_byte8_uint64(s []byte) uint64 {
 	// arm64:`MOVD\t\(R[0-9]+\)`,-`ORR`,-`MOV[BHW]`
-	// amd64:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,-`MOV[BWL]`,-`OR`
+	// amd64:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,-`MOV[BWL]\t[^$]`,-`OR`
 	return uint64(s[0]) | uint64(s[1])<<8 | uint64(s[2])<<16 | uint64(s[3])<<24 | uint64(s[4])<<32 | uint64(s[5])<<40 | uint64(s[6])<<48 | uint64(s[7])<<56
 }
 
@@ -180,7 +180,7 @@ func load_be_byte8_uint64(s []byte) uint64 {
 
 func load_be_byte8_uint64_inv(s []byte) uint64 {
 	// arm64:`MOVD\t\(R[0-9]+\)`,`REV`,-`ORR`,-`REVW`,-`REV16W`,-`MOV[BHW]`
-	// amd64:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,-`MOV[BWL]`,-`OR`
+	// amd64:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,-`MOV[BWL]\t[^$]`,-`OR`
 	return uint64(s[7]) | uint64(s[6])<<8 | uint64(s[5])<<16 | uint64(s[4])<<24 | uint64(s[3])<<32 | uint64(s[2])<<40 | uint64(s[1])<<48 | uint64(s[0])<<56
 }
 

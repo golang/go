@@ -719,6 +719,10 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpOr8_0(v)
 	case OpOrB:
 		return rewriteValueARM_OpOrB_0(v)
+	case OpPanicBounds:
+		return rewriteValueARM_OpPanicBounds_0(v)
+	case OpPanicExtend:
+		return rewriteValueARM_OpPanicExtend_0(v)
 	case OpRound32F:
 		return rewriteValueARM_OpRound32F_0(v)
 	case OpRound64F:
@@ -20074,6 +20078,132 @@ func rewriteValueARM_OpOrB_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+}
+func rewriteValueARM_OpPanicBounds_0(v *Value) bool {
+	// match: (PanicBounds [kind] x y mem)
+	// cond: boundsABI(kind) == 0
+	// result: (LoweredPanicBoundsA [kind] x y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		mem := v.Args[2]
+		if !(boundsABI(kind) == 0) {
+			break
+		}
+		v.reset(OpARMLoweredPanicBoundsA)
+		v.AuxInt = kind
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (PanicBounds [kind] x y mem)
+	// cond: boundsABI(kind) == 1
+	// result: (LoweredPanicBoundsB [kind] x y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		mem := v.Args[2]
+		if !(boundsABI(kind) == 1) {
+			break
+		}
+		v.reset(OpARMLoweredPanicBoundsB)
+		v.AuxInt = kind
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (PanicBounds [kind] x y mem)
+	// cond: boundsABI(kind) == 2
+	// result: (LoweredPanicBoundsC [kind] x y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		mem := v.Args[2]
+		if !(boundsABI(kind) == 2) {
+			break
+		}
+		v.reset(OpARMLoweredPanicBoundsC)
+		v.AuxInt = kind
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpPanicExtend_0(v *Value) bool {
+	// match: (PanicExtend [kind] hi lo y mem)
+	// cond: boundsABI(kind) == 0
+	// result: (LoweredPanicExtendA [kind] hi lo y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[3]
+		hi := v.Args[0]
+		lo := v.Args[1]
+		y := v.Args[2]
+		mem := v.Args[3]
+		if !(boundsABI(kind) == 0) {
+			break
+		}
+		v.reset(OpARMLoweredPanicExtendA)
+		v.AuxInt = kind
+		v.AddArg(hi)
+		v.AddArg(lo)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (PanicExtend [kind] hi lo y mem)
+	// cond: boundsABI(kind) == 1
+	// result: (LoweredPanicExtendB [kind] hi lo y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[3]
+		hi := v.Args[0]
+		lo := v.Args[1]
+		y := v.Args[2]
+		mem := v.Args[3]
+		if !(boundsABI(kind) == 1) {
+			break
+		}
+		v.reset(OpARMLoweredPanicExtendB)
+		v.AuxInt = kind
+		v.AddArg(hi)
+		v.AddArg(lo)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (PanicExtend [kind] hi lo y mem)
+	// cond: boundsABI(kind) == 2
+	// result: (LoweredPanicExtendC [kind] hi lo y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[3]
+		hi := v.Args[0]
+		lo := v.Args[1]
+		y := v.Args[2]
+		mem := v.Args[3]
+		if !(boundsABI(kind) == 2) {
+			break
+		}
+		v.reset(OpARMLoweredPanicExtendC)
+		v.AuxInt = kind
+		v.AddArg(hi)
+		v.AddArg(lo)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	return false
 }
 func rewriteValueARM_OpRound32F_0(v *Value) bool {
 	// match: (Round32F x)

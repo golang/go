@@ -405,6 +405,10 @@ func rewriteValueMIPS(v *Value) bool {
 		return rewriteValueMIPS_OpOr8_0(v)
 	case OpOrB:
 		return rewriteValueMIPS_OpOrB_0(v)
+	case OpPanicBounds:
+		return rewriteValueMIPS_OpPanicBounds_0(v)
+	case OpPanicExtend:
+		return rewriteValueMIPS_OpPanicExtend_0(v)
 	case OpRound32F:
 		return rewriteValueMIPS_OpRound32F_0(v)
 	case OpRound64F:
@@ -6974,6 +6978,132 @@ func rewriteValueMIPS_OpOrB_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+}
+func rewriteValueMIPS_OpPanicBounds_0(v *Value) bool {
+	// match: (PanicBounds [kind] x y mem)
+	// cond: boundsABI(kind) == 0
+	// result: (LoweredPanicBoundsA [kind] x y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		mem := v.Args[2]
+		if !(boundsABI(kind) == 0) {
+			break
+		}
+		v.reset(OpMIPSLoweredPanicBoundsA)
+		v.AuxInt = kind
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (PanicBounds [kind] x y mem)
+	// cond: boundsABI(kind) == 1
+	// result: (LoweredPanicBoundsB [kind] x y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		mem := v.Args[2]
+		if !(boundsABI(kind) == 1) {
+			break
+		}
+		v.reset(OpMIPSLoweredPanicBoundsB)
+		v.AuxInt = kind
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (PanicBounds [kind] x y mem)
+	// cond: boundsABI(kind) == 2
+	// result: (LoweredPanicBoundsC [kind] x y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		mem := v.Args[2]
+		if !(boundsABI(kind) == 2) {
+			break
+		}
+		v.reset(OpMIPSLoweredPanicBoundsC)
+		v.AuxInt = kind
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS_OpPanicExtend_0(v *Value) bool {
+	// match: (PanicExtend [kind] hi lo y mem)
+	// cond: boundsABI(kind) == 0
+	// result: (LoweredPanicExtendA [kind] hi lo y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[3]
+		hi := v.Args[0]
+		lo := v.Args[1]
+		y := v.Args[2]
+		mem := v.Args[3]
+		if !(boundsABI(kind) == 0) {
+			break
+		}
+		v.reset(OpMIPSLoweredPanicExtendA)
+		v.AuxInt = kind
+		v.AddArg(hi)
+		v.AddArg(lo)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (PanicExtend [kind] hi lo y mem)
+	// cond: boundsABI(kind) == 1
+	// result: (LoweredPanicExtendB [kind] hi lo y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[3]
+		hi := v.Args[0]
+		lo := v.Args[1]
+		y := v.Args[2]
+		mem := v.Args[3]
+		if !(boundsABI(kind) == 1) {
+			break
+		}
+		v.reset(OpMIPSLoweredPanicExtendB)
+		v.AuxInt = kind
+		v.AddArg(hi)
+		v.AddArg(lo)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (PanicExtend [kind] hi lo y mem)
+	// cond: boundsABI(kind) == 2
+	// result: (LoweredPanicExtendC [kind] hi lo y mem)
+	for {
+		kind := v.AuxInt
+		_ = v.Args[3]
+		hi := v.Args[0]
+		lo := v.Args[1]
+		y := v.Args[2]
+		mem := v.Args[3]
+		if !(boundsABI(kind) == 2) {
+			break
+		}
+		v.reset(OpMIPSLoweredPanicExtendC)
+		v.AuxInt = kind
+		v.AddArg(hi)
+		v.AddArg(lo)
+		v.AddArg(y)
+		v.AddArg(mem)
+		return true
+	}
+	return false
 }
 func rewriteValueMIPS_OpRound32F_0(v *Value) bool {
 	// match: (Round32F x)

@@ -300,10 +300,8 @@ var (
 	panicshift,
 	panicdottypeE,
 	panicdottypeI,
-	panicindex,
 	panicnildottype,
 	panicoverflow,
-	panicslice,
 	raceread,
 	racereadrange,
 	racewrite,
@@ -315,6 +313,9 @@ var (
 	typedmemmove,
 	Udiv,
 	writeBarrier *obj.LSym
+
+	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
+	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
 
 	// GO386=387
 	ControlWord64trunc,

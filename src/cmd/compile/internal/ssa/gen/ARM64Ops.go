@@ -130,6 +130,10 @@ func init() {
 		gpspsbg    = gpspg | buildReg("SB")
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
 		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
+		r0         = buildReg("R0")
+		r1         = buildReg("R1")
+		r2         = buildReg("R2")
+		r3         = buildReg("R3")
 	)
 	// Common regInfo
 	var (
@@ -650,6 +654,13 @@ func init() {
 		// It saves all GP registers if necessary,
 		// but clobbers R30 (LR) because it's a call.
 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R30")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+
+		// There are three of these functions so that they can have three different register inputs.
+		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+		// default registers to match so we don't need to copy registers around unnecessarily.
+		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
 	}
 
 	blocks := []blockData{

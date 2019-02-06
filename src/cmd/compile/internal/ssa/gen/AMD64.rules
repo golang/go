@@ -225,7 +225,8 @@
 (NeqPtr x y) && config.PtrSize == 4 -> (SETNE (CMPL x y))
 (Neq(32|64)F x y) -> (SETNEF (UCOMIS(S|D) x y))
 
-(Int64Hi x) -> (SHRQconst [32] x) // needed for amd64p32
+(Int64Hi x) -> (SHRQconst [32] x)         // needed for amd64p32
+(Int64Lo x) -> x
 
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t) && config.PtrSize == 8) -> (MOVQload ptr mem)
@@ -560,6 +561,15 @@
 
 // Write barrier.
 (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 -> (LoweredPanicBoundsA [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 -> (LoweredPanicBoundsB [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 -> (LoweredPanicBoundsC [kind] x y mem)
+
+// For amd64p32
+(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 0 -> (LoweredPanicExtendA [kind] hi lo y mem)
+(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 1 -> (LoweredPanicExtendB [kind] hi lo y mem)
+(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 2 -> (LoweredPanicExtendC [kind] hi lo y mem)
 
 // ***************************
 // Above: lowering rules
