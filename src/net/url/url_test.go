@@ -1875,7 +1875,7 @@ var urlSchemeValidTests = []struct {
 	{"ahttp://example.com", true},
 	{" http://example.com", false},
 	{"+http://example.com", false},
-	{"example.com", false},
+	{"1http://example.com", false},
 }
 
 func TestValidUrlSchemes(t *testing.T) {
@@ -1885,8 +1885,7 @@ func TestValidUrlSchemes(t *testing.T) {
 			t.Errorf("ParseRequestURI(%q) gave err %v; want no error", test.url, err)
 		} else if !test.expectedValid && err == nil {
 			t.Errorf("ParseRequestURI(%q) gave nil error; want some error", test.url)
-		} else if !test.expectedValid && err != nil && !strings.ContainsAny(err.Error(), "Url scheme has invalid character!!") {
-			//t.Errorf("Error was %v", err.Error())
+		} else if !test.expectedValid && err != nil && !strings.Contains(err.Error(), "url scheme has invalid character") {
 			t.Errorf("ParseRequestURI(%q) gave error %v; want Invalid scheme error", test.url, err)
 		}
 	}
