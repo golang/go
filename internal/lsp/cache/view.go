@@ -25,6 +25,8 @@ type View struct {
 	Config packages.Config
 
 	files map[source.URI]*File
+
+	analysisCache *source.AnalysisCache
 }
 
 // NewView creates a new View, given a root path and go/packages configuration.
@@ -116,6 +118,10 @@ func (v *View) parse(uri source.URI) error {
 			v:               v,
 			topLevelPkgPath: pkg.PkgPath,
 		}
+
+		// TODO(rstambler): Get real TypeSizes from go/packages.
+		pkg.TypesSizes = &types.StdSizes{}
+
 		if err := imp.addImports(pkg); err != nil {
 			return err
 		}
@@ -264,4 +270,11 @@ func (imp *importer) importPackage(pkgPath string) (*types.Package, error) {
 		f.pkg = pkg
 	}
 	return pkg.Types, nil
+}
+
+func (v *View) GetAnalysisCache() *source.AnalysisCache {
+	if v.analysisCache == nil {
+		v.analysisCache = source.NewAnalysisCache()
+	}
+	return v.analysisCache
 }

@@ -18,6 +18,7 @@ import (
 type View interface {
 	GetFile(ctx context.Context, uri URI) (File, error)
 	SetContent(ctx context.Context, uri URI, content []byte) (View, error)
+	GetAnalysisCache() *AnalysisCache
 	FileSet() *token.FileSet
 }
 
