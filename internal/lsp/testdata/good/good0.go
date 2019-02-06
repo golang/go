@@ -1,4 +1,4 @@
-package good //@diag("package", "")
+package good //@diag("package", "", "")
 
 func stuff() { //@item(good_stuff, "stuff()", "", "func")
 	x := 5

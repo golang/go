@@ -236,6 +236,9 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 		}, nil
 	case pt == identifierType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
+			if len(args) < 1 {
+				return reflect.Value{}, nil, fmt.Errorf("missing argument")
+			}
 			arg := args[0]
 			args = args[1:]
 			switch arg := arg.(type) {
@@ -248,6 +251,9 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 
 	case pt == regexType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
+			if len(args) < 1 {
+				return reflect.Value{}, nil, fmt.Errorf("missing argument")
+			}
 			arg := args[0]
 			args = args[1:]
 			if _, ok := arg.(*regexp.Regexp); !ok {
@@ -258,6 +264,9 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 
 	case pt.Kind() == reflect.String:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
+			if len(args) < 1 {
+				return reflect.Value{}, nil, fmt.Errorf("missing argument")
+			}
 			arg := args[0]
 			args = args[1:]
 			switch arg := arg.(type) {
@@ -271,6 +280,9 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 		}, nil
 	case pt.Kind() == reflect.Int64:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
+			if len(args) < 1 {
+				return reflect.Value{}, nil, fmt.Errorf("missing argument")
+			}
 			arg := args[0]
 			args = args[1:]
 			switch arg := arg.(type) {
@@ -282,6 +294,9 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 		}, nil
 	case pt.Kind() == reflect.Bool:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
+			if len(args) < 1 {
+				return reflect.Value{}, nil, fmt.Errorf("missing argument")
+			}
 			arg := args[0]
 			args = args[1:]
 			b, ok := arg.(bool)
@@ -310,6 +325,9 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 	default:
 		if pt.Kind() == reflect.Interface && pt.NumMethod() == 0 {
 			return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
+				if len(args) < 1 {
+					return reflect.Value{}, nil, fmt.Errorf("missing argument")
+				}
 				return reflect.ValueOf(args[0]), args[1:], nil
 			}, nil
 		}

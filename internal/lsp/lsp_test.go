@@ -36,7 +36,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	// We hardcode the expected number of test cases to ensure that all tests
 	// are being executed. If a test is added, this number must be changed.
 	const expectedCompletionsCount = 63
-	const expectedDiagnosticsCount = 14
+	const expectedDiagnosticsCount = 15
 	const expectedFormatCount = 3
 	const expectedDefinitionsCount = 16
 	const expectedTypeDefinitionsCount = 2
@@ -168,7 +168,7 @@ func (d diagnostics) test(t *testing.T, v source.View) int {
 	return count
 }
 
-func (d diagnostics) collect(fset *token.FileSet, rng packagestest.Range, msg string) {
+func (d diagnostics) collect(fset *token.FileSet, rng packagestest.Range, msgSource, msg string) {
 	f := fset.File(rng.Start)
 	if _, ok := d[f.Name()]; !ok {
 		d[f.Name()] = []protocol.Diagnostic{}
@@ -181,7 +181,7 @@ func (d diagnostics) collect(fset *token.FileSet, rng packagestest.Range, msg st
 	want := protocol.Diagnostic{
 		Range:    toProtocolRange(f, source.Range(rng)),
 		Severity: protocol.SeverityError,
-		Source:   "LSP",
+		Source:   msgSource,
 		Message:  msg,
 	}
 	d[f.Name()] = append(d[f.Name()], want)

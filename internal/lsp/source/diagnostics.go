@@ -12,12 +12,16 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/tests"
+
 	"golang.org/x/tools/go/packages"
 )
 
 type Diagnostic struct {
 	Range
 	Message string
+	Source  string
 }
 
 func Diagnostics(ctx context.Context, v View, uri URI) (map[string][]Diagnostic, error) {
@@ -89,6 +93,24 @@ func Diagnostics(ctx context.Context, v View, uri URI) (map[string][]Diagnostic,
 			reports[pos.Filename] = append(reports[pos.Filename], diagnostic)
 		}
 	}
+	if len(diags) > 0 {
+		return reports, nil
+	}
+	// Type checking and parsing succeeded. Run analyses.
+	runAnalyses(pkg, func(a *analysis.Analyzer, diag analysis.Diagnostic) {
+		pos := pkg.Fset.Position(diag.Pos)
+		category := a.Name
+		if diag.Category != "" {
+			category += "." + category
+		}
+
+		reports[pos.Filename] = append(reports[pos.Filename], Diagnostic{
+			Source:  category,
+			Range:   Range{Start: diag.Pos, End: diag.Pos},
+			Message: fmt.Sprintf(diag.Message),
+		})
+	})
+
 	return reports, nil
 }
 
@@ -141,4 +163,39 @@ func identifierEnd(content []byte, l, c int) (int, error) {
 		return 0, fmt.Errorf("invalid column number: got %v, but the length of the line is %v", c, len(line))
 	}
 	return bytes.IndexAny(line[c-1:], " \n,():;[]"), nil
+}
+
+func runAnalyses(pkg *packages.Package, report func(a *analysis.Analyzer, diag analysis.Diagnostic)) error {
+	analyzers := []*analysis.Analyzer{
+		tests.Analyzer, // an analyzer that doesn't have facts or requires
+	}
+	for _, a := range analyzers {
+		if len(a.FactTypes) > 0 {
+			panic("for analyzer " + a.Name + " modular analyses needing facts are not yet supported")
+		}
+		if len(a.Requires) > 0 {
+			panic("for analyzer " + a.Name + " analyses requiring results are not yet supported")
+		}
+		pass := &analysis.Pass{
+			Analyzer: a,
+
+			Fset:       pkg.Fset,
+			Files:      pkg.Syntax,
+			OtherFiles: pkg.OtherFiles,
+			Pkg:        pkg.Types,
+			TypesInfo:  pkg.TypesInfo,
+			TypesSizes: pkg.TypesSizes,
+
+			Report: func(diagnostic analysis.Diagnostic) { report(a, diagnostic) },
+
+			// TODO(matloob): Fill in the fields ResultOf, ImportObjectFact, ImportPackageFact,
+			// ExportObjectFact, ExportPackageFact once modular facts and results are supported.
+		}
+		_, err := a.Run(pass)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

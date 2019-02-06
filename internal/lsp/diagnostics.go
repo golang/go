@@ -51,11 +51,15 @@ func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []sou
 	reports := []protocol.Diagnostic{}
 	for _, diag := range diagnostics {
 		tok := v.FileSet().File(diag.Start)
+		source := diag.Source
+		if source == "" {
+			source = "LSP"
+		}
 		reports = append(reports, protocol.Diagnostic{
 			Message:  diag.Message,
 			Range:    toProtocolRange(tok, diag.Range),
 			Severity: protocol.SeverityError, // all diagnostics have error severity for now
-			Source:   "LSP",
+			Source:   source,
 		})
 	}
 	return reports

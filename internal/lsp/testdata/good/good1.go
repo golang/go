@@ -1,4 +1,4 @@
-package good //@diag("package", "")
+package good //@diag("package", "", "")
 
 import (
 	"golang.org/x/tools/internal/lsp/types" //@item(types_import, "types", "\"golang.org/x/tools/internal/lsp/types\"", "package")
