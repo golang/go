@@ -136,6 +136,7 @@ func Export(t testing.TB, exporter Exporter, modules []Module) *Exported {
 			Dir:     temp,
 			Env:     append(os.Environ(), "GOPACKAGESDRIVER=off"),
 			Overlay: make(map[string][]byte),
+			Tests:   true,
 		},
 		Modules: modules,
 		temp:    temp,

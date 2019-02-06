@@ -1,0 +1,3 @@
+package testy
+
+func a() {}
