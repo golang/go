@@ -65,8 +65,8 @@ func f() int {
 		panic("traceback truncated after init.ializers")
 	}
 	f, _ = iter.Next()
-	if f.Function != "runtime.main" {
-		panic("runtime.main missing")
+	if !strings.HasPrefix(f.Function, "runtime.") {
+		panic("runtime. driver missing")
 	}
 
 	return 0

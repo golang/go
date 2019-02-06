@@ -183,10 +183,6 @@ func panicmem() {
 	panic(memoryError)
 }
 
-func throwinit() {
-	throw("recursive call during initialization - linker skew")
-}
-
 // Create a new deferred function fn with siz bytes of arguments.
 // The compiler turns a defer statement into a call to this.
 //go:nosplit
