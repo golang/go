@@ -90,7 +90,7 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 
 	s.view = cache.NewView(&packages.Config{
 		Dir:     rootPath,
-		Mode:    packages.LoadSyntax,
+		Mode:    packages.LoadImports,
 		Fset:    token.NewFileSet(),
 		Tests:   true,
 		Overlay: make(map[string][]byte),
@@ -170,9 +170,11 @@ func (s *server) DidChange(ctx context.Context, params *protocol.DidChangeTextDo
 		return jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "no content changes provided")
 	}
 	// We expect the full content of file, i.e. a single change with no range.
-	if change := params.ContentChanges[0]; change.RangeLength == 0 {
-		s.cacheAndDiagnose(ctx, params.TextDocument.URI, change.Text)
+	change := params.ContentChanges[0]
+	if change.RangeLength != 0 {
+		return jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "unexpected change range provided")
 	}
+	s.cacheAndDiagnose(ctx, params.TextDocument.URI, change.Text)
 	return nil
 }
 

@@ -14,7 +14,6 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/diff"
@@ -60,7 +59,6 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	// Merge the exported.Config with the view.Config.
 	cfg := *exported.Config
 	cfg.Fset = token.NewFileSet()
-	cfg.Mode = packages.LoadSyntax
 
 	s := &server{
 		view: cache.NewView(&cfg),

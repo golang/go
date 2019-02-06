@@ -5,7 +5,6 @@
 package source
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
@@ -142,33 +141,6 @@ func objToRange(ctx context.Context, v View, obj types.Object) (Range, error) {
 	if !p.IsValid() {
 		return Range{}, fmt.Errorf("invalid position for %v", obj.Name())
 	}
-	tok := v.FileSet().File(p)
-	pos := tok.Position(p)
-	if pos.Column == 1 {
-		// We do not have full position information because exportdata does not
-		// store the column. For now, we attempt to read the original source
-		// and find the identifier within the line. If we find it, we patch the
-		// column to match its offset.
-		//
-		// TODO: If we parse from source, we will never need this hack.
-		f, err := v.GetFile(ctx, ToURI(pos.Filename))
-		if err != nil {
-			goto Return
-		}
-		src, err := f.Read()
-		if err != nil {
-			goto Return
-		}
-		tok, err := f.GetToken()
-		if err != nil {
-			goto Return
-		}
-		start := lineStart(tok, pos.Line)
-		offset := tok.Offset(start)
-		col := bytes.Index(src[offset:], []byte(obj.Name()))
-		p = tok.Pos(offset + col)
-	}
-Return:
 	return Range{
 		Start: p,
 		End:   p + token.Pos(identifierLen(obj.Name())),

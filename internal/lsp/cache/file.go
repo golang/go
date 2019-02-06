@@ -60,6 +60,9 @@ func (f *File) GetAST() (*ast.File, error) {
 		if err := f.view.parse(f.URI); err != nil {
 			return nil, err
 		}
+		if f.ast == nil {
+			return nil, fmt.Errorf("failed to find or parse %v", f.URI)
+		}
 	}
 	return f.ast, nil
 }
@@ -70,6 +73,9 @@ func (f *File) GetPackage() (*packages.Package, error) {
 	if f.pkg == nil {
 		if err := f.view.parse(f.URI); err != nil {
 			return nil, err
+		}
+		if f.pkg == nil {
+			return nil, fmt.Errorf("failed to find or parse %v", f.URI)
 		}
 	}
 	return f.pkg, nil
