@@ -706,6 +706,26 @@ func range2(b [][32]int) {
 	}
 }
 
+// signhint1-2 test whether the hint (int >= 0) is propagated into the loop.
+func signHint1(i int, data []byte) {
+	if i >= 0 {
+		for i < len(data) { // ERROR "Induction variable: limits \[\?,\?\), increment 1$"
+			_ = data[i] // ERROR "Proved IsInBounds$"
+			i++
+		}
+	}
+}
+
+func signHint2(b []byte, n int) {
+	if n < 0 {
+		panic("")
+	}
+	_ = b[25]
+	for i := n; i <= 25; i++ { // ERROR "Induction variable: limits \[\?,25\], increment 1$"
+		b[i] = 123 // ERROR "Proved IsInBounds$"
+	}
+}
+
 //go:noinline
 func useInt(a int) {
 }
