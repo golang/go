@@ -174,6 +174,10 @@ type factsTable struct {
 	// more than one len(s) for a slice. We could keep a list if necessary.
 	lens map[ID]*Value
 	caps map[ID]*Value
+
+	// zero is a reference to the zero-valued constant assigned or created
+	// during the len/cap sweep that begins prove.
+	zero *Value
 }
 
 // checkpointFact is an invalid value used for checkpointing
@@ -566,7 +570,11 @@ func (ft *factsTable) isNonNegative(v *Value) bool {
 		}
 	}
 
-	return false
+	// Check if the signed poset can prove that the value is >= 0
+	if ft.zero == nil {
+		ft.zero = v.Block.NewValue0I(v.Block.Pos, OpConst64, v.Block.Func.Config.Types.Int64, 0)
+	}
+	return ft.order[0].OrderedOrEqual(ft.zero, v)
 }
 
 // checkpoint saves the current state of known relations.
@@ -734,13 +742,12 @@ func prove(f *Func) {
 	ft.checkpoint()
 
 	// Find length and capacity ops.
-	var zero *Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			// If we found a zero constant, save it (so we don't have
 			// to build one later).
-			if zero == nil && v.Op == OpConst64 && v.AuxInt == 0 {
-				zero = v
+			if ft.zero == nil && v.Op == OpConst64 && v.AuxInt == 0 {
+				ft.zero = v
 			}
 			if v.Uses == 0 {
 				// We don't care about dead values.
@@ -749,28 +756,28 @@ func prove(f *Func) {
 			}
 			switch v.Op {
 			case OpStringLen:
-				if zero == nil {
-					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
+				if ft.zero == nil {
+					ft.zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
 				}
-				ft.update(b, v, zero, signed, gt|eq)
+				ft.update(b, v, ft.zero, signed, gt|eq)
 			case OpSliceLen:
 				if ft.lens == nil {
 					ft.lens = map[ID]*Value{}
 				}
 				ft.lens[v.Args[0].ID] = v
-				if zero == nil {
-					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
+				if ft.zero == nil {
+					ft.zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
 				}
-				ft.update(b, v, zero, signed, gt|eq)
+				ft.update(b, v, ft.zero, signed, gt|eq)
 			case OpSliceCap:
 				if ft.caps == nil {
 					ft.caps = map[ID]*Value{}
 				}
 				ft.caps[v.Args[0].ID] = v
-				if zero == nil {
-					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
+				if ft.zero == nil {
+					ft.zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
 				}
-				ft.update(b, v, zero, signed, gt|eq)
+				ft.update(b, v, ft.zero, signed, gt|eq)
 			}
 		}
 	}
@@ -904,7 +911,7 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
 // starting in Block b.
 func addIndVarRestrictions(ft *factsTable, b *Block, iv indVar) {
 	d := signed
-	if isNonNegative(iv.min) && isNonNegative(iv.max) {
+	if ft.isNonNegative(iv.min) && ft.isNonNegative(iv.max) {
 		d |= unsigned
 	}
 
