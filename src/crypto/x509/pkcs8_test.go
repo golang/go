@@ -11,6 +11,7 @@ import (
 	"crypto/rsa"
 	"encoding/hex"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -104,6 +105,27 @@ func TestPKCS8(t *testing.T) {
 		if !bytes.Equal(derBytes, reserialised) {
 			t.Errorf("%s: marshalled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
 			continue
+		}
+	}
+}
+
+const hexPKCS8TestPKCS1Key = "3082025c02010002818100b1a1e0945b9289c4d3f1329f8a982c4a2dcd59bfd372fb8085a9c517554607ebd2f7990eef216ac9f4605f71a03b04f42a5255b158cf8e0844191f5119348baa44c35056e20609bcf9510f30ead4b481c81d7865fb27b8e0090e112b717f3ee08cdfc4012da1f1f7cf2a1bc34c73a54a12b06372d09714742dd7895eadde4aa5020301000102818062b7fa1db93e993e40237de4d89b7591cc1ea1d04fed4904c643f17ae4334557b4295270d0491c161cb02a9af557978b32b20b59c267a721c4e6c956c2d147046e9ae5f2da36db0106d70021fa9343455f8f973a4b355a26fd19e6b39dee0405ea2b32deddf0f4817759ef705d02b34faab9ca93c6766e9f722290f119f34449024100d9c29a4a013a90e35fd1be14a3f747c589fac613a695282d61812a711906b8a0876c6181f0333ca1066596f57bff47e7cfcabf19c0fc69d9cd76df743038b3cb024100d0d3546fecf879b5551f2bd2c05e6385f2718a08a6face3d2aecc9d7e03645a480a46c81662c12ad6bd6901e3bd4f38029462de7290859567cdf371c79088d4f024100c254150657e460ea58573fcf01a82a4791e3d6223135c8bdfed69afe84fbe7857274f8eb5165180507455f9b4105c6b08b51fe8a481bb986a202245576b713530240045700003b7a867d0041df9547ae2e7f50248febd21c9040b12dae9c2feab0d3d4609668b208e4727a3541557f84d372ac68eaf74ce1018a4c9a0ef92682c8fd02405769731480bb3a4570abf422527c5f34bf732fa6c1e08cc322753c511ce055fac20fc770025663ad3165324314df907f1f1942f0448a7e9cdbf87ecd98b92156"
+const hexPKCS8TestECKey = "3081a40201010430bdb9839c08ee793d1157886a7a758a3c8b2a17a4df48f17ace57c72c56b4723cf21dcda21d4e1ad57ff034f19fcfd98ea00706052b81040022a16403620004feea808b5ee2429cfcce13c32160e1c960990bd050bb0fdf7222f3decd0a55008e32a6aa3c9062051c4cba92a7a3b178b24567412d43cdd2f882fa5addddd726fe3e208d2c26d733a773a597abb749714df7256ead5105fa6e7b3650de236b50"
+
+var pkcs8MismatchKeyTests = []struct {
+	hexKey        string
+	errorContains string
+}{
+	{hexKey: hexPKCS8TestECKey, errorContains: "use ParseECPrivateKey instead"},
+	{hexKey: hexPKCS8TestPKCS1Key, errorContains: "use ParsePKCS1PrivateKey instead"},
+}
+
+func TestPKCS8MismatchKeyFormat(t *testing.T) {
+	for i, test := range pkcs8MismatchKeyTests {
+		derBytes, _ := hex.DecodeString(test.hexKey)
+		_, err := ParsePKCS8PrivateKey(derBytes)
+		if !strings.Contains(err.Error(), test.errorContains) {
+			t.Errorf("#%d: expected error containing %q, got %s", i, test.errorContains, err)
 		}
 	}
 }
