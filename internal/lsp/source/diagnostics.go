@@ -9,8 +9,30 @@ import (
 	"context"
 	"fmt"
 	"go/token"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
+
+	"golang.org/x/tools/go/analysis/passes/asmdecl"
+	"golang.org/x/tools/go/analysis/passes/assign"
+	"golang.org/x/tools/go/analysis/passes/atomic"
+	"golang.org/x/tools/go/analysis/passes/atomicalign"
+	"golang.org/x/tools/go/analysis/passes/bools"
+	"golang.org/x/tools/go/analysis/passes/buildtag"
+	"golang.org/x/tools/go/analysis/passes/cgocall"
+	"golang.org/x/tools/go/analysis/passes/composite"
+	"golang.org/x/tools/go/analysis/passes/copylock"
+	"golang.org/x/tools/go/analysis/passes/httpresponse"
+	"golang.org/x/tools/go/analysis/passes/loopclosure"
+	"golang.org/x/tools/go/analysis/passes/nilfunc"
+	"golang.org/x/tools/go/analysis/passes/shift"
+	"golang.org/x/tools/go/analysis/passes/stdmethods"
+	"golang.org/x/tools/go/analysis/passes/structtag"
+	"golang.org/x/tools/go/analysis/passes/unmarshal"
+	"golang.org/x/tools/go/analysis/passes/unreachable"
+	"golang.org/x/tools/go/analysis/passes/unsafeptr"
+	"golang.org/x/tools/go/analysis/passes/unusedresult"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/tests"
@@ -166,34 +188,128 @@ func identifierEnd(content []byte, l, c int) (int, error) {
 }
 
 func runAnalyses(pkg *packages.Package, report func(a *analysis.Analyzer, diag analysis.Diagnostic)) error {
+	// These are the analyses in the vetsuite, except for lostcancel and printf.
+	// Those rely on facts from other packages.
+	// TODO(matloob): Add fact support.
 	analyzers := []*analysis.Analyzer{
-		tests.Analyzer, // an analyzer that doesn't have facts or requires
+		asmdecl.Analyzer,
+		assign.Analyzer,
+		atomic.Analyzer,
+		atomicalign.Analyzer,
+		bools.Analyzer,
+		buildtag.Analyzer,
+		cgocall.Analyzer,
+		composite.Analyzer,
+		copylock.Analyzer,
+		httpresponse.Analyzer,
+		loopclosure.Analyzer,
+		nilfunc.Analyzer,
+		shift.Analyzer,
+		stdmethods.Analyzer,
+		structtag.Analyzer,
+		tests.Analyzer,
+		unmarshal.Analyzer,
+		unreachable.Analyzer,
+		unsafeptr.Analyzer,
+		unusedresult.Analyzer,
+	}
+
+	// Execute actions in parallel. Based on unitchecker's analysis execution logic.
+	type action struct {
+		once        sync.Once
+		result      interface{}
+		err         error
+		diagnostics []analysis.Diagnostic
+	}
+	actions := make(map[*analysis.Analyzer]*action)
+
+	var registerActions func(a *analysis.Analyzer)
+	registerActions = func(a *analysis.Analyzer) {
+		act, ok := actions[a]
+		if !ok {
+			act = new(action)
+			for _, req := range a.Requires {
+				registerActions(req)
+			}
+			actions[a] = act
+		}
 	}
 	for _, a := range analyzers {
-		if len(a.FactTypes) > 0 {
-			panic("for analyzer " + a.Name + " modular analyses needing facts are not yet supported")
-		}
-		if len(a.Requires) > 0 {
-			panic("for analyzer " + a.Name + " analyses requiring results are not yet supported")
-		}
-		pass := &analysis.Pass{
-			Analyzer: a,
+		registerActions(a)
+	}
 
-			Fset:       pkg.Fset,
-			Files:      pkg.Syntax,
-			OtherFiles: pkg.OtherFiles,
-			Pkg:        pkg.Types,
-			TypesInfo:  pkg.TypesInfo,
-			TypesSizes: pkg.TypesSizes,
+	// In parallel, execute the DAG of analyzers.
+	var exec func(a *analysis.Analyzer) *action
+	var execAll func(analyzers []*analysis.Analyzer)
+	exec = func(a *analysis.Analyzer) *action {
+		act := actions[a]
+		act.once.Do(func() {
+			if len(a.FactTypes) > 0 {
+				panic("for analyzer " + a.Name + " modular analyses needing facts are not yet supported")
+			}
 
-			Report: func(diagnostic analysis.Diagnostic) { report(a, diagnostic) },
+			execAll(a.Requires) // prefetch dependencies in parallel
 
-			// TODO(matloob): Fill in the fields ResultOf, ImportObjectFact, ImportPackageFact,
-			// ExportObjectFact, ExportPackageFact once modular facts and results are supported.
+			// The inputs to this analysis are the
+			// results of its prerequisites.
+			inputs := make(map[*analysis.Analyzer]interface{})
+			var failed []string
+			for _, req := range a.Requires {
+				reqact := exec(req)
+				if reqact.err != nil {
+					failed = append(failed, req.String())
+					continue
+				}
+				inputs[req] = reqact.result
+			}
+
+			// Report an error if any dependency failed.
+			if failed != nil {
+				sort.Strings(failed)
+				act.err = fmt.Errorf("failed prerequisites: %s", strings.Join(failed, ", "))
+				return
+			}
+
+			pass := &analysis.Pass{
+				Analyzer:   a,
+				Fset:       pkg.Fset,
+				Files:      pkg.Syntax,
+				OtherFiles: pkg.OtherFiles,
+				Pkg:        pkg.Types,
+				TypesInfo:  pkg.TypesInfo,
+				TypesSizes: pkg.TypesSizes,
+				ResultOf:   inputs,
+				Report:     func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
+			}
+
+			act.result, act.err = a.Run(pass)
+		})
+		return act
+	}
+	execAll = func(analyzers []*analysis.Analyzer) {
+		var wg sync.WaitGroup
+		for _, a := range analyzers {
+			wg.Add(1)
+			go func(a *analysis.Analyzer) {
+				_ = exec(a)
+				wg.Done()
+			}(a)
 		}
-		_, err := a.Run(pass)
-		if err != nil {
-			return err
+		wg.Wait()
+	}
+
+	execAll(analyzers)
+
+	// Report diagnostics and errors from root analyzers.
+	for _, a := range analyzers {
+		act := actions[a]
+		if act.err != nil {
+			// TODO(matloob): This isn't quite right: we might return a failed prerequisites error,
+			// which isn't super useful...
+			return act.err
+		}
+		for _, diag := range act.diagnostics {
+			report(a, diag)
 		}
 	}
 

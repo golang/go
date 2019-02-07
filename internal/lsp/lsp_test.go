@@ -36,7 +36,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	// We hardcode the expected number of test cases to ensure that all tests
 	// are being executed. If a test is added, this number must be changed.
 	const expectedCompletionsCount = 63
-	const expectedDiagnosticsCount = 15
+	const expectedDiagnosticsCount = 16
 	const expectedFormatCount = 3
 	const expectedDefinitionsCount = 16
 	const expectedTypeDefinitionsCount = 2
@@ -206,7 +206,7 @@ func diffDiagnostics(filename string, want, got []protocol.Diagnostic) string {
 			if g.Range.Start != g.Range.End || w.Range.Start != g.Range.End {
 				goto Failed
 			}
-		} else {
+		} else if g.Range.End != g.Range.Start { // Accept any 'want' range if the diagnostic returns a zero-length range.
 			if w.Range.End != g.Range.End {
 				goto Failed
 			}
