@@ -15,26 +15,30 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"net"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/tool"
 )
 
-// Server is a struct that exposes the configurable parts of the LSP server as
+// Serve is a struct that exposes the configurable parts of the LSP server as
 // flags, in the right form for tool.Main to consume.
-type Server struct {
+type Serve struct {
 	Logfile string `flag:"logfile" help:"filename to log to. if value is \"auto\", then logging to a default output file is enabled"`
 	Mode    string `flag:"mode" help:"no effect"`
 	Port    int    `flag:"port" help:"port on which to run gopls for debugging purposes"`
+	Address    string    `flag:"listen" help:"address on which to listen for remote connections"`
+
+	app *Application
 }
 
-func (s *Server) Name() string  { return "server" }
-func (s *Server) Usage() string { return "" }
-func (s *Server) ShortHelp() string {
+func (s *Serve) Name() string  { return "serve" }
+func (s *Serve) Usage() string { return "" }
+func (s *Serve) ShortHelp() string {
 	return "run a server for Go code using the Language Server Protocol"
 }
-func (s *Server) DetailedHelp(f *flag.FlagSet) {
+func (s *Serve) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprint(f.Output(), `
 The server communicates using JSONRPC2 on stdin and stdout, and is intended to be run directly as
 a child of an editor process.
@@ -46,7 +50,7 @@ gopls server flags are:
 
 // Run configures a server based on the flags, and then runs it.
 // It blocks until the server shuts down.
-func (s *Server) Run(ctx context.Context, args ...string) error {
+func (s *Serve) Run(ctx context.Context, args ...string) error {
 	if len(args) > 0 {
 		return tool.CommandLineErrorf("server does not take arguments, got %v", args)
 	}
@@ -63,6 +67,9 @@ func (s *Server) Run(ctx context.Context, args ...string) error {
 		defer f.Close()
 		log.SetOutput(io.MultiWriter(os.Stderr, f))
 		out = f
+	}
+	if s.app.Remote != "" {
+		return s.forward()
 	}
 	logger := func(direction jsonrpc2.Direction, id *jsonrpc2.ID, elapsed time.Duration, method string, payload *json.RawMessage, err *jsonrpc2.Error) {
 		const eol = "\r\n\r\n\r\n"
@@ -112,9 +119,33 @@ func (s *Server) Run(ctx context.Context, args ...string) error {
 		fmt.Fprintf(out, "%s", outx.String())
 	}
 	// For debugging purposes only.
+	if s.Address != "" {
+		return lsp.RunServerOnAddress(ctx, s.Address, logger)
+	}
 	if s.Port != 0 {
 		return lsp.RunServerOnPort(ctx, s.Port, logger)
 	}
 	stream := jsonrpc2.NewHeaderStream(os.Stdin, os.Stdout)
 	return lsp.RunServer(ctx, stream, logger)
+}
+
+
+func (s *Serve) forward() error {
+	conn, err := net.Dial("tcp", s.app.Remote)
+	if err != nil {
+		return err
+	}
+	errc := make(chan error)
+
+	go func(conn net.Conn) {
+		_, err := io.Copy(conn, os.Stdin)
+		errc <- err
+	}(conn)
+
+	go func(conn net.Conn) {
+		_, err := io.Copy(os.Stdout, conn)
+		errc <- err
+	}(conn)
+
+	return <-errc
 }

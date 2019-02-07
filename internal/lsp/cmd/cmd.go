@@ -25,12 +25,16 @@ type Application struct {
 	// Embed the basic profiling flags supported by the tool package
 	tool.Profile
 
-	// We include the server directly for now, so the flags work even without the verb.
-	// TODO: Remove this when we stop allowing the server verb by default.
-	Server Server
+	// We include the server configuration directly for now, so the flags work
+	// even without the verb.
+	// TODO: Remove this when we stop allowing the serve verb by default.
+	Serve Serve
 
 	// An initial, common go/packages configuration
 	Config packages.Config
+
+	// Support for remote lsp server
+	Remote string `flag:"remote" help:"*EXPERIMENTAL* - forward all commands to a remote lsp"`
 }
 
 // Name implements tool.Application returning the binary name.
@@ -65,7 +69,7 @@ gopls flags are:
 // temporary measure for compatibility.
 func (app *Application) Run(ctx context.Context, args ...string) error {
 	if len(args) == 0 {
-		tool.Main(ctx, &app.Server, args)
+		tool.Main(ctx, &app.Serve, args)
 		return nil
 	}
 	app.Config.Mode = packages.LoadSyntax
@@ -87,8 +91,9 @@ func (app *Application) Run(ctx context.Context, args ...string) error {
 // command line.
 // The command is specified by the first non flag argument.
 func (app *Application) commands() []tool.Application {
+	app.Serve.app = app
 	return []tool.Application{
-		&app.Server,
+		&app.Serve,
 		&query{app: app},
 	}
 }
