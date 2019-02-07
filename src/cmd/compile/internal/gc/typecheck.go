@@ -3603,7 +3603,7 @@ func typecheckas2(n *Node) {
 mismatch:
 	switch r.Op {
 	default:
-		yyerror("assignment mismatch: %d variable but %d values", cl, cr)
+		yyerror("assignment mismatch: %d variables but %d values", cl, cr)
 	case OCALLFUNC, OCALLMETH, OCALLINTER:
 		yyerror("assignment mismatch: %d variables but %v returns %d values", cl, r.Left, cr)
 	}
