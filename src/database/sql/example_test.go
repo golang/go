@@ -163,6 +163,63 @@ func ExampleDB_PingContext() {
 	log.Println(status)
 }
 
+func ExampleDB_Prepare() {
+	projects := []struct {
+		mascot  string
+		release int
+	}{
+		{"tux", 1991},
+		{"duke", 1996},
+		{"gopher", 2009},
+		{"moby dock", 2013},
+	}
+
+	stmt, err := db.Prepare("INSERT INTO projects(id, mascot, release, category) VALUES( ?, ?, ?, ? )")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close() // Prepared statements take up server resources and should be closed after use.
+
+	for id, project := range projects {
+		if _, err := stmt.Exec(id+1, project.mascot, project.release, "open source"); err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func ExampleTx_Prepare() {
+	projects := []struct {
+		mascot  string
+		release int
+	}{
+		{"tux", 1991},
+		{"duke", 1996},
+		{"gopher", 2009},
+		{"moby dock", 2013},
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Rollback() // The rollback will be ignored if the tx has been committed later in the function.
+
+	stmt, err := tx.Prepare("INSERT INTO projects(id, mascot, release, category) VALUES( ?, ?, ?, ? )")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close() // Prepared statements take up server resources and should be closed after use.
+
+	for id, project := range projects {
+		if _, err := stmt.Exec(id+1, project.mascot, project.release, "open source"); err != nil {
+			log.Fatal(err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func ExampleConn_BeginTx() {
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
