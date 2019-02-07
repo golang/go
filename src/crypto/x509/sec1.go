@@ -65,6 +65,12 @@ func marshalECPrivateKeyWithOID(key *ecdsa.PrivateKey, oid asn1.ObjectIdentifier
 func parseECPrivateKey(namedCurveOID *asn1.ObjectIdentifier, der []byte) (key *ecdsa.PrivateKey, err error) {
 	var privKey ecPrivateKey
 	if _, err := asn1.Unmarshal(der, &privKey); err != nil {
+		if _, err := asn1.Unmarshal(der, &pkcs8{}); err == nil {
+			return nil, errors.New("x509: failed to parse private key (use ParsePKCS8PrivateKey instead for this key format)")
+		}
+		if _, err := asn1.Unmarshal(der, &pkcs1PrivateKey{}); err == nil {
+			return nil, errors.New("x509: failed to parse private key (use ParsePKCS1PrivateKey instead for this key format)")
+		}
 		return nil, errors.New("x509: failed to parse EC private key: " + err.Error())
 	}
 	if privKey.Version != ecPrivKeyVersion {

@@ -54,6 +54,9 @@ type pkixPublicKey struct {
 func ParsePKIXPublicKey(derBytes []byte) (pub interface{}, err error) {
 	var pki publicKeyInfo
 	if rest, err := asn1.Unmarshal(derBytes, &pki); err != nil {
+		if _, err := asn1.Unmarshal(derBytes, &pkcs1PublicKey{}); err == nil {
+			return nil, errors.New("x509: failed to parse public key (use ParsePKCS1PublicKey instead for this key format)")
+		}
 		return nil, err
 	} else if len(rest) != 0 {
 		return nil, errors.New("x509: trailing data after ASN.1 of public-key")
