@@ -1021,12 +1021,22 @@ func TestMarshalEmbeds(t *testing.T) {
 	}
 }
 
+func equalError(a, b error) bool {
+	if a == nil {
+		return b == nil
+	}
+	if b == nil {
+		return a == nil
+	}
+	return a.Error() == b.Error()
+}
+
 func TestUnmarshal(t *testing.T) {
 	for i, tt := range unmarshalTests {
 		var scan scanner
 		in := []byte(tt.in)
 		if err := checkValid(in, &scan); err != nil {
-			if !reflect.DeepEqual(err, tt.err) {
+			if !equalError(err, tt.err) {
 				t.Errorf("#%d: checkValid: %#v", i, err)
 				continue
 			}
@@ -1044,7 +1054,7 @@ func TestUnmarshal(t *testing.T) {
 		if tt.disallowUnknownFields {
 			dec.DisallowUnknownFields()
 		}
-		if err := dec.Decode(v.Interface()); !reflect.DeepEqual(err, tt.err) {
+		if err := dec.Decode(v.Interface()); !equalError(err, tt.err) {
 			t.Errorf("#%d: %v, want %v", i, err, tt.err)
 			continue
 		} else if err != nil {
@@ -2270,7 +2280,7 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 
 	for i, tt := range tests {
 		err := Unmarshal([]byte(tt.in), tt.ptr)
-		if !reflect.DeepEqual(err, tt.err) {
+		if !equalError(err, tt.err) {
 			t.Errorf("#%d: %v, want %v", i, err, tt.err)
 		}
 		if !reflect.DeepEqual(tt.ptr, tt.out) {
