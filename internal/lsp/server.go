@@ -25,12 +25,18 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
+// NewServer
+func NewServer(client protocol.Client) protocol.Server {
+	return &server{
+		client:     client,
+		configured: make(chan struct{}),
+	}
+}
+
 // RunServer starts an LSP server on the supplied stream, and waits until the
 // stream is closed.
 func RunServer(ctx context.Context, stream jsonrpc2.Stream, opts ...interface{}) error {
-	s := &server{
-		configured: make(chan struct{}),
-	}
+	s := NewServer(nil).(*server)
 	conn, client := protocol.RunServer(ctx, stream, s, opts...)
 	s.client = client
 	return conn.Wait(ctx)

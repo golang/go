@@ -5,10 +5,6 @@
 package cmd_test
 
 import (
-	"context"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -49,14 +45,6 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 	}
 	exported := packagestest.Export(t, exporter, modules)
 	defer exported.Cleanup()
-
-	// Merge the exported.Config with the view.Config.
-	cfg := *exported.Config
-	cfg.Fset = token.NewFileSet()
-	cfg.Context = context.Background()
-	cfg.ParseFile = func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
-		return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
-	}
 
 	// Do a first pass to collect special markers for completion.
 	if err := exported.Expect(map[string]interface{}{
@@ -113,33 +101,9 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 	})
 }
 
-type diagnostics map[span.Span][]source.Diagnostic
 type completionItems map[span.Range]*source.CompletionItem
 type completions map[span.Span][]span.Span
 type formats map[span.URI]span.Span
-
-func (l diagnostics) collect(spn span.Span, msgSource, msg string) {
-	l[spn] = append(l[spn], source.Diagnostic{
-		Span:     spn,
-		Message:  msg,
-		Source:   msgSource,
-		Severity: source.SeverityError,
-	})
-}
-
-func (l diagnostics) test(t *testing.T, e *packagestest.Exported) {
-	count := 0
-	for _, want := range l {
-		if len(want) == 1 && want[0].Message == "" {
-			continue
-		}
-		count += len(want)
-	}
-	if count != expectedDiagnosticsCount {
-		t.Errorf("got %v diagnostics expected %v", count, expectedDiagnosticsCount)
-	}
-	//TODO: add command line diagnostics tests when it works
-}
 
 func (l completionItems) collect(spn span.Range, label, detail, kind string) {
 	var k source.CompletionItemKind
