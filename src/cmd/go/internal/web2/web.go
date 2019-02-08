@@ -37,29 +37,61 @@ type netrcLine struct {
 	password string
 }
 
-var netrcOnce sync.Once
-var netrc []netrcLine
+var (
+	netrcOnce sync.Once
+	netrc     []netrcLine
+	netrcErr  error
+)
 
 func parseNetrc(data string) []netrcLine {
+	// See https://www.gnu.org/software/inetutils/manual/html_node/The-_002enetrc-file.html
+	// for documentation on the .netrc format.
 	var nrc []netrcLine
 	var l netrcLine
+	inMacro := false
 	for _, line := range strings.Split(data, "\n") {
+		if inMacro {
+			if line == "" {
+				inMacro = false
+			}
+			continue
+		}
+
 		f := strings.Fields(line)
-		for i := 0; i < len(f)-1; i += 2 {
+		i := 0
+		for ; i < len(f)-1; i += 2 {
+			// Reset at each "machine" token.
+			// “The auto-login process searches the .netrc file for a machine token
+			// that matches […]. Once a match is made, the subsequent .netrc tokens
+			// are processed, stopping when the end of file is reached or another
+			// machine or a default token is encountered.”
 			switch f[i] {
 			case "machine":
-				l.machine = f[i+1]
+				l = netrcLine{machine: f[i+1]}
+			case "default":
+				break
 			case "login":
 				l.login = f[i+1]
 			case "password":
 				l.password = f[i+1]
+			case "macdef":
+				// “A macro is defined with the specified name; its contents begin with
+				// the next .netrc line and continue until a null line (consecutive
+				// new-line characters) is encountered.”
+				inMacro = true
+			}
+			if l.machine != "" && l.login != "" && l.password != "" {
+				nrc = append(nrc, l)
+				l = netrcLine{}
 			}
 		}
-		if l.machine != "" && l.login != "" && l.password != "" {
-			nrc = append(nrc, l)
-			l = netrcLine{}
+
+		if i < len(f) && f[i] == "default" {
+			// “There can be only one default token, and it must be after all machine tokens.”
+			break
 		}
 	}
+
 	return nrc
 }
 
@@ -73,22 +105,36 @@ func havePassword(machine string) bool {
 	return false
 }
 
-func netrcPath() string {
-	switch runtime.GOOS {
-	case "windows":
-		return filepath.Join(os.Getenv("USERPROFILE"), "_netrc")
-	case "plan9":
-		return filepath.Join(os.Getenv("home"), ".netrc")
-	default:
-		return filepath.Join(os.Getenv("HOME"), ".netrc")
+func netrcPath() (string, error) {
+	if env := os.Getenv("NETRC"); env != "" {
+		return env, nil
 	}
+	dir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	base := ".netrc"
+	if runtime.GOOS == "windows" {
+		base = "_netrc"
+	}
+	return filepath.Join(dir, base), nil
 }
 
 func readNetrc() {
-	data, err := ioutil.ReadFile(netrcPath())
+	path, err := netrcPath()
 	if err != nil {
+		netrcErr = err
 		return
 	}
+
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			netrcErr = err
+		}
+		return
+	}
+
 	netrc = parseNetrc(string(data))
 }
 
