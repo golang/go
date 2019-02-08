@@ -46,6 +46,7 @@ var pkgDeps = map[string][]string{
 	"unsafe":                  {},
 	"internal/cpu":            {},
 	"internal/bytealg":        {"unsafe", "internal/cpu"},
+	"internal/reflectlite":    {"runtime", "unsafe"},
 
 	"L0": {
 		"errors",
@@ -57,6 +58,7 @@ var pkgDeps = map[string][]string{
 		"unsafe",
 		"internal/cpu",
 		"internal/bytealg",
+		"internal/reflectlite",
 	},
 
 	// L1 adds simple functions and strings processing,
