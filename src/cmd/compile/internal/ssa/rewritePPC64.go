@@ -1392,10 +1392,13 @@ func rewriteValuePPC64_OpCtz32_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Ctz32 x)
-	// cond:
+	// cond: objabi.GOPPC64<=8
 	// result: (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
 	for {
 		x := v.Args[0]
+		if !(objabi.GOPPC64 <= 8) {
+			break
+		}
 		v.reset(OpPPC64POPCNTW)
 		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, typ.Int64)
 		v1 := b.NewValue0(v.Pos, OpPPC64ANDN, typ.Int)
@@ -1405,6 +1408,17 @@ func rewriteValuePPC64_OpCtz32_0(v *Value) bool {
 		v1.AddArg(v2)
 		v1.AddArg(x)
 		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Ctz32 x)
+	// cond:
+	// result: (CNTTZW (MOVWZreg x))
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64CNTTZW)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, typ.Int64)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -1424,10 +1438,13 @@ func rewriteValuePPC64_OpCtz64_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Ctz64 x)
-	// cond:
+	// cond: objabi.GOPPC64<=8
 	// result: (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
 	for {
 		x := v.Args[0]
+		if !(objabi.GOPPC64 <= 8) {
+			break
+		}
 		v.reset(OpPPC64POPCNTD)
 		v0 := b.NewValue0(v.Pos, OpPPC64ANDN, typ.Int64)
 		v1 := b.NewValue0(v.Pos, OpPPC64ADDconst, typ.Int64)
@@ -1436,6 +1453,15 @@ func rewriteValuePPC64_OpCtz64_0(v *Value) bool {
 		v0.AddArg(v1)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+	// match: (Ctz64 x)
+	// cond:
+	// result: (CNTTZD x)
+	for {
+		x := v.Args[0]
+		v.reset(OpPPC64CNTTZD)
+		v.AddArg(x)
 		return true
 	}
 }

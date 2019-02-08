@@ -261,8 +261,10 @@ func TrailingZeros(n uint) int {
 	// arm:"CLZ"
 	// arm64:"RBIT","CLZ"
 	// s390x:"FLOGR"
-	// ppc64:"ANDN","POPCNTD"
-	// ppc64le:"ANDN","POPCNTD"
+	// ppc64/power8:"ANDN","POPCNTD"
+	// ppc64le/power8:"ANDN","POPCNTD"
+	// ppc64/power9: "CNTTZD"
+	// ppc64le/power9: "CNTTZD"
 	// wasm:"I64Ctz"
 	return bits.TrailingZeros(n)
 }
@@ -271,8 +273,10 @@ func TrailingZeros64(n uint64) int {
 	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
 	// arm64:"RBIT","CLZ"
 	// s390x:"FLOGR"
-	// ppc64:"ANDN","POPCNTD"
-	// ppc64le:"ANDN","POPCNTD"
+	// ppc64/power8:"ANDN","POPCNTD"
+	// ppc64le/power8:"ANDN","POPCNTD"
+	// ppc64/power9: "CNTTZD"
+	// ppc64le/power9: "CNTTZD"
 	// wasm:"I64Ctz"
 	return bits.TrailingZeros64(n)
 }
@@ -282,8 +286,10 @@ func TrailingZeros32(n uint32) int {
 	// arm:"CLZ"
 	// arm64:"RBITW","CLZW"
 	// s390x:"FLOGR","MOVWZ"
-	// ppc64:"ANDN","POPCNTW"
-	// ppc64le:"ANDN","POPCNTW"
+	// ppc64/power8:"ANDN","POPCNTW"
+	// ppc64le/power8:"ANDN","POPCNTW"
+	// ppc64/power9: "CNTTZW"
+	// ppc64le/power9: "CNTTZW"
 	// wasm:"I64Ctz"
 	return bits.TrailingZeros32(n)
 }
@@ -293,8 +299,10 @@ func TrailingZeros16(n uint16) int {
 	// arm:"ORR\t\\$65536","CLZ",-"MOVHU\tR"
 	// arm64:"ORR\t\\$65536","RBITW","CLZW",-"MOVHU\tR",-"RBIT\t",-"CLZ\t"
 	// s390x:"FLOGR","OR\t\\$65536"
-	// ppc64:"POPCNTD","OR\\t\\$65536"
-	// ppc64le:"POPCNTD","OR\\t\\$65536"
+	// ppc64/power8:"POPCNTD","OR\\t\\$65536"
+	// ppc64le/power8:"POPCNTD","OR\\t\\$65536"
+	// ppc64/power9:"CNTTZD","OR\\t\\$65536"
+	// ppc64le/power9:"CNTTZD","OR\\t\\$65536"
 	// wasm:"I64Ctz"
 	return bits.TrailingZeros16(n)
 }

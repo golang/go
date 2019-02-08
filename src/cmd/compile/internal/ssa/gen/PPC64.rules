@@ -303,10 +303,12 @@
 (Ctz32NonZero x) -> (Ctz32 x)
 (Ctz64NonZero x) -> (Ctz64 x)
 
-(Ctz64 x) -> (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
-(Ctz32 x) -> (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+(Ctz64 x) && objabi.GOPPC64<=8 -> (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
+(Ctz64 x) -> (CNTTZD x)
+(Ctz32 x) && objabi.GOPPC64<=8 -> (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+(Ctz32 x) -> (CNTTZW (MOVWZreg x))
 (Ctz16 x) -> (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
-(Ctz8 x) -> (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
+(Ctz8 x)  -> (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
 
 (BitLen64 x) -> (SUB (MOVDconst [64]) (CNTLZD <typ.Int> x))
 (BitLen32 x) -> (SUB (MOVDconst [32]) (CNTLZW <typ.Int> x))
@@ -339,7 +341,7 @@
 // Sign extension dependence on operand sign sets up for sign/zero-extension elision later
 (Eq8 x y) && isSigned(x.Type) && isSigned(y.Type) -> (Equal (CMPW (SignExt8to32 x) (SignExt8to32 y)))
 (Eq16 x y) && isSigned(x.Type) && isSigned(y.Type) -> (Equal (CMPW (SignExt16to32 x) (SignExt16to32 y)))
-(Eq8 x y)  -> (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Eq8 x y) -> (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Eq16 x y) -> (Equal (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Eq32 x y) -> (Equal (CMPW x y))
 (Eq64 x y) -> (Equal (CMP x y))
