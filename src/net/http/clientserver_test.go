@@ -560,7 +560,7 @@ func testCancelRequestMidBody(t *testing.T, h2 bool) {
 	if all != "Hello" {
 		t.Errorf("Read %q (%q + %q); want Hello", all, firstRead, rest)
 	}
-	if !reflect.DeepEqual(err, ExportErrRequestCanceled) {
+	if err != ExportErrRequestCanceled {
 		t.Errorf("ReadAll error = %v; want %v", err, ExportErrRequestCanceled)
 	}
 }
