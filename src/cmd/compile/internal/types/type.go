@@ -374,16 +374,16 @@ type Field struct {
 }
 
 const (
-	fieldIsddd = 1 << iota // field is ... argument
+	fieldIsDDD = 1 << iota // field is ... argument
 	fieldBroke             // broken field definition
 	fieldNointerface
 )
 
-func (f *Field) Isddd() bool       { return f.flags&fieldIsddd != 0 }
+func (f *Field) IsDDD() bool       { return f.flags&fieldIsDDD != 0 }
 func (f *Field) Broke() bool       { return f.flags&fieldBroke != 0 }
 func (f *Field) Nointerface() bool { return f.flags&fieldNointerface != 0 }
 
-func (f *Field) SetIsddd(b bool)       { f.flags.set(fieldIsddd, b) }
+func (f *Field) SetIsDDD(b bool)       { f.flags.set(fieldIsDDD, b) }
 func (f *Field) SetBroke(b bool)       { f.flags.set(fieldBroke, b) }
 func (f *Field) SetNointerface(b bool) { f.flags.set(fieldNointerface, b) }
 
@@ -743,7 +743,7 @@ func (t *Type) NumResults() int { return t.FuncType().Results.NumFields() }
 // IsVariadic reports whether function type t is variadic.
 func (t *Type) IsVariadic() bool {
 	n := t.NumParams()
-	return n > 0 && t.Params().Field(n-1).Isddd()
+	return n > 0 && t.Params().Field(n-1).IsDDD()
 }
 
 // Recv returns the receiver of function type t, if any.
@@ -1163,8 +1163,8 @@ func (t *Type) cmp(x *Type) Cmp {
 			for i := 0; i < len(tfs) && i < len(xfs); i++ {
 				ta := tfs[i]
 				tb := xfs[i]
-				if ta.Isddd() != tb.Isddd() {
-					return cmpForNe(!ta.Isddd())
+				if ta.IsDDD() != tb.IsDDD() {
+					return cmpForNe(!ta.IsDDD())
 				}
 				if c := ta.Type.cmp(tb.Type); c != CMPeq {
 					return c
@@ -1457,7 +1457,7 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
 	return true
 }
 
-// HasHeapPointer returns whether t contains a heap pointer.
+// HasHeapPointer reports whether t contains a heap pointer.
 // This is used for write barrier insertion, so it ignores
 // pointers to go:notinheap types.
 func (t *Type) HasHeapPointer() bool {

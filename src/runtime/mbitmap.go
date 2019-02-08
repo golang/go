@@ -242,7 +242,7 @@ func (s *mspan) nextFreeIndex() uintptr {
 	return result
 }
 
-// isFree returns whether the index'th object in s is unallocated.
+// isFree reports whether the index'th object in s is unallocated.
 func (s *mspan) isFree(index uintptr) bool {
 	if index < s.freeindex {
 		return false

@@ -12,7 +12,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
-	"golang_org/x/crypto/cryptobyte"
+	"internal/x/crypto/cryptobyte"
 	"io"
 )
 

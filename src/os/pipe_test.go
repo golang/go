@@ -131,7 +131,7 @@ func testClosedPipeRace(t *testing.T, read bool) {
 	if !read {
 		// Get the amount we have to write to overload a pipe
 		// with no reader.
-		limit = 65537
+		limit = 131073
 		if b, err := ioutil.ReadFile("/proc/sys/fs/pipe-max-size"); err == nil {
 			if i, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
 				limit = i + 1

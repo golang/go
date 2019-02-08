@@ -73,7 +73,7 @@ const (
 	O_CREATE int = syscall.O_CREAT  // create a new file if none exists.
 	O_EXCL   int = syscall.O_EXCL   // used with O_CREATE, file must not exist.
 	O_SYNC   int = syscall.O_SYNC   // open for synchronous I/O.
-	O_TRUNC  int = syscall.O_TRUNC  // if possible, truncate file when opened.
+	O_TRUNC  int = syscall.O_TRUNC  // truncate regular writable file when opened.
 )
 
 // Seek whence values.
@@ -386,22 +386,24 @@ func UserCacheDir() (string, error) {
 // On Unix, including macOS, it returns the $HOME environment variable.
 // On Windows, it returns %USERPROFILE%.
 // On Plan 9, it returns the $home environment variable.
-func UserHomeDir() string {
+func UserHomeDir() (string, error) {
+	env, enverr := "HOME", "$HOME"
 	switch runtime.GOOS {
 	case "windows":
-		return Getenv("USERPROFILE")
+		env, enverr = "USERPROFILE", "%userprofile%"
 	case "plan9":
-		return Getenv("home")
+		env, enverr = "home", "$home"
 	case "nacl", "android":
-		return "/"
+		return "/", nil
 	case "darwin":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			return "/"
+			return "/", nil
 		}
-		fallthrough
-	default:
-		return Getenv("HOME")
 	}
+	if v := Getenv(env); v != "" {
+		return v, nil
+	}
+	return "", errors.New(enverr + " is not defined")
 }
 
 // Chmod changes the mode of the named file to mode.
@@ -470,4 +472,13 @@ func (f *File) SetReadDeadline(t time.Time) error {
 // Not all files support setting deadlines; see SetDeadline.
 func (f *File) SetWriteDeadline(t time.Time) error {
 	return f.setWriteDeadline(t)
+}
+
+// SyscallConn returns a raw file.
+// This implements the syscall.Conn interface.
+func (f *File) SyscallConn() (syscall.RawConn, error) {
+	if err := f.checkValid("SyscallConn"); err != nil {
+		return nil, err
+	}
+	return newRawConn(f)
 }

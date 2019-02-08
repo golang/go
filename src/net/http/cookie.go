@@ -38,7 +38,7 @@ type Cookie struct {
 
 // SameSite allows a server to define a cookie attribute making it impossible for
 // the browser to send this cookie along with cross-site requests. The main
-// goal is to mitigate the risk of cross-origin information leakage, and provides
+// goal is to mitigate the risk of cross-origin information leakage, and provide
 // some protection against cross-site request forgery attacks.
 //
 // See https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site-00 for details.
@@ -263,7 +263,7 @@ func readCookies(h Header, filter string) []*Cookie {
 	return cookies
 }
 
-// validCookieDomain returns whether v is a valid cookie domain-value.
+// validCookieDomain reports whether v is a valid cookie domain-value.
 func validCookieDomain(v string) bool {
 	if isCookieDomainName(v) {
 		return true
@@ -274,13 +274,13 @@ func validCookieDomain(v string) bool {
 	return false
 }
 
-// validCookieExpires returns whether v is a valid cookie expires-value.
+// validCookieExpires reports whether v is a valid cookie expires-value.
 func validCookieExpires(t time.Time) bool {
 	// IETF RFC 6265 Section 5.1.1.5, the year must not be less than 1601
 	return t.Year() >= 1601
 }
 
-// isCookieDomainName returns whether s is a valid domain name or a valid
+// isCookieDomainName reports whether s is a valid domain name or a valid
 // domain name with a leading dot '.'.  It is almost a direct copy of
 // package net's isDomainName.
 func isCookieDomainName(s string) bool {

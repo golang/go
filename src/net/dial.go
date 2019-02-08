@@ -65,8 +65,10 @@ type Dialer struct {
 
 	// KeepAlive specifies the keep-alive period for an active
 	// network connection.
-	// If zero, keep-alives are not enabled. Network protocols
+	// If zero, keep-alives are enabled if supported by the protocol
+	// and operating system. Network protocols or operating systems
 	// that do not support keep-alives ignore this field.
+	// If negative, keep-alives are disabled.
 	KeepAlive time.Duration
 
 	// Resolver optionally specifies an alternate resolver to use.
@@ -418,10 +420,14 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 		return nil, err
 	}
 
-	if tc, ok := c.(*TCPConn); ok && d.KeepAlive > 0 {
+	if tc, ok := c.(*TCPConn); ok && d.KeepAlive >= 0 {
 		setKeepAlive(tc.fd, true)
-		setKeepAlivePeriod(tc.fd, d.KeepAlive)
-		testHookSetKeepAlive()
+		ka := d.KeepAlive
+		if d.KeepAlive == 0 {
+			ka = 15 * time.Second
+		}
+		setKeepAlivePeriod(tc.fd, ka)
+		testHookSetKeepAlive(ka)
 	}
 	return c, nil
 }

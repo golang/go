@@ -83,7 +83,7 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	b, d.s[3] = consumeUint32(b)
 	b = b[copy(d.x[:], b):]
 	b, d.len = consumeUint64(b)
-	d.nx = int(d.len) % BlockSize
+	d.nx = int(d.len % BlockSize)
 	return nil
 }
 

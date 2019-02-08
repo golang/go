@@ -13,8 +13,10 @@ import (
 	"time"
 )
 
-var ctx = context.Background()
-var db *sql.DB
+var (
+	ctx context.Context
+	db  *sql.DB
+)
 
 func ExampleDB_QueryContext() {
 	age := 27
@@ -24,13 +26,25 @@ func ExampleDB_QueryContext() {
 	}
 	defer rows.Close()
 	names := make([]string, 0)
+
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
+			// Check for a scan error.
+			// Query rows will be closed with defer.
 			log.Fatal(err)
 		}
 		names = append(names, name)
 	}
+	// If the database is being written to ensure to check for Close
+	// errors that may be returned from the driver. The query may
+	// encounter an auto-commit error and be forced to rollback changes.
+	rerr := rows.Close()
+	if rerr != nil {
+		log.Fatal(err)
+	}
+
+	// Rows.Err will report the last error encountered by Rows.Scan.
 	if err := rows.Err(); err != nil {
 		log.Fatal(err)
 	}
@@ -44,11 +58,11 @@ func ExampleDB_QueryRowContext() {
 	err := db.QueryRowContext(ctx, "SELECT username, created_at FROM users WHERE id=?", id).Scan(&username, &created)
 	switch {
 	case err == sql.ErrNoRows:
-		log.Printf("No user with id %d", id)
+		log.Printf("no user with id %d\n", id)
 	case err != nil:
-		log.Fatal(err)
+		log.Fatalf("query error: %v\n", err)
 	default:
-		fmt.Printf("Username is %s, account created on %s\n", username, created)
+		log.Printf("username is %q, account created on %s\n", username, created)
 	}
 }
 
@@ -63,7 +77,7 @@ func ExampleDB_ExecContext() {
 		log.Fatal(err)
 	}
 	if rows != 1 {
-		panic(err)
+		log.Fatalf("expected to affect 1 row, affected %d", rows)
 	}
 }
 
@@ -104,10 +118,10 @@ from
 		if err := rows.Scan(&id, &name); err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("id %d name is %s\n", id, name)
+		log.Printf("id %d name is %s\n", id, name)
 	}
 	if !rows.NextResultSet() {
-		log.Fatal("expected more result sets", rows.Err())
+		log.Fatalf("expected more result sets: %v", rows.Err())
 	}
 	var roleMap = map[int64]string{
 		1: "user",
@@ -122,7 +136,7 @@ from
 		if err := rows.Scan(&id, &role); err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("id %d has role %s\n", id, roleMap[role])
+		log.Printf("id %d has role %s\n", id, roleMap[role])
 	}
 	if err := rows.Err(); err != nil {
 		log.Fatal(err)
@@ -130,11 +144,23 @@ from
 }
 
 func ExampleDB_PingContext() {
+	// Ping and PingContext may be used to determine if communication with
+	// the database server is still possible.
+	//
+	// When used in a command line application Ping may be used to establish
+	// that further queries are possible; that the provided DSN is valid.
+	//
+	// When used in long running service Ping may be part of the health
+	// checking system.
+
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
+
+	status := "up"
 	if err := db.PingContext(ctx); err != nil {
-		log.Fatal(err)
+		status = "down"
 	}
+	log.Println(status)
 }
 
 func ExampleConn_BeginTx() {
@@ -162,7 +188,7 @@ func ExampleConn_ExecContext() {
 	}
 	defer conn.Close() // Return the connection to the pool.
 	id := 41
-	result, err := conn.ExecContext(ctx, `UPDATE balances SET balance = balance + 10 WHERE user_id = ?`, id)
+	result, err := conn.ExecContext(ctx, `UPDATE balances SET balance = balance + 10 WHERE user_id = ?;`, id)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -171,7 +197,7 @@ func ExampleConn_ExecContext() {
 		log.Fatal(err)
 	}
 	if rows != 1 {
-		panic(err)
+		log.Fatalf("expected single row affected, got %d rows affected", rows)
 	}
 }
 
@@ -184,9 +210,9 @@ func ExampleTx_ExecContext() {
 	_, execErr := tx.ExecContext(ctx, "UPDATE users SET status = ? WHERE id = ?", "paid", id)
 	if execErr != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			log.Printf("Could not roll back: %v\n", rollbackErr)
+			log.Fatalf("update failed: %v, unable to rollback: %v\n", execErr, rollbackErr)
 		}
-		log.Fatal(execErr)
+		log.Fatalf("update failed: %v", execErr)
 	}
 	if err := tx.Commit(); err != nil {
 		log.Fatal(err)
@@ -199,17 +225,17 @@ func ExampleTx_Rollback() {
 		log.Fatal(err)
 	}
 	id := 53
-	_, err = tx.ExecContext(ctx, "UPDATE drivers SET status = ? WHERE id = ?", "assigned", id)
+	_, err = tx.ExecContext(ctx, "UPDATE drivers SET status = ? WHERE id = ?;", "assigned", id)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			log.Printf("Could not roll back: %v\n", rollbackErr)
+			log.Fatalf("update drivers: unable to rollback: %v", rollbackErr)
 		}
 		log.Fatal(err)
 	}
-	_, err = tx.ExecContext(ctx, "UPDATE pickups SET driver_id = $1", id)
+	_, err = tx.ExecContext(ctx, "UPDATE pickups SET driver_id = $1;", id)
 	if err != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			log.Printf("Could not roll back: %v\n", rollbackErr)
+			log.Fatalf("update failed: %v, unable to back: %v", err, rollbackErr)
 		}
 		log.Fatal(err)
 	}
@@ -225,17 +251,18 @@ func ExampleStmt() {
 		log.Fatal(err)
 	}
 	defer stmt.Close()
+
 	// Then reuse it each time you need to issue the query.
 	id := 43
 	var username string
 	err = stmt.QueryRowContext(ctx, id).Scan(&username)
 	switch {
 	case err == sql.ErrNoRows:
-		log.Printf("No user with that ID.")
+		log.Fatalf("no user with id %d", id)
 	case err != nil:
 		log.Fatal(err)
 	default:
-		fmt.Printf("Username is %s\n", username)
+		log.Printf("username is %s\n", username)
 	}
 }
 
@@ -245,17 +272,19 @@ func ExampleStmt_QueryRowContext() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer stmt.Close()
+
 	// Then reuse it each time you need to issue the query.
 	id := 43
 	var username string
 	err = stmt.QueryRowContext(ctx, id).Scan(&username)
 	switch {
 	case err == sql.ErrNoRows:
-		log.Printf("No user with that ID.")
+		log.Fatalf("no user with id %d", id)
 	case err != nil:
 		log.Fatal(err)
 	default:
-		fmt.Printf("Username is %s\n", username)
+		log.Printf("username is %s\n", username)
 	}
 }
 
@@ -266,6 +295,7 @@ func ExampleRows() {
 		log.Fatal(err)
 	}
 	defer rows.Close()
+
 	names := make([]string, 0)
 	for rows.Next() {
 		var name string
@@ -274,8 +304,9 @@ func ExampleRows() {
 		}
 		names = append(names, name)
 	}
+	// Check for errors from iterating over rows.
 	if err := rows.Err(); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%s are %d years old", strings.Join(names, ", "), age)
+	log.Printf("%s are %d years old", strings.Join(names, ", "), age)
 }

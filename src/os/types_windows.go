@@ -51,7 +51,15 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 	var ti windows.FILE_ATTRIBUTE_TAG_INFO
 	err = windows.GetFileInformationByHandleEx(h, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&ti)), uint32(unsafe.Sizeof(ti)))
 	if err != nil {
-		return nil, &PathError{"GetFileInformationByHandleEx", path, err}
+		if errno, ok := err.(syscall.Errno); ok && errno == windows.ERROR_INVALID_PARAMETER {
+			// It appears calling GetFileInformationByHandleEx with
+			// FILE_ATTRIBUTE_TAG_INFO fails on FAT file system with
+			// ERROR_INVALID_PARAMETER. Clear ti.ReparseTag in that
+			// instance to indicate no symlinks are possible.
+			ti.ReparseTag = 0
+		} else {
+			return nil, &PathError{"GetFileInformationByHandleEx", path, err}
+		}
 	}
 
 	return &fileStat{

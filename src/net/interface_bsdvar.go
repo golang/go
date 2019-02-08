@@ -9,7 +9,7 @@ package net
 import (
 	"syscall"
 
-	"golang_org/x/net/route"
+	"internal/x/net/route"
 )
 
 func interfaceMessages(ifindex int) ([]route.Message, error) {

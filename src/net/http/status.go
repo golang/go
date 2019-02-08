@@ -55,6 +55,7 @@ const (
 	StatusUnprocessableEntity          = 422 // RFC 4918, 11.2
 	StatusLocked                       = 423 // RFC 4918, 11.3
 	StatusFailedDependency             = 424 // RFC 4918, 11.4
+	StatusTooEarly                     = 425 // RFC 8470, 5.2.
 	StatusUpgradeRequired              = 426 // RFC 7231, 6.5.15
 	StatusPreconditionRequired         = 428 // RFC 6585, 3
 	StatusTooManyRequests              = 429 // RFC 6585, 4
@@ -122,6 +123,7 @@ var statusText = map[int]string{
 	StatusUnprocessableEntity:          "Unprocessable Entity",
 	StatusLocked:                       "Locked",
 	StatusFailedDependency:             "Failed Dependency",
+	StatusTooEarly:                     "Too Early",
 	StatusUpgradeRequired:              "Upgrade Required",
 	StatusPreconditionRequired:         "Precondition Required",
 	StatusTooManyRequests:              "Too Many Requests",

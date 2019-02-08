@@ -34,6 +34,13 @@ env CGO_ENABLED=0
 go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
 ! stdout example.com/m/useC
 
+# 'go list ./...' should not try to resolve the main module.
+cd ../empty
+go list -deps ./...
+! stdout .
+! stderr 'finding'
+stderr -count=1 '^go: warning: "./..." matched no packages'
+
 -- m/go.mod --
 module example.com/m
 
@@ -64,3 +71,6 @@ module example.com/m/nested
 -- nested/useencoding/useencoding.go --
 package useencoding
 import _ "encoding"
+
+-- empty/go.mod --
+module example.com/empty

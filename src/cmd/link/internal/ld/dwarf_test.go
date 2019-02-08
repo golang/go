@@ -5,6 +5,7 @@
 package ld
 
 import (
+	intdwarf "cmd/internal/dwarf"
 	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
 	"debug/dwarf"
 	"errors"
@@ -29,6 +30,7 @@ const (
 )
 
 func TestRuntimeTypesPresent(t *testing.T) {
+	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {
@@ -145,6 +147,7 @@ func gobuildTestdata(t *testing.T, tdir string, gopathdir string, packtobuild st
 }
 
 func TestEmbeddedStructMarker(t *testing.T) {
+	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {
@@ -224,7 +227,7 @@ func main() {
 func findMembers(rdr *dwarf.Reader) (map[string]bool, error) {
 	memberEmbedded := map[string]bool{}
 	// TODO(hyangah): define in debug/dwarf package
-	const goEmbeddedStruct = dwarf.Attr(0x2903)
+	const goEmbeddedStruct = dwarf.Attr(intdwarf.DW_AT_go_embedded_field)
 	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
 		if err != nil {
 			return nil, err
@@ -245,6 +248,7 @@ func TestSizes(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
+	t.Parallel()
 
 	// DWARF sizes should never be -1.
 	// See issue #21097
@@ -292,6 +296,7 @@ func TestFieldOverlap(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
+	t.Parallel()
 
 	// This test grew out of issue 21094, where specific sudog<T> DWARF types
 	// had elem fields set to values instead of pointers.
@@ -348,6 +353,7 @@ func main() {
 }
 
 func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFile int, expectLine int, directive string) {
+	t.Parallel()
 
 	prog := fmt.Sprintf("package main\n\nfunc main() {\n%s\nvar i int\ni = i\n}\n", directive)
 
@@ -584,6 +590,8 @@ func TestInlinedRoutineRecords(t *testing.T) {
 		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
 	}
 
+	t.Parallel()
+
 	const prog = `
 package main
 
@@ -720,6 +728,7 @@ func main() {
 }
 
 func abstractOriginSanity(t *testing.T, gopathdir string, flags string) {
+	t.Parallel()
 
 	dir, err := ioutil.TempDir("", "TestAbstractOriginSanity")
 	if err != nil {
@@ -861,6 +870,10 @@ func TestRuntimeTypeAttrInternal(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
+	if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
+		t.Skip("skipping on windows/arm; test is incompatible with relocatable binaries")
+	}
+
 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
 }
 
@@ -881,6 +894,8 @@ func TestRuntimeTypeAttrExternal(t *testing.T) {
 }
 
 func testRuntimeTypeAttr(t *testing.T, flags string) {
+	t.Parallel()
+
 	const prog = `
 package main
 
@@ -939,7 +954,7 @@ func main() {
 	if len(dies) != 1 {
 		t.Fatalf("wanted 1 DIE named *main.X, found %v", len(dies))
 	}
-	rtAttr := dies[0].Val(0x2904)
+	rtAttr := dies[0].Val(intdwarf.DW_AT_go_runtime_type)
 	if rtAttr == nil {
 		t.Fatalf("*main.X DIE had no runtime type attr. DIE: %v", dies[0])
 	}
@@ -958,6 +973,8 @@ func TestIssue27614(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
+
+	t.Parallel()
 
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
@@ -1074,6 +1091,8 @@ func TestStaticTmp(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
+
+	t.Parallel()
 
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {

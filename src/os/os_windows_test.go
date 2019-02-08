@@ -5,6 +5,7 @@
 package os_test
 
 import (
+	"errors"
 	"fmt"
 	"internal/poll"
 	"internal/syscall/windows"
@@ -24,6 +25,9 @@ import (
 	"unicode/utf16"
 	"unsafe"
 )
+
+// For TestRawConnReadWrite.
+type syscallDescriptor = syscall.Handle
 
 func TestSameWindowsFile(t *testing.T) {
 	temp, err := ioutil.TempDir("", "TestSameWindowsFile")
@@ -1001,5 +1005,48 @@ func TestStatOfInvalidName(t *testing.T) {
 	_, err := os.Stat("*.go")
 	if err == nil {
 		t.Fatal(`os.Stat("*.go") unexpectedly succeeded`)
+	}
+}
+
+// findUnusedDriveLetter searches mounted drive list on the system
+// (starting from Z: and ending at D:) for unused drive letter.
+// It returns path to the found drive root directory (like Z:\) or error.
+func findUnusedDriveLetter() (string, error) {
+	// Do not use A: and B:, because they are reserved for floppy drive.
+	// Do not use C:, becasue it is normally used for main drive.
+	for l := 'Z'; l >= 'D'; l-- {
+		p := string(l) + `:\`
+		_, err := os.Stat(p)
+		if os.IsNotExist(err) {
+			return p, nil
+		}
+	}
+	return "", errors.New("Could not find unused drive letter.")
+}
+
+func TestRootDirAsTemp(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		fmt.Print(os.TempDir())
+		os.Exit(0)
+	}
+
+	newtmp, err := findUnusedDriveLetter()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := osexec.Command(os.Args[0], "-test.run=TestRootDirAsTemp")
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	cmd.Env = append(cmd.Env, "TMP="+newtmp)
+	cmd.Env = append(cmd.Env, "TEMP="+newtmp)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to spawn child process: %v %q", err, string(output))
+	}
+	if want, have := newtmp, string(output); have != want {
+		t.Fatalf("unexpected child process output %q, want %q", have, want)
 	}
 }

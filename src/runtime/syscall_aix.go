@@ -57,7 +57,6 @@ var (
 // Syscall is needed because some packages (like net) need it too.
 // The best way is to return EINVAL and let Golang handles its failure
 // If the syscall can't fail, this function can redirect it to a real syscall.
-//go:linkname syscall_Syscall syscall.Syscall
 //go:nosplit
 func syscall_Syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	return 0, 0, _EINVAL
@@ -65,12 +64,10 @@ func syscall_Syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 
 // This is syscall.RawSyscall, it exists to satisfy some build dependency,
 // but it doesn't work.
-//go:linkname syscall_RawSyscall syscall.RawSyscall
 func syscall_RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	panic("RawSyscall not available on AIX")
 }
 
-//go:linkname syscall_syscall6 syscall.syscall6
 //go:nosplit
 func syscall_syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
 	c := getg().m.libcall
@@ -84,7 +81,6 @@ func syscall_syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err ui
 	return c.r1, 0, c.err
 }
 
-//go:linkname syscall_rawSyscall6 syscall.rawSyscall6
 //go:nosplit
 func syscall_rawSyscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
 	c := getg().m.libcall

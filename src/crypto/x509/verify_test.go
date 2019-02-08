@@ -5,10 +5,15 @@
 package x509
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
 	"runtime"
 	"strings"
 	"testing"
@@ -380,6 +385,19 @@ var verifyTests = []verifyTest{
 		ignoreCN:    true,
 
 		errorCallback: expectHostnameError("not valid for any names"),
+	},
+	{
+		// A certificate with an AKID should still chain to a parent without SKID.
+		// See Issue 30079.
+		leaf:        leafWithAKID,
+		roots:       []string{rootWithoutSKID},
+		currentTime: 1550000000,
+		dnsName:     "example",
+		systemSkip:  true,
+
+		expectedChains: [][]string{
+			{"Acme LLC", "Acme Co"},
+		},
 	},
 }
 
@@ -1674,6 +1692,109 @@ h7olHCpY9yMRiz0=
 -----END CERTIFICATE-----
 `
 
+const (
+	rootWithoutSKID = `
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            78:29:2a:dc:2f:12:39:7f:c9:33:93:ea:61:39:7d:70
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: O = Acme Co
+        Validity
+            Not Before: Feb  4 22:56:34 2019 GMT
+            Not After : Feb  1 22:56:34 2029 GMT
+        Subject: O = Acme Co
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:84:a6:8c:69:53:af:87:4b:39:64:fe:04:24:e6:
+                    d8:fc:d6:46:39:35:0e:92:dc:48:08:7e:02:5f:1e:
+                    07:53:5c:d9:e0:56:c5:82:07:f6:a3:e2:ad:f6:ad:
+                    be:a0:4e:03:87:39:67:0c:9c:46:91:68:6b:0e:8e:
+                    f8:49:97:9d:5b
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment, Certificate Sign
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication
+            X509v3 Basic Constraints: critical
+                CA:TRUE
+            X509v3 Subject Alternative Name:
+                DNS:example
+    Signature Algorithm: ecdsa-with-SHA256
+         30:46:02:21:00:c6:81:61:61:42:8d:37:e7:d0:c3:72:43:44:
+         17:bd:84:ff:88:81:68:9a:99:08:ab:3c:3a:c0:1e:ea:8c:ba:
+         c0:02:21:00:de:c9:fa:e5:5e:c6:e2:db:23:64:43:a9:37:42:
+         72:92:7f:6e:89:38:ea:9e:2a:a7:fd:2f:ea:9a:ff:20:21:e7
+-----BEGIN CERTIFICATE-----
+MIIBbzCCARSgAwIBAgIQeCkq3C8SOX/JM5PqYTl9cDAKBggqhkjOPQQDAjASMRAw
+DgYDVQQKEwdBY21lIENvMB4XDTE5MDIwNDIyNTYzNFoXDTI5MDIwMTIyNTYzNFow
+EjEQMA4GA1UEChMHQWNtZSBDbzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABISm
+jGlTr4dLOWT+BCTm2PzWRjk1DpLcSAh+Al8eB1Nc2eBWxYIH9qPirfatvqBOA4c5
+ZwycRpFoaw6O+EmXnVujTDBKMA4GA1UdDwEB/wQEAwICpDATBgNVHSUEDDAKBggr
+BgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MBIGA1UdEQQLMAmCB2V4YW1wbGUwCgYI
+KoZIzj0EAwIDSQAwRgIhAMaBYWFCjTfn0MNyQ0QXvYT/iIFompkIqzw6wB7qjLrA
+AiEA3sn65V7G4tsjZEOpN0Jykn9uiTjqniqn/S/qmv8gIec=
+-----END CERTIFICATE-----
+`
+	leafWithAKID = `
+	Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            f0:8a:62:f0:03:84:a2:cf:69:63:ad:71:3b:b6:5d:8c
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: O = Acme Co
+        Validity
+            Not Before: Feb  4 23:06:52 2019 GMT
+            Not After : Feb  1 23:06:52 2029 GMT
+        Subject: O = Acme LLC
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:5a:4e:4d:fb:ff:17:f7:b6:13:e8:29:45:34:81:
+                    39:ff:8c:9c:d9:8c:0a:9f:dd:b5:97:4c:2b:20:91:
+                    1c:4f:6b:be:53:27:66:ec:4a:ad:08:93:6d:66:36:
+                    0c:02:70:5d:01:ca:7f:c3:29:e9:4f:00:ba:b4:14:
+                    ec:c5:c3:34:b3
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication
+            X509v3 Basic Constraints: critical
+                CA:FALSE
+            X509v3 Authority Key Identifier:
+                keyid:C2:2B:5F:91:78:34:26:09:42:8D:6F:51:B2:C5:AF:4C:0B:DE:6A:42
+
+            X509v3 Subject Alternative Name:
+                DNS:example
+    Signature Algorithm: ecdsa-with-SHA256
+         30:44:02:20:64:e0:ba:56:89:63:ce:22:5e:4f:22:15:fd:3c:
+         35:64:9a:3a:6b:7b:9a:32:a0:7f:f7:69:8c:06:f0:00:58:b8:
+         02:20:09:e4:9f:6d:8b:9e:38:e1:b6:01:d5:ee:32:a4:94:65:
+         93:2a:78:94:bb:26:57:4b:c7:dd:6c:3d:40:2b:63:90
+-----BEGIN CERTIFICATE-----
+MIIBjTCCATSgAwIBAgIRAPCKYvADhKLPaWOtcTu2XYwwCgYIKoZIzj0EAwIwEjEQ
+MA4GA1UEChMHQWNtZSBDbzAeFw0xOTAyMDQyMzA2NTJaFw0yOTAyMDEyMzA2NTJa
+MBMxETAPBgNVBAoTCEFjbWUgTExDMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE
+Wk5N+/8X97YT6ClFNIE5/4yc2YwKn921l0wrIJEcT2u+Uydm7EqtCJNtZjYMAnBd
+Acp/wynpTwC6tBTsxcM0s6NqMGgwDgYDVR0PAQH/BAQDAgWgMBMGA1UdJQQMMAoG
+CCsGAQUFBwMBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUwitfkXg0JglCjW9R
+ssWvTAveakIwEgYDVR0RBAswCYIHZXhhbXBsZTAKBggqhkjOPQQDAgNHADBEAiBk
+4LpWiWPOIl5PIhX9PDVkmjpre5oyoH/3aYwG8ABYuAIgCeSfbYueOOG2AdXuMqSU
+ZZMqeJS7JldLx91sPUArY5A=
+-----END CERTIFICATE-----
+`
+)
+
 var unknownAuthorityErrorTests = []struct {
 	cert     string
 	expected string
@@ -1888,4 +2009,118 @@ func TestValidHostname(t *testing.T) {
 			t.Errorf("validHostname(%q) = %v, want %v", tt.host, got, tt.want)
 		}
 	}
+}
+
+func generateCert(cn string, isCA bool, issuer *Certificate, issuerKey crypto.PrivateKey) (*Certificate, crypto.PrivateKey, error) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
+
+	template := &Certificate{
+		SerialNumber: serialNumber,
+		Subject:      pkix.Name{CommonName: cn},
+		NotBefore:    time.Now().Add(-1 * time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+
+		KeyUsage:              KeyUsageKeyEncipherment | KeyUsageDigitalSignature | KeyUsageCertSign,
+		ExtKeyUsage:           []ExtKeyUsage{ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  isCA,
+	}
+	if issuer == nil {
+		issuer = template
+		issuerKey = priv
+	}
+
+	derBytes, err := CreateCertificate(rand.Reader, template, issuer, priv.Public(), issuerKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	cert, err := ParseCertificate(derBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return cert, priv, nil
+}
+
+func TestPathologicalChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping generation of a long chain of certificates in short mode")
+	}
+
+	// Build a chain where all intermediates share the same subject, to hit the
+	// path building worst behavior.
+	roots, intermediates := NewCertPool(), NewCertPool()
+
+	parent, parentKey, err := generateCert("Root CA", true, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots.AddCert(parent)
+
+	for i := 1; i < 100; i++ {
+		parent, parentKey, err = generateCert("Intermediate CA", true, parent, parentKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		intermediates.AddCert(parent)
+	}
+
+	leaf, _, err := generateCert("Leaf", false, parent, parentKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	_, err = leaf.Verify(VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+	})
+	t.Logf("verification took %v", time.Since(start))
+
+	if err == nil || !strings.Contains(err.Error(), "signature check attempts limit") {
+		t.Errorf("expected verification to fail with a signature checks limit error; got %v", err)
+	}
+}
+
+func TestLongChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping generation of a long chain of certificates in short mode")
+	}
+
+	roots, intermediates := NewCertPool(), NewCertPool()
+
+	parent, parentKey, err := generateCert("Root CA", true, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots.AddCert(parent)
+
+	for i := 1; i < 15; i++ {
+		name := fmt.Sprintf("Intermediate CA #%d", i)
+		parent, parentKey, err = generateCert(name, true, parent, parentKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		intermediates.AddCert(parent)
+	}
+
+	leaf, _, err := generateCert("Leaf", false, parent, parentKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	if _, err := leaf.Verify(VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+	}); err != nil {
+		t.Error(err)
+	}
+	t.Logf("verification took %v", time.Since(start))
 }

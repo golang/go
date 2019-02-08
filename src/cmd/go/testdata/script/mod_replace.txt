@@ -30,9 +30,10 @@ stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/
 
 # Modules that do not (yet) exist upstream can be replaced too.
 cp go.mod.orig go.mod
-go mod edit -require not-rsc.io/quote/v3@v3.0.0 -replace=not-rsc.io/quote/v3=./local/rsc.io/quote/v3
+go mod edit -replace=not-rsc.io/quote/v3@v3.1.0=./local/rsc.io/quote/v3
 go build -o a5.exe ./usenewmodule
 ! stderr 'finding not-rsc.io/quote/v3'
+grep 'not-rsc.io/quote/v3 v3.1.0' go.mod
 exec ./a5.exe
 stdout 'Concurrency is not parallelism.'
 

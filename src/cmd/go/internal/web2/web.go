@@ -7,11 +7,13 @@ package web2
 import (
 	"bytes"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -187,10 +189,10 @@ func SetHTTPDoForTesting(do func(*http.Request) (*http.Response, error)) {
 }
 
 func Get(url string, options ...Option) error {
-	if TraceGET || webstack {
-		println("GET", url)
+	if TraceGET || webstack || cfg.BuildV {
+		log.Printf("Fetching %s", url)
 		if webstack {
-			println(string(debug.Stack()))
+			log.Println(string(debug.Stack()))
 		}
 	}
 

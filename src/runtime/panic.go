@@ -241,6 +241,15 @@ func newdefer(siz int32) *_defer {
 			total := roundupsize(totaldefersize(uintptr(siz)))
 			d = (*_defer)(mallocgc(total, deferType, true))
 		})
+		if debugCachedWork {
+			// Duplicate the tail below so if there's a
+			// crash in checkPut we can tell if d was just
+			// allocated or came from the pool.
+			d.siz = siz
+			d.link = gp._defer
+			gp._defer = d
+			return d
+		}
 	}
 	d.siz = siz
 	d.link = gp._defer
@@ -720,10 +729,13 @@ func fatalpanic(msgs *_panic) {
 // It returns true if panic messages should be printed, or false if
 // the runtime is in bad shape and should just print stacks.
 //
-// It can have write barriers because the write barrier explicitly
-// ignores writes once dying > 0.
+// It must not have write barriers even though the write barrier
+// explicitly ignores writes once dying > 0. Write barriers still
+// assume that g.m.p != nil, and this function may not have P
+// in some contexts (e.g. a panic in a signal handler for a signal
+// sent to an M with no P).
 //
-//go:yeswritebarrierrec
+//go:nowritebarrierrec
 func startpanic_m() bool {
 	_g_ := getg()
 	if mheap_.cachealloc.size == 0 { // very early
@@ -743,8 +755,8 @@ func startpanic_m() bool {
 
 	switch _g_.m.dying {
 	case 0:
+		// Setting dying >0 has the side-effect of disabling this G's writebuf.
 		_g_.m.dying = 1
-		_g_.writebuf = nil
 		atomic.Xadd(&panicking, 1)
 		lock(&paniclk)
 		if debug.schedtrace > 0 || debug.scheddetail > 0 {

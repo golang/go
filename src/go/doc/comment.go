@@ -7,6 +7,7 @@
 package doc
 
 import (
+	"bytes"
 	"io"
 	"strings"
 	"text/template" // for HTMLEscape
@@ -14,32 +15,38 @@ import (
 	"unicode/utf8"
 )
 
+const (
+	ldquo = "&ldquo;"
+	rdquo = "&rdquo;"
+	ulquo = "“"
+	urquo = "”"
+)
+
 var (
-	ldquo = []byte("&ldquo;")
-	rdquo = []byte("&rdquo;")
+	htmlQuoteReplacer    = strings.NewReplacer(ulquo, ldquo, urquo, rdquo)
+	unicodeQuoteReplacer = strings.NewReplacer("``", ulquo, "''", urquo)
 )
 
 // Escape comment text for HTML. If nice is set,
 // also turn `` into &ldquo; and '' into &rdquo;.
 func commentEscape(w io.Writer, text string, nice bool) {
-	last := 0
 	if nice {
-		for i := 0; i < len(text)-1; i++ {
-			ch := text[i]
-			if ch == text[i+1] && (ch == '`' || ch == '\'') {
-				template.HTMLEscape(w, []byte(text[last:i]))
-				last = i + 2
-				switch ch {
-				case '`':
-					w.Write(ldquo)
-				case '\'':
-					w.Write(rdquo)
-				}
-				i++ // loop will add one more
-			}
-		}
+		// In the first pass, we convert `` and '' into their unicode equivalents.
+		// This prevents them from being escaped in HTMLEscape.
+		text = convertQuotes(text)
+		var buf bytes.Buffer
+		template.HTMLEscape(&buf, []byte(text))
+		// Now we convert the unicode quotes to their HTML escaped entities to maintain old behavior.
+		// We need to use a temp buffer to read the string back and do the conversion,
+		// otherwise HTMLEscape will escape & to &amp;
+		htmlQuoteReplacer.WriteString(w, buf.String())
+		return
 	}
-	template.HTMLEscape(w, []byte(text[last:]))
+	template.HTMLEscape(w, []byte(text))
+}
+
+func convertQuotes(text string) string {
+	return unicodeQuoteReplacer.Replace(text)
 }
 
 const (
@@ -47,7 +54,7 @@ const (
 	identRx = `[\pL_][\pL_0-9]*`
 
 	// Regexp for URLs
-	// Match parens, and check in pairedParensPrefixLen for balance - see #5043
+	// Match parens, and check later for balance - see #5043, #22285
 	// Match .,:;?! within path, but not at end - see #18139, #16565
 	// This excludes some rare yet valid urls ending in common punctuation
 	// in order to allow sentences ending in URLs.
@@ -79,29 +86,6 @@ var (
 	html_endh   = []byte("</h3>\n")
 )
 
-// pairedParensPrefixLen returns the length of the longest prefix of s containing paired parentheses.
-func pairedParensPrefixLen(s string) int {
-	parens := 0
-	l := len(s)
-	for i, ch := range s {
-		switch ch {
-		case '(':
-			if parens == 0 {
-				l = i
-			}
-			parens++
-		case ')':
-			parens--
-			if parens == 0 {
-				l = len(s)
-			} else if parens < 0 {
-				return i
-			}
-		}
-	}
-	return l
-}
-
 // Emphasize and escape a line of text for HTML. URLs are converted into links;
 // if the URL also appears in the words map, the link is taken from the map (if
 // the corresponding map value is the empty string, the URL is not converted
@@ -121,13 +105,27 @@ func emphasize(w io.Writer, line string, words map[string]string, nice bool) {
 		// write text before match
 		commentEscape(w, line[0:m[0]], nice)
 
-		// adjust match if necessary
+		// adjust match for URLs
 		match := line[m[0]:m[1]]
-		if n := pairedParensPrefixLen(match); n < len(match) {
-			// match contains unpaired parentheses (rare);
-			// redo matching with shortened line for correct indices
-			m = matchRx.FindStringSubmatchIndex(line[:m[0]+n])
-			match = match[:n]
+		if strings.Contains(match, "://") {
+			m0, m1 := m[0], m[1]
+			for _, s := range []string{"()", "{}", "[]"} {
+				open, close := s[:1], s[1:] // E.g., "(" and ")"
+				// require opening parentheses before closing parentheses (#22285)
+				if i := strings.Index(match, close); i >= 0 && i < strings.Index(match, open) {
+					m1 = m0 + i
+					match = line[m0:m1]
+				}
+				// require balanced pairs of parentheses (#5043)
+				for i := 0; strings.Count(match, open) != strings.Count(match, close) && i < 10; i++ {
+					m1 = strings.LastIndexAny(line[:m1], s)
+					match = line[m0:m1]
+				}
+			}
+			if m1 != m[1] {
+				// redo matching with shortened line for correct indices
+				m = matchRx.FindStringSubmatchIndex(line[:m[0]+len(match)])
+			}
 		}
 
 		// analyze match
@@ -248,7 +246,7 @@ func heading(line string) string {
 	}
 
 	// allow "." when followed by non-space
-	for b := line;; {
+	for b := line; ; {
 		i := strings.IndexRune(b, '.')
 		if i < 0 {
 			break
@@ -429,12 +427,14 @@ func ToText(w io.Writer, text string, indent, preIndent string, width int) {
 		case opPara:
 			// l.write will add leading newline if required
 			for _, line := range b.lines {
+				line = convertQuotes(line)
 				l.write(line)
 			}
 			l.flush()
 		case opHead:
 			w.Write(nl)
 			for _, line := range b.lines {
+				line = convertQuotes(line)
 				l.write(line + "\n")
 			}
 			l.flush()
@@ -445,6 +445,7 @@ func ToText(w io.Writer, text string, indent, preIndent string, width int) {
 					w.Write([]byte("\n"))
 				} else {
 					w.Write([]byte(preIndent))
+					line = convertQuotes(line)
 					w.Write([]byte(line))
 				}
 			}

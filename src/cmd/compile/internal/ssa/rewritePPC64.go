@@ -7541,7 +7541,7 @@ func rewriteValuePPC64_OpPPC64MFVSRD_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, typ.Int64)
+		v0 := b.NewValue0(x.Pos, OpPPC64MOVDload, typ.Int64)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -8477,7 +8477,7 @@ func rewriteValuePPC64_OpPPC64MOVBstore_10(v *Value) bool {
 		v.AuxInt = i0
 		v.Aux = s
 		v.AddArg(p)
-		v0 := b.NewValue0(v.Pos, OpPPC64SRWconst, typ.UInt16)
+		v0 := b.NewValue0(x0.Pos, OpPPC64SRWconst, typ.UInt16)
 		v0.AuxInt = 16
 		v0.AddArg(w)
 		v.AddArg(v0)
@@ -8530,7 +8530,7 @@ func rewriteValuePPC64_OpPPC64MOVBstore_10(v *Value) bool {
 		v.AuxInt = i0
 		v.Aux = s
 		v.AddArg(p)
-		v0 := b.NewValue0(v.Pos, OpPPC64SRWconst, typ.UInt16)
+		v0 := b.NewValue0(x0.Pos, OpPPC64SRWconst, typ.UInt16)
 		v0.AuxInt = 16
 		v0.AddArg(w)
 		v.AddArg(v0)
@@ -8703,7 +8703,7 @@ func rewriteValuePPC64_OpPPC64MOVBstore_10(v *Value) bool {
 			break
 		}
 		v.reset(OpPPC64MOVWBRstore)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v0 := b.NewValue0(x2.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v0.AuxInt = i0
 		v0.Aux = s
 		v0.AddArg(p)
@@ -8748,7 +8748,7 @@ func rewriteValuePPC64_OpPPC64MOVBstore_10(v *Value) bool {
 			break
 		}
 		v.reset(OpPPC64MOVHBRstore)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v0.AuxInt = i0
 		v0.Aux = s
 		v0.AddArg(p)
@@ -9043,7 +9043,7 @@ func rewriteValuePPC64_OpPPC64MOVBstore_20(v *Value) bool {
 			break
 		}
 		v.reset(OpPPC64MOVDBRstore)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v0 := b.NewValue0(x6.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v0.AuxInt = i0
 		v0.Aux = s
 		v0.AddArg(p)
@@ -12470,7 +12470,7 @@ func rewriteValuePPC64_OpPPC64MTVSRD_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpPPC64FMOVDload, typ.Float64)
+		v0 := b.NewValue0(x.Pos, OpPPC64FMOVDload, typ.Float64)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -13048,7 +13048,7 @@ func rewriteValuePPC64_OpPPC64OR_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVHZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -13098,7 +13098,7 @@ func rewriteValuePPC64_OpPPC64OR_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVHZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -13148,7 +13148,7 @@ func rewriteValuePPC64_OpPPC64OR_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVHZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -13198,7 +13198,7 @@ func rewriteValuePPC64_OpPPC64OR_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVHZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -13248,10 +13248,10 @@ func rewriteValuePPC64_OpPPC64OR_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVHBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -13300,10 +13300,10 @@ func rewriteValuePPC64_OpPPC64OR_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVHBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -13352,10 +13352,10 @@ func rewriteValuePPC64_OpPPC64OR_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVHBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -13404,10 +13404,10 @@ func rewriteValuePPC64_OpPPC64OR_10(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVHBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -13468,12 +13468,12 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64SLDconst, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = n1
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVHBRload, t)
+		v2 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -13526,12 +13526,12 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64SLDconst, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = n1
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVHBRload, t)
+		v2 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -13584,12 +13584,12 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64SLDconst, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = n1
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVHBRload, t)
+		v2 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -13642,12 +13642,12 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1)
-		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64SLDconst, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = n1
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVHBRload, t)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVHBRload, t)
+		v2 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -13727,7 +13727,7 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVWZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -13807,7 +13807,7 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVWZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -13887,7 +13887,7 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZload, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64MOVWZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -13967,7 +13967,7 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZload, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64MOVWZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -14047,7 +14047,7 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVWZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -14127,7 +14127,7 @@ func rewriteValuePPC64_OpPPC64OR_20(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVWZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -14216,7 +14216,7 @@ func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZload, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64MOVWZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -14296,7 +14296,7 @@ func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZload, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64MOVWZload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -14386,10 +14386,10 @@ func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -14478,10 +14478,10 @@ func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -14570,10 +14570,10 @@ func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x2.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -14662,10 +14662,10 @@ func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x2.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -14754,10 +14754,10 @@ func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -14846,10 +14846,10 @@ func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -14938,10 +14938,10 @@ func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x2.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -15030,10 +15030,10 @@ func rewriteValuePPC64_OpPPC64OR_30(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x2.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -15131,10 +15131,10 @@ func rewriteValuePPC64_OpPPC64OR_40(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x2.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -15223,10 +15223,10 @@ func rewriteValuePPC64_OpPPC64OR_40(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -15315,10 +15315,10 @@ func rewriteValuePPC64_OpPPC64OR_40(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -15407,10 +15407,10 @@ func rewriteValuePPC64_OpPPC64OR_40(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -15499,10 +15499,10 @@ func rewriteValuePPC64_OpPPC64OR_40(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x2.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -15591,10 +15591,10 @@ func rewriteValuePPC64_OpPPC64OR_40(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -15683,10 +15683,10 @@ func rewriteValuePPC64_OpPPC64OR_40(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -15775,10 +15775,10 @@ func rewriteValuePPC64_OpPPC64OR_40(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVWBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -15874,12 +15874,12 @@ func rewriteValuePPC64_OpPPC64OR_40(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64SLDconst, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = 32
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -15976,12 +15976,12 @@ func rewriteValuePPC64_OpPPC64OR_40(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64SLDconst, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = 32
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -16087,12 +16087,12 @@ func rewriteValuePPC64_OpPPC64OR_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64SLDconst, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = 32
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x2.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(x2.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -16189,12 +16189,12 @@ func rewriteValuePPC64_OpPPC64OR_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64SLDconst, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = 32
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x2.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(x2.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -16291,12 +16291,12 @@ func rewriteValuePPC64_OpPPC64OR_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64SLDconst, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = 32
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -16393,12 +16393,12 @@ func rewriteValuePPC64_OpPPC64OR_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64SLDconst, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = 32
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -16495,12 +16495,12 @@ func rewriteValuePPC64_OpPPC64OR_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64SLDconst, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = 32
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x2.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(x2.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -16597,12 +16597,12 @@ func rewriteValuePPC64_OpPPC64OR_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2)
-		v0 := b.NewValue0(v.Pos, OpPPC64SLDconst, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64SLDconst, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = 32
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVWBRload, t)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x2.Pos, OpPPC64MOVWBRload, t)
+		v2 := b.NewValue0(x2.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v2.AuxInt = i0
 		v2.Aux = s
 		v2.AddArg(p)
@@ -16742,7 +16742,7 @@ func rewriteValuePPC64_OpPPC64OR_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -16882,7 +16882,7 @@ func rewriteValuePPC64_OpPPC64OR_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x4.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -17022,7 +17022,7 @@ func rewriteValuePPC64_OpPPC64OR_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x5.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -17162,7 +17162,7 @@ func rewriteValuePPC64_OpPPC64OR_50(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x5.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -17309,7 +17309,7 @@ func rewriteValuePPC64_OpPPC64OR_60(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x6.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -17449,7 +17449,7 @@ func rewriteValuePPC64_OpPPC64OR_60(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x6.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -17589,7 +17589,7 @@ func rewriteValuePPC64_OpPPC64OR_60(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x6.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -17729,7 +17729,7 @@ func rewriteValuePPC64_OpPPC64OR_60(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x6.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -17869,7 +17869,7 @@ func rewriteValuePPC64_OpPPC64OR_60(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -18009,7 +18009,7 @@ func rewriteValuePPC64_OpPPC64OR_60(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -18149,7 +18149,7 @@ func rewriteValuePPC64_OpPPC64OR_60(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -18289,7 +18289,7 @@ func rewriteValuePPC64_OpPPC64OR_60(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -18429,7 +18429,7 @@ func rewriteValuePPC64_OpPPC64OR_60(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -18569,7 +18569,7 @@ func rewriteValuePPC64_OpPPC64OR_60(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -18718,7 +18718,7 @@ func rewriteValuePPC64_OpPPC64OR_70(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -18858,7 +18858,7 @@ func rewriteValuePPC64_OpPPC64OR_70(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = i0
@@ -19005,10 +19005,10 @@ func rewriteValuePPC64_OpPPC64OR_70(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x4.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x4.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -19154,10 +19154,10 @@ func rewriteValuePPC64_OpPPC64OR_70(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x3.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x3.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -19303,10 +19303,10 @@ func rewriteValuePPC64_OpPPC64OR_70(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x2.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -19452,10 +19452,10 @@ func rewriteValuePPC64_OpPPC64OR_70(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x2.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x2.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -19601,10 +19601,10 @@ func rewriteValuePPC64_OpPPC64OR_70(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -19750,10 +19750,10 @@ func rewriteValuePPC64_OpPPC64OR_70(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -19899,10 +19899,10 @@ func rewriteValuePPC64_OpPPC64OR_70(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -20048,10 +20048,10 @@ func rewriteValuePPC64_OpPPC64OR_70(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x1.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x1.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -20206,10 +20206,10 @@ func rewriteValuePPC64_OpPPC64OR_80(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -20355,10 +20355,10 @@ func rewriteValuePPC64_OpPPC64OR_80(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -20504,10 +20504,10 @@ func rewriteValuePPC64_OpPPC64OR_80(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -20653,10 +20653,10 @@ func rewriteValuePPC64_OpPPC64OR_80(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -20802,10 +20802,10 @@ func rewriteValuePPC64_OpPPC64OR_80(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -20951,10 +20951,10 @@ func rewriteValuePPC64_OpPPC64OR_80(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -21100,10 +21100,10 @@ func rewriteValuePPC64_OpPPC64OR_80(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -21249,10 +21249,10 @@ func rewriteValuePPC64_OpPPC64OR_80(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x0, x1, x2, x3, x4)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x0.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x0.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -21401,10 +21401,10 @@ func rewriteValuePPC64_OpPPC64OR_80(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x3.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x3.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -21553,10 +21553,10 @@ func rewriteValuePPC64_OpPPC64OR_80(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x4.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x4.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -21714,10 +21714,10 @@ func rewriteValuePPC64_OpPPC64OR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x5.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x5.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -21866,10 +21866,10 @@ func rewriteValuePPC64_OpPPC64OR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x5.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x5.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -22018,10 +22018,10 @@ func rewriteValuePPC64_OpPPC64OR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x6.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x6.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -22170,10 +22170,10 @@ func rewriteValuePPC64_OpPPC64OR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x6.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x6.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -22322,10 +22322,10 @@ func rewriteValuePPC64_OpPPC64OR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x6.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x6.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -22474,10 +22474,10 @@ func rewriteValuePPC64_OpPPC64OR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x6.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x6.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -22626,10 +22626,10 @@ func rewriteValuePPC64_OpPPC64OR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -22778,10 +22778,10 @@ func rewriteValuePPC64_OpPPC64OR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -22930,10 +22930,10 @@ func rewriteValuePPC64_OpPPC64OR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -23082,10 +23082,10 @@ func rewriteValuePPC64_OpPPC64OR_90(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -23243,10 +23243,10 @@ func rewriteValuePPC64_OpPPC64OR_100(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -23395,10 +23395,10 @@ func rewriteValuePPC64_OpPPC64OR_100(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -23547,10 +23547,10 @@ func rewriteValuePPC64_OpPPC64OR_100(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -23699,10 +23699,10 @@ func rewriteValuePPC64_OpPPC64OR_100(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -23851,10 +23851,10 @@ func rewriteValuePPC64_OpPPC64OR_100(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x3.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x3.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -24003,10 +24003,10 @@ func rewriteValuePPC64_OpPPC64OR_100(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x4.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x4.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -24155,10 +24155,10 @@ func rewriteValuePPC64_OpPPC64OR_100(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x5.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x5.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -24307,10 +24307,10 @@ func rewriteValuePPC64_OpPPC64OR_100(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x5.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x5.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -24459,10 +24459,10 @@ func rewriteValuePPC64_OpPPC64OR_100(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x6.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x6.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -24611,10 +24611,10 @@ func rewriteValuePPC64_OpPPC64OR_100(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x6.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x6.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -24772,10 +24772,10 @@ func rewriteValuePPC64_OpPPC64OR_110(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x6.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x6.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -24924,10 +24924,10 @@ func rewriteValuePPC64_OpPPC64OR_110(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x6.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x6.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -25076,10 +25076,10 @@ func rewriteValuePPC64_OpPPC64OR_110(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -25228,10 +25228,10 @@ func rewriteValuePPC64_OpPPC64OR_110(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -25380,10 +25380,10 @@ func rewriteValuePPC64_OpPPC64OR_110(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -25532,10 +25532,10 @@ func rewriteValuePPC64_OpPPC64OR_110(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -25684,10 +25684,10 @@ func rewriteValuePPC64_OpPPC64OR_110(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -25836,10 +25836,10 @@ func rewriteValuePPC64_OpPPC64OR_110(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -25988,10 +25988,10 @@ func rewriteValuePPC64_OpPPC64OR_110(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -26140,10 +26140,10 @@ func rewriteValuePPC64_OpPPC64OR_110(v *Value) bool {
 			break
 		}
 		b = mergePoint(b, x3, x4, x5, x6, x7)
-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDBRload, t)
+		v0 := b.NewValue0(x7.Pos, OpPPC64MOVDBRload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpPPC64MOVDaddr, typ.Uintptr)
+		v1 := b.NewValue0(x7.Pos, OpPPC64MOVDaddr, typ.Uintptr)
 		v1.AuxInt = i0
 		v1.Aux = s
 		v1.AddArg(p)
@@ -30296,12 +30296,13 @@ func rewriteValuePPC64_OpTrunc_0(v *Value) bool {
 	}
 }
 func rewriteValuePPC64_OpTrunc16to8_0(v *Value) bool {
-	// match: (Trunc16to8 x)
-	// cond: isSigned(x.Type)
+	// match: (Trunc16to8 <t> x)
+	// cond: isSigned(t)
 	// result: (MOVBreg x)
 	for {
+		t := v.Type
 		x := v.Args[0]
-		if !(isSigned(x.Type)) {
+		if !(isSigned(t)) {
 			break
 		}
 		v.reset(OpPPC64MOVBreg)
@@ -30319,12 +30320,13 @@ func rewriteValuePPC64_OpTrunc16to8_0(v *Value) bool {
 	}
 }
 func rewriteValuePPC64_OpTrunc32to16_0(v *Value) bool {
-	// match: (Trunc32to16 x)
-	// cond: isSigned(x.Type)
+	// match: (Trunc32to16 <t> x)
+	// cond: isSigned(t)
 	// result: (MOVHreg x)
 	for {
+		t := v.Type
 		x := v.Args[0]
-		if !(isSigned(x.Type)) {
+		if !(isSigned(t)) {
 			break
 		}
 		v.reset(OpPPC64MOVHreg)
@@ -30342,12 +30344,13 @@ func rewriteValuePPC64_OpTrunc32to16_0(v *Value) bool {
 	}
 }
 func rewriteValuePPC64_OpTrunc32to8_0(v *Value) bool {
-	// match: (Trunc32to8 x)
-	// cond: isSigned(x.Type)
+	// match: (Trunc32to8 <t> x)
+	// cond: isSigned(t)
 	// result: (MOVBreg x)
 	for {
+		t := v.Type
 		x := v.Args[0]
-		if !(isSigned(x.Type)) {
+		if !(isSigned(t)) {
 			break
 		}
 		v.reset(OpPPC64MOVBreg)
@@ -30365,12 +30368,13 @@ func rewriteValuePPC64_OpTrunc32to8_0(v *Value) bool {
 	}
 }
 func rewriteValuePPC64_OpTrunc64to16_0(v *Value) bool {
-	// match: (Trunc64to16 x)
-	// cond: isSigned(x.Type)
+	// match: (Trunc64to16 <t> x)
+	// cond: isSigned(t)
 	// result: (MOVHreg x)
 	for {
+		t := v.Type
 		x := v.Args[0]
-		if !(isSigned(x.Type)) {
+		if !(isSigned(t)) {
 			break
 		}
 		v.reset(OpPPC64MOVHreg)
@@ -30388,12 +30392,13 @@ func rewriteValuePPC64_OpTrunc64to16_0(v *Value) bool {
 	}
 }
 func rewriteValuePPC64_OpTrunc64to32_0(v *Value) bool {
-	// match: (Trunc64to32 x)
-	// cond: isSigned(x.Type)
+	// match: (Trunc64to32 <t> x)
+	// cond: isSigned(t)
 	// result: (MOVWreg x)
 	for {
+		t := v.Type
 		x := v.Args[0]
-		if !(isSigned(x.Type)) {
+		if !(isSigned(t)) {
 			break
 		}
 		v.reset(OpPPC64MOVWreg)
@@ -30411,12 +30416,13 @@ func rewriteValuePPC64_OpTrunc64to32_0(v *Value) bool {
 	}
 }
 func rewriteValuePPC64_OpTrunc64to8_0(v *Value) bool {
-	// match: (Trunc64to8 x)
-	// cond: isSigned(x.Type)
+	// match: (Trunc64to8 <t> x)
+	// cond: isSigned(t)
 	// result: (MOVBreg x)
 	for {
+		t := v.Type
 		x := v.Args[0]
-		if !(isSigned(x.Type)) {
+		if !(isSigned(t)) {
 			break
 		}
 		v.reset(OpPPC64MOVBreg)

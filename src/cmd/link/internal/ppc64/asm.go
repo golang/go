@@ -39,6 +39,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"strings"
 )
 
 func genplt(ctxt *ld.Link) {
@@ -133,7 +134,7 @@ func genplt(ctxt *ld.Link) {
 }
 
 func genaddmoduledata(ctxt *ld.Link) {
-	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", 0)
+	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", sym.SymVerABI0)
 	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
 		return
 	}
@@ -262,6 +263,14 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
 }
 
 func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+	if ctxt.IsELF {
+		return addelfdynrel(ctxt, s, r)
+	} else if ctxt.HeadType == objabi.Haix {
+		return ld.Xcoffadddynrel(ctxt, s, r)
+	}
+	return false
+}
+func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
 
 	switch r.Type {
@@ -374,6 +383,13 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 }
 
 func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+	// Beware that bit0~bit15 start from the third byte of a instruction in Big-Endian machines.
+	if r.Type == objabi.R_ADDR || r.Type == objabi.R_POWER_TLS || r.Type == objabi.R_CALLPOWER {
+	} else {
+		if ctxt.Arch.ByteOrder == binary.BigEndian {
+			sectoff += 2
+		}
+	}
 	ctxt.Out.Write64(uint64(sectoff))
 
 	elfsym := r.Xsym.ElfsymForReloc()
@@ -474,7 +490,72 @@ func symtoc(ctxt *ld.Link, s *sym.Symbol) int64 {
 	return toc.Value
 }
 
+// archreloctoc relocates a TOC relative symbol.
+// If the symbol pointed by this TOC relative symbol is in .data or .bss, the
+// default load instruction can be changed to an addi instruction and the
+// symbol address can be used directly.
+// This code is for AIX only.
+func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+	if ctxt.HeadType == objabi.Hlinux {
+		ld.Errorf(s, "archrelocaddr called for %s relocation\n", r.Sym.Name)
+	}
+	var o1, o2 uint32
+
+	o1 = uint32(val >> 32)
+	o2 = uint32(val)
+
+	var t int64
+	useAddi := false
+	const prefix = "TOC."
+	var tarSym *sym.Symbol
+	if strings.HasPrefix(r.Sym.Name, prefix) {
+		tarSym = ctxt.Syms.ROLookup(strings.TrimPrefix(r.Sym.Name, prefix), 0)
+	} else {
+		ld.Errorf(s, "archreloctoc called for a symbol without TOC anchor")
+	}
+
+	if tarSym != nil && tarSym.Attr.Reachable() && (tarSym.Sect.Seg == &ld.Segdata) {
+		t = ld.Symaddr(tarSym) + r.Add - ctxt.Syms.ROLookup("TOC", 0).Value
+		// change ld to addi in the second instruction
+		o2 = (o2 & 0x03FF0000) | 0xE<<26
+		useAddi = true
+	} else {
+		t = ld.Symaddr(r.Sym) + r.Add - ctxt.Syms.ROLookup("TOC", 0).Value
+	}
+
+	if t != int64(int32(t)) {
+		ld.Errorf(s, "TOC relocation for %s is too big to relocate %s: 0x%x", s.Name, r.Sym, t)
+	}
+
+	if t&0x8000 != 0 {
+		t += 0x10000
+	}
+
+	o1 |= uint32((t >> 16) & 0xFFFF)
+
+	switch r.Type {
+	case objabi.R_ADDRPOWER_TOCREL_DS:
+		if useAddi {
+			o2 |= uint32(t) & 0xFFFF
+		} else {
+			if t&3 != 0 {
+				ld.Errorf(s, "bad DS reloc for %s: %d", s.Name, ld.Symaddr(r.Sym))
+			}
+			o2 |= uint32(t) & 0xFFFC
+		}
+	default:
+		return -1
+	}
+
+	return int64(o1)<<32 | int64(o2)
+}
+
+// archrelocaddr relocates a symbol address.
+// This code is for AIX only.
 func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+	if ctxt.HeadType == objabi.Haix {
+		ld.Errorf(s, "archrelocaddr called for %s relocation\n", r.Sym.Name)
+	}
 	var o1, o2 uint32
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
 		o1 = uint32(val >> 32)
@@ -493,7 +574,7 @@ func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 
 
 	t := ld.Symaddr(r.Sym) + r.Add
 	if t < 0 || t >= 1<<31 {
-		ld.Errorf(s, "relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(r.Sym))
+		ld.Errorf(s, "relocation for %s is too big (>=2G): 0x%x", s.Name, ld.Symaddr(r.Sym))
 	}
 	if t&0x8000 != 0 {
 		t += 0x10000
@@ -667,6 +748,8 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 		return r.Add, true
 	case objabi.R_GOTOFF:
 		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
+	case objabi.R_ADDRPOWER_TOCREL, objabi.R_ADDRPOWER_TOCREL_DS:
+		return archreloctoc(ctxt, r, s, val), true
 	case objabi.R_ADDRPOWER, objabi.R_ADDRPOWER_DS:
 		return archrelocaddr(ctxt, r, s, val), true
 	case objabi.R_CALLPOWER:
@@ -946,13 +1029,6 @@ func asmb(ctxt *ld.Link) {
 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
-	loadersize := uint64(0)
-	if ctxt.HeadType == objabi.Haix && ctxt.BuildMode == ld.BuildModeExe {
-		loadero := uint64(ld.Rnd(int64(ld.Segdwarf.Fileoff+ld.Segdwarf.Filelen), int64(*ld.FlagRound)))
-		ctxt.Out.SeekSet(int64(loadero))
-		loadersize = ld.Loaderblk(ctxt, loadero)
-	}
-
 	/* output symbol table */
 	ld.Symsize = 0
 
@@ -974,14 +1050,7 @@ func asmb(ctxt *ld.Link) {
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 
 		case objabi.Haix:
-			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
-
-			// Add loader size if needed
-			if ctxt.BuildMode == ld.BuildModeExe {
-				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
-				symo += uint32(loadersize)
-			}
-			symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+			// Nothing to do
 		}
 
 		ctxt.Out.SeekSet(int64(symo))
@@ -1012,7 +1081,7 @@ func asmb(ctxt *ld.Link) {
 			}
 
 		case objabi.Haix:
-			ld.Asmaixsym(ctxt)
+			// symtab must be added once sections have been created in ld.Asmbxcoff
 			ctxt.Out.Flush()
 		}
 	}
@@ -1041,7 +1110,9 @@ func asmb(ctxt *ld.Link) {
 		ld.Asmbelf(ctxt, int64(symo))
 
 	case objabi.Haix:
-		ld.Asmbxcoff(ctxt)
+		fileoff := uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+		fileoff = uint32(ld.Rnd(int64(fileoff), int64(*ld.FlagRound)))
+		ld.Asmbxcoff(ctxt, int64(fileoff))
 	}
 
 	ctxt.Out.Flush()

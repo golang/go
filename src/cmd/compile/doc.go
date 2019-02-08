@@ -44,8 +44,12 @@ Flags:
 		Print compiler version and exit.
 	-asmhdr file
 		Write assembly header to file.
+	-buildid id
+		Record id as the build id in the export metadata.
 	-blockprofile file
 		Write block profile for the compilation to file.
+	-c int
+		Concurrency during compilation. Set 1 for no concurrency (default is 1).
 	-complete
 		Assume package has no non-Go components.
 	-cpuprofile file
@@ -54,8 +58,14 @@ Flags:
 		Allow references to Go symbols in shared libraries (experimental).
 	-e
 		Remove the limit on the number of errors reported (default limit is 10).
+	-goversion string
+		Specify required go tool version of the runtime.
+		Exits when the runtime go version does not match goversion.
 	-h
 		Halt with a stack trace at the first error detected.
+	-importcfg file
+		Read import configuration from file.
+		In the file, set importmap, packagefile to specify import resolution.
 	-importmap old=new
 		Interpret import "old" as import "new" during compilation.
 		The option may be repeated to add multiple mappings.
@@ -74,6 +84,8 @@ Flags:
 		object to usual output file (as specified by -o).
 		Without this flag, the -o output is a combination of both
 		linker and compiler input.
+	-m
+		Print optimization decisions.
 	-memprofile file
 		Write memory profile for the compilation to file.
 	-memprofilerate rate
@@ -93,11 +105,50 @@ Flags:
 		Write a package (archive) file rather than an object file
 	-race
 		Compile with race detector enabled.
+	-s
+		Warn about composite literals that can be simplified.
+	-shared
+		Generate code that can be linked into a shared library.
+	-traceprofile file
+		Write an execution trace to file.
 	-trimpath prefix
 		Remove prefix from recorded source file paths.
 
-There are also a number of debugging flags; run the command with no arguments
-for a usage message.
+Flags related to debugging information:
+
+	-dwarf
+		Generate DWARF symbols.
+	-dwarflocationlists
+		Add location lists to DWARF in optimized mode.
+	-gendwarfinl int
+		Generate DWARF inline info records (default 2).
+
+Flags to debug the compiler itself:
+
+	-E
+		Debug symbol export.
+	-K
+		Debug missing line numbers.
+	-d list
+		Print debug information about items in list. Try -d help for further information.
+	-live
+		Debug liveness analysis.
+	-v
+		Increase debug verbosity.
+	-%
+		Debug non-static initializers.
+	-W
+		Debug parse tree after type checking.
+	-f
+		Debug stack frames.
+	-i
+		Debug line number stack.
+	-j
+		Debug runtime-initialized variables.
+	-r
+		Debug generated wrappers.
+	-w
+		Debug type checking.
 
 Compiler Directives
 

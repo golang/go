@@ -30,8 +30,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang_org/x/net/http/httpguts"
-	"golang_org/x/net/http/httpproxy"
+	"internal/x/net/http/httpguts"
+	"internal/x/net/http/httpproxy"
 )
 
 // DefaultTransport is the default implementation of Transport and is
@@ -91,6 +91,15 @@ func init() {
 // considered a terminal status and returned by RoundTrip. To see the
 // ignored 1xx responses, use the httptrace trace package's
 // ClientTrace.Got1xxResponse.
+//
+// Transport only retries a request upon encountering a network error
+// if the request is idempotent and either has no body or has its
+// Request.GetBody defined. HTTP requests are considered idempotent if
+// they have HTTP methods GET, HEAD, OPTIONS, or TRACE; or if their
+// Header map contains an "Idempotency-Key" or "X-Idempotency-Key"
+// entry. If the idempotency key value is an zero-length slice, the
+// request is treated as idempotent but the header is not sent on the
+// wire.
 type Transport struct {
 	idleMu     sync.Mutex
 	wantIdle   bool                                // user has requested to close all idle conns
@@ -125,7 +134,7 @@ type Transport struct {
 	//
 	// DialContext runs concurrently with calls to RoundTrip.
 	// A RoundTrip call that initiates a dial may end up using
-	// an connection dialed previously when the earlier connection
+	// a connection dialed previously when the earlier connection
 	// becomes idle before the later DialContext completes.
 	DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
 
@@ -133,7 +142,7 @@ type Transport struct {
 	//
 	// Dial runs concurrently with calls to RoundTrip.
 	// A RoundTrip call that initiates a dial may end up using
-	// an connection dialed previously when the earlier connection
+	// a connection dialed previously when the earlier connection
 	// becomes idle before the later Dial completes.
 	//
 	// Deprecated: Use DialContext instead, which allows the transport
@@ -1714,7 +1723,7 @@ func (pc *persistConn) readLoop() {
 			alive = false
 		}
 
-		if !hasBody {
+		if !hasBody || bodyWritable {
 			pc.t.setReqCanceler(rc.req, nil)
 
 			// Put the idle conn back into the pool before we send the response
@@ -2107,7 +2116,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		req.Method != "HEAD" {
 		// Request gzip only, not deflate. Deflate is ambiguous and
 		// not as universally supported anyway.
-		// See: http://www.gzip.org/zlib/zlib_faq.html#faq38
+		// See: https://zlib.net/zlib_faq.html#faq39
 		//
 		// Note that we don't request this for HEAD requests,
 		// due to a bug in nginx:
@@ -2126,7 +2135,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		continueCh = make(chan struct{}, 1)
 	}
 
-	if pc.t.DisableKeepAlives {
+	if pc.t.DisableKeepAlives && !req.wantsClose() {
 		req.extraHeaders().Set("Connection", "close")
 	}
 
@@ -2407,7 +2416,7 @@ type fakeLocker struct{}
 func (fakeLocker) Lock()   {}
 func (fakeLocker) Unlock() {}
 
-// clneTLSConfig returns a shallow clone of cfg, or a new zero tls.Config if
+// cloneTLSConfig returns a shallow clone of cfg, or a new zero tls.Config if
 // cfg is nil. This is safe to call even if cfg is in active use by a TLS
 // client or server.
 func cloneTLSConfig(cfg *tls.Config) *tls.Config {

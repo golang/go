@@ -671,7 +671,7 @@ func (e *EscState) isSliceSelfAssign(dst, src *Node) bool {
 	// when we evaluate it for dst and for src.
 
 	// dst is ONAME dereference.
-	if dst.Op != OIND && dst.Op != ODOTPTR || dst.Left.Op != ONAME {
+	if dst.Op != ODEREF && dst.Op != ODOTPTR || dst.Left.Op != ONAME {
 		return false
 	}
 	// src is a slice operation.
@@ -695,7 +695,7 @@ func (e *EscState) isSliceSelfAssign(dst, src *Node) bool {
 		return false
 	}
 	// slice is applied to ONAME dereference.
-	if src.Left.Op != OIND && src.Left.Op != ODOTPTR || src.Left.Left.Op != ONAME {
+	if src.Left.Op != ODEREF && src.Left.Op != ODOTPTR || src.Left.Left.Op != ONAME {
 		return false
 	}
 	// dst and src reference the same base ONAME.
@@ -757,8 +757,8 @@ func (e *EscState) mayAffectMemory(n *Node) bool {
 		return e.mayAffectMemory(n.Left) || e.mayAffectMemory(n.Right)
 
 	// Left group.
-	case ODOT, ODOTPTR, OIND, OCONVNOP, OCONV, OLEN, OCAP,
-		ONOT, OCOM, OPLUS, OMINUS, OALIGNOF, OOFFSETOF, OSIZEOF:
+	case ODOT, ODOTPTR, ODEREF, OCONVNOP, OCONV, OLEN, OCAP,
+		ONOT, OBITNOT, OPLUS, ONEG, OALIGNOF, OOFFSETOF, OSIZEOF:
 		return e.mayAffectMemory(n.Left)
 
 	default:
@@ -935,7 +935,7 @@ opSwitch:
 			e.escassignSinkWhy(n, arg, "defer func arg")
 		}
 
-	case OPROC:
+	case OGO:
 		// go f(x) - f and x escape
 		e.escassignSinkWhy(n, n.Left.Left, "go func")
 		e.escassignSinkWhy(n, n.Left.Right, "go func ...") // ODDDARG for call
@@ -991,7 +991,7 @@ opSwitch:
 		e.escassignSinkWhy(n, n.Left, "panic")
 
 	case OAPPEND:
-		if !n.Isddd() {
+		if !n.IsDDD() {
 			for _, nn := range n.List.Slice()[1:] {
 				e.escassignSinkWhy(n, nn, "appended to slice") // lose track of assign to dereference
 			}
@@ -1072,7 +1072,7 @@ opSwitch:
 				a = nod(OADDR, a, nil)
 				a.Pos = v.Pos
 				e.nodeEscState(a).Loopdepth = e.loopdepth
-				a = typecheck(a, Erv)
+				a = typecheck(a, ctxExpr)
 			}
 
 			e.escassignWhyWhere(n, a, "captured by a closure", n)
@@ -1083,10 +1083,10 @@ opSwitch:
 		OMAKEMAP,
 		OMAKESLICE,
 		ONEW,
-		OARRAYRUNESTR,
-		OARRAYBYTESTR,
-		OSTRARRAYRUNE,
-		OSTRARRAYBYTE,
+		ORUNES2STR,
+		OBYTES2STR,
+		OSTR2RUNES,
+		OSTR2BYTES,
 		ORUNESTR:
 		e.track(n)
 
@@ -1223,7 +1223,7 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
 		dstwhy = "slice-element-equals"
 		dst = &e.theSink // lose track of dereference
 
-	case OIND:
+	case ODEREF:
 		dstwhy = "star-equals"
 		dst = &e.theSink // lose track of dereference
 
@@ -1243,7 +1243,7 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
 
 	switch src.Op {
 	case OADDR, // dst = &x
-		OIND,    // dst = *x
+		ODEREF,  // dst = *x
 		ODOTPTR, // dst = (*x).f
 		ONAME,
 		ODDDARG,
@@ -1255,10 +1255,10 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
 		OMAKECHAN,
 		OMAKEMAP,
 		OMAKESLICE,
-		OARRAYRUNESTR,
-		OARRAYBYTESTR,
-		OSTRARRAYRUNE,
-		OSTRARRAYBYTE,
+		ORUNES2STR,
+		OBYTES2STR,
+		OSTR2RUNES,
+		OSTR2BYTES,
 		OADDSTR,
 		ONEW,
 		OCALLPART,
@@ -1293,7 +1293,7 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
 	case OCONV,
 		OCONVNOP,
 		ODOTMETH,
-		// treat recv.meth as a value with recv in it, only happens in ODEFER and OPROC
+		// treat recv.meth as a value with recv in it, only happens in ODEFER and OGO
 		// iface.method already leaks iface in esccall, no need to put in extra ODOTINTER edge here
 		OSLICE,
 		OSLICE3,
@@ -1338,8 +1338,8 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
 		OAND,
 		OANDNOT,
 		OPLUS,
-		OMINUS,
-		OCOM:
+		ONEG,
+		OBITNOT:
 		e.escassign(dst, src.Left, e.stepAssign(step, originalDst, src, dstwhy))
 
 		e.escassign(dst, src.Right, e.stepAssign(step, originalDst, src, dstwhy))
@@ -1500,16 +1500,16 @@ func (e *EscState) escassignDereference(dst *Node, src *Node, step *EscStep) {
 	e.escassign(dst, e.addDereference(src), step)
 }
 
-// addDereference constructs a suitable OIND note applied to src.
+// addDereference constructs a suitable ODEREF note applied to src.
 // Because this is for purposes of escape accounting, not execution,
 // some semantically dubious node combinations are (currently) possible.
 func (e *EscState) addDereference(n *Node) *Node {
-	ind := nod(OIND, n, nil)
+	ind := nod(ODEREF, n, nil)
 	e.nodeEscState(ind).Loopdepth = e.nodeEscState(n).Loopdepth
 	ind.Pos = n.Pos
 	t := n.Type
 	if t.IsPtr() || t.IsSlice() {
-		// This should model our own sloppy use of OIND to encode
+		// This should model our own sloppy use of ODEREF to encode
 		// decreasing levels of indirection; i.e., "indirecting" a slice
 		// yields the type of an element.
 		t = t.Elem()
@@ -1652,49 +1652,79 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 			Fatalf("graph inconsistency")
 		}
 
-		sawRcvr := false
-		for _, n := range fn.Name.Defn.Func.Dcl {
-			switch n.Class() {
-			case PPARAM:
-				if call.Op != OCALLFUNC && !sawRcvr {
-					e.escassignWhyWhere(n, call.Left.Left, "call receiver", call)
-					sawRcvr = true
-					continue
-				}
-				if len(args) == 0 {
-					continue
-				}
-				arg := args[0]
-				if n.Isddd() && !call.Isddd() {
-					// Introduce ODDDARG node to represent ... allocation.
-					arg = nod(ODDDARG, nil, nil)
-					arr := types.NewArray(n.Type.Elem(), int64(len(args)))
-					arg.Type = types.NewPtr(arr) // make pointer so it will be tracked
-					arg.Pos = call.Pos
-					e.track(arg)
-					call.Right = arg
-				}
-				e.escassignWhyWhere(n, arg, "arg to recursive call", call) // TODO this message needs help.
-				if arg == args[0] {
-					args = args[1:]
-					continue
-				}
-				// "..." arguments are untracked
-				for _, a := range args {
-					if Debug['m'] > 3 {
-						fmt.Printf("%v::esccall:: ... <- %S, untracked\n", linestr(lineno), a)
-					}
-					e.escassignSinkWhyWhere(arg, a, "... arg to recursive call", call)
-				}
-				// No more PPARAM processing, but keep
-				// going for PPARAMOUT.
-				args = nil
+		i := 0
 
-			case PPARAMOUT:
+		// Receiver.
+		if call.Op != OCALLFUNC {
+			rf := fntype.Recv()
+			if rf.Sym != nil && !rf.Sym.IsBlank() {
+				n := fn.Name.Defn.Func.Dcl[0]
+				i++
+				if n.Class() != PPARAM {
+					Fatalf("esccall: not a parameter %+v", n)
+				}
+				e.escassignWhyWhere(n, call.Left.Left, "recursive call receiver", call)
+			}
+		}
+
+		// Parameters.
+		for _, param := range fntype.Params().FieldSlice() {
+			if param.Sym == nil || param.Sym.IsBlank() {
+				// Unnamed parameter is not listed in Func.Dcl.
+				// But we need to consume the arg.
+				if param.IsDDD() && !call.IsDDD() {
+					args = nil
+				} else {
+					args = args[1:]
+				}
+				continue
+			}
+
+			n := fn.Name.Defn.Func.Dcl[i]
+			i++
+			if n.Class() != PPARAM {
+				Fatalf("esccall: not a parameter %+v", n)
+			}
+			if len(args) == 0 {
+				continue
+			}
+			arg := args[0]
+			if n.IsDDD() && !call.IsDDD() {
+				// Introduce ODDDARG node to represent ... allocation.
+				arg = nod(ODDDARG, nil, nil)
+				arr := types.NewArray(n.Type.Elem(), int64(len(args)))
+				arg.Type = types.NewPtr(arr) // make pointer so it will be tracked
+				arg.Pos = call.Pos
+				e.track(arg)
+				call.Right = arg
+			}
+			e.escassignWhyWhere(n, arg, "arg to recursive call", call) // TODO this message needs help.
+			if arg == args[0] {
+				args = args[1:]
+				continue
+			}
+			// "..." arguments are untracked
+			for _, a := range args {
+				if Debug['m'] > 3 {
+					fmt.Printf("%v::esccall:: ... <- %S, untracked\n", linestr(lineno), a)
+				}
+				e.escassignSinkWhyWhere(arg, a, "... arg to recursive call", call)
+			}
+			// ... arg consumes all remaining arguments
+			args = nil
+		}
+
+		// Results.
+		for _, n := range fn.Name.Defn.Func.Dcl[i:] {
+			if n.Class() == PPARAMOUT {
 				cE.Retval.Append(n)
 			}
 		}
 
+		// Sanity check: all arguments must be consumed.
+		if len(args) != 0 {
+			Fatalf("esccall not consumed all args %+v\n", call)
+		}
 		return
 	}
 
@@ -1722,7 +1752,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 	for i, param := range fntype.Params().FieldSlice() {
 		note := param.Note
 		var arg *Node
-		if param.Isddd() && !call.Isddd() {
+		if param.IsDDD() && !call.IsDDD() {
 			rest := args[i:]
 			if len(rest) == 0 {
 				break
@@ -1754,7 +1784,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
 			}
 		}
 
-		if types.Haspointers(param.Type) && e.escassignfromtag(note, cE.Retval, arg, call)&EscMask == EscNone && parent.Op != ODEFER && parent.Op != OPROC {
+		if types.Haspointers(param.Type) && e.escassignfromtag(note, cE.Retval, arg, call)&EscMask == EscNone && parent.Op != ODEFER && parent.Op != OGO {
 			a := arg
 			for a.Op == OCONVNOP {
 				a = a.Left
@@ -2057,10 +2087,10 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 	case OMAKECHAN,
 		OMAKEMAP,
 		OMAKESLICE,
-		OARRAYRUNESTR,
-		OARRAYBYTESTR,
-		OSTRARRAYRUNE,
-		OSTRARRAYBYTE,
+		ORUNES2STR,
+		OBYTES2STR,
+		OSTR2RUNES,
+		OSTR2BYTES,
 		OADDSTR,
 		OMAPLIT,
 		ONEW,
@@ -2100,7 +2130,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 		e.escwalk(level.inc(), dst, src.Left, e.stepWalk(dst, src.Left, "dot of pointer", step))
 	case OINDEXMAP:
 		e.escwalk(level.inc(), dst, src.Left, e.stepWalk(dst, src.Left, "map index", step))
-	case OIND:
+	case ODEREF:
 		e.escwalk(level.inc(), dst, src.Left, e.stepWalk(dst, src.Left, "indirection", step))
 
 	// In this case a link went directly to a call, but should really go
@@ -2142,7 +2172,7 @@ func addrescapes(n *Node) {
 	default:
 		// Unexpected Op, probably due to a previous type error. Ignore.
 
-	case OIND, ODOTPTR:
+	case ODEREF, ODOTPTR:
 		// Nothing to do.
 
 	case ONAME:
@@ -2347,7 +2377,7 @@ func (e *EscState) esctag(fn *Node) {
 				f.Note = uintptrEscapesTag
 			}
 
-			if f.Isddd() && f.Type.Elem().Etype == TUINTPTR {
+			if f.IsDDD() && f.Type.Elem().Etype == TUINTPTR {
 				// final argument is ...uintptr.
 				if Debug['m'] != 0 {
 					Warnl(fn.Pos, "%v marking %v as escaping ...uintptr", funcSym(fn), name(f.Sym, narg))

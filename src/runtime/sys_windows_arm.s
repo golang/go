@@ -362,6 +362,9 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R0, g_m(g)
 	BL	runtime·save_g(SB)
 
+	// do per-thread TLS initialization
+	BL	runtime·init_thread_tls(SB)
+
 	// Layout new m scheduler stack on os stack.
 	MOVW	R13, R0
 	MOVW	R0, g_stack+stack_hi(g)
@@ -595,3 +598,95 @@ useQPC:
 	B	runtime·nanotimeQPC(SB)		// tail call
 	RET
 
+// save_g saves the g register (R10) into thread local memory
+// so that we can call externally compiled
+// ARM code that will overwrite those registers.
+// NOTE: runtime.gogo assumes that R1 is preserved by this function.
+//       runtime.mcall assumes this function only clobbers R0 and R11.
+// Returns with g in R0.
+// Save the value in the _TEB->TlsSlots array.
+// Effectively implements TlsSetValue().
+// tls_g stores the TLS slot allocated TlsAlloc().
+TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0
+	MRC	15, 0, R0, C13, C0, 2
+	ADD	$0xe10, R0
+	MOVW 	$runtime·tls_g(SB), R11
+	MOVW	(R11), R11
+	MOVW	g, R11<<2(R0)
+	MOVW	g, R0	// preserve R0 across call to setg<>
+	RET
+
+// load_g loads the g register from thread-local memory,
+// for use after calling externally compiled
+// ARM code that overwrote those registers.
+// Get the value from the _TEB->TlsSlots array.
+// Effectively implements TlsGetValue().
+TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0
+	MRC	15, 0, R0, C13, C0, 2
+	ADD	$0xe10, R0
+	MOVW 	$runtime·tls_g(SB), g
+	MOVW	(g), g
+	MOVW	g<<2(R0), g
+	RET
+
+// This is called from rt0_go, which runs on the system stack
+// using the initial stack allocated by the OS.
+// It calls back into standard C using the BL below.
+// To do that, the stack pointer must be 8-byte-aligned.
+TEXT runtime·_initcgo(SB),NOSPLIT|NOFRAME,$0
+	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
+
+	// Ensure stack is 8-byte aligned before calling C code
+	MOVW	R13, R4
+	BIC	$0x7, R13
+
+	// Allocate a TLS slot to hold g across calls to external code
+	MOVW 	$runtime·_TlsAlloc(SB), R0
+	MOVW	(R0), R0
+	BL	(R0)
+
+	// Assert that slot is less than 64 so we can use _TEB->TlsSlots
+	CMP	$64, R0
+	MOVW	$runtime·abort(SB), R1
+	BL.GE	(R1)
+
+	// Save Slot into tls_g
+	MOVW 	$runtime·tls_g(SB), R1
+	MOVW	R0, (R1)
+
+	BL	runtime·init_thread_tls(SB)
+
+	MOVW	R4, R13
+	MOVM.IA.W (R13), [R4, R15]	// pop {r4, pc}
+
+// void init_thread_tls()
+//
+// Does per-thread TLS initialization. Saves a pointer to the TLS slot
+// holding G, in the current m.
+//
+//     g->m->tls[0] = &_TEB->TlsSlots[tls_g]
+//
+// The purpose of this is to enable the profiling handler to get the
+// current g associated with the thread. We cannot use m->curg because curg
+// only holds the current user g. If the thread is executing system code or
+// external code, m->curg will be NULL. The thread's TLS slot always holds
+// the current g, so save a reference to this location so the profiling
+// handler can get the real g from the thread's m.
+//
+// Clobbers R0-R3
+TEXT runtime·init_thread_tls(SB),NOSPLIT|NOFRAME,$0
+	// compute &_TEB->TlsSlots[tls_g]
+	MRC	15, 0, R0, C13, C0, 2
+	ADD	$0xe10, R0
+	MOVW 	$runtime·tls_g(SB), R1
+	MOVW	(R1), R1
+	MOVW	R1<<2, R1
+	ADD	R1, R0
+
+	// save in g->m->tls[0]
+	MOVW	g_m(g), R1
+	MOVW	R0, m_tls(R1)
+	RET
+
+// Holds the TLS Slot, which was allocated by TlsAlloc()
+GLOBL runtime·tls_g+0(SB), NOPTR, $4

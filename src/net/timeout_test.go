@@ -812,6 +812,9 @@ func (b neverEnding) Read(p []byte) (int, error) {
 }
 
 func testVariousDeadlines(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping test on plan9; see golang.org/issue/26945")
+	}
 	type result struct {
 		n   int64
 		err error

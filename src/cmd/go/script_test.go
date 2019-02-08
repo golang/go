@@ -27,6 +27,7 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/par"
 	"cmd/go/internal/txtar"
+	"cmd/go/internal/work"
 )
 
 // TestScript runs the tests in testdata/script/*.txt.
@@ -274,12 +275,19 @@ Script:
 				ok = testenv.HasExternalNetwork()
 			case "link":
 				ok = testenv.HasLink()
+			case "root":
+				ok = os.Geteuid() == 0
 			case "symlink":
 				ok = testenv.HasSymlink()
 			default:
 				if strings.HasPrefix(cond, "exec:") {
 					prog := cond[len("exec:"):]
 					ok = execCache.Do(prog, func() interface{} {
+						if runtime.GOOS == "plan9" && prog == "git" {
+							// The Git command is usually not the real Git on Plan 9.
+							// See https://golang.org/issues/29640.
+							return false
+						}
 						_, err := exec.LookPath(prog)
 						return err == nil
 					}).(bool)
@@ -341,7 +349,9 @@ Script:
 //
 var scriptCmds = map[string]func(*testScript, bool, []string){
 	"addcrlf": (*testScript).cmdAddcrlf,
+	"cc":      (*testScript).cmdCc,
 	"cd":      (*testScript).cmdCd,
+	"chmod":   (*testScript).cmdChmod,
 	"cmp":     (*testScript).cmdCmp,
 	"cmpenv":  (*testScript).cmdCmpenv,
 	"cp":      (*testScript).cmdCp,
@@ -375,6 +385,17 @@ func (ts *testScript) cmdAddcrlf(neg bool, args []string) {
 	}
 }
 
+// cc runs the C compiler along with platform specific options.
+func (ts *testScript) cmdCc(neg bool, args []string) {
+	if len(args) < 1 || (len(args) == 1 && args[0] == "&") {
+		ts.fatalf("usage: cc args... [&]")
+	}
+
+	var b work.Builder
+	b.Init()
+	ts.cmdExec(neg, append(b.GccCmd(".", ""), args...))
+}
+
 // cd changes to a different directory.
 func (ts *testScript) cmdCd(neg bool, args []string) {
 	if neg {
@@ -398,6 +419,24 @@ func (ts *testScript) cmdCd(neg bool, args []string) {
 	}
 	ts.cd = dir
 	fmt.Fprintf(&ts.log, "%s\n", ts.cd)
+}
+
+// chmod changes permissions for a file or directory.
+func (ts *testScript) cmdChmod(neg bool, args []string) {
+	if neg {
+		ts.fatalf("unsupported: ! chmod")
+	}
+	if len(args) < 2 {
+		ts.fatalf("usage: chmod perm paths...")
+	}
+	perm, err := strconv.ParseUint(args[0], 0, 32)
+	if err != nil || perm&uint64(os.ModePerm) != perm {
+		ts.fatalf("invalid mode: %s", args[0])
+	}
+	for _, path := range args[1:] {
+		err := os.Chmod(path, os.FileMode(perm))
+		ts.check(err)
+	}
 }
 
 // cmp compares two files.

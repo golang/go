@@ -16,6 +16,7 @@ import (
 	"log"
 	"os"
 	"sort"
+	"unicode"
 
 	"cmd/internal/edit"
 	"cmd/internal/objabi"
@@ -114,6 +115,10 @@ func parseFlags() error {
 	// Must either display a profile or rewrite Go source.
 	if (profile == "") == (*mode == "") {
 		return fmt.Errorf("too many options")
+	}
+
+	if *varVar != "" && !isValidIdentifier(*varVar) {
+		return fmt.Errorf("-var: %q is not a valid identifier", *varVar)
 	}
 
 	if *mode != "" {
@@ -641,9 +646,21 @@ func (f *File) addVariables(w io.Writer) {
 	// - 32-bit starting line number
 	// - 32-bit ending line number
 	// - (16 bit ending column number << 16) | (16-bit starting column number).
+	var lastStart, lastEnd token.Position
 	for i, block := range f.blocks {
 		start := f.fset.Position(block.startByte)
 		end := f.fset.Position(block.endByte)
+
+		// It is possible for positions to repeat when there is a
+		// line directive that does not specify column information
+		// and the input has not been passed through gofmt.
+		// See issue #27350 and TestHtmlUnformatted.
+		if samePos(start, lastStart) && samePos(end, lastEnd) {
+			end.Column++
+		}
+		lastStart = start
+		lastEnd = end
+
 		fmt.Fprintf(w, "\t\t%d, %d, %#x, // [%d]\n", start.Line, end.Line, (end.Column&0xFFFF)<<16|(start.Column&0xFFFF), i)
 	}
 
@@ -675,4 +692,28 @@ func (f *File) addVariables(w io.Writer) {
 	if *mode == "atomic" {
 		fmt.Fprintf(w, "var _ = %s.LoadUint32\n", atomicPackageName)
 	}
+}
+
+func isValidIdentifier(ident string) bool {
+	if len(ident) == 0 {
+		return false
+	}
+	for i, c := range ident {
+		if i > 0 && unicode.IsDigit(c) {
+			continue
+		}
+		if c == '_' || unicode.IsLetter(c) {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+// samePos returns whether two positions have the same file/line/column.
+// We don't use p1 == p2 because token.Position also has an Offset field,
+// and when the input uses //line directives two Positions can have different
+// Offset values while having the same file/line/dolumn.
+func samePos(p1, p2 token.Position) bool {
+	return p1.Filename == p2.Filename && p1.Line == p2.Line && p1.Column == p2.Column
 }

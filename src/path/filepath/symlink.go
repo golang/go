@@ -12,6 +12,8 @@ import (
 
 func walkSymlinks(path string) (string, error) {
 	volLen := volumeNameLen(path)
+	pathSeparator := string(os.PathSeparator)
+
 	if volLen < len(path) && os.IsPathSeparator(path[volLen]) {
 		volLen++
 	}
@@ -50,7 +52,7 @@ func walkSymlinks(path string) (string, error) {
 			}
 			if r < volLen {
 				if len(dest) > volLen {
-					dest += string(os.PathSeparator)
+					dest += pathSeparator
 				}
 				dest += ".."
 			} else {
@@ -62,7 +64,7 @@ func walkSymlinks(path string) (string, error) {
 		// Ordinary path component. Add it to result.
 
 		if len(dest) > volumeNameLen(dest) && !os.IsPathSeparator(dest[len(dest)-1]) {
-			dest += string(os.PathSeparator)
+			dest += pathSeparator
 		}
 
 		dest += path[start:end]
@@ -76,7 +78,7 @@ func walkSymlinks(path string) (string, error) {
 
 		if fi.Mode()&os.ModeSymlink == 0 {
 			if !fi.Mode().IsDir() && end < len(path) {
-				return "", os.ErrNotExist
+				return "", slashAfterFilePathError
 			}
 			continue
 		}

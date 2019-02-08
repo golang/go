@@ -17,6 +17,7 @@ import (
 	"io"
 	"math/big"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -161,7 +162,7 @@ const (
 )
 
 // defaultSupportedSignatureAlgorithms contains the signature and hash algorithms that
-// the code advertises as supported in a TLS 1.2 ClientHello and in a TLS 1.2
+// the code advertises as supported in a TLS 1.2+ ClientHello and in a TLS 1.2+
 // CertificateRequest. The two fields are merged to match with TLS 1.3.
 // Note that in TLS 1.2, the ECDSA algorithms are not constrained to P-256, etc.
 var defaultSupportedSignatureAlgorithms = []SignatureScheme{
@@ -177,6 +178,9 @@ var defaultSupportedSignatureAlgorithms = []SignatureScheme{
 	PKCS1WithSHA1,
 	ECDSAWithSHA1,
 }
+
+// RSA-PSS is disabled in TLS 1.2 for Go 1.12. See Issue 30055.
+var defaultSupportedSignatureAlgorithmsTLS12 = defaultSupportedSignatureAlgorithms[3:]
 
 // helloRetryRequestRandom is set as the Random value of a ServerHello
 // to signal that the message is actually a HelloRetryRequest.
@@ -200,7 +204,7 @@ type ConnectionState struct {
 	Version                     uint16                // TLS version used by the connection (e.g. VersionTLS12)
 	HandshakeComplete           bool                  // TLS handshake is complete
 	DidResume                   bool                  // connection resumes a previous TLS connection
-	CipherSuite                 uint16                // cipher suite in use (TLS_RSA_WITH_RC4_128_SHA, ...)
+	CipherSuite                 uint16                // cipher suite in use (TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, ...)
 	NegotiatedProtocol          string                // negotiated next protocol (not guaranteed to be from Config.NextProtos)
 	NegotiatedProtocolIsMutual  bool                  // negotiated protocol was advertised by server (client side only)
 	ServerName                  string                // server name requested by client, if any (server side only)
@@ -241,7 +245,7 @@ const (
 	RequireAndVerifyClientCert
 )
 
-// requiresClientCert returns whether the ClientAuthType requires a client
+// requiresClientCert reports whether the ClientAuthType requires a client
 // certificate to be provided.
 func requiresClientCert(c ClientAuthType) bool {
 	switch c {
@@ -292,7 +296,7 @@ type ClientSessionCache interface {
 type SignatureScheme uint16
 
 const (
-	PKCS1WithSHA1   SignatureScheme = 0x0201
+	// RSASSA-PKCS1-v1_5 algorithms.
 	PKCS1WithSHA256 SignatureScheme = 0x0401
 	PKCS1WithSHA384 SignatureScheme = 0x0501
 	PKCS1WithSHA512 SignatureScheme = 0x0601
@@ -302,11 +306,13 @@ const (
 	PSSWithSHA384 SignatureScheme = 0x0805
 	PSSWithSHA512 SignatureScheme = 0x0806
 
+	// ECDSA algorithms. Only constrained to a specific curve in TLS 1.3.
 	ECDSAWithP256AndSHA256 SignatureScheme = 0x0403
 	ECDSAWithP384AndSHA384 SignatureScheme = 0x0503
 	ECDSAWithP521AndSHA512 SignatureScheme = 0x0603
 
 	// Legacy signature and hash algorithms for TLS 1.2.
+	PKCS1WithSHA1 SignatureScheme = 0x0201
 	ECDSAWithSHA1 SignatureScheme = 0x0203
 )
 
@@ -314,7 +320,7 @@ const (
 // guide certificate selection in the GetCertificate callback.
 type ClientHelloInfo struct {
 	// CipherSuites lists the CipherSuites supported by the client (e.g.
-	// TLS_RSA_WITH_RC4_128_SHA).
+	// TLS_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256).
 	CipherSuites []uint16
 
 	// ServerName indicates the name of the server requested by the client
@@ -520,8 +526,11 @@ type Config struct {
 	// This should be used only for testing.
 	InsecureSkipVerify bool
 
-	// CipherSuites is a list of supported cipher suites. If CipherSuites
-	// is nil, TLS uses a list of suites supported by the implementation.
+	// CipherSuites is a list of supported cipher suites for TLS versions up to
+	// TLS 1.2. If CipherSuites is nil, a default list of secure cipher suites
+	// is used, with a preference order based on hardware performance. The
+	// default cipher suites might change over Go versions. Note that TLS 1.3
+	// ciphersuites are not configurable.
 	CipherSuites []uint16
 
 	// PreferServerCipherSuites controls whether the server selects the
@@ -777,9 +786,51 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 		if isClient && v < VersionTLS10 {
 			continue
 		}
+		// TLS 1.3 is opt-in in Go 1.12.
+		if v == VersionTLS13 && !isTLS13Supported() {
+			continue
+		}
 		versions = append(versions, v)
 	}
 	return versions
+}
+
+// tls13Support caches the result for isTLS13Supported.
+var tls13Support struct {
+	sync.Once
+	cached bool
+}
+
+// isTLS13Supported returns whether the program opted into TLS 1.3 via
+// GODEBUG=tls13=1. It's cached after the first execution.
+func isTLS13Supported() bool {
+	tls13Support.Do(func() {
+		tls13Support.cached = goDebugString("tls13") == "1"
+	})
+	return tls13Support.cached
+}
+
+// goDebugString returns the value of the named GODEBUG key.
+// GODEBUG is of the form "key=val,key2=val2".
+func goDebugString(key string) string {
+	s := os.Getenv("GODEBUG")
+	for i := 0; i < len(s)-len(key)-1; i++ {
+		if i > 0 && s[i-1] != ',' {
+			continue
+		}
+		afterKey := s[i+len(key):]
+		if afterKey[0] != '=' || s[i:i+len(key)] != key {
+			continue
+		}
+		val := afterKey[1:]
+		for i, b := range val {
+			if b == ',' {
+				return val[:i]
+			}
+		}
+		return val
+	}
+	return ""
 }
 
 func (c *Config) maxSupportedVersion(isClient bool) uint16 {
@@ -881,14 +932,14 @@ func (c *Config) BuildNameToCertificate() {
 	c.NameToCertificate = make(map[string]*Certificate)
 	for i := range c.Certificates {
 		cert := &c.Certificates[i]
-		if cert.Leaf == nil {
-			x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+		x509Cert := cert.Leaf
+		if x509Cert == nil {
+			var err error
+			x509Cert, err = x509.ParseCertificate(cert.Certificate[0])
 			if err != nil {
 				continue
 			}
-			cert.Leaf = x509Cert
 		}
-		x509Cert := cert.Leaf
 		if len(x509Cert.Subject.CommonName) > 0 {
 			c.NameToCertificate[x509Cert.Subject.CommonName] = cert
 		}
@@ -927,11 +978,10 @@ var writerMutex sync.Mutex
 // A Certificate is a chain of one or more certificates, leaf first.
 type Certificate struct {
 	Certificate [][]byte
-	// PrivateKey contains the private key corresponding to the public key
-	// in Leaf. For a server, this must implement crypto.Signer and/or
-	// crypto.Decrypter, with an RSA or ECDSA PublicKey. For a client
-	// (performing client authentication), this must be a crypto.Signer
-	// with an RSA or ECDSA PublicKey.
+	// PrivateKey contains the private key corresponding to the public key in
+	// Leaf. This must implement crypto.Signer with an RSA or ECDSA PublicKey.
+	// For a server up to TLS 1.2, it can also implement crypto.Decrypter with
+	// an RSA PublicKey.
 	PrivateKey crypto.PrivateKey
 	// OCSPStaple contains an optional OCSP response which will be served
 	// to clients that request it.

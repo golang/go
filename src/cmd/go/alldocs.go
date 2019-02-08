@@ -442,10 +442,13 @@
 // command alias, described below.
 //
 // To convey to humans and machine tools that code is generated,
-// generated source should have a line early in the file that
-// matches the following regular expression (in Go syntax):
+// generated source should have a line that matches the following
+// regular expression (in Go syntax):
 //
 // 	^// Code generated .* DO NOT EDIT\.$
+//
+// The line may appear anywhere in the file, but is typically
+// placed near the beginning so it is easy to find.
 //
 // Note that go generate does not parse the file, so lines that look
 // like directives in comments or multiline strings will be treated
@@ -1299,15 +1302,24 @@
 //
 // Usage:
 //
-// 	go vet [-n] [-x] [build flags] [vet flags] [packages]
+// 	go vet [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
 //
 // Vet runs the Go vet command on the packages named by the import paths.
 //
 // For more about vet and its flags, see 'go doc cmd/vet'.
 // For more about specifying packages, see 'go help packages'.
+// For a list of checkers and their flags, see 'go tool vet help'.
+// For details of a specific checker such as 'printf', see 'go tool vet help printf'.
 //
 // The -n flag prints commands that would be executed.
 // The -x flag prints commands as they are executed.
+//
+// The -vettool=prog flag selects a different analysis tool with alternative
+// or additional checks.
+// For example, the 'shadow' analyzer can be built and run using these commands:
+//
+//   go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+//   go vet -vettool=$(which shadow)
 //
 // The build flags supported by go vet are those that control package resolution
 // and execution, such as -n, -x, -v, -tags, and -toolexec.
@@ -1388,7 +1400,6 @@
 // in the standard user cache directory for the current operating system.
 // Setting the GOCACHE environment variable overrides this default,
 // and running 'go env GOCACHE' prints the current cache directory.
-// You can set the variable to 'off' to disable the cache.
 //
 // The go command periodically deletes cached data that has not been
 // used recently. Running 'go clean -cache' deletes all cached data.
@@ -1463,9 +1474,7 @@
 //
 // Each entry in the GOFLAGS list must be a standalone flag.
 // Because the entries are space-separated, flag values must
-// not contain spaces. In some cases, you can provide multiple flag
-// values instead: for example, to set '-ldflags=-s -w'
-// you can use 'GOFLAGS=-ldflags=-s -ldflags=-w'.
+// not contain spaces.
 //
 // Environment variables for use with cgo:
 //
@@ -1500,6 +1509,10 @@
 // 		The command to use to compile C++ code.
 // 	PKG_CONFIG
 // 		Path to pkg-config tool.
+// 	AR
+// 		The command to use to manipulate library archives when
+// 		building with the gccgo compiler.
+// 		The default is 'ar'.
 //
 // Architecture-specific environment variables:
 //
@@ -1585,14 +1598,14 @@
 // line comment. See the go/build package documentation for
 // more details.
 //
-// Non-test Go source files can also include a //go:binary-only-package
-// comment, indicating that the package sources are included
-// for documentation only and must not be used to build the
-// package binary. This enables distribution of Go packages in
-// their compiled form alone. Even binary-only packages require
-// accurate import blocks listing required dependencies, so that
-// those dependencies can be supplied when linking the resulting
-// command.
+// Through the Go 1.12 release, non-test Go source files can also include
+// a //go:binary-only-package comment, indicating that the package
+// sources are included for documentation only and must not be used to
+// build the package binary. This enables distribution of Go packages in
+// their compiled form alone. Even binary-only packages require accurate
+// import blocks listing required dependencies, so that those
+// dependencies can be supplied when linking the resulting command.
+// Note that this feature is scheduled to be removed after the Go 1.12 release.
 //
 //
 // The go.mod file
@@ -2043,7 +2056,7 @@
 // (See 'go help gopath-get' and 'go help gopath'.)
 //
 // When using modules, downloaded packages are stored in the module cache.
-// (See 'go help modules-get' and 'go help goproxy'.)
+// (See 'go help module-get' and 'go help goproxy'.)
 //
 // When using modules, an additional variant of the go-import meta tag is
 // recognized and is preferred over those listing version control systems.
@@ -2483,7 +2496,8 @@
 // development module, then get will update the required version.
 // Specifying a version earlier than the current required version is valid and
 // downgrades the dependency. The version suffix @none indicates that the
-// dependency should be removed entirely.
+// dependency should be removed entirely, downgrading or removing modules
+// depending on it as needed.
 //
 // Although get defaults to using the latest version of the module containing
 // a named package, it does not use the latest version of that module's

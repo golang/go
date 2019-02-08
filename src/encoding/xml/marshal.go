@@ -61,6 +61,10 @@ const (
 //       string of length zero.
 //     - an anonymous struct field is handled as if the fields of its
 //       value were part of the outer struct.
+//     - a field implementing Marshaler is written by calling its MarshalXML
+//       method.
+//     - a field implementing encoding.TextMarshaler is written by encoding the
+//       result of its MarshalText method as text.
 //
 // If a field uses a tag "a>b>c", then the element c will be nested inside
 // parent elements a and b. Fields that appear next to each other that name

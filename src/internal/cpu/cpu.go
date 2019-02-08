@@ -6,7 +6,8 @@
 // used by the Go standard library.
 package cpu
 
-// DebugOptions is set to true by the runtime if the OS supports GODEBUGCPU.
+// DebugOptions is set to true by the runtime if the OS supports reading
+// GODEBUG early in runtime startup.
 // This should not be changed after it is initialized.
 var DebugOptions bool
 
@@ -125,18 +126,20 @@ type s390x struct {
 	HasSHA256       bool // K{I,L}MD-SHA-256 functions
 	HasSHA512       bool // K{I,L}MD-SHA-512 functions
 	HasVX           bool // vector facility. Note: the runtime sets this when it processes auxv records.
+	HasVE1          bool // vector-enhancement 1
 	_               CacheLinePad
 }
 
 // Initialize examines the processor and sets the relevant variables above.
 // This is called by the runtime package early in program initialization,
-// before normal init functions are run. env is set by runtime if the OS supports GODEBUGCPU.
+// before normal init functions are run. env is set by runtime if the OS supports
+// cpu feature options in GODEBUG.
 func Initialize(env string) {
 	doinit()
 	processOptions(env)
 }
 
-// options contains the cpu debug options that can be used in GODEBUGCPU.
+// options contains the cpu debug options that can be used in GODEBUG.
 // Options are arch dependent and are added by the arch specific doinit functions.
 // Features that are mandatory for the specific GOARCH should not be added to options
 // (e.g. SSE2 on amd64).
@@ -146,16 +149,16 @@ var options []option
 type option struct {
 	Name      string
 	Feature   *bool
-	Specified bool // whether feature value was specified in GODEBUGCPU
+	Specified bool // whether feature value was specified in GODEBUG
 	Enable    bool // whether feature should be enabled
 	Required  bool // whether feature is mandatory and can not be disabled
 }
 
 // processOptions enables or disables CPU feature values based on the parsed env string.
-// The env string is expected to be of the form feature1=value1,feature2=value2...
+// The env string is expected to be of the form cpu.feature1=value1,cpu.feature2=value2...
 // where feature names is one of the architecture specifc list stored in the
 // cpu packages options variable and values are either 'on' or 'off'.
-// If env contains all=off then all cpu features referenced through the options
+// If env contains cpu.all=off then all cpu features referenced through the options
 // variable are disabled. Other feature names and values result in warning messages.
 func processOptions(env string) {
 field:
@@ -167,12 +170,15 @@ field:
 		} else {
 			field, env = env[:i], env[i+1:]
 		}
-		i = indexByte(field, '=')
-		if i < 0 {
-			print("GODEBUGCPU: no value specified for \"", field, "\"\n")
+		if len(field) < 4 || field[:4] != "cpu." {
 			continue
 		}
-		key, value := field[:i], field[i+1:]
+		i = indexByte(field, '=')
+		if i < 0 {
+			print("GODEBUG: no value specified for \"", field, "\"\n")
+			continue
+		}
+		key, value := field[4:i], field[i+1:] // e.g. "SSE2", "on"
 
 		var enable bool
 		switch value {
@@ -181,7 +187,7 @@ field:
 		case "off":
 			enable = false
 		default:
-			print("GODEBUGCPU: value \"", value, "\" not supported for option ", key, "\n")
+			print("GODEBUG: value \"", value, "\" not supported for cpu option \"", key, "\"\n")
 			continue field
 		}
 
@@ -201,7 +207,7 @@ field:
 			}
 		}
 
-		print("GODEBUGCPU: unknown cpu feature \"", key, "\"\n")
+		print("GODEBUG: unknown cpu feature \"", key, "\"\n")
 	}
 
 	for _, o := range options {
@@ -210,12 +216,12 @@ field:
 		}
 
 		if o.Enable && !*o.Feature {
-			print("GODEBUGCPU: can not enable \"", o.Name, "\", missing hardware support\n")
+			print("GODEBUG: can not enable \"", o.Name, "\", missing CPU support\n")
 			continue
 		}
 
 		if !o.Enable && o.Required {
-			print("GODEBUGCPU: can not disable \"", o.Name, "\", required feature\n")
+			print("GODEBUG: can not disable \"", o.Name, "\", required CPU feature\n")
 			continue
 		}
 

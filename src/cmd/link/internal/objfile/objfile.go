@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
@@ -23,8 +24,8 @@ import (
 )
 
 const (
-	startmagic = "\x00\x00go19ld"
-	endmagic   = "\xff\xffgo19ld"
+	startmagic = "\x00go112ld"
+	endmagic   = "\xffgo112ld"
 )
 
 var emptyPkg = []byte(`"".`)
@@ -317,9 +318,8 @@ overwrite:
 			pc.InlTree[i].File = r.readSymIndex()
 			pc.InlTree[i].Line = r.readInt32()
 			pc.InlTree[i].Func = r.readSymIndex()
+			pc.InlTree[i].ParentPC = r.readInt32()
 		}
-
-		s.FuncInfo.IsStmtSym = r.syms.Lookup(dwarf.IsStmtPrefix+s.Name, int(s.Version))
 
 		if !dupok {
 			if s.Attr.OnList() {
@@ -382,17 +382,20 @@ func (r *objReader) readRef() {
 		log.Fatalf("readSym out of sync")
 	}
 	name := r.readSymName()
-	v := r.readInt()
-	if v != 0 && v != 1 {
-		log.Fatalf("invalid symbol version for %q: %d", name, v)
-	}
-	if v == 1 {
+	var v int
+	if abi := r.readInt(); abi == -1 {
+		// Static
 		v = r.localSymVersion
+	} else if abiver := sym.ABIToVersion(obj.ABI(abi)); abiver != -1 {
+		// Note that data symbols are "ABI0", which maps to version 0.
+		v = abiver
+	} else {
+		log.Fatalf("invalid symbol ABI for %q: %d", name, abi)
 	}
 	s := r.syms.Lookup(name, v)
 	r.refs = append(r.refs, s)
 
-	if s == nil || v != 0 {
+	if s == nil || v == r.localSymVersion {
 		return
 	}
 	if s.Name[0] == '$' && len(s.Name) > 5 && s.Type == 0 && len(s.P) == 0 {

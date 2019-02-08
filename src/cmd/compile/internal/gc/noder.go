@@ -15,6 +15,7 @@ import (
 
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
@@ -247,6 +248,18 @@ func (p *noder) node() {
 			lookup(n.local).Linkname = n.remote
 		} else {
 			p.yyerrorpos(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+		}
+	}
+
+	// The linker expects an ABI0 wrapper for all cgo-exported
+	// functions.
+	for _, prag := range p.pragcgobuf {
+		switch prag[0] {
+		case "cgo_export_static", "cgo_export_dynamic":
+			if symabiRefs == nil {
+				symabiRefs = make(map[string]obj.ABI)
+			}
+			symabiRefs[prag[1]] = obj.ABI0
 		}
 	}
 
@@ -484,7 +497,18 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
 		}
 	} else {
 		if pure_go || strings.HasPrefix(f.funcname(), "init.") {
-			yyerrorl(f.Pos, "missing function body")
+			// Linknamed functions are allowed to have no body. Hopefully
+			// the linkname target has a body. See issue 23311.
+			isLinknamed := false
+			for _, n := range p.linknames {
+				if f.funcname() == n.local {
+					isLinknamed = true
+					break
+				}
+			}
+			if !isLinknamed {
+				yyerrorl(f.Pos, "missing function body")
+			}
 		}
 	}
 
@@ -522,16 +546,22 @@ func (p *noder) param(param *syntax.Field, dddOk, final bool) *Node {
 	// rewrite ...T parameter
 	if typ.Op == ODDD {
 		if !dddOk {
-			yyerror("cannot use ... in receiver or result parameter list")
+			// We mark these as syntax errors to get automatic elimination
+			// of multiple such errors per line (see yyerrorl in subr.go).
+			yyerror("syntax error: cannot use ... in receiver or result parameter list")
 		} else if !final {
-			yyerror("can only use ... with final parameter in list")
+			if param.Name == nil {
+				yyerror("syntax error: cannot use ... with non-final parameter")
+			} else {
+				p.yyerrorpos(param.Name.Pos(), "syntax error: cannot use ... with non-final parameter %s", param.Name.Value)
+			}
 		}
 		typ.Op = OTARRAY
 		typ.Right = typ.Left
 		typ.Left = nil
-		n.SetIsddd(true)
+		n.SetIsDDD(true)
 		if n.Left != nil {
-			n.Left.SetIsddd(true)
+			n.Left.SetIsDDD(true)
 		}
 	}
 
@@ -619,7 +649,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 				x = unparen(x) // TODO(mdempsky): Needed?
 				if x.Op == OCOMPLIT {
 					// Special case for &T{...}: turn into (*T){...}.
-					x.Right = p.nod(expr, OIND, x.Right, nil)
+					x.Right = p.nod(expr, ODEREF, x.Right, nil)
 					x.Right.SetImplicit(true)
 					return x
 				}
@@ -630,7 +660,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 	case *syntax.CallExpr:
 		n := p.nod(expr, OCALL, p.expr(expr.Fun), nil)
 		n.List.Set(p.exprs(expr.ArgList))
-		n.SetIsddd(expr.HasDots)
+		n.SetIsDDD(expr.HasDots)
 		return n
 
 	case *syntax.ArrayType:
@@ -857,7 +887,7 @@ func (p *noder) embedded(typ syntax.Expr) *Node {
 	n.SetEmbedded(true)
 
 	if isStar {
-		n.Left = p.nod(op, OIND, n.Left, nil)
+		n.Left = p.nod(op, ODEREF, n.Left, nil)
 	}
 	return n
 }
@@ -956,7 +986,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
 		case syntax.Defer:
 			op = ODEFER
 		case syntax.Go:
-			op = OPROC
+			op = OGO
 		default:
 			panic("unhandled CallStmt")
 		}
@@ -1232,13 +1262,13 @@ func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) *Node {
 
 var unOps = [...]Op{
 	syntax.Recv: ORECV,
-	syntax.Mul:  OIND,
+	syntax.Mul:  ODEREF,
 	syntax.And:  OADDR,
 
 	syntax.Not: ONOT,
-	syntax.Xor: OCOM,
+	syntax.Xor: OBITNOT,
 	syntax.Add: OPLUS,
-	syntax.Sub: OMINUS,
+	syntax.Sub: ONEG,
 }
 
 func (p *noder) unOp(op syntax.Operator) Op {

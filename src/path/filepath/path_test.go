@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -1370,4 +1371,45 @@ func testWalkSymlink(t *testing.T, mklink func(target, link string) error) {
 func TestWalkSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 	testWalkSymlink(t, os.Symlink)
+}
+
+func TestIssue29372(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "TestIssue29372")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if runtime.GOOS == "windows" {
+		// This test is broken on windows, if temporary directory
+		// is a symlink. See issue 29746.
+		// TODO(brainman): Remove this hack once issue #29746 is fixed.
+		tmpDir, err = filepath.EvalSymlinks(tmpDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	path := filepath.Join(tmpDir, "file.txt")
+	err = ioutil.WriteFile(path, nil, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pathSeparator := string(filepath.Separator)
+	tests := []string{
+		path + strings.Repeat(pathSeparator, 1),
+		path + strings.Repeat(pathSeparator, 2),
+		path + strings.Repeat(pathSeparator, 1) + ".",
+		path + strings.Repeat(pathSeparator, 2) + ".",
+		path + strings.Repeat(pathSeparator, 1) + "..",
+		path + strings.Repeat(pathSeparator, 2) + "..",
+	}
+
+	for i, test := range tests {
+		_, err = filepath.EvalSymlinks(test)
+		if err != syscall.ENOTDIR {
+			t.Fatalf("test#%d: want %q, got %q", i, syscall.ENOTDIR, err)
+		}
+	}
 }

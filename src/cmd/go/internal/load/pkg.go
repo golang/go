@@ -1003,10 +1003,12 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
 	} else {
 		// p is in a module, so make it available based on the importer's import path instead
 		// of the file path (https://golang.org/issue/23970).
-		if importerPath == "." {
+		if importer.Internal.CmdlineFiles {
 			// The importer is a list of command-line files.
 			// Pretend that the import path is the import path of the
 			// directory containing them.
+			// If the directory is outside the main module, this will resolve to ".",
+			// which is not a prefix of any valid module.
 			importerPath = ModDirImportPath(importer.Dir)
 		}
 		parentOfInternal := p.ImportPath[:i]
@@ -1055,20 +1057,6 @@ func disallowVendor(srcDir string, importer *Package, importerPath, path string,
 	// import. Anything listed on the command line is fine.
 	if len(*stk) == 1 {
 		return p
-	}
-
-	// Modules must not import vendor packages in the standard library,
-	// but the usual vendor visibility check will not catch them
-	// because the module loader presents them with an ImportPath starting
-	// with "golang_org/" instead of "vendor/".
-	if p.Standard && !importer.Standard && strings.HasPrefix(p.ImportPath, "golang_org") {
-		perr := *p
-		perr.Error = &PackageError{
-			ImportStack: stk.Copy(),
-			Err:         "use of vendored package " + path + " not allowed",
-		}
-		perr.Incomplete = true
-		return &perr
 	}
 
 	if perr := disallowVendorVisibility(srcDir, p, stk); perr != p {
@@ -1349,6 +1337,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 
 	// SWIG adds imports of some standard packages.
 	if p.UsesSwig() {
+		addImport("unsafe", true)
 		if cfg.BuildContext.Compiler != "gccgo" {
 			addImport("runtime/cgo", true)
 		}
@@ -1534,9 +1523,13 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 	}
 
 	if cfg.ModulesEnabled {
-		p.Module = ModPackageModuleInfo(p.ImportPath)
+		mainPath := p.ImportPath
+		if p.Internal.CmdlineFiles {
+			mainPath = "command-line-arguments"
+		}
+		p.Module = ModPackageModuleInfo(mainPath)
 		if p.Name == "main" {
-			p.Internal.BuildInfo = ModPackageBuildInfo(p.ImportPath, p.Deps)
+			p.Internal.BuildInfo = ModPackageBuildInfo(mainPath, p.Deps)
 		}
 	}
 }
@@ -1786,9 +1779,6 @@ func loadPackage(arg string, stk *ImportStack) *Package {
 		bp.ImportPath = arg
 		bp.Goroot = true
 		bp.BinDir = cfg.GOROOTbin
-		if cfg.GOROOTbin != "" {
-			bp.BinDir = cfg.GOROOTbin
-		}
 		bp.Root = cfg.GOROOT
 		bp.SrcRoot = cfg.GOROOTsrc
 		p := new(Package)
@@ -2006,11 +1996,6 @@ func GoFilesPackage(gofiles []string) *Package {
 	}
 
 	bp, err := ctxt.ImportDir(dir, 0)
-	if ModDirImportPath != nil {
-		// Use the effective import path of the directory
-		// for deciding visibility during pkg.load.
-		bp.ImportPath = ModDirImportPath(dir)
-	}
 	pkg := new(Package)
 	pkg.Internal.Local = true
 	pkg.Internal.CmdlineFiles = true

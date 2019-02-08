@@ -11,7 +11,18 @@ import (
 	"strconv"
 )
 
+// sysfunc looks up Go function name in package runtime. This function
+// must follow the internal calling convention.
 func sysfunc(name string) *obj.LSym {
+	s := Runtimepkg.Lookup(name)
+	s.SetFunc(true)
+	return s.Linksym()
+}
+
+// sysvar looks up a variable (or assembly function) name in package
+// runtime. If this is a function, it may have a special calling
+// convention.
+func sysvar(name string) *obj.LSym {
 	return Runtimepkg.Lookup(name).Linksym()
 }
 

@@ -268,6 +268,11 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 		if err != nil {
 			continue
 		}
+		if p == "syscall/js" {
+			// We don't support examples that import syscall/js,
+			// because the package syscall/js is not available in the playground.
+			return nil
+		}
 		n := path.Base(p)
 		if s.Name != nil {
 			n = s.Name.Name
@@ -421,6 +426,9 @@ func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast
 
 // lastComment returns the last comment inside the provided block.
 func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.CommentGroup) {
+	if b == nil {
+		return
+	}
 	pos, end := b.Pos(), b.End()
 	for j, cg := range c {
 		if cg.Pos() < pos {

@@ -32,6 +32,7 @@ my @headers = qw (
 	sys/sem.h
 	sys/shm.h
 	sys/vmmeter.h
+	uvm/uvmexp.h
 	uvm/uvm_param.h
 	uvm/uvm_swap_encrypt.h
 	ddb/db_var.h

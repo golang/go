@@ -30,12 +30,11 @@ const minPhysPageSize = 4096
 //go:notinheap
 type mheap struct {
 	lock      mutex
-	free      mTreap    // free and non-scavenged spans
-	scav      mTreap    // free and scavenged spans
-	busy      mSpanList // busy list of spans
-	sweepgen  uint32    // sweep generation, see comment in mspan
-	sweepdone uint32    // all spans are swept
-	sweepers  uint32    // number of active sweepone calls
+	free      mTreap // free and non-scavenged spans
+	scav      mTreap // free and scavenged spans
+	sweepgen  uint32 // sweep generation, see comment in mspan
+	sweepdone uint32 // all spans are swept
+	sweepers  uint32 // number of active sweepone calls
 
 	// allspans is a slice of all mspans ever created. Each mspan
 	// appears exactly once.
@@ -89,6 +88,33 @@ type mheap struct {
 	// TODO(austin): pagesInUse should be a uintptr, but the 386
 	// compiler can't 8-byte align fields.
 
+	// Page reclaimer state
+
+	// reclaimIndex is the page index in allArenas of next page to
+	// reclaim. Specifically, it refers to page (i %
+	// pagesPerArena) of arena allArenas[i / pagesPerArena].
+	//
+	// If this is >= 1<<63, the page reclaimer is done scanning
+	// the page marks.
+	//
+	// This is accessed atomically.
+	reclaimIndex uint64
+	// reclaimCredit is spare credit for extra pages swept. Since
+	// the page reclaimer works in large chunks, it may reclaim
+	// more than requested. Any spare pages released go to this
+	// credit pool.
+	//
+	// This is accessed atomically.
+	reclaimCredit uintptr
+
+	// scavengeCredit is spare credit for extra bytes scavenged.
+	// Since the scavenging mechanisms operate on spans, it may
+	// scavenge more than requested. Any spare pages released
+	// go to this credit pool.
+	//
+	// This is protected by the mheap lock.
+	scavengeCredit uintptr
+
 	// Malloc stats.
 	largealloc  uint64                  // bytes allocated for large objects
 	nlargealloc uint64                  // number of large object allocations
@@ -132,6 +158,20 @@ type mheap struct {
 	// arena is a pre-reserved space for allocating heap arenas
 	// (the actual arenas). This is only used on 32-bit.
 	arena linearAlloc
+
+	// allArenas is the arenaIndex of every mapped arena. This can
+	// be used to iterate through the address space.
+	//
+	// Access is protected by mheap_.lock. However, since this is
+	// append-only and old backing arrays are never freed, it is
+	// safe to acquire mheap_.lock, copy the slice header, and
+	// then release mheap_.lock.
+	allArenas []arenaIdx
+
+	// sweepArenas is a snapshot of allArenas taken at the
+	// beginning of the sweep cycle. This can be read safely by
+	// simply blocking GC (by disabling preemption).
+	sweepArenas []arenaIdx
 
 	// _ uint32 // ensure 64-bit alignment of central
 
@@ -184,6 +224,29 @@ type heapArena struct {
 	// must not be a safe-point between establishing that an
 	// address is live and looking it up in the spans array.
 	spans [pagesPerArena]*mspan
+
+	// pageInUse is a bitmap that indicates which spans are in
+	// state mSpanInUse. This bitmap is indexed by page number,
+	// but only the bit corresponding to the first page in each
+	// span is used.
+	//
+	// Writes are protected by mheap_.lock.
+	pageInUse [pagesPerArena / 8]uint8
+
+	// pageMarks is a bitmap that indicates which spans have any
+	// marked objects on them. Like pageInUse, only the bit
+	// corresponding to the first page in each span is used.
+	//
+	// Writes are done atomically during marking. Reads are
+	// non-atomic and lock-free since they only occur during
+	// sweeping (and hence never race with writes).
+	//
+	// This is used to quickly find whole spans that can be freed.
+	//
+	// TODO(austin): It would be nice if this was uint64 for
+	// faster scanning, but we don't have 64-bit atomic bit
+	// operations.
+	pageMarks [pagesPerArena / 8]uint8
 }
 
 // arenaHint is a hint for where to grow the heap arenas. See
@@ -362,6 +425,115 @@ func (s *mspan) physPageBounds() (uintptr, uintptr) {
 		end &^= physPageSize - 1
 	}
 	return start, end
+}
+
+func (h *mheap) coalesce(s *mspan) {
+	// We scavenge s at the end after coalescing if s or anything
+	// it merged with is marked scavenged.
+	needsScavenge := false
+	prescavenged := s.released() // number of bytes already scavenged.
+
+	// merge is a helper which merges other into s, deletes references to other
+	// in heap metadata, and then discards it. other must be adjacent to s.
+	merge := func(other *mspan) {
+		// Adjust s via base and npages and also in heap metadata.
+		s.npages += other.npages
+		s.needzero |= other.needzero
+		if other.startAddr < s.startAddr {
+			s.startAddr = other.startAddr
+			h.setSpan(s.base(), s)
+		} else {
+			h.setSpan(s.base()+s.npages*pageSize-1, s)
+		}
+
+		// If before or s are scavenged, then we need to scavenge the final coalesced span.
+		needsScavenge = needsScavenge || other.scavenged || s.scavenged
+		prescavenged += other.released()
+
+		// The size is potentially changing so the treap needs to delete adjacent nodes and
+		// insert back as a combined node.
+		if other.scavenged {
+			h.scav.removeSpan(other)
+		} else {
+			h.free.removeSpan(other)
+		}
+		other.state = mSpanDead
+		h.spanalloc.free(unsafe.Pointer(other))
+	}
+
+	// realign is a helper which shrinks other and grows s such that their
+	// boundary is on a physical page boundary.
+	realign := func(a, b, other *mspan) {
+		// Caller must ensure a.startAddr < b.startAddr and that either a or
+		// b is s. a and b must be adjacent. other is whichever of the two is
+		// not s.
+
+		// If pageSize <= physPageSize then spans are always aligned
+		// to physical page boundaries, so just exit.
+		if pageSize <= physPageSize {
+			return
+		}
+		// Since we're resizing other, we must remove it from the treap.
+		if other.scavenged {
+			h.scav.removeSpan(other)
+		} else {
+			h.free.removeSpan(other)
+		}
+		// Round boundary to the nearest physical page size, toward the
+		// scavenged span.
+		boundary := b.startAddr
+		if a.scavenged {
+			boundary &^= (physPageSize - 1)
+		} else {
+			boundary = (boundary + physPageSize - 1) &^ (physPageSize - 1)
+		}
+		a.npages = (boundary - a.startAddr) / pageSize
+		b.npages = (b.startAddr + b.npages*pageSize - boundary) / pageSize
+		b.startAddr = boundary
+
+		h.setSpan(boundary-1, a)
+		h.setSpan(boundary, b)
+
+		// Re-insert other now that it has a new size.
+		if other.scavenged {
+			h.scav.insert(other)
+		} else {
+			h.free.insert(other)
+		}
+	}
+
+	// Coalesce with earlier, later spans.
+	if before := spanOf(s.base() - 1); before != nil && before.state == mSpanFree {
+		if s.scavenged == before.scavenged {
+			merge(before)
+		} else {
+			realign(before, s, before)
+		}
+	}
+
+	// Now check to see if next (greater addresses) span is free and can be coalesced.
+	if after := spanOf(s.base() + s.npages*pageSize); after != nil && after.state == mSpanFree {
+		if s.scavenged == after.scavenged {
+			merge(after)
+		} else {
+			realign(s, after, after)
+		}
+	}
+
+	if needsScavenge {
+		// When coalescing spans, some physical pages which
+		// were not returned to the OS previously because
+		// they were only partially covered by the span suddenly
+		// become available for scavenging. We want to make sure
+		// those holes are filled in, and the span is properly
+		// scavenged. Rather than trying to detect those holes
+		// directly, we collect how many bytes were already
+		// scavenged above and subtract that from heap_released
+		// before re-scavenging the entire newly-coalesced span,
+		// which will implicitly bump up heap_released.
+		memstats.heap_released -= uint64(prescavenged)
+		s.scavenge()
+	}
 }
 
 func (s *mspan) scavenge() uintptr {
@@ -591,6 +763,16 @@ func spanOfHeap(p uintptr) *mspan {
 	return s
 }
 
+// pageIndexOf returns the arena, page index, and page mask for pointer p.
+// The caller must ensure p is in the heap.
+func pageIndexOf(p uintptr) (arena *heapArena, pageIdx uintptr, pageMask uint8) {
+	ai := arenaIndex(p)
+	arena = mheap_.arenas[ai.l1()][ai.l2()]
+	pageIdx = ((p / pageSize) / 8) % uintptr(len(arena.pageInUse))
+	pageMask = byte(1 << ((p / pageSize) % 8))
+	return
+}
+
 // Initialize the heap.
 func (h *mheap) init() {
 	h.treapalloc.init(unsafe.Sizeof(treapNode{}), nil, nil, &memstats.other_sys)
@@ -610,67 +792,164 @@ func (h *mheap) init() {
 	h.spanalloc.zero = false
 
 	// h->mapcache needs no init
-	h.busy.init()
+
 	for i := range h.central {
 		h.central[i].mcentral.init(spanClass(i))
 	}
 }
 
-// Sweeps spans in list until reclaims at least npages into heap.
-// Returns the actual number of pages reclaimed.
-func (h *mheap) reclaimList(list *mSpanList, npages uintptr) uintptr {
-	n := uintptr(0)
-	sg := mheap_.sweepgen
-retry:
-	for s := list.first; s != nil; s = s.next {
-		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
-			list.remove(s)
-			// swept spans are at the end of the list
-			list.insertBack(s) // Puts it back on a busy list. s is not in the treap at this point.
-			unlock(&h.lock)
-			snpages := s.npages
-			if s.sweep(false) {
-				n += snpages
+// reclaim sweeps and reclaims at least npage pages into the heap.
+// It is called before allocating npage pages to keep growth in check.
+//
+// reclaim implements the page-reclaimer half of the sweeper.
+//
+// h must NOT be locked.
+func (h *mheap) reclaim(npage uintptr) {
+	// This scans pagesPerChunk at a time. Higher values reduce
+	// contention on h.reclaimPos, but increase the minimum
+	// latency of performing a reclaim.
+	//
+	// Must be a multiple of the pageInUse bitmap element size.
+	//
+	// The time required by this can vary a lot depending on how
+	// many spans are actually freed. Experimentally, it can scan
+	// for pages at ~300 GB/ms on a 2.6GHz Core i7, but can only
+	// free spans at ~32 MB/ms. Using 512 pages bounds this at
+	// roughly 100µs.
+	//
+	// TODO(austin): Half of the time spent freeing spans is in
+	// locking/unlocking the heap (even with low contention). We
+	// could make the slow path here several times faster by
+	// batching heap frees.
+	const pagesPerChunk = 512
+
+	// Bail early if there's no more reclaim work.
+	if atomic.Load64(&h.reclaimIndex) >= 1<<63 {
+		return
+	}
+
+	// Disable preemption so the GC can't start while we're
+	// sweeping, so we can read h.sweepArenas, and so
+	// traceGCSweepStart/Done pair on the P.
+	mp := acquirem()
+
+	if trace.enabled {
+		traceGCSweepStart()
+	}
+
+	arenas := h.sweepArenas
+	locked := false
+	for npage > 0 {
+		// Pull from accumulated credit first.
+		if credit := atomic.Loaduintptr(&h.reclaimCredit); credit > 0 {
+			take := credit
+			if take > npage {
+				// Take only what we need.
+				take = npage
 			}
-			lock(&h.lock)
-			if n >= npages {
-				return n
+			if atomic.Casuintptr(&h.reclaimCredit, credit, credit-take) {
+				npage -= take
 			}
-			// the span could have been moved elsewhere
-			goto retry
-		}
-		if s.sweepgen == sg-1 {
-			// the span is being swept by background sweeper, skip
 			continue
 		}
-		// already swept empty span,
-		// all subsequent ones must also be either swept or in process of sweeping
-		break
+
+		// Claim a chunk of work.
+		idx := uintptr(atomic.Xadd64(&h.reclaimIndex, pagesPerChunk) - pagesPerChunk)
+		if idx/pagesPerArena >= uintptr(len(arenas)) {
+			// Page reclaiming is done.
+			atomic.Store64(&h.reclaimIndex, 1<<63)
+			break
+		}
+
+		if !locked {
+			// Lock the heap for reclaimChunk.
+			lock(&h.lock)
+			locked = true
+		}
+
+		// Scan this chunk.
+		nfound := h.reclaimChunk(arenas, idx, pagesPerChunk)
+		if nfound <= npage {
+			npage -= nfound
+		} else {
+			// Put spare pages toward global credit.
+			atomic.Xadduintptr(&h.reclaimCredit, nfound-npage)
+			npage = 0
+		}
 	}
-	return n
+	if locked {
+		unlock(&h.lock)
+	}
+
+	if trace.enabled {
+		traceGCSweepDone()
+	}
+	releasem(mp)
 }
 
-// Sweeps and reclaims at least npage pages into heap.
-// Called before allocating npage pages.
-func (h *mheap) reclaim(npage uintptr) {
-	if h.reclaimList(&h.busy, npage) != 0 {
-		return // Bingo!
-	}
+// reclaimChunk sweeps unmarked spans that start at page indexes [pageIdx, pageIdx+n).
+// It returns the number of pages returned to the heap.
+//
+// h.lock must be held and the caller must be non-preemptible.
+func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
+	// The heap lock must be held because this accesses the
+	// heapArena.spans arrays using potentially non-live pointers.
+	// In particular, if a span were freed and merged concurrently
+	// with this probing heapArena.spans, it would be possible to
+	// observe arbitrary, stale span pointers.
+	n0 := n
+	var nFreed uintptr
+	sg := h.sweepgen
+	for n > 0 {
+		ai := arenas[pageIdx/pagesPerArena]
+		ha := h.arenas[ai.l1()][ai.l2()]
 
-	// Now sweep everything that is not yet swept.
-	var reclaimed uintptr
-	unlock(&h.lock)
-	for {
-		n := sweepone()
-		if n == ^uintptr(0) { // all spans are swept
-			break
+		// Get a chunk of the bitmap to work on.
+		arenaPage := uint(pageIdx % pagesPerArena)
+		inUse := ha.pageInUse[arenaPage/8:]
+		marked := ha.pageMarks[arenaPage/8:]
+		if uintptr(len(inUse)) > n/8 {
+			inUse = inUse[:n/8]
+			marked = marked[:n/8]
 		}
-		reclaimed += n
-		if reclaimed >= npage {
-			break
+
+		// Scan this bitmap chunk for spans that are in-use
+		// but have no marked objects on them.
+		for i := range inUse {
+			inUseUnmarked := inUse[i] &^ marked[i]
+			if inUseUnmarked == 0 {
+				continue
+			}
+
+			for j := uint(0); j < 8; j++ {
+				if inUseUnmarked&(1<<j) != 0 {
+					s := ha.spans[arenaPage+uint(i)*8+j]
+					if atomic.Load(&s.sweepgen) == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
+						npages := s.npages
+						unlock(&h.lock)
+						if s.sweep(false) {
+							nFreed += npages
+						}
+						lock(&h.lock)
+						// Reload inUse. It's possible nearby
+						// spans were freed when we dropped the
+						// lock and we don't want to get stale
+						// pointers from the spans array.
+						inUseUnmarked = inUse[i] &^ marked[i]
+					}
+				}
+			}
 		}
+
+		// Advance.
+		pageIdx += uintptr(len(inUse) * 8)
+		n -= uintptr(len(inUse) * 8)
 	}
-	lock(&h.lock)
+	if trace.enabled {
+		// Account for pages scanned but not reclaimed.
+		traceGCSweepSpan((n0 - nFreed) * pageSize)
+	}
+	return nFreed
 }
 
 // alloc_m is the internal implementation of mheap.alloc.
@@ -681,27 +960,14 @@ func (h *mheap) reclaim(npage uintptr) {
 //go:systemstack
 func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 	_g_ := getg()
-	lock(&h.lock)
 
 	// To prevent excessive heap growth, before allocating n pages
 	// we need to sweep and reclaim at least n pages.
 	if h.sweepdone == 0 {
-		// TODO(austin): This tends to sweep a large number of
-		// spans in order to find a few completely free spans
-		// (for example, in the garbage benchmark, this sweeps
-		// ~30x the number of pages it's trying to allocate).
-		// If GC kept a bit for whether there were any marks
-		// in a span, we could release these free spans
-		// at the end of GC and eliminate this entirely.
-		if trace.enabled {
-			traceGCSweepStart()
-		}
 		h.reclaim(npage)
-		if trace.enabled {
-			traceGCSweepDone()
-		}
 	}
 
+	lock(&h.lock)
 	// transfer stats from cache to global
 	memstats.heap_scan += uint64(_g_.m.mcache.local_scan)
 	_g_.m.mcache.local_scan = 0
@@ -732,6 +998,10 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 			s.baseMask = m.baseMask
 		}
 
+		// Mark in-use span in arena page bitmap.
+		arena, pageIdx, pageMask := pageIndexOf(s.base())
+		arena.pageInUse[pageIdx] |= pageMask
+
 		// update stats, sweep lists
 		h.pagesInUse += uint64(npage)
 		if large {
@@ -739,8 +1009,6 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 			mheap_.largealloc += uint64(s.elemsize)
 			mheap_.nlargealloc++
 			atomic.Xadd64(&memstats.heap_live, int64(npage<<_PageShift))
-			// Swept spans are at the end of lists.
-			h.busy.insertBack(s)
 		}
 	}
 	// heap_scan and heap_live were updated.
@@ -847,19 +1115,34 @@ func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
 	}
 }
 
+// pickFreeSpan acquires a free span from internal free list
+// structures if one is available. Otherwise returns nil.
+// h must be locked.
+func (h *mheap) pickFreeSpan(npage uintptr) *mspan {
+	tf := h.free.find(npage)
+	ts := h.scav.find(npage)
+
+	// Check for whichever treap gave us the smaller, non-nil result.
+	// Note that we want the _smaller_ free span, i.e. the free span
+	// closer in size to the amount we requested (npage).
+	var s *mspan
+	if tf != nil && (ts == nil || tf.spanKey.npages <= ts.spanKey.npages) {
+		s = tf.spanKey
+		h.free.removeNode(tf)
+	} else if ts != nil && (tf == nil || tf.spanKey.npages > ts.spanKey.npages) {
+		s = ts.spanKey
+		h.scav.removeNode(ts)
+	}
+	return s
+}
+
 // Allocates a span of the given size.  h must be locked.
 // The returned span has been removed from the
 // free structures, but its state is still mSpanFree.
 func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
 	var s *mspan
 
-	// First, attempt to allocate from free spans, then from
-	// scavenged spans, looking for best fit in each.
-	s = h.free.remove(npage)
-	if s != nil {
-		goto HaveSpan
-	}
-	s = h.scav.remove(npage)
+	s = h.pickFreeSpan(npage)
 	if s != nil {
 		goto HaveSpan
 	}
@@ -867,23 +1150,19 @@ func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
 	if !h.grow(npage) {
 		return nil
 	}
-	s = h.free.remove(npage)
+	s = h.pickFreeSpan(npage)
 	if s != nil {
 		goto HaveSpan
 	}
-	s = h.scav.remove(npage)
-	if s != nil {
-		goto HaveSpan
-	}
-	return nil
+	throw("grew heap, but no adequate free span found")
 
 HaveSpan:
 	// Mark span in use.
 	if s.state != mSpanFree {
-		throw("mheap.allocLocked - mspan not free")
+		throw("candidate mspan for allocation is not free")
 	}
 	if s.npages < npage {
-		throw("mheap.allocLocked - bad npages")
+		throw("candidate mspan for allocation is too small")
 	}
 
 	// First, subtract any memory that was released back to
@@ -919,6 +1198,16 @@ HaveSpan:
 		// heap_released since we already did so earlier.
 		sysUsed(unsafe.Pointer(s.base()), s.npages<<_PageShift)
 		s.scavenged = false
+
+		// Since we allocated out of a scavenged span, we just
+		// grew the RSS. Mitigate this by scavenging enough free
+		// space to make up for it.
+		//
+		// Also, scavengeLargest may cause coalescing, so prevent
+		// coalescing with s by temporarily changing its state.
+		s.state = mSpanManual
+		h.scavengeLargest(s.npages * pageSize)
+		s.state = mSpanFree
 	}
 	s.unusedsince = 0
 
@@ -1030,6 +1319,10 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 			throw("mheap.freeSpanLocked - invalid free")
 		}
 		h.pagesInUse -= uint64(s.npages)
+
+		// Clear in-use bit in arena page bitmap.
+		arena, pageIdx, pageMask := pageIndexOf(s.base())
+		arena.pageInUse[pageIdx] &^= pageMask
 	default:
 		throw("mheap.freeSpanLocked - invalid span state")
 	}
@@ -1041,9 +1334,6 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 		memstats.heap_idle += uint64(s.npages << _PageShift)
 	}
 	s.state = mSpanFree
-	if s.inList() {
-		h.busy.remove(s)
-	}
 
 	// Stamp newly unused spans. The scavenger will use that
 	// info to potentially give back some pages to the OS.
@@ -1052,62 +1342,8 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 		s.unusedsince = nanotime()
 	}
 
-	// We scavenge s at the end after coalescing if s or anything
-	// it merged with is marked scavenged.
-	needsScavenge := false
-	prescavenged := s.released() // number of bytes already scavenged.
-
-	// Coalesce with earlier, later spans.
-	if before := spanOf(s.base() - 1); before != nil && before.state == mSpanFree {
-		// Now adjust s.
-		s.startAddr = before.startAddr
-		s.npages += before.npages
-		s.needzero |= before.needzero
-		h.setSpan(before.base(), s)
-		// If before or s are scavenged, then we need to scavenge the final coalesced span.
-		needsScavenge = needsScavenge || before.scavenged || s.scavenged
-		prescavenged += before.released()
-		// The size is potentially changing so the treap needs to delete adjacent nodes and
-		// insert back as a combined node.
-		if before.scavenged {
-			h.scav.removeSpan(before)
-		} else {
-			h.free.removeSpan(before)
-		}
-		before.state = mSpanDead
-		h.spanalloc.free(unsafe.Pointer(before))
-	}
-
-	// Now check to see if next (greater addresses) span is free and can be coalesced.
-	if after := spanOf(s.base() + s.npages*pageSize); after != nil && after.state == mSpanFree {
-		s.npages += after.npages
-		s.needzero |= after.needzero
-		h.setSpan(s.base()+s.npages*pageSize-1, s)
-		needsScavenge = needsScavenge || after.scavenged || s.scavenged
-		prescavenged += after.released()
-		if after.scavenged {
-			h.scav.removeSpan(after)
-		} else {
-			h.free.removeSpan(after)
-		}
-		after.state = mSpanDead
-		h.spanalloc.free(unsafe.Pointer(after))
-	}
-
-	if needsScavenge {
-		// When coalescing spans, some physical pages which
-		// were not returned to the OS previously because
-		// they were only partially covered by the span suddenly
-		// become available for scavenging. We want to make sure
-		// those holes are filled in, and the span is properly
-		// scavenged. Rather than trying to detect those holes
-		// directly, we collect how many bytes were already
-		// scavenged above and subtract that from heap_released
-		// before re-scavenging the entire newly-coalesced span,
-		// which will implicitly bump up heap_released.
-		memstats.heap_released -= uint64(prescavenged)
-		s.scavenge()
-	}
+	// Coalesce span with neighbors.
+	h.coalesce(s)
 
 	// Insert s into the appropriate treap.
 	if s.scavenged {
@@ -1121,21 +1357,19 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 // starting from the largest span and working down. It then takes those spans
 // and places them in scav. h must be locked.
 func (h *mheap) scavengeLargest(nbytes uintptr) {
-	// Find the largest child.
-	t := h.free.treap
-	if t == nil {
+	// Use up scavenge credit if there's any available.
+	if nbytes > h.scavengeCredit {
+		nbytes -= h.scavengeCredit
+		h.scavengeCredit = 0
+	} else {
+		h.scavengeCredit -= nbytes
 		return
 	}
-	for t.right != nil {
-		t = t.right
-	}
-	// Iterate over the treap from the largest child to the smallest by
-	// starting from the largest and finding its predecessor until we've
-	// recovered nbytes worth of physical memory, or it no longer has a
-	// predecessor (meaning the treap is now empty).
+	// Iterate over the treap backwards (from largest to smallest) scavenging spans
+	// until we've reached our quota of nbytes.
 	released := uintptr(0)
-	for t != nil && released < nbytes {
-		s := t.spanKey
+	for t := h.free.end(); released < nbytes && t.valid(); {
+		s := t.span()
 		r := s.scavenge()
 		if r == 0 {
 			// Since we're going in order of largest-to-smallest span, this
@@ -1149,11 +1383,19 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
 			// those which have it unset are only in the `free` treap.
 			return
 		}
-		prev := t.pred()
-		h.free.removeNode(t)
-		t = prev
+		n := t.prev()
+		h.free.erase(t)
+		// Now that s is scavenged, we must eagerly coalesce it
+		// with its neighbors to prevent having two spans with
+		// the same scavenged state adjacent to each other.
+		h.coalesce(s)
+		t = n
 		h.scav.insert(s)
 		released += r
+	}
+	// If we over-scavenged, turn that extra amount into credit.
+	if released > nbytes {
+		h.scavengeCredit += released - nbytes
 	}
 }
 
@@ -1161,34 +1403,24 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
 // treapNode's span. It then removes the scavenged span from
 // unscav and adds it into scav before continuing. h must be locked.
 func (h *mheap) scavengeAll(now, limit uint64) uintptr {
-	// Compute the left-most child in unscav to start iteration from.
-	t := h.free.treap
-	if t == nil {
-		return 0
-	}
-	for t.left != nil {
-		t = t.left
-	}
-	// Iterate over the treap be computing t's successor before
-	// potentially scavenging it.
+	// Iterate over the treap scavenging spans if unused for at least limit time.
 	released := uintptr(0)
-	for t != nil {
-		s := t.spanKey
-		next := t.succ()
+	for t := h.free.start(); t.valid(); {
+		s := t.span()
+		n := t.next()
 		if (now - uint64(s.unusedsince)) > limit {
 			r := s.scavenge()
 			if r != 0 {
-				// If we ended up scavenging s, then remove it from unscav
-				// and add it to scav. This is safe to do since we've already
-				// moved to t's successor.
-				h.free.removeNode(t)
+				h.free.erase(t)
+				// Now that s is scavenged, we must eagerly coalesce it
+				// with its neighbors to prevent having two spans with
+				// the same scavenged state adjacent to each other.
+				h.coalesce(s)
 				h.scav.insert(s)
 				released += r
 			}
 		}
-		// Move t forward to its successor to iterate over the whole
-		// treap.
-		t = next
+		t = n
 	}
 	return released
 }

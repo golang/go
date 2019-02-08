@@ -6,9 +6,9 @@ package buildid
 
 import (
 	"bytes"
-	"cmd/internal/xcoff"
 	"debug/elf"
 	"fmt"
+	"internal/xcoff"
 	"io"
 	"os"
 	"strconv"

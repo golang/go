@@ -1,0 +1,23 @@
+env GO111MODULE=on
+[!symlink] skip
+
+# 'go list' should resolve modules of imported packages.
+go list -deps -f '{{.Module}}'
+stdout golang.org/x/text
+
+# They should continue to resolve if the importing file is a symlink.
+mkdir links
+cd links
+symlink go.mod -> ../go.mod
+symlink issue.go -> ../issue.go
+
+go list -deps -f '{{.Module}}'
+stdout golang.org/x/text
+
+-- go.mod --
+module golang.org/issue/28107
+
+-- issue.go --
+package issue
+
+import _ "golang.org/x/text/language"

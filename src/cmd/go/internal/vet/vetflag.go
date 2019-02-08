@@ -166,3 +166,21 @@ func vetFlags(usage func(), args []string) (passToVet, packageNames []string) {
 	}
 	return args, nil
 }
+
+var vetUsage func()
+
+func init() { vetUsage = usage } // break initialization cycle
+
+func usage() {
+	fmt.Fprintf(os.Stderr, "usage: %s\n", CmdVet.UsageLine)
+	fmt.Fprintf(os.Stderr, "Run 'go help %s' for details.\n", CmdVet.LongName())
+
+	// This part is additional to what (*Command).Usage does:
+	cmd := "go tool vet"
+	if vetTool != "" {
+		cmd = vetTool
+	}
+	fmt.Fprintf(os.Stderr, "Run '%s -help' for the vet tool's flags.\n", cmd)
+
+	os.Exit(2)
+}

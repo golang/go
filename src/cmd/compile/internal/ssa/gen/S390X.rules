@@ -350,7 +350,7 @@
 
 // Move more than 1024 bytes using a loop.
 (Move [s] dst src mem) && s > 1024 ->
-	(LoweredMove [s%256] dst src (ADDconst <src.Type> src [(s/256)*256]) mem)
+	(LoweredMove [s%256] dst src (ADD <src.Type> src (MOVDconst [(s/256)*256])) mem)
 
 // Lowering Zero instructions
 (Zero [0] _ mem) -> mem

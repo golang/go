@@ -39,7 +39,6 @@ var (
 
 var (
 	Debug_append       int
-	Debug_asm          bool
 	Debug_closure      int
 	Debug_compilelater int
 	debug_dclstack     int
@@ -195,7 +194,7 @@ func Main(archInit func(*Arch)) {
 	objabi.Flagcount("K", "debug missing line numbers", &Debug['K'])
 	objabi.Flagcount("L", "show full file names in error messages", &Debug['L'])
 	objabi.Flagcount("N", "disable optimizations", &Debug['N'])
-	flag.BoolVar(&Debug_asm, "S", false, "print assembly listing")
+	objabi.Flagcount("S", "print assembly listing", &Debug['S'])
 	objabi.AddVersionFlag() // -V
 	objabi.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
 	flag.StringVar(&asmhdr, "asmhdr", "", "write assembly header to `file`")
@@ -247,6 +246,9 @@ func Main(archInit func(*Arch)) {
 	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
 	var goversion string
 	flag.StringVar(&goversion, "goversion", "", "required version of the runtime")
+	var symabisPath string
+	flag.StringVar(&symabisPath, "symabis", "", "read symbol ABIs from `file`")
+	flag.BoolVar(&allABIs, "allabis", false, "generate ABI wrappers for all symbols (for bootstrap)")
 	flag.StringVar(&traceprofile, "traceprofile", "", "write an execution trace to `file`")
 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
@@ -262,7 +264,7 @@ func Main(archInit func(*Arch)) {
 	Ctxt.Flag_dynlink = flag_dynlink
 	Ctxt.Flag_optimize = Debug['N'] == 0
 
-	Ctxt.Debugasm = Debug_asm
+	Ctxt.Debugasm = Debug['S']
 	Ctxt.Debugvlog = Debug_vlog
 	if flagDWARF {
 		Ctxt.DebugInfo = debuginfo
@@ -284,6 +286,10 @@ func Main(archInit func(*Arch)) {
 	}
 
 	checkLang()
+
+	if symabisPath != "" {
+		readSymABIs(symabisPath, myimportpath)
+	}
 
 	thearch.LinkArch.Init(Ctxt)
 
@@ -431,9 +437,16 @@ func Main(archInit func(*Arch)) {
 	}
 
 	ssaDump = os.Getenv("GOSSAFUNC")
-	if strings.HasSuffix(ssaDump, "+") {
-		ssaDump = ssaDump[:len(ssaDump)-1]
-		ssaDumpStdout = true
+	if ssaDump != "" {
+		if strings.HasSuffix(ssaDump, "+") {
+			ssaDump = ssaDump[:len(ssaDump)-1]
+			ssaDumpStdout = true
+		}
+		spl := strings.Split(ssaDump, ":")
+		if len(spl) > 1 {
+			ssaDump = spl[0]
+			ssaDumpCFG = spl[1]
+		}
 	}
 
 	trackScopes = flagDWARF
@@ -502,7 +515,7 @@ func Main(archInit func(*Arch)) {
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
 		if op := n.Op; op != ODCL && op != OAS && op != OAS2 && (op != ODCLTYPE || !n.Left.Name.Param.Alias) {
-			xtop[i] = typecheck(n, Etop)
+			xtop[i] = typecheck(n, ctxStmt)
 		}
 	}
 
@@ -514,7 +527,7 @@ func Main(archInit func(*Arch)) {
 	for i := 0; i < len(xtop); i++ {
 		n := xtop[i]
 		if op := n.Op; op == ODCL || op == OAS || op == OAS2 || op == ODCLTYPE && n.Left.Name.Param.Alias {
-			xtop[i] = typecheck(n, Etop)
+			xtop[i] = typecheck(n, ctxStmt)
 		}
 	}
 	resumecheckwidth()
@@ -529,7 +542,7 @@ func Main(archInit func(*Arch)) {
 			Curfn = n
 			decldepth = 1
 			saveerrors()
-			typecheckslice(Curfn.Nbody.Slice(), Etop)
+			typecheckslice(Curfn.Nbody.Slice(), ctxStmt)
 			checkreturn(Curfn)
 			if nerrors != 0 {
 				Curfn.Nbody.Set(nil) // type errors; do not compile
@@ -681,7 +694,7 @@ func Main(archInit func(*Arch)) {
 	timings.Start("be", "externaldcls")
 	for i, n := range externdcl {
 		if n.Op == ONAME {
-			externdcl[i] = typecheck(externdcl[i], Erv)
+			externdcl[i] = typecheck(externdcl[i], ctxExpr)
 		}
 	}
 	// Check the map keys again, since we typechecked the external
@@ -806,6 +819,81 @@ func readImportCfg(file string) {
 				log.Fatalf(`%s:%d: invalid packagefile: syntax is "packagefile path=filename"`, file, lineNum)
 			}
 			packageFile[before] = after
+		}
+	}
+}
+
+// symabiDefs and symabiRefs record the defined and referenced ABIs of
+// symbols required by non-Go code. These are keyed by link symbol
+// name, where the local package prefix is always `"".`
+var symabiDefs, symabiRefs map[string]obj.ABI
+
+// allABIs indicates that all symbol definitions should have ABI
+// wrappers. This is used during toolchain bootstrapping to avoid
+// having to find cross-package references.
+var allABIs bool
+
+// readSymABIs reads a symabis file that specifies definitions and
+// references of text symbols by ABI.
+//
+// The symabis format is a set of lines, where each line is a sequence
+// of whitespace-separated fields. The first field is a verb and is
+// either "def" for defining a symbol ABI or "ref" for referencing a
+// symbol using an ABI. For both "def" and "ref", the second field is
+// the symbol name and the third field is the ABI name, as one of the
+// named cmd/internal/obj.ABI constants.
+func readSymABIs(file, myimportpath string) {
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		log.Fatalf("-symabis: %v", err)
+	}
+
+	symabiDefs = make(map[string]obj.ABI)
+	symabiRefs = make(map[string]obj.ABI)
+
+	localPrefix := ""
+	if myimportpath != "" {
+		// Symbols in this package may be written either as
+		// "".X or with the package's import path already in
+		// the symbol.
+		localPrefix = objabi.PathToPrefix(myimportpath) + "."
+	}
+
+	for lineNum, line := range strings.Split(string(data), "\n") {
+		lineNum++ // 1-based
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		switch parts[0] {
+		case "def", "ref":
+			// Parse line.
+			if len(parts) != 3 {
+				log.Fatalf(`%s:%d: invalid symabi: syntax is "%s sym abi"`, file, lineNum, parts[0])
+			}
+			sym, abi := parts[1], parts[2]
+			if abi != "ABI0" { // Only supported external ABI right now
+				log.Fatalf(`%s:%d: invalid symabi: unknown abi "%s"`, file, lineNum, abi)
+			}
+
+			// If the symbol is already prefixed with
+			// myimportpath, rewrite it to start with ""
+			// so it matches the compiler's internal
+			// symbol names.
+			if localPrefix != "" && strings.HasPrefix(sym, localPrefix) {
+				sym = `"".` + sym[len(localPrefix):]
+			}
+
+			// Record for later.
+			if parts[0] == "def" {
+				symabiDefs[sym] = obj.ABI0
+			} else {
+				symabiRefs[sym] = obj.ABI0
+			}
+		default:
+			log.Fatalf(`%s:%d: invalid symabi type "%s"`, file, lineNum, parts[0])
 		}
 	}
 }
@@ -1236,6 +1324,7 @@ var concurrentFlagOK = [256]bool{
 	'l': true, // disable inlining
 	'w': true, // all printing happens before compilation
 	'W': true, // all printing happens before compilation
+	'S': true, // printing disassembly happens at the end (but see concurrentBackendAllowed below)
 }
 
 func concurrentBackendAllowed() bool {
@@ -1244,15 +1333,15 @@ func concurrentBackendAllowed() bool {
 			return false
 		}
 	}
-	// Debug_asm by itself is ok, because all printing occurs
+	// Debug['S'] by itself is ok, because all printing occurs
 	// while writing the object file, and that is non-concurrent.
-	// Adding Debug_vlog, however, causes Debug_asm to also print
+	// Adding Debug_vlog, however, causes Debug['S'] to also print
 	// while flushing the plist, which happens concurrently.
 	if Debug_vlog || debugstr != "" || debuglive > 0 {
 		return false
 	}
-	// TODO: Test and delete these conditions.
-	if objabi.Fieldtrack_enabled != 0 || objabi.Clobberdead_enabled != 0 {
+	// TODO: Test and delete this condition.
+	if objabi.Fieldtrack_enabled != 0 {
 		return false
 	}
 	// TODO: fix races and enable the following flags
@@ -1366,7 +1455,7 @@ func checkLang() {
 		if err != nil {
 			log.Fatalf("internal error parsing default lang %q: %v", def, err)
 		}
-		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.major > defVers.minor) {
+		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.minor > defVers.minor) {
 			log.Fatalf("invalid value %q for -lang: max known version is %q", flag_lang, def)
 		}
 	}

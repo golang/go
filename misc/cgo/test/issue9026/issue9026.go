@@ -29,7 +29,7 @@ func Test(t *testing.T) {
 	// Brittle: the assertion may fail spuriously when the algorithm
 	// changes, but should remain stable otherwise.
 	got := fmt.Sprintf("%T %T", in, opts)
-	want := "issue9026._Ctype_struct___0 *issue9026._Ctype_struct___1"
+	want := "issue9026._Ctype_struct___0 *issue9026._Ctype_struct___0"
 	if got != want {
 		t.Errorf("Non-deterministic type names: got %s, want %s", got, want)
 	}

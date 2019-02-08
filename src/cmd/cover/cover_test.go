@@ -19,43 +19,149 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 )
 
 const (
 	// Data directory, also the package directory for the test.
 	testdata = "testdata"
-
-	// Binaries we compile.
-	testcover = "./testcover.exe"
 )
 
 var (
-	// Files we use.
-	testMain     = filepath.Join(testdata, "main.go")
-	testTest     = filepath.Join(testdata, "test.go")
-	coverInput   = filepath.Join(testdata, "test_line.go")
-	coverOutput  = filepath.Join(testdata, "test_cover.go")
-	coverProfile = filepath.Join(testdata, "profile.cov")
+	// Input files.
+	testMain       = filepath.Join(testdata, "main.go")
+	testTest       = filepath.Join(testdata, "test.go")
+	coverProfile   = filepath.Join(testdata, "profile.cov")
+	toolexecSource = filepath.Join(testdata, "toolexec.go")
 
 	// The HTML test files are in a separate directory
 	// so they are a complete package.
-	htmlProfile = filepath.Join(testdata, "html", "html.cov")
-	htmlHTML    = filepath.Join(testdata, "html", "html.html")
-	htmlGolden  = filepath.Join(testdata, "html", "html.golden")
+	htmlGolden = filepath.Join(testdata, "html", "html.golden")
+
+	// Temporary files.
+	tmpTestMain  string
+	coverInput   string
+	coverOutput  string
+	htmlProfile  string
+	htmlHTML     string
+	htmlUDir     string
+	htmlU        string
+	htmlUTest    string
+	htmlUProfile string
+	htmlUHTML    string
+)
+
+var (
+	// testTempDir is a temporary directory created in TestMain.
+	testTempDir string
+
+	// testcover is a newly built version of the cover program.
+	testcover string
+
+	// toolexec is a program to use as the go tool's -toolexec argument.
+	toolexec string
+
+	// testcoverErr records an error building testcover or toolexec.
+	testcoverErr error
+
+	// testcoverOnce is used to build testcover once.
+	testcoverOnce sync.Once
+
+	// toolexecArg is the argument to pass to the go tool.
+	toolexecArg string
 )
 
 var debug = flag.Bool("debug", false, "keep rewritten files for debugging")
 
+// We use TestMain to set up a temporary directory and remove it when
+// the tests are done.
+func TestMain(m *testing.M) {
+	dir, err := ioutil.TempDir("", "gotestcover")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	testTempDir = dir
+
+	tmpTestMain = filepath.Join(dir, "main.go")
+	coverInput = filepath.Join(dir, "test_line.go")
+	coverOutput = filepath.Join(dir, "test_cover.go")
+	htmlProfile = filepath.Join(dir, "html.cov")
+	htmlHTML = filepath.Join(dir, "html.html")
+	htmlUDir = filepath.Join(dir, "htmlunformatted")
+	htmlU = filepath.Join(htmlUDir, "htmlunformatted.go")
+	htmlUTest = filepath.Join(htmlUDir, "htmlunformatted_test.go")
+	htmlUProfile = filepath.Join(htmlUDir, "htmlunformatted.cov")
+	htmlUHTML = filepath.Join(htmlUDir, "htmlunformatted.html")
+
+	status := m.Run()
+
+	if !*debug {
+		os.RemoveAll(dir)
+	}
+
+	os.Exit(status)
+}
+
+// buildCover builds a version of the cover program for testing.
+// This ensures that "go test cmd/cover" tests the current cmd/cover.
+func buildCover(t *testing.T) {
+	t.Helper()
+	testenv.MustHaveGoBuild(t)
+	testcoverOnce.Do(func() {
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		var err1, err2 error
+		go func() {
+			defer wg.Done()
+			testcover = filepath.Join(testTempDir, "cover.exe")
+			t.Logf("running [go build -o %s]", testcover)
+			out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", testcover).CombinedOutput()
+			if len(out) > 0 {
+				t.Logf("%s", out)
+			}
+			err1 = err
+		}()
+
+		go func() {
+			defer wg.Done()
+			toolexec = filepath.Join(testTempDir, "toolexec.exe")
+			t.Logf("running [go -build -o %s %s]", toolexec, toolexecSource)
+			out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", toolexec, toolexecSource).CombinedOutput()
+			if len(out) > 0 {
+				t.Logf("%s", out)
+			}
+			err2 = err
+		}()
+
+		wg.Wait()
+
+		testcoverErr = err1
+		if err2 != nil && err1 == nil {
+			testcoverErr = err2
+		}
+
+		toolexecArg = "-toolexec=" + toolexec + " " + testcover
+	})
+	if testcoverErr != nil {
+		t.Fatal("failed to build testcover or toolexec program:", testcoverErr)
+	}
+}
+
 // Run this shell script, but do it in Go so it can be run by "go test".
 //
 //	replace the word LINE with the line number < testdata/test.go > testdata/test_line.go
-// 	go build -o ./testcover
-// 	./testcover -mode=count -var=CoverTest -o ./testdata/test_cover.go testdata/test_line.go
+// 	go build -o testcover
+// 	testcover -mode=count -var=CoverTest -o ./testdata/test_cover.go testdata/test_line.go
 //	go run ./testdata/main.go ./testdata/test.go
 //
 func TestCover(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+	testenv.MustHaveGoRun(t)
+	buildCover(t)
 
 	// Read in the test file (testTest) and write it, with LINEs specified, to coverInput.
 	file, err := ioutil.ReadFile(testTest)
@@ -81,29 +187,28 @@ func TestCover(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// defer removal of test_line.go
-	if !*debug {
-		defer os.Remove(coverInput)
+	// testcover -mode=count -var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest -o ./testdata/test_cover.go testdata/test_line.go
+	cmd := exec.Command(testcover, "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
+	run(cmd, t)
+
+	cmd = exec.Command(testcover, "-mode=set", "-var=Not_an-identifier", "-o", coverOutput, coverInput)
+	err = cmd.Run()
+	if err == nil {
+		t.Error("Expected cover to fail with an error")
 	}
 
-	// go build -o testcover
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", testcover)
-	run(cmd, t)
-
-	// defer removal of testcover
-	defer os.Remove(testcover)
-
-	// ./testcover -mode=count -var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest -o ./testdata/test_cover.go testdata/test_line.go
-	cmd = exec.Command(testcover, "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
-	run(cmd, t)
-
-	// defer removal of ./testdata/test_cover.go
-	if !*debug {
-		defer os.Remove(coverOutput)
+	// Copy testmain to testTempDir, so that it is in the same directory
+	// as coverOutput.
+	b, err := ioutil.ReadFile(testMain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(tmpTestMain, b, 0444); err != nil {
+		t.Fatal(err)
 	}
 
 	// go run ./testdata/main.go ./testdata/test.go
-	cmd = exec.Command(testenv.GoToolPath(t), "run", testMain, coverOutput)
+	cmd = exec.Command(testenv.GoToolPath(t), "run", tmpTestMain, coverOutput)
 	run(cmd, t)
 
 	file, err = ioutil.ReadFile(coverOutput)
@@ -131,6 +236,9 @@ func TestCover(t *testing.T) {
 // above those declarations, even if they are not part of the block of
 // documentation comments.
 func TestDirectives(t *testing.T) {
+	t.Parallel()
+	buildCover(t)
+
 	// Read the source file and find all the directives. We'll keep
 	// track of whether each one has been seen in the output.
 	testDirectives := filepath.Join(testdata, "directives.go")
@@ -140,8 +248,8 @@ func TestDirectives(t *testing.T) {
 	}
 	sourceDirectives := findDirectives(source)
 
-	// go tool cover -mode=atomic ./testdata/directives.go
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "cover", "-mode=atomic", testDirectives)
+	// testcover -mode=atomic ./testdata/directives.go
+	cmd := exec.Command(testcover, "-mode=atomic", testDirectives)
 	cmd.Stderr = os.Stderr
 	output, err := cmd.Output()
 	if err != nil {
@@ -247,8 +355,10 @@ func findDirectives(source []byte) []directiveInfo {
 // Makes sure that `cover -func=profile.cov` reports accurate coverage.
 // Issue #20515.
 func TestCoverFunc(t *testing.T) {
-	// go tool cover -func ./testdata/profile.cov
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "cover", "-func", coverProfile)
+	t.Parallel()
+	buildCover(t)
+	// testcover -func ./testdata/profile.cov
+	cmd := exec.Command(testcover, "-func", coverProfile)
 	out, err := cmd.Output()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
@@ -266,19 +376,14 @@ func TestCoverFunc(t *testing.T) {
 // Check that cover produces correct HTML.
 // Issue #25767.
 func TestCoverHTML(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-	if !*debug {
-		defer os.Remove(testcover)
-		defer os.Remove(htmlProfile)
-		defer os.Remove(htmlHTML)
-	}
-	// go build -o testcover
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", testcover)
-	run(cmd, t)
+	t.Parallel()
+	testenv.MustHaveGoRun(t)
+	buildCover(t)
+
 	// go test -coverprofile testdata/html/html.cov cmd/cover/testdata/html
-	cmd = exec.Command(testenv.GoToolPath(t), "test", "-coverprofile", htmlProfile, "cmd/cover/testdata/html")
+	cmd := exec.Command(testenv.GoToolPath(t), "test", toolexecArg, "-coverprofile", htmlProfile, "cmd/cover/testdata/html")
 	run(cmd, t)
-	// ./testcover -html testdata/html/html.cov -o testdata/html/html.html
+	// testcover -html testdata/html/html.cov -o testdata/html/html.html
 	cmd = exec.Command(testcover, "-html", htmlProfile, "-o", htmlHTML)
 	run(cmd, t)
 
@@ -302,6 +407,9 @@ func TestCoverHTML(t *testing.T) {
 		if strings.Contains(line, "// END") {
 			in = false
 		}
+	}
+	if scan.Err() != nil {
+		t.Error(scan.Err())
 	}
 	golden, err := ioutil.ReadFile(htmlGolden)
 	if err != nil {
@@ -329,11 +437,54 @@ func TestCoverHTML(t *testing.T) {
 	}
 }
 
+// Test HTML processing with a source file not run through gofmt.
+// Issue #27350.
+func TestHtmlUnformatted(t *testing.T) {
+	t.Parallel()
+	testenv.MustHaveGoRun(t)
+	buildCover(t)
+
+	if err := os.Mkdir(htmlUDir, 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	const htmlUContents = `
+package htmlunformatted
+
+var g int
+
+func F() {
+//line x.go:1
+	{ { F(); goto lab } }
+lab:
+}`
+
+	const htmlUTestContents = `package htmlunformatted`
+
+	if err := ioutil.WriteFile(htmlU, []byte(htmlUContents), 0444); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(htmlUTest, []byte(htmlUTestContents), 0444); err != nil {
+		t.Fatal(err)
+	}
+
+	// go test -covermode=count -coverprofile TMPDIR/htmlunformatted.cov
+	cmd := exec.Command(testenv.GoToolPath(t), "test", toolexecArg, "-covermode=count", "-coverprofile", htmlUProfile)
+	cmd.Dir = htmlUDir
+	run(cmd, t)
+
+	// testcover -html TMPDIR/htmlunformatted.cov -o unformatted.html
+	cmd = exec.Command(testcover, "-html", htmlUProfile, "-o", htmlUHTML)
+	run(cmd, t)
+}
+
 func run(c *exec.Cmd, t *testing.T) {
 	t.Helper()
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-	err := c.Run()
+	t.Log("running", c.Args)
+	out, err := c.CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

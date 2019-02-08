@@ -34,7 +34,7 @@ type Context struct {
 	GOOS        string // target operating system
 	GOROOT      string // Go root
 	GOPATH      string // Go path
-	CgoEnabled  bool   // whether cgo can be used
+	CgoEnabled  bool   // whether cgo files are included
 	UseAllFiles bool   // use files regardless of +build lines, file names
 	Compiler    string // compiler to assume when computing target paths
 
@@ -43,6 +43,7 @@ type Context struct {
 	// Clients creating a new context may customize BuildTags, which
 	// defaults to empty, but it is usually an error to customize ReleaseTags,
 	// which defaults to the list of Go releases the current release is compatible with.
+	// BuildTags is not set for the Default build Context.
 	// In addition to the BuildTags and ReleaseTags, build constraints
 	// consider the values of GOARCH and GOOS as satisfied tags.
 	// The last element in ReleaseTags is assumed to be the current release.
