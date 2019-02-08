@@ -663,6 +663,17 @@ type _func struct {
 	nfuncdata uint8   // must be last
 }
 
+// Pseudo-Func that is returned for PCs that occur in inlined code.
+// A *Func can be either a *_func or a *funcinl, and they are distinguished
+// by the first uintptr.
+type funcinl struct {
+	zero  uintptr // set to 0 to distinguish from _func
+	entry uintptr // entry of the real (the "outermost") frame.
+	name  string
+	file  string
+	line  int
+}
+
 // layout of Itab known to compilers
 // allocated in non-garbage-collected memory
 // Needs to be in sync with
@@ -857,12 +868,6 @@ var (
 	processorVersionInfo uint32
 	isIntel              bool
 	lfenceBeforeRdtsc    bool
-
-	// Set in runtime.cpuinit.
-	// TODO: deprecate these; use internal/cpu directly.
-	support_popcnt        bool
-	support_sse41         bool
-	arm64_support_atomics bool
 
 	goarm                uint8 // set by cmd/link on arm systems
 	framepointer_enabled bool  // set by cmd/link

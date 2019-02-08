@@ -333,7 +333,7 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
 
 	for _, t := range f.Params().Fields().Slice() {
 		d := anonfield(t.Type)
-		d.SetIsddd(t.Isddd())
+		d.SetIsDDD(t.IsDDD())
 		in = append(in, d)
 	}
 
@@ -801,7 +801,7 @@ var (
 func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	sizeofAlg := 2 * Widthptr
 	if algarray == nil {
-		algarray = sysfunc("algarray")
+		algarray = sysvar("algarray")
 	}
 	dowidth(t)
 	alg := algtype(t)
@@ -915,7 +915,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	return ot
 }
 
-// typeHasNoAlg returns whether t does not have any associated hash/eq
+// typeHasNoAlg reports whether t does not have any associated hash/eq
 // algorithms because t, or some component of t, is marked Noalg.
 func typeHasNoAlg(t *types.Type) bool {
 	a, bad := algtype1(t)
@@ -1095,6 +1095,28 @@ func needkeyupdate(t *types.Type) bool {
 	}
 }
 
+// hashMightPanic reports whether the hash of a map key of type t might panic.
+func hashMightPanic(t *types.Type) bool {
+	switch t.Etype {
+	case TINTER:
+		return true
+
+	case TARRAY:
+		return hashMightPanic(t.Elem())
+
+	case TSTRUCT:
+		for _, t1 := range t.Fields().Slice() {
+			if hashMightPanic(t1.Type) {
+				return true
+			}
+		}
+		return false
+
+	default:
+		return false
+	}
+}
+
 // formalType replaces byte and rune aliases with real types.
 // They've been separate internally to make error messages
 // better, but we have to merge them in the reflect tables.
@@ -1180,7 +1202,7 @@ func dtypesym(t *types.Type) *obj.LSym {
 		}
 		isddd := false
 		for _, t1 := range t.Params().Fields().Slice() {
-			isddd = t1.Isddd()
+			isddd = t1.IsDDD()
 			dtypesym(t1.Type)
 		}
 		for _, t1 := range t.Results().Fields().Slice() {
@@ -1257,25 +1279,33 @@ func dtypesym(t *types.Type) *obj.LSym {
 		ot = dsymptr(lsym, ot, s1, 0)
 		ot = dsymptr(lsym, ot, s2, 0)
 		ot = dsymptr(lsym, ot, s3, 0)
+		var flags uint32
+		// Note: flags must match maptype accessors in ../../../../runtime/type.go
+		// and maptype builder in ../../../../reflect/type.go:MapOf.
 		if t.Key().Width > MAXKEYSIZE {
 			ot = duint8(lsym, ot, uint8(Widthptr))
-			ot = duint8(lsym, ot, 1) // indirect
+			flags |= 1 // indirect key
 		} else {
 			ot = duint8(lsym, ot, uint8(t.Key().Width))
-			ot = duint8(lsym, ot, 0) // not indirect
 		}
 
 		if t.Elem().Width > MAXVALSIZE {
 			ot = duint8(lsym, ot, uint8(Widthptr))
-			ot = duint8(lsym, ot, 1) // indirect
+			flags |= 2 // indirect value
 		} else {
 			ot = duint8(lsym, ot, uint8(t.Elem().Width))
-			ot = duint8(lsym, ot, 0) // not indirect
 		}
-
 		ot = duint16(lsym, ot, uint16(bmap(t).Width))
-		ot = duint8(lsym, ot, uint8(obj.Bool2int(isreflexive(t.Key()))))
-		ot = duint8(lsym, ot, uint8(obj.Bool2int(needkeyupdate(t.Key()))))
+		if isreflexive(t.Key()) {
+			flags |= 4 // reflexive key
+		}
+		if needkeyupdate(t.Key()) {
+			flags |= 8 // need key update
+		}
+		if hashMightPanic(t.Key()) {
+			flags |= 16 // hash might panic
+		}
+		ot = duint32(lsym, ot, flags)
 		ot = dextratype(lsym, ot, t, 0)
 
 	case TPTR:
@@ -1645,7 +1675,7 @@ func dalgsym(t *types.Type) *obj.LSym {
 
 		if memhashvarlen == nil {
 			memhashvarlen = sysfunc("memhash_varlen")
-			memequalvarlen = sysfunc("memequal_varlen")
+			memequalvarlen = sysvar("memequal_varlen") // asm func
 		}
 
 		// make hash closure

@@ -271,7 +271,7 @@ func get2(b []byte) int {
 func loadTzinfoFromZip(zipfile, name string) ([]byte, error) {
 	fd, err := open(zipfile)
 	if err != nil {
-		return nil, errors.New("open " + zipfile + ": " + err.Error())
+		return nil, err
 	}
 	defer closefd(fd)
 

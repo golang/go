@@ -151,10 +151,10 @@ func main() {
 				flag = flag[:i]
 			}
 			switch flag {
-			case "-sync":
-				fmt.Fprintf(os.Stderr, "go: go mod -sync is now go mod tidy\n")
+			case "-sync", "-fix":
+				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod tidy\n", flag)
 				os.Exit(2)
-			case "-init", "-fix", "-graph", "-vendor", "-verify":
+			case "-init", "-graph", "-vendor", "-verify":
 				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod %s\n", flag, flag[1:])
 				os.Exit(2)
 			case "-fmt", "-json", "-module", "-require", "-droprequire", "-replace", "-dropreplace", "-exclude", "-dropexclude":

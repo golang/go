@@ -93,7 +93,7 @@ func typecheckclosure(clo *Node, top int) {
 	xfunc.Func.Nname.Sym = closurename(Curfn)
 	disableExport(xfunc.Func.Nname.Sym)
 	declare(xfunc.Func.Nname, PFUNC)
-	xfunc = typecheck(xfunc, Etop)
+	xfunc = typecheck(xfunc, ctxStmt)
 
 	clo.Func.Ntype = typecheck(clo.Func.Ntype, Etype)
 	clo.Type = clo.Func.Ntype.Type
@@ -108,7 +108,7 @@ func typecheckclosure(clo *Node, top int) {
 		Curfn = xfunc
 		olddd := decldepth
 		decldepth = 1
-		typecheckslice(xfunc.Nbody.Slice(), Etop)
+		typecheckslice(xfunc.Nbody.Slice(), ctxStmt)
 		decldepth = olddd
 		Curfn = oldfn
 	}
@@ -199,7 +199,7 @@ func capturevars(xfunc *Node) {
 			Warnl(v.Pos, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, outermost.Addrtaken(), outermost.Assigned(), int32(v.Type.Width))
 		}
 
-		outer = typecheck(outer, Erv)
+		outer = typecheck(outer, ctxExpr)
 		clo.Func.Enter.Append(outer)
 	}
 
@@ -214,7 +214,7 @@ func transformclosure(xfunc *Node) {
 	lineno = xfunc.Pos
 	clo := xfunc.Func.Closure
 
-	if clo.Func.Top&Ecall != 0 {
+	if clo.Func.Top&ctxCallee != 0 {
 		// If the closure is directly called, we transform it to a plain function call
 		// with variables passed as args. This avoids allocation of a closure object.
 		// Here we do only a part of the transformation. Walk of OCALLFUNC(OCLOSURE)
@@ -305,7 +305,7 @@ func transformclosure(xfunc *Node) {
 		}
 
 		if len(body) > 0 {
-			typecheckslice(body, Etop)
+			typecheckslice(body, ctxStmt)
 			xfunc.Func.Enter.Set(body)
 			xfunc.Func.SetNeedctxt(true)
 		}
@@ -383,7 +383,7 @@ func walkclosure(clo *Node, init *Nodes) *Node {
 
 	typ := closureType(clo)
 
-	clos := nod(OCOMPLIT, nil, nod(OIND, typenod(typ), nil))
+	clos := nod(OCOMPLIT, nil, nod(ODEREF, typenod(typ), nil))
 	clos.Esc = clo.Esc
 	clos.Right.SetImplicit(true)
 	clos.List.Set(append([]*Node{nod(OCFUNC, xfunc.Func.Nname, nil)}, clo.Func.Enter.Slice()...))
@@ -434,7 +434,19 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	sym.SetUniq(true)
 
 	savecurfn := Curfn
+	saveLineNo := lineno
 	Curfn = nil
+
+	// Set line number equal to the line number where the method is declared.
+	var m *types.Field
+	if lookdot0(meth, rcvrtype, &m, false) == 1 && m.Pos.IsKnown() {
+		lineno = m.Pos
+	}
+	// Note: !m.Pos.IsKnown() happens for method expressions where
+	// the method is implicitly declared. The Error method of the
+	// built-in error type is one such method.  We leave the line
+	// number at the use of the method expression in this
+	// case. See issue 29389.
 
 	tfn := nod(OTFUNC, nil, nil)
 	tfn.List.Set(structargs(t0.Params(), true))
@@ -467,7 +479,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 
 	call := nod(OCALL, nodSym(OXDOT, ptr, meth), nil)
 	call.List.Set(paramNnames(tfn.Type))
-	call.SetIsddd(tfn.Type.IsVariadic())
+	call.SetIsDDD(tfn.Type.IsVariadic())
 	if t0.NumResults() != 0 {
 		n := nod(ORETURN, nil, nil)
 		n.List.Set1(call)
@@ -478,10 +490,11 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	xfunc.Nbody.Set(body)
 	funcbody()
 
-	xfunc = typecheck(xfunc, Etop)
+	xfunc = typecheck(xfunc, ctxStmt)
 	sym.Def = asTypesNode(xfunc)
 	xtop = append(xtop, xfunc)
 	Curfn = savecurfn
+	lineno = saveLineNo
 
 	return xfunc
 }
@@ -516,7 +529,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 
 	typ := partialCallType(n)
 
-	clos := nod(OCOMPLIT, nil, nod(OIND, typenod(typ), nil))
+	clos := nod(OCOMPLIT, nil, nod(ODEREF, typenod(typ), nil))
 	clos.Esc = n.Esc
 	clos.Right.SetImplicit(true)
 	clos.List.Set2(nod(OCFUNC, n.Func.Nname, nil), n.Left)

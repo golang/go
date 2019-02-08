@@ -5,8 +5,6 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
@@ -55,6 +53,7 @@ func testMain(m *testing.M) int {
 }
 
 func TestNonGoExecs(t *testing.T) {
+	t.Parallel()
 	testfiles := []string{
 		"debug/elf/testdata/gcc-386-freebsd-exec",
 		"debug/elf/testdata/gcc-amd64-linux-exec",
@@ -64,7 +63,7 @@ func TestNonGoExecs(t *testing.T) {
 		"debug/pe/testdata/gcc-386-mingw-exec",
 		"debug/plan9obj/testdata/amd64-plan9-exec",
 		"debug/plan9obj/testdata/386-plan9-exec",
-		"cmd/internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec",
+		"internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec",
 	}
 	for _, f := range testfiles {
 		exepath := filepath.Join(runtime.GOROOT(), "src", f)
@@ -77,6 +76,7 @@ func TestNonGoExecs(t *testing.T) {
 }
 
 func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
+	t.Parallel()
 	tmpdir, err := ioutil.TempDir("", "TestGoExec")
 	if err != nil {
 		t.Fatal(err)
@@ -151,13 +151,15 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 				return true
 			}
 		}
+		if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
+			return true
+		}
 		return false
 	}
 
-	scanner := bufio.NewScanner(bytes.NewBuffer(out))
 	dups := make(map[string]bool)
-	for scanner.Scan() {
-		f := strings.Fields(scanner.Text())
+	for _, line := range strings.Split(string(out), "\n") {
+		f := strings.Fields(line)
 		if len(f) < 3 {
 			continue
 		}
@@ -184,10 +186,6 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 			delete(runtimeSyms, name)
 		}
 	}
-	err = scanner.Err()
-	if err != nil {
-		t.Fatalf("error reading nm output: %v", err)
-	}
 	if len(names) > 0 {
 		t.Errorf("executable is missing %v symbols", names)
 	}
@@ -201,6 +199,7 @@ func TestGoExec(t *testing.T) {
 }
 
 func testGoLib(t *testing.T, iscgo bool) {
+	t.Parallel()
 	tmpdir, err := ioutil.TempDir("", "TestGoLib")
 	if err != nil {
 		t.Fatal(err)
@@ -269,9 +268,9 @@ func testGoLib(t *testing.T, iscgo bool) {
 			syms = append(syms, symType{"T", "cgofunc", true, false})
 		}
 	}
-	scanner := bufio.NewScanner(bytes.NewBuffer(out))
-	for scanner.Scan() {
-		f := strings.Fields(scanner.Text())
+
+	for _, line := range strings.Split(string(out), "\n") {
+		f := strings.Fields(line)
 		var typ, name string
 		var csym bool
 		if iscgo {
@@ -297,10 +296,6 @@ func testGoLib(t *testing.T, iscgo bool) {
 				sym.Found = true
 			}
 		}
-	}
-	err = scanner.Err()
-	if err != nil {
-		t.Fatalf("error reading nm output: %v", err)
 	}
 	for _, sym := range syms {
 		if !sym.Found {

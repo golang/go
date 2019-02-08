@@ -271,6 +271,39 @@ which describes some essential concepts about using the Go tools.
 </p>
 
 
+<h2 id="extra_versions">Installing extra Go versions</h2>
+
+<p>
+It may be useful to have multiple Go versions installed on the same machine, for
+example, to ensure that a package's tests pass on multiple Go versions.
+Once you have one Go version installed, you can install another (such as 1.10.7)
+as follows:
+</p>
+
+<pre>
+$ go get golang.org/dl/go1.10.7
+$ go1.10.7 download
+</pre>
+
+<p>
+The newly downloaded version can be used like <code>go</code>:
+</p>
+
+<pre>
+$ go1.10.7 version
+go version go1.10.7 linux/amd64
+</pre>
+
+<p>
+All Go versions available via this method are listed on
+<a href="https://godoc.org/golang.org/dl#pkg-subdirectories">the download page</a>.
+You can find where each of these extra Go versions is installed by looking
+at its <code>GOROOT</code>; for example, <code>go1.10.7 env GOROOT</code>.
+To uninstall a downloaded version, just remove its <code>GOROOT</code> directory
+and the <code>goX.Y.Z</code> binary.
+</p>
+
+
 <h2 id="uninstall">Uninstalling Go</h2>
 
 <p>

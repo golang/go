@@ -212,6 +212,9 @@ func (t *tester) run() {
 	if t.failed {
 		fmt.Println("\nFAILED")
 		os.Exit(1)
+	} else if incomplete[goos+"/"+goarch] {
+		fmt.Println("\nFAILED (incomplete port)")
+		os.Exit(1)
 	} else if t.partial {
 		fmt.Println("\nALL TESTS PASSED (some were excluded)")
 	} else {
@@ -519,7 +522,6 @@ func (t *tester) registerTests() {
 				}
 
 				// Run `go test fmt` in the moved GOROOT.
-				// Disable GOCACHE because it points back at the old GOROOT.
 				cmd := exec.Command(filepath.Join(moved, "bin", "go"), "test", "fmt")
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
@@ -529,7 +531,6 @@ func (t *tester) registerTests() {
 						cmd.Env = append(cmd.Env, e)
 					}
 				}
-				cmd.Env = append(cmd.Env, "GOCACHE=off")
 				err := cmd.Run()
 
 				if rerr := os.Rename(moved, goroot); rerr != nil {
@@ -1038,7 +1039,10 @@ func (t *tester) cgoTest(dt *distTest) error {
 		"linux-386", "linux-amd64", "linux-arm", "linux-ppc64le", "linux-s390x",
 		"netbsd-386", "netbsd-amd64":
 
-		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external")
+		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external")
+		// A -g argument in CGO_CFLAGS should not affect how the test runs.
+		cmd.Env = append(os.Environ(), "CGO_CFLAGS=-g0")
+
 		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=auto")
 		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=external")
 
@@ -1470,7 +1474,7 @@ func (t *tester) packageHasBenchmarks(pkg string) bool {
 func raceDetectorSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
-		return goarch == "amd64" || goarch == "ppc64le"
+		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
 	case "darwin", "freebsd", "netbsd", "windows":
 		return goarch == "amd64"
 	default:

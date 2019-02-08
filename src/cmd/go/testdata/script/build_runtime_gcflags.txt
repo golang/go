@@ -1,0 +1,8 @@
+# Set up fresh GOCACHE.
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
+# Verify the standard library (specifically runtime/internal/atomic) can be
+# built with -gcflags when -n is given. See golang.org/issue/29346.
+go build -n -gcflags=all='-l' std
+stderr 'compile.* -l .* runtime/internal/atomic'

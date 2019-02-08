@@ -4,7 +4,7 @@ go list -f '{{.TestImports}}'
 stdout net/http # from .TestImports
 
 go list -test -f '{{.Deps}}'
-stdout golang_org/x/crypto # dep of .TestImports
+stdout internal/x/crypto # dep of .TestImports
 
 -- go.mod --
 module m

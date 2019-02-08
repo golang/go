@@ -1,0 +1,7 @@
+# Regression test for golang.org/issue/21309: accept relative -pkgdir argument.
+
+[short] skip
+
+mkdir $WORK/gocache
+env GOCACHE=$WORK/gocache
+go build -i -pkgdir=. runtime

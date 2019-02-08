@@ -195,5 +195,6 @@ func msanread(addr, size uintptr)
 func msanwrite(addr, size uintptr)
 
 // architecture variants
-var support_popcnt bool
-var support_sse41 bool
+var x86HasPOPCNT bool
+var x86HasSSE41 bool
+var arm64HasATOMICS bool

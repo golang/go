@@ -21,6 +21,10 @@ func TestRemoveAll(t *testing.T) {
 	}
 	defer RemoveAll(tmpDir)
 
+	if err := RemoveAll(""); err != nil {
+		t.Errorf("RemoveAll(\"\"): %v; want nil", err)
+	}
+
 	file := filepath.Join(tmpDir, "file")
 	path := filepath.Join(tmpDir, "_TestRemoveAll_")
 	fpath := filepath.Join(path, "file")
@@ -211,13 +215,6 @@ func TestRemoveAllLongPath(t *testing.T) {
 }
 
 func TestRemoveAllDot(t *testing.T) {
-	switch runtime.GOOS {
-	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
-		break
-	default:
-		t.Skip("skipping for not implemented platforms")
-	}
-
 	prevDir, err := Getwd()
 	if err != nil {
 		t.Fatalf("Could not get wd: %s", err)
@@ -238,13 +235,140 @@ func TestRemoveAllDot(t *testing.T) {
 		t.Errorf("RemoveAll succeed to remove .")
 	}
 
-	err = RemoveAll("..")
-	if err == nil {
-		t.Errorf("RemoveAll succeed to remove ..")
-	}
-
 	err = Chdir(prevDir)
 	if err != nil {
 		t.Fatalf("Could not chdir %s: %s", prevDir, err)
+	}
+}
+
+func TestRemoveAllDotDot(t *testing.T) {
+	t.Parallel()
+
+	tempDir, err := ioutil.TempDir("", "TestRemoveAllDotDot-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer RemoveAll(tempDir)
+
+	subdir := filepath.Join(tempDir, "x")
+	subsubdir := filepath.Join(subdir, "y")
+	if err := MkdirAll(subsubdir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveAll(filepath.Join(subsubdir, "..")); err != nil {
+		t.Error(err)
+	}
+	for _, dir := range []string{subsubdir, subdir} {
+		if _, err := Stat(dir); err == nil {
+			t.Errorf("%s: exists after RemoveAll", dir)
+		}
+	}
+}
+
+// Issue #29178.
+func TestRemoveReadOnlyDir(t *testing.T) {
+	t.Parallel()
+
+	tempDir, err := ioutil.TempDir("", "TestRemoveReadOnlyDir-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer RemoveAll(tempDir)
+
+	subdir := filepath.Join(tempDir, "x")
+	if err := Mkdir(subdir, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	// If an error occurs make it more likely that removing the
+	// temporary directory will succeed.
+	defer Chmod(subdir, 0777)
+
+	if err := RemoveAll(subdir); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Stat(subdir); err == nil {
+		t.Error("subdirectory was not removed")
+	}
+}
+
+// Issue #29983.
+func TestRemoveAllButReadOnly(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "js", "windows":
+		t.Skipf("skipping test on %s", runtime.GOOS)
+	}
+
+	if Getuid() == 0 {
+		t.Skip("skipping test when running as root")
+	}
+
+	t.Parallel()
+
+	tempDir, err := ioutil.TempDir("", "TestRemoveAllButReadOnly-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer RemoveAll(tempDir)
+
+	dirs := []string{
+		"a",
+		"a/x",
+		"a/x/1",
+		"b",
+		"b/y",
+		"b/y/2",
+		"c",
+		"c/z",
+		"c/z/3",
+	}
+	readonly := []string{
+		"b",
+	}
+	inReadonly := func(d string) bool {
+		for _, ro := range readonly {
+			if d == ro {
+				return true
+			}
+			dd, _ := filepath.Split(d)
+			if filepath.Clean(dd) == ro {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, dir := range dirs {
+		if err := Mkdir(filepath.Join(tempDir, dir), 0777); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, dir := range readonly {
+		d := filepath.Join(tempDir, dir)
+		if err := Chmod(d, 0555); err != nil {
+			t.Fatal(err)
+		}
+
+		// Defer changing the mode back so that the deferred
+		// RemoveAll(tempDir) can succeed.
+		defer Chmod(d, 0777)
+	}
+
+	if err := RemoveAll(tempDir); err == nil {
+		t.Fatal("RemoveAll succeeded unexpectedly")
+	}
+
+	for _, dir := range dirs {
+		_, err := Stat(filepath.Join(tempDir, dir))
+		if inReadonly(dir) {
+			if err != nil {
+				t.Errorf("file %q was deleted but should still exist", dir)
+			}
+		} else {
+			if err == nil {
+				t.Errorf("file %q still exists but should have been deleted", dir)
+			}
+		}
 	}
 }

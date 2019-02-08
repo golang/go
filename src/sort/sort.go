@@ -131,7 +131,7 @@ func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
 		c--
 	}
 	// If hi-c<3 then there are duplicates (by property of median of nine).
-	// Let be a bit more conservative, and set border to 5.
+	// Let's be a bit more conservative, and set border to 5.
 	protect := hi-c < 5
 	if !protect && hi-c < (hi-lo)/4 {
 		// Lets test some points for equality to pivot

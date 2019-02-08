@@ -1219,11 +1219,14 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 
 		pciterinit(ctxt, &pcfile, &s.FuncInfo.Pcfile)
 		pciterinit(ctxt, &pcline, &s.FuncInfo.Pcline)
-		pciterinit(ctxt, &pcstmt, &sym.Pcdata{P: s.FuncInfo.IsStmtSym.P})
 
-		if pcstmt.done != 0 {
+		isStmtSym := dwarfFuncSym(ctxt, s, dwarf.IsStmtPrefix, false)
+		if isStmtSym != nil && len(isStmtSym.P) > 0 {
+			pciterinit(ctxt, &pcstmt, &sym.Pcdata{P: isStmtSym.P})
+		} else {
 			// Assembly files lack a pcstmt section, we assume that every instruction
 			// is a valid statement.
+			pcstmt.done = 1
 			pcstmt.value = 1
 		}
 

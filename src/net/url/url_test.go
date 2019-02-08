@@ -1738,10 +1738,31 @@ func TestNilUser(t *testing.T) {
 }
 
 func TestInvalidUserPassword(t *testing.T) {
-	_, err := Parse("http://us\ner:pass\nword@foo.com/")
+	_, err := Parse("http://user^:passwo^rd@foo.com/")
 	if got, wantsub := fmt.Sprint(err), "net/url: invalid userinfo"; !strings.Contains(got, wantsub) {
 		t.Errorf("error = %q; want substring %q", got, wantsub)
 	}
+}
+
+func TestRejectControlCharacters(t *testing.T) {
+	tests := []string{
+		"http://foo.com/?foo\nbar",
+		"http\r://foo.com/",
+		"http://foo\x7f.com/",
+	}
+	for _, s := range tests {
+		_, err := Parse(s)
+		const wantSub = "net/url: invalid control character in URL"
+		if got := fmt.Sprint(err); !strings.Contains(got, wantSub) {
+			t.Errorf("Parse(%q) error = %q; want substring %q", s, got, wantSub)
+		}
+	}
+
+	// But don't reject non-ASCII CTLs, at least for now:
+	if _, err := Parse("http://foo.com/ctl\x80"); err != nil {
+		t.Errorf("error parsing URL with non-ASCII control byte: %v", err)
+	}
+
 }
 
 var escapeBenchmarks = []struct {

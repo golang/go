@@ -33,7 +33,6 @@ type source struct {
 
 	// source buffer
 	buf         [4 << 10]byte
-	offs        int   // source offset of buf
 	r0, r, w    int   // previous/current read and write buf positions, excluding sentinel
 	line0, line uint  // previous/current line
 	col0, col   uint  // previous/current column (byte offsets from line start)
@@ -51,7 +50,6 @@ func (s *source) init(src io.Reader, errh func(line, pos uint, msg string)) {
 	s.errh = errh
 
 	s.buf[0] = utf8.RuneSelf // terminate with sentinel
-	s.offs = 0
 	s.r0, s.r, s.w = 0, 0, 0
 	s.line0, s.line = 0, linebase
 	s.col0, s.col = 0, colbase
@@ -68,7 +66,8 @@ func (s *source) ungetr() {
 
 // ungetr2 is like ungetr but enables a 2nd ungetr.
 // It must not be called if one of the runes seen
-// was a newline.
+// was a newline or had a UTF-8 encoding longer than
+// 1 byte.
 func (s *source) ungetr2() {
 	s.ungetr()
 	// line must not have changed
@@ -167,7 +166,6 @@ func (s *source) fill() {
 		}
 		n := s.r0 - 1
 		copy(s.buf[:], s.buf[n:s.w])
-		s.offs += n
 		s.r0 = 1 // eqv: s.r0 -= n
 		s.r -= n
 		s.w -= n
@@ -189,6 +187,7 @@ func (s *source) fill() {
 		}
 	}
 
+	s.buf[s.w] = utf8.RuneSelf // sentinel
 	s.ioerr = io.ErrNoProgress
 }
 

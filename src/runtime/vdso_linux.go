@@ -280,7 +280,7 @@ func vdsoauxv(tag, val uintptr) {
 	}
 }
 
-// vdsoMarker returns whether PC is on the VDSO page.
+// vdsoMarker reports whether PC is on the VDSO page.
 func inVDSOPage(pc uintptr) bool {
 	for _, k := range vdsoSymbolKeys {
 		if *k.ptr != 0 {

@@ -736,3 +736,35 @@ func TestIssue11151(t *testing.T) {
 		t.Errorf("%v\norig: %q\ngot : %q", err, src, got)
 	}
 }
+
+// If a declaration has multiple specifications, a parenthesized
+// declaration must be printed even if Lparen is token.NoPos.
+func TestParenthesizedDecl(t *testing.T) {
+	// a package with multiple specs in a single declaration
+	const src = "package p; var ( a float64; b int )"
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, 0)
+
+	// print the original package
+	var buf bytes.Buffer
+	err = Fprint(&buf, fset, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := buf.String()
+
+	// now remove parentheses from the declaration
+	for i := 0; i != len(f.Decls); i++ {
+		f.Decls[i].(*ast.GenDecl).Lparen = token.NoPos
+	}
+	buf.Reset()
+	err = Fprint(&buf, fset, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	noparen := buf.String()
+
+	if noparen != original {
+		t.Errorf("got %q, want %q", noparen, original)
+	}
+}

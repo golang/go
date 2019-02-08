@@ -1,13 +1,13 @@
 package ssa_test
 
 import (
-	"cmd/internal/xcoff"
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
 	"fmt"
 	"internal/testenv"
+	"internal/xcoff"
 	"io"
 	"runtime"
 	"testing"

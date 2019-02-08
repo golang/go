@@ -207,6 +207,9 @@ var lookupGmailTXTTests = []struct {
 }
 
 func TestLookupGmailTXT(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; see https://golang.org/issue/29722")
+	}
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
@@ -237,10 +240,15 @@ func TestLookupGmailTXT(t *testing.T) {
 		if len(txts) == 0 {
 			t.Error("got no record")
 		}
+		found := false
 		for _, txt := range txts {
-			if !strings.Contains(txt, tt.txt) || (!strings.HasSuffix(txt, tt.host) && !strings.HasSuffix(txt, tt.host+".")) {
-				t.Errorf("got %s; want a record containing %s, %s", txt, tt.txt, tt.host)
+			if strings.Contains(txt, tt.txt) && (strings.HasSuffix(txt, tt.host) || strings.HasSuffix(txt, tt.host+".")) {
+				found = true
+				break
 			}
+		}
+		if !found {
+			t.Errorf("got %v; want a record containing %s, %s", txts, tt.txt, tt.host)
 		}
 	}
 }
@@ -618,6 +626,9 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 }
 
 func TestLookupDotsWithRemoteSource(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		testenv.SkipFlaky(t, 27992)
+	}
 	mustHaveExternalNetwork(t)
 
 	if !supportsIPv4() || !*testIPv4 {
@@ -925,8 +936,8 @@ func TestLookupHostCancel(t *testing.T) {
 
 	const (
 		google        = "www.google.com"
-		invalidDomain = "nonexistentdomain.golang.org"
-		n             = 600 // this needs to be larger than threadLimit size
+		invalidDomain = "invalid.invalid" // RFC 2606 reserves .invalid
+		n             = 600               // this needs to be larger than threadLimit size
 	)
 
 	_, err := LookupHost(google)
@@ -1032,5 +1043,80 @@ func TestIPVersion(t *testing.T) {
 			t.Errorf("Family for: %s. Expected: %s, Got: %s", tt.network,
 				string(tt.version), string(version))
 		}
+	}
+}
+
+// Issue 28600: The context that is used to lookup ips should always
+// preserve the values from the context that was passed into LookupIPAddr.
+func TestLookupIPAddrPreservesContextValues(t *testing.T) {
+	origTestHookLookupIP := testHookLookupIP
+	defer func() { testHookLookupIP = origTestHookLookupIP }()
+
+	keyValues := []struct {
+		key, value interface{}
+	}{
+		{"key-1", 12},
+		{384, "value2"},
+		{new(float64), 137},
+	}
+	ctx := context.Background()
+	for _, kv := range keyValues {
+		ctx = context.WithValue(ctx, kv.key, kv.value)
+	}
+
+	wantIPs := []IPAddr{
+		{IP: IPv4(127, 0, 0, 1)},
+		{IP: IPv6loopback},
+	}
+
+	checkCtxValues := func(ctx_ context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
+		for _, kv := range keyValues {
+			g, w := ctx_.Value(kv.key), kv.value
+			if !reflect.DeepEqual(g, w) {
+				t.Errorf("Value lookup:\n\tGot:  %v\n\tWant: %v", g, w)
+			}
+		}
+		return wantIPs, nil
+	}
+	testHookLookupIP = checkCtxValues
+
+	resolvers := []*Resolver{
+		nil,
+		new(Resolver),
+	}
+
+	for i, resolver := range resolvers {
+		gotIPs, err := resolver.LookupIPAddr(ctx, "golang.org")
+		if err != nil {
+			t.Errorf("Resolver #%d: unexpected error: %v", i, err)
+		}
+		if !reflect.DeepEqual(gotIPs, wantIPs) {
+			t.Errorf("#%d: mismatched IPAddr results\n\tGot: %v\n\tWant: %v", i, gotIPs, wantIPs)
+		}
+	}
+}
+
+func TestWithUnexpiredValuesPreserved(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Insert a value into it.
+	key, value := "key-1", 2
+	ctx = context.WithValue(ctx, key, value)
+
+	// Now use the "values preserving context" like
+	// we would for LookupIPAddr. See Issue 28600.
+	ctx = withUnexpiredValuesPreserved(ctx)
+
+	// Lookup before expiry.
+	if g, w := ctx.Value(key), value; g != w {
+		t.Errorf("Lookup before expiry: Got %v Want %v", g, w)
+	}
+
+	// Cancel the context.
+	cancel()
+
+	// Lookup after expiry should return nil
+	if g := ctx.Value(key); g != nil {
+		t.Errorf("Lookup after expiry: Got %v want nil", g)
 	}
 }

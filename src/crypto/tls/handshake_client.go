@@ -114,7 +114,13 @@ NextCipherSuite:
 	}
 
 	if hello.vers >= VersionTLS12 {
-		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+		// The non-BoringCrypto behavior here is to use the full set of
+		// signature algorithms, even if TLS 1.3 is not being negotiated. It's
+		// debatable if this is correct or not, because on one hand it allows
+		// RSA-PSS as a client with TLS 1.2, but on the other hand we can't
+		// predict what the server will pick when we do advertise TLS 1.3, so we
+		// might end up with TLS 1.2 + RSA-PSS anyway. Anyway, it will go away soon.
+		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS13)
 	}
 	if testingOnlyForceClientHelloSignatureAlgorithms != nil {
 		hello.supportedSignatureAlgorithms = testingOnlyForceClientHelloSignatureAlgorithms
@@ -939,7 +945,7 @@ func (c *Conn) getClientCertificate(cri *CertificateRequestInfo) (*Certificate, 
 	// Issuer is in AcceptableCAs.
 	for i, chain := range c.config.Certificates {
 		sigOK := false
-		for _, alg := range signatureSchemesForCertificate(&chain) {
+		for _, alg := range signatureSchemesForCertificate(c.vers, &chain) {
 			if isSupportedSignatureAlgorithm(alg, cri.SignatureSchemes) {
 				sigOK = true
 				break

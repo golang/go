@@ -9,6 +9,7 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"internal/trace"
 	"log"
 	"net/http"
 	"reflect"
@@ -16,8 +17,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
-	trace "internal/traceparser"
 )
 
 func init() {
@@ -39,15 +38,15 @@ var (
 )
 
 // analyzeGoroutines generates statistics about execution of all goroutines and stores them in gs.
-func analyzeGoroutines(res *trace.Parsed) {
+func analyzeGoroutines(events []*trace.Event) {
 	gsInit.Do(func() {
-		gs = res.GoroutineStats()
+		gs = trace.GoroutineStats(events)
 	})
 }
 
 // httpGoroutines serves list of goroutine groups.
 func httpGoroutines(w http.ResponseWriter, r *http.Request) {
-	events, err := parseTrace()
+	events, err := parseEvents()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -90,7 +89,7 @@ Goroutines: <br>
 func httpGoroutine(w http.ResponseWriter, r *http.Request) {
 	// TODO(hyangah): support format=csv (raw data)
 
-	events, err := parseTrace()
+	events, err := parseEvents()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

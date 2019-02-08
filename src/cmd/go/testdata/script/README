@@ -75,6 +75,7 @@ should only run when the condition is satisfied. The available conditions are:
    - [cgo], [msan], [race] for whether cgo, msan, and the race detector can be used
    - [net] for whether the external network can be used
    - [link] for testenv.HasLink()
+   - [root] for os.Geteuid() == 0
    - [symlink] for testenv.HasSymlink()
    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
 
@@ -83,8 +84,16 @@ when testing.Short() is false.
 
 The commands are:
 
+- [!] cc args... [&]
+  Run the C compiler, the platform specific flags (i.e. `go env GOGCCFLAGS`) will be
+  added automatically before args.
+
 - cd dir
   Change to the given directory for future commands.
+
+- chmod perm path...
+  Change the permissions of the files or directories named by the path arguments
+  to be equal to perm. Only numerical permissions are supported.
 
 - cmp file1 file2
   Check that the named files have the same content.

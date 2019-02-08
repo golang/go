@@ -432,12 +432,12 @@ func atomicStopTestProgram() {
 
 		// At this point we should either die from SIGINT or
 		// get a notification on cs. If neither happens, we
-		// dropped the signal. Give it a second to deliver,
-		// which is far far longer than it should require.
+		// dropped the signal. It is given 2 seconds to
+		// deliver, as needed for gccgo on some loaded test systems.
 
 		select {
 		case <-cs:
-		case <-time.After(1 * time.Second):
+		case <-time.After(2 * time.Second):
 			if !printed {
 				fmt.Print("lost signal on tries:")
 				printed = true

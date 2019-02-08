@@ -13,9 +13,33 @@
 package unix
 
 import (
-	"strings"
+	"sync"
 	"unsafe"
 )
+
+const (
+	SYS_FSTAT_FREEBSD12         = 551 // { int fstat(int fd, _Out_ struct stat *sb); }
+	SYS_FSTATAT_FREEBSD12       = 552 // { int fstatat(int fd, _In_z_ char *path, \
+	SYS_GETDIRENTRIES_FREEBSD12 = 554 // { ssize_t getdirentries(int fd, \
+	SYS_STATFS_FREEBSD12        = 555 // { int statfs(_In_z_ char *path, \
+	SYS_FSTATFS_FREEBSD12       = 556 // { int fstatfs(int fd, \
+	SYS_GETFSSTAT_FREEBSD12     = 557 // { int getfsstat( \
+	SYS_MKNODAT_FREEBSD12       = 559 // { int mknodat(int fd, _In_z_ char *path, \
+)
+
+// See https://www.freebsd.org/doc/en_US.ISO8859-1/books/porters-handbook/versions.html.
+var (
+	osreldateOnce sync.Once
+	osreldate     uint32
+)
+
+// INO64_FIRST from /usr/src/lib/libc/sys/compat-ino64.h
+const _ino64First = 1200031
+
+func supportsABI(ver uint32) bool {
+	osreldateOnce.Do(func() { osreldate, _ = SysctlUint32("kern.osreldate") })
+	return osreldate >= ver
+}
 
 // SockaddrDatalink implements the Sockaddr interface for AF_LINK type sockets.
 type SockaddrDatalink struct {
@@ -58,14 +82,21 @@ func nametomib(name string) (mib []_C_int, err error) {
 	return buf[0 : n/siz], nil
 }
 
-//sysnb pipe() (r int, w int, err error)
-
 func Pipe(p []int) (err error) {
+	return Pipe2(p, 0)
+}
+
+//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
+
+func Pipe2(p []int, flags int) error {
 	if len(p) != 2 {
 		return EINVAL
 	}
-	p[0], p[1], err = pipe()
-	return
+	var pp [2]_C_int
+	err := pipe2(&pp, flags)
+	p[0] = int(pp[0])
+	p[1] = int(pp[1])
+	return err
 }
 
 func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, error) {
@@ -89,7 +120,7 @@ func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
 	if len > SizeofSockaddrAny {
 		panic("RawSockaddrAny too small")
 	}
-	sa, err = anyToSockaddr(&rsa)
+	sa, err = anyToSockaddr(fd, &rsa)
 	if err != nil {
 		Close(nfd)
 		nfd = 0
@@ -115,16 +146,38 @@ func Getwd() (string, error) {
 }
 
 func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
-	var _p0 unsafe.Pointer
-	var bufsize uintptr
+	var (
+		_p0          unsafe.Pointer
+		bufsize      uintptr
+		oldBuf       []statfs_freebsd11_t
+		needsConvert bool
+	)
+
 	if len(buf) > 0 {
-		_p0 = unsafe.Pointer(&buf[0])
-		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+		if supportsABI(_ino64First) {
+			_p0 = unsafe.Pointer(&buf[0])
+			bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+		} else {
+			n := len(buf)
+			oldBuf = make([]statfs_freebsd11_t, n)
+			_p0 = unsafe.Pointer(&oldBuf[0])
+			bufsize = unsafe.Sizeof(statfs_freebsd11_t{}) * uintptr(n)
+			needsConvert = true
+		}
 	}
-	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
+	var sysno uintptr = SYS_GETFSSTAT
+	if supportsABI(_ino64First) {
+		sysno = SYS_GETFSSTAT_FREEBSD12
+	}
+	r0, _, e1 := Syscall(sysno, uintptr(_p0), bufsize, uintptr(flags))
 	n = int(r0)
 	if e1 != 0 {
 		err = e1
+	}
+	if e1 == 0 && needsConvert {
+		for i := range oldBuf {
+			buf[i].convertFrom(&oldBuf[i])
+		}
 	}
 	return
 }
@@ -132,225 +185,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 func setattrlistTimes(path string, times []Timespec, flags int) error {
 	// used on Darwin for UtimesNano
 	return ENOSYS
-}
-
-// Derive extattr namespace and attribute name
-
-func xattrnamespace(fullattr string) (ns int, attr string, err error) {
-	s := strings.IndexByte(fullattr, '.')
-	if s == -1 {
-		return -1, "", ENOATTR
-	}
-
-	namespace := fullattr[0:s]
-	attr = fullattr[s+1:]
-
-	switch namespace {
-	case "user":
-		return EXTATTR_NAMESPACE_USER, attr, nil
-	case "system":
-		return EXTATTR_NAMESPACE_SYSTEM, attr, nil
-	default:
-		return -1, "", ENOATTR
-	}
-}
-
-func initxattrdest(dest []byte, idx int) (d unsafe.Pointer) {
-	if len(dest) > idx {
-		return unsafe.Pointer(&dest[idx])
-	} else {
-		return unsafe.Pointer(_zero)
-	}
-}
-
-// FreeBSD implements its own syscalls to handle extended attributes
-
-func Getxattr(file string, attr string, dest []byte) (sz int, err error) {
-	d := initxattrdest(dest, 0)
-	destsize := len(dest)
-
-	nsid, a, err := xattrnamespace(attr)
-	if err != nil {
-		return -1, err
-	}
-
-	return ExtattrGetFile(file, nsid, a, uintptr(d), destsize)
-}
-
-func Fgetxattr(fd int, attr string, dest []byte) (sz int, err error) {
-	d := initxattrdest(dest, 0)
-	destsize := len(dest)
-
-	nsid, a, err := xattrnamespace(attr)
-	if err != nil {
-		return -1, err
-	}
-
-	return ExtattrGetFd(fd, nsid, a, uintptr(d), destsize)
-}
-
-func Lgetxattr(link string, attr string, dest []byte) (sz int, err error) {
-	d := initxattrdest(dest, 0)
-	destsize := len(dest)
-
-	nsid, a, err := xattrnamespace(attr)
-	if err != nil {
-		return -1, err
-	}
-
-	return ExtattrGetLink(link, nsid, a, uintptr(d), destsize)
-}
-
-// flags are unused on FreeBSD
-
-func Fsetxattr(fd int, attr string, data []byte, flags int) (err error) {
-	d := unsafe.Pointer(&data[0])
-	datasiz := len(data)
-
-	nsid, a, err := xattrnamespace(attr)
-	if err != nil {
-		return
-	}
-
-	_, err = ExtattrSetFd(fd, nsid, a, uintptr(d), datasiz)
-	return
-}
-
-func Setxattr(file string, attr string, data []byte, flags int) (err error) {
-	d := unsafe.Pointer(&data[0])
-	datasiz := len(data)
-
-	nsid, a, err := xattrnamespace(attr)
-	if err != nil {
-		return
-	}
-
-	_, err = ExtattrSetFile(file, nsid, a, uintptr(d), datasiz)
-	return
-}
-
-func Lsetxattr(link string, attr string, data []byte, flags int) (err error) {
-	d := unsafe.Pointer(&data[0])
-	datasiz := len(data)
-
-	nsid, a, err := xattrnamespace(attr)
-	if err != nil {
-		return
-	}
-
-	_, err = ExtattrSetLink(link, nsid, a, uintptr(d), datasiz)
-	return
-}
-
-func Removexattr(file string, attr string) (err error) {
-	nsid, a, err := xattrnamespace(attr)
-	if err != nil {
-		return
-	}
-
-	err = ExtattrDeleteFile(file, nsid, a)
-	return
-}
-
-func Fremovexattr(fd int, attr string) (err error) {
-	nsid, a, err := xattrnamespace(attr)
-	if err != nil {
-		return
-	}
-
-	err = ExtattrDeleteFd(fd, nsid, a)
-	return
-}
-
-func Lremovexattr(link string, attr string) (err error) {
-	nsid, a, err := xattrnamespace(attr)
-	if err != nil {
-		return
-	}
-
-	err = ExtattrDeleteLink(link, nsid, a)
-	return
-}
-
-func Listxattr(file string, dest []byte) (sz int, err error) {
-	d := initxattrdest(dest, 0)
-	destsiz := len(dest)
-
-	// FreeBSD won't allow you to list xattrs from multiple namespaces
-	s := 0
-	for _, nsid := range [...]int{EXTATTR_NAMESPACE_USER, EXTATTR_NAMESPACE_SYSTEM} {
-		stmp, e := ExtattrListFile(file, nsid, uintptr(d), destsiz)
-
-		/* Errors accessing system attrs are ignored so that
-		 * we can implement the Linux-like behavior of omitting errors that
-		 * we don't have read permissions on
-		 *
-		 * Linux will still error if we ask for user attributes on a file that
-		 * we don't have read permissions on, so don't ignore those errors
-		 */
-		if e != nil && e == EPERM && nsid != EXTATTR_NAMESPACE_USER {
-			continue
-		} else if e != nil {
-			return s, e
-		}
-
-		s += stmp
-		destsiz -= s
-		if destsiz < 0 {
-			destsiz = 0
-		}
-		d = initxattrdest(dest, s)
-	}
-
-	return s, nil
-}
-
-func Flistxattr(fd int, dest []byte) (sz int, err error) {
-	d := initxattrdest(dest, 0)
-	destsiz := len(dest)
-
-	s := 0
-	for _, nsid := range [...]int{EXTATTR_NAMESPACE_USER, EXTATTR_NAMESPACE_SYSTEM} {
-		stmp, e := ExtattrListFd(fd, nsid, uintptr(d), destsiz)
-		if e != nil && e == EPERM && nsid != EXTATTR_NAMESPACE_USER {
-			continue
-		} else if e != nil {
-			return s, e
-		}
-
-		s += stmp
-		destsiz -= s
-		if destsiz < 0 {
-			destsiz = 0
-		}
-		d = initxattrdest(dest, s)
-	}
-
-	return s, nil
-}
-
-func Llistxattr(link string, dest []byte) (sz int, err error) {
-	d := initxattrdest(dest, 0)
-	destsiz := len(dest)
-
-	s := 0
-	for _, nsid := range [...]int{EXTATTR_NAMESPACE_USER, EXTATTR_NAMESPACE_SYSTEM} {
-		stmp, e := ExtattrListLink(link, nsid, uintptr(d), destsiz)
-		if e != nil && e == EPERM && nsid != EXTATTR_NAMESPACE_USER {
-			continue
-		} else if e != nil {
-			return s, e
-		}
-
-		s += stmp
-		destsiz -= s
-		if destsiz < 0 {
-			destsiz = 0
-		}
-		d = initxattrdest(dest, s)
-	}
-
-	return s, nil
 }
 
 //sys   ioctl(fd int, req uint, arg uintptr) (err error)
@@ -364,11 +198,11 @@ func IoctlSetInt(fd int, req uint, value int) error {
 	return ioctl(fd, req, uintptr(value))
 }
 
-func IoctlSetWinsize(fd int, req uint, value *Winsize) error {
+func ioctlSetWinsize(fd int, req uint, value *Winsize) error {
 	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
 }
 
-func IoctlSetTermios(fd int, req uint, value *Termios) error {
+func ioctlSetTermios(fd int, req uint, value *Termios) error {
 	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
 }
 
@@ -438,6 +272,241 @@ func Uname(uname *Utsname) error {
 	return nil
 }
 
+func Stat(path string, st *Stat_t) (err error) {
+	var oldStat stat_freebsd11_t
+	if supportsABI(_ino64First) {
+		return fstatat_freebsd12(AT_FDCWD, path, st, 0)
+	}
+	err = stat(path, &oldStat)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStat)
+	return nil
+}
+
+func Lstat(path string, st *Stat_t) (err error) {
+	var oldStat stat_freebsd11_t
+	if supportsABI(_ino64First) {
+		return fstatat_freebsd12(AT_FDCWD, path, st, AT_SYMLINK_NOFOLLOW)
+	}
+	err = lstat(path, &oldStat)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStat)
+	return nil
+}
+
+func Fstat(fd int, st *Stat_t) (err error) {
+	var oldStat stat_freebsd11_t
+	if supportsABI(_ino64First) {
+		return fstat_freebsd12(fd, st)
+	}
+	err = fstat(fd, &oldStat)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStat)
+	return nil
+}
+
+func Fstatat(fd int, path string, st *Stat_t, flags int) (err error) {
+	var oldStat stat_freebsd11_t
+	if supportsABI(_ino64First) {
+		return fstatat_freebsd12(fd, path, st, flags)
+	}
+	err = fstatat(fd, path, &oldStat, flags)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStat)
+	return nil
+}
+
+func Statfs(path string, st *Statfs_t) (err error) {
+	var oldStatfs statfs_freebsd11_t
+	if supportsABI(_ino64First) {
+		return statfs_freebsd12(path, st)
+	}
+	err = statfs(path, &oldStatfs)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStatfs)
+	return nil
+}
+
+func Fstatfs(fd int, st *Statfs_t) (err error) {
+	var oldStatfs statfs_freebsd11_t
+	if supportsABI(_ino64First) {
+		return fstatfs_freebsd12(fd, st)
+	}
+	err = fstatfs(fd, &oldStatfs)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStatfs)
+	return nil
+}
+
+func Getdents(fd int, buf []byte) (n int, err error) {
+	return Getdirentries(fd, buf, nil)
+}
+
+func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+	if supportsABI(_ino64First) {
+		return getdirentries_freebsd12(fd, buf, basep)
+	}
+
+	// The old syscall entries are smaller than the new. Use 1/4 of the original
+	// buffer size rounded up to DIRBLKSIZ (see /usr/src/lib/libc/sys/getdirentries.c).
+	oldBufLen := roundup(len(buf)/4, _dirblksiz)
+	oldBuf := make([]byte, oldBufLen)
+	n, err = getdirentries(fd, oldBuf, basep)
+	if err == nil && n > 0 {
+		n = convertFromDirents11(buf, oldBuf[:n])
+	}
+	return
+}
+
+func Mknod(path string, mode uint32, dev uint64) (err error) {
+	var oldDev int
+	if supportsABI(_ino64First) {
+		return mknodat_freebsd12(AT_FDCWD, path, mode, dev)
+	}
+	oldDev = int(dev)
+	return mknod(path, mode, oldDev)
+}
+
+func Mknodat(fd int, path string, mode uint32, dev uint64) (err error) {
+	var oldDev int
+	if supportsABI(_ino64First) {
+		return mknodat_freebsd12(fd, path, mode, dev)
+	}
+	oldDev = int(dev)
+	return mknodat(fd, path, mode, oldDev)
+}
+
+// round x to the nearest multiple of y, larger or equal to x.
+//
+// from /usr/include/sys/param.h Macros for counting and rounding.
+// #define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
+func roundup(x, y int) int {
+	return ((x + y - 1) / y) * y
+}
+
+func (s *Stat_t) convertFrom(old *stat_freebsd11_t) {
+	*s = Stat_t{
+		Dev:      uint64(old.Dev),
+		Ino:      uint64(old.Ino),
+		Nlink:    uint64(old.Nlink),
+		Mode:     old.Mode,
+		Uid:      old.Uid,
+		Gid:      old.Gid,
+		Rdev:     uint64(old.Rdev),
+		Atim:     old.Atim,
+		Mtim:     old.Mtim,
+		Ctim:     old.Ctim,
+		Birthtim: old.Birthtim,
+		Size:     old.Size,
+		Blocks:   old.Blocks,
+		Blksize:  old.Blksize,
+		Flags:    old.Flags,
+		Gen:      uint64(old.Gen),
+	}
+}
+
+func (s *Statfs_t) convertFrom(old *statfs_freebsd11_t) {
+	*s = Statfs_t{
+		Version:     _statfsVersion,
+		Type:        old.Type,
+		Flags:       old.Flags,
+		Bsize:       old.Bsize,
+		Iosize:      old.Iosize,
+		Blocks:      old.Blocks,
+		Bfree:       old.Bfree,
+		Bavail:      old.Bavail,
+		Files:       old.Files,
+		Ffree:       old.Ffree,
+		Syncwrites:  old.Syncwrites,
+		Asyncwrites: old.Asyncwrites,
+		Syncreads:   old.Syncreads,
+		Asyncreads:  old.Asyncreads,
+		// Spare
+		Namemax: old.Namemax,
+		Owner:   old.Owner,
+		Fsid:    old.Fsid,
+		// Charspare
+		// Fstypename
+		// Mntfromname
+		// Mntonname
+	}
+
+	sl := old.Fstypename[:]
+	n := clen(*(*[]byte)(unsafe.Pointer(&sl)))
+	copy(s.Fstypename[:], old.Fstypename[:n])
+
+	sl = old.Mntfromname[:]
+	n = clen(*(*[]byte)(unsafe.Pointer(&sl)))
+	copy(s.Mntfromname[:], old.Mntfromname[:n])
+
+	sl = old.Mntonname[:]
+	n = clen(*(*[]byte)(unsafe.Pointer(&sl)))
+	copy(s.Mntonname[:], old.Mntonname[:n])
+}
+
+func convertFromDirents11(buf []byte, old []byte) int {
+	const (
+		fixedSize    = int(unsafe.Offsetof(Dirent{}.Name))
+		oldFixedSize = int(unsafe.Offsetof(dirent_freebsd11{}.Name))
+	)
+
+	dstPos := 0
+	srcPos := 0
+	for dstPos+fixedSize < len(buf) && srcPos+oldFixedSize < len(old) {
+		dstDirent := (*Dirent)(unsafe.Pointer(&buf[dstPos]))
+		srcDirent := (*dirent_freebsd11)(unsafe.Pointer(&old[srcPos]))
+
+		reclen := roundup(fixedSize+int(srcDirent.Namlen)+1, 8)
+		if dstPos+reclen > len(buf) {
+			break
+		}
+
+		dstDirent.Fileno = uint64(srcDirent.Fileno)
+		dstDirent.Off = 0
+		dstDirent.Reclen = uint16(reclen)
+		dstDirent.Type = srcDirent.Type
+		dstDirent.Pad0 = 0
+		dstDirent.Namlen = uint16(srcDirent.Namlen)
+		dstDirent.Pad1 = 0
+
+		copy(dstDirent.Name[:], srcDirent.Name[:srcDirent.Namlen])
+		padding := buf[dstPos+fixedSize+int(dstDirent.Namlen) : dstPos+reclen]
+		for i := range padding {
+			padding[i] = 0
+		}
+
+		dstPos += int(dstDirent.Reclen)
+		srcPos += int(srcDirent.Reclen)
+	}
+
+	return dstPos
+}
+
+func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+	if raceenabled {
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	return sendfile(outfd, infd, offset, count)
+}
+
 /*
  * Exposed directly
  */
@@ -477,13 +546,16 @@ func Uname(uname *Utsname) error {
 //sys	Fchownat(dirfd int, path string, uid int, gid int, flags int) (err error)
 //sys	Flock(fd int, how int) (err error)
 //sys	Fpathconf(fd int, name int) (val int, err error)
-//sys	Fstat(fd int, stat *Stat_t) (err error)
-//sys	Fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
-//sys	Fstatfs(fd int, stat *Statfs_t) (err error)
+//sys	fstat(fd int, stat *stat_freebsd11_t) (err error)
+//sys	fstat_freebsd12(fd int, stat *Stat_t) (err error)
+//sys	fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error)
+//sys	fstatat_freebsd12(fd int, path string, stat *Stat_t, flags int) (err error)
+//sys	fstatfs(fd int, stat *statfs_freebsd11_t) (err error)
+//sys	fstatfs_freebsd12(fd int, stat *Statfs_t) (err error)
 //sys	Fsync(fd int) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
-//sys	Getdents(fd int, buf []byte) (n int, err error)
-//sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error)
+//sys	getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error)
+//sys	getdirentries_freebsd12(fd int, buf []byte, basep *uintptr) (n int, err error)
 //sys	Getdtablesize() (size int)
 //sysnb	Getegid() (egid int)
 //sysnb	Geteuid() (uid int)
@@ -505,11 +577,13 @@ func Uname(uname *Utsname) error {
 //sys	Link(path string, link string) (err error)
 //sys	Linkat(pathfd int, path string, linkfd int, link string, flags int) (err error)
 //sys	Listen(s int, backlog int) (err error)
-//sys	Lstat(path string, stat *Stat_t) (err error)
+//sys	lstat(path string, stat *stat_freebsd11_t) (err error)
 //sys	Mkdir(path string, mode uint32) (err error)
 //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
 //sys	Mkfifo(path string, mode uint32) (err error)
-//sys	Mknod(path string, mode uint32, dev int) (err error)
+//sys	mknod(path string, mode uint32, dev int) (err error)
+//sys	mknodat(fd int, path string, mode uint32, dev int) (err error)
+//sys	mknodat_freebsd12(fd int, path string, mode uint32, dev uint64) (err error)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Openat(fdat int, path string, mode int, perm uint32) (fd int, err error)
@@ -539,8 +613,9 @@ func Uname(uname *Utsname) error {
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
-//sys	Stat(path string, stat *Stat_t) (err error)
-//sys	Statfs(path string, stat *Statfs_t) (err error)
+//sys	stat(path string, stat *stat_freebsd11_t) (err error)
+//sys	statfs(path string, stat *statfs_freebsd11_t) (err error)
+//sys	statfs_freebsd12(path string, stat *Statfs_t) (err error)
 //sys	Symlink(path string, link string) (err error)
 //sys	Symlinkat(oldpath string, newdirfd int, newpath string) (err error)
 //sys	Sync() (err error)
@@ -595,6 +670,7 @@ func Uname(uname *Utsname) error {
 // Kqueue_portset
 // Getattrlist
 // Setattrlist
+// Getdents
 // Getdirentriesattr
 // Searchfs
 // Delete
@@ -602,14 +678,6 @@ func Uname(uname *Utsname) error {
 // Watchevent
 // Waitevent
 // Modwatch
-// Getxattr
-// Fgetxattr
-// Setxattr
-// Fsetxattr
-// Removexattr
-// Fremovexattr
-// Listxattr
-// Flistxattr
 // Fsctl
 // Initgroups
 // Posix_spawn

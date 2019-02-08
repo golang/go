@@ -107,13 +107,15 @@ func Global() Value {
 //  | ---------------------- | ---------------------- |
 //  | js.Value               | [its value]            |
 //  | js.TypedArray          | typed array            |
-//  | js.Callback            | function               |
+//  | js.Func                | function               |
 //  | nil                    | null                   |
 //  | bool                   | boolean                |
 //  | integers and floats    | number                 |
 //  | string                 | string                 |
 //  | []interface{}          | new array              |
 //  | map[string]interface{} | new object             |
+//
+// Panics if x is not one of the expected types.
 func ValueOf(x interface{}) Value {
 	switch x := x.(type) {
 	case Value: // should precede Wrapper to avoid a loop

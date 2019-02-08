@@ -866,11 +866,53 @@ func (tg *testgoData) failSSH() {
 
 func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	if testing.Short() {
-		t.Skip("don't rebuild the standard library in short mode")
+		t.Skip("skipping lengthy test in short mode")
 	}
 
 	tg := testgo(t)
 	defer tg.cleanup()
+
+	// Copy the runtime packages into a temporary GOROOT
+	// so that we can change files.
+	for _, copydir := range []string{
+		"src/runtime",
+		"src/internal/bytealg",
+		"src/internal/cpu",
+		"src/unsafe",
+		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
+		filepath.Join("pkg/tool", runtime.GOOS+"_"+runtime.GOARCH),
+		"pkg/include",
+	} {
+		srcdir := filepath.Join(testGOROOT, copydir)
+		tg.tempDir(filepath.Join("goroot", copydir))
+		err := filepath.Walk(srcdir,
+			func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if info.IsDir() {
+					return nil
+				}
+				srcrel, err := filepath.Rel(srcdir, path)
+				if err != nil {
+					return err
+				}
+				dest := filepath.Join("goroot", copydir, srcrel)
+				data, err := ioutil.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				tg.tempFile(dest, string(data))
+				if err := os.Chmod(tg.path(dest), info.Mode()); err != nil {
+					return err
+				}
+				return nil
+			})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	tg.setenv("GOROOT", tg.path("goroot"))
 
 	addVar := func(name string, idx int) (restore func()) {
 		data, err := ioutil.ReadFile(name)
@@ -900,7 +942,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	// Changing mtime of runtime/internal/sys/sys.go
 	// should have no effect: only the content matters.
 	// In fact this should be true even outside a release branch.
-	sys := runtime.GOROOT() + "/src/runtime/internal/sys/sys.go"
+	sys := tg.path("goroot/src/runtime/internal/sys/sys.go")
 	tg.sleep()
 	restore := addVar(sys, 0)
 	restore()
@@ -915,7 +957,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	restore()
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after changing back to old release")
 	addVar(sys, 2)
-	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go again")
+	tg.wantStale("p1", "stale dependency: runtime", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go again")
 	tg.run("install", "-i", "p1")
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with new release")
 
@@ -924,9 +966,6 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after restoring sys.go")
 	tg.run("install", "-i", "p1")
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
-
-	// Everything is out of date. Rebuild to leave things in a better state.
-	tg.run("install", "std")
 }
 
 func testLocalRun(tg *testgoData, exepath, local, match string) {
@@ -1205,22 +1244,6 @@ func TestImportCycle(t *testing.T) {
 
 	// Don't hang forever.
 	tg.run("list", "-e", "-json", "selfimport")
-}
-
-func TestListImportMap(t *testing.T) {
-	skipIfGccgo(t, "gccgo does not have standard packages")
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.run("list", "-f", "{{.ImportPath}}: {{.ImportMap}}", "net", "fmt")
-	tg.grepStdout(`^net: map\[(.* )?golang_org/x/net/dns/dnsmessage:vendor/golang_org/x/net/dns/dnsmessage.*\]`, "net/http should have rewritten dnsmessage import")
-	tg.grepStdout(`^fmt: map\[\]`, "fmt should have no rewritten imports")
-	tg.run("list", "-deps", "-test", "-f", "{{.ImportPath}} MAP: {{.ImportMap}}\n{{.ImportPath}} IMPORT: {{.Imports}}", "fmt")
-	tg.grepStdout(`^flag \[fmt\.test\] MAP: map\[fmt:fmt \[fmt\.test\]\]`, "flag [fmt.test] should import fmt [fmt.test] as fmt")
-	tg.grepStdout(`^fmt\.test MAP: map\[(.* )?testing:testing \[fmt\.test\]`, "fmt.test should import testing [fmt.test] as testing")
-	tg.grepStdout(`^fmt\.test MAP: map\[(.* )?testing:testing \[fmt\.test\]`, "fmt.test should import testing [fmt.test] as testing")
-	tg.grepStdoutNot(`^fmt\.test MAP: map\[(.* )?os:`, "fmt.test should not import a modified os")
-	tg.grepStdout(`^fmt\.test IMPORT: \[fmt \[fmt\.test\] fmt_test \[fmt\.test\] os testing \[fmt\.test\] testing/internal/testdeps \[fmt\.test\]\]`, "wrong imports for fmt.test")
 }
 
 // cmd/go: custom import path checking should not apply to Go packages without import comment.
@@ -1787,11 +1810,11 @@ func TestGoListDeps(t *testing.T) {
 	if runtime.Compiler != "gccgo" {
 		// Check the list is in dependency order.
 		tg.run("list", "-deps", "math")
-		want := "internal/cpu\nunsafe\nmath\n"
+		want := "internal/cpu\nunsafe\nmath/bits\nmath\n"
 		out := tg.stdout.String()
 		if !strings.Contains(out, "internal/cpu") {
 			// Some systems don't use internal/cpu.
-			want = "unsafe\nmath\n"
+			want = "unsafe\nmath/bits\nmath\n"
 		}
 		if tg.stdout.String() != want {
 			t.Fatalf("list -deps math: wrong order\nhave %q\nwant %q", tg.stdout.String(), want)
@@ -5035,7 +5058,8 @@ func TestExecBuildX(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 
-	tg.setenv("GOCACHE", "off")
+	tg.tempDir("cache")
+	tg.setenv("GOCACHE", tg.path("cache"))
 
 	tg.tempFile("main.go", `package main; import "C"; func main() { print("hello") }`)
 	src := tg.path("main.go")
@@ -5566,30 +5590,6 @@ func TestTestCacheInputs(t *testing.T) {
 	}
 }
 
-func TestNoCache(t *testing.T) {
-	switch runtime.GOOS {
-	case "windows":
-		t.Skipf("no unwritable directories on %s", runtime.GOOS)
-	}
-	if os.Getuid() == 0 {
-		t.Skip("skipping test because running as root")
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempFile("triv.go", `package main; func main() {}`)
-	tg.must(os.MkdirAll(tg.path("unwritable"), 0555))
-	home := "HOME"
-	if runtime.GOOS == "plan9" {
-		home = "home"
-	}
-	tg.setenv(home, tg.path(filepath.Join("unwritable", "home")))
-	tg.unsetenv("GOCACHE")
-	tg.run("build", "-o", tg.path("triv"), tg.path("triv.go"))
-	tg.grepStderr("disabling cache", "did not disable cache")
-}
-
 func TestTestVet(t *testing.T) {
 	tooSlow(t)
 	tg := testgo(t)
@@ -5737,17 +5737,6 @@ func TestFmtLoadErrors(t *testing.T) {
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("fmt", "does-not-exist")
 	tg.run("fmt", "-n", "exclude")
-}
-
-func TestRelativePkgdir(t *testing.T) {
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOCACHE", "off")
-	tg.cd(tg.tempdir)
-
-	tg.run("build", "-i", "-pkgdir=.", "runtime")
 }
 
 func TestGoTestMinusN(t *testing.T) {
@@ -6129,28 +6118,6 @@ func TestDontReportRemoveOfEmptyDir(t *testing.T) {
 	if bytes.Count(tg.stdout.Bytes(), []byte{'\n'})+bytes.Count(tg.stderr.Bytes(), []byte{'\n'}) > 1 {
 		t.Error("unnecessary output when installing installed package")
 	}
-}
-
-// Issue 23264.
-func TestNoRelativeTmpdir(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-
-	tg.tempFile("src/a/a.go", `package a`)
-	tg.cd(tg.path("."))
-	tg.must(os.Mkdir("tmp", 0777))
-
-	tg.setenv("GOCACHE", "off")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.setenv("GOTMPDIR", "tmp")
-	tg.run("build", "-work", "a")
-	tg.grepStderr("WORK=[^t]", "work should be absolute path")
-
-	tg.unsetenv("GOTMPDIR")
-	tg.setenv("TMP", "tmp")    // windows
-	tg.setenv("TMPDIR", "tmp") // unix
-	tg.run("build", "-work", "a")
-	tg.grepStderr("WORK=[^t]", "work should be absolute path")
 }
 
 // Issue 24704.

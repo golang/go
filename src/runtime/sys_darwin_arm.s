@@ -417,6 +417,29 @@ TEXT runtime·syscall(SB),NOSPLIT,$0
 ok:
 	RET
 
+// syscallPtr is like syscall except the libc function reports an
+// error by returning NULL.
+TEXT runtime·syscallPtr(SB),NOSPLIT,$0
+	MOVW.W	R0, -4(R13)	// push structure pointer
+	MOVW	0(R0), R12	// fn
+	MOVW	8(R0), R1	// a2
+	MOVW	12(R0), R2	// a3
+	MOVW	4(R0), R0	// a1
+	BL	(R12)
+	MOVW.P	4(R13), R2	// pop structure pointer
+	MOVW	R0, 16(R2)	// save r1
+	MOVW	R1, 20(R2)	// save r2
+	MOVW	$0, R3
+	CMP	R0, R3
+	BNE	ok
+	MOVW.W	R2, -4(R13)	// push structure pointer
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	MOVW.P	4(R13), R2	// pop structure pointer
+	MOVW	R0, 24(R2)	// save err
+ok:
+	RET
+
 // syscall6 calls a function in libc on behalf of the syscall package.
 // syscall6 takes a pointer to a struct like:
 // struct {

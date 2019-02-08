@@ -317,6 +317,7 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 		growWork_faststr(t, h, bucket)
 	}
 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+	bOrig := b
 	top := tophash(hash)
 search:
 	for ; b != nil; b = b.overflow(t) {
@@ -337,7 +338,36 @@ search:
 				memclrNoHeapPointers(v, t.elem.size)
 			}
 			b.tophash[i] = emptyOne
-			// TODO: emptyRest
+			// If the bucket now ends in a bunch of emptyOne states,
+			// change those to emptyRest states.
+			if i == bucketCnt-1 {
+				if b.overflow(t) != nil && b.overflow(t).tophash[0] != emptyRest {
+					goto notLast
+				}
+			} else {
+				if b.tophash[i+1] != emptyRest {
+					goto notLast
+				}
+			}
+			for {
+				b.tophash[i] = emptyRest
+				if i == 0 {
+					if b == bOrig {
+						break // beginning of initial bucket, we're done.
+					}
+					// Find previous bucket, continue at its last entry.
+					c := b
+					for b = bOrig; b.overflow(t) != c; b = b.overflow(t) {
+					}
+					i = bucketCnt - 1
+				} else {
+					i--
+				}
+				if b.tophash[i] != emptyOne {
+					break
+				}
+			}
+		notLast:
 			h.count--
 			break search
 		}

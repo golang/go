@@ -156,7 +156,7 @@ func racecallback(cmd uintptr, ctx unsafe.Pointer) {
 }
 
 func raceSymbolizeCode(ctx *symbolizeCodeContext) {
-	f := FuncForPC(ctx.pc)
+	f := findfunc(ctx.pc)._Func()
 	if f != nil {
 		file, line := f.FileLine(ctx.pc)
 		if line != 0 {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package unix_test
 
@@ -145,6 +145,9 @@ func TestFcntlFlock(t *testing.T) {
 func TestPassFD(t *testing.T) {
 	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
 		t.Skip("cannot exec subprocess on iOS, skipping test")
+	}
+	if runtime.GOOS == "aix" {
+		t.Skip("getsockname issue on AIX 7.2 tl1, skipping test")
 	}
 
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
@@ -334,6 +337,12 @@ func TestRlimit(t *testing.T) {
 	}
 	set := rlimit
 	set.Cur = set.Max - 1
+	if runtime.GOOS == "darwin" && set.Cur > 10240 {
+		// The max file limit is 10240, even though
+		// the max returned by Getrlimit is 1<<63-1.
+		// This is OPEN_MAX in sys/syslimits.h.
+		set.Cur = 10240
+	}
 	err = unix.Setrlimit(unix.RLIMIT_NOFILE, &set)
 	if err != nil {
 		t.Fatalf("Setrlimit: set failed: %#v %v", set, err)
@@ -450,9 +459,9 @@ func TestGetwd(t *testing.T) {
 		t.Fatalf("Open .: %s", err)
 	}
 	defer fd.Close()
-	// These are chosen carefully not to be symlinks on a Mac
-	// (unlike, say, /var, /etc)
-	dirs := []string{"/", "/usr/bin"}
+	// Directory list for test. Do not worry if any are symlinks or do not
+	// exist on some common unix desktop environments. That will be checked.
+	dirs := []string{"/", "/usr/bin", "/etc", "/var", "/opt"}
 	switch runtime.GOOS {
 	case "android":
 		dirs = []string{"/", "/system/bin"}
@@ -472,6 +481,17 @@ func TestGetwd(t *testing.T) {
 	}
 	oldwd := os.Getenv("PWD")
 	for _, d := range dirs {
+		// Check whether d exists, is a dir and that d's path does not contain a symlink
+		fi, err := os.Stat(d)
+		if err != nil || !fi.IsDir() {
+			t.Logf("Test dir %s stat error (%v) or not a directory, skipping", d, err)
+			continue
+		}
+		check, err := filepath.EvalSymlinks(d)
+		if err != nil || check != d {
+			t.Logf("Test dir %s (%s) is symlink or other error (%v), skipping", d, check, err)
+			continue
+		}
 		err = os.Chdir(d)
 		if err != nil {
 			t.Fatalf("Chdir: %v", err)

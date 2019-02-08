@@ -106,8 +106,11 @@ func isBoringCertificate(c *x509.Certificate) bool {
 // supportedSignatureAlgorithms returns the supported signature algorithms.
 // It knows that the FIPS-allowed ones are all at the beginning of
 // defaultSupportedSignatureAlgorithms.
-func supportedSignatureAlgorithms() []SignatureScheme {
+func supportedSignatureAlgorithms(version uint16) []SignatureScheme {
 	all := defaultSupportedSignatureAlgorithms
+	if version < VersionTLS13 {
+		all = defaultSupportedSignatureAlgorithmsTLS12
+	}
 	if !needFIPS() {
 		return all
 	}

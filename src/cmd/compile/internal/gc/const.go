@@ -584,11 +584,19 @@ func Isconst(n *Node, ct Ctype) bool {
 
 // evconst rewrites constant expressions into OLITERAL nodes.
 func evconst(n *Node) {
+	if !n.isGoConst() {
+		// Avoid constant evaluation of things that aren't actually constants
+		// according to the spec. See issue 24760.
+		// The SSA backend has a more robust optimizer that will catch
+		// all of these weird cases (like uintptr(unsafe.Pointer(uintptr(1)))).
+		return
+	}
+
 	nl, nr := n.Left, n.Right
 
 	// Pick off just the opcodes that can be constant evaluated.
 	switch op := n.Op; op {
-	case OPLUS, OMINUS, OCOM, ONOT:
+	case OPLUS, ONEG, OBITNOT, ONOT:
 		if nl.Op == OLITERAL {
 			setconst(n, unaryOp(op, nl.Val(), n.Type))
 		}
@@ -623,7 +631,7 @@ func evconst(n *Node) {
 			setconst(n, convlit1(nl, n.Type, true, false).Val())
 		}
 
-	case OARRAYBYTESTR:
+	case OBYTES2STR:
 		// string([]byte(nil)) or string([]rune(nil))
 		if nl.Op == OLITERAL && nl.Val().Ctype() == CTNIL {
 			setconst(n, Val{U: ""})
@@ -873,7 +881,7 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
 			return x
 		}
 
-	case OMINUS:
+	case ONEG:
 		switch x.Ctype() {
 		case CTINT, CTRUNE:
 			x := x.U.(*Mpint)
@@ -900,7 +908,7 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
 			return Val{U: u}
 		}
 
-	case OCOM:
+	case OBITNOT:
 		x := x.U.(*Mpint)
 
 		u := new(Mpint)
@@ -1024,9 +1032,9 @@ func idealkind(n *Node) Ctype {
 	case OADD,
 		OAND,
 		OANDNOT,
-		OCOM,
+		OBITNOT,
 		ODIV,
-		OMINUS,
+		ONEG,
 		OMOD,
 		OMUL,
 		OSUB,
@@ -1221,6 +1229,7 @@ func strlit(n *Node) string {
 	return n.Val().U.(string)
 }
 
+// TODO(gri) smallintconst is only used in one place - can we used indexconst?
 func smallintconst(n *Node) bool {
 	if n.Op == OLITERAL && Isconst(n, CTINT) && n.Type != nil {
 		switch simtype[n.Type.Etype] {
@@ -1235,7 +1244,7 @@ func smallintconst(n *Node) bool {
 
 		case TIDEAL, TINT64, TUINT64, TPTR:
 			v, ok := n.Val().U.(*Mpint)
-			if ok && v.Cmp(minintval[TINT32]) > 0 && v.Cmp(maxintval[TINT32]) < 0 {
+			if ok && v.Cmp(minintval[TINT32]) >= 0 && v.Cmp(maxintval[TINT32]) <= 0 {
 				return true
 			}
 		}
@@ -1244,20 +1253,23 @@ func smallintconst(n *Node) bool {
 	return false
 }
 
-// nonnegintconst checks if Node n contains a constant expression
-// representable as a non-negative small integer, and returns its
-// (integer) value if that's the case. Otherwise, it returns -1.
-func nonnegintconst(n *Node) int64 {
+// indexconst checks if Node n contains a constant expression
+// representable as a non-negative int and returns its value.
+// If n is not a constant expression, not representable as an
+// integer, or negative, it returns -1. If n is too large, it
+// returns -2.
+func indexconst(n *Node) int64 {
 	if n.Op != OLITERAL {
 		return -1
 	}
 
-	// toint will leave n.Val unchanged if it's not castable to an
-	// Mpint, so we still have to guard the conversion.
-	v := toint(n.Val())
+	v := toint(n.Val()) // toint returns argument unchanged if not representable as an *Mpint
 	vi, ok := v.U.(*Mpint)
-	if !ok || vi.CmpInt64(0) < 0 || vi.Cmp(maxintval[TINT32]) > 0 {
+	if !ok || vi.CmpInt64(0) < 0 {
 		return -1
+	}
+	if vi.Cmp(maxintval[TINT]) > 0 {
+		return -2
 	}
 
 	return vi.Int64()
@@ -1268,7 +1280,7 @@ func nonnegintconst(n *Node) int64 {
 //
 // Expressions derived from nil, like string([]byte(nil)), while they
 // may be known at compile time, are not Go language constants.
-// Only called for expressions known to evaluated to compile-time
+// Only called for expressions known to evaluate to compile-time
 // constants.
 func (n *Node) isGoConst() bool {
 	if n.Orig != nil {
@@ -1277,11 +1289,10 @@ func (n *Node) isGoConst() bool {
 
 	switch n.Op {
 	case OADD,
-		OADDSTR,
 		OAND,
 		OANDAND,
 		OANDNOT,
-		OCOM,
+		OBITNOT,
 		ODIV,
 		OEQ,
 		OGE,
@@ -1289,7 +1300,7 @@ func (n *Node) isGoConst() bool {
 		OLE,
 		OLSH,
 		OLT,
-		OMINUS,
+		ONEG,
 		OMOD,
 		OMUL,
 		ONE,
@@ -1301,14 +1312,26 @@ func (n *Node) isGoConst() bool {
 		OSUB,
 		OXOR,
 		OIOTA,
-		OCOMPLEX,
 		OREAL,
 		OIMAG:
 		if n.Left.isGoConst() && (n.Right == nil || n.Right.isGoConst()) {
 			return true
 		}
 
-	case OCONV:
+	case OCOMPLEX:
+		if n.List.Len() == 0 && n.Left.isGoConst() && n.Right.isGoConst() {
+			return true
+		}
+
+	case OADDSTR:
+		for _, n1 := range n.List.Slice() {
+			if !n1.isGoConst() {
+				return false
+			}
+		}
+		return true
+
+	case OCONV, OCONVNOP:
 		if okforconst[n.Type.Etype] && n.Left.isGoConst() {
 			return true
 		}

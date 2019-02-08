@@ -1,7 +1,5 @@
 // 386-specific vet whitelist. See readme.txt for details.
 
-internal/bytealg/compare_386.s: [386] cannot check cross-package assembly function: cmpstring is in package runtime
-
 // startup code uses non-standard calling convention and intentionally
 // omits args.
 runtime/asm_386.s: [386] rt0_go: use of 4(SP) points beyond argument frame

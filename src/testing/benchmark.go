@@ -230,7 +230,7 @@ func roundUp(n int) int {
 	}
 }
 
-// run1 runs the first iteration of benchFunc. It returns whether more
+// run1 runs the first iteration of benchFunc. It reports whether more
 // iterations of this benchmarks should be run.
 func (b *B) run1() bool {
 	if ctx := b.context; ctx != nil {

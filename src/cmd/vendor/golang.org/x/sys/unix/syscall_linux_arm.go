@@ -257,3 +257,11 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
 	}
 	return poll(&fds[0], len(fds), timeout)
 }
+
+//sys	armSyncFileRange(fd int, flags int, off int64, n int64) (err error) = SYS_ARM_SYNC_FILE_RANGE
+
+func SyncFileRange(fd int, off int64, n int64, flags int) error {
+	// The sync_file_range and arm_sync_file_range syscalls differ only in the
+	// order of their arguments.
+	return armSyncFileRange(fd, flags, off, n)
+}

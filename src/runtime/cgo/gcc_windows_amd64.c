@@ -7,6 +7,7 @@
 #include <process.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 #include "libcgo.h"
 
 static void threadentry(void*);

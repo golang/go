@@ -6,8 +6,10 @@ package modfetch
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 
 	"cmd/go/internal/cfg"
@@ -45,11 +47,8 @@ type Repo interface {
 	// GoMod returns the go.mod file for the given version.
 	GoMod(version string) (data []byte, err error)
 
-	// Zip downloads a zip file for the given version
-	// to a new file in a given temporary directory.
-	// It returns the name of the new file.
-	// The caller should remove the file when finished with it.
-	Zip(version, tmpdir string) (tmpfile string, err error)
+	// Zip writes a zip file for the given version to dst.
+	Zip(dst io.Writer, version string) error
 }
 
 // A Rev describes a single revision in a module repository.
@@ -357,7 +356,11 @@ func (l *loggingRepo) GoMod(version string) ([]byte, error) {
 	return l.r.GoMod(version)
 }
 
-func (l *loggingRepo) Zip(version, tmpdir string) (string, error) {
-	defer logCall("Repo[%s]: Zip(%q, %q)", l.r.ModulePath(), version, tmpdir)()
-	return l.r.Zip(version, tmpdir)
+func (l *loggingRepo) Zip(dst io.Writer, version string) error {
+	dstName := "_"
+	if dst, ok := dst.(interface{ Name() string }); ok {
+		dstName = strconv.Quote(dst.Name())
+	}
+	defer logCall("Repo[%s]: Zip(%s, %q)", l.r.ModulePath(), dstName, version)()
+	return l.r.Zip(dst, version)
 }

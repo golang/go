@@ -259,6 +259,7 @@ func (e *InvalidUTF8Error) Error() string {
 	return "json: invalid UTF-8 in string: " + strconv.Quote(e.S)
 }
 
+// A MarshalerError represents an error from calling a MarshalJSON or MarshalText method.
 type MarshalerError struct {
 	Type reflect.Type
 	Err  error

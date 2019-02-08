@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"golang_org/x/net/http/httpguts"
+	"internal/x/net/http/httpguts"
 )
 
 // maxInt64 is the effective "infinite" value for the Server and
@@ -57,6 +57,17 @@ func isASCII(s string) bool {
 		}
 	}
 	return true
+}
+
+// stringContainsCTLByte reports whether s contains any ASCII control character.
+func stringContainsCTLByte(s string) bool {
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if b < ' ' || b == 0x7f {
+			return true
+		}
+	}
+	return false
 }
 
 func hexEscapeNonASCII(s string) string {

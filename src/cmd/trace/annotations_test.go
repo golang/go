@@ -11,7 +11,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"internal/traceparser"
+	traceparser "internal/trace"
 	"io/ioutil"
 	"reflect"
 	"runtime/debug"
@@ -338,8 +338,10 @@ func traceProgram(t *testing.T, f func(), name string) error {
 	trace.Stop()
 
 	saveTrace(buf, name)
-	res, err := traceparser.ParseBuffer(buf)
-	if err != nil {
+	res, err := traceparser.Parse(buf, name+".faketrace")
+	if err == traceparser.ErrTimeOrder {
+		t.Skipf("skipping due to golang.org/issue/16755: %v", err)
+	} else if err != nil {
 		return err
 	}
 
@@ -368,15 +370,15 @@ func childrenNames(task *taskDesc) (ret []string) {
 	return ret
 }
 
-func swapLoaderData(res *traceparser.Parsed, err error) {
+func swapLoaderData(res traceparser.ParseResult, err error) {
 	// swap loader's data.
 	parseTrace() // fool loader.once.
 
 	loader.res = res
 	loader.err = err
 
-	analyzeGoroutines(res) // fool gsInit once.
-	gs = res.GoroutineStats()
+	analyzeGoroutines(nil) // fool gsInit once.
+	gs = traceparser.GoroutineStats(res.Events)
 
 }
 

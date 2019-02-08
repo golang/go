@@ -767,10 +767,10 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 
 	if src.IsSlice() && dst.IsString() {
 		if src.Elem().Etype == types.Bytetype.Etype {
-			return OARRAYBYTESTR
+			return OBYTES2STR
 		}
 		if src.Elem().Etype == types.Runetype.Etype {
-			return OARRAYRUNESTR
+			return ORUNES2STR
 		}
 	}
 
@@ -778,10 +778,10 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 	// String to slice.
 	if src.IsString() && dst.IsSlice() {
 		if dst.Elem().Etype == types.Bytetype.Etype {
-			return OSTRARRAYBYTE
+			return OSTR2BYTES
 		}
 		if dst.Elem().Etype == types.Runetype.Etype {
-			return OSTRARRAYRUNE
+			return OSTR2RUNES
 		}
 	}
 
@@ -999,14 +999,14 @@ func calcHasCall(n *Node) bool {
 			return true
 		}
 	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR,
-		OIND, ODOTPTR, ODOTTYPE, ODIV, OMOD:
+		ODEREF, ODOTPTR, ODOTTYPE, ODIV, OMOD:
 		// These ops might panic, make sure they are done
 		// before we start marshaling args for a call. See issue 16760.
 		return true
 
 	// When using soft-float, these ops might be rewritten to function calls
 	// so we ensure they are evaluated first.
-	case OADD, OSUB, OMINUS:
+	case OADD, OSUB, ONEG, OMUL:
 		if thearch.SoftFloat && (isFloat[n.Type.Etype] || isComplex[n.Type.Etype]) {
 			return true
 		}
@@ -1116,11 +1116,11 @@ func safeexpr(n *Node, init *Nodes) *Node {
 		}
 		r := n.copy()
 		r.Left = l
-		r = typecheck(r, Erv)
+		r = typecheck(r, ctxExpr)
 		r = walkexpr(r, init)
 		return r
 
-	case ODOTPTR, OIND:
+	case ODOTPTR, ODEREF:
 		l := safeexpr(n.Left, init)
 		if l == n.Left {
 			return n
@@ -1158,7 +1158,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
 func copyexpr(n *Node, t *types.Type, init *Nodes) *Node {
 	l := temp(t)
 	a := nod(OAS, l, n)
-	a = typecheck(a, Etop)
+	a = typecheck(a, ctxStmt)
 	a = walkexpr(a, init)
 	init.Append(a)
 	return l
@@ -1308,7 +1308,7 @@ func dotpath(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) (
 // will give shortest unique addressing.
 // modify the tree with missing type names.
 func adddot(n *Node) *Node {
-	n.Left = typecheck(n.Left, Etype|Erv)
+	n.Left = typecheck(n.Left, Etype|ctxExpr)
 	if n.Left.Diag() {
 		n.SetDiag(true)
 	}
@@ -1478,7 +1478,7 @@ func structargs(tl *types.Type, mustname bool) []*Node {
 		}
 		a := symfield(s, t.Type)
 		a.Pos = t.Pos
-		a.SetIsddd(t.Isddd())
+		a.SetIsDDD(t.IsDDD())
 		args = append(args, a)
 	}
 
@@ -1517,8 +1517,9 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		return
 	}
 
-	// Only generate I.M wrappers for I in I's own package.
-	if rcvr.IsInterface() && rcvr.Sym != nil && rcvr.Sym.Pkg != localpkg {
+	// Only generate I.M wrappers for I in I's own package
+	// but keep doing it for error.Error (was issue #29304).
+	if rcvr.IsInterface() && rcvr.Sym != nil && rcvr.Sym.Pkg != localpkg && rcvr != types.Errortype {
 		return
 	}
 
@@ -1571,7 +1572,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		fn.Func.SetWrapper(true) // ignore frame for panic+recover matching
 		call := nod(OCALL, dot, nil)
 		call.List.Set(paramNnames(tfn.Type))
-		call.SetIsddd(tfn.Type.IsVariadic())
+		call.SetIsDDD(tfn.Type.IsVariadic())
 		if method.Type.NumResults() > 0 {
 			n := nod(ORETURN, nil, nil)
 			n.List.Set1(call)
@@ -1589,10 +1590,10 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 		testdclstack()
 	}
 
-	fn = typecheck(fn, Etop)
+	fn = typecheck(fn, ctxStmt)
 
 	Curfn = fn
-	typecheckslice(fn.Nbody.Slice(), Etop)
+	typecheckslice(fn.Nbody.Slice(), ctxStmt)
 
 	// Inline calls within (*T).M wrappers. This is safe because we only
 	// generate those wrappers within the same compilation unit as (T).M.
@@ -1619,6 +1620,7 @@ func hashmem(t *types.Type) *Node {
 
 	n := newname(sym)
 	n.SetClass(PFUNC)
+	n.Sym.SetFunc(true)
 	n.Type = functype(nil, []*Node{
 		anonfield(types.NewPtr(t)),
 		anonfield(types.Types[TUINTPTR]),
@@ -1851,7 +1853,7 @@ func checknil(x *Node, init *Nodes) {
 	x = walkexpr(x, nil) // caller has not done this yet
 	if x.Type.IsInterface() {
 		x = nod(OITAB, x, nil)
-		x = typecheck(x, Erv)
+		x = typecheck(x, ctxExpr)
 	}
 
 	n := nod(OCHECKNIL, x, nil)
@@ -1909,7 +1911,7 @@ func ifaceData(n *Node, t *types.Type) *Node {
 	ptr.Type = types.NewPtr(t)
 	ptr.SetBounded(true)
 	ptr.SetTypecheck(1)
-	ind := nod(OIND, ptr, nil)
+	ind := nod(ODEREF, ptr, nil)
 	ind.Type = t
 	ind.SetTypecheck(1)
 	return ind

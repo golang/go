@@ -62,7 +62,7 @@ func f1c(a []int, i int64) int {
 }
 
 func f2(a []int) int {
-	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1"
+	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
 		a[i+1] = i
 		a[i+1] = i // ERROR "Proved IsInBounds$"
 	}
@@ -269,7 +269,7 @@ func f11b(a []int, i int) {
 
 func f11c(a []int, i int) {
 	useSlice(a[:i])
-	useSlice(a[:i]) // ERROR "Proved IsSliceInBounds$"
+	useSlice(a[:i]) // ERROR "Proved Geq64$" "Proved IsSliceInBounds$"
 }
 
 func f11d(a []int, i int) {
@@ -464,12 +464,12 @@ func f16(s []int) []int {
 }
 
 func f17(b []int) {
-	for i := 0; i < len(b); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1"
+	for i := 0; i < len(b); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
 		// This tests for i <= cap, which we can only prove
 		// using the derived relation between len and cap.
 		// This depends on finding the contradiction, since we
 		// don't query this condition directly.
-		useSlice(b[:i]) // ERROR "Proved IsSliceInBounds$"
+		useSlice(b[:i]) // ERROR "Proved Geq64$" "Proved IsSliceInBounds$"
 	}
 }
 
@@ -486,6 +486,20 @@ func f18(b []int, x int, y uint) {
 	if int(y) > len(b) { // ERROR "Disproved Greater64$"
 		return
 	}
+}
+
+func f19() (e int64, err error) {
+	// Issue 29502: slice[:0] is incorrectly disproved.
+	var stack []int64
+	stack = append(stack, 123)
+	if len(stack) > 1 {
+		panic("too many elements")
+	}
+	last := len(stack) - 1
+	e = stack[last]
+	// Buggy compiler prints "Disproved Geq64" for the next line.
+	stack = stack[:last] // ERROR "Proved IsSliceInBounds"
+	return e, nil
 }
 
 func sm1(b []int, x int) {
@@ -530,7 +544,7 @@ func fence1(b []int, x, y int) {
 	}
 	if len(b) < cap(b) {
 		// This eliminates the growslice path.
-		b = append(b, 1) // ERROR "Disproved Greater64$"
+		b = append(b, 1) // ERROR "Disproved Greater64U$"
 	}
 }
 
@@ -579,18 +593,18 @@ func fence4(x, y int64) {
 func trans1(x, y int64) {
 	if x > 5 {
 		if y > x {
-			if y > 2 { // ERROR "Proved Greater64"
+			if y > 2 { // ERROR "Proved Greater64$"
 				return
 			}
 		} else if y == x {
-			if y > 5 { // ERROR "Proved Greater64"
+			if y > 5 { // ERROR "Proved Greater64$"
 				return
 			}
 		}
 	}
 	if x >= 10 {
 		if y > x {
-			if y > 10 { // ERROR "Proved Greater64"
+			if y > 10 { // ERROR "Proved Greater64$"
 				return
 			}
 		}
@@ -624,7 +638,7 @@ func natcmp(x, y []uint) (r int) {
 	}
 
 	i := m - 1
-	for i > 0 && // ERROR "Induction variable: limits \(0,\?\], increment 1"
+	for i > 0 && // ERROR "Induction variable: limits \(0,\?\], increment 1$"
 		x[i] == // ERROR "Proved IsInBounds$"
 			y[i] { // ERROR "Proved IsInBounds$"
 		i--
@@ -686,7 +700,7 @@ func range2(b [][32]int) {
 		if i < len(b) {    // ERROR "Proved Less64$"
 			println("x")
 		}
-		if i >= 0 { // ERROR "Proved Geq64"
+		if i >= 0 { // ERROR "Proved Geq64$"
 			println("x")
 		}
 	}

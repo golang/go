@@ -590,7 +590,7 @@ func (r *LineReader) SeekPC(pc uint64, entry *LineEntry) error {
 	}
 }
 
-// pathIsAbs returns whether path is an absolute path (or "full path
+// pathIsAbs reports whether path is an absolute path (or "full path
 // name" in DWARF parlance). This is in "whatever form makes sense for
 // the host system", so this accepts both UNIX-style and DOS-style
 // absolute paths. We avoid the filepath package because we want this

@@ -3502,7 +3502,7 @@ func rewriteValueMIPS_OpMIPSMOVBUreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpMIPSMOVBUload, t)
+		v0 := b.NewValue0(x.Pos, OpMIPSMOVBUload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -3663,7 +3663,7 @@ func rewriteValueMIPS_OpMIPSMOVBreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpMIPSMOVBload, t)
+		v0 := b.NewValue0(x.Pos, OpMIPSMOVBload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -4359,7 +4359,7 @@ func rewriteValueMIPS_OpMIPSMOVHUreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpMIPSMOVHUload, t)
+		v0 := b.NewValue0(x.Pos, OpMIPSMOVHUload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -4570,7 +4570,7 @@ func rewriteValueMIPS_OpMIPSMOVHreg_0(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(v.Pos, OpMIPSMOVHload, t)
+		v0 := b.NewValue0(x.Pos, OpMIPSMOVHload, t)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -5625,7 +5625,7 @@ func rewriteValueMIPS_OpMIPSSGTUconst_0(v *Value) bool {
 		return true
 	}
 	// match: (SGTUconst [c] (SRLconst _ [d]))
-	// cond: uint32(d) <= 31 && 1<<(32-uint32(d)) <= uint32(c)
+	// cond: uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c)
 	// result: (MOVWconst [1])
 	for {
 		c := v.AuxInt
@@ -5634,7 +5634,7 @@ func rewriteValueMIPS_OpMIPSSGTUconst_0(v *Value) bool {
 			break
 		}
 		d := v_0.AuxInt
-		if !(uint32(d) <= 31 && 1<<(32-uint32(d)) <= uint32(c)) {
+		if !(uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c)) {
 			break
 		}
 		v.reset(OpMIPSMOVWconst)
@@ -5862,7 +5862,7 @@ func rewriteValueMIPS_OpMIPSSGTconst_10(v *Value) bool {
 		return true
 	}
 	// match: (SGTconst [c] (SRLconst _ [d]))
-	// cond: 0 <= int32(c) && uint32(d) <= 31 && 1<<(32-uint32(d)) <= int32(c)
+	// cond: 0 <= int32(c) && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c)
 	// result: (MOVWconst [1])
 	for {
 		c := v.AuxInt
@@ -5871,7 +5871,7 @@ func rewriteValueMIPS_OpMIPSSGTconst_10(v *Value) bool {
 			break
 		}
 		d := v_0.AuxInt
-		if !(0 <= int32(c) && uint32(d) <= 31 && 1<<(32-uint32(d)) <= int32(c)) {
+		if !(0 <= int32(c) && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c)) {
 			break
 		}
 		v.reset(OpMIPSMOVWconst)

@@ -205,6 +205,33 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
 	return r.lookupIPAddr(ctx, "ip", host)
 }
 
+// onlyValuesCtx is a context that uses an underlying context
+// for value lookup if the underlying context hasn't yet expired.
+type onlyValuesCtx struct {
+	context.Context
+	lookupValues context.Context
+}
+
+var _ context.Context = (*onlyValuesCtx)(nil)
+
+// Value performs a lookup if the original context hasn't expired.
+func (ovc *onlyValuesCtx) Value(key interface{}) interface{} {
+	select {
+	case <-ovc.lookupValues.Done():
+		return nil
+	default:
+		return ovc.lookupValues.Value(key)
+	}
+}
+
+// withUnexpiredValuesPreserved returns a context.Context that only uses lookupCtx
+// for its values, otherwise it is never canceled and has no deadline.
+// If the lookup context expires, any looked up values will return nil.
+// See Issue 28600.
+func withUnexpiredValuesPreserved(lookupCtx context.Context) context.Context {
+	return &onlyValuesCtx{Context: context.Background(), lookupValues: lookupCtx}
+}
+
 // lookupIPAddr looks up host using the local resolver and particular network.
 // It returns a slice of that host's IPv4 and IPv6 addresses.
 func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IPAddr, error) {
@@ -231,8 +258,9 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 	// We don't want a cancelation of ctx to affect the
 	// lookupGroup operation. Otherwise if our context gets
 	// canceled it might cause an error to be returned to a lookup
-	// using a completely different context.
-	lookupGroupCtx, lookupGroupCancel := context.WithCancel(context.Background())
+	// using a completely different context. However we need to preserve
+	// only the values in context. See Issue 28600.
+	lookupGroupCtx, lookupGroupCancel := context.WithCancel(withUnexpiredValuesPreserved(ctx))
 
 	dnsWaitGroup.Add(1)
 	ch, called := r.getLookupGroup().DoChan(host, func() (interface{}, error) {

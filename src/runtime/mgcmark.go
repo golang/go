@@ -558,7 +558,7 @@ func gcWakeAllAssists() {
 
 // gcParkAssist puts the current goroutine on the assist queue and parks.
 //
-// gcParkAssist returns whether the assist is now satisfied. If it
+// gcParkAssist reports whether the assist is now satisfied. If it
 // returns false, the caller must retry the assist.
 //
 //go:nowritebarrier
@@ -1229,6 +1229,13 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
 			return
 		}
 		mbits.setMarked()
+
+		// Mark span.
+		arena, pageIdx, pageMask := pageIndexOf(span.base())
+		if arena.pageMarks[pageIdx]&pageMask == 0 {
+			atomic.Or8(&arena.pageMarks[pageIdx], pageMask)
+		}
+
 		// If this is a noscan object, fast-track it to black
 		// instead of greying it.
 		if span.spanclass.noscan() {

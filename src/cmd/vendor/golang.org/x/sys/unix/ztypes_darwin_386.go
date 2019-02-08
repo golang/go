@@ -6,11 +6,11 @@
 package unix
 
 const (
-	sizeofPtr      = 0x4
-	sizeofShort    = 0x2
-	sizeofInt      = 0x4
-	sizeofLong     = 0x4
-	sizeofLongLong = 0x8
+	SizeofPtr      = 0x4
+	SizeofShort    = 0x2
+	SizeofInt      = 0x4
+	SizeofLong     = 0x4
+	SizeofLongLong = 0x8
 )
 
 type (

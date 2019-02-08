@@ -105,6 +105,10 @@
 			"revisionTime": "2018-05-24T22:59:00Z"
 		},
 		{
+			"path": "github.com/x/sys/unix",
+			"revision": ""
+		},
+		{
 			"path": "golang.org/x/arch/arm/armasm",
 			"revision": "5099b4b992f2813e39cfe2623c6f638718bd0fc6",
 			"revisionTime": "2018-04-06T10:28:20Z"
@@ -116,8 +120,8 @@
 		},
 		{
 			"path": "golang.org/x/arch/ppc64/ppc64asm",
-			"revision": "5099b4b992f2813e39cfe2623c6f638718bd0fc6",
-			"revisionTime": "2018-04-06T10:28:20Z"
+			"revision": "5a4828bb704534b8a2fa09c791c67d0fb372f472",
+			"revisionTime": "2018-12-03T22:54:21Z"
 		},
 		{
 			"path": "golang.org/x/arch/x86/x86asm",
@@ -131,16 +135,16 @@
 			"revisionTime": "2018-05-24T11:38:20Z"
 		},
 		{
-			"checksumSHA1": "VQyr/RTSmHpXD2wh988ZnWCVO6w=",
+			"checksumSHA1": "VmY64lAjYXrfzg4lPNIXh9HqIg0=",
 			"path": "golang.org/x/sys/unix",
-			"revision": "7138fd3d9dc8335c567ca206f4333fb75eb05d56",
-			"revisionTime": "2018-06-27T13:57:12Z"
+			"revision": "1775db3f06b568179d273425900dd09125831dd5",
+			"revisionTime": "2019-01-06T17:38:07Z"
 		},
 		{
-			"checksumSHA1": "s+lofQ+SCdhmy0cQp9FpdQncuuI=",
+			"checksumSHA1": "WoSat9PbqZFXREek5bkUBr256/Q=",
 			"path": "golang.org/x/sys/windows",
-			"revision": "90868a75fefd03942536221d7c0e2f84ec62a668",
-			"revisionTime": "2018-08-01T20:46:00Z"
+			"revision": "074acd46bca67915925527c07849494d115e7c43",
+			"revisionTime": "2018-12-18T18:24:21Z"
 		},
 		{
 			"checksumSHA1": "yEg3f1MGwuyDh5NrNEGkWKlTyqY=",
@@ -149,10 +153,10 @@
 			"revisionTime": "2018-08-01T20:46:00Z"
 		},
 		{
-			"checksumSHA1": "ZDwqsuoZqQq/XMQ0R0dJ4oK41lU=",
+			"checksumSHA1": "sL1Y17u+ri3uepsUZOZ4uopiPEg=",
 			"path": "golang.org/x/sys/windows/svc",
-			"revision": "90868a75fefd03942536221d7c0e2f84ec62a668",
-			"revisionTime": "2018-08-01T20:46:00Z"
+			"revision": "074acd46bca67915925527c07849494d115e7c43",
+			"revisionTime": "2018-12-18T18:24:21Z"
 		},
 		{
 			"checksumSHA1": "e9KJPWrdqg5PMkbE2w60Io8rY4M=",
@@ -377,5 +381,5 @@
 			"revisionTime": "2018-11-05T19:48:08Z"
 		}
 	],
-	"rootPath": "cmd"
+	"rootPath": "/cmd"
 }

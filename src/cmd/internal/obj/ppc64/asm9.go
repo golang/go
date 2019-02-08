@@ -287,6 +287,7 @@ var optab = []Optab{
 	{AMOVD, C_TLS_IE, C_NONE, C_NONE, C_REG, 80, 8, 0},
 
 	{AMOVD, C_GOTADDR, C_NONE, C_NONE, C_REG, 81, 8, 0},
+	{AMOVD, C_TOCADDR, C_NONE, C_NONE, C_REG, 95, 8, 0},
 
 	/* load constant */
 	{AMOVD, C_SECON, C_NONE, C_NONE, C_REG, 3, 4, REGSB},
@@ -846,6 +847,9 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 		case obj.NAME_GOTREF:
 			return C_GOTADDR
 
+		case obj.NAME_TOCREF:
+			return C_TOCADDR
+
 		case obj.NAME_AUTO:
 			c.instoffset = int64(c.autosize) + a.Offset
 			if c.instoffset >= -BIG && c.instoffset < BIG {
@@ -1019,7 +1023,7 @@ func (c *ctxt9) oplook(p *obj.Prog) *Optab {
 		}
 	}
 
-	//print("oplook %v %d %d %d %d\n", p, a1, a2, a3, a4);
+	// c.ctxt.Logf("oplook %v %d %d %d %d\n", p, a1, a2, a3, a4)
 	ops := oprange[p.As&obj.AMask]
 	c1 := &xcmp[a1]
 	c3 := &xcmp[a3]
@@ -1494,7 +1498,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AVCMPNEZBCC, r0)
 
 		case AVPERM: /* vperm */
-			opset(AVPERM, r0)
+			opset(AVPERMXOR, r0)
 
 		case AVBPERMQ: /* vbpermq, vbpermd */
 			opset(AVBPERMD, r0)
@@ -2207,6 +2211,10 @@ func (c *ctxt9) opform(insn uint32) int {
 // Encode instructions and create relocation for accessing s+d according to the
 // instruction op with source or destination (as appropriate) register reg.
 func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32) (o1, o2 uint32) {
+	if c.ctxt.Headtype == objabi.Haix {
+		// Every symbol access must be made via a TOC anchor.
+		c.ctxt.Diag("symbolAccess called for %s", s.Name)
+	}
 	var base uint32
 	form := c.opform(op)
 	if c.ctxt.Flag_shared {
@@ -3647,6 +3655,26 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		/* operand order: RA, RB, CY, RT */
 		cy := int(c.regoff(p.GetFrom3()))
 		o1 = AOP_Z23I(c.oprrr(p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), uint32(cy))
+
+	case 95: /* Retrieve TOC relative symbol */
+		/* This code is for AIX only */
+		v := c.vregoff(&p.From)
+		if v != 0 {
+			c.ctxt.Diag("invalid offset against TOC slot %v", p)
+		}
+
+		inst := c.opload(p.As)
+		if c.opform(inst) != DS_FORM {
+			c.ctxt.Diag("invalid form for a TOC access in %v", p)
+		}
+
+		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
+		o2 = AOP_IRR(inst, uint32(p.To.Reg), uint32(p.To.Reg), 0)
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 8
+		rel.Sym = p.From.Sym
+		rel.Type = objabi.R_ADDRPOWER_TOCREL_DS
 	}
 
 	out[0] = o1
@@ -4477,6 +4505,8 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 
 	case AVPERM:
 		return OPVX(4, 43, 0, 0) /* vperm - v2.03 */
+	case AVPERMXOR:
+		return OPVX(4, 45, 0, 0) /* vpermxor - v2.03 */
 
 	case AVSEL:
 		return OPVX(4, 42, 0, 0) /* vsel - v2.03 */

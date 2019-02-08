@@ -101,7 +101,7 @@ func Len8(n uint8) int {
 // -------------------- //
 
 func OnesCount(n uint) int {
-	// amd64:"POPCNTQ",".*support_popcnt"
+	// amd64:"POPCNTQ",".*x86HasPOPCNT"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
 	// ppc64:"POPCNTD"
@@ -110,7 +110,7 @@ func OnesCount(n uint) int {
 }
 
 func OnesCount64(n uint64) int {
-	// amd64:"POPCNTQ",".*support_popcnt"
+	// amd64:"POPCNTQ",".*x86HasPOPCNT"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
 	// ppc64:"POPCNTD"
@@ -119,7 +119,7 @@ func OnesCount64(n uint64) int {
 }
 
 func OnesCount32(n uint32) int {
-	// amd64:"POPCNTL",".*support_popcnt"
+	// amd64:"POPCNTL",".*x86HasPOPCNT"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
 	// ppc64:"POPCNTW"
@@ -128,7 +128,7 @@ func OnesCount32(n uint32) int {
 }
 
 func OnesCount16(n uint16) int {
-	// amd64:"POPCNTL",".*support_popcnt"
+	// amd64:"POPCNTL",".*x86HasPOPCNT"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
 	// ppc64:"POPCNTW"
@@ -464,4 +464,18 @@ func Mul64(x, y uint64) (hi, lo uint64) {
 	// ppc64:"MULHDU","MULLD"
 	// ppc64le:"MULHDU","MULLD"
 	return bits.Mul64(x, y)
+}
+
+// --------------- //
+//    bits.Div*    //
+// --------------- //
+
+func Div(hi, lo, x uint) (q, r uint) {
+	// amd64:"DIVQ"
+	return bits.Div(hi, lo, x)
+}
+
+func Div64(hi, lo, x uint64) (q, r uint64) {
+	// amd64:"DIVQ"
+	return bits.Div64(hi, lo, x)
 }

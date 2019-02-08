@@ -164,7 +164,7 @@ type Frontend interface {
 	// given name.
 	Syslook(string) *obj.LSym
 
-	// UseWriteBarrier returns whether write barrier is enabled
+	// UseWriteBarrier reports whether write barrier is enabled
 	UseWriteBarrier() bool
 
 	// SetWBPos indicates that a write barrier has been inserted

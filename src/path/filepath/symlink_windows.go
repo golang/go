@@ -43,7 +43,7 @@ func normBase(path string) (string, error) {
 	return syscall.UTF16ToString(data.FileName[:]), nil
 }
 
-// baseIsDotDot returns whether the last element of path is "..".
+// baseIsDotDot reports whether the last element of path is "..".
 // The given path should be 'Clean'-ed in advance.
 func baseIsDotDot(path string) bool {
 	i := strings.LastIndexByte(path, Separator)
@@ -171,8 +171,16 @@ func samefile(path1, path2 string) bool {
 	return os.SameFile(fi1, fi2)
 }
 
+// walkSymlinks returns slashAfterFilePathError error for paths like
+// //path/to/existing_file/ and /path/to/existing_file/. and /path/to/existing_file/..
+
+var slashAfterFilePathError = errors.New("attempting to walk past file path.")
+
 func evalSymlinks(path string) (string, error) {
 	newpath, err := walkSymlinks(path)
+	if err == slashAfterFilePathError {
+		return "", syscall.ENOTDIR
+	}
 	if err != nil {
 		newpath2, err2 := evalSymlinksUsingGetFinalPathNameByHandle(path)
 		if err2 == nil {

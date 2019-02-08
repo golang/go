@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
 	"cmd/go/internal/str"
 )
@@ -27,11 +28,18 @@ import (
 // to get the code, but we can't access it due to the error.
 // The caller should report this error instead of continuing to probe
 // other possible module paths.
+//
+// TODO(bcmills): See if we can invert this. (Return a distinguished error for
+// “repo not found” and treat everything else as terminal.)
 type VCSError struct {
 	Err error
 }
 
 func (e *VCSError) Error() string { return e.Err.Error() }
+
+func vcsErrorf(format string, a ...interface{}) error {
+	return &VCSError{Err: fmt.Errorf(format, a...)}
+}
 
 func NewRepo(vcs, remote string) (Repo, error) {
 	type key struct {
@@ -56,6 +64,8 @@ func NewRepo(vcs, remote string) (Repo, error) {
 var vcsRepoCache par.Cache
 
 type vcsRepo struct {
+	mu lockedfile.Mutex // protects all commands, so we don't have to decide which are safe on a per-VCS basis
+
 	remote string
 	cmd    *vcsCmd
 	dir    string
@@ -81,18 +91,27 @@ func newVCSRepo(vcs, remote string) (Repo, error) {
 	if !strings.Contains(remote, "://") {
 		return nil, fmt.Errorf("invalid vcs remote: %s %s", vcs, remote)
 	}
+
 	r := &vcsRepo{remote: remote, cmd: cmd}
-	if cmd.init == nil {
-		return r, nil
-	}
-	dir, err := WorkDir(vcsWorkDirType+vcs, r.remote)
+	var err error
+	r.dir, r.mu.Path, err = WorkDir(vcsWorkDirType+vcs, r.remote)
 	if err != nil {
 		return nil, err
 	}
-	r.dir = dir
-	if _, err := os.Stat(filepath.Join(dir, "."+vcs)); err != nil {
-		if _, err := Run(dir, cmd.init(r.remote)); err != nil {
-			os.RemoveAll(dir)
+
+	if cmd.init == nil {
+		return r, nil
+	}
+
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+
+	if _, err := os.Stat(filepath.Join(r.dir, "."+vcs)); err != nil {
+		if _, err := Run(r.dir, cmd.init(r.remote)); err != nil {
+			os.RemoveAll(r.dir)
 			return nil, err
 		}
 	}
@@ -270,6 +289,12 @@ func (r *vcsRepo) loadBranches() {
 }
 
 func (r *vcsRepo) Tags(prefix string) ([]string, error) {
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+
 	r.tagsOnce.Do(r.loadTags)
 
 	tags := []string{}
@@ -283,6 +308,12 @@ func (r *vcsRepo) Tags(prefix string) ([]string, error) {
 }
 
 func (r *vcsRepo) Stat(rev string) (*RevInfo, error) {
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+
 	if rev == "latest" {
 		rev = r.cmd.latest
 	}
@@ -315,7 +346,7 @@ func (r *vcsRepo) fetch() {
 func (r *vcsRepo) statLocal(rev string) (*RevInfo, error) {
 	out, err := Run(r.dir, r.cmd.statLocal(rev, r.remote))
 	if err != nil {
-		return nil, fmt.Errorf("unknown revision %s", rev)
+		return nil, vcsErrorf("unknown revision %s", rev)
 	}
 	return r.cmd.parseStat(rev, string(out))
 }
@@ -332,6 +363,14 @@ func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// r.Stat acquires r.mu, so lock after that.
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+
 	out, err := Run(r.dir, r.cmd.readFile(rev, file, r.remote))
 	if err != nil {
 		return nil, os.ErrNotExist
@@ -340,14 +379,42 @@ func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
 }
 
 func (r *vcsRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[string]*FileRev, error) {
-	return nil, fmt.Errorf("ReadFileRevs not implemented")
+	// We don't technically need to lock here since we're returning an error
+	// uncondititonally, but doing so anyway will help to avoid baking in
+	// lock-inversion bugs.
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+
+	return nil, vcsErrorf("ReadFileRevs not implemented")
 }
 
 func (r *vcsRepo) RecentTag(rev, prefix string) (tag string, err error) {
-	return "", fmt.Errorf("RecentTags not implemented")
+	// We don't technically need to lock here since we're returning an error
+	// uncondititonally, but doing so anyway will help to avoid baking in
+	// lock-inversion bugs.
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
+
+	return "", vcsErrorf("RecentTag not implemented")
 }
 
 func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
+	if r.cmd.readZip == nil {
+		return nil, "", vcsErrorf("ReadZip not implemented for %s", r.cmd.vcs)
+	}
+
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return nil, "", err
+	}
+	defer unlock()
+
 	if rev == "latest" {
 		rev = r.cmd.latest
 	}
@@ -392,7 +459,7 @@ func (d *deleteCloser) Close() error {
 func hgParseStat(rev, out string) (*RevInfo, error) {
 	f := strings.Fields(string(out))
 	if len(f) < 3 {
-		return nil, fmt.Errorf("unexpected response from hg log: %q", out)
+		return nil, vcsErrorf("unexpected response from hg log: %q", out)
 	}
 	hash := f[0]
 	version := rev
@@ -401,7 +468,7 @@ func hgParseStat(rev, out string) (*RevInfo, error) {
 	}
 	t, err := strconv.ParseInt(f[1], 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("invalid time from hg log: %q", out)
+		return nil, vcsErrorf("invalid time from hg log: %q", out)
 	}
 
 	var tags []string
@@ -430,12 +497,12 @@ func svnParseStat(rev, out string) (*RevInfo, error) {
 		} `xml:"logentry"`
 	}
 	if err := xml.Unmarshal([]byte(out), &log); err != nil {
-		return nil, fmt.Errorf("unexpected response from svn log --xml: %v\n%s", err, out)
+		return nil, vcsErrorf("unexpected response from svn log --xml: %v\n%s", err, out)
 	}
 
 	t, err := time.Parse(time.RFC3339, log.Logentry.Date)
 	if err != nil {
-		return nil, fmt.Errorf("unexpected response from svn log --xml: %v\n%s", err, out)
+		return nil, vcsErrorf("unexpected response from svn log --xml: %v\n%s", err, out)
 	}
 
 	info := &RevInfo{
@@ -471,23 +538,23 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 			}
 			i, err := strconv.ParseInt(val, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("unexpected revno from bzr log: %q", line)
+				return nil, vcsErrorf("unexpected revno from bzr log: %q", line)
 			}
 			revno = i
 		case "timestamp":
 			j := strings.Index(val, " ")
 			if j < 0 {
-				return nil, fmt.Errorf("unexpected timestamp from bzr log: %q", line)
+				return nil, vcsErrorf("unexpected timestamp from bzr log: %q", line)
 			}
 			t, err := time.Parse("2006-01-02 15:04:05 -0700", val[j+1:])
 			if err != nil {
-				return nil, fmt.Errorf("unexpected timestamp from bzr log: %q", line)
+				return nil, vcsErrorf("unexpected timestamp from bzr log: %q", line)
 			}
 			tm = t.UTC()
 		}
 	}
 	if revno == 0 || tm.IsZero() {
-		return nil, fmt.Errorf("unexpected response from bzr log: %q", out)
+		return nil, vcsErrorf("unexpected response from bzr log: %q", out)
 	}
 
 	info := &RevInfo{
@@ -504,11 +571,11 @@ func fossilParseStat(rev, out string) (*RevInfo, error) {
 		if strings.HasPrefix(line, "uuid:") {
 			f := strings.Fields(line)
 			if len(f) != 5 || len(f[1]) != 40 || f[4] != "UTC" {
-				return nil, fmt.Errorf("unexpected response from fossil info: %q", line)
+				return nil, vcsErrorf("unexpected response from fossil info: %q", line)
 			}
 			t, err := time.Parse("2006-01-02 15:04:05", f[2]+" "+f[3])
 			if err != nil {
-				return nil, fmt.Errorf("unexpected response from fossil info: %q", line)
+				return nil, vcsErrorf("unexpected response from fossil info: %q", line)
 			}
 			hash := f[1]
 			version := rev
@@ -524,5 +591,5 @@ func fossilParseStat(rev, out string) (*RevInfo, error) {
 			return info, nil
 		}
 	}
-	return nil, fmt.Errorf("unexpected response from fossil info: %q", out)
+	return nil, vcsErrorf("unexpected response from fossil info: %q", out)
 }

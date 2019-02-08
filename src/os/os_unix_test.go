@@ -22,6 +22,9 @@ func init() {
 	isReadonlyError = func(err error) bool { return err == syscall.EROFS }
 }
 
+// For TestRawConnReadWrite.
+type syscallDescriptor = int
+
 func checkUidGid(t *testing.T, path string, uid, gid int) {
 	dir, err := Lstat(path)
 	if err != nil {

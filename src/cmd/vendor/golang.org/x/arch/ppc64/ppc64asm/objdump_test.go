@@ -49,11 +49,11 @@ func allowedMismatchObjdump(text string, size int, inst *Inst, dec ExtInst) bool
 	switch inst.Op {
 	case BC, BCA, BL, BLA, BCL, BCLA, TDI, TWI, TW, TD:
 		return true // TODO(minux): we lack the support for extended opcodes here
-	case RLWNM, RLWNM_, RLDICL, RLDICL_, RLWINM, RLWINM_, RLDCL, RLDCL_:
+	case RLWNM, RLWNMCC, RLDICL, RLDICLCC, RLWINM, RLWINMCC, RLDCL, RLDCLCC:
 		return true // TODO(minux): we lack the support for extended opcodes here
 	case DCBTST, DCBT:
 		return true // objdump uses the embedded argument order, we use the server argument order
-	case MTFSF, MTFSF_: // objdump doesn't show the last two arguments
+	case MTFSF, MTFSFCC: // objdump doesn't show the last two arguments
 		return true
 	case VSPLTB, VSPLTH, VSPLTW: // objdump generates unreasonable result "vspltw v6,v19,4" for 10c49a8c, the last 4 should be 0.
 		return true

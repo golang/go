@@ -353,7 +353,8 @@ class IfacePrinter:
 			return "<bad dynamic type>"
 
 		if dtype is None:  # trouble looking up, print something reasonable
-			return "({0}){0}".format(iface_dtype_name(self.val), self.val['data'])
+			return "({typename}){data}".format(
+				typename=iface_dtype_name(self.val), data=self.val['data'])
 
 		try:
 			return self.val['data'].cast(dtype).dereference()
@@ -528,11 +529,17 @@ class GoroutineCmd(gdb.Command):
 		save_frame = gdb.selected_frame()
 		gdb.parse_and_eval('$save_sp = $sp')
 		gdb.parse_and_eval('$save_pc = $pc')
+		# In GDB, assignments to sp must be done from the
+		# top-most frame, so select frame 0 first.
+		gdb.execute('select-frame 0')
 		gdb.parse_and_eval('$sp = {0}'.format(str(sp)))
 		gdb.parse_and_eval('$pc = {0}'.format(str(pc)))
 		try:
 			gdb.execute(cmd)
 		finally:
+			# In GDB, assignments to sp must be done from the
+			# top-most frame, so select frame 0 first.
+			gdb.execute('select-frame 0')
 			gdb.parse_and_eval('$sp = $save_sp')
 			gdb.parse_and_eval('$pc = $save_pc')
 			save_frame.select()

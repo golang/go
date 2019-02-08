@@ -300,22 +300,22 @@ func roundup(x, y int) int {
 
 func (s *Stat_t) convertFrom(old *stat_freebsd11_t) {
 	*s = Stat_t{
-		Dev:      uint64(old.Dev),
-		Ino:      uint64(old.Ino),
-		Nlink:    uint64(old.Nlink),
-		Mode:     old.Mode,
-		Uid:      old.Uid,
-		Gid:      old.Gid,
-		Rdev:     uint64(old.Rdev),
-		Atim:     old.Atim,
-		Mtim:     old.Mtim,
-		Ctim:     old.Ctim,
-		Birthtim: old.Birthtim,
-		Size:     old.Size,
-		Blocks:   old.Blocks,
-		Blksize:  old.Blksize,
-		Flags:    old.Flags,
-		Gen:      uint64(old.Gen),
+		Dev:           uint64(old.Dev),
+		Ino:           uint64(old.Ino),
+		Nlink:         uint64(old.Nlink),
+		Mode:          old.Mode,
+		Uid:           old.Uid,
+		Gid:           old.Gid,
+		Rdev:          uint64(old.Rdev),
+		Atimespec:     old.Atimespec,
+		Mtimespec:     old.Mtimespec,
+		Ctimespec:     old.Ctimespec,
+		Birthtimespec: old.Birthtimespec,
+		Size:          old.Size,
+		Blocks:        old.Blocks,
+		Blksize:       old.Blksize,
+		Flags:         old.Flags,
+		Gen:           uint64(old.Gen),
 	}
 }
 

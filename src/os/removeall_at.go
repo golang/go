@@ -9,13 +9,27 @@ package os
 import (
 	"internal/syscall/unix"
 	"io"
+	"runtime"
 	"syscall"
 )
 
-func RemoveAll(path string) error {
-	// Not allowed in unix
-	if path == "" || endsWithDot(path) {
-		return syscall.EINVAL
+func removeAll(path string) error {
+	if path == "" {
+		// fail silently to retain compatibility with previous behavior
+		// of RemoveAll. See issue 28830.
+		return nil
+	}
+
+	// The rmdir system call does not permit removing ".",
+	// so we don't permit it either.
+	if endsWithDot(path) {
+		return &PathError{"RemoveAll", path, syscall.EINVAL}
+	}
+
+	// Simple case: if Remove works, we're done.
+	err := Remove(path)
+	if err == nil || IsNotExist(err) {
+		return nil
 	}
 
 	// RemoveAll recurses by deleting the path base from
@@ -43,8 +57,13 @@ func removeAllFrom(parent *File, path string) error {
 		return nil
 	}
 
-	// If not a "is directory" error, we have a problem
-	if err != syscall.EISDIR && err != syscall.EPERM {
+	// EISDIR means that we have a directory, and we need to
+	// remove its contents.
+	// EPERM or EACCES means that we don't have write permission on
+	// the parent directory, but this entry might still be a directory
+	// whose contents need to be removed.
+	// Otherwise just return the error.
+	if err != syscall.EISDIR && err != syscall.EPERM && err != syscall.EACCES {
 		return err
 	}
 
@@ -55,11 +74,11 @@ func removeAllFrom(parent *File, path string) error {
 		return statErr
 	}
 	if statInfo.Mode&syscall.S_IFMT != syscall.S_IFDIR {
-		// Not a directory; return the error from the Remove
+		// Not a directory; return the error from the Remove.
 		return err
 	}
 
-	// Remove the directory's entries
+	// Remove the directory's entries.
 	var recurseErr error
 	for {
 		const request = 1024
@@ -74,7 +93,7 @@ func removeAllFrom(parent *File, path string) error {
 		}
 
 		names, readErr := file.Readdirnames(request)
-		// Errors other than EOF should stop us from continuing
+		// Errors other than EOF should stop us from continuing.
 		if readErr != nil && readErr != io.EOF {
 			file.Close()
 			if IsNotExist(readErr) {
@@ -103,7 +122,7 @@ func removeAllFrom(parent *File, path string) error {
 		}
 	}
 
-	// Remove the directory itself
+	// Remove the directory itself.
 	unlinkError := unix.Unlinkat(parentFd, path, unix.AT_REMOVEDIR)
 	if unlinkError == nil || IsNotExist(unlinkError) {
 		return nil
@@ -115,25 +134,31 @@ func removeAllFrom(parent *File, path string) error {
 	return unlinkError
 }
 
-func openFdAt(fd int, path string) (*File, error) {
-	fd, err := unix.Openat(fd, path, O_RDONLY, 0)
-	if err != nil {
-		return nil, err
+// openFdAt opens path relative to the directory in fd.
+// Other than that this should act like openFileNolog.
+// This acts like openFileNolog rather than OpenFile because
+// we are going to (try to) remove the file.
+// The contents of this file are not relevant for test caching.
+func openFdAt(dirfd int, name string) (*File, error) {
+	var r int
+	for {
+		var e error
+		r, e = unix.Openat(dirfd, name, O_RDONLY, 0)
+		if e == nil {
+			break
+		}
+
+		// See comment in openFileNolog.
+		if runtime.GOOS == "darwin" && e == syscall.EINTR {
+			continue
+		}
+
+		return nil, &PathError{"openat", name, e}
 	}
 
-	return NewFile(uintptr(fd), path), nil
-}
-
-func endsWithDot(path string) bool {
-	if path == "." || path == ".." {
-		return true
-	}
-	if len(path) >= 2 && path[len(path)-2:] == "/." {
-		return true
-	}
-	if len(path) >= 3 && path[len(path)-3:] == "/.." {
-		return true
+	if !supportsCloseOnExec {
+		syscall.CloseOnExec(r)
 	}
 
-	return false
+	return newFile(uintptr(r), name, kindOpenFile), nil
 }

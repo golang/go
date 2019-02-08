@@ -2618,6 +2618,10 @@ func (c *ctxtz) branchMask(p *obj.Prog) uint32 {
 func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 	o := c.oplook(p)
 
+	if o == nil {
+		return
+	}
+
 	switch o.type_ {
 	default:
 		c.ctxt.Diag("unknown type %d", o.type_)

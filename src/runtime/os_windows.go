@@ -198,6 +198,13 @@ func loadOptionalSyscalls() {
 	}
 	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
 
+	if GOARCH == "arm" {
+		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
+		if _QueryPerformanceCounter == nil {
+			throw("could not find QPC syscalls")
+		}
+	}
+
 	if windowsFindfunc(n32, []byte("wine_get_version\000")) != nil {
 		// running on Wine
 		initWine(k32)
@@ -872,24 +879,14 @@ func profilem(mp *m, thread uintptr) {
 	default:
 		panic("unsupported architecture")
 	case "arm":
-		// TODO(jordanrh1): this is incorrect when Go is executing
-		// on the system or signal stacks because curg returns
-		// the current user g. The true g is stored in thread
-		// local storage, which we cannot access from another CPU.
-		// We cannot pull R10 from the thread context because
-		// it might be executing C code, in which case R10
-		// would not be g.
-		gp = mp.curg
+		tls := &mp.tls[0]
+		gp = **((***g)(unsafe.Pointer(tls)))
 	case "386", "amd64":
 		tls := &mp.tls[0]
 		gp = *((**g)(unsafe.Pointer(tls)))
 	}
 
-	if gp == nil {
-		sigprofNonGoPC(r.ip())
-	} else {
-		sigprof(r.ip(), r.sp(), 0, gp, mp)
-	}
+	sigprof(r.ip(), r.sp(), r.lr(), gp, mp)
 }
 
 func profileloop1(param uintptr) uint32 {

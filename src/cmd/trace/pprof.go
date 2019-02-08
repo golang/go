@@ -9,6 +9,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"internal/trace"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -19,8 +20,6 @@ import (
 	"sort"
 	"strconv"
 	"time"
-
-	trace "internal/traceparser"
 
 	"github.com/google/pprof/profile"
 )
@@ -61,22 +60,22 @@ type interval struct {
 	begin, end int64 // nanoseconds.
 }
 
-func pprofByGoroutine(compute func(io.Writer, map[uint64][]interval, *trace.Parsed) error) func(w io.Writer, r *http.Request) error {
+func pprofByGoroutine(compute func(io.Writer, map[uint64][]interval, []*trace.Event) error) func(w io.Writer, r *http.Request) error {
 	return func(w io.Writer, r *http.Request) error {
 		id := r.FormValue("id")
-		res, err := parseTrace()
+		events, err := parseEvents()
 		if err != nil {
 			return err
 		}
-		gToIntervals, err := pprofMatchingGoroutines(id, res)
+		gToIntervals, err := pprofMatchingGoroutines(id, events)
 		if err != nil {
 			return err
 		}
-		return compute(w, gToIntervals, res)
+		return compute(w, gToIntervals, events)
 	}
 }
 
-func pprofByRegion(compute func(io.Writer, map[uint64][]interval, *trace.Parsed) error) func(w io.Writer, r *http.Request) error {
+func pprofByRegion(compute func(io.Writer, map[uint64][]interval, []*trace.Event) error) func(w io.Writer, r *http.Request) error {
 	return func(w io.Writer, r *http.Request) error {
 		filter, err := newRegionFilter(r)
 		if err != nil {
@@ -86,7 +85,7 @@ func pprofByRegion(compute func(io.Writer, map[uint64][]interval, *trace.Parsed)
 		if err != nil {
 			return err
 		}
-		events, _ := parseTrace()
+		events, _ := parseEvents()
 
 		return compute(w, gToIntervals, events)
 	}
@@ -95,7 +94,7 @@ func pprofByRegion(compute func(io.Writer, map[uint64][]interval, *trace.Parsed)
 // pprofMatchingGoroutines parses the goroutine type id string (i.e. pc)
 // and returns the ids of goroutines of the matching type and its interval.
 // If the id string is empty, returns nil without an error.
-func pprofMatchingGoroutines(id string, p *trace.Parsed) (map[uint64][]interval, error) {
+func pprofMatchingGoroutines(id string, events []*trace.Event) (map[uint64][]interval, error) {
 	if id == "" {
 		return nil, nil
 	}
@@ -103,7 +102,7 @@ func pprofMatchingGoroutines(id string, p *trace.Parsed) (map[uint64][]interval,
 	if err != nil {
 		return nil, fmt.Errorf("invalid goroutine type: %v", id)
 	}
-	analyzeGoroutines(p)
+	analyzeGoroutines(events)
 	var res map[uint64][]interval
 	for _, g := range gs {
 		if g.PC != pc {
@@ -172,25 +171,17 @@ func pprofMatchingRegions(filter *regionFilter) (map[uint64][]interval, error) {
 	return gToIntervals, nil
 }
 
-func stklen(p *trace.Parsed, ev *trace.Event) int {
-	if ev.StkID == 0 {
-		return 0
-	}
-	return len(p.Stacks[ev.StkID])
-}
-
 // computePprofIO generates IO pprof-like profile (time spent in IO wait, currently only network blocking event).
-func computePprofIO(w io.Writer, gToIntervals map[uint64][]interval, res *trace.Parsed) error {
-	events := res.Events
-	prof := make(map[uint32]Record)
+func computePprofIO(w io.Writer, gToIntervals map[uint64][]interval, events []*trace.Event) error {
+	prof := make(map[uint64]Record)
 	for _, ev := range events {
-		if ev.Type != trace.EvGoBlockNet || ev.Link == nil || ev.StkID == 0 || stklen(res, ev) == 0 {
+		if ev.Type != trace.EvGoBlockNet || ev.Link == nil || ev.StkID == 0 || len(ev.Stk) == 0 {
 			continue
 		}
 		overlapping := pprofOverlappingDuration(gToIntervals, ev)
 		if overlapping > 0 {
 			rec := prof[ev.StkID]
-			rec.stk = res.Stacks[ev.StkID]
+			rec.stk = ev.Stk
 			rec.n++
 			rec.time += overlapping.Nanoseconds()
 			prof[ev.StkID] = rec
@@ -200,9 +191,8 @@ func computePprofIO(w io.Writer, gToIntervals map[uint64][]interval, res *trace.
 }
 
 // computePprofBlock generates blocking pprof-like profile (time spent blocked on synchronization primitives).
-func computePprofBlock(w io.Writer, gToIntervals map[uint64][]interval, res *trace.Parsed) error {
-	events := res.Events
-	prof := make(map[uint32]Record)
+func computePprofBlock(w io.Writer, gToIntervals map[uint64][]interval, events []*trace.Event) error {
+	prof := make(map[uint64]Record)
 	for _, ev := range events {
 		switch ev.Type {
 		case trace.EvGoBlockSend, trace.EvGoBlockRecv, trace.EvGoBlockSelect,
@@ -213,13 +203,13 @@ func computePprofBlock(w io.Writer, gToIntervals map[uint64][]interval, res *tra
 		default:
 			continue
 		}
-		if ev.Link == nil || ev.StkID == 0 || stklen(res, ev) == 0 {
+		if ev.Link == nil || ev.StkID == 0 || len(ev.Stk) == 0 {
 			continue
 		}
 		overlapping := pprofOverlappingDuration(gToIntervals, ev)
 		if overlapping > 0 {
 			rec := prof[ev.StkID]
-			rec.stk = res.Stacks[ev.StkID]
+			rec.stk = ev.Stk
 			rec.n++
 			rec.time += overlapping.Nanoseconds()
 			prof[ev.StkID] = rec
@@ -229,17 +219,16 @@ func computePprofBlock(w io.Writer, gToIntervals map[uint64][]interval, res *tra
 }
 
 // computePprofSyscall generates syscall pprof-like profile (time spent blocked in syscalls).
-func computePprofSyscall(w io.Writer, gToIntervals map[uint64][]interval, res *trace.Parsed) error {
-	events := res.Events
-	prof := make(map[uint32]Record)
+func computePprofSyscall(w io.Writer, gToIntervals map[uint64][]interval, events []*trace.Event) error {
+	prof := make(map[uint64]Record)
 	for _, ev := range events {
-		if ev.Type != trace.EvGoSysCall || ev.Link == nil || ev.StkID == 0 || stklen(res, ev) == 0 {
+		if ev.Type != trace.EvGoSysCall || ev.Link == nil || ev.StkID == 0 || len(ev.Stk) == 0 {
 			continue
 		}
 		overlapping := pprofOverlappingDuration(gToIntervals, ev)
 		if overlapping > 0 {
 			rec := prof[ev.StkID]
-			rec.stk = res.Stacks[ev.StkID]
+			rec.stk = ev.Stk
 			rec.n++
 			rec.time += overlapping.Nanoseconds()
 			prof[ev.StkID] = rec
@@ -250,18 +239,17 @@ func computePprofSyscall(w io.Writer, gToIntervals map[uint64][]interval, res *t
 
 // computePprofSched generates scheduler latency pprof-like profile
 // (time between a goroutine become runnable and actually scheduled for execution).
-func computePprofSched(w io.Writer, gToIntervals map[uint64][]interval, res *trace.Parsed) error {
-	events := res.Events
-	prof := make(map[uint32]Record)
+func computePprofSched(w io.Writer, gToIntervals map[uint64][]interval, events []*trace.Event) error {
+	prof := make(map[uint64]Record)
 	for _, ev := range events {
 		if (ev.Type != trace.EvGoUnblock && ev.Type != trace.EvGoCreate) ||
-			ev.Link == nil || ev.StkID == 0 || stklen(res, ev) == 0 {
+			ev.Link == nil || ev.StkID == 0 || len(ev.Stk) == 0 {
 			continue
 		}
 		overlapping := pprofOverlappingDuration(gToIntervals, ev)
 		if overlapping > 0 {
 			rec := prof[ev.StkID]
-			rec.stk = res.Stacks[ev.StkID]
+			rec.stk = ev.Stk
 			rec.n++
 			rec.time += overlapping.Nanoseconds()
 			prof[ev.StkID] = rec
@@ -339,7 +327,7 @@ func serveSVGProfile(prof func(w io.Writer, r *http.Request) error) http.Handler
 	}
 }
 
-func buildProfile(prof map[uint32]Record) *profile.Profile {
+func buildProfile(prof map[uint64]Record) *profile.Profile {
 	p := &profile.Profile{
 		PeriodType: &profile.ValueType{Type: "trace", Unit: "count"},
 		Period:     1,

@@ -68,12 +68,12 @@ func badsystemstack() {
 // used only when the caller knows that *ptr contains no heap pointers
 // because either:
 //
-// 1. *ptr is initialized memory and its type is pointer-free.
+// *ptr is initialized memory and its type is pointer-free, or
 //
-// 2. *ptr is uninitialized memory (e.g., memory that's being reused
-//    for a new allocation) and hence contains only "junk".
+// *ptr is uninitialized memory (e.g., memory that's being reused
+// for a new allocation) and hence contains only "junk".
 //
-// in memclr_*.s
+// The (CPU-specific) implementations of this function are in memclr_*.s.
 //go:noescape
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 
@@ -298,7 +298,7 @@ func round(n, a uintptr) uintptr {
 	return (n + a - 1) &^ (a - 1)
 }
 
-// checkASM returns whether assembly runtime checks have passed.
+// checkASM reports whether assembly runtime checks have passed.
 func checkASM() bool
 
 func memequal_varlen(a, b unsafe.Pointer) bool

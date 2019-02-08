@@ -58,6 +58,10 @@ func (z nat) make(n int) nat {
 	if n <= cap(z) {
 		return z[:n] // reuse z
 	}
+	if n == 1 {
+		// Most nats start small and stay that way; don't over-allocate.
+		return make(nat, 1)
+	}
 	// Choosing a good value for e has significant performance impact
 	// because it increases the chance that a value can be reused.
 	const e = 4 // extra capacity

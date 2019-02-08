@@ -45,7 +45,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		// TODO(adonovan): this reports n(n-1)/2 errors for an
 		// expression e||...||e of depth n. Fix.
-		// See https://github.com/golang/go/issues/28086.
+		// See https://golang.org/issue/28086.
 		comm := op.commutativeSets(pass.TypesInfo, e)
 		for _, exprs := range comm {
 			op.checkRedundant(pass, exprs)

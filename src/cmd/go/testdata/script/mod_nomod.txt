@@ -16,7 +16,7 @@ go mod edit -json x.mod
 ! go get
 ! go install
 ! go list
-! go run x.go
+! go run
 ! go test
 ! go vet
 

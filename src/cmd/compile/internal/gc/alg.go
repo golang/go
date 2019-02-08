@@ -217,7 +217,7 @@ func genhash(sym *types.Sym, t *types.Type) {
 		// pure memory.
 		hashel := hashfor(t.Elem())
 
-		n := nod(ORANGE, nil, nod(OIND, np, nil))
+		n := nod(ORANGE, nil, nod(ODEREF, np, nil))
 		ni := newname(lookup("i"))
 		ni.Type = types.Types[TINT]
 		n.List.Set1(ni)
@@ -290,10 +290,10 @@ func genhash(sym *types.Sym, t *types.Type) {
 	funcbody()
 
 	fn.Func.SetDupok(true)
-	fn = typecheck(fn, Etop)
+	fn = typecheck(fn, ctxStmt)
 
 	Curfn = fn
-	typecheckslice(fn.Nbody.Slice(), Etop)
+	typecheckslice(fn.Nbody.Slice(), ctxStmt)
 	Curfn = nil
 
 	if debug_dclstack != 0 {
@@ -330,6 +330,7 @@ func hashfor(t *types.Type) *Node {
 
 	n := newname(sym)
 	n.SetClass(PFUNC)
+	n.Sym.SetFunc(true)
 	n.Type = functype(nil, []*Node{
 		anonfield(types.NewPtr(t)),
 		anonfield(types.Types[TUINTPTR]),
@@ -374,7 +375,7 @@ func geneq(sym *types.Sym, t *types.Type) {
 		// pure memory. Even if we unrolled the range loop,
 		// each iteration would be a function call, so don't bother
 		// unrolling.
-		nrange := nod(ORANGE, nil, nod(OIND, np, nil))
+		nrange := nod(ORANGE, nil, nod(ODEREF, np, nil))
 
 		ni := newname(lookup("i"))
 		ni.Type = types.Types[TINT]
@@ -464,10 +465,10 @@ func geneq(sym *types.Sym, t *types.Type) {
 	funcbody()
 
 	fn.Func.SetDupok(true)
-	fn = typecheck(fn, Etop)
+	fn = typecheck(fn, ctxStmt)
 
 	Curfn = fn
-	typecheckslice(fn.Nbody.Slice(), Etop)
+	typecheckslice(fn.Nbody.Slice(), ctxStmt)
 	Curfn = nil
 
 	if debug_dclstack != 0 {
@@ -496,8 +497,8 @@ func eqfield(p *Node, q *Node, field *types.Sym) *Node {
 func eqmem(p *Node, q *Node, field *types.Sym, size int64) *Node {
 	nx := nod(OADDR, nodSym(OXDOT, p, field), nil)
 	ny := nod(OADDR, nodSym(OXDOT, q, field), nil)
-	nx = typecheck(nx, Erv)
-	ny = typecheck(ny, Erv)
+	nx = typecheck(nx, ctxExpr)
+	ny = typecheck(ny, ctxExpr)
 
 	fn, needsize := eqmemfunc(size, nx.Type.Elem())
 	call := nod(OCALL, fn, nil)

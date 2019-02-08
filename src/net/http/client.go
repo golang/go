@@ -478,10 +478,10 @@ func urlErrorOp(method string) string {
 // error.
 //
 // If the returned error is nil, the Response will contain a non-nil
-// Body which the user is expected to close. If the Body is not
-// closed, the Client's underlying RoundTripper (typically Transport)
-// may not be able to re-use a persistent TCP connection to the server
-// for a subsequent "keep-alive" request.
+// Body which the user is expected to close. If the Body is not both
+// read to EOF and closed, the Client's underlying RoundTripper
+// (typically Transport) may not be able to re-use a persistent TCP
+// connection to the server for a subsequent "keep-alive" request.
 //
 // The request Body, if non-nil, will be closed by the underlying
 // Transport, even on errors.
