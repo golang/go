@@ -8,11 +8,14 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/scanner"
 	"go/token"
 	"go/types"
+	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/go/packages"
@@ -40,6 +43,13 @@ func NewView(config *packages.Config) *View {
 
 func (v *View) FileSet() *token.FileSet {
 	return v.Config.Fset
+}
+
+func (v *View) GetAnalysisCache() *source.AnalysisCache {
+	if v.analysisCache == nil {
+		v.analysisCache = source.NewAnalysisCache()
+	}
+	return v.analysisCache
 }
 
 // SetContent sets the overlay contents for a file. A nil content value will
@@ -125,11 +135,26 @@ func (v *View) parse(uri source.URI) error {
 		if err := imp.addImports(pkg); err != nil {
 			return err
 		}
-
-		// TODO(rstambler): Get real TypeSizes from go/packages.
-		pkg.TypesSizes = &types.StdSizes{}
-
 		imp.importPackage(pkg.PkgPath)
+
+		// Add every file in this package to our cache.
+		for _, file := range pkg.Syntax {
+			// TODO: If a file is in multiple packages, which package do we store?
+			if !file.Pos().IsValid() {
+				log.Printf("invalid position for file %v", file.Name)
+				continue
+			}
+			tok := imp.v.Config.Fset.File(file.Pos())
+			if tok == nil {
+				log.Printf("no token.File for %v", file.Name)
+				continue
+			}
+			fURI := source.ToURI(tok.Name())
+			f := imp.v.getFile(fURI)
+			f.token = tok
+			f.ast = file
+			f.pkg = pkg
+		}
 	}
 	return nil
 }
@@ -195,48 +220,16 @@ func (imp *importer) importPackage(pkgPath string) (*types.Package, error) {
 		return nil, fmt.Errorf("no metadata for %v", pkgPath)
 	}
 	pkg.Fset = imp.v.Config.Fset
-	pkg.Syntax = make([]*ast.File, len(pkg.GoFiles))
-	for i, filename := range pkg.GoFiles {
-		var src interface{}
-		overlay, ok := imp.v.Config.Overlay[filename]
-		if ok {
-			src = overlay
-		}
-		file, err := parser.ParseFile(imp.v.Config.Fset, filename, src, parser.AllErrors|parser.ParseComments)
-		if file == nil {
-			return nil, err
-		}
-		if err != nil {
-			switch err := err.(type) {
-			case *scanner.Error:
-				pkg.Errors = append(pkg.Errors, packages.Error{
-					Pos:  err.Pos.String(),
-					Msg:  err.Msg,
-					Kind: packages.ParseError,
-				})
-			case scanner.ErrorList:
-				// The first parser error is likely the root cause of the problem.
-				if err.Len() > 0 {
-					pkg.Errors = append(pkg.Errors, packages.Error{
-						Pos:  err[0].Pos.String(),
-						Msg:  err[0].Msg,
-						Kind: packages.ParseError,
-					})
-				}
-			}
-		}
-		pkg.Syntax[i] = file
+	appendError := func(err error) {
+		imp.appendPkgError(pkg, err)
 	}
+	files, errs := imp.parseFiles(pkg.CompiledGoFiles)
+	for _, err := range errs {
+		appendError(err)
+	}
+	pkg.Syntax = files
 	cfg := &types.Config{
-		Error: func(err error) {
-			if err, ok := err.(types.Error); ok {
-				pkg.Errors = append(pkg.Errors, packages.Error{
-					Pos:  imp.v.Config.Fset.Position(err.Pos).String(),
-					Msg:  err.Msg,
-					Kind: packages.TypeError,
-				})
-			}
-		},
+		Error:    appendError,
 		Importer: imp,
 	}
 	pkg.Types = types.NewPackage(pkg.PkgPath, pkg.Name)
@@ -251,30 +244,130 @@ func (imp *importer) importPackage(pkgPath string) (*types.Package, error) {
 	check := types.NewChecker(cfg, imp.v.Config.Fset, pkg.Types, pkg.TypesInfo)
 	check.Files(pkg.Syntax)
 
-	// Add every file in this package to our cache.
-	for _, file := range pkg.Syntax {
-		// TODO: If a file is in multiple packages, which package do we store?
-		if !file.Pos().IsValid() {
-			log.Printf("invalid position for file %v", file.Name)
-			continue
-		}
-		tok := imp.v.Config.Fset.File(file.Pos())
-		if tok == nil {
-			log.Printf("no token.File for %v", file.Name)
-			continue
-		}
-		fURI := source.ToURI(tok.Name())
-		f := imp.v.getFile(fURI)
-		f.token = tok
-		f.ast = file
-		f.pkg = pkg
-	}
 	return pkg.Types, nil
 }
 
-func (v *View) GetAnalysisCache() *source.AnalysisCache {
-	if v.analysisCache == nil {
-		v.analysisCache = source.NewAnalysisCache()
+func (imp *importer) appendPkgError(pkg *packages.Package, err error) {
+	if err == nil {
+		return
 	}
-	return v.analysisCache
+	var errs []packages.Error
+	switch err := err.(type) {
+	case *scanner.Error:
+		errs = append(errs, packages.Error{
+			Pos:  err.Pos.String(),
+			Msg:  err.Msg,
+			Kind: packages.ParseError,
+		})
+	case scanner.ErrorList:
+		// The first parser error is likely the root cause of the problem.
+		if err.Len() > 0 {
+			errs = append(errs, packages.Error{
+				Pos:  err[0].Pos.String(),
+				Msg:  err[0].Msg,
+				Kind: packages.ParseError,
+			})
+		}
+	case types.Error:
+		errs = append(errs, packages.Error{
+			Pos:  imp.v.Config.Fset.Position(err.Pos).String(),
+			Msg:  err.Msg,
+			Kind: packages.TypeError,
+		})
+	}
+	pkg.Errors = append(pkg.Errors, errs...)
+}
+
+// We use a counting semaphore to limit
+// the number of parallel I/O calls per process.
+var ioLimit = make(chan bool, 20)
+
+// parseFiles reads and parses the Go source files and returns the ASTs
+// of the ones that could be at least partially parsed, along with a
+// list of I/O and parse errors encountered.
+//
+// Because files are scanned in parallel, the token.Pos
+// positions of the resulting ast.Files are not ordered.
+//
+func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
+	var wg sync.WaitGroup
+	n := len(filenames)
+	parsed := make([]*ast.File, n)
+	errors := make([]error, n)
+	for i, file := range filenames {
+		if imp.v.Config.Context != nil {
+			if imp.v.Config.Context.Err() != nil {
+				parsed[i] = nil
+				errors[i] = imp.v.Config.Context.Err()
+				continue
+			}
+		}
+		wg.Add(1)
+		go func(i int, filename string) {
+			ioLimit <- true // wait
+			// ParseFile may return both an AST and an error.
+			var src []byte
+			for f, contents := range imp.v.Config.Overlay {
+				if sameFile(f, filename) {
+					src = contents
+				}
+			}
+			var err error
+			if src == nil {
+				src, err = ioutil.ReadFile(filename)
+			}
+			if err != nil {
+				parsed[i], errors[i] = nil, err
+			} else {
+				parsed[i], errors[i] = imp.v.Config.ParseFile(imp.v.Config.Fset, filename, src)
+			}
+			<-ioLimit // signal
+			wg.Done()
+		}(i, file)
+	}
+	wg.Wait()
+
+	// Eliminate nils, preserving order.
+	var o int
+	for _, f := range parsed {
+		if f != nil {
+			parsed[o] = f
+			o++
+		}
+	}
+	parsed = parsed[:o]
+
+	o = 0
+	for _, err := range errors {
+		if err != nil {
+			errors[o] = err
+			o++
+		}
+	}
+	errors = errors[:o]
+
+	return parsed, errors
+}
+
+// sameFile returns true if x and y have the same basename and denote
+// the same file.
+//
+func sameFile(x, y string) bool {
+	if x == y {
+		// It could be the case that y doesn't exist.
+		// For instance, it may be an overlay file that
+		// hasn't been written to disk. To handle that case
+		// let x == y through. (We added the exact absolute path
+		// string to the CompiledGoFiles list, so the unwritten
+		// overlay case implies x==y.)
+		return true
+	}
+	if strings.EqualFold(filepath.Base(x), filepath.Base(y)) { // (optimisation)
+		if xi, err := os.Stat(x); err == nil {
+			if yi, err := os.Stat(y); err == nil {
+				return os.SameFile(xi, yi)
+			}
+		}
+	}
+	return false
 }

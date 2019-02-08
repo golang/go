@@ -11,6 +11,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go/ast"
+	"go/parser"
 	"go/token"
 
 	"golang.org/x/tools/go/packages"
@@ -77,6 +79,10 @@ func (app *Application) Run(ctx context.Context, args ...string) error {
 	app.Config.Tests = true
 	if app.Config.Fset == nil {
 		app.Config.Fset = token.NewFileSet()
+	}
+	app.Config.Context = ctx
+	app.Config.ParseFile = func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+		return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
 	}
 	command, args := args[0], args[1:]
 	for _, c := range app.commands() {

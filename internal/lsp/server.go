@@ -7,6 +7,8 @@ package lsp
 import (
 	"context"
 	"fmt"
+	"go/ast"
+	"go/parser"
 	"go/token"
 	"net"
 	"os"
@@ -95,11 +97,15 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 	}
 
 	s.view = cache.NewView(&packages.Config{
+		Context: ctx,
 		Dir:     rootPath,
 		Mode:    packages.LoadImports,
 		Fset:    token.NewFileSet(),
-		Tests:   true,
 		Overlay: make(map[string][]byte),
+		ParseFile: func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+			return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
+		},
+		Tests: true,
 	})
 
 	return &protocol.InitializeResult{

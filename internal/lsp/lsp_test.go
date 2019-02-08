@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"go/ast"
+	"go/parser"
 	"go/token"
 	"os/exec"
 	"path/filepath"
@@ -59,6 +61,10 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	// Merge the exported.Config with the view.Config.
 	cfg := *exported.Config
 	cfg.Fset = token.NewFileSet()
+	cfg.Context = context.Background()
+	cfg.ParseFile = func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+		return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
+	}
 
 	s := &server{
 		view: cache.NewView(&cfg),
