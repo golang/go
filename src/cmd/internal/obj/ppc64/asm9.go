@@ -389,9 +389,10 @@ var optab = []Optab{
 	{AMOVWZ, C_REG, C_NONE, C_NONE, C_MSR, 54, 4, 0}, /* mtmsr */
 
 	/* Other ISA 2.05+ instructions */
-	{APOPCNTD, C_REG, C_NONE, C_NONE, C_REG, 93, 4, 0},  /* population count, x-form */
-	{ACMPB, C_REG, C_REG, C_NONE, C_REG, 92, 4, 0},      /* compare byte, x-form */
-	{ACMPEQB, C_REG, C_REG, C_NONE, C_CREG, 92, 4, 0},   /* compare equal byte, x-form */
+	{APOPCNTD, C_REG, C_NONE, C_NONE, C_REG, 93, 4, 0}, /* population count, x-form */
+	{ACMPB, C_REG, C_REG, C_NONE, C_REG, 92, 4, 0},     /* compare byte, x-form */
+	{ACMPEQB, C_REG, C_REG, C_NONE, C_CREG, 92, 4, 0},  /* compare equal byte, x-form, ISA 3.0 */
+	{ACMPEQB, C_REG, C_NONE, C_NONE, C_REG, 70, 4, 0},
 	{AFTDIV, C_FREG, C_FREG, C_NONE, C_SCON, 92, 4, 0},  /* floating test for sw divide, x-form */
 	{AFTSQRT, C_FREG, C_NONE, C_NONE, C_SCON, 93, 4, 0}, /* floating test for sw square root, x-form */
 	{ACOPY, C_REG, C_NONE, C_NONE, C_REG, 92, 4, 0},     /* copy/paste facility, x-form */
@@ -1304,9 +1305,13 @@ func buildop(ctxt *obj.Link) {
 			opset(ADIVDUVCC, r0)
 			opset(ADIVDUCC, r0)
 
-		case APOPCNTD:
+		case APOPCNTD: /* popcntd, popcntw, popcntb, cnttzw, cnttzd */
 			opset(APOPCNTW, r0)
 			opset(APOPCNTB, r0)
+			opset(ACNTTZW, r0)
+			opset(ACNTTZWCC, r0)
+			opset(ACNTTZD, r0)
+			opset(ACNTTZDCC, r0)
 
 		case ACOPY: /* copy, paste. */
 			opset(APASTECC, r0)
@@ -3760,6 +3765,8 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVCC(31, 32, 0, 0)
 	case ACMPB:
 		return OPVCC(31, 508, 0, 0) /* cmpb - v2.05 */
+	case ACMPEQB:
+		return OPVCC(31, 224, 0, 0) /* cmpeqb - v3.00 */
 
 	case ACNTLZW:
 		return OPVCC(31, 26, 0, 0)
@@ -4118,6 +4125,14 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVCC(31, 378, 0, 0) /* popcntw - v2.06 */
 	case APOPCNTB:
 		return OPVCC(31, 122, 0, 0) /* popcntb - v2.02 */
+	case ACNTTZW:
+		return OPVCC(31, 538, 0, 0) /* cnttzw - v3.00 */
+	case ACNTTZWCC:
+		return OPVCC(31, 538, 0, 1) /* cnttzw. - v3.00 */
+	case ACNTTZD:
+		return OPVCC(31, 570, 0, 0) /* cnttzd - v3.00 */
+	case ACNTTZDCC:
+		return OPVCC(31, 570, 0, 1) /* cnttzd. - v3.00 */
 
 	case ARFI:
 		return OPVCC(19, 50, 0, 0)
