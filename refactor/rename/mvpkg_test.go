@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -122,9 +121,6 @@ var _ foo.T
 }
 
 func TestMoves(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("broken on Windows; see golang.org/issue/16384")
-	}
 	tests := []struct {
 		ctxt         *build.Context
 		from, to     string

@@ -9,7 +9,6 @@ package rename
 
 // TODO(matloob):
 // - think about what happens if the package is moving across version control systems.
-// - think about windows, which uses "\" as its directory separator.
 // - dot imports are not supported. Make sure it's clearly documented.
 
 import (
@@ -52,7 +51,6 @@ func Move(ctxt *build.Context, from, to, moveTmpl string) error {
 
 	// This should be the only place in the program that constructs
 	// file paths.
-	// TODO(matloob): test on Microsoft Windows.
 	fromDir := buildutil.JoinPath(ctxt, srcDir, filepath.FromSlash(from))
 	toDir := buildutil.JoinPath(ctxt, srcDir, filepath.FromSlash(to))
 	toParent := filepath.Dir(toDir)
@@ -79,12 +77,7 @@ func Move(ctxt *build.Context, from, to, moveTmpl string) error {
 		for r := range rev[pkg] {
 			affectedPackages[r] = true
 		}
-		// Ensure directories have a trailing separator.
-		dest := strings.Replace(pkg,
-			filepath.Join(from, ""),
-			filepath.Join(to, ""),
-			1)
-		destinations[pkg] = filepath.ToSlash(dest)
+		destinations[pkg] = strings.Replace(pkg, from, to, 1)
 	}
 
 	// Load all the affected packages.
@@ -135,19 +128,17 @@ func srcDir(ctxt *build.Context, pkg string) (string, error) {
 }
 
 // subpackages returns the set of packages in the given srcDir whose
-// import paths start with dir.
-func subpackages(ctxt *build.Context, srcDir string, dir string) map[string]bool {
-	subs := map[string]bool{dir: true}
-
-	// Find all packages under srcDir whose import paths start with dir.
+// import path equals to root, or has "root/" as the prefix.
+func subpackages(ctxt *build.Context, srcDir string, root string) map[string]bool {
+	var subs = make(map[string]bool)
 	buildutil.ForEachPackage(ctxt, func(pkg string, err error) {
 		if err != nil {
 			log.Fatalf("unexpected error in ForEachPackage: %v", err)
 		}
 
-		// Only process the package or a sub-package
-		if !(strings.HasPrefix(pkg, dir) &&
-			(len(pkg) == len(dir) || pkg[len(dir)] == '/')) {
+		// Only process the package root, or a sub-package of it.
+		if !(strings.HasPrefix(pkg, root) &&
+			(len(pkg) == len(root) || pkg[len(root)] == '/')) {
 			return
 		}
 
@@ -164,7 +155,6 @@ func subpackages(ctxt *build.Context, srcDir string, dir string) map[string]bool
 
 		subs[pkg] = true
 	})
-
 	return subs
 }
 
