@@ -91,6 +91,23 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	return err
 }
 
+// AppendFile appends data to a file named by filename.
+// If the file does not exist, AppendFile creates it with permissions perm.
+func AppendFile(filename string, data []byte, perm os.FileMode) error {
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, perm)
+	if err != nil {
+		return err
+	}
+	n, err := f.Write(data)
+	if err == nil && n < len(data) {
+		err = io.ErrShortWrite
+	}
+	if err1 := f.Close(); err == nil {
+		err = err1
+	}
+	return err
+}
+
 // ReadDir reads the directory named by dirname and returns
 // a list of directory entries sorted by filename.
 func ReadDir(dirname string) ([]os.FileInfo, error) {
