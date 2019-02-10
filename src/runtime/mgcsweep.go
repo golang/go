@@ -291,7 +291,7 @@ func (s *mspan) sweep(preserve bool) bool {
 		}
 	}
 
-	if debug.allocfreetrace != 0 || raceenabled || msanenabled {
+	if debug.allocfreetrace != 0 || debug.clobberfree != 0 || raceenabled || msanenabled {
 		// Find all newly freed objects. This doesn't have to
 		// efficient; allocfreetrace has massive overhead.
 		mbits := s.markBitsForBase()
@@ -301,6 +301,9 @@ func (s *mspan) sweep(preserve bool) bool {
 				x := s.base() + i*s.elemsize
 				if debug.allocfreetrace != 0 {
 					tracefree(unsafe.Pointer(x), size)
+				}
+				if debug.clobberfree != 0 {
+					clobberfree(unsafe.Pointer(x), size)
 				}
 				if raceenabled {
 					racefree(unsafe.Pointer(x), size)
@@ -444,5 +447,14 @@ retry:
 
 	if trace.enabled {
 		traceGCSweepDone()
+	}
+}
+
+// clobberfree sets the memory content at x to bad content, for debugging
+// purposes.
+func clobberfree(x unsafe.Pointer, size uintptr) {
+	// size (span.elemsize) is always a multiple of 4.
+	for i := uintptr(0); i < size; i += 4 {
+		*(*uint32)(add(x, i)) = 0xdeadbeef
 	}
 }
