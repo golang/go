@@ -92,7 +92,7 @@ func ExampleWriter_RegisterCompressor() {
 	// Proceed to add files to w.
 }
 
-func ExampleWriter_RegisterDecompressor() {
+func ExampleReader_RegisterDecompressor() {
 	// Override the default Deflate decompressor.
 
 	// Open a zip archive for reading.
@@ -107,4 +107,5 @@ func ExampleWriter_RegisterDecompressor() {
 		return flate.NewReader(r)
 	})
 
+	// Proceed to read from r.
 }
