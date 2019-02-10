@@ -301,6 +301,7 @@ type dbgVar struct {
 var debug struct {
 	allocfreetrace     int32
 	cgocheck           int32
+	clobberfree        int32
 	efence             int32
 	gccheckmark        int32
 	gcpacertrace       int32
@@ -318,6 +319,7 @@ var debug struct {
 
 var dbgvars = []dbgVar{
 	{"allocfreetrace", &debug.allocfreetrace},
+	{"clobberfree", &debug.clobberfree},
 	{"cgocheck", &debug.cgocheck},
 	{"efence", &debug.efence},
 	{"gccheckmark", &debug.gccheckmark},
