@@ -59,30 +59,27 @@ func ExampleOnce() {
 }
 
 func ExampleMap() {
-	var map sync.Map
+	var gophers sync.Map
 	// Store
-	map.Store("cow", "moo")
-	map.Store("chicken", "cluck")
+	gophers.Store("cow", "moo")
+	gophers.Store("chicken", "cluck")
+	gophers.Store("gopher", "go")
+
 	// Load
-	_, found := map.Load("gopher")
-	if !found {
-		fmt.Print("no gopher")
+	_, found := gophers.Load("gopher")
+	if found {
+		fmt.Println("gopher found")
 	}
 
-	map.Store("gopher", "go")
-	gopher, found := map.Load("gopher")
-	fmt.Println(gopher, found)
 
-	// Delete
-	map.Delete("chicken")
-	// Range
-	db.Memdb.Range(func(key interface{}, value interface{}) bool {
-		fmt.Println(key, value)
+	// Range & Delete
+	gophers.Range(func(key interface{}, value interface{}) bool {
+		if key.(string) == "chicken" {
+			gophers.Delete(key.(string))
+		}
+		return true
 	})
 
 	// Output:
-	// no gopher
-	// go true
-	// cow moo
-	// gopher go
+	// gopher found
 }
