@@ -1786,6 +1786,9 @@
 		(CMPconst [64]  (SUB <t> (MOVDconst [32]) (ANDconst <t> [31] y))))) && cc.(Op) == OpARM64LessThanU
 	-> (RORW x y)
 
+// ((x>>8) | (x<<8)) -> (REV16W x), the type of x is uint16, "|" can also be "^" or "+".
+((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (UBFX <typ.UInt16> [arm64BFAuxInt(8, 8)] x) x) -> (REV16W x)
+
 // Extract from reg pair
 (ADDshiftLL [c] (SRLconst x [64-c]) x2) -> (EXTRconst [64-c] x2 x)
 ( ORshiftLL [c] (SRLconst x [64-c]) x2) -> (EXTRconst [64-c] x2 x)
