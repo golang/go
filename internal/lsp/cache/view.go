@@ -119,6 +119,10 @@ func (v *View) parse(uri source.URI) error {
 		if err := imp.addImports(pkg); err != nil {
 			return err
 		}
+
+		// TODO(rstambler): Get real TypeSizes from go/packages.
+		pkg.TypesSizes = &types.StdSizes{}
+
 		imp.importPackage(pkg.PkgPath)
 	}
 	return nil
