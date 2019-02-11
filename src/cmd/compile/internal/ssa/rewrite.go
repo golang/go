@@ -1037,13 +1037,13 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	return false
 }
 
-// encodes the lsb and width for arm64 bitfield ops into the expected auxInt format.
-func arm64BFAuxInt(lsb, width int64) int64 {
+// encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
+func armBFAuxInt(lsb, width int64) int64 {
 	if lsb < 0 || lsb > 63 {
-		panic("ARM64 bit field lsb constant out of range")
+		panic("ARM(64) bit field lsb constant out of range")
 	}
 	if width < 1 || width > 64 {
-		panic("ARM64 bit field width constant out of range")
+		panic("ARM(64) bit field width constant out of range")
 	}
 	return width | lsb<<8
 }

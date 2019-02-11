@@ -171,6 +171,9 @@ func ReverseBytes32(n uint32) uint32 {
 func ReverseBytes16(n uint16) uint16 {
 	// amd64:"ROLW"
 	// arm64:"REV16W",-"UBFX",-"ORR"
+	// arm/5:"SLL","SRL","ORR"
+	// arm/6:"REV16"
+	// arm/7:"REV16"
 	return bits.ReverseBytes16(n)
 }
 
