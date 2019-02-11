@@ -1126,12 +1126,12 @@ func (h *mheap) pickFreeSpan(npage uintptr) *mspan {
 	// Note that we want the _smaller_ free span, i.e. the free span
 	// closer in size to the amount we requested (npage).
 	var s *mspan
-	if tf != nil && (ts == nil || tf.spanKey.npages <= ts.spanKey.npages) {
-		s = tf.spanKey
-		h.free.removeNode(tf)
-	} else if ts != nil && (tf == nil || tf.spanKey.npages > ts.spanKey.npages) {
-		s = ts.spanKey
-		h.scav.removeNode(ts)
+	if tf.valid() && (!ts.valid() || tf.span().npages <= ts.span().npages) {
+		s = tf.span()
+		h.free.erase(tf)
+	} else if ts.valid() && (!tf.valid() || tf.span().npages > ts.span().npages) {
+		s = ts.span()
+		h.scav.erase(ts)
 	}
 	return s
 }
