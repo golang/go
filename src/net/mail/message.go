@@ -316,10 +316,13 @@ func (p *addrParser) parseAddress(handleGroup bool) ([]*Address, error) {
 			}
 		}
 
-		return []*Address{{
-			Name:    displayName,
-			Address: spec,
-		}}, err
+		// fix parse address err like abcd@efg.com<abcd@efg.com>
+		if p.peek() != '<' {
+			return []*Address{{
+				Name:    displayName,
+				Address: spec,
+			}}, err	
+		}
 	}
 	debug.Printf("parseAddress: not an addr-spec: %v", err)
 	debug.Printf("parseAddress: state is now %q", p.s)
