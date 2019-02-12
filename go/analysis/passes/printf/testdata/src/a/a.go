@@ -63,6 +63,7 @@ func PrintfTests() {
 	var imap map[int]int
 	var fslice []float64
 	var c complex64
+	var err error
 	// Some good format/argtypes
 	fmt.Printf("")
 	fmt.Printf("%b %b %b", 3, i, x)
@@ -96,6 +97,7 @@ func PrintfTests() {
 	fmt.Printf("%T", notstringerv)
 	fmt.Printf("%q", stringerarrayv)
 	fmt.Printf("%v", stringerarrayv)
+	fmt.Printf("%w", err)
 	fmt.Printf("%s", stringerarrayv)
 	fmt.Printf("%v", notstringerarrayv)
 	fmt.Printf("%T", notstringerarrayv)
