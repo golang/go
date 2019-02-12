@@ -82,21 +82,29 @@ func computeTextEdits(rng Range, tok *token.File, unformatted, formatted string)
 	u := strings.SplitAfter(unformatted, "\n")
 	f := strings.SplitAfter(formatted, "\n")
 	for _, op := range diff.Operations(u, f) {
+		start := lineStart(tok, op.I1+1)
+		if start == token.NoPos && op.I1 == len(u) {
+			start = tok.Pos(tok.Size())
+		}
+		end := lineStart(tok, op.I2+1)
+		if end == token.NoPos && op.I2 == len(u) {
+			end = tok.Pos(tok.Size())
+		}
 		switch op.Kind {
 		case diff.Delete:
 			// Delete: unformatted[i1:i2] is deleted.
 			edits = append(edits, TextEdit{
 				Range: Range{
-					Start: lineStart(tok, op.I1+1),
-					End:   lineStart(tok, op.I2+1),
+					Start: start,
+					End:   end,
 				},
 			})
 		case diff.Insert:
 			// Insert: formatted[j1:j2] is inserted at unformatted[i1:i1].
 			edits = append(edits, TextEdit{
 				Range: Range{
-					Start: lineStart(tok, op.I1+1),
-					End:   lineStart(tok, op.I1+1),
+					Start: start,
+					End:   start,
 				},
 				NewText: op.Content,
 			})

@@ -18,17 +18,6 @@ func TestDiff(t *testing.T) {
 		{
 			a: []string{"A", "B", "C", "A", "B", "B", "A"},
 			b: []string{"C", "B", "A", "B", "A", "C"},
-			lines: []*Op{
-				&Op{Kind: Delete, Content: "A"},
-				&Op{Kind: Delete, Content: "B"},
-				&Op{Kind: Equal, Content: "C"},
-				&Op{Kind: Insert, Content: "B"},
-				&Op{Kind: Equal, Content: "A"},
-				&Op{Kind: Equal, Content: "B"},
-				&Op{Kind: Delete, Content: "B"},
-				&Op{Kind: Equal, Content: "A"},
-				&Op{Kind: Insert, Content: "C"},
-			},
 			operations: []*Op{
 				&Op{Kind: Delete, I1: 0, I2: 1, J1: 0, J2: 0},
 				&Op{Kind: Delete, I1: 1, I2: 2, J1: 0, J2: 0},
@@ -37,27 +26,27 @@ func TestDiff(t *testing.T) {
 				&Op{Kind: Insert, Content: "C", I1: 7, I2: 7, J1: 5, J2: 6},
 			},
 		},
+		{
+			a: []string{"A", "B"},
+			b: []string{"A", "C", ""},
+			operations: []*Op{
+				&Op{Kind: Delete, I1: 1, I2: 2, J1: 1, J2: 1},
+				&Op{Kind: Insert, Content: "C", I1: 2, I2: 2, J1: 1, J2: 2},
+				&Op{Kind: Insert, Content: "", I1: 2, I2: 2, J1: 2, J2: 3},
+			},
+		},
 	} {
-		for i, got := range Lines(tt.a, tt.b) {
-			want := tt.lines[i]
-			if !reflect.DeepEqual(want, got) {
-				t.Errorf("expected %v, got %v", want, got)
-			}
+		ops := Operations(tt.a, tt.b)
+		if len(ops) != len(tt.operations) {
+			t.Fatalf("expected %v operations, got %v", len(tt.operations), len(ops))
 		}
-		b := ApplyEdits(tt.a, tt.lines)
-		for i, want := range tt.b {
-			got := b[i]
-			if got != want {
-				t.Errorf("expected %v got %v", want, got)
-			}
-		}
-		for i, got := range Operations(tt.a, tt.b) {
+		for i, got := range ops {
 			want := tt.operations[i]
 			if !reflect.DeepEqual(want, got) {
 				t.Errorf("expected %v, got %v", want, got)
 			}
 		}
-		b = ApplyEdits(tt.a, tt.operations)
+		b := ApplyEdits(tt.a, tt.operations)
 		for i, want := range tt.b {
 			got := b[i]
 			if got != want {

@@ -38,7 +38,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	// are being executed. If a test is added, this number must be changed.
 	const expectedCompletionsCount = 63
 	const expectedDiagnosticsCount = 17
-	const expectedFormatCount = 3
+	const expectedFormatCount = 4
 	const expectedDefinitionsCount = 16
 	const expectedTypeDefinitionsCount = 2
 
@@ -380,25 +380,30 @@ func (f formats) test(t *testing.T, s *server) {
 		}
 		var ops []*diff.Op
 		for _, edit := range edits {
+			start := int(edit.Range.Start.Line)
+			end := int(edit.Range.End.Line)
+			if start == end && edit.Range.End.Character > 1 {
+				end++
+			}
 			if edit.NewText == "" { // deletion
 				ops = append(ops, &diff.Op{
 					Kind: diff.Delete,
-					I1:   int(edit.Range.Start.Line),
-					I2:   int(edit.Range.End.Line),
+					I1:   start,
+					I2:   end,
 				})
 			} else if edit.Range.Start == edit.Range.End { // insertion
 				ops = append(ops, &diff.Op{
 					Kind:    diff.Insert,
 					Content: edit.NewText,
-					I1:      int(edit.Range.Start.Line),
-					I2:      int(edit.Range.End.Line),
+					I1:      start,
+					I2:      end,
 				})
 			}
 		}
 		split := strings.SplitAfter(string(original), "\n")
 		got := strings.Join(diff.ApplyEdits(split, ops), "")
 		if gofmted != got {
-			t.Errorf("format failed for %s: expected %v, got %v", filename, gofmted, got)
+			t.Errorf("format failed for %s: expected '%v', got '%v'", filename, gofmted, got)
 		}
 	}
 }

@@ -5,7 +5,9 @@
 // Package diff implements the Myers diff algorithm.
 package diff
 
-import "strings"
+import (
+	"strings"
+)
 
 // Sources:
 // https://blog.jcoglan.com/2017/02/17/the-myers-diff-algorithm-part-3/
@@ -70,6 +72,8 @@ func Operations(a, b []string) []*Op {
 	trace, offset := shortestEditSequence(a, b)
 	snakes := backtrack(trace, len(a), len(b), offset)
 
+	M, N := len(a), len(b)
+
 	var i int
 	solution := make([]*Op, len(a)+len(b))
 
@@ -101,7 +105,7 @@ func Operations(a, b []string) []*Op {
 				}
 			}
 			x++
-			if x == len(a) {
+			if x == M {
 				break
 			}
 		}
@@ -125,58 +129,7 @@ func Operations(a, b []string) []*Op {
 			x++
 			y++
 		}
-		if x >= len(a) && y >= len(b) {
-			break
-		}
-	}
-	return solution[:i]
-}
-
-// Lines returns a list of per-line operations to convert a into b.
-func Lines(a, b []string) []*Op {
-	trace, offset := shortestEditSequence(a, b)
-	snakes := backtrack(trace, len(a), len(b), offset)
-
-	var i int
-	solution := make([]*Op, len(a)+len(b))
-
-	x, y := 0, 0
-	for _, snake := range snakes {
-		if len(snake) < 2 {
-			continue
-		}
-		// horizontal
-		for snake[0]-snake[1] > x-y {
-			solution[i] = &Op{
-				Kind:    Delete,
-				Content: a[x],
-			}
-			i++
-			x++
-			if x == len(a) {
-				break
-			}
-		}
-		// vertical
-		for snake[0]-snake[1] < x-y {
-			solution[i] = &Op{
-				Kind:    Insert,
-				Content: b[y],
-			}
-			i++
-			y++
-		}
-		// diagonal
-		for x < snake[0] {
-			solution[i] = &Op{
-				Kind:    Equal,
-				Content: a[x],
-			}
-			i++
-			x++
-			y++
-		}
-		if x >= len(a) && y >= len(b) {
+		if x >= M && y >= N {
 			break
 		}
 	}
@@ -208,7 +161,6 @@ func backtrack(trace [][]int, x, y, offset int) [][]int {
 		x = V[kPrev+offset]
 		y = x - kPrev
 	}
-	// this feels questionable
 	if x < 0 || y < 0 {
 		return snakes
 	}
@@ -254,7 +206,7 @@ func shortestEditSequence(a, b []string) ([][]int, int) {
 			trace[d] = copyV
 
 			// Return if we've exceeded the maximum values.
-			if x >= M-1 && y >= N-1 {
+			if x == M && y == N {
 				return trace, offset
 			}
 		}
