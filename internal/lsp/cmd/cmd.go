@@ -68,6 +68,7 @@ gopls flags are:
 // If no arguments are passed it will invoke the server sub command, as a
 // temporary measure for compatibility.
 func (app *Application) Run(ctx context.Context, args ...string) error {
+	app.Serve.app = app
 	if len(args) == 0 {
 		tool.Main(ctx, &app.Serve, args)
 		return nil
@@ -91,7 +92,6 @@ func (app *Application) Run(ctx context.Context, args ...string) error {
 // command line.
 // The command is specified by the first non flag argument.
 func (app *Application) commands() []tool.Application {
-	app.Serve.app = app
 	return []tool.Application{
 		&app.Serve,
 		&query{app: app},
