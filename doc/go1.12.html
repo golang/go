@@ -493,8 +493,11 @@ for {
 <dl id="crypto/rc4"><dt><a href="/pkg/crypto/rc4/">crypto/rc4</a></dt>
   <dd>
     <p><!-- CL 130397 -->
-      This release removes the optimized assembly implementations. RC4 is insecure
-      and should only be used for compatibility with legacy systems.
+      This release removes the assembly implementations, leaving only
+      the pure Go version. The Go compiler generates code that is
+      either slightly better or slightly worse, depending on the exact
+      CPU. RC4 is insecure and should only be used for compatibility
+      with legacy systems.
     </p>
 
 </dl><!-- crypto/rc4 -->
