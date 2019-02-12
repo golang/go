@@ -73,12 +73,18 @@ func println(...interface{}) { println() } // want println:"found" "call of prin
 		`a/b.go:5: in 'want' comment: unexpected ":"`,
 		`a/b.go:6: in 'want' comment: got String after foo, want ':'`,
 		`a/b.go:7: in 'want' comment: got EOF, want regular expression`,
-		`a/b.go:8: in 'want' comment: illegal char escape`,
+		`a/b.go:8: in 'want' comment: invalid char escape`,
 		`a/b.go:11:9: diagnostic "call of println(...)" does not match pattern "wrong expectation text"`,
 		`a/b.go:14:9: unexpected diagnostic: call of println(...)`,
 		`a/b.go:11: no diagnostic was reported matching "wrong expectation text"`,
 		`a/b.go:17: no diagnostic was reported matching "unsatisfied expectation"`,
 	}
+	// Go 1.13's scanner error messages uses the word invalid where Go 1.12 used illegal. Convert them
+	// to keep tests compatible with both.
+	// TODO(matloob): Remove this once Go 1.13 is released.
+	for i := range got {
+		got[i] = strings.Replace(got[i], "illegal", "invalid", -1)
+	} //
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got:\n%s\nwant:\n%s",
 			strings.Join(got, "\n"),
