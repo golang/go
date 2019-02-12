@@ -11,11 +11,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-	"net"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
@@ -28,7 +28,7 @@ type Serve struct {
 	Logfile string `flag:"logfile" help:"filename to log to. if value is \"auto\", then logging to a default output file is enabled"`
 	Mode    string `flag:"mode" help:"no effect"`
 	Port    int    `flag:"port" help:"port on which to run gopls for debugging purposes"`
-	Address    string    `flag:"listen" help:"address on which to listen for remote connections"`
+	Address string `flag:"listen" help:"address on which to listen for remote connections"`
 
 	app *Application
 }
@@ -128,7 +128,6 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	stream := jsonrpc2.NewHeaderStream(os.Stdin, os.Stdout)
 	return lsp.RunServer(ctx, stream, logger)
 }
-
 
 func (s *Serve) forward() error {
 	conn, err := net.Dial("tcp", s.app.Remote)
