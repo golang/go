@@ -232,6 +232,18 @@ func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
 	return &c, func() { c.cancel(true, Canceled) }
 }
 
+// A CustomCancelFunc behaves like CancelFunc, except for it accepts
+// particular error to be returned. The error is not allowed to be nil.
+type CustomCancelFunc func(error)
+
+// WithCustomCancel behaves like WithCancel, except for it allows cancelling
+// with user-provided error.
+func WithCustomCancel(parent Context) (ctx Context, cancel CustomCancelFunc) {
+	c := newCancelCtx(parent)
+	propagateCancel(parent, &c)
+	return &c, func(err error) { c.cancel(true, err) }
+}
+
 // newCancelCtx returns an initialized cancelCtx.
 func newCancelCtx(parent Context) cancelCtx {
 	return cancelCtx{Context: parent}
