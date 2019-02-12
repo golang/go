@@ -1141,10 +1141,6 @@ func (w *response) WriteHeader(code int) {
 			w.handlerHeader.Del("Content-Length")
 		}
 	}
-
-	if w.handlerHeader.get("Connection") == "close" {
-		w.closeAfterReply = true
-	}
 }
 
 // extraHeader is the set of headers sometimes added by chunkWriter.writeHeader.
