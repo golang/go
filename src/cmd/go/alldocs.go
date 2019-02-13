@@ -21,7 +21,7 @@
 // 	fix         update packages to use new APIs
 // 	fmt         gofmt (reformat) package sources
 // 	generate    generate Go files by processing source
-// 	get         download and install packages and dependencies
+// 	get         add dependencies to current module and install them
 // 	install     compile and install packages and dependencies
 // 	list        list packages or modules
 // 	mod         module maintenance
@@ -534,67 +534,105 @@
 // For more about specifying packages, see 'go help packages'.
 //
 //
-// Download and install packages and dependencies
+// Add dependencies to current module and install them
 //
 // Usage:
 //
-// 	go get [-d] [-f] [-t] [-u] [-v] [-fix] [-insecure] [build flags] [packages]
+// 	go get [-d] [-m] [-u] [-v] [-insecure] [build flags] [packages]
 //
-// Get downloads the packages named by the import paths, along with their
-// dependencies. It then installs the named packages, like 'go install'.
+// Get resolves and adds dependencies to the current development module
+// and then builds and installs them.
 //
-// The -d flag instructs get to stop after downloading the packages; that is,
-// it instructs get not to install the packages.
+// The first step is to resolve which dependencies to add.
 //
-// The -f flag, valid only when -u is set, forces get -u not to verify that
-// each package has been checked out from the source control repository
-// implied by its import path. This can be useful if the source is a local fork
-// of the original.
+// For each named package or package pattern, get must decide which version of
+// the corresponding module to use. By default, get chooses the latest tagged
+// release version, such as v0.4.5 or v1.2.3. If there are no tagged release
+// versions, get chooses the latest tagged prerelease version, such as
+// v0.0.1-pre1. If there are no tagged versions at all, get chooses the latest
+// known commit.
 //
-// The -fix flag instructs get to run the fix tool on the downloaded packages
-// before resolving dependencies or building the code.
+// This default version selection can be overridden by adding an @version
+// suffix to the package argument, as in 'go get golang.org/x/text@v0.3.0'.
+// For modules stored in source control repositories, the version suffix can
+// also be a commit hash, branch identifier, or other syntax known to the
+// source control system, as in 'go get golang.org/x/text@master'.
+// The version suffix @latest explicitly requests the default behavior
+// described above.
+//
+// If a module under consideration is already a dependency of the current
+// development module, then get will update the required version.
+// Specifying a version earlier than the current required version is valid and
+// downgrades the dependency. The version suffix @none indicates that the
+// dependency should be removed entirely, downgrading or removing modules
+// depending on it as needed.
+//
+// Although get defaults to using the latest version of the module containing
+// a named package, it does not use the latest version of that module's
+// dependencies. Instead it prefers to use the specific dependency versions
+// requested by that module. For example, if the latest A requires module
+// B v1.2.3, while B v1.2.4 and v1.3.1 are also available, then 'go get A'
+// will use the latest A but then use B v1.2.3, as requested by A. (If there
+// are competing requirements for a particular module, then 'go get' resolves
+// those requirements by taking the maximum requested version.)
+//
+// The -u flag instructs get to update dependencies to use newer minor or
+// patch releases when available. Continuing the previous example,
+// 'go get -u A' will use the latest A with B v1.3.1 (not B v1.2.3).
+//
+// The -u=patch flag (not -u patch) instructs get to update dependencies
+// to use newer patch releases when available. Continuing the previous example,
+// 'go get -u=patch A' will use the latest A with B v1.2.4 (not B v1.2.3).
+//
+// In general, adding a new dependency may require upgrading
+// existing dependencies to keep a working build, and 'go get' does
+// this automatically. Similarly, downgrading one dependency may
+// require downgrading other dependencies, and 'go get' does
+// this automatically as well.
+//
+// The -m flag instructs get to stop here, after resolving, upgrading,
+// and downgrading modules and updating go.mod. When using -m,
+// each specified package path must be a module path as well,
+// not the import path of a package below the module root.
 //
 // The -insecure flag permits fetching from repositories and resolving
 // custom domains using insecure schemes such as HTTP. Use with caution.
 //
-// The -t flag instructs get to also download the packages required to build
-// the tests for the specified packages.
+// The second step is to download (if needed), build, and install
+// the named packages.
 //
-// The -u flag instructs get to use the network to update the named packages
-// and their dependencies. By default, get uses the network to check out
-// missing packages but does not use it to look for updates to existing packages.
+// If an argument names a module but not a package (because there is no
+// Go source code in the module's root directory), then the install step
+// is skipped for that argument, instead of causing a build failure.
+// For example 'go get golang.org/x/perf' succeeds even though there
+// is no code corresponding to that import path.
 //
-// The -v flag enables verbose progress and debug output.
+// Note that package patterns are allowed and are expanded after resolving
+// the module versions. For example, 'go get golang.org/x/perf/cmd/...'
+// adds the latest golang.org/x/perf and then installs the commands in that
+// latest version.
 //
-// Get also accepts build flags to control the installation. See 'go help build'.
+// The -d flag instructs get to download the source code needed to build
+// the named packages, including downloading necessary dependencies,
+// but not to build and install them.
 //
-// When checking out a new package, get creates the target directory
-// GOPATH/src/<import-path>. If the GOPATH contains multiple entries,
-// get uses the first one. For more details see: 'go help gopath'.
+// With no package arguments, 'go get' applies to the main module,
+// and to the Go package in the current directory, if any. In particular,
+// 'go get -u' and 'go get -u=patch' update all the dependencies of the
+// main module. With no package arguments and also without -u,
+// 'go get' is not much more than 'go install', and 'go get -d' not much
+// more than 'go list'.
 //
-// When checking out or updating a package, get looks for a branch or tag
-// that matches the locally installed version of Go. The most important
-// rule is that if the local installation is running version "go1", get
-// searches for a branch or tag named "go1". If no such version exists
-// it retrieves the default branch of the package.
-//
-// When go get checks out or updates a Git repository,
-// it also updates any git submodules referenced by the repository.
-//
-// Get never checks out or updates code stored in vendor directories.
+// For more about modules, see 'go help modules'.
 //
 // For more about specifying packages, see 'go help packages'.
 //
-// For more about how 'go get' finds source code to
-// download, see 'go help importpath'.
+// This text describes the behavior of get using modules to manage source
+// code and dependencies. If instead the go command is running in GOPATH
+// mode, the details of get's flags and effects change, as does 'go help get'.
+// See 'go help modules' and 'go help gopath-get'.
 //
-// This text describes the behavior of get when using GOPATH
-// to manage source code and dependencies.
-// If instead the go command is running in module-aware mode,
-// the details of get's flags and effects change, as does 'go help get'.
-// See 'go help modules' and 'go help module-get'.
-//
-// See also: go build, go install, go clean.
+// See also: go build, go install, go clean, go mod.
 //
 //
 // Compile and install packages and dependencies
@@ -1838,6 +1876,72 @@
 // See https://golang.org/s/go15vendor for details.
 //
 //
+// Legacy GOPATH go get
+//
+// The 'go get' command changes behavior depending on whether the
+// go command is running in module-aware mode or legacy GOPATH mode.
+// This help text, accessible as 'go help gopath-get' even in module-aware mode,
+// describes 'go get' as it operates in legacy GOPATH mode.
+//
+// Usage: go get [-d] [-f] [-t] [-u] [-v] [-fix] [-insecure] [build flags] [packages]
+//
+// Get downloads the packages named by the import paths, along with their
+// dependencies. It then installs the named packages, like 'go install'.
+//
+// The -d flag instructs get to stop after downloading the packages; that is,
+// it instructs get not to install the packages.
+//
+// The -f flag, valid only when -u is set, forces get -u not to verify that
+// each package has been checked out from the source control repository
+// implied by its import path. This can be useful if the source is a local fork
+// of the original.
+//
+// The -fix flag instructs get to run the fix tool on the downloaded packages
+// before resolving dependencies or building the code.
+//
+// The -insecure flag permits fetching from repositories and resolving
+// custom domains using insecure schemes such as HTTP. Use with caution.
+//
+// The -t flag instructs get to also download the packages required to build
+// the tests for the specified packages.
+//
+// The -u flag instructs get to use the network to update the named packages
+// and their dependencies. By default, get uses the network to check out
+// missing packages but does not use it to look for updates to existing packages.
+//
+// The -v flag enables verbose progress and debug output.
+//
+// Get also accepts build flags to control the installation. See 'go help build'.
+//
+// When checking out a new package, get creates the target directory
+// GOPATH/src/<import-path>. If the GOPATH contains multiple entries,
+// get uses the first one. For more details see: 'go help gopath'.
+//
+// When checking out or updating a package, get looks for a branch or tag
+// that matches the locally installed version of Go. The most important
+// rule is that if the local installation is running version "go1", get
+// searches for a branch or tag named "go1". If no such version exists
+// it retrieves the default branch of the package.
+//
+// When go get checks out or updates a Git repository,
+// it also updates any git submodules referenced by the repository.
+//
+// Get never checks out or updates code stored in vendor directories.
+//
+// For more about specifying packages, see 'go help packages'.
+//
+// For more about how 'go get' finds source code to
+// download, see 'go help importpath'.
+//
+// This text describes the behavior of get when using GOPATH
+// to manage source code and dependencies.
+// If instead the go command is running in module-aware mode,
+// the details of get's flags and effects change, as does 'go help get'.
+// See 'go help modules' and 'go help module-get'.
+//
+// See also: go build, go install, go clean.
+//
+//
 // Module proxy protocol
 //
 // The go command by default downloads modules from version control systems
@@ -2097,34 +2201,25 @@
 // Modules replace the old GOPATH-based approach to specifying
 // which source files are used in a given build.
 //
-// Preliminary module support
+// Module support
 //
-// Go 1.11 includes preliminary support for Go modules,
-// including a new module-aware 'go get' command.
-// We intend to keep revising this support, while preserving compatibility,
-// until it can be declared official (no longer preliminary),
-// and then at a later point we may remove support for work
-// in GOPATH and the old 'go get' command.
+// Go 1.13 includes official support for Go modules,
+// including a module-aware 'go get' command.
+// Module-aware mode is active by default.
 //
-// The quickest way to take advantage of the new Go 1.11 module support
-// is to check out your repository into a directory outside GOPATH/src,
-// create a go.mod file (described in the next section) there, and run
-// go commands from within that file tree.
-//
-// For more fine-grained control, the module support in Go 1.11 respects
+// For more fine-grained control, Go 1.13 continues to respect
 // a temporary environment variable, GO111MODULE, which can be set to one
-// of three string values: off, on, or auto (the default).
-// If GO111MODULE=off, then the go command never uses the
-// new module support. Instead it looks in vendor directories and GOPATH
+// of three string values: off, auto, or on (the default).
+// If GO111MODULE=on or is unset, then the go command requires the use of
+// modules, never consulting GOPATH. We refer to this as the command
+// being module-aware or running in "module-aware mode".
+// If GO111MODULE=auto, then the go command enables or disables module
+// support based on the current directory. Module support is enabled only
+// when the current directory is outside GOPATH/src and itself contains a
+// go.mod file or is below a directory containing a go.mod file.
+// If GO111MODULE=off, then the go command never uses
+// module support. Instead it looks in vendor directories and GOPATH
 // to find dependencies; we now refer to this as "GOPATH mode."
-// If GO111MODULE=on, then the go command requires the use of modules,
-// never consulting GOPATH. We refer to this as the command being
-// module-aware or running in "module-aware mode".
-// If GO111MODULE=auto or is unset, then the go command enables or
-// disables module support based on the current directory.
-// Module support is enabled only when the current directory is outside
-// GOPATH/src and itself contains a go.mod file or is below a directory
-// containing a go.mod file.
 //
 // In module-aware mode, GOPATH no longer defines the meaning of imports
 // during a build, but it still stores downloaded dependencies (in GOPATH/pkg/mod)
@@ -2444,110 +2539,6 @@
 // caches), use 'go build -mod=vendor'. Note that only the main module's
 // top-level vendor directory is used; vendor directories in other locations
 // are still ignored.
-//
-//
-// Module-aware go get
-//
-// The 'go get' command changes behavior depending on whether the
-// go command is running in module-aware mode or legacy GOPATH mode.
-// This help text, accessible as 'go help module-get' even in legacy GOPATH mode,
-// describes 'go get' as it operates in module-aware mode.
-//
-// Usage: go get [-d] [-m] [-u] [-v] [-insecure] [build flags] [packages]
-//
-// Get resolves and adds dependencies to the current development module
-// and then builds and installs them.
-//
-// The first step is to resolve which dependencies to add.
-//
-// For each named package or package pattern, get must decide which version of
-// the corresponding module to use. By default, get chooses the latest tagged
-// release version, such as v0.4.5 or v1.2.3. If there are no tagged release
-// versions, get chooses the latest tagged prerelease version, such as
-// v0.0.1-pre1. If there are no tagged versions at all, get chooses the latest
-// known commit.
-//
-// This default version selection can be overridden by adding an @version
-// suffix to the package argument, as in 'go get golang.org/x/text@v0.3.0'.
-// For modules stored in source control repositories, the version suffix can
-// also be a commit hash, branch identifier, or other syntax known to the
-// source control system, as in 'go get golang.org/x/text@master'.
-// The version suffix @latest explicitly requests the default behavior
-// described above.
-//
-// If a module under consideration is already a dependency of the current
-// development module, then get will update the required version.
-// Specifying a version earlier than the current required version is valid and
-// downgrades the dependency. The version suffix @none indicates that the
-// dependency should be removed entirely, downgrading or removing modules
-// depending on it as needed.
-//
-// Although get defaults to using the latest version of the module containing
-// a named package, it does not use the latest version of that module's
-// dependencies. Instead it prefers to use the specific dependency versions
-// requested by that module. For example, if the latest A requires module
-// B v1.2.3, while B v1.2.4 and v1.3.1 are also available, then 'go get A'
-// will use the latest A but then use B v1.2.3, as requested by A. (If there
-// are competing requirements for a particular module, then 'go get' resolves
-// those requirements by taking the maximum requested version.)
-//
-// The -u flag instructs get to update dependencies to use newer minor or
-// patch releases when available. Continuing the previous example,
-// 'go get -u A' will use the latest A with B v1.3.1 (not B v1.2.3).
-//
-// The -u=patch flag (not -u patch) instructs get to update dependencies
-// to use newer patch releases when available. Continuing the previous example,
-// 'go get -u=patch A' will use the latest A with B v1.2.4 (not B v1.2.3).
-//
-// In general, adding a new dependency may require upgrading
-// existing dependencies to keep a working build, and 'go get' does
-// this automatically. Similarly, downgrading one dependency may
-// require downgrading other dependencies, and 'go get' does
-// this automatically as well.
-//
-// The -m flag instructs get to stop here, after resolving, upgrading,
-// and downgrading modules and updating go.mod. When using -m,
-// each specified package path must be a module path as well,
-// not the import path of a package below the module root.
-//
-// The -insecure flag permits fetching from repositories and resolving
-// custom domains using insecure schemes such as HTTP. Use with caution.
-//
-// The second step is to download (if needed), build, and install
-// the named packages.
-//
-// If an argument names a module but not a package (because there is no
-// Go source code in the module's root directory), then the install step
-// is skipped for that argument, instead of causing a build failure.
-// For example 'go get golang.org/x/perf' succeeds even though there
-// is no code corresponding to that import path.
-//
-// Note that package patterns are allowed and are expanded after resolving
-// the module versions. For example, 'go get golang.org/x/perf/cmd/...'
-// adds the latest golang.org/x/perf and then installs the commands in that
-// latest version.
-//
-// The -d flag instructs get to download the source code needed to build
-// the named packages, including downloading necessary dependencies,
-// but not to build and install them.
-//
-// With no package arguments, 'go get' applies to the main module,
-// and to the Go package in the current directory, if any. In particular,
-// 'go get -u' and 'go get -u=patch' update all the dependencies of the
-// main module. With no package arguments and also without -u,
-// 'go get' is not much more than 'go install', and 'go get -d' not much
-// more than 'go list'.
-//
-// For more about modules, see 'go help modules'.
-//
-// For more about specifying packages, see 'go help packages'.
-//
-// This text describes the behavior of get using modules to manage source
-// code and dependencies. If instead the go command is running in GOPATH
-// mode, the details of get's flags and effects change, as does 'go help get'.
-// See 'go help modules' and 'go help gopath-get'.
-//
-// See also: go build, go install, go clean, go mod.
 //
 //
 // Package lists and patterns
