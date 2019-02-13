@@ -121,6 +121,7 @@ func (v *View) parse(uri source.URI) error {
 		}
 		return err
 	}
+	var foundPkg bool // true if we found the package for uri
 	for _, pkg := range pkgs {
 		imp := &importer{
 			entries:         make(map[string]*entry),
@@ -150,11 +151,17 @@ func (v *View) parse(uri source.URI) error {
 				continue
 			}
 			fURI := source.ToURI(tok.Name())
+			if fURI == uri {
+				foundPkg = true
+			}
 			f := imp.v.getFile(fURI)
 			f.token = tok
 			f.ast = file
 			f.pkg = pkg
 		}
+	}
+	if !foundPkg {
+		return fmt.Errorf("no package found for %v", uri)
 	}
 	return nil
 }
