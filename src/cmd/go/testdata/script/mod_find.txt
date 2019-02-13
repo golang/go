@@ -17,7 +17,7 @@ cd $GOPATH/src/example.com/x/y
 ! go mod init
 stderr 'go: modules disabled inside GOPATH/src by GO111MODULE=auto; see ''go help modules'''
 
-env GO111MODULE=on
+env GO111MODULE=
 
 # Derive module path from location inside GOPATH.
 cd $GOPATH/src/example.com/x/y
