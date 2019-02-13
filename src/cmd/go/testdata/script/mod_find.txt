@@ -1,3 +1,5 @@
+env GO111MODULE=auto
+
 # Derive module path from import comment.
 cd $WORK/x
 exists x.go

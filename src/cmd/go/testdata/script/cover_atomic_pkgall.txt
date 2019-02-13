@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 [short] skip
 
 go test -coverpkg=all -covermode=atomic x
