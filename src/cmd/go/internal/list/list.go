@@ -447,37 +447,34 @@ func runList(cmd *base.Command, args []string) {
 				continue
 			}
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
-				pmain, ptest, pxtest, err := load.TestPackagesFor(p, nil)
-				if err != nil {
-					if *listE {
-						pkgs = append(pkgs, &load.Package{
-							PackagePublic: load.PackagePublic{
-								ImportPath: p.ImportPath + ".test",
-								Error:      &load.PackageError{Err: err.Error()},
-							},
-						})
-						continue
+				var pmain, ptest, pxtest *load.Package
+				var err error
+				if *listE {
+					pmain, ptest, pxtest = load.TestPackagesAndErrors(p, nil)
+				} else {
+					pmain, ptest, pxtest, err = load.TestPackagesFor(p, nil)
+					if err != nil {
+						base.Errorf("can't load test package: %s", err)
 					}
-					base.Errorf("can't load test package: %s", err)
-					continue
 				}
-				pkgs = append(pkgs, pmain)
-				if ptest != nil {
+				if pmain != nil {
+					pkgs = append(pkgs, pmain)
+					data := *pmain.Internal.TestmainGo
+					h := cache.NewHash("testmain")
+					h.Write([]byte("testmain\n"))
+					h.Write(data)
+					out, _, err := c.Put(h.Sum(), bytes.NewReader(data))
+					if err != nil {
+						base.Fatalf("%s", err)
+					}
+					pmain.GoFiles[0] = c.OutputFile(out)
+				}
+				if ptest != nil && ptest != p {
 					pkgs = append(pkgs, ptest)
 				}
 				if pxtest != nil {
 					pkgs = append(pkgs, pxtest)
 				}
-
-				data := *pmain.Internal.TestmainGo
-				h := cache.NewHash("testmain")
-				h.Write([]byte("testmain\n"))
-				h.Write(data)
-				out, _, err := c.Put(h.Sum(), bytes.NewReader(data))
-				if err != nil {
-					base.Fatalf("%s", err)
-				}
-				pmain.GoFiles[0] = c.OutputFile(out)
 			}
 		}
 	}

@@ -1424,41 +1424,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		}
 	}
 	p.Internal.Imports = imports
-
-	deps := make(map[string]*Package)
-	var q []*Package
-	q = append(q, imports...)
-	for i := 0; i < len(q); i++ {
-		p1 := q[i]
-		path := p1.ImportPath
-		// The same import path could produce an error or not,
-		// depending on what tries to import it.
-		// Prefer to record entries with errors, so we can report them.
-		p0 := deps[path]
-		if p0 == nil || p1.Error != nil && (p0.Error == nil || len(p0.Error.ImportStack) > len(p1.Error.ImportStack)) {
-			deps[path] = p1
-			for _, p2 := range p1.Internal.Imports {
-				if deps[p2.ImportPath] != p2 {
-					q = append(q, p2)
-				}
-			}
-		}
-	}
-
-	p.Deps = make([]string, 0, len(deps))
-	for dep := range deps {
-		p.Deps = append(p.Deps, dep)
-	}
-	sort.Strings(p.Deps)
-	for _, dep := range p.Deps {
-		p1 := deps[dep]
-		if p1 == nil {
-			panic("impossible: missing entry in package cache for " + dep + " imported by " + p.ImportPath)
-		}
-		if p1.Error != nil {
-			p.DepsErrors = append(p.DepsErrors, p1.Error)
-		}
-	}
+	p.collectDeps()
 
 	// unsafe is a fake package.
 	if p.Standard && (p.ImportPath == "unsafe" || cfg.BuildContext.Compiler == "gccgo") {
@@ -1524,6 +1490,48 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		p.Module = ModPackageModuleInfo(mainPath)
 		if p.Name == "main" {
 			p.Internal.BuildInfo = ModPackageBuildInfo(mainPath, p.Deps)
+		}
+	}
+}
+
+// collectDeps populates p.Deps and p.DepsErrors by iterating over
+// p.Internal.Imports.
+//
+// TODO(jayconrod): collectDeps iterates over transitive imports for every
+// package. We should only need to visit direct imports.
+func (p *Package) collectDeps() {
+	deps := make(map[string]*Package)
+	var q []*Package
+	q = append(q, p.Internal.Imports...)
+	for i := 0; i < len(q); i++ {
+		p1 := q[i]
+		path := p1.ImportPath
+		// The same import path could produce an error or not,
+		// depending on what tries to import it.
+		// Prefer to record entries with errors, so we can report them.
+		p0 := deps[path]
+		if p0 == nil || p1.Error != nil && (p0.Error == nil || len(p0.Error.ImportStack) > len(p1.Error.ImportStack)) {
+			deps[path] = p1
+			for _, p2 := range p1.Internal.Imports {
+				if deps[p2.ImportPath] != p2 {
+					q = append(q, p2)
+				}
+			}
+		}
+	}
+
+	p.Deps = make([]string, 0, len(deps))
+	for dep := range deps {
+		p.Deps = append(p.Deps, dep)
+	}
+	sort.Strings(p.Deps)
+	for _, dep := range p.Deps {
+		p1 := deps[dep]
+		if p1 == nil {
+			panic("impossible: missing entry in package cache for " + dep + " imported by " + p.ImportPath)
+		}
+		if p1.Error != nil {
+			p.DepsErrors = append(p.DepsErrors, p1.Error)
 		}
 	}
 }
