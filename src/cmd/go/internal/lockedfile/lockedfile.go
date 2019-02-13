@@ -120,3 +120,18 @@ func Write(name string, content io.Reader, perm os.FileMode) (err error) {
 	}
 	return err
 }
+
+// Append opens the named file (creating it with the given permissions if needed),
+// then write-locks it and appends it with the given content.
+func Append(name string, content io.Reader, perm os.FileMode) (err error) {
+	f, err := OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_APPEND, perm)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(f, content)
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	return err
+}
