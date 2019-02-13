@@ -2220,10 +2220,8 @@ func TestBadNamesInSANs(t *testing.T) {
 			continue
 		}
 
-		if err != nil {
-			if str := err.Error(); !strings.Contains(str, "cannot parse ") {
-				t.Errorf("bad name %q triggered unrecognised error: %s", badName, str)
-			}
+		if str := err.Error(); !strings.Contains(str, "cannot parse ") {
+			t.Errorf("bad name %q triggered unrecognised error: %s", badName, str)
 		}
 	}
 }
