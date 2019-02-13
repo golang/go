@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 # 'go install' with no arguments should clean up after go build
 cd mycmd
 go build

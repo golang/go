@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 [!exec:git] skip
 
 # Construct a repository that imports a non-ASCII path.

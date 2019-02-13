@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 # As of Go 1.12, the module cache is required.
 
 # If none of the variables we use to locate GOCACHE are set, the cache is off

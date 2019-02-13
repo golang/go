@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 # Regression test for golang.org/issue/21309: accept relative -pkgdir argument.
 
 [short] skip
