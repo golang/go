@@ -31,7 +31,7 @@ type File interface {
 	GetFileSet() *token.FileSet
 	GetPackage() *packages.Package
 	GetToken() *token.File
-	Read() ([]byte, error)
+	GetContent() []byte
 }
 
 // Range represents a start and end position.

@@ -25,13 +25,9 @@ func organizeImports(ctx context.Context, v source.View, uri protocol.DocumentUR
 		Start: tok.Pos(0),
 		End:   tok.Pos(tok.Size()),
 	}
-	content, err := f.Read()
+	edits, err := source.Imports(ctx, f, r)
 	if err != nil {
 		return nil, err
 	}
-	edits, err := source.Imports(ctx, tok, content, r)
-	if err != nil {
-		return nil, err
-	}
-	return toProtocolEdits(tok, content, edits), nil
+	return toProtocolEdits(f, edits), nil
 }

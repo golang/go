@@ -374,10 +374,6 @@ func (f formats) test(t *testing.T, s *server) {
 		if err != nil {
 			t.Error(err)
 		}
-		original, err := f.Read()
-		if err != nil {
-			t.Error(err)
-		}
 		var ops []*diff.Op
 		for _, edit := range edits {
 			start := int(edit.Range.Start.Line)
@@ -400,7 +396,7 @@ func (f formats) test(t *testing.T, s *server) {
 				})
 			}
 		}
-		split := strings.SplitAfter(string(original), "\n")
+		split := strings.SplitAfter(string(f.GetContent()), "\n")
 		got := strings.Join(diff.ApplyEdits(split, ops), "")
 		if gofmted != got {
 			t.Errorf("format failed for %s: expected '%v', got '%v'", filename, gofmted, got)

@@ -24,11 +24,12 @@ type File struct {
 	pkg     *packages.Package
 }
 
-// Read returns the contents of the file, reading it from file system if needed.
-func (f *File) Read() ([]byte, error) {
+// GetContent returns the contents of the file, reading it from file system if needed.
+func (f *File) GetContent() []byte {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
-	return f.read()
+	f.read()
+	return f.content
 }
 
 func (f *File) GetFileSet() *token.FileSet {
@@ -69,19 +70,18 @@ func (f *File) GetPackage() *packages.Package {
 }
 
 // read is the internal part of Read that presumes the lock is already held
-func (f *File) read() ([]byte, error) {
+func (f *File) read() {
 	if f.content != nil {
-		return f.content, nil
+		return
 	}
 	// we don't know the content yet, so read it
 	filename, err := f.URI.Filename()
 	if err != nil {
-		return nil, err
+		return
 	}
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, err
+		return
 	}
 	f.content = content
-	return f.content, nil
 }

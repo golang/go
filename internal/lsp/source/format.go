@@ -52,25 +52,21 @@ func Format(ctx context.Context, f File, rng Range) ([]TextEdit, error) {
 	if err := format.Node(buf, fset, node); err != nil {
 		return nil, err
 	}
-	content, err := f.Read()
-	if err != nil {
-		return nil, err
-	}
-	tok := f.GetToken()
-	return computeTextEdits(rng, tok, string(content), buf.String()), nil
+	return computeTextEdits(rng, f, buf.String()), nil
 }
 
 // Imports formats a file using the goimports tool.
-func Imports(ctx context.Context, tok *token.File, content []byte, rng Range) ([]TextEdit, error) {
-	formatted, err := imports.Process(tok.Name(), content, nil)
+func Imports(ctx context.Context, f File, rng Range) ([]TextEdit, error) {
+	formatted, err := imports.Process(f.GetToken().Name(), f.GetContent(), nil)
 	if err != nil {
 		return nil, err
 	}
-	return computeTextEdits(rng, tok, string(content), string(formatted)), nil
+	return computeTextEdits(rng, f, string(formatted)), nil
 }
 
-func computeTextEdits(rng Range, tok *token.File, unformatted, formatted string) (edits []TextEdit) {
-	u := strings.SplitAfter(unformatted, "\n")
+func computeTextEdits(rng Range, file File, formatted string) (edits []TextEdit) {
+	u := strings.SplitAfter(string(file.GetContent()), "\n")
+	tok := file.GetToken()
 	f := strings.SplitAfter(formatted, "\n")
 	for _, op := range diff.Operations(u, f) {
 		start := lineStart(tok, op.I1+1)

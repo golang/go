@@ -80,11 +80,7 @@ func Diagnostics(ctx context.Context, v View, uri URI) (map[string][]Diagnostic,
 			continue
 		}
 		diagTok := diagFile.GetToken()
-		content, err := diagFile.Read()
-		if err != nil {
-			continue
-		}
-		end, err := identifierEnd(content, pos.Line, pos.Column)
+		end, err := identifierEnd(diagFile.GetContent(), pos.Line, pos.Column)
 		// Don't set a range if it's anything other than a type error.
 		if err != nil || diag.Kind != packages.TypeError {
 			end = 0
