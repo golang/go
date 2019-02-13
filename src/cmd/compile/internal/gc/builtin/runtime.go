@@ -235,6 +235,9 @@ func racewriterange(addr, size uintptr)
 func msanread(addr, size uintptr)
 func msanwrite(addr, size uintptr)
 
+func checkptrAlignment(unsafe.Pointer, *byte)
+func checkptrArithmetic(unsafe.Pointer, []unsafe.Pointer)
+
 // architecture variants
 var x86HasPOPCNT bool
 var x86HasSSE41 bool
