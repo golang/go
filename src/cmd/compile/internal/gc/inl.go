@@ -135,6 +135,12 @@ func caninl(fn *Node) {
 		return
 	}
 
+	// If marked "go:nocheckptr" and -d checkptr compilation, don't inline.
+	if Debug_checkptr != 0 && fn.Func.Pragma&NoCheckPtr != 0 {
+		reason = "marked go:nocheckptr"
+		return
+	}
+
 	// If marked "go:cgo_unsafe_args", don't inline, since the
 	// function makes assumptions about its argument frame layout.
 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
