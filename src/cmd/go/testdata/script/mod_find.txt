@@ -43,6 +43,13 @@ go mod init
 stderr 'empty'
 rm go.mod
 
+# In Plan 9, directories are automatically created in /n.
+# For example, /n/go.mod always exist, but it's a directory.
+# Test that we ignore directories when trying to find go.mod.
+cd $WORK/gomoddir
+! go list .
+stderr 'cannot find main module'
+
 [!symlink] stop
 
 # gplink1/src/empty where gopathlink -> GOPATH
@@ -89,3 +96,8 @@ package y
 package z
 -- $GOPATH/src/example.com/x/y/z/Godeps/Godeps.json --
 {"ImportPath": "unexpected.com/z"}
+
+-- $WORK/gomoddir/go.mod/README.txt --
+../go.mod is a directory, not a file.
+-- $WORK/gomoddir/p.go --
+package p
