@@ -17,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/modload"
 )
 
 // Help implements the 'help' command.
@@ -35,8 +36,10 @@ func Help(w io.Writer, args []string) {
 		usage := &base.Command{Long: buf.String()}
 		cmds := []*base.Command{usage}
 		for _, cmd := range base.Go.Commands {
-			if cmd.UsageLine == "gopath-get" {
-				// Avoid duplication of the "get" documentation.
+			// Avoid duplication of the "get" documentation.
+			if cmd.UsageLine == "module-get" && modload.Enabled() {
+				continue
+			} else if cmd.UsageLine == "gopath-get" && !modload.Enabled() {
 				continue
 			}
 			cmds = append(cmds, cmd)
