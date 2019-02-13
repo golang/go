@@ -19,34 +19,25 @@ including recording and resolving dependencies on other modules.
 Modules replace the old GOPATH-based approach to specifying
 which source files are used in a given build.
 
-Preliminary module support
+Module support
 
-Go 1.11 includes preliminary support for Go modules,
-including a new module-aware 'go get' command.
-We intend to keep revising this support, while preserving compatibility,
-until it can be declared official (no longer preliminary),
-and then at a later point we may remove support for work
-in GOPATH and the old 'go get' command.
+Go 1.13 includes official support for Go modules,
+including a module-aware 'go get' command.
+Module-aware mode is active by default.
 
-The quickest way to take advantage of the new Go 1.11 module support
-is to check out your repository into a directory outside GOPATH/src,
-create a go.mod file (described in the next section) there, and run
-go commands from within that file tree.
-
-For more fine-grained control, the module support in Go 1.11 respects
+For more fine-grained control, Go 1.13 continues to respect
 a temporary environment variable, GO111MODULE, which can be set to one
-of three string values: off, on, or auto (the default).
-If GO111MODULE=off, then the go command never uses the
-new module support. Instead it looks in vendor directories and GOPATH
+of three string values: off, auto, or on (the default).
+If GO111MODULE=on or is unset, then the go command requires the use of
+modules, never consulting GOPATH. We refer to this as the command
+being module-aware or running in "module-aware mode".
+If GO111MODULE=auto, then the go command enables or disables module
+support based on the current directory. Module support is enabled only
+when the current directory is outside GOPATH/src and itself contains a
+go.mod file or is below a directory containing a go.mod file.
+If GO111MODULE=off, then the go command never uses
+module support. Instead it looks in vendor directories and GOPATH
 to find dependencies; we now refer to this as "GOPATH mode."
-If GO111MODULE=on, then the go command requires the use of modules,
-never consulting GOPATH. We refer to this as the command being
-module-aware or running in "module-aware mode".
-If GO111MODULE=auto or is unset, then the go command enables or
-disables module support based on the current directory.
-Module support is enabled only when the current directory is outside
-GOPATH/src and itself contains a go.mod file or is below a directory
-containing a go.mod file.
 
 In module-aware mode, GOPATH no longer defines the meaning of imports
 during a build, but it still stores downloaded dependencies (in GOPATH/pkg/mod)

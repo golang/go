@@ -12,9 +12,14 @@ import (
 	"testing"
 
 	"cmd/go/internal/help"
+	"cmd/go/internal/modload"
 )
 
 func TestDocsUpToDate(t *testing.T) {
+	if !modload.Enabled() {
+		t.Skipf("help.Help in GOPATH mode is configured by main.main")
+	}
+
 	buf := new(bytes.Buffer)
 	// Match the command in mkalldocs.sh that generates alldocs.go.
 	help.Help(buf, []string{"documentation"})
