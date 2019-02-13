@@ -36,10 +36,7 @@ func fromProtocolLocation(ctx context.Context, v *cache.View, loc protocol.Locat
 	if err != nil {
 		return source.Range{}, err
 	}
-	tok, err := f.GetToken()
-	if err != nil {
-		return source.Range{}, err
-	}
+	tok := f.GetToken()
 	return fromProtocolRange(tok, loc.Range), nil
 }
 

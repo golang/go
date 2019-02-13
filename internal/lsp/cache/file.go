@@ -5,7 +5,6 @@
 package cache
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"io/ioutil"
@@ -32,53 +31,41 @@ func (f *File) Read() ([]byte, error) {
 	return f.read()
 }
 
-func (f *File) GetFileSet() (*token.FileSet, error) {
-	if f.view.Config.Fset == nil {
-		return nil, fmt.Errorf("no fileset for file view config")
-	}
-	return f.view.Config.Fset, nil
+func (f *File) GetFileSet() *token.FileSet {
+	return f.view.Config.Fset
 }
 
-func (f *File) GetToken() (*token.File, error) {
+func (f *File) GetToken() *token.File {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 	if f.token == nil {
 		if err := f.view.parse(f.URI); err != nil {
-			return nil, err
-		}
-		if f.token == nil {
-			return nil, fmt.Errorf("failed to find or parse %v", f.URI)
+			return nil
 		}
 	}
-	return f.token, nil
+	return f.token
 }
 
-func (f *File) GetAST() (*ast.File, error) {
+func (f *File) GetAST() *ast.File {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 	if f.ast == nil {
 		if err := f.view.parse(f.URI); err != nil {
-			return nil, err
-		}
-		if f.ast == nil {
-			return nil, fmt.Errorf("failed to find or parse %v", f.URI)
+			return nil
 		}
 	}
-	return f.ast, nil
+	return f.ast
 }
 
-func (f *File) GetPackage() (*packages.Package, error) {
+func (f *File) GetPackage() *packages.Package {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 	if f.pkg == nil {
 		if err := f.view.parse(f.URI); err != nil {
-			return nil, err
-		}
-		if f.pkg == nil {
-			return nil, fmt.Errorf("failed to find or parse %v", f.URI)
+			return nil
 		}
 	}
-	return f.pkg, nil
+	return f.pkg
 }
 
 // read is the internal part of Read that presumes the lock is already held

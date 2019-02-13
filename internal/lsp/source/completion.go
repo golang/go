@@ -47,14 +47,8 @@ type finder func(types.Object, float64, []CompletionItem) []CompletionItem
 // completion. For instance, some clients may tolerate imperfect matches as
 // valid completion results, since users may make typos.
 func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionItem, prefix string, err error) {
-	file, err := f.GetAST()
-	if err != nil {
-		return nil, "", err
-	}
-	pkg, err := f.GetPackage()
-	if err != nil {
-		return nil, "", err
-	}
+	file := f.GetAST()
+	pkg := f.GetPackage()
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 	if path == nil {
 		return nil, "", fmt.Errorf("cannot find node enclosing position")

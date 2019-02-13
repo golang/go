@@ -50,14 +50,8 @@ func Identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 
 func (i *IdentifierInfo) Hover(q types.Qualifier) (string, error) {
 	if q == nil {
-		fAST, err := i.File.GetAST()
-		if err != nil {
-			return "", err
-		}
-		pkg, err := i.File.GetPackage()
-		if err != nil {
-			return "", err
-		}
+		fAST := i.File.GetAST()
+		pkg := i.File.GetPackage()
 		q = qualifier(fAST, pkg.Types, pkg.TypesInfo)
 	}
 	return types.ObjectString(i.Declaration.Object, q), nil
@@ -65,14 +59,8 @@ func (i *IdentifierInfo) Hover(q types.Qualifier) (string, error) {
 
 // identifier checks a single position for a potential identifier.
 func identifier(ctx context.Context, v View, f File, pos token.Pos) (*IdentifierInfo, error) {
-	fAST, err := f.GetAST()
-	if err != nil {
-		return nil, err
-	}
-	pkg, err := f.GetPackage()
-	if err != nil {
-		return nil, err
-	}
+	fAST := f.GetAST()
+	pkg := f.GetPackage()
 	path, _ := astutil.PathEnclosingInterval(fAST, pos, pos)
 	result := &IdentifierInfo{
 		File: f,
@@ -109,6 +97,7 @@ func identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 			}
 		}
 	}
+	var err error
 	if result.Declaration.Range, err = objToRange(ctx, v, result.Declaration.Object); err != nil {
 		return nil, err
 	}

@@ -18,10 +18,7 @@ func formatRange(ctx context.Context, v source.View, uri protocol.DocumentURI, r
 	if err != nil {
 		return nil, err
 	}
-	tok, err := f.GetToken()
-	if err != nil {
-		return nil, err
-	}
+	tok := f.GetToken()
 	var r source.Range
 	if rng == nil {
 		r.Start = tok.Pos(0)

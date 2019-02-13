@@ -65,10 +65,7 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return err
 	}
-	tok, err := f.GetToken()
-	if err != nil {
-		return err
-	}
+	tok := f.GetToken()
 	pos := tok.Pos(from.Start.Offset)
 	ident, err := source.Identifier(ctx, view, f, pos)
 	if err != nil {
@@ -118,10 +115,7 @@ func buildDefinition(view source.View, ident *source.IdentifierInfo) (*Definitio
 
 func buildGuruDefinition(view source.View, ident *source.IdentifierInfo) (*guru.Definition, error) {
 	loc := newLocation(view.FileSet(), ident.Declaration.Range)
-	pkg, err := ident.File.GetPackage()
-	if err != nil {
-		return nil, err
-	}
+	pkg := ident.File.GetPackage()
 	// guru does not support ranges
 	loc.End = loc.Start
 	// Behavior that attempts to match the expected output for guru. For an example
