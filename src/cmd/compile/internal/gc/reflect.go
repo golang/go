@@ -34,9 +34,8 @@ type ptabEntry struct {
 
 // runtime interface and reflection data structures
 var (
-	signatmu    sync.Mutex // protects signatset and signatslice
+	signatmu    sync.Mutex // protects signatset
 	signatset   = make(map[*types.Type]struct{})
-	signatslice []*types.Type
 
 	itabs []itabEntry
 	ptabs []ptabEntry
@@ -1477,10 +1476,7 @@ func itabsym(it *obj.LSym, offset int64) *obj.LSym {
 
 // addsignat ensures that a runtime type descriptor is emitted for t.
 func addsignat(t *types.Type) {
-	if _, ok := signatset[t]; !ok {
-		signatset[t] = struct{}{}
-		signatslice = append(signatslice, t)
-	}
+	signatset[t] = struct{}{}
 }
 
 func addsignats(dcls []*Node) {
@@ -1495,15 +1491,14 @@ func addsignats(dcls []*Node) {
 func dumpsignats() {
 	// Process signatset. Use a loop, as dtypesym adds
 	// entries to signatset while it is being processed.
-	signats := make([]typeAndStr, len(signatslice))
-	for len(signatslice) > 0 {
+	signats := make([]typeAndStr, len(signatset))
+	for len(signatset) > 0 {
 		signats = signats[:0]
 		// Transfer entries to a slice and sort, for reproducible builds.
-		for _, t := range signatslice {
+		for t := range signatset {
 			signats = append(signats, typeAndStr{t: t, short: typesymname(t), regular: t.String()})
 			delete(signatset, t)
 		}
-		signatslice = signatslice[:0]
 		sort.Sort(typesByString(signats))
 		for _, ts := range signats {
 			t := ts.t
@@ -1623,7 +1618,17 @@ func (a typesByString) Less(i, j int) bool {
 	// they refer to byte or uint8, such as **byte vs **uint8,
 	// the types' ShortStrings can be identical.
 	// To preserve deterministic sort ordering, sort these by String().
-	return a[i].regular < a[j].regular
+	if a[i].regular != a[j].regular {
+		return a[i].regular < a[j].regular
+	}
+	// Identical anonymous interfaces defined in different locations
+	// will be equal for the above checks, but different in DWARF output.
+	// Ensure we always output the same. See golang.org/issue/27013.
+	if a[i].t.Etype == types.TINTER && a[i].t.Methods().Len() > 0 {
+		return a[i].t.Methods().Index(0).Pos.Before(
+			a[j].t.Methods().Index(0).Pos)
+	}
+	return false
 }
 func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
