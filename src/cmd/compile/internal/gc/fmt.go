@@ -174,6 +174,7 @@ var goopnames = []string{
 	OGT:       ">",
 	OIF:       "if",
 	OIMAG:     "imag",
+	OINLMARK:  "inlmark",
 	ODEREF:    "*",
 	OLEN:      "len",
 	OLE:       "<=",
@@ -941,6 +942,9 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 
 	case ORETJMP:
 		mode.Fprintf(s, "retjmp %v", n.Sym)
+
+	case OINLMARK:
+		mode.Fprintf(s, "inlmark %d", n.Xoffset)
 
 	case OGO:
 		mode.Fprintf(s, "go %v", n.Left)

@@ -26,18 +26,20 @@ func checkGdbEnvironment(t *testing.T) {
 	case "darwin":
 		t.Skip("gdb does not work on darwin")
 	case "netbsd":
-		t.Skip("gdb does not work with threads on NetBSD; see golang.org/issue/22893 and gnats.netbsd.org/52548")
+		t.Skip("gdb does not work with threads on NetBSD; see https://golang.org/issue/22893 and https://gnats.netbsd.org/52548")
 	case "windows":
 		t.Skip("gdb tests fail on Windows: https://golang.org/issue/22687")
 	case "linux":
 		if runtime.GOARCH == "ppc64" {
-			t.Skip("skipping gdb tests on linux/ppc64; see golang.org/issue/17366")
+			t.Skip("skipping gdb tests on linux/ppc64; see https://golang.org/issue/17366")
 		}
 		if runtime.GOARCH == "mips" {
 			t.Skip("skipping gdb tests on linux/mips; see https://golang.org/issue/25939")
 		}
 	case "aix":
-		t.Skip("gdb does not work on AIX; see golang.org/issue/28558")
+		t.Skip("gdb does not work on AIX; see https://golang.org/issue/28558")
+	case "freebsd":
+		t.Skip("skipping gdb tests on FreeBSD; see https://golang.org/issue/29508")
 	}
 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
 		t.Skip("gdb test can fail with GOROOT_FINAL pending")

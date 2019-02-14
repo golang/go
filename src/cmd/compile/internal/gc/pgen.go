@@ -153,6 +153,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	sort.Sort(byStackVar(fn.Dcl))
 
 	// Reassign stack offsets of the locals that are used.
+	lastHasPtr := false
 	for i, n := range fn.Dcl {
 		if n.Op != ONAME || n.Class() != PAUTO {
 			continue
@@ -167,10 +168,20 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		if w >= thearch.MAXWIDTH || w < 0 {
 			Fatalf("bad width")
 		}
+		if w == 0 && lastHasPtr {
+			// Pad between a pointer-containing object and a zero-sized object.
+			// This prevents a pointer to the zero-sized object from being interpreted
+			// as a pointer to the pointer-containing object (and causing it
+			// to be scanned when it shouldn't be). See issue 24993.
+			w = 1
+		}
 		s.stksize += w
 		s.stksize = Rnd(s.stksize, int64(n.Type.Align))
 		if types.Haspointers(n.Type) {
 			s.stkptrsize = s.stksize
+			lastHasPtr = true
+		} else {
+			lastHasPtr = false
 		}
 		if thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
 			s.stksize = Rnd(s.stksize, int64(Widthptr))
@@ -231,6 +242,14 @@ func compile(fn *Node) {
 
 	// From this point, there should be no uses of Curfn. Enforce that.
 	Curfn = nil
+
+	if fn.funcname() == "_" {
+		// We don't need to generate code for this function, just report errors in its body.
+		// At this point we've generated any errors needed.
+		// (Beyond here we generate only non-spec errors, like "stack frame too large".)
+		// See issue 29870.
+		return
+	}
 
 	// Set up the function's LSym early to avoid data races with the assemblers.
 	fn.Func.initLSym(true)

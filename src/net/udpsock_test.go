@@ -337,6 +337,8 @@ func TestUDPZeroBytePayload(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl", "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
+	case "darwin":
+		testenv.SkipFlaky(t, 29225)
 	}
 
 	c, err := newLocalPacketListener("udp")

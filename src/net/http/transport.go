@@ -134,7 +134,7 @@ type Transport struct {
 	//
 	// DialContext runs concurrently with calls to RoundTrip.
 	// A RoundTrip call that initiates a dial may end up using
-	// an connection dialed previously when the earlier connection
+	// a connection dialed previously when the earlier connection
 	// becomes idle before the later DialContext completes.
 	DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
 
@@ -142,7 +142,7 @@ type Transport struct {
 	//
 	// Dial runs concurrently with calls to RoundTrip.
 	// A RoundTrip call that initiates a dial may end up using
-	// an connection dialed previously when the earlier connection
+	// a connection dialed previously when the earlier connection
 	// becomes idle before the later Dial completes.
 	//
 	// Deprecated: Use DialContext instead, which allows the transport

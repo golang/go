@@ -38,8 +38,8 @@ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
 }
 
 // SetString sets z to the value of s and returns z and a boolean indicating
-// success. s can be given as a fraction "a/b" or as a floating-point number
-// optionally followed by an exponent. The entire string (not just a prefix)
+// success. s can be given as a fraction "a/b" or as a decimal floating-point
+// number optionally followed by an exponent. The entire string (not just a prefix)
 // must be valid for success. If the operation failed, the value of z is
 // undefined but the returned value is nil.
 func (z *Rat) SetString(s string) (*Rat, bool) {
@@ -78,6 +78,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	}
 
 	// mantissa
+	// TODO(gri) allow other bases besides 10 for mantissa and exponent? (issue #29799)
 	var ecorr int
 	z.a.abs, _, ecorr, err = z.a.abs.scan(r, 10, true)
 	if err != nil {
@@ -129,10 +130,10 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 }
 
 // scanExponent scans the longest possible prefix of r representing a decimal
-// ('e', 'E') or binary ('p') exponent, if any. It returns the exponent, the
-// exponent base (10 or 2), or a read or syntax error, if any.
+// ('e', 'E') or binary ('p', 'P') exponent, if any. It returns the exponent,
+// the exponent base (10 or 2), or a read or syntax error, if any.
 //
-//	exponent = ( "E" | "e" | "p" ) [ sign ] digits .
+//	exponent = ( "e" | "E" | "p" | "P" ) [ sign ] digits .
 //	sign     = "+" | "-" .
 //	digits   = digit { digit } .
 //	digit    = "0" ... "9" .
@@ -152,7 +153,7 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
 	switch ch {
 	case 'e', 'E':
 		// ok
-	case 'p':
+	case 'p', 'P':
 		if binExpOk {
 			base = 2
 			break // ok

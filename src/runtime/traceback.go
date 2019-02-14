@@ -146,7 +146,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	cgoCtxt := gp.cgoCtxt
 	printing := pcbuf == nil && callback == nil
 	_defer := gp._defer
-	elideWrapper := false
 
 	for _defer != nil && _defer.sp == _NoArgs {
 		_defer = _defer.link
@@ -179,6 +178,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 
 	var cache pcvalueCache
 
+	lastFuncID := funcID_normal
 	n := 0
 	for n < max {
 		// Typically:
@@ -344,48 +344,46 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		}
 
 		if pcbuf != nil {
-			if skip == 0 {
-				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = frame.pc
-			} else {
-				// backup to CALL instruction to read inlining info (same logic as below)
-				tracepc := frame.pc
-				if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
-					tracepc--
-				}
-				inldata := funcdata(f, _FUNCDATA_InlTree)
+			pc := frame.pc
+			// backup to CALL instruction to read inlining info (same logic as below)
+			tracepc := pc
+			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
+				tracepc--
+			}
 
-				// no inlining info, skip the physical frame
-				if inldata == nil {
-					skip--
-					goto skipped
-				}
-
-				ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, &cache)
+			// If there is inlining info, record the inner frames.
+			if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
 				inltree := (*[1 << 20]inlinedCall)(inldata)
-				// skip the logical (inlined) frames
-				logicalSkipped := 0
-				for ix >= 0 && skip > 0 {
-					skip--
-					logicalSkipped++
-					ix = inltree[ix].parent
-				}
-
-				// skip the physical frame if there's more to skip
-				if skip > 0 {
-					skip--
-					goto skipped
-				}
-
-				// now we have a partially skipped frame
-				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = frame.pc
-
-				// if there's room, pcbuf[1] is a skip PC that encodes the number of skipped frames in pcbuf[0]
-				if n+1 < max {
-					n++
-					pc := skipPC + uintptr(logicalSkipped)
-					(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
+				for {
+					ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, &cache)
+					if ix < 0 {
+						break
+					}
+					if inltree[ix].funcID == funcID_wrapper && elideWrapperCalling(lastFuncID) {
+						// ignore wrappers
+					} else if skip > 0 {
+						skip--
+					} else if n < max {
+						(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
+						n++
+					}
+					lastFuncID = inltree[ix].funcID
+					// Back up to an instruction in the "caller".
+					tracepc = frame.fn.entry + uintptr(inltree[ix].parentPc)
+					pc = tracepc + 1
 				}
 			}
+			// Record the main frame.
+			if f.funcID == funcID_wrapper && elideWrapperCalling(lastFuncID) {
+				// Ignore wrapper functions (except when they trigger panics).
+			} else if skip > 0 {
+				skip--
+			} else if n < max {
+				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
+				n++
+			}
+			lastFuncID = f.funcID
+			n-- // offset n++ below
 		}
 
 		if printing {
@@ -395,32 +393,39 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// any frames. And don't elide wrappers that
 			// called panic rather than the wrapped
 			// function. Otherwise, leave them out.
-			name := funcname(f)
-			nextElideWrapper := elideWrapperCalling(name)
-			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0, elideWrapper && nprint != 0) {
+
+			// backup to CALL instruction to read inlining info (same logic as below)
+			tracepc := frame.pc
+			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
+				tracepc--
+			}
+			// If there is inlining info, print the inner frames.
+			if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
+				inltree := (*[1 << 20]inlinedCall)(inldata)
+				for {
+					ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, nil)
+					if ix < 0 {
+						break
+					}
+					if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0, inltree[ix].funcID, lastFuncID) {
+						name := funcnameFromNameoff(f, inltree[ix].func_)
+						file, line := funcline(f, tracepc)
+						print(name, "(...)\n")
+						print("\t", file, ":", line, "\n")
+						nprint++
+					}
+					lastFuncID = inltree[ix].funcID
+					// Back up to an instruction in the "caller".
+					tracepc = frame.fn.entry + uintptr(inltree[ix].parentPc)
+				}
+			}
+			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0, f.funcID, lastFuncID) {
 				// Print during crash.
 				//	main(0x1, 0x2, 0x3)
 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
 				//
-				tracepc := frame.pc // back up to CALL instruction for funcline.
-				if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
-					tracepc--
-				}
+				name := funcname(f)
 				file, line := funcline(f, tracepc)
-				inldata := funcdata(f, _FUNCDATA_InlTree)
-				if inldata != nil {
-					inltree := (*[1 << 20]inlinedCall)(inldata)
-					ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, nil)
-					for ix != -1 {
-						name := funcnameFromNameoff(f, inltree[ix].func_)
-						print(name, "(...)\n")
-						print("\t", file, ":", line, "\n")
-
-						file = funcfile(f, inltree[ix].file)
-						line = inltree[ix].line
-						ix = inltree[ix].parent
-					}
-				}
 				if name == "runtime.gopanic" {
 					name = "panic"
 				}
@@ -447,11 +452,10 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				print("\n")
 				nprint++
 			}
-			elideWrapper = nextElideWrapper
+			lastFuncID = f.funcID
 		}
 		n++
 
-	skipped:
 		if f.funcID == funcID_cgocallback_gofunc && len(cgoCtxt) > 0 {
 			ctxt := cgoCtxt[len(cgoCtxt)-1]
 			cgoCtxt = cgoCtxt[:len(cgoCtxt)-1]
@@ -673,7 +677,7 @@ func printcreatedby(gp *g) {
 	// Show what created goroutine, except main goroutine (goid 1).
 	pc := gp.gopc
 	f := findfunc(pc)
-	if f.valid() && showframe(f, gp, false, false) && gp.goid != 1 {
+	if f.valid() && showframe(f, gp, false, funcID_normal, funcID_normal) && gp.goid != 1 {
 		printcreatedby1(f, pc)
 	}
 }
@@ -760,11 +764,10 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
 // TODO: Unify this with gentraceback and CallersFrames.
 func printAncestorTraceback(ancestor ancestorInfo) {
 	print("[originating from goroutine ", ancestor.goid, "]:\n")
-	elideWrapper := false
 	for fidx, pc := range ancestor.pcs {
 		f := findfunc(pc) // f previously validated
-		if showfuncinfo(f, fidx == 0, elideWrapper && fidx != 0) {
-			elideWrapper = printAncestorTracebackFuncInfo(f, pc)
+		if showfuncinfo(f, fidx == 0, funcID_normal, funcID_normal) {
+			printAncestorTracebackFuncInfo(f, pc)
 		}
 	}
 	if len(ancestor.pcs) == _TracebackMaxFrames {
@@ -772,7 +775,7 @@ func printAncestorTraceback(ancestor ancestorInfo) {
 	}
 	// Show what created goroutine, except main goroutine (goid 1).
 	f := findfunc(ancestor.gopc)
-	if f.valid() && showfuncinfo(f, false, false) && ancestor.goid != 1 {
+	if f.valid() && showfuncinfo(f, false, funcID_normal, funcID_normal) && ancestor.goid != 1 {
 		printcreatedby1(f, ancestor.gopc)
 	}
 }
@@ -781,27 +784,16 @@ func printAncestorTraceback(ancestor ancestorInfo) {
 // within an ancestor traceback. The precision of this info is reduced
 // due to only have access to the pcs at the time of the caller
 // goroutine being created.
-func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) bool {
-	tracepc := pc // back up to CALL instruction for funcline.
-	if pc > f.entry {
-		tracepc -= sys.PCQuantum
-	}
-	file, line := funcline(f, tracepc)
-	inldata := funcdata(f, _FUNCDATA_InlTree)
-	if inldata != nil {
+func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
+	name := funcname(f)
+	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
 		inltree := (*[1 << 20]inlinedCall)(inldata)
-		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, nil)
-		for ix != -1 {
-			name := funcnameFromNameoff(f, inltree[ix].func_)
-			print(name, "(...)\n")
-			print("\t", file, ":", line, "\n")
-
-			file = funcfile(f, inltree[ix].file)
-			line = inltree[ix].line
-			ix = inltree[ix].parent
+		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil)
+		if ix >= 0 {
+			name = funcnameFromNameoff(f, inltree[ix].func_)
 		}
 	}
-	name := funcname(f)
+	file, line := funcline(f, pc)
 	if name == "runtime.gopanic" {
 		name = "panic"
 	}
@@ -811,7 +803,6 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) bool {
 		print(" +", hex(pc-f.entry))
 	}
 	print("\n")
-	return elideWrapperCalling(name)
 }
 
 func callers(skip int, pcbuf []uintptr) int {
@@ -829,15 +820,19 @@ func gcallers(gp *g, skip int, pcbuf []uintptr) int {
 	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, &pcbuf[0], len(pcbuf), nil, nil, 0)
 }
 
-func showframe(f funcInfo, gp *g, firstFrame, elideWrapper bool) bool {
+// showframe reports whether the frame with the given characteristics should
+// be printed during a traceback.
+func showframe(f funcInfo, gp *g, firstFrame bool, funcID, childID funcID) bool {
 	g := getg()
 	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
 		return true
 	}
-	return showfuncinfo(f, firstFrame, elideWrapper)
+	return showfuncinfo(f, firstFrame, funcID, childID)
 }
 
-func showfuncinfo(f funcInfo, firstFrame, elideWrapper bool) bool {
+// showfuncinfo reports whether a function with the given characteristics should
+// be printed during a traceback.
+func showfuncinfo(f funcInfo, firstFrame bool, funcID, childID funcID) bool {
 	level, _, _ := gotraceback()
 	if level > 1 {
 		// Show all frames.
@@ -848,11 +843,8 @@ func showfuncinfo(f funcInfo, firstFrame, elideWrapper bool) bool {
 		return false
 	}
 
-	if elideWrapper {
-		file, _ := funcline(f, f.entry)
-		if file == "<autogenerated>" {
-			return false
-		}
+	if funcID == funcID_wrapper && elideWrapperCalling(childID) {
+		return false
 	}
 
 	name := funcname(f)
@@ -877,11 +869,11 @@ func isExportedRuntime(name string) bool {
 }
 
 // elideWrapperCalling reports whether a wrapper function that called
-// function "name" should be elided from stack traces.
-func elideWrapperCalling(name string) bool {
+// function id should be elided from stack traces.
+func elideWrapperCalling(id funcID) bool {
 	// If the wrapper called a panic function instead of the
 	// wrapped function, we want to include it in stacks.
-	return !(name == "runtime.gopanic" || name == "runtime.sigpanic" || name == "runtime.panicwrap")
+	return !(id == funcID_gopanic || id == funcID_sigpanic || id == funcID_panicwrap)
 }
 
 var gStatusStrings = [...]string{

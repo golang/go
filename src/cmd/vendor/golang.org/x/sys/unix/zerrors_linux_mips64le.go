@@ -638,7 +638,7 @@ const (
 	IFA_F_STABLE_PRIVACY                 = 0x800
 	IFA_F_TEMPORARY                      = 0x1
 	IFA_F_TENTATIVE                      = 0x40
-	IFA_MAX                              = 0x9
+	IFA_MAX                              = 0xa
 	IFF_ALLMULTI                         = 0x200
 	IFF_ATTACH_QUEUE                     = 0x200
 	IFF_AUTOMEDIA                        = 0x4000
@@ -912,6 +912,11 @@ const (
 	KEYCTL_JOIN_SESSION_KEYRING          = 0x1
 	KEYCTL_LINK                          = 0x8
 	KEYCTL_NEGATE                        = 0xd
+	KEYCTL_PKEY_DECRYPT                  = 0x1a
+	KEYCTL_PKEY_ENCRYPT                  = 0x19
+	KEYCTL_PKEY_QUERY                    = 0x18
+	KEYCTL_PKEY_SIGN                     = 0x1b
+	KEYCTL_PKEY_VERIFY                   = 0x1c
 	KEYCTL_READ                          = 0xb
 	KEYCTL_REJECT                        = 0x13
 	KEYCTL_RESTRICT_KEYRING              = 0x1d
@@ -921,6 +926,10 @@ const (
 	KEYCTL_SETPERM                       = 0x5
 	KEYCTL_SET_REQKEY_KEYRING            = 0xe
 	KEYCTL_SET_TIMEOUT                   = 0xf
+	KEYCTL_SUPPORTS_DECRYPT              = 0x2
+	KEYCTL_SUPPORTS_ENCRYPT              = 0x1
+	KEYCTL_SUPPORTS_SIGN                 = 0x4
+	KEYCTL_SUPPORTS_VERIFY               = 0x8
 	KEYCTL_UNLINK                        = 0x9
 	KEYCTL_UPDATE                        = 0x2
 	KEY_REQKEY_DEFL_DEFAULT              = 0x0
@@ -1099,6 +1108,7 @@ const (
 	NETLINK_FIB_LOOKUP                   = 0xa
 	NETLINK_FIREWALL                     = 0x3
 	NETLINK_GENERIC                      = 0x10
+	NETLINK_GET_STRICT_CHK               = 0xc
 	NETLINK_INET_DIAG                    = 0x4
 	NETLINK_IP6_FW                       = 0xd
 	NETLINK_ISCSI                        = 0x8
@@ -1242,6 +1252,7 @@ const (
 	PACKET_FASTROUTE                     = 0x6
 	PACKET_HDRLEN                        = 0xb
 	PACKET_HOST                          = 0x0
+	PACKET_IGNORE_OUTGOING               = 0x17
 	PACKET_KERNEL                        = 0x7
 	PACKET_LOOPBACK                      = 0x5
 	PACKET_LOSS                          = 0xe
@@ -1422,6 +1433,7 @@ const (
 	PR_SPEC_DISABLE                      = 0x4
 	PR_SPEC_ENABLE                       = 0x2
 	PR_SPEC_FORCE_DISABLE                = 0x8
+	PR_SPEC_INDIRECT_BRANCH              = 0x1
 	PR_SPEC_NOT_AFFECTED                 = 0x0
 	PR_SPEC_PRCTL                        = 0x1
 	PR_SPEC_STORE_BYPASS                 = 0x0
@@ -2013,7 +2025,7 @@ const (
 	TASKSTATS_GENL_NAME                  = "TASKSTATS"
 	TASKSTATS_GENL_VERSION               = 0x1
 	TASKSTATS_TYPE_MAX                   = 0x6
-	TASKSTATS_VERSION                    = 0x8
+	TASKSTATS_VERSION                    = 0x9
 	TCFLSH                               = 0x5407
 	TCGETA                               = 0x5401
 	TCGETS                               = 0x540d
@@ -2094,6 +2106,7 @@ const (
 	TIOCGETP                             = 0x7408
 	TIOCGEXCL                            = 0x40045440
 	TIOCGICOUNT                          = 0x5492
+	TIOCGISO7816                         = 0x40285442
 	TIOCGLCKTRMIOS                       = 0x548b
 	TIOCGLTC                             = 0x7474
 	TIOCGPGRP                            = 0x40047477
@@ -2150,6 +2163,7 @@ const (
 	TIOCSETN                             = 0x740a
 	TIOCSETP                             = 0x7409
 	TIOCSIG                              = 0x80045436
+	TIOCSISO7816                         = 0xc0285443
 	TIOCSLCKTRMIOS                       = 0x548c
 	TIOCSLTC                             = 0x7475
 	TIOCSPGRP                            = 0x80047476
@@ -2381,6 +2395,7 @@ const (
 	XDP_UMEM_REG                         = 0x4
 	XDP_ZEROCOPY                         = 0x4
 	XENFS_SUPER_MAGIC                    = 0xabba1974
+	XFS_SUPER_MAGIC                      = 0x58465342
 	XTABS                                = 0x1800
 	ZSMALLOC_MAGIC                       = 0x58295829
 )

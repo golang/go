@@ -337,6 +337,12 @@ func TestRlimit(t *testing.T) {
 	}
 	set := rlimit
 	set.Cur = set.Max - 1
+	if runtime.GOOS == "darwin" && set.Cur > 10240 {
+		// The max file limit is 10240, even though
+		// the max returned by Getrlimit is 1<<63-1.
+		// This is OPEN_MAX in sys/syslimits.h.
+		set.Cur = 10240
+	}
 	err = unix.Setrlimit(unix.RLIMIT_NOFILE, &set)
 	if err != nil {
 		t.Fatalf("Setrlimit: set failed: %#v %v", set, err)

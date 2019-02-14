@@ -368,10 +368,13 @@ func (ctxt *Link) pclntab() {
 				numberfile(ctxt, call.File)
 				nameoff := nameToOffset(call.Func.Name)
 
-				inlTreeSym.SetUint32(ctxt.Arch, int64(i*16+0), uint32(call.Parent))
-				inlTreeSym.SetUint32(ctxt.Arch, int64(i*16+4), uint32(call.File.Value))
-				inlTreeSym.SetUint32(ctxt.Arch, int64(i*16+8), uint32(call.Line))
-				inlTreeSym.SetUint32(ctxt.Arch, int64(i*16+12), uint32(nameoff))
+				inlTreeSym.SetUint16(ctxt.Arch, int64(i*20+0), uint16(call.Parent))
+				inlTreeSym.SetUint8(ctxt.Arch, int64(i*20+2), uint8(objabi.GetFuncID(call.Func.Name, call.Func.File)))
+				// byte 3 is unused
+				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+4), uint32(call.File.Value))
+				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+8), uint32(call.Line))
+				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+12), uint32(nameoff))
+				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+16), uint32(call.ParentPC))
 			}
 
 			pcln.Funcdata[objabi.FUNCDATA_InlTree] = inlTreeSym
@@ -386,43 +389,12 @@ func (ctxt *Link) pclntab() {
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Pcdata))))
 
 		// funcID uint8
-		funcID := objabi.FuncID_normal
-		switch s.Name {
-		case "runtime.main":
-			funcID = objabi.FuncID_runtime_main
-		case "runtime.goexit":
-			funcID = objabi.FuncID_goexit
-		case "runtime.jmpdefer":
-			funcID = objabi.FuncID_jmpdefer
-		case "runtime.mcall":
-			funcID = objabi.FuncID_mcall
-		case "runtime.morestack":
-			funcID = objabi.FuncID_morestack
-		case "runtime.mstart":
-			funcID = objabi.FuncID_mstart
-		case "runtime.rt0_go":
-			funcID = objabi.FuncID_rt0_go
-		case "runtime.asmcgocall":
-			funcID = objabi.FuncID_asmcgocall
-		case "runtime.sigpanic":
-			funcID = objabi.FuncID_sigpanic
-		case "runtime.runfinq":
-			funcID = objabi.FuncID_runfinq
-		case "runtime.gcBgMarkWorker":
-			funcID = objabi.FuncID_gcBgMarkWorker
-		case "runtime.systemstack_switch":
-			funcID = objabi.FuncID_systemstack_switch
-		case "runtime.systemstack":
-			funcID = objabi.FuncID_systemstack
-		case "runtime.cgocallback_gofunc":
-			funcID = objabi.FuncID_cgocallback_gofunc
-		case "runtime.gogo":
-			funcID = objabi.FuncID_gogo
-		case "runtime.externalthreadhandler":
-			funcID = objabi.FuncID_externalthreadhandler
-		case "runtime.debugCallV1":
-			funcID = objabi.FuncID_debugCallV1
+		var file string
+		if s.FuncInfo != nil && len(s.FuncInfo.File) > 0 {
+			file = s.FuncInfo.File[0].Name
 		}
+		funcID := objabi.GetFuncID(s.Name, file)
+
 		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
 
 		// unused

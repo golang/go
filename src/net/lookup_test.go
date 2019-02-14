@@ -207,6 +207,9 @@ var lookupGmailTXTTests = []struct {
 }
 
 func TestLookupGmailTXT(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; see https://golang.org/issue/29722")
+	}
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
@@ -237,10 +240,15 @@ func TestLookupGmailTXT(t *testing.T) {
 		if len(txts) == 0 {
 			t.Error("got no record")
 		}
+		found := false
 		for _, txt := range txts {
-			if !strings.Contains(txt, tt.txt) || (!strings.HasSuffix(txt, tt.host) && !strings.HasSuffix(txt, tt.host+".")) {
-				t.Errorf("got %s; want a record containing %s, %s", txt, tt.txt, tt.host)
+			if strings.Contains(txt, tt.txt) && (strings.HasSuffix(txt, tt.host) || strings.HasSuffix(txt, tt.host+".")) {
+				found = true
+				break
 			}
+		}
+		if !found {
+			t.Errorf("got %v; want a record containing %s, %s", txts, tt.txt, tt.host)
 		}
 	}
 }

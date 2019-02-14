@@ -563,11 +563,6 @@ func Main(archInit func(*Arch)) {
 		errorexit()
 	}
 
-	// The "init" function is the only user-spellable symbol that
-	// we construct later. Mark it as a function now before
-	// anything can ask for its Linksym.
-	lookup("init").SetFunc(true)
-
 	// Phase 4: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
 	// because variables captured by value do not escape.

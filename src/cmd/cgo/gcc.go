@@ -1121,14 +1121,19 @@ func (p *Package) mangle(f *File, arg *ast.Expr) (ast.Expr, bool) {
 }
 
 // checkIndex checks whether arg has the form &a[i], possibly inside
-// type conversions. If so, it writes
+// type conversions. If so, then in the general case it writes
 //    _cgoIndexNN := a
 //    _cgoNN := &cgoIndexNN[i] // with type conversions, if any
 // to sb, and writes
 //    _cgoCheckPointer(_cgoNN, _cgoIndexNN)
-// to sbCheck, and returns true. This tells _cgoCheckPointer to check
-// the complete contents of the slice or array being indexed, but no
-// other part of the memory allocation.
+// to sbCheck, and returns true. If a is a simple variable or field reference,
+// it writes
+//    _cgoIndexNN := &a
+// and dereferences the uses of _cgoIndexNN. Taking the address avoids
+// making a copy of an array.
+//
+// This tells _cgoCheckPointer to check the complete contents of the
+// slice or array being indexed, but no other part of the memory allocation.
 func (p *Package) checkIndex(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool {
 	// Strip type conversions.
 	x := arg
@@ -1148,13 +1153,23 @@ func (p *Package) checkIndex(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) boo
 		return false
 	}
 
-	fmt.Fprintf(sb, "_cgoIndex%d := %s; ", i, gofmtPos(index.X, index.X.Pos()))
+	addr := ""
+	deref := ""
+	if p.isVariable(index.X) {
+		addr = "&"
+		deref = "*"
+	}
+
+	fmt.Fprintf(sb, "_cgoIndex%d := %s%s; ", i, addr, gofmtPos(index.X, index.X.Pos()))
 	origX := index.X
 	index.X = ast.NewIdent(fmt.Sprintf("_cgoIndex%d", i))
+	if deref == "*" {
+		index.X = &ast.StarExpr{X: index.X}
+	}
 	fmt.Fprintf(sb, "_cgo%d := %s; ", i, gofmtPos(arg, arg.Pos()))
 	index.X = origX
 
-	fmt.Fprintf(sbCheck, "_cgoCheckPointer(_cgo%d, _cgoIndex%d); ", i, i)
+	fmt.Fprintf(sbCheck, "_cgoCheckPointer(_cgo%d, %s_cgoIndex%d); ", i, deref, i)
 
 	return true
 }
@@ -1280,6 +1295,17 @@ func (p *Package) isConst(f *File, x ast.Expr) bool {
 	return false
 }
 
+// isVariable reports whether x is a variable, possibly with field references.
+func (p *Package) isVariable(x ast.Expr) bool {
+	switch x := x.(type) {
+	case *ast.Ident:
+		return true
+	case *ast.SelectorExpr:
+		return p.isVariable(x.X)
+	}
+	return false
+}
+
 // rewriteUnsafe returns a version of t with references to unsafe.Pointer
 // rewritten to use _cgo_unsafe.Pointer instead.
 func (p *Package) rewriteUnsafe(t ast.Expr) ast.Expr {
@@ -1389,7 +1415,9 @@ func (p *Package) rewriteRef(f *File) {
 
 		// Record source-level edit for cgo output.
 		if !r.Done {
-			repl := gofmtPos(expr, old.Pos())
+			// Prepend a space in case the earlier code ends
+			// with '/', which would give us a "//" comment.
+			repl := " " + gofmtPos(expr, old.Pos())
 			end := fset.Position(old.End())
 			// Subtract 1 from the column if we are going to
 			// append a close parenthesis. That will set the
@@ -1399,7 +1427,7 @@ func (p *Package) rewriteRef(f *File) {
 				sub = 1
 			}
 			if end.Column > sub {
-				repl = fmt.Sprintf("%s/*line :%d:%d*/", repl, end.Line, end.Column-sub)
+				repl = fmt.Sprintf("%s /*line :%d:%d*/", repl, end.Line, end.Column-sub)
 			}
 			if r.Name.Kind != "type" {
 				repl = "(" + repl + ")"

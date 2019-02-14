@@ -866,11 +866,53 @@ func (tg *testgoData) failSSH() {
 
 func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	if testing.Short() {
-		t.Skip("don't rebuild the standard library in short mode")
+		t.Skip("skipping lengthy test in short mode")
 	}
 
 	tg := testgo(t)
 	defer tg.cleanup()
+
+	// Copy the runtime packages into a temporary GOROOT
+	// so that we can change files.
+	for _, copydir := range []string{
+		"src/runtime",
+		"src/internal/bytealg",
+		"src/internal/cpu",
+		"src/unsafe",
+		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
+		filepath.Join("pkg/tool", runtime.GOOS+"_"+runtime.GOARCH),
+		"pkg/include",
+	} {
+		srcdir := filepath.Join(testGOROOT, copydir)
+		tg.tempDir(filepath.Join("goroot", copydir))
+		err := filepath.Walk(srcdir,
+			func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if info.IsDir() {
+					return nil
+				}
+				srcrel, err := filepath.Rel(srcdir, path)
+				if err != nil {
+					return err
+				}
+				dest := filepath.Join("goroot", copydir, srcrel)
+				data, err := ioutil.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				tg.tempFile(dest, string(data))
+				if err := os.Chmod(tg.path(dest), info.Mode()); err != nil {
+					return err
+				}
+				return nil
+			})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	tg.setenv("GOROOT", tg.path("goroot"))
 
 	addVar := func(name string, idx int) (restore func()) {
 		data, err := ioutil.ReadFile(name)
@@ -900,7 +942,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	// Changing mtime of runtime/internal/sys/sys.go
 	// should have no effect: only the content matters.
 	// In fact this should be true even outside a release branch.
-	sys := runtime.GOROOT() + "/src/runtime/internal/sys/sys.go"
+	sys := tg.path("goroot/src/runtime/internal/sys/sys.go")
 	tg.sleep()
 	restore := addVar(sys, 0)
 	restore()
@@ -915,7 +957,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	restore()
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after changing back to old release")
 	addVar(sys, 2)
-	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go again")
+	tg.wantStale("p1", "stale dependency: runtime", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go again")
 	tg.run("install", "-i", "p1")
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with new release")
 
@@ -924,9 +966,6 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after restoring sys.go")
 	tg.run("install", "-i", "p1")
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
-
-	// Everything is out of date. Rebuild to leave things in a better state.
-	tg.run("install", "std")
 }
 
 func testLocalRun(tg *testgoData, exepath, local, match string) {

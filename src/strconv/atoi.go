@@ -6,6 +6,14 @@ package strconv
 
 import "errors"
 
+// lower(c) is a lower-case letter if and only if
+// c is either that lower-case letter or the equivalent upper-case letter.
+// Instead of writing c == 'x' || c == 'X' one can write lower(c) == 'x'.
+// Note that lower of non-letters can produce other non-letters.
+func lower(c byte) byte {
+	return c | ('x' - 'X')
+}
+
 // ErrRange indicates that a value is out of range for the target type.
 var ErrRange = errors.New("value out of range")
 
@@ -50,9 +58,11 @@ const maxUint64 = 1<<64 - 1
 func ParseUint(s string, base int, bitSize int) (uint64, error) {
 	const fnParseUint = "ParseUint"
 
-	if len(s) == 0 {
+	if s == "" || !underscoreOK(s) {
 		return 0, syntaxError(fnParseUint, s)
 	}
+
+	base0 := base == 0
 
 	s0 := s
 	switch {
@@ -61,18 +71,22 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 
 	case base == 0:
 		// Look for octal, hex prefix.
-		switch {
-		case s[0] == '0' && len(s) > 1 && (s[1] == 'x' || s[1] == 'X'):
-			if len(s) < 3 {
-				return 0, syntaxError(fnParseUint, s0)
+		base = 10
+		if s[0] == '0' {
+			switch {
+			case len(s) >= 3 && lower(s[1]) == 'b':
+				base = 2
+				s = s[2:]
+			case len(s) >= 3 && lower(s[1]) == 'o':
+				base = 8
+				s = s[2:]
+			case len(s) >= 3 && lower(s[1]) == 'x':
+				base = 16
+				s = s[2:]
+			default:
+				base = 8
+				s = s[1:]
 			}
-			base = 16
-			s = s[2:]
-		case s[0] == '0':
-			base = 8
-			s = s[1:]
-		default:
-			base = 10
 		}
 
 	default:
@@ -103,12 +117,13 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 	for _, c := range []byte(s) {
 		var d byte
 		switch {
+		case c == '_' && base0:
+			// underscoreOK already called
+			continue
 		case '0' <= c && c <= '9':
 			d = c - '0'
-		case 'a' <= c && c <= 'z':
-			d = c - 'a' + 10
-		case 'A' <= c && c <= 'Z':
-			d = c - 'A' + 10
+		case 'a' <= lower(c) && lower(c) <= 'z':
+			d = lower(c) - 'a' + 10
 		default:
 			return 0, syntaxError(fnParseUint, s0)
 		}
@@ -138,13 +153,14 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 // bit size (0 to 64) and returns the corresponding value i.
 //
 // If base == 0, the base is implied by the string's prefix:
-// base 16 for "0x", base 8 for "0", and base 10 otherwise.
-// For bases 1, below 0 or above 36 an error is returned.
+// base 2 for "0b", base 8 for "0" or "0o", base 16 for "0x",
+// and base 10 otherwise.
+// If base is below 0, is 1, or is above 36, an error is returned.
 //
 // The bitSize argument specifies the integer type
 // that the result must fit into. Bit sizes 0, 8, 16, 32, and 64
 // correspond to int, int8, int16, int32, and int64.
-// For a bitSize below 0 or above 64 an error is returned.
+// If bitSize is below 0 or above 64, an error is returned.
 //
 // The errors that ParseInt returns have concrete type *NumError
 // and include err.Num = s. If s is empty or contains invalid
@@ -156,8 +172,7 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 	const fnParseInt = "ParseInt"
 
-	// Empty string bad.
-	if len(s) == 0 {
+	if s == "" {
 		return 0, syntaxError(fnParseInt, s)
 	}
 
@@ -198,7 +213,7 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 	return n, nil
 }
 
-// Atoi returns the result of ParseInt(s, 10, 0) converted to type int.
+// Atoi is equivalent to ParseInt(s, 10, 0), converted to type int.
 func Atoi(s string) (int, error) {
 	const fnAtoi = "Atoi"
 
@@ -228,10 +243,60 @@ func Atoi(s string) (int, error) {
 		return n, nil
 	}
 
-	// Slow path for invalid or big integers.
+	// Slow path for invalid, big, or underscored integers.
 	i64, err := ParseInt(s, 10, 0)
 	if nerr, ok := err.(*NumError); ok {
 		nerr.Func = fnAtoi
 	}
 	return int(i64), err
+}
+
+// underscoreOK reports whether the underscores in s are allowed.
+// Checking them in this one function lets all the parsers skip over them simply.
+// Underscore must appear only between digits or between a base prefix and a digit.
+func underscoreOK(s string) bool {
+	// saw tracks the last character (class) we saw:
+	// ^ for beginning of number,
+	// 0 for a digit or base prefix,
+	// _ for an underscore,
+	// ! for none of the above.
+	saw := '^'
+	i := 0
+
+	// Optional sign.
+	if len(s) >= 1 && (s[0] == '-' || s[0] == '+') {
+		s = s[1:]
+	}
+
+	// Optional base prefix.
+	hex := false
+	if len(s) >= 2 && s[0] == '0' && (lower(s[1]) == 'b' || lower(s[1]) == 'o' || lower(s[1]) == 'x') {
+		i = 2
+		saw = '0' // base prefix counts as a digit for "underscore as digit separator"
+		hex = lower(s[1]) == 'x'
+	}
+
+	// Number proper.
+	for ; i < len(s); i++ {
+		// Digits are always okay.
+		if '0' <= s[i] && s[i] <= '9' || hex && 'a' <= lower(s[i]) && lower(s[i]) <= 'f' {
+			saw = '0'
+			continue
+		}
+		// Underscore must follow digit.
+		if s[i] == '_' {
+			if saw != '0' {
+				return false
+			}
+			saw = '_'
+			continue
+		}
+		// Underscore must also be followed by digit.
+		if saw == '_' {
+			return false
+		}
+		// Saw non-digit, non-underscore.
+		saw = '!'
+	}
+	return saw != '_'
 }

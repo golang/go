@@ -18,9 +18,21 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
+
+var savedSupportedSignatureAlgorithmsTLS12 = supportedSignatureAlgorithmsTLS12
+
+func init() {
+	// TLS 1.3 is opt-in for Go 1.12, and RSA-PSS is disabled in TLS 1.2, but we
+	// want to run most tests with both enabled. TestTLS13Switch below and the
+	// "PSS-Disabled" recordings test the disabled behavior. See Issue 30055.
+	tls13Support.Do(func() {}) // defuse the sync.Once
+	tls13Support.cached = true
+	supportedSignatureAlgorithmsTLS12 = supportedSignatureAlgorithms
+}
 
 var rsaCertPEM = `-----BEGIN CERTIFICATE-----
 MIIB0zCCAX2gAwIBAgIJAI/M7BYjwB+uMA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNV
@@ -1076,16 +1088,45 @@ func TestEscapeRoute(t *testing.T) {
 		VersionSSL30,
 	}
 
-	ss, cs, err := testHandshake(t, testConfig, testConfig)
+	expectVersion(t, testConfig, testConfig, VersionTLS12)
+}
+
+func expectVersion(t *testing.T, clientConfig, serverConfig *Config, v uint16) {
+	ss, cs, err := testHandshake(t, clientConfig, serverConfig)
 	if err != nil {
-		t.Fatalf("Handshake failed when support for TLS 1.3 was dropped: %v", err)
+		t.Fatalf("Handshake failed: %v", err)
 	}
-	if ss.Version != VersionTLS12 {
-		t.Errorf("Server negotiated version %x, expected %x", cs.Version, VersionTLS12)
+	if ss.Version != v {
+		t.Errorf("Server negotiated version %x, expected %x", cs.Version, v)
 	}
-	if cs.Version != VersionTLS12 {
-		t.Errorf("Client negotiated version %x, expected %x", cs.Version, VersionTLS12)
+	if cs.Version != v {
+		t.Errorf("Client negotiated version %x, expected %x", cs.Version, v)
 	}
+}
+
+// TestTLS13Switch checks the behavior of GODEBUG=tls13=[0|1]. See Issue 30055.
+func TestTLS13Switch(t *testing.T) {
+	defer func(savedGODEBUG string) {
+		os.Setenv("GODEBUG", savedGODEBUG)
+	}(os.Getenv("GODEBUG"))
+
+	os.Setenv("GODEBUG", "tls13=0")
+	tls13Support.Once = sync.Once{} // reset the cache
+
+	tls12Config := testConfig.Clone()
+	tls12Config.MaxVersion = VersionTLS12
+	expectVersion(t, testConfig, testConfig, VersionTLS12)
+	expectVersion(t, tls12Config, testConfig, VersionTLS12)
+	expectVersion(t, testConfig, tls12Config, VersionTLS12)
+	expectVersion(t, tls12Config, tls12Config, VersionTLS12)
+
+	os.Setenv("GODEBUG", "tls13=1")
+	tls13Support.Once = sync.Once{} // reset the cache
+
+	expectVersion(t, testConfig, testConfig, VersionTLS13)
+	expectVersion(t, tls12Config, testConfig, VersionTLS12)
+	expectVersion(t, testConfig, tls12Config, VersionTLS12)
+	expectVersion(t, tls12Config, tls12Config, VersionTLS12)
 }
 
 // Issue 28744: Ensure that we don't modify memory

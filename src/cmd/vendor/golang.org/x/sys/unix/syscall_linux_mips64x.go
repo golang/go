@@ -12,7 +12,6 @@ package unix
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
 //sys	Fchown(fd int, uid int, gid int) (err error)
-//sys	Fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
 //sysnb	Getegid() (egid int)
@@ -148,12 +147,20 @@ type stat_t struct {
 }
 
 //sys	fstat(fd int, st *stat_t) (err error)
+//sys	fstatat(dirfd int, path string, st *stat_t, flags int) (err error) = SYS_NEWFSTATAT
 //sys	lstat(path string, st *stat_t) (err error)
 //sys	stat(path string, st *stat_t) (err error)
 
 func Fstat(fd int, s *Stat_t) (err error) {
 	st := &stat_t{}
 	err = fstat(fd, st)
+	fillStat_t(s, st)
+	return
+}
+
+func Fstatat(dirfd int, path string, s *Stat_t, flags int) (err error) {
+	st := &stat_t{}
+	err = fstatat(dirfd, path, st, flags)
 	fillStat_t(s, st)
 	return
 }

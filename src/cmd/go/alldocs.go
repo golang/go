@@ -442,10 +442,13 @@
 // command alias, described below.
 //
 // To convey to humans and machine tools that code is generated,
-// generated source should have a line early in the file that
-// matches the following regular expression (in Go syntax):
+// generated source should have a line that matches the following
+// regular expression (in Go syntax):
 //
 // 	^// Code generated .* DO NOT EDIT\.$
+//
+// The line may appear anywhere in the file, but is typically
+// placed near the beginning so it is easy to find.
 //
 // Note that go generate does not parse the file, so lines that look
 // like directives in comments or multiline strings will be treated
@@ -1397,7 +1400,6 @@
 // in the standard user cache directory for the current operating system.
 // Setting the GOCACHE environment variable overrides this default,
 // and running 'go env GOCACHE' prints the current cache directory.
-// You can set the variable to 'off' to disable the cache.
 //
 // The go command periodically deletes cached data that has not been
 // used recently. Running 'go clean -cache' deletes all cached data.
@@ -1596,14 +1598,14 @@
 // line comment. See the go/build package documentation for
 // more details.
 //
-// Non-test Go source files can also include a //go:binary-only-package
-// comment, indicating that the package sources are included
-// for documentation only and must not be used to build the
-// package binary. This enables distribution of Go packages in
-// their compiled form alone. Even binary-only packages require
-// accurate import blocks listing required dependencies, so that
-// those dependencies can be supplied when linking the resulting
-// command.
+// Through the Go 1.12 release, non-test Go source files can also include
+// a //go:binary-only-package comment, indicating that the package
+// sources are included for documentation only and must not be used to
+// build the package binary. This enables distribution of Go packages in
+// their compiled form alone. Even binary-only packages require accurate
+// import blocks listing required dependencies, so that those
+// dependencies can be supplied when linking the resulting command.
+// Note that this feature is scheduled to be removed after the Go 1.12 release.
 //
 //
 // The go.mod file
@@ -2054,7 +2056,7 @@
 // (See 'go help gopath-get' and 'go help gopath'.)
 //
 // When using modules, downloaded packages are stored in the module cache.
-// (See 'go help modules-get' and 'go help goproxy'.)
+// (See 'go help module-get' and 'go help goproxy'.)
 //
 // When using modules, an additional variant of the go-import meta tag is
 // recognized and is preferred over those listing version control systems.
@@ -2494,7 +2496,8 @@
 // development module, then get will update the required version.
 // Specifying a version earlier than the current required version is valid and
 // downgrades the dependency. The version suffix @none indicates that the
-// dependency should be removed entirely.
+// dependency should be removed entirely, downgrading or removing modules
+// depending on it as needed.
 //
 // Although get defaults to using the latest version of the module containing
 // a named package, it does not use the latest version of that module's

@@ -930,11 +930,11 @@
 (ZeroExt16to(32|64) x) -> (MOVHZreg x)
 (ZeroExt32to64 x) -> (MOVWZreg x)
 
-(Trunc(16|32|64)to8  x) && isSigned(x.Type) -> (MOVBreg x)
+(Trunc(16|32|64)to8 <t> x) && isSigned(t) -> (MOVBreg x)
 (Trunc(16|32|64)to8  x) -> (MOVBZreg x)
-(Trunc(32|64)to16 x) && isSigned(x.Type) -> (MOVHreg x)
+(Trunc(32|64)to16 <t> x) && isSigned(t) -> (MOVHreg x)
 (Trunc(32|64)to16 x) -> (MOVHZreg x)
-(Trunc64to32 x) && isSigned(x.Type) -> (MOVWreg x)
+(Trunc64to32 <t> x) && isSigned(t) -> (MOVWreg x)
 (Trunc64to32 x) -> (MOVWZreg x)
 
 (Slicemask <t> x) -> (SRADconst (NEG <t> x) [63])

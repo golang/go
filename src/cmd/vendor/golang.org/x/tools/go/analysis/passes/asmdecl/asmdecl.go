@@ -490,7 +490,7 @@ func appendComponentsRecursive(arch *asmArch, t types.Type, cc []component, suff
 		offsets := arch.sizes.Offsetsof(fields)
 		elemoff := int(offsets[1])
 		for i := 0; i < int(tu.Len()); i++ {
-			cc = appendComponentsRecursive(arch, elem, cc, suffix+"_"+strconv.Itoa(i), i*elemoff)
+			cc = appendComponentsRecursive(arch, elem, cc, suffix+"_"+strconv.Itoa(i), off+i*elemoff)
 		}
 	}
 
@@ -514,7 +514,7 @@ func asmParseDecl(pass *analysis.Pass, decl *ast.FuncDecl) map[string]*asmFunc {
 		for _, fld := range list {
 			t := pass.TypesInfo.Types[fld.Type].Type
 
-			// Work around github.com/golang/go/issues/28277.
+			// Work around https://golang.org/issue/28277.
 			if t == nil {
 				if ell, ok := fld.Type.(*ast.Ellipsis); ok {
 					t = types.NewSlice(pass.TypesInfo.Types[ell.Elt].Type)

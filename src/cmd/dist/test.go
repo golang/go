@@ -212,6 +212,9 @@ func (t *tester) run() {
 	if t.failed {
 		fmt.Println("\nFAILED")
 		os.Exit(1)
+	} else if incomplete[goos+"/"+goarch] {
+		fmt.Println("\nFAILED (incomplete port)")
+		os.Exit(1)
 	} else if t.partial {
 		fmt.Println("\nALL TESTS PASSED (some were excluded)")
 	} else {

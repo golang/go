@@ -394,16 +394,13 @@ type interfaceType struct {
 // mapType represents a map type.
 type mapType struct {
 	rtype
-	key           *rtype // map key type
-	elem          *rtype // map element (value) type
-	bucket        *rtype // internal bucket structure
-	keysize       uint8  // size of key slot
-	indirectkey   uint8  // store ptr to key instead of key itself
-	valuesize     uint8  // size of value slot
-	indirectvalue uint8  // store ptr to value instead of value itself
-	bucketsize    uint16 // size of bucket
-	reflexivekey  bool   // true if k==k for all keys
-	needkeyupdate bool   // true if we need to update key on an overwrite
+	key        *rtype // map key type
+	elem       *rtype // map element (value) type
+	bucket     *rtype // internal bucket structure
+	keysize    uint8  // size of key slot
+	valuesize  uint8  // size of value slot
+	bucketsize uint16 // size of bucket
+	flags      uint32
 }
 
 // ptrType represents a pointer type.
@@ -1859,6 +1856,8 @@ func MapOf(key, elem Type) Type {
 	}
 
 	// Make a map type.
+	// Note: flag values must match those used in the TMAP case
+	// in ../cmd/compile/internal/gc/reflect.go:dtypesym.
 	var imap interface{} = (map[unsafe.Pointer]unsafe.Pointer)(nil)
 	mt := **(**mapType)(unsafe.Pointer(&imap))
 	mt.str = resolveReflectName(newName(s, "", false))
@@ -1867,23 +1866,29 @@ func MapOf(key, elem Type) Type {
 	mt.key = ktyp
 	mt.elem = etyp
 	mt.bucket = bucketOf(ktyp, etyp)
+	mt.flags = 0
 	if ktyp.size > maxKeySize {
 		mt.keysize = uint8(ptrSize)
-		mt.indirectkey = 1
+		mt.flags |= 1 // indirect key
 	} else {
 		mt.keysize = uint8(ktyp.size)
-		mt.indirectkey = 0
 	}
 	if etyp.size > maxValSize {
 		mt.valuesize = uint8(ptrSize)
-		mt.indirectvalue = 1
+		mt.flags |= 2 // indirect value
 	} else {
 		mt.valuesize = uint8(etyp.size)
-		mt.indirectvalue = 0
 	}
 	mt.bucketsize = uint16(mt.bucket.size)
-	mt.reflexivekey = isReflexive(ktyp)
-	mt.needkeyupdate = needKeyUpdate(ktyp)
+	if isReflexive(ktyp) {
+		mt.flags |= 4
+	}
+	if needKeyUpdate(ktyp) {
+		mt.flags |= 8
+	}
+	if hashMightPanic(ktyp) {
+		mt.flags |= 16
+	}
 	mt.ptrToThis = 0
 
 	ti, _ := lookupCache.LoadOrStore(ckey, &mt.rtype)
@@ -2119,6 +2124,27 @@ func needKeyUpdate(t *rtype) bool {
 	default:
 		// Func, Map, Slice, Invalid
 		panic("needKeyUpdate called on non-key type " + t.String())
+	}
+}
+
+// hashMightPanic reports whether the hash of a map key of type t might panic.
+func hashMightPanic(t *rtype) bool {
+	switch t.Kind() {
+	case Interface:
+		return true
+	case Array:
+		tt := (*arrayType)(unsafe.Pointer(t))
+		return hashMightPanic(tt.elem)
+	case Struct:
+		tt := (*structType)(unsafe.Pointer(t))
+		for _, f := range tt.fields {
+			if hashMightPanic(f.typ) {
+				return true
+			}
+		}
+		return false
+	default:
+		return false
 	}
 }
 

@@ -10,9 +10,21 @@ func shifts0() {
 		s = 10
 		_ = 0<<0
 		_ = 1<<s
-		_ = 1<<- /* ERROR "overflows uint" */ 1
+		_ = 1<<- /* ERROR "negative shift count" */ 1
+		// For the test below we may decide to convert to int
+		// rather than uint and then report a negative shift
+		// count instead, which might be a better error. The
+		// (minor) difference is that this would restrict the
+		// shift count range by half (from all uint values to
+		// the positive int values).
+		// This depends on the exact spec wording which is not
+		// done yet.
+		// TODO(gri) revisit and adjust when spec change is done
+		_ = 1<<- /* ERROR "truncated to uint" */ 1.0
 		_ = 1<<1075 /* ERROR "invalid shift" */
 		_ = 2.0<<1
+		_ = 1<<1.0
+		_ = 1<<(1+0i)
 
 		_ int = 2<<s
 		_ float32 = 2<<s
@@ -35,11 +47,13 @@ func shifts1() {
 		u uint
 
 		_ = 1<<0
-		_ = 1<<i /* ERROR "must be unsigned" */
+		_ = 1<<i
 		_ = 1<<u
 		_ = 1<<"foo" /* ERROR "cannot convert" */
 		_ = i<<0
-		_ = i<<- /* ERROR "overflows uint" */ 1
+		_ = i<<- /* ERROR "negative shift count" */ 1
+		_ = i<<1.0
+		_ = 1<<(1+0i)
 		_ = 1 /* ERROR "overflows" */ <<100
 
 		_ uint = 1 << 0
@@ -47,10 +61,10 @@ func shifts1() {
 		_ float32 = 1 /* ERROR "must be integer" */ << u
 
 		// for issue 14822
-		_ = 1<<( /* ERROR "invalid shift count" */ 1<<63)
-		_ = 1<<( /* ERROR "overflows uint" */ 1<<64)
+		_ = 1<<( /* ERROR "invalid shift count" */ 1<<64-1)
+		_ = 1<<( /* ERROR "invalid shift count" */ 1<<64)
 		_ = u<<(1<<63) // valid
-		_ = u<<( /* ERROR "overflows uint" */ 1<<64)
+		_ = u<<(1<<64) // valid
 	)
 }
 

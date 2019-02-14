@@ -1458,6 +1458,13 @@ var cgoEnabled = map[string]bool{
 	"windows/arm":     false,
 }
 
+// List of platforms which are supported but not complete yet. These get
+// filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
+var incomplete = map[string]bool{
+	"linux/riscv64": true,
+	"linux/sparc64": true,
+}
+
 func needCC() bool {
 	switch os.Getenv("CGO_ENABLED") {
 	case "1":
@@ -1576,6 +1583,9 @@ func cmdlist() {
 
 	var plats []string
 	for p := range cgoEnabled {
+		if incomplete[p] {
+			continue
+		}
 		plats = append(plats, p)
 	}
 	sort.Strings(plats)

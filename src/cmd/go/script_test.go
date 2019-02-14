@@ -283,6 +283,11 @@ Script:
 				if strings.HasPrefix(cond, "exec:") {
 					prog := cond[len("exec:"):]
 					ok = execCache.Do(prog, func() interface{} {
+						if runtime.GOOS == "plan9" && prog == "git" {
+							// The Git command is usually not the real Git on Plan 9.
+							// See https://golang.org/issues/29640.
+							return false
+						}
 						_, err := exec.LookPath(prog)
 						return err == nil
 					}).(bool)

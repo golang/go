@@ -8,7 +8,6 @@ package unix
 
 import (
 	"syscall"
-	"unsafe"
 )
 
 func setTimespec(sec, nsec int64) Timespec {
@@ -48,21 +47,17 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint32(length)
 }
 
-func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
-	var length = uint64(count)
-
-	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(*offset>>32), uintptr(unsafe.Pointer(&length)), 0, 0, 0, 0)
-
-	written = int(length)
-
-	if e1 != 0 {
-		err = e1
-	}
-	return
-}
-
 func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno)
 
 // SYS___SYSCTL is used by syscall_bsd.go for all BSDs, but in modern versions
 // of darwin/386 the syscall is called sysctl instead of __sysctl.
 const SYS___SYSCTL = SYS_SYSCTL
+
+//sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
+//sys	Fstatat(fd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
+//sys	Fstatfs(fd int, stat *Statfs_t) (err error) = SYS_FSTATFS64
+//sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) = SYS_GETDIRENTRIES64
+//sys	getfsstat(buf unsafe.Pointer, size uintptr, flags int) (n int, err error) = SYS_GETFSSTAT64
+//sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
+//sys	Stat(path string, stat *Stat_t) (err error) = SYS_STAT64
+//sys	Statfs(path string, stat *Statfs_t) (err error) = SYS_STATFS64

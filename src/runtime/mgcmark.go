@@ -709,7 +709,13 @@ func scanstack(gp *g, gcw *gcWork) {
 		return true
 	}
 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
+
+	// Find additional pointers that point into the stack from the heap.
+	// Currently this includes defers and panics. See also function copystack.
 	tracebackdefers(gp, scanframe, nil)
+	if gp._panic != nil {
+		state.putPtr(uintptr(unsafe.Pointer(gp._panic)))
+	}
 
 	// Find and scan all reachable stack objects.
 	state.buildIndex()

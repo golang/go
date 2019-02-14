@@ -105,6 +105,10 @@
 			"revisionTime": "2018-05-24T22:59:00Z"
 		},
 		{
+			"path": "github.com/x/sys/unix",
+			"revision": ""
+		},
+		{
 			"path": "golang.org/x/arch/arm/armasm",
 			"revision": "5099b4b992f2813e39cfe2623c6f638718bd0fc6",
 			"revisionTime": "2018-04-06T10:28:20Z"
@@ -131,10 +135,10 @@
 			"revisionTime": "2018-05-24T11:38:20Z"
 		},
 		{
-			"checksumSHA1": "rx5/IrpHIVwz6KnAeqbTGHZe040=",
+			"checksumSHA1": "VmY64lAjYXrfzg4lPNIXh9HqIg0=",
 			"path": "golang.org/x/sys/unix",
-			"revision": "4d1cda033e0619309c606fc686de3adcf599539e",
-			"revisionTime": "2018-12-13T07:38:38Z"
+			"revision": "1775db3f06b568179d273425900dd09125831dd5",
+			"revisionTime": "2019-01-06T17:38:07Z"
 		},
 		{
 			"checksumSHA1": "WoSat9PbqZFXREek5bkUBr256/Q=",

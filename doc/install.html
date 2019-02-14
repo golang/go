@@ -172,11 +172,6 @@ command prompts for the change to take effect.
 </p>
 
 <p>
-If you chose a directory other than <code>c:\Go</code>,
-you must set the <code>GOROOT</code> environment variable to your chosen path.
-</p>
-
-<p>
 Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to your <code>PATH</code> environment variable.
 </p>
 
@@ -268,6 +263,39 @@ or <code>go</code> <code>clean</code> <code>-i</code> to remove it.
 Before rushing off to write Go code please read the
 <a href="/doc/code.html">How to Write Go Code</a> document,
 which describes some essential concepts about using the Go tools.
+</p>
+
+
+<h2 id="extra_versions">Installing extra Go versions</h2>
+
+<p>
+It may be useful to have multiple Go versions installed on the same machine, for
+example, to ensure that a package's tests pass on multiple Go versions.
+Once you have one Go version installed, you can install another (such as 1.10.7)
+as follows:
+</p>
+
+<pre>
+$ go get golang.org/dl/go1.10.7
+$ go1.10.7 download
+</pre>
+
+<p>
+The newly downloaded version can be used like <code>go</code>:
+</p>
+
+<pre>
+$ go1.10.7 version
+go version go1.10.7 linux/amd64
+</pre>
+
+<p>
+All Go versions available via this method are listed on
+<a href="https://godoc.org/golang.org/dl#pkg-subdirectories">the download page</a>.
+You can find where each of these extra Go versions is installed by looking
+at its <code>GOROOT</code>; for example, <code>go1.10.7 env GOROOT</code>.
+To uninstall a downloaded version, just remove its <code>GOROOT</code> directory
+and the <code>goX.Y.Z</code> binary.
 </p>
 
 

@@ -1528,6 +1528,7 @@ var vflog1pSC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	4503599627370496.5, // Issue #29488
 }
 var log1pSC = []float64{
 	NaN(),
@@ -1537,6 +1538,7 @@ var log1pSC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	36.04365338911715, // Issue #29488
 }
 
 var vfmodfSC = []float64{

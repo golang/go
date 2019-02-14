@@ -26,6 +26,9 @@ import (
 	"unsafe"
 )
 
+// For TestRawConnReadWrite.
+type syscallDescriptor = syscall.Handle
+
 func TestSameWindowsFile(t *testing.T) {
 	temp, err := ioutil.TempDir("", "TestSameWindowsFile")
 	if err != nil {

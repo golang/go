@@ -1698,7 +1698,7 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 		}
 	}
 	if err == driver.ErrBadConn {
-		dc, err = db.conn(ctx, cachedOrNewConn)
+		dc, err = db.conn(ctx, alwaysNewConn)
 	}
 	if err != nil {
 		return nil, err
@@ -2256,6 +2256,13 @@ var (
 
 // Stmt is a prepared statement.
 // A Stmt is safe for concurrent use by multiple goroutines.
+//
+// If a Stmt is prepared on a Tx or Conn, it will be bound to a single
+// underlying connection forever. If the Tx or Conn closes, the Stmt will
+// become unusable and all operations will return an error.
+// If a Stmt is prepared on a DB, it will remain usable for the lifetime of the
+// DB. When the Stmt needs to execute on a new underlying connection, it will
+// prepare itself on the new connection automatically.
 type Stmt struct {
 	// Immutable:
 	db        *DB    // where we came from

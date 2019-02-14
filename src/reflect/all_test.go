@@ -1009,6 +1009,7 @@ func TestIsNil(t *testing.T) {
 		struct{ x func() bool }{},
 		struct{ x chan int }{},
 		struct{ x []string }{},
+		struct{ x unsafe.Pointer }{},
 	}
 	for _, ts := range doNil {
 		ty := TypeOf(ts).Field(0).Type

@@ -480,6 +480,10 @@ var genericOps = []opData{
 	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true}, // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
 	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                  // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
 
+	// InlMark marks the start of an inlined function body. Its AuxInt field
+	// distinguishes which entry in the local inline tree it is marking.
+	{name: "InlMark", argLength: 1, aux: "Int32", typ: "Void"}, // arg[0]=mem, returns void.
+
 	// Ops for breaking 64-bit operations on 32-bit architectures
 	{name: "Int64Make", argLength: 2, typ: "UInt64"}, // arg0=hi, arg1=lo
 	{name: "Int64Hi", argLength: 1, typ: "UInt32"},   // high 32-bit of arg0

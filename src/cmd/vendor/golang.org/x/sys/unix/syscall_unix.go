@@ -351,13 +351,6 @@ func Socketpair(domain, typ, proto int) (fd [2]int, err error) {
 	return
 }
 
-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
-	if raceenabled {
-		raceReleaseMerge(unsafe.Pointer(&ioSync))
-	}
-	return sendfile(outfd, infd, offset, count)
-}
-
 var ioSync int64
 
 func CloseOnExec(fd int) { fcntl(fd, F_SETFD, FD_CLOEXEC) }

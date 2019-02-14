@@ -316,6 +316,12 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
 
 		// Filter out just the symbol refs and append them to
 		// the symabis file.
+		if cfg.BuildN {
+			// -x will print the lines from symabis2 that are actually appended
+			// to symabis. With -n, we don't know what those lines will be.
+			b.Showcmd("", `grep '^ref' <%s | grep -v '^ref\s*""\.' >>%s`, symabis2, a.Objdir+"symabis")
+			continue
+		}
 		abis2, err := ioutil.ReadFile(symabis2)
 		if err != nil {
 			return "", err
