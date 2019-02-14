@@ -8,10 +8,13 @@ import (
 	"go/build"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/buildutil"
+	"golang.org/x/tools/go/packages/packagestest"
 )
 
 func TestContainingPackage(t *testing.T) {
@@ -19,9 +22,22 @@ func TestContainingPackage(t *testing.T) {
 		t.Skip("gccgo has no GOROOT")
 	}
 
-	// unvirtualized:
+	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{
+		{Name: "golang.org/x/tools/go/buildutil", Files: packagestest.MustCopyFileTree(".")}})
+	defer exported.Cleanup()
+
 	goroot := runtime.GOROOT()
-	gopath := gopathContainingTools(t)
+	var gopath string
+	for _, env := range exported.Config.Env {
+		if !strings.HasPrefix(env, "GOPATH=") {
+			continue
+		}
+		gopath = strings.TrimPrefix(env, "GOPATH=")
+	}
+	if gopath == "" {
+		t.Fatal("Failed to fish GOPATH out of env: ", exported.Config.Env)
+	}
+	buildutildir := filepath.Join(gopath, "golang.org", "x", "tools", "go", "buildutil")
 
 	type Test struct {
 		gopath, filename, wantPkg string
@@ -60,7 +76,7 @@ func TestContainingPackage(t *testing.T) {
 		var got string
 		var buildContext = build.Default
 		buildContext.GOPATH = test.gopath
-		bp, err := buildutil.ContainingPackage(&buildContext, ".", test.filename)
+		bp, err := buildutil.ContainingPackage(&buildContext, buildutildir, test.filename)
 		if err != nil {
 			got = "(not found)"
 		} else {
@@ -71,15 +87,4 @@ func TestContainingPackage(t *testing.T) {
 		}
 	}
 
-	// TODO(adonovan): test on virtualized GOPATH too.
-}
-
-// gopathContainingTools returns the path of the GOPATH workspace
-// with golang.org/x/tools, or fails the test if it can't locate it.
-func gopathContainingTools(t *testing.T) string {
-	p, err := build.Import("golang.org/x/tools", "", build.FindOnly)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return p.Root
 }
