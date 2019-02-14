@@ -123,18 +123,21 @@ func (v *View) parse(uri source.URI) error {
 	}
 	var foundPkg bool // true if we found the package for uri
 	for _, pkg := range pkgs {
+		// TODO(rstambler): Get real TypeSizes from go/packages (golang.org/issues/30139).
+		pkg.TypesSizes = &types.StdSizes{}
+
 		imp := &importer{
 			entries:         make(map[string]*entry),
 			packages:        make(map[string]*packages.Package),
 			v:               v,
 			topLevelPkgPath: pkg.PkgPath,
 		}
-
-		// TODO(rstambler): Get real TypeSizes from go/packages.
-		pkg.TypesSizes = &types.StdSizes{}
-
-		if err := imp.addImports(pkg); err != nil {
+		if err := imp.addImports(pkg.PkgPath, pkg); err != nil {
 			return err
+		}
+		// Start prefetching direct imports.
+		for importPath := range pkg.Imports {
+			go imp.Import(importPath)
 		}
 		imp.importPackage(pkg.PkgPath)
 
@@ -181,13 +184,10 @@ type entry struct {
 	ready chan struct{}
 }
 
-func (imp *importer) addImports(pkg *packages.Package) error {
-	imp.packages[pkg.PkgPath] = pkg
-	for _, i := range pkg.Imports {
-		if i.PkgPath == pkg.PkgPath {
-			return fmt.Errorf("import cycle: [%v]", pkg.PkgPath)
-		}
-		if err := imp.addImports(i); err != nil {
+func (imp *importer) addImports(path string, pkg *packages.Package) error {
+	imp.packages[path] = pkg
+	for importPath, importPkg := range pkg.Imports {
+		if err := imp.addImports(importPath, importPkg); err != nil {
 			return err
 		}
 	}
