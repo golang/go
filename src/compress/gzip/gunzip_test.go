@@ -480,6 +480,61 @@ Found:
 	}
 }
 
+func TestMultistreamFalseReuse(t *testing.T) {
+	// Find concatenation test.
+	var tt gunzipTest
+	for _, tt = range gunzipTests {
+		if strings.HasSuffix(tt.desc, " x2") {
+			goto Found
+		}
+	}
+	t.Fatal("cannot find hello.txt x2 in gunzip tests")
+
+Found:
+	fr, err := ioutil.TempFile("","TestMultistreamFalseReuse")
+	if err != nil {
+		t.Fatalf("TempFile failed: %v", err)
+	}
+	defer os.Remove(fr.Name())
+	defer fr.Close()
+	_, err = fr.Write(tt.gzip)
+	if err != nil {
+		t.Fatalf("TempFile Write failed: %v", err)
+	}
+	_, err = fr.Seek(0, io.SeekStart)
+	if err != nil {
+		t.Fatalf("TempFile Seek failed: %v", err)
+	}
+
+	var r Reader
+	if err := r.Reset(fr); err != nil {
+		t.Fatalf("first reset: %v", err)
+	}
+
+	// Expect two streams with "hello world\n", then real EOF.
+	const hello = "hello world\n"
+
+	r.Multistream(false)
+	data, err := ioutil.ReadAll(&r)
+	if string(data) != hello || err != nil {
+		t.Fatalf("first stream = %q, %v, want %q, %v", string(data), err, hello, nil)
+	}
+
+	// r.Reset(fr) would fail here due to bufio read-ahead
+	if err := r.Reset(nil); err != nil {
+		t.Fatalf("second reset: %v", err)
+	}
+	r.Multistream(false)
+	data, err = ioutil.ReadAll(&r)
+	if string(data) != hello || err != nil {
+		t.Fatalf("second stream = %q, %v, want %q, %v", string(data), err, hello, nil)
+	}
+
+	if err := r.Reset(nil); err != io.EOF {
+		t.Fatalf("third reset: err=%v, want io.EOF", err)
+	}
+}
+
 func TestNilStream(t *testing.T) {
 	// Go liberally interprets RFC 1952 section 2.2 to mean that a gzip file
 	// consist of zero or more members. Thus, we test that a nil stream is okay.
