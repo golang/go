@@ -330,7 +330,9 @@ func backupFile(filename string, data []byte, perm os.FileMode) (string, error) 
 }
 
 // normalizeNumbers rewrites base prefixes and exponents to
-// use lower-case letters. It leaves hexadecimal digits alone.
+// use lower-case letters, and removes leading 0's from
+// integer imaginary literals. It leaves hexadecimal digits
+// alone.
 func normalizeNumbers(n ast.Node) bool {
 	lit, _ := n.(*ast.BasicLit)
 	if lit == nil {
@@ -339,37 +341,60 @@ func normalizeNumbers(n ast.Node) bool {
 	if len(lit.Value) < 2 {
 		return false // only one digit - nothing to do
 	}
-	// lit.Value >= 2
+	// len(lit.Value) >= 2
 
+	x := lit.Value
 	switch lit.Kind {
 	case token.INT:
-		switch lit.Value[:2] {
+		switch x[:2] {
 		case "0X":
-			lit.Value = "0x" + lit.Value[2:]
+			lit.Value = "0x" + x[2:]
 		case "0O":
-			lit.Value = "0o" + lit.Value[2:]
+			lit.Value = "0o" + x[2:]
 		case "0B":
-			lit.Value = "0b" + lit.Value[2:]
+			lit.Value = "0b" + x[2:]
 		}
 
 	case token.FLOAT:
 		switch lit.Value[:2] {
 		default:
-			if i := strings.LastIndexByte(lit.Value, 'E'); i >= 0 {
-				lit.Value = lit.Value[:i] + "e" + lit.Value[i+1:]
+			if i := strings.LastIndexByte(x, 'E'); i >= 0 {
+				lit.Value = x[:i] + "e" + x[i+1:]
 			}
 		case "0x":
-			if i := strings.LastIndexByte(lit.Value, 'P'); i >= 0 {
-				lit.Value = lit.Value[:i] + "p" + lit.Value[i+1:]
+			if i := strings.LastIndexByte(x, 'P'); i >= 0 {
+				lit.Value = x[:i] + "p" + x[i+1:]
 			}
 		case "0X":
-			if i := strings.LastIndexByte(lit.Value, 'P'); i >= 0 {
-				lit.Value = "0x" + lit.Value[2:i] + "p" + lit.Value[i+1:]
+			if i := strings.LastIndexByte(x, 'P'); i >= 0 {
+				lit.Value = "0x" + x[2:i] + "p" + x[i+1:]
 			} else {
-				lit.Value = "0x" + lit.Value[2:]
+				lit.Value = "0x" + x[2:]
 			}
+		}
+
+	case token.IMAG:
+		// Note that integer imaginary literals may contain
+		// any decimal digit even if they start with zero.
+		// Imaginary literals should always end in 'i' but be
+		// conservative and check anyway before proceeding.
+		if x[0] == '0' && x[len(x)-1] == 'i' && isDecimals(x[1:len(x)-1]) {
+			x = strings.TrimLeft(x, "0_")
+			if x == "i" {
+				x = "0i"
+			}
+			lit.Value = x
 		}
 	}
 
 	return false
+}
+
+// isDecimals reports whether x consists entirely of decimal digits and underscores.
+func isDecimals(x string) bool {
+	i := 0
+	for i < len(x) && ('0' <= x[i] && x[i] <= '9' || x[i] == '_') {
+		i++
+	}
+	return i == len(x)
 }
