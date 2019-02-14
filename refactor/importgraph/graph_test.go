@@ -11,8 +11,10 @@ package importgraph_test
 import (
 	"go/build"
 	"sort"
+	"strings"
 	"testing"
 
+	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/refactor/importgraph"
 
 	_ "crypto/hmac" // just for test, below
@@ -21,7 +23,25 @@ import (
 const this = "golang.org/x/tools/refactor/importgraph"
 
 func TestBuild(t *testing.T) {
-	forward, reverse, errors := importgraph.Build(&build.Default)
+	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{
+		{Name: "golang.org/x/tools/refactor/importgraph", Files: packagestest.MustCopyFileTree(".")}})
+	defer exported.Cleanup()
+
+	var gopath string
+	for _, env := range exported.Config.Env {
+		if !strings.HasPrefix(env, "GOPATH=") {
+			continue
+		}
+		gopath = strings.TrimPrefix(env, "GOPATH=")
+	}
+	if gopath == "" {
+		t.Fatal("Failed to fish GOPATH out of env: ", exported.Config.Env)
+	}
+
+	var buildContext = build.Default
+	buildContext.GOPATH = gopath
+
+	forward, reverse, errors := importgraph.Build(&buildContext)
 
 	// Test direct edges.
 	// We throw in crypto/hmac to prove that external test files
