@@ -276,7 +276,6 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	var phentsize, phnum int
 	var shoff int64
 	var shentsize, shnum, shstrndx int
-	shstrndx = -1
 	switch f.Class {
 	case ELFCLASS32:
 		hdr := new(Header32)
@@ -318,7 +317,11 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		shstrndx = int(hdr.Shstrndx)
 	}
 
-	if shnum > 0 && shoff > 0 && (shstrndx < 0 || shstrndx >= shnum) {
+	if shoff == 0 && shnum != 0 {
+		return nil, &FormatError{0, "invalid ELF shnum for shoff=0", shnum}
+	}
+
+	if shnum > 0 && shstrndx >= shnum {
 		return nil, &FormatError{0, "invalid ELF shstrndx", shstrndx}
 	}
 
