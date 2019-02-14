@@ -217,7 +217,7 @@
 	description of the problem, as in these examples:
 
 		Wrong type or unknown verb: %!verb(type=value)
-			Printf("%d", hi):          %!d(string=hi)
+			Printf("%d", "hi"):        %!d(string=hi)
 		Too many arguments: %!(EXTRA type=value)
 			Printf("hi", "guys"):      hi%!(EXTRA string=guys)
 		Too few arguments: %!verb(MISSING)
