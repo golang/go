@@ -139,6 +139,7 @@ func TestUnresolved(t *testing.T) {
 	// linker would find an undefined reference to "zero" created
 	// by the runtime package.
 
+	write("go.mod", "module testunresolved\n")
 	write("main.go", `package main
 
 func main() {
