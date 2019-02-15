@@ -134,6 +134,46 @@ func killAndWait(cmd *exec.Cmd) {
 	cmd.Wait()
 }
 
+func TestURL(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; fails to start up quickly enough")
+	}
+	bin, cleanup := buildGodoc(t)
+	defer cleanup()
+
+	testcase := func(url string, contents string) func(t *testing.T) {
+		return func(t *testing.T) {
+			stdout, stderr := new(bytes.Buffer), new(bytes.Buffer)
+
+			args := []string{fmt.Sprintf("-url=%s", url)}
+			cmd := exec.Command(bin, args...)
+			cmd.Stdout = stdout
+			cmd.Stderr = stderr
+			cmd.Args[0] = "godoc"
+
+			// Set GOPATH variable to non-existing path
+			// and GOPROXY=off to disable module fetches.
+			// We cannot just unset GOPATH variable because godoc would default it to ~/go.
+			// (We don't want the indexer looking at the local workspace during tests.)
+			cmd.Env = append(os.Environ(),
+				"GOPATH=does_not_exist",
+				"GOPROXY=off",
+				"GO111MODULE=off")
+
+			if err := cmd.Run(); err != nil {
+				t.Fatalf("failed to run godoc -url=%q: %s\nstderr:\n%s", url, err, stderr)
+			}
+
+			if !strings.Contains(stdout.String(), contents) {
+				t.Errorf("did not find substring %q in output of godoc -url=%q:\n%s", contents, url, stdout)
+			}
+		}
+	}
+
+	t.Run("index", testcase("/", "Go is an open source programming language"))
+	t.Run("fmt", testcase("/pkg/fmt", "Package fmt implements formatted I/O"))
+}
+
 // Basic integration test for godoc HTTP interface.
 func TestWeb(t *testing.T) {
 	testWeb(t, false)
@@ -150,7 +190,7 @@ func TestWebIndex(t *testing.T) {
 // Basic integration test for godoc HTTP interface.
 func testWeb(t *testing.T, withIndex bool) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; files to start up quickly enough")
+		t.Skip("skipping on plan9; fails to start up quickly enough")
 	}
 	bin, cleanup := buildGodoc(t)
 	defer cleanup()
