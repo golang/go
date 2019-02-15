@@ -18,6 +18,7 @@ import (
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/renameio"
 	"cmd/go/internal/search"
+	"cmd/go/internal/str"
 	"encoding/json"
 	"fmt"
 	"go/build"
@@ -380,6 +381,11 @@ func InitMod() {
 // modFileToBuildList initializes buildList from the modFile.
 func modFileToBuildList() {
 	Target = modFile.Module.Mod
+	if (str.HasPathPrefix(Target.Path, "std") || str.HasPathPrefix(Target.Path, "cmd")) &&
+		search.InDir(cwd, cfg.GOROOTsrc) == "" {
+		base.Fatalf("go: reserved module path %s not allow outside of GOROOT/src", Target.Path)
+	}
+
 	list := []module.Version{Target}
 	for _, r := range modFile.Require {
 		list = append(list, r.Mod)

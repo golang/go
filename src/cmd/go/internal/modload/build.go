@@ -38,9 +38,6 @@ func findStandardImportPath(path string) string {
 		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
 			return filepath.Join(cfg.GOROOT, "src", path)
 		}
-		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, "vendor/"+path) {
-			return filepath.Join(cfg.GOROOT, "src/vendor", path)
-		}
 	}
 	return ""
 }

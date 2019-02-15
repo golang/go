@@ -6,10 +6,19 @@ env GO111MODULE=off
 go list -f '{{.TestImports}}'
 stdout net/http # from .TestImports
 
+# 'go list' should report standard-vendored packages by path.
+go list -f '{{.Dir}}' internal/x/net/http2/hpack
+stdout $GOROOT[/\\]src[/\\]internal
+
 # 'go list -test' should report vendored transitive dependencies of _test.go
 # imports in the Deps field, with a 'vendor' prefix on their import paths.
 go list -test -f '{{.Deps}}'
 stdout internal/x/crypto # dep of .TestImports
+
+# Packages outside the standard library should not use its copy of vendored packages.
+cd broken
+! go build
+stderr 'cannot find package'
 
 -- go.mod --
 module m
@@ -22,3 +31,13 @@ package x
 import "testing"
 import _ "net/http"
 func Test(t *testing.T) {}
+
+-- broken/go.mod --
+module broken
+-- broken/http.go --
+package broken
+
+import (
+	_ "net/http"
+	_ "golang.org/x/net/http/httpproxy"
+)

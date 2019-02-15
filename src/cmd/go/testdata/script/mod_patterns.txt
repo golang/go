@@ -7,7 +7,6 @@ cd m
 # library or active modules.
 #
 # 'go list ...' should list packages in all active modules and the standard library.
-# But not cmd/* - see golang.org/issue/26924.
 #
 # 'go list example.com/m/...' should list packages in all modules that begin with 'example.com/m/'.
 #
@@ -26,7 +25,7 @@ stdout 'example.com/m/nested/useencoding: \[\.\.\. example.com/m/...\]' # but NO
 stdout '^unicode: \[all \.\.\.\]'
 stdout '^unsafe: \[all \.\.\.\]'
 stdout 'index/suffixarray: \[\.\.\.\]'
-! stdout cmd/pprof # golang.org/issue/26924
+stdout 'cmd/pprof: \[\.\.\.\]'
 
 stderr -count=1 '^go: warning: "./xyz..." matched no packages$'
 

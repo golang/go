@@ -64,6 +64,19 @@ func Import(path string) (m module.Version, dir string, err error) {
 	if search.IsStandardImportPath(path) {
 		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
 			dir := filepath.Join(cfg.GOROOT, "src", path)
+
+			// If the main module is in the standard library, attribute its packages
+			// to that module.
+			switch Target.Path {
+			case "cmd":
+				if strings.HasPrefix(path, "cmd") {
+					return Target, dir, nil
+				}
+			case "std":
+				if !strings.HasPrefix(path, "cmd") {
+					return Target, dir, nil
+				}
+			}
 			return module.Version{}, dir, nil
 		}
 	}

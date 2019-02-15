@@ -9,6 +9,7 @@ import (
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/module"
 	"cmd/go/internal/semver"
+	"cmd/go/internal/str"
 	"fmt"
 	pathpkg "path"
 	"strings"
@@ -129,6 +130,10 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
 			return nil, fmt.Errorf("internal error: main module version is not allowed")
 		}
 		return &modfetch.RevInfo{Version: Target.Version}, nil
+	}
+
+	if str.HasPathPrefix(path, "std") || str.HasPathPrefix(path, "cmd") {
+		return nil, fmt.Errorf("explicit requirement on standard-library module %s not allowed", path)
 	}
 
 	// Load versions and execute query.
