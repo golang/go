@@ -58,7 +58,21 @@ func (v *View) SetContent(ctx context.Context, uri source.URI, content []byte) (
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	f := v.getFile(uri)
+	newView := NewView(&v.Config)
+
+	for fURI, f := range v.files {
+		newView.files[fURI] = &File{
+			URI:     fURI,
+			view:    newView,
+			active:  f.active,
+			content: f.content,
+			ast:     f.ast,
+			token:   f.token,
+			pkg:     f.pkg,
+		}
+	}
+
+	f := newView.getFile(uri)
 	f.content = content
 
 	// Resetting the contents invalidates the ast, token, and pkg fields.
@@ -83,8 +97,7 @@ func (v *View) SetContent(ctx context.Context, uri source.URI, content []byte) (
 		}
 	}
 
-	// TODO(rstambler): We should really return a new, updated view.
-	return v, nil
+	return newView, nil
 }
 
 // GetFile returns a File for the given URI. It will always succeed because it
