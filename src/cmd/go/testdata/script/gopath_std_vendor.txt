@@ -2,6 +2,9 @@ env GO111MODULE=off
 
 [!gc] skip
 
+go list -f '{{.Dir}}' vendor/golang.org/x/net/http2/hpack
+stdout $GOPATH[/\\]src[/\\]vendor
+
 # A package importing 'net/http' should resolve its dependencies
 # to the package 'vendor/golang.org/x/net/http2/hpack' within GOROOT.
 cd importnethttp
