@@ -127,6 +127,7 @@ func (v *View) parse(uri source.URI) error {
 	if err != nil {
 		return err
 	}
+	// TODO(rstambler): Enforce here that LoadMode is LoadImports?
 	pkgs, err := packages.Load(&v.Config, fmt.Sprintf("file=%s", path))
 	if len(pkgs) == 0 {
 		if err == nil {
@@ -314,36 +315,51 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 	n := len(filenames)
 	parsed := make([]*ast.File, n)
 	errors := make([]error, n)
-	for i, file := range filenames {
-		if imp.v.Config.Context != nil {
-			if imp.v.Config.Context.Err() != nil {
-				parsed[i] = nil
-				errors[i] = imp.v.Config.Context.Err()
-				continue
-			}
+	for i, filename := range filenames {
+		if imp.v.Config.Context.Err() != nil {
+			parsed[i] = nil
+			errors[i] = imp.v.Config.Context.Err()
+			continue
 		}
+
+		// First, check if we have already cached an AST for this file.
+		f := imp.v.files[source.ToURI(filename)]
+		var fAST *ast.File
+		if f != nil {
+			fAST = f.ast
+		}
+
 		wg.Add(1)
 		go func(i int, filename string) {
 			ioLimit <- true // wait
-			// ParseFile may return both an AST and an error.
-			var src []byte
-			for f, contents := range imp.v.Config.Overlay {
-				if sameFile(f, filename) {
-					src = contents
+
+			if fAST != nil {
+				parsed[i], errors[i] = fAST, nil
+			} else {
+				// We don't have a cached AST for this file.
+				var src []byte
+				// Check for an available overlay.
+				for f, contents := range imp.v.Config.Overlay {
+					if sameFile(f, filename) {
+						src = contents
+					}
+				}
+				var err error
+				// We don't have an overlay, so we must read the file's contents.
+				if src == nil {
+					src, err = ioutil.ReadFile(filename)
+				}
+				if err != nil {
+					parsed[i], errors[i] = nil, err
+				} else {
+					// ParseFile may return both an AST and an error.
+					parsed[i], errors[i] = imp.v.Config.ParseFile(imp.v.Config.Fset, filename, src)
 				}
 			}
-			var err error
-			if src == nil {
-				src, err = ioutil.ReadFile(filename)
-			}
-			if err != nil {
-				parsed[i], errors[i] = nil, err
-			} else {
-				parsed[i], errors[i] = imp.v.Config.ParseFile(imp.v.Config.Fset, filename, src)
-			}
+
 			<-ioLimit // signal
 			wg.Done()
-		}(i, file)
+		}(i, filename)
 	}
 	wg.Wait()
 
