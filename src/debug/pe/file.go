@@ -324,6 +324,10 @@ type ImportDirectory struct {
 // satisfied by other libraries at dynamic load time.
 // It does not return weak symbols.
 func (f *File) ImportedSymbols() ([]string, error) {
+	if f.OptionalHeader == nil {
+		return nil, nil
+	}
+
 	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64
 
 	// grab the number of data directory entries

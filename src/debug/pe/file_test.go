@@ -5,6 +5,7 @@
 package pe
 
 import (
+	"bytes"
 	"debug/dwarf"
 	"internal/testenv"
 	"io/ioutil"
@@ -625,5 +626,24 @@ func TestImportTableInUnknownSection(t *testing.T) {
 
 	if len(symbols) == 0 {
 		t.Fatalf("unable to locate any imported symbols within file %q.", path)
+	}
+}
+
+func TestInvalidFormat(t *testing.T) {
+	crashers := [][]byte{
+		// https://golang.org/issue/30250
+		[]byte("\x00\x00\x00\x0000000\x00\x00\x00\x00\x00\x00\x000000" +
+			"00000000000000000000" +
+			"000000000\x00\x00\x0000000000" +
+			"00000000000000000000" +
+			"0000000000000000"),
+	}
+
+	for _, data := range crashers {
+		f, err := NewFile(bytes.NewReader(data))
+		if err != nil {
+			t.Error(err)
+		}
+		f.ImportedSymbols()
 	}
 }
