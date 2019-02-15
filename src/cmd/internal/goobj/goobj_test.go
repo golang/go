@@ -122,10 +122,14 @@ func buildGoobj() error {
 	if testenv.HasCGO() {
 		gopath := filepath.Join(buildDir, "gopath")
 		err = copyDir(filepath.Join(gopath, "src", "mycgo"), filepath.Join("testdata", "mycgo"))
+		if err == nil {
+			err = ioutil.WriteFile(filepath.Join(gopath, "src", "mycgo", "go.mod"), []byte("module mycgo\n"), 0666)
+		}
 		if err != nil {
 			return err
 		}
 		cmd := exec.Command(gotool, "install", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "mycgo")
+		cmd.Dir = filepath.Join(gopath, "src", "mycgo")
 		cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
