@@ -104,9 +104,7 @@ func (b *Builder) Do(root *Action) {
 		var err error
 
 		if a.Func != nil && (!a.Failed || a.IgnoreFail) {
-			if err == nil {
-				err = a.Func(b, a)
-			}
+			err = a.Func(b, a)
 		}
 
 		// The actions run in parallel but all the updates to the
