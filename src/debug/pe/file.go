@@ -377,7 +377,7 @@ func (f *File) ImportedSymbols() ([]string, error) {
 
 	// start decoding the import directory
 	var ida []ImportDirectory
-	for len(d) > 0 {
+	for len(d) >= 20 {
 		var dt ImportDirectory
 		dt.OriginalFirstThunk = binary.LittleEndian.Uint32(d[0:4])
 		dt.TimeDateStamp = binary.LittleEndian.Uint32(d[4:8])
