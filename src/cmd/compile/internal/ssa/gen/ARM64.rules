@@ -348,6 +348,12 @@
 (Geq32U x y) -> (GreaterEqualU (CMPW x y))
 (Geq64U x y) -> (GreaterEqualU (CMP x y))
 
+// Optimize comparision between a floating-point value and 0.0 with "FCMP $(0.0), Fn"
+(FCMPS x (FMOVSconst [0])) -> (FCMPS0 x)
+(FCMPS (FMOVSconst [0]) x) -> (InvertFlags (FCMPS0 x))
+(FCMPD x (FMOVDconst [0])) -> (FCMPD0 x)
+(FCMPD (FMOVDconst [0]) x) -> (InvertFlags (FCMPD0 x))
+
 // CSEL needs a flag-generating argument. Synthesize a CMPW if necessary.
 (CondSelect x y bool) && flagArg(bool) != nil -> (CSEL {bool.Op} x y flagArg(bool))
 (CondSelect x y bool) && flagArg(bool) == nil -> (CSEL {OpARM64NotEqual} x y (CMPWconst [0] bool))
@@ -1615,6 +1621,10 @@
 (LessEqualU (InvertFlags x)) -> (GreaterEqualU x)
 (GreaterEqual (InvertFlags x)) -> (LessEqual x)
 (GreaterEqualU (InvertFlags x)) -> (LessEqualU x)
+(LessThanF (InvertFlags x)) -> (GreaterThanF x)
+(LessEqualF (InvertFlags x)) -> (GreaterEqualF x)
+(GreaterThanF (InvertFlags x)) -> (LessThanF x)
+(GreaterEqualF (InvertFlags x)) -> (LessEqualF x)
 
 // Boolean-generating instructions always
 // zero upper bit of the register; no need to zero-extend

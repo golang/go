@@ -301,6 +301,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpARM64FCMPS0,
+		ssa.OpARM64FCMPD0:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_FCONST
+		p.From.Val = math.Float64frombits(0)
+		p.Reg = v.Args[0].Reg()
 	case ssa.OpARM64CMP,
 		ssa.OpARM64CMPW,
 		ssa.OpARM64CMN,
