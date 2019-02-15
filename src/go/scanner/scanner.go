@@ -472,9 +472,6 @@ func (s *Scanner) scanNumber() (token.Token, string) {
 	// suffix 'i'
 	if s.ch == 'i' {
 		tok = token.IMAG
-		if prefix != 0 && prefix != '0' {
-			s.error(s.offset, "invalid suffix 'i' on "+litname(prefix))
-		}
 		s.next()
 	}
 
