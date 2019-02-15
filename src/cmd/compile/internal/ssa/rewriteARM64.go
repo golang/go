@@ -95,6 +95,10 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64FADDD_0(v)
 	case OpARM64FADDS:
 		return rewriteValueARM64_OpARM64FADDS_0(v)
+	case OpARM64FCMPD:
+		return rewriteValueARM64_OpARM64FCMPD_0(v)
+	case OpARM64FCMPS:
+		return rewriteValueARM64_OpARM64FCMPS_0(v)
 	case OpARM64FMOVDfpgp:
 		return rewriteValueARM64_OpARM64FMOVDfpgp_0(v)
 	case OpARM64FMOVDgpfp:
@@ -133,18 +137,26 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64FSUBS_0(v)
 	case OpARM64GreaterEqual:
 		return rewriteValueARM64_OpARM64GreaterEqual_0(v)
+	case OpARM64GreaterEqualF:
+		return rewriteValueARM64_OpARM64GreaterEqualF_0(v)
 	case OpARM64GreaterEqualU:
 		return rewriteValueARM64_OpARM64GreaterEqualU_0(v)
 	case OpARM64GreaterThan:
 		return rewriteValueARM64_OpARM64GreaterThan_0(v)
+	case OpARM64GreaterThanF:
+		return rewriteValueARM64_OpARM64GreaterThanF_0(v)
 	case OpARM64GreaterThanU:
 		return rewriteValueARM64_OpARM64GreaterThanU_0(v)
 	case OpARM64LessEqual:
 		return rewriteValueARM64_OpARM64LessEqual_0(v)
+	case OpARM64LessEqualF:
+		return rewriteValueARM64_OpARM64LessEqualF_0(v)
 	case OpARM64LessEqualU:
 		return rewriteValueARM64_OpARM64LessEqualU_0(v)
 	case OpARM64LessThan:
 		return rewriteValueARM64_OpARM64LessThan_0(v)
+	case OpARM64LessThanF:
+		return rewriteValueARM64_OpARM64LessThanF_0(v)
 	case OpARM64LessThanU:
 		return rewriteValueARM64_OpARM64LessThanU_0(v)
 	case OpARM64MADD:
@@ -5224,6 +5236,88 @@ func rewriteValueARM64_OpARM64FADDS_0(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueARM64_OpARM64FCMPD_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (FCMPD x (FMOVDconst [0]))
+	// cond:
+	// result: (FCMPD0 x)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64FMOVDconst {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		v.reset(OpARM64FCMPD0)
+		v.AddArg(x)
+		return true
+	}
+	// match: (FCMPD (FMOVDconst [0]) x)
+	// cond:
+	// result: (InvertFlags (FCMPD0 x))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64FMOVDconst {
+			break
+		}
+		if v_0.AuxInt != 0 {
+			break
+		}
+		x := v.Args[1]
+		v.reset(OpARM64InvertFlags)
+		v0 := b.NewValue0(v.Pos, OpARM64FCMPD0, types.TypeFlags)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64FCMPS_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	// match: (FCMPS x (FMOVSconst [0]))
+	// cond:
+	// result: (FCMPS0 x)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARM64FMOVSconst {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		v.reset(OpARM64FCMPS0)
+		v.AddArg(x)
+		return true
+	}
+	// match: (FCMPS (FMOVSconst [0]) x)
+	// cond:
+	// result: (InvertFlags (FCMPS0 x))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64FMOVSconst {
+			break
+		}
+		if v_0.AuxInt != 0 {
+			break
+		}
+		x := v.Args[1]
+		v.reset(OpARM64InvertFlags)
+		v0 := b.NewValue0(v.Pos, OpARM64FCMPS0, types.TypeFlags)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
 func rewriteValueARM64_OpARM64FMOVDfpgp_0(v *Value) bool {
 	b := v.Block
 	_ = b
@@ -6310,6 +6404,22 @@ func rewriteValueARM64_OpARM64GreaterEqual_0(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueARM64_OpARM64GreaterEqualF_0(v *Value) bool {
+	// match: (GreaterEqualF (InvertFlags x))
+	// cond:
+	// result: (LessEqualF x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64InvertFlags {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64LessEqualF)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
 func rewriteValueARM64_OpARM64GreaterEqualU_0(v *Value) bool {
 	// match: (GreaterEqualU (FlagEQ))
 	// cond:
@@ -6457,6 +6567,22 @@ func rewriteValueARM64_OpARM64GreaterThan_0(v *Value) bool {
 		}
 		x := v_0.Args[0]
 		v.reset(OpARM64LessThan)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64GreaterThanF_0(v *Value) bool {
+	// match: (GreaterThanF (InvertFlags x))
+	// cond:
+	// result: (LessThanF x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64InvertFlags {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64LessThanF)
 		v.AddArg(x)
 		return true
 	}
@@ -6614,6 +6740,22 @@ func rewriteValueARM64_OpARM64LessEqual_0(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueARM64_OpARM64LessEqualF_0(v *Value) bool {
+	// match: (LessEqualF (InvertFlags x))
+	// cond:
+	// result: (GreaterEqualF x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64InvertFlags {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64GreaterEqualF)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
 func rewriteValueARM64_OpARM64LessEqualU_0(v *Value) bool {
 	// match: (LessEqualU (FlagEQ))
 	// cond:
@@ -6761,6 +6903,22 @@ func rewriteValueARM64_OpARM64LessThan_0(v *Value) bool {
 		}
 		x := v_0.Args[0]
 		v.reset(OpARM64GreaterThan)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64LessThanF_0(v *Value) bool {
+	// match: (LessThanF (InvertFlags x))
+	// cond:
+	// result: (GreaterThanF x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARM64InvertFlags {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64GreaterThanF)
 		v.AddArg(x)
 		return true
 	}
