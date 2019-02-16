@@ -43,6 +43,13 @@ func TestErroneous(t *testing.T) {
 		{"DATA", "0", "expect two operands for DATA"},
 		{"DATA", "(0), 1", "expect /size for DATA argument"},
 		{"DATA", "@B(SB)/4,0", "expected '(', found B"}, // Issue 23580.
+		{"DATA", "·A(SB)/4,0", "DATA value must be an immediate constant or address"},
+		{"DATA", "·B(SB)/4,$0", ""},
+		{"DATA", "·C(SB)/5,$0", "bad int size for DATA argument: 5"},
+		{"DATA", "·D(SB)/5,$0.0", "bad float size for DATA argument: 5"},
+		{"DATA", "·E(SB)/4,$·A(SB)", "bad addr size for DATA argument: 4"},
+		{"DATA", "·F(SB)/8,$·A(SB)", ""},
+		{"DATA", "·G(SB)/5,$\"abcde\"", ""},
 		{"GLOBL", "", "expect two or three operands for GLOBL"},
 		{"GLOBL", "0,1", "GLOBL symbol \"<erroneous symbol>\" must be a symbol(SB)"},
 		{"GLOBL", "@B(SB), 0", "expected '(', found B"}, // Issue 23580.
