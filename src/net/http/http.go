@@ -128,7 +128,7 @@ type PushOptions struct {
 // HTTP/2 server push. For more background, see
 // https://tools.ietf.org/html/rfc7540#section-8.2.
 type Pusher interface {
-	// Push initiates an HTTP/2 server push. This constructs a synthetic
+	// HTTP/2 server push constructs a synthetic
 	// request using the given target and options, serializes that request
 	// into a PUSH_PROMISE frame, then dispatches that request using the
 	// server's request handler. If opts is nil, default options are used.
