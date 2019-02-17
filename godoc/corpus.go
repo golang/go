@@ -119,7 +119,7 @@ type Corpus struct {
 // Change or set any options on Corpus before calling the Corpus.Init method.
 func NewCorpus(fs vfs.FileSystem) *Corpus {
 	c := &Corpus{
-		fs: fs,
+		fs:                    fs,
 		refreshMetadataSignal: make(chan bool, 1),
 
 		MaxResults:    1000,
