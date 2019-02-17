@@ -32,12 +32,14 @@ type Mpcplx struct {
 	Imag Mpflt
 }
 
+// Use newMpflt (not new(Mpflt)!) to get the correct default precision.
 func newMpflt() *Mpflt {
 	var a Mpflt
 	a.Val.SetPrec(Mpprec)
 	return &a
 }
 
+// Use newMpcmplx (not new(Mpcplx)!) to get the correct default precision.
 func newMpcmplx() *Mpcplx {
 	var a Mpcplx
 	a.Real = *newMpflt()

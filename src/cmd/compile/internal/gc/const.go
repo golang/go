@@ -427,13 +427,13 @@ bad:
 func tocplx(v Val) Val {
 	switch u := v.U.(type) {
 	case *Mpint:
-		c := new(Mpcplx)
+		c := newMpcmplx()
 		c.Real.SetInt(u)
 		c.Imag.SetFloat64(0.0)
 		v.U = c
 
 	case *Mpflt:
-		c := new(Mpcplx)
+		c := newMpcmplx()
 		c.Real.Set(u)
 		c.Imag.SetFloat64(0.0)
 		v.U = c
@@ -845,7 +845,7 @@ Outer:
 	case CTCPLX:
 		x, y := x.U.(*Mpcplx), y.U.(*Mpcplx)
 
-		u := new(Mpcplx)
+		u := newMpcmplx()
 		u.Real.Set(&x.Real)
 		u.Imag.Set(&x.Imag)
 		switch op {
@@ -900,7 +900,7 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
 
 		case CTCPLX:
 			x := x.U.(*Mpcplx)
-			u := new(Mpcplx)
+			u := newMpcmplx()
 			u.Real.Set(&x.Real)
 			u.Imag.Set(&x.Imag)
 			u.Real.Neg()
