@@ -1327,7 +1327,7 @@ func (p *noder) basicLit(lit *syntax.BasicLit) Val {
 		return Val{U: x}
 
 	case syntax.ImagLit:
-		x := new(Mpcplx)
+		x := newMpcmplx()
 		x.Imag.SetString(strings.TrimSuffix(s, "i"))
 		return Val{U: x}
 

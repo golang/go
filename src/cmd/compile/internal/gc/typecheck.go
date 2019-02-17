@@ -1589,7 +1589,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 		if l.Op == OLITERAL && r.Op == OLITERAL {
 			// make it a complex literal
-			c := new(Mpcplx)
+			c := newMpcmplx()
 			c.Real.Set(toflt(l.Val()).U.(*Mpflt))
 			c.Imag.Set(toflt(r.Val()).U.(*Mpflt))
 			setconst(n, Val{c})
