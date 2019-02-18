@@ -356,7 +356,6 @@ const (
 	NoFiltering PageInfoMode = 1 << iota // do not filter exports
 	AllMethods                           // show all embedded methods
 	ShowSource                           // show source code, do not extract documentation
-	NoHTML                               // show result in textual form, do not generate HTML
 	FlatDir                              // show directory in a flat (non-indented) manner
 	NoTypeAssoc                          // don't associate consts, vars, and factory functions with types
 )
@@ -366,7 +365,6 @@ var modeNames = map[string]PageInfoMode{
 	"all":     NoFiltering,
 	"methods": AllMethods,
 	"src":     ShowSource,
-	"text":    NoHTML,
 	"flat":    FlatDir,
 }
 

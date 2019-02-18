@@ -47,13 +47,6 @@ type Presentation struct {
 	ShowPlayground bool
 	DeclLinks      bool
 
-	// SrcMode outputs source code instead of documentation in command-line mode.
-	SrcMode bool
-	// HTMLMode outputs HTML instead of plain text in command-line mode.
-	HTMLMode bool
-	// AllMode includes unexported identifiers in the output in command-line mode.
-	AllMode bool
-
 	// NotesRx optionally specifies a regexp to match
 	// notes to render in the output.
 	NotesRx *regexp.Regexp
