@@ -126,6 +126,14 @@ $	pre
 $	pre2
 `,
 	},
+	{
+		in: "Para.\n\tshould not be ``escaped''",
+		out: []block{
+			{opPara, []string{"Para.\n"}},
+			{opPre, []string{"should not be ``escaped''"}},
+		},
+		text: ".   Para.\n\n$	should not be ``escaped''",
+	},
 }
 
 func TestBlocks(t *testing.T) {
