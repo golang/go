@@ -445,7 +445,6 @@ func ToText(w io.Writer, text string, indent, preIndent string, width int) {
 					w.Write([]byte("\n"))
 				} else {
 					w.Write([]byte(preIndent))
-					line = convertQuotes(line)
 					w.Write([]byte(line))
 				}
 			}
