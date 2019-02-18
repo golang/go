@@ -5,6 +5,7 @@
 package lsp
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
@@ -13,6 +14,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"unicode/utf8"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -122,7 +124,7 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 				TriggerCharacters: []string{"(", ","},
 			},
 			TextDocumentSync: protocol.TextDocumentSyncOptions{
-				Change:    float64(protocol.Full), // full contents of file sent on each update
+				Change:    float64(protocol.Incremental),
 				OpenClose: true,
 			},
 			TypeDefinitionProvider: true,
@@ -177,16 +179,82 @@ func (s *server) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 	return nil
 }
 
+func bytesOffset(content []byte, pos protocol.Position) int {
+	var line, char, offset int
+
+	for len(content) > 0 {
+		if line == int(pos.Line) && char == int(pos.Character) {
+			return offset
+		}
+		r, size := utf8.DecodeRune(content)
+		char++
+		// The offsets are based on a UTF-16 string representation.
+		// So the rune should be checked twice for two code units in UTF-16.
+		if r >= 0x10000 {
+			if line == int(pos.Line) && char == int(pos.Character) {
+				return offset
+			}
+			char++
+		}
+		offset += size
+		content = content[size:]
+		if r == '\n' {
+			line++
+			char = 0
+		}
+	}
+	return -1
+}
+
+func (s *server) applyChanges(ctx context.Context, params *protocol.DidChangeTextDocumentParams) (string, error) {
+	if len(params.ContentChanges) == 1 && params.ContentChanges[0].Range == nil {
+		// If range is empty, we expect the full content of file, i.e. a single change with no range.
+		change := params.ContentChanges[0]
+		if change.RangeLength != 0 {
+			return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "unexpected change range provided")
+		}
+		return change.Text, nil
+	}
+
+	sourceURI, err := fromProtocolURI(params.TextDocument.URI)
+	if err != nil {
+		return "", err
+	}
+
+	file, err := s.view.GetFile(ctx, sourceURI)
+	if err != nil {
+		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found")
+	}
+
+	content := file.GetContent()
+	for _, change := range params.ContentChanges {
+		start := bytesOffset(content, change.Range.Start)
+		if start == -1 {
+			return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "invalid range for content change")
+		}
+		end := bytesOffset(content, change.Range.End)
+		if end == -1 {
+			return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "invalid range for content change")
+		}
+		var buf bytes.Buffer
+		buf.Write(content[:start])
+		buf.WriteString(change.Text)
+		buf.Write(content[end:])
+		content = buf.Bytes()
+	}
+	return string(content), nil
+}
+
 func (s *server) DidChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
 	if len(params.ContentChanges) < 1 {
 		return jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "no content changes provided")
 	}
-	// We expect the full content of file, i.e. a single change with no range.
-	change := params.ContentChanges[0]
-	if change.RangeLength != 0 {
-		return jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "unexpected change range provided")
+
+	text, err := s.applyChanges(ctx, params)
+	if err != nil {
+		return err
 	}
-	s.cacheAndDiagnose(ctx, params.TextDocument.URI, change.Text)
+	s.cacheAndDiagnose(ctx, params.TextDocument.URI, text)
 	return nil
 }
 

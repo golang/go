@@ -38,7 +38,7 @@ type TextDocumentContentChangeEvent struct {
 	/**
 	 * The range of the document that changed.
 	 */
-	Range Range `json:"range,omitempty"`
+	Range *Range `json:"range,omitempty"`
 
 	/**
 	 * The length of the range that got replaced.
