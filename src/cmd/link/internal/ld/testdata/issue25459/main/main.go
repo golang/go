@@ -1,6 +1,6 @@
 package main
 
-import "a"
+import "cmd/link/internal/ld/testdata/issue25459/a"
 
 var Glob int
 

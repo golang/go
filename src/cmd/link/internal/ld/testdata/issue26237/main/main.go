@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	b "b.dir"
+	b "cmd/link/internal/ld/testdata/issue26237/b.dir"
 )
 
 var skyx int
