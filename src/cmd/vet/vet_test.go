@@ -21,15 +21,21 @@ import (
 	"testing"
 )
 
-const (
-	dataDir = "testdata"
-	binary  = "./testvet.exe"
-)
+const dataDir = "testdata"
+
+var binary string
 
 // We implement TestMain so remove the test binary when all is done.
 func TestMain(m *testing.M) {
+	dir, err := ioutil.TempDir("", "vet_test")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(dir)
+	binary = filepath.Join(dir, "testvet.exe")
+
 	result := m.Run()
-	os.Remove(binary)
 	os.Exit(result)
 }
 
