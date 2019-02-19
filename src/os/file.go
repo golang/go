@@ -98,6 +98,10 @@ func (e *LinkError) Error() string {
 	return e.Op + " " + e.Old + " " + e.New + ": " + e.Err.Error()
 }
 
+func (e *LinkError) Unwrap() error {
+	return e.Err
+}
+
 // Read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and any error encountered.
 // At end of file, Read returns 0, io.EOF.
