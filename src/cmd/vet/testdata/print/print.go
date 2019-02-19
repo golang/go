@@ -126,16 +126,16 @@ func PrintfTests() {
 	fmt.Printf("%U", x)                         // ERROR "Printf format %U has arg x of wrong type float64"
 	fmt.Printf("%x", nil)                       // ERROR "Printf format %x has arg nil of wrong type untyped nil"
 	fmt.Printf("%X", 2.3)                       // ERROR "Printf format %X has arg 2.3 of wrong type float64"
-	fmt.Printf("%s", stringerv)                 // ERROR "Printf format %s has arg stringerv of wrong type print.ptrStringer"
-	fmt.Printf("%t", stringerv)                 // ERROR "Printf format %t has arg stringerv of wrong type print.ptrStringer"
-	fmt.Printf("%s", embeddedStringerv)         // ERROR "Printf format %s has arg embeddedStringerv of wrong type print.embeddedStringer"
-	fmt.Printf("%t", embeddedStringerv)         // ERROR "Printf format %t has arg embeddedStringerv of wrong type print.embeddedStringer"
-	fmt.Printf("%q", notstringerv)              // ERROR "Printf format %q has arg notstringerv of wrong type print.notstringer"
-	fmt.Printf("%t", notstringerv)              // ERROR "Printf format %t has arg notstringerv of wrong type print.notstringer"
-	fmt.Printf("%t", stringerarrayv)            // ERROR "Printf format %t has arg stringerarrayv of wrong type print.stringerarray"
-	fmt.Printf("%t", notstringerarrayv)         // ERROR "Printf format %t has arg notstringerarrayv of wrong type print.notstringerarray"
-	fmt.Printf("%q", notstringerarrayv)         // ERROR "Printf format %q has arg notstringerarrayv of wrong type print.notstringerarray"
-	fmt.Printf("%d", BoolFormatter(true))       // ERROR "Printf format %d has arg BoolFormatter\(true\) of wrong type print.BoolFormatter"
+	fmt.Printf("%s", stringerv)                 // ERROR "Printf format %s has arg stringerv of wrong type .*print.ptrStringer"
+	fmt.Printf("%t", stringerv)                 // ERROR "Printf format %t has arg stringerv of wrong type .*print.ptrStringer"
+	fmt.Printf("%s", embeddedStringerv)         // ERROR "Printf format %s has arg embeddedStringerv of wrong type .*print.embeddedStringer"
+	fmt.Printf("%t", embeddedStringerv)         // ERROR "Printf format %t has arg embeddedStringerv of wrong type .*print.embeddedStringer"
+	fmt.Printf("%q", notstringerv)              // ERROR "Printf format %q has arg notstringerv of wrong type .*print.notstringer"
+	fmt.Printf("%t", notstringerv)              // ERROR "Printf format %t has arg notstringerv of wrong type .*print.notstringer"
+	fmt.Printf("%t", stringerarrayv)            // ERROR "Printf format %t has arg stringerarrayv of wrong type .*print.stringerarray"
+	fmt.Printf("%t", notstringerarrayv)         // ERROR "Printf format %t has arg notstringerarrayv of wrong type .*print.notstringerarray"
+	fmt.Printf("%q", notstringerarrayv)         // ERROR "Printf format %q has arg notstringerarrayv of wrong type .*print.notstringerarray"
+	fmt.Printf("%d", BoolFormatter(true))       // ERROR "Printf format %d has arg BoolFormatter\(true\) of wrong type .*print.BoolFormatter"
 	fmt.Printf("%z", FormatterVal(true))        // correct (the type is responsible for formatting)
 	fmt.Printf("%d", FormatterVal(true))        // correct (the type is responsible for formatting)
 	fmt.Printf("%s", nonemptyinterface)         // correct (the type is responsible for formatting)
@@ -186,10 +186,10 @@ func PrintfTests() {
 	Printf("d%", 2)                       // ERROR "Printf format % is missing verb at end of string"
 	Printf("%d", percentDV)
 	Printf("%d", &percentDV)
-	Printf("%d", notPercentDV)  // ERROR "Printf format %d has arg notPercentDV of wrong type print.notPercentDStruct"
-	Printf("%d", &notPercentDV) // ERROR "Printf format %d has arg &notPercentDV of wrong type \*print.notPercentDStruct"
+	Printf("%d", notPercentDV)  // ERROR "Printf format %d has arg notPercentDV of wrong type .*print.notPercentDStruct"
+	Printf("%d", &notPercentDV) // ERROR "Printf format %d has arg &notPercentDV of wrong type \*.*print.notPercentDStruct"
 	Printf("%p", &notPercentDV) // Works regardless: we print it as a pointer.
-	Printf("%q", &percentDV)    // ERROR "Printf format %q has arg &percentDV of wrong type \*print.percentDStruct"
+	Printf("%q", &percentDV)    // ERROR "Printf format %q has arg &percentDV of wrong type \*.*print.percentDStruct"
 	Printf("%s", percentSV)
 	Printf("%s", &percentSV)
 	// Good argument reorderings.
@@ -234,7 +234,7 @@ func PrintfTests() {
 	Printf("%T", someFunction) // ok: maybe someone wants to see the type
 	// Bug: used to recur forever.
 	Printf("%p %x", recursiveStructV, recursiveStructV.next)
-	Printf("%p %x", recursiveStruct1V, recursiveStruct1V.next) // ERROR "Printf format %x has arg recursiveStruct1V\.next of wrong type \*print\.RecursiveStruct2"
+	Printf("%p %x", recursiveStruct1V, recursiveStruct1V.next) // ERROR "Printf format %x has arg recursiveStruct1V\.next of wrong type \*.*print\.RecursiveStruct2"
 	Printf("%p %x", recursiveSliceV, recursiveSliceV)
 	Printf("%p %x", recursiveMapV, recursiveMapV)
 	// Special handling for Log.
@@ -587,37 +587,37 @@ func UnexportedStringerOrError() {
 	fmt.Printf("%s", unexportedInterface{3})     // ok; we can't see the problem
 
 	us := unexportedStringer{}
-	fmt.Printf("%s", us)  // ERROR "Printf format %s has arg us of wrong type print.unexportedStringer"
-	fmt.Printf("%s", &us) // ERROR "Printf format %s has arg &us of wrong type [*]print.unexportedStringer"
+	fmt.Printf("%s", us)  // ERROR "Printf format %s has arg us of wrong type .*print.unexportedStringer"
+	fmt.Printf("%s", &us) // ERROR "Printf format %s has arg &us of wrong type [*].*print.unexportedStringer"
 
 	usf := unexportedStringerOtherFields{
 		s: "foo",
 		S: "bar",
 	}
-	fmt.Printf("%s", usf)  // ERROR "Printf format %s has arg usf of wrong type print.unexportedStringerOtherFields"
-	fmt.Printf("%s", &usf) // ERROR "Printf format %s has arg &usf of wrong type [*]print.unexportedStringerOtherFields"
+	fmt.Printf("%s", usf)  // ERROR "Printf format %s has arg usf of wrong type .*print.unexportedStringerOtherFields"
+	fmt.Printf("%s", &usf) // ERROR "Printf format %s has arg &usf of wrong type [*].*print.unexportedStringerOtherFields"
 
 	ue := unexportedError{
 		e: &errorer{},
 	}
-	fmt.Printf("%s", ue)  // ERROR "Printf format %s has arg ue of wrong type print.unexportedError"
-	fmt.Printf("%s", &ue) // ERROR "Printf format %s has arg &ue of wrong type [*]print.unexportedError"
+	fmt.Printf("%s", ue)  // ERROR "Printf format %s has arg ue of wrong type .*print.unexportedError"
+	fmt.Printf("%s", &ue) // ERROR "Printf format %s has arg &ue of wrong type [*].*print.unexportedError"
 
 	uef := unexportedErrorOtherFields{
 		s: "foo",
 		e: &errorer{},
 		S: "bar",
 	}
-	fmt.Printf("%s", uef)  // ERROR "Printf format %s has arg uef of wrong type print.unexportedErrorOtherFields"
-	fmt.Printf("%s", &uef) // ERROR "Printf format %s has arg &uef of wrong type [*]print.unexportedErrorOtherFields"
+	fmt.Printf("%s", uef)  // ERROR "Printf format %s has arg uef of wrong type .*print.unexportedErrorOtherFields"
+	fmt.Printf("%s", &uef) // ERROR "Printf format %s has arg &uef of wrong type [*].*print.unexportedErrorOtherFields"
 
 	uce := unexportedCustomError{
 		e: errorer{},
 	}
-	fmt.Printf("%s", uce) // ERROR "Printf format %s has arg uce of wrong type print.unexportedCustomError"
+	fmt.Printf("%s", uce) // ERROR "Printf format %s has arg uce of wrong type .*print.unexportedCustomError"
 
 	uei := unexportedErrorInterface{}
-	fmt.Printf("%s", uei)       // ERROR "Printf format %s has arg uei of wrong type print.unexportedErrorInterface"
+	fmt.Printf("%s", uei)       // ERROR "Printf format %s has arg uei of wrong type .*print.unexportedErrorInterface"
 	fmt.Println("foo\n", "bar") // not an error
 
 	fmt.Println("foo\n")  // ERROR "Println arg list ends with redundant newline"
@@ -627,7 +627,7 @@ func UnexportedStringerOrError() {
 	intSlice := []int{3, 4}
 	fmt.Printf("%s", intSlice) // ERROR "Printf format %s has arg intSlice of wrong type \[\]int"
 	nonStringerArray := [1]unexportedStringer{{}}
-	fmt.Printf("%s", nonStringerArray)  // ERROR "Printf format %s has arg nonStringerArray of wrong type \[1\]print.unexportedStringer"
+	fmt.Printf("%s", nonStringerArray)  // ERROR "Printf format %s has arg nonStringerArray of wrong type \[1\].*print.unexportedStringer"
 	fmt.Printf("%s", []stringer{3, 4})  // not an error
 	fmt.Printf("%s", [2]stringer{3, 4}) // not an error
 }
@@ -677,5 +677,5 @@ func PointersToCompoundTypes() {
 	type T1 struct {
 		X *T2
 	}
-	fmt.Printf("%s\n", T1{&T2{"x"}}) // ERROR "Printf format %s has arg T1{&T2{.x.}} of wrong type print\.T1"
+	fmt.Printf("%s\n", T1{&T2{"x"}}) // ERROR "Printf format %s has arg T1{&T2{.x.}} of wrong type .*print\.T1"
 }
