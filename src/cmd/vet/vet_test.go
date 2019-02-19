@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -65,14 +66,9 @@ func Build(t *testing.T) {
 	built = true
 }
 
-func vetCmd(t *testing.T, args ...string) *exec.Cmd {
-	cmd := exec.Command(testenv.GoToolPath(t), "vet", "-vettool="+binary)
-	cmd.Args = append(cmd.Args, args...)
-	testdata, err := filepath.Abs("testdata")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd.Env = append(os.Environ(), "GOPATH="+testdata)
+func vetCmd(t *testing.T, arg, pkg string) *exec.Cmd {
+	cmd := exec.Command(testenv.GoToolPath(t), "vet", "-vettool="+binary, arg, path.Join("cmd/vet/testdata", pkg))
+	cmd.Env = os.Environ()
 	return cmd
 }
 
@@ -119,7 +115,7 @@ func TestVet(t *testing.T) {
 				cmd.Env = append(cmd.Env, "GOOS=linux", "GOARCH=amd64")
 			}
 
-			dir := filepath.Join("testdata/src", pkg)
+			dir := filepath.Join("testdata", pkg)
 			gos, err := filepath.Glob(filepath.Join(dir, "*.go"))
 			if err != nil {
 				t.Fatal(err)
