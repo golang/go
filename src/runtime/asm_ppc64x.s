@@ -113,6 +113,7 @@ TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
 TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
+// Any changes must be reflected to runtime/cgo/gcc_aix_ppc64.S:.crosscall_ppc64
 TEXT _cgo_reginit(SB),NOSPLIT|NOFRAME,$0-0
 	// crosscall_ppc64 and crosscall2 need to reginit, but can't
 	// get at the 'runtime.reginit' symbol.
@@ -847,7 +848,13 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
+#ifdef GOOS_aix
+// On AIX, _cgo_topofstack is defined in runtime/cgo, because it must
+// be a longcall in order to prevent trampolines from ld.
+TEXT __cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
+#else
 TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
+#endif
 	// g (R30) and R31 are callee-save in the C ABI, so save them
 	MOVD	g, R4
 	MOVD	R31, R5

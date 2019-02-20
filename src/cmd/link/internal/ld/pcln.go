@@ -164,7 +164,7 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
 // onlycsymbol reports whether this is a symbol that is referenced by C code.
 func onlycsymbol(s *sym.Symbol) bool {
 	switch s.Name {
-	case "_cgo_topofstack", "_cgo_panic", "crosscall2":
+	case "_cgo_topofstack", "__cgo_topofstack", "_cgo_panic", "crosscall2":
 		return true
 	}
 	if strings.HasPrefix(s.Name, "_cgoexp_") {
