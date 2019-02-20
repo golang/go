@@ -43,7 +43,7 @@ var testConfig *Config
 func allCipherSuites() []uint16 {
 	ids := make([]uint16, len(cipherSuites))
 	for i, suite := range cipherSuites {
-		ids[i] = suite.id
+		ids[i] = suite.ID
 	}
 
 	return ids

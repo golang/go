@@ -27,7 +27,7 @@ type serverHandshakeStateTLS13 struct {
 	hello           *serverHelloMsg
 	sentDummyCCS    bool
 	usingPSK        bool
-	suite           *cipherSuiteTLS13
+	suite           *CipherSuiteTLS13
 	cert            *Certificate
 	sigAlg          SignatureScheme
 	earlySecret     []byte
@@ -165,8 +165,8 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 		c.sendAlert(alertHandshakeFailure)
 		return errors.New("tls: no cipher suite supported by both client and server")
 	}
-	c.cipherSuite = hs.suite.id
-	hs.hello.cipherSuite = hs.suite.id
+	c.cipherSuite = hs.suite.ID
+	hs.hello.cipherSuite = hs.suite.ID
 	hs.transcript = hs.suite.hash.New()
 
 	// Pick the ECDHE group in server preference order, but give priority to
@@ -272,7 +272,7 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		// clock skew and it's only a freshness signal useful for shrinking the
 		// window for replay attacks, which don't affect us as we don't do 0-RTT.
 
-		pskSuite := cipherSuiteTLS13ByID(sessionState.cipherSuite)
+		pskSuite := CipherSuiteTLS13ByID(sessionState.cipherSuite)
 		if pskSuite == nil || pskSuite.hash != hs.suite.hash {
 			continue
 		}
@@ -739,7 +739,7 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 		certsFromClient = append(certsFromClient, cert.Raw)
 	}
 	state := sessionStateTLS13{
-		cipherSuite:      hs.suite.id,
+		cipherSuite:      hs.suite.ID,
 		createdAt:        uint64(c.config.time().Unix()),
 		resumptionSecret: resumptionSecret,
 		certificate: Certificate{

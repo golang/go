@@ -25,7 +25,7 @@ type clientHandshakeState struct {
 	c            *Conn
 	serverHello  *serverHelloMsg
 	hello        *clientHelloMsg
-	suite        *cipherSuite
+	suite        *CipherSuite
 	finishedHash finishedHash
 	masterSecret []byte
 	session      *ClientSessionState
@@ -87,7 +87,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 
 	for _, suiteId := range possibleCipherSuites {
 		for _, suite := range cipherSuites {
-			if suite.id != suiteId {
+			if suite.ID != suiteId {
 				continue
 			}
 			// Don't advertise TLS 1.2-only cipher suites unless
@@ -295,13 +295,13 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (cacheKey string,
 
 	// In TLS 1.3 the KDF hash must match the resumed session. Ensure we
 	// offer at least one cipher suite with that hash.
-	cipherSuite := cipherSuiteTLS13ByID(session.cipherSuite)
+	cipherSuite := CipherSuiteTLS13ByID(session.cipherSuite)
 	if cipherSuite == nil {
 		return cacheKey, nil, nil, nil
 	}
 	cipherSuiteOk := false
 	for _, offeredID := range hello.cipherSuites {
-		offeredSuite := cipherSuiteTLS13ByID(offeredID)
+		offeredSuite := CipherSuiteTLS13ByID(offeredID)
 		if offeredSuite != nil && offeredSuite.hash == cipherSuite.hash {
 			cipherSuiteOk = true
 			break
@@ -429,7 +429,7 @@ func (hs *clientHandshakeState) pickCipherSuite() error {
 		return errors.New("tls: server chose an unconfigured cipher suite")
 	}
 
-	hs.c.cipherSuite = hs.suite.id
+	hs.c.cipherSuite = hs.suite.ID
 	return nil
 }
 
@@ -707,7 +707,7 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 		return false, errors.New("tls: server resumed a session with a different version")
 	}
 
-	if hs.session.cipherSuite != hs.suite.id {
+	if hs.session.cipherSuite != hs.suite.ID {
 		c.sendAlert(alertHandshakeFailure)
 		return false, errors.New("tls: server resumed a session with a different cipher suite")
 	}
@@ -767,7 +767,7 @@ func (hs *clientHandshakeState) readSessionTicket() error {
 	hs.session = &ClientSessionState{
 		sessionTicket:      sessionTicketMsg.ticket,
 		vers:               c.vers,
-		cipherSuite:        hs.suite.id,
+		cipherSuite:        hs.suite.ID,
 		masterSecret:       hs.masterSecret,
 		serverCertificates: c.peerCertificates,
 		verifiedChains:     c.verifiedChains,

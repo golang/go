@@ -1151,11 +1151,11 @@ NextCipherSuite:
 			continue
 		}
 		for _, existing := range varDefaultCipherSuites {
-			if existing == suite.id {
+			if existing == suite.ID {
 				continue NextCipherSuite
 			}
 		}
-		varDefaultCipherSuites = append(varDefaultCipherSuites, suite.id)
+		varDefaultCipherSuites = append(varDefaultCipherSuites, suite.ID)
 	}
 }
 

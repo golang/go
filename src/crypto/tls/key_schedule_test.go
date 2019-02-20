@@ -97,7 +97,7 @@ func TestDeriveSecret(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := cipherSuitesTLS13[0]
 			if got := c.deriveSecret(tt.args.secret, tt.args.label, tt.args.transcript); !bytes.Equal(got, tt.want) {
-				t.Errorf("cipherSuiteTLS13.deriveSecret() = % x, want % x", got, tt.want)
+				t.Errorf("CipherSuiteTLS13.deriveSecret() = % x, want % x", got, tt.want)
 			}
 		})
 	}
@@ -116,10 +116,10 @@ func TestTrafficKey(t *testing.T) {
 	c := cipherSuitesTLS13[0]
 	gotKey, gotIV := c.trafficKey(trafficSecret)
 	if !bytes.Equal(gotKey, wantKey) {
-		t.Errorf("cipherSuiteTLS13.trafficKey() gotKey = % x, want % x", gotKey, wantKey)
+		t.Errorf("CipherSuiteTLS13.trafficKey() gotKey = % x, want % x", gotKey, wantKey)
 	}
 	if !bytes.Equal(gotIV, wantIV) {
-		t.Errorf("cipherSuiteTLS13.trafficKey() gotIV = % x, want % x", gotIV, wantIV)
+		t.Errorf("CipherSuiteTLS13.trafficKey() gotIV = % x, want % x", gotIV, wantIV)
 	}
 }
 
@@ -168,7 +168,7 @@ func TestExtract(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := cipherSuitesTLS13[0]
 			if got := c.extract(tt.args.newSecret, tt.args.currentSecret); !bytes.Equal(got, tt.want) {
-				t.Errorf("cipherSuiteTLS13.extract() = % x, want % x", got, tt.want)
+				t.Errorf("CipherSuiteTLS13.extract() = % x, want % x", got, tt.want)
 			}
 		})
 	}

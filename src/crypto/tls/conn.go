@@ -191,7 +191,7 @@ func (hc *halfConn) changeCipherSpec() error {
 	return nil
 }
 
-func (hc *halfConn) setTrafficSecret(suite *cipherSuiteTLS13, secret []byte) {
+func (hc *halfConn) setTrafficSecret(suite *CipherSuiteTLS13, secret []byte) {
 	hc.trafficSecret = secret
 	key, iv := suite.trafficKey(secret)
 	hc.cipher = suite.aead(key, iv)
@@ -1190,7 +1190,7 @@ func (c *Conn) handlePostHandshakeMessage() error {
 }
 
 func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
-	cipherSuite := cipherSuiteTLS13ByID(c.cipherSuite)
+	cipherSuite := CipherSuiteTLS13ByID(c.cipherSuite)
 	if cipherSuite == nil {
 		return c.in.setErrorLocked(c.sendAlert(alertInternalError))
 	}

@@ -22,7 +22,7 @@ type serverHandshakeState struct {
 	c            *Conn
 	clientHello  *clientHelloMsg
 	hello        *serverHelloMsg
-	suite        *cipherSuite
+	suite        *CipherSuite
 	ellipticOk   bool
 	ecdsaOk      bool
 	rsaDecryptOk bool
@@ -379,7 +379,7 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 func (hs *serverHandshakeState) doResumeHandshake() error {
 	c := hs.c
 
-	hs.hello.cipherSuite = hs.suite.id
+	hs.hello.cipherSuite = hs.suite.ID
 	// We echo the client's session ID in the ServerHello to let it know
 	// that we're doing a resumption.
 	hs.hello.sessionId = hs.clientHello.sessionId
@@ -411,7 +411,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	}
 
 	hs.hello.ticketSupported = hs.clientHello.ticketSupported && !c.config.SessionTicketsDisabled
-	hs.hello.cipherSuite = hs.suite.id
+	hs.hello.cipherSuite = hs.suite.ID
 
 	hs.finishedHash = newFinishedHash(hs.c.vers, hs.suite)
 	if c.config.ClientAuth == NoClientCert {
@@ -664,7 +664,7 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 	}
 	state := sessionState{
 		vers:         c.vers,
-		cipherSuite:  hs.suite.id,
+		cipherSuite:  hs.suite.ID,
 		masterSecret: hs.masterSecret,
 		certificates: certsFromClient,
 	}
@@ -696,7 +696,7 @@ func (hs *serverHandshakeState) sendFinished(out []byte) error {
 		return err
 	}
 
-	c.cipherSuite = hs.suite.id
+	c.cipherSuite = hs.suite.ID
 	copy(out, finished.verifyData)
 
 	return nil
@@ -772,7 +772,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 func (hs *serverHandshakeState) setCipherSuite(id uint16, supportedCipherSuites []uint16, version uint16) bool {
 	for _, supported := range supportedCipherSuites {
 		if id == supported {
-			candidate := cipherSuiteByID(id)
+			candidate := CipherSuiteByID(id)
 			if candidate == nil {
 				continue
 			}

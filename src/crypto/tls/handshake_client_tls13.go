@@ -28,7 +28,7 @@ type clientHandshakeStateTLS13 struct {
 	certReq       *certificateRequestMsgTLS13
 	usingPSK      bool
 	sentDummyCCS  bool
-	suite         *cipherSuiteTLS13
+	suite         *CipherSuiteTLS13
 	transcript    hash.Hash
 	masterSecret  []byte
 	trafficSecret []byte // client_application_traffic_secret_0
@@ -155,7 +155,7 @@ func (hs *clientHandshakeStateTLS13) checkServerHelloOrHRR() error {
 		return errors.New("tls: server chose an unconfigured cipher suite")
 	}
 	hs.suite = selectedSuite
-	c.cipherSuite = hs.suite.id
+	c.cipherSuite = hs.suite.ID
 
 	return nil
 }
@@ -226,7 +226,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 
 	hs.hello.raw = nil
 	if len(hs.hello.pskIdentities) > 0 {
-		pskSuite := cipherSuiteTLS13ByID(hs.session.cipherSuite)
+		pskSuite := CipherSuiteTLS13ByID(hs.session.cipherSuite)
 		if pskSuite == nil {
 			return c.sendAlert(alertInternalError)
 		}
@@ -312,7 +312,7 @@ func (hs *clientHandshakeStateTLS13) processServerHello() error {
 	if len(hs.hello.pskIdentities) != 1 || hs.session == nil {
 		return c.sendAlert(alertInternalError)
 	}
-	pskSuite := cipherSuiteTLS13ByID(hs.session.cipherSuite)
+	pskSuite := CipherSuiteTLS13ByID(hs.session.cipherSuite)
 	if pskSuite == nil {
 		return c.sendAlert(alertInternalError)
 	}
@@ -644,7 +644,7 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
 		return errors.New("tls: received a session ticket with invalid lifetime")
 	}
 
-	cipherSuite := cipherSuiteTLS13ByID(c.cipherSuite)
+	cipherSuite := CipherSuiteTLS13ByID(c.cipherSuite)
 	if cipherSuite == nil || c.resumptionSecret == nil {
 		return c.sendAlert(alertInternalError)
 	}

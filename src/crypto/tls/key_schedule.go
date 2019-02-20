@@ -31,7 +31,7 @@ const (
 )
 
 // expandLabel implements HKDF-Expand-Label from RFC 8446, Section 7.1.
-func (c *cipherSuiteTLS13) expandLabel(secret []byte, label string, context []byte, length int) []byte {
+func (c *CipherSuiteTLS13) expandLabel(secret []byte, label string, context []byte, length int) []byte {
 	var hkdfLabel cryptobyte.Builder
 	hkdfLabel.AddUint16(uint16(length))
 	hkdfLabel.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
@@ -50,7 +50,7 @@ func (c *cipherSuiteTLS13) expandLabel(secret []byte, label string, context []by
 }
 
 // deriveSecret implements Derive-Secret from RFC 8446, Section 7.1.
-func (c *cipherSuiteTLS13) deriveSecret(secret []byte, label string, transcript hash.Hash) []byte {
+func (c *CipherSuiteTLS13) deriveSecret(secret []byte, label string, transcript hash.Hash) []byte {
 	if transcript == nil {
 		transcript = c.hash.New()
 	}
@@ -58,7 +58,7 @@ func (c *cipherSuiteTLS13) deriveSecret(secret []byte, label string, transcript 
 }
 
 // extract implements HKDF-Extract with the cipher suite hash.
-func (c *cipherSuiteTLS13) extract(newSecret, currentSecret []byte) []byte {
+func (c *CipherSuiteTLS13) extract(newSecret, currentSecret []byte) []byte {
 	if newSecret == nil {
 		newSecret = make([]byte, c.hash.Size())
 	}
@@ -67,12 +67,12 @@ func (c *cipherSuiteTLS13) extract(newSecret, currentSecret []byte) []byte {
 
 // nextTrafficSecret generates the next traffic secret, given the current one,
 // according to RFC 8446, Section 7.2.
-func (c *cipherSuiteTLS13) nextTrafficSecret(trafficSecret []byte) []byte {
+func (c *CipherSuiteTLS13) nextTrafficSecret(trafficSecret []byte) []byte {
 	return c.expandLabel(trafficSecret, trafficUpdateLabel, nil, c.hash.Size())
 }
 
 // trafficKey generates traffic keys according to RFC 8446, Section 7.3.
-func (c *cipherSuiteTLS13) trafficKey(trafficSecret []byte) (key, iv []byte) {
+func (c *CipherSuiteTLS13) trafficKey(trafficSecret []byte) (key, iv []byte) {
 	key = c.expandLabel(trafficSecret, "key", nil, c.keyLen)
 	iv = c.expandLabel(trafficSecret, "iv", nil, aeadNonceLength)
 	return
@@ -81,7 +81,7 @@ func (c *cipherSuiteTLS13) trafficKey(trafficSecret []byte) (key, iv []byte) {
 // finishedHash generates the Finished verify_data or PskBinderEntry according
 // to RFC 8446, Section 4.4.4. See sections 4.4 and 4.2.11.2 for the baseKey
 // selection.
-func (c *cipherSuiteTLS13) finishedHash(baseKey []byte, transcript hash.Hash) []byte {
+func (c *CipherSuiteTLS13) finishedHash(baseKey []byte, transcript hash.Hash) []byte {
 	finishedKey := c.expandLabel(baseKey, "finished", nil, c.hash.Size())
 	verifyData := hmac.New(c.hash.New, finishedKey)
 	verifyData.Write(transcript.Sum(nil))
@@ -90,7 +90,7 @@ func (c *cipherSuiteTLS13) finishedHash(baseKey []byte, transcript hash.Hash) []
 
 // exportKeyingMaterial implements RFC5705 exporters for TLS 1.3 according to
 // RFC 8446, Section 7.5.
-func (c *cipherSuiteTLS13) exportKeyingMaterial(masterSecret []byte, transcript hash.Hash) func(string, []byte, int) ([]byte, error) {
+func (c *CipherSuiteTLS13) exportKeyingMaterial(masterSecret []byte, transcript hash.Hash) func(string, []byte, int) ([]byte, error) {
 	expMasterSecret := c.deriveSecret(masterSecret, exporterLabel, transcript)
 	return func(label string, context []byte, length int) ([]byte, error) {
 		secret := c.deriveSecret(expMasterSecret, label, nil)
