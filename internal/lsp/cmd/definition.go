@@ -67,6 +67,9 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	}
 	tok := f.GetToken()
 	pos := tok.Pos(from.Start.Offset)
+	if !pos.IsValid() {
+		return fmt.Errorf("invalid position %v", from.Start.Offset)
+	}
 	ident, err := source.Identifier(ctx, view, f, pos)
 	if err != nil {
 		return err

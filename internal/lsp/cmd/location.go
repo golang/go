@@ -7,6 +7,7 @@ package cmd
 import (
 	"fmt"
 	"go/token"
+	"path/filepath"
 	"regexp"
 	"strconv"
 
@@ -98,6 +99,9 @@ func parseLocation(value string) (Location, error) {
 		return loc, fmt.Errorf("bad location syntax %q", value)
 	}
 	loc.Filename = m[posReFile]
+	if !filepath.IsAbs(loc.Filename) {
+		loc.Filename, _ = filepath.Abs(loc.Filename) // ignore error
+	}
 	if m[posReSLine] != "" {
 		v, err := strconv.ParseInt(m[posReSLine], 10, 32)
 		if err != nil {
