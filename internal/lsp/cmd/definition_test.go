@@ -20,6 +20,7 @@ import (
 
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cmd"
+	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
 )
 
@@ -33,7 +34,7 @@ func TestDefinitionHelpExample(t *testing.T) {
 	}
 	thisFile := filepath.Join(dir, "definition.go")
 	args := []string{"query", "definition", fmt.Sprintf("%v:#%v", thisFile, cmd.ExampleOffset)}
-	expect := regexp.MustCompile(`^[\w/\\:_]+flag[/\\]flag.go:\d+:\d+,\d+:\d+: defined here as type flag.FlagSet struct{.*}$`)
+	expect := regexp.MustCompile(`^[\w/\\:_]+flag[/\\]flag.go:\d+:\d+-\d+: defined here as type flag.FlagSet struct{.*}$`)
 	got := captureStdOut(t, func() {
 		tool.Main(context.Background(), &cmd.Application{}, args)
 	})
@@ -58,14 +59,14 @@ func TestDefinition(t *testing.T) {
 			}
 			args = append(args, "definition")
 			f := fset.File(src)
-			loc := cmd.Location{
-				Filename: f.Name(),
-				Start: cmd.Position{
+			spn := span.Span{
+				URI: span.FileURI(f.Name()),
+				Start: span.Point{
 					Offset: f.Offset(src),
 				},
 			}
-			loc.End = loc.Start
-			args = append(args, fmt.Sprint(loc))
+			spn.End = spn.Start
+			args = append(args, fmt.Sprint(spn))
 			app := &cmd.Application{}
 			app.Config = *exported.Config
 			got := captureStdOut(t, func() {
@@ -80,6 +81,10 @@ func TestDefinition(t *testing.T) {
 				case "efile":
 					qfile := strconv.Quote(start.Filename)
 					return qfile[1 : len(qfile)-1]
+				case "euri":
+					uri := span.FileURI(start.Filename)
+					quri := strconv.Quote(string(uri))
+					return quri[1 : len(quri)-1]
 				case "line":
 					return fmt.Sprint(start.Line)
 				case "col":

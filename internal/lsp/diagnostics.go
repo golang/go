@@ -10,42 +10,45 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 )
 
-func (s *server) cacheAndDiagnose(ctx context.Context, uri string, content string) {
-	sourceURI, err := fromProtocolURI(uri)
-	if err != nil {
-		return // handle error?
-	}
-	if err := s.setContent(ctx, sourceURI, []byte(content)); err != nil {
-		return // handle error?
+func (s *server) cacheAndDiagnose(ctx context.Context, uri span.URI, content string) error {
+	if err := s.setContent(ctx, uri, []byte(content)); err != nil {
+		return err
 	}
 	go func() {
 		ctx := s.view.BackgroundContext()
 		if ctx.Err() != nil {
 			return
 		}
-		reports, err := source.Diagnostics(ctx, s.view, sourceURI)
+		reports, err := source.Diagnostics(ctx, s.view, uri)
 		if err != nil {
 			return // handle error?
 		}
-		for filename, diagnostics := range reports {
+		for uri, diagnostics := range reports {
 			s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-				URI:         string(source.ToURI(filename)),
 				Diagnostics: toProtocolDiagnostics(ctx, s.view, diagnostics),
+				URI:         protocol.NewURI(uri),
 			})
 		}
 	}()
+	return nil
 }
 
-func (s *server) setContent(ctx context.Context, uri source.URI, content []byte) error {
+func (s *server) setContent(ctx context.Context, uri span.URI, content []byte) error {
 	return s.view.SetContent(ctx, uri, content)
 }
 
 func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []source.Diagnostic) []protocol.Diagnostic {
 	reports := []protocol.Diagnostic{}
 	for _, diag := range diagnostics {
-		tok := v.FileSet().File(diag.Start)
+		_, m, err := newColumnMap(ctx, v, diag.Span.URI)
+		if err != nil {
+			//TODO: if we can't find the file we cannot map
+			//the diagnostic, but also this should never happen
+			continue
+		}
 		src := diag.Source
 		if src == "" {
 			src = "LSP"
@@ -59,7 +62,7 @@ func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []sou
 		}
 		reports = append(reports, protocol.Diagnostic{
 			Message:  diag.Message,
-			Range:    toProtocolRange(tok, diag.Range),
+			Range:    m.Range(diag.Span),
 			Severity: severity,
 			Source:   src,
 		})

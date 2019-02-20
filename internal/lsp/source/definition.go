@@ -12,19 +12,20 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/span"
 )
 
 // IdentifierInfo holds information about an identifier in Go source.
 type IdentifierInfo struct {
 	Name  string
-	Range Range
+	Range span.Range
 	File  File
 	Type  struct {
-		Range  Range
+		Range  span.Range
 		Object types.Object
 	}
 	Declaration struct {
-		Range  Range
+		Range  span.Range
 		Object types.Object
 	}
 
@@ -83,7 +84,7 @@ func identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 		}
 	}
 	result.Name = result.ident.Name
-	result.Range = Range{Start: result.ident.Pos(), End: result.ident.End()}
+	result.Range = span.NewRange(v.FileSet(), result.ident.Pos(), result.ident.End())
 	result.Declaration.Object = pkg.GetTypesInfo().ObjectOf(result.ident)
 	if result.Declaration.Object == nil {
 		return nil, fmt.Errorf("no object for ident %v", result.Name)
@@ -125,48 +126,10 @@ func typeToObject(typ types.Type) types.Object {
 	}
 }
 
-func objToRange(ctx context.Context, v View, obj types.Object) (Range, error) {
+func objToRange(ctx context.Context, v View, obj types.Object) (span.Range, error) {
 	p := obj.Pos()
 	if !p.IsValid() {
-		return Range{}, fmt.Errorf("invalid position for %v", obj.Name())
+		return span.Range{}, fmt.Errorf("invalid position for %v", obj.Name())
 	}
-	return Range{
-		Start: p,
-		End:   p + token.Pos(identifierLen(obj.Name())),
-	}, nil
-}
-
-// TODO: This needs to be fixed to address golang.org/issue/29149.
-func identifierLen(ident string) int {
-	return len([]byte(ident))
-}
-
-// this functionality was borrowed from the analysisutil package
-func lineStart(f *token.File, line int) token.Pos {
-	// Use binary search to find the start offset of this line.
-	//
-	// TODO(rstambler): eventually replace this function with the
-	// simpler and more efficient (*go/token.File).LineStart, added
-	// in go1.12.
-
-	min := 0        // inclusive
-	max := f.Size() // exclusive
-	for {
-		offset := (min + max) / 2
-		pos := f.Pos(offset)
-		posn := f.Position(pos)
-		if posn.Line == line {
-			return pos - (token.Pos(posn.Column) - 1)
-		}
-
-		if min+1 >= max {
-			return token.NoPos
-		}
-
-		if posn.Line < line {
-			min = offset
-		} else {
-			max = offset
-		}
-	}
+	return span.NewRange(v.FileSet(), p, p+token.Pos(len(obj.Name()))), nil
 }

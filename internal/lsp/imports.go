@@ -9,25 +9,22 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 )
 
-func organizeImports(ctx context.Context, v source.View, uri string) ([]protocol.TextEdit, error) {
-	sourceURI, err := fromProtocolURI(uri)
+func organizeImports(ctx context.Context, v source.View, s span.Span) ([]protocol.TextEdit, error) {
+	f, m, err := newColumnMap(ctx, v, s.URI)
 	if err != nil {
 		return nil, err
 	}
-	f, err := v.GetFile(ctx, sourceURI)
+	rng := s.Range(m.Converter)
+	if rng.Start == rng.End {
+		// if we have a single point, then assume the rest of the file
+		rng.End = f.GetToken(ctx).Pos(f.GetToken(ctx).Size())
+	}
+	edits, err := source.Imports(ctx, f, rng)
 	if err != nil {
 		return nil, err
 	}
-	tok := f.GetToken(ctx)
-	r := source.Range{
-		Start: tok.Pos(0),
-		End:   tok.Pos(tok.Size()),
-	}
-	edits, err := source.Imports(ctx, f, r)
-	if err != nil {
-		return nil, err
-	}
-	return toProtocolEdits(ctx, f, edits), nil
+	return toProtocolEdits(m, edits), nil
 }

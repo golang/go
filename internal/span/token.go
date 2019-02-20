@@ -43,7 +43,7 @@ func NewTokenConverter(fset *token.FileSet, f *token.File) *TokenConverter {
 
 // NewContentConverter returns an implementation of Coords and Offsets for the
 // given file content.
-func NewContentConverter(filename string, content []byte) Converter {
+func NewContentConverter(filename string, content []byte) *TokenConverter {
 	fset := token.NewFileSet()
 	f := fset.AddFile(filename, -1, len(content))
 	f.SetLinesForContent(content)

@@ -11,11 +11,12 @@ import (
 	"io/ioutil"
 
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 )
 
 // File holds all the information we know about a file.
 type File struct {
-	URI     source.URI
+	uri     span.URI
 	view    *View
 	active  bool
 	content []byte
@@ -24,6 +25,10 @@ type File struct {
 	pkg     *Package
 	meta    *metadata
 	imports []*ast.ImportSpec
+}
+
+func (f *File) URI() span.URI {
+	return f.uri
 }
 
 // GetContent returns the contents of the file, reading it from file system if needed.
@@ -47,7 +52,7 @@ func (f *File) GetToken(ctx context.Context) *token.File {
 	defer f.view.mu.Unlock()
 
 	if f.token == nil || len(f.view.contentChanges) > 0 {
-		if err := f.view.parse(ctx, f.URI); err != nil {
+		if err := f.view.parse(ctx, f.uri); err != nil {
 			return nil
 		}
 	}
@@ -59,7 +64,7 @@ func (f *File) GetAST(ctx context.Context) *ast.File {
 	defer f.view.mu.Unlock()
 
 	if f.ast == nil || len(f.view.contentChanges) > 0 {
-		if err := f.view.parse(ctx, f.URI); err != nil {
+		if err := f.view.parse(ctx, f.uri); err != nil {
 			return nil
 		}
 	}
@@ -71,7 +76,7 @@ func (f *File) GetPackage(ctx context.Context) source.Package {
 	defer f.view.mu.Unlock()
 
 	if f.pkg == nil || len(f.view.contentChanges) > 0 {
-		if err := f.view.parse(ctx, f.URI); err != nil {
+		if err := f.view.parse(ctx, f.uri); err != nil {
 			return nil
 		}
 	}
@@ -95,7 +100,7 @@ func (f *File) read(ctx context.Context) {
 		}
 	}
 	// We don't know the content yet, so read it.
-	filename, err := f.URI.Filename()
+	filename, err := f.uri.Filename()
 	if err != nil {
 		return
 	}

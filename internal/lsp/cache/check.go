@@ -16,10 +16,10 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 )
 
-func (v *View) parse(ctx context.Context, uri source.URI) error {
+func (v *View) parse(ctx context.Context, uri span.URI) error {
 	v.mcache.mu.Lock()
 	defer v.mcache.mu.Unlock()
 
@@ -78,7 +78,7 @@ func (v *View) cachePackage(pkg *Package) {
 			log.Printf("no token.File for %v", file.Name)
 			continue
 		}
-		fURI := source.ToURI(tok.Name())
+		fURI := span.FileURI(tok.Name())
 		f := v.getFile(fURI)
 		f.token = tok
 		f.ast = file
@@ -88,7 +88,7 @@ func (v *View) cachePackage(pkg *Package) {
 }
 
 func (v *View) checkMetadata(ctx context.Context, f *File) error {
-	filename, err := f.URI.Filename()
+	filename, err := f.uri.Filename()
 	if err != nil {
 		return err
 	}
@@ -155,7 +155,7 @@ func (v *View) link(pkgPath string, pkg *packages.Package, parent *metadata) *me
 	m.name = pkg.Name
 	m.files = pkg.CompiledGoFiles
 	for _, filename := range m.files {
-		if f, ok := v.files[source.ToURI(filename)]; ok {
+		if f, ok := v.files[span.FileURI(filename)]; ok {
 			f.meta = m
 		}
 	}
@@ -319,7 +319,7 @@ func (v *View) parseFiles(filenames []string) ([]*ast.File, []error) {
 		}
 
 		// First, check if we have already cached an AST for this file.
-		f := v.files[source.ToURI(filename)]
+		f := v.files[span.FileURI(filename)]
 		var fAST *ast.File
 		if f != nil {
 			fAST = f.ast

@@ -23,19 +23,19 @@ func useThings() {
 }
 
 /*@
-definition(aStructType, "", Thing, "$file:$line:$col,$eline:$ecol: defined here as type Thing struct{Member string}")
+definition(aStructType, "", Thing, "$file:$line:$col-$ecol: defined here as type Thing struct{Member string}")
 definition(aStructType, "-emulate=guru", Thing, "$file:$line:$col: defined here as type Thing")
 
-definition(aMember, "", Member, "$file:$line:$col,$eline:$ecol: defined here as field Member string")
+definition(aMember, "", Member, "$file:$line:$col-$ecol: defined here as field Member string")
 definition(aMember, "-emulate=guru", Member, "$file:$line:$col: defined here as field Member string")
 
-definition(aVar, "", Other, "$file:$line:$col,$eline:$ecol: defined here as var Other Thing")
+definition(aVar, "", Other, "$file:$line:$col-$ecol: defined here as var Other Thing")
 definition(aVar, "-emulate=guru", Other, "$file:$line:$col: defined here as var Other")
 
-definition(aFunc, "", Things, "$file:$line:$col,$eline:$ecol: defined here as func Things(val []string) []Thing")
+definition(aFunc, "", Things, "$file:$line:$col-$ecol: defined here as func Things(val []string) []Thing")
 definition(aFunc, "-emulate=guru", Things, "$file:$line:$col: defined here as func Things(val []string) []Thing")
 
-definition(aMethod, "", Method, "$file:$line:$col,$eline:$ecol: defined here as func (Thing).Method(i int) string")
+definition(aMethod, "", Method, "$file:$line:$col-$ecol: defined here as func (Thing).Method(i int) string")
 definition(aMethod, "-emulate=guru", Method, "$file:$line:$col: defined here as func (Thing).Method(i int) string")
 
 //param
@@ -46,8 +46,8 @@ definition(aMethod, "-emulate=guru", Method, "$file:$line:$col: defined here as 
 // JSON tests
 
 definition(aStructType, "-json", Thing, `{
-	"location": {
-		"file": "$efile",
+	"span": {
+		"uri": "$euri",
 		"start": {
 			"line": $line,
 			"column": $col,

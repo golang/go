@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 )
 
 // TODO(rstambler): Remove this once Go 1.12 is released as we end support for
@@ -147,7 +148,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	})
 }
 
-type diagnostics map[string][]protocol.Diagnostic
+type diagnostics map[span.URI][]protocol.Diagnostic
 type completionItems map[token.Pos]*protocol.CompletionItem
 type completions map[token.Position][]token.Pos
 type formats map[string]string
@@ -156,14 +157,14 @@ type definitions map[protocol.Location]protocol.Location
 func (d diagnostics) test(t *testing.T, v source.View) int {
 	count := 0
 	ctx := context.Background()
-	for filename, want := range d {
-		sourceDiagnostics, err := source.Diagnostics(context.Background(), v, source.ToURI(filename))
+	for uri, want := range d {
+		sourceDiagnostics, err := source.Diagnostics(context.Background(), v, uri)
 		if err != nil {
 			t.Fatal(err)
 		}
-		got := toProtocolDiagnostics(ctx, v, sourceDiagnostics[filename])
+		got := toProtocolDiagnostics(ctx, v, sourceDiagnostics[uri])
 		sorted(got)
-		if diff := diffDiagnostics(filename, want, got); diff != "" {
+		if diff := diffDiagnostics(uri, want, got); diff != "" {
 			t.Error(diff)
 		}
 		count += len(want)
@@ -171,10 +172,10 @@ func (d diagnostics) test(t *testing.T, v source.View) int {
 	return count
 }
 
-func (d diagnostics) collect(fset *token.FileSet, rng packagestest.Range, msgSource, msg string) {
-	f := fset.File(rng.Start)
-	if _, ok := d[f.Name()]; !ok {
-		d[f.Name()] = []protocol.Diagnostic{}
+func (d diagnostics) collect(e *packagestest.Exported, fset *token.FileSet, rng packagestest.Range, msgSource, msg string) {
+	spn, m := testLocation(e, fset, rng)
+	if _, ok := d[spn.URI]; !ok {
+		d[spn.URI] = []protocol.Diagnostic{}
 	}
 	// If a file has an empty diagnostic message, return. This allows us to
 	// avoid testing diagnostics in files that may have a lot of them.
@@ -182,21 +183,21 @@ func (d diagnostics) collect(fset *token.FileSet, rng packagestest.Range, msgSou
 		return
 	}
 	severity := protocol.SeverityError
-	if strings.Contains(f.Name(), "analyzer") {
+	if strings.Contains(string(spn.URI), "analyzer") {
 		severity = protocol.SeverityWarning
 	}
 	want := protocol.Diagnostic{
-		Range:    toProtocolRange(f, source.Range(rng)),
+		Range:    m.Range(spn),
 		Severity: severity,
 		Source:   msgSource,
 		Message:  msg,
 	}
-	d[f.Name()] = append(d[f.Name()], want)
+	d[spn.URI] = append(d[spn.URI], want)
 }
 
 // diffDiagnostics prints the diff between expected and actual diagnostics test
 // results.
-func diffDiagnostics(filename string, want, got []protocol.Diagnostic) string {
+func diffDiagnostics(uri span.URI, want, got []protocol.Diagnostic) string {
 	if len(got) != len(want) {
 		goto Failed
 	}
@@ -209,7 +210,7 @@ func diffDiagnostics(filename string, want, got []protocol.Diagnostic) string {
 			goto Failed
 		}
 		// Special case for diagnostics on parse errors.
-		if strings.Contains(filename, "noparse") {
+		if strings.Contains(string(uri), "noparse") {
 			if g.Range.Start != g.Range.End || w.Range.Start != g.Range.End {
 				goto Failed
 			}
@@ -228,7 +229,7 @@ func diffDiagnostics(filename string, want, got []protocol.Diagnostic) string {
 	return ""
 Failed:
 	msg := &bytes.Buffer{}
-	fmt.Fprintf(msg, "diagnostics failed for %s:\nexpected:\n", filename)
+	fmt.Fprintf(msg, "diagnostics failed for %s:\nexpected:\n", uri)
 	for _, d := range want {
 		fmt.Fprintf(msg, "  %v\n", d)
 	}
@@ -248,7 +249,7 @@ func (c completions) test(t *testing.T, exported *packagestest.Exported, s *serv
 		list, err := s.Completion(context.Background(), &protocol.CompletionParams{
 			TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 				TextDocument: protocol.TextDocumentIdentifier{
-					URI: string(source.ToURI(src.Filename)),
+					URI: protocol.NewURI(span.FileURI(src.Filename)),
 				},
 				Position: protocol.Position{
 					Line:      float64(src.Line - 1),
@@ -361,10 +362,12 @@ Failed:
 }
 
 func (f formats) test(t *testing.T, s *server) {
+	ctx := context.Background()
 	for filename, gofmted := range f {
+		uri := span.FileURI(filename)
 		edits, err := s.Formatting(context.Background(), &protocol.DocumentFormattingParams{
 			TextDocument: protocol.TextDocumentIdentifier{
-				URI: string(source.ToURI(filename)),
+				URI: protocol.NewURI(uri),
 			},
 		})
 		if err != nil {
@@ -373,11 +376,11 @@ func (f formats) test(t *testing.T, s *server) {
 			}
 			continue
 		}
-		f, err := s.view.GetFile(context.Background(), source.ToURI(filename))
+		f, m, err := newColumnMap(ctx, s.view, uri)
 		if err != nil {
 			t.Error(err)
 		}
-		buf, err := applyEdits(f.GetContent(context.Background()), edits)
+		buf, err := applyEdits(m, f.GetContent(context.Background()), edits)
 		if err != nil {
 			t.Error(err)
 		}
@@ -412,7 +415,7 @@ func (d definitions) test(t *testing.T, s *server, typ bool) {
 			locs, err = s.Definition(context.Background(), params)
 		}
 		if err != nil {
-			t.Fatalf("failed for %s: %v", src, err)
+			t.Fatalf("failed for %v: %v", src, err)
 		}
 		if len(locs) != 1 {
 			t.Errorf("got %d locations for definition, expected 1", len(locs))
@@ -423,9 +426,21 @@ func (d definitions) test(t *testing.T, s *server, typ bool) {
 	}
 }
 
-func (d definitions) collect(fset *token.FileSet, src, target packagestest.Range) {
-	loc := toProtocolLocation(fset, source.Range(src))
-	d[loc] = toProtocolLocation(fset, source.Range(target))
+func (d definitions) collect(e *packagestest.Exported, fset *token.FileSet, src, target packagestest.Range) {
+	sSrc, mSrc := testLocation(e, fset, src)
+	sTarget, mTarget := testLocation(e, fset, target)
+	d[mSrc.Location(sSrc)] = mTarget.Location(sTarget)
+}
+
+func testLocation(e *packagestest.Exported, fset *token.FileSet, rng packagestest.Range) (span.Span, *protocol.ColumnMapper) {
+	spn := span.NewRange(fset, rng.Start, rng.End).Span()
+	f := fset.File(rng.Start)
+	content, err := e.FileContents(f.Name())
+	if err != nil {
+		return spn, nil
+	}
+	m := protocol.NewColumnMapper(spn.URI, fset, f, content)
+	return spn, m
 }
 
 func TestBytesOffset(t *testing.T) {
@@ -450,27 +465,31 @@ func TestBytesOffset(t *testing.T) {
 		{text: "aaa\nbbb\n\n", pos: protocol.Position{Line: 2, Character: 0}, want: 8},
 	}
 
-	for _, test := range tests {
-		got := bytesOffset([]byte(test.text), test.pos)
-		if got != test.want {
-			t.Errorf("want %d for %q(Line:%d,Character:%d), but got %d", test.want, test.text, int(test.pos.Line), int(test.pos.Character), got)
+	for i, test := range tests {
+		fname := fmt.Sprintf("test %d", i)
+		fset := token.NewFileSet()
+		f := fset.AddFile(fname, -1, len(test.text))
+		f.SetLinesForContent([]byte(test.text))
+		mapper := protocol.NewColumnMapper(span.FileURI(fname), fset, f, []byte(test.text))
+		got := mapper.Point(test.pos)
+		if got.Offset != test.want {
+			t.Errorf("want %d for %q(Line:%d,Character:%d), but got %d", test.want, test.text, int(test.pos.Line), int(test.pos.Character), got.Offset)
 		}
 	}
 }
 
-func applyEdits(content []byte, edits []protocol.TextEdit) ([]byte, error) {
+func applyEdits(m *protocol.ColumnMapper, content []byte, edits []protocol.TextEdit) ([]byte, error) {
 	prev := 0
 	result := make([]byte, 0, len(content))
 	for _, edit := range edits {
-		start := bytesOffset(content, edit.Range.Start)
-		end := bytesOffset(content, edit.Range.End)
-		if start > prev {
-			result = append(result, content[prev:start]...)
+		spn := m.RangeSpan(edit.Range).Clean(nil)
+		if spn.Start.Offset > prev {
+			result = append(result, content[prev:spn.Start.Offset]...)
 		}
 		if len(edit.NewText) > 0 {
 			result = append(result, []byte(edit.NewText)...)
 		}
-		prev = end
+		prev = spn.End.Offset
 	}
 	if prev < len(content) {
 		result = append(result, content[prev:]...)
