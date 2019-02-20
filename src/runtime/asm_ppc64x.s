@@ -10,6 +10,12 @@
 #include "textflag.h"
 #include "asm_ppc64x.h"
 
+#ifdef GOOS_aix
+#define cgoCalleeStackSize 48
+#else
+#define cgoCalleeStackSize 32
+#endif
+
 TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// R1 = stack; R3 = argc; R4 = argv; R13 = C TLS base pointer
 
@@ -46,14 +52,16 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	MOVD	R13, R5			// arg 2: TLS base pointer
 	MOVD	$setg_gcc<>(SB), R4 	// arg 1: setg
 	MOVD	g, R3			// arg 0: G
-	// C functions expect 32 bytes of space on caller stack frame
-	// and a 16-byte aligned R1
+	// C functions expect 32 (48 for AIX) bytes of space on caller
+	// stack frame and a 16-byte aligned R1
 	MOVD	R1, R14			// save current stack
-	SUB	$32, R1			// reserve 32 bytes
+	SUB	$cgoCalleeStackSize, R1	// reserve the callee area
 	RLDCR	$0, R1, $~15, R1	// 16-byte align
 	BL	(CTR)			// may clobber R0, R3-R12
 	MOVD	R14, R1			// restore stack
+#ifndef GOOS_aix
 	MOVD	24(R1), R2
+#endif
 	XOR	R0, R0			// fix R0
 
 nocgo:
@@ -553,6 +561,12 @@ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	BL	runtime·badctxt(SB)
 	RET
 
+#ifdef GOOS_aix
+#define asmcgocallSaveOffset cgoCalleeStackSize + 8
+#else
+#define asmcgocallSaveOffset cgoCalleeStackSize
+#endif
+
 // func asmcgocall(fn, arg unsafe.Pointer) int32
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
@@ -583,19 +597,21 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Now on a scheduling stack (a pthread-created stack).
 g0:
-	// Save room for two of our pointers, plus 32 bytes of callee
-	// save area that lives on the caller stack.
 #ifdef GOOS_aix
 	// Create a fake LR to improve backtrace.
 	MOVD	$runtime·asmcgocall(SB), R6
 	MOVD	R6, 16(R1)
+	// AIX also save one argument on the stack.
+	SUB $8, R1
 #endif
-	SUB	$48, R1
+	// Save room for two of our pointers, plus the callee
+	// save area that lives on the caller stack.
+	SUB	$(asmcgocallSaveOffset+16), R1
 	RLDCR	$0, R1, $~15, R1	// 16-byte alignment for gcc ABI
-	MOVD	R5, 40(R1)	// save old g on stack
+	MOVD	R5, (asmcgocallSaveOffset+8)(R1)// save old g on stack
 	MOVD	(g_stack+stack_hi)(R5), R5
 	SUB	R7, R5
-	MOVD	R5, 32(R1)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
+	MOVD	R5, asmcgocallSaveOffset(R1)    // save depth in old g stack (can't just save SP, as stack might be copied during a callback)
 #ifdef GOOS_aix
 	MOVD	R7, 0(R1)	// Save frame pointer to allow manual backtrace with gdb
 #else
@@ -607,24 +623,21 @@ g0:
 #ifdef GOARCH_ppc64
 	// ppc64 use elf ABI v1. we must get the real entry address from
 	// first slot of the function descriptor before call.
-#ifndef GOOS_aix
-	// aix just passes the function pointer for the moment, see golang.org/cl/146898 for details.
+	// Same for AIX.
 	MOVD	8(R12), R2
 	MOVD	(R12), R12
-#endif
 #endif
 	MOVD	R12, CTR
 	MOVD	R4, R3		// arg in r3
 	BL	(CTR)
-
-	// C code can clobber R0, so set it back to 0.  F27-F31 are
+	// C code can clobber R0, so set it back to 0. F27-F31 are
 	// callee save, so we don't need to recover those.
 	XOR	R0, R0
 	// Restore g, stack pointer, toc pointer.
 	// R3 is errno, so don't touch it
-	MOVD	40(R1), g
+	MOVD	(asmcgocallSaveOffset+8)(R1), g
 	MOVD	(g_stack+stack_hi)(g), R5
-	MOVD	32(R1), R6
+	MOVD	asmcgocallSaveOffset(R1), R6
 	SUB	R6, R5
 #ifndef GOOS_aix
 	MOVD	24(R5), R2
