@@ -466,7 +466,10 @@ func init() {
 		{name: "LessEqualU", argLength: 1, reg: readflags},    // bool, true flags encode unsigned x<=y false otherwise.
 		{name: "GreaterThanU", argLength: 1, reg: readflags},  // bool, true flags encode unsigned x>y false otherwise.
 		{name: "GreaterEqualU", argLength: 1, reg: readflags}, // bool, true flags encode unsigned x>=y false otherwise.
-
+		{name: "LessThanF", argLength: 1, reg: readflags},     // bool, true flags encode floating-point x<y false otherwise.
+		{name: "LessEqualF", argLength: 1, reg: readflags},    // bool, true flags encode floating-point x<=y false otherwise.
+		{name: "GreaterThanF", argLength: 1, reg: readflags},  // bool, true flags encode floating-point x>y false otherwise.
+		{name: "GreaterEqualF", argLength: 1, reg: readflags}, // bool, true flags encode floating-point x>=y false otherwise.
 		// duffzero
 		// arg0 = address of memory to zero
 		// arg1 = mem
@@ -663,6 +666,10 @@ func init() {
 		{name: "NZW"},  // Control != 0, 32-bit
 		{name: "TBZ"},  // Control & (1 << Aux.(int64)) == 0
 		{name: "TBNZ"}, // Control & (1 << Aux.(int64)) != 0
+		{name: "FLT"},
+		{name: "FLE"},
+		{name: "FGT"},
+		{name: "FGE"},
 	}
 
 	archs = append(archs, arch{
