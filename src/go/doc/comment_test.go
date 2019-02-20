@@ -134,6 +134,26 @@ $	pre2
 		},
 		text: ".   Para.\n\n$	should not be ``escaped''",
 	},
+	{
+		in: "// A very long line of 46 char for line wrapping.",
+		out: []block{
+			{opPara, []string{"// A very long line of 46 char for line wrapping."}},
+		},
+		text: `.   // A very long line of 46 char for line
+.   // wrapping.
+`,
+	},
+	{
+		in: `/* A very long line of 46 char for line wrapping.
+A very long line of 46 char for line wrapping. */`,
+		out: []block{
+			{opPara, []string{"/* A very long line of 46 char for line wrapping.\n", "A very long line of 46 char for line wrapping. */"}},
+		},
+		text: `.   /* A very long line of 46 char for line
+.   wrapping. A very long line of 46 char
+.   for line wrapping. */
+`,
+	},
 }
 
 func TestBlocks(t *testing.T) {
