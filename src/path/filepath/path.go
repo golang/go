@@ -96,19 +96,14 @@ func Clean(path string) string {
 		}
 		return originalPath + "."
 	}
-
-	n := len(path)
-	if volLen > 2 && n == 1 && os.IsPathSeparator(path[0]) {
-		// UNC volume name with trailing slash.
-		return FromSlash(originalPath[:volLen])
-	}
 	rooted := os.IsPathSeparator(path[0])
 
 	// Invariants:
 	//	reading from path; r is index of next byte to process.
-	//	writing to out; w is index of next byte to write.
-	//	dotdot is index in out where .. must stop, either because
+	//	writing to buf; w is index of next byte to write.
+	//	dotdot is index in buf where .. must stop, either because
 	//		it is the leading slash or it is a leading ../../.. prefix.
+	n := len(path)
 	out := lazybuf{path: path, volAndPath: originalPath, volLen: volLen}
 	r, dotdot := 0, 0
 	if rooted {
