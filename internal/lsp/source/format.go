@@ -52,7 +52,7 @@ func Format(ctx context.Context, f File, rng Range) ([]TextEdit, error) {
 	if err := format.Node(buf, fset, node); err != nil {
 		return nil, err
 	}
-	return computeTextEdits(rng, f, buf.String()), nil
+	return computeTextEdits(f, buf.String()), nil
 }
 
 // Imports formats a file using the goimports tool.
@@ -61,10 +61,10 @@ func Imports(ctx context.Context, f File, rng Range) ([]TextEdit, error) {
 	if err != nil {
 		return nil, err
 	}
-	return computeTextEdits(rng, f, string(formatted)), nil
+	return computeTextEdits(f, string(formatted)), nil
 }
 
-func computeTextEdits(rng Range, file File, formatted string) (edits []TextEdit) {
+func computeTextEdits(file File, formatted string) (edits []TextEdit) {
 	u := strings.SplitAfter(string(file.GetContent()), "\n")
 	tok := file.GetToken()
 	f := strings.SplitAfter(formatted, "\n")
