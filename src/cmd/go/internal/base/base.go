@@ -82,7 +82,8 @@ func (c *Command) Name() string {
 func (c *Command) Usage() {
 	fmt.Fprintf(os.Stderr, "usage: %s\n", c.UsageLine)
 	fmt.Fprintf(os.Stderr, "Run 'go help %s' for details.\n", c.LongName())
-	os.Exit(2)
+	SetExitStatus(2)
+	Exit()
 }
 
 // Runnable reports whether the command can be run; otherwise

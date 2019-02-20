@@ -248,12 +248,14 @@ func (b *Builder) Init() {
 
 	if _, ok := cfg.OSArchSupportsCgo[cfg.Goos+"/"+cfg.Goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
 		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", cfg.Goos, cfg.Goarch)
-		os.Exit(2)
+		base.SetExitStatus(2)
+		base.Exit()
 	}
 	for _, tag := range cfg.BuildContext.BuildTags {
 		if strings.Contains(tag, ",") {
 			fmt.Fprintf(os.Stderr, "cmd/go: -tags space-separated list contains comma\n")
-			os.Exit(2)
+			base.SetExitStatus(2)
+			base.Exit()
 		}
 	}
 }

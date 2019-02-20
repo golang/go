@@ -146,7 +146,18 @@ func TestMain(m *testing.M) {
 		select {}
 	}
 
-	dir, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "cmd-go-test-")
+	// Run with a temporary TMPDIR to check that the tests don't
+	// leave anything behind.
+	topTmpdir, err := ioutil.TempDir("", "cmd-go-test-")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if !*testWork {
+		defer removeAll(topTmpdir)
+	}
+	os.Setenv(tempEnvName(), topTmpdir)
+
+	dir, err := ioutil.TempDir(topTmpdir, "tmpdir")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -256,6 +267,23 @@ func TestMain(m *testing.M) {
 	r := m.Run()
 	if !*testWork {
 		removeAll(testTmpDir) // os.Exit won't run defer
+	}
+
+	if !*testWork {
+		// There shouldn't be anything left in topTmpdir.
+		dirf, err := os.Open(topTmpdir)
+		if err != nil {
+			log.Fatal(err)
+		}
+		names, err := dirf.Readdirnames(0)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if len(names) > 0 {
+			log.Fatalf("unexpected files left in tmpdir: %v", names)
+		}
+
+		removeAll(topTmpdir)
 	}
 
 	os.Exit(r)
@@ -5059,7 +5087,8 @@ func TestExecBuildX(t *testing.T) {
 	obj := tg.path("main")
 	tg.run("build", "-x", "-o", obj, src)
 	sh := tg.path("test.sh")
-	err := ioutil.WriteFile(sh, []byte("set -e\n"+tg.getStderr()), 0666)
+	cmds := tg.getStderr()
+	err := ioutil.WriteFile(sh, []byte("set -e\n"+cmds), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -5090,6 +5119,12 @@ func TestExecBuildX(t *testing.T) {
 	if string(out) != "hello" {
 		t.Fatalf("got %q; want %q", out, "hello")
 	}
+
+	matches := regexp.MustCompile(`^WORK=(.*)\n`).FindStringSubmatch(cmds)
+	if len(matches) == 0 {
+		t.Fatal("no WORK directory")
+	}
+	tg.must(os.RemoveAll(matches[1]))
 }
 
 func TestParallelNumber(t *testing.T) {
