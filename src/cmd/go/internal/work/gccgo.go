@@ -56,7 +56,8 @@ func checkGccgoBin() {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "cmd/go: gccgo: %s\n", gccgoErr)
-	os.Exit(2)
+	base.SetExitStatus(2)
+	base.Exit()
 }
 
 func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {

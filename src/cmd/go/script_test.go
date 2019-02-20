@@ -399,6 +399,7 @@ func (ts *testScript) cmdCc(neg bool, args []string) {
 	var b work.Builder
 	b.Init()
 	ts.cmdExec(neg, append(b.GccCmd(".", ""), args...))
+	os.RemoveAll(b.WorkDir)
 }
 
 // cd changes to a different directory.
