@@ -204,4 +204,36 @@ TEXT runtime·osyield1(SB),NOSPLIT,$0
 	MOVD	R0, CTR
 	BL	(CTR)
 	MOVD	40(R1), R2
+	BL runtime·reginit(SB)
+	RET
+
+
+// Runs on OS stack, called from runtime·sigprocmask.
+TEXT runtime·sigprocmask1(SB),NOSPLIT,$0-24
+	MOVD	how+0(FP), R3
+	MOVD	new+8(FP), R4
+	MOVD	old+16(FP), R5
+	MOVD	$libpthread_sigthreadmask(SB), R12
+	MOVD	0(R12), R12
+	MOVD	R2, 40(R1)
+	MOVD	0(R12), R0
+	MOVD	8(R12), R2
+	MOVD	R0, CTR
+	BL	(CTR)
+	MOVD	40(R1), R2
+	BL runtime·reginit(SB)
+	RET
+
+// Runs on OS stack, called from runtime·usleep.
+TEXT runtime·usleep1(SB),NOSPLIT,$0-8
+	MOVW	us+0(FP), R3
+	MOVD	$libc_usleep(SB), R12
+	MOVD	0(R12), R12
+	MOVD	R2, 40(R1)
+	MOVD	0(R12), R0
+	MOVD	8(R12), R2
+	MOVD	R0, CTR
+	BL	(CTR)
+	MOVD	40(R1), R2
+	BL runtime·reginit(SB)
 	RET
