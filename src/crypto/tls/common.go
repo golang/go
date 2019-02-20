@@ -776,7 +776,7 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
 		if isClient && v < VersionTLS10 {
 			continue
 		}
-		// TLS 1.3 is opt-in in Go 1.12.
+		// TLS 1.3 is opt-out in Go 1.13.
 		if v == VersionTLS13 && !isTLS13Supported() {
 			continue
 		}
@@ -791,11 +791,11 @@ var tls13Support struct {
 	cached bool
 }
 
-// isTLS13Supported returns whether the program opted into TLS 1.3 via
-// GODEBUG=tls13=1. It's cached after the first execution.
+// isTLS13Supported returns whether the program enabled TLS 1.3 by not opting
+// out with GODEBUG=tls13=0. It's cached after the first execution.
 func isTLS13Supported() bool {
 	tls13Support.Do(func() {
-		tls13Support.cached = goDebugString("tls13") == "1"
+		tls13Support.cached = goDebugString("tls13") != "0"
 	})
 	return tls13Support.cached
 }
