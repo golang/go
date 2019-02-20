@@ -1773,6 +1773,12 @@ func (ctxt *Link) dodata() {
 			s.Value = int64(uint64(datsize) - sect.Vaddr)
 			s.Attr |= sym.AttrLocal
 			datsize += s.Size
+
+			if ctxt.HeadType == objabi.Haix && curType == sym.SDWARFLOC {
+				// Update the size of .debug_loc for this symbol's
+				// package.
+				addDwsectCUSize(".debug_loc", s.File, uint64(s.Size))
+			}
 		}
 		sect.Length = uint64(datsize) - sect.Vaddr
 		checkdatsize(ctxt, datsize, curType)

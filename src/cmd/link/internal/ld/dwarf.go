@@ -1342,13 +1342,20 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 }
 
 // writepcranges generates the DW_AT_ranges table for compilation unit cu.
-func writepcranges(ctxt *Link, cu *dwarf.DWDie, base *sym.Symbol, pcs []dwarf.Range, ranges *sym.Symbol) {
+func writepcranges(ctxt *Link, unit *compilationUnit, base *sym.Symbol, pcs []dwarf.Range, ranges *sym.Symbol) {
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 
+	unitLengthOffset := ranges.Size
+
 	// Create PC ranges for this CU.
-	newattr(cu, dwarf.DW_AT_ranges, dwarf.DW_CLS_PTR, ranges.Size, ranges)
-	newattr(cu, dwarf.DW_AT_low_pc, dwarf.DW_CLS_ADDRESS, base.Value, base)
+	newattr(unit.dwinfo, dwarf.DW_AT_ranges, dwarf.DW_CLS_PTR, ranges.Size, ranges)
+	newattr(unit.dwinfo, dwarf.DW_AT_low_pc, dwarf.DW_CLS_ADDRESS, base.Value, base)
 	dwarf.PutRanges(dwarfctxt, ranges, nil, pcs)
+
+	if ctxt.HeadType == objabi.Haix {
+		addDwsectCUSize(".debug_ranges", unit.lib.String(), uint64(ranges.Size-unitLengthOffset))
+	}
+
 }
 
 /*
@@ -1500,6 +1507,10 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 		fs.AddAddr(ctxt.Arch, s)
 		fs.AddUintXX(ctxt.Arch, uint64(s.Size), ctxt.Arch.PtrSize) // address range
 		fs.AddBytes(deltaBuf)
+
+		if ctxt.HeadType == objabi.Haix {
+			addDwsectCUSize(".debug_frame", s.File, fdeLength+uint64(lengthFieldSize))
+		}
 	}
 	return syms
 }
@@ -1705,11 +1716,11 @@ func dwarfEnabled(ctxt *Link) bool {
 	}
 
 	if ctxt.LinkMode == LinkExternal {
-		// TODO(aix): enable DWARF
 		switch {
 		case ctxt.IsELF:
 		case ctxt.HeadType == objabi.Hdarwin:
 		case ctxt.HeadType == objabi.Hwindows:
+		case ctxt.HeadType == objabi.Haix:
 		default:
 			return false
 		}
@@ -1728,6 +1739,11 @@ func dwarfEnabled(ctxt *Link) bool {
 func dwarfGenerateDebugInfo(ctxt *Link) {
 	if !dwarfEnabled(ctxt) {
 		return
+	}
+
+	if ctxt.HeadType == objabi.Haix {
+		// Initial map used to store package size for each DWARF section.
+		dwsectCUSize = make(map[string]uint64)
 	}
 
 	ctxt.compUnitByPackage = make(map[*sym.Library]*compilationUnit)
@@ -1829,6 +1845,10 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 				if ctxt.HeadType == objabi.Hdarwin {
 					removeDwarfAddrListBaseAddress(ctxt, dsym, rangeSym, false)
 				}
+				if ctxt.HeadType == objabi.Haix {
+					addDwsectCUSize(".debug_ranges", unit.lib.String(), uint64(rangeSym.Size))
+
+				}
 				unit.rangeSyms = append(unit.rangeSyms, rangeSym)
 			}
 
@@ -1891,7 +1911,7 @@ func dwarfGenerateDebugSyms(ctxt *Link) {
 			continue
 		}
 		writelines(ctxt, u, debugLine)
-		writepcranges(ctxt, u.dwinfo, u.lib.Textp[0], u.pcs, debugRanges)
+		writepcranges(ctxt, u, u.lib.Textp[0], u.pcs, debugRanges)
 	}
 
 	// newdie adds DIEs to the *beginning* of the parent's DIE list.
@@ -2160,6 +2180,10 @@ func getDwsectCUSize(sname string, pkgname string) uint64 {
 
 func saveDwsectCUSize(sname string, pkgname string, size uint64) {
 	dwsectCUSize[sname+"."+pkgname] = size
+}
+
+func addDwsectCUSize(sname string, pkgname string, size uint64) {
+	dwsectCUSize[sname+"."+pkgname] += size
 }
 
 // getPkgFromCUSym returns the package name for the compilation unit
