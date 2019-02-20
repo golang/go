@@ -30,7 +30,13 @@ TEXT runtime·callCfunction(SB),	NOSPLIT|NOFRAME,$0
 // Called by runtime.asmcgocall
 // It reserves a stack of 288 bytes for the C function.
 // NOT USING GO CALLING CONVENTION
-TEXT runtime·asmsyscall6(SB),NOSPLIT,$256
+// runtime.asmsyscall6 is a function descriptor to the real asmsyscall6.
+DATA	runtime·asmsyscall6+0(SB)/8, $runtime·_asmsyscall6(SB)
+DATA	runtime·asmsyscall6+8(SB)/8, $TOC(SB)
+DATA	runtime·asmsyscall6+16(SB)/8, $0
+GLOBL	runtime·asmsyscall6(SB), NOPTR, $24
+
+TEXT runtime·_asmsyscall6(SB),NOSPLIT,$256
 	MOVD	R3, 48(R1) // Save libcall for later
 	MOVD	libcall_fn(R3), R12
 	MOVD	libcall_args(R3), R9
