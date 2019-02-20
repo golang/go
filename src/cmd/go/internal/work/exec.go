@@ -2244,6 +2244,11 @@ func (b *Builder) compilerCmd(compiler []string, incdir, workdir string) []strin
 		}
 	}
 
+	if cfg.Goos == "aix" {
+		// mcmodel=large must always be enabled to allow large TOC.
+		a = append(a, "-mcmodel=large")
+	}
+
 	// disable ASCII art in clang errors, if possible
 	if b.gccSupportsFlag(compiler, "-fno-caret-diagnostics") {
 		a = append(a, "-fno-caret-diagnostics")
