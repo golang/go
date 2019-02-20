@@ -2176,7 +2176,8 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 			n++
 			continue
 		}
-		if sect.Name != ".text" {
+		if sect.Name != ".text" || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
+			// On AIX, runtime.text.X are symbols already in the symtab.
 			break
 		}
 		s = ctxt.Syms.ROLookup(fmt.Sprintf("runtime.text.%d", n), 0)

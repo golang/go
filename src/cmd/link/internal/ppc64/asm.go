@@ -694,7 +694,7 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 					ld.Errorf(s, "unexpected trampoline for shared or dynamic linking\n")
 				} else {
 					ctxt.AddTramp(tramp)
-					gentramp(ctxt.Arch, ctxt.LinkMode, tramp, r.Sym, r.Add)
+					gentramp(ctxt, tramp, r.Sym, r.Add)
 				}
 			}
 			r.Sym = tramp
@@ -706,40 +706,67 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 	}
 }
 
-func gentramp(arch *sys.Arch, linkmode ld.LinkMode, tramp, target *sym.Symbol, offset int64) {
-	// Used for default build mode for an executable
-	// Address of the call target is generated using
-	// relocation and doesn't depend on r2 (TOC).
+func gentramp(ctxt *ld.Link, tramp, target *sym.Symbol, offset int64) {
 	tramp.Size = 16 // 4 instructions
 	tramp.P = make([]byte, tramp.Size)
 	t := ld.Symaddr(target) + offset
-	o1 := uint32(0x3fe00000) // lis r31,targetaddr hi
-	o2 := uint32(0x3bff0000) // addi r31,targetaddr lo
-	// With external linking, the target address must be
-	// relocated using LO and HA
-	if linkmode == ld.LinkExternal {
+	var o1, o2 uint32
+
+	if ctxt.HeadType == objabi.Haix {
+		// On AIX, the address is retrieved with a TOC symbol.
+		// For internal linking, the "Linux" way might still be used.
+		// However, all text symbols are accessed with a TOC symbol as
+		// text relocations aren't supposed to be possible.
+		// So, keep using the external linking way to be more AIX friendly.
+		o1 = uint32(0x3fe20000) // lis r2, toctargetaddr hi
+		o2 = uint32(0xebff0000) // ld r31, toctargetaddr lo
+
+		toctramp := ctxt.Syms.Lookup("TOC."+tramp.Name, 0)
+		toctramp.Type = sym.SXCOFFTOC
+		toctramp.Attr |= sym.AttrReachable
+		toctramp.AddAddr(ctxt.Arch, target)
+
 		tr := tramp.AddRel()
 		tr.Off = 0
-		tr.Type = objabi.R_ADDRPOWER
+		tr.Type = objabi.R_ADDRPOWER_TOCREL_DS
 		tr.Siz = 8 // generates 2 relocations:  HA + LO
-		tr.Sym = target
+		tr.Sym = toctramp
 		tr.Add = offset
 	} else {
-		// adjustment needed if lo has sign bit set
-		// when using addi to compute address
-		val := uint32((t & 0xffff0000) >> 16)
-		if t&0x8000 != 0 {
-			val += 1
+		// Used for default build mode for an executable
+		// Address of the call target is generated using
+		// relocation and doesn't depend on r2 (TOC).
+		o1 = uint32(0x3fe00000) // lis r31,targetaddr hi
+		o2 = uint32(0x3bff0000) // addi r31,targetaddr lo
+
+		// With external linking, the target address must be
+		// relocated using LO and HA
+		if ctxt.LinkMode == ld.LinkExternal {
+			tr := tramp.AddRel()
+			tr.Off = 0
+			tr.Type = objabi.R_ADDRPOWER
+			tr.Siz = 8 // generates 2 relocations:  HA + LO
+			tr.Sym = target
+			tr.Add = offset
+
+		} else {
+			// adjustment needed if lo has sign bit set
+			// when using addi to compute address
+			val := uint32((t & 0xffff0000) >> 16)
+			if t&0x8000 != 0 {
+				val += 1
+			}
+			o1 |= val                // hi part of addr
+			o2 |= uint32(t & 0xffff) // lo part of addr
 		}
-		o1 |= val                // hi part of addr
-		o2 |= uint32(t & 0xffff) // lo part of addr
 	}
+
 	o3 := uint32(0x7fe903a6) // mtctr r31
 	o4 := uint32(0x4e800420) // bctr
-	arch.ByteOrder.PutUint32(tramp.P, o1)
-	arch.ByteOrder.PutUint32(tramp.P[4:], o2)
-	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
-	arch.ByteOrder.PutUint32(tramp.P[12:], o4)
+	ctxt.Arch.ByteOrder.PutUint32(tramp.P, o1)
+	ctxt.Arch.ByteOrder.PutUint32(tramp.P[4:], o2)
+	ctxt.Arch.ByteOrder.PutUint32(tramp.P[8:], o3)
+	ctxt.Arch.ByteOrder.PutUint32(tramp.P[12:], o4)
 }
 
 func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {

@@ -1990,6 +1990,10 @@ func (ctxt *Link) textaddress() {
 		// lay down trampolines after each function
 		for ; ntramps < len(ctxt.tramps); ntramps++ {
 			tramp := ctxt.tramps[ntramps]
+			if ctxt.HeadType == objabi.Haix && strings.HasPrefix(tramp.Name, "runtime.text.") {
+				// Already set in assignAddress
+				continue
+			}
 			sect, n, va = assignAddress(ctxt, sect, n, tramp, va, true)
 		}
 	}
@@ -2030,10 +2034,6 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint6
 	} else {
 		va = uint64(Rnd(int64(va), int64(Funcalign)))
 	}
-	s.Value = 0
-	for sub := s; sub != nil; sub = sub.Sub {
-		sub.Value += int64(va)
-	}
 
 	funcsize := uint64(MINFUNC) // spacing required for findfunctab
 	if s.Size > MINFUNC {
@@ -2049,7 +2049,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint6
 
 	// Only break at outermost syms.
 
-	if ctxt.Arch.InFamily(sys.PPC64) && s.Outer == nil && ctxt.IsELF && ctxt.LinkMode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(s, isTramp) > 0x1c00000 {
+	if ctxt.Arch.InFamily(sys.PPC64) && s.Outer == nil && ctxt.LinkMode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(s, isTramp) > 0x1c00000 {
 		// Set the length for the previous text section
 		sect.Length = va - sect.Vaddr
 
@@ -2059,9 +2059,35 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint6
 		s.Sect = sect
 
 		// Create a symbol for the start of the secondary text sections
-		ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%d", n), 0).Sect = sect
+		ntext := ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%d", n), 0)
+		ntext.Sect = sect
+		if ctxt.HeadType == objabi.Haix {
+			// runtime.text.X must be a real symbol on AIX.
+			// Assign its address directly in order to be the
+			// first symbol of this new section.
+			ntext.Type = sym.STEXT
+			ntext.Size = int64(MINFUNC)
+			ntext.Attr |= sym.AttrReachable
+			ntext.Attr |= sym.AttrOnList
+			ctxt.tramps = append(ctxt.tramps, ntext)
+
+			ntext.Value = int64(va)
+			va += uint64(ntext.Size)
+
+			if s.Align != 0 {
+				va = uint64(Rnd(int64(va), int64(s.Align)))
+			} else {
+				va = uint64(Rnd(int64(va), int64(Funcalign)))
+			}
+		}
 		n++
 	}
+
+	s.Value = 0
+	for sub := s; sub != nil; sub = sub.Sub {
+		sub.Value += int64(va)
+	}
+
 	va += funcsize
 
 	return sect, n, va
@@ -2247,7 +2273,11 @@ func (ctxt *Link) address() []*sym.Segment {
 			break
 		}
 		symname := fmt.Sprintf("runtime.text.%d", n)
-		ctxt.xdefine(symname, sym.STEXT, int64(sect.Vaddr))
+		if ctxt.HeadType != objabi.Haix || ctxt.LinkMode != LinkExternal {
+			// Addresses are already set on AIX with external linker
+			// because these symbols are part of their sections.
+			ctxt.xdefine(symname, sym.STEXT, int64(sect.Vaddr))
+		}
 		n++
 	}
 
