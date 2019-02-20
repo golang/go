@@ -5,6 +5,7 @@
 package main
 
 import (
+	cmddwarf "cmd/internal/dwarf"
 	"cmd/internal/objfile"
 	"debug/dwarf"
 	"internal/testenv"
@@ -39,6 +40,19 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 
 	for _, prog := range []string{"testprog", "testprogcgo"} {
 		prog := prog
+		expectDWARF := expectDWARF
+		if runtime.GOOS == "aix" && prog == "testprogcgo" {
+			extld := os.Getenv("CC")
+			if extld == "" {
+				extld = "gcc"
+			}
+			expectDWARF, err = cmddwarf.IsDWARFEnabledOnAIXLd(extld)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+		}
+
 		t.Run(prog, func(t *testing.T) {
 			t.Parallel()
 
