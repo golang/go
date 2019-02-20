@@ -464,6 +464,7 @@ type lineWrapper struct {
 
 var nl = []byte("\n")
 var space = []byte(" ")
+var prefix = []byte("// ")
 
 func (l *lineWrapper) write(text string) {
 	if l.n == 0 && l.printed {
@@ -471,6 +472,8 @@ func (l *lineWrapper) write(text string) {
 	}
 	l.printed = true
 
+	needsPrefix := false
+	isComment := strings.HasPrefix(text, "//")
 	for _, f := range strings.Fields(text) {
 		w := utf8.RuneCountInString(f)
 		// wrap if line is too long
@@ -478,9 +481,14 @@ func (l *lineWrapper) write(text string) {
 			l.out.Write(nl)
 			l.n = 0
 			l.pendSpace = 0
+			needsPrefix = isComment
 		}
 		if l.n == 0 {
 			l.out.Write([]byte(l.indent))
+		}
+		if needsPrefix {
+			l.out.Write(prefix)
+			needsPrefix = false
 		}
 		l.out.Write(space[:l.pendSpace])
 		l.out.Write([]byte(f))
