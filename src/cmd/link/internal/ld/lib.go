@@ -1153,6 +1153,10 @@ func (ctxt *Link) hostlink() {
 		// prevent ld to reorder .text functions to keep the same
 		// first/last functions for moduledata.
 		argv = append(argv, "-Wl,-bnoobjreorder")
+		// mcmodel=large is needed for every gcc generated files, but
+		// ld still need -bbigtoc in order to allow larger TOC.
+		argv = append(argv, "-mcmodel=large")
+		argv = append(argv, "-Wl,-bbigtoc")
 	}
 
 	switch ctxt.BuildMode {
@@ -1387,11 +1391,24 @@ func (ctxt *Link) hostlink() {
 	// Filter out useless linker warnings caused by bugs outside Go.
 	// See also cmd/go/internal/work/exec.go's gccld method.
 	var save [][]byte
+	var skipLines int
 	for _, line := range bytes.SplitAfter(out, []byte("\n")) {
 		// golang.org/issue/26073 - Apple Xcode bug
 		if bytes.Contains(line, []byte("ld: warning: text-based stub file")) {
 			continue
 		}
+
+		if skipLines > 0 {
+			skipLines--
+			continue
+		}
+
+		// Remove TOC overflow warning on AIX.
+		if bytes.Contains(line, []byte("ld: 0711-783")) {
+			skipLines = 2
+			continue
+		}
+
 		save = append(save, line)
 	}
 	out = bytes.Join(save, nil)
