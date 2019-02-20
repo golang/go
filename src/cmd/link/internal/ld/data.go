@@ -994,6 +994,7 @@ func symalign(s *sym.Symbol) int32 {
 	for int64(align) > s.Size && align > min {
 		align >>= 1
 	}
+	s.Align = align
 	return align
 }
 
