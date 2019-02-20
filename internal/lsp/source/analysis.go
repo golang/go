@@ -40,10 +40,6 @@ type analysisKey struct {
 func (c *AnalysisCache) analyze(pkgs []*packages.Package, analyzers []*analysis.Analyzer) []*action {
 	// TODO(matloob): Every time but the first, this needs to re-construct
 	// the invalidated parts of the action graph, probably under a lock?
-	// We'll take care of that later. For now, clear the entire cache!
-	for k := range c.m {
-		delete(c.m, k)
-	}
 
 	// Construct the action graph.
 	var mkAction func(a *analysis.Analyzer, pkg *packages.Package) *action

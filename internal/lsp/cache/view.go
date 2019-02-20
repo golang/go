@@ -46,9 +46,7 @@ func (v *View) FileSet() *token.FileSet {
 }
 
 func (v *View) GetAnalysisCache() *source.AnalysisCache {
-	if v.analysisCache == nil {
-		v.analysisCache = source.NewAnalysisCache()
-	}
+	v.analysisCache = source.NewAnalysisCache()
 	return v.analysisCache
 }
 
