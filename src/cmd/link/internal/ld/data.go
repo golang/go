@@ -1475,6 +1475,7 @@ func (ctxt *Link) dodata() {
 	}
 	datsize = Rnd(datsize, int64(sect.Align))
 	for _, symn := range sym.ReadOnly {
+		symnStartValue := datsize
 		for _, s := range data[symn] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
@@ -1483,6 +1484,13 @@ func (ctxt *Link) dodata() {
 			datsize += s.Size
 		}
 		checkdatsize(ctxt, datsize, symn)
+		if ctxt.HeadType == objabi.Haix {
+			// Read-only symbols might be wrapped inside their outer
+			// symbol.
+			// XCOFF symbol table needs to know the size of
+			// these outer symbols.
+			xcoffUpdateOuterSize(ctxt, datsize-symnStartValue, symn)
+		}
 	}
 	sect.Length = uint64(datsize) - sect.Vaddr
 
@@ -1557,6 +1565,7 @@ func (ctxt *Link) dodata() {
 		datsize = Rnd(datsize, int64(sect.Align))
 		for _, symnro := range sym.ReadOnly {
 			symn := sym.RelROMap[symnro]
+			symnStartValue := datsize
 			for _, s := range data[symn] {
 				datsize = aligndatsize(datsize, s)
 				if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
@@ -1568,6 +1577,13 @@ func (ctxt *Link) dodata() {
 				datsize += s.Size
 			}
 			checkdatsize(ctxt, datsize, symn)
+			if ctxt.HeadType == objabi.Haix {
+				// Read-only symbols might be wrapped inside their outer
+				// symbol.
+				// XCOFF symbol table needs to know the size of
+				// these outer symbols.
+				xcoffUpdateOuterSize(ctxt, datsize-symnStartValue, symn)
+			}
 		}
 
 		sect.Length = uint64(datsize) - sect.Vaddr
@@ -1601,6 +1617,11 @@ func (ctxt *Link) dodata() {
 	}
 	checkdatsize(ctxt, datsize, sym.SITABLINK)
 	sect.Length = uint64(datsize) - sect.Vaddr
+	if ctxt.HeadType == objabi.Haix {
+		// Store .itablink size because its symbols are wrapped
+		// under an outer symbol: runtime.itablink.
+		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SITABLINK)
+	}
 
 	/* gosymtab */
 	sect = addrelrosection(".gosymtab")
