@@ -322,18 +322,24 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
 	return nil
 }
 
-// findLibPathCmd uses cmd command to find gcc library libname.
-// It returns library full path if found, or "none" if not found.
-func (ctxt *Link) findLibPathCmd(cmd, libname string) string {
+// extld returns the current external linker.
+func (ctxt *Link) extld() string {
 	if *flagExtld == "" {
 		*flagExtld = "gcc"
 	}
+	return *flagExtld
+}
+
+// findLibPathCmd uses cmd command to find gcc library libname.
+// It returns library full path if found, or "none" if not found.
+func (ctxt *Link) findLibPathCmd(cmd, libname string) string {
+	extld := ctxt.extld()
 	args := hostlinkArchArgs(ctxt.Arch)
 	args = append(args, cmd)
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%s %v\n", *flagExtld, args)
+		ctxt.Logf("%s %v\n", extld, args)
 	}
-	out, err := exec.Command(*flagExtld, args...).Output()
+	out, err := exec.Command(extld, args...).Output()
 	if err != nil {
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("not using a %s file because compiler failed\n%v\n%s\n", libname, err, out)
@@ -1111,12 +1117,8 @@ func (ctxt *Link) hostlink() {
 		return
 	}
 
-	if *flagExtld == "" {
-		*flagExtld = "gcc"
-	}
-
 	var argv []string
-	argv = append(argv, *flagExtld)
+	argv = append(argv, ctxt.extld())
 	argv = append(argv, hostlinkArchArgs(ctxt.Arch)...)
 
 	if *FlagS || debug_s {

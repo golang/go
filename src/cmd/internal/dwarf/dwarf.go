@@ -8,10 +8,13 @@
 package dwarf
 
 import (
+	"bytes"
 	"cmd/internal/objabi"
 	"errors"
 	"fmt"
+	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -1526,3 +1529,42 @@ type byChildIndex []*Var
 func (s byChildIndex) Len() int           { return len(s) }
 func (s byChildIndex) Less(i, j int) bool { return s[i].ChildIndex < s[j].ChildIndex }
 func (s byChildIndex) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+// IsDWARFEnabledOnAIX returns true if DWARF is possible on the
+// current extld.
+// AIX ld doesn't support DWARF with -bnoobjreorder with version
+// prior to 7.2.2.
+func IsDWARFEnabledOnAIXLd(extld string) (bool, error) {
+	out, err := exec.Command(extld, "-Wl,-V").CombinedOutput()
+	if err != nil {
+		// The normal output should display ld version and
+		// then fails because ".main" is not defined:
+		// ld: 0711-317 ERROR: Undefined symbol: .main
+		if !bytes.Contains(out, []byte("0711-317")) {
+			return false, fmt.Errorf("%s -Wl,-V failed: %v\n%s", extld, err, out)
+		}
+	}
+	// gcc -Wl,-V output should be:
+	//   /usr/bin/ld: LD X.X.X(date)
+	//   ...
+	out = bytes.TrimPrefix(out, []byte("/usr/bin/ld: LD "))
+	vers := string(bytes.Split(out, []byte("("))[0])
+	subvers := strings.Split(vers, ".")
+	if len(subvers) != 3 {
+		return false, fmt.Errorf("cannot parse %s -Wl,-V (%s): %v\n", extld, out, err)
+	}
+	if v, err := strconv.Atoi(subvers[0]); err != nil || v < 7 {
+		return false, nil
+	} else if v > 7 {
+		return true, nil
+	}
+	if v, err := strconv.Atoi(subvers[1]); err != nil || v < 2 {
+		return false, nil
+	} else if v > 2 {
+		return true, nil
+	}
+	if v, err := strconv.Atoi(subvers[2]); err != nil || v < 2 {
+		return false, nil
+	}
+	return true, nil
+}

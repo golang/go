@@ -1721,6 +1721,11 @@ func dwarfEnabled(ctxt *Link) bool {
 		case ctxt.HeadType == objabi.Hdarwin:
 		case ctxt.HeadType == objabi.Hwindows:
 		case ctxt.HeadType == objabi.Haix:
+			res, err := dwarf.IsDWARFEnabledOnAIXLd(ctxt.extld())
+			if err != nil {
+				Exitf("%v", err)
+			}
+			return res
 		default:
 			return false
 		}
