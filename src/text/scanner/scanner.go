@@ -59,15 +59,16 @@ func (pos Position) String() string {
 // "foo" is scanned as the token sequence '"' Ident '"'.
 //
 const (
-	ScanIdents     = 1 << -Ident
-	ScanInts       = 1 << -Int
-	ScanFloats     = 1 << -Float // includes Ints
-	ScanChars      = 1 << -Char
-	ScanStrings    = 1 << -String
-	ScanRawStrings = 1 << -RawString
-	ScanComments   = 1 << -Comment
-	SkipComments   = 1 << -skipComment // if set with ScanComments, comments become white space
-	GoTokens       = ScanIdents | ScanFloats | ScanChars | ScanStrings | ScanRawStrings | ScanComments | SkipComments
+	ScanIdents      = 1 << -Ident
+	ScanInts        = 1 << -Int
+	ScanFloats      = 1 << -Float // includes Ints and hexadecimal floats
+	ScanChars       = 1 << -Char
+	ScanStrings     = 1 << -String
+	ScanRawStrings  = 1 << -RawString
+	ScanComments    = 1 << -Comment
+	SkipComments    = 1 << -skipComment     // if set with ScanComments, comments become white space
+	AllowNumberbars = 1 << -allowNumberbars // if set, number literals may contain underbars as digit separators
+	GoTokens        = ScanIdents | ScanFloats | ScanChars | ScanStrings | ScanRawStrings | ScanComments | SkipComments | AllowNumberbars
 )
 
 // The result of Scan is one of these tokens or a Unicode character.
@@ -80,7 +81,10 @@ const (
 	String
 	RawString
 	Comment
+
+	// internal use only
 	skipComment
+	allowNumberbars
 )
 
 var tokenString = map[rune]string{
@@ -359,7 +363,8 @@ func lower(ch rune) rune     { return ('a' - 'A') | ch } // returns lower-case c
 func isDecimal(ch rune) bool { return '0' <= ch && ch <= '9' }
 func isHex(ch rune) bool     { return '0' <= ch && ch <= '9' || 'a' <= lower(ch) && lower(ch) <= 'f' }
 
-// digits accepts the sequence { digit | '_' } starting with ch0.
+// digits accepts the sequence { digit } (if AllowNumberbars is not set)
+// or { digit | '_' } (if AllowNumberbars is set), starting with ch0.
 // If base <= 10, digits accepts any decimal digit but records
 // the first invalid digit >= base in *invalid if *invalid == 0.
 // digits returns the first rune that is not part of the sequence
@@ -369,7 +374,7 @@ func (s *Scanner) digits(ch0 rune, base int, invalid *rune) (ch rune, digsep int
 	ch = ch0
 	if base <= 10 {
 		max := rune('0' + base)
-		for isDecimal(ch) || ch == '_' {
+		for isDecimal(ch) || ch == '_' && s.Mode&AllowNumberbars != 0 {
 			ds := 1
 			if ch == '_' {
 				ds = 2
@@ -380,7 +385,7 @@ func (s *Scanner) digits(ch0 rune, base int, invalid *rune) (ch rune, digsep int
 			ch = s.next()
 		}
 	} else {
-		for isHex(ch) || ch == '_' {
+		for isHex(ch) || ch == '_' && s.Mode&AllowNumberbars != 0 {
 			ds := 1
 			if ch == '_' {
 				ds = 2
@@ -392,7 +397,7 @@ func (s *Scanner) digits(ch0 rune, base int, invalid *rune) (ch rune, digsep int
 	return
 }
 
-func (s *Scanner) scanNumber(ch rune, integerPart bool) (rune, rune) {
+func (s *Scanner) scanNumber(ch rune, seenDot bool) (rune, rune) {
 	base := 10         // number base
 	prefix := rune(0)  // one of 0 (decimal), '0' (0-octal), 'x', 'o', or 'b'
 	digsep := 0        // bit 0: digit present, bit 1: '_' present
@@ -401,7 +406,7 @@ func (s *Scanner) scanNumber(ch rune, integerPart bool) (rune, rune) {
 	// integer part
 	var tok rune
 	var ds int
-	if integerPart {
+	if !seenDot {
 		tok = Int
 		if ch == '0' {
 			ch = s.next()
@@ -422,16 +427,17 @@ func (s *Scanner) scanNumber(ch rune, integerPart bool) (rune, rune) {
 		}
 		ch, ds = s.digits(ch, base, &invalid)
 		digsep |= ds
+		if ch == '.' && s.Mode&ScanFloats != 0 {
+			ch = s.next()
+			seenDot = true
+		}
 	}
 
 	// fractional part
-	if !integerPart || ch == '.' {
+	if seenDot {
 		tok = Float
 		if prefix == 'o' || prefix == 'b' {
 			s.error("invalid radix point in " + litname(prefix))
-		}
-		if ch == '.' {
-			ch = s.next()
 		}
 		ch, ds = s.digits(ch, base, &invalid)
 		digsep |= ds
@@ -442,7 +448,7 @@ func (s *Scanner) scanNumber(ch rune, integerPart bool) (rune, rune) {
 	}
 
 	// exponent
-	if e := lower(ch); e == 'e' || e == 'p' {
+	if e := lower(ch); (e == 'e' || e == 'p') && s.Mode&ScanFloats != 0 {
 		switch {
 		case e == 'e' && prefix != 0 && prefix != '0':
 			s.errorf("%q exponent requires decimal mantissa", ch)
@@ -682,7 +688,7 @@ redo:
 		}
 	case isDecimal(ch):
 		if s.Mode&(ScanInts|ScanFloats) != 0 {
-			tok, ch = s.scanNumber(ch, true)
+			tok, ch = s.scanNumber(ch, false)
 		} else {
 			ch = s.next()
 		}
@@ -705,7 +711,7 @@ redo:
 		case '.':
 			ch = s.next()
 			if isDecimal(ch) && s.Mode&ScanFloats != 0 {
-				tok, ch = s.scanNumber(ch, false)
+				tok, ch = s.scanNumber(ch, true)
 			}
 		case '/':
 			ch = s.next()
