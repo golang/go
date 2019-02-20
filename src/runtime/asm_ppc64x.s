@@ -784,10 +784,17 @@ TEXT runtime·setg(SB), NOSPLIT, $0-8
 	RET
 
 #ifdef GOARCH_ppc64
+#ifdef GOOS_aix
+DATA    setg_gcc<>+0(SB)/8, $_setg_gcc<>(SB)
+DATA    setg_gcc<>+8(SB)/8, $TOC(SB)
+DATA    setg_gcc<>+16(SB)/8, $0
+GLOBL   setg_gcc<>(SB), NOPTR, $24
+#else
 TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
 	DWORD	$_setg_gcc<>(SB)
 	DWORD	$0
 	DWORD	$0
+#endif
 #endif
 
 // void setg_gcc(G*); set g in C TLS.

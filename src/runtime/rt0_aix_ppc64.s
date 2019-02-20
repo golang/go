@@ -34,6 +34,15 @@ TEXT __start<>(SB),NOSPLIT,$-8
 	MOVD 40(R1), R2
 	MOVD R14, R3 // argc
 	MOVD R15, R4 // argv
+	BL _main(SB)
+
+
+DATA	main+0(SB)/8, $_main(SB)
+DATA	main+8(SB)/8, $TOC(SB)
+DATA	main+16(SB)/8, $0
+GLOBL	main(SB), NOPTR, $24
+
+TEXT _main(SB),NOSPLIT,$-8
 	MOVD $runtime·rt0_go(SB), R12
 	MOVD R12, CTR
 	BR (CTR)

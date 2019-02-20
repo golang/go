@@ -1683,6 +1683,7 @@ func dwarfEnabled(ctxt *Link) bool {
 	}
 
 	if ctxt.LinkMode == LinkExternal {
+		// TODO(aix): enable DWARF
 		switch {
 		case ctxt.IsELF:
 		case ctxt.HeadType == objabi.Hdarwin:
