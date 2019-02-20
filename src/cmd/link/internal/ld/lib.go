@@ -1266,6 +1266,10 @@ func (ctxt *Link) hostlink() {
 	if ctxt.IsELF {
 		argv = append(argv, "-rdynamic")
 	}
+	if ctxt.HeadType == objabi.Haix {
+		fileName := xcoffCreateExportFile(ctxt)
+		argv = append(argv, "-Wl,-bE:"+fileName)
+	}
 
 	if strings.Contains(argv[0], "clang") {
 		argv = append(argv, "-Qunused-arguments")
