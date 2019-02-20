@@ -478,6 +478,21 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			o += r.Add - (s.Value + int64(r.Off) + int64(r.Siz))
 		case objabi.R_SIZE:
 			o = r.Sym.Size + r.Add
+
+		case objabi.R_XCOFFREF:
+			if ctxt.HeadType != objabi.Haix {
+				Errorf(s, "find XCOFF R_REF on non-XCOFF files")
+			}
+			if ctxt.LinkMode != LinkExternal {
+				Errorf(s, "find XCOFF R_REF with internal linking")
+			}
+			r.Xsym = r.Sym
+			r.Xadd = r.Add
+			r.Done = false
+
+			// This isn't a real relocation so it must not update
+			// its offset value.
+			continue
 		}
 
 		if r.Variant != sym.RV_NONE {
@@ -1115,7 +1130,7 @@ func (ctxt *Link) dodata() {
 		ctxt.Logf("%5.2f dodata\n", Cputime())
 	}
 
-	if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin {
+	if (ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
 		// The values in moduledata are filled out by relocations
 		// pointing to the addresses of these special symbols.
 		// Typically these symbols have no size and are not laid
@@ -1133,6 +1148,12 @@ func (ctxt *Link) dodata() {
 		// To work around this we lay out the symbls whose
 		// addresses are vital for multi-module programs to work
 		// as normal symbols, and give them a little size.
+		//
+		// On AIX, as all DATA sections are merged together, ld might not put
+		// these symbols at the beginning of their respective section if there
+		// aren't real symbols, their alignment might not match the
+		// first symbol alignment. Therefore, there are explicitly put at the
+		// beginning of their section with the same alignment.
 		bss := ctxt.Syms.Lookup("runtime.bss", 0)
 		bss.Size = 8
 		bss.Attr.Set(sym.AttrSpecial, false)
@@ -1143,7 +1164,12 @@ func (ctxt *Link) dodata() {
 		data.Size = 8
 		data.Attr.Set(sym.AttrSpecial, false)
 
-		ctxt.Syms.Lookup("runtime.edata", 0).Attr.Set(sym.AttrSpecial, false)
+		edata := ctxt.Syms.Lookup("runtime.edata", 0)
+		edata.Attr.Set(sym.AttrSpecial, false)
+		if ctxt.HeadType == objabi.Haix {
+			// XCOFFTOC symbols are part of .data section.
+			edata.Type = sym.SXCOFFTOC
+		}
 
 		types := ctxt.Syms.Lookup("runtime.types", 0)
 		types.Type = sym.STYPE
@@ -1153,6 +1179,16 @@ func (ctxt *Link) dodata() {
 		etypes := ctxt.Syms.Lookup("runtime.etypes", 0)
 		etypes.Type = sym.SFUNCTAB
 		etypes.Attr.Set(sym.AttrSpecial, false)
+
+		if ctxt.HeadType == objabi.Haix {
+			rodata := ctxt.Syms.Lookup("runtime.rodata", 0)
+			rodata.Type = sym.SSTRING
+			rodata.Size = 8
+			rodata.Attr.Set(sym.AttrSpecial, false)
+
+			ctxt.Syms.Lookup("runtime.erodata", 0).Attr.Set(sym.AttrSpecial, false)
+
+		}
 	}
 
 	// Collect data symbols by type into data.
@@ -1196,6 +1232,12 @@ func (ctxt *Link) dodata() {
 					// that an Outer symbol has been changed to a
 					// relro Type before it reaches here.
 					isRelro = true
+				case sym.SFUNCTAB:
+					if ctxt.HeadType == objabi.Haix && s.Name == "runtime.etypes" {
+						// runtime.etypes must be at the end of
+						// the relro datas.
+						isRelro = true
+					}
 				}
 				if isRelro {
 					s.Type = symnrelro
@@ -1236,6 +1278,13 @@ func (ctxt *Link) dodata() {
 		}()
 	}
 	wg.Wait()
+
+	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
+		// These symbols must have the same alignment as their section.
+		// Otherwize, ld might change the layout of Go sections.
+		ctxt.Syms.ROLookup("runtime.data", 0).Align = dataMaxAlign[sym.SDATA]
+		ctxt.Syms.ROLookup("runtime.bss", 0).Align = dataMaxAlign[sym.SBSS]
+	}
 
 	// Allocate sections.
 	// Data is processed before segtext, because we need
@@ -1350,7 +1399,9 @@ func (ctxt *Link) dodata() {
 		gc.AddSym(s)
 		datsize += s.Size
 	}
+	gc.End(datsize - int64(sect.Vaddr))
 	// On AIX, TOC entries must be the last of .data
+	// These aren't part of gc as they won't change during the runtime.
 	for _, s := range data[sym.SXCOFFTOC] {
 		s.Sect = sect
 		s.Type = sym.SDATA
@@ -1360,7 +1411,6 @@ func (ctxt *Link) dodata() {
 	}
 	checkdatsize(ctxt, datsize, sym.SDATA)
 	sect.Length = uint64(datsize) - sect.Vaddr
-	gc.End(int64(sect.Length))
 
 	/* bss */
 	sect = addsection(ctxt.Arch, &Segdata, ".bss", 06)
@@ -1555,8 +1605,15 @@ func (ctxt *Link) dodata() {
 		sect = addrelrosection("")
 
 		sect.Vaddr = 0
+		if ctxt.HeadType == objabi.Haix {
+			// datsize must be reset because relro datas will end up
+			// in data segment.
+			datsize = 0
+		}
+
 		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
 		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
+
 		for _, symnro := range sym.ReadOnly {
 			symn := sym.RelROMap[symnro]
 			align := dataMaxAlign[symn]
@@ -1778,12 +1835,12 @@ func dodataSect(ctxt *Link, symn sym.SymKind, syms []*sym.Symbol) (result []*sym
 		// If the usually-special section-marker symbols are being laid
 		// out as regular symbols, put them either at the beginning or
 		// end of their section.
-		if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin {
+		if (ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
 			switch s.Name {
-			case "runtime.text", "runtime.bss", "runtime.data", "runtime.types":
+			case "runtime.text", "runtime.bss", "runtime.data", "runtime.types", "runtime.rodata":
 				head = s
 				continue
-			case "runtime.etext", "runtime.ebss", "runtime.edata", "runtime.etypes":
+			case "runtime.etext", "runtime.ebss", "runtime.edata", "runtime.etypes", "runtime.erodata":
 				tail = s
 				continue
 			}
@@ -1898,8 +1955,15 @@ func (ctxt *Link) textaddress() {
 
 	text := ctxt.Syms.Lookup("runtime.text", 0)
 	text.Sect = sect
+	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
+		// Setting runtime.text has a real symbol prevents ld to
+		// change its base address resulting in wrong offsets for
+		// reflect methods.
+		text.Align = sect.Align
+		text.Size = 0x8
+	}
 
-	if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin {
+	if (ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
 		etext := ctxt.Syms.Lookup("runtime.etext", 0)
 		etext.Sect = sect
 

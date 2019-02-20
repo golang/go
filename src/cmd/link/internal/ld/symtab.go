@@ -562,6 +562,20 @@ func (ctxt *Link) symtab() {
 	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.types", 0))
 	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.etypes", 0))
 
+	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
+		// Add R_REF relocation to prevent ld's garbage collection of
+		// runtime.rodata, runtime.erodata and runtime.epclntab.
+		addRef := func(name string) {
+			r := moduledata.AddRel()
+			r.Sym = ctxt.Syms.Lookup(name, 0)
+			r.Type = objabi.R_XCOFFREF
+			r.Siz = uint8(ctxt.Arch.PtrSize)
+		}
+		addRef("runtime.rodata")
+		addRef("runtime.erodata")
+		addRef("runtime.epclntab")
+	}
+
 	// text section information
 	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.textsectionmap", 0))
 	moduledata.AddUint(ctxt.Arch, uint64(nsections))

@@ -2137,9 +2137,10 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 	s := ctxt.Syms.Lookup("runtime.text", 0)
 	if s.Type == sym.STEXT {
 		// We've already included this symbol in ctxt.Textp
-		// if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin.
+		// if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin or
+		// on AIX with external linker.
 		// See data.go:/textaddress
-		if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) {
+		if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) && !(ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
 			put(ctxt, s, s.Name, TextSym, s.Value, nil)
 		}
 	}
@@ -2168,9 +2169,10 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 	s = ctxt.Syms.Lookup("runtime.etext", 0)
 	if s.Type == sym.STEXT {
 		// We've already included this symbol in ctxt.Textp
-		// if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin.
+		// if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin or
+		// on AIX with external linker.
 		// See data.go:/textaddress
-		if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) {
+		if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) && !(ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
 			put(ctxt, s, s.Name, TextSym, s.Value, nil)
 		}
 	}

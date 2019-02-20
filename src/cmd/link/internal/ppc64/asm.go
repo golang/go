@@ -414,6 +414,9 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 			return false
 		}
 		emitReloc(ld.XCOFF_R_RBR|0x19<<8, 0)
+	case objabi.R_XCOFFREF:
+		emitReloc(ld.XCOFF_R_REF|0x3F<<8, 0)
+
 	}
 	return true
 
