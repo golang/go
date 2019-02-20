@@ -9,6 +9,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/link/internal/sym"
 	"encoding/binary"
+	"math/bits"
 	"strings"
 )
 
@@ -155,6 +156,10 @@ const (
 	LDSYMSZ_64     = 24
 )
 
+// Type representing all XCOFF symbols.
+type xcoffSym interface {
+}
+
 // Symbol Table Entry
 type XcoffSymEnt64 struct {
 	Nvalue  uint64 // Symbol value
@@ -214,9 +219,12 @@ const (
 
 // File Auxiliary Entry
 type XcoffAuxFile64 struct {
-	Xfname   [8]byte // Name or offset inside string table
-	Xftype   uint8   // Source file string type
-	Xauxtype uint8   // Type of auxiliary entry
+	Xzeroes  uint32 // The name is always in the string table
+	Xoffset  uint32 // Offset in the string table
+	X_pad1   [6]byte
+	Xftype   uint8 // Source file string type
+	X_pad2   [2]byte
+	Xauxtype uint8 // Type of auxiliary entry
 }
 
 // Function Auxiliary Entry
@@ -238,6 +246,13 @@ type XcoffAuxCSect64 struct {
 	Xscnlenhi uint32 // Upper 4 bytes of length or symbol table index
 	Xpad      uint8  // Unused
 	Xauxtype  uint8  // Type of auxiliary entry
+}
+
+// DWARF Auxiliary Entry
+type XcoffAuxDWARF64 struct {
+	Xscnlen  uint64 // Length of this symbol section
+	X_pad    [9]byte
+	Xauxtype uint8 // Type of auxiliary entry
 }
 
 // Auxiliary type
@@ -365,6 +380,7 @@ type xcoffFile struct {
 	loaderSize      uint64
 	symtabOffset    int64                // offset to the start of symbol table
 	symbolCount     uint32               // number of symbol table records written
+	symtabSym       []xcoffSym           // XCOFF symbols for the symbol table
 	dynLibraries    map[string]int       // Dynamic libraries in .loader section. The integer represents its import file number (- 1)
 	loaderSymbols   []*xcoffLoaderSymbol // symbols inside .loader symbol table
 	loaderReloc     []*xcoffLoaderReloc  // Reloc that must be made inside loader
@@ -504,8 +520,9 @@ func Xcoffinit(ctxt *Link) {
 // type records C_FILE information needed for genasmsym in XCOFF.
 type xcoffSymSrcFile struct {
 	name       string
-	fileSymNb  uint32 // Symbol number of this C_FILE
-	csectSymNb uint64 // Symbol number for the current .csect
+	file       *XcoffSymEnt64   // Symbol of this C_FILE
+	csectAux   *XcoffAuxCSect64 // Symbol for the current .csect
+	csectSymNb uint64           // Symbol number for the current .csect
 	csectSize  int64
 }
 
@@ -514,10 +531,28 @@ var (
 	currSymSrcFile xcoffSymSrcFile
 )
 
-// writeSymbol writes a symbol or an auxiliary symbol entry on ctxt.out.
-func (f *xcoffFile) writeSymbol(out *OutBuf, byteOrder binary.ByteOrder, sym interface{}) {
-	binary.Write(out, byteOrder, sym)
+// addSymbol writes a symbol or an auxiliary symbol entry on ctxt.out.
+func (f *xcoffFile) addSymbol(sym xcoffSym) {
+	f.symtabSym = append(f.symtabSym, sym)
 	f.symbolCount++
+}
+
+// xcoffAlign returns the log base 2 of the symbol's alignment.
+func xcoffAlign(x *sym.Symbol, t SymbolType) uint8 {
+	align := x.Align
+	if align == 0 {
+		if t == TextSym {
+			align = int32(Funcalign)
+		} else {
+			align = symalign(x)
+		}
+	}
+	return logBase2(int(align))
+}
+
+// logBase2 returns the log in base 2 of a.
+func logBase2(a int) uint8 {
+	return uint8(bits.Len(uint(a)) - 1)
 }
 
 // Write symbols needed when a new file appared :
@@ -537,17 +572,16 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 		Ntype:   0, // Go isn't inside predefined language.
 		Nnumaux: 1,
 	}
-	f.writeSymbol(ctxt.Out, ctxt.Arch.ByteOrder, s)
+	f.addSymbol(s)
+	currSymSrcFile.file = s
 
 	// Auxiliary entry for file name.
-	ctxt.Out.Write32(0)
-	ctxt.Out.Write32(uint32(f.stringTable.add(name)))
-	ctxt.Out.Write32(0) // 6 bytes empty
-	ctxt.Out.Write16(0)
-	ctxt.Out.Write8(XFT_FN)
-	ctxt.Out.Write16(0) // 2 bytes empty
-	ctxt.Out.Write8(_AUX_FILE)
-	f.symbolCount++
+	auxf := &XcoffAuxFile64{
+		Xoffset:  uint32(f.stringTable.add(name)),
+		Xftype:   XFT_FN,
+		Xauxtype: _AUX_FILE,
+	}
+	f.addSymbol(auxf)
 
 	/* Dwarf */
 	for _, sect := range Segdwarf.Sections {
@@ -569,7 +603,7 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 			Nscnum:  f.getXCOFFscnum(sect),
 			Nnumaux: 1,
 		}
-		f.writeSymbol(ctxt.Out, ctxt.Arch.ByteOrder, s)
+		f.addSymbol(s)
 
 		// update the DWARF section offset in this file
 		if sect.Name != ".debug_abbrev" {
@@ -577,11 +611,12 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 		}
 
 		// Auxiliary dwarf section
-		ctxt.Out.Write64(dwsize) // section length
-		ctxt.Out.Write64(0)      // nreloc
-		ctxt.Out.Write8(0)       // pad
-		ctxt.Out.Write8(_AUX_SECT)
-		f.symbolCount++
+		auxd := &XcoffAuxDWARF64{
+			Xscnlen:  dwsize,
+			Xauxtype: _AUX_SECT,
+		}
+
+		f.addSymbol(auxd)
 	}
 
 	/* .csect */
@@ -592,7 +627,6 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 	}
 
 	currSymSrcFile.csectSymNb = uint64(f.symbolCount)
-	currSymSrcFile.csectSize = 0
 
 	// No offset because no name
 	s = &XcoffSymEnt64{
@@ -602,15 +636,17 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 		Ntype:   0, // check visibility ?
 		Nnumaux: 1,
 	}
-	f.writeSymbol(ctxt.Out, ctxt.Arch.ByteOrder, s)
+	f.addSymbol(s)
 
 	aux := &XcoffAuxCSect64{
 		Xsmclas:  XMC_PR,
-		Xsmtyp:   XTY_SD | 5<<3, // align = 5
+		Xsmtyp:   XTY_SD | logBase2(Funcalign)<<3,
 		Xauxtype: _AUX_CSECT,
 	}
-	f.writeSymbol(ctxt.Out, ctxt.Arch.ByteOrder, aux)
+	f.addSymbol(aux)
 
+	currSymSrcFile.csectAux = aux
+	currSymSrcFile.csectSize = 0
 }
 
 // Update values for the previous package.
@@ -618,39 +654,30 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 //  - Xsclen of the csect symbol.
 func (f *xcoffFile) updatePreviousFile(ctxt *Link, last bool) {
 	// first file
-	if currSymSrcFile.fileSymNb == 0 {
+	if currSymSrcFile.file == nil {
 		return
 	}
 
-	prevOff := f.symtabOffset + int64(currSymSrcFile.fileSymNb*SYMESZ)
-	currOff := ctxt.Out.Offset()
-
 	// Update C_FILE
-	ctxt.Out.SeekSet(prevOff)
+	cfile := currSymSrcFile.file
 	if last {
-		ctxt.Out.Write64(0xFFFFFFFFFFFFFFFF)
+		cfile.Nvalue = 0xFFFFFFFFFFFFFFFF
 	} else {
-		ctxt.Out.Write64(uint64(f.symbolCount))
+		cfile.Nvalue = uint64(f.symbolCount)
 	}
 
 	// update csect scnlen in this auxiliary entry
-	prevOff = f.symtabOffset + int64((currSymSrcFile.csectSymNb+1)*SYMESZ)
-	ctxt.Out.SeekSet(prevOff)
-	ctxt.Out.Write32(uint32(currSymSrcFile.csectSize & 0xFFFFFFFF))
-	prevOff += 12
-	ctxt.Out.SeekSet(prevOff)
-	ctxt.Out.Write32(uint32(currSymSrcFile.csectSize >> 32))
-
-	ctxt.Out.SeekSet(currOff)
-
+	aux := currSymSrcFile.csectAux
+	aux.Xscnlenlo = uint32(currSymSrcFile.csectSize & 0xFFFFFFFF)
+	aux.Xscnlenhi = uint32(currSymSrcFile.csectSize >> 32)
 }
 
 // Write symbol representing a .text function.
 // The symbol table is split with C_FILE corresponding to each package
 // and not to each source file as it should be.
-func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []interface{} {
+func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []xcoffSym {
 	// New XCOFF symbols which will be written.
-	syms := []interface{}{}
+	syms := []xcoffSym{}
 
 	// Check if a new file is detected.
 	if x.File == "" { // Undefined global symbol
@@ -664,7 +691,6 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []interface{} {
 			// update previous file values
 			xfile.updatePreviousFile(ctxt, false)
 			currSymSrcFile.name = x.File
-			currSymSrcFile.fileSymNb = f.symbolCount
 			f.writeSymbolNewFile(ctxt, x.File, uint64(x.Value), xfile.getXCOFFscnum(x.Sect))
 		}
 	}
@@ -703,6 +729,8 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []interface{} {
 		Xsmtyp:    XTY_LD, // label definition (based on C)
 		Xauxtype:  _AUX_CSECT,
 	}
+	a4.Xsmtyp |= uint8(xcoffAlign(x, TextSym) << 3)
+
 	syms = append(syms, a4)
 	return syms
 }
@@ -712,7 +740,7 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 
 	// All XCOFF symbols generated by this GO symbols
 	// Can be a symbol entry or a auxiliary entry
-	syms := []interface{}{}
+	syms := []xcoffSym{}
 
 	switch t {
 	default:
@@ -745,6 +773,7 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 				Xsmclas:   XMC_PR,
 				Xsmtyp:    XTY_SD,
 			}
+			a4.Xsmtyp |= uint8(xcoffAlign(x, TextSym) << 3)
 			syms = append(syms, a4)
 
 		}
@@ -785,6 +814,8 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 		// Read only data
 		if x.Type >= sym.STYPE && x.Type <= sym.SPCLNTAB {
 			a4.Xsmclas = XMC_RO
+		} else if x.Name == "TOC" {
+			a4.Xsmclas = XMC_TC0
 		} else {
 			a4.Xsmclas = XMC_RW
 		}
@@ -793,6 +824,8 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 		} else {
 			a4.Xsmtyp |= XTY_CM
 		}
+
+		a4.Xsmtyp |= uint8(xcoffAlign(x, t) << 3)
 
 		syms = append(syms, a4)
 
@@ -821,23 +854,42 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 		}
 
 		syms = append(syms, a4)
+
+	case TLSSym:
+		s := &XcoffSymEnt64{
+			Nsclass: C_EXT,
+			Noffset: uint32(xfile.stringTable.add(str)),
+			Nscnum:  xfile.getXCOFFscnum(x.Sect),
+			Nvalue:  uint64(x.Value),
+			Nnumaux: 1,
+		}
+
+		x.Dynid = int32(xfile.symbolCount)
+		syms = append(syms, s)
+
+		size := uint64(x.Size)
+		a4 := &XcoffAuxCSect64{
+			Xauxtype:  _AUX_CSECT,
+			Xsmclas:   XMC_UL,
+			Xsmtyp:    XTY_CM,
+			Xscnlenlo: uint32(size & 0xFFFFFFFF),
+			Xscnlenhi: uint32(size >> 32),
+		}
+
+		syms = append(syms, a4)
 	}
 
 	for _, s := range syms {
-		xfile.writeSymbol(ctxt.Out, ctxt.Arch.ByteOrder, s)
+		xfile.addSymbol(s)
 	}
 }
 
-// Generate XCOFF Symbol table and XCOFF String table
+// Generate XCOFF Symbol table.
+// It will be written in out file in Asmbxcoff, because it must be
+// at the very end, especially after relocation sections which needs symbols' index.
 func (f *xcoffFile) asmaixsym(ctxt *Link) {
-	// write symbol table
 	genasmsym(ctxt, putaixsym)
-
-	// update last file Svalue
 	xfile.updatePreviousFile(ctxt, true)
-
-	// write string table
-	xfile.stringTable.write(ctxt.Out)
 }
 
 func (f *xcoffFile) genDynSym(ctxt *Link) {
@@ -1251,8 +1303,7 @@ func (f *xcoffFile) writeFileHeader(ctxt *Link) {
 		f.xahdr.Otoc = uint64(toc.Value)
 		f.xahdr.Osntoc = f.getXCOFFscnum(toc.Sect)
 
-		// Based on dump -o
-		f.xahdr.Oalgntext = 0x5
+		f.xahdr.Oalgntext = int16(logBase2(int(Funcalign)))
 		f.xahdr.Oalgndata = 0x5
 
 		binary.Write(ctxt.Out, binary.BigEndian, &f.xfhdr)
@@ -1310,11 +1361,16 @@ func Asmbxcoff(ctxt *Link, fileoff int64) {
 		// TODO: Relocation
 	}
 
-	// Write symbol table
-	symo := Rnd(ctxt.Out.Offset(), int64(*FlagRound))
-	xfile.symtabOffset = symo
-	ctxt.Out.SeekSet(int64(symo))
+	// Write symtab
 	xfile.asmaixsym(ctxt)
+	xfile.symtabOffset = ctxt.Out.Offset()
+	for _, s := range xfile.symtabSym {
+		binary.Write(ctxt.Out, ctxt.Arch.ByteOrder, s)
+	}
+	// write string table
+	xfile.stringTable.write(ctxt.Out)
+
+	ctxt.Out.Flush()
 
 	// write headers
 	xcoffwrite(ctxt)
