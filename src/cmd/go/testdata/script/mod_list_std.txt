@@ -24,11 +24,11 @@ stdout ^internal/x
 
 cp stdout $WORK/listdot.txt
 go list std
-stdout ^internal/x            # TODO
+stdout ^internal/x
 # TODO: cmp stdout $WORK/listdot.txt
 
 go list all
-! stdout ^internal/x            # TODO: this will exist when src/go.mod is added
+stdout ^internal/x
 ! stdout ^std/
 
 
