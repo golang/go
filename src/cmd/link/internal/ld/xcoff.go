@@ -777,7 +777,11 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []xcoffSym {
 	syms := []xcoffSym{}
 
 	// Check if a new file is detected.
-	if x.File == "" { // Undefined global symbol
+	if strings.Contains(x.Name, "-tramp") || strings.HasPrefix(x.Name, "runtime.text.") {
+		// Trampoline don't have a FILE so there are considered
+		// in the current file.
+		// Same goes for runtime.text.X symbols.
+	} else if x.File == "" { // Undefined global symbol
 		// If this happens, the algorithme must be redone.
 		if currSymSrcFile.name != "" {
 			Exitf("undefined global symbol found inside another file")
@@ -860,7 +864,7 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 		return
 
 	case TextSym:
-		if x.FuncInfo != nil {
+		if x.FuncInfo != nil || strings.Contains(x.Name, "-tramp") || strings.HasPrefix(x.Name, "runtime.text.") {
 			// Function within a file
 			syms = xfile.writeSymbolFunc(ctxt, x)
 		} else {
