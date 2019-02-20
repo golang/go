@@ -108,6 +108,8 @@ The commands are:
 
 - cp src... dst
   Copy the listed files to the target file or existing directory.
+  src can include "stdout" or "stderr" to use the standard output or standard error
+  from the most recent exec or go command.
 
 - env [key=value...]
   With no arguments, print the environment (useful for debugging).
