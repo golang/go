@@ -78,6 +78,7 @@ set GOROOT=%GOROOT_BOOTSTRAP%
 set GOOS=
 set GOARCH=
 set GOBIN=
+set GO111MODULE=off
 "%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist
 endlocal
 if errorlevel 1 goto fail
