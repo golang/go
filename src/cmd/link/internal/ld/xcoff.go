@@ -9,7 +9,9 @@ import (
 	"cmd/internal/objabi"
 	"cmd/link/internal/sym"
 	"encoding/binary"
+	"io/ioutil"
 	"math/bits"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -771,7 +773,7 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []xcoffSym {
 
 	s := &XcoffSymEnt64{
 		Nsclass: C_EXT,
-		Noffset: uint32(xfile.stringTable.add(x.Name)),
+		Noffset: uint32(xfile.stringTable.add(x.Extname())),
 		Nvalue:  uint64(x.Value),
 		Nscnum:  f.getXCOFFscnum(x.Sect),
 		Ntype:   SYM_TYPE_FUNC,
@@ -1182,6 +1184,26 @@ func (ctxt *Link) doxcoff() {
 		// Change main name to match __start code.
 		main := ctxt.Syms.ROLookup("_main", 0)
 		main.Name = ".main"
+
+		for _, s := range ctxt.Syms.Allsym {
+			if !s.Attr.CgoExport() {
+				continue
+			}
+
+			name := s.Extname()
+			if s.Type == sym.STEXT {
+				// On AIX, a exported function must have two symbols:
+				// - a .text symbol which must start with a ".".
+				// - a .data symbol which is a function descriptor.
+				ctxt.Syms.Rename(s.Name, "."+name, 0, ctxt.Reachparent)
+
+				desc := ctxt.Syms.Lookup(name, 0)
+				desc.Type = sym.SNOPTRDATA
+				desc.AddAddr(ctxt.Arch, s)
+				desc.AddAddr(ctxt.Arch, toc)
+				desc.AddUint64(ctxt.Arch, 0)
+			}
+		}
 	}
 }
 
@@ -1613,4 +1635,37 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
 	}
 
 	// TODO(aix): DWARF relocations
+}
+
+// xcoffCreateExportFile creates a file with exported symbols for
+// -Wl,-bE option.
+// ld won't export symbols unless they are listed in an export file.
+func xcoffCreateExportFile(ctxt *Link) (fname string) {
+	fname = filepath.Join(*flagTmpdir, "export_file.exp")
+	var buf bytes.Buffer
+
+	for _, s := range ctxt.Syms.Allsym {
+		if !s.Attr.CgoExport() {
+			continue
+		}
+		if !strings.HasPrefix(s.String(), "_cgoexp_") {
+			continue
+		}
+
+		// Retrieve the name of the initial symbol
+		// exported by cgo.
+		// The corresponding Go symbol is:
+		// _cgoexp_hashcode_symname.
+		name := strings.SplitN(s.Extname(), "_", 4)[3]
+
+		buf.Write([]byte(name + "\n"))
+	}
+
+	err := ioutil.WriteFile(fname, buf.Bytes(), 0666)
+	if err != nil {
+		Errorf(nil, "WriteFile %s failed: %v", fname, err)
+	}
+
+	return fname
+
 }
