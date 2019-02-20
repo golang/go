@@ -75,7 +75,7 @@ func ExampleNewImporter() {
 // choosing a package that is unlikely to change across releases
 import "text/scanner"
 
-const eof = scanner.EOF
+const scanIdents = scanner.ScanIdents
 `
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "myscanner.go", src, 0)
@@ -92,7 +92,7 @@ const eof = scanner.EOF
 	}
 
 	// object from imported package
-	pi := packages["text/scanner"].Scope().Lookup("EOF")
+	pi := packages["text/scanner"].Scope().Lookup("ScanIdents")
 	fmt.Printf("const %s.%s %s = %s // %s\n",
 		pi.Pkg().Path(),
 		pi.Name(),
@@ -102,7 +102,7 @@ const eof = scanner.EOF
 	)
 
 	// object in source package
-	twopi := pkg.Scope().Lookup("eof")
+	twopi := pkg.Scope().Lookup("scanIdents")
 	fmt.Printf("const %s %s = %s // %s\n",
 		twopi.Name(),
 		twopi.Type(),
@@ -112,8 +112,8 @@ const eof = scanner.EOF
 
 	// Output:
 	//
-	// const text/scanner.EOF untyped int = -1 // $GOROOT/src/text/scanner/scanner.go:75:1
-	// const eof untyped int = -1 // myscanner.go:6:7
+	// const text/scanner.ScanIdents untyped int = 4 // $GOROOT/src/text/scanner/scanner.go:62:1
+	// const scanIdents untyped int = 4 // myscanner.go:6:7
 }
 
 func slashify(posn token.Position) token.Position {
