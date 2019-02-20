@@ -308,6 +308,8 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 					}
 				} else if ctxt.HeadType == objabi.Hwindows {
 					// nothing to do
+				} else if ctxt.HeadType == objabi.Haix {
+					o = Symaddr(r.Sym) + r.Add
 				} else {
 					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, ctxt.HeadType)
 				}
@@ -1400,7 +1402,7 @@ func (ctxt *Link) dodata() {
 
 	if len(data[sym.STLSBSS]) > 0 {
 		var sect *sym.Section
-		if ctxt.IsELF && (ctxt.LinkMode == LinkExternal || !*FlagD) {
+		if (ctxt.IsELF || ctxt.HeadType == objabi.Haix) && (ctxt.LinkMode == LinkExternal || !*FlagD) {
 			sect = addsection(ctxt.Arch, &Segdata, ".tbss", 06)
 			sect.Align = int32(ctxt.Arch.PtrSize)
 			sect.Vaddr = 0
@@ -1538,7 +1540,7 @@ func (ctxt *Link) dodata() {
 	if ctxt.UseRelro() {
 		addrelrosection = func(suffix string) *sym.Section {
 			seg := &Segrelrodata
-			if ctxt.LinkMode == LinkExternal {
+			if ctxt.LinkMode == LinkExternal && ctxt.HeadType != objabi.Haix {
 				// Using a separate segment with an external
 				// linker results in some programs moving
 				// their data sections unexpectedly, which
@@ -2046,6 +2048,10 @@ func (ctxt *Link) address() []*sym.Segment {
 		// align to page boundary so as not to mix
 		// rodata, rel-ro data, and executable text.
 		va = uint64(Rnd(int64(va), int64(*FlagRound)))
+		if ctxt.HeadType == objabi.Haix {
+			// Relro data are inside data segment on AIX.
+			va += uint64(XCOFFDATABASE) - uint64(XCOFFTEXTBASE)
+		}
 
 		order = append(order, &Segrelrodata)
 		Segrelrodata.Rwx = 06
@@ -2060,9 +2066,10 @@ func (ctxt *Link) address() []*sym.Segment {
 	}
 
 	va = uint64(Rnd(int64(va), int64(*FlagRound)))
-	if ctxt.HeadType == objabi.Haix {
+	if ctxt.HeadType == objabi.Haix && len(Segrelrodata.Sections) == 0 {
 		// Data sections are moved to an unreachable segment
 		// to ensure that they are position-independent.
+		// Already done if relro sections exist.
 		va += uint64(XCOFFDATABASE) - uint64(XCOFFTEXTBASE)
 	}
 	order = append(order, &Segdata)
@@ -2073,11 +2080,11 @@ func (ctxt *Link) address() []*sym.Segment {
 	var bss *sym.Section
 	var noptrbss *sym.Section
 	for i, s := range Segdata.Sections {
-		if ctxt.IsELF && s.Name == ".tbss" {
+		if (ctxt.IsELF || ctxt.HeadType == objabi.Haix) && s.Name == ".tbss" {
 			continue
 		}
 		vlen := int64(s.Length)
-		if i+1 < len(Segdata.Sections) && !(ctxt.IsELF && Segdata.Sections[i+1].Name == ".tbss") {
+		if i+1 < len(Segdata.Sections) && !((ctxt.IsELF || ctxt.HeadType == objabi.Haix) && Segdata.Sections[i+1].Name == ".tbss") {
 			vlen = int64(Segdata.Sections[i+1].Vaddr - s.Vaddr)
 		}
 		s.Vaddr = va

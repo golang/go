@@ -59,6 +59,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Gentext:          gentext,
 		Trampoline:       trampoline,
 		Machoreloc1:      machoreloc1,
+		Xcoffreloc1:      xcoffreloc1,
 
 		// TODO(austin): ABI v1 uses /usr/lib/ld.so.1,
 		Linuxdynld: "/lib64/ld64.so.1",

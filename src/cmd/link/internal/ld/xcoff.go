@@ -10,6 +10,7 @@ import (
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"math/bits"
+	"sort"
 	"strings"
 )
 
@@ -153,6 +154,7 @@ const (
 	LDHDRSZ_32     = 32
 	LDHDRSZ_64     = 56
 	LDSYMSZ_64     = 24
+	RELSZ_64       = 14
 )
 
 // Type representing all XCOFF symbols.
@@ -362,6 +364,31 @@ type xcoffLoaderReloc struct {
 
 const (
 	XCOFF_R_POS = 0x00 // A(sym) Positive Relocation
+	XCOFF_R_NEG = 0x01 // -A(sym) Negative Relocation
+	XCOFF_R_REL = 0x02 // A(sym-*) Relative to self
+	XCOFF_R_TOC = 0x03 // A(sym-TOC) Relative to TOC
+	XCOFF_R_TRL = 0x12 // A(sym-TOC) TOC Relative indirect load.
+
+	XCOFF_R_TRLA = 0x13 // A(sym-TOC) TOC Rel load address. modifiable inst
+	XCOFF_R_GL   = 0x05 // A(external TOC of sym) Global Linkage
+	XCOFF_R_TCL  = 0x06 // A(local TOC of sym) Local object TOC address
+	XCOFF_R_RL   = 0x0C // A(sym) Pos indirect load. modifiable instruction
+	XCOFF_R_RLA  = 0x0D // A(sym) Pos Load Address. modifiable instruction
+	XCOFF_R_REF  = 0x0F // AL0(sym) Non relocating ref. No garbage collect
+	XCOFF_R_BA   = 0x08 // A(sym) Branch absolute. Cannot modify instruction
+	XCOFF_R_RBA  = 0x18 // A(sym) Branch absolute. modifiable instruction
+	XCOFF_R_BR   = 0x0A // A(sym-*) Branch rel to self. non modifiable
+	XCOFF_R_RBR  = 0x1A // A(sym-*) Branch rel to self. modifiable instr
+
+	XCOFF_R_TLS    = 0x20 // General-dynamic reference to TLS symbol
+	XCOFF_R_TLS_IE = 0x21 // Initial-exec reference to TLS symbol
+	XCOFF_R_TLS_LD = 0x22 // Local-dynamic reference to TLS symbol
+	XCOFF_R_TLS_LE = 0x23 // Local-exec reference to TLS symbol
+	XCOFF_R_TLSM   = 0x24 // Module reference to TLS symbol
+	XCOFF_R_TLSML  = 0x25 // Module reference to local (own) module
+
+	XCOFF_R_TOCU = 0x30 // Relative to TOC - high order bits
+	XCOFF_R_TOCL = 0x31 // Relative to TOC - low order bits
 )
 
 type XcoffLdStr64 struct {
@@ -374,6 +401,9 @@ type xcoffFile struct {
 	xfhdr           XcoffFileHdr64
 	xahdr           XcoffAoutHdr64
 	sections        []*XcoffScnHdr64
+	sectText        *XcoffScnHdr64
+	sectData        *XcoffScnHdr64
+	sectBss         *XcoffScnHdr64
 	stringTable     xcoffStringTable
 	sectNameToScnum map[string]int16
 	loaderSize      uint64
@@ -487,10 +517,15 @@ func (f *xcoffFile) getXCOFFscnum(sect *sym.Section) int16 {
 		if sect.Name == ".noptrbss" || sect.Name == ".bss" {
 			return f.sectNameToScnum[".bss"]
 		}
+		if sect.Name == ".tbss" {
+			return f.sectNameToScnum[".tbss"]
+		}
 		Errorf(nil, "unknown XCOFF segment data section: %s", sect.Name)
 	case &Segdwarf:
 		name, _ := xcoffGetDwarfSubtype(sect.Name)
 		return f.sectNameToScnum[name]
+	case &Segrelrodata:
+		return f.sectNameToScnum[".data"]
 	}
 	Errorf(nil, "getXCOFFscnum not implemented for section %s", sect.Name)
 	return -1
@@ -746,6 +781,7 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []xcoffSym {
 		s.Nsclass = C_HIDEXT
 	}
 
+	x.Dynid = int32(xfile.symbolCount)
 	syms = append(syms, s)
 
 	// Update current csect size
@@ -801,6 +837,7 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 				Ntype:   SYM_TYPE_FUNC,
 				Nnumaux: 1,
 			}
+			x.Dynid = int32(xfile.symbolCount)
 			syms = append(syms, s)
 
 			size := uint64(x.Size)
@@ -835,6 +872,7 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 			s.Nsclass = C_HIDEXT
 		}
 
+		x.Dynid = int32(xfile.symbolCount)
 		syms = append(syms, s)
 
 		// Create auxiliary entry
@@ -849,9 +887,18 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 			Xscnlenlo: uint32(size & 0xFFFFFFFF),
 			Xscnlenhi: uint32(size >> 32),
 		}
-		// Read only data
+
 		if x.Type >= sym.STYPE && x.Type <= sym.SPCLNTAB {
-			a4.Xsmclas = XMC_RO
+			if ctxt.LinkMode == LinkExternal && strings.HasPrefix(x.Sect.Name, ".data.rel.ro") {
+				// During external linking, read-only datas with relocation
+				// must be in .data.
+				a4.Xsmclas = XMC_RW
+			} else {
+				// Read only data
+				a4.Xsmclas = XMC_RO
+			}
+		} else if x.Type == sym.SDATA && strings.HasPrefix(x.Name, "TOC.") && ctxt.LinkMode == LinkExternal {
+			a4.Xsmclas = XMC_TC
 		} else if x.Name == "TOC" {
 			a4.Xsmclas = XMC_TC0
 		} else {
@@ -876,6 +923,7 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 			Noffset: uint32(xfile.stringTable.add(str)),
 			Nnumaux: 1,
 		}
+		x.Dynid = int32(xfile.symbolCount)
 		syms = append(syms, s)
 
 		a4 := &XcoffAuxCSect64{
@@ -971,7 +1019,7 @@ func (f *xcoffFile) genDynSym(ctxt *Link) {
 func (f *xcoffFile) adddynimpsym(ctxt *Link, s *sym.Symbol) {
 	// Check that library name is given.
 	// Pattern is already checked when compiling.
-	if s.Dynimplib() == "" {
+	if ctxt.LinkMode == LinkInternal && s.Dynimplib() == "" {
 		Errorf(s, "imported symbol must have a given library")
 	}
 
@@ -1008,6 +1056,9 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s *sym.Symbol) {
 // Xcoffadddynrel adds a dynamic relocation in a XCOFF file.
 // This relocation will be made by the loader.
 func Xcoffadddynrel(ctxt *Link, s *sym.Symbol, r *sym.Reloc) bool {
+	if ctxt.LinkMode == LinkExternal {
+		return true
+	}
 	if s.Type <= sym.SPCLNTAB {
 		Errorf(s, "cannot have a relocation to %s in a text section symbol", r.Sym.Name)
 		return false
@@ -1072,6 +1123,7 @@ func (ctxt *Link) doxcoff() {
 	toc := ctxt.Syms.Lookup("TOC", 0)
 	toc.Type = sym.SXCOFFTOC
 	toc.Attr |= sym.AttrReachable
+	toc.Attr |= sym.AttrVisibilityHidden
 
 	// XCOFF does not allow relocations of data symbol address to a text symbol.
 	// Such case occurs when a RODATA symbol retrieves a data symbol address.
@@ -1110,6 +1162,7 @@ func (ctxt *Link) doxcoff() {
 	if !ep.Attr.Reachable() {
 		Exitf("wrong entry point")
 	}
+
 	xfile.loaderSymbols = append(xfile.loaderSymbols, &xcoffLoaderSymbol{
 		sym:    ep,
 		smtype: XTY_ENT | XTY_SD,
@@ -1122,6 +1175,12 @@ func (ctxt *Link) doxcoff() {
 		if strings.HasPrefix(s.Name, "TOC.") {
 			s.Type = sym.SXCOFFTOC
 		}
+	}
+
+	if ctxt.LinkMode == LinkExternal {
+		// Change main name to match __start code.
+		main := ctxt.Syms.ROLookup("_main", 0)
+		main.Name = ".main"
 	}
 }
 
@@ -1337,7 +1396,7 @@ func (f *xcoffFile) writeFileHeader(ctxt *Link) {
 		f.xfhdr.Fnsyms = int32(f.symbolCount)
 	}
 
-	if ctxt.BuildMode == BuildModeExe {
+	if ctxt.BuildMode == BuildModeExe && ctxt.LinkMode == LinkInternal {
 		f.xfhdr.Fopthdr = AOUTHSZ_EXEC64
 		f.xfhdr.Fflags = F_EXEC
 
@@ -1383,15 +1442,41 @@ func Asmbxcoff(ctxt *Link, fileoff int64) {
 	xfile.xahdr.Otextstart = s.Svaddr
 	xfile.xahdr.Osntext = xfile.sectNameToScnum[".text"]
 	xfile.xahdr.Otsize = s.Ssize
+	xfile.sectText = s
 
-	s = xfile.addSection(".data", Segdata.Vaddr, Segdata.Filelen, Segdata.Fileoff, STYP_DATA)
+	segdataVaddr := Segdata.Vaddr
+	segdataFilelen := Segdata.Filelen
+	segdataFileoff := Segdata.Fileoff
+	segbssFilelen := Segdata.Length - Segdata.Filelen
+	if len(Segrelrodata.Sections) > 0 {
+		// Merge relro segment to data segment as
+		// relro data are inside data segment on AIX.
+		segdataVaddr = Segrelrodata.Vaddr
+		segdataFileoff = Segrelrodata.Fileoff
+		segdataFilelen = Segdata.Vaddr + Segdata.Filelen - Segrelrodata.Vaddr
+	}
+
+	s = xfile.addSection(".data", segdataVaddr, segdataFilelen, segdataFileoff, STYP_DATA)
 	xfile.xahdr.Odatastart = s.Svaddr
 	xfile.xahdr.Osndata = xfile.sectNameToScnum[".data"]
 	xfile.xahdr.Odsize = s.Ssize
+	xfile.sectData = s
 
-	s = xfile.addSection(".bss", Segdata.Vaddr+Segdata.Filelen, Segdata.Length-Segdata.Filelen, 0, STYP_BSS)
+	s = xfile.addSection(".bss", segdataVaddr+segdataFilelen, segbssFilelen, 0, STYP_BSS)
 	xfile.xahdr.Osnbss = xfile.sectNameToScnum[".bss"]
 	xfile.xahdr.Obsize = s.Ssize
+	xfile.sectBss = s
+
+	if ctxt.LinkMode == LinkExternal {
+		var tbss *sym.Section
+		for _, s := range Segdata.Sections {
+			if s.Name == ".tbss" {
+				tbss = s
+				break
+			}
+		}
+		s = xfile.addSection(".tbss", tbss.Vaddr, tbss.Length, 0, STYP_TBSS)
+	}
 
 	// add dwarf sections
 	for _, sect := range Segdwarf.Sections {
@@ -1405,13 +1490,20 @@ func Asmbxcoff(ctxt *Link, fileoff int64) {
 			Loaderblk(ctxt, uint64(fileoff))
 			s = xfile.addSection(".loader", 0, xfile.loaderSize, uint64(fileoff), STYP_LOADER)
 			xfile.xahdr.Osnloader = xfile.sectNameToScnum[".loader"]
+
+			// Update fileoff for symbol table
+			fileoff += int64(xfile.loaderSize)
 		}
-	} else {
-		// TODO: Relocation
 	}
 
-	// Write symtab
+	// Create Symbol table
 	xfile.asmaixsym(ctxt)
+
+	if ctxt.LinkMode == LinkExternal {
+		xfile.emitRelocations(ctxt, fileoff)
+	}
+
+	// Write Symbol table
 	xfile.symtabOffset = ctxt.Out.Offset()
 	for _, s := range xfile.symtabSym {
 		binary.Write(ctxt.Out, ctxt.Arch.ByteOrder, s)
@@ -1423,4 +1515,102 @@ func Asmbxcoff(ctxt *Link, fileoff int64) {
 
 	// write headers
 	xcoffwrite(ctxt)
+}
+
+// byOffset is used to sort relocations by offset
+type byOffset []sym.Reloc
+
+func (x byOffset) Len() int { return len(x) }
+
+func (x byOffset) Swap(i, j int) {
+	x[i], x[j] = x[j], x[i]
+}
+
+func (x byOffset) Less(i, j int) bool {
+	return x[i].Off < x[j].Off
+}
+
+// emitRelocations emits relocation entries for go.o in external linking.
+func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
+	ctxt.Out.SeekSet(fileoff)
+	for ctxt.Out.Offset()&7 != 0 {
+		ctxt.Out.Write8(0)
+	}
+
+	// relocsect relocates symbols from first in section sect, and returns
+	// the total number of relocations emitted.
+	relocsect := func(sect *sym.Section, syms []*sym.Symbol, base uint64) uint32 {
+		// ctxt.Logf("%s 0x%x\n", sect.Name, sect.Vaddr)
+		// If main section has no bits, nothing to relocate.
+		if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
+			return 0
+		}
+		sect.Reloff = uint64(ctxt.Out.Offset())
+		for i, s := range syms {
+			if !s.Attr.Reachable() {
+				continue
+			}
+			if uint64(s.Value) >= sect.Vaddr {
+				syms = syms[i:]
+				break
+			}
+		}
+		eaddr := int64(sect.Vaddr + sect.Length)
+		for _, s := range syms {
+			if !s.Attr.Reachable() {
+				continue
+			}
+			if s.Value >= int64(eaddr) {
+				break
+			}
+
+			// Relocation must be ordered by address, so s.R is ordered by Off.
+			sort.Sort(byOffset(s.R))
+
+			for ri := range s.R {
+
+				r := &s.R[ri]
+
+				// ctxt.Logf("%s reloc %d(%s)/%d to %s\n", s, r.Type, r.Type.String(), r.Siz, r.Sym.Name)
+				if r.Done {
+					continue
+				}
+				if r.Xsym == nil {
+					Errorf(s, "missing xsym in relocation")
+					continue
+				}
+				if r.Xsym.Dynid < 0 {
+					Errorf(s, "reloc %s to non-coff symbol %s (outer=%s) %d %d", r.Type.String(), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Xsym.Dynid)
+				}
+				if !thearch.Xcoffreloc1(ctxt.Arch, ctxt.Out, s, r, int64(uint64(s.Value+int64(r.Off))-base)) {
+					Errorf(s, "unsupported obj reloc %d(%s)/%d to %s", r.Type, r.Type.String(), r.Siz, r.Sym.Name)
+				}
+			}
+		}
+		sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
+		return uint32(sect.Rellen) / RELSZ_64
+	}
+	sects := []struct {
+		xcoffSect *XcoffScnHdr64
+		segs      []*sym.Segment
+	}{
+		{f.sectText, []*sym.Segment{&Segtext}},
+		{f.sectData, []*sym.Segment{&Segrelrodata, &Segdata}},
+	}
+	for _, s := range sects {
+		s.xcoffSect.Srelptr = uint64(ctxt.Out.Offset())
+		n := uint32(0)
+		for _, seg := range s.segs {
+			for _, sect := range seg.Sections {
+				if sect.Name == ".text" {
+					n += relocsect(sect, ctxt.Textp, 0)
+				} else {
+					n += relocsect(sect, datap, 0)
+				}
+			}
+		}
+		s.xcoffSect.Snreloc += n
+	}
+
+	// TODO(aix): DWARF relocations
 }

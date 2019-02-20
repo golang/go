@@ -133,6 +133,7 @@ type Arch struct {
 	Gentext     func(*Link)
 	Machoreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
 	PEreloc1    func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
+	Xcoffreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
 
 	// TLSIEtoLE converts a TLS Initial Executable relocation to
 	// a TLS Local Executable relocation.
@@ -179,7 +180,7 @@ func (ctxt *Link) UseRelro() bool {
 	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePIE, BuildModePlugin:
 		return ctxt.IsELF
 	default:
-		return ctxt.linkShared
+		return ctxt.linkShared || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal)
 	}
 }
 
@@ -405,7 +406,7 @@ func (ctxt *Link) loadlib() {
 		*FlagTextAddr = 0
 	}
 
-	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 {
+	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 && objabi.GOOS != "aix" {
 		toc := ctxt.Syms.Lookup(".TOC.", 0)
 		toc.Type = sym.SDYNIMPORT
 	}
@@ -1145,6 +1146,11 @@ func (ctxt *Link) hostlink() {
 		} else {
 			argv = append(argv, "-mconsole")
 		}
+	case objabi.Haix:
+		argv = append(argv, "-pthread")
+		// prevent ld to reorder .text functions to keep the same
+		// first/last functions for moduledata.
+		argv = append(argv, "-Wl,-bnoobjreorder")
 	}
 
 	switch ctxt.BuildMode {
@@ -1493,7 +1499,7 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
 	switch arch.Family {
 	case sys.I386:
 		return []string{"-m32"}
-	case sys.AMD64, sys.PPC64, sys.S390X:
+	case sys.AMD64, sys.S390X:
 		return []string{"-m64"}
 	case sys.ARM:
 		return []string{"-marm"}
@@ -1503,6 +1509,13 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
 		return []string{"-mabi=64"}
 	case sys.MIPS:
 		return []string{"-mabi=32"}
+	case sys.PPC64:
+		if objabi.GOOS == "aix" {
+			return []string{"-maix64"}
+		} else {
+			return []string{"-m64"}
+		}
+
 	}
 	return nil
 }

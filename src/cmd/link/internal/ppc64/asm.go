@@ -382,6 +382,43 @@ func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 	return false
 }
 
+func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
+	rs := r.Xsym
+
+	emitReloc := func(v uint16, off uint64) {
+		out.Write64(uint64(sectoff) + off)
+		out.Write32(uint32(rs.Dynid))
+		out.Write16(v)
+	}
+
+	var v uint16
+	switch r.Type {
+	default:
+		return false
+	case objabi.R_ADDR:
+		v = ld.XCOFF_R_POS
+		if r.Siz == 4 {
+			v |= 0x1F << 8
+		} else {
+			v |= 0x3F << 8
+		}
+		emitReloc(v, 0)
+	case objabi.R_ADDRPOWER_TOCREL:
+	case objabi.R_ADDRPOWER_TOCREL_DS:
+		emitReloc(ld.XCOFF_R_TOCU|(0x0F<<8), 2)
+		emitReloc(ld.XCOFF_R_TOCL|(0x0F<<8), 6)
+	case objabi.R_POWER_TLS_LE:
+		emitReloc(ld.XCOFF_R_TLS_LE|0x0F<<8, 2)
+	case objabi.R_CALLPOWER:
+		if r.Siz != 4 {
+			return false
+		}
+		emitReloc(ld.XCOFF_R_RBR|0x19<<8, 0)
+	}
+	return true
+
+}
+
 func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	// Beware that bit0~bit15 start from the third byte of a instruction in Big-Endian machines.
 	if r.Type == objabi.R_ADDR || r.Type == objabi.R_POWER_TLS || r.Type == objabi.R_CALLPOWER {
@@ -514,7 +551,7 @@ func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
 		ld.Errorf(s, "archreloctoc called for a symbol without TOC anchor")
 	}
 
-	if tarSym != nil && tarSym.Attr.Reachable() && (tarSym.Sect.Seg == &ld.Segdata) {
+	if ctxt.LinkMode == ld.LinkInternal && tarSym != nil && tarSym.Attr.Reachable() && (tarSym.Sect.Seg == &ld.Segdata) {
 		t = ld.Symaddr(tarSym) + r.Add - ctxt.Syms.ROLookup("TOC", 0).Value
 		// change ld to addi in the second instruction
 		o2 = (o2 & 0x03FF0000) | 0xE<<26
@@ -704,9 +741,13 @@ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, tramp, target *sym.Symbol, o
 
 func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
 	if ctxt.LinkMode == ld.LinkExternal {
+		// On AIX, relocations (except TLS ones) must be also done to the
+		// value with the current addresses.
 		switch r.Type {
 		default:
-			return val, false
+			if ctxt.HeadType != objabi.Haix {
+				return val, false
+			}
 		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
 			r.Done = false
 			// check Outer is nil, Type is TLSBSS?
@@ -734,12 +775,16 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 			}
 			r.Xsym = rs
 
-			return val, true
+			if ctxt.HeadType != objabi.Haix {
+				return val, true
+			}
 		case objabi.R_CALLPOWER:
 			r.Done = false
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
-			return val, true
+			if ctxt.HeadType != objabi.Haix {
+				return val, true
+			}
 		}
 	}
 
