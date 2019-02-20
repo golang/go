@@ -1218,9 +1218,9 @@ func (ctxt *Link) doxcoff() {
 	}
 
 	if ctxt.LinkMode == LinkExternal {
-		// Change main name to match __start code.
-		main := ctxt.Syms.ROLookup("_main", 0)
-		main.Name = ".main"
+		// Change rt0_go name to match name in runtime/cgo:main().
+		rt0 := ctxt.Syms.ROLookup("runtime.rt0_go", 0)
+		ctxt.Syms.Rename(rt0.Name, "runtime_rt0_go", 0, ctxt.Reachparent)
 
 		for _, s := range ctxt.Syms.Allsym {
 			if !s.Attr.CgoExport() {

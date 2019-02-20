@@ -31,8 +31,8 @@ crosscall_ppc64:
 	stdu	1, -296(1)
 
 	// Set up Go ABI constant registers
-	bl	._cgo_reginit
-	nop
+	// Must match _cgo_reginit in runtime package.
+	xor 0, 0, 0
 
 	// Restore g pointer (r30 in Go ABI, which may have been clobbered by C)
 	mr	30, 4
