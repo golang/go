@@ -529,7 +529,47 @@ type xcoffSymSrcFile struct {
 var (
 	currDwscnoff   = make(map[string]uint64) // Needed to create C_DWARF symbols
 	currSymSrcFile xcoffSymSrcFile
+	outerSymSize   = make(map[string]int64)
 )
+
+// xcoffUpdateOuterSize stores the size of outer symbols in order to have it
+// in the symbol table.
+func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
+	if size == 0 {
+		return
+	}
+
+	switch stype {
+	default:
+		Errorf(nil, "unknown XCOFF outer symbol for type %s", stype.String())
+	case sym.SRODATA, sym.SRODATARELRO, sym.SFUNCTAB, sym.SSTRING:
+		// Nothing to do
+	case sym.STYPERELRO:
+		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
+			outerSymSize["typerel.*"] = size
+			return
+		}
+		fallthrough
+	case sym.STYPE:
+		if !ctxt.DynlinkingGo() {
+			outerSymSize["type.*"] = size
+		}
+	case sym.SGOSTRING:
+		outerSymSize["go.string.*"] = size
+	case sym.SGOFUNC:
+		if !ctxt.DynlinkingGo() {
+			outerSymSize["go.func.*"] = size
+		}
+	case sym.SGOFUNCRELRO:
+		outerSymSize["go.funcrel.*"] = size
+	case sym.SGCBITS:
+		outerSymSize["runtime.gcbits.*"] = size
+	case sym.SITABLINK:
+		outerSymSize["runtime.itablink"] = size
+
+	}
+
+}
 
 // addSymbol writes a symbol or an auxiliary symbol entry on ctxt.out.
 func (f *xcoffFile) addSymbol(sym xcoffSym) {
@@ -888,6 +928,17 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 // It will be written in out file in Asmbxcoff, because it must be
 // at the very end, especially after relocation sections which needs symbols' index.
 func (f *xcoffFile) asmaixsym(ctxt *Link) {
+	// Get correct size for symbols wrapping others symbols like go.string.*
+	// sym.Size can be used directly as the symbols have already been written.
+	for name, size := range outerSymSize {
+		sym := ctxt.Syms.ROLookup(name, 0)
+		if sym == nil {
+			Errorf(nil, "unknown outer symbol with name %s", name)
+		} else {
+			sym.Size = size
+		}
+	}
+
 	genasmsym(ctxt, putaixsym)
 	xfile.updatePreviousFile(ctxt, true)
 }
