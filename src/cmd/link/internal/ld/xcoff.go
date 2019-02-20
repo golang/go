@@ -501,7 +501,7 @@ func xcoffGetDwarfSubtype(str string) (string, uint32) {
 	case ".debug_pubtypes":
 		return ".dwpbtyp", SSUBTYP_DWPBTYP
 	case ".debug_ranges":
-		return ".dwrnge", SSUBTYP_DWRNGES
+		return ".dwrnges", SSUBTYP_DWRNGES
 	}
 	// never used
 	return "", 0
@@ -661,13 +661,20 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 
 	/* Dwarf */
 	for _, sect := range Segdwarf.Sections {
-		// Find the size of this corresponding package DWARF compilation unit.
-		// This size is set during DWARF generation (see dwarf.go).
-		dwsize := getDwsectCUSize(sect.Name, name)
-		// .debug_abbrev is commun to all packages and not found with the previous function
-		if sect.Name == ".debug_abbrev" {
-			s := ctxt.Syms.Lookup(sect.Name, 0)
-			dwsize = uint64(s.Size)
+		var dwsize uint64
+		if ctxt.LinkMode == LinkInternal {
+			// Find the size of this corresponding package DWARF compilation unit.
+			// This size is set during DWARF generation (see dwarf.go).
+			dwsize = getDwsectCUSize(sect.Name, name)
+			// .debug_abbrev is commun to all packages and not found with the previous function
+			if sect.Name == ".debug_abbrev" {
+				s := ctxt.Syms.ROLookup(sect.Name, 0)
+				dwsize = uint64(s.Size)
+
+			}
+		} else {
+			// There is only one .FILE with external linking.
+			dwsize = sect.Length
 		}
 
 		// get XCOFF name
@@ -679,6 +686,20 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 			Nscnum:  f.getXCOFFscnum(sect),
 			Nnumaux: 1,
 		}
+
+		if currSymSrcFile.csectAux == nil {
+			// Dwarf relocations need the symbol number of .dw* symbols.
+			// It doesn't need to know it for each package, one is enough.
+			// currSymSrcFile.csectAux == nil means first package.
+			dws := ctxt.Syms.Lookup(sect.Name, 0)
+			dws.Dynid = int32(f.symbolCount)
+
+			if sect.Name == ".debug_frame" && ctxt.LinkMode != LinkExternal {
+				// CIE size must be added to the first package.
+				dwsize += 48
+			}
+		}
+
 		f.addSymbol(s)
 
 		// update the DWARF section offset in this file
@@ -764,10 +785,25 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []xcoffSym {
 	} else {
 		// Current file has changed. New C_FILE, C_DWARF, etc must be generated.
 		if currSymSrcFile.name != x.File {
-			// update previous file values
-			xfile.updatePreviousFile(ctxt, false)
-			currSymSrcFile.name = x.File
-			f.writeSymbolNewFile(ctxt, x.File, uint64(x.Value), xfile.getXCOFFscnum(x.Sect))
+			if ctxt.LinkMode == LinkInternal {
+				// update previous file values
+				xfile.updatePreviousFile(ctxt, false)
+				currSymSrcFile.name = x.File
+				f.writeSymbolNewFile(ctxt, x.File, uint64(x.Value), xfile.getXCOFFscnum(x.Sect))
+			} else {
+				// With external linking, ld will crash if there is several
+				// .FILE and DWARF debugging enable, somewhere during
+				// the relocation phase.
+				// Therefore, all packages are merged under a fake .FILE
+				// "go_functions".
+				// TODO(aix); remove once ld has been fixed or the triggering
+				// relocation has been found and fixed.
+				if currSymSrcFile.name == "" {
+					currSymSrcFile.name = x.File
+					f.writeSymbolNewFile(ctxt, "go_functions", uint64(x.Value), xfile.getXCOFFscnum(x.Sect))
+				}
+			}
+
 		}
 	}
 
@@ -1118,9 +1154,6 @@ func (ctxt *Link) doxcoff() {
 		// All XCOFF files have dynamic symbols because of the syscalls.
 		Exitf("-d is not available on AIX")
 	}
-
-	// Initial map used to store compilation unit size for each DWARF section (see dwarf.go).
-	dwsectCUSize = make(map[string]uint64)
 
 	// TOC
 	toc := ctxt.Syms.Lookup("TOC", 0)
@@ -1634,7 +1667,18 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
 		s.xcoffSect.Snreloc += n
 	}
 
-	// TODO(aix): DWARF relocations
+dwarfLoop:
+	for _, sect := range Segdwarf.Sections {
+		for _, xcoffSect := range f.sections {
+			_, subtyp := xcoffGetDwarfSubtype(sect.Name)
+			if xcoffSect.Sflags&0xF0000 == subtyp {
+				xcoffSect.Srelptr = uint64(ctxt.Out.Offset())
+				xcoffSect.Snreloc = relocsect(sect, dwarfp, sect.Vaddr)
+				continue dwarfLoop
+			}
+		}
+		Errorf(nil, "emitRelocations: could not find %q section", sect.Name)
+	}
 }
 
 // xcoffCreateExportFile creates a file with exported symbols for
