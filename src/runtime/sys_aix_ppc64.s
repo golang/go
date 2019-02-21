@@ -77,8 +77,15 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVD	info+16(FP), R4
 	MOVD	ctx+24(FP), R5
 	MOVD	fn+0(FP), R12
-	MOVD	R12, CTR
+	// fn is a function descriptor
+	// R2 must be saved on restore
+	MOVD	0(R12), R0
+	MOVD	R2, 40(R1)
+	MOVD	8(R12), R2
+	MOVD	R0, CTR
 	BL	(CTR)
+	MOVD	40(R1), R2
+	BL	runtime·reginit(SB)
 	RET
 
 
