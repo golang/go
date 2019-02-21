@@ -5,8 +5,8 @@
 package main
 
 import (
-	_ "p"
 	"syscall"
+	_ "testcshared/p"
 	"time"
 )
 
