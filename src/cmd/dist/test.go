@@ -701,7 +701,7 @@ func (t *tester) registerTests() {
 			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest(), t.timeout(600))
 		}
 		if t.supportedBuildmode("plugin") {
-			t.registerTest("testplugin", "../misc/cgo/testplugin", "./test.bash")
+			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600))
 		}
 		if gohostos == "linux" && goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")

@@ -4,7 +4,7 @@
 
 package main
 
-import "iface_i"
+import "testplugin/iface_i"
 
 //go:noinline
 func F() interface{} {

@@ -17,8 +17,8 @@ package main
 
 import (
 	"encoding/json"
-	"issue18676/dynamodbstreamsevt"
 	"plugin"
+	"testplugin/issue18676/dynamodbstreamsevt"
 )
 
 func main() {
