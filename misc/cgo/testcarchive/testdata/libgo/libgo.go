@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	_ "p"
+	_ "testcarchive/p"
 )
 
 import "C"
