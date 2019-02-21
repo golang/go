@@ -18,7 +18,7 @@ import (
 )
 
 func path(file string) string {
-	return filepath.Join("src", file)
+	return filepath.Join("testdata", file)
 }
 
 func check(t *testing.T, file string) {

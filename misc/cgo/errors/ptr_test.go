@@ -444,8 +444,8 @@ func testOne(t *testing.T, pt ptrTest) {
 	}
 	defer os.RemoveAll(gopath)
 
-	src := filepath.Join(gopath, "src")
-	if err := os.Mkdir(src, 0777); err != nil {
+	src := filepath.Join(gopath, "src", "ptrtest")
+	if err := os.MkdirAll(src, 0777); err != nil {
 		t.Fatal(err)
 	}
 
@@ -488,6 +488,11 @@ func testOne(t *testing.T, pt ptrTest) {
 		if err := ioutil.WriteFile(filepath.Join(src, e.name), []byte(e.contents), 0644); err != nil {
 			t.Fatalf("writing %s: %v", e.name, err)
 		}
+	}
+
+	gomod := fmt.Sprintf("module %s\n", filepath.Base(src))
+	if err := ioutil.WriteFile(filepath.Join(src, "go.mod"), []byte(gomod), 0666); err != nil {
+		t.Fatalf("writing go.mod: %v", err)
 	}
 
 	args := func(cmd *exec.Cmd) string {
