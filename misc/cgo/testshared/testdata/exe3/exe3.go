@@ -1,6 +1,6 @@
 package main
 
-import "dep3"
+import "testshared/dep3"
 
 func main() {
 	dep3.D3()

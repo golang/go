@@ -1,6 +1,6 @@
 package dep2
 
-import "depBase"
+import "testshared/depBase"
 
 var W int = 1
 

@@ -4,8 +4,8 @@
 
 package main
 
-import "iface_a"
-import "iface_b"
+import "testshared/iface_a"
+import "testshared/iface_b"
 
 func main() {
 	if iface_a.F() != iface_b.F() {

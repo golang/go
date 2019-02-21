@@ -4,7 +4,7 @@
 
 package iface_b
 
-import "iface_i"
+import "testshared/iface_i"
 
 //go:noinline
 func F() interface{} {

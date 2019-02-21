@@ -1,7 +1,7 @@
 package main
 
 import (
-	"depBase"
+	"testshared/depBase"
 	"os"
 	"reflect"
 	"runtime"
