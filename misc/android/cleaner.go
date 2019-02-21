@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build ignore
+
 // Cleaner removes anything from /data/local/tmp/goroot not on a builtin list.
 // Used by androidtest.bash.
 package main
