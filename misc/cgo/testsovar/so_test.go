@@ -25,7 +25,12 @@ func requireTestSOSupported(t *testing.T) {
 			t.Skip("No exec facility on iOS.")
 		}
 	case "ppc64":
-		t.Skip("External linking not implemented on ppc64 (issue #8912).")
+		if runtime.GOOS == "linux" {
+			t.Skip("External linking not implemented on aix/ppc64 (issue #8912).")
+		}
+		if runtime.GOOS == "aix" {
+			t.Skip("Using shared object isn't yet available on aix/ppc64 (issue #30565)")
+		}
 	case "mips64le", "mips64":
 		t.Skip("External linking not implemented on mips64.")
 	}
