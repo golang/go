@@ -28,6 +28,14 @@ const (
 	SYS_FCNTL
 )
 
+func (ts *StTimespec_t) Unix() (sec int64, nsec int64) {
+	return int64(ts.Sec), int64(ts.Nsec)
+}
+
+func (ts *StTimespec_t) Nano() int64 {
+	return int64(ts.Sec)*1e9 + int64(ts.Nsec)
+}
+
 /*
  * Wrapped
  */
