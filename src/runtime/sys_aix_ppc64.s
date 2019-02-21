@@ -109,6 +109,9 @@ TEXT runtime·_sigtramp(SB),NOSPLIT|NOFRAME,$0
 
 	BL	runtime·load_g(SB)
 
+	CMP	$0, g
+	BEQ	sigtrampnog // g == nil
+
 	// Save m->libcall. We need to do this because we
 	// might get interrupted by a signal in runtime·asmcgocall.
 
@@ -155,6 +158,7 @@ TEXT runtime·_sigtramp(SB),NOSPLIT|NOFRAME,$0
 	MOVD	120(R1), R8
 	MOVD	R8, 0(R7)
 
+exit:
 	// restore registers
 	MOVD	56(R1),R31
 	MOVD	64(R1),g
@@ -165,6 +169,19 @@ TEXT runtime·_sigtramp(SB),NOSPLIT|NOFRAME,$0
 	MOVD	16(R1), R0
 	MOVD	R0, LR
 	BR (LR)
+
+sigtrampnog:
+	// Signal arrived on a non-Go thread.
+	// SIGPROF handler is not yet available so simply call badsignal,
+	// after having created *sigctxt.
+	MOVD	R4, 80(R1)
+	MOVD	R5, 88(R1)
+	MOVD	R1, R4
+	ADD		$80, R4
+	MOVD	R4, FIXED_FRAME+8(R1)
+	MOVD	R3, FIXED_FRAME+0(R1)
+	BL runtime·badsignal(SB)
+	JMP	exit
 
 // runtime.tstart is a function descriptor to the real tstart.
 DATA	runtime·tstart+0(SB)/8, $runtime·_tstart(SB)

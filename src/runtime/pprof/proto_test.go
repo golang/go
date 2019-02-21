@@ -312,6 +312,10 @@ func TestMapping(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 	testenv.MustHaveCGO(t)
 
+	if runtime.GOOS == "aix" {
+		t.Skip("pprof not yet available on AIX (see golang.org/issue/28555)")
+	}
+
 	prog := "./testdata/mappingtest/main.go"
 
 	// GoOnly includes only Go symbols that runtime will symbolize.
