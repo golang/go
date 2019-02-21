@@ -255,9 +255,10 @@ type Arch struct {
 	Use387    bool // should 386 backend use 387 FP instructions instead of sse2.
 	SoftFloat bool
 
-	PadFrame  func(int64) int64
-	ZeroRange func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
-	Ginsnop   func(*Progs) *obj.Prog
+	PadFrame     func(int64) int64
+	ZeroRange    func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
+	Ginsnop      func(*Progs) *obj.Prog
+	Ginsnopdefer func(*Progs) *obj.Prog // special ginsnop for deferreturn
 
 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 	SSAMarkMoves func(*SSAGenState, *ssa.Block)
