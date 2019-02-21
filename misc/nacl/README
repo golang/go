@@ -33,7 +33,7 @@ and unpack it. I chose /opt/nacl_sdk.
 
 The zip file contains a small skeleton that can be used to download the correct
 sdk. These are released every 6-8 weeks, in line with Chrome releases.
-	
+
 	% cd /opt/nacl_sdk
 	% ./naclsdk update
 

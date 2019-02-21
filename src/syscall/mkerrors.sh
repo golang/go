@@ -431,7 +431,7 @@ main(void)
 		printf("\t%d: \"%s\",\n", e, buf);
 	}
 	printf("}\n\n");
-	
+
 	printf("\n\n// Signal table\n");
 	printf("var signals = [...]string {\n");
 	qsort(signals, nelem(signals), sizeof signals[0], intcmp);

@@ -5,20 +5,20 @@
 	It consists of a sequence of steps, each typically explaining
 	a highlighted section of code.
 	<br/><br/>
-	
+
 	The <a href="/cmd/godoc">godoc</a> web server translates
 	an XML file like the one in the main window pane into the HTML
 	page that you're viewing now.
 	<br/><br/>
-	
+
 	The codewalk with URL path <code>/doc/codewalk/</code><i>name</i>
 	is loaded from the input file <code>$GOROOT/doc/codewalk/</code><i>name</i><code>.xml</code>.
 	<br/><br/>
-	
+
 	This codewalk explains how to write a codewalk by examining
 	its own source code,
 	<code><a href="/doc/codewalk/codewalk.xml">$GOROOT/doc/codewalk/codewalk.xml</a></code>,
-	shown in the main window pane to the left.	
+	shown in the main window pane to the left.
 </step>
 
 <step title="Title" src="doc/codewalk/codewalk.xml:/title=/">
@@ -29,15 +29,15 @@
 </step>
 
 <step title="Steps" src="doc/codewalk/codewalk.xml:/&lt;step/,/step&gt;/">
-	Each step in the codewalk is a <code>&lt;step&gt;</code> element 
+	Each step in the codewalk is a <code>&lt;step&gt;</code> element
 	nested inside the main <code>&lt;codewalk&gt;</code>.
 	The step element's <code>title</code> attribute gives the step's title,
 	which is shown in a shaded bar above the main step text.
 	The element's <code>src</code> attribute specifies the source
-	code to show in the main window pane and, optionally, a range of 
+	code to show in the main window pane and, optionally, a range of
 	lines to highlight.
 	<br/><br/>
-	
+
 	The first step in this codewalk does not highlight any lines:
 	its <code>src</code> is just a file name.
 </step>
@@ -56,7 +56,7 @@
 	<i>filename</i><code>:</code><i>address</i>,
 	where <i>address</i> is an address in the syntax used by the text editors <i>sam</i> and <i>acme</i>.
 	<br/><br/>
-	
+
 	The simplest address is a single regular expression.
 	The highlighted line in the main window pane shows that the
 	address for the &ldquo;Title&rdquo; step was <code>/title=/</code>,
@@ -70,11 +70,11 @@
 	The highlight begins with the line containing the first match for <i>regexp1</i>
 	and ends with the line containing the first match for <i>regexp2</i>
 	after the end of the match for <i>regexp1</i>.
-	Ignoring the HTML quoting, 
+	Ignoring the HTML quoting,
 	The line containing the first match for <i>regexp1</i> will be the first one highlighted,
 	and the line containing the first match for <i>regexp2</i>.
 	<br/><br/>
-	
+
 	The address <code>/&lt;step/,/step&gt;/</code> looks for the first instance of
 	<code>&lt;step</code> in the file, and then starting after that point,
 	looks for the first instance of <code>step&gt;</code>.
@@ -120,5 +120,5 @@
 </step>
 
 
-	
+
 </codewalk>

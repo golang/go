@@ -84,7 +84,7 @@ E	((..)|(.))*				aaaaaa		(0,6)(4,6)(4,6)(?,?)
 
 NOTE	additional repetition tests graciously provided by Chris Kuklewicz www.haskell.org 2009-02-02
 
-# These test a bug in OS X / FreeBSD / NetBSD, and libtree. 
+# These test a bug in OS X / FreeBSD / NetBSD, and libtree.
 # Linux/GLIBC gets the {8,} and {8,8} wrong.
 
 :HA#100:E	X(.?){0,}Y	X1234567Y	(0,9)(7,8)

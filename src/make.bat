@@ -52,7 +52,7 @@ set GO111MODULE=
 
 if exist make.bat goto ok
 echo Must run make.bat from Go src directory.
-goto fail 
+goto fail
 :ok
 
 :: Clean old generated file that will cause problems in the build.

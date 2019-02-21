@@ -943,7 +943,7 @@ nosave:
 	BL	(R1)
 	// Restore stack pointer.
 	MOVD	8(RSP), R2
-	MOVD	R2, RSP	
+	MOVD	R2, RSP
 	MOVD	R0, ret+16(FP)
 	RET
 

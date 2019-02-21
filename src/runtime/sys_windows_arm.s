@@ -475,7 +475,7 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
 	BIC	$0x7, R13		// alignment for ABI
 	MOVW	runtime·_SwitchToThread(SB), R0
 	BL	(R0)
-	MOVW 	R4, R13			// restore stack pointer 
+	MOVW 	R4, R13			// restore stack pointer
 	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
 
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0

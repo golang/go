@@ -22,7 +22,7 @@
 		<li> If you stay, your turn score is added to your total score, and play passes
 			to your opponent.  </li>
 	</ul>
-	
+
 	The first person to reach 100 total points wins.
 	<br/><br/>
 
@@ -46,7 +46,7 @@
 </step>
 
 <step title="Multiple return values" src="doc/codewalk/pig.go:/\/\/ roll returns/,/true\n}/">
-	Go functions can return multiple values.  
+	Go functions can return multiple values.
 	<br/><br/>
 
 	The functions <code>roll</code> and <code>stay</code> each return a pair of
@@ -86,7 +86,7 @@
 	The <code>roundRobin</code> function simulates a tournament and tallies wins.
 	Each strategy plays each other strategy <code>gamesPerSeries</code> times.
 </step>
-	
+
 <step title="Variadic function declarations" src="doc/codewalk/pig.go:/\/\/ ratioS/,/string {/">
 	Variadic functions like <code>ratioString</code> take a variable number of
 	arguments.  These arguments are available as a slice inside the function.

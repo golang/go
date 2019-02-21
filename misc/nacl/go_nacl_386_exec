@@ -6,5 +6,5 @@ export NACLENV_GOARCH=$GOARCH
 export NACLENV_GOOS=$GOOS
 export NACLENV_GOROOT=/go
 export NACLENV_NACLPWD=$(pwd | sed "s;$GOROOT;/go;")
- 
+
 exec sel_ldr_x86_32 -l /dev/null -S -e "$@"

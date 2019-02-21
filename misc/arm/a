@@ -33,7 +33,7 @@ if [ "$rsize" != "$rcheck" ]; then
 #	echo "debug: retval size incorrect want $rcheck, got $rsize. uploading"
 	echo  >/tmp/adb.retval '#!/system/bin/sh
 "$@"
-echo RETVAL: $?' 
+echo RETVAL: $?'
 	adb push /tmp/adb.retval $rloc >/dev/null 2>&1
 	adb shell chmod 755 $rloc
 fi

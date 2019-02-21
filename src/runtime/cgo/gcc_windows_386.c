@@ -49,6 +49,6 @@ threadentry(void *v)
 		"movl %1, 0(%%eax)\n"	// MOVL g, 0(FS)
 		:: "r"(ts.tls), "r"(ts.g) : "%eax"
 	);
-	
+
 	crosscall_386(ts.fn);
 }

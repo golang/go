@@ -1,6 +1,6 @@
 This directory holds Go modules served by a Go module proxy
 that runs on localhost during tests, both to make tests avoid
-requiring specific network servers and also to make them 
+requiring specific network servers and also to make them
 significantly faster.
 
 A small go get'able test module can be added here by running
@@ -20,7 +20,7 @@ and then run go commands as usual.
 
 Modules saved to this directory should be small: a few kilobytes at most.
 It is acceptable to edit the archives created by addmod.go to remove
-or shorten files. It is also acceptable to write module archives by hand: 
+or shorten files. It is also acceptable to write module archives by hand:
 they need not be backed by some public git repo.
 
 Each module archive is named path_vers.txt, where slashes in path

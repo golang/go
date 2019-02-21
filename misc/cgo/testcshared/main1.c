@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
   if (ret != 0) {
    return ret;
   }
-  // test.bash looks for "PASS" to ensure this program has reached the end. 
+  // test.bash looks for "PASS" to ensure this program has reached the end.
   printf("PASS\n");
   return 0;
 }

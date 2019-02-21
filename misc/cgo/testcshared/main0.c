@@ -36,7 +36,7 @@ int main(void) {
     fprintf(stderr, "ERROR: Divu(2264, 31)=%d, want %d\n", divu, 73);
     return 1;
   }
-  // test.bash looks for "PASS" to ensure this program has reached the end. 
+  // test.bash looks for "PASS" to ensure this program has reached the end.
   printf("PASS\n");
   return 0;
 }

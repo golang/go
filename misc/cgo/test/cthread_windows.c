@@ -12,7 +12,7 @@ static unsigned int
 addThread(void *p)
 {
 	int i, max;
-	
+
 	max = *(int*)p;
 	for(i=0; i<max; i++)
 		Add(i);
@@ -25,7 +25,7 @@ doAdd(int max, int nthread)
 	enum { MaxThread = 20 };
 	int i;
 	uintptr_t thread_id[MaxThread];
-	
+
 	if(nthread > MaxThread)
 		nthread = MaxThread;
 	for(i=0; i<nthread; i++)
