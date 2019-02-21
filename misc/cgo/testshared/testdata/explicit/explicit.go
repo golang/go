@@ -1,7 +1,7 @@
 package explicit
 
 import (
-	"implicit"
+	"testshared/implicit"
 )
 
 func E() int {

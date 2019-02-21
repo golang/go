@@ -5,7 +5,7 @@
 package main
 
 import (
-	"globallib"
+	"testshared/globallib"
 )
 
 //go:noinline

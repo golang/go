@@ -7,8 +7,8 @@ package dep3
 // the type data in this case and later crash.
 
 import (
-	"dep2"
-	"depBase"
+	"testshared/dep2"
+	"testshared/depBase"
 )
 
 type Dep3 struct {

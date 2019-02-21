@@ -1,8 +1,8 @@
 package main
 
 import (
-	"explicit"
-	"implicit"
+	"testshared/explicit"
+	"testshared/implicit"
 )
 
 func main() {

@@ -1,6 +1,6 @@
 package main
 
-import "dep2"
+import "testshared/dep2"
 
 func main() {
 	d := &dep2.Dep2{}
