@@ -26,6 +26,7 @@ package syscall
 #include <netinet/in.h>
 #include <netinet/icmp6.h>
 
+#include <termios.h>
 
 #include <dirent.h>
 #include <fcntl.h>
@@ -170,3 +171,7 @@ const (
 	_AT_REMOVEDIR        = C.AT_REMOVEDIR
 	_AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
 )
+
+// Terminal handling
+
+type Termios C.struct_termios
