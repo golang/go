@@ -8,7 +8,7 @@ package main
 import "C"
 
 import (
-	"common"
+	"testplugin/common"
 	"reflect"
 )
 

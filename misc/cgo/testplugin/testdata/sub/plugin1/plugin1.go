@@ -7,15 +7,17 @@ package main
 // // No C code required.
 import "C"
 
-func FuncInt() int { return 2 }
+import "testplugin/common"
 
-func FuncRecursive() X { return X{} }
+func F() int { return 17 }
 
-type Y struct {
-	X *X
+var FuncVar = func() {}
+
+func ReadCommonX() int {
+	FuncVar()
+	return common.X
 }
-type X struct {
-	Y Y
-}
 
-func main() {}
+func main() {
+	panic("plugin1.main called")
+}

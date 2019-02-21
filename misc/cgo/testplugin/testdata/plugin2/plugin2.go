@@ -12,7 +12,7 @@ import "C"
 // void cfunc() {} // uses cgo_topofstack
 
 import (
-	"common"
+	"testplugin/common"
 	"reflect"
 	"strings"
 )

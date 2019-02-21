@@ -11,7 +11,7 @@ import (
 	"plugin"
 	"strings"
 
-	"common"
+	"testplugin/common"
 )
 
 func init() {

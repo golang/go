@@ -6,6 +6,6 @@ package main
 
 import "C"
 
-import "issue18676/dynamodbstreamsevt"
+import "testplugin/issue18676/dynamodbstreamsevt"
 
 func F(evt *dynamodbstreamsevt.Event) {}

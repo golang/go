@@ -5,7 +5,7 @@
 package main
 
 import (
-	"iface_i"
+	"testplugin/iface_i"
 	"log"
 	"plugin"
 )
