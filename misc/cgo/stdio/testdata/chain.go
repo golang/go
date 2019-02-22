@@ -14,7 +14,7 @@ import (
 	"runtime"
 	"strconv"
 
-	"../stdio"
+	"cgostdio/stdio"
 )
 
 const N = 10
