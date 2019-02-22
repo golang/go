@@ -17,7 +17,7 @@ import (
 	"runtime"
 	"strconv"
 
-	"../stdio"
+	"cgostdio/stdio"
 )
 
 func fibber(c, out chan int64, i int64) {
