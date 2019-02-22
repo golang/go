@@ -258,6 +258,15 @@ func (g *Generator) generate(typeName string) {
 	if len(values) == 0 {
 		log.Fatalf("no values defined for type %s", typeName)
 	}
+	// Generate code that will fail if the constants change value.
+	g.Printf("func _() {\n")
+	g.Printf("\t// An \"invalid array index\" compiler error signifies that the constant values have changed.\n")
+	g.Printf("\t// Re-run the stringer command to generate them again.\n")
+	g.Printf("\tvar x [1]struct{}\n")
+	for _, v := range values {
+		g.Printf("\t_ = x[%s - %s]\n", v.originalName, v.str)
+	}
+	g.Printf("}\n")
 	runs := splitIntoRuns(values)
 	// The decision of which pattern to use depends on the number of
 	// runs in the numbers. If there's only one, it's easy. For more than
@@ -328,7 +337,8 @@ func (g *Generator) format() []byte {
 
 // Value represents a declared constant.
 type Value struct {
-	name string // The name of the constant.
+	originalName string // The name of the constant.
+	name         string // The name with trimmed prefix.
 	// The value is stored as a bit pattern alone. The boolean tells us
 	// whether to interpret it as an int64 or a uint64; the only place
 	// this matters is when sorting.
@@ -436,15 +446,16 @@ func (f *File) genDecl(node ast.Node) bool {
 				u64 = uint64(i64)
 			}
 			v := Value{
-				name:   name.Name,
-				value:  u64,
-				signed: info&types.IsUnsigned == 0,
-				str:    value.String(),
+				originalName: name.Name,
+				value:        u64,
+				signed:       info&types.IsUnsigned == 0,
+				str:          value.String(),
 			}
 			if c := vspec.Comment; f.lineComment && c != nil && len(c.List) == 1 {
 				v.name = strings.TrimSpace(c.Text())
+			} else {
+				v.name = strings.TrimPrefix(v.originalName, f.trimPrefix)
 			}
-			v.name = strings.TrimPrefix(v.name, f.trimPrefix)
 			f.values = append(f.values, v)
 		}
 	}

@@ -54,7 +54,7 @@ Outer:
 	for n, test := range splitTests {
 		values := make([]Value, len(test.input))
 		for i, v := range test.input {
-			values[i] = Value{"", v, test.signed, fmt.Sprint(v)}
+			values[i] = Value{"", "", v, test.signed, fmt.Sprint(v)}
 		}
 		runs := splitIntoRuns(values)
 		if len(runs) != len(test.output) {

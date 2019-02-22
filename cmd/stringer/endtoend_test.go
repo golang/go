@@ -45,8 +45,8 @@ func TestEndToEnd(t *testing.T) {
 			t.Errorf("%s is not a Go file", name)
 			continue
 		}
-		if strings.HasPrefix(name, "tag_") {
-			// This file is used for tag processing in TestTags, below.
+		if strings.HasPrefix(name, "tag_") || strings.HasPrefix(name, "vary_") {
+			// This file is used for tag processing in TestTags or TestConstValueChange, below.
 			continue
 		}
 		if name == "cgo.go" && !build.Default.CgoEnabled {
@@ -68,12 +68,10 @@ func TestTags(t *testing.T) {
 		output         = filepath.Join(dir, "const_string.go")
 	)
 	for _, file := range []string{"tag_main.go", "tag_tag.go"} {
-
 		err := copy(filepath.Join(dir, file), filepath.Join("testdata", file))
 		if err != nil {
 			t.Fatal(err)
 		}
-
 	}
 	// Run stringer in the directory that contains the package files.
 	// We cannot run stringer in the current directory for the following reasons:
@@ -105,6 +103,48 @@ func TestTags(t *testing.T) {
 	}
 	if !bytes.Contains(result, protectedConst) {
 		t.Fatal("tagged variable does not appear in tagged run")
+	}
+}
+
+// TestConstValueChange verifies that if a constant value changes and
+// the stringer code is not regenerated, we'll get a compiler error.
+func TestConstValueChange(t *testing.T) {
+	dir, stringer := buildStringer(t)
+	defer os.RemoveAll(dir)
+	source := filepath.Join(dir, "day.go")
+	err := copy(source, filepath.Join("testdata", "day.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stringSource := filepath.Join(dir, "day_string.go")
+	// Run stringer in the directory that contains the package files.
+	err = runInDir(dir, stringer, "-type", "Day", "-output", stringSource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Run the binary in the temporary directory as a sanity check.
+	err = run("go", "run", stringSource, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Overwrite the source file with a version that has changed constants.
+	err = copy(source, filepath.Join("testdata", "vary_day.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Unfortunately different compilers may give different error messages,
+	// so there's no easy way to verify that the build failed specifically
+	// because the constants changed rather than because the vary_day.go
+	// file is invalid.
+	//
+	// Instead we'll just rely on manual inspection of the polluted test
+	// output. An alternative might be to check that the error output
+	// matches a set of possible error strings emitted by known
+	// Go compilers.
+	fmt.Fprintf(os.Stderr, "Note: the following messages should indicate an out-of-bounds compiler error\n")
+	err = run("go", "build", stringSource, source)
+	if err == nil {
+		t.Fatal("unexpected compiler success")
 	}
 }
 

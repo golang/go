@@ -52,7 +52,19 @@ const (
 )
 `
 
-const day_out = `
+const day_out = `func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[Monday-0]
+	_ = x[Tuesday-1]
+	_ = x[Wednesday-2]
+	_ = x[Thursday-3]
+	_ = x[Friday-4]
+	_ = x[Saturday-5]
+	_ = x[Sunday-6]
+}
+
 const _Day_name = "MondayTuesdayWednesdayThursdayFridaySaturdaySunday"
 
 var _Day_index = [...]uint8{0, 6, 13, 22, 30, 36, 44, 50}
@@ -77,7 +89,15 @@ const (
 )
 `
 
-const offset_out = `
+const offset_out = `func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[One-1]
+	_ = x[Two-2]
+	_ = x[Three-3]
+}
+
 const _Number_name = "OneTwoThree"
 
 var _Number_index = [...]uint8{0, 3, 6, 11}
@@ -105,7 +125,20 @@ const (
 )
 `
 
-const gap_out = `
+const gap_out = `func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[Two-2]
+	_ = x[Three-3]
+	_ = x[Five-5]
+	_ = x[Six-6]
+	_ = x[Seven-7]
+	_ = x[Eight-8]
+	_ = x[Nine-9]
+	_ = x[Eleven-11]
+}
+
 const (
 	_Gap_name_0 = "TwoThree"
 	_Gap_name_1 = "FiveSixSevenEightNine"
@@ -144,7 +177,17 @@ const (
 )
 `
 
-const num_out = `
+const num_out = `func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[m_2 - -2]
+	_ = x[m_1 - -1]
+	_ = x[m0-0]
+	_ = x[m1-1]
+	_ = x[m2-2]
+}
+
 const _Num_name = "m_2m_1m0m1m2"
 
 var _Num_index = [...]uint8{0, 3, 6, 8, 10, 12}
@@ -172,7 +215,17 @@ const (
 )
 `
 
-const unum_out = `
+const unum_out = `func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[m_2-253]
+	_ = x[m_1-254]
+	_ = x[m0-0]
+	_ = x[m1-1]
+	_ = x[m2-2]
+}
+
 const (
 	_Unum_name_0 = "m0m1m2"
 	_Unum_name_1 = "m_2m_1"
@@ -217,7 +270,26 @@ const (
 )
 `
 
-const prime_out = `
+const prime_out = `func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[p2-2]
+	_ = x[p3-3]
+	_ = x[p5-5]
+	_ = x[p7-7]
+	_ = x[p77-7]
+	_ = x[p11-11]
+	_ = x[p13-13]
+	_ = x[p17-17]
+	_ = x[p19-19]
+	_ = x[p23-23]
+	_ = x[p29-29]
+	_ = x[p37-31]
+	_ = x[p41-41]
+	_ = x[p43-43]
+}
+
 const _Prime_name = "p2p3p5p7p11p13p17p19p23p29p37p41p43"
 
 var _Prime_map = map[Prime]string{
@@ -256,7 +328,19 @@ const (
 )
 `
 
-const prefix_out = `
+const prefix_out = `func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[TypeInt-0]
+	_ = x[TypeString-1]
+	_ = x[TypeFloat-2]
+	_ = x[TypeRune-3]
+	_ = x[TypeByte-4]
+	_ = x[TypeStruct-5]
+	_ = x[TypeSlice-6]
+}
+
 const _Type_name = "IntStringFloatRuneByteStructSlice"
 
 var _Type_index = [...]uint8{0, 3, 9, 14, 18, 22, 28, 33}
@@ -286,7 +370,21 @@ const (
 )
 `
 
-const tokens_out = `
+const tokens_out = `func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[And-0]
+	_ = x[Or-1]
+	_ = x[Add-2]
+	_ = x[Sub-3]
+	_ = x[Ident-4]
+	_ = x[Period-5]
+	_ = x[SingleBefore-6]
+	_ = x[BeforeAndInline-7]
+	_ = x[InlineGeneral-8]
+}
+
 const _Token_name = "&|+-Ident.SingleBeforeinlineinline general"
 
 var _Token_index = [...]uint8{0, 1, 2, 3, 4, 9, 10, 22, 28, 42}
@@ -328,7 +426,7 @@ func TestGolden(t *testing.T) {
 		g.generate(tokens[1])
 		got := string(g.format())
 		if got != test.output {
-			t.Errorf("%s: got\n====\n%s====\nexpected\n====%s", test.name, got, test.output)
+			t.Errorf("%s: got(%d)\n====\n%q====\nexpected(%d)\n====%q", test.name, len(got), got, len(test.output), test.output)
 		}
 	}
 }
