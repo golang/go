@@ -190,6 +190,11 @@ func (t *tester) run() {
 		}
 	}
 
+	// On a few builders, make GOROOT unwritable to catch tests writing to it.
+	if strings.HasPrefix(os.Getenv("GO_BUILDER_NAME"), "linux-") {
+		t.makeGOROOTUnwritable()
+	}
+
 	for _, dt := range t.tests {
 		if !t.shouldRunTest(dt.name) {
 			t.partial = true
@@ -1386,6 +1391,36 @@ func (t *tester) packageHasBenchmarks(pkg string) bool {
 		}
 	}
 	return false
+}
+
+// makeGOROOTUnwritable makes all $GOROOT files & directories non-writable to
+// check that no tests accidentally write to $GOROOT.
+func (t *tester) makeGOROOTUnwritable() {
+	if os.Getenv("GO_BUILDER_NAME") == "" {
+		panic("not a builder")
+	}
+	if os.Getenv("GOROOT") == "" {
+		panic("GOROOT not set")
+	}
+	err := filepath.Walk(os.Getenv("GOROOT"), func(name string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !fi.Mode().IsRegular() && !fi.IsDir() {
+			return nil
+		}
+		mode := fi.Mode()
+		newMode := mode & ^os.FileMode(0222)
+		if newMode != mode {
+			if err := os.Chmod(name, newMode); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatalf("making builder's files read-only: %v", err)
+	}
 }
 
 // raceDetectorSupported is a copy of the function
