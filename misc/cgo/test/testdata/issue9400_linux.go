@@ -18,7 +18,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"./issue9400"
+	"cgotest/issue9400"
 )
 
 func test9400(t *testing.T) {

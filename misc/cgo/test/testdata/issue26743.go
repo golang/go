@@ -7,4 +7,4 @@
 
 package cgotest
 
-import _ "./issue26743"
+import _ "cgotest/issue26743"
