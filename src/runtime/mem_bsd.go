@@ -45,7 +45,7 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	flags := int32(_MAP_ANON | _MAP_PRIVATE)
 	if raceenabled && GOOS == "darwin" {
 		// Currently the race detector expects memory to live within a certain
-		// range, and on Darwin 10.10 mmap is prone to ignoring hints, moreso
+		// range, and on Darwin 10.10 mmap is prone to ignoring hints, more so
 		// than later versions and other BSDs (#26475). So, even though it's
 		// potentially dangerous to MAP_FIXED, we do it in the race detection
 		// case because it'll help maintain the race detector's invariants.

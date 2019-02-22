@@ -614,7 +614,7 @@ func (c *common) log(s string) {
 	c.logDepth(s, 3) // logDepth + log + public function
 }
 
-// logDepth generates the output. At an arbitary stack depth
+// logDepth generates the output at an arbitrary stack depth.
 func (c *common) logDepth(s string, depth int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

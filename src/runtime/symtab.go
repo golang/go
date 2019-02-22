@@ -475,7 +475,7 @@ func FuncForPC(pc uintptr) *Func {
 	}
 	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
 		// Note: strict=false so bad PCs (those between functions) don't crash the runtime.
-		// We just report the preceeding function in that situation. See issue 29735.
+		// We just report the preceding function in that situation. See issue 29735.
 		// TODO: Perhaps we should report no function at all in that case.
 		// The runtime currently doesn't have function end info, alas.
 		if ix := pcdatavalue1(f, _PCDATA_InlTreeIndex, pc, nil, false); ix >= 0 {
