@@ -63,6 +63,10 @@ func mapDirOpenError(originalErr error, name string) error {
 	return originalErr
 }
 
+// Open opens the named file for reading within the restricted directory tree.
+// If successful, methods on the returned file can be used for reading;
+// the associated file descriptor has mode O_RDONLY.
+// Open is a wrapper over os.Open function.
 func (d Dir) Open(name string) (File, error) {
 	if filepath.Separator != '/' && strings.ContainsRune(name, filepath.Separator) {
 		return nil, errors.New("http: invalid character in file path")
