@@ -3427,12 +3427,12 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft32, types.Types[TUINT32], args[0], args[1])
 		},
-		sys.AMD64, sys.ARM64, sys.S390X)
+		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
 	addF("math/bits", "RotateLeft64",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft64, types.Types[TUINT64], args[0], args[1])
 		},
-		sys.AMD64, sys.ARM64, sys.S390X)
+		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
 	alias("math/bits", "RotateLeft", "math/bits", "RotateLeft64", p8...)
 
 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
