@@ -619,7 +619,7 @@ func (t *tester) registerTests() {
 			name:    "cgo_life",
 			heading: "../misc/cgo/life",
 			fn: func(dt *distTest) error {
-				t.addCmd(dt, "misc/cgo/life", "go", "run", filepath.Join(os.Getenv("GOROOT"), "test/run.go"), "-", ".")
+				t.addCmd(dt, "misc/cgo/life", t.goTest(), t.timeout(120))
 				return nil
 			},
 		})
