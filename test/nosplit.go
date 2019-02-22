@@ -218,6 +218,10 @@ func main() {
 	}
 	defer os.RemoveAll(dir)
 
+	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module go-test-nosplit\n"), 0666); err != nil {
+		log.Panic(err)
+	}
+
 	tests = strings.Replace(tests, "\t", " ", -1)
 	tests = commentRE.ReplaceAllString(tests, "")
 
