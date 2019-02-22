@@ -217,12 +217,6 @@ func Sprintf(format string, a ...interface{}) string {
 	return s
 }
 
-// Errorf formats according to a format specifier and returns the string
-// as a value that satisfies error.
-func Errorf(format string, a ...interface{}) error {
-	return errors.New(Sprintf(format, a...))
-}
-
 // These routines do not take a format string
 
 // Fprint formats using the default formats for its operands and writes to w.
@@ -576,12 +570,22 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 	if p.erroring {
 		return
 	}
-	// Is it a Formatter?
-	if formatter, ok := p.arg.(Formatter); ok {
+	switch x := p.arg.(type) {
+	case errors.Formatter:
+		handled = true
+		defer p.catchPanic(p.arg, verb, "FormatError")
+		return fmtError(p, verb, x)
+
+	case Formatter:
 		handled = true
 		defer p.catchPanic(p.arg, verb, "Format")
-		formatter.Format(p, verb)
+		x.Format(p, verb)
 		return
+
+	case error:
+		handled = true
+		defer p.catchPanic(p.arg, verb, "Error")
+		return fmtError(p, verb, x)
 	}
 
 	// If we're doing Go syntax and the argument knows how to supply it, take care of it now.
@@ -599,18 +603,7 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 		// Println etc. set verb to %v, which is "stringable".
 		switch verb {
 		case 'v', 's', 'x', 'X', 'q':
-			// Is it an error or Stringer?
-			// The duplication in the bodies is necessary:
-			// setting handled and deferring catchPanic
-			// must happen before calling the method.
-			switch v := p.arg.(type) {
-			case error:
-				handled = true
-				defer p.catchPanic(p.arg, verb, "Error")
-				p.fmtString(v.Error(), verb)
-				return
-
-			case Stringer:
+			if v, ok := p.arg.(Stringer); ok {
 				handled = true
 				defer p.catchPanic(p.arg, verb, "String")
 				p.fmtString(v.String(), verb)
