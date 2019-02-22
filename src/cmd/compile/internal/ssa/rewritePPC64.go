@@ -537,6 +537,10 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPPC64ORN_0(v)
 	case OpPPC64ORconst:
 		return rewriteValuePPC64_OpPPC64ORconst_0(v)
+	case OpPPC64ROTL:
+		return rewriteValuePPC64_OpPPC64ROTL_0(v)
+	case OpPPC64ROTLW:
+		return rewriteValuePPC64_OpPPC64ROTLW_0(v)
 	case OpPPC64SUB:
 		return rewriteValuePPC64_OpPPC64SUB_0(v)
 	case OpPPC64XOR:
@@ -551,6 +555,10 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPopCount64_0(v)
 	case OpPopCount8:
 		return rewriteValuePPC64_OpPopCount8_0(v)
+	case OpRotateLeft32:
+		return rewriteValuePPC64_OpRotateLeft32_0(v)
+	case OpRotateLeft64:
+		return rewriteValuePPC64_OpRotateLeft64_0(v)
 	case OpRound:
 		return rewriteValuePPC64_OpRound_0(v)
 	case OpRound32F:
@@ -25533,6 +25541,44 @@ func rewriteValuePPC64_OpPPC64ORconst_0(v *Value) bool {
 	}
 	return false
 }
+func rewriteValuePPC64_OpPPC64ROTL_0(v *Value) bool {
+	// match: (ROTL x (MOVDconst [c]))
+	// cond:
+	// result: (ROTLconst x [c&63])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64MOVDconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpPPC64ROTLconst)
+		v.AuxInt = c & 63
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64ROTLW_0(v *Value) bool {
+	// match: (ROTLW x (MOVDconst [c]))
+	// cond:
+	// result: (ROTLWconst x [c&31])
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpPPC64MOVDconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpPPC64ROTLWconst)
+		v.AuxInt = c & 31
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
 func rewriteValuePPC64_OpPPC64SUB_0(v *Value) bool {
 	// match: (SUB x (MOVDconst [c]))
 	// cond: is32Bit(-c)
@@ -26083,6 +26129,34 @@ func rewriteValuePPC64_OpPopCount8_0(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpPPC64MOVBZreg, typ.Int64)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValuePPC64_OpRotateLeft32_0(v *Value) bool {
+	// match: (RotateLeft32 x y)
+	// cond:
+	// result: (ROTLW x y)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpPPC64ROTLW)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValuePPC64_OpRotateLeft64_0(v *Value) bool {
+	// match: (RotateLeft64 x y)
+	// cond:
+	// result: (ROTL x y)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpPPC64ROTL)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 }

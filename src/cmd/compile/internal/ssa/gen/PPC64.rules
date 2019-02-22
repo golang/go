@@ -100,6 +100,14 @@
 ( OR (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) -> (ROTLW x y)
 (XOR (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) -> (ROTLW x y)
 
+// Lowering rotates
+(RotateLeft32 x y) -> (ROTLW x y)
+(RotateLeft64 x y) -> (ROTL x y)
+
+// Constant rotate generation
+(ROTLW  x (MOVDconst [c])) -> (ROTLWconst  x [c&31])
+(ROTL   x (MOVDconst [c])) -> (ROTLconst   x [c&63])
+
 (Lsh64x64  x (Const64 [c])) && uint64(c) < 64 -> (SLDconst x [c])
 (Rsh64x64  x (Const64 [c])) && uint64(c) < 64 -> (SRADconst x [c])
 (Rsh64Ux64 x (Const64 [c])) && uint64(c) < 64 -> (SRDconst x [c])
