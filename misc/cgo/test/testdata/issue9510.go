@@ -11,8 +11,8 @@ import (
 	"runtime"
 	"testing"
 
-	"./issue9510a"
-	"./issue9510b"
+	"cgotest/issue9510a"
+	"cgotest/issue9510b"
 )
 
 func test9510(t *testing.T) {

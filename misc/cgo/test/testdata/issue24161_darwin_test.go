@@ -15,11 +15,11 @@ package cgotest
 import (
 	"testing"
 
-	"./issue24161arg"
-	"./issue24161e0"
-	"./issue24161e1"
-	"./issue24161e2"
-	"./issue24161res"
+	"cgotest/issue24161arg"
+	"cgotest/issue24161e0"
+	"cgotest/issue24161e1"
+	"cgotest/issue24161e2"
+	"cgotest/issue24161res"
 )
 
 func Test24161Arg(t *testing.T) {
