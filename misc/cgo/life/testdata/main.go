@@ -14,7 +14,7 @@ import (
 	"flag"
 	"fmt"
 
-	"."
+	"cgolife"
 )
 
 const MAXDIM = 100
@@ -34,7 +34,7 @@ func main() {
 		}
 	}
 
-	life.Run(*gen, *dim, *dim, a[:])
+	cgolife.Run(*gen, *dim, *dim, a[:])
 
 	for i := 0; i < *dim; i++ {
 		for j := 0; j < *dim; j++ {
