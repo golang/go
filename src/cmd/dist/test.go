@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -675,22 +674,8 @@ func (t *tester) registerTests() {
 	// recompile the entire standard library. If make.bash ran with
 	// special -gcflags, that's not true.
 	if t.cgoEnabled && gogcflags == "" {
-		if t.cgoTestSOSupported() {
-			t.tests = append(t.tests, distTest{
-				name:    "testso",
-				heading: "../misc/cgo/testso",
-				fn: func(dt *distTest) error {
-					return t.cgoTestSO(dt, "misc/cgo/testso")
-				},
-			})
-			t.tests = append(t.tests, distTest{
-				name:    "testsovar",
-				heading: "../misc/cgo/testsovar",
-				fn: func(dt *distTest) error {
-					return t.cgoTestSO(dt, "misc/cgo/testsovar")
-				},
-			})
-		}
+		t.registerHostTest("testso", "../misc/cgo/testso", "misc/cgo/testso", ".")
+		t.registerHostTest("testsovar", "../misc/cgo/testsovar", "misc/cgo/testsovar", ".")
 		if t.supportedBuildmode("c-archive") {
 			t.registerHostTest("testcarchive", "../misc/cgo/testcarchive", "misc/cgo/testcarchive", ".")
 		}
@@ -1164,85 +1149,6 @@ func (t *tester) runPending(nextTest *distTest) {
 			fmt.Printf("# go tool dist test -run=^%s$\n", dt.name)
 		}
 	}
-}
-
-func (t *tester) cgoTestSOSupported() bool {
-	if goos == "android" || t.iOS() {
-		// No exec facility on Android or iOS.
-		return false
-	}
-	if goarch == "ppc64" {
-		// External linking not implemented on ppc64 (issue #8912).
-		return false
-	}
-	if goarch == "mips64le" || goarch == "mips64" {
-		// External linking not implemented on mips64.
-		return false
-	}
-	return true
-}
-
-func (t *tester) cgoTestSO(dt *distTest, testpath string) error {
-	t.runPending(dt)
-
-	timelog("start", dt.name)
-	defer timelog("end", dt.name)
-
-	dir := filepath.Join(goroot, testpath)
-
-	// build shared object
-	output, err := exec.Command("go", "env", "CC").Output()
-	if err != nil {
-		return fmt.Errorf("Error running go env CC: %v", err)
-	}
-	cc := strings.TrimSuffix(string(output), "\n")
-	if cc == "" {
-		return errors.New("CC environment variable (go env CC) cannot be empty")
-	}
-	output, err = exec.Command("go", "env", "GOGCCFLAGS").Output()
-	if err != nil {
-		return fmt.Errorf("Error running go env GOGCCFLAGS: %v", err)
-	}
-	gogccflags := strings.Split(strings.TrimSuffix(string(output), "\n"), " ")
-
-	ext := "so"
-	args := append(gogccflags, "-shared")
-	switch goos {
-	case "darwin":
-		ext = "dylib"
-		args = append(args, "-undefined", "suppress", "-flat_namespace")
-	case "windows":
-		ext = "dll"
-		args = append(args, "-DEXPORT_DLL")
-	}
-	sofname := "libcgosotest." + ext
-	args = append(args, "-o", sofname, "cgoso_c.c")
-
-	if err := t.dirCmd(dir, cc, args).Run(); err != nil {
-		return err
-	}
-	defer os.Remove(filepath.Join(dir, sofname))
-
-	if err := t.dirCmd(dir, "go", "build", "-o", "main.exe", "main.go").Run(); err != nil {
-		return err
-	}
-	defer os.Remove(filepath.Join(dir, "main.exe"))
-
-	cmd := t.dirCmd(dir, "./main.exe")
-	if goos != "windows" {
-		s := "LD_LIBRARY_PATH"
-		if goos == "darwin" {
-			s = "DYLD_LIBRARY_PATH"
-		}
-		cmd.Env = append(os.Environ(), s+"=.")
-
-		// On FreeBSD 64-bit architectures, the 32-bit linker looks for
-		// different environment variables.
-		if goos == "freebsd" && gohostarch == "386" {
-			cmd.Env = append(cmd.Env, "LD_32_LIBRARY_PATH=.")
-		}
-	}
-	return cmd.Run()
 }
 
 func (t *tester) hasBash() bool {
