@@ -731,6 +731,7 @@ var printVerbs = []printVerb{
 	{'T', "-", anyType},
 	{'U', "-#", argRune | argInt},
 	{'v', allFlags, anyType},
+	{'w', noFlag, anyType},
 	{'x', sharpNumFlag, argRune | argInt | argString | argPointer},
 	{'X', sharpNumFlag, argRune | argInt | argString | argPointer},
 }

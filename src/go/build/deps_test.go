@@ -183,7 +183,7 @@ var pkgDeps = map[string][]string{
 	},
 
 	// Formatted I/O: few dependencies (L1) but we must add reflect and internal/fmtsort.
-	"fmt": {"L1", "os", "reflect", "internal/fmtsort"},
+	"fmt": {"L1", "bytes", "strings", "os", "reflect", "internal/fmtsort"},
 	"log": {"L1", "os", "fmt", "time"},
 
 	// Packages used by testing must be low-level (L2+fmt).
