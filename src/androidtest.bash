@@ -69,12 +69,6 @@ cp -a "${GOROOT}/test" "${FAKE_GOROOT}/"
 cp -a "${GOROOT}/lib" "${FAKE_GOROOT}/"
 cp -a "${pkgdir}" "${FAKE_GOROOT}/pkg/"
 
-# In case we're booting a device or emulator alongside androidtest.bash
-# wait for it to be ready. adb wait-for-device is not enough, we have
-# wait for sys.boot_completed.
-echo '# Waiting for android device to be ready'
-adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;'
-
 echo '# Syncing test files to android device'
 adb $GOANDROID_ADB_FLAGS shell mkdir -p /data/local/tmp/goroot
 time adb $GOANDROID_ADB_FLAGS sync data &> /dev/null
