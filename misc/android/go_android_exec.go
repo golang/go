@@ -59,6 +59,11 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("go_android_exec: ")
 
+	// In case we're booting a device or emulator alongside androidtest.bash
+	// wait for it to be ready. adb wait-for-device is not enough, we have to
+	// wait for sys.boot_completed.
+	run("wait-for-device", "shell", "while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;")
+
 	// Prepare a temporary directory that will be cleaned up at the end.
 	deviceGotmp := fmt.Sprintf("/data/local/tmp/%s-%d",
 		filepath.Base(os.Args[1]), os.Getpid())
