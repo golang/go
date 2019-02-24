@@ -365,7 +365,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 	buf := make([]byte, len(src))
 	copy(buf, src)
-	l := stripNewlines(buf, len(buf))
+	l := stripNewlines(buf)
 	n, _, err = enc.decode(dst, buf[:l])
 	return
 }
@@ -375,7 +375,7 @@ func (enc *Encoding) DecodeString(s string) ([]byte, error) {
 	dbuf := make([]byte, enc.DecodedLen(len(s)))
 	src := make([]byte, len(s))
 	copy(src, s)
-	l := stripNewlines(src, len(src))
+	l := stripNewlines(src)
 	n, _, err := enc.decode(dbuf, src[:l])
 	return dbuf[:n], err
 }
@@ -492,9 +492,11 @@ type newlineFilteringReader struct {
 	wrapped io.Reader
 }
 
-func stripNewlines(p []byte, n int) int {
+// stripNewlines removes newline characters and returns the number
+// of non-newline characters moved to the beginning of p.
+func stripNewlines(p []byte) int {
 	offset := 0
-	for i, b := range p[0:n] {
+	for i, b := range p[0:len(p)] {
 		if b != '\r' && b != '\n' {
 			if i != offset {
 				p[offset] = b
@@ -508,7 +510,7 @@ func stripNewlines(p []byte, n int) int {
 func (r *newlineFilteringReader) Read(p []byte) (int, error) {
 	n, err := r.wrapped.Read(p)
 	for n > 0 {
-		offset := stripNewlines(p, n)
+		offset := stripNewlines(p[:n])
 		if err != nil || offset > 0 {
 			return offset, err
 		}
