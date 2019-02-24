@@ -611,7 +611,7 @@ func (t *tester) registerTests() {
 			name:    "cgo_stdio",
 			heading: "../misc/cgo/stdio",
 			fn: func(dt *distTest) error {
-				t.addCmd(dt, "misc/cgo/stdio", "go", "run", filepath.Join(os.Getenv("GOROOT"), "test/run.go"), "-", ".")
+				t.addCmd(dt, "misc/cgo/stdio", t.goTest(), t.timeout(120))
 				return nil
 			},
 		})
@@ -619,7 +619,7 @@ func (t *tester) registerTests() {
 			name:    "cgo_life",
 			heading: "../misc/cgo/life",
 			fn: func(dt *distTest) error {
-				t.addCmd(dt, "misc/cgo/life", "go", "run", filepath.Join(os.Getenv("GOROOT"), "test/run.go"), "-", ".")
+				t.addCmd(dt, "misc/cgo/life", t.goTest(), t.timeout(120))
 				return nil
 			},
 		})
@@ -701,7 +701,7 @@ func (t *tester) registerTests() {
 			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest(), t.timeout(600))
 		}
 		if t.supportedBuildmode("plugin") {
-			t.registerTest("testplugin", "../misc/cgo/testplugin", "./test.bash")
+			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600))
 		}
 		if gohostos == "linux" && goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
