@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"go/build"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -78,6 +79,8 @@ func main() {
 	deviceCwd := filepath.Join(deviceGoroot, subdir)
 	if !inGoRoot {
 		deviceCwd = filepath.Join(deviceGopath, subdir)
+	} else {
+		adbSyncGoroot()
 	}
 
 	// Binary names can conflict.
@@ -163,4 +166,47 @@ func subdir() (pkgpath string, underGoRoot bool) {
 	log.Fatalf("the current path %q is not in either GOROOT(%q) or GOPATH(%q)",
 		cwd, runtime.GOROOT(), build.Default.GOPATH)
 	return "", false
+}
+
+// adbSyncGoroot ensures that files necessary for testing the Go standard
+// packages are present on the attached device.
+func adbSyncGoroot() {
+	// Also known by cmd/dist. The bootstrap command deletes the file.
+	statPath := filepath.Join(os.TempDir(), "go_android_exec-adb-sync-status")
+	stat, err := os.OpenFile(statPath, os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stat.Close()
+	// Serialize check and syncing.
+	if err := syscall.Flock(int(stat.Fd()), syscall.LOCK_EX); err != nil {
+		log.Fatal(err)
+	}
+	s, err := ioutil.ReadAll(stat)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if string(s) == "done" {
+		return
+	}
+	devRoot := "/data/local/tmp/goroot"
+	run("shell", "rm", "-rf", devRoot)
+	run("shell", "mkdir", "-p", devRoot+"/pkg")
+	goroot := runtime.GOROOT()
+	goCmd := filepath.Join(goroot, "bin", "go")
+	runtimea, err := exec.Command(goCmd, "list", "-f", "{{.Target}}", "runtime").Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	pkgdir := filepath.Dir(string(runtimea))
+	if pkgdir == "" {
+		log.Fatal("could not find android pkg dir")
+	}
+	for _, dir := range []string{"src", "test", "lib"} {
+		run("push", filepath.Join(goroot, dir), filepath.Join(devRoot))
+	}
+	run("push", filepath.Join(pkgdir), filepath.Join(devRoot, "pkg/"))
+	if _, err := stat.Write([]byte("done")); err != nil {
+		log.Fatal(err)
+	}
 }
