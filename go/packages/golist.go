@@ -620,16 +620,25 @@ func golistDriverCurrent(cfg *Config, words ...string) (*driverResponse, error) 
 			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
 		}
 
-		// Workaround for https://golang.org/issue/28749.
-		// TODO(adonovan): delete before go1.12 release.
-		out := pkg.CompiledGoFiles[:0]
-		for _, f := range pkg.CompiledGoFiles {
-			if strings.HasSuffix(f, ".s") {
-				continue
+		// Work around https://golang.org/issue/28749:
+		// cmd/go puts assembly, C, and C++ files in CompiledGoFiles.
+		// Filter out any elements of CompiledGoFiles that are also in OtherFiles.
+		// We have to keep this workaround in place until go1.12 is a distant memory.
+		if len(pkg.OtherFiles) > 0 {
+			other := make(map[string]bool, len(pkg.OtherFiles))
+			for _, f := range pkg.OtherFiles {
+				other[f] = true
 			}
-			out = append(out, f)
+
+			out := pkg.CompiledGoFiles[:0]
+			for _, f := range pkg.CompiledGoFiles {
+				if other[f] {
+					continue
+				}
+				out = append(out, f)
+			}
+			pkg.CompiledGoFiles = out
 		}
-		pkg.CompiledGoFiles = out
 
 		// Extract the PkgPath from the package's ID.
 		if i := strings.IndexByte(pkg.ID, ' '); i >= 0 {
