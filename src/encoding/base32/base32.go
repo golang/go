@@ -6,10 +6,8 @@
 package base32
 
 import (
-	"bytes"
 	"io"
 	"strconv"
-	"strings"
 )
 
 /*
@@ -61,13 +59,6 @@ var StdEncoding = NewEncoding(encodeStd)
 // HexEncoding is the ``Extended Hex Alphabet'' defined in RFC 4648.
 // It is typically used in DNS.
 var HexEncoding = NewEncoding(encodeHex)
-
-var removeNewlinesMapper = func(r rune) rune {
-	if r == '\r' || r == '\n' {
-		return -1
-	}
-	return r
-}
 
 // WithPadding creates a new encoding identical to enc except
 // with a specified padding character, or NoPadding to disable padding.
@@ -372,16 +363,20 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 // number of bytes successfully written and CorruptInputError.
 // New line characters (\r and \n) are ignored.
 func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
-	src = bytes.Map(removeNewlinesMapper, src)
-	n, _, err = enc.decode(dst, src)
+	buf := make([]byte, len(src))
+	copy(buf, src)
+	l := stripNewlines(buf, len(buf))
+	n, _, err = enc.decode(dst, buf[:l])
 	return
 }
 
 // DecodeString returns the bytes represented by the base32 string s.
 func (enc *Encoding) DecodeString(s string) ([]byte, error) {
-	s = strings.Map(removeNewlinesMapper, s)
 	dbuf := make([]byte, enc.DecodedLen(len(s)))
-	n, _, err := enc.decode(dbuf, []byte(s))
+	src := make([]byte, len(s))
+	copy(src, s)
+	l := stripNewlines(src, len(src))
+	n, _, err := enc.decode(dbuf, src[:l])
 	return dbuf[:n], err
 }
 
@@ -497,18 +492,23 @@ type newlineFilteringReader struct {
 	wrapped io.Reader
 }
 
+func stripNewlines(p []byte, n int) int {
+	offset := 0
+	for i, b := range p[0:n] {
+		if b != '\r' && b != '\n' {
+			if i != offset {
+				p[offset] = b
+			}
+			offset++
+		}
+	}
+	return offset
+}
+
 func (r *newlineFilteringReader) Read(p []byte) (int, error) {
 	n, err := r.wrapped.Read(p)
 	for n > 0 {
-		offset := 0
-		for i, b := range p[0:n] {
-			if b != '\r' && b != '\n' {
-				if i != offset {
-					p[offset] = b
-				}
-				offset++
-			}
-		}
+		offset := stripNewlines(p, n)
 		if err != nil || offset > 0 {
 			return offset, err
 		}
