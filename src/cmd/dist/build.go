@@ -1366,7 +1366,11 @@ func cmdbootstrap() {
 	// Remove go_bootstrap now that we're done.
 	xremove(pathf("%s/go_bootstrap", tooldir))
 
-	// Build the exec wrapper if necessary.
+	if goos == "android" {
+		// Make sure the exec wrapper will sync a fresh $GOROOT to the device.
+		xremove(pathf("%s/go_android_exec-adb-sync-status", os.TempDir()))
+	}
+
 	if wrapperPath := wrapperPathFor(goos, goarch); wrapperPath != "" {
 		oldcc := os.Getenv("CC")
 		os.Setenv("GOOS", gohostos)
