@@ -31,14 +31,11 @@ fi
 export CGO_ENABLED=1
 unset GOBIN
 
-# Do the build first, so we can build go_android_exec and cleaner.
+# Do the build first, so we can build the 'cleaner' binary.
 # Also lets us fail early before the (slow) adb push if the build is broken.
 . ./make.bash --no-banner
 export GOROOT=$(dirname $(pwd))
 export PATH=$GOROOT/bin:$PATH
-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
-	-o ../bin/go_android_${GOARCH}_exec \
-	../misc/android/go_android_exec.go
 
 export pkgdir=$(dirname $(go list -f '{{.Target}}' runtime))
 if [ "$pkgdir" = "" ]; then
