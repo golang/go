@@ -113,8 +113,8 @@ func ExampleDuration_Minutes() {
 }
 
 func ExampleDuration_Nanoseconds() {
-	ns, _ := time.ParseDuration("1000ns")
-	fmt.Printf("one microsecond has %d nanoseconds.", ns.Nanoseconds())
+	u, _ := time.ParseDuration("1us")
+	fmt.Printf("one microsecond has %d nanoseconds.", u.Nanoseconds())
 	// Output: one microsecond has 1000 nanoseconds.
 }
 
