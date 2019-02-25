@@ -28,6 +28,7 @@ var (
 	GOARM    = goarm()
 	GOMIPS   = gomips()
 	GOMIPS64 = gomips64()
+	GO_LDSO  = defaultGO_LDSO
 	Version  = version
 )
 

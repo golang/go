@@ -76,6 +76,7 @@ func mkzbootstrap(file string) {
 	fmt.Fprintf(&buf, "const defaultGOOS = runtime.GOOS\n")
 	fmt.Fprintf(&buf, "const defaultGOARCH = runtime.GOARCH\n")
 	fmt.Fprintf(&buf, "const defaultGO_EXTLINK_ENABLED = `%s`\n", goextlinkenabled)
+	fmt.Fprintf(&buf, "const defaultGO_LDSO = `%s`\n", defaultldso)
 	fmt.Fprintf(&buf, "const version = `%s`\n", findgoversion())
 	fmt.Fprintf(&buf, "const stackGuardMultiplierDefault = %d\n", stackGuardMultiplierDefault())
 	fmt.Fprintf(&buf, "const goexperiment = `%s`\n", os.Getenv("GOEXPERIMENT"))

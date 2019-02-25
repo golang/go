@@ -34,6 +34,9 @@
 # controls the default behavior of the linker's -linkmode option.  The
 # default value depends on the system.
 #
+# GO_LDSO: Sets the default dynamic linker/loader (ld.so) to be used
+# by the internal linker.
+#
 # CC: Command line to run to compile C code for GOHOSTARCH.
 # Default is "gcc". Also supported: "clang".
 #
@@ -124,6 +127,15 @@ done
 # disable cgo manually.
 if [ "$(uname -s)" = "GNU/kFreeBSD" ]; then
 	export CGO_ENABLED=0
+fi
+
+# On Alpine Linux, use the musl dynamic linker/loader
+if [ -f "/etc/alpine-release" ]; then
+	if type readelf >/dev/null 2>&1; then
+		echo "int main() { return 0; }" | ${CC:-gcc} -o ./test-alpine-ldso -x c -
+		export GO_LDSO=$(readelf -l ./test-alpine-ldso | grep 'interpreter:' | sed -e 's/^.*interpreter: \(.*\)[]]/\1/')
+		rm -f ./test-alpine-ldso
+	fi
 fi
 
 # Clean old generated file that will cause problems in the build.
