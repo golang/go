@@ -49,7 +49,9 @@ func nilcheckelim(f *Func) {
 			// value, or a value constructed from an offset of a
 			// non-nil ptr (OpAddPtr) implies it is non-nil
 			// We also assume unsafe pointer arithmetic generates non-nil pointers. See #27180.
-			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr || v.Op == OpOffPtr || v.Op == OpAdd32 || v.Op == OpAdd64 || v.Op == OpSub32 || v.Op == OpSub64 {
+			// We assume that SlicePtr is non-nil because we do a bounds check
+			// before the slice access (and all cap>0 slices have a non-nil ptr). See #30366.
+			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr || v.Op == OpOffPtr || v.Op == OpAdd32 || v.Op == OpAdd64 || v.Op == OpSub32 || v.Op == OpSub64 || v.Op == OpSlicePtr {
 				nonNilValues[v.ID] = true
 			}
 		}

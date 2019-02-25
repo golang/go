@@ -61,3 +61,13 @@ func SliceExtensionInt64(s []int, l64 int64) []int {
 	// 386:-`.*runtime\.memclr`
 	return append(s, make([]int, l64)...)
 }
+
+// ---------------------- //
+//   Nil check of &s[0]   //
+// ---------------------- //
+// See issue 30366
+func SliceNilCheck(s []int) {
+	p := &s[0]
+	// amd64:-`TESTB`
+	_ = *p
+}
