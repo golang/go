@@ -109,7 +109,7 @@ Do not send CLs removing the interior tags from such phrases.
   is no longer available with <code>go vet</code>. Checking for
   variable shadowing may now be done using
 <pre>
-go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+go get -u golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
 go vet -vettool=$(which shadow)
 </pre>
 </p>
@@ -121,7 +121,7 @@ The Go tour is no longer included in the main binary distribution. To
 run the tour locally, instead of running <code>go</code> <code>tool</code> <code>tour</code>,
 manually install it:
 <pre>
-go install golang.org/x/tour
+go get -u golang.org/x/tour
 tour
 </pre>
 </p>
