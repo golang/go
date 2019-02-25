@@ -298,6 +298,8 @@ const (
 	DW_AT_go_embedded_field = 0x2903
 	DW_AT_go_runtime_type   = 0x2904
 
+	DW_AT_go_package_name = 0x2905 // Attribute for DW_TAG_compile_unit
+
 	DW_AT_internal_location = 253 // params and locals; not emitted
 )
 
@@ -369,6 +371,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_ranges, DW_FORM_sec_offset},
 			{DW_AT_comp_dir, DW_FORM_string},
 			{DW_AT_producer, DW_FORM_string},
+			{DW_AT_go_package_name, DW_FORM_string},
 		},
 	},
 
@@ -381,6 +384,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_language, DW_FORM_data1},
 			{DW_AT_comp_dir, DW_FORM_string},
 			{DW_AT_producer, DW_FORM_string},
+			{DW_AT_go_package_name, DW_FORM_string},
 		},
 	},
 

@@ -1833,6 +1833,12 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 
 		newattr(unit.dwinfo, dwarf.DW_AT_producer, dwarf.DW_CLS_STRING, int64(len(producer)), producer)
 
+		var pkgname string
+		if s := ctxt.Syms.ROLookup(dwarf.CUInfoPrefix+"packagename."+unit.lib.Pkg, 0); s != nil {
+			pkgname = string(s.P)
+		}
+		newattr(unit.dwinfo, dwarf.DW_AT_go_package_name, dwarf.DW_CLS_STRING, int64(len(pkgname)), pkgname)
+
 		if len(lib.Textp) == 0 {
 			unit.dwinfo.Abbrev = dwarf.DW_ABRV_COMPUNIT_TEXTLESS
 		}

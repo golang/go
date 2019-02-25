@@ -497,6 +497,8 @@ func Main(archInit func(*Arch)) {
 
 	finishUniverse()
 
+	recordPackageName()
+
 	typecheckok = true
 
 	// Process top-level declarations in phases.
@@ -1404,6 +1406,18 @@ func recordFlags(flags ...string) {
 	s.Set(obj.AttrDuplicateOK, true)
 	Ctxt.Data = append(Ctxt.Data, s)
 	s.P = cmd.Bytes()[1:]
+}
+
+// recordPackageName records the name of the package being
+// compiled, so that the linker can save it in the compile unit's DIE.
+func recordPackageName() {
+	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + myimportpath)
+	s.Type = objabi.SDWARFINFO
+	// Sometimes (for example when building tests) we can link
+	// together two package main archives. So allow dups.
+	s.Set(obj.AttrDuplicateOK, true)
+	Ctxt.Data = append(Ctxt.Data, s)
+	s.P = []byte(localpkg.Name)
 }
 
 // flag_lang is the language version we are compiling for, set by the -lang flag.
