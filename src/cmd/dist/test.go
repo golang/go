@@ -570,10 +570,7 @@ func (t *tester) registerTests() {
 	}
 
 	// Test internal linking of PIE binaries where it is supported.
-	if goos == "linux" && goarch == "amd64" && !isAlpineLinux() {
-		// Issue 18243: We don't have a way to set the default
-		// dynamic linker used in internal linking mode. So
-		// this test is skipped on Alpine.
+	if goos == "linux" && goarch == "amd64" {
 		t.tests = append(t.tests, distTest{
 			name:    "pie_internal",
 			heading: "internal linking of -buildmode=pie",
@@ -897,10 +894,6 @@ func (t *tester) internalLink() bool {
 	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
 	if goarch == "arm64" || goarch == "mips64" || goarch == "mips64le" || goarch == "mips" || goarch == "mipsle" {
-		return false
-	}
-	if isAlpineLinux() {
-		// Issue 18243.
 		return false
 	}
 	return true

@@ -48,6 +48,7 @@ var (
 	defaultcflags    string
 	defaultldflags   string
 	defaultpkgconfig string
+	defaultldso      string
 
 	rebuildall   bool
 	defaultclang bool
@@ -206,6 +207,8 @@ func xinit() {
 		b = "pkg-config"
 	}
 	defaultpkgconfig = b
+
+	defaultldso = os.Getenv("GO_LDSO")
 
 	// For tools being invoked but also for os.ExpandEnv.
 	os.Setenv("GO386", go386)
