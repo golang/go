@@ -89,6 +89,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 //sys	Listen(s int, n int) (err error)
 //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
 //sys	Pause() (err error)
+//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
 //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
