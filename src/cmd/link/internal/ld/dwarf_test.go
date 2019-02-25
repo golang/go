@@ -1142,3 +1142,56 @@ func main() {
 		}
 	}
 }
+
+func TestPackageNameAttr(t *testing.T) {
+	const dwarfAttrGoPackageName = dwarf.Attr(0x2905)
+	const dwarfGoLanguage = 22
+
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	t.Parallel()
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	const prog = "package main\nfunc main() {\nprintln(\"hello world\")\n}\n"
+
+	f := gobuild(t, dir, prog, NoOpt)
+
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	for {
+		e, err := rdr.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e == nil {
+			break
+		}
+		if e.Tag != dwarf.TagCompileUnit {
+			continue
+		}
+		if lang, _ := e.Val(dwarf.AttrLanguage).(int64); lang != dwarfGoLanguage {
+			continue
+		}
+
+		_, ok := e.Val(dwarfAttrGoPackageName).(string)
+		if !ok {
+			name, _ := e.Val(dwarf.AttrName).(string)
+			t.Errorf("found compile unit without package name: %s", name)
+		}
+	}
+}
