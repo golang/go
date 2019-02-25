@@ -41,7 +41,7 @@ const (
 	AF_KEY                               = 0xf
 	AF_LLC                               = 0x1a
 	AF_LOCAL                             = 0x1
-	AF_MAX                               = 0x2c
+	AF_MAX                               = 0x2d
 	AF_MPLS                              = 0x1c
 	AF_NETBEUI                           = 0xd
 	AF_NETLINK                           = 0x10
@@ -706,6 +706,7 @@ const (
 	IN_ISDIR                             = 0x40000000
 	IN_LOOPBACKNET                       = 0x7f
 	IN_MASK_ADD                          = 0x20000000
+	IN_MASK_CREATE                       = 0x10000000
 	IN_MODIFY                            = 0x2
 	IN_MOVE                              = 0xc0
 	IN_MOVED_FROM                        = 0x40
@@ -777,6 +778,7 @@ const (
 	IPV6_MINHOPCOUNT                     = 0x49
 	IPV6_MTU                             = 0x18
 	IPV6_MTU_DISCOVER                    = 0x17
+	IPV6_MULTICAST_ALL                   = 0x1d
 	IPV6_MULTICAST_HOPS                  = 0x12
 	IPV6_MULTICAST_IF                    = 0x11
 	IPV6_MULTICAST_LOOP                  = 0x13
@@ -1598,6 +1600,13 @@ const (
 	RLIMIT_SIGPENDING                    = 0xb
 	RLIMIT_STACK                         = 0x3
 	RLIM_INFINITY                        = 0xffffffffffffffff
+	RNDADDENTROPY                        = 0x40085203
+	RNDADDTOENTCNT                       = 0x40045201
+	RNDCLEARPOOL                         = 0x5206
+	RNDGETENTCNT                         = 0x80045200
+	RNDGETPOOL                           = 0x80085202
+	RNDRESEEDCRNG                        = 0x5207
+	RNDZAPENTCNT                         = 0x5204
 	RTAX_ADVMSS                          = 0x8
 	RTAX_CC_ALGO                         = 0x10
 	RTAX_CWND                            = 0x7
@@ -1805,6 +1814,8 @@ const (
 	SECCOMP_MODE_STRICT                  = 0x1
 	SECURITYFS_MAGIC                     = 0x73636673
 	SELINUX_MAGIC                        = 0xf97cff8c
+	SFD_CLOEXEC                          = 0x80000
+	SFD_NONBLOCK                         = 0x800
 	SHUT_RD                              = 0x0
 	SHUT_RDWR                            = 0x2
 	SHUT_WR                              = 0x1
@@ -1966,6 +1977,17 @@ const (
 	SO_DETACH_FILTER                     = 0x1b
 	SO_DOMAIN                            = 0x27
 	SO_DONTROUTE                         = 0x5
+	SO_EE_CODE_TXTIME_INVALID_PARAM      = 0x1
+	SO_EE_CODE_TXTIME_MISSED             = 0x2
+	SO_EE_CODE_ZEROCOPY_COPIED           = 0x1
+	SO_EE_ORIGIN_ICMP                    = 0x2
+	SO_EE_ORIGIN_ICMP6                   = 0x3
+	SO_EE_ORIGIN_LOCAL                   = 0x1
+	SO_EE_ORIGIN_NONE                    = 0x0
+	SO_EE_ORIGIN_TIMESTAMPING            = 0x4
+	SO_EE_ORIGIN_TXSTATUS                = 0x4
+	SO_EE_ORIGIN_TXTIME                  = 0x6
+	SO_EE_ORIGIN_ZEROCOPY                = 0x5
 	SO_ERROR                             = 0x4
 	SO_GET_FILTER                        = 0x1a
 	SO_INCOMING_CPU                      = 0x31
@@ -2099,6 +2121,7 @@ const (
 	TCOOFF                               = 0x0
 	TCOON                                = 0x1
 	TCP_CC_INFO                          = 0x1a
+	TCP_CM_INQ                           = 0x24
 	TCP_CONGESTION                       = 0xd
 	TCP_COOKIE_IN_ALWAYS                 = 0x1
 	TCP_COOKIE_MAX                       = 0x10
@@ -2113,6 +2136,7 @@ const (
 	TCP_FASTOPEN_KEY                     = 0x21
 	TCP_FASTOPEN_NO_COOKIE               = 0x22
 	TCP_INFO                             = 0xb
+	TCP_INQ                              = 0x24
 	TCP_KEEPCNT                          = 0x6
 	TCP_KEEPIDLE                         = 0x4
 	TCP_KEEPINTVL                        = 0x5
@@ -2132,6 +2156,9 @@ const (
 	TCP_QUEUE_SEQ                        = 0x15
 	TCP_QUICKACK                         = 0xc
 	TCP_REPAIR                           = 0x13
+	TCP_REPAIR_OFF                       = 0x0
+	TCP_REPAIR_OFF_NO_WP                 = -0x1
+	TCP_REPAIR_ON                        = 0x1
 	TCP_REPAIR_OPTIONS                   = 0x16
 	TCP_REPAIR_QUEUE                     = 0x14
 	TCP_REPAIR_WINDOW                    = 0x1d
@@ -2146,6 +2173,7 @@ const (
 	TCP_ULP                              = 0x1f
 	TCP_USER_TIMEOUT                     = 0x12
 	TCP_WINDOW_CLAMP                     = 0xa
+	TCP_ZEROCOPY_RECEIVE                 = 0x23
 	TCSAFLUSH                            = 0x2
 	TCSBRK                               = 0x5409
 	TCSBRKP                              = 0x5425
@@ -2162,6 +2190,7 @@ const (
 	TCSETXF                              = 0x5434
 	TCSETXW                              = 0x5435
 	TCXONC                               = 0x540a
+	TIMER_ABSTIME                        = 0x1
 	TIOCCBRK                             = 0x5428
 	TIOCCONS                             = 0x541d
 	TIOCEXCL                             = 0x540c
