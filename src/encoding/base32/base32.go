@@ -373,8 +373,7 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 // DecodeString returns the bytes represented by the base32 string s.
 func (enc *Encoding) DecodeString(s string) ([]byte, error) {
 	dbuf := make([]byte, enc.DecodedLen(len(s)))
-	src := make([]byte, len(s))
-	copy(src, s)
+	src := []byte(s)
 	l := stripNewlines(src)
 	n, _, err := enc.decode(dbuf, src[:l])
 	return dbuf[:n], err
@@ -496,9 +495,9 @@ type newlineFilteringReader struct {
 // of non-newline characters moved to the beginning of p.
 func stripNewlines(p []byte) int {
 	offset := 0
-	for i, b := range p[0:len(p)] {
+	for i, b := range p {
 		if b != '\r' && b != '\n' {
-			if i != offset {
+			if i > offset {
 				p[offset] = b
 			}
 			offset++
