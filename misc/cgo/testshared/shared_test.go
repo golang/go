@@ -126,6 +126,7 @@ func testMain(m *testing.M) (int, error) {
 		fmt.Printf("+ cd %s\n", modRoot)
 	}
 	os.Chdir(modRoot)
+	os.Setenv("PWD", modRoot)
 	if err := ioutil.WriteFile("go.mod", []byte("module testshared\n"), 0666); err != nil {
 		return 0, err
 	}

@@ -51,12 +51,14 @@ func TestMain(m *testing.M) {
 	if err := os.Chdir(altRoot); err != nil {
 		log.Panic(err)
 	}
+	os.Setenv("PWD", altRoot)
 	goCmd(nil, "build", "-buildmode=plugin", "-o", filepath.Join(modRoot, "plugin-mismatch.so"), "./plugin-mismatch")
 
 	os.Setenv("GOPATH", GOPATH)
 	if err := os.Chdir(modRoot); err != nil {
 		log.Panic(err)
 	}
+	os.Setenv("PWD", modRoot)
 
 	os.Setenv("LD_LIBRARY_PATH", modRoot)
 

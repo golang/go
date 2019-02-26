@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -26,6 +27,13 @@ import (
 // this shim and move the tests currently located in testdata back into the
 // parent directory.
 func TestCrossPackageTests(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			t.Skip("Can't exec cmd/go subprocess on iOS.")
+		}
+	}
+
 	GOPATH, err := ioutil.TempDir("", "cgotest")
 	if err != nil {
 		t.Fatal(err)
