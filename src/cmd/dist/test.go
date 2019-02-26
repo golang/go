@@ -626,7 +626,7 @@ func (t *tester) registerTests() {
 		if fortran == "" {
 			fortran, _ = exec.LookPath("gfortran")
 		}
-		if t.hasBash() && fortran != "" {
+		if t.hasBash() && goos != "android" && fortran != "" {
 			t.tests = append(t.tests, distTest{
 				name:    "cgo_fortran",
 				heading: "../misc/cgo/fortran",
