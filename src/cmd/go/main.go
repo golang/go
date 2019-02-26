@@ -72,6 +72,7 @@ func init() {
 		modload.HelpModules,
 		modget.HelpModuleGet,
 		help.HelpPackages,
+		modfetch.HelpSum,
 		test.HelpTestflag,
 		test.HelpTestfunc,
 	}
