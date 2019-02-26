@@ -3342,12 +3342,6 @@ func walkcompareInterface(n *Node, init *Nodes) *Node {
 }
 
 func walkcompareString(n *Node, init *Nodes) *Node {
-	// s + "badgerbadgerbadger" == "badgerbadgerbadger"
-	if (n.Op == OEQ || n.Op == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && n.Left.List.Len() == 2 && Isconst(n.Left.List.Second(), CTSTR) && strlit(n.Right) == strlit(n.Left.List.Second()) {
-		r := nod(n.Op, nod(OLEN, n.Left.List.First(), nil), nodintconst(0))
-		return finishcompare(n, r, init)
-	}
-
 	// Rewrite comparisons to short constant strings as length+byte-wise comparisons.
 	var cs, ncs *Node // const string, non-const string
 	switch {
