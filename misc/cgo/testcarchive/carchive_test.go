@@ -60,6 +60,7 @@ func testMain(m *testing.M) int {
 	if err := os.Chdir(modRoot); err != nil {
 		log.Panic(err)
 	}
+	os.Setenv("PWD", modRoot)
 	if err := ioutil.WriteFile("go.mod", []byte("module testcarchive\n"), 0666); err != nil {
 		log.Panic(err)
 	}
