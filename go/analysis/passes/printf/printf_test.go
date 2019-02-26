@@ -10,5 +10,5 @@ import (
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
 	printf.Analyzer.Flags.Set("funcs", "Warn,Warnf")
-	analysistest.Run(t, testdata, printf.Analyzer, "a", "b")
+	analysistest.Run(t, testdata, printf.Analyzer, "a", "b", "nofmt")
 }
