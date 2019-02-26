@@ -30,7 +30,7 @@ type Command struct {
 	Run func(cmd *Command, args []string)
 
 	// UsageLine is the one-line usage message.
-	// The first word in the line is taken to be the command name.
+	// The words between "go" and the first flag or argument in the line are taken to be the command name.
 	UsageLine string
 
 	// Short is the short description shown in the 'go help' output.
