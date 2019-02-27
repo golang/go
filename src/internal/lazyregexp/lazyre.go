@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package doc
+package lazyregexp
 
 import (
 	"os"
@@ -11,38 +11,38 @@ import (
 	"sync"
 )
 
-type lazyRE struct {
+type Regexp struct {
 	str  string
 	once sync.Once
 	rx   *regexp.Regexp
 }
 
-func (r *lazyRE) re() *regexp.Regexp {
+func (r *Regexp) re() *regexp.Regexp {
 	r.once.Do(r.build)
 	return r.rx
 }
 
-func (r *lazyRE) build() {
+func (r *Regexp) build() {
 	r.rx = regexp.MustCompile(r.str)
 	r.str = ""
 }
 
-func (r *lazyRE) FindStringSubmatchIndex(s string) []int {
+func (r *Regexp) FindStringSubmatchIndex(s string) []int {
 	return r.re().FindStringSubmatchIndex(s)
 }
 
-func (r *lazyRE) ReplaceAllString(src, repl string) string {
+func (r *Regexp) ReplaceAllString(src, repl string) string {
 	return r.re().ReplaceAllString(src, repl)
 }
 
-func (r *lazyRE) MatchString(s string) bool {
+func (r *Regexp) MatchString(s string) bool {
 	return r.re().MatchString(s)
 }
 
 var inTest = len(os.Args) > 0 && strings.HasSuffix(strings.TrimSuffix(os.Args[0], ".exe"), ".test")
 
-func newLazyRE(str string) *lazyRE {
-	lr := &lazyRE{str: str}
+func New(str string) *Regexp {
+	lr := &Regexp{str: str}
 	if inTest {
 		// In tests, always compile the regexps early.
 		lr.re()
