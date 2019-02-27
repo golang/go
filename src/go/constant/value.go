@@ -562,6 +562,68 @@ func Float64Val(x Value) (float64, bool) {
 	}
 }
 
+// Val returns the underlying value for a given constant. Since it returns an
+// interface, it is up to the caller to type assert the result to the expected
+// type. The possible dynamic return types are:
+//
+//    x Kind             type of result
+//    -----------------------------------------
+//    Bool               bool
+//    String             string
+//    Int                int64 or *big.Int
+//    Float              *big.Float or *big.Rat
+//    everything else    nil
+//
+func Val(x Value) interface{} {
+	switch x := x.(type) {
+	case boolVal:
+		return bool(x)
+	case *stringVal:
+		return x.string()
+	case int64Val:
+		return int64(x)
+	case intVal:
+		return x.val
+	case ratVal:
+		return x.val
+	case floatVal:
+		return x.val
+	default:
+		return nil
+	}
+}
+
+// Make returns the Value for x.
+//
+//    type of x        result Kind
+//    ----------------------------
+//    bool             Bool
+//    string           String
+//    int64            Int
+//    *big.Int         Int
+//    *big.Float       Float
+//    *big.Rat         Float
+//    anything else    Unknown
+//
+func Make(x interface{}) Value {
+	switch x := x.(type) {
+	case bool:
+		return boolVal(x)
+	case string:
+		return &stringVal{s: x}
+	case int64:
+		return int64Val(x)
+	case *big.Int:
+		return intVal{x}
+	case *big.Rat:
+		return ratVal{x}
+	case *big.Float:
+		return floatVal{x}
+	default:
+		return unknownVal{}
+	}
+}
+
 // BitLen returns the number of bits required to represent
 // the absolute value x in binary representation; x must be an Int or an Unknown.
 // If x is Unknown, the result is 0.
