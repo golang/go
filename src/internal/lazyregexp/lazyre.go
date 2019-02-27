@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package lazyregexp is a thin wrapper over regexp, allowing the use of global
+// regexp variables without forcing them to be compiled at init.
 package lazyregexp
 
 import (
@@ -11,6 +13,8 @@ import (
 	"sync"
 )
 
+// Regexp is a wrapper around regexp.Regexp, where the underlying regexp will be
+// compiled the first time it is needed.
 type Regexp struct {
 	str  string
 	once sync.Once
@@ -61,6 +65,9 @@ func (r *Regexp) SubexpNames() []string {
 
 var inTest = len(os.Args) > 0 && strings.HasSuffix(strings.TrimSuffix(os.Args[0], ".exe"), ".test")
 
+// New creates a new lazy regexp, delaying the compiling work until it is first
+// needed. If the code is being run as part of tests, the regexp compiling will
+// happen immediately.
 func New(str string) *Regexp {
 	lr := &Regexp{str: str}
 	if inTest {
