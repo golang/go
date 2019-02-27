@@ -50,7 +50,7 @@ package context
 import (
 	"errors"
 	"fmt"
-	"reflect"
+	"internal/reflectlite"
 	"sync"
 	"time"
 )
@@ -468,7 +468,7 @@ func WithValue(parent Context, key, val interface{}) Context {
 	if key == nil {
 		panic("nil key")
 	}
-	if !reflect.TypeOf(key).Comparable() {
+	if !reflectlite.TypeOf(key).Comparable() {
 		panic("key is not comparable")
 	}
 	return &valueCtx{parent, key, val}

@@ -249,7 +249,7 @@ var pkgDeps = map[string][]string{
 	"compress/gzip":                  {"L4", "compress/flate"},
 	"compress/lzw":                   {"L4"},
 	"compress/zlib":                  {"L4", "compress/flate"},
-	"context":                        {"errors", "fmt", "reflect", "sync", "time"},
+	"context":                        {"errors", "fmt", "internal/reflectlite", "sync", "time"},
 	"database/sql":                   {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
 	"database/sql/driver":            {"L4", "context", "time", "database/sql/internal"},
 	"debug/dwarf":                    {"L4"},
@@ -324,7 +324,7 @@ var pkgDeps = map[string][]string{
 	// do networking portably, it must have a small dependency set: just L0+basic os.
 	"net": {
 		"L0", "CGO",
-		"context", "math/rand", "os", "reflect", "sort", "syscall", "time",
+		"context", "math/rand", "os", "sort", "syscall", "time",
 		"internal/nettrace", "internal/poll", "internal/syscall/unix",
 		"internal/syscall/windows", "internal/singleflight", "internal/race",
 		"golang.org/x/net/dns/dnsmessage", "golang.org/x/net/lif", "golang.org/x/net/route",
