@@ -1405,17 +1405,17 @@ func goInstall(goBinary string, args ...string) {
 }
 
 func goCmd(goBinary string, cmd string, args ...string) {
-	installCmd := []string{goBinary, cmd, "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
+	goCmd := []string{goBinary, cmd, "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
 	if vflag > 0 {
-		installCmd = append(installCmd, "-v")
+		goCmd = append(goCmd, "-v")
 	}
 
 	// Force only one process at a time on vx32 emulation.
 	if gohostos == "plan9" && os.Getenv("sysname") == "vx32" {
-		installCmd = append(installCmd, "-p=1")
+		goCmd = append(goCmd, "-p=1")
 	}
 
-	run(goroot, ShowOutput|CheckExit, append(installCmd, args...)...)
+	run(goroot, ShowOutput|CheckExit, append(goCmd, args...)...)
 }
 
 func checkNotStale(goBinary string, targets ...string) {
