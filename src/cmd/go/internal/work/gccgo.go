@@ -407,6 +407,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 	}
 
 	var realOut string
+	goLibBegin := str.StringList(wholeArchive, "-lgolibbegin", noWholeArchive)
 	switch buildmode {
 	case "exe":
 		if usesCgo && cfg.Goos == "linux" {
@@ -428,7 +429,8 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		// split-stack and non-split-stack code in a single -r
 		// link, and libgo picks up non-split-stack code from
 		// libffi.
-		ldflags = append(ldflags, "-Wl,-r", "-nostdlib", "-Wl,--whole-archive", "-lgolibbegin", "-Wl,--no-whole-archive")
+		ldflags = append(ldflags, "-Wl,-r", "-nostdlib")
+		ldflags = append(ldflags, goLibBegin...)
 
 		if nopie := b.gccNoPie([]string{tools.linker()}); nopie != "" {
 			ldflags = append(ldflags, nopie)
@@ -443,7 +445,10 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		out = out + ".o"
 
 	case "c-shared":
-		ldflags = append(ldflags, "-shared", "-nostdlib", "-Wl,--whole-archive", "-lgolibbegin", "-Wl,--no-whole-archive", "-lgo", "-lgcc_s", "-lgcc", "-lc", "-lgcc")
+		ldflags = append(ldflags, "-shared", "-nostdlib")
+		ldflags = append(ldflags, goLibBegin...)
+		ldflags = append(ldflags, "-lgo", "-lgcc_s", "-lgcc", "-lc", "-lgcc")
+
 	case "shared":
 		if cfg.Goos != "aix" {
 			ldflags = append(ldflags, "-zdefs")
