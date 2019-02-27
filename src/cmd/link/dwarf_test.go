@@ -44,6 +44,7 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 	defer os.RemoveAll(tmpDir)
 
 	for _, prog := range []string{"testprog", "testprogcgo"} {
+		prog := prog
 		t.Run(prog, func(t *testing.T) {
 			t.Parallel()
 
