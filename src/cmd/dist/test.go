@@ -674,8 +674,8 @@ func (t *tester) registerTests() {
 	// recompile the entire standard library. If make.bash ran with
 	// special -gcflags, that's not true.
 	if t.cgoEnabled && gogcflags == "" {
-		t.registerHostTest("testso", "../misc/cgo/testso", "misc/cgo/testso", ".")
-		t.registerHostTest("testsovar", "../misc/cgo/testsovar", "misc/cgo/testsovar", ".")
+		t.registerTest("testso", "../misc/cgo/testso", t.goTest(), t.timeout(600))
+		t.registerTest("testsovar", "../misc/cgo/testsovar", t.goTest(), t.timeout(600))
 		if t.supportedBuildmode("c-archive") {
 			t.registerHostTest("testcarchive", "../misc/cgo/testcarchive", "misc/cgo/testcarchive", ".")
 		}
