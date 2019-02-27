@@ -185,6 +185,17 @@ tour
   that build fails.
 </p>
 
+<p><!-- CL 147282, 147281 -->
+  This changed use of the <code>go</code> directive means that if you
+  use Go 1.12 to build a module, thus recording <code>go 1.12</code>
+  in the <code>go.mod</code> file, you will get an error when
+  attempting to build the same module with Go 1.11 through Go 1.11.3.
+  Go 1.11.4 or later will work fine, as will releases older than Go 1.11.
+  If you must use Go 1.11 through 1.11.3, you can avoid the problem by
+  setting the language version to 1.11, using the Go 1.12 go tool,
+  via <code>go mod edit -go=1.11</code>.
+</p>
+
 <p><!-- CL 152739 -->
   When an import cannot be resolved using the active modules,
   the <code>go</code> command will now try to use the modules mentioned in the
