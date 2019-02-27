@@ -27,7 +27,10 @@ import (
 // this shim and move the tests currently located in testdata back into the
 // parent directory.
 func TestCrossPackageTests(t *testing.T) {
-	if runtime.GOOS == "darwin" {
+	switch runtime.GOOS {
+	case "android":
+		t.Skip("Can't exec cmd/go subprocess on Android.")
+	case "darwin":
 		switch runtime.GOARCH {
 		case "arm", "arm64":
 			t.Skip("Can't exec cmd/go subprocess on iOS.")
