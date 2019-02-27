@@ -41,9 +41,17 @@ import (
 
 type Diagnostic struct {
 	Range
-	Message string
-	Source  string
+	Message  string
+	Source   string
+	Severity DiagnosticSeverity
 }
+
+type DiagnosticSeverity int
+
+const (
+	SeverityWarning DiagnosticSeverity = iota
+	SeverityError
+)
 
 func Diagnostics(ctx context.Context, v View, uri URI) (map[string][]Diagnostic, error) {
 	f, err := v.GetFile(ctx, uri)
@@ -98,7 +106,8 @@ func Diagnostics(ctx context.Context, v View, uri URI) (map[string][]Diagnostic,
 				Start: startPos,
 				End:   endPos,
 			},
-			Message: diag.Msg,
+			Message:  diag.Msg,
+			Severity: SeverityError,
 		}
 		if _, ok := reports[pos.Filename]; ok {
 			reports[pos.Filename] = append(reports[pos.Filename], diagnostic)
@@ -116,9 +125,10 @@ func Diagnostics(ctx context.Context, v View, uri URI) (map[string][]Diagnostic,
 		}
 
 		reports[pos.Filename] = append(reports[pos.Filename], Diagnostic{
-			Source:  category,
-			Range:   Range{Start: diag.Pos, End: diag.Pos},
-			Message: fmt.Sprintf(diag.Message),
+			Source:   category,
+			Range:    Range{Start: diag.Pos, End: diag.Pos},
+			Message:  fmt.Sprintf(diag.Message),
+			Severity: SeverityWarning,
 		})
 	})
 

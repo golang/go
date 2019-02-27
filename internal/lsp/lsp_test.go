@@ -182,9 +182,13 @@ func (d diagnostics) collect(fset *token.FileSet, rng packagestest.Range, msgSou
 	if msg == "" {
 		return
 	}
+	severity := protocol.SeverityError
+	if strings.Contains(f.Name(), "analyzer") {
+		severity = protocol.SeverityWarning
+	}
 	want := protocol.Diagnostic{
 		Range:    toProtocolRange(f, source.Range(rng)),
-		Severity: protocol.SeverityError,
+		Severity: severity,
 		Source:   msgSource,
 		Message:  msg,
 	}
