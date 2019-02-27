@@ -332,7 +332,7 @@ func TestReadMultiLineError(t *testing.T) {
 	if msg != wantMsg {
 		t.Errorf("ReadResponse: msg=%q, want %q", msg, wantMsg)
 	}
-	if err.Error() != "550 "+wantMsg {
+	if err != nil && err.Error() != "550 "+wantMsg {
 		t.Errorf("ReadResponse: error=%q, want %q", err.Error(), "550 "+wantMsg)
 	}
 }

@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 # issue 25980: crash in go list -e -test
 go list -e -test -f '{{.Error}}' p
 stdout '^p[/\\]d_test.go:2:8: cannot find package "d" in any of:'

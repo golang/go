@@ -8,7 +8,6 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
 	"fmt"
-	"math"
 	"strings"
 )
 
@@ -660,8 +659,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 			r = defaultlit(r, types.Types[TUINT])
 			n.Right = r
 			t := r.Type
-			if !t.IsInteger() || t.IsSigned() {
-				yyerror("invalid operation: %v (shift count type %v, must be unsigned integer)", n, r.Type)
+			if !t.IsInteger() {
+				yyerror("invalid operation: %v (shift count type %v, must be integer)", n, r.Type)
 				n.Type = nil
 				return n
 			}
@@ -1589,7 +1588,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 		if l.Op == OLITERAL && r.Op == OLITERAL {
 			// make it a complex literal
-			c := new(Mpcplx)
+			c := newMpcmplx()
 			c.Real.Set(toflt(l.Val()).U.(*Mpflt))
 			c.Imag.Set(toflt(r.Val()).U.(*Mpflt))
 			setconst(n, Val{c})
@@ -2913,64 +2912,6 @@ func fielddup(name string, hash map[string]bool) {
 	hash[name] = true
 }
 
-func keydup(n *Node, hash map[uint32][]*Node) {
-	orign := n
-	if n.Op == OCONVIFACE {
-		n = n.Left
-	}
-	evconst(n)
-	if n.Op != OLITERAL {
-		return // we don't check variables
-	}
-
-	const PRIME1 = 3
-
-	var h uint32
-	switch v := n.Val().U.(type) {
-	default: // unknown, bool, nil
-		h = 23
-
-	case *Mpint:
-		h = uint32(v.Int64())
-
-	case *Mpflt:
-		x := math.Float64bits(v.Float64())
-		for i := 0; i < 8; i++ {
-			h = h*PRIME1 + uint32(x&0xFF)
-			x >>= 8
-		}
-
-	case string:
-		for i := 0; i < len(v); i++ {
-			h = h*PRIME1 + uint32(v[i])
-		}
-	}
-
-	var cmp Node
-	for _, a := range hash[h] {
-		cmp.Op = OEQ
-		cmp.Left = n
-		if a.Op == OCONVIFACE && orign.Op == OCONVIFACE {
-			a = a.Left
-		}
-		if !types.Identical(a.Type, n.Type) {
-			continue
-		}
-		cmp.Right = a
-		evconst(&cmp)
-		if cmp.Op != OLITERAL {
-			// Sometimes evconst fails. See issue 12536.
-			continue
-		}
-		if cmp.Val().U.(bool) {
-			yyerror("duplicate key %v in map literal", n)
-			return
-		}
-	}
-
-	hash[h] = append(hash[h], orign)
-}
-
 // iscomptype reports whether type t is a composite literal type
 // or a pointer to one.
 func iscomptype(t *types.Type) bool {
@@ -3131,7 +3072,7 @@ func typecheckcomplit(n *Node) (res *Node) {
 		}
 
 	case TMAP:
-		hash := make(map[uint32][]*Node)
+		var cs constSet
 		for i3, l := range n.List.Slice() {
 			setlineno(l)
 			if l.Op != OKEY {
@@ -3145,8 +3086,8 @@ func typecheckcomplit(n *Node) (res *Node) {
 			r = typecheck(r, ctxExpr)
 			r = defaultlit(r, t.Key())
 			l.Left = assignconv(r, t.Key(), "map key")
-			if l.Left.Op != OCONV {
-				keydup(l.Left, hash)
+			if cs.add(l.Left) != nil {
+				yyerror("duplicate key %v in map literal", l.Left)
 			}
 
 			r = l.Right
@@ -3250,8 +3191,9 @@ func typecheckcomplit(n *Node) (res *Node) {
 						}
 						continue
 					}
-					p, _ := dotpath(l.Sym, t, nil, true)
-					if p == nil {
+					var f *types.Field
+					p, _ := dotpath(l.Sym, t, &f, true)
+					if p == nil || f.IsMethod() {
 						yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
 						continue
 					}
@@ -3602,7 +3544,7 @@ func typecheckas2(n *Node) {
 mismatch:
 	switch r.Op {
 	default:
-		yyerror("assignment mismatch: %d variable but %d values", cl, cr)
+		yyerror("assignment mismatch: %d variables but %d values", cl, cr)
 	case OCALLFUNC, OCALLMETH, OCALLINTER:
 		yyerror("assignment mismatch: %d variables but %v returns %d values", cl, r.Left, cr)
 	}

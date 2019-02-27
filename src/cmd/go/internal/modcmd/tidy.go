@@ -75,6 +75,7 @@ func modTidyGoSum() {
 	// we only have to tell modfetch what needs keeping.
 	reqs := modload.Reqs()
 	keep := make(map[module.Version]bool)
+	replaced := make(map[module.Version]bool)
 	var walk func(module.Version)
 	walk = func(m module.Version) {
 		// If we build using a replacement module, keep the sum for the replacement,
@@ -87,10 +88,11 @@ func modTidyGoSum() {
 			keep[m] = true
 		} else {
 			keep[r] = true
+			replaced[m] = true
 		}
 		list, _ := reqs.Required(m)
 		for _, r := range list {
-			if !keep[r] {
+			if !keep[r] && !replaced[r] {
 				walk(r)
 			}
 		}

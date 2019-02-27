@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 # go list -find should not report imports
 
 go list -f {{.Incomplete}} x/y/z...  # should probably exit non-zero but never has

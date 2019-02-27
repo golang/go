@@ -2105,6 +2105,16 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 				step.describe(src)
 			}
 			extraloopdepth = modSrcLoopdepth
+			if src.Op == OCONVIFACE {
+				lt := src.Left.Type
+				if !lt.IsInterface() && !isdirectiface(lt) && types.Haspointers(lt) {
+					// We're converting from a non-direct interface type.
+					// The interface will hold a heap copy of the data
+					// (by calling convT2I or friend). Flow the data to heap.
+					// See issue 29353.
+					e.escwalk(level, &e.theSink, src.Left, e.stepWalk(dst, src.Left, "interface-converted", step))
+				}
+			}
 		}
 
 	case ODOT,

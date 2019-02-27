@@ -39,6 +39,8 @@ func TestLargeSymName(t *testing.T) {
 }
 
 func TestIssue21703(t *testing.T) {
+	t.Parallel()
+
 	testenv.MustHaveGoBuild(t)
 
 	const source = `
@@ -78,6 +80,8 @@ func main() {}
 // to, for example, save facts produced by a modular static analysis
 // such as golang.org/x/tools/go/analysis.
 func TestIssue28429(t *testing.T) {
+	t.Parallel()
+
 	testenv.MustHaveGoBuild(t)
 
 	tmpdir, err := ioutil.TempDir("", "issue28429-")
@@ -139,6 +143,7 @@ func TestUnresolved(t *testing.T) {
 	// linker would find an undefined reference to "zero" created
 	// by the runtime package.
 
+	write("go.mod", "module testunresolved\n")
 	write("main.go", `package main
 
 func main() {

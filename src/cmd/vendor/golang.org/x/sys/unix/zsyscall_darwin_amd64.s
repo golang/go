@@ -108,6 +108,8 @@ TEXT ·libc_chown_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_chown(SB)
 TEXT ·libc_chroot_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_chroot(SB)
+TEXT ·libc_clock_gettime_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_clock_gettime(SB)
 TEXT ·libc_close_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_close(SB)
 TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0

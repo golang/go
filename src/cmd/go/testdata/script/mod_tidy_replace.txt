@@ -1,5 +1,12 @@
 env GO111MODULE=on
 
+# golang.org/issue/30166: 'go mod tidy' should not crash if a replaced module is
+# involved in a cycle.
+cd cycle
+env GOTRACEBACK=off
+go mod tidy
+cd ..
+
 # From inside the module, 'go list -m all' should NOT include transitive
 # requirements of modules that have been replaced.
 go list -m all
@@ -69,3 +76,35 @@ import (
 	_ "rsc.io/sampler"
 	_ "golang.org/x/text/language"
 )
+
+-- cycle/go.mod --
+module golang.org/issue/30166
+
+require (
+	golang.org/issue/30166/a v0.0.0
+	golang.org/issue/30166/b v0.0.0
+)
+
+replace (
+	golang.org/issue/30166/a => ./a
+	golang.org/issue/30166/b => ./b
+)
+-- cycle/cycle.go --
+package cycle
+
+import (
+	_ "golang.org/issue/30166/a"
+	_ "golang.org/issue/30166/b"
+)
+-- cycle/a/a.go --
+package a
+-- cycle/a/go.mod --
+module golang.org/issue/30166/a
+
+require golang.org/issue/30166/b v0.0.0
+-- cycle/b/b.go --
+package b
+-- cycle/b/go.mod --
+module golang.org/issue/30166/b
+
+require golang.org/issue/30166/a v0.0.0

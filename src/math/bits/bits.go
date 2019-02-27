@@ -232,8 +232,7 @@ func Reverse32(x uint32) uint32 {
 	x = x>>1&(m0&m) | x&(m0&m)<<1
 	x = x>>2&(m1&m) | x&(m1&m)<<2
 	x = x>>4&(m2&m) | x&(m2&m)<<4
-	x = x>>8&(m3&m) | x&(m3&m)<<8
-	return x>>16 | x<<16
+	return ReverseBytes32(x)
 }
 
 // Reverse64 returns the value of x with its bits in reversed order.
@@ -242,9 +241,7 @@ func Reverse64(x uint64) uint64 {
 	x = x>>1&(m0&m) | x&(m0&m)<<1
 	x = x>>2&(m1&m) | x&(m1&m)<<2
 	x = x>>4&(m2&m) | x&(m2&m)<<4
-	x = x>>8&(m3&m) | x&(m3&m)<<8
-	x = x>>16&(m4&m) | x&(m4&m)<<16
-	return x>>32 | x<<32
+	return ReverseBytes64(x)
 }
 
 // --- ReverseBytes ---

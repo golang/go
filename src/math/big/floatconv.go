@@ -224,7 +224,7 @@ func (z *Float) pow5(n uint64) *Float {
 //	sign     = "+" | "-" .
 //	prefix   = "0" ( "x" | "X" | "b" | "B" ) .
 //	mantissa = digits | digits "." [ digits ] | "." digits .
-//	exponent = ( "E" | "e" | "p" ) [ sign ] digits .
+//	exponent = ( "e" | "E" | "p" | "P" ) [ sign ] digits .
 //	digits   = digit { digit } .
 //	digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
 //	infinity = [ sign ] ( "inf" | "Inf" ) .
@@ -238,7 +238,7 @@ func (z *Float) pow5(n uint64) *Float {
 // The octal prefix "0" is not supported (a leading "0" is simply
 // considered a "0").
 //
-// A "p" exponent indicates a binary (rather then decimal) exponent;
+// A "p" or "P" exponent indicates a binary (rather then decimal) exponent;
 // for instance "0x1.fffffffffffffp1023" (using base 0) represents the
 // maximum float64 value. For hexadecimal mantissae, the exponent must
 // be binary, if present (an "e" or "E" exponent indicator cannot be

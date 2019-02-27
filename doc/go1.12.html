@@ -15,14 +15,7 @@ Do not send CLs removing the interior tags from such phrases.
   ul li { margin: 0.5em 0; }
 </style>
 
-<h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.12</h2>
-
-<p>
-  <strong>
-    Go 1.12 is not yet released. These are work-in-progress
-    release notes. Go 1.12 is expected to be released in February 2019.
-  </strong>
-</p>
+<h2 id="introduction">Introduction to Go 1.12</h2>
 
 <p>
   The latest Go release, version 1.12, arrives six months after <a href="go1.11">Go 1.11</a>.
@@ -109,7 +102,7 @@ Do not send CLs removing the interior tags from such phrases.
   is no longer available with <code>go vet</code>. Checking for
   variable shadowing may now be done using
 <pre>
-go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+go get -u golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
 go vet -vettool=$(which shadow)
 </pre>
 </p>
@@ -121,7 +114,7 @@ The Go tour is no longer included in the main binary distribution. To
 run the tour locally, instead of running <code>go</code> <code>tool</code> <code>tour</code>,
 manually install it:
 <pre>
-go install golang.org/x/tour
+go get -u golang.org/x/tour
 tour
 </pre>
 </p>
@@ -303,7 +296,9 @@ for {
 <p>
   In Go 1.12, <code>godoc</code> no longer has a command-line interface and
   is only a web server. Users should use <code>go</code> <code>doc</code>
-  for command-line help output instead.
+  for command-line help output instead. Go 1.12 is the last release that will
+  include the <code>godoc</code> webserver; in Go 1.13 it will be available
+  via <code>go</code> <code>get</code>.
 </p>
 
 <p><!-- CL 141977 -->
@@ -493,8 +488,11 @@ for {
 <dl id="crypto/rc4"><dt><a href="/pkg/crypto/rc4/">crypto/rc4</a></dt>
   <dd>
     <p><!-- CL 130397 -->
-      This release removes the optimized assembly implementations. RC4 is insecure
-      and should only be used for compatibility with legacy systems.
+      This release removes the assembly implementations, leaving only
+      the pure Go version. The Go compiler generates code that is
+      either slightly better or slightly worse, depending on the exact
+      CPU. RC4 is insecure and should only be used for compatibility
+      with legacy systems.
     </p>
 
 </dl><!-- crypto/rc4 -->
@@ -688,6 +686,20 @@ for {
     </p>
 
 </dl><!-- net/http -->
+
+<dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+  <dd>
+    <p><!-- CL 159157, CL 160178 -->
+      <a href="/pkg/net/url/#Parse"><code>Parse</code></a>,
+      <a href="/pkg/net/url/#ParseRequestURI"><code>ParseRequestURI</code></a>,
+      and
+      <a href="/pkg/net/url/#URL.Parse"><code>URL.Parse</code></a>
+      now return an
+      error for URLs containing ASCII control characters, which includes NULL,
+      tab, and newlines.
+    </p>
+
+</dl><!-- net/url -->
 
 <dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
   <dd>

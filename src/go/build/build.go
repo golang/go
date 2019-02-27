@@ -299,7 +299,7 @@ func defaultContext() Context {
 	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
 	// NOTE: If you add to this list, also update the doc comment in doc.go.
 	// NOTE: The last element in ReleaseTags should be the current release.
-	const version = 12 // go1.12
+	const version = 13 // go1.13
 	for i := 1; i <= version; i++ {
 		c.ReleaseTags = append(c.ReleaseTags, "go1."+strconv.Itoa(i))
 	}
