@@ -1930,7 +1930,7 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId 
 			dp := distributionPoint{
 				DistributionPoint: distributionPointName{
 					FullName: []asn1.RawValue{
-						asn1.RawValue{Tag: 6, Class: 2, Bytes: []byte(name)},
+						{Tag: 6, Class: 2, Bytes: []byte(name)},
 					},
 				},
 			}
