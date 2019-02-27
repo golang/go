@@ -1438,10 +1438,8 @@ flush:
 	MOVQ	96(SP), R15
 	JMP	ret
 
-DATA	debugCallFrameTooLarge<>+0x00(SB)/8, $"call fra"
-DATA	debugCallFrameTooLarge<>+0x08(SB)/8, $"me too l"
-DATA	debugCallFrameTooLarge<>+0x10(SB)/4, $"arge"
-GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $0x14	// Size duplicated below
+DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
+GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
 
 // debugCallV1 is the entry point for debugger-injected function
 // calls on running goroutines. It informs the runtime that a
@@ -1565,7 +1563,7 @@ good:
 	// The frame size is too large. Report the error.
 	MOVQ	$debugCallFrameTooLarge<>(SB), AX
 	MOVQ	AX, 0(SP)
-	MOVQ	$0x14, 8(SP)
+	MOVQ	$20, 8(SP) // length of debugCallFrameTooLarge string
 	MOVQ	$8, AX
 	BYTE	$0xcc
 	JMP	restore

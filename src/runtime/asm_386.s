@@ -248,16 +248,8 @@ ok:
 	CALL	runtime·abort(SB)
 	RET
 
-DATA	bad_proc_msg<>+0x00(SB)/8, $"This pro"
-DATA	bad_proc_msg<>+0x08(SB)/8, $"gram can"
-DATA	bad_proc_msg<>+0x10(SB)/8, $" only be"
-DATA	bad_proc_msg<>+0x18(SB)/8, $" run on "
-DATA	bad_proc_msg<>+0x20(SB)/8, $"processo"
-DATA	bad_proc_msg<>+0x28(SB)/8, $"rs with "
-DATA	bad_proc_msg<>+0x30(SB)/8, $"MMX supp"
-DATA	bad_proc_msg<>+0x38(SB)/4, $"ort."
-DATA	bad_proc_msg<>+0x3c(SB)/1, $0xa
-GLOBL	bad_proc_msg<>(SB), RODATA, $0x3d
+DATA	bad_proc_msg<>+0x00(SB)/61, $"This program can only be run on processors with MMX support.\n"
+GLOBL	bad_proc_msg<>(SB), RODATA, $61
 
 DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$4
