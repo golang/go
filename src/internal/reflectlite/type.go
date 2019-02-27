@@ -44,6 +44,9 @@ type Type interface {
 	// AssignableTo reports whether a value of the type is assignable to type u.
 	AssignableTo(u Type) bool
 
+	// Comparable reports whether values of this type are comparable.
+	Comparable() bool
+
 	// Elem returns a type's element type.
 	// It panics if the type's Kind is not Ptr.
 	Elem() Type
@@ -661,6 +664,10 @@ func (t *rtype) AssignableTo(u Type) bool {
 	}
 	uu := u.(*rtype)
 	return directlyAssignable(uu, t) || implements(uu, t)
+}
+
+func (t *rtype) Comparable() bool {
+	return t.alg != nil && t.alg.equal != nil
 }
 
 // implements reports whether the type V implements the interface type T.
