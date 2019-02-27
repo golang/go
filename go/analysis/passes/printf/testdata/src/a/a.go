@@ -516,6 +516,20 @@ func (p *recursivePtrStringer) String() string {
 	return fmt.Sprintln(p) // want "Sprintln arg p causes recursive call to String method"
 }
 
+// implements a String() method but with non-matching return types
+type nonStringerWrongReturn int
+
+func (s nonStringerWrongReturn) String() (string, error) {
+	return "", fmt.Errorf("%v", s)
+}
+
+// implements a String() method but with non-matching arguments
+type nonStringerWrongArgs int
+
+func (s nonStringerWrongArgs) String(i int) string {
+	return fmt.Sprintf("%d%v", i, s)
+}
+
 type cons struct {
 	car int
 	cdr *cons
