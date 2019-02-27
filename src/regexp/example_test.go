@@ -7,6 +7,7 @@ package regexp_test
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 func Example() {
@@ -202,6 +203,13 @@ func ExampleRegexp_ReplaceAllString() {
 	// --xx-
 	// ---
 	// -W-xxW-
+}
+
+func ExampleRegexp_ReplaceAllStringFunc() {
+	re := regexp.MustCompile(`[^aeiou]`)
+	fmt.Println(re.ReplaceAllStringFunc("seafood fool", strings.ToUpper))
+	// Output:
+	// SeaFooD FooL
 }
 
 func ExampleRegexp_SubexpNames() {
