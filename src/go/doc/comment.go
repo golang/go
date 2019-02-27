@@ -8,6 +8,7 @@ package doc
 
 import (
 	"bytes"
+	"internal/lazyregexp"
 	"io"
 	"strings"
 	"text/template" // for HTMLEscape
@@ -69,7 +70,7 @@ const (
 	urlRx = protoPart + `://` + hostPart + pathPart
 )
 
-var matchRx = newLazyRE(`(` + urlRx + `)|(` + identRx + `)`)
+var matchRx = lazyregexp.New(`(` + urlRx + `)|(` + identRx + `)`)
 
 var (
 	html_a      = []byte(`<a href="`)
@@ -273,7 +274,7 @@ type block struct {
 	lines []string
 }
 
-var nonAlphaNumRx = newLazyRE(`[^a-zA-Z0-9]`)
+var nonAlphaNumRx = lazyregexp.New(`[^a-zA-Z0-9]`)
 
 func anchorID(line string) string {
 	// Add a "hdr-" prefix to avoid conflicting with IDs used for package symbols.
