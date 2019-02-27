@@ -427,13 +427,13 @@ bad:
 func tocplx(v Val) Val {
 	switch u := v.U.(type) {
 	case *Mpint:
-		c := new(Mpcplx)
+		c := newMpcmplx()
 		c.Real.SetInt(u)
 		c.Imag.SetFloat64(0.0)
 		v.U = c
 
 	case *Mpflt:
-		c := new(Mpcplx)
+		c := newMpcmplx()
 		c.Real.Set(u)
 		c.Imag.SetFloat64(0.0)
 		v.U = c
@@ -845,7 +845,7 @@ Outer:
 	case CTCPLX:
 		x, y := x.U.(*Mpcplx), y.U.(*Mpcplx)
 
-		u := new(Mpcplx)
+		u := newMpcmplx()
 		u.Real.Set(&x.Real)
 		u.Imag.Set(&x.Imag)
 		switch op {
@@ -900,7 +900,7 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
 
 		case CTCPLX:
 			x := x.U.(*Mpcplx)
-			u := new(Mpcplx)
+			u := newMpcmplx()
 			u.Real.Set(&x.Real)
 			u.Imag.Set(&x.Imag)
 			u.Real.Neg()
@@ -1421,4 +1421,67 @@ func hascallchan(n *Node) bool {
 	}
 
 	return false
+}
+
+// A constSet represents a set of Go constant expressions.
+type constSet struct {
+	m map[constSetKey]*Node
+}
+
+type constSetKey struct {
+	typ *types.Type
+	val interface{}
+}
+
+// add adds constant expressions to s. If a constant expression of
+// equal value and identical type has already been added, then that
+// type expression is returned. Otherwise, add returns nil.
+//
+// add also returns nil if n is not a Go constant expression.
+//
+// n must not be an untyped constant.
+func (s *constSet) add(n *Node) *Node {
+	if n.Op == OCONVIFACE && n.Implicit() {
+		n = n.Left
+	}
+
+	if !n.isGoConst() {
+		return nil
+	}
+	if n.Type.IsUntyped() {
+		Fatalf("%v is untyped", n)
+	}
+
+	// Consts are only duplicates if they have the same value and
+	// identical types.
+	//
+	// In general, we have to use types.Identical to test type
+	// identity, because == gives false negatives for anonymous
+	// types and the byte/uint8 and rune/int32 builtin type
+	// aliases.  However, this is not a problem here, because
+	// constant expressions are always untyped or have a named
+	// type, and we explicitly handle the builtin type aliases
+	// below.
+	//
+	// This approach may need to be revisited though if we fix
+	// #21866 by treating all type aliases like byte/uint8 and
+	// rune/int32.
+
+	typ := n.Type
+	switch typ {
+	case types.Bytetype:
+		typ = types.Types[TUINT8]
+	case types.Runetype:
+		typ = types.Types[TINT32]
+	}
+	k := constSetKey{typ, n.Val().Interface()}
+
+	if s.m == nil {
+		s.m = make(map[constSetKey]*Node)
+	}
+	old, dup := s.m[k]
+	if !dup {
+		s.m[k] = n
+	}
+	return old
 }

@@ -112,6 +112,7 @@ var (
 	procGetProcessTimes                    = modkernel32.NewProc("GetProcessTimes")
 	procDuplicateHandle                    = modkernel32.NewProc("DuplicateHandle")
 	procWaitForSingleObject                = modkernel32.NewProc("WaitForSingleObject")
+	procWaitForMultipleObjects             = modkernel32.NewProc("WaitForMultipleObjects")
 	procGetTempPathW                       = modkernel32.NewProc("GetTempPathW")
 	procCreatePipe                         = modkernel32.NewProc("CreatePipe")
 	procGetFileType                        = modkernel32.NewProc("GetFileType")
@@ -1073,6 +1074,25 @@ func DuplicateHandle(hSourceProcessHandle Handle, hSourceHandle Handle, hTargetP
 
 func WaitForSingleObject(handle Handle, waitMilliseconds uint32) (event uint32, err error) {
 	r0, _, e1 := syscall.Syscall(procWaitForSingleObject.Addr(), 2, uintptr(handle), uintptr(waitMilliseconds), 0)
+	event = uint32(r0)
+	if event == 0xffffffff {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func waitForMultipleObjects(count uint32, handles uintptr, waitAll bool, waitMilliseconds uint32) (event uint32, err error) {
+	var _p0 uint32
+	if waitAll {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r0, _, e1 := syscall.Syscall6(procWaitForMultipleObjects.Addr(), 4, uintptr(count), uintptr(handles), uintptr(_p0), uintptr(waitMilliseconds), 0, 0)
 	event = uint32(r0)
 	if event == 0xffffffff {
 		if e1 != 0 {

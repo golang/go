@@ -392,6 +392,11 @@ func (f *Field) End() int64 {
 	return f.Offset + f.Type.Width
 }
 
+// IsMethod reports whether f represents a method rather than a struct field.
+func (f *Field) IsMethod() bool {
+	return f.Type.Etype == TFUNC && f.Type.Recv() != nil
+}
+
 // Fields is a pointer to a slice of *Field.
 // This saves space in Types that do not have fields or methods
 // compared to a simple slice of *Field.

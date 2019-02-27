@@ -384,7 +384,7 @@ func IsReadOnlyGlobalAddr(v *Value) bool {
 		return false
 	}
 	// See TODO in OpAddr case in IsSanitizerSafeAddr below.
-	return strings.HasPrefix(v.Aux.(*obj.LSym).Name, `"".statictmp_`)
+	return strings.HasPrefix(v.Aux.(*obj.LSym).Name, `""..stmp_`)
 }
 
 // IsNewObject reports whether v is a pointer to a freshly allocated & zeroed object at memory state mem.
@@ -439,7 +439,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
 		// test sym.Type==objabi.SRODATA, but we don't
 		// initialize sym.Type until after function
 		// compilation.
-		if strings.HasPrefix(sym.Name, `"".statictmp_`) {
+		if strings.HasPrefix(sym.Name, `""..stmp_`) {
 			return true
 		}
 	}

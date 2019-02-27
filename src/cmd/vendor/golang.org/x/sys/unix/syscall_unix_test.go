@@ -396,14 +396,24 @@ func TestDup(t *testing.T) {
 		t.Fatalf("Dup: %v", err)
 	}
 
-	err = unix.Dup2(newFd, newFd+1)
+	// Create and reserve a file descriptor.
+	// Dup2 automatically closes it before reusing it.
+	nullFile, err := os.Open("/dev/null")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dupFd := int(file.Fd())
+	err = unix.Dup2(newFd, dupFd)
 	if err != nil {
 		t.Fatalf("Dup2: %v", err)
 	}
+	// Keep the dummy file open long enough to not be closed in
+	// its finalizer.
+	runtime.KeepAlive(nullFile)
 
 	b1 := []byte("Test123")
 	b2 := make([]byte, 7)
-	_, err = unix.Write(newFd+1, b1)
+	_, err = unix.Write(dupFd, b1)
 	if err != nil {
 		t.Fatalf("Write to dup2 fd failed: %v", err)
 	}
@@ -426,6 +436,7 @@ func TestPoll(t *testing.T) {
 		t.Skip("mkfifo syscall is not available on android and iOS, skipping test")
 	}
 
+	defer chtmpdir(t)()
 	f, cleanup := mktmpfifo(t)
 	defer cleanup()
 
@@ -620,6 +631,29 @@ func TestMkdev(t *testing.T) {
 	}
 	if unix.Minor(dev) != minor {
 		t.Errorf("Minor(%#x) == %d, want %d", dev, unix.Minor(dev), minor)
+	}
+}
+
+func TestRenameat(t *testing.T) {
+	defer chtmpdir(t)()
+
+	from, to := "renamefrom", "renameto"
+
+	touch(t, from)
+
+	err := unix.Renameat(unix.AT_FDCWD, from, unix.AT_FDCWD, to)
+	if err != nil {
+		t.Fatalf("Renameat: unexpected error: %v", err)
+	}
+
+	_, err = os.Stat(to)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = os.Stat(from)
+	if err == nil {
+		t.Errorf("Renameat: stat of renamed file %q unexpectedly succeeded", from)
 	}
 }
 

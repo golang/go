@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 # If GOTMPDIR is relative, 'go build' should derive an absolute $WORK directory.
 cd $WORK
 mkdir tmp

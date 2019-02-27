@@ -222,12 +222,16 @@ func testGoLib(t *testing.T, iscgo bool) {
 	if e := file.Close(); err == nil {
 		err = e
 	}
+	if err == nil {
+		err = ioutil.WriteFile(filepath.Join(libpath, "go.mod"), []byte("module mylib\n"), 0666)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	args := []string{"install", "mylib"}
 	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	cmd.Dir = libpath
 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

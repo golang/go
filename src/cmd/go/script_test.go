@@ -83,7 +83,12 @@ type backgroundCmd struct {
 }
 
 var extraEnvKeys = []string{
-	"SYSTEMROOT", // must be preserved on Windows to find DLLs; golang.org/issue/25210
+	"SYSTEMROOT",         // must be preserved on Windows to find DLLs; golang.org/issue/25210
+	"LD_LIBRARY_PATH",    // must be preserved on Unix systems to find shared libraries
+	"CC",                 // don't lose user settings when invoking cgo
+	"GO_TESTING_GOTOOLS", // for gccgo testing
+	"GCCGO",              // for gccgo testing
+	"GCCGOTOOLDIR",       // for gccgo testing
 }
 
 // setup sets up the test execution temporary directory and environment.
@@ -509,16 +514,33 @@ func (ts *testScript) cmdCp(neg bool, args []string) {
 	}
 
 	for _, arg := range args[:len(args)-1] {
-		src := ts.mkabs(arg)
-		info, err := os.Stat(src)
-		ts.check(err)
-		data, err := ioutil.ReadFile(src)
-		ts.check(err)
+		var (
+			src  string
+			data []byte
+			mode os.FileMode
+		)
+		switch arg {
+		case "stdout":
+			src = arg
+			data = []byte(ts.stdout)
+			mode = 0666
+		case "stderr":
+			src = arg
+			data = []byte(ts.stderr)
+			mode = 0666
+		default:
+			src = ts.mkabs(arg)
+			info, err := os.Stat(src)
+			ts.check(err)
+			mode = info.Mode() & 0777
+			data, err = ioutil.ReadFile(src)
+			ts.check(err)
+		}
 		targ := dst
 		if dstDir {
 			targ = filepath.Join(dst, filepath.Base(src))
 		}
-		ts.check(ioutil.WriteFile(targ, data, info.Mode()&0777))
+		ts.check(ioutil.WriteFile(targ, data, mode))
 	}
 }
 

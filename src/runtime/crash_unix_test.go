@@ -63,7 +63,7 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 		t.Fatalf("failed to create Go file: %v", err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe", "main.go")
 	cmd.Dir = dir
 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {

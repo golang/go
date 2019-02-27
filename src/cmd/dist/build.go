@@ -1366,14 +1366,46 @@ func cmdbootstrap() {
 	// Remove go_bootstrap now that we're done.
 	xremove(pathf("%s/go_bootstrap", tooldir))
 
+	if goos == "android" {
+		// Make sure the exec wrapper will sync a fresh $GOROOT to the device.
+		xremove(pathf("%s/go_android_exec-adb-sync-status", os.TempDir()))
+	}
+
+	if wrapperPath := wrapperPathFor(goos, goarch); wrapperPath != "" {
+		oldcc := os.Getenv("CC")
+		os.Setenv("GOOS", gohostos)
+		os.Setenv("GOARCH", gohostarch)
+		os.Setenv("CC", compilerEnvLookup(defaultcc, gohostos, gohostarch))
+		goCmd(cmdGo, "build", "-o", pathf("%s/go_%s_%s_exec%s", gobin, goos, goarch, exe), wrapperPath)
+		// Restore environment.
+		// TODO(elias.naur): support environment variables in goCmd?
+		os.Setenv("GOOS", goos)
+		os.Setenv("GOARCH", goarch)
+		os.Setenv("CC", oldcc)
+	}
+
 	// Print trailing banner unless instructed otherwise.
 	if !noBanner {
 		banner()
 	}
 }
 
+func wrapperPathFor(goos, goarch string) string {
+	switch {
+	case goos == "android":
+		return pathf("%s/misc/android/go_android_exec.go", goroot)
+	case goos == "darwin" && (goarch == "arm" || goarch == "arm64"):
+		return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
+	}
+	return ""
+}
+
 func goInstall(goBinary string, args ...string) {
-	installCmd := []string{goBinary, "install", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
+	goCmd(goBinary, "install", args...)
+}
+
+func goCmd(goBinary string, cmd string, args ...string) {
+	installCmd := []string{goBinary, cmd, "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
 	if vflag > 0 {
 		installCmd = append(installCmd, "-v")
 	}

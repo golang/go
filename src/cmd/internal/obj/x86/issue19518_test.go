@@ -41,6 +41,10 @@ func objdumpOutput(t *testing.T) []byte {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
+	err = ioutil.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte("module issue19518\n"), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
 	tmpfile, err := os.Create(filepath.Join(tmpdir, "input.s"))
 	if err != nil {
 		t.Fatal(err)

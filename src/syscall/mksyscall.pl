@@ -350,7 +350,7 @@ while(<>) {
 			$text .= "//go:linkname $funcname $funcname\n";
 			# Tell the linker that funcname can be found in libSystem using varname without the libc_ prefix.
 			my $basename = substr $funcname, 5;
-			$text .= "//go:cgo_import_dynamic $funcname $basename \"/usr/lib/libSystem.B.dylib\"\n";
+			$text .= "//go:cgo_import_dynamic $funcname $basename \"/usr/lib/libSystem.B.dylib\"\n\n";
 		}
 	}
 }

@@ -154,7 +154,7 @@ func Init() {
 			die() // Don't init a module that we're just going to ignore.
 		}
 		// No automatic enabling in GOPATH.
-		if root, _ := FindModuleRoot(cwd, "", false); root != "" {
+		if root := findModuleRoot(cwd); root != "" {
 			cfg.GoModInGOPATH = filepath.Join(root, "go.mod")
 		}
 		return
@@ -164,7 +164,7 @@ func Init() {
 		// Running 'go mod init': go.mod will be created in current directory.
 		modRoot = cwd
 	} else {
-		modRoot, _ = FindModuleRoot(cwd, "", MustUseModules)
+		modRoot = findModuleRoot(cwd)
 		if modRoot == "" {
 			if !MustUseModules {
 				// GO111MODULE is 'auto' (or unset), and we can't find a module root.
@@ -302,6 +302,19 @@ func die() {
 	if inGOPATH && !MustUseModules {
 		base.Fatalf("go: modules disabled inside GOPATH/src by GO111MODULE=auto; see 'go help modules'")
 	}
+	if cwd != "" {
+		if dir, name := findAltConfig(cwd); dir != "" {
+			rel, err := filepath.Rel(cwd, dir)
+			if err != nil {
+				rel = dir
+			}
+			cdCmd := ""
+			if rel != "." {
+				cdCmd = fmt.Sprintf("cd %s && ", rel)
+			}
+			base.Fatalf("go: cannot find main module, but found %s in %s\n\tto create a module there, run:\n\t%sgo mod init", name, dir, cdCmd)
+		}
+	}
 	base.Fatalf("go: cannot find main module; see 'go help modules'")
 }
 
@@ -330,12 +343,6 @@ func InitMod() {
 	gomod := filepath.Join(modRoot, "go.mod")
 	data, err := ioutil.ReadFile(gomod)
 	if err != nil {
-		if os.IsNotExist(err) {
-			legacyModInit()
-			modFileToBuildList()
-			WriteGoMod()
-			return
-		}
 		base.Fatalf("go: %v", err)
 	}
 
@@ -349,7 +356,7 @@ func InitMod() {
 
 	if len(f.Syntax.Stmt) == 0 || f.Module == nil {
 		// Empty mod file. Must add module path.
-		path, err := FindModulePath(modRoot)
+		path, err := findModulePath(modRoot)
 		if err != nil {
 			base.Fatalf("go: %v", err)
 		}
@@ -387,7 +394,7 @@ func Allowed(m module.Version) bool {
 
 func legacyModInit() {
 	if modFile == nil {
-		path, err := FindModulePath(modRoot)
+		path, err := findModulePath(modRoot)
 		if err != nil {
 			base.Fatalf("go: %v", err)
 		}
@@ -454,19 +461,13 @@ var altConfigs = []string{
 	".git/config",
 }
 
-// Exported only for testing.
-func FindModuleRoot(dir, limit string, legacyConfigOK bool) (root, file string) {
+func findModuleRoot(dir string) (root string) {
 	dir = filepath.Clean(dir)
-	dir1 := dir
-	limit = filepath.Clean(limit)
 
 	// Look for enclosing go.mod.
 	for {
 		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
-			return dir, "go.mod"
-		}
-		if dir == limit {
-			break
+			return dir
 		}
 		d := filepath.Dir(dir)
 		if d == dir {
@@ -474,36 +475,40 @@ func FindModuleRoot(dir, limit string, legacyConfigOK bool) (root, file string) 
 		}
 		dir = d
 	}
+	return ""
+}
 
-	// Failing that, look for enclosing alternate version config.
-	if legacyConfigOK {
-		dir = dir1
-		for {
-			for _, name := range altConfigs {
-				if fi, err := os.Stat(filepath.Join(dir, name)); err == nil && !fi.IsDir() {
-					return dir, name
+func findAltConfig(dir string) (root, name string) {
+	dir = filepath.Clean(dir)
+	for {
+		for _, name := range altConfigs {
+			if fi, err := os.Stat(filepath.Join(dir, name)); err == nil && !fi.IsDir() {
+				if rel := search.InDir(dir, cfg.BuildContext.GOROOT); rel == "." {
+					// Don't suggest creating a module from $GOROOT/.git/config.
+					return "", ""
 				}
+				return dir, name
 			}
-			if dir == limit {
-				break
-			}
-			d := filepath.Dir(dir)
-			if d == dir {
-				break
-			}
-			dir = d
 		}
+		d := filepath.Dir(dir)
+		if d == dir {
+			break
+		}
+		dir = d
 	}
-
 	return "", ""
 }
 
-// Exported only for testing.
-func FindModulePath(dir string) (string, error) {
+func findModulePath(dir string) (string, error) {
 	if CmdModModule != "" {
 		// Running go mod init x/y/z; return x/y/z.
 		return CmdModModule, nil
 	}
+
+	// TODO(bcmills): once we have located a plausible module path, we should
+	// query version control (if available) to verify that it matches the major
+	// version of the most recent tag.
+	// See https://golang.org/issue/29433 and https://golang.org/issue/27009.
 
 	// Cast about for import comments,
 	// first in top-level directory, then in subdirectories.

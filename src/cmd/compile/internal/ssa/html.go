@@ -1080,7 +1080,7 @@ type dotWriter struct {
 }
 
 // newDotWriter returns non-nil value when mask is valid.
-// dotWriter will generate SVGs only for the phases specifed in the mask.
+// dotWriter will generate SVGs only for the phases specified in the mask.
 // mask can contain following patterns and combinations of them:
 // *   - all of them;
 // x-y - x through y, inclusive;

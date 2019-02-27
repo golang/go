@@ -84,9 +84,10 @@ const (
 	_CTL_KERN   = 1
 	_KERN_OSREV = 3
 
-	_CTL_HW      = 6
-	_HW_NCPU     = 3
-	_HW_PAGESIZE = 7
+	_CTL_HW        = 6
+	_HW_NCPU       = 3
+	_HW_PAGESIZE   = 7
+	_HW_NCPUONLINE = 25
 )
 
 func sysctlInt(mib []uint32) (int32, bool) {
@@ -100,9 +101,14 @@ func sysctlInt(mib []uint32) (int32, bool) {
 }
 
 func getncpu() int32 {
-	// Fetch hw.ncpu via sysctl.
-	if ncpu, ok := sysctlInt([]uint32{_CTL_HW, _HW_NCPU}); ok {
-		return int32(ncpu)
+	// Try hw.ncpuonline first because hw.ncpu would report a number twice as
+	// high as the actual CPUs running on OpenBSD 6.4 with hyperthreading
+	// disabled (hw.smt=0). See https://golang.org/issue/30127
+	if n, ok := sysctlInt([]uint32{_CTL_HW, _HW_NCPUONLINE}); ok {
+		return int32(n)
+	}
+	if n, ok := sysctlInt([]uint32{_CTL_HW, _HW_NCPU}); ok {
+		return int32(n)
 	}
 	return 1
 }

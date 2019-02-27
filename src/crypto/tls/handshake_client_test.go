@@ -28,7 +28,7 @@ import (
 
 func init() {
 	// TLS 1.3 cipher suites preferences are not configurable and change based
-	// on the architecture. Force them to the version with AES accelleration for
+	// on the architecture. Force them to the version with AES acceleration for
 	// test consistency.
 	once.Do(initDefaultCipherSuites)
 	varDefaultCipherSuitesTLS13 = []uint16{
@@ -853,30 +853,6 @@ func TestHandshakeClientCertRSAPKCS1v15(t *testing.T) {
 	}
 
 	runClientTestTLS12(t, test)
-}
-
-func TestHandshakeClientCertPSSDisabled(t *testing.T) {
-	config := testConfig.Clone()
-	cert, _ := X509KeyPair([]byte(clientCertificatePEM), []byte(clientKeyPEM))
-	config.Certificates = []Certificate{cert}
-
-	test := &clientTest{
-		name:   "ClientCert-RSA-PSS-Disabled",
-		args:   []string{"-cipher", "AES128", "-Verify", "1"},
-		config: config,
-	}
-
-	// Restore the default signature algorithms, disabling RSA-PSS in TLS 1.2,
-	// and check that handshakes still work.
-	testSupportedSignatureAlgorithmsTLS12 := defaultSupportedSignatureAlgorithmsTLS12
-	defer func() { defaultSupportedSignatureAlgorithmsTLS12 = testSupportedSignatureAlgorithmsTLS12 }()
-	defaultSupportedSignatureAlgorithmsTLS12 = savedSupportedSignatureAlgorithmsTLS12
-
-	// Use t.Run to ensure the defer runs after all parallel tests end.
-	t.Run("", func(t *testing.T) {
-		runClientTestTLS12(t, test)
-		runClientTestTLS13(t, test)
-	})
 }
 
 func TestClientKeyUpdate(t *testing.T) {

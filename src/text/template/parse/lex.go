@@ -565,17 +565,28 @@ func (l *lexer) scanNumber() bool {
 	// Optional leading sign.
 	l.accept("+-")
 	// Is it hex?
-	digits := "0123456789"
-	if l.accept("0") && l.accept("xX") {
-		digits = "0123456789abcdefABCDEF"
+	digits := "0123456789_"
+	if l.accept("0") {
+		// Note: Leading 0 does not mean octal in floats.
+		if l.accept("xX") {
+			digits = "0123456789abcdefABCDEF_"
+		} else if l.accept("oO") {
+			digits = "01234567_"
+		} else if l.accept("bB") {
+			digits = "01_"
+		}
 	}
 	l.acceptRun(digits)
 	if l.accept(".") {
 		l.acceptRun(digits)
 	}
-	if l.accept("eE") {
+	if len(digits) == 10+1 && l.accept("eE") {
 		l.accept("+-")
-		l.acceptRun("0123456789")
+		l.acceptRun("0123456789_")
+	}
+	if len(digits) == 16+6+1 && l.accept("pP") {
+		l.accept("+-")
+		l.acceptRun("0123456789_")
 	}
 	// Is it imaginary?
 	l.accept("i")

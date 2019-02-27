@@ -1013,7 +1013,7 @@ func TestStatOfInvalidName(t *testing.T) {
 // It returns path to the found drive root directory (like Z:\) or error.
 func findUnusedDriveLetter() (string, error) {
 	// Do not use A: and B:, because they are reserved for floppy drive.
-	// Do not use C:, becasue it is normally used for main drive.
+	// Do not use C:, because it is normally used for main drive.
 	for l := 'Z'; l >= 'D'; l-- {
 		p := string(l) + `:\`
 		_, err := os.Stat(p)

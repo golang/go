@@ -424,3 +424,18 @@ func h(x *Node) { // ERROR "leaking param: x"
 	Sink = g(y)
 	f(y)
 }
+
+// interface(in) -> out
+// See also issue 29353.
+
+// Convert to a non-direct interface, require an allocation and
+// copy x to heap (not to result).
+func param14a(x [4]*int) interface{} { // ERROR "leaking param: x$"
+	return x // ERROR "x escapes to heap"
+}
+
+// Convert to a direct interface, does not need an allocation.
+// So x only leaks to result.
+func param14b(x *int) interface{} { // ERROR "leaking param: x to result ~r1 level=0"
+	return x // ERROR "x escapes to heap"
+}

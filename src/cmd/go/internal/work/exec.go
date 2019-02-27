@@ -655,7 +655,7 @@ func (b *Builder) build(a *Action) (err error) {
 	if len(out) > 0 {
 		output := b.processOutput(out)
 		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
-			output += "note: module requires Go " + p.Module.GoVersion
+			output += "note: module requires Go " + p.Module.GoVersion + "\n"
 		}
 		b.showOutput(a, a.Package.Dir, a.Package.Desc(), output)
 		if err != nil {

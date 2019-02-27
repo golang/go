@@ -8,7 +8,6 @@ import (
 	"cmd/internal/objfile"
 	"debug/dwarf"
 	"internal/testenv"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -46,6 +45,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 
 	for _, prog := range []string{"testprog", "testprogcgo"} {
 		t.Run(prog, func(t *testing.T) {
+			t.Parallel()
+
 			exe := filepath.Join(tmpDir, prog+".exe")
 			dir := "../../runtime/testdata/" + prog
 			cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
@@ -109,43 +110,23 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 			wantFile := path.Join(prog, "main.go")
 			wantLine := 24
 			r := d.Reader()
-			var line dwarf.LineEntry
-			for {
-				cu, err := r.Next()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if cu == nil {
-					break
-				}
-				if cu.Tag != dwarf.TagCompileUnit {
-					r.SkipChildren()
-					continue
-				}
-				if cu.Val(dwarf.AttrStmtList) == nil {
-					continue
-				}
-				lr, err := d.LineReader(cu)
-				if err != nil {
-					t.Fatal(err)
-				}
-				for {
-					err := lr.Next(&line)
-					if err == io.EOF {
-						break
-					}
-					if err != nil {
-						t.Fatal(err)
-					}
-					if line.Address == addr {
-						if !strings.HasSuffix(line.File.Name, wantFile) || line.Line != wantLine {
-							t.Errorf("%#x is %s:%d, want %s:%d", addr, line.File.Name, line.Line, filepath.Join("...", wantFile), wantLine)
-						}
-						return
-					}
-				}
+			entry, err := r.SeekPC(addr)
+			if err != nil {
+				t.Fatal(err)
 			}
-			t.Fatalf("did not find file:line for %#x (main.main)", addr)
+			lr, err := d.LineReader(entry)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var line dwarf.LineEntry
+			if err := lr.SeekPC(addr, &line); err == dwarf.ErrUnknownPC {
+				t.Fatalf("did not find file:line for %#x (main.main)", addr)
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.HasSuffix(line.File.Name, wantFile) || line.Line != wantLine {
+				t.Errorf("%#x is %s:%d, want %s:%d", addr, line.File.Name, line.Line, filepath.Join("...", wantFile), wantLine)
+			}
 		})
 	}
 }

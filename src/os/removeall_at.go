@@ -71,6 +71,9 @@ func removeAllFrom(parent *File, path string) error {
 	var statInfo syscall.Stat_t
 	statErr := unix.Fstatat(parentFd, path, &statInfo, unix.AT_SYMLINK_NOFOLLOW)
 	if statErr != nil {
+		if IsNotExist(statErr) {
+			return nil
+		}
 		return statErr
 	}
 	if statInfo.Mode&syscall.S_IFMT != syscall.S_IFDIR {

@@ -84,6 +84,7 @@ func initssaconfig() {
 	panicnildottype = sysfunc("panicnildottype")
 	panicoverflow = sysfunc("panicoverflow")
 	panicslice = sysfunc("panicslice")
+	panicshift = sysfunc("panicshift")
 	raceread = sysfunc("raceread")
 	racereadrange = sysfunc("racereadrange")
 	racewrite = sysfunc("racewrite")
@@ -2128,7 +2129,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OLSH, ORSH:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		return s.newValue2(s.ssaShiftOp(n.Op, n.Type, n.Right.Type), a.Type, a, b)
+		bt := b.Type
+		if bt.IsSigned() {
+			cmp := s.newValue2(s.ssaOp(OGE, bt), types.Types[TBOOL], b, s.zeroVal(bt))
+			s.check(cmp, panicshift)
+			bt = bt.ToUnsigned()
+		}
+		return s.newValue2(s.ssaShiftOp(n.Op, n.Type, bt), a.Type, a, b)
 	case OANDAND, OOROR:
 		// To implement OANDAND (and OOROR), we introduce a
 		// new temporary variable to hold the result. The
@@ -5168,10 +5175,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 			case ssa.OpInlMark:
 				p := thearch.Ginsnop(s.pp)
-				if pp.curfn.Func.lsym != nil {
-					// lsym is nil if the function name is "_".
-					pp.curfn.Func.lsym.Func.AddInlMark(p, v.AuxInt32())
-				}
+				pp.curfn.Func.lsym.Func.AddInlMark(p, v.AuxInt32())
 				// TODO: if matching line number, merge somehow with previous instruction?
 
 			default:
@@ -5597,7 +5601,7 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 		// insert an actual hardware NOP that will have the right line number.
 		// This is different from obj.ANOP, which is a virtual no-op
 		// that doesn't make it into the instruction stream.
-		thearch.Ginsnop(s.pp)
+		thearch.Ginsnopdefer(s.pp)
 	}
 
 	if sym, ok := v.Aux.(*obj.LSym); ok {

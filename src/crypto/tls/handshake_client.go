@@ -85,7 +85,6 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 	possibleCipherSuites := config.cipherSuites()
 	hello.cipherSuites = make([]uint16, 0, len(possibleCipherSuites))
 
-NextCipherSuite:
 	for _, suiteId := range possibleCipherSuites {
 		for _, suite := range cipherSuites {
 			if suite.id != suiteId {
@@ -94,10 +93,10 @@ NextCipherSuite:
 			// Don't advertise TLS 1.2-only cipher suites unless
 			// we're attempting TLS 1.2.
 			if hello.vers < VersionTLS12 && suite.flags&suiteTLS12 != 0 {
-				continue
+				break
 			}
 			hello.cipherSuites = append(hello.cipherSuites, suiteId)
-			continue NextCipherSuite
+			break
 		}
 	}
 
@@ -114,13 +113,7 @@ NextCipherSuite:
 	}
 
 	if hello.vers >= VersionTLS12 {
-		// The non-BoringCrypto behavior here is to use the full set of
-		// signature algorithms, even if TLS 1.3 is not being negotiated. It's
-		// debatable if this is correct or not, because on one hand it allows
-		// RSA-PSS as a client with TLS 1.2, but on the other hand we can't
-		// predict what the server will pick when we do advertise TLS 1.3, so we
-		// might end up with TLS 1.2 + RSA-PSS anyway. Anyway, it will go away soon.
-		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS13)
+		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 	}
 	if testingOnlyForceClientHelloSignatureAlgorithms != nil {
 		hello.supportedSignatureAlgorithms = testingOnlyForceClientHelloSignatureAlgorithms

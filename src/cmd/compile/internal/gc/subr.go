@@ -537,26 +537,6 @@ func methtype(t *types.Type) *types.Type {
 	return nil
 }
 
-// Are t1 and t2 equal struct types when field names are ignored?
-// For deciding whether the result struct from g can be copied
-// directly when compiling f(g()).
-func eqtypenoname(t1 *types.Type, t2 *types.Type) bool {
-	if t1 == nil || t2 == nil || !t1.IsStruct() || !t2.IsStruct() {
-		return false
-	}
-
-	if t1.NumFields() != t2.NumFields() {
-		return false
-	}
-	for i, f1 := range t1.FieldSlice() {
-		f2 := t2.Field(i)
-		if !types.Identical(f1.Type, f2.Type) {
-			return false
-		}
-	}
-	return true
-}
-
 // Is type src assignment compatible to type dst?
 // If so, return op code to use in conversion.
 // If not, return 0.
@@ -1200,7 +1180,7 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) 
 	c := 0
 	if u.IsStruct() || u.IsInterface() {
 		for _, f := range u.Fields().Slice() {
-			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Recv() != nil && strings.EqualFold(f.Sym.Name, s.Name)) {
+			if f.Sym == s || (ignorecase && f.IsMethod() && strings.EqualFold(f.Sym.Name, s.Name)) {
 				if save != nil {
 					*save = f
 				}
@@ -1440,7 +1420,7 @@ func expandmeth(t *types.Type) {
 		}
 
 		// dotpath may have dug out arbitrary fields, we only want methods.
-		if f.Type.Etype != TFUNC || f.Type.Recv() == nil {
+		if !f.IsMethod() {
 			continue
 		}
 
@@ -1651,7 +1631,7 @@ func ifacelookdot(s *types.Sym, t *types.Type, ignorecase bool) (m *types.Field,
 		}
 	}
 
-	if m.Type.Etype != TFUNC || m.Type.Recv() == nil {
+	if !m.IsMethod() {
 		yyerror("%v.%v is a field, not a method", t, s)
 		return nil, followptr
 	}
@@ -1847,18 +1827,6 @@ func isbadimport(path string, allowSpace bool) bool {
 	}
 
 	return false
-}
-
-func checknil(x *Node, init *Nodes) {
-	x = walkexpr(x, nil) // caller has not done this yet
-	if x.Type.IsInterface() {
-		x = nod(OITAB, x, nil)
-		x = typecheck(x, ctxExpr)
-	}
-
-	n := nod(OCHECKNIL, x, nil)
-	n.SetTypecheck(1)
-	init.Append(n)
 }
 
 // Can this type be stored directly in an interface word?

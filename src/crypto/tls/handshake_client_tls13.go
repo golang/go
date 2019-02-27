@@ -452,7 +452,7 @@ func (hs *clientHandshakeStateTLS13) readServerCertificate() error {
 	}
 
 	// See RFC 8446, Section 4.4.3.
-	if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms(VersionTLS13)) {
+	if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms()) {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: invalid certificate signature algorithm")
 	}

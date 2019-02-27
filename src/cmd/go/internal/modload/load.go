@@ -111,7 +111,7 @@ func ImportPaths(patterns []string) []*search.Match {
 						} else {
 							pkg = Target.Path + suffix
 						}
-					} else if sub := search.InDir(dir, cfg.GOROOTsrc); sub != "" && !strings.Contains(sub, "@") {
+					} else if sub := search.InDir(dir, cfg.GOROOTsrc); sub != "" && sub != "." && !strings.Contains(sub, "@") {
 						pkg = filepath.ToSlash(sub)
 					} else if path := pathInModuleCache(dir); path != "" {
 						pkg = path

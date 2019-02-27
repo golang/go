@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 [!gc] skip
 
 # listing GOROOT should only find standard packages

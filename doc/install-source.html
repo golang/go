@@ -349,15 +349,7 @@ provides <b>essential setup instructions</b> for using the Go tools.
 <p>
 The source code for several Go tools (including <a href="/cmd/godoc/">godoc</a>)
 is kept in <a href="https://golang.org/x/tools">the go.tools repository</a>.
-To install all of them, run the <code>go</code> <code>get</code> command:
-</p>
-
-<pre>
-$ go get golang.org/x/tools/cmd/...
-</pre>
-
-<p>
-Or if you just want to install a specific command (<code>godoc</code> in this case):
+To install one of the tools (<code>godoc</code> in this case):
 </p>
 
 <pre>
@@ -372,16 +364,6 @@ that <a href="#git">Git</a> be installed locally.
 <p>
 You must also have a workspace (<code>GOPATH</code>) set up;
 see <a href="/doc/code.html">How to Write Go Code</a> for the details.
-</p>
-
-<p>
-<b>Note</b>: The <code>go</code> command will install the <code>godoc</code>
-binary to <code>$GOROOT/bin</code> (or <code>$GOBIN</code>) and the
-<code>cover</code> and <code>vet</code> binaries to
-<code>$GOROOT/pkg/tool/$GOOS_$GOARCH</code>.
-You can access the latter commands with
-"<code>go</code> <code>tool</code> <code>cover</code>" and
-"<code>go</code> <code>tool</code> <code>vet</code>".
 </p>
 
 <h2 id="community">Community resources</h2>
@@ -666,7 +648,6 @@ something like this:
 </p>
 
 <pre>
-export GOROOT=$HOME/go1.X
 export GOARCH=amd64
 export GOOS=linux
 </pre>

@@ -179,9 +179,6 @@ var defaultSupportedSignatureAlgorithms = []SignatureScheme{
 	ECDSAWithSHA1,
 }
 
-// RSA-PSS is disabled in TLS 1.2 for Go 1.12. See Issue 30055.
-var defaultSupportedSignatureAlgorithmsTLS12 = defaultSupportedSignatureAlgorithms[3:]
-
 // helloRetryRequestRandom is set as the Random value of a ServerHello
 // to signal that the message is actually a HelloRetryRequest.
 var helloRetryRequestRandom = []byte{ // See RFC 8446, Section 4.1.3.

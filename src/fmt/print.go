@@ -363,7 +363,7 @@ func (p *pp) fmtBool(v bool, verb rune) {
 func (p *pp) fmt0x64(v uint64, leading0x bool) {
 	sharp := p.fmt.sharp
 	p.fmt.sharp = leading0x
-	p.fmt.fmtInteger(v, 16, unsigned, ldigits)
+	p.fmt.fmtInteger(v, 16, unsigned, 'v', ldigits)
 	p.fmt.sharp = sharp
 }
 
@@ -374,18 +374,18 @@ func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
 		if p.fmt.sharpV && !isSigned {
 			p.fmt0x64(v, true)
 		} else {
-			p.fmt.fmtInteger(v, 10, isSigned, ldigits)
+			p.fmt.fmtInteger(v, 10, isSigned, verb, ldigits)
 		}
 	case 'd':
-		p.fmt.fmtInteger(v, 10, isSigned, ldigits)
+		p.fmt.fmtInteger(v, 10, isSigned, verb, ldigits)
 	case 'b':
-		p.fmt.fmtInteger(v, 2, isSigned, ldigits)
-	case 'o':
-		p.fmt.fmtInteger(v, 8, isSigned, ldigits)
+		p.fmt.fmtInteger(v, 2, isSigned, verb, ldigits)
+	case 'o', 'O':
+		p.fmt.fmtInteger(v, 8, isSigned, verb, ldigits)
 	case 'x':
-		p.fmt.fmtInteger(v, 16, isSigned, ldigits)
+		p.fmt.fmtInteger(v, 16, isSigned, verb, ldigits)
 	case 'X':
-		p.fmt.fmtInteger(v, 16, isSigned, udigits)
+		p.fmt.fmtInteger(v, 16, isSigned, verb, udigits)
 	case 'c':
 		p.fmt.fmtC(v)
 	case 'q':
@@ -407,7 +407,7 @@ func (p *pp) fmtFloat(v float64, size int, verb rune) {
 	switch verb {
 	case 'v':
 		p.fmt.fmtFloat(v, size, 'g', -1)
-	case 'b', 'g', 'G':
+	case 'b', 'g', 'G', 'x', 'X':
 		p.fmt.fmtFloat(v, size, verb, -1)
 	case 'f', 'e', 'E':
 		p.fmt.fmtFloat(v, size, verb, 6)
@@ -425,7 +425,7 @@ func (p *pp) fmtComplex(v complex128, size int, verb rune) {
 	// Make sure any unsupported verbs are found before the
 	// calls to fmtFloat to not generate an incorrect error string.
 	switch verb {
-	case 'v', 'b', 'g', 'G', 'f', 'F', 'e', 'E':
+	case 'v', 'b', 'g', 'G', 'x', 'X', 'f', 'F', 'e', 'E':
 		oldPlus := p.fmt.plus
 		p.buf.WriteByte('(')
 		p.fmtFloat(real(v), size/2, verb)
@@ -483,7 +483,7 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
 				if i > 0 {
 					p.buf.WriteByte(' ')
 				}
-				p.fmt.fmtInteger(uint64(c), 10, unsigned, ldigits)
+				p.fmt.fmtInteger(uint64(c), 10, unsigned, verb, ldigits)
 			}
 			p.buf.WriteByte(']')
 		}
