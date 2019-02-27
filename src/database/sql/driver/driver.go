@@ -137,7 +137,7 @@ type Pinger interface {
 
 // Execer is an optional interface that may be implemented by a Conn.
 //
-// If a Conn implements neither ExecerContext nor Execer Execer,
+// If a Conn implements neither ExecerContext nor Execer,
 // the sql package's DB.Exec will first prepare a query, execute the statement,
 // and then close the statement.
 //
