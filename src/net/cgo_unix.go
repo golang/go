@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build cgo,!netgo
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
 
@@ -14,6 +14,11 @@ package net
 #include <netdb.h>
 #include <unistd.h>
 #include <string.h>
+
+// If nothing else defined EAI_OVERFLOW, make sure it has a value.
+#ifndef EAI_OVERFLOW
+#define EAI_OVERFLOW -12
+#endif
 */
 import "C"
 
