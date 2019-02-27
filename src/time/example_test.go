@@ -113,9 +113,14 @@ func ExampleDuration_Minutes() {
 }
 
 func ExampleDuration_Nanoseconds() {
-	u, _ := time.ParseDuration("1us")
-	fmt.Printf("one microsecond has %d nanoseconds.", u.Nanoseconds())
-	// Output: one microsecond has 1000 nanoseconds.
+	u, _ := time.ParseDuration("1µs")
+	fmt.Printf("One microsecond is %d nanoseconds.\n", u.Nanoseconds())
+	// The package also accepts the incorrect but common prefix u for micro.
+	v, _ := time.ParseDuration("1us")
+	fmt.Printf("One microsecond is %6.2e seconds.\n", v.Seconds())
+	// Output:
+	// One microsecond is 1000 nanoseconds.
+	// One microsecond is 1.00e-06 seconds.
 }
 
 func ExampleDuration_Seconds() {
