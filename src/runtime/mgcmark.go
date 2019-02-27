@@ -713,6 +713,13 @@ func scanstack(gp *g, gcw *gcWork) {
 	// Find additional pointers that point into the stack from the heap.
 	// Currently this includes defers and panics. See also function copystack.
 	tracebackdefers(gp, scanframe, nil)
+	for d := gp._defer; d != nil; d = d.link {
+		// tracebackdefers above does not scan the func value, which could
+		// be a stack allocated closure. See issue 30453.
+		if d.fn != nil {
+			scanblock(uintptr(unsafe.Pointer(&d.fn)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+		}
+	}
 	if gp._panic != nil {
 		state.putPtr(uintptr(unsafe.Pointer(gp._panic)))
 	}
