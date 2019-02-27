@@ -47,6 +47,13 @@ type Type interface {
 	// Comparable reports whether values of this type are comparable.
 	Comparable() bool
 
+	// String returns a string representation of the type.
+	// The string representation may use shortened package names
+	// (e.g., base64 instead of "encoding/base64") and is not
+	// guaranteed to be unique among types. To test for type identity,
+	// compare the Types directly.
+	String() string
+
 	// Elem returns a type's element type.
 	// It panics if the type's Kind is not Ptr.
 	Elem() Type

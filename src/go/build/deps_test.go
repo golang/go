@@ -249,7 +249,7 @@ var pkgDeps = map[string][]string{
 	"compress/gzip":                  {"L4", "compress/flate"},
 	"compress/lzw":                   {"L4"},
 	"compress/zlib":                  {"L4", "compress/flate"},
-	"context":                        {"errors", "fmt", "internal/reflectlite", "sync", "time"},
+	"context":                        {"errors", "internal/reflectlite", "sync", "time"},
 	"database/sql":                   {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
 	"database/sql/driver":            {"L4", "context", "time", "database/sql/internal"},
 	"debug/dwarf":                    {"L4"},
@@ -520,15 +520,21 @@ func TestDependencies(t *testing.T) {
 	}
 	sort.Strings(all)
 
+	sawImport := map[string]map[string]bool{} // from package => to package => true
+
 	for _, pkg := range all {
 		imports, err := findImports(pkg)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
+		if sawImport[pkg] == nil {
+			sawImport[pkg] = map[string]bool{}
+		}
 		ok := allowed(pkg)
 		var bad []string
 		for _, imp := range imports {
+			sawImport[pkg][imp] = true
 			if !ok[imp] {
 				bad = append(bad, imp)
 			}
@@ -537,6 +543,34 @@ func TestDependencies(t *testing.T) {
 			t.Errorf("unexpected dependency: %s imports %v", pkg, bad)
 		}
 	}
+
+	// depPath returns the path between the given from and to packages.
+	// It returns the empty string if there's no dependency path.
+	var depPath func(string, string) string
+	depPath = func(from, to string) string {
+		if sawImport[from][to] {
+			return from + " => " + to
+		}
+		for pkg := range sawImport[from] {
+			if p := depPath(pkg, to); p != "" {
+				return from + " => " + p
+			}
+		}
+		return ""
+	}
+
+	// Also test some high-level policy goals are being met by not finding
+	// these dependency paths:
+	badPaths := []struct{ from, to string }{
+		{"net", "unicode"},
+	}
+
+	for _, path := range badPaths {
+		if how := depPath(path.from, path.to); how != "" {
+			t.Logf("TODO(issue 30440): policy violation: %s", how)
+		}
+	}
+
 }
 
 var buildIgnore = []byte("\n// +build ignore")
