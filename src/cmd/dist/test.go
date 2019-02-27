@@ -606,22 +606,8 @@ func (t *tester) registerTests() {
 
 	if t.cgoEnabled && !t.iOS() {
 		// Disabled on iOS. golang.org/issue/15919
-		t.tests = append(t.tests, distTest{
-			name:    "cgo_stdio",
-			heading: "../misc/cgo/stdio",
-			fn: func(dt *distTest) error {
-				t.addCmd(dt, "misc/cgo/stdio", t.goTest(), t.timeout(120))
-				return nil
-			},
-		})
-		t.tests = append(t.tests, distTest{
-			name:    "cgo_life",
-			heading: "../misc/cgo/life",
-			fn: func(dt *distTest) error {
-				t.addCmd(dt, "misc/cgo/life", t.goTest(), t.timeout(120))
-				return nil
-			},
-		})
+		t.registerHostTest("cgo_stdio", "../misc/cgo/stdio", "misc/cgo/stdio", ".")
+		t.registerHostTest("cgo_life", "../misc/cgo/life", "misc/cgo/life", ".")
 		fortran := os.Getenv("FC")
 		if fortran == "" {
 			fortran, _ = exec.LookPath("gfortran")
