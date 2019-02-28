@@ -26,7 +26,7 @@ type State struct {
 	mode uint32
 }
 
-// IsTerminal returns true if the given file descriptor is a terminal.
+// IsTerminal returns whether the given file descriptor is a terminal.
 func IsTerminal(fd int) bool {
 	var st uint32
 	err := windows.GetConsoleMode(windows.Handle(fd), &st)

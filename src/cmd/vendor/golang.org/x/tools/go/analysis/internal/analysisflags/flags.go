@@ -152,12 +152,13 @@ func printFlags() {
 // addVersionFlag registers a -V flag that, if set,
 // prints the executable version and exits 0.
 //
-// It is a variable not a function to permit easy
-// overriding in the copy vendored in $GOROOT/src/cmd/vet:
-//
-// func init() { addVersionFlag = objabi.AddVersionFlag }
-var addVersionFlag = func() {
-	flag.Var(versionFlag{}, "V", "print version and exit")
+// If the -V flag already exists — for example, because it was already
+// registered by a call to cmd/internal/objabi.AddVersionFlag — then
+// addVersionFlag does nothing.
+func addVersionFlag() {
+	if flag.Lookup("V") == nil {
+		flag.Var(versionFlag{}, "V", "print version and exit")
+	}
 }
 
 // versionFlag minimally complies with the -V protocol required by "go vet".

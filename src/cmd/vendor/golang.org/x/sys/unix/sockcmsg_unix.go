@@ -25,8 +25,8 @@ func cmsgAlignOf(salen int) int {
 		if SizeofPtr == 8 {
 			salign = 4
 		}
-	case "netbsd", "openbsd":
-		// NetBSD and OpenBSD armv7 require 64-bit alignment.
+	case "openbsd":
+		// OpenBSD armv7 requires 64-bit alignment.
 		if runtime.GOARCH == "arm" {
 			salign = 8
 		}
