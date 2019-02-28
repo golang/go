@@ -453,15 +453,23 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
 }
 
 // isFormatter reports whether t satisfies fmt.Formatter.
-// Unlike fmt.Stringer, it's impossible to satisfy fmt.Formatter without importing fmt.
-func isFormatter(pass *analysis.Pass, t types.Type) bool {
-	for _, imp := range pass.Pkg.Imports() {
-		if imp.Path() == "fmt" {
-			formatter := imp.Scope().Lookup("Formatter").Type().Underlying().(*types.Interface)
-			return types.Implements(t, formatter)
-		}
+// The only interface method to look for is "Format(State, rune)".
+func isFormatter(typ types.Type) bool {
+	obj, _, _ := types.LookupFieldOrMethod(typ, false, nil, "Format")
+	fn, ok := obj.(*types.Func)
+	if !ok {
+		return false
 	}
-	return false
+	sig := fn.Type().(*types.Signature)
+	return sig.Params().Len() == 2 &&
+		sig.Results().Len() == 0 &&
+		isNamed(sig.Params().At(0).Type(), "fmt", "State") &&
+		types.Identical(sig.Params().At(1).Type(), types.Typ[types.Rune])
+}
+
+func isNamed(T types.Type, pkgpath, name string) bool {
+	named, ok := T.(*types.Named)
+	return ok && named.Obj().Pkg().Path() == pkgpath && named.Obj().Name() == name
 }
 
 // formatState holds the parsed representation of a printf directive such as "%3.*[4]d".
@@ -754,7 +762,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 	formatter := false
 	if state.argNum < len(call.Args) {
 		if tv, ok := pass.TypesInfo.Types[call.Args[state.argNum]]; ok {
-			formatter = isFormatter(pass, tv.Type)
+			formatter = isFormatter(tv.Type)
 		}
 	}
 
@@ -832,7 +840,7 @@ func recursiveStringer(pass *analysis.Pass, e ast.Expr) bool {
 	typ := pass.TypesInfo.Types[e].Type
 
 	// It's unlikely to be a recursive stringer if it has a Format method.
-	if isFormatter(pass, typ) {
+	if isFormatter(typ) {
 		return false
 	}
 

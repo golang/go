@@ -48,43 +48,33 @@ go	src=..
 						pprof
 							internal
 								binutils
-									testdata
-										+
-								driver
-									testdata
-										+
-								graph
-									testdata
-										+
-								report
-									testdata
-										+
-							profile
-								testdata
 									+
+								driver
+									+
+								graph
+									+
+								report
+									+
+							profile
+								+
 					ianlancetaylor
 						demangle
-							testdata
-								+
+							+
 				golang.org
 					x
 						arch
 							arm
 								armasm
-									testdata
-										+
+									+
 							arm64
 								arm64asm
-									testdata
-										+
+									+
 							x86
 								x86asm
-									testdata
-										+
+									+
 							ppc64
 								ppc64asm
-									testdata
-										+
+									+
 		archive
 			tar
 				testdata

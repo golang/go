@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	javaRegExp = regexp.MustCompile(`^(?:[a-z]\w*\.)*([A-Z][\w\$]*\.(?:<init>|[a-z]\w*(?:\$\d+)?))(?:(?:\()|$)`)
+	javaRegExp = regexp.MustCompile(`^(?:[a-z]\w*\.)*([A-Z][\w\$]*\.(?:<init>|[a-z][\w\$]*(?:\$\d+)?))(?:(?:\()|$)`)
 	goRegExp   = regexp.MustCompile(`^(?:[\w\-\.]+\/)+(.+)`)
 	cppRegExp  = regexp.MustCompile(`^(?:(?:\(anonymous namespace\)::)(\w+$))|(?:(?:\(anonymous namespace\)::)?(?:[_a-zA-Z]\w*\::|)*(_*[A-Z]\w*::~?[_a-zA-Z]\w*)$)`)
 )
