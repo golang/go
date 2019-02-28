@@ -643,17 +643,6 @@ func evconst(n *Node) {
 					i2++
 				}
 
-				// Hack to appease toolstash. Because
-				// we were checking isGoConst early
-				// on, we wouldn't collapse adjacent
-				// string constants unless the entire
-				// string was a constant.
-				//
-				// TODO(mdempsky): Remove in next commit.
-				if i1 != 0 || i2 != len(s) {
-					return
-				}
-
 				nl := *s[i1]
 				nl.Orig = &nl
 				nl.SetVal(Val{strings.Join(strs, "")})
