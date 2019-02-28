@@ -647,18 +647,28 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 
 		// Determine directory from import path.
 		if ctxt.GOROOT != "" {
-			dir := ctxt.joinPath(ctxt.GOROOT, "src", path)
-			if ctxt.Compiler != "gccgo" {
-				isDir := ctxt.isDir(dir)
-				binaryOnly = !isDir && mode&AllowBinary != 0 && pkga != "" && ctxt.isFile(ctxt.joinPath(ctxt.GOROOT, pkga))
-				if isDir || binaryOnly {
-					p.Dir = dir
-					p.Goroot = true
-					p.Root = ctxt.GOROOT
-					goto Found
-				}
+			// If the package path starts with "vendor/", only search GOROOT before
+			// GOPATH if the importer is also within GOROOT. That way, if the user has
+			// vendored in a package that is subsequently included in the standard
+			// distribution, they'll continue to pick up their own vendored copy.
+			gorootFirst := srcDir == "" || !strings.HasPrefix(path, "vendor/")
+			if !gorootFirst {
+				_, gorootFirst = ctxt.hasSubdir(ctxt.GOROOT, srcDir)
 			}
-			tried.goroot = dir
+			if gorootFirst {
+				dir := ctxt.joinPath(ctxt.GOROOT, "src", path)
+				if ctxt.Compiler != "gccgo" {
+					isDir := ctxt.isDir(dir)
+					binaryOnly = !isDir && mode&AllowBinary != 0 && pkga != "" && ctxt.isFile(ctxt.joinPath(ctxt.GOROOT, pkga))
+					if isDir || binaryOnly {
+						p.Dir = dir
+						p.Goroot = true
+						p.Root = ctxt.GOROOT
+						goto Found
+					}
+				}
+				tried.goroot = dir
+			}
 		}
 		if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
 			p.Dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
@@ -676,6 +686,24 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 				goto Found
 			}
 			tried.gopath = append(tried.gopath, dir)
+		}
+
+		// If we tried GOPATH first due to a "vendor/" prefix, fall back to GOPATH.
+		// That way, the user can still get useful results from 'go list' for
+		// standard-vendored paths passed on the command line.
+		if ctxt.GOROOT != "" && tried.goroot == "" {
+			dir := ctxt.joinPath(ctxt.GOROOT, "src", path)
+			if ctxt.Compiler != "gccgo" {
+				isDir := ctxt.isDir(dir)
+				binaryOnly = !isDir && mode&AllowBinary != 0 && pkga != "" && ctxt.isFile(ctxt.joinPath(ctxt.GOROOT, pkga))
+				if isDir || binaryOnly {
+					p.Dir = dir
+					p.Goroot = true
+					p.Root = ctxt.GOROOT
+					goto Found
+				}
+			}
+			tried.goroot = dir
 		}
 
 		// package was not found
