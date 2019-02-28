@@ -104,7 +104,7 @@ func main() {
 	run("push", os.Args[1], deviceBin)
 
 	if _, err := os.Stat("testdata"); err == nil {
-		run("push", "testdata", deviceCwd)
+		run("push", "--sync", "testdata", deviceCwd)
 	}
 
 	// Forward SIGQUIT from the go command to show backtraces from
