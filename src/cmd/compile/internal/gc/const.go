@@ -631,6 +631,13 @@ func evconst(n *Node) {
 			setconst(n, convlit1(nl, n.Type, true, false).Val())
 		}
 
+	case OCONVNOP:
+		if nl.Op == OLITERAL && nl.isGoConst() {
+			// set so n.Orig gets OCONV instead of OCONVNOP
+			n.Op = OCONV
+			setconst(n, nl.Val())
+		}
+
 	case OBYTES2STR:
 		// string([]byte(nil)) or string([]rune(nil))
 		if nl.Op == OLITERAL && nl.Val().Ctype() == CTNIL {
@@ -663,6 +670,56 @@ func evconst(n *Node) {
 			n.SetVal(s[0].Val())
 		} else {
 			n.List.Set(s)
+		}
+
+	case OCAP, OLEN:
+		switch nl.Type.Etype {
+		case TSTRING:
+			if Isconst(nl, CTSTR) {
+				setintconst(n, int64(len(nl.Val().U.(string))))
+			}
+		case TARRAY:
+			if !hascallchan(nl) {
+				setintconst(n, nl.Type.NumElem())
+			}
+		}
+
+	case OALIGNOF, OOFFSETOF, OSIZEOF:
+		setintconst(n, evalunsafe(n))
+
+	case OREAL, OIMAG:
+		if nl.Op == OLITERAL {
+			var re, im *Mpflt
+			switch consttype(nl) {
+			case CTINT, CTRUNE:
+				re = newMpflt()
+				re.SetInt(nl.Val().U.(*Mpint))
+				// im = 0
+			case CTFLT:
+				re = nl.Val().U.(*Mpflt)
+				// im = 0
+			case CTCPLX:
+				re = &nl.Val().U.(*Mpcplx).Real
+				im = &nl.Val().U.(*Mpcplx).Imag
+			default:
+				Fatalf("impossible")
+			}
+			if n.Op == OIMAG {
+				if im == nil {
+					im = newMpflt()
+				}
+				re = im
+			}
+			setconst(n, Val{re})
+		}
+
+	case OCOMPLEX:
+		if nl.Op == OLITERAL && nr.Op == OLITERAL {
+			// make it a complex literal
+			c := newMpcmplx()
+			c.Real.Set(toflt(nl.Val()).U.(*Mpflt))
+			c.Imag.Set(toflt(nr.Val()).U.(*Mpflt))
+			setconst(n, Val{c})
 		}
 	}
 }

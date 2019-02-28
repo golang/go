@@ -307,39 +307,6 @@ func typecheck(n *Node, top int) (res *Node) {
 	return n
 }
 
-// does n contain a call or receive operation?
-func callrecv(n *Node) bool {
-	if n == nil {
-		return false
-	}
-
-	switch n.Op {
-	case OCALL,
-		OCALLMETH,
-		OCALLINTER,
-		OCALLFUNC,
-		ORECV,
-		OCAP,
-		OLEN,
-		OCOPY,
-		ONEW,
-		OAPPEND,
-		ODELETE:
-		return true
-	}
-
-	return callrecv(n.Left) || callrecv(n.Right) || callrecvlist(n.Ninit) || callrecvlist(n.Nbody) || callrecvlist(n.List) || callrecvlist(n.Rlist)
-}
-
-func callrecvlist(l Nodes) bool {
-	for _, n := range l.Slice() {
-		if callrecv(n) {
-			return true
-		}
-	}
-	return false
-}
-
 // indexlit implements typechecking of untyped values as
 // array/slice indexes. It is almost equivalent to defaultlit
 // but also accepts untyped numeric values representable as
@@ -1402,9 +1369,6 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 		n.Type = types.Types[TUINTPTR]
 
-		// any side effects disappear; ignore init
-		setintconst(n, evalunsafe(n))
-
 	case OCAP, OLEN:
 		ok |= ctxExpr
 		if !onearg(n, "%v", n.Op) {
@@ -1436,23 +1400,6 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 		n.Type = types.Types[TINT]
 
-		// Result might be constant.
-		var res int64 = -1 // valid if >= 0
-		switch t.Etype {
-		case TSTRING:
-			if Isconst(l, CTSTR) {
-				res = int64(len(l.Val().U.(string)))
-			}
-
-		case TARRAY:
-			if !callrecv(l) {
-				res = t.NumElem()
-			}
-		}
-		if res >= 0 {
-			setintconst(n, res)
-		}
-
 	case OREAL, OIMAG:
 		ok |= ctxExpr
 		if !onearg(n, "%v", n.Op) {
@@ -1483,36 +1430,6 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 		n.Type = types.Types[et]
-
-		// if the argument is a constant, the result is a constant
-		// (any untyped numeric constant can be represented as a
-		// complex number)
-		if l.Op == OLITERAL {
-			var re, im *Mpflt
-			switch consttype(l) {
-			case CTINT, CTRUNE:
-				re = newMpflt()
-				re.SetInt(l.Val().U.(*Mpint))
-				// im = 0
-			case CTFLT:
-				re = l.Val().U.(*Mpflt)
-				// im = 0
-			case CTCPLX:
-				re = &l.Val().U.(*Mpcplx).Real
-				im = &l.Val().U.(*Mpcplx).Imag
-			default:
-				yyerror("invalid argument %L for %v", l, n.Op)
-				n.Type = nil
-				return n
-			}
-			if n.Op == OIMAG {
-				if im == nil {
-					im = newMpflt()
-				}
-				re = im
-			}
-			setconst(n, Val{re})
-		}
 
 	case OCOMPLEX:
 		ok |= ctxExpr
@@ -1585,14 +1502,6 @@ func typecheck1(n *Node, top int) (res *Node) {
 			t = types.Types[TCOMPLEX128]
 		}
 		n.Type = t
-
-		if l.Op == OLITERAL && r.Op == OLITERAL {
-			// make it a complex literal
-			c := newMpcmplx()
-			c.Real.Set(toflt(l.Val()).U.(*Mpflt))
-			c.Imag.Set(toflt(r.Val()).U.(*Mpflt))
-			setconst(n, Val{c})
-		}
 
 	case OCLOSE:
 		if !onearg(n, "%v", n.Op) {
@@ -1817,10 +1726,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 		switch n.Op {
 		case OCONVNOP:
-			if n.Left.Op == OLITERAL && n.isGoConst() {
-				n.Op = OCONV              // set so n.Orig gets OCONV instead of OCONVNOP
-				setconst(n, n.Left.Val()) // convert n to OLITERAL with the given value
-			} else if t.Etype == n.Type.Etype {
+			if t.Etype == n.Type.Etype {
 				switch t.Etype {
 				case TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:
 					// Floating point casts imply rounding and
