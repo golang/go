@@ -203,11 +203,14 @@ func (tools gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []s
 	if cfg.Goos == "aix" && cfg.Goarch == "ppc64" {
 		// AIX puts both 32-bit and 64-bit objects in the same archive.
 		// Tell the AIX "ar" command to only care about 64-bit objects.
-		// AIX "ar" command does not know D option.
 		arArgs = []string{"-X64"}
 	}
-
-	return b.run(a, p.Dir, p.ImportPath, nil, tools.ar(), arArgs, "rc", mkAbs(objdir, afile), absOfiles)
+	absAfile := mkAbs(objdir, afile)
+	// Try with D modifier first, then without if that fails.
+	if b.run(a, p.Dir, p.ImportPath, nil, tools.ar(), arArgs, "rcD", absAfile, absOfiles) != nil {
+		return b.run(a, p.Dir, p.ImportPath, nil, tools.ar(), arArgs, "rc", absAfile, absOfiles)
+	}
+	return nil
 }
 
 func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string, allactions []*Action, buildmode, desc string) error {
@@ -249,6 +252,13 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 		return nil
 	}
 
+	var arArgs []string
+	if cfg.Goos == "aix" && cfg.Goarch == "ppc64" {
+		// AIX puts both 32-bit and 64-bit objects in the same archive.
+		// Tell the AIX "ar" command to only care about 64-bit objects.
+		arArgs = []string{"-X64"}
+	}
+
 	newID := 0
 	readAndRemoveCgoFlags := func(archive string) (string, error) {
 		newID++
@@ -266,11 +276,11 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 				return "", nil
 			}
 		}
-		err := b.run(root, root.Objdir, desc, nil, tools.ar(), "x", newArchive, "_cgo_flags")
+		err := b.run(root, root.Objdir, desc, nil, tools.ar(), arArgs, "x", newArchive, "_cgo_flags")
 		if err != nil {
 			return "", err
 		}
-		err = b.run(root, ".", desc, nil, tools.ar(), "d", newArchive, "_cgo_flags")
+		err = b.run(root, ".", desc, nil, tools.ar(), arArgs, "d", newArchive, "_cgo_flags")
 		if err != nil {
 			return "", err
 		}
@@ -487,7 +497,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 
 	switch buildmode {
 	case "c-archive":
-		if err := b.run(root, ".", desc, nil, tools.ar(), "rc", realOut, out); err != nil {
+		if err := b.run(root, ".", desc, nil, tools.ar(), arArgs, "rc", realOut, out); err != nil {
 			return err
 		}
 	}
