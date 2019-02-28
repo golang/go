@@ -6386,19 +6386,14 @@ func rewriteValueWasm_OpZeroExt16to32_0(v *Value) bool {
 	}
 	// match: (ZeroExt16to32 x)
 	// cond:
-	// result: (I64ShrU (I64Shl x (I64Const [48])) (I64Const [48]))
+	// result: (I64And x (I64Const [0xffff]))
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmI64ShrU)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 48
-		v0.AddArg(v1)
+		v.reset(OpWasmI64And)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v0.AuxInt = 0xffff
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 48
-		v.AddArg(v2)
 		return true
 	}
 }
@@ -6423,19 +6418,14 @@ func rewriteValueWasm_OpZeroExt16to64_0(v *Value) bool {
 	}
 	// match: (ZeroExt16to64 x)
 	// cond:
-	// result: (I64ShrU (I64Shl x (I64Const [48])) (I64Const [48]))
+	// result: (I64And x (I64Const [0xffff]))
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmI64ShrU)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 48
-		v0.AddArg(v1)
+		v.reset(OpWasmI64And)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v0.AuxInt = 0xffff
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 48
-		v.AddArg(v2)
 		return true
 	}
 }
@@ -6460,19 +6450,14 @@ func rewriteValueWasm_OpZeroExt32to64_0(v *Value) bool {
 	}
 	// match: (ZeroExt32to64 x)
 	// cond:
-	// result: (I64ShrU (I64Shl x (I64Const [32])) (I64Const [32]))
+	// result: (I64And x (I64Const [0xffffffff]))
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmI64ShrU)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 32
-		v0.AddArg(v1)
+		v.reset(OpWasmI64And)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v0.AuxInt = 0xffffffff
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 32
-		v.AddArg(v2)
 		return true
 	}
 }
@@ -6497,19 +6482,14 @@ func rewriteValueWasm_OpZeroExt8to16_0(v *Value) bool {
 	}
 	// match: (ZeroExt8to16 x)
 	// cond:
-	// result: (I64ShrU (I64Shl x (I64Const [56])) (I64Const [56]))
+	// result: (I64And x (I64Const [0xff]))
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmI64ShrU)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 56
-		v0.AddArg(v1)
+		v.reset(OpWasmI64And)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v0.AuxInt = 0xff
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 56
-		v.AddArg(v2)
 		return true
 	}
 }
@@ -6534,19 +6514,14 @@ func rewriteValueWasm_OpZeroExt8to32_0(v *Value) bool {
 	}
 	// match: (ZeroExt8to32 x)
 	// cond:
-	// result: (I64ShrU (I64Shl x (I64Const [56])) (I64Const [56]))
+	// result: (I64And x (I64Const [0xff]))
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmI64ShrU)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 56
-		v0.AddArg(v1)
+		v.reset(OpWasmI64And)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v0.AuxInt = 0xff
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 56
-		v.AddArg(v2)
 		return true
 	}
 }
@@ -6571,19 +6546,14 @@ func rewriteValueWasm_OpZeroExt8to64_0(v *Value) bool {
 	}
 	// match: (ZeroExt8to64 x)
 	// cond:
-	// result: (I64ShrU (I64Shl x (I64Const [56])) (I64Const [56]))
+	// result: (I64And x (I64Const [0xff]))
 	for {
 		x := v.Args[0]
-		v.reset(OpWasmI64ShrU)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 56
-		v0.AddArg(v1)
+		v.reset(OpWasmI64And)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v0.AuxInt = 0xff
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 56
-		v.AddArg(v2)
 		return true
 	}
 }

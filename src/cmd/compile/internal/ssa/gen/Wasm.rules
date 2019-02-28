@@ -59,9 +59,9 @@
 (SignExt32to64        x) -> (I64ShrS (I64Shl x (I64Const [32])) (I64Const [32]))
 (SignExt16to(64|32)   x) -> (I64ShrS (I64Shl x (I64Const [48])) (I64Const [48]))
 (SignExt8to(64|32|16) x) -> (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
-(ZeroExt32to64        x) -> (I64ShrU (I64Shl x (I64Const [32])) (I64Const [32]))
-(ZeroExt16to(64|32)   x) -> (I64ShrU (I64Shl x (I64Const [48])) (I64Const [48]))
-(ZeroExt8to(64|32|16) x) -> (I64ShrU (I64Shl x (I64Const [56])) (I64Const [56]))
+(ZeroExt32to64        x) -> (I64And x (I64Const [0xffffffff]))
+(ZeroExt16to(64|32)   x) -> (I64And x (I64Const [0xffff]))
+(ZeroExt8to(64|32|16) x) -> (I64And x (I64Const [0xff]))
 
 (Slicemask x) -> (I64ShrS (I64Sub (I64Const [0]) x) (I64Const [63]))
 
