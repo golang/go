@@ -130,8 +130,7 @@ func fmtError(p *pp, verb rune, err error) (handled bool) {
 			w = newPrinter()
 			defer w.free()
 		default:
-			w.badVerb(verb)
-			return true
+			return false
 		}
 	}
 
