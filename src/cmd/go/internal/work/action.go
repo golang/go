@@ -423,7 +423,7 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 		} else {
 			deps = []*Action{a1, aFmt}
 		}
-		for _, p1 := range load.PackageList(p.Internal.Imports) {
+		for _, p1 := range p.Internal.Imports {
 			deps = append(deps, b.vetAction(mode, depMode, p1))
 		}
 
