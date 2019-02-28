@@ -399,3 +399,22 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
 	}
 	return fi, err
 }
+
+// Readlink returns the destination of the named symbolic link.
+// If there is an error, it will be of type *PathError.
+func Readlink(name string) (string, error) {
+	for len := 128; ; len *= 2 {
+		b := make([]byte, len)
+		n, e := fixCount(syscall.Readlink(name, b))
+		// buffer too small
+		if runtime.GOOS == "aix" && e == syscall.ERANGE {
+			continue
+		}
+		if e != nil {
+			return "", &PathError{"readlink", name, e}
+		}
+		if n < len {
+			return string(b[0:n]), nil
+		}
+	}
+}
