@@ -22,9 +22,15 @@ const (
 	aes256 function = 20 // AES-256
 
 	// K{I,L}MD function codes
-	sha1   function = 1 // SHA-1
-	sha256 function = 2 // SHA-256
-	sha512 function = 3 // SHA-512
+	sha1     function = 1  // SHA-1
+	sha256   function = 2  // SHA-256
+	sha512   function = 3  // SHA-512
+	sha3_224 function = 32 // SHA3-224
+	sha3_256 function = 33 // SHA3-256
+	sha3_384 function = 34 // SHA3-384
+	sha3_512 function = 35 // SHA3-512
+	shake128 function = 36 // SHAKE-128
+	shake256 function = 37 // SHAKE-256
 
 	// KLMD function codes
 	ghash function = 65 // GHASH
@@ -72,7 +78,7 @@ const (
 	msa8 facility = 146 // message-security-assist extension 8
 
 	// vector facilities
-	ve1 facility = 135 // vector-enhancements 1
+	vxe facility = 135 // vector-enhancements 1
 
 	// Note: vx and highgprs are excluded because they require
 	// kernel support and so must be fetched from HWCAP.
@@ -110,26 +116,26 @@ func klmdQuery() queryResult
 
 func doinit() {
 	options = []option{
-		{Name: "zarch", Feature: &S390X.HasZArch},
+		{Name: "zarch", Feature: &S390X.HasZARCH},
 		{Name: "stfle", Feature: &S390X.HasSTFLE},
-		{Name: "ldisp", Feature: &S390X.HasLDisp},
+		{Name: "ldisp", Feature: &S390X.HasLDISP},
 		{Name: "msa", Feature: &S390X.HasMSA},
-		{Name: "eimm", Feature: &S390X.HasEImm},
+		{Name: "eimm", Feature: &S390X.HasEIMM},
 		{Name: "dfp", Feature: &S390X.HasDFP},
-		{Name: "etf3eh", Feature: &S390X.HasETF3Enhanced},
+		{Name: "etf3eh", Feature: &S390X.HasETF3EH},
 		{Name: "vx", Feature: &S390X.HasVX},
-		{Name: "ve1", Feature: &S390X.HasVE1},
+		{Name: "vxe", Feature: &S390X.HasVXE},
 	}
 
 	aes := []function{aes128, aes192, aes256}
 	facilities := stfle()
 
-	S390X.HasZArch = facilities.Has(zarch)
+	S390X.HasZARCH = facilities.Has(zarch)
 	S390X.HasSTFLE = facilities.Has(stflef)
-	S390X.HasLDisp = facilities.Has(ldisp)
-	S390X.HasEImm = facilities.Has(eimm)
+	S390X.HasLDISP = facilities.Has(ldisp)
+	S390X.HasEIMM = facilities.Has(eimm)
 	S390X.HasDFP = facilities.Has(dfp)
-	S390X.HasETF3Enhanced = facilities.Has(etf3eh)
+	S390X.HasETF3EH = facilities.Has(etf3eh)
 	S390X.HasMSA = facilities.Has(msa)
 
 	if S390X.HasMSA {
@@ -153,8 +159,13 @@ func doinit() {
 		S390X.HasSHA256 = kimd.Has(sha256) && klmd.Has(sha256)
 		S390X.HasSHA512 = kimd.Has(sha512) && klmd.Has(sha512)
 		S390X.HasGHASH = kimd.Has(ghash) // KLMD-GHASH does not exist
+		sha3 := []function{
+			sha3_224, sha3_256, sha3_384, sha3_512,
+			shake128, shake256,
+		}
+		S390X.HasSHA3 = kimd.Has(sha3...) && klmd.Has(sha3...)
 	}
 	if S390X.HasVX {
-		S390X.HasVE1 = facilities.Has(ve1)
+		S390X.HasVXE = facilities.Has(vxe)
 	}
 }
