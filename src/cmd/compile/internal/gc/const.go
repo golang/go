@@ -1280,8 +1280,6 @@ func indexconst(n *Node) int64 {
 //
 // Expressions derived from nil, like string([]byte(nil)), while they
 // may be known at compile time, are not Go language constants.
-// Only called for expressions known to evaluate to compile-time
-// constants.
 func (n *Node) isGoConst() bool {
 	if n.Orig != nil {
 		n = n.Orig
@@ -1356,17 +1354,6 @@ func (n *Node) isGoConst() bool {
 
 	case OLITERAL:
 		if n.Val().Ctype() != CTNIL {
-			return true
-		}
-
-	case ONAME:
-		l := asNode(n.Sym.Def)
-		if l != nil && l.Op == OLITERAL && n.Val().Ctype() != CTNIL {
-			return true
-		}
-
-	case ONONAME:
-		if asNode(n.Sym.Def) != nil && asNode(n.Sym.Def).Op == OIOTA {
 			return true
 		}
 
