@@ -327,7 +327,7 @@ func TestErrorFormatter(t *testing.T) {
 	}, {
 		err:  &wrapped{"simple", nil},
 		fmt:  "%🤪",
-		want: "%!🤪(*fmt_test.wrapped=&{simple <nil>})",
+		want: "&{%!🤪(string=simple) <nil>}",
 	}, {
 		err:  formatError("use fmt.Formatter"),
 		fmt:  "%#v",
@@ -345,6 +345,14 @@ func TestErrorFormatter(t *testing.T) {
 		err:  fmtTwice("%o %s", panicValue{}, "ok"),
 		fmt:  "%s",
 		want: "{} ok/{} ok",
+	}, {
+		err:  intError(4),
+		fmt:  "%v",
+		want: "error 4",
+	}, {
+		err:  intError(4),
+		fmt:  "%d",
+		want: "4",
 	}}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("%d/%s", i, tc.fmt), func(t *testing.T) {
@@ -432,6 +440,15 @@ func (e detail) FormatError(p errors.Printer) (next error) {
 	p.Detail()
 	p.Print(e.detail)
 	return e.next
+}
+
+type intError int
+
+func (e intError) Error() string { return fmt.Sprint(e) }
+
+func (e intError) FormatError(p errors.Printer) (next error) {
+	p.Printf("error %d", e)
+	return nil
 }
 
 // formatError is an error implementing Format instead of errors.Formatter.
