@@ -36,8 +36,6 @@ func checkGdbEnvironment(t *testing.T) {
 		if runtime.GOARCH == "mips" {
 			t.Skip("skipping gdb tests on linux/mips; see https://golang.org/issue/25939")
 		}
-	case "aix":
-		t.Skip("gdb does not work on AIX; see https://golang.org/issue/28558")
 	case "freebsd":
 		t.Skip("skipping gdb tests on FreeBSD; see https://golang.org/issue/29508")
 	}
@@ -395,6 +393,10 @@ func TestGdbAutotmpTypes(t *testing.T) {
 	checkGdbEnvironment(t)
 	t.Parallel()
 	checkGdbVersion(t)
+
+	if runtime.GOOS == "aix" && testing.Short() {
+		t.Skip("TestGdbAutotmpTypes is too slow on aix/ppc64")
+	}
 
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
