@@ -3671,17 +3671,18 @@ func typecheckdef(n *Node) {
 		}
 
 		e = typecheck(e, ctxExpr)
-		if Isconst(e, CTNIL) {
-			yyerrorl(n.Pos, "const initializer cannot be nil")
+		if e.Type == nil {
 			goto ret
 		}
-
-		if e.Type != nil && e.Op != OLITERAL || !e.isGoConst() {
+		if !e.isGoConst() {
 			if !e.Diag() {
-				yyerrorl(n.Pos, "const initializer %v is not a constant", e)
+				if Isconst(e, CTNIL) {
+					yyerrorl(n.Pos, "const initializer cannot be nil")
+				} else {
+					yyerrorl(n.Pos, "const initializer %v is not a constant", e)
+				}
 				e.SetDiag(true)
 			}
-
 			goto ret
 		}
 
