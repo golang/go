@@ -5,9 +5,6 @@
 package filepath
 
 import (
-	"errors"
-	"internal/syscall/windows"
-	"os"
 	"strings"
 	"syscall"
 )
@@ -109,108 +106,14 @@ func toNorm(path string, normBase func(string) (string, error)) (string, error) 
 	return volume + normPath, nil
 }
 
-// evalSymlinksUsingGetFinalPathNameByHandle uses Windows
-// GetFinalPathNameByHandle API to retrieve the final
-// path for the specified file.
-func evalSymlinksUsingGetFinalPathNameByHandle(path string) (string, error) {
-	err := windows.LoadGetFinalPathNameByHandle()
-	if err != nil {
-		// we must be using old version of Windows
-		return "", err
-	}
-
-	if path == "" {
-		return path, nil
-	}
-
-	// Use Windows I/O manager to dereference the symbolic link, as per
-	// https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
-	p, err := syscall.UTF16PtrFromString(path)
-	if err != nil {
-		return "", err
-	}
-	h, err := syscall.CreateFile(p, 0, 0, nil,
-		syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
-	if err != nil {
-		return "", err
-	}
-	defer syscall.CloseHandle(h)
-
-	buf := make([]uint16, 100)
-	for {
-		n, err := windows.GetFinalPathNameByHandle(h, &buf[0], uint32(len(buf)), windows.VOLUME_NAME_DOS)
-		if err != nil {
-			return "", err
-		}
-		if n < uint32(len(buf)) {
-			break
-		}
-		buf = make([]uint16, n)
-	}
-	s := syscall.UTF16ToString(buf)
-	if len(s) > 4 && s[:4] == `\\?\` {
-		s = s[4:]
-		if len(s) > 3 && s[:3] == `UNC` {
-			// return path like \\server\share\...
-			return `\` + s[3:], nil
-		}
-		return s, nil
-	}
-	return "", errors.New("GetFinalPathNameByHandle returned unexpected path=" + s)
-}
-
-func samefile(path1, path2 string) bool {
-	fi1, err := os.Lstat(path1)
-	if err != nil {
-		return false
-	}
-	fi2, err := os.Lstat(path2)
-	if err != nil {
-		return false
-	}
-	return os.SameFile(fi1, fi2)
-}
-
-// walkSymlinks returns slashAfterFilePathError error for paths like
-// //path/to/existing_file/ and /path/to/existing_file/. and /path/to/existing_file/..
-
-var slashAfterFilePathError = errors.New("attempting to walk past file path.")
-
 func evalSymlinks(path string) (string, error) {
 	newpath, err := walkSymlinks(path)
-	if err == slashAfterFilePathError {
-		return "", syscall.ENOTDIR
-	}
 	if err != nil {
-		newpath2, err2 := evalSymlinksUsingGetFinalPathNameByHandle(path)
-		if err2 == nil {
-			return toNorm(newpath2, normBase)
-		}
 		return "", err
 	}
 	newpath, err = toNorm(newpath, normBase)
 	if err != nil {
-		newpath2, err2 := evalSymlinksUsingGetFinalPathNameByHandle(path)
-		if err2 == nil {
-			return toNorm(newpath2, normBase)
-		}
 		return "", err
 	}
-	if strings.ToUpper(newpath) == strings.ToUpper(path) {
-		// walkSymlinks did not actually walk any symlinks,
-		// so we don't need to try GetFinalPathNameByHandle.
-		return newpath, nil
-	}
-	newpath2, err2 := evalSymlinksUsingGetFinalPathNameByHandle(path)
-	if err2 != nil {
-		return newpath, nil
-	}
-	newpath2, err2 = toNorm(newpath2, normBase)
-	if err2 != nil {
-		return newpath, nil
-	}
-	if samefile(newpath, newpath2) {
-		return newpath, nil
-	}
-	return newpath2, nil
+	return newpath, nil
 }

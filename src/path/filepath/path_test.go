@@ -1377,16 +1377,6 @@ func TestIssue29372(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	if runtime.GOOS == "windows" {
-		// This test is broken on windows, if temporary directory
-		// is a symlink. See issue 29746.
-		// TODO(brainman): Remove this hack once issue #29746 is fixed.
-		tmpDir, err = filepath.EvalSymlinks(tmpDir)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
 	path := filepath.Join(tmpDir, "file.txt")
 	err = ioutil.WriteFile(path, nil, 0644)
 	if err != nil {

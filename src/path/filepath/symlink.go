@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"runtime"
+	"syscall"
 )
 
 func walkSymlinks(path string) (string, error) {
@@ -78,7 +79,7 @@ func walkSymlinks(path string) (string, error) {
 
 		if fi.Mode()&os.ModeSymlink == 0 {
 			if !fi.Mode().IsDir() && end < len(path) {
-				return "", slashAfterFilePathError
+				return "", syscall.ENOTDIR
 			}
 			continue
 		}
