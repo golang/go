@@ -16,7 +16,7 @@ stdout cmd/compile
 
 # In GOPATH mode, packages vendored into GOROOT should be reported as standard.
 go list -f '{{if .Standard}}{{.ImportPath}}{{end}}' std cmd
-stdout internal/x/net/http2/hpack
+stdout golang.org/x/net/http2/hpack
 stdout cmd/vendor/golang\.org/x/arch/x86/x86asm
 
 # However, vendored packages should not match wildcard patterns beginning with cmd.

@@ -5,7 +5,7 @@ env GOPROXY=off
 
 # Outside of GOROOT, our vendored packages should be reported as part of the standard library.
 go list -f '{{if .Standard}}{{.ImportPath}}{{end}}' std cmd
-stdout ^internal/x/net/http2/hpack
+stdout ^vendor/golang.org/x/net/http2/hpack
 stdout ^cmd/vendor/golang\.org/x/arch/x86/x86asm
 
 # cmd/... should match the same packages it used to match in GOPATH mode.
@@ -20,15 +20,15 @@ stdout ^cmd/compile
 # Today, they are listed in 'std' but not './...'.
 cd $GOROOT/src
 go list ./...
-stdout ^internal/x
+! stdout ^vendor/golang.org/x  # TODO: should be included, or should be omitted from 'std'.
 
 cp stdout $WORK/listdot.txt
 go list std
-stdout ^internal/x
+stdout ^vendor/golang.org/x  # TODO: remove vendor/ prefix
 # TODO: cmp stdout $WORK/listdot.txt
 
 go list all
-stdout ^internal/x
+stdout ^vendor/golang.org/x  # TODO: remove vendor/ prefix.
 ! stdout ^std/
 
 
@@ -37,11 +37,11 @@ stdout ^internal/x
 # TODO(golang.org/issue/30241): Make that work.
 # Today, they still have the vendor/ prefix.
 go list std
-stdout ^internal/x/net/http2/hpack  # TODO
+stdout ^vendor/golang.org/x/net/http2/hpack  # TODO
 ! stdout ^golang.org/x/net/http2/hpack       # TODO
 
 go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' std
-# ! stdout ^internal/x/net/http2/hpack  # TODO
+# ! stdout ^vendor/golang.org/x/net/http2/hpack  # TODO
 ! stdout ^golang.org/x/net/http2/hpack         # TODO
 
 

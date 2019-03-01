@@ -1,17 +1,20 @@
 env GO111MODULE=on
 env GOPROXY=off
 
+[!gc] skip
+
+# 'go list' should report imports from _test.go in the TestImports field.
 go list -f '{{.TestImports}}'
 stdout net/http # from .TestImports
 
 # 'go list' should find standard-vendored packages.
-go list -f '{{.Dir}}' internal/x/net/http2/hpack
-stdout $GOROOT[/\\]src[/\\]internal
+go list -f '{{.Dir}}' vendor/golang.org/x/net/http2/hpack
+stdout $GOROOT[/\\]src[/\\]vendor
 
 # 'go list -test' should report vendored transitive dependencies of _test.go
 # imports in the Deps field.
 go list -test -f '{{range .Deps}}{{.}}{{"\n"}}{{end}}'
-stdout internal/x/crypto # dep of .TestImports
+stdout ^vendor/golang.org/x/crypto # dep of .TestImports
 
 
 # Modules outside the standard library should not use the packages vendored there...
@@ -29,7 +32,7 @@ stderr 'use of vendored package'
 
 cd ../importstd
 ! go build .
-stderr 'use of internal package'
+stderr 'use of vendored package'
 
 
 # When run within the 'std' module, 'go list -test' should report vendored
@@ -38,8 +41,8 @@ stderr 'use of internal package'
 # Today, they're standard packages as long as they exist.
 cd $GOROOT/src
 go list -test -f '{{range .Deps}}{{.}}{{"\n"}}{{end}}' net/http
-! stdout ^vendor/golang.org/x/net/http2/hpack  # TODO: this will exist later
-stdout ^internal/x/net/http2/hpack
+stdout ^vendor/golang.org/x/net/http2/hpack  # TODO: remove vendor/ prefix
+! stdout ^golang.org/x/net/http2/hpack
 
 -- go.mod --
 module m
@@ -74,4 +77,4 @@ module importvendor
 -- importstd/x.go --
 package importstd
 
-import _ "internal/x/net/http2/hpack"
+import _ "vendor/golang.org/x/net/http2/hpack"

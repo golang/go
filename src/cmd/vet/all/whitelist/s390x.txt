@@ -10,3 +10,10 @@ internal/cpu/cpu_s390x.s: [s390x] kmctrQuery: invalid MOVD of ret+0(FP); interna
 internal/cpu/cpu_s390x.s: [s390x] kmaQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
 internal/cpu/cpu_s390x.s: [s390x] kimdQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
 internal/cpu/cpu_s390x.s: [s390x] klmdQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
+vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] stfle: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.facilityList is 32-byte value
+vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] kmQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
+vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] kmcQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
+vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] kmctrQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
+vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] kmaQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
+vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] kimdQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
+vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] klmdQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
