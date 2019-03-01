@@ -633,6 +633,10 @@ func subdir() (pkgpath string, underGoRoot bool, err error) {
 	if err != nil {
 		return "", false, err
 	}
+	cwd, err = filepath.EvalSymlinks(cwd)
+	if err != nil {
+		log.Fatal(err)
+	}
 	goroot, err := filepath.EvalSymlinks(runtime.GOROOT())
 	if err != nil {
 		return "", false, err
