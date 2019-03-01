@@ -37,16 +37,16 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 		t.Fatalf("cmd/link is stale - run go install cmd/link")
 	}
 
-	tmpDir, err := ioutil.TempDir("", "go-link-TestDWARF")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
 	for _, prog := range []string{"testprog", "testprogcgo"} {
 		prog := prog
 		t.Run(prog, func(t *testing.T) {
 			t.Parallel()
+
+			tmpDir, err := ioutil.TempDir("", "go-link-TestDWARF")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir)
 
 			exe := filepath.Join(tmpDir, prog+".exe")
 			dir := "../../runtime/testdata/" + prog
