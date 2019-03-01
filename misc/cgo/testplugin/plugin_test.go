@@ -23,7 +23,10 @@ var gcflags string = os.Getenv("GO_GCFLAGS")
 
 func TestMain(m *testing.M) {
 	log.SetFlags(log.Lshortfile)
+	os.Exit(testMain(m))
+}
 
+func testMain(m *testing.M) int {
 	// Copy testdata into GOPATH/src/testarchive, along with a go.mod file
 	// declaring the same path.
 
@@ -77,7 +80,7 @@ func TestMain(m *testing.M) {
 	goCmd(nil, "build", "-buildmode=plugin", "-o=unnamed2.so", "./unnamed2/main.go")
 	goCmd(nil, "build", "-o", "host.exe", "./host")
 
-	os.Exit(m.Run())
+	return m.Run()
 }
 
 func goCmd(t *testing.T, op string, args ...string) {
