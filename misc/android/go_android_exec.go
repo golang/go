@@ -156,8 +156,12 @@ func subdir() (pkgpath string, underGoRoot bool) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if root := runtime.GOROOT(); strings.HasPrefix(cwd, root) {
-		subdir, err := filepath.Rel(root, cwd)
+	goroot, err := filepath.EvalSymlinks(runtime.GOROOT())
+	if err != nil {
+		log.Fatal(err)
+	}
+	if strings.HasPrefix(cwd, goroot) {
+		subdir, err := filepath.Rel(goroot, cwd)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -165,10 +169,14 @@ func subdir() (pkgpath string, underGoRoot bool) {
 	}
 
 	for _, p := range filepath.SplitList(build.Default.GOPATH) {
-		if !strings.HasPrefix(cwd, p) {
+		pabs, err := filepath.EvalSymlinks(p)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if !strings.HasPrefix(cwd, pabs) {
 			continue
 		}
-		subdir, err := filepath.Rel(p, cwd)
+		subdir, err := filepath.Rel(pabs, cwd)
 		if err == nil {
 			return subdir, false
 		}
