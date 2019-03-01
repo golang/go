@@ -1,0 +1,37 @@
+# This test checks that multiple main packages can be tested
+# with -coverpkg=all without duplicate symbol errors.
+# Verifies golang.org/issue/30374.
+
+env GO111MODULE=on
+
+[short] skip
+
+go test -coverpkg=all ./main1 ./main2
+
+-- go.mod --
+module example.com/cov
+
+-- main1/main1.go --
+package main
+
+func main() {}
+
+-- main1/main1_test.go --
+package main
+
+import "testing"
+
+func TestMain1(t *testing.T) {}
+
+-- main2/main2.go --
+package main
+
+func main() {}
+
+-- main2/main2_test.go --
+package main
+
+import "testing"
+
+func TestMain2(t *testing.T) {}
+
