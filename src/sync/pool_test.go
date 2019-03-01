@@ -151,6 +151,14 @@ func TestPoolStress(t *testing.T) {
 }
 
 func TestPoolDequeue(t *testing.T) {
+	testPoolDequeue(t, NewPoolDequeue(16))
+}
+
+func TestPoolChain(t *testing.T) {
+	testPoolDequeue(t, NewPoolChain())
+}
+
+func testPoolDequeue(t *testing.T, d PoolDequeue) {
 	const P = 10
 	// In long mode, do enough pushes to wrap around the 21-bit
 	// indexes.
@@ -158,7 +166,6 @@ func TestPoolDequeue(t *testing.T) {
 	if testing.Short() {
 		N = 1e3
 	}
-	d := NewPoolDequeue(16)
 	have := make([]int32, N)
 	var stop int32
 	var wg WaitGroup
