@@ -143,17 +143,21 @@ func TestObjImporter(t *testing.T) {
 	}
 	t.Logf("gccgo version %d.%d", major, minor)
 
-	tmpdir, err := ioutil.TempDir("", "")
+	tmpdir, err := ioutil.TempDir("", "TestObjImporter")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(tmpdir)
+
 	initmap := make(map[*types.Package]InitData)
 	imp := GetImporter([]string{tmpdir}, initmap)
 
-	artmpdir, err := ioutil.TempDir("", "")
+	artmpdir, err := ioutil.TempDir("", "TestObjImporter")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(artmpdir)
+
 	arinitmap := make(map[*types.Package]InitData)
 	arimp := GetImporter([]string{artmpdir}, arinitmap)
 
@@ -197,9 +201,5 @@ func TestObjImporter(t *testing.T) {
 		if err = os.Remove(afile); err != nil {
 			t.Fatal(err)
 		}
-	}
-
-	if err = os.Remove(tmpdir); err != nil {
-		t.Fatal(err)
 	}
 }
