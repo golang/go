@@ -51,7 +51,6 @@ func run(args ...string) string {
 }
 
 const (
-	// Directory structure on the target device androidtest.bash assumes.
 	deviceGoroot = "/data/local/tmp/goroot"
 	deviceGopath = "/data/local/tmp/gopath"
 )
@@ -73,8 +72,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// In case we're booting a device or emulator alongside androidtest.bash
-	// wait for it to be ready. adb wait-for-device is not enough, we have to
+	// In case we're booting a device or emulator alongside all.bash, wait for
+	// it to be ready. adb wait-for-device is not enough, we have to
 	// wait for sys.boot_completed.
 	run("wait-for-device", "shell", "while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;")
 
