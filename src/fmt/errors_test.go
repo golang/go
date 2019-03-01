@@ -353,6 +353,10 @@ func TestErrorFormatter(t *testing.T) {
 		err:  intError(4),
 		fmt:  "%d",
 		want: "4",
+	}, {
+		err:  intError(4),
+		fmt:  "%🤪",
+		want: "%!🤪(fmt_test.intError=4)",
 	}}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("%d/%s", i, tc.fmt), func(t *testing.T) {
@@ -445,6 +449,12 @@ func (e detail) FormatError(p errors.Printer) (next error) {
 type intError int
 
 func (e intError) Error() string { return fmt.Sprint(e) }
+
+func (e wrapped) Format(w fmt.State, r rune) {
+	// Test that the normal fallback handling after handleMethod for
+	// non-string verbs is used. This path should not be reached.
+	fmt.Fprintf(w, "Unreachable: %d", e)
+}
 
 func (e intError) FormatError(p errors.Printer) (next error) {
 	p.Printf("error %d", e)
