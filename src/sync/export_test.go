@@ -34,3 +34,20 @@ func (d *poolDequeue) PopHead() (interface{}, bool) {
 func (d *poolDequeue) PopTail() (interface{}, bool) {
 	return d.popTail()
 }
+
+func NewPoolChain() PoolDequeue {
+	return new(poolChain)
+}
+
+func (c *poolChain) PushHead(val interface{}) bool {
+	c.pushHead(val)
+	return true
+}
+
+func (c *poolChain) PopHead() (interface{}, bool) {
+	return c.popHead()
+}
+
+func (c *poolChain) PopTail() (interface{}, bool) {
+	return c.popTail()
+}
