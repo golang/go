@@ -381,6 +381,13 @@ func closeonexec(fd int32) {
 	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
 }
 
+//go:nosplit
+//go:cgo_unsafe_args
+func res_search(name *byte, class int32, rtype int32, answer *byte, anslen int32) int32 {
+	return libcCall(unsafe.Pointer(funcPC(res_search_trampoline)), unsafe.Pointer(&name))
+}
+func res_search_trampoline()
+
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
 
@@ -423,6 +430,8 @@ func closeonexec(fd int32) {
 //go:cgo_import_dynamic libc_pthread_cond_wait pthread_cond_wait "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
+
+//go:cgo_import_dynamic libc_res_search res_search "/usr/lib/libSystem.B.dylib"
 
 // Magic incantation to get libSystem actually dynamically linked.
 // TODO: Why does the code require this?  See cmd/link/internal/ld/go.go
