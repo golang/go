@@ -44,18 +44,26 @@ func walkSymlinks(path string) (string, error) {
 		} else if path[start:end] == ".." {
 			// Back up to previous component if possible.
 			// Note that volLen includes any leading slash.
+
+			// Set r to the index of the last slash in dest,
+			// after the volume.
 			var r int
 			for r = len(dest) - 1; r >= volLen; r-- {
 				if os.IsPathSeparator(dest[r]) {
 					break
 				}
 			}
-			if r < volLen {
+			if r < volLen || dest[r+1:] == ".." {
+				// Either path has no slashes
+				// (it's empty or just "C:")
+				// or it ends in a ".." we had to keep.
+				// Either way, keep this "..".
 				if len(dest) > volLen {
 					dest += pathSeparator
 				}
 				dest += ".."
 			} else {
+				// Discard everything since the last slash.
 				dest = dest[:r]
 			}
 			continue
