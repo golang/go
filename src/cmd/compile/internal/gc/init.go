@@ -14,9 +14,6 @@ import (
 // the name, normally "pkg.init", is altered to "pkg.init.0".
 var renameinitgen int
 
-// Dummy function for autotmps generated during typechecking.
-var dummyInitFn = nod(ODCLFUNC, nil, nil)
-
 func renameinit() *types.Sym {
 	s := lookupN("init.", renameinitgen)
 	renameinitgen++
@@ -116,12 +113,6 @@ func fninit(n []*Node) {
 	// (2)
 	initsym := lookup("init")
 	fn := dclfunc(initsym, nod(OTFUNC, nil, nil))
-
-	for _, dcl := range dummyInitFn.Func.Dcl {
-		dcl.Name.Curfn = fn
-	}
-	fn.Func.Dcl = append(fn.Func.Dcl, dummyInitFn.Func.Dcl...)
-	dummyInitFn = nil
 
 	// (3)
 	a := nod(OIF, nil, nil)
