@@ -12,7 +12,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"internal/x/net/http/httpguts"
+	"golang.org/x/net/http/httpguts"
 	"io"
 	"net/textproto"
 	"net/url"

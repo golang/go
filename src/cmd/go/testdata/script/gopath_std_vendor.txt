@@ -9,8 +9,8 @@ stdout $GOPATH[/\\]src[/\\]vendor
 # to the package 'vendor/golang.org/x/net/http2/hpack' within GOROOT.
 cd importnethttp
 go list -deps -f '{{.ImportPath}} {{.Dir}}'
-stdout ^internal/x/net/http2/hpack
-stdout $GOROOT[/\\]src[/\\]internal[/\\]x[/\\]net[/\\]http2[/\\]hpack
+stdout ^vendor/golang.org/x/net/http2/hpack
+stdout $GOROOT[/\\]src[/\\]vendor[/\\]golang.org[/\\]x[/\\]net[/\\]http2[/\\]hpack
 ! stdout $GOPATH[/\\]src[/\\]vendor
 
 # In the presence of $GOPATH/src/vendor/golang.org/x/net/http2/hpack,

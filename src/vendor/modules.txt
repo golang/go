@@ -1,0 +1,25 @@
+# golang.org/x/crypto v0.0.0-20181025213731-e84da0312774
+golang.org/x/crypto/chacha20poly1305
+golang.org/x/crypto/cryptobyte
+golang.org/x/crypto/curve25519
+golang.org/x/crypto/hkdf
+golang.org/x/crypto/cryptobyte/asn1
+golang.org/x/crypto/internal/chacha20
+golang.org/x/crypto/internal/subtle
+golang.org/x/crypto/poly1305
+# golang.org/x/net v0.0.0-20181213202711-891ebc4b82d6
+golang.org/x/net/dns/dnsmessage
+golang.org/x/net/lif
+golang.org/x/net/route
+golang.org/x/net/http/httpguts
+golang.org/x/net/http/httpproxy
+golang.org/x/net/http2/hpack
+golang.org/x/net/idna
+golang.org/x/net/nettest
+# golang.org/x/sys v0.0.0-20190306220234-b354f8bf4d9e
+golang.org/x/sys/cpu
+# golang.org/x/text v0.1.1-0.20171102144821-8253218a5ec6
+golang.org/x/text/secure/bidirule
+golang.org/x/text/unicode/bidi
+golang.org/x/text/unicode/norm
+golang.org/x/text/transform

@@ -192,6 +192,21 @@ func xinit() {
 
 	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
 
+	// Add -mod=vendor to GOFLAGS so that commands won't try to resolve go.mod
+	// files for vendored external modules.
+	// TODO(golang.org/issue/30240): If the vendor directory contains the go.mod
+	// files, this probably won't be necessary.
+	// TODO(golang.org/issue/26849): Escape spaces in GOFLAGS if needed.
+	goflags := strings.Fields(os.Getenv("GOFLAGS"))
+	for i, flag := range goflags {
+		if strings.HasPrefix(flag, "-mod=") {
+			goflags = append(goflags[0:i], goflags[i+1:]...)
+			break
+		}
+	}
+	goflags = append(goflags, "-mod=vendor")
+	os.Setenv("GOFLAGS", strings.Join(goflags, " "))
+
 	cc, cxx := "gcc", "g++"
 	if defaultclang {
 		cc, cxx = "clang", "clang++"

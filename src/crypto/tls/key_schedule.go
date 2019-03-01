@@ -8,10 +8,10 @@ import (
 	"crypto/elliptic"
 	"crypto/hmac"
 	"errors"
+	"golang.org/x/crypto/cryptobyte"
+	"golang.org/x/crypto/curve25519"
+	"golang.org/x/crypto/hkdf"
 	"hash"
-	"internal/x/crypto/cryptobyte"
-	"internal/x/crypto/curve25519"
-	"internal/x/crypto/hkdf"
 	"io"
 	"math/big"
 )
