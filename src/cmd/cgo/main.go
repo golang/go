@@ -71,9 +71,6 @@ type File struct {
 	Edit     *edit.Buffer
 }
 
-// Untyped constants in the current package.
-var consts = make(map[string]bool)
-
 func (f *File) offset(p token.Pos) int {
 	return fset.Position(p).Offset
 }
