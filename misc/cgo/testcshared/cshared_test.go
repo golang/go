@@ -521,7 +521,7 @@ func TestCachedInstall(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// defer os.RemoveAll(tmpdir)
+	defer os.RemoveAll(tmpdir)
 
 	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "go.mod"), "go.mod")
 	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "libgo", "libgo.go"), filepath.Join("libgo", "libgo.go"))
