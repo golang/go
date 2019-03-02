@@ -317,6 +317,29 @@ func TestLoadAbsolutePath(t *testing.T) {
 	}
 }
 
+func TestReturnErrorWhenUsingNoneGoFiles(t *testing.T) {
+	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{{
+		Name: "golang.org/gopatha",
+		Files: map[string]interface{}{
+			"a/a.go": `package a`,
+		}}, {
+		Name: "golang.org/gopathb",
+		Files: map[string]interface{}{
+			"b/b.c": `package b`,
+		}}})
+	defer exported.Cleanup()
+	config := packages.Config{}
+	_, err := packages.Load(&config, "a/a.go", "b/b.c")
+	if err == nil {
+		t.Fatalf("should have failed with an error")
+	}
+	got := err.Error()
+	want := "named files must be .go files"
+	if !strings.Contains(got, want) {
+		t.Fatalf("want error message: %s, got: %s", want, got)
+	}
+}
+
 func TestVendorImports(t *testing.T) {
 	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{{
 		Name: "golang.org/fake",

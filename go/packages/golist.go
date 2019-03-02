@@ -770,6 +770,16 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 			return nil, goTooOldError{fmt.Errorf("unsupported version of go: %s: %s", exitErr, stderr)}
 		}
 
+		// This error only appears in stderr. See golang.org/cl/166398 for a fix in go list to show
+		// the error in the Err section of stdout in case -e option is provided.
+		// This fix is provided for backwards compatibility.
+		if len(stderr.String()) > 0 && strings.Contains(stderr.String(), "named files must be .go files") {
+			output := fmt.Sprintf(`{"ImportPath": "","Incomplete": true,"Error": {"Pos": "","Err": %s}}`,
+				strconv.Quote(strings.Trim(stderr.String(), "\n")))
+			fmt.Println(output)
+			return bytes.NewBufferString(output), nil
+		}
+
 		// Export mode entails a build.
 		// If that build fails, errors appear on stderr
 		// (despite the -e flag) and the Export field is blank.
