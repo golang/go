@@ -150,7 +150,7 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 // (modulo "untyped" bools resulting from comparisons).
 //
 // (Tip: to find the ssa.Value given a source position, use
-// importer.PathEnclosingInterval to locate the ast.Node, then
+// astutil.PathEnclosingInterval to locate the ast.Node, then
 // EnclosingFunction to locate the Function, then ValueForExpr to find
 // the ssa.Value.)
 //
