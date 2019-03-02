@@ -75,12 +75,12 @@ func main() {
 	// In case we're booting a device or emulator alongside all.bash, wait for
 	// it to be ready. adb wait-for-device is not enough, we have to
 	// wait for sys.boot_completed.
-	run("wait-for-device", "shell", "while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;")
+	run("wait-for-device", "exec-out", "while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;")
 
 	// Prepare a temporary directory that will be cleaned up at the end.
 	deviceGotmp := fmt.Sprintf("/data/local/tmp/%s-%d",
 		filepath.Base(os.Args[1]), os.Getpid())
-	run("shell", "mkdir", "-p", deviceGotmp)
+	run("exec-out", "mkdir", "-p", deviceGotmp)
 
 	// Determine the package by examining the current working
 	// directory, which will look something like
@@ -94,7 +94,7 @@ func main() {
 	} else {
 		adbSyncGoroot()
 	}
-	run("shell", "mkdir", "-p", deviceCwd)
+	run("exec-out", "mkdir", "-p", deviceCwd)
 
 	// Binary names can conflict.
 	// E.g. template.test from the {html,text}/template packages.
@@ -114,16 +114,13 @@ func main() {
 		for range quit {
 			// We don't have the PID of the running process; use the
 			// binary name instead.
-			run("shell", "killall -QUIT "+binName)
+			run("exec-out", "killall -QUIT "+binName)
 		}
 	}()
-	// The adb shell command will return an exit code of 0 regardless
-	// of the command run. E.g.
-	//      $ adb shell false
-	//      $ echo $?
-	//      0
+	// In light of
 	// https://code.google.com/p/android/issues/detail?id=3254
-	// So we append the exitcode to the output and parse it from there.
+	// dont trust the exitcode of adb. Instead, append the exitcode to
+	// the output and parse it from there.
 	const exitstr = "exitcode="
 	cmd := `export TMPDIR="` + deviceGotmp + `"` +
 		`; export GOROOT="` + deviceGoroot + `"` +
@@ -131,11 +128,11 @@ func main() {
 		`; cd "` + deviceCwd + `"` +
 		"; '" + deviceBin + "' " + strings.Join(os.Args[2:], " ") +
 		"; echo -n " + exitstr + "$?"
-	output := run("shell", cmd)
+	output := run("exec-out", cmd)
 	signal.Reset(syscall.SIGQUIT)
 	close(quit)
 
-	run("shell", "rm", "-rf", deviceGotmp) // Clean up.
+	run("exec-out", "rm", "-rf", deviceGotmp) // Clean up.
 
 	exitIdx := strings.LastIndex(output, exitstr)
 	if exitIdx == -1 {
@@ -211,8 +208,8 @@ func adbSyncGoroot() {
 		return
 	}
 	devRoot := "/data/local/tmp/goroot"
-	run("shell", "rm", "-rf", devRoot)
-	run("shell", "mkdir", "-p", devRoot+"/pkg")
+	run("exec-out", "rm", "-rf", devRoot)
+	run("exec-out", "mkdir", "-p", devRoot+"/pkg")
 	goroot := runtime.GOROOT()
 	goCmd := filepath.Join(goroot, "bin", "go")
 	runtimea, err := exec.Command(goCmd, "list", "-f", "{{.Target}}", "runtime").Output()
