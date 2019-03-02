@@ -713,7 +713,7 @@ func dedupEnv(env []string) []string {
 // If caseInsensitive is true, the case of keys is ignored.
 func dedupEnvCase(caseInsensitive bool, env []string) []string {
 	out := make([]string, 0, len(env))
-	saw := map[string]int{} // key => index into out
+	saw := make(map[string]int, len(env)) // key => index into out
 	for _, kv := range env {
 		eq := strings.Index(kv, "=")
 		if eq < 0 {
