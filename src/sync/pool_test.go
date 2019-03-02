@@ -41,11 +41,20 @@ func TestPool(t *testing.T) {
 	}
 	Runtime_procUnpin()
 
-	p.Put("c")
-	debug.SetGCPercent(100) // to allow following GC to actually run
+	// Put in a large number of objects so they spill into
+	// stealable space.
+	for i := 0; i < 100; i++ {
+		p.Put("c")
+	}
+	// After one GC, the victim cache should keep them alive.
+	runtime.GC()
+	if g := p.Get(); g != "c" {
+		t.Fatalf("got %#v; want c after GC", g)
+	}
+	// A second GC should drop the victim cache.
 	runtime.GC()
 	if g := p.Get(); g != nil {
-		t.Fatalf("got %#v; want nil after GC", g)
+		t.Fatalf("got %#v; want nil after second GC", g)
 	}
 }
 

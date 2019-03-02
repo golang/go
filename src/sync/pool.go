@@ -47,6 +47,9 @@ type Pool struct {
 	local     unsafe.Pointer // local fixed-size per-P pool, actual type is [P]poolLocal
 	localSize uintptr        // size of the local array
 
+	victim     unsafe.Pointer // local from previous cycle
+	victimSize uintptr        // size of victims array
+
 	// New optionally specifies a function to generate
 	// a value when Get would otherwise return nil.
 	// It may not be changed concurrently with calls to Get.
@@ -150,14 +153,39 @@ func (p *Pool) Get() interface{} {
 func (p *Pool) getSlow(pid int) interface{} {
 	// See the comment in pin regarding ordering of the loads.
 	size := atomic.LoadUintptr(&p.localSize) // load-acquire
-	local := p.local                         // load-consume
+	locals := p.local                        // load-consume
 	// Try to steal one element from other procs.
 	for i := 0; i < int(size); i++ {
-		l := indexLocal(local, (pid+i+1)%int(size))
+		l := indexLocal(locals, (pid+i+1)%int(size))
 		if x, _ := l.shared.popTail(); x != nil {
 			return x
 		}
 	}
+
+	// Try the victim cache. We do this after attempting to steal
+	// from all primary caches because we want objects in the
+	// victim cache to age out if at all possible.
+	size = atomic.LoadUintptr(&p.victimSize)
+	if uintptr(pid) >= size {
+		return nil
+	}
+	locals = p.victim
+	l := indexLocal(locals, pid)
+	if x := l.private; x != nil {
+		l.private = nil
+		return x
+	}
+	for i := 0; i < int(size); i++ {
+		l := indexLocal(locals, (pid+i)%int(size))
+		if x, _ := l.shared.popTail(); x != nil {
+			return x
+		}
+	}
+
+	// Mark the victim cache as empty for future gets don't bother
+	// with it.
+	atomic.StoreUintptr(&p.victimSize, 0)
+
 	return nil
 }
 
@@ -208,17 +236,37 @@ func poolCleanup() {
 
 	// Because the world is stopped, no pool user can be in a
 	// pinned section (in effect, this has all Ps pinned).
-	for i, p := range allPools {
-		allPools[i] = nil
+
+	// Drop victim caches from all pools.
+	for _, p := range oldPools {
+		p.victim = nil
+		p.victimSize = 0
+	}
+
+	// Move primary cache to victim cache.
+	for _, p := range allPools {
+		p.victim = p.local
+		p.victimSize = p.localSize
 		p.local = nil
 		p.localSize = 0
 	}
-	allPools = []*Pool{}
+
+	// The pools with non-empty primary caches now have non-empty
+	// victim caches and no pools have primary caches.
+	oldPools, allPools = allPools, nil
 }
 
 var (
 	allPoolsMu Mutex
-	allPools   []*Pool
+
+	// allPools is the set of pools that have non-empty primary
+	// caches. Protected by either 1) allPoolsMu and pinning or 2)
+	// STW.
+	allPools []*Pool
+
+	// oldPools is the set of pools that may have non-empty victim
+	// caches. Protected by STW.
+	oldPools []*Pool
 )
 
 func init() {
