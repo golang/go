@@ -37,7 +37,12 @@ func RelPaths(paths []string) []string {
 	for _, p := range paths {
 		rel, err := filepath.Rel(pwd, p)
 		if err == nil && len(rel) < len(p) {
-			p = rel
+			// Verify that the shorter path is a valid path. This is not the
+			// case if pwd is in a symlink as p is set to the realpath, not the
+			// relative path seen from pwd.
+			if _, err := os.Stat(rel); err == nil {
+				p = rel
+			}
 		}
 		out = append(out, p)
 	}
