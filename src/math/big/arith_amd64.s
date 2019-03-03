@@ -143,6 +143,8 @@ E2:	NEGQ CX
 // func addVW(z, x []Word, y Word) (c Word)
 TEXT ·addVW(SB),NOSPLIT,$0
 	MOVQ z_len+8(FP), DI
+	CMPQ DI, $32
+	JG large
 	MOVQ x+24(FP), R8
 	MOVQ y+48(FP), CX	// c = y
 	MOVQ z+0(FP), R10
@@ -189,12 +191,16 @@ L3:	// n > 0
 
 E3:	MOVQ CX, c+56(FP)	// return c
 	RET
+large:
+	JMP ·addVWlarge(SB)
 
 
 // func subVW(z, x []Word, y Word) (c Word)
 // (same as addVW except for SUBQ/SBBQ instead of ADDQ/ADCQ and label names)
 TEXT ·subVW(SB),NOSPLIT,$0
 	MOVQ z_len+8(FP), DI
+	CMPQ DI, $32
+	JG large
 	MOVQ x+24(FP), R8
 	MOVQ y+48(FP), CX	// c = y
 	MOVQ z+0(FP), R10
@@ -242,6 +248,8 @@ L4:	// n > 0
 
 E4:	MOVQ CX, c+56(FP)	// return c
 	RET
+large:
+	JMP ·subVWlarge(SB)
 
 
 // func shlVU(z, x []Word, s uint) (c Word)
