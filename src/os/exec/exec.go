@@ -376,6 +376,7 @@ func (c *Cmd) Start() error {
 		}
 	}
 
+	c.childFiles = make([]*os.File, 0, 3+len(c.ExtraFiles))
 	type F func(*Cmd) (*os.File, error)
 	for _, setupFd := range []F{(*Cmd).stdin, (*Cmd).stdout, (*Cmd).stderr} {
 		fd, err := setupFd(c)
