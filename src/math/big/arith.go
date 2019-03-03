@@ -204,32 +204,46 @@ func subVW_g(z, x []Word, y Word) (c Word) {
 }
 
 func shlVU_g(z, x []Word, s uint) (c Word) {
-	if n := len(z); n > 0 {
-		ŝ := _W - s
-		w1 := x[n-1]
-		c = w1 >> ŝ
-		for i := n - 1; i > 0; i-- {
-			w := w1
-			w1 = x[i-1]
-			z[i] = w<<s | w1>>ŝ
-		}
-		z[0] = w1 << s
+	if s == 0 {
+		copy(z, x)
+		return
 	}
+	if len(z) == 0 {
+		return
+	}
+	s &= _W - 1 // hint to the compiler that shifts by s don't need guard code
+	ŝ := _W - s
+	ŝ &= _W - 1 // ditto
+	w1 := x[len(z)-1]
+	c = w1 >> ŝ
+	for i := len(z) - 1; i > 0; i-- {
+		w := w1
+		w1 = x[i-1]
+		z[i] = w<<s | w1>>ŝ
+	}
+	z[0] = w1 << s
 	return
 }
 
 func shrVU_g(z, x []Word, s uint) (c Word) {
-	if n := len(z); n > 0 {
-		ŝ := _W - s
-		w1 := x[0]
-		c = w1 << ŝ
-		for i := 0; i < n-1; i++ {
-			w := w1
-			w1 = x[i+1]
-			z[i] = w>>s | w1<<ŝ
-		}
-		z[n-1] = w1 >> s
+	if s == 0 {
+		copy(z, x)
+		return
 	}
+	if len(z) == 0 {
+		return
+	}
+	s &= _W - 1 // hint to the compiler that shifts by s don't need guard code
+	ŝ := _W - s
+	ŝ &= _W - 1 // ditto
+	w1 := x[0]
+	c = w1 << ŝ
+	for i := 0; i < len(z)-1; i++ {
+		w := w1
+		w1 = x[i+1]
+		z[i] = w>>s | w1<<ŝ
+	}
+	z[len(z)-1] = w1 >> s
 	return
 }
 
