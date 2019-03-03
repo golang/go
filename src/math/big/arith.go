@@ -21,6 +21,18 @@ const (
 	_M = _B - 1        // digit mask
 )
 
+// Many of the loops in this file are of the form
+//   for i := 0; i < len(z) && i < len(x) && i < len(y); i++
+// i < len(z) is the real condition.
+// However, checking i < len(x) && i < len(y) as well is faster than
+// having the compiler do a bounds check in the body of the loop;
+// remarkably it is even faster than hoisting the bounds check
+// out of the loop, by doing something like
+//   _, _ = x[len(z)-1], y[len(z)-1]
+// There are other ways to hoist the bounds check out of the loop,
+// but the compiler's BCE isn't powerful enough for them (yet?).
+// See the discussion in CL 164966.
+
 // ----------------------------------------------------------------------------
 // Elementary operations on words
 //
@@ -54,7 +66,8 @@ func divWW_g(u1, u0, v Word) (q, r Word) {
 
 // The resulting carry c is either 0 or 1.
 func addVV_g(z, x, y []Word) (c Word) {
-	for i := range x[:len(z)] {
+	// The comment near the top of this file discusses this for loop condition.
+	for i := 0; i < len(z) && i < len(x) && i < len(y); i++ {
 		zi, cc := bits.Add(uint(x[i]), uint(y[i]), uint(c))
 		z[i] = Word(zi)
 		c = Word(cc)
@@ -64,7 +77,8 @@ func addVV_g(z, x, y []Word) (c Word) {
 
 // The resulting carry c is either 0 or 1.
 func subVV_g(z, x, y []Word) (c Word) {
-	for i := range x[:len(z)] {
+	// The comment near the top of this file discusses this for loop condition.
+	for i := 0; i < len(z) && i < len(x) && i < len(y); i++ {
 		zi, cc := bits.Sub(uint(x[i]), uint(y[i]), uint(c))
 		z[i] = Word(zi)
 		c = Word(cc)
@@ -75,7 +89,8 @@ func subVV_g(z, x, y []Word) (c Word) {
 // The resulting carry c is either 0 or 1.
 func addVW_g(z, x []Word, y Word) (c Word) {
 	c = y
-	for i := range x[:len(z)] {
+	// The comment near the top of this file discusses this for loop condition.
+	for i := 0; i < len(z) && i < len(x); i++ {
 		zi, cc := bits.Add(uint(x[i]), uint(c), 0)
 		z[i] = Word(zi)
 		c = Word(cc)
@@ -85,7 +100,8 @@ func addVW_g(z, x []Word, y Word) (c Word) {
 
 func subVW_g(z, x []Word, y Word) (c Word) {
 	c = y
-	for i := range x[:len(z)] {
+	// The comment near the top of this file discusses this for loop condition.
+	for i := 0; i < len(z) && i < len(x); i++ {
 		zi, cc := bits.Sub(uint(x[i]), uint(c), 0)
 		z[i] = Word(zi)
 		c = Word(cc)
@@ -139,14 +155,16 @@ func shrVU_g(z, x []Word, s uint) (c Word) {
 
 func mulAddVWW_g(z, x []Word, y, r Word) (c Word) {
 	c = r
-	for i := range z {
+	// The comment near the top of this file discusses this for loop condition.
+	for i := 0; i < len(z) && i < len(x); i++ {
 		c, z[i] = mulAddWWW_g(x[i], y, c)
 	}
 	return
 }
 
 func addMulVVW_g(z, x []Word, y Word) (c Word) {
-	for i := range z {
+	// The comment near the top of this file discusses this for loop condition.
+	for i := 0; i < len(z) && i < len(x); i++ {
 		z1, z0 := mulAddWWW_g(x[i], y, z[i])
 		lo, cc := bits.Add(uint(z0), uint(c), 0)
 		c, z[i] = Word(cc), Word(lo)
