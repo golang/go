@@ -1903,7 +1903,8 @@ func (b *Builder) runOut(dir string, env []string, cmdargs ...interface{}) ([]by
 	cleanup := passLongArgsInResponseFiles(cmd)
 	defer cleanup()
 	cmd.Dir = dir
-	cmd.Env = base.MergeEnvLists(env, base.EnvForDir(cmd.Dir, os.Environ()))
+	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
+	cmd.Env = append(cmd.Env, env...)
 	err := cmd.Run()
 
 	// err can be something like 'exit status 1'.
@@ -2327,7 +2328,8 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	}
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = b.WorkDir
-	cmd.Env = base.MergeEnvLists([]string{"LC_ALL=C"}, base.EnvForDir(cmd.Dir, os.Environ()))
+	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
+	cmd.Env = append(cmd.Env, "LC_ALL=C")
 	out, _ := cmd.CombinedOutput()
 	// GCC says "unrecognized command line option".
 	// clang says "unknown argument".
