@@ -3,8 +3,10 @@
 // license that can be found in the LICENSE file.
 
 // This file provides Go implementations of elementary multi-precision
-// arithmetic operations on word vectors. Needed for platforms without
-// assembly implementations of these routines.
+// arithmetic operations on word vectors. These have the suffix _g.
+// These are needed for platforms without assembly implementations of these routines.
+// This file also contains elementary operations that can be implemented
+// sufficiently efficiently in Go.
 
 package big
 
@@ -98,10 +100,48 @@ func addVW_g(z, x []Word, y Word) (c Word) {
 	return
 }
 
+// addVWlarge is addVW, but intended for large z.
+// The only difference is that we check on every iteration
+// whether we are done with carries,
+// and if so, switch to a much faster copy instead.
+// This is only a good idea for large z,
+// because the overhead of the check and the function call
+// outweigh the benefits when z is small.
+func addVWlarge(z, x []Word, y Word) (c Word) {
+	c = y
+	// The comment near the top of this file discusses this for loop condition.
+	for i := 0; i < len(z) && i < len(x); i++ {
+		if c == 0 {
+			copy(z[i:], x[i:])
+			return
+		}
+		zi, cc := bits.Add(uint(x[i]), uint(c), 0)
+		z[i] = Word(zi)
+		c = Word(cc)
+	}
+	return
+}
+
 func subVW_g(z, x []Word, y Word) (c Word) {
 	c = y
 	// The comment near the top of this file discusses this for loop condition.
 	for i := 0; i < len(z) && i < len(x); i++ {
+		zi, cc := bits.Sub(uint(x[i]), uint(c), 0)
+		z[i] = Word(zi)
+		c = Word(cc)
+	}
+	return
+}
+
+// subVWlarge is to subVW as addVWlarge is to addVW.
+func subVWlarge(z, x []Word, y Word) (c Word) {
+	c = y
+	// The comment near the top of this file discusses this for loop condition.
+	for i := 0; i < len(z) && i < len(x); i++ {
+		if c == 0 {
+			copy(z[i:], x[i:])
+			return
+		}
 		zi, cc := bits.Sub(uint(x[i]), uint(c), 0)
 		z[i] = Word(zi)
 		c = Word(cc)
