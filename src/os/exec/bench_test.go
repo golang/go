@@ -8,16 +8,16 @@ import (
 	"testing"
 )
 
-func BenchmarkExecEcho(b *testing.B) {
+func BenchmarkExecHostname(b *testing.B) {
 	b.ReportAllocs()
-	path, err := LookPath("echo")
+	path, err := LookPath("hostname")
 	if err != nil {
-		b.Fatalf("could not find echo: %v", err)
+		b.Fatalf("could not find hostname: %v", err)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if err := Command(path).Run(); err != nil {
-			b.Fatalf("echo: %v", err)
+			b.Fatalf("hostname: %v", err)
 		}
 	}
 }
