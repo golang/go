@@ -404,11 +404,14 @@ func (c *Cmd) Start() error {
 
 	c.closeDescriptors(c.closeAfterStart)
 
-	c.errch = make(chan error, len(c.goroutine))
-	for _, fn := range c.goroutine {
-		go func(fn func() error) {
-			c.errch <- fn()
-		}(fn)
+	// Don't allocate the channel unless there are goroutines to fire.
+	if len(c.goroutine) > 0 {
+		c.errch = make(chan error, len(c.goroutine))
+		for _, fn := range c.goroutine {
+			go func(fn func() error) {
+				c.errch <- fn()
+			}(fn)
+		}
 	}
 
 	if c.ctx != nil {
