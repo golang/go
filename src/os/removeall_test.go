@@ -372,3 +372,33 @@ func TestRemoveAllButReadOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestRemoveUnreadableDir(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "js", "windows":
+		t.Skipf("skipping test on %s", runtime.GOOS)
+	}
+
+	if Getuid() == 0 {
+		t.Skip("skipping test when running as root")
+	}
+
+	t.Parallel()
+
+	tempDir, err := ioutil.TempDir("", "TestRemoveAllButReadOnly-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer RemoveAll(tempDir)
+
+	target := filepath.Join(tempDir, "d0", "d1", "d2")
+	if err := MkdirAll(target, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := Chmod(target, 0300); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveAll(filepath.Join(tempDir, "d0")); err != nil {
+		t.Fatal(err)
+	}
+}
