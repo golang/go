@@ -36,8 +36,14 @@ var sniffTests = []struct {
 	{"XML", []byte("\n<?xml!"), "text/xml; charset=utf-8"},
 
 	// Image types.
+	{"Windows icon", []byte("\x00\x00\x01\x00"), "image/x-icon"},
+	{"Windows cursor", []byte("\x00\x00\x02\x00"), "image/x-icon"},
+	{"BMP image", []byte("BM..."), "image/bmp"},
 	{"GIF 87a", []byte(`GIF87a`), "image/gif"},
 	{"GIF 89a", []byte(`GIF89a...`), "image/gif"},
+	{"WEBP image", []byte("RIFF\x00\x00\x00\x00WEBPVP"), "image/webp"},
+	{"PNG image", []byte("\x89PNG\x0D\x0A\x1A\x0A"), "image/png"},
+	{"JPEG image", []byte("\xFF\xD8\xFF"), "image/jpeg"},
 
 	// Audio types.
 	{"MIDI audio", []byte("MThd\x00\x00\x00\x06\x00\x01"), "audio/midi"},
