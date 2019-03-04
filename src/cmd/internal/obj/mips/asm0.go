@@ -1120,7 +1120,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 1: /* mov r1,r2 ==> OR r1,r0,r2 */
 		a := AOR
 		if p.As == AMOVW && c.ctxt.Arch.Family == sys.MIPS64 {
-			// On MIPS64, most of the 32-bit instructions have unpredictable behavior,
+			// on MIPS64, most of the 32-bit instructions have unpredictable behavior,
 			// but SLL is special that the result is always sign-extended to 64-bit.
 			a = ASLL // sign-extended to high 32 bits
 		}
