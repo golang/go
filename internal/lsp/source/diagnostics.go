@@ -61,7 +61,7 @@ func Diagnostics(ctx context.Context, v View, uri URI) (map[string][]Diagnostic,
 	pkg := f.GetPackage()
 	// Prepare the reports we will send for this package.
 	reports := make(map[string][]Diagnostic)
-	for _, filename := range pkg.GoFiles {
+	for _, filename := range pkg.CompiledGoFiles {
 		reports[filename] = []Diagnostic{}
 	}
 	var parseErrors, typeErrors []packages.Error

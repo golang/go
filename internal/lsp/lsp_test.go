@@ -37,7 +37,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	// We hardcode the expected number of test cases to ensure that all tests
 	// are being executed. If a test is added, this number must be changed.
 	const expectedCompletionsCount = 63
-	const expectedDiagnosticsCount = 17
+	const expectedDiagnosticsCount = 16
 	const expectedFormatCount = 4
 	const expectedDefinitionsCount = 16
 	const expectedTypeDefinitionsCount = 2
