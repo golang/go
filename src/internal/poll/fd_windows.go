@@ -342,6 +342,7 @@ const (
 	kindFile
 	kindConsole
 	kindDir
+	kindPipe
 )
 
 // logInitFD is set by tests to enable file descriptor initialization logging.
@@ -364,6 +365,8 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
 		fd.kind = kindConsole
 	case "dir":
 		fd.kind = kindDir
+	case "pipe":
+		fd.kind = kindPipe
 	case "tcp", "tcp4", "tcp6",
 		"udp", "udp4", "udp6",
 		"ip", "ip4", "ip6",
@@ -461,6 +464,9 @@ func (fd *FD) Close() error {
 	if !fd.fdmu.increfAndClose() {
 		return errClosing(fd.isFile)
 	}
+	if fd.kind == kindPipe {
+		syscall.CancelIoEx(fd.Sysfd, nil)
+	}
 	// unblock pending reader and writer
 	fd.pd.evict()
 	err := fd.decref()
@@ -505,6 +511,12 @@ func (fd *FD) Read(buf []byte) (int, error) {
 			n, err = fd.readConsole(buf)
 		default:
 			n, err = syscall.Read(fd.Sysfd, buf)
+			if fd.kind == kindPipe && err == syscall.ERROR_OPERATION_ABORTED {
+				// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
+				// If the fd is a pipe and the Read was interrupted by CancelIoEx,
+				// we assume it is interrupted by Close.
+				err = ErrFileClosing
+			}
 		}
 		if err != nil {
 			n = 0
@@ -692,6 +704,12 @@ func (fd *FD) Write(buf []byte) (int, error) {
 				n, err = fd.writeConsole(b)
 			default:
 				n, err = syscall.Write(fd.Sysfd, b)
+				if fd.kind == kindPipe && err == syscall.ERROR_OPERATION_ABORTED {
+					// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
+					// If the fd is a pipe and the Write was interrupted by CancelIoEx,
+					// we assume it is interrupted by Close.
+					err = ErrFileClosing
+				}
 			}
 			if err != nil {
 				n = 0

@@ -42,6 +42,9 @@ func newFile(h syscall.Handle, name string, kind string) *File {
 		if syscall.GetConsoleMode(h, &m) == nil {
 			kind = "console"
 		}
+		if t, err := syscall.GetFileType(h); err == nil && t == syscall.FILE_TYPE_PIPE {
+			kind = "pipe"
+		}
 	}
 
 	f := &File{&file{
@@ -315,7 +318,7 @@ func Pipe() (r *File, w *File, err error) {
 	if e != nil {
 		return nil, nil, NewSyscallError("pipe", e)
 	}
-	return newFile(p[0], "|0", "file"), newFile(p[1], "|1", "file"), nil
+	return newFile(p[0], "|0", "pipe"), newFile(p[1], "|1", "pipe"), nil
 }
 
 func tempDir() string {
