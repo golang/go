@@ -69,6 +69,8 @@ type server struct {
 	signatureHelpEnabled bool
 	snippetsSupported    bool
 
+	textDocumentSyncKind protocol.TextDocumentSyncKind
+
 	viewMu sync.Mutex
 	view   source.View
 }
@@ -98,6 +100,10 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 		return nil, err
 	}
 
+	// TODO(rstambler): Change this default to protocol.Incremental (or add a
+	// flag). Disabled for now to simplify debugging.
+	s.textDocumentSyncKind = protocol.Full
+
 	s.view = cache.NewView(&packages.Config{
 		Context: ctx,
 		Dir:     rootPath,
@@ -124,7 +130,7 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 				TriggerCharacters: []string{"(", ","},
 			},
 			TextDocumentSync: protocol.TextDocumentSyncOptions{
-				Change:    float64(protocol.Incremental),
+				Change:    float64(s.textDocumentSyncKind),
 				OpenClose: true,
 			},
 			TypeDefinitionProvider: true,
@@ -186,6 +192,7 @@ func bytesOffset(content []byte, pos protocol.Position) int {
 		if line == int(pos.Line) && char == int(pos.Character) {
 			return offset
 		}
+
 		r, size := utf8.DecodeRune(content)
 		char++
 		// The offsets are based on a UTF-16 string representation.
@@ -250,9 +257,21 @@ func (s *server) DidChange(ctx context.Context, params *protocol.DidChangeTextDo
 		return jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "no content changes provided")
 	}
 
-	text, err := s.applyChanges(ctx, params)
-	if err != nil {
-		return err
+	var text string
+	switch s.textDocumentSyncKind {
+	case protocol.Incremental:
+		var err error
+		text, err = s.applyChanges(ctx, params)
+		if err != nil {
+			return err
+		}
+	case protocol.Full:
+		// We expect the full content of file, i.e. a single change with no range.
+		change := params.ContentChanges[0]
+		if change.RangeLength != 0 {
+			return jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "unexpected change range provided")
+		}
+		text = change.Text
 	}
 	s.cacheAndDiagnose(ctx, params.TextDocument.URI, text)
 	return nil
