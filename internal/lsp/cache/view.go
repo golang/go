@@ -14,21 +14,40 @@ import (
 )
 
 type View struct {
-	mu sync.Mutex // protects all mutable state of the view
+	// mu protects all mutable state of the view.
+	mu sync.Mutex
 
+	// Config is the configuration used for the view's interaction with the
+	// go/packages API. It is shared across all views.
 	Config packages.Config
 
+	// files caches information for opened files in a view.
 	files map[source.URI]*File
+
+	// mcache caches metadata for the packages of the opened files in a view.
+	mcache *metadataCache
 
 	analysisCache *source.AnalysisCache
 }
 
-// NewView creates a new View, given a root path and go/packages configuration.
-// If config is nil, one is created with the directory set to the rootPath.
+type metadataCache struct {
+	mu       sync.Mutex
+	packages map[string]*metadata
+}
+
+type metadata struct {
+	id, pkgPath, name string
+	files             []string
+	parents, children map[string]bool
+}
+
 func NewView(config *packages.Config) *View {
 	return &View{
 		Config: *config,
 		files:  make(map[source.URI]*File),
+		mcache: &metadataCache{
+			packages: make(map[string]*metadata),
+		},
 	}
 }
 
@@ -41,13 +60,21 @@ func (v *View) GetAnalysisCache() *source.AnalysisCache {
 	return v.analysisCache
 }
 
+func (v *View) copyView() *View {
+	return &View{
+		Config: v.Config,
+		files:  make(map[source.URI]*File),
+		mcache: v.mcache,
+	}
+}
+
 // SetContent sets the overlay contents for a file. A nil content value will
 // remove the file from the active set and revert it to its on-disk contents.
 func (v *View) SetContent(ctx context.Context, uri source.URI, content []byte) (source.View, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	newView := NewView(&v.Config)
+	newView := v.copyView()
 
 	for fURI, f := range v.files {
 		newView.files[fURI] = &File{
@@ -58,6 +85,8 @@ func (v *View) SetContent(ctx context.Context, uri source.URI, content []byte) (
 			ast:     f.ast,
 			token:   f.token,
 			pkg:     f.pkg,
+			meta:    f.meta,
+			imports: f.imports,
 		}
 	}
 

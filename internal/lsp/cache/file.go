@@ -22,6 +22,8 @@ type File struct {
 	ast     *ast.File
 	token   *token.File
 	pkg     *packages.Package
+	meta    *metadata
+	imports []*ast.ImportSpec
 }
 
 // GetContent returns the contents of the file, reading it from file system if needed.
@@ -69,12 +71,13 @@ func (f *File) GetPackage() *packages.Package {
 	return f.pkg
 }
 
-// read is the internal part of Read that presumes the lock is already held
+// read is the internal part of GetContent. It assumes that the caller is
+// holding the mutex of the file's view.
 func (f *File) read() {
 	if f.content != nil {
 		return
 	}
-	// we don't know the content yet, so read it
+	// We don't know the content yet, so read it.
 	filename, err := f.URI.Filename()
 	if err != nil {
 		return
