@@ -9,6 +9,7 @@ package net
 import (
 	"context"
 	"internal/bytealg"
+	"runtime"
 	"sync"
 	"syscall"
 
@@ -81,9 +82,18 @@ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string,
 		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
 			return addrs, err
 		}
-		// cgo not available (or netgo); fall back to Go's DNS resolver
+		// cgo not available (or netgo); fall back to linked bindings
 		order = hostLookupFilesDNS
 	}
+
+	// darwin has unique resolution files, use libSystem binding
+	// even if cgo is disabled.
+	if runtime.GOOS == "darwin" {
+		//
+
+		// something went wrong, fallback to Go's DNS resolver
+	}
+
 	return r.goLookupHostOrder(ctx, host, order)
 }
 
