@@ -17,69 +17,59 @@ import (
 )
 
 func (v *View) parse(uri source.URI) error {
-	path, err := uri.Filename()
+	imp, pkgs, err := v.collectMetadata(uri)
 	if err != nil {
 		return err
 	}
-	// TODO(rstambler): Enforce here that LoadMode is LoadImports?
-	pkgs, err := packages.Load(&v.Config, fmt.Sprintf("file=%s", path))
-	if len(pkgs) == 0 {
-		if err == nil {
-			err = fmt.Errorf("no packages found for %s", path)
-		}
-		return err
-	}
-	var foundPkg bool // true if we found the package for uri
-	for _, pkg := range pkgs {
-		for _, err := range pkg.Errors {
+	for _, meta := range pkgs {
+		// If the package comes back with errors from `go list`, don't bother
+		// type-checking it.
+		for _, err := range meta.Errors {
 			switch err.Kind {
 			case packages.UnknownError, packages.ListError:
 				return err
 			}
 		}
-		// TODO(rstambler): Get real TypeSizes from go/packages (golang.org/issues/30139).
-		pkg.TypesSizes = &types.StdSizes{}
-
-		imp := &importer{
-			entries:  make(map[string]*entry),
-			packages: make(map[string]*packages.Package),
-			v:        v,
-		}
-		if err := imp.addImports(pkg.PkgPath, pkg); err != nil {
-			return err
-		}
 		// Start prefetching direct imports.
-		for importPath := range pkg.Imports {
+		for importPath := range meta.Imports {
 			go imp.Import(importPath)
 		}
-		imp.importPackage(pkg.PkgPath)
+
+		// Type-check package.
+		pkg, err := imp.typeCheck(meta.PkgPath)
+		if pkg == nil || pkg.Types == nil {
+			return err
+		}
 
 		// Add every file in this package to our cache.
-		for _, file := range pkg.Syntax {
-			// TODO: If a file is in multiple packages, which package do we store?
-			if !file.Pos().IsValid() {
-				log.Printf("invalid position for file %v", file.Name)
-				continue
-			}
-			tok := imp.v.Config.Fset.File(file.Pos())
-			if tok == nil {
-				log.Printf("no token.File for %v", file.Name)
-				continue
-			}
-			fURI := source.ToURI(tok.Name())
-			if fURI == uri {
-				foundPkg = true
-			}
-			f := imp.v.getFile(fURI)
-			f.token = tok
-			f.ast = file
-			f.pkg = pkg
-		}
+		v.cachePackage(pkg)
 	}
-	if !foundPkg {
+	// If we still have not found the package for the file, something is wrong.
+	f := v.files[uri]
+	if f == nil || f.pkg == nil {
 		return fmt.Errorf("no package found for %v", uri)
 	}
 	return nil
+}
+
+func (v *View) cachePackage(pkg *packages.Package) {
+	for _, file := range pkg.Syntax {
+		// TODO: If a file is in multiple packages, which package do we store?
+		if !file.Pos().IsValid() {
+			log.Printf("invalid position for file %v", file.Name)
+			continue
+		}
+		tok := v.Config.Fset.File(file.Pos())
+		if tok == nil {
+			log.Printf("no token.File for %v", file.Name)
+			continue
+		}
+		fURI := source.ToURI(tok.Name())
+		f := v.getFile(fURI)
+		f.token = tok
+		f.ast = file
+		f.pkg = pkg
+	}
 }
 
 type importer struct {
@@ -87,13 +77,39 @@ type importer struct {
 	entries  map[string]*entry
 	packages map[string]*packages.Package
 
-	v *View
+	*View
 }
 
 type entry struct {
-	pkg   *types.Package
+	pkg   *packages.Package
 	err   error
 	ready chan struct{}
+}
+
+func (v *View) collectMetadata(uri source.URI) (*importer, []*packages.Package, error) {
+	filename, err := uri.Filename()
+	if err != nil {
+		return nil, nil, err
+	}
+	// TODO(rstambler): Enforce here that LoadMode is LoadImports?
+	pkgs, err := packages.Load(&v.Config, fmt.Sprintf("file=%s", filename))
+	if len(pkgs) == 0 {
+		if err == nil {
+			err = fmt.Errorf("no packages found for %s", filename)
+		}
+		return nil, nil, err
+	}
+	imp := &importer{
+		entries:  make(map[string]*entry),
+		packages: make(map[string]*packages.Package),
+		View:     v,
+	}
+	for _, pkg := range pkgs {
+		if err := imp.addImports(pkg.PkgPath, pkg); err != nil {
+			return nil, nil, err
+		}
+	}
+	return imp, pkgs, nil
 }
 
 func (imp *importer) addImports(path string, pkg *packages.Package) error {
@@ -125,20 +141,25 @@ func (imp *importer) Import(path string) (*types.Package, error) {
 
 		// This goroutine becomes responsible for populating
 		// the entry and broadcasting its readiness.
-		e.pkg, e.err = imp.importPackage(path)
+		e.pkg, e.err = imp.typeCheck(path)
 		close(e.ready)
 	}
-	return e.pkg, e.err
+	if e.err != nil {
+		return nil, e.err
+	}
+	return e.pkg.Types, nil
 }
 
-func (imp *importer) importPackage(pkgPath string) (*types.Package, error) {
+func (imp *importer) typeCheck(pkgPath string) (*packages.Package, error) {
 	imp.mu.Lock()
 	pkg, ok := imp.packages[pkgPath]
 	imp.mu.Unlock()
 	if !ok {
 		return nil, fmt.Errorf("no metadata for %v", pkgPath)
 	}
-	pkg.Fset = imp.v.Config.Fset
+	// TODO(rstambler): Get real TypeSizes from go/packages (golang.org/issues/30139).
+	pkg.TypesSizes = &types.StdSizes{}
+	pkg.Fset = imp.Config.Fset
 	appendError := func(err error) {
 		imp.appendPkgError(pkg, err)
 	}
@@ -160,10 +181,10 @@ func (imp *importer) importPackage(pkgPath string) (*types.Package, error) {
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		Scopes:     make(map[ast.Node]*types.Scope),
 	}
-	check := types.NewChecker(cfg, imp.v.Config.Fset, pkg.Types, pkg.TypesInfo)
+	check := types.NewChecker(cfg, imp.Config.Fset, pkg.Types, pkg.TypesInfo)
 	check.Files(pkg.Syntax)
 
-	return pkg.Types, nil
+	return pkg, nil
 }
 
 func (imp *importer) appendPkgError(pkg *packages.Package, err error) {
@@ -189,7 +210,7 @@ func (imp *importer) appendPkgError(pkg *packages.Package, err error) {
 		}
 	case types.Error:
 		errs = append(errs, packages.Error{
-			Pos:  imp.v.Config.Fset.Position(err.Pos).String(),
+			Pos:  imp.Config.Fset.Position(err.Pos).String(),
 			Msg:  err.Msg,
 			Kind: packages.TypeError,
 		})
@@ -214,14 +235,14 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 	parsed := make([]*ast.File, n)
 	errors := make([]error, n)
 	for i, filename := range filenames {
-		if imp.v.Config.Context.Err() != nil {
+		if imp.Config.Context.Err() != nil {
 			parsed[i] = nil
-			errors[i] = imp.v.Config.Context.Err()
+			errors[i] = imp.Config.Context.Err()
 			continue
 		}
 
 		// First, check if we have already cached an AST for this file.
-		f := imp.v.files[source.ToURI(filename)]
+		f := imp.files[source.ToURI(filename)]
 		var fAST *ast.File
 		if f != nil {
 			fAST = f.ast
@@ -237,7 +258,7 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 				// We don't have a cached AST for this file.
 				var src []byte
 				// Check for an available overlay.
-				for f, contents := range imp.v.Config.Overlay {
+				for f, contents := range imp.Config.Overlay {
 					if sameFile(f, filename) {
 						src = contents
 					}
@@ -251,7 +272,7 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 					parsed[i], errors[i] = nil, err
 				} else {
 					// ParseFile may return both an AST and an error.
-					parsed[i], errors[i] = imp.v.Config.ParseFile(imp.v.Config.Fset, filename, src)
+					parsed[i], errors[i] = imp.Config.ParseFile(imp.Config.Fset, filename, src)
 				}
 			}
 
