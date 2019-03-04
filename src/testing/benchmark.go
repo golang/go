@@ -104,7 +104,7 @@ type B struct {
 }
 
 // StartTimer starts timing a test. This function is called automatically
-// before a benchmark starts, but it can also used to resume timing after
+// before a benchmark starts, but it can also be used to resume timing after
 // a call to StopTimer.
 func (b *B) StartTimer() {
 	if !b.timerOn {
