@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -17,9 +18,14 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 )
 
-func (v *View) parse(uri source.URI) error {
+func (v *View) parse(ctx context.Context, uri source.URI) error {
 	v.mcache.mu.Lock()
 	defer v.mcache.mu.Unlock()
+
+	// Apply any queued-up content changes.
+	if err := v.applyContentChanges(ctx); err != nil {
+		return err
+	}
 
 	f := v.files[uri]
 
@@ -27,9 +33,14 @@ func (v *View) parse(uri source.URI) error {
 	if f == nil {
 		return fmt.Errorf("no file for %v", uri)
 	}
-
-	imp, err := v.checkMetadata(f)
-	if err != nil {
+	// If the package for the file has not been invalidated by the application
+	// of the pending changes, there is no need to continue.
+	if f.isPopulated() {
+		return nil
+	}
+	// Check if the file's imports have changed. If they have, update the
+	// metadata by calling packages.Load.
+	if err := v.checkMetadata(ctx, f); err != nil {
 		return err
 	}
 	if f.meta == nil {
@@ -37,10 +48,10 @@ func (v *View) parse(uri source.URI) error {
 	}
 	// Start prefetching direct imports.
 	for importPath := range f.meta.children {
-		go imp.Import(importPath)
+		go v.Import(importPath)
 	}
 	// Type-check package.
-	pkg, err := imp.typeCheck(f.meta.pkgPath)
+	pkg, err := v.typeCheck(f.meta.pkgPath)
 	if pkg == nil || pkg.Types == nil {
 		return err
 	}
@@ -75,29 +86,12 @@ func (v *View) cachePackage(pkg *packages.Package) {
 	}
 }
 
-type importer struct {
-	mu      sync.Mutex
-	entries map[string]*entry
-
-	*View
-}
-
-type entry struct {
-	pkg   *packages.Package
-	err   error
-	ready chan struct{}
-}
-
-func (v *View) checkMetadata(f *File) (*importer, error) {
+func (v *View) checkMetadata(ctx context.Context, f *File) error {
 	filename, err := f.URI.Filename()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	imp := &importer{
-		View:    v,
-		entries: make(map[string]*entry),
-	}
-	if v.reparseImports(f, filename) {
+	if v.reparseImports(ctx, f, filename) {
 		cfg := v.Config
 		cfg.Mode = packages.LoadImports
 		pkgs, err := packages.Load(&cfg, fmt.Sprintf("file=%s", filename))
@@ -105,7 +99,7 @@ func (v *View) checkMetadata(f *File) (*importer, error) {
 			if err == nil {
 				err = fmt.Errorf("no packages found for %s", filename)
 			}
-			return nil, err
+			return err
 		}
 		for _, pkg := range pkgs {
 			// If the package comes back with errors from `go list`, don't bother
@@ -113,23 +107,23 @@ func (v *View) checkMetadata(f *File) (*importer, error) {
 			for _, err := range pkg.Errors {
 				switch err.Kind {
 				case packages.UnknownError, packages.ListError:
-					return nil, err
+					return err
 				}
 			}
 			v.link(pkg.PkgPath, pkg, nil)
 		}
 	}
-	return imp, nil
+	return nil
 }
 
 // reparseImports reparses a file's import declarations to determine if they
 // have changed.
-func (v *View) reparseImports(f *File, filename string) bool {
+func (v *View) reparseImports(ctx context.Context, f *File, filename string) bool {
 	if f.meta == nil {
 		return true
 	}
 	// Get file content in case we don't already have it?
-	f.read()
+	f.read(ctx)
 	parsed, _ := parser.ParseFile(v.Config.Fset, filename, f.content, parser.ImportsOnly)
 	if parsed == nil {
 		return true
@@ -186,23 +180,23 @@ func (v *View) link(pkgPath string, pkg *packages.Package, parent *metadata) *me
 	return m
 }
 
-func (imp *importer) Import(pkgPath string) (*types.Package, error) {
-	imp.mu.Lock()
-	e, ok := imp.entries[pkgPath]
+func (v *View) Import(pkgPath string) (*types.Package, error) {
+	v.pcache.mu.Lock()
+	e, ok := v.pcache.packages[pkgPath]
 	if ok {
 		// cache hit
-		imp.mu.Unlock()
+		v.pcache.mu.Unlock()
 		// wait for entry to become ready
 		<-e.ready
 	} else {
 		// cache miss
 		e = &entry{ready: make(chan struct{})}
-		imp.entries[pkgPath] = e
-		imp.mu.Unlock()
+		v.pcache.packages[pkgPath] = e
+		v.pcache.mu.Unlock()
 
 		// This goroutine becomes responsible for populating
 		// the entry and broadcasting its readiness.
-		e.pkg, e.err = imp.typeCheck(pkgPath)
+		e.pkg, e.err = v.typeCheck(pkgPath)
 		close(e.ready)
 	}
 	if e.err != nil {
@@ -211,8 +205,8 @@ func (imp *importer) Import(pkgPath string) (*types.Package, error) {
 	return e.pkg.Types, nil
 }
 
-func (imp *importer) typeCheck(pkgPath string) (*packages.Package, error) {
-	meta, ok := imp.mcache.packages[pkgPath]
+func (v *View) typeCheck(pkgPath string) (*packages.Package, error) {
+	meta, ok := v.mcache.packages[pkgPath]
 	if !ok {
 		return nil, fmt.Errorf("no metadata for %v", pkgPath)
 	}
@@ -229,7 +223,7 @@ func (imp *importer) typeCheck(pkgPath string) (*packages.Package, error) {
 		PkgPath:         meta.pkgPath,
 		CompiledGoFiles: meta.files,
 		Imports:         make(map[string]*packages.Package),
-		Fset:            imp.Config.Fset,
+		Fset:            v.Config.Fset,
 		Types:           typ,
 		TypesInfo: &types.Info{
 			Types:      make(map[ast.Expr]types.TypeAndValue),
@@ -243,24 +237,35 @@ func (imp *importer) typeCheck(pkgPath string) (*packages.Package, error) {
 		TypesSizes: &types.StdSizes{},
 	}
 	appendError := func(err error) {
-		imp.appendPkgError(pkg, err)
+		v.appendPkgError(pkg, err)
 	}
-	files, errs := imp.parseFiles(pkg.CompiledGoFiles)
+	files, errs := v.parseFiles(meta.files)
 	for _, err := range errs {
 		appendError(err)
 	}
 	pkg.Syntax = files
 	cfg := &types.Config{
 		Error:    appendError,
-		Importer: imp,
+		Importer: v,
 	}
-	check := types.NewChecker(cfg, imp.Config.Fset, pkg.Types, pkg.TypesInfo)
+	check := types.NewChecker(cfg, v.Config.Fset, pkg.Types, pkg.TypesInfo)
 	check.Files(pkg.Syntax)
+
+	// Set imports of package to correspond to cached packages. This is
+	// necessary for go/analysis, but once we merge its approach with the
+	// current caching system, we can eliminate this.
+	v.pcache.mu.Lock()
+	for importPath := range meta.children {
+		if importEntry, ok := v.pcache.packages[importPath]; ok {
+			pkg.Imports[importPath] = importEntry.pkg
+		}
+	}
+	v.pcache.mu.Unlock()
 
 	return pkg, nil
 }
 
-func (imp *importer) appendPkgError(pkg *packages.Package, err error) {
+func (v *View) appendPkgError(pkg *packages.Package, err error) {
 	if err == nil {
 		return
 	}
@@ -283,7 +288,7 @@ func (imp *importer) appendPkgError(pkg *packages.Package, err error) {
 		}
 	case types.Error:
 		errs = append(errs, packages.Error{
-			Pos:  imp.Config.Fset.Position(err.Pos).String(),
+			Pos:  v.Config.Fset.Position(err.Pos).String(),
 			Msg:  err.Msg,
 			Kind: packages.TypeError,
 		})

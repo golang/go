@@ -17,7 +17,7 @@ import (
 // package does not directly access the file system.
 type View interface {
 	GetFile(ctx context.Context, uri URI) (File, error)
-	SetContent(ctx context.Context, uri URI, content []byte) (View, error)
+	SetContent(ctx context.Context, uri URI, content []byte) error
 	GetAnalysisCache() *AnalysisCache
 	FileSet() *token.FileSet
 }
@@ -27,11 +27,11 @@ type View interface {
 // building blocks for most queries. Users of the source package can abstract
 // the loading of packages into their own caching systems.
 type File interface {
-	GetAST() *ast.File
-	GetFileSet() *token.FileSet
-	GetPackage() *packages.Package
-	GetToken() *token.File
-	GetContent() []byte
+	GetAST(ctx context.Context) *ast.File
+	GetFileSet(ctx context.Context) *token.FileSet
+	GetPackage(ctx context.Context) *packages.Package
+	GetToken(ctx context.Context) *token.File
+	GetContent(ctx context.Context) []byte
 }
 
 // Range represents a start and end position.

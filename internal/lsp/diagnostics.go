@@ -21,6 +21,10 @@ func (s *server) cacheAndDiagnose(ctx context.Context, uri protocol.DocumentURI,
 		return // handle error?
 	}
 	go func() {
+		ctx := s.view.BackgroundContext()
+		if ctx.Err() != nil {
+			return
+		}
 		reports, err := source.Diagnostics(ctx, s.view, sourceURI)
 		if err != nil {
 			return // handle error?
@@ -35,16 +39,7 @@ func (s *server) cacheAndDiagnose(ctx context.Context, uri protocol.DocumentURI,
 }
 
 func (s *server) setContent(ctx context.Context, uri source.URI, content []byte) error {
-	v, err := s.view.SetContent(ctx, uri, content)
-	if err != nil {
-		return err
-	}
-
-	s.viewMu.Lock()
-	s.view = v
-	s.viewMu.Unlock()
-
-	return nil
+	return s.view.SetContent(ctx, uri, content)
 }
 
 func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []source.Diagnostic) []protocol.Diagnostic {

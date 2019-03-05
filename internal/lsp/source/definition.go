@@ -48,10 +48,10 @@ func Identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 	return result, err
 }
 
-func (i *IdentifierInfo) Hover(q types.Qualifier) (string, error) {
+func (i *IdentifierInfo) Hover(ctx context.Context, q types.Qualifier) (string, error) {
 	if q == nil {
-		fAST := i.File.GetAST()
-		pkg := i.File.GetPackage()
+		fAST := i.File.GetAST(ctx)
+		pkg := i.File.GetPackage(ctx)
 		q = qualifier(fAST, pkg.Types, pkg.TypesInfo)
 	}
 	return types.ObjectString(i.Declaration.Object, q), nil
@@ -59,8 +59,8 @@ func (i *IdentifierInfo) Hover(q types.Qualifier) (string, error) {
 
 // identifier checks a single position for a potential identifier.
 func identifier(ctx context.Context, v View, f File, pos token.Pos) (*IdentifierInfo, error) {
-	fAST := f.GetAST()
-	pkg := f.GetPackage()
+	fAST := f.GetAST(ctx)
+	pkg := f.GetPackage(ctx)
 	path, _ := astutil.PathEnclosingInterval(fAST, pos, pos)
 	result := &IdentifierInfo{
 		File: f,

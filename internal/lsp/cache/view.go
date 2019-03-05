@@ -17,6 +17,14 @@ type View struct {
 	// mu protects all mutable state of the view.
 	mu sync.Mutex
 
+	// backgroundCtx is the current context used by background tasks initiated
+	// by the view.
+	backgroundCtx context.Context
+
+	// cancel is called when all action being performed by the current view
+	// should be stopped.
+	cancel context.CancelFunc
+
 	// Config is the configuration used for the view's interaction with the
 	// go/packages API. It is shared across all views.
 	Config packages.Config
@@ -24,8 +32,17 @@ type View struct {
 	// files caches information for opened files in a view.
 	files map[source.URI]*File
 
+	// contentChanges saves the content changes for a given state of the view.
+	// When type information is requested by the view, all of the dirty changes
+	// are applied, potentially invalidating some data in the caches. The
+	// closures  in the dirty slice assume that their caller is holding the
+	// view's mutex.
+	contentChanges map[source.URI]func()
+
 	// mcache caches metadata for the packages of the opened files in a view.
 	mcache *metadataCache
+
+	pcache *packageCache
 
 	analysisCache *source.AnalysisCache
 }
@@ -41,14 +58,40 @@ type metadata struct {
 	parents, children map[string]bool
 }
 
+type packageCache struct {
+	mu       sync.Mutex
+	packages map[string]*entry
+}
+
+type entry struct {
+	pkg   *packages.Package
+	err   error
+	ready chan struct{} // closed to broadcast ready condition
+}
+
 func NewView(config *packages.Config) *View {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &View{
-		Config: *config,
-		files:  make(map[source.URI]*File),
+		backgroundCtx:  ctx,
+		cancel:         cancel,
+		Config:         *config,
+		files:          make(map[source.URI]*File),
+		contentChanges: make(map[source.URI]func()),
 		mcache: &metadataCache{
 			packages: make(map[string]*metadata),
 		},
+		pcache: &packageCache{
+			packages: make(map[string]*entry),
+		},
 	}
+}
+
+func (v *View) BackgroundContext() context.Context {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	return v.backgroundCtx
 }
 
 func (v *View) FileSet() *token.FileSet {
@@ -60,45 +103,57 @@ func (v *View) GetAnalysisCache() *source.AnalysisCache {
 	return v.analysisCache
 }
 
-func (v *View) copyView() *View {
-	return &View{
-		Config: v.Config,
-		files:  make(map[source.URI]*File),
-		mcache: v.mcache,
-	}
-}
-
-// SetContent sets the overlay contents for a file. A nil content value will
-// remove the file from the active set and revert it to its on-disk contents.
-func (v *View) SetContent(ctx context.Context, uri source.URI, content []byte) (source.View, error) {
+// SetContent sets the overlay contents for a file.
+func (v *View) SetContent(ctx context.Context, uri source.URI, content []byte) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	newView := v.copyView()
+	// Cancel all still-running previous requests, since they would be
+	// operating on stale data.
+	v.cancel()
+	v.backgroundCtx, v.cancel = context.WithCancel(context.Background())
 
-	for fURI, f := range v.files {
-		newView.files[fURI] = &File{
-			URI:     fURI,
-			view:    newView,
-			active:  f.active,
-			content: f.content,
-			ast:     f.ast,
-			token:   f.token,
-			pkg:     f.pkg,
-			meta:    f.meta,
-			imports: f.imports,
-		}
+	v.contentChanges[uri] = func() {
+		v.applyContentChange(uri, content)
 	}
 
-	f := newView.getFile(uri)
+	return nil
+}
+
+// applyContentChanges applies all of the changed content stored in the view.
+// It is assumed that the caller has locked both the view's and the mcache's
+// mutexes.
+func (v *View) applyContentChanges(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
+	v.pcache.mu.Lock()
+	defer v.pcache.mu.Unlock()
+
+	for uri, change := range v.contentChanges {
+		change()
+		delete(v.contentChanges, uri)
+	}
+
+	return nil
+}
+
+// setContent applies a content update for a given file. It assumes that the
+// caller is holding the view's mutex.
+func (v *View) applyContentChange(uri source.URI, content []byte) {
+	f := v.getFile(uri)
 	f.content = content
 
-	// Resetting the contents invalidates the ast, token, and pkg fields.
+	// TODO(rstambler): Should we recompute these here?
 	f.ast = nil
 	f.token = nil
-	f.pkg = nil
 
-	// We might need to update the overlay.
+	// Remove the package and all of its reverse dependencies from the cache.
+	if f.pkg != nil {
+		v.remove(f.pkg.PkgPath)
+	}
+
 	switch {
 	case f.active && content == nil:
 		// The file was active, so we need to forget its content.
@@ -114,17 +169,40 @@ func (v *View) SetContent(ctx context.Context, uri source.URI, content []byte) (
 			f.view.Config.Overlay[filename] = f.content
 		}
 	}
+}
 
-	return newView, nil
+// remove invalidates a package and its reverse dependencies in the view's
+// package cache. It is assumed that the caller has locked both the mutexes
+// of both the mcache and the pcache.
+func (v *View) remove(pkgPath string) {
+	m, ok := v.mcache.packages[pkgPath]
+	if !ok {
+		return
+	}
+	for parentPkgPath := range m.parents {
+		v.remove(parentPkgPath)
+	}
+	// All of the files in the package may also be holding a pointer to the
+	// invalidated package.
+	for _, filename := range m.files {
+		if f, ok := v.files[source.ToURI(filename)]; ok {
+			f.pkg = nil
+		}
+	}
+	delete(v.pcache.packages, pkgPath)
 }
 
 // GetFile returns a File for the given URI. It will always succeed because it
 // adds the file to the managed set if needed.
 func (v *View) GetFile(ctx context.Context, uri source.URI) (source.File, error) {
 	v.mu.Lock()
-	f := v.getFile(uri)
-	v.mu.Unlock()
-	return f, nil
+	defer v.mu.Unlock()
+
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	return v.getFile(uri), nil
 }
 
 // getFile is the unlocked internal implementation of GetFile.

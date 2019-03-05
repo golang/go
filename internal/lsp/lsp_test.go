@@ -400,7 +400,7 @@ func (f formats) test(t *testing.T, s *server) {
 				})
 			}
 		}
-		split := strings.SplitAfter(string(f.GetContent()), "\n")
+		split := strings.SplitAfter(string(f.GetContent(context.Background())), "\n")
 		got := strings.Join(diff.ApplyEdits(split, ops), "")
 		if gofmted != got {
 			t.Errorf("format failed for %s: expected '%v', got '%v'", filename, gofmted, got)
