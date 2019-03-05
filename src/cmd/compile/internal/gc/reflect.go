@@ -477,12 +477,10 @@ func dimportpath(p *types.Pkg) {
 		return
 	}
 
-	var str string
+	str := p.Path
 	if p == localpkg {
 		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
 		str = myimportpath
-	} else {
-		str = p.Path
 	}
 
 	s := Ctxt.Lookup("type..importpath." + p.Prefix + ".")
