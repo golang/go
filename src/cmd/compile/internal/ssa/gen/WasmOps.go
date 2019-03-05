@@ -191,6 +191,19 @@ func init() {
 		{name: "I64TruncF64U", asm: "I64TruncF64U", argLength: 1, reg: regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}, typ: "Int64"},       // truncates the float arg0 to an unsigned integer
 		{name: "F64ConvertI64S", asm: "F64ConvertI64S", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the signed integer arg0 to a float
 		{name: "F64ConvertI64U", asm: "F64ConvertI64U", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the unsigned integer arg0 to a float
+
+		{name: "F64Sqrt", asm: "F64Sqrt", argLength: 1, reg: fp11, typ: "Float64"},         // sqrt(arg0)
+		{name: "F64Trunc", asm: "F64Trunc", argLength: 1, reg: fp11, typ: "Float64"},       // trunc(arg0)
+		{name: "F64Ceil", asm: "F64Ceil", argLength: 1, reg: fp11, typ: "Float64"},         // ceil(arg0)
+		{name: "F64Floor", asm: "F64Floor", argLength: 1, reg: fp11, typ: "Float64"},       // floor(arg0)
+		{name: "F64Nearest", asm: "F64Nearest", argLength: 1, reg: fp11, typ: "Float64"},   // round(arg0)
+		{name: "F64Abs", asm: "F64Abs", argLength: 1, reg: fp11, typ: "Float64"},           // abs(arg0)
+		{name: "F64Copysign", asm: "F64Copysign", argLength: 2, reg: fp21, typ: "Float64"}, // copysign(arg0, arg1)
+
+		{name: "I64Ctz", asm: "I64Ctz", argLength: 1, reg: gp11, typ: "Int64"},       // ctz(arg0)
+		{name: "I64Clz", asm: "I64Clz", argLength: 1, reg: gp11, typ: "Int64"},       // clz(arg0)
+		{name: "I64Rotl", asm: "I64Rotl", argLength: 2, reg: gp21, typ: "Int64"},     // rotl(arg0, arg1)
+		{name: "I64Popcnt", asm: "I64Popcnt", argLength: 1, reg: gp11, typ: "Int64"}, // popcnt(arg0)
 	}
 
 	archs = append(archs, arch{
