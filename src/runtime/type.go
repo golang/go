@@ -118,10 +118,7 @@ func (t *_type) name() string {
 	}
 	s := t.string()
 	i := len(s) - 1
-	for i >= 0 {
-		if s[i] == '.' {
-			break
-		}
+	for i >= 0 && s[i] != '.' {
 		i--
 	}
 	return s[i+1:]

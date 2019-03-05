@@ -3116,11 +3116,9 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	if l != nil {
 		// Handle both == and !=.
 		eq := n.Op
-		var andor Op
+		andor := OOROR
 		if eq == OEQ {
 			andor = OANDAND
-		} else {
-			andor = OOROR
 		}
 		// Check for types equal.
 		// For empty interface, this is:

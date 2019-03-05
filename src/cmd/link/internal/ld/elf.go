@@ -1290,11 +1290,9 @@ func elfshreloc(arch *sys.Arch, sect *sym.Section) *ElfShdr {
 		return nil
 	}
 
-	var typ int
+	typ := SHT_REL
 	if elfRelType == ".rela" {
 		typ = SHT_RELA
-	} else {
-		typ = SHT_REL
 	}
 
 	sh := elfshname(elfRelType + sect.Name)
