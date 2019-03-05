@@ -357,6 +357,31 @@
 // Write barrier.
 (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
 
+// --- Intrinsics ---
+(Sqrt x) -> (F64Sqrt x)
+(Trunc x) -> (F64Trunc x)
+(Ceil x) -> (F64Ceil x)
+(Floor x) -> (F64Floor x)
+(RoundToEven x) -> (F64Nearest x)
+(Abs x) -> (F64Abs x)
+(Copysign x y) -> (F64Copysign x y)
+
+(Ctz64 x) -> (I64Ctz x)
+(Ctz32 x) -> (I64Ctz (I64Or x (I64Const [0x100000000])))
+(Ctz16 x) -> (I64Ctz (I64Or x (I64Const [0x10000])))
+(Ctz8  x) -> (I64Ctz (I64Or x (I64Const [0x100])))
+
+(Ctz(64|32|16|8)NonZero x) -> (I64Ctz x)
+
+(BitLen64 x) -> (I64Sub (I64Const [64]) (I64Clz x))
+
+(RotateLeft64 x y) -> (I64Rotl x y)
+
+(PopCount64 x) -> (I64Popcnt x)
+(PopCount32 x) -> (I64Popcnt (ZeroExt32to64 x))
+(PopCount16 x) -> (I64Popcnt (ZeroExt16to64 x))
+(PopCount8  x) -> (I64Popcnt (ZeroExt8to64  x))
+
 // --- Optimizations ---
 (I64Add (I64Const [x]) (I64Const [y])) -> (I64Const [x + y])
 (I64Mul (I64Const [x]) (I64Const [y])) -> (I64Const [x * y])
