@@ -1122,7 +1122,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.As == AMOVW && c.ctxt.Arch.Family == sys.MIPS64 {
 			// on MIPS64, most of the 32-bit instructions have unpredictable behavior,
 			// but SLL is special that the result is always sign-extended to 64-bit.
-			a = ASLL // sign-extended to high 32 bits
+			a = ASLL
 		}
 		o1 = OP_RRR(c.oprrr(a), uint32(p.From.Reg), uint32(REGZERO), uint32(p.To.Reg))
 
