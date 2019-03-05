@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package env provides environment information for the godoc server running on
-// golang.org.
-package env
+// Package golangorgenv provides environment information for programs running at
+// golang.org and its subdomains.
+package golangorgenv
 
 import (
 	"log"
@@ -13,14 +13,13 @@ import (
 )
 
 var (
-	isProd       = boolEnv("GODOC_PROD")
-	enforceHosts = boolEnv("GODOC_ENFORCE_HOSTS")
+	checkCountry = boolEnv("GOLANGORG_CHECK_COUNTRY")
+	enforceHosts = boolEnv("GOLANGORG_ENFORCE_HOSTS")
 )
 
-// IsProd reports whether the server is running in its production configuration
-// on golang.org.
-func IsProd() bool {
-	return isProd
+// CheckCountry reports whether country restrictions should be enforced.
+func CheckCountry() bool {
+	return checkCountry
 }
 
 // EnforceHosts reports whether host filtering should be enforced.
@@ -31,6 +30,8 @@ func EnforceHosts() bool {
 func boolEnv(key string) bool {
 	v := os.Getenv(key)
 	if v == "" {
+		// TODO(dmitshur): In the future, consider detecting if running in App Engine,
+		// and if so, making the environment variables mandatory rather than optional.
 		return false
 	}
 	b, err := strconv.ParseBool(v)
