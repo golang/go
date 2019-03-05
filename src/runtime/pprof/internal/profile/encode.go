@@ -207,6 +207,11 @@ var profileDecoder = []decoder{
 // suffix X) and populates the corresponding exported fields.
 // The unexported fields are cleared up to facilitate testing.
 func (p *Profile) postDecode() error {
+	// Return nil for backwards-compatibility on empty profile.
+	if p.Empty() {
+		return nil
+	}
+
 	var err error
 
 	mappings := make(map[uint64]*Mapping)
