@@ -10,7 +10,6 @@ import (
 	"go/types"
 	"internal/testenv"
 	"io/ioutil"
-	"os"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -19,22 +18,7 @@ import (
 	"time"
 )
 
-func TestMain(m *testing.M) {
-	// Add -mod=vendor to GOFLAGS to ensure that we don't fetch modules while importing std or cmd.
-	//
-	// TODO(golang.org/issue/30240): If we load go.mod files from vendor/
-	// automatically, this will probably no longer be necessary.
-	var goflags []string
-	for _, f := range strings.Fields(os.Getenv("GOFLAGS")) {
-		if !strings.HasPrefix(f, "-mod=") && !strings.HasPrefix(f, "--mod=") {
-			goflags = append(goflags, f)
-		}
-	}
-	goflags = append(goflags, "-mod=vendor")
-	os.Setenv("GOFLAGS", strings.Join(goflags, " "))
-
-	os.Exit(m.Run())
-}
+func init() { testenv.SetModVendor() }
 
 const maxTime = 2 * time.Second
 

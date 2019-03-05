@@ -32,6 +32,8 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
+	testenv.SetModVendor()
+
 	dir, err := ioutil.TempDir("", "vet_test")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
