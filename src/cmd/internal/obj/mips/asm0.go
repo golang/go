@@ -1120,9 +1120,11 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 1: /* mov r1,r2 ==> OR r1,r0,r2 */
 		a := AOR
 		if p.As == AMOVW && c.ctxt.Arch.Family == sys.MIPS64 {
-			a = AADDU // sign-extended to high 32 bits
+			// on MIPS64, most of the 32-bit instructions have unpredictable behavior,
+			// but SLL is special that the result is always sign-extended to 64-bit.
+			a = ASLL
 		}
-		o1 = OP_RRR(c.oprrr(a), uint32(REGZERO), uint32(p.From.Reg), uint32(p.To.Reg))
+		o1 = OP_RRR(c.oprrr(a), uint32(p.From.Reg), uint32(REGZERO), uint32(p.To.Reg))
 
 	case 2: /* add/sub r1,[r2],r3 */
 		r := int(p.Reg)
