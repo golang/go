@@ -38,6 +38,8 @@ func TestLargeSymName(t *testing.T) {
 	_ = AuthorPaidByTheColumnInch
 }
 
+func init() { testenv.SetModVendor() }
+
 func TestIssue21703(t *testing.T) {
 	t.Parallel()
 

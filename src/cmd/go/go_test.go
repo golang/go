@@ -212,7 +212,9 @@ func TestMain(m *testing.M) {
 			return
 		}
 
-		out, err := exec.Command(gotool, args...).CombinedOutput()
+		buildCmd := exec.Command(gotool, args...)
+		buildCmd.Env = append(os.Environ(), "GOFLAGS=-mod=vendor")
+		out, err := buildCmd.CombinedOutput()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "building testgo failed: %v\n%s", err, out)
 			os.Exit(2)

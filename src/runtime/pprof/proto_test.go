@@ -301,6 +301,8 @@ func TestProcSelfMaps(t *testing.T) {
 	})
 }
 
+func init() { testenv.SetModVendor() }
+
 // TestMapping checkes the mapping section of CPU profiles
 // has the HasFunctions field set correctly. If all PCs included
 // in the samples are successfully symbolized, the corresponding

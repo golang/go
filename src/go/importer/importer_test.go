@@ -16,6 +16,8 @@ import (
 	"testing"
 )
 
+func init() { testenv.SetModVendor() }
+
 func TestForCompiler(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 

@@ -134,6 +134,8 @@ func parseOutput(t *testing.T, td *ParsedTestData, asmout []byte) {
 	}
 }
 
+func init() { testenv.SetModVendor() }
+
 func TestDynlink(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
