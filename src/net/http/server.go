@@ -749,10 +749,8 @@ func (cr *connReader) handleReadError(_ error) {
 // may be called from multiple goroutines.
 func (cr *connReader) closeNotify() {
 	res, _ := cr.conn.curReq.Load().(*response)
-	if res != nil {
-		if atomic.CompareAndSwapInt32(&res.didCloseNotify, 0, 1) {
-			res.closeNotifyCh <- true
-		}
+	if res != nil && atomic.CompareAndSwapInt32(&res.didCloseNotify, 0, 1) {
+		res.closeNotifyCh <- true
 	}
 }
 

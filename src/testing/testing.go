@@ -1303,20 +1303,18 @@ func toOutputDir(path string) string {
 	if *outputDir == "" || path == "" {
 		return path
 	}
-	if runtime.GOOS == "windows" {
-		// On Windows, it's clumsy, but we can be almost always correct
-		// by just looking for a drive letter and a colon.
-		// Absolute paths always have a drive letter (ignoring UNC).
-		// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
-		// what to do, but even then path/filepath doesn't help.
-		// TODO: Worth doing better? Probably not, because we're here only
-		// under the management of go test.
-		if len(path) >= 2 {
-			letter, colon := path[0], path[1]
-			if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
-				// If path starts with a drive letter we're stuck with it regardless.
-				return path
-			}
+	// On Windows, it's clumsy, but we can be almost always correct
+	// by just looking for a drive letter and a colon.
+	// Absolute paths always have a drive letter (ignoring UNC).
+	// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
+	// what to do, but even then path/filepath doesn't help.
+	// TODO: Worth doing better? Probably not, because we're here only
+	// under the management of go test.
+	if runtime.GOOS == "windows" && len(path) >= 2 {
+		letter, colon := path[0], path[1]
+		if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
+			// If path starts with a drive letter we're stuck with it regardless.
+			return path
 		}
 	}
 	if os.IsPathSeparator(path[0]) {
