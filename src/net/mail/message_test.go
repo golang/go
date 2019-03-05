@@ -144,6 +144,9 @@ func TestAddressParsingError(t *testing.T) {
 		12: {"root group: embed group: null@example.com;", "no angle-addr"},
 		13: {"group not closed: null@example.com", "expected comma"},
 		14: {"group: first@example.com, second@example.com;", "group with multiple addresses"},
+		15: {"john.doe", "missing '@' or angle-addr"},
+		16: {"john.doe@", "no angle-addr"},
+		17: {"John Doe@foo.bar", "no angle-addr"},
 	}
 
 	for i, tc := range mustErrTestCases {
