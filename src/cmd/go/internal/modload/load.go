@@ -212,7 +212,18 @@ func ImportPaths(patterns []string) []*search.Match {
 // if dir is in the module cache copy of a module in our build list.
 func pathInModuleCache(dir string) string {
 	for _, m := range buildList[1:] {
-		root, err := modfetch.DownloadDir(m)
+		var root string
+		var err error
+		if repl := Replacement(m); repl.Path != "" && repl.Version == "" {
+			root = repl.Path
+			if !filepath.IsAbs(root) {
+				root = filepath.Join(ModRoot(), root)
+			}
+		} else if repl.Path != "" {
+			root, err = modfetch.DownloadDir(repl)
+		} else {
+			root, err = modfetch.DownloadDir(m)
+		}
 		if err != nil {
 			continue
 		}
