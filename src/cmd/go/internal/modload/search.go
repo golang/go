@@ -112,6 +112,11 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 		walkPkgs(cfg.GOROOTsrc, "")
 	}
 
+	if cfg.BuildMod == "vendor" {
+		walkPkgs(filepath.Join(ModRoot(), "vendor"), "")
+		return pkgs
+	}
+
 	for _, mod := range modules {
 		if !treeCanMatch(mod.Path) {
 			continue
