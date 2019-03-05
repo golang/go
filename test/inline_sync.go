@@ -1,4 +1,4 @@
-// +build !nacl,!386
+// +build !nacl,!386,!wasm,!arm,!gcflags_noopt
 // errorcheck -0 -m
 
 // Copyright 2019 The Go Authors. All rights reserved.
