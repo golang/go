@@ -8,10 +8,14 @@ package net
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"internal/bytealg"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
+	"unsafe"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
@@ -86,11 +90,12 @@ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string,
 		order = hostLookupFilesDNS
 	}
 
-	// darwin has unique resolution files, use libSystem binding
-	// even if cgo is disabled.
+	// darwin has unique resolution files, use libSystem binding if cgo is disabled.
 	if runtime.GOOS == "darwin" {
-		//
-
+		addrs, err := resSearch(ctx, host, int32(dnsmessage.TypeALL), int32(dnsmessage.ClassINET))
+		if err == nil {
+			return addrs, nil
+		}
 		// something went wrong, fallback to Go's DNS resolver
 	}
 
@@ -106,7 +111,16 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 		if addrs, err, ok := cgoLookupIP(ctx, network, host); ok {
 			return addrs, err
 		}
-		// cgo not available (or netgo); fall back to Go's DNS resolver
+
+		// darwin has unique resolution files, use libSystem binding if cgo is disabled.
+		if runtime.GOOS == "darwin" {
+			addrs, err := resSearch(ctx, host, int32(dnsmessage.TypeALL), int32(dnsmessage.ClassINET))
+			if err == nil {
+				return addrs, nil
+			}
+			// something went wrong, fallback to Go's DNS resolver
+		}
+
 		order = hostLookupFilesDNS
 	}
 	ips, _, err := r.goLookupIPCNAMEOrder(ctx, host, order)
@@ -135,6 +149,16 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error)
 			return cname, err
 		}
 	}
+
+	// darwin has unique resolution files, use libSystem binding if cgo is not an option.
+	if runtime.GOOS == "darwin" {
+		addrs, err := resSearch(ctx, host, int32(dnsmessage.TypeCNAME), int32(dnsmessage.ClassINET))
+		if err == nil {
+			return addrs, nil
+		}
+		// something went wrong, fallback to Go's DNS resolver
+	}
+
 	return r.goLookupCNAME(ctx, name)
 }
 
@@ -361,3 +385,77 @@ func concurrentThreadsLimit() int {
 	}
 	return r
 }
+
+// resSearch is a darwin specific function. It will make a call to the 'res_search' routine in libSystem
+// and parse the output as a slice of IPAddr's
+func resSearch(ctx context.Context, hostname string, rtype, class int32) ([]string, error) {
+
+	var byteHostname = []byte(hostname)
+	var responseBuffer = [512]byte{}
+
+	retcode := res_search(&byteHostname[0], class, rtype, &responseBuffer[0], 512)
+	if retcode < 0 {
+		return nil, errors.New("could not complete domain resolution")
+	}
+
+	msg := &dnsmessage.Message{}
+	err := msg.Unpack(responseBuffer[:])
+	if err != nil {
+		return nil, fmt.Errorf("could not parse dns response: %s", err.Error())
+	}
+
+	// parse received answers
+	var dnsParser dnsmessage.Parser
+
+	if _, err := dnsParser.Start(responseBuffer); err != nil {
+		return nil, err
+	}
+
+	var answers []string
+	for {
+		h, err := dnsParser.AnswerHeader()
+		if err == dnsmessage.ErrSectionDone {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		if (h.Type != dnsmessage.TypeA && h.Type != dnsmessage.TypeAAAA) ||
+			h.Class != dnsmessage.ClassINET {
+			continue
+		}
+
+		if !strings.EqualFold(h.Name.String(), hostname) {
+			if err := p.SkipAnswer(); err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		switch h.Type {
+		case dnsmessage.TypeA:
+			r, err := dnsParser.AResource()
+			if err != nil {
+				return nil, err
+			}
+			answers = append(answers, fmt.Strinf("%s", r.A))
+		case dnsmessage.TypeAAAA:
+			r, err := dnsParser.AAAAResource()
+			if err != nil {
+				return nil, err
+			}
+			answers = append(answers, fmt.Strinf("%s", r.AAAA))
+		}
+	}
+	return answers, nil
+}
+
+//go:nosplit
+//go:cgo_unsafe_args
+func res_search(name *byte, class int32, rtype int32, answer *byte, anslen int32) int32 {
+	return libcCall(unsafe.Pointer(funcPC(res_search_trampoline)), unsafe.Pointer(&name))
+}
+func res_search_trampoline()
+
+//go:cgo_import_dynamic libc_res_search res_search "/usr/lib/libSystem.B.dylib"
