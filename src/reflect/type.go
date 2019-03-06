@@ -2674,43 +2674,48 @@ func StructOf(fields []StructField) Type {
 			}
 		}
 		prog := []byte{0, 0, 0, 0} // will be length of prog
+		var off uintptr
 		for i, ft := range fs {
 			if i > lastPtrField {
 				// gcprog should not include anything for any field after
 				// the last field that contains pointer data
 				break
 			}
-			// FIXME(sbinet) handle padding, fields smaller than a word
+			if !ft.typ.pointers() {
+				// Ignore pointerless fields.
+				continue
+			}
+			// Pad to start of this field with zeros.
+			if ft.offset() > off {
+				n := (ft.offset() - off) / ptrSize
+				prog = append(prog, 0x01, 0x00) // emit a 0 bit
+				if n > 1 {
+					prog = append(prog, 0x81)      // repeat previous bit
+					prog = appendVarint(prog, n-1) // n-1 times
+				}
+				off = ft.offset()
+			}
+
 			elemGC := (*[1 << 30]byte)(unsafe.Pointer(ft.typ.gcdata))[:]
 			elemPtrs := ft.typ.ptrdata / ptrSize
-			switch {
-			case ft.typ.kind&kindGCProg == 0 && ft.typ.ptrdata != 0:
+			if ft.typ.kind&kindGCProg == 0 {
 				// Element is small with pointer mask; use as literal bits.
 				mask := elemGC
 				// Emit 120-bit chunks of full bytes (max is 127 but we avoid using partial bytes).
 				var n uintptr
-				for n := elemPtrs; n > 120; n -= 120 {
+				for n = elemPtrs; n > 120; n -= 120 {
 					prog = append(prog, 120)
 					prog = append(prog, mask[:15]...)
 					mask = mask[15:]
 				}
 				prog = append(prog, byte(n))
 				prog = append(prog, mask[:(n+7)/8]...)
-			case ft.typ.kind&kindGCProg != 0:
+			} else {
 				// Element has GC program; emit one element.
 				elemProg := elemGC[4 : 4+*(*uint32)(unsafe.Pointer(&elemGC[0]))-1]
 				prog = append(prog, elemProg...)
 			}
-			// Pad from ptrdata to size.
-			elemWords := ft.typ.size / ptrSize
-			if elemPtrs < elemWords {
-				// Emit literal 0 bit, then repeat as needed.
-				prog = append(prog, 0x01, 0x00)
-				if elemPtrs+1 < elemWords {
-					prog = append(prog, 0x81)
-					prog = appendVarint(prog, elemWords-elemPtrs-1)
-				}
-			}
+			off += ft.typ.ptrdata
 		}
 		prog = append(prog, 0)
 		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
