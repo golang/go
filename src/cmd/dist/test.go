@@ -579,6 +579,17 @@ func (t *tester) registerTests() {
 				return nil
 			},
 		})
+		// Also test a cgo package.
+		if t.cgoEnabled {
+			t.tests = append(t.tests, distTest{
+				name:    "pie_internal_cgo",
+				heading: "internal linking of -buildmode=pie",
+				fn: func(dt *distTest) error {
+					t.addCmd(dt, "src", t.goTest(), "os/user", "-buildmode=pie", "-ldflags=-linkmode=internal", t.timeout(60))
+					return nil
+				},
+			})
+		}
 	}
 
 	// sync tests
