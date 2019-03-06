@@ -484,8 +484,9 @@ var (
 	pkgArgs          []string
 	pkgs             []*load.Package
 
-	testKillTimeout = 10 * time.Minute
-	testCacheExpire time.Time // ignore cached test results before this time
+	testActualTimeout = 10 * time.Minute                  // actual timeout which is passed to tests
+	testKillTimeout   = testActualTimeout + 1*time.Minute // backup alarm
+	testCacheExpire   time.Time                           // ignore cached test results before this time
 )
 
 // testVetFlags is the list of flags to pass to vet when invoked automatically during go test.
@@ -552,11 +553,19 @@ func runTest(cmd *base.Command, args []string) {
 	// the test wedges with a goroutine spinning and its background
 	// timer does not get a chance to fire.
 	if dt, err := time.ParseDuration(testTimeout); err == nil && dt > 0 {
-		testKillTimeout = dt + 1*time.Minute
+		testActualTimeout = dt
+		testKillTimeout = testActualTimeout + 1*time.Minute
 	} else if err == nil && dt == 0 {
 		// An explicit zero disables the test timeout.
+		// No timeout is passed to tests.
 		// Let it have one century (almost) before we kill it.
+		testActualTimeout = -1
 		testKillTimeout = 100 * 365 * 24 * time.Hour
+	}
+
+	// Pass timeout to tests if it exists.
+	if testActualTimeout > 0 {
+		testArgs = append(testArgs, "-test.timeout="+testActualTimeout.String())
 	}
 
 	// show passing test output (after buffering) with -v flag.
