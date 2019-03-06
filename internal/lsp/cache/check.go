@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
 )
@@ -52,7 +53,7 @@ func (v *View) parse(ctx context.Context, uri source.URI) error {
 	}
 	// Type-check package.
 	pkg, err := v.typeCheck(f.meta.pkgPath)
-	if pkg == nil || pkg.Types == nil {
+	if pkg == nil || pkg.GetTypes() == nil {
 		return err
 	}
 	// Add every file in this package to our cache.
@@ -65,8 +66,8 @@ func (v *View) parse(ctx context.Context, uri source.URI) error {
 	return nil
 }
 
-func (v *View) cachePackage(pkg *packages.Package) {
-	for _, file := range pkg.Syntax {
+func (v *View) cachePackage(pkg *Package) {
+	for _, file := range pkg.GetSyntax() {
 		// TODO: If a file is in multiple packages, which package do we store?
 		if !file.Pos().IsValid() {
 			log.Printf("invalid position for file %v", file.Name)
@@ -202,10 +203,10 @@ func (v *View) Import(pkgPath string) (*types.Package, error) {
 	if e.err != nil {
 		return nil, e.err
 	}
-	return e.pkg.Types, nil
+	return e.pkg.types, nil
 }
 
-func (v *View) typeCheck(pkgPath string) (*packages.Package, error) {
+func (v *View) typeCheck(pkgPath string) (*Package, error) {
 	meta, ok := v.mcache.packages[pkgPath]
 	if !ok {
 		return nil, fmt.Errorf("no metadata for %v", pkgPath)
@@ -217,15 +218,13 @@ func (v *View) typeCheck(pkgPath string) (*packages.Package, error) {
 	} else {
 		typ = types.NewPackage(meta.pkgPath, meta.name)
 	}
-	pkg := &packages.Package{
-		ID:              meta.id,
-		Name:            meta.name,
-		PkgPath:         meta.pkgPath,
-		CompiledGoFiles: meta.files,
-		Imports:         make(map[string]*packages.Package),
-		Fset:            v.Config.Fset,
-		Types:           typ,
-		TypesInfo: &types.Info{
+	pkg := &Package{
+		id:      meta.id,
+		pkgPath: meta.pkgPath,
+		files:   meta.files,
+		imports: make(map[string]*Package),
+		types:   typ,
+		typesInfo: &types.Info{
 			Types:      make(map[ast.Expr]types.TypeAndValue),
 			Defs:       make(map[*ast.Ident]types.Object),
 			Uses:       make(map[*ast.Ident]types.Object),
@@ -233,8 +232,7 @@ func (v *View) typeCheck(pkgPath string) (*packages.Package, error) {
 			Selections: make(map[*ast.SelectorExpr]*types.Selection),
 			Scopes:     make(map[ast.Node]*types.Scope),
 		},
-		// TODO(rstambler): Get real TypeSizes from go/packages (golang.org/issues/30139).
-		TypesSizes: &types.StdSizes{},
+		analyses: make(map[*analysis.Analyzer]*analysisEntry),
 	}
 	appendError := func(err error) {
 		v.appendPkgError(pkg, err)
@@ -243,29 +241,30 @@ func (v *View) typeCheck(pkgPath string) (*packages.Package, error) {
 	for _, err := range errs {
 		appendError(err)
 	}
-	pkg.Syntax = files
+	pkg.syntax = files
 	cfg := &types.Config{
 		Error:    appendError,
 		Importer: v,
 	}
-	check := types.NewChecker(cfg, v.Config.Fset, pkg.Types, pkg.TypesInfo)
-	check.Files(pkg.Syntax)
+	check := types.NewChecker(cfg, v.Config.Fset, pkg.types, pkg.typesInfo)
+	check.Files(pkg.syntax)
 
-	// Set imports of package to correspond to cached packages. This is
-	// necessary for go/analysis, but once we merge its approach with the
-	// current caching system, we can eliminate this.
+	// Set imports of package to correspond to cached packages.
+	// We lock the package cache, but we shouldn't get any inconsistencies
+	// because we are still holding the lock on the view.
 	v.pcache.mu.Lock()
+	defer v.pcache.mu.Unlock()
+
 	for importPath := range meta.children {
 		if importEntry, ok := v.pcache.packages[importPath]; ok {
-			pkg.Imports[importPath] = importEntry.pkg
+			pkg.imports[importPath] = importEntry.pkg
 		}
 	}
-	v.pcache.mu.Unlock()
 
 	return pkg, nil
 }
 
-func (v *View) appendPkgError(pkg *packages.Package, err error) {
+func (v *View) appendPkgError(pkg *Package, err error) {
 	if err == nil {
 		return
 	}
@@ -293,7 +292,7 @@ func (v *View) appendPkgError(pkg *packages.Package, err error) {
 			Kind: packages.TypeError,
 		})
 	}
-	pkg.Errors = append(pkg.Errors, errs...)
+	pkg.errors = append(pkg.errors, errs...)
 }
 
 // We use a counting semaphore to limit

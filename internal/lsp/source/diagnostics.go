@@ -61,11 +61,11 @@ func Diagnostics(ctx context.Context, v View, uri URI) (map[string][]Diagnostic,
 	pkg := f.GetPackage(ctx)
 	// Prepare the reports we will send for this package.
 	reports := make(map[string][]Diagnostic)
-	for _, filename := range pkg.CompiledGoFiles {
+	for _, filename := range pkg.GetFilenames() {
 		reports[filename] = []Diagnostic{}
 	}
 	var parseErrors, typeErrors []packages.Error
-	for _, err := range pkg.Errors {
+	for _, err := range pkg.GetErrors() {
 		switch err.Kind {
 		case packages.ParseError:
 			parseErrors = append(parseErrors, err)
@@ -117,13 +117,12 @@ func Diagnostics(ctx context.Context, v View, uri URI) (map[string][]Diagnostic,
 		return reports, nil
 	}
 	// Type checking and parsing succeeded. Run analyses.
-	runAnalyses(v.GetAnalysisCache(), pkg, func(a *analysis.Analyzer, diag analysis.Diagnostic) {
-		pos := pkg.Fset.Position(diag.Pos)
+	runAnalyses(ctx, v, pkg, func(a *analysis.Analyzer, diag analysis.Diagnostic) {
+		pos := v.FileSet().Position(diag.Pos)
 		category := a.Name
 		if diag.Category != "" {
 			category += "." + category
 		}
-
 		reports[pos.Filename] = append(reports[pos.Filename], Diagnostic{
 			Source:   category,
 			Range:    Range{Start: diag.Pos, End: diag.Pos},
@@ -186,7 +185,7 @@ func identifierEnd(content []byte, l, c int) (int, error) {
 	return bytes.IndexAny(line[c-1:], " \n,():;[]"), nil
 }
 
-func runAnalyses(c *AnalysisCache, pkg *packages.Package, report func(a *analysis.Analyzer, diag analysis.Diagnostic)) error {
+func runAnalyses(ctx context.Context, v View, pkg Package, report func(a *analysis.Analyzer, diag analysis.Diagnostic)) error {
 	// the traditional vet suite:
 	analyzers := []*analysis.Analyzer{
 		asmdecl.Analyzer,
@@ -213,7 +212,7 @@ func runAnalyses(c *AnalysisCache, pkg *packages.Package, report func(a *analysi
 		unusedresult.Analyzer,
 	}
 
-	roots := c.analyze([]*packages.Package{pkg}, analyzers)
+	roots := analyze(ctx, v, []Package{pkg}, analyzers)
 
 	// Report diagnostics and errors from root analyzers.
 	for _, r := range roots {
@@ -223,7 +222,7 @@ func runAnalyses(c *AnalysisCache, pkg *packages.Package, report func(a *analysi
 				// which isn't super useful...
 				return r.err
 			}
-			report(r.a, diag)
+			report(r.Analyzer, diag)
 		}
 	}
 

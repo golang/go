@@ -77,16 +77,16 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 	// Save certain facts about the query position, including the expected type
 	// of the completion result, the signature of the function enclosing the
 	// position.
-	typ := expectedType(path, pos, pkg.TypesInfo)
-	sig := enclosingFunction(path, pos, pkg.TypesInfo)
-	pkgStringer := qualifier(file, pkg.Types, pkg.TypesInfo)
+	typ := expectedType(path, pos, pkg.GetTypesInfo())
+	sig := enclosingFunction(path, pos, pkg.GetTypesInfo())
+	pkgStringer := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
 	preferTypeNames := wantTypeNames(pos, path)
 
 	seen := make(map[types.Object]bool)
 	// found adds a candidate completion.
 	// Only the first candidate of a given name is considered.
 	found := func(obj types.Object, weight float64, items []CompletionItem) []CompletionItem {
-		if obj.Pkg() != nil && obj.Pkg() != pkg.Types && !obj.Exported() {
+		if obj.Pkg() != nil && obj.Pkg() != pkg.GetTypes() && !obj.Exported() {
 			return items // inaccessible
 		}
 
@@ -107,7 +107,7 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 	}
 
 	// The position is within a composite literal.
-	if items, prefix, ok := complit(path, pos, pkg.Types, pkg.TypesInfo, found); ok {
+	if items, prefix, ok := complit(path, pos, pkg.GetTypes(), pkg.GetTypesInfo(), found); ok {
 		return items, prefix, nil
 	}
 	switch n := path[0].(type) {
@@ -117,39 +117,39 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 
 		// Is this the Sel part of a selector?
 		if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
-			items, err = selector(sel, pos, pkg.TypesInfo, found)
+			items, err = selector(sel, pos, pkg.GetTypesInfo(), found)
 			return items, prefix, err
 		}
 		// reject defining identifiers
-		if obj, ok := pkg.TypesInfo.Defs[n]; ok {
+		if obj, ok := pkg.GetTypesInfo().Defs[n]; ok {
 			if v, ok := obj.(*types.Var); ok && v.IsField() {
 				// An anonymous field is also a reference to a type.
 			} else {
 				of := ""
 				if obj != nil {
-					qual := types.RelativeTo(pkg.Types)
+					qual := types.RelativeTo(pkg.GetTypes())
 					of += ", of " + types.ObjectString(obj, qual)
 				}
 				return nil, "", fmt.Errorf("this is a definition%s", of)
 			}
 		}
 
-		items = append(items, lexical(path, pos, pkg.Types, pkg.TypesInfo, found)...)
+		items = append(items, lexical(path, pos, pkg.GetTypes(), pkg.GetTypesInfo(), found)...)
 
 	// The function name hasn't been typed yet, but the parens are there:
 	//   recv.‸(arg)
 	case *ast.TypeAssertExpr:
 		// Create a fake selector expression.
-		items, err = selector(&ast.SelectorExpr{X: n.X}, pos, pkg.TypesInfo, found)
+		items, err = selector(&ast.SelectorExpr{X: n.X}, pos, pkg.GetTypesInfo(), found)
 		return items, prefix, err
 
 	case *ast.SelectorExpr:
-		items, err = selector(n, pos, pkg.TypesInfo, found)
+		items, err = selector(n, pos, pkg.GetTypesInfo(), found)
 		return items, prefix, err
 
 	default:
 		// fallback to lexical completions
-		return lexical(path, pos, pkg.Types, pkg.TypesInfo, found), "", nil
+		return lexical(path, pos, pkg.GetTypes(), pkg.GetTypesInfo(), found), "", nil
 	}
 	return items, prefix, nil
 }

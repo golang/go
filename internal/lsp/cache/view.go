@@ -43,8 +43,6 @@ type View struct {
 	mcache *metadataCache
 
 	pcache *packageCache
-
-	analysisCache *source.AnalysisCache
 }
 
 type metadataCache struct {
@@ -64,7 +62,7 @@ type packageCache struct {
 }
 
 type entry struct {
-	pkg   *packages.Package
+	pkg   *Package
 	err   error
 	ready chan struct{} // closed to broadcast ready condition
 }
@@ -96,11 +94,6 @@ func (v *View) BackgroundContext() context.Context {
 
 func (v *View) FileSet() *token.FileSet {
 	return v.Config.Fset
-}
-
-func (v *View) GetAnalysisCache() *source.AnalysisCache {
-	v.analysisCache = source.NewAnalysisCache()
-	return v.analysisCache
 }
 
 // SetContent sets the overlay contents for a file.
@@ -151,7 +144,7 @@ func (v *View) applyContentChange(uri source.URI, content []byte) {
 
 	// Remove the package and all of its reverse dependencies from the cache.
 	if f.pkg != nil {
-		v.remove(f.pkg.PkgPath)
+		v.remove(f.pkg.pkgPath)
 	}
 
 	switch {

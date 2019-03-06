@@ -52,7 +52,7 @@ func (i *IdentifierInfo) Hover(ctx context.Context, q types.Qualifier) (string, 
 	if q == nil {
 		fAST := i.File.GetAST(ctx)
 		pkg := i.File.GetPackage(ctx)
-		q = qualifier(fAST, pkg.Types, pkg.TypesInfo)
+		q = qualifier(fAST, pkg.GetTypes(), pkg.GetTypesInfo())
 	}
 	return types.ObjectString(i.Declaration.Object, q), nil
 }
@@ -84,7 +84,7 @@ func identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 	}
 	result.Name = result.ident.Name
 	result.Range = Range{Start: result.ident.Pos(), End: result.ident.End()}
-	result.Declaration.Object = pkg.TypesInfo.ObjectOf(result.ident)
+	result.Declaration.Object = pkg.GetTypesInfo().ObjectOf(result.ident)
 	if result.Declaration.Object == nil {
 		return nil, fmt.Errorf("no object for ident %v", result.Name)
 	}
@@ -101,7 +101,7 @@ func identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 	if result.Declaration.Range, err = objToRange(ctx, v, result.Declaration.Object); err != nil {
 		return nil, err
 	}
-	typ := pkg.TypesInfo.TypeOf(result.ident)
+	typ := pkg.GetTypesInfo().TypeOf(result.ident)
 	if typ == nil {
 		return nil, fmt.Errorf("no type for %s", result.Name)
 	}

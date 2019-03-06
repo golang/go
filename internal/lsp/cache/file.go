@@ -10,7 +10,6 @@ import (
 	"go/token"
 	"io/ioutil"
 
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
 )
 
@@ -22,7 +21,7 @@ type File struct {
 	content []byte
 	ast     *ast.File
 	token   *token.File
-	pkg     *packages.Package
+	pkg     *Package
 	meta    *metadata
 	imports []*ast.ImportSpec
 }
@@ -67,7 +66,7 @@ func (f *File) GetAST(ctx context.Context) *ast.File {
 	return f.ast
 }
 
-func (f *File) GetPackage(ctx context.Context) *packages.Package {
+func (f *File) GetPackage(ctx context.Context) source.Package {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
 

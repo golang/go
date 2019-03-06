@@ -124,8 +124,8 @@ func buildGuruDefinition(ctx context.Context, view source.View, ident *source.Id
 	// Behavior that attempts to match the expected output for guru. For an example
 	// of the format, see the associated definition tests.
 	buf := &bytes.Buffer{}
-	q := types.RelativeTo(pkg.Types)
-	qualifyName := ident.Declaration.Object.Pkg() != pkg.Types
+	q := types.RelativeTo(pkg.GetTypes())
+	qualifyName := ident.Declaration.Object.Pkg() != pkg.GetTypes()
 	name := ident.Name
 	var suffix interface{}
 	switch obj := ident.Declaration.Object.(type) {
