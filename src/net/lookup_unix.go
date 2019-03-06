@@ -421,6 +421,7 @@ func resSearch(ctx context.Context, hostname string, rtype, class int32) ([]stri
 			return nil, err
 		}
 
+		//FIXME: also need CNAME here?
 		if (h.Type != dnsmessage.TypeA && h.Type != dnsmessage.TypeAAAA) ||
 			h.Class != dnsmessage.ClassINET {
 			continue
