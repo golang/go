@@ -32,6 +32,10 @@ func buildGodoc(t *testing.T) (bin string, cleanup func()) {
 	if runtime.GOARCH == "arm" {
 		t.Skip("skipping test on arm platforms; too slow")
 	}
+	if runtime.GOOS == "android" {
+		t.Skipf("the dependencies are not available on android")
+	}
+
 	tmp, err := ioutil.TempDir("", "godoc-regtest-")
 	if err != nil {
 		t.Fatal(err)

@@ -1277,10 +1277,10 @@ func main() {
 }
 
 func TestDiff(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skipf("diff tool non-existent for windows on builders")
-	}
-	if runtime.GOOS == "plan9" {
+	switch runtime.GOOS {
+	case "windows", "android":
+		t.Skipf("diff tool non-existent for %s on builders", runtime.GOOS)
+	case "plan9":
 		t.Skipf("plan9 diff tool doesn't support -u flag")
 	}
 

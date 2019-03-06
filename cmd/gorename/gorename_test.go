@@ -312,6 +312,9 @@ func g() { fmt.Println(test.Foo(3)) }
 // buildGorename builds the gorename executable.
 // It returns its path, and a cleanup function.
 func buildGorename(t *testing.T) (tmp, bin string, cleanup func()) {
+	if runtime.GOOS == "android" {
+		t.Skipf("the dependencies are not available on android")
+	}
 
 	tmp, err := ioutil.TempDir("", "gorename-regtest-")
 	if err != nil {

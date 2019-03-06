@@ -7,12 +7,16 @@ package static
 import (
 	"bytes"
 	"io/ioutil"
+	"runtime"
 	"strconv"
 	"testing"
 	"unicode"
 )
 
 func TestStaticIsUpToDate(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skip("files not available on android")
+	}
 	oldBuf, err := ioutil.ReadFile("static.go")
 	if err != nil {
 		t.Errorf("error while reading static.go: %v\n", err)
