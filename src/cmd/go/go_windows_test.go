@@ -16,6 +16,8 @@ import (
 )
 
 func TestAbsolutePath(t *testing.T) {
+	t.Parallel()
+
 	tmp, err := ioutil.TempDir("", "TestAbsolutePath")
 	if err != nil {
 		t.Fatal(err)
@@ -33,21 +35,11 @@ func TestAbsolutePath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(wd)
-
-	// Chdir so current directory and a.go reside on the same drive.
-	err = os.Chdir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	noVolume := file[len(filepath.VolumeName(file)):]
 	wrongPath := filepath.Join(dir, noVolume)
-	output, err := exec.Command(testenv.GoToolPath(t), "build", noVolume).CombinedOutput()
+	cmd := exec.Command(testenv.GoToolPath(t), "build", noVolume)
+	cmd.Dir = dir
+	output, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatal("build should fail")
 	}
@@ -79,6 +71,8 @@ func runGetACL(t *testing.T, path string) string {
 // has discretionary access control list (DACL) set as if the file
 // was created in the destination directory.
 func TestACL(t *testing.T) {
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "TestACL")
 	if err != nil {
 		t.Fatal(err)
@@ -102,11 +96,16 @@ func TestACL(t *testing.T) {
 
 	src := filepath.Join(tmpdir, "main.go")
 	err = ioutil.WriteFile(src, []byte("package main; func main() { }\n"), 0644)
+	if err == nil {
+		err = ioutil.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte("module TestACL\n"), 0644)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	exe := filepath.Join(tmpdir, "main.exe")
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, src)
+	cmd.Dir = tmpdir
 	cmd.Env = append(os.Environ(),
 		"TMP="+newtmpdir,
 		"TEMP="+newtmpdir,
