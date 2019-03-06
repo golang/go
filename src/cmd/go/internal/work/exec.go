@@ -422,24 +422,12 @@ func (b *Builder) build(a *Action) (err error) {
 	}
 
 	if a.Package.BinaryOnly {
-		_, err := os.Stat(a.Package.Target)
-		if err == nil {
-			a.built = a.Package.Target
-			a.Target = a.Package.Target
-			if b.NeedExport {
-				a.Package.Export = a.Package.Target
-			}
-			a.buildID = b.fileHash(a.Package.Target)
-			a.Package.Stale = false
-			a.Package.StaleReason = "binary-only package"
-			return nil
-		}
-		a.Package.Stale = true
-		a.Package.StaleReason = "missing or invalid binary-only package"
+		p.Stale = true
+		p.StaleReason = "binary-only packages are no longer supported"
 		if b.IsCmdList {
 			return nil
 		}
-		return fmt.Errorf("missing or invalid binary-only package; expected file %q", a.Package.Target)
+		return errors.New("binary-only packages are no longer supported")
 	}
 
 	if err := b.Mkdir(a.Objdir); err != nil {

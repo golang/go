@@ -4206,9 +4206,9 @@ func TestBinaryOnlyPackages(t *testing.T) {
 
 		package p1
 	`)
-	tg.wantStale("p1", "missing or invalid binary-only package", "p1 is binary-only but has no binary, should be stale")
+	tg.wantStale("p1", "binary-only packages are no longer supported", "p1 is binary-only, and this message should always be printed")
 	tg.runFail("install", "p1")
-	tg.grepStderr("missing or invalid binary-only package", "did not report attempt to compile binary-only package")
+	tg.grepStderr("binary-only packages are no longer supported", "did not report attempt to compile binary-only package")
 
 	tg.tempFile("src/p1/p1.go", `
 		package p1
@@ -4234,48 +4234,13 @@ func TestBinaryOnlyPackages(t *testing.T) {
 		import _ "fmt"
 		func G()
 	`)
-	tg.wantNotStale("p1", "binary-only package", "should NOT want to rebuild p1 (first)")
-	tg.run("install", "-x", "p1") // no-op, up to date
-	tg.grepBothNot(`[\\/]compile`, "should not have run compiler")
-	tg.run("install", "p2") // does not rebuild p1 (or else p2 will fail)
-	tg.wantNotStale("p2", "", "should NOT want to rebuild p2")
+	tg.wantStale("p1", "binary-only package", "should NOT want to rebuild p1 (first)")
+	tg.runFail("install", "p2")
+	tg.grepStderr("p1: binary-only packages are no longer supported", "did not report error for binary-only p1")
 
-	// changes to the non-source-code do not matter,
-	// and only one file needs the special comment.
-	tg.tempFile("src/p1/missing2.go", `
-		package p1
-		func H()
-	`)
-	tg.wantNotStale("p1", "binary-only package", "should NOT want to rebuild p1 (second)")
-	tg.wantNotStale("p2", "", "should NOT want to rebuild p2")
-
-	tg.tempFile("src/p3/p3.go", `
-		package main
-		import (
-			"p1"
-			"p2"
-		)
-		func main() {
-			p1.F(false)
-			p2.F()
-		}
-	`)
-	tg.run("install", "p3")
-
-	tg.run("run", tg.path("src/p3/p3.go"))
-	tg.grepStdout("hello from p1", "did not see message from p1")
-
-	tg.tempFile("src/p4/p4.go", `package main`)
-	// The odd string split below avoids vet complaining about
-	// a // +build line appearing too late in this source file.
-	tg.tempFile("src/p4/p4not.go", `//go:binary-only-package
-
-		/`+`/ +build asdf
-
-		package main
-	`)
-	tg.run("list", "-f", "{{.BinaryOnly}}", "p4")
-	tg.grepStdout("false", "did not see BinaryOnly=false for p4")
+	tg.run("list", "-deps", "-f", "{{.ImportPath}}: {{.BinaryOnly}}", "p2")
+	tg.grepStdout("p1: true", "p1 not listed as BinaryOnly")
+	tg.grepStdout("p2: false", "p2 listed as BinaryOnly")
 }
 
 // Issue 16050.

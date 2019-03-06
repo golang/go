@@ -60,7 +60,7 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
         StaleReason   string   // explanation for Stale==true
         Root          string   // Go root or Go path dir containing this package
         ConflictDir   string   // this directory shadows Dir in $GOPATH
-        BinaryOnly    bool     // binary-only package: cannot be recompiled from sources
+        BinaryOnly    bool     // binary-only package (no longer supported)
         ForTest       string   // package is only for use in named test
         Export        string   // file containing export data (when using -export)
         Module        *Module  // info about package's containing module, if any (can be nil)
