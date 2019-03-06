@@ -1515,6 +1515,8 @@ func testConfigDefaultEnv(t *testing.T, exporter packagestest.Exporter) {
 		driverScript packagestest.Writer
 	)
 	switch runtime.GOOS {
+	case "android":
+		t.Skip("doesn't run on android")
 	case "windows":
 		// TODO(jayconrod): write an equivalent batch script for windows.
 		// Hint: "type" can be used to read a file to stdout.
