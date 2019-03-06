@@ -2712,6 +2712,7 @@ func StructOf(fields []StructField) Type {
 				}
 			}
 		}
+		prog = append(prog, 0)
 		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
 		typ.kind |= kindGCProg
 		typ.gcdata = &prog[0]
