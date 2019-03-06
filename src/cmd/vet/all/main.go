@@ -42,7 +42,7 @@ var failed uint32 // updated atomically
 
 func main() {
 	log.SetPrefix("vet/all: ")
-	log.SetFlags(0)
+	log.SetFlags(log.Lshortfile)
 
 	testenv.SetModVendor()
 	var err error
@@ -78,9 +78,10 @@ var hostPlatform = platform{os: build.Default.GOOS, arch: build.Default.GOARCH}
 func allPlatforms() []platform {
 	var pp []platform
 	cmd := exec.Command(cmdGoPath, "tool", "dist", "list")
+	cmd.Stderr = new(strings.Builder)
 	out, err := cmd.Output()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
 	}
 	lines := bytes.Split(out, []byte{'\n'})
 	for _, line := range lines {
@@ -222,22 +223,61 @@ func (p platform) vet() {
 	w := make(whitelist)
 	w.load(p.os, p.arch)
 
-	tmpdir, err := ioutil.TempDir("", "cmd-vet-all")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	var vetCmd []string
 
-	// Build the go/packages-based vet command from the x/tools
-	// repo. It is considerably faster than "go vet", which rebuilds
-	// the standard library.
-	vetTool := filepath.Join(tmpdir, "vet")
-	cmd := exec.Command(cmdGoPath, "build", "-o", vetTool, "golang.org/x/tools/go/analysis/cmd/vet")
-	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stderr
-	if err := cmd.Run(); err != nil {
-		log.Fatal(err)
+	if os.Getenv("GO_BUILDER_NAME") == "" {
+		vetCmd = []string{cmdGoPath, "vet"}
+	} else {
+		// Build the go/packages-based vet command from the x/tools
+		// repo. It is considerably faster than "go vet", which rebuilds
+		// the standard library.
+		tmpdir, err := ioutil.TempDir("", "cmd-vet-all")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer os.RemoveAll(tmpdir)
+
+		vetTool := filepath.Join(tmpdir, "vet")
+		vetCmd = []string{
+			vetTool,
+			"-nilness=0", // expensive, uses SSA
+		}
+
+		cmd := exec.Command(cmdGoPath, "build", "-o", vetTool, "golang.org/x/tools/go/analysis/cmd/vet")
+		cmd.Env = os.Environ()
+
+		// golang.org/x/tools does not have a vendor directory, so don't try to use
+		// one in module mode.
+		for i, v := range cmd.Env {
+			if strings.HasPrefix(v, "GOFLAGS=") {
+				var goflags []string
+				for _, f := range strings.Fields(strings.TrimPrefix(v, "GOFLAGS=")) {
+					if f != "-mod=vendor" && f != "--mod=vendor" {
+						goflags = append(goflags, f)
+					}
+				}
+				cmd.Env[i] = strings.Join(goflags, " ")
+			}
+		}
+
+		// The coordinator places a copy of golang.org/x/tools in GOPATH.
+		// If we can find it there, use that specific version.
+		for _, gp := range filepath.SplitList(os.Getenv("GOPATH")) {
+			gopathDir := filepath.Join(gp, "src", "golang.org", "x", "tools", "go", "analysis", "cmd", "vet")
+			if _, err := os.Stat(gopathDir); err == nil {
+				cmd.Dir = gopathDir
+			}
+		}
+		if cmd.Dir == "" {
+			// Otherwise, move to tmpdir and let the module loader resolve the latest version.
+			cmd.Dir = tmpdir
+		}
+
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stderr
+		if err := cmd.Run(); err != nil {
+			log.Fatalf("%s: %v", strings.Join(cmd.Args, " "), err)
+		}
 	}
 
 	// TODO: The unsafeptr checks are disabled for now,
@@ -245,13 +285,13 @@ func (p platform) vet() {
 	// and no clear way to improve vet to eliminate large chunks of them.
 	// And having them in the whitelists will just cause annoyance
 	// and churn when working on the runtime.
-	cmd = exec.Command(vetTool,
-		"-unsafeptr=0",
-		"-nilness=0", // expensive, uses SSA
-		"std",
-		"cmd/...",
-		"cmd/compile/internal/gc/testdata",
-	)
+	cmd := exec.Command(vetCmd[0],
+		append(vetCmd[1:],
+			"-unsafeptr=0",
+			"std",
+			"cmd/...",
+			"cmd/compile/internal/gc/testdata",
+		)...)
 	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
 	cmd.Env = append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch, "CGO_ENABLED=0")
 	stderr, err := cmd.StderrPipe()
@@ -321,7 +361,7 @@ NextLine:
 		if file == "" {
 			if !parseFailed {
 				parseFailed = true
-				fmt.Fprintf(os.Stderr, "failed to parse %s vet output:\n", p)
+				fmt.Fprintf(os.Stderr, "failed to parse %s output:\n# %s\n", p, strings.Join(cmd.Args, " "))
 			}
 			fmt.Fprintln(os.Stderr, line)
 			continue
