@@ -46,6 +46,9 @@ func testMain(m *testing.M) int {
 }
 
 func TestTestRun(t *testing.T) {
+	if os.Getenv("GOOS") == "android" {
+		t.Skip("subpackage stdio is not available on android")
+	}
 	out, err := exec.Command("go", "env", "GOROOT").Output()
 	if err != nil {
 		t.Fatal(err)
