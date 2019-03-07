@@ -93,7 +93,7 @@ static void* thread1(void* arg __attribute__ ((unused))) {
 		fprintf(stderr, "sigaltstack disabled on return from Go\n");
 		ok = 0;
 	} else if (nss.ss_sp != ss.ss_sp) {
-		fprintf(stderr, "sigalstack changed on return from Go\n");
+		fprintf(stderr, "sigaltstack changed on return from Go\n");
 		ok = 0;
 	}
 
@@ -150,7 +150,7 @@ static void* thread2(void* arg __attribute__ ((unused))) {
 		fprintf(stderr, "sigaltstack disabled on return from Go\n");
 		ok = 0;
 	} else if (nss.ss_sp != ss.ss_sp) {
-		fprintf(stderr, "sigalstack changed on return from Go\n");
+		fprintf(stderr, "sigaltstack changed on return from Go\n");
 		ok = 0;
 	}
 

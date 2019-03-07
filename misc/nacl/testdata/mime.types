@@ -1,6 +1,6 @@
 # This file maps Internet media types to unique file extension(s).
 # Although created for httpd, this file is used by many software systems
-# and has been placed in the public domain for unlimited redisribution.
+# and has been placed in the public domain for unlimited redistribution.
 #
 # The table below contains both registered and (common) unregistered types.
 # A type that has no unique extension can be ignored -- they are listed
