@@ -123,15 +123,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	if kind == kindOpenFile {
 		var st syscall.Stat_t
 		switch runtime.GOOS {
-		case "freebsd":
-			// On FreeBSD before 10.4 it used to crash the
-			// system unpredictably while running all.bash.
-			// When we stop supporting FreeBSD 10 we can merge
-			// this into the dragonfly/netbsd/openbsd case.
-			// Issue 27619.
-			pollable = false
-
-		case "dragonfly", "netbsd", "openbsd":
+		case "dragonfly", "freebsd", "netbsd", "openbsd":
 			// Don't try to use kqueue with regular files on *BSDs.
 			// On FreeBSD a regular file is always
 			// reported as ready for writing.
