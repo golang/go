@@ -151,6 +151,7 @@ type Type struct {
 	Go         ast.Expr
 	EnumValues map[string]int64
 	Typedef    string
+	BadPointer bool
 }
 
 // A FuncType collects information about a function type in both the C and Go worlds.
