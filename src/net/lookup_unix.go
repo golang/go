@@ -386,9 +386,9 @@ func concurrentThreadsLimit() int {
 	return r
 }
 
-// resSearch is a darwin specific function. It will make a call to the 'res_search' routine in libSystem
+// resolverSearch is a darwin specific function. It will make a call to the 'res_search' routine in libSystem
 // and parse the output as a slice of IPAddr's
-func resSearch(ctx context.Context, hostname string, rtype, class int32) ([]string, error) {
+func resolverSearch(ctx context.Context, hostname string, rtype, class int32) ([]string, error) {
 
 	var byteHostname = []byte(hostname)
 	var responseBuffer = [512]byte{}
@@ -419,12 +419,6 @@ func resSearch(ctx context.Context, hostname string, rtype, class int32) ([]stri
 		}
 		if err != nil {
 			return nil, err
-		}
-
-		//FIXME: also need CNAME here?
-		if (h.Type != dnsmessage.TypeA && h.Type != dnsmessage.TypeAAAA) ||
-			h.Class != dnsmessage.ClassINET {
-			continue
 		}
 
 		if !strings.EqualFold(h.Name.String(), hostname) {
