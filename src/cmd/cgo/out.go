@@ -777,8 +777,8 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n\n")
 
 	// We use packed structs, but they are always aligned.
-	// The pragmas and address-of-packed-member are not recognized as warning groups in clang 3.4.1, so ignore unknown pragmas first.
-	// remove as part of #27619 (all: drop support for FreeBSD 10).
+	// The pragmas and address-of-packed-member are only recognized as
+	// warning groups in clang 4.0+, so ignore unknown pragmas first.
 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wunknown-pragmas\"\n")
 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Wpragmas\"\n")
 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Waddress-of-packed-member\"\n")
@@ -1480,10 +1480,11 @@ __cgo_size_assert(double, 8)
 
 extern char* _cgo_topofstack(void);
 
-/* We use packed structs, but they are always aligned.  */
-/* The pragmas and address-of-packed-member are not recognized as warning groups in clang 3.4.1, so ignore unknown pragmas first. */
-/* remove as part of #27619 (all: drop support for FreeBSD 10). */
-
+/*
+  We use packed structs, but they are always aligned.
+  The pragmas and address-of-packed-member are only recognized as warning
+  groups in clang 4.0+, so ignore unknown pragmas first.
+*/
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
