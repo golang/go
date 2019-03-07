@@ -97,6 +97,8 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 			fallthrough // 10**e == 5**e * 2**e
 		case 2:
 			exp2 += d
+		case 8:
+			exp2 += d * 3 // octal digits are 3 bits each
 		case 16:
 			exp2 += d * 4 // hexadecimal digits are 4 bits each
 		default:
@@ -222,21 +224,21 @@ func (z *Float) pow5(n uint64) *Float {
 //
 //	number   = [ sign ] [ prefix ] mantissa [ exponent ] | infinity .
 //	sign     = "+" | "-" .
-//	prefix   = "0" ( "x" | "X" | "b" | "B" ) .
+//	prefix   = "0" ( "b" | "B" | "o" | "O" | "x" | "X" ) .
 //	mantissa = digits | digits "." [ digits ] | "." digits .
 //	exponent = ( "e" | "E" | "p" | "P" ) [ sign ] digits .
 //	digits   = digit { digit } .
 //	digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
 //	infinity = [ sign ] ( "inf" | "Inf" ) .
 //
-// The base argument must be 0, 2, 10, or 16. Providing an invalid base
+// The base argument must be 0, 2, 8, 10, or 16. Providing an invalid base
 // argument will lead to a run-time panic.
 //
 // For base 0, the number prefix determines the actual base: A prefix of
-// "0x" or "0X" selects base 16, and a "0b" or "0B" prefix selects
-// base 2; otherwise, the actual base is 10 and no prefix is accepted.
-// The octal prefix "0" is not supported (a leading "0" is simply
-// considered a "0").
+// ``0b'' or ``0B'' selects base 2, ``0o'' or ``0O'' selects base 8, and
+// ``0x'' or ``0X'' selects base 16. Otherwise, the actual base is 10 and
+// no prefix is accepted. The octal prefix "0" is not supported (a leading
+// "0" is simply considered a "0").
 //
 // A "p" or "P" exponent indicates a binary (rather then decimal) exponent;
 // for instance "0x1.fffffffffffffp1023" (using base 0) represents the
