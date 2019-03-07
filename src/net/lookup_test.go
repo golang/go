@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -1091,6 +1092,69 @@ func TestLookupIPAddrPreservesContextValues(t *testing.T) {
 			t.Errorf("#%d: mismatched IPAddr results\n\tGot: %v\n\tWant: %v", i, gotIPs, wantIPs)
 		}
 	}
+}
+
+// Issue 30521: The lookup group should call the resolver for each network.
+func TestLookupIPAddrConcurrentCallsForNetworks(t *testing.T) {
+	origTestHookLookupIP := testHookLookupIP
+	defer func() { testHookLookupIP = origTestHookLookupIP }()
+
+	queries := [][]string{
+		{"udp", "golang.org"},
+		{"udp4", "golang.org"},
+		{"udp6", "golang.org"},
+		{"udp", "golang.org"},
+		{"udp", "golang.org"},
+	}
+	results := map[[2]string][]IPAddr{
+		{"udp", "golang.org"}: {
+			{IP: IPv4(127, 0, 0, 1)},
+			{IP: IPv6loopback},
+		},
+		{"udp4", "golang.org"}: {
+			{IP: IPv4(127, 0, 0, 1)},
+		},
+		{"udp6", "golang.org"}: {
+			{IP: IPv6loopback},
+		},
+	}
+	calls := int32(0)
+	waitCh := make(chan struct{})
+	testHookLookupIP = func(ctx context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
+		// We'll block until this is called one time for each different
+		// expected result. This will ensure that the lookup group would wait
+		// for the existing call if it was to be reused.
+		if atomic.AddInt32(&calls, 1) == int32(len(results)) {
+			close(waitCh)
+		}
+		select {
+		case <-waitCh:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		return results[[2]string{network, host}], nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	wg := sync.WaitGroup{}
+	for _, q := range queries {
+		network := q[0]
+		host := q[1]
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			gotIPs, err := DefaultResolver.lookupIPAddr(ctx, network, host)
+			if err != nil {
+				t.Errorf("lookupIPAddr(%v, %v): unexpected error: %v", network, host, err)
+			}
+			wantIPs := results[[2]string{network, host}]
+			if !reflect.DeepEqual(gotIPs, wantIPs) {
+				t.Errorf("lookupIPAddr(%v, %v): mismatched IPAddr results\n\tGot: %v\n\tWant: %v", network, host, gotIPs, wantIPs)
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 func TestWithUnexpiredValuesPreserved(t *testing.T) {
