@@ -61,25 +61,25 @@ func pow(x Word, n int) (p Word) {
 // a digit count, and a read or syntax error err, if any.
 //
 //     number   = [ prefix ] mantissa .
-//     prefix   = "0" [ "x" | "X" | "b" | "B" ] .
+//     prefix   = "0" [ "b" | "B" | "o" | "O" | "x" | "X" ] .
 //     mantissa = digits | digits "." [ digits ] | "." digits .
 //     digits   = digit { digit } .
 //     digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
 //
 // Unless fracOk is set, the base argument must be 0 or a value between
 // 2 and MaxBase. If fracOk is set, the base argument must be one of
-// 0, 2, 10, or 16. Providing an invalid base argument leads to a run-
+// 0, 2, 8, 10, or 16. Providing an invalid base argument leads to a run-
 // time panic.
 //
 // For base 0, the number prefix determines the actual base: A prefix of
-// ``0x'' or ``0X'' selects base 16; if fracOk is not set, the ``0'' prefix
-// selects base 8, and a ``0b'' or ``0B'' prefix selects base 2. Otherwise
+// ``0b'' or ``0B'' selects base 2, ``0o'' or ``0O'' selects base 8, and
+// ``0x'' or ``0X'' selects base 16. If fracOk is false, a ``0'' prefix
+// (immediately followed by digits) selects base 8 as well. Otherwise,
 // the selected base is 10 and no prefix is accepted.
 //
-// If fracOk is set, an octal prefix is ignored (a leading ``0'' simply
-// stands for a zero digit), and a period followed by a fractional part
-// is permitted. The result value is computed as if there were no period
-// present; and the count value is used to determine the fractional part.
+// If fracOk is set, a period followed by a fractional part is permitted.
+// The result value is computed as if there were no period present; and
+// the count value is used to determine the fractional part.
 //
 // For bases <= 36, lower and upper case letters are considered the same:
 // The letters 'a' to 'z' and 'A' to 'Z' represent digit values 10 to 35.
@@ -95,7 +95,7 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 	// reject illegal bases
 	baseOk := base == 0 ||
 		!fracOk && 2 <= base && base <= MaxBase ||
-		fracOk && (base == 2 || base == 10 || base == 16)
+		fracOk && (base == 2 || base == 8 || base == 10 || base == 16)
 	if !baseOk {
 		panic(fmt.Sprintf("illegal number base %d", base))
 	}
@@ -103,46 +103,44 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 	// one char look-ahead
 	ch, err := r.ReadByte()
 	if err != nil {
-		return
+		return // io.EOF is also an error in this case
 	}
 
 	// determine actual base
-	b = base
+	b, prefix := base, 0
 	if base == 0 {
 		// actual base is 10 unless there's a base prefix
 		b = 10
 		if ch == '0' {
 			count = 1
-			switch ch, err = r.ReadByte(); err {
-			case nil:
-				// possibly one of 0x, 0X, 0b, 0B
-				if !fracOk {
-					b = 8
+			ch, err = r.ReadByte()
+			if err != nil {
+				if err == io.EOF {
+					err = nil // not an error; input is "0"
+					res = z[:0]
 				}
-				switch ch {
-				case 'x', 'X':
-					b = 16
-				case 'b', 'B':
-					b = 2
-				}
-				switch b {
-				case 16, 2:
-					count = 0 // prefix is not counted
-					if ch, err = r.ReadByte(); err != nil {
-						// io.EOF is also an error in this case
-						return
-					}
-				case 8:
-					count = 0 // prefix is not counted
-				}
-			case io.EOF:
-				// input is "0"
-				res = z[:0]
-				err = nil
 				return
+			}
+			// possibly one of 0b, 0B, 0o, 0O, 0x, 0X
+			switch ch {
+			case 'b', 'B':
+				b, prefix = 2, 'b'
+			case 'o', 'O':
+				b, prefix = 8, 'o'
+			case 'x', 'X':
+				b, prefix = 16, 'x'
 			default:
-				// read error
-				return
+				if !fracOk {
+					b, prefix = 8, '0'
+				}
+			}
+			if prefix != 0 {
+				count = 0 // prefix is not counted
+				if prefix != '0' {
+					if ch, err = r.ReadByte(); err != nil {
+						return // io.EOF is also an error in this case
+					}
+				}
 			}
 		}
 	}
@@ -216,14 +214,12 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 
 	if count == 0 {
 		// no digits found
-		switch {
-		case base == 0 && b == 8:
+		if prefix == '0' {
 			// there was only the octal prefix 0 (possibly followed by digits > 7);
 			// count as one digit and return base 10, not 8
 			count = 1
 			b = 10
-		case base != 0 || b != 8:
-			// there was neither a mantissa digit nor the octal prefix 0
+		} else {
 			err = errors.New("syntax error scanning number")
 		}
 		return

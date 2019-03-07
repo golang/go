@@ -17,19 +17,24 @@ var stringTests = []struct {
 	val  int64
 	ok   bool
 }{
+	// invalid inputs
 	{in: ""},
 	{in: "a"},
 	{in: "z"},
 	{in: "+"},
 	{in: "-"},
 	{in: "0b"},
+	{in: "0o"},
 	{in: "0x"},
+	{in: "0y"},
 	{in: "2", base: 2},
 	{in: "0b2", base: 0},
 	{in: "08"},
 	{in: "8", base: 8},
 	{in: "0xg", base: 0},
 	{in: "g", base: 16},
+
+	// valid inputs
 	{"0", "0", 0, 0, true},
 	{"0", "0", 10, 0, true},
 	{"0", "0", 16, 0, true},
@@ -40,6 +45,8 @@ var stringTests = []struct {
 	{"10", "10", 16, 16, true},
 	{"-10", "-10", 16, -16, true},
 	{"+10", "10", 16, 16, true},
+	{"0b10", "2", 0, 2, true},
+	{"0o10", "8", 0, 8, true},
 	{"0x10", "16", 0, 16, true},
 	{in: "0x10", base: 16},
 	{"-0x10", "-16", 0, -16, true},

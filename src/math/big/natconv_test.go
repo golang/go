@@ -112,23 +112,31 @@ var natScanTests = []struct {
 	ok    bool   // expected success
 	next  rune   // next character (or 0, if at EOF)
 }{
-	// error: no mantissa
+	// invalid: no mantissa
 	{},
 	{s: "?"},
 	{base: 10},
 	{base: 36},
 	{base: 62},
 	{s: "?", base: 10},
+	{s: "0b"},
+	{s: "0o"},
 	{s: "0x"},
+	{s: "0b2"},
+	{s: "0B2"},
+	{s: "0o8"},
+	{s: "0O8"},
+	{s: "0xg"},
+	{s: "0Xg"},
 	{s: "345", base: 2},
 
-	// error: incorrect use of decimal point
+	// invalid: incorrect use of decimal point
 	{s: ".0"},
 	{s: ".0", base: 10},
 	{s: ".", base: 0},
 	{s: "0x.0"},
 
-	// no errors
+	// valid, no decimal point
 	{"0", 0, false, nil, 10, 1, true, 0},
 	{"0", 10, false, nil, 10, 1, true, 0},
 	{"0", 36, false, nil, 36, 1, true, 0},
@@ -136,11 +144,17 @@ var natScanTests = []struct {
 	{"1", 0, false, nat{1}, 10, 1, true, 0},
 	{"1", 10, false, nat{1}, 10, 1, true, 0},
 	{"0 ", 0, false, nil, 10, 1, true, ' '},
+	{"00 ", 0, false, nil, 8, 1, true, ' '}, // octal 0
+	{"0b1", 0, false, nat{1}, 2, 1, true, 0},
+	{"0B11000101", 0, false, nat{0xc5}, 2, 8, true, 0},
+	{"0B110001012", 0, false, nat{0xc5}, 2, 8, true, '2'},
+	{"07", 0, false, nat{7}, 8, 1, true, 0},
 	{"08", 0, false, nil, 10, 1, true, '8'},
 	{"08", 10, false, nat{8}, 10, 2, true, 0},
 	{"018", 0, false, nat{1}, 8, 1, true, '8'},
-	{"0b1", 0, false, nat{1}, 2, 1, true, 0},
-	{"0b11000101", 0, false, nat{0xc5}, 2, 8, true, 0},
+	{"0o7", 0, false, nat{7}, 8, 1, true, 0},
+	{"0o18", 0, false, nat{1}, 8, 1, true, '8'},
+	{"0O17", 0, false, nat{017}, 8, 2, true, 0},
 	{"03271", 0, false, nat{03271}, 8, 4, true, 0},
 	{"10ab", 0, false, nat{10}, 10, 2, true, 'a'},
 	{"1234567890", 0, false, nat{1234567890}, 10, 10, true, 0},
@@ -153,13 +167,20 @@ var natScanTests = []struct {
 	{"0xdeadbeef", 0, false, nat{0xdeadbeef}, 16, 8, true, 0},
 	{"0XDEADBEEF", 0, false, nat{0xdeadbeef}, 16, 8, true, 0},
 
-	// no errors, decimal point
+	// valid, with decimal point
 	{"0.", 0, false, nil, 10, 1, true, '.'},
 	{"0.", 10, true, nil, 10, 0, true, 0},
 	{"0.1.2", 10, true, nat{1}, 10, -1, true, '.'},
 	{".000", 10, true, nil, 10, -3, true, 0},
 	{"12.3", 10, true, nat{123}, 10, -1, true, 0},
 	{"012.345", 10, true, nat{12345}, 10, -3, true, 0},
+	{"0.1", 0, true, nat{1}, 10, -1, true, 0},
+	{"0.1", 2, true, nat{1}, 2, -1, true, 0},
+	{"0.12", 2, true, nat{1}, 2, -1, true, '2'},
+	{"0b0.1", 0, true, nat{1}, 2, -1, true, 0},
+	{"0B0.12", 0, true, nat{1}, 2, -1, true, '2'},
+	{"0o0.7", 0, true, nat{7}, 8, -1, true, 0},
+	{"0O0.78", 0, true, nat{7}, 8, -1, true, '8'},
 }
 
 func TestScanBase(t *testing.T) {
