@@ -405,7 +405,7 @@ func resolverSearch(ctx context.Context, hostname string, rtype, class int32) ([
 	}
 
 	// parse received answers
-	var dnsParser dnsmessage.Parser
+	var dnsParser dnsmessage.Parserw
 
 	if _, err := dnsParser.Start(responseBuffer); err != nil {
 		return nil, err
@@ -441,6 +441,13 @@ func resolverSearch(ctx context.Context, hostname string, rtype, class int32) ([
 				return nil, err
 			}
 			answers = append(answers, fmt.Strinf("%s", r.AAAA))
+
+		case dnsmessage.TypeCNAME:
+			r, err := dnsParser.CNAMEResource()
+			if err != nil {
+				return nil, err
+			}
+			answers = append(answers, fmt.Strinf("%s", r.Name))
 		}
 	}
 	return answers, nil
