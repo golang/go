@@ -901,7 +901,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 		// constants to the parameter type, to avoid a type mismatch.
 		ptype := p.rewriteUnsafe(param.Go)
 
-		if !p.needsPointerCheck(f, param.Go, args[i]) {
+		if !p.needsPointerCheck(f, param.Go, args[i]) || param.BadPointer {
 			if ptype != param.Go {
 				needsUnsafe = true
 			}
@@ -2465,13 +2465,16 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			// Treat this typedef as a uintptr.
 			s := *sub
 			s.Go = c.uintptr
+			s.BadPointer = true
 			sub = &s
 			// Make sure we update any previously computed type.
 			if oldType := typedef[name.Name]; oldType != nil {
 				oldType.Go = sub.Go
+				oldType.BadPointer = true
 			}
 		}
 		t.Go = name
+		t.BadPointer = sub.BadPointer
 		if unionWithPointer[sub.Go] {
 			unionWithPointer[t.Go] = true
 		}
@@ -2481,6 +2484,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		if oldType == nil {
 			tt := *t
 			tt.Go = sub.Go
+			tt.BadPointer = sub.BadPointer
 			typedef[name.Name] = &tt
 		}
 
