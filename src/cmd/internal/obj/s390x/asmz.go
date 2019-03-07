@@ -260,6 +260,9 @@ var optab = []Optab{
 	// test under mask
 	Optab{ATMHH, C_REG, C_NONE, C_NONE, C_ANDCON, 91, 0},
 
+	// insert program mask
+	Optab{AIPM, C_REG, C_NONE, C_NONE, C_NONE, 92, 0},
+
 	// 32-bit access registers
 	Optab{AMOVW, C_AREG, C_NONE, C_NONE, C_REG, 68, 0},
 	Optab{AMOVWZ, C_AREG, C_NONE, C_NONE, C_REG, 68, 0},
@@ -3765,6 +3768,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			opcode = op_TMLL
 		}
 		zRI(opcode, uint32(p.From.Reg), uint32(c.vregoff(&p.To)), asm)
+
+	case 92: // insert program mask
+		zRRE(op_IPM, uint32(p.From.Reg), 0, asm)
 
 	case 93: // GOT lookup
 		v := c.vregoff(&p.To)

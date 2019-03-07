@@ -219,6 +219,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	TMLH	R3, $0                 // a7300000
 	TMLL	R4, $32768             // a7418000
 
+	IPM	R3                     // b2220030
+	IPM	R12                    // b22200c0
+
 	BNE	0(PC)                  // a7740000
 	BEQ	0(PC)                  // a7840000
 	BLT	0(PC)                  // a7440000
