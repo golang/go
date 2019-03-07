@@ -1375,6 +1375,17 @@ func (w persistConnWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
+// ReadFrom exposes persistConnWriter's underlying Conn to io.Copy and if
+// the Conn implements io.ReaderFrom, it can take advantage of optimizations
+// such as sendfile.
+func (w persistConnWriter) ReadFrom(r io.Reader) (n int64, err error) {
+	n, err = io.Copy(w.pc.conn, r)
+	w.pc.nwrite += n
+	return
+}
+
+var _ io.ReaderFrom = (*persistConnWriter)(nil)
+
 // connectMethod is the map key (in its String form) for keeping persistent
 // TCP connections alive for subsequent HTTP requests.
 //
