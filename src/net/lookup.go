@@ -262,8 +262,9 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 	// only the values in context. See Issue 28600.
 	lookupGroupCtx, lookupGroupCancel := context.WithCancel(withUnexpiredValuesPreserved(ctx))
 
+	lookupKey := network + "\000" + host
 	dnsWaitGroup.Add(1)
-	ch, called := r.getLookupGroup().DoChan(host, func() (interface{}, error) {
+	ch, called := r.getLookupGroup().DoChan(lookupKey, func() (interface{}, error) {
 		defer dnsWaitGroup.Done()
 		return testHookLookupIP(lookupGroupCtx, resolverFunc, network, host)
 	})
@@ -280,7 +281,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 		// let the lookup continue uncanceled, and let later
 		// lookups with the same key share the result.
 		// See issues 8602, 20703, 22724.
-		if r.getLookupGroup().ForgetUnshared(host) {
+		if r.getLookupGroup().ForgetUnshared(lookupKey) {
 			lookupGroupCancel()
 		} else {
 			go func() {
