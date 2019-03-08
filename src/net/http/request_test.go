@@ -135,30 +135,31 @@ func TestParseFormInitializeOnError(t *testing.T) {
 }
 
 func TestMultipartReader(t *testing.T) {
-	req := &Request{
-		Method: "POST",
-		Header: Header{"Content-Type": {`multipart/form-data; boundary="foo123"`}},
-		Body:   ioutil.NopCloser(new(bytes.Buffer)),
-	}
-	multipart, err := req.MultipartReader()
-	if multipart == nil {
-		t.Errorf("expected multipart; error: %v", err)
-	}
-
-	req = &Request{
-		Method: "POST",
-		Header: Header{"Content-Type": {`multipart/mixed; boundary="foo123"`}},
-		Body:   ioutil.NopCloser(new(bytes.Buffer)),
-	}
-	multipart, err = req.MultipartReader()
-	if multipart == nil {
-		t.Errorf("expected multipart; error: %v", err)
+	tests := []struct {
+		shouldError bool
+		contentType string
+	}{
+		{false, `multipart/form-data; boundary="foo123"`},
+		{false, `multipart/mixed; boundary="foo123"`},
+		{true, `text/plain`},
 	}
 
-	req.Header = Header{"Content-Type": {"text/plain"}}
-	multipart, err = req.MultipartReader()
-	if multipart != nil {
-		t.Error("unexpected multipart for text/plain")
+	for i, test := range tests {
+		req := &Request{
+			Method: "POST",
+			Header: Header{"Content-Type": {test.contentType}},
+			Body:   ioutil.NopCloser(new(bytes.Buffer)),
+		}
+		multipart, err := req.MultipartReader()
+		if test.shouldError {
+			if err == nil || multipart != nil {
+				t.Errorf("test %d: unexpectedly got nil-error (%v) or non-nil-multipart (%v)", i, err, multipart)
+			}
+			continue
+		}
+		if err != nil || multipart == nil {
+			t.Errorf("test %d: unexpectedly got error (%v) or nil-multipart (%v)", i, err, multipart)
+		}
 	}
 }
 
