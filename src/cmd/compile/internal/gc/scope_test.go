@@ -202,8 +202,6 @@ var testfile = []testline{
 
 const detailOutput = false
 
-func init() { testenv.SetModVendor() }
-
 // Compiles testfile checks that the description of lexical blocks emitted
 // by the linker in debug_info, for each function in the main package,
 // corresponds to what we expect it to be.

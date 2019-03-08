@@ -19,7 +19,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 )
 
@@ -76,31 +75,6 @@ func MustHaveGoRun(t testing.TB) {
 	if !HasGoRun() {
 		t.Skipf("skipping test: 'go run' not available on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
-}
-
-var modVendorOnce sync.Once
-
-// SetModVendor adds the "-mod=vendor" flag to the GOFLAGS environment variable.
-// This allows tests whose working directories are within the cmd and std
-// modules to run ``go'' commands without accessing the network to load
-// dependencies modules.
-//
-// SetModVendor must be called before any test may read the GOFLAGS environment
-// variable.
-//
-// TODO(golang.org/issue/30240): If we load go.mod files from vendor/
-// automatically, this will probably no longer be necessary.
-func SetModVendor() {
-	modVendorOnce.Do(func() {
-		var goflags []string
-		for _, f := range strings.Fields(os.Getenv("GOFLAGS")) {
-			if !strings.HasPrefix(f, "-mod=") && !strings.HasPrefix(f, "--mod=") {
-				goflags = append(goflags, f)
-			}
-		}
-		goflags = append(goflags, "-mod=vendor")
-		os.Setenv("GOFLAGS", strings.Join(goflags, " "))
-	})
 }
 
 // GoToolPath reports the path to the Go tool.

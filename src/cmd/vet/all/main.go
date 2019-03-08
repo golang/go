@@ -44,7 +44,6 @@ func main() {
 	log.SetPrefix("vet/all: ")
 	log.SetFlags(log.Lshortfile)
 
-	testenv.SetModVendor()
 	var err error
 	cmdGoPath, err = testenv.GoTool()
 	if err != nil {
