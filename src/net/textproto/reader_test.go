@@ -338,6 +338,7 @@ func TestReadMultiLineError(t *testing.T) {
 }
 
 func TestCommonHeaders(t *testing.T) {
+	commonHeaderOnce.Do(initCommonHeader)
 	for h := range commonHeader {
 		if h != CanonicalMIMEHeaderKey(h) {
 			t.Errorf("Non-canonical header %q in commonHeader", h)
