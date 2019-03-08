@@ -92,7 +92,7 @@ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string,
 
 	// darwin has unique resolution files, use libSystem binding if cgo is disabled.
 	if runtime.GOOS == "darwin" {
-		addrs, err := resSearch(ctx, host, int32(dnsmessage.TypeALL), int32(dnsmessage.ClassINET))
+		addrs, err := resolverSearch(ctx, host, int32(dnsmessage.TypeALL), int32(dnsmessage.ClassINET))
 		if err == nil {
 			return addrs, nil
 		}
@@ -114,7 +114,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 
 		// darwin has unique resolution files, use libSystem binding if cgo is disabled.
 		if runtime.GOOS == "darwin" {
-			addrs, err := resSearch(ctx, host, int32(dnsmessage.TypeALL), int32(dnsmessage.ClassINET))
+			addrs, err := resolverSearch(ctx, host, int32(dnsmessage.TypeALL), int32(dnsmessage.ClassINET))
 			if err == nil {
 				return addrs, nil
 			}
@@ -152,7 +152,7 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error)
 
 	// darwin has unique resolution files, use libSystem binding if cgo is not an option.
 	if runtime.GOOS == "darwin" {
-		addrs, err := resSearch(ctx, host, int32(dnsmessage.TypeCNAME), int32(dnsmessage.ClassINET))
+		addrs, err := resolverSearch(ctx, name, int32(dnsmessage.TypeCNAME), int32(dnsmessage.ClassINET))
 		if err == nil {
 			return addrs, nil
 		}
@@ -405,7 +405,7 @@ func resolverSearch(ctx context.Context, hostname string, rtype, class int32) ([
 	}
 
 	// parse received answers
-	var dnsParser dnsmessage.Parserw
+	var dnsParser dnsmessage.Parser
 
 	if _, err := dnsParser.Start(responseBuffer); err != nil {
 		return nil, err
@@ -422,7 +422,7 @@ func resolverSearch(ctx context.Context, hostname string, rtype, class int32) ([
 		}
 
 		if !strings.EqualFold(h.Name.String(), hostname) {
-			if err := p.SkipAnswer(); err != nil {
+			if err := dnsParser.SkipAnswer(); err != nil {
 				return nil, err
 			}
 			continue
@@ -434,20 +434,20 @@ func resolverSearch(ctx context.Context, hostname string, rtype, class int32) ([
 			if err != nil {
 				return nil, err
 			}
-			answers = append(answers, fmt.Strinf("%s", r.A))
+			answers = append(answers, fmt.Stringf("%s", r.A))
 		case dnsmessage.TypeAAAA:
 			r, err := dnsParser.AAAAResource()
 			if err != nil {
 				return nil, err
 			}
-			answers = append(answers, fmt.Strinf("%s", r.AAAA))
+			answers = append(answers, fmt.Stringf("%s", r.AAAA))
 
 		case dnsmessage.TypeCNAME:
 			r, err := dnsParser.CNAMEResource()
 			if err != nil {
 				return nil, err
 			}
-			answers = append(answers, fmt.Strinf("%s", r.Name))
+			answers = append(answers, fmt.Stringf("%s", r.Name))
 		}
 	}
 	return answers, nil
