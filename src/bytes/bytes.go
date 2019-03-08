@@ -114,12 +114,34 @@ func indexBytePortable(s []byte, c byte) int {
 // LastIndex returns the index of the last instance of sep in s, or -1 if sep is not present in s.
 func LastIndex(s, sep []byte) int {
 	n := len(sep)
-	if n == 0 {
+	switch {
+	case n == 0:
 		return len(s)
+	case n == 1:
+		return LastIndexByte(s, sep[0])
+	case n == len(s):
+		if Equal(s, sep) {
+			return 0
+		}
+		return -1
+	case n > len(s):
+		return -1
 	}
-	c := sep[0]
-	for i := len(s) - n; i >= 0; i-- {
-		if s[i] == c && (n == 1 || Equal(s[i:i+n], sep)) {
+	// Rabin-Karp search from the end of the string
+	hashss, pow := hashStrRev(sep)
+	last := len(s) - n
+	var h uint32
+	for i := len(s) - 1; i >= last; i-- {
+		h = h*primeRK + uint32(s[i])
+	}
+	if h == hashss && Equal(s[last:], sep) {
+		return last
+	}
+	for i := last - 1; i >= 0; i-- {
+		h *= primeRK
+		h += uint32(s[i])
+		h -= pow * uint32(s[i+n])
+		if h == hashss && Equal(s[i:i+n], sep) {
 			return i
 		}
 	}
@@ -976,6 +998,23 @@ const primeRK = 16777619
 func hashStr(sep []byte) (uint32, uint32) {
 	hash := uint32(0)
 	for i := 0; i < len(sep); i++ {
+		hash = hash*primeRK + uint32(sep[i])
+	}
+	var pow, sq uint32 = 1, primeRK
+	for i := len(sep); i > 0; i >>= 1 {
+		if i&1 != 0 {
+			pow *= sq
+		}
+		sq *= sq
+	}
+	return hash, pow
+}
+
+// hashStrRev returns the hash of the reverse of sep and the
+// appropriate multiplicative factor for use in Rabin-Karp algorithm.
+func hashStrRev(sep []byte) (uint32, uint32) {
+	hash := uint32(0)
+	for i := len(sep) - 1; i >= 0; i-- {
 		hash = hash*primeRK + uint32(sep[i])
 	}
 	var pow, sq uint32 = 1, primeRK
