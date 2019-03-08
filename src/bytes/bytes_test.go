@@ -1642,6 +1642,16 @@ func makeBenchInputHard() []byte {
 
 var benchInputHard = makeBenchInputHard()
 
+func benchmarkLastIndexHard(b *testing.B, sep []byte) {
+	for i := 0; i < b.N; i++ {
+		LastIndex(benchInputHard, sep)
+	}
+}
+
+func BenchmarkLastIndexHard1(b *testing.B) { benchmarkLastIndexHard(b, []byte("<>")) }
+func BenchmarkLastIndexHard2(b *testing.B) { benchmarkLastIndexHard(b, []byte("</pre>")) }
+func BenchmarkLastIndexHard3(b *testing.B) { benchmarkLastIndexHard(b, []byte("<b>hello world</b>")) }
+
 func BenchmarkSplitEmptySeparator(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Split(benchInputHard, nil)
