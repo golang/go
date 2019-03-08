@@ -665,17 +665,20 @@ func WriteGoMod() {
 		base.Fatalf("go: %v", err)
 	}
 
+	dirty := !bytes.Equal(new, modFileData)
+	if dirty && cfg.BuildMod == "readonly" {
+		// If we're about to fail due to -mod=readonly,
+		// prefer to report a dirty go.mod over a dirty go.sum
+		base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
+	}
 	// Always update go.sum, even if we didn't change go.mod: we may have
 	// downloaded modules that we didn't have before.
 	modfetch.WriteGoSum()
 
-	if bytes.Equal(new, modFileData) {
+	if !dirty {
 		// We don't need to modify go.mod from what we read previously.
 		// Ignore any intervening edits.
 		return
-	}
-	if cfg.BuildMod == "readonly" {
-		base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
 	}
 
 	unlock := modfetch.SideLock()

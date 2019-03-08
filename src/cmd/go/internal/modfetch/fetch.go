@@ -509,6 +509,9 @@ func WriteGoSum() {
 		// Don't bother opening the go.sum file if we don't have anything to add.
 		return
 	}
+	if cfg.BuildMod == "readonly" {
+		base.Fatalf("go: updates to go.sum needed, disabled by -mod=readonly")
+	}
 
 	// We want to avoid races between creating the lockfile and deleting it, but
 	// we also don't want to leave a permanent lockfile in the user's repository.
