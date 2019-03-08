@@ -159,15 +159,19 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 	const someConnHeader = "X-Some-Conn-Header"
 
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if c := r.Header.Get("Connection"); c != "" {
+			t.Errorf("handler got header %q = %q; want empty", "Connection", c)
+		}
 		if c := r.Header.Get(fakeConnectionToken); c != "" {
 			t.Errorf("handler got header %q = %q; want empty", fakeConnectionToken, c)
 		}
 		if c := r.Header.Get(someConnHeader); c != "" {
 			t.Errorf("handler got header %q = %q; want empty", someConnHeader, c)
 		}
-		w.Header().Set("Connection", someConnHeader+", "+fakeConnectionToken)
-		w.Header().Set(someConnHeader, "should be deleted")
-		w.Header().Set(fakeConnectionToken, "should be deleted")
+		w.Header().Add("Connection", someConnHeader)
+		w.Header().Add("Connection", fakeConnectionToken)
+		w.Header().Add(someConnHeader, "should be deleted")
+		w.Header().Add(fakeConnectionToken, "should be deleted")
 		io.WriteString(w, backendResponse)
 	}))
 	defer backend.Close()
@@ -178,16 +182,23 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
 	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		proxyHandler.ServeHTTP(w, r)
-		if c := r.Header.Get(someConnHeader); c != "original value" {
-			t.Errorf("handler modified header %q = %q; want %q", someConnHeader, c, "original value")
+		if c := r.Header.Get(someConnHeader); c != "should be deleted" {
+			t.Errorf("handler modified header %q = %q; want %q", someConnHeader, c, "should be deleted")
+		}
+		if c := r.Header.Get(fakeConnectionToken); c != "should be deleted" {
+			t.Errorf("handler modified header %q = %q; want %q", someConnHeader, c, "should be deleted")
+		}
+		if c := r.Header.Get("Connection"); reflect.DeepEqual(c,[]string{someConnHeader,fakeConnectionToken}){
+			t.Errorf("handler modified header %q = %q; want %q", someConnHeader, c, "should be deleted")
 		}
 	}))
 	defer frontend.Close()
 
 	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
-	getReq.Header.Set("Connection", someConnHeader+", "+fakeConnectionToken)
-	getReq.Header.Set(someConnHeader, "original value")
-	getReq.Header.Set(fakeConnectionToken, "should be deleted")
+	getReq.Header.Add("Connection", someConnHeader)
+	getReq.Header.Add("Connection", fakeConnectionToken)
+	getReq.Header.Add(someConnHeader, "should be deleted")
+	getReq.Header.Add(fakeConnectionToken, "should be deleted")
 	res, err := frontend.Client().Do(getReq)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
@@ -199,6 +210,9 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 	}
 	if got, want := string(bodyBytes), backendResponse; got != want {
 		t.Errorf("got body %q; want %q", got, want)
+	}
+	if c := res.Header.Get("Connection"); c != "" {
+		t.Errorf("handler got header %q = %q; want empty", "Connection", c)
 	}
 	if c := res.Header.Get(someConnHeader); c != "" {
 		t.Errorf("handler got header %q = %q; want empty", someConnHeader, c)

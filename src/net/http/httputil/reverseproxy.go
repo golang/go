@@ -357,8 +357,8 @@ func shouldPanicOnCopyError(req *http.Request) bool {
 // removeConnectionHeaders removes hop-by-hop headers listed in the "Connection" header of h.
 // See RFC 7230, section 6.1
 func removeConnectionHeaders(h http.Header) {
-	if c := h.Get("Connection"); c != "" {
-		for _, f := range strings.Split(c, ",") {
+	if c := h["Connection"]; len(c) > 0 {
+		for _, f := range c {
 			if f = strings.TrimSpace(f); f != "" {
 				h.Del(f)
 			}
