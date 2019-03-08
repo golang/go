@@ -808,6 +808,9 @@ func (pkg *Package) typeDoc(typ *doc.Type) {
 		for _, fun := range funcs {
 			if isExported(fun.Name) {
 				pkg.emit(fun.Doc, fun.Decl)
+				if fun.Doc == "" {
+					pkg.newlines(2)
+				}
 			}
 		}
 	} else {
