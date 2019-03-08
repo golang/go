@@ -7,9 +7,9 @@
 #include "textflag.h"
 
 TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
-    PUSHQ    BP
+    PUSHQ   BP
     MOVQ    SP, BP
-    MOVL    (DI), R8    // arg 5 anslen
+    MOVL    24(DI), R8  // arg 5 anslen
     MOVQ    16(DI), CX  // arg 4 answer
     MOVL    8(DI), SI   // arg 2 class
     MOVQ    12(DI), DX  // arg 3 type
