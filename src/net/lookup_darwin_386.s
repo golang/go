@@ -17,8 +17,8 @@ TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
     MOVL    AX, 12(SP)
     MOVL    4(CX), AX       // arg 2 class
     MOVL    AX, 4(SP)
-    MOVL    8(CX), AX       // arg 3 type 
-    MOVL    AX, 8(SP)       
+    MOVL    8(CX), AX       // arg 3 type
+    MOVL    AX, 8(SP)
     MOVL    0(CX), AX       // arg 1 name
     MOVL    AX, 0(SP)
     CALL    libc_res_search(SB)
