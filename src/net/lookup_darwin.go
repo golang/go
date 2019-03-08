@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix dragonfly freebsd linux netbsd openbsd solaris
+// +build darwin
 
 package net
 
@@ -12,7 +12,7 @@ import (
 	"sync"
 	"syscall"
 
-	"golang.org/x/net/dns/dnsmessage"
+	"internal/x/net/dns/dnsmessage"
 )
 
 var onceReadProtocols sync.Once
@@ -81,9 +81,17 @@ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string,
 		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
 			return addrs, err
 		}
-		// cgo not available (or netgo); fall back to Go's DNS resolver
+		// cgo not available (or netgo); fall back to linked bindings
 		order = hostLookupFilesDNS
 	}
+
+	// darwin has unique resolution files, use libSystem binding if cgo is disabled.
+	addrs, err := resolverSearch(ctx, host, int32(dnsmessage.TypeALL), int32(dnsmessage.ClassINET))
+	if err == nil {
+		return addrs, nil
+	}
+	// something went wrong, fallback to Go's DNS resolver
+
 	return r.goLookupHostOrder(ctx, host, order)
 }
 
@@ -96,7 +104,14 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 		if addrs, err, ok := cgoLookupIP(ctx, network, host); ok {
 			return addrs, err
 		}
-		// cgo not available (or netgo); fall back to Go's DNS resolver
+
+		// darwin has unique resolution files, use libSystem binding if cgo is disabled.
+		addrs, err := resolverSearch(ctx, host, int32(dnsmessage.TypeALL), int32(dnsmessage.ClassINET))
+		if err == nil {
+			return addrs, nil
+		}
+		// something went wrong, fallback to Go's DNS resolver
+
 		order = hostLookupFilesDNS
 	}
 	ips, _, err := r.goLookupIPCNAMEOrder(ctx, host, order)
@@ -125,6 +140,14 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error)
 			return cname, err
 		}
 	}
+
+	// darwin has unique resolution files, use libSystem binding if cgo is not an option.
+	addrs, err := resolverSearch(ctx, name, int32(dnsmessage.TypeCNAME), int32(dnsmessage.ClassINET))
+	if err == nil {
+		return addrs, nil
+	}
+
+	// something went wrong, fallback to Go's DNS resolver
 	return r.goLookupCNAME(ctx, name)
 }
 
