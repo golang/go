@@ -9,8 +9,8 @@
 TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
     PUSHL   BP
     MOVL    SP, BP
-	SUBL	$24, SP
-	MOVL	32(SP), CX
+    SUBL    $24, SP
+    MOVL    32(SP), CX
     MOVL    16(CX), AX      // arg 5 anslen
     MOVL    AX, 16(SP)
     MOVL    12(CX), AX      // arg 4 answer
