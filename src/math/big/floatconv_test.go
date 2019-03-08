@@ -72,6 +72,21 @@ func TestFloatSetFloat64String(t *testing.T) {
 		{"infinity", nan},
 		{"foobar", nan},
 
+		// invalid underscores
+		{"_", nan},
+		{"0_", nan},
+		{"1__0", nan},
+		{"123_.", nan},
+		{"123._", nan},
+		{"123._4", nan},
+		{"1_2.3_4_", nan},
+		{"_.123", nan},
+		{"_123.456", nan},
+		{"10._0", nan},
+		{"10.0e_0", nan},
+		{"10.0e0_", nan},
+		{"0P-0__0", nan},
+
 		// misc decimal values
 		{"3.14159265", 3.14159265},
 		{"-687436.79457e-245", -687436.79457e-245},
@@ -142,6 +157,16 @@ func TestFloatSetFloat64String(t *testing.T) {
 		{"-0X0.00008P+16", -0.5},
 		{"0x0.0000000000001p-1022", math.SmallestNonzeroFloat64},
 		{"0x1.fffffffffffffp1023", math.MaxFloat64},
+
+		// underscores
+		{"0_0", 0},
+		{"1_000.", 1000},
+		{"1_2_3.4_5_6", 123.456},
+		{"1.0e0_0", 1},
+		{"1p+1_0", 1024},
+		{"0b_1000", 0x8},
+		{"0b_1011_1101", 0xbd},
+		{"0x_f0_0d_1eP+0_8", 0xf00d1e00},
 	} {
 		var x Float
 		x.SetPrec(53)
