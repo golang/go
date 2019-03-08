@@ -4029,6 +4029,7 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 }
 
 // boundsCheck generates bounds checking code. Checks if 0 <= idx < len, branches to exit if not.
+// len must be known to be nonnegative.
 // Starts a new block on return.
 // idx is already converted to full int width.
 func (s *state) boundsCheck(idx, len *ssa.Value) {
@@ -4041,33 +4042,13 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 	s.check(cmp, panicindex)
 }
 
-func couldBeNegative(v *ssa.Value) bool {
-	switch v.Op {
-	case ssa.OpSliceLen, ssa.OpSliceCap, ssa.OpStringLen:
-		return false
-	case ssa.OpConst64:
-		return v.AuxInt < 0
-	case ssa.OpConst32:
-		return int32(v.AuxInt) < 0
-	}
-	return true
-}
-
 // sliceBoundsCheck generates slice bounds checking code. Checks if 0 <= idx <= len, branches to exit if not.
+// len must be known to be nonnegative.
 // Starts a new block on return.
 // idx and len are already converted to full int width.
 func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
 	if Debug['B'] != 0 {
 		return
-	}
-	if couldBeNegative(len) {
-		// OpIsSliceInBounds requires second arg not negative; if it's not obviously true, must check.
-		cmpop := ssa.OpGeq64
-		if len.Type.Size() == 4 {
-			cmpop = ssa.OpGeq32
-		}
-		cmp := s.newValue2(cmpop, types.Types[TBOOL], len, s.zeroVal(len.Type))
-		s.check(cmp, panicslice)
 	}
 
 	// bounds check
@@ -4332,13 +4313,15 @@ func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value, bounded bool) (p, l,
 
 	if !bounded {
 		// Panic if slice indices are not in bounds.
-		s.sliceBoundsCheck(i, j)
-		if j != k {
-			s.sliceBoundsCheck(j, k)
-		}
+		// Make sure we check these in reverse order so that we're always
+		// comparing against a value known to be nonnegative. See issue 28797.
 		if k != cap {
 			s.sliceBoundsCheck(k, cap)
 		}
+		if j != k {
+			s.sliceBoundsCheck(j, k)
+		}
+		s.sliceBoundsCheck(i, j)
 	}
 
 	// Generate the following code assuming that indexes are in bounds.
