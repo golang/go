@@ -34,12 +34,12 @@ static bool isSSLPolicy(SecPolicyRef policyRef) {
 }
 
 static bool verifyUnspecifiedCert(SecCertificateRef cert) {
-	SecTrustRef			trustRef = NULL;
-	CFMutableArrayRef	certs = NULL;
-	CFMutableArrayRef	policies = NULL;
-	SecPolicyRef		policyRef = NULL;
-	OSStatus			ortn;
-	bool				isOk		= true;
+	SecTrustRef trustRef = NULL;
+	CFMutableArrayRef certs = NULL;
+	CFMutableArrayRef policies = NULL;
+	SecPolicyRef policyRef = NULL;
+	OSStatus ortn;
+	bool isOk = true;
 
 	policyRef = SecPolicyCreateSSL(true, NULL);
 
@@ -142,7 +142,7 @@ static SInt32 sslTrustSettingsResult(SecCertificateRef cert) {
 				continue;
 			}
 		} else {
-			// empty policy also means trust
+			// empty policy also means trusty
 			// continue;
 		}
 
