@@ -87,7 +87,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 
 	// exponent
 	var exp int64
-	exp, _, err = scanExponent(r, false)
+	exp, _, err = scanExponent(r, false, false)
 	if err != nil {
 		return nil, false
 	}
@@ -129,75 +129,96 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	return z, true
 }
 
-// scanExponent scans the longest possible prefix of r representing a decimal
-// ('e', 'E') or binary ('p', 'P') exponent, if any. It returns the exponent,
-// the exponent base (10 or 2), or a read or syntax error, if any.
+// scanExponent scans the longest possible prefix of r representing a base 10
+// (``e'', ``E'') or a base 2 (``p'', ``P'') exponent, if any. It returns the
+// exponent, the exponent base (10 or 2), or a read or syntax error, if any.
+//
+// If sepOk is set, an underscore character ``_'' may appear between successive
+// exponent digits; such underscores do not change the value of the exponent.
+// Incorrect placement of underscores is reported as an error if there are no
+// other errors. If sepOk is not set, underscores are not recognized and thus
+// terminate scanning like any other character that is not a valid digit.
 //
 //	exponent = ( "e" | "E" | "p" | "P" ) [ sign ] digits .
 //	sign     = "+" | "-" .
-//	digits   = digit { digit } .
+//	digits   = digit { [ '_' ] digit } .
 //	digit    = "0" ... "9" .
 //
-// A binary exponent is only permitted if binExpOk is set.
-func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err error) {
-	base = 10
-
-	var ch byte
-	if ch, err = r.ReadByte(); err != nil {
+// A base 2 exponent is only permitted if base2ok is set.
+func scanExponent(r io.ByteScanner, base2ok, sepOk bool) (exp int64, base int, err error) {
+	// one char look-ahead
+	ch, err := r.ReadByte()
+	if err != nil {
 		if err == io.EOF {
-			err = nil // no exponent; same as e0
+			err = nil
 		}
-		return
+		return 0, 10, err
 	}
 
+	// exponent char
 	switch ch {
 	case 'e', 'E':
-		// ok
+		base = 10
 	case 'p', 'P':
-		if binExpOk {
+		if base2ok {
 			base = 2
 			break // ok
 		}
 		fallthrough // binary exponent not permitted
 	default:
-		r.UnreadByte()
-		return // no exponent; same as e0
+		r.UnreadByte() // ch does not belong to exponent anymore
+		return 0, 10, nil
 	}
 
-	var neg bool
-	if neg, err = scanSign(r); err != nil {
-		return
-	}
-
+	// sign
 	var digits []byte
-	if neg {
-		digits = append(digits, '-')
+	ch, err = r.ReadByte()
+	if err == nil && (ch == '+' || ch == '-') {
+		if ch == '-' {
+			digits = append(digits, '-')
+		}
+		ch, err = r.ReadByte()
 	}
 
-	// no need to use nat.scan for exponent digits
-	// since we only care about int64 values - the
-	// from-scratch scan is easy enough and faster
-	for i := 0; ; i++ {
-		if ch, err = r.ReadByte(); err != nil {
-			if err != io.EOF || i == 0 {
-				return
-			}
-			err = nil
-			break // i > 0
-		}
-		if ch < '0' || '9' < ch {
-			if i == 0 {
-				r.UnreadByte()
-				err = fmt.Errorf("invalid exponent (missing digits)")
-				return
-			}
-			break // i > 0
-		}
-		digits = append(digits, ch)
-	}
-	// i > 0 => we have at least one digit
+	// prev encodes the previously seen char: it is one
+	// of '_', '0' (a digit), or '.' (anything else). A
+	// valid separator '_' may only occur after a digit.
+	prev := '.'
+	invalSep := false
 
-	exp, err = strconv.ParseInt(string(digits), 10, 64)
+	// exponent value
+	hasDigits := false
+	for err == nil {
+		if '0' <= ch && ch <= '9' {
+			digits = append(digits, ch)
+			prev = '0'
+			hasDigits = true
+		} else if ch == '_' && sepOk {
+			if prev != '0' {
+				invalSep = true
+			}
+			prev = '_'
+		} else {
+			r.UnreadByte() // ch does not belong to number anymore
+			break
+		}
+		ch, err = r.ReadByte()
+	}
+
+	if err == io.EOF {
+		err = nil
+	}
+	if err == nil && !hasDigits {
+		err = errNoDigits
+	}
+	if err == nil {
+		exp, err = strconv.ParseInt(string(digits), 10, 64)
+	}
+	// other errors take precedence over invalid separators
+	if err == nil && (invalSep || prev == '_') {
+		err = errInvalSep
+	}
+
 	return
 }
 
