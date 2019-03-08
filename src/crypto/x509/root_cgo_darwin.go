@@ -33,6 +33,62 @@ static bool isSSLPolicy(SecPolicyRef policyRef) {
 	return false;
 }
 
+static bool verifyUnspecifiedCert(SecCertificateRef cert) {
+	SecTrustRef			trustRef = NULL;
+	CFMutableArrayRef	certs = NULL;
+	CFMutableArrayRef	policies = NULL;
+	SecPolicyRef		policyRef = NULL;
+	OSStatus			ortn;
+	bool				isOk		= true;
+
+	policyRef = SecPolicyCreateSSL(true, NULL);
+
+	certs = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+	CFArrayAppendValue(certs, cert);
+
+	// create policies array
+	policies = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+	CFArrayAppendValue(policies, policyRef);
+
+	// create trust reference from certs and policies
+	ortn = SecTrustCreateWithCertificates(certs, policies, &trustRef);
+	if (ortn) {
+		isOk = false;
+		goto errOut;
+	}
+
+	// Leaf cert (which being verified) is a CA
+	 ortn = SecTrustSetOptions(trustRef, kSecTrustOptionLeafIsCA);
+	if (ortn) {
+		isOk = false;
+		goto errOut;
+	}
+
+	SecTrustResultType resultType;
+	ortn = SecTrustEvaluate(trustRef, &resultType);
+	if (ortn) {
+		isOk = false;
+		goto errOut;
+	}
+	switch(resultType) {
+		case kSecTrustResultUnspecified:
+			// cert chain valid, no special UserTrust assignments
+		case kSecTrustResultProceed:
+			// cert chain valid AND user explicitly trusts this
+			isOk = true;
+			break;
+		default:
+			isOk = false;
+	}
+
+errOut:
+	CFRelease(trustRef);
+	CFRelease(certs);
+	CFRelease(policyRef);
+	CFRelease(policies);
+	return isOk;
+}
+
 // sslTrustSettingsResult obtains the final kSecTrustSettingsResult value
 // for a certificate in the user or admin domain, combining usage constraints
 // for the SSL SecTrustSettingsPolicy, ignoring SecTrustSettingsKeyUsage and
@@ -86,7 +142,8 @@ static SInt32 sslTrustSettingsResult(SecCertificateRef cert) {
 				continue;
 			}
 		} else {
-			continue;
+			// empty policy also means trust
+			// continue;
 		}
 
 		if (CFDictionaryContainsKey(tSetting, _kSecTrustSettingsPolicyString)) {
@@ -246,7 +303,11 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugD
 			} else if (result == kSecTrustSettingsResultDeny) {
 				appendTo = combinedUntrustedData;
 			} else if (result == kSecTrustSettingsResultUnspecified) {
-				continue;
+				if (verifyUnspecifiedCert(cert)) {
+					appendTo = combinedData;
+				} else {
+					continue;
+				}
 			} else {
 				continue;
 			}
