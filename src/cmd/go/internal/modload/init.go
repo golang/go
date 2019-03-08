@@ -565,7 +565,7 @@ func findModulePath(dir string) (string, error) {
 		return "github.com/" + string(m[1]), nil
 	}
 
-	return "", fmt.Errorf("cannot determine module path for source directory %s (outside GOPATH, no import comments)", dir)
+	return "", fmt.Errorf("cannot determine module path for source directory %s (outside GOPATH, module path not specified)", dir)
 }
 
 var (
