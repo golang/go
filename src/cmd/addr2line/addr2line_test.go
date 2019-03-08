@@ -115,5 +115,3 @@ func TestAddr2Line(t *testing.T) {
 	testAddr2Line(t, exepath, syms[symName])
 	testAddr2Line(t, exepath, "0x"+syms[symName])
 }
-
-func init() { testenv.SetModVendor() }

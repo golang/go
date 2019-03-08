@@ -24,7 +24,6 @@ func TestMain(m *testing.M) {
 	if !testenv.HasGoBuild() {
 		return
 	}
-	testenv.SetModVendor()
 
 	var exitcode int
 	if err := buildObjdump(); err == nil {

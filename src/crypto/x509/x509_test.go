@@ -1146,8 +1146,6 @@ func TestParsePEMCRL(t *testing.T) {
 	// Can't check the signature here without a package cycle.
 }
 
-func init() { testenv.SetModVendor() }
-
 func TestImports(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 

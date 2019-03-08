@@ -18,8 +18,6 @@ import (
 	"time"
 )
 
-func init() { testenv.SetModVendor() }
-
 const maxTime = 2 * time.Second
 
 var importer = New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))

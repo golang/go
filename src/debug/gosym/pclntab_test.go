@@ -21,8 +21,6 @@ var (
 	pclinetestBinary string
 )
 
-func init() { testenv.SetModVendor() }
-
 func dotest(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	// For now, only works on amd64 platforms.

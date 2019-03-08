@@ -13,8 +13,6 @@ import (
 	"testing"
 )
 
-func init() { testenv.SetModVendor() }
-
 func TestUndefinedRelocErrors(t *testing.T) {
 	t.Parallel()
 	testenv.MustHaveGoBuild(t)

@@ -30,8 +30,6 @@ func testMain(m *testing.M) int {
 		return 0
 	}
 
-	testenv.SetModVendor()
-
 	tmpDir, err := ioutil.TempDir("", "TestNM")
 	if err != nil {
 		fmt.Println("TempDir failed:", err)

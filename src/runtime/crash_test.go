@@ -25,8 +25,6 @@ import (
 var toRemove []string
 
 func TestMain(m *testing.M) {
-	testenv.SetModVendor()
-
 	status := m.Run()
 	for _, file := range toRemove {
 		os.RemoveAll(file)
