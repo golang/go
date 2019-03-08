@@ -63,7 +63,7 @@ func f5(a [10]int) int {
 
 func f6(a []int) {
 	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
-		b := a[0:i] // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$" "(\([0-9]+\) )?Proved Geq64$"
+		b := a[0:i] // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		f6(b)
 	}
 }
@@ -186,10 +186,10 @@ func k0(a [100]int) [100]int {
 
 func k1(a [100]int) [100]int {
 	for i := 10; i < 90; i++ { // ERROR "Induction variable: limits \[10,90\), increment 1$"
-		useSlice(a[:i-11]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+		useSlice(a[:i-11])
 		useSlice(a[:i-10]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useSlice(a[:i-5])  // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
-		useSlice(a[:i])    // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$" "(\([0-9]+\) )?Proved Geq64$"
+		useSlice(a[:i])    // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useSlice(a[:i+5])  // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useSlice(a[:i+10]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useSlice(a[:i+11]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
