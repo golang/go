@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"internal/testenv"
 	"io"
+	"math/bits"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -127,16 +128,16 @@ func TestIntendedInlining(t *testing.T) {
 		"reflect": {
 			"Value.CanAddr",
 			"Value.CanSet",
+			"Value.CanInterface",
 			"Value.IsValid",
+			"Value.pointer",
 			"add",
 			"align",
 			"flag.kind",
 			"flag.ro",
 
-			// TODO: these use panic, need mid-stack
-			// inlining
-			// "Value.CanInterface",
-			// "Value.pointer",
+			// TODO: these use panic, which gets their budgets
+			// slightly over the limit
 			// "flag.mustBe",
 			// "flag.mustBeAssignable",
 			// "flag.mustBeExported",
@@ -163,10 +164,25 @@ func TestIntendedInlining(t *testing.T) {
 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Ctz32")
 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
 	}
-	switch runtime.GOARCH {
-	case "amd64", "amd64p32", "arm64", "mips64", "mips64le", "ppc64", "ppc64le", "s390x":
+	if bits.UintSize == 64 {
 		// rotl_31 is only defined on 64-bit architectures
 		want["runtime"] = append(want["runtime"], "rotl_31")
+	}
+
+	switch runtime.GOARCH {
+	case "nacl", "386", "wasm", "arm":
+	default:
+		// TODO(mvdan): As explained in /test/inline_sync.go, some
+		// architectures don't have atomic intrinsics, so these go over
+		// the inlining budget. Move back to the main table once that
+		// problem is solved.
+		want["sync"] = []string{
+			"(*Mutex).Lock",
+			"(*Mutex).Unlock",
+			"(*RWMutex).RLock",
+			"(*RWMutex).RUnlock",
+			"(*Once).Do",
+		}
 	}
 
 	// Functions that must actually be inlined; they must have actual callers.
