@@ -539,52 +539,52 @@ func TestBufferedDecodingSameError(t *testing.T) {
 		// NBSWY3DPO5XXE3DE == helloworld
 		// Test with "ZZ" as extra input
 		{"helloworld", [][]string{
-			[]string{"NBSW", "Y3DP", "O5XX", "E3DE", "ZZ"},
-			[]string{"NBSWY3DPO5XXE3DE", "ZZ"},
-			[]string{"NBSWY3DPO5XXE3DEZZ"},
-			[]string{"NBS", "WY3", "DPO", "5XX", "E3D", "EZZ"},
-			[]string{"NBSWY3DPO5XXE3", "DEZZ"},
+			{"NBSW", "Y3DP", "O5XX", "E3DE", "ZZ"},
+			{"NBSWY3DPO5XXE3DE", "ZZ"},
+			{"NBSWY3DPO5XXE3DEZZ"},
+			{"NBS", "WY3", "DPO", "5XX", "E3D", "EZZ"},
+			{"NBSWY3DPO5XXE3", "DEZZ"},
 		}, io.ErrUnexpectedEOF},
 
 		// Test with "ZZY" as extra input
 		{"helloworld", [][]string{
-			[]string{"NBSW", "Y3DP", "O5XX", "E3DE", "ZZY"},
-			[]string{"NBSWY3DPO5XXE3DE", "ZZY"},
-			[]string{"NBSWY3DPO5XXE3DEZZY"},
-			[]string{"NBS", "WY3", "DPO", "5XX", "E3D", "EZZY"},
-			[]string{"NBSWY3DPO5XXE3", "DEZZY"},
+			{"NBSW", "Y3DP", "O5XX", "E3DE", "ZZY"},
+			{"NBSWY3DPO5XXE3DE", "ZZY"},
+			{"NBSWY3DPO5XXE3DEZZY"},
+			{"NBS", "WY3", "DPO", "5XX", "E3D", "EZZY"},
+			{"NBSWY3DPO5XXE3", "DEZZY"},
 		}, io.ErrUnexpectedEOF},
 
 		// Normal case, this is valid input
 		{"helloworld", [][]string{
-			[]string{"NBSW", "Y3DP", "O5XX", "E3DE"},
-			[]string{"NBSWY3DPO5XXE3DE"},
-			[]string{"NBS", "WY3", "DPO", "5XX", "E3D", "E"},
-			[]string{"NBSWY3DPO5XXE3", "DE"},
+			{"NBSW", "Y3DP", "O5XX", "E3DE"},
+			{"NBSWY3DPO5XXE3DE"},
+			{"NBS", "WY3", "DPO", "5XX", "E3D", "E"},
+			{"NBSWY3DPO5XXE3", "DE"},
 		}, nil},
 
 		// MZXW6YTB = fooba
 		{"fooba", [][]string{
-			[]string{"MZXW6YTBZZ"},
-			[]string{"MZXW6YTBZ", "Z"},
-			[]string{"MZXW6YTB", "ZZ"},
-			[]string{"MZXW6YT", "BZZ"},
-			[]string{"MZXW6Y", "TBZZ"},
-			[]string{"MZXW6Y", "TB", "ZZ"},
-			[]string{"MZXW6", "YTBZZ"},
-			[]string{"MZXW6", "YTB", "ZZ"},
-			[]string{"MZXW6", "YT", "BZZ"},
+			{"MZXW6YTBZZ"},
+			{"MZXW6YTBZ", "Z"},
+			{"MZXW6YTB", "ZZ"},
+			{"MZXW6YT", "BZZ"},
+			{"MZXW6Y", "TBZZ"},
+			{"MZXW6Y", "TB", "ZZ"},
+			{"MZXW6", "YTBZZ"},
+			{"MZXW6", "YTB", "ZZ"},
+			{"MZXW6", "YT", "BZZ"},
 		}, io.ErrUnexpectedEOF},
 
 		// Normal case, this is valid input
 		{"fooba", [][]string{
-			[]string{"MZXW6YTB"},
-			[]string{"MZXW6YT", "B"},
-			[]string{"MZXW6Y", "TB"},
-			[]string{"MZXW6", "YTB"},
-			[]string{"MZXW6", "YT", "B"},
-			[]string{"MZXW", "6YTB"},
-			[]string{"MZXW", "6Y", "TB"},
+			{"MZXW6YTB"},
+			{"MZXW6YT", "B"},
+			{"MZXW6Y", "TB"},
+			{"MZXW6", "YTB"},
+			{"MZXW6", "YT", "B"},
+			{"MZXW", "6YTB"},
+			{"MZXW", "6Y", "TB"},
 		}, nil},
 	}
 

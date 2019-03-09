@@ -25,16 +25,16 @@ type iselOp struct {
 var iselRegs = [2]int16{ppc64.REG_R0, ppc64.REGTMP}
 
 var iselOps = map[ssa.Op]iselOp{
-	ssa.OpPPC64Equal:         iselOp{cond: ppc64.C_COND_EQ, valueIfCond: 1},
-	ssa.OpPPC64NotEqual:      iselOp{cond: ppc64.C_COND_EQ, valueIfCond: 0},
-	ssa.OpPPC64LessThan:      iselOp{cond: ppc64.C_COND_LT, valueIfCond: 1},
-	ssa.OpPPC64GreaterEqual:  iselOp{cond: ppc64.C_COND_LT, valueIfCond: 0},
-	ssa.OpPPC64GreaterThan:   iselOp{cond: ppc64.C_COND_GT, valueIfCond: 1},
-	ssa.OpPPC64LessEqual:     iselOp{cond: ppc64.C_COND_GT, valueIfCond: 0},
-	ssa.OpPPC64FLessThan:     iselOp{cond: ppc64.C_COND_LT, valueIfCond: 1},
-	ssa.OpPPC64FGreaterThan:  iselOp{cond: ppc64.C_COND_GT, valueIfCond: 1},
-	ssa.OpPPC64FLessEqual:    iselOp{cond: ppc64.C_COND_LT, valueIfCond: 1}, // 2 comparisons, 2nd is EQ
-	ssa.OpPPC64FGreaterEqual: iselOp{cond: ppc64.C_COND_GT, valueIfCond: 1}, // 2 comparisons, 2nd is EQ
+	ssa.OpPPC64Equal:         {cond: ppc64.C_COND_EQ, valueIfCond: 1},
+	ssa.OpPPC64NotEqual:      {cond: ppc64.C_COND_EQ, valueIfCond: 0},
+	ssa.OpPPC64LessThan:      {cond: ppc64.C_COND_LT, valueIfCond: 1},
+	ssa.OpPPC64GreaterEqual:  {cond: ppc64.C_COND_LT, valueIfCond: 0},
+	ssa.OpPPC64GreaterThan:   {cond: ppc64.C_COND_GT, valueIfCond: 1},
+	ssa.OpPPC64LessEqual:     {cond: ppc64.C_COND_GT, valueIfCond: 0},
+	ssa.OpPPC64FLessThan:     {cond: ppc64.C_COND_LT, valueIfCond: 1},
+	ssa.OpPPC64FGreaterThan:  {cond: ppc64.C_COND_GT, valueIfCond: 1},
+	ssa.OpPPC64FLessEqual:    {cond: ppc64.C_COND_LT, valueIfCond: 1}, // 2 comparisons, 2nd is EQ
+	ssa.OpPPC64FGreaterEqual: {cond: ppc64.C_COND_GT, valueIfCond: 1}, // 2 comparisons, 2nd is EQ
 }
 
 // markMoves marks any MOVXconst ops that need to avoid clobbering flags.

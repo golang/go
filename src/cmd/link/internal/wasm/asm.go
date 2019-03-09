@@ -54,21 +54,21 @@ type wasmFuncType struct {
 }
 
 var wasmFuncTypes = map[string]*wasmFuncType{
-	"_rt0_wasm_js":           &wasmFuncType{Params: []byte{}},                                         //
-	"wasm_export_run":        &wasmFuncType{Params: []byte{I32, I32}},                                 // argc, argv
-	"wasm_export_resume":     &wasmFuncType{Params: []byte{}},                                         //
-	"wasm_export_getsp":      &wasmFuncType{Results: []byte{I32}},                                     // sp
-	"wasm_pc_f_loop":         &wasmFuncType{Params: []byte{}},                                         //
-	"runtime.wasmMove":       &wasmFuncType{Params: []byte{I32, I32, I32}},                            // dst, src, len
-	"runtime.wasmZero":       &wasmFuncType{Params: []byte{I32, I32}},                                 // ptr, len
-	"runtime.wasmDiv":        &wasmFuncType{Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
-	"runtime.wasmTruncS":     &wasmFuncType{Params: []byte{F64}, Results: []byte{I64}},                // x -> int(x)
-	"runtime.wasmTruncU":     &wasmFuncType{Params: []byte{F64}, Results: []byte{I64}},                // x -> uint(x)
-	"runtime.gcWriteBarrier": &wasmFuncType{Params: []byte{I64, I64}},                                 // ptr, val
-	"cmpbody":                &wasmFuncType{Params: []byte{I64, I64, I64, I64}, Results: []byte{I64}}, // a, alen, b, blen -> -1/0/1
-	"memeqbody":              &wasmFuncType{Params: []byte{I64, I64, I64}, Results: []byte{I64}},      // a, b, len -> 0/1
-	"memcmp":                 &wasmFuncType{Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // a, b, len -> <0/0/>0
-	"memchr":                 &wasmFuncType{Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // s, c, len -> index
+	"_rt0_wasm_js":           {Params: []byte{}},                                         //
+	"wasm_export_run":        {Params: []byte{I32, I32}},                                 // argc, argv
+	"wasm_export_resume":     {Params: []byte{}},                                         //
+	"wasm_export_getsp":      {Results: []byte{I32}},                                     // sp
+	"wasm_pc_f_loop":         {Params: []byte{}},                                         //
+	"runtime.wasmMove":       {Params: []byte{I32, I32, I32}},                            // dst, src, len
+	"runtime.wasmZero":       {Params: []byte{I32, I32}},                                 // ptr, len
+	"runtime.wasmDiv":        {Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
+	"runtime.wasmTruncS":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> int(x)
+	"runtime.wasmTruncU":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> uint(x)
+	"runtime.gcWriteBarrier": {Params: []byte{I64, I64}},                                 // ptr, val
+	"cmpbody":                {Params: []byte{I64, I64, I64, I64}, Results: []byte{I64}}, // a, alen, b, blen -> -1/0/1
+	"memeqbody":              {Params: []byte{I64, I64, I64}, Results: []byte{I64}},      // a, b, len -> 0/1
+	"memcmp":                 {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // a, b, len -> <0/0/>0
+	"memchr":                 {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // s, c, len -> index
 }
 
 func assignAddress(ctxt *ld.Link, sect *sym.Section, n int, s *sym.Symbol, va uint64, isTramp bool) (*sym.Section, int, uint64) {
@@ -105,12 +105,12 @@ func asmb2(ctxt *ld.Link) {
 		// For normal Go functions the return value is
 		// 0 if the function returned normally or
 		// 1 if the stack needs to be unwound.
-		&wasmFuncType{Results: []byte{I32}},
+		{Results: []byte{I32}},
 	}
 
 	// collect host imports (functions that get imported from the WebAssembly host, usually JavaScript)
 	hostImports := []*wasmFunc{
-		&wasmFunc{
+		{
 			Name: "debug",
 			Type: lookupType(&wasmFuncType{Params: []byte{I32}}, &types),
 		},

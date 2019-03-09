@@ -164,9 +164,9 @@ func main() {
 }`
 
 	want := map[string]map[string]bool{
-		"main.Foo": map[string]bool{"v": false},
-		"main.Bar": map[string]bool{"Foo": true, "name": false},
-		"main.Baz": map[string]bool{"Foo": true, "name": false},
+		"main.Foo": {"v": false},
+		"main.Bar": {"Foo": true, "name": false},
+		"main.Baz": {"Foo": true, "name": false},
 	}
 
 	dir, err := ioutil.TempDir("", "TestEmbeddedStructMarker")
