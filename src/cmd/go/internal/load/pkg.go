@@ -1935,8 +1935,12 @@ func Packages(args []string) []*Package {
 // cannot be loaded at all.
 // The packages that fail to load will have p.Error != nil.
 func PackagesAndErrors(patterns []string) []*Package {
-	if len(patterns) > 0 && strings.HasSuffix(patterns[0], ".go") {
-		return []*Package{GoFilesPackage(patterns)}
+	if len(patterns) > 0 {
+		for _, p := range patterns {
+			if strings.HasSuffix(p, ".go") {
+				return []*Package{GoFilesPackage(patterns)}
+			}
+		}
 	}
 
 	matches := ImportPaths(patterns)
@@ -2048,7 +2052,14 @@ func GoFilesPackage(gofiles []string) *Package {
 
 	for _, f := range gofiles {
 		if !strings.HasSuffix(f, ".go") {
-			base.Fatalf("named files must be .go files")
+			pkg := new(Package)
+			pkg.Internal.Local = true
+			pkg.Internal.CmdlineFiles = true
+			pkg.Name = f
+			pkg.Error = &PackageError{
+				Err: fmt.Sprintf("named files must be .go files: %s", pkg.Name),
+			}
+			return pkg
 		}
 	}
 
