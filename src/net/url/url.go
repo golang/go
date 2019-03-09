@@ -442,7 +442,7 @@ func getscheme(rawurl string) (scheme, path string, err error) {
 			r = rawurl[0]
 		}
 		if r < 'A' || (r > 'Z' && r < 'a') || r > 'z' {
-			return "", "", errors.New("url scheme has invalid character")
+			return "", "", errors.New("URL scheme has invalid character")
 		}
 	}
 	for i := 0; i < len(rawurl); i++ {

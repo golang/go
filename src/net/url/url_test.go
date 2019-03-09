@@ -1885,7 +1885,7 @@ func TestValidUrlSchemes(t *testing.T) {
 			t.Errorf("ParseRequestURI(%q) gave err %v; want no error", test.url, err)
 		} else if !test.expectedValid && err == nil {
 			t.Errorf("ParseRequestURI(%q) gave nil error; want some error", test.url)
-		} else if !test.expectedValid && err != nil && !strings.Contains(err.Error(), "url scheme has invalid character") {
+		} else if !test.expectedValid && err != nil && !strings.Contains(err.Error(), "URL scheme has invalid character") {
 			t.Errorf("ParseRequestURI(%q) gave error %v; want Invalid scheme error", test.url, err)
 		}
 	}
