@@ -7,7 +7,6 @@ package gc
 import (
 	"fmt"
 	"math/big"
-	"strings"
 )
 
 // implements integer arithmetic
@@ -282,9 +281,6 @@ func (a *Mpint) SetInt64(c int64) {
 }
 
 func (a *Mpint) SetString(as string) {
-	// TODO(gri) remove this code once math/big.Int.SetString can handle separators
-	as = strings.Replace(as, "_", "", -1) // strip separators
-
 	_, ok := a.Val.SetString(as, 0)
 	if !ok {
 		// required syntax is [+-][0[x]]d*
