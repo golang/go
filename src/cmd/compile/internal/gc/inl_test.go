@@ -133,14 +133,11 @@ func TestIntendedInlining(t *testing.T) {
 			"Value.pointer",
 			"add",
 			"align",
+			"flag.mustBe",
+			"flag.mustBeAssignable",
+			"flag.mustBeExported",
 			"flag.kind",
 			"flag.ro",
-
-			// TODO: these use panic, which gets their budgets
-			// slightly over the limit
-			// "flag.mustBe",
-			// "flag.mustBeAssignable",
-			// "flag.mustBeExported",
 		},
 		"regexp": {
 			"(*bitState).push",
