@@ -396,6 +396,44 @@ func convertFromDirents11(buf []byte, old []byte) int {
 	return dstPos
 }
 
+//sys	ptrace(request int, pid int, addr uintptr, data int) (err error)
+
+func PtraceAttach(pid int) (err error) {
+	return ptrace(PTRACE_ATTACH, pid, 0, 0)
+}
+
+func PtraceCont(pid int, signal int) (err error) {
+	return ptrace(PTRACE_CONT, pid, 1, signal)
+}
+
+func PtraceDetach(pid int, signal int) (err error) {
+	return ptrace(PTRACE_DETACH, pid, 1, signal)
+}
+
+func PtraceGetRegs(pid int, regsout *Reg) (err error) {
+	return ptrace(PTRACE_GETREGS, pid, uintptr(unsafe.Pointer(regsout)), 0)
+}
+
+func PtraceLwpEvents(pid int, enable int) (err error) {
+	return ptrace(PTRACE_LWPEVENTS, pid, 0, enable)
+}
+
+func PtraceSetRegs(pid int, regs *Reg) (err error) {
+	return ptrace(PTRACE_SETREGS, pid, uintptr(unsafe.Pointer(regs)), 0)
+}
+
+func PtraceSingleStep(pid int) (err error) {
+	return ptrace(PTRACE_SINGLESTEP, pid, 1, 0)
+}
+
+func PtraceGetFpRegs(pid int, fpregsout *FpReg) (err error) {
+	return ptrace(PTRACE_GETFPREGS, pid, uintptr(unsafe.Pointer(fpregsout)), 0)
+}
+
+func PtraceGetFsBase(pid int, fsbase *int64) (err error) {
+	return ptrace(PTRACE_GETFSBASE, pid, uintptr(unsafe.Pointer(fsbase)), 0)
+}
+
 /*
  * Exposed directly
  */
