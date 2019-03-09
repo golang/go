@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"strings"
 )
 
 // implements float arithmetic
@@ -180,9 +179,6 @@ func (a *Mpflt) Neg() {
 }
 
 func (a *Mpflt) SetString(as string) {
-	// TODO(gri) remove this code once math/big.Float.Parse can handle separators
-	as = strings.Replace(as, "_", "", -1) // strip separators
-
 	// TODO(gri) why is this needed?
 	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
 		as = as[1:]
