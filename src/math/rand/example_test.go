@@ -10,7 +10,6 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
-	"time"
 )
 
 // These tests serve as an example but also make sure we don't change
