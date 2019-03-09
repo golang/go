@@ -37,6 +37,7 @@ type opInfo struct {
 	hasSideEffects    bool      // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
 	zeroWidth         bool      // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	symEffect         SymEffect // effect this op has on symbol in aux
+	scale             uint8     // amd64/386 indexed load scale
 }
 
 type inputInfo struct {

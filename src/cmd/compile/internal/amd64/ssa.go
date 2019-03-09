@@ -117,6 +117,21 @@ func opregreg(s *gc.SSAGenState, op obj.As, dest, src int16) *obj.Prog {
 	return p
 }
 
+// memIdx fills out a as an indexed memory reference for v.
+// It assumes that the base register and the index register
+// are v.Args[0].Reg() and v.Args[1].Reg(), respectively.
+// The caller must still use gc.AddAux/gc.AddAux2 to handle v.Aux as necessary.
+func memIdx(a *obj.Addr, v *ssa.Value) {
+	r, i := v.Args[0].Reg(), v.Args[1].Reg()
+	a.Type = obj.TYPE_MEM
+	a.Scale = v.Op.Scale()
+	if a.Scale == 1 && i == x86.REG_SP {
+		r, i = i, r
+	}
+	a.Reg = r
+	a.Index = i
+}
+
 // DUFFZERO consists of repeated blocks of 4 MOVUPSs + LEAQ,
 // See runtime/mkduff.go.
 func duffStart(size int64) int64 {
@@ -571,26 +586,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpAMD64LEAQ1, ssa.OpAMD64LEAQ2, ssa.OpAMD64LEAQ4, ssa.OpAMD64LEAQ8,
 		ssa.OpAMD64LEAL1, ssa.OpAMD64LEAL2, ssa.OpAMD64LEAL4, ssa.OpAMD64LEAL8,
 		ssa.OpAMD64LEAW1, ssa.OpAMD64LEAW2, ssa.OpAMD64LEAW4, ssa.OpAMD64LEAW8:
-		o := v.Reg()
-		r := v.Args[0].Reg()
-		i := v.Args[1].Reg()
 		p := s.Prog(v.Op.Asm())
-		switch v.Op {
-		case ssa.OpAMD64LEAQ1, ssa.OpAMD64LEAL1, ssa.OpAMD64LEAW1:
-			p.From.Scale = 1
-			if i == x86.REG_SP {
-				r, i = i, r
-			}
-		case ssa.OpAMD64LEAQ2, ssa.OpAMD64LEAL2, ssa.OpAMD64LEAW2:
-			p.From.Scale = 2
-		case ssa.OpAMD64LEAQ4, ssa.OpAMD64LEAL4, ssa.OpAMD64LEAW4:
-			p.From.Scale = 4
-		case ssa.OpAMD64LEAQ8, ssa.OpAMD64LEAL8, ssa.OpAMD64LEAW8:
-			p.From.Scale = 8
-		}
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = r
-		p.From.Index = i
+		memIdx(&p.From, v)
+		o := v.Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = o
 		if v.AuxInt != 0 && v.Aux == nil {
@@ -702,25 +700,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpAMD64MOVBloadidx1, ssa.OpAMD64MOVWloadidx1, ssa.OpAMD64MOVLloadidx1, ssa.OpAMD64MOVQloadidx1, ssa.OpAMD64MOVSSloadidx1, ssa.OpAMD64MOVSDloadidx1,
 		ssa.OpAMD64MOVQloadidx8, ssa.OpAMD64MOVSDloadidx8, ssa.OpAMD64MOVLloadidx8, ssa.OpAMD64MOVLloadidx4, ssa.OpAMD64MOVSSloadidx4, ssa.OpAMD64MOVWloadidx2:
-		r := v.Args[0].Reg()
-		i := v.Args[1].Reg()
 		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_MEM
-		switch v.Op {
-		case ssa.OpAMD64MOVBloadidx1, ssa.OpAMD64MOVWloadidx1, ssa.OpAMD64MOVLloadidx1, ssa.OpAMD64MOVQloadidx1, ssa.OpAMD64MOVSSloadidx1, ssa.OpAMD64MOVSDloadidx1:
-			if i == x86.REG_SP {
-				r, i = i, r
-			}
-			p.From.Scale = 1
-		case ssa.OpAMD64MOVQloadidx8, ssa.OpAMD64MOVSDloadidx8, ssa.OpAMD64MOVLloadidx8:
-			p.From.Scale = 8
-		case ssa.OpAMD64MOVLloadidx4, ssa.OpAMD64MOVSSloadidx4:
-			p.From.Scale = 4
-		case ssa.OpAMD64MOVWloadidx2:
-			p.From.Scale = 2
-		}
-		p.From.Reg = r
-		p.From.Index = i
+		memIdx(&p.From, v)
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -736,27 +717,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.To, v)
 	case ssa.OpAMD64MOVBstoreidx1, ssa.OpAMD64MOVWstoreidx1, ssa.OpAMD64MOVLstoreidx1, ssa.OpAMD64MOVQstoreidx1, ssa.OpAMD64MOVSSstoreidx1, ssa.OpAMD64MOVSDstoreidx1,
 		ssa.OpAMD64MOVQstoreidx8, ssa.OpAMD64MOVSDstoreidx8, ssa.OpAMD64MOVLstoreidx8, ssa.OpAMD64MOVSSstoreidx4, ssa.OpAMD64MOVLstoreidx4, ssa.OpAMD64MOVWstoreidx2:
-		r := v.Args[0].Reg()
-		i := v.Args[1].Reg()
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
-		p.To.Type = obj.TYPE_MEM
-		switch v.Op {
-		case ssa.OpAMD64MOVBstoreidx1, ssa.OpAMD64MOVWstoreidx1, ssa.OpAMD64MOVLstoreidx1, ssa.OpAMD64MOVQstoreidx1, ssa.OpAMD64MOVSSstoreidx1, ssa.OpAMD64MOVSDstoreidx1:
-			if i == x86.REG_SP {
-				r, i = i, r
-			}
-			p.To.Scale = 1
-		case ssa.OpAMD64MOVQstoreidx8, ssa.OpAMD64MOVSDstoreidx8, ssa.OpAMD64MOVLstoreidx8:
-			p.To.Scale = 8
-		case ssa.OpAMD64MOVSSstoreidx4, ssa.OpAMD64MOVLstoreidx4:
-			p.To.Scale = 4
-		case ssa.OpAMD64MOVWstoreidx2:
-			p.To.Scale = 2
-		}
-		p.To.Reg = r
-		p.To.Index = i
+		memIdx(&p.To, v)
 		gc.AddAux(&p.To, v)
 	case ssa.OpAMD64ADDQconstmodify, ssa.OpAMD64ADDLconstmodify:
 		sc := v.AuxValAndOff()
@@ -809,24 +773,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
 		p.From.Offset = sc.Val()
-		r := v.Args[0].Reg()
-		i := v.Args[1].Reg()
-		switch v.Op {
-		case ssa.OpAMD64MOVBstoreconstidx1, ssa.OpAMD64MOVWstoreconstidx1, ssa.OpAMD64MOVLstoreconstidx1, ssa.OpAMD64MOVQstoreconstidx1:
-			p.To.Scale = 1
-			if i == x86.REG_SP {
-				r, i = i, r
-			}
-		case ssa.OpAMD64MOVWstoreconstidx2:
-			p.To.Scale = 2
-		case ssa.OpAMD64MOVLstoreconstidx4:
-			p.To.Scale = 4
-		case ssa.OpAMD64MOVQstoreconstidx8:
-			p.To.Scale = 8
-		}
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = r
-		p.To.Index = i
+		memIdx(&p.To, v)
 		gc.AddAux2(&p.To, v, sc.Off())
 	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX,
 		ssa.OpAMD64CVTTSS2SL, ssa.OpAMD64CVTTSD2SL, ssa.OpAMD64CVTTSS2SQ, ssa.OpAMD64CVTTSD2SQ,
