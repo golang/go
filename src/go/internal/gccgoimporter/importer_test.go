@@ -91,6 +91,7 @@ var importerTests = [...]importerTest{
 	{pkgpath: "v1reflect", name: "Type", want: "type Type interface{Align() int; AssignableTo(u Type) bool; Bits() int; ChanDir() ChanDir; Elem() Type; Field(i int) StructField; FieldAlign() int; FieldByIndex(index []int) StructField; FieldByName(name string) (StructField, bool); FieldByNameFunc(match func(string) bool) (StructField, bool); Implements(u Type) bool; In(i int) Type; IsVariadic() bool; Key() Type; Kind() Kind; Len() int; Method(int) Method; MethodByName(string) (Method, bool); Name() string; NumField() int; NumIn() int; NumMethod() int; NumOut() int; Out(i int) Type; PkgPath() string; Size() uintptr; String() string; common() *commonType; rawString() string; runtimeType() *runtimeType; uncommon() *uncommonType}"},
 	{pkgpath: "nointerface", name: "I", want: "type I int"},
 	{pkgpath: "issue29198", name: "FooServer", want: "type FooServer struct{FooServer *FooServer; user string; ctx context.Context}"},
+	{pkgpath: "issue30628", name: "Apple", want: "type Apple struct{hey sync.RWMutex; x int; RQ [517]struct{Count uintptr; NumBytes uintptr; Last uintptr}}"},
 }
 
 func TestGoxImporter(t *testing.T) {
@@ -143,17 +144,21 @@ func TestObjImporter(t *testing.T) {
 	}
 	t.Logf("gccgo version %d.%d", major, minor)
 
-	tmpdir, err := ioutil.TempDir("", "")
+	tmpdir, err := ioutil.TempDir("", "TestObjImporter")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(tmpdir)
+
 	initmap := make(map[*types.Package]InitData)
 	imp := GetImporter([]string{tmpdir}, initmap)
 
-	artmpdir, err := ioutil.TempDir("", "")
+	artmpdir, err := ioutil.TempDir("", "TestObjImporter")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(artmpdir)
+
 	arinitmap := make(map[*types.Package]InitData)
 	arimp := GetImporter([]string{artmpdir}, arinitmap)
 
@@ -197,9 +202,5 @@ func TestObjImporter(t *testing.T) {
 		if err = os.Remove(afile); err != nil {
 			t.Fatal(err)
 		}
-	}
-
-	if err = os.Remove(tmpdir); err != nil {
-		t.Fatal(err)
 	}
 }

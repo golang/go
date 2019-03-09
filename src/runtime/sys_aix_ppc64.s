@@ -30,7 +30,13 @@ TEXT runtime·callCfunction(SB),	NOSPLIT|NOFRAME,$0
 // Called by runtime.asmcgocall
 // It reserves a stack of 288 bytes for the C function.
 // NOT USING GO CALLING CONVENTION
-TEXT runtime·asmsyscall6(SB),NOSPLIT,$256
+// runtime.asmsyscall6 is a function descriptor to the real asmsyscall6.
+DATA	runtime·asmsyscall6+0(SB)/8, $runtime·_asmsyscall6(SB)
+DATA	runtime·asmsyscall6+8(SB)/8, $TOC(SB)
+DATA	runtime·asmsyscall6+16(SB)/8, $0
+GLOBL	runtime·asmsyscall6(SB), NOPTR, $24
+
+TEXT runtime·_asmsyscall6(SB),NOSPLIT,$256
 	MOVD	R3, 48(R1) // Save libcall for later
 	MOVD	libcall_fn(R3), R12
 	MOVD	libcall_args(R3), R9
@@ -198,4 +204,36 @@ TEXT runtime·osyield1(SB),NOSPLIT,$0
 	MOVD	R0, CTR
 	BL	(CTR)
 	MOVD	40(R1), R2
+	BL runtime·reginit(SB)
+	RET
+
+
+// Runs on OS stack, called from runtime·sigprocmask.
+TEXT runtime·sigprocmask1(SB),NOSPLIT,$0-24
+	MOVD	how+0(FP), R3
+	MOVD	new+8(FP), R4
+	MOVD	old+16(FP), R5
+	MOVD	$libpthread_sigthreadmask(SB), R12
+	MOVD	0(R12), R12
+	MOVD	R2, 40(R1)
+	MOVD	0(R12), R0
+	MOVD	8(R12), R2
+	MOVD	R0, CTR
+	BL	(CTR)
+	MOVD	40(R1), R2
+	BL runtime·reginit(SB)
+	RET
+
+// Runs on OS stack, called from runtime·usleep.
+TEXT runtime·usleep1(SB),NOSPLIT,$0-8
+	MOVW	us+0(FP), R3
+	MOVD	$libc_usleep(SB), R12
+	MOVD	0(R12), R12
+	MOVD	R2, 40(R1)
+	MOVD	0(R12), R0
+	MOVD	8(R12), R2
+	MOVD	R0, CTR
+	BL	(CTR)
+	MOVD	40(R1), R2
+	BL runtime·reginit(SB)
 	RET

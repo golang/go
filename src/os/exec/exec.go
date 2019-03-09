@@ -376,6 +376,7 @@ func (c *Cmd) Start() error {
 		}
 	}
 
+	c.childFiles = make([]*os.File, 0, 3+len(c.ExtraFiles))
 	type F func(*Cmd) (*os.File, error)
 	for _, setupFd := range []F{(*Cmd).stdin, (*Cmd).stdout, (*Cmd).stderr} {
 		fd, err := setupFd(c)
@@ -403,11 +404,14 @@ func (c *Cmd) Start() error {
 
 	c.closeDescriptors(c.closeAfterStart)
 
-	c.errch = make(chan error, len(c.goroutine))
-	for _, fn := range c.goroutine {
-		go func(fn func() error) {
-			c.errch <- fn()
-		}(fn)
+	// Don't allocate the channel unless there are goroutines to fire.
+	if len(c.goroutine) > 0 {
+		c.errch = make(chan error, len(c.goroutine))
+		for _, fn := range c.goroutine {
+			go func(fn func() error) {
+				c.errch <- fn()
+			}(fn)
+		}
 	}
 
 	if c.ctx != nil {
@@ -713,7 +717,7 @@ func dedupEnv(env []string) []string {
 // If caseInsensitive is true, the case of keys is ignored.
 func dedupEnvCase(caseInsensitive bool, env []string) []string {
 	out := make([]string, 0, len(env))
-	saw := map[string]int{} // key => index into out
+	saw := make(map[string]int, len(env)) // key => index into out
 	for _, kv := range env {
 		eq := strings.Index(kv, "=")
 		if eq < 0 {

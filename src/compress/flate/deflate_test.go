@@ -161,7 +161,7 @@ func TestVeryLongSparseChunk(t *testing.T) {
 		t.Errorf("NewWriter: %v", err)
 		return
 	}
-	if _, err = io.Copy(w, &sparseReader{l: 23E8}); err != nil {
+	if _, err = io.Copy(w, &sparseReader{l: 23e8}); err != nil {
 		t.Errorf("Compress failed: %v", err)
 		return
 	}

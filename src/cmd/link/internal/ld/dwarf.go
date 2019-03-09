@@ -264,15 +264,6 @@ func newrefattr(die *dwarf.DWDie, attr uint16, ref *sym.Symbol) *dwarf.DWAttr {
 	return newattr(die, attr, dwarf.DW_CLS_REFERENCE, 0, ref)
 }
 
-func putdies(linkctxt *Link, ctxt dwarf.Context, syms []*sym.Symbol, die *dwarf.DWDie) []*sym.Symbol {
-	for ; die != nil; die = die.Link {
-		syms = putdie(linkctxt, ctxt, syms, die)
-	}
-	syms[len(syms)-1].AddUint8(0)
-
-	return syms
-}
-
 func dtolsym(s dwarf.Sym) *sym.Symbol {
 	if s == nil {
 		return nil
@@ -294,7 +285,10 @@ func putdie(linkctxt *Link, ctxt dwarf.Context, syms []*sym.Symbol, die *dwarf.D
 	dwarf.Uleb128put(ctxt, s, int64(die.Abbrev))
 	dwarf.PutAttrs(ctxt, s, die.Abbrev, die.Attr)
 	if dwarf.HasChildren(die) {
-		return putdies(linkctxt, ctxt, syms, die.Child)
+		for die := die.Child; die != nil; die = die.Link {
+			syms = putdie(linkctxt, ctxt, syms, die)
+		}
+		syms[len(syms)-1].AddUint8(0)
 	}
 	return syms
 }
@@ -1348,13 +1342,20 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 }
 
 // writepcranges generates the DW_AT_ranges table for compilation unit cu.
-func writepcranges(ctxt *Link, cu *dwarf.DWDie, base *sym.Symbol, pcs []dwarf.Range, ranges *sym.Symbol) {
+func writepcranges(ctxt *Link, unit *compilationUnit, base *sym.Symbol, pcs []dwarf.Range, ranges *sym.Symbol) {
 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
 
+	unitLengthOffset := ranges.Size
+
 	// Create PC ranges for this CU.
-	newattr(cu, dwarf.DW_AT_ranges, dwarf.DW_CLS_PTR, ranges.Size, ranges)
-	newattr(cu, dwarf.DW_AT_low_pc, dwarf.DW_CLS_ADDRESS, base.Value, base)
+	newattr(unit.dwinfo, dwarf.DW_AT_ranges, dwarf.DW_CLS_PTR, ranges.Size, ranges)
+	newattr(unit.dwinfo, dwarf.DW_AT_low_pc, dwarf.DW_CLS_ADDRESS, base.Value, base)
 	dwarf.PutRanges(dwarfctxt, ranges, nil, pcs)
+
+	if ctxt.HeadType == objabi.Haix {
+		addDwsectCUSize(".debug_ranges", unit.lib.String(), uint64(ranges.Size-unitLengthOffset))
+	}
+
 }
 
 /*
@@ -1391,13 +1392,22 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 	fs.Type = sym.SDWARFSECT
 	syms = append(syms, fs)
 
+	// Length field is 4 bytes on Dwarf32 and 12 bytes on Dwarf64
+	lengthFieldSize := int64(4)
+	if isDwarf64(ctxt) {
+		lengthFieldSize += 8
+	}
+
 	// Emit the CIE, Section 6.4.1
 	cieReserve := uint32(16)
 	if haslinkregister(ctxt) {
 		cieReserve = 32
 	}
+	if isDwarf64(ctxt) {
+		cieReserve += 4 // 4 bytes added for cid
+	}
 	createUnitLength(ctxt, fs, uint64(cieReserve))             // initial length, must be multiple of thearch.ptrsize
-	addDwarfAddrField(ctxt, fs, 0xffffffff)                    // cid.
+	addDwarfAddrField(ctxt, fs, ^uint64(0))                    // cid
 	fs.AddUint8(3)                                             // dwarf version (appendix F)
 	fs.AddUint8(0)                                             // augmentation ""
 	dwarf.Uleb128put(dwarfctxt, fs, 1)                         // code_alignment_factor
@@ -1423,8 +1433,7 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 		dwarf.Uleb128put(dwarfctxt, fs, int64(-ctxt.Arch.PtrSize)/dataAlignmentFactor) // ...is saved at [CFA - (PtrSize/4)].
 	}
 
-	// 4 is to exclude the length field.
-	pad := int64(cieReserve) + 4 - fs.Size
+	pad := int64(cieReserve) + lengthFieldSize - fs.Size
 
 	if pad < 0 {
 		Exitf("dwarf: cieReserve too small by %d bytes.", -pad)
@@ -1480,10 +1489,16 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 
 		// Emit the FDE header, Section 6.4.1.
 		//	4 bytes: length, must be multiple of thearch.ptrsize
-		//	4 bytes: Pointer to the CIE above, at offset 0
+		//	4/8 bytes: Pointer to the CIE above, at offset 0
 		//	ptrsize: initial location
 		//	ptrsize: address range
-		fs.AddUint32(ctxt.Arch, uint32(4+2*ctxt.Arch.PtrSize+len(deltaBuf))) // length (excludes itself)
+
+		fdeLength := uint64(4 + 2*ctxt.Arch.PtrSize + len(deltaBuf))
+		if isDwarf64(ctxt) {
+			fdeLength += 4 // 4 bytes added for CIE pointer
+		}
+		createUnitLength(ctxt, fs, fdeLength)
+
 		if ctxt.LinkMode == LinkExternal {
 			addDwarfAddrRef(ctxt, fs, fs)
 		} else {
@@ -1492,6 +1507,10 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 		fs.AddAddr(ctxt.Arch, s)
 		fs.AddUintXX(ctxt.Arch, uint64(s.Size), ctxt.Arch.PtrSize) // address range
 		fs.AddBytes(deltaBuf)
+
+		if ctxt.HeadType == objabi.Haix {
+			addDwsectCUSize(".debug_frame", s.File, fdeLength+uint64(lengthFieldSize))
+		}
 	}
 	return syms
 }
@@ -1503,7 +1522,7 @@ const (
 	COMPUNITHEADERSIZE = 4 + 2 + 4 + 1
 )
 
-func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit, abbrevsym *sym.Symbol) []*sym.Symbol {
+func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit, abbrevsym *sym.Symbol, pubNames, pubTypes *pubWriter) []*sym.Symbol {
 	infosec := ctxt.Syms.Lookup(".debug_info", 0)
 	infosec.Type = sym.SDWARFINFO
 	infosec.Attr |= sym.AttrReachable
@@ -1518,6 +1537,9 @@ func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit, abbrevs
 		if len(u.lib.Textp) == 0 && u.dwinfo.Child == nil {
 			continue
 		}
+
+		pubNames.beginCompUnit(compunit)
+		pubTypes.beginCompUnit(compunit)
 
 		// Write .debug_info Compilation Unit Header (sec 7.5.1)
 		// Fields marked with (*) must be changed for 64-bit dwarf
@@ -1539,11 +1561,32 @@ func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit, abbrevs
 		if u.consts != nil {
 			cu = append(cu, u.consts)
 		}
-		cu = putdies(ctxt, dwarfctxt, cu, compunit.Child)
 		var cusize int64
 		for _, child := range cu {
 			cusize += child.Size
 		}
+
+		for die := compunit.Child; die != nil; die = die.Link {
+			l := len(cu)
+			lastSymSz := cu[l-1].Size
+			cu = putdie(ctxt, dwarfctxt, cu, die)
+			if ispubname(die) {
+				pubNames.add(die, cusize)
+			}
+			if ispubtype(die) {
+				pubTypes.add(die, cusize)
+			}
+			if lastSymSz != cu[l-1].Size {
+				// putdie will sometimes append directly to the last symbol of the list
+				cusize = cusize - lastSymSz + cu[l-1].Size
+			}
+			for _, child := range cu[l:] {
+				cusize += child.Size
+			}
+		}
+		cu[len(cu)-1].AddUint8(0) // closes compilation unit DIE
+		cusize++
+
 		// Save size for AIX symbol table.
 		if ctxt.HeadType == objabi.Haix {
 			saveDwsectCUSize(".debug_info", getPkgFromCUSym(s), uint64(cusize))
@@ -1555,9 +1598,8 @@ func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit, abbrevs
 			cusize -= 4 // exclude the length field.
 			s.SetUint32(ctxt.Arch, 0, uint32(cusize))
 		}
-		// Leave a breadcrumb for writepub. This does not
-		// appear in the DWARF output.
-		newattr(compunit, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, cusize, 0)
+		pubNames.endCompUnit(compunit, uint32(cusize)+4)
+		pubTypes.endCompUnit(compunit, uint32(cusize)+4)
 		syms = append(syms, cu...)
 	}
 	return syms
@@ -1581,52 +1623,57 @@ func ispubtype(die *dwarf.DWDie) bool {
 	return die.Abbrev >= dwarf.DW_ABRV_NULLTYPE
 }
 
-func writepub(ctxt *Link, sname string, ispub func(*dwarf.DWDie) bool, syms []*sym.Symbol) []*sym.Symbol {
+type pubWriter struct {
+	ctxt  *Link
+	s     *sym.Symbol
+	sname string
+
+	sectionstart int64
+	culengthOff  int64
+}
+
+func newPubWriter(ctxt *Link, sname string) *pubWriter {
 	s := ctxt.Syms.Lookup(sname, 0)
 	s.Type = sym.SDWARFSECT
-	syms = append(syms, s)
+	return &pubWriter{ctxt: ctxt, s: s, sname: sname}
+}
 
-	for _, u := range ctxt.compUnits {
-		if len(u.lib.Textp) == 0 && u.dwinfo.Child == nil {
-			continue
-		}
-		compunit := u.dwinfo
-		sectionstart := s.Size
-		culength := uint32(getattr(compunit, dwarf.DW_AT_byte_size).Value) + 4
+func (pw *pubWriter) beginCompUnit(compunit *dwarf.DWDie) {
+	pw.sectionstart = pw.s.Size
 
-		// Write .debug_pubnames/types	Header (sec 6.1.1)
-		createUnitLength(ctxt, s, 0)                    // unit_length (*), will be filled in later.
-		s.AddUint16(ctxt.Arch, 2)                       // dwarf version (appendix F)
-		addDwarfAddrRef(ctxt, s, dtolsym(compunit.Sym)) // debug_info_offset (of the Comp unit Header)
-		addDwarfAddrField(ctxt, s, uint64(culength))    // debug_info_length
+	// Write .debug_pubnames/types	Header (sec 6.1.1)
+	createUnitLength(pw.ctxt, pw.s, 0)                    // unit_length (*), will be filled in later.
+	pw.s.AddUint16(pw.ctxt.Arch, 2)                       // dwarf version (appendix F)
+	addDwarfAddrRef(pw.ctxt, pw.s, dtolsym(compunit.Sym)) // debug_info_offset (of the Comp unit Header)
+	pw.culengthOff = pw.s.Size
+	addDwarfAddrField(pw.ctxt, pw.s, uint64(0)) // debug_info_length, will be filled in later.
 
-		for die := compunit.Child; die != nil; die = die.Link {
-			if !ispub(die) {
-				continue
-			}
-			dwa := getattr(die, dwarf.DW_AT_name)
-			name := dwa.Data.(string)
-			if die.Sym == nil {
-				fmt.Println("Missing sym for ", name)
-			}
-			addDwarfAddrRef(ctxt, s, dtolsym(die.Sym))
-			Addstring(s, name)
-		}
+}
 
-		addDwarfAddrField(ctxt, s, 0) // Null offset
-
-		// On AIX, save the current size of this compilation unit.
-		if ctxt.HeadType == objabi.Haix {
-			saveDwsectCUSize(sname, getPkgFromCUSym(dtolsym(compunit.Sym)), uint64(s.Size-sectionstart))
-		}
-		if isDwarf64(ctxt) {
-			s.SetUint(ctxt.Arch, sectionstart+4, uint64(s.Size-sectionstart)-12) // exclude the length field.
-		} else {
-			s.SetUint32(ctxt.Arch, sectionstart, uint32(s.Size-sectionstart)-4) // exclude the length field.
-		}
+func (pw *pubWriter) add(die *dwarf.DWDie, offset int64) {
+	dwa := getattr(die, dwarf.DW_AT_name)
+	name := dwa.Data.(string)
+	if die.Sym == nil {
+		fmt.Println("Missing sym for ", name)
 	}
+	addDwarfAddrField(pw.ctxt, pw.s, uint64(offset))
+	Addstring(pw.s, name)
+}
 
-	return syms
+func (pw *pubWriter) endCompUnit(compunit *dwarf.DWDie, culength uint32) {
+	addDwarfAddrField(pw.ctxt, pw.s, 0) // Null offset
+
+	// On AIX, save the current size of this compilation unit.
+	if pw.ctxt.HeadType == objabi.Haix {
+		saveDwsectCUSize(pw.sname, getPkgFromCUSym(dtolsym(compunit.Sym)), uint64(pw.s.Size-pw.sectionstart))
+	}
+	if isDwarf64(pw.ctxt) {
+		pw.s.SetUint(pw.ctxt.Arch, pw.sectionstart+4, uint64(pw.s.Size-pw.sectionstart)-12) // exclude the length field.
+		pw.s.SetUint(pw.ctxt.Arch, pw.culengthOff, uint64(culength))
+	} else {
+		pw.s.SetUint32(pw.ctxt.Arch, pw.sectionstart, uint32(pw.s.Size-pw.sectionstart)-4) // exclude the length field.
+		pw.s.SetUint32(pw.ctxt.Arch, pw.culengthOff, culength)
+	}
 }
 
 func writegdbscript(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
@@ -1673,6 +1720,7 @@ func dwarfEnabled(ctxt *Link) bool {
 		case ctxt.IsELF:
 		case ctxt.HeadType == objabi.Hdarwin:
 		case ctxt.HeadType == objabi.Hwindows:
+		case ctxt.HeadType == objabi.Haix:
 		default:
 			return false
 		}
@@ -1691,6 +1739,11 @@ func dwarfEnabled(ctxt *Link) bool {
 func dwarfGenerateDebugInfo(ctxt *Link) {
 	if !dwarfEnabled(ctxt) {
 		return
+	}
+
+	if ctxt.HeadType == objabi.Haix {
+		// Initial map used to store package size for each DWARF section.
+		dwsectCUSize = make(map[string]uint64)
 	}
 
 	ctxt.compUnitByPackage = make(map[*sym.Library]*compilationUnit)
@@ -1792,6 +1845,10 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 				if ctxt.HeadType == objabi.Hdarwin {
 					removeDwarfAddrListBaseAddress(ctxt, dsym, rangeSym, false)
 				}
+				if ctxt.HeadType == objabi.Haix {
+					addDwsectCUSize(".debug_ranges", unit.lib.String(), uint64(rangeSym.Size))
+
+				}
 				unit.rangeSyms = append(unit.rangeSyms, rangeSym)
 			}
 
@@ -1854,7 +1911,7 @@ func dwarfGenerateDebugSyms(ctxt *Link) {
 			continue
 		}
 		writelines(ctxt, u, debugLine)
-		writepcranges(ctxt, u.dwinfo, u.lib.Textp[0], u.pcs, debugRanges)
+		writepcranges(ctxt, u, u.lib.Textp[0], u.pcs, debugRanges)
 	}
 
 	// newdie adds DIEs to the *beginning* of the parent's DIE list.
@@ -1863,13 +1920,14 @@ func dwarfGenerateDebugSyms(ctxt *Link) {
 	reversetree(&dwtypes.Child)
 	movetomodule(ctxt, &dwtypes)
 
+	pubNames := newPubWriter(ctxt, ".debug_pubnames")
+	pubTypes := newPubWriter(ctxt, ".debug_pubtypes")
+
 	// Need to reorder symbols so sym.SDWARFINFO is after all sym.SDWARFSECT
-	// (but we need to generate dies before writepub)
-	infosyms := writeinfo(ctxt, nil, ctxt.compUnits, abbrev)
+	infosyms := writeinfo(ctxt, nil, ctxt.compUnits, abbrev, pubNames, pubTypes)
 
 	syms = writeframes(ctxt, syms)
-	syms = writepub(ctxt, ".debug_pubnames", ispubname, syms)
-	syms = writepub(ctxt, ".debug_pubtypes", ispubtype, syms)
+	syms = append(syms, pubNames.s, pubTypes.s)
 	syms = writegdbscript(ctxt, syms)
 	// Now we're done writing SDWARFSECT symbols, so we can write
 	// other SDWARF* symbols.
@@ -2122,6 +2180,10 @@ func getDwsectCUSize(sname string, pkgname string) uint64 {
 
 func saveDwsectCUSize(sname string, pkgname string, size uint64) {
 	dwsectCUSize[sname+"."+pkgname] = size
+}
+
+func addDwsectCUSize(sname string, pkgname string, size uint64) {
+	dwsectCUSize[sname+"."+pkgname] += size
 }
 
 // getPkgFromCUSym returns the package name for the compilation unit

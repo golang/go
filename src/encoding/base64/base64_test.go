@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"reflect"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -175,7 +176,7 @@ func TestDecoder(t *testing.T) {
 		testEqual(t, "Read from %q = length %v, want %v", p.encoded, count, len(p.decoded))
 		testEqual(t, "Decoding of %q = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded)
 		if err != io.EOF {
-			count, err = decoder.Read(dbuf)
+			_, err = decoder.Read(dbuf)
 		}
 		testEqual(t, "Read from %q = %v, want %v", p.encoded, err, io.EOF)
 	}
@@ -244,6 +245,20 @@ func TestDecodeCorrupt(t *testing.T) {
 		default:
 			t.Error("Decoder failed to detect corruption in", tc)
 		}
+	}
+}
+
+func TestDecodeBounds(t *testing.T) {
+	var buf [32]byte
+	s := StdEncoding.EncodeToString(buf[:])
+	defer func() {
+		if err := recover(); err != nil {
+			t.Fatalf("Decode panicked unexpectedly: %v\n%s", err, debug.Stack())
+		}
+	}()
+	n, err := StdEncoding.Decode(buf[:], []byte(s))
+	if n != len(buf) || err != nil {
+		t.Fatalf("StdEncoding.Decode = %d, %v, want %d, nil", n, err, len(buf))
 	}
 }
 

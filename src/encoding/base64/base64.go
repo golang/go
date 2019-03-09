@@ -123,6 +123,10 @@ func (enc *Encoding) Encode(dst, src []byte) {
 	if len(src) == 0 {
 		return
 	}
+	// enc is a pointer receiver, so the use of enc.encode within the hot
+	// loop below means a nil check at every operation. Lift that nil check
+	// outside of the loop to speed up the encoder.
+	_ = enc.encode
 
 	di, si := 0, 0
 	n := (len(src) / 3) * 3
@@ -278,7 +282,7 @@ func (e CorruptInputError) Error() string {
 func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err error) {
 	// Decode quantum using the base64 alphabet
 	var dbuf [4]byte
-	dinc, dlen := 3, 4
+	dlen := 4
 
 	for j := 0; j < len(dbuf); j++ {
 		if len(src) == si {
@@ -288,7 +292,7 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 			case j == 1, enc.padChar != NoPadding:
 				return si, 0, CorruptInputError(si - j)
 			}
-			dinc, dlen = j-1, j
+			dlen = j
 			break
 		}
 		in := src[si]
@@ -340,7 +344,7 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 			// trailing garbage
 			err = CorruptInputError(si)
 		}
-		dinc, dlen = 3, j
+		dlen = j
 		break
 	}
 
@@ -365,7 +369,6 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 			return si, 0, CorruptInputError(si - 2)
 		}
 	}
-	dst = dst[dinc:]
 
 	return si, dlen - 1, err
 }

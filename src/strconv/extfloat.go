@@ -214,20 +214,9 @@ func (f *extFloat) Normalize() uint {
 // Multiply sets f to the product f*g: the result is correctly rounded,
 // but not normalized.
 func (f *extFloat) Multiply(g extFloat) {
-	fhi, flo := f.mant>>32, uint64(uint32(f.mant))
-	ghi, glo := g.mant>>32, uint64(uint32(g.mant))
-
-	// Cross products.
-	cross1 := fhi * glo
-	cross2 := flo * ghi
-
-	// f.mant*g.mant is fhi*ghi << 64 + (cross1+cross2) << 32 + flo*glo
-	f.mant = fhi*ghi + (cross1 >> 32) + (cross2 >> 32)
-	rem := uint64(uint32(cross1)) + uint64(uint32(cross2)) + ((flo * glo) >> 32)
+	hi, lo := bits.Mul64(f.mant, g.mant)
 	// Round up.
-	rem += (1 << 31)
-
-	f.mant += (rem >> 32)
+	f.mant = hi + (lo >> 63)
 	f.exp = f.exp + g.exp + 64
 }
 

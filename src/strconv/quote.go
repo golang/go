@@ -11,7 +11,10 @@ import (
 	"unicode/utf8"
 )
 
-const lowerhex = "0123456789abcdef"
+const (
+	lowerhex = "0123456789abcdef"
+	upperhex = "0123456789ABCDEF"
+)
 
 func quoteWith(s string, quote byte, ASCIIonly, graphicOnly bool) string {
 	return string(appendQuotedWith(make([]byte, 0, 3*len(s)/2), s, quote, ASCIIonly, graphicOnly))

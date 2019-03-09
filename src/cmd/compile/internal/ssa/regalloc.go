@@ -1220,6 +1220,13 @@ func (s *regAllocState) regalloc(f *Func) {
 					// This forces later liveness analysis to make the
 					// value live at this point.
 					v.SetArg(0, s.makeSpill(a, b))
+				} else if _, ok := a.Aux.(GCNode); ok && vi.rematerializeable {
+					// Rematerializeable value with a gc.Node. This is the address of
+					// a stack object (e.g. an LEAQ). Keep the object live.
+					// Change it to VarLive, which is what plive expects for locals.
+					v.Op = OpVarLive
+					v.SetArgs1(v.Args[1])
+					v.Aux = a.Aux
 				} else {
 					// In-register and rematerializeable values are already live.
 					// These are typically rematerializeable constants like nil,

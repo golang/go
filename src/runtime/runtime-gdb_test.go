@@ -36,8 +36,6 @@ func checkGdbEnvironment(t *testing.T) {
 		if runtime.GOARCH == "mips" {
 			t.Skip("skipping gdb tests on linux/mips; see https://golang.org/issue/25939")
 		}
-	case "aix":
-		t.Skip("gdb does not work on AIX; see https://golang.org/issue/28558")
 	case "freebsd":
 		t.Skip("skipping gdb tests on FreeBSD; see https://golang.org/issue/29508")
 	}
@@ -156,7 +154,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 	}
 	nLines := lastLine(src)
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe", "main.go")
 	cmd.Dir = dir
 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
@@ -337,7 +335,7 @@ func TestGdbBacktrace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe", "main.go")
 	cmd.Dir = dir
 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
@@ -396,6 +394,10 @@ func TestGdbAutotmpTypes(t *testing.T) {
 	t.Parallel()
 	checkGdbVersion(t)
 
+	if runtime.GOOS == "aix" && testing.Short() {
+		t.Skip("TestGdbAutotmpTypes is too slow on aix/ppc64")
+	}
+
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
@@ -408,7 +410,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe", "main.go")
 	cmd.Dir = dir
 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
@@ -474,7 +476,7 @@ func TestGdbConst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe", "main.go")
 	cmd.Dir = dir
 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
@@ -539,7 +541,7 @@ func TestGdbPanic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe", "main.go")
 	cmd.Dir = dir
 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {

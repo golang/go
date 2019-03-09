@@ -1073,6 +1073,11 @@ func reflect_unsafe_New(typ *_type) unsafe.Pointer {
 	return mallocgc(typ.size, typ, true)
 }
 
+//go:linkname reflectlite_unsafe_New internal/reflectlite.unsafe_New
+func reflectlite_unsafe_New(typ *_type) unsafe.Pointer {
+	return mallocgc(typ.size, typ, true)
+}
+
 // newarray allocates an array of n elements of type typ.
 func newarray(typ *_type, n int) unsafe.Pointer {
 	if n == 1 {
@@ -1243,7 +1248,7 @@ func persistentalloc1(size, align uintptr, sysStat *uint64) *notInHeap {
 				break
 			}
 		}
-		persistent.off = sys.PtrSize
+		persistent.off = round(sys.PtrSize, align)
 	}
 	p := persistent.base.add(persistent.off)
 	persistent.off += size

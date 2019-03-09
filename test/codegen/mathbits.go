@@ -31,7 +31,7 @@ func LeadingZeros64(n uint64) int {
 func LeadingZeros32(n uint32) int {
 	// amd64:"BSRQ","LEAQ",-"CMOVQEQ"
 	// s390x:"FLOGR"
-	// arm:"CLZ" arm64:"CLZ"
+	// arm:"CLZ" arm64:"CLZW"
 	// mips:"CLZ"
 	return bits.LeadingZeros32(n)
 }
@@ -170,6 +170,10 @@ func ReverseBytes32(n uint32) uint32 {
 
 func ReverseBytes16(n uint16) uint16 {
 	// amd64:"ROLW"
+	// arm64:"REV16W",-"UBFX",-"ORR"
+	// arm/5:"SLL","SRL","ORR"
+	// arm/6:"REV16"
+	// arm/7:"REV16"
 	return bits.ReverseBytes16(n)
 }
 
@@ -238,6 +242,7 @@ func RotateLeftVariable32(n uint32, m int) uint32 {
 
 func TrailingZeros(n uint) int {
 	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
+	// arm64:"RBIT","CLZ"
 	// s390x:"FLOGR"
 	// ppc64:"ANDN","POPCNTD"
 	// ppc64le:"ANDN","POPCNTD"
@@ -246,6 +251,7 @@ func TrailingZeros(n uint) int {
 
 func TrailingZeros64(n uint64) int {
 	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
+	// arm64:"RBIT","CLZ"
 	// s390x:"FLOGR"
 	// ppc64:"ANDN","POPCNTD"
 	// ppc64le:"ANDN","POPCNTD"
@@ -254,6 +260,7 @@ func TrailingZeros64(n uint64) int {
 
 func TrailingZeros32(n uint32) int {
 	// amd64:"BTSQ\\t\\$32","BSFQ"
+	// arm64:"RBITW","CLZW"
 	// s390x:"FLOGR","MOVWZ"
 	// ppc64:"ANDN","POPCNTW"
 	// ppc64le:"ANDN","POPCNTW"
@@ -262,6 +269,7 @@ func TrailingZeros32(n uint32) int {
 
 func TrailingZeros16(n uint16) int {
 	// amd64:"BSFL","BTSL\\t\\$16"
+	// arm64:"ORR\t\\$65536","RBITW","CLZW",-"MOVHU\tR",-"RBIT\t",-"CLZ\t"
 	// s390x:"FLOGR","OR\t\\$65536"
 	// ppc64:"POPCNTD","OR\\t\\$65536"
 	// ppc64le:"POPCNTD","OR\\t\\$65536"
@@ -270,6 +278,7 @@ func TrailingZeros16(n uint16) int {
 
 func TrailingZeros8(n uint8) int {
 	// amd64:"BSFL","BTSL\\t\\$8"
+	// arm64:"ORR\t\\$256","RBITW","CLZW",-"MOVBU\tR",-"RBIT\t",-"CLZ\t"
 	// s390x:"FLOGR","OR\t\\$256"
 	return bits.TrailingZeros8(n)
 }
@@ -310,6 +319,7 @@ func IterateBits16(n uint16) int {
 	i := 0
 	for n != 0 {
 		// amd64:"BSFL",-"BTSL"
+		// arm64:"RBITW","CLZW",-"ORR"
 		i += bits.TrailingZeros16(n)
 		n &= n - 1
 	}
@@ -320,6 +330,7 @@ func IterateBits8(n uint8) int {
 	i := 0
 	for n != 0 {
 		// amd64:"BSFL",-"BTSL"
+		// arm64:"RBITW","CLZW",-"ORR"
 		i += bits.TrailingZeros8(n)
 		n &= n - 1
 	}
@@ -473,6 +484,11 @@ func Mul64(x, y uint64) (hi, lo uint64) {
 func Div(hi, lo, x uint) (q, r uint) {
 	// amd64:"DIVQ"
 	return bits.Div(hi, lo, x)
+}
+
+func Div32(hi, lo, x uint32) (q, r uint32) {
+	// arm64:"ORR","UDIV","MSUB",-"UREM"
+	return bits.Div32(hi, lo, x)
 }
 
 func Div64(hi, lo, x uint64) (q, r uint64) {

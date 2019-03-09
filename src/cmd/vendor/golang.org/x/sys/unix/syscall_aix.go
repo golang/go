@@ -227,7 +227,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 
 		// Some versions of AIX have a bug in getsockname (see IV78655).
 		// We can't rely on sa.Len being set correctly.
-		n := SizeofSockaddrUnix - 3 // substract leading Family, Len, terminating NUL.
+		n := SizeofSockaddrUnix - 3 // subtract leading Family, Len, terminating NUL.
 		for i := 0; i < n; i++ {
 			if pp.Path[i] == 0 {
 				n = i

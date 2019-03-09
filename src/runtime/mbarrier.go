@@ -186,6 +186,11 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	typedmemmove(typ, dst, src)
 }
 
+//go:linkname reflectlite_typedmemmove internal/reflectlite.typedmemmove
+func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+	reflect_typedmemmove(typ, dst, src)
+}
+
 // typedmemmovepartial is like typedmemmove but assumes that
 // dst and src point off bytes into the value and only copies size bytes.
 //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial

@@ -23,55 +23,99 @@ import (
 type codeRepo struct {
 	modPath string
 
-	code     codehost.Repo
+	// code is the repository containing this module.
+	code codehost.Repo
+	// codeRoot is the import path at the root of code.
 	codeRoot string
-	codeDir  string
+	// codeDir is the directory (relative to root) at which we expect to find the module.
+	// If pathMajor is non-empty and codeRoot is not the full modPath,
+	// then we look in both codeDir and codeDir+modPath
+	codeDir string
 
-	path        string
-	pathPrefix  string
-	pathMajor   string
+	// pathMajor is the suffix of modPath that indicates its major version,
+	// or the empty string if modPath is at major version 0 or 1.
+	//
+	// pathMajor is typically of the form "/vN", but possibly ".vN", or
+	// ".vN-unstable" for modules resolved using gopkg.in.
+	pathMajor string
+	// pathPrefix is the prefix of modPath that excludes pathMajor.
+	// It is used only for logging.
+	pathPrefix string
+
+	// pseudoMajor is the major version prefix to use when generating
+	// pseudo-versions for this module, derived from the module path.
+	//
+	// TODO(golang.org/issue/29262): We can't distinguish v0 from v1 using the
+	// path alone: we have to compute it by examining the tags at a particular
+	// revision.
 	pseudoMajor string
 }
 
-func newCodeRepo(code codehost.Repo, root, path string) (Repo, error) {
-	if !hasPathPrefix(path, root) {
-		return nil, fmt.Errorf("mismatched repo: found %s for %s", root, path)
+// newCodeRepo returns a Repo that reads the source code for the module with the
+// given path, from the repo stored in code, with the root of the repo
+// containing the path given by codeRoot.
+func newCodeRepo(code codehost.Repo, codeRoot, path string) (Repo, error) {
+	if !hasPathPrefix(path, codeRoot) {
+		return nil, fmt.Errorf("mismatched repo: found %s for %s", codeRoot, path)
 	}
 	pathPrefix, pathMajor, ok := module.SplitPathVersion(path)
 	if !ok {
 		return nil, fmt.Errorf("invalid module path %q", path)
+	}
+	if codeRoot == path {
+		pathPrefix = path
 	}
 	pseudoMajor := "v0"
 	if pathMajor != "" {
 		pseudoMajor = pathMajor[1:]
 	}
 
+	// Compute codeDir = bar, the subdirectory within the repo
+	// corresponding to the module root.
+	//
 	// At this point we might have:
-	//	codeRoot = github.com/rsc/foo
 	//	path = github.com/rsc/foo/bar/v2
+	//	codeRoot = github.com/rsc/foo
 	//	pathPrefix = github.com/rsc/foo/bar
 	//	pathMajor = /v2
 	//	pseudoMajor = v2
 	//
-	// Compute codeDir = bar, the subdirectory within the repo
-	// corresponding to the module root.
-	codeDir := strings.Trim(strings.TrimPrefix(pathPrefix, root), "/")
-	if strings.HasPrefix(path, "gopkg.in/") {
-		// But gopkg.in is a special legacy case, in which pathPrefix does not start with codeRoot.
-		// For example we might have:
-		//	codeRoot = gopkg.in/yaml.v2
-		//	pathPrefix = gopkg.in/yaml
-		//	pathMajor = .v2
-		//	pseudoMajor = v2
-		//	codeDir = pathPrefix (because codeRoot is not a prefix of pathPrefix)
-		// Clear codeDir - the module root is the repo root for gopkg.in repos.
-		codeDir = ""
+	// which gives
+	//	codeDir = bar
+	//
+	// We know that pathPrefix is a prefix of path, and codeRoot is a prefix of
+	// path, but codeRoot may or may not be a prefix of pathPrefix, because
+	// codeRoot may be the entire path (in which case codeDir should be empty).
+	// That occurs in two situations.
+	//
+	// One is when a go-import meta tag resolves the complete module path,
+	// including the pathMajor suffix:
+	//	path = nanomsg.org/go/mangos/v2
+	//	codeRoot = nanomsg.org/go/mangos/v2
+	//	pathPrefix = nanomsg.org/go/mangos
+	//	pathMajor = /v2
+	//	pseudoMajor = v2
+	//
+	// The other is similar: for gopkg.in only, the major version is encoded
+	// with a dot rather than a slash, and thus can't be in a subdirectory.
+	//	path = gopkg.in/yaml.v2
+	//	codeRoot = gopkg.in/yaml.v2
+	//	pathPrefix = gopkg.in/yaml
+	//	pathMajor = .v2
+	//	pseudoMajor = v2
+	//
+	codeDir := ""
+	if codeRoot != path {
+		if !hasPathPrefix(pathPrefix, codeRoot) {
+			return nil, fmt.Errorf("repository rooted at %s cannot contain module %s", codeRoot, path)
+		}
+		codeDir = strings.Trim(pathPrefix[len(codeRoot):], "/")
 	}
 
 	r := &codeRepo{
 		modPath:     path,
 		code:        code,
-		codeRoot:    root,
+		codeRoot:    codeRoot,
 		codeDir:     codeDir,
 		pathPrefix:  pathPrefix,
 		pathMajor:   pathMajor,
@@ -149,9 +193,6 @@ func (r *codeRepo) Stat(rev string) (*RevInfo, error) {
 		return r.Latest()
 	}
 	codeRev := r.revToRev(rev)
-	if semver.IsValid(codeRev) && r.codeDir != "" {
-		codeRev = r.codeDir + "/" + codeRev
-	}
 	info, err := r.code.Stat(codeRev)
 	if err != nil {
 		return nil, err
@@ -290,7 +331,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 	found1 := err1 == nil && isMajor(mpath1, r.pathMajor)
 
 	var file2 string
-	if r.pathMajor != "" && !strings.HasPrefix(r.pathMajor, ".") {
+	if r.pathMajor != "" && r.codeRoot != r.modPath && !strings.HasPrefix(r.pathMajor, ".") {
 		// Suppose pathMajor is "/v2".
 		// Either go.mod should claim v2 and v2/go.mod should not exist,
 		// or v2/go.mod should exist and claim v2. Not both.
@@ -298,6 +339,9 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		// because of replacement modules. This might be a fork of
 		// the real module, found at a different path, usable only in
 		// a replace directive.
+		//
+		// TODO(bcmills): This doesn't seem right. Investigate futher.
+		// (Notably: why can't we replace foo/v2 with fork-of-foo/v3?)
 		dir2 := path.Join(r.codeDir, r.pathMajor[1:])
 		file2 = path.Join(dir2, "go.mod")
 		gomod2, err2 := r.code.ReadFile(rev, file2, codehost.MaxGoMod)
@@ -418,7 +462,7 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 	}
 	defer dl.Close()
 	if actualDir != "" && !hasPathPrefix(dir, actualDir) {
-		return fmt.Errorf("internal error: downloading %v %v: dir=%q but actualDir=%q", r.path, rev, dir, actualDir)
+		return fmt.Errorf("internal error: downloading %v %v: dir=%q but actualDir=%q", r.modPath, rev, dir, actualDir)
 	}
 	subdir := strings.Trim(strings.TrimPrefix(dir, actualDir), "/")
 
@@ -541,6 +585,9 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 			return err
 		}
 		w, err := zw.Create(r.modPrefix(version) + "/" + name)
+		if err != nil {
+			return err
+		}
 		lr := &io.LimitedReader{R: rc, N: size + 1}
 		if _, err := io.Copy(w, lr); err != nil {
 			return err

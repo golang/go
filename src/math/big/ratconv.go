@@ -130,10 +130,10 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 }
 
 // scanExponent scans the longest possible prefix of r representing a decimal
-// ('e', 'E') or binary ('p') exponent, if any. It returns the exponent, the
-// exponent base (10 or 2), or a read or syntax error, if any.
+// ('e', 'E') or binary ('p', 'P') exponent, if any. It returns the exponent,
+// the exponent base (10 or 2), or a read or syntax error, if any.
 //
-//	exponent = ( "E" | "e" | "p" ) [ sign ] digits .
+//	exponent = ( "e" | "E" | "p" | "P" ) [ sign ] digits .
 //	sign     = "+" | "-" .
 //	digits   = digit { digit } .
 //	digit    = "0" ... "9" .
@@ -153,7 +153,7 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
 	switch ch {
 	case 'e', 'E':
 		// ok
-	case 'p':
+	case 'p', 'P':
 		if binExpOk {
 			base = 2
 			break // ok

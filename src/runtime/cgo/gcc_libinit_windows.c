@@ -70,7 +70,7 @@ _cgo_is_runtime_initialized() {
 }
 
 uintptr_t
-_cgo_wait_runtime_init_done() {
+_cgo_wait_runtime_init_done(void) {
 	void (*pfn)(struct context_arg*);
 
 	 _cgo_maybe_run_preinit();

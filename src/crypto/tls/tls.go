@@ -4,6 +4,10 @@
 
 // Package tls partially implements TLS 1.2, as specified in RFC 5246,
 // and TLS 1.3, as specified in RFC 8446.
+//
+// TLS 1.3 is available on an opt-out basis in Go 1.13. To disable
+// it, set the GODEBUG environment variable (comma-separated key=value
+// options) such that it includes "tls13=0".
 package tls
 
 // BUG(agl): The crypto/tls package only implements some countermeasures

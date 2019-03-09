@@ -1680,13 +1680,15 @@ maps.  Here is a print statement for the time zone map defined in the previous s
 fmt.Printf("%v\n", timeZone)  // or just fmt.Println(timeZone)
 </pre>
 <p>
-which gives output
+which gives output:
 </p>
 <pre>
-map[CST:-21600 PST:-28800 EST:-18000 UTC:0 MST:-25200]
+map[CST:-21600 EST:-18000 MST:-25200 PST:-28800 UTC:0]
 </pre>
 <p>
-For maps the keys may be output in any order, of course.
+For maps, <code>Printf</code> and friends sort the output lexicographically by key.
+</p>
+<p>
 When printing a struct, the modified format <code>%+v</code> annotates the
 fields of the structure with their names, and for any value the alternate
 format <code>%#v</code> prints the value in full Go syntax.
@@ -1710,7 +1712,7 @@ prints
 &amp;{7 -2.35 abc   def}
 &amp;{a:7 b:-2.35 c:abc     def}
 &amp;main.T{a:7, b:-2.35, c:"abc\tdef"}
-map[string]int{"CST":-21600, "PST":-28800, "EST":-18000, "UTC":0, "MST":-25200}
+map[string]int{"CST":-21600, "EST":-18000, "MST":-25200, "PST":-28800, "UTC":0}
 </pre>
 <p>
 (Note the ampersands.)

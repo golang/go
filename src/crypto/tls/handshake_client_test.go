@@ -28,7 +28,7 @@ import (
 
 func init() {
 	// TLS 1.3 cipher suites preferences are not configurable and change based
-	// on the architecture. Force them to the version with AES accelleration for
+	// on the architecture. Force them to the version with AES acceleration for
 	// test consistency.
 	once.Do(initDefaultCipherSuites)
 	varDefaultCipherSuitesTLS13 = []uint16{

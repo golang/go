@@ -14,48 +14,6 @@ import (
 
 var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
 
-type funWW func(x, y, c Word) (z1, z0 Word)
-type argWW struct {
-	x, y, c, z1, z0 Word
-}
-
-var sumWW = []argWW{
-	{0, 0, 0, 0, 0},
-	{0, 1, 0, 0, 1},
-	{0, 0, 1, 0, 1},
-	{0, 1, 1, 0, 2},
-	{12345, 67890, 0, 0, 80235},
-	{12345, 67890, 1, 0, 80236},
-	{_M, 1, 0, 1, 0},
-	{_M, 0, 1, 1, 0},
-	{_M, 1, 1, 1, 1},
-	{_M, _M, 0, 1, _M - 1},
-	{_M, _M, 1, 1, _M},
-}
-
-func testFunWW(t *testing.T, msg string, f funWW, a argWW) {
-	z1, z0 := f(a.x, a.y, a.c)
-	if z1 != a.z1 || z0 != a.z0 {
-		t.Errorf("%s%+v\n\tgot z1:z0 = %#x:%#x; want %#x:%#x", msg, a, z1, z0, a.z1, a.z0)
-	}
-}
-
-func TestFunWW(t *testing.T) {
-	for _, a := range sumWW {
-		arg := a
-		testFunWW(t, "addWW_g", addWW_g, arg)
-
-		arg = argWW{a.y, a.x, a.c, a.z1, a.z0}
-		testFunWW(t, "addWW_g symmetric", addWW_g, arg)
-
-		arg = argWW{a.z0, a.x, a.c, a.z1, a.y}
-		testFunWW(t, "subWW_g", subWW_g, arg)
-
-		arg = argWW{a.z0, a.y, a.c, a.z1, a.x}
-		testFunWW(t, "subWW_g symmetric", subWW_g, arg)
-	}
-}
-
 type funVV func(z, x, y []Word) (c Word)
 type argVV struct {
 	z, x, y nat

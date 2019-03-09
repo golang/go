@@ -68,8 +68,8 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 		written, werr = poll.SendFile(&c.pfd, int(fd), pos, remain)
 		return true
 	})
-	if werr == nil {
-		werr = err
+	if err == nil {
+		err = werr
 	}
 
 	if lr != nil {

@@ -28,6 +28,14 @@ const (
 	SYS_FCNTL
 )
 
+func (ts *StTimespec_t) Unix() (sec int64, nsec int64) {
+	return int64(ts.Sec), int64(ts.Nsec)
+}
+
+func (ts *StTimespec_t) Nano() int64 {
+	return int64(ts.Sec)*1e9 + int64(ts.Nsec)
+}
+
 /*
  * Wrapped
  */
@@ -388,7 +396,7 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 func (sa *RawSockaddrUnix) getLen() (int, error) {
 	// Some versions of AIX have a bug in getsockname (see IV78655).
 	// We can't rely on sa.Len being set correctly.
-	n := SizeofSockaddrUnix - 3 // substract leading Family, Len, terminating NUL.
+	n := SizeofSockaddrUnix - 3 // subtract leading Family, Len, terminating NUL.
 	for i := 0; i < n; i++ {
 		if sa.Path[i] == 0 {
 			n = i
@@ -601,6 +609,7 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid), 
 //sysnb	Setpgid(pid int, pgid int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
+//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
 //sys	Stat(path string, stat *Stat_t) (err error)
 //sys	Statfs(path string, buf *Statfs_t) (err error)
 //sys	Symlink(path string, link string) (err error)

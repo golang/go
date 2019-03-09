@@ -7,11 +7,156 @@ package constant
 import (
 	"fmt"
 	"go/token"
+	"math/big"
 	"strings"
 	"testing"
 )
 
-// TODO(gri) expand this test framework
+var intTests = []string{
+	// 0-octals
+	`0_123 = 0123`,
+	`0123_456 = 0123456`,
+
+	// decimals
+	`1_234 = 1234`,
+	`1_234_567 = 1234567`,
+
+	// hexadecimals
+	`0X_0 = 0`,
+	`0X_1234 = 0x1234`,
+	`0X_CAFE_f00d = 0xcafef00d`,
+
+	// octals
+	`0o0 = 0`,
+	`0o1234 = 01234`,
+	`0o01234567 = 01234567`,
+
+	`0O0 = 0`,
+	`0O1234 = 01234`,
+	`0O01234567 = 01234567`,
+
+	`0o_0 = 0`,
+	`0o_1234 = 01234`,
+	`0o0123_4567 = 01234567`,
+
+	`0O_0 = 0`,
+	`0O_1234 = 01234`,
+	`0O0123_4567 = 01234567`,
+
+	// binaries
+	`0b0 = 0`,
+	`0b1011 = 0xb`,
+	`0b00101101 = 0x2d`,
+
+	`0B0 = 0`,
+	`0B1011 = 0xb`,
+	`0B00101101 = 0x2d`,
+
+	`0b_0 = 0`,
+	`0b10_11 = 0xb`,
+	`0b_0010_1101 = 0x2d`,
+}
+
+// The RHS operand may be a floating-point quotient n/d of two integer values n and d.
+var floatTests = []string{
+	// decimal floats
+	`1_2_3. = 123.`,
+	`0_123. = 123.`,
+
+	`0_0e0 = 0.`,
+	`1_2_3e0 = 123.`,
+	`0_123e0 = 123.`,
+
+	`0e-0_0 = 0.`,
+	`1_2_3E+0 = 123.`,
+	`0123E1_2_3 = 123e123`,
+
+	`0.e+1 = 0.`,
+	`123.E-1_0 = 123e-10`,
+	`01_23.e123 = 123e123`,
+
+	`.0e-1 = .0`,
+	`.123E+10 = .123e10`,
+	`.0123E123 = .0123e123`,
+
+	`1_2_3.123 = 123.123`,
+	`0123.01_23 = 123.0123`,
+
+	// hexadecimal floats
+	`0x0.p+0 = 0.`,
+	`0Xdeadcafe.p-10 = 0xdeadcafe/1024`,
+	`0x1234.P84 = 0x1234000000000000000000000`,
+
+	`0x.1p-0 = 1/16`,
+	`0X.deadcafep4 = 0xdeadcafe/0x10000000`,
+	`0x.1234P+12 = 0x1234/0x10`,
+
+	`0x0p0 = 0.`,
+	`0Xdeadcafep+1 = 0x1bd5b95fc`,
+	`0x1234P-10 = 0x1234/1024`,
+
+	`0x0.0p0 = 0.`,
+	`0Xdead.cafep+1 = 0x1bd5b95fc/0x10000`,
+	`0x12.34P-10 = 0x1234/0x40000`,
+
+	`0Xdead_cafep+1 = 0xdeadcafep+1`,
+	`0x_1234P-10 = 0x1234p-10`,
+
+	`0X_dead_cafe.p-10 = 0xdeadcafe.p-10`,
+	`0x12_34.P1_2_3 = 0x1234.p123`,
+}
+
+var imagTests = []string{
+	`1_234i = 1234i`,
+	`1_234_567i = 1234567i`,
+
+	`0.i = 0i`,
+	`123.i = 123i`,
+	`0123.i = 123i`,
+
+	`0.e+1i = 0i`,
+	`123.E-1_0i = 123e-10i`,
+	`01_23.e123i = 123e123i`,
+}
+
+func testNumbers(t *testing.T, kind token.Token, tests []string) {
+	for _, test := range tests {
+		a := strings.Split(test, " = ")
+		if len(a) != 2 {
+			t.Errorf("invalid test case: %s", test)
+			continue
+		}
+
+		x := MakeFromLiteral(a[0], kind, 0)
+		var y Value
+		if i := strings.Index(a[1], "/"); i >= 0 && kind == token.FLOAT {
+			n := MakeFromLiteral(a[1][:i], token.INT, 0)
+			d := MakeFromLiteral(a[1][i+1:], token.INT, 0)
+			y = BinaryOp(n, token.QUO, d)
+		} else {
+			y = MakeFromLiteral(a[1], kind, 0)
+		}
+
+		xk := x.Kind()
+		yk := y.Kind()
+		if xk != yk || xk == Unknown {
+			t.Errorf("%s: got kind %d != %d", test, xk, yk)
+			continue
+		}
+
+		if !Compare(x, token.EQL, y) {
+			t.Errorf("%s: %s != %s", test, x, y)
+		}
+	}
+}
+
+// TestNumbers verifies that differently written literals
+// representing the same number do have the same value.
+func TestNumbers(t *testing.T) {
+	testNumbers(t, token.INT, intTests)
+	testNumbers(t, token.FLOAT, floatTests)
+	testNumbers(t, token.IMAG, imagTests)
+}
 
 var opTests = []string{
 	// unary operations
@@ -448,6 +593,22 @@ func TestUnknown(t *testing.T) {
 			if got := Compare(x, token.EQL, y); got {
 				t.Errorf("%s == %s: got true; want false", x, y)
 			}
+		}
+	}
+}
+
+func TestMake(t *testing.T) {
+	for _, want := range []interface{}{
+		false,
+		"hello",
+		int64(1),
+		big.NewInt(10),
+		big.NewFloat(2.0),
+		big.NewRat(1, 3),
+	} {
+		got := Val(Make(want))
+		if got != want {
+			t.Errorf("got %v; want %v", got, want)
 		}
 	}
 }

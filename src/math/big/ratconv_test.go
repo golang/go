@@ -58,11 +58,13 @@ var setStringTests = []StringTest{
 
 // These are not supported by fmt.Fscanf.
 var setStringTests2 = []StringTest{
-	{"0x10", "16", true},
+	{"0b1000/3", "8/3", true},
+	{"0B1000/0x8", "1", true},
 	{"-010/1", "-8", true}, // TODO(gri) should we even permit octal here?
 	{"-010.", "-10", true},
+	{"-0o10/1", "-8", true},
+	{"0x10/1", "16", true},
 	{"0x10/0x20", "1/2", true},
-	{"0b1000/3", "8/3", true},
 	{in: "4/3x"},
 	// TODO(gri) add more tests
 }
@@ -81,8 +83,12 @@ func TestRatSetString(t *testing.T) {
 			} else if x.RatString() != test.out {
 				t.Errorf("#%d SetString(%q) got %s want %s", i, test.in, x.RatString(), test.out)
 			}
-		} else if x != nil {
-			t.Errorf("#%d SetString(%q) got %p want nil", i, test.in, x)
+		} else {
+			if test.ok {
+				t.Errorf("#%d SetString(%q) expected success", i, test.in)
+			} else if x != nil {
+				t.Errorf("#%d SetString(%q) got %p want nil", i, test.in, x)
+			}
 		}
 	}
 }

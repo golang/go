@@ -34,7 +34,7 @@ import (
 //
 var pkgDeps = map[string][]string{
 	// L0 is the lowest level, core, nearly unavoidable packages.
-	"errors":                  {},
+	"errors":                  {"runtime", "internal/reflectlite"},
 	"io":                      {"errors", "sync", "sync/atomic"},
 	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys", "runtime/internal/math", "internal/cpu", "internal/bytealg"},
 	"runtime/internal/sys":    {},
@@ -46,6 +46,7 @@ var pkgDeps = map[string][]string{
 	"unsafe":                  {},
 	"internal/cpu":            {},
 	"internal/bytealg":        {"unsafe", "internal/cpu"},
+	"internal/reflectlite":    {"runtime", "unsafe"},
 
 	"L0": {
 		"errors",
@@ -57,6 +58,7 @@ var pkgDeps = map[string][]string{
 		"unsafe",
 		"internal/cpu",
 		"internal/bytealg",
+		"internal/reflectlite",
 	},
 
 	// L1 adds simple functions and strings processing,
@@ -181,7 +183,7 @@ var pkgDeps = map[string][]string{
 	},
 
 	// Formatted I/O: few dependencies (L1) but we must add reflect and internal/fmtsort.
-	"fmt": {"L1", "os", "reflect", "internal/fmtsort"},
+	"fmt": {"L1", "bytes", "strings", "os", "reflect", "internal/fmtsort"},
 	"log": {"L1", "os", "fmt", "time"},
 
 	// Packages used by testing must be low-level (L2+fmt).
@@ -192,10 +194,12 @@ var pkgDeps = map[string][]string{
 	"runtime/trace":  {"L0", "context", "fmt"},
 	"text/tabwriter": {"L2"},
 
-	"testing":          {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
-	"testing/iotest":   {"L2", "log"},
-	"testing/quick":    {"L2", "flag", "fmt", "reflect", "time"},
-	"internal/testenv": {"L2", "OS", "flag", "testing", "syscall"},
+	"testing":               {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+	"testing/iotest":        {"L2", "log"},
+	"testing/quick":         {"L2", "flag", "fmt", "reflect", "time"},
+	"internal/testenv":      {"L2", "OS", "flag", "testing", "syscall"},
+	"internal/lazyregexp":   {"L2", "OS", "regexp"},
+	"internal/lazytemplate": {"L2", "OS", "text/template"},
 
 	// L4 is defined as L3+fmt+log+time, because in general once
 	// you're using L3 packages, use of fmt, log, or time is not a big deal.
@@ -208,7 +212,7 @@ var pkgDeps = map[string][]string{
 
 	// Go parser.
 	"go/ast":     {"L4", "OS", "go/scanner", "go/token"},
-	"go/doc":     {"L4", "OS", "go/ast", "go/token", "regexp", "text/template"},
+	"go/doc":     {"L4", "OS", "go/ast", "go/token", "regexp", "internal/lazyregexp", "text/template"},
 	"go/parser":  {"L4", "OS", "go/ast", "go/scanner", "go/token"},
 	"go/printer": {"L4", "OS", "go/ast", "go/scanner", "go/token", "text/tabwriter"},
 	"go/scanner": {"L4", "OS", "go/token"},

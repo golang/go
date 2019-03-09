@@ -26,7 +26,7 @@ func TestIntendedInlining(t *testing.T) {
 	t.Parallel()
 
 	// want is the list of function names (by package) that should
-	// be inlinable. If they have no callers in thier packages, they
+	// be inlinable. If they have no callers in their packages, they
 	// might not actually be inlined anywhere.
 	want := map[string][]string{
 		"runtime": {
@@ -218,7 +218,7 @@ func TestIntendedInlining(t *testing.T) {
 		if m := canInline.FindStringSubmatch(line); m != nil {
 			fname := m[1]
 			fullname := curPkg + "." + fname
-			// If function must be inlined somewhere, beeing inlinable is not enough
+			// If function must be inlined somewhere, being inlinable is not enough
 			if _, ok := must[fullname]; !ok {
 				delete(notInlinedReason, fullname)
 				continue

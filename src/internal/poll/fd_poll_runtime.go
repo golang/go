@@ -42,7 +42,7 @@ func (pd *pollDesc) init(fd *FD) error {
 			runtime_pollUnblock(ctx)
 			runtime_pollClose(ctx)
 		}
-		return syscall.Errno(errno)
+		return errnoErr(syscall.Errno(errno))
 	}
 	pd.runtimeCtx = ctx
 	return nil

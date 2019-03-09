@@ -18,6 +18,7 @@ func init() {
 	register("GCFairness2", GCFairness2)
 	register("GCSys", GCSys)
 	register("GCPhys", GCPhys)
+	register("DeferLiveness", DeferLiveness)
 }
 
 func GCSys() {
@@ -207,3 +208,25 @@ func GCPhys() {
 	fmt.Println("OK")
 	runtime.KeepAlive(saved)
 }
+
+// Test that defer closure is correctly scanned when the stack is scanned.
+func DeferLiveness() {
+	var x [10]int
+	escape(&x)
+	fn := func() {
+		if x[0] != 42 {
+			panic("FAIL")
+		}
+	}
+	defer fn()
+
+	x[0] = 42
+	runtime.GC()
+	runtime.GC()
+	runtime.GC()
+}
+
+//go:noinline
+func escape(x interface{}) { sink2 = x; sink2 = nil }
+
+var sink2 interface{}

@@ -148,32 +148,35 @@ type libFunc uintptr
 // It's defined in sys_aix_ppc64.go.
 var asmsyscall6 libFunc
 
+// syscallX functions must always be called with g != nil and m != nil,
+// as it relies on g.m.libcall to pass arguments to asmcgocall.
+// The few cases where syscalls haven't a g or a m must call their equivalent
+// function in sys_aix_ppc64.s to handle them.
+
 //go:nowritebarrier
 //go:nosplit
 func syscall0(fn *libFunc) (r, err uintptr) {
 	gp := getg()
-	var mp *m
-	if gp != nil {
-		mp = gp.m
-	}
-	if mp != nil && mp.libcallsp == 0 {
+	mp := gp.m
+	resetLibcall := true
+	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
 		mp.libcallpc = getcallerpc()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
 	} else {
-		mp = nil // See comment in sys_darwin.go:libcCall
+		resetLibcall = false // See comment in sys_darwin.go:libcCall
 	}
 
-	c := &gp.m.libcall
+	c := &mp.libcall
 	c.fn = uintptr(unsafe.Pointer(fn))
 	c.n = 0
 	c.args = uintptr(noescape(unsafe.Pointer(&fn))) // it's unused but must be non-nil, otherwise crashes
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
 
-	if mp != nil {
+	if resetLibcall {
 		mp.libcallsp = 0
 	}
 
@@ -184,18 +187,16 @@ func syscall0(fn *libFunc) (r, err uintptr) {
 //go:nosplit
 func syscall1(fn *libFunc, a0 uintptr) (r, err uintptr) {
 	gp := getg()
-	var mp *m
-	if gp != nil {
-		mp = gp.m
-	}
-	if mp != nil && mp.libcallsp == 0 {
+	mp := gp.m
+	resetLibcall := true
+	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
 		mp.libcallpc = getcallerpc()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
 	} else {
-		mp = nil // See comment in sys_darwin.go:libcCall
+		resetLibcall = false // See comment in sys_darwin.go:libcCall
 	}
 
 	c := &gp.m.libcall
@@ -205,7 +206,7 @@ func syscall1(fn *libFunc, a0 uintptr) (r, err uintptr) {
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
 
-	if mp != nil {
+	if resetLibcall {
 		mp.libcallsp = 0
 	}
 
@@ -216,18 +217,16 @@ func syscall1(fn *libFunc, a0 uintptr) (r, err uintptr) {
 //go:nosplit
 func syscall2(fn *libFunc, a0, a1 uintptr) (r, err uintptr) {
 	gp := getg()
-	var mp *m
-	if gp != nil {
-		mp = gp.m
-	}
-	if mp != nil && mp.libcallsp == 0 {
+	mp := gp.m
+	resetLibcall := true
+	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
 		mp.libcallpc = getcallerpc()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
 	} else {
-		mp = nil // See comment in sys_darwin.go:libcCall
+		resetLibcall = false // See comment in sys_darwin.go:libcCall
 	}
 
 	c := &gp.m.libcall
@@ -237,7 +236,7 @@ func syscall2(fn *libFunc, a0, a1 uintptr) (r, err uintptr) {
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
 
-	if mp != nil {
+	if resetLibcall {
 		mp.libcallsp = 0
 	}
 
@@ -248,18 +247,16 @@ func syscall2(fn *libFunc, a0, a1 uintptr) (r, err uintptr) {
 //go:nosplit
 func syscall3(fn *libFunc, a0, a1, a2 uintptr) (r, err uintptr) {
 	gp := getg()
-	var mp *m
-	if gp != nil {
-		mp = gp.m
-	}
-	if mp != nil && mp.libcallsp == 0 {
+	mp := gp.m
+	resetLibcall := true
+	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
 		mp.libcallpc = getcallerpc()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
 	} else {
-		mp = nil // See comment in sys_darwin.go:libcCall
+		resetLibcall = false // See comment in sys_darwin.go:libcCall
 	}
 
 	c := &gp.m.libcall
@@ -269,7 +266,7 @@ func syscall3(fn *libFunc, a0, a1, a2 uintptr) (r, err uintptr) {
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
 
-	if mp != nil {
+	if resetLibcall {
 		mp.libcallsp = 0
 	}
 
@@ -280,18 +277,16 @@ func syscall3(fn *libFunc, a0, a1, a2 uintptr) (r, err uintptr) {
 //go:nosplit
 func syscall4(fn *libFunc, a0, a1, a2, a3 uintptr) (r, err uintptr) {
 	gp := getg()
-	var mp *m
-	if gp != nil {
-		mp = gp.m
-	}
-	if mp != nil && mp.libcallsp == 0 {
+	mp := gp.m
+	resetLibcall := true
+	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
 		mp.libcallpc = getcallerpc()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
 	} else {
-		mp = nil // See comment in sys_darwin.go:libcCall
+		resetLibcall = false // See comment in sys_darwin.go:libcCall
 	}
 
 	c := &gp.m.libcall
@@ -301,7 +296,7 @@ func syscall4(fn *libFunc, a0, a1, a2, a3 uintptr) (r, err uintptr) {
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
 
-	if mp != nil {
+	if resetLibcall {
 		mp.libcallsp = 0
 	}
 
@@ -312,18 +307,16 @@ func syscall4(fn *libFunc, a0, a1, a2, a3 uintptr) (r, err uintptr) {
 //go:nosplit
 func syscall5(fn *libFunc, a0, a1, a2, a3, a4 uintptr) (r, err uintptr) {
 	gp := getg()
-	var mp *m
-	if gp != nil {
-		mp = gp.m
-	}
-	if mp != nil && mp.libcallsp == 0 {
+	mp := gp.m
+	resetLibcall := true
+	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
 		mp.libcallpc = getcallerpc()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
 	} else {
-		mp = nil // See comment in sys_darwin.go:libcCall
+		resetLibcall = false // See comment in sys_darwin.go:libcCall
 	}
 
 	c := &gp.m.libcall
@@ -333,7 +326,7 @@ func syscall5(fn *libFunc, a0, a1, a2, a3, a4 uintptr) (r, err uintptr) {
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
 
-	if mp != nil {
+	if resetLibcall {
 		mp.libcallsp = 0
 	}
 
@@ -344,18 +337,16 @@ func syscall5(fn *libFunc, a0, a1, a2, a3, a4 uintptr) (r, err uintptr) {
 //go:nosplit
 func syscall6(fn *libFunc, a0, a1, a2, a3, a4, a5 uintptr) (r, err uintptr) {
 	gp := getg()
-	var mp *m
-	if gp != nil {
-		mp = gp.m
-	}
-	if mp != nil && mp.libcallsp == 0 {
+	mp := gp.m
+	resetLibcall := true
+	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
 		mp.libcallpc = getcallerpc()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
 	} else {
-		mp = nil // See comment in sys_darwin.go:libcCall
+		resetLibcall = false // See comment in sys_darwin.go:libcCall
 	}
 
 	c := &gp.m.libcall
@@ -365,7 +356,7 @@ func syscall6(fn *libFunc, a0, a1, a2, a3, a4, a5 uintptr) (r, err uintptr) {
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(c))
 
-	if mp != nil {
+	if resetLibcall {
 		mp.libcallsp = 0
 	}
 
@@ -461,13 +452,23 @@ func getsystemcfg(label uint) uintptr {
 	return r
 }
 
+func usleep1(us uint32)
+
 //go:nosplit
 func usleep(us uint32) {
-	r, err := syscall1(&libc_usleep, uintptr(us))
-	if int32(r) == -1 {
-		println("syscall usleep failed: ", hex(err))
-		throw("syscall usleep")
+	_g_ := getg()
+
+	// Check the validity of m because we might be called in cgo callback
+	// path early enough where there isn't a g or a m available yet.
+	if _g_ != nil && _g_.m != nil {
+		r, err := syscall1(&libc_usleep, uintptr(us))
+		if int32(r) == -1 {
+			println("syscall usleep failed: ", hex(err))
+			throw("syscall usleep")
+		}
+		return
 	}
+	usleep1(us)
 }
 
 //go:nosplit
@@ -541,8 +542,8 @@ func osyield1()
 func osyield() {
 	_g_ := getg()
 
-	// Check the validity of m because we might be called in cgo callback
-	// path early enough where there isn't a m available yet.
+	// Check the validity of m because it might be called during a cgo
+	// callback early enough where m isn't available yet.
 	if _g_ != nil && _g_.m != nil {
 		r, err := syscall0(&libc_sched_yield)
 		if int32(r) == -1 {
@@ -611,11 +612,22 @@ func pthread_create(tid *pthread, attr *pthread_attr, fn *funcDescriptor, arg un
 
 // On multi-thread program, sigprocmask must not be called.
 // It's replaced by sigthreadmask.
+func sigprocmask1(how, new, old uintptr)
+
 //go:nosplit
 func sigprocmask(how int32, new, old *sigset) {
-	r, err := syscall3(&libpthread_sigthreadmask, uintptr(how), uintptr(unsafe.Pointer(new)), uintptr(unsafe.Pointer(old)))
-	if int32(r) != 0 {
-		println("syscall sigthreadmask failed: ", hex(err))
-		throw("syscall sigthreadmask")
+	_g_ := getg()
+
+	// Check the validity of m because it might be called during a cgo
+	// callback early enough where m isn't available yet.
+	if _g_ != nil && _g_.m != nil {
+		r, err := syscall3(&libpthread_sigthreadmask, uintptr(how), uintptr(unsafe.Pointer(new)), uintptr(unsafe.Pointer(old)))
+		if int32(r) != 0 {
+			println("syscall sigthreadmask failed: ", hex(err))
+			throw("syscall sigthreadmask")
+		}
+		return
 	}
+	sigprocmask1(uintptr(how), uintptr(unsafe.Pointer(new)), uintptr(unsafe.Pointer(old)))
+
 }

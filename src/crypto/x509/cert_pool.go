@@ -71,10 +71,15 @@ func (s *CertPool) findPotentialParents(cert *Certificate) []int {
 	if s == nil {
 		return nil
 	}
+
+	var candidates []int
 	if len(cert.AuthorityKeyId) > 0 {
-		return s.bySubjectKeyId[string(cert.AuthorityKeyId)]
+		candidates = s.bySubjectKeyId[string(cert.AuthorityKeyId)]
 	}
-	return s.byName[string(cert.RawIssuer)]
+	if len(candidates) == 0 {
+		candidates = s.byName[string(cert.RawIssuer)]
+	}
+	return candidates
 }
 
 func (s *CertPool) contains(cert *Certificate) bool {

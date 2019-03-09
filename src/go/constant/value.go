@@ -315,8 +315,9 @@ func makeFloatFromLiteral(lit string) Value {
 				// but it'll take forever to parse as a Rat.
 				lit = "0"
 			}
-			r, _ := newRat().SetString(lit)
-			return ratVal{r}
+			if r, ok := newRat().SetString(lit); ok {
+				return ratVal{r}
+			}
 		}
 		// otherwise use floats
 		return makeFloat(f)
@@ -380,8 +381,17 @@ func MakeFromLiteral(lit string, tok token.Token, zero uint) Value {
 		panic("MakeFromLiteral called with non-zero last argument")
 	}
 
+	// TODO(gri) Remove stripSep and, for token.INT, 0o-octal handling
+	//           below once strconv and math/big can handle separators
+	//           and 0o-octals.
+
 	switch tok {
 	case token.INT:
+		// TODO(gri) remove 0o-special case once strconv and math/big can handle 0o-octals
+		lit = stripSep(lit)
+		if len(lit) >= 2 && lit[0] == '0' && (lit[1] == 'o' || lit[1] == 'O') {
+			lit = "0" + lit[2:]
+		}
 		if x, err := strconv.ParseInt(lit, 0, 64); err == nil {
 			return int64Val(x)
 		}
@@ -390,11 +400,13 @@ func MakeFromLiteral(lit string, tok token.Token, zero uint) Value {
 		}
 
 	case token.FLOAT:
+		lit = stripSep(lit)
 		if x := makeFloatFromLiteral(lit); x != nil {
 			return x
 		}
 
 	case token.IMAG:
+		lit = stripSep(lit)
 		if n := len(lit); n > 0 && lit[n-1] == 'i' {
 			if im := makeFloatFromLiteral(lit[:n-1]); im != nil {
 				return makeComplex(int64Val(0), im)
@@ -418,6 +430,26 @@ func MakeFromLiteral(lit string, tok token.Token, zero uint) Value {
 	}
 
 	return unknownVal{}
+}
+
+func stripSep(s string) string {
+	// avoid making a copy if there are no separators (common case)
+	i := 0
+	for i < len(s) && s[i] != '_' {
+		i++
+	}
+	if i == len(s) {
+		return s
+	}
+
+	// make a copy of s without separators
+	var buf []byte
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; c != '_' {
+			buf = append(buf, c)
+		}
+	}
+	return string(buf)
 }
 
 // ----------------------------------------------------------------------------
@@ -527,6 +559,68 @@ func Float64Val(x Value) (float64, bool) {
 		return 0, false
 	default:
 		panic(fmt.Sprintf("%v not a Float", x))
+	}
+}
+
+// Val returns the underlying value for a given constant. Since it returns an
+// interface, it is up to the caller to type assert the result to the expected
+// type. The possible dynamic return types are:
+//
+//    x Kind             type of result
+//    -----------------------------------------
+//    Bool               bool
+//    String             string
+//    Int                int64 or *big.Int
+//    Float              *big.Float or *big.Rat
+//    everything else    nil
+//
+func Val(x Value) interface{} {
+	switch x := x.(type) {
+	case boolVal:
+		return bool(x)
+	case *stringVal:
+		return x.string()
+	case int64Val:
+		return int64(x)
+	case intVal:
+		return x.val
+	case ratVal:
+		return x.val
+	case floatVal:
+		return x.val
+	default:
+		return nil
+	}
+}
+
+// Make returns the Value for x.
+//
+//    type of x        result Kind
+//    ----------------------------
+//    bool             Bool
+//    string           String
+//    int64            Int
+//    *big.Int         Int
+//    *big.Float       Float
+//    *big.Rat         Float
+//    anything else    Unknown
+//
+func Make(x interface{}) Value {
+	switch x := x.(type) {
+	case bool:
+		return boolVal(x)
+	case string:
+		return &stringVal{s: x}
+	case int64:
+		return int64Val(x)
+	case *big.Int:
+		return intVal{x}
+	case *big.Rat:
+		return ratVal{x}
+	case *big.Float:
+		return floatVal{x}
+	default:
+		return unknownVal{}
 	}
 }
 

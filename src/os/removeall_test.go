@@ -80,16 +80,8 @@ func TestRemoveAll(t *testing.T) {
 		t.Fatalf("Lstat %q succeeded after RemoveAll (third)", path)
 	}
 
-	// Determine if we should run the following test.
-	testit := true
-	if runtime.GOOS == "windows" {
-		// Chmod is not supported under windows.
-		testit = false
-	} else {
-		// Test fails as root.
-		testit = Getuid() != 0
-	}
-	if testit {
+	// Chmod is not supported under Windows and test fails as root.
+	if runtime.GOOS != "windows" && Getuid() != 0 {
 		// Make directory with file and subdirectory and trigger error.
 		if err = MkdirAll(dpath, 0777); err != nil {
 			t.Fatalf("MkdirAll %q: %s", dpath, err)
@@ -370,5 +362,35 @@ func TestRemoveAllButReadOnly(t *testing.T) {
 				t.Errorf("file %q still exists but should have been deleted", dir)
 			}
 		}
+	}
+}
+
+func TestRemoveUnreadableDir(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "js", "windows":
+		t.Skipf("skipping test on %s", runtime.GOOS)
+	}
+
+	if Getuid() == 0 {
+		t.Skip("skipping test when running as root")
+	}
+
+	t.Parallel()
+
+	tempDir, err := ioutil.TempDir("", "TestRemoveAllButReadOnly-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer RemoveAll(tempDir)
+
+	target := filepath.Join(tempDir, "d0", "d1", "d2")
+	if err := MkdirAll(target, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := Chmod(target, 0300); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveAll(filepath.Join(tempDir, "d0")); err != nil {
+		t.Fatal(err)
 	}
 }

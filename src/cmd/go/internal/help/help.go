@@ -63,7 +63,8 @@ Args:
 			helpSuccess = " " + strings.Join(args[:i], " ")
 		}
 		fmt.Fprintf(os.Stderr, "go help %s: unknown help topic. Run '%s'.\n", strings.Join(args, " "), helpSuccess)
-		os.Exit(2) // failed at 'go help cmd'
+		base.SetExitStatus(2) // failed at 'go help cmd'
+		base.Exit()
 	}
 
 	if len(cmd.Commands) > 0 {
@@ -167,7 +168,8 @@ func tmpl(w io.Writer, text string, data interface{}) {
 	if ew.err != nil {
 		// I/O error writing. Ignore write on closed pipe.
 		if strings.Contains(ew.err.Error(), "pipe") {
-			os.Exit(1)
+			base.SetExitStatus(1)
+			base.Exit()
 		}
 		base.Fatalf("writing output: %v", ew.err)
 	}

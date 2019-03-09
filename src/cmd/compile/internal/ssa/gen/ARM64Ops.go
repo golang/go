@@ -158,6 +158,7 @@ func init() {
 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
 		fp31      = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
 		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
+		fp1flags  = regInfo{inputs: []regMask{fp}}
 		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
 		fp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{fp}}
 		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
@@ -271,6 +272,8 @@ func init() {
 		{name: "TSTWconst", argLength: 1, reg: gp1flags, asm: "TSTW", aux: "Int32", typ: "Flags"}, // arg0 & auxInt compare to 0, 32 bit
 		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "FCMPS", typ: "Flags"},                  // arg0 compare to arg1, float32
 		{name: "FCMPD", argLength: 2, reg: fp2flags, asm: "FCMPD", typ: "Flags"},                  // arg0 compare to arg1, float64
+		{name: "FCMPS0", argLength: 1, reg: fp1flags, asm: "FCMPS", typ: "Flags"},                 // arg0 compare to 0, float32
+		{name: "FCMPD0", argLength: 1, reg: fp1flags, asm: "FCMPD", typ: "Flags"},                 // arg0 compare to 0, float64
 
 		// shifted ops
 		{name: "MVNshiftLL", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0<<auxInt)
@@ -466,7 +469,10 @@ func init() {
 		{name: "LessEqualU", argLength: 1, reg: readflags},    // bool, true flags encode unsigned x<=y false otherwise.
 		{name: "GreaterThanU", argLength: 1, reg: readflags},  // bool, true flags encode unsigned x>y false otherwise.
 		{name: "GreaterEqualU", argLength: 1, reg: readflags}, // bool, true flags encode unsigned x>=y false otherwise.
-
+		{name: "LessThanF", argLength: 1, reg: readflags},     // bool, true flags encode floating-point x<y false otherwise.
+		{name: "LessEqualF", argLength: 1, reg: readflags},    // bool, true flags encode floating-point x<=y false otherwise.
+		{name: "GreaterThanF", argLength: 1, reg: readflags},  // bool, true flags encode floating-point x>y false otherwise.
+		{name: "GreaterEqualF", argLength: 1, reg: readflags}, // bool, true flags encode floating-point x>=y false otherwise.
 		// duffzero
 		// arg0 = address of memory to zero
 		// arg1 = mem
@@ -663,6 +669,10 @@ func init() {
 		{name: "NZW"},  // Control != 0, 32-bit
 		{name: "TBZ"},  // Control & (1 << Aux.(int64)) == 0
 		{name: "TBNZ"}, // Control & (1 << Aux.(int64)) != 0
+		{name: "FLT"},
+		{name: "FLE"},
+		{name: "FGT"},
+		{name: "FGE"},
 	}
 
 	archs = append(archs, arch{

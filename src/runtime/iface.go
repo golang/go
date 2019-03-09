@@ -492,6 +492,11 @@ func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
 	*dst = assertE2I(inter, e)
 }
 
+//go:linkname reflectlite_ifaceE2I internal/reflectlite.ifaceE2I
+func reflectlite_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
+	*dst = assertE2I(inter, e)
+}
+
 func iterate_itabs(fn func(*itab)) {
 	// Note: only runs during stop the world or with itabLock held,
 	// so no other locks/atomics needed.

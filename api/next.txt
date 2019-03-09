@@ -1,0 +1,3 @@
+pkg text/scanner, const AllowNumberbars = 1024
+pkg text/scanner, const AllowNumberbars ideal-int
+pkg text/scanner, const GoTokens = 2036

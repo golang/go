@@ -496,6 +496,7 @@ var tests = []test{
 			`func ReturnExported\(\) ExportedType`,
 			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
 			`Comment about exported method.`,
+			`func \(ExportedType\) Uncommented\(a int\) bool\n\n`, // Ensure line gap after method with no comment
 		},
 		[]string{
 			`unexportedType`,

@@ -212,7 +212,8 @@ var BuildDump string // name of function to dump after initial build of ssa
 // BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
 //
 func PhaseOption(phase, flag string, val int, valString string) string {
-	if phase == "help" {
+	switch phase {
+	case "", "help":
 		lastcr := 0
 		phasenames := "    check, all, build, intrinsics"
 		for _, p := range passes {

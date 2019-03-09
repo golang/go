@@ -337,19 +337,9 @@ module file trees.
 
 Module downloading and verification
 
-The go command maintains, in the main module's root directory alongside
-go.mod, a file named go.sum containing the expected cryptographic checksums
-of the content of specific module versions. Each time a dependency is
-used, its checksum is added to go.sum if missing or else required to match
-the existing entry in go.sum.
-
-The go command maintains a cache of downloaded packages and computes
-and records the cryptographic checksum of each package at download time.
-In normal operation, the go command checks these pre-computed checksums
-against the main module's go.sum file, instead of recomputing them on
-each command invocation. The 'go mod verify' command checks that
-the cached copies of module downloads still match both their recorded
-checksums and the entries in go.sum.
+The go command checks downloads against known checksums,
+to detect unexpected changes in the content of any specific module
+version from one day to the next. See 'go help module-auth' for details.
 
 The go command can fetch modules from a proxy instead of connecting
 to source control systems directly, according to the setting of the GOPROXY

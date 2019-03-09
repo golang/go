@@ -23,12 +23,12 @@ TEXT wasm_export_run(SB),NOSPLIT,$0
 
 	Get SP
 	Get R0 // argc
-	I64ExtendUI32
+	I64ExtendI32U
 	I64Store $0
 
 	Get SP
 	Get R1 // argv
-	I64ExtendUI32
+	I64ExtendI32U
 	I64Store $8
 
 	I32Const $runtime·rt0_go(SB)

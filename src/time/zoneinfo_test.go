@@ -152,3 +152,33 @@ func TestLoadLocationFromTZData(t *testing.T) {
 		t.Errorf("return values of LoadLocationFromTZData and LoadLocation don't match")
 	}
 }
+
+// Issue 30099.
+func TestEarlyLocation(t *testing.T) {
+	time.ForceZipFileForTesting(true)
+	defer time.ForceZipFileForTesting(false)
+
+	const locName = "America/New_York"
+	loc, err := time.LoadLocation(locName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d := time.Date(1900, time.January, 1, 0, 0, 0, 0, loc)
+	tzName, tzOffset := d.Zone()
+	if want := "EST"; tzName != want {
+		t.Errorf("Zone name == %s, want %s", tzName, want)
+	}
+	if want := -18000; tzOffset != want {
+		t.Errorf("Zone offset == %d, want %d", tzOffset, want)
+	}
+}
+
+func TestMalformedTZData(t *testing.T) {
+	// The goal here is just that malformed tzdata results in an error, not a panic.
+	issue29437 := "TZif\x00000000000000000\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0000"
+	_, err := time.LoadLocationFromTZData("abc", []byte(issue29437))
+	if err == nil {
+		t.Error("expected error, got none")
+	}
+}

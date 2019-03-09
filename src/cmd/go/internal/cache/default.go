@@ -37,7 +37,7 @@ See golang.org to learn more about Go.
 // the first time Default is called.
 func initDefaultCache() {
 	dir := DefaultDir()
-	if dir == "off" || dir == "" {
+	if dir == "off" {
 		if defaultDirErr != nil {
 			base.Fatalf("build cache is required, but could not be located: %v", defaultDirErr)
 		}
@@ -74,7 +74,12 @@ func DefaultDir() string {
 
 	defaultDirOnce.Do(func() {
 		defaultDir = os.Getenv("GOCACHE")
+		if filepath.IsAbs(defaultDir) || defaultDir == "off" {
+			return
+		}
 		if defaultDir != "" {
+			defaultDir = "off"
+			defaultDirErr = fmt.Errorf("GOCACHE is not an absolute path")
 			return
 		}
 

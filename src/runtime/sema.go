@@ -53,22 +53,22 @@ var semtable [semTabSize]struct {
 
 //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
 func sync_runtime_Semacquire(addr *uint32) {
-	semacquire1(addr, false, semaBlockProfile)
+	semacquire1(addr, false, semaBlockProfile, 0)
 }
 
 //go:linkname poll_runtime_Semacquire internal/poll.runtime_Semacquire
 func poll_runtime_Semacquire(addr *uint32) {
-	semacquire1(addr, false, semaBlockProfile)
+	semacquire1(addr, false, semaBlockProfile, 0)
 }
 
 //go:linkname sync_runtime_Semrelease sync.runtime_Semrelease
-func sync_runtime_Semrelease(addr *uint32, handoff bool) {
-	semrelease1(addr, handoff)
+func sync_runtime_Semrelease(addr *uint32, handoff bool, skipframes int) {
+	semrelease1(addr, handoff, skipframes)
 }
 
 //go:linkname sync_runtime_SemacquireMutex sync.runtime_SemacquireMutex
-func sync_runtime_SemacquireMutex(addr *uint32, lifo bool) {
-	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile)
+func sync_runtime_SemacquireMutex(addr *uint32, lifo bool, skipframes int) {
+	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes)
 }
 
 //go:linkname poll_runtime_Semrelease internal/poll.runtime_Semrelease
@@ -92,10 +92,10 @@ const (
 
 // Called from runtime.
 func semacquire(addr *uint32) {
-	semacquire1(addr, false, 0)
+	semacquire1(addr, false, 0, 0)
 }
 
-func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
+func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes int) {
 	gp := getg()
 	if gp != gp.m.curg {
 		throw("semacquire not on the G stack")
@@ -141,22 +141,22 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags) {
 		// Any semrelease after the cansemacquire knows we're waiting
 		// (we set nwait above), so go to sleep.
 		root.queue(addr, s, lifo)
-		goparkunlock(&root.lock, waitReasonSemacquire, traceEvGoBlockSync, 4)
+		goparkunlock(&root.lock, waitReasonSemacquire, traceEvGoBlockSync, 4+skipframes)
 		if s.ticket != 0 || cansemacquire(addr) {
 			break
 		}
 	}
 	if s.releasetime > 0 {
-		blockevent(s.releasetime-t0, 3)
+		blockevent(s.releasetime-t0, 3+skipframes)
 	}
 	releaseSudog(s)
 }
 
 func semrelease(addr *uint32) {
-	semrelease1(addr, false)
+	semrelease1(addr, false, 0)
 }
 
-func semrelease1(addr *uint32, handoff bool) {
+func semrelease1(addr *uint32, handoff bool, skipframes int) {
 	root := semroot(addr)
 	atomic.Xadd(addr, 1)
 
@@ -183,7 +183,7 @@ func semrelease1(addr *uint32, handoff bool) {
 	if s != nil { // May be slow, so unlock first
 		acquiretime := s.acquiretime
 		if acquiretime != 0 {
-			mutexevent(t0-acquiretime, 3)
+			mutexevent(t0-acquiretime, 3+skipframes)
 		}
 		if s.ticket != 0 {
 			throw("corrupted semaphore ticket")
@@ -191,7 +191,7 @@ func semrelease1(addr *uint32, handoff bool) {
 		if handoff && cansemacquire(addr) {
 			s.ticket = 1
 		}
-		readyWithTime(s, 5)
+		readyWithTime(s, 5+skipframes)
 	}
 }
 

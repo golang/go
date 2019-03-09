@@ -269,7 +269,7 @@ func f11b(a []int, i int) {
 
 func f11c(a []int, i int) {
 	useSlice(a[:i])
-	useSlice(a[:i]) // ERROR "Proved Geq64$" "Proved IsSliceInBounds$"
+	useSlice(a[:i]) // ERROR "Proved IsSliceInBounds$"
 }
 
 func f11d(a []int, i int) {
@@ -469,7 +469,7 @@ func f17(b []int) {
 		// using the derived relation between len and cap.
 		// This depends on finding the contradiction, since we
 		// don't query this condition directly.
-		useSlice(b[:i]) // ERROR "Proved Geq64$" "Proved IsSliceInBounds$"
+		useSlice(b[:i]) // ERROR "Proved IsSliceInBounds$"
 	}
 }
 

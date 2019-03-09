@@ -810,3 +810,14 @@ func TestNoSectionOverlaps(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue10996(t *testing.T) {
+	data := []byte("\u007fELF\x02\x01\x010000000000000" +
+		"\x010000000000000000000" +
+		"\x00\x00\x00\x00\x00\x00\x00\x0000000000\x00\x00\x00\x00" +
+		"0000")
+	_, err := NewFile(bytes.NewReader(data))
+	if err == nil {
+		t.Fatalf("opening invalid ELF file unexpectedly suceeded")
+	}
+}

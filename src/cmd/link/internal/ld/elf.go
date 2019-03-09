@@ -1290,11 +1290,9 @@ func elfshreloc(arch *sys.Arch, sect *sym.Section) *ElfShdr {
 		return nil
 	}
 
-	var typ int
+	typ := SHT_REL
 	if elfRelType == ".rela" {
 		typ = SHT_RELA
-	} else {
-		typ = SHT_REL
 	}
 
 	sh := elfshname(elfRelType + sect.Name)
@@ -1840,6 +1838,11 @@ func Asmbelf(ctxt *Link, symo int64) {
 		sh.type_ = SHT_PROGBITS
 		sh.flags = SHF_ALLOC
 		sh.addralign = 1
+
+		if interpreter == "" && objabi.GO_LDSO != "" {
+			interpreter = objabi.GO_LDSO
+		}
+
 		if interpreter == "" {
 			switch ctxt.HeadType {
 			case objabi.Hlinux:

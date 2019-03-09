@@ -80,6 +80,10 @@ func (ExportedType) ExportedMethod(a int) bool {
 	return true != true
 }
 
+func (ExportedType) Uncommented(a int) bool {
+	return true != true
+}
+
 // Comment about unexported method.
 func (ExportedType) unexportedMethod(a int) bool {
 	return true

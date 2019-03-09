@@ -1,0 +1,79 @@
+// 
+PACKAGE issue10858
+
+IMPORTPATH
+	testdata/issue10858
+
+IMPORTS
+	unsafe
+
+FILENAMES
+	testdata/issue10858.go
+
+CONSTANTS
+	// First line  Second line 
+	const (
+	
+		// C1 comment
+		C1	int	= 1 << 0
+	
+		C2	int	= 1 << 1
+	
+		// C3 comment
+		//
+		// with a line gap
+		C3	int	= 1 << 2
+	)
+
+
+TYPES
+	// StructTag is a comment  with 2 connecting lines 
+	type StructTag string	// adjacent comment
+
+	// Get returns the value associated with key in the tag string. 
+	func (tag StructTag) Get(key string) string
+
+	// First line  Second line 
+	type Type interface {
+		// Should be present
+	
+		// Align returns the alignment in bytes of a value of
+		// this type when allocated in memory.
+		Align() int
+	
+		// FieldAlign returns the alignment in bytes of a value of
+		// this type when used as a field in a struct.
+		FieldAlign() int	// adjacent comment
+	
+		//	Ptr: Elem
+		//	Slice: Elem
+	
+		// Bits returns the size of the type in bits.
+	
+		//
+		// It panics if the type's Kind is not one of the
+		// sized or unsized Int, Uint, Float, or Complex kinds.
+		Bits() int
+	}
+
+	// NewType is a comment  ending with this line. 
+	func NewType() Type
+
+	// TypeAlg is a copy of runtime.typeAlg 
+	type TypeAlg struct {
+		// function for hashing objects of this type
+		//
+		//
+		// (ptr to object, seed) -> hash
+		Hash	func(unsafe.Pointer, uintptr) uintptr
+	
+		// include
+		// include
+	
+		// include
+	
+		// function for comparing objects of this type
+		// (ptr to object A, ptr to object B) -> ==?
+		Equal	func(unsafe.Pointer, unsafe.Pointer) bool
+	}
+

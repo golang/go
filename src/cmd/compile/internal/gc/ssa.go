@@ -84,6 +84,7 @@ func initssaconfig() {
 	panicnildottype = sysfunc("panicnildottype")
 	panicoverflow = sysfunc("panicoverflow")
 	panicslice = sysfunc("panicslice")
+	panicshift = sysfunc("panicshift")
 	raceread = sysfunc("raceread")
 	racereadrange = sysfunc("racereadrange")
 	racewrite = sysfunc("racewrite")
@@ -993,26 +994,32 @@ func (s *state) stmt(n *Node) {
 		s.assign(n.Left, r, deref, skip)
 
 	case OIF:
-		bThen := s.f.NewBlock(ssa.BlockPlain)
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
-		var bElse *ssa.Block
 		var likely int8
 		if n.Likely() {
 			likely = 1
 		}
+		var bThen *ssa.Block
+		if n.Nbody.Len() != 0 {
+			bThen = s.f.NewBlock(ssa.BlockPlain)
+		} else {
+			bThen = bEnd
+		}
+		var bElse *ssa.Block
 		if n.Rlist.Len() != 0 {
 			bElse = s.f.NewBlock(ssa.BlockPlain)
-			s.condBranch(n.Left, bThen, bElse, likely)
 		} else {
-			s.condBranch(n.Left, bThen, bEnd, likely)
+			bElse = bEnd
 		}
+		s.condBranch(n.Left, bThen, bElse, likely)
 
-		s.startBlock(bThen)
-		s.stmtList(n.Nbody)
-		if b := s.endBlock(); b != nil {
-			b.AddEdgeTo(bEnd)
+		if n.Nbody.Len() != 0 {
+			s.startBlock(bThen)
+			s.stmtList(n.Nbody)
+			if b := s.endBlock(); b != nil {
+				b.AddEdgeTo(bEnd)
+			}
 		}
-
 		if n.Rlist.Len() != 0 {
 			s.startBlock(bElse)
 			s.stmtList(n.Rlist)
@@ -1069,6 +1076,9 @@ func (s *state) stmt(n *Node) {
 		bBody := s.f.NewBlock(ssa.BlockPlain)
 		bIncr := s.f.NewBlock(ssa.BlockPlain)
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
+
+		// ensure empty for loops have correct position; issue #30167
+		bBody.Pos = n.Pos
 
 		// first, jump to condition test (OFOR) or body (OFORUNTIL)
 		b := s.endBlock()
@@ -2128,7 +2138,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OLSH, ORSH:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		return s.newValue2(s.ssaShiftOp(n.Op, n.Type, n.Right.Type), a.Type, a, b)
+		bt := b.Type
+		if bt.IsSigned() {
+			cmp := s.newValue2(s.ssaOp(OGE, bt), types.Types[TBOOL], b, s.zeroVal(bt))
+			s.check(cmp, panicshift)
+			bt = bt.ToUnsigned()
+		}
+		return s.newValue2(s.ssaShiftOp(n.Op, n.Type, bt), a.Type, a, b)
 	case OANDAND, OOROR:
 		// To implement OANDAND (and OOROR), we introduce a
 		// new temporary variable to hold the result. The
@@ -3277,7 +3293,7 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCtz16, types.Types[TINT], args[0])
 		},
-		sys.AMD64)
+		sys.AMD64, sys.ARM64)
 	addF("math/bits", "TrailingZeros16",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[TUINT64], args[0])
@@ -3285,7 +3301,7 @@ func init() {
 			y := s.newValue2(ssa.OpOr64, types.Types[TUINT64], x, c)
 			return s.newValue1(ssa.OpCtz64, types.Types[TINT], y)
 		},
-		sys.ARM64, sys.S390X, sys.PPC64)
+		sys.S390X, sys.PPC64)
 	addF("math/bits", "TrailingZeros8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			x := s.newValue1(ssa.OpZeroExt8to32, types.Types[TUINT32], args[0])
@@ -3298,7 +3314,7 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCtz8, types.Types[TINT], args[0])
 		},
-		sys.AMD64)
+		sys.AMD64, sys.ARM64)
 	addF("math/bits", "TrailingZeros8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[TUINT64], args[0])
@@ -3306,7 +3322,7 @@ func init() {
 			y := s.newValue2(ssa.OpOr64, types.Types[TUINT64], x, c)
 			return s.newValue1(ssa.OpCtz64, types.Types[TINT], y)
 		},
-		sys.ARM64, sys.S390X)
+		sys.S390X)
 	alias("math/bits", "ReverseBytes64", "runtime/internal/sys", "Bswap64", all...)
 	alias("math/bits", "ReverseBytes32", "runtime/internal/sys", "Bswap32", all...)
 	// ReverseBytes inlines correctly, no need to intrinsify it.
@@ -3320,7 +3336,7 @@ func init() {
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBitLen32, types.Types[TINT], args[0])
 		},
-		sys.AMD64)
+		sys.AMD64, sys.ARM64)
 	addF("math/bits", "Len32",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			if s.config.PtrSize == 4 {
@@ -3329,7 +3345,7 @@ func init() {
 			x := s.newValue1(ssa.OpZeroExt32to64, types.Types[TUINT64], args[0])
 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
 		},
-		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+		sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
 	addF("math/bits", "Len16",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			if s.config.PtrSize == 4 {
@@ -4013,6 +4029,7 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 }
 
 // boundsCheck generates bounds checking code. Checks if 0 <= idx < len, branches to exit if not.
+// len must be known to be nonnegative.
 // Starts a new block on return.
 // idx is already converted to full int width.
 func (s *state) boundsCheck(idx, len *ssa.Value) {
@@ -4025,33 +4042,13 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 	s.check(cmp, panicindex)
 }
 
-func couldBeNegative(v *ssa.Value) bool {
-	switch v.Op {
-	case ssa.OpSliceLen, ssa.OpSliceCap, ssa.OpStringLen:
-		return false
-	case ssa.OpConst64:
-		return v.AuxInt < 0
-	case ssa.OpConst32:
-		return int32(v.AuxInt) < 0
-	}
-	return true
-}
-
 // sliceBoundsCheck generates slice bounds checking code. Checks if 0 <= idx <= len, branches to exit if not.
+// len must be known to be nonnegative.
 // Starts a new block on return.
 // idx and len are already converted to full int width.
 func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
 	if Debug['B'] != 0 {
 		return
-	}
-	if couldBeNegative(len) {
-		// OpIsSliceInBounds requires second arg not negative; if it's not obviously true, must check.
-		cmpop := ssa.OpGeq64
-		if len.Type.Size() == 4 {
-			cmpop = ssa.OpGeq32
-		}
-		cmp := s.newValue2(cmpop, types.Types[TBOOL], len, s.zeroVal(len.Type))
-		s.check(cmp, panicslice)
 	}
 
 	// bounds check
@@ -4316,13 +4313,15 @@ func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value, bounded bool) (p, l,
 
 	if !bounded {
 		// Panic if slice indices are not in bounds.
-		s.sliceBoundsCheck(i, j)
-		if j != k {
-			s.sliceBoundsCheck(j, k)
-		}
+		// Make sure we check these in reverse order so that we're always
+		// comparing against a value known to be nonnegative. See issue 28797.
 		if k != cap {
 			s.sliceBoundsCheck(k, cap)
 		}
+		if j != k {
+			s.sliceBoundsCheck(j, k)
+		}
+		s.sliceBoundsCheck(i, j)
 	}
 
 	// Generate the following code assuming that indexes are in bounds.
@@ -5168,10 +5167,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 			case ssa.OpInlMark:
 				p := thearch.Ginsnop(s.pp)
-				if pp.curfn.Func.lsym != nil {
-					// lsym is nil if the function name is "_".
-					pp.curfn.Func.lsym.Func.AddInlMark(p, v.AuxInt32())
-				}
+				pp.curfn.Func.lsym.Func.AddInlMark(p, v.AuxInt32())
 				// TODO: if matching line number, merge somehow with previous instruction?
 
 			default:
@@ -5597,7 +5593,7 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 		// insert an actual hardware NOP that will have the right line number.
 		// This is different from obj.ANOP, which is a virtual no-op
 		// that doesn't make it into the instruction stream.
-		thearch.Ginsnop(s.pp)
+		thearch.Ginsnopdefer(s.pp)
 	}
 
 	if sym, ok := v.Aux.(*obj.LSym); ok {

@@ -2279,8 +2279,7 @@ func TestPipeThreads(t *testing.T) {
 	}
 }
 
-func TestDoubleCloseError(t *testing.T) {
-	path := sfdir + "/" + sfname
+func testDoubleCloseError(t *testing.T, path string) {
 	file, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
@@ -2297,6 +2296,11 @@ func TestDoubleCloseError(t *testing.T) {
 	} else {
 		t.Logf("second close returned expected error %q", err)
 	}
+}
+
+func TestDoubleCloseError(t *testing.T) {
+	testDoubleCloseError(t, filepath.Join(sfdir, sfname))
+	testDoubleCloseError(t, sfdir)
 }
 
 func TestUserHomeDir(t *testing.T) {

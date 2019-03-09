@@ -207,3 +207,7 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
 	}
 	return ppoll(&fds[0], len(fds), ts, nil)
 }
+
+func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+	return Renameat2(olddirfd, oldpath, newdirfd, newpath, 0)
+}

@@ -710,7 +710,7 @@ _cgo_main.c:
 
 	int main() { return 0; }
 	void crosscall2(void(*fn)(void*, int, uintptr_t), void *a, int c, uintptr_t ctxt) { }
-	uintptr_t _cgo_wait_runtime_init_done() { return 0; }
+	uintptr_t _cgo_wait_runtime_init_done(void) { return 0; }
 	void _cgo_release_context(uintptr_t ctxt) { }
 	char* _cgo_topofstack(void) { return (char*)0; }
 	void _cgo_allocate(void *a, int c) { }

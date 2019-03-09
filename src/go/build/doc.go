@@ -109,6 +109,7 @@
 //	- "go1.10", from Go version 1.10 onward
 //	- "go1.11", from Go version 1.11 onward
 //	- "go1.12", from Go version 1.12 onward
+//	- "go1.13", from Go version 1.13 onward
 //	- any additional words listed in ctxt.BuildTags
 //
 // There are no build tags for beta or minor releases.
@@ -148,24 +149,28 @@
 //
 // Binary-Only Packages
 //
-// It is possible to distribute packages in binary form without including the
-// source code used for compiling the package. To do this, the package must
-// be distributed with a source file not excluded by build constraints and
-// containing a "//go:binary-only-package" comment.
-// Like a build constraint, this comment must appear near the top of the file,
-// preceded only by blank lines and other line comments and with a blank line
+// In Go 1.12 and earlier, it was possible to distribute packages in binary
+// form without including the source code used for compiling the package.
+// The package was distributed with a source file not excluded by build
+// constraints and containing a "//go:binary-only-package" comment. Like a
+// build constraint, this comment appeared at the top of a file, preceded
+// only by blank lines and other line comments and with a blank line
 // following the comment, to separate it from the package documentation.
 // Unlike build constraints, this comment is only recognized in non-test
 // Go source files.
 //
-// The minimal source code for a binary-only package is therefore:
+// The minimal source code for a binary-only package was therefore:
 //
 //	//go:binary-only-package
 //
 //	package mypkg
 //
-// The source code may include additional Go code. That code is never compiled
-// but will be processed by tools like godoc and might be useful as end-user
-// documentation.
+// The source code could include additional Go code. That code was never
+// compiled but would be processed by tools like godoc and might be useful
+// as end-user documentation.
+//
+// "go build" and other commands no longer support binary-only-packages.
+// Import and ImportDir will still set the BinaryOnly flag in packages
+// containing these comments for use in tools and error messages.
 //
 package build

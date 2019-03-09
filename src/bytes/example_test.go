@@ -365,6 +365,16 @@ func ExampleToTitle() {
 	// ХЛЕБ
 }
 
+func ExampleToTitleSpecial() {
+	str := []byte("ahoj vývojári golang")
+	totitle := bytes.ToTitleSpecial(unicode.AzeriCase, str)
+	fmt.Println("Original : " + string(str))
+	fmt.Println("ToTitle : " + string(totitle))
+	// Output:
+	// Original : ahoj vývojári golang
+	// ToTitle : AHOJ VÝVOJÁRİ GOLANG
+}
+
 func ExampleTrim() {
 	fmt.Printf("[%q]", bytes.Trim([]byte(" !!! Achtung! Achtung! !!! "), "! "))
 	// Output: ["Achtung! Achtung"]
@@ -438,9 +448,29 @@ func ExampleToUpper() {
 	// Output: GOPHER
 }
 
+func ExampleToUpperSpecial() {
+	str := []byte("ahoj vývojári golang")
+	totitle := bytes.ToUpperSpecial(unicode.AzeriCase, str)
+	fmt.Println("Original : " + string(str))
+	fmt.Println("ToUpper : " + string(totitle))
+	// Output:
+	// Original : ahoj vývojári golang
+	// ToUpper : AHOJ VÝVOJÁRİ GOLANG
+}
+
 func ExampleToLower() {
 	fmt.Printf("%s", bytes.ToLower([]byte("Gopher")))
 	// Output: gopher
+}
+
+func ExampleToLowerSpecial() {
+	str := []byte("AHOJ VÝVOJÁRİ GOLANG")
+	totitle := bytes.ToLowerSpecial(unicode.AzeriCase, str)
+	fmt.Println("Original : " + string(str))
+	fmt.Println("ToLower : " + string(totitle))
+	// Output:
+	// Original : AHOJ VÝVOJÁRİ GOLANG
+	// ToLower : ahoj vývojári golang
 }
 
 func ExampleReader_Len() {

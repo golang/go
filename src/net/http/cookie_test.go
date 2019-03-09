@@ -385,6 +385,19 @@ var readCookiesTests = []struct {
 			{Name: "c2", Value: "v2"},
 		},
 	},
+	{
+		Header{"Cookie": {`Cookie-1="v$1"; c2=v2;`}},
+		"",
+		[]*Cookie{
+			{Name: "Cookie-1", Value: "v$1"},
+			{Name: "c2", Value: "v2"},
+		},
+	},
+	{
+		Header{"Cookie": {``}},
+		"",
+		[]*Cookie{},
+	},
 }
 
 func TestReadCookies(t *testing.T) {

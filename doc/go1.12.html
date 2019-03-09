@@ -15,14 +15,7 @@ Do not send CLs removing the interior tags from such phrases.
   ul li { margin: 0.5em 0; }
 </style>
 
-<h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.12</h2>
-
-<p>
-  <strong>
-    Go 1.12 is not yet released. These are work-in-progress
-    release notes. Go 1.12 is expected to be released in February 2019.
-  </strong>
-</p>
+<h2 id="introduction">Introduction to Go 1.12</h2>
 
 <p>
   The latest Go release, version 1.12, arrives six months after <a href="go1.11">Go 1.11</a>.
@@ -109,7 +102,7 @@ Do not send CLs removing the interior tags from such phrases.
   is no longer available with <code>go vet</code>. Checking for
   variable shadowing may now be done using
 <pre>
-go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+go get -u golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
 go vet -vettool=$(which shadow)
 </pre>
 </p>
@@ -121,7 +114,7 @@ The Go tour is no longer included in the main binary distribution. To
 run the tour locally, instead of running <code>go</code> <code>tool</code> <code>tour</code>,
 manually install it:
 <pre>
-go install golang.org/x/tour
+go get -u golang.org/x/tour
 tour
 </pre>
 </p>
@@ -190,6 +183,17 @@ tour
   version <em>newer</em> than the toolchain in use, the <code>go</code> command
   will attempt to build the packages regardless, and will note the mismatch only if
   that build fails.
+</p>
+
+<p><!-- CL 147282, 147281 -->
+  This changed use of the <code>go</code> directive means that if you
+  use Go 1.12 to build a module, thus recording <code>go 1.12</code>
+  in the <code>go.mod</code> file, you will get an error when
+  attempting to build the same module with Go 1.11 through Go 1.11.3.
+  Go 1.11.4 or later will work fine, as will releases older than Go 1.11.
+  If you must use Go 1.11 through 1.11.3, you can avoid the problem by
+  setting the language version to 1.11, using the Go 1.12 go tool,
+  via <code>go mod edit -go=1.11</code>.
 </p>
 
 <p><!-- CL 152739 -->
@@ -303,7 +307,9 @@ for {
 <p>
   In Go 1.12, <code>godoc</code> no longer has a command-line interface and
   is only a web server. Users should use <code>go</code> <code>doc</code>
-  for command-line help output instead.
+  for command-line help output instead. Go 1.12 is the last release that will
+  include the <code>godoc</code> webserver; in Go 1.13 it will be available
+  via <code>go</code> <code>get</code>.
 </p>
 
 <p><!-- CL 141977 -->
@@ -388,15 +394,26 @@ for {
 <h3 id="tls_1_3">TLS 1.3</h3>
 
 <p>
-  Go 1.12 adds support in the <code>crypto/tls</code> package for TLS 1.3 as
-  specified in <a href="https://www.rfc-editor.org/info/rfc8446">RFC 8446</a>.
+  Go 1.12 adds opt-in support for TLS 1.3 in the <code>crypto/tls</code> package as
+  specified by <a href="https://www.rfc-editor.org/info/rfc8446">RFC 8446</a>. It can
+  be enabled by adding the value <code>tls13=1</code> to the <code>GODEBUG</code>
+  environment variable. It will be enabled by default in Go 1.13.
+</p>
 
-  Programs that did not set an explicit <code>MaxVersion</code> in
-  <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> will automatically negotiate
-  TLS 1.3 if available. All TLS 1.2 features except <code>TLSUnique</code> in
+<p>
+  To negotiate TLS 1.3, make sure you do not set an explicit <code>MaxVersion</code> in
+  <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> and run your program with
+  the environment variable <code>GODEBUG=tls13=1</code> set.
+</p>
+
+<p>
+  All TLS 1.2 features except <code>TLSUnique</code> in
   <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>
   and renegotiation are available in TLS 1.3 and provide equivalent or
-  better security and performance.
+  better security and performance. Note that even though TLS 1.3 is backwards
+  compatible with previous versions, certain legacy systems might not work
+  correctly when attempting to negotiate it. RSA certificate keys too small
+  to be secure (including 512-bit keys) will not work with TLS 1.3.
 </p>
 
 <p>
@@ -482,21 +499,17 @@ for {
 <dl id="crypto/rc4"><dt><a href="/pkg/crypto/rc4/">crypto/rc4</a></dt>
   <dd>
     <p><!-- CL 130397 -->
-      This release removes the optimized assembly implementations. RC4 is insecure
-      and should only be used for compatibility with legacy systems.
+      This release removes the assembly implementations, leaving only
+      the pure Go version. The Go compiler generates code that is
+      either slightly better or slightly worse, depending on the exact
+      CPU. RC4 is insecure and should only be used for compatibility
+      with legacy systems.
     </p>
 
 </dl><!-- crypto/rc4 -->
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
-    <p><!-- CL 146258 -->
-      TLS 1.2 clients and servers will now advertise and accept RSA-PSS
-      signature algorithms for use with regular RSA public keys. Certain
-      insecure certificate keys (including 512-bit RSA keys) will
-      now cause a handshake failure if RSA-PSS is selected.
-    </p>
-
     <p><!-- CL 143177 -->
       If a client sends an initial message that does not look like TLS, the server
       will no longer reply with an alert, and it will expose the underlying
@@ -598,17 +611,6 @@ for {
 
 </dl><!-- io -->
 
-<dl id="lib/time"><dt><a href="/pkg/lib/time/">lib/time</a></dt>
-  <dd>
-    <p><!-- CL 151299 -->
-      The time zone database in <code>$GOROOT/lib/time/zoneinfo.zip</code>
-      has been updated to version 2018i. Note that this ZIP file is
-      only used if a time zone database is not provided by the operating
-      system.
-    </p>
-
-</dl><!-- lib/time -->
-
 <dl id="math"><dt><a href="/pkg/math/">math</a></dt>
   <dd>
     <p><!-- CL 153059 -->
@@ -684,6 +686,20 @@ for {
     </p>
 
 </dl><!-- net/http -->
+
+<dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+  <dd>
+    <p><!-- CL 159157, CL 160178 -->
+      <a href="/pkg/net/url/#Parse"><code>Parse</code></a>,
+      <a href="/pkg/net/url/#ParseRequestURI"><code>ParseRequestURI</code></a>,
+      and
+      <a href="/pkg/net/url/#URL.Parse"><code>URL.Parse</code></a>
+      now return an
+      error for URLs containing ASCII control characters, which includes NULL,
+      tab, and newlines.
+    </p>
+
+</dl><!-- net/url -->
 
 <dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
   <dd>
@@ -907,6 +923,17 @@ for {
       the <code>Execute</code> or <code>ExecuteTemplate</code> method.
     </p>
 </dl><!-- text/template -->
+
+<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+  <dd>
+    <p><!-- CL 151299 -->
+      The time zone database in <code>$GOROOT/lib/time/zoneinfo.zip</code>
+      has been updated to version 2018i. Note that this ZIP file is
+      only used if a time zone database is not provided by the operating
+      system.
+    </p>
+
+</dl><!-- time -->
 
 <dl id="unsafe"><dt><a href="/pkg/unsafe/">unsafe</a></dt>
   <dd>

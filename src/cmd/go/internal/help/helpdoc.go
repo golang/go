@@ -635,15 +635,6 @@ constraints, but the go command stops scanning for build constraints
 at the first item in the file that is not a blank line or //-style
 line comment. See the go/build package documentation for
 more details.
-
-Through the Go 1.12 release, non-test Go source files can also include
-a //go:binary-only-package comment, indicating that the package
-sources are included for documentation only and must not be used to
-build the package binary. This enables distribution of Go packages in
-their compiled form alone. Even binary-only packages require accurate
-import blocks listing required dependencies, so that those
-dependencies can be supplied when linking the resulting command.
-Note that this feature is scheduled to be removed after the Go 1.12 release.
 	`,
 }
 

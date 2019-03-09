@@ -33,6 +33,14 @@ const jsFetchMode = "js.fetch:mode"
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
 const jsFetchCreds = "js.fetch:credentials"
 
+// jsFetchRedirect is a Request.Header map key that, if present,
+// signals that the map entry is actually an option to the Fetch API redirect setting.
+// Valid values are: "follow", "error", "manual"
+// The default is "follow".
+//
+// Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
+const jsFetchRedirect = "js.fetch:redirect"
+
 // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	if useFakeNetwork() {
@@ -59,6 +67,10 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	if h := req.Header.Get(jsFetchMode); h != "" {
 		opt.Set("mode", h)
 		req.Header.Del(jsFetchMode)
+	}
+	if h := req.Header.Get(jsFetchRedirect); h != "" {
+		opt.Set("redirect", h)
+		req.Header.Del(jsFetchRedirect)
 	}
 	if ac != js.Undefined() {
 		opt.Set("signal", ac.Get("signal"))

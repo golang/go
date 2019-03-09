@@ -448,6 +448,10 @@ func TestHtmlUnformatted(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := ioutil.WriteFile(filepath.Join(htmlUDir, "go.mod"), []byte("module htmlunformatted\n"), 0444); err != nil {
+		t.Fatal(err)
+	}
+
 	const htmlUContents = `
 package htmlunformatted
 
@@ -475,6 +479,7 @@ lab:
 
 	// testcover -html TMPDIR/htmlunformatted.cov -o unformatted.html
 	cmd = exec.Command(testcover, "-html", htmlUProfile, "-o", htmlUHTML)
+	cmd.Dir = htmlUDir
 	run(cmd, t)
 }
 

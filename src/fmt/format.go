@@ -34,6 +34,11 @@ type fmtFlags struct {
 	// different, flagless formats set at the top level.
 	plusV  bool
 	sharpV bool
+
+	// error-related flags.
+	inDetail    bool
+	needNewline bool
+	needColon   bool
 }
 
 // A fmt is the raw formatter used by Printf etc.
@@ -191,7 +196,7 @@ func (f *fmt) fmtUnicode(u uint64) {
 }
 
 // fmtInteger formats signed and unsigned integers.
-func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
+func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, verb rune, digits string) {
 	negative := isSigned && int64(u) < 0
 	if negative {
 		u = -u
@@ -275,6 +280,12 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
 	// Various prefixes: 0x, -, etc.
 	if f.sharp {
 		switch base {
+		case 2:
+			// Add a leading 0b.
+			i--
+			buf[i] = 'b'
+			i--
+			buf[i] = '0'
 		case 8:
 			if buf[i] != '0' {
 				i--
@@ -287,6 +298,12 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
 			i--
 			buf[i] = '0'
 		}
+	}
+	if verb == 'O' {
+		i--
+		buf[i] = 'o'
+		i--
+		buf[i] = '0'
 	}
 
 	if negative {
@@ -510,7 +527,7 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 	if f.sharp && verb != 'b' {
 		digits := 0
 		switch verb {
-		case 'v', 'g', 'G':
+		case 'v', 'g', 'G', 'x':
 			digits = prec
 			// If no precision is set explicitly use a precision of 6.
 			if digits == -1 {
@@ -519,8 +536,8 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 		}
 
 		// Buffer pre-allocated with enough room for
-		// exponent notations of the form "e+123".
-		var tailBuf [5]byte
+		// exponent notations of the form "e+123" or "p-1023".
+		var tailBuf [6]byte
 		tail := tailBuf[:0]
 
 		hasDecimalPoint := false
@@ -529,9 +546,16 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 			switch num[i] {
 			case '.':
 				hasDecimalPoint = true
-			case 'e', 'E':
+			case 'p', 'P':
 				tail = append(tail, num[i:]...)
 				num = num[:i]
+			case 'e', 'E':
+				if verb != 'x' && verb != 'X' {
+					tail = append(tail, num[i:]...)
+					num = num[:i]
+					break
+				}
+				fallthrough
 			default:
 				digits--
 			}

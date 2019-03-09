@@ -209,6 +209,10 @@ func testCallbackCallers(t *testing.T) {
 		if strings.HasPrefix(fname, "_") {
 			fname = path.Base(f.Name()[1:])
 		}
+		// In module mode, this package has a fully-qualified import path.
+		// Remove it if present.
+		fname = strings.TrimPrefix(fname, "misc/cgo/")
+
 		namei := ""
 		if i < len(name) {
 			namei = name[i]

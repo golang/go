@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 # As of Go 1.12, the module cache is required.
 
 # If none of the variables we use to locate GOCACHE are set, the cache is off
@@ -9,6 +11,11 @@ env HOME=
 [windows] env LocalAppData=
 ! go build -o triv triv.go
 stderr 'build cache is required, but could not be located: GOCACHE is not defined and .*'
+
+# If GOCACHE is set but is not an absolute path, and we cannot build.
+env GOCACHE=test
+! go build -o triv triv.go
+stderr 'build cache is required, but could not be located: GOCACHE is not an absolute path'
 
 # An explicit GOCACHE=off also disables builds.
 env GOCACHE=off

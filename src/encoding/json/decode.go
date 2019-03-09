@@ -125,7 +125,7 @@ type UnmarshalTypeError struct {
 	Type   reflect.Type // type of Go value it could not be assigned to
 	Offset int64        // error occurred after reading Offset bytes
 	Struct string       // name of the struct type containing the field
-	Field  string       // name of the field holding the Go value
+	Field  string       // the full path from root node to the field
 }
 
 func (e *UnmarshalTypeError) Error() string {
@@ -730,7 +730,11 @@ func (d *decodeState) object(v reflect.Value) error {
 					}
 					subv = subv.Field(i)
 				}
-				d.errorContext.Field = f.name
+				if originalErrorContext.Field == "" {
+					d.errorContext.Field = f.name
+				} else {
+					d.errorContext.Field = originalErrorContext.Field + "." + f.name
+				}
 				d.errorContext.Struct = t
 			} else if d.disallowUnknownFields {
 				d.saveError(fmt.Errorf("json: unknown field %q", key))

@@ -242,6 +242,7 @@ func testSpliceNoUnixgram(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(addr.Name)
 	up, err := ListenUnixgram("unixgram", addr)
 	if err != nil {
 		t.Fatal(err)

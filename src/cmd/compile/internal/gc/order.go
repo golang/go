@@ -1130,14 +1130,40 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		}
 
 	case OANDAND, OOROR:
-		mark := o.markTemp()
-		n.Left = o.expr(n.Left, nil)
+		// ... = LHS && RHS
+		//
+		// var r bool
+		// r = LHS
+		// if r {       // or !r, for OROR
+		//     r = RHS
+		// }
+		// ... = r
 
-		// Clean temporaries from first branch at beginning of second.
-		// Leave them on the stack so that they can be killed in the outer
-		// context in case the short circuit is taken.
-		n.Right = addinit(n.Right, o.cleanTempNoPop(mark))
-		n.Right = o.exprInPlace(n.Right)
+		r := o.newTemp(n.Type, false)
+
+		// Evaluate left-hand side.
+		lhs := o.expr(n.Left, nil)
+		o.out = append(o.out, typecheck(nod(OAS, r, lhs), ctxStmt))
+
+		// Evaluate right-hand side, save generated code.
+		saveout := o.out
+		o.out = nil
+		t := o.markTemp()
+		rhs := o.expr(n.Right, nil)
+		o.out = append(o.out, typecheck(nod(OAS, r, rhs), ctxStmt))
+		o.cleanTemp(t)
+		gen := o.out
+		o.out = saveout
+
+		// If left-hand side doesn't cause a short-circuit, issue right-hand side.
+		nif := nod(OIF, r, nil)
+		if n.Op == OANDAND {
+			nif.Nbody.Set(gen)
+		} else {
+			nif.Rlist.Set(gen)
+		}
+		o.out = append(o.out, nif)
+		n = r
 
 	case OCALLFUNC,
 		OCALLINTER,

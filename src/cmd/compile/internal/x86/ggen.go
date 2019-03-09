@@ -54,6 +54,7 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
 }
 
 func ginsnop(pp *gc.Progs) *obj.Prog {
+	// See comment in ../amd64/ggen.go.
 	p := pp.Prog(x86.AXCHGL)
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = x86.REG_AX

@@ -1037,13 +1037,13 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	return false
 }
 
-// encodes the lsb and width for arm64 bitfield ops into the expected auxInt format.
-func arm64BFAuxInt(lsb, width int64) int64 {
+// encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
+func armBFAuxInt(lsb, width int64) int64 {
 	if lsb < 0 || lsb > 63 {
-		panic("ARM64 bit field lsb constant out of range")
+		panic("ARM(64) bit field lsb constant out of range")
 	}
 	if width < 1 || width > 64 {
-		panic("ARM64 bit field width constant out of range")
+		panic("ARM(64) bit field width constant out of range")
 	}
 	return width | lsb<<8
 }
@@ -1115,7 +1115,8 @@ func needRaceCleanup(sym interface{}, v *Value) bool {
 			case OpStaticCall:
 				switch v.Aux.(fmt.Stringer).String() {
 				case "runtime.racefuncenter", "runtime.racefuncexit", "runtime.panicindex",
-					"runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap":
+					"runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap",
+					"runtime.panicshift":
 				// Check for racefuncenter will encounter racefuncexit and vice versa.
 				// Allow calls to panic*
 				default:
@@ -1141,7 +1142,7 @@ func symIsRO(sym interface{}) bool {
 // read8 reads one byte from the read-only global sym at offset off.
 func read8(sym interface{}, off int64) uint8 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P)) {
+	if off >= int64(len(lsym.P)) || off < 0 {
 		// Invalid index into the global sym.
 		// This can happen in dead code, so we don't want to panic.
 		// Just return any value, it will eventually get ignored.
@@ -1154,7 +1155,7 @@ func read8(sym interface{}, off int64) uint8 {
 // read16 reads two bytes from the read-only global sym at offset off.
 func read16(sym interface{}, off int64, bigEndian bool) uint16 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P))-1 {
+	if off >= int64(len(lsym.P))-1 || off < 0 {
 		return 0
 	}
 	if bigEndian {
@@ -1167,7 +1168,7 @@ func read16(sym interface{}, off int64, bigEndian bool) uint16 {
 // read32 reads four bytes from the read-only global sym at offset off.
 func read32(sym interface{}, off int64, bigEndian bool) uint32 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P))-3 {
+	if off >= int64(len(lsym.P))-3 || off < 0 {
 		return 0
 	}
 	if bigEndian {
@@ -1180,7 +1181,7 @@ func read32(sym interface{}, off int64, bigEndian bool) uint32 {
 // read64 reads eight bytes from the read-only global sym at offset off.
 func read64(sym interface{}, off int64, bigEndian bool) uint64 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P))-7 {
+	if off >= int64(len(lsym.P))-7 || off < 0 {
 		return 0
 	}
 	if bigEndian {

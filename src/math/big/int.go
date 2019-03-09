@@ -700,15 +700,21 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 		}
 	}
 
-	if x != nil {
-		*x = *Ua
+	if y != nil {
+		// avoid aliasing b needed in the division below
+		if y == b {
+			B.Set(b)
+		} else {
+			B = b
+		}
+		// y = (z - a*x)/b
+		y.Mul(a, Ua) // y can safely alias a
+		y.Sub(A, y)
+		y.Div(y, B)
 	}
 
-	if y != nil {
-		// y = (z - a*x)/b
-		y.Mul(a, Ua)
-		y.Sub(A, y)
-		y.Div(y, b)
+	if x != nil {
+		*x = *Ua
 	}
 
 	*z = *A
