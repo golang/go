@@ -62,7 +62,7 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
 
 	// Form (2), (3).
 	// Extract patch from vMAJOR.MINOR.PATCH
-	v := older[:len(older)]
+	v := older[:]
 	i := strings.LastIndex(v, ".") + 1
 	v, patch := v[:i], v[i:]
 
