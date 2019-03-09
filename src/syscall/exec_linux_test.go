@@ -539,6 +539,13 @@ func testAmbientCaps(t *testing.T, userns bool) {
 		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
 
+	// Skip the test if the sysctl that prevents unprivileged user
+	// from creating user namespaces is enabled.
+	data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+	if errRead == nil && data[0] == '0' {
+		t.Skip("kernel prohibits user namespace in unprivileged process")
+	}
+
 	// skip on android, due to lack of lookup support
 	if runtime.GOOS == "android" {
 		t.Skip("skipping test on android; see Issue 27327")
