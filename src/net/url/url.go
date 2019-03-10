@@ -250,29 +250,24 @@ func unescape(s string, mode encoding) (string, error) {
 		return s, nil
 	}
 
-	t := make([]byte, len(s)-2*n)
-	j := 0
-	for i := 0; i < len(s); {
+	var t strings.Builder
+	t.Grow(len(s) - 2*n)
+	for i := 0; i < len(s); i++ {
 		switch s[i] {
 		case '%':
-			t[j] = unhex(s[i+1])<<4 | unhex(s[i+2])
-			j++
-			i += 3
+			t.WriteByte(unhex(s[i+1])<<4 | unhex(s[i+2]))
+			i += 2
 		case '+':
 			if mode == encodeQueryComponent {
-				t[j] = ' '
+				t.WriteByte(' ')
 			} else {
-				t[j] = '+'
+				t.WriteByte('+')
 			}
-			j++
-			i++
 		default:
-			t[j] = s[i]
-			j++
-			i++
+			t.WriteByte(s[i])
 		}
 	}
-	return string(t), nil
+	return t.String(), nil
 }
 
 // QueryEscape escapes the string so it can be safely placed
