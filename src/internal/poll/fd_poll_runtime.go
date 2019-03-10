@@ -115,6 +115,8 @@ func convertErr(res int, isFile bool) error {
 		return errClosing(isFile)
 	case 2:
 		return ErrTimeout
+	case 3:
+		return ErrNotPollable
 	}
 	println("unreachable: ", res)
 	panic("unreachable")

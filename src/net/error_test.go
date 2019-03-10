@@ -436,7 +436,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case poll.ErrNetClosing, poll.ErrTimeout:
+	case poll.ErrNetClosing, poll.ErrTimeout, poll.ErrNotPollable:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -627,7 +627,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case poll.ErrNetClosing, poll.ErrTimeout:
+	case poll.ErrNetClosing, poll.ErrTimeout, poll.ErrNotPollable:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
