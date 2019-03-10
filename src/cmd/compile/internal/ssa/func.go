@@ -153,6 +153,33 @@ func (f *Func) retPoset(po *poset) {
 	f.Cache.scrPoset = append(f.Cache.scrPoset, po)
 }
 
+// newDeadcodeLive returns a slice for the
+// deadcode pass to use to indicate which values are live.
+func (f *Func) newDeadcodeLive() []bool {
+	r := f.Cache.deadcode.live
+	f.Cache.deadcode.live = nil
+	return r
+}
+
+// retDeadcodeLive returns a deadcode live value slice for re-use.
+func (f *Func) retDeadcodeLive(live []bool) {
+	f.Cache.deadcode.live = live
+}
+
+// newDeadcodeLiveOrderStmts returns a slice for the
+// deadcode pass to use to indicate which values
+// need special treatment for statement boundaries.
+func (f *Func) newDeadcodeLiveOrderStmts() []*Value {
+	r := f.Cache.deadcode.liveOrderStmts
+	f.Cache.deadcode.liveOrderStmts = nil
+	return r
+}
+
+// retDeadcodeLiveOrderStmts returns a deadcode liveOrderStmts slice for re-use.
+func (f *Func) retDeadcodeLiveOrderStmts(liveOrderStmts []*Value) {
+	f.Cache.deadcode.liveOrderStmts = liveOrderStmts
+}
+
 // newValue allocates a new Value with the given fields and places it at the end of b.Values.
 func (f *Func) newValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
 	var v *Value
