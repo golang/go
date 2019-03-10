@@ -215,6 +215,26 @@ func ConstMods(n1 uint, n2 int) (uint, int) {
 	return a, b
 }
 
+// Check that divisibility checks x%c==0 are converted to MULs and rotates
+func Divisible(n uint) (even, odd bool) {
+	// amd64:"MOVQ\t[$]-6148914691236517205","IMULQ","ROLQ\t[$]63",-"DIVQ"
+	// 386:"IMUL3L\t[$]-1431655765","ROLL\t[$]31",-"DIVQ"
+	// arm64:"MOVD\t[$]-6148914691236517205","MUL","ROR",-"DIV"
+	// arm:"MUL","CMP\t[$]715827882",-".*udiv"
+	// ppc64:"MULLD","ROTL\t[$]63"
+	// ppc64le:"MULLD","ROTL\t[$]63"
+	even = n%6 == 0
+
+	// amd64:"MOVQ\t[$]-8737931403336103397","IMULQ",-"ROLQ",-"DIVQ"
+	// 386:"IMUL3L\t[$]678152731",-"ROLL",-"DIVQ"
+	// arm64:"MOVD\t[$]-8737931403336103397","MUL",-"ROR",-"DIV"
+	// arm:"MUL","CMP\t[$]226050910",-".*udiv"
+	// ppc64:"MULLD",-"ROTL"
+	// ppc64le:"MULLD",-"ROTL"
+	odd = n%19 == 0
+	return
+}
+
 // Check that fix-up code is not generated for divisions where it has been proven that
 // that the divisor is not -1 or that the dividend is > MinIntNN.
 func NoFix64A(divr int64) (int64, int64) {

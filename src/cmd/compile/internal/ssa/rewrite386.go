@@ -591,6 +591,12 @@ func rewriteValue386(v *Value) bool {
 		return rewriteValue386_OpPanicBounds_0(v)
 	case OpPanicExtend:
 		return rewriteValue386_OpPanicExtend_0(v)
+	case OpRotateLeft16:
+		return rewriteValue386_OpRotateLeft16_0(v)
+	case OpRotateLeft32:
+		return rewriteValue386_OpRotateLeft32_0(v)
+	case OpRotateLeft8:
+		return rewriteValue386_OpRotateLeft8_0(v)
 	case OpRound32F:
 		return rewriteValue386_OpRound32F_0(v)
 	case OpRound64F:
@@ -23017,6 +23023,63 @@ func rewriteValue386_OpPanicExtend_0(v *Value) bool {
 		v.AddArg(lo)
 		v.AddArg(y)
 		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpRotateLeft16_0(v *Value) bool {
+	// match: (RotateLeft16 x (MOVLconst [c]))
+	// cond:
+	// result: (ROLWconst [c&15] x)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(Op386ROLWconst)
+		v.AuxInt = c & 15
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpRotateLeft32_0(v *Value) bool {
+	// match: (RotateLeft32 x (MOVLconst [c]))
+	// cond:
+	// result: (ROLLconst [c&31] x)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(Op386ROLLconst)
+		v.AuxInt = c & 31
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpRotateLeft8_0(v *Value) bool {
+	// match: (RotateLeft8 x (MOVLconst [c]))
+	// cond:
+	// result: (ROLBconst [c&7] x)
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(Op386ROLBconst)
+		v.AuxInt = c & 7
+		v.AddArg(x)
 		return true
 	}
 	return false

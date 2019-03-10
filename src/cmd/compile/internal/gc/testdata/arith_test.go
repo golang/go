@@ -926,6 +926,7 @@ func TestArithmetic(t *testing.T) {
 	testShiftedOps(t)
 	testDivFixUp(t)
 	testDivisibleSignedPow2(t)
+	testDivisibility(t)
 }
 
 // testDivFixUp ensures that signed division fix-ups are being generated.
@@ -1240,6 +1241,102 @@ func testDivisibleSignedPow2(t *testing.T) {
 		if want, got := x%two57 == 0, divisible_int64_2to57(x); got != want {
 			t.Errorf("divisible_int64_2to57(%d) = %v want %v", x, got, want)
 		}
+	}
+}
 
+func div6_uint8(n uint8) bool {
+	return n%6 == 0
+}
+
+//go:noinline
+func div6_uint16(n uint16) bool {
+	return n%6 == 0
+}
+
+//go:noinline
+func div6_uint32(n uint32) bool {
+	return n%6 == 0
+}
+
+//go:noinline
+func div6_uint64(n uint64) bool {
+	return n%6 == 0
+}
+
+//go:noinline
+func div19_uint8(n uint8) bool {
+	return n%19 == 0
+}
+
+//go:noinline
+func div19_uint16(n uint16) bool {
+	return n%19 == 0
+}
+
+//go:noinline
+func div19_uint32(n uint32) bool {
+	return n%19 == 0
+}
+
+//go:noinline
+func div19_uint64(n uint64) bool {
+	return n%19 == 0
+}
+
+// testDivisibility confirms that rewrite rules x%c ==0 for c constant are correct.
+func testDivisibility(t *testing.T) {
+	// test an even and an odd divisor
+	var six, nineteen uint64 = 6, 19
+	// test all inputs for uint8, uint16
+	for i := uint64(0); i <= math.MaxUint16; i++ {
+		if i <= math.MaxUint8 {
+			if want, got := uint8(i)%uint8(six) == 0, div6_uint8(uint8(i)); got != want {
+				t.Errorf("div6_uint8(%d) = %v want %v", i, got, want)
+			}
+			if want, got := uint8(i)%uint8(nineteen) == 0, div19_uint8(uint8(i)); got != want {
+				t.Errorf("div6_uint19(%d) = %v want %v", i, got, want)
+			}
+		}
+		if want, got := uint16(i)%uint16(six) == 0, div6_uint16(uint16(i)); got != want {
+			t.Errorf("div6_uint16(%d) = %v want %v", i, got, want)
+		}
+		if want, got := uint16(i)%uint16(nineteen) == 0, div19_uint16(uint16(i)); got != want {
+			t.Errorf("div19_uint16(%d) = %v want %v", i, got, want)
+		}
+	}
+	var maxU32, maxU64 uint64 = math.MaxUint32, math.MaxUint64
+	// spot check inputs for uint32 and uint64
+	xu := []uint64{
+		0, 1, 2, 3, 4, 5,
+		six, 2 * six, 3 * six, 5 * six, 12345 * six,
+		six + 1, 2*six - 5, 3*six + 3, 5*six + 4, 12345*six - 2,
+		nineteen, 2 * nineteen, 3 * nineteen, 5 * nineteen, 12345 * nineteen,
+		nineteen + 1, 2*nineteen - 5, 3*nineteen + 3, 5*nineteen + 4, 12345*nineteen - 2,
+		maxU32, maxU32 - 1, maxU32 - 2, maxU32 - 3, maxU32 - 4,
+		maxU32, maxU32 - 5, maxU32 - 6, maxU32 - 7, maxU32 - 8,
+		maxU32, maxU32 - 9, maxU32 - 10, maxU32 - 11, maxU32 - 12,
+		maxU32, maxU32 - 13, maxU32 - 14, maxU32 - 15, maxU32 - 16,
+		maxU32, maxU32 - 17, maxU32 - 18, maxU32 - 19, maxU32 - 20,
+		maxU64, maxU64 - 1, maxU64 - 2, maxU64 - 3, maxU64 - 4,
+		maxU64, maxU64 - 5, maxU64 - 6, maxU64 - 7, maxU64 - 8,
+		maxU64, maxU64 - 9, maxU64 - 10, maxU64 - 11, maxU64 - 12,
+		maxU64, maxU64 - 13, maxU64 - 14, maxU64 - 15, maxU64 - 16,
+		maxU64, maxU64 - 17, maxU64 - 18, maxU64 - 19, maxU64 - 20,
+	}
+	for _, x := range xu {
+		if x <= maxU32 {
+			if want, got := uint32(x)%uint32(six) == 0, div6_uint32(uint32(x)); got != want {
+				t.Errorf("div6_uint32(%d) = %v want %v", x, got, want)
+			}
+			if want, got := uint32(x)%uint32(nineteen) == 0, div19_uint32(uint32(x)); got != want {
+				t.Errorf("div19_uint32(%d) = %v want %v", x, got, want)
+			}
+		}
+		if want, got := x%six == 0, div6_uint64(x); got != want {
+			t.Errorf("div6_uint64(%d) = %v want %v", x, got, want)
+		}
+		if want, got := x%nineteen == 0, div19_uint64(x); got != want {
+			t.Errorf("div19_uint64(%d) = %v want %v", x, got, want)
+		}
 	}
 }
