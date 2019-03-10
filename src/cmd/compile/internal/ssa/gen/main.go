@@ -398,6 +398,7 @@ func (a arch) Name() string {
 func genLower() {
 	for _, a := range archs {
 		genRules(a)
+		genSplitLoadRules(a)
 	}
 }
 

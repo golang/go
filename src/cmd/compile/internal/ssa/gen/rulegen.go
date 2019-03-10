@@ -80,11 +80,19 @@ func (r Rule) parse() (match, cond, result string) {
 	return match, cond, result
 }
 
-func genRules(arch arch) {
+func genRules(arch arch)          { genRulesSuffix(arch, "") }
+func genSplitLoadRules(arch arch) { genRulesSuffix(arch, "splitload") }
+
+func genRulesSuffix(arch arch, suff string) {
 	// Open input file.
-	text, err := os.Open(arch.name + ".rules")
+	text, err := os.Open(arch.name + suff + ".rules")
 	if err != nil {
-		log.Fatalf("can't read rule file: %v", err)
+		if suff == "" {
+			// All architectures must have a plain rules file.
+			log.Fatalf("can't read rule file: %v", err)
+		}
+		// Some architectures have bonus rules files that others don't share. That's fine.
+		return
 	}
 
 	// oprules contains a list of rules for each block and opcode
@@ -122,7 +130,7 @@ func genRules(arch arch) {
 			continue
 		}
 
-		loc := fmt.Sprintf("%s.rules:%d", arch.name, ruleLineno)
+		loc := fmt.Sprintf("%s%s.rules:%d", arch.name, suff, ruleLineno)
 		for _, rule2 := range expandOr(rule) {
 			for _, rule3 := range commute(rule2, arch) {
 				r := Rule{rule: rule3, loc: loc}
@@ -156,7 +164,7 @@ func genRules(arch arch) {
 
 	// Start output buffer, write header.
 	w := new(bytes.Buffer)
-	fmt.Fprintf(w, "// Code generated from gen/%s.rules; DO NOT EDIT.\n", arch.name)
+	fmt.Fprintf(w, "// Code generated from gen/%s%s.rules; DO NOT EDIT.\n", arch.name, suff)
 	fmt.Fprintln(w, "// generated with: cd gen; go run *.go")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "package ssa")
@@ -174,7 +182,7 @@ func genRules(arch arch) {
 
 	const chunkSize = 10
 	// Main rewrite routine is a switch on v.Op.
-	fmt.Fprintf(w, "func rewriteValue%s(v *Value) bool {\n", arch.name)
+	fmt.Fprintf(w, "func rewriteValue%s%s(v *Value) bool {\n", arch.name, suff)
 	fmt.Fprintf(w, "switch v.Op {\n")
 	for _, op := range ops {
 		fmt.Fprintf(w, "case %s:\n", op)
@@ -183,7 +191,7 @@ func genRules(arch arch) {
 			if chunk > 0 {
 				fmt.Fprint(w, " || ")
 			}
-			fmt.Fprintf(w, "rewriteValue%s_%s_%d(v)", arch.name, op, chunk)
+			fmt.Fprintf(w, "rewriteValue%s%s_%s_%d(v)", arch.name, suff, op, chunk)
 		}
 		fmt.Fprintln(w)
 	}
@@ -243,7 +251,7 @@ func genRules(arch arch) {
 			hasconfig := strings.Contains(body, "config.") || strings.Contains(body, "config)")
 			hasfe := strings.Contains(body, "fe.")
 			hastyps := strings.Contains(body, "typ.")
-			fmt.Fprintf(w, "func rewriteValue%s_%s_%d(v *Value) bool {\n", arch.name, op, chunk)
+			fmt.Fprintf(w, "func rewriteValue%s%s_%s_%d(v *Value) bool {\n", arch.name, suff, op, chunk)
 			if hasb || hasconfig || hasfe || hastyps {
 				fmt.Fprintln(w, "b := v.Block")
 			}
@@ -263,7 +271,7 @@ func genRules(arch arch) {
 
 	// Generate block rewrite function. There are only a few block types
 	// so we can make this one function with a switch.
-	fmt.Fprintf(w, "func rewriteBlock%s(b *Block) bool {\n", arch.name)
+	fmt.Fprintf(w, "func rewriteBlock%s%s(b *Block) bool {\n", arch.name, suff)
 	fmt.Fprintln(w, "config := b.Func.Config")
 	fmt.Fprintln(w, "_ = config")
 	fmt.Fprintln(w, "fe := b.Func.fe")
@@ -382,7 +390,7 @@ func genRules(arch arch) {
 	}
 
 	// Write to file
-	err = ioutil.WriteFile("../rewrite"+arch.name+".go", src, 0666)
+	err = ioutil.WriteFile("../rewrite"+arch.name+suff+".go", src, 0666)
 	if err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}
