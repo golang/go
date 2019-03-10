@@ -21,6 +21,7 @@ type Config struct {
 	Types          Types
 	lowerBlock     blockRewriter // lowering function
 	lowerValue     valueRewriter // lowering function
+	splitLoad      valueRewriter // function for splitting merged load ops; only used on some architectures
 	registers      []Register    // machine registers
 	gpRegMask      regMask       // general purpose integer register mask
 	fpRegMask      regMask       // floating point register mask
@@ -201,6 +202,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
+		c.splitLoad = rewriteValueAMD64splitload
 		c.registers = registersAMD64[:]
 		c.gpRegMask = gpRegMaskAMD64
 		c.fpRegMask = fpRegMaskAMD64
@@ -212,6 +214,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
+		c.splitLoad = rewriteValueAMD64splitload
 		c.registers = registersAMD64[:]
 		c.gpRegMask = gpRegMaskAMD64
 		c.fpRegMask = fpRegMaskAMD64
@@ -224,6 +227,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.RegSize = 4
 		c.lowerBlock = rewriteBlock386
 		c.lowerValue = rewriteValue386
+		c.splitLoad = rewriteValue386splitload
 		c.registers = registers386[:]
 		c.gpRegMask = gpRegMask386
 		c.fpRegMask = fpRegMask386
