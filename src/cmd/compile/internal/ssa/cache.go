@@ -25,6 +25,13 @@ type Cache struct {
 	scrSparseSet  []*sparseSet // scratch sparse sets to be re-used.
 	scrSparseMap  []*sparseMap // scratch sparse maps to be re-used.
 	scrPoset      []*poset     // scratch poset to be reused
+	// deadcode contains reusable slices specifically for the deadcode pass.
+	// It gets special treatment because of the frequency with which it is run.
+	deadcode struct {
+		liveOrderStmts []*Value
+		live           []bool
+		q              []*Value
+	}
 
 	ValueToProgAfter []*obj.Prog
 	debugState       debugState
@@ -49,4 +56,18 @@ func (c *Cache) Reset() {
 		xl[i] = nil
 	}
 
+	// liveOrderStmts gets used multiple times during compilation of a function.
+	// We don't know where the high water mark was, so reslice to cap and search.
+	c.deadcode.liveOrderStmts = c.deadcode.liveOrderStmts[:cap(c.deadcode.liveOrderStmts)]
+	no := sort.Search(len(c.deadcode.liveOrderStmts), func(i int) bool { return c.deadcode.liveOrderStmts[i] == nil })
+	xo := c.deadcode.liveOrderStmts[:no]
+	for i := range xo {
+		xo[i] = nil
+	}
+	c.deadcode.q = c.deadcode.q[:cap(c.deadcode.q)]
+	nq := sort.Search(len(c.deadcode.q), func(i int) bool { return c.deadcode.q[i] == nil })
+	xq := c.deadcode.q[:nq]
+	for i := range xq {
+		xq[i] = nil
+	}
 }
