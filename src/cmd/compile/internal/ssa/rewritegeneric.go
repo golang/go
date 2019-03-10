@@ -98,17 +98,17 @@ func rewriteValuegeneric(v *Value) bool {
 	case OpDiv8u:
 		return rewriteValuegeneric_OpDiv8u_0(v)
 	case OpEq16:
-		return rewriteValuegeneric_OpEq16_0(v) || rewriteValuegeneric_OpEq16_10(v)
+		return rewriteValuegeneric_OpEq16_0(v) || rewriteValuegeneric_OpEq16_10(v) || rewriteValuegeneric_OpEq16_20(v) || rewriteValuegeneric_OpEq16_30(v) || rewriteValuegeneric_OpEq16_40(v)
 	case OpEq32:
-		return rewriteValuegeneric_OpEq32_0(v) || rewriteValuegeneric_OpEq32_10(v)
+		return rewriteValuegeneric_OpEq32_0(v) || rewriteValuegeneric_OpEq32_10(v) || rewriteValuegeneric_OpEq32_20(v) || rewriteValuegeneric_OpEq32_30(v) || rewriteValuegeneric_OpEq32_40(v) || rewriteValuegeneric_OpEq32_50(v) || rewriteValuegeneric_OpEq32_60(v)
 	case OpEq32F:
 		return rewriteValuegeneric_OpEq32F_0(v)
 	case OpEq64:
-		return rewriteValuegeneric_OpEq64_0(v) || rewriteValuegeneric_OpEq64_10(v)
+		return rewriteValuegeneric_OpEq64_0(v) || rewriteValuegeneric_OpEq64_10(v) || rewriteValuegeneric_OpEq64_20(v) || rewriteValuegeneric_OpEq64_30(v)
 	case OpEq64F:
 		return rewriteValuegeneric_OpEq64F_0(v)
 	case OpEq8:
-		return rewriteValuegeneric_OpEq8_0(v) || rewriteValuegeneric_OpEq8_10(v)
+		return rewriteValuegeneric_OpEq8_0(v) || rewriteValuegeneric_OpEq8_10(v) || rewriteValuegeneric_OpEq8_20(v)
 	case OpEqB:
 		return rewriteValuegeneric_OpEqB_0(v)
 	case OpEqInter:
@@ -321,6 +321,14 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpPhi_0(v)
 	case OpPtrIndex:
 		return rewriteValuegeneric_OpPtrIndex_0(v)
+	case OpRotateLeft16:
+		return rewriteValuegeneric_OpRotateLeft16_0(v)
+	case OpRotateLeft32:
+		return rewriteValuegeneric_OpRotateLeft32_0(v)
+	case OpRotateLeft64:
+		return rewriteValuegeneric_OpRotateLeft64_0(v)
+	case OpRotateLeft8:
+		return rewriteValuegeneric_OpRotateLeft8_0(v)
 	case OpRound32F:
 		return rewriteValuegeneric_OpRound32F_0(v)
 	case OpRound64F:
@@ -8775,6 +8783,7 @@ func rewriteValuegeneric_OpDiv8u_0(v *Value) bool {
 }
 func rewriteValuegeneric_OpEq16_0(v *Value) bool {
 	b := v.Block
+	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Eq16 x x)
 	// cond:
@@ -8950,6 +8959,2522 @@ func rewriteValuegeneric_OpEq16_0(v *Value) bool {
 		c := v_1.AuxInt
 		v.reset(OpConstBool)
 		v.AuxInt = b2i(c == d)
+		return true
+	}
+	// match: (Eq16 (Mod16u x (Const16 [c])) (Const16 [0]))
+	// cond: x.Op != OpConst16 && udivisibleOK(16,c) && !hasSmallRotate(config)
+	// result: (Eq32 (Mod32u <typ.UInt32> (ZeroExt16to32 <typ.UInt32> x) (Const32 <typ.UInt32> [c&0xffff])) (Const32 <typ.UInt32> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMod16u {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst16 {
+			break
+		}
+		c := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst16 {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		if !(x.Op != OpConst16 && udivisibleOK(16, c) && !hasSmallRotate(config)) {
+			break
+		}
+		v.reset(OpEq32)
+		v0 := b.NewValue0(v.Pos, OpMod32u, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = c & 0xffff
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = 0
+		v.AddArg(v3)
+		return true
+	}
+	// match: (Eq16 (Const16 [0]) (Mod16u x (Const16 [c])))
+	// cond: x.Op != OpConst16 && udivisibleOK(16,c) && !hasSmallRotate(config)
+	// result: (Eq32 (Mod32u <typ.UInt32> (ZeroExt16to32 <typ.UInt32> x) (Const32 <typ.UInt32> [c&0xffff])) (Const32 <typ.UInt32> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst16 {
+			break
+		}
+		if v_0.AuxInt != 0 {
+			break
+		}
+		v_1 := v.Args[1]
+		if v_1.Op != OpMod16u {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst16 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(x.Op != OpConst16 && udivisibleOK(16, c) && !hasSmallRotate(config)) {
+			break
+		}
+		v.reset(OpEq32)
+		v0 := b.NewValue0(v.Pos, OpMod32u, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = c & 0xffff
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = 0
+		v.AddArg(v3)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Const16 [c]) (Trunc64to16 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (ZeroExt16to64 x)) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16,c).m) && s == 16+umagic(16,c).s && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst16 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc64to16 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		mul := v_1_1_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt16to64 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16, c).m) && s == 16+umagic(16, c).s && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq16_10(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Eq16 x (Mul16 (Const16 [c]) (Trunc64to16 (Rsh64Ux64 mul:(Mul64 (ZeroExt16to64 x) (Const64 [m])) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16,c).m) && s == 16+umagic(16,c).s && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst16 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc64to16 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		mul := v_1_1_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt16to64 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16, c).m) && s == 16+umagic(16, c).s && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Trunc64to16 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (ZeroExt16to64 x)) (Const64 [s]))) (Const16 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16,c).m) && s == 16+umagic(16,c).s && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc64to16 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		mul := v_1_0_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt16to64 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst16 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16, c).m) && s == 16+umagic(16, c).s && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Trunc64to16 (Rsh64Ux64 mul:(Mul64 (ZeroExt16to64 x) (Const64 [m])) (Const64 [s]))) (Const16 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16,c).m) && s == 16+umagic(16,c).s && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc64to16 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		mul := v_1_0_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt16to64 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst16 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16, c).m) && s == 16+umagic(16, c).s && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Const16 [c]) (Trunc64to16 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (ZeroExt16to64 x)) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16,c).m) && s == 16+umagic(16,c).s && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst16 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc64to16 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		mul := v_0_1_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt16to64 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16, c).m) && s == 16+umagic(16, c).s && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Const16 [c]) (Trunc64to16 (Rsh64Ux64 mul:(Mul64 (ZeroExt16to64 x) (Const64 [m])) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16,c).m) && s == 16+umagic(16,c).s && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst16 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc64to16 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		mul := v_0_1_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt16to64 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16, c).m) && s == 16+umagic(16, c).s && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Trunc64to16 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (ZeroExt16to64 x)) (Const64 [s]))) (Const16 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16,c).m) && s == 16+umagic(16,c).s && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc64to16 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		mul := v_0_0_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt16to64 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst16 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16, c).m) && s == 16+umagic(16, c).s && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Trunc64to16 (Rsh64Ux64 mul:(Mul64 (ZeroExt16to64 x) (Const64 [m])) (Const64 [s]))) (Const16 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16,c).m) && s == 16+umagic(16,c).s && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc64to16 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		mul := v_0_0_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt16to64 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst16 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16, c).m) && s == 16+umagic(16, c).s && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (ZeroExt16to32 x)) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16,c).m/2) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst16 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc32to16 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		mul := v_1_1_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16, c).m/2) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (ZeroExt16to32 x) (Const32 [m])) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16,c).m/2) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst16 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc32to16 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		mul := v_1_1_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16, c).m/2) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (ZeroExt16to32 x)) (Const64 [s]))) (Const16 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16,c).m/2) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc32to16 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		mul := v_1_0_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst16 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16, c).m/2) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq16_20(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Eq16 x (Mul16 (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (ZeroExt16to32 x) (Const32 [m])) (Const64 [s]))) (Const16 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16,c).m/2) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc32to16 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		mul := v_1_0_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst16 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16, c).m/2) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (ZeroExt16to32 x)) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16,c).m/2) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst16 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc32to16 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		mul := v_0_1_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16, c).m/2) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (ZeroExt16to32 x) (Const32 [m])) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16,c).m/2) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst16 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc32to16 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		mul := v_0_1_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16, c).m/2) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (ZeroExt16to32 x)) (Const64 [s]))) (Const16 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16,c).m/2) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc32to16 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		mul := v_0_0_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst16 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16, c).m/2) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (ZeroExt16to32 x) (Const32 [m])) (Const64 [s]))) (Const16 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16,c).m/2) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc32to16 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		mul := v_0_0_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst16 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16, c).m/2) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (Rsh32Ux64 (ZeroExt16to32 x) (Const64 [1]))) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16,c).m+1)/2) && s == 16+umagic(16,c).s-2 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst16 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc32to16 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		mul := v_1_1_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		mul_1_0 := mul_1.Args[0]
+		if mul_1_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_1_0.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16, c).m+1)/2) && s == 16+umagic(16, c).s-2 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Rsh32Ux64 (ZeroExt16to32 x) (Const64 [1])) (Const32 [m])) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16,c).m+1)/2) && s == 16+umagic(16,c).s-2 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst16 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc32to16 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		mul := v_1_1_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		mul_0_0 := mul_0.Args[0]
+		if mul_0_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_0_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16, c).m+1)/2) && s == 16+umagic(16, c).s-2 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (Rsh32Ux64 (ZeroExt16to32 x) (Const64 [1]))) (Const64 [s]))) (Const16 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16,c).m+1)/2) && s == 16+umagic(16,c).s-2 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc32to16 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		mul := v_1_0_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		mul_1_0 := mul_1.Args[0]
+		if mul_1_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_1_0.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst16 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16, c).m+1)/2) && s == 16+umagic(16, c).s-2 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Rsh32Ux64 (ZeroExt16to32 x) (Const64 [1])) (Const32 [m])) (Const64 [s]))) (Const16 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16,c).m+1)/2) && s == 16+umagic(16,c).s-2 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc32to16 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		mul := v_1_0_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		mul_0_0 := mul_0.Args[0]
+		if mul_0_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_0_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst16 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16, c).m+1)/2) && s == 16+umagic(16, c).s-2 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (Rsh32Ux64 (ZeroExt16to32 x) (Const64 [1]))) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16,c).m+1)/2) && s == 16+umagic(16,c).s-2 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst16 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc32to16 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		mul := v_0_1_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		mul_1_0 := mul_1.Args[0]
+		if mul_1_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_1_0.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16, c).m+1)/2) && s == 16+umagic(16, c).s-2 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq16_30(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Eq16 (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Rsh32Ux64 (ZeroExt16to32 x) (Const64 [1])) (Const32 [m])) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16,c).m+1)/2) && s == 16+umagic(16,c).s-2 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst16 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc32to16 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		mul := v_0_1_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		mul_0_0 := mul_0.Args[0]
+		if mul_0_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_0_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16, c).m+1)/2) && s == 16+umagic(16, c).s-2 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (Rsh32Ux64 (ZeroExt16to32 x) (Const64 [1]))) (Const64 [s]))) (Const16 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16,c).m+1)/2) && s == 16+umagic(16,c).s-2 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc32to16 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		mul := v_0_0_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		mul_1_0 := mul_1.Args[0]
+		if mul_1_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_1_0.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst16 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16, c).m+1)/2) && s == 16+umagic(16, c).s-2 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Rsh32Ux64 (ZeroExt16to32 x) (Const64 [1])) (Const32 [m])) (Const64 [s]))) (Const16 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16,c).m+1)/2) && s == 16+umagic(16,c).s-2 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc32to16 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		mul := v_0_0_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		mul_0_0 := mul_0.Args[0]
+		if mul_0_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_0_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst16 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16, c).m+1)/2) && s == 16+umagic(16, c).s-2 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 (Avg32u (Lsh32x64 (ZeroExt16to32 x) (Const64 [16])) mul:(Mul32 (Const32 [m]) (ZeroExt16to32 x))) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16,c).m) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst16 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc32to16 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		v_1_1_0_0 := v_1_1_0.Args[0]
+		if v_1_1_0_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_1_1_0_0.Args[1]
+		v_1_1_0_0_0 := v_1_1_0_0.Args[0]
+		if v_1_1_0_0_0.Op != OpLsh32x64 {
+			break
+		}
+		_ = v_1_1_0_0_0.Args[1]
+		v_1_1_0_0_0_0 := v_1_1_0_0_0.Args[0]
+		if v_1_1_0_0_0_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != v_1_1_0_0_0_0.Args[0] {
+			break
+		}
+		v_1_1_0_0_0_1 := v_1_1_0_0_0.Args[1]
+		if v_1_1_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_1_1_0_0_0_1.AuxInt != 16 {
+			break
+		}
+		mul := v_1_1_0_0.Args[1]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16, c).m) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 (Avg32u (Lsh32x64 (ZeroExt16to32 x) (Const64 [16])) mul:(Mul32 (ZeroExt16to32 x) (Const32 [m]))) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16,c).m) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst16 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc32to16 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		v_1_1_0_0 := v_1_1_0.Args[0]
+		if v_1_1_0_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_1_1_0_0.Args[1]
+		v_1_1_0_0_0 := v_1_1_0_0.Args[0]
+		if v_1_1_0_0_0.Op != OpLsh32x64 {
+			break
+		}
+		_ = v_1_1_0_0_0.Args[1]
+		v_1_1_0_0_0_0 := v_1_1_0_0_0.Args[0]
+		if v_1_1_0_0_0_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != v_1_1_0_0_0_0.Args[0] {
+			break
+		}
+		v_1_1_0_0_0_1 := v_1_1_0_0_0.Args[1]
+		if v_1_1_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_1_1_0_0_0_1.AuxInt != 16 {
+			break
+		}
+		mul := v_1_1_0_0.Args[1]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16, c).m) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Trunc32to16 (Rsh32Ux64 (Avg32u (Lsh32x64 (ZeroExt16to32 x) (Const64 [16])) mul:(Mul32 (Const32 [m]) (ZeroExt16to32 x))) (Const64 [s]))) (Const16 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16,c).m) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc32to16 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		v_1_0_0_0 := v_1_0_0.Args[0]
+		if v_1_0_0_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_1_0_0_0.Args[1]
+		v_1_0_0_0_0 := v_1_0_0_0.Args[0]
+		if v_1_0_0_0_0.Op != OpLsh32x64 {
+			break
+		}
+		_ = v_1_0_0_0_0.Args[1]
+		v_1_0_0_0_0_0 := v_1_0_0_0_0.Args[0]
+		if v_1_0_0_0_0_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != v_1_0_0_0_0_0.Args[0] {
+			break
+		}
+		v_1_0_0_0_0_1 := v_1_0_0_0_0.Args[1]
+		if v_1_0_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_1_0_0_0_0_1.AuxInt != 16 {
+			break
+		}
+		mul := v_1_0_0_0.Args[1]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst16 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16, c).m) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 x (Mul16 (Trunc32to16 (Rsh32Ux64 (Avg32u (Lsh32x64 (ZeroExt16to32 x) (Const64 [16])) mul:(Mul32 (ZeroExt16to32 x) (Const32 [m]))) (Const64 [s]))) (Const16 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16,c).m) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul16 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc32to16 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		v_1_0_0_0 := v_1_0_0.Args[0]
+		if v_1_0_0_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_1_0_0_0.Args[1]
+		v_1_0_0_0_0 := v_1_0_0_0.Args[0]
+		if v_1_0_0_0_0.Op != OpLsh32x64 {
+			break
+		}
+		_ = v_1_0_0_0_0.Args[1]
+		v_1_0_0_0_0_0 := v_1_0_0_0_0.Args[0]
+		if v_1_0_0_0_0_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != v_1_0_0_0_0_0.Args[0] {
+			break
+		}
+		v_1_0_0_0_0_1 := v_1_0_0_0_0.Args[1]
+		if v_1_0_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_1_0_0_0_0_1.AuxInt != 16 {
+			break
+		}
+		mul := v_1_0_0_0.Args[1]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst16 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16, c).m) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 (Avg32u (Lsh32x64 (ZeroExt16to32 x) (Const64 [16])) mul:(Mul32 (Const32 [m]) (ZeroExt16to32 x))) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16,c).m) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst16 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc32to16 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		v_0_1_0_0 := v_0_1_0.Args[0]
+		if v_0_1_0_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_0_1_0_0.Args[1]
+		v_0_1_0_0_0 := v_0_1_0_0.Args[0]
+		if v_0_1_0_0_0.Op != OpLsh32x64 {
+			break
+		}
+		_ = v_0_1_0_0_0.Args[1]
+		v_0_1_0_0_0_0 := v_0_1_0_0_0.Args[0]
+		if v_0_1_0_0_0_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != v_0_1_0_0_0_0.Args[0] {
+			break
+		}
+		v_0_1_0_0_0_1 := v_0_1_0_0_0.Args[1]
+		if v_0_1_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_0_1_0_0_0_1.AuxInt != 16 {
+			break
+		}
+		mul := v_0_1_0_0.Args[1]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16, c).m) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 (Avg32u (Lsh32x64 (ZeroExt16to32 x) (Const64 [16])) mul:(Mul32 (ZeroExt16to32 x) (Const32 [m]))) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16,c).m) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst16 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc32to16 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		v_0_1_0_0 := v_0_1_0.Args[0]
+		if v_0_1_0_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_0_1_0_0.Args[1]
+		v_0_1_0_0_0 := v_0_1_0_0.Args[0]
+		if v_0_1_0_0_0.Op != OpLsh32x64 {
+			break
+		}
+		_ = v_0_1_0_0_0.Args[1]
+		v_0_1_0_0_0_0 := v_0_1_0_0_0.Args[0]
+		if v_0_1_0_0_0_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != v_0_1_0_0_0_0.Args[0] {
+			break
+		}
+		v_0_1_0_0_0_1 := v_0_1_0_0_0.Args[1]
+		if v_0_1_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_0_1_0_0_0_1.AuxInt != 16 {
+			break
+		}
+		mul := v_0_1_0_0.Args[1]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16, c).m) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq16 (Mul16 (Trunc32to16 (Rsh32Ux64 (Avg32u (Lsh32x64 (ZeroExt16to32 x) (Const64 [16])) mul:(Mul32 (Const32 [m]) (ZeroExt16to32 x))) (Const64 [s]))) (Const16 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16,c).m) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc32to16 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		v_0_0_0_0 := v_0_0_0.Args[0]
+		if v_0_0_0_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_0_0_0_0.Args[1]
+		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+		if v_0_0_0_0_0.Op != OpLsh32x64 {
+			break
+		}
+		_ = v_0_0_0_0_0.Args[1]
+		v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+		if v_0_0_0_0_0_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != v_0_0_0_0_0_0.Args[0] {
+			break
+		}
+		v_0_0_0_0_0_1 := v_0_0_0_0_0.Args[1]
+		if v_0_0_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_0_0_0_0_0_1.AuxInt != 16 {
+			break
+		}
+		mul := v_0_0_0_0.Args[1]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst16 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16, c).m) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq16_40(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Eq16 (Mul16 (Trunc32to16 (Rsh32Ux64 (Avg32u (Lsh32x64 (ZeroExt16to32 x) (Const64 [16])) mul:(Mul32 (ZeroExt16to32 x) (Const32 [m]))) (Const64 [s]))) (Const16 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16,c).m) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc32to16 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		v_0_0_0_0 := v_0_0_0.Args[0]
+		if v_0_0_0_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_0_0_0_0.Args[1]
+		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+		if v_0_0_0_0_0.Op != OpLsh32x64 {
+			break
+		}
+		_ = v_0_0_0_0_0.Args[1]
+		v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+		if v_0_0_0_0_0_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != v_0_0_0_0_0_0.Args[0] {
+			break
+		}
+		v_0_0_0_0_0_1 := v_0_0_0_0_0.Args[1]
+		if v_0_0_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_0_0_0_0_0_1.AuxInt != 16 {
+			break
+		}
+		mul := v_0_0_0_0.Args[1]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt16to32 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst16 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16, c).m) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+			break
+		}
+		v.reset(OpLeq16U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v2.AuxInt = int64(int16(udivisible(16, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v3.AuxInt = int64(16 - udivisible(16, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
+		v4.AuxInt = int64(int16(udivisible(16, c).max))
+		v.AddArg(v4)
 		return true
 	}
 	// match: (Eq16 n (Lsh16x64 (Rsh16x64 (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <typ.UInt64> [15])) (Const64 <typ.UInt64> [kbar]))) (Const64 <typ.UInt64> [k])) (Const64 <typ.UInt64> [k])))
@@ -9236,11 +11761,6 @@ func rewriteValuegeneric_OpEq16_0(v *Value) bool {
 		v.AddArg(v2)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpEq16_10(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (Eq16 (Lsh16x64 (Rsh16x64 (Add16 <t> (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <typ.UInt64> [15])) (Const64 <typ.UInt64> [kbar])) n) (Const64 <typ.UInt64> [k])) (Const64 <typ.UInt64> [k])) n)
 	// cond: k > 0 && k < 15 && kbar == 16 - k
 	// result: (Eq16 (And16 <t> n (Const16 <t> [int64(1<<uint(k)-1)])) (Const16 <t> [0]))
@@ -9568,6 +12088,3503 @@ func rewriteValuegeneric_OpEq32_0(v *Value) bool {
 		v.AuxInt = b2i(c == d)
 		return true
 	}
+	// match: (Eq32 x (Mul32 (Const32 [c]) (Rsh32Ux64 mul:(Hmul32u (Const32 [m]) x) (Const64 [s]))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32,c).m/2)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1.Args[1]
+		mul := v_1_1.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_1_1_1 := v_1_1.Args[1]
+		if v_1_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32, c).m/2)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Const32 [c]) (Rsh32Ux64 mul:(Hmul32u x (Const32 [m])) (Const64 [s]))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32,c).m/2)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1.Args[1]
+		mul := v_1_1.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_1 := v_1_1.Args[1]
+		if v_1_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32, c).m/2)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Rsh32Ux64 mul:(Hmul32u (Const32 [m]) x) (Const64 [s])) (Const32 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32,c).m/2)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0.Args[1]
+		mul := v_1_0.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_1_0_1 := v_1_0.Args[1]
+		if v_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32, c).m/2)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq32_10(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Eq32 x (Mul32 (Rsh32Ux64 mul:(Hmul32u x (Const32 [m])) (Const64 [s])) (Const32 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32,c).m/2)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0.Args[1]
+		mul := v_1_0.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_1 := v_1_0.Args[1]
+		if v_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32, c).m/2)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Const32 [c]) (Rsh32Ux64 mul:(Hmul32u (Const32 [m]) x) (Const64 [s]))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32,c).m/2)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1.Args[1]
+		mul := v_0_1.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_0_1_1 := v_0_1.Args[1]
+		if v_0_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32, c).m/2)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Const32 [c]) (Rsh32Ux64 mul:(Hmul32u x (Const32 [m])) (Const64 [s]))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32,c).m/2)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1.Args[1]
+		mul := v_0_1.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_1 := v_0_1.Args[1]
+		if v_0_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32, c).m/2)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Rsh32Ux64 mul:(Hmul32u (Const32 [m]) x) (Const64 [s])) (Const32 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32,c).m/2)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		mul := v_0_0.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32, c).m/2)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Rsh32Ux64 mul:(Hmul32u x (Const32 [m])) (Const64 [s])) (Const32 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32,c).m/2)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		mul := v_0_0.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32, c).m/2)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Const32 [c]) (Rsh32Ux64 mul:(Hmul32u (Const32 <typ.UInt32> [m]) (Rsh32Ux64 x (Const64 [1]))) (Const64 [s]))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32,c).m+1)/2)) && s == umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1.Args[1]
+		mul := v_1_1.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		if mul_0.Type != typ.UInt32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		if x != mul_1.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_1_1_1 := v_1_1.Args[1]
+		if v_1_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32, c).m+1)/2)) && s == umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Const32 [c]) (Rsh32Ux64 mul:(Hmul32u (Rsh32Ux64 x (Const64 [1])) (Const32 <typ.UInt32> [m])) (Const64 [s]))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32,c).m+1)/2)) && s == umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1.Args[1]
+		mul := v_1_1.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		if mul_1.Type != typ.UInt32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_1 := v_1_1.Args[1]
+		if v_1_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32, c).m+1)/2)) && s == umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Rsh32Ux64 mul:(Hmul32u (Const32 <typ.UInt32> [m]) (Rsh32Ux64 x (Const64 [1]))) (Const64 [s])) (Const32 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32,c).m+1)/2)) && s == umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0.Args[1]
+		mul := v_1_0.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		if mul_0.Type != typ.UInt32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		if x != mul_1.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_1_0_1 := v_1_0.Args[1]
+		if v_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32, c).m+1)/2)) && s == umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Rsh32Ux64 mul:(Hmul32u (Rsh32Ux64 x (Const64 [1])) (Const32 <typ.UInt32> [m])) (Const64 [s])) (Const32 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32,c).m+1)/2)) && s == umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0.Args[1]
+		mul := v_1_0.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		if mul_1.Type != typ.UInt32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_1 := v_1_0.Args[1]
+		if v_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32, c).m+1)/2)) && s == umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Const32 [c]) (Rsh32Ux64 mul:(Hmul32u (Const32 <typ.UInt32> [m]) (Rsh32Ux64 x (Const64 [1]))) (Const64 [s]))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32,c).m+1)/2)) && s == umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1.Args[1]
+		mul := v_0_1.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		if mul_0.Type != typ.UInt32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		if x != mul_1.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_0_1_1 := v_0_1.Args[1]
+		if v_0_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32, c).m+1)/2)) && s == umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq32_20(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Eq32 (Mul32 (Const32 [c]) (Rsh32Ux64 mul:(Hmul32u (Rsh32Ux64 x (Const64 [1])) (Const32 <typ.UInt32> [m])) (Const64 [s]))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32,c).m+1)/2)) && s == umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1.Args[1]
+		mul := v_0_1.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		if mul_1.Type != typ.UInt32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_1 := v_0_1.Args[1]
+		if v_0_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32, c).m+1)/2)) && s == umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Rsh32Ux64 mul:(Hmul32u (Const32 <typ.UInt32> [m]) (Rsh32Ux64 x (Const64 [1]))) (Const64 [s])) (Const32 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32,c).m+1)/2)) && s == umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		mul := v_0_0.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		if mul_0.Type != typ.UInt32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		if x != mul_1.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32, c).m+1)/2)) && s == umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Rsh32Ux64 mul:(Hmul32u (Rsh32Ux64 x (Const64 [1])) (Const32 <typ.UInt32> [m])) (Const64 [s])) (Const32 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32,c).m+1)/2)) && s == umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		mul := v_0_0.Args[0]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		if mul_1.Type != typ.UInt32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32, c).m+1)/2)) && s == umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Const32 [c]) (Rsh32Ux64 (Avg32u x mul:(Hmul32u (Const32 [m]) x)) (Const64 [s]))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32,c).m)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1.Args[1]
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		if x != v_1_1_0.Args[0] {
+			break
+		}
+		mul := v_1_1_0.Args[1]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_1_1_1 := v_1_1.Args[1]
+		if v_1_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32, c).m)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Const32 [c]) (Rsh32Ux64 (Avg32u x mul:(Hmul32u x (Const32 [m]))) (Const64 [s]))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32,c).m)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1.Args[1]
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		if x != v_1_1_0.Args[0] {
+			break
+		}
+		mul := v_1_1_0.Args[1]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_1 := v_1_1.Args[1]
+		if v_1_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32, c).m)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Rsh32Ux64 (Avg32u x mul:(Hmul32u (Const32 [m]) x)) (Const64 [s])) (Const32 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32,c).m)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0.Args[1]
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		if x != v_1_0_0.Args[0] {
+			break
+		}
+		mul := v_1_0_0.Args[1]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_1_0_1 := v_1_0.Args[1]
+		if v_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32, c).m)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Rsh32Ux64 (Avg32u x mul:(Hmul32u x (Const32 [m]))) (Const64 [s])) (Const32 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32,c).m)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0.Args[1]
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		if x != v_1_0_0.Args[0] {
+			break
+		}
+		mul := v_1_0_0.Args[1]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_1 := v_1_0.Args[1]
+		if v_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32, c).m)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Const32 [c]) (Rsh32Ux64 (Avg32u x mul:(Hmul32u (Const32 [m]) x)) (Const64 [s]))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32,c).m)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1.Args[1]
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		if x != v_0_1_0.Args[0] {
+			break
+		}
+		mul := v_0_1_0.Args[1]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_0_1_1 := v_0_1.Args[1]
+		if v_0_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32, c).m)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Const32 [c]) (Rsh32Ux64 (Avg32u x mul:(Hmul32u x (Const32 [m]))) (Const64 [s]))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32,c).m)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1.Args[1]
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		if x != v_0_1_0.Args[0] {
+			break
+		}
+		mul := v_0_1_0.Args[1]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_1 := v_0_1.Args[1]
+		if v_0_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32, c).m)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Rsh32Ux64 (Avg32u x mul:(Hmul32u (Const32 [m]) x)) (Const64 [s])) (Const32 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32,c).m)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		if x != v_0_0_0.Args[0] {
+			break
+		}
+		mul := v_0_0_0.Args[1]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32, c).m)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq32_30(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Eq32 (Mul32 (Rsh32Ux64 (Avg32u x mul:(Hmul32u x (Const32 [m]))) (Const64 [s])) (Const32 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32,c).m)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpAvg32u {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		if x != v_0_0_0.Args[0] {
+			break
+		}
+		mul := v_0_0_0.Args[1]
+		if mul.Op != OpHmul32u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32, c).m)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (ZeroExt32to64 x)) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32,c).m/2) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc64to32 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		mul := v_1_1_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32, c).m/2) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (ZeroExt32to64 x) (Const64 [m])) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32,c).m/2) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc64to32 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		mul := v_1_1_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32, c).m/2) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (ZeroExt32to64 x)) (Const64 [s]))) (Const32 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32,c).m/2) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc64to32 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		mul := v_1_0_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32, c).m/2) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (ZeroExt32to64 x) (Const64 [m])) (Const64 [s]))) (Const32 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32,c).m/2) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc64to32 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		mul := v_1_0_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32, c).m/2) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (ZeroExt32to64 x)) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32,c).m/2) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc64to32 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		mul := v_0_1_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32, c).m/2) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (ZeroExt32to64 x) (Const64 [m])) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32,c).m/2) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc64to32 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		mul := v_0_1_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32, c).m/2) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (ZeroExt32to64 x)) (Const64 [s]))) (Const32 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32,c).m/2) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc64to32 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		mul := v_0_0_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32, c).m/2) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (ZeroExt32to64 x) (Const64 [m])) (Const64 [s]))) (Const32 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32,c).m/2) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc64to32 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		mul := v_0_0_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32, c).m/2) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (Rsh64Ux64 (ZeroExt32to64 x) (Const64 [1]))) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32,c).m+1)/2) && s == 32+umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc64to32 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		mul := v_1_1_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		mul_1_0 := mul_1.Args[0]
+		if mul_1_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_1_0.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32, c).m+1)/2) && s == 32+umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq32_40(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Eq32 x (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Rsh64Ux64 (ZeroExt32to64 x) (Const64 [1])) (Const64 [m])) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32,c).m+1)/2) && s == 32+umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc64to32 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		mul := v_1_1_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		mul_0_0 := mul_0.Args[0]
+		if mul_0_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_0_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32, c).m+1)/2) && s == 32+umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (Rsh64Ux64 (ZeroExt32to64 x) (Const64 [1]))) (Const64 [s]))) (Const32 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32,c).m+1)/2) && s == 32+umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc64to32 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		mul := v_1_0_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		mul_1_0 := mul_1.Args[0]
+		if mul_1_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_1_0.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32, c).m+1)/2) && s == 32+umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Rsh64Ux64 (ZeroExt32to64 x) (Const64 [1])) (Const64 [m])) (Const64 [s]))) (Const32 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32,c).m+1)/2) && s == 32+umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc64to32 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		mul := v_1_0_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		mul_0_0 := mul_0.Args[0]
+		if mul_0_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_0_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32, c).m+1)/2) && s == 32+umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (Rsh64Ux64 (ZeroExt32to64 x) (Const64 [1]))) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32,c).m+1)/2) && s == 32+umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc64to32 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		mul := v_0_1_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		mul_1_0 := mul_1.Args[0]
+		if mul_1_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_1_0.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32, c).m+1)/2) && s == 32+umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Rsh64Ux64 (ZeroExt32to64 x) (Const64 [1])) (Const64 [m])) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32,c).m+1)/2) && s == 32+umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc64to32 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		mul := v_0_1_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		mul_0_0 := mul_0.Args[0]
+		if mul_0_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_0_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32, c).m+1)/2) && s == 32+umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (Rsh64Ux64 (ZeroExt32to64 x) (Const64 [1]))) (Const64 [s]))) (Const32 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32,c).m+1)/2) && s == 32+umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc64to32 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		mul := v_0_0_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		mul_1_0 := mul_1.Args[0]
+		if mul_1_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_1_0.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32, c).m+1)/2) && s == 32+umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Rsh64Ux64 (ZeroExt32to64 x) (Const64 [1])) (Const64 [m])) (Const64 [s]))) (Const32 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32,c).m+1)/2) && s == 32+umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc64to32 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		mul := v_0_0_0.Args[0]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		mul_0_0 := mul_0.Args[0]
+		if mul_0_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_0_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32, c).m+1)/2) && s == 32+umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 (Avg64u (Lsh64x64 (ZeroExt32to64 x) (Const64 [32])) mul:(Mul64 (Const64 [m]) (ZeroExt32to64 x))) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32,c).m) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc64to32 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		v_1_1_0_0 := v_1_1_0.Args[0]
+		if v_1_1_0_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_1_1_0_0.Args[1]
+		v_1_1_0_0_0 := v_1_1_0_0.Args[0]
+		if v_1_1_0_0_0.Op != OpLsh64x64 {
+			break
+		}
+		_ = v_1_1_0_0_0.Args[1]
+		v_1_1_0_0_0_0 := v_1_1_0_0_0.Args[0]
+		if v_1_1_0_0_0_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != v_1_1_0_0_0_0.Args[0] {
+			break
+		}
+		v_1_1_0_0_0_1 := v_1_1_0_0_0.Args[1]
+		if v_1_1_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_1_1_0_0_0_1.AuxInt != 32 {
+			break
+		}
+		mul := v_1_1_0_0.Args[1]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32, c).m) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 (Avg64u (Lsh64x64 (ZeroExt32to64 x) (Const64 [32])) mul:(Mul64 (ZeroExt32to64 x) (Const64 [m]))) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32,c).m) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst32 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc64to32 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		v_1_1_0_0 := v_1_1_0.Args[0]
+		if v_1_1_0_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_1_1_0_0.Args[1]
+		v_1_1_0_0_0 := v_1_1_0_0.Args[0]
+		if v_1_1_0_0_0.Op != OpLsh64x64 {
+			break
+		}
+		_ = v_1_1_0_0_0.Args[1]
+		v_1_1_0_0_0_0 := v_1_1_0_0_0.Args[0]
+		if v_1_1_0_0_0_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != v_1_1_0_0_0_0.Args[0] {
+			break
+		}
+		v_1_1_0_0_0_1 := v_1_1_0_0_0.Args[1]
+		if v_1_1_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_1_1_0_0_0_1.AuxInt != 32 {
+			break
+		}
+		mul := v_1_1_0_0.Args[1]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32, c).m) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 x (Mul32 (Trunc64to32 (Rsh64Ux64 (Avg64u (Lsh64x64 (ZeroExt32to64 x) (Const64 [32])) mul:(Mul64 (Const64 [m]) (ZeroExt32to64 x))) (Const64 [s]))) (Const32 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32,c).m) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc64to32 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		v_1_0_0_0 := v_1_0_0.Args[0]
+		if v_1_0_0_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_1_0_0_0.Args[1]
+		v_1_0_0_0_0 := v_1_0_0_0.Args[0]
+		if v_1_0_0_0_0.Op != OpLsh64x64 {
+			break
+		}
+		_ = v_1_0_0_0_0.Args[1]
+		v_1_0_0_0_0_0 := v_1_0_0_0_0.Args[0]
+		if v_1_0_0_0_0_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != v_1_0_0_0_0_0.Args[0] {
+			break
+		}
+		v_1_0_0_0_0_1 := v_1_0_0_0_0.Args[1]
+		if v_1_0_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_1_0_0_0_0_1.AuxInt != 32 {
+			break
+		}
+		mul := v_1_0_0_0.Args[1]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32, c).m) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq32_50(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Eq32 x (Mul32 (Trunc64to32 (Rsh64Ux64 (Avg64u (Lsh64x64 (ZeroExt32to64 x) (Const64 [32])) mul:(Mul64 (ZeroExt32to64 x) (Const64 [m]))) (Const64 [s]))) (Const32 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32,c).m) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul32 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc64to32 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		v_1_0_0_0 := v_1_0_0.Args[0]
+		if v_1_0_0_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_1_0_0_0.Args[1]
+		v_1_0_0_0_0 := v_1_0_0_0.Args[0]
+		if v_1_0_0_0_0.Op != OpLsh64x64 {
+			break
+		}
+		_ = v_1_0_0_0_0.Args[1]
+		v_1_0_0_0_0_0 := v_1_0_0_0_0.Args[0]
+		if v_1_0_0_0_0_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != v_1_0_0_0_0_0.Args[0] {
+			break
+		}
+		v_1_0_0_0_0_1 := v_1_0_0_0_0.Args[1]
+		if v_1_0_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_1_0_0_0_0_1.AuxInt != 32 {
+			break
+		}
+		mul := v_1_0_0_0.Args[1]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst32 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32, c).m) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 (Avg64u (Lsh64x64 (ZeroExt32to64 x) (Const64 [32])) mul:(Mul64 (Const64 [m]) (ZeroExt32to64 x))) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32,c).m) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc64to32 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		v_0_1_0_0 := v_0_1_0.Args[0]
+		if v_0_1_0_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_0_1_0_0.Args[1]
+		v_0_1_0_0_0 := v_0_1_0_0.Args[0]
+		if v_0_1_0_0_0.Op != OpLsh64x64 {
+			break
+		}
+		_ = v_0_1_0_0_0.Args[1]
+		v_0_1_0_0_0_0 := v_0_1_0_0_0.Args[0]
+		if v_0_1_0_0_0_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != v_0_1_0_0_0_0.Args[0] {
+			break
+		}
+		v_0_1_0_0_0_1 := v_0_1_0_0_0.Args[1]
+		if v_0_1_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_0_1_0_0_0_1.AuxInt != 32 {
+			break
+		}
+		mul := v_0_1_0_0.Args[1]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32, c).m) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 (Avg64u (Lsh64x64 (ZeroExt32to64 x) (Const64 [32])) mul:(Mul64 (ZeroExt32to64 x) (Const64 [m]))) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32,c).m) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc64to32 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		v_0_1_0_0 := v_0_1_0.Args[0]
+		if v_0_1_0_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_0_1_0_0.Args[1]
+		v_0_1_0_0_0 := v_0_1_0_0.Args[0]
+		if v_0_1_0_0_0.Op != OpLsh64x64 {
+			break
+		}
+		_ = v_0_1_0_0_0.Args[1]
+		v_0_1_0_0_0_0 := v_0_1_0_0_0.Args[0]
+		if v_0_1_0_0_0_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != v_0_1_0_0_0_0.Args[0] {
+			break
+		}
+		v_0_1_0_0_0_1 := v_0_1_0_0_0.Args[1]
+		if v_0_1_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_0_1_0_0_0_1.AuxInt != 32 {
+			break
+		}
+		mul := v_0_1_0_0.Args[1]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32, c).m) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Trunc64to32 (Rsh64Ux64 (Avg64u (Lsh64x64 (ZeroExt32to64 x) (Const64 [32])) mul:(Mul64 (Const64 [m]) (ZeroExt32to64 x))) (Const64 [s]))) (Const32 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32,c).m) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc64to32 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		v_0_0_0_0 := v_0_0_0.Args[0]
+		if v_0_0_0_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_0_0_0_0.Args[1]
+		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+		if v_0_0_0_0_0.Op != OpLsh64x64 {
+			break
+		}
+		_ = v_0_0_0_0_0.Args[1]
+		v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+		if v_0_0_0_0_0_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != v_0_0_0_0_0_0.Args[0] {
+			break
+		}
+		v_0_0_0_0_0_1 := v_0_0_0_0_0.Args[1]
+		if v_0_0_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_0_0_0_0_0_1.AuxInt != 32 {
+			break
+		}
+		mul := v_0_0_0_0.Args[1]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32, c).m) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq32 (Mul32 (Trunc64to32 (Rsh64Ux64 (Avg64u (Lsh64x64 (ZeroExt32to64 x) (Const64 [32])) mul:(Mul64 (ZeroExt32to64 x) (Const64 [m]))) (Const64 [s]))) (Const32 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32,c).m) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc64to32 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		v_0_0_0_0 := v_0_0_0.Args[0]
+		if v_0_0_0_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_0_0_0_0.Args[1]
+		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+		if v_0_0_0_0_0.Op != OpLsh64x64 {
+			break
+		}
+		_ = v_0_0_0_0_0.Args[1]
+		v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+		if v_0_0_0_0_0_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != v_0_0_0_0_0_0.Args[0] {
+			break
+		}
+		v_0_0_0_0_0_1 := v_0_0_0_0_0.Args[1]
+		if v_0_0_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		if v_0_0_0_0_0_1.AuxInt != 32 {
+			break
+		}
+		mul := v_0_0_0_0.Args[1]
+		if mul.Op != OpMul64 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt32to64 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32, c).m) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+			break
+		}
+		v.reset(OpLeq32U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = int64(int32(udivisible(32, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = int64(32 - udivisible(32, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v4.AuxInt = int64(int32(udivisible(32, c).max))
+		v.AddArg(v4)
+		return true
+	}
 	// match: (Eq32 n (Lsh32x64 (Rsh32x64 (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <typ.UInt64> [31])) (Const64 <typ.UInt64> [kbar]))) (Const64 <typ.UInt64> [k])) (Const64 <typ.UInt64> [k])))
 	// cond: k > 0 && k < 31 && kbar == 32 - k
 	// result: (Eq32 (And32 <t> n (Const32 <t> [int64(1<<uint(k)-1)])) (Const32 <t> [0]))
@@ -9852,11 +15869,6 @@ func rewriteValuegeneric_OpEq32_0(v *Value) bool {
 		v.AddArg(v2)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpEq32_10(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (Eq32 (Lsh32x64 (Rsh32x64 (Add32 <t> (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <typ.UInt64> [31])) (Const64 <typ.UInt64> [kbar])) n) (Const64 <typ.UInt64> [k])) (Const64 <typ.UInt64> [k])) n)
 	// cond: k > 0 && k < 31 && kbar == 32 - k
 	// result: (Eq32 (And32 <t> n (Const32 <t> [int64(1<<uint(k)-1)])) (Const32 <t> [0]))
@@ -9977,6 +15989,9 @@ func rewriteValuegeneric_OpEq32_10(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpEq32_60(v *Value) bool {
 	// match: (Eq32 (Const32 [0]) s:(Sub32 x y))
 	// cond: s.Uses == 1
 	// result: (Eq32 x y)
@@ -10223,6 +16238,1585 @@ func rewriteValuegeneric_OpEq64_0(v *Value) bool {
 		c := v_1.AuxInt
 		v.reset(OpConstBool)
 		v.AuxInt = b2i(c == d)
+		return true
+	}
+	// match: (Eq64 x (Mul64 (Const64 [c]) (Rsh64Ux64 mul:(Hmul64u (Const64 [m]) x) (Const64 [s]))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64,c).m/2) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst64 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1.Args[1]
+		mul := v_1_1.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_1_1_1 := v_1_1.Args[1]
+		if v_1_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64, c).m/2) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 x (Mul64 (Const64 [c]) (Rsh64Ux64 mul:(Hmul64u x (Const64 [m])) (Const64 [s]))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64,c).m/2) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst64 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1.Args[1]
+		mul := v_1_1.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_1 := v_1_1.Args[1]
+		if v_1_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64, c).m/2) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 x (Mul64 (Rsh64Ux64 mul:(Hmul64u (Const64 [m]) x) (Const64 [s])) (Const64 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64,c).m/2) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0.Args[1]
+		mul := v_1_0.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_1_0_1 := v_1_0.Args[1]
+		if v_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst64 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64, c).m/2) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq64_10(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Eq64 x (Mul64 (Rsh64Ux64 mul:(Hmul64u x (Const64 [m])) (Const64 [s])) (Const64 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64,c).m/2) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0.Args[1]
+		mul := v_1_0.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_1 := v_1_0.Args[1]
+		if v_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst64 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64, c).m/2) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 (Mul64 (Const64 [c]) (Rsh64Ux64 mul:(Hmul64u (Const64 [m]) x) (Const64 [s]))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64,c).m/2) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst64 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1.Args[1]
+		mul := v_0_1.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_0_1_1 := v_0_1.Args[1]
+		if v_0_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64, c).m/2) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 (Mul64 (Const64 [c]) (Rsh64Ux64 mul:(Hmul64u x (Const64 [m])) (Const64 [s]))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64,c).m/2) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst64 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1.Args[1]
+		mul := v_0_1.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_1 := v_0_1.Args[1]
+		if v_0_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64, c).m/2) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 (Mul64 (Rsh64Ux64 mul:(Hmul64u (Const64 [m]) x) (Const64 [s])) (Const64 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64,c).m/2) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		mul := v_0_0.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64, c).m/2) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 (Mul64 (Rsh64Ux64 mul:(Hmul64u x (Const64 [m])) (Const64 [s])) (Const64 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64,c).m/2) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		mul := v_0_0.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64, c).m/2) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 x (Mul64 (Const64 [c]) (Rsh64Ux64 mul:(Hmul64u (Const64 [m]) (Rsh64Ux64 x (Const64 [1]))) (Const64 [s]))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64,c).m+1)/2) && s == umagic(64,c).s-2 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst64 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1.Args[1]
+		mul := v_1_1.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		if x != mul_1.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_1_1_1 := v_1_1.Args[1]
+		if v_1_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64, c).m+1)/2) && s == umagic(64, c).s-2 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 x (Mul64 (Const64 [c]) (Rsh64Ux64 mul:(Hmul64u (Rsh64Ux64 x (Const64 [1])) (Const64 [m])) (Const64 [s]))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64,c).m+1)/2) && s == umagic(64,c).s-2 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst64 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1.Args[1]
+		mul := v_1_1.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_1 := v_1_1.Args[1]
+		if v_1_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64, c).m+1)/2) && s == umagic(64, c).s-2 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 x (Mul64 (Rsh64Ux64 mul:(Hmul64u (Const64 [m]) (Rsh64Ux64 x (Const64 [1]))) (Const64 [s])) (Const64 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64,c).m+1)/2) && s == umagic(64,c).s-2 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0.Args[1]
+		mul := v_1_0.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		if x != mul_1.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_1_0_1 := v_1_0.Args[1]
+		if v_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst64 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64, c).m+1)/2) && s == umagic(64, c).s-2 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 x (Mul64 (Rsh64Ux64 mul:(Hmul64u (Rsh64Ux64 x (Const64 [1])) (Const64 [m])) (Const64 [s])) (Const64 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64,c).m+1)/2) && s == umagic(64,c).s-2 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0.Args[1]
+		mul := v_1_0.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_1 := v_1_0.Args[1]
+		if v_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst64 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64, c).m+1)/2) && s == umagic(64, c).s-2 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 (Mul64 (Const64 [c]) (Rsh64Ux64 mul:(Hmul64u (Const64 [m]) (Rsh64Ux64 x (Const64 [1]))) (Const64 [s]))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64,c).m+1)/2) && s == umagic(64,c).s-2 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst64 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1.Args[1]
+		mul := v_0_1.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		if x != mul_1.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_0_1_1 := v_0_1.Args[1]
+		if v_0_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64, c).m+1)/2) && s == umagic(64, c).s-2 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq64_20(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Eq64 (Mul64 (Const64 [c]) (Rsh64Ux64 mul:(Hmul64u (Rsh64Ux64 x (Const64 [1])) (Const64 [m])) (Const64 [s]))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64,c).m+1)/2) && s == umagic(64,c).s-2 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst64 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1.Args[1]
+		mul := v_0_1.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_1 := v_0_1.Args[1]
+		if v_0_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64, c).m+1)/2) && s == umagic(64, c).s-2 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 (Mul64 (Rsh64Ux64 mul:(Hmul64u (Const64 [m]) (Rsh64Ux64 x (Const64 [1]))) (Const64 [s])) (Const64 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64,c).m+1)/2) && s == umagic(64,c).s-2 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		mul := v_0_0.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_1.Args[1]
+		if x != mul_1.Args[0] {
+			break
+		}
+		mul_1_1 := mul_1.Args[1]
+		if mul_1_1.Op != OpConst64 {
+			break
+		}
+		if mul_1_1.AuxInt != 1 {
+			break
+		}
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64, c).m+1)/2) && s == umagic(64, c).s-2 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 (Mul64 (Rsh64Ux64 mul:(Hmul64u (Rsh64Ux64 x (Const64 [1])) (Const64 [m])) (Const64 [s])) (Const64 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64,c).m+1)/2) && s == umagic(64,c).s-2 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		mul := v_0_0.Args[0]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = mul_0.Args[1]
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_0_1 := mul_0.Args[1]
+		if mul_0_1.Op != OpConst64 {
+			break
+		}
+		if mul_0_1.AuxInt != 1 {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64, c).m+1)/2) && s == umagic(64, c).s-2 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 x (Mul64 (Const64 [c]) (Rsh64Ux64 (Avg64u x mul:(Hmul64u (Const64 [m]) x)) (Const64 [s]))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64,c).m) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst64 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1.Args[1]
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		if x != v_1_1_0.Args[0] {
+			break
+		}
+		mul := v_1_1_0.Args[1]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_1_1_1 := v_1_1.Args[1]
+		if v_1_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64, c).m) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 x (Mul64 (Const64 [c]) (Rsh64Ux64 (Avg64u x mul:(Hmul64u x (Const64 [m]))) (Const64 [s]))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64,c).m) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst64 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_1.Args[1]
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		if x != v_1_1_0.Args[0] {
+			break
+		}
+		mul := v_1_1_0.Args[1]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_1 := v_1_1.Args[1]
+		if v_1_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64, c).m) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 x (Mul64 (Rsh64Ux64 (Avg64u x mul:(Hmul64u (Const64 [m]) x)) (Const64 [s])) (Const64 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64,c).m) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0.Args[1]
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		if x != v_1_0_0.Args[0] {
+			break
+		}
+		mul := v_1_0_0.Args[1]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_1_0_1 := v_1_0.Args[1]
+		if v_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst64 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64, c).m) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 x (Mul64 (Rsh64Ux64 (Avg64u x mul:(Hmul64u x (Const64 [m]))) (Const64 [s])) (Const64 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64,c).m) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul64 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_1_0.Args[1]
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		if x != v_1_0_0.Args[0] {
+			break
+		}
+		mul := v_1_0_0.Args[1]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_1 := v_1_0.Args[1]
+		if v_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst64 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64, c).m) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 (Mul64 (Const64 [c]) (Rsh64Ux64 (Avg64u x mul:(Hmul64u (Const64 [m]) x)) (Const64 [s]))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64,c).m) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst64 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1.Args[1]
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		if x != v_0_1_0.Args[0] {
+			break
+		}
+		mul := v_0_1_0.Args[1]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_0_1_1 := v_0_1.Args[1]
+		if v_0_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64, c).m) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 (Mul64 (Const64 [c]) (Rsh64Ux64 (Avg64u x mul:(Hmul64u x (Const64 [m]))) (Const64 [s]))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64,c).m) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst64 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_1.Args[1]
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		if x != v_0_1_0.Args[0] {
+			break
+		}
+		mul := v_0_1_0.Args[1]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_1 := v_0_1.Args[1]
+		if v_0_1_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64, c).m) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq64 (Mul64 (Rsh64Ux64 (Avg64u x mul:(Hmul64u (Const64 [m]) x)) (Const64 [s])) (Const64 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64,c).m) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		if x != v_0_0_0.Args[0] {
+			break
+		}
+		mul := v_0_0_0.Args[1]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst64 {
+			break
+		}
+		m := mul_0.AuxInt
+		if x != mul.Args[1] {
+			break
+		}
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64, c).m) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq64_30(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Eq64 (Mul64 (Rsh64Ux64 (Avg64u x mul:(Hmul64u x (Const64 [m]))) (Const64 [s])) (Const64 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64,c).m) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0_0.Args[1]
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpAvg64u {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		if x != v_0_0_0.Args[0] {
+			break
+		}
+		mul := v_0_0_0.Args[1]
+		if mul.Op != OpHmul64u {
+			break
+		}
+		_ = mul.Args[1]
+		if x != mul.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst64 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64, c).m) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+			break
+		}
+		v.reset(OpLeq64U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64(udivisible(64, c).m)
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v3.AuxInt = int64(64 - udivisible(64, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v4.AuxInt = int64(udivisible(64, c).max)
+		v.AddArg(v4)
 		return true
 	}
 	// match: (Eq64 n (Lsh64x64 (Rsh64x64 (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) (Const64 <typ.UInt64> [kbar]))) (Const64 <typ.UInt64> [k])) (Const64 <typ.UInt64> [k])))
@@ -10509,11 +18103,6 @@ func rewriteValuegeneric_OpEq64_0(v *Value) bool {
 		v.AddArg(v2)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpEq64_10(v *Value) bool {
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (Eq64 (Lsh64x64 (Rsh64x64 (Add64 <t> (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) (Const64 <typ.UInt64> [kbar])) n) (Const64 <typ.UInt64> [k])) (Const64 <typ.UInt64> [k])) n)
 	// cond: k > 0 && k < 63 && kbar == 64 - k
 	// result: (Eq64 (And64 <t> n (Const64 <t> [int64(1<<uint(k)-1)])) (Const64 <t> [0]))
@@ -10705,6 +18294,7 @@ func rewriteValuegeneric_OpEq64F_0(v *Value) bool {
 }
 func rewriteValuegeneric_OpEq8_0(v *Value) bool {
 	b := v.Block
+	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Eq8 x x)
 	// cond:
@@ -10880,6 +18470,623 @@ func rewriteValuegeneric_OpEq8_0(v *Value) bool {
 		c := v_1.AuxInt
 		v.reset(OpConstBool)
 		v.AuxInt = b2i(c == d)
+		return true
+	}
+	// match: (Eq8 (Mod8u x (Const8 [c])) (Const8 [0]))
+	// cond: x.Op != OpConst8 && udivisibleOK(8,c) && !hasSmallRotate(config)
+	// result: (Eq32 (Mod32u <typ.UInt32> (ZeroExt8to32 <typ.UInt32> x) (Const32 <typ.UInt32> [c&0xff])) (Const32 <typ.UInt32> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMod8u {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst8 {
+			break
+		}
+		c := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst8 {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		if !(x.Op != OpConst8 && udivisibleOK(8, c) && !hasSmallRotate(config)) {
+			break
+		}
+		v.reset(OpEq32)
+		v0 := b.NewValue0(v.Pos, OpMod32u, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = c & 0xff
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = 0
+		v.AddArg(v3)
+		return true
+	}
+	// match: (Eq8 (Const8 [0]) (Mod8u x (Const8 [c])))
+	// cond: x.Op != OpConst8 && udivisibleOK(8,c) && !hasSmallRotate(config)
+	// result: (Eq32 (Mod32u <typ.UInt32> (ZeroExt8to32 <typ.UInt32> x) (Const32 <typ.UInt32> [c&0xff])) (Const32 <typ.UInt32> [0]))
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst8 {
+			break
+		}
+		if v_0.AuxInt != 0 {
+			break
+		}
+		v_1 := v.Args[1]
+		if v_1.Op != OpMod8u {
+			break
+		}
+		_ = v_1.Args[1]
+		x := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst8 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(x.Op != OpConst8 && udivisibleOK(8, c) && !hasSmallRotate(config)) {
+			break
+		}
+		v.reset(OpEq32)
+		v0 := b.NewValue0(v.Pos, OpMod32u, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v2.AuxInt = c & 0xff
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+		v3.AuxInt = 0
+		v.AddArg(v3)
+		return true
+	}
+	// match: (Eq8 x (Mul8 (Const8 [c]) (Trunc32to8 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (ZeroExt8to32 x)) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8,c).m) && s == 8+umagic(8,c).s && x.Op != OpConst8 && udivisibleOK(8,c)
+	// result: (Leq8U (RotateLeft8 <typ.UInt8> (Mul8 <typ.UInt8> (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).m))]) x) (Const8 <typ.UInt8> [int64(8-udivisible(8,c).k)]) ) (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul8 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst8 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc32to8 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		mul := v_1_1_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt8to32 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8, c).m) && s == 8+umagic(8, c).s && x.Op != OpConst8 && udivisibleOK(8, c)) {
+			break
+		}
+		v.reset(OpLeq8U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft8, typ.UInt8)
+		v1 := b.NewValue0(v.Pos, OpMul8, typ.UInt8)
+		v2 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v2.AuxInt = int64(int8(udivisible(8, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v3.AuxInt = int64(8 - udivisible(8, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v4.AuxInt = int64(int8(udivisible(8, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEq8_10(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Eq8 x (Mul8 (Const8 [c]) (Trunc32to8 (Rsh32Ux64 mul:(Mul32 (ZeroExt8to32 x) (Const32 [m])) (Const64 [s])))))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8,c).m) && s == 8+umagic(8,c).s && x.Op != OpConst8 && udivisibleOK(8,c)
+	// result: (Leq8U (RotateLeft8 <typ.UInt8> (Mul8 <typ.UInt8> (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).m))]) x) (Const8 <typ.UInt8> [int64(8-udivisible(8,c).k)]) ) (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul8 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpConst8 {
+			break
+		}
+		c := v_1_0.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpTrunc32to8 {
+			break
+		}
+		v_1_1_0 := v_1_1.Args[0]
+		if v_1_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_1_0.Args[1]
+		mul := v_1_1_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt8to32 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_1_0_1 := v_1_1_0.Args[1]
+		if v_1_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8, c).m) && s == 8+umagic(8, c).s && x.Op != OpConst8 && udivisibleOK(8, c)) {
+			break
+		}
+		v.reset(OpLeq8U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft8, typ.UInt8)
+		v1 := b.NewValue0(v.Pos, OpMul8, typ.UInt8)
+		v2 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v2.AuxInt = int64(int8(udivisible(8, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v3.AuxInt = int64(8 - udivisible(8, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v4.AuxInt = int64(int8(udivisible(8, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq8 x (Mul8 (Trunc32to8 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (ZeroExt8to32 x)) (Const64 [s]))) (Const8 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8,c).m) && s == 8+umagic(8,c).s && x.Op != OpConst8 && udivisibleOK(8,c)
+	// result: (Leq8U (RotateLeft8 <typ.UInt8> (Mul8 <typ.UInt8> (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).m))]) x) (Const8 <typ.UInt8> [int64(8-udivisible(8,c).k)]) ) (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul8 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc32to8 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		mul := v_1_0_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt8to32 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst8 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8, c).m) && s == 8+umagic(8, c).s && x.Op != OpConst8 && udivisibleOK(8, c)) {
+			break
+		}
+		v.reset(OpLeq8U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft8, typ.UInt8)
+		v1 := b.NewValue0(v.Pos, OpMul8, typ.UInt8)
+		v2 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v2.AuxInt = int64(int8(udivisible(8, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v3.AuxInt = int64(8 - udivisible(8, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v4.AuxInt = int64(int8(udivisible(8, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq8 x (Mul8 (Trunc32to8 (Rsh32Ux64 mul:(Mul32 (ZeroExt8to32 x) (Const32 [m])) (Const64 [s]))) (Const8 [c])))
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8,c).m) && s == 8+umagic(8,c).s && x.Op != OpConst8 && udivisibleOK(8,c)
+	// result: (Leq8U (RotateLeft8 <typ.UInt8> (Mul8 <typ.UInt8> (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).m))]) x) (Const8 <typ.UInt8> [int64(8-udivisible(8,c).k)]) ) (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).max))]) )
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMul8 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpTrunc32to8 {
+			break
+		}
+		v_1_0_0 := v_1_0.Args[0]
+		if v_1_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_1_0_0.Args[1]
+		mul := v_1_0_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt8to32 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_1_0_0_1 := v_1_0_0.Args[1]
+		if v_1_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_1_0_0_1.AuxInt
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != OpConst8 {
+			break
+		}
+		c := v_1_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8, c).m) && s == 8+umagic(8, c).s && x.Op != OpConst8 && udivisibleOK(8, c)) {
+			break
+		}
+		v.reset(OpLeq8U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft8, typ.UInt8)
+		v1 := b.NewValue0(v.Pos, OpMul8, typ.UInt8)
+		v2 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v2.AuxInt = int64(int8(udivisible(8, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v3.AuxInt = int64(8 - udivisible(8, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v4.AuxInt = int64(int8(udivisible(8, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq8 (Mul8 (Const8 [c]) (Trunc32to8 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (ZeroExt8to32 x)) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8,c).m) && s == 8+umagic(8,c).s && x.Op != OpConst8 && udivisibleOK(8,c)
+	// result: (Leq8U (RotateLeft8 <typ.UInt8> (Mul8 <typ.UInt8> (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).m))]) x) (Const8 <typ.UInt8> [int64(8-udivisible(8,c).k)]) ) (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul8 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst8 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc32to8 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		mul := v_0_1_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt8to32 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8, c).m) && s == 8+umagic(8, c).s && x.Op != OpConst8 && udivisibleOK(8, c)) {
+			break
+		}
+		v.reset(OpLeq8U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft8, typ.UInt8)
+		v1 := b.NewValue0(v.Pos, OpMul8, typ.UInt8)
+		v2 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v2.AuxInt = int64(int8(udivisible(8, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v3.AuxInt = int64(8 - udivisible(8, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v4.AuxInt = int64(int8(udivisible(8, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq8 (Mul8 (Const8 [c]) (Trunc32to8 (Rsh32Ux64 mul:(Mul32 (ZeroExt8to32 x) (Const32 [m])) (Const64 [s])))) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8,c).m) && s == 8+umagic(8,c).s && x.Op != OpConst8 && udivisibleOK(8,c)
+	// result: (Leq8U (RotateLeft8 <typ.UInt8> (Mul8 <typ.UInt8> (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).m))]) x) (Const8 <typ.UInt8> [int64(8-udivisible(8,c).k)]) ) (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul8 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst8 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpTrunc32to8 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		mul := v_0_1_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt8to32 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_1_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8, c).m) && s == 8+umagic(8, c).s && x.Op != OpConst8 && udivisibleOK(8, c)) {
+			break
+		}
+		v.reset(OpLeq8U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft8, typ.UInt8)
+		v1 := b.NewValue0(v.Pos, OpMul8, typ.UInt8)
+		v2 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v2.AuxInt = int64(int8(udivisible(8, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v3.AuxInt = int64(8 - udivisible(8, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v4.AuxInt = int64(int8(udivisible(8, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq8 (Mul8 (Trunc32to8 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (ZeroExt8to32 x)) (Const64 [s]))) (Const8 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8,c).m) && s == 8+umagic(8,c).s && x.Op != OpConst8 && udivisibleOK(8,c)
+	// result: (Leq8U (RotateLeft8 <typ.UInt8> (Mul8 <typ.UInt8> (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).m))]) x) (Const8 <typ.UInt8> [int64(8-udivisible(8,c).k)]) ) (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul8 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc32to8 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		mul := v_0_0_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpConst32 {
+			break
+		}
+		m := mul_0.AuxInt
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpZeroExt8to32 {
+			break
+		}
+		if x != mul_1.Args[0] {
+			break
+		}
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst8 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8, c).m) && s == 8+umagic(8, c).s && x.Op != OpConst8 && udivisibleOK(8, c)) {
+			break
+		}
+		v.reset(OpLeq8U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft8, typ.UInt8)
+		v1 := b.NewValue0(v.Pos, OpMul8, typ.UInt8)
+		v2 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v2.AuxInt = int64(int8(udivisible(8, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v3.AuxInt = int64(8 - udivisible(8, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v4.AuxInt = int64(int8(udivisible(8, c).max))
+		v.AddArg(v4)
+		return true
+	}
+	// match: (Eq8 (Mul8 (Trunc32to8 (Rsh32Ux64 mul:(Mul32 (ZeroExt8to32 x) (Const32 [m])) (Const64 [s]))) (Const8 [c])) x)
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8,c).m) && s == 8+umagic(8,c).s && x.Op != OpConst8 && udivisibleOK(8,c)
+	// result: (Leq8U (RotateLeft8 <typ.UInt8> (Mul8 <typ.UInt8> (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).m))]) x) (Const8 <typ.UInt8> [int64(8-udivisible(8,c).k)]) ) (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).max))]) )
+	for {
+		x := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpMul8 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpTrunc32to8 {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpRsh32Ux64 {
+			break
+		}
+		_ = v_0_0_0.Args[1]
+		mul := v_0_0_0.Args[0]
+		if mul.Op != OpMul32 {
+			break
+		}
+		_ = mul.Args[1]
+		mul_0 := mul.Args[0]
+		if mul_0.Op != OpZeroExt8to32 {
+			break
+		}
+		if x != mul_0.Args[0] {
+			break
+		}
+		mul_1 := mul.Args[1]
+		if mul_1.Op != OpConst32 {
+			break
+		}
+		m := mul_1.AuxInt
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpConst64 {
+			break
+		}
+		s := v_0_0_0_1.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst8 {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8, c).m) && s == 8+umagic(8, c).s && x.Op != OpConst8 && udivisibleOK(8, c)) {
+			break
+		}
+		v.reset(OpLeq8U)
+		v0 := b.NewValue0(v.Pos, OpRotateLeft8, typ.UInt8)
+		v1 := b.NewValue0(v.Pos, OpMul8, typ.UInt8)
+		v2 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v2.AuxInt = int64(int8(udivisible(8, c).m))
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v3 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v3.AuxInt = int64(8 - udivisible(8, c).k)
+		v0.AddArg(v3)
+		v.AddArg(v0)
+		v4 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
+		v4.AuxInt = int64(int8(udivisible(8, c).max))
+		v.AddArg(v4)
 		return true
 	}
 	// match: (Eq8 n (Lsh8x64 (Rsh8x64 (Add8 <t> n (Rsh8Ux64 <t> (Rsh8x64 <t> n (Const64 <typ.UInt64> [ 7])) (Const64 <typ.UInt64> [kbar]))) (Const64 <typ.UInt64> [k])) (Const64 <typ.UInt64> [k])))
@@ -11168,7 +19375,7 @@ func rewriteValuegeneric_OpEq8_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEq8_10(v *Value) bool {
+func rewriteValuegeneric_OpEq8_20(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Eq8 (Lsh8x64 (Rsh8x64 (Add8 <t> (Rsh8Ux64 <t> (Rsh8x64 <t> n (Const64 <typ.UInt64> [ 7])) (Const64 <typ.UInt64> [kbar])) n) (Const64 <typ.UInt64> [k])) (Const64 <typ.UInt64> [k])) n)
@@ -17101,7 +25308,7 @@ func rewriteValuegeneric_OpMod8u_0(v *Value) bool {
 		return true
 	}
 	// match: (Mod8u <t> x (Const8 [c]))
-	// cond: x.Op != OpConst8 && c > 0 && umagicOK(8 ,c)
+	// cond: x.Op != OpConst8 && c > 0 && umagicOK(8,c)
 	// result: (Sub8 x (Mul8 <t> (Div8u <t> x (Const8 <t> [c])) (Const8 <t> [c])))
 	for {
 		t := v.Type
@@ -25728,6 +33935,94 @@ func rewriteValuegeneric_OpPtrIndex_0(v *Value) bool {
 		v1.AuxInt = t.Elem().Size()
 		v0.AddArg(v1)
 		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpRotateLeft16_0(v *Value) bool {
+	// match: (RotateLeft16 x (Const16 [c]))
+	// cond: c%16 == 0
+	// result: x
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst16 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(c%16 == 0) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpRotateLeft32_0(v *Value) bool {
+	// match: (RotateLeft32 x (Const32 [c]))
+	// cond: c%32 == 0
+	// result: x
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(c%32 == 0) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpRotateLeft64_0(v *Value) bool {
+	// match: (RotateLeft64 x (Const64 [c]))
+	// cond: c%64 == 0
+	// result: x
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(c%64 == 0) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpRotateLeft8_0(v *Value) bool {
+	// match: (RotateLeft8 x (Const8 [c]))
+	// cond: c%8 == 0
+	// result: x
+	for {
+		_ = v.Args[1]
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst8 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(c%8 == 0) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
 		return true
 	}
 	return false

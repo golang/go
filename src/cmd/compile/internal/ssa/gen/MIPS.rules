@@ -108,6 +108,12 @@
 (Rsh8x16 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <typ.UInt32> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
 (Rsh8x8 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <typ.UInt32> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
 
+// rotates
+(RotateLeft8 <t> x (MOVWconst [c])) -> (Or8 (Lsh8x32 <t> x (MOVWconst [c&7])) (Rsh8Ux32 <t> x (MOVWconst [-c&7])))
+(RotateLeft16 <t> x (MOVWconst [c])) -> (Or16 (Lsh16x32 <t> x (MOVWconst [c&15])) (Rsh16Ux32 <t> x (MOVWconst [-c&15])))
+(RotateLeft32 <t> x (MOVWconst [c])) -> (Or32 (Lsh32x32 <t> x (MOVWconst [c&31])) (Rsh32Ux32 <t> x (MOVWconst [-c&31])))
+(RotateLeft64 <t> x (MOVWconst [c])) -> (Or64 (Lsh64x32 <t> x (MOVWconst [c&63])) (Rsh64Ux32 <t> x (MOVWconst [-c&63])))
+
 // unary ops
 (Neg(32|16|8) x) -> (NEG x)
 (Neg(32|64)F x) -> (NEG(F|D) x)

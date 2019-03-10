@@ -92,6 +92,8 @@
 (Trunc x) -> (FRINTZD x)
 
 // lowering rotates
+(RotateLeft8 <t> x (MOVDconst [c])) -> (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
+(RotateLeft16 <t> x (MOVDconst [c])) -> (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))
 (RotateLeft32 x y) -> (RORW x (NEG <y.Type> y))
 (RotateLeft64 x y) -> (ROR x (NEG <y.Type> y))
 

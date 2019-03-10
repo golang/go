@@ -165,6 +165,11 @@
 (Rsh16x64 x (Const64 [c])) && uint64(c) >= 16 -> (SARWconst x [15])
 (Rsh8x64 x (Const64 [c])) && uint64(c) >= 8 -> (SARBconst x [7])
 
+// constant rotates
+(RotateLeft32 x (MOVLconst [c])) -> (ROLLconst [c&31] x)
+(RotateLeft16 x (MOVLconst [c])) -> (ROLWconst [c&15] x)
+(RotateLeft8 x (MOVLconst [c]))  -> (ROLBconst [c&7] x)
+
 // Lowering comparisons
 (Less32  x y) -> (SETL (CMPL x y))
 (Less16  x y) -> (SETL (CMPW x y))

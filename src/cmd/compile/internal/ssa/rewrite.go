@@ -1053,6 +1053,17 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	return false
 }
 
+// hasSmallRotate reports whether the architecture has rotate instructions
+// for sizes < 32-bit.  This is used to decide whether to promote some rotations.
+func hasSmallRotate(c *Config) bool {
+	switch c.arch {
+	case "amd64", "amd64p32", "386":
+		return true
+	default:
+		return false
+	}
+}
+
 // encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
 func armBFAuxInt(lsb, width int64) int64 {
 	if lsb < 0 || lsb > 63 {

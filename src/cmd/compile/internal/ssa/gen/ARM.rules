@@ -1233,6 +1233,10 @@
 ( ORshiftRL [c] (SLLconst x [32-c]) x) -> (SRRconst [   c] x)
 (XORshiftRL [c] (SLLconst x [32-c]) x) -> (SRRconst [   c] x)
 
+(RotateLeft32 x (MOVWconst [c])) -> (SRRconst [-c&31] x)
+(RotateLeft16 <t> x (MOVWconst [c])) -> (Or16 (Lsh16x32 <t> x (MOVWconst [c&15])) (Rsh16Ux32 <t> x (MOVWconst [-c&15])))
+(RotateLeft8 <t> x (MOVWconst [c])) -> (Or8 (Lsh8x32 <t> x (MOVWconst [c&7])) (Rsh8Ux32 <t> x (MOVWconst [-c&7])))
+
 // ((x>>8) | (x<<8)) -> (REV16 x), the type of x is uint16, "|" can also be "^" or "+".
 // UBFX instruction is supported by ARMv6T2, ARMv7 and above versions, REV16 is supported by
 // ARMv6 and above versions. So for ARMv6, we need to match SLLconst, SRLconst and ORshiftLL.
