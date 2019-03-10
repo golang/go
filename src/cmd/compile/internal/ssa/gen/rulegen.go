@@ -815,20 +815,39 @@ func isVariable(s string) bool {
 }
 
 // opRegexp is a regular expression to find the opcode portion of s-expressions.
-var opRegexp = regexp.MustCompile(`[(]\w*[(](\w+[|])+\w+[)]\w* `)
+var opRegexp = regexp.MustCompile(`[(](\w+[|])+\w+[)]`)
+
+// excludeFromExpansion reports whether the substring s[idx[0]:idx[1]] in a rule
+// should be disregarded as a candidate for | expansion.
+// It uses simple syntactic checks to see whether the substring
+// is inside an AuxInt expression or inside the && conditions.
+func excludeFromExpansion(s string, idx []int) bool {
+	left := s[:idx[0]]
+	if strings.LastIndexByte(left, '[') > strings.LastIndexByte(left, ']') {
+		// Inside an AuxInt expression.
+		return true
+	}
+	right := s[idx[1]:]
+	if strings.Contains(left, "&&") && strings.Contains(right, "->") {
+		// Inside && conditions.
+		return true
+	}
+	return false
+}
 
 // expandOr converts a rule into multiple rules by expanding | ops.
 func expandOr(r string) []string {
-	// Find every occurrence of |-separated things at the opcode position.
-	// They look like (MOV(B|W|L|Q|SS|SD)load
-	// Note: there might be false positives in parts of rules that are Go code
-	// (e.g. && conditions, AuxInt expressions, etc.).  There are currently no
-	// such false positives, so I'm not too worried about it.
+	// Find every occurrence of |-separated things.
+	// They look like MOV(B|W|L|Q|SS|SD)load or MOV(Q|L)loadidx(1|8).
 	// Generate rules selecting one case from each |-form.
 
 	// Count width of |-forms.  They must match.
 	n := 1
-	for _, s := range opRegexp.FindAllString(r, -1) {
+	for _, idx := range opRegexp.FindAllStringIndex(r, -1) {
+		if excludeFromExpansion(r, idx) {
+			continue
+		}
+		s := r[idx[0]:idx[1]]
 		c := strings.Count(s, "|") + 1
 		if c == 1 {
 			continue
@@ -842,16 +861,22 @@ func expandOr(r string) []string {
 		// No |-form in this rule.
 		return []string{r}
 	}
+	// Build each new rule.
 	res := make([]string, n)
 	for i := 0; i < n; i++ {
-		res[i] = opRegexp.ReplaceAllStringFunc(r, func(s string) string {
-			if strings.Count(s, "|") == 0 {
-				return s
+		buf := new(strings.Builder)
+		x := 0
+		for _, idx := range opRegexp.FindAllStringIndex(r, -1) {
+			if excludeFromExpansion(r, idx) {
+				continue
 			}
-			s = s[1 : len(s)-1] // remove leading "(" and trailing " "
-			x, y := strings.Index(s, "("), strings.Index(s, ")")
-			return "(" + s[:x] + strings.Split(s[x+1:y], "|")[i] + s[y+1:] + " "
-		})
+			buf.WriteString(r[x:idx[0]])              // write bytes we've skipped over so far
+			s := r[idx[0]+1 : idx[1]-1]               // remove leading "(" and trailing ")"
+			buf.WriteString(strings.Split(s, "|")[i]) // write the op component for this rule
+			x = idx[1]                                // note that we've written more bytes
+		}
+		buf.WriteString(r[x:])
+		res[i] = buf.String()
 	}
 	return res
 }
