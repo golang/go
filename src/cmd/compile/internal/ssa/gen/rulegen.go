@@ -1019,5 +1019,6 @@ func normalizeWhitespace(x string) string {
 	x = strings.Join(strings.Fields(x), " ")
 	x = strings.Replace(x, "( ", "(", -1)
 	x = strings.Replace(x, " )", ")", -1)
+	x = strings.Replace(x, ")->", ") ->", -1)
 	return x
 }
