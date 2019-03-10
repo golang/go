@@ -256,7 +256,7 @@ func TestMarshalerEscaping(t *testing.T) {
 	}
 }
 
-func TestAnonymousFields(t *testing.T) {
+func TestEmbeddedFields(t *testing.T) {
 	tests := []struct {
 		label     string             // Test name
 		makeInput func() interface{} // Function to create input value

@@ -145,7 +145,7 @@ var (
 	ummapXY   = map[unmarshalerText]bool{unmarshalerText{"x", "y"}: true}
 )
 
-// Test data structures for anonymous fields.
+// Test data structures for embedded fields.
 
 type Point struct {
 	Z int

@@ -1072,7 +1072,7 @@ func (x byIndex) Less(i, j int) bool {
 // The algorithm is breadth-first search over the set of structs to include - the top struct
 // and then any reachable embedded structs.
 func typeFields(t reflect.Type) []field {
-	// Anonymous fields to explore at the current level and the next.
+	// Embedded fields to explore at the current level and the next.
 	current := []field{}
 	next := []field{{typ: t}}
 
