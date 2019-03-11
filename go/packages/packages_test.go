@@ -26,10 +26,6 @@ import (
 	"golang.org/x/tools/go/packages/packagestest"
 )
 
-// TODO(matloob): remove this once Go 1.12 is released as we will end support
-// for versions of go list before Go 1.10.4.
-var usesOldGolist = false
-
 // TODO(adonovan): more test cases to write:
 //
 // - When the tests fail, make them print a 'cd & load' command
@@ -566,11 +562,6 @@ func testLoadTypes(t *testing.T, exporter packagestest.Exporter) {
 		{"golang.org/fake/b", false}, // use export data
 		{"golang.org/fake/c", true},  // need src, no export data for c
 	} {
-		if usesOldGolist && !test.wantSyntax {
-			// legacy go list always upgrades to LoadAllSyntax, syntax will be filled in.
-			// still check that types information is complete.
-			test.wantSyntax = true
-		}
 		p := all[test.id]
 		if p == nil {
 			t.Errorf("missing package: %s", test.id)
@@ -642,14 +633,6 @@ func testLoadSyntaxOK(t *testing.T, exporter packagestest.Exporter) {
 		{"golang.org/fake/e", false, false}, // export data package
 		{"golang.org/fake/f", false, false}, // export data package
 	} {
-		// TODO(matloob): The legacy go list based support loads
-		// everything from source because it doesn't do a build
-		// and the .a files don't exist.
-		// Can we simulate its existence?
-		if usesOldGolist {
-			test.wantComplete = true
-			test.wantSyntax = true
-		}
 		p := all[test.id]
 		if p == nil {
 			t.Errorf("missing package: %s", test.id)
@@ -768,10 +751,6 @@ func testLoadSyntaxError(t *testing.T, exporter packagestest.Exporter) {
 		{"golang.org/fake/e", true, true},
 		{"golang.org/fake/f", false, false},
 	} {
-		if usesOldGolist && !test.wantSyntax {
-			// legacy go list always upgrades to LoadAllSyntax, syntax will be filled in.
-			test.wantSyntax = true
-		}
 		p := all[test.id]
 		if p == nil {
 			t.Errorf("missing package: %s", test.id)
@@ -1217,10 +1196,6 @@ func testName(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestName_Modules(t *testing.T) {
-	if usesOldGolist {
-		t.Skip("pre-modules version of Go")
-	}
-
 	// Test the top-level package case described in runNamedQueries.
 	// Note that overriding GOPATH below prevents Export from
 	// creating more than one module.
@@ -1265,10 +1240,6 @@ func TestName_Modules(t *testing.T) {
 }
 
 func TestName_ModulesDedup(t *testing.T) {
-	if usesOldGolist {
-		t.Skip("pre-modules version of Go")
-	}
-
 	exported := packagestest.Export(t, packagestest.Modules, []packagestest.Module{{
 		Name: "golang.org/fake",
 		Files: map[string]interface{}{

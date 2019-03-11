@@ -121,20 +121,6 @@ extractQueries:
 		}
 	}
 
-	// TODO(matloob): Remove the definition of listfunc and just use golistPackages once go1.12 is released.
-	var listfunc driver
-	var isFallback bool
-	listfunc = func(cfg *Config, words ...string) (*driverResponse, error) {
-		response, err := golistDriverCurrent(cfg, words...)
-		if _, ok := err.(goTooOldError); ok {
-			isFallback = true
-			listfunc = golistDriverFallback
-			return listfunc(cfg, words...)
-		}
-		listfunc = golistDriverCurrent
-		return response, err
-	}
-
 	response := &responseDeduper{}
 	var err error
 
@@ -142,7 +128,7 @@ extractQueries:
 	// patterns also requires a go list call, since it's the equivalent of
 	// ".".
 	if len(restPatterns) > 0 || len(patterns) == 0 {
-		dr, err := listfunc(cfg, restPatterns...)
+		dr, err := golistDriverCurrent(cfg, restPatterns...)
 		if err != nil {
 			return nil, err
 		}
@@ -161,13 +147,13 @@ extractQueries:
 	var containsCandidates []string
 
 	if len(containFiles) != 0 {
-		if err := runContainsQueries(cfg, listfunc, isFallback, response, containFiles); err != nil {
+		if err := runContainsQueries(cfg, golistDriverCurrent, response, containFiles); err != nil {
 			return nil, err
 		}
 	}
 
 	if len(packagesNamed) != 0 {
-		if err := runNamedQueries(cfg, listfunc, response, packagesNamed); err != nil {
+		if err := runNamedQueries(cfg, golistDriverCurrent, response, packagesNamed); err != nil {
 			return nil, err
 		}
 	}
@@ -182,7 +168,7 @@ extractQueries:
 	}
 
 	if len(needPkgs) > 0 {
-		addNeededOverlayPackages(cfg, listfunc, response, needPkgs)
+		addNeededOverlayPackages(cfg, golistDriverCurrent, response, needPkgs)
 		if err != nil {
 			return nil, err
 		}
@@ -215,7 +201,7 @@ func addNeededOverlayPackages(cfg *Config, driver driver, response *responseDedu
 	return nil
 }
 
-func runContainsQueries(cfg *Config, driver driver, isFallback bool, response *responseDeduper, queries []string) error {
+func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, queries []string) error {
 	for _, query := range queries {
 		// TODO(matloob): Do only one query per directory.
 		fdir := filepath.Dir(query)
@@ -225,11 +211,6 @@ func runContainsQueries(cfg *Config, driver driver, isFallback bool, response *r
 		if err != nil {
 			return fmt.Errorf("could not determine absolute path of file= query path %q: %v", query, err)
 		}
-		if isFallback {
-			pattern = "."
-			cfg.Dir = fdir
-		}
-
 		dirResponse, err := driver(cfg, pattern)
 		if err != nil {
 			return err
