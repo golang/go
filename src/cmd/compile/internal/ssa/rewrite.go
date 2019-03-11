@@ -730,6 +730,14 @@ func arm64Negate(op Op) Op {
 		return OpARM64NotEqual
 	case OpARM64NotEqual:
 		return OpARM64Equal
+	case OpARM64LessThanF:
+		return OpARM64GreaterEqualF
+	case OpARM64GreaterThanF:
+		return OpARM64LessEqualF
+	case OpARM64LessEqualF:
+		return OpARM64GreaterThanF
+	case OpARM64GreaterEqualF:
+		return OpARM64LessThanF
 	default:
 		panic("unreachable")
 	}
@@ -762,6 +770,14 @@ func arm64Invert(op Op) Op {
 		return OpARM64LessEqualU
 	case OpARM64Equal, OpARM64NotEqual:
 		return op
+	case OpARM64LessThanF:
+		return OpARM64GreaterThanF
+	case OpARM64GreaterThanF:
+		return OpARM64LessThanF
+	case OpARM64LessEqualF:
+		return OpARM64GreaterEqualF
+	case OpARM64GreaterEqualF:
+		return OpARM64LessEqualF
 	default:
 		panic("unreachable")
 	}
