@@ -160,12 +160,6 @@ type RevInfo struct {
 // To avoid version control access except when absolutely necessary,
 // Lookup does not attempt to connect to the repository itself.
 //
-// The Import function takes an import path found in source code and
-// determines which module to add to the requirement list to satisfy
-// that import. It checks successive truncations of the import path
-// to determine possible modules and stops when it finds a module
-// in which the latest version satisfies the import path.
-//
 // The ImportRepoRev function is a variant of Import which is limited
 // to code in a source code repository at a particular revision identifier
 // (usually a commit hash or source code repository tag, not necessarily
