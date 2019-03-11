@@ -1,3 +1,3 @@
 module golang.org/x/tools
 
-require golang.org/x/net v0.0.0-20190213061140-3a22650c66bd
+require golang.org/x/net v0.0.0-20190311183353-d8887717615a
