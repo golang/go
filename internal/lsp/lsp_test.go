@@ -18,7 +18,6 @@ import (
 
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
-	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 )
@@ -378,30 +377,11 @@ func (f formats) test(t *testing.T, s *server) {
 		if err != nil {
 			t.Error(err)
 		}
-		var ops []*diff.Op
-		for _, edit := range edits {
-			start := int(edit.Range.Start.Line)
-			end := int(edit.Range.End.Line)
-			if start == end && edit.Range.End.Character > 1 {
-				end++
-			}
-			if edit.NewText == "" { // deletion
-				ops = append(ops, &diff.Op{
-					Kind: diff.Delete,
-					I1:   start,
-					I2:   end,
-				})
-			} else if edit.Range.Start == edit.Range.End { // insertion
-				ops = append(ops, &diff.Op{
-					Kind:    diff.Insert,
-					Content: edit.NewText,
-					I1:      start,
-					I2:      end,
-				})
-			}
+		buf, err := applyEdits(f.GetContent(context.Background()), edits)
+		if err != nil {
+			t.Error(err)
 		}
-		split := strings.SplitAfter(string(f.GetContent(context.Background())), "\n")
-		got := strings.Join(diff.ApplyEdits(split, ops), "")
+		got := string(buf)
 		if gofmted != got {
 			t.Errorf("format failed for %s: expected '%v', got '%v'", filename, gofmted, got)
 		}
@@ -476,4 +456,24 @@ func TestBytesOffset(t *testing.T) {
 			t.Errorf("want %d for %q(Line:%d,Character:%d), but got %d", test.want, test.text, int(test.pos.Line), int(test.pos.Character), got)
 		}
 	}
+}
+
+func applyEdits(content []byte, edits []protocol.TextEdit) ([]byte, error) {
+	prev := 0
+	result := make([]byte, 0, len(content))
+	for _, edit := range edits {
+		start := bytesOffset(content, edit.Range.Start)
+		end := bytesOffset(content, edit.Range.End)
+		if start > prev {
+			result = append(result, content[prev:start]...)
+		}
+		if len(edit.NewText) > 0 {
+			result = append(result, []byte(edit.NewText)...)
+		}
+		prev = end
+	}
+	if prev < len(content) {
+		result = append(result, content[prev:]...)
+	}
+	return result, nil
 }
