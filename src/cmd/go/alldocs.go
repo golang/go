@@ -1554,6 +1554,8 @@
 //
 // 	GOEXE
 // 		The executable file name suffix (".exe" on Windows, "" on other systems).
+// 	GOGCCFLAGS
+// 		A space-separated list of arguments supplied to the CC command.
 // 	GOHOSTARCH
 // 		The architecture (GOARCH) of the Go toolchain binaries.
 // 	GOHOSTOS
