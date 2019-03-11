@@ -92,6 +92,15 @@ func Ignored(sig os.Signal) bool {
 	return sn >= 0 && signalIgnored(sn)
 }
 
+var (
+	// watchSignalLoopOnce guards calling the conditionally
+	// initialized watchSignalLoop. If watchSignalLoop is non-nil,
+	// it will be run in a goroutine lazily once Notify is invoked.
+	// See Issue 21576.
+	watchSignalLoopOnce sync.Once
+	watchSignalLoop     func()
+)
+
 // Notify causes package signal to relay incoming signals to c.
 // If no signals are provided, all incoming signals will be relayed to c.
 // Otherwise, just the provided signals will.
@@ -112,6 +121,12 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
 	if c == nil {
 		panic("os/signal: Notify using nil channel")
 	}
+
+	watchSignalLoopOnce.Do(func() {
+		if watchSignalLoop != nil {
+			go watchSignalLoop()
+		}
+	})
 
 	handlers.Lock()
 	defer handlers.Unlock()
