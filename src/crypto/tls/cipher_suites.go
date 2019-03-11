@@ -14,8 +14,8 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
-	"github.com/test/go-fork/fmt"
 	"hash"
+	"errors"
 	"internal/x/crypto/chacha20poly1305"
 )
 
@@ -121,7 +121,7 @@ func CipherSuiteById(id uint16) (CipherSuite, error) {
 			return CipherSuite(*cs), nil
 		}
 	}
-	return CipherSuite{}, fmt.Errorf("cipher id not existing")
+	return CipherSuite{}, errors.New("cipher id not existing")
 }
 
 // CipherSuite returns a copy of the CipherSuite struct given the name of the cipher suite.
@@ -131,7 +131,7 @@ func CipherSuiteByName(name string) (CipherSuite, error) {
 			return CipherSuite(*cs), nil
 		}
 	}
-	return CipherSuite{}, fmt.Errorf("cipher name not existing")
+	return CipherSuite{}, errors.New("cipher name not existing")
 }
 
 // A CipherSuiteTLS13 defines only the pair of the AEAD algorithm and hash
@@ -166,7 +166,7 @@ func CipherSuiteTLS13ById(id uint16) (CipherSuiteTLS13, error) {
 			return CipherSuiteTLS13(*cs), nil
 		}
 	}
-	return CipherSuiteTLS13{}, fmt.Errorf("cipher id not existing")
+	return CipherSuiteTLS13{}, errors.New("cipher id not existing")
 }
 
 // CipherSuite returns a copy of the CipherSuite struct given the name of the cipher suite.
@@ -176,7 +176,7 @@ func CipherSuiteTLS13ByName(name string) (CipherSuiteTLS13, error) {
 			return CipherSuiteTLS13(*cs), nil
 		}
 	}
-	return CipherSuiteTLS13{}, fmt.Errorf("cipher name not existing")
+	return CipherSuiteTLS13{}, errors.New("cipher name not existing")
 }
 
 func cipherRC4(key, iv []byte, isRead bool) interface{} {
