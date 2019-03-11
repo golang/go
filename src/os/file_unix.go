@@ -52,6 +52,7 @@ type file struct {
 	dirinfo     *dirInfo // nil unless directory being read
 	nonblock    bool     // whether we set nonblocking mode
 	stdoutOrErr bool     // whether this is stdout or stderr
+	appendMode  bool     // whether file is opened for appending
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
