@@ -180,6 +180,7 @@ var (
 	rangeType      = reflect.TypeOf(Range{})
 	fsetType       = reflect.TypeOf((*token.FileSet)(nil))
 	regexType      = reflect.TypeOf((*regexp.Regexp)(nil))
+	exportedType   = reflect.TypeOf((*Exported)(nil))
 )
 
 // converter converts from a marker's argument parsed from the comment to
@@ -209,6 +210,10 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 	case pt == fsetType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
 			return reflect.ValueOf(e.fset), args, nil
+		}, nil
+	case pt == exportedType:
+		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
+			return reflect.ValueOf(e), args, nil
 		}, nil
 	case pt == posType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
