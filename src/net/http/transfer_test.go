@@ -278,3 +278,35 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
 		})
 	}
 }
+
+func TestFixTransferEncoding(t *testing.T) {
+	tests := []struct {
+		hdr     Header
+		wantErr error
+	}{
+		{
+			hdr:     Header{"Transfer-Encoding": {"fugazi"}},
+			wantErr: &unsupportedTEError{`unsupported transfer encoding: "fugazi"`},
+		},
+		{
+			hdr:     Header{"Transfer-Encoding": {"chunked, chunked", "identity", "chunked"}},
+			wantErr: &badStringError{"too many transfer encodings", "chunked,chunked"},
+		},
+		{
+			hdr:     Header{"Transfer-Encoding": {"chunked"}},
+			wantErr: nil,
+		},
+	}
+
+	for i, tt := range tests {
+		tr := &transferReader{
+			Header:     tt.hdr,
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+		}
+		gotErr := tr.fixTransferEncoding()
+		if !reflect.DeepEqual(gotErr, tt.wantErr) {
+			t.Errorf("%d.\ngot error:\n%v\nwant error:\n%v\n\n", i, gotErr, tt.wantErr)
+		}
+	}
+}

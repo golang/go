@@ -589,6 +589,22 @@ func chunked(te []string) bool { return len(te) > 0 && te[0] == "chunked" }
 // Checks whether the encoding is explicitly "identity".
 func isIdentity(te []string) bool { return len(te) == 1 && te[0] == "identity" }
 
+// unsupportedTEError reports unsupported transfer-encodings.
+type unsupportedTEError struct {
+	err string
+}
+
+func (uste *unsupportedTEError) Error() string {
+	return uste.err
+}
+
+// isUnsupportedTEError checks if the error is of type
+// unsupportedTEError. It is usually invoked with a non-nil err.
+func isUnsupportedTEError(err error) bool {
+	_, ok := err.(*unsupportedTEError)
+	return ok
+}
+
 // fixTransferEncoding sanitizes t.TransferEncoding, if needed.
 func (t *transferReader) fixTransferEncoding() error {
 	raw, present := t.Header["Transfer-Encoding"]
@@ -615,7 +631,7 @@ func (t *transferReader) fixTransferEncoding() error {
 			break
 		}
 		if encoding != "chunked" {
-			return &badStringError{"unsupported transfer encoding", encoding}
+			return &unsupportedTEError{fmt.Sprintf("unsupported transfer encoding: %q", encoding)}
 		}
 		te = te[0 : len(te)+1]
 		te[len(te)-1] = encoding
