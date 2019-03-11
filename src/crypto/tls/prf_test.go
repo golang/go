@@ -35,7 +35,7 @@ func TestSplitPreMasterSecret(t *testing.T) {
 
 type testKeysFromTest struct {
 	version                                        uint16
-	suite                                          *cipherSuite
+	suite                                          *CipherSuite
 	preMasterSecret                                string
 	clientRandom, serverRandom                     string
 	masterSecret                                   string

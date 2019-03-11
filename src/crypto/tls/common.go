@@ -1097,7 +1097,7 @@ func defaultCipherSuitesTLS13() []uint16 {
 func initDefaultCipherSuites() {
 	var topCipherSuites []uint16
 
-	// Check the cpu flags for each platform that has optimized GCM implementations.
+	// Check the cpu Flags for each platform that has optimized GCM implementations.
 	// Worst case, these variables will just all be false.
 	var (
 		hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
@@ -1147,15 +1147,15 @@ func initDefaultCipherSuites() {
 
 NextCipherSuite:
 	for _, suite := range cipherSuites {
-		if suite.flags&suiteDefaultOff != 0 {
+		if suite.Flags&SuiteDefaultOff != 0 {
 			continue
 		}
 		for _, existing := range varDefaultCipherSuites {
-			if existing == suite.id {
+			if existing == suite.Id {
 				continue NextCipherSuite
 			}
 		}
-		varDefaultCipherSuites = append(varDefaultCipherSuites, suite.id)
+		varDefaultCipherSuites = append(varDefaultCipherSuites, suite.Id)
 	}
 }
 
