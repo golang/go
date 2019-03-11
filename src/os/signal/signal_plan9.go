@@ -20,7 +20,8 @@ func signal_recv() string
 
 func init() {
 	signal_enable(0) // first call - initialize
-	go loop()
+
+	watchSignalLoop = loop
 }
 
 func loop() {
