@@ -8,13 +8,17 @@ import (
 	"flag"
 	"fmt"
 	"internal/race"
+	"io"
+	"math"
 	"os"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode"
 )
 
 var matchBenchmarks = flag.String("test.bench", "", "run only benchmarks matching `regexp`")
@@ -101,6 +105,8 @@ type B struct {
 	// The net total of this test after being run.
 	netAllocs uint64
 	netBytes  uint64
+	// Extra metrics collected by ReportMetric.
+	extra map[string]float64
 }
 
 // StartTimer starts timing a test. This function is called automatically
@@ -129,9 +135,19 @@ func (b *B) StopTimer() {
 	}
 }
 
-// ResetTimer zeros the elapsed benchmark time and memory allocation counters.
+// ResetTimer zeros the elapsed benchmark time and memory allocation counters
+// and deletes user-reported metrics.
 // It does not affect whether the timer is running.
 func (b *B) ResetTimer() {
+	if b.extra == nil {
+		// Allocate the extra map before reading memory stats.
+		// Pre-size it to make more allocation unlikely.
+		b.extra = make(map[string]float64, 16)
+	} else {
+		for k := range b.extra {
+			delete(b.extra, k)
+		}
+	}
 	if b.timerOn {
 		runtime.ReadMemStats(&memStats)
 		b.startAllocs = memStats.Mallocs
@@ -328,7 +344,26 @@ func (b *B) launch() {
 			b.runN(n)
 		}
 	}
-	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes}
+	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes, b.extra}
+}
+
+// ReportMetric adds "n unit" to the reported benchmark results.
+// If the metric is per-iteration, the caller should divide by b.N,
+// and by convention units should end in "/op".
+// ReportMetric overrides any previously reported value for the same unit.
+// ReportMetric panics if unit is the empty string or if unit contains
+// any whitespace.
+// If unit is a unit normally reported by the benchmark framework itself
+// (such as "allocs/op"), ReportMetric will override that metric.
+// Setting "ns/op" to 0 will suppress that built-in metric.
+func (b *B) ReportMetric(n float64, unit string) {
+	if unit == "" {
+		panic("metric unit must not be empty")
+	}
+	if strings.IndexFunc(unit, unicode.IsSpace) >= 0 {
+		panic("metric unit must not contain whitespace")
+	}
+	b.extra[unit] = n
 }
 
 // The results of a benchmark run.
@@ -338,56 +373,117 @@ type BenchmarkResult struct {
 	Bytes     int64         // Bytes processed in one iteration.
 	MemAllocs uint64        // The total number of memory allocations.
 	MemBytes  uint64        // The total number of bytes allocated.
+
+	// Extra records additional metrics reported by ReportMetric.
+	Extra map[string]float64
 }
 
+// NsPerOp returns the "ns/op" metric.
 func (r BenchmarkResult) NsPerOp() int64 {
+	if v, ok := r.Extra["ns/op"]; ok {
+		return int64(v)
+	}
 	if r.N <= 0 {
 		return 0
 	}
 	return r.T.Nanoseconds() / int64(r.N)
 }
 
+// mbPerSec returns the "MB/s" metric.
 func (r BenchmarkResult) mbPerSec() float64 {
+	if v, ok := r.Extra["MB/s"]; ok {
+		return v
+	}
 	if r.Bytes <= 0 || r.T <= 0 || r.N <= 0 {
 		return 0
 	}
 	return (float64(r.Bytes) * float64(r.N) / 1e6) / r.T.Seconds()
 }
 
-// AllocsPerOp returns r.MemAllocs / r.N.
+// AllocsPerOp returns the "allocs/op" metric,
+// which is calculated as r.MemAllocs / r.N.
 func (r BenchmarkResult) AllocsPerOp() int64 {
+	if v, ok := r.Extra["allocs/op"]; ok {
+		return int64(v)
+	}
 	if r.N <= 0 {
 		return 0
 	}
 	return int64(r.MemAllocs) / int64(r.N)
 }
 
-// AllocedBytesPerOp returns r.MemBytes / r.N.
+// AllocedBytesPerOp returns the "B/op" metric,
+// which is calculated as r.MemBytes / r.N.
 func (r BenchmarkResult) AllocedBytesPerOp() int64 {
+	if v, ok := r.Extra["B/op"]; ok {
+		return int64(v)
+	}
 	if r.N <= 0 {
 		return 0
 	}
 	return int64(r.MemBytes) / int64(r.N)
 }
 
+// String returns a summary of the benchmark results.
+// It follows the benchmark result line format from
+// https://golang.org/design/14313-benchmark-format, not including the
+// benchmark name.
+// Extra metrics override built-in metrics of the same name.
+// String does not include allocs/op or B/op, since those are reported
+// by MemString.
 func (r BenchmarkResult) String() string {
-	mbs := r.mbPerSec()
-	mb := ""
-	if mbs != 0 {
-		mb = fmt.Sprintf("\t%7.2f MB/s", mbs)
+	buf := new(strings.Builder)
+	fmt.Fprintf(buf, "%8d", r.N)
+
+	if ns := r.NsPerOp(); ns != 0 {
+		buf.WriteByte('\t')
+		prettyPrint(buf, float64(ns), "ns/op")
 	}
-	nsop := r.NsPerOp()
-	ns := fmt.Sprintf("%10d ns/op", nsop)
-	if r.N > 0 && nsop < 100 {
-		// The format specifiers here make sure that
-		// the ones digits line up for all three possible formats.
-		if nsop < 10 {
-			ns = fmt.Sprintf("%13.2f ns/op", float64(r.T.Nanoseconds())/float64(r.N))
-		} else {
-			ns = fmt.Sprintf("%12.1f ns/op", float64(r.T.Nanoseconds())/float64(r.N))
+
+	if mbs := r.mbPerSec(); mbs != 0 {
+		fmt.Fprintf(buf, "\t%7.2f MB/s", mbs)
+	}
+
+	// Print extra metrics that aren't represented in the standard
+	// metrics.
+	var extraKeys []string
+	for k := range r.Extra {
+		switch k {
+		case "ns/op", "MB/s", "B/op", "allocs/op":
+			// Built-in metrics reported elsewhere.
+			continue
 		}
+		extraKeys = append(extraKeys, k)
 	}
-	return fmt.Sprintf("%8d\t%s%s", r.N, ns, mb)
+	sort.Strings(extraKeys)
+	for _, k := range extraKeys {
+		buf.WriteByte('\t')
+		prettyPrint(buf, r.Extra[k], k)
+	}
+	return buf.String()
+}
+
+func prettyPrint(w io.Writer, x float64, unit string) {
+	// Print all numbers with 10 places before the decimal point
+	// and small numbers with three sig figs.
+	var format string
+	switch y := math.Abs(x); {
+	case y == 0 || y >= 99.95:
+		format = "%10.0f %s"
+	case y >= 9.995:
+		format = "%12.1f %s"
+	case y >= 0.9995:
+		format = "%13.2f %s"
+	case y >= 0.09995:
+		format = "%14.3f %s"
+	case y >= 0.009995:
+		format = "%15.4f %s"
+	case y >= 0.0009995:
+		format = "%16.5f %s"
+	default:
+		format = "%17.6f %s"
+	}
+	fmt.Fprintf(w, format, x, unit)
 }
 
 // MemString returns r.AllocedBytesPerOp and r.AllocsPerOp in the same format as 'go test'.
