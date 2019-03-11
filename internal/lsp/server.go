@@ -188,9 +188,12 @@ func (s *server) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 func bytesOffset(content []byte, pos protocol.Position) int {
 	var line, char, offset int
 
-	for len(content) > 0 {
+	for {
 		if line == int(pos.Line) && char == int(pos.Character) {
 			return offset
+		}
+		if len(content) == 0 {
+			return -1
 		}
 
 		r, size := utf8.DecodeRune(content)
@@ -210,7 +213,6 @@ func bytesOffset(content []byte, pos protocol.Position) int {
 			char = 0
 		}
 	}
-	return -1
 }
 
 func (s *server) applyChanges(ctx context.Context, params *protocol.DidChangeTextDocumentParams) (string, error) {

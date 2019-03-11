@@ -458,13 +458,15 @@ func TestBytesOffset(t *testing.T) {
 		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 1}, want: 1},
 		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 2}, want: 1},
 		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 3}, want: 5},
-		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 4}, want: -1},
+		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 4}, want: 6},
+		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 5}, want: -1},
 		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 0, Character: 3}, want: 3},
 		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 0, Character: 4}, want: -1},
 		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 1, Character: 0}, want: 4},
 		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 1, Character: 3}, want: 7},
 		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 1, Character: 4}, want: -1},
-		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 2, Character: 0}, want: -1},
+		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 2, Character: 0}, want: 8},
+		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 2, Character: 1}, want: -1},
 		{text: "aaa\nbbb\n\n", pos: protocol.Position{Line: 2, Character: 0}, want: 8},
 	}
 
