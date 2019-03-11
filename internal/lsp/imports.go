@@ -11,7 +11,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 )
 
-func organizeImports(ctx context.Context, v source.View, uri protocol.DocumentURI) ([]protocol.TextEdit, error) {
+func organizeImports(ctx context.Context, v source.View, uri string) ([]protocol.TextEdit, error) {
 	sourceURI, err := fromProtocolURI(uri)
 	if err != nil {
 		return nil, err

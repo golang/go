@@ -8,7 +8,7 @@ import (
 )
 
 // formatRange formats a document with a given range.
-func formatRange(ctx context.Context, v source.View, uri protocol.DocumentURI, rng *protocol.Range) ([]protocol.TextEdit, error) {
+func formatRange(ctx context.Context, v source.View, uri string, rng *protocol.Range) ([]protocol.TextEdit, error) {
 	sourceURI, err := fromProtocolURI(uri)
 	if err != nil {
 		return nil, err

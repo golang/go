@@ -248,7 +248,7 @@ func (c completions) test(t *testing.T, exported *packagestest.Exported, s *serv
 		list, err := s.Completion(context.Background(), &protocol.CompletionParams{
 			TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 				TextDocument: protocol.TextDocumentIdentifier{
-					URI: protocol.DocumentURI(source.ToURI(src.Filename)),
+					URI: string(source.ToURI(src.Filename)),
 				},
 				Position: protocol.Position{
 					Line:      float64(src.Line - 1),
@@ -278,7 +278,7 @@ func (c completions) test(t *testing.T, exported *packagestest.Exported, s *serv
 
 func isBuiltin(item protocol.CompletionItem) bool {
 	// If a type has no detail, it is a builtin type.
-	if item.Detail == "" && item.Kind == float64(protocol.TypeParameterCompletion) {
+	if item.Detail == "" && item.Kind == protocol.TypeParameterCompletion {
 		return true
 	}
 	// Remaining builtin constants, variables, interfaces, and functions.
@@ -324,7 +324,7 @@ func (i completionItems) collect(pos token.Pos, label, detail, kind string) {
 	i[pos] = &protocol.CompletionItem{
 		Label:  label,
 		Detail: detail,
-		Kind:   float64(k),
+		Kind:   k,
 	}
 }
 
@@ -364,7 +364,7 @@ func (f formats) test(t *testing.T, s *server) {
 	for filename, gofmted := range f {
 		edits, err := s.Formatting(context.Background(), &protocol.DocumentFormattingParams{
 			TextDocument: protocol.TextDocumentIdentifier{
-				URI: protocol.DocumentURI(source.ToURI(filename)),
+				URI: string(source.ToURI(filename)),
 			},
 		})
 		if err != nil {

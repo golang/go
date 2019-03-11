@@ -84,12 +84,15 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 	s.initialized = true // mark server as initialized now
 
 	// Check if the client supports snippets in completion items.
-	s.snippetsSupported = params.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport
+	capText := params.Capabilities.InnerClientCapabilities.TextDocument
+	if capText != nil && capText.Completion != nil && capText.Completion.CompletionItem != nil {
+		s.snippetsSupported = capText.Completion.CompletionItem.SnippetSupport
+	}
 	s.signatureHelpEnabled = true
 
-	var rootURI protocol.DocumentURI
-	if params.RootURI != nil {
-		rootURI = *params.RootURI
+	var rootURI string
+	if params.RootURI != "" {
+		rootURI = params.RootURI
 	}
 	sourceURI, err := fromProtocolURI(rootURI)
 	if err != nil {
@@ -118,22 +121,26 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
-			CodeActionProvider: true,
-			CompletionProvider: protocol.CompletionOptions{
-				TriggerCharacters: []string{"."},
+			InnerServerCapabilities: protocol.InnerServerCapabilities{
+				CodeActionProvider: true,
+				CompletionProvider: &protocol.CompletionOptions{
+					TriggerCharacters: []string{"."},
+				},
+				DefinitionProvider:              true,
+				DocumentFormattingProvider:      true,
+				DocumentRangeFormattingProvider: true,
+				HoverProvider:                   true,
+				SignatureHelpProvider: &protocol.SignatureHelpOptions{
+					TriggerCharacters: []string{"(", ","},
+				},
+				TextDocumentSync: &protocol.TextDocumentSyncOptions{
+					Change:    s.textDocumentSyncKind,
+					OpenClose: true,
+				},
 			},
-			DefinitionProvider:              true,
-			DocumentFormattingProvider:      true,
-			DocumentRangeFormattingProvider: true,
-			HoverProvider:                   true,
-			SignatureHelpProvider: protocol.SignatureHelpOptions{
-				TriggerCharacters: []string{"(", ","},
+			TypeDefinitionServerCapabilities: protocol.TypeDefinitionServerCapabilities{
+				TypeDefinitionProvider: true,
 			},
-			TextDocumentSync: protocol.TextDocumentSyncOptions{
-				Change:    float64(s.textDocumentSyncKind),
-				OpenClose: true,
-			},
-			TypeDefinitionProvider: true,
 		},
 	}, nil
 }
@@ -345,12 +352,13 @@ func (s *server) Hover(ctx context.Context, params *protocol.TextDocumentPositio
 		return nil, err
 	}
 	markdown := "```go\n" + content + "\n```"
+	x := toProtocolRange(tok, ident.Range)
 	return &protocol.Hover{
 		Contents: protocol.MarkupContent{
 			Kind:  protocol.Markdown,
 			Value: markdown,
 		},
-		Range: toProtocolRange(tok, ident.Range),
+		Range: &x,
 	}, nil
 }
 
@@ -433,8 +441,8 @@ func (s *server) CodeAction(ctx context.Context, params *protocol.CodeActionPara
 		{
 			Title: "Organize Imports",
 			Kind:  protocol.SourceOrganizeImports,
-			Edit: protocol.WorkspaceEdit{
-				Changes: map[protocol.DocumentURI][]protocol.TextEdit{
+			Edit: &protocol.WorkspaceEdit{
+				Changes: &map[string][]protocol.TextEdit{
 					params.TextDocument.URI: edits,
 				},
 			},
@@ -482,7 +490,7 @@ func (s *server) Rename(context.Context, *protocol.RenameParams) ([]protocol.Wor
 	return nil, notImplemented("Rename")
 }
 
-func (s *server) FoldingRanges(context.Context, *protocol.FoldingRangeRequestParam) ([]protocol.FoldingRange, error) {
+func (s *server) FoldingRanges(context.Context, *protocol.FoldingRangeParams) ([]protocol.FoldingRange, error) {
 	return nil, notImplemented("FoldingRanges")
 }
 

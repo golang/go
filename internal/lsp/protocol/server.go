@@ -48,7 +48,7 @@ type Server interface {
 	RangeFormatting(context.Context, *DocumentRangeFormattingParams) ([]TextEdit, error)
 	OnTypeFormatting(context.Context, *DocumentOnTypeFormattingParams) ([]TextEdit, error)
 	Rename(context.Context, *RenameParams) ([]WorkspaceEdit, error)
-	FoldingRanges(context.Context, *FoldingRangeRequestParam) ([]FoldingRange, error)
+	FoldingRanges(context.Context, *FoldingRangeParams) ([]FoldingRange, error)
 }
 
 func serverHandler(server Server) jsonrpc2.Handler {
@@ -374,7 +374,7 @@ func serverHandler(server Server) jsonrpc2.Handler {
 			unhandledError(conn.Reply(ctx, r, resp, err))
 
 		case "textDocument/foldingRange":
-			var params FoldingRangeRequestParam
+			var params FoldingRangeParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				sendParseError(ctx, conn, r, err)
 				return
@@ -637,10 +637,17 @@ func (s *serverDispatcher) Rename(ctx context.Context, params *RenameParams) ([]
 	return result, nil
 }
 
-func (s *serverDispatcher) FoldingRanges(ctx context.Context, params *FoldingRangeRequestParam) ([]FoldingRange, error) {
+func (s *serverDispatcher) FoldingRanges(ctx context.Context, params *FoldingRangeParams) ([]FoldingRange, error) {
 	var result []FoldingRange
 	if err := s.Conn.Call(ctx, "textDocument/foldingRanges", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
+}
+
+type CancelParams struct {
+	/**
+	 * The request id to cancel.
+	 */
+	ID jsonrpc2.ID `json:"id"`
 }

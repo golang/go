@@ -14,9 +14,9 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 )
 
-// fromProtocolURI converts a protocol.DocumentURI to a source.URI.
+// fromProtocolURI converts a string to a source.URI.
 // TODO(rstambler): Add logic here to support Windows.
-func fromProtocolURI(uri protocol.DocumentURI) (source.URI, error) {
+func fromProtocolURI(uri string) (source.URI, error) {
 	unescaped, err := url.PathUnescape(string(uri))
 	if err != nil {
 		return "", err
@@ -45,7 +45,7 @@ func toProtocolLocation(fset *token.FileSet, r source.Range) protocol.Location {
 	tok := fset.File(r.Start)
 	uri := source.ToURI(tok.Name())
 	return protocol.Location{
-		URI:   protocol.DocumentURI(uri),
+		URI:   string(uri),
 		Range: toProtocolRange(tok, r),
 	}
 }
