@@ -25,7 +25,7 @@ type clientHandshakeState struct {
 	c            *Conn
 	serverHello  *serverHelloMsg
 	hello        *clientHelloMsg
-	suite        *cipherSuite
+	suite        *CipherSuite
 	finishedHash finishedHash
 	masterSecret []byte
 	session      *ClientSessionState
@@ -87,12 +87,12 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 
 	for _, suiteId := range possibleCipherSuites {
 		for _, suite := range cipherSuites {
-			if suite.id != suiteId {
+			if suite.Id != suiteId {
 				continue
 			}
 			// Don't advertise TLS 1.2-only cipher suites unless
 			// we're attempting TLS 1.2.
-			if hello.vers < VersionTLS12 && suite.flags&suiteTLS12 != 0 {
+			if hello.vers < VersionTLS12 && suite.Flags&SuiteTLS12 != 0 {
 				break
 			}
 			hello.cipherSuites = append(hello.cipherSuites, suiteId)
@@ -429,7 +429,7 @@ func (hs *clientHandshakeState) pickCipherSuite() error {
 		return errors.New("tls: server chose an unconfigured cipher suite")
 	}
 
-	hs.c.cipherSuite = hs.suite.id
+	hs.c.cipherSuite = hs.suite.Id
 	return nil
 }
 
@@ -617,7 +617,7 @@ func (hs *clientHandshakeState) establishKeys() error {
 	c := hs.c
 
 	clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
-		keysFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.hello.random, hs.serverHello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen)
+		keysFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.hello.random, hs.serverHello.random, hs.suite.MacLen, hs.suite.KeyLen, hs.suite.IvLen)
 	var clientCipher, serverCipher interface{}
 	var clientHash, serverHash macFunction
 	if hs.suite.cipher != nil {
@@ -707,7 +707,7 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 		return false, errors.New("tls: server resumed a session with a different version")
 	}
 
-	if hs.session.cipherSuite != hs.suite.id {
+	if hs.session.cipherSuite != hs.suite.Id {
 		c.sendAlert(alertHandshakeFailure)
 		return false, errors.New("tls: server resumed a session with a different cipher suite")
 	}
@@ -767,7 +767,7 @@ func (hs *clientHandshakeState) readSessionTicket() error {
 	hs.session = &ClientSessionState{
 		sessionTicket:      sessionTicketMsg.ticket,
 		vers:               c.vers,
-		cipherSuite:        hs.suite.id,
+		cipherSuite:        hs.suite.Id,
 		masterSecret:       hs.masterSecret,
 		serverCertificates: c.peerCertificates,
 		verifiedChains:     c.verifiedChains,

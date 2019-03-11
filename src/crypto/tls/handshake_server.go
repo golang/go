@@ -22,7 +22,7 @@ type serverHandshakeState struct {
 	c            *Conn
 	clientHello  *clientHelloMsg
 	hello        *serverHelloMsg
-	suite        *cipherSuite
+	suite        *CipherSuite
 	ellipticOk   bool
 	ecdsaOk      bool
 	rsaDecryptOk bool
@@ -379,7 +379,7 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 func (hs *serverHandshakeState) doResumeHandshake() error {
 	c := hs.c
 
-	hs.hello.cipherSuite = hs.suite.id
+	hs.hello.cipherSuite = hs.suite.Id
 	// We echo the client's session ID in the ServerHello to let it know
 	// that we're doing a resumption.
 	hs.hello.sessionId = hs.clientHello.sessionId
@@ -411,7 +411,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	}
 
 	hs.hello.ticketSupported = hs.clientHello.ticketSupported && !c.config.SessionTicketsDisabled
-	hs.hello.cipherSuite = hs.suite.id
+	hs.hello.cipherSuite = hs.suite.Id
 
 	hs.finishedHash = newFinishedHash(hs.c.vers, hs.suite)
 	if c.config.ClientAuth == NoClientCert {
@@ -586,7 +586,7 @@ func (hs *serverHandshakeState) establishKeys() error {
 	c := hs.c
 
 	clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
-		keysFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen)
+		keysFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random, hs.suite.MacLen, hs.suite.KeyLen, hs.suite.IvLen)
 
 	var clientCipher, serverCipher interface{}
 	var clientHash, serverHash macFunction
@@ -664,7 +664,7 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 	}
 	state := sessionState{
 		vers:         c.vers,
-		cipherSuite:  hs.suite.id,
+		cipherSuite:  hs.suite.Id,
 		masterSecret: hs.masterSecret,
 		certificates: certsFromClient,
 	}
@@ -696,7 +696,7 @@ func (hs *serverHandshakeState) sendFinished(out []byte) error {
 		return err
 	}
 
-	c.cipherSuite = hs.suite.id
+	c.cipherSuite = hs.suite.Id
 	copy(out, finished.verifyData)
 
 	return nil
@@ -766,7 +766,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	return nil
 }
 
-// setCipherSuite sets a cipherSuite with the given id as the serverHandshakeState
+// setCipherSuite sets a CipherSuite with the given Id as the serverHandshakeState
 // suite if that cipher suite is acceptable to use.
 // It returns a bool indicating if the suite was set.
 func (hs *serverHandshakeState) setCipherSuite(id uint16, supportedCipherSuites []uint16, version uint16) bool {
@@ -778,11 +778,11 @@ func (hs *serverHandshakeState) setCipherSuite(id uint16, supportedCipherSuites 
 			}
 			// Don't select a ciphersuite which we can't
 			// support for this client.
-			if candidate.flags&suiteECDHE != 0 {
+			if candidate.Flags&SuiteECDHE != 0 {
 				if !hs.ellipticOk {
 					continue
 				}
-				if candidate.flags&suiteECDSA != 0 {
+				if candidate.Flags&SuiteECDSA != 0 {
 					if !hs.ecdsaOk {
 						continue
 					}
@@ -792,7 +792,7 @@ func (hs *serverHandshakeState) setCipherSuite(id uint16, supportedCipherSuites 
 			} else if !hs.rsaDecryptOk {
 				continue
 			}
-			if version < VersionTLS12 && candidate.flags&suiteTLS12 != 0 {
+			if version < VersionTLS12 && candidate.Flags&SuiteTLS12 != 0 {
 				continue
 			}
 			hs.suite = candidate

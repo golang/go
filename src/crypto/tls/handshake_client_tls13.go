@@ -28,7 +28,7 @@ type clientHandshakeStateTLS13 struct {
 	certReq       *certificateRequestMsgTLS13
 	usingPSK      bool
 	sentDummyCCS  bool
-	suite         *cipherSuiteTLS13
+	suite         *CipherSuiteTLS13
 	transcript    hash.Hash
 	masterSecret  []byte
 	trafficSecret []byte // client_application_traffic_secret_0
@@ -155,7 +155,7 @@ func (hs *clientHandshakeStateTLS13) checkServerHelloOrHRR() error {
 		return errors.New("tls: server chose an unconfigured cipher suite")
 	}
 	hs.suite = selectedSuite
-	c.cipherSuite = hs.suite.id
+	c.cipherSuite = hs.suite.Id
 
 	return nil
 }
