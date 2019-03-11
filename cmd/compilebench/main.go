@@ -329,7 +329,11 @@ func runBuild(name, dir string, count int) {
 		}
 
 		if *flagMemprofile != "" {
-			if err := ioutil.WriteFile(*flagMemprofile, out, 0666); err != nil {
+			outpath := *flagMemprofile
+			if *flagCount != 1 {
+				outpath = fmt.Sprintf("%s_%d", outpath, count)
+			}
+			if err := ioutil.WriteFile(outpath, out, 0666); err != nil {
 				log.Print(err)
 			}
 		}
