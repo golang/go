@@ -1646,6 +1646,21 @@ func TestWriteAtNegativeOffset(t *testing.T) {
 	}
 }
 
+// Verify that WriteAt doesn't work in append mode.
+func TestWriteAtInAppendMode(t *testing.T) {
+	defer chtmpdir(t)()
+	f, err := OpenFile("write_at_in_append_mode.txt", O_APPEND|O_CREATE, 0666)
+	if err != nil {
+		t.Fatalf("OpenFile: %v", err)
+	}
+	defer f.Close()
+
+	_, err = f.WriteAt([]byte(""), 1)
+	if err != ErrWriteAtInAppendMode {
+		t.Fatalf("f.WriteAt returned %v, expected %v", err, ErrWriteAtInAppendMode)
+	}
+}
+
 func writeFile(t *testing.T, fname string, flag int, text string) string {
 	f, err := OpenFile(fname, flag, 0666)
 	if err != nil {

@@ -19,9 +19,10 @@ import (
 // can overwrite this data, which could cause the finalizer
 // to close the wrong file descriptor.
 type file struct {
-	pfd     poll.FD
-	name    string
-	dirinfo *dirInfo // nil unless directory being read
+	pfd        poll.FD
+	name       string
+	dirinfo    *dirInfo // nil unless directory being read
+	appendMode bool     // whether file is opened for appending
 }
 
 // Fd returns the Windows handle referencing the open file.
