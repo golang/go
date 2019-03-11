@@ -7,6 +7,8 @@ package testing_test
 import (
 	"bytes"
 	"runtime"
+	"sort"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"text/template"
@@ -63,6 +65,32 @@ func TestRoundUp(t *testing.T) {
 	}
 }
 
+var prettyPrintTests = []struct {
+	v        float64
+	expected string
+}{
+	{0, "         0 x"},
+	{1234.1, "      1234 x"},
+	{-1234.1, "     -1234 x"},
+	{99.950001, "       100 x"},
+	{99.949999, "        99.9 x"},
+	{9.9950001, "        10.0 x"},
+	{9.9949999, "         9.99 x"},
+	{-9.9949999, "        -9.99 x"},
+	{0.0099950001, "         0.0100 x"},
+	{0.0099949999, "         0.00999 x"},
+}
+
+func TestPrettyPrint(t *testing.T) {
+	for _, tt := range prettyPrintTests {
+		buf := new(strings.Builder)
+		testing.PrettyPrint(buf, tt.v, "x")
+		if tt.expected != buf.String() {
+			t.Errorf("prettyPrint(%v): expected %q, actual %q", tt.v, tt.expected, buf.String())
+		}
+	}
+}
+
 func TestRunParallel(t *testing.T) {
 	testing.Benchmark(func(b *testing.B) {
 		procs := uint32(0)
@@ -109,5 +137,40 @@ func ExampleB_RunParallel() {
 				templ.Execute(&buf, "World")
 			}
 		})
+	})
+}
+
+func TestReportMetric(t *testing.T) {
+	res := testing.Benchmark(func(b *testing.B) {
+		b.ReportMetric(12345, "ns/op")
+		b.ReportMetric(0.2, "frobs/op")
+	})
+	// Test built-in overriding.
+	if res.NsPerOp() != 12345 {
+		t.Errorf("NsPerOp: expected %v, actual %v", 12345, res.NsPerOp())
+	}
+	// Test stringing.
+	res.N = 1 // Make the output stable
+	want := "       1\t     12345 ns/op\t         0.200 frobs/op"
+	if want != res.String() {
+		t.Errorf("expected %q, actual %q", want, res.String())
+	}
+}
+
+func ExampleB_ReportMetric() {
+	// This reports a custom benchmark metric relevant to a
+	// specific algorithm (in this case, sorting).
+	testing.Benchmark(func(b *testing.B) {
+		var compares int64
+		for i := 0; i < b.N; i++ {
+			s := []int{5, 4, 3, 2, 1}
+			sort.Slice(s, func(i, j int) bool {
+				compares++
+				return s[i] < s[j]
+			})
+		}
+		// This metric is per-operation, so divide by b.N and
+		// report it as a "/op" unit.
+		b.ReportMetric(float64(compares)/float64(b.N), "compares/op")
 	})
 }
