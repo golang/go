@@ -75,14 +75,14 @@ type Client struct {
 	// which is to stop after 10 consecutive requests.
 	CheckRedirect func(req *Request, via []*Request) error
 
-	// HeadersPolicy specifies which headers will be sent on redirect.
+	// RedirectHeader specifies which headers will be sent on redirect.
 	//
-	// HeadersPolicy is called once per header to determine if that
+	// RedirectHeader is called once per header to determine if that
 	// header should be sent along in a redirect request.
 	//
-	// If HeadersPolicy is nil, all headers will be forwarded on all
+	// If RedirectHeader is nil, all headers will be forwarded on all
 	// subsequent redirects.
-	HeadersPolicy func(string) bool
+	RedirectHeader func(headerKey string) bool
 
 	// Jar specifies the cookie jar.
 	//
@@ -699,7 +699,7 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
 		// (at least the safe ones).
 		for k, vv := range ireqhdr {
 			chk := CanonicalHeaderKey(k)
-			if shouldCopyHeaderOnRedirect(chk, preq.URL, req.URL, c.HeadersPolicy) {
+			if shouldCopyHeaderOnRedirect(chk, preq.URL, req.URL, c.RedirectHeader) {
 				req.Header[k] = vv
 			}
 		}
