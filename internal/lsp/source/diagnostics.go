@@ -64,7 +64,7 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 	for _, filename := range pkg.GetFilenames() {
 		reports[span.FileURI(filename)] = []Diagnostic{}
 	}
-	var parseErrors, typeErrors []packages.Error
+	var listErrors, parseErrors, typeErrors []packages.Error
 	for _, err := range pkg.GetErrors() {
 		switch err.Kind {
 		case packages.ParseError:
@@ -72,14 +72,15 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 		case packages.TypeError:
 			typeErrors = append(typeErrors, err)
 		default:
-			// ignore other types of errors
-			continue
+			listErrors = append(listErrors, err)
 		}
 	}
-	// Don't report type errors if there are parse errors.
+	// Don't report type errors if there are parse errors or list errors.
 	diags := typeErrors
 	if len(parseErrors) > 0 {
 		diags = parseErrors
+	} else if len(listErrors) > 0 {
+		diags = listErrors
 	}
 	for _, diag := range diags {
 		spn := span.Parse(diag.Pos)

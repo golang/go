@@ -62,6 +62,9 @@ func (i *IdentifierInfo) Hover(ctx context.Context, q types.Qualifier) (string, 
 func identifier(ctx context.Context, v View, f File, pos token.Pos) (*IdentifierInfo, error) {
 	fAST := f.GetAST(ctx)
 	pkg := f.GetPackage(ctx)
+	if pkg.IsIllTyped() {
+		return nil, fmt.Errorf("package for %s is ill typed", f.URI())
+	}
 	path, _ := astutil.PathEnclosingInterval(fAST, pos, pos)
 	result := &IdentifierInfo{
 		File: f,

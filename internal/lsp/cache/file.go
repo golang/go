@@ -52,7 +52,7 @@ func (f *File) GetToken(ctx context.Context) *token.File {
 	defer f.view.mu.Unlock()
 
 	if f.token == nil || len(f.view.contentChanges) > 0 {
-		if err := f.view.parse(ctx, f.uri); err != nil {
+		if _, err := f.view.parse(ctx, f.uri); err != nil {
 			return nil
 		}
 	}
@@ -64,7 +64,7 @@ func (f *File) GetAST(ctx context.Context) *ast.File {
 	defer f.view.mu.Unlock()
 
 	if f.ast == nil || len(f.view.contentChanges) > 0 {
-		if err := f.view.parse(ctx, f.uri); err != nil {
+		if _, err := f.view.parse(ctx, f.uri); err != nil {
 			return nil
 		}
 	}
@@ -76,7 +76,12 @@ func (f *File) GetPackage(ctx context.Context) source.Package {
 	defer f.view.mu.Unlock()
 
 	if f.pkg == nil || len(f.view.contentChanges) > 0 {
-		if err := f.view.parse(ctx, f.uri); err != nil {
+		errs, err := f.view.parse(ctx, f.uri)
+		if err != nil {
+			// Create diagnostics for errors if we are able to.
+			if len(errs) > 0 {
+				return &Package{errors: errs}
+			}
 			return nil
 		}
 	}

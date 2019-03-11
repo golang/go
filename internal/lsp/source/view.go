@@ -45,6 +45,7 @@ type Package interface {
 	GetErrors() []packages.Error
 	GetTypes() *types.Package
 	GetTypesInfo() *types.Info
+	IsIllTyped() bool
 	GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*Action, error)
 }
 

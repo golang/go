@@ -43,6 +43,7 @@ type View struct {
 	// mcache caches metadata for the packages of the opened files in a view.
 	mcache *metadataCache
 
+	// pcache caches type information for the packages of the opened files in a view.
 	pcache *packageCache
 }
 

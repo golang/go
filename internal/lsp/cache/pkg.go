@@ -117,3 +117,7 @@ func (pkg *Package) GetTypes() *types.Package {
 func (pkg *Package) GetTypesInfo() *types.Info {
 	return pkg.typesInfo
 }
+
+func (pkg *Package) IsIllTyped() bool {
+	return pkg.types == nil && pkg.typesInfo == nil
+}
