@@ -1023,13 +1023,11 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 			gomod := filepath.Join(dir, "go.mod")
 			data, err := ioutil.ReadFile(gomod)
 			if err != nil {
-				base.Errorf("go: parsing %s: %v", base.ShortPath(gomod), err)
-				return nil, ErrRequire
+				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
 			}
 			f, err := modfile.ParseLax(gomod, data, nil)
 			if err != nil {
-				base.Errorf("go: parsing %s: %v", base.ShortPath(gomod), err)
-				return nil, ErrRequire
+				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
 			}
 			if f.Go != nil {
 				r.versions.LoadOrStore(mod, f.Go.Version)
@@ -1050,22 +1048,18 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 
 	data, err := modfetch.GoMod(mod.Path, mod.Version)
 	if err != nil {
-		base.Errorf("go: %s@%s: %v\n", mod.Path, mod.Version, err)
-		return nil, ErrRequire
+		return nil, fmt.Errorf("%s@%s: %v", mod.Path, mod.Version, err)
 	}
 	f, err := modfile.ParseLax("go.mod", data, nil)
 	if err != nil {
-		base.Errorf("go: %s@%s: parsing go.mod: %v", mod.Path, mod.Version, err)
-		return nil, ErrRequire
+		return nil, fmt.Errorf("%s@%s: parsing go.mod: %v", mod.Path, mod.Version, err)
 	}
 
 	if f.Module == nil {
-		base.Errorf("go: %s@%s: parsing go.mod: missing module line", mod.Path, mod.Version)
-		return nil, ErrRequire
+		return nil, fmt.Errorf("%s@%s: parsing go.mod: missing module line", mod.Path, mod.Version)
 	}
 	if mpath := f.Module.Mod.Path; mpath != origPath && mpath != mod.Path {
-		base.Errorf("go: %s@%s: parsing go.mod: unexpected module path %q", mod.Path, mod.Version, mpath)
-		return nil, ErrRequire
+		return nil, fmt.Errorf("%s@%s: parsing go.mod: unexpected module path %q", mod.Path, mod.Version, mpath)
 	}
 	if f.Go != nil {
 		r.versions.LoadOrStore(mod, f.Go.Version)
@@ -1073,11 +1067,6 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 
 	return r.modFileToList(f), nil
 }
-
-// ErrRequire is the sentinel error returned when Require encounters problems.
-// It prints the problems directly to standard error, so that multiple errors
-// can be displayed easily.
-var ErrRequire = errors.New("error loading module requirements")
 
 func (*mvsReqs) Max(v1, v2 string) string {
 	if v1 != "" && semver.Compare(v1, v2) == -1 {

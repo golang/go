@@ -9,7 +9,9 @@ package mvs
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
+	"sync/atomic"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/module"
@@ -59,12 +61,38 @@ type Reqs interface {
 	Previous(m module.Version) (module.Version, error)
 }
 
-type MissingModuleError struct {
-	Module module.Version
+// BuildListError decorates an error that occurred gathering requirements
+// while constructing a build list. BuildListError prints the chain
+// of requirements to the module where the error occurred.
+type BuildListError struct {
+	Err   error
+	Stack []module.Version
 }
 
-func (e *MissingModuleError) Error() string {
-	return fmt.Sprintf("missing module: %v", e.Module)
+func (e *BuildListError) Error() string {
+	b := &strings.Builder{}
+	errMsg := e.Err.Error()
+	stack := e.Stack
+
+	// Don't print modules at the beginning of the chain without a
+	// version. These always seem to be the main module or a
+	// synthetic module ("target@").
+	for len(stack) > 0 && stack[len(stack)-1].Version == "" {
+		stack = stack[:len(stack)-1]
+	}
+
+	// Don't print the last module if the error message already
+	// starts with module path and version.
+	if len(stack) > 0 && strings.HasPrefix(errMsg, fmt.Sprintf("%s@%s: ", stack[0].Path, stack[0].Version)) {
+		// error already mentions module
+		stack = stack[1:]
+	}
+
+	for i := len(stack) - 1; i >= 0; i-- {
+		fmt.Fprintf(b, "%s@%s ->\n\t", stack[i].Path, stack[i].Version)
+	}
+	b.WriteString(errMsg)
+	return b.String()
 }
 
 // BuildList returns the build list for the target module.
@@ -78,33 +106,40 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
 	// does high-latency network operations.
 	var work par.Work
 	work.Add(target)
+
+	type modGraphNode struct {
+		m        module.Version
+		required []module.Version
+		upgrade  module.Version
+		err      error
+	}
 	var (
 		mu       sync.Mutex
-		min      = map[string]string{target.Path: target.Version}
-		firstErr error
+		modGraph = map[module.Version]*modGraphNode{}
+		min      = map[string]string{} // maps module path to minimum required version
+		haveErr  int32
 	)
+
+	work.Add(target)
 	work.Do(10, func(item interface{}) {
 		m := item.(module.Version)
-		required, err := reqs.Required(m)
 
+		node := &modGraphNode{m: m}
 		mu.Lock()
-		if err != nil && firstErr == nil {
-			firstErr = err
-		}
-		if firstErr != nil {
-			mu.Unlock()
-			return
-		}
+		modGraph[m] = node
 		if v, ok := min[m.Path]; !ok || reqs.Max(v, m.Version) != v {
 			min[m.Path] = m.Version
 		}
 		mu.Unlock()
 
-		for _, r := range required {
-			if r.Path == "" {
-				base.Errorf("Required(%v) returned zero module in list", m)
-				continue
-			}
+		required, err := reqs.Required(m)
+		if err != nil {
+			node.err = err
+			atomic.StoreInt32(&haveErr, 1)
+			return
+		}
+		node.required = required
+		for _, r := range node.required {
 			work.Add(r)
 		}
 
@@ -114,13 +149,49 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
 				base.Errorf("Upgrade(%v) returned zero module", m)
 				return
 			}
-			work.Add(u)
+			if u != m {
+				node.upgrade = u
+				work.Add(u)
+			}
 		}
 	})
 
-	if firstErr != nil {
-		return nil, firstErr
+	// If there was an error, find the shortest path from the target to the
+	// node where the error occurred so we can report a useful error message.
+	if haveErr != 0 {
+		// neededBy[a] = b means a was added to the module graph by b.
+		neededBy := make(map[*modGraphNode]*modGraphNode)
+		q := make([]*modGraphNode, 0, len(modGraph))
+		q = append(q, modGraph[target])
+		for len(q) > 0 {
+			node := q[0]
+			q = q[1:]
+
+			if node.err != nil {
+				err := &BuildListError{Err: node.err}
+				for n := node; n != nil; n = neededBy[n] {
+					err.Stack = append(err.Stack, n.m)
+				}
+				return nil, err
+			}
+
+			neighbors := node.required
+			if node.upgrade.Path != "" {
+				neighbors = append(neighbors, node.upgrade)
+			}
+			for _, neighbor := range neighbors {
+				nn := modGraph[neighbor]
+				if neededBy[nn] != nil {
+					continue
+				}
+				neededBy[nn] = node
+				q = append(q, nn)
+			}
+		}
 	}
+
+	// Construct the list by traversing the graph again, replacing older
+	// modules with required minimum versions.
 	if v := min[target.Path]; v != target.Version {
 		panic(fmt.Sprintf("mistake: chose version %q instead of target %+v", v, target)) // TODO: Don't panic.
 	}
@@ -128,11 +199,8 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
 	list := []module.Version{target}
 	listed := map[string]bool{target.Path: true}
 	for i := 0; i < len(list); i++ {
-		m := list[i]
-		required, err := reqs.Required(m)
-		if err != nil {
-			return nil, err
-		}
+		n := modGraph[list[i]]
+		required := n.required
 		for _, r := range required {
 			v := min[r.Path]
 			if r.Path != target.Path && reqs.Max(v, r.Version) != v {
