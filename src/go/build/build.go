@@ -1002,6 +1002,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 	}
 
 	// If modules are not enabled, then the in-process code works fine and we should keep using it.
+	// TODO(bcmills): This assumes that the default is "auto" instead of "on".
 	switch os.Getenv("GO111MODULE") {
 	case "off":
 		return errNoModules
@@ -1015,6 +1016,13 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 				return errNoModules
 			}
 		}
+	}
+
+	// If the source directory is in GOROOT, then the in-process code works fine
+	// and we should keep using it. Moreover, the 'go list' approach below doesn't
+	// take standard-library vendoring into account and will fail.
+	if _, ok := ctxt.hasSubdir(filepath.Join(ctxt.GOROOT, "src"), srcDir); ok {
+		return errNoModules
 	}
 
 	// For efficiency, if path is a standard library package, let the usual lookup code handle it.
@@ -1043,7 +1051,12 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, 
 	}
 
 	cmd := exec.Command("go", "list", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n", path)
+
+	// TODO(bcmills): This is wrong if srcDir is in a vendor directory, or if
+	// srcDir is in some module dependency of the main module. The main module
+	// chooses what the import paths mean: individual packages don't.
 	cmd.Dir = srcDir
+
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
