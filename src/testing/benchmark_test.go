@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"text/template"
+	"time"
 )
 
 var roundDownTests = []struct {
@@ -92,6 +93,23 @@ func TestRunParallelFail(t *testing.T) {
 			b.Error("error")
 		})
 	})
+}
+
+// Ensure that elapsed time is calculated properly when running parallel (per #28813)
+func TestRunParallelResults(t *testing.T) {
+	r := testing.Benchmark(func(b *testing.B) {
+		b.SetParallelism(4)
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				time.Sleep(1 * time.Microsecond)
+			}
+		})
+	})
+
+	// Each iteration should take at least 1 microsecond (1000 ns)
+	if r.NsPerOp() < 1000 {
+		t.Errorf("ran too quickly; took %d ns - should be greater than 1000", r.NsPerOp())
+	}
 }
 
 func ExampleB_RunParallel() {

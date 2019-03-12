@@ -315,15 +315,16 @@ type common struct {
 	raceErrors int    // number of races detected during test
 	runner     string // function name of tRunner running the test
 
-	parent   *common
-	level    int       // Nesting depth of test or benchmark.
-	creator  []uintptr // If level > 0, the stack trace at the point where the parent called t.Run.
-	name     string    // Name of test or benchmark.
-	start    time.Time // Time test or benchmark started
-	duration time.Duration
-	barrier  chan bool // To signal parallel subtests they may start.
-	signal   chan bool // To signal a test is done.
-	sub      []*T      // Queue of subtests to be run in parallel.
+	parent      *common
+	level       int           // Nesting depth of test or benchmark.
+	creator     []uintptr     // If level > 0, the stack trace at the point where the parent called t.Run.
+	name        string        // Name of test or benchmark.
+	start       time.Time     // Time test or benchmark started
+	elapsedTime time.Duration // Total real-world time taken to run
+	processTime time.Duration // Total process time taken to run
+	barrier     chan bool     // To signal parallel subtests they may start.
+	signal      chan bool     // To signal a test is done.
+	sub         []*T          // Queue of subtests to be run in parallel.
 }
 
 // Short reports whether the -test.short flag is set.
@@ -750,7 +751,7 @@ func (t *T) Parallel() {
 	// We don't want to include the time we spend waiting for serial tests
 	// in the test duration. Record the elapsed time thus far and reset the
 	// timer afterwards.
-	t.duration += time.Since(t.start)
+	t.elapsedTime += time.Since(t.start)
 
 	// Add to the list of tests to be released by the parent.
 	t.parent.sub = append(t.parent.sub, t)
@@ -809,7 +810,7 @@ func tRunner(t *T, fn func(t *T)) {
 			t.Errorf("race detected during execution of test")
 		}
 
-		t.duration += time.Since(t.start)
+		t.elapsedTime += time.Since(t.start)
 		// If the test panicked, print any test output before dying.
 		err := recover()
 		signal := true
@@ -1088,7 +1089,7 @@ func (t *T) report() {
 	if t.parent == nil {
 		return
 	}
-	dstr := fmtDuration(t.duration)
+	dstr := fmtDuration(t.elapsedTime)
 	format := "--- %s: %s (%s)\n"
 	if t.Failed() {
 		t.flushToParent(format, "FAIL", t.name, dstr)

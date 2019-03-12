@@ -82,19 +82,19 @@ type InternalBenchmark struct {
 // affecting benchmark results.
 type B struct {
 	common
-	importPath       string // import path of the package containing the benchmark
-	context          *benchContext
-	N                int
-	previousN        int           // number of iterations in the previous run
-	previousDuration time.Duration // total duration of the previous run
-	benchFunc        func(b *B)
-	benchTime        benchTimeFlag
-	bytes            int64
-	missingBytes     bool // one of the subbenchmarks does not have bytes set.
-	timerOn          bool
-	showAllocResult  bool
-	result           BenchmarkResult
-	parallelism      int // RunParallel creates parallelism*GOMAXPROCS goroutines
+	importPath          string // import path of the package containing the benchmark
+	context             *benchContext
+	N                   int
+	previousN           int           // number of iterations in the previous run
+	previousElapsedTime time.Duration // total duration of the previous run
+	benchFunc           func(b *B)
+	benchTime           benchTimeFlag
+	bytes               int64
+	missingBytes        bool // one of the subbenchmarks does not have bytes set.
+	timerOn             bool
+	showAllocResult     bool
+	result              BenchmarkResult
+	parallelism         int // RunParallel creates parallelism*GOMAXPROCS goroutines
 	// The initial states of memStats.Mallocs and memStats.TotalAlloc.
 	startAllocs uint64
 	startBytes  uint64
@@ -121,7 +121,8 @@ func (b *B) StartTimer() {
 // want to measure.
 func (b *B) StopTimer() {
 	if b.timerOn {
-		b.duration += time.Since(b.start)
+		b.elapsedTime += time.Since(b.start)
+		b.processTime += time.Since(b.start)
 		runtime.ReadMemStats(&memStats)
 		b.netAllocs += memStats.Mallocs - b.startAllocs
 		b.netBytes += memStats.TotalAlloc - b.startBytes
@@ -138,7 +139,8 @@ func (b *B) ResetTimer() {
 		b.startBytes = memStats.TotalAlloc
 		b.start = time.Now()
 	}
-	b.duration = 0
+	b.elapsedTime = 0
+	b.processTime = 0
 	b.netAllocs = 0
 	b.netBytes = 0
 }
@@ -158,7 +160,7 @@ func (b *B) nsPerOp() int64 {
 	if b.N <= 0 {
 		return 0
 	}
-	return b.duration.Nanoseconds() / int64(b.N)
+	return b.processTime.Nanoseconds() / int64(b.N)
 }
 
 // runN runs a single benchmark for the specified number of iterations.
@@ -176,7 +178,7 @@ func (b *B) runN(n int) {
 	b.benchFunc(b)
 	b.StopTimer()
 	b.previousN = n
-	b.previousDuration = b.duration
+	b.previousElapsedTime = b.elapsedTime
 	b.raceErrors += race.Errors()
 	if b.raceErrors > 0 {
 		b.Errorf("race detected during execution of benchmark")
@@ -312,7 +314,7 @@ func (b *B) launch() {
 		b.runN(b.benchTime.n)
 	} else {
 		d := b.benchTime.d
-		for n := 1; !b.failed && b.duration < d && n < 1e9; {
+		for n := 1; !b.failed && b.elapsedTime < d && n < 1e9; {
 			last := n
 			// Predict required iterations.
 			n = int(d.Nanoseconds())
@@ -328,13 +330,14 @@ func (b *B) launch() {
 			b.runN(n)
 		}
 	}
-	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes}
+	b.result = BenchmarkResult{b.N, b.elapsedTime, b.processTime, b.bytes, b.netAllocs, b.netBytes}
 }
 
 // The results of a benchmark run.
 type BenchmarkResult struct {
 	N         int           // The number of iterations.
 	T         time.Duration // The total time taken.
+	P         time.Duration // Process time taken.
 	Bytes     int64         // Bytes processed in one iteration.
 	MemAllocs uint64        // The total number of memory allocations.
 	MemBytes  uint64        // The total number of bytes allocated.
@@ -344,7 +347,14 @@ func (r BenchmarkResult) NsPerOp() int64 {
 	if r.N <= 0 {
 		return 0
 	}
-	return r.T.Nanoseconds() / int64(r.N)
+	return r.P.Nanoseconds() / int64(r.N)
+}
+
+func (r BenchmarkResult) OpsPerSecond() float64 {
+	if r.T.Seconds() > 0 {
+		return float64(r.N) / r.T.Seconds()
+	}
+	return 0
 }
 
 func (r BenchmarkResult) mbPerSec() float64 {
@@ -382,12 +392,14 @@ func (r BenchmarkResult) String() string {
 		// The format specifiers here make sure that
 		// the ones digits line up for all three possible formats.
 		if nsop < 10 {
-			ns = fmt.Sprintf("%13.2f ns/op", float64(r.T.Nanoseconds())/float64(r.N))
+			ns = fmt.Sprintf("%13.2f ns/op", float64(r.P.Nanoseconds())/float64(r.N))
 		} else {
-			ns = fmt.Sprintf("%12.1f ns/op", float64(r.T.Nanoseconds())/float64(r.N))
+			ns = fmt.Sprintf("%12.1f ns/op", float64(r.P.Nanoseconds())/float64(r.N))
 		}
 	}
-	return fmt.Sprintf("%8d\t%s%s", r.N, ns, mb)
+
+	opss := fmt.Sprintf("%13.2f ops/s", r.OpsPerSecond())
+	return fmt.Sprintf("%8d\t%s\t%s%s", r.N, ns, opss, mb)
 }
 
 // MemString returns r.AllocedBytesPerOp and r.AllocsPerOp in the same format as 'go test'.
@@ -565,7 +577,7 @@ func (b *B) add(other BenchmarkResult) {
 	// The aggregated BenchmarkResults resemble running all subbenchmarks as
 	// in sequence in a single benchmark.
 	r.N = 1
-	r.T += time.Duration(other.NsPerOp())
+	r.P += time.Duration(other.NsPerOp())
 	if other.Bytes == 0 {
 		// Summing Bytes is meaningless in aggregate if not all subbenchmarks
 		// set it.
@@ -638,8 +650,8 @@ func (b *B) RunParallel(body func(*PB)) {
 	// 100µs is enough to amortize the overhead and provide sufficient
 	// dynamic load balancing.
 	grain := uint64(0)
-	if b.previousN > 0 && b.previousDuration > 0 {
-		grain = 1e5 * uint64(b.previousN) / uint64(b.previousDuration)
+	if b.previousN > 0 && b.previousElapsedTime > 0 {
+		grain = 1e5 * uint64(b.previousN) / uint64(b.previousElapsedTime)
 	}
 	if grain < 1 {
 		grain = 1
@@ -654,8 +666,15 @@ func (b *B) RunParallel(body func(*PB)) {
 	numProcs := b.parallelism * runtime.GOMAXPROCS(0)
 	var wg sync.WaitGroup
 	wg.Add(numProcs)
+	// Stop the timer as this is the part where elapsed time and process
+	// time differ.  This means elapsed time counts only once, but process
+	// time gets calculated per goroutine.
+	b.StopTimer()
+	timeReportingMutex := sync.Mutex{}
+	b.start = time.Now()
 	for p := 0; p < numProcs; p++ {
 		go func() {
+			start := time.Now()
 			defer wg.Done()
 			pb := &PB{
 				globalN: &n,
@@ -663,9 +682,15 @@ func (b *B) RunParallel(body func(*PB)) {
 				bN:      uint64(b.N),
 			}
 			body(pb)
+			timeReportingMutex.Lock()
+			defer timeReportingMutex.Unlock()
+			b.processTime += time.Since(start)
 		}()
 	}
 	wg.Wait()
+	b.elapsedTime += time.Since(b.start)
+	// Timing procedure goes back to normal here
+	b.StartTimer()
 	if n <= uint64(b.N) && !b.Failed() {
 		b.Fatal("RunParallel: body exited without pb.Next() == false")
 	}
