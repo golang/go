@@ -3670,7 +3670,7 @@ func TestGoGetInsecure(t *testing.T) {
 			tg.tempFile("go.mod", "module m")
 			tg.cd(tg.path("."))
 			tg.setenv("GO111MODULE", "on")
-			tg.setenv("GO111PROXY", "")
+			tg.setenv("GOPROXY", "")
 		} else {
 			tg.setenv("GOPATH", tg.path("."))
 			tg.setenv("GO111MODULE", "off")
