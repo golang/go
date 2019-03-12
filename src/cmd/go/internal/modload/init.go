@@ -34,7 +34,7 @@ import (
 
 var (
 	cwd            string // TODO(bcmills): Is this redundant with base.Cwd?
-	mustUseModules = true
+	MustUseModules = mustUseModules()
 	initialized    bool
 
 	modRoot     string
@@ -70,6 +70,16 @@ func BinDir() string {
 	return filepath.Join(gopath, "bin")
 }
 
+// mustUseModules reports whether we are invoked as vgo
+// (as opposed to go).
+// If so, we only support builds with go.mod files.
+func mustUseModules() bool {
+	name := os.Args[0]
+	name = name[strings.LastIndex(name, "/")+1:]
+	name = name[strings.LastIndex(name, `\`)+1:]
+	return strings.HasPrefix(name, "vgo")
+}
+
 var inGOPATH bool // running in GOPATH/src
 
 // Init determines whether module mode is enabled, locates the root of the
@@ -86,13 +96,14 @@ func Init() {
 	switch env {
 	default:
 		base.Fatalf("go: unknown environment setting GO111MODULE=%s", env)
-	case "auto":
-		mustUseModules = false
-	case "on", "":
-		mustUseModules = true
+	case "", "auto":
+		// leave MustUseModules alone
+	case "on":
+		MustUseModules = true
 	case "off":
-		mustUseModules = false
-		return
+		if !MustUseModules {
+			return
+		}
 	}
 
 	// Disable any prompting for passwords by Git.
@@ -139,7 +150,7 @@ func Init() {
 		}
 	}
 
-	if inGOPATH && !mustUseModules {
+	if inGOPATH && !MustUseModules {
 		if CmdModInit {
 			die() // Don't init a module that we're just going to ignore.
 		}
@@ -156,8 +167,8 @@ func Init() {
 	} else {
 		modRoot = findModuleRoot(cwd)
 		if modRoot == "" {
-			if !mustUseModules {
-				// GO111MODULE is 'auto', and we can't find a module root.
+			if !MustUseModules {
+				// GO111MODULE is 'auto' (or unset), and we can't find a module root.
 				// Stay in GOPATH mode.
 				return
 			}
@@ -256,7 +267,7 @@ func init() {
 // (usually through MustModRoot).
 func Enabled() bool {
 	Init()
-	return modRoot != "" || mustUseModules
+	return modRoot != "" || MustUseModules
 }
 
 // ModRoot returns the root of the main module.
@@ -289,7 +300,7 @@ func die() {
 	if os.Getenv("GO111MODULE") == "off" {
 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
 	}
-	if inGOPATH && !mustUseModules {
+	if inGOPATH && !MustUseModules {
 		base.Fatalf("go: modules disabled inside GOPATH/src by GO111MODULE=auto; see 'go help modules'")
 	}
 	if cwd != "" {
