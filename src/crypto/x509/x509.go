@@ -25,8 +25,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/cryptobyte"
-	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
 	"io"
 	"math/big"
 	"net"
@@ -35,6 +33,9 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"golang.org/x/crypto/cryptobyte"
+	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
 )
 
 // pkixPublicKey reflects a PKIX public key structure. See SubjectPublicKeyInfo
@@ -780,6 +781,9 @@ func (ConstraintViolationError) Error() string {
 }
 
 func (c *Certificate) Equal(other *Certificate) bool {
+	if c == nil || other == nil {
+		return c == other
+	}
 	return bytes.Equal(c.Raw, other.Raw)
 }
 
