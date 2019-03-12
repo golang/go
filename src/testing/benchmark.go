@@ -170,13 +170,6 @@ func (b *B) ReportAllocs() {
 	b.showAllocResult = true
 }
 
-func (b *B) nsPerOp() int64 {
-	if b.N <= 0 {
-		return 0
-	}
-	return b.duration.Nanoseconds() / int64(b.N)
-}
-
 // runN runs a single benchmark for the specified number of iterations.
 func (b *B) runN(n int) {
 	benchmarkLock.Lock()
@@ -199,51 +192,18 @@ func (b *B) runN(n int) {
 	}
 }
 
-func min(x, y int) int {
+func min(x, y int64) int64 {
 	if x > y {
 		return y
 	}
 	return x
 }
 
-func max(x, y int) int {
+func max(x, y int64) int64 {
 	if x < y {
 		return y
 	}
 	return x
-}
-
-// roundDown10 rounds a number down to the nearest power of 10.
-func roundDown10(n int) int {
-	var tens = 0
-	// tens = floor(log_10(n))
-	for n >= 10 {
-		n = n / 10
-		tens++
-	}
-	// result = 10^tens
-	result := 1
-	for i := 0; i < tens; i++ {
-		result *= 10
-	}
-	return result
-}
-
-// roundUp rounds x up to a number of the form [1eX, 2eX, 3eX, 5eX].
-func roundUp(n int) int {
-	base := roundDown10(n)
-	switch {
-	case n <= base:
-		return base
-	case n <= (2 * base):
-		return 2 * base
-	case n <= (3 * base):
-		return 3 * base
-	case n <= (5 * base):
-		return 5 * base
-	default:
-		return 10 * base
-	}
 }
 
 // run1 runs the first iteration of benchFunc. It reports whether more
@@ -328,20 +288,31 @@ func (b *B) launch() {
 		b.runN(b.benchTime.n)
 	} else {
 		d := b.benchTime.d
-		for n := 1; !b.failed && b.duration < d && n < 1e9; {
+		for n := int64(1); !b.failed && b.duration < d && n < 1e9; {
 			last := n
 			// Predict required iterations.
-			n = int(d.Nanoseconds())
-			if nsop := b.nsPerOp(); nsop != 0 {
-				n /= int(nsop)
+			goalns := d.Nanoseconds()
+			prevIters := int64(b.N)
+			prevns := b.duration.Nanoseconds()
+			if prevns <= 0 {
+				// Round up, to avoid div by zero.
+				prevns = 1
 			}
+			// Order of operations matters.
+			// For very fast benchmarks, prevIters ~= prevns.
+			// If you divide first, you get 0 or 1,
+			// which can hide an order of magnitude in execution time.
+			// So multiply first, then divide.
+			n = goalns * prevIters / prevns
 			// Run more iterations than we think we'll need (1.2x).
+			n += n / 5
 			// Don't grow too fast in case we had timing errors previously.
+			n = min(n, 100*last)
 			// Be sure to run at least one more than last time.
-			n = max(min(n+n/5, 100*last), last+1)
-			// Round up to something easy to read.
-			n = roundUp(n)
-			b.runN(n)
+			n = max(n, last+1)
+			// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)
+			n = min(n, 1e9)
+			b.runN(int(n))
 		}
 	}
 	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes, b.extra}

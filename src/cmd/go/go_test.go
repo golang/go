@@ -4947,14 +4947,14 @@ func TestTestRegexps(t *testing.T) {
     x_test.go:15: LOG: Y running N=10000
     x_test.go:15: LOG: Y running N=1000000
     x_test.go:15: LOG: Y running N=100000000
-    x_test.go:15: LOG: Y running N=2000000000
+    x_test.go:15: LOG: Y running N=1000000000
 --- BENCH: BenchmarkX/Y
     x_test.go:15: LOG: Y running N=1
     x_test.go:15: LOG: Y running N=100
     x_test.go:15: LOG: Y running N=10000
     x_test.go:15: LOG: Y running N=1000000
     x_test.go:15: LOG: Y running N=100000000
-    x_test.go:15: LOG: Y running N=2000000000
+    x_test.go:15: LOG: Y running N=1000000000
 --- BENCH: BenchmarkX
     x_test.go:13: LOG: X running N=1
 --- BENCH: BenchmarkXX
