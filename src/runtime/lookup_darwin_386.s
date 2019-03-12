@@ -22,6 +22,13 @@ TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
     MOVL    0(CX), AX       // arg 1 name
     MOVL    AX, 0(SP)
     CALL    libc_res_search(SB)
+	XORL	DX, DX
+	CMPL	AX, $-1
+	JNE	ok
+	CALL	libc_error(SB)
+	MOVL	(AX), DX		// errno
+	XORL	AX, AX
+ok:    
     MOVL    BP, SP
     POPL    BP
     RET
