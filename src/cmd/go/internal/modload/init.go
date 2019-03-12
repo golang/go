@@ -18,7 +18,6 @@ import (
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/renameio"
 	"cmd/go/internal/search"
-	"cmd/go/internal/str"
 	"encoding/json"
 	"fmt"
 	"go/build"
@@ -42,6 +41,15 @@ var (
 	modFileData []byte
 	excluded    map[module.Version]bool
 	Target      module.Version
+
+	// targetPrefix is the path prefix for packages in Target, without a trailing
+	// slash. For most modules, targetPrefix is just Target.Path, but the
+	// standard-library module "std" has an empty prefix.
+	targetPrefix string
+
+	// targetInGorootSrc caches whether modRoot is within GOROOT/src.
+	// The "std" module is special within GOROOT/src, but not otherwise.
+	targetInGorootSrc bool
 
 	gopath string
 
@@ -329,6 +337,7 @@ func InitMod() {
 	Init()
 	if modRoot == "" {
 		Target = module.Version{Path: "command-line-arguments"}
+		targetPrefix = "command-line-arguments"
 		buildList = []module.Version{Target}
 		return
 	}
@@ -381,9 +390,12 @@ func InitMod() {
 // modFileToBuildList initializes buildList from the modFile.
 func modFileToBuildList() {
 	Target = modFile.Module.Mod
-	if (str.HasPathPrefix(Target.Path, "std") || str.HasPathPrefix(Target.Path, "cmd")) &&
-		search.InDir(cwd, cfg.GOROOTsrc) == "" {
-		base.Fatalf("go: reserved module path %s not allow outside of GOROOT/src", Target.Path)
+	targetPrefix = Target.Path
+	if search.InDir(cwd, cfg.GOROOTsrc) != "" {
+		targetInGorootSrc = true
+		if Target.Path == "std" {
+			targetPrefix = ""
+		}
 	}
 
 	list := []module.Version{Target}

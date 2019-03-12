@@ -216,7 +216,7 @@ func matchSemverPrefix(p, v string) bool {
 // QueryPackage returns Target as the version.
 func QueryPackage(path, query string, allowed func(module.Version) bool) (module.Version, *modfetch.RevInfo, error) {
 	if HasModRoot() {
-		if _, ok := dirInModule(path, Target.Path, modRoot, true); ok {
+		if _, ok := dirInModule(path, targetPrefix, modRoot, true); ok {
 			if query != "latest" {
 				return module.Version{}, nil, fmt.Errorf("can't query specific version (%q) for package %s in the main module (%s)", query, path, Target.Path)
 			}
