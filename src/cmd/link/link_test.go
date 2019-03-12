@@ -161,7 +161,8 @@ TEXT ·x(SB),0,$0
 `)
 	cmd := exec.Command(testenv.GoToolPath(t), "build")
 	cmd.Dir = tmpdir
-	cmd.Env = append(os.Environ(), []string{"GOARCH=amd64", "GOOS=linux"}...)
+	cmd.Env = append(os.Environ(),
+		"GOARCH=amd64", "GOOS=linux", "GOPATH="+filepath.Join(tmpdir, "_gopath"))
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("expected build to fail, but it succeeded")
