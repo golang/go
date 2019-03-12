@@ -73,7 +73,6 @@ var (
 	Goarch    = BuildContext.GOARCH
 	Goos      = BuildContext.GOOS
 	ExeSuffix string
-	Gopath    = filepath.SplitList(BuildContext.GOPATH)
 
 	// ModulesEnabled specifies whether the go command is running
 	// in module-aware mode (as opposed to GOPATH mode).
