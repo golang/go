@@ -22,7 +22,7 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].Score > candidates[j].Score
 	})
-	var items []protocol.CompletionItem
+	items := []protocol.CompletionItem{}
 	for i, candidate := range candidates {
 		// Matching against the label.
 		if !strings.HasPrefix(candidate.Label, prefix) {
