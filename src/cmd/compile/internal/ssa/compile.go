@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"bytes"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
@@ -131,6 +133,21 @@ func Compile(f *Func) {
 		if checkEnabled {
 			checkFunc(f)
 		}
+	}
+
+	if f.ruleMatches != nil {
+		var keys []string
+		for key := range f.ruleMatches {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		buf := new(bytes.Buffer)
+		fmt.Fprintf(buf, "%s: ", f.Name)
+		for _, key := range keys {
+			fmt.Fprintf(buf, "%s=%d ", key, f.ruleMatches[key])
+		}
+		fmt.Fprint(buf, "\n")
+		fmt.Print(buf.String())
 	}
 
 	// Squash error printing defer
