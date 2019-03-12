@@ -105,7 +105,14 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 	}
 
 	if cfg.BuildMod == "vendor" {
-		walkPkgs(filepath.Join(ModRoot(), "vendor"), "", false)
+		if HasModRoot() {
+			modPrefix := Target.Path
+			if Target.Path == "std" {
+				modPrefix = ""
+			}
+			walkPkgs(ModRoot(), modPrefix, false)
+			walkPkgs(filepath.Join(ModRoot(), "vendor"), "", false)
+		}
 		return pkgs
 	}
 
