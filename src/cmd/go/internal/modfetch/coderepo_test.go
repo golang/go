@@ -24,6 +24,8 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
+	SetProxy("direct")
+
 	dir, err := ioutil.TempDir("", "gitrepo-test-")
 	if err != nil {
 		log.Fatal(err)
