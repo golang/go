@@ -196,12 +196,10 @@ func subdir() (pkgpath string, underGoRoot bool, err error) {
 	if err != nil {
 		return "", false, err
 	}
-	if strings.HasPrefix(cwd, goroot) {
-		subdir, err := filepath.Rel(goroot, cwd)
-		if err != nil {
-			return "", false, err
+	if subdir, err := filepath.Rel(goroot, cwd); err == nil {
+		if !strings.Contains(subdir, "..") {
+			return subdir, true, nil
 		}
-		return subdir, true, nil
 	}
 
 	for _, p := range filepath.SplitList(build.Default.GOPATH) {
@@ -209,12 +207,10 @@ func subdir() (pkgpath string, underGoRoot bool, err error) {
 		if err != nil {
 			return "", false, err
 		}
-		if !strings.HasPrefix(cwd, pabs) {
-			continue
-		}
-		subdir, err := filepath.Rel(pabs, cwd)
-		if err == nil {
-			return subdir, false, nil
+		if subdir, err := filepath.Rel(pabs, cwd); err == nil {
+			if !strings.Contains(subdir, "..") {
+				return subdir, false, nil
+			}
 		}
 	}
 	return "", false, fmt.Errorf("the current path %q is not in either GOROOT(%q) or GOPATH(%q)",
