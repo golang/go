@@ -25,6 +25,10 @@ env GOPROXY=off
 ! go list ...
 go list -mod=vendor ...
 
+# However, it should still list packages in the main module.
+go list -mod=vendor m/...
+stdout m
+
 -- go.mod --
 module m
 
