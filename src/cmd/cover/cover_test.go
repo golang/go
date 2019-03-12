@@ -82,6 +82,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	os.Setenv("GOPATH", filepath.Join(dir, "_gopath"))
 
 	testTempDir = dir
 
