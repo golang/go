@@ -111,7 +111,7 @@ func ImportPaths(patterns []string) []*search.Match {
 						if strings.HasPrefix(suffix, "/vendor/") {
 							// TODO getmode vendor check
 							pkg = strings.TrimPrefix(suffix, "/vendor/")
-						} else if Target.Path == "std" {
+						} else if targetInGorootSrc && Target.Path == "std" {
 							// Don't add the prefix "std/" to packages in the "std" module.
 							// It's the one module path that isn't a prefix of its packages.
 							pkg = strings.TrimPrefix(suffix, "/")
@@ -270,14 +270,14 @@ func DirImportPath(dir string) string {
 	}
 
 	if dir == modRoot {
-		return Target.Path
+		return targetPrefix
 	}
 	if strings.HasPrefix(dir, modRoot+string(filepath.Separator)) {
 		suffix := filepath.ToSlash(dir[len(modRoot):])
 		if strings.HasPrefix(suffix, "/vendor/") {
 			return strings.TrimPrefix(suffix, "/vendor/")
 		}
-		return Target.Path + suffix
+		return targetPrefix + suffix
 	}
 	return "."
 }
@@ -474,14 +474,10 @@ func newLoader() *loader {
 	ld.tags = imports.Tags()
 	ld.testRoots = LoadTests
 
-	switch Target.Path {
-	case "std", "cmd":
-		// Inside the "std" and "cmd" modules, we prefer to use the vendor directory
-		// unless the command explicitly changes the module graph.
-		// TODO(golang.org/issue/30240): Remove this special case.
-		if cfg.CmdName != "get" && !strings.HasPrefix(cfg.CmdName, "mod ") {
-			ld.forceStdVendor = true
-		}
+	// Inside the "std" and "cmd" modules, we prefer to use the vendor directory
+	// unless the command explicitly changes the module graph.
+	if !targetInGorootSrc || (cfg.CmdName != "get" && !strings.HasPrefix(cfg.CmdName, "mod ")) {
+		ld.forceStdVendor = true
 	}
 
 	return ld
@@ -680,13 +676,14 @@ func (ld *loader) stdVendor(parentPath, path string) string {
 		return path
 	}
 
-	if str.HasPathPrefix(parentPath, "cmd") && (Target.Path != "cmd" || ld.forceStdVendor) {
-		vendorPath := pathpkg.Join("cmd", "vendor", path)
-		if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
-			return vendorPath
+	if str.HasPathPrefix(parentPath, "cmd") {
+		if ld.forceStdVendor || Target.Path != "cmd" {
+			vendorPath := pathpkg.Join("cmd", "vendor", path)
+			if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
+				return vendorPath
+			}
 		}
-	}
-	if Target.Path != "std" || ld.forceStdVendor {
+	} else if ld.forceStdVendor || Target.Path != "std" {
 		vendorPath := pathpkg.Join("vendor", path)
 		if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
 			return vendorPath
@@ -987,8 +984,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 		return vendorList, nil
 	}
 
-	switch Target.Path {
-	case "std", "cmd":
+	if targetInGorootSrc {
 		// When inside "std" or "cmd", only fetch and read go.mod files if we're
 		// explicitly running a command that can change the module graph. If we have
 		// to resolve a new dependency, we might pick the wrong version, but 'go mod
