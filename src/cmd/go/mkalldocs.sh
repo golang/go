@@ -8,6 +8,6 @@ set -e
 go build -o go.latest
 # If the command used to generate alldocs.go changes, update TestDocsUpToDate in
 # help_test.go.
-GO111MODULE='' ./go.latest help documentation >alldocs.go
+./go.latest help documentation >alldocs.go
 gofmt -w alldocs.go
 rm go.latest

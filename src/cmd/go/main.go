@@ -49,7 +49,7 @@ func init() {
 		fix.CmdFix,
 		fmtcmd.CmdFmt,
 		generate.CmdGenerate,
-		modget.CmdGet,
+		get.CmdGet,
 		work.CmdInstall,
 		list.CmdList,
 		modcmd.CmdMod,
@@ -89,10 +89,17 @@ func main() {
 		base.Usage()
 	}
 
+	if modload.MustUseModules {
+		// If running with modules force-enabled, change get now to change help message.
+		*get.CmdGet = *modget.CmdGet
+	}
+
 	if args[0] == "get" || args[0] == "help" {
-		if modload.Init(); !modload.Enabled() {
-			// Replace module-aware get with GOPATH get if appropriate.
-			*modget.CmdGet = *get.CmdGet
+		// Replace get with module-aware get if appropriate.
+		// Note that if MustUseModules is true, this happened already above,
+		// but no harm in doing it again.
+		if modload.Init(); modload.Enabled() {
+			*get.CmdGet = *modget.CmdGet
 		}
 	}
 
