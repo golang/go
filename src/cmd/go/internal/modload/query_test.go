@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/module"
@@ -24,11 +25,16 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) int {
+	modfetch.SetProxy("direct")
+
 	dir, err := ioutil.TempDir("", "modload-test-")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
+
+	os.Setenv("GOPATH", dir)
+	cfg.BuildContext.GOPATH = dir
 	modfetch.PkgMod = filepath.Join(dir, "pkg/mod")
 	codehost.WorkRoot = filepath.Join(dir, "codework")
 	return m.Run()

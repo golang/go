@@ -87,6 +87,14 @@ cached module versions with GOPROXY=https://example.com/proxy.
 
 var proxyURL = os.Getenv("GOPROXY")
 
+// SetProxy sets the proxy to use when fetching modules.
+// It accepts the same syntax as the GOPROXY environment variable,
+// which also provides its default configuration.
+// SetProxy must not be called after the first module fetch has begun.
+func SetProxy(url string) {
+	proxyURL = url
+}
+
 func lookupProxy(path string) (Repo, error) {
 	if strings.Contains(proxyURL, ",") {
 		return nil, fmt.Errorf("invalid $GOPROXY setting: cannot have comma")
