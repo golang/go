@@ -265,7 +265,15 @@
 						const id = this._nextCallbackTimeoutID;
 						this._nextCallbackTimeoutID++;
 						this._scheduledTimeouts.set(id, setTimeout(
-							() => { this._resume(); },
+							() => {
+								this._resume();
+								while (this._scheduledTimeouts.has(id)) {
+									// for some reason Go failed to register the timeout event, log and try again
+									// (temporary workaround for https://github.com/golang/go/issues/28975)
+									console.warn("scheduleTimeoutEvent: missed timeout event");
+									this._resume();
+								}
+							},
 							getInt64(sp + 8) + 1, // setTimeout has been seen to fire up to 1 millisecond early
 						));
 						mem().setInt32(sp + 16, id, true);
