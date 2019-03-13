@@ -10,10 +10,7 @@ import (
 
 // A Frame contains part of a call stack.
 type Frame struct {
-	// Make room for three PCs: the one we were asked for, what it called,
-	// and possibly a PC for skipPleaseUseCallersFrames. See:
-	// https://go.googlesource.com/go/+/032678e0fb/src/runtime/extern.go#169
-	frames [3]uintptr
+	frames [1]uintptr
 }
 
 // Caller returns a Frame that describes a frame on the caller's stack.
@@ -21,7 +18,7 @@ type Frame struct {
 // Caller(0) returns the frame for the caller of Caller.
 func Caller(skip int) Frame {
 	var s Frame
-	runtime.Callers(skip+1, s.frames[:])
+	runtime.Callers(skip+2, s.frames[:])
 	return s
 }
 
@@ -30,13 +27,7 @@ func Caller(skip int) Frame {
 // The returned function may be "" even if file and line are not.
 func (f Frame) location() (function, file string, line int) {
 	frames := runtime.CallersFrames(f.frames[:])
-	if _, ok := frames.Next(); !ok {
-		return "", "", 0
-	}
-	fr, ok := frames.Next()
-	if !ok {
-		return "", "", 0
-	}
+	fr, _ := frames.Next()
 	return fr.Function, fr.File, fr.Line
 }
 
