@@ -14,8 +14,11 @@ import (
 // This is used to convert from the native (always in bytes) column
 // representation and the utf16 counts used by some editors.
 func ToUTF16Column(offsets Offsets, p Point, content []byte) int {
-	if content == nil || p.Column < 1 {
+	if content == nil || p.Column < 0 {
 		return -1
+	}
+	if p.Column == 0 {
+		return 1
 	}
 	// make sure we have a valid offset
 	p.updateOffset(offsets)
