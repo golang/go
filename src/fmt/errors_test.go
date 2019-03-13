@@ -378,6 +378,21 @@ func TestErrorFormatter(t *testing.T) {
 	}
 }
 
+func TestSameType(t *testing.T) {
+	err0 := errors.New("inner")
+	want := fmt.Sprintf("%T", err0)
+
+	err := fmt.Errorf("foo: %v", err0)
+	if got := fmt.Sprintf("%T", err); got != want {
+		t.Errorf("got %v; want %v", got, want)
+	}
+
+	err = fmt.Errorf("foo %s", "bar")
+	if got := fmt.Sprintf("%T", err); got != want {
+		t.Errorf("got %v; want %v", got, want)
+	}
+}
+
 var _ errors.Formatter = wrapped{}
 
 type wrapped struct {
