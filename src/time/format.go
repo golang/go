@@ -1264,6 +1264,11 @@ func parseSignedOffset(value string) int {
 	if err != nil || value[1:] == rem {
 		return 0
 	}
+	// fail if the value consumed by leadingInt is not a single- or
+	// double-digit value (probably a stdNumTZ)
+	if len(value)-len(rem) > 3 {
+		return 0
+	}
 	if sign == '-' {
 		x = -x
 	}
