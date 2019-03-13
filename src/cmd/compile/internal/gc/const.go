@@ -676,17 +676,17 @@ func evconst(n *Node) {
 	case OREAL, OIMAG:
 		if nl.Op == OLITERAL {
 			var re, im *Mpflt
-			switch consttype(nl) {
-			case CTINT, CTRUNE:
+			switch u := nl.Val().U.(type) {
+			case *Mpint:
 				re = newMpflt()
-				re.SetInt(nl.Val().U.(*Mpint))
+				re.SetInt(u)
 				// im = 0
-			case CTFLT:
-				re = nl.Val().U.(*Mpflt)
+			case *Mpflt:
+				re = u
 				// im = 0
-			case CTCPLX:
-				re = &nl.Val().U.(*Mpcplx).Real
-				im = &nl.Val().U.(*Mpcplx).Imag
+			case *Mpcplx:
+				re = &u.Real
+				im = &u.Imag
 			default:
 				Fatalf("impossible")
 			}
