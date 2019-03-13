@@ -9317,21 +9317,16 @@ func rewriteValueMIPS_OpZeromask_0(v *Value) bool {
 }
 func rewriteBlockMIPS(b *Block) bool {
 	config := b.Func.Config
-	_ = config
-	fe := b.Func.fe
-	_ = fe
 	typ := &config.Types
 	_ = typ
+	v := b.Control
+	_ = v
 	switch b.Kind {
 	case BlockMIPSEQ:
 		// match: (EQ (FPFlagTrue cmp) yes no)
 		// cond:
 		// result: (FPF cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSFPFlagTrue {
-				break
-			}
+		for v.Op == OpMIPSFPFlagTrue {
 			cmp := v.Args[0]
 			b.Kind = BlockMIPSFPF
 			b.SetControl(cmp)
@@ -9341,11 +9336,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (EQ (FPFlagFalse cmp) yes no)
 		// cond:
 		// result: (FPT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSFPFlagFalse {
-				break
-			}
+		for v.Op == OpMIPSFPFlagFalse {
 			cmp := v.Args[0]
 			b.Kind = BlockMIPSFPT
 			b.SetControl(cmp)
@@ -9355,11 +9346,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (EQ (XORconst [1] cmp:(SGT _ _)) yes no)
 		// cond:
 		// result: (NE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSXORconst {
-				break
-			}
+		for v.Op == OpMIPSXORconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9376,11 +9363,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (EQ (XORconst [1] cmp:(SGTU _ _)) yes no)
 		// cond:
 		// result: (NE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSXORconst {
-				break
-			}
+		for v.Op == OpMIPSXORconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9397,11 +9380,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (EQ (XORconst [1] cmp:(SGTconst _)) yes no)
 		// cond:
 		// result: (NE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSXORconst {
-				break
-			}
+		for v.Op == OpMIPSXORconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9417,11 +9396,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (EQ (XORconst [1] cmp:(SGTUconst _)) yes no)
 		// cond:
 		// result: (NE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSXORconst {
-				break
-			}
+		for v.Op == OpMIPSXORconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9437,11 +9412,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (EQ (XORconst [1] cmp:(SGTzero _)) yes no)
 		// cond:
 		// result: (NE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSXORconst {
-				break
-			}
+		for v.Op == OpMIPSXORconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9457,11 +9428,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (EQ (XORconst [1] cmp:(SGTUzero _)) yes no)
 		// cond:
 		// result: (NE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSXORconst {
-				break
-			}
+		for v.Op == OpMIPSXORconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9477,11 +9444,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (EQ (SGTUconst [1] x) yes no)
 		// cond:
 		// result: (NE x yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSSGTUconst {
-				break
-			}
+		for v.Op == OpMIPSSGTUconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9494,11 +9457,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (EQ (SGTUzero x) yes no)
 		// cond:
 		// result: (EQ x yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSSGTUzero {
-				break
-			}
+		for v.Op == OpMIPSSGTUzero {
 			x := v.Args[0]
 			b.Kind = BlockMIPSEQ
 			b.SetControl(x)
@@ -9508,11 +9467,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (EQ (SGTconst [0] x) yes no)
 		// cond:
 		// result: (GEZ x yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSSGTconst {
-				break
-			}
+		for v.Op == OpMIPSSGTconst {
 			if v.AuxInt != 0 {
 				break
 			}
@@ -9525,11 +9480,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (EQ (SGTzero x) yes no)
 		// cond:
 		// result: (LEZ x yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSSGTzero {
-				break
-			}
+		for v.Op == OpMIPSSGTzero {
 			x := v.Args[0]
 			b.Kind = BlockMIPSLEZ
 			b.SetControl(x)
@@ -9539,11 +9490,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (EQ (MOVWconst [0]) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSMOVWconst {
-				break
-			}
+		for v.Op == OpMIPSMOVWconst {
 			if v.AuxInt != 0 {
 				break
 			}
@@ -9555,11 +9502,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (EQ (MOVWconst [c]) yes no)
 		// cond: c != 0
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSMOVWconst {
-				break
-			}
+		for v.Op == OpMIPSMOVWconst {
 			c := v.AuxInt
 			if !(c != 0) {
 				break
@@ -9574,11 +9517,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (GEZ (MOVWconst [c]) yes no)
 		// cond: int32(c) >= 0
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSMOVWconst {
-				break
-			}
+		for v.Op == OpMIPSMOVWconst {
 			c := v.AuxInt
 			if !(int32(c) >= 0) {
 				break
@@ -9591,11 +9530,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (GEZ (MOVWconst [c]) yes no)
 		// cond: int32(c) < 0
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSMOVWconst {
-				break
-			}
+		for v.Op == OpMIPSMOVWconst {
 			c := v.AuxInt
 			if !(int32(c) < 0) {
 				break
@@ -9610,11 +9545,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (GTZ (MOVWconst [c]) yes no)
 		// cond: int32(c) > 0
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSMOVWconst {
-				break
-			}
+		for v.Op == OpMIPSMOVWconst {
 			c := v.AuxInt
 			if !(int32(c) > 0) {
 				break
@@ -9627,11 +9558,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (GTZ (MOVWconst [c]) yes no)
 		// cond: int32(c) <= 0
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSMOVWconst {
-				break
-			}
+		for v.Op == OpMIPSMOVWconst {
 			c := v.AuxInt
 			if !(int32(c) <= 0) {
 				break
@@ -9647,8 +9574,6 @@ func rewriteBlockMIPS(b *Block) bool {
 		// cond:
 		// result: (NE cond yes no)
 		for {
-			v := b.Control
-			_ = v
 			cond := b.Control
 			b.Kind = BlockMIPSNE
 			b.SetControl(cond)
@@ -9659,11 +9584,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (LEZ (MOVWconst [c]) yes no)
 		// cond: int32(c) <= 0
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSMOVWconst {
-				break
-			}
+		for v.Op == OpMIPSMOVWconst {
 			c := v.AuxInt
 			if !(int32(c) <= 0) {
 				break
@@ -9676,11 +9597,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (LEZ (MOVWconst [c]) yes no)
 		// cond: int32(c) > 0
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSMOVWconst {
-				break
-			}
+		for v.Op == OpMIPSMOVWconst {
 			c := v.AuxInt
 			if !(int32(c) > 0) {
 				break
@@ -9695,11 +9612,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (LTZ (MOVWconst [c]) yes no)
 		// cond: int32(c) < 0
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSMOVWconst {
-				break
-			}
+		for v.Op == OpMIPSMOVWconst {
 			c := v.AuxInt
 			if !(int32(c) < 0) {
 				break
@@ -9712,11 +9625,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (LTZ (MOVWconst [c]) yes no)
 		// cond: int32(c) >= 0
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSMOVWconst {
-				break
-			}
+		for v.Op == OpMIPSMOVWconst {
 			c := v.AuxInt
 			if !(int32(c) >= 0) {
 				break
@@ -9731,11 +9640,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (FPFlagTrue cmp) yes no)
 		// cond:
 		// result: (FPT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSFPFlagTrue {
-				break
-			}
+		for v.Op == OpMIPSFPFlagTrue {
 			cmp := v.Args[0]
 			b.Kind = BlockMIPSFPT
 			b.SetControl(cmp)
@@ -9745,11 +9650,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (FPFlagFalse cmp) yes no)
 		// cond:
 		// result: (FPF cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSFPFlagFalse {
-				break
-			}
+		for v.Op == OpMIPSFPFlagFalse {
 			cmp := v.Args[0]
 			b.Kind = BlockMIPSFPF
 			b.SetControl(cmp)
@@ -9759,11 +9660,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (XORconst [1] cmp:(SGT _ _)) yes no)
 		// cond:
 		// result: (EQ cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSXORconst {
-				break
-			}
+		for v.Op == OpMIPSXORconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9780,11 +9677,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (XORconst [1] cmp:(SGTU _ _)) yes no)
 		// cond:
 		// result: (EQ cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSXORconst {
-				break
-			}
+		for v.Op == OpMIPSXORconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9801,11 +9694,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (XORconst [1] cmp:(SGTconst _)) yes no)
 		// cond:
 		// result: (EQ cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSXORconst {
-				break
-			}
+		for v.Op == OpMIPSXORconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9821,11 +9710,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (XORconst [1] cmp:(SGTUconst _)) yes no)
 		// cond:
 		// result: (EQ cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSXORconst {
-				break
-			}
+		for v.Op == OpMIPSXORconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9841,11 +9726,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (XORconst [1] cmp:(SGTzero _)) yes no)
 		// cond:
 		// result: (EQ cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSXORconst {
-				break
-			}
+		for v.Op == OpMIPSXORconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9861,11 +9742,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (XORconst [1] cmp:(SGTUzero _)) yes no)
 		// cond:
 		// result: (EQ cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSXORconst {
-				break
-			}
+		for v.Op == OpMIPSXORconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9881,11 +9758,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (SGTUconst [1] x) yes no)
 		// cond:
 		// result: (EQ x yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSSGTUconst {
-				break
-			}
+		for v.Op == OpMIPSSGTUconst {
 			if v.AuxInt != 1 {
 				break
 			}
@@ -9898,11 +9771,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (SGTUzero x) yes no)
 		// cond:
 		// result: (NE x yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSSGTUzero {
-				break
-			}
+		for v.Op == OpMIPSSGTUzero {
 			x := v.Args[0]
 			b.Kind = BlockMIPSNE
 			b.SetControl(x)
@@ -9912,11 +9781,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (SGTconst [0] x) yes no)
 		// cond:
 		// result: (LTZ x yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSSGTconst {
-				break
-			}
+		for v.Op == OpMIPSSGTconst {
 			if v.AuxInt != 0 {
 				break
 			}
@@ -9929,11 +9794,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (SGTzero x) yes no)
 		// cond:
 		// result: (GTZ x yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSSGTzero {
-				break
-			}
+		for v.Op == OpMIPSSGTzero {
 			x := v.Args[0]
 			b.Kind = BlockMIPSGTZ
 			b.SetControl(x)
@@ -9943,11 +9804,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (MOVWconst [0]) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSMOVWconst {
-				break
-			}
+		for v.Op == OpMIPSMOVWconst {
 			if v.AuxInt != 0 {
 				break
 			}
@@ -9960,11 +9817,7 @@ func rewriteBlockMIPS(b *Block) bool {
 		// match: (NE (MOVWconst [c]) yes no)
 		// cond: c != 0
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpMIPSMOVWconst {
-				break
-			}
+		for v.Op == OpMIPSMOVWconst {
 			c := v.AuxInt
 			if !(c != 0) {
 				break

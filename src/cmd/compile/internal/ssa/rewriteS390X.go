@@ -40897,21 +40897,16 @@ func rewriteValueS390X_OpZeroExt8to64_0(v *Value) bool {
 }
 func rewriteBlockS390X(b *Block) bool {
 	config := b.Func.Config
-	_ = config
-	fe := b.Func.fe
-	_ = fe
 	typ := &config.Types
 	_ = typ
+	v := b.Control
+	_ = v
 	switch b.Kind {
 	case BlockS390XEQ:
 		// match: (EQ (InvertFlags cmp) yes no)
 		// cond:
 		// result: (EQ cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XInvertFlags {
-				break
-			}
+		for v.Op == OpS390XInvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockS390XEQ
 			b.SetControl(cmp)
@@ -40921,11 +40916,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (EQ (FlagEQ) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagEQ {
-				break
-			}
+		for v.Op == OpS390XFlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -40934,11 +40925,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (EQ (FlagLT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagLT {
-				break
-			}
+		for v.Op == OpS390XFlagLT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -40948,11 +40935,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (EQ (FlagGT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagGT {
-				break
-			}
+		for v.Op == OpS390XFlagGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -40963,11 +40946,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (GE (InvertFlags cmp) yes no)
 		// cond:
 		// result: (LE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XInvertFlags {
-				break
-			}
+		for v.Op == OpS390XInvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockS390XLE
 			b.SetControl(cmp)
@@ -40977,11 +40956,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (GE (FlagEQ) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagEQ {
-				break
-			}
+		for v.Op == OpS390XFlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -40990,11 +40965,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (GE (FlagLT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagLT {
-				break
-			}
+		for v.Op == OpS390XFlagLT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -41004,11 +40975,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (GE (FlagGT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagGT {
-				break
-			}
+		for v.Op == OpS390XFlagGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -41018,11 +40985,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (GT (InvertFlags cmp) yes no)
 		// cond:
 		// result: (LT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XInvertFlags {
-				break
-			}
+		for v.Op == OpS390XInvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockS390XLT
 			b.SetControl(cmp)
@@ -41032,11 +40995,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (GT (FlagEQ) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagEQ {
-				break
-			}
+		for v.Op == OpS390XFlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -41046,11 +41005,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (GT (FlagLT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagLT {
-				break
-			}
+		for v.Op == OpS390XFlagLT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -41060,11 +41015,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (GT (FlagGT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagGT {
-				break
-			}
+		for v.Op == OpS390XFlagGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -41074,11 +41025,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (If (MOVDLT (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
 		// cond:
 		// result: (LT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XMOVDLT {
-				break
-			}
+		for v.Op == OpS390XMOVDLT {
 			cmp := v.Args[2]
 			v_0 := v.Args[0]
 			if v_0.Op != OpS390XMOVDconst {
@@ -41102,11 +41049,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (If (MOVDLE (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
 		// cond:
 		// result: (LE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XMOVDLE {
-				break
-			}
+		for v.Op == OpS390XMOVDLE {
 			cmp := v.Args[2]
 			v_0 := v.Args[0]
 			if v_0.Op != OpS390XMOVDconst {
@@ -41130,11 +41073,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (If (MOVDGT (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
 		// cond:
 		// result: (GT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XMOVDGT {
-				break
-			}
+		for v.Op == OpS390XMOVDGT {
 			cmp := v.Args[2]
 			v_0 := v.Args[0]
 			if v_0.Op != OpS390XMOVDconst {
@@ -41158,11 +41097,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (If (MOVDGE (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
 		// cond:
 		// result: (GE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XMOVDGE {
-				break
-			}
+		for v.Op == OpS390XMOVDGE {
 			cmp := v.Args[2]
 			v_0 := v.Args[0]
 			if v_0.Op != OpS390XMOVDconst {
@@ -41186,11 +41121,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (If (MOVDEQ (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
 		// cond:
 		// result: (EQ cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XMOVDEQ {
-				break
-			}
+		for v.Op == OpS390XMOVDEQ {
 			cmp := v.Args[2]
 			v_0 := v.Args[0]
 			if v_0.Op != OpS390XMOVDconst {
@@ -41214,11 +41145,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (If (MOVDNE (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
 		// cond:
 		// result: (NE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XMOVDNE {
-				break
-			}
+		for v.Op == OpS390XMOVDNE {
 			cmp := v.Args[2]
 			v_0 := v.Args[0]
 			if v_0.Op != OpS390XMOVDconst {
@@ -41242,11 +41169,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (If (MOVDGTnoinv (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
 		// cond:
 		// result: (GTF cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XMOVDGTnoinv {
-				break
-			}
+		for v.Op == OpS390XMOVDGTnoinv {
 			cmp := v.Args[2]
 			v_0 := v.Args[0]
 			if v_0.Op != OpS390XMOVDconst {
@@ -41270,11 +41193,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (If (MOVDGEnoinv (MOVDconst [0]) (MOVDconst [1]) cmp) yes no)
 		// cond:
 		// result: (GEF cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XMOVDGEnoinv {
-				break
-			}
+		for v.Op == OpS390XMOVDGEnoinv {
 			cmp := v.Args[2]
 			v_0 := v.Args[0]
 			if v_0.Op != OpS390XMOVDconst {
@@ -41299,8 +41218,6 @@ func rewriteBlockS390X(b *Block) bool {
 		// cond:
 		// result: (NE (CMPWconst [0] (MOVBZreg <typ.Bool> cond)) yes no)
 		for {
-			v := b.Control
-			_ = v
 			cond := b.Control
 			b.Kind = BlockS390XNE
 			v0 := b.NewValue0(v.Pos, OpS390XCMPWconst, types.TypeFlags)
@@ -41316,11 +41233,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (LE (InvertFlags cmp) yes no)
 		// cond:
 		// result: (GE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XInvertFlags {
-				break
-			}
+		for v.Op == OpS390XInvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockS390XGE
 			b.SetControl(cmp)
@@ -41330,11 +41243,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (LE (FlagEQ) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagEQ {
-				break
-			}
+		for v.Op == OpS390XFlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -41343,11 +41252,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (LE (FlagLT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagLT {
-				break
-			}
+		for v.Op == OpS390XFlagLT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -41356,11 +41261,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (LE (FlagGT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagGT {
-				break
-			}
+		for v.Op == OpS390XFlagGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -41371,11 +41272,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (LT (InvertFlags cmp) yes no)
 		// cond:
 		// result: (GT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XInvertFlags {
-				break
-			}
+		for v.Op == OpS390XInvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockS390XGT
 			b.SetControl(cmp)
@@ -41385,11 +41282,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (LT (FlagEQ) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagEQ {
-				break
-			}
+		for v.Op == OpS390XFlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -41399,11 +41292,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (LT (FlagLT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagLT {
-				break
-			}
+		for v.Op == OpS390XFlagLT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -41412,11 +41301,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (LT (FlagGT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagGT {
-				break
-			}
+		for v.Op == OpS390XFlagGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -41427,11 +41312,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (NE (CMPWconst [0] (MOVDLT (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
 		// cond:
 		// result: (LT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XCMPWconst {
-				break
-			}
+		for v.Op == OpS390XCMPWconst {
 			if v.AuxInt != 0 {
 				break
 			}
@@ -41462,11 +41343,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (NE (CMPWconst [0] (MOVDLE (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
 		// cond:
 		// result: (LE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XCMPWconst {
-				break
-			}
+		for v.Op == OpS390XCMPWconst {
 			if v.AuxInt != 0 {
 				break
 			}
@@ -41497,11 +41374,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (NE (CMPWconst [0] (MOVDGT (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
 		// cond:
 		// result: (GT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XCMPWconst {
-				break
-			}
+		for v.Op == OpS390XCMPWconst {
 			if v.AuxInt != 0 {
 				break
 			}
@@ -41532,11 +41405,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (NE (CMPWconst [0] (MOVDGE (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
 		// cond:
 		// result: (GE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XCMPWconst {
-				break
-			}
+		for v.Op == OpS390XCMPWconst {
 			if v.AuxInt != 0 {
 				break
 			}
@@ -41567,11 +41436,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (NE (CMPWconst [0] (MOVDEQ (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
 		// cond:
 		// result: (EQ cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XCMPWconst {
-				break
-			}
+		for v.Op == OpS390XCMPWconst {
 			if v.AuxInt != 0 {
 				break
 			}
@@ -41602,11 +41467,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (NE (CMPWconst [0] (MOVDNE (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
 		// cond:
 		// result: (NE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XCMPWconst {
-				break
-			}
+		for v.Op == OpS390XCMPWconst {
 			if v.AuxInt != 0 {
 				break
 			}
@@ -41637,11 +41498,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (NE (CMPWconst [0] (MOVDGTnoinv (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
 		// cond:
 		// result: (GTF cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XCMPWconst {
-				break
-			}
+		for v.Op == OpS390XCMPWconst {
 			if v.AuxInt != 0 {
 				break
 			}
@@ -41672,11 +41529,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (NE (CMPWconst [0] (MOVDGEnoinv (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no)
 		// cond:
 		// result: (GEF cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XCMPWconst {
-				break
-			}
+		for v.Op == OpS390XCMPWconst {
 			if v.AuxInt != 0 {
 				break
 			}
@@ -41707,11 +41560,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (NE (InvertFlags cmp) yes no)
 		// cond:
 		// result: (NE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XInvertFlags {
-				break
-			}
+		for v.Op == OpS390XInvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockS390XNE
 			b.SetControl(cmp)
@@ -41721,11 +41570,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (NE (FlagEQ) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagEQ {
-				break
-			}
+		for v.Op == OpS390XFlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -41735,11 +41580,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (NE (FlagLT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagLT {
-				break
-			}
+		for v.Op == OpS390XFlagLT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -41748,11 +41589,7 @@ func rewriteBlockS390X(b *Block) bool {
 		// match: (NE (FlagGT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpS390XFlagGT {
-				break
-			}
+		for v.Op == OpS390XFlagGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil

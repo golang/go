@@ -493,11 +493,10 @@ func rewriteValuedec_OpStringPtr_0(v *Value) bool {
 }
 func rewriteBlockdec(b *Block) bool {
 	config := b.Func.Config
-	_ = config
-	fe := b.Func.fe
-	_ = fe
 	typ := &config.Types
 	_ = typ
+	v := b.Control
+	_ = v
 	switch b.Kind {
 	}
 	return false
