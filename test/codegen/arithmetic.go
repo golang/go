@@ -15,6 +15,7 @@ package codegen
 // ----------------- //
 
 var ef int
+
 func SubMem(arr []int, b, c, d int) int {
 	// 386:`SUBL\s[A-Z]+,\s8\([A-Z]+\)`
 	// amd64:`SUBQ\s[A-Z]+,\s16\([A-Z]+\)`
