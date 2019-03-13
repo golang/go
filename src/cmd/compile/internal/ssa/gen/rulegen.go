@@ -449,7 +449,6 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 	}
 
 	if aux != "" {
-
 		if !isVariable(aux) {
 			// code
 			fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, aux)
@@ -466,8 +465,18 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 		}
 	}
 
+	// Access last argument first to minimize bounds checks.
 	if n := len(args); n > 1 {
-		fmt.Fprintf(w, "_ = %s.Args[%d]\n", v, n-1) // combine some bounds checks
+		a := args[n-1]
+		if _, set := m[a]; !set && a != "_" && isVariable(a) {
+			m[a] = struct{}{}
+			fmt.Fprintf(w, "%s := %s.Args[%d]\n", a, v, n-1)
+
+			// delete the last argument so it is not reprocessed
+			args = args[:n-1]
+		} else {
+			fmt.Fprintf(w, "_ = %s.Args[%d]\n", v, n-1)
+		}
 	}
 	for i, arg := range args {
 		if arg == "_" {
