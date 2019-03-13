@@ -28,15 +28,17 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 		if !strings.HasPrefix(candidate.Label, prefix) {
 			continue
 		}
+		// InsertText is deprecated in favor of TextEdits.
+		// TODO(rstambler): Remove this logic when we are confident that we no
+		// longer need to support it.
 		insertText, triggerSignatureHelp := labelToProtocolSnippets(candidate.Label, candidate.Kind, insertTextFormat, signatureHelpEnabled)
 		if strings.HasPrefix(insertText, prefix) {
 			insertText = insertText[len(prefix):]
 		}
 		item := protocol.CompletionItem{
-			Label:            candidate.Label,
-			Detail:           candidate.Detail,
-			Kind:             toProtocolCompletionItemKind(candidate.Kind),
-			InsertTextFormat: protocol.PlainTextTextFormat,
+			Label:  candidate.Label,
+			Detail: candidate.Detail,
+			Kind:   toProtocolCompletionItemKind(candidate.Kind),
 			TextEdit: &protocol.TextEdit{
 				NewText: insertText,
 				Range: protocol.Range{
@@ -44,8 +46,6 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 					End:   pos,
 				},
 			},
-			// InsertText is deprecated in favor of TextEdit.
-			InsertText: insertText,
 			// This is a hack so that the client sorts completion results in the order
 			// according to their score. This can be removed upon the resolution of
 			// https://github.com/Microsoft/language-server-protocol/issues/348.
