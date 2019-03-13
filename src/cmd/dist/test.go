@@ -739,6 +739,12 @@ func (t *tester) registerTests() {
 			},
 		})
 	}
+
+	// Ensure that the toolchain can bootstrap itself.
+	// This test adds another ~45s to all.bash if run sequentially, so run it only on the builders.
+	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() {
+		t.registerHostTest("reboot", "../misc/reboot", "misc/reboot", ".")
+	}
 }
 
 // isRegisteredTestName reports whether a test named testName has already
