@@ -46,7 +46,7 @@ func (ts *StTimespec_t) Nano() int64 {
 // But, as fcntl is currently not exported and isn't called with F_DUP2FD,
 // it doesn't matter.
 //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
-//sys	dup2(old int, new int) (val int, err error)
+//sys	Dup2(old int, new int) (val int, err error)
 
 //sysnb pipe(p *[2]_C_int) (err error)
 func Pipe(p []int) (err error) {
@@ -567,6 +567,7 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid), 
 //sys	Chdir(path string) (err error)
 //sys	Chmod(path string, mode uint32) (err error)
 //sys	Chown(path string, uid int, gid int) (err error)
+//sys	Chroot(path string) (err error)
 //sys	Close(fd int) (err error)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Faccessat(dirfd int, path string, mode uint32, flags int) (err error)
