@@ -56,6 +56,9 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 		return nil, err
 	}
 	pkg := f.GetPackage(ctx)
+	if pkg == nil {
+		return nil, fmt.Errorf("no package found for %v", f.URI())
+	}
 	// Prepare the reports we will send for this package.
 	reports := make(map[span.URI][]Diagnostic)
 	for _, filename := range pkg.GetFilenames() {
@@ -83,8 +86,12 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 		if spn.IsPoint() && diag.Kind == packages.TypeError {
 			// Don't set a range if it's anything other than a type error.
 			if diagFile, err := v.GetFile(ctx, spn.URI); err == nil {
+				tok := diagFile.GetToken(ctx)
+				if tok == nil {
+					continue // ignore errors
+				}
 				content := diagFile.GetContent(ctx)
-				c := span.NewTokenConverter(diagFile.GetFileSet(ctx), diagFile.GetToken(ctx))
+				c := span.NewTokenConverter(diagFile.GetFileSet(ctx), tok)
 				s := spn.CleanOffset(c)
 				if end := bytes.IndexAny(content[s.Start.Offset:], " \n,():;[]"); end > 0 {
 					spn.End = s.Start

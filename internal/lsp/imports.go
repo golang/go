@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+	"fmt"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -19,8 +20,12 @@ func organizeImports(ctx context.Context, v source.View, s span.Span) ([]protoco
 	}
 	rng := s.Range(m.Converter)
 	if rng.Start == rng.End {
-		// if we have a single point, then assume the rest of the file
-		rng.End = f.GetToken(ctx).Pos(f.GetToken(ctx).Size())
+		// If we have a single point, assume we want the whole file.
+		tok := f.GetToken(ctx)
+		if tok == nil {
+			return nil, fmt.Errorf("no file information for %s", f.URI())
+		}
+		rng.End = tok.Pos(tok.Size())
 	}
 	edits, err := source.Imports(ctx, f, rng)
 	if err != nil {
