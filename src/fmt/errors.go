@@ -6,6 +6,7 @@ package fmt
 
 import (
 	"errors"
+	"internal/errinternal"
 	"strings"
 )
 
@@ -21,7 +22,7 @@ import (
 func Errorf(format string, a ...interface{}) error {
 	err, wrap := lastError(format, a)
 	if err == nil {
-		return &noWrapError{Sprintf(format, a...), nil, errors.Caller(1)}
+		return errinternal.NewError(Sprintf(format, a...), nil)
 	}
 
 	// TODO: this is not entirely correct. The error value could be
@@ -33,7 +34,7 @@ func Errorf(format string, a ...interface{}) error {
 	if wrap {
 		return &wrapError{msg, err, errors.Caller(1)}
 	}
-	return &noWrapError{msg, err, errors.Caller(1)}
+	return errinternal.NewError(msg, err)
 }
 
 func lastError(format string, a []interface{}) (err error, wrap bool) {
