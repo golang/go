@@ -5,12 +5,17 @@
 // Package errors implements functions to manipulate errors.
 package errors
 
+import "runtime"
+
 // New returns an error that formats as the given text.
 //
 // The returned error contains a Frame set to the caller's location and
 // implements Formatter to show this information when printed with details.
 func New(text string) error {
-	return &errorString{text, Caller(1)}
+	// Inline call to errors.Callers to improve performance.
+	var s Frame
+	runtime.Callers(2, s.frames[:])
+	return &errorString{text, s}
 }
 
 // errorString is a trivial implementation of error.
