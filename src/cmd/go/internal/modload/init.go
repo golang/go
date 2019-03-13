@@ -445,13 +445,6 @@ func legacyModInit() {
 	}
 }
 
-// InitGoStmt adds a go statement, unless there already is one.
-func InitGoStmt() {
-	if modFile.Go == nil {
-		addGoStmt()
-	}
-}
-
 // addGoStmt adds a go statement referring to the current version.
 func addGoStmt() {
 	tags := build.Default.ReleaseTags
