@@ -32620,21 +32620,16 @@ func rewriteValuegeneric_OpZeroExt8to64_0(v *Value) bool {
 }
 func rewriteBlockgeneric(b *Block) bool {
 	config := b.Func.Config
-	_ = config
-	fe := b.Func.fe
-	_ = fe
 	typ := &config.Types
 	_ = typ
+	v := b.Control
+	_ = v
 	switch b.Kind {
 	case BlockIf:
 		// match: (If (Not cond) yes no)
 		// cond:
 		// result: (If cond no yes)
-		for {
-			v := b.Control
-			if v.Op != OpNot {
-				break
-			}
+		for v.Op == OpNot {
 			cond := v.Args[0]
 			b.Kind = BlockIf
 			b.SetControl(cond)
@@ -32645,11 +32640,7 @@ func rewriteBlockgeneric(b *Block) bool {
 		// match: (If (ConstBool [c]) yes no)
 		// cond: c == 1
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpConstBool {
-				break
-			}
+		for v.Op == OpConstBool {
 			c := v.AuxInt
 			if !(c == 1) {
 				break
@@ -32662,11 +32653,7 @@ func rewriteBlockgeneric(b *Block) bool {
 		// match: (If (ConstBool [c]) yes no)
 		// cond: c == 0
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpConstBool {
-				break
-			}
+		for v.Op == OpConstBool {
 			c := v.AuxInt
 			if !(c == 0) {
 				break

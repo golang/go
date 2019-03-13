@@ -217,7 +217,7 @@ func genRulesSuffix(arch arch, suff string) {
 
 				canFail = false
 				fmt.Fprintf(buf, "for {\n")
-				pos, matchCanFail := genMatch(buf, arch, match, rule.loc)
+				pos, _, matchCanFail := genMatch(buf, arch, match, rule.loc)
 				if pos == "" {
 					pos = "v.Pos"
 				}
@@ -273,11 +273,10 @@ func genRulesSuffix(arch arch, suff string) {
 	// so we can make this one function with a switch.
 	fmt.Fprintf(w, "func rewriteBlock%s%s(b *Block) bool {\n", arch.name, suff)
 	fmt.Fprintln(w, "config := b.Func.Config")
-	fmt.Fprintln(w, "_ = config")
-	fmt.Fprintln(w, "fe := b.Func.fe")
-	fmt.Fprintln(w, "_ = fe")
 	fmt.Fprintln(w, "typ := &config.Types")
 	fmt.Fprintln(w, "_ = typ")
+	fmt.Fprintln(w, "v := b.Control")
+	fmt.Fprintln(w, "_ = v")
 	fmt.Fprintf(w, "switch b.Kind {\n")
 	ops = nil
 	for op := range blockrules {
@@ -292,27 +291,26 @@ func genRulesSuffix(arch arch, suff string) {
 			fmt.Fprintf(w, "// cond: %s\n", cond)
 			fmt.Fprintf(w, "// result: %s\n", result)
 
-			fmt.Fprintf(w, "for {\n")
-
 			_, _, _, aux, s := extract(match) // remove parens, then split
+
+			loopw := new(bytes.Buffer)
 
 			// check match of control value
 			pos := ""
+			checkOp := ""
 			if s[0] != "nil" {
-				fmt.Fprintf(w, "v := b.Control\n")
 				if strings.Contains(s[0], "(") {
-					pos, _ = genMatch0(w, arch, s[0], "v", map[string]struct{}{}, false, rule.loc)
+					pos, checkOp, _ = genMatch0(loopw, arch, s[0], "v", map[string]struct{}{}, rule.loc)
 				} else {
-					fmt.Fprintf(w, "_ = v\n") // in case we don't use v
-					fmt.Fprintf(w, "%s := b.Control\n", s[0])
+					fmt.Fprintf(loopw, "%s := b.Control\n", s[0])
 				}
 			}
 			if aux != "" {
-				fmt.Fprintf(w, "%s := b.Aux\n", aux)
+				fmt.Fprintf(loopw, "%s := b.Aux\n", aux)
 			}
 
 			if cond != "" {
-				fmt.Fprintf(w, "if !(%s) {\nbreak\n}\n", cond)
+				fmt.Fprintf(loopw, "if !(%s) {\nbreak\n}\n", cond)
 			}
 
 			// Rule matches. Generate result.
@@ -338,19 +336,19 @@ func genRulesSuffix(arch arch, suff string) {
 				log.Fatalf("unmatched successors %v in %s", m, rule)
 			}
 
-			fmt.Fprintf(w, "b.Kind = %s\n", blockName(outop, arch))
+			fmt.Fprintf(loopw, "b.Kind = %s\n", blockName(outop, arch))
 			if t[0] == "nil" {
-				fmt.Fprintf(w, "b.SetControl(nil)\n")
+				fmt.Fprintf(loopw, "b.SetControl(nil)\n")
 			} else {
 				if pos == "" {
 					pos = "v.Pos"
 				}
-				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[0], new(int), false, false, rule.loc, pos))
+				fmt.Fprintf(loopw, "b.SetControl(%s)\n", genResult0(loopw, arch, t[0], new(int), false, false, rule.loc, pos))
 			}
 			if aux != "" {
-				fmt.Fprintf(w, "b.Aux = %s\n", aux)
+				fmt.Fprintf(loopw, "b.Aux = %s\n", aux)
 			} else {
-				fmt.Fprintln(w, "b.Aux = nil")
+				fmt.Fprintln(loopw, "b.Aux = nil")
 			}
 
 			succChanged := false
@@ -366,13 +364,20 @@ func genRulesSuffix(arch arch, suff string) {
 				if succs[0] != newsuccs[1] || succs[1] != newsuccs[0] {
 					log.Fatalf("can only handle swapped successors in %s", rule)
 				}
-				fmt.Fprintln(w, "b.swapSuccessors()")
+				fmt.Fprintln(loopw, "b.swapSuccessors()")
 			}
 
 			if *genLog {
-				fmt.Fprintf(w, "logRule(\"%s\")\n", rule.loc)
+				fmt.Fprintf(loopw, "logRule(\"%s\")\n", rule.loc)
 			}
-			fmt.Fprintf(w, "return true\n")
+			fmt.Fprintf(loopw, "return true\n")
+
+			if checkOp != "" {
+				fmt.Fprintf(w, "for v.Op == %s {\n", checkOp)
+			} else {
+				fmt.Fprintf(w, "for {\n")
+			}
+			io.Copy(w, loopw)
 
 			fmt.Fprintf(w, "}\n")
 		}
@@ -398,24 +403,18 @@ func genRulesSuffix(arch arch, suff string) {
 
 // genMatch returns the variable whose source position should be used for the
 // result (or "" if no opinion), and a boolean that reports whether the match can fail.
-func genMatch(w io.Writer, arch arch, match string, loc string) (string, bool) {
-	return genMatch0(w, arch, match, "v", map[string]struct{}{}, true, loc)
+func genMatch(w io.Writer, arch arch, match string, loc string) (pos, checkOp string, canFail bool) {
+	return genMatch0(w, arch, match, "v", map[string]struct{}{}, loc)
 }
 
-func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, top bool, loc string) (string, bool) {
+func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, loc string) (pos, checkOp string, canFail bool) {
 	if match[0] != '(' || match[len(match)-1] != ')' {
 		panic("non-compound expr in genMatch0: " + match)
 	}
-	pos := ""
-	canFail := false
-
 	op, oparch, typ, auxint, aux, args := parseValue(match, arch, loc)
 
-	// check op
-	if !top {
-		fmt.Fprintf(w, "if %s.Op != Op%s%s {\nbreak\n}\n", v, oparch, op.name)
-		canFail = true
-	}
+	checkOp = fmt.Sprintf("Op%s%s", oparch, op.name)
+
 	if op.faultOnNilArg0 || op.faultOnNilArg1 {
 		// Prefer the position of an instruction which could fault.
 		pos = v + ".Pos"
@@ -521,8 +520,13 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 		if argname == "b" {
 			log.Fatalf("don't name args 'b', it is ambiguous with blocks")
 		}
+
 		fmt.Fprintf(w, "%s := %s.Args[%d]\n", argname, v, i)
-		argPos, argCanFail := genMatch0(w, arch, arg, argname, m, false, loc)
+		w2 := new(bytes.Buffer)
+		argPos, argCheckOp, _ := genMatch0(w2, arch, arg, argname, m, loc)
+		fmt.Fprintf(w, "if %s.Op != %s {\nbreak\n}\n", argname, argCheckOp)
+		io.Copy(w, w2)
+
 		if argPos != "" {
 			// Keep the argument in preference to the parent, as the
 			// argument is normally earlier in program flow.
@@ -531,16 +535,14 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 			// in the program flow.
 			pos = argPos
 		}
-		if argCanFail {
-			canFail = true
-		}
+		canFail = true
 	}
 
 	if op.argLength == -1 {
 		fmt.Fprintf(w, "if len(%s.Args) != %d {\nbreak\n}\n", v, len(args))
 		canFail = true
 	}
-	return pos, canFail
+	return pos, checkOp, canFail
 }
 
 func genResult(w io.Writer, arch arch, result string, loc string, pos string) {

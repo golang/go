@@ -271,11 +271,10 @@ func rewriteValuedecArgs_OpArg_10(v *Value) bool {
 }
 func rewriteBlockdecArgs(b *Block) bool {
 	config := b.Func.Config
-	_ = config
-	fe := b.Func.fe
-	_ = fe
 	typ := &config.Types
 	_ = typ
+	v := b.Control
+	_ = v
 	switch b.Kind {
 	}
 	return false

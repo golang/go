@@ -64676,21 +64676,16 @@ func rewriteValueAMD64_OpZeroExt8to64_0(v *Value) bool {
 }
 func rewriteBlockAMD64(b *Block) bool {
 	config := b.Func.Config
-	_ = config
-	fe := b.Func.fe
-	_ = fe
 	typ := &config.Types
 	_ = typ
+	v := b.Control
+	_ = v
 	switch b.Kind {
 	case BlockAMD64EQ:
 		// match: (EQ (TESTL (SHLL (MOVLconst [1]) x) y))
 		// cond: !config.nacl
 		// result: (UGE (BTL x y))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			y := v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SHLL {
@@ -64718,11 +64713,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTL y (SHLL (MOVLconst [1]) x)))
 		// cond: !config.nacl
 		// result: (UGE (BTL x y))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			_ = v.Args[1]
 			y := v.Args[0]
 			v_1 := v.Args[1]
@@ -64751,11 +64742,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTQ (SHLQ (MOVQconst [1]) x) y))
 		// cond: !config.nacl
 		// result: (UGE (BTQ x y))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			y := v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SHLQ {
@@ -64783,11 +64770,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTQ y (SHLQ (MOVQconst [1]) x)))
 		// cond: !config.nacl
 		// result: (UGE (BTQ x y))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			_ = v.Args[1]
 			y := v.Args[0]
 			v_1 := v.Args[1]
@@ -64816,11 +64799,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTLconst [c] x))
 		// cond: isUint32PowerOfTwo(c) && !config.nacl
 		// result: (UGE (BTLconst [log2uint32(c)] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTLconst {
-				break
-			}
+		for v.Op == OpAMD64TESTLconst {
 			c := v.AuxInt
 			x := v.Args[0]
 			if !(isUint32PowerOfTwo(c) && !config.nacl) {
@@ -64837,11 +64816,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTQconst [c] x))
 		// cond: isUint64PowerOfTwo(c) && !config.nacl
 		// result: (UGE (BTQconst [log2(c)] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQconst {
-				break
-			}
+		for v.Op == OpAMD64TESTQconst {
 			c := v.AuxInt
 			x := v.Args[0]
 			if !(isUint64PowerOfTwo(c) && !config.nacl) {
@@ -64858,11 +64833,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTQ (MOVQconst [c]) x))
 		// cond: isUint64PowerOfTwo(c) && !config.nacl
 		// result: (UGE (BTQconst [log2(c)] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			x := v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64MOVQconst {
@@ -64883,11 +64854,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTQ x (MOVQconst [c])))
 		// cond: isUint64PowerOfTwo(c) && !config.nacl
 		// result: (UGE (BTQconst [log2(c)] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			_ = v.Args[1]
 			x := v.Args[0]
 			v_1 := v.Args[1]
@@ -64909,11 +64876,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2))
 		// cond: z1==z2 && !config.nacl
 		// result: (UGE (BTQconst [63] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			z2 := v.Args[1]
 			z1 := v.Args[0]
 			if z1.Op != OpAMD64SHLQconst {
@@ -64944,11 +64907,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTQ z2 z1:(SHLQconst [63] (SHRQconst [63] x))))
 		// cond: z1==z2 && !config.nacl
 		// result: (UGE (BTQconst [63] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			_ = v.Args[1]
 			z2 := v.Args[0]
 			z1 := v.Args[1]
@@ -64980,11 +64939,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTL z1:(SHLLconst [31] (SHRQconst [31] x)) z2))
 		// cond: z1==z2 && !config.nacl
 		// result: (UGE (BTQconst [31] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			z2 := v.Args[1]
 			z1 := v.Args[0]
 			if z1.Op != OpAMD64SHLLconst {
@@ -65015,11 +64970,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTL z2 z1:(SHLLconst [31] (SHRQconst [31] x))))
 		// cond: z1==z2 && !config.nacl
 		// result: (UGE (BTQconst [31] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			_ = v.Args[1]
 			z2 := v.Args[0]
 			z1 := v.Args[1]
@@ -65051,11 +65002,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTQ z1:(SHRQconst [63] (SHLQconst [63] x)) z2))
 		// cond: z1==z2 && !config.nacl
 		// result: (UGE (BTQconst [0] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			z2 := v.Args[1]
 			z1 := v.Args[0]
 			if z1.Op != OpAMD64SHRQconst {
@@ -65086,11 +65033,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTQ z2 z1:(SHRQconst [63] (SHLQconst [63] x))))
 		// cond: z1==z2 && !config.nacl
 		// result: (UGE (BTQconst [0] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			_ = v.Args[1]
 			z2 := v.Args[0]
 			z1 := v.Args[1]
@@ -65122,11 +65065,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTL z1:(SHRLconst [31] (SHLLconst [31] x)) z2))
 		// cond: z1==z2 && !config.nacl
 		// result: (UGE (BTLconst [0] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			z2 := v.Args[1]
 			z1 := v.Args[0]
 			if z1.Op != OpAMD64SHRLconst {
@@ -65157,11 +65096,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTL z2 z1:(SHRLconst [31] (SHLLconst [31] x))))
 		// cond: z1==z2 && !config.nacl
 		// result: (UGE (BTLconst [0] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			_ = v.Args[1]
 			z2 := v.Args[0]
 			z1 := v.Args[1]
@@ -65193,11 +65128,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTQ z1:(SHRQconst [63] x) z2))
 		// cond: z1==z2 && !config.nacl
 		// result: (UGE (BTQconst [63] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			z2 := v.Args[1]
 			z1 := v.Args[0]
 			if z1.Op != OpAMD64SHRQconst {
@@ -65221,11 +65152,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTQ z2 z1:(SHRQconst [63] x)))
 		// cond: z1==z2 && !config.nacl
 		// result: (UGE (BTQconst [63] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			_ = v.Args[1]
 			z2 := v.Args[0]
 			z1 := v.Args[1]
@@ -65250,11 +65177,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTL z1:(SHRLconst [31] x) z2))
 		// cond: z1==z2 && !config.nacl
 		// result: (UGE (BTLconst [31] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			z2 := v.Args[1]
 			z1 := v.Args[0]
 			if z1.Op != OpAMD64SHRLconst {
@@ -65278,11 +65201,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (TESTL z2 z1:(SHRLconst [31] x)))
 		// cond: z1==z2 && !config.nacl
 		// result: (UGE (BTLconst [31] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			_ = v.Args[1]
 			z2 := v.Args[0]
 			z1 := v.Args[1]
@@ -65307,11 +65226,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (InvertFlags cmp) yes no)
 		// cond:
 		// result: (EQ cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64InvertFlags {
-				break
-			}
+		for v.Op == OpAMD64InvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64EQ
 			b.SetControl(cmp)
@@ -65321,11 +65236,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (FlagEQ) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagEQ {
-				break
-			}
+		for v.Op == OpAMD64FlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65334,11 +65245,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (FlagLT_ULT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65348,11 +65255,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (FlagLT_UGT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65362,11 +65265,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (FlagGT_ULT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65376,11 +65275,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (EQ (FlagGT_UGT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65391,11 +65286,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (GE (InvertFlags cmp) yes no)
 		// cond:
 		// result: (LE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64InvertFlags {
-				break
-			}
+		for v.Op == OpAMD64InvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64LE
 			b.SetControl(cmp)
@@ -65405,11 +65296,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (GE (FlagEQ) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagEQ {
-				break
-			}
+		for v.Op == OpAMD64FlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65418,11 +65305,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (GE (FlagLT_ULT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65432,11 +65315,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (GE (FlagLT_UGT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65446,11 +65325,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (GE (FlagGT_ULT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65459,11 +65334,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (GE (FlagGT_UGT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65473,11 +65344,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (GT (InvertFlags cmp) yes no)
 		// cond:
 		// result: (LT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64InvertFlags {
-				break
-			}
+		for v.Op == OpAMD64InvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64LT
 			b.SetControl(cmp)
@@ -65487,11 +65354,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (GT (FlagEQ) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagEQ {
-				break
-			}
+		for v.Op == OpAMD64FlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65501,11 +65364,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (GT (FlagLT_ULT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65515,11 +65374,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (GT (FlagLT_UGT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65529,11 +65384,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (GT (FlagGT_ULT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65542,11 +65393,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (GT (FlagGT_UGT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65556,11 +65403,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETL cmp) yes no)
 		// cond:
 		// result: (LT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETL {
-				break
-			}
+		for v.Op == OpAMD64SETL {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64LT
 			b.SetControl(cmp)
@@ -65570,11 +65413,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETLE cmp) yes no)
 		// cond:
 		// result: (LE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETLE {
-				break
-			}
+		for v.Op == OpAMD64SETLE {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64LE
 			b.SetControl(cmp)
@@ -65584,11 +65423,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETG cmp) yes no)
 		// cond:
 		// result: (GT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETG {
-				break
-			}
+		for v.Op == OpAMD64SETG {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64GT
 			b.SetControl(cmp)
@@ -65598,11 +65433,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETGE cmp) yes no)
 		// cond:
 		// result: (GE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETGE {
-				break
-			}
+		for v.Op == OpAMD64SETGE {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64GE
 			b.SetControl(cmp)
@@ -65612,11 +65443,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETEQ cmp) yes no)
 		// cond:
 		// result: (EQ cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETEQ {
-				break
-			}
+		for v.Op == OpAMD64SETEQ {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64EQ
 			b.SetControl(cmp)
@@ -65626,11 +65453,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETNE cmp) yes no)
 		// cond:
 		// result: (NE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETNE {
-				break
-			}
+		for v.Op == OpAMD64SETNE {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64NE
 			b.SetControl(cmp)
@@ -65640,11 +65463,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETB cmp) yes no)
 		// cond:
 		// result: (ULT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETB {
-				break
-			}
+		for v.Op == OpAMD64SETB {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64ULT
 			b.SetControl(cmp)
@@ -65654,11 +65473,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETBE cmp) yes no)
 		// cond:
 		// result: (ULE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETBE {
-				break
-			}
+		for v.Op == OpAMD64SETBE {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64ULE
 			b.SetControl(cmp)
@@ -65668,11 +65483,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETA cmp) yes no)
 		// cond:
 		// result: (UGT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETA {
-				break
-			}
+		for v.Op == OpAMD64SETA {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64UGT
 			b.SetControl(cmp)
@@ -65682,11 +65493,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETAE cmp) yes no)
 		// cond:
 		// result: (UGE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETAE {
-				break
-			}
+		for v.Op == OpAMD64SETAE {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64UGE
 			b.SetControl(cmp)
@@ -65696,11 +65503,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETO cmp) yes no)
 		// cond:
 		// result: (OS cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETO {
-				break
-			}
+		for v.Op == OpAMD64SETO {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64OS
 			b.SetControl(cmp)
@@ -65710,11 +65513,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETGF cmp) yes no)
 		// cond:
 		// result: (UGT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETGF {
-				break
-			}
+		for v.Op == OpAMD64SETGF {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64UGT
 			b.SetControl(cmp)
@@ -65724,11 +65523,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETGEF cmp) yes no)
 		// cond:
 		// result: (UGE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETGEF {
-				break
-			}
+		for v.Op == OpAMD64SETGEF {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64UGE
 			b.SetControl(cmp)
@@ -65738,11 +65533,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETEQF cmp) yes no)
 		// cond:
 		// result: (EQF cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETEQF {
-				break
-			}
+		for v.Op == OpAMD64SETEQF {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64EQF
 			b.SetControl(cmp)
@@ -65752,11 +65543,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (If (SETNEF cmp) yes no)
 		// cond:
 		// result: (NEF cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64SETNEF {
-				break
-			}
+		for v.Op == OpAMD64SETNEF {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64NEF
 			b.SetControl(cmp)
@@ -65767,8 +65554,6 @@ func rewriteBlockAMD64(b *Block) bool {
 		// cond:
 		// result: (NE (TESTB cond cond) yes no)
 		for {
-			v := b.Control
-			_ = v
 			cond := b.Control
 			b.Kind = BlockAMD64NE
 			v0 := b.NewValue0(v.Pos, OpAMD64TESTB, types.TypeFlags)
@@ -65782,11 +65567,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (LE (InvertFlags cmp) yes no)
 		// cond:
 		// result: (GE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64InvertFlags {
-				break
-			}
+		for v.Op == OpAMD64InvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64GE
 			b.SetControl(cmp)
@@ -65796,11 +65577,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (LE (FlagEQ) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagEQ {
-				break
-			}
+		for v.Op == OpAMD64FlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65809,11 +65586,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (LE (FlagLT_ULT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65822,11 +65595,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (LE (FlagLT_UGT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65835,11 +65604,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (LE (FlagGT_ULT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65849,11 +65614,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (LE (FlagGT_UGT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65864,11 +65625,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (LT (InvertFlags cmp) yes no)
 		// cond:
 		// result: (GT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64InvertFlags {
-				break
-			}
+		for v.Op == OpAMD64InvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64GT
 			b.SetControl(cmp)
@@ -65878,11 +65635,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (LT (FlagEQ) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagEQ {
-				break
-			}
+		for v.Op == OpAMD64FlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65892,11 +65645,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (LT (FlagLT_ULT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65905,11 +65654,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (LT (FlagLT_UGT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65918,11 +65663,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (LT (FlagGT_ULT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65932,11 +65673,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (LT (FlagGT_UGT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -65947,11 +65684,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETL cmp) (SETL cmp)) yes no)
 		// cond:
 		// result: (LT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETL {
@@ -65973,11 +65706,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETL cmp) (SETL cmp)) yes no)
 		// cond:
 		// result: (LT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETL {
@@ -65999,11 +65728,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
 		// cond:
 		// result: (LE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETLE {
@@ -66025,11 +65750,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
 		// cond:
 		// result: (LE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETLE {
@@ -66051,11 +65772,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETG cmp) (SETG cmp)) yes no)
 		// cond:
 		// result: (GT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETG {
@@ -66077,11 +65794,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETG cmp) (SETG cmp)) yes no)
 		// cond:
 		// result: (GT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETG {
@@ -66103,11 +65816,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETGE cmp) (SETGE cmp)) yes no)
 		// cond:
 		// result: (GE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETGE {
@@ -66129,11 +65838,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETGE cmp) (SETGE cmp)) yes no)
 		// cond:
 		// result: (GE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETGE {
@@ -66155,11 +65860,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
 		// cond:
 		// result: (EQ cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETEQ {
@@ -66181,11 +65882,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
 		// cond:
 		// result: (EQ cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETEQ {
@@ -66207,11 +65904,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETNE cmp) (SETNE cmp)) yes no)
 		// cond:
 		// result: (NE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETNE {
@@ -66233,11 +65926,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETNE cmp) (SETNE cmp)) yes no)
 		// cond:
 		// result: (NE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETNE {
@@ -66259,11 +65948,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETB cmp) (SETB cmp)) yes no)
 		// cond:
 		// result: (ULT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETB {
@@ -66285,11 +65970,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETB cmp) (SETB cmp)) yes no)
 		// cond:
 		// result: (ULT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETB {
@@ -66311,11 +65992,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
 		// cond:
 		// result: (ULE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETBE {
@@ -66337,11 +66014,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
 		// cond:
 		// result: (ULE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETBE {
@@ -66363,11 +66036,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETA cmp) (SETA cmp)) yes no)
 		// cond:
 		// result: (UGT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETA {
@@ -66389,11 +66058,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETA cmp) (SETA cmp)) yes no)
 		// cond:
 		// result: (UGT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETA {
@@ -66415,11 +66080,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no)
 		// cond:
 		// result: (UGE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETAE {
@@ -66441,11 +66102,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no)
 		// cond:
 		// result: (UGE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETAE {
@@ -66467,11 +66124,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
 		// cond:
 		// result: (OS cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETO {
@@ -66493,11 +66146,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
 		// cond:
 		// result: (OS cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETO {
@@ -66519,11 +66168,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTL (SHLL (MOVLconst [1]) x) y))
 		// cond: !config.nacl
 		// result: (ULT (BTL x y))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			y := v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SHLL {
@@ -66551,11 +66196,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTL y (SHLL (MOVLconst [1]) x)))
 		// cond: !config.nacl
 		// result: (ULT (BTL x y))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			_ = v.Args[1]
 			y := v.Args[0]
 			v_1 := v.Args[1]
@@ -66584,11 +66225,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTQ (SHLQ (MOVQconst [1]) x) y))
 		// cond: !config.nacl
 		// result: (ULT (BTQ x y))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			y := v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SHLQ {
@@ -66616,11 +66253,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTQ y (SHLQ (MOVQconst [1]) x)))
 		// cond: !config.nacl
 		// result: (ULT (BTQ x y))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			_ = v.Args[1]
 			y := v.Args[0]
 			v_1 := v.Args[1]
@@ -66649,11 +66282,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTLconst [c] x))
 		// cond: isUint32PowerOfTwo(c) && !config.nacl
 		// result: (ULT (BTLconst [log2uint32(c)] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTLconst {
-				break
-			}
+		for v.Op == OpAMD64TESTLconst {
 			c := v.AuxInt
 			x := v.Args[0]
 			if !(isUint32PowerOfTwo(c) && !config.nacl) {
@@ -66670,11 +66299,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTQconst [c] x))
 		// cond: isUint64PowerOfTwo(c) && !config.nacl
 		// result: (ULT (BTQconst [log2(c)] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQconst {
-				break
-			}
+		for v.Op == OpAMD64TESTQconst {
 			c := v.AuxInt
 			x := v.Args[0]
 			if !(isUint64PowerOfTwo(c) && !config.nacl) {
@@ -66691,11 +66316,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTQ (MOVQconst [c]) x))
 		// cond: isUint64PowerOfTwo(c) && !config.nacl
 		// result: (ULT (BTQconst [log2(c)] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			x := v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64MOVQconst {
@@ -66716,11 +66337,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTQ x (MOVQconst [c])))
 		// cond: isUint64PowerOfTwo(c) && !config.nacl
 		// result: (ULT (BTQconst [log2(c)] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			_ = v.Args[1]
 			x := v.Args[0]
 			v_1 := v.Args[1]
@@ -66742,11 +66359,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2))
 		// cond: z1==z2 && !config.nacl
 		// result: (ULT (BTQconst [63] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			z2 := v.Args[1]
 			z1 := v.Args[0]
 			if z1.Op != OpAMD64SHLQconst {
@@ -66777,11 +66390,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTQ z2 z1:(SHLQconst [63] (SHRQconst [63] x))))
 		// cond: z1==z2 && !config.nacl
 		// result: (ULT (BTQconst [63] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			_ = v.Args[1]
 			z2 := v.Args[0]
 			z1 := v.Args[1]
@@ -66813,11 +66422,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTL z1:(SHLLconst [31] (SHRQconst [31] x)) z2))
 		// cond: z1==z2 && !config.nacl
 		// result: (ULT (BTQconst [31] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			z2 := v.Args[1]
 			z1 := v.Args[0]
 			if z1.Op != OpAMD64SHLLconst {
@@ -66848,11 +66453,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTL z2 z1:(SHLLconst [31] (SHRQconst [31] x))))
 		// cond: z1==z2 && !config.nacl
 		// result: (ULT (BTQconst [31] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			_ = v.Args[1]
 			z2 := v.Args[0]
 			z1 := v.Args[1]
@@ -66884,11 +66485,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTQ z1:(SHRQconst [63] (SHLQconst [63] x)) z2))
 		// cond: z1==z2 && !config.nacl
 		// result: (ULT (BTQconst [0] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			z2 := v.Args[1]
 			z1 := v.Args[0]
 			if z1.Op != OpAMD64SHRQconst {
@@ -66919,11 +66516,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTQ z2 z1:(SHRQconst [63] (SHLQconst [63] x))))
 		// cond: z1==z2 && !config.nacl
 		// result: (ULT (BTQconst [0] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			_ = v.Args[1]
 			z2 := v.Args[0]
 			z1 := v.Args[1]
@@ -66955,11 +66548,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTL z1:(SHRLconst [31] (SHLLconst [31] x)) z2))
 		// cond: z1==z2 && !config.nacl
 		// result: (ULT (BTLconst [0] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			z2 := v.Args[1]
 			z1 := v.Args[0]
 			if z1.Op != OpAMD64SHRLconst {
@@ -66990,11 +66579,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTL z2 z1:(SHRLconst [31] (SHLLconst [31] x))))
 		// cond: z1==z2 && !config.nacl
 		// result: (ULT (BTLconst [0] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			_ = v.Args[1]
 			z2 := v.Args[0]
 			z1 := v.Args[1]
@@ -67026,11 +66611,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTQ z1:(SHRQconst [63] x) z2))
 		// cond: z1==z2 && !config.nacl
 		// result: (ULT (BTQconst [63] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			z2 := v.Args[1]
 			z1 := v.Args[0]
 			if z1.Op != OpAMD64SHRQconst {
@@ -67054,11 +66635,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTQ z2 z1:(SHRQconst [63] x)))
 		// cond: z1==z2 && !config.nacl
 		// result: (ULT (BTQconst [63] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTQ {
-				break
-			}
+		for v.Op == OpAMD64TESTQ {
 			_ = v.Args[1]
 			z2 := v.Args[0]
 			z1 := v.Args[1]
@@ -67083,11 +66660,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTL z1:(SHRLconst [31] x) z2))
 		// cond: z1==z2 && !config.nacl
 		// result: (ULT (BTLconst [31] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			z2 := v.Args[1]
 			z1 := v.Args[0]
 			if z1.Op != OpAMD64SHRLconst {
@@ -67111,11 +66684,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTL z2 z1:(SHRLconst [31] x)))
 		// cond: z1==z2 && !config.nacl
 		// result: (ULT (BTLconst [31] x))
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTL {
-				break
-			}
+		for v.Op == OpAMD64TESTL {
 			_ = v.Args[1]
 			z2 := v.Args[0]
 			z1 := v.Args[1]
@@ -67140,11 +66709,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETGF cmp) (SETGF cmp)) yes no)
 		// cond:
 		// result: (UGT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETGF {
@@ -67166,11 +66731,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETGF cmp) (SETGF cmp)) yes no)
 		// cond:
 		// result: (UGT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETGF {
@@ -67192,11 +66753,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no)
 		// cond:
 		// result: (UGE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETGEF {
@@ -67218,11 +66775,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no)
 		// cond:
 		// result: (UGE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETGEF {
@@ -67244,11 +66797,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no)
 		// cond:
 		// result: (EQF cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETEQF {
@@ -67270,11 +66819,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no)
 		// cond:
 		// result: (EQF cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETEQF {
@@ -67296,11 +66841,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no)
 		// cond:
 		// result: (NEF cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETNEF {
@@ -67322,11 +66863,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no)
 		// cond:
 		// result: (NEF cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64TESTB {
-				break
-			}
+		for v.Op == OpAMD64TESTB {
 			_ = v.Args[1]
 			v_0 := v.Args[0]
 			if v_0.Op != OpAMD64SETNEF {
@@ -67348,11 +66885,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (InvertFlags cmp) yes no)
 		// cond:
 		// result: (NE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64InvertFlags {
-				break
-			}
+		for v.Op == OpAMD64InvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64NE
 			b.SetControl(cmp)
@@ -67362,11 +66895,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (FlagEQ) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagEQ {
-				break
-			}
+		for v.Op == OpAMD64FlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67376,11 +66905,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (FlagLT_ULT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67389,11 +66914,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (FlagLT_UGT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67402,11 +66923,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (FlagGT_ULT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67415,11 +66932,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (NE (FlagGT_UGT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67429,11 +66942,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (UGE (InvertFlags cmp) yes no)
 		// cond:
 		// result: (ULE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64InvertFlags {
-				break
-			}
+		for v.Op == OpAMD64InvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64ULE
 			b.SetControl(cmp)
@@ -67443,11 +66952,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (UGE (FlagEQ) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagEQ {
-				break
-			}
+		for v.Op == OpAMD64FlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67456,11 +66961,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (UGE (FlagLT_ULT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67470,11 +66971,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (UGE (FlagLT_UGT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67483,11 +66980,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (UGE (FlagGT_ULT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67497,11 +66990,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (UGE (FlagGT_UGT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67511,11 +67000,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (UGT (InvertFlags cmp) yes no)
 		// cond:
 		// result: (ULT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64InvertFlags {
-				break
-			}
+		for v.Op == OpAMD64InvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64ULT
 			b.SetControl(cmp)
@@ -67525,11 +67010,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (UGT (FlagEQ) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagEQ {
-				break
-			}
+		for v.Op == OpAMD64FlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67539,11 +67020,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (UGT (FlagLT_ULT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67553,11 +67030,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (UGT (FlagLT_UGT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67566,11 +67039,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (UGT (FlagGT_ULT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67580,11 +67049,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (UGT (FlagGT_UGT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67594,11 +67059,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (ULE (InvertFlags cmp) yes no)
 		// cond:
 		// result: (UGE cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64InvertFlags {
-				break
-			}
+		for v.Op == OpAMD64InvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64UGE
 			b.SetControl(cmp)
@@ -67608,11 +67069,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (ULE (FlagEQ) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagEQ {
-				break
-			}
+		for v.Op == OpAMD64FlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67621,11 +67078,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (ULE (FlagLT_ULT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67634,11 +67087,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (ULE (FlagLT_UGT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67648,11 +67097,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (ULE (FlagGT_ULT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67661,11 +67106,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (ULE (FlagGT_UGT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67676,11 +67117,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (ULT (InvertFlags cmp) yes no)
 		// cond:
 		// result: (UGT cmp yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64InvertFlags {
-				break
-			}
+		for v.Op == OpAMD64InvertFlags {
 			cmp := v.Args[0]
 			b.Kind = BlockAMD64UGT
 			b.SetControl(cmp)
@@ -67690,11 +67127,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (ULT (FlagEQ) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagEQ {
-				break
-			}
+		for v.Op == OpAMD64FlagEQ {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67704,11 +67137,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (ULT (FlagLT_ULT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67717,11 +67146,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (ULT (FlagLT_UGT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagLT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagLT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67731,11 +67156,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (ULT (FlagGT_ULT) yes no)
 		// cond:
 		// result: (First nil yes no)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_ULT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_ULT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
@@ -67744,11 +67165,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// match: (ULT (FlagGT_UGT) yes no)
 		// cond:
 		// result: (First nil no yes)
-		for {
-			v := b.Control
-			if v.Op != OpAMD64FlagGT_UGT {
-				break
-			}
+		for v.Op == OpAMD64FlagGT_UGT {
 			b.Kind = BlockFirst
 			b.SetControl(nil)
 			b.Aux = nil
