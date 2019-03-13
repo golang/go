@@ -10714,6 +10714,35 @@ func rewriteValuegeneric_OpGeq64_0(v *Value) bool {
 		v.AuxInt = 1
 		return true
 	}
+	// match: (Geq64 (Rsh64Ux64 _ (Const64 [c])) (Const64 [0]))
+	// cond: c > 0
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpRsh64Ux64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		if !(c > 0) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpGeq64F_0(v *Value) bool {

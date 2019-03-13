@@ -425,6 +425,8 @@
 (Geq32 (And32 _ (Const32 [c])) (Const32 [0])) && int32(c) >= 0 -> (ConstBool [1])
 (Geq64 (And64 _ (Const64 [c])) (Const64 [0])) && int64(c) >= 0 -> (ConstBool [1])
 
+(Geq64 (Rsh64Ux64 _ (Const64 [c])) (Const64 [0])) && c > 0 -> (ConstBool [1])
+
 (Greater64U (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(uint64(c) > uint64(d))])
 (Greater32U (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(uint32(c) > uint32(d))])
 (Greater16U (Const16 [c]) (Const16 [d])) -> (ConstBool [b2i(uint16(c) > uint16(d))])
