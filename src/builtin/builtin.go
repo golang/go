@@ -151,7 +151,7 @@ func delete(m map[Type]Type1, key Type)
 //	Slice, or map: the number of elements in v; if v is nil, len(v) is zero.
 //	String: the number of bytes in v.
 //	Channel: the number of elements queued (unread) in the channel buffer;
-//	if v is nil, len(v) is zero.
+//	         if v is nil, len(v) is zero.
 // For some arguments, such as a string literal or a simple array expression, the
 // result can be a constant. See the Go language specification's "Length and
 // capacity" section for details.
