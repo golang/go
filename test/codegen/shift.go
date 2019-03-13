@@ -70,6 +70,34 @@ func rshMask64x32Ext(v int64, s int32) int64 {
 	return v >> uint(s&63)
 }
 
+// --------------- //
+//  signed shifts  //
+// --------------- //
+
+// We do want to generate a test + panicshift for these cases.
+func lshSigned(v8 int8, v16 int16, v32 int32, v64 int64, x int) {
+	// amd64:"TESTB"
+	_ = x << v8
+	// amd64:"TESTW"
+	_ = x << v16
+	// amd64:"TESTL"
+	_ = x << v32
+	// amd64:"TESTQ"
+	_ = x << v64
+}
+
+// We want to avoid generating a test + panicshift for these cases.
+func lshSignedMasked(v8 int8, v16 int16, v32 int32, v64 int64, x int) {
+	// amd64:-"TESTB"
+	_ = x << (v8 & 7)
+	// amd64:-"TESTW"
+	_ = x << (v16 & 15)
+	// amd64:-"TESTL"
+	_ = x << (v32 & 31)
+	// amd64:-"TESTQ"
+	_ = x << (v64 & 63)
+}
+
 // ------------------ //
 //   bounded shifts   //
 // ------------------ //
