@@ -10,7 +10,6 @@ import (
 	"go/build"
 	"os"
 	"os/exec"
-	//"path"
 	"path/filepath"
 	"runtime"
 	"strings"
