@@ -108,6 +108,40 @@ func CipherSuites() []*CipherSuite {
 	return append(cipherSuites[:0:0], cipherSuites...)
 }
 
+// IsSuiteECDH indicates that the cipher suite involves elliptic curve
+// Diffie-Hellman. This means that it should only be selected when the
+// client indicates that it supports ECC with a curve and point format
+// that we're happy with.
+func (cs *CipherSuite) IsSuiteECDHE() bool {
+	return cs.flags&suiteECDHE != 0
+}
+
+// IsSuiteECDSA indicates that the cipher suite involves an ECDSA
+// signature and therefore may only be selected when the server's
+// certificate is ECDSA. If this is not set then the cipher suite is
+// RSA based.
+func (cs *CipherSuite) IsSuiteECDSA() bool {
+	return cs.flags&suiteECDSA != 0
+}
+
+// IsSuiteTLS12 indicates that the cipher suite should only be advertised
+// and accepted when using TLS 1.2.
+func (cs *CipherSuite) IsSuiteTLS12() bool {
+	return cs.flags&suiteTLS12 != 0
+}
+
+// IsSuiteSHA384 indicates that the cipher suite uses SHA384 as the
+// handshake hash.
+func (cs *CipherSuite) IsSuiteSHA384() bool {
+	return cs.flags&suiteSHA384 != 0
+}
+
+// IsSuiteDefaultOff indicates that this cipher suite is not included by
+// default.
+func (cs *CipherSuite) IsSuiteDefaultOff() bool {
+	return cs.flags&suiteDefaultOff != 0
+}
+
 // A CipherSuiteTLS13 defines only the pair of the AEAD algorithm and hash
 // algorithm to be used with HKDF. See RFC 8446, Appendix B.4.
 type CipherSuiteTLS13 struct {
