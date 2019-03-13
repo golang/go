@@ -10430,6 +10430,64 @@ func rewriteValuegeneric_OpGeq16_0(v *Value) bool {
 		v.AuxInt = b2i(c >= d)
 		return true
 	}
+	// match: (Geq16 (And16 _ (Const16 [c])) (Const16 [0]))
+	// cond: int16(c) >= 0
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst16 {
+			break
+		}
+		c := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst16 {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		if !(int16(c) >= 0) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (Geq16 (And16 (Const16 [c]) _) (Const16 [0]))
+	// cond: int16(c) >= 0
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst16 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst16 {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		if !(int16(c) >= 0) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpGeq16U_0(v *Value) bool {
@@ -10472,6 +10530,64 @@ func rewriteValuegeneric_OpGeq32_0(v *Value) bool {
 		d := v_1.AuxInt
 		v.reset(OpConstBool)
 		v.AuxInt = b2i(c >= d)
+		return true
+	}
+	// match: (Geq32 (And32 _ (Const32 [c])) (Const32 [0]))
+	// cond: int32(c) >= 0
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst32 {
+			break
+		}
+		c := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		if !(int32(c) >= 0) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (Geq32 (And32 (Const32 [c]) _) (Const32 [0]))
+	// cond: int32(c) >= 0
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst32 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		if !(int32(c) >= 0) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
 		return true
 	}
 	return false
@@ -10540,6 +10656,64 @@ func rewriteValuegeneric_OpGeq64_0(v *Value) bool {
 		v.AuxInt = b2i(c >= d)
 		return true
 	}
+	// match: (Geq64 (And64 _ (Const64 [c])) (Const64 [0]))
+	// cond: int64(c) >= 0
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst64 {
+			break
+		}
+		c := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		if !(int64(c) >= 0) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (Geq64 (And64 (Const64 [c]) _) (Const64 [0]))
+	// cond: int64(c) >= 0
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst64 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		if !(int64(c) >= 0) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpGeq64F_0(v *Value) bool {
@@ -10604,6 +10778,64 @@ func rewriteValuegeneric_OpGeq8_0(v *Value) bool {
 		d := v_1.AuxInt
 		v.reset(OpConstBool)
 		v.AuxInt = b2i(c >= d)
+		return true
+	}
+	// match: (Geq8 (And8 _ (Const8 [c])) (Const8 [0]))
+	// cond: int8(c) >= 0
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd8 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpConst8 {
+			break
+		}
+		c := v_0_1.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst8 {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		if !(int8(c) >= 0) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (Geq8 (And8 (Const8 [c]) _) (Const8 [0]))
+	// cond: int8(c) >= 0
+	// result: (ConstBool [1])
+	for {
+		_ = v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAnd8 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst8 {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst8 {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		if !(int8(c) >= 0) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
 		return true
 	}
 	return false
