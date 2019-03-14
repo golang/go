@@ -202,7 +202,8 @@
 // so go clean is mainly concerned with object files left by other
 // tools or by manual invocations of go build.
 //
-// Specifically, clean removes the following files from each of the
+// If a package argument is given or the -i or -r flag is set,
+// clean removes the following files from each of the
 // source directories corresponding to the import paths:
 //
 // 	_obj/            old object directory, left from Makefiles
