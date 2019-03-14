@@ -80,7 +80,13 @@ type Server struct {
 
 	textDocumentSyncKind protocol.TextDocumentSyncKind
 
-	view *cache.View
+	viewMu sync.Mutex
+	view   *cache.View
+
+	// undelivered is a cache of any diagnostics that the server
+	// failed to deliver for some reason.
+	undeliveredMu sync.Mutex
+	undelivered   map[span.URI][]source.Diagnostic
 }
 
 func (s *Server) Run(ctx context.Context) error {
@@ -302,7 +308,9 @@ func (s *Server) DidSave(context.Context, *protocol.DidSaveTextDocumentParams) e
 }
 
 func (s *Server) DidClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
-	s.setContent(ctx, span.NewURI(params.TextDocument.URI), nil)
+	if err := s.view.SetContent(ctx, span.NewURI(params.TextDocument.URI), nil); err != nil {
+		return err
+	}
 	return nil
 }
 

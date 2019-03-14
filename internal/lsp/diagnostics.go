@@ -14,7 +14,7 @@ import (
 )
 
 func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content string) error {
-	if err := s.setContent(ctx, uri, []byte(content)); err != nil {
+	if err := s.view.SetContent(ctx, uri, []byte(content)); err != nil {
 		return err
 	}
 	go func() {
@@ -26,22 +26,40 @@ func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content str
 		if err != nil {
 			return // handle error?
 		}
+
+		s.undeliveredMu.Lock()
+		defer s.undeliveredMu.Unlock()
+
 		for uri, diagnostics := range reports {
-			protocolDiagnostics, err := toProtocolDiagnostics(ctx, s.view, diagnostics)
-			if err != nil {
-				continue // handle errors?
+			if err := s.publishDiagnostics(ctx, uri, diagnostics); err != nil {
+				s.undelivered[uri] = diagnostics
+				continue
 			}
-			s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-				Diagnostics: protocolDiagnostics,
-				URI:         protocol.NewURI(uri),
-			})
+			// In case we had old, undelivered diagnostics.
+			delete(s.undelivered, uri)
+		}
+		// Anytime we compute diagnostics, make sure to also send along any
+		// undelivered ones (only for remaining URIs).
+		for uri, diagnostics := range s.undelivered {
+			s.publishDiagnostics(ctx, uri, diagnostics)
+
+			// If we fail to deliver the same diagnostics twice, just give up.
+			delete(s.undelivered, uri)
 		}
 	}()
 	return nil
 }
 
-func (s *Server) setContent(ctx context.Context, uri span.URI, content []byte) error {
-	return s.view.SetContent(ctx, uri, content)
+func (s *Server) publishDiagnostics(ctx context.Context, uri span.URI, diagnostics []source.Diagnostic) error {
+	protocolDiagnostics, err := toProtocolDiagnostics(ctx, s.view, diagnostics)
+	if err != nil {
+		return err
+	}
+	s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
+		Diagnostics: protocolDiagnostics,
+		URI:         protocol.NewURI(uri),
+	})
+	return nil
 }
 
 func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []source.Diagnostic) ([]protocol.Diagnostic, error) {

@@ -21,9 +21,9 @@ import (
 // package does not directly access the file system.
 type View interface {
 	Logger() xlog.Logger
+	FileSet() *token.FileSet
 	GetFile(ctx context.Context, uri span.URI) (File, error)
 	SetContent(ctx context.Context, uri span.URI, content []byte) error
-	FileSet() *token.FileSet
 }
 
 // File represents a Go source file that has been type-checked. It is the input
