@@ -26137,9 +26137,8 @@ func rewriteValuePPC64_OpRotateLeft32_0(v *Value) bool {
 	// cond:
 	// result: (ROTLW x y)
 	for {
-		_ = v.Args[1]
-		x := v.Args[0]
 		y := v.Args[1]
+		x := v.Args[0]
 		v.reset(OpPPC64ROTLW)
 		v.AddArg(x)
 		v.AddArg(y)
@@ -26151,9 +26150,8 @@ func rewriteValuePPC64_OpRotateLeft64_0(v *Value) bool {
 	// cond:
 	// result: (ROTL x y)
 	for {
-		_ = v.Args[1]
-		x := v.Args[0]
 		y := v.Args[1]
+		x := v.Args[0]
 		v.reset(OpPPC64ROTL)
 		v.AddArg(x)
 		v.AddArg(y)
