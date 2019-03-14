@@ -51,6 +51,7 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 			// https://github.com/Microsoft/language-server-protocol/issues/348.
 			SortText:   fmt.Sprintf("%05d", i),
 			FilterText: insertText,
+			Preselect:  i == 0,
 		}
 		// If we are completing a function, we should trigger signature help if possible.
 		if triggerSignatureHelp && signatureHelpEnabled {
