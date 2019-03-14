@@ -148,9 +148,7 @@ func semasleep(ns int64) int32 {
 			if wait <= 0 {
 				return -1
 			}
-			var nsec int32
-			ts.set_sec(timediv(wait, 1000000000, &nsec))
-			ts.set_nsec(nsec)
+			ts.setNsec(wait)
 			tsp = &ts
 		}
 		ret := lwp_park(_CLOCK_MONOTONIC, _TIMER_RELTIME, tsp, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
