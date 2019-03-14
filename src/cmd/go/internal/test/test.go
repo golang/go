@@ -805,7 +805,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	if p.ImportPath == "command-line-arguments" {
 		elem = p.Name
 	} else {
-		elem = load.DefaultExecName(p)
+		_, elem = path.Split(p.ImportPath)
 	}
 	testBinary := elem + ".test"
 
