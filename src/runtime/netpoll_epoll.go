@@ -92,7 +92,7 @@ retry:
 		if mode != 0 {
 			pd := *(**pollDesc)(unsafe.Pointer(&ev.data))
 			pd.everr = false
-			if ev.events&_EPOLLERR != 0 {
+			if ev.events == _EPOLLERR {
 				pd.everr = true
 			}
 			netpollready(&toRun, pd, mode)

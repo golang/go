@@ -233,7 +233,7 @@ retry:
 				println("*** netpollready i=", i, "revents=", pfd.revents, "events=", pfd.events, "pd=", pds[i])
 			}
 			pds[i].everr = false
-			if pfd.revents&_POLLERR != 0 {
+			if pfd.revents == _POLLERR {
 				pds[i].everr = true
 			}
 			netpollready(&toRun, pds[i], mode)

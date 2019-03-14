@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestReadError(t *testing.T) {
@@ -18,6 +19,11 @@ func TestReadError(t *testing.T) {
 			t.Skip(err)
 		}
 		defer f.Close()
+
+		// Give scheduler a chance to have two separated
+		// goroutines: an event poller and an event waiter.
+		time.Sleep(100 * time.Millisecond)
+
 		var b [1]byte
 		_, err = f.Read(b[:])
 		if perr := parseReadError(err, isBadStateFileError); perr != nil {
