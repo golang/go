@@ -1568,7 +1568,7 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 		}
 		p.print(d.Rparen, token.RPAREN)
 
-	} else {
+	} else if len(d.Specs) > 0 {
 		// single declaration
 		p.spec(d.Specs[0], 1, true)
 	}
