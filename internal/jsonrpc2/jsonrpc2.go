@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"runtime/trace"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -103,6 +104,8 @@ func (c *Conn) Cancel(id ID) {
 // It will return as soon as the notification has been sent, as no response is
 // possible.
 func (c *Conn) Notify(ctx context.Context, method string, params interface{}) error {
+	ctx, task := trace.NewTask(ctx, "jsonrpc2.Notify "+method)
+	defer task.End()
 	jsonParams, err := marshalToRaw(params)
 	if err != nil {
 		return fmt.Errorf("marshalling notify parameters: %v", err)
@@ -123,12 +126,15 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) er
 // If the response is not an error, it will be decoded into result.
 // result must be of a type you an pass to json.Unmarshal.
 func (c *Conn) Call(ctx context.Context, method string, params, result interface{}) error {
+	ctx, task := trace.NewTask(ctx, "jsonrpc2.Call "+method)
+	defer task.End()
 	jsonParams, err := marshalToRaw(params)
 	if err != nil {
 		return fmt.Errorf("marshalling call parameters: %v", err)
 	}
 	// generate a new request identifier
 	id := ID{Number: atomic.AddInt64(&c.seq, 1)}
+	trace.Logf(ctx, "jsonrpc2", "request id %v", id)
 	request := &Request{
 		ID:     &id,
 		Method: method,
@@ -186,6 +192,8 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 // You must call this exactly once for any given request.
 // If err is set then result will be ignored.
 func (c *Conn) Reply(ctx context.Context, req *Request, result interface{}, err error) error {
+	ctx, task := trace.NewTask(ctx, "jsonrpc2.Reply "+req.Method)
+	defer task.End()
 	if req.IsNotify() {
 		return fmt.Errorf("reply not invoked with a valid call")
 	}
@@ -273,7 +281,12 @@ func (c *Conn) Run(ctx context.Context) error {
 			if e.ctx.Err() != nil {
 				continue
 			}
-			c.Handler(e.ctx, e.c, e.r)
+			ctx, task := trace.NewTask(e.ctx, "jsonrpc2.Handle "+e.r.Method)
+			if !e.r.IsNotify() {
+				trace.Logf(ctx, "jsonrpc2", "request id %v", e.r.ID)
+			}
+			c.Handler(ctx, e.c, e.r)
+			task.End()
 		}
 	}()
 	for {
