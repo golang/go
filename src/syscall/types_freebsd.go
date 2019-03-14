@@ -254,8 +254,10 @@ const (
 	PTRACE_GETFPREGS  = C.PT_GETFPREGS
 	PTRACE_GETFSBASE  = C.PT_GETFSBASE
 	PTRACE_GETLWPLIST = C.PT_GETLWPLIST
+	PTRACE_GETNUMLWPS = C.PT_GETNUMLWPS
 	PTRACE_GETREGS    = C.PT_GETREGS
 	PTRACE_GETXSTATE  = C.PT_GETXSTATE
+	PTRACE_IO         = C.PT_IO
 	PTRACE_KILL       = C.PT_KILL
 	PTRACE_LWPEVENTS  = C.PT_LWP_EVENTS
 	PTRACE_LWPINFO    = C.PT_LWPINFO
@@ -263,6 +265,13 @@ const (
 	PTRACE_SETREGS    = C.PT_SETREGS
 	PTRACE_SINGLESTEP = C.PT_STEP
 	PTRACE_TRACEME    = C.PT_TRACE_ME
+)
+
+const (
+	PIOD_READ_D  = C.PIOD_READ_D
+	PIOD_WRITE_D = C.PIOD_WRITE_D
+	PIOD_READ_I  = C.PIOD_READ_I
+	PIOD_WRITE_I = C.PIOD_WRITE_I
 )
 
 const (
@@ -276,7 +285,7 @@ const (
 	TRAP_TRACE = C.TRAP_TRACE
 )
 
-type PtraceLwpInfo C.struct_ptrace_lwpinfo
+type PtraceLwpInfoStruct C.struct_ptrace_lwpinfo
 
 type __Siginfo C.struct___siginfo
 
@@ -285,6 +294,8 @@ type Sigset_t C.sigset_t
 type Reg C.struct_reg
 
 type FpReg C.struct_fpreg
+
+type PtraceIoDesc C.struct_ptrace_io_desc
 
 // Events (kqueue, kevent)
 
