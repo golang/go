@@ -27,8 +27,12 @@ func (s *server) cacheAndDiagnose(ctx context.Context, uri span.URI, content str
 			return // handle error?
 		}
 		for uri, diagnostics := range reports {
+			protocolDiagnostics, err := toProtocolDiagnostics(ctx, s.view, diagnostics)
+			if err != nil {
+				continue // handle errors?
+			}
 			s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-				Diagnostics: toProtocolDiagnostics(ctx, s.view, diagnostics),
+				Diagnostics: protocolDiagnostics,
 				URI:         protocol.NewURI(uri),
 			})
 		}
@@ -40,14 +44,12 @@ func (s *server) setContent(ctx context.Context, uri span.URI, content []byte) e
 	return s.view.SetContent(ctx, uri, content)
 }
 
-func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []source.Diagnostic) []protocol.Diagnostic {
+func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []source.Diagnostic) ([]protocol.Diagnostic, error) {
 	reports := []protocol.Diagnostic{}
 	for _, diag := range diagnostics {
 		_, m, err := newColumnMap(ctx, v, diag.Span.URI)
 		if err != nil {
-			//TODO: if we can't find the file we cannot map
-			//the diagnostic, but also this should never happen
-			continue
+			return nil, err
 		}
 		src := diag.Source
 		if src == "" {
@@ -67,7 +69,7 @@ func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []sou
 			Source:   src,
 		})
 	}
-	return reports
+	return reports, nil
 }
 
 func sorted(d []protocol.Diagnostic) {

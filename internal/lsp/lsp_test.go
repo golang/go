@@ -162,7 +162,10 @@ func (d diagnostics) test(t *testing.T, v source.View) int {
 		if err != nil {
 			t.Fatal(err)
 		}
-		got := toProtocolDiagnostics(ctx, v, sourceDiagnostics[uri])
+		got, err := toProtocolDiagnostics(ctx, v, sourceDiagnostics[uri])
+		if err != nil {
+			t.Fatal(err)
+		}
 		sorted(got)
 		if diff := diffDiagnostics(uri, want, got); diff != "" {
 			t.Error(diff)
