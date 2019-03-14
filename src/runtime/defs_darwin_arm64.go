@@ -151,9 +151,9 @@ type timespec struct {
 }
 
 //go:nosplit
-func (t *timespec) set_nsec(ns int64) {
-	t.tv_sec = ns / 1000000000
-	t.tv_nsec = ns % 1000000000
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = ns / 1e9
+	ts.tv_nsec = ns % 1e9
 }
 
 type exceptionstate64 struct {

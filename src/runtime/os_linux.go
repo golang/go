@@ -35,8 +35,6 @@ const (
 // Don't sleep longer than ns; ns < 0 means forever.
 //go:nosplit
 func futexsleep(addr *uint32, val uint32, ns int64) {
-	var ts timespec
-
 	// Some Linux kernels have a bug where futex of
 	// FUTEX_WAIT returns an internal error code
 	// as an errno. Libpthread ignores the return value
@@ -47,19 +45,8 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
 		return
 	}
 
-	// It's difficult to live within the no-split stack limits here.
-	// On ARM and 386, a 64-bit divide invokes a general software routine
-	// that needs more stack than we can afford. So we use timediv instead.
-	// But on real 64-bit systems, where words are larger but the stack limit
-	// is not, even timediv is too heavy, and we really need to use just an
-	// ordinary machine instruction.
-	if sys.PtrSize == 8 {
-		ts.set_sec(ns / 1000000000)
-		ts.set_nsec(int32(ns % 1000000000))
-	} else {
-		ts.tv_nsec = 0
-		ts.set_sec(int64(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec)))))
-	}
+	var ts timespec
+	ts.setNsec(ns)
 	futex(unsafe.Pointer(addr), _FUTEX_WAIT_PRIVATE, val, unsafe.Pointer(&ts), nil, 0)
 }
 

@@ -191,8 +191,9 @@ type timespec struct {
 	tv_nsec int32
 }
 
-func (ts *timespec) set_sec(x int64) {
-	ts.tv_sec = int32(x)
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = timediv(ns, 1e9, &ts.tv_nsec)
 }
 
 type timeval struct {
