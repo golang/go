@@ -13,6 +13,9 @@
 package net
 
 import "internal/bytealg"
+import "strings"
+import "math"
+import "strconv"
 
 // IP address lengths (bytes).
 const (
@@ -696,6 +699,36 @@ func parseIPZone(s string) (IP, string) {
 		}
 	}
 	return nil, ""
+}
+
+func checkCIDRValid(s string) error {
+	i := bytealg.IndexByteString(s, '/')
+	if i < 0 {
+		return &ParseError{Type: "CIDR address", Text: s}
+	}
+
+	ip_array := strings.Split(s[:i], ".")
+	mask, err := strconv.Atoi(s[i+1:])
+	if err != nil {
+		return err
+	}
+
+	var sum float64
+
+	for i, ip := range ip_array {
+		ip, err := strconv.Atoi(ip)
+		if err != nil {
+			return err
+		}
+		sum += float64(ip) * math.Pow(float64(256), float64(3-i))
+		sum += float64(ip) * math.Pow(float64(256), float64(3-i))
+	}
+
+	if int(sum)%int(math.Pow(float64(2), float64(32-mask))) != 0 {
+		return &ParseError{Type: "CIDR address", Text: s}
+	}
+
+	return nil
 }
 
 // ParseCIDR parses s as a CIDR notation IP address and prefix length,
