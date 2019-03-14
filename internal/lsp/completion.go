@@ -49,7 +49,8 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 			// This is a hack so that the client sorts completion results in the order
 			// according to their score. This can be removed upon the resolution of
 			// https://github.com/Microsoft/language-server-protocol/issues/348.
-			SortText: fmt.Sprintf("%05d", i),
+			SortText:   fmt.Sprintf("%05d", i),
+			FilterText: insertText,
 		}
 		// If we are completing a function, we should trigger signature help if possible.
 		if triggerSignatureHelp && signatureHelpEnabled {
