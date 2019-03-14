@@ -234,7 +234,7 @@ retry:
 
 		if mode != 0 {
 			pd.everr = false
-			if ev.portev_events&_POLLERR != 0 {
+			if ev.portev_events == _POLLERR {
 				pd.everr = true
 			}
 			netpollready(&toRun, pd, mode)
