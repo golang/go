@@ -744,6 +744,12 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
 	if i < 0 {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}
+
+	err := checkCIDRValid(s)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	addr, mask := s[:i], s[i+1:]
 	iplen := IPv4len
 	ip := parseIPv4(addr)
