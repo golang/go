@@ -175,5 +175,6 @@ func runInDir(dir, name string, arg ...string) error {
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "GO111MODULE=auto")
 	return cmd.Run()
 }
