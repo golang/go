@@ -2542,6 +2542,20 @@ type Server struct {
 	// If nil, logging is done via the log package's standard logger.
 	ErrorLog *log.Logger
 
+	// BaseContext optionally specifies a function that returns
+	// the base context for incoming requests on this server.
+	// The provided Listener is the specific Listener that's
+	// about to start accepting requests.
+	// If BaseContext is nil, the default is context.Background().
+	// If non-nil, it must return a non-nil context.
+	BaseContext func(net.Listener) context.Context
+
+	// ConnContext optionally specifies a function that modifies
+	// the context used for a newly connection c. The provided ctx
+	// is derived from the base context and has a ServerContextKey
+	// value.
+	ConnContext func(ctx context.Context, c net.Conn) context.Context
+
 	disableKeepAlives int32     // accessed atomically.
 	inShutdown        int32     // accessed atomically (non-zero means we're in Shutdown)
 	nextProtoOnce     sync.Once // guards setupHTTP2_* init
@@ -2838,6 +2852,7 @@ func (srv *Server) Serve(l net.Listener) error {
 		fn(srv, l) // call hook with unwrapped listener
 	}
 
+	origListener := l
 	l = &onceCloseListener{Listener: l}
 	defer l.Close()
 
@@ -2850,8 +2865,16 @@ func (srv *Server) Serve(l net.Listener) error {
 	}
 	defer srv.trackListener(&l, false)
 
-	var tempDelay time.Duration     // how long to sleep on accept failure
-	baseCtx := context.Background() // base is always background, per Issue 16220
+	var tempDelay time.Duration // how long to sleep on accept failure
+
+	baseCtx := context.Background()
+	if srv.BaseContext != nil {
+		baseCtx = srv.BaseContext(origListener)
+		if baseCtx == nil {
+			panic("BaseContext returned a nil context")
+		}
+	}
+
 	ctx := context.WithValue(baseCtx, ServerContextKey, srv)
 	for {
 		rw, e := l.Accept()
@@ -2875,6 +2898,12 @@ func (srv *Server) Serve(l net.Listener) error {
 				continue
 			}
 			return e
+		}
+		if cc := srv.ConnContext; cc != nil {
+			ctx = cc(ctx, rw)
+			if ctx == nil {
+				panic("ConnContext returned nil")
+			}
 		}
 		tempDelay = 0
 		c := srv.newConn(rw)
