@@ -760,7 +760,7 @@ func ensureImport(p *load.Package, pkg string) {
 		}
 	}
 
-	p1 := load.LoadPackage(pkg, &load.ImportStack{})
+	p1 := load.LoadImportWithFlags(pkg, p.Dir, p, &load.ImportStack{}, nil, 0)
 	if p1.Error != nil {
 		base.Fatalf("load %s: %v", pkg, p1.Error)
 	}

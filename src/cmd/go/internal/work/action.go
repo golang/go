@@ -289,7 +289,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 			if strings.HasPrefix(t, "pkgpath ") {
 				t = strings.TrimPrefix(t, "pkgpath ")
 				t = strings.TrimSuffix(t, ";")
-				pkgs = append(pkgs, load.LoadPackage(t, &stk))
+				pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd, nil, &stk, nil, 0))
 			}
 		}
 	} else {
@@ -300,7 +300,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 		scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
 		for scanner.Scan() {
 			t := scanner.Text()
-			pkgs = append(pkgs, load.LoadPackage(t, &stk))
+			pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd, nil, &stk, nil, 0))
 		}
 	}
 	return
@@ -405,7 +405,7 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 		// vet expects to be able to import "fmt".
 		var stk load.ImportStack
 		stk.Push("vet")
-		p1 := load.LoadPackage("fmt", &stk)
+		p1 := load.LoadImportWithFlags("fmt", p.Dir, p, &stk, nil, 0)
 		stk.Pop()
 		aFmt := b.CompileAction(ModeBuild, depMode, p1)
 
@@ -705,7 +705,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 					}
 				}
 				var stk load.ImportStack
-				p := load.LoadPackage(pkg, &stk)
+				p := load.LoadImportWithFlags(pkg, base.Cwd, nil, &stk, nil, 0)
 				if p.Error != nil {
 					base.Fatalf("load %s: %v", pkg, p.Error)
 				}

@@ -377,7 +377,7 @@ func ClearPackageCachePartial(args []string) {
 	}
 }
 
-// ReloadPackageNoFlags is like LoadPackageNoFlags but makes sure
+// ReloadPackageNoFlags is like LoadImport but makes sure
 // not to use the package cache.
 // It is only for use by GOPATH-based "go get".
 // TODO(rsc): When GOPATH-based "go get" is removed, delete this function.
@@ -387,7 +387,7 @@ func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
 		delete(packageCache, p.Dir)
 		delete(packageCache, p.ImportPath)
 	}
-	return LoadPackageNoFlags(arg, stk)
+	return LoadImport(arg, base.Cwd, nil, stk, nil, 0)
 }
 
 // dirToImportPath returns the pseudo-import path we use for a package
@@ -552,7 +552,7 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
 		bp.ImportPath = importPath
 		if cfg.GOBIN != "" {
 			bp.BinDir = cfg.GOBIN
-		} else if cfg.ModulesEnabled {
+		} else if cfg.ModulesEnabled && !bp.Goroot {
 			bp.BinDir = ModBinDir()
 		}
 		if modDir == "" && err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
@@ -1716,97 +1716,15 @@ func TestPackageList(roots []*Package) []*Package {
 	return all
 }
 
-var cmdCache = map[string]*Package{}
-
-func ClearCmdCache() {
-	for name := range cmdCache {
-		delete(cmdCache, name)
-	}
-}
-
-// LoadPackage loads the package named by arg.
-func LoadPackage(arg string, stk *ImportStack) *Package {
-	p := loadPackage(arg, stk)
+// LoadImportWithFlags loads the package with the given import path and
+// sets tool flags on that package. This function is useful loading implicit
+// dependencies (like sync/atomic for coverage).
+// TODO(jayconrod): delete this function and set flags automatically
+// in LoadImport instead.
+func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
+	p := LoadImport(path, srcDir, parent, stk, importPos, mode)
 	setToolFlags(p)
 	return p
-}
-
-// LoadPackageNoFlags is like LoadPackage
-// but does not guarantee that the build tool flags are set in the result.
-// It is only for use by GOPATH-based "go get"
-// and is only appropriate for preliminary loading of packages.
-// A real load using LoadPackage or (more likely)
-// Packages, PackageAndErrors, or PackagesForBuild
-// must be done before passing the package to any build
-// steps, so that the tool flags can be set properly.
-// TODO(rsc): When GOPATH-based "go get" is removed, delete this function.
-func LoadPackageNoFlags(arg string, stk *ImportStack) *Package {
-	return loadPackage(arg, stk)
-}
-
-// loadPackage is like loadImport but is used for command-line arguments,
-// not for paths found in import statements. In addition to ordinary import paths,
-// loadPackage accepts pseudo-paths beginning with cmd/ to denote commands
-// in the Go command directory, as well as paths to those directories.
-func loadPackage(arg string, stk *ImportStack) *Package {
-	if arg == "" {
-		panic("loadPackage called with empty package path")
-	}
-	if build.IsLocalImport(arg) {
-		dir := arg
-		if !filepath.IsAbs(dir) {
-			if abs, err := filepath.Abs(dir); err == nil {
-				// interpret relative to current directory
-				dir = abs
-			}
-		}
-		if sub, ok := hasSubdir(cfg.GOROOTsrc, dir); ok && strings.HasPrefix(sub, "cmd/") && !strings.Contains(sub[4:], "/") {
-			arg = sub
-		}
-	}
-	if strings.HasPrefix(arg, "cmd/") && !strings.Contains(arg[4:], "/") {
-		if p := cmdCache[arg]; p != nil {
-			return p
-		}
-		stk.Push(arg)
-		defer stk.Pop()
-
-		bp, err := cfg.BuildContext.ImportDir(filepath.Join(cfg.GOROOTsrc, arg), 0)
-		bp.ImportPath = arg
-		bp.Goroot = true
-		bp.BinDir = cfg.GOROOTbin
-		bp.Root = cfg.GOROOT
-		bp.SrcRoot = cfg.GOROOTsrc
-		p := new(Package)
-		cmdCache[arg] = p
-		p.load(stk, bp, err)
-		if p.Error == nil && p.Name != "main" {
-			p.Error = &PackageError{
-				ImportStack: stk.Copy(),
-				Err:         fmt.Sprintf("expected package main but found package %s in %s", p.Name, p.Dir),
-			}
-		}
-		return p
-	}
-
-	// Wasn't a command; must be a package.
-	// If it is a local import path but names a standard package,
-	// we treat it as if the user specified the standard package.
-	// This lets you run go test ./ioutil in package io and be
-	// referring to io/ioutil rather than a hypothetical import of
-	// "./ioutil".
-	if build.IsLocalImport(arg) || filepath.IsAbs(arg) {
-		dir := arg
-		if !filepath.IsAbs(arg) {
-			dir = filepath.Join(base.Cwd, arg)
-		}
-		bp, _ := cfg.BuildContext.ImportDir(dir, build.FindOnly)
-		if bp.ImportPath != "" && bp.ImportPath != "." {
-			arg = bp.ImportPath
-		}
-	}
-
-	return LoadImport(arg, base.Cwd, nil, stk, nil, 0)
 }
 
 // Packages returns the packages named by the
@@ -1850,7 +1768,7 @@ func PackagesAndErrors(patterns []string) []*Package {
 			if pkg == "" {
 				panic(fmt.Sprintf("ImportPaths returned empty package for pattern %s", m.Pattern))
 			}
-			p := loadPackage(pkg, &stk)
+			p := LoadImport(pkg, base.Cwd, nil, &stk, nil, 0)
 			p.Match = append(p.Match, m.Pattern)
 			p.Internal.CmdlinePkg = true
 			if m.Literal {
