@@ -558,8 +558,6 @@
 // For modules stored in source control repositories, the version suffix can
 // also be a commit hash, branch identifier, or other syntax known to the
 // source control system, as in 'go get golang.org/x/text@master'.
-// The version suffix @latest explicitly requests the default behavior
-// described above.
 //
 // If a module under consideration is already a dependency of the current
 // development module, then get will update the required version.
@@ -567,6 +565,13 @@
 // downgrades the dependency. The version suffix @none indicates that the
 // dependency should be removed entirely, downgrading or removing modules
 // depending on it as needed.
+//
+// The version suffix @latest explicitly requests the latest minor release of the
+// given path.
+//
+// The suffix @patch requests the latest patch release: if the path is already in
+// the build list, the selected version will have the same minor version.
+// If the path is not already in the build list, @patch is equivalent to @latest.
 //
 // Although get defaults to using the latest version of the module containing
 // a named package, it does not use the latest version of that module's
@@ -581,9 +586,11 @@
 // patch releases when available. Continuing the previous example,
 // 'go get -u A' will use the latest A with B v1.3.1 (not B v1.2.3).
 //
-// The -u=patch flag (not -u patch) instructs get to update dependencies
-// to use newer patch releases when available. Continuing the previous example,
-// 'go get -u=patch A' will use the latest A with B v1.2.4 (not B v1.2.3).
+// The -u=patch flag (not -u patch) also instructs get to update dependencies,
+// but changes the default to select patch releases.
+// Continuing the previous example,
+// 'go get -u=patch A@latest' will use the latest A with B v1.2.4 (not B v1.2.3),
+// while 'go get -u=patch A' will use a patch release of A instead.
 //
 // In general, adding a new dependency may require upgrading
 // existing dependencies to keep a working build, and 'go get' does

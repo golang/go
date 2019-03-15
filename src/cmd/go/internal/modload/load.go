@@ -339,7 +339,7 @@ func loadAll(testAll bool) []string {
 	if !testAll {
 		loaded.testRoots = true
 	}
-	all := TargetPackages()
+	all := TargetPackages("...")
 	loaded.load(func() []string { return all })
 	WriteGoMod()
 
@@ -357,10 +357,11 @@ func loadAll(testAll bool) []string {
 // Only "ignore" and malformed build tag requirements are considered false.
 var anyTags = map[string]bool{"*": true}
 
-// TargetPackages returns the list of packages in the target (top-level) module,
-// under all build tag settings.
-func TargetPackages() []string {
-	return matchPackages("...", anyTags, false, []module.Version{Target})
+// TargetPackages returns the list of packages in the target (top-level) module
+// matching pattern, which may be relative to the working directory, under all
+// build tag settings.
+func TargetPackages(pattern string) []string {
+	return matchPackages(pattern, anyTags, false, []module.Version{Target})
 }
 
 // BuildList returns the module build list,
