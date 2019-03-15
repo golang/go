@@ -132,11 +132,11 @@ func runClean(cmd *base.Command, args []string) {
 			// and not something that we want to remove. Also, we'd like to preserve
 			// the access log for future analysis, even if the cache is cleared.
 			subdirs, _ := filepath.Glob(filepath.Join(dir, "[0-9a-f][0-9a-f]"))
+			printedErrors := false
 			if len(subdirs) > 0 {
 				if cfg.BuildN || cfg.BuildX {
 					b.Showcmd("", "rm -r %s", strings.Join(subdirs, " "))
 				}
-				printedErrors := false
 				for _, d := range subdirs {
 					// Only print the first error - there may be many.
 					// This also mimics what os.RemoveAll(dir) would do.
@@ -145,6 +145,12 @@ func runClean(cmd *base.Command, args []string) {
 						base.Errorf("go clean -cache: %v", err)
 					}
 				}
+			}
+
+			logFile := filepath.Join(dir, "log.txt")
+			if err := os.RemoveAll(logFile); err != nil && !printedErrors {
+				printedErrors = true
+				base.Errorf("go clean -cache: %v", err)
 			}
 		}
 	}
