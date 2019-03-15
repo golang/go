@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -27,6 +28,9 @@ import (
 var verifyGuru = flag.Bool("verify-guru", false, "Check that the guru compatability matches")
 
 func TestDefinitionHelpExample(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skip("not all source files are available on android")
+	}
 	dir, err := os.Getwd()
 	if err != nil {
 		t.Errorf("could not get wd: %v", err)

@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -118,6 +119,14 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	})
 
 	t.Run("Format", func(t *testing.T) {
+		if _, err := exec.LookPath("gofmt"); err != nil {
+			switch runtime.GOOS {
+			case "android":
+				t.Skip("gofmt is not installed")
+			default:
+				t.Fatal(err)
+			}
+		}
 		t.Helper()
 		if goVersion111 { // TODO(rstambler): Remove this when we no longer support Go 1.10.
 			if len(expectedFormat) != expectedFormatCount {
