@@ -13,6 +13,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1211,12 +1212,20 @@ func TestName_Modules(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	gopath, err := ioutil.TempDir("", "TestName_Modules")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(gopath)
+	if err := copyAll(filepath.Join(wd, "testdata", "TestName_Modules"), gopath); err != nil {
+		t.Fatal(err)
+	}
 	// testdata/TestNamed_Modules contains:
 	// - pkg/mod/github.com/heschik/tools-testrepo@v1.0.0/pkg
 	// - pkg/mod/github.com/heschik/tools-testrepo/v2@v2.0.0/pkg
 	// - src/b/pkg
 	exported.Config.Mode = packages.LoadImports
-	exported.Config.Env = append(exported.Config.Env, "GOPATH="+wd+"/testdata/TestName_Modules")
+	exported.Config.Env = append(exported.Config.Env, "GOPATH="+gopath)
 	initial, err := packages.Load(exported.Config, "iamashamedtousethedisabledqueryname=pkg")
 	if err != nil {
 		t.Fatal(err)
@@ -1248,13 +1257,21 @@ func TestName_ModulesDedup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	gopath, err := ioutil.TempDir("", "TestName_ModulesDedup")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(gopath)
+	if err := copyAll(filepath.Join(wd, "testdata", "TestName_ModulesDedup"), gopath); err != nil {
+		t.Fatal(err)
+	}
 	// testdata/TestNamed_ModulesDedup contains:
 	// - pkg/mod/github.com/heschik/tools-testrepo/v2@v2.0.2/pkg/pkg.go
 	// - pkg/mod/github.com/heschik/tools-testrepo/v2@v2.0.1/pkg/pkg.go
 	// - pkg/mod/github.com/heschik/tools-testrepo@v1.0.0/pkg/pkg.go
 	// but, inexplicably, not v2.0.0. Nobody knows why.
 	exported.Config.Mode = packages.LoadImports
-	exported.Config.Env = append(exported.Config.Env, "GOPATH="+wd+"/testdata/TestName_ModulesDedup")
+	exported.Config.Env = append(exported.Config.Env, "GOPATH="+gopath)
 	initial, err := packages.Load(exported.Config, "iamashamedtousethedisabledqueryname=pkg")
 	if err != nil {
 		t.Fatal(err)
@@ -1756,4 +1773,28 @@ func constant(p *packages.Package, name string) *types.Const {
 		return nil
 	}
 	return c.(*types.Const)
+}
+
+func copyAll(srcPath, dstPath string) error {
+	return filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		contents, err := ioutil.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(srcPath, path)
+		if err != nil {
+			return err
+		}
+		dstFilePath := filepath.Join(dstPath, rel)
+		if err := os.MkdirAll(filepath.Dir(dstFilePath), 0755); err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(dstFilePath, contents, 0644); err != nil {
+			return err
+		}
+		return nil
+	})
 }
