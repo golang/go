@@ -38,7 +38,8 @@ func IsMIPSMUL(op obj.As) bool {
 	switch op {
 	case mips.AMUL, mips.AMULU, mips.AMULV, mips.AMULVU,
 		mips.ADIV, mips.ADIVU, mips.ADIVV, mips.ADIVVU,
-		mips.AREM, mips.AREMU, mips.AREMV, mips.AREMVU:
+		mips.AREM, mips.AREMU, mips.AREMV, mips.AREMVU,
+		mips.AMADD, mips.AMSUB:
 		return true
 	}
 	return false

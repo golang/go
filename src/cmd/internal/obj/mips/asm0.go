@@ -959,6 +959,8 @@ func buildop(ctxt *obj.Link) {
 			opset(ADIVU, r0)
 			opset(AMULU, r0)
 			opset(ADIV, r0)
+			opset(AMADD, r0)
+			opset(AMSUB, r0)
 
 		case AMULV:
 			opset(ADIVV, r0)
@@ -1785,6 +1787,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return SP(3, 4) | OP(4, 1)
 	case ACLZ:
 		return SP(3, 4) | OP(4, 0)
+	case AMADD:
+		return SP(3, 4) | OP(0, 0)
+	case AMSUB:
+		return SP(3, 4) | OP(0, 4)
 	}
 
 	if a < 0 {
