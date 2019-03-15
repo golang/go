@@ -443,7 +443,7 @@ TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
 	// Record value
 	MOVD R1, 0(R5)
 	// Record *slot
-	MOVD R0, 8(R5)
+	MOVD (R0), 8(R5)
 
 	// Increment wbBuf.next
 	Get R5
