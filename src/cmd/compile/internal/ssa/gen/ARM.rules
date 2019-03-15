@@ -59,13 +59,22 @@
 
 // TODO: optimize this for ARMv5 and ARMv6
 (Ctz32NonZero x) -> (Ctz32 x)
+(Ctz16NonZero x) -> (Ctz32 x)
+(Ctz8NonZero x) -> (Ctz32 x)
 
 // count trailing zero for ARMv5 and ARMv6
 // 32 - CLZ(x&-x - 1)
-(Ctz32 <t> x) && objabi.GOARM<=6 -> (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
+(Ctz32 <t> x) && objabi.GOARM<=6 ->
+	(RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
+(Ctz16 <t> x) && objabi.GOARM<=6 ->
+	(RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x10000] x))) [1])))
+(Ctz8 <t> x) && objabi.GOARM<=6 ->
+	(RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x100] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x100] x))) [1])))
 
 // count trailing zero for ARMv7
 (Ctz32 <t> x) && objabi.GOARM==7 -> (CLZ <t> (RBIT <t> x))
+(Ctz16 <t> x) && objabi.GOARM==7 -> (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
+(Ctz8 <t> x) && objabi.GOARM==7 -> (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
 
 // bit length
 (BitLen32 <t> x) -> (RSBconst [32] (CLZ <t> x))

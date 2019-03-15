@@ -3288,12 +3288,12 @@ func init() {
 			y := s.newValue2(ssa.OpOr32, types.Types[TUINT32], x, c)
 			return s.newValue1(ssa.OpCtz32, types.Types[TINT], y)
 		},
-		sys.ARM, sys.MIPS)
+		sys.MIPS)
 	addF("math/bits", "TrailingZeros16",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCtz16, types.Types[TINT], args[0])
 		},
-		sys.AMD64, sys.ARM64, sys.Wasm)
+		sys.AMD64, sys.ARM, sys.ARM64, sys.Wasm)
 	addF("math/bits", "TrailingZeros16",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[TUINT64], args[0])
@@ -3309,12 +3309,12 @@ func init() {
 			y := s.newValue2(ssa.OpOr32, types.Types[TUINT32], x, c)
 			return s.newValue1(ssa.OpCtz32, types.Types[TINT], y)
 		},
-		sys.ARM, sys.MIPS)
+		sys.MIPS)
 	addF("math/bits", "TrailingZeros8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCtz8, types.Types[TINT], args[0])
 		},
-		sys.AMD64, sys.ARM64, sys.Wasm)
+		sys.AMD64, sys.ARM, sys.ARM64, sys.Wasm)
 	addF("math/bits", "TrailingZeros8",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[TUINT64], args[0])
