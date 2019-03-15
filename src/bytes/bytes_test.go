@@ -1654,15 +1654,38 @@ func makeBenchInputHard() []byte {
 
 var benchInputHard = makeBenchInputHard()
 
+func benchmarkIndexHard(b *testing.B, sep []byte) {
+	for i := 0; i < b.N; i++ {
+		Index(benchInputHard, sep)
+	}
+}
+
 func benchmarkLastIndexHard(b *testing.B, sep []byte) {
 	for i := 0; i < b.N; i++ {
 		LastIndex(benchInputHard, sep)
 	}
 }
 
+func benchmarkCountHard(b *testing.B, sep []byte) {
+	for i := 0; i < b.N; i++ {
+		Count(benchInputHard, sep)
+	}
+}
+
+func BenchmarkIndexHard1(b *testing.B) { benchmarkIndexHard(b, []byte("<>")) }
+func BenchmarkIndexHard2(b *testing.B) { benchmarkIndexHard(b, []byte("</pre>")) }
+func BenchmarkIndexHard3(b *testing.B) { benchmarkIndexHard(b, []byte("<b>hello world</b>")) }
+func BenchmarkIndexHard4(b *testing.B) {
+	benchmarkIndexHard(b, []byte("<pre><b>hello</b><strong>world</strong></pre>"))
+}
+
 func BenchmarkLastIndexHard1(b *testing.B) { benchmarkLastIndexHard(b, []byte("<>")) }
 func BenchmarkLastIndexHard2(b *testing.B) { benchmarkLastIndexHard(b, []byte("</pre>")) }
 func BenchmarkLastIndexHard3(b *testing.B) { benchmarkLastIndexHard(b, []byte("<b>hello world</b>")) }
+
+func BenchmarkCountHard1(b *testing.B) { benchmarkCountHard(b, []byte("<>")) }
+func BenchmarkCountHard2(b *testing.B) { benchmarkCountHard(b, []byte("</pre>")) }
+func BenchmarkCountHard3(b *testing.B) { benchmarkCountHard(b, []byte("<b>hello world</b>")) }
 
 func BenchmarkSplitEmptySeparator(b *testing.B) {
 	for i := 0; i < b.N; i++ {
