@@ -116,7 +116,7 @@ func runMain() (int, error) {
 		if _, err := run("exec-out", "mkdir", "-p", deviceCwd); err != nil {
 			return 0, err
 		}
-		if err := adbCopyTestdata(deviceCwd, subdir); err != nil {
+		if err := adbCopyTree(deviceCwd, subdir); err != nil {
 			return 0, err
 		}
 
@@ -217,21 +217,24 @@ func subdir() (pkgpath string, underGoRoot bool, err error) {
 		cwd, runtime.GOROOT(), build.Default.GOPATH)
 }
 
-// adbCopyTestdata copies testdata directories from subdir to deviceCwd
-// on the device.
-// It is common for tests to reach out into testdata from parent
-// packages, so copy testdata directories all the way up to the root
-// of subdir.
-func adbCopyTestdata(deviceCwd, subdir string) error {
+// adbCopyTree copies testdata, go.mod, go.sum files from subdir
+// and from parent directories all the way up to the root of subdir.
+// go.mod and go.sum files are needed for the go tool modules queries,
+// and the testdata directories for tests.  It is common for tests to
+// reach out into testdata from parent packages.
+func adbCopyTree(deviceCwd, subdir string) error {
 	dir := ""
 	for {
-		testdata := filepath.Join(dir, "testdata")
-		if _, err := os.Stat(testdata); err == nil {
+		for _, path := range []string{"testdata", "go.mod", "go.sum"} {
+			path := filepath.Join(dir, path)
+			if _, err := os.Stat(path); err != nil {
+				continue
+			}
 			devicePath := filepath.Join(deviceCwd, dir)
 			if _, err := run("exec-out", "mkdir", "-p", devicePath); err != nil {
 				return err
 			}
-			if _, err := run("push", testdata, devicePath); err != nil {
+			if _, err := run("push", path, devicePath); err != nil {
 				return err
 			}
 		}
