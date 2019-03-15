@@ -304,7 +304,7 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
 		otherPkgs = []string{"sync/atomic"}
 	}
 	for _, p2name := range otherPkgs {
-		p2 := load.LoadPackage(p2name, &load.ImportStack{})
+		p2 := load.LoadImportWithFlags(p2name, p.Dir, p, &load.ImportStack{}, nil, 0)
 		if len(p2.SFiles) == 0 {
 			continue
 		}

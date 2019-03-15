@@ -177,12 +177,6 @@ func runGet(cmd *base.Command, args []string) {
 	// everything.
 	load.ClearPackageCache()
 
-	// In order to rebuild packages information completely,
-	// we need to clear commands cache. Command packages are
-	// referring to evicted packages from the package cache.
-	// This leads to duplicated loads of the standard packages.
-	load.ClearCmdCache()
-
 	pkgs := load.PackagesForBuild(args)
 
 	// Phase 3. Install.
@@ -240,7 +234,8 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 	}
 	load1 := func(path string, mode int) *load.Package {
 		if parent == nil {
-			return load.LoadPackageNoFlags(path, stk)
+			mode := 0 // don't do module or vendor resolution
+			return load.LoadImport(path, base.Cwd, nil, stk, nil, mode)
 		}
 		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
 	}
