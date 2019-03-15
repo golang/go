@@ -59,13 +59,7 @@ func TestDefinition(t *testing.T) {
 			}
 			args = append(args, "definition")
 			f := fset.File(src)
-			spn := span.Span{
-				URI: span.FileURI(f.Name()),
-				Start: span.Point{
-					Offset: f.Offset(src),
-				},
-			}
-			spn.End = spn.Start
+			spn := span.New(span.FileURI(f.Name()), span.NewPoint(0, 0, f.Offset(src)), span.Point{})
 			args = append(args, fmt.Sprint(spn))
 			app := &cmd.Application{}
 			app.Config = *exported.Config

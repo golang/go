@@ -47,7 +47,7 @@ func (s *server) setContent(ctx context.Context, uri span.URI, content []byte) e
 func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []source.Diagnostic) ([]protocol.Diagnostic, error) {
 	reports := []protocol.Diagnostic{}
 	for _, diag := range diagnostics {
-		_, m, err := newColumnMap(ctx, v, diag.Span.URI)
+		_, m, err := newColumnMap(ctx, v, diag.Span.URI())
 		if err != nil {
 			return nil, err
 		}
@@ -62,9 +62,13 @@ func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []sou
 		case source.SeverityWarning:
 			severity = protocol.SeverityWarning
 		}
+		rng, err := m.Range(diag.Span)
+		if err != nil {
+			return nil, err
+		}
 		reports = append(reports, protocol.Diagnostic{
 			Message:  diag.Message,
-			Range:    m.Range(diag.Span),
+			Range:    rng,
 			Severity: severity,
 			Source:   src,
 		})

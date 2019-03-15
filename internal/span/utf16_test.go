@@ -39,22 +39,30 @@ func TestUTF16(t *testing.T) {
 				runeChr = chr
 				runeColumn = chr + 2
 			}
-			p := span.Point{Line: line, Column: runeColumn}
+			p := span.NewPoint(line, runeColumn, (line-1)*13+(runeColumn-1))
 			// check conversion to utf16 format
-			gotChr := span.ToUTF16Column(c, p, input)
+			gotChr, err := span.ToUTF16Column(p, input)
+			if err != nil {
+				t.Error(err)
+			}
 			if runeChr != gotChr {
 				t.Errorf("ToUTF16Column(%v): expected %v, got %v", p, runeChr, gotChr)
 			}
-			// we deliberately delay setting the point's offset
-			p.Offset = (line-1)*13 + (p.Column - 1)
-			offset := c.ToOffset(p.Line, p.Column)
-			if p.Offset != offset {
-				t.Errorf("ToOffset(%v,%v): expected %v, got %v", p.Line, p.Column, p.Offset, offset)
+			offset, err := c.ToOffset(p.Line(), p.Column())
+			if err != nil {
+				t.Error(err)
+			}
+			if p.Offset() != offset {
+				t.Errorf("ToOffset(%v,%v): expected %v, got %v", p.Line(), p.Column(), p.Offset(), offset)
 			}
 			// and check the conversion back
-			gotPoint := span.FromUTF16Column(c, p.Line, chr, input)
+			lineStart := span.NewPoint(p.Line(), 1, p.Offset()-(p.Column()-1))
+			gotPoint, err := span.FromUTF16Column(lineStart, chr, input)
+			if err != nil {
+				t.Error(err)
+			}
 			if p != gotPoint {
-				t.Errorf("FromUTF16Column(%v,%v): expected %v, got %v", p.Line, chr, p, gotPoint)
+				t.Errorf("FromUTF16Column(%v,%v): expected %v, got %v", p.Line(), chr, p, gotPoint)
 			}
 		}
 	}

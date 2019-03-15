@@ -68,10 +68,7 @@ func computeTextEdits(ctx context.Context, file File, formatted string) (edits [
 	u := strings.SplitAfter(string(file.GetContent(ctx)), "\n")
 	f := strings.SplitAfter(formatted, "\n")
 	for _, op := range diff.Operations(u, f) {
-		s := span.Span{
-			Start: span.Point{Line: op.I1 + 1},
-			End:   span.Point{Line: op.I2 + 1},
-		}
+		s := span.New(file.URI(), span.NewPoint(op.I1+1, 1, 0), span.NewPoint(op.I2+1, 1, 0))
 		switch op.Kind {
 		case diff.Delete:
 			// Delete: unformatted[i1:i2] is deleted.

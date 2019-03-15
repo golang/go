@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
@@ -86,18 +87,21 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 		spn := span.Parse(diag.Pos)
 		if spn.IsPoint() && diag.Kind == packages.TypeError {
 			// Don't set a range if it's anything other than a type error.
-			if diagFile, err := v.GetFile(ctx, spn.URI); err == nil {
+			if diagFile, err := v.GetFile(ctx, spn.URI()); err == nil {
 				tok := diagFile.GetToken(ctx)
 				if tok == nil {
 					continue // ignore errors
 				}
 				content := diagFile.GetContent(ctx)
 				c := span.NewTokenConverter(diagFile.GetFileSet(ctx), tok)
-				s := spn.CleanOffset(c)
-				if end := bytes.IndexAny(content[s.Start.Offset:], " \n,():;[]"); end > 0 {
-					spn.End = s.Start
-					spn.End.Column += end
-					spn.End.Offset += end
+				s, err := spn.WithOffset(c)
+				//we just don't bother producing an error if this failed
+				if err == nil {
+					start := s.Start()
+					offset := start.Offset()
+					if l := bytes.IndexAny(content[offset:], " \n,():;[]"); l > 0 {
+						spn = span.New(spn.URI(), start, span.NewPoint(start.Line(), start.Column()+l, offset+l))
+					}
 				}
 			}
 		}
@@ -106,8 +110,8 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 			Message:  diag.Msg,
 			Severity: SeverityError,
 		}
-		if _, ok := reports[spn.URI]; ok {
-			reports[spn.URI] = append(reports[spn.URI], diagnostic)
+		if _, ok := reports[spn.URI()]; ok {
+			reports[spn.URI()] = append(reports[spn.URI()], diagnostic)
 		}
 	}
 	if len(diags) > 0 {
@@ -116,13 +120,18 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 	// Type checking and parsing succeeded. Run analyses.
 	runAnalyses(ctx, v, pkg, func(a *analysis.Analyzer, diag analysis.Diagnostic) {
 		r := span.NewRange(v.FileSet(), diag.Pos, 0)
-		s := r.Span()
+		s, err := r.Span()
+		if err != nil {
+			//TODO: we could not process the diag.Pos, and thus have no valid span
+			//we don't have anywhere to put this error though
+			log.Print(err)
+		}
 		category := a.Name
 		if diag.Category != "" {
 			category += "." + category
 		}
 
-		reports[s.URI] = append(reports[s.URI], Diagnostic{
+		reports[s.URI()] = append(reports[s.URI()], Diagnostic{
 			Source:   category,
 			Span:     s,
 			Message:  fmt.Sprintf(diag.Message),

@@ -177,8 +177,8 @@ func (d diagnostics) test(t *testing.T, v source.View) int {
 
 func (d diagnostics) collect(e *packagestest.Exported, fset *token.FileSet, rng packagestest.Range, msgSource, msg string) {
 	spn, m := testLocation(e, fset, rng)
-	if _, ok := d[spn.URI]; !ok {
-		d[spn.URI] = []protocol.Diagnostic{}
+	if _, ok := d[spn.URI()]; !ok {
+		d[spn.URI()] = []protocol.Diagnostic{}
 	}
 	// If a file has an empty diagnostic message, return. This allows us to
 	// avoid testing diagnostics in files that may have a lot of them.
@@ -186,16 +186,20 @@ func (d diagnostics) collect(e *packagestest.Exported, fset *token.FileSet, rng 
 		return
 	}
 	severity := protocol.SeverityError
-	if strings.Contains(string(spn.URI), "analyzer") {
+	if strings.Contains(string(spn.URI()), "analyzer") {
 		severity = protocol.SeverityWarning
 	}
+	dRng, err := m.Range(spn)
+	if err != nil {
+		return
+	}
 	want := protocol.Diagnostic{
-		Range:    m.Range(spn),
+		Range:    dRng,
 		Severity: severity,
 		Source:   msgSource,
 		Message:  msg,
 	}
-	d[spn.URI] = append(d[spn.URI], want)
+	d[spn.URI()] = append(d[spn.URI()], want)
 }
 
 // diffDiagnostics prints the diff between expected and actual diagnostics test
@@ -431,18 +435,29 @@ func (d definitions) test(t *testing.T, s *server, typ bool) {
 
 func (d definitions) collect(e *packagestest.Exported, fset *token.FileSet, src, target packagestest.Range) {
 	sSrc, mSrc := testLocation(e, fset, src)
+	lSrc, err := mSrc.Location(sSrc)
+	if err != nil {
+		return
+	}
 	sTarget, mTarget := testLocation(e, fset, target)
-	d[mSrc.Location(sSrc)] = mTarget.Location(sTarget)
+	lTarget, err := mTarget.Location(sTarget)
+	if err != nil {
+		return
+	}
+	d[lSrc] = lTarget
 }
 
 func testLocation(e *packagestest.Exported, fset *token.FileSet, rng packagestest.Range) (span.Span, *protocol.ColumnMapper) {
-	spn := span.NewRange(fset, rng.Start, rng.End).Span()
+	spn, err := span.NewRange(fset, rng.Start, rng.End).Span()
+	if err != nil {
+		return spn, nil
+	}
 	f := fset.File(rng.Start)
 	content, err := e.FileContents(f.Name())
 	if err != nil {
 		return spn, nil
 	}
-	m := protocol.NewColumnMapper(spn.URI, fset, f, content)
+	m := protocol.NewColumnMapper(spn.URI(), fset, f, content)
 	return spn, m
 }
 
@@ -474,9 +489,12 @@ func TestBytesOffset(t *testing.T) {
 		f := fset.AddFile(fname, -1, len(test.text))
 		f.SetLinesForContent([]byte(test.text))
 		mapper := protocol.NewColumnMapper(span.FileURI(fname), fset, f, []byte(test.text))
-		got := mapper.Point(test.pos)
-		if got.Offset != test.want {
-			t.Errorf("want %d for %q(Line:%d,Character:%d), but got %d", test.want, test.text, int(test.pos.Line), int(test.pos.Character), got.Offset)
+		got, err := mapper.Point(test.pos)
+		if err != nil && test.want != -1 {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if err == nil && got.Offset() != test.want {
+			t.Errorf("want %d for %q(Line:%d,Character:%d), but got %d", test.want, test.text, int(test.pos.Line), int(test.pos.Character), got.Offset())
 		}
 	}
 }
@@ -485,14 +503,18 @@ func applyEdits(m *protocol.ColumnMapper, content []byte, edits []protocol.TextE
 	prev := 0
 	result := make([]byte, 0, len(content))
 	for _, edit := range edits {
-		spn := m.RangeSpan(edit.Range).Clean(nil)
-		if spn.Start.Offset > prev {
-			result = append(result, content[prev:spn.Start.Offset]...)
+		spn, err := m.RangeSpan(edit.Range)
+		if err != nil {
+			return nil, err
+		}
+		offset := spn.Start().Offset()
+		if offset > prev {
+			result = append(result, content[prev:offset]...)
 		}
 		if len(edit.NewText) > 0 {
 			result = append(result, []byte(edit.NewText)...)
 		}
-		prev = spn.End.Offset
+		prev = spn.End().Offset()
 	}
 	if prev < len(content) {
 		result = append(result, content[prev:]...)

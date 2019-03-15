@@ -29,9 +29,9 @@ package test
 }
 
 var tokenTests = []span.Span{
-	{span.FileURI("/a.go"), span.Point{}, span.Point{}},
-	{span.FileURI("/a.go"), span.Point{3, 7, 20}, span.Point{3, 7, 20}},
-	{span.FileURI("/b.go"), span.Point{4, 9, 15}, span.Point{4, 13, 19}},
+	span.New(span.FileURI("/a.go"), span.NewPoint(1, 1, 0), span.Point{}),
+	span.New(span.FileURI("/a.go"), span.NewPoint(3, 7, 20), span.NewPoint(3, 7, 20)),
+	span.New(span.FileURI("/b.go"), span.NewPoint(4, 9, 15), span.NewPoint(4, 13, 19)),
 }
 
 func TestToken(t *testing.T) {
@@ -43,24 +43,30 @@ func TestToken(t *testing.T) {
 		files[span.FileURI(f.uri)] = file
 	}
 	for _, test := range tokenTests {
-		f := files[test.URI]
+		f := files[test.URI()]
 		c := span.NewTokenConverter(fset, f)
-		checkToken(t, c, span.Span{
-			URI:   test.URI,
-			Start: span.Point{Line: test.Start.Line, Column: test.Start.Column},
-			End:   span.Point{Line: test.End.Line, Column: test.End.Column},
-		}, test)
-		checkToken(t, c, span.Span{
-			URI:   test.URI,
-			Start: span.Point{Offset: test.Start.Offset},
-			End:   span.Point{Offset: test.End.Offset},
-		}, test)
+		checkToken(t, c, span.New(
+			test.URI(),
+			span.NewPoint(test.Start().Line(), test.Start().Column(), 0),
+			span.NewPoint(test.End().Line(), test.End().Column(), 0),
+		), test)
+		checkToken(t, c, span.New(
+			test.URI(),
+			span.NewPoint(0, 0, test.Start().Offset()),
+			span.NewPoint(0, 0, test.End().Offset()),
+		), test)
 	}
 }
 
 func checkToken(t *testing.T, c *span.TokenConverter, in, expect span.Span) {
-	rng := in.Range(c)
-	gotLoc := rng.Span()
+	rng, err := in.Range(c)
+	if err != nil {
+		t.Error(err)
+	}
+	gotLoc, err := rng.Span()
+	if err != nil {
+		t.Error(err)
+	}
 	expected := fmt.Sprintf("%+v", expect)
 	got := fmt.Sprintf("%+v", gotLoc)
 	if expected != got {

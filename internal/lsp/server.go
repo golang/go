@@ -203,17 +203,21 @@ func (s *server) applyChanges(ctx context.Context, params *protocol.DidChangeTex
 	}
 	content := file.GetContent(ctx)
 	for _, change := range params.ContentChanges {
-		spn := m.RangeSpan(*change.Range).Clean(nil)
-		if spn.Start.Offset <= 0 {
+		spn, err := m.RangeSpan(*change.Range)
+		if err != nil {
+			return "", err
+		}
+		if !spn.HasOffset() {
 			return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "invalid range for content change")
 		}
-		if spn.End.Offset <= spn.Start.Offset {
+		start, end := spn.Start().Offset(), spn.End().Offset()
+		if end <= start {
 			return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "invalid range for content change")
 		}
 		var buf bytes.Buffer
-		buf.Write(content[:spn.Start.Offset])
+		buf.Write(content[:start])
 		buf.WriteString(change.Text)
-		buf.Write(content[spn.End.Offset:])
+		buf.Write(content[end:])
 		content = buf.Bytes()
 	}
 	return string(content), nil
@@ -265,8 +269,15 @@ func (s *server) Completion(ctx context.Context, params *protocol.CompletionPara
 	if err != nil {
 		return nil, err
 	}
-	spn := m.PointSpan(params.Position)
-	items, prefix, err := source.Completion(ctx, f, spn.Range(m.Converter).Start)
+	spn, err := m.PointSpan(params.Position)
+	if err != nil {
+		return nil, err
+	}
+	rng, err := spn.Range(m.Converter)
+	if err != nil {
+		return nil, err
+	}
+	items, prefix, err := source.Completion(ctx, f, rng.Start)
 	if err != nil {
 		return nil, err
 	}
@@ -285,8 +296,15 @@ func (s *server) Hover(ctx context.Context, params *protocol.TextDocumentPositio
 	if err != nil {
 		return nil, err
 	}
-	spn := m.PointSpan(params.Position)
-	ident, err := source.Identifier(ctx, s.view, f, spn.Range(m.Converter).Start)
+	spn, err := m.PointSpan(params.Position)
+	if err != nil {
+		return nil, err
+	}
+	identRange, err := spn.Range(m.Converter)
+	if err != nil {
+		return nil, err
+	}
+	ident, err := source.Identifier(ctx, s.view, f, identRange.Start)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +313,14 @@ func (s *server) Hover(ctx context.Context, params *protocol.TextDocumentPositio
 		return nil, err
 	}
 	markdown := "```go\n" + content + "\n```"
-	rng := m.Range(ident.Range.Span())
+	identSpan, err := ident.Range.Span()
+	if err != nil {
+		return nil, err
+	}
+	rng, err := m.Range(identSpan)
+	if err != nil {
+		return nil, err
+	}
 	return &protocol.Hover{
 		Contents: protocol.MarkupContent{
 			Kind:  protocol.Markdown,
@@ -310,8 +335,15 @@ func (s *server) SignatureHelp(ctx context.Context, params *protocol.TextDocumen
 	if err != nil {
 		return nil, err
 	}
-	spn := m.PointSpan(params.Position)
-	info, err := source.SignatureHelp(ctx, f, spn.Range(m.Converter).Start)
+	spn, err := m.PointSpan(params.Position)
+	if err != nil {
+		return nil, err
+	}
+	rng, err := spn.Range(m.Converter)
+	if err != nil {
+		return nil, err
+	}
+	info, err := source.SignatureHelp(ctx, f, rng.Start)
 	if err != nil {
 		return nil, err
 	}
@@ -323,12 +355,31 @@ func (s *server) Definition(ctx context.Context, params *protocol.TextDocumentPo
 	if err != nil {
 		return nil, err
 	}
-	spn := m.PointSpan(params.Position)
-	ident, err := source.Identifier(ctx, s.view, f, spn.Range(m.Converter).Start)
+	spn, err := m.PointSpan(params.Position)
 	if err != nil {
 		return nil, err
 	}
-	return []protocol.Location{m.Location(ident.Declaration.Range.Span())}, nil
+	rng, err := spn.Range(m.Converter)
+	if err != nil {
+		return nil, err
+	}
+	ident, err := source.Identifier(ctx, s.view, f, rng.Start)
+	if err != nil {
+		return nil, err
+	}
+	decSpan, err := ident.Declaration.Range.Span()
+	if err != nil {
+		return nil, err
+	}
+	_, decM, err := newColumnMap(ctx, s.view, decSpan.URI())
+	if err != nil {
+		return nil, err
+	}
+	loc, err := decM.Location(decSpan)
+	if err != nil {
+		return nil, err
+	}
+	return []protocol.Location{loc}, nil
 }
 
 func (s *server) TypeDefinition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
@@ -336,12 +387,31 @@ func (s *server) TypeDefinition(ctx context.Context, params *protocol.TextDocume
 	if err != nil {
 		return nil, err
 	}
-	spn := m.PointSpan(params.Position)
-	ident, err := source.Identifier(ctx, s.view, f, spn.Range(m.Converter).Start)
+	spn, err := m.PointSpan(params.Position)
 	if err != nil {
 		return nil, err
 	}
-	return []protocol.Location{m.Location(ident.Type.Range.Span())}, nil
+	rng, err := spn.Range(m.Converter)
+	if err != nil {
+		return nil, err
+	}
+	ident, err := source.Identifier(ctx, s.view, f, rng.Start)
+	if err != nil {
+		return nil, err
+	}
+	identSpan, err := ident.Type.Range.Span()
+	if err != nil {
+		return nil, err
+	}
+	_, identM, err := newColumnMap(ctx, s.view, identSpan.URI())
+	if err != nil {
+		return nil, err
+	}
+	loc, err := identM.Location(identSpan)
+	if err != nil {
+		return nil, err
+	}
+	return []protocol.Location{loc}, nil
 }
 
 func (s *server) Implementation(context.Context, *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
@@ -365,7 +435,10 @@ func (s *server) CodeAction(ctx context.Context, params *protocol.CodeActionPara
 	if err != nil {
 		return nil, err
 	}
-	spn := m.RangeSpan(params.Range)
+	spn, err := m.RangeSpan(params.Range)
+	if err != nil {
+		return nil, err
+	}
 	edits, err := organizeImports(ctx, s.view, spn)
 	if err != nil {
 		return nil, err
@@ -408,7 +481,7 @@ func (s *server) ColorPresentation(context.Context, *protocol.ColorPresentationP
 }
 
 func (s *server) Formatting(ctx context.Context, params *protocol.DocumentFormattingParams) ([]protocol.TextEdit, error) {
-	spn := span.Span{URI: span.URI(params.TextDocument.URI)}
+	spn := span.New(span.URI(params.TextDocument.URI), span.Point{}, span.Point{})
 	return formatRange(ctx, s.view, spn)
 }
 
@@ -417,7 +490,10 @@ func (s *server) RangeFormatting(ctx context.Context, params *protocol.DocumentR
 	if err != nil {
 		return nil, err
 	}
-	spn := m.RangeSpan(params.Range)
+	spn, err := m.RangeSpan(params.Range)
+	if err != nil {
+		return nil, err
+	}
 	return formatRange(ctx, s.view, spn)
 }
 

@@ -14,11 +14,14 @@ import (
 )
 
 func organizeImports(ctx context.Context, v source.View, s span.Span) ([]protocol.TextEdit, error) {
-	f, m, err := newColumnMap(ctx, v, s.URI)
+	f, m, err := newColumnMap(ctx, v, s.URI())
 	if err != nil {
 		return nil, err
 	}
-	rng := s.Range(m.Converter)
+	rng, err := s.Range(m.Converter)
+	if err != nil {
+		return nil, err
+	}
 	if rng.Start == rng.End {
 		// If we have a single point, assume we want the whole file.
 		tok := f.GetToken(ctx)
@@ -31,5 +34,5 @@ func organizeImports(ctx context.Context, v source.View, s span.Span) ([]protoco
 	if err != nil {
 		return nil, err
 	}
-	return toProtocolEdits(m, edits), nil
+	return toProtocolEdits(m, edits)
 }

@@ -59,14 +59,14 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	}
 	view := cache.NewView(&d.query.app.Config)
 	from := span.Parse(args[0])
-	f, err := view.GetFile(ctx, from.URI)
+	f, err := view.GetFile(ctx, from.URI())
 	if err != nil {
 		return err
 	}
 	tok := f.GetToken(ctx)
-	pos := tok.Pos(from.Start.Offset)
+	pos := tok.Pos(from.Start().Offset())
 	if !pos.IsValid() {
-		return fmt.Errorf("invalid position %v", from.Start.Offset)
+		return fmt.Errorf("invalid position %v", from)
 	}
 	ident, err := source.Identifier(ctx, view, f, pos)
 	if err != nil {
@@ -108,17 +108,26 @@ func buildDefinition(ctx context.Context, view source.View, ident *source.Identi
 	if err != nil {
 		return nil, err
 	}
+	spn, err := ident.Declaration.Range.Span()
+	if err != nil {
+		return nil, err
+	}
 	return &Definition{
-		Span:        ident.Declaration.Range.Span(),
+		Span:        spn,
 		Description: content,
 	}, nil
 }
 
 func buildGuruDefinition(ctx context.Context, view source.View, ident *source.IdentifierInfo) (*guru.Definition, error) {
-	spn := ident.Declaration.Range.Span()
+	spn, err := ident.Declaration.Range.Span()
+	if err != nil {
+		return nil, err
+	}
 	pkg := ident.File.GetPackage(ctx)
 	// guru does not support ranges
-	spn.End = span.Point{}
+	if !spn.IsPoint() {
+		spn = span.New(spn.URI(), spn.Start(), spn.Start())
+	}
 	// Behavior that attempts to match the expected output for guru. For an example
 	// of the format, see the associated definition tests.
 	buf := &bytes.Buffer{}

@@ -11,11 +11,14 @@ import (
 
 // formatRange formats a document with a given range.
 func formatRange(ctx context.Context, v source.View, s span.Span) ([]protocol.TextEdit, error) {
-	f, m, err := newColumnMap(ctx, v, s.URI)
+	f, m, err := newColumnMap(ctx, v, s.URI())
 	if err != nil {
 		return nil, err
 	}
-	rng := s.Range(m.Converter)
+	rng, err := s.Range(m.Converter)
+	if err != nil {
+		return nil, err
+	}
 	if rng.Start == rng.End {
 		// If we have a single point, assume we want the whole file.
 		tok := f.GetToken(ctx)
@@ -28,21 +31,25 @@ func formatRange(ctx context.Context, v source.View, s span.Span) ([]protocol.Te
 	if err != nil {
 		return nil, err
 	}
-	return toProtocolEdits(m, edits), nil
+	return toProtocolEdits(m, edits)
 }
 
-func toProtocolEdits(m *protocol.ColumnMapper, edits []source.TextEdit) []protocol.TextEdit {
+func toProtocolEdits(m *protocol.ColumnMapper, edits []source.TextEdit) ([]protocol.TextEdit, error) {
 	if edits == nil {
-		return nil
+		return nil, nil
 	}
 	result := make([]protocol.TextEdit, len(edits))
 	for i, edit := range edits {
+		rng, err := m.Range(edit.Span)
+		if err != nil {
+			return nil, err
+		}
 		result[i] = protocol.TextEdit{
-			Range:   m.Range(edit.Span),
+			Range:   rng,
 			NewText: edit.NewText,
 		}
 	}
-	return result
+	return result, nil
 }
 
 func newColumnMap(ctx context.Context, v source.View, uri span.URI) (source.File, *protocol.ColumnMapper, error) {
