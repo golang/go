@@ -483,10 +483,18 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpConstBool_0(v)
 	case OpConstNil:
 		return rewriteValueARM_OpConstNil_0(v)
+	case OpCtz16:
+		return rewriteValueARM_OpCtz16_0(v)
+	case OpCtz16NonZero:
+		return rewriteValueARM_OpCtz16NonZero_0(v)
 	case OpCtz32:
 		return rewriteValueARM_OpCtz32_0(v)
 	case OpCtz32NonZero:
 		return rewriteValueARM_OpCtz32NonZero_0(v)
+	case OpCtz8:
+		return rewriteValueARM_OpCtz8_0(v)
+	case OpCtz8NonZero:
+		return rewriteValueARM_OpCtz8NonZero_0(v)
 	case OpCvt32Fto32:
 		return rewriteValueARM_OpCvt32Fto32_0(v)
 	case OpCvt32Fto32U:
@@ -17550,6 +17558,72 @@ func rewriteValueARM_OpConstNil_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueARM_OpCtz16_0(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz16 <t> x)
+	// cond: objabi.GOARM<=6
+	// result: (RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x10000] x))) [1])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		if !(objabi.GOARM <= 6) {
+			break
+		}
+		v.reset(OpARMRSBconst)
+		v.AuxInt = 32
+		v0 := b.NewValue0(v.Pos, OpARMCLZ, t)
+		v1 := b.NewValue0(v.Pos, OpARMSUBconst, typ.UInt32)
+		v1.AuxInt = 1
+		v2 := b.NewValue0(v.Pos, OpARMAND, typ.UInt32)
+		v3 := b.NewValue0(v.Pos, OpARMORconst, typ.UInt32)
+		v3.AuxInt = 0x10000
+		v3.AddArg(x)
+		v2.AddArg(v3)
+		v4 := b.NewValue0(v.Pos, OpARMRSBconst, typ.UInt32)
+		v4.AuxInt = 0
+		v5 := b.NewValue0(v.Pos, OpARMORconst, typ.UInt32)
+		v5.AuxInt = 0x10000
+		v5.AddArg(x)
+		v4.AddArg(v5)
+		v2.AddArg(v4)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Ctz16 <t> x)
+	// cond: objabi.GOARM==7
+	// result: (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		if !(objabi.GOARM == 7) {
+			break
+		}
+		v.reset(OpARMCLZ)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpARMRBIT, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpARMORconst, typ.UInt32)
+		v1.AuxInt = 0x10000
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpCtz16NonZero_0(v *Value) bool {
+	// match: (Ctz16NonZero x)
+	// cond:
+	// result: (Ctz32 x)
+	for {
+		x := v.Args[0]
+		v.reset(OpCtz32)
+		v.AddArg(x)
+		return true
+	}
+}
 func rewriteValueARM_OpCtz32_0(v *Value) bool {
 	b := v.Block
 	// match: (Ctz32 <t> x)
@@ -17597,6 +17671,72 @@ func rewriteValueARM_OpCtz32_0(v *Value) bool {
 }
 func rewriteValueARM_OpCtz32NonZero_0(v *Value) bool {
 	// match: (Ctz32NonZero x)
+	// cond:
+	// result: (Ctz32 x)
+	for {
+		x := v.Args[0]
+		v.reset(OpCtz32)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpCtz8_0(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz8 <t> x)
+	// cond: objabi.GOARM<=6
+	// result: (RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x100] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x100] x))) [1])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		if !(objabi.GOARM <= 6) {
+			break
+		}
+		v.reset(OpARMRSBconst)
+		v.AuxInt = 32
+		v0 := b.NewValue0(v.Pos, OpARMCLZ, t)
+		v1 := b.NewValue0(v.Pos, OpARMSUBconst, typ.UInt32)
+		v1.AuxInt = 1
+		v2 := b.NewValue0(v.Pos, OpARMAND, typ.UInt32)
+		v3 := b.NewValue0(v.Pos, OpARMORconst, typ.UInt32)
+		v3.AuxInt = 0x100
+		v3.AddArg(x)
+		v2.AddArg(v3)
+		v4 := b.NewValue0(v.Pos, OpARMRSBconst, typ.UInt32)
+		v4.AuxInt = 0
+		v5 := b.NewValue0(v.Pos, OpARMORconst, typ.UInt32)
+		v5.AuxInt = 0x100
+		v5.AddArg(x)
+		v4.AddArg(v5)
+		v2.AddArg(v4)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Ctz8 <t> x)
+	// cond: objabi.GOARM==7
+	// result: (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		if !(objabi.GOARM == 7) {
+			break
+		}
+		v.reset(OpARMCLZ)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpARMRBIT, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpARMORconst, typ.UInt32)
+		v1.AuxInt = 0x100
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpCtz8NonZero_0(v *Value) bool {
+	// match: (Ctz8NonZero x)
 	// cond:
 	// result: (Ctz32 x)
 	for {
