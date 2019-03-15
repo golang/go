@@ -69,10 +69,14 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 		}
 	}
 
-	// Skip completion inside comment blocks.
-	switch path[0].(type) {
+	// Skip completion inside comment blocks or string literals.
+	switch lit := path[0].(type) {
 	case *ast.File, *ast.BlockStmt:
 		if inComment(pos, file.Comments) {
+			return items, prefix, nil
+		}
+	case *ast.BasicLit:
+		if lit.Kind == token.STRING {
 			return items, prefix, nil
 		}
 	}
