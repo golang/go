@@ -21,7 +21,6 @@ import (
 	"cmd/go/internal/work"
 	"fmt"
 	"os"
-	pathpkg "path"
 	"path/filepath"
 	"strings"
 )
@@ -49,8 +48,6 @@ suffix to the package argument, as in 'go get golang.org/x/text@v0.3.0'.
 For modules stored in source control repositories, the version suffix can
 also be a commit hash, branch identifier, or other syntax known to the
 source control system, as in 'go get golang.org/x/text@master'.
-The version suffix @latest explicitly requests the default behavior
-described above.
 
 If a module under consideration is already a dependency of the current
 development module, then get will update the required version.
@@ -58,6 +55,13 @@ Specifying a version earlier than the current required version is valid and
 downgrades the dependency. The version suffix @none indicates that the
 dependency should be removed entirely, downgrading or removing modules
 depending on it as needed.
+
+The version suffix @latest explicitly requests the latest minor release of the
+given path.
+
+The suffix @patch requests the latest patch release: if the path is already in
+the build list, the selected version will have the same minor version.
+If the path is not already in the build list, @patch is equivalent to @latest.
 
 Although get defaults to using the latest version of the module containing
 a named package, it does not use the latest version of that module's
@@ -72,9 +76,11 @@ The -u flag instructs get to update dependencies to use newer minor or
 patch releases when available. Continuing the previous example,
 'go get -u A' will use the latest A with B v1.3.1 (not B v1.2.3).
 
-The -u=patch flag (not -u patch) instructs get to update dependencies
-to use newer patch releases when available. Continuing the previous example,
-'go get -u=patch A' will use the latest A with B v1.2.4 (not B v1.2.3).
+The -u=patch flag (not -u patch) also instructs get to update dependencies,
+but changes the default to select patch releases.
+Continuing the previous example,
+'go get -u=patch A@latest' will use the latest A with B v1.2.4 (not B v1.2.3),
+while 'go get -u=patch A' will use a patch release of A instead.
 
 In general, adding a new dependency may require upgrading
 existing dependencies to keep a working build, and 'go get' does
@@ -165,6 +171,9 @@ func (v *upgradeFlag) Set(s string) error {
 	if s == "false" {
 		s = ""
 	}
+	if s == "true" {
+		s = "latest"
+	}
 	*v = upgradeFlag(s)
 	return nil
 }
@@ -180,12 +189,12 @@ func init() {
 
 // A task holds the state for processing a single get argument (path@vers).
 type task struct {
-	arg             string // original argument
-	index           int
+	arg             string           // original argument
 	path            string           // package path part of arg
 	forceModulePath bool             // path must be interpreted as a module path
 	vers            string           // version part of arg
 	m               module.Version   // module version indicated by argument
+	prevM           module.Version   // module version from initial build list
 	req             []module.Version // m's requirement list (not upgraded)
 }
 
@@ -196,7 +205,7 @@ func runGet(cmd *base.Command, args []string) {
 	}
 
 	switch getU {
-	case "", "patch", "true":
+	case "", "latest", "patch":
 		// ok
 	default:
 		base.Fatalf("go get: unknown upgrade flag -u=%s", getU)
@@ -230,6 +239,7 @@ func runGet(cmd *base.Command, args []string) {
 	// and a list of install targets (for the "go install" at the end).
 	var tasks []*task
 	var install []string
+	var needModule []*task
 	for _, arg := range search.CleanPatterns(args) {
 		// Argument is module query path@vers, or else path with implicit @latest.
 		path := arg
@@ -243,6 +253,12 @@ func runGet(cmd *base.Command, args []string) {
 		}
 		if vers != "none" {
 			install = append(install, path)
+		}
+
+		// If the user runs 'go get -u=patch some/module', update some/module to a
+		// patch release, not a minor version.
+		if vers == "" && getU != "" {
+			vers = string(getU)
 		}
 
 		// Deciding which module to upgrade/downgrade for a particular argument is difficult.
@@ -271,25 +287,43 @@ func runGet(cmd *base.Command, args []string) {
 		//	- Import paths without patterns are left as is, for resolution by getQuery (eventually modload.Import).
 		//
 		if search.IsRelativePath(path) {
-			// Check that this relative pattern only matches directories in the current module,
-			// and then record the current module as the target.
-			dir := path
-			if i := strings.Index(path, "..."); i >= 0 {
-				dir, _ = pathpkg.Split(path[:i])
+			t := &task{arg: arg, path: modload.Target.Path, vers: "", prevM: modload.Target, forceModulePath: true}
+
+			// If the path is relative, always upgrade the entire main module.
+			// (TODO(golang.org/issue/26902): maybe we should upgrade the modules
+			// containing the dependencies of the requested packages instead.)
+			//
+			// If the path is explicit, at least check that it is a package in the main module.
+			if len(args) > 0 {
+				if *getM {
+					base.Errorf("go get %s: -m requires a module path, but a relative path must be a package in the main module", arg)
+					continue
+				}
+
+				pkgPath := modload.DirImportPath(filepath.FromSlash(path))
+				if pkgs := modload.TargetPackages(pkgPath); len(pkgs) == 0 {
+					if strings.Contains(path, "...") {
+						fmt.Fprintf(os.Stderr, "go get %s: warning: pattern patched no packages", arg)
+					} else {
+						abs, err := filepath.Abs(path)
+						if err != nil {
+							abs = path
+						}
+						base.Errorf("go get %s: path %s is not in module rooted at %s", arg, abs, modload.ModRoot())
+					}
+					continue
+				}
 			}
-			abs, err := filepath.Abs(dir)
-			if err != nil {
-				base.Errorf("go get %s: %v", arg, err)
-				continue
+
+			switch vers {
+			case "", "latest", "patch":
+				tasks = append(tasks, t)
+			default:
+				base.Errorf("go get %s: can't request explicit version of path in main module", arg)
 			}
-			if !str.HasFilePathPrefix(abs, modload.ModRoot()) {
-				base.Errorf("go get %s: directory %s is outside module root %s", arg, abs, modload.ModRoot())
-				continue
-			}
-			// TODO: Check if abs is inside a nested module.
-			tasks = append(tasks, &task{arg: arg, path: modload.Target.Path, vers: ""})
 			continue
 		}
+
 		if path == "all" {
 			// TODO: If *getM, should this be the module pattern "all"?
 
@@ -306,30 +340,19 @@ func runGet(cmd *base.Command, args []string) {
 				m := modload.PackageModule(pkg)
 				if m.Path != "" && !seen[m] {
 					seen[m] = true
-					tasks = append(tasks, &task{arg: arg, path: m.Path, vers: "latest", forceModulePath: true})
+					tasks = append(tasks, &task{arg: arg, path: m.Path, vers: vers, prevM: m, forceModulePath: true})
 				}
 			}
 			continue
 		}
-		if search.IsMetaPackage(path) {
-			// Already handled "all", so this must be "std" or "cmd",
-			// which are entirely in the standard library.
-			if path != arg {
-				base.Errorf("go get %s: cannot use pattern %q with explicit version", arg, arg)
-			}
-			if *getM {
-				base.Errorf("go get %s: cannot use pattern %q with -m", arg, arg)
-				continue
-			}
-			continue
-		}
+
 		if strings.Contains(path, "...") {
 			// Apply to modules in build list matched by pattern (golang.org/x/...), if any.
 			match := search.MatchPattern(path)
 			matched := false
 			for _, m := range modload.BuildList() {
 				if match(m.Path) || str.HasPathPrefix(path, m.Path) {
-					tasks = append(tasks, &task{arg: arg, path: m.Path, vers: vers, forceModulePath: true})
+					tasks = append(tasks, &task{arg: arg, path: m.Path, vers: vers, prevM: m, forceModulePath: true})
 					matched = true
 				}
 			}
@@ -345,9 +368,65 @@ func runGet(cmd *base.Command, args []string) {
 				continue
 			}
 		}
-		tasks = append(tasks, &task{arg: arg, path: path, vers: vers})
+		t := &task{arg: arg, path: path, vers: vers}
+		if vers == "patch" {
+			if *getM {
+				for _, m := range modload.BuildList() {
+					if m.Path == path {
+						t.prevM = m
+						break
+					}
+				}
+				tasks = append(tasks, t)
+			} else {
+				// We need to know the module containing t so that we can restrict the patch to its minor version.
+				needModule = append(needModule, t)
+			}
+		} else {
+			// The requested version of path doesn't depend on the existing version,
+			// so don't bother resolving it.
+			tasks = append(tasks, t)
+		}
 	}
 	base.ExitIfErrors()
+
+	if len(needModule) > 0 {
+		paths := make([]string, len(needModule))
+		for i, t := range needModule {
+			paths[i] = t.path
+		}
+		matches := modload.ImportPaths(paths)
+		if len(matches) != len(paths) {
+			base.Fatalf("go get: internal error: ImportPaths resolved %d paths to %d matches", len(paths), len(matches))
+		}
+
+		for i, match := range matches {
+			t := needModule[i]
+			if len(match.Pkgs) == 0 {
+				// Let modload.Query resolve the path during task processing.
+				tasks = append(tasks, t)
+				continue
+			}
+
+			allStd := true
+			for _, pkg := range match.Pkgs {
+				m := modload.PackageModule(pkg)
+				if m.Path == "" {
+					// pkg is in the standard library.
+				} else {
+					allStd = false
+					tasks = append(tasks, &task{arg: t.arg, path: pkg, vers: t.vers, prevM: m})
+				}
+			}
+			if allStd {
+				if *getM {
+					base.Errorf("go get %s: cannot use pattern %q with -m", t.arg, t.arg)
+				} else if t.path != t.arg {
+					base.Errorf("go get %s: cannot use pattern %q with explicit version", t.arg, t.arg)
+				}
+			}
+		}
+	}
 
 	// Now we've reduced the upgrade/downgrade work to a list of path@vers pairs (tasks).
 	// Resolve each one in parallel.
@@ -363,7 +442,7 @@ func runGet(cmd *base.Command, args []string) {
 			t.m = module.Version{Path: t.path, Version: "none"}
 			return
 		}
-		m, err := getQuery(t.path, t.vers, t.forceModulePath)
+		m, err := getQuery(t.path, t.vers, t.prevM, t.forceModulePath)
 		if err != nil {
 			base.Errorf("go get %v: %v", t.arg, err)
 			return
@@ -412,7 +491,6 @@ func runGet(cmd *base.Command, args []string) {
 		upgraded, err := mvs.UpgradeAll(upgradeTarget, &upgrader{
 			Reqs:    modload.Reqs(),
 			targets: named,
-			patch:   getU == "patch",
 			tasks:   byPath,
 		})
 		if err != nil {
@@ -554,9 +632,16 @@ func runGet(cmd *base.Command, args []string) {
 // to determine the underlying module version being requested.
 // If forceModulePath is set, getQuery must interpret path
 // as a module path.
-func getQuery(path, vers string, forceModulePath bool) (module.Version, error) {
-	if vers == "" {
+func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (module.Version, error) {
+	switch vers {
+	case "":
 		vers = "latest"
+	case "patch":
+		if prevM.Version == "" {
+			vers = "latest"
+		} else {
+			vers = semver.MajorMinor(prevM.Version)
+		}
 	}
 
 	// First choice is always to assume path is a module path.
@@ -625,7 +710,7 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
 	// only ever returns untagged versions,
 	// which is not what we want.
 	query := "latest"
-	if u.patch {
+	if getU == "patch" {
 		// For patch upgrade, query "v1.2".
 		query = semver.MajorMinor(m.Version)
 	}
