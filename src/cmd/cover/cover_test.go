@@ -540,6 +540,9 @@ func TestFuncWithDuplicateLines(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := ioutil.WriteFile(filepath.Join(lineDupDir, "go.mod"), []byte("module linedup\n"), 0444); err != nil {
+		t.Fatal(err)
+	}
 	if err := ioutil.WriteFile(lineDupGo, []byte(lineDupContents), 0444); err != nil {
 		t.Fatal(err)
 	}
@@ -554,7 +557,7 @@ func TestFuncWithDuplicateLines(t *testing.T) {
 
 	// testcover -func=TMPDIR/linedup.out
 	cmd = exec.Command(testcover, "-func", lineDupProfile)
-	cmd.Dir = testTempDir
+	cmd.Dir = lineDupDir
 	run(cmd, t)
 }
 
