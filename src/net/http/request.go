@@ -345,6 +345,10 @@ func (r *Request) Context() context.Context {
 // For outgoing client request, the context controls the entire
 // lifetime of a request and its response: obtaining a connection,
 // sending the request, and reading the response headers and body.
+//
+// The only exception is for responses with writable bodies where
+// the cancellation of the context will not close the body.
+// See Response.Body for instances where the body is writable.
 func (r *Request) WithContext(ctx context.Context) *Request {
 	if ctx == nil {
 		panic("nil context")
