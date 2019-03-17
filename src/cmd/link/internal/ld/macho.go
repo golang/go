@@ -395,6 +395,14 @@ func (ctxt *Link) domacho() {
 		s.Type = sym.SMACHOINDIRECTGOT
 		s.Attr |= sym.AttrReachable
 	}
+
+	// Add a dummy symbol that will become the __asm marker section.
+	if ctxt.LinkMode == LinkExternal {
+		s := ctxt.Syms.Lookup(".llvmasm", 0)
+		s.Type = sym.SMACHO
+		s.Attr |= sym.AttrReachable
+		s.AddUint8(0)
+	}
 }
 
 func machoadddynlib(lib string, linkmode LinkMode) {
@@ -479,6 +487,17 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 	if sect.Name == ".init_array" {
 		msect.name = "__mod_init_func"
 		msect.flag = S_MOD_INIT_FUNC_POINTERS
+	}
+
+	// Some platforms such as watchOS and tvOS require binaries with
+	// bitcode enabled. The Go toolchain can't output bitcode, so use
+	// a marker section in the __LLVM segment, "__asm", to tell the Apple
+	// toolchain that the Go text came from assembler and thus has no
+	// bitcode. This is not true, but Kotlin/Native, Rust and Flutter
+	// are also using this trick.
+	if sect.Name == ".llvmasm" {
+		msect.name = "__asm"
+		msect.segname = "__LLVM"
 	}
 
 	if segname == "__DWARF" {
