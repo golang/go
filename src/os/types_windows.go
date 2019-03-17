@@ -189,6 +189,21 @@ func (fs *fileStat) loadFileId() error {
 	return nil
 }
 
+// saveInfoFromPath saves full path of the file to be used by os.SameFile later,
+// and set name from path.
+func (fs *fileStat) saveInfoFromPath(path string) error {
+	fs.path = path
+	if !isAbs(fs.path) {
+		var err error
+		fs.path, err = syscall.FullPath(fs.path)
+		if err != nil {
+			return &PathError{"FullPath", path, err}
+		}
+	}
+	fs.name = basename(path)
+	return nil
+}
+
 // devNullStat is fileStat structure describing DevNull file ("NUL").
 var devNullStat = fileStat{
 	name: DevNull,
