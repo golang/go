@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -266,8 +267,8 @@ type decodeState struct {
 	opcode       int // last read result
 	scan         scanner
 	errorContext struct { // provides context for type errors
-		Struct reflect.Type
-		Field  string
+		Struct     reflect.Type
+		FieldStack []string
 	}
 	savedError            error
 	useNumber             bool
@@ -289,7 +290,9 @@ func (d *decodeState) init(data []byte) *decodeState {
 	d.off = 0
 	d.savedError = nil
 	d.errorContext.Struct = nil
-	d.errorContext.Field = ""
+
+	// Reuse the allocated space for the FieldStack slice.
+	d.errorContext.FieldStack = d.errorContext.FieldStack[:0]
 	return d
 }
 
@@ -303,11 +306,11 @@ func (d *decodeState) saveError(err error) {
 
 // addErrorContext returns a new error enhanced with information from d.errorContext
 func (d *decodeState) addErrorContext(err error) error {
-	if d.errorContext.Struct != nil || d.errorContext.Field != "" {
+	if d.errorContext.Struct != nil || len(d.errorContext.FieldStack) > 0 {
 		switch err := err.(type) {
 		case *UnmarshalTypeError:
 			err.Struct = d.errorContext.Struct.Name()
-			err.Field = d.errorContext.Field
+			err.Field = strings.Join(d.errorContext.FieldStack, ".")
 			return err
 		}
 	}
@@ -659,7 +662,7 @@ func (d *decodeState) object(v reflect.Value) error {
 	}
 
 	var mapElem reflect.Value
-	originalErrorContext := d.errorContext
+	origErrorContext := d.errorContext
 
 	for {
 		// Read opening " of string key or closing }.
@@ -730,11 +733,7 @@ func (d *decodeState) object(v reflect.Value) error {
 					}
 					subv = subv.Field(i)
 				}
-				if originalErrorContext.Field == "" {
-					d.errorContext.Field = f.name
-				} else {
-					d.errorContext.Field = originalErrorContext.Field + "." + f.name
-				}
+				d.errorContext.FieldStack = append(d.errorContext.FieldStack, f.name)
 				d.errorContext.Struct = t
 			} else if d.disallowUnknownFields {
 				d.saveError(fmt.Errorf("json: unknown field %q", key))
@@ -814,14 +813,17 @@ func (d *decodeState) object(v reflect.Value) error {
 		if d.opcode == scanSkipSpace {
 			d.scanWhile(scanSkipSpace)
 		}
+		// Reset errorContext to its original state.
+		// Keep the same underlying array for FieldStack, to reuse the
+		// space and avoid unnecessary allocs.
+		d.errorContext.FieldStack = d.errorContext.FieldStack[:len(origErrorContext.FieldStack)]
+		d.errorContext.Struct = origErrorContext.Struct
 		if d.opcode == scanEndObject {
 			break
 		}
 		if d.opcode != scanObjectValue {
 			panic(phasePanicMsg)
 		}
-
-		d.errorContext = originalErrorContext
 	}
 	return nil
 }
