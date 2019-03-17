@@ -32,6 +32,7 @@
 package ld
 
 import (
+	"bufio"
 	"bytes"
 	"cmd/internal/gcprog"
 	"cmd/internal/objabi"
@@ -684,7 +685,7 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
 		ctxt.Logf("codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
 	}
 
-	blk(ctxt, ctxt.Textp, addr, size, pad)
+	blk(ctxt.Out, ctxt.Textp, addr, size, pad)
 
 	/* again for printing */
 	if !*flagA {
@@ -742,7 +743,7 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
 	}
 }
 
-func blk(ctxt *Link, syms []*sym.Symbol, addr, size int64, pad []byte) {
+func blk(out *OutBuf, syms []*sym.Symbol, addr, size int64, pad []byte) {
 	for i, s := range syms {
 		if !s.Attr.SubSymbol() && s.Value >= addr {
 			syms = syms[i:]
@@ -767,13 +768,13 @@ func blk(ctxt *Link, syms []*sym.Symbol, addr, size int64, pad []byte) {
 			errorexit()
 		}
 		if addr < s.Value {
-			ctxt.Out.WriteStringPad("", int(s.Value-addr), pad)
+			out.WriteStringPad("", int(s.Value-addr), pad)
 			addr = s.Value
 		}
-		ctxt.Out.Write(s.P)
+		out.Write(s.P)
 		addr += int64(len(s.P))
 		if addr < s.Value+s.Size {
-			ctxt.Out.WriteStringPad("", int(s.Value+s.Size-addr), pad)
+			out.WriteStringPad("", int(s.Value+s.Size-addr), pad)
 			addr = s.Value + s.Size
 		}
 		if addr != s.Value+s.Size {
@@ -786,17 +787,29 @@ func blk(ctxt *Link, syms []*sym.Symbol, addr, size int64, pad []byte) {
 	}
 
 	if addr < eaddr {
-		ctxt.Out.WriteStringPad("", int(eaddr-addr), pad)
+		out.WriteStringPad("", int(eaddr-addr), pad)
 	}
-	ctxt.Out.Flush()
+	out.Flush()
 }
 
 func Datblk(ctxt *Link, addr int64, size int64) {
+	writeDatblkToOutBuf(ctxt, ctxt.Out, addr, size)
+}
+
+func DatblkBytes(ctxt *Link, addr int64, size int64) []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, size))
+	out := &OutBuf{w: bufio.NewWriter(buf)}
+	writeDatblkToOutBuf(ctxt, out, addr, size)
+	out.Flush()
+	return buf.Bytes()
+}
+
+func writeDatblkToOutBuf(ctxt *Link, out *OutBuf, addr int64, size int64) {
 	if *flagA {
 		ctxt.Logf("datblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
 	}
 
-	blk(ctxt, datap, addr, size, zeros[:])
+	blk(out, datap, addr, size, zeros[:])
 
 	/* again for printing */
 	if !*flagA {
@@ -870,7 +883,7 @@ func Dwarfblk(ctxt *Link, addr int64, size int64) {
 		ctxt.Logf("dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
 	}
 
-	blk(ctxt, dwarfp, addr, size, zeros[:])
+	blk(ctxt.Out, dwarfp, addr, size, zeros[:])
 }
 
 var zeros [512]byte
