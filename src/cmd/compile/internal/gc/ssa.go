@@ -76,6 +76,7 @@ func initssaconfig() {
 	growslice = sysfunc("growslice")
 	msanread = sysfunc("msanread")
 	msanwrite = sysfunc("msanwrite")
+	newobject = sysfunc("newobject")
 	newproc = sysfunc("newproc")
 	panicdivide = sysfunc("panicdivide")
 	panicdottypeE = sysfunc("panicdottypeE")
@@ -94,6 +95,8 @@ func initssaconfig() {
 	typedmemmove = sysfunc("typedmemmove")
 	Udiv = sysvar("udiv")                 // asm func with special ABI
 	writeBarrier = sysvar("writeBarrier") // struct { bool; ... }
+	zerobaseSym = sysvar("zerobase")
+
 	if thearch.LinkArch.Family == sys.Wasm {
 		BoundsCheckFunc[ssa.BoundsIndex] = sysvar("goPanicIndex")
 		BoundsCheckFunc[ssa.BoundsIndexU] = sysvar("goPanicIndexU")
@@ -2452,6 +2455,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 			Fatalf("literal with nonzero value in SSA: %v", n)
 		}
 		return s.zeroVal(n.Type)
+
+	case ONEWOBJ:
+		if n.Type.Elem().Size() == 0 {
+			return s.newValue1A(ssa.OpAddr, n.Type, zerobaseSym, s.sb)
+		}
+		typ := s.expr(n.Left)
+		vv := s.rtcall(newobject, true, []*types.Type{n.Type}, typ)
+		return vv[0]
 
 	default:
 		s.Fatalf("unhandled expr %v", n.Op)

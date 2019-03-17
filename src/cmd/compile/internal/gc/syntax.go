@@ -668,7 +668,8 @@ const (
 	ORSH         // Left >> Right
 	OAND         // Left & Right
 	OANDNOT      // Left &^ Right
-	ONEW         // new(Left)
+	ONEW         // new(Left); corresponds to calls to new in source code
+	ONEWOBJ      // runtime.newobject(n.Type); introduced by walk; Left is type descriptor
 	ONOT         // !Left
 	OBITNOT      // ^Left
 	OPLUS        // +Left
