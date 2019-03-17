@@ -755,8 +755,11 @@ func TestReadStdin(t *testing.T) {
 }
 
 func TestStatPagefile(t *testing.T) {
-	_, err := os.Stat(`c:\pagefile.sys`)
+	fi, err := os.Stat(`c:\pagefile.sys`)
 	if err == nil {
+		if fi.Name() == "" {
+			t.Fatal(`FileInfo of c:\pagefile.sys has empty name`)
+		}
 		return
 	}
 	if os.IsNotExist(err) {
