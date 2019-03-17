@@ -481,7 +481,7 @@ opswitch:
 		Dump("walk", n)
 		Fatalf("walkexpr: switch 1 unknown op %+S", n)
 
-	case ONONAME, OINDREGSP, OEMPTY, OGETG:
+	case ONONAME, OINDREGSP, OEMPTY, OGETG, ONEWOBJ:
 
 	case OTYPE, ONAME, OLITERAL:
 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
@@ -1944,21 +1944,11 @@ func callnew(t *types.Type) *Node {
 		yyerror("%v is go:notinheap; heap allocation disallowed", t)
 	}
 	dowidth(t)
-
-	if t.Size() == 0 {
-		// Return &runtime.zerobase if we know that the requested size is 0.
-		// This is what runtime.mallocgc would return.
-		z := newname(Runtimepkg.Lookup("zerobase"))
-		z.SetClass(PEXTERN)
-		z.Type = t
-		return typecheck(nod(OADDR, z, nil), ctxExpr)
-	}
-
-	fn := syslook("newobject")
-	fn = substArgTypes(fn, t)
-	v := mkcall1(fn, types.NewPtr(t), nil, typename(t))
-	v.SetNonNil(true)
-	return v
+	n := nod(ONEWOBJ, typename(t), nil)
+	n.Type = types.NewPtr(t)
+	n.SetTypecheck(1)
+	n.SetNonNil(true)
+	return n
 }
 
 // isReflectHeaderDataField reports whether l is an expression p.Data

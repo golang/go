@@ -295,6 +295,7 @@ var (
 	growslice,
 	msanread,
 	msanwrite,
+	newobject,
 	newproc,
 	panicdivide,
 	panicshift,
@@ -312,7 +313,8 @@ var (
 	typedmemclr,
 	typedmemmove,
 	Udiv,
-	writeBarrier *obj.LSym
+	writeBarrier,
+	zerobaseSym *obj.LSym
 
 	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
 	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
