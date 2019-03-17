@@ -545,11 +545,11 @@ func inheritFacts(act, dep *action) {
 		// Optionally serialize/deserialize fact
 		// to verify that it works across address spaces.
 		if serialize {
-			var err error
-			fact, err = codeFact(fact)
+			encodedFact, err := codeFact(fact)
 			if err != nil {
 				log.Panicf("internal error: encoding of %T fact failed in %v", fact, act)
 			}
+			fact = encodedFact
 		}
 
 		if false {
@@ -567,11 +567,11 @@ func inheritFacts(act, dep *action) {
 		// to verify that it works across address spaces
 		// and is deterministic.
 		if serialize {
-			var err error
-			fact, err = codeFact(fact)
+			encodedFact, err := codeFact(fact)
 			if err != nil {
 				log.Panicf("internal error: encoding of %T fact failed in %v", fact, act)
 			}
+			fact = encodedFact
 		}
 
 		if false {
