@@ -445,15 +445,18 @@ func UserHomeDir() (string, error) {
 		env, enverr = "USERPROFILE", "%userprofile%"
 	case "plan9":
 		env, enverr = "home", "$home"
+	}
+	if v := Getenv(env); v != "" {
+		return v, nil
+	}
+	// On some geese the home directory is not always defined.
+	switch runtime.GOOS {
 	case "nacl", "android":
 		return "/", nil
 	case "darwin":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
 			return "/", nil
 		}
-	}
-	if v := Getenv(env); v != "" {
-		return v, nil
 	}
 	return "", errors.New(enverr + " is not defined")
 }
