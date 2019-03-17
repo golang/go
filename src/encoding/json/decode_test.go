@@ -50,7 +50,8 @@ type P struct {
 }
 
 type PP struct {
-	T T
+	T  T
+	Ts []T
 }
 
 type SS string
@@ -939,6 +940,17 @@ var unmarshalTests = []unmarshalTest{
 			Value:  "string",
 			Struct: "T",
 			Field:  "PP.T.Y",
+			Type:   reflect.TypeOf(int(0)),
+			Offset: 29,
+		},
+	},
+	{
+		in:  `{"Ts": [{"Y": 1}, {"Y": 2}, {"Y": "bad-type"}]}`,
+		ptr: new(PP),
+		err: &UnmarshalTypeError{
+			Value:  "string",
+			Struct: "T",
+			Field:  "Ts.Y",
 			Type:   reflect.TypeOf(int(0)),
 			Offset: 29,
 		},
