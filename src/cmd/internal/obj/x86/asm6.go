@@ -1857,63 +1857,38 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		ctxt.Diag("x86 tables not initialized, call x86.instinit first")
 	}
 
-	var ab AsmBuf
-
 	for p := s.Func.Text; p != nil; p = p.Link {
-		if p.To.Type == obj.TYPE_BRANCH {
-			if p.Pcond == nil {
-				p.Pcond = p
-			}
+		if p.To.Type == obj.TYPE_BRANCH && p.Pcond == nil {
+			p.Pcond = p
 		}
 		if p.As == AADJSP {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = REG_SP
-			v := int32(-p.From.Offset)
-			p.From.Offset = int64(v)
-			p.As = spadjop(ctxt, AADDL, AADDQ)
-			if v < 0 {
-				p.As = spadjop(ctxt, ASUBL, ASUBQ)
-				v = -v
-				p.From.Offset = int64(v)
-			}
-
-			if v == 0 {
+			switch v := p.From.Offset; {
+			case v == 0:
 				p.As = obj.ANOP
+			case v < 0:
+				p.As = spadjop(ctxt, AADDL, AADDQ)
+				p.From.Offset *= -1
+			default:
+				p.As = spadjop(ctxt, ASUBL, ASUBQ)
 			}
 		}
 	}
 
-	var q *obj.Prog
 	var count int64 // rough count of number of instructions
 	for p := s.Func.Text; p != nil; p = p.Link {
 		count++
 		p.Back = branchShort // use short branches first time through
-		q = p.Pcond
-		if q != nil && (q.Back&branchShort != 0) {
+		if q := p.Pcond; q != nil && (q.Back&branchShort != 0) {
 			p.Back |= branchBackwards
 			q.Back |= branchLoopHead
-		}
-
-		if p.As == AADJSP {
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_SP
-			v := int32(-p.From.Offset)
-			p.From.Offset = int64(v)
-			p.As = spadjop(ctxt, AADDL, AADDQ)
-			if v < 0 {
-				p.As = spadjop(ctxt, ASUBL, ASUBQ)
-				v = -v
-				p.From.Offset = int64(v)
-			}
-
-			if v == 0 {
-				p.As = obj.ANOP
-			}
 		}
 	}
 	s.GrowCap(count * 5) // preallocate roughly 5 bytes per instruction
 
-	n := 0
+	var ab AsmBuf
+	var n int
 	var c int32
 	errors := ctxt.Errors
 	for {
@@ -1975,7 +1950,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			p.Pc = int64(c)
 
 			// process forward jumps to p
-			for q = p.Rel; q != nil; q = q.Forwd {
+			for q := p.Rel; q != nil; q = q.Forwd {
 				v := int32(p.Pc - (q.Pc + int64(q.Isize)))
 				if q.Back&branchShort != 0 {
 					if v > 127 {
