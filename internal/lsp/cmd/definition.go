@@ -26,11 +26,14 @@ type Definition struct {
 	Description string    `json:"description"` // description of the denoted object
 }
 
-// This constant is printed in the help, and then used in a test to verify the
+// These constant is printed in the help, and then used in a test to verify the
 // help is still valid.
-// It should be the byte offset in this file of the "Set" in "flag.FlagSet" from
-// the DetailedHelp method below.
-const exampleOffset = 1311
+// They refer to "Set" in "flag.FlagSet" from the DetailedHelp method below.
+const (
+	exampleLine   = 46
+	exampleColumn = 47
+	exampleOffset = 1319
+)
 
 // definition implements the definition noun for the query command.
 type definition struct {
@@ -44,10 +47,11 @@ func (d *definition) DetailedHelp(f *flag.FlagSet) {
 	fmt.Fprintf(f.Output(), `
 Example: show the definition of the identifier at syntax at offset %[1]v in this file (flag.FlagSet):
 
-  $ gopls definition internal/lsp/cmd/definition.go:#%[1]v
+$ gopls definition internal/lsp/cmd/definition.go:%[1]v:%[2]v
+$ gopls definition internal/lsp/cmd/definition.go:#%[3]v
 
 	gopls definition flags are:
-`, exampleOffset)
+`, exampleLine, exampleColumn, exampleOffset)
 	f.PrintDefaults()
 }
 

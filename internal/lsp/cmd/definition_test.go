@@ -37,13 +37,16 @@ func TestDefinitionHelpExample(t *testing.T) {
 		return
 	}
 	thisFile := filepath.Join(dir, "definition.go")
-	args := []string{"query", "definition", fmt.Sprintf("%v:#%v", thisFile, cmd.ExampleOffset)}
+	baseArgs := []string{"query", "definition"}
 	expect := regexp.MustCompile(`^[\w/\\:_]+flag[/\\]flag.go:\d+:\d+-\d+: defined here as type flag.FlagSet struct{.*}$`)
-	got := captureStdOut(t, func() {
-		tool.Main(context.Background(), &cmd.Application{}, args)
-	})
-	if !expect.MatchString(got) {
-		t.Errorf("test with %v\nexpected:\n%s\ngot:\n%s", args, expect, got)
+	for _, query := range []string{fmt.Sprintf("%v:#%v", thisFile, cmd.ExampleOffset)} {
+		args := append(baseArgs, query)
+		got := captureStdOut(t, func() {
+			tool.Main(context.Background(), &cmd.Application{}, args)
+		})
+		if !expect.MatchString(got) {
+			t.Errorf("test with %v\nexpected:\n%s\ngot:\n%s", args, expect, got)
+		}
 	}
 }
 
