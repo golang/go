@@ -70,8 +70,8 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	}
 	// len(z.mant) > 0
 
-	// The mantissa may have a decimal point (fcount <= 0) and there
-	// may be a nonzero exponent exp. The decimal point amounts to a
+	// The mantissa may have a radix point (fcount <= 0) and there
+	// may be a nonzero exponent exp. The radix point amounts to a
 	// division by b**(-fcount). An exponent means multiplication by
 	// ebase**exp. Finally, mantissa normalization (shift left) requires
 	// a correcting multiplication by 2**(-shiftcount). Multiplications
@@ -85,11 +85,11 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	exp2 := int64(len(z.mant))*_W - fnorm(z.mant)
 	exp5 := int64(0)
 
-	// determine binary or decimal exponent contribution of decimal point
+	// determine binary or decimal exponent contribution of radix point
 	if fcount < 0 {
-		// The mantissa has a "decimal" point ddd.dddd; and
-		// -fcount is the number of digits to the right of '.'.
-		// Adjust relevant exponent accordingly.
+		// The mantissa has a radix point ddd.dddd; and
+		// -fcount is the number of digits to the right
+		// of '.'. Adjust relevant exponent accordingly.
 		d := int64(fcount)
 		switch b {
 		case 10:
@@ -111,7 +111,7 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	switch ebase {
 	case 10:
 		exp5 += exp
-		fallthrough
+		fallthrough // see fallthrough above
 	case 2:
 		exp2 += exp
 	default:
