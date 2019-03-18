@@ -125,6 +125,7 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 				DefinitionProvider:              true,
 				DocumentFormattingProvider:      true,
 				DocumentRangeFormattingProvider: true,
+				DocumentSymbolProvider:          true,
 				HoverProvider:                   true,
 				SignatureHelpProvider: &protocol.SignatureHelpOptions{
 					TriggerCharacters: []string{"(", ","},
@@ -426,8 +427,13 @@ func (s *server) DocumentHighlight(context.Context, *protocol.TextDocumentPositi
 	return nil, notImplemented("DocumentHighlight")
 }
 
-func (s *server) DocumentSymbol(context.Context, *protocol.DocumentSymbolParams) ([]protocol.DocumentSymbol, error) {
-	return nil, notImplemented("DocumentSymbol")
+func (s *server) DocumentSymbol(ctx context.Context, params *protocol.DocumentSymbolParams) ([]protocol.DocumentSymbol, error) {
+	f, m, err := newColumnMap(ctx, s.view, span.URI(params.TextDocument.URI))
+	if err != nil {
+		return nil, err
+	}
+	symbols := source.DocumentSymbols(ctx, f)
+	return toProtocolDocumentSymbols(m, symbols), nil
 }
 
 func (s *server) CodeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
