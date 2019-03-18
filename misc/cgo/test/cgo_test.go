@@ -56,6 +56,7 @@ func Test25143(t *testing.T)                 { test25143(t) }
 func Test26066(t *testing.T)                 { test26066(t) }
 func Test27660(t *testing.T)                 { test27660(t) }
 func Test28896(t *testing.T)                 { test28896(t) }
+func Test29878(t *testing.T)                 { test29878(t) }
 func Test30065(t *testing.T)                 { test30065(t) }
 func TestAlign(t *testing.T)                 { testAlign(t) }
 func TestAtol(t *testing.T)                  { testAtol(t) }
