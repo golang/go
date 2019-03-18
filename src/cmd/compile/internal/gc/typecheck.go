@@ -1239,6 +1239,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 	// call and call like
 	case OCALL:
+		typecheckslice(n.Ninit.Slice(), ctxStmt) // imported rewritten f(g()) calls (#30907)
 		n.Left = typecheck(n.Left, ctxExpr|Etype|ctxCallee)
 		if n.Left.Diag() {
 			n.SetDiag(true)
