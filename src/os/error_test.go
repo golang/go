@@ -5,6 +5,7 @@
 package os_test
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -153,5 +154,12 @@ func TestErrPathNUL(t *testing.T) {
 	if err == nil {
 		f2.Close()
 		t.Fatal("Open should have failed")
+	}
+}
+
+func TestPathErrorUnwrap(t *testing.T) {
+	pe := &os.PathError{Err: os.ErrInvalid}
+	if !errors.Is(pe, os.ErrInvalid) {
+		t.Error("errors.Is failed, wanted success")
 	}
 }
