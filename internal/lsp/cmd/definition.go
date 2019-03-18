@@ -67,12 +67,12 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return err
 	}
-	tok := f.GetToken(ctx)
-	pos := tok.Pos(from.Start().Offset())
-	if !pos.IsValid() {
-		return fmt.Errorf("invalid position %v", from)
+	converter := span.NewTokenConverter(view.FileSet(), f.GetToken(ctx))
+	rng, err := from.Range(converter)
+	if err != nil {
+		return err
 	}
-	ident, err := source.Identifier(ctx, view, f, pos)
+	ident, err := source.Identifier(ctx, view, f, rng.Start)
 	if err != nil {
 		return fmt.Errorf("%v: %v", from, err)
 	}
