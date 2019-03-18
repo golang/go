@@ -1054,22 +1054,22 @@ TEXT runtime·panicExtendIndexU(SB),NOSPLIT,$0-12
 TEXT runtime·panicExtendSliceAlen(SB),NOSPLIT,$0-12
 	MOVW	R4, hi+0(FP)
 	MOVW	R1, lo+4(FP)
-	MOVW	R3, y+8(FP)
+	MOVW	R2, y+8(FP)
 	JMP	runtime·goPanicExtendSliceAlen(SB)
 TEXT runtime·panicExtendSliceAlenU(SB),NOSPLIT,$0-12
 	MOVW	R4, hi+0(FP)
 	MOVW	R1, lo+4(FP)
-	MOVW	R3, y+8(FP)
+	MOVW	R2, y+8(FP)
 	JMP	runtime·goPanicExtendSliceAlenU(SB)
 TEXT runtime·panicExtendSliceAcap(SB),NOSPLIT,$0-12
 	MOVW	R4, hi+0(FP)
 	MOVW	R1, lo+4(FP)
-	MOVW	R3, y+8(FP)
+	MOVW	R2, y+8(FP)
 	JMP	runtime·goPanicExtendSliceAcap(SB)
 TEXT runtime·panicExtendSliceAcapU(SB),NOSPLIT,$0-12
 	MOVW	R4, hi+0(FP)
 	MOVW	R1, lo+4(FP)
-	MOVW	R3, y+8(FP)
+	MOVW	R2, y+8(FP)
 	JMP	runtime·goPanicExtendSliceAcapU(SB)
 TEXT runtime·panicExtendSliceB(SB),NOSPLIT,$0-12
 	MOVW	R4, hi+0(FP)
@@ -1083,33 +1083,33 @@ TEXT runtime·panicExtendSliceBU(SB),NOSPLIT,$0-12
 	JMP	runtime·goPanicExtendSliceBU(SB)
 TEXT runtime·panicExtendSlice3Alen(SB),NOSPLIT,$0-12
 	MOVW	R4, hi+0(FP)
-	MOVW	R3, lo+4(FP)
+	MOVW	R2, lo+4(FP)
 	MOVW	R3, y+8(FP)
 	JMP	runtime·goPanicExtendSlice3Alen(SB)
 TEXT runtime·panicExtendSlice3AlenU(SB),NOSPLIT,$0-12
 	MOVW	R4, hi+0(FP)
-	MOVW	R3, lo+4(FP)
+	MOVW	R2, lo+4(FP)
 	MOVW	R3, y+8(FP)
 	JMP	runtime·goPanicExtendSlice3AlenU(SB)
 TEXT runtime·panicExtendSlice3Acap(SB),NOSPLIT,$0-12
 	MOVW	R4, hi+0(FP)
-	MOVW	R3, lo+4(FP)
+	MOVW	R2, lo+4(FP)
 	MOVW	R3, y+8(FP)
 	JMP	runtime·goPanicExtendSlice3Acap(SB)
 TEXT runtime·panicExtendSlice3AcapU(SB),NOSPLIT,$0-12
 	MOVW	R4, hi+0(FP)
-	MOVW	R3, lo+4(FP)
+	MOVW	R2, lo+4(FP)
 	MOVW	R3, y+8(FP)
 	JMP	runtime·goPanicExtendSlice3AcapU(SB)
 TEXT runtime·panicExtendSlice3B(SB),NOSPLIT,$0-12
 	MOVW	R4, hi+0(FP)
 	MOVW	R1, lo+4(FP)
-	MOVW	R3, y+8(FP)
+	MOVW	R2, y+8(FP)
 	JMP	runtime·goPanicExtendSlice3B(SB)
 TEXT runtime·panicExtendSlice3BU(SB),NOSPLIT,$0-12
 	MOVW	R4, hi+0(FP)
 	MOVW	R1, lo+4(FP)
-	MOVW	R3, y+8(FP)
+	MOVW	R2, y+8(FP)
 	JMP	runtime·goPanicExtendSlice3BU(SB)
 TEXT runtime·panicExtendSlice3C(SB),NOSPLIT,$0-12
 	MOVW	R4, hi+0(FP)
