@@ -135,22 +135,33 @@ var setStringTests = []StringTest{
 var setStringTests2 = []StringTest{
 	// invalid
 	{in: "4/3x"},
+	{in: "0/-1"},
+	{in: "-1/-1"},
 
 	// invalid with separators
 	// (smoke tests only - a comprehensive set of tests is in natconv_test.go)
 	{in: "10_/1"},
 	{in: "_10/1"},
 	{in: "1/1__0"},
-	{in: "1_000.0"}, // floats are base 10 which doesn't permit separators; see also issue #29799
 
 	// valid
 	{"0b1000/3", "8/3", true},
 	{"0B1000/0x8", "1", true},
-	{"-010/1", "-8", true},
-	{"-010.", "-10", true},
+	{"-010/1", "-8", true}, // 0-prefix indicates octal in this case
+	{"-010.0", "-10", true},
 	{"-0o10/1", "-8", true},
 	{"0x10/1", "16", true},
 	{"0x10/0x20", "1/2", true},
+
+	{"0010", "10", true}, // 0-prefix is ignored in this case (not a fraction)
+	{"0x10.0", "16", true},
+	{"0x1.8", "3/2", true},
+	{"0X1.8p4", "24", true},
+	{"0x1.1E2", "2289/2048", true}, // E is part of hex mantissa, not exponent
+	{"0b1.1E2", "150", true},
+	{"0B1.1P3", "12", true},
+	{"0o10e-2", "2/25", true},
+	{"0O10p-3", "1", true},
 
 	// valid with separators
 	// (smoke tests only - a comprehensive set of tests is in natconv_test.go)
@@ -158,6 +169,15 @@ var setStringTests2 = []StringTest{
 	{"0B_10_00/0x8", "1", true},
 	{"0xdead/0B1101_1110_1010_1101", "1", true},
 	{"0B1101_1110_1010_1101/0XD_E_A_D", "1", true},
+	{"1_000.0", "1000", true},
+
+	{"0x_10.0", "16", true},
+	{"0x1_0.0", "16", true},
+	{"0x1.8_0", "3/2", true},
+	{"0X1.8p0_4", "24", true},
+	{"0b1.1_0E2", "150", true},
+	{"0o1_0e-2", "2/25", true},
+	{"0O_10p-3", "1", true},
 }
 
 func TestRatSetString(t *testing.T) {
