@@ -6,6 +6,7 @@ package x86_test
 
 import (
 	"bytes"
+	"fmt"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -17,7 +18,7 @@ import (
 const asmData = `
 GLOBL zeros<>(SB),8,$64
 TEXT ·testASM(SB),4,$0
-VMOVDQU zeros<>(SB), Y8 // PC relative relocation is off by 1, for Y8-15
+VMOVUPS zeros<>(SB), %s // PC relative relocation is off by 1, for Y8-Y15, Z8-15 and Z24-Z31
 RET
 `
 
@@ -31,13 +32,13 @@ func main() {
 }
 `
 
-func objdumpOutput(t *testing.T) []byte {
-	tmpdir, err := ioutil.TempDir("", "19518")
+func objdumpOutput(t *testing.T, mname, source string) []byte {
+	tmpdir, err := ioutil.TempDir("", mname)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
-	err = ioutil.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte("module issue19518\n"), 0666)
+	err = ioutil.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte(fmt.Sprintf("module %s\n", mname)), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +47,7 @@ func objdumpOutput(t *testing.T) []byte {
 		t.Fatal(err)
 	}
 	defer tmpfile.Close()
-	_, err = tmpfile.WriteString(asmData)
+	_, err = tmpfile.WriteString(source)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,17 +86,19 @@ func objdumpOutput(t *testing.T) []byte {
 	return objout
 }
 
-func TestVexPCrelative(t *testing.T) {
+func TestVexEvexPCrelative(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	objout := objdumpOutput(t)
-	data := bytes.Split(objout, []byte("\n"))
-	for idx := len(data) - 1; idx >= 0; idx-- {
-		// OBJDUMP doesn't know about VMOVDQU,
-		// so instead of checking that it was assembled correctly,
-		// check that RET wasn't overwritten.
-		if bytes.Index(data[idx], []byte("RET")) != -1 {
-			return
+LOOP:
+	for _, reg := range []string{"Y0", "Y8", "Z0", "Z8", "Z16", "Z24"} {
+		asm := fmt.Sprintf(asmData, reg)
+		objout := objdumpOutput(t, "pcrelative", asm)
+		data := bytes.Split(objout, []byte("\n"))
+		for idx := len(data) - 1; idx >= 0; idx-- {
+			// check that RET wasn't overwritten.
+			if bytes.Index(data[idx], []byte("RET")) != -1 {
+				continue LOOP
+			}
 		}
+		t.Errorf("VMOVUPS zeros<>(SB), %s overwrote RET", reg)
 	}
-	t.Fatal("RET was overwritten")
 }
