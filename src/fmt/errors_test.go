@@ -157,7 +157,7 @@ func TestErrorFormatter(t *testing.T) {
 		want: "fallback:" +
 			"\n    somefile.go:123" +
 			"\n  - file does not exist:" +
-			"\n    os.init.ializers" +
+			"\n    os.init" +
 			"\n        .+/os/error.go:\\d\\d",
 		regexp: true,
 	}, {
