@@ -70,6 +70,14 @@ func initConfVal() {
 	// their own DNS requests. So always use cgo instead, which
 	// avoids that.
 	if runtime.GOOS == "darwin" {
+
+		// only use netgo if user specifies to
+		if dnsMode == "go" {
+			confVal.netGo = true
+		} else {
+			confVal.netGo = false
+		}
+
 		confVal.forceCgoLookupHost = true
 		return
 	}
