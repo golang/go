@@ -214,6 +214,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	if p.Internal.CoverMode != "" {
 		fmt.Fprintf(h, "cover %q %q\n", p.Internal.CoverMode, b.toolID("cover"))
 	}
+	fmt.Fprintf(h, "modinfo %q\n", p.Internal.BuildInfo)
 
 	// Configuration specific to compiler toolchain.
 	switch cfg.BuildToolchainName {
