@@ -7,6 +7,7 @@
 package main
 
 import (
+	"math"
 	"runtime"
 	"testing"
 )
@@ -924,6 +925,7 @@ func TestArithmetic(t *testing.T) {
 	testShiftRemoval(t)
 	testShiftedOps(t)
 	testDivFixUp(t)
+	testDivisibleSignedPow2(t)
 }
 
 // testDivFixUp ensures that signed division fix-ups are being generated.
@@ -950,5 +952,294 @@ func testDivFixUp(t *testing.T) {
 		g16 = x % int16(i)
 		g32 = y % int32(i)
 		g64 = z % int64(i)
+	}
+}
+
+//go:noinline
+func divisible_int8_2to1(x int8) bool {
+	return x%(1<<1) == 0
+}
+
+//go:noinline
+func divisible_int8_2to2(x int8) bool {
+	return x%(1<<2) == 0
+}
+
+//go:noinline
+func divisible_int8_2to3(x int8) bool {
+	return x%(1<<3) == 0
+}
+
+//go:noinline
+func divisible_int8_2to4(x int8) bool {
+	return x%(1<<4) == 0
+}
+
+//go:noinline
+func divisible_int8_2to5(x int8) bool {
+	return x%(1<<5) == 0
+}
+
+//go:noinline
+func divisible_int8_2to6(x int8) bool {
+	return x%(1<<6) == 0
+}
+
+//go:noinline
+func divisible_int16_2to1(x int16) bool {
+	return x%(1<<1) == 0
+}
+
+//go:noinline
+func divisible_int16_2to2(x int16) bool {
+	return x%(1<<2) == 0
+}
+
+//go:noinline
+func divisible_int16_2to3(x int16) bool {
+	return x%(1<<3) == 0
+}
+
+//go:noinline
+func divisible_int16_2to4(x int16) bool {
+	return x%(1<<4) == 0
+}
+
+//go:noinline
+func divisible_int16_2to5(x int16) bool {
+	return x%(1<<5) == 0
+}
+
+//go:noinline
+func divisible_int16_2to6(x int16) bool {
+	return x%(1<<6) == 0
+}
+
+//go:noinline
+func divisible_int16_2to7(x int16) bool {
+	return x%(1<<7) == 0
+}
+
+//go:noinline
+func divisible_int16_2to8(x int16) bool {
+	return x%(1<<8) == 0
+}
+
+//go:noinline
+func divisible_int16_2to9(x int16) bool {
+	return x%(1<<9) == 0
+}
+
+//go:noinline
+func divisible_int16_2to10(x int16) bool {
+	return x%(1<<10) == 0
+}
+
+//go:noinline
+func divisible_int16_2to11(x int16) bool {
+	return x%(1<<11) == 0
+}
+
+//go:noinline
+func divisible_int16_2to12(x int16) bool {
+	return x%(1<<12) == 0
+}
+
+//go:noinline
+func divisible_int16_2to13(x int16) bool {
+	return x%(1<<13) == 0
+}
+
+//go:noinline
+func divisible_int16_2to14(x int16) bool {
+	return x%(1<<14) == 0
+}
+
+//go:noinline
+func divisible_int32_2to4(x int32) bool {
+	return x%(1<<4) == 0
+}
+
+//go:noinline
+func divisible_int32_2to15(x int32) bool {
+	return x%(1<<15) == 0
+}
+
+//go:noinline
+func divisible_int32_2to26(x int32) bool {
+	return x%(1<<26) == 0
+}
+
+//go:noinline
+func divisible_int64_2to4(x int64) bool {
+	return x%(1<<4) == 0
+}
+
+//go:noinline
+func divisible_int64_2to15(x int64) bool {
+	return x%(1<<15) == 0
+}
+
+//go:noinline
+func divisible_int64_2to26(x int64) bool {
+	return x%(1<<26) == 0
+}
+
+//go:noinline
+func divisible_int64_2to34(x int64) bool {
+	return x%(1<<34) == 0
+}
+
+//go:noinline
+func divisible_int64_2to48(x int64) bool {
+	return x%(1<<48) == 0
+}
+
+//go:noinline
+func divisible_int64_2to57(x int64) bool {
+	return x%(1<<57) == 0
+}
+
+// testDivisibleSignedPow2 confirms that x%(1<<k)==0 is rewritten correctly
+func testDivisibleSignedPow2(t *testing.T) {
+	var i int64
+	var pow2 = []int64{
+		1,
+		1 << 1,
+		1 << 2,
+		1 << 3,
+		1 << 4,
+		1 << 5,
+		1 << 6,
+		1 << 7,
+		1 << 8,
+		1 << 9,
+		1 << 10,
+		1 << 11,
+		1 << 12,
+		1 << 13,
+		1 << 14,
+	}
+	// exhaustive test for int8
+	for i = math.MinInt8; i <= math.MaxInt8; i++ {
+		if want, got := int8(i)%int8(pow2[1]) == 0, divisible_int8_2to1(int8(i)); got != want {
+			t.Errorf("divisible_int8_2to1(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int8(i)%int8(pow2[2]) == 0, divisible_int8_2to2(int8(i)); got != want {
+			t.Errorf("divisible_int8_2to2(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int8(i)%int8(pow2[3]) == 0, divisible_int8_2to3(int8(i)); got != want {
+			t.Errorf("divisible_int8_2to3(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int8(i)%int8(pow2[4]) == 0, divisible_int8_2to4(int8(i)); got != want {
+			t.Errorf("divisible_int8_2to4(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int8(i)%int8(pow2[5]) == 0, divisible_int8_2to5(int8(i)); got != want {
+			t.Errorf("divisible_int8_2to5(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int8(i)%int8(pow2[6]) == 0, divisible_int8_2to6(int8(i)); got != want {
+			t.Errorf("divisible_int8_2to6(%d) = %v want %v", i, got, want)
+		}
+	}
+	// exhaustive test for int16
+	for i = math.MinInt16; i <= math.MaxInt16; i++ {
+		if want, got := int16(i)%int16(pow2[1]) == 0, divisible_int16_2to1(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to1(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int16(i)%int16(pow2[2]) == 0, divisible_int16_2to2(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to2(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int16(i)%int16(pow2[3]) == 0, divisible_int16_2to3(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to3(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int16(i)%int16(pow2[4]) == 0, divisible_int16_2to4(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to4(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int16(i)%int16(pow2[5]) == 0, divisible_int16_2to5(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to5(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int16(i)%int16(pow2[6]) == 0, divisible_int16_2to6(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to6(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int16(i)%int16(pow2[7]) == 0, divisible_int16_2to7(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to7(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int16(i)%int16(pow2[8]) == 0, divisible_int16_2to8(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to8(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int16(i)%int16(pow2[9]) == 0, divisible_int16_2to9(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to9(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int16(i)%int16(pow2[10]) == 0, divisible_int16_2to10(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to10(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int16(i)%int16(pow2[11]) == 0, divisible_int16_2to11(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to11(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int16(i)%int16(pow2[12]) == 0, divisible_int16_2to12(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to12(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int16(i)%int16(pow2[13]) == 0, divisible_int16_2to13(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to13(%d) = %v want %v", i, got, want)
+		}
+		if want, got := int16(i)%int16(pow2[14]) == 0, divisible_int16_2to14(int16(i)); got != want {
+			t.Errorf("divisible_int16_2to14(%d) = %v want %v", i, got, want)
+		}
+	}
+	// spot check for int32 and int64
+	var (
+		two4  int64 = 1 << 4
+		two15 int64 = 1 << 15
+		two26 int64 = 1 << 26
+		two34 int64 = 1 << 34
+		two48 int64 = 1 << 48
+		two57 int64 = 1 << 57
+	)
+	var xs = []int64{two4, two4 + 3, -3 * two4, -3*two4 + 1,
+		two15, two15 + 3, -3 * two15, -3*two15 + 1,
+		two26, two26 + 37, -5 * two26, -5*two26 + 2,
+		two34, two34 + 356, -7 * two34, -7*two34 + 13,
+		two48, two48 + 3000, -12 * two48, -12*two48 + 1111,
+		two57, two57 + 397654, -15 * two57, -15*two57 + 11234,
+	}
+	for _, x := range xs {
+		if int64(int32(x)) == x {
+			if want, got := int32(x)%int32(two4) == 0, divisible_int32_2to4(int32(x)); got != want {
+				t.Errorf("divisible_int32_2to4(%d) = %v want %v", x, got, want)
+			}
+
+			if want, got := int32(x)%int32(two15) == 0, divisible_int32_2to15(int32(x)); got != want {
+				t.Errorf("divisible_int32_2to15(%d) = %v want %v", x, got, want)
+			}
+
+			if want, got := int32(x)%int32(two26) == 0, divisible_int32_2to26(int32(x)); got != want {
+				t.Errorf("divisible_int32_2to26(%d) = %v want %v", x, got, want)
+			}
+		}
+		// spot check for int64
+		if want, got := x%two4 == 0, divisible_int64_2to4(x); got != want {
+			t.Errorf("divisible_int64_2to4(%d) = %v want %v", x, got, want)
+		}
+
+		if want, got := x%two15 == 0, divisible_int64_2to15(x); got != want {
+			t.Errorf("divisible_int64_2to15(%d) = %v want %v", x, got, want)
+		}
+
+		if want, got := x%two26 == 0, divisible_int64_2to26(x); got != want {
+			t.Errorf("divisible_int64_2to26(%d) = %v want %v", x, got, want)
+		}
+
+		if want, got := x%two34 == 0, divisible_int64_2to34(x); got != want {
+			t.Errorf("divisible_int64_2to34(%d) = %v want %v", x, got, want)
+		}
+
+		if want, got := x%two48 == 0, divisible_int64_2to48(x); got != want {
+			t.Errorf("divisible_int64_2to48(%d) = %v want %v", x, got, want)
+		}
+
+		if want, got := x%two57 == 0, divisible_int64_2to57(x); got != want {
+			t.Errorf("divisible_int64_2to57(%d) = %v want %v", x, got, want)
+		}
+
 	}
 }

@@ -1143,16 +1143,27 @@
 (Mod32 <t> n (Const32 [c])) && c < 0 && c != -1<<31 -> (Mod32 <t> n (Const32 <t> [-c]))
 (Mod64 <t> n (Const64 [c])) && c < 0 && c != -1<<63 -> (Mod64 <t> n (Const64 <t> [-c]))
 
+// Divisibility check for signed integers for power of two constant are simple mask.
+(Eq8 (Mod8 <t> n (Const8 [c])) (Const8 [0])) && n.Op != OpConst8 && isPowerOfTwo(c&0xff)
+  -> (Eq8 (And8 <t> n (Const8 <t> [(c&0xff)-1])) (Const8 <t> [0]))
+(Eq16 (Mod16 <t> n (Const16 [c])) (Const16 [0])) && n.Op != OpConst16 && isPowerOfTwo(c&0xffff)
+  -> (Eq16 (And16 <t> n (Const16 <t> [(c&0xffff)-1])) (Const16 <t> [0]))
+(Eq32 (Mod32 <t> n (Const32 [c])) (Const32 [0])) && n.Op != OpConst32 && isPowerOfTwo(c&0xffffffff)
+  -> (Eq32 (And32 <t> n (Const32 <t> [(c&0xffffffff)-1])) (Const32 <t> [0]))
+(Eq64 (Mod64 <t> n (Const64 [c])) (Const64 [0])) && n.Op != OpConst64 && isPowerOfTwo(c)
+  -> (Eq64 (And64 <t> n (Const64 <t> [c-1])) (Const64 <t> [0]))
+
+
 // All other mods by constants, do A%B = A-(A/B*B).
 // This implements % with two * and a bunch of ancillary ops.
 // One of the * is free if the user's code also computes A/B.
-(Mod8   <t> x (Const8  [c])) && x.Op != OpConst8  && (c > 0 || c == -1<<7)
+(Mod8   <t> x (Const8  [c])) && x.Op != OpConst8  && (c > 0 || c == -1<<7) && v.Block.Func.pass.name != "opt"
   -> (Sub8  x (Mul8  <t> (Div8   <t> x (Const8  <t> [c])) (Const8  <t> [c])))
-(Mod16  <t> x (Const16 [c])) && x.Op != OpConst16 && (c > 0 || c == -1<<15)
+(Mod16  <t> x (Const16 [c])) && x.Op != OpConst16 && (c > 0 || c == -1<<15) && v.Block.Func.pass.name != "opt"
   -> (Sub16 x (Mul16 <t> (Div16  <t> x (Const16 <t> [c])) (Const16 <t> [c])))
-(Mod32  <t> x (Const32 [c])) && x.Op != OpConst32 && (c > 0 || c == -1<<31)
+(Mod32  <t> x (Const32 [c])) && x.Op != OpConst32 && (c > 0 || c == -1<<31) && v.Block.Func.pass.name != "opt"
   -> (Sub32 x (Mul32 <t> (Div32  <t> x (Const32 <t> [c])) (Const32 <t> [c])))
-(Mod64  <t> x (Const64 [c])) && x.Op != OpConst64 && (c > 0 || c == -1<<63)
+(Mod64  <t> x (Const64 [c])) && x.Op != OpConst64 && (c > 0 || c == -1<<63) && v.Block.Func.pass.name != "opt"
   -> (Sub64 x (Mul64 <t> (Div64  <t> x (Const64 <t> [c])) (Const64 <t> [c])))
 (Mod8u  <t> x (Const8  [c])) && x.Op != OpConst8  && c > 0 && umagicOK(8 ,c)
   -> (Sub8  x (Mul8  <t> (Div8u  <t> x (Const8  <t> [c])) (Const8  <t> [c])))
