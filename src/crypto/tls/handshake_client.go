@@ -826,11 +826,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 			DNSName:       c.config.ServerName,
 			Intermediates: x509.NewCertPool(),
 		}
-
-		for i, cert := range certs {
-			if i == 0 {
-				continue
-			}
+		for _, cert := range certs[1:] {
 			opts.Intermediates.AddCert(cert)
 		}
 		var err error
