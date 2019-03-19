@@ -233,8 +233,8 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	if isLocal {
 		for d := dir; d != mdir && len(d) > len(mdir); {
 			haveGoMod := haveGoModCache.Do(d, func() interface{} {
-				_, err := os.Stat(filepath.Join(d, "go.mod"))
-				return err == nil
+				fi, err := os.Stat(filepath.Join(d, "go.mod"))
+				return err == nil && !fi.IsDir()
 			}).(bool)
 
 			if haveGoMod {
