@@ -1864,10 +1864,14 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		if p.As == AADJSP {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = REG_SP
+			// Generate 'ADDQ $x, SP' or 'SUBQ $x, SP', with x positive.
+			// One exception: It is smaller to encode $-0x80 than $0x80.
+			// For that case, flip the sign and the op:
+			// Instead of 'ADDQ $0x80, SP', generate 'SUBQ $-0x80, SP'.
 			switch v := p.From.Offset; {
 			case v == 0:
 				p.As = obj.ANOP
-			case v < 0:
+			case v == 0x80 || (v < 0 && v != -0x80):
 				p.As = spadjop(ctxt, AADDL, AADDQ)
 				p.From.Offset *= -1
 			default:
