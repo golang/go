@@ -381,3 +381,13 @@ func MULS(a, b, c uint32) (uint32, uint32, uint32) {
 	r2 := c - b*64
 	return r0, r1, r2
 }
+
+func addSpecial(a, b, c uint32) (uint32, uint32, uint32) {
+	// amd64:`INCL`
+	a++
+	// amd64:`DECL`
+	b--
+	// amd64:`SUBL.*-128`
+	c += 128
+	return a, b, c
+}

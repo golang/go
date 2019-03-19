@@ -414,7 +414,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r := v.Reg()
 		a := v.Args[0].Reg()
 		if r == a {
-			if v.AuxInt == 1 {
+			switch v.AuxInt {
+			case 1:
 				var asm obj.As
 				// Software optimization manual recommends add $1,reg.
 				// But inc/dec is 1 byte smaller. ICC always uses inc
@@ -430,8 +431,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = r
 				return
-			}
-			if v.AuxInt == -1 {
+			case -1:
 				var asm obj.As
 				if v.Op == ssa.OpAMD64ADDQconst {
 					asm = x86.ADECQ
@@ -442,6 +442,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = r
 				return
+			case 0x80:
+				// 'SUBQ $-0x80, r' is shorter to encode than
+				// and functionally equivalent to 'ADDQ $0x80, r'.
+				asm := x86.ASUBL
+				if v.Op == ssa.OpAMD64ADDQconst {
+					asm = x86.ASUBQ
+				}
+				p := s.Prog(asm)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = -0x80
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = r
+				return
+
 			}
 			p := s.Prog(v.Op.Asm())
 			p.From.Type = obj.TYPE_CONST
