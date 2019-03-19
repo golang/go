@@ -11,6 +11,9 @@ import (
 	"cmd/link/internal/sym"
 	"debug/macho"
 	"encoding/binary"
+	"fmt"
+	"io"
+	"os"
 	"sort"
 	"strings"
 )
@@ -691,8 +694,14 @@ func Asmbmacho(ctxt *Link) {
 			}
 		}
 	}
-
-	if ctxt.LinkMode == LinkInternal {
+	load, err := hostobjMachoPlatform(hostobj)
+	if err != nil {
+		Exitf("%v", err)
+	}
+	if load != nil {
+		ml := newMachoLoad(ctxt.Arch, load.cmd.type_, uint32(len(load.cmd.data)))
+		copy(ml.data, load.cmd.data)
+	} else if ctxt.LinkMode == LinkInternal {
 		// For lldb, must say LC_VERSION_MIN_MACOSX or else
 		// it won't know that this Mach-O binary is from OS X
 		// (could be iOS or WatchOS instead).
@@ -1015,6 +1024,32 @@ func Machoemitreloc(ctxt *Link) {
 	for _, sect := range Segdwarf.Sections {
 		machorelocsect(ctxt, sect, dwarfp)
 	}
+}
+
+// hostobjMachoPlatform returns the first platform load command found
+// in the host objects, if any.
+func hostobjMachoPlatform(hostobj []Hostobj) (*MachoPlatformLoad, error) {
+	for _, h := range hostobj {
+		f, err := os.Open(h.file)
+		if err != nil {
+			return nil, fmt.Errorf("%s: failed to open host object: %v\n", h.file, err)
+		}
+		defer f.Close()
+		sr := io.NewSectionReader(f, h.off, h.length)
+		m, err := macho.NewFile(sr)
+		if err != nil {
+			// Not a valid Mach-O file.
+			return nil, nil
+		}
+		load, err := peekMachoPlatform(m)
+		if err != nil {
+			return nil, err
+		}
+		if load != nil {
+			return load, nil
+		}
+	}
+	return nil, nil
 }
 
 // peekMachoPlatform returns the first LC_VERSION_MIN_* or LC_BUILD_VERSION
