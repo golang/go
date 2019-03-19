@@ -184,13 +184,13 @@ func MatchFile(name string, tags map[string]bool) bool {
 	}
 	n := len(l)
 	if n >= 2 && KnownOS[l[n-2]] && KnownArch[l[n-1]] {
-		return tags[l[n-2]] && tags[l[n-1]]
+		return matchTag(l[n-2], tags, true) && matchTag(l[n-1], tags, true)
 	}
 	if n >= 1 && KnownOS[l[n-1]] {
-		return tags[l[n-1]]
+		return matchTag(l[n-1], tags, true)
 	}
 	if n >= 1 && KnownArch[l[n-1]] {
-		return tags[l[n-1]]
+		return matchTag(l[n-1], tags, true)
 	}
 	return true
 }
