@@ -74,8 +74,10 @@ var sniffTests = []struct {
 	{"wasm sample", []byte("\x00\x61\x73\x6d\x01\x00"), "application/wasm"},
 
 	// Archive types
-	{"RAR v1.5-v4.0", []byte("Rar \x1A\x07\x00"), "application/x-rar-compressed"},
-	{"RAR v5+", []byte("Rar \x1A\x07\x01\x00"), "application/x-rar-compressed"},
+	{"RAR v1.5-v4.0", []byte("Rar!\x1A\x07\x00"), "application/x-rar-compressed"},
+	{"RAR v5+", []byte("Rar!\x1A\x07\x01\x00"), "application/x-rar-compressed"},
+	{"Incorrect RAR v1.5-v4.0", []byte("Rar \x1A\x07\x00"), "application/octet-stream"},
+	{"Incorrect RAR v5+", []byte("Rar \x1A\x07\x01\x00"), "application/octet-stream"},
 }
 
 func TestDetectContentType(t *testing.T) {

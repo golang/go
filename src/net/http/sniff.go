@@ -185,8 +185,14 @@ var sniffSignatures = []sniffSig{
 	// Archive types
 	&exactSig{[]byte("\x1F\x8B\x08"), "application/x-gzip"},
 	&exactSig{[]byte("PK\x03\x04"), "application/zip"},
-	&exactSig{[]byte("Rar \x1A\x07\x00"), "application/x-rar-compressed"},     // RAR v1.5-v4.0
-	&exactSig{[]byte("Rar \x1A\x07\x01\x00"), "application/x-rar-compressed"}, // RAR v5+
+	// RAR's signatures are incorrectly defined by the MIME spec as per
+	//    https://github.com/whatwg/mimesniff/issues/63
+	// However, RAR Labs correctly defines it at:
+	//    https://www.rarlab.com/technote.htm#rarsign
+	// so we use the definition from RAR Labs.
+	// TODO: do whatever the spec ends up doing.
+	&exactSig{[]byte("Rar!\x1A\x07\x00"), "application/x-rar-compressed"},     // RAR v1.5-v4.0
+	&exactSig{[]byte("Rar!\x1A\x07\x01\x00"), "application/x-rar-compressed"}, // RAR v5+
 
 	&exactSig{[]byte("\x00\x61\x73\x6D"), "application/wasm"},
 
