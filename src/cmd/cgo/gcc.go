@@ -2483,7 +2483,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		// representation.
 		if exactWidthIntegerType.MatchString(dt.Name) {
 			sub := c.Type(dt.Type, pos)
-			u := c.exactWidthIntegerTypes[strings.TrimSuffix(dt.Name, "_t")]
+			goname := strings.TrimPrefix(dt.Name, "__")
+			goname = strings.TrimSuffix(goname, "_t")
+			u := c.exactWidthIntegerTypes[goname]
 			if sub.Size != u.Size {
 				fatalf("%s: unexpected size: %d vs. %d – %s", lineno(pos), sub.Size, u.Size, dtype)
 			}
@@ -2630,7 +2632,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 	return t
 }
 
-var exactWidthIntegerType = regexp.MustCompile(`^u?int(8|16|32|64)_t$`)
+var exactWidthIntegerType = regexp.MustCompile(`^(__)?u?int(8|16|32|64)_t$`)
 
 // isStructUnionClass reports whether the type described by the Go syntax x
 // is a struct, union, or class with a tag.
