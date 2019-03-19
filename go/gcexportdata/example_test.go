@@ -51,7 +51,12 @@ func ExampleRead() {
 	}
 
 	// Print package information.
-	fmt.Printf("Package members:    %s...\n", pkg.Scope().Names()[:5])
+	members := pkg.Scope().Names()
+	if members[0] == ".inittask" {
+		// An improvement to init handling in 1.13 added ".inittask". Remove so go >= 1.13 and go < 1.13 both pass.
+		members = members[1:]
+	}
+	fmt.Printf("Package members:    %s...\n", members[:5])
 	println := pkg.Scope().Lookup("Println")
 	posn := fset.Position(println.Pos())
 	posn.Line = 123 // make example deterministic
