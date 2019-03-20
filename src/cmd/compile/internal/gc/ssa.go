@@ -5315,6 +5315,12 @@ func genssa(f *ssa.Func, pp *Progs) {
 				}
 			}
 		}
+		// If this is an empty infinite loop, stick a hardware NOP in there so that debuggers are less confused.
+		if s.bstart[b.ID] == s.pp.next && len(b.Succs) == 1 && b.Succs[0].Block() == b {
+			p := thearch.Ginsnop(s.pp)
+			p.Pos = p.Pos.WithIsStmt()
+			b.Pos = b.Pos.WithBogusLine() // Debuggers are not good about infinite loops, force a change in line number
+		}
 		// Emit control flow instructions for block
 		var next *ssa.Block
 		if i < len(f.Blocks)-1 && Debug['N'] == 0 {
