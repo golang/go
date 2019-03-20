@@ -228,7 +228,7 @@ func main() {
 					} else {
 						args = append(args, fmt.Sprintf("uintptr(%s)", p.Name))
 					}
-				} else if p.Type == "int64" && endianness != "" {
+				} else if (p.Type == "int64" || p.Type == "uint64") && endianness != "" {
 					if len(args)%2 == 1 && *arm {
 						// arm abi specifies 64-bit argument uses
 						// (even, odd) pair
