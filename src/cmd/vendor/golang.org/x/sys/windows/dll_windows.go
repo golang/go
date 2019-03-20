@@ -359,11 +359,11 @@ func loadLibraryEx(name string, system bool) (*DLL, error) {
 			// trying to load "foo.dll" out of the system
 			// folder, but LoadLibraryEx doesn't support
 			// that yet on their system, so emulate it.
-			windir, _ := Getenv("WINDIR") // old var; apparently works on XP
-			if windir == "" {
-				return nil, errString("%WINDIR% not defined")
+			systemdir, err := GetSystemDirectory()
+			if err != nil {
+				return nil, err
 			}
-			loadDLL = windir + "\\System32\\" + name
+			loadDLL = systemdir + "\\" + name
 		}
 	}
 	h, err := LoadLibraryEx(loadDLL, 0, flags)
