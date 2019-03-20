@@ -1186,44 +1186,6 @@ var cgoSyscallExclude = map[string]bool{
 
 var foldPath = make(map[string]string)
 
-// DefaultExecName returns the default executable name of the given
-// package.
-func DefaultExecName(p *Package) string {
-	_, elem := filepath.Split(p.ImportPath)
-	if cfg.ModulesEnabled {
-		// NOTE(rsc): Using p.ImportPath instead of p.Dir
-		// makes sure we install a package in the root of a
-		// cached module directory as that package name
-		// not name@v1.2.3.
-		// Using p.ImportPath instead of p.Dir
-		// is probably correct all the time,
-		// even for non-module-enabled code,
-		// but I'm not brave enough to change the
-		// non-module behavior this late in the
-		// release cycle. Maybe for Go 1.12.
-		// See golang.org/issue/26869.
-		_, elem = pathpkg.Split(p.ImportPath)
-
-		// If this is example.com/mycmd/v2, it's more useful to install it as mycmd than as v2.
-		// See golang.org/issue/24667.
-		isVersion := func(v string) bool {
-			if len(v) < 2 || v[0] != 'v' || v[1] < '1' || '9' < v[1] {
-				return false
-			}
-			for i := 2; i < len(v); i++ {
-				if c := v[i]; c < '0' || '9' < c {
-					return false
-				}
-			}
-			return true
-		}
-		if isVersion(elem) {
-			_, elem = pathpkg.Split(pathpkg.Dir(p.ImportPath))
-		}
-	}
-	return elem
-}
-
 // load populates p using information from bp, err, which should
 // be the result of calling build.Context.Import.
 func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
@@ -1264,7 +1226,38 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 			p.Error = &PackageError{Err: e}
 			return
 		}
-		elem := DefaultExecName(p)
+		_, elem := filepath.Split(p.Dir)
+		if cfg.ModulesEnabled {
+			// NOTE(rsc): Using p.ImportPath instead of p.Dir
+			// makes sure we install a package in the root of a
+			// cached module directory as that package name
+			// not name@v1.2.3.
+			// Using p.ImportPath instead of p.Dir
+			// is probably correct all the time,
+			// even for non-module-enabled code,
+			// but I'm not brave enough to change the
+			// non-module behavior this late in the
+			// release cycle. Maybe for Go 1.12.
+			// See golang.org/issue/26869.
+			_, elem = pathpkg.Split(p.ImportPath)
+
+			// If this is example.com/mycmd/v2, it's more useful to install it as mycmd than as v2.
+			// See golang.org/issue/24667.
+			isVersion := func(v string) bool {
+				if len(v) < 2 || v[0] != 'v' || v[1] < '1' || '9' < v[1] {
+					return false
+				}
+				for i := 2; i < len(v); i++ {
+					if c := v[i]; c < '0' || '9' < c {
+						return false
+					}
+				}
+				return true
+			}
+			if isVersion(elem) {
+				_, elem = pathpkg.Split(pathpkg.Dir(p.ImportPath))
+			}
+		}
 		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + "/" + elem
 		if cfg.BuildContext.GOOS != base.ToolGOOS || cfg.BuildContext.GOARCH != base.ToolGOARCH {
 			// Install cross-compiled binaries to subdirectories of bin.

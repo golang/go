@@ -13,9 +13,3 @@ import "rsc.io/quote"
 func main() {
 	println(quote.Hello())
 }
--- fortune_test.go --
-package main
-
-import "testing"
-
-func TestFortuneV2(t *testing.T) {}
