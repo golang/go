@@ -258,6 +258,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Chown(path string, uid int, gid int) (err error)
 //sys	Chroot(path string) (err error)
 //sys	Close(fd int) (err error)
+//sys	closedir(dir uintptr) (err error)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Dup2(from int, to int) (err error)
 //sys	Exchangedata(path1 string, path2 string, options int) (err error)
@@ -301,6 +302,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Pread(fd int, p []byte, offset int64) (n int, err error)
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
+//sys	readdir_r(dir uintptr, entry *Dirent, result **Dirent) (res Errno)
 //sys	Readlink(path string, buf []byte) (n int, err error)
 //sys	Rename(from string, to string) (err error)
 //sys	Revoke(path string) (err error)
@@ -363,12 +365,65 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
 	return
 }
 
+func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+	// Simulate Getdirentries using fdopendir/readdir_r/closedir.
+	const ptrSize = unsafe.Sizeof(uintptr(0))
+	d, err := fdopendir(fd)
+	if err != nil {
+		return 0, err
+	}
+	defer closedir(d)
+	// We keep the number of records already returned in *basep.
+	// It's not the full required semantics, but should handle the case
+	// of calling Getdirentries repeatedly.
+	// It won't handle assigning the results of lseek to *basep, or handle
+	// the directory being edited underfoot.
+	skip := *basep
+	*basep = 0
+	for {
+		var entry Dirent
+		var entryp *Dirent
+		e := readdir_r(d, &entry, &entryp)
+		if e != 0 {
+			return n, errnoErr(e)
+		}
+		if entryp == nil {
+			break
+		}
+		if skip > 0 {
+			skip--
+			*basep++
+			continue
+		}
+		reclen := int(entry.Reclen)
+		if reclen > len(buf) {
+			// Not enough room. Return for now.
+			// *basep will let us know where we should start up again.
+			// Note: this strategy for suspending in the middle and
+			// restarting is O(n^2) in the length of the directory. Oh well.
+			break
+		}
+		// Copy entry into return buffer.
+		s := struct {
+			ptr unsafe.Pointer
+			siz int
+			cap int
+		}{ptr: unsafe.Pointer(&entry), siz: reclen, cap: reclen}
+		copy(buf, *(*[]byte)(unsafe.Pointer(&s)))
+		buf = buf[reclen:]
+		n += reclen
+		*basep++
+	}
+	return n, nil
+}
+
 // Implemented in the runtime package (runtime/sys_darwin.go)
 func syscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 func syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 func rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+func syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 
 // Find the entry point for f. See comments in runtime/proc.go for the
 // function of the same name.
