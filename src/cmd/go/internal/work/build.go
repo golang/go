@@ -10,6 +10,7 @@ import (
 	"go/build"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -284,7 +285,7 @@ func runBuild(cmd *base.Command, args []string) {
 	pkgs := load.PackagesForBuild(args)
 
 	if len(pkgs) == 1 && pkgs[0].Name == "main" && cfg.BuildO == "" {
-		cfg.BuildO = load.DefaultExecName(pkgs[0])
+		_, cfg.BuildO = path.Split(pkgs[0].ImportPath)
 		cfg.BuildO += cfg.ExeSuffix
 	}
 
@@ -325,7 +326,8 @@ func runBuild(cmd *base.Command, args []string) {
 				if p.Name != "main" {
 					continue
 				}
-				p.Target = filepath.Join(cfg.BuildO, load.DefaultExecName(p))
+				_, elem := path.Split(p.ImportPath)
+				p.Target = filepath.Join(cfg.BuildO, elem)
 				p.Target += cfg.ExeSuffix
 				p.Stale = true
 				p.StaleReason = "build -o flag in use"
