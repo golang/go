@@ -44,6 +44,7 @@ import (
 	"cmd/link/internal/sym"
 	"crypto/sha1"
 	"debug/elf"
+	"debug/macho"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -1449,11 +1450,24 @@ func (ctxt *Link) hostlink() {
 		}
 		// For os.Rename to work reliably, must be in same directory as outfile.
 		combinedOutput := *flagOutfile + "~"
-		isIOS, err := machoCombineDwarf(ctxt, *flagOutfile, dsym, combinedOutput)
+		exef, err := os.Open(*flagOutfile)
 		if err != nil {
 			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
 		}
-		if !isIOS {
+		defer exef.Close()
+		exem, err := macho.NewFile(exef)
+		if err != nil {
+			Exitf("%s: parsing Mach-O header failed: %v", os.Args[0], err)
+		}
+		load, err := peekMachoPlatform(exem)
+		if err != nil {
+			Exitf("%s: failed to parse Mach-O load commands: %v", os.Args[0], err)
+		}
+		// Only macOS supports unmapped segments such as our __DWARF segment.
+		if load == nil || load.platform == PLATFORM_MACOS {
+			if err := machoCombineDwarf(ctxt, exef, exem, dsym, combinedOutput); err != nil {
+				Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
+			}
 			os.Remove(*flagOutfile)
 			if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
 				Exitf("%s: %v", os.Args[0], err)

@@ -5,9 +5,12 @@
 package ld
 
 import (
+	"bytes"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
+	"debug/macho"
+	"encoding/binary"
 	"sort"
 	"strings"
 )
@@ -45,10 +48,19 @@ type MachoSeg struct {
 	flag       uint32
 }
 
+// MachoPlatformLoad represents a LC_VERSION_MIN_* or
+// LC_BUILD_VERSION load command.
+type MachoPlatformLoad struct {
+	platform MachoPlatform // One of PLATFORM_* constants.
+	cmd      MachoLoad
+}
+
 type MachoLoad struct {
 	type_ uint32
 	data  []uint32
 }
+
+type MachoPlatform int
 
 /*
  * Total amount of space to reserve at the start of the file
@@ -165,6 +177,14 @@ const (
 	S_ATTR_PURE_INSTRUCTIONS   = 0x80000000
 	S_ATTR_DEBUG               = 0x02000000
 	S_ATTR_SOME_INSTRUCTIONS   = 0x00000400
+)
+
+const (
+	PLATFORM_MACOS    MachoPlatform = 1
+	PLATFORM_IOS      MachoPlatform = 2
+	PLATFORM_TVOS     MachoPlatform = 3
+	PLATFORM_WATCHOS  MachoPlatform = 4
+	PLATFORM_BRIDGEOS MachoPlatform = 5
 )
 
 // Mach-O file writing
@@ -995,4 +1015,42 @@ func Machoemitreloc(ctxt *Link) {
 	for _, sect := range Segdwarf.Sections {
 		machorelocsect(ctxt, sect, dwarfp)
 	}
+}
+
+// peekMachoPlatform returns the first LC_VERSION_MIN_* or LC_BUILD_VERSION
+// load command found in the Mach-O file, if any.
+func peekMachoPlatform(m *macho.File) (*MachoPlatformLoad, error) {
+	for _, cmd := range m.Loads {
+		raw := cmd.Raw()
+		ml := MachoLoad{
+			type_: m.ByteOrder.Uint32(raw),
+		}
+		// Skip the type and command length.
+		data := raw[8:]
+		var p MachoPlatform
+		switch ml.type_ {
+		case LC_VERSION_MIN_IPHONEOS:
+			p = PLATFORM_IOS
+		case LC_VERSION_MIN_MACOSX:
+			p = PLATFORM_MACOS
+		case LC_VERSION_MIN_WATCHOS:
+			p = PLATFORM_WATCHOS
+		case LC_VERSION_MIN_TVOS:
+			p = PLATFORM_TVOS
+		case LC_BUILD_VERSION:
+			p = MachoPlatform(m.ByteOrder.Uint32(data))
+		default:
+			continue
+		}
+		ml.data = make([]uint32, len(data)/4)
+		r := bytes.NewReader(data)
+		if err := binary.Read(r, m.ByteOrder, &ml.data); err != nil {
+			return nil, err
+		}
+		return &MachoPlatformLoad{
+			platform: p,
+			cmd:      ml,
+		}, nil
+	}
+	return nil, nil
 }
