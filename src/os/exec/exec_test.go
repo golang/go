@@ -1150,3 +1150,37 @@ func TestDedupEnvEcho(t *testing.T) {
 		t.Errorf("output = %q; want %q", got, want)
 	}
 }
+
+func TestString(t *testing.T) {
+	echoPath, err := exec.LookPath("echo")
+	if err != nil {
+		t.Skip(err)
+	}
+	tests := [...]struct {
+		path string
+		args []string
+		want string
+	}{
+		{"echo", nil, echoPath},
+		{"echo", []string{"a"}, echoPath + " a"},
+		{"echo", []string{"a", "b"}, echoPath + " a b"},
+	}
+	for _, test := range tests {
+		cmd := exec.Command(test.path, test.args...)
+		if got := cmd.String(); got != test.want {
+			t.Errorf("String(%q, %q) = %q, want %q", test.path, test.args, got, test.want)
+		}
+	}
+}
+
+func TestStringPathNotResolved(t *testing.T) {
+	_, err := exec.LookPath("makemeasandwich")
+	if err == nil {
+		t.Skip("wow, thanks")
+	}
+	cmd := exec.Command("makemeasandwich", "-lettuce")
+	want := "makemeasandwich -lettuce"
+	if got := cmd.String(); got != want {
+		t.Errorf("String(%q, %q) = %q, want %q", "makemeasandwich", "-lettuce", got, want)
+	}
+}
