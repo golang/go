@@ -148,6 +148,10 @@
 (Select0 (Add64carry x y c)) -> (Select0 <typ.UInt64> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c))))
 (Select1 (Add64carry x y c)) -> (ADCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c)))))
 
+// 64-bit subtraction with borrowing.
+(Select0 (Sub64borrow x y bo)) -> (Select0 <typ.UInt64> (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags bo))))
+(Select1 (Sub64borrow x y bo)) -> (NEG <typ.UInt64> (NGCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags bo))))))
+
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
 (OrB x y) -> (OR x y)
@@ -1206,9 +1210,11 @@
 (ADD a l:(MNEGW x y)) && a.Type.Size() != 8 && l.Uses==1 && clobber(l) -> (MSUBW a x y)
 (SUB a l:(MNEGW x y)) && a.Type.Size() != 8 && l.Uses==1 && clobber(l) -> (MADDW a x y)
 
-// optimize ADCSflags and friends
+// optimize ADCSflags, SBCSflags and friends
 (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (ADCzerocarry <typ.UInt64> c)))) -> (ADCSflags x y c)
 (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (MOVDconst [0])))) -> (ADDSflags x y)
+(SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags (NEG <typ.UInt64> (NGCzerocarry <typ.UInt64> bo))))) -> (SBCSflags x y bo)
+(SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags (MOVDconst [0])))) -> (SUBSflags x y)
 
 // mul by constant
 (MUL x (MOVDconst [-1])) -> (NEG x)
