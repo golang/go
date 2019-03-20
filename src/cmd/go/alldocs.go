@@ -1495,7 +1495,7 @@
 // 	GOFLAGS
 // 		A space-separated list of -flag=value settings to apply
 // 		to go commands by default, when the given flag is known by
-// 		the current command. Flags listed on the command-line
+// 		the current command. Flags listed on the command line
 // 		are applied after this list and therefore override it.
 // 	GOOS
 // 		The operating system for which to compile code.
