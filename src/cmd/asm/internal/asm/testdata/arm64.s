@@ -343,6 +343,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VST1	[V0.S4, V1.S4], (R0)                            // 00a8004c
 	VLD1	(R30), [V15.S2, V16.S2]                         // cfab400c
 	VLD1.P	24(R30), [V3.S2,V4.S2,V5.S2]                    // c36bdf0c
+	VLD2	(R29), [V23.H8, V24.H8]                         // b787404c
+	VLD2.P	16(R0), [V18.B8, V19.B8]                        // 1280df0c
+	VLD2.P	(R1)(R2), [V15.S2, V16.S2]                      // VLD2.P	(R1)(R2*1), [V15.S2,V16.S2] // 2f88c20c
+	VLD3	(R27), [V11.S4, V12.S4, V13.S4]                 // 6b4b404c
+	VLD3.P	48(RSP), [V11.S4, V12.S4, V13.S4]               // eb4bdf4c
+	VLD3.P	(R30)(R2), [V14.D2, V15.D2, V16.D2]             // VLD3.P	(R30)(R2*1), [V14.D2,V15.D2,V16.D2] // ce4fc24c
+	VLD4	(R15), [V10.H4, V11.H4, V12.H4, V13.H4]         // ea05400c
+	VLD4.P	32(R24), [V31.B8, V0.B8, V1.B8, V2.B8]          // 1f03df0c
+	VLD4.P	(R13)(R9), [V14.S2, V15.S2, V16.S2, V17.S2]     // VLD4.P	(R13)(R9*1), [V14.S2,V15.S2,V16.S2,V17.S2] // ae09c90c
 	VST1.P	[V24.S2], 8(R2)                                 // 58789f0c
 	VST1	[V29.S2, V30.S2], (R29)                         // bdab000c
 	VST1	[V14.H4, V15.H4, V16.H4], (R27)                 // 6e67000c
@@ -352,6 +361,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VST1.P	V4.D[1], 8(R0)                                  // 04849f4d
 	VST1.P	V4.D[1], (R0)(R1)                               // VST1.P	V4.D[1], (R0)(R1*1) // 0484814d
 	VST1	V4.D[1], (R0)                                   // 0484004d
+	VST2	[V22.H8, V23.H8], (R23)                         // f686004c
+	VST2.P	[V14.H4, V15.H4], 16(R17)                       // 2e869f0c
+	VST2.P	[V14.H4, V15.H4], (R3)(R17)                     // VST2.P	[V14.H4,V15.H4], (R3)(R17*1) // 6e84910c
+	VST3	[V1.D2, V2.D2, V3.D2], (R11)                    // 614d004c
+	VST3.P	[V18.S4, V19.S4, V20.S4], 48(R25)               // 324b9f4c
+	VST3.P	[V19.B8, V20.B8, V21.B8], (R3)(R7)              // VST3.P	[V19.B8, V20.B8, V21.B8], (R3)(R7*1) // 7340870c
+	VST4	[V22.D2, V23.D2, V24.D2, V25.D2], (R3)          // 760c004c
+	VST4.P	[V14.D2, V15.D2, V16.D2, V17.D2], 64(R15)       // ee0d9f4c
+	VST4.P	[V24.B8, V25.B8, V26.B8, V27.B8], (R3)(R23)     // VST4.P	[V24.B8, V25.B8, V26.B8, V27.B8], (R3)(R23*1) // 7800970c
 	FMOVS	F20, (R0)                                       // 140000bd
 	FMOVS.P	F20, 4(R0)                                      // 144400bc
 	FMOVS.W	F20, 4(R0)                                      // 144c00bc
