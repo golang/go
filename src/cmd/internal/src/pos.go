@@ -304,7 +304,8 @@ type lico uint32
 // TODO: Prologue and epilogue are perhaps better handled as psuedoops for the assembler,
 // because they have almost no interaction with other uses of the position.
 const (
-	lineBits, lineMax     = 20, 1<<lineBits - 1
+	lineBits, lineMax     = 20, 1<<lineBits - 2
+	bogusLine             = 1<<lineBits - 1 // Not a line number; used to disruopt infinite loops
 	isStmtBits, isStmtMax = 2, 1<<isStmtBits - 1
 	xlogueBits, xlogueMax = 2, 1<<xlogueBits - 1
 	colBits, colMax       = 32 - lineBits - xlogueBits - isStmtBits, 1<<colBits - 1
@@ -355,6 +356,16 @@ const (
 	PosEpilogueBegin
 )
 
+func makeLicoRaw(line, col uint) lico {
+	return lico(line<<lineShift | col<<colShift)
+}
+
+// This is a not-position that will not be elided.
+// Depending on the debugger (gdb or delve) it may or may not be displayed.
+func makeBogusLico() lico {
+	return makeLicoRaw(bogusLine, 0).withIsStmt()
+}
+
 func makeLico(line, col uint) lico {
 	if line > lineMax {
 		// cannot represent line, use max. line so we have some information
@@ -365,7 +376,7 @@ func makeLico(line, col uint) lico {
 		col = colMax
 	}
 	// default is not-sure-if-statement
-	return lico(line<<lineShift | col<<colShift)
+	return makeLicoRaw(line, col)
 }
 
 func (x lico) Line() uint { return uint(x) >> lineShift }

@@ -60,6 +60,16 @@ func (p XPos) WithIsStmt() XPos {
 	return p
 }
 
+// WithBogusLine returns a bogus line that won't match any recorded for the source code.
+// Its use is to disrupt the statements within an infinite loop so that the debugger
+// will not itself loop infinitely waiting for the line number to change.
+// gdb chooses not to display the bogus line; delve shows it with a complaint, but the
+// alternative behavior is to hang.
+func (p XPos) WithBogusLine() XPos {
+	p.lico = makeBogusLico()
+	return p
+}
+
 // WithXlogue returns the same location but marked with DWARF function prologue/epilogue
 func (p XPos) WithXlogue(x PosXlogue) XPos {
 	p.lico = p.lico.withXlogue(x)
