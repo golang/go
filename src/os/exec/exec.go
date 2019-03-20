@@ -190,6 +190,25 @@ func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
 	return cmd
 }
 
+// String returns a human-readable description of c.
+// It is intended only for debugging.
+// In particular, it is not suitable for use as input to a shell.
+// The output of String may vary across Go releases.
+func (c *Cmd) String() string {
+	if c.lookPathErr != nil {
+		// failed to resolve path; report the original requested path (plus args)
+		return strings.Join(c.Args, " ")
+	}
+	// report the exact executable path (plus args)
+	b := new(strings.Builder)
+	b.WriteString(c.Path)
+	for _, a := range c.Args[1:] {
+		b.WriteByte(' ')
+		b.WriteString(a)
+	}
+	return b.String()
+}
+
 // interfaceEqual protects against panics from doing equality tests on
 // two interfaces with non-comparable underlying types.
 func interfaceEqual(a, b interface{}) bool {
