@@ -183,6 +183,8 @@ func init() {
 		{name: "ADDSflags", argLength: 2, reg: gp21flags, typ: "(UInt64,Flags)", asm: "ADDS", commutative: true},      // arg0+arg1, set flags.
 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                                                            // arg0 - arg1
 		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int64"},                                         // arg0 - auxInt
+		{name: "SBCSflags", argLength: 3, reg: gp2flags1flags, typ: "(UInt64,Flags)", asm: "SBCS"},                    // arg0-(arg1+borrowing), set flags.
+		{name: "SUBSflags", argLength: 2, reg: gp21flags, typ: "(UInt64,Flags)", asm: "SUBS"},                         // arg0 - arg1, set flags.
 		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},                                         // arg0 * arg1
 		{name: "MULW", argLength: 2, reg: gp21, asm: "MULW", commutative: true},                                       // arg0 * arg1, 32-bit
 		{name: "MNEG", argLength: 2, reg: gp21, asm: "MNEG", commutative: true},                                       // -arg0 * arg1
@@ -224,21 +226,23 @@ func init() {
 		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, returns (hi, lo)
 
 		// unary ops
-		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},         // ^arg0
-		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},         // -arg0
-		{name: "FABSD", argLength: 1, reg: fp11, asm: "FABSD"},     // abs(arg0), float64
-		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},     // -arg0, float32
-		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},     // -arg0, float64
-		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},   // sqrt(arg0), float64
-		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},         // byte reverse, 64-bit
-		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},       // byte reverse, 32-bit
-		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"},   // byte reverse in each 16-bit halfword, 32-bit
-		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"},       // bit reverse, 64-bit
-		{name: "RBITW", argLength: 1, reg: gp11, asm: "RBITW"},     // bit reverse, 32-bit
-		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},         // count leading zero, 64-bit
-		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"},       // count leading zero, 32-bit
-		{name: "VCNT", argLength: 1, reg: fp11, asm: "VCNT"},       // count set bits for each 8-bit unit and store the result in each 8-bit unit
-		{name: "VUADDLV", argLength: 1, reg: fp11, asm: "VUADDLV"}, // unsigned sum of eight bytes in a 64-bit value, zero extended to 64-bit.
+		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},                                    // ^arg0
+		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                    // -arg0
+		{name: "NEGSflags", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "NEGS"}, // -arg0, set flags.
+		{name: "NGCzerocarry", argLength: 1, reg: gp0flags1, typ: "UInt64", asm: "NGC"},       // -1 if borrowing, 0 otherwise.
+		{name: "FABSD", argLength: 1, reg: fp11, asm: "FABSD"},                                // abs(arg0), float64
+		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},                                // -arg0, float32
+		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},                                // -arg0, float64
+		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},                              // sqrt(arg0), float64
+		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},                                    // byte reverse, 64-bit
+		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},                                  // byte reverse, 32-bit
+		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"},                              // byte reverse in each 16-bit halfword, 32-bit
+		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"},                                  // bit reverse, 64-bit
+		{name: "RBITW", argLength: 1, reg: gp11, asm: "RBITW"},                                // bit reverse, 32-bit
+		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},                                    // count leading zero, 64-bit
+		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"},                                  // count leading zero, 32-bit
+		{name: "VCNT", argLength: 1, reg: fp11, asm: "VCNT"},                                  // count set bits for each 8-bit unit and store the result in each 8-bit unit
+		{name: "VUADDLV", argLength: 1, reg: fp11, asm: "VUADDLV"},                            // unsigned sum of eight bytes in a 64-bit value, zero extended to 64-bit.
 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 

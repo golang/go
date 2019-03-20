@@ -260,7 +260,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = arm64.REGZERO
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpARM64ADCSflags, ssa.OpARM64ADDSflags:
+	case ssa.OpARM64ADCSflags,
+		ssa.OpARM64ADDSflags,
+		ssa.OpARM64SBCSflags,
+		ssa.OpARM64SUBSflags:
 		r := v.Reg0()
 		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()
@@ -270,6 +273,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+	case ssa.OpARM64NEGSflags:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+	case ssa.OpARM64NGCzerocarry:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = arm64.REGZERO
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.OpARM64EXTRconst,
 		ssa.OpARM64EXTRWconst:
 		p := s.Prog(v.Op.Asm())

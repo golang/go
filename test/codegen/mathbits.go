@@ -446,21 +446,25 @@ func Add64M(p, q, r *[3]uint64) {
 
 func Sub(x, y, ci uint) (r, co uint) {
 	// amd64:"NEGL","SBBQ","NEGQ"
+	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
 	return bits.Sub(x, y, ci)
 }
 
 func SubC(x, ci uint) (r, co uint) {
 	// amd64:"NEGL","SBBQ","NEGQ"
+	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
 	return bits.Sub(x, 7, ci)
 }
 
 func SubZ(x, y uint) (r, co uint) {
 	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
+	// arm64:"SUBS","NGC","NEG",-"SBCS",-"ADD",-"SUB\t",-"CMP"
 	return bits.Sub(x, y, 0)
 }
 
 func SubR(x, y, ci uint) uint {
 	// amd64:"NEGL","SBBQ",-"NEGQ"
+	// arm64:"NEGS","SBCS",-"NGC",-"NEG\t",-"ADD",-"SUB",-"CMP"
 	r, _ := bits.Sub(x, y, ci)
 	return r
 }
@@ -468,27 +472,32 @@ func SubM(p, q, r *[3]uint) {
 	var c uint
 	r[0], c = bits.Sub(p[0], q[0], c)
 	// amd64:"SBBQ",-"NEGL",-"NEGQ"
+	// arm64:"SBCS",-"NEGS",-"NGC",-"NEG",-"ADD",-"SUB",-"CMP"
 	r[1], c = bits.Sub(p[1], q[1], c)
 	r[2], c = bits.Sub(p[2], q[2], c)
 }
 
 func Sub64(x, y, ci uint64) (r, co uint64) {
 	// amd64:"NEGL","SBBQ","NEGQ"
+	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
 	return bits.Sub64(x, y, ci)
 }
 
 func Sub64C(x, ci uint64) (r, co uint64) {
 	// amd64:"NEGL","SBBQ","NEGQ"
+	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
 	return bits.Sub64(x, 7, ci)
 }
 
 func Sub64Z(x, y uint64) (r, co uint64) {
 	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
+	// arm64:"SUBS","NGC","NEG",-"SBCS",-"ADD",-"SUB\t",-"CMP"
 	return bits.Sub64(x, y, 0)
 }
 
 func Sub64R(x, y, ci uint64) uint64 {
 	// amd64:"NEGL","SBBQ",-"NEGQ"
+	// arm64:"NEGS","SBCS",-"NGC",-"NEG\t",-"ADD",-"SUB",-"CMP"
 	r, _ := bits.Sub64(x, y, ci)
 	return r
 }
@@ -496,6 +505,7 @@ func Sub64M(p, q, r *[3]uint64) {
 	var c uint64
 	r[0], c = bits.Sub64(p[0], q[0], c)
 	// amd64:"SBBQ",-"NEGL",-"NEGQ"
+	// arm64:"SBCS",-"NEGS",-"NGC",-"NEG",-"ADD",-"SUB",-"CMP"
 	r[1], c = bits.Sub64(p[1], q[1], c)
 	r[2], c = bits.Sub64(p[2], q[2], c)
 }

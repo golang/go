@@ -1149,6 +1149,8 @@ const (
 	OpARM64ADDSflags
 	OpARM64SUB
 	OpARM64SUBconst
+	OpARM64SBCSflags
+	OpARM64SUBSflags
 	OpARM64MUL
 	OpARM64MULW
 	OpARM64MNEG
@@ -1187,6 +1189,8 @@ const (
 	OpARM64LoweredMuluhilo
 	OpARM64MVN
 	OpARM64NEG
+	OpARM64NEGSflags
+	OpARM64NGCzerocarry
 	OpARM64FABSD
 	OpARM64FNEGS
 	OpARM64FNEGD
@@ -15261,6 +15265,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "SBCSflags",
+		argLen: 3,
+		asm:    arm64.ASBCS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+				{1, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "SUBSflags",
+		argLen: 2,
+		asm:    arm64.ASUBS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+				{1, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
 		name:        "MUL",
 		argLen:      2,
 		commutative: true,
@@ -15803,6 +15837,30 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
 			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "NEGSflags",
+		argLen: 1,
+		asm:    arm64.ANEGS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+			},
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:   "NGCzerocarry",
+		argLen: 1,
+		asm:    arm64.ANGC,
+		reg: regInfo{
 			outputs: []outputInfo{
 				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
 			},
