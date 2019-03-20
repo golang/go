@@ -14,11 +14,8 @@ TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
 // library is loaded. For static libraries it is called when the
 // final executable starts, during the C runtime initialization
 // phase.
-// based on ms windows x64 calling convention and stack usage
-// https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention?view=vs-2017
-// https://docs.microsoft.com/en-us/cpp/build/stack-usage?view=vs-2017
-// function call need extra 4 pointer in stack to reserve for 4 register parameters
-// otherwise the code will randomly crash
+// Leave space for four pointers on the stack as required
+// by the Windows amd64 calling convention.
 TEXT _rt0_amd64_windows_lib(SB),NOSPLIT,$0x48
 	MOVQ	BP, 0x20(SP)
 	MOVQ	BX, 0x28(SP)
