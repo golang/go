@@ -26110,10 +26110,9 @@ func rewriteValuePPC64_OpPanicBounds_0(v *Value) bool {
 	// result: (LoweredPanicBoundsA [kind] x y mem)
 	for {
 		kind := v.AuxInt
-		_ = v.Args[2]
+		mem := v.Args[2]
 		x := v.Args[0]
 		y := v.Args[1]
-		mem := v.Args[2]
 		if !(boundsABI(kind) == 0) {
 			break
 		}
@@ -26129,10 +26128,9 @@ func rewriteValuePPC64_OpPanicBounds_0(v *Value) bool {
 	// result: (LoweredPanicBoundsB [kind] x y mem)
 	for {
 		kind := v.AuxInt
-		_ = v.Args[2]
+		mem := v.Args[2]
 		x := v.Args[0]
 		y := v.Args[1]
-		mem := v.Args[2]
 		if !(boundsABI(kind) == 1) {
 			break
 		}
@@ -26148,10 +26146,9 @@ func rewriteValuePPC64_OpPanicBounds_0(v *Value) bool {
 	// result: (LoweredPanicBoundsC [kind] x y mem)
 	for {
 		kind := v.AuxInt
-		_ = v.Args[2]
+		mem := v.Args[2]
 		x := v.Args[0]
 		y := v.Args[1]
-		mem := v.Args[2]
 		if !(boundsABI(kind) == 2) {
 			break
 		}
