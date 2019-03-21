@@ -992,6 +992,39 @@ func rewriteValueARM64_OpARM64ADCSflags_0(v *Value) bool {
 		v.AddArg(c)
 		return true
 	}
+	// match: (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (MOVDconst [0]))))
+	// cond:
+	// result: (ADDSflags x y)
+	for {
+		_ = v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpSelect1 {
+			break
+		}
+		if v_2.Type != types.TypeFlags {
+			break
+		}
+		v_2_0 := v_2.Args[0]
+		if v_2_0.Op != OpARM64ADDSconstflags {
+			break
+		}
+		if v_2_0.AuxInt != -1 {
+			break
+		}
+		v_2_0_0 := v_2_0.Args[0]
+		if v_2_0_0.Op != OpARM64MOVDconst {
+			break
+		}
+		if v_2_0_0.AuxInt != 0 {
+			break
+		}
+		v.reset(OpARM64ADDSflags)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64ADD_0(v *Value) bool {

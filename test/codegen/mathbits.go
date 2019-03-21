@@ -387,7 +387,7 @@ func AddC(x, ci uint) (r, co uint) {
 }
 
 func AddZ(x, y uint) (r, co uint) {
-	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
+	// arm64:"ADDS","ADC",-"ADCS",-"ADD\t",-"CMP"
 	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
 	return bits.Add(x, y, 0)
 }
@@ -420,7 +420,7 @@ func Add64C(x, ci uint64) (r, co uint64) {
 }
 
 func Add64Z(x, y uint64) (r, co uint64) {
-	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
+	// arm64:"ADDS","ADC",-"ADCS",-"ADD\t",-"CMP"
 	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
 	return bits.Add64(x, y, 0)
 }

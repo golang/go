@@ -260,7 +260,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = arm64.REGZERO
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpARM64ADCSflags:
+	case ssa.OpARM64ADCSflags, ssa.OpARM64ADDSflags:
 		r := v.Reg0()
 		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()
