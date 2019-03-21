@@ -130,13 +130,13 @@ func parseHostsFromResources(resources []dnsmessage.Resource) ([]string, error) 
 			if !ok {
 				return nil, errors.New("could not parse A resource record")
 			}
-			answers = append(answers, string(b.A))
+			answers = append(answers, string(b.A[:]))
 		case dnsmessage.TypeAAAA:
 			b, ok := resources[i].Body.(*dnsmessage.AAAAResource)
 			if !ok {
 				return nil, errors.New("could not parse AAAA resource record")
 			}
-			answers = append(answers, string("%s", b.AAAA))
+			answers = append(answers, string(b.AAAA[:]))
 		default:
 			return nil, errors.New("could not parse an A or AAAA response from message buffer")
 		}
