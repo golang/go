@@ -467,8 +467,8 @@ func idevCmd(cmd *exec.Cmd) *exec.Cmd {
 func run(appdir, bundleID string, args []string) error {
 	var env []string
 	for _, e := range os.Environ() {
-		// Don't override TMPDIR, HOME on the device.
-		if strings.HasPrefix(e, "TMPDIR=") || strings.HasPrefix(e, "HOME=") {
+		// Don't override TMPDIR, HOME, GOCACHE on the device.
+		if strings.HasPrefix(e, "TMPDIR=") || strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "GOCACHE=") {
 			continue
 		}
 		env = append(env, e)
