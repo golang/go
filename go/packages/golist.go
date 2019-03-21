@@ -7,6 +7,7 @@ package packages
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/types"
 	"io/ioutil"
@@ -743,6 +744,11 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 			// Catastrophic error:
 			// - executable not found
 			// - context cancellation
+
+			// Check for executable not existing.
+			if _, err := exec.LookPath("go"); err != nil {
+				return nil, errors.New("'go list' driver requires 'go' to be installed")
+			}
 			return nil, fmt.Errorf("couldn't exec 'go %v': %s %T", args, err, err)
 		}
 
