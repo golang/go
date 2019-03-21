@@ -17,8 +17,10 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
+	"fmt"
 	"io"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -39,6 +41,7 @@ type objReader struct {
 	pn              string
 	dupSym          *sym.Symbol
 	localSymVersion int
+	flags           int
 
 	// rdBuf is used by readString and readSymName as scratch for reading strings.
 	rdBuf []byte
@@ -54,9 +57,22 @@ type objReader struct {
 	file        []*sym.Symbol
 }
 
+// Flags to enable optional behavior during object loading/reading.
+
+const (
+	NoFlag int = iota
+
+	// Sanity-check duplicate symbol contents, issuing warning
+	// when duplicates have different lengths or contents.
+	StrictDupsWarnFlag
+
+	// Similar to StrictDupsWarnFlag, but issue fatal error.
+	StrictDupsErrFlag
+)
+
 // Load loads an object file f into library lib.
 // The symbols loaded are added to syms.
-func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string) {
+func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string, flags int) {
 	start := f.Offset()
 	r := &objReader{
 		rd:              f.Reader,
@@ -66,6 +82,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, le
 		pn:              pn,
 		dupSym:          &sym.Symbol{Name: ".dup"},
 		localSymVersion: syms.IncVersion(),
+		flags:           flags,
 	}
 	r.loadObjFile()
 	if f.Offset() != start+length {
@@ -339,6 +356,31 @@ overwrite:
 	}
 	if s.Type == sym.SDWARFINFO {
 		r.patchDWARFName(s)
+	}
+
+	if isdup && r.flags&(StrictDupsWarnFlag|StrictDupsErrFlag) != 0 {
+		// Compare the just-read symbol with the previously read
+		// symbol of the same name, verifying that they have the same
+		// payload. If not, issue a warning and possibly an error.
+		if !bytes.Equal(s.P, dup.P) {
+			reason := "same length but different contents"
+			if len(s.P) != len(dup.P) {
+				reason = fmt.Sprintf("new length %d != old length %d",
+					len(data), len(dup.P))
+			}
+			fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.lib, dup, dup.Lib, reason)
+
+			// For the moment, whitelist DWARF subprogram DIEs for
+			// auto-generated wrapper functions. What seems to happen
+			// here is that we get different line numbers on formal
+			// params; I am guessing that the pos is being inherited
+			// from the spot where the wrapper is needed.
+			whitelist := strings.HasPrefix(dup.Name, "go.info.go.interface")
+
+			if r.flags&StrictDupsErrFlag != 0 && !whitelist {
+				log.Fatalf("failed duplicate symbol check on '%s' reading %s", dup.Name, r.pn)
+			}
+		}
 	}
 }
 
