@@ -56,7 +56,12 @@ func lookupProtocol(ctx context.Context, name string) (int, error) {
 			if proto, err := lookupProtocolMap(name); err == nil {
 				return proto, nil
 			}
-			r.err = &DNSError{Err: r.err.Error(), Name: name}
+
+			dnsError := &DNSError{Err: r.err.Error(), Name: name}
+			if r.err == errNoSuchHost {
+				dnsError.IsNotFound = true
+			}
+			r.err = dnsError
 		}
 		return r.proto, r.err
 	case <-ctx.Done():
@@ -98,7 +103,12 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 		var result *syscall.AddrinfoW
 		e := syscall.GetAddrInfoW(syscall.StringToUTF16Ptr(name), nil, &hints, &result)
 		if e != nil {
-			return nil, &DNSError{Err: winError("getaddrinfow", e).Error(), Name: name}
+			err := winError("getaddrinfow", e)
+			dnsError := &DNSError{Err: err.Error(), Name: name}
+			if err == errNoSuchHost {
+				dnsError.IsNotFound = true
+			}
+			return nil, dnsError
 		}
 		defer syscall.FreeAddrInfoW(result)
 		addrs := make([]IPAddr, 0, 5)
@@ -176,7 +186,12 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 		if port, err := lookupPortMap(network, service); err == nil {
 			return port, nil
 		}
-		return 0, &DNSError{Err: winError("getaddrinfow", e).Error(), Name: network + "/" + service}
+		err := winError("getaddrinfow", e)
+		dnsError := &DNSError{Err: err.Error(), Name: network + "/" + service}
+		if err == errNoSuchHost {
+			dnsError.IsNotFound = true
+		}
+		return 0, dnsError
 	}
 	defer syscall.FreeAddrInfoW(result)
 	if result == nil {

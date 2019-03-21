@@ -284,10 +284,8 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 				if err == errNoSuchHost {
 					// The name does not exist, so trying
 					// another server won't help.
-					//
-					// TODO: indicate this in a more
-					// obvious way, such as a field on
-					// DNSError?
+
+					dnsErr.IsNotFound = true
 					return p, server, dnsErr
 				}
 				lastErr = dnsErr
@@ -306,9 +304,8 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 			if err == errNoSuchHost {
 				// The name does not exist, so trying another
 				// server won't help.
-				//
-				// TODO: indicate this in a more obvious way,
-				// such as a field on DNSError?
+
+				lastErr.(*DNSError).IsNotFound = true
 				return p, server, lastErr
 			}
 		}
@@ -398,7 +395,7 @@ func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Typ
 		// Other lookups might allow broader name syntax
 		// (for example Multicast DNS allows UTF-8; see RFC 6762).
 		// For consistency with libc resolvers, report no such host.
-		return dnsmessage.Parser{}, "", &DNSError{Err: errNoSuchHost.Error(), Name: name}
+		return dnsmessage.Parser{}, "", &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
 	}
 	resolvConf.tryUpdate("/etc/resolv.conf")
 	resolvConf.mu.RLock()
@@ -575,7 +572,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 	}
 	if !isDomainName(name) {
 		// See comment in func lookup above about use of errNoSuchHost.
-		return nil, dnsmessage.Name{}, &DNSError{Err: errNoSuchHost.Error(), Name: name}
+		return nil, dnsmessage.Name{}, &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
 	}
 	resolvConf.tryUpdate("/etc/resolv.conf")
 	resolvConf.mu.RLock()

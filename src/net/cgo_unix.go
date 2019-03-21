@@ -158,6 +158,7 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
 	var res *C.struct_addrinfo
 	gerrno, err := C.getaddrinfo((*C.char)(unsafe.Pointer(&h[0])), nil, &hints, &res)
 	if gerrno != 0 {
+		isErrorNoSuchHost := false
 		switch gerrno {
 		case C.EAI_SYSTEM:
 			if err == nil {
@@ -172,10 +173,12 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
 			}
 		case C.EAI_NONAME:
 			err = errNoSuchHost
+			isErrorNoSuchHost = true
 		default:
 			err = addrinfoErrno(gerrno)
 		}
-		return nil, "", &DNSError{Err: err.Error(), Name: name}
+
+		return nil, "", &DNSError{Err: err.Error(), Name: name, IsNotFound: isErrorNoSuchHost}
 	}
 	defer C.freeaddrinfo(res)
 

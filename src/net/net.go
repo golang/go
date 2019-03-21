@@ -579,6 +579,7 @@ type DNSError struct {
 	Server      string // server used
 	IsTimeout   bool   // if true, timed out; not all timeouts set this
 	IsTemporary bool   // if true, error is temporary; not all errors set this
+	IsNotFound  bool   // if true, host could not be found
 }
 
 func (e *DNSError) Error() string {

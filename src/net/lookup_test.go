@@ -877,6 +877,9 @@ func TestLookupNonLDH(t *testing.T) {
 	if !strings.HasSuffix(err.Error(), errNoSuchHost.Error()) {
 		t.Fatalf("lookup error = %v, want %v", err, errNoSuchHost)
 	}
+	if !err.(*DNSError).IsNotFound {
+		t.Fatalf("lookup error = %v, want true", err.(*DNSError).IsNotFound)
+	}
 }
 
 func TestLookupContextCancel(t *testing.T) {
