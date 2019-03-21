@@ -586,7 +586,7 @@ func golistDriverCurrent(cfg *Config, words ...string) (*driverResponse, error) 
 
 		if old, found := seen[p.ImportPath]; found {
 			if !reflect.DeepEqual(p, old) {
-				return nil, fmt.Errorf("go list repeated package %v with different values", p.ImportPath)
+				return nil, fmt.Errorf("internal error: go list gives conflicting information for package ", p.ImportPath)
 			}
 			// skip the duplicate
 			continue
