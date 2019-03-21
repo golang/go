@@ -1725,7 +1725,18 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	ldpkg(ctxt, f, lib, import1-import0-2, pn) // -2 for !\n
 	f.Seek(import1, 0)
 
-	objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn)
+	flags := 0
+	switch *FlagStrictDups {
+	case 0:
+		break
+	case 1:
+		flags = objfile.StrictDupsWarnFlag
+	case 2:
+		flags = objfile.StrictDupsErrFlag
+	default:
+		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+	}
+	objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn, flags)
 	addImports(ctxt, lib, pn)
 	return nil
 }
