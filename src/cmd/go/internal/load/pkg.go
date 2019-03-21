@@ -802,7 +802,7 @@ func findVersionElement(path string) (i, j int) {
 	j = len(path)
 	for i = len(path) - 1; i >= 0; i-- {
 		if path[i] == '/' {
-			if isVersionElement(path[i:j]) {
+			if isVersionElement(path[i+1 : j]) {
 				return i, j
 			}
 			j = i
@@ -814,10 +814,10 @@ func findVersionElement(path string) (i, j int) {
 // isVersionElement reports whether s is a well-formed path version element:
 // v2, v3, v10, etc, but not v0, v05, v1.
 func isVersionElement(s string) bool {
-	if len(s) < 3 || s[0] != '/' || s[1] != 'v' || s[2] == '0' || s[2] == '1' && len(s) == 3 {
+	if len(s) < 2 || s[0] != 'v' || s[1] == '0' || s[1] == '1' && len(s) == 2 {
 		return false
 	}
-	for i := 2; i < len(s); i++ {
+	for i := 1; i < len(s); i++ {
 		if s[i] < '0' || '9' < s[i] {
 			return false
 		}
@@ -1190,26 +1190,16 @@ var foldPath = make(map[string]string)
 // for a package with the import path importPath.
 //
 // The default executable name is the last element of the import path.
-// In module-aware mode, an additional rule is used. If the last element
-// is a vN path element specifying the major version, then the second last
-// element of the import path is used instead.
+// In module-aware mode, an additional rule is used on import paths
+// consisting of two or more path elements. If the last element is
+// a vN path element specifying the major version, then the
+// second last element of the import path is used instead.
 func DefaultExecName(importPath string) string {
 	_, elem := pathpkg.Split(importPath)
 	if cfg.ModulesEnabled {
-		// If this is example.com/mycmd/v2, it's more useful to install it as mycmd than as v2.
-		// See golang.org/issue/24667.
-		isVersion := func(v string) bool {
-			if len(v) < 2 || v[0] != 'v' || v[1] < '1' || '9' < v[1] {
-				return false
-			}
-			for i := 2; i < len(v); i++ {
-				if c := v[i]; c < '0' || '9' < c {
-					return false
-				}
-			}
-			return true
-		}
-		if isVersion(elem) {
+		// If this is example.com/mycmd/v2, it's more useful to
+		// install it as mycmd than as v2. See golang.org/issue/24667.
+		if elem != importPath && isVersionElement(elem) {
 			_, elem = pathpkg.Split(pathpkg.Dir(importPath))
 		}
 	}
@@ -1256,21 +1246,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 			p.Error = &PackageError{Err: e}
 			return
 		}
-		_, elem := filepath.Split(p.Dir)
-		if cfg.ModulesEnabled {
-			// NOTE(rsc,dmitshur): Using p.ImportPath instead of p.Dir
-			// makes sure we install a package in the root of a
-			// cached module directory as that package name
-			// not name@v1.2.3.
-			// Using p.ImportPath instead of p.Dir
-			// is probably correct all the time,
-			// even for non-module-enabled code,
-			// but I'm not brave enough to change the
-			// non-module behavior this late in the
-			// release cycle. Can be done for Go 1.13.
-			// See golang.org/issue/26869.
-			elem = DefaultExecName(p.ImportPath)
-		}
+		elem := DefaultExecName(p.ImportPath)
 		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + "/" + elem
 		if cfg.BuildContext.GOOS != base.ToolGOOS || cfg.BuildContext.GOARCH != base.ToolGOARCH {
 			// Install cross-compiled binaries to subdirectories of bin.
