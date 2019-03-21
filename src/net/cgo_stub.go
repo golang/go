@@ -7,9 +7,13 @@
 
 package net
 
-import "context"
+import (
+	"context"
+)
 
-func init() { netGo = true }
+func init() {
+	netGo = true
+}
 
 type addrinfoErrno int
 

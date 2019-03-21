@@ -6,11 +6,11 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-TEXT runtime·res_ninit_trampoline(SB),NOSPLIT,$0
+TEXT runtime·res_init_trampoline(SB),NOSPLIT,$0
     PUSHQ    BP
     MOVQ     SP, BP
     MOVQ     0(DI), DI  // arg 1 statp
-    CALL     libc_res_ninit(SB)
+    CALL     libc_res_init(SB)
     XORL     DX, DX
     CMPQ     AX, $-1
     JNE ok

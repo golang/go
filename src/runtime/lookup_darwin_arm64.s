@@ -10,7 +10,12 @@
 // for resolution. This will just exit with nominal
 // exit code
 
-TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
-    MOVW    $1, R0
+TEXT runtime·res_nsearch_trampoline(SB),NOSPLIT,$0
+    MOVW    $80, R0
+    BL    libc_exit(SB)
+    RET
+
+TEXT runtime·res_ninit_trampoline(SB),NOSPLIT,$0
+    MOVW    $81, R0
     BL    libc_exit(SB)
     RET

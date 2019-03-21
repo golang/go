@@ -85,7 +85,7 @@ func resolverGetResources(ctx context.Context, hostname string, rtype, class int
 	var responseBuffer = [512]byte{}
 	var statp [71]uint64
 
-	retcode := res_ninit(&statp)
+	retcode := res_init(&statp)
 	if retcode < 0 {
 		return nil, errors.New("could not initialize resolution data")
 	}
@@ -199,8 +199,8 @@ func parsePTRsFromResources(resources []dnsmessage.Resource) ([]string, error) {
 	return answers, nil
 }
 
-// res_ninit and res_nsearch are defined in runtimne/lookup_darwin.go
+// res_init and res_nsearch are defined in runtimne/lookup_darwin.go
 
-func res_ninit(statp *[71]uint64) int32
+func res_init(statp *[71]uint64) int32
 
 func res_nsearch(statp *[71]uint64, dname *byte, class int32, rtype int32, answer *byte, anslen int32) int32
