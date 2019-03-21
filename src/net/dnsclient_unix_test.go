@@ -666,7 +666,7 @@ func TestErrorForOriginalNameWhenSearching(t *testing.T) {
 		wantErr      *DNSError
 	}{
 		{true, &DNSError{Name: fqdn, Err: "server misbehaving", IsTemporary: true}},
-		{false, &DNSError{Name: fqdn, Err: errNoSuchHost.Error()}},
+		{false, &DNSError{Name: fqdn, Err: errNoSuchHost.Error(), IsNotFound: true}},
 	}
 	for _, tt := range cases {
 		r := Resolver{PreferGo: true, StrictErrors: tt.strictErrors, Dial: fake.DialContext}
@@ -1138,9 +1138,10 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 	}
 	makeNxDomain := func() error {
 		return &DNSError{
-			Err:    errNoSuchHost.Error(),
-			Name:   name,
-			Server: server,
+			Err:        errNoSuchHost.Error(),
+			Name:       name,
+			Server:     server,
+			IsNotFound: true,
 		}
 	}
 
@@ -1472,6 +1473,32 @@ func TestIssue8434(t *testing.T) {
 	}
 }
 
+func TestIssueNoSuchHostExists(t *testing.T) {
+	err := lookupWithFake(fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			return dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeNameError,
+				},
+				Questions: q.Questions,
+			}, nil
+		},
+	}, "golang.org.", dnsmessage.TypeALL)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if _, ok := err.(Error); !ok {
+		t.Fatalf("err = %#v; wanted something supporting net.Error", err)
+	}
+	if de, ok := err.(*DNSError); !ok {
+		t.Fatalf("err = %#v; wanted a *net.DNSError", err)
+	} else if !de.IsNotFound {
+		t.Fatalf("IsNotFound = false for err = %#v; want IsNotFound == true", err)
+	}
+}
+
 // TestNoSuchHost verifies that tryOneName works correctly when the domain does
 // not exist.
 //
@@ -1540,6 +1567,9 @@ func TestNoSuchHost(t *testing.T) {
 			}
 			if de.Err != errNoSuchHost.Error() {
 				t.Fatalf("Err = %#v; wanted %q", de.Err, errNoSuchHost.Error())
+			}
+			if !de.IsNotFound {
+				t.Fatalf("IsNotFound = %v wanted true", de.IsNotFound)
 			}
 		})
 	}
