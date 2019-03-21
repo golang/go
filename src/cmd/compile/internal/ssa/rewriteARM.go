@@ -20085,10 +20085,9 @@ func rewriteValueARM_OpPanicBounds_0(v *Value) bool {
 	// result: (LoweredPanicBoundsA [kind] x y mem)
 	for {
 		kind := v.AuxInt
-		_ = v.Args[2]
+		mem := v.Args[2]
 		x := v.Args[0]
 		y := v.Args[1]
-		mem := v.Args[2]
 		if !(boundsABI(kind) == 0) {
 			break
 		}
@@ -20104,10 +20103,9 @@ func rewriteValueARM_OpPanicBounds_0(v *Value) bool {
 	// result: (LoweredPanicBoundsB [kind] x y mem)
 	for {
 		kind := v.AuxInt
-		_ = v.Args[2]
+		mem := v.Args[2]
 		x := v.Args[0]
 		y := v.Args[1]
-		mem := v.Args[2]
 		if !(boundsABI(kind) == 1) {
 			break
 		}
@@ -20123,10 +20121,9 @@ func rewriteValueARM_OpPanicBounds_0(v *Value) bool {
 	// result: (LoweredPanicBoundsC [kind] x y mem)
 	for {
 		kind := v.AuxInt
-		_ = v.Args[2]
+		mem := v.Args[2]
 		x := v.Args[0]
 		y := v.Args[1]
-		mem := v.Args[2]
 		if !(boundsABI(kind) == 2) {
 			break
 		}
@@ -20145,11 +20142,10 @@ func rewriteValueARM_OpPanicExtend_0(v *Value) bool {
 	// result: (LoweredPanicExtendA [kind] hi lo y mem)
 	for {
 		kind := v.AuxInt
-		_ = v.Args[3]
+		mem := v.Args[3]
 		hi := v.Args[0]
 		lo := v.Args[1]
 		y := v.Args[2]
-		mem := v.Args[3]
 		if !(boundsABI(kind) == 0) {
 			break
 		}
@@ -20166,11 +20162,10 @@ func rewriteValueARM_OpPanicExtend_0(v *Value) bool {
 	// result: (LoweredPanicExtendB [kind] hi lo y mem)
 	for {
 		kind := v.AuxInt
-		_ = v.Args[3]
+		mem := v.Args[3]
 		hi := v.Args[0]
 		lo := v.Args[1]
 		y := v.Args[2]
-		mem := v.Args[3]
 		if !(boundsABI(kind) == 1) {
 			break
 		}
@@ -20187,11 +20182,10 @@ func rewriteValueARM_OpPanicExtend_0(v *Value) bool {
 	// result: (LoweredPanicExtendC [kind] hi lo y mem)
 	for {
 		kind := v.AuxInt
-		_ = v.Args[3]
+		mem := v.Args[3]
 		hi := v.Args[0]
 		lo := v.Args[1]
 		y := v.Args[2]
-		mem := v.Args[3]
 		if !(boundsABI(kind) == 2) {
 			break
 		}
