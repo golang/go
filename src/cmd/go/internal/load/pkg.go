@@ -1178,6 +1178,36 @@ var cgoSyscallExclude = map[string]bool{
 
 var foldPath = make(map[string]string)
 
+// DefaultExecName returns the default executable name
+// for a package with the import path importPath.
+//
+// The default executable name is the last element of the import path.
+// In module-aware mode, an additional rule is used. If the last element
+// is a vN path element specifying the major version, then the second last
+// element of the import path is used instead.
+func DefaultExecName(importPath string) string {
+	_, elem := pathpkg.Split(importPath)
+	if cfg.ModulesEnabled {
+		// If this is example.com/mycmd/v2, it's more useful to install it as mycmd than as v2.
+		// See golang.org/issue/24667.
+		isVersion := func(v string) bool {
+			if len(v) < 2 || v[0] != 'v' || v[1] < '1' || '9' < v[1] {
+				return false
+			}
+			for i := 2; i < len(v); i++ {
+				if c := v[i]; c < '0' || '9' < c {
+					return false
+				}
+			}
+			return true
+		}
+		if isVersion(elem) {
+			_, elem = pathpkg.Split(pathpkg.Dir(importPath))
+		}
+	}
+	return elem
+}
+
 // load populates p using information from bp, err, which should
 // be the result of calling build.Context.Import.
 func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
@@ -1220,7 +1250,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		}
 		_, elem := filepath.Split(p.Dir)
 		if cfg.ModulesEnabled {
-			// NOTE(rsc): Using p.ImportPath instead of p.Dir
+			// NOTE(rsc,dmitshur): Using p.ImportPath instead of p.Dir
 			// makes sure we install a package in the root of a
 			// cached module directory as that package name
 			// not name@v1.2.3.
@@ -1229,26 +1259,9 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 			// even for non-module-enabled code,
 			// but I'm not brave enough to change the
 			// non-module behavior this late in the
-			// release cycle. Maybe for Go 1.12.
+			// release cycle. Can be done for Go 1.13.
 			// See golang.org/issue/26869.
-			_, elem = pathpkg.Split(p.ImportPath)
-
-			// If this is example.com/mycmd/v2, it's more useful to install it as mycmd than as v2.
-			// See golang.org/issue/24667.
-			isVersion := func(v string) bool {
-				if len(v) < 2 || v[0] != 'v' || v[1] < '1' || '9' < v[1] {
-					return false
-				}
-				for i := 2; i < len(v); i++ {
-					if c := v[i]; c < '0' || '9' < c {
-						return false
-					}
-				}
-				return true
-			}
-			if isVersion(elem) {
-				_, elem = pathpkg.Split(pathpkg.Dir(p.ImportPath))
-			}
+			elem = DefaultExecName(p.ImportPath)
 		}
 		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + "/" + elem
 		if cfg.BuildContext.GOOS != base.ToolGOOS || cfg.BuildContext.GOARCH != base.ToolGOARCH {

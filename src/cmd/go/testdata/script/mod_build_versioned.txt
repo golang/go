@@ -1,0 +1,16 @@
+env GO111MODULE=on
+
+go get -m rsc.io/fortune/v2
+
+# The default executable name shouldn't be v2$exe
+go build rsc.io/fortune/v2
+! exists v2$exe
+exists fortune$exe
+
+# The default test binary name shouldn't be v2.test$exe
+go test -c rsc.io/fortune/v2
+! exists v2.test$exe
+exists fortune.test$exe
+
+-- go.mod --
+module scratch
