@@ -361,8 +361,8 @@
 (FCMPD (FMOVDconst [0]) x) -> (InvertFlags (FCMPD0 x))
 
 // CSEL needs a flag-generating argument. Synthesize a CMPW if necessary.
-(CondSelect x y bool) && flagArg(bool) != nil -> (CSEL {bool.Op} x y flagArg(bool))
-(CondSelect x y bool) && flagArg(bool) == nil -> (CSEL {OpARM64NotEqual} x y (CMPWconst [0] bool))
+(CondSelect x y boolval) && flagArg(boolval) != nil -> (CSEL {boolval.Op} x y flagArg(boolval))
+(CondSelect x y boolval) && flagArg(boolval) == nil -> (CSEL {OpARM64NotEqual} x y (CMPWconst [0] boolval))
 
 (OffPtr [off] ptr:(SP)) -> (MOVDaddr [off] ptr)
 (OffPtr [off] ptr) -> (ADDconst [off] ptr)
@@ -1647,14 +1647,14 @@
 (CSEL0 {cc} _ flag) && ccARM64Eval(cc, flag) < 0 -> (MOVDconst [0])
 
 // absorb flags back into boolean CSEL
-(CSEL {cc} x y (CMPWconst [0] bool)) && cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil ->
-      (CSEL {bool.Op} x y flagArg(bool))
-(CSEL {cc} x y (CMPWconst [0] bool)) && cc.(Op) == OpARM64Equal && flagArg(bool) != nil ->
-      (CSEL {arm64Negate(bool.Op)} x y flagArg(bool))
-(CSEL0 {cc} x (CMPWconst [0] bool)) && cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil ->
-      (CSEL0 {bool.Op} x flagArg(bool))
-(CSEL0 {cc} x (CMPWconst [0] bool)) && cc.(Op) == OpARM64Equal && flagArg(bool) != nil ->
-      (CSEL0 {arm64Negate(bool.Op)} x flagArg(bool))
+(CSEL {cc} x y (CMPWconst [0] boolval)) && cc.(Op) == OpARM64NotEqual && flagArg(boolval) != nil ->
+      (CSEL {boolval.Op} x y flagArg(boolval))
+(CSEL {cc} x y (CMPWconst [0] boolval)) && cc.(Op) == OpARM64Equal && flagArg(boolval) != nil ->
+      (CSEL {arm64Negate(boolval.Op)} x y flagArg(boolval))
+(CSEL0 {cc} x (CMPWconst [0] boolval)) && cc.(Op) == OpARM64NotEqual && flagArg(boolval) != nil ->
+      (CSEL0 {boolval.Op} x flagArg(boolval))
+(CSEL0 {cc} x (CMPWconst [0] boolval)) && cc.(Op) == OpARM64Equal && flagArg(boolval) != nil ->
+      (CSEL0 {arm64Negate(boolval.Op)} x flagArg(boolval))
 
 // absorb shifts into ops
 (NEG x:(SLLconst [c] y)) && clobberIfDead(x) -> (NEGshiftLL [c] y)

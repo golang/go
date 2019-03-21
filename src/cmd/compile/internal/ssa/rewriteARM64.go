@@ -4557,9 +4557,9 @@ func rewriteValueARM64_OpARM64CSEL_0(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
-	// match: (CSEL {cc} x y (CMPWconst [0] bool))
-	// cond: cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil
-	// result: (CSEL {bool.Op} x y flagArg(bool))
+	// match: (CSEL {cc} x y (CMPWconst [0] boolval))
+	// cond: cc.(Op) == OpARM64NotEqual && flagArg(boolval) != nil
+	// result: (CSEL {boolval.Op} x y flagArg(boolval))
 	for {
 		cc := v.Aux
 		_ = v.Args[2]
@@ -4572,20 +4572,20 @@ func rewriteValueARM64_OpARM64CSEL_0(v *Value) bool {
 		if v_2.AuxInt != 0 {
 			break
 		}
-		bool := v_2.Args[0]
-		if !(cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil) {
+		boolval := v_2.Args[0]
+		if !(cc.(Op) == OpARM64NotEqual && flagArg(boolval) != nil) {
 			break
 		}
 		v.reset(OpARM64CSEL)
-		v.Aux = bool.Op
+		v.Aux = boolval.Op
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AddArg(flagArg(bool))
+		v.AddArg(flagArg(boolval))
 		return true
 	}
-	// match: (CSEL {cc} x y (CMPWconst [0] bool))
-	// cond: cc.(Op) == OpARM64Equal && flagArg(bool) != nil
-	// result: (CSEL {arm64Negate(bool.Op)} x y flagArg(bool))
+	// match: (CSEL {cc} x y (CMPWconst [0] boolval))
+	// cond: cc.(Op) == OpARM64Equal && flagArg(boolval) != nil
+	// result: (CSEL {arm64Negate(boolval.Op)} x y flagArg(boolval))
 	for {
 		cc := v.Aux
 		_ = v.Args[2]
@@ -4598,15 +4598,15 @@ func rewriteValueARM64_OpARM64CSEL_0(v *Value) bool {
 		if v_2.AuxInt != 0 {
 			break
 		}
-		bool := v_2.Args[0]
-		if !(cc.(Op) == OpARM64Equal && flagArg(bool) != nil) {
+		boolval := v_2.Args[0]
+		if !(cc.(Op) == OpARM64Equal && flagArg(boolval) != nil) {
 			break
 		}
 		v.reset(OpARM64CSEL)
-		v.Aux = arm64Negate(bool.Op)
+		v.Aux = arm64Negate(boolval.Op)
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AddArg(flagArg(bool))
+		v.AddArg(flagArg(boolval))
 		return true
 	}
 	return false
@@ -4658,9 +4658,9 @@ func rewriteValueARM64_OpARM64CSEL0_0(v *Value) bool {
 		v.AuxInt = 0
 		return true
 	}
-	// match: (CSEL0 {cc} x (CMPWconst [0] bool))
-	// cond: cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil
-	// result: (CSEL0 {bool.Op} x flagArg(bool))
+	// match: (CSEL0 {cc} x (CMPWconst [0] boolval))
+	// cond: cc.(Op) == OpARM64NotEqual && flagArg(boolval) != nil
+	// result: (CSEL0 {boolval.Op} x flagArg(boolval))
 	for {
 		cc := v.Aux
 		_ = v.Args[1]
@@ -4672,19 +4672,19 @@ func rewriteValueARM64_OpARM64CSEL0_0(v *Value) bool {
 		if v_1.AuxInt != 0 {
 			break
 		}
-		bool := v_1.Args[0]
-		if !(cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil) {
+		boolval := v_1.Args[0]
+		if !(cc.(Op) == OpARM64NotEqual && flagArg(boolval) != nil) {
 			break
 		}
 		v.reset(OpARM64CSEL0)
-		v.Aux = bool.Op
+		v.Aux = boolval.Op
 		v.AddArg(x)
-		v.AddArg(flagArg(bool))
+		v.AddArg(flagArg(boolval))
 		return true
 	}
-	// match: (CSEL0 {cc} x (CMPWconst [0] bool))
-	// cond: cc.(Op) == OpARM64Equal && flagArg(bool) != nil
-	// result: (CSEL0 {arm64Negate(bool.Op)} x flagArg(bool))
+	// match: (CSEL0 {cc} x (CMPWconst [0] boolval))
+	// cond: cc.(Op) == OpARM64Equal && flagArg(boolval) != nil
+	// result: (CSEL0 {arm64Negate(boolval.Op)} x flagArg(boolval))
 	for {
 		cc := v.Aux
 		_ = v.Args[1]
@@ -4696,14 +4696,14 @@ func rewriteValueARM64_OpARM64CSEL0_0(v *Value) bool {
 		if v_1.AuxInt != 0 {
 			break
 		}
-		bool := v_1.Args[0]
-		if !(cc.(Op) == OpARM64Equal && flagArg(bool) != nil) {
+		boolval := v_1.Args[0]
+		if !(cc.(Op) == OpARM64Equal && flagArg(boolval) != nil) {
 			break
 		}
 		v.reset(OpARM64CSEL0)
-		v.Aux = arm64Negate(bool.Op)
+		v.Aux = arm64Negate(boolval.Op)
 		v.AddArg(x)
-		v.AddArg(flagArg(bool))
+		v.AddArg(flagArg(boolval))
 		return true
 	}
 	return false
@@ -32486,31 +32486,31 @@ func rewriteValueARM64_OpCom8_0(v *Value) bool {
 }
 func rewriteValueARM64_OpCondSelect_0(v *Value) bool {
 	b := v.Block
-	// match: (CondSelect x y bool)
-	// cond: flagArg(bool) != nil
-	// result: (CSEL {bool.Op} x y flagArg(bool))
+	// match: (CondSelect x y boolval)
+	// cond: flagArg(boolval) != nil
+	// result: (CSEL {boolval.Op} x y flagArg(boolval))
 	for {
-		bool := v.Args[2]
+		boolval := v.Args[2]
 		x := v.Args[0]
 		y := v.Args[1]
-		if !(flagArg(bool) != nil) {
+		if !(flagArg(boolval) != nil) {
 			break
 		}
 		v.reset(OpARM64CSEL)
-		v.Aux = bool.Op
+		v.Aux = boolval.Op
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AddArg(flagArg(bool))
+		v.AddArg(flagArg(boolval))
 		return true
 	}
-	// match: (CondSelect x y bool)
-	// cond: flagArg(bool) == nil
-	// result: (CSEL {OpARM64NotEqual} x y (CMPWconst [0] bool))
+	// match: (CondSelect x y boolval)
+	// cond: flagArg(boolval) == nil
+	// result: (CSEL {OpARM64NotEqual} x y (CMPWconst [0] boolval))
 	for {
-		bool := v.Args[2]
+		boolval := v.Args[2]
 		x := v.Args[0]
 		y := v.Args[1]
-		if !(flagArg(bool) == nil) {
+		if !(flagArg(boolval) == nil) {
 			break
 		}
 		v.reset(OpARM64CSEL)
@@ -32519,7 +32519,7 @@ func rewriteValueARM64_OpCondSelect_0(v *Value) bool {
 		v.AddArg(y)
 		v0 := b.NewValue0(v.Pos, OpARM64CMPWconst, types.TypeFlags)
 		v0.AuxInt = 0
-		v0.AddArg(bool)
+		v0.AddArg(boolval)
 		v.AddArg(v0)
 		return true
 	}
