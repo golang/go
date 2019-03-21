@@ -196,6 +196,43 @@ func writebarrier(f *Func) {
 		// and simple store version to bElse
 		memThen := mem
 		memElse := mem
+
+		// If the source of a MoveWB is volatile (will be clobbered by a
+		// function call), we need to copy it to a temporary location, as
+		// marshaling the args of typedmemmove might clobber the value we're
+		// trying to move.
+		// Look for volatile source, copy it to temporary before we emit any
+		// call.
+		// It is unlikely to have more than one of them. Just do a linear
+		// search instead of using a map.
+		type volatileCopy struct {
+			src *Value // address of original volatile value
+			tmp *Value // address of temporary we've copied the volatile value into
+		}
+		var volatiles []volatileCopy
+	copyLoop:
+		for _, w := range stores {
+			if w.Op == OpMoveWB {
+				val := w.Args[1]
+				if isVolatile(val) {
+					for _, c := range volatiles {
+						if val == c.src {
+							continue copyLoop // already copied
+						}
+					}
+
+					t := val.Type.Elem()
+					tmp := f.fe.Auto(w.Pos, t)
+					memThen = bThen.NewValue1A(w.Pos, OpVarDef, types.TypeMem, tmp, memThen)
+					tmpaddr := bThen.NewValue2A(w.Pos, OpLocalAddr, t.PtrTo(), tmp, sp, memThen)
+					siz := t.Size()
+					memThen = bThen.NewValue3I(w.Pos, OpMove, types.TypeMem, siz, tmpaddr, val, memThen)
+					memThen.Aux = t
+					volatiles = append(volatiles, volatileCopy{val, tmpaddr})
+				}
+			}
+		}
+
 		for _, w := range stores {
 			ptr := w.Args[0]
 			pos := w.Pos
@@ -222,11 +259,19 @@ func writebarrier(f *Func) {
 			// then block: emit write barrier call
 			switch w.Op {
 			case OpStoreWB, OpMoveWB, OpZeroWB:
-				volatile := w.Op == OpMoveWB && isVolatile(val)
 				if w.Op == OpStoreWB {
 					memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
 				} else {
-					memThen = wbcall(pos, bThen, fn, typ, ptr, val, memThen, sp, sb, volatile)
+					srcval := val
+					if w.Op == OpMoveWB && isVolatile(srcval) {
+						for _, c := range volatiles {
+							if srcval == c.src {
+								srcval = c.tmp
+								break
+							}
+						}
+					}
+					memThen = wbcall(pos, bThen, fn, typ, ptr, srcval, memThen, sp, sb)
 				}
 				// Note that we set up a writebarrier function call.
 				f.fe.SetWBPos(pos)
@@ -247,6 +292,12 @@ func writebarrier(f *Func) {
 			case OpVarDef, OpVarLive, OpVarKill:
 				memElse = bElse.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memElse)
 			}
+		}
+
+		// mark volatile temps dead
+		for _, c := range volatiles {
+			tmpNode := c.tmp.Aux
+			memThen = bThen.NewValue1A(memThen.Pos, OpVarKill, types.TypeMem, tmpNode, memThen)
 		}
 
 		// merge memory
@@ -302,24 +353,8 @@ func writebarrier(f *Func) {
 }
 
 // wbcall emits write barrier runtime call in b, returns memory.
-// if valIsVolatile, it moves val into temp space before making the call.
-func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
+func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Value) *Value {
 	config := b.Func.Config
-
-	var tmp GCNode
-	if valIsVolatile {
-		// Copy to temp location if the source is volatile (will be clobbered by
-		// a function call). Marshaling the args to typedmemmove might clobber the
-		// value we're trying to move.
-		t := val.Type.Elem()
-		tmp = b.Func.fe.Auto(val.Pos, t)
-		mem = b.NewValue1A(pos, OpVarDef, types.TypeMem, tmp, mem)
-		tmpaddr := b.NewValue2A(pos, OpLocalAddr, t.PtrTo(), tmp, sp, mem)
-		siz := t.Size()
-		mem = b.NewValue3I(pos, OpMove, types.TypeMem, siz, tmpaddr, val, mem)
-		mem.Aux = t
-		val = tmpaddr
-	}
 
 	// put arguments on stack
 	off := config.ctxt.FixedFrameSize()
@@ -348,11 +383,6 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	// issue call
 	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, fn, mem)
 	mem.AuxInt = off - config.ctxt.FixedFrameSize()
-
-	if valIsVolatile {
-		mem = b.NewValue1A(pos, OpVarKill, types.TypeMem, tmp, mem) // mark temp dead
-	}
-
 	return mem
 }
 
