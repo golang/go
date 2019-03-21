@@ -90,6 +90,10 @@ func TestAs(t *testing.T) {
 		target interface{}
 		match  bool
 	}{{
+		nil,
+		&errP,
+		false,
+	}, {
 		wrapped{"pittied the fool", errorT{}},
 		&errT,
 		true,
