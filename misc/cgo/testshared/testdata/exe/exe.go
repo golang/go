@@ -1,10 +1,11 @@
 package main
 
 import (
-	"testshared/depBase"
 	"os"
 	"reflect"
 	"runtime"
+
+	"testshared/depBase"
 )
 
 // Having a function declared in the main package triggered
