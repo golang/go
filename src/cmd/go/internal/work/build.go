@@ -10,7 +10,6 @@ import (
 	"go/build"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -285,7 +284,7 @@ func runBuild(cmd *base.Command, args []string) {
 	pkgs := load.PackagesForBuild(args)
 
 	if len(pkgs) == 1 && pkgs[0].Name == "main" && cfg.BuildO == "" {
-		_, cfg.BuildO = path.Split(pkgs[0].ImportPath)
+		cfg.BuildO = load.DefaultExecName(pkgs[0].ImportPath)
 		cfg.BuildO += cfg.ExeSuffix
 	}
 
@@ -320,14 +319,13 @@ func runBuild(cmd *base.Command, args []string) {
 		// If the -o name exists and is a directory, then
 		// write all main packages to that directory.
 		// Otherwise require only a single package be built.
-		if bs, err := os.Stat(cfg.BuildO); err == nil && bs.IsDir() {
+		if fi, err := os.Stat(cfg.BuildO); err == nil && fi.IsDir() {
 			a := &Action{Mode: "go build"}
 			for _, p := range pkgs {
 				if p.Name != "main" {
 					continue
 				}
-				_, elem := path.Split(p.ImportPath)
-				p.Target = filepath.Join(cfg.BuildO, elem)
+				p.Target = filepath.Join(cfg.BuildO, load.DefaultExecName(p.ImportPath))
 				p.Target += cfg.ExeSuffix
 				p.Stale = true
 				p.StaleReason = "build -o flag in use"
@@ -540,7 +538,7 @@ func InstallPackages(patterns []string, pkgs []*load.Package) {
 	if len(patterns) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
 		// Compute file 'go build' would have created.
 		// If it exists and is an executable file, remove it.
-		_, targ := filepath.Split(pkgs[0].ImportPath)
+		targ := load.DefaultExecName(pkgs[0].ImportPath)
 		targ += cfg.ExeSuffix
 		if filepath.Join(pkgs[0].Dir, targ) != pkgs[0].Target { // maybe $GOBIN is the current directory
 			fi, err := os.Stat(targ)
