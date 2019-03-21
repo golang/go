@@ -741,7 +741,7 @@ func TestAddSubUint(t *testing.T) {
 		test("Add intrinsic", func(x, y, c uint) (uint, uint) { return Add(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
 		test("Add intrinsic symmetric", func(x, y, c uint) (uint, uint) { return Add(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
 		test("Sub intrinsic", func(x, y, c uint) (uint, uint) { return Sub(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
-		test("Add intrinsic symmetric", func(x, y, c uint) (uint, uint) { return Sub(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
+		test("Sub intrinsic symmetric", func(x, y, c uint) (uint, uint) { return Sub(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
 
 	}
 }
@@ -802,7 +802,7 @@ func TestAddSubUint64(t *testing.T) {
 		test("Add64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return Add64(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
 		test("Add64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return Add64(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
 		test("Sub64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return Sub64(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
-		test("Add64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return Sub64(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
+		test("Sub64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return Sub64(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
 	}
 }
 

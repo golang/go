@@ -146,6 +146,7 @@ func init() {
 		gp11flags      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp, 0}}
 		gp21           = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
 		gp21nog        = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
 		gp2flags       = regInfo{inputs: []regMask{gpg, gpg}}
 		gp2flags1      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
 		gp2flags1flags = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp, 0}}
@@ -176,9 +177,10 @@ func init() {
 		// binary ops
 		{name: "ADCSflags", argLength: 3, reg: gp2flags1flags, typ: "(UInt64,Flags)", asm: "ADCS", commutative: true}, // arg0+arg1+carry, set flags.
 		{name: "ADCzerocarry", argLength: 1, reg: gp0flags1, typ: "UInt64", asm: "ADC"},                               // ZR+ZR+carry
-		{name: "ADDSconstflags", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "ADDS", aux: "Int64"},      // arg0+auxint, set flags.
 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},                                         // arg0 + arg1
 		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int64"},                                       // arg0 + auxInt
+		{name: "ADDSconstflags", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "ADDS", aux: "Int64"},      // arg0+auxint, set flags.
+		{name: "ADDSflags", argLength: 2, reg: gp21flags, typ: "(UInt64,Flags)", asm: "ADDS", commutative: true},      // arg0+arg1, set flags.
 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                                                            // arg0 - arg1
 		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int64"},                                         // arg0 - auxInt
 		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},                                         // arg0 * arg1
