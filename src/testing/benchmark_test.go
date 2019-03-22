@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"text/template"
+	"time"
 )
 
 var prettyPrintTests = []struct {
@@ -37,6 +38,32 @@ func TestPrettyPrint(t *testing.T) {
 		if tt.expected != buf.String() {
 			t.Errorf("prettyPrint(%v): expected %q, actual %q", tt.v, tt.expected, buf.String())
 		}
+	}
+}
+
+func TestResultString(t *testing.T) {
+	// Test fractional ns/op handling
+	r := testing.BenchmarkResult{
+		N: 100,
+		T: 240 * time.Nanosecond,
+	}
+	if r.NsPerOp() != 2 {
+		t.Errorf("NsPerOp: expected 2, actual %v", r.NsPerOp())
+	}
+	if want, got := "     100\t         2.40 ns/op", r.String(); want != got {
+		t.Errorf("String: expected %q, actual %q", want, got)
+	}
+
+	// Test sub-1 ns/op (issue #31005)
+	r.T = 40 * time.Nanosecond
+	if want, got := "     100\t         0.400 ns/op", r.String(); want != got {
+		t.Errorf("String: expected %q, actual %q", want, got)
+	}
+
+	// Test 0 ns/op
+	r.T = 0
+	if want, got := "     100", r.String(); want != got {
+		t.Errorf("String: expected %q, actual %q", want, got)
 	}
 }
 
