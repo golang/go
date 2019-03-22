@@ -179,7 +179,7 @@ func (ctxt *Link) CanUsePlugins() bool {
 func (ctxt *Link) UseRelro() bool {
 	switch ctxt.BuildMode {
 	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePIE, BuildModePlugin:
-		return ctxt.IsELF
+		return ctxt.IsELF || ctxt.HeadType == objabi.Haix
 	default:
 		return ctxt.linkShared || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal)
 	}
@@ -1173,7 +1173,7 @@ func (ctxt *Link) hostlink() {
 		}
 	case BuildModePIE:
 		// ELF.
-		if ctxt.HeadType != objabi.Hdarwin {
+		if ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Haix {
 			if ctxt.UseRelro() {
 				argv = append(argv, "-Wl,-z,relro")
 			}

@@ -164,6 +164,7 @@ func buildModeInit() {
 				codegenArg = "-shared"
 			case "darwin/amd64":
 				codegenArg = "-shared"
+			case "aix/ppc64":
 			default:
 				base.Fatalf("-buildmode=pie not supported on %s\n", platform)
 			}

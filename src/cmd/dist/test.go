@@ -963,7 +963,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		return false
 	case "pie":
 		switch pair {
-		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
+		case "aix/ppc64",
+			"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
 			"android-amd64", "android-arm", "android-arm64", "android-386":
 			return true
 		case "darwin-amd64":
