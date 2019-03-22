@@ -152,6 +152,7 @@ func checkExample(pass *analysis.Pass, fn *ast.FuncDecl) {
 		for _, obj := range objs {
 			if obj, _, _ := types.LookupFieldOrMethod(obj.Type(), true, obj.Pkg(), mmbr); obj != nil {
 				found = true
+				break
 			}
 		}
 		if !found {
