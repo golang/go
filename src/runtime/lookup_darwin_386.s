@@ -6,26 +6,22 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-TEXT runtime·res_nsearch_trampoline(SB),NOSPLIT,$0
+TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
     PUSHL   BP
     MOVL    SP, BP
     SUBL    $24, SP
     MOVL    32(SP), CX
-    MOVL    20(CX), AX      // arg 6 anslen
-    MOVL    AX, 20(SP)
-    MOVL    16(CX), AX      // arg 5 answer
+    MOVL    16(CX), AX      // arg 5 anslen
     MOVL    AX, 16(SP)
-    MOVL    8(CX), AX       // arg 3 class
-    MOVL    AX, 8(SP)
-    MOVL    12(CX), AX       // arg 4 type
+    MOVL    12(CX), AX      // arg 4 answer
     MOVL    AX, 12(SP)
-    MOVL    4(CX), AX       // arg 2 name
+    MOVL    8(CX), AX       // arg 3 type
+    MOVL    AX, 8(SP)
+    MOVL    4(CX), AX       // arg 2 class
     MOVL    AX, 4(SP)
-    MOVL    4(CX), AX       // arg 2 name
-    MOVL    AX, 4(SP)
-    MOVL    0(CX), AX       // arg 1 statp
+    MOVL    0(CX), AX       // arg 1 name
     MOVL    AX, 0(SP)
-    CALL    libc_res_nsearch(SB)
+    CALL    libc_res_search(SB)
     XORL    DX, DX
     CMPL    AX, $-1
     JNE ok
@@ -37,14 +33,11 @@ ok:
     POPL    BP
     RET
 
-TEXT runtime·res_ninit_trampoline(SB),NOSPLIT,$0
+TEXT runtime·res_init_trampoline(SB),NOSPLIT,$0
     PUSHL   BP
     MOVL    SP, BP
     SUBL    $8, SP
-    MOVL    16(SP), CX
-    MOVL    0(CX), AX  // arg 1 statp
-    MOVL    AX, 0(SP)
-    CALL    libc_res_ninit(SB)
+    CALL    libc_res_init(SB)
     XORL    DX, DX
     CMPL    AX, $-1
     JNE ok

@@ -83,14 +83,13 @@ func cgoLookupPTR(ctx context.Context, addr string) (ptrs []string, err error, c
 func resolverGetResources(ctx context.Context, hostname string, rtype, class int32) ([]dnsmessage.Resource, error) {
 	var byteHostname = []byte(hostname)
 	var responseBuffer = [512]byte{}
-	var statp [71]uint64
 
-	retcode := res_init(&statp)
+	retcode := res_init()
 	if retcode < 0 {
 		return nil, errors.New("could not initialize resolution data")
 	}
 
-	retcode = res_nsearch(&statp, &byteHostname[0], class, rtype, &responseBuffer[0], 512)
+	retcode = res_search(&byteHostname[0], class, rtype, &responseBuffer[0], 512)
 	if retcode < 0 {
 		return nil, errors.New("could not complete domain resolution")
 	}
@@ -199,8 +198,8 @@ func parsePTRsFromResources(resources []dnsmessage.Resource) ([]string, error) {
 	return answers, nil
 }
 
-// res_init and res_nsearch are defined in runtimne/lookup_darwin.go
+// res_init and res_search are defined in runtimne/lookup_darwin.go
 
-func res_init(statp *[71]uint64) int32
+func res_init() int32
 
-func res_nsearch(statp *[71]uint64, dname *byte, class int32, rtype int32, answer *byte, anslen int32) int32
+func res_search(dname *byte, class int32, rtype int32, answer *byte, anslen int32) int32
