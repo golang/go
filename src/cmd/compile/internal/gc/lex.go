@@ -116,8 +116,9 @@ func (p *noder) pragcgo(pos syntax.Pos, text string) {
 			f[3] = strings.Trim(f[3], `"`)
 			if objabi.GOOS == "aix" && f[3] != "" {
 				// On Aix, library pattern must be "lib.a/object.o"
+				// or "lib.a/libname.so.X"
 				n := strings.Split(f[3], "/")
-				if len(n) != 2 || !strings.HasSuffix(n[0], ".a") || !strings.HasSuffix(n[1], ".o") {
+				if len(n) != 2 || !strings.HasSuffix(n[0], ".a") || (!strings.HasSuffix(n[1], ".o") && !strings.Contains(n[1], ".so.")) {
 					p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_dynamic local [remote ["lib.a/object.o"]]`})
 					return
 				}
