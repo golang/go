@@ -406,9 +406,14 @@ func (r BenchmarkResult) String() string {
 	buf := new(strings.Builder)
 	fmt.Fprintf(buf, "%8d", r.N)
 
-	if ns := r.NsPerOp(); ns != 0 {
+	// Get ns/op as a float.
+	ns, ok := r.Extra["ns/op"]
+	if !ok {
+		ns = float64(r.T.Nanoseconds()) / float64(r.N)
+	}
+	if ns != 0 {
 		buf.WriteByte('\t')
-		prettyPrint(buf, float64(ns), "ns/op")
+		prettyPrint(buf, ns, "ns/op")
 	}
 
 	if mbs := r.mbPerSec(); mbs != 0 {
