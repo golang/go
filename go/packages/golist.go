@@ -128,7 +128,7 @@ extractQueries:
 	// patterns also requires a go list call, since it's the equivalent of
 	// ".".
 	if len(restPatterns) > 0 || len(patterns) == 0 {
-		dr, err := golistDriverCurrent(cfg, restPatterns...)
+		dr, err := golistDriver(cfg, restPatterns...)
 		if err != nil {
 			return nil, err
 		}
@@ -147,13 +147,13 @@ extractQueries:
 	var containsCandidates []string
 
 	if len(containFiles) != 0 {
-		if err := runContainsQueries(cfg, golistDriverCurrent, response, containFiles); err != nil {
+		if err := runContainsQueries(cfg, golistDriver, response, containFiles); err != nil {
 			return nil, err
 		}
 	}
 
 	if len(packagesNamed) != 0 {
-		if err := runNamedQueries(cfg, golistDriverCurrent, response, packagesNamed); err != nil {
+		if err := runNamedQueries(cfg, golistDriver, response, packagesNamed); err != nil {
 			return nil, err
 		}
 	}
@@ -168,7 +168,7 @@ extractQueries:
 	}
 
 	if len(needPkgs) > 0 {
-		addNeededOverlayPackages(cfg, golistDriverCurrent, response, needPkgs)
+		addNeededOverlayPackages(cfg, golistDriver, response, needPkgs)
 		if err != nil {
 			return nil, err
 		}
@@ -540,10 +540,10 @@ func otherFiles(p *jsonPackage) [][]string {
 	return [][]string{p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.FFiles, p.SFiles, p.SwigFiles, p.SwigCXXFiles, p.SysoFiles}
 }
 
-// golistDriverCurrent uses the "go list" command to expand the
-// pattern words and return metadata for the specified packages.
-// dir may be "" and env may be nil, as per os/exec.Command.
-func golistDriverCurrent(cfg *Config, words ...string) (*driverResponse, error) {
+// golistDriver uses the "go list" command to expand the pattern
+// words and return metadata for the specified packages. dir may be
+// "" and env may be nil, as per os/exec.Command.
+func golistDriver(cfg *Config, words ...string) (*driverResponse, error) {
 	// go list uses the following identifiers in ImportPath and Imports:
 	//
 	// 	"p"			-- importable package or main (command)
