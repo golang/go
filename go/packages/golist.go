@@ -761,7 +761,6 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 		if len(stderr.String()) > 0 && strings.Contains(stderr.String(), "named files must be .go files") {
 			output := fmt.Sprintf(`{"ImportPath": "","Incomplete": true,"Error": {"Pos": "","Err": %s}}`,
 				strconv.Quote(strings.Trim(stderr.String(), "\n")))
-			fmt.Println(output)
 			return bytes.NewBufferString(output), nil
 		}
 

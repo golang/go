@@ -313,7 +313,7 @@ func TestLoadAbsolutePath(t *testing.T) {
 	}
 }
 
-func TestReturnErrorWhenUsingNoneGoFiles(t *testing.T) {
+func TestReturnErrorWhenUsingNonGoFiles(t *testing.T) {
 	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{{
 		Name: "golang.org/gopatha",
 		Files: map[string]interface{}{
