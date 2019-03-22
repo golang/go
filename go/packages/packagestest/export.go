@@ -24,6 +24,7 @@ import (
 
 	"golang.org/x/tools/go/expect"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/span"
 )
 
 var (
@@ -66,7 +67,7 @@ type Exported struct {
 	written map[string]map[string]string // the full set of exported files
 	fset    *token.FileSet               // The file set used when parsing expectations
 	notes   []*expect.Note               // The list of expectations extracted from go source files
-	markers map[string]Range             // The set of markers extracted from go source files
+	markers map[string]span.Range        // The set of markers extracted from go source files
 }
 
 // Exporter implementations are responsible for converting from the generic description of some

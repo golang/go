@@ -8,7 +8,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"go/token"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -60,46 +59,43 @@ func TestDefinition(t *testing.T) {
 	defer exported.Cleanup()
 	count := 0
 	if err := exported.Expect(map[string]interface{}{
-		"definition": func(fset *token.FileSet, src token.Pos, flags string, def packagestest.Range, match string) {
+		"definition": func(src span.Span, flags string, def span.Span, match string) {
 			count++
 			args := []string{"query"}
 			if flags != "" {
 				args = append(args, strings.Split(flags, " ")...)
 			}
 			args = append(args, "definition")
-			f := fset.File(src)
-			spn := span.New(span.FileURI(f.Name()), span.NewPoint(0, 0, f.Offset(src)), span.Point{})
-			args = append(args, fmt.Sprint(spn))
+			args = append(args, fmt.Sprint(src))
 			app := &cmd.Application{}
 			app.Config = *exported.Config
 			got := captureStdOut(t, func() {
 				tool.Main(context.Background(), app, args)
 			})
-			start := fset.Position(def.Start)
-			end := fset.Position(def.End)
 			expect := os.Expand(match, func(name string) string {
 				switch name {
 				case "file":
-					return start.Filename
+					fname, _ := def.URI().Filename()
+					return fname
 				case "efile":
-					qfile := strconv.Quote(start.Filename)
+					fname, _ := def.URI().Filename()
+					qfile := strconv.Quote(fname)
 					return qfile[1 : len(qfile)-1]
 				case "euri":
-					uri := span.FileURI(start.Filename)
-					quri := strconv.Quote(string(uri))
+					quri := strconv.Quote(string(def.URI()))
 					return quri[1 : len(quri)-1]
 				case "line":
-					return fmt.Sprint(start.Line)
+					return fmt.Sprint(def.Start().Line())
 				case "col":
-					return fmt.Sprint(start.Column)
+					return fmt.Sprint(def.Start().Column())
 				case "offset":
-					return fmt.Sprint(start.Offset)
+					return fmt.Sprint(def.Start().Offset())
 				case "eline":
-					return fmt.Sprint(end.Line)
+					return fmt.Sprint(def.End().Line())
 				case "ecol":
-					return fmt.Sprint(end.Column)
+					return fmt.Sprint(def.End().Column())
 				case "eoffset":
-					return fmt.Sprint(end.Offset)
+					return fmt.Sprint(def.End().Offset())
 				default:
 					return name
 				}

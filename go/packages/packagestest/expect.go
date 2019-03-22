@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/tools/go/expect"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/span"
 )
 
 const (
@@ -116,15 +117,14 @@ func (e *Exported) Expect(methods map[string]interface{}) error {
 	return nil
 }
 
-type Range struct {
-	Start token.Pos
-	End   token.Pos
-}
+// Range is a type alias for span.Range for backwards compatability, prefer
+// using span.Range directly.
+type Range = span.Range
 
 // Mark adds a new marker to the known set.
 func (e *Exported) Mark(name string, r Range) {
 	if e.markers == nil {
-		e.markers = make(map[string]Range)
+		e.markers = make(map[string]span.Range)
 	}
 	e.markers[name] = r
 }
@@ -166,7 +166,7 @@ func (e *Exported) getMarkers() error {
 		return nil
 	}
 	// set markers early so that we don't call getMarkers again from Expect
-	e.markers = make(map[string]Range)
+	e.markers = make(map[string]span.Range)
 	return e.Expect(map[string]interface{}{
 		markMethod: e.Mark,
 	})
@@ -177,7 +177,8 @@ var (
 	identifierType = reflect.TypeOf(expect.Identifier(""))
 	posType        = reflect.TypeOf(token.Pos(0))
 	positionType   = reflect.TypeOf(token.Position{})
-	rangeType      = reflect.TypeOf(Range{})
+	rangeType      = reflect.TypeOf(span.Range{})
+	spanType       = reflect.TypeOf(span.Span{})
 	fsetType       = reflect.TypeOf((*token.FileSet)(nil))
 	regexType      = reflect.TypeOf((*regexp.Regexp)(nil))
 	exportedType   = reflect.TypeOf((*Exported)(nil))
@@ -238,6 +239,18 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 				return reflect.Value{}, nil, err
 			}
 			return reflect.ValueOf(r), remains, nil
+		}, nil
+	case pt == spanType:
+		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
+			r, remains, err := e.rangeConverter(n, args)
+			if err != nil {
+				return reflect.Value{}, nil, err
+			}
+			spn, err := r.Span()
+			if err != nil {
+				return reflect.Value{}, nil, err
+			}
+			return reflect.ValueOf(spn), remains, nil
 		}, nil
 	case pt == identifierType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
@@ -340,9 +353,9 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 	}
 }
 
-func (e *Exported) rangeConverter(n *expect.Note, args []interface{}) (Range, []interface{}, error) {
+func (e *Exported) rangeConverter(n *expect.Note, args []interface{}) (span.Range, []interface{}, error) {
 	if len(args) < 1 {
-		return Range{}, nil, fmt.Errorf("missing argument")
+		return span.Range{}, nil, fmt.Errorf("missing argument")
 	}
 	arg := args[0]
 	args = args[1:]
@@ -354,34 +367,34 @@ func (e *Exported) rangeConverter(n *expect.Note, args []interface{}) (Range, []
 			// end of file identifier, look up the current file
 			f := e.fset.File(n.Pos)
 			eof := f.Pos(f.Size())
-			return Range{Start: eof, End: token.NoPos}, args, nil
+			return span.Range{FileSet: e.fset, Start: eof, End: token.NoPos}, args, nil
 		default:
 			// look up an marker by name
 			mark, ok := e.markers[string(arg)]
 			if !ok {
-				return Range{}, nil, fmt.Errorf("cannot find marker %v", arg)
+				return span.Range{}, nil, fmt.Errorf("cannot find marker %v", arg)
 			}
 			return mark, args, nil
 		}
 	case string:
 		start, end, err := expect.MatchBefore(e.fset, e.FileContents, n.Pos, arg)
 		if err != nil {
-			return Range{}, nil, err
+			return span.Range{}, nil, err
 		}
 		if start == token.NoPos {
-			return Range{}, nil, fmt.Errorf("%v: pattern %s did not match", e.fset.Position(n.Pos), arg)
+			return span.Range{}, nil, fmt.Errorf("%v: pattern %s did not match", e.fset.Position(n.Pos), arg)
 		}
-		return Range{Start: start, End: end}, args, nil
+		return span.Range{FileSet: e.fset, Start: start, End: end}, args, nil
 	case *regexp.Regexp:
 		start, end, err := expect.MatchBefore(e.fset, e.FileContents, n.Pos, arg)
 		if err != nil {
-			return Range{}, nil, err
+			return span.Range{}, nil, err
 		}
 		if start == token.NoPos {
-			return Range{}, nil, fmt.Errorf("%v: pattern %s did not match", e.fset.Position(n.Pos), arg)
+			return span.Range{}, nil, fmt.Errorf("%v: pattern %s did not match", e.fset.Position(n.Pos), arg)
 		}
-		return Range{Start: start, End: end}, args, nil
+		return span.Range{FileSet: e.fset, Start: start, End: end}, args, nil
 	default:
-		return Range{}, nil, fmt.Errorf("cannot convert %v to pos", arg)
+		return span.Range{}, nil, fmt.Errorf("cannot convert %v to pos", arg)
 	}
 }
