@@ -233,11 +233,14 @@ func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, 
 	return runcmd(cmd...)
 }
 
-func linkFile(runcmd runCmd, goname string) (err error) {
+func linkFile(runcmd runCmd, goname string, ldflags []string) (err error) {
 	pfile := strings.Replace(goname, ".go", ".o", -1)
 	cmd := []string{goTool(), "tool", "link", "-w", "-o", "a.exe", "-L", "."}
 	if *linkshared {
 		cmd = append(cmd, "-linkshared", "-installsuffix=dynlink")
+	}
+	if ldflags != nil {
+		cmd = append(cmd, ldflags...)
 	}
 	cmd = append(cmd, pfile)
 	_, err = runcmd(cmd...)
@@ -324,6 +327,18 @@ func goDirFiles(longdir string) (filter []os.FileInfo, err error) {
 
 var packageRE = regexp.MustCompile(`(?m)^package ([\p{Lu}\p{Ll}\w]+)`)
 
+func getPackageNameFromSource(fn string) (string, error) {
+	data, err := ioutil.ReadFile(fn)
+	if err != nil {
+		return "", err
+	}
+	pkgname := packageRE.FindStringSubmatch(string(data))
+	if pkgname == nil {
+		return "", fmt.Errorf("cannot find package name in %s", fn)
+	}
+	return pkgname[1], nil
+}
+
 // If singlefilepkgs is set, each file is considered a separate package
 // even if the package names are the same.
 func goDirPackages(longdir string, singlefilepkgs bool) ([][]string, error) {
@@ -335,19 +350,13 @@ func goDirPackages(longdir string, singlefilepkgs bool) ([][]string, error) {
 	m := make(map[string]int)
 	for _, file := range files {
 		name := file.Name()
-		data, err := ioutil.ReadFile(filepath.Join(longdir, name))
-		if err != nil {
-			return nil, err
-		}
-		pkgname := packageRE.FindStringSubmatch(string(data))
-		if pkgname == nil {
-			return nil, fmt.Errorf("cannot find package name in %s", name)
-		}
-		i, ok := m[pkgname[1]]
+		pkgname, err := getPackageNameFromSource(filepath.Join(longdir, name))
+		check(err)
+		i, ok := m[pkgname]
 		if singlefilepkgs || !ok {
 			i = len(pkgs)
 			pkgs = append(pkgs, nil)
-			m[pkgname[1]] = i
+			m[pkgname] = i
 		}
 		pkgs[i] = append(pkgs[i], name)
 	}
@@ -502,6 +511,7 @@ func (t *test) run() {
 	wantError := false
 	wantAuto := false
 	singlefilepkgs := false
+	setpkgpaths := false
 	localImports := true
 	f := strings.Fields(action)
 	if len(f) > 0 {
@@ -540,6 +550,8 @@ func (t *test) run() {
 			wantError = false
 		case "-s":
 			singlefilepkgs = true
+		case "-P":
+			setpkgpaths = true
 		case "-n":
 			// Do not set relative path for local imports to current dir,
 			// e.g. do not pass -D . -I . to the compiler.
@@ -765,8 +777,26 @@ func (t *test) run() {
 			t.err = err
 			return
 		}
+		// Split flags into gcflags and ldflags
+		ldflags := []string{}
+		for i, fl := range flags {
+			if fl == "-ldflags" {
+				ldflags = flags[i+1:]
+				flags = flags[0:i]
+				break
+			}
+		}
+
 		for i, gofiles := range pkgs {
-			_, err := compileInDir(runcmd, longdir, flags, localImports, gofiles...)
+			pflags := []string{}
+			pflags = append(pflags, flags...)
+			if setpkgpaths {
+				fp := filepath.Join(longdir, gofiles[0])
+				pkgname, serr := getPackageNameFromSource(fp)
+				check(serr)
+				pflags = append(pflags, "-p", pkgname)
+			}
+			_, err := compileInDir(runcmd, longdir, pflags, localImports, gofiles...)
 			// Allow this package compilation fail based on conditions below;
 			// its errors were checked in previous case.
 			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {
@@ -774,7 +804,7 @@ func (t *test) run() {
 				return
 			}
 			if i == len(pkgs)-1 {
-				err = linkFile(runcmd, gofiles[0])
+				err = linkFile(runcmd, gofiles[0], ldflags)
 				if err != nil {
 					t.err = err
 					return
