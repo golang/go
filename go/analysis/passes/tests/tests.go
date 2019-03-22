@@ -153,9 +153,9 @@ func checkExample(pass *analysis.Pass, fn *ast.FuncDecl) {
 			if obj, _, _ := types.LookupFieldOrMethod(obj.Type(), true, obj.Pkg(), mmbr); obj != nil {
 				found = true
 			}
-			if !found {
-				pass.Reportf(fn.Pos(), "%s refers to unknown field or method: %s.%s", fnName, ident, mmbr)
-			}
+		}
+		if !found {
+			pass.Reportf(fn.Pos(), "%s refers to unknown field or method: %s.%s", fnName, ident, mmbr)
 		}
 	}
 	if len(elems) == 3 && !isExampleSuffix(elems[2]) {
