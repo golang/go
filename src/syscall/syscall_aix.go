@@ -46,7 +46,7 @@ func (ts *StTimespec_t) Nano() int64 {
 // But, as fcntl is currently not exported and isn't called with F_DUP2FD,
 // it doesn't matter.
 //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
-//sys	Dup2(old int, new int) (val int, err error)
+//sys	Dup2(old int, new int) (err error)
 
 //sysnb pipe(p *[2]_C_int) (err error)
 func Pipe(p []int) (err error) {
