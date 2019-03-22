@@ -23,7 +23,7 @@ func init() {
 	}
 	s := ""
 	for _, r := range runes {
-		s = fmt.Sprintf("%s%c", s, r)
+		s += string(r)
 	}
 	if s != "Hello, 世界" {
 		panic(s)

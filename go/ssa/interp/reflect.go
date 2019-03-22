@@ -68,11 +68,6 @@ func makeReflectType(rt rtype) value {
 	return iface{rtypeType, rt}
 }
 
-func ext۰reflect۰Init(fr *frame, args []value) value {
-	// Signature: func()
-	return nil
-}
-
 func ext۰reflect۰rtype۰Bits(fr *frame, args []value) value {
 	// Signature: func (t reflect.rtype) int
 	rt := args[0].(rtype).t

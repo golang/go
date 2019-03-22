@@ -10,6 +10,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"os"
 	"strings"
 	"sync"
 	"unsafe"
@@ -918,20 +919,17 @@ func typeAssert(i *interpreter, instr *ssa.TypeAssert, itf iface) value {
 var CapturedOutput *bytes.Buffer
 var capturedOutputMu sync.Mutex
 
-// write writes bytes b to the target program's file descriptor fd.
+// write writes bytes b to the target program's standard output.
 // The print/println built-ins and the write() system call funnel
 // through here so they can be captured by the test driver.
-func write(fd int, b []byte) (int, error) {
-	// TODO(adonovan): fix: on Windows, std{out,err} are not 1, 2.
-	if CapturedOutput != nil && (fd == 1 || fd == 2) {
+func print(b []byte) (int, error) {
+	if CapturedOutput != nil {
 		capturedOutputMu.Lock()
 		CapturedOutput.Write(b) // ignore errors
 		capturedOutputMu.Unlock()
 	}
-	return syswrite(fd, b)
+	return os.Stdout.Write(b)
 }
-
-var syswrite func(int, []byte) (int, error) // set on darwin/linux only
 
 // callBuiltin interprets a call to builtin fn with arguments args,
 // returning its result.
@@ -987,7 +985,7 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value
 		if ln {
 			buf.WriteRune('\n')
 		}
-		write(1, buf.Bytes())
+		print(buf.Bytes())
 		return nil
 
 	case "len":

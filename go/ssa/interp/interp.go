@@ -630,30 +630,6 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
 	panic("no global variable: " + pkg.Pkg.Path() + "." + name)
 }
 
-var environ []value
-
-func init() {
-	for _, s := range os.Environ() {
-		environ = append(environ, s)
-	}
-	environ = append(environ, "GOSSAINTERP=1")
-	environ = append(environ, "GOARCH="+runtime.GOARCH)
-}
-
-// deleteBodies delete the bodies of all standalone functions except the
-// specified ones.  A missing intrinsic leads to a clear runtime error.
-func deleteBodies(pkg *ssa.Package, except ...string) {
-	keep := make(map[string]bool)
-	for _, e := range except {
-		keep[e] = true
-	}
-	for _, mem := range pkg.Members {
-		if fn, ok := mem.(*ssa.Function); ok && !keep[fn.Name()] {
-			fn.Blocks = nil
-		}
-	}
-}
-
 // Interpret interprets the Go program whose main package is mainpkg.
 // mode specifies various interpreter options.  filename and args are
 // the initial values of os.Args for the target program.  sizes is the
@@ -665,11 +641,6 @@ func deleteBodies(pkg *ssa.Package, except ...string) {
 // The SSA program must include the "runtime" package.
 //
 func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename string, args []string) (exitCode int) {
-	if syswrite == nil {
-		fmt.Fprintln(os.Stderr, "Interpret: unsupported platform.")
-		return 1
-	}
-
 	i := &interpreter{
 		prog:       mainpkg.Prog,
 		globals:    make(map[ssa.Value]*value),
@@ -698,20 +669,6 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 				cell := zero(deref(v.Type()))
 				i.globals[v] = &cell
 			}
-		}
-
-		// Ad-hoc initialization for magic system variables.
-		switch pkg.Pkg.Path() {
-		case "syscall":
-			setGlobal(i, pkg, "envs", environ)
-
-		case "reflect":
-			deleteBodies(pkg, "DeepEqual", "deepValueEqual")
-
-		case "runtime":
-			sz := sizes.Sizeof(pkg.Pkg.Scope().Lookup("MemStats").Type())
-			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(sz))
-			deleteBodies(pkg, "GOROOT", "gogetenv")
 		}
 	}
 
