@@ -127,7 +127,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 				DeclLine: v.DeclLine,
 				DeclCol:  v.DeclCol,
 			}
-			synthesized := strings.HasPrefix(v.Name, "~r") || canonName == "_"
+			synthesized := strings.HasPrefix(v.Name, "~r") || canonName == "_" || strings.HasPrefix(v.Name, "~b")
 			if idx, found := m[vp]; found {
 				v.ChildIndex = int32(idx)
 				v.IsInAbstract = !synthesized
