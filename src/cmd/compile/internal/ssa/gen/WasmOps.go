@@ -192,6 +192,10 @@ func init() {
 		{name: "F64ConvertI64S", asm: "F64ConvertI64S", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the signed integer arg0 to a float
 		{name: "F64ConvertI64U", asm: "F64ConvertI64U", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the unsigned integer arg0 to a float
 
+		{name: "I64Extend8S", asm: "I64Extend8S", argLength: 1, reg: gp11, typ: "Int64"},   // sign-extend arg0 from 8 to 64 bit
+		{name: "I64Extend16S", asm: "I64Extend16S", argLength: 1, reg: gp11, typ: "Int64"}, // sign-extend arg0 from 16 to 64 bit
+		{name: "I64Extend32S", asm: "I64Extend32S", argLength: 1, reg: gp11, typ: "Int64"}, // sign-extend arg0 from 32 to 64 bit
+
 		{name: "F64Sqrt", asm: "F64Sqrt", argLength: 1, reg: fp11, typ: "Float64"},         // sqrt(arg0)
 		{name: "F64Trunc", asm: "F64Trunc", argLength: 1, reg: fp11, typ: "Float64"},       // trunc(arg0)
 		{name: "F64Ceil", asm: "F64Ceil", argLength: 1, reg: fp11, typ: "Float64"},         // ceil(arg0)

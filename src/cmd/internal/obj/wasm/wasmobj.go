@@ -886,7 +886,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		switch {
-		case p.As < AUnreachable || p.As > AF64ReinterpretI64:
+		case p.As < AUnreachable || p.As >= ALast:
 			panic(fmt.Sprintf("unexpected assembler op: %s", p.As))
 		case p.As < AEnd:
 			w.WriteByte(byte(p.As - AUnreachable + 0x00))

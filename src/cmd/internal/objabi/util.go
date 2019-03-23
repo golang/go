@@ -78,19 +78,22 @@ func goppc64() int {
 }
 
 type gowasmFeatures struct {
-	// no features yet
+	SignExt bool
 }
 
 func (f *gowasmFeatures) String() string {
 	var flags []string
-	// no features yet
+	if f.SignExt {
+		flags = append(flags, "signext")
+	}
 	return strings.Join(flags, ",")
 }
 
 func gowasm() (f gowasmFeatures) {
 	for _, opt := range strings.Split(envOr("GOWASM", ""), ",") {
 		switch opt {
-		// no features yet
+		case "signext":
+			f.SignExt = true
 		case "":
 			// ignore
 		default:

@@ -1569,6 +1569,9 @@
 // 	GOMIPS64
 // 		For GOARCH=mips64{,le}, whether to use floating point instructions.
 // 		Valid values are hardfloat (default), softfloat.
+// 	GOWASM
+// 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
+// 		Valid values are: signext.
 //
 // Special-purpose environment variables:
 //

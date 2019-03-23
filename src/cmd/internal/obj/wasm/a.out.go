@@ -210,8 +210,13 @@ const (
 	AI64ReinterpretF64
 	AF32ReinterpretI32
 	AF64ReinterpretI64
+	AI32Extend8S
+	AI32Extend16S
+	AI64Extend8S
+	AI64Extend16S
+	AI64Extend32S
 
-	// End of low-level WebAssembly instructions.
+	ALast // Sentinel: End of low-level WebAssembly instructions.
 
 	ARESUMEPOINT
 	// ACALLNORESUME is a call which is not followed by a resume point.
