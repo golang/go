@@ -27,8 +27,8 @@ import (
 	"reflect"
 	"strconv"
 	"time"
-	"unicode/utf8"
 	"unicode/utf16"
+	"unicode/utf8"
 )
 
 // A StructuralError suggests that the ASN.1 data is valid, but the Go type
@@ -476,12 +476,16 @@ func parseUTF8String(bytes []byte) (ret string, err error) {
 	return string(bytes), nil
 }
 
+// BMPString
+
+// parseBMPString parses an ASN.1 BMPString (Basic Multilingual Plane of
+// ISO/IEC/ITU 10646-1) from the given byte slice and returns it.
 func parseBMPString(bmpString []byte) (string, error) {
 	if len(bmpString)%2 != 0 {
 		return "", errors.New("pkcs12: odd-length BMP string")
 	}
 
-	// strip terminator if present
+	// Strip terminator if present.
 	if l := len(bmpString); l >= 2 && bmpString[l-1] == 0 && bmpString[l-2] == 0 {
 		bmpString = bmpString[:l-2]
 	}
