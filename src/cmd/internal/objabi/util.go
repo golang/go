@@ -29,6 +29,7 @@ var (
 	GOMIPS   = gomips()
 	GOMIPS64 = gomips64()
 	GOPPC64  = goppc64()
+	GOWASM   = gowasm()
 	GO_LDSO  = defaultGO_LDSO
 	Version  = version
 )
@@ -74,6 +75,29 @@ func goppc64() int {
 	}
 	log.Fatalf("Invalid GOPPC64 value. Must be power8 or power9.")
 	panic("unreachable")
+}
+
+type gowasmFeatures struct {
+	// no features yet
+}
+
+func (f *gowasmFeatures) String() string {
+	var flags []string
+	// no features yet
+	return strings.Join(flags, ",")
+}
+
+func gowasm() (f gowasmFeatures) {
+	for _, opt := range strings.Split(envOr("GOWASM", ""), ",") {
+		switch opt {
+		// no features yet
+		case "":
+			// ignore
+		default:
+			log.Fatalf("Invalid GOWASM value. No such feature: " + opt)
+		}
+	}
+	return
 }
 
 func Getgoextlinkenabled() string {
