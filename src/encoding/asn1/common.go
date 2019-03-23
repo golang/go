@@ -37,6 +37,7 @@ const (
 	TagUTCTime         = 23
 	TagGeneralizedTime = 24
 	TagGeneralString   = 27
+	TagBMPString       = 30
 )
 
 // ASN.1 class types represent the namespace of the tag.
