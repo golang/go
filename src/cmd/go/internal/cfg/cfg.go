@@ -105,6 +105,7 @@ var (
 	GOMIPS   = objabi.GOMIPS
 	GOMIPS64 = objabi.GOMIPS64
 	GOPPC64  = fmt.Sprintf("%s%d", "power", objabi.GOPPC64)
+	GOWASM   = objabi.GOWASM
 )
 
 // Update build context to use our computed GOROOT.

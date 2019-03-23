@@ -83,6 +83,8 @@ func MkEnv() []cfg.EnvVar {
 		env = append(env, cfg.EnvVar{Name: "GOMIPS64", Value: cfg.GOMIPS64})
 	case "ppc64", "ppc64le":
 		env = append(env, cfg.EnvVar{Name: "GOPPC64", Value: cfg.GOPPC64})
+	case "wasm":
+		env = append(env, cfg.EnvVar{Name: "GOWASM", Value: cfg.GOWASM.String()})
 	}
 
 	cc := cfg.DefaultCC(cfg.Goos, cfg.Goarch)
