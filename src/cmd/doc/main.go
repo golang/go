@@ -42,6 +42,7 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"go/token"
 	"io"
 	"log"
 	"os"
@@ -333,28 +334,18 @@ func parseSymbol(str string) (symbol, method string) {
 	case 1:
 	case 2:
 		method = elem[1]
-		isIdentifier(method)
+		if !token.IsIdentifier(method) {
+			log.Fatalf("invalid identifier %q", method)
+		}
 	default:
 		log.Printf("too many periods in symbol specification")
 		usage()
 	}
 	symbol = elem[0]
-	isIdentifier(symbol)
+	if !token.IsIdentifier(symbol) {
+		log.Fatalf("invalid identifier %q", symbol)
+	}
 	return
-}
-
-// isIdentifier checks that the name is valid Go identifier, and
-// logs and exits if it is not.
-func isIdentifier(name string) {
-	if len(name) == 0 {
-		log.Fatal("empty symbol")
-	}
-	for i, ch := range name {
-		if unicode.IsLetter(ch) || ch == '_' || i > 0 && unicode.IsDigit(ch) {
-			continue
-		}
-		log.Fatalf("invalid identifier %q", name)
-	}
 }
 
 // isExported reports whether the name is an exported identifier.
