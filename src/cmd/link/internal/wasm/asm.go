@@ -427,8 +427,11 @@ func writeDataSec(ctxt *ld.Link) {
 	// overhead of adding a new segment (same as wasm-opt's memory-packing optimization uses).
 	const segmentOverhead = 8
 
+	// Generate at most this many segments. A higher number of segments gets rejected by some WebAssembly runtimes.
+	const maxNumSegments = 100000
+
 	var segments []*dataSegment
-	for _, sec := range sections {
+	for secIndex, sec := range sections {
 		data := ld.DatblkBytes(ctxt, int64(sec.Vaddr), int64(sec.Length))
 		offset := int32(sec.Vaddr)
 
@@ -441,21 +444,26 @@ func writeDataSec(ctxt *ld.Link) {
 		for len(data) > 0 {
 			dataLen := int32(len(data))
 			var segmentEnd, zeroEnd int32
-			for {
-				// look for beginning of zeroes
-				for segmentEnd < dataLen && data[segmentEnd] != 0 {
-					segmentEnd++
+			if len(segments)+(len(sections)-secIndex) == maxNumSegments {
+				segmentEnd = dataLen
+				zeroEnd = dataLen
+			} else {
+				for {
+					// look for beginning of zeroes
+					for segmentEnd < dataLen && data[segmentEnd] != 0 {
+						segmentEnd++
+					}
+					// look for end of zeroes
+					zeroEnd = segmentEnd
+					for zeroEnd < dataLen && data[zeroEnd] == 0 {
+						zeroEnd++
+					}
+					// emit segment if omitting zeroes reduces the output size
+					if zeroEnd-segmentEnd >= segmentOverhead || zeroEnd == dataLen {
+						break
+					}
+					segmentEnd = zeroEnd
 				}
-				// look for end of zeroes
-				zeroEnd = segmentEnd
-				for zeroEnd < dataLen && data[zeroEnd] == 0 {
-					zeroEnd++
-				}
-				// emit segment if omitting zeroes reduces the output size
-				if zeroEnd-segmentEnd >= segmentOverhead || zeroEnd == dataLen {
-					break
-				}
-				segmentEnd = zeroEnd
 			}
 
 			segments = append(segments, &dataSegment{
