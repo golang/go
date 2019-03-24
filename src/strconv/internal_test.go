@@ -21,3 +21,11 @@ func SetOptimize(b bool) bool {
 func ParseFloatPrefix(s string, bitSize int) (float64, int, error) {
 	return parseFloatPrefix(s, bitSize)
 }
+
+func MulByLog2Log10(x int) int {
+	return mulByLog2Log10(x)
+}
+
+func MulByLog10Log2(x int) int {
+	return mulByLog10Log2(x)
+}
