@@ -202,10 +202,30 @@ func TestLength(t *testing.T) {
 	}
 }
 
+func TestGet(t *testing.T) {
+	// positive cases get tested per type
+
+	expectValueError(t, func() {
+		dummys.Get("zero").Get("badField")
+	})
+}
+
+func TestSet(t *testing.T) {
+	// positive cases get tested per type
+
+	expectValueError(t, func() {
+		dummys.Get("zero").Set("badField", 42)
+	})
+}
+
 func TestIndex(t *testing.T) {
 	if got := dummys.Get("someArray").Index(1).Int(); got != 42 {
 		t.Errorf("got %#v, want %#v", got, 42)
 	}
+
+	expectValueError(t, func() {
+		dummys.Get("zero").Index(1)
+	})
 }
 
 func TestSetIndex(t *testing.T) {
@@ -213,6 +233,10 @@ func TestSetIndex(t *testing.T) {
 	if got := dummys.Get("someArray").Index(2).Int(); got != 99 {
 		t.Errorf("got %#v, want %#v", got, 99)
 	}
+
+	expectValueError(t, func() {
+		dummys.Get("zero").SetIndex(2, 99)
+	})
 }
 
 func TestCall(t *testing.T) {
@@ -223,6 +247,13 @@ func TestCall(t *testing.T) {
 	if got := dummys.Call("add", js.Global().Call("eval", "40"), 2).Int(); got != 42 {
 		t.Errorf("got %#v, want %#v", got, 42)
 	}
+
+	expectPanic(t, func() {
+		dummys.Call("zero")
+	})
+	expectValueError(t, func() {
+		dummys.Get("zero").Call("badMethod")
+	})
 }
 
 func TestInvoke(t *testing.T) {
@@ -230,12 +261,20 @@ func TestInvoke(t *testing.T) {
 	if got := dummys.Get("add").Invoke(i, 2).Int(); got != 42 {
 		t.Errorf("got %#v, want %#v", got, 42)
 	}
+
+	expectValueError(t, func() {
+		dummys.Get("zero").Invoke()
+	})
 }
 
 func TestNew(t *testing.T) {
 	if got := js.Global().Get("Array").New(42).Length(); got != 42 {
 		t.Errorf("got %#v, want %#v", got, 42)
 	}
+
+	expectValueError(t, func() {
+		dummys.Get("zero").New()
+	})
 }
 
 func TestInstanceOf(t *testing.T) {
@@ -378,4 +417,24 @@ func TestTruthy(t *testing.T) {
 	if got := js.Undefined().Truthy(); got != want {
 		t.Errorf("got %#v, want %#v", got, want)
 	}
+}
+
+func expectValueError(t *testing.T, fn func()) {
+	defer func() {
+		err := recover()
+		if _, ok := err.(*js.ValueError); !ok {
+			t.Errorf("expected *js.ValueError, got %T", err)
+		}
+	}()
+	fn()
+}
+
+func expectPanic(t *testing.T, fn func()) {
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Errorf("expected panic")
+		}
+	}()
+	fn()
 }
