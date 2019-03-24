@@ -143,12 +143,15 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 			}
 			digits = prec
 		}
-		if digits <= 15 {
-			// try fast algorithm when the number of digits is reasonable.
-			var buf [24]byte
+		var buf [24]byte
+		if bitSize == 32 && digits <= 9 {
 			digs.d = buf[:]
-			f := extFloat{mant, exp - int(flt.mantbits), neg}
-			ok = f.FixedDecimal(&digs, digits)
+			ryuFtoaFixed32(&digs, uint32(mant), exp-int(flt.mantbits), digits)
+			ok = true
+		} else if digits <= 18 {
+			digs.d = buf[:]
+			ryuFtoaFixed64(&digs, mant, exp-int(flt.mantbits), digits)
+			ok = true
 		}
 	}
 	if !ok {
