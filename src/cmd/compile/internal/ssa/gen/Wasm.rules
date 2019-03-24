@@ -84,14 +84,14 @@
 (Cvt64Uto32F x) -> (LoweredRound32F (F64ConvertI64U x))
 (Cvt64Uto64F x) -> (F64ConvertI64U x)
 
-(Cvt32Fto32 x) -> (I64TruncF64S x)
-(Cvt32Fto64 x) -> (I64TruncF64S x)
-(Cvt64Fto32 x) -> (I64TruncF64S x)
-(Cvt64Fto64 x) -> (I64TruncF64S x)
-(Cvt32Fto32U x) -> (I64TruncF64U x)
-(Cvt32Fto64U x) -> (I64TruncF64U x)
-(Cvt64Fto32U x) -> (I64TruncF64U x)
-(Cvt64Fto64U x) -> (I64TruncF64U x)
+(Cvt32Fto32 x) -> (I64TruncSatF64S x)
+(Cvt32Fto64 x) -> (I64TruncSatF64S x)
+(Cvt64Fto32 x) -> (I64TruncSatF64S x)
+(Cvt64Fto64 x) -> (I64TruncSatF64S x)
+(Cvt32Fto32U x) -> (I64TruncSatF64U x)
+(Cvt32Fto64U x) -> (I64TruncSatF64U x)
+(Cvt64Fto32U x) -> (I64TruncSatF64U x)
+(Cvt64Fto64U x) -> (I64TruncSatF64U x)
 
 (Cvt32Fto64F x) -> x
 (Cvt64Fto32F x) -> (LoweredRound32F x)

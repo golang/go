@@ -216,6 +216,15 @@ const (
 	AI64Extend16S
 	AI64Extend32S
 
+	AI32TruncSatF32S // opcode 0xFC 0x00
+	AI32TruncSatF32U
+	AI32TruncSatF64S
+	AI32TruncSatF64U
+	AI64TruncSatF32S
+	AI64TruncSatF32U
+	AI64TruncSatF64S
+	AI64TruncSatF64U
+
 	ALast // Sentinel: End of low-level WebAssembly instructions.
 
 	ARESUMEPOINT

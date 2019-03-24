@@ -2132,8 +2132,8 @@ const (
 	OpWasmF64Sub
 	OpWasmF64Mul
 	OpWasmF64Div
-	OpWasmI64TruncF64S
-	OpWasmI64TruncF64U
+	OpWasmI64TruncSatF64S
+	OpWasmI64TruncSatF64U
 	OpWasmF64ConvertI64S
 	OpWasmF64ConvertI64U
 	OpWasmI64Extend8S
@@ -28676,9 +28676,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "I64TruncF64S",
+		name:   "I64TruncSatF64S",
 		argLen: 1,
-		asm:    wasm.AI64TruncF64S,
+		asm:    wasm.AI64TruncSatF64S,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -28689,9 +28689,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "I64TruncF64U",
+		name:   "I64TruncSatF64U",
 		argLen: 1,
-		asm:    wasm.AI64TruncF64U,
+		asm:    wasm.AI64TruncSatF64U,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15

@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/wasm"
+	"cmd/internal/objabi"
 )
 
 func Init(arch *gc.Arch) {
@@ -307,15 +308,23 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		s.Prog(wasm.AI64DivS)
 
-	case ssa.OpWasmI64TruncF64S:
+	case ssa.OpWasmI64TruncSatF64S:
 		getValue64(s, v.Args[0])
-		p := s.Prog(wasm.ACall)
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncS}
+		if objabi.GOWASM.SatConv {
+			s.Prog(v.Op.Asm())
+		} else {
+			p := s.Prog(wasm.ACall)
+			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncS}
+		}
 
-	case ssa.OpWasmI64TruncF64U:
+	case ssa.OpWasmI64TruncSatF64U:
 		getValue64(s, v.Args[0])
-		p := s.Prog(wasm.ACall)
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncU}
+		if objabi.GOWASM.SatConv {
+			s.Prog(v.Op.Asm())
+		} else {
+			p := s.Prog(wasm.ACall)
+			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncU}
+		}
 
 	case
 		ssa.OpWasmF64Neg, ssa.OpWasmF64ConvertI64S, ssa.OpWasmF64ConvertI64U,

@@ -886,7 +886,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		switch {
-		case p.As < AUnreachable || p.As >= ALast:
+		case p.As < AUnreachable:
 			panic(fmt.Sprintf("unexpected assembler op: %s", p.As))
 		case p.As < AEnd:
 			w.WriteByte(byte(p.As - AUnreachable + 0x00))
@@ -894,8 +894,13 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			w.WriteByte(byte(p.As - AEnd + 0x0B))
 		case p.As < AI32Load:
 			w.WriteByte(byte(p.As - ADrop + 0x1A))
-		default:
+		case p.As < AI32TruncSatF32S:
 			w.WriteByte(byte(p.As - AI32Load + 0x28))
+		case p.As < ALast:
+			w.WriteByte(0xFC)
+			w.WriteByte(byte(p.As - AI32TruncSatF32S + 0x00))
+		default:
+			panic(fmt.Sprintf("unexpected assembler op: %s", p.As))
 		}
 
 		switch p.As {
