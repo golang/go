@@ -1,5 +1,4 @@
 [!windows] stop
-[arm] skip # TODO(golang.org/issue/30711): Skip broken test.
 [!exec:icacls] skip
 [!exec:powershell] skip
 
