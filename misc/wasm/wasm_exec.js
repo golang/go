@@ -477,7 +477,7 @@
 		!global.process.versions.electron
 	) {
 		if (process.argv.length < 3) {
-			process.stderr.write("usage: go_js_wasm_exec [wasm binary] [arguments]\n");
+			console.error("usage: go_js_wasm_exec [wasm binary] [arguments]");
 			process.exit(1);
 		}
 
@@ -495,7 +495,8 @@
 			});
 			return go.run(result.instance);
 		}).catch((err) => {
-			throw err;
+			console.error(err);
+			process.exit(1);
 		});
 	}
 })();
