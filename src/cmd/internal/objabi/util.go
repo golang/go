@@ -79,10 +79,14 @@ func goppc64() int {
 
 type gowasmFeatures struct {
 	SignExt bool
+	SatConv bool
 }
 
 func (f *gowasmFeatures) String() string {
 	var flags []string
+	if f.SatConv {
+		flags = append(flags, "satconv")
+	}
 	if f.SignExt {
 		flags = append(flags, "signext")
 	}
@@ -92,6 +96,8 @@ func (f *gowasmFeatures) String() string {
 func gowasm() (f gowasmFeatures) {
 	for _, opt := range strings.Split(envOr("GOWASM", ""), ",") {
 		switch opt {
+		case "satconv":
+			f.SatConv = true
 		case "signext":
 			f.SignExt = true
 		case "":
