@@ -10,8 +10,9 @@ package net
 import (
 	"context"
 	"errors"
+	"sync"
 
-	"internal/x/net/dns/dnsmessage"
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 func cgoLookupHost(ctx context.Context, name string) (addrs []string, err error, completed bool) {
@@ -78,13 +79,18 @@ func cgoLookupPTR(ctx context.Context, addr string) (ptrs []string, err error, c
 	return ptrs, nil, true
 }
 
+var resInitOnce sync.Once
+
 // resolverGetResources will make a call to the 'res_search' routine in libSystem
 // and parse the output as a slice of resource resources which can then be parsed
 func resolverGetResources(ctx context.Context, hostname string, rtype, class int32) ([]dnsmessage.Resource, error) {
 	var byteHostname = []byte(hostname)
 	var responseBuffer = [512]byte{}
 
-	retcode := res_init()
+	var retcode int32
+	resInitOnce.Do(func() {
+		retcode = res_init()
+	})
 	if retcode < 0 {
 		return nil, errors.New("could not initialize resolution data")
 	}

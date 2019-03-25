@@ -8,7 +8,7 @@ import (
 //go:nosplit
 //go:cgo_unsafe_args
 func res_init() int32 {
-	return libcCall(unsafe.Pointer(funcPC(res_init_trampoline)), unsafe.Pointer(&statp))
+	return libcCall(unsafe.Pointer(funcPC(res_init_trampoline)), nil)
 }
 func res_init_trampoline()
 
@@ -16,7 +16,7 @@ func res_init_trampoline()
 //go:nosplit
 //go:cgo_unsafe_args
 func res_search(dname *byte, class int32, rtype int32, answer *byte, anslen int32) int32 {
-	return libcCall(unsafe.Pointer(funcPC(res_search_trampoline)), unsafe.Pointer(&statp))
+	return libcCall(unsafe.Pointer(funcPC(res_search_trampoline)), unsafe.Pointer(&dname))
 }
 func res_search_trampoline()
 
