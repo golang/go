@@ -383,6 +383,10 @@ func (o *Order) init(n *Node) {
 // call orders the call expression n.
 // n.Op is OCALLMETH/OCALLFUNC/OCALLINTER or a builtin like OCOPY.
 func (o *Order) call(n *Node) {
+	if n.Ninit.Len() > 0 {
+		// Caller should have already called o.init(n).
+		Fatalf("%v with unexpected ninit", n.Op)
+	}
 	n.Left = o.expr(n.Left, nil)
 	n.Right = o.expr(n.Right, nil) // ODDDARG temp
 	o.exprList(n.List)
@@ -578,6 +582,7 @@ func (o *Order) stmt(n *Node) {
 	case OAS2FUNC:
 		t := o.markTemp()
 		o.exprList(n.List)
+		o.init(n.Rlist.First())
 		o.call(n.Rlist.First())
 		o.as2(n)
 		o.cleanTemp(t)
@@ -637,6 +642,7 @@ func (o *Order) stmt(n *Node) {
 	// Special: order arguments to inner call but not call itself.
 	case ODEFER, OGO:
 		t := o.markTemp()
+		o.init(n.Left)
 		o.call(n.Left)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
