@@ -216,17 +216,22 @@ TEXT runtime·_tstart(SB),NOSPLIT,$0
 	MOVD R0, R3
 	RET
 
+
+#define CSYSCALL()			\
+	MOVD	0(R12), R12		\
+	MOVD	R2, 40(R1)		\
+	MOVD	0(R12), R0		\
+	MOVD	8(R12), R2		\
+	MOVD	R0, CTR			\
+	BL	(CTR)			\
+	MOVD	40(R1), R2		\
+	BL runtime·reginit(SB)
+
+
 // Runs on OS stack, called from runtime·osyield.
 TEXT runtime·osyield1(SB),NOSPLIT,$0
 	MOVD	$libc_sched_yield(SB), R12
-	MOVD	0(R12), R12
-	MOVD	R2, 40(R1)
-	MOVD	0(R12), R0
-	MOVD	8(R12), R2
-	MOVD	R0, CTR
-	BL	(CTR)
-	MOVD	40(R1), R2
-	BL runtime·reginit(SB)
+	CSYSCALL()
 	RET
 
 
@@ -236,26 +241,75 @@ TEXT runtime·sigprocmask1(SB),NOSPLIT,$0-24
 	MOVD	new+8(FP), R4
 	MOVD	old+16(FP), R5
 	MOVD	$libpthread_sigthreadmask(SB), R12
-	MOVD	0(R12), R12
-	MOVD	R2, 40(R1)
-	MOVD	0(R12), R0
-	MOVD	8(R12), R2
-	MOVD	R0, CTR
-	BL	(CTR)
-	MOVD	40(R1), R2
-	BL runtime·reginit(SB)
+	CSYSCALL()
 	RET
 
 // Runs on OS stack, called from runtime·usleep.
-TEXT runtime·usleep1(SB),NOSPLIT,$0-8
+TEXT runtime·usleep1(SB),NOSPLIT,$0-4
 	MOVW	us+0(FP), R3
 	MOVD	$libc_usleep(SB), R12
-	MOVD	0(R12), R12
-	MOVD	R2, 40(R1)
-	MOVD	0(R12), R0
-	MOVD	8(R12), R2
-	MOVD	R0, CTR
-	BL	(CTR)
-	MOVD	40(R1), R2
-	BL runtime·reginit(SB)
+	CSYSCALL()
+	RET
+
+// Runs on OS stack, called from runtime·exit.
+TEXT runtime·exit1(SB),NOSPLIT,$0-4
+	MOVW	code+0(FP), R3
+	MOVD	$libc_exit(SB), R12
+	CSYSCALL()
+	RET
+
+// Runs on OS stack, called from runtime·write.
+TEXT runtime·write1(SB),NOSPLIT,$0-28
+	MOVD	fd+0(FP), R3
+	MOVD	p+8(FP), R4
+	MOVW	n+16(FP), R5
+	MOVD	$libc_write(SB), R12
+	CSYSCALL()
+	MOVW	R3, ret+24(FP)
+	RET
+
+// Runs on OS stack, called from runtime·pthread_attr_init.
+TEXT runtime·pthread_attr_init1(SB),NOSPLIT,$0-12
+	MOVD	attr+0(FP), R3
+	MOVD	$libpthread_attr_init(SB), R12
+	CSYSCALL()
+	MOVW	R3, ret+8(FP)
+	RET
+
+// Runs on OS stack, called from runtime·pthread_attr_setstacksize.
+TEXT runtime·pthread_attr_setstacksize1(SB),NOSPLIT,$0-20
+	MOVD	attr+0(FP), R3
+	MOVD	size+8(FP), R4
+	MOVD	$libpthread_attr_setstacksize(SB), R12
+	CSYSCALL()
+	MOVW	R3, ret+16(FP)
+	RET
+
+// Runs on OS stack, called from runtime·pthread_setdetachstate.
+TEXT runtime·pthread_attr_setdetachstate1(SB),NOSPLIT,$0-20
+	MOVD	attr+0(FP), R3
+	MOVW	state+8(FP), R4
+	MOVD	$libpthread_attr_setdetachstate(SB), R12
+	CSYSCALL()
+	MOVW	R3, ret+16(FP)
+	RET
+
+// Runs on OS stack, called from runtime·pthread_create.
+TEXT runtime·pthread_create1(SB),NOSPLIT,$0-36
+	MOVD	tid+0(FP), R3
+	MOVD	attr+8(FP), R4
+	MOVD	fn+16(FP), R5
+	MOVD	arg+24(FP), R6
+	MOVD	$libpthread_create(SB), R12
+	CSYSCALL()
+	MOVW	R3, ret+32(FP)
+	RET
+
+// Runs on OS stack, called from runtime·sigaction.
+TEXT runtime·sigaction1(SB),NOSPLIT,$0-24
+	MOVD	sig+0(FP), R3
+	MOVD	new+8(FP), R4
+	MOVD	old+16(FP), R5
+	MOVD	$libc_sigaction(SB), R12
+	CSYSCALL()
 	RET

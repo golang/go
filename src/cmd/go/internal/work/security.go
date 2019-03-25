@@ -171,6 +171,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,--(no-)?allow-shlib-undefined`),
 	re(`-Wl,--(no-)?as-needed`),
 	re(`-Wl,-Bdynamic`),
+	re(`-Wl,-berok`),
 	re(`-Wl,-Bstatic`),
 	re(`-WL,-O([^@,\-][^,]*)?`),
 	re(`-Wl,-d[ny]`),
