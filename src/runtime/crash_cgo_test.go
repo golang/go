@@ -229,9 +229,6 @@ func TestCgoPanicDeadlock(t *testing.T) {
 }
 
 func TestCgoCCodeSIGPROF(t *testing.T) {
-	if runtime.GOOS == "aix" {
-		t.Skip("pprof not yet available on AIX (see golang.org/issue/28555)")
-	}
 	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "CgoCCodeSIGPROF")
 	want := "OK\n"
