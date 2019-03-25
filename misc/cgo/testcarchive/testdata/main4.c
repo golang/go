@@ -14,6 +14,13 @@
 
 #include "libgo4.h"
 
+#ifdef _AIX
+// On AIX, CSIGSTKSZ is too small to handle Go sighandler.
+#define CSIGSTKSZ 0x4000
+#else
+#define CSIGSTKSZ SIGSTKSZ
+#endif
+
 static void die(const char* msg) {
 	perror(msg);
 	exit(EXIT_FAILURE);
@@ -53,12 +60,12 @@ static void* thread1(void* arg __attribute__ ((unused))) {
 
 	// Set up an alternate signal stack for this thread.
 	memset(&ss, 0, sizeof ss);
-	ss.ss_sp = malloc(SIGSTKSZ);
+	ss.ss_sp = malloc(CSIGSTKSZ);
 	if (ss.ss_sp == NULL) {
 		die("malloc");
 	}
 	ss.ss_flags = 0;
-	ss.ss_size = SIGSTKSZ;
+	ss.ss_size = CSIGSTKSZ;
 	if (sigaltstack(&ss, NULL) < 0) {
 		die("sigaltstack");
 	}
@@ -112,12 +119,12 @@ static void* thread2(void* arg __attribute__ ((unused))) {
 
 	// Set up an alternate signal stack for this thread.
 	memset(&ss, 0, sizeof ss);
-	ss.ss_sp = malloc(SIGSTKSZ);
+	ss.ss_sp = malloc(CSIGSTKSZ);
 	if (ss.ss_sp == NULL) {
 		die("malloc");
 	}
 	ss.ss_flags = 0;
-	ss.ss_size = SIGSTKSZ;
+	ss.ss_size = CSIGSTKSZ;
 	if (sigaltstack(&ss, NULL) < 0) {
 		die("sigaltstack");
 	}

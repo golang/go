@@ -14,6 +14,8 @@
 
 #include "libgo2.h"
 
+int *nilp;
+
 int main(int argc, char** argv) {
 	int verbose;
 	int test;
@@ -39,7 +41,7 @@ int main(int argc, char** argv) {
 				printf("attempting segfault\n");
 			}
 
-			volatile int crash = *(int *) 0;
+			*nilp = 0;
 			break;
 		}
 

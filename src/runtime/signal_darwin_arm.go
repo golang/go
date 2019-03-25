@@ -50,6 +50,7 @@ func (c *sigctxt) set_r10(x uint32) { c.regs().r[10] = x }
 func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
 func (c *sigctxt) set_sigaddr(x uint32) { c.info.si_addr = x }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
 	switch sig {
 	case _SIGTRAP:

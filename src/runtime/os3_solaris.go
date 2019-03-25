@@ -273,6 +273,7 @@ func sigdelset(mask *sigset, i int) {
 	mask.__sigbits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
 }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
 }
 
