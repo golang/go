@@ -110,6 +110,11 @@ func testMain(m *testing.M) int {
 		// TODO(crawshaw): can we do better?
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
 	}
+	if GOOS == "aix" {
+		// -Wl,-bnoobjreorder is mandatory to keep the same layout
+		// in .text section.
+		cc = append(cc, "-Wl,-bnoobjreorder")
+	}
 	libbase := GOOS + "_" + GOARCH
 	if runtime.Compiler == "gccgo" {
 		libbase = "gccgo_" + libgodir + "_fPIC"
@@ -318,7 +323,7 @@ func TestSignalForwarding(t *testing.T) {
 }
 
 func TestSignalForwardingExternal(t *testing.T) {
-	if GOOS == "freebsd" {
+	if GOOS == "freebsd" || GOOS == "aix" {
 		t.Skipf("skipping on %s/%s; signal always goes to the Go runtime", GOOS, GOARCH)
 	}
 	checkSignalForwardingTest(t)
@@ -594,13 +599,15 @@ func TestPIE(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f, err := elf.Open("testp" + exeSuffix)
-	if err != nil {
-		t.Fatal("elf.Open failed: ", err)
-	}
-	defer f.Close()
-	if hasDynTag(t, f, elf.DT_TEXTREL) {
-		t.Errorf("%s has DT_TEXTREL flag", "testp"+exeSuffix)
+	if GOOS != "aix" {
+		f, err := elf.Open("testp" + exeSuffix)
+		if err != nil {
+			t.Fatal("elf.Open failed: ", err)
+		}
+		defer f.Close()
+		if hasDynTag(t, f, elf.DT_TEXTREL) {
+			t.Errorf("%s has DT_TEXTREL flag", "testp"+exeSuffix)
+		}
 	}
 }
 

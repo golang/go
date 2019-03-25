@@ -296,7 +296,15 @@ func setSignalstackSP(s *stackt, sp uintptr) {
 	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
 }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
+	switch sig {
+	case _SIGPIPE:
+		// For SIGPIPE, c.sigcode() isn't set to _SI_USER as on Linux.
+		// Therefore, raisebadsignal won't raise SIGPIPE again if
+		// it was deliver in a non-Go thread.
+		c.set_sigcode(_SI_USER)
+	}
 }
 
 //go:nosplit
