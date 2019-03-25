@@ -12,6 +12,7 @@
  */
 extern int __attribute__((longcall)) __cgo_topofstack(void);
 extern int __attribute__((longcall)) runtime_rt0_go(int argc, char **argv);
+extern void __attribute__((longcall)) _rt0_ppc64_aix_lib(void);
 
 int _cgo_topofstack(void) {
 	return __cgo_topofstack();
@@ -19,4 +20,19 @@ int _cgo_topofstack(void) {
 
 int main(int argc, char **argv) {
 	return runtime_rt0_go(argc, argv);
+}
+
+static void libinit(void) __attribute__ ((constructor));
+
+/*
+ * libinit aims to replace .init_array section which isn't available on aix.
+ * Using __attribute__ ((constructor)) let gcc handles this instead of
+ * adding special code in cmd/link.
+ * However, it will be called for every Go programs which has cgo.
+ * Inside _rt0_ppc64_aix_lib(), runtime.isarchive is checked in order
+ * to know if this program is a c-archive or a simple cgo program.
+ * If it's not set, _rt0_ppc64_ax_lib() returns directly.
+ */
+static void libinit() {
+	_rt0_ppc64_aix_lib();
 }
