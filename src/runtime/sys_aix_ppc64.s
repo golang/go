@@ -97,6 +97,7 @@ GLOBL	runtime·sigtramp(SB), NOPTR, $24
 
 // This funcion must not have any frame as we want to control how
 // every registers are used.
+// TODO(aix): Implement SetCgoTraceback handler.
 TEXT runtime·_sigtramp(SB),NOSPLIT|NOFRAME,$0
 	MOVD	LR, R0
 	MOVD	R0, 16(R1)
@@ -107,39 +108,42 @@ TEXT runtime·_sigtramp(SB),NOSPLIT|NOFRAME,$0
 	// more stack available than NOSPLIT would have us believe.
 	// To defeat the linker, we make our own stack frame with
 	// more space.
-	SUB	   $128+FIXED_FRAME, R1
+	SUB	$144+FIXED_FRAME, R1
 
 	// Save registers
 	MOVD	R31, 56(R1)
 	MOVD	g, 64(R1)
 	MOVD	R29, 72(R1)
+	MOVD	R14, 80(R1)
+	MOVD	R15, 88(R1)
 
 	BL	runtime·load_g(SB)
 
 	CMP	$0, g
-	BEQ	sigtrampnog // g == nil
+	BEQ	sigtramp // g == nil
+	MOVD	g_m(g), R6
+	CMP	$0, R6
+	BEQ	sigtramp	// g.m == nil
 
 	// Save m->libcall. We need to do this because we
 	// might get interrupted by a signal in runtime·asmcgocall.
-
-	// save m->libcall
-	MOVD	g_m(g), R6
 	MOVD	(m_libcall+libcall_fn)(R6), R7
-	MOVD	R7, 80(R1)
-	MOVD	(m_libcall+libcall_args)(R6), R7
-	MOVD	R7, 88(R1)
-	MOVD	(m_libcall+libcall_n)(R6), R7
 	MOVD	R7, 96(R1)
-	MOVD	(m_libcall+libcall_r1)(R6), R7
+	MOVD	(m_libcall+libcall_args)(R6), R7
 	MOVD	R7, 104(R1)
-	MOVD	(m_libcall+libcall_r2)(R6), R7
+	MOVD	(m_libcall+libcall_n)(R6), R7
 	MOVD	R7, 112(R1)
+	MOVD	(m_libcall+libcall_r1)(R6), R7
+	MOVD	R7, 120(R1)
+	MOVD	(m_libcall+libcall_r2)(R6), R7
+	MOVD	R7, 128(R1)
 
 	// save errno, it might be EINTR; stuff we do here might reset it.
 	MOVD	(m_mOS+mOS_perrno)(R6), R8
 	MOVD	0(R8), R8
-	MOVD	R8, 120(R1)
+	MOVD	R8, 136(R1)
 
+sigtramp:
 	MOVW	R3, FIXED_FRAME+0(R1)
 	MOVD	R4, FIXED_FRAME+8(R1)
 	MOVD	R5, FIXED_FRAME+16(R1)
@@ -147,22 +151,27 @@ TEXT runtime·_sigtramp(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R12, CTR
 	BL	(CTR)
 
+	CMP	$0, g
+	BEQ	exit // g == nil
 	MOVD	g_m(g), R6
+	CMP	$0, R6
+	BEQ	exit	// g.m == nil
+
 	// restore libcall
-	MOVD	80(R1), R7
-	MOVD	R7, (m_libcall+libcall_fn)(R6)
-	MOVD	88(R1), R7
-	MOVD	R7, (m_libcall+libcall_args)(R6)
 	MOVD	96(R1), R7
-	MOVD	R7, (m_libcall+libcall_n)(R6)
+	MOVD	R7, (m_libcall+libcall_fn)(R6)
 	MOVD	104(R1), R7
-	MOVD	R7, (m_libcall+libcall_r1)(R6)
+	MOVD	R7, (m_libcall+libcall_args)(R6)
 	MOVD	112(R1), R7
+	MOVD	R7, (m_libcall+libcall_n)(R6)
+	MOVD	120(R1), R7
+	MOVD	R7, (m_libcall+libcall_r1)(R6)
+	MOVD	128(R1), R7
 	MOVD	R7, (m_libcall+libcall_r2)(R6)
 
 	// restore errno
 	MOVD	(m_mOS+mOS_perrno)(R6), R7
-	MOVD	120(R1), R8
+	MOVD	136(R1), R8
 	MOVD	R8, 0(R7)
 
 exit:
@@ -170,25 +179,14 @@ exit:
 	MOVD	56(R1),R31
 	MOVD	64(R1),g
 	MOVD	72(R1),R29
+	MOVD	80(R1), R14
+	MOVD	88(R1), R15
 
 	// Don't use RET because we need to restore R31 !
-	ADD $128+FIXED_FRAME, R1
+	ADD $144+FIXED_FRAME, R1
 	MOVD	16(R1), R0
 	MOVD	R0, LR
 	BR (LR)
-
-sigtrampnog:
-	// Signal arrived on a non-Go thread.
-	// SIGPROF handler is not yet available so simply call badsignal,
-	// after having created *sigctxt.
-	MOVD	R4, 80(R1)
-	MOVD	R5, 88(R1)
-	MOVD	R1, R4
-	ADD		$80, R4
-	MOVD	R4, FIXED_FRAME+8(R1)
-	MOVD	R3, FIXED_FRAME+0(R1)
-	BL runtime·badsignal(SB)
-	JMP	exit
 
 // runtime.tstart is a function descriptor to the real tstart.
 DATA	runtime·tstart+0(SB)/8, $runtime·_tstart(SB)

@@ -233,6 +233,8 @@ func setSignalstackSP(s *stackt, sp uintptr) {
 func (c *sigctxt) fixsigcode(sig uint32) {
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func sigaddset(mask *sigset, i int) {
 	(*mask)[(i-1)/64] |= 1 << ((uint32(i) - 1) & 63)
 }
