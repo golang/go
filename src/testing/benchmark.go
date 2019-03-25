@@ -135,7 +135,7 @@ func (b *B) StopTimer() {
 	}
 }
 
-// ResetTimer zeros the elapsed benchmark time and memory allocation counters
+// ResetTimer zeroes the elapsed benchmark time and memory allocation counters
 // and deletes user-reported metrics.
 // It does not affect whether the timer is running.
 func (b *B) ResetTimer() {
@@ -752,7 +752,7 @@ func (b *B) SetParallelism(p int) {
 	}
 }
 
-// Benchmark benchmarks a single function. Useful for creating
+// Benchmark benchmarks a single function. It is useful for creating
 // custom benchmarks that do not use the "go test" command.
 //
 // If f calls Run, the result will be an estimate of running all its
