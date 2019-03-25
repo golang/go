@@ -195,7 +195,7 @@ func dumptype(t *_type) {
 		dwritebyte('.')
 		dwrite(name.str, uintptr(name.len))
 	}
-	dumpbool(t.kind&kindDirectIface == 0 || t.kind&kindNoPointers == 0)
+	dumpbool(t.kind&kindDirectIface == 0 || t.ptrdata != 0)
 }
 
 // dump an object

@@ -460,7 +460,7 @@ const cgoResultFail = "cgo result has Go pointer"
 // depending on indir. The top parameter is whether we are at the top
 // level, where Go pointers are allowed.
 func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
-	if t.kind&kindNoPointers != 0 {
+	if t.ptrdata == 0 {
 		// If the type has no pointers there is nothing to do.
 		return
 	}
@@ -523,7 +523,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		if !top {
 			panic(errorString(msg))
 		}
-		if st.elem.kind&kindNoPointers != 0 {
+		if st.elem.ptrdata == 0 {
 			return
 		}
 		for i := 0; i < s.cap; i++ {

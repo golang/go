@@ -858,7 +858,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	dataSize := size
 	c := gomcache()
 	var x unsafe.Pointer
-	noscan := typ == nil || typ.kind&kindNoPointers != 0
+	noscan := typ == nil || typ.ptrdata == 0
 	if size <= maxSmallSize {
 		if noscan && size < maxTinySize {
 			// Tiny allocator.

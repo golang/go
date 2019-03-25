@@ -882,9 +882,6 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	ot = duint8(lsym, ot, t.Align) // fieldAlign
 
 	i = kinds[t.Etype]
-	if !types.Haspointers(t) {
-		i |= objabi.KindNoPointers
-	}
 	if isdirectiface(t) {
 		i |= objabi.KindDirectIface
 	}

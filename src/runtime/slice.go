@@ -171,7 +171,7 @@ func growslice(et *_type, old slice, cap int) slice {
 	}
 
 	var p unsafe.Pointer
-	if et.kind&kindNoPointers != 0 {
+	if et.ptrdata == 0 {
 		p = mallocgc(capmem, nil, false)
 		// The append() that calls growslice is going to overwrite from old.len to cap (which will be the new length).
 		// Only clear the part that will not be overwritten.

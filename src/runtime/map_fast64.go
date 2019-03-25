@@ -299,11 +299,11 @@ search:
 				continue
 			}
 			// Only clear key if there are pointers in it.
-			if t.key.kind&kindNoPointers == 0 {
+			if t.key.ptrdata != 0 {
 				memclrHasPointers(k, t.key.size)
 			}
 			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
-			if t.elem.kind&kindNoPointers == 0 {
+			if t.elem.ptrdata != 0 {
 				memclrHasPointers(v, t.elem.size)
 			} else {
 				memclrNoHeapPointers(v, t.elem.size)
@@ -418,7 +418,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
 
 				// Copy key.
-				if t.key.kind&kindNoPointers == 0 && writeBarrier.enabled {
+				if t.key.ptrdata != 0 && writeBarrier.enabled {
 					if sys.PtrSize == 8 {
 						// Write with a write barrier.
 						*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
@@ -442,7 +442,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 			}
 		}
 		// Unlink the overflow buckets & clear key/value to help GC.
-		if h.flags&oldIterator == 0 && t.bucket.kind&kindNoPointers == 0 {
+		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
 			// Preserve b.tophash because the evacuation
 			// state is maintained there.
