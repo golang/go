@@ -27,18 +27,15 @@ type InitPlan struct {
 }
 
 type InitSchedule struct {
-	out []*Node
+	out       []*Node
+	initlist  []*Node
+	initplans map[*Node]*InitPlan
+	inittemps map[*Node]*Node
 }
 
 func (s *InitSchedule) append(n *Node) {
 	s.out = append(s.out, n)
 }
-
-var (
-	initlist  []*Node
-	initplans map[*Node]*InitPlan
-	inittemps = make(map[*Node]*Node)
-)
 
 // init1 walks the AST starting at n, and accumulates in out
 // the list of definitions needing init code in dependency order.
@@ -86,16 +83,16 @@ func (s *InitSchedule) init1(n *Node) {
 		// a variable in the program, the tree walk will reach a cycle
 		// involving that variable.
 		if n.Class() != PFUNC {
-			foundinitloop(n, n)
+			s.foundinitloop(n, n)
 		}
 
-		for i := len(initlist) - 1; i >= 0; i-- {
-			x := initlist[i]
+		for i := len(s.initlist) - 1; i >= 0; i-- {
+			x := s.initlist[i]
 			if x == n {
 				break
 			}
 			if x.Class() != PFUNC {
-				foundinitloop(n, x)
+				s.foundinitloop(n, x)
 			}
 		}
 
@@ -105,7 +102,7 @@ func (s *InitSchedule) init1(n *Node) {
 
 	// reached a new unvisited node.
 	n.SetInitorder(InitPending)
-	initlist = append(initlist, n)
+	s.initlist = append(s.initlist, n)
 
 	// make sure that everything n depends on is initialized.
 	// n->defn is an assignment to n
@@ -157,18 +154,18 @@ func (s *InitSchedule) init1(n *Node) {
 		}
 	}
 
-	last := len(initlist) - 1
-	if initlist[last] != n {
-		Fatalf("bad initlist %v", initlist)
+	last := len(s.initlist) - 1
+	if s.initlist[last] != n {
+		Fatalf("bad initlist %v", s.initlist)
 	}
-	initlist[last] = nil // allow GC
-	initlist = initlist[:last]
+	s.initlist[last] = nil // allow GC
+	s.initlist = s.initlist[:last]
 
 	n.SetInitorder(InitDone)
 }
 
 // foundinitloop prints an init loop error and exits.
-func foundinitloop(node, visited *Node) {
+func (s *InitSchedule) foundinitloop(node, visited *Node) {
 	// If there have already been errors printed,
 	// those errors probably confused us and
 	// there might not be a loop. Let the user
@@ -180,9 +177,9 @@ func foundinitloop(node, visited *Node) {
 
 	// Find the index of node and visited in the initlist.
 	var nodeindex, visitedindex int
-	for ; initlist[nodeindex] != node; nodeindex++ {
+	for ; s.initlist[nodeindex] != node; nodeindex++ {
 	}
-	for ; initlist[visitedindex] != visited; visitedindex++ {
+	for ; s.initlist[visitedindex] != visited; visitedindex++ {
 	}
 
 	// There is a loop involving visited. We know about node and
@@ -190,12 +187,12 @@ func foundinitloop(node, visited *Node) {
 	fmt.Printf("%v: initialization loop:\n", visited.Line())
 
 	// Print visited -> ... -> n1 -> node.
-	for _, n := range initlist[visitedindex:] {
+	for _, n := range s.initlist[visitedindex:] {
 		fmt.Printf("\t%v %v refers to\n", n.Line(), n.Sym)
 	}
 
 	// Print node -> ... -> visited.
-	for _, n := range initlist[nodeindex:visitedindex] {
+	for _, n := range s.initlist[nodeindex:visitedindex] {
 		fmt.Printf("\t%v %v refers to\n", n.Line(), n.Sym)
 	}
 
@@ -252,12 +249,13 @@ func (s *InitSchedule) initreorder(l []*Node) {
 // declarations and outputs the corresponding list of statements
 // to include in the init() function body.
 func initfix(l []*Node) []*Node {
-	var s InitSchedule
-	initplans = make(map[*Node]*InitPlan)
+	s := InitSchedule{
+		initplans: make(map[*Node]*InitPlan),
+		inittemps: make(map[*Node]*Node),
+	}
 	lno := lineno
 	s.initreorder(l)
 	lineno = lno
-	initplans = nil
 	return s.out
 }
 
@@ -328,13 +326,13 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 		switch r.Left.Op {
 		case OARRAYLIT, OSLICELIT, OSTRUCTLIT, OMAPLIT:
 			// copy pointer
-			gdata(l, nod(OADDR, inittemps[r], nil), int(l.Type.Width))
+			gdata(l, nod(OADDR, s.inittemps[r], nil), int(l.Type.Width))
 			return true
 		}
 
 	case OSLICELIT:
 		// copy slice
-		a := inittemps[r]
+		a := s.inittemps[r]
 
 		n := l.copy()
 		n.Xoffset = l.Xoffset + int64(array_array)
@@ -346,7 +344,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 		return true
 
 	case OARRAYLIT, OSTRUCTLIT:
-		p := initplans[r]
+		p := s.initplans[r]
 
 		n := l.copy()
 		for i := range p.E {
@@ -408,7 +406,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 			// Init pointer.
 			a := staticname(r.Left.Type)
 
-			inittemps[r] = a
+			s.inittemps[r] = a
 			gdata(l, nod(OADDR, a, nil), int(l.Type.Width))
 
 			// Init underlying literal.
@@ -427,12 +425,12 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 		}
 
 	case OSLICELIT:
-		initplan(r)
+		s.initplan(r)
 		// Init slice.
 		bound := r.Right.Int64()
 		ta := types.NewArray(r.Type.Elem(), bound)
 		a := staticname(ta)
-		inittemps[r] = a
+		s.inittemps[r] = a
 		n := l.copy()
 		n.Xoffset = l.Xoffset + int64(array_array)
 		gdata(n, nod(OADDR, a, nil), Widthptr)
@@ -446,9 +444,9 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 		fallthrough
 
 	case OARRAYLIT, OSTRUCTLIT:
-		initplan(r)
+		s.initplan(r)
 
-		p := initplans[r]
+		p := s.initplans[r]
 		n := l.copy()
 		for i := range p.E {
 			e := &p.E[i]
@@ -530,7 +528,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 		} else {
 			// Construct temp to hold val, write pointer to temp into n.
 			a := staticname(val.Type)
-			inittemps[val] = a
+			s.inittemps[val] = a
 			if !s.staticassign(a, val) {
 				s.append(nod(OAS, a, val))
 			}
@@ -1251,12 +1249,12 @@ func stataddr(nam *Node, n *Node) bool {
 	return false
 }
 
-func initplan(n *Node) {
-	if initplans[n] != nil {
+func (s *InitSchedule) initplan(n *Node) {
+	if s.initplans[n] != nil {
 		return
 	}
 	p := new(InitPlan)
-	initplans[n] = p
+	s.initplans[n] = p
 	switch n.Op {
 	default:
 		Fatalf("initplan")
@@ -1271,7 +1269,7 @@ func initplan(n *Node) {
 				}
 				a = a.Right
 			}
-			addvalue(p, k*n.Type.Elem().Width, a)
+			s.addvalue(p, k*n.Type.Elem().Width, a)
 			k++
 		}
 
@@ -1280,7 +1278,7 @@ func initplan(n *Node) {
 			if a.Op != OSTRUCTKEY {
 				Fatalf("initplan structlit")
 			}
-			addvalue(p, a.Xoffset, a.Left)
+			s.addvalue(p, a.Xoffset, a.Left)
 		}
 
 	case OMAPLIT:
@@ -1288,12 +1286,12 @@ func initplan(n *Node) {
 			if a.Op != OKEY {
 				Fatalf("initplan maplit")
 			}
-			addvalue(p, -1, a.Right)
+			s.addvalue(p, -1, a.Right)
 		}
 	}
 }
 
-func addvalue(p *InitPlan, xoffset int64, n *Node) {
+func (s *InitSchedule) addvalue(p *InitPlan, xoffset int64, n *Node) {
 	// special case: zero can be dropped entirely
 	if isZero(n) {
 		return
@@ -1301,8 +1299,8 @@ func addvalue(p *InitPlan, xoffset int64, n *Node) {
 
 	// special case: inline struct and array (not slice) literals
 	if isvaluelit(n) {
-		initplan(n)
-		q := initplans[n]
+		s.initplan(n)
+		q := s.initplans[n]
 		for _, qe := range q.E {
 			// qe is a copy; we are not modifying entries in q.E
 			qe.Xoffset += xoffset
