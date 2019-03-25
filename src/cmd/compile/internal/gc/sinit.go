@@ -26,6 +26,14 @@ type InitPlan struct {
 	E []InitEntry
 }
 
+type InitSchedule struct {
+	out []*Node
+}
+
+func (s *InitSchedule) append(n *Node) {
+	s.out = append(s.out, n)
+}
+
 var (
 	initlist  []*Node
 	initplans map[*Node]*InitPlan
@@ -34,20 +42,20 @@ var (
 
 // init1 walks the AST starting at n, and accumulates in out
 // the list of definitions needing init code in dependency order.
-func init1(n *Node, out *[]*Node) {
+func (s *InitSchedule) init1(n *Node) {
 	if n == nil {
 		return
 	}
-	init1(n.Left, out)
-	init1(n.Right, out)
+	s.init1(n.Left)
+	s.init1(n.Right)
 	for _, n1 := range n.List.Slice() {
-		init1(n1, out)
+		s.init1(n1)
 	}
 
 	if n.isMethodExpression() {
 		// Methods called as Type.Method(receiver, ...).
 		// Definitions for method expressions are stored in type->nname.
-		init1(asNode(n.Type.FuncType().Nname), out)
+		s.init1(asNode(n.Type.FuncType().Nname))
 	}
 
 	if n.Op != ONAME {
@@ -108,7 +116,7 @@ func init1(n *Node, out *[]*Node) {
 			Fatalf("init1: bad defn")
 
 		case ODCLFUNC:
-			init2list(defn.Nbody, out)
+			s.init2list(defn.Nbody)
 
 		case OAS:
 			if defn.Left != n {
@@ -122,15 +130,15 @@ func init1(n *Node, out *[]*Node) {
 				break
 			}
 
-			init2(defn.Right, out)
+			s.init2(defn.Right)
 			if Debug['j'] != 0 {
 				fmt.Printf("%v\n", n.Sym)
 			}
-			if n.isBlank() || !staticinit(n, out) {
+			if n.isBlank() || !s.staticinit(n) {
 				if Debug['%'] != 0 {
 					Dump("nonstatic", defn)
 				}
-				*out = append(*out, defn)
+				s.append(defn)
 			}
 
 		case OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV:
@@ -139,12 +147,12 @@ func init1(n *Node, out *[]*Node) {
 			}
 			defn.SetInitorder(InitPending)
 			for _, n2 := range defn.Rlist.Slice() {
-				init1(n2, out)
+				s.init1(n2)
 			}
 			if Debug['%'] != 0 {
 				Dump("nonstatic", defn)
 			}
-			*out = append(*out, defn)
+			s.append(defn)
 			defn.SetInitorder(InitDone)
 		}
 	}
@@ -196,7 +204,7 @@ func foundinitloop(node, visited *Node) {
 }
 
 // recurse over n, doing init1 everywhere.
-func init2(n *Node, out *[]*Node) {
+func (s *InitSchedule) init2(n *Node) {
 	if n == nil || n.Initorder() == InitDone {
 		return
 	}
@@ -205,38 +213,38 @@ func init2(n *Node, out *[]*Node) {
 		Fatalf("name %v with ninit: %+v\n", n.Sym, n)
 	}
 
-	init1(n, out)
-	init2(n.Left, out)
-	init2(n.Right, out)
-	init2list(n.Ninit, out)
-	init2list(n.List, out)
-	init2list(n.Rlist, out)
-	init2list(n.Nbody, out)
+	s.init1(n)
+	s.init2(n.Left)
+	s.init2(n.Right)
+	s.init2list(n.Ninit)
+	s.init2list(n.List)
+	s.init2list(n.Rlist)
+	s.init2list(n.Nbody)
 
 	switch n.Op {
 	case OCLOSURE:
-		init2list(n.Func.Closure.Nbody, out)
+		s.init2list(n.Func.Closure.Nbody)
 	case ODOTMETH, OCALLPART:
-		init2(asNode(n.Type.FuncType().Nname), out)
+		s.init2(asNode(n.Type.FuncType().Nname))
 	}
 }
 
-func init2list(l Nodes, out *[]*Node) {
+func (s *InitSchedule) init2list(l Nodes) {
 	for _, n := range l.Slice() {
-		init2(n, out)
+		s.init2(n)
 	}
 }
 
-func initreorder(l []*Node, out *[]*Node) {
+func (s *InitSchedule) initreorder(l []*Node) {
 	for _, n := range l {
 		switch n.Op {
 		case ODCLFUNC, ODCLCONST, ODCLTYPE:
 			continue
 		}
 
-		initreorder(n.Ninit.Slice(), out)
+		s.initreorder(n.Ninit.Slice())
 		n.Ninit.Set(nil)
-		init1(n, out)
+		s.init1(n)
 	}
 }
 
@@ -244,18 +252,18 @@ func initreorder(l []*Node, out *[]*Node) {
 // declarations and outputs the corresponding list of statements
 // to include in the init() function body.
 func initfix(l []*Node) []*Node {
-	var lout []*Node
+	var s InitSchedule
 	initplans = make(map[*Node]*InitPlan)
 	lno := lineno
-	initreorder(l, &lout)
+	s.initreorder(l)
 	lineno = lno
 	initplans = nil
-	return lout
+	return s.out
 }
 
 // compilation of top-level (static) assignments
 // into DATA statements if at all possible.
-func staticinit(n *Node, out *[]*Node) bool {
+func (s *InitSchedule) staticinit(n *Node) bool {
 	if n.Op != ONAME || n.Class() != PEXTERN || n.Name.Defn == nil || n.Name.Defn.Op != OAS {
 		Fatalf("staticinit")
 	}
@@ -263,12 +271,12 @@ func staticinit(n *Node, out *[]*Node) bool {
 	lineno = n.Pos
 	l := n.Name.Defn.Left
 	r := n.Name.Defn.Right
-	return staticassign(l, r, out)
+	return s.staticassign(l, r)
 }
 
 // like staticassign but we are copying an already
 // initialized value r.
-func staticcopy(l *Node, r *Node, out *[]*Node) bool {
+func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 	if r.Op != ONAME {
 		return false
 	}
@@ -294,12 +302,12 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 
 	switch r.Op {
 	case ONAME:
-		if staticcopy(l, r, out) {
+		if s.staticcopy(l, r) {
 			return true
 		}
 		// We may have skipped past one or more OCONVNOPs, so
 		// use conv to ensure r is assignable to l (#13263).
-		*out = append(*out, nod(OAS, l, conv(r, l.Type)))
+		s.append(nod(OAS, l, conv(r, l.Type)))
 		return true
 
 	case OLITERAL:
@@ -350,7 +358,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 				continue
 			}
 			ll := n.sepcopy()
-			if staticcopy(ll, e.Expr, out) {
+			if s.staticcopy(ll, e.Expr) {
 				continue
 			}
 			// Requires computation, but we're
@@ -359,7 +367,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 			rr.Type = ll.Type
 			rr.Xoffset += e.Xoffset
 			setlineno(rr)
-			*out = append(*out, nod(OAS, ll, rr))
+			s.append(nod(OAS, ll, rr))
 		}
 
 		return true
@@ -368,14 +376,14 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 	return false
 }
 
-func staticassign(l *Node, r *Node, out *[]*Node) bool {
+func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 	for r.Op == OCONVNOP {
 		r = r.Left
 	}
 
 	switch r.Op {
 	case ONAME:
-		return staticcopy(l, r, out)
+		return s.staticcopy(l, r)
 
 	case OLITERAL:
 		if isZero(r) {
@@ -404,8 +412,8 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			gdata(l, nod(OADDR, a, nil), int(l.Type.Width))
 
 			// Init underlying literal.
-			if !staticassign(a, r.Left, out) {
-				*out = append(*out, nod(OAS, a, r.Left))
+			if !s.staticassign(a, r.Left) {
+				s.append(nod(OAS, a, r.Left))
 			}
 			return true
 		}
@@ -452,8 +460,8 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			}
 			setlineno(e.Expr)
 			a := n.sepcopy()
-			if !staticassign(a, e.Expr, out) {
-				*out = append(*out, nod(OAS, a, e.Expr))
+			if !s.staticassign(a, e.Expr) {
+				s.append(nod(OAS, a, e.Expr))
 			}
 		}
 
@@ -516,15 +524,15 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			n.Type = val.Type
 			setlineno(val)
 			a := n.sepcopy()
-			if !staticassign(a, val, out) {
-				*out = append(*out, nod(OAS, a, val))
+			if !s.staticassign(a, val) {
+				s.append(nod(OAS, a, val))
 			}
 		} else {
 			// Construct temp to hold val, write pointer to temp into n.
 			a := staticname(val.Type)
 			inittemps[val] = a
-			if !staticassign(a, val, out) {
-				*out = append(*out, nod(OAS, a, val))
+			if !s.staticassign(a, val) {
+				s.append(nod(OAS, a, val))
 			}
 			ptr := nod(OADDR, a, nil)
 			n.Type = types.NewPtr(val.Type)

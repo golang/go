@@ -208,9 +208,9 @@ func (o *Order) addrTemp(n *Node) *Node {
 		dowidth(n.Type)
 		vstat := staticname(n.Type)
 		vstat.Name.SetReadonly(true)
-		var out []*Node
-		staticassign(vstat, n, &out)
-		if out != nil {
+		var s InitSchedule
+		s.staticassign(vstat, n)
+		if s.out != nil {
 			Fatalf("staticassign of const generated code: %+v", n)
 		}
 		vstat = typecheck(vstat, ctxExpr)
