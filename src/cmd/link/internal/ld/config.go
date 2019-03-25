@@ -51,7 +51,7 @@ func (mode *BuildMode) Set(s string) error {
 		*mode = BuildModePIE
 	case "c-archive":
 		switch objabi.GOOS {
-		case "darwin", "linux":
+		case "aix", "darwin", "linux":
 		case "freebsd":
 			switch objabi.GOARCH {
 			case "amd64":

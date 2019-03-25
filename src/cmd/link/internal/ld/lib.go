@@ -1102,7 +1102,11 @@ func (ctxt *Link) archive() {
 	}
 	ctxt.Out.f = nil
 
-	argv := []string{*flagExtar, "-q", "-c", "-s", *flagOutfile}
+	argv := []string{*flagExtar, "-q", "-c", "-s"}
+	if ctxt.HeadType == objabi.Haix {
+		argv = append(argv, "-X64")
+	}
+	argv = append(argv, *flagOutfile)
 	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
 	argv = append(argv, hostobjCopy()...)
 

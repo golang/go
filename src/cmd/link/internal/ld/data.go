@@ -1000,7 +1000,7 @@ func dosymtype(ctxt *Link) {
 		for _, s := range ctxt.Syms.Allsym {
 			// Create a new entry in the .init_array section that points to the
 			// library initializer function.
-			if s.Name == *flagEntrySymbol {
+			if s.Name == *flagEntrySymbol && ctxt.HeadType != objabi.Haix {
 				addinitarrdata(ctxt, s)
 			}
 		}
@@ -1380,6 +1380,13 @@ func (ctxt *Link) dodata() {
 	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePlugin:
 		hasinitarr = true
 	}
+
+	if ctxt.HeadType == objabi.Haix {
+		if len(data[sym.SINITARR]) > 0 {
+			Errorf(nil, "XCOFF format doesn't allow .init_array section")
+		}
+	}
+
 	if hasinitarr && len(data[sym.SINITARR]) > 0 {
 		sect := addsection(ctxt.Arch, &Segdata, ".init_array", 06)
 		sect.Align = dataMaxAlign[sym.SINITARR]
