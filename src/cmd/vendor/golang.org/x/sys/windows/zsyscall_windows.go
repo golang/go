@@ -77,6 +77,7 @@ var (
 	procCreateFileW                        = modkernel32.NewProc("CreateFileW")
 	procReadFile                           = modkernel32.NewProc("ReadFile")
 	procWriteFile                          = modkernel32.NewProc("WriteFile")
+	procGetOverlappedResult                = modkernel32.NewProc("GetOverlappedResult")
 	procSetFilePointer                     = modkernel32.NewProc("SetFilePointer")
 	procCloseHandle                        = modkernel32.NewProc("CloseHandle")
 	procGetStdHandle                       = modkernel32.NewProc("GetStdHandle")
@@ -644,6 +645,24 @@ func WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) 
 		_p0 = &buf[0]
 	}
 	r1, _, e1 := syscall.Syscall6(procWriteFile.Addr(), 5, uintptr(handle), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(done)), uintptr(unsafe.Pointer(overlapped)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetOverlappedResult(handle Handle, overlapped *Overlapped, done *uint32, wait bool) (err error) {
+	var _p0 uint32
+	if wait {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall6(procGetOverlappedResult.Addr(), 4, uintptr(handle), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(done)), uintptr(_p0), 0, 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
