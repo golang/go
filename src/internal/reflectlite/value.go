@@ -9,6 +9,8 @@ import (
 	"unsafe"
 )
 
+const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
+
 // Value is the reflection interface to a Go value.
 //
 // Not all methods apply to all kinds of values. Restrictions,
@@ -82,6 +84,18 @@ func (f flag) ro() flag {
 		return flagStickyRO
 	}
 	return 0
+}
+
+// pointer returns the underlying pointer represented by v.
+// v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
+func (v Value) pointer() unsafe.Pointer {
+	if v.typ.size != ptrSize || !v.typ.pointers() {
+		panic("can't call pointer on a non-pointer Value")
+	}
+	if v.flag&flagIndir != 0 {
+		return *(*unsafe.Pointer)(v.ptr)
+	}
+	return v.ptr
 }
 
 // packEface converts v to the empty interface.
@@ -316,6 +330,32 @@ func (v Value) Kind() Kind {
 	return v.kind()
 }
 
+// implemented in runtime:
+func chanlen(unsafe.Pointer) int
+func maplen(unsafe.Pointer) int
+
+// Len returns v's length.
+// It panics if v's Kind is not Array, Chan, Map, Slice, or String.
+func (v Value) Len() int {
+	k := v.kind()
+	switch k {
+	case Array:
+		tt := (*arrayType)(unsafe.Pointer(v.typ))
+		return int(tt.len)
+	case Chan:
+		return chanlen(v.pointer())
+	case Map:
+		return maplen(v.pointer())
+	case Slice:
+		// Slice is bigger than a word; assume flagIndir.
+		return (*sliceHeader)(v.ptr).Len
+	case String:
+		// String is bigger than a word; assume flagIndir.
+		return (*stringHeader)(v.ptr).Len
+	}
+	panic(&ValueError{"reflect.Value.Len", v.kind()})
+}
+
 // NumMethod returns the number of exported methods in the value's method set.
 func (v Value) numMethod() int {
 	if v.typ == nil {
@@ -425,6 +465,17 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 
 	// Failed.
 	panic(context + ": value of type " + v.typ.String() + " is not assignable to type " + dst.String())
+}
+
+// arrayAt returns the i-th element of p,
+// an array whose elements are eltSize bytes wide.
+// The array pointed at by p must have at least i+1 elements:
+// it is invalid (but impossible to check here) to pass i >= len,
+// because then the result will point outside the array.
+// whySafe must explain why i < len. (Passing "i < len" is fine;
+// the benefit is to surface this assumption at the call site.)
+func arrayAt(p unsafe.Pointer, i int, eltSize uintptr, whySafe string) unsafe.Pointer {
+	return add(p, uintptr(i)*eltSize, "i < len")
 }
 
 func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)

@@ -1371,6 +1371,18 @@ func reflect_maplen(h *hmap) int {
 	return h.count
 }
 
+//go:linkname reflectlite_maplen internal/reflectlite.maplen
+func reflectlite_maplen(h *hmap) int {
+	if h == nil {
+		return 0
+	}
+	if raceenabled {
+		callerpc := getcallerpc()
+		racereadpc(unsafe.Pointer(h), callerpc, funcPC(reflect_maplen))
+	}
+	return h.count
+}
+
 //go:linkname reflect_ismapkey reflect.ismapkey
 func reflect_ismapkey(t *_type) bool {
 	return ismapkey(t)

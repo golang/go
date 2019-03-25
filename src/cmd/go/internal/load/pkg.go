@@ -969,6 +969,13 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
 		return p
 	}
 
+	// The sort package depends on internal/reflectlite, but during bootstrap
+	// the path rewriting causes the normal internal checks to fail.
+	// Instead, just ignore the internal rules during bootstrap.
+	if p.Standard && strings.HasPrefix(importerPath, "bootstrap/") {
+		return p
+	}
+
 	// The stack includes p.ImportPath.
 	// If that's the only thing on the stack, we started
 	// with a name given on the command line, not an

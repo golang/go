@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !compiler_bootstrap go1.13
+// +build go1.8,!go1.13
 
 package sort
 
-import (
-	"internal/reflectlite"
-)
+import "reflect"
 
 // Slice sorts the provided slice given the provided less function.
 //
@@ -17,8 +15,8 @@ import (
 //
 // The function panics if the provided interface is not a slice.
 func Slice(slice interface{}, less func(i, j int) bool) {
-	rv := reflectlite.ValueOf(slice)
-	swap := reflectlite.Swapper(slice)
+	rv := reflect.ValueOf(slice)
+	swap := reflect.Swapper(slice)
 	length := rv.Len()
 	quickSort_func(lessSwap{less, swap}, 0, length, maxDepth(length))
 }
@@ -28,8 +26,8 @@ func Slice(slice interface{}, less func(i, j int) bool) {
 //
 // The function panics if the provided interface is not a slice.
 func SliceStable(slice interface{}, less func(i, j int) bool) {
-	rv := reflectlite.ValueOf(slice)
-	swap := reflectlite.Swapper(slice)
+	rv := reflect.ValueOf(slice)
+	swap := reflect.Swapper(slice)
 	stable_func(lessSwap{less, swap}, rv.Len())
 }
 
@@ -37,7 +35,7 @@ func SliceStable(slice interface{}, less func(i, j int) bool) {
 //
 // The function panics if the provided interface is not a slice.
 func SliceIsSorted(slice interface{}, less func(i, j int) bool) bool {
-	rv := reflectlite.ValueOf(slice)
+	rv := reflect.ValueOf(slice)
 	n := rv.Len()
 	for i := n - 1; i > 0; i-- {
 		if less(i, i-1) {

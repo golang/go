@@ -120,7 +120,7 @@ var pkgDeps = map[string][]string{
 	"image/color/palette":    {"L2", "image/color"},
 	"internal/fmtsort":       {"reflect", "sort"},
 	"reflect":                {"L2"},
-	"sort":                   {"reflect"},
+	"sort":                   {"internal/reflectlite"},
 
 	"L3": {
 		"L2",
@@ -563,11 +563,12 @@ func TestDependencies(t *testing.T) {
 	// these dependency paths:
 	badPaths := []struct{ from, to string }{
 		{"net", "unicode"},
+		{"os", "unicode"},
 	}
 
 	for _, path := range badPaths {
 		if how := depPath(path.from, path.to); how != "" {
-			t.Logf("TODO(issue 30440): policy violation: %s", how)
+			t.Errorf("policy violation: %s", how)
 		}
 	}
 
@@ -585,6 +586,11 @@ func findImports(pkg string) ([]string, error) {
 	var haveImport = map[string]bool{}
 	for _, file := range files {
 		name := file.Name()
+		if name == "slice_pre113.go" {
+			// This file is ignored by build tags which aren't
+			// handled by this findImports func.
+			continue
+		}
 		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
