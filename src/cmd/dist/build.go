@@ -235,13 +235,6 @@ func xinit() {
 	// make.bash really does start from a clean slate.
 	os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
 
-	// Set GOPATH to an internal directory. We shouldn't actually
-	// need to store files here, since the toolchain won't
-	// depend on modules outside of vendor directories, but if
-	// GOPATH points somewhere else (e.g., to GOROOT), the
-	// go tool may complain.
-	os.Setenv("GOPATH", pathf("%s/pkg/obj/gopath", goroot))
-
 	// Make the environment more predictable.
 	os.Setenv("LANG", "C")
 	os.Setenv("LANGUAGE", "en_US.UTF8")
@@ -1210,6 +1203,13 @@ func cmdbootstrap() {
 	flag.BoolVar(&noBanner, "no-banner", noBanner, "do not print banner")
 
 	xflagparse(0)
+
+	// Set GOPATH to an internal directory. We shouldn't actually
+	// need to store files here, since the toolchain won't
+	// depend on modules outside of vendor directories, but if
+	// GOPATH points somewhere else (e.g., to GOROOT), the
+	// go tool may complain.
+	os.Setenv("GOPATH", pathf("%s/pkg/obj/gopath", goroot))
 
 	if debug {
 		// cmd/buildid is used in debug mode.
