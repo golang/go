@@ -243,7 +243,17 @@ func (p platform) vet() {
 		}
 
 		cmd := exec.Command(cmdGoPath, "build", "-o", vetTool, "golang.org/x/tools/go/analysis/cmd/vet")
-		cmd.Env = os.Environ()
+		cmd.Env = append(os.Environ(),
+			// Setting GO111MODULE to on is redundant in master
+			// (Go 1.13), but not if we backport this to Go 1.11/1.12
+			// release branches (for our own builder usage) or if
+			// master ends up reverting its GO111MODULE default. If
+			// that happens, we want to force it on here anyway, as
+			// we're now depending on it.
+			"GO111MODULE=on",
+		)
+		// Use the module that cmd/vet/all is a part of:
+		cmd.Dir = filepath.Join(runtime.GOROOT(), "src", "cmd", "vet", "all")
 
 		// golang.org/x/tools does not have a vendor directory, so don't try to use
 		// one in module mode.
@@ -257,19 +267,6 @@ func (p platform) vet() {
 				}
 				cmd.Env[i] = strings.Join(goflags, " ")
 			}
-		}
-
-		// The coordinator places a copy of golang.org/x/tools in GOPATH.
-		// If we can find it there, use that specific version.
-		for _, gp := range filepath.SplitList(os.Getenv("GOPATH")) {
-			gopathDir := filepath.Join(gp, "src", "golang.org", "x", "tools", "go", "analysis", "cmd", "vet")
-			if _, err := os.Stat(gopathDir); err == nil {
-				cmd.Dir = gopathDir
-			}
-		}
-		if cmd.Dir == "" {
-			// Otherwise, move to tmpdir and let the module loader resolve the latest version.
-			cmd.Dir = tmpdir
 		}
 
 		cmd.Stderr = os.Stderr
