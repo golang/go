@@ -1797,6 +1797,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 
 	// fake root DIE for compile unit DIEs
 	var dwroot dwarf.DWDie
+	flagVariants := make(map[string]bool)
 
 	for _, lib := range ctxt.Library {
 		unit := &compilationUnit{lib: lib}
@@ -1825,7 +1826,11 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			// version, so it should be safe for readers to scan
 			// forward to the semicolon.
 			producer += "; " + string(producerExtra.P)
+			flagVariants[string(producerExtra.P)] = true
+		} else {
+			flagVariants[""] = true
 		}
+
 		newattr(unit.dwinfo, dwarf.DW_AT_producer, dwarf.DW_CLS_STRING, int64(len(producer)), producer)
 
 		if len(lib.Textp) == 0 {
@@ -1874,6 +1879,13 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 				}
 			}
 		}
+	}
+
+	// Fix for 31034: if the objects feeding into this link were compiled
+	// with different sets of flags, then don't issue an error if
+	// the -strictdups checks fail.
+	if checkStrictDups > 1 && len(flagVariants) > 1 {
+		checkStrictDups = 1
 	}
 
 	// Create DIEs for global variables and the types they use.

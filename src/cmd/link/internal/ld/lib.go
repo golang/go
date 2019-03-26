@@ -200,6 +200,10 @@ var (
 
 	nerrors  int
 	liveness int64
+
+	// See -strictdups command line flag.
+	checkStrictDups   int // 0=off 1=warning 2=error
+	strictDupMsgCount int
 )
 
 var (
@@ -281,6 +285,9 @@ func libinit(ctxt *Link) {
 
 func errorexit() {
 	if nerrors != 0 {
+		Exit(2)
+	}
+	if checkStrictDups > 1 && strictDupMsgCount > 0 {
 		Exit(2)
 	}
 	Exit(0)
@@ -1745,7 +1752,8 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	default:
 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
 	}
-	objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn, flags)
+	c := objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn, flags)
+	strictDupMsgCount += c
 	addImports(ctxt, lib, pn)
 	return nil
 }

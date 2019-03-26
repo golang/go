@@ -42,6 +42,7 @@ type objReader struct {
 	dupSym          *sym.Symbol
 	localSymVersion int
 	flags           int
+	strictDupMsgs   int
 
 	// rdBuf is used by readString and readSymName as scratch for reading strings.
 	rdBuf []byte
@@ -72,7 +73,7 @@ const (
 
 // Load loads an object file f into library lib.
 // The symbols loaded are added to syms.
-func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string, flags int) {
+func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string, flags int) int {
 	start := f.Offset()
 	r := &objReader{
 		rd:              f.Reader,
@@ -88,6 +89,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, le
 	if f.Offset() != start+length {
 		log.Fatalf("%s: unexpected end at %d, want %d", pn, f.Offset(), start+length)
 	}
+	return r.strictDupMsgs
 }
 
 func (r *objReader) loadObjFile() {
@@ -376,9 +378,8 @@ overwrite:
 			// params; I am guessing that the pos is being inherited
 			// from the spot where the wrapper is needed.
 			whitelist := strings.HasPrefix(dup.Name, "go.info.go.interface")
-
-			if r.flags&StrictDupsErrFlag != 0 && !whitelist {
-				log.Fatalf("failed duplicate symbol check on '%s' reading %s", dup.Name, r.pn)
+			if !whitelist {
+				r.strictDupMsgs++
 			}
 		}
 	}
