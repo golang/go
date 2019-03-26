@@ -1,4 +1,4 @@
-// rundir -P -l=4 -ldflags -strictdups=2
+// rundir -P -ldflags -strictdups=2 -w=0
 
 // Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
