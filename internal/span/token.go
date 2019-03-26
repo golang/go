@@ -65,6 +65,9 @@ func (r Range) Span() (Span, error) {
 		return Span{}, fmt.Errorf("file not found in FileSet")
 	}
 	s := Span{v: span{URI: FileURI(f.Name())}}
+	if !r.Start.IsValid() {
+		return Span{}, fmt.Errorf("invalid position for start of range")
+	}
 	s.v.Start.Offset = f.Offset(r.Start)
 	if r.End.IsValid() {
 		s.v.End.Offset = f.Offset(r.End)
