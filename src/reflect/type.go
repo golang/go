@@ -2639,6 +2639,7 @@ func StructOf(fields []StructField) Type {
 	typ.tflag = 0
 	typ.hash = hash
 	typ.size = size
+	typ.ptrdata = typeptrdata(typ.common())
 	typ.align = typalign
 	typ.fieldAlign = typalign
 	typ.ptrToThis = 0
@@ -2709,7 +2710,6 @@ func StructOf(fields []StructField) Type {
 			typ.gcdata = &bv.data[0]
 		}
 	}
-	typ.ptrdata = typeptrdata(typ.common())
 	typ.alg = new(typeAlg)
 	if hashable {
 		typ.alg.hash = func(p unsafe.Pointer, seed uintptr) uintptr {
