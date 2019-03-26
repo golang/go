@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1619,5 +1620,78 @@ func TestTXTRecordTwoStrings(t *testing.T) {
 	}
 	if want := "onestring"; txt[1] != want {
 		t.Errorf("txt[1], got %q, want %q", txt[1], want)
+	}
+}
+
+// Issue 29644: support single-request resolv.conf option in pure Go resolver.
+// The A and AAAA queries will be sent sequentially, not in parallel.
+func TestSingleRequestLookup(t *testing.T) {
+	defer dnsWaitGroup.Wait()
+	var (
+		firstcalled int32
+		ipv4        int32 = 1
+		ipv6        int32 = 2
+	)
+	fake := fakeDNSServer{rh: func(n, s string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+		r := dnsmessage.Message{
+			Header: dnsmessage.Header{
+				ID:       q.ID,
+				Response: true,
+			},
+			Questions: q.Questions,
+		}
+		for _, question := range q.Questions {
+			switch question.Type {
+			case dnsmessage.TypeA:
+				if question.Name.String() == "slowipv4.example.net." {
+					time.Sleep(10 * time.Millisecond)
+				}
+				if !atomic.CompareAndSwapInt32(&firstcalled, 0, ipv4) {
+					t.Errorf("the A query was received after the AAAA query !")
+				}
+				r.Answers = append(r.Answers, dnsmessage.Resource{
+					Header: dnsmessage.ResourceHeader{
+						Name:   q.Questions[0].Name,
+						Type:   dnsmessage.TypeA,
+						Class:  dnsmessage.ClassINET,
+						Length: 4,
+					},
+					Body: &dnsmessage.AResource{
+						A: TestAddr,
+					},
+				})
+			case dnsmessage.TypeAAAA:
+				atomic.CompareAndSwapInt32(&firstcalled, 0, ipv6)
+				r.Answers = append(r.Answers, dnsmessage.Resource{
+					Header: dnsmessage.ResourceHeader{
+						Name:   q.Questions[0].Name,
+						Type:   dnsmessage.TypeAAAA,
+						Class:  dnsmessage.ClassINET,
+						Length: 16,
+					},
+					Body: &dnsmessage.AAAAResource{
+						AAAA: TestAddr6,
+					},
+				})
+			}
+		}
+		return r, nil
+	}}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conf.teardown()
+	if err := conf.writeAndUpdate([]string{"options single-request"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"hostname.example.net", "slowipv4.example.net"} {
+		firstcalled = 0
+		_, err := r.LookupIPAddr(context.Background(), name)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
