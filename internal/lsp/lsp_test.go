@@ -42,6 +42,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	const expectedFormatCount = 4
 	const expectedDefinitionsCount = 16
 	const expectedTypeDefinitionsCount = 2
+	const expectedHighlightsCount = 2
 
 	files := packagestest.MustCopyFileTree(dir)
 	for fragment, operation := range files {
@@ -85,15 +86,17 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	expectedFormat := make(formats)
 	expectedDefinitions := make(definitions)
 	expectedTypeDefinitions := make(definitions)
+	expectedHighlights := make(highlights)
 
 	// Collect any data that needs to be used by subsequent tests.
 	if err := exported.Expect(map[string]interface{}{
-		"diag":     expectedDiagnostics.collect,
-		"item":     completionItems.collect,
-		"complete": expectedCompletions.collect,
-		"format":   expectedFormat.collect,
-		"godef":    expectedDefinitions.collect,
-		"typdef":   expectedTypeDefinitions.collect,
+		"diag":      expectedDiagnostics.collect,
+		"item":      completionItems.collect,
+		"complete":  expectedCompletions.collect,
+		"format":    expectedFormat.collect,
+		"godef":     expectedDefinitions.collect,
+		"typdef":    expectedTypeDefinitions.collect,
+		"highlight": expectedHighlights.collect,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -155,6 +158,16 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		}
 		expectedTypeDefinitions.test(t, s, true)
 	})
+
+	t.Run("Highlights", func(t *testing.T) {
+		t.Helper()
+		if goVersion111 { // TODO(rstambler): Remove this when we no longer support Go 1.10.
+			if len(expectedHighlights) != expectedHighlightsCount {
+				t.Errorf("got %v highlights expected %v", len(expectedHighlights), expectedHighlightsCount)
+			}
+		}
+		expectedHighlights.test(t, s)
+	})
 }
 
 type diagnostics map[span.URI][]protocol.Diagnostic
@@ -162,6 +175,7 @@ type completionItems map[token.Pos]*protocol.CompletionItem
 type completions map[token.Position][]token.Pos
 type formats map[string]string
 type definitions map[protocol.Location]protocol.Location
+type highlights map[string][]protocol.Location
 
 func (d diagnostics) test(t *testing.T, v source.View) int {
 	count := 0
@@ -454,6 +468,39 @@ func (d definitions) collect(e *packagestest.Exported, fset *token.FileSet, src,
 		return
 	}
 	d[lSrc] = lTarget
+}
+
+func (h highlights) collect(e *packagestest.Exported, fset *token.FileSet, name string, rng packagestest.Range) {
+	s, m := testLocation(e, fset, rng)
+	loc, err := m.Location(s)
+	if err != nil {
+		return
+	}
+
+	h[name] = append(h[name], loc)
+}
+
+func (h highlights) test(t *testing.T, s *server) {
+	for name, locations := range h {
+		params := &protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{
+				URI: locations[0].URI,
+			},
+			Position: locations[0].Range.Start,
+		}
+		highlights, err := s.DocumentHighlight(context.Background(), params)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(highlights) != len(locations) {
+			t.Fatalf("got %d highlights for %s, expected %d", len(highlights), name, len(locations))
+		}
+		for i := range highlights {
+			if highlights[i].Range != locations[i].Range {
+				t.Errorf("want %v, got %v\n", locations[i].Range, highlights[i].Range)
+			}
+		}
+	}
 }
 
 func testLocation(e *packagestest.Exported, fset *token.FileSet, rng packagestest.Range) (span.Span, *protocol.ColumnMapper) {

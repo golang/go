@@ -127,6 +127,7 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 				DocumentRangeFormattingProvider: true,
 				DocumentSymbolProvider:          true,
 				HoverProvider:                   true,
+				DocumentHighlightProvider:       true,
 				SignatureHelpProvider: &protocol.SignatureHelpOptions{
 					TriggerCharacters: []string{"(", ","},
 				},
@@ -423,8 +424,24 @@ func (s *server) References(context.Context, *protocol.ReferenceParams) ([]proto
 	return nil, notImplemented("References")
 }
 
-func (s *server) DocumentHighlight(context.Context, *protocol.TextDocumentPositionParams) ([]protocol.DocumentHighlight, error) {
-	return nil, notImplemented("DocumentHighlight")
+func (s *server) DocumentHighlight(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.DocumentHighlight, error) {
+	f, m, err := newColumnMap(ctx, s.view, span.URI(params.TextDocument.URI))
+	if err != nil {
+		return nil, err
+	}
+
+	spn, err := m.PointSpan(params.Position)
+	if err != nil {
+		return nil, err
+	}
+
+	rng, err := spn.Range(m.Converter)
+	if err != nil {
+		return nil, err
+	}
+
+	spans := source.Highlight(ctx, f, rng.Start)
+	return toProtocolHighlight(m, spans), nil
 }
 
 func (s *server) DocumentSymbol(ctx context.Context, params *protocol.DocumentSymbolParams) ([]protocol.DocumentSymbol, error) {

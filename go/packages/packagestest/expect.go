@@ -52,6 +52,7 @@ const (
 //   *regexp.Regexp : can only be supplied a regular expression literal
 //   token.Pos : has a file position calculated as described below.
 //   token.Position : has a file position calculated as described below.
+//   expect.Range: has a start and end position as described below.
 //   interface{} : will be passed any value
 //
 // Position calculation
