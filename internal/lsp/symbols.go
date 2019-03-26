@@ -5,9 +5,8 @@
 package lsp
 
 import (
-	"golang.org/x/tools/internal/lsp/source"
-
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 )
 
 func toProtocolDocumentSymbols(m *protocol.ColumnMapper, symbols []source.Symbol) []protocol.DocumentSymbol {
@@ -21,6 +20,8 @@ func toProtocolDocumentSymbols(m *protocol.ColumnMapper, symbols []source.Symbol
 		}
 		if r, err := m.Range(s.Span); err == nil {
 			ps.Range = r
+		}
+		if r, err := m.Range(s.SelectionSpan); err == nil {
 			ps.SelectionRange = r
 		}
 		result = append(result, ps)

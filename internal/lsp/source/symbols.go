@@ -5,11 +5,11 @@
 package source
 
 import (
-	"bytes"
 	"context"
+	"fmt"
 	"go/ast"
-	"go/format"
 	"go/token"
+	"go/types"
 
 	"golang.org/x/tools/internal/span"
 )
@@ -26,31 +26,34 @@ const (
 )
 
 type Symbol struct {
-	Name     string
-	Detail   string
-	Span     span.Span
-	Kind     SymbolKind
-	Children []Symbol
+	Name          string
+	Detail        string
+	Span          span.Span
+	SelectionSpan span.Span
+	Kind          SymbolKind
+	Children      []Symbol
 }
 
 func DocumentSymbols(ctx context.Context, f File) []Symbol {
-	var symbols []Symbol
 	fset := f.GetFileSet(ctx)
-	astFile := f.GetAST(ctx)
-	for _, decl := range astFile.Decls {
+	file := f.GetAST(ctx)
+	pkg := f.GetPackage(ctx)
+	info := pkg.GetTypesInfo()
+	q := qualifier(file, pkg.GetTypes(), info)
+
+	var symbols []Symbol
+	for _, decl := range file.Decls {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
-			symbols = append(symbols, funcSymbol(decl, fset))
+			symbols = append(symbols, funcSymbol(decl, info.ObjectOf(decl.Name), fset, q))
 		case *ast.GenDecl:
 			for _, spec := range decl.Specs {
 				switch spec := spec.(type) {
-				case *ast.ImportSpec:
-					symbols = append(symbols, importSymbol(spec, fset))
 				case *ast.TypeSpec:
-					symbols = append(symbols, typeSymbol(spec, fset))
+					symbols = append(symbols, typeSymbol(spec, info.ObjectOf(spec.Name), fset, q))
 				case *ast.ValueSpec:
 					for _, name := range spec.Names {
-						symbols = append(symbols, varSymbol(decl, name, fset))
+						symbols = append(symbols, varSymbol(decl, name, info.ObjectOf(name), fset, q))
 					}
 				}
 			}
@@ -59,67 +62,66 @@ func DocumentSymbols(ctx context.Context, f File) []Symbol {
 	return symbols
 }
 
-func funcSymbol(decl *ast.FuncDecl, fset *token.FileSet) Symbol {
+func funcSymbol(decl *ast.FuncDecl, obj types.Object, fset *token.FileSet, q types.Qualifier) Symbol {
 	s := Symbol{
-		Name: decl.Name.String(),
+		Name: obj.Name(),
 		Kind: FunctionSymbol,
 	}
-
-	if decl.Recv != nil {
-		s.Kind = MethodSymbol
-	}
-
-	span, err := nodeSpan(decl, fset)
-	if err == nil {
+	if span, err := nodeSpan(decl, fset); err == nil {
 		s.Span = span
 	}
-	buf := &bytes.Buffer{}
-	if err := format.Node(buf, fset, decl); err == nil {
-		s.Detail = buf.String()
+	if span, err := nodeSpan(decl.Name, fset); err == nil {
+		s.SelectionSpan = span
+	}
+	sig, _ := obj.Type().(*types.Signature)
+	if sig != nil {
+		if sig.Recv() != nil {
+			s.Kind = MethodSymbol
+		}
+		s.Detail += "("
+		for i := 0; i < sig.Params().Len(); i++ {
+			if i > 0 {
+				s.Detail += ", "
+			}
+			param := sig.Params().At(i)
+			label := types.TypeString(param.Type(), q)
+			if param.Name() != "" {
+				label = fmt.Sprintf("%s %s", param.Name(), label)
+			}
+			s.Detail += label
+		}
+		s.Detail += ")"
 	}
 	return s
 }
 
-func importSymbol(spec *ast.ImportSpec, fset *token.FileSet) Symbol {
+func typeSymbol(spec *ast.TypeSpec, obj types.Object, fset *token.FileSet, q types.Qualifier) Symbol {
 	s := Symbol{
-		Name:   spec.Path.Value,
-		Kind:   PackageSymbol,
-		Detail: "import " + spec.Path.Value,
-	}
-	span, err := nodeSpan(spec, fset)
-	if err == nil {
-		s.Span = span
-	}
-	return s
-}
-
-func typeSymbol(spec *ast.TypeSpec, fset *token.FileSet) Symbol {
-	s := Symbol{
-		Name: spec.Name.String(),
+		Name: obj.Name(),
 		Kind: StructSymbol,
 	}
-	span, err := nodeSpan(spec, fset)
-	if err == nil {
+	if span, err := nodeSpan(spec, fset); err == nil {
 		s.Span = span
 	}
+	if span, err := nodeSpan(spec.Name, fset); err == nil {
+		s.SelectionSpan = span
+	}
+	s.Detail, _ = formatType(obj.Type(), q)
 	return s
 }
 
-func varSymbol(decl *ast.GenDecl, name *ast.Ident, fset *token.FileSet) Symbol {
+func varSymbol(decl ast.Node, name *ast.Ident, obj types.Object, fset *token.FileSet, q types.Qualifier) Symbol {
 	s := Symbol{
-		Name: name.Name,
+		Name: obj.Name(),
 		Kind: VariableSymbol,
 	}
-
-	if decl.Tok == token.CONST {
-		s.Kind = ConstantSymbol
-	}
-
-	span, err := nodeSpan(name, fset)
-	if err == nil {
+	if span, err := nodeSpan(decl, fset); err == nil {
 		s.Span = span
 	}
-
+	if span, err := nodeSpan(name, fset); err == nil {
+		s.SelectionSpan = span
+	}
+	s.Detail = types.TypeString(obj.Type(), q)
 	return s
 }
 
