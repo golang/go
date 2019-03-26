@@ -569,33 +569,33 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 	resolvConf.mu.RLock()
 	conf := resolvConf.dnsConfig
 	resolvConf.mu.RUnlock()
-	type racer struct {
+	type result struct {
 		p      dnsmessage.Parser
 		server string
 		error
 	}
-	lane := make(chan racer, 1)
+	lane := make(chan result, 1)
 	qtypes := [...]dnsmessage.Type{dnsmessage.TypeA, dnsmessage.TypeAAAA}
 	var queryFn func(fqdn string, qtype dnsmessage.Type)
-	var responseFn func(fqdn string, qtype dnsmessage.Type) racer
+	var responseFn func(fqdn string, qtype dnsmessage.Type) result
 	if conf.singleRequest {
 		queryFn = func(fqdn string, qtype dnsmessage.Type) {}
-		responseFn = func(fqdn string, qtype dnsmessage.Type) racer {
+		responseFn = func(fqdn string, qtype dnsmessage.Type) result {
 			dnsWaitGroup.Add(1)
 			defer dnsWaitGroup.Done()
 			p, server, err := r.tryOneName(ctx, conf, fqdn, qtype)
-			return racer{p, server, err}
+			return result{p, server, err}
 		}
 	} else {
 		queryFn = func(fqdn string, qtype dnsmessage.Type) {
 			dnsWaitGroup.Add(1)
 			go func(qtype dnsmessage.Type) {
 				p, server, err := r.tryOneName(ctx, conf, fqdn, qtype)
-				lane <- racer{p, server, err}
+				lane <- result{p, server, err}
 				dnsWaitGroup.Done()
 			}(qtype)
 		}
-		responseFn = func(fqdn string, qtype dnsmessage.Type) racer {
+		responseFn = func(fqdn string, qtype dnsmessage.Type) result {
 			return <-lane
 		}
 	}
@@ -606,15 +606,15 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 		}
 		hitStrictError := false
 		for _, qtype := range qtypes {
-			racer := responseFn(fqdn, qtype)
-			if racer.error != nil {
-				if nerr, ok := racer.error.(Error); ok && nerr.Temporary() && r.strictErrors() {
+			result := responseFn(fqdn, qtype)
+			if result.error != nil {
+				if nerr, ok := result.error.(Error); ok && nerr.Temporary() && r.strictErrors() {
 					// This error will abort the nameList loop.
 					hitStrictError = true
-					lastErr = racer.error
+					lastErr = result.error
 				} else if lastErr == nil || fqdn == name+"." {
 					// Prefer error for original name.
-					lastErr = racer.error
+					lastErr = result.error
 				}
 				continue
 			}
@@ -636,12 +636,12 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 
 		loop:
 			for {
-				h, err := racer.p.AnswerHeader()
+				h, err := result.p.AnswerHeader()
 				if err != nil && err != dnsmessage.ErrSectionDone {
 					lastErr = &DNSError{
 						Err:    "cannot marshal DNS message",
 						Name:   name,
-						Server: racer.server,
+						Server: result.server,
 					}
 				}
 				if err != nil {
@@ -649,35 +649,35 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 				}
 				switch h.Type {
 				case dnsmessage.TypeA:
-					a, err := racer.p.AResource()
+					a, err := result.p.AResource()
 					if err != nil {
 						lastErr = &DNSError{
 							Err:    "cannot marshal DNS message",
 							Name:   name,
-							Server: racer.server,
+							Server: result.server,
 						}
 						break loop
 					}
 					addrs = append(addrs, IPAddr{IP: IP(a.A[:])})
 
 				case dnsmessage.TypeAAAA:
-					aaaa, err := racer.p.AAAAResource()
+					aaaa, err := result.p.AAAAResource()
 					if err != nil {
 						lastErr = &DNSError{
 							Err:    "cannot marshal DNS message",
 							Name:   name,
-							Server: racer.server,
+							Server: result.server,
 						}
 						break loop
 					}
 					addrs = append(addrs, IPAddr{IP: IP(aaaa.AAAA[:])})
 
 				default:
-					if err := racer.p.SkipAnswer(); err != nil {
+					if err := result.p.SkipAnswer(); err != nil {
 						lastErr = &DNSError{
 							Err:    "cannot marshal DNS message",
 							Name:   name,
-							Server: racer.server,
+							Server: result.server,
 						}
 						break loop
 					}
