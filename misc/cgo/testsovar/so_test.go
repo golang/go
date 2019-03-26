@@ -28,9 +28,6 @@ func requireTestSOSupported(t *testing.T) {
 		if runtime.GOOS == "linux" {
 			t.Skip("External linking not implemented on aix/ppc64 (issue #8912).")
 		}
-		if runtime.GOOS == "aix" {
-			t.Skip("Using shared object isn't yet available on aix/ppc64 (issue #30565)")
-		}
 	case "mips64le", "mips64":
 		t.Skip("External linking not implemented on mips64.")
 	}
@@ -85,6 +82,8 @@ func TestSO(t *testing.T) {
 	case "windows":
 		ext = "dll"
 		args = append(args, "-DEXPORT_DLL")
+	case "aix":
+		ext = "so.1"
 	}
 	sofname := "libcgosotest." + ext
 	args = append(args, "-o", sofname, "cgoso_c.c")
@@ -97,6 +96,16 @@ func TestSO(t *testing.T) {
 		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
 	}
 	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
+
+	if runtime.GOOS == "aix" {
+		// Shared object must be wrapped by an archive
+		cmd = exec.Command("ar", "-X64", "-q", "libcgosotest.a", "libcgosotest.so.1")
+		cmd.Dir = modRoot
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
+		}
+	}
 
 	cmd = exec.Command("go", "build", "-o", "main.exe", "main.go")
 	cmd.Dir = modRoot
