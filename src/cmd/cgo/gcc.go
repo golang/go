@@ -897,21 +897,16 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 			needsUnsafe = true
 		}
 
-		// Explicitly convert untyped constants to the
-		// parameter type, to avoid a type mismatch.
-		if p.isConst(f, arg) {
-			ptype := p.rewriteUnsafe(param.Go)
+		// Use "var x T = ..." syntax to explicitly convert untyped
+		// constants to the parameter type, to avoid a type mismatch.
+		ptype := p.rewriteUnsafe(param.Go)
+
+		if !p.needsPointerCheck(f, param.Go, args[i]) || param.BadPointer {
 			if ptype != param.Go {
 				needsUnsafe = true
 			}
-			arg = &ast.CallExpr{
-				Fun:  ptype,
-				Args: []ast.Expr{arg},
-			}
-		}
-
-		if !p.needsPointerCheck(f, param.Go, args[i]) {
-			fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtPos(arg, origArg.Pos()))
+			fmt.Fprintf(&sb, "var _cgo%d %s = %s; ", i,
+				gofmtLine(ptype), gofmtPos(arg, origArg.Pos()))
 			continue
 		}
 
@@ -1250,47 +1245,6 @@ func (p *Package) isType(t ast.Expr) bool {
 		*ast.MapType, *ast.ChanType:
 
 		return true
-	}
-	return false
-}
-
-// isConst reports whether x is an untyped constant expression.
-func (p *Package) isConst(f *File, x ast.Expr) bool {
-	switch x := x.(type) {
-	case *ast.BasicLit:
-		return true
-	case *ast.SelectorExpr:
-		id, ok := x.X.(*ast.Ident)
-		if !ok || id.Name != "C" {
-			return false
-		}
-		name := f.Name[x.Sel.Name]
-		if name != nil {
-			return name.IsConst()
-		}
-	case *ast.Ident:
-		return x.Name == "nil" ||
-			strings.HasPrefix(x.Name, "_Ciconst_") ||
-			strings.HasPrefix(x.Name, "_Cfconst_") ||
-			strings.HasPrefix(x.Name, "_Csconst_") ||
-			consts[x.Name]
-	case *ast.UnaryExpr:
-		return p.isConst(f, x.X)
-	case *ast.BinaryExpr:
-		return p.isConst(f, x.X) && p.isConst(f, x.Y)
-	case *ast.ParenExpr:
-		return p.isConst(f, x.X)
-	case *ast.CallExpr:
-		// Calling the builtin function complex on two untyped
-		// constants returns an untyped constant.
-		// TODO: It's possible to construct a case that will
-		// erroneously succeed if there is a local function
-		// named "complex", shadowing the builtin, that returns
-		// a numeric type. I can't think of any cases that will
-		// erroneously fail.
-		if id, ok := x.Fun.(*ast.Ident); ok && id.Name == "complex" && len(x.Args) == 2 {
-			return p.isConst(f, x.Args[0]) && p.isConst(f, x.Args[1])
-		}
 	}
 	return false
 }
@@ -2511,13 +2465,16 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			// Treat this typedef as a uintptr.
 			s := *sub
 			s.Go = c.uintptr
+			s.BadPointer = true
 			sub = &s
 			// Make sure we update any previously computed type.
 			if oldType := typedef[name.Name]; oldType != nil {
 				oldType.Go = sub.Go
+				oldType.BadPointer = true
 			}
 		}
 		t.Go = name
+		t.BadPointer = sub.BadPointer
 		if unionWithPointer[sub.Go] {
 			unionWithPointer[t.Go] = true
 		}
@@ -2527,6 +2484,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		if oldType == nil {
 			tt := *t
 			tt.Go = sub.Go
+			tt.BadPointer = sub.BadPointer
 			typedef[name.Name] = &tt
 		}
 

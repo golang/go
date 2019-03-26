@@ -43,7 +43,7 @@ func f2(q *int) { // ERROR "from &u \(address-of\) at escape_because.go:43$" "fr
 	sink = &u // ERROR "&u escapes to heap$" "from &u \(interface-converted\) at escape_because.go:43$" "from sink \(assigned to top level variable\) at escape_because.go:43$"
 }
 
-func f3(r *int) interface{} { // ERROR "from \[\]\*int literal \(slice-literal-element\) at escape_because.go:47$" "from c \(assigned\) at escape_because.go:47$" "from c \(interface-converted\) at escape_because.go:48$" "from ~r1 \(return\) at escape_because.go:48$" "leaking param: r to result ~r1 level=-1$"
+func f3(r *int) interface{} { // ERROR "from \[\]\*int literal \(slice-literal-element\) at escape_because.go:47$" "from c \(assigned\) at escape_because.go:47$" "from c \(interface-converted\) at escape_because.go:48$" "from ~r1 \(return\) at escape_because.go:48$" "leaking param: r"
 	c := []*int{r} // ERROR "\[\]\*int literal escapes to heap$" "from c \(assigned\) at escape_because.go:47$" "from c \(interface-converted\) at escape_because.go:48$" "from ~r1 \(return\) at escape_because.go:48$"
 	return c       // "return" // ERROR "c escapes to heap$" "from ~r1 \(return\) at escape_because.go:48$"
 }

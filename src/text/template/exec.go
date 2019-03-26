@@ -576,6 +576,13 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 	}
 	typ := receiver.Type()
 	receiver, isNil := indirect(receiver)
+	if receiver.Kind() == reflect.Interface && isNil {
+		// Calling a method on a nil interface can't work. The
+		// MethodByName method call below would panic.
+		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+		return zero
+	}
+
 	// Unless it's an interface, need to get to a value of type *T to guarantee
 	// we see all methods of T and *T.
 	ptr := receiver

@@ -126,10 +126,6 @@ var sortTests = []sortTest{
 		map[[2]int]string{{7, 2}: "72", {7, 1}: "71", {3, 4}: "34"},
 		"[3 4]:34 [7 1]:71 [7 2]:72",
 	},
-	{
-		map[interface{}]string{7: "7", 4: "4", 3: "3", nil: "nil"},
-		"<nil>:nil 3:3 4:4 7:7",
-	},
 }
 
 func sprint(data interface{}) string {
@@ -207,6 +203,44 @@ func TestOrder(t *testing.T) {
 		got := sprint(test.data)
 		if got != test.print {
 			t.Errorf("%s: got %q, want %q", reflect.TypeOf(test.data), got, test.print)
+		}
+	}
+}
+
+func TestInterface(t *testing.T) {
+	// A map containing multiple concrete types should be sorted by type,
+	// then value. However, the relative ordering of types is unspecified,
+	// so test this by checking the presence of sorted subgroups.
+	m := map[interface{}]string{
+		[2]int{1, 0}:             "",
+		[2]int{0, 1}:             "",
+		true:                     "",
+		false:                    "",
+		3.1:                      "",
+		2.1:                      "",
+		1.1:                      "",
+		math.NaN():               "",
+		3:                        "",
+		2:                        "",
+		1:                        "",
+		"c":                      "",
+		"b":                      "",
+		"a":                      "",
+		struct{ x, y int }{1, 0}: "",
+		struct{ x, y int }{0, 1}: "",
+	}
+	got := sprint(m)
+	typeGroups := []string{
+		"NaN: 1.1: 2.1: 3.1:", // float64
+		"false: true:",        // bool
+		"1: 2: 3:",            // int
+		"a: b: c:",            // string
+		"[0 1]: [1 0]:",       // [2]int
+		"{0 1}: {1 0}:",       // struct{ x int; y int }
+	}
+	for _, g := range typeGroups {
+		if !strings.Contains(got, g) {
+			t.Errorf("sorted map should contain %q", g)
 		}
 	}
 }

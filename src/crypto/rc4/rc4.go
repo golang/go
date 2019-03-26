@@ -45,8 +45,10 @@ func NewCipher(key []byte) (*Cipher, error) {
 	return &c, nil
 }
 
-// Reset zeros the key data so that it will no longer appear in the
-// process's memory.
+// Reset zeros the key data and makes the Cipher unusable.
+//
+// Deprecated: Reset can't guarantee that the key will be entirely removed from
+// the process's memory.
 func (c *Cipher) Reset() {
 	for i := range c.s {
 		c.s[i] = 0

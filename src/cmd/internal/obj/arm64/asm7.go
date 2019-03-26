@@ -2986,7 +2986,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		num := uint8(0)
 		cls := oclass(&p.From)
 		if isADDWop(p.As) {
-			if (cls != C_LCON) && (cls != C_ADDCON2) {
+			if !cmp(C_LCON, cls) {
 				c.ctxt.Diag("illegal combination: %v", p)
 			}
 			num = c.omovlconst(AMOVW, p, &p.From, REGTMP, os[:])
@@ -3271,7 +3271,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		num := uint8(0)
 		cls := oclass(&p.From)
 		if isANDWop(p.As) {
-			if (cls != C_LCON) && (cls != C_ADDCON) {
+			if !cmp(C_LCON, cls) {
 				c.ctxt.Diag("illegal combination: %v", p)
 			}
 			num = c.omovlconst(AMOVW, p, &p.From, REGTMP, os[:])

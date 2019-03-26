@@ -1141,7 +1141,7 @@ func symIsRO(sym interface{}) bool {
 // read8 reads one byte from the read-only global sym at offset off.
 func read8(sym interface{}, off int64) uint8 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P)) {
+	if off >= int64(len(lsym.P)) || off < 0 {
 		// Invalid index into the global sym.
 		// This can happen in dead code, so we don't want to panic.
 		// Just return any value, it will eventually get ignored.
@@ -1154,7 +1154,7 @@ func read8(sym interface{}, off int64) uint8 {
 // read16 reads two bytes from the read-only global sym at offset off.
 func read16(sym interface{}, off int64, bigEndian bool) uint16 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P))-1 {
+	if off >= int64(len(lsym.P))-1 || off < 0 {
 		return 0
 	}
 	if bigEndian {
@@ -1167,7 +1167,7 @@ func read16(sym interface{}, off int64, bigEndian bool) uint16 {
 // read32 reads four bytes from the read-only global sym at offset off.
 func read32(sym interface{}, off int64, bigEndian bool) uint32 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P))-3 {
+	if off >= int64(len(lsym.P))-3 || off < 0 {
 		return 0
 	}
 	if bigEndian {
@@ -1180,7 +1180,7 @@ func read32(sym interface{}, off int64, bigEndian bool) uint32 {
 // read64 reads eight bytes from the read-only global sym at offset off.
 func read64(sym interface{}, off int64, bigEndian bool) uint64 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P))-7 {
+	if off >= int64(len(lsym.P))-7 || off < 0 {
 		return 0
 	}
 	if bigEndian {

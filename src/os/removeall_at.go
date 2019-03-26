@@ -92,7 +92,8 @@ func removeAllFrom(parent *File, path string) error {
 			if IsNotExist(err) {
 				return nil
 			}
-			return err
+			recurseErr = err
+			break
 		}
 
 		names, readErr := file.Readdirnames(request)

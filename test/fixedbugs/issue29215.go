@@ -16,3 +16,20 @@ func f() {
         }
         _ = s == "bbb"
 }
+
+// Another case: load from negative offset of a symbol
+// in dead code (issue 30257).
+func g() {
+	var i int
+	var s string
+
+	if true {
+		s = "a"
+	}
+
+	if f := 0.0; -f < 0 {
+		i = len(s[:4])
+	}
+
+	_ = s[i-1:0] != "bb" && true
+}

@@ -787,3 +787,11 @@ func TestTracebackAncestors(t *testing.T) {
 		}
 	}
 }
+
+// Test that defer closure is correctly scanned when the stack is scanned.
+func TestDeferLiveness(t *testing.T) {
+	output := runTestProg(t, "testprog", "DeferLiveness", "GODEBUG=clobberfree=1")
+	if output != "" {
+		t.Errorf("output:\n%s\n\nwant no output", output)
+	}
+}
