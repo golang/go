@@ -645,7 +645,7 @@ func ready(gp *g, traceskip int, next bool) {
 
 	// Mark runnable.
 	_g_ := getg()
-	_g_.m.locks++ // disable preemption because it can be holding p in a local var
+	mp := acquirem() // disable preemption because it can be holding p in a local var
 	if status&^_Gscan != _Gwaiting {
 		dumpgstatus(gp)
 		throw("bad g->status in ready")
@@ -657,10 +657,7 @@ func ready(gp *g, traceskip int, next bool) {
 	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
 		wakep()
 	}
-	_g_.m.locks--
-	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in Case we've cleared it in newstack
-		_g_.stackguard0 = stackPreempt
-	}
+	releasem(mp)
 }
 
 // freezeStopWait is a large value that freezetheworld sets
@@ -1080,9 +1077,7 @@ func stopTheWorldWithSema() {
 }
 
 func startTheWorldWithSema(emitTraceEvent bool) int64 {
-	_g_ := getg()
-
-	_g_.m.locks++ // disable preemption because it can be holding p in a local var
+	mp := acquirem() // disable preemption because it can be holding p in a local var
 	if netpollinited() {
 		list := netpoll(false) // non-blocking
 		injectglist(&list)
@@ -1132,10 +1127,7 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 		wakep()
 	}
 
-	_g_.m.locks--
-	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
-		_g_.stackguard0 = stackPreempt
-	}
+	releasem(mp)
 
 	return startTime
 }
@@ -1464,7 +1456,7 @@ type cgothreadstart struct {
 //go:yeswritebarrierrec
 func allocm(_p_ *p, fn func()) *m {
 	_g_ := getg()
-	_g_.m.locks++ // disable GC because it can be called from sysmon
+	acquirem() // disable GC because it can be called from sysmon
 	if _g_.m.p == 0 {
 		acquirep(_p_) // temporarily borrow p for mallocs in this function
 	}
@@ -1505,10 +1497,7 @@ func allocm(_p_ *p, fn func()) *m {
 	if _p_ == _g_.m.p.ptr() {
 		releasep()
 	}
-	_g_.m.locks--
-	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
-		_g_.stackguard0 = stackPreempt
-	}
+	releasem(_g_.m)
 
 	return mp
 }
@@ -3255,7 +3244,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callergp *g, callerpc uintpt
 		_g_.m.throwing = -1 // do not dump full stacks
 		throw("go of nil func value")
 	}
-	_g_.m.locks++ // disable preemption because it can be holding p in a local var
+	acquirem() // disable preemption because it can be holding p in a local var
 	siz := narg
 	siz = (siz + 7) &^ 7
 
@@ -3350,10 +3339,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callergp *g, callerpc uintpt
 	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 && mainStarted {
 		wakep()
 	}
-	_g_.m.locks--
-	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
-		_g_.stackguard0 = stackPreempt
-	}
+	releasem(_g_.m)
 }
 
 // saveAncestors copies previous ancestors of the given caller g and
