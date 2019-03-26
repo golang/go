@@ -98,7 +98,7 @@ func resolverGetResources(ctx context.Context, hostname string, rtype, class int
 	var byteHostname = []byte(hostname)
 	var responseBuffer [512]byte
 
-	retcode = res_search(&byteHostname[0], class, rtype, &responseBuffer[0], len(responseBuffer))
+	retcode = res_search(&byteHostname[0], class, rtype, &responseBuffer[0], int32(len(responseBuffer)))
 	if retcode < 0 {
 		return nil, errors.New("could not complete domain resolution")
 	}
@@ -135,13 +135,9 @@ func parseHostsFromResources(resources []dnsmessage.Resource) ([]string, error) 
 		switch resources[i].Header.Type {
 		case dnsmessage.TypeA:
 			b := resources[i].Body.(*dnsmessage.AResource)
-
 			answers = append(answers, string(b.A[:]))
 		case dnsmessage.TypeAAAA:
 			b := resources[i].Body.(*dnsmessage.AAAAResource)
-			if !ok {
-				return nil, errors.New("could not parse AAAA resource record")
-			}
 			answers = append(answers, string(b.AAAA[:]))
 		default:
 			return nil, errors.New("could not parse an A or AAAA response from message buffer")
@@ -157,16 +153,10 @@ func parseIPsFromResources(resources []dnsmessage.Resource) ([]IPAddr, error) {
 		switch resources[i].Header.Type {
 		case dnsmessage.TypeA:
 			b := resources[i].Body.(*dnsmessage.AResource)
-			if !ok {
-				return nil, errors.New("could not parse A resource record")
-			}
 			ip := parseIPv4(string(b.A[:]))
 			answers = append(answers, IPAddr{IP: ip})
 		case dnsmessage.TypeAAAA:
 			b := resources[i].Body.(*dnsmessage.AAAAResource)
-			if !ok {
-				return nil, errors.New("could not parse AAAA resource record")
-			}
 			ip, zone := parseIPv6Zone(string(b.AAAA[:]))
 			answers = append(answers, IPAddr{IP: ip, Zone: zone})
 		default:
