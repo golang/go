@@ -667,8 +667,8 @@
 (SGTconst [c] (MOVWUreg _)) && c < 0 -> (MOVVconst [0])
 (SGTconst [c] (ANDconst [m] _)) && 0 <= m && m < c -> (MOVVconst [1])
 (SGTUconst [c] (ANDconst [m] _)) && uint64(m) < uint64(c) -> (MOVVconst [1])
-(SGTconst [c] (SRLVconst _ [d])) && 0 <= c && 0 < d && d <= 63 && 1<<uint64(64-d) <= c -> (MOVVconst [1])
-(SGTUconst [c] (SRLVconst _ [d])) && 0 < d && d <= 63 && 1<<uint64(64-d) <= uint64(c) -> (MOVVconst [1])
+(SGTconst [c] (SRLVconst _ [d])) && 0 <= c && 0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c) -> (MOVVconst [1])
+(SGTUconst [c] (SRLVconst _ [d])) && 0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c) -> (MOVVconst [1])
 
 // absorb constants into branches
 (EQ  (MOVVconst [0]) yes no) -> (First nil yes no)

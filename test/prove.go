@@ -488,6 +488,20 @@ func f18(b []int, x int, y uint) {
 	}
 }
 
+func f19() (e int64, err error) {
+	// Issue 29502: slice[:0] is incorrectly disproved.
+	var stack []int64
+	stack = append(stack, 123)
+	if len(stack) > 1 {
+		panic("too many elements")
+	}
+	last := len(stack) - 1
+	e = stack[last]
+	// Buggy compiler prints "Disproved Geq64" for the next line.
+	stack = stack[:last] // ERROR "Proved IsSliceInBounds"
+	return e, nil
+}
+
 func sm1(b []int, x int) {
 	// Test constant argument to slicemask.
 	useSlice(b[2:8]) // ERROR "Proved slicemask not needed$"
