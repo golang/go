@@ -1,3 +1,11 @@
 pkg text/scanner, const AllowNumberbars = 1024
 pkg text/scanner, const AllowNumberbars ideal-int
 pkg text/scanner, const GoTokens = 2036
+pkg unicode, const Version = "11.0.0"
+pkg unicode, var Dogra *RangeTable
+pkg unicode, var Gunjala_Gondi *RangeTable
+pkg unicode, var Hanifi_Rohingya *RangeTable
+pkg unicode, var Makasar *RangeTable
+pkg unicode, var Medefaidrin *RangeTable
+pkg unicode, var Old_Sogdian *RangeTable
+pkg unicode, var Sogdian *RangeTable
