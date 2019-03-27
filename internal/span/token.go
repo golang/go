@@ -65,18 +65,31 @@ func (r Range) Span() (Span, error) {
 		return Span{}, fmt.Errorf("file not found in FileSet")
 	}
 	s := Span{v: span{URI: FileURI(f.Name())}}
-	if !r.Start.IsValid() {
-		return Span{}, fmt.Errorf("invalid position for start of range")
+	var err error
+	s.v.Start.Offset, err = offset(f, r.Start)
+	if err != nil {
+		return Span{}, err
 	}
-	s.v.Start.Offset = f.Offset(r.Start)
 	if r.End.IsValid() {
-		s.v.End.Offset = f.Offset(r.End)
+		s.v.End.Offset, err = offset(f, r.End)
+		if err != nil {
+			return Span{}, err
+		}
 	}
 	s.v.Start.clean()
 	s.v.End.clean()
 	s.v.clean()
 	converter := NewTokenConverter(r.FileSet, f)
 	return s.WithPosition(converter)
+}
+
+// offset is a copy of the Offset function in go/token, but with the adjustment
+// that it does not panic on invalid positions.
+func offset(f *token.File, pos token.Pos) (int, error) {
+	if int(pos) < f.Base() || int(pos) > f.Base()+f.Size() {
+		return 0, fmt.Errorf("invalid pos")
+	}
+	return int(pos) - f.Base(), nil
 }
 
 // Range converts a Span to a Range that represents the Span for the supplied
@@ -121,5 +134,5 @@ func (l *TokenConverter) ToOffset(line, col int) (int, error) {
 	// we assume that column is in bytes here, and that the first byte of a
 	// line is at column 1
 	pos += token.Pos(col - 1)
-	return l.file.Offset(pos), nil
+	return offset(l.file, pos)
 }
