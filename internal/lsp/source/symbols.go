@@ -115,6 +115,9 @@ func varSymbol(decl ast.Node, name *ast.Ident, obj types.Object, fset *token.Fil
 		Name: obj.Name(),
 		Kind: VariableSymbol,
 	}
+	if _, ok := obj.(*types.Const); ok {
+		s.Kind = ConstantSymbol
+	}
 	if span, err := nodeSpan(decl, fset); err == nil {
 		s.Span = span
 	}
