@@ -311,7 +311,9 @@ const (
 	colBits, colMax       = 32 - lineBits - xlogueBits - isStmtBits, 1<<colBits - 1
 
 	isStmtShift = 0
+	isStmtMask  = isStmtMax << isStmtShift
 	xlogueShift = isStmtBits + isStmtShift
+	xlogueMask  = xlogueMax << xlogueShift
 	colShift    = xlogueBits + xlogueShift
 	lineShift   = colBits + colShift
 )
@@ -443,5 +445,5 @@ func (x lico) lineNumberHTML() string {
 }
 
 func (x lico) atColumn1() lico {
-	return makeLico(x.Line(), 1)
+	return makeLico(x.Line(), 1) | (x & (isStmtMask | xlogueMask))
 }
