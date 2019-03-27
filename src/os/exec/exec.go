@@ -47,6 +47,8 @@ func (e *Error) Error() string {
 	return "exec: " + strconv.Quote(e.Name) + ": " + e.Err.Error()
 }
 
+func (e *Error) Unwrap() error { return e.Err }
+
 // Cmd represents an external command being prepared or run.
 //
 // A Cmd cannot be reused after calling its Run, Output or CombinedOutput

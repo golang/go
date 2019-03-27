@@ -6,6 +6,7 @@ package net
 
 import (
 	"io"
+	"os"
 	"sync"
 	"time"
 )
@@ -83,6 +84,10 @@ type timeoutError struct{}
 func (timeoutError) Error() string   { return "deadline exceeded" }
 func (timeoutError) Timeout() bool   { return true }
 func (timeoutError) Temporary() bool { return true }
+
+func (timeoutError) Is(target error) bool {
+	return target == os.ErrTemporary || target == os.ErrTimeout
+}
 
 type pipeAddr struct{}
 

@@ -13,6 +13,7 @@ package url
 import (
 	"errors"
 	"fmt"
+	"internal/oserror"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,25 +26,10 @@ type Error struct {
 	Err error
 }
 
-func (e *Error) Error() string { return e.Op + " " + e.URL + ": " + e.Err.Error() }
-
-type timeout interface {
-	Timeout() bool
-}
-
-func (e *Error) Timeout() bool {
-	t, ok := e.Err.(timeout)
-	return ok && t.Timeout()
-}
-
-type temporary interface {
-	Temporary() bool
-}
-
-func (e *Error) Temporary() bool {
-	t, ok := e.Err.(temporary)
-	return ok && t.Temporary()
-}
+func (e *Error) Unwrap() error   { return e.Err }
+func (e *Error) Error() string   { return e.Op + " " + e.URL + ": " + e.Err.Error() }
+func (e *Error) Timeout() bool   { return oserror.IsTimeout(e.Err) }
+func (e *Error) Temporary() bool { return oserror.IsTemporary(e.Err) }
 
 func ishex(c byte) bool {
 	switch {

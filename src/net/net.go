@@ -448,6 +448,8 @@ type OpError struct {
 	Err error
 }
 
+func (e *OpError) Unwrap() error { return e.Err }
+
 func (e *OpError) Error() string {
 	if e == nil {
 		return "<nil>"
@@ -514,6 +516,16 @@ func (e *OpError) Temporary() bool {
 	return ok && t.Temporary()
 }
 
+func (e *OpError) Is(target error) bool {
+	switch target {
+	case os.ErrTemporary:
+		return e.Temporary()
+	case os.ErrTimeout:
+		return e.Timeout()
+	}
+	return false
+}
+
 // A ParseError is the error type of literal network address parsers.
 type ParseError struct {
 	// Type is the type of string that was expected, such as
@@ -563,6 +575,7 @@ type DNSConfigError struct {
 	Err error
 }
 
+func (e *DNSConfigError) Unwrap() error   { return e.Err }
 func (e *DNSConfigError) Error() string   { return "error reading DNS config: " + e.Err.Error() }
 func (e *DNSConfigError) Timeout() bool   { return false }
 func (e *DNSConfigError) Temporary() bool { return false }
@@ -603,6 +616,16 @@ func (e *DNSError) Timeout() bool { return e.IsTimeout }
 // This is not always known; a DNS lookup may fail due to a temporary
 // error and return a DNSError for which Temporary returns false.
 func (e *DNSError) Temporary() bool { return e.IsTimeout || e.IsTemporary }
+
+func (e *DNSError) Is(target error) bool {
+	switch target {
+	case os.ErrTemporary:
+		return e.Temporary()
+	case os.ErrTimeout:
+		return e.Timeout()
+	}
+	return false
+}
 
 type writerOnly struct {
 	io.Writer

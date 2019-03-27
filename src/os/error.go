@@ -23,6 +23,7 @@ var (
 	ErrNotExist   = errNotExist()   // "file does not exist"
 	ErrClosed     = errClosed()     // "file already closed"
 	ErrTimeout    = errTimeout()    // "deadline exceeded"
+	ErrTemporary  = errTemporary()  // "temporary error"
 	ErrNoDeadline = errNoDeadline() // "file type does not support deadline"
 )
 
@@ -32,6 +33,7 @@ func errExist() error      { return oserror.ErrExist }
 func errNotExist() error   { return oserror.ErrNotExist }
 func errClosed() error     { return oserror.ErrClosed }
 func errTimeout() error    { return oserror.ErrTimeout }
+func errTemporary() error  { return oserror.ErrTemporary }
 func errNoDeadline() error { return poll.ErrNoDeadline }
 
 type timeout interface {

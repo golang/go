@@ -121,6 +121,10 @@ func (e ExecError) Error() string {
 	return e.Err.Error()
 }
 
+func (e ExecError) Unwrap() error {
+	return e.Err
+}
+
 // errorf records an ExecError and terminates processing.
 func (s *state) errorf(format string, args ...interface{}) {
 	name := doublePercent(s.tmpl.Name())
