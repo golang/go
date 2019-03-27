@@ -3956,12 +3956,12 @@ func procresize(nprocs int32) *p {
 				pp.mcache = allocmcache()
 			}
 		}
-		if raceenabled && pp.racectx == 0 {
+		if raceenabled && pp.raceprocctx == 0 {
 			if old == 0 && i == 0 {
-				pp.racectx = raceprocctx0
+				pp.raceprocctx = raceprocctx0
 				raceprocctx0 = 0 // bootstrap
 			} else {
-				pp.racectx = raceproccreate()
+				pp.raceprocctx = raceproccreate()
 			}
 		}
 	}
@@ -4019,8 +4019,8 @@ func procresize(nprocs int32) *p {
 		gfpurge(p)
 		traceProcFree(p)
 		if raceenabled {
-			raceprocdestroy(p.racectx)
-			p.racectx = 0
+			raceprocdestroy(p.raceprocctx)
+			p.raceprocctx = 0
 		}
 		p.gcAssistTime = 0
 		p.status = _Pdead

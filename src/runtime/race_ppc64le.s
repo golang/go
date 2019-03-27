@@ -455,7 +455,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $-8
 	MOVD    0(R13)(R10*1), g
 	MOVD	g_m(g), R3
 	MOVD	m_p(R3), R3
-	MOVD	p_racectx(R3), R3
+	MOVD	p_raceprocctx(R3), R3
 	MOVD	R3, (R4)
 	MOVD	R9, g		// restore R30 ??
 	RET
