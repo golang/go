@@ -28,6 +28,10 @@ import (
 type ImportMissingError struct {
 	ImportPath string
 	Module     module.Version
+
+	// newMissingVersion is set to a newer version of Module if one is present
+	// in the build list. When set, we can't automatically upgrade.
+	newMissingVersion string
 }
 
 func (e *ImportMissingError) Error() string {
@@ -189,7 +193,18 @@ func Import(path string) (m module.Version, dir string, err error) {
 		}
 		return module.Version{}, "", &ImportMissingError{ImportPath: path}
 	}
-	return m, "", &ImportMissingError{ImportPath: path, Module: m}
+	newMissingVersion := ""
+	for _, bm := range buildList {
+		if bm.Path == m.Path && semver.Compare(bm.Version, m.Version) > 0 {
+			// This typically happens when a package is present at the "@latest"
+			// version (e.g., v1.0.0) of a module, but we have a newer version
+			// of the same module in the build list (e.g., v1.0.1-beta), and
+			// the package is not present there.
+			newMissingVersion = bm.Version
+			break
+		}
+	}
+	return m, "", &ImportMissingError{ImportPath: path, Module: m, newMissingVersion: newMissingVersion}
 }
 
 // maybeInModule reports whether, syntactically,
