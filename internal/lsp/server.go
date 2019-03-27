@@ -92,7 +92,7 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 
 	var rootURI span.URI
 	if params.RootURI != "" {
-		rootURI = span.URI(params.RootURI)
+		rootURI = span.NewURI(params.RootURI)
 	}
 	rootPath, err := rootURI.Filename()
 	if err != nil {
@@ -186,7 +186,7 @@ func (s *server) ExecuteCommand(context.Context, *protocol.ExecuteCommandParams)
 }
 
 func (s *server) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
-	return s.cacheAndDiagnose(ctx, span.URI(params.TextDocument.URI), params.TextDocument.Text)
+	return s.cacheAndDiagnose(ctx, span.NewURI(params.TextDocument.URI), params.TextDocument.Text)
 }
 
 func (s *server) applyChanges(ctx context.Context, params *protocol.DidChangeTextDocumentParams) (string, error) {
@@ -199,7 +199,7 @@ func (s *server) applyChanges(ctx context.Context, params *protocol.DidChangeTex
 		return change.Text, nil
 	}
 
-	file, m, err := newColumnMap(ctx, s.view, span.URI(params.TextDocument.URI))
+	file, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
 	if err != nil {
 		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found")
 	}
@@ -246,7 +246,7 @@ func (s *server) DidChange(ctx context.Context, params *protocol.DidChangeTextDo
 		}
 		text = change.Text
 	}
-	return s.cacheAndDiagnose(ctx, span.URI(params.TextDocument.URI), text)
+	return s.cacheAndDiagnose(ctx, span.NewURI(params.TextDocument.URI), text)
 }
 
 func (s *server) WillSave(context.Context, *protocol.WillSaveTextDocumentParams) error {
@@ -262,12 +262,12 @@ func (s *server) DidSave(context.Context, *protocol.DidSaveTextDocumentParams) e
 }
 
 func (s *server) DidClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
-	s.setContent(ctx, span.URI(params.TextDocument.URI), nil)
+	s.setContent(ctx, span.NewURI(params.TextDocument.URI), nil)
 	return nil
 }
 
 func (s *server) Completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.URI(params.TextDocument.URI))
+	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +294,7 @@ func (s *server) CompletionResolve(context.Context, *protocol.CompletionItem) (*
 }
 
 func (s *server) Hover(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.Hover, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.URI(params.TextDocument.URI))
+	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
 	if err != nil {
 		return nil, err
 	}
@@ -333,7 +333,7 @@ func (s *server) Hover(ctx context.Context, params *protocol.TextDocumentPositio
 }
 
 func (s *server) SignatureHelp(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.SignatureHelp, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.URI(params.TextDocument.URI))
+	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +353,7 @@ func (s *server) SignatureHelp(ctx context.Context, params *protocol.TextDocumen
 }
 
 func (s *server) Definition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.URI(params.TextDocument.URI))
+	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +385,7 @@ func (s *server) Definition(ctx context.Context, params *protocol.TextDocumentPo
 }
 
 func (s *server) TypeDefinition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.URI(params.TextDocument.URI))
+	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +425,7 @@ func (s *server) References(context.Context, *protocol.ReferenceParams) ([]proto
 }
 
 func (s *server) DocumentHighlight(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.DocumentHighlight, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.URI(params.TextDocument.URI))
+	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
 	if err != nil {
 		return nil, err
 	}
@@ -445,7 +445,7 @@ func (s *server) DocumentHighlight(ctx context.Context, params *protocol.TextDoc
 }
 
 func (s *server) DocumentSymbol(ctx context.Context, params *protocol.DocumentSymbolParams) ([]protocol.DocumentSymbol, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.URI(params.TextDocument.URI))
+	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +454,7 @@ func (s *server) DocumentSymbol(ctx context.Context, params *protocol.DocumentSy
 }
 
 func (s *server) CodeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
-	_, m, err := newColumnMap(ctx, s.view, span.URI(params.TextDocument.URI))
+	_, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
 	if err != nil {
 		return nil, err
 	}
@@ -509,7 +509,7 @@ func (s *server) Formatting(ctx context.Context, params *protocol.DocumentFormat
 }
 
 func (s *server) RangeFormatting(ctx context.Context, params *protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
-	_, m, err := newColumnMap(ctx, s.view, span.URI(params.TextDocument.URI))
+	_, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
 	if err != nil {
 		return nil, err
 	}

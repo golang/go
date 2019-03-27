@@ -45,6 +45,9 @@ func filename(uri URI) (string, error) {
 // NewURI returns a span URI for the string.
 // It will attempt to detect if the string is a file path or uri.
 func NewURI(s string) URI {
+	if u, err := url.PathUnescape(s); err == nil {
+		s = u
+	}
 	if strings.HasPrefix(s, fileScheme+"://") {
 		return URI(s)
 	}
