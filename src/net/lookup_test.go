@@ -254,14 +254,11 @@ func TestLookupGmailTXT(t *testing.T) {
 	}
 }
 
-var lookupGooglePublicDNSAddrTests = []struct {
-	addr, name string
-}{
-	{"8.8.8.8", ".google.com."},
-	{"8.8.4.4", ".google.com."},
-
-	{"2001:4860:4860::8888", ".google.com."},
-	{"2001:4860:4860::8844", ".google.com."},
+var lookupGooglePublicDNSAddrTests = []string{
+	"8.8.8.8",
+	"8.8.4.4",
+	"2001:4860:4860::8888",
+	"2001:4860:4860::8844",
 }
 
 func TestLookupGooglePublicDNSAddr(t *testing.T) {
@@ -273,8 +270,8 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
 
 	defer dnsWaitGroup.Wait()
 
-	for _, tt := range lookupGooglePublicDNSAddrTests {
-		names, err := LookupAddr(tt.addr)
+	for _, ip := range lookupGooglePublicDNSAddrTests {
+		names, err := LookupAddr(ip)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -282,8 +279,8 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
 			t.Error("got no record")
 		}
 		for _, name := range names {
-			if !strings.HasSuffix(name, tt.name) {
-				t.Errorf("got %s; want a record containing %s", name, tt.name)
+			if !strings.HasSuffix(name, ".google.com.") && !strings.HasSuffix(name, ".google.") {
+				t.Errorf("got %q; want a record ending in .google.com. or .google.", name)
 			}
 		}
 	}
@@ -659,8 +656,8 @@ func testDots(t *testing.T, mode string) {
 		t.Errorf("LookupAddr(8.8.8.8): %v (mode=%v)", err, mode)
 	} else {
 		for _, name := range names {
-			if !strings.HasSuffix(name, ".google.com.") {
-				t.Errorf("LookupAddr(8.8.8.8) = %v, want names ending in .google.com. with trailing dot (mode=%v)", names, mode)
+			if !strings.HasSuffix(name, ".google.com.") && !strings.HasSuffix(name, ".google.") {
+				t.Errorf("LookupAddr(8.8.8.8) = %v, want names ending in .google.com or .google with trailing dot (mode=%v)", names, mode)
 				break
 			}
 		}
