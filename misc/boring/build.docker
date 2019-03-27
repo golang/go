@@ -43,12 +43,12 @@ dversion=$(echo "$version" | sed 's/^go//')
 docker build --pull -t goboring/golang:$dversion $dir
 docker run goboring/golang:$dversion go version
 docker run goboring/golang:$dversion go tool nm /usr/local/go/bin/go >$dir/nm
-if ! grep crypto/sha1.boringNewSHA1 $dir/nm >/dev/null; then
-	echo 'built docker image but did NOT find sha1.boringNewSHA1 in go command!' >&2
+if ! grep crypto/internal/boring/sig.BoringCrypto $dir/nm >/dev/null; then
+	echo 'built docker image but did NOT find sig.BoringCrypto in go command!' >&2
 	exit 2
 fi
-if egrep 'crypto/sha1\.\(\*digest\)' $dir/nm >/dev/null; then
-	echo 'built docker image but DID find sha1.(*digest) in go command unexpectedly!' >&2
+if egrep 'crypto/sha256\.\(\*digest\)' $dir/nm >/dev/null; then
+	echo 'built docker image but DID find sha256.(*digest) in go command unexpectedly!' >&2
 	exit 2
 fi
 docker push goboring/golang:$dversion

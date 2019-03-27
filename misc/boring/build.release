@@ -56,12 +56,12 @@ echo >&2
 git log -n1 "$commit" >&2
 echo >&2
 
-# Build the release tool in a temporary GOPATH.
+# Build the release tool in a temporary directory.
 dir=$(mktemp -d)
 trap "rm -rf $dir" EXIT
-export GOPATH="$dir"
+export GO111MODULE=on
 export GOBIN="$dir"
-go get -u golang.org/x/build/cmd/release
+(cd "$dir"; go get golang.org/x/build/cmd/release)
 
 # Build the release.
 sha() {
@@ -84,12 +84,12 @@ sha256src=$(sha "$outputsrc" | awk '{print $1}')
 trap "rm -f /tmp/go.release.$$ /tmp/go.nm.$$" EXIT
 tar -xzf "$output" -O go/bin/go >/tmp/go.release.$$
 go tool nm /tmp/go.release.$$ >/tmp/go.nm.$$
-if ! grep crypto/sha1.boringNewSHA1 /tmp/go.nm.$$ >/dev/null; then
-	echo 'built release but did NOT find sha1.boringNewSHA1 in go command!' >&2
+if ! grep crypto/internal/boring/sig.BoringCrypto /tmp/go.nm.$$ >/dev/null; then
+	echo 'built release but did NOT find sig.BoringCrypto in go command!' >&2
 	exit 2
 fi
-if egrep 'crypto/sha1\.\(\*digest\)' /tmp/go.nm.$$ >/dev/null; then
-	echo 'built release but DID find sha1.(*digest) in go command unexpectedly!' >&2
+if egrep 'crypto/sha256\.\(\*digest\)' /tmp/go.nm.$$ >/dev/null; then
+	echo 'built release but DID find sha256.(*digest) in go command unexpectedly!' >&2
 	exit 2
 fi
 
