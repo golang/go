@@ -197,6 +197,10 @@ len0:
 
 // func shlVU(z, x []Word, s uint) (c Word)
 TEXT ·shlVU(SB),NOSPLIT,$0
+	// Disable assembly for now - it is subtly incorrect.
+	// See #31084 for a test that fails using this code.
+	B	·shlVU_g(SB)
+
 	MOVD	z+0(FP), R0
 	MOVD	z_len+8(FP), R1
 	MOVD	x+24(FP), R2
