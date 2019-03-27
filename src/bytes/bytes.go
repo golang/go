@@ -788,6 +788,11 @@ func TrimSpace(s []byte) []byte {
 	// At this point s[start:stop] starts and ends with an ASCII
 	// non-space bytes, so we're done. Non-ASCII cases have already
 	// been handled above.
+	if start == stop {
+		// Special case to preserve previous TrimLeftFunc behavior,
+		// returning nil instead of empty slice if all spaces.
+		return nil
+	}
 	return s[start:stop]
 }
 

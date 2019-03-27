@@ -909,54 +909,65 @@ func TestFieldsFunc(t *testing.T) {
 }
 
 // Test case for any function which accepts and returns a byte slice.
-// For ease of creation, we write the byte slices as strings.
+// For ease of creation, we write the input byte slice as a string.
 type StringTest struct {
-	in, out string
+	in  string
+	out []byte
 }
 
 var upperTests = []StringTest{
-	{"", ""},
-	{"abc", "ABC"},
-	{"AbC123", "ABC123"},
-	{"azAZ09_", "AZAZ09_"},
-	{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"}, // grows one byte per char
+	{"", []byte("")},
+	{"abc", []byte("ABC")},
+	{"AbC123", []byte("ABC123")},
+	{"azAZ09_", []byte("AZAZ09_")},
+	{"\u0250\u0250\u0250\u0250\u0250", []byte("\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F")}, // grows one byte per char
 }
 
 var lowerTests = []StringTest{
-	{"", ""},
-	{"abc", "abc"},
-	{"AbC123", "abc123"},
-	{"azAZ09_", "azaz09_"},
-	{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"}, // shrinks one byte per char
+	{"", []byte("")},
+	{"abc", []byte("abc")},
+	{"AbC123", []byte("abc123")},
+	{"azAZ09_", []byte("azaz09_")},
+	{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", []byte("\u0251\u0251\u0251\u0251\u0251")}, // shrinks one byte per char
 }
 
 const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
 
 var trimSpaceTests = []StringTest{
-	{"", ""},
-	{"abc", "abc"},
-	{space + "abc" + space, "abc"},
-	{" ", ""},
-	{" \t\r\n \t\t\r\r\n\n ", ""},
-	{" \t\r\n x\t\t\r\r\n\n ", "x"},
-	{" \u2000\t\r\n x\t\t\r\r\ny\n \u3000", "x\t\t\r\r\ny"},
-	{"1 \t\r\n2", "1 \t\r\n2"},
-	{" x\x80", "x\x80"},
-	{" x\xc0", "x\xc0"},
-	{"x \xc0\xc0 ", "x \xc0\xc0"},
-	{"x \xc0", "x \xc0"},
-	{"x \xc0 ", "x \xc0"},
-	{"x \xc0\xc0 ", "x \xc0\xc0"},
-	{"x ☺\xc0\xc0 ", "x ☺\xc0\xc0"},
-	{"x ☺ ", "x ☺"},
+	{"", nil},
+	{"  a", []byte("a")},
+	{"b  ", []byte("b")},
+	{"abc", []byte("abc")},
+	{space + "abc" + space, []byte("abc")},
+	{" ", nil},
+	{"\u3000 ", nil},
+	{" \u3000", nil},
+	{" \t\r\n \t\t\r\r\n\n ", nil},
+	{" \t\r\n x\t\t\r\r\n\n ", []byte("x")},
+	{" \u2000\t\r\n x\t\t\r\r\ny\n \u3000", []byte("x\t\t\r\r\ny")},
+	{"1 \t\r\n2", []byte("1 \t\r\n2")},
+	{" x\x80", []byte("x\x80")},
+	{" x\xc0", []byte("x\xc0")},
+	{"x \xc0\xc0 ", []byte("x \xc0\xc0")},
+	{"x \xc0", []byte("x \xc0")},
+	{"x \xc0 ", []byte("x \xc0")},
+	{"x \xc0\xc0 ", []byte("x \xc0\xc0")},
+	{"x ☺\xc0\xc0 ", []byte("x ☺\xc0\xc0")},
+	{"x ☺ ", []byte("x ☺")},
 }
 
 // Execute f on each test case.  funcName should be the name of f; it's used
 // in failure reports.
 func runStringTests(t *testing.T, f func([]byte) []byte, funcName string, testCases []StringTest) {
 	for _, tc := range testCases {
-		actual := string(f([]byte(tc.in)))
-		if actual != tc.out {
+		actual := f([]byte(tc.in))
+		if actual == nil && tc.out != nil {
+			t.Errorf("%s(%q) = nil; want %q", funcName, tc.in, tc.out)
+		}
+		if actual != nil && tc.out == nil {
+			t.Errorf("%s(%q) = %q; want nil", funcName, tc.in, actual)
+		}
+		if !Equal(actual, tc.out) {
 			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out)
 		}
 	}
