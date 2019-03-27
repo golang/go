@@ -838,15 +838,13 @@ Outer:
 		case ODIV:
 			if y.CmpInt64(0) == 0 {
 				yyerror("division by zero")
-				u.SetOverflow()
-				break
+				return Val{}
 			}
 			u.Quo(y)
 		case OMOD:
 			if y.CmpInt64(0) == 0 {
 				yyerror("division by zero")
-				u.SetOverflow()
-				break
+				return Val{}
 			}
 			u.Rem(y)
 		case OOR:
@@ -877,13 +875,13 @@ Outer:
 		case ODIV:
 			if y.CmpFloat64(0) == 0 {
 				yyerror("division by zero")
-				u.SetFloat64(1)
-				break
+				return Val{}
 			}
 			u.Quo(y)
-		case OMOD:
-			// TODO(mdempsky): Move to typecheck.
-			yyerror("illegal constant expression: floating-point %% operation")
+		case OMOD, OOR, OAND, OANDNOT, OXOR:
+			// TODO(mdempsky): Move to typecheck; see #31060.
+			yyerror("invalid operation: operator %v not defined on untyped float", op)
+			return Val{}
 		default:
 			break Outer
 		}
@@ -907,9 +905,12 @@ Outer:
 		case ODIV:
 			if !u.Div(y) {
 				yyerror("complex division by zero")
-				u.Real.SetFloat64(1)
-				u.Imag.SetFloat64(0)
+				return Val{}
 			}
+		case OMOD, OOR, OAND, OANDNOT, OXOR:
+			// TODO(mdempsky): Move to typecheck; see #31060.
+			yyerror("invalid operation: operator %v not defined on untyped complex", op)
+			return Val{}
 		default:
 			break Outer
 		}
@@ -956,19 +957,31 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
 		}
 
 	case OBITNOT:
-		x := x.U.(*Mpint)
+		switch x.Ctype() {
+		case CTINT, CTRUNE:
+			x := x.U.(*Mpint)
 
-		u := new(Mpint)
-		u.Rune = x.Rune
-		if t.IsSigned() || t.IsUntyped() {
-			// Signed values change sign.
-			u.SetInt64(-1)
-		} else {
-			// Unsigned values invert their bits.
-			u.Set(maxintval[t.Etype])
+			u := new(Mpint)
+			u.Rune = x.Rune
+			if t.IsSigned() || t.IsUntyped() {
+				// Signed values change sign.
+				u.SetInt64(-1)
+			} else {
+				// Unsigned values invert their bits.
+				u.Set(maxintval[t.Etype])
+			}
+			u.Xor(x)
+			return Val{U: u}
+
+		case CTFLT:
+			// TODO(mdempsky): Move to typecheck; see #31060.
+			yyerror("invalid operation: operator %v not defined on untyped float", op)
+			return Val{}
+		case CTCPLX:
+			// TODO(mdempsky): Move to typecheck; see #31060.
+			yyerror("invalid operation: operator %v not defined on untyped complex", op)
+			return Val{}
 		}
-		u.Xor(x)
-		return Val{U: u}
 
 	case ONOT:
 		return Val{U: !x.U.(bool)}
@@ -1001,6 +1014,12 @@ func shiftOp(x Val, op Op, y Val) Val {
 
 // setconst rewrites n as an OLITERAL with value v.
 func setconst(n *Node, v Val) {
+	// If constant folding failed, mark n as broken and give up.
+	if v.U == nil {
+		n.Type = nil
+		return
+	}
+
 	// Ensure n.Orig still points to a semantically-equivalent
 	// expression after we rewrite n into a constant.
 	if n.Orig == n {
