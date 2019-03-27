@@ -58,7 +58,7 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 	}
 	pkg := f.GetPackage(ctx)
 	if pkg == nil {
-		return nil, fmt.Errorf("no package found for %v", f.URI())
+		return nil, fmt.Errorf("diagnostics: no package found for %v", f.URI())
 	}
 	// Prepare the reports we will send for this package.
 	reports := make(map[span.URI][]Diagnostic)

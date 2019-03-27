@@ -19,7 +19,7 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func (v *View) parse(ctx context.Context, uri span.URI) ([]packages.Error, error) {
+func (v *View) parse(ctx context.Context, f *File) ([]packages.Error, error) {
 	v.mcache.mu.Lock()
 	defer v.mcache.mu.Unlock()
 
@@ -28,12 +28,6 @@ func (v *View) parse(ctx context.Context, uri span.URI) ([]packages.Error, error
 		return nil, err
 	}
 
-	f := v.files[uri]
-
-	// This should never happen.
-	if f == nil {
-		return nil, fmt.Errorf("no file for %v", uri)
-	}
 	// If the package for the file has not been invalidated by the application
 	// of the pending changes, there is no need to continue.
 	if f.isPopulated() {
@@ -45,7 +39,7 @@ func (v *View) parse(ctx context.Context, uri span.URI) ([]packages.Error, error
 		return errs, err
 	}
 	if f.meta == nil {
-		return nil, fmt.Errorf("no metadata found for %v", uri)
+		return nil, fmt.Errorf("no metadata found for %v", f.filename)
 	}
 	imp := &importer{
 		view:     v,
@@ -65,7 +59,7 @@ func (v *View) parse(ctx context.Context, uri span.URI) ([]packages.Error, error
 
 	// If we still have not found the package for the file, something is wrong.
 	if f.pkg == nil {
-		return nil, fmt.Errorf("no package found for %v", uri)
+		return nil, fmt.Errorf("parse: no package found for %v", f.filename)
 	}
 	return nil, nil
 }
@@ -83,7 +77,11 @@ func (v *View) cachePackage(pkg *Package) {
 			continue
 		}
 		fURI := span.FileURI(tok.Name())
-		f := v.getFile(fURI)
+		f, err := v.getFile(fURI)
+		if err != nil {
+			log.Printf("no file: %v", err)
+			continue
+		}
 		f.token = tok
 		f.ast = file
 		f.imports = f.ast.Imports
@@ -92,17 +90,13 @@ func (v *View) cachePackage(pkg *Package) {
 }
 
 func (v *View) checkMetadata(ctx context.Context, f *File) ([]packages.Error, error) {
-	filename, err := f.uri.Filename()
-	if err != nil {
-		return nil, err
-	}
-	if v.reparseImports(ctx, f, filename) {
+	if v.reparseImports(ctx, f, f.filename) {
 		cfg := v.Config
 		cfg.Mode = packages.LoadImports
-		pkgs, err := packages.Load(&cfg, fmt.Sprintf("file=%s", filename))
+		pkgs, err := packages.Load(&cfg, fmt.Sprintf("file=%s", f.filename))
 		if len(pkgs) == 0 {
 			if err == nil {
-				err = fmt.Errorf("no packages found for %s", filename)
+				err = fmt.Errorf("no packages found for %s", f.filename)
 			}
 			return nil, err
 		}
@@ -156,7 +150,7 @@ func (v *View) link(pkgPath string, pkg *packages.Package, parent *metadata) *me
 	m.name = pkg.Name
 	m.files = pkg.CompiledGoFiles
 	for _, filename := range m.files {
-		if f, ok := v.files[span.FileURI(filename)]; ok {
+		if f := v.findFile(span.FileURI(filename)); f != nil {
 			f.meta = m
 		}
 	}
@@ -347,7 +341,7 @@ func (v *View) parseFiles(filenames []string) ([]*ast.File, []error) {
 		}
 
 		// First, check if we have already cached an AST for this file.
-		f := v.files[span.FileURI(filename)]
+		f := v.findFile(span.FileURI(filename))
 		var fAST *ast.File
 		if f != nil {
 			fAST = f.ast

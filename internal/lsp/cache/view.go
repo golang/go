@@ -7,6 +7,7 @@ package cache
 import (
 	"context"
 	"go/token"
+	"os"
 	"sync"
 
 	"golang.org/x/tools/go/packages"
@@ -30,8 +31,10 @@ type View struct {
 	// go/packages API. It is shared across all views.
 	Config packages.Config
 
-	// files caches information for opened files in a view.
-	files map[span.URI]*File
+	// keep track of files by uri and by basename, a single file may be mapped
+	// to multiple uris, and the same basename may map to multiple files
+	filesByURI  map[span.URI]*File
+	filesByBase map[string][]*File
 
 	// contentChanges saves the content changes for a given state of the view.
 	// When type information is requested by the view, all of the dirty changes
@@ -76,7 +79,8 @@ func NewView(config *packages.Config) *View {
 		backgroundCtx:  ctx,
 		cancel:         cancel,
 		Config:         *config,
-		files:          make(map[span.URI]*File),
+		filesByURI:     make(map[span.URI]*File),
+		filesByBase:    make(map[string][]*File),
 		contentChanges: make(map[span.URI]func()),
 		mcache: &metadataCache{
 			packages: make(map[string]*metadata),
@@ -137,7 +141,10 @@ func (v *View) applyContentChanges(ctx context.Context) error {
 // setContent applies a content update for a given file. It assumes that the
 // caller is holding the view's mutex.
 func (v *View) applyContentChange(uri span.URI, content []byte) {
-	f := v.getFile(uri)
+	f, err := v.getFile(uri)
+	if err != nil {
+		return
+	}
 	f.content = content
 
 	// TODO(rstambler): Should we recompute these here?
@@ -153,16 +160,12 @@ func (v *View) applyContentChange(uri span.URI, content []byte) {
 	case f.active && content == nil:
 		// The file was active, so we need to forget its content.
 		f.active = false
-		if filename, err := f.uri.Filename(); err == nil {
-			delete(f.view.Config.Overlay, filename)
-		}
+		delete(f.view.Config.Overlay, f.filename)
 		f.content = nil
 	case content != nil:
 		// This is an active overlay, so we update the map.
 		f.active = true
-		if filename, err := f.uri.Filename(); err == nil {
-			f.view.Config.Overlay[filename] = f.content
-		}
+		f.view.Config.Overlay[f.filename] = f.content
 	}
 }
 
@@ -180,7 +183,7 @@ func (v *View) remove(pkgPath string) {
 	// All of the files in the package may also be holding a pointer to the
 	// invalidated package.
 	for _, filename := range m.files {
-		if f, ok := v.files[span.FileURI(filename)]; ok {
+		if f := v.findFile(span.FileURI(filename)); f != nil {
 			f.pkg = nil
 		}
 	}
@@ -197,18 +200,61 @@ func (v *View) GetFile(ctx context.Context, uri span.URI) (source.File, error) {
 		return nil, ctx.Err()
 	}
 
-	return v.getFile(uri), nil
+	return v.getFile(uri)
 }
 
 // getFile is the unlocked internal implementation of GetFile.
-func (v *View) getFile(uri span.URI) *File {
-	f, found := v.files[uri]
-	if !found {
-		f = &File{
-			uri:  uri,
-			view: v,
-		}
-		v.files[uri] = f
+func (v *View) getFile(uri span.URI) (*File, error) {
+	if f := v.findFile(uri); f != nil {
+		return f, nil
 	}
-	return f
+	filename, err := uri.Filename()
+	if err != nil {
+		return nil, err
+	}
+	f := &File{
+		view:     v,
+		filename: filename,
+	}
+	v.mapFile(uri, f)
+	return f, nil
+}
+
+func (v *View) findFile(uri span.URI) *File {
+	if f := v.filesByURI[uri]; f != nil {
+		// a perfect match
+		return f
+	}
+	// no exact match stored, time to do some real work
+	// check for any files with the same basename
+	fname, err := uri.Filename()
+	if err != nil {
+		return nil
+	}
+	basename := basename(fname)
+	if candidates := v.filesByBase[basename]; candidates != nil {
+		pathStat, err := os.Stat(fname)
+		if err == nil {
+			return nil
+		}
+		for _, c := range candidates {
+			if cStat, err := os.Stat(c.filename); err == nil {
+				if os.SameFile(pathStat, cStat) {
+					// same file, map it
+					v.mapFile(uri, c)
+					return c
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (v *View) mapFile(uri span.URI, f *File) {
+	v.filesByURI[uri] = f
+	f.uris = append(f.uris, uri)
+	if f.basename == "" {
+		f.basename = basename(f.filename)
+		v.filesByBase[f.basename] = append(v.filesByBase[f.basename], f)
+	}
 }
