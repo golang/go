@@ -68,6 +68,7 @@ var builtinTypesLower = map[string]string{
 	".png":  "image/png",
 	".svg":  "image/svg+xml",
 	".xml":  "text/xml; charset=utf-8",
+	".mjs":  "text/javascript",
 }
 
 var once sync.Once // guards initMime
