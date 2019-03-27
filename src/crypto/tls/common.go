@@ -563,6 +563,15 @@ type Config struct {
 	// which is currently TLS 1.3.
 	MaxVersion uint16
 
+	// StrictVersionNegotiation only applies to TLS 1.2 ClientHello messages
+	// or when the highest supported version resolves to VersionTLS12.
+	// If true, the TLS version sent in the record layer of the initial
+	// ClientHello is matched with the one from the handshake layer, effectively
+	// disabling the default behavior that accounts for TLS 1.2's version
+	// negotiation interoperability with buggy server implementations. This
+	// problem is described in RFC 5246 Appendix E.1.
+	StrictVersionNegotiation bool
+
 	// CurvePreferences contains the elliptic curves that will be used in
 	// an ECDHE handshake, in preference order. If empty, the default will
 	// be used. The client will use the first preference as the type for
@@ -660,6 +669,7 @@ func (c *Config) Clone() *Config {
 		ClientSessionCache:          c.ClientSessionCache,
 		MinVersion:                  c.MinVersion,
 		MaxVersion:                  c.MaxVersion,
+		StrictVersionNegotiation:	 c.StrictVersionNegotiation,
 		CurvePreferences:            c.CurvePreferences,
 		DynamicRecordSizingDisabled: c.DynamicRecordSizingDisabled,
 		Renegotiation:               c.Renegotiation,

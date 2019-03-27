@@ -55,6 +55,11 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 	}
 
 	clientHelloVersion := supportedVersions[0]
+	if config.StrictVersionNegotiation && clientHelloVersion == VersionTLS12 {
+		// Make sure that the TLS version in the record layer matches
+		// the one in the handshake layer for the initial ClientHello.
+		c.vers = VersionTLS12
+	}
 	// The version at the beginning of the ClientHello was capped at TLS 1.2
 	// for compatibility reasons. The supported_versions extension is used
 	// to negotiate versions now. See RFC 8446, Section 4.2.1.
