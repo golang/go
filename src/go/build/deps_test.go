@@ -140,6 +140,7 @@ var pkgDeps = map[string][]string{
 		"image/color",
 		"image/color/palette",
 		"internal/fmtsort",
+		"internal/oserror",
 		"reflect",
 	},
 
@@ -166,7 +167,7 @@ var pkgDeps = map[string][]string{
 		"syscall/js",
 	},
 
-	"internal/poll":    {"L0", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
+	"internal/poll":    {"L0", "internal/oserror", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
 	"internal/testlog": {"L0"},
 	"os":               {"L1", "os", "syscall", "time", "internal/oserror", "internal/poll", "internal/syscall/windows", "internal/syscall/unix", "internal/testlog"},
 	"path/filepath":    {"L2", "os", "syscall", "internal/syscall/windows"},
@@ -249,7 +250,7 @@ var pkgDeps = map[string][]string{
 	"compress/gzip":                  {"L4", "compress/flate"},
 	"compress/lzw":                   {"L4"},
 	"compress/zlib":                  {"L4", "compress/flate"},
-	"context":                        {"errors", "internal/reflectlite", "sync", "time"},
+	"context":                        {"errors", "internal/oserror", "internal/reflectlite", "sync", "time"},
 	"database/sql":                   {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
 	"database/sql/driver":            {"L4", "context", "time", "database/sql/internal"},
 	"debug/dwarf":                    {"L4"},

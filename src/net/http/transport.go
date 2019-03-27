@@ -788,6 +788,8 @@ type transportReadFromServerError struct {
 	err error
 }
 
+func (e transportReadFromServerError) Unwrap() error { return e.err }
+
 func (e transportReadFromServerError) Error() string {
 	return fmt.Sprintf("net/http: Transport failed to read from server: %v", e.err)
 }
@@ -2155,6 +2157,16 @@ func (e *httpError) Error() string   { return e.err }
 func (e *httpError) Timeout() bool   { return e.timeout }
 func (e *httpError) Temporary() bool { return true }
 
+func (e *httpError) Is(target error) bool {
+	switch target {
+	case os.ErrTimeout:
+		return e.timeout
+	case os.ErrTemporary:
+		return true
+	}
+	return false
+}
+
 var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
 
 // errRequestCanceled is set to be identical to the one from h2 to facilitate
@@ -2488,6 +2500,10 @@ type tlsHandshakeTimeoutError struct{}
 func (tlsHandshakeTimeoutError) Timeout() bool   { return true }
 func (tlsHandshakeTimeoutError) Temporary() bool { return true }
 func (tlsHandshakeTimeoutError) Error() string   { return "net/http: TLS handshake timeout" }
+
+func (tlsHandshakeTimeoutError) Is(target error) bool {
+	return target == os.ErrTimeout || target == os.ErrTemporary
+}
 
 // fakeLocker is a sync.Locker which does nothing. It's used to guard
 // test-only fields when not under test, to avoid runtime atomic

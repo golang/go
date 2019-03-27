@@ -270,6 +270,8 @@ func (e *MarshalerError) Error() string {
 	return "json: error calling MarshalJSON for type " + e.Type.String() + ": " + e.Err.Error()
 }
 
+func (e *MarshalerError) Unwrap() error { return e.Err }
+
 var hex = "0123456789abcdef"
 
 // An encodeState encodes JSON into a bytes.Buffer.
