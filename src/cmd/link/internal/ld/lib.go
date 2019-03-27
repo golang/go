@@ -453,18 +453,23 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
-	tlsg := ctxt.Syms.Lookup("runtime.tlsg", 0)
+	// The Android Q linker started to complain about underalignment of the our TLS
+	// section. We don't actually use the section on android, so dont't
+	// generate it.
+	if objabi.GOOS != "android" {
+		tlsg := ctxt.Syms.Lookup("runtime.tlsg", 0)
 
-	// runtime.tlsg is used for external linking on platforms that do not define
-	// a variable to hold g in assembly (currently only intel).
-	if tlsg.Type == 0 {
-		tlsg.Type = sym.STLSBSS
-		tlsg.Size = int64(ctxt.Arch.PtrSize)
-	} else if tlsg.Type != sym.SDYNIMPORT {
-		Errorf(nil, "runtime declared tlsg variable %v", tlsg.Type)
+		// runtime.tlsg is used for external linking on platforms that do not define
+		// a variable to hold g in assembly (currently only intel).
+		if tlsg.Type == 0 {
+			tlsg.Type = sym.STLSBSS
+			tlsg.Size = int64(ctxt.Arch.PtrSize)
+		} else if tlsg.Type != sym.SDYNIMPORT {
+			Errorf(nil, "runtime declared tlsg variable %v", tlsg.Type)
+		}
+		tlsg.Attr |= sym.AttrReachable
+		ctxt.Tlsg = tlsg
 	}
-	tlsg.Attr |= sym.AttrReachable
-	ctxt.Tlsg = tlsg
 
 	var moduledata *sym.Symbol
 	if ctxt.BuildMode == BuildModePlugin {
