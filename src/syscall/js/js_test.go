@@ -72,10 +72,26 @@ func TestString(t *testing.T) {
 		t.Errorf("same value not equal")
 	}
 
-	wantInt := "42"
-	o = dummys.Get("someInt")
-	if got := o.String(); got != wantInt {
-		t.Errorf("got %#v, want %#v", got, wantInt)
+	if got, want := js.Undefined().String(), "<undefined>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := js.Null().String(), "<null>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := js.ValueOf(true).String(), "<boolean: true>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := js.ValueOf(42.5).String(), "<number: 42.5>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := js.Global().Call("Symbol").String(), "<symbol>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := js.Global().String(), "<object>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
+	}
+	if got, want := js.Global().Get("setTimeout").String(), "<function>"; got != want {
+		t.Errorf("got %#v, want %#v", got, want)
 	}
 }
 

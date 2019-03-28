@@ -422,9 +422,35 @@ func (v Value) Truthy() bool {
 	}
 }
 
-// String returns the value v converted to string according to JavaScript type conversions.
+// String returns the value v as a string.
+// String is a special case because of Go's String method convention. Unlike the other getters,
+// it does not panic if v's Type is not TypeString. Instead, it returns a string of the form "<T>"
+// or "<T: V>" where T is v's type and V is a string representation of v's value.
 func (v Value) String() string {
-	str, length := valuePrepareString(v.ref)
+	switch v.Type() {
+	case TypeString:
+		return jsString(v.ref)
+	case TypeUndefined:
+		return "<undefined>"
+	case TypeNull:
+		return "<null>"
+	case TypeBoolean:
+		return "<boolean: " + jsString(v.ref) + ">"
+	case TypeNumber:
+		return "<number: " + jsString(v.ref) + ">"
+	case TypeSymbol:
+		return "<symbol>"
+	case TypeObject:
+		return "<object>"
+	case TypeFunction:
+		return "<function>"
+	default:
+		panic("bad type")
+	}
+}
+
+func jsString(v ref) string {
+	str, length := valuePrepareString(v)
 	b := make([]byte, length)
 	valueLoadString(str, b)
 	return string(b)
