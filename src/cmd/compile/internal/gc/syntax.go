@@ -12,6 +12,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
+	"sort"
 )
 
 // A Node is a single node in the syntax tree.
@@ -969,4 +970,31 @@ func (q *nodeQueue) popLeft() *Node {
 	n := q.ring[q.head%len(q.ring)]
 	q.head++
 	return n
+}
+
+// NodeSet is a set of Nodes.
+type NodeSet map[*Node]struct{}
+
+// Has reports whether s contains n.
+func (s NodeSet) Has(n *Node) bool {
+	_, isPresent := s[n]
+	return isPresent
+}
+
+// Add adds n to s.
+func (s *NodeSet) Add(n *Node) {
+	if *s == nil {
+		*s = make(map[*Node]struct{})
+	}
+	(*s)[n] = struct{}{}
+}
+
+// Sorted returns s sorted according to less.
+func (s NodeSet) Sorted(less func(*Node, *Node) bool) []*Node {
+	var res []*Node
+	for n := range s {
+		res = append(res, n)
+	}
+	sort.Slice(res, func(i, j int) bool { return less(res[i], res[j]) })
+	return res
 }
