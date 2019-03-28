@@ -71,7 +71,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	}
 
 	s := &server{
-		view: cache.NewView(&cfg),
+		view: cache.NewView("lsp_test", span.FileURI(cfg.Dir), &cfg),
 	}
 	// Do a first pass to collect special markers for completion.
 	if err := exported.Expect(map[string]interface{}{

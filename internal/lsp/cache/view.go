@@ -27,6 +27,12 @@ type View struct {
 	// should be stopped.
 	cancel context.CancelFunc
 
+	// Name is the user visible name of this view.
+	Name string
+
+	// Folder is the root of this view.
+	Folder span.URI
+
 	// Config is the configuration used for the view's interaction with the
 	// go/packages API. It is shared across all views.
 	Config packages.Config
@@ -72,13 +78,14 @@ type entry struct {
 	ready chan struct{} // closed to broadcast ready condition
 }
 
-func NewView(config *packages.Config) *View {
+func NewView(name string, folder span.URI, config *packages.Config) *View {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	return &View{
+	v := &View{
 		backgroundCtx:  ctx,
 		cancel:         cancel,
 		Config:         *config,
+		Name:           name,
+		Folder:         folder,
 		filesByURI:     make(map[span.URI]*File),
 		filesByBase:    make(map[string][]*File),
 		contentChanges: make(map[span.URI]func()),
@@ -89,6 +96,7 @@ func NewView(config *packages.Config) *View {
 			packages: make(map[string]*entry),
 		},
 	}
+	return v
 }
 
 func (v *View) BackgroundContext() context.Context {

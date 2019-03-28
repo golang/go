@@ -13,6 +13,8 @@ import (
 	"go/token"
 	"net"
 	"os"
+	"path"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/go/packages"
@@ -26,7 +28,9 @@ import (
 // RunServer starts an LSP server on the supplied stream, and waits until the
 // stream is closed.
 func RunServer(ctx context.Context, stream jsonrpc2.Stream, opts ...interface{}) error {
-	s := &server{}
+	s := &server{
+		configured: make(chan struct{}),
+	}
 	conn, client := protocol.RunServer(ctx, stream, s, opts...)
 	s.client = client
 	return conn.Wait(ctx)
@@ -41,7 +45,6 @@ func RunServerOnPort(ctx context.Context, port int, opts ...interface{}) error {
 // RunServerOnPort starts an LSP server on the given port and does not exit.
 // This function exists for debugging purposes.
 func RunServerOnAddress(ctx context.Context, addr string, opts ...interface{}) error {
-	s := &server{}
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
@@ -52,11 +55,7 @@ func RunServerOnAddress(ctx context.Context, addr string, opts ...interface{}) e
 			return err
 		}
 		stream := jsonrpc2.NewHeaderStream(conn, conn)
-		go func() {
-			conn, client := protocol.RunServer(ctx, stream, s, opts...)
-			s.client = client
-			conn.Wait(ctx)
-		}()
+		go RunServer(ctx, stream, opts...)
 	}
 }
 
@@ -71,8 +70,9 @@ type server struct {
 
 	textDocumentSyncKind protocol.TextDocumentSyncKind
 
-	viewMu sync.Mutex
-	view   *cache.View
+	view *cache.View
+
+	configured chan struct{}
 }
 
 func (s *server) Initialize(ctx context.Context, params *protocol.InitializeParams) (*protocol.InitializeResult, error) {
@@ -103,9 +103,11 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 	// flag). Disabled for now to simplify debugging.
 	s.textDocumentSyncKind = protocol.Full
 
-	s.view = cache.NewView(&packages.Config{
+	//TODO:use workspace folders
+	s.view = cache.NewView(path.Base(string(rootURI)), rootURI, &packages.Config{
 		Context: ctx,
 		Dir:     rootPath,
+		Env:     os.Environ(),
 		Mode:    packages.LoadImports,
 		Fset:    token.NewFileSet(),
 		Overlay: make(map[string][]byte),
@@ -143,8 +145,32 @@ func (s *server) Initialize(ctx context.Context, params *protocol.InitializePara
 	}, nil
 }
 
-func (s *server) Initialized(context.Context, *protocol.InitializedParams) error {
-	return nil // ignore
+func (s *server) Initialized(ctx context.Context, params *protocol.InitializedParams) error {
+	go func() {
+		// we hae to do this in a go routine to unblock the jsonrpc processor
+		// but we also have to block all calls to packages.Load until this is done
+		// TODO: we need to rewrite all the concurrency handling hin the server
+		defer func() { close(s.configured) }()
+		s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
+			Registrations: []protocol.Registration{{
+				ID:     "workspace/didChangeConfiguration",
+				Method: "workspace/didChangeConfiguration",
+			}},
+		})
+		config, err := s.client.Configuration(ctx, &protocol.ConfigurationParams{
+			Items: []protocol.ConfigurationItem{{
+				ScopeURI: protocol.NewURI(s.view.Folder),
+				Section:  "gopls",
+			}},
+		})
+		if err != nil {
+			s.Error(err)
+		}
+		if err := s.processConfig(config[0]); err != nil {
+			s.Error(err)
+		}
+	}()
+	return nil
 }
 
 func (s *server) Shutdown(context.Context) error {
@@ -530,6 +556,45 @@ func (s *server) Rename(context.Context, *protocol.RenameParams) ([]protocol.Wor
 
 func (s *server) FoldingRanges(context.Context, *protocol.FoldingRangeParams) ([]protocol.FoldingRange, error) {
 	return nil, notImplemented("FoldingRanges")
+}
+
+func (s *server) Error(err error) {
+	s.client.LogMessage(context.Background(), &protocol.LogMessageParams{
+		Type:    protocol.Error,
+		Message: fmt.Sprint(err),
+	})
+}
+
+func (s *server) processConfig(config interface{}) error {
+	//TODO: we should probably store and process more of the config
+	c, ok := config.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("Invalid config gopls type %T", config)
+	}
+	env := c["env"]
+	if env == nil {
+		return nil
+	}
+	menv, ok := env.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("Invalid config gopls.env type %T", env)
+	}
+	for k, v := range menv {
+		s.view.Config.Env = applyEnv(s.view.Config.Env, k, v)
+	}
+	return nil
+}
+
+func applyEnv(env []string, k string, v interface{}) []string {
+	prefix := k + "="
+	value := prefix + fmt.Sprint(v)
+	for i, s := range env {
+		if strings.HasPrefix(s, prefix) {
+			env[i] = value
+			return env
+		}
+	}
+	return append(env, value)
 }
 
 func notImplemented(method string) *jsonrpc2.Error {
