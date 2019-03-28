@@ -64,6 +64,7 @@ func runTidy(cmd *base.Command, args []string) {
 		}
 	}
 	modload.SetBuildList(keep)
+	modload.AddGoStmt()
 	modTidyGoSum() // updates memory copy; WriteGoMod on next line flushes it out
 	modload.WriteGoMod()
 }

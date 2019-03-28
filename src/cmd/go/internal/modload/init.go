@@ -408,9 +408,8 @@ func legacyModInit() {
 		fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", path)
 		modFile = new(modfile.File)
 		modFile.AddModuleStmt(path)
+		AddGoStmt()
 	}
-
-	addGoStmt()
 
 	for _, name := range altConfigs {
 		cfg := filepath.Join(modRoot, name)
@@ -420,6 +419,7 @@ func legacyModInit() {
 			if convert == nil {
 				return
 			}
+			AddGoStmt()
 			fmt.Fprintf(os.Stderr, "go: copying requirements from %s\n", base.ShortPath(cfg))
 			cfg = filepath.ToSlash(cfg)
 			if err := modconv.ConvertLegacyConfig(modFile, cfg, data); err != nil {
@@ -434,8 +434,12 @@ func legacyModInit() {
 	}
 }
 
-// addGoStmt adds a go statement referring to the current version.
-func addGoStmt() {
+// AddGoStmt adds a go directive to the go.mod file if it does not already include one.
+// The 'go' version added, if any, is the latest version supported by this toolchain.
+func AddGoStmt() {
+	if modFile.Go != nil && modFile.Go.Version != "" {
+		return
+	}
 	tags := build.Default.ReleaseTags
 	version := tags[len(tags)-1]
 	if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
