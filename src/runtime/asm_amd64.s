@@ -132,9 +132,22 @@ nocpuinfo:
 	MOVQ	_cgo_init(SB), AX
 	TESTQ	AX, AX
 	JZ	needtls
-	// g0 already in DI
-	MOVQ	DI, CX	// Win64 uses CX for first parameter
-	MOVQ	$setg_gcc<>(SB), SI
+	// arg 1: g0, already in DI
+	MOVQ	$setg_gcc<>(SB), SI // arg 2: setg_gcc
+#ifdef GOOS_android
+	MOVQ	$runtime·tls_g(SB), DX 	// arg 3: &tls_g
+	MOVQ	0(TLS), CX	// arg 4: TLS base, stored in the first slot (TLS_SLOT_SELF).
+#else
+	MOVQ	$0, DX	// arg 3, 4: not used when using platform's TLS
+	MOVQ	$0, CX
+#endif
+#ifdef GOOS_windows
+	// Adjust for the Win64 calling convention.
+	MOVQ	CX, R9 // arg 4
+	MOVQ	DX, R8 // arg 3
+	MOVQ	SI, DX // arg 2
+	MOVQ	DI, CX // arg 1
+#endif
 	CALL	AX
 
 	// update stackguard after _cgo_init
@@ -1698,3 +1711,7 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
 	MOVQ	AX, x+0(FP)
 	MOVQ	CX, y+8(FP)
 	JMP	runtime·goPanicSlice3CU(SB)
+
+#ifdef GOOS_android
+GLOBL runtime·tls_g+0(SB), NOPTR, $8
+#endif

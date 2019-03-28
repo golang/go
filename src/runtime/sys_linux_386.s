@@ -575,12 +575,8 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVL	address+4(FP), DX	// base address
 
 #ifdef GOOS_android
-	/*
-	 * Same as in sys_darwin_386.s:/ugliness, different constant.
-	 * address currently holds m->tls, which must be %gs:0xf8.
-	 * See cgo/gcc_android_386.c for the derivation of the constant.
-	 */
-	SUBL	$0xf8, DX
+	// Android stores the TLS offset in runtime·tls_g.
+	SUBL	runtime·tls_g(SB), DX
 	MOVL	DX, 0(DX)
 #else
 	/*
