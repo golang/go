@@ -1002,10 +1002,12 @@ func (t *tester) runHostTest(dir, pkg string) error {
 }
 
 func (t *tester) cgoTest(dt *distTest) error {
-	t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=auto")
+	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
+	cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=auto")
 
 	if t.internalLink() {
-		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal", "-ldflags", "-linkmode=internal")
+		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal")
+		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=internal")
 	}
 
 	pair := gohostos + "-" + goarch
@@ -1017,8 +1019,11 @@ func (t *tester) cgoTest(dt *distTest) error {
 		if !t.extLink() {
 			break
 		}
-		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external")
-		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external -s")
+		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
+		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=external")
+
+		cmd = t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external -s")
+
 	case "aix-ppc64",
 		"android-arm",
 		"dragonfly-amd64",
@@ -1026,9 +1031,10 @@ func (t *tester) cgoTest(dt *distTest) error {
 		"linux-386", "linux-amd64", "linux-arm", "linux-ppc64le", "linux-s390x",
 		"netbsd-386", "netbsd-amd64":
 
-		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external")
+		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
+		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=external")
 		// A -g argument in CGO_CFLAGS should not affect how the test runs.
-		cmd.Env = append(os.Environ(), "CGO_CFLAGS=-g0")
+		cmd.Env = append(cmd.Env, "CGO_CFLAGS=-g0")
 
 		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=auto")
 		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=external")
