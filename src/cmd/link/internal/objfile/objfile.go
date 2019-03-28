@@ -282,6 +282,9 @@ overwrite:
 		if flags&(1<<3) != 0 {
 			s.Attr |= sym.AttrShared
 		}
+		if flags&(1<<4) != 0 {
+			s.Attr |= sym.AttrTopFrame
+		}
 		n := r.readInt()
 		pc.Autom = r.autom[:n:n]
 		if !isdup {

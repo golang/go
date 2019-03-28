@@ -47,4 +47,8 @@ const (
 
 	// Function can call reflect.Type.Method or reflect.Type.MethodByName.
 	REFLECTMETHOD = 1024
+
+	// Function is the top of the call stack. Call stack unwinders should stop
+	// at this function.
+	TOPFRAME = 2048
 )

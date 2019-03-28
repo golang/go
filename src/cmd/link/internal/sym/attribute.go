@@ -75,7 +75,10 @@ const (
 	// AttrContainer is set on text symbols that are present as the .Outer for some
 	// other symbol.
 	AttrContainer
-	// 17 attributes defined so far.
+	// AttrTopFrame means that the function is an entry point and unwinders
+	// should stop when they hit this function.
+	AttrTopFrame
+	// 18 attributes defined so far.
 )
 
 func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
@@ -95,6 +98,7 @@ func (a Attribute) Shared() bool           { return a&AttrShared != 0 }
 func (a Attribute) VisibilityHidden() bool { return a&AttrVisibilityHidden != 0 }
 func (a Attribute) SubSymbol() bool        { return a&AttrSubSymbol != 0 }
 func (a Attribute) Container() bool        { return a&AttrContainer != 0 }
+func (a Attribute) TopFrame() bool         { return a&AttrTopFrame != 0 }
 
 func (a Attribute) CgoExport() bool {
 	return a.CgoExportDynamic() || a.CgoExportStatic()
