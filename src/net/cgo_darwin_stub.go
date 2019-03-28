@@ -101,8 +101,7 @@ func resolverGetResources(ctx context.Context, hostname string, rtype, class int
 
 	size, errCode = res_search(&byteHostname[0], class, rtype, &responseBuffer[0], int32(len(responseBuffer)))
 	if errCode != 0 {
-		//TODO: translate error code
-		return nil, errors.New("could not complete domain resolution")
+		return nil, errors.New("could not complete domain resolution return code " + errCode)
 	}
 
 	var msg dnsmessage.Message
