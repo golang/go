@@ -151,7 +151,13 @@ func TestLldbPython(t *testing.T) {
 	src := filepath.Join(dir, "main.go")
 	err = ioutil.WriteFile(src, []byte(lldbHelloSource), 0644)
 	if err != nil {
-		t.Fatalf("failed to create file: %v", err)
+		t.Fatalf("failed to create src file: %v", err)
+	}
+
+	mod := filepath.Join(dir, "go.mod")
+	err = ioutil.WriteFile(mod, []byte("module lldbtest"), 0644)
+	if err != nil {
+		t.Fatalf("failed to create mod file: %v", err)
 	}
 
 	// As of 2018-07-17, lldb doesn't support compressed DWARF, so
