@@ -1,0 +1,16 @@
+env GO111MODULE=on
+
+env GOPATH=$devnull
+
+go list -m
+stdout '^example.com$'
+
+go list
+stdout '^example.com$'
+
+-- go.mod --
+module example.com
+-- main.go --
+package main
+
+func main() {}
