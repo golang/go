@@ -43,6 +43,8 @@ func toProtocolSymbolKind(kind source.SymbolKind) protocol.SymbolKind {
 		return protocol.Function
 	case source.MethodSymbol:
 		return protocol.Method
+	case source.InterfaceSymbol:
+		return protocol.Interface
 	default:
 		return 0
 	}

@@ -23,6 +23,7 @@ const (
 	ConstantSymbol
 	FunctionSymbol
 	MethodSymbol
+	InterfaceSymbol
 )
 
 type Symbol struct {
@@ -99,6 +100,9 @@ func typeSymbol(spec *ast.TypeSpec, obj types.Object, fset *token.FileSet, q typ
 	s := Symbol{
 		Name: obj.Name(),
 		Kind: StructSymbol,
+	}
+	if types.IsInterface(obj.Type()) {
+		s.Kind = InterfaceSymbol
 	}
 	if span, err := nodeSpan(spec, fset); err == nil {
 		s.Span = span
