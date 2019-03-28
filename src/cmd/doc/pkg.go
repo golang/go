@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"go/ast"
@@ -221,7 +222,7 @@ func (pkg *Package) emit(comment string, node ast.Node) {
 		}
 		if comment != "" && !showSrc {
 			pkg.newlines(1)
-			doc.ToText(&pkg.buf, comment, "    ", indent, indentedWidth)
+			doc.ToText(&pkg.buf, comment, indent, indent+indent, indentedWidth)
 			pkg.newlines(2) // Blank line after comment to separate from next item.
 		} else {
 			pkg.newlines(1)
@@ -1005,8 +1006,13 @@ func (pkg *Package) printFieldDoc(symbol, fieldName string) bool {
 					pkg.Printf("type %s struct {\n", typ.Name)
 				}
 				if field.Doc != nil {
-					for _, comment := range field.Doc.List {
-						doc.ToText(&pkg.buf, comment.Text, indent, indent, indentedWidth)
+					// To present indented blocks in comments correctly, process the comment as
+					// a unit before adding the leading // to each line.
+					docBuf := bytes.Buffer{}
+					doc.ToText(&docBuf, field.Doc.Text(), "", indent, indentedWidth)
+					scanner := bufio.NewScanner(&docBuf)
+					for scanner.Scan() {
+						fmt.Fprintf(&pkg.buf, "%s// %s\n", indent, scanner.Bytes())
 					}
 				}
 				s := pkg.oneLineNode(field.Type)
