@@ -76,7 +76,7 @@ type Dialer struct {
 
 	// Cancel is an optional channel whose closure indicates that
 	// the dial should be canceled. Not all types of dials support
-	// cancelation.
+	// cancellation.
 	//
 	// Deprecated: Use DialContext instead.
 	Cancel <-chan struct{}

@@ -255,7 +255,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 		resolverFunc = alt
 	}
 
-	// We don't want a cancelation of ctx to affect the
+	// We don't want a cancellation of ctx to affect the
 	// lookupGroup operation. Otherwise if our context gets
 	// canceled it might cause an error to be returned to a lookup
 	// using a completely different context. However we need to preserve

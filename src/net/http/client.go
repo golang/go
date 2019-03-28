@@ -100,7 +100,7 @@ type Client struct {
 	// For compatibility, the Client will also use the deprecated
 	// CancelRequest method on Transport if found. New
 	// RoundTripper implementations should use the Request's Context
-	// for cancelation instead of implementing CancelRequest.
+	// for cancellation instead of implementing CancelRequest.
 	Timeout time.Duration
 }
 
@@ -643,7 +643,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 			reqBodyClosed = true
 			if !deadline.IsZero() && didTimeout() {
 				err = &httpError{
-					// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancelation/
+					// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancellation/
 					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",
 					timeout: true,
 				}
@@ -870,7 +870,7 @@ func (b *cancelTimerBody) Read(p []byte) (n int, err error) {
 	}
 	if b.reqDidTimeout() {
 		err = &httpError{
-			// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancelation/
+			// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancellation/
 			err:     err.Error() + " (Client.Timeout exceeded while reading body)",
 			timeout: true,
 		}
