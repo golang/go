@@ -82,6 +82,22 @@ func checkGdbPython(t *testing.T) {
 	}
 }
 
+// checkCleanBacktrace checks that the given backtrace is well formed and does
+// not contain any error messages from GDB.
+func checkCleanBacktrace(t *testing.T, backtrace string) {
+	backtrace = strings.TrimSpace(backtrace)
+	lines := strings.Split(backtrace, "\n")
+	if len(lines) == 0 {
+		t.Fatalf("empty backtrace")
+	}
+	for i, l := range lines {
+		if !strings.HasPrefix(l, fmt.Sprintf("#%v  ", i)) {
+			t.Fatalf("malformed backtrace at line %v: %v", i, l)
+		}
+	}
+	// TODO(mundaym): check for unknown frames (e.g. "??").
+}
+
 const helloSource = `
 import "fmt"
 import "runtime"
@@ -272,6 +288,11 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("info locals failed: %s", bl)
 	}
 
+	// Check that the backtraces are well formed.
+	checkCleanBacktrace(t, blocks["goroutine 1 bt"])
+	checkCleanBacktrace(t, blocks["goroutine 2 bt"])
+	checkCleanBacktrace(t, blocks["goroutine 1 bt at the end"])
+
 	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
 	if bl := blocks["goroutine 1 bt"]; !btGoroutine1Re.MatchString(bl) {
 		t.Fatalf("goroutine 1 bt failed: %s", bl)
@@ -281,6 +302,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 	if bl := blocks["goroutine 2 bt"]; !btGoroutine2Re.MatchString(bl) {
 		t.Fatalf("goroutine 2 bt failed: %s", bl)
 	}
+
 	btGoroutine1AtTheEndRe := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
 	if bl := blocks["goroutine 1 bt at the end"]; !btGoroutine1AtTheEndRe.MatchString(bl) {
 		t.Fatalf("goroutine 1 bt at the end failed: %s", bl)

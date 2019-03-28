@@ -1451,6 +1451,13 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 		// Emit a FDE, Section 6.4.1.
 		// First build the section contents into a byte buffer.
 		deltaBuf = deltaBuf[:0]
+		if haslinkregister(ctxt) && s.Attr.TopFrame() {
+			// Mark the link register as having an undefined value.
+			// This stops call stack unwinders progressing any further.
+			// TODO: similar mark on non-LR architectures.
+			deltaBuf = append(deltaBuf, dwarf.DW_CFA_undefined)
+			deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
+		}
 		for pcsp.init(s.FuncInfo.Pcsp.P); !pcsp.done; pcsp.next() {
 			nextpc := pcsp.nextpc
 
@@ -1463,7 +1470,13 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 				}
 			}
 
-			if haslinkregister(ctxt) {
+			spdelta := int64(pcsp.value)
+			if !haslinkregister(ctxt) {
+				// Return address has been pushed onto stack.
+				spdelta += int64(ctxt.Arch.PtrSize)
+			}
+
+			if haslinkregister(ctxt) && !s.Attr.TopFrame() {
 				// TODO(bryanpkc): This is imprecise. In general, the instruction
 				// that stores the return address to the stack frame is not the
 				// same one that allocates the frame.
@@ -1472,17 +1485,16 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 					// after a stack frame has been allocated.
 					deltaBuf = append(deltaBuf, dwarf.DW_CFA_offset_extended_sf)
 					deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
-					deltaBuf = dwarf.AppendSleb128(deltaBuf, -int64(pcsp.value)/dataAlignmentFactor)
+					deltaBuf = dwarf.AppendSleb128(deltaBuf, -spdelta/dataAlignmentFactor)
 				} else {
 					// The return address is restored into the link register
 					// when a stack frame has been de-allocated.
 					deltaBuf = append(deltaBuf, dwarf.DW_CFA_same_value)
 					deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
 				}
-				deltaBuf = appendPCDeltaCFA(ctxt.Arch, deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(pcsp.value))
-			} else {
-				deltaBuf = appendPCDeltaCFA(ctxt.Arch, deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(ctxt.Arch.PtrSize)+int64(pcsp.value))
 			}
+
+			deltaBuf = appendPCDeltaCFA(ctxt.Arch, deltaBuf, int64(nextpc)-int64(pcsp.pc), spdelta)
 		}
 		pad := int(Rnd(int64(len(deltaBuf)), int64(ctxt.Arch.PtrSize))) - len(deltaBuf)
 		deltaBuf = append(deltaBuf, zeros[:pad]...)

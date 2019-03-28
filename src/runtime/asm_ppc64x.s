@@ -880,7 +880,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
 // pointer in the correct place).
 // goexit+_PCQuantum is halfway through the usual global entry point prologue
 // that derives r2 from r12 which is a bit silly, but not harmful.
-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	MOVD	24(R1), R2
 	BL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
