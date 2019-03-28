@@ -234,7 +234,7 @@ func (v *View) findFile(uri span.URI) *File {
 	basename := basename(fname)
 	if candidates := v.filesByBase[basename]; candidates != nil {
 		pathStat, err := os.Stat(fname)
-		if err == nil {
+		if err != nil {
 			return nil
 		}
 		for _, c := range candidates {
