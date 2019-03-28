@@ -171,9 +171,18 @@ nocpuinfo:
 	MOVL	_cgo_init(SB), AX
 	TESTL	AX, AX
 	JZ	needtls
+#ifdef GOOS_android
+	MOVL	0(TLS), BX
+	MOVL	BX, 12(SP)	// arg 4: TLS base, stored in the first slot (TLS_SLOT_SELF).
+	MOVL	$runtime·tls_g(SB), 8(SP)	// arg 3: &tls_g
+#else
+	MOVL	$0, BX
+	MOVL	BX, 12(SP)	// arg 3,4: not used when using platform's TLS
+	MOVL	BX, 8(SP)
+#endif
 	MOVL	$setg_gcc<>(SB), BX
-	MOVL	BX, 4(SP)
-	MOVL	BP, 0(SP)
+	MOVL	BX, 4(SP)	// arg 2: setg_gcc
+	MOVL	BP, 0(SP)	// arg 1: g0
 	CALL	AX
 
 	// update stackguard after _cgo_init
@@ -1553,3 +1562,7 @@ TEXT runtime·panicExtendSlice3CU(SB),NOSPLIT,$0-12
 	MOVL	AX, lo+4(FP)
 	MOVL	CX, y+8(FP)
 	JMP	runtime·goPanicExtendSlice3CU(SB)
+
+#ifdef GOOS_android
+GLOBL runtime·tls_g+0(SB), NOPTR, $4
+#endif

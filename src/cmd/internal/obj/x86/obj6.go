@@ -41,13 +41,8 @@ import (
 
 func CanUse1InsnTLS(ctxt *obj.Link) bool {
 	if isAndroid {
-		// For android, we use a disgusting hack that assumes
-		// the thread-local storage slot for g is allocated
-		// using pthread_key_create with a fixed offset
-		// (see src/runtime/cgo/gcc_android_amd64.c).
-		// This makes access to the TLS storage (for g) doable
-		// with 1 instruction.
-		return true
+		// Android uses a global variable for the tls offset.
+		return false
 	}
 
 	if ctxt.Arch.Family == sys.I386 {
@@ -160,6 +155,18 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Index = REG_NONE
 			p.From.Offset = 0
 		}
+	}
+
+	// Android uses a tls offset determined at runtime. Rewrite
+	//	MOVQ TLS, BX
+	// to
+	//	MOVQ runtime.tls_g(SB), BX
+	if isAndroid && (p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 {
+		p.From.Type = obj.TYPE_MEM
+		p.From.Name = obj.NAME_EXTERN
+		p.From.Reg = REG_NONE
+		p.From.Sym = ctxt.Lookup("runtime.tls_g")
+		p.From.Index = REG_NONE
 	}
 
 	// TODO: Remove.
@@ -1007,6 +1014,7 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) *obj.Prog {
 	progedit(ctxt, p, newprog)
 	for p.Link != next {
 		p = p.Link
+		progedit(ctxt, p, newprog)
 	}
 
 	if p.From.Index == REG_TLS {
