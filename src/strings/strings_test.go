@@ -864,23 +864,66 @@ func not(p predicate) predicate {
 }
 
 var trimFuncTests = []struct {
-	f       predicate
-	in, out string
+	f        predicate
+	in       string
+	trimOut  string
+	leftOut  string
+	rightOut string
 }{
-	{isSpace, space + " hello " + space, "hello"},
-	{isDigit, "\u0e50\u0e5212hello34\u0e50\u0e51", "hello"},
-	{isUpper, "\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F", "hello"},
-	{not(isSpace), "hello" + space + "hello", space},
-	{not(isDigit), "hello\u0e50\u0e521234\u0e50\u0e51helo", "\u0e50\u0e521234\u0e50\u0e51"},
-	{isValidRune, "ab\xc0a\xc0cd", "\xc0a\xc0"},
-	{not(isValidRune), "\xc0a\xc0", "a"},
+	{isSpace, space + " hello " + space,
+		"hello",
+		"hello " + space,
+		space + " hello"},
+	{isDigit, "\u0e50\u0e5212hello34\u0e50\u0e51",
+		"hello",
+		"hello34\u0e50\u0e51",
+		"\u0e50\u0e5212hello"},
+	{isUpper, "\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F",
+		"hello",
+		"helloEF\u2C6F\u2C6FGH\u2C6F\u2C6F",
+		"\u2C6F\u2C6F\u2C6F\u2C6FABCDhello"},
+	{not(isSpace), "hello" + space + "hello",
+		space,
+		space + "hello",
+		"hello" + space},
+	{not(isDigit), "hello\u0e50\u0e521234\u0e50\u0e51helo",
+		"\u0e50\u0e521234\u0e50\u0e51",
+		"\u0e50\u0e521234\u0e50\u0e51helo",
+		"hello\u0e50\u0e521234\u0e50\u0e51"},
+	{isValidRune, "ab\xc0a\xc0cd",
+		"\xc0a\xc0",
+		"\xc0a\xc0cd",
+		"ab\xc0a\xc0"},
+	{not(isValidRune), "\xc0a\xc0",
+		"a",
+		"a\xc0",
+		"\xc0a"},
+	{isSpace, "",
+		"",
+		"",
+		""},
+	{isSpace, " ",
+		"",
+		"",
+		""},
 }
 
 func TestTrimFunc(t *testing.T) {
 	for _, tc := range trimFuncTests {
-		actual := TrimFunc(tc.in, tc.f.f)
-		if actual != tc.out {
-			t.Errorf("TrimFunc(%q, %q) = %q; want %q", tc.in, tc.f.name, actual, tc.out)
+		trimmers := []struct {
+			name string
+			trim func(s string, f func(r rune) bool) string
+			out  string
+		}{
+			{"TrimFunc", TrimFunc, tc.trimOut},
+			{"TrimLeftFunc", TrimLeftFunc, tc.leftOut},
+			{"TrimRightFunc", TrimRightFunc, tc.rightOut},
+		}
+		for _, trimmer := range trimmers {
+			actual := trimmer.trim(tc.in, tc.f.f)
+			if actual != trimmer.out {
+				t.Errorf("%s(%q, %q) = %q; want %q", trimmer.name, tc.in, tc.f.name, actual, trimmer.out)
+			}
 		}
 	}
 }

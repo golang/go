@@ -1261,8 +1261,11 @@ var isValidRune = predicate{
 }
 
 type TrimFuncTest struct {
-	f       predicate
-	in, out string
+	f        predicate
+	in       string
+	trimOut  []byte
+	leftOut  []byte
+	rightOut []byte
 }
 
 func not(p predicate) predicate {
@@ -1275,20 +1278,68 @@ func not(p predicate) predicate {
 }
 
 var trimFuncTests = []TrimFuncTest{
-	{isSpace, space + " hello " + space, "hello"},
-	{isDigit, "\u0e50\u0e5212hello34\u0e50\u0e51", "hello"},
-	{isUpper, "\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F", "hello"},
-	{not(isSpace), "hello" + space + "hello", space},
-	{not(isDigit), "hello\u0e50\u0e521234\u0e50\u0e51helo", "\u0e50\u0e521234\u0e50\u0e51"},
-	{isValidRune, "ab\xc0a\xc0cd", "\xc0a\xc0"},
-	{not(isValidRune), "\xc0a\xc0", "a"},
+	{isSpace, space + " hello " + space,
+		[]byte("hello"),
+		[]byte("hello " + space),
+		[]byte(space + " hello")},
+	{isDigit, "\u0e50\u0e5212hello34\u0e50\u0e51",
+		[]byte("hello"),
+		[]byte("hello34\u0e50\u0e51"),
+		[]byte("\u0e50\u0e5212hello")},
+	{isUpper, "\u2C6F\u2C6F\u2C6F\u2C6FABCDhelloEF\u2C6F\u2C6FGH\u2C6F\u2C6F",
+		[]byte("hello"),
+		[]byte("helloEF\u2C6F\u2C6FGH\u2C6F\u2C6F"),
+		[]byte("\u2C6F\u2C6F\u2C6F\u2C6FABCDhello")},
+	{not(isSpace), "hello" + space + "hello",
+		[]byte(space),
+		[]byte(space + "hello"),
+		[]byte("hello" + space)},
+	{not(isDigit), "hello\u0e50\u0e521234\u0e50\u0e51helo",
+		[]byte("\u0e50\u0e521234\u0e50\u0e51"),
+		[]byte("\u0e50\u0e521234\u0e50\u0e51helo"),
+		[]byte("hello\u0e50\u0e521234\u0e50\u0e51")},
+	{isValidRune, "ab\xc0a\xc0cd",
+		[]byte("\xc0a\xc0"),
+		[]byte("\xc0a\xc0cd"),
+		[]byte("ab\xc0a\xc0")},
+	{not(isValidRune), "\xc0a\xc0",
+		[]byte("a"),
+		[]byte("a\xc0"),
+		[]byte("\xc0a")},
+	// The nils returned by TrimLeftFunc are odd behavior, but we need
+	// to preserve backwards compatibility.
+	{isSpace, "",
+		nil,
+		nil,
+		[]byte("")},
+	{isSpace, " ",
+		nil,
+		nil,
+		[]byte("")},
 }
 
 func TestTrimFunc(t *testing.T) {
 	for _, tc := range trimFuncTests {
-		actual := string(TrimFunc([]byte(tc.in), tc.f.f))
-		if actual != tc.out {
-			t.Errorf("TrimFunc(%q, %q) = %q; want %q", tc.in, tc.f.name, actual, tc.out)
+		trimmers := []struct {
+			name string
+			trim func(s []byte, f func(r rune) bool) []byte
+			out  []byte
+		}{
+			{"TrimFunc", TrimFunc, tc.trimOut},
+			{"TrimLeftFunc", TrimLeftFunc, tc.leftOut},
+			{"TrimRightFunc", TrimRightFunc, tc.rightOut},
+		}
+		for _, trimmer := range trimmers {
+			actual := trimmer.trim([]byte(tc.in), tc.f.f)
+			if actual == nil && trimmer.out != nil {
+				t.Errorf("%s(%q, %q) = nil; want %q", trimmer.name, tc.in, tc.f.name, trimmer.out)
+			}
+			if actual != nil && trimmer.out == nil {
+				t.Errorf("%s(%q, %q) = %q; want nil", trimmer.name, tc.in, tc.f.name, actual)
+			}
+			if !Equal(actual, trimmer.out) {
+				t.Errorf("%s(%q, %q) = %q; want %q", trimmer.name, tc.in, tc.f.name, actual, trimmer.out)
+			}
 		}
 	}
 }
