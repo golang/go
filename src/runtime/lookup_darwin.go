@@ -15,8 +15,15 @@ func res_init_trampoline()
 //go:linkname res_search net.res_search
 //go:nosplit
 //go:cgo_unsafe_args
-func res_search(dname *byte, class int32, rtype int32, answer *byte, anslen int32) int32 {
-	return libcCall(unsafe.Pointer(funcPC(res_search_trampoline)), unsafe.Pointer(&dname))
+func res_search(dname *byte, class int32, rtype int32, answer *byte, anslen int32) (int32, int32) {
+	args := struct {
+		dname                   *byte
+		class, rtype            int32
+		answer                  *byte
+		anslen, retSize, retErr int32
+	}{dname, class, rtype, answer, anslen, 0, 0}
+	libcCall(unsafe.Pointer(funcPC(res_search_trampoline)), unsafe.Pointer(&args))
+	return args.retSize, args.retErr
 }
 func res_search_trampoline()
 

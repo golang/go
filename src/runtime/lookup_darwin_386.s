@@ -6,6 +6,19 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+TEXT runtime·res_init_trampoline(SB),NOSPLIT,$0
+    PUSHL   BP
+    MOVL    SP, BP
+    SUBL    $8, SP
+    CALL    libc_res_init(SB)
+    CMPL    AX, $-1
+    JNE ok
+    CALL    libc_error(SB)
+ok:
+    MOVL    BP, SP
+    POPL    BP
+    RET
+
 TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
     PUSHL   BP
     MOVL    SP, BP
@@ -26,25 +39,12 @@ TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
     CMPL    AX, $-1
     JNE ok
     CALL    libc_error(SB)
-    MOVL    (AX), DX        // errno
-    XORL    AX, AX
-ok:
-    MOVL    BP, SP
-    POPL    BP
-    RET
-
-TEXT runtime·res_init_trampoline(SB),NOSPLIT,$0
-    PUSHL   BP
-    MOVL    SP, BP
-    SUBL    $8, SP
-    CALL    libc_res_init(SB)
-    XORL    DX, DX
-    CMPL    AX, $-1
-    JNE ok
-    CALL    libc_error(SB)
     MOVL    (AX), DX
     XORL    AX, AX
 ok:
+    MOVL    32(SP), CX
+    MOVL    AX, 20(CX)
+    MOVL    DX, 24(CX)
     MOVL    BP, SP
     POPL    BP
     RET

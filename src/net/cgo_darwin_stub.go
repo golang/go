@@ -81,7 +81,7 @@ func cgoLookupPTR(ctx context.Context, addr string) (ptrs []string, err error, c
 
 var (
 	resInitOnce sync.Once
-	retcode     int32
+	errCode     int32
 )
 
 // resolverGetResources will make a call to the 'res_search' routine in libSystem
@@ -89,17 +89,19 @@ var (
 func resolverGetResources(ctx context.Context, hostname string, rtype, class int32) ([]dnsmessage.Resource, error) {
 
 	resInitOnce.Do(func() {
-		retcode = res_init()
+		errCode = res_init()
 	})
-	if retcode < 0 {
+	if errCode < 0 {
 		return nil, errors.New("could not initialize name resolver data")
 	}
 
 	var byteHostname = []byte(hostname)
 	var responseBuffer [512]byte
+	var size int32
 
-	retcode = res_search(&byteHostname[0], class, rtype, &responseBuffer[0], int32(len(responseBuffer)))
-	if retcode < 0 {
+	size, errCode = res_search(&byteHostname[0], class, rtype, &responseBuffer[0], int32(len(responseBuffer)))
+	if errCode != 0 {
+		//TODO: translate error code
 		return nil, errors.New("could not complete domain resolution")
 	}
 
@@ -196,4 +198,4 @@ func parsePTRsFromResources(resources []dnsmessage.Resource) ([]string, error) {
 
 func res_init() int32
 
-func res_search(dname *byte, class int32, rtype int32, answer *byte, anslen int32) int32
+func res_search(dname *byte, class int32, rtype int32, answer *byte, anslen int32) (int32, int32)
