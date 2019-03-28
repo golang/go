@@ -59,6 +59,8 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpAtomicLoad32_0(v)
 	case OpAtomicLoad64:
 		return rewriteValueS390X_OpAtomicLoad64_0(v)
+	case OpAtomicLoad8:
+		return rewriteValueS390X_OpAtomicLoad8_0(v)
 	case OpAtomicLoadPtr:
 		return rewriteValueS390X_OpAtomicLoadPtr_0(v)
 	case OpAtomicStore32:
@@ -1112,6 +1114,19 @@ func rewriteValueS390X_OpAtomicLoad64_0(v *Value) bool {
 		mem := v.Args[1]
 		ptr := v.Args[0]
 		v.reset(OpS390XMOVDatomicload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueS390X_OpAtomicLoad8_0(v *Value) bool {
+	// match: (AtomicLoad8 ptr mem)
+	// cond:
+	// result: (MOVBZatomicload ptr mem)
+	for {
+		mem := v.Args[1]
+		ptr := v.Args[0]
+		v.reset(OpS390XMOVBZatomicload)
 		v.AddArg(ptr)
 		v.AddArg(mem)
 		return true

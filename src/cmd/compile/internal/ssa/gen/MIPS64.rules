@@ -385,6 +385,7 @@
 (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
 
 // atomic intrinsics
+(AtomicLoad8   ptr mem) -> (LoweredAtomicLoad8  ptr mem)
 (AtomicLoad32  ptr mem) -> (LoweredAtomicLoad32 ptr mem)
 (AtomicLoad64  ptr mem) -> (LoweredAtomicLoad64 ptr mem)
 (AtomicLoadPtr ptr mem) -> (LoweredAtomicLoad64 ptr mem)

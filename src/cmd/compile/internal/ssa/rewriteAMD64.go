@@ -251,6 +251,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64MOVBQSXload_0(v)
 	case OpAMD64MOVBQZX:
 		return rewriteValueAMD64_OpAMD64MOVBQZX_0(v)
+	case OpAMD64MOVBatomicload:
+		return rewriteValueAMD64_OpAMD64MOVBatomicload_0(v)
 	case OpAMD64MOVBload:
 		return rewriteValueAMD64_OpAMD64MOVBload_0(v)
 	case OpAMD64MOVBloadidx1:
@@ -643,6 +645,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAtomicLoad32_0(v)
 	case OpAtomicLoad64:
 		return rewriteValueAMD64_OpAtomicLoad64_0(v)
+	case OpAtomicLoad8:
+		return rewriteValueAMD64_OpAtomicLoad8_0(v)
 	case OpAtomicLoadPtr:
 		return rewriteValueAMD64_OpAtomicLoadPtr_0(v)
 	case OpAtomicOr8:
@@ -12159,6 +12163,56 @@ func rewriteValueAMD64_OpAMD64MOVBQZX_0(v *Value) bool {
 		x := v_0.Args[0]
 		v.reset(OpAMD64MOVBQZX)
 		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64MOVBatomicload_0(v *Value) bool {
+	// match: (MOVBatomicload [off1] {sym} (ADDQconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVBatomicload [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		mem := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64ADDQconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpAMD64MOVBatomicload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBatomicload [off1] {sym1} (LEAQ [off2] {sym2} ptr) mem)
+	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
+	// result: (MOVBatomicload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		mem := v.Args[1]
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64LEAQ {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
+			break
+		}
+		v.reset(OpAMD64MOVBatomicload)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
 		return true
 	}
 	return false
@@ -56742,6 +56796,19 @@ func rewriteValueAMD64_OpAtomicLoad64_0(v *Value) bool {
 		mem := v.Args[1]
 		ptr := v.Args[0]
 		v.reset(OpAMD64MOVQatomicload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueAMD64_OpAtomicLoad8_0(v *Value) bool {
+	// match: (AtomicLoad8 ptr mem)
+	// cond:
+	// result: (MOVBatomicload ptr mem)
+	for {
+		mem := v.Args[1]
+		ptr := v.Args[0]
+		v.reset(OpAMD64MOVBatomicload)
 		v.AddArg(ptr)
 		v.AddArg(mem)
 		return true

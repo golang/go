@@ -438,6 +438,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpARM64LDAR,
+		ssa.OpARM64LDARB,
 		ssa.OpARM64LDARW:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM

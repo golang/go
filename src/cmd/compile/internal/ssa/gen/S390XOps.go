@@ -496,6 +496,7 @@ func init() {
 		// Atomic loads. These are just normal loads but return <value,memory> tuples
 		// so they can be properly ordered with other loads.
 		// load from arg0+auxint+aux.  arg1=mem.
+		{name: "MOVBZatomicload", argLength: 2, reg: gpload, asm: "MOVBZ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
 		{name: "MOVWZatomicload", argLength: 2, reg: gpload, asm: "MOVWZ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
 		{name: "MOVDatomicload", argLength: 2, reg: gpload, asm: "MOVD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
 

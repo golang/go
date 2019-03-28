@@ -713,7 +713,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			clear.To.Type = obj.TYPE_MEM
 			clear.To.Reg = v.Args[0].Reg()
 		}
-	case ssa.OpS390XMOVWZatomicload, ssa.OpS390XMOVDatomicload:
+	case ssa.OpS390XMOVBZatomicload, ssa.OpS390XMOVWZatomicload, ssa.OpS390XMOVDatomicload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()

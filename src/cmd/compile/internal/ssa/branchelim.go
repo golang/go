@@ -33,7 +33,7 @@ func branchelim(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			switch v.Op {
-			case OpLoad, OpAtomicLoad32, OpAtomicLoad64, OpAtomicLoadPtr, OpAtomicLoadAcq32:
+			case OpLoad, OpAtomicLoad8, OpAtomicLoad32, OpAtomicLoad64, OpAtomicLoadPtr, OpAtomicLoadAcq32:
 				loadAddr.add(v.Args[0].ID)
 			case OpMove:
 				loadAddr.add(v.Args[1].ID)

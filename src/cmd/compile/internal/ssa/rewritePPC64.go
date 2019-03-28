@@ -67,6 +67,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpAtomicLoad32_0(v)
 	case OpAtomicLoad64:
 		return rewriteValuePPC64_OpAtomicLoad64_0(v)
+	case OpAtomicLoad8:
+		return rewriteValuePPC64_OpAtomicLoad8_0(v)
 	case OpAtomicLoadAcq32:
 		return rewriteValuePPC64_OpAtomicLoadAcq32_0(v)
 	case OpAtomicLoadPtr:
@@ -1058,6 +1060,20 @@ func rewriteValuePPC64_OpAtomicLoad64_0(v *Value) bool {
 		mem := v.Args[1]
 		ptr := v.Args[0]
 		v.reset(OpPPC64LoweredAtomicLoad64)
+		v.AuxInt = 1
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAtomicLoad8_0(v *Value) bool {
+	// match: (AtomicLoad8 ptr mem)
+	// cond:
+	// result: (LoweredAtomicLoad8 [1] ptr mem)
+	for {
+		mem := v.Args[1]
+		ptr := v.Args[0]
+		v.reset(OpPPC64LoweredAtomicLoad8)
 		v.AuxInt = 1
 		v.AddArg(ptr)
 		v.AddArg(mem)

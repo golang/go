@@ -323,18 +323,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		pisync := s.Prog(ppc64.AISYNC)
 		pisync.To.Type = obj.TYPE_NONE
 
-	case ssa.OpPPC64LoweredAtomicLoad32,
+	case ssa.OpPPC64LoweredAtomicLoad8,
+		ssa.OpPPC64LoweredAtomicLoad32,
 		ssa.OpPPC64LoweredAtomicLoad64,
 		ssa.OpPPC64LoweredAtomicLoadPtr:
 		// SYNC
-		// MOVD/MOVW (Rarg0), Rout
+		// MOVB/MOVD/MOVW (Rarg0), Rout
 		// CMP Rout,Rout
 		// BNE 1(PC)
 		// ISYNC
 		ld := ppc64.AMOVD
 		cmp := ppc64.ACMP
-		if v.Op == ssa.OpPPC64LoweredAtomicLoad32 {
-			ld = ppc64.AMOVW
+		switch v.Op {
+		case ssa.OpPPC64LoweredAtomicLoad8:
+			ld = ppc64.AMOVBZ
+		case ssa.OpPPC64LoweredAtomicLoad32:
+			ld = ppc64.AMOVWZ
 			cmp = ppc64.ACMPW
 		}
 		arg0 := v.Args[0].Reg()

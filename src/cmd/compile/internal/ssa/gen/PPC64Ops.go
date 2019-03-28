@@ -485,6 +485,7 @@ func init() {
 		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
 
+		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, typ: "UInt8", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
 		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, typ: "UInt32", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
 		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, typ: "Int64", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
 		{name: "LoweredAtomicLoadPtr", argLength: 2, reg: gpload, typ: "Int64", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},

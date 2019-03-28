@@ -29,6 +29,12 @@ func LoadAcq(ptr *uint32) uint32 {
 
 //go:nosplit
 //go:noinline
+func Load8(ptr *uint8) uint8 {
+	return *ptr
+}
+
+//go:nosplit
+//go:noinline
 func Load64(ptr *uint64) uint64 {
 	return *ptr
 }

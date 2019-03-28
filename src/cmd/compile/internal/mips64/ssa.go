@@ -495,9 +495,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
 		s.UseArgs(16) // space used in callee args area by assembly stubs
-	case ssa.OpMIPS64LoweredAtomicLoad32, ssa.OpMIPS64LoweredAtomicLoad64:
+	case ssa.OpMIPS64LoweredAtomicLoad8, ssa.OpMIPS64LoweredAtomicLoad32, ssa.OpMIPS64LoweredAtomicLoad64:
 		as := mips.AMOVV
-		if v.Op == ssa.OpMIPS64LoweredAtomicLoad32 {
+		switch v.Op {
+		case ssa.OpMIPS64LoweredAtomicLoad8:
+			as = mips.AMOVB
+		case ssa.OpMIPS64LoweredAtomicLoad32:
 			as = mips.AMOVW
 		}
 		s.Prog(mips.ASYNC)
