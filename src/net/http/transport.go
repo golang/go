@@ -1039,7 +1039,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 		t.decHostConnCount(cmKey)
 		select {
 		case <-req.Cancel:
-			// It was an error due to cancelation, so prioritize that
+			// It was an error due to cancellation, so prioritize that
 			// error value. (Issue 16049)
 			return nil, errRequestCanceledConn
 		case <-req.Context().Done():
@@ -1050,7 +1050,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 			}
 			return nil, err
 		default:
-			// It wasn't an error due to cancelation, so
+			// It wasn't an error due to cancellation, so
 			// return the original error message:
 			return nil, v.err
 		}
@@ -1557,7 +1557,7 @@ func (pc *persistConn) isBroken() bool {
 }
 
 // canceled returns non-nil if the connection was closed due to
-// CancelRequest or due to context cancelation.
+// CancelRequest or due to context cancellation.
 func (pc *persistConn) canceled() error {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
@@ -1813,7 +1813,7 @@ func (pc *persistConn) readLoop() {
 
 		// Before looping back to the top of this function and peeking on
 		// the bufio.Reader, wait for the caller goroutine to finish
-		// reading the response body. (or for cancelation or death)
+		// reading the response body. (or for cancellation or death)
 		select {
 		case bodyEOF := <-waitForBodyRead:
 			pc.t.setReqCanceler(rc.req, nil) // before pc might return to idle pool

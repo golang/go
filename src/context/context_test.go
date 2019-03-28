@@ -94,7 +94,7 @@ func XTestWithCancel(t testingT) {
 	}
 
 	cancel()
-	time.Sleep(100 * time.Millisecond) // let cancelation propagate
+	time.Sleep(100 * time.Millisecond) // let cancellation propagate
 
 	for i, c := range contexts {
 		select {
@@ -306,7 +306,7 @@ func XTestCanceledTimeout(t testingT) {
 	o := otherContext{c}
 	c, cancel := WithTimeout(o, 2*time.Second)
 	cancel()
-	time.Sleep(100 * time.Millisecond) // let cancelation propagate
+	time.Sleep(100 * time.Millisecond) // let cancellation propagate
 	select {
 	case <-c.Done():
 	default:
