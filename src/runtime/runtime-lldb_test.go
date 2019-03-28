@@ -164,6 +164,7 @@ func TestLldbPython(t *testing.T) {
 	// disable it for this test.
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-ldflags=-compressdwarf=false", "-o", "a.exe")
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOPATH=") // issue 31100
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("building source %v\n%s", err, out)
