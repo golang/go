@@ -5,6 +5,7 @@
 package cmd_test
 
 import (
+	"flag"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -22,6 +23,8 @@ const (
 	expectedDiagnosticsCount = 16
 	expectedFormatCount      = 4
 )
+
+var internalPipe = flag.Bool("pipe", false, "connect the command line client to a server through a pipe")
 
 func TestCommandLine(t *testing.T) {
 	packagestest.TestAll(t, testCommandLine)
