@@ -301,11 +301,11 @@ type lico uint32
 // The bitfield order is chosen to make IsStmt be the least significant
 // part of a position; its use is to communicate statement edges through
 // instruction scrambling in code generation, not to impose an order.
-// TODO: Prologue and epilogue are perhaps better handled as psuedoops for the assembler,
+// TODO: Prologue and epilogue are perhaps better handled as pseudo-ops for the assembler,
 // because they have almost no interaction with other uses of the position.
 const (
 	lineBits, lineMax     = 20, 1<<lineBits - 2
-	bogusLine             = 1<<lineBits - 1 // Not a line number; used to disruopt infinite loops
+	bogusLine             = 1<<lineBits - 1 // Not a line number; used to disrupt infinite loops
 	isStmtBits, isStmtMax = 2, 1<<isStmtBits - 1
 	xlogueBits, xlogueMax = 2, 1<<xlogueBits - 1
 	colBits, colMax       = 32 - lineBits - xlogueBits - isStmtBits, 1<<colBits - 1
