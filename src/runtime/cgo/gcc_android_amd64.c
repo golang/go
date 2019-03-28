@@ -7,9 +7,6 @@
 #include <signal.h>
 #include "libcgo.h"
 
-static void* threadentry(void*);
-static pthread_key_t k1;
-
 #define magic1 (0x23581321345589ULL)
 
 static void
@@ -49,7 +46,6 @@ inittls(void)
 		asm volatile("movq %%fs:0x1d0, %0" : "=r"(x));
 		pthread_setspecific(k, 0);
 		if(x == magic1) {
-			k1 = k;
 			break;
 		}
 		if(ntofree >= nelem(tofree)) {
@@ -73,23 +69,4 @@ inittls(void)
 	}
 }
 
-
-static void*
-threadentry(void *v)
-{
-	ThreadStart ts;
-
-	ts = *(ThreadStart*)v;
-	free(v);
-
-	if (pthread_setspecific(k1, (void*)ts.g) != 0) {
-		fprintf(stderr, "runtime/cgo: pthread_setspecific failed\n");
-		abort();
-	}
-
-	crosscall_amd64(ts.fn);
-	return nil;
-}
-
 void (*x_cgo_inittls)(void) = inittls;
-void* (*x_cgo_threadentry)(void*) = threadentry;
