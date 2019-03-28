@@ -140,6 +140,7 @@
 (Round       x) -> (FIDBR [1] x)
 
 // Atomic loads.
+(AtomicLoad8  ptr mem) -> (MOVBZatomicload ptr mem)
 (AtomicLoad32 ptr mem) -> (MOVWZatomicload ptr mem)
 (AtomicLoad64 ptr mem) -> (MOVDatomicload ptr mem)
 (AtomicLoadPtr ptr mem) -> (MOVDatomicload ptr mem)

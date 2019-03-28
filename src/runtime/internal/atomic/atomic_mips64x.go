@@ -30,6 +30,9 @@ func Xchguintptr(ptr *uintptr, new uintptr) uintptr
 func Load(ptr *uint32) uint32
 
 //go:noescape
+func Load8(ptr *uint8) uint8
+
+//go:noescape
 func Load64(ptr *uint64) uint64
 
 // NO go:noescape annotation; *ptr escapes if result escapes (#31525)

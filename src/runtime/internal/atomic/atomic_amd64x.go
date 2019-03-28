@@ -50,6 +50,12 @@ func Xchg64(ptr *uint64, new uint64) uint64
 //go:noescape
 func Xchguintptr(ptr *uintptr, new uintptr) uintptr
 
+//go:nosplit
+//go:noinline
+func Load8(ptr *uint8) uint8 {
+	return *ptr
+}
+
 //go:noescape
 func And8(ptr *uint8, val uint8)
 

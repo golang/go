@@ -185,6 +185,9 @@ func Load(addr *uint32) uint32
 func Loadp(addr unsafe.Pointer) unsafe.Pointer
 
 //go:noescape
+func Load8(addr *uint8) uint8
+
+//go:noescape
 func LoadAcq(addr *uint32) uint32
 
 //go:noescape

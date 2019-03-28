@@ -924,7 +924,7 @@
     (MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
 
 // atomic intrinsics
-(AtomicLoad(32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(32|64|Ptr) [1] ptr mem)
+(AtomicLoad(8|32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(8|32|64|Ptr) [1] ptr mem)
 (AtomicLoadAcq32        ptr mem) -> (LoweredAtomicLoad32 [0] ptr mem)
 
 (AtomicStore(32|64)      ptr val mem) -> (LoweredAtomicStore(32|64) [1] ptr val mem)

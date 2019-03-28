@@ -343,6 +343,7 @@ func init() {
 		// atomic loads.
 		// load from arg0. arg1=mem.
 		// returns <value,memory> so they can be properly ordered with other loads.
+		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, faultOnNilArg0: true},
 		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, faultOnNilArg0: true},
 		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, faultOnNilArg0: true},
 

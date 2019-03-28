@@ -606,6 +606,7 @@ func init() {
 		// load from arg0. arg1=mem. auxint must be zero.
 		// returns <value,memory> so they can be properly ordered with other loads.
 		{name: "LDAR", argLength: 2, reg: gpload, asm: "LDAR", faultOnNilArg0: true},
+		{name: "LDARB", argLength: 2, reg: gpload, asm: "LDARB", faultOnNilArg0: true},
 		{name: "LDARW", argLength: 2, reg: gpload, asm: "LDARW", faultOnNilArg0: true},
 
 		// atomic stores.
