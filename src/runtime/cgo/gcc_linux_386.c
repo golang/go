@@ -11,9 +11,8 @@
 static void *threadentry(void*);
 static void (*setg_gcc)(void*);
 
-// These will be set in gcc_android_386.c for android-specific customization.
+// This will be set in gcc_android_386.c for android-specific customization.
 void (*x_cgo_inittls)(void);
-void* (*x_cgo_threadentry)(void*);
 
 void
 x_cgo_init(G *g, void (*setg)(void*))
@@ -31,7 +30,6 @@ x_cgo_init(G *g, void (*setg)(void*))
 		x_cgo_inittls();
 	}
 }
-
 
 void
 _cgo_sys_thread_start(ThreadStart *ts)
@@ -66,10 +64,6 @@ _cgo_sys_thread_start(ThreadStart *ts)
 static void*
 threadentry(void *v)
 {
-	if (x_cgo_threadentry) {
-		return x_cgo_threadentry(v);
-	}
-
 	ThreadStart ts;
 
 	ts = *(ThreadStart*)v;
