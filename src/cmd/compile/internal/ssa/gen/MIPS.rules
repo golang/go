@@ -670,8 +670,8 @@
 (SGTUconst [c] (MOVHUreg _)) && 0xffff < uint32(c) -> (MOVWconst [1])
 (SGTconst [c] (ANDconst [m] _)) && 0 <= int32(m) && int32(m) < int32(c) -> (MOVWconst [1])
 (SGTUconst [c] (ANDconst [m] _)) && uint32(m) < uint32(c) -> (MOVWconst [1])
-(SGTconst [c] (SRLconst _ [d])) && 0 <= int32(c) && uint32(d) <= 31 && 1<<(32-uint32(d)) <= int32(c) -> (MOVWconst [1])
-(SGTUconst [c] (SRLconst _ [d])) && uint32(d) <= 31 && 1<<(32-uint32(d)) <= uint32(c) -> (MOVWconst [1])
+(SGTconst [c] (SRLconst _ [d])) && 0 <= int32(c) && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c) -> (MOVWconst [1])
+(SGTUconst [c] (SRLconst _ [d])) && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c) -> (MOVWconst [1])
 
 // absorb constants into branches
 (EQ  (MOVWconst [0]) yes no) -> (First nil yes no)

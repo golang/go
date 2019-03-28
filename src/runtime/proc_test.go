@@ -891,11 +891,22 @@ func testLockOSThreadExit(t *testing.T, prog string) {
 	output := runTestProg(t, prog, "LockOSThreadMain", "GOMAXPROCS=1")
 	want := "OK\n"
 	if output != want {
-		t.Errorf("want %s, got %s\n", want, output)
+		t.Errorf("want %q, got %q", want, output)
 	}
 
 	output = runTestProg(t, prog, "LockOSThreadAlt")
 	if output != want {
-		t.Errorf("want %s, got %s\n", want, output)
+		t.Errorf("want %q, got %q", want, output)
+	}
+}
+
+func TestLockOSThreadAvoidsStatePropagation(t *testing.T) {
+	want := "OK\n"
+	skip := "unshare not permitted\n"
+	output := runTestProg(t, "testprog", "LockOSThreadAvoidsStatePropagation", "GOMAXPROCS=1")
+	if output == skip {
+		t.Skip("unshare syscall not permitted on this system")
+	} else if output != want {
+		t.Errorf("want %q, got %q", want, output)
 	}
 }

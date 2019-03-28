@@ -2,14 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !linux
-
 package main
 
-func gettid() int {
-	return 0
-}
+import (
+	"errors"
+)
 
-func tidExists(tid int) (exists, supported bool) {
-	return false, false
-}
+var errNotPermitted = errors.New("operation not permitted")
