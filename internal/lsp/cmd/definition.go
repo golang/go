@@ -16,6 +16,7 @@ import (
 	guru "golang.org/x/tools/cmd/guru/serial"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
 )
@@ -30,9 +31,9 @@ type Definition struct {
 // help is still valid.
 // They refer to "Set" in "flag.FlagSet" from the DetailedHelp method below.
 const (
-	exampleLine   = 46
+	exampleLine   = 47
 	exampleColumn = 47
-	exampleOffset = 1319
+	exampleOffset = 1359
 )
 
 // definition implements the definition noun for the query command.
@@ -61,7 +62,8 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if len(args) != 1 {
 		return tool.CommandLineErrorf("definition expects 1 argument")
 	}
-	view := cache.NewView("definition_test", span.FileURI(d.query.app.Config.Dir), &d.query.app.Config)
+	log := xlog.New(xlog.StdSink{})
+	view := cache.NewView(ctx, log, "definition_test", span.FileURI(d.query.app.Config.Dir), &d.query.app.Config)
 	from := span.Parse(args[0])
 	f, err := view.GetFile(ctx, from.URI())
 	if err != nil {

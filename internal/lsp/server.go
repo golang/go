@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -29,6 +30,7 @@ import (
 func NewClientServer(client protocol.Client) *Server {
 	return &Server{
 		client: client,
+		log:    xlog.New(protocol.NewLogger(client)),
 	}
 }
 
@@ -36,7 +38,7 @@ func NewClientServer(client protocol.Client) *Server {
 // stream is closed.
 func NewServer(stream jsonrpc2.Stream) *Server {
 	s := &Server{}
-	s.Conn, s.client = protocol.NewServer(stream, s)
+	s.Conn, s.client, s.log = protocol.NewServer(stream, s)
 	return s
 }
 
@@ -68,6 +70,7 @@ func RunServerOnAddress(ctx context.Context, addr string, h func(s *Server)) err
 type Server struct {
 	Conn   *jsonrpc2.Conn
 	client protocol.Client
+	log    xlog.Logger
 
 	initializedMu sync.Mutex
 	initialized   bool // set once the server has received "initialize" request
@@ -117,8 +120,11 @@ func (s *Server) Initialize(ctx context.Context, params *protocol.InitializePara
 	// flag). Disabled for now to simplify debugging.
 	s.textDocumentSyncKind = protocol.Full
 
+	//We need a "detached" context so it does not get timeout cancelled.
+	//TODO(iancottrell): Do we need to copy any values across?
+	viewContext := context.Background()
 	//TODO:use workspace folders
-	s.view = cache.NewView(path.Base(string(rootURI)), rootURI, &packages.Config{
+	s.view = cache.NewView(viewContext, s.log, path.Base(string(rootURI)), rootURI, &packages.Config{
 		Context: ctx,
 		Dir:     rootPath,
 		Env:     os.Environ(),
@@ -564,13 +570,6 @@ func (s *Server) Rename(context.Context, *protocol.RenameParams) ([]protocol.Wor
 
 func (s *Server) FoldingRanges(context.Context, *protocol.FoldingRangeParams) ([]protocol.FoldingRange, error) {
 	return nil, notImplemented("FoldingRanges")
-}
-
-func (s *Server) Error(err error) {
-	s.client.LogMessage(context.Background(), &protocol.LogMessageParams{
-		Type:    protocol.Error,
-		Message: fmt.Sprint(err),
-	})
 }
 
 func (s *Server) processConfig(config interface{}) error {

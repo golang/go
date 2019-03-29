@@ -8,7 +8,6 @@ import (
 	"go/scanner"
 	"go/types"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,7 +54,7 @@ func (v *View) parse(ctx context.Context, f *File) ([]packages.Error, error) {
 		return nil, err
 	}
 	// Add every file in this package to our cache.
-	v.cachePackage(pkg)
+	v.cachePackage(ctx, pkg)
 
 	// If we still have not found the package for the file, something is wrong.
 	if f.pkg == nil {
@@ -64,22 +63,22 @@ func (v *View) parse(ctx context.Context, f *File) ([]packages.Error, error) {
 	return nil, nil
 }
 
-func (v *View) cachePackage(pkg *Package) {
+func (v *View) cachePackage(ctx context.Context, pkg *Package) {
 	for _, file := range pkg.GetSyntax() {
 		// TODO: If a file is in multiple packages, which package do we store?
 		if !file.Pos().IsValid() {
-			log.Printf("invalid position for file %v", file.Name)
+			v.Logger().Errorf(ctx, "invalid position for file %v", file.Name)
 			continue
 		}
 		tok := v.Config.Fset.File(file.Pos())
 		if tok == nil {
-			log.Printf("no token.File for %v", file.Name)
+			v.Logger().Errorf(ctx, "no token.File for %v", file.Name)
 			continue
 		}
 		fURI := span.FileURI(tok.Name())
 		f, err := v.getFile(fURI)
 		if err != nil {
-			log.Printf("no file: %v", err)
+			v.Logger().Errorf(ctx, "no file: %v", err)
 			continue
 		}
 		f.token = tok

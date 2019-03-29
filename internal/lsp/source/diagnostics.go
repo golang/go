@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
@@ -90,7 +89,8 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 			if diagFile, err := v.GetFile(ctx, spn.URI()); err == nil {
 				tok := diagFile.GetToken(ctx)
 				if tok == nil {
-					continue // ignore errors
+					v.Logger().Errorf(ctx, "Could not matching tokens for diagnostic: %v", diagFile.URI())
+					continue
 				}
 				content := diagFile.GetContent(ctx)
 				c := span.NewTokenConverter(diagFile.GetFileSet(ctx), tok)
@@ -124,7 +124,7 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 		if err != nil {
 			//TODO: we could not process the diag.Pos, and thus have no valid span
 			//we don't have anywhere to put this error though
-			log.Print(err)
+			v.Logger().Errorf(ctx, "%v", err)
 		}
 		category := a.Name
 		if diag.Category != "" {

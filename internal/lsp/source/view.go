@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/xlog"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -19,6 +20,7 @@ import (
 // package. The view provides access to files and their contents, so the source
 // package does not directly access the file system.
 type View interface {
+	Logger() xlog.Logger
 	GetFile(ctx context.Context, uri span.URI) (File, error)
 	SetContent(ctx context.Context, uri span.URI, content []byte) error
 	FileSet() *token.FileSet

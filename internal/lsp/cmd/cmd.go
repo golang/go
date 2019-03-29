@@ -14,6 +14,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -126,7 +127,7 @@ func (app *Application) connect(ctx context.Context, client protocol.Client) (pr
 		cr, sw, _ := os.Pipe()
 		sr, cw, _ := os.Pipe()
 		var jc *jsonrpc2.Conn
-		jc, server = protocol.NewClient(jsonrpc2.NewHeaderStream(cr, cw), client)
+		jc, server, _ = protocol.NewClient(jsonrpc2.NewHeaderStream(cr, cw), client)
 		go jc.Run(ctx)
 		go lsp.NewServer(jsonrpc2.NewHeaderStream(sr, sw)).Run(ctx)
 	default:
@@ -136,7 +137,7 @@ func (app *Application) connect(ctx context.Context, client protocol.Client) (pr
 		}
 		stream := jsonrpc2.NewHeaderStream(conn, conn)
 		var jc *jsonrpc2.Conn
-		jc, server = protocol.NewClient(stream, client)
+		jc, server, _ = protocol.NewClient(stream, client)
 		if err != nil {
 			return nil, err
 		}
@@ -162,8 +163,22 @@ func (c *baseClient) ShowMessage(ctx context.Context, p *protocol.ShowMessagePar
 func (c *baseClient) ShowMessageRequest(ctx context.Context, p *protocol.ShowMessageRequestParams) (*protocol.MessageActionItem, error) {
 	return nil, nil
 }
-func (c *baseClient) LogMessage(ctx context.Context, p *protocol.LogMessageParams) error { return nil }
-func (c *baseClient) Telemetry(ctx context.Context, t interface{}) error                 { return nil }
+func (c *baseClient) LogMessage(ctx context.Context, p *protocol.LogMessageParams) error {
+	switch p.Type {
+	case protocol.Error:
+		log.Print("Error:", p.Message)
+	case protocol.Warning:
+		log.Print("Warning:", p.Message)
+	case protocol.Info:
+		log.Print("Info:", p.Message)
+	case protocol.Log:
+		log.Print("Log:", p.Message)
+	default:
+		log.Print(p.Message)
+	}
+	return nil
+}
+func (c *baseClient) Telemetry(ctx context.Context, t interface{}) error { return nil }
 func (c *baseClient) RegisterCapability(ctx context.Context, p *protocol.RegistrationParams) error {
 	return nil
 }
