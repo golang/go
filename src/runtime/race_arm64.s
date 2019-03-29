@@ -427,7 +427,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
 	load_g
 	MOVD	g_m(g), R0
 	MOVD	m_p(R0), R0
-	MOVD	p_racectx(R0), R0
+	MOVD	p_raceprocctx(R0), R0
 	MOVD	R0, (R1)
 	MOVD	R13, g
 	JMP	(LR)
