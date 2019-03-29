@@ -74,7 +74,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 
 	log := xlog.New(xlog.StdSink{})
 	s := &Server{
-		view:        cache.NewView(ctx, log, "lsp_test", span.FileURI(cfg.Dir), &cfg),
+		views:       []*cache.View{cache.NewView(ctx, log, "lsp_test", span.FileURI(cfg.Dir), &cfg)},
 		undelivered: make(map[span.URI][]source.Diagnostic),
 	}
 	// Do a first pass to collect special markers for completion.
@@ -121,7 +121,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 
 	t.Run("Diagnostics", func(t *testing.T) {
 		t.Helper()
-		diagnosticsCount := expectedDiagnostics.test(t, s.view)
+		diagnosticsCount := expectedDiagnostics.test(t, s.views[0])
 		if goVersion111 { // TODO(rstambler): Remove this when we no longer support Go 1.10.
 			if diagnosticsCount != expectedDiagnosticsCount {
 				t.Errorf("got %v diagnostics expected %v", diagnosticsCount, expectedDiagnosticsCount)
@@ -425,7 +425,7 @@ func (f formats) test(t *testing.T, s *Server) {
 			}
 			continue
 		}
-		f, m, err := newColumnMap(ctx, s.view, uri)
+		f, m, err := newColumnMap(ctx, s.findView(ctx, uri), uri)
 		if err != nil {
 			t.Error(err)
 		}

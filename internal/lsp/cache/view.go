@@ -209,6 +209,17 @@ func (v *View) remove(pkgPath string) {
 	delete(v.pcache.packages, pkgPath)
 }
 
+// FindFile returns the file if the given URI is already a part of the view.
+func (v *View) FindFile(ctx context.Context, uri span.URI) *File {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	f, err := v.findFile(uri)
+	if err != nil {
+		return nil
+	}
+	return f
+}
+
 // GetFile returns a File for the given URI. It will always succeed because it
 // adds the file to the managed set if needed.
 func (v *View) GetFile(ctx context.Context, uri span.URI) (source.File, error) {

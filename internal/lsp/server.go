@@ -80,8 +80,7 @@ type Server struct {
 
 	textDocumentSyncKind protocol.TextDocumentSyncKind
 
-	viewMu sync.Mutex
-	view   *cache.View
+	views []*cache.View
 
 	// undelivered is a cache of any diagnostics that the server
 	// failed to deliver for some reason.
@@ -113,15 +112,6 @@ func (s *Server) Initialize(ctx context.Context, params *protocol.InitializePara
 	}
 	s.signatureHelpEnabled = true
 
-	var rootURI span.URI
-	if params.RootURI != "" {
-		rootURI = span.NewURI(params.RootURI)
-	}
-	rootPath, err := rootURI.Filename()
-	if err != nil {
-		return nil, err
-	}
-
 	// TODO(rstambler): Change this default to protocol.Incremental (or add a
 	// flag). Disabled for now to simplify debugging.
 	s.textDocumentSyncKind = protocol.Full
@@ -129,19 +119,39 @@ func (s *Server) Initialize(ctx context.Context, params *protocol.InitializePara
 	//We need a "detached" context so it does not get timeout cancelled.
 	//TODO(iancottrell): Do we need to copy any values across?
 	viewContext := context.Background()
-	//TODO:use workspace folders
-	s.view = cache.NewView(viewContext, s.log, path.Base(string(rootURI)), rootURI, &packages.Config{
-		Context: ctx,
-		Dir:     rootPath,
-		Env:     os.Environ(),
-		Mode:    packages.LoadImports,
-		Fset:    token.NewFileSet(),
-		Overlay: make(map[string][]byte),
-		ParseFile: func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
-			return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
-		},
-		Tests: true,
-	})
+	folders := params.WorkspaceFolders
+	if len(folders) == 0 {
+		if params.RootURI != "" {
+			folders = []protocol.WorkspaceFolder{{
+				URI:  params.RootURI,
+				Name: path.Base(params.RootURI),
+			}}
+		} else {
+			// no folders and no root, single file mode
+			//TODO(iancottrell): not sure how to do single file mode yet
+			//issue: golang.org/issue/31168
+			return nil, fmt.Errorf("single file mode not supported yet")
+		}
+	}
+	for _, folder := range folders {
+		uri := span.NewURI(folder.URI)
+		folderPath, err := uri.Filename()
+		if err != nil {
+			return nil, err
+		}
+		s.views = append(s.views, cache.NewView(viewContext, s.log, folder.Name, uri, &packages.Config{
+			Context: ctx,
+			Dir:     folderPath,
+			Env:     os.Environ(),
+			Mode:    packages.LoadImports,
+			Fset:    token.NewFileSet(),
+			Overlay: make(map[string][]byte),
+			ParseFile: func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+				return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
+			},
+			Tests: true,
+		}))
+	}
 
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
@@ -178,17 +188,19 @@ func (s *Server) Initialized(ctx context.Context, params *protocol.InitializedPa
 			Method: "workspace/didChangeConfiguration",
 		}},
 	})
-	config, err := s.client.Configuration(ctx, &protocol.ConfigurationParams{
-		Items: []protocol.ConfigurationItem{{
-			ScopeURI: protocol.NewURI(s.view.Folder),
-			Section:  "gopls",
-		}},
-	})
-	if err != nil {
-		return err
-	}
-	if err := s.processConfig(config[0]); err != nil {
-		return err
+	for _, view := range s.views {
+		config, err := s.client.Configuration(ctx, &protocol.ConfigurationParams{
+			Items: []protocol.ConfigurationItem{{
+				ScopeURI: protocol.NewURI(view.Folder),
+				Section:  "gopls",
+			}},
+		})
+		if err != nil {
+			return err
+		}
+		if err := s.processConfig(view, config[0]); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -245,7 +257,9 @@ func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTex
 		return change.Text, nil
 	}
 
-	file, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.findView(ctx, uri)
+	file, m, err := newColumnMap(ctx, view, uri)
 	if err != nil {
 		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found")
 	}
@@ -308,14 +322,15 @@ func (s *Server) DidSave(context.Context, *protocol.DidSaveTextDocumentParams) e
 }
 
 func (s *Server) DidClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
-	if err := s.view.SetContent(ctx, span.NewURI(params.TextDocument.URI), nil); err != nil {
-		return err
-	}
-	return nil
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.findView(ctx, uri)
+	return view.SetContent(ctx, uri, nil)
 }
 
 func (s *Server) Completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.findView(ctx, uri)
+	f, m, err := newColumnMap(ctx, view, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +357,9 @@ func (s *Server) CompletionResolve(context.Context, *protocol.CompletionItem) (*
 }
 
 func (s *Server) Hover(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.Hover, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.findView(ctx, uri)
+	f, m, err := newColumnMap(ctx, view, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -354,7 +371,7 @@ func (s *Server) Hover(ctx context.Context, params *protocol.TextDocumentPositio
 	if err != nil {
 		return nil, err
 	}
-	ident, err := source.Identifier(ctx, s.view, f, identRange.Start)
+	ident, err := source.Identifier(ctx, view, f, identRange.Start)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +398,9 @@ func (s *Server) Hover(ctx context.Context, params *protocol.TextDocumentPositio
 }
 
 func (s *Server) SignatureHelp(ctx context.Context, params *protocol.TextDocumentPositionParams) (*protocol.SignatureHelp, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.findView(ctx, uri)
+	f, m, err := newColumnMap(ctx, view, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -401,7 +420,9 @@ func (s *Server) SignatureHelp(ctx context.Context, params *protocol.TextDocumen
 }
 
 func (s *Server) Definition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.findView(ctx, uri)
+	f, m, err := newColumnMap(ctx, view, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -413,7 +434,7 @@ func (s *Server) Definition(ctx context.Context, params *protocol.TextDocumentPo
 	if err != nil {
 		return nil, err
 	}
-	ident, err := source.Identifier(ctx, s.view, f, rng.Start)
+	ident, err := source.Identifier(ctx, view, f, rng.Start)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +442,7 @@ func (s *Server) Definition(ctx context.Context, params *protocol.TextDocumentPo
 	if err != nil {
 		return nil, err
 	}
-	_, decM, err := newColumnMap(ctx, s.view, decSpan.URI())
+	_, decM, err := newColumnMap(ctx, view, decSpan.URI())
 	if err != nil {
 		return nil, err
 	}
@@ -433,7 +454,9 @@ func (s *Server) Definition(ctx context.Context, params *protocol.TextDocumentPo
 }
 
 func (s *Server) TypeDefinition(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.Location, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.findView(ctx, uri)
+	f, m, err := newColumnMap(ctx, view, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -445,7 +468,7 @@ func (s *Server) TypeDefinition(ctx context.Context, params *protocol.TextDocume
 	if err != nil {
 		return nil, err
 	}
-	ident, err := source.Identifier(ctx, s.view, f, rng.Start)
+	ident, err := source.Identifier(ctx, view, f, rng.Start)
 	if err != nil {
 		return nil, err
 	}
@@ -453,7 +476,7 @@ func (s *Server) TypeDefinition(ctx context.Context, params *protocol.TextDocume
 	if err != nil {
 		return nil, err
 	}
-	_, identM, err := newColumnMap(ctx, s.view, identSpan.URI())
+	_, identM, err := newColumnMap(ctx, view, identSpan.URI())
 	if err != nil {
 		return nil, err
 	}
@@ -473,7 +496,9 @@ func (s *Server) References(context.Context, *protocol.ReferenceParams) ([]proto
 }
 
 func (s *Server) DocumentHighlight(ctx context.Context, params *protocol.TextDocumentPositionParams) ([]protocol.DocumentHighlight, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.findView(ctx, uri)
+	f, m, err := newColumnMap(ctx, view, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +518,9 @@ func (s *Server) DocumentHighlight(ctx context.Context, params *protocol.TextDoc
 }
 
 func (s *Server) DocumentSymbol(ctx context.Context, params *protocol.DocumentSymbolParams) ([]protocol.DocumentSymbol, error) {
-	f, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.findView(ctx, uri)
+	f, m, err := newColumnMap(ctx, view, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +529,9 @@ func (s *Server) DocumentSymbol(ctx context.Context, params *protocol.DocumentSy
 }
 
 func (s *Server) CodeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
-	_, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.findView(ctx, uri)
+	_, m, err := newColumnMap(ctx, view, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -510,7 +539,7 @@ func (s *Server) CodeAction(ctx context.Context, params *protocol.CodeActionPara
 	if err != nil {
 		return nil, err
 	}
-	edits, err := organizeImports(ctx, s.view, spn)
+	edits, err := organizeImports(ctx, view, spn)
 	if err != nil {
 		return nil, err
 	}
@@ -552,12 +581,16 @@ func (s *Server) ColorPresentation(context.Context, *protocol.ColorPresentationP
 }
 
 func (s *Server) Formatting(ctx context.Context, params *protocol.DocumentFormattingParams) ([]protocol.TextEdit, error) {
-	spn := span.New(span.URI(params.TextDocument.URI), span.Point{}, span.Point{})
-	return formatRange(ctx, s.view, spn)
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.findView(ctx, uri)
+	spn := span.New(uri, span.Point{}, span.Point{})
+	return formatRange(ctx, view, spn)
 }
 
 func (s *Server) RangeFormatting(ctx context.Context, params *protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
-	_, m, err := newColumnMap(ctx, s.view, span.NewURI(params.TextDocument.URI))
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.findView(ctx, uri)
+	_, m, err := newColumnMap(ctx, view, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -565,7 +598,7 @@ func (s *Server) RangeFormatting(ctx context.Context, params *protocol.DocumentR
 	if err != nil {
 		return nil, err
 	}
-	return formatRange(ctx, s.view, spn)
+	return formatRange(ctx, view, spn)
 }
 
 func (s *Server) OnTypeFormatting(context.Context, *protocol.DocumentOnTypeFormattingParams) ([]protocol.TextEdit, error) {
@@ -580,7 +613,7 @@ func (s *Server) FoldingRanges(context.Context, *protocol.FoldingRangeParams) ([
 	return nil, notImplemented("FoldingRanges")
 }
 
-func (s *Server) processConfig(config interface{}) error {
+func (s *Server) processConfig(view *cache.View, config interface{}) error {
 	//TODO: we should probably store and process more of the config
 	c, ok := config.(map[string]interface{})
 	if !ok {
@@ -595,7 +628,7 @@ func (s *Server) processConfig(config interface{}) error {
 		return fmt.Errorf("Invalid config gopls.env type %T", env)
 	}
 	for k, v := range menv {
-		s.view.Config.Env = applyEnv(s.view.Config.Env, k, v)
+		view.Config.Env = applyEnv(view.Config.Env, k, v)
 	}
 	return nil
 }
@@ -614,4 +647,27 @@ func applyEnv(env []string, k string, v interface{}) []string {
 
 func notImplemented(method string) *jsonrpc2.Error {
 	return jsonrpc2.NewErrorf(jsonrpc2.CodeMethodNotFound, "method %q not yet implemented", method)
+}
+
+func (s *Server) findView(ctx context.Context, uri span.URI) *cache.View {
+	// first see if a view already has this file
+	for _, view := range s.views {
+		if view.FindFile(ctx, uri) != nil {
+			return view
+		}
+	}
+	var longest *cache.View
+	for _, view := range s.views {
+		if longest != nil && len(longest.Folder) > len(view.Folder) {
+			continue
+		}
+		if strings.HasPrefix(string(uri), string(view.Folder)) {
+			longest = view
+		}
+	}
+	if longest != nil {
+		return longest
+	}
+	//TODO: are there any more heuristics we can use?
+	return s.views[0]
 }
