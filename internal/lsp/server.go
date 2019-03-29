@@ -28,17 +28,14 @@ import (
 // NewClientServer
 func NewClientServer(client protocol.Client) *Server {
 	return &Server{
-		client:     client,
-		configured: make(chan struct{}),
+		client: client,
 	}
 }
 
 // NewServer starts an LSP server on the supplied stream, and waits until the
 // stream is closed.
 func NewServer(stream jsonrpc2.Stream) *Server {
-	s := &Server{
-		configured: make(chan struct{}),
-	}
+	s := &Server{}
 	s.Conn, s.client = protocol.NewServer(stream, s)
 	return s
 }
@@ -81,8 +78,6 @@ type Server struct {
 	textDocumentSyncKind protocol.TextDocumentSyncKind
 
 	view *cache.View
-
-	configured chan struct{}
 }
 
 func (s *Server) Run(ctx context.Context) error {
@@ -160,30 +155,24 @@ func (s *Server) Initialize(ctx context.Context, params *protocol.InitializePara
 }
 
 func (s *Server) Initialized(ctx context.Context, params *protocol.InitializedParams) error {
-	go func() {
-		// we hae to do this in a go routine to unblock the jsonrpc processor
-		// but we also have to block all calls to packages.Load until this is done
-		// TODO: we need to rewrite all the concurrency handling hin the server
-		defer func() { close(s.configured) }()
-		s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
-			Registrations: []protocol.Registration{{
-				ID:     "workspace/didChangeConfiguration",
-				Method: "workspace/didChangeConfiguration",
-			}},
-		})
-		config, err := s.client.Configuration(ctx, &protocol.ConfigurationParams{
-			Items: []protocol.ConfigurationItem{{
-				ScopeURI: protocol.NewURI(s.view.Folder),
-				Section:  "gopls",
-			}},
-		})
-		if err != nil {
-			s.Error(err)
-		}
-		if err := s.processConfig(config[0]); err != nil {
-			s.Error(err)
-		}
-	}()
+	s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
+		Registrations: []protocol.Registration{{
+			ID:     "workspace/didChangeConfiguration",
+			Method: "workspace/didChangeConfiguration",
+		}},
+	})
+	config, err := s.client.Configuration(ctx, &protocol.ConfigurationParams{
+		Items: []protocol.ConfigurationItem{{
+			ScopeURI: protocol.NewURI(s.view.Folder),
+			Section:  "gopls",
+		}},
+	})
+	if err != nil {
+		return err
+	}
+	if err := s.processConfig(config[0]); err != nil {
+		return err
+	}
 	return nil
 }
 

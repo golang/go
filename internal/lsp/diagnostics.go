@@ -18,9 +18,6 @@ func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content str
 		return err
 	}
 	go func() {
-		//TODO: this is an ugly hack to make the diagnostics call happen after the
-		// configuration is collected, we need to rewrite all the concurrency
-		<-s.configured
 		ctx := s.view.BackgroundContext()
 		if ctx.Err() != nil {
 			return
