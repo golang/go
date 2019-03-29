@@ -752,7 +752,11 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 			case types.IsExported(f.Sym.Name):
 				buf = append(buf, sconv(f.Sym, FmtShort, mode)...)
 			default:
-				buf = append(buf, sconv(f.Sym, FmtUnsigned, mode)...)
+				flag1 := FmtLeft
+				if flag&FmtUnsigned != 0 {
+					flag1 = FmtUnsigned
+				}
+				buf = append(buf, sconv(f.Sym, flag1, mode)...)
 			}
 			buf = append(buf, tconv(f.Type, FmtShort, mode, depth)...)
 		}
