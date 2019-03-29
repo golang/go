@@ -54,18 +54,11 @@ const (
 func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diagnostic, error) {
 	f, err := v.GetFile(ctx, uri)
 	if err != nil {
-		return nil, err
+		return singleDiagnostic(uri, "no file found for %s", uri), nil
 	}
 	pkg := f.GetPackage(ctx)
 	if pkg == nil {
-		return map[span.URI][]Diagnostic{
-			uri: []Diagnostic{{
-				Source:   "LSP",
-				Span:     span.New(uri, span.Point{}, span.Point{}),
-				Message:  fmt.Sprintf("not part of a package"),
-				Severity: SeverityError,
-			}},
-		}, nil
+		return singleDiagnostic(uri, "%s is not part of a package", uri), nil
 	}
 	// Prepare the reports we will send for this package.
 	reports := make(map[span.URI][]Diagnostic)
@@ -147,6 +140,17 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 	})
 
 	return reports, nil
+}
+
+func singleDiagnostic(uri span.URI, format string, a ...interface{}) map[span.URI][]Diagnostic {
+	return map[span.URI][]Diagnostic{
+		uri: []Diagnostic{{
+			Source:   "LSP",
+			Span:     span.New(uri, span.Point{}, span.Point{}),
+			Message:  fmt.Sprintf(format, a...),
+			Severity: SeverityError,
+		}},
+	}
 }
 
 func runAnalyses(ctx context.Context, v View, pkg Package, report func(a *analysis.Analyzer, diag analysis.Diagnostic)) error {

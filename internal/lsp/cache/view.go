@@ -191,7 +191,7 @@ func (v *View) remove(pkgPath string) {
 	// All of the files in the package may also be holding a pointer to the
 	// invalidated package.
 	for _, filename := range m.files {
-		if f := v.findFile(span.FileURI(filename)); f != nil {
+		if f, _ := v.findFile(span.FileURI(filename)); f != nil {
 			f.pkg = nil
 		}
 	}
@@ -213,7 +213,9 @@ func (v *View) GetFile(ctx context.Context, uri span.URI) (source.File, error) {
 
 // getFile is the unlocked internal implementation of GetFile.
 func (v *View) getFile(uri span.URI) (*File, error) {
-	if f := v.findFile(uri); f != nil {
+	if f, err := v.findFile(uri); err != nil {
+		return nil, err
+	} else if f != nil {
 		return f, nil
 	}
 	filename, err := uri.Filename()
@@ -228,34 +230,41 @@ func (v *View) getFile(uri span.URI) (*File, error) {
 	return f, nil
 }
 
-func (v *View) findFile(uri span.URI) *File {
+// findFile checks the cache for any file matching the given uri.
+//
+// An error is only returned for an irreparable failure, for example, if the
+// filename in question does not exist.
+func (v *View) findFile(uri span.URI) (*File, error) {
 	if f := v.filesByURI[uri]; f != nil {
 		// a perfect match
-		return f
+		return f, nil
 	}
 	// no exact match stored, time to do some real work
 	// check for any files with the same basename
 	fname, err := uri.Filename()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	basename := basename(fname)
 	if candidates := v.filesByBase[basename]; candidates != nil {
 		pathStat, err := os.Stat(fname)
-		if err != nil {
-			return nil
+		if os.IsNotExist(err) {
+			return nil, err
+		} else if err != nil {
+			return nil, nil // the file may exist, return without an error
 		}
 		for _, c := range candidates {
 			if cStat, err := os.Stat(c.filename); err == nil {
 				if os.SameFile(pathStat, cStat) {
 					// same file, map it
 					v.mapFile(uri, c)
-					return c
+					return c, nil
 				}
 			}
 		}
 	}
-	return nil
+	// no file with a matching name was found, it wasn't in our cache
+	return nil, nil
 }
 
 func (v *View) mapFile(uri span.URI, f *File) {

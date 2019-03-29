@@ -150,7 +150,7 @@ func (v *View) link(pkgPath string, pkg *packages.Package, parent *metadata) *me
 	m.name = pkg.Name
 	m.files = pkg.CompiledGoFiles
 	for _, filename := range m.files {
-		if f := v.findFile(span.FileURI(filename)); f != nil {
+		if f, _ := v.findFile(span.FileURI(filename)); f != nil {
 			f.meta = m
 		}
 	}
@@ -341,7 +341,10 @@ func (v *View) parseFiles(filenames []string) ([]*ast.File, []error) {
 		}
 
 		// First, check if we have already cached an AST for this file.
-		f := v.findFile(span.FileURI(filename))
+		f, err := v.findFile(span.FileURI(filename))
+		if err != nil {
+			parsed[i], errors[i] = nil, err
+		}
 		var fAST *ast.File
 		if f != nil {
 			fAST = f.ast
