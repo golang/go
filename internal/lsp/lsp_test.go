@@ -70,7 +70,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
 	}
 
-	s := &server{
+	s := &Server{
 		view: cache.NewView("lsp_test", span.FileURI(cfg.Dir), &cfg),
 	}
 	// Do a first pass to collect special markers for completion.
@@ -285,7 +285,7 @@ Failed:
 	return msg.String()
 }
 
-func (c completions) test(t *testing.T, exported *packagestest.Exported, s *server, items completionItems) {
+func (c completions) test(t *testing.T, exported *packagestest.Exported, s *Server, items completionItems) {
 	for src, itemList := range c {
 		var want []protocol.CompletionItem
 		for _, pos := range itemList {
@@ -406,7 +406,7 @@ Failed:
 	return msg.String()
 }
 
-func (f formats) test(t *testing.T, s *server) {
+func (f formats) test(t *testing.T, s *Server) {
 	ctx := context.Background()
 	for filename, gofmted := range f {
 		uri := span.FileURI(filename)
@@ -444,7 +444,7 @@ func (f formats) collect(pos token.Position) {
 	f[pos.Filename] = stdout.String()
 }
 
-func (d definitions) test(t *testing.T, s *server, typ bool) {
+func (d definitions) test(t *testing.T, s *Server, typ bool) {
 	for src, target := range d {
 		params := &protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{
@@ -495,7 +495,7 @@ func (h highlights) collect(e *packagestest.Exported, fset *token.FileSet, name 
 	h[name] = append(h[name], loc)
 }
 
-func (h highlights) test(t *testing.T, s *server) {
+func (h highlights) test(t *testing.T, s *Server) {
 	for name, locations := range h {
 		params := &protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{
@@ -547,7 +547,7 @@ func (s symbols) collect(e *packagestest.Exported, fset *token.FileSet, name str
 	})
 }
 
-func (s symbols) test(t *testing.T, server *server) {
+func (s symbols) test(t *testing.T, server *Server) {
 	for uri, expectedSymbols := range s {
 		params := &protocol.DocumentSymbolParams{
 			TextDocument: protocol.TextDocumentIdentifier{

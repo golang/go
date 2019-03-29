@@ -13,7 +13,7 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func (s *server) cacheAndDiagnose(ctx context.Context, uri span.URI, content string) error {
+func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content string) error {
 	if err := s.setContent(ctx, uri, []byte(content)); err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func (s *server) cacheAndDiagnose(ctx context.Context, uri span.URI, content str
 	return nil
 }
 
-func (s *server) setContent(ctx context.Context, uri span.URI, content []byte) error {
+func (s *Server) setContent(ctx context.Context, uri span.URI, content []byte) error {
 	return s.view.SetContent(ctx, uri, content)
 }
 

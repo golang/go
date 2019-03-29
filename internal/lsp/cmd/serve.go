@@ -119,14 +119,20 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		fmt.Fprintf(out, "%s", outx.String())
 	}
 	// For debugging purposes only.
+	run := func(srv *lsp.Server) {
+		srv.Conn.Logger = logger
+		go srv.Conn.Run(ctx)
+	}
 	if s.Address != "" {
-		return lsp.RunServerOnAddress(ctx, s.Address, logger)
+		return lsp.RunServerOnAddress(ctx, s.Address, run)
 	}
 	if s.Port != 0 {
-		return lsp.RunServerOnPort(ctx, s.Port, logger)
+		return lsp.RunServerOnPort(ctx, s.Port, run)
 	}
 	stream := jsonrpc2.NewHeaderStream(os.Stdin, os.Stdout)
-	return lsp.RunServer(ctx, stream, logger)
+	srv := lsp.NewServer(stream)
+	srv.Conn.Logger = logger
+	return srv.Conn.Run(ctx)
 }
 
 func (s *Serve) forward() error {

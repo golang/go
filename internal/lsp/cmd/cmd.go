@@ -121,22 +121,26 @@ func (app *Application) connect(ctx context.Context, client protocol.Client) (pr
 	var server protocol.Server
 	switch app.Remote {
 	case "":
-		server = lsp.NewServer(client)
+		server = lsp.NewClientServer(client)
 	case "internal":
 		cr, sw, _ := os.Pipe()
 		sr, cw, _ := os.Pipe()
-		_, server = protocol.RunClient(ctx, jsonrpc2.NewHeaderStream(cr, cw), client)
-		go lsp.RunServer(ctx, jsonrpc2.NewHeaderStream(sr, sw))
+		var jc *jsonrpc2.Conn
+		jc, server = protocol.NewClient(jsonrpc2.NewHeaderStream(cr, cw), client)
+		go jc.Run(ctx)
+		go lsp.NewServer(jsonrpc2.NewHeaderStream(sr, sw)).Run(ctx)
 	default:
 		conn, err := net.Dial("tcp", app.Remote)
 		if err != nil {
 			return nil, err
 		}
 		stream := jsonrpc2.NewHeaderStream(conn, conn)
-		_, server = protocol.RunClient(ctx, stream, client)
+		var jc *jsonrpc2.Conn
+		jc, server = protocol.NewClient(stream, client)
 		if err != nil {
 			return nil, err
 		}
+		go jc.Run(ctx)
 	}
 	params := &protocol.InitializeParams{}
 	params.RootURI = string(span.FileURI(app.Config.Dir))

@@ -15,15 +15,17 @@ func canceller(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) 
 	conn.Notify(context.Background(), "$/cancelRequest", &CancelParams{ID: *req.ID})
 }
 
-func RunClient(ctx context.Context, stream jsonrpc2.Stream, client Client, opts ...interface{}) (*jsonrpc2.Conn, Server) {
-	opts = append([]interface{}{clientHandler(client), jsonrpc2.Canceler(canceller)}, opts...)
-	conn := jsonrpc2.NewConn(ctx, stream, opts...)
+func NewClient(stream jsonrpc2.Stream, client Client) (*jsonrpc2.Conn, Server) {
+	conn := jsonrpc2.NewConn(stream)
+	conn.Handler = clientHandler(client)
+	conn.Canceler = jsonrpc2.Canceler(canceller)
 	return conn, &serverDispatcher{Conn: conn}
 }
 
-func RunServer(ctx context.Context, stream jsonrpc2.Stream, server Server, opts ...interface{}) (*jsonrpc2.Conn, Client) {
-	opts = append([]interface{}{serverHandler(server), jsonrpc2.Canceler(canceller)}, opts...)
-	conn := jsonrpc2.NewConn(ctx, stream, opts...)
+func NewServer(stream jsonrpc2.Stream, server Server) (*jsonrpc2.Conn, Client) {
+	conn := jsonrpc2.NewConn(stream)
+	conn.Handler = serverHandler(server)
+	conn.Canceler = jsonrpc2.Canceler(canceller)
 	return conn, &clientDispatcher{Conn: conn}
 }
 
