@@ -815,8 +815,8 @@ func TrimRight(s string, cutset string) string {
 	return TrimRightFunc(s, makeCutsetFunc(cutset))
 }
 
-// TrimSpace returns a slice of the string s, with all leading
-// and trailing white space removed, as defined by Unicode.
+// TrimSpace returns a string, with all leading and
+// trailing white space removed, as defined by Unicode.
 func TrimSpace(s string) string {
 	// Fast path for ASCII: look for the first ASCII non-space byte
 	start := 0
