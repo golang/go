@@ -133,13 +133,12 @@ func (act *Action) execOnce(fset *token.FileSet) {
 
 	// Run the analysis.
 	pass := &analysis.Pass{
-		Analyzer:  act.Analyzer,
-		Fset:      fset,
-		Files:     act.Pkg.GetSyntax(),
-		Pkg:       act.Pkg.GetTypes(),
-		TypesInfo: act.Pkg.GetTypesInfo(),
-		// TODO(rstambler): Get real TypeSizes from go/packages (golang.org/issues/30139).
-		TypesSizes:        &types.StdSizes{},
+		Analyzer:          act.Analyzer,
+		Fset:              fset,
+		Files:             act.Pkg.GetSyntax(),
+		Pkg:               act.Pkg.GetTypes(),
+		TypesInfo:         act.Pkg.GetTypesInfo(),
+		TypesSizes:        act.Pkg.GetTypesSizes(),
 		ResultOf:          inputs,
 		Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
 		ImportObjectFact:  act.importObjectFact,

@@ -92,7 +92,7 @@ func (v *View) cachePackage(pkg *Package) {
 func (v *View) checkMetadata(ctx context.Context, f *File) ([]packages.Error, error) {
 	if v.reparseImports(ctx, f, f.filename) {
 		cfg := v.Config
-		cfg.Mode = packages.LoadImports
+		cfg.Mode = packages.LoadImports | packages.NeedTypesSizes
 		pkgs, err := packages.Load(&cfg, fmt.Sprintf("file=%s", f.filename))
 		if len(pkgs) == 0 {
 			if err == nil {
@@ -139,10 +139,11 @@ func (v *View) link(pkgPath string, pkg *packages.Package, parent *metadata) *me
 	m, ok := v.mcache.packages[pkgPath]
 	if !ok {
 		m = &metadata{
-			pkgPath:  pkgPath,
-			id:       pkg.ID,
-			parents:  make(map[string]bool),
-			children: make(map[string]bool),
+			pkgPath:    pkgPath,
+			id:         pkg.ID,
+			typesSizes: pkg.TypesSizes,
+			parents:    make(map[string]bool),
+			children:   make(map[string]bool),
 		}
 		v.mcache.packages[pkgPath] = m
 	}
@@ -225,11 +226,12 @@ func (imp *importer) typeCheck(pkgPath string) (*Package, error) {
 		typ = types.NewPackage(meta.pkgPath, meta.name)
 	}
 	pkg := &Package{
-		id:      meta.id,
-		pkgPath: meta.pkgPath,
-		files:   meta.files,
-		imports: make(map[string]*Package),
-		types:   typ,
+		id:         meta.id,
+		pkgPath:    meta.pkgPath,
+		files:      meta.files,
+		imports:    make(map[string]*Package),
+		types:      typ,
+		typesSizes: meta.typesSizes,
 		typesInfo: &types.Info{
 			Types:      make(map[ast.Expr]types.TypeAndValue),
 			Defs:       make(map[*ast.Ident]types.Object),

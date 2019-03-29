@@ -554,6 +554,9 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 		if lpkg.needsrc {
 			srcPkgs = append(srcPkgs, lpkg)
 		}
+		if ld.Mode&NeedTypesSizes != 0 {
+			lpkg.TypesSizes = ld.sizes
+		}
 		stack = stack[:len(stack)-1] // pop
 		lpkg.color = black
 

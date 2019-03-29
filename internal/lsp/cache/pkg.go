@@ -21,6 +21,7 @@ type Package struct {
 	imports     map[string]*Package
 	types       *types.Package
 	typesInfo   *types.Info
+	typesSizes  types.Sizes
 
 	// The analysis cache holds analysis information for all the packages in a view.
 	// Each graph node (action) is one unit of analysis.
@@ -116,6 +117,10 @@ func (pkg *Package) GetTypes() *types.Package {
 
 func (pkg *Package) GetTypesInfo() *types.Info {
 	return pkg.typesInfo
+}
+
+func (pkg *Package) GetTypesSizes() types.Sizes {
+	return pkg.typesSizes
 }
 
 func (pkg *Package) IsIllTyped() bool {

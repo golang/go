@@ -7,6 +7,7 @@ package cache
 import (
 	"context"
 	"go/token"
+	"go/types"
 	"os"
 	"sync"
 
@@ -64,6 +65,7 @@ type metadataCache struct {
 type metadata struct {
 	id, pkgPath, name string
 	files             []string
+	typesSizes        types.Sizes
 	parents, children map[string]bool
 }
 
