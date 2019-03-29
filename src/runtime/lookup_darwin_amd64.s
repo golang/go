@@ -27,10 +27,10 @@ TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
     MOVL     8(BX), SI   // arg 2 class
     MOVQ     0(BX), DI   // arg 1 name
     CALL     libc_res_search(SB)
-    XORL     DX, DX               
-    CMPQ     AX, $-1              
-    JNE ok                       
-    CALL     libc_error(SB)      
+    XORL     DX, DX
+    CMPQ     AX, $-1
+    JNE ok
+    CALL     libc_error(SB)
     MOVLQSX  (AX), DX             // move return from libc_error into DX
     XORL     AX, AX               // size on error is 0
 ok:
