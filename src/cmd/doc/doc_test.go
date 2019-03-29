@@ -721,6 +721,37 @@ var tests = []test{
 		[]string{"Foo struct"},
 		nil,
 	},
+	{
+		"formatted doc on function",
+		[]string{p, "ExportedFormattedDoc"},
+		[]string{
+			`func ExportedFormattedDoc\(a int\) bool`,
+			`    Comment about exported function with formatting\.
+
+    Example
+
+        fmt\.Println\(FormattedDoc\(\)\)
+
+    Text after pre-formatted block\.`,
+		},
+		nil,
+	},
+	{
+		"formatted doc on type field",
+		[]string{p, "ExportedFormattedType.ExportedField"},
+		[]string{
+			`type ExportedFormattedType struct`,
+			`    // Comment before exported field with formatting\.
+    //[ ]
+    // Example
+    //[ ]
+    //     a\.ExportedField = 123
+    //[ ]
+    // Text after pre-formatted block\.`,
+			`ExportedField int`,
+		},
+		nil,
+	},
 }
 
 func TestDoc(t *testing.T) {
