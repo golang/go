@@ -261,8 +261,31 @@ func sysauxv(auxv []uintptr) int {
 	return i / 2
 }
 
+var sysTHPSizePath = []byte("/sys/kernel/mm/transparent_hugepage/hpage_pmd_size\x00")
+
+func getHugePageSize() uintptr {
+	var numbuf [20]byte
+	fd := open(&sysTHPSizePath[0], 0 /* O_RDONLY */, 0)
+	if fd < 0 {
+		return 0
+	}
+	n := read(fd, noescape(unsafe.Pointer(&numbuf[0])), int32(len(numbuf)))
+	if n <= 0 {
+		closefd(fd)
+		return 0
+	}
+	l := n - 1 // remove trailing newline
+	v, ok := atoi(slicebytetostringtmp(numbuf[:l]))
+	if !ok || v < 0 {
+		v = 0
+	}
+	closefd(fd)
+	return uintptr(v)
+}
+
 func osinit() {
 	ncpu = getproccount()
+	physHugePageSize = getHugePageSize()
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
