@@ -195,6 +195,7 @@ func newFactsTable(f *Func) *factsTable {
 	ft.stack = make([]fact, 4)
 	ft.limits = make(map[ID]limit)
 	ft.limitStack = make([]limitFact, 4)
+	ft.zero = f.ConstInt64(f.Config.Types.Int64, 0)
 	return ft
 }
 
@@ -571,9 +572,6 @@ func (ft *factsTable) isNonNegative(v *Value) bool {
 	}
 
 	// Check if the signed poset can prove that the value is >= 0
-	if ft.zero == nil {
-		ft.zero = v.Block.NewValue0I(v.Block.Pos, OpConst64, v.Block.Func.Config.Types.Int64, 0)
-	}
 	return ft.order[0].OrderedOrEqual(ft.zero, v)
 }
 
@@ -744,11 +742,6 @@ func prove(f *Func) {
 	// Find length and capacity ops.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			// If we found a zero constant, save it (so we don't have
-			// to build one later).
-			if ft.zero == nil && v.Op == OpConst64 && v.AuxInt == 0 {
-				ft.zero = v
-			}
 			if v.Uses == 0 {
 				// We don't care about dead values.
 				// (There can be some that are CSEd but not removed yet.)
@@ -756,27 +749,18 @@ func prove(f *Func) {
 			}
 			switch v.Op {
 			case OpStringLen:
-				if ft.zero == nil {
-					ft.zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
-				}
 				ft.update(b, v, ft.zero, signed, gt|eq)
 			case OpSliceLen:
 				if ft.lens == nil {
 					ft.lens = map[ID]*Value{}
 				}
 				ft.lens[v.Args[0].ID] = v
-				if ft.zero == nil {
-					ft.zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
-				}
 				ft.update(b, v, ft.zero, signed, gt|eq)
 			case OpSliceCap:
 				if ft.caps == nil {
 					ft.caps = map[ID]*Value{}
 				}
 				ft.caps[v.Args[0].ID] = v
-				if ft.zero == nil {
-					ft.zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
-				}
 				ft.update(b, v, ft.zero, signed, gt|eq)
 			}
 		}
