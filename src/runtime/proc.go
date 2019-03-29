@@ -4380,10 +4380,24 @@ func retake(now int64) uint32 {
 		}
 		pd := &_p_.sysmontick
 		s := _p_.status
+		sysretake := false
+		if s == _Prunning || s == _Psyscall {
+			// Preempt G if it's running for too long.
+			t := int64(_p_.schedtick)
+			if int64(pd.schedtick) != t {
+				pd.schedtick = uint32(t)
+				pd.schedwhen = now
+			} else if pd.schedwhen+forcePreemptNS <= now {
+				preemptone(_p_)
+				// In case of syscall, preemptone() doesn't
+				// work, because there is no M wired to P.
+				sysretake = true
+			}
+		}
 		if s == _Psyscall {
 			// Retake P from syscall if it's there for more than 1 sysmon tick (at least 20us).
 			t := int64(_p_.syscalltick)
-			if int64(pd.syscalltick) != t {
+			if !sysretake && int64(pd.syscalltick) != t {
 				pd.syscalltick = uint32(t)
 				pd.syscallwhen = now
 				continue
@@ -4412,18 +4426,6 @@ func retake(now int64) uint32 {
 			}
 			incidlelocked(1)
 			lock(&allpLock)
-		} else if s == _Prunning {
-			// Preempt G if it's running for too long.
-			t := int64(_p_.schedtick)
-			if int64(pd.schedtick) != t {
-				pd.schedtick = uint32(t)
-				pd.schedwhen = now
-				continue
-			}
-			if pd.schedwhen+forcePreemptNS > now {
-				continue
-			}
-			preemptone(_p_)
 		}
 	}
 	unlock(&allpLock)
