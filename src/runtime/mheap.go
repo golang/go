@@ -464,11 +464,7 @@ func (h *mheap) coalesce(s *mspan) {
 
 		// The size is potentially changing so the treap needs to delete adjacent nodes and
 		// insert back as a combined node.
-		if other.scavenged {
-			h.scav.removeSpan(other)
-		} else {
-			h.free.removeSpan(other)
-		}
+		h.treapForSpan(other).removeSpan(other)
 		other.state = mSpanDead
 		h.spanalloc.free(unsafe.Pointer(other))
 	}
@@ -486,11 +482,8 @@ func (h *mheap) coalesce(s *mspan) {
 			return
 		}
 		// Since we're resizing other, we must remove it from the treap.
-		if other.scavenged {
-			h.scav.removeSpan(other)
-		} else {
-			h.free.removeSpan(other)
-		}
+		h.treapForSpan(other).removeSpan(other)
+
 		// Round boundary to the nearest physical page size, toward the
 		// scavenged span.
 		boundary := b.startAddr
@@ -507,11 +500,7 @@ func (h *mheap) coalesce(s *mspan) {
 		h.setSpan(boundary, b)
 
 		// Re-insert other now that it has a new size.
-		if other.scavenged {
-			h.scav.insert(other)
-		} else {
-			h.free.insert(other)
-		}
+		h.treapForSpan(other).insert(other)
 	}
 
 	// Coalesce with earlier, later spans.
@@ -1112,6 +1101,15 @@ func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
 	}
 }
 
+// treapForSpan returns the appropriate treap for a span for
+// insertion and removal.
+func (h *mheap) treapForSpan(span *mspan) *mTreap {
+	if span.scavenged {
+		return &h.scav
+	}
+	return &h.free
+}
+
 // pickFreeSpan acquires a free span from internal free list
 // structures if one is available. Otherwise returns nil.
 // h must be locked.
@@ -1343,11 +1341,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 	h.coalesce(s)
 
 	// Insert s into the appropriate treap.
-	if s.scavenged {
-		h.scav.insert(s)
-	} else {
-		h.free.insert(s)
-	}
+	h.treapForSpan(s).insert(s)
 }
 
 // scavengeLargest scavenges nbytes worth of spans in unscav
