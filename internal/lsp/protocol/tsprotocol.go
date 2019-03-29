@@ -1017,8 +1017,11 @@ type InnerClientCapabilities struct {
 	Experimental interface{} `json:"experimental,omitempty"`
 }
 
-// ClientCapabilities is:
-type ClientCapabilities struct {
+// TODO(rstambler): Remove this when golang.org/issue/31090 is resolved.
+type ClientCapabilities map[string]interface{}
+
+// clientCapabilities is:
+type clientCapabilities struct {
 	InnerClientCapabilities
 	ImplementationClientCapabilities
 	TypeDefinitionClientCapabilities

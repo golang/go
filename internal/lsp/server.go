@@ -93,9 +93,14 @@ func (s *Server) Initialize(ctx context.Context, params *protocol.InitializePara
 	s.initialized = true // mark server as initialized now
 
 	// Check if the client supports snippets in completion items.
-	capText := params.Capabilities.InnerClientCapabilities.TextDocument
-	if capText != nil && capText.Completion != nil && capText.Completion.CompletionItem != nil {
-		s.snippetsSupported = capText.Completion.CompletionItem.SnippetSupport
+	if x, ok := params.Capabilities["textDocument"].(map[string]interface{}); ok {
+		if x, ok := x["completion"].(map[string]interface{}); ok {
+			if x, ok := x["completionItem"].(map[string]interface{}); ok {
+				if x, ok := x["snippetSupport"].(bool); ok {
+					s.snippetsSupported = x
+				}
+			}
+		}
 	}
 	s.signatureHelpEnabled = true
 
