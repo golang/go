@@ -324,6 +324,14 @@ const (
 // mallocinit.
 var physPageSize uintptr
 
+// physHugePageSize is the size in bytes of the OS's default physical huge
+// page size whose allocation is opaque to the application.
+//
+// If set, this must be set by the OS init code (typically in osinit) before
+// mallocinit. However, setting it at all is optional, and leaving the default
+// value is always safe (though potentially less efficient).
+var physHugePageSize uintptr
+
 // OS-defined helpers:
 //
 // sysAlloc obtains a large chunk of zeroed memory from the
