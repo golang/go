@@ -9,6 +9,7 @@ package httputil
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -314,6 +315,47 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	defer res.Body.Close()
 	if bodyBytes, _ := ioutil.ReadAll(res.Body); string(bodyBytes) != expected {
 		t.Errorf("got body %q; expected %q", bodyBytes, expected)
+	}
+}
+
+func TestReverseProxyFlushIntervalHeaders(t *testing.T) {
+	const expected = "hi"
+	stopCh := make(chan struct{})
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("MyHeader", expected)
+		w.WriteHeader(200)
+		w.(http.Flusher).Flush()
+		<-stopCh
+	}))
+	defer backend.Close()
+	defer close(stopCh)
+
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.FlushInterval = time.Microsecond
+
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	req, _ := http.NewRequest("GET", frontend.URL, nil)
+	req.Close = true
+
+	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
+	defer cancel()
+	req = req.WithContext(ctx)
+
+	res, err := frontend.Client().Do(req)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.Header.Get("MyHeader") != expected {
+		t.Errorf("got header %q; expected %q", res.Header.Get("MyHeader"), expected)
 	}
 }
 
