@@ -78,18 +78,18 @@ func MyFunc123() {}
 	defer exported.Cleanup()
 
 	const wantA = `# golang.org/fake/a
-([/._a-zA-Z0-9]+[\\/]fake[\\/])?a/a.go:4:11: call of MyFunc123\(...\)
+([/._\-a-zA-Z0-9]+[\\/]fake[\\/])?a/a.go:4:11: call of MyFunc123\(...\)
 `
 	const wantB = `# golang.org/fake/b
-([/._a-zA-Z0-9]+[\\/]fake[\\/])?b/b.go:6:13: call of MyFunc123\(...\)
-([/._a-zA-Z0-9]+[\\/]fake[\\/])?b/b.go:7:11: call of MyFunc123\(...\)
+([/._\-a-zA-Z0-9]+[\\/]fake[\\/])?b/b.go:6:13: call of MyFunc123\(...\)
+([/._\-a-zA-Z0-9]+[\\/]fake[\\/])?b/b.go:7:11: call of MyFunc123\(...\)
 `
 	const wantAJSON = `# golang.org/fake/a
 \{
 	"golang.org/fake/a": \{
 		"findcall": \[
 			\{
-				"posn": "([/._a-zA-Z0-9]+[\\/]fake[\\/])?a/a.go:4:11",
+				"posn": "([/._\-a-zA-Z0-9]+[\\/]fake[\\/])?a/a.go:4:11",
 				"message": "call of MyFunc123\(...\)"
 			\}
 		\]
