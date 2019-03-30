@@ -726,6 +726,16 @@ func signHint2(b []byte, n int) {
 	}
 }
 
+// indexGT0 tests whether prove learns int index >= 0 from bounds check.
+func indexGT0(b []byte, n int) {
+	_ = b[n]
+	_ = b[25]
+
+	for i := n; i <= 25; i++ { // ERROR "Induction variable: limits \[\?,25\], increment 1$"
+		b[i] = 123 // ERROR "Proved IsInBounds$"
+	}
+}
+
 // Induction variable in unrolled loop.
 func unrollUpExcl(a []int) int {
 	var i, x int
