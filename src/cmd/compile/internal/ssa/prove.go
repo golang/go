@@ -931,31 +931,41 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 		if d == signed && ft.isNonNegative(c.Args[0]) && ft.isNonNegative(c.Args[1]) {
 			d |= unsigned
 		}
-		switch br {
-		case negative:
-			switch b.Control.Op { // Special cases
-			case OpIsInBounds, OpIsSliceInBounds:
-				// 0 <= a0 < a1 (or 0 <= a0 <= a1)
-				//
-				// On the positive branch, we learn a0 < a1,
-				// both signed and unsigned.
-				//
-				// On the negative branch, we learn (0 > a0 ||
-				// a0 >= a1). In the unsigned domain, this is
-				// simply a0 >= a1 (which is the reverse of the
-				// positive branch, so nothing surprising).
-				// But in the signed domain, we can't express the ||
-				// condition, so check if a0 is non-negative instead,
-				// to be able to learn something.
+		switch b.Control.Op {
+		case OpIsInBounds, OpIsSliceInBounds:
+			// 0 <= a0 < a1 (or 0 <= a0 <= a1)
+			//
+			// On the positive branch, we learn:
+			//   signed: 0 <= a0 < a1 (or 0 <= a0 <= a1)
+			//   unsigned:    a0 < a1 (or a0 <= a1)
+			//
+			// On the negative branch, we learn (0 > a0 ||
+			// a0 >= a1). In the unsigned domain, this is
+			// simply a0 >= a1 (which is the reverse of the
+			// positive branch, so nothing surprising).
+			// But in the signed domain, we can't express the ||
+			// condition, so check if a0 is non-negative instead,
+			// to be able to learn something.
+			switch br {
+			case negative:
 				d = unsigned
 				if ft.isNonNegative(c.Args[0]) {
 					d |= signed
 				}
+				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
+			case positive:
+				addRestrictions(b, ft, signed, ft.zero, c.Args[0], lt|eq)
+				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r)
 			}
-			addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
-		case positive:
-			addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r)
+		default:
+			switch br {
+			case negative:
+				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
+			case positive:
+				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r)
+			}
 		}
+
 	}
 }
 
