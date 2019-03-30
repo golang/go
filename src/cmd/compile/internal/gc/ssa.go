@@ -2415,7 +2415,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if max != nil {
 			k = s.expr(max)
 		}
-		p, l, c := s.slice(n.Left.Type, v, i, j, k, n.Bounded())
+		p, l, c := s.slice(v, i, j, k, n.Bounded())
 		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
 
 	case OSLICESTR:
@@ -2428,7 +2428,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if high != nil {
 			j = s.expr(high)
 		}
-		p, l, _ := s.slice(n.Left.Type, v, i, j, nil, n.Bounded())
+		p, l, _ := s.slice(v, i, j, nil, n.Bounded())
 		return s.newValue2(ssa.OpStringMake, n.Type, p, l)
 
 	case OCALLFUNC:
@@ -4359,35 +4359,25 @@ func (s *state) storeArg(n *Node, t *types.Type, off int64) {
 
 // slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.
 // i,j,k may be nil, in which case they are set to their default value.
-// t is a slice, ptr to array, or string type.
-func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value, bounded bool) (p, l, c *ssa.Value) {
-	var elemtype *types.Type
-	var ptrtype *types.Type
-	var ptr *ssa.Value
-	var len *ssa.Value
-	var cap *ssa.Value
-	zero := s.constInt(types.Types[TINT], 0)
+// v may be a slice, string or pointer to an array.
+func (s *state) slice(v, i, j, k *ssa.Value, bounded bool) (p, l, c *ssa.Value) {
+	t := v.Type
+	var ptr, len, cap *ssa.Value
 	switch {
 	case t.IsSlice():
-		elemtype = t.Elem()
-		ptrtype = types.NewPtr(elemtype)
-		ptr = s.newValue1(ssa.OpSlicePtr, ptrtype, v)
+		ptr = s.newValue1(ssa.OpSlicePtr, types.NewPtr(t.Elem()), v)
 		len = s.newValue1(ssa.OpSliceLen, types.Types[TINT], v)
 		cap = s.newValue1(ssa.OpSliceCap, types.Types[TINT], v)
 	case t.IsString():
-		elemtype = types.Types[TUINT8]
-		ptrtype = types.NewPtr(elemtype)
-		ptr = s.newValue1(ssa.OpStringPtr, ptrtype, v)
+		ptr = s.newValue1(ssa.OpStringPtr, types.NewPtr(types.Types[TUINT8]), v)
 		len = s.newValue1(ssa.OpStringLen, types.Types[TINT], v)
 		cap = len
 	case t.IsPtr():
 		if !t.Elem().IsArray() {
 			s.Fatalf("bad ptr to array in slice %v\n", t)
 		}
-		elemtype = t.Elem().Elem()
-		ptrtype = types.NewPtr(elemtype)
 		s.nilCheck(v)
-		ptr = v
+		ptr = s.newValue1(ssa.OpCopy, types.NewPtr(t.Elem().Elem()), v)
 		len = s.constInt(types.Types[TINT], t.Elem().NumElem())
 		cap = len
 	default:
@@ -4396,7 +4386,7 @@ func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value, bounded bool) (p, l,
 
 	// Set default values
 	if i == nil {
-		i = zero
+		i = s.constInt(types.Types[TINT], 0)
 	}
 	if j == nil {
 		j = len
@@ -4433,46 +4423,52 @@ func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value, bounded bool) (p, l,
 		i = s.boundsCheck(i, j, ssa.BoundsSliceB, bounded)
 	}
 
-	// Generate the following code assuming that indexes are in bounds.
-	// The masking is to make sure that we don't generate a slice
-	// that points to the next object in memory.
-	// rlen = j - i
-	// rcap = k - i
-	// delta = i * elemsize
-	// rptr = p + delta&mask(rcap)
-	// result = (SliceMake rptr rlen rcap)
-	// where mask(x) is 0 if x==0 and -1 if x>0.
+	// Word-sized integer operations.
 	subOp := s.ssaOp(OSUB, types.Types[TINT])
 	mulOp := s.ssaOp(OMUL, types.Types[TINT])
 	andOp := s.ssaOp(OAND, types.Types[TINT])
+
+	// Calculate the length (rlen) and capacity (rcap) of the new slice.
+	// For strings the capacity of the result is unimportant. However,
+	// we use rcap to test if we've generated a zero-length slice.
+	// Use length of strings for that.
 	rlen := s.newValue2(subOp, types.Types[TINT], j, i)
-	var rcap *ssa.Value
-	switch {
-	case t.IsString():
-		// Capacity of the result is unimportant. However, we use
-		// rcap to test if we've generated a zero-length slice.
-		// Use length of strings for that.
-		rcap = rlen
-	case j == k:
-		rcap = rlen
-	default:
+	rcap := rlen
+	if j != k && !t.IsString() {
 		rcap = s.newValue2(subOp, types.Types[TINT], k, i)
 	}
 
-	var rptr *ssa.Value
 	if (i.Op == ssa.OpConst64 || i.Op == ssa.OpConst32) && i.AuxInt == 0 {
 		// No pointer arithmetic necessary.
-		rptr = ptr
-	} else {
-		// delta = # of bytes to offset pointer by.
-		delta := s.newValue2(mulOp, types.Types[TINT], i, s.constInt(types.Types[TINT], elemtype.Width))
-		// If we're slicing to the point where the capacity is zero,
-		// zero out the delta.
-		mask := s.newValue1(ssa.OpSlicemask, types.Types[TINT], rcap)
-		delta = s.newValue2(andOp, types.Types[TINT], delta, mask)
-		// Compute rptr = ptr + delta
-		rptr = s.newValue2(ssa.OpAddPtr, ptrtype, ptr, delta)
+		return ptr, rlen, rcap
 	}
+
+	// Calculate the base pointer (rptr) for the new slice.
+	//
+	// Generate the following code assuming that indexes are in bounds.
+	// The masking is to make sure that we don't generate a slice
+	// that points to the next object in memory. We cannot just set
+	// the pointer to nil because then we would create a nil slice or
+	// string.
+	//
+	//     rcap = k - i
+	//     rlen = j - i
+	//     rptr = ptr + (mask(rcap) & (i * stride))
+	//
+	// Where mask(x) is 0 if x==0 and -1 if x>0 and stride is the width
+	// of the element type.
+	stride := s.constInt(types.Types[TINT], ptr.Type.Elem().Width)
+
+	// The delta is the number of bytes to offset ptr by.
+	delta := s.newValue2(mulOp, types.Types[TINT], i, stride)
+
+	// If we're slicing to the point where the capacity is zero,
+	// zero out the delta.
+	mask := s.newValue1(ssa.OpSlicemask, types.Types[TINT], rcap)
+	delta = s.newValue2(andOp, types.Types[TINT], delta, mask)
+
+	// Compute rptr = ptr + delta.
+	rptr := s.newValue2(ssa.OpAddPtr, ptr.Type, ptr, delta)
 
 	return rptr, rlen, rcap
 }
