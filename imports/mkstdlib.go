@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -59,6 +60,10 @@ func main() {
 		mustOpen(api("go1.10.txt")),
 		mustOpen(api("go1.11.txt")),
 		mustOpen(api("go1.12.txt")),
+
+		// The API of the syscall/js package needs to be computed explicitly,
+		// because it's not included in the GOROOT/api/go1.*.txt files at this time.
+		syscallJSAPI(),
 	)
 	sc := bufio.NewScanner(f)
 
@@ -109,4 +114,19 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// syscallJSAPI returns the API of the syscall/js package.
+// It's computed from the contents of $(go env GOROOT)/src/syscall/js.
+func syscallJSAPI() io.Reader {
+	var exeSuffix string
+	if runtime.GOOS == "windows" {
+		exeSuffix = ".exe"
+	}
+	cmd := exec.Command("go"+exeSuffix, "run", "cmd/api", "-contexts", "js-wasm", "syscall/js")
+	out, err := cmd.Output()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return bytes.NewReader(out)
 }
