@@ -569,6 +569,8 @@ func testLoadTypes(t *testing.T, exporter packagestest.Exporter) {
 			continue
 		} else if !p.Types.Complete() {
 			t.Errorf("incomplete types.Package for %s", p)
+		} else if p.TypesSizes == nil {
+			t.Errorf("TypesSizes is not filled in for %s", p)
 		}
 
 	}

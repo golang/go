@@ -88,14 +88,14 @@ const (
 
 	// LoadTypes adds type information for package-level
 	// declarations in the packages matching the patterns.
-	// Package fields added: Types, Fset, and IllTyped.
+	// Package fields added: Types, TypesSizes, Fset, and IllTyped.
 	// This mode uses type information provided by the build system when
 	// possible, and may fill in the ExportFile field.
-	LoadTypes = LoadImports | NeedTypes
+	LoadTypes = LoadImports | NeedTypes | NeedTypesSizes
 
 	// LoadSyntax adds typed syntax trees for the packages matching the patterns.
 	// Package fields added: Syntax, and TypesInfo, for direct pattern matches only.
-	LoadSyntax = LoadTypes | NeedSyntax | NeedTypesInfo | NeedTypesSizes
+	LoadSyntax = LoadTypes | NeedSyntax | NeedTypesInfo
 
 	// LoadAllSyntax adds typed syntax trees for the packages matching the patterns
 	// and all dependencies.
