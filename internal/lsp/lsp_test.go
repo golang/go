@@ -93,7 +93,10 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	expectedDefinitions := make(definitions)
 	expectedTypeDefinitions := make(definitions)
 	expectedHighlights := make(highlights)
-	expectedSymbols := make(symbols)
+	expectedSymbols := &symbols{
+		m:        make(map[span.URI][]protocol.DocumentSymbol),
+		children: make(map[string][]protocol.DocumentSymbol),
+	}
 
 	// Collect any data that needs to be used by subsequent tests.
 	if err := exported.Expect(map[string]interface{}{
@@ -180,8 +183,8 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	t.Run("Symbols", func(t *testing.T) {
 		t.Helper()
 		if goVersion111 { // TODO(rstambler): Remove this when we no longer support Go 1.10.
-			if len(expectedSymbols) != expectedSymbolsCount {
-				t.Errorf("got %v symbols expected %v", len(expectedSymbols), expectedSymbolsCount)
+			if len(expectedSymbols.m) != expectedSymbolsCount {
+				t.Errorf("got %v symbols expected %v", len(expectedSymbols.m), expectedSymbolsCount)
 			}
 		}
 		expectedSymbols.test(t, s)
@@ -194,7 +197,10 @@ type completions map[token.Position][]token.Pos
 type formats map[string]string
 type definitions map[protocol.Location]protocol.Location
 type highlights map[string][]protocol.Location
-type symbols map[span.URI][]protocol.DocumentSymbol
+type symbols struct {
+	m        map[span.URI][]protocol.DocumentSymbol
+	children map[string][]protocol.DocumentSymbol
+}
 
 func (d diagnostics) test(t *testing.T, v source.View) int {
 	count := 0
@@ -522,7 +528,7 @@ func (h highlights) test(t *testing.T, s *Server) {
 	}
 }
 
-func (s symbols) collect(e *packagestest.Exported, fset *token.FileSet, name string, rng span.Range, kind int64) {
+func (s symbols) collect(e *packagestest.Exported, fset *token.FileSet, name string, rng span.Range, kind int64, parentName string) {
 	f := fset.File(rng.Start)
 	if f == nil {
 		return
@@ -544,15 +550,20 @@ func (s symbols) collect(e *packagestest.Exported, fset *token.FileSet, name str
 		return
 	}
 
-	s[spn.URI()] = append(s[spn.URI()], protocol.DocumentSymbol{
+	sym := protocol.DocumentSymbol{
 		Name:           name,
 		Kind:           protocol.SymbolKind(kind),
 		SelectionRange: prng,
-	})
+	}
+	if parentName == "" {
+		s.m[spn.URI()] = append(s.m[spn.URI()], sym)
+	} else {
+		s.children[parentName] = append(s.children[parentName], sym)
+	}
 }
 
 func (s symbols) test(t *testing.T, server *Server) {
-	for uri, expectedSymbols := range s {
+	for uri, expectedSymbols := range s.m {
 		params := &protocol.DocumentSymbolParams{
 			TextDocument: protocol.TextDocumentIdentifier{
 				URI: string(uri),
@@ -564,26 +575,56 @@ func (s symbols) test(t *testing.T, server *Server) {
 		}
 
 		if len(symbols) != len(expectedSymbols) {
-			t.Errorf("want %d symbols in %v, got %d", len(expectedSymbols), uri, len(symbols))
+			t.Errorf("want %d top-level symbols in %v, got %d", len(expectedSymbols), uri, len(symbols))
 			continue
 		}
 
 		sort.Slice(symbols, func(i, j int) bool { return symbols[i].Name < symbols[j].Name })
 		sort.Slice(expectedSymbols, func(i, j int) bool { return expectedSymbols[i].Name < expectedSymbols[j].Name })
-		for i, w := range expectedSymbols {
-			g := symbols[i]
-			if w.Name != g.Name {
-				t.Errorf("%s: want symbol %q, got %q", uri, w.Name, g.Name)
-				continue
-			}
-			if w.Kind != g.Kind {
-				t.Errorf("%s: want kind %v for %s, got %v", uri, w.Kind, w.Name, g.Kind)
-			}
-			if w.SelectionRange != g.SelectionRange {
-				t.Errorf("%s: want selection range %v for %s, got %v", uri, w.SelectionRange, w.Name, g.SelectionRange)
-			}
+		for i := range expectedSymbols {
+			children := s.children[expectedSymbols[i].Name]
+			sort.Slice(children, func(i, j int) bool { return children[i].Name < children[j].Name })
+			expectedSymbols[i].Children = children
+		}
+		if diff := diffSymbols(uri, expectedSymbols, symbols); diff != "" {
+			t.Error(diff)
 		}
 	}
+}
+
+func diffSymbols(uri span.URI, want, got []protocol.DocumentSymbol) string {
+	if len(got) != len(want) {
+		goto Failed
+	}
+	for i, w := range want {
+		g := got[i]
+		if w.Name != g.Name {
+			goto Failed
+		}
+		if w.Kind != g.Kind {
+			goto Failed
+		}
+		if w.SelectionRange != g.SelectionRange {
+			goto Failed
+		}
+		sort.Slice(g.Children, func(i, j int) bool { return g.Children[i].Name < g.Children[j].Name })
+		if msg := diffSymbols(uri, w.Children, g.Children); msg != "" {
+			return fmt.Sprintf("children of %s: %s", w.Name, msg)
+		}
+	}
+	return ""
+
+Failed:
+	msg := &bytes.Buffer{}
+	fmt.Fprintf(msg, "document symbols failed for %s:\nexpected:\n", uri)
+	for _, s := range want {
+		fmt.Fprintf(msg, "  %v %v %v\n", s.Name, s.Kind, s.SelectionRange)
+	}
+	fmt.Fprintf(msg, "got:\n")
+	for _, s := range got {
+		fmt.Fprintf(msg, "  %v %v %v\n", s.Name, s.Kind, s.SelectionRange)
+	}
+	return msg.String()
 }
 
 func testLocation(e *packagestest.Exported, fset *token.FileSet, rng packagestest.Range) (span.Span, *protocol.ColumnMapper) {
