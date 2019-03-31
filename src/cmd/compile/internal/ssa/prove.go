@@ -175,8 +175,7 @@ type factsTable struct {
 	lens map[ID]*Value
 	caps map[ID]*Value
 
-	// zero is a reference to the zero-valued constant assigned or created
-	// during the len/cap sweep that begins prove.
+	// zero is a zero-valued constant
 	zero *Value
 }
 
