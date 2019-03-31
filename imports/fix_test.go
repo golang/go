@@ -2066,6 +2066,28 @@ var _ = fmt.Printf
 
 }
 
+// Tests that an input file's own package is ignored.
+func TestIgnoreOwnPackage(t *testing.T) {
+	const input = `package pkg
+
+const _ = pkg.X
+`
+	const want = `package pkg
+
+const _ = pkg.X
+`
+
+	testConfig{
+		module: packagestest.Module{
+			Name: "foo.com",
+			Files: fm{
+				"pkg/a.go": "package pkg\nconst X = 1",
+				"pkg/b.go": input,
+			},
+		},
+	}.processTest(t, "foo.com", "pkg/b.go", nil, nil, want)
+}
+
 func TestPkgIsCandidate(t *testing.T) {
 	tests := []struct {
 		name     string

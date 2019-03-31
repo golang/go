@@ -1043,7 +1043,7 @@ func findImport(ctx context.Context, env *fixEnv, dirScan []*pkg, pkgName string
 	// Find candidate packages, looking only at their directory names first.
 	var candidates []pkgDistance
 	for _, pkg := range dirScan {
-		if pkgIsCandidate(filename, pkgName, pkg) {
+		if pkg.dir != pkgDir && pkgIsCandidate(filename, pkgName, pkg) {
 			candidates = append(candidates, pkgDistance{
 				pkg:      pkg,
 				distance: distance(pkgDir, pkg.dir),
