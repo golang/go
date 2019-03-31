@@ -213,6 +213,101 @@ func TestFunVW(t *testing.T) {
 	}
 }
 
+func TestShlVUCopy(t *testing.T) {
+	src := []Word{2, 3, 5, 7}
+	dst := []Word{14, 10, 6, 4}
+	if r := shlVU(dst[:len(dst)-1], src, 0); r != 0 {
+		t.Errorf("ret = %v != 0", r)
+	}
+	if cap(dst) != 4 || cap(src) != 4 {
+		t.Errorf("Underlying array changed. Slices: dst: %v, src: %v", dst, src)
+	}
+	if src[0] != 2 || src[1] != 3 || src[2] != 5 || src[3] != 7 {
+		t.Errorf("src changed. Slices: dst: %v, src: %v", dst, src)
+	}
+	if dst[0] != 2 || dst[1] != 3 || dst[2] != 5 || dst[3] != 4 {
+		t.Errorf("dst wrong. dst: %v", dst)
+	}
+
+}
+
+func TestShlVUNop(t *testing.T) {
+	dst := []Word{14, 10, 6, 4}
+	if r := shlVU(dst[:len(dst)-1], dst, 0); r != 0 {
+		t.Errorf("ret = %v != 0", r)
+	}
+	if cap(dst) != 4 {
+		t.Errorf("Underlying array changed. Slice: dst: %v", dst)
+	}
+	if dst[0] != 14 || dst[1] != 10 || dst[2] != 6 || dst[3] != 4 {
+		t.Errorf("dst wrong. dst: %v", dst)
+	}
+}
+
+func TestShrVUCopy(t *testing.T) {
+	src := []Word{2, 3, 5, 7}
+	dst := []Word{14, 10, 6, 4}
+	if r := shrVU(dst[:len(dst)-1], src, 0); r != 0 {
+		t.Errorf("ret = %v != 0", r)
+	}
+	if cap(dst) != 4 || cap(src) != 4 {
+		t.Errorf("Underlying array changed. Slices: dst: %v, src: %v", dst, src)
+	}
+	if src[0] != 2 || src[1] != 3 || src[2] != 5 || src[3] != 7 {
+		t.Errorf("src changed. Slices: dst: %v, src: %v", dst, src)
+	}
+	if dst[0] != 2 || dst[1] != 3 || dst[2] != 5 || dst[3] != 4 {
+		t.Errorf("dst wrong. dst: %v", dst)
+	}
+}
+
+func TestShrVUNop(t *testing.T) {
+	dst := []Word{14, 10, 6, 4}
+	if r := shrVU(dst[:len(dst)-1], dst, 0); r != 0 {
+		t.Errorf("ret = %v != 0", r)
+	}
+	if cap(dst) != 4 {
+		t.Errorf("Underlying array changed. Slice: dst: %v", dst)
+	}
+	if dst[0] != 14 || dst[1] != 10 || dst[2] != 6 || dst[3] != 4 {
+		t.Errorf("dst wrong. dst: %v", dst)
+	}
+}
+
+func BenchmarkShlVUCopy1e7(b *testing.B) {
+	src := rndV(1e7)
+	dst := make([]Word, len(src))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = shlVU(dst, src, 0)
+	}
+}
+
+func BenchmarkShlVUNop1e7(b *testing.B) {
+	dst := rndV(1e7)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = shlVU(dst, dst, 0)
+	}
+}
+
+func BenchmarkShrVUCopy1e7(b *testing.B) {
+	src := rndV(1e7)
+	dst := make([]Word, len(src))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = shrVU(dst, src, 0)
+	}
+}
+
+func BenchmarkShrVUNop1e7(b *testing.B) {
+	dst := rndV(1e7)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = shrVU(dst, dst, 0)
+	}
+}
+
 func BenchmarkAddVW(b *testing.B) {
 	for _, n := range benchSizes {
 		if isRaceBuilder && n > 1e3 {

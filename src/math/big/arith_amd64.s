@@ -253,7 +253,7 @@ large:
 
 
 // func shlVU(z, x []Word, s uint) (c Word)
-TEXT ·shlVU(SB),NOSPLIT,$0
+TEXT ·shlVU(SB),NOSPLIT,$24-64
 	MOVQ z_len+8(FP), BX	// i = z
 	SUBQ $1, BX		// i--
 	JL X8b			// i < 0	(n <= 0)
@@ -262,6 +262,9 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+24(FP), R8
 	MOVQ s+48(FP), CX
+	TESTB CL, CL
+	JZ OPTI			// s == 0
+
 	MOVQ (R8)(BX*8), AX	// w1 = x[n-1]
 	MOVQ $0, DX
 	SHLQ CX, DX:AX		// w1>>ŝ
@@ -283,12 +286,23 @@ X8a:	SHLQ CX, AX		// w1<<s
 	MOVQ AX, (R10)		// z[0] = w1<<s
 	RET
 
+COPY:   INCQ BX
+	SHLQ $3, BX
+	MOVQ R10, 0(SP)
+	MOVQ R8, 8(SP)
+	MOVQ BX, 16(SP)
+	CALL runtime·memmove(SB)
+	JMP X8b
+
+OPTI:	CMPQ R8, R10
+	JNE COPY		// z.base == x.base
+
 X8b:	MOVQ $0, c+56(FP)
 	RET
 
 
 // func shrVU(z, x []Word, s uint) (c Word)
-TEXT ·shrVU(SB),NOSPLIT,$0
+TEXT ·shrVU(SB),NOSPLIT,$24-64
 	MOVQ z_len+8(FP), R11
 	SUBQ $1, R11		// n--
 	JL X9b			// n < 0	(n <= 0)
@@ -297,6 +311,9 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+24(FP), R8
 	MOVQ s+48(FP), CX
+	TESTB CL, CL
+	JZ OPTI			// s == 0
+
 	MOVQ (R8), AX		// w1 = x[0]
 	MOVQ $0, DX
 	SHRQ CX, DX:AX		// w1<<ŝ
@@ -319,6 +336,17 @@ E9:	CMPQ BX, R11
 X9a:	SHRQ CX, AX		// w1>>s
 	MOVQ AX, (R10)(R11*8)	// z[n-1] = w1>>s
 	RET
+
+COPY:	INCQ R11
+	SHLQ $3, R11
+	MOVQ R10, 0(SP)
+	MOVQ R8, 8(SP)
+	MOVQ R11, 16(SP)
+	CALL runtime·memmove(SB)
+	JMP X9b
+
+OPTI:	CMPQ R8, R10
+	JNE COPY		// z.base == x.base
 
 X9b:	MOVQ $0, c+56(FP)
 	RET
