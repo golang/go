@@ -121,6 +121,27 @@ func (i int64Encoder) Encode(dst []byte) {
 	}
 }
 
+type uint64Encoder uint64
+
+func (i uint64Encoder) Len() int {
+	n := 1
+
+	for i > 127 {
+		n++
+		i >>= 8
+	}
+
+	return n
+}
+
+func (i uint64Encoder) Encode(dst []byte) {
+	n := i.Len()
+
+	for j := 0; j < n; j++ {
+		dst[j] = byte(i >> uint((n-1-j)*8))
+	}
+}
+
 func base128IntLength(n int64) int {
 	if n == 0 {
 		return 1
@@ -440,6 +461,8 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 		return byte00Encoder, nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return int64Encoder(v.Int()), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return uint64Encoder(v.Uint()), nil
 	case reflect.Struct:
 		t := v.Type()
 

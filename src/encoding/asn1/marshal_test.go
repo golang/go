@@ -7,6 +7,7 @@ package asn1
 import (
 	"bytes"
 	"encoding/hex"
+	"math"
 	"math/big"
 	"reflect"
 	"strings"
@@ -110,6 +111,11 @@ func farFuture() time.Time {
 }
 
 var marshalTests = []marshalTest{
+	{uint64(0), "020100"},
+	{uint64(math.MaxUint64), "020900ffffffffffffffff"},
+	{uint64(10), "02010a"},
+	{uint64(127), "02017f"},
+	{uint64(128), "02020080"},
 	{10, "02010a"},
 	{127, "02017f"},
 	{128, "02020080"},
