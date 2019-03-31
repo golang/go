@@ -181,10 +181,8 @@ type hiter struct {
 
 // bucketShift returns 1<<b, optimized for code generation.
 func bucketShift(b uint8) uintptr {
-	if sys.GoarchAmd64|sys.GoarchAmd64p32|sys.Goarch386 != 0 {
-		b &= sys.PtrSize*8 - 1 // help x86 archs remove shift overflow checks
-	}
-	return uintptr(1) << b
+	// Masking the shift amount allows overflow checks to be elided.
+	return uintptr(1) << (b & (sys.PtrSize*8 - 1))
 }
 
 // bucketMask returns 1<<b - 1, optimized for code generation.
