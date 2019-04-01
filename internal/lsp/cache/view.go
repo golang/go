@@ -172,7 +172,7 @@ func (v *View) applyContentChange(uri span.URI, content []byte) {
 
 	// Remove the package and all of its reverse dependencies from the cache.
 	if f.pkg != nil {
-		v.remove(f.pkg.pkgPath)
+		v.remove(f.pkg.pkgPath, map[string]struct{}{})
 	}
 
 	switch {
@@ -191,13 +191,17 @@ func (v *View) applyContentChange(uri span.URI, content []byte) {
 // remove invalidates a package and its reverse dependencies in the view's
 // package cache. It is assumed that the caller has locked both the mutexes
 // of both the mcache and the pcache.
-func (v *View) remove(pkgPath string) {
+func (v *View) remove(pkgPath string, seen map[string]struct{}) {
+	if _, ok := seen[pkgPath]; ok {
+		return
+	}
 	m, ok := v.mcache.packages[pkgPath]
 	if !ok {
 		return
 	}
+	seen[pkgPath] = struct{}{}
 	for parentPkgPath := range m.parents {
-		v.remove(parentPkgPath)
+		v.remove(parentPkgPath, seen)
 	}
 	// All of the files in the package may also be holding a pointer to the
 	// invalidated package.
