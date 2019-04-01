@@ -60,37 +60,37 @@ func leaktosink(p *int) *int { // ERROR "leaking param: p"
 
 func f1() {
 	var x int
-	p := noleak(&x) // ERROR "&x does not escape"
+	p := noleak(&x)
 	_ = p
 }
 
 func f2() {
 	var x int
-	p := leaktoret(&x) // ERROR "&x does not escape"
+	p := leaktoret(&x)
 	_ = p
 }
 
 func f3() {
 	var x int          // ERROR "moved to heap: x"
-	p := leaktoret(&x) // ERROR "&x escapes to heap"
+	p := leaktoret(&x)
 	gp = p
 }
 
 func f4() {
 	var x int              // ERROR "moved to heap: x"
-	p, q := leaktoret2(&x) // ERROR "&x escapes to heap"
+	p, q := leaktoret2(&x)
 	gp = p
 	gp = q
 }
 
 func f5() {
 	var x int
-	leaktoret22(leaktoret2(&x)) // ERROR "&x does not escape"
+	leaktoret22(leaktoret2(&x))
 }
 
 func f6() {
 	var x int                               // ERROR "moved to heap: x"
-	px1, px2 := leaktoret22(leaktoret2(&x)) // ERROR "&x escapes to heap"
+	px1, px2 := leaktoret22(leaktoret2(&x))
 	gp = px1
 	_ = px2
 }
@@ -142,7 +142,7 @@ func f8(p *T1) (k T2) { // ERROR "leaking param: p to result k" "leaking param: 
 
 func f9() {
 	var j T1 // ERROR "moved to heap: j"
-	f8(&j)   // ERROR "&j escapes to heap"
+	f8(&j)
 }
 
 func f10() {
@@ -159,8 +159,8 @@ func f12(_ **int) {
 }
 func f13() {
 	var x *int
-	f11(&x)               // ERROR "&x does not escape"
-	f12(&x)               // ERROR "&x does not escape"
+	f11(&x)
+	f12(&x)
 	runtime.KeepAlive(&x) // ERROR "&x does not escape"
 }
 
@@ -172,8 +172,8 @@ func (_ *U) N() {}
 
 func _() {
 	var u U
-	u.M() // ERROR "u does not escape"
-	u.N() // ERROR "u does not escape"
+	u.M()
+	u.N()
 }
 
 // Issue 24730: taking address in a loop causes unnecessary escape
@@ -182,15 +182,15 @@ type T24730 struct {
 }
 
 func (t *T24730) g() { // ERROR "t does not escape"
-	y := t.x[:]             // ERROR "t\.x does not escape"
-	for i := range t.x[:] { // ERROR "t\.x does not escape"
-		y = t.x[:] // ERROR "t\.x does not escape"
+	y := t.x[:]
+	for i := range t.x[:] {
+		y = t.x[:]
 		y[i] = 1
 	}
 
 	var z *byte
-	for i := range t.x[:] { // ERROR "t\.x does not escape"
-		z = &t.x[i] // ERROR "t\.x\[i\] does not escape"
+	for i := range t.x[:] {
+		z = &t.x[i]
 		*z = 2
 	}
 }

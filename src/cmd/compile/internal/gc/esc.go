@@ -399,7 +399,7 @@ func escAnalyze(all []*Node, recursive bool) {
 
 	if Debug['m'] != 0 {
 		for _, n := range e.noesc {
-			if n.Esc == EscNone {
+			if n.Esc == EscNone && n.Op != OADDR {
 				Warnl(n.Pos, "%v %S does not escape", e.curfnSym(n), n)
 			}
 		}
@@ -1894,7 +1894,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 		}
 		if leaks {
 			src.Esc = EscHeap
-			if Debug['m'] != 0 && osrcesc != src.Esc {
+			if Debug['m'] != 0 && osrcesc != src.Esc && src.Op != OADDR {
 				p := src
 				if p.Left.Op == OCLOSURE {
 					p = p.Left // merely to satisfy error messages in tests
