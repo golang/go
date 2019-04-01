@@ -145,6 +145,11 @@ func (app *Application) connect(ctx context.Context, client protocol.Client) (pr
 	}
 	params := &protocol.InitializeParams{}
 	params.RootURI = string(span.FileURI(app.Config.Dir))
+	params.Capabilities = map[string]interface{}{
+		"workspace": map[string]interface{}{
+			"configuration": true,
+		},
+	}
 	if _, err := server.Initialize(ctx, params); err != nil {
 		return nil, err
 	}

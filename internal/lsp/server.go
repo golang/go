@@ -75,8 +75,10 @@ type Server struct {
 	initializedMu sync.Mutex
 	initialized   bool // set once the server has received "initialize" request
 
-	signatureHelpEnabled bool
-	snippetsSupported    bool
+	signatureHelpEnabled          bool
+	snippetsSupported             bool
+	configurationSupported        bool
+	dynamicConfigurationSupported bool
 
 	textDocumentSyncKind protocol.TextDocumentSyncKind
 
@@ -110,6 +112,18 @@ func (s *Server) Initialize(ctx context.Context, params *protocol.InitializePara
 			}
 		}
 	}
+	// Check if the client supports configuration messages.
+	if x, ok := params.Capabilities["workspace"].(map[string]interface{}); ok {
+		if x, ok := x["configuration"].(bool); ok {
+			s.configurationSupported = x
+		}
+		if x, ok := x["didChangeConfiguration"].(map[string]interface{}); ok {
+			if x, ok := x["dynamicRegistration"].(bool); ok {
+				s.dynamicConfigurationSupported = x
+			}
+		}
+	}
+
 	s.signatureHelpEnabled = true
 
 	// TODO(rstambler): Change this default to protocol.Incremental (or add a
@@ -182,24 +196,28 @@ func (s *Server) Initialize(ctx context.Context, params *protocol.InitializePara
 }
 
 func (s *Server) Initialized(ctx context.Context, params *protocol.InitializedParams) error {
-	s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
-		Registrations: []protocol.Registration{{
-			ID:     "workspace/didChangeConfiguration",
-			Method: "workspace/didChangeConfiguration",
-		}},
-	})
-	for _, view := range s.views {
-		config, err := s.client.Configuration(ctx, &protocol.ConfigurationParams{
-			Items: []protocol.ConfigurationItem{{
-				ScopeURI: protocol.NewURI(view.Folder),
-				Section:  "gopls",
-			}},
-		})
-		if err != nil {
-			return err
+	if s.configurationSupported {
+		if s.dynamicConfigurationSupported {
+			s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
+				Registrations: []protocol.Registration{{
+					ID:     "workspace/didChangeConfiguration",
+					Method: "workspace/didChangeConfiguration",
+				}},
+			})
 		}
-		if err := s.processConfig(view, config[0]); err != nil {
-			return err
+		for _, view := range s.views {
+			config, err := s.client.Configuration(ctx, &protocol.ConfigurationParams{
+				Items: []protocol.ConfigurationItem{{
+					ScopeURI: protocol.NewURI(view.Folder),
+					Section:  "gopls",
+				}},
+			})
+			if err != nil {
+				return err
+			}
+			if err := s.processConfig(view, config[0]); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
