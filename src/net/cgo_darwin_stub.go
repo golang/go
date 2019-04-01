@@ -15,6 +15,12 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
+type addrinfoErrno int
+
+func (eai addrinfoErrno) Error() string   { return "<nil>" }
+func (eai addrinfoErrno) Temporary() bool { return false }
+func (eai addrinfoErrno) Timeout() bool   { return false }
+
 func cgoLookupHost(ctx context.Context, name string) (addrs []string, err error, completed bool) {
 	resources, err := resolverGetResources(ctx, name, int32(dnsmessage.TypeALL), int32(dnsmessage.ClassINET))
 	if err != nil {
@@ -102,6 +108,9 @@ func resolverGetResources(ctx context.Context, hostname string, rtype, class int
 	size, errCode = res_search(&byteHostname[0], class, rtype, &responseBuffer[0], int32(len(responseBuffer)))
 	if errCode != 0 {
 		return nil, errors.New("could not complete domain resolution return code " + string(errCode))
+	}
+	if size == 0 {
+		return nil, errors.New("received empty response")
 	}
 
 	var msg dnsmessage.Message
