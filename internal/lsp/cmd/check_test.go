@@ -40,10 +40,7 @@ func (l diagnostics) test(t *testing.T, e *packagestest.Exported) {
 		if len(want) == 1 && want[0].Message == "" {
 			continue
 		}
-		args := []string{}
-		if *internalPipe {
-			args = append(args, "-remote=internal")
-		}
+		args := []string{"-remote=internal"}
 		args = append(args, "check", fname)
 		app := &cmd.Application{}
 		app.Config = *e.Config
