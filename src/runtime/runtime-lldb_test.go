@@ -139,6 +139,7 @@ func TestLldbPython(t *testing.T) {
 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
 		t.Skip("gdb test can fail with GOROOT_FINAL pending")
 	}
+	testenv.SkipFlaky(t, 31188)
 
 	checkLldbPython(t)
 
