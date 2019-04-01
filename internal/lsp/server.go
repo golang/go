@@ -632,10 +632,13 @@ func (s *Server) FoldingRanges(context.Context, *protocol.FoldingRangeParams) ([
 }
 
 func (s *Server) processConfig(view *cache.View, config interface{}) error {
-	//TODO: we should probably store and process more of the config
+	// TODO: We should probably store and process more of the config.
+	if config == nil {
+		return nil // ignore error if you don't have a config
+	}
 	c, ok := config.(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("Invalid config gopls type %T", config)
+		return fmt.Errorf("invalid config gopls type %T", config)
 	}
 	env := c["env"]
 	if env == nil {
@@ -643,7 +646,7 @@ func (s *Server) processConfig(view *cache.View, config interface{}) error {
 	}
 	menv, ok := env.(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("Invalid config gopls.env type %T", env)
+		return fmt.Errorf("invalid config gopls.env type %T", env)
 	}
 	for k, v := range menv {
 		view.Config.Env = applyEnv(view.Config.Env, k, v)
