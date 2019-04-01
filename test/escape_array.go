@@ -26,7 +26,7 @@ func bff(a, b *string) U { // ERROR "leaking param: a to result ~r2 level=0$" "l
 
 func tbff1() *string {
 	a := "cat"
-	b := "dog"       // ERROR "moved to heap: b$"
+	b := "dog" // ERROR "moved to heap: b$"
 	u := bff(&a, &b)
 	_ = u[0]
 	return &b
@@ -34,8 +34,8 @@ func tbff1() *string {
 
 // BAD: need fine-grained analysis to track u[0] and u[1] differently.
 func tbff2() *string {
-	a := "cat"       // ERROR "moved to heap: a$"
-	b := "dog"       // ERROR "moved to heap: b$"
+	a := "cat" // ERROR "moved to heap: a$"
+	b := "dog" // ERROR "moved to heap: b$"
 	u := bff(&a, &b)
 	_ = u[0]
 	return u[1]
@@ -71,7 +71,7 @@ func fuo(x *U, y *U) *string { // ERROR "leaking param: x to result ~r2 level=1$
 // pointers stored in small array literals do not escape;
 // large array literals are heap allocated;
 // pointers stored in large array literals escape.
-func hugeLeaks1(x **string, y **string) { // ERROR "leaking param content: x" "hugeLeaks1 y does not escape" "mark escaped content: x"
+func hugeLeaks1(x **string, y **string) { // ERROR "leaking param content: x" "hugeLeaks1 y does not escape"
 	a := [10]*string{*y}
 	_ = a
 	// 4 x 4,000,000 exceeds MaxStackVarSize, therefore it must be heap allocated if pointers are 4 bytes or larger.

@@ -1837,10 +1837,6 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 		src.Op == ONAME && src.Class() == PPARAM && src.Esc&EscMask < EscHeap &&
 		level.int() > 0 {
 		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
-		if Debug['m'] != 0 {
-			Warnl(src.Pos, "mark escaped content: %S", src)
-			step.describe(src)
-		}
 	}
 
 	leaks = level.int() <= 0 && level.guaranteedDereference() <= 0 && dstE.Loopdepth < modSrcLoopdepth
@@ -1880,10 +1876,6 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
 		// Treat a captured closure variable as equivalent to the
 		// original variable.
 		if src.IsClosureVar() {
-			if leaks && Debug['m'] != 0 {
-				Warnl(src.Pos, "leaking closure reference %S", src)
-				step.describe(src)
-			}
 			e.escwalk(level, dst, src.Name.Defn, e.stepWalk(dst, src.Name.Defn, "closure-var", step))
 		}
 
