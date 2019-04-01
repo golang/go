@@ -43,6 +43,7 @@ func (v *View) parse(ctx context.Context, f *File) ([]packages.Error, error) {
 	imp := &importer{
 		view:     v,
 		circular: make(map[string]struct{}),
+		ctx:      ctx,
 	}
 	// Start prefetching direct imports.
 	for importPath := range f.meta.children {
@@ -53,8 +54,6 @@ func (v *View) parse(ctx context.Context, f *File) ([]packages.Error, error) {
 	if pkg == nil || pkg.GetTypes() == nil {
 		return nil, err
 	}
-	// Add every file in this package to our cache.
-	v.cachePackage(ctx, pkg)
 
 	// If we still have not found the package for the file, something is wrong.
 	if f.pkg == nil {
@@ -150,7 +149,7 @@ func (v *View) link(pkgPath string, pkg *packages.Package, parent *metadata) *me
 	m.name = pkg.Name
 	m.files = pkg.CompiledGoFiles
 	for _, filename := range m.files {
-		if f, _ := v.findFile(span.FileURI(filename)); f != nil {
+		if f, _ := v.getFile(span.FileURI(filename)); f != nil {
 			f.meta = m
 		}
 	}
@@ -182,6 +181,8 @@ type importer struct {
 	// circular maintains the set of previously imported packages.
 	// If we have seen a package that is already in this map, we have a circular import.
 	circular map[string]struct{}
+
+	ctx context.Context
 }
 
 func (imp *importer) Import(pkgPath string) (*types.Package, error) {
@@ -259,10 +260,14 @@ func (imp *importer) typeCheck(pkgPath string) (*Package, error) {
 		Importer: &importer{
 			view:     imp.view,
 			circular: newCircular,
+			ctx:      imp.ctx,
 		},
 	}
 	check := types.NewChecker(cfg, imp.view.Config.Fset, pkg.types, pkg.typesInfo)
 	check.Files(pkg.syntax)
+
+	// Add every file in this package to our cache.
+	imp.view.cachePackage(imp.ctx, pkg)
 
 	// Set imports of package to correspond to cached packages.
 	// We lock the package cache, but we shouldn't get any inconsistencies
