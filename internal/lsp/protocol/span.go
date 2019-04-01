@@ -43,7 +43,7 @@ func (m *ColumnMapper) Range(s span.Span) (Range, error) {
 	if m.URI != s.URI() {
 		return Range{}, fmt.Errorf("column mapper is for file %q instead of %q", m.URI, s.URI())
 	}
-	s, err := s.WithOffset(m.Converter)
+	s, err := s.WithAll(m.Converter)
 	if err != nil {
 		return Range{}, err
 	}
