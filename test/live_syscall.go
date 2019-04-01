@@ -19,22 +19,22 @@ func f(uintptr) // ERROR "f assuming arg#1 is unsafe uintptr"
 
 func g() { // ERROR "can inline g"
 	var t int
-	f(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to f: .?autotmp" "g &t does not escape" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+	f(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to f: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
 }
 
 func h() { // ERROR "can inline h"
 	var v int
-	syscall.Syscall(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to Syscall: .?autotmp" "h &v does not escape" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+	syscall.Syscall(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to Syscall: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
 }
 
 func i() { // ERROR "can inline i"
 	var t int
-	p := unsafe.Pointer(&t) // ERROR "i &t does not escape"
+	p := unsafe.Pointer(&t)
 	f(uintptr(p))           // ERROR "live at call to f: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
 }
 
 func j() { // ERROR "can inline j"
 	var v int
-	p := unsafe.Pointer(&v)              // ERROR "j &v does not escape"
+	p := unsafe.Pointer(&v)
 	syscall.Syscall(0, 1, uintptr(p), 2) // ERROR "live at call to Syscall: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
 }

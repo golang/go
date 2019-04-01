@@ -40,7 +40,7 @@ func f2(q *int) { // ERROR "from &u \(address-of\) at escape_because.go:43$" "fr
 	s := q
 	t := pair{s, nil}
 	u := t    // ERROR "moved to heap: u$"
-	sink = &u // ERROR "&u escapes to heap$" "from &u \(interface-converted\) at escape_because.go:43$" "from sink \(assigned to top level variable\) at escape_because.go:43$"
+	sink = &u // ERROR "&u escapes to heap$" "from sink \(assigned to top level variable\) at escape_because.go:43$"
 }
 
 func f3(r *int) interface{} { // ERROR "from \[\]\*int literal \(slice-literal-element\) at escape_because.go:47$" "from c \(assigned\) at escape_because.go:47$" "from c \(interface-converted\) at escape_because.go:48$" "from ~r1 \(return\) at escape_because.go:48$" "leaking param: r"
@@ -78,7 +78,7 @@ func f8(x int, y *int) *int { // ERROR "from ~r2 \(return\) at escape_because.go
 		return y
 	}
 	x--
-	return f8(*y, &x) // ERROR "&x escapes to heap$" "from y \(arg to recursive call\) at escape_because.go:81$" "from ~r2 \(return\) at escape_because.go:78$" "from ~r2 \(returned from recursive function\) at escape_because.go:76$"
+	return f8(*y, &x)
 }
 
 func f9(x int, y ...*int) *int { // ERROR "from y\[0\] \(dot of pointer\) at escape_because.go:86$" "from ~r2 \(return\) at escape_because.go:86$" "from ~r2 \(returned from recursive function\) at escape_because.go:84$" "leaking param content: y$" "leaking param: y to result ~r2 level=1$" "moved to heap: x$"
@@ -86,7 +86,7 @@ func f9(x int, y ...*int) *int { // ERROR "from y\[0\] \(dot of pointer\) at esc
 		return y[0]
 	}
 	x--
-	return f9(*y[0], &x) // ERROR "&x escapes to heap$" "f9 ... argument does not escape$" "from ... argument \(... arg to recursive call\) at escape_because.go:89$"
+	return f9(*y[0], &x) // ERROR "f9 ... argument does not escape$"
 }
 
 func f10(x map[*int]*int, y, z *int) *int { // ERROR "f10 x does not escape$" "from x\[y\] \(key of map put\) at escape_because.go:93$" "from x\[y\] \(value of map put\) at escape_because.go:93$" "leaking param: y$" "leaking param: z$"
@@ -132,14 +132,14 @@ func leakThroughOAS2() {
 	// See #26987.
 	i := 0              // ERROR "moved to heap: i$"
 	j := 0              // ERROR "moved to heap: j$"
-	sink, sink = &i, &j // ERROR "&i escapes to heap$" "from sink \(assign-pair\) at escape_because.go:135$" "from &i \(interface-converted\) at escape_because.go:135$" "&j escapes to heap$" "from &j \(interface-converted\) at escape_because.go:135"
+	sink, sink = &i, &j // ERROR "&i escapes to heap$" "from sink \(assign-pair\) at escape_because.go:135$" "&j escapes to heap$"
 }
 
 func leakThroughOAS2FUNC() {
 	// See #26987.
 	i := 0 // ERROR "moved to heap: i$"
 	j := 0
-	sink, _ = leakParams(&i, &j) // ERROR "&i escapes to heap$" "&j does not escape$" "from .out0 \(passed-to-and-returned-from-call\) at escape_because.go:142$" "from sink \(assign-pair-func-call\) at escape_because.go:142$"
+	sink, _ = leakParams(&i, &j)
 }
 
 // The list below is all of the why-escapes messages seen building the escape analysis tests.

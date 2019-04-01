@@ -24,30 +24,30 @@ var mutex *sync.Mutex
 
 func small5() { // ERROR "can inline small5"
 	// the Unlock fast path should be inlined
-	mutex.Unlock() // ERROR "inlining call to sync\.\(\*Mutex\)\.Unlock" "&sync\.m\.state escapes to heap"
+	mutex.Unlock() // ERROR "inlining call to sync\.\(\*Mutex\)\.Unlock"
 }
 
 func small6() { // ERROR "can inline small6"
 	// the Lock fast path should be inlined
-	mutex.Lock() // ERROR "inlining call to sync\.\(\*Mutex\)\.Lock" "&sync\.m\.state escapes to heap"
+	mutex.Lock() // ERROR "inlining call to sync\.\(\*Mutex\)\.Lock"
 }
 
 var once *sync.Once
 
 func small7() { // ERROR "can inline small7"
         // the Do fast path should be inlined
-        once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do" "&sync\.o\.done escapes to heap"
+        once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do"
 }
 
 var rwmutex *sync.RWMutex
 
 func small8() { // ERROR "can inline small8"
         // the RUnlock fast path should be inlined
-        rwmutex.RUnlock() // ERROR "inlining call to sync\.\(\*RWMutex\)\.RUnlock" "&sync\.rw\.readerCount escapes to heap"
+        rwmutex.RUnlock() // ERROR "inlining call to sync\.\(\*RWMutex\)\.RUnlock"
 }
 
 func small9() { // ERROR "can inline small9"
         // the RLock fast path should be inlined
-        rwmutex.RLock() // ERROR "inlining call to sync\.\(\*RWMutex\)\.RLock" "&sync\.rw\.readerCount escapes to heap" "&sync\.rw\.readerSem escapes to heap"
+        rwmutex.RLock() // ERROR "inlining call to sync\.\(\*RWMutex\)\.RLock"
 }
 

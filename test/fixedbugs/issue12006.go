@@ -37,28 +37,28 @@ func FooNz(vals ...*int) (s int) { // ERROR "leaking param: vals"
 func TFooN() {
 	for i := 0; i < 1000; i++ {
 		var i, j int
-		FooN(&i, &j) // ERROR "TFooN &i does not escape" "TFooN &j does not escape" "TFooN ... argument does not escape"
+		FooN(&i, &j) // ERROR "TFooN ... argument does not escape"
 	}
 }
 
 func TFooNx() {
 	for i := 0; i < 1000; i++ {
 		var i, j, k int   // ERROR "moved to heap: i" "moved to heap: j" "moved to heap: k"
-		FooNx(&k, &i, &j) // ERROR "&k escapes to heap" "&i escapes to heap" "&j escapes to heap" "TFooNx ... argument does not escape"
+		FooNx(&k, &i, &j) // ERROR "TFooNx ... argument does not escape"
 	}
 }
 
 func TFooNy() {
 	for i := 0; i < 1000; i++ {
 		var i, j, k int   // ERROR "moved to heap: i" "moved to heap: j" "moved to heap: k"
-		FooNy(&k, &i, &j) // ERROR "&i escapes to heap" "&j escapes to heap" "&k escapes to heap" "... argument escapes to heap"
+		FooNy(&k, &i, &j) // ERROR "... argument escapes to heap"
 	}
 }
 
 func TFooNz() {
 	for i := 0; i < 1000; i++ {
 		var i, j int  // ERROR "moved to heap: i" "moved to heap: j"
-		FooNz(&i, &j) // ERROR "&i escapes to heap" "&j escapes to heap" "... argument escapes to heap"
+		FooNz(&i, &j) // ERROR "... argument escapes to heap"
 	}
 }
 
@@ -83,7 +83,7 @@ func FooI(args ...interface{}) { // ERROR "leaking param content: args"
 func TFooI() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
-	c := &a       // ERROR "&a escapes to heap"
+	c := &a
 	FooI(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "c escapes to heap" "TFooI ... argument does not escape"
 }
 
@@ -107,14 +107,14 @@ func FooJ(args ...interface{}) *int32 { // ERROR "leaking param: args to result 
 func TFooJ1() {
 	a := int32(1)
 	b := "cat"
-	c := &a       // ERROR "TFooJ1 &a does not escape"
+	c := &a
 	FooJ(a, b, c) // ERROR "TFooJ1 a does not escape" "TFooJ1 b does not escape" "TFooJ1 c does not escape" "TFooJ1 ... argument does not escape"
 }
 
 func TFooJ2() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
-	c := &a               // ERROR "&a escapes to heap"
+	c := &a
 	isink = FooJ(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "c escapes to heap" "TFooJ2 ... argument does not escape"
 }
 
@@ -143,7 +143,7 @@ func FooK(args fakeSlice) *int32 { // ERROR "leaking param: args to result ~r1 l
 func TFooK2() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
-	c := &a                                           // ERROR "&a escapes to heap"
+	c := &a
 	fs := fakeSlice{3, &[4]interface{}{a, b, c, nil}} // ERROR "a escapes to heap" "b escapes to heap" "c escapes to heap" "TFooK2 &\[4\]interface {} literal does not escape"
 	isink = FooK(fs)
 }
@@ -168,7 +168,7 @@ func FooL(args []interface{}) *int32 { // ERROR "leaking param: args to result ~
 func TFooL2() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
-	c := &a                     // ERROR "&a escapes to heap"
+	c := &a
 	s := []interface{}{a, b, c} // ERROR "a escapes to heap" "b escapes to heap" "c escapes to heap" "TFooL2 \[\]interface {} literal does not escape"
 	isink = FooL(s)
 }
