@@ -34,7 +34,7 @@ func cgoLookupHost(ctx context.Context, name string) (addrs []string, err error,
 }
 
 func cgoLookupPort(ctx context.Context, network, service string) (port int, err error, completed bool) {
-	port, err = goLookupPort(network, service) // just use netgo lookup
+	port, err = goLookupPort(network, service) // we can just use netgo lookup
 	return port, err, err == nil
 }
 
