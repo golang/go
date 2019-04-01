@@ -32,6 +32,9 @@ func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content str
 
 		for uri, diagnostics := range reports {
 			if err := s.publishDiagnostics(ctx, uri, diagnostics); err != nil {
+				if s.undelivered == nil {
+					s.undelivered = make(map[span.URI][]source.Diagnostic)
+				}
 				s.undelivered[uri] = diagnostics
 				continue
 			}
