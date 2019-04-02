@@ -160,6 +160,14 @@ func SetCookie(w ResponseWriter, cookie *Cookie) {
 	}
 }
 
+// GetValue returns c.Value but empty string when c is nil
+func (c *Cookie) GetValue() string {
+	if c != nil {
+		return c.Value
+	}
+	return ""
+}
+
 // String returns the serialization of the cookie for use in a Cookie
 // header (if only Name and Value are set) or a Set-Cookie response
 // header (if other fields are set).
