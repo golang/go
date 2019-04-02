@@ -225,6 +225,14 @@ func (c *Cookie) String() string {
 	return b.String()
 }
 
+// GetValue returns Cookie's Value but empty string when c is nil
+func (c *Cookie) GetValue() string {
+	if c != nil {
+		return c.Value
+	}
+	return ""
+}
+
 // readCookies parses all "Cookie" values from the header h and
 // returns the successfully parsed Cookies.
 //
