@@ -51,6 +51,13 @@ func (c dwctxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 	s.(*sym.Symbol).AddAddrPlus(c.linkctxt.Arch, data.(*sym.Symbol), value)
 }
 
+func (c dwctxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64) {
+	if value != 0 {
+		value -= (data.(*sym.Symbol)).Value
+	}
+	s.(*sym.Symbol).AddCURelativeAddrPlus(c.linkctxt.Arch, data.(*sym.Symbol), value)
+}
+
 func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
 	ls := s.(*sym.Symbol)
 	switch size {
@@ -1352,7 +1359,7 @@ func writepcranges(ctxt *Link, unit *compilationUnit, base *sym.Symbol, pcs []dw
 	// Create PC ranges for this CU.
 	newattr(unit.dwinfo, dwarf.DW_AT_ranges, dwarf.DW_CLS_PTR, ranges.Size, ranges)
 	newattr(unit.dwinfo, dwarf.DW_AT_low_pc, dwarf.DW_CLS_ADDRESS, base.Value, base)
-	dwarf.PutRanges(dwarfctxt, ranges, nil, pcs)
+	dwarf.PutBasedRanges(dwarfctxt, ranges, pcs)
 
 	if ctxt.HeadType == objabi.Haix {
 		addDwsectCUSize(".debug_ranges", unit.lib.String(), uint64(ranges.Size-unitLengthOffset))
@@ -1871,10 +1878,6 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			if rangeSym != nil && rangeSym.Size > 0 {
 				rangeSym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
 				rangeSym.Type = sym.SDWARFRANGE
-				// LLVM doesn't support base address entries. Strip them out so LLDB and dsymutil don't get confused.
-				if ctxt.HeadType == objabi.Hdarwin {
-					removeDwarfAddrListBaseAddress(ctxt, dsym, rangeSym, false)
-				}
 				if ctxt.HeadType == objabi.Haix {
 					addDwsectCUSize(".debug_ranges", unit.lib.String(), uint64(rangeSym.Size))
 
@@ -1987,10 +1990,6 @@ func collectlocs(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit) []*sy
 					reloc.Sym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
 					syms = append(syms, reloc.Sym)
 					empty = false
-					// LLVM doesn't support base address entries. Strip them out so LLDB and dsymutil don't get confused.
-					if ctxt.HeadType == objabi.Hdarwin {
-						removeDwarfAddrListBaseAddress(ctxt, fn, reloc.Sym, true)
-					}
 					// One location list entry per function, but many relocations to it. Don't duplicate.
 					break
 				}
@@ -2005,65 +2004,6 @@ func collectlocs(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit) []*sy
 		syms = append(syms, locsym)
 	}
 	return syms
-}
-
-// removeDwarfAddrListBaseAddress removes base address selector entries from
-// DWARF location lists and range lists.
-func removeDwarfAddrListBaseAddress(ctxt *Link, info, list *sym.Symbol, isloclist bool) {
-	// The list symbol contains multiple lists, but they're all for the
-	// same function, and it's not empty.
-	fn := list.R[0].Sym
-
-	// Discard the relocations for the base address entries.
-	list.R = list.R[:0]
-
-	// Add relocations for each location entry's start and end addresses,
-	// so that the base address entries aren't necessary.
-	// We could remove them entirely, but that's more work for a relatively
-	// small size win. If dsymutil runs it'll throw them away anyway.
-
-	// relocate adds a CU-relative relocation to fn+addr at offset.
-	relocate := func(addr uint64, offset int) {
-		list.R = append(list.R, sym.Reloc{
-			Off:  int32(offset),
-			Siz:  uint8(ctxt.Arch.PtrSize),
-			Type: objabi.R_ADDRCUOFF,
-			Add:  int64(addr),
-			Sym:  fn,
-		})
-	}
-
-	for i := 0; i < len(list.P); {
-		first := readPtr(ctxt, list.P[i:])
-		second := readPtr(ctxt, list.P[i+ctxt.Arch.PtrSize:])
-
-		if (first == 0 && second == 0) ||
-			first == ^uint64(0) ||
-			(ctxt.Arch.PtrSize == 4 && first == uint64(^uint32(0))) {
-			// Base address selection entry or end of list. Ignore.
-			i += ctxt.Arch.PtrSize * 2
-			continue
-		}
-
-		relocate(first, i)
-		relocate(second, i+ctxt.Arch.PtrSize)
-
-		// Skip past the actual location.
-		i += ctxt.Arch.PtrSize * 2
-		if isloclist {
-			i += 2 + int(ctxt.Arch.ByteOrder.Uint16(list.P[i:]))
-		}
-	}
-
-	// Rewrite the DIE's relocations to point to the first location entry,
-	// not the now-useless base address selection entry.
-	for i := range info.R {
-		r := &info.R[i]
-		if r.Sym != list {
-			continue
-		}
-		r.Add += int64(2 * ctxt.Arch.PtrSize)
-	}
 }
 
 // Read a pointer-sized uint from the beginning of buf.

@@ -471,6 +471,11 @@ func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 		ls.WriteInt(c.Link, ls.Size, size, value)
 	}
 }
+func (c dwCtxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64) {
+	ls := s.(*LSym)
+	rsym := data.(*LSym)
+	ls.WriteCURelativeAddr(c.Link, ls.Size, rsym, value)
+}
 func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
 	panic("should be used only in the linker")
 }
@@ -578,18 +583,19 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
 	dwctxt := dwCtxt{ctxt}
 	filesym := ctxt.fileSymbol(s)
 	fnstate := &dwarf.FnState{
-		Name:       s.Name,
-		Importpath: myimportpath,
-		Info:       info,
-		Filesym:    filesym,
-		Loc:        loc,
-		Ranges:     ranges,
-		Absfn:      absfunc,
-		StartPC:    s,
-		Size:       s.Size,
-		External:   !s.Static(),
-		Scopes:     scopes,
-		InlCalls:   inlcalls,
+		Name:          s.Name,
+		Importpath:    myimportpath,
+		Info:          info,
+		Filesym:       filesym,
+		Loc:           loc,
+		Ranges:        ranges,
+		Absfn:         absfunc,
+		StartPC:       s,
+		Size:          s.Size,
+		External:      !s.Static(),
+		Scopes:        scopes,
+		InlCalls:      inlcalls,
+		UseBASEntries: ctxt.UseBASEntries,
 	}
 	if absfunc != nil {
 		err = dwarf.PutAbstractFunc(dwctxt, fnstate)
@@ -630,13 +636,14 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
 	dwctxt := dwCtxt{ctxt}
 	filesym := ctxt.fileSymbol(s)
 	fnstate := dwarf.FnState{
-		Name:       s.Name,
-		Importpath: myimportpath,
-		Info:       absfn,
-		Filesym:    filesym,
-		Absfn:      absfn,
-		External:   !s.Static(),
-		Scopes:     scopes,
+		Name:          s.Name,
+		Importpath:    myimportpath,
+		Info:          absfn,
+		Filesym:       filesym,
+		Absfn:         absfn,
+		External:      !s.Static(),
+		Scopes:        scopes,
+		UseBASEntries: ctxt.UseBASEntries,
 	}
 	if err := dwarf.PutAbstractFunc(dwctxt, &fnstate); err != nil {
 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
