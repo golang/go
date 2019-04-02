@@ -29,10 +29,10 @@ const (
 )
 
 type definition struct {
-	src   span.Span
-	flags string
-	def   span.Span
-	match string
+	src     span.Span
+	flags   string
+	def     span.Span
+	pattern pattern
 }
 
 type definitions map[span.Span]definition
@@ -66,24 +66,26 @@ func TestDefinitionHelpExample(t *testing.T) {
 
 func (l definitions) godef(src, def span.Span) {
 	l[src] = definition{
-		src: src,
-		def: def,
+		src:     src,
+		def:     def,
+		pattern: newPattern("", def),
 	}
 }
 
 func (l definitions) typdef(src, def span.Span) {
 	l[src] = definition{
-		src: src,
-		def: def,
+		src:     src,
+		def:     def,
+		pattern: newPattern("", def),
 	}
 }
 
 func (l definitions) definition(src span.Span, flags string, def span.Span, match string) {
 	l[src] = definition{
-		src:   src,
-		flags: flags,
-		def:   def,
-		match: match,
+		src:     src,
+		flags:   flags,
+		def:     def,
+		pattern: newPattern(match, def),
 	}
 }
 
@@ -104,76 +106,41 @@ func (l definitions) testDefinitions(t *testing.T, e *packagestest.Exported) {
 		got := captureStdOut(t, func() {
 			tool.Main(context.Background(), app, args)
 		})
-		if d.match == "" {
-			expect := fmt.Sprint(d.def)
-			if !strings.HasPrefix(got, expect) {
-				t.Errorf("definition %v\nexpected:\n%s\ngot:\n%s", args, expect, got)
-			}
-		} else {
-			expect := os.Expand(d.match, func(name string) string {
-				switch name {
-				case "file":
-					fname, _ := d.def.URI().Filename()
-					return fname
-				case "efile":
-					fname, _ := d.def.URI().Filename()
-					qfile := strconv.Quote(fname)
-					return qfile[1 : len(qfile)-1]
-				case "euri":
-					quri := strconv.Quote(string(d.def.URI()))
-					return quri[1 : len(quri)-1]
-				case "line":
-					return fmt.Sprint(d.def.Start().Line())
-				case "col":
-					return fmt.Sprint(d.def.Start().Column())
-				case "offset":
-					return fmt.Sprint(d.def.Start().Offset())
-				case "eline":
-					return fmt.Sprint(d.def.End().Line())
-				case "ecol":
-					return fmt.Sprint(d.def.End().Column())
-				case "eoffset":
-					return fmt.Sprint(d.def.End().Offset())
-				default:
-					return name
-				}
-			})
-			if expect != got {
-				t.Errorf("definition %v\nexpected:\n%s\ngot:\n%s", args, expect, got)
-			}
-			if *verifyGuru {
-				moduleMode := e.File(e.Modules[0].Name, "go.mod") != ""
-				var guruArgs []string
-				runGuru := false
-				if !moduleMode {
-					for _, arg := range args {
-						switch {
-						case arg == "query":
-							// just ignore this one
-						case arg == "-json":
-							guruArgs = append(guruArgs, arg)
-						case arg == "-emulate=guru":
-							// if we don't see this one we should not run guru
-							runGuru = true
-						case strings.HasPrefix(arg, "-"):
-							// unknown flag, ignore it
-							break
-						default:
-							guruArgs = append(guruArgs, arg)
-						}
+		if !d.pattern.matches(got) {
+			t.Errorf("definition %v\nexpected:\n%s\ngot:\n%s", args, d.pattern, got)
+		}
+		if *verifyGuru {
+			moduleMode := e.File(e.Modules[0].Name, "go.mod") != ""
+			var guruArgs []string
+			runGuru := false
+			if !moduleMode {
+				for _, arg := range args {
+					switch {
+					case arg == "query":
+						// just ignore this one
+					case arg == "-json":
+						guruArgs = append(guruArgs, arg)
+					case arg == "-emulate=guru":
+						// if we don't see this one we should not run guru
+						runGuru = true
+					case strings.HasPrefix(arg, "-"):
+						// unknown flag, ignore it
+						break
+					default:
+						guruArgs = append(guruArgs, arg)
 					}
 				}
-				if runGuru {
-					cmd := exec.Command("guru", guruArgs...)
-					cmd.Env = e.Config.Env
-					out, err := cmd.CombinedOutput()
-					if err != nil {
-						t.Errorf("Could not run guru %v: %v\n%s", guruArgs, err, out)
-					} else {
-						guru := strings.TrimSpace(string(out))
-						if !strings.HasPrefix(expect, guru) {
-							t.Errorf("definition %v\nexpected:\n%s\nguru gave:\n%s", args, expect, guru)
-						}
+			}
+			if runGuru {
+				cmd := exec.Command("guru", guruArgs...)
+				cmd.Env = e.Config.Env
+				out, err := cmd.CombinedOutput()
+				if err != nil {
+					t.Errorf("Could not run guru %v: %v\n%s", guruArgs, err, out)
+				} else {
+					guru := strings.TrimSpace(string(out))
+					if !d.pattern.matches(guru) {
+						t.Errorf("definition %v\nexpected:\n%s\nguru gave:\n%s", args, d.pattern, guru)
 					}
 				}
 			}
@@ -186,4 +153,75 @@ func (l definitions) testTypeDefinitions(t *testing.T, e *packagestest.Exported)
 		t.Errorf("got %v definitions expected %v", len(l), expectedTypeDefinitionsCount)
 	}
 	//TODO: add command line type definition tests when it works
+}
+
+type pattern struct {
+	raw      string
+	expanded []string
+	matchAll bool
+}
+
+func newPattern(s string, def span.Span) pattern {
+	p := pattern{raw: s}
+	if s == "" {
+		p.expanded = []string{fmt.Sprintf("%v: ", def)}
+		return p
+	}
+	p.matchAll = strings.HasSuffix(s, "$$")
+	for _, fragment := range strings.Split(s, "$$") {
+		p.expanded = append(p.expanded, os.Expand(fragment, func(name string) string {
+			switch name {
+			case "file":
+				fname, _ := def.URI().Filename()
+				return fname
+			case "efile":
+				fname, _ := def.URI().Filename()
+				qfile := strconv.Quote(fname)
+				return qfile[1 : len(qfile)-1]
+			case "euri":
+				quri := strconv.Quote(string(def.URI()))
+				return quri[1 : len(quri)-1]
+			case "line":
+				return fmt.Sprint(def.Start().Line())
+			case "col":
+				return fmt.Sprint(def.Start().Column())
+			case "offset":
+				return fmt.Sprint(def.Start().Offset())
+			case "eline":
+				return fmt.Sprint(def.End().Line())
+			case "ecol":
+				return fmt.Sprint(def.End().Column())
+			case "eoffset":
+				return fmt.Sprint(def.End().Offset())
+			default:
+				return name
+			}
+		}))
+	}
+	return p
+}
+
+func (p pattern) String() string {
+	return strings.Join(p.expanded, "$$")
+}
+
+func (p pattern) matches(s string) bool {
+	if len(p.expanded) == 0 {
+		return false
+	}
+	if !strings.HasPrefix(s, p.expanded[0]) {
+		return false
+	}
+	remains := s[len(p.expanded[0]):]
+	for _, fragment := range p.expanded[1:] {
+		i := strings.Index(remains, fragment)
+		if i < 0 {
+			return false
+		}
+		remains = remains[i+len(fragment):]
+	}
+	if !p.matchAll {
+		return true
+	}
+	return len(remains) == 0
 }
