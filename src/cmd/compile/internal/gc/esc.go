@@ -41,8 +41,16 @@ import (
 // not escape, then new(T) can be rewritten into a stack allocation.
 // The same is true of slice literals.
 
+// If newescape is true, then escape.go drives escape analysis instead
+// of esc.go.
+var newescape bool
+
 func escapes(all []*Node) {
-	visitBottomUp(all, escAnalyze)
+	esc := escAnalyze
+	if newescape {
+		esc = escapeFuncs
+	}
+	visitBottomUp(all, esc)
 }
 
 const (
@@ -393,7 +401,7 @@ func escAnalyze(all []*Node, recursive bool) {
 	// for all top level functions, tag the typenodes corresponding to the param nodes
 	for _, n := range all {
 		if n.Op == ODCLFUNC {
-			e.esctag(n)
+			esctag(n)
 		}
 	}
 
@@ -516,7 +524,7 @@ func (e *EscState) esclist(l Nodes, parent *Node) {
 	}
 }
 
-func (e *EscState) isSliceSelfAssign(dst, src *Node) bool {
+func isSliceSelfAssign(dst, src *Node) bool {
 	// Detect the following special case.
 	//
 	//	func (b *Buffer) Foo() {
@@ -566,8 +574,8 @@ func (e *EscState) isSliceSelfAssign(dst, src *Node) bool {
 
 // isSelfAssign reports whether assignment from src to dst can
 // be ignored by the escape analysis as it's effectively a self-assignment.
-func (e *EscState) isSelfAssign(dst, src *Node) bool {
-	if e.isSliceSelfAssign(dst, src) {
+func isSelfAssign(dst, src *Node) bool {
+	if isSliceSelfAssign(dst, src) {
 		return true
 	}
 
@@ -589,7 +597,7 @@ func (e *EscState) isSelfAssign(dst, src *Node) bool {
 	case ODOT, ODOTPTR:
 		// Safe trailing accessors that are permitted to differ.
 	case OINDEX:
-		if e.mayAffectMemory(dst.Right) || e.mayAffectMemory(src.Right) {
+		if mayAffectMemory(dst.Right) || mayAffectMemory(src.Right) {
 			return false
 		}
 	default:
@@ -602,7 +610,7 @@ func (e *EscState) isSelfAssign(dst, src *Node) bool {
 
 // mayAffectMemory reports whether n evaluation may affect program memory state.
 // If expression can't affect it, then it can be safely ignored by the escape analysis.
-func (e *EscState) mayAffectMemory(n *Node) bool {
+func mayAffectMemory(n *Node) bool {
 	// We may want to use "memory safe" black list instead of general
 	// "side-effect free", which can include all calls and other ops
 	// that can affect allocate or change global state.
@@ -616,16 +624,24 @@ func (e *EscState) mayAffectMemory(n *Node) bool {
 
 	// Left+Right group.
 	case OINDEX, OADD, OSUB, OOR, OXOR, OMUL, OLSH, ORSH, OAND, OANDNOT, ODIV, OMOD:
-		return e.mayAffectMemory(n.Left) || e.mayAffectMemory(n.Right)
+		return mayAffectMemory(n.Left) || mayAffectMemory(n.Right)
 
 	// Left group.
 	case ODOT, ODOTPTR, ODEREF, OCONVNOP, OCONV, OLEN, OCAP,
 		ONOT, OBITNOT, OPLUS, ONEG, OALIGNOF, OOFFSETOF, OSIZEOF:
-		return e.mayAffectMemory(n.Left)
+		return mayAffectMemory(n.Left)
 
 	default:
 		return true
 	}
+}
+
+func mustHeapAlloc(n *Node) bool {
+	// TODO(mdempsky): Cleanup this mess.
+	return n.Type != nil &&
+		(n.Type.Width > maxStackVarSize ||
+			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= maxImplicitStackVarSize ||
+			n.Op == OMAKESLICE && !isSmallMakeSlice(n))
 }
 
 func (e *EscState) esc(n *Node, parent *Node) {
@@ -658,10 +674,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
 	// Big stuff and non-constant-sized stuff escapes unconditionally.
 	// "Big" conditions that were scattered around in walk have been
 	// gathered here.
-	if n.Esc != EscHeap && n.Type != nil &&
-		(n.Type.Width > maxStackVarSize ||
-			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= maxImplicitStackVarSize ||
-			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
+	if n.Esc != EscHeap && mustHeapAlloc(n) {
 		// isSmallMakeSlice returns false for non-constant len/cap.
 		// If that's the case, print a more accurate escape reason.
 		var msgVerb, escapeMsg string
@@ -756,7 +769,7 @@ opSwitch:
 
 	case OAS, OASOP:
 		// Filter out some no-op assignments for escape analysis.
-		if e.isSelfAssign(n.Left, n.Right) {
+		if isSelfAssign(n.Left, n.Right) {
 			if Debug['m'] != 0 {
 				Warnl(n.Pos, "%v ignoring self-assignment in %S", e.curfnSym(n), n)
 			}
@@ -2182,7 +2195,7 @@ const unsafeUintptrTag = "unsafe-uintptr"
 // marked go:uintptrescapes.
 const uintptrEscapesTag = "uintptr-escapes"
 
-func (e *EscState) esctag(fn *Node) {
+func esctag(fn *Node) {
 	fn.Esc = EscFuncTagged
 
 	name := func(s *types.Sym, narg int) string {
