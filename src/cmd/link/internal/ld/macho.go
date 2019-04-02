@@ -560,12 +560,8 @@ func Asmbmacho(ctxt *Link) {
 		ms = newMachoSeg("", 40)
 
 		ms.fileoffset = Segtext.Fileoff
-		if ctxt.Arch.Family == sys.ARM || ctxt.BuildMode == BuildModeCArchive {
-			ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
-		} else {
-			ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
-			ms.vsize = Segdwarf.Vaddr + Segdwarf.Length - Segtext.Vaddr
-		}
+		ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
+		ms.vsize = Segdwarf.Vaddr + Segdwarf.Length - Segtext.Vaddr
 	}
 
 	/* segment for zero page */
