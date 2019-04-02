@@ -85,25 +85,7 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 	for _, diag := range diags {
 		spn := span.Parse(diag.Pos)
 		if spn.IsPoint() && diag.Kind == packages.TypeError {
-			// Don't set a range if it's anything other than a type error.
-			if diagFile, err := v.GetFile(ctx, spn.URI()); err == nil {
-				tok := diagFile.GetToken(ctx)
-				if tok == nil {
-					v.Logger().Errorf(ctx, "Could not matching tokens for diagnostic: %v", diagFile.URI())
-					continue
-				}
-				content := diagFile.GetContent(ctx)
-				c := span.NewTokenConverter(diagFile.GetFileSet(ctx), tok)
-				s, err := spn.WithOffset(c)
-				//we just don't bother producing an error if this failed
-				if err == nil {
-					start := s.Start()
-					offset := start.Offset()
-					if l := bytes.IndexAny(content[offset:], " \n,():;[]"); l > 0 {
-						spn = span.New(spn.URI(), start, span.NewPoint(start.Line(), start.Column()+l, offset+l))
-					}
-				}
-			}
+			spn = pointToSpan(ctx, v, spn)
 		}
 		diagnostic := Diagnostic{
 			Span:     spn,
@@ -140,6 +122,39 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 	})
 
 	return reports, nil
+}
+
+func pointToSpan(ctx context.Context, v View, spn span.Span) span.Span {
+	// Don't set a range if it's anything other than a type error.
+	diagFile, err := v.GetFile(ctx, spn.URI())
+	if err != nil {
+		v.Logger().Errorf(ctx, "Could find file for diagnostic: %v", spn.URI())
+		return spn
+	}
+	tok := diagFile.GetToken(ctx)
+	if tok == nil {
+		v.Logger().Errorf(ctx, "Could not find tokens for diagnostic: %v", spn.URI())
+		return spn
+	}
+	content := diagFile.GetContent(ctx)
+	if content == nil {
+		v.Logger().Errorf(ctx, "Could not find content for diagnostic: %v", spn.URI())
+		return spn
+	}
+	c := span.NewTokenConverter(diagFile.GetFileSet(ctx), tok)
+	s, err := spn.WithOffset(c)
+	//we just don't bother producing an error if this failed
+	if err != nil {
+		v.Logger().Errorf(ctx, "invalid span for diagnostic: %v: %v", spn.URI(), err)
+		return spn
+	}
+	start := s.Start()
+	offset := start.Offset()
+	width := bytes.IndexAny(content[offset:], " \n,():;[]")
+	if width <= 0 {
+		return spn
+	}
+	return span.New(spn.URI(), start, span.NewPoint(start.Line(), start.Column()+width, offset+width))
 }
 
 func singleDiagnostic(uri span.URI, format string, a ...interface{}) map[span.URI][]Diagnostic {

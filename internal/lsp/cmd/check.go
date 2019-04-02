@@ -8,8 +8,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"go/token"
-	"io/ioutil"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
@@ -54,38 +52,27 @@ func (c *check) Run(ctx context.Context, args ...string) error {
 	client := &checkClient{
 		diagnostics: make(chan entry),
 	}
-	client.app = c.app
-	checking := map[span.URI][]byte{}
+	checking := map[span.URI]*protocol.ColumnMapper{}
 	// now we ready to kick things off
-	server, err := c.app.connect(ctx, client)
+	_, err := c.app.connect(ctx, client)
 	if err != nil {
 		return err
 	}
 	for _, arg := range args {
 		uri := span.FileURI(arg)
-		content, err := ioutil.ReadFile(arg)
+		m, err := client.AddFile(ctx, uri)
 		if err != nil {
 			return err
 		}
-		checking[uri] = content
-		p := &protocol.DidOpenTextDocumentParams{}
-		p.TextDocument.URI = string(uri)
-		p.TextDocument.Text = string(content)
-		if err := server.DidOpen(ctx, p); err != nil {
-			return err
-		}
+		checking[uri] = m
 	}
 	// now wait for results
 	for entry := range client.diagnostics {
 		//TODO:timeout?
-		content, found := checking[entry.uri]
+		m, found := checking[entry.uri]
 		if !found {
 			continue
 		}
-		fset := token.NewFileSet()
-		f := fset.AddFile(string(entry.uri), -1, len(content))
-		f.SetLinesForContent(content)
-		m := protocol.NewColumnMapper(entry.uri, fset, f, content)
 		for _, d := range entry.diagnostics {
 			spn, err := m.RangeSpan(d.Range)
 			if err != nil {
