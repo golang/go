@@ -648,6 +648,7 @@ type Link struct {
 
 	InParallel           bool // parallel backend phase in effect
 	Framepointer_enabled bool
+	UseBASEntries        bool // Use Base Address Selection Entries in location lists and PC ranges
 
 	// state for writing objects
 	Text []*LSym
