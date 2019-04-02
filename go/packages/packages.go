@@ -137,7 +137,7 @@ type Config struct {
 	BuildFlags []string
 
 	// Fset provides source position information for syntax trees and types.
-	// If Fset is nil, the loader will create a new FileSet.
+	// If Fset is nil, Load will use a new fileset, but preserve Fset's value.
 	Fset *token.FileSet
 
 	// ParseFile is called to read and parse each file
