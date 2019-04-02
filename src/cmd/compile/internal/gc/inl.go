@@ -1054,7 +1054,7 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
 	// to put a breakpoint. Not sure if that's really necessary or not
 	// (in which case it could go at the end of the function instead).
 	inlMark := nod(OINLMARK, nil, nil)
-	inlMark.Pos = n.Pos
+	inlMark.Pos = n.Pos.WithDefaultStmt()
 	inlMark.Xoffset = int64(newIndex)
 	ninit.Append(inlMark)
 
