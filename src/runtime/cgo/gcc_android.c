@@ -50,7 +50,7 @@ inittls(void **tlsg, void **tlsbase)
 	void *handle, *get_ver;
 
 	// Check for Android Q where we can use the free TLS_SLOT_APP slot.
-	handle = dlopen(NULL, RTLD_LAZY);
+	handle = dlopen("libc.so", RTLD_LAZY);
 	if (handle == NULL) {
 		fatalf("inittls: failed to dlopen main program");
 		return;
