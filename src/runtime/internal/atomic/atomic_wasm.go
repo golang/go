@@ -123,10 +123,13 @@ func Store64(ptr *uint64, val uint64) {
 	*ptr = val
 }
 
+//go:notinheap
+type noWB struct{}
+
 //go:noinline
 //go:nosplit
 func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer) {
-	*(*uintptr)(ptr) = uintptr(val)
+	*(**noWB)(ptr) = (*noWB)(val)
 }
 
 //go:nosplit
