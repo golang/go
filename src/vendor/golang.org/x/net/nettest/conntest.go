@@ -138,7 +138,7 @@ func testPingPong(t *testing.T, c1, c2 net.Conn) {
 }
 
 // testRacyRead tests that it is safe to mutate the input Read buffer
-// immediately after cancellation has occurred.
+// immediately after cancelation has occurred.
 func testRacyRead(t *testing.T, c1, c2 net.Conn) {
 	go chunkedCopy(c2, rand.New(rand.NewSource(0)))
 
@@ -166,7 +166,7 @@ func testRacyRead(t *testing.T, c1, c2 net.Conn) {
 }
 
 // testRacyWrite tests that it is safe to mutate the input Write buffer
-// immediately after cancellation has occurred.
+// immediately after cancelation has occurred.
 func testRacyWrite(t *testing.T, c1, c2 net.Conn) {
 	go chunkedCopy(ioutil.Discard, c2)
 
@@ -314,7 +314,7 @@ func testCloseTimeout(t *testing.T, c1, c2 net.Conn) {
 	defer wg.Wait()
 	wg.Add(3)
 
-	// Test for cancellation upon connection closure.
+	// Test for cancelation upon connection closure.
 	c1.SetDeadline(neverTimeout)
 	go func() {
 		defer wg.Done()
