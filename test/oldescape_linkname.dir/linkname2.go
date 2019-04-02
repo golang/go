@@ -3,7 +3,7 @@ package y
 import _ "unsafe"
 
 //go:linkname byteIndex linkname1.indexByte
-func byteIndex(xs []byte, b byte) int // ERROR "leaking param: xs"
+func byteIndex(xs []byte, b byte) int
 
 func ContainsSlash(data []byte) bool { // ERROR "leaking param: data" "can inline ContainsSlash"
 	if byteIndex(data, '/') != -1 {

@@ -1,4 +1,4 @@
-// errorcheck -0 -m -l -newescape=true
+// errorcheck -0 -m -l -newescape=false
 
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -129,7 +129,7 @@ type T2 struct {
 	Y *T1
 }
 
-func f8(p *T1) (k T2) { // ERROR "leaking param: p$"
+func f8(p *T1) (k T2) { // ERROR "leaking param: p to result k" "leaking param: p"
 	if p == nil {
 		k = T2{}
 		return

@@ -1,4 +1,4 @@
-// errorcheck -0 -m -l -newescape=true
+// errorcheck -0 -m -l -newescape=false
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -23,7 +23,7 @@ func FooNx(x *int, vals ...*int) (s int) { // ERROR "leaking param: x" "leaking 
 
 var sink []*int
 
-func FooNy(x *int, vals ...*int) (s int) { // ERROR "leaking param: x" "leaking param: vals"
+func FooNy(x *int, vals ...*int) (s int) { // ERROR "leaking param: x" "leaking param: vals" "leaking param content: vals"
 	vals = append(vals, x)
 	sink = vals
 	return FooN(vals...)

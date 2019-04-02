@@ -1,4 +1,4 @@
-// errorcheck -0 -m -l -newescape=true
+// errorcheck -0 -m -l -newescape=false
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -415,7 +415,7 @@ func f(x *Node) { // ERROR "leaking param content: x"
 	Sink = &Node{x.p} // ERROR "&Node literal escapes to heap"
 }
 
-func g(x *Node) *Node { // ERROR "leaking param content: x"
+func g(x *Node) *Node { // ERROR "leaking param: x to result ~r1 level=0"
 	return &Node{x.p} // ERROR "&Node literal escapes to heap"
 }
 
