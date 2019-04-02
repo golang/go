@@ -677,34 +677,6 @@ func BenchmarkCountSingle(b *testing.B) {
 	})
 }
 
-type ExplodeTest struct {
-	s string
-	n int
-	a []string
-}
-
-var explodetests = []ExplodeTest{
-	{"", -1, []string{}},
-	{abcd, -1, []string{"a", "b", "c", "d"}},
-	{faces, -1, []string{"☺", "☻", "☹"}},
-	{abcd, 2, []string{"a", "bcd"}},
-}
-
-func TestExplode(t *testing.T) {
-	for _, tt := range explodetests {
-		a := SplitN([]byte(tt.s), nil, tt.n)
-		result := sliceOfString(a)
-		if !eq(result, tt.a) {
-			t.Errorf(`Explode("%s", %d) = %v; want %v`, tt.s, tt.n, result, tt.a)
-			continue
-		}
-		s := Join(a, []byte{})
-		if string(s) != tt.s {
-			t.Errorf(`Join(Explode("%s", %d), "") = "%s"`, tt.s, tt.n, s)
-		}
-	}
-}
-
 type SplitTest struct {
 	s   string
 	sep string
@@ -713,7 +685,9 @@ type SplitTest struct {
 }
 
 var splittests = []SplitTest{
+	{"", "", -1, []string{}},
 	{abcd, "a", 0, nil},
+	{abcd, "", 2, []string{"a", "bcd"}},
 	{abcd, "a", -1, []string{"", "bcd"}},
 	{abcd, "z", -1, []string{"abcd"}},
 	{abcd, "", -1, []string{"a", "b", "c", "d"}},
@@ -743,7 +717,7 @@ func TestSplit(t *testing.T) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
 			continue
 		}
-		if tt.n == 0 {
+		if tt.n == 0 || len(a) == 0 {
 			continue
 		}
 
