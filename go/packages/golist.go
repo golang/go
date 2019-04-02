@@ -78,7 +78,7 @@ func goListDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
 	var sizes types.Sizes
 	var sizeserr error
 	var sizeswg sync.WaitGroup
-	if cfg.Mode&NeedTypesSizes != 0 {
+	if cfg.Mode&NeedTypesSizes != 0 || cfg.Mode&NeedTypes != 0 {
 		sizeswg.Add(1)
 		go func() {
 			sizes, sizeserr = getSizes(cfg)

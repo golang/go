@@ -420,6 +420,12 @@ type loader struct {
 	Config
 	sizes    types.Sizes
 	exportMu sync.Mutex // enforces mutual exclusion of exportdata operations
+
+	// TODO(matloob): Add an implied mode here and use that instead of mode.
+	// Implied mode would contain all the fields we need the data for so we can
+	// get the actually requested fields. We'll zero them out before returning
+	// packages to the user. This will make it easier for us to get the conditions
+	// where we need certain modes right.
 }
 
 func newLoader(cfg *Config) *loader {
@@ -563,7 +569,7 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 		return lpkg.needsrc
 	}
 
-	if ld.Mode&NeedImports == 0 {
+	if ld.Mode&(NeedImports|NeedDeps) == 0 {
 		// We do this to drop the stub import packages that we are not even going to try to resolve.
 		for _, lpkg := range initial {
 			lpkg.Imports = nil
@@ -574,7 +580,7 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 			visit(lpkg)
 		}
 	}
-	if ld.Mode&NeedDeps != 0 {
+	if ld.Mode&NeedDeps != 0 { // TODO(matloob): This is only the case if NeedTypes is also set, right?
 		for _, lpkg := range srcPkgs {
 			// Complete type information is required for the
 			// immediate dependencies of each source package.
@@ -602,46 +608,48 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 	importPlaceholders := make(map[string]*Package)
 	for i, lpkg := range initial {
 		result[i] = lpkg.Package
+	}
+	for i := range ld.pkgs {
 		// Clear all unrequested fields, for extra de-Hyrum-ization.
 		if ld.Mode&NeedName == 0 {
-			result[i].Name = ""
-			result[i].PkgPath = ""
+			ld.pkgs[i].Name = ""
+			ld.pkgs[i].PkgPath = ""
 		}
 		if ld.Mode&NeedFiles == 0 {
-			result[i].GoFiles = nil
-			result[i].OtherFiles = nil
+			ld.pkgs[i].GoFiles = nil
+			ld.pkgs[i].OtherFiles = nil
 		}
 		if ld.Mode&NeedCompiledGoFiles == 0 {
-			result[i].CompiledGoFiles = nil
+			ld.pkgs[i].CompiledGoFiles = nil
 		}
 		if ld.Mode&NeedImports == 0 {
-			result[i].Imports = nil
+			ld.pkgs[i].Imports = nil
 		}
 		if ld.Mode&NeedExportsFile == 0 {
-			result[i].ExportFile = ""
+			ld.pkgs[i].ExportFile = ""
 		}
 		if ld.Mode&NeedTypes == 0 {
-			result[i].Types = nil
-			result[i].Fset = nil
-			result[i].IllTyped = false
+			ld.pkgs[i].Types = nil
+			ld.pkgs[i].Fset = nil
+			ld.pkgs[i].IllTyped = false
 		}
 		if ld.Mode&NeedSyntax == 0 {
-			result[i].Syntax = nil
+			ld.pkgs[i].Syntax = nil
 		}
 		if ld.Mode&NeedTypesInfo == 0 {
-			result[i].TypesInfo = nil
+			ld.pkgs[i].TypesInfo = nil
 		}
 		if ld.Mode&NeedTypesSizes == 0 {
-			result[i].TypesSizes = nil
+			ld.pkgs[i].TypesSizes = nil
 		}
 		if ld.Mode&NeedDeps == 0 {
-			for j, pkg := range result[i].Imports {
+			for j, pkg := range ld.pkgs[i].Imports {
 				ph, ok := importPlaceholders[pkg.ID]
 				if !ok {
 					ph = &Package{ID: pkg.ID}
 					importPlaceholders[pkg.ID] = ph
 				}
-				result[i].Imports[j] = ph
+				ld.pkgs[i].Imports[j] = ph
 			}
 		}
 	}

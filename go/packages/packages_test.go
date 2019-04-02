@@ -576,6 +576,84 @@ func testLoadTypes(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+// TestLoadTypesBits is equivalent to TestLoadTypes except that it only requests
+// the types using the NeedTypes bit.
+func TestLoadTypesBits(t *testing.T) { packagestest.TestAll(t, testLoadTypesBits) }
+func testLoadTypesBits(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go": `package a; import "golang.org/fake/b"; const A = "a" + b.B`,
+			"b/b.go": `package b; import "golang.org/fake/c"; const B = "b" + c.C`,
+			"c/c.go": `package c; import "golang.org/fake/d"; const C = "c" + d.D`,
+			"d/d.go": `package d; import "golang.org/fake/e"; const D = "d" + e.E`,
+			"e/e.go": `package e; import "golang.org/fake/f"; const E = "e" + f.F`,
+			"f/f.go": `package f; const F = "f"`,
+		}}})
+	defer exported.Cleanup()
+
+	exported.Config.Mode = packages.NeedTypes | packages.NeedDeps | packages.NeedImports
+	initial, err := packages.Load(exported.Config, "golang.org/fake/a", "golang.org/fake/c")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	graph, all := importGraph(initial)
+	wantGraph := `
+* golang.org/fake/a
+  golang.org/fake/b
+* golang.org/fake/c
+  golang.org/fake/d
+  golang.org/fake/e
+  golang.org/fake/f
+  golang.org/fake/a -> golang.org/fake/b
+  golang.org/fake/b -> golang.org/fake/c
+  golang.org/fake/c -> golang.org/fake/d
+  golang.org/fake/d -> golang.org/fake/e
+  golang.org/fake/e -> golang.org/fake/f
+`[1:]
+	if graph != wantGraph {
+		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
+	}
+
+	for _, test := range []struct {
+		id string
+	}{
+		{"golang.org/fake/a"},
+		{"golang.org/fake/b"},
+		{"golang.org/fake/c"},
+		{"golang.org/fake/d"},
+		{"golang.org/fake/e"},
+		{"golang.org/fake/f"},
+	} {
+		p := all[test.id]
+		if p == nil {
+			t.Errorf("missing package: %s", test.id)
+			continue
+		}
+		if p.Types == nil {
+			t.Errorf("missing types.Package for %s", p)
+			continue
+		}
+		// We don't request the syntax, so we shouldn't get it.
+		if p.Syntax != nil {
+			t.Errorf("Syntax unexpectedly provided for %s", p)
+		}
+		if p.Errors != nil {
+			t.Errorf("errors in package: %s: %s", p, p.Errors)
+		}
+	}
+
+	// Check value of constant.
+	aA := constant(all["golang.org/fake/a"], "A")
+	if aA == nil {
+		t.Fatalf("a.A: got nil")
+	}
+	if got, want := fmt.Sprintf("%v %v", aA, aA.Val()), `const golang.org/fake/a.A untyped string "abcdef"`; got != want {
+		t.Errorf("a.A: got %s, want %s", got, want)
+	}
+}
+
 func TestLoadSyntaxOK(t *testing.T) { packagestest.TestAll(t, testLoadSyntaxOK) }
 func testLoadSyntaxOK(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
