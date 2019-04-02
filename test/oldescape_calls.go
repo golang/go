@@ -1,4 +1,4 @@
-// errorcheck -0 -m -l -newescape=true
+// errorcheck -0 -m -l -newescape=false
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -36,7 +36,7 @@ func walk(np **Node) int { // ERROR "leaking param content: np"
 	wl := walk(&n.left)
 	wr := walk(&n.right)
 	if wl < wr {
-		n.left, n.right = n.right, n.left // ERROR "ignoring self-assignment"
+		n.left, n.right = n.right, n.left
 		wl, wr = wr, wl
 	}
 	*np = n

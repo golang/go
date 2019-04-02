@@ -1,4 +1,4 @@
-// errorcheck -0 -m -l
+// errorcheck -0 -m -l -newescape=true
 
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -121,7 +121,7 @@ func NewBar() *Bar {
 	return &Bar{42, nil} // ERROR "&Bar literal escapes to heap$"
 }
 
-func NewBarp(x *int) *Bar { // ERROR "leaking param: x to result ~r1 level=-1$"
+func NewBarp(x *int) *Bar { // ERROR "leaking param: x$"
 	return &Bar{42, x} // ERROR "&Bar literal escapes to heap$"
 }
 
@@ -758,7 +758,7 @@ type LimitedFooer struct {
 	N int64
 }
 
-func LimitFooer(r Fooer, n int64) Fooer { // ERROR "leaking param: r to result ~r2 level=-1$"
+func LimitFooer(r Fooer, n int64) Fooer { // ERROR "leaking param: r$"
 	return &LimitedFooer{r, n} // ERROR "&LimitedFooer literal escapes to heap$"
 }
 
@@ -1360,7 +1360,7 @@ func F2([]byte)
 
 func F3(x []byte) // ERROR "F3 x does not escape$"
 
-func F4(x []byte)
+func F4(x []byte) // ERROR "leaking param: x$"
 
 func G() {
 	var buf1 [10]byte
@@ -1529,8 +1529,7 @@ type V struct {
 	s *string
 }
 
-// BAD -- level of leak ought to be 0
-func NewV(u U) *V { // ERROR "leaking param: u to result ~r1 level=-1"
+func NewV(u U) *V { // ERROR "leaking param: u$"
 	return &V{u.String()} // ERROR "&V literal escapes to heap$"
 }
 
@@ -1543,7 +1542,7 @@ func foo152() {
 
 // issue 8176 - &x in type switch body not marked as escaping
 
-func foo153(v interface{}) *int { // ERROR "leaking param: v to result ~r1 level=-1$"
+func foo153(v interface{}) *int { // ERROR "foo153 v does not escape"
 	switch x := v.(type) {
 	case int: // ERROR "moved to heap: x$"
 		return &x
@@ -1806,7 +1805,7 @@ func issue10353() {
 	issue10353a(x)()
 }
 
-func issue10353a(x *int) func() { // ERROR "leaking param: x to result ~r1 level=-1$"
+func issue10353a(x *int) func() { // ERROR "leaking param: x$"
 	return func() { // ERROR "func literal escapes to heap$"
 		println(*x)
 	}

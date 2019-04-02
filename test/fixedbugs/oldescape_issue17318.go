@@ -1,4 +1,4 @@
-// errorcheck -0 -N -m -l -newescape=true
+// errorcheck -0 -N -m -l -newescape=false
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -26,8 +26,8 @@ func (e ent) String() string {
 }
 
 //go:noinline
-func foo(ops closure, j int) (err fmt.Stringer) { // ERROR "foo ops does not escape"
-	enqueue := func(i int) fmt.Stringer { // ERROR "foo func literal does not escape"
+func foo(ops closure, j int) (err fmt.Stringer) { // ERROR "leaking param: ops$" "leaking param: ops to result err level=0$"
+	enqueue := func(i int) fmt.Stringer { // ERROR "func literal escapes to heap$"
 		return ops(i, j) // ERROR "ops\(i, j\) escapes to heap$"
 	}
 	err = enqueue(4)
@@ -39,7 +39,7 @@ func foo(ops closure, j int) (err fmt.Stringer) { // ERROR "foo ops does not esc
 
 func main() {
 	// 3 identical functions, to get different escape behavior.
-	f := func(i, j int) ent { // ERROR "main func literal does not escape"
+	f := func(i, j int) ent { // ERROR "func literal escapes to heap$"
 		return ent(i + j)
 	}
 	i := foo(f, 3).(ent)

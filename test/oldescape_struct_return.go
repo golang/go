@@ -1,4 +1,4 @@
-// errorcheck -0 -m -l -newescape=true
+// errorcheck -0 -m -l -newescape=false
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -19,7 +19,7 @@ func A(sp *string, spp **string) U { // ERROR "leaking param: sp to result ~r2 l
 	return U{sp, spp}
 }
 
-func B(spp **string) U { // ERROR "leaking param: spp to result ~r1 level=0$"
+func B(spp **string) U { // ERROR "leaking param: spp to result ~r1 level=0$" "leaking param: spp to result ~r1 level=1$"
 	return U{*spp, spp}
 }
 
