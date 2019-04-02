@@ -76,6 +76,30 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 		return
 	}
 
+	// Record all the inline indexes we need
+	var liveInlIdx map[int]bool
+	pt := f.Config.ctxt.PosTable
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			i := pt.Pos(v.Pos).Base().InliningIndex()
+			if i < 0 {
+				continue
+			}
+			if liveInlIdx == nil {
+				liveInlIdx = map[int]bool{}
+			}
+			liveInlIdx[i] = true
+		}
+		i := pt.Pos(b.Pos).Base().InliningIndex()
+		if i < 0 {
+			continue
+		}
+		if liveInlIdx == nil {
+			liveInlIdx = map[int]bool{}
+		}
+		liveInlIdx[i] = true
+	}
+
 	// Find all live values
 	q := f.Cache.deadcode.q[:0]
 	defer func() { f.Cache.deadcode.q = q }()
@@ -103,6 +127,13 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 			}
 			if v.Type.IsVoid() && !live[v.ID] {
 				// The only Void ops are nil checks and inline marks.  We must keep these.
+				if v.Op == OpInlMark && !liveInlIdx[int(v.AuxInt)] {
+					// We don't need marks for bodies that
+					// have been completely optimized away.
+					// TODO: save marks only for bodies which
+					// have a faulting instruction or a call?
+					continue
+				}
 				live[v.ID] = true
 				q = append(q, v)
 				if v.Pos.IsStmt() != src.PosNotStmt {
