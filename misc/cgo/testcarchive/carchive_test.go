@@ -325,6 +325,8 @@ func TestSignalForwarding(t *testing.T) {
 func TestSignalForwardingExternal(t *testing.T) {
 	if GOOS == "freebsd" || GOOS == "aix" {
 		t.Skipf("skipping on %s/%s; signal always goes to the Go runtime", GOOS, GOARCH)
+	} else if GOOS == "darwin" && GOARCH == "amd64" {
+		t.Skipf("skipping on %s/%s: runtime does not permit SI_USER SIGSEGV", GOOS, GOARCH)
 	}
 	checkSignalForwardingTest(t)
 
