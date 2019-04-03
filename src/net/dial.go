@@ -596,6 +596,14 @@ type ListenConfig struct {
 	// necessarily the ones passed to Listen. For example, passing "tcp" to
 	// Listen will cause the Control function to be called with "tcp4" or "tcp6".
 	Control func(network, address string, c syscall.RawConn) error
+
+	// KeepAlive specifies the keep-alive period for network
+	// connections accepted by this listener.
+	// If zero, keep-alives are enabled if supported by the protocol
+	// and operating system. Network protocols or operating systems
+	// that do not support keep-alives ignore this field.
+	// If negative, keep-alives are disabled.
+	KeepAlive time.Duration
 }
 
 // Listen announces on the local network address.
