@@ -660,6 +660,9 @@ func (t *test) run() {
 			cmdline = append(cmdline, long)
 			cmd := exec.Command(goTool(), cmdline...)
 			cmd.Env = append(os.Environ(), env.Environ()...)
+			if len(flags) > 0 && flags[0] == "-race" {
+				cmd.Env = append(cmd.Env, "CGO_ENABLED=1")
+			}
 
 			var buf bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &buf, &buf
