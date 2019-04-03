@@ -127,6 +127,23 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVL	AX, ret+24(FP)
 	RET
 
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT,$0-12
+	LEAQ	r+0(FP), DI
+	MOVL	$263, AX
+	SYSCALL
+	MOVL	AX, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT,$0-20
+	LEAQ	r+8(FP), DI
+	MOVL	flags+0(FP), SI
+	MOVL	$101, AX
+	SYSCALL
+	MOVL	AX, errno+16(FP)
+	RET
+
 TEXT runtime·write1(SB),NOSPLIT,$-8
 	MOVQ	fd+0(FP), DI		// arg 1 - fd
 	MOVQ	p+8(FP), SI		// arg 2 - buf
@@ -376,5 +393,20 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVQ	$2, SI		// F_SETFD
 	MOVQ	$1, DX		// FD_CLOEXEC
 	MOVL	$92, AX		// fcntl
+	SYSCALL
+	RET
+
+// func runtime·setNonblock(int32 fd)
+TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+	MOVL    fd+0(FP), DI  // fd
+	MOVQ    $3, SI  // F_GETFL
+	MOVQ    $0, DX
+	MOVL	$92, AX // fcntl
+	SYSCALL
+	MOVL	fd+0(FP), DI // fd
+	MOVQ	$4, SI // F_SETFL
+	MOVQ	$4, DX // O_NONBLOCK
+	ORL	AX, DX
+	MOVL	$92, AX // fcntl
 	SYSCALL
 	RET

@@ -15,6 +15,10 @@ const (
 const (
 	_EINTR  = 0x4
 	_EFAULT = 0xe
+	_ENOSYS = 0x4e
+
+	_O_NONBLOCK = 0x4
+	_O_CLOEXEC  = 0x100000
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1

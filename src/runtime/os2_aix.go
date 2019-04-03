@@ -425,9 +425,10 @@ func closefd(fd int32) int32 {
 }
 
 //go:nosplit
-func pipe(fd *int32) int32 {
-	r, _ := syscall1(&libc_pipe, uintptr(unsafe.Pointer(fd)))
-	return int32(r)
+func pipe() (r, w int32, errno int32) {
+	var p [2]int32
+	_, err := syscall1(&libc_pipe, uintptr(noescape(unsafe.Pointer(&p[0]))))
+	return p[0], p[1], int32(err)
 }
 
 // mmap calls the mmap system call.
