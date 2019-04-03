@@ -660,6 +660,10 @@ func (fd *FD) Write(buf []byte) (int, error) {
 		return 0, err
 	}
 	defer fd.writeUnlock()
+	if fd.isFile || fd.isDir || fd.isConsole {
+		fd.l.Lock()
+		defer fd.l.Unlock()
+	}
 
 	ntotal := 0
 	for len(buf) > 0 {
@@ -670,8 +674,6 @@ func (fd *FD) Write(buf []byte) (int, error) {
 		var n int
 		var err error
 		if fd.isFile || fd.isDir || fd.isConsole {
-			fd.l.Lock()
-			defer fd.l.Unlock()
 			if fd.isConsole {
 				n, err = fd.writeConsole(b)
 			} else {
