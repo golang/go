@@ -17,28 +17,21 @@ Usage:
 
 The flags are:
 	-d
-		Do not print reformatted sources to standard output.
-		If a file's formatting is different than gofmt's, print diffs
-		to standard output.
+                display diffs instead of rewriting files
 	-e
-		Print all (including spurious) errors.
+		report all errors (not just the first 10 on different lines).
 	-l
-		Do not print reformatted sources to standard output.
-		If a file's formatting is different from gofmt's, print its name
-		to standard output.
-	-r rule
-		Apply the rewrite rule to the source before reformatting.
+                list files whose formatting differs from gofmt's
+	-r string 
+                rewrite rule (e.g., 'a[b:len(a)] -> a[b:]').
 	-s
-		Try to simplify code (after applying the rewrite rule, if any).
+                simplify code
 	-w
-		Do not print reformatted sources to standard output.
-		If a file's formatting is different from gofmt's, overwrite it
-		with gofmt's version. If an error occurred during overwriting,
-		the original file is restored from an automatic backup.
+                write result to (source) file instead of stdout
 
 Debugging support:
-	-cpuprofile filename
-		Write cpu profile to the specified file.
+	-cpuprofile string 
+                write cpu profile to this file
 
 
 The rewrite rule specified with the -r flag must be a string of the form:
