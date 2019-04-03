@@ -786,10 +786,6 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 	}
 
 	// Lock channels to prevent concurrent send/receive.
-	// It's important that we *only* do this for async
-	// copystack; otherwise, gp may be in the middle of
-	// putting itself on wait queues and this would
-	// self-deadlock.
 	var lastc *hchan
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
 		if sg.c != lastc {
@@ -826,12 +822,7 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 
 // Copies gp's stack to a new stack of a different size.
 // Caller must have changed gp status to Gcopystack.
-//
-// If sync is true, this is a self-triggered stack growth and, in
-// particular, no other G may be writing to gp's stack (e.g., via a
-// channel operation). If sync is false, copystack protects against
-// concurrent channel operations.
-func copystack(gp *g, newsize uintptr, sync bool) {
+func copystack(gp *g, newsize uintptr) {
 	if gp.syscallsp != 0 {
 		throw("stack growth not allowed in system call")
 	}
@@ -857,15 +848,16 @@ func copystack(gp *g, newsize uintptr, sync bool) {
 
 	// Adjust sudogs, synchronizing with channel ops if necessary.
 	ncopy := used
-	if sync {
+	if !gp.activeStackChans {
 		adjustsudogs(gp, &adjinfo)
 	} else {
-		// sudogs can point in to the stack. During concurrent
-		// shrinking, these areas may be written to. Find the
-		// highest such pointer so we can handle everything
-		// there and below carefully. (This shouldn't be far
-		// from the bottom of the stack, so there's little
-		// cost in handling everything below it carefully.)
+		// sudogs may be pointing in to the stack and gp has
+		// released channel locks, so other goroutines could
+		// be writing to gp's stack. Find the highest such
+		// pointer so we can handle everything there and below
+		// carefully. (This shouldn't be far from the bottom
+		// of the stack, so there's little cost in handling
+		// everything below it carefully.)
 		adjinfo.sghi = findsghi(gp, old)
 
 		// Synchronize with channel ops and copy the part of
@@ -1040,7 +1032,7 @@ func newstack() {
 
 	// The concurrent GC will not scan the stack while we are doing the copy since
 	// the gp is in a Gcopystack status.
-	copystack(gp, newsize, true)
+	copystack(gp, newsize)
 	if stackDebug >= 1 {
 		print("stack grow done\n")
 	}
@@ -1120,7 +1112,7 @@ func shrinkstack(gp *g) {
 		print("shrinking stack ", oldsize, "->", newsize, "\n")
 	}
 
-	copystack(gp, newsize, false)
+	copystack(gp, newsize)
 }
 
 // freeStackSpans frees unused stack spans at the end of GC.
