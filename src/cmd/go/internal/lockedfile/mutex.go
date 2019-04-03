@@ -7,6 +7,7 @@ package lockedfile
 import (
 	"fmt"
 	"os"
+	"sync"
 )
 
 // A Mutex provides mutual exclusion within and across processes by locking a
@@ -21,7 +22,8 @@ import (
 // must not be copied after first use. The Path field must be set before first
 // use and must not be change thereafter.
 type Mutex struct {
-	Path string // The path to the well-known lock file. Must be non-empty.
+	Path string     // The path to the well-known lock file. Must be non-empty.
+	mu   sync.Mutex // A redundant mutex. The race detector doesn't know about file locking, so in tests we may need to lock something that it understands.
 }
 
 // MutexAt returns a new Mutex with Path set to the given non-empty path.
@@ -56,5 +58,10 @@ func (mu *Mutex) Lock() (unlock func(), err error) {
 	if err != nil {
 		return nil, err
 	}
-	return func() { f.Close() }, nil
+	mu.mu.Lock()
+
+	return func() {
+		mu.mu.Unlock()
+		f.Close()
+	}, nil
 }
