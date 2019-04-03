@@ -328,13 +328,13 @@ var codeRepoTests = []codeRepoTest{
 		gomod:   "module gopkg.in/natefinch/lumberjack.v2\n",
 	},
 	{
-		path:    "nanomsg.org/go/mangos/v2",
-		rev:     "v2.0.2",
-		version: "v2.0.2",
-		name:    "63f66a65137b9a648ac9f7bf0160b4a4d17d7999",
-		short:   "63f66a65137b",
-		time:    time.Date(2018, 12, 1, 15, 7, 40, 0, time.UTC),
-		gomod:   "module nanomsg.org/go/mangos/v2\n\nrequire (\n\tgithub.com/Microsoft/go-winio v0.4.11\n\tgithub.com/droundy/goopt v0.0.0-20170604162106-0b8effe182da\n\tgithub.com/gopherjs/gopherjs v0.0.0-20181103185306-d547d1d9531e // indirect\n\tgithub.com/gorilla/websocket v1.4.0\n\tgithub.com/jtolds/gls v4.2.1+incompatible // indirect\n\tgithub.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect\n\tgithub.com/smartystreets/goconvey v0.0.0-20181108003508-044398e4856c\n\tgolang.org/x/sys v0.0.0-20181128092732-4ed8d59d0b35 // indirect\n)\n",
+		path:    "vcs-test.golang.org/go/v2module/v2",
+		rev:     "v2.0.0",
+		version: "v2.0.0",
+		name:    "203b91c896acd173aa719e4cdcb7d463c4b090fa",
+		short:   "203b91c896ac",
+		time:    time.Date(2019, 4, 3, 15, 52, 15, 0, time.UTC),
+		gomod:   "module vcs-test.golang.org/go/v2module/v2\n\ngo 1.12\n",
 	},
 }
 
