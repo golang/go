@@ -16,22 +16,22 @@ Usage:
 	gofmt [flags] [path ...]
 
 The flags are:
-	-d
-                display diffs instead of rewriting files
-	-e
+	d
+		display diffs instead of rewriting files
+	e
 		report all errors (not just the first 10 on different lines).
-	-l
-                list files whose formatting differs from gofmt's
+	l
+		files whose formatting differs from gofmt's
 	-r string 
-                rewrite rule (e.g., 'a[b:len(a)] -> a[b:]').
+		 rule (e.g., 'a[b:len(a)] -> a[b:]').
 	-s
-                simplify code
+		simplify code
 	-w
-                write result to (source) file instead of stdout
+		write result to (source) file instead of stdout
 
 Debugging support:
 	-cpuprofile string 
-                write cpu profile to this file
+		write cpu profile to this file
 
 
 The rewrite rule specified with the -r flag must be a string of the form:
