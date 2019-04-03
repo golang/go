@@ -1421,6 +1421,9 @@
 // 		Build the listed main packages, plus all packages that they
 // 		import, into a Go plugin. Packages not named main are ignored.
 //
+// On AIX, when linking a C program that uses a Go archive built with
+// -buildmode=c-archive, you must pass -Wl,-bnoobjreorder to the C compiler.
+//
 //
 // Calling between Go and C
 //
