@@ -10,9 +10,9 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-// On darwin/arm, the runtime always use runtime/cgo
-// for resolution. This will just exit with nominal
-// exit code
+// On darwin/arm, the runtime always uses runtime/cgo
+// for resolution. This will just exit with a nominal
+// exit code.
 
 TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
     MOVW    $90, R0
