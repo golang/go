@@ -21,12 +21,6 @@ func poll(pfds *pollfd, npfds uintptr, timeout uintptr) (int32, int32) {
 	return int32(r), int32(err)
 }
 
-//go:nosplit
-func fcntl(fd, cmd int32, arg uintptr) int32 {
-	r, _ := syscall3(&libc_fcntl, uintptr(fd), uintptr(cmd), arg)
-	return int32(r)
-}
-
 // pollfd represents the poll structure for AIX operating system.
 type pollfd struct {
 	fd      int32
@@ -38,7 +32,6 @@ const _POLLIN = 0x0001
 const _POLLOUT = 0x0002
 const _POLLHUP = 0x2000
 const _POLLERR = 0x4000
-const _O_NONBLOCK = 0x4
 
 var (
 	pfds           []pollfd
@@ -51,22 +44,13 @@ var (
 )
 
 func netpollinit() {
-	var p [2]int32
-
 	// Create the pipe we use to wakeup poll.
-	if err := pipe(&p[0]); err < 0 {
+	r, w, errno := nonblockingPipe()
+	if errno != 0 {
 		throw("netpollinit: failed to create pipe")
 	}
-	rdwake = p[0]
-	wrwake = p[1]
-
-	fl := uintptr(fcntl(rdwake, _F_GETFL, 0))
-	fcntl(rdwake, _F_SETFL, fl|_O_NONBLOCK)
-	fcntl(rdwake, _F_SETFD, _FD_CLOEXEC)
-
-	fl = uintptr(fcntl(wrwake, _F_GETFL, 0))
-	fcntl(wrwake, _F_SETFL, fl|_O_NONBLOCK)
-	fcntl(wrwake, _F_SETFD, _FD_CLOEXEC)
+	rdwake = r
+	wrwake = w
 
 	// Pre-allocate array of pollfd structures for poll.
 	pfds = make([]pollfd, 1, 128)

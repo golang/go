@@ -19,6 +19,7 @@
 #define SYS_read		5000
 #define SYS_write		5001
 #define SYS_close		5003
+#define SYS_pipe		5021
 #define SYS_getpid		5038
 #define SYS_kill		5060
 #define SYS_fcntl		5080
@@ -46,6 +47,7 @@
 #define SYS_clock_gettime	5222
 #define SYS_epoll_create1	5285
 #define SYS_brk			5012
+#define SYS_pipe2		5287
 
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	code+0(FP), R4
@@ -108,6 +110,23 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	BEQ	R7, 2(PC)
 	MOVW	$-1, R2
 	MOVW	R2, ret+24(FP)
+	RET
+
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+	MOVV	$r+0(FP), R4
+	MOVV	$SYS_pipe, R2
+	SYSCALL
+	MOVW	R2, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+	MOVV	$r+8(FP), R4
+	MOVW	flags+0(FP), R5
+	MOVV	$SYS_pipe2, R2
+	SYSCALL
+	MOVW	R2, errno+16(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$16-4
@@ -450,6 +469,21 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	MOVW    fd+0(FP), R4  // fd
 	MOVV    $2, R5  // F_SETFD
 	MOVV    $1, R6  // FD_CLOEXEC
+	MOVV	$SYS_fcntl, R2
+	SYSCALL
+	RET
+
+// func runtime·setNonblock(int32 fd)
+TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+	MOVW	fd+0(FP), R4 // fd
+	MOVV	$3, R5	// F_GETFL
+	MOVV	$0, R6
+	MOVV	$SYS_fcntl, R2
+	SYSCALL
+	MOVW	$0x80, R6 // O_NONBLOCK
+	OR	R2, R6
+	MOVW	fd+0(FP), R4 // fd
+	MOVV	$4, R5	// F_SETFL
 	MOVV	$SYS_fcntl, R2
 	SYSCALL
 	RET
