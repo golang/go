@@ -160,14 +160,11 @@ func shlVU_g(z, x []Word, s uint) (c Word) {
 	s &= _W - 1 // hint to the compiler that shifts by s don't need guard code
 	ŝ := _W - s
 	ŝ &= _W - 1 // ditto
-	w1 := x[len(z)-1]
-	c = w1 >> ŝ
+	c = x[len(z)-1] >> ŝ
 	for i := len(z) - 1; i > 0; i-- {
-		w := w1
-		w1 = x[i-1]
-		z[i] = w<<s | w1>>ŝ
+		z[i] = x[i]<<s | x[i-1]>>ŝ
 	}
-	z[0] = w1 << s
+	z[0] = x[0] << s
 	return
 }
 
@@ -182,14 +179,11 @@ func shrVU_g(z, x []Word, s uint) (c Word) {
 	s &= _W - 1 // hint to the compiler that shifts by s don't need guard code
 	ŝ := _W - s
 	ŝ &= _W - 1 // ditto
-	w1 := x[0]
-	c = w1 << ŝ
+	c = x[0] << ŝ
 	for i := 0; i < len(z)-1; i++ {
-		w := w1
-		w1 = x[i+1]
-		z[i] = w>>s | w1<<ŝ
+		z[i] = x[i]>>s | x[i+1]<<ŝ
 	}
-	z[len(z)-1] = w1 >> s
+	z[len(z)-1] = x[len(z)-1] >> s
 	return
 }
 
