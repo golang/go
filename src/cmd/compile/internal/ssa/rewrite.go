@@ -1129,17 +1129,20 @@ func needRaceCleanup(sym interface{}, v *Value) bool {
 		for _, v := range b.Values {
 			switch v.Op {
 			case OpStaticCall:
-				switch v.Aux.(fmt.Stringer).String() {
-				case "runtime.racefuncenter", "runtime.racefuncexit", "runtime.panicindex",
-					"runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap",
-					"runtime.panicshift":
 				// Check for racefuncenter will encounter racefuncexit and vice versa.
 				// Allow calls to panic*
-				default:
-					// If we encountered any call, we need to keep racefunc*,
-					// for accurate stacktraces.
-					return false
+				s := v.Aux.(fmt.Stringer).String()
+				switch s {
+				case "runtime.racefuncenter", "runtime.racefuncexit",
+					"runtime.panicdivide", "runtime.panicwrap",
+					"runtime.panicshift":
+					continue
 				}
+				// If we encountered any call, we need to keep racefunc*,
+				// for accurate stacktraces.
+				return false
+			case OpPanicBounds, OpPanicExtend:
+				// Note: these are panic generators that are ok (like the static calls above).
 			case OpClosureCall, OpInterCall:
 				// We must keep the race functions if there are any other call types.
 				return false
