@@ -217,8 +217,11 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)
 //sys	sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error)
 //sys	Shutdown(s int, how int) (err error)
-//sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
-//sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
+
+// In order to use msghdr structure with Control, Controllen in golang.org/x/net,
+// nrecvmsg and nsendmsg must be used.
+//sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error) = nrecvmsg
+//sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error) = nsendmsg
 
 func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
@@ -432,6 +435,18 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		return sa, nil
 	}
 	return nil, EAFNOSUPPORT
+}
+
+type SockaddrDatalink struct {
+	Len    uint8
+	Family uint8
+	Index  uint16
+	Type   uint8
+	Nlen   uint8
+	Alen   uint8
+	Slen   uint8
+	Data   [120]uint8
+	raw    RawSockaddrDatalink
 }
 
 /*
