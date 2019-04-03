@@ -976,27 +976,27 @@ func readVendorList() {
 }
 
 func (r *mvsReqs) modFileToList(f *modfile.File) []module.Version {
-	var list []module.Version
+	list := make([]module.Version, 0, len(f.Require))
 	for _, r := range f.Require {
 		list = append(list, r.Mod)
 	}
 	return list
 }
 
+// required returns a unique copy of the requirements of mod.
 func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 	if mod == Target {
 		if modFile != nil && modFile.Go != nil {
 			r.versions.LoadOrStore(mod, modFile.Go.Version)
 		}
-		var list []module.Version
-		return append(list, r.buildList[1:]...), nil
+		return append([]module.Version(nil), r.buildList[1:]...), nil
 	}
 
 	if cfg.BuildMod == "vendor" {
 		// For every module other than the target,
 		// return the full list of modules from modules.txt.
 		readVendorList()
-		return vendorList, nil
+		return append([]module.Version(nil), vendorList...), nil
 	}
 
 	if targetInGorootSrc {
