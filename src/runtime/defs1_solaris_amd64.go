@@ -8,6 +8,7 @@ const (
 	_EBADF       = 0x9
 	_EFAULT      = 0xe
 	_EAGAIN      = 0xb
+	_ETIME       = 0x3e
 	_ETIMEDOUT   = 0x91
 	_EWOULDBLOCK = 0xb
 	_EINPROGRESS = 0x96
