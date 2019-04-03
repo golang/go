@@ -1169,6 +1169,13 @@ func testContainsOverlay(t *testing.T, exporter packagestest.Exporter) {
 // too report the correct sizes function for the actual configuration.
 func TestSizes(t *testing.T) { packagestest.TestAll(t, testSizes) }
 func testSizes(t *testing.T, exporter packagestest.Exporter) {
+	// Only run this test on operating systems that have both an amd64 and 386 port.
+	switch runtime.GOOS {
+	case "darwin", "linux", "windows", "freebsd", "openbsd", "android":
+	default:
+		t.Skipf("skipping test on %s", runtime.GOOS)
+	}
+
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
 		Files: map[string]interface{}{
