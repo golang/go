@@ -1302,7 +1302,7 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 		ls.SetUint32(ctxt.Arch, headerLengthOffset, uint32(headerend-headerstart))
 	}
 
-	// Apply any R_DWARFFILEREF relocations, since we now know the
+	// Process any R_DWARFFILEREF relocations, since we now know the
 	// line table file indices for this compilation unit. Note that
 	// this loop visits only subprogram DIEs: if the compiler is
 	// changed to generate DW_AT_decl_file attributes for other
@@ -1315,8 +1315,6 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 			if r.Type != objabi.R_DWARFFILEREF {
 				continue
 			}
-			// Mark relocation as applied (signal to relocsym)
-			r.Done = true
 			idx, ok := fileNums[int(r.Sym.Value)]
 			if ok {
 				if int(int32(idx)) != idx {
@@ -1329,7 +1327,11 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 					Errorf(f, "bad R_DWARFFILEREF relocation offset %d + 4 would write past length %d", r.Off, len(s.P))
 					continue
 				}
-				ctxt.Arch.ByteOrder.PutUint32(f.P[r.Off:r.Off+4], uint32(idx))
+				if r.Add != 0 {
+					Errorf(f, "bad R_DWARFFILEREF relocation: addend not zero")
+				}
+				r.Sym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
+				r.Add = int64(idx) // record the index in r.Add, we'll apply it in the reloc phase.
 			} else {
 				_, found := missing[int(r.Sym.Value)]
 				if !found {

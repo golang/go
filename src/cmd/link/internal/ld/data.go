@@ -168,12 +168,6 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 		if r.Siz == 0 { // informational relocation - no work to do
 			continue
 		}
-		if r.Type == objabi.R_DWARFFILEREF {
-			// These should have been processed previously during
-			// line table writing.
-			Errorf(s, "orphan R_DWARFFILEREF reloc to %v", r.Sym.Name)
-			continue
-		}
 
 		// We need to be able to reference dynimport symbols when linking against
 		// shared libraries, and Solaris, Darwin and AIX need it always
@@ -490,6 +484,10 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			// This isn't a real relocation so it must not update
 			// its offset value.
 			continue
+
+		case objabi.R_DWARFFILEREF:
+			// The final file index is saved in r.Add in dwarf.go:writelines.
+			o = r.Add
 		}
 
 		if r.Variant != sym.RV_NONE {
