@@ -158,6 +158,7 @@ func (out *OutBuf) WriteSym(s *sym.Symbol) {
 		start := out.off
 		out.Write(s.P)
 		s.P = out.buf[start:out.off]
+		s.Attr.Set(sym.AttrReadOnly, false)
 	} else {
 		out.Write(s.P)
 	}

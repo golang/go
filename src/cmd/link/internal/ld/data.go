@@ -127,6 +127,15 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 // This is a performance-critical function for the linker; be careful
 // to avoid introducing unnecessary allocations in the main loop.
 func relocsym(ctxt *Link, s *sym.Symbol) {
+	if len(s.R) == 0 {
+		return
+	}
+	if s.Attr.ReadOnly() {
+		// The symbol's content is backed by read-only memory.
+		// Copy it to writable memory to apply relocations.
+		s.P = append([]byte(nil), s.P...)
+		s.Attr.Set(sym.AttrReadOnly, false)
+	}
 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
 		r := &s.R[ri]
 		if r.Done {
@@ -2384,17 +2393,21 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 	if err != nil {
 		log.Fatalf("NewWriterLevel failed: %s", err)
 	}
-	for _, sym := range syms {
-		// sym.P may be read-only. Apply relocations in a
+	for _, s := range syms {
+		// s.P may be read-only. Apply relocations in a
 		// temporary buffer, and immediately write it out.
-		oldP := sym.P
-		ctxt.relocbuf = append(ctxt.relocbuf[:0], sym.P...)
-		sym.P = ctxt.relocbuf
-		relocsym(ctxt, sym)
-		if _, err := z.Write(sym.P); err != nil {
+		oldP := s.P
+		wasReadOnly := s.Attr.ReadOnly()
+		if len(s.R) != 0 && wasReadOnly {
+			ctxt.relocbuf = append(ctxt.relocbuf[:0], s.P...)
+			s.P = ctxt.relocbuf
+			s.Attr.Set(sym.AttrReadOnly, false)
+		}
+		relocsym(ctxt, s)
+		if _, err := z.Write(s.P); err != nil {
 			log.Fatalf("compression failed: %s", err)
 		}
-		for i := sym.Size - int64(len(sym.P)); i > 0; {
+		for i := s.Size - int64(len(s.P)); i > 0; {
 			b := zeros[:]
 			if i < int64(len(b)) {
 				b = b[:i]
@@ -2405,13 +2418,15 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 			}
 			i -= int64(n)
 		}
-		// Restore sym.P, for 1. not holding temp buffer live
-		// unnecessarily, 2. if compression is not beneficial,
-		// we'll go back to use the uncompressed contents, in
-		// which case we still need sym.P.
-		sym.P = oldP
-		for i := range sym.R {
-			sym.R[i].Done = false
+		// Restore s.P if a temporary buffer was used. If compression
+		// is not beneficial, we'll go back to use the uncompressed
+		// contents, in which case we still need s.P.
+		if len(s.R) != 0 && wasReadOnly {
+			s.P = oldP
+			s.Attr.Set(sym.AttrReadOnly, wasReadOnly)
+			for i := range s.R {
+				s.R[i].Done = false
+			}
 		}
 	}
 	if err := z.Close(); err != nil {
