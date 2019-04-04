@@ -34,7 +34,7 @@ var emptyPkg = []byte(`"".`)
 
 // objReader reads Go object files.
 type objReader struct {
-	rd              *bufio.Reader
+	rd              *bio.Reader
 	arch            *sys.Arch
 	syms            *sym.Symbols
 	lib             *sym.Library
@@ -43,6 +43,7 @@ type objReader struct {
 	localSymVersion int
 	flags           int
 	strictDupMsgs   int
+	dataSize        int
 
 	// rdBuf is used by readString and readSymName as scratch for reading strings.
 	rdBuf []byte
@@ -56,6 +57,8 @@ type objReader struct {
 	funcdata    []*sym.Symbol
 	funcdataoff []int64
 	file        []*sym.Symbol
+
+	dataReadOnly bool // whether data is backed by read-only memory
 }
 
 // Flags to enable optional behavior during object loading/reading.
@@ -76,7 +79,7 @@ const (
 func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string, flags int) int {
 	start := f.Offset()
 	r := &objReader{
-		rd:              f.Reader,
+		rd:              f,
 		lib:             lib,
 		arch:            arch,
 		syms:            syms,
@@ -133,7 +136,10 @@ func (r *objReader) loadObjFile() {
 	r.readSlices()
 
 	// Data section
-	r.readFull(r.data)
+	r.data, r.dataReadOnly, err = r.rd.Slice(uint64(r.dataSize))
+	if err != nil {
+		log.Fatalf("%s: error reading %s", r.pn, err)
+	}
 
 	// Defined symbols
 	for {
@@ -156,9 +162,8 @@ func (r *objReader) loadObjFile() {
 }
 
 func (r *objReader) readSlices() {
+	r.dataSize = r.readInt()
 	n := r.readInt()
-	r.data = make([]byte, n)
-	n = r.readInt()
 	r.reloc = make([]sym.Reloc, n)
 	n = r.readInt()
 	r.pcdata = make([]sym.Pcdata, n)
@@ -249,6 +254,7 @@ overwrite:
 		dup.Gotype = typ
 	}
 	s.P = data
+	s.Attr.Set(sym.AttrReadOnly, r.dataReadOnly)
 	if nreloc > 0 {
 		s.R = r.reloc[:nreloc:nreloc]
 		if !isdup {
