@@ -792,6 +792,7 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 	writeDatblkToOutBuf(ctxt, ctxt.Out, addr, size)
 }
 
+// Used only on Wasm for now.
 func DatblkBytes(ctxt *Link, addr int64, size int64) []byte {
 	buf := bytes.NewBuffer(make([]byte, 0, size))
 	out := &OutBuf{w: bufio.NewWriter(buf)}
@@ -2319,7 +2320,8 @@ func (ctxt *Link) address() []*sym.Segment {
 }
 
 // layout assigns file offsets and lengths to the segments in order.
-func (ctxt *Link) layout(order []*sym.Segment) {
+// Returns the file size containing all the segments.
+func (ctxt *Link) layout(order []*sym.Segment) uint64 {
 	var prev *sym.Segment
 	for _, seg := range order {
 		if prev == nil {
@@ -2348,7 +2350,7 @@ func (ctxt *Link) layout(order []*sym.Segment) {
 		}
 		prev = seg
 	}
-
+	return prev.Fileoff + prev.Filelen
 }
 
 // add a trampoline with symbol s (to be laid down after the current function)
