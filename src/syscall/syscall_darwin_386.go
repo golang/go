@@ -70,7 +70,7 @@ func fdopendir(fd int) (dir uintptr, err error) {
 func libc_fdopendir_trampoline()
 
 //go:linkname libc_fdopendir libc_fdopendir
-//go:cgo_import_dynamic libc_fdopendir fdopendir$INODE64 "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_fdopendir fdopendir "/usr/lib/libSystem.B.dylib"
 
 // Implemented in the runtime package (runtime/sys_darwin_32.go)
 func syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
