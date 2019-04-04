@@ -497,6 +497,9 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 
 	var mWords nat
 	if m != nil {
+		if z == m || alias(z.abs, m.abs) {
+			m = new(Int).Set(m)
+		}
 		mWords = m.abs // m.abs may be nil for m == 0
 	}
 
@@ -790,11 +793,13 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 // As this uses the math/rand package, it must not be used for
 // security-sensitive work. Use crypto/rand.Int instead.
 func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
-	z.neg = false
+	// z.neg is not modified before the if check, because z and n might alias.
 	if n.neg || len(n.abs) == 0 {
+		z.neg = false
 		z.abs = nil
 		return z
 	}
+	z.neg = false
 	z.abs = z.abs.random(rnd, n.abs, n.abs.bitLen())
 	return z
 }
@@ -802,7 +807,7 @@ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 // ModInverse sets z to the multiplicative inverse of g in the ring ℤ/nℤ
 // and returns z. If g and n are not relatively prime, g has no multiplicative
 // inverse in the ring ℤ/nℤ.  In this case, z is unchanged and the return value
-// is nil.
+// is nil. If n == 0, a division-by-zero run-time panic occurs.
 func (z *Int) ModInverse(g, n *Int) *Int {
 	// GCD expects parameters a and b to be > 0.
 	if n.neg {
@@ -979,7 +984,7 @@ func (z *Int) modSqrtTonelliShanks(x, p *Int) *Int {
 // ModSqrt sets z to a square root of x mod p if such a square root exists, and
 // returns z. The modulus p must be an odd prime. If x is not a square mod p,
 // ModSqrt leaves z unchanged and returns nil. This function panics if p is
-// not an odd integer.
+// not an odd integer, its behavior is undefined if p is odd but not prime.
 func (z *Int) ModSqrt(x, p *Int) *Int {
 	switch Jacobi(x, p) {
 	case -1:
