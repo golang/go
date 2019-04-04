@@ -240,7 +240,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.dodata()
 	order := ctxt.address()
 	dwarfcompress(ctxt)
-	ctxt.reloc()
 	filesize := ctxt.layout(order)
 
 	// Write out the output file.
@@ -257,9 +256,15 @@ func Main(arch *sys.Arch, theArch Arch) {
 		outputMmapped = err == nil
 	}
 	if outputMmapped {
+		// Asmb will redirect symbols to the output file mmap, and relocations
+		// will be applied directly there.
 		thearch.Asmb(ctxt)
+		ctxt.reloc()
 		ctxt.Out.Munmap()
 	} else {
+		// If we don't mmap, we need to apply relocations before
+		// writing out.
+		ctxt.reloc()
 		thearch.Asmb(ctxt)
 	}
 	thearch.Asmb2(ctxt)
