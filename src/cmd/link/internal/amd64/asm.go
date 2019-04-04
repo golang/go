@@ -704,7 +704,9 @@ func asmb(ctxt *ld.Link) {
 
 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
+}
 
+func asmb2(ctxt *ld.Link) {
 	machlink := int64(0)
 	if ctxt.HeadType == objabi.Hdarwin {
 		machlink = ld.Domacholink(ctxt)

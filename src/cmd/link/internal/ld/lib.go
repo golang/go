@@ -127,8 +127,15 @@ type Arch struct {
 	// offset value.
 	Archrelocvariant func(link *Link, rel *sym.Reloc, sym *sym.Symbol,
 		offset int64) (relocatedOffset int64)
-	Trampoline  func(*Link, *sym.Reloc, *sym.Symbol)
-	Asmb        func(*Link)
+	Trampoline func(*Link, *sym.Reloc, *sym.Symbol)
+
+	// Asmb and Asmb2 are arch-specific routines that write the output
+	// file. Typically, Asmb writes most of the content (sections and
+	// segments), for which we have computed the size and offset. Asmb2
+	// writes the rest.
+	Asmb  func(*Link)
+	Asmb2 func(*Link)
+
 	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
 	Elfsetupplt func(*Link)
 	Gentext     func(*Link)
@@ -261,7 +268,7 @@ func libinit(ctxt *Link) {
 	Lflag(ctxt, filepath.Join(objabi.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", objabi.GOOS, objabi.GOARCH, suffixsep, suffix)))
 
 	mayberemoveoutfile()
-	f, err := os.OpenFile(*flagOutfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
+	f, err := os.OpenFile(*flagOutfile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0775)
 	if err != nil {
 		Exitf("cannot create %s: %v", *flagOutfile, err)
 	}
@@ -1014,7 +1021,7 @@ func hostlinksetup(ctxt *Link) {
 
 	p := filepath.Join(*flagTmpdir, "go.o")
 	var err error
-	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
+	f, err := os.OpenFile(p, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0775)
 	if err != nil {
 		Exitf("cannot create %s: %v", p, err)
 	}

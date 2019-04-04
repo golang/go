@@ -241,8 +241,29 @@ func Main(arch *sys.Arch, theArch Arch) {
 	order := ctxt.address()
 	ctxt.reloc()
 	dwarfcompress(ctxt)
-	ctxt.layout(order)
-	thearch.Asmb(ctxt)
+	filesize := ctxt.layout(order)
+
+	// Write out the output file.
+	// It is split into two parts (Asmb and Asmb2). The first
+	// part writes most of the content (sections and segments),
+	// for which we have computed the size and offset, in a
+	// mmap'd region. The second part writes more content, for
+	// which we don't know the size.
+	var outputMmapped bool
+	if ctxt.Arch.Family != sys.Wasm {
+		// Don't mmap if we're building for Wasm. Wasm file
+		// layout is very different so filesize is meaningless.
+		err := ctxt.Out.Mmap(filesize)
+		outputMmapped = err == nil
+	}
+	if outputMmapped {
+		thearch.Asmb(ctxt)
+		ctxt.Out.Munmap()
+	} else {
+		thearch.Asmb(ctxt)
+	}
+	thearch.Asmb2(ctxt)
+
 	ctxt.undef()
 	ctxt.hostlink()
 	ctxt.archive()
