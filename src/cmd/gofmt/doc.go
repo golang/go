@@ -21,7 +21,7 @@ The flags are:
 	-e
 		report all errors (not just the first 10 on different lines).
 	-l
-		files whose formatting differs from gofmt's
+		list files whose formatting differs from gofmt's
 	-r string 
 		rule (e.g., 'a[b:len(a)] -> a[b:]').
 	-s
