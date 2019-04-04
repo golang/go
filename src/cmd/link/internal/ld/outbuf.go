@@ -7,6 +7,7 @@ package ld
 import (
 	"bufio"
 	"cmd/internal/sys"
+	"cmd/link/internal/sym"
 	"encoding/binary"
 	"log"
 	"os"
@@ -145,6 +146,20 @@ func (out *OutBuf) WriteStringPad(s string, n int, pad []byte) {
 
 		}
 		out.Write(pad[:n])
+	}
+}
+
+// WriteSym writes the content of a Symbol, then changes the Symbol's content
+// to point to the output buffer that we just wrote, so we can apply further
+// edit to the symbol content.
+// If the output file is not Mmap'd, just writes the content.
+func (out *OutBuf) WriteSym(s *sym.Symbol) {
+	if out.buf != nil {
+		start := out.off
+		out.Write(s.P)
+		s.P = out.buf[start:out.off]
+	} else {
+		out.Write(s.P)
 	}
 }
 

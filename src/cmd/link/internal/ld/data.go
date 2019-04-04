@@ -765,7 +765,7 @@ func blk(out *OutBuf, syms []*sym.Symbol, addr, size int64, pad []byte) {
 			out.WriteStringPad("", int(s.Value-addr), pad)
 			addr = s.Value
 		}
-		out.Write(s.P)
+		out.WriteSym(s)
 		addr += int64(len(s.P))
 		if addr < s.Value+s.Size {
 			out.WriteStringPad("", int(s.Value+s.Size-addr), pad)
