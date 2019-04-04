@@ -16,14 +16,14 @@ Usage:
 	gofmt [flags] [path ...]
 
 The flags are:
-	d
+	-d
 		display diffs instead of rewriting files
-	e
+	-e
 		report all errors (not just the first 10 on different lines).
-	l
+	-l
 		files whose formatting differs from gofmt's
 	-r string 
-		 rule (e.g., 'a[b:len(a)] -> a[b:]').
+		rule (e.g., 'a[b:len(a)] -> a[b:]').
 	-s
 		simplify code
 	-w
