@@ -127,7 +127,7 @@ func fileListener(f *os.File) (Listener, error) {
 		return nil, errors.New("file does not represent a listener")
 	}
 
-	return &TCPListener{fd}, nil
+	return &TCPListener{fd: fd}, nil
 }
 
 func filePacketConn(f *os.File) (PacketConn, error) {
