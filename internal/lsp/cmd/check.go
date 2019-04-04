@@ -15,7 +15,7 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-// definition implements the definition noun for the query command.
+// check implements the check verb for gopls.
 type check struct {
 	app *Application
 }
