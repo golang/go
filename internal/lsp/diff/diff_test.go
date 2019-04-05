@@ -19,20 +19,20 @@ func TestDiff(t *testing.T) {
 			a: []string{"A", "B", "C", "A", "B", "B", "A"},
 			b: []string{"C", "B", "A", "B", "A", "C"},
 			operations: []*Op{
-				&Op{Kind: Delete, I1: 0, I2: 1, J1: 0, J2: 0},
-				&Op{Kind: Delete, I1: 1, I2: 2, J1: 0, J2: 0},
-				&Op{Kind: Insert, Content: "B", I1: 3, I2: 3, J1: 1, J2: 2},
-				&Op{Kind: Delete, I1: 5, I2: 6, J1: 4, J2: 4},
-				&Op{Kind: Insert, Content: "C", I1: 7, I2: 7, J1: 5, J2: 6},
+				&Op{Kind: Delete, I1: 0, I2: 1, J1: 0},
+				&Op{Kind: Delete, I1: 1, I2: 2, J1: 0},
+				&Op{Kind: Insert, Content: []string{"B"}, I1: 3, I2: 3, J1: 1},
+				&Op{Kind: Delete, I1: 5, I2: 6, J1: 4},
+				&Op{Kind: Insert, Content: []string{"C"}, I1: 7, I2: 7, J1: 5},
 			},
 		},
 		{
 			a: []string{"A", "B"},
 			b: []string{"A", "C", ""},
 			operations: []*Op{
-				&Op{Kind: Delete, I1: 1, I2: 2, J1: 1, J2: 1},
-				&Op{Kind: Insert, Content: "C", I1: 2, I2: 2, J1: 1, J2: 2},
-				&Op{Kind: Insert, Content: "", I1: 2, I2: 2, J1: 2, J2: 3},
+				&Op{Kind: Delete, I1: 1, I2: 2, J1: 1},
+				&Op{Kind: Insert, Content: []string{"C"}, I1: 2, I2: 2, J1: 1},
+				&Op{Kind: Insert, Content: []string{""}, I1: 2, I2: 2, J1: 2},
 			},
 		},
 	} {

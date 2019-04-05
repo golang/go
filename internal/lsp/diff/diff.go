@@ -5,19 +5,15 @@
 // Package diff implements the Myers diff algorithm.
 package diff
 
-import (
-	"strings"
-)
-
 // Sources:
 // https://blog.jcoglan.com/2017/02/17/the-myers-diff-algorithm-part-3/
 // https://www.codeproject.com/Articles/42279/%2FArticles%2F42279%2FInvestigating-Myers-diff-algorithm-Part-1-of-2
 
 type Op struct {
 	Kind    OpKind
-	Content string
-	I1, I2  int // indices of the line in a
-	J1, J2  int // indices of the line in b
+	Content []string // content from b
+	I1, I2  int      // indices of the line in a
+	J1      int      // indices of the line in b, J2 implied by len(Content)
 }
 
 type OpKind int
@@ -53,7 +49,7 @@ func ApplyEdits(a []string, operations []*Op) []string {
 		}
 		switch op.Kind {
 		case Equal, Insert:
-			b = append(b, op.Content)
+			b = append(b, op.Content...)
 		}
 		prevI2 = op.I2
 	}
@@ -82,9 +78,8 @@ func Operations(a, b []string) []*Op {
 			return
 		}
 		op.I2 = i2
-		op.J2 = j2
 		if op.Kind == Insert {
-			op.Content = strings.Join(b[op.J1:op.J2], "")
+			op.Content = b[op.J1:j2]
 		}
 		solution[i] = op
 		i++

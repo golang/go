@@ -75,7 +75,7 @@ func computeTextEdits(ctx context.Context, file File, formatted string) (edits [
 			edits = append(edits, TextEdit{Span: s})
 		case diff.Insert:
 			// Insert: formatted[j1:j2] is inserted at unformatted[i1:i1].
-			edits = append(edits, TextEdit{Span: s, NewText: op.Content})
+			edits = append(edits, TextEdit{Span: s, NewText: strings.Join(op.Content, "")})
 		}
 	}
 	return edits
