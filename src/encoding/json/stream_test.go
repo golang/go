@@ -368,7 +368,6 @@ var tokenStreamCases = []tokenStreamCase{
 }
 
 func TestDecodeInStream(t *testing.T) {
-
 	for ci, tcase := range tokenStreamCases {
 
 		dec := NewDecoder(strings.NewReader(tcase.json))
@@ -401,7 +400,6 @@ func TestDecodeInStream(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 // Test from golang.org/issue/11893
