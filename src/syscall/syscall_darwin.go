@@ -368,8 +368,13 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	// Simulate Getdirentries using fdopendir/readdir_r/closedir.
 	const ptrSize = unsafe.Sizeof(uintptr(0))
-	d, err := fdopendir(fd)
+	fd2, err := Dup(fd)
 	if err != nil {
+		return 0, err
+	}
+	d, err := fdopendir(fd2)
+	if err != nil {
+		Close(fd2)
 		return 0, err
 	}
 	defer closedir(d)
