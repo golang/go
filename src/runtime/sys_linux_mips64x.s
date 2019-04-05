@@ -96,7 +96,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
 	MOVV	$SYS_write, R2
 	SYSCALL
 	BEQ	R7, 2(PC)
-	MOVW	$-1, R2
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
 	RET
 
@@ -107,7 +107,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVV	$SYS_read, R2
 	SYSCALL
 	BEQ	R7, 2(PC)
-	MOVW	$-1, R2
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
 	RET
 

@@ -59,7 +59,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$3, R8			// sys_read
 	SVC
 	BCC	2(PC)
-	MOVW	$-1, R0
+	NEG	R0, R0
 	MOVW	R0, ret+24(FP)
 	RET
 
@@ -92,7 +92,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$4, R8			// sys_write
 	SVC
 	BCC	2(PC)
-	MOVW	$-1, R0
+	NEG	R0, R0
 	MOVW	R0, ret+24(FP)
 	RET
 

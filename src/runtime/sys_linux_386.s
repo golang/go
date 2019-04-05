@@ -115,9 +115,6 @@ TEXT runtime·write1(SB),NOSPLIT,$0
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
 	INVOKE_SYSCALL
-	CMPL	AX, $0xfffff001
-	JLS	2(PC)
-	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -127,9 +124,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
 	INVOKE_SYSCALL
-	CMPL	AX, $0xfffff001
-	JLS	2(PC)
-	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 

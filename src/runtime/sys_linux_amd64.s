@@ -97,9 +97,6 @@ TEXT runtime·write1(SB),NOSPLIT,$0-28
 	MOVL	n+16(FP), DX
 	MOVL	$SYS_write, AX
 	SYSCALL
-	CMPQ	AX, $0xfffffffffffff001
-	JLS	2(PC)
-	MOVL	$-1, AX
 	MOVL	AX, ret+24(FP)
 	RET
 
@@ -109,9 +106,6 @@ TEXT runtime·read(SB),NOSPLIT,$0-28
 	MOVL	n+16(FP), DX
 	MOVL	$SYS_read, AX
 	SYSCALL
-	CMPQ	AX, $0xfffffffffffff001
-	JLS	2(PC)
-	MOVL	$-1, AX
 	MOVL	AX, ret+24(FP)
 	RET
 

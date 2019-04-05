@@ -88,9 +88,6 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	n+16(FP), R4
 	MOVW	$SYS_write, R1
 	SYSCALL
-	MOVD	$-4095, R3
-	CMPUBLT	R2, R3, 2(PC)
-	MOVW	$-1, R2
 	MOVW	R2, ret+24(FP)
 	RET
 
@@ -100,9 +97,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	n+16(FP), R4
 	MOVW	$SYS_read, R1
 	SYSCALL
-	MOVD	$-4095, R3
-	CMPUBLT	R2, R3, 2(PC)
-	MOVW	$-1, R2
 	MOVW	R2, ret+24(FP)
 	RET
 
