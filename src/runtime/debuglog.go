@@ -25,7 +25,7 @@ import (
 // heap size.
 const debugLogBytes = 16 << 10
 
-// debugLogStringLimit the the maximum number of bytes in a string.
+// debugLogStringLimit is the maximum number of bytes in a string.
 // Above this, the string will be truncated with "..(n more bytes).."
 const debugLogStringLimit = debugLogBytes / 8
 
