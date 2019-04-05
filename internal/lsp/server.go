@@ -530,31 +530,7 @@ func (s *Server) DocumentSymbol(ctx context.Context, params *protocol.DocumentSy
 }
 
 func (s *Server) CodeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
-	uri := span.NewURI(params.TextDocument.URI)
-	view := s.findView(ctx, uri)
-	_, m, err := newColumnMap(ctx, view, uri)
-	if err != nil {
-		return nil, err
-	}
-	spn, err := m.RangeSpan(params.Range)
-	if err != nil {
-		return nil, err
-	}
-	edits, err := organizeImports(ctx, view, spn)
-	if err != nil {
-		return nil, err
-	}
-	return []protocol.CodeAction{
-		{
-			Title: "Organize Imports",
-			Kind:  protocol.SourceOrganizeImports,
-			Edit: &protocol.WorkspaceEdit{
-				Changes: &map[string][]protocol.TextEdit{
-					params.TextDocument.URI: edits,
-				},
-			},
-		},
-	}, nil
+	return s.codeAction(ctx, params)
 }
 
 func (s *Server) CodeLens(context.Context, *protocol.CodeLensParams) ([]protocol.CodeLens, error) {
