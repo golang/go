@@ -24,8 +24,6 @@ const (
 
 	// From <sys/lwp.h>
 	_LWP_DETACHED = 0x00000040
-
-	_EAGAIN = 35
 )
 
 type mOS struct {

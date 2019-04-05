@@ -8,6 +8,7 @@ const (
 	_EBADF       = 0x9
 	_EFAULT      = 0xe
 	_EAGAIN      = 0xb
+	_EBUSY       = 0x10
 	_ETIME       = 0x3e
 	_ETIMEDOUT   = 0x91
 	_EWOULDBLOCK = 0xb
@@ -100,7 +101,9 @@ const (
 	_POLLHUP = 0x10
 	_POLLERR = 0x8
 
-	_PORT_SOURCE_FD = 0x4
+	_PORT_SOURCE_FD    = 0x4
+	_PORT_SOURCE_ALERT = 0x5
+	_PORT_ALERT_UPDATE = 0x2
 )
 
 type semt struct {

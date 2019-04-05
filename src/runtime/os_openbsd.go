@@ -65,7 +65,6 @@ func setNonblock(fd int32)
 
 const (
 	_ESRCH       = 3
-	_EAGAIN      = 35
 	_EWOULDBLOCK = _EAGAIN
 	_ENOTSUP     = 91
 
