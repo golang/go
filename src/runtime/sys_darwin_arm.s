@@ -418,7 +418,7 @@ ok:
 	RET
 
 // syscallPtr is like syscall except the libc function reports an
-// error by returning NULL and setting errno.
+// error by returning NULL.
 TEXT runtime·syscallPtr(SB),NOSPLIT,$0
 	MOVW.W	R0, -4(R13)	// push structure pointer
 	MOVW	0(R0), R12	// fn

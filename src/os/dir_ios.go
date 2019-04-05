@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build darwin
+// +build arm arm64
+
 package os
 
 import (
@@ -44,12 +47,12 @@ func (f *File) readdirnames(n int) (names []string, err error) {
 
 	names = make([]string, 0, size)
 	var dirent syscall.Dirent
-	var entptr *syscall.Dirent
-	for len(names) < size || n == -1 {
-		if res := readdir_r(d.dir, &dirent, &entptr); res != 0 {
+	var entptr uintptr
+	for len(names) < size {
+		if res := readdir_r(d.dir, uintptr(unsafe.Pointer(&dirent)), uintptr(unsafe.Pointer(&entptr))); res != 0 {
 			return names, wrapSyscallError("readdir", syscall.Errno(res))
 		}
-		if entptr == nil { // EOF
+		if entptr == 0 { // EOF
 			break
 		}
 		if dirent.Ino == 0 {
@@ -81,4 +84,4 @@ func (f *File) readdirnames(n int) (names []string, err error) {
 func closedir(dir uintptr) (err error)
 
 //go:linkname readdir_r syscall.readdir_r
-func readdir_r(dir uintptr, entry *syscall.Dirent, result **syscall.Dirent) (res int)
+func readdir_r(dir, entry, result uintptr) (res int)

@@ -14,13 +14,19 @@ func setTimeval(sec, usec int64) Timeval {
 	return Timeval{Sec: int32(sec), Usec: int32(usec)}
 }
 
+//sys	closedir(dir uintptr) (err error)
 //sys	Fstat(fd int, stat *Stat_t) (err error)
 //sys	Fstatfs(fd int, stat *Statfs_t) (err error)
 //sysnb	Gettimeofday(tp *Timeval) (err error)
 //sys	Lstat(path string, stat *Stat_t) (err error)
+//sys	readdir_r(dir uintptr, entry uintptr, result uintptr) (res int)
 //sys	Stat(path string, stat *Stat_t) (err error)
 //sys	Statfs(path string, stat *Statfs_t) (err error)
 //sys   fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
+
+func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+	return 0, ENOSYS
+}
 
 func SetKevent(k *Kevent_t, fd, mode, flags int) {
 	k.Ident = uint32(fd)
@@ -73,6 +79,7 @@ func libc_fdopendir_trampoline()
 //go:cgo_import_dynamic libc_fdopendir fdopendir "/usr/lib/libSystem.B.dylib"
 
 // Implemented in the runtime package (runtime/sys_darwin_32.go)
+func syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
 
 func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) // sic

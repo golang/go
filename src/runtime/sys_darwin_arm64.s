@@ -465,9 +465,9 @@ TEXT runtime·syscallX(SB),NOSPLIT,$0
 ok:
 	RET
 
-// syscallPtr is like syscallX except that the libc function reports an
-// error by returning NULL and setting errno.
-TEXT runtime·syscallPtr(SB),NOSPLIT,$0
+// syscallXPtr is like syscallX except that the libc function reports an
+// error by returning NULL.
+TEXT runtime·syscallXPtr(SB),NOSPLIT,$0
 	SUB	$16, RSP	// push structure pointer
 	MOVD	R0, (RSP)
 

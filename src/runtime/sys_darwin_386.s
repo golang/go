@@ -675,42 +675,9 @@ ok:
 	POPL	BP
 	RET
 
-// syscallPtr is like syscall except the libc function reports an
-// error by returning NULL and setting errno.
+// Not used on 386.
 TEXT runtime·syscallPtr(SB),NOSPLIT,$0
-	PUSHL	BP
-	MOVL	SP, BP
-	SUBL	$24, SP
-	MOVL	32(SP), CX
-	MOVL	(0*4)(CX), AX // fn
-	MOVL	(1*4)(CX), DX // a1
-	MOVL	DX, 0(SP)
-	MOVL	(2*4)(CX), DX // a2
-	MOVL	DX, 4(SP)
-	MOVL	(3*4)(CX), DX // a3
-	MOVL	DX, 8(SP)
-
-	CALL	AX
-
-	MOVL	32(SP), CX
-	MOVL	AX, (4*4)(CX) // r1
-	MOVL	DX, (5*4)(CX) // r2
-
-	// syscallPtr libc functions return NULL on error
-	// and set errno.
-	TESTL	AX, AX
-	JNE	ok
-
-	// Get error code from libc.
-	CALL	libc_error(SB)
-	MOVL	(AX), AX
-	MOVL	32(SP), CX
-	MOVL	AX, (6*4)(CX) // err
-
-ok:
-	XORL	AX, AX        // no error (it's ignored anyway)
-	MOVL	BP, SP
-	POPL	BP
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 // syscall6 calls a function in libc on behalf of the syscall package.

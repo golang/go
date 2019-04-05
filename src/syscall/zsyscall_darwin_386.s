@@ -9,8 +9,6 @@ TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_setattrlist(SB)
 TEXT ·libc_sendfile_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_sendfile(SB)
-TEXT ·libc_fdopendir_trampoline(SB),NOSPLIT,$0-0
-	JMP	libc_fdopendir(SB)
 TEXT ·libc_getgroups_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_getgroups(SB)
 TEXT ·libc_setgroups_trampoline(SB),NOSPLIT,$0-0
@@ -75,8 +73,6 @@ TEXT ·libc_chroot_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_chroot(SB)
 TEXT ·libc_close_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_close(SB)
-TEXT ·libc_closedir_trampoline(SB),NOSPLIT,$0-0
-	JMP	libc_closedir(SB)
 TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_dup(SB)
 TEXT ·libc_dup2_trampoline(SB),NOSPLIT,$0-0
@@ -161,8 +157,6 @@ TEXT ·libc_pwrite_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_pwrite(SB)
 TEXT ·libc_read_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_read(SB)
-TEXT ·libc_readdir_r_trampoline(SB),NOSPLIT,$0-0
-	JMP	libc_readdir_r(SB)
 TEXT ·libc_readlink_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_readlink(SB)
 TEXT ·libc_rename_trampoline(SB),NOSPLIT,$0-0
@@ -241,6 +235,8 @@ TEXT ·libc_fstat64_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fstat64(SB)
 TEXT ·libc_fstatfs64_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fstatfs64(SB)
+TEXT ·libc___getdirentries64_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc___getdirentries64(SB)
 TEXT ·libc_gettimeofday_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_gettimeofday(SB)
 TEXT ·libc_lstat64_trampoline(SB),NOSPLIT,$0-0

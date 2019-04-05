@@ -89,17 +89,6 @@ func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 }
 func syscall6X()
 
-//go:linkname syscall_syscallPtr syscall.syscallPtr
-//go:nosplit
-//go:cgo_unsafe_args
-func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	entersyscallblock()
-	libcCall(unsafe.Pointer(funcPC(syscallPtr)), unsafe.Pointer(&fn))
-	exitsyscall()
-	return
-}
-func syscallPtr()
-
 //go:linkname syscall_rawSyscall syscall.rawSyscall
 //go:nosplit
 //go:cgo_unsafe_args

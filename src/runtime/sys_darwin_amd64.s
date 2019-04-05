@@ -637,40 +637,9 @@ ok:
 	POPQ	BP
 	RET
 
-// syscallPtr is like syscallX except that the libc function reports an
-// error by returning NULL and setting errno.
-TEXT runtime·syscallPtr(SB),NOSPLIT,$0
-	PUSHQ	BP
-	MOVQ	SP, BP
-	SUBQ	$16, SP
-	MOVQ	(0*8)(DI), CX // fn
-	MOVQ	(2*8)(DI), SI // a2
-	MOVQ	(3*8)(DI), DX // a3
-	MOVQ	DI, (SP)
-	MOVQ	(1*8)(DI), DI // a1
-	XORL	AX, AX	      // vararg: say "no float args"
-
-	CALL	CX
-
-	MOVQ	(SP), DI
-	MOVQ	AX, (4*8)(DI) // r1
-	MOVQ	DX, (5*8)(DI) // r2
-
-	// syscallPtr libc functions return NULL on error
-	// and set errno.
-	TESTQ	AX, AX
-	JNE	ok
-
-	// Get error code from libc.
-	CALL	libc_error(SB)
-	MOVLQSX	(AX), AX
-	MOVQ	(SP), DI
-	MOVQ	AX, (6*8)(DI) // err
-
-ok:
-	XORL	AX, AX        // no error (it's ignored anyway)
-	MOVQ	BP, SP
-	POPQ	BP
+// Not used on amd64.
+TEXT runtime·syscallXPtr(SB),NOSPLIT,$0
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 // syscall6 calls a function in libc on behalf of the syscall package.
