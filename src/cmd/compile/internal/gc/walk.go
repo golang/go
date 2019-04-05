@@ -481,7 +481,7 @@ opswitch:
 		Dump("walk", n)
 		Fatalf("walkexpr: switch 1 unknown op %+S", n)
 
-	case ONONAME, OINDREGSP, OEMPTY, OGETG, ONEWOBJ:
+	case ONONAME, OEMPTY, OGETG, ONEWOBJ:
 
 	case OTYPE, ONAME, OLITERAL:
 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
@@ -1674,7 +1674,12 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
 			l = tmp
 		}
 
-		a := nod(OAS, l, nodarg(r))
+		res := nod(ORESULT, nil, nil)
+		res.Xoffset = Ctxt.FixedFrameSize() + r.Offset
+		res.Type = r.Type
+		res.SetTypecheck(1)
+
+		a := nod(OAS, l, res)
 		a = convas(a, &nn)
 		updateHasCall(a)
 		if a.HasCall() {
@@ -1685,32 +1690,6 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
 		nn.Append(a)
 	}
 	return append(nn.Slice(), mm.Slice()...)
-}
-
-// nodarg returns a Node for the function argument f.
-// f is a *types.Field within a struct *types.Type.
-//
-// The node is for use by a caller invoking the given
-// function, preparing the arguments before the call
-// or retrieving the results after the call.
-// In this case, the node will correspond to an outgoing argument
-// slot like 8(SP).
-func nodarg(f *types.Field) *Node {
-	// Build fake name for individual variable.
-	n := newname(lookup("__"))
-	n.Type = f.Type
-	if f.Offset == BADWIDTH {
-		Fatalf("nodarg: offset not computed for %v", f)
-	}
-	n.Xoffset = f.Offset
-	n.Orig = asNode(f.Nname)
-
-	// preparing arguments for call
-	n.Op = OINDREGSP
-	n.Xoffset += Ctxt.FixedFrameSize()
-	n.SetTypecheck(1)
-	n.SetAddrtaken(true) // keep optimizers at bay
-	return n
 }
 
 // package all the arguments that match a ... T parameter into a []T.

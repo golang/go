@@ -1579,9 +1579,6 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 	default:
 		mode.Fprintf(s, "%v%j", n.Op, n)
 
-	case OINDREGSP:
-		mode.Fprintf(s, "%v-SP%j", n.Op, n)
-
 	case OLITERAL:
 		mode.Fprintf(s, "%v-%v%j", n.Op, n.Val(), n)
 
