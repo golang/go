@@ -368,7 +368,13 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	// Simulate Getdirentries using fdopendir/readdir_r/closedir.
 	const ptrSize = unsafe.Sizeof(uintptr(0))
-	fd2, err := Dup(fd)
+	// We need to duplicate the incoming file descriptor
+	// because the caller expects to retain control of it, but
+	// fdopendir expects to take control of its argument.
+	// Just Dup'ing the file descriptor is not enough, as the
+	// result shares underlying state. Use openat to make a really
+	// new file descriptor referring to the same directory.
+	fd2, err := openat(fd, ".", O_RDONLY, 0)
 	if err != nil {
 		return 0, err
 	}
