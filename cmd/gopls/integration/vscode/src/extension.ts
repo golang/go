@@ -10,6 +10,11 @@ import vscode = require('vscode');
 import path = require('path');
 
 export function activate(ctx: vscode.ExtensionContext): void {
+  // The handleDiagnostics middleware writes to the diagnostics log, in order
+  // to confirm the order in which the extension received diagnostics.
+  let r = Math.floor(Math.random() * 100000000);
+  let diagnosticsLog = fs.openSync('/tmp/diagnostics' + r + '.log', 'w');
+
   let document = vscode.window.activeTextEditor.document;
   let config = vscode.workspace.getConfiguration('gopls', document.uri);
   let goplsCommand: string = config['command'];
@@ -23,6 +28,20 @@ export function activate(ctx: vscode.ExtensionContext): void {
       code2Protocol: (uri: vscode.Uri): string =>
           (uri.scheme ? uri : uri.with({scheme: 'file'})).toString(),
       protocol2Code: (uri: string) => vscode.Uri.parse(uri),
+    },
+    middleware: {
+      handleDiagnostics: (uri: vscode.Uri, diagnostics: vscode.Diagnostic[], next: lsp.HandleDiagnosticsSignature) => {
+        let diagString = "-------------------------------------------\n";
+        diagString += uri.toString(); + ": " + diagnostics.length + "\n";
+        if (diagnostics.length > 0) {
+          diagString += "\n";
+          for (const diag of diagnostics) {
+            diagString += diag.message + "\n";
+          }
+        }
+        fs.writeSync(diagnosticsLog, diagString);
+        return next(uri, diagnostics);
+      }
     },
     revealOutputChannelOn: lsp.RevealOutputChannelOn.Never,
   };
