@@ -38,6 +38,7 @@ type ValueConverter interface {
 // themselves to a driver Value.
 type Valuer interface {
 	// Value returns a driver Value.
+	// Value must not panic.
 	Value() (Value, error)
 }
 
