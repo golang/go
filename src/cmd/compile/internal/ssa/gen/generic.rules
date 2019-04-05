@@ -1174,6 +1174,10 @@
 	(Eq32 (Mod32u <typ.UInt32> (ZeroExt8to32 <typ.UInt32> x) (Const32 <typ.UInt32> [c&0xff])) (Const32 <typ.UInt32> [0]))
 (Eq16 (Mod16u x (Const16  [c])) (Const16 [0])) && x.Op != OpConst16 && udivisibleOK(16,c) && !hasSmallRotate(config) ->
 	(Eq32 (Mod32u <typ.UInt32> (ZeroExt16to32 <typ.UInt32> x) (Const32 <typ.UInt32> [c&0xffff])) (Const32 <typ.UInt32> [0]))
+(Eq8 (Mod8 x (Const8  [c])) (Const8 [0])) && x.Op != OpConst8 && sdivisibleOK(8,c) && !hasSmallRotate(config) ->
+	(Eq32 (Mod32 <typ.Int32> (SignExt8to32 <typ.Int32> x) (Const32 <typ.Int32> [c])) (Const32 <typ.Int32> [0]))
+(Eq16 (Mod16 x (Const16  [c])) (Const16 [0])) && x.Op != OpConst16 && sdivisibleOK(16,c) && !hasSmallRotate(config) ->
+	(Eq32 (Mod32 <typ.Int32> (SignExt16to32 <typ.Int32> x) (Const32 <typ.Int32> [c])) (Const32 <typ.Int32> [0]))
 
 // Divisibility checks x%c == 0 convert to multiply and rotate.
 // Note, x%c == 0 is rewritten as x == c*(x/c) during the opt pass
@@ -1184,6 +1188,7 @@
 // Note that if there were an intermediate opt pass, this rule could be applied
 // directly on the Div op and magic division rewrites could be delayed to late opt.
 
+// Unsigned divisibility checks convert to multiply and rotate.
 (Eq8 x (Mul8 (Const8 [c])
   (Trunc32to8
     (Rsh32Ux64
@@ -1489,8 +1494,209 @@
 			(Const64 <typ.UInt64> [int64(udivisible(64,c).max)])
 		)
 
+// Signed divisibility checks convert to multiply, add and rotate.
+(Eq8 x (Mul8 (Const8 [c])
+  (Sub8
+    (Rsh32x64
+      mul:(Mul32
+        (Const32 [m])
+        (SignExt8to32 x))
+      (Const64 [s]))
+    (Rsh32x64
+      (SignExt8to32 x)
+      (Const64 [31])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(smagic(8,c).m) && s == 8+smagic(8,c).s
+	&& x.Op != OpConst8 && sdivisibleOK(8,c)
+ -> (Leq8U
+			(RotateLeft8 <typ.UInt8>
+				(Add8 <typ.UInt8>
+					(Mul8 <typ.UInt8>
+						(Const8 <typ.UInt8> [int64(int8(sdivisible(8,c).m))])
+						x)
+					(Const8 <typ.UInt8> [int64(int8(sdivisible(8,c).a))])
+				)
+				(Const8 <typ.UInt8> [int64(8-sdivisible(8,c).k)])
+			)
+			(Const8 <typ.UInt8> [int64(int8(sdivisible(8,c).max))])
+		)
+
+(Eq16 x (Mul16 (Const16 [c])
+  (Sub16
+    (Rsh32x64
+      mul:(Mul32
+        (Const32 [m])
+        (SignExt16to32 x))
+      (Const64 [s]))
+    (Rsh32x64
+      (SignExt16to32 x)
+      (Const64 [31])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(smagic(16,c).m) && s == 16+smagic(16,c).s
+	&& x.Op != OpConst16 && sdivisibleOK(16,c)
+ -> (Leq16U
+			(RotateLeft16 <typ.UInt16>
+				(Add16 <typ.UInt16>
+					(Mul16 <typ.UInt16>
+						(Const16 <typ.UInt16> [int64(int16(sdivisible(16,c).m))])
+						x)
+					(Const16 <typ.UInt16> [int64(int16(sdivisible(16,c).a))])
+				)
+				(Const16 <typ.UInt16> [int64(16-sdivisible(16,c).k)])
+			)
+			(Const16 <typ.UInt16> [int64(int16(sdivisible(16,c).max))])
+		)
+
+(Eq32 x (Mul32 (Const32 [c])
+  (Sub32
+    (Rsh64x64
+      mul:(Mul64
+        (Const64 [m])
+        (SignExt32to64 x))
+      (Const64 [s]))
+    (Rsh64x64
+      (SignExt32to64 x)
+      (Const64 [63])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(smagic(32,c).m) && s == 32+smagic(32,c).s
+	&& x.Op != OpConst32 && sdivisibleOK(32,c)
+ -> (Leq32U
+			(RotateLeft32 <typ.UInt32>
+				(Add32 <typ.UInt32>
+					(Mul32 <typ.UInt32>
+						(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).m))])
+						x)
+					(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).a))])
+				)
+				(Const32 <typ.UInt32> [int64(32-sdivisible(32,c).k)])
+			)
+			(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).max))])
+		)
+
+(Eq32 x (Mul32 (Const32 [c])
+  (Sub32
+    (Rsh32x64
+      mul:(Hmul32
+        (Const32 [m])
+        x)
+      (Const64 [s]))
+    (Rsh32x64
+      x
+      (Const64 [31])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(int32(smagic(32,c).m/2)) && s == smagic(32,c).s-1
+	&& x.Op != OpConst32 && sdivisibleOK(32,c)
+ -> (Leq32U
+			(RotateLeft32 <typ.UInt32>
+				(Add32 <typ.UInt32>
+					(Mul32 <typ.UInt32>
+						(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).m))])
+						x)
+					(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).a))])
+				)
+				(Const32 <typ.UInt32> [int64(32-sdivisible(32,c).k)])
+			)
+			(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).max))])
+		)
+
+(Eq32 x (Mul32 (Const32 [c])
+  (Sub32
+    (Rsh32x64
+      (Add32
+        mul:(Hmul32
+          (Const32 [m])
+          x)
+        x)
+      (Const64 [s]))
+    (Rsh32x64
+      x
+      (Const64 [31])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(int32(smagic(32,c).m)) && s == smagic(32,c).s
+	&& x.Op != OpConst32 && sdivisibleOK(32,c)
+ -> (Leq32U
+			(RotateLeft32 <typ.UInt32>
+				(Add32 <typ.UInt32>
+					(Mul32 <typ.UInt32>
+						(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).m))])
+						x)
+					(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).a))])
+				)
+				(Const32 <typ.UInt32> [int64(32-sdivisible(32,c).k)])
+			)
+			(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).max))])
+		)
+
+(Eq64 x (Mul64 (Const64 [c])
+  (Sub64
+    (Rsh64x64
+      mul:(Hmul64
+        (Const64 [m])
+        x)
+      (Const64 [s]))
+    (Rsh64x64
+      x
+      (Const64 [63])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(smagic(64,c).m/2) && s == smagic(64,c).s-1
+	&& x.Op != OpConst64 && sdivisibleOK(64,c)
+ -> (Leq64U
+			(RotateLeft64 <typ.UInt64>
+				(Add64 <typ.UInt64>
+					(Mul64 <typ.UInt64>
+						(Const64 <typ.UInt64> [int64(sdivisible(64,c).m)])
+						x)
+					(Const64 <typ.UInt64> [int64(sdivisible(64,c).a)])
+				)
+				(Const64 <typ.UInt64> [int64(64-sdivisible(64,c).k)])
+			)
+			(Const64 <typ.UInt64> [int64(sdivisible(64,c).max)])
+		)
+
+(Eq64 x (Mul64 (Const64 [c])
+  (Sub64
+    (Rsh64x64
+      (Add64
+        mul:(Hmul64
+          (Const64 [m])
+          x)
+        x)
+      (Const64 [s]))
+    (Rsh64x64
+      x
+      (Const64 [63])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(smagic(64,c).m) && s == smagic(64,c).s
+	&& x.Op != OpConst64 && sdivisibleOK(64,c)
+ -> (Leq64U
+			(RotateLeft64 <typ.UInt64>
+				(Add64 <typ.UInt64>
+					(Mul64 <typ.UInt64>
+						(Const64 <typ.UInt64> [int64(sdivisible(64,c).m)])
+						x)
+					(Const64 <typ.UInt64> [int64(sdivisible(64,c).a)])
+				)
+				(Const64 <typ.UInt64> [int64(64-sdivisible(64,c).k)])
+			)
+			(Const64 <typ.UInt64> [int64(sdivisible(64,c).max)])
+		)
+
 // Divisibility check for signed integers for power of two constant are simple mask.
-// However, we must match against the rewritten n%c == 0 -> n - c*(n/c) == 0 -> n == c *(n/c)
+// However, we must match against the rewritten n%c == 0 -> n - c*(n/c) == 0 -> n == c*(n/c)
 // where n/c contains fixup code to handle signed n.
 (Eq8 n (Lsh8x64
   (Rsh8x64
