@@ -195,7 +195,7 @@ func smagic(n uint, c int64) smagicData {
 // by using the modular inverse with respect to the word size 2^n.
 //
 // Given c, compute m such that (c * m) mod 2^n == 1
-// Then if c divides x (x%c ==0), the quotient is given by q = x/c == x*cinv mod 2^n
+// Then if c divides x (x%c ==0), the quotient is given by q = x/c == x*m mod 2^n
 //
 // x can range from 0, c, 2c, 3c, ... ⎣(2^n - 1)/c⎦ * c the maximum multiple
 // Thus, x*m mod 2^n is 0, 1, 2, 3, ... ⎣(2^n - 1)/c⎦
@@ -282,6 +282,100 @@ func udivisible(n uint, c int64) udivisibleData {
 	return udivisibleData{
 		k:   int64(k),
 		m:   m,
+		max: max,
+	}
+}
+
+// For signed integers, a similar method follows.
+//
+// Given c > 1 and odd, compute m such that (c * m) mod 2^n == 1
+// Then if c divides x (x%c ==0), the quotient is given by q = x/c == x*m mod 2^n
+//
+// x can range from ⎡-2^(n-1)/c⎤ * c, ... -c, 0, c, ...  ⎣(2^(n-1) - 1)/c⎦ * c
+// Thus, x*m mod 2^n is ⎡-2^(n-1)/c⎤, ... -2, -1, 0, 1, 2, ... ⎣(2^(n-1) - 1)/c⎦
+//
+// So, x is a multiple of c if and only if:
+// ⎡-2^(n-1)/c⎤ <= x*m mod 2^n <= ⎣(2^(n-1) - 1)/c⎦
+//
+// Since c > 1 and odd, this can be simplified by
+// ⎡-2^(n-1)/c⎤ == ⎡(-2^(n-1) + 1)/c⎤ == -⎣(2^(n-1) - 1)/c⎦
+//
+// -⎣(2^(n-1) - 1)/c⎦ <= x*m mod 2^n <= ⎣(2^(n-1) - 1)/c⎦
+//
+// To extend this to even integers, consider c = d0 * 2^k where d0 is odd.
+// We can test whether x is divisible by both d0 and 2^k.
+//
+// Let m be such that (d0 * m) mod 2^n == 1.
+// Let q = x*m mod 2^n. Then c divides x if:
+//
+// -⎣(2^(n-1) - 1)/d0⎦ <= q <= ⎣(2^(n-1) - 1)/d0⎦ and q ends in at least k 0-bits
+//
+// To transform this to a single comparison, we use the following theorem (ZRS in Hacker's Delight).
+//
+// For a >= 0 the following conditions are equivalent:
+// 1) -a <= x <= a and x ends in at least k 0-bits
+// 2) RotRight(x+a', k) <= ⎣2a'/2^k⎦
+//
+// Where a' = a & -2^k (a with its right k bits set to zero)
+//
+// To see that 1 & 2 are equivalent, note that -a <= x <= a is equivalent to
+// -a' <= x <= a' if and only if x ends in at least k 0-bits.  Adding -a' to each side gives,
+// 0 <= x + a' <= 2a' and x + a' ends in at least k 0-bits if and only if x does since a' has
+// k 0-bits by definition.  We can use theorem ZRU above with x -> x + a' and a -> 2a' giving 1) == 2).
+//
+// Let m be such that (d0 * m) mod 2^n == 1.
+// Let q = x*m mod 2^n.
+// Let a' = ⎣(2^(n-1) - 1)/d0⎦ & -2^k
+//
+// Then the divisibility test is:
+//
+// RotRight(q+a', k) <= ⎣2a'/2^k⎦
+//
+// Note that the calculation is performed using unsigned integers.
+// Since a' can have n-1 bits, 2a' may have n bits and there is no risk of overflow.
+
+// sdivisibleOK reports whether we should strength reduce a n-bit dividisibilty check by c.
+func sdivisibleOK(n uint, c int64) bool {
+	if c < 0 {
+		// Doesn't work for negative c.
+		return false
+	}
+	// Doesn't work for 0.
+	// Don't use it for powers of 2.
+	return c&(c-1) != 0
+}
+
+type sdivisibleData struct {
+	k   int64  // trailingZeros(c)
+	m   uint64 // m * (c>>k) mod 2^n == 1 multiplicative inverse of odd portion modulo 2^n
+	a   uint64 // ⎣(2^(n-1) - 1)/ (c>>k)⎦ & -(1<<k) additive constant
+	max uint64 // ⎣(2 a) / (1<<k)⎦ max value to for divisibility
+}
+
+func sdivisible(n uint, c int64) sdivisibleData {
+	d := uint64(c)
+	k := bits.TrailingZeros64(d)
+	d0 := d >> uint(k) // the odd portion of the divisor
+
+	mask := ^uint64(0) >> (64 - n)
+
+	// Calculate the multiplicative inverse via Newton's method.
+	// Quadratic convergence doubles the number of correct bits per iteration.
+	m := d0            // initial guess correct to 3-bits d0*d0 mod 8 == 1
+	m = m * (2 - m*d0) // 6-bits
+	m = m * (2 - m*d0) // 12-bits
+	m = m * (2 - m*d0) // 24-bits
+	m = m * (2 - m*d0) // 48-bits
+	m = m * (2 - m*d0) // 96-bits >= 64-bits
+	m = m & mask
+
+	a := ((mask >> 1) / d0) & -(1 << uint(k))
+	max := (2 * a) >> uint(k)
+
+	return sdivisibleData{
+		k:   int64(k),
+		m:   m,
+		a:   a,
 		max: max,
 	}
 }
