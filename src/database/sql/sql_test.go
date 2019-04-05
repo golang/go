@@ -1695,6 +1695,21 @@ func TestNullBoolParam(t *testing.T) {
 	nullTestRun(t, spec)
 }
 
+func TestNullTimeParam(t *testing.T) {
+	t0 := time.Time{}
+	t1 := time.Date(2000, 1, 1, 8, 9, 10, 11, time.UTC)
+	t2 := time.Date(2010, 1, 1, 8, 9, 10, 11, time.UTC)
+	spec := nullTestSpec{"nulldatetime", "datetime", [6]nullTestRow{
+		{NullTime{t1, true}, t2, NullTime{t1, true}},
+		{NullTime{t1, false}, t2, NullTime{t0, false}},
+		{t1, t2, NullTime{t1, true}},
+		{NullTime{t1, true}, t2, NullTime{t1, true}},
+		{NullTime{t1, false}, t2, NullTime{t0, false}},
+		{t2, NullTime{t1, false}, nil},
+	}}
+	nullTestRun(t, spec)
+}
+
 func nullTestRun(t *testing.T, spec nullTestSpec) {
 	db := newTestDB(t, "")
 	defer closeDB(t, db)
