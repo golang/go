@@ -242,7 +242,7 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
 			}
 		}
 	})
-	// TODO(bcmills): Is there a missing b.SetBytes here?
+	b.SetBytes(int64(len(codeJSON)))
 }
 
 func BenchmarkUnmarshalString(b *testing.B) {
