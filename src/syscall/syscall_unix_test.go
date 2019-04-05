@@ -355,3 +355,11 @@ func TestSeekFailure(t *testing.T) {
 		t.Fatalf("Seek(-1, 0, 0) return error with empty message")
 	}
 }
+
+func TestSetsockoptString(t *testing.T) {
+	// should not panic on empty string, see issue #31277
+	err := syscall.SetsockoptString(-1, 0, 0, "")
+	if err == nil {
+		t.Fatalf("SetsockoptString: did not fail")
+	}
+}
