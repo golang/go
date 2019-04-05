@@ -777,6 +777,22 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 			return bytes.NewBufferString(output), nil
 		}
 
+		// Workaround for an instance of golang.org/issue/26755: go list -e  will return a non-zero exit
+		// status if there's a dependency on a package that doesn't exist. But it should return
+		// a zero exit status and set an error on that package.
+		if len(stderr.String()) > 0 && strings.Contains(stderr.String(), "no Go files in") {
+			// try to extract package name from string
+			stderrStr := stderr.String()
+			var importPath string
+			colon := strings.Index(stderrStr, ":")
+			if colon > 0 && strings.HasPrefix(stderrStr, "go build ") {
+				importPath = stderrStr[len("go build "):colon]
+			}
+			output := fmt.Sprintf(`{"ImportPath": %q,"Incomplete": true,"Error": {"Pos": "","Err": %q}}`,
+				importPath, strings.Trim(stderrStr, "\n"))
+			return bytes.NewBufferString(output), nil
+		}
+
 		// Export mode entails a build.
 		// If that build fails, errors appear on stderr
 		// (despite the -e flag) and the Export field is blank.

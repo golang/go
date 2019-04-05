@@ -1828,6 +1828,28 @@ func testReturnErrorWhenUsingNonGoFiles(t *testing.T, exporter packagestest.Expo
 	}
 }
 
+func TestMissingDependency(t *testing.T) { packagestest.TestAll(t, testMissingDependency) }
+func testMissingDependency(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go": `package a; import _ "this/package/doesnt/exist"`,
+		}}})
+	defer exported.Cleanup()
+
+	exported.Config.Mode = packages.LoadAllSyntax
+	pkgs, err := packages.Load(exported.Config, "golang.org/fake/a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pkgs) != 1 && pkgs[0].PkgPath != "golang.org/fake/a" {
+		t.Fatalf("packages.Load: want [golang.org/fake/a], got %v", pkgs)
+	}
+	if len(pkgs[0].Errors) == 0 {
+		t.Errorf("result of Load: want package with errors, got none: %+v", pkgs[0])
+	}
+}
+
 func errorMessages(errors []packages.Error) []string {
 	var msgs []string
 	for _, err := range errors {
