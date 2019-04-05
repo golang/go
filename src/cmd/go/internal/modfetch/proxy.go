@@ -8,7 +8,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
+	"io/ioutil"
+	urlpkg "net/url"
+	"os"
+	pathpkg "path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,6 +21,7 @@ import (
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/module"
 	"cmd/go/internal/semver"
+	"cmd/go/internal/web"
 )
 
 var HelpGoproxy = &base.Command{
@@ -99,34 +104,85 @@ func lookupProxy(path string) (Repo, error) {
 	if strings.Contains(proxyURL, ",") {
 		return nil, fmt.Errorf("invalid $GOPROXY setting: cannot have comma")
 	}
-	u, err := url.Parse(proxyURL)
-	if err != nil || u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "file" {
-		// Don't echo $GOPROXY back in case it has user:password in it (sigh).
-		return nil, fmt.Errorf("invalid $GOPROXY setting: malformed URL or invalid scheme (must be http, https, file)")
+	r, err := newProxyRepo(proxyURL, path)
+	if err != nil {
+		return nil, err
 	}
-	return newProxyRepo(u.String(), path)
+	return r, nil
 }
 
 type proxyRepo struct {
-	url  string
+	url  *urlpkg.URL
 	path string
 }
 
 func newProxyRepo(baseURL, path string) (Repo, error) {
+	url, err := urlpkg.Parse(baseURL)
+	if err != nil {
+		return nil, err
+	}
+	switch url.Scheme {
+	case "file":
+		if *url != (urlpkg.URL{Scheme: url.Scheme, Path: url.Path, RawPath: url.RawPath}) {
+			return nil, fmt.Errorf("proxy URL %q uses file scheme with non-path elements", web.PasswordRedacted(url))
+		}
+	case "http", "https":
+	case "":
+		return nil, fmt.Errorf("proxy URL %q missing scheme", web.PasswordRedacted(url))
+	default:
+		return nil, fmt.Errorf("unsupported proxy scheme %q", url.Scheme)
+	}
+
 	enc, err := module.EncodePath(path)
 	if err != nil {
 		return nil, err
 	}
-	return &proxyRepo{strings.TrimSuffix(baseURL, "/") + "/" + pathEscape(enc), path}, nil
+
+	url.Path = strings.TrimSuffix(url.Path, "/") + "/" + enc
+	url.RawPath = strings.TrimSuffix(url.RawPath, "/") + "/" + pathEscape(enc)
+	return &proxyRepo{url, path}, nil
 }
 
 func (p *proxyRepo) ModulePath() string {
 	return p.path
 }
 
+func (p *proxyRepo) getBytes(path string) ([]byte, error) {
+	body, err := p.getBody(path)
+	if err != nil {
+		return nil, err
+	}
+	defer body.Close()
+	return ioutil.ReadAll(body)
+}
+
+func (p *proxyRepo) getBody(path string) (io.ReadCloser, error) {
+	fullPath := pathpkg.Join(p.url.Path, path)
+	if p.url.Scheme == "file" {
+		rawPath, err := urlpkg.PathUnescape(fullPath)
+		if err != nil {
+			return nil, err
+		}
+		return os.Open(filepath.FromSlash(rawPath))
+	}
+
+	url := new(urlpkg.URL)
+	*url = *p.url
+	url.Path = fullPath
+	url.RawPath = pathpkg.Join(url.RawPath, pathEscape(path))
+
+	_, resp, err := web.Get(web.DefaultSecurity, url)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("unexpected status (%s): %v", web.PasswordRedacted(url), resp.Status)
+	}
+	return resp.Body, nil
+}
+
 func (p *proxyRepo) Versions(prefix string) ([]string, error) {
-	var data []byte
-	err := webGetBytes(p.url+"/@v/list", &data)
+	data, err := p.getBytes("@v/list")
 	if err != nil {
 		return nil, err
 	}
@@ -142,8 +198,7 @@ func (p *proxyRepo) Versions(prefix string) ([]string, error) {
 }
 
 func (p *proxyRepo) latest() (*RevInfo, error) {
-	var data []byte
-	err := webGetBytes(p.url+"/@v/list", &data)
+	data, err := p.getBytes("@v/list")
 	if err != nil {
 		return nil, err
 	}
@@ -172,12 +227,11 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
 }
 
 func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
-	var data []byte
 	encRev, err := module.EncodeVersion(rev)
 	if err != nil {
 		return nil, err
 	}
-	err = webGetBytes(p.url+"/@v/"+pathEscape(encRev)+".info", &data)
+	data, err := p.getBytes("@v/" + encRev + ".info")
 	if err != nil {
 		return nil, err
 	}
@@ -189,9 +243,7 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
 }
 
 func (p *proxyRepo) Latest() (*RevInfo, error) {
-	var data []byte
-	u := p.url + "/@latest"
-	err := webGetBytes(u, &data)
+	data, err := p.getBytes("@latest")
 	if err != nil {
 		// TODO return err if not 404
 		return p.latest()
@@ -204,12 +256,11 @@ func (p *proxyRepo) Latest() (*RevInfo, error) {
 }
 
 func (p *proxyRepo) GoMod(version string) ([]byte, error) {
-	var data []byte
 	encVer, err := module.EncodeVersion(version)
 	if err != nil {
 		return nil, err
 	}
-	err = webGetBytes(p.url+"/@v/"+pathEscape(encVer)+".mod", &data)
+	data, err := p.getBytes("@v/" + encVer + ".mod")
 	if err != nil {
 		return nil, err
 	}
@@ -217,12 +268,11 @@ func (p *proxyRepo) GoMod(version string) ([]byte, error) {
 }
 
 func (p *proxyRepo) Zip(dst io.Writer, version string) error {
-	var body io.ReadCloser
 	encVer, err := module.EncodeVersion(version)
 	if err != nil {
 		return err
 	}
-	err = webGetBody(p.url+"/@v/"+pathEscape(encVer)+".zip", &body)
+	body, err := p.getBody("@v/" + encVer + ".zip")
 	if err != nil {
 		return err
 	}
@@ -242,5 +292,5 @@ func (p *proxyRepo) Zip(dst io.Writer, version string) error {
 // That is, it escapes things like ? and # (which really shouldn't appear anyway).
 // It does not escape / to %2F: our REST API is designed so that / can be left as is.
 func pathEscape(s string) string {
-	return strings.ReplaceAll(url.PathEscape(s), "%2F", "/")
+	return strings.ReplaceAll(urlpkg.PathEscape(s), "%2F", "/")
 }

@@ -11,7 +11,7 @@ import (
 	"internal/lazyregexp"
 	"internal/singleflight"
 	"log"
-	"net/url"
+	urlpkg "net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,7 +54,7 @@ var defaultSecureScheme = map[string]bool{
 }
 
 func (v *vcsCmd) isSecure(repo string) bool {
-	u, err := url.Parse(repo)
+	u, err := urlpkg.Parse(repo)
 	if err != nil {
 		// If repo is not a URL, it's not secure.
 		return false
@@ -188,19 +188,19 @@ func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error
 	}
 	out := strings.TrimSpace(string(outb))
 
-	var repoURL *url.URL
+	var repoURL *urlpkg.URL
 	if m := scpSyntaxRe.FindStringSubmatch(out); m != nil {
 		// Match SCP-like syntax and convert it to a URL.
 		// Eg, "git@github.com:user/repo" becomes
 		// "ssh://git@github.com/user/repo".
-		repoURL = &url.URL{
+		repoURL = &urlpkg.URL{
 			Scheme: "ssh",
-			User:   url.User(m[1]),
+			User:   urlpkg.User(m[1]),
 			Host:   m[2],
 			Path:   m[3],
 		}
 	} else {
-		repoURL, err = url.Parse(out)
+		repoURL, err = urlpkg.Parse(out)
 		if err != nil {
 			return "", err
 		}
@@ -730,7 +730,7 @@ func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, 
 				match["repo"] = scheme + "://" + match["repo"]
 			} else {
 				for _, scheme := range vcs.scheme {
-					if security == web.Secure && !vcs.isSecureScheme(scheme) {
+					if security == web.SecureOnly && !vcs.isSecureScheme(scheme) {
 						continue
 					}
 					if vcs.pingCmd != "" && vcs.ping(scheme, match["repo"]) == nil {
@@ -754,20 +754,35 @@ func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, 
 	return nil, errUnknownSite
 }
 
+// urlForImportPath returns a partially-populated URL for the given Go import path.
+//
+// The URL leaves the Scheme field blank so that web.Get will try any scheme
+// allowed by the selected security mode.
+func urlForImportPath(importPath string) (*urlpkg.URL, error) {
+	slash := strings.Index(importPath, "/")
+	if slash < 0 {
+		slash = len(importPath)
+	}
+	host, path := importPath[:slash], importPath[slash:]
+	if !strings.Contains(host, ".") {
+		return nil, errors.New("import path does not begin with hostname")
+	}
+	if len(path) == 0 {
+		path = "/"
+	}
+	return &urlpkg.URL{Host: host, Path: path, RawQuery: "go-get=1"}, nil
+}
+
 // repoRootForImportDynamic finds a *RepoRoot for a custom domain that's not
 // statically known by repoRootForImportPathStatic.
 //
 // This handles custom import paths like "name.tld/pkg/foo" or just "name.tld".
 func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.SecurityMode) (*RepoRoot, error) {
-	slash := strings.Index(importPath, "/")
-	if slash < 0 {
-		slash = len(importPath)
+	url, err := urlForImportPath(importPath)
+	if err != nil {
+		return nil, err
 	}
-	host := importPath[:slash]
-	if !strings.Contains(host, ".") {
-		return nil, errors.New("import path does not begin with hostname")
-	}
-	urlStr, body, err := web.GetMaybeInsecure(importPath, security)
+	url, resp, err := web.Get(security, url)
 	if err != nil {
 		msg := "https fetch: %v"
 		if security == web.Insecure {
@@ -775,6 +790,7 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 		}
 		return nil, fmt.Errorf(msg, err)
 	}
+	body := resp.Body
 	defer body.Close()
 	imports, err := parseMetaGoImports(body, mod)
 	if err != nil {
@@ -784,12 +800,12 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 	mmi, err := matchGoImport(imports, importPath)
 	if err != nil {
 		if _, ok := err.(ImportMismatchError); !ok {
-			return nil, fmt.Errorf("parse %s: %v", urlStr, err)
+			return nil, fmt.Errorf("parse %s: %v", url, err)
 		}
-		return nil, fmt.Errorf("parse %s: no go-import meta tags (%s)", urlStr, err)
+		return nil, fmt.Errorf("parse %s: no go-import meta tags (%s)", url, err)
 	}
 	if cfg.BuildV {
-		log.Printf("get %q: found meta tag %#v at %s", importPath, mmi, urlStr)
+		log.Printf("get %q: found meta tag %#v at %s", importPath, mmi, url)
 	}
 	// If the import was "uni.edu/bob/project", which said the
 	// prefix was "uni.edu" and the RepoRoot was "evilroot.com",
@@ -801,24 +817,24 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 		if cfg.BuildV {
 			log.Printf("get %q: verifying non-authoritative meta tag", importPath)
 		}
-		urlStr0 := urlStr
+		url0 := *url
 		var imports []metaImport
-		urlStr, imports, err = metaImportsForPrefix(mmi.Prefix, mod, security)
+		url, imports, err = metaImportsForPrefix(mmi.Prefix, mod, security)
 		if err != nil {
 			return nil, err
 		}
 		metaImport2, err := matchGoImport(imports, importPath)
 		if err != nil || mmi != metaImport2 {
-			return nil, fmt.Errorf("%s and %s disagree about go-import for %s", urlStr0, urlStr, mmi.Prefix)
+			return nil, fmt.Errorf("%s and %s disagree about go-import for %s", &url0, url, mmi.Prefix)
 		}
 	}
 
 	if err := validateRepoRoot(mmi.RepoRoot); err != nil {
-		return nil, fmt.Errorf("%s: invalid repo root %q: %v", urlStr, mmi.RepoRoot, err)
+		return nil, fmt.Errorf("%s: invalid repo root %q: %v", url, mmi.RepoRoot, err)
 	}
 	vcs := vcsByCmd(mmi.VCS)
 	if vcs == nil && mmi.VCS != "mod" {
-		return nil, fmt.Errorf("%s: unknown vcs %q", urlStr, mmi.VCS)
+		return nil, fmt.Errorf("%s: unknown vcs %q", url, mmi.VCS)
 	}
 
 	rr := &RepoRoot{
@@ -834,7 +850,7 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 // validateRepoRoot returns an error if repoRoot does not seem to be
 // a valid URL with scheme.
 func validateRepoRoot(repoRoot string) error {
-	url, err := url.Parse(repoRoot)
+	url, err := urlpkg.Parse(repoRoot)
 	if err != nil {
 		return err
 	}
@@ -856,9 +872,9 @@ var (
 //
 // The importPath is of the form "golang.org/x/tools".
 // It is an error if no imports are found.
-// urlStr will still be valid if err != nil.
-// The returned urlStr will be of the form "https://golang.org/x/tools?go-get=1"
-func metaImportsForPrefix(importPrefix string, mod ModuleMode, security web.SecurityMode) (urlStr string, imports []metaImport, err error) {
+// url will still be valid if err != nil.
+// The returned url will be of the form "https://golang.org/x/tools?go-get=1"
+func metaImportsForPrefix(importPrefix string, mod ModuleMode, security web.SecurityMode) (*urlpkg.URL, []metaImport, error) {
 	setCache := func(res fetchResult) (fetchResult, error) {
 		fetchCacheMu.Lock()
 		defer fetchCacheMu.Unlock()
@@ -874,25 +890,31 @@ func metaImportsForPrefix(importPrefix string, mod ModuleMode, security web.Secu
 		}
 		fetchCacheMu.Unlock()
 
-		urlStr, body, err := web.GetMaybeInsecure(importPrefix, security)
+		url, err := urlForImportPath(importPrefix)
 		if err != nil {
-			return setCache(fetchResult{urlStr: urlStr, err: fmt.Errorf("fetch %s: %v", urlStr, err)})
+			return setCache(fetchResult{err: err})
 		}
+		url, resp, err := web.Get(security, url)
+		if err != nil {
+			return setCache(fetchResult{url: url, err: fmt.Errorf("fetch %s: %v", url, err)})
+		}
+		body := resp.Body
+		defer body.Close()
 		imports, err := parseMetaGoImports(body, mod)
 		if err != nil {
-			return setCache(fetchResult{urlStr: urlStr, err: fmt.Errorf("parsing %s: %v", urlStr, err)})
+			return setCache(fetchResult{url: url, err: fmt.Errorf("parsing %s: %v", url, err)})
 		}
 		if len(imports) == 0 {
-			err = fmt.Errorf("fetch %s: no go-import meta tag", urlStr)
+			err = fmt.Errorf("fetch %s: no go-import meta tag", url)
 		}
-		return setCache(fetchResult{urlStr: urlStr, imports: imports, err: err})
+		return setCache(fetchResult{url: url, imports: imports, err: err})
 	})
 	res := resi.(fetchResult)
-	return res.urlStr, res.imports, res.err
+	return res.url, res.imports, res.err
 }
 
 type fetchResult struct {
-	urlStr  string // e.g. "https://foo.com/x/bar?go-get=1"
+	url     *urlpkg.URL
 	imports []metaImport
 	err     error
 }
@@ -1074,8 +1096,13 @@ func bitbucketVCS(match map[string]string) error {
 	var resp struct {
 		SCM string `json:"scm"`
 	}
-	url := expand(match, "https://api.bitbucket.org/2.0/repositories/{bitname}?fields=scm")
-	data, err := web.Get(url)
+	url := &urlpkg.URL{
+		Scheme:   "https",
+		Host:     "api.bitbucket.org",
+		Path:     expand(match, "/2.0/repositories/{bitname}"),
+		RawQuery: "fields=scm",
+	}
+	data, err := web.GetBytes(url)
 	if err != nil {
 		if httpErr, ok := err.(*web.HTTPError); ok && httpErr.StatusCode == 403 {
 			// this may be a private repository. If so, attempt to determine which
@@ -1117,7 +1144,12 @@ func launchpadVCS(match map[string]string) error {
 	if match["project"] == "" || match["series"] == "" {
 		return nil
 	}
-	_, err := web.Get(expand(match, "https://code.launchpad.net/{project}{series}/.bzr/branch-format"))
+	url := &urlpkg.URL{
+		Scheme: "https",
+		Host:   "code.launchpad.net",
+		Path:   expand(match, "/{project}{series}/.bzr/branch-format"),
+	}
+	_, err := web.GetBytes(url)
 	if err != nil {
 		match["root"] = expand(match, "launchpad.net/{project}")
 		match["repo"] = expand(match, "https://{root}")

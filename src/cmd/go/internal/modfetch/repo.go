@@ -209,7 +209,7 @@ func lookup(path string) (r Repo, err error) {
 		return lookupProxy(path)
 	}
 
-	security := web.Secure
+	security := web.SecureOnly
 	if get.Insecure {
 		security = web.Insecure
 	}
@@ -254,7 +254,7 @@ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
 	// Note: Because we are converting a code reference from a legacy
 	// version control system, we ignore meta tags about modules
 	// and use only direct source control entries (get.IgnoreMod).
-	security := web.Secure
+	security := web.SecureOnly
 	if get.Insecure {
 		security = web.Insecure
 	}

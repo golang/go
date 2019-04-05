@@ -392,7 +392,7 @@ func downloadPackage(p *load.Package) error {
 		blindRepo      bool // set if the repo has unusual configuration
 	)
 
-	security := web.Secure
+	security := web.SecureOnly
 	if Insecure {
 		security = web.Insecure
 	}

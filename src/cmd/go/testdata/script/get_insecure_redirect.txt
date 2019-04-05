@@ -1,4 +1,3 @@
-# golang.org/issue/13037: 'go get' was not parsing <meta> tags in 404 served over HTTPS.
 # golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure.
 
 [!net] skip

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	urlpkg "net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -62,7 +63,7 @@ func runBug(cmd *base.Command, args []string) {
 	fmt.Fprintln(&buf, "```")
 
 	body := buf.String()
-	url := "https://github.com/golang/go/issues/new?body=" + web.QueryEscape(body)
+	url := "https://github.com/golang/go/issues/new?body=" + urlpkg.QueryEscape(body)
 	if !web.OpenBrowser(url) {
 		fmt.Print("Please file a new issue at golang.org/issue/new using this template:\n\n")
 		fmt.Print(body)
@@ -130,7 +131,12 @@ func printCDetails(w io.Writer) {
 }
 
 func inspectGoVersion(w io.Writer) {
-	data, err := web.Get("https://golang.org/VERSION?m=text")
+	data, err := web.GetBytes(&urlpkg.URL{
+		Scheme:   "https",
+		Host:     "golang.org",
+		Path:     "/VERSION",
+		RawQuery: "?m=text",
+	})
 	if err != nil {
 		if cfg.BuildV {
 			fmt.Printf("failed to read from golang.org/VERSION: %v\n", err)
