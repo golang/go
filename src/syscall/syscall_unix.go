@@ -323,7 +323,11 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (err error) {
 }
 
 func SetsockoptString(fd, level, opt int, s string) (err error) {
-	return setsockopt(fd, level, opt, unsafe.Pointer(&[]byte(s)[0]), uintptr(len(s)))
+	var p unsafe.Pointer
+	if len(s) > 0 {
+		p = unsafe.Pointer(&[]byte(s)[0])
+	}
+	return setsockopt(fd, level, opt, p, uintptr(len(s)))
 }
 
 func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (err error) {
