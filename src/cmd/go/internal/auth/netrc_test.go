@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package web2
+package auth
 
 import (
 	"reflect"
@@ -43,7 +43,7 @@ login oops
 password too-late-in-file
 `
 
-func TestReadNetrc(t *testing.T) {
+func TestParseNetrc(t *testing.T) {
 	lines := parseNetrc(testNetrc)
 	want := []netrcLine{
 		{"api.github.com", "user", "pwd"},

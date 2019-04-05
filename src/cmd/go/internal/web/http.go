@@ -14,13 +14,12 @@ package web
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
+	urlpkg "net/url"
 	"time"
 
+	"cmd/go/internal/auth"
 	"cmd/go/internal/cfg"
 	"cmd/internal/browser"
 )
@@ -50,81 +49,92 @@ var securityPreservingHTTPClient = &http.Client{
 	},
 }
 
-type HTTPError struct {
-	status     string
-	StatusCode int
-	url        string
-}
+func get(security SecurityMode, url *urlpkg.URL) (*urlpkg.URL, *Response, error) {
+	fetch := func(url *urlpkg.URL) (*urlpkg.URL, *http.Response, error) {
+		if cfg.BuildV {
+			log.Printf("Fetching %s", url)
+		}
 
-func (e *HTTPError) Error() string {
-	return fmt.Sprintf("%s: %s", e.url, e.status)
-}
-
-// Get returns the data from an HTTP GET request for the given URL.
-func Get(url string) ([]byte, error) {
-	resp, err := securityPreservingHTTPClient.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		err := &HTTPError{status: resp.Status, StatusCode: resp.StatusCode, url: url}
-
-		return nil, err
-	}
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %v", url, err)
-	}
-	return b, nil
-}
-
-// GetMaybeInsecure returns the body of either the importPath's
-// https resource or, if unavailable and permitted by the security mode, the http resource.
-func GetMaybeInsecure(importPath string, security SecurityMode) (urlStr string, body io.ReadCloser, err error) {
-	fetch := func(scheme string) (urlStr string, res *http.Response, err error) {
-		u, err := url.Parse(scheme + "://" + importPath)
+		req, err := http.NewRequest("GET", url.String(), nil)
 		if err != nil {
-			return "", nil, err
+			return nil, nil, err
 		}
-		u.RawQuery = "go-get=1"
-		urlStr = u.String()
-		if cfg.BuildV {
-			log.Printf("Fetching %s", urlStr)
+		if url.Scheme == "https" {
+			auth.AddCredentials(req)
 		}
-		if security == Insecure && scheme == "https" { // fail earlier
-			res, err = impatientInsecureHTTPClient.Get(urlStr)
+
+		var res *http.Response
+		if security == Insecure && url.Scheme == "https" { // fail earlier
+			res, err = impatientInsecureHTTPClient.Do(req)
 		} else {
-			res, err = securityPreservingHTTPClient.Get(urlStr)
+			res, err = securityPreservingHTTPClient.Do(req)
 		}
-		return
+		return url, res, err
 	}
-	closeBody := func(res *http.Response) {
-		if res != nil {
-			res.Body.Close()
+
+	var (
+		fetched *urlpkg.URL
+		res     *http.Response
+		err     error
+	)
+	if url.Scheme == "" || url.Scheme == "https" {
+		secure := new(urlpkg.URL)
+		*secure = *url
+		secure.Scheme = "https"
+
+		fetched, res, err = fetch(secure)
+		if err != nil {
+			if cfg.BuildV {
+				log.Printf("https fetch failed: %v", err)
+			}
+			if security != Insecure || url.Scheme == "https" {
+				// HTTPS failed, and we can't fall back to plain HTTP.
+				// Report the error from the HTTPS attempt.
+				return nil, nil, err
+			}
 		}
 	}
-	urlStr, res, err := fetch("https")
-	if err != nil {
-		if cfg.BuildV {
-			log.Printf("https fetch failed: %v", err)
+
+	if res == nil {
+		switch url.Scheme {
+		case "http":
+			if security == SecureOnly {
+				return nil, nil, fmt.Errorf("URL %q is not secure", PasswordRedacted(url))
+			}
+		case "":
+			if security != Insecure {
+				panic("should have returned after HTTPS failure")
+			}
+		default:
+			return nil, nil, fmt.Errorf("unsupported scheme %s", url.Scheme)
 		}
-		if security == Insecure {
-			closeBody(res)
-			urlStr, res, err = fetch("http")
+
+		insecure := new(urlpkg.URL)
+		*insecure = *url
+		insecure.Scheme = "http"
+		if insecure.User != nil && security != Insecure {
+			return nil, nil, fmt.Errorf("refusing to pass credentials to insecure URL %q", PasswordRedacted(insecure))
+		}
+
+		fetched, res, err = fetch(insecure)
+		if err != nil {
+			// HTTP failed, and we already tried HTTPS if applicable.
+			// Report the error from the HTTP attempt.
+			return nil, nil, err
 		}
 	}
-	if err != nil {
-		closeBody(res)
-		return "", nil, err
-	}
+
 	// Note: accepting a non-200 OK here, so people can serve a
 	// meta import in their http 404 page.
 	if cfg.BuildV {
-		log.Printf("Parsing meta tags from %s (status code %d)", urlStr, res.StatusCode)
+		log.Printf("Parsing meta tags from %s (status code %d)", PasswordRedacted(fetched), res.StatusCode)
 	}
-	return urlStr, res.Body, nil
+	return fetched, &Response{
+		Status:     res.Status,
+		StatusCode: res.StatusCode,
+		Header:     map[string][]string(res.Header),
+		Body:       res.Body,
+	}, nil
 }
 
-func QueryEscape(s string) string { return url.QueryEscape(s) }
-func OpenBrowser(url string) bool { return browser.Open(url) }
+func openBrowser(url string) bool { return browser.Open(url) }
