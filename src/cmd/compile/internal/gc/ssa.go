@@ -2276,7 +2276,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OADDR:
 		return s.addr(n.Left, n.Bounded())
 
-	case OINDREGSP:
+	case ORESULT:
 		addr := s.constOffPtrSP(types.NewPtr(n.Type), n.Xoffset)
 		return s.load(n.Type, addr)
 
@@ -3929,9 +3929,8 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			s.Fatalf("variable address class %v not implemented", n.Class())
 			return nil
 		}
-	case OINDREGSP:
-		// indirect off REGSP
-		// used for storing/loading arguments/returns to/from callees
+	case ORESULT:
+		// load return from callee
 		return s.constOffPtrSP(t, n.Xoffset)
 	case OINDEX:
 		if n.Left.Type.IsSlice() {
