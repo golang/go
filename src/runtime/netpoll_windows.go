@@ -41,8 +41,8 @@ func netpollinit() {
 	}
 }
 
-func netpolldescriptor() uintptr {
-	return iocphandle
+func netpollIsPollDescriptor(fd uintptr) bool {
+	return fd == iocphandle
 }
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
@@ -59,6 +59,13 @@ func netpollclose(fd uintptr) int32 {
 
 func netpollarm(pd *pollDesc, mode int) {
 	throw("runtime: unused")
+}
+
+func netpollBreak() {
+	if stdcall4(_PostQueuedCompletionStatus, iocphandle, 0, 0, 0) == 0 {
+		println("runtime: netpoll: PostQueuedCompletionStatus failed (errno=", getlasterror(), ")")
+		throw("runtime: netpoll: PostQueuedCompletionStatus failed")
+	}
 }
 
 // netpoll checks for ready network connections.
@@ -112,12 +119,20 @@ func netpoll(delay int64) gList {
 		mp.blocked = false
 		for i = 0; i < n; i++ {
 			op = entries[i].op
-			errno = 0
-			qty = 0
-			if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
-				errno = int32(getlasterror())
+			if op != nil {
+				errno = 0
+				qty = 0
+				if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
+					errno = int32(getlasterror())
+				}
+				handlecompletion(&toRun, op, errno, qty)
+			} else {
+				if delay == 0 {
+					// Forward the notification to the
+					// blocked poller.
+					netpollBreak()
+				}
 			}
-			handlecompletion(&toRun, op, errno, qty)
 		}
 	} else {
 		op = nil
@@ -139,6 +154,14 @@ func netpoll(delay int64) gList {
 			// dequeued failed IO packet, so report that
 		}
 		mp.blocked = false
+		if op == nil {
+			if delay == 0 {
+				// Forward the notification to the
+				// blocked poller.
+				netpollBreak()
+			}
+			return gList{}
+		}
 		handlecompletion(&toRun, op, errno, qty)
 	}
 	return toRun

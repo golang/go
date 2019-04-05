@@ -12,12 +12,26 @@ import (
 )
 
 // Integrated network poller (platform-independent part).
-// A particular implementation (epoll/kqueue) must define the following functions:
-// func netpollinit()			// to initialize the poller
-// func netpollopen(fd uintptr, pd *pollDesc) int32	// to arm edge-triggered notifications
-// and associate fd with pd.
-// An implementation must call the following function to denote that the pd is ready.
-// func netpollready(gpp **g, pd *pollDesc, mode int32)
+// A particular implementation (epoll/kqueue/port/AIX/Windows)
+// must define the following functions:
+//
+// func netpollinit()
+//     Initialize the poller. Only called once.
+//
+// func netpollopen(fd uintptr, pd *pollDesc) int32
+//     Arm edge-triggered notifications for fd. The pd argument is to pass
+//     back to netpollready when fd is ready. Return an errno value.
+//
+// func netpoll(delta int64) gList
+//     Poll the network. If delta < 0, block indefinitely. If delta == 0,
+//     poll without blocking. If delta > 0, block for up to delta nanoseconds.
+//     Return a list of goroutines built by calling netpollready.
+//
+// func netpollBreak()
+//     Wake up the network poller, assumed to be blocked in netpoll.
+//
+// func netpollIsPollDescriptor(fd uintptr) bool
+//     Reports whether fd is a file descriptor used by the poller.
 
 // pollDesc contains 2 binary semaphores, rg and wg, to park reader and writer
 // goroutines respectively. The semaphore can be in the following states:
@@ -99,14 +113,7 @@ func netpollinited() bool {
 // poll_runtime_isPollServerDescriptor reports whether fd is a
 // descriptor being used by netpoll.
 func poll_runtime_isPollServerDescriptor(fd uintptr) bool {
-	fds := netpolldescriptor()
-	if GOOS != "aix" {
-		return fd == fds
-	} else {
-		// AIX have a pipe in its netpoll implementation.
-		// Therefore, two fd are returned by netpolldescriptor using a mask.
-		return fd == fds&0xFFFF || fd == (fds>>16)&0xFFFF
-	}
+	return netpollIsPollDescriptor(fd)
 }
 
 //go:linkname poll_runtime_pollOpen internal/poll.runtime_pollOpen
@@ -316,8 +323,13 @@ func poll_runtime_pollUnblock(pd *pollDesc) {
 	}
 }
 
-// make pd ready, newly runnable goroutines (if any) are added to toRun.
-// May run during STW, so write barriers are not allowed.
+// netpollready is called by the platform-specific netpoll function.
+// It declares that the fd associated with pd is ready for I/O.
+// The toRun argument is used to build a list of goroutines to return
+// from netpoll. The mode argument is 'r', 'w', or 'r'+'w' to indicate
+// whether the fd is ready for reading or writing or both.
+//
+// This may run while the world is stopped, so write barriers are not allowed.
 //go:nowritebarrier
 func netpollready(toRun *gList, pd *pollDesc, mode int32) {
 	var rg, wg *g

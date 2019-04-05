@@ -6,6 +6,7 @@ package runtime
 const (
 	_EINTR  = 0x4
 	_EFAULT = 0xe
+	_EAGAIN = 0x23
 	_ENOSYS = 0x4e
 
 	_O_NONBLOCK = 0x4

@@ -20,24 +20,40 @@ func closeonexec(fd int32)
 
 var (
 	epfd int32 = -1 // epoll descriptor
+
+	netpollBreakRd, netpollBreakWr uintptr // for netpollBreak
 )
 
 func netpollinit() {
 	epfd = epollcreate1(_EPOLL_CLOEXEC)
-	if epfd >= 0 {
-		return
-	}
-	epfd = epollcreate(1024)
-	if epfd >= 0 {
+	if epfd < 0 {
+		epfd = epollcreate(1024)
+		if epfd < 0 {
+			println("runtime: epollcreate failed with", -epfd)
+			throw("runtime: netpollinit failed")
+		}
 		closeonexec(epfd)
-		return
 	}
-	println("runtime: epollcreate failed with", -epfd)
-	throw("runtime: netpollinit failed")
+	r, w, errno := nonblockingPipe()
+	if errno != 0 {
+		println("runtime: pipe failed with", -errno)
+		throw("runtime: pipe failed")
+	}
+	ev := epollevent{
+		events: _EPOLLIN,
+	}
+	*(**uintptr)(unsafe.Pointer(&ev.data)) = &netpollBreakRd
+	errno = epollctl(epfd, _EPOLL_CTL_ADD, r, &ev)
+	if errno != 0 {
+		println("runtime: epollctl failed with", -errno)
+		throw("runtime: epollctl failed")
+	}
+	netpollBreakRd = uintptr(r)
+	netpollBreakWr = uintptr(w)
 }
 
-func netpolldescriptor() uintptr {
-	return uintptr(epfd)
+func netpollIsPollDescriptor(fd uintptr) bool {
+	return fd == uintptr(epfd) || fd == netpollBreakRd || fd == netpollBreakWr
 }
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
@@ -54,6 +70,25 @@ func netpollclose(fd uintptr) int32 {
 
 func netpollarm(pd *pollDesc, mode int) {
 	throw("runtime: unused")
+}
+
+// netpollBreak interrupts an epollwait.
+func netpollBreak() {
+	for {
+		var b byte
+		n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
+		if n == 1 {
+			break
+		}
+		if n == -_EINTR {
+			continue
+		}
+		if n == -_EAGAIN {
+			return
+		}
+		println("runtime: netpollBreak write failed with", -n)
+		throw("runtime: netpollBreak write failed")
+	}
 }
 
 // netpoll checks for ready network connections.
@@ -100,6 +135,22 @@ retry:
 		if ev.events == 0 {
 			continue
 		}
+
+		if *(**uintptr)(unsafe.Pointer(&ev.data)) == &netpollBreakRd {
+			if ev.events != _EPOLLIN {
+				println("runtime: netpoll: break fd ready for", ev.events)
+				throw("runtime: netpoll: break fd ready for something unexpected")
+			}
+			if delay != 0 {
+				// netpollBreak could be picked up by a
+				// nonblocking poll. Only read the byte
+				// if blocking.
+				var tmp [16]byte
+				read(int32(netpollBreakRd), noescape(unsafe.Pointer(&tmp[0])), int32(len(tmp)))
+			}
+			continue
+		}
+
 		var mode int32
 		if ev.events&(_EPOLLIN|_EPOLLRDHUP|_EPOLLHUP|_EPOLLERR) != 0 {
 			mode += 'r'

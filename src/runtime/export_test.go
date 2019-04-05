@@ -35,6 +35,9 @@ var Atoi = atoi
 var Atoi32 = atoi32
 
 var Nanotime = nanotime
+var Netpoll = netpoll
+var NetpollBreak = netpollBreak
+var Usleep = usleep
 
 var PhysHugePageSize = physHugePageSize
 
