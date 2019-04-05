@@ -18,6 +18,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"unsafe"
 )
 
 // sigquit is the signal to send to kill a hanging testdata program.
@@ -30,6 +31,29 @@ func init() {
 		// it's blocked. Use SIGKILL instead. See issue
 		// #19196 for an example of when this happens.
 		sigquit = syscall.SIGKILL
+	}
+}
+
+func TestBadOpen(t *testing.T) {
+	// make sure we get the correct error code if open fails. Same for
+	// read/write/close on the resulting -1 fd. See issue 10052.
+	nonfile := []byte("/notreallyafile")
+	fd := runtime.Open(&nonfile[0], 0, 0)
+	if fd != -1 {
+		t.Errorf("open(%q)=%d, want -1", nonfile, fd)
+	}
+	var buf [32]byte
+	r := runtime.Read(-1, unsafe.Pointer(&buf[0]), int32(len(buf)))
+	if got, want := r, -int32(syscall.EBADF); got != want {
+		t.Errorf("read()=%d, want %d", got, want)
+	}
+	w := runtime.Write(^uintptr(0), unsafe.Pointer(&buf[0]), int32(len(buf)))
+	if got, want := w, -int32(syscall.EBADF); got != want {
+		t.Errorf("write()=%d, want %d", got, want)
+	}
+	c := runtime.Close(-1)
+	if c != -1 {
+		t.Errorf("close()=%d, want -1", c)
 	}
 }
 

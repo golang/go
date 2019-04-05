@@ -35,6 +35,13 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	MOVW	16(R0), R2	// arg 3 count
 	MOVW	0(R0), R0	// arg 1 fd
 	BL	libc_write(SB)
+	MOVD	$-1, R1
+	CMP	R0, R1
+	BNE	noerr
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	NEG	R0, R0		// caller expects negative errno value
+noerr:
 	RET
 
 TEXT runtime·read_trampoline(SB),NOSPLIT,$0
@@ -42,6 +49,13 @@ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
 	MOVW	16(R0), R2	// arg 3 count
 	MOVW	0(R0), R0	// arg 1 fd
 	BL	libc_read(SB)
+	MOVD	$-1, R1
+	CMP	R0, R1
+	BNE	noerr
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	NEG	R0, R0		// caller expects negative errno value
+noerr:
 	RET
 
 TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0

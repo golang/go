@@ -98,10 +98,6 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	n+16(FP), R2
 	MOVD	$SYS_write, R8
 	SVC
-	CMN	$4095, R0
-	BCC	done
-	MOVW	$-1, R0
-done:
 	MOVW	R0, ret+24(FP)
 	RET
 
@@ -111,10 +107,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	n+16(FP), R2
 	MOVD	$SYS_read, R8
 	SVC
-	CMN	$4095, R0
-	BCC	done
-	MOVW	$-1, R0
-done:
 	MOVW	R0, ret+24(FP)
 	RET
 

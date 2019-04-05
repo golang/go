@@ -83,9 +83,6 @@ TEXT runtime·write1(SB),NOSPLIT,$0
 	MOVW	n+8(FP), R2
 	MOVW	$SYS_write, R7
 	SWI	$0
-	MOVW	$0xfffff001, R1
-	CMP	R1, R0
-	MOVW.HI	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -95,9 +92,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVW	n+8(FP), R2
 	MOVW	$SYS_read, R7
 	SWI	$0
-	MOVW	$0xfffff001, R1
-	CMP	R1, R0
-	MOVW.HI	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 

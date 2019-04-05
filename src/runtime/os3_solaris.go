@@ -447,7 +447,11 @@ func raiseproc(sig uint32) /* int32 */ {
 
 //go:nosplit
 func read(fd int32, buf unsafe.Pointer, nbyte int32) int32 {
-	return int32(sysvicall3(&libc_read, uintptr(fd), uintptr(buf), uintptr(nbyte)))
+	r1, err := sysvicall3Err(&libc_read, uintptr(fd), uintptr(buf), uintptr(nbyte))
+	if c := int32(r1); c >= 0 {
+		return c
+	}
+	return -int32(err)
 }
 
 //go:nosplit
@@ -511,7 +515,11 @@ func walltime1() (sec int64, nsec int32) {
 
 //go:nosplit
 func write1(fd uintptr, buf unsafe.Pointer, nbyte int32) int32 {
-	return int32(sysvicall3(&libc_write, uintptr(fd), uintptr(buf), uintptr(nbyte)))
+	r1, err := sysvicall3Err(&libc_write, fd, uintptr(buf), uintptr(nbyte))
+	if c := int32(r1); c >= 0 {
+		return c
+	}
+	return -int32(err)
 }
 
 func osyield1()
