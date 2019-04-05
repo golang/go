@@ -325,6 +325,27 @@ func timerproc(tb *timersBucket) {
 	}
 }
 
+// adjusttimers looks through the timers in the current P's heap for
+// any timers that have been modified to run earlier, and puts them in
+// the correct place in the heap.
+// The caller must have locked the timers for pp.
+func adjusttimers(pp *p) {
+	if len(pp.timers) == 0 {
+		return
+	}
+	throw("adjusttimers: not yet implemented")
+}
+
+// runtimer examines the first timer in timers. If it is ready based on now,
+// it runs the timer and removes or updates it.
+// Returns 0 if it ran a timer, -1 if there are no more timers, or the time
+// when the first timer should run.
+// The caller must have locked the timers for pp.
+func runtimer(pp *p, now int64) int64 {
+	throw("runtimer: not yet implemented")
+	return -1
+}
+
 func timejump() *g {
 	if faketime == 0 {
 		return nil
