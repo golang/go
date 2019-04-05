@@ -313,29 +313,6 @@ func TestLoadAbsolutePath(t *testing.T) {
 	}
 }
 
-func TestReturnErrorWhenUsingNonGoFiles(t *testing.T) {
-	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{{
-		Name: "golang.org/gopatha",
-		Files: map[string]interface{}{
-			"a/a.go": `package a`,
-		}}, {
-		Name: "golang.org/gopathb",
-		Files: map[string]interface{}{
-			"b/b.c": `package b`,
-		}}})
-	defer exported.Cleanup()
-	config := packages.Config{}
-	_, err := packages.Load(&config, "a/a.go", "b/b.c")
-	if err == nil {
-		t.Fatalf("should have failed with an error")
-	}
-	got := err.Error()
-	want := "named files must be .go files"
-	if !strings.Contains(got, want) {
-		t.Fatalf("want error message: %s, got: %s", want, got)
-	}
-}
-
 func TestVendorImports(t *testing.T) {
 	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -1723,7 +1700,47 @@ func testErrorMissingFile(t *testing.T, exporter packagestest.Exporter) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(pkgs)
+	if len(pkgs) == 0 && runtime.GOOS == "windows" {
+		t.Skip("Issue #31344: the ad-hoc command-line-arguments package isn't created on windows")
+	}
+	if len(pkgs) != 1 || pkgs[0].PkgPath != "command-line-arguments" {
+		t.Fatalf("packages.Load: want [command-line-arguments], got %v", pkgs)
+	}
+	if len(pkgs[0].Errors) == 0 {
+		t.Errorf("result of Load: want package with errors, got none: %+v", pkgs[0])
+	}
+}
+
+func TestReturnErrorWhenUsingNonGoFiles(t *testing.T) {
+	packagestest.TestAll(t, testReturnErrorWhenUsingNonGoFiles)
+}
+func testReturnErrorWhenUsingNonGoFiles(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/gopatha",
+		Files: map[string]interface{}{
+			"a/a.go": `package a`,
+		}}, {
+		Name: "golang.org/gopathb",
+		Files: map[string]interface{}{
+			"b/b.c": `package b`,
+		}}})
+	defer exported.Cleanup()
+	config := packages.Config{}
+	pkgs, err := packages.Load(&config, "a/a.go", "b/b.c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pkgs) != 1 || pkgs[0].PkgPath != "command-line-arguments" {
+		t.Fatalf("packages.Load: want [command-line-arguments], got %v", pkgs)
+	}
+	if len(pkgs[0].Errors) != 1 {
+		t.Fatalf("result of Load: want package with one error, got: %+v", pkgs[0])
+	}
+	got := pkgs[0].Errors[0].Error()
+	want := "named files must be .go files"
+	if !strings.Contains(got, want) {
+		t.Fatalf("want error message: %s, got: %s", want, got)
+	}
 }
 
 func errorMessages(errors []packages.Error) []string {

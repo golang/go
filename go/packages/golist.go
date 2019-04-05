@@ -761,8 +761,15 @@ func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
 		// the error in the Err section of stdout in case -e option is provided.
 		// This fix is provided for backwards compatibility.
 		if len(stderr.String()) > 0 && strings.Contains(stderr.String(), "named files must be .go files") {
-			output := fmt.Sprintf(`{"ImportPath": "","Incomplete": true,"Error": {"Pos": "","Err": %s}}`,
-				strconv.Quote(strings.Trim(stderr.String(), "\n")))
+			output := fmt.Sprintf(`{"ImportPath": "command-line-arguments","Incomplete": true,"Error": {"Pos": "","Err": %q}}`,
+				strings.Trim(stderr.String(), "\n"))
+			return bytes.NewBufferString(output), nil
+		}
+
+		// Workaround for #29280: go list -e has incorrect behavior when an ad-hoc package doesn't exist.
+		if len(stderr.String()) > 0 && strings.Contains(stderr.String(), "no such file or directory") {
+			output := fmt.Sprintf(`{"ImportPath": "command-line-arguments","Incomplete": true,"Error": {"Pos": "","Err": %q}}`,
+				strings.Trim(stderr.String(), "\n"))
 			return bytes.NewBufferString(output), nil
 		}
 
