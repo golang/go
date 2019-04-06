@@ -97,7 +97,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.BlockExit:
-		s.Prog(obj.AUNDEF)
 
 	case ssa.BlockDefer:
 		p := s.Prog(wasm.AGet)
