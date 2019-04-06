@@ -5335,6 +5335,13 @@ func genssa(f *ssa.Func, pp *Progs) {
 			}
 		}
 	}
+	if f.Blocks[len(f.Blocks)-1].Kind == ssa.BlockExit {
+		// We need the return address of a panic call to
+		// still be inside the function in question. So if
+		// it ends in a call which doesn't return, add a
+		// nop (which will never execute) after the call.
+		thearch.Ginsnop(pp)
+	}
 
 	if inlMarks != nil {
 		// We have some inline marks. Try to find other instructions we're
