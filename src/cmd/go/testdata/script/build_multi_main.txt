@@ -7,6 +7,9 @@ go build -o $WORK/bin ./cmd/c1 ./cmd/c2
 ! go build -o $WORK/bin ./pkg1 ./pkg1
 stderr 'no main packages'
 
+! go build ./cmd/c1
+stderr 'already exists and is a directory'
+
 -- go.mod --
 module exmod
 
@@ -25,3 +28,6 @@ package pkg1
 
 -- pkg2/pkg2.go --
 package pkg2
+
+-- c1$exe/keep.txt --
+Create c1 directory.
