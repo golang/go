@@ -162,7 +162,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	select {
 	case response := <-rchan:
 		elapsed := time.Since(before)
-		c.Logger(Send, response.ID, elapsed, request.Method, response.Result, response.Error)
+		c.Logger(Receive, response.ID, elapsed, request.Method, response.Result, response.Error)
 		// is it an error response?
 		if response.Error != nil {
 			return response.Error
