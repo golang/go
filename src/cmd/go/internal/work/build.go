@@ -283,6 +283,8 @@ func runBuild(cmd *base.Command, args []string) {
 
 	pkgs := load.PackagesForBuild(args)
 
+	explicitO := len(cfg.BuildO) > 0
+
 	if len(pkgs) == 1 && pkgs[0].Name == "main" && cfg.BuildO == "" {
 		cfg.BuildO = load.DefaultExecName(pkgs[0].ImportPath)
 		cfg.BuildO += cfg.ExeSuffix
@@ -320,6 +322,9 @@ func runBuild(cmd *base.Command, args []string) {
 		// write all main packages to that directory.
 		// Otherwise require only a single package be built.
 		if fi, err := os.Stat(cfg.BuildO); err == nil && fi.IsDir() {
+			if !explicitO {
+				base.Fatalf("go build: build output %q already exists and is a directory", cfg.BuildO)
+			}
 			a := &Action{Mode: "go build"}
 			for _, p := range pkgs {
 				if p.Name != "main" {
