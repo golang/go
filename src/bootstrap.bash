@@ -72,6 +72,7 @@ if [ "$goos" = "$gohostos" -a "$goarch" = "$gohostarch" ]; then
 	# prepare a clean toolchain for others.
 	true
 else
+	rm bin/go_${goos}_${goarch}_exec
 	mv bin/*_*/* bin
 	rmdir bin/*_*
 	rm -rf "pkg/${gohostos}_${gohostarch}" "pkg/tool/${gohostos}_${gohostarch}"
