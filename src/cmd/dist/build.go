@@ -657,7 +657,11 @@ func runInstall(dir string, ch chan struct{}) {
 		if elem == "go" {
 			elem = "go_bootstrap"
 		}
-		link = []string{pathf("%s/link", tooldir), "-o", pathf("%s/%s%s", tooldir, elem, exe)}
+		link = []string{pathf("%s/link", tooldir)}
+		if goos == "android" {
+			link = append(link, "-buildmode=pie")
+		}
+		link = append(link, "-o", pathf("%s/%s%s", tooldir, elem, exe))
 		targ = len(link) - 1
 	}
 	ttarg := mtime(link[targ])
@@ -861,6 +865,9 @@ func runInstall(dir string, ch chan struct{}) {
 		// the exact details. For bootstrapping, just tell the
 		// compiler to generate ABI wrappers for everything.
 		compile = append(compile, "-allabis")
+	}
+	if goos == "android" {
+		compile = append(compile, "-shared")
 	}
 
 	compile = append(compile, gofiles...)
