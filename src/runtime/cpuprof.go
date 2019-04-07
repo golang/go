@@ -179,7 +179,7 @@ func (p *cpuProfile) addLostAtomic64(count uint64) {
 // The details of generating that format have changed,
 // so this functionality has been removed.
 //
-// Deprecated: use the runtime/pprof package,
+// Deprecated: Use the runtime/pprof package,
 // or the handlers in the net/http/pprof package,
 // or the testing package's -test.cpuprofile flag instead.
 func CPUProfile() []byte {
