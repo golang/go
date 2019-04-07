@@ -91,7 +91,8 @@ func removeAllFrom(parent *File, base string) error {
 	// Remove the directory's entries.
 	var recurseErr error
 	for {
-		const request = 1024
+		const reqSize = 1024
+		var respSize int
 
 		// Open the directory to recurse into
 		file, err := openFdAt(parentFd, base)
@@ -103,23 +104,37 @@ func removeAllFrom(parent *File, base string) error {
 			break
 		}
 
-		names, readErr := file.Readdirnames(request)
-		// Errors other than EOF should stop us from continuing.
-		if readErr != nil && readErr != io.EOF {
-			file.Close()
-			if IsNotExist(readErr) {
-				return nil
-			}
-			return &PathError{"readdirnames", base, readErr}
-		}
+		for {
+			numErr := 0
 
-		for _, name := range names {
-			err := removeAllFrom(file, name)
-			if err != nil {
-				if pathErr, ok := err.(*PathError); ok {
-					pathErr.Path = base + string(PathSeparator) + pathErr.Path
+			names, readErr := file.Readdirnames(reqSize)
+			// Errors other than EOF should stop us from continuing.
+			if readErr != nil && readErr != io.EOF {
+				file.Close()
+				if IsNotExist(readErr) {
+					return nil
 				}
-				recurseErr = err
+				return &PathError{"readdirnames", base, readErr}
+			}
+
+			respSize = len(names)
+			for _, name := range names {
+				err := removeAllFrom(file, name)
+				if err != nil {
+					if pathErr, ok := err.(*PathError); ok {
+						pathErr.Path = base + string(PathSeparator) + pathErr.Path
+					}
+					numErr++
+					if recurseErr == nil {
+						recurseErr = err
+					}
+				}
+			}
+
+			// If we can delete any entry, break to start new iteration.
+			// Otherwise, we discard current names, get next entries and try deleting them.
+			if numErr != reqSize {
+				break
 			}
 		}
 
@@ -131,13 +146,14 @@ func removeAllFrom(parent *File, base string) error {
 		file.Close()
 
 		// Finish when the end of the directory is reached
-		if len(names) < request {
+		if respSize < reqSize {
 			break
 		}
 	}
 
 	// Remove the directory itself.
 	unlinkError := unix.Unlinkat(parentFd, base, unix.AT_REMOVEDIR)
+	unlinkError = removeAllTestHook(unlinkError)
 	if unlinkError == nil || IsNotExist(unlinkError) {
 		return nil
 	}

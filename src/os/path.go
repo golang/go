@@ -58,6 +58,9 @@ func MkdirAll(path string, perm FileMode) error {
 	return nil
 }
 
+// removeAllTestHook is a hook for testing.
+var removeAllTestHook = func(err error) error { return err }
+
 // RemoveAll removes path and any children it contains.
 // It removes everything it can but returns the first error
 // it encounters. If the path does not exist, RemoveAll
