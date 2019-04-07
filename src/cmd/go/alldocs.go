@@ -1285,7 +1285,10 @@
 // line. If a package test fails, go test prints the full test output.
 // If invoked with the -bench or -v flag, go test prints the full
 // output even for passing package tests, in order to display the
-// requested benchmark results or verbose logging.
+// requested benchmark results or verbose logging. After the package
+// tests for all of the listed packages finish, and their output is
+// printed, go test prints a final 'FAIL' status if any package test
+// has failed.
 //
 // In package list mode only, go test caches successful package test
 // results to avoid unnecessary repeated running of tests. When the

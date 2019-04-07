@@ -102,7 +102,10 @@ package test passes, go test prints only the final 'ok' summary
 line. If a package test fails, go test prints the full test output.
 If invoked with the -bench or -v flag, go test prints the full
 output even for passing package tests, in order to display the
-requested benchmark results or verbose logging.
+requested benchmark results or verbose logging. After the package
+tests for all of the listed packages finish, and their output is
+printed, go test prints a final 'FAIL' status if any package test
+has failed.
 
 In package list mode only, go test caches successful package test
 results to avoid unnecessary repeated running of tests. When the
@@ -735,7 +738,7 @@ func runTest(cmd *base.Command, args []string) {
 	}
 
 	// Ultimately the goal is to print the output.
-	root := &work.Action{Mode: "go test", Deps: prints}
+	root := &work.Action{Mode: "go test", Func: printExitStatus, Deps: prints}
 
 	// Force the printing of results to happen in order,
 	// one at a time.
@@ -1630,5 +1633,16 @@ func builderNoTest(b *work.Builder, a *work.Action) error {
 		stdout = json
 	}
 	fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", a.Package.ImportPath)
+	return nil
+}
+
+// printExitStatus is the action for printing the exit status
+func printExitStatus(b *work.Builder, a *work.Action) error {
+	if !testJSON && len(pkgArgs) != 0 {
+		if base.GetExitStatus() != 0 {
+			fmt.Println("FAIL")
+			return nil
+		}
+	}
 	return nil
 }
