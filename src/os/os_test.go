@@ -1185,7 +1185,7 @@ func TestChdirAndGetwd(t *testing.T) {
 	// /usr/bin does not usually exist on Plan 9 or Android.
 	switch runtime.GOOS {
 	case "android":
-		dirs = []string{"/", "/system/bin"}
+		dirs = []string{"/system/bin"}
 	case "plan9":
 		dirs = []string{"/", "/usr"}
 	case "darwin":
