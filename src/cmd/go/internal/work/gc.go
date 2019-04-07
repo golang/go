@@ -21,6 +21,7 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"crypto/sha1"
 )
 
@@ -525,7 +526,13 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	// Store BuildID inside toolchain binaries as a unique identifier of the
 	// tool being run, for use by content-based staleness determination.
 	if root.Package.Goroot && strings.HasPrefix(root.Package.ImportPath, "cmd/") {
-		ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.buildID)
+		// When buildmode=pie, external linking will include our build
+		// id in the external linker's build id, which will cause our
+		// build id to not match the next time the tool is built.
+		// Rely on the external build id instead.
+		if ldBuildmode != "pie" || !sys.PIEDefaultsToExternalLink(cfg.Goos, cfg.Goarch) {
+			ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.buildID)
+		}
 	}
 
 	// If the user has not specified the -extld option, then specify the
