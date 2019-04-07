@@ -256,8 +256,8 @@ func determineLinkMode(ctxt *Link) {
 				ctxt.LinkMode = LinkExternal
 			} else if iscgo && externalobj {
 				ctxt.LinkMode = LinkExternal
-			} else if ctxt.BuildMode == BuildModePIE {
-				ctxt.LinkMode = LinkExternal // https://golang.org/issue/18968
+			} else if ctxt.BuildMode == BuildModePIE && sys.PIEDefaultsToExternalLink(objabi.GOOS, objabi.GOARCH) {
+				ctxt.LinkMode = LinkExternal
 			} else {
 				ctxt.LinkMode = LinkInternal
 			}
