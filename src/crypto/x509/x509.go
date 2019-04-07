@@ -2278,7 +2278,7 @@ type CertificateRequest struct {
 	// Attributes contains the CSR attributes that can parse as
 	// pkix.AttributeTypeAndValueSET.
 	//
-	// Deprecated: use Extensions and ExtraExtensions instead for parsing and
+	// Deprecated: Use Extensions and ExtraExtensions instead for parsing and
 	// generating the requestedExtensions attribute.
 	Attributes []pkix.AttributeTypeAndValueSET
 
