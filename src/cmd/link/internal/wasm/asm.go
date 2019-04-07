@@ -297,18 +297,18 @@ func writeTableSec(ctxt *ld.Link, fns []*wasmFunc) {
 }
 
 // writeMemorySec writes the section that declares linear memories. Currently one linear memory is being used.
+// Linear memory always starts at address zero. More memory can be requested with the GrowMemory instruction.
 func writeMemorySec(ctxt *ld.Link) {
 	sizeOffset := writeSecHeader(ctxt, sectionMemory)
 
-	// Linear memory always starts at address zero.
-	// The unit of the sizes is "WebAssembly page size", which is 64Ki.
-	// The minimum is currently set to 1GB, which is a lot.
-	// More memory can be requested with the grow_memory instruction,
-	// but this operation currently is rather slow, so we avoid it for now.
-	// TODO(neelance): Use lower initial memory size.
-	writeUleb128(ctxt.Out, 1)       // number of memories
-	ctxt.Out.WriteByte(0x00)        // no maximum memory size
-	writeUleb128(ctxt.Out, 1024*16) // minimum (initial) memory size
+	const (
+		initialSize  = 16 << 20 // 16MB, enough for runtime init without growing
+		wasmPageSize = 64 << 10 // 64KB
+	)
+
+	writeUleb128(ctxt.Out, 1)                        // number of memories
+	ctxt.Out.WriteByte(0x00)                         // no maximum memory size
+	writeUleb128(ctxt.Out, initialSize/wasmPageSize) // minimum (initial) memory size
 
 	writeSecSize(ctxt, sizeOffset)
 }
