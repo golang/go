@@ -10,6 +10,7 @@ import (
 	"cmd/go/internal/module"
 	"cmd/go/internal/semver"
 	"cmd/go/internal/str"
+	"errors"
 	"fmt"
 	pathpkg "path"
 	"strings"
@@ -253,4 +254,68 @@ func QueryPackage(path, query string, allowed func(module.Version) bool) (module
 	}
 
 	return module.Version{}, nil, finalErr
+}
+
+// QueryPattern looks up a module with at least one package matching the
+// given pattern at the given version. It returns a list of matched packages
+// and information about the module.
+//
+// QueryPattern queries modules with package paths up to the first "..."
+// in the pattern. For the pattern "example.com/a/b.../c", QueryPattern would
+// consider prefixes of "example.com/a". If multiple modules have versions
+// that match the query and packages that match the pattern, QueryPattern
+// picks the one with the longest module path.
+func QueryPattern(pattern string, query string, allowed func(module.Version) bool) ([]string, module.Version, *modfetch.RevInfo, error) {
+	i := strings.Index(pattern, "...")
+	if i < 0 {
+		m, info, err := QueryPackage(pattern, query, allowed)
+		if err != nil {
+			return nil, module.Version{}, nil, err
+		} else {
+			return []string{pattern}, m, info, nil
+		}
+	}
+	base := pathpkg.Dir(pattern[:i+3])
+
+	// Return the most specific error for the longest module path.
+	const (
+		errNoModule  = 0
+		errNoVersion = 1
+		errNoMatch   = 2
+	)
+	errLevel := errNoModule
+	finalErr := errors.New("cannot find module matching pattern")
+
+	for p := base; p != "." && p != "/"; p = pathpkg.Dir(p) {
+		info, err := Query(p, query, allowed)
+		if err != nil {
+			if _, ok := err.(*codehost.VCSError); ok {
+				// A VCSError means we know where to find the code,
+				// we just can't. Abort search.
+				return nil, module.Version{}, nil, err
+			}
+			if errLevel < errNoVersion {
+				errLevel = errNoVersion
+				finalErr = err
+			}
+			continue
+		}
+		m := module.Version{Path: p, Version: info.Version}
+		// matchPackages also calls fetch but treats errors as fatal, so we
+		// fetch here first.
+		_, _, err = fetch(m)
+		if err != nil {
+			return nil, module.Version{}, nil, err
+		}
+		pkgs := matchPackages(pattern, anyTags, false, []module.Version{m})
+		if len(pkgs) > 0 {
+			return pkgs, m, info, nil
+		}
+		if errLevel < errNoMatch {
+			errLevel = errNoMatch
+			finalErr = fmt.Errorf("no matching packages in module %s@%s", m.Path, m.Version)
+		}
+	}
+
+	return nil, module.Version{}, nil, finalErr
 }

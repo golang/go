@@ -351,15 +351,18 @@ func runGet(cmd *base.Command, args []string) {
 			match := search.MatchPattern(path)
 			matched := false
 			for _, m := range modload.BuildList() {
+				// TODO(bcmills): Patterns that don't contain the module path but do
+				// contain partial package paths will not match here. For example,
+				// ...html/... would not match html/template or golang.org/x/net/html.
+				// Related golang.org/issue/26902.
 				if match(m.Path) || str.HasPathPrefix(path, m.Path) {
 					tasks = append(tasks, &task{arg: arg, path: m.Path, vers: vers, prevM: m, forceModulePath: true})
 					matched = true
 				}
 			}
 			// If matched, we're done.
-			// Otherwise assume pattern is inside a single module
-			// (golang.org/x/text/unicode/...) and leave for usual lookup.
-			// Unless we're using -m.
+			// If we're using -m, report an error.
+			// Otherwise, look up a module containing packages that match the pattern.
 			if matched {
 				continue
 			}
@@ -367,7 +370,10 @@ func runGet(cmd *base.Command, args []string) {
 				base.Errorf("go get %s: pattern matches no modules in build list", arg)
 				continue
 			}
+			tasks = append(tasks, &task{arg: arg, path: path, vers: vers})
+			continue
 		}
+
 		t := &task{arg: arg, path: path, vers: vers}
 		if vers == "patch" {
 			if *getM {
@@ -605,7 +611,7 @@ func runGet(cmd *base.Command, args []string) {
 			if p.Error != nil {
 				if len(args) == 0 && getU != "" && strings.HasPrefix(p.Error.Err, "no Go files") {
 					// Upgrading modules: skip the implicitly-requested package at the
-					// current directory, even if it is not tho module root.
+					// current directory, even if it is not the module root.
 					continue
 				}
 				if strings.Contains(p.Error.Err, "cannot find module providing") && modload.ModuleInfo(p.ImportPath) != nil {
@@ -644,14 +650,22 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
 		}
 	}
 
-	// First choice is always to assume path is a module path.
-	// If that works out, we're done.
+	// If the path has a wildcard, search for a module that matches the pattern.
+	if strings.Contains(path, "...") {
+		if forceModulePath {
+			panic("forceModulePath is true for path with wildcard " + path)
+		}
+		_, m, _, err := modload.QueryPattern(path, vers, modload.Allowed)
+		return m, err
+	}
+
+	// Try interpreting the path as a module path.
 	info, err := modload.Query(path, vers, modload.Allowed)
 	if err == nil {
 		return module.Version{Path: path, Version: info.Version}, nil
 	}
 
-	// Even if the query fails, if the path must be a real module, then report the query error.
+	// If the query fails, and the path must be a real module, report the query error.
 	if forceModulePath || *getM {
 		return module.Version{}, err
 	}

@@ -1,0 +1,33 @@
+env GO111MODULE=on
+
+# If a pattern doesn't match any modules in the build list,
+# and -m is used, an error should be reported.
+cp go.mod.orig go.mod
+! go get -m rsc.io/quote/...
+stderr 'pattern matches no modules in build list'
+
+# If a pattern doesn't match any modules in the build list,
+# we assume the pattern matches a single module where the
+# part of the pattern before "..." is the module path.
+cp go.mod.orig go.mod
+go get -d rsc.io/quote/...
+grep 'require rsc.io/quote' go.mod
+
+cp go.mod.orig go.mod
+! go get -d rsc.io/quote/x...
+stderr 'go get rsc.io/quote/x...: no matching packages in module rsc.io/quote@v1.5.2'
+! grep 'require rsc.io/quote' go.mod
+
+! go get -d rsc.io/quote/x/...
+stderr 'go get rsc.io/quote/x/...: no matching packages in module rsc.io/quote@v1.5.2'
+! grep 'require rsc.io/quote' go.mod
+
+-- go.mod.orig --
+module m
+
+go 1.13
+
+-- use/use.go --
+package use
+
+import _ "rsc.io/quote"
