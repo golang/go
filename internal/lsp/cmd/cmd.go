@@ -114,8 +114,9 @@ func (app *Application) Run(ctx context.Context, args ...string) error {
 func (app *Application) commands() []tool.Application {
 	return []tool.Application{
 		&app.Serve,
-		&query{app: app},
 		&check{app: app},
+		&format{app: app},
+		&query{app: app},
 	}
 }
 

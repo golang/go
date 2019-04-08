@@ -7,7 +7,6 @@ package cmd_test
 import (
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/packages/packagestest"
@@ -43,10 +42,6 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, items tests.Co
 	//TODO: add command line completions tests when it works
 }
 
-func (r *runner) Format(t *testing.T, data tests.Formats) {
-	//TODO: add command line formatting tests when it works
-}
-
 func (r *runner) Highlight(t *testing.T, data tests.Highlights) {
 	//TODO: add command line highlight tests when it works
 }
@@ -76,5 +71,5 @@ func captureStdOut(t testing.TB, f func()) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return strings.TrimSpace(string(data))
+	return string(data)
 }
