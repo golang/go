@@ -469,10 +469,17 @@ var HelpEnvironment = &base.Command{
 	Short:     "environment variables",
 	Long: `
 
-The go command, and the tools it invokes, examine a few different
-environment variables. For many of these, you can see the default
-value of on your system by running 'go env NAME', where NAME is the
-name of the variable.
+The go command and the tools it invokes consult environment variables
+for configuration. If an environment variable is unset, the go command
+uses a sensible default setting. To see the effective setting of the
+variable <NAME>, run 'go env <NAME>'. To change the default setting,
+run 'go env -w <NAME>=<VALUE>'. Defaults changed using 'go env -w'
+are recorded in a Go environment configuration file stored in the
+per-user configuration directory, as reported by os.UserConfigDir.
+The location of the configuration file can be changed by setting
+the environment variable GOENV, and 'go env GOENV' prints the
+effective location, but 'go env -w' cannot change the default location.
+See 'go help env' for details.
 
 General-purpose environment variables:
 
@@ -486,10 +493,15 @@ General-purpose environment variables:
 	GOCACHE
 		The directory where the go command will store cached
 		information for reuse in future builds.
+	GOENV
+		The location of the Go environment configuration file.
+		Cannot be set using 'go env -w'.
 	GOFLAGS
 		A space-separated list of -flag=value settings to apply
 		to go commands by default, when the given flag is known by
-		the current command. Flags listed on the command line
+		the current command. Each entry must be a standalone flag.
+		Because the entries are space-separated, flag values must
+		not contain spaces. Flags listed on the command line
 		are applied after this list and therefore override it.
 	GOOS
 		The operating system for which to compile code.
@@ -498,21 +510,18 @@ General-purpose environment variables:
 		For more details see: 'go help gopath'.
 	GOPROXY
 		URL of Go module proxy. See 'go help goproxy'.
-	GORACE
-		Options for the race detector.
-		See https://golang.org/doc/articles/race_detector.html.
 	GOROOT
 		The root of the go tree.
 	GOTMPDIR
 		The directory where the go command will write
 		temporary source files, packages, and binaries.
 
-Each entry in the GOFLAGS list must be a standalone flag.
-Because the entries are space-separated, flag values must
-not contain spaces.
-
 Environment variables for use with cgo:
 
+	AR
+		The command to use to manipulate library archives when
+		building with the gccgo compiler.
+		The default is 'ar'.
 	CC
 		The command to use to compile C code.
 	CGO_ENABLED
@@ -542,12 +551,10 @@ Environment variables for use with cgo:
 		but for the linker.
 	CXX
 		The command to use to compile C++ code.
+	FC
+		The command to use to compile Fortran code.
 	PKG_CONFIG
 		Path to pkg-config tool.
-	AR
-		The command to use to manipulate library archives when
-		building with the gccgo compiler.
-		The default is 'ar'.
 
 Architecture-specific environment variables:
 
@@ -582,9 +589,11 @@ Special-purpose environment variables:
 		when using -linkmode=auto with code that uses cgo.
 		Set to 0 to disable external linking mode, 1 to enable it.
 	GIT_ALLOW_PROTOCOL
-		Defined by Git. A colon-separated list of schemes that are allowed to be used
-		with git fetch/clone. If set, any scheme not explicitly mentioned will be
-		considered insecure by 'go get'.
+		Defined by Git. A colon-separated list of schemes that are allowed
+		to be used with git fetch/clone. If set, any scheme not explicitly
+		mentioned will be considered insecure by 'go get'.
+		Because the variable is defined by Git, the default value cannot
+		be set using 'go env -w'.
 
 Additional information available from 'go env' but not read from the environment:
 

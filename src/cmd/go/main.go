@@ -122,8 +122,14 @@ func main() {
 				os.Exit(2)
 			}
 			if !filepath.IsAbs(p) {
-				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
-				os.Exit(2)
+				if cfg.Getenv("GOPATH") == "" {
+					// We inferred $GOPATH from $HOME and did a bad job at it.
+					// Instead of dying, uninfer it.
+					cfg.BuildContext.GOPATH = ""
+				} else {
+					fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
+					os.Exit(2)
+				}
 			}
 		}
 	}

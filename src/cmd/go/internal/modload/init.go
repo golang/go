@@ -6,6 +6,18 @@ package modload
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
+	"go/build"
+	"internal/lazyregexp"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
+	"runtime/debug"
+	"strconv"
+	"strings"
+
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
@@ -18,17 +30,6 @@ import (
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/renameio"
 	"cmd/go/internal/search"
-	"encoding/json"
-	"fmt"
-	"go/build"
-	"internal/lazyregexp"
-	"io/ioutil"
-	"os"
-	"path"
-	"path/filepath"
-	"runtime/debug"
-	"strconv"
-	"strings"
 )
 
 var (
@@ -90,7 +91,7 @@ func Init() {
 	}
 	initialized = true
 
-	env := os.Getenv("GO111MODULE")
+	env := cfg.Getenv("GO111MODULE")
 	switch env {
 	default:
 		base.Fatalf("go: unknown environment setting GO111MODULE=%s", env)
@@ -294,7 +295,7 @@ func die() {
 	if printStackInDie {
 		debug.PrintStack()
 	}
-	if os.Getenv("GO111MODULE") == "off" {
+	if cfg.Getenv("GO111MODULE") == "off" {
 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
 	}
 	if inGOPATH && !mustUseModules {

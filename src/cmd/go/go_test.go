@@ -6,8 +6,6 @@ package main_test
 
 import (
 	"bytes"
-	"cmd/go/internal/cache"
-	"cmd/internal/sys"
 	"context"
 	"debug/elf"
 	"debug/macho"
@@ -28,6 +26,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"cmd/go/internal/cache"
+	"cmd/go/internal/cfg"
+	"cmd/internal/sys"
 )
 
 var (
@@ -119,6 +121,8 @@ var testCtx = context.Background()
 // The TestMain function creates a go command for testing purposes and
 // deletes it after the tests have been run.
 func TestMain(m *testing.M) {
+	// $GO_GCFLAGS a compiler debug flag known to cmd/dist, make.bash, etc.
+	// It is not a standard go command flag; use os.Getenv, not cfg.Getenv.
 	if os.Getenv("GO_GCFLAGS") != "" {
 		fmt.Fprintf(os.Stderr, "testing: warning: no tests to run\n") // magic string for cmd/go
 		fmt.Printf("cmd/go test is not compatible with $GO_GCFLAGS being set\n")
@@ -256,6 +260,7 @@ func TestMain(m *testing.M) {
 		}
 	}
 	// Don't let these environment variables confuse the test.
+	os.Setenv("GOENV", "off")
 	os.Unsetenv("GOBIN")
 	os.Unsetenv("GOPATH")
 	os.Unsetenv("GIT_ALLOW_PROTOCOL")
@@ -264,7 +269,7 @@ func TestMain(m *testing.M) {
 	// Setting HOME to a non-existent directory will break
 	// those systems. Disable ccache and use real compiler. Issue 17668.
 	os.Setenv("CCACHE_DISABLE", "1")
-	if os.Getenv("GOCACHE") == "" {
+	if cfg.Getenv("GOCACHE") == "" {
 		os.Setenv("GOCACHE", testGOCACHE) // because $HOME is gone
 	}
 
@@ -5258,7 +5263,7 @@ func TestCacheVet(t *testing.T) {
 	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
 		t.Skip("GODEBUG gocacheverify")
 	}
-	if os.Getenv("GOCACHE") == "off" {
+	if cfg.Getenv("GOCACHE") == "off" {
 		tooSlow(t)
 		tg.makeTempdir()
 		tg.setenv("GOCACHE", tg.path("cache"))

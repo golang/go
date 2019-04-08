@@ -136,6 +136,9 @@ that can be blocked in system calls on behalf of Go code; those do not count aga
 the GOMAXPROCS limit. This package's GOMAXPROCS function queries and changes
 the limit.
 
+The GORACE variable configures the race detector, for programs built using -race.
+See https://golang.org/doc/articles/race_detector.html for details.
+
 The GOTRACEBACK variable controls the amount of output generated when a Go
 program fails due to an unrecovered panic or an unexpected runtime condition.
 By default, a failure prints a stack trace for the current goroutine,
