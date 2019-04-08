@@ -99,9 +99,7 @@ func Init() {
 	case "on", "":
 		mustUseModules = true
 	case "off":
-		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
-		mustUseModules = false
-		return
+		die()
 	}
 
 	// Disable any prompting for passwords by Git.
