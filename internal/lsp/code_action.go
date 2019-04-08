@@ -81,7 +81,7 @@ func organizeImports(ctx context.Context, v source.View, s span.Span) (*protocol
 	if err != nil {
 		return nil, err
 	}
-	protocolEdits, err := toProtocolEdits(m, edits)
+	protocolEdits, err := ToProtocolEdits(m, edits)
 	if err != nil {
 		return nil, err
 	}

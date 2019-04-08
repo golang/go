@@ -38,9 +38,6 @@ func ToUnified(from, to string, lines []string, ops []*Op) Unified {
 	if len(ops) == 0 {
 		return u
 	}
-	if lines[len(lines)-1] == "" {
-		lines = lines[:len(lines)-1]
-	}
 	var h *Hunk
 	last := -(gap + 2)
 	for _, op := range ops {

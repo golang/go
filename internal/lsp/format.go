@@ -31,10 +31,10 @@ func formatRange(ctx context.Context, v source.View, s span.Span) ([]protocol.Te
 	if err != nil {
 		return nil, err
 	}
-	return toProtocolEdits(m, edits)
+	return ToProtocolEdits(m, edits)
 }
 
-func toProtocolEdits(m *protocol.ColumnMapper, edits []source.TextEdit) ([]protocol.TextEdit, error) {
+func ToProtocolEdits(m *protocol.ColumnMapper, edits []source.TextEdit) ([]protocol.TextEdit, error) {
 	if edits == nil {
 		return nil, nil
 	}
@@ -46,6 +46,24 @@ func toProtocolEdits(m *protocol.ColumnMapper, edits []source.TextEdit) ([]proto
 		}
 		result[i] = protocol.TextEdit{
 			Range:   rng,
+			NewText: edit.NewText,
+		}
+	}
+	return result, nil
+}
+
+func FromProtocolEdits(m *protocol.ColumnMapper, edits []protocol.TextEdit) ([]source.TextEdit, error) {
+	if edits == nil {
+		return nil, nil
+	}
+	result := make([]source.TextEdit, len(edits))
+	for i, edit := range edits {
+		spn, err := m.RangeSpan(edit.Range)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = source.TextEdit{
+			Span:    spn,
 			NewText: edit.NewText,
 		}
 	}

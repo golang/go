@@ -20,6 +20,7 @@ import (
 
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
+	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/xlog"
@@ -413,17 +414,18 @@ func (f formats) test(t *testing.T, s *Server) {
 			}
 			continue
 		}
-		f, m, err := newColumnMap(ctx, s.findView(ctx, uri), uri)
+		_, m, err := newColumnMap(ctx, s.findView(ctx, uri), uri)
 		if err != nil {
 			t.Error(err)
 		}
-		buf, err := applyEdits(m, f.GetContent(context.Background()), edits)
+		sedits, err := FromProtocolEdits(m, edits)
 		if err != nil {
 			t.Error(err)
 		}
-		got := string(buf)
+		ops := source.EditsToDiff(sedits)
+		got := strings.Join(diff.ApplyEdits(diff.SplitLines(string(m.Content)), ops), "")
 		if gofmted != got {
-			t.Errorf("format failed for %s: expected '%v', got '%v'", filename, gofmted, got)
+			t.Errorf("format failed for %s, expected:\n%v\ngot:\n%v", filename, gofmted, got)
 		}
 	}
 }
@@ -659,27 +661,4 @@ func TestBytesOffset(t *testing.T) {
 			t.Errorf("want %d for %q(Line:%d,Character:%d), but got %d", test.want, test.text, int(test.pos.Line), int(test.pos.Character), got.Offset())
 		}
 	}
-}
-
-func applyEdits(m *protocol.ColumnMapper, content []byte, edits []protocol.TextEdit) ([]byte, error) {
-	prev := 0
-	result := make([]byte, 0, len(content))
-	for _, edit := range edits {
-		spn, err := m.RangeSpan(edit.Range)
-		if err != nil {
-			return nil, err
-		}
-		offset := spn.Start().Offset()
-		if offset > prev {
-			result = append(result, content[prev:offset]...)
-		}
-		if len(edit.NewText) > 0 {
-			result = append(result, []byte(edit.NewText)...)
-		}
-		prev = spn.End().Offset()
-	}
-	if prev < len(content) {
-		result = append(result, content[prev:]...)
-	}
-	return result, nil
 }

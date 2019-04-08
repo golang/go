@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package diff
+package diff_test
 
 import (
 	"flag"
@@ -13,6 +13,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/internal/lsp/diff"
 )
 
 const (
@@ -26,22 +28,22 @@ var verifyDiff = flag.Bool("verify-diff", false, "Check that the unified diff ou
 func TestDiff(t *testing.T) {
 	for _, test := range []struct {
 		a, b       string
-		lines      []*Op
-		operations []*Op
+		lines      []*diff.Op
+		operations []*diff.Op
 		unified    string
 		nodiff     bool
 	}{
 		{
 			a:          "A\nB\nC\n",
 			b:          "A\nB\nC\n",
-			operations: []*Op{},
+			operations: []*diff.Op{},
 			unified: `
 `[1:]}, {
 			a: "A\n",
 			b: "B\n",
-			operations: []*Op{
-				&Op{Kind: Delete, I1: 0, I2: 1, J1: 0},
-				&Op{Kind: Insert, Content: []string{"B\n"}, I1: 1, I2: 1, J1: 0},
+			operations: []*diff.Op{
+				&diff.Op{Kind: diff.Delete, I1: 0, I2: 1, J1: 0},
+				&diff.Op{Kind: diff.Insert, Content: []string{"B\n"}, I1: 1, I2: 1, J1: 0},
 			},
 			unified: `
 @@ -1 +1 @@
@@ -50,9 +52,9 @@ func TestDiff(t *testing.T) {
 `[1:]}, {
 			a: "A",
 			b: "B",
-			operations: []*Op{
-				&Op{Kind: Delete, I1: 0, I2: 1, J1: 0},
-				&Op{Kind: Insert, Content: []string{"B"}, I1: 1, I2: 1, J1: 0},
+			operations: []*diff.Op{
+				&diff.Op{Kind: diff.Delete, I1: 0, I2: 1, J1: 0},
+				&diff.Op{Kind: diff.Insert, Content: []string{"B"}, I1: 1, I2: 1, J1: 0},
 			},
 			unified: `
 @@ -1 +1 @@
@@ -63,12 +65,12 @@ func TestDiff(t *testing.T) {
 `[1:]}, {
 			a: "A\nB\nC\nA\nB\nB\nA\n",
 			b: "C\nB\nA\nB\nA\nC\n",
-			operations: []*Op{
-				&Op{Kind: Delete, I1: 0, I2: 1, J1: 0},
-				&Op{Kind: Delete, I1: 1, I2: 2, J1: 0},
-				&Op{Kind: Insert, Content: []string{"B\n"}, I1: 3, I2: 3, J1: 1},
-				&Op{Kind: Delete, I1: 5, I2: 6, J1: 4},
-				&Op{Kind: Insert, Content: []string{"C\n"}, I1: 7, I2: 7, J1: 5},
+			operations: []*diff.Op{
+				&diff.Op{Kind: diff.Delete, I1: 0, I2: 1, J1: 0},
+				&diff.Op{Kind: diff.Delete, I1: 1, I2: 2, J1: 0},
+				&diff.Op{Kind: diff.Insert, Content: []string{"B\n"}, I1: 3, I2: 3, J1: 1},
+				&diff.Op{Kind: diff.Delete, I1: 5, I2: 6, J1: 4},
+				&diff.Op{Kind: diff.Insert, Content: []string{"C\n"}, I1: 7, I2: 7, J1: 5},
 			},
 			unified: `
 @@ -1,7 +1,6 @@
@@ -87,10 +89,10 @@ func TestDiff(t *testing.T) {
 		{
 			a: "A\nB\n",
 			b: "A\nC\n\n",
-			operations: []*Op{
-				&Op{Kind: Delete, I1: 1, I2: 2, J1: 1},
-				&Op{Kind: Insert, Content: []string{"C\n"}, I1: 2, I2: 2, J1: 1},
-				&Op{Kind: Insert, Content: []string{"\n"}, I1: 2, I2: 2, J1: 2},
+			operations: []*diff.Op{
+				&diff.Op{Kind: diff.Delete, I1: 1, I2: 2, J1: 1},
+				&diff.Op{Kind: diff.Insert, Content: []string{"C\n"}, I1: 2, I2: 2, J1: 1},
+				&diff.Op{Kind: diff.Insert, Content: []string{"\n"}, I1: 2, I2: 2, J1: 2},
 			},
 			unified: `
 @@ -1,2 +1,3 @@
@@ -118,9 +120,9 @@ func TestDiff(t *testing.T) {
 +K
 `[1:]},
 	} {
-		a := strings.SplitAfter(test.a, "\n")
-		b := strings.SplitAfter(test.b, "\n")
-		ops := Operations(a, b)
+		a := diff.SplitLines(test.a)
+		b := diff.SplitLines(test.b)
+		ops := diff.Operations(a, b)
 		if test.operations != nil {
 			if len(ops) != len(test.operations) {
 				t.Fatalf("expected %v operations, got %v", len(test.operations), len(ops))
@@ -132,7 +134,7 @@ func TestDiff(t *testing.T) {
 				}
 			}
 		}
-		applied := ApplyEdits(a, ops)
+		applied := diff.ApplyEdits(a, ops)
 		for i, want := range applied {
 			got := b[i]
 			if got != want {
@@ -140,7 +142,7 @@ func TestDiff(t *testing.T) {
 			}
 		}
 		if test.unified != "" {
-			diff := ToUnified(fileA, fileB, a, ops)
+			diff := diff.ToUnified(fileA, fileB, a, ops)
 			got := fmt.Sprint(diff)
 			if !strings.HasPrefix(got, unifiedPrefix) {
 				t.Errorf("expected prefix:\n%s\ngot:\n%s", unifiedPrefix, got)

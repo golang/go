@@ -10,7 +10,6 @@ import (
 	"context"
 	"fmt"
 	"go/format"
-	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
@@ -62,18 +61,7 @@ func Imports(ctx context.Context, f File, rng span.Range) ([]TextEdit, error) {
 }
 
 func computeTextEdits(ctx context.Context, file File, formatted string) (edits []TextEdit) {
-	u := strings.SplitAfter(string(file.GetContent(ctx)), "\n")
-	f := strings.SplitAfter(formatted, "\n")
-	for _, op := range diff.Operations(u, f) {
-		s := span.New(file.URI(), span.NewPoint(op.I1+1, 1, 0), span.NewPoint(op.I2+1, 1, 0))
-		switch op.Kind {
-		case diff.Delete:
-			// Delete: unformatted[i1:i2] is deleted.
-			edits = append(edits, TextEdit{Span: s})
-		case diff.Insert:
-			// Insert: formatted[j1:j2] is inserted at unformatted[i1:i1].
-			edits = append(edits, TextEdit{Span: s, NewText: strings.Join(op.Content, "")})
-		}
-	}
-	return edits
+	u := diff.SplitLines(string(file.GetContent(ctx)))
+	f := diff.SplitLines(formatted)
+	return DiffToEdits(file.URI(), diff.Operations(u, f))
 }

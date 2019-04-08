@@ -5,6 +5,8 @@
 // Package diff implements the Myers diff algorithm.
 package diff
 
+import "strings"
+
 // Sources:
 // https://blog.jcoglan.com/2017/02/17/the-myers-diff-algorithm-part-3/
 // https://www.codeproject.com/Articles/42279/%2FArticles%2F42279%2FInvestigating-Myers-diff-algorithm-Part-1-of-2
@@ -207,4 +209,12 @@ func shortestEditSequence(a, b []string) ([][]int, int) {
 		}
 	}
 	return nil, 0
+}
+
+func SplitLines(text string) []string {
+	lines := strings.SplitAfter(text, "\n")
+	if lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return lines
 }
