@@ -891,10 +891,14 @@ type StringTest struct {
 
 var upperTests = []StringTest{
 	{"", []byte("")},
+	{"ONLYUPPER", []byte("ONLYUPPER")},
 	{"abc", []byte("ABC")},
 	{"AbC123", []byte("ABC123")},
 	{"azAZ09_", []byte("AZAZ09_")},
+	{"longStrinGwitHmixofsmaLLandcAps", []byte("LONGSTRINGWITHMIXOFSMALLANDCAPS")},
+	{"long\u0250string\u0250with\u0250nonascii\u2C6Fchars", []byte("LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS")},
 	{"\u0250\u0250\u0250\u0250\u0250", []byte("\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F")}, // grows one byte per char
+	{"a\u0080\U0010FFFF", []byte("A\u0080\U0010FFFF")},                           // test utf8.RuneSelf and utf8.MaxRune
 }
 
 var lowerTests = []StringTest{
@@ -902,7 +906,10 @@ var lowerTests = []StringTest{
 	{"abc", []byte("abc")},
 	{"AbC123", []byte("abc123")},
 	{"azAZ09_", []byte("azaz09_")},
+	{"longStrinGwitHmixofsmaLLandcAps", []byte("longstringwithmixofsmallandcaps")},
+	{"LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS", []byte("long\u0250string\u0250with\u0250nonascii\u0250chars")},
 	{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", []byte("\u0251\u0251\u0251\u0251\u0251")}, // shrinks one byte per char
+	{"A\u0080\U0010FFFF", []byte("a\u0080\U0010FFFF")},                           // test utf8.RuneSelf and utf8.MaxRune
 }
 
 const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
@@ -1028,6 +1035,34 @@ func TestMap(t *testing.T) {
 func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }
 
 func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
+
+func BenchmarkToUpper(b *testing.B) {
+	for _, tc := range upperTests {
+		tin := []byte(tc.in)
+		b.Run(tc.in, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				actual := ToUpper(tin)
+				if !Equal(actual, tc.out) {
+					b.Errorf("ToUpper(%q) = %q; want %q", tc.in, actual, tc.out)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkToLower(b *testing.B) {
+	for _, tc := range lowerTests {
+		tin := []byte(tc.in)
+		b.Run(tc.in, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				actual := ToLower(tin)
+				if !Equal(actual, tc.out) {
+					b.Errorf("ToLower(%q) = %q; want %q", tc.in, actual, tc.out)
+				}
+			}
+		})
+	}
+}
 
 func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
 
