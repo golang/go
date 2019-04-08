@@ -46,7 +46,7 @@ func testMain(m *testing.M) int {
 
 	androiddir = fmt.Sprintf("/data/local/tmp/testcshared-%d", os.Getpid())
 	if GOOS == "android" {
-		args := append(adbCmd(), "shell", "mkdir", "-p", androiddir)
+		args := append(adbCmd(), "exec-out", "mkdir", "-p", androiddir)
 		cmd := exec.Command(args[0], args[1:]...)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
@@ -191,7 +191,7 @@ func adbRun(t *testing.T, env []string, adbargs ...string) string {
 	if GOOS != "android" {
 		t.Fatalf("trying to run adb command when operating system is not android.")
 	}
-	args := append(adbCmd(), "shell")
+	args := append(adbCmd(), "exec-out")
 	// Propagate LD_LIBRARY_PATH to the adb shell invocation.
 	for _, e := range env {
 		if strings.Index(e, "LD_LIBRARY_PATH=") != -1 {
@@ -298,7 +298,7 @@ func cleanupAndroid() {
 	if GOOS != "android" {
 		return
 	}
-	args := append(adbCmd(), "shell", "rm", "-rf", androiddir)
+	args := append(adbCmd(), "exec-out", "rm", "-rf", androiddir)
 	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
