@@ -30,12 +30,13 @@
 package work
 
 import (
-	"cmd/go/internal/load"
 	"fmt"
 	"internal/lazyregexp"
-	"os"
 	"regexp"
 	"strings"
+
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 )
 
 var re = lazyregexp.New
@@ -229,14 +230,14 @@ func checkFlags(name, source string, list []string, valid []*lazyregexp.Regexp, 
 		allow    *regexp.Regexp
 		disallow *regexp.Regexp
 	)
-	if env := os.Getenv("CGO_" + name + "_ALLOW"); env != "" {
+	if env := cfg.Getenv("CGO_" + name + "_ALLOW"); env != "" {
 		r, err := regexp.Compile(env)
 		if err != nil {
 			return fmt.Errorf("parsing $CGO_%s_ALLOW: %v", name, err)
 		}
 		allow = r
 	}
-	if env := os.Getenv("CGO_" + name + "_DISALLOW"); env != "" {
+	if env := cfg.Getenv("CGO_" + name + "_DISALLOW"); env != "" {
 		r, err := regexp.Compile(env)
 		if err != nil {
 			return fmt.Errorf("parsing $CGO_%s_DISALLOW: %v", name, err)

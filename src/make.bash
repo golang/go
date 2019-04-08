@@ -65,6 +65,7 @@
 
 set -e
 
+export GOENV=off
 unset GOBIN # Issue 14340
 unset GOFLAGS
 unset GO111MODULE
