@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -45,7 +46,7 @@ func testMain(m *testing.M) int {
 	}
 
 	androiddir = fmt.Sprintf("/data/local/tmp/testcshared-%d", os.Getpid())
-	if GOOS == "android" {
+	if runtime.GOOS != GOOS && GOOS == "android" {
 		args := append(adbCmd(), "exec-out", "mkdir", "-p", androiddir)
 		cmd := exec.Command(args[0], args[1:]...)
 		out, err := cmd.CombinedOutput()
@@ -177,7 +178,7 @@ func adbCmd() []string {
 }
 
 func adbPush(t *testing.T, filename string) {
-	if GOOS != "android" {
+	if runtime.GOOS == GOOS || GOOS != "android" {
 		return
 	}
 	args := append(adbCmd(), "push", filename, fmt.Sprintf("%s/%s", androiddir, filename))
@@ -236,7 +237,7 @@ func run(t *testing.T, extraEnv []string, args ...string) string {
 
 func runExe(t *testing.T, extraEnv []string, args ...string) string {
 	t.Helper()
-	if GOOS == "android" {
+	if runtime.GOOS != GOOS && GOOS == "android" {
 		return adbRun(t, append(os.Environ(), extraEnv...), args...)
 	}
 	return run(t, extraEnv, args...)
@@ -268,7 +269,7 @@ func createHeaders() error {
 		return fmt.Errorf("command failed: %v\n%v\n%s\n", args, err, out)
 	}
 
-	if GOOS == "android" {
+	if runtime.GOOS != GOOS && GOOS == "android" {
 		args = append(adbCmd(), "push", libgoname, fmt.Sprintf("%s/%s", androiddir, libgoname))
 		cmd = exec.Command(args[0], args[1:]...)
 		out, err = cmd.CombinedOutput()
