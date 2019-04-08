@@ -136,7 +136,9 @@ nocpuinfo:
 	MOVQ	$setg_gcc<>(SB), SI // arg 2: setg_gcc
 #ifdef GOOS_android
 	MOVQ	$runtime·tls_g(SB), DX 	// arg 3: &tls_g
-	MOVQ	0(TLS), CX	// arg 4: TLS base, stored in the first slot (TLS_SLOT_SELF).
+	// arg 4: TLS base, stored in slot 0 (Android's TLS_SLOT_SELF).
+	// Compensate for tls_g (+16).
+	MOVQ	-16(TLS), CX
 #else
 	MOVQ	$0, DX	// arg 3, 4: not used when using platform's TLS
 	MOVQ	$0, CX
