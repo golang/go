@@ -149,54 +149,34 @@ func (s *Server) Initialize(ctx context.Context, params *protocol.InitializePara
 
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
-			InnerServerCapabilities: protocol.InnerServerCapabilities{
-				CodeActionProvider: true,
-				CompletionProvider: &protocol.CompletionOptions{
-					TriggerCharacters: []string{"."},
-				},
-				DefinitionProvider:              true,
-				DocumentFormattingProvider:      true,
-				DocumentRangeFormattingProvider: true,
-				DocumentSymbolProvider:          true,
-				HoverProvider:                   true,
-				DocumentHighlightProvider:       true,
-				SignatureHelpProvider: &protocol.SignatureHelpOptions{
-					TriggerCharacters: []string{"(", ","},
-				},
-				TextDocumentSync: &protocol.TextDocumentSyncOptions{
-					Change:    s.textDocumentSyncKind,
-					OpenClose: true,
-				},
+			CodeActionProvider: true,
+			CompletionProvider: &protocol.CompletionOptions{
+				TriggerCharacters: []string{"."},
 			},
-			TypeDefinitionServerCapabilities: protocol.TypeDefinitionServerCapabilities{
-				TypeDefinitionProvider: true,
+			DefinitionProvider:              true,
+			DocumentFormattingProvider:      true,
+			DocumentRangeFormattingProvider: true,
+			DocumentSymbolProvider:          true,
+			HoverProvider:                   true,
+			DocumentHighlightProvider:       true,
+			SignatureHelpProvider: &protocol.SignatureHelpOptions{
+				TriggerCharacters: []string{"(", ","},
 			},
+			TextDocumentSync: &protocol.TextDocumentSyncOptions{
+				Change:    s.textDocumentSyncKind,
+				OpenClose: true,
+			},
+			TypeDefinitionProvider: true,
 		},
 	}, nil
 }
 
 func (s *Server) setClientCapabilities(caps protocol.ClientCapabilities) {
 	// Check if the client supports snippets in completion items.
-	if x, ok := caps["textDocument"].(map[string]interface{}); ok {
-		if x, ok := x["completion"].(map[string]interface{}); ok {
-			if x, ok := x["completionItem"].(map[string]interface{}); ok {
-				if x, ok := x["snippetSupport"].(bool); ok {
-					s.snippetsSupported = x
-				}
-			}
-		}
-	}
+	s.snippetsSupported = caps.TextDocument.Completion.CompletionItem.SnippetSupport
 	// Check if the client supports configuration messages.
-	if x, ok := caps["workspace"].(map[string]interface{}); ok {
-		if x, ok := x["configuration"].(bool); ok {
-			s.configurationSupported = x
-		}
-		if x, ok := x["didChangeConfiguration"].(map[string]interface{}); ok {
-			if x, ok := x["dynamicRegistration"].(bool); ok {
-				s.dynamicConfigurationSupported = x
-			}
-		}
-	}
+	s.configurationSupported = caps.Workspace.Configuration
+	s.dynamicConfigurationSupported = caps.Workspace.DidChangeConfiguration.DynamicRegistration
 }
 
 func (s *Server) Initialized(ctx context.Context, params *protocol.InitializedParams) error {
