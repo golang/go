@@ -8,18 +8,18 @@ go mod download example.com/badchain/a@v1.1.0
 go mod download example.com/badchain/b@v1.1.0
 go mod download example.com/badchain/c@v1.1.0
 
-# Try to upgrade example.com/badchain/a (and its dependencies).
+# Try to update example.com/badchain/a (and its dependencies).
 ! go get -u example.com/badchain/a
-cmp stderr upgrade-a-expected
+cmp stderr update-a-expected
 cmp go.mod go.mod.orig
 
-# Try to upgrade the main module. This upgrades everything, including
+# Try to update the main module. This updates everything, including
 # modules that aren't direct requirements, so the error stack is shorter.
 ! go get -u
-cmp stderr upgrade-main-expected
+cmp stderr update-main-expected
 cmp go.mod go.mod.orig
 
-# Upgrade manually. Listing modules should produce an error.
+# update manually. Listing modules should produce an error.
 go mod edit -require=example.com/badchain/a@v1.1.0
 ! go list -m
 cmp stderr list-expected
@@ -28,14 +28,14 @@ cmp stderr list-expected
 module m
 
 require example.com/badchain/a v1.0.0
--- upgrade-main-expected --
-go get: example.com/badchain/c@v1.0.0 ->
+-- update-main-expected --
+go get: example.com/badchain/c@v1.0.0 updating to
 	example.com/badchain/c@v1.1.0: parsing go.mod: unexpected module path "example.com/badchain/wrong"
--- upgrade-a-expected --
-go get: example.com/badchain/a@v1.1.0 ->
-	example.com/badchain/b@v1.1.0 ->
+-- update-a-expected --
+go get: example.com/badchain/a@v1.1.0 requires
+	example.com/badchain/b@v1.1.0 requires
 	example.com/badchain/c@v1.1.0: parsing go.mod: unexpected module path "example.com/badchain/wrong"
 -- list-expected --
-go: example.com/badchain/a@v1.1.0 ->
-	example.com/badchain/b@v1.1.0 ->
+go: example.com/badchain/a@v1.1.0 requires
+	example.com/badchain/b@v1.1.0 requires
 	example.com/badchain/c@v1.1.0: parsing go.mod: unexpected module path "example.com/badchain/wrong"

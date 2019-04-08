@@ -65,33 +65,41 @@ type Reqs interface {
 // while constructing a build list. BuildListError prints the chain
 // of requirements to the module where the error occurred.
 type BuildListError struct {
-	Err   error
-	Stack []module.Version
+	err   error
+	stack []buildListErrorElem
+}
+
+type buildListErrorElem struct {
+	m module.Version
+
+	// nextReason is the reason this module depends on the next module in the
+	// stack. Typically either "requires", or "upgraded to".
+	nextReason string
 }
 
 func (e *BuildListError) Error() string {
 	b := &strings.Builder{}
-	errMsg := e.Err.Error()
-	stack := e.Stack
+	errMsg := e.err.Error()
+	stack := e.stack
 
 	// Don't print modules at the beginning of the chain without a
 	// version. These always seem to be the main module or a
 	// synthetic module ("target@").
-	for len(stack) > 0 && stack[len(stack)-1].Version == "" {
+	for len(stack) > 0 && stack[len(stack)-1].m.Version == "" {
 		stack = stack[:len(stack)-1]
 	}
 
 	// Don't print the last module if the error message already
 	// starts with module path and version.
-	if len(stack) > 0 && strings.HasPrefix(errMsg, fmt.Sprintf("%s@%s: ", stack[0].Path, stack[0].Version)) {
-		// error already mentions module
-		stack = stack[1:]
+	errMentionsLast := len(stack) > 0 && strings.HasPrefix(errMsg, fmt.Sprintf("%s@%s: ", stack[0].m.Path, stack[0].m.Version))
+	for i := len(stack) - 1; i >= 1; i-- {
+		fmt.Fprintf(b, "%s@%s %s\n\t", stack[i].m.Path, stack[i].m.Version, stack[i].nextReason)
 	}
-
-	for i := len(stack) - 1; i >= 0; i-- {
-		fmt.Fprintf(b, "%s@%s ->\n\t", stack[i].Path, stack[i].Version)
+	if errMentionsLast || len(stack) == 0 {
+		b.WriteString(errMsg)
+	} else {
+		fmt.Fprintf(b, "%s@%s: %s", stack[0].m.Path, stack[0].m.Version, errMsg)
 	}
-	b.WriteString(errMsg)
 	return b.String()
 }
 
@@ -168,9 +176,16 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
 			q = q[1:]
 
 			if node.err != nil {
-				err := &BuildListError{Err: node.err}
-				for n := node; n != nil; n = neededBy[n] {
-					err.Stack = append(err.Stack, n.m)
+				err := &BuildListError{
+					err:   node.err,
+					stack: []buildListErrorElem{{m: node.m}},
+				}
+				for n, prev := neededBy[node], node; n != nil; n, prev = neededBy[n], n {
+					reason := "requires"
+					if n.upgrade == prev.m {
+						reason = "updating to"
+					}
+					err.stack = append(err.stack, buildListErrorElem{m: n.m, nextReason: reason})
 				}
 				return nil, err
 			}
