@@ -38,9 +38,9 @@ type jsFile struct {
 
 var filesMu sync.Mutex
 var files = map[int]*jsFile{
-	0: &jsFile{},
-	1: &jsFile{},
-	2: &jsFile{},
+	0: {},
+	1: {},
+	2: {},
 }
 
 func fdToFile(fd int) (*jsFile, error) {
