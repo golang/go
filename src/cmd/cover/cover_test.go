@@ -81,7 +81,7 @@ var debug = flag.Bool("debug", false, "keep rewritten files for debugging")
 // We use TestMain to set up a temporary directory and remove it when
 // the tests are done.
 func TestMain(m *testing.M) {
-	dir, err := ioutil.TempDir("", "gotestcover")
+	dir, err := ioutil.TempDir("", "go-testcover")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
