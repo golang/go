@@ -10,6 +10,9 @@ import (
 )
 
 func toProtocolSignatureHelp(info *source.SignatureInformation) *protocol.SignatureHelp {
+	if info == nil {
+		return &protocol.SignatureHelp{}
+	}
 	return &protocol.SignatureHelp{
 		ActiveParameter: float64(info.ActiveParameter),
 		ActiveSignature: 0, // there is only ever one possible signature

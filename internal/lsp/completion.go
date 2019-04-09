@@ -33,7 +33,8 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}
 	items, prefix, err := source.Completion(ctx, f, rng.Start)
 	if err != nil {
-		return nil, err
+		s.log.Infof(ctx, "no completions found for %s:%v:%v", uri, int(params.Position.Line), int(params.Position.Character))
+		items = []source.CompletionItem{}
 	}
 	return &protocol.CompletionList{
 		IsIncomplete: false,

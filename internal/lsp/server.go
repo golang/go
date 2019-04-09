@@ -395,7 +395,7 @@ func (s *Server) SignatureHelp(ctx context.Context, params *protocol.TextDocumen
 	}
 	info, err := source.SignatureHelp(ctx, f, rng.Start)
 	if err != nil {
-		return nil, err
+		s.log.Infof(ctx, "no signature help for %s:%v:%v", uri, int(params.Position.Line), int(params.Position.Character))
 	}
 	return toProtocolSignatureHelp(info), nil
 }
@@ -483,17 +483,14 @@ func (s *Server) DocumentHighlight(ctx context.Context, params *protocol.TextDoc
 	if err != nil {
 		return nil, err
 	}
-
 	spn, err := m.PointSpan(params.Position)
 	if err != nil {
 		return nil, err
 	}
-
 	rng, err := spn.Range(m.Converter)
 	if err != nil {
 		return nil, err
 	}
-
 	spans := source.Highlight(ctx, f, rng.Start)
 	return toProtocolHighlight(m, spans), nil
 }
