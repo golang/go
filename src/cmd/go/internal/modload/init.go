@@ -99,7 +99,8 @@ func Init() {
 	case "on", "":
 		mustUseModules = true
 	case "off":
-		die()
+		mustUseModules = false
+		return
 	}
 
 	// Disable any prompting for passwords by Git.
