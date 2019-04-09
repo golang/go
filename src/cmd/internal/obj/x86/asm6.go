@@ -2345,17 +2345,14 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 	if ctxt.Arch.Family == sys.I386 {
 		if a.Index == REG_TLS && ctxt.Flag_shared {
 			// When building for inclusion into a shared library, an instruction of the form
-			//     MOVL 0(CX)(TLS*1), AX
+			//     MOVL off(CX)(TLS*1), AX
 			// becomes
-			//     mov %gs:(%ecx), %eax
+			//     mov %gs:off(%ecx), %eax
 			// which assumes that the correct TLS offset has been loaded into %ecx (today
 			// there is only one TLS variable -- g -- so this is OK). When not building for
 			// a shared library the instruction it becomes
-			//     mov 0x0(%ecx), $eax
+			//     mov 0x0(%ecx), %eax
 			// and a R_TLS_LE relocation, and so does not require a prefix.
-			if a.Offset != 0 {
-				ctxt.Diag("cannot handle non-0 offsets to TLS")
-			}
 			return 0x65 // GS
 		}
 		return 0
@@ -2374,15 +2371,12 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 	case REG_TLS:
 		if ctxt.Flag_shared && ctxt.Headtype != objabi.Hwindows {
 			// When building for inclusion into a shared library, an instruction of the form
-			//     MOV 0(CX)(TLS*1), AX
+			//     MOV off(CX)(TLS*1), AX
 			// becomes
-			//     mov %fs:(%rcx), %rax
+			//     mov %fs:off(%rcx), %rax
 			// which assumes that the correct TLS offset has been loaded into %rcx (today
 			// there is only one TLS variable -- g -- so this is OK). When not building for
 			// a shared library the instruction does not require a prefix.
-			if a.Offset != 0 {
-				log.Fatalf("cannot handle non-0 offsets to TLS")
-			}
 			return 0x64
 		}
 
