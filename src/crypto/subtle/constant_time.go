@@ -10,10 +10,6 @@ package subtle
 // and 0 otherwise. The time taken is a function of the length of the slices and
 // is independent of the contents.
 func ConstantTimeCompare(x, y []byte) int {
-	if len(x) != len(y) {
-		return 0
-	}
-
 	var v byte
 
 	for i := 0; i < len(x); i++ {
