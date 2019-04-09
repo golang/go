@@ -199,6 +199,18 @@ func TestLastIndex(t *testing.T)    { runIndexTests(t, LastIndex, "LastIndex", l
 func TestIndexAny(t *testing.T)     { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
 func TestLastIndexAny(t *testing.T) { runIndexTests(t, LastIndexAny, "LastIndexAny", lastIndexAnyTests) }
 
+func TestIndexByte(t *testing.T) {
+	for _, tt := range indexTests {
+		if len(tt.sep) != 1 {
+			continue
+		}
+		pos := IndexByte(tt.s, tt.sep[0])
+		if pos != tt.out {
+			t.Errorf(`IndexByte(%q, %q) = %v; want %v`, tt.s, tt.sep[0], pos, tt.out)
+		}
+	}
+}
+
 func TestLastIndexByte(t *testing.T) {
 	testCases := []IndexTest{
 		{"", "q", -1},
