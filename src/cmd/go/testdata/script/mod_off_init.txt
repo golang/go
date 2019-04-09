@@ -4,4 +4,4 @@ env GO111MODULE=off
 # GO111MODULE=off when outside of GOPATH will fatal
 # with an error message.
 ! go mod init
-stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
+stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'''
