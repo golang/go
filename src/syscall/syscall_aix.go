@@ -28,6 +28,11 @@ const (
 	SYS_FCNTL
 )
 
+const (
+	// AF_LOCAL doesn't exist on AIX
+	AF_LOCAL = AF_UNIX
+)
+
 func (ts *StTimespec_t) Unix() (sec int64, nsec int64) {
 	return int64(ts.Sec), int64(ts.Nsec)
 }
@@ -601,6 +606,7 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid), 
 //sys	Geteuid() (euid int)
 //sys	Getegid() (egid int)
 //sys	Getppid() (ppid int)
+//sys	Getpriority(which int, who int) (n int, err error)
 //sysnb	Getrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Getuid() (uid int)
 //sys	Kill(pid int, signum Signal) (err error)
@@ -623,6 +629,7 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid), 
 //sysnb	Seteuid(euid int) (err error)
 //sysnb	Setgid(gid int) (err error)
 //sysnb	Setpgid(pid int, pgid int) (err error)
+//sys	Setpriority(which int, who int, prio int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
 //sysnb	Setrlimit(which int, lim *Rlimit) (err error)
