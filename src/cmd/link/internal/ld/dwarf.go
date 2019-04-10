@@ -2125,9 +2125,9 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 	}
 }
 
-// dwarfcompress compresses the DWARF sections. This must happen after
-// relocations are applied. After this, dwarfp will contain a
-// different (new) set of symbols, and sections may have been replaced.
+// dwarfcompress compresses the DWARF sections. Relocations are applied
+// on the fly. After this, dwarfp will contain a different (new) set of
+// symbols, and sections may have been replaced.
 func dwarfcompress(ctxt *Link) {
 	supported := ctxt.IsELF || ctxt.HeadType == objabi.Hwindows || ctxt.HeadType == objabi.Hdarwin
 	if !ctxt.compressDWARF || !supported || ctxt.LinkMode != LinkInternal {
@@ -2161,6 +2161,7 @@ func dwarfcompress(ctxt *Link) {
 		}
 	}
 	dwarfp = newDwarfp
+	ctxt.relocbuf = nil // no longer needed, don't hold it live
 
 	// Re-compute the locations of the compressed DWARF symbols
 	// and sections, since the layout of these within the file is

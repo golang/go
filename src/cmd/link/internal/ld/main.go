@@ -239,8 +239,8 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.symtab()
 	ctxt.dodata()
 	order := ctxt.address()
-	ctxt.reloc()
 	dwarfcompress(ctxt)
+	ctxt.reloc()
 	filesize := ctxt.layout(order)
 
 	// Write out the output file.

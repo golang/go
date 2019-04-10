@@ -2385,6 +2385,12 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 		log.Fatalf("NewWriterLevel failed: %s", err)
 	}
 	for _, sym := range syms {
+		// sym.P may be read-only. Apply relocations in a
+		// temporary buffer, and immediately write it out.
+		oldP := sym.P
+		ctxt.relocbuf = append(ctxt.relocbuf[:0], sym.P...)
+		sym.P = ctxt.relocbuf
+		relocsym(ctxt, sym)
 		if _, err := z.Write(sym.P); err != nil {
 			log.Fatalf("compression failed: %s", err)
 		}
@@ -2398,6 +2404,14 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 				log.Fatalf("compression failed: %s", err)
 			}
 			i -= int64(n)
+		}
+		// Restore sym.P, for 1. not holding temp buffer live
+		// unnecessarily, 2. if compression is not beneficial,
+		// we'll go back to use the uncompressed contents, in
+		// which case we still need sym.P.
+		sym.P = oldP
+		for i := range sym.R {
+			sym.R[i].Done = false
 		}
 	}
 	if err := z.Close(); err != nil {
