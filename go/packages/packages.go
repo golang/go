@@ -418,8 +418,10 @@ type loaderPackage struct {
 type loader struct {
 	pkgs map[string]*loaderPackage
 	Config
-	sizes    types.Sizes
-	exportMu sync.Mutex // enforces mutual exclusion of exportdata operations
+	sizes        types.Sizes
+	parseCache   map[string]*parseValue
+	parseCacheMu sync.Mutex
+	exportMu     sync.Mutex // enforces mutual exclusion of exportdata operations
 
 	// TODO(matloob): Add an implied mode here and use that instead of mode.
 	// Implied mode would contain all the fields we need the data for so we can
@@ -428,8 +430,16 @@ type loader struct {
 	// where we need certain modes right.
 }
 
+type parseValue struct {
+	f     *ast.File
+	err   error
+	ready chan struct{}
+}
+
 func newLoader(cfg *Config) *loader {
-	ld := &loader{}
+	ld := &loader{
+		parseCache: map[string]*parseValue{},
+	}
 	if cfg != nil {
 		ld.Config = *cfg
 	}
@@ -457,12 +467,8 @@ func newLoader(cfg *Config) *loader {
 		// because we load source if export data is missing.
 		if ld.ParseFile == nil {
 			ld.ParseFile = func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
-				var isrc interface{}
-				if src != nil {
-					isrc = src
-				}
 				const mode = parser.AllErrors | parser.ParseComments
-				return parser.ParseFile(fset, filename, isrc, mode)
+				return parser.ParseFile(fset, filename, src, mode)
 			}
 		}
 	}
@@ -864,6 +870,42 @@ func (f importerFunc) Import(path string) (*types.Package, error) { return f(pat
 // the number of parallel I/O calls per process.
 var ioLimit = make(chan bool, 20)
 
+func (ld *loader) parseFile(filename string) (*ast.File, error) {
+	ld.parseCacheMu.Lock()
+	v, ok := ld.parseCache[filename]
+	if ok {
+		// cache hit
+		ld.parseCacheMu.Unlock()
+		<-v.ready
+	} else {
+		// cache miss
+		v = &parseValue{ready: make(chan struct{})}
+		ld.parseCache[filename] = v
+		ld.parseCacheMu.Unlock()
+
+		var src []byte
+		for f, contents := range ld.Config.Overlay {
+			if sameFile(f, filename) {
+				src = contents
+			}
+		}
+		var err error
+		if src == nil {
+			ioLimit <- true // wait
+			src, err = ioutil.ReadFile(filename)
+			<-ioLimit // signal
+		}
+		if err != nil {
+			v.err = err
+		} else {
+			v.f, v.err = ld.ParseFile(ld.Fset, filename, src)
+		}
+
+		close(v.ready)
+	}
+	return v.f, v.err
+}
+
 // parseFiles reads and parses the Go source files and returns the ASTs
 // of the ones that could be at least partially parsed, along with a
 // list of I/O and parse errors encountered.
@@ -884,24 +926,7 @@ func (ld *loader) parseFiles(filenames []string) ([]*ast.File, []error) {
 		}
 		wg.Add(1)
 		go func(i int, filename string) {
-			ioLimit <- true // wait
-			// ParseFile may return both an AST and an error.
-			var src []byte
-			for f, contents := range ld.Config.Overlay {
-				if sameFile(f, filename) {
-					src = contents
-				}
-			}
-			var err error
-			if src == nil {
-				src, err = ioutil.ReadFile(filename)
-			}
-			if err != nil {
-				parsed[i], errors[i] = nil, err
-			} else {
-				parsed[i], errors[i] = ld.ParseFile(ld.Fset, filename, src)
-			}
-			<-ioLimit // signal
+			parsed[i], errors[i] = ld.parseFile(filename)
 			wg.Done()
 		}(i, file)
 	}
