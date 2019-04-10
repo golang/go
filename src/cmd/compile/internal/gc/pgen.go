@@ -267,7 +267,7 @@ func compile(fn *Node) {
 					// Also make sure we allocate a linker symbol
 					// for the stack object data, for the same reason.
 					if fn.Func.lsym.Func.StackObjects == nil {
-						fn.Func.lsym.Func.StackObjects = lookup(fmt.Sprintf("%s.stkobj", fn.funcname())).Linksym()
+						fn.Func.lsym.Func.StackObjects = Ctxt.Lookup(fn.Func.lsym.Name + ".stkobj")
 					}
 				}
 			}
