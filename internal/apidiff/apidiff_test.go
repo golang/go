@@ -132,7 +132,7 @@ func load(importPath, goPath string) (*packages.Package, error) {
 }
 
 func TestExportedFields(t *testing.T) {
-	pkg, err := load("golang.org/x/exp/apidiff/testdata/exported_fields", "")
+	pkg, err := load("golang.org/x/tools/internal/apidiff/testdata/exported_fields", "")
 	if err != nil {
 		t.Fatal(err)
 	}
