@@ -93,6 +93,8 @@ type Link struct {
 
 	compUnits         []*compilationUnit // DWARF compilation units
 	compUnitByPackage map[*sym.Library]*compilationUnit
+
+	relocbuf []byte // temporary buffer for applying relocations
 }
 
 type unresolvedSymKey struct {
