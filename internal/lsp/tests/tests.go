@@ -5,13 +5,15 @@
 package tests
 
 import (
-	"bytes"
 	"context"
+	"flag"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
+	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -36,6 +38,15 @@ const (
 	ExpectedSignaturesCount      = 19
 )
 
+const (
+	overlayFile = ".overlay"
+	goldenFile  = ".golden"
+	inFile      = ".in"
+	testModule  = "golang.org/x/tools/internal/lsp"
+)
+
+var updateGolden = flag.Bool("golden", false, "Update golden files")
+
 type Diagnostics map[span.URI][]source.Diagnostic
 type CompletionItems map[token.Pos]*source.CompletionItem
 type Completions map[span.Span][]token.Pos
@@ -58,6 +69,10 @@ type Data struct {
 	Symbols         Symbols
 	symbolsChildren SymbolsChildren
 	Signatures      Signatures
+
+	t         testing.TB
+	fragments map[string]string
+	dir       string
 }
 
 type Tests interface {
@@ -91,19 +106,23 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		Symbols:         make(Symbols),
 		symbolsChildren: make(SymbolsChildren),
 		Signatures:      make(Signatures),
+
+		t:         t,
+		dir:       dir,
+		fragments: map[string]string{},
 	}
 
 	files := packagestest.MustCopyFileTree(dir)
 	overlays := map[string][]byte{}
 	for fragment, operation := range files {
-		if trimmed := strings.TrimSuffix(fragment, ".in"); trimmed != fragment {
+		if strings.Contains(fragment, goldenFile) {
+			delete(files, fragment)
+		} else if trimmed := strings.TrimSuffix(fragment, inFile); trimmed != fragment {
 			delete(files, fragment)
 			files[trimmed] = operation
-		}
-		const overlay = ".overlay"
-		if index := strings.Index(fragment, overlay); index >= 0 {
+		} else if index := strings.Index(fragment, overlayFile); index >= 0 {
 			delete(files, fragment)
-			partial := fragment[:index] + fragment[index+len(overlay):]
+			partial := fragment[:index] + fragment[index+len(overlayFile):]
 			contents, err := ioutil.ReadFile(filepath.Join(dir, fragment))
 			if err != nil {
 				t.Fatal(err)
@@ -113,12 +132,16 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 	}
 	modules := []packagestest.Module{
 		{
-			Name:    "golang.org/x/tools/internal/lsp",
+			Name:    testModule,
 			Files:   files,
 			Overlay: overlays,
 		},
 	}
 	data.Exported = packagestest.Export(t, exporter, modules)
+	for fragment, _ := range files {
+		filename := data.Exported.File(testModule, fragment)
+		data.fragments[filename] = fragment
+	}
 
 	// Merge the exported.Config with the view.Config.
 	data.Config = *data.Exported.Config
@@ -231,6 +254,35 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	})
 }
 
+func (data *Data) Golden(tag string, target string, update func(golden string) error) []byte {
+	data.t.Helper()
+	fragment, found := data.fragments[target]
+	if !found {
+		if filepath.IsAbs(target) {
+			data.t.Fatalf("invalid golden file fragment %v", target)
+		}
+		fragment = target
+	}
+	dir, file := path.Split(fragment)
+	prefix, suffix := file, ""
+	// we deliberately use the first . not the last
+	if dot := strings.IndexRune(file, '.'); dot >= 0 {
+		prefix = file[:dot]
+		suffix = file[dot:]
+	}
+	golden := path.Join(data.dir, dir, prefix) + "." + tag + goldenFile + suffix
+	if *updateGolden {
+		if err := update(golden); err != nil {
+			data.t.Fatalf("could not update golden file %v: %v", golden, err)
+		}
+	}
+	contents, err := ioutil.ReadFile(golden)
+	if err != nil {
+		data.t.Fatalf("could not read golden file %v: %v", golden, err)
+	}
+	return contents
+}
+
 func (data *Data) collectDiagnostics(spn span.Span, msgSource, msg string) {
 	if _, ok := data.Diagnostics[spn.URI()]; !ok {
 		data.Diagnostics[spn.URI()] = []source.Diagnostic{}
@@ -266,11 +318,17 @@ func (data *Data) collectCompletionItems(pos token.Pos, label, detail, kind stri
 }
 
 func (data *Data) collectFormats(pos token.Position) {
-	cmd := exec.Command("gofmt", pos.Filename)
-	stdout := bytes.NewBuffer(nil)
-	cmd.Stdout = stdout
-	cmd.Run() // ignore error, sometimes we have intentionally ungofmt-able files
-	data.Formats[pos.Filename] = stdout.String()
+	data.Formats[pos.Filename] = string(data.Golden("gofmt", pos.Filename, func(golden string) error {
+		cmd := exec.Command("gofmt", pos.Filename)
+		stdout, err := os.Create(golden)
+		if err != nil {
+			return err
+		}
+		defer stdout.Close()
+		cmd.Stdout = stdout
+		cmd.Run() // ignore error, sometimes we have intentionally ungofmt-able files
+		return nil
+	}))
 }
 
 func (data *Data) collectDefinitions(src, target span.Span) {

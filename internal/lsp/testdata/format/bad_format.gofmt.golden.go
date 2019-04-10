@@ -1,0 +1,19 @@
+package format //@format("package")
+
+import (
+	"fmt"
+	"log"
+	"runtime"
+)
+
+func hello() {
+
+	var x int //@diag("x", "LSP", "x declared but not used")
+}
+
+func hi() {
+	runtime.GOROOT()
+	fmt.Printf("")
+
+	log.Printf("")
+}
