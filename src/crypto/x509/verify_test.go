@@ -399,6 +399,19 @@ var verifyTests = []verifyTest{
 			{"Acme LLC", "Acme Co"},
 		},
 	},
+	{
+		leaf: leafWithUtf8,
+		roots: []string{rootWithPrintableString},
+		currentTime: 1560000000,
+		systemSkip: true,
+
+		expectedChains: [][]string{
+			{
+				"String Format Test Leaf Certificate",
+				"String Format Test Root Certificate",
+			},
+		},
+	},
 }
 
 func expectHostnameError(msg string) func(*testing.T, int, error) bool {
@@ -2124,3 +2137,41 @@ func TestLongChain(t *testing.T) {
 	}
 	t.Logf("verification took %v", time.Since(start))
 }
+
+const rootWithPrintableString = `-----BEGIN CERTIFICATE-----
+MIIC9DCCAdygAwIBAgIJAN23UYNL9Q0vMA0GCSqGSIb3DQEBCwUAMC4xLDAqBgNV
+BAMTI1N0cmluZyBGb3JtYXQgVGVzdCBSb290IENlcnRpZmljYXRlMCAXDTE5MDQy
+NTA1NDA0MloYDzIxMTkwNDAxMDU0MDQyWjAuMSwwKgYDVQQDEyNTdHJpbmcgRm9y
+bWF0IFRlc3QgUm9vdCBDZXJ0aWZpY2F0ZTCCASIwDQYJKoZIhvcNAQEBBQADggEP
+ADCCAQoCggEBAM/AlGp6AkdDnxnm2Jkwy4z0Sq+UL7uVuXa+pkqMVzDcbEn9r7IW
+ZVSqeU3rnBttS+9Fu9LllRRoZbHvs4aSCKDVjljl9IePjzew9z0WNzlxmXw1td/g
+129k1Zz9S9G2tRQLKV5uHtdMV3IcIsEJ+NZyGAhYsdk2xC2Sx9cyBjcnfUE1Yz0W
+hzj0BnW4bWvUFB/blw5o3mRBiuEO67i21l3/Vj48CflFCdyo9Ebn7aIeeMZPR6U0
+OXwyfbqf2s8e/+HC0nYsBQ563RT4U+j3xoNG/3NRfVS/MZbDJBKLcVYLGzVEBkP+
+eECdiE0WMHNxOhqb5vKDgd0ZnAAWqxRZv/cCAwEAAaMTMBEwDwYDVR0TAQH/BAUw
+AwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAAukskjwqpd3YY+X4nI+LH8fn8LZdEtzQ
+67XydwIeDNaSmvZ/PTChov5DZ3FeBmphEIBs3t3jv74SrjxGSmBXu/EyBrrWO71P
+SeCBxgnzVMpb4d8uYInEBnmae2LKU1q+5B+dWxf3bRS9mRDKu8lYZSxyxXsyqyfB
+HbXpsqguW1wdSXowPO5vIyl+zHX15OBwfc8KXSCoXK+6y/3DrAo2nbEH+c73YaJ4
+t1L0gXugEsoDa2uKLl1DQLpmNSbFiFMG/J0u7UzAzi8X0vdWv7Yb9ue+dZ9ttWUK
+J/d5Omd/pd5x9c7kiDUmRvboT6Ch7JbZCGPz15j4b0lx7lFjGrFkMg==
+-----END CERTIFICATE-----`
+
+const leafWithUtf8 = `-----BEGIN CERTIFICATE-----
+MIIC7TCCAdWgAwIBAgICEAAwDQYJKoZIhvcNAQELBQAwLjEsMCoGA1UEAwwjU3Ry
+aW5nIEZvcm1hdCBUZXN0IFJvb3QgQ2VydGlmaWNhdGUwIBcNMTkwNDI1MDU0MjA2
+WhgPMjExODEyMjIwNTQyMDZaMC4xLDAqBgNVBAMMI1N0cmluZyBGb3JtYXQgVGVz
+dCBMZWFmIENlcnRpZmljYXRlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
+AQEAuNVJr5Hiv99s33Pgq5rf4LyRWtXRkuuJ9yLgPh309kFfz9fHOeKSfKBHfK2F
+eMyTedGSpyPp3aJPffZSrC4gZEAjTC8y8acNdH3Tkzl9BuXv4+e0Dd9vUqvYFpKV
+bZzJW/OP/8U80VNb9ViaGefOP9PvafSGvMptlB8uKbdDFKaV5qH9vh2L/c7XTJYo
+e1jXBophDhAbBks+Z/I11Bbzg+btfnPMOoWZTZrtnoELiOFIxGFskOHEt6TJxlv5
+S1Q/6/8HY6YFwGGZkFrBI1gr9Mdj1EiEqnj+wQU5fH7XlYAipBmDLR7hJkQrIf0S
+48picyadxRxYAS0WKBt9uPLRiwIDAQABoxMwETAPBgNVHRMBAf8EBTADAQH/MA0G
+CSqGSIb3DQEBCwUAA4IBAQAYZDlBGoFnRheDk8esaCCU3sfO1SjrHVVNmvhjVhZ2
+W5Io0aCjbs+gXJ7/44EGGfknoqYFFcRxu/DrdpN25B/LIjrVL2H7ce9FFqWpx4oJ
+/f2foxnVYj3v+/s8ftMu7VrfKHn9mBaJJrd7F5pZQ0z1xtMq1yeeI+d82kmIB7Kb
+JQvP3/dXjjGCJL047o7A6gr3JJV1+Ecb6+pbo778VtA4x0oKl4p9SLJVVbdlRlIm
+RqQT9s4P19sjrwSkm2V942OZvh2+gD6hxXXsMMPUWLBtvZEvqOzy4Un8/4SGacFX
+8KivwfPlOSUW7mhBPoPwBz/kN/UlUWT03tcZFVLNtsd8
+-----END CERTIFICATE-----`

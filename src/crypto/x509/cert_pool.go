@@ -77,7 +77,7 @@ func (s *CertPool) findPotentialParents(cert *Certificate) []int {
 		candidates = s.bySubjectKeyId[string(cert.AuthorityKeyId)]
 	}
 	if len(candidates) == 0 {
-		candidates = s.byName[string(cert.RawIssuer)]
+		candidates = s.byName[cert.Issuer.String()]
 	}
 	return candidates
 }
@@ -87,7 +87,7 @@ func (s *CertPool) contains(cert *Certificate) bool {
 		return false
 	}
 
-	candidates := s.byName[string(cert.RawSubject)]
+	candidates := s.byName[cert.Subject.String()]
 	for _, c := range candidates {
 		if s.certs[c].Equal(cert) {
 			return true
@@ -115,7 +115,7 @@ func (s *CertPool) AddCert(cert *Certificate) {
 		keyId := string(cert.SubjectKeyId)
 		s.bySubjectKeyId[keyId] = append(s.bySubjectKeyId[keyId], n)
 	}
-	name := string(cert.RawSubject)
+	name := cert.Subject.String()
 	s.byName[name] = append(s.byName[name], n)
 }
 
