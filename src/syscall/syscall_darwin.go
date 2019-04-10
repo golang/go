@@ -368,6 +368,18 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	// Simulate Getdirentries using fdopendir/readdir_r/closedir.
 	const ptrSize = unsafe.Sizeof(uintptr(0))
+
+	// We store the number of entries to skip in the seek
+	// offset of fd. See issue #31368.
+	// It's not the full required semantics, but should handle the case
+	// of calling Getdirentries or ReadDirent repeatedly.
+	// It won't handle assigning the results of lseek to *basep, or handle
+	// the directory being edited underfoot.
+	skip, err := Seek(fd, 0, 1 /* SEEK_CUR */)
+	if err != nil {
+		return 0, err
+	}
+
 	// We need to duplicate the incoming file descriptor
 	// because the caller expects to retain control of it, but
 	// fdopendir expects to take control of its argument.
@@ -384,13 +396,8 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 		return 0, err
 	}
 	defer closedir(d)
-	// We keep the number of records already returned in *basep.
-	// It's not the full required semantics, but should handle the case
-	// of calling Getdirentries repeatedly.
-	// It won't handle assigning the results of lseek to *basep, or handle
-	// the directory being edited underfoot.
-	skip := *basep
-	*basep = 0
+
+	var cnt int64
 	for {
 		var entry Dirent
 		var entryp *Dirent
@@ -403,13 +410,13 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 		}
 		if skip > 0 {
 			skip--
-			*basep++
+			cnt++
 			continue
 		}
 		reclen := int(entry.Reclen)
 		if reclen > len(buf) {
 			// Not enough room. Return for now.
-			// *basep will let us know where we should start up again.
+			// The counter will let us know where we should start up again.
 			// Note: this strategy for suspending in the middle and
 			// restarting is O(n^2) in the length of the directory. Oh well.
 			break
@@ -423,8 +430,15 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 		copy(buf, *(*[]byte)(unsafe.Pointer(&s)))
 		buf = buf[reclen:]
 		n += reclen
-		*basep++
+		cnt++
 	}
+	// Set the seek offset of the input fd to record
+	// how many files we've already returned.
+	_, err = Seek(fd, cnt, 0 /* SEEK_SET */)
+	if err != nil {
+		return n, err
+	}
+
 	return n, nil
 }
 
