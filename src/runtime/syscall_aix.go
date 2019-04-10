@@ -69,11 +69,13 @@ func syscall_RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func syscall_syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	c := getg().m.libcall
-	c.fn = uintptr(unsafe.Pointer(fn))
-	c.n = nargs
-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+	c := libcall{
+		fn:   fn,
+		n:    nargs,
+		args: uintptr(unsafe.Pointer(&a1)),
+	}
 
 	entersyscallblock()
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(&c))
@@ -82,11 +84,13 @@ func syscall_syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err ui
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func syscall_rawSyscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	c := getg().m.libcall
-	c.fn = uintptr(unsafe.Pointer(fn))
-	c.n = nargs
-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+	c := libcall{
+		fn:   fn,
+		n:    nargs,
+		args: uintptr(unsafe.Pointer(&a1)),
+	}
 
 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(&c))
 
