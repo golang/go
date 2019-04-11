@@ -157,6 +157,18 @@ type timersBucket struct {
 // adjusttimers (looks in P's timer heap):
 //   timerDeleted    -> timerRemoving -> timerRemoved
 //   timerModifiedXX -> timerMoving -> timerWaiting
+// runtimer (looks in P's timer heap):
+//   timerNoStatus   -> panic: uninitialized timer
+//   timerWaiting    -> timerWaiting or
+//   timerWaiting    -> timerRunning -> timerNoStatus or
+//   timerWaiting    -> timerRunning -> timerWaiting
+//   timerModifying  -> wait until status changes
+//   timerModifiedXX -> timerMoving -> timerWaiting
+//   timerDeleted    -> timerRemoving -> timerRemoved
+//   timerRunning    -> panic: concurrent runtimer calls
+//   timerRemoved    -> panic: inconsistent timer heap
+//   timerRemoving   -> panic: inconsistent timer heap
+//   timerMoving     -> panic: inconsistent timer heap
 
 // Values for the timer status field.
 const (
@@ -989,14 +1001,104 @@ func addAdjustedTimers(pp *p, moved []*timer) {
 // when the first timer should run.
 // The caller must have locked the timers for pp.
 func runtimer(pp *p, now int64) int64 {
-	throw("runtimer: not yet implemented")
-	return -1
+	for {
+		t := pp.timers[0]
+		if t.pp.ptr() != pp {
+			throw("runtimer: bad p")
+		}
+		switch s := atomic.Load(&t.status); s {
+		case timerWaiting:
+			if t.when > now {
+				// Not ready to run.
+				return t.when
+			}
+
+			if !atomic.Cas(&t.status, s, timerRunning) {
+				continue
+			}
+			runOneTimer(pp, t, now)
+			return 0
+
+		case timerDeleted:
+			if !atomic.Cas(&t.status, s, timerRemoving) {
+				continue
+			}
+			if !dodeltimer0(pp) {
+				badTimer()
+			}
+			if !atomic.Cas(&t.status, timerRemoving, timerRemoved) {
+				badTimer()
+			}
+			if len(pp.timers) == 0 {
+				return -1
+			}
+
+		case timerModifiedEarlier, timerModifiedLater:
+			if !atomic.Cas(&t.status, s, timerMoving) {
+				continue
+			}
+			t.when = t.nextwhen
+			if !dodeltimer0(pp) {
+				badTimer()
+			}
+			if !doaddtimer(pp, t) {
+				badTimer()
+			}
+			if s == timerModifiedEarlier {
+				atomic.Xadd(&pp.adjustTimers, -1)
+			}
+			if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
+				badTimer()
+			}
+
+		case timerModifying:
+			// Wait for modification to complete.
+			osyield()
+
+		case timerNoStatus, timerRemoved:
+			// Should not see a new or inactive timer on the heap.
+			badTimer()
+		case timerRunning, timerRemoving, timerMoving:
+			// These should only be set when timers are locked,
+			// and we didn't do it.
+			badTimer()
+		default:
+			badTimer()
+		}
+	}
 }
 
 // runOneTimer runs a single timer.
 // The caller must have locked the timers for pp.
 func runOneTimer(pp *p, t *timer, now int64) {
-	throw("runOneTimer: not yet implemented")
+	f := t.f
+	arg := t.arg
+	seq := t.seq
+
+	if t.period > 0 {
+		// Leave in heap but adjust next time to fire.
+		delta := t.when - now
+		t.when += t.period * (1 + -delta/t.period)
+		if !siftdownTimer(pp.timers, 0) {
+			badTimer()
+		}
+		if !atomic.Cas(&t.status, timerRunning, timerWaiting) {
+			badTimer()
+		}
+	} else {
+		// Remove from heap.
+		if !dodeltimer0(pp) {
+			badTimer()
+		}
+		if !atomic.Cas(&t.status, timerRunning, timerNoStatus) {
+			badTimer()
+		}
+	}
+
+	// Note that since timers are locked here, f may not call
+	// addtimer or resettimer.
+
+	f(arg, seq)
 }
 
 func timejump() *g {
