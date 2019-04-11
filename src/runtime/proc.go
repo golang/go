@@ -3881,6 +3881,92 @@ func setcpuprofilerate(hz int32) {
 	_g_.m.locks--
 }
 
+// init initializes pp, which may be a freshly allocated p or a
+// previously destroyed p, and transitions it to status _Pgcstop.
+func (pp *p) init(id int32) {
+	pp.id = id
+	pp.status = _Pgcstop
+	pp.sudogcache = pp.sudogbuf[:0]
+	for i := range pp.deferpool {
+		pp.deferpool[i] = pp.deferpoolbuf[i][:0]
+	}
+	pp.wbBuf.reset()
+	if pp.mcache == nil {
+		if id == 0 {
+			if getg().m.mcache == nil {
+				throw("missing mcache?")
+			}
+			pp.mcache = getg().m.mcache // bootstrap
+		} else {
+			pp.mcache = allocmcache()
+		}
+	}
+	if raceenabled && pp.raceprocctx == 0 {
+		if id == 0 {
+			pp.raceprocctx = raceprocctx0
+			raceprocctx0 = 0 // bootstrap
+		} else {
+			pp.raceprocctx = raceproccreate()
+		}
+	}
+}
+
+// destroy releases all of the resources associated with pp and
+// transitions it to status _Pdead.
+//
+// sched.lock must be held and the world must be stopped.
+func (pp *p) destroy() {
+	// Move all runnable goroutines to the global queue
+	for pp.runqhead != pp.runqtail {
+		// Pop from tail of local queue
+		pp.runqtail--
+		gp := pp.runq[pp.runqtail%uint32(len(pp.runq))].ptr()
+		// Push onto head of global queue
+		globrunqputhead(gp)
+	}
+	if pp.runnext != 0 {
+		globrunqputhead(pp.runnext.ptr())
+		pp.runnext = 0
+	}
+	// If there's a background worker, make it runnable and put
+	// it on the global queue so it can clean itself up.
+	if gp := pp.gcBgMarkWorker.ptr(); gp != nil {
+		casgstatus(gp, _Gwaiting, _Grunnable)
+		if trace.enabled {
+			traceGoUnpark(gp, 0)
+		}
+		globrunqput(gp)
+		// This assignment doesn't race because the
+		// world is stopped.
+		pp.gcBgMarkWorker.set(nil)
+	}
+	// Flush p's write barrier buffer.
+	if gcphase != _GCoff {
+		wbBufFlush1(pp)
+		pp.gcw.dispose()
+	}
+	for i := range pp.sudogbuf {
+		pp.sudogbuf[i] = nil
+	}
+	pp.sudogcache = pp.sudogbuf[:0]
+	for i := range pp.deferpool {
+		for j := range pp.deferpoolbuf[i] {
+			pp.deferpoolbuf[i][j] = nil
+		}
+		pp.deferpool[i] = pp.deferpoolbuf[i][:0]
+	}
+	freemcache(pp.mcache)
+	pp.mcache = nil
+	gfpurge(pp)
+	traceProcFree(pp)
+	if raceenabled {
+		raceprocdestroy(pp.raceprocctx)
+		pp.raceprocctx = 0
+	}
+	pp.gcAssistTime = 0
+	pp.status = _Pdead
+}
+
 // Change number of processors. The world is stopped, sched is locked.
 // gcworkbufs are not being modified by either the GC or
 // the write barrier code.
@@ -3919,40 +4005,16 @@ func procresize(nprocs int32) *p {
 	}
 
 	// initialize new P's
-	for i := int32(0); i < nprocs; i++ {
+	for i := old; i < nprocs; i++ {
 		pp := allp[i]
 		if pp == nil {
 			pp = new(p)
-			pp.id = i
-			pp.status = _Pgcstop
-			pp.sudogcache = pp.sudogbuf[:0]
-			for i := range pp.deferpool {
-				pp.deferpool[i] = pp.deferpoolbuf[i][:0]
-			}
-			pp.wbBuf.reset()
-			atomicstorep(unsafe.Pointer(&allp[i]), unsafe.Pointer(pp))
 		}
-		if pp.mcache == nil {
-			if old == 0 && i == 0 {
-				if getg().m.mcache == nil {
-					throw("missing mcache?")
-				}
-				pp.mcache = getg().m.mcache // bootstrap
-			} else {
-				pp.mcache = allocmcache()
-			}
-		}
-		if raceenabled && pp.raceprocctx == 0 {
-			if old == 0 && i == 0 {
-				pp.raceprocctx = raceprocctx0
-				raceprocctx0 = 0 // bootstrap
-			} else {
-				pp.raceprocctx = raceproccreate()
-			}
-		}
+		pp.init(i)
+		atomicstorep(unsafe.Pointer(&allp[i]), unsafe.Pointer(pp))
 	}
 
-	// free unused P's
+	// release resources from unused P's
 	for i := nprocs; i < old; i++ {
 		p := allp[i]
 		if trace.enabled && p == getg().m.p.ptr() {
@@ -3961,55 +4023,7 @@ func procresize(nprocs int32) *p {
 			traceGoSched()
 			traceProcStop(p)
 		}
-		// move all runnable goroutines to the global queue
-		for p.runqhead != p.runqtail {
-			// pop from tail of local queue
-			p.runqtail--
-			gp := p.runq[p.runqtail%uint32(len(p.runq))].ptr()
-			// push onto head of global queue
-			globrunqputhead(gp)
-		}
-		if p.runnext != 0 {
-			globrunqputhead(p.runnext.ptr())
-			p.runnext = 0
-		}
-		// if there's a background worker, make it runnable and put
-		// it on the global queue so it can clean itself up
-		if gp := p.gcBgMarkWorker.ptr(); gp != nil {
-			casgstatus(gp, _Gwaiting, _Grunnable)
-			if trace.enabled {
-				traceGoUnpark(gp, 0)
-			}
-			globrunqput(gp)
-			// This assignment doesn't race because the
-			// world is stopped.
-			p.gcBgMarkWorker.set(nil)
-		}
-		// Flush p's write barrier buffer.
-		if gcphase != _GCoff {
-			wbBufFlush1(p)
-			p.gcw.dispose()
-		}
-		for i := range p.sudogbuf {
-			p.sudogbuf[i] = nil
-		}
-		p.sudogcache = p.sudogbuf[:0]
-		for i := range p.deferpool {
-			for j := range p.deferpoolbuf[i] {
-				p.deferpoolbuf[i][j] = nil
-			}
-			p.deferpool[i] = p.deferpoolbuf[i][:0]
-		}
-		freemcache(p.mcache)
-		p.mcache = nil
-		gfpurge(p)
-		traceProcFree(p)
-		if raceenabled {
-			raceprocdestroy(p.raceprocctx)
-			p.raceprocctx = 0
-		}
-		p.gcAssistTime = 0
-		p.status = _Pdead
+		p.destroy()
 		// can't free P itself because it can be referenced by an M in syscall
 	}
 
