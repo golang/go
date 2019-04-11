@@ -2451,9 +2451,19 @@ stop:
 		if _g_.m.spinning {
 			throw("findrunnable: netpoll with spinning")
 		}
+		if faketime != 0 {
+			// When using fake time, just poll.
+			delta = 0
+		}
 		list := netpoll(delta) // block until new work is available
 		atomic.Store64(&sched.pollUntil, 0)
 		atomic.Store64(&sched.lastpoll, uint64(nanotime()))
+		if faketime != 0 && list.empty() {
+			// Using fake time and nothing is ready; stop M.
+			// When all M's stop, checkdead will call timejump.
+			stopm()
+			goto top
+		}
 		lock(&sched.lock)
 		_p_ = pidleget()
 		unlock(&sched.lock)
@@ -4422,23 +4432,44 @@ func checkdead() {
 	}
 
 	// Maybe jump time forward for playground.
-	gp := timejump()
-	if gp != nil {
-		casgstatus(gp, _Gwaiting, _Grunnable)
-		globrunqput(gp)
-		_p_ := pidleget()
-		if _p_ == nil {
-			throw("checkdead: no p for timer")
+	if oldTimers {
+		gp := timejumpOld()
+		if gp != nil {
+			casgstatus(gp, _Gwaiting, _Grunnable)
+			globrunqput(gp)
+			_p_ := pidleget()
+			if _p_ == nil {
+				throw("checkdead: no p for timer")
+			}
+			mp := mget()
+			if mp == nil {
+				// There should always be a free M since
+				// nothing is running.
+				throw("checkdead: no m for timer")
+			}
+			mp.nextp.set(_p_)
+			notewakeup(&mp.park)
+			return
 		}
-		mp := mget()
-		if mp == nil {
-			// There should always be a free M since
-			// nothing is running.
-			throw("checkdead: no m for timer")
+	} else {
+		_p_ := timejump()
+		if _p_ != nil {
+			for pp := &sched.pidle; *pp != 0; pp = &(*pp).ptr().link {
+				if (*pp).ptr() == _p_ {
+					*pp = _p_.link
+					break
+				}
+			}
+			mp := mget()
+			if mp == nil {
+				// There should always be a free M since
+				// nothing is running.
+				throw("checkdead: no m for timer")
+			}
+			mp.nextp.set(_p_)
+			notewakeup(&mp.park)
+			return
 		}
-		mp.nextp.set(_p_)
-		notewakeup(&mp.park)
-		return
 	}
 
 	// There are no goroutines running, so we can look at the P's.
