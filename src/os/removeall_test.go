@@ -412,13 +412,14 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
-	oldRemoveAllTestHook := RemoveAllTestHook
+
+	defer func(oldHook func(error) error) {
+		*RemoveAllTestHook = oldHook
+	}(*RemoveAllTestHook)
+
 	*RemoveAllTestHook = func(err error) error {
 		return errors.New("error from RemoveAllTestHook")
 	}
-	defer func() {
-		*RemoveAllTestHook = *oldRemoveAllTestHook
-	}()
 
 	tmpDir, err := ioutil.TempDir("", "TestRemoveAll-")
 	if err != nil {
