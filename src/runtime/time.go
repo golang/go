@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/cpu"
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -120,6 +121,16 @@ type timersBucket struct {
 // addtimer:
 //   timerNoStatus   -> timerWaiting
 //   anything else   -> panic: invalid value
+// deltimer:
+//   timerWaiting    -> timerDeleted
+//   timerModifiedXX -> timerDeleted
+//   timerNoStatus   -> do nothing
+//   timerDeleted    -> do nothing
+//   timerRemoving   -> do nothing
+//   timerRemoved    -> do nothing
+//   timerRunning    -> wait until status changes
+//   timerMoving     -> wait until status changes
+//   timerModifying  -> panic: concurrent deltimer/modtimer calls
 
 // Values for the timer status field.
 const (
@@ -216,8 +227,8 @@ func startTimer(t *timer) {
 	addtimer(t)
 }
 
-// stopTimer removes t from the timer heap if it is there.
-// It returns true if t was removed, false if t wasn't even there.
+// stopTimer stops a timer.
+// It reports whether t was stopped before being run.
 //go:linkname stopTimer time.stopTimer
 func stopTimer(t *timer) bool {
 	return deltimer(t)
@@ -335,14 +346,48 @@ func (tb *timersBucket) addtimerLocked(t *timer) bool {
 	return true
 }
 
-// Delete timer t from the heap.
-// Do not need to update the timerproc: if it wakes up early, no big deal.
+// deltimer deletes the timer t. It may be on some other P, so we can't
+// actually remove it from the timers heap. We can only mark it as deleted.
+// It will be removed in due course by the P whose heap it is on.
+// Reports whether the timer was removed before it was run.
 func deltimer(t *timer) bool {
 	if oldTimers {
 		return deltimerOld(t)
 	}
-	throw("no deltimer not yet implemented")
-	return false
+
+	for {
+		switch s := atomic.Load(&t.status); s {
+		case timerWaiting, timerModifiedLater:
+			if atomic.Cas(&t.status, s, timerDeleted) {
+				// Timer was not yet run.
+				return true
+			}
+		case timerModifiedEarlier:
+			if atomic.Cas(&t.status, s, timerModifying) {
+				if !atomic.Cas(&t.status, timerModifying, timerDeleted) {
+					badTimer()
+				}
+				// Timer was not yet run.
+				return true
+			}
+		case timerDeleted, timerRemoving, timerRemoved:
+			// Timer was already run.
+			return false
+		case timerRunning, timerMoving:
+			// The timer is being run or moved, by a different P.
+			// Wait for it to complete.
+			osyield()
+		case timerNoStatus:
+			// Removing timer that was never added or
+			// has already been run. Also see issue 21874.
+			return false
+		case timerModifying:
+			// Simultaneous calls to deltimer and modtimer.
+			badTimer()
+		default:
+			badTimer()
+		}
+	}
 }
 
 func deltimerOld(t *timer) bool {
