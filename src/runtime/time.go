@@ -9,6 +9,7 @@ package runtime
 import (
 	"internal/cpu"
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -1095,6 +1096,13 @@ func runtimer(pp *p, now int64) int64 {
 // runOneTimer runs a single timer.
 // The caller must have locked the timers for pp.
 func runOneTimer(pp *p, t *timer, now int64) {
+	if raceenabled {
+		if pp.timerRaceCtx == 0 {
+			pp.timerRaceCtx = racegostart(funcPC(runtimer) + sys.PCQuantum)
+		}
+		raceacquirectx(pp.timerRaceCtx, unsafe.Pointer(t))
+	}
+
 	f := t.f
 	arg := t.arg
 	seq := t.seq
@@ -1119,10 +1127,24 @@ func runOneTimer(pp *p, t *timer, now int64) {
 		}
 	}
 
+	if raceenabled {
+		// Temporarily use the P's racectx for g0.
+		gp := getg()
+		if gp.racectx != 0 {
+			throw("runOneTimer: unexpected racectx")
+		}
+		gp.racectx = pp.timerRaceCtx
+	}
+
 	// Note that since timers are locked here, f may not call
 	// addtimer or resettimer.
 
 	f(arg, seq)
+
+	if raceenabled {
+		gp := getg()
+		gp.racectx = 0
+	}
 }
 
 func timejump() *p {

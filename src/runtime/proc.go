@@ -4166,6 +4166,21 @@ func (pp *p) destroy() {
 	gfpurge(pp)
 	traceProcFree(pp)
 	if raceenabled {
+		if pp.timerRaceCtx != 0 {
+			// The race detector code uses a callback to fetch
+			// the proc context, so arrange for that callback
+			// to see the right thing.
+			// This hack only works because we are the only
+			// thread running.
+			mp := getg().m
+			phold := mp.p.ptr()
+			mp.p.set(pp)
+
+			racectxend(pp.timerRaceCtx)
+			pp.timerRaceCtx = 0
+
+			mp.p.set(phold)
+		}
 		raceprocdestroy(pp.raceprocctx)
 		pp.raceprocctx = 0
 	}
