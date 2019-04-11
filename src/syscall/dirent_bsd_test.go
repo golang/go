@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -79,6 +80,14 @@ func TestDirent(t *testing.T) {
 
 func TestDirentRepeat(t *testing.T) {
 	const N = 100
+	// Note: the size of the buffer is small enough that the loop
+	// below will need to execute multiple times. See issue #31368.
+	size := N * unsafe.Offsetof(syscall.Dirent{}.Name) / 4
+	if runtime.GOOS == "freebsd" || runtime.GOOS == "netbsd" {
+		if size < 1024 {
+			size = 1024 // DIRBLKSIZ, see issue 31403.
+		}
+	}
 
 	// Make a directory containing N files
 	d, err := ioutil.TempDir("", "direntRepeat-test")
@@ -106,9 +115,7 @@ func TestDirentRepeat(t *testing.T) {
 	defer syscall.Close(fd)
 	var files2 []string
 	for {
-		// Note: the buf is small enough that this loop will need to
-		// execute multiple times. See issue #31368.
-		buf := make([]byte, N*unsafe.Offsetof(syscall.Dirent{}.Name)/4)
+		buf := make([]byte, size)
 		n, err := syscall.ReadDirent(fd, buf)
 		if err != nil {
 			t.Fatalf("syscall.readdir: %v", err)
