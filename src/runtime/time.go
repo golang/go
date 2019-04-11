@@ -816,7 +816,51 @@ func cleantimers(pp *p) bool {
 // This is currently called when the world is stopped, but it could
 // work as long as the timers for pp are locked.
 func moveTimers(pp *p, timers []*timer) {
-	throw("movetimers: not yet implemented")
+	for _, t := range timers {
+	loop:
+		for {
+			switch s := atomic.Load(&t.status); s {
+			case timerWaiting:
+				t.pp = 0
+				if !doaddtimer(pp, t) {
+					badTimer()
+				}
+				break loop
+			case timerModifiedEarlier, timerModifiedLater:
+				if !atomic.Cas(&t.status, s, timerMoving) {
+					continue
+				}
+				t.when = t.nextwhen
+				t.pp = 0
+				if !doaddtimer(pp, t) {
+					badTimer()
+				}
+				if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
+					badTimer()
+				}
+				break loop
+			case timerDeleted:
+				if !atomic.Cas(&t.status, s, timerRemoved) {
+					continue
+				}
+				t.pp = 0
+				// We no longer need this timer in the heap.
+				break loop
+			case timerModifying:
+				// Loop until the modification is complete.
+				osyield()
+			case timerNoStatus, timerRemoved:
+				// We should not see these status values in a timers heap.
+				badTimer()
+			case timerRunning, timerRemoving, timerMoving:
+				// Some other P thinks it owns this timer,
+				// which should not happen.
+				badTimer()
+			default:
+				badTimer()
+			}
+		}
+	}
 }
 
 // adjusttimers looks through the timers in the current P's heap for
