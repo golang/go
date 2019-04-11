@@ -151,6 +151,9 @@ type timersBucket struct {
 //   timerMoving     -> panic: resettimer called on active timer
 //   timerModifiedXX -> panic: resettimer called on active timer
 //   timerModifying  -> panic: resettimer called on active timer
+// cleantimers (looks in P's timer heap):
+//   timerDeleted    -> timerRemoving -> timerRemoved
+//   timerModifiedXX -> timerMoving -> timerWaiting
 
 // Values for the timer status field.
 const (
@@ -763,9 +766,49 @@ func timerproc(tb *timersBucket) {
 // slows down addtimer. Reports whether no timer problems were found.
 // The caller must have locked the timers for pp.
 func cleantimers(pp *p) bool {
-	// TODO: write this.
-	throw("cleantimers")
-	return true
+	for {
+		if len(pp.timers) == 0 {
+			return true
+		}
+		t := pp.timers[0]
+		if t.pp.ptr() != pp {
+			throw("cleantimers: bad p")
+		}
+		switch s := atomic.Load(&t.status); s {
+		case timerDeleted:
+			if !atomic.Cas(&t.status, s, timerRemoving) {
+				continue
+			}
+			if !dodeltimer0(pp) {
+				return false
+			}
+			if !atomic.Cas(&t.status, timerRemoving, timerRemoved) {
+				return false
+			}
+		case timerModifiedEarlier, timerModifiedLater:
+			if !atomic.Cas(&t.status, s, timerMoving) {
+				continue
+			}
+			// Now we can change the when field.
+			t.when = t.nextwhen
+			// Move t to the right position.
+			if !dodeltimer0(pp) {
+				return false
+			}
+			if !doaddtimer(pp, t) {
+				return false
+			}
+			if s == timerModifiedEarlier {
+				atomic.Xadd(&pp.adjustTimers, -1)
+			}
+			if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
+				return false
+			}
+		default:
+			// Head of timers does not need adjustment.
+			return true
+		}
+	}
 }
 
 // moveTimers moves a slice of timers to pp. The slice has been taken
@@ -795,6 +838,12 @@ func adjusttimers(pp *p) {
 func runtimer(pp *p, now int64) int64 {
 	throw("runtimer: not yet implemented")
 	return -1
+}
+
+// runOneTimer runs a single timer.
+// The caller must have locked the timers for pp.
+func runOneTimer(pp *p, t *timer, now int64) {
+	throw("runOneTimer: not yet implemented")
 }
 
 func timejump() *g {
