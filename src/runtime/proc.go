@@ -692,13 +692,6 @@ func freezetheworld() {
 	usleep(1000)
 }
 
-func isscanstatus(status uint32) bool {
-	if status == _Gscan {
-		throw("isscanstatus: Bad status Gscan")
-	}
-	return status&_Gscan == _Gscan
-}
-
 // All reads and writes of g's status go through readgstatus, casgstatus
 // castogscanstatus, casfrom_Gscanstatus.
 //go:nosplit
