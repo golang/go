@@ -154,6 +154,9 @@ type timersBucket struct {
 // cleantimers (looks in P's timer heap):
 //   timerDeleted    -> timerRemoving -> timerRemoved
 //   timerModifiedXX -> timerMoving -> timerWaiting
+// adjusttimers (looks in P's timer heap):
+//   timerDeleted    -> timerRemoving -> timerRemoved
+//   timerModifiedXX -> timerMoving -> timerWaiting
 
 // Values for the timer status field.
 const (
@@ -865,13 +868,119 @@ func moveTimers(pp *p, timers []*timer) {
 
 // adjusttimers looks through the timers in the current P's heap for
 // any timers that have been modified to run earlier, and puts them in
-// the correct place in the heap.
-// The caller must have locked the timers for pp.
+// the correct place in the heap. While looking for those timers,
+// it also moves timers that have been modified to run later,
+// and removes deleted timers. The caller must have locked the timers for pp.
 func adjusttimers(pp *p) {
 	if len(pp.timers) == 0 {
 		return
 	}
-	throw("adjusttimers: not yet implemented")
+	if atomic.Load(&pp.adjustTimers) == 0 {
+		return
+	}
+	var moved []*timer
+	for i := 0; i < len(pp.timers); i++ {
+		t := pp.timers[i]
+		if t.pp.ptr() != pp {
+			throw("adjusttimers: bad p")
+		}
+		switch s := atomic.Load(&t.status); s {
+		case timerDeleted:
+			if atomic.Cas(&t.status, s, timerRemoving) {
+				if !dodeltimer(pp, i) {
+					badTimer()
+				}
+				if !atomic.Cas(&t.status, timerRemoving, timerRemoved) {
+					badTimer()
+				}
+				// Look at this heap position again.
+				i--
+			}
+		case timerModifiedEarlier, timerModifiedLater:
+			if atomic.Cas(&t.status, s, timerMoving) {
+				// Now we can change the when field.
+				t.when = t.nextwhen
+				// Take t off the heap, and hold onto it.
+				// We don't add it back yet because the
+				// heap manipulation could cause our
+				// loop to skip some other timer.
+				if !dodeltimer(pp, i) {
+					badTimer()
+				}
+				moved = append(moved, t)
+				if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
+					badTimer()
+				}
+				if s == timerModifiedEarlier {
+					if n := atomic.Xadd(&pp.adjustTimers, -1); int32(n) <= 0 {
+						addAdjustedTimers(pp, moved)
+						return
+					}
+				}
+			}
+		case timerNoStatus, timerRunning, timerRemoving, timerRemoved, timerMoving:
+			badTimer()
+		case timerWaiting:
+			// OK, nothing to do.
+		case timerModifying:
+			// Check again after modification is complete.
+			osyield()
+			i--
+		default:
+			badTimer()
+		}
+	}
+
+	if len(moved) > 0 {
+		addAdjustedTimers(pp, moved)
+	}
+}
+
+// addAdjustedTimers adds any timers we adjusted in adjusttimers
+// back to the timer heap.
+func addAdjustedTimers(pp *p, moved []*timer) {
+	for _, t := range moved {
+	loop:
+		for {
+			switch s := atomic.Load(&t.status); s {
+			case timerWaiting:
+				// This is the normal case.
+				if !doaddtimer(pp, t) {
+					badTimer()
+				}
+				break loop
+			case timerDeleted:
+				// Timer has been deleted since we adjusted it.
+				// This timer is already out of the heap.
+				if !atomic.Cas(&t.status, s, timerRemoved) {
+					badTimer()
+				}
+				break loop
+			case timerModifiedEarlier, timerModifiedLater:
+				// Timer has been modified again since
+				// we adjusted it.
+				if atomic.Cas(&t.status, s, timerMoving) {
+					t.when = t.nextwhen
+					if !doaddtimer(pp, t) {
+						badTimer()
+					}
+					if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
+						badTimer()
+					}
+					if s == timerModifiedEarlier {
+						atomic.Xadd(&pp.adjustTimers, -1)
+					}
+				}
+				break loop
+			case timerNoStatus, timerRunning, timerRemoving, timerRemoved, timerMoving:
+				badTimer()
+			case timerModifying:
+				// Wait and try again.
+				osyield()
+				continue
+			}
+		}
+	}
 }
 
 // runtimer examines the first timer in timers. If it is ready based on now,
