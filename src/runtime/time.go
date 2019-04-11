@@ -1227,6 +1227,52 @@ func timejumpLocked() *g {
 }
 
 func timeSleepUntil() int64 {
+	if oldTimers {
+		return timeSleepUntilOld()
+	}
+
+	next := int64(maxWhen)
+
+	for _, pp := range allp {
+		lock(&pp.timersLock)
+		c := atomic.Load(&pp.adjustTimers)
+		for _, t := range pp.timers {
+			switch s := atomic.Load(&t.status); s {
+			case timerWaiting:
+				if t.when < next {
+					next = t.when
+				}
+			case timerModifiedEarlier, timerModifiedLater:
+				if t.nextwhen < next {
+					next = t.nextwhen
+				}
+				if s == timerModifiedEarlier {
+					c--
+				}
+			}
+			// The timers are sorted, so we only have to check
+			// the first timer for each P, unless there are
+			// some timerModifiedEarlier timers. The number
+			// of timerModifiedEarlier timers is in the adjustTimers
+			// field, used to initialize c, above.
+			//
+			// We don't worry about cases like timerModifying.
+			// New timers can show up at any time,
+			// so this function is necessarily imprecise.
+			// Do a signed check here since we aren't
+			// synchronizing the read of pp.adjustTimers
+			// with the check of a timer status.
+			if int32(c) <= 0 {
+				break
+			}
+		}
+		unlock(&pp.timersLock)
+	}
+
+	return next
+}
+
+func timeSleepUntilOld() int64 {
 	next := int64(1<<63 - 1)
 
 	// Determine minimum sleepUntil across all the timer buckets.
