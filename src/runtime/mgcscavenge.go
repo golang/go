@@ -268,8 +268,7 @@ func scavengeSleep(ns int64) bool {
 	// because we can't close over any variables without
 	// failing escape analysis.
 	now := nanotime()
-	scavenge.timer.when = now + ns
-	startTimer(scavenge.timer)
+	resetTimer(scavenge.timer, now+ns)
 
 	// Mark ourself as asleep and go to sleep.
 	scavenge.parked = true

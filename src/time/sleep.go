@@ -38,6 +38,7 @@ func when(d Duration) int64 {
 
 func startTimer(*runtimeTimer)
 func stopTimer(*runtimeTimer) bool
+func resetTimer(*runtimeTimer, int64)
 
 // The Timer type represents a single event.
 // When the Timer expires, the current time will be sent on C,
@@ -122,8 +123,7 @@ func (t *Timer) Reset(d Duration) bool {
 	}
 	w := when(d)
 	active := stopTimer(&t.r)
-	t.r.when = w
-	startTimer(&t.r)
+	resetTimer(&t.r, w)
 	return active
 }
 
