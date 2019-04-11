@@ -14,7 +14,7 @@ import (
 )
 
 // Temporary scaffolding while the new timer code is added.
-const oldTimers = true
+const oldTimers = false
 
 // Package time knows the layout of this structure.
 // If this struct changes, adjust ../time/sleep.go:/runtimeTimer.
