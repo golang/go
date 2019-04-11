@@ -148,11 +148,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	waspanic := false
 	cgoCtxt := gp.cgoCtxt
 	printing := pcbuf == nil && callback == nil
-	_defer := gp._defer
-
-	for _defer != nil && _defer.sp == _NoArgs {
-		_defer = _defer.link
-	}
 
 	// If the PC is zero, it's likely a nil function call.
 	// Start in the caller's frame.
@@ -319,26 +314,20 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// In the latter case, use a deferreturn call site as the continuation pc.
 		frame.continpc = frame.pc
 		if waspanic {
-			// We match up defers with frames using the SP.
-			// However, if the function has an empty stack
-			// frame, then it's possible (on LR machines)
-			// for multiple call frames to have the same
-			// SP. But, since a function with no frame
-			// can't push a defer, the defer can't belong
-			// to that frame.
-			if _defer != nil && _defer.sp == frame.sp && frame.sp != frame.fp {
+			if frame.fn.deferreturn != 0 {
 				frame.continpc = frame.fn.entry + uintptr(frame.fn.deferreturn) + 1
+				// Note: this may perhaps keep return variables alive longer than
+				// strictly necessary, as we are using "function has a defer statement"
+				// as a proxy for "function actually deferred something". It seems
+				// to be a minor drawback. (We used to actually look through the
+				// gp._defer for a defer corresponding to this function, but that
+				// is hard to do with defer records on the stack during a stack copy.)
 				// Note: the +1 is to offset the -1 that
 				// stack.go:getStackMap does to back up a return
 				// address make sure the pc is in the CALL instruction.
 			} else {
 				frame.continpc = 0
 			}
-		}
-
-		// Unwind our local defer stack past this frame.
-		for _defer != nil && ((_defer.sp == frame.sp && frame.sp != frame.fp) || _defer.sp == _NoArgs) {
-			_defer = _defer.link
 		}
 
 		if callback != nil {
@@ -510,13 +499,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		n = nprint
 	}
 
-	// If callback != nil, we're being called to gather stack information during
-	// garbage collection or stack growth. In that context, require that we used
-	// up the entire defer stack. If not, then there is a bug somewhere and the
-	// garbage collection or stack growth may not have seen the correct picture
-	// of the stack. Crash now instead of silently executing the garbage collection
-	// or stack copy incorrectly and setting up for a mysterious crash later.
-	//
 	// Note that panic != nil is okay here: there can be leftover panics,
 	// because the defers on the panic stack do not nest in frame order as
 	// they do on the defer stack. If you have:
@@ -557,16 +539,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	// At other times, such as when gathering a stack for a profiling signal
 	// or when printing a traceback during a crash, everything may not be
 	// stopped nicely, and the stack walk may not be able to complete.
-	// It's okay in those situations not to use up the entire defer stack:
-	// incomplete information then is still better than nothing.
-	if callback != nil && n < max && _defer != nil {
-		print("runtime: g", gp.goid, ": leftover defer sp=", hex(_defer.sp), " pc=", hex(_defer.pc), "\n")
-		for _defer = gp._defer; _defer != nil; _defer = _defer.link {
-			print("\tdefer ", _defer, " sp=", hex(_defer.sp), " pc=", hex(_defer.pc), "\n")
-		}
-		throw("traceback has leftover defers")
-	}
-
 	if callback != nil && n < max && frame.sp != gp.stktopsp {
 		print("runtime: g", gp.goid, ": frame.sp=", hex(frame.sp), " top=", hex(gp.stktopsp), "\n")
 		print("\tstack=[", hex(gp.stack.lo), "-", hex(gp.stack.hi), "] n=", n, " max=", max, "\n")

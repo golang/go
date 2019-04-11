@@ -112,7 +112,6 @@ const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 //go:nosplit
 func syscall_loadsystemlibrary(filename *uint16, absoluteFilepath *uint16) (handle, err uintptr) {
 	lockOSThread()
-	defer unlockOSThread()
 	c := &getg().m.syscall
 
 	if useLoadLibraryEx {
@@ -135,6 +134,7 @@ func syscall_loadsystemlibrary(filename *uint16, absoluteFilepath *uint16) (hand
 	if handle == 0 {
 		err = c.err
 	}
+	unlockOSThread() // not defer'd after the lockOSThread above to save stack frame size.
 	return
 }
 
