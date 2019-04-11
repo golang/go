@@ -229,7 +229,31 @@ func timeSleep(ns int64) {
 		timeSleepOld(ns)
 		return
 	}
-	throw("new timeSleep not yet implemented")
+
+	if ns <= 0 {
+		return
+	}
+
+	gp := getg()
+	t := gp.timer
+	if t == nil {
+		t = new(timer)
+		gp.timer = t
+	}
+	t.f = goroutineReady
+	t.arg = gp
+	t.nextwhen = nanotime() + ns
+	gopark(resetForSleep, unsafe.Pointer(t), waitReasonSleep, traceEvGoSleep, 1)
+}
+
+// resetForSleep is called after the goroutine is parked for timeSleep.
+// We can't call resettimer in timeSleep itself because if this is a short
+// sleep and there are many goroutines then the P can wind up running the
+// timer function, goroutineReady, before the goroutine has been parked.
+func resetForSleep(gp *g, ut unsafe.Pointer) bool {
+	t := (*timer)(ut)
+	resettimer(t, t.nextwhen)
+	return true
 }
 
 func timeSleepOld(ns int64) {
