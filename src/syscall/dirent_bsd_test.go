@@ -87,6 +87,9 @@ func TestDirentRepeat(t *testing.T) {
 		if size < 1024 {
 			size = 1024 // DIRBLKSIZ, see issue 31403.
 		}
+		if runtime.GOOS == "freebsd" {
+			t.Skip("need to fix issue 31416 first")
+		}
 	}
 
 	// Make a directory containing N files
