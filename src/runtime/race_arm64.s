@@ -448,7 +448,10 @@ rest:
 	// restore R0
 	MOVD	R13, R0
 	MOVD	g_m(g), R13
-	MOVD	m_g0(R13), g
+	MOVD	m_g0(R13), R14
+	CMP	R14, g
+	BEQ	noswitch	// branch if already on g0
+	MOVD	R14, g
 
 	MOVD	R0, 8(RSP)	// func arg
 	MOVD	R1, 16(RSP)	// func arg
@@ -457,6 +460,7 @@ rest:
 	// All registers are smashed after Go code, reload.
 	MOVD	g_m(g), R13
 	MOVD	m_curg(R13), g	// g = m->curg
+ret:
 	// Restore callee-saved registers.
 	MOVD	0(RSP), LR
 	LDP	24(RSP), (R19, R20)
@@ -466,6 +470,13 @@ rest:
 	LDP	88(RSP), (R27,   g)
 	ADD	$112, RSP
 	JMP	(LR)
+
+noswitch:
+	// already on g0
+	MOVD	R0, 8(RSP)	// func arg
+	MOVD	R1, 16(RSP)	// func arg
+	BL	runtime·racecallback(SB)
+	JMP	ret
 
 // tls_g, g value for each thread in TLS
 GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8

@@ -613,6 +613,9 @@ type p struct {
 	// such as timerModifying.
 	adjustTimers uint32
 
+	// Race context used while executing timer functions.
+	timerRaceCtx uintptr
+
 	pad cpu.CacheLinePad
 }
 
