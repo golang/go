@@ -8,15 +8,15 @@
 //
 // These must agree with symtab.go and ../cmd/internal/objabi/funcdata.go.
 
-#define PCDATA_StackMapIndex 0
-#define PCDATA_InlTreeIndex 1
-#define PCDATA_RegMapIndex 2
+#define PCDATA_RegMapIndex 0
+#define PCDATA_StackMapIndex 1
+#define PCDATA_InlTreeIndex 2
 
 #define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
 #define FUNCDATA_LocalsPointerMaps 1
-#define FUNCDATA_InlTree 2
-#define FUNCDATA_RegPointerMaps 3
-#define FUNCDATA_StackObjects 4
+#define FUNCDATA_RegPointerMaps 2
+#define FUNCDATA_StackObjects 3
+#define FUNCDATA_InlTree 4
 
 // Pseudo-assembly statements.
 
