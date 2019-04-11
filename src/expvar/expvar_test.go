@@ -6,6 +6,7 @@ package expvar
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -299,6 +300,36 @@ func BenchmarkMapSetDifferent(b *testing.B) {
 	})
 }
 
+// BenchmarkMapSetDifferentRandom simulates that the concerned keys of
+// Map.Set are generated dynamically and as a result insertion is out
+// of order and the number of the keys may be large.
+func BenchmarkMapSetDifferentRandom(b *testing.B) {
+	procKeys := make([][]string, runtime.GOMAXPROCS(0))
+	for i := range procKeys {
+		keys := make([]string, 1000)
+		for j := range keys {
+			keys[j] = fmt.Sprintf("%x", sha1.Sum([]byte(fmt.Sprint(i, j))))
+		}
+		procKeys[i] = keys
+	}
+
+	m := new(Map).Init()
+	v := new(Int)
+	b.ResetTimer()
+
+	var n int32
+	b.RunParallel(func(pb *testing.PB) {
+		i := int(atomic.AddInt32(&n, 1)-1) % len(procKeys)
+		keys := procKeys[i]
+
+		for pb.Next() {
+			for _, k := range keys {
+				m.Set(k, v)
+			}
+		}
+	})
+}
+
 func BenchmarkMapSetString(b *testing.B) {
 	m := new(Map).Init()
 
@@ -334,6 +365,7 @@ func BenchmarkMapAddDifferent(b *testing.B) {
 		procKeys[i] = keys
 	}
 
+	m := new(Map).Init()
 	b.ResetTimer()
 
 	var n int32
@@ -342,7 +374,35 @@ func BenchmarkMapAddDifferent(b *testing.B) {
 		keys := procKeys[i]
 
 		for pb.Next() {
-			m := new(Map).Init()
+			for _, k := range keys {
+				m.Add(k, 1)
+			}
+		}
+	})
+}
+
+// BenchmarkMapAddDifferentRandom simulates that the concerned keys of
+// Map.Add are generated dynamically and as a result insertion is out
+// of order and the number of the keys may be large.
+func BenchmarkMapAddDifferentRandom(b *testing.B) {
+	procKeys := make([][]string, runtime.GOMAXPROCS(0))
+	for i := range procKeys {
+		keys := make([]string, 1000)
+		for j := range keys {
+			keys[j] = fmt.Sprintf("%x", sha1.Sum([]byte(fmt.Sprint(i, j))))
+		}
+		procKeys[i] = keys
+	}
+
+	m := new(Map).Init()
+	b.ResetTimer()
+
+	var n int32
+	b.RunParallel(func(pb *testing.PB) {
+		i := int(atomic.AddInt32(&n, 1)-1) % len(procKeys)
+		keys := procKeys[i]
+
+		for pb.Next() {
 			for _, k := range keys {
 				m.Add(k, 1)
 			}
