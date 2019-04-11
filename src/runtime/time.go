@@ -141,6 +141,16 @@ type timersBucket struct {
 //   timerRemoving   -> wait until status changes
 //   timerDeleted    -> panic: concurrent modtimer/deltimer calls
 //   timerModifying  -> panic: concurrent modtimer calls
+// resettimer:
+//   timerNoStatus   -> timerWaiting
+//   timerRemoved    -> timerWaiting
+//   timerDeleted    -> timerModifying -> timerModifiedXX
+//   timerRemoving   -> wait until status changes
+//   timerRunning    -> wait until status changes
+//   timerWaiting    -> panic: resettimer called on active timer
+//   timerMoving     -> panic: resettimer called on active timer
+//   timerModifiedXX -> panic: resettimer called on active timer
+//   timerModifying  -> panic: resettimer called on active timer
 
 // Values for the timer status field.
 const (
@@ -573,7 +583,50 @@ func resettimer(t *timer, when int64) {
 		resettimerOld(t, when)
 		return
 	}
-	throw("new resettimer not yet implemented")
+
+	if when < 0 {
+		when = maxWhen
+	}
+
+	for {
+		switch s := atomic.Load(&t.status); s {
+		case timerNoStatus, timerRemoved:
+			atomic.Store(&t.status, timerWaiting)
+			t.when = when
+			addInitializedTimer(t)
+			return
+		case timerDeleted:
+			if atomic.Cas(&t.status, s, timerModifying) {
+				t.nextwhen = when
+				newStatus := uint32(timerModifiedLater)
+				if when < t.when {
+					newStatus = timerModifiedEarlier
+					atomic.Xadd(&t.pp.ptr().adjustTimers, 1)
+				}
+				if !atomic.Cas(&t.status, timerModifying, newStatus) {
+					badTimer()
+				}
+				if newStatus == timerModifiedEarlier {
+					wakeNetPoller(when)
+				}
+				return
+			}
+		case timerRemoving:
+			// Wait for the removal to complete.
+			osyield()
+		case timerRunning:
+			// Even though the timer should not be active,
+			// we can see timerRunning if the timer function
+			// permits some other goroutine to call resettimer.
+			// Wait until the run is complete.
+			osyield()
+		case timerWaiting, timerModifying, timerModifiedEarlier, timerModifiedLater, timerMoving:
+			// Called resettimer on active timer.
+			badTimer()
+		default:
+			badTimer()
+		}
+	}
 }
 
 func resettimerOld(t *timer, when int64) {
