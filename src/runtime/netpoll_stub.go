@@ -8,11 +8,15 @@ package runtime
 
 import "runtime/internal/atomic"
 
+var netpollInited uint32
 var netpollWaiters uint32
 
 var netpollStubLock mutex
 var netpollNote note
 var netpollBroken uint32
+
+func netpollGenericInit() {
+}
 
 func netpollBreak() {
 	if atomic.Cas(&netpollBroken, 0, 1) {
