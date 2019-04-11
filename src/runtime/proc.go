@@ -4122,6 +4122,7 @@ func (pp *p) destroy() {
 		// The world is stopped so we don't need to hold timersLock.
 		moveTimers(plocal, pp.timers)
 		pp.timers = nil
+		pp.adjustTimers = 0
 	}
 	// If there's a background worker, make it runnable and put
 	// it on the global queue so it can clean itself up.
