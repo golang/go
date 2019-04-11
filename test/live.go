@@ -687,7 +687,7 @@ type R struct{ *T } // ERRORAUTO "live at entry to \(\*R\)\.Foo: \.this ptr" "li
 // In particular, at printint r must be live.
 func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
 	r = p
-	defer func() { // ERROR "live at call to deferproc: q r$" "live at call to deferreturn: r$"
+	defer func() { // ERROR "live at call to deferprocStack: q r$" "live at call to deferreturn: r$"
 		recover()
 	}()
 	printint(0) // ERROR "live at call to printint: q r$"
