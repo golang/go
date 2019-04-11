@@ -242,7 +242,11 @@ func (b *Builder) Init() {
 		}
 		if !cfg.BuildWork {
 			workdir := b.WorkDir
-			base.AtExit(func() { os.RemoveAll(workdir) })
+			base.AtExit(func() {
+				if err := os.RemoveAll(workdir); err != nil {
+					fmt.Fprintf(os.Stderr, "go: failed to remove work dir: %s\n", err)
+				}
+			})
 		}
 	}
 
