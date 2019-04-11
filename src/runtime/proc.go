@@ -2355,7 +2355,7 @@ stop:
 	// wasm only:
 	// If a callback returned and no other goroutine is awake,
 	// then pause execution until a callback was triggered.
-	if beforeIdle() {
+	if beforeIdle(delta) {
 		// At least one goroutine got woken.
 		goto top
 	}
