@@ -116,6 +116,15 @@ func stopTimer(t *timer) bool {
 	return deltimer(t)
 }
 
+// resetTimer resets an inactive timer, adding it to the heap.
+//go:linkname resetTimer time.resetTimer
+func resetTimer(t *timer, when int64) {
+	if raceenabled {
+		racerelease(unsafe.Pointer(t))
+	}
+	resettimer(t, when)
+}
+
 // Go runtime.
 
 // Ready the goroutine arg.
@@ -234,6 +243,15 @@ func modtimer(t *timer, when, period int64, f func(interface{}, uintptr), arg in
 	if !ok {
 		badTimer()
 	}
+}
+
+// resettimer resets an existing inactive timer to turn it into an active timer,
+// with a new time for when the timer should fire.
+// This should be called instead of addtimer if the timer value has been,
+// or may have been, used previously.
+func resettimer(t *timer, when int64) {
+	t.when = when
+	addtimer(t)
 }
 
 // Timerproc runs the time-driven events.

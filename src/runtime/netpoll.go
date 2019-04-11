@@ -239,13 +239,12 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 	if pd.rt.f == nil {
 		if pd.rd > 0 {
 			pd.rt.f = rtf
-			pd.rt.when = pd.rd
 			// Copy current seq into the timer arg.
 			// Timer func will check the seq against current descriptor seq,
 			// if they differ the descriptor was reused or timers were reset.
 			pd.rt.arg = pd
 			pd.rt.seq = pd.rseq
-			addtimer(&pd.rt)
+			resettimer(&pd.rt, pd.rd)
 		}
 	} else if pd.rd != rd0 || combo != combo0 {
 		pd.rseq++ // invalidate current timers
@@ -259,10 +258,9 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 	if pd.wt.f == nil {
 		if pd.wd > 0 && !combo {
 			pd.wt.f = netpollWriteDeadline
-			pd.wt.when = pd.wd
 			pd.wt.arg = pd
 			pd.wt.seq = pd.wseq
-			addtimer(&pd.wt)
+			resettimer(&pd.wt, pd.wd)
 		}
 	} else if pd.wd != wd0 || combo != combo0 {
 		pd.wseq++ // invalidate current timers
