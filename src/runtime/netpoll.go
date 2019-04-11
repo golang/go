@@ -100,8 +100,13 @@ var (
 
 //go:linkname poll_runtime_pollServerInit internal/poll.runtime_pollServerInit
 func poll_runtime_pollServerInit() {
-	netpollinit()
-	atomic.Store(&netpollInited, 1)
+	netpollGenericInit()
+}
+
+func netpollGenericInit() {
+	if atomic.Cas(&netpollInited, 0, 1) {
+		netpollinit()
+	}
 }
 
 func netpollinited() bool {
