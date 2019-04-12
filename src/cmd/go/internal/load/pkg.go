@@ -40,7 +40,7 @@ var (
 	ModPackageModuleInfo func(path string) *modinfo.ModulePublic                                                  // return module info for Package struct
 	ModImportPaths       func(args []string) []*search.Match                                                      // expand import paths
 	ModPackageBuildInfo  func(main string, deps []string) string                                                  // return module info to embed in binary
-	ModInfoProg          func(info string) []byte                                                                 // wrap module info in .go code for binary
+	ModInfoProg          func(info string, isgccgo bool) []byte                                                   // wrap module info in .go code for binary
 	ModImportFromFiles   func([]string)                                                                           // update go.mod to add modules for imports in these files
 	ModDirImportPath     func(string) string                                                                      // return effective import path for directory
 )
