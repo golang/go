@@ -549,7 +549,7 @@
 // For each named package or package pattern, get must decide which version of
 // the corresponding module to use. By default, get chooses the latest tagged
 // release version, such as v0.4.5 or v1.2.3. If there are no tagged release
-// versions, get chooses the latest tagged prerelease version, such as
+// versions, get chooses the latest tagged pre-release version, such as
 // v0.0.1-pre1. If there are no tagged versions at all, get chooses the latest
 // known commit.
 //
