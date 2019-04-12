@@ -16,15 +16,32 @@ import (
 	"strings"
 )
 
-// iteration over encoded pcdata tables.
+// PCIter iterates over encoded pcdata tables.
+type PCIter struct {
+	p       []byte
+	pc      uint32
+	nextpc  uint32
+	pcscale uint32
+	value   int32
+	start   bool
+	done    bool
+}
 
-func pciternext(it *Pciter) {
+// newPCIter creates a PCIter and configures it for ctxt's architecture.
+func newPCIter(ctxt *Link) *PCIter {
+	it := new(PCIter)
+	it.pcscale = uint32(ctxt.Arch.MinLC)
+	return it
+}
+
+// next advances it to the next pc.
+func (it *PCIter) next() {
 	it.pc = it.nextpc
-	if it.done != 0 {
+	if it.done {
 		return
 	}
-	if -cap(it.p) >= -cap(it.d.P[len(it.d.P):]) {
-		it.done = 1
+	if len(it.p) == 0 {
+		it.done = true
 		return
 	}
 
@@ -35,12 +52,12 @@ func pciternext(it *Pciter) {
 	}
 	it.p = it.p[n:]
 
-	if val == 0 && it.start == 0 {
-		it.done = 1
+	if val == 0 && !it.start {
+		it.done = true
 		return
 	}
 
-	it.start = 0
+	it.start = false
 	it.value += int32(val)
 
 	// pc delta
@@ -53,16 +70,16 @@ func pciternext(it *Pciter) {
 	it.nextpc = it.pc + uint32(pc)*it.pcscale
 }
 
-func pciterinit(ctxt *Link, it *Pciter, d *sym.Pcdata) {
-	it.d = *d
-	it.p = it.d.P
+// init prepares it to iterate over p,
+// and advances it to the first pc.
+func (it *PCIter) init(p []byte) {
+	it.p = p
 	it.pc = 0
 	it.nextpc = 0
 	it.value = -1
-	it.start = 1
-	it.done = 0
-	it.pcscale = uint32(ctxt.Arch.MinLC)
-	pciternext(it)
+	it.start = true
+	it.done = false
+	it.next()
 }
 
 func addpctab(ctxt *Link, ftab *sym.Symbol, off int32, d *sym.Pcdata) int32 {
@@ -101,8 +118,8 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
 	buf := make([]byte, binary.MaxVarintLen32)
 	newval := int32(-1)
 	var out sym.Pcdata
-	var it Pciter
-	for pciterinit(ctxt, &it, d); it.done == 0; pciternext(&it) {
+	it := newPCIter(ctxt)
+	for it.init(d.P); !it.done; it.next() {
 		// value delta
 		oldval := it.value
 
@@ -316,8 +333,8 @@ func (ctxt *Link) pclntab() {
 			renumberfiles(ctxt, pcln.File, &pcln.Pcfile)
 			if false {
 				// Sanity check the new numbering
-				var it Pciter
-				for pciterinit(ctxt, &it, &pcln.Pcfile); it.done == 0; pciternext(&it) {
+				it := newPCIter(ctxt)
+				for it.init(pcln.Pcfile.P); !it.done; it.next() {
 					if it.value < 1 || it.value > int32(len(ctxt.Filesyms)) {
 						Errorf(s, "bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(ctxt.Filesyms))
 						errorexit()

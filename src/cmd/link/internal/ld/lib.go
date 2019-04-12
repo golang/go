@@ -2112,9 +2112,9 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 
 	endr := len(s.R)
 	var ch1 chain
-	var pcsp Pciter
+	pcsp := newPCIter(ctxt)
 	var r *sym.Reloc
-	for pciterinit(ctxt, &pcsp, &s.FuncInfo.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
+	for pcsp.init(s.FuncInfo.Pcsp.P); !pcsp.done; pcsp.next() {
 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
 
 		// Check stack size in effect for this span.

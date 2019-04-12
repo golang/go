@@ -1205,28 +1205,28 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 	file := 1
 	ls.AddAddr(ctxt.Arch, s)
 
-	var pcfile Pciter
-	var pcline Pciter
-	var pcstmt Pciter
+	pcfile := newPCIter(ctxt)
+	pcline := newPCIter(ctxt)
+	pcstmt := newPCIter(ctxt)
 	for i, s := range unit.lib.Textp {
 		finddebugruntimepath(s)
 
-		pciterinit(ctxt, &pcfile, &s.FuncInfo.Pcfile)
-		pciterinit(ctxt, &pcline, &s.FuncInfo.Pcline)
+		pcfile.init(s.FuncInfo.Pcfile.P)
+		pcline.init(s.FuncInfo.Pcline.P)
 
 		isStmtSym := dwarfFuncSym(ctxt, s, dwarf.IsStmtPrefix, false)
 		if isStmtSym != nil && len(isStmtSym.P) > 0 {
-			pciterinit(ctxt, &pcstmt, &sym.Pcdata{P: isStmtSym.P})
+			pcstmt.init(isStmtSym.P)
 		} else {
 			// Assembly files lack a pcstmt section, we assume that every instruction
 			// is a valid statement.
-			pcstmt.done = 1
+			pcstmt.done = true
 			pcstmt.value = 1
 		}
 
 		var thispc uint32
 		// TODO this loop looks like it could exit with work remaining.
-		for pcfile.done == 0 && pcline.done == 0 {
+		for !pcfile.done && !pcline.done {
 			// Only changed if it advanced
 			if int32(file) != pcfile.value {
 				ls.AddUint8(dwarf.DW_LNS_set_file)
@@ -1266,18 +1266,18 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
 			if pcline.nextpc < thispc {
 				thispc = pcline.nextpc
 			}
-			if pcstmt.done == 0 && pcstmt.nextpc < thispc {
+			if !pcstmt.done && pcstmt.nextpc < thispc {
 				thispc = pcstmt.nextpc
 			}
 
 			if pcfile.nextpc == thispc {
-				pciternext(&pcfile)
+				pcfile.next()
 			}
-			if pcstmt.done == 0 && pcstmt.nextpc == thispc {
-				pciternext(&pcstmt)
+			if !pcstmt.done && pcstmt.nextpc == thispc {
+				pcstmt.next()
 			}
 			if pcline.nextpc == thispc {
-				pciternext(&pcline)
+				pcline.next()
 			}
 		}
 		if is_stmt == 0 && i < len(unit.lib.Textp)-1 {
@@ -1442,7 +1442,7 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 	fs.AddBytes(zeros[:pad])
 
 	var deltaBuf []byte
-	var pcsp Pciter
+	pcsp := newPCIter(ctxt)
 	for _, s := range ctxt.Textp {
 		if s.FuncInfo == nil {
 			continue
@@ -1451,7 +1451,7 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
 		// Emit a FDE, Section 6.4.1.
 		// First build the section contents into a byte buffer.
 		deltaBuf = deltaBuf[:0]
-		for pciterinit(ctxt, &pcsp, &s.FuncInfo.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
+		for pcsp.init(s.FuncInfo.Pcsp.P); !pcsp.done; pcsp.next() {
 			nextpc := pcsp.nextpc
 
 			// pciterinit goes up to the end of the function,
