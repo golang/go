@@ -215,6 +215,7 @@ func syscall1(fn *libFunc, a0 uintptr) (r, err uintptr) {
 
 //go:nowritebarrier
 //go:nosplit
+//go:cgo_unsafe_args
 func syscall2(fn *libFunc, a0, a1 uintptr) (r, err uintptr) {
 	gp := getg()
 	mp := gp.m
@@ -245,6 +246,7 @@ func syscall2(fn *libFunc, a0, a1 uintptr) (r, err uintptr) {
 
 //go:nowritebarrier
 //go:nosplit
+//go:cgo_unsafe_args
 func syscall3(fn *libFunc, a0, a1, a2 uintptr) (r, err uintptr) {
 	gp := getg()
 	mp := gp.m
@@ -275,6 +277,7 @@ func syscall3(fn *libFunc, a0, a1, a2 uintptr) (r, err uintptr) {
 
 //go:nowritebarrier
 //go:nosplit
+//go:cgo_unsafe_args
 func syscall4(fn *libFunc, a0, a1, a2, a3 uintptr) (r, err uintptr) {
 	gp := getg()
 	mp := gp.m
@@ -305,6 +308,7 @@ func syscall4(fn *libFunc, a0, a1, a2, a3 uintptr) (r, err uintptr) {
 
 //go:nowritebarrier
 //go:nosplit
+//go:cgo_unsafe_args
 func syscall5(fn *libFunc, a0, a1, a2, a3, a4 uintptr) (r, err uintptr) {
 	gp := getg()
 	mp := gp.m
@@ -335,6 +339,7 @@ func syscall5(fn *libFunc, a0, a1, a2, a3, a4 uintptr) (r, err uintptr) {
 
 //go:nowritebarrier
 //go:nosplit
+//go:cgo_unsafe_args
 func syscall6(fn *libFunc, a0, a1, a2, a3, a4, a5 uintptr) (r, err uintptr) {
 	gp := getg()
 	mp := gp.m
