@@ -9,6 +9,7 @@ import (
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
+	"encoding/binary"
 	"log"
 	"os"
 	"path/filepath"
@@ -16,22 +17,6 @@ import (
 )
 
 // iteration over encoded pcdata tables.
-
-func getvarint(pp *[]byte) uint32 {
-	v := uint32(0)
-	p := *pp
-	for shift := 0; ; shift += 7 {
-		v |= uint32(p[0]&0x7F) << uint(shift)
-		tmp4 := p
-		p = p[1:]
-		if tmp4[0]&0x80 == 0 {
-			break
-		}
-	}
-
-	*pp = p
-	return v
-}
 
 func pciternext(it *Pciter) {
 	it.pc = it.nextpc
@@ -44,21 +29,28 @@ func pciternext(it *Pciter) {
 	}
 
 	// value delta
-	v := getvarint(&it.p)
+	val, n := binary.Varint(it.p)
+	if n <= 0 {
+		log.Fatalf("bad value varint in pciternext: read %v", n)
+	}
+	it.p = it.p[n:]
 
-	if v == 0 && it.start == 0 {
+	if val == 0 && it.start == 0 {
 		it.done = 1
 		return
 	}
 
 	it.start = 0
-	dv := int32(v>>1) ^ (int32(v<<31) >> 31)
-	it.value += dv
+	it.value += int32(val)
 
 	// pc delta
-	v = getvarint(&it.p)
+	pc, n := binary.Uvarint(it.p)
+	if n <= 0 {
+		log.Fatalf("bad pc varint in pciternext: read %v", n)
+	}
+	it.p = it.p[n:]
 
-	it.nextpc = it.pc + v*it.pcscale
+	it.nextpc = it.pc + uint32(pc)*it.pcscale
 }
 
 func pciterinit(ctxt *Link, it *Pciter, d *sym.Pcdata) {
@@ -71,28 +63,6 @@ func pciterinit(ctxt *Link, it *Pciter, d *sym.Pcdata) {
 	it.done = 0
 	it.pcscale = uint32(ctxt.Arch.MinLC)
 	pciternext(it)
-}
-
-func addvarint(d *sym.Pcdata, val uint32) {
-	n := int32(0)
-	for v := val; v >= 0x80; v >>= 7 {
-		n++
-	}
-	n++
-
-	old := len(d.P)
-	for cap(d.P) < len(d.P)+int(n) {
-		d.P = append(d.P[:cap(d.P)], 0)
-	}
-	d.P = d.P[:old+int(n)]
-
-	p := d.P[old:]
-	var v uint32
-	for v = val; v >= 0x80; v >>= 7 {
-		p[0] = byte(v | 0x80)
-		p = p[1:]
-	}
-	p[0] = byte(v)
 }
 
 func addpctab(ctxt *Link, ftab *sym.Symbol, off int32, d *sym.Pcdata) int32 {
@@ -128,6 +98,7 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
 		numberfile(ctxt, f)
 	}
 
+	buf := make([]byte, binary.MaxVarintLen32)
 	newval := int32(-1)
 	var out sym.Pcdata
 	var it Pciter
@@ -147,15 +118,20 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
 
 		dv := val - newval
 		newval = val
-		v := (uint32(dv) << 1) ^ uint32(dv>>31)
-		addvarint(&out, v)
+
+		// value
+		n := binary.PutVarint(buf, int64(dv))
+		out.P = append(out.P, buf[:n]...)
 
 		// pc delta
-		addvarint(&out, (it.nextpc-it.pc)/it.pcscale)
+		pc := (it.nextpc - it.pc) / it.pcscale
+		n = binary.PutUvarint(buf, uint64(pc))
+		out.P = append(out.P, buf[:n]...)
 	}
 
 	// terminating value delta
-	addvarint(&out, 0)
+	// we want to write varint-encoded 0, which is just 0
+	out.P = append(out.P, 0)
 
 	*d = out
 }
