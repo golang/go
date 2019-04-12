@@ -4410,44 +4410,23 @@ func checkdead() {
 	}
 
 	// Maybe jump time forward for playground.
-	if oldTimers {
-		gp := timejumpOld()
-		if gp != nil {
-			casgstatus(gp, _Gwaiting, _Grunnable)
-			globrunqput(gp)
-			_p_ := pidleget()
-			if _p_ == nil {
-				throw("checkdead: no p for timer")
+	_p_ := timejump()
+	if _p_ != nil {
+		for pp := &sched.pidle; *pp != 0; pp = &(*pp).ptr().link {
+			if (*pp).ptr() == _p_ {
+				*pp = _p_.link
+				break
 			}
-			mp := mget()
-			if mp == nil {
-				// There should always be a free M since
-				// nothing is running.
-				throw("checkdead: no m for timer")
-			}
-			mp.nextp.set(_p_)
-			notewakeup(&mp.park)
-			return
 		}
-	} else {
-		_p_ := timejump()
-		if _p_ != nil {
-			for pp := &sched.pidle; *pp != 0; pp = &(*pp).ptr().link {
-				if (*pp).ptr() == _p_ {
-					*pp = _p_.link
-					break
-				}
-			}
-			mp := mget()
-			if mp == nil {
-				// There should always be a free M since
-				// nothing is running.
-				throw("checkdead: no m for timer")
-			}
-			mp.nextp.set(_p_)
-			notewakeup(&mp.park)
-			return
+		mp := mget()
+		if mp == nil {
+			// There should always be a free M since
+			// nothing is running.
+			throw("checkdead: no m for timer")
 		}
+		mp.nextp.set(_p_)
+		notewakeup(&mp.park)
+		return
 	}
 
 	// There are no goroutines running, so we can look at the P's.
