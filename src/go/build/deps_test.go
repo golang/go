@@ -65,7 +65,7 @@ var pkgDeps = map[string][]string{
 	// but not Unicode tables.
 	"math":          {"internal/cpu", "unsafe", "math/bits"},
 	"math/bits":     {"unsafe"},
-	"math/cmplx":    {"math"},
+	"math/cmplx":    {"math", "math/bits"},
 	"math/rand":     {"L0", "math"},
 	"strconv":       {"L0", "unicode/utf8", "math", "math/bits"},
 	"unicode/utf16": {},
