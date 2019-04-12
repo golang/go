@@ -249,16 +249,34 @@ func findModule(target, path string) module.Version {
 	panic("unreachable")
 }
 
-func ModInfoProg(info string) []byte {
+func ModInfoProg(info string, isgccgo bool) []byte {
 	// Inject a variable with the debug information as runtime.modinfo,
 	// but compile it in package main so that it is specific to the binary.
 	// The variable must be a literal so that it will have the correct value
 	// before the initializer for package main runs.
 	//
-	// The runtime startup code refers to the variable, which keeps it live in all binaries.
-	return []byte(fmt.Sprintf(`package main
+	// The runtime startup code refers to the variable, which keeps it live
+	// in all binaries.
+	//
+	// Note: we use an alternate recipe below for gccgo (based on an
+	// init function) due to the fact that gccgo does not support
+	// applying a "//go:linkname" directive to a variable. This has
+	// drawbacks in that other packages may want to look at the module
+	// info in their init functions (see issue 29628), which won't
+	// work for gccgo. See also issue 30344.
+
+	if !isgccgo {
+		return []byte(fmt.Sprintf(`package main
 import _ "unsafe"
 //go:linkname __debug_modinfo__ runtime.modinfo
 var __debug_modinfo__ = %q
 	`, string(infoStart)+info+string(infoEnd)))
+	} else {
+		return []byte(fmt.Sprintf(`package main
+import _ "unsafe"
+//go:linkname __set_debug_modinfo__ runtime..z2fdebug.setmodinfo
+func __set_debug_modinfo__(string)
+func init() { __set_debug_modinfo__(%q) }
+	`, string(infoStart)+info+string(infoEnd)))
+	}
 }

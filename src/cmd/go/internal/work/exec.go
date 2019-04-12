@@ -663,7 +663,7 @@ func (b *Builder) build(a *Action) (err error) {
 	}
 
 	if p.Internal.BuildInfo != "" && cfg.ModulesEnabled {
-		if err := b.writeFile(objdir+"_gomod_.go", load.ModInfoProg(p.Internal.BuildInfo)); err != nil {
+		if err := b.writeFile(objdir+"_gomod_.go", load.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")); err != nil {
 			return err
 		}
 		gofiles = append(gofiles, objdir+"_gomod_.go")
