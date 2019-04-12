@@ -291,6 +291,35 @@ var tanh = []complex128{
 	(-1.0000000491604982429364892e+00 - 2.901873195374433112227349e-08i),
 }
 
+// huge values along the real axis for testing reducePi in Tan
+var hugeIn = []complex128{
+	1 << 28,
+	1 << 29,
+	1 << 30,
+	1 << 35,
+	-1 << 120,
+	1 << 240,
+	1 << 300,
+	-1 << 480,
+	1234567891234567 << 180,
+	-1234567891234567 << 300,
+}
+
+// Results for tanHuge[i] calculated with https://github.com/robpike/ivy
+// using 4096 bits of working precision.
+var tanHuge = []complex128{
+	5.95641897939639421,
+	-0.34551069233430392,
+	-0.78469661331920043,
+	0.84276385870875983,
+	0.40806638884180424,
+	-0.37603456702698076,
+	4.60901287677810962,
+	3.39135965054779932,
+	-6.76813854009065030,
+	-0.76417695016604922,
+}
+
 // special cases
 var vcAbsSC = []complex128{
 	NaN(),
@@ -803,6 +832,11 @@ func TestTan(t *testing.T) {
 	for i := 0; i < len(vc); i++ {
 		if f := Tan(vc[i]); !cSoclose(tan[i], f, 3e-15) {
 			t.Errorf("Tan(%g) = %g, want %g", vc[i], f, tan[i])
+		}
+	}
+	for i, x := range hugeIn {
+		if f := Tan(x); !cSoclose(tanHuge[i], f, 3e-15) {
+			t.Errorf("Tan(%g) = %g, want %g", x, f, tanHuge[i])
 		}
 	}
 	for i := 0; i < len(vcTanSC); i++ {
