@@ -105,6 +105,9 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 		linkpatch(ctxt, s, newprog)
 		ctxt.Arch.Preprocess(ctxt, s, newprog)
 		ctxt.Arch.Assemble(ctxt, s, newprog)
+		if ctxt.Errors > 0 {
+			continue
+		}
 		linkpcln(ctxt, s)
 		ctxt.populateDWARF(plist.Curfn, s, myimportpath)
 	}
