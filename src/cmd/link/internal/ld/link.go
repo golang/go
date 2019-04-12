@@ -169,14 +169,3 @@ func addImports(ctxt *Link, l *sym.Library, pn string) {
 	}
 	l.ImportStrings = nil
 }
-
-type Pciter struct {
-	d       sym.Pcdata
-	p       []byte
-	pc      uint32
-	nextpc  uint32
-	pcscale uint32
-	value   int32
-	start   int
-	done    int
-}
