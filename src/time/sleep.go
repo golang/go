@@ -11,10 +11,7 @@ func Sleep(d Duration)
 // Interface to timers implemented in package runtime.
 // Must be in sync with ../runtime/time.go:/^type timer
 type runtimeTimer struct {
-	tb uintptr
-	i  int
-	pp uintptr
-
+	pp       uintptr
 	when     int64
 	period   int64
 	f        func(interface{}, uintptr) // NOTE: must not be closure
