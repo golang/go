@@ -559,10 +559,6 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 }
 
 func (ctxt *Link) reloc() {
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f reloc\n", Cputime())
-	}
-
 	for _, s := range ctxt.Textp {
 		relocsym(ctxt, s)
 	}
@@ -623,9 +619,6 @@ func (ctxt *Link) windynrelocsyms() {
 	if !(ctxt.HeadType == objabi.Hwindows && iscgo && ctxt.LinkMode == LinkInternal) {
 		return
 	}
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f windynrelocsyms\n", Cputime())
-	}
 
 	/* relocation table */
 	rel := ctxt.Syms.Lookup(".rel", 0)
@@ -671,9 +664,6 @@ func dynreloc(ctxt *Link, data *[sym.SXREF][]*sym.Symbol) {
 	// compute these sections or mark their symbols as reachable.
 	if *FlagD {
 		return
-	}
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f dynreloc\n", Cputime())
 	}
 
 	for _, s := range ctxt.Textp {
@@ -1143,10 +1133,6 @@ func checkdatsize(ctxt *Link, datsize int64, symn sym.SymKind) {
 var datap []*sym.Symbol
 
 func (ctxt *Link) dodata() {
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f dodata\n", Cputime())
-	}
-
 	if (ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
 		// The values in moduledata are filled out by relocations
 		// pointing to the addresses of these special symbols.
