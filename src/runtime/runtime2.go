@@ -434,7 +434,6 @@ type m struct {
 	profilehz     int32
 	spinning      bool // m is out of work and is actively looking for work
 	blocked       bool // m is blocked on a note
-	inwb          bool // m is executing a write barrier
 	newSigstack   bool // minit on C thread called sigaltstack
 	printlock     int8
 	incgo         bool   // m is executing a cgo call
@@ -481,8 +480,6 @@ type m struct {
 }
 
 type p struct {
-	lock mutex
-
 	id          int32
 	status      uint32 // one of pidle/prunning/...
 	link        puintptr
@@ -536,10 +533,12 @@ type p struct {
 
 	palloc persistentAlloc // per-P to avoid mutex
 
+	_ uint32 // Alignment for atomic fields below
+
 	// Per-P GC state
-	gcAssistTime         int64 // Nanoseconds in assistAlloc
-	gcFractionalMarkTime int64 // Nanoseconds in fractional mark worker
-	gcBgMarkWorker       guintptr
+	gcAssistTime         int64    // Nanoseconds in assistAlloc
+	gcFractionalMarkTime int64    // Nanoseconds in fractional mark worker (atomic)
+	gcBgMarkWorker       guintptr // (atomic)
 	gcMarkWorkerMode     gcMarkWorkerMode
 
 	// gcMarkWorkerStartTime is the nanotime() at which this mark
