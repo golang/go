@@ -274,7 +274,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.hostlink()
 	ctxt.archive()
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f cpu time\n", Cputime())
 		ctxt.Logf("%d symbols\n", len(ctxt.Syms.Allsym))
 		ctxt.Logf("%d liveness data\n", liveness)
 	}

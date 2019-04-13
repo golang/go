@@ -9,18 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"time"
 )
-
-var startTime time.Time
-
-// TODO(josharian): delete. See issue 19865.
-func Cputime() float64 {
-	if startTime.IsZero() {
-		startTime = time.Now()
-	}
-	return time.Since(startTime).Seconds()
-}
 
 var atExitFuncs []func()
 
@@ -82,12 +71,6 @@ func stringtouint32(x []uint32, s string) {
 		s = s[copy(buf[:], s):]
 		x[i] = binary.LittleEndian.Uint32(buf[:])
 	}
-}
-
-var start = time.Now()
-
-func elapsed() float64 {
-	return time.Since(start).Seconds()
 }
 
 // contains reports whether v is in s.

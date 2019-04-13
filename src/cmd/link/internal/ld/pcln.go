@@ -393,7 +393,7 @@ func (ctxt *Link) pclntab() {
 	ftab.Size = int64(len(ftab.P))
 
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f pclntab=%d bytes, funcdata total %d bytes\n", Cputime(), ftab.Size, funcdataBytes)
+		ctxt.Logf("pclntab=%d bytes, funcdata total %d bytes\n", ftab.Size, funcdataBytes)
 	}
 }
 
