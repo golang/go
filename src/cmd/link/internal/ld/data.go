@@ -990,19 +990,6 @@ func addinitarrdata(ctxt *Link, s *sym.Symbol) {
 	sp.AddAddr(ctxt.Arch, s)
 }
 
-func dosymtype(ctxt *Link) {
-	switch ctxt.BuildMode {
-	case BuildModeCArchive, BuildModeCShared:
-		for _, s := range ctxt.Syms.Allsym {
-			// Create a new entry in the .init_array section that points to the
-			// library initializer function.
-			if s.Name == *flagEntrySymbol && ctxt.HeadType != objabi.Haix {
-				addinitarrdata(ctxt, s)
-			}
-		}
-	}
-}
-
 // symalign returns the required alignment for the given symbol s.
 func symalign(s *sym.Symbol) int32 {
 	min := int32(thearch.Minalign)
