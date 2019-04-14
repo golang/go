@@ -206,6 +206,29 @@ func BenchmarkMul(b *testing.B) {
 	}
 }
 
+func benchmarkNatMul(b *testing.B, nwords int) {
+	x := rndNat(nwords)
+	y := rndNat(nwords)
+	var z nat
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		z.mul(x, y)
+	}
+}
+
+var mulBenchSizes = []int{10, 100, 1000, 10000, 100000}
+
+func BenchmarkNatMul(b *testing.B) {
+	for _, n := range mulBenchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			benchmarkNatMul(b, n)
+		})
+	}
+}
+
 func TestNLZ(t *testing.T) {
 	var x Word = _B >> 1
 	for i := 0; i <= _W; i++ {
@@ -681,7 +704,11 @@ func benchmarkNatSqr(b *testing.B, nwords int) {
 	}
 }
 
-var sqrBenchSizes = []int{1, 2, 3, 5, 8, 10, 20, 30, 50, 80, 100, 200, 300, 500, 800, 1000}
+var sqrBenchSizes = []int{
+	1, 2, 3, 5, 8, 10, 20, 30, 50, 80,
+	100, 200, 300, 500, 800,
+	1000, 10000, 100000,
+}
 
 func BenchmarkNatSqr(b *testing.B) {
 	for _, n := range sqrBenchSizes {
