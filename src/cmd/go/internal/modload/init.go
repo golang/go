@@ -559,17 +559,10 @@ func findModulePath(dir string) (string, error) {
 		}
 	}
 
-	// Look for .git/config with github origin as last resort.
-	data, _ = ioutil.ReadFile(filepath.Join(dir, ".git/config"))
-	if m := gitOriginRE.FindSubmatch(data); m != nil {
-		return "github.com/" + string(m[1]), nil
-	}
-
-	return "", fmt.Errorf("cannot determine module path for source directory %s (outside GOPATH, module path not specified)", dir)
+	return "", fmt.Errorf("cannot determine module path for source directory %s (outside GOPATH, module path must be specified)", dir)
 }
 
 var (
-	gitOriginRE     = lazyregexp.New(`(?m)^\[remote "origin"\]\r?\n\turl = (?:https://github.com/|git@github.com:|gh:)([^/]+/[^/]+?)(\.git)?\r?\n`)
 	importCommentRE = lazyregexp.New(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
 )
 
