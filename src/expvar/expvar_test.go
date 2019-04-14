@@ -300,9 +300,9 @@ func BenchmarkMapSetDifferent(b *testing.B) {
 	})
 }
 
-// BenchmarkMapSetDifferentRandom simulates that the concerned keys of
-// Map.Set are generated dynamically and as a result insertion is out
-// of order and the number of the keys may be large.
+// BenchmarkMapSetDifferentRandom simulates such a case where the concerned
+// keys of Map.Set are generated dynamically and as a result insertion is
+// out of order and the number of the keys may be large.
 func BenchmarkMapSetDifferentRandom(b *testing.B) {
 	procKeys := make([][]string, runtime.GOMAXPROCS(0))
 	for i := range procKeys {
@@ -381,9 +381,9 @@ func BenchmarkMapAddDifferent(b *testing.B) {
 	})
 }
 
-// BenchmarkMapAddDifferentRandom simulates that the concerned keys of
-// Map.Add are generated dynamically and as a result insertion is out
-// of order and the number of the keys may be large.
+// BenchmarkMapAddDifferentRandom simulates such a case where that the concerned
+// keys of Map.Add are generated dynamically and as a result insertion is out of
+// order and the number of the keys may be large.
 func BenchmarkMapAddDifferentRandom(b *testing.B) {
 	procKeys := make([][]string, runtime.GOMAXPROCS(0))
 	for i := range procKeys {
