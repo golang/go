@@ -739,3 +739,27 @@ func BenchmarkNatSetBytes(b *testing.B) {
 		})
 	}
 }
+
+func TestNatDiv(t *testing.T) {
+	sizes := []int{
+		1, 2, 5, 8, 15, 25, 40, 65, 100,
+		200, 500, 800, 1500, 2500, 4000, 6500, 10000,
+	}
+	for _, i := range sizes {
+		for _, j := range sizes {
+			a := rndNat(i)
+			b := rndNat(j)
+			x := nat(nil).mul(a, b)
+			addVW(x, x, 1)
+
+			var q, r nat
+			q, r = q.div(r, x, b)
+			if q.cmp(a) != 0 {
+				t.Fatal("wrong quotient", i, j)
+			}
+			if len(r) != 1 || r[0] != 1 {
+				t.Fatal("wrong remainder")
+			}
+		}
+	}
+}
