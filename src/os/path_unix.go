@@ -38,20 +38,30 @@ func basename(name string) string {
 func splitPath(path string) (string, string) {
 	// if no better parent is found, the path is relative from "here"
 	dirname := "."
-	// if no slashes in path, base is path
-	basename := path
+
+	// Remove all but one leading slash.
+	for len(path) > 1 && path[0] == '/' && path[1] == '/' {
+		path = path[1:]
+	}
 
 	i := len(path) - 1
 
-	// Remove trailing slashes
+	// Remove trailing slashes.
 	for ; i > 0 && path[i] == '/'; i-- {
 		path = path[:i]
 	}
 
+	// if no slashes in path, base is path
+	basename := path
+
 	// Remove leading directory path
 	for i--; i >= 0; i-- {
 		if path[i] == '/' {
-			dirname = path[:i]
+			if i == 0 {
+				dirname = path[:1]
+			} else {
+				dirname = path[:i]
+			}
 			basename = path[i+1:]
 			break
 		}
