@@ -52,6 +52,11 @@ func splitPath(path string) (string, string) {
 	for i--; i >= 0; i-- {
 		if path[i] == '/' {
 			dirname = path[:i]
+
+			if i == 0 {
+				dirname = path[:i+1]
+			}
+
 			basename = path[i+1:]
 			break
 		}
