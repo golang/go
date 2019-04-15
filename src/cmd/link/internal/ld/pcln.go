@@ -82,15 +82,6 @@ func (it *PCIter) init(p []byte) {
 	it.next()
 }
 
-func addpctab(ctxt *Link, ftab *sym.Symbol, off int32, d *sym.Pcdata) int32 {
-	var start int32
-	if len(d.P) > 0 {
-		start = int32(len(ftab.P))
-		ftab.AddBytes(d.P)
-	}
-	return int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(start)))
-}
-
 func ftabaddstring(ftab *sym.Symbol, s string) int32 {
 	start := len(ftab.P)
 	ftab.Grow(int64(start + len(s) + 1)) // make room for s plus trailing NUL
@@ -239,6 +230,20 @@ func (ctxt *Link) pclntab() {
 		return nameoff
 	}
 
+	pctaboff := make(map[string]uint32)
+	writepctab := func(off int32, p []byte) int32 {
+		start, ok := pctaboff[string(p)]
+		if !ok {
+			if len(p) > 0 {
+				start = uint32(len(ftab.P))
+				ftab.AddBytes(p)
+			}
+			pctaboff[string(p)] = start
+		}
+		newoff := int32(ftab.SetUint32(ctxt.Arch, int64(off), start))
+		return newoff
+	}
+
 	nfunc = 0 // repurpose nfunc as a running index
 	for _, s := range ctxt.Textp {
 		if !emitPcln(ctxt, s) {
@@ -370,10 +375,9 @@ func (ctxt *Link) pclntab() {
 		}
 
 		// pcdata
-		off = addpctab(ctxt, ftab, off, &pcln.Pcsp)
-
-		off = addpctab(ctxt, ftab, off, &pcln.Pcfile)
-		off = addpctab(ctxt, ftab, off, &pcln.Pcline)
+		off = writepctab(off, pcln.Pcsp.P)
+		off = writepctab(off, pcln.Pcfile.P)
+		off = writepctab(off, pcln.Pcline.P)
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Pcdata))))
 
 		// funcID uint8
@@ -391,7 +395,7 @@ func (ctxt *Link) pclntab() {
 		// nfuncdata must be the final entry.
 		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(len(pcln.Funcdata))))
 		for i := range pcln.Pcdata {
-			off = addpctab(ctxt, ftab, off, &pcln.Pcdata[i])
+			off = writepctab(off, pcln.Pcdata[i].P)
 		}
 
 		// funcdata, must be pointer-aligned and we're only int32-aligned.
