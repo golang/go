@@ -49,8 +49,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 var (
@@ -235,7 +233,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 	// case letter, it can only be a symbol in the current directory.
 	// Kills the problem caused by case-insensitive file systems
 	// matching an upper case name as a package name.
-	if isUpper(arg) {
+	if token.IsExported(arg) {
 		pkg, err := build.ImportDir(".", build.ImportComment)
 		if err == nil {
 			return pkg, "", arg, false
@@ -352,19 +350,13 @@ func parseSymbol(str string) (symbol, method string) {
 // If the unexported flag (-u) is true, isExported returns true because
 // it means that we treat the name as if it is exported.
 func isExported(name string) bool {
-	return unexported || isUpper(name)
-}
-
-// isUpper reports whether the name starts with an upper case letter.
-func isUpper(name string) bool {
-	ch, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(ch)
+	return unexported || token.IsExported(name)
 }
 
 // findNextPackage returns the next full file name path that matches the
 // (perhaps partial) package path pkg. The boolean reports if any match was found.
 func findNextPackage(pkg string) (string, bool) {
-	if pkg == "" || isUpper(pkg) { // Upper case symbol cannot be a package name.
+	if pkg == "" || token.IsExported(pkg) { // Upper case symbol cannot be a package name.
 		return "", false
 	}
 	if filepath.IsAbs(pkg) {

@@ -169,7 +169,7 @@ type reader struct {
 }
 
 func (r *reader) isVisible(name string) bool {
-	return r.mode&AllDecls != 0 || ast.IsExported(name)
+	return r.mode&AllDecls != 0 || token.IsExported(name)
 }
 
 // lookupType returns the base type with the given name.
@@ -833,7 +833,7 @@ func sortedFuncs(m methodSet, allMethods bool) []*Func {
 		switch {
 		case m.Decl == nil:
 			// exclude conflict entry
-		case allMethods, m.Level == 0, !ast.IsExported(removeStar(m.Orig)):
+		case allMethods, m.Level == 0, !token.IsExported(removeStar(m.Orig)):
 			// forced inclusion, method not embedded, or method
 			// embedded but original receiver type not exported
 			list[i] = m

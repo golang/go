@@ -14,8 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"unicode"
-	"unicode/utf8"
 )
 
 type importer struct {
@@ -446,7 +444,7 @@ func (p *importer) typ(parent *types.Package, tname *types.Named) types.Type {
 			// TODO(gri) replace this with something closer to fieldName
 			pos := p.pos()
 			name := p.string()
-			if !exported(name) {
+			if !token.IsExported(name) {
 				p.pkg()
 			}
 
@@ -675,7 +673,7 @@ func (p *importer) fieldName(parent *types.Package) (pkg *types.Package, name st
 		alias = true
 		fallthrough
 	default:
-		if !exported(name) {
+		if !token.IsExported(name) {
 			pkg = p.pkg()
 		}
 	}
@@ -728,11 +726,6 @@ func (p *importer) param(named bool) (*types.Var, bool) {
 	p.string()
 
 	return types.NewVar(token.NoPos, pkg, name, t), isddd
-}
-
-func exported(name string) bool {
-	ch, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(ch)
 }
 
 func (p *importer) value() constant.Value {

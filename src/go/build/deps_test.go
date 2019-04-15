@@ -443,7 +443,7 @@ var pkgDeps = map[string][]string{
 	},
 	"net/http/httputil": {"L4", "NET", "OS", "context", "net/http", "net/http/internal", "golang.org/x/net/http/httpguts"},
 	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
-	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http"},
+	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http", "go/token"},
 	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},
 }
 
