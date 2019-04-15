@@ -111,6 +111,10 @@ func identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 	}
 	result.Type.Object = typeToObject(typ)
 	if result.Type.Object != nil {
+		// Identifiers with the type "error" are a special case with no position.
+		if types.IsInterface(result.Type.Object.Type()) && result.Type.Object.Pkg() == nil && result.Type.Object.Name() == "error" {
+			return result, nil
+		}
 		if result.Type.Range, err = objToRange(ctx, v, result.Type.Object); err != nil {
 			return nil, err
 		}

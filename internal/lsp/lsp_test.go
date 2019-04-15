@@ -40,7 +40,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	const expectedCompletionsCount = 64
 	const expectedDiagnosticsCount = 16
 	const expectedFormatCount = 4
-	const expectedDefinitionsCount = 16
+	const expectedDefinitionsCount = 17
 	const expectedTypeDefinitionsCount = 2
 	const expectedHighlightsCount = 2
 	const expectedSymbolsCount = 1
