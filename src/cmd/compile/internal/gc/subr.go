@@ -435,10 +435,9 @@ func nodstr(s string) *Node {
 }
 
 // treecopy recursively copies n, with the exception of
-// ONAME, OLITERAL, OTYPE, and non-iota ONONAME leaves.
-// Copies of iota ONONAME nodes are assigned the current
-// value of iota_. If pos.IsKnown(), it sets the source
-// position of newly allocated nodes to pos.
+// ONAME, OLITERAL, OTYPE, and ONONAME leaves.
+// If pos.IsKnown(), it sets the source position of newly
+// allocated nodes to pos.
 func treecopy(n *Node, pos src.XPos) *Node {
 	if n == nil {
 		return nil
