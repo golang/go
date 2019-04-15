@@ -16,8 +16,6 @@ import (
 	"os"
 	"reflect"
 	"regexp"
-	"unicode"
-	"unicode/utf8"
 )
 
 // dump is like fdump but prints to stderr.
@@ -216,7 +214,7 @@ func (p *dumper) dump(x reflect.Value, depth int) {
 		for i, n := 0, typ.NumField(); i < n; i++ {
 			// Exclude non-exported fields because their
 			// values cannot be accessed via reflection.
-			if name := typ.Field(i).Name; isExported(name) {
+			if name := typ.Field(i).Name; types.IsExported(name) {
 				if !p.fieldrx.MatchString(name) {
 					omitted = true
 					continue // field name not selected by filter
@@ -272,11 +270,6 @@ func isZeroVal(x reflect.Value) bool {
 		return x.IsNil()
 	}
 	return false
-}
-
-func isExported(name string) bool {
-	ch, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(ch)
 }
 
 func commonPrefixLen(a, b string) (i int) {

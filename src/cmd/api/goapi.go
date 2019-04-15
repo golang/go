@@ -241,7 +241,7 @@ func (w *Walker) export(pkg *types.Package) {
 	w.current = pkg
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
-		if ast.IsExported(name) {
+		if token.IsExported(name) {
 			w.emitObj(scope.Lookup(name))
 		}
 	}
