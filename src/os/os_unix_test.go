@@ -288,3 +288,28 @@ func TestNewFileNonBlock(t *testing.T) {
 	t.Parallel()
 	newFileTest(t, false)
 }
+
+func TestSplitPath(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct{ path, wantDir, wantBase string }{
+		{"a", ".", "a"},
+		{"a/", ".", "a"},
+		{"a//", ".", "a"},
+		{"a/b", "a", "b"},
+		{"a/b/", "a", "b"},
+		{"a/b/c", "a/b", "c"},
+		{"/a", "/", "a"},
+		{"/a/", "/", "a"},
+		{"/a/b", "/a", "b"},
+		{"/a/b/", "/a", "b"},
+		{"/a/b/c", "/a/b", "c"},
+		{"//a", "/", "a"},
+		{"//a/", "/", "a"},
+		{"///a", "/", "a"},
+		{"///a/", "/", "a"},
+	} {
+		if dir, base := SplitPath(tt.path); dir != tt.wantDir || base != tt.wantBase {
+			t.Errorf("splitPath(%q) = %q, %q, want %q, %q", tt.path, dir, base, tt.wantDir, tt.wantBase)
+		}
+	}
+}
