@@ -121,3 +121,43 @@ func ExampleReverseProxy() {
 	// Output:
 	// this call was relayed by the reverse proxy
 }
+
+func ExampleReverseProxy_reuseDirector() {
+	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "this call was relayed by the reverse proxy")
+	}))
+	defer backendServer.Close()
+
+	rpURL, err := url.Parse(backendServer.URL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	frontendProxy := httputil.NewSingleHostReverseProxy(rpURL)
+	originalDirector := frontendProxy.Director
+	frontendProxy.Director = func(req *http.Request) {
+		originalDirector(req)
+
+		// NOTE: Custom developer logic just begins to start here
+		fmt.Println("hey from director")
+	}
+
+	testFrontendProxy := httptest.NewServer(frontendProxy)
+	defer testFrontendProxy.Close()
+
+	resp, err := http.Get(testFrontendProxy.URL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("%s", b)
+
+	// Output:
+	// hey from director
+	// this call was relayed by the reverse proxy
+}
