@@ -65,7 +65,7 @@ type Reqs interface {
 // while constructing a build list. BuildListError prints the chain
 // of requirements to the module where the error occurred.
 type BuildListError struct {
-	err   error
+	Err   error
 	stack []buildListErrorElem
 }
 
@@ -77,9 +77,18 @@ type buildListErrorElem struct {
 	nextReason string
 }
 
+// Module returns the module where the error occurred. If the module stack
+// is empty, this returns a zero value.
+func (e *BuildListError) Module() module.Version {
+	if len(e.stack) == 0 {
+		return module.Version{}
+	}
+	return e.stack[0].m
+}
+
 func (e *BuildListError) Error() string {
 	b := &strings.Builder{}
-	errMsg := e.err.Error()
+	errMsg := e.Err.Error()
 	stack := e.stack
 
 	// Don't print modules at the beginning of the chain without a
@@ -177,7 +186,7 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
 
 			if node.err != nil {
 				err := &BuildListError{
-					err:   node.err,
+					Err:   node.err,
 					stack: []buildListErrorElem{{m: node.m}},
 				}
 				for n, prev := neededBy[node], node; n != nil; n, prev = neededBy[n], n {

@@ -546,6 +546,7 @@ func (ld *loader) load(roots func() []string) {
 		for _, m := range buildList {
 			haveMod[m] = true
 		}
+		modAddedBy := make(map[module.Version]*loadPkg)
 		for _, pkg := range ld.pkgs {
 			if err, ok := pkg.err.(*ImportMissingError); ok && err.Module.Path != "" {
 				if err.newMissingVersion != "" {
@@ -558,6 +559,7 @@ func (ld *loader) load(roots func() []string) {
 				numAdded++
 				if !haveMod[err.Module] {
 					haveMod[err.Module] = true
+					modAddedBy[err.Module] = pkg
 					buildList = append(buildList, err.Module)
 				}
 				continue
@@ -573,6 +575,14 @@ func (ld *loader) load(roots func() []string) {
 		reqs = Reqs()
 		buildList, err = mvs.BuildList(Target, reqs)
 		if err != nil {
+			// If an error was found in a newly added module, report the package
+			// import stack instead of the module requirement stack. Packages
+			// are more descriptive.
+			if err, ok := err.(*mvs.BuildListError); ok {
+				if pkg := modAddedBy[err.Module()]; pkg != nil {
+					base.Fatalf("go: %s: %v", pkg.stackText(), err.Err)
+				}
+			}
 			base.Fatalf("go: %v", err)
 		}
 	}
@@ -804,27 +814,33 @@ func (ld *loader) buildStacks() {
 // stackText builds the import stack text to use when
 // reporting an error in pkg. It has the general form
 //
-//	import root ->
-//		import other ->
-//		import other2 ->
-//		import pkg
+//	root imports
+//		other imports
+//		other2 tested by
+//		other2.test imports
+//		pkg
 //
 func (pkg *loadPkg) stackText() string {
 	var stack []*loadPkg
-	for p := pkg.stack; p != nil; p = p.stack {
+	for p := pkg; p != nil; p = p.stack {
 		stack = append(stack, p)
 	}
 
 	var buf bytes.Buffer
 	for i := len(stack) - 1; i >= 0; i-- {
 		p := stack[i]
+		fmt.Fprint(&buf, p.path)
 		if p.testOf != nil {
-			fmt.Fprintf(&buf, "test ->\n\t")
-		} else {
-			fmt.Fprintf(&buf, "import %q ->\n\t", p.path)
+			fmt.Fprint(&buf, ".test")
+		}
+		if i > 0 {
+			if stack[i-1].testOf == p {
+				fmt.Fprint(&buf, " tested by\n\t")
+			} else {
+				fmt.Fprint(&buf, " imports\n\t")
+			}
 		}
 	}
-	fmt.Fprintf(&buf, "import %q", pkg.path)
 	return buf.String()
 }
 
