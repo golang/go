@@ -1401,7 +1401,7 @@ func addPEBaseRelocSym(ctxt *Link, s *sym.Symbol, rt *peBaseRelocTable) {
 		if !r.Sym.Attr.Reachable() {
 			continue
 		}
-		if r.Type >= 256 {
+		if r.Type >= objabi.ElfRelocOffset {
 			continue
 		}
 		if r.Siz == 0 { // informational relocation

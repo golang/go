@@ -771,7 +771,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 							// handle reference to __IMPORT/__pointers.
 							// how much worse can this get?
 							// why are we supporting 386 on the mac anyway?
-							rp.Type = 512 + MACHO_FAKE_GOTPCREL
+							rp.Type = objabi.MachoRelocOffset + MACHO_FAKE_GOTPCREL
 
 							// figure out which pointer this is a reference to.
 							k = int(uint64(ks.res1) + (uint64(rel.value)-ks.addr)/4)
@@ -805,7 +805,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 			}
 
 			rp.Siz = rel.length
-			rp.Type = 512 + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
+			rp.Type = objabi.MachoRelocOffset + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
 			rp.Off = int32(rel.addr)
 
 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).

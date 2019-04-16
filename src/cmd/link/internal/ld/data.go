@@ -162,7 +162,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			}
 		}
 
-		if r.Type >= 256 {
+		if r.Type >= objabi.ElfRelocOffset {
 			continue
 		}
 		if r.Siz == 0 { // informational relocation - no work to do
@@ -636,7 +636,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
 			continue
 		}
 
-		if r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT || r.Type >= 256 {
+		if r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT || r.Type >= objabi.ElfRelocOffset {
 			if r.Sym != nil && !r.Sym.Attr.Reachable() {
 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
 			}
