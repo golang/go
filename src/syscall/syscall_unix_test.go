@@ -132,6 +132,11 @@ func TestFcntlFlock(t *testing.T) {
 func TestPassFD(t *testing.T) {
 	testenv.MustHaveExec(t)
 
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		passFDChild()
+		return
+	}
+
 	if runtime.GOOS == "aix" {
 		// Unix network isn't properly working on AIX 7.2 with Technical Level < 2
 		out, err := exec.Command("oslevel", "-s").Output()
@@ -150,11 +155,6 @@ func TestPassFD(t *testing.T) {
 			t.Skip("skipped on AIX versions previous to 7.2 TL 2")
 		}
 
-	}
-
-	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
-		passFDChild()
-		return
 	}
 
 	tempDir, err := ioutil.TempDir("", "TestPassFD")
