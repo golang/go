@@ -80,7 +80,7 @@ func MarshalPKCS8PrivateKey(key interface{}) ([]byte, error) {
 	case *ecdsa.PrivateKey:
 		oid, ok := oidFromNamedCurve(k.Curve)
 		if !ok {
-			return nil, errors.New("x509: unknown curve while marshalling to PKCS#8")
+			return nil, errors.New("x509: unknown curve while marshaling to PKCS#8")
 		}
 
 		oidBytes, err := asn1.Marshal(oid)
@@ -100,7 +100,7 @@ func MarshalPKCS8PrivateKey(key interface{}) ([]byte, error) {
 		}
 
 	default:
-		return nil, fmt.Errorf("x509: unknown key type while marshalling PKCS#8: %T", key)
+		return nil, fmt.Errorf("x509: unknown key type while marshaling PKCS#8: %T", key)
 	}
 
 	return asn1.Marshal(privKey)

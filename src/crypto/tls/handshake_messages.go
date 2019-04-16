@@ -320,7 +320,7 @@ func (m *clientHelloMsg) marshalWithoutBinders() []byte {
 }
 
 // updateBinders updates the m.pskBinders field, if necessary updating the
-// cached marshalled representation. The supplied binders must have the same
+// cached marshaled representation. The supplied binders must have the same
 // length as the current m.pskBinders.
 func (m *clientHelloMsg) updateBinders(pskBinders [][]byte) {
 	if len(pskBinders) != len(m.pskBinders) {
