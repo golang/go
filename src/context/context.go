@@ -497,10 +497,10 @@ type valueCtx struct {
 // want context depending on the unicode tables. This is only used by
 // *valueCtx.String().
 func stringify(v interface{}) string {
-	if s, ok := v.(stringer); ok {
+	switch s := v.(type) {
+	case stringer:
 		return s.String()
-	}
-	if s, ok := v.(string); ok {
+	case string:
 		return s
 	}
 	return "<not Stringer>"
