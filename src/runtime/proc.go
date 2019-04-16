@@ -2177,6 +2177,10 @@ func gcstopm() {
 func execute(gp *g, inheritTime bool) {
 	_g_ := getg()
 
+	// Assign gp.m before entering _Grunning so running Gs have an
+	// M.
+	_g_.m.curg = gp
+	gp.m = _g_.m
 	casgstatus(gp, _Grunnable, _Grunning)
 	gp.waitsince = 0
 	gp.preempt = false
@@ -2184,8 +2188,6 @@ func execute(gp *g, inheritTime bool) {
 	if !inheritTime {
 		_g_.m.p.ptr().schedtick++
 	}
-	_g_.m.curg = gp
-	gp.m = _g_.m
 
 	// Check whether the profiler needs to be turned on or off.
 	hz := sched.profilehz

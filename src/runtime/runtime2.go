@@ -40,7 +40,7 @@ const (
 
 	// _Grunning means this goroutine may execute user code. The
 	// stack is owned by this goroutine. It is not on a run queue.
-	// It is assigned an M and a P.
+	// It is assigned an M and a P (g.m and g.m.p are valid).
 	_Grunning // 2
 
 	// _Gsyscall means this goroutine is executing a system call.
