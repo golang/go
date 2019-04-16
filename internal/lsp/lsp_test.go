@@ -547,7 +547,7 @@ func (h highlights) test(t *testing.T, s *Server) {
 	}
 }
 
-func (s symbols) collect(e *packagestest.Exported, fset *token.FileSet, name string, rng span.Range, kind int64, parentName string) {
+func (s symbols) collect(e *packagestest.Exported, fset *token.FileSet, name string, rng span.Range, kind string, parentName string) {
 	f := fset.File(rng.Start)
 	if f == nil {
 		return
@@ -571,7 +571,7 @@ func (s symbols) collect(e *packagestest.Exported, fset *token.FileSet, name str
 
 	sym := protocol.DocumentSymbol{
 		Name:           name,
-		Kind:           protocol.SymbolKind(kind),
+		Kind:           protocol.ParseSymbolKind(kind),
 		SelectionRange: prng,
 	}
 	if parentName == "" {
