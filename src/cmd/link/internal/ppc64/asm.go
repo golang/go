@@ -95,7 +95,7 @@ func genplt(ctxt *ld.Link) {
 	for _, s := range ctxt.Textp {
 		for i := range s.R {
 			r := &s.R[i]
-			if r.Type != 256+objabi.RelocType(elf.R_PPC64_REL24) || r.Sym.Type != sym.SDYNIMPORT {
+			if r.Type != objabi.ElfRelocOffset+objabi.RelocType(elf.R_PPC64_REL24) || r.Sym.Type != sym.SDYNIMPORT {
 				continue
 			}
 
@@ -275,13 +275,13 @@ func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 	switch r.Type {
 	default:
-		if r.Type >= 256 {
+		if r.Type >= objabi.ElfRelocOffset {
 			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
 			return false
 		}
 
 		// Handle relocations found in ELF object files.
-	case 256 + objabi.RelocType(elf.R_PPC64_REL24):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24):
 		r.Type = objabi.R_CALLPOWER
 
 		// This is a local call, so the caller isn't setting
@@ -298,7 +298,7 @@ func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 		return true
 
-	case 256 + objabi.RelocType(elf.R_PPC_REL32):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC_REL32):
 		r.Type = objabi.R_PCREL
 		r.Add += 4
 
@@ -308,7 +308,7 @@ func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 		return true
 
-	case 256 + objabi.RelocType(elf.R_PPC64_ADDR64):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_ADDR64):
 		r.Type = objabi.R_ADDR
 		if targ.Type == sym.SDYNIMPORT {
 			// These happen in .toc sections
@@ -318,54 +318,54 @@ func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			rela.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
 			rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), uint32(elf.R_PPC64_ADDR64)))
 			rela.AddUint64(ctxt.Arch, uint64(r.Add))
-			r.Type = 256 // ignore during relocsym
+			r.Type = objabi.ElfRelocOffset // ignore during relocsym
 		}
 
 		return true
 
-	case 256 + objabi.RelocType(elf.R_PPC64_TOC16):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16):
 		r.Type = objabi.R_POWER_TOC
 		r.Variant = sym.RV_POWER_LO | sym.RV_CHECK_OVERFLOW
 		return true
 
-	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_LO):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_LO):
 		r.Type = objabi.R_POWER_TOC
 		r.Variant = sym.RV_POWER_LO
 		return true
 
-	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_HA):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_HA):
 		r.Type = objabi.R_POWER_TOC
 		r.Variant = sym.RV_POWER_HA | sym.RV_CHECK_OVERFLOW
 		return true
 
-	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_HI):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_HI):
 		r.Type = objabi.R_POWER_TOC
 		r.Variant = sym.RV_POWER_HI | sym.RV_CHECK_OVERFLOW
 		return true
 
-	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_DS):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_DS):
 		r.Type = objabi.R_POWER_TOC
 		r.Variant = sym.RV_POWER_DS | sym.RV_CHECK_OVERFLOW
 		return true
 
-	case 256 + objabi.RelocType(elf.R_PPC64_TOC16_LO_DS):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_LO_DS):
 		r.Type = objabi.R_POWER_TOC
 		r.Variant = sym.RV_POWER_DS
 		return true
 
-	case 256 + objabi.RelocType(elf.R_PPC64_REL16_LO):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL16_LO):
 		r.Type = objabi.R_PCREL
 		r.Variant = sym.RV_POWER_LO
 		r.Add += 2 // Compensate for relocation size of 2
 		return true
 
-	case 256 + objabi.RelocType(elf.R_PPC64_REL16_HI):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL16_HI):
 		r.Type = objabi.R_PCREL
 		r.Variant = sym.RV_POWER_HI | sym.RV_CHECK_OVERFLOW
 		r.Add += 2
 		return true
 
-	case 256 + objabi.RelocType(elf.R_PPC64_REL16_HA):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL16_HA):
 		r.Type = objabi.R_PCREL
 		r.Variant = sym.RV_POWER_HA | sym.RV_CHECK_OVERFLOW
 		r.Add += 2

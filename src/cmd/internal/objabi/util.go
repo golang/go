@@ -34,6 +34,11 @@ var (
 	Version  = version
 )
 
+const (
+	ElfRelocOffset   = 256
+	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
+)
+
 func goarm() int {
 	switch v := envOr("GOARM", defaultGOARM); v {
 	case "5":

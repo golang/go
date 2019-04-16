@@ -923,7 +923,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 				rp.Sym = elfsym.sym
 			}
 
-			rp.Type = 256 + objabi.RelocType(info)
+			rp.Type = objabi.ElfRelocOffset + objabi.RelocType(info)
 			rp.Siz, err = relSize(arch, pn, uint32(info))
 			if err != nil {
 				return nil, 0, err
