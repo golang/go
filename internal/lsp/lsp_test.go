@@ -197,7 +197,6 @@ func (d diagnostics) test(t *testing.T, v source.View) int {
 		if err != nil {
 			t.Fatal(err)
 		}
-		sorted(got)
 		if diff := diffDiagnostics(uri, want, got); diff != "" {
 			t.Error(diff)
 		}
@@ -233,41 +232,69 @@ func (d diagnostics) collect(e *packagestest.Exported, fset *token.FileSet, rng 
 	d[spn.URI()] = append(d[spn.URI()], want)
 }
 
+func sortDiagnostics(d []protocol.Diagnostic) {
+	sort.Slice(d, func(i int, j int) bool {
+		if d[i].Range.Start.Line < d[j].Range.Start.Line {
+			return true
+		}
+		if d[i].Range.Start.Line > d[j].Range.Start.Line {
+			return false
+		}
+		if d[i].Range.Start.Character < d[j].Range.Start.Character {
+			return true
+		}
+		if d[i].Range.Start.Character > d[j].Range.Start.Character {
+			return false
+		}
+		return d[i].Message < d[j].Message
+	})
+}
+
 // diffDiagnostics prints the diff between expected and actual diagnostics test
 // results.
 func diffDiagnostics(uri span.URI, want, got []protocol.Diagnostic) string {
+	sortDiagnostics(want)
+	sortDiagnostics(got)
 	if len(got) != len(want) {
-		goto Failed
+		return summarizeDiagnostics(-1, want, got, "different lengths got %v want %v", len(got), len(want))
 	}
 	for i, w := range want {
 		g := got[i]
 		if w.Message != g.Message {
-			goto Failed
+			return summarizeDiagnostics(i, want, got, "incorrect Message got %v want %v", g.Message, w.Message)
 		}
 		if w.Range.Start != g.Range.Start {
-			goto Failed
+			return summarizeDiagnostics(i, want, got, "incorrect Range.Start got %v want %v", g.Range.Start, w.Range.Start)
 		}
 		// Special case for diagnostics on parse errors.
 		if strings.Contains(string(uri), "noparse") {
 			if g.Range.Start != g.Range.End || w.Range.Start != g.Range.End {
-				goto Failed
+				return summarizeDiagnostics(i, want, got, "incorrect Range.End got %v want %v", g.Range.End, w.Range.Start)
 			}
 		} else if g.Range.End != g.Range.Start { // Accept any 'want' range if the diagnostic returns a zero-length range.
 			if w.Range.End != g.Range.End {
-				goto Failed
+				return summarizeDiagnostics(i, want, got, "incorrect Range.End got %v want %v", g.Range.End, w.Range.End)
 			}
 		}
 		if w.Severity != g.Severity {
-			goto Failed
+			return summarizeDiagnostics(i, want, got, "incorrect Severity got %v want %v", g.Severity, w.Severity)
 		}
 		if w.Source != g.Source {
-			goto Failed
+			return summarizeDiagnostics(i, want, got, "incorrect Source got %v want %v", g.Source, w.Source)
 		}
 	}
 	return ""
-Failed:
+}
+
+func summarizeDiagnostics(i int, want []protocol.Diagnostic, got []protocol.Diagnostic, reason string, args ...interface{}) string {
 	msg := &bytes.Buffer{}
-	fmt.Fprintf(msg, "diagnostics failed for %s:\nexpected:\n", uri)
+	fmt.Fprint(msg, "diagnostics failed")
+	if i >= 0 {
+		fmt.Fprintf(msg, " at %d", i)
+	}
+	fmt.Fprint(msg, " because of ")
+	fmt.Fprintf(msg, reason, args...)
+	fmt.Fprint(msg, ":\nexpected:\n")
 	for _, d := range want {
 		fmt.Fprintf(msg, "  %v\n", d)
 	}
@@ -371,24 +398,32 @@ func (i completionItems) collect(pos token.Pos, label, detail, kind string) {
 // test results.
 func diffCompletionItems(t *testing.T, pos token.Position, want, got []protocol.CompletionItem) string {
 	if len(got) != len(want) {
-		goto Failed
+		return summarizeCompletionItems(-1, want, got, "different lengths got %v want %v", len(got), len(want))
 	}
 	for i, w := range want {
 		g := got[i]
 		if w.Label != g.Label {
-			goto Failed
+			return summarizeCompletionItems(i, want, got, "incorrect Label got %v want %v", g.Label, w.Label)
 		}
 		if w.Detail != g.Detail {
-			goto Failed
+			return summarizeCompletionItems(i, want, got, "incorrect Detail got %v want %v", g.Detail, w.Detail)
 		}
 		if w.Kind != g.Kind {
-			goto Failed
+			return summarizeCompletionItems(i, want, got, "incorrect Kind got %v want %v", g.Kind, w.Kind)
 		}
 	}
 	return ""
-Failed:
+}
+
+func summarizeCompletionItems(i int, want []protocol.CompletionItem, got []protocol.CompletionItem, reason string, args ...interface{}) string {
 	msg := &bytes.Buffer{}
-	fmt.Fprintf(msg, "completion failed for %s:%v:%v:\nexpected:\n", filepath.Base(pos.Filename), pos.Line, pos.Column)
+	fmt.Fprint(msg, "completion failed")
+	if i >= 0 {
+		fmt.Fprintf(msg, " at %d", i)
+	}
+	fmt.Fprint(msg, " because of ")
+	fmt.Fprintf(msg, reason, args...)
+	fmt.Fprint(msg, ":\nexpected:\n")
 	for _, d := range want {
 		fmt.Fprintf(msg, "  %v\n", d)
 	}

@@ -6,7 +6,6 @@ package lsp
 
 import (
 	"context"
-	"sort"
 
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -99,16 +98,4 @@ func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []sou
 		})
 	}
 	return reports, nil
-}
-
-func sorted(d []protocol.Diagnostic) {
-	sort.Slice(d, func(i int, j int) bool {
-		if d[i].Range.Start.Line == d[j].Range.Start.Line {
-			if d[i].Range.Start.Character == d[j].Range.Start.Character {
-				return d[i].Message < d[j].Message
-			}
-			return d[i].Range.Start.Character < d[j].Range.Start.Character
-		}
-		return d[i].Range.Start.Line < d[j].Range.Start.Line
-	})
 }
