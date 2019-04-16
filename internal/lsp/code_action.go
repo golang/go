@@ -28,12 +28,29 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	var codeActions []protocol.CodeAction
 	// Determine what code actions we should take based on the diagnostics.
 	if findImportErrors(params.Context.Diagnostics) {
-		codeAction, err := organizeImports(ctx, view, spn)
+		edits, err := organizeImports(ctx, view, spn)
 		if err != nil {
 			return nil, err
 		}
-		if codeAction != nil {
-			codeActions = append(codeActions, *codeAction)
+		if len(edits) > 0 {
+			// TODO(rstambler): Handle params.Context.Only when VSCode-Go uses a
+			// version of vscode-languageclient that fixes
+			// https://github.com/Microsoft/vscode-languageserver-node/issues/442.
+			codeActions = append(codeActions, protocol.CodeAction{
+				Title: "Organize Imports",
+				Kind:  protocol.SourceOrganizeImports,
+				Edit: &protocol.WorkspaceEdit{
+					Changes: &map[string][]protocol.TextEdit{
+						string(spn.URI()): edits,
+					},
+				},
+			})
+			// Add any quick fixes for each import-related diagnostic that we see.
+			fixes, err := quickFixes(spn.URI(), params.Context.Diagnostics, edits)
+			if err != nil {
+				return nil, err
+			}
+			codeActions = append(codeActions, fixes...)
 		}
 	}
 	return codeActions, nil
@@ -60,7 +77,7 @@ func findImportErrors(diagnostics []protocol.Diagnostic) bool {
 	return false
 }
 
-func organizeImports(ctx context.Context, v source.View, s span.Span) (*protocol.CodeAction, error) {
+func organizeImports(ctx context.Context, v source.View, s span.Span) ([]protocol.TextEdit, error) {
 	f, m, err := newColumnMap(ctx, v, s.URI())
 	if err != nil {
 		return nil, err
@@ -81,21 +98,22 @@ func organizeImports(ctx context.Context, v source.View, s span.Span) (*protocol
 	if err != nil {
 		return nil, err
 	}
-	protocolEdits, err := ToProtocolEdits(m, edits)
-	if err != nil {
-		return nil, err
-	}
-	if len(protocolEdits) == 0 {
-		return nil, nil
-	}
-	codeAction := protocol.CodeAction{
-		Title: "Organize Imports",
-		Kind:  protocol.SourceOrganizeImports,
-		Edit: &protocol.WorkspaceEdit{
-			Changes: &map[string][]protocol.TextEdit{
-				string(s.URI()): protocolEdits,
+	return ToProtocolEdits(m, edits)
+}
+
+// TODO(rstambler): Separate this into a set of codeActions per diagnostic,
+// where each action is the addition or removal of one import.
+// This can only be done when https://golang.org/issue/31493 is resolved.
+func quickFixes(uri span.URI, diagnostics []protocol.Diagnostic, edits []protocol.TextEdit) ([]protocol.CodeAction, error) {
+	return []protocol.CodeAction{
+		{
+			Title: "Organize All Imports",
+			Kind:  protocol.QuickFix,
+			Edit: &protocol.WorkspaceEdit{
+				Changes: &map[string][]protocol.TextEdit{
+					string(uri): edits,
+				},
 			},
 		},
-	}
-	return &codeAction, nil
+	}, nil
 }
