@@ -22,11 +22,13 @@ func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content str
 	go func() {
 		ctx := view.BackgroundContext()
 		if ctx.Err() != nil {
+			s.log.Errorf(ctx, "canceling diagnostics for %s: %v", uri, ctx.Err())
 			return
 		}
 		reports, err := source.Diagnostics(ctx, view, uri)
 		if err != nil {
-			return // handle error?
+			s.log.Errorf(ctx, "failed to compute diagnostics for %s: %v", uri, err)
+			return
 		}
 
 		s.undeliveredMu.Lock()
