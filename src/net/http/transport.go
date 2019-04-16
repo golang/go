@@ -46,11 +46,11 @@ var DefaultTransport RoundTripper = &Transport{
 		KeepAlive: 30 * time.Second,
 		DualStack: true,
 	}).DialContext,
-	DialerAndTLSConfigSupportsHTTP2: true,
-	MaxIdleConns:                    100,
-	IdleConnTimeout:                 90 * time.Second,
-	TLSHandshakeTimeout:             10 * time.Second,
-	ExpectContinueTimeout:           1 * time.Second,
+	ForceAttemptHTTP2:     true,
+	MaxIdleConns:          100,
+	IdleConnTimeout:       90 * time.Second,
+	TLSHandshakeTimeout:   10 * time.Second,
+	ExpectContinueTimeout: 1 * time.Second,
 }
 
 // DefaultMaxIdleConnsPerHost is the default value of Transport's
@@ -259,11 +259,11 @@ type Transport struct {
 	nextProtoOnce sync.Once
 	h2transport   h2Transport // non-nil if http2 wired up
 
-	// DialerAndTLSConfigSupportsHTTP2 controls whether HTTP/2 is enabled when a non-zero
+	// ForceAttemptHTTP2 controls whether HTTP/2 is enabled when a non-zero
 	// TLSClientConfig or Dial, DialTLS or DialContext func is provided. By default, use of any those fields conservatively
 	// disables HTTP/2. To use a customer dialer or TLS config and still attempt HTTP/2
 	// upgrades, set this to true.
-	DialerAndTLSConfigSupportsHTTP2 bool
+	ForceAttemptHTTP2 bool
 }
 
 // h2Transport is the interface we expect to be able to call from
@@ -303,13 +303,13 @@ func (t *Transport) onceSetNextProtoDefaults() {
 		// Transport.
 		return
 	}
-	if !t.DialerAndTLSConfigSupportsHTTP2 && (t.TLSClientConfig != nil || t.Dial != nil || t.DialTLS != nil || t.DialContext != nil) {
+	if !t.ForceAttemptHTTP2 && (t.TLSClientConfig != nil || t.Dial != nil || t.DialTLS != nil || t.DialContext != nil) {
 		// Be conservative and don't automatically enable
 		// http2 if they've specified a custom TLS config or
 		// custom dialers. Let them opt-in themselves via
 		// http2.ConfigureTransport so we don't surprise them
 		// by modifying their tls.Config. Issue 14275.
-		// However, if DialerAndTLSConfigSupportsHTTP2 is true, it overrides the above checks.
+		// However, if ForceAttemptHTTP2 is true, it overrides the above checks.
 		return
 	}
 	t2, err := http2configureTransport(t)
