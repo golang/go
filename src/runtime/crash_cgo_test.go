@@ -281,7 +281,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 			// See Issue 18243 and Issue 19938.
 			t.Skipf("Skipping failing test on Alpine (golang.org/issue/18243). Ignoring error: %v", err)
 		}
-		t.Fatal(err)
+		t.Fatalf("%s\n\n%v", got, err)
 	}
 	fn := strings.TrimSpace(string(got))
 	defer os.Remove(fn)
