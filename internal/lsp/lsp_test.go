@@ -18,6 +18,7 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/diff"
@@ -37,7 +38,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 
 	// We hardcode the expected number of test cases to ensure that all tests
 	// are being executed. If a test is added, this number must be changed.
-	const expectedCompletionsCount = 64
+	const expectedCompletionsCount = 65
 	const expectedDiagnosticsCount = 16
 	const expectedFormatCount = 4
 	const expectedDefinitionsCount = 17
@@ -62,7 +63,10 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	defer exported.Cleanup()
 
 	// Merge the exported.Config with the view.Config.
+	addUnsavedFiles(t, exported.Config, exported)
+
 	cfg := *exported.Config
+
 	cfg.Fset = token.NewFileSet()
 	cfg.Context = context.Background()
 	cfg.ParseFile = func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
@@ -172,6 +176,25 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		}
 		expectedSymbols.test(t, s)
 	})
+}
+
+func addUnsavedFiles(t *testing.T, cfg *packages.Config, exported *packagestest.Exported) {
+	if cfg.Overlay == nil {
+		cfg.Overlay = make(map[string][]byte)
+	}
+	// For now, we hardcode a file that we know is in the testdata.
+	// TODO(rstambler): Figure out a way to do this better.
+	dir := filepath.Dir(filepath.Dir(exported.File("golang.org/x/tools/internal/lsp", filepath.Join("complit", "complit.go"))))
+	cfg.Overlay[filepath.Join(dir, "nodisk", "nodisk.go")] = []byte(`package nodisk
+
+import (
+	"golang.org/x/tools/internal/lsp/foo"
+)
+
+func _() {
+	foo.Foo() //@complete("F", Foo, IntFoo, StructFoo)
+}
+`)
 }
 
 type diagnostics map[span.URI][]protocol.Diagnostic

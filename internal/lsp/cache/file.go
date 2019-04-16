@@ -112,9 +112,15 @@ func (f *File) read(ctx context.Context) {
 			return
 		}
 	}
+	// We might have the content saved in an overlay.
+	if content, ok := f.view.Config.Overlay[f.filename]; ok {
+		f.content = content
+		return
+	}
 	// We don't know the content yet, so read it.
 	content, err := ioutil.ReadFile(f.filename)
 	if err != nil {
+		f.view.Logger().Errorf(ctx, "unable to read file %s: %v", f.filename, err)
 		return
 	}
 	f.content = content

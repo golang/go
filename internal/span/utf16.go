@@ -56,6 +56,9 @@ func FromUTF16Column(p Point, chr int, content []byte) (Point, error) {
 	if chr <= 1 {
 		return p, nil
 	}
+	if p.Offset() >= len(content) {
+		return p, fmt.Errorf("offset (%v) greater than length of content (%v)", p.Offset(), len(content))
+	}
 	remains := content[p.Offset():]
 	// scan forward the specified number of characters
 	for count := 1; count < chr; count++ {

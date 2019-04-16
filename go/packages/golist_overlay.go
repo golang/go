@@ -46,7 +46,9 @@ outer:
 					fileExists = true
 				}
 			}
-			if dirContains {
+			// The overlay could have included an entirely new package.
+			isNewPackage := extractPackage(pkg, path, contents)
+			if dirContains || isNewPackage {
 				if !fileExists {
 					pkg.GoFiles = append(pkg.GoFiles, path) // TODO(matloob): should the file just be added to GoFiles?
 					pkg.CompiledGoFiles = append(pkg.CompiledGoFiles, path)
@@ -101,4 +103,31 @@ func extractImports(filename string, contents []byte) ([]string, error) {
 		res = append(res, path)
 	}
 	return res, nil
+}
+
+func extractPackage(pkg *Package, filename string, contents []byte) bool {
+	// TODO(rstambler): Check the message of the actual error?
+	// It differs between $GOPATH and module mode.
+	if len(pkg.Errors) != 1 {
+		return false
+	}
+	if pkg.Name != "" || pkg.ExportFile != "" {
+		return false
+	}
+	if len(pkg.GoFiles) > 0 || len(pkg.CompiledGoFiles) > 0 || len(pkg.OtherFiles) > 0 {
+		return false
+	}
+	if len(pkg.Imports) > 0 {
+		return false
+	}
+	f, err := parser.ParseFile(token.NewFileSet(), filename, contents, parser.PackageClauseOnly) // TODO(matloob): reuse fileset?
+	if err != nil {
+		return false
+	}
+	if filepath.Base(pkg.PkgPath) != f.Name.Name {
+		return false
+	}
+	pkg.Name = f.Name.Name
+	pkg.Errors = []Error{}
+	return true
 }

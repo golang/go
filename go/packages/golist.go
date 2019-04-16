@@ -166,12 +166,8 @@ extractQueries:
 		containsCandidates = append(containsCandidates, modifiedPkgs...)
 		containsCandidates = append(containsCandidates, needPkgs...)
 	}
-
-	if len(needPkgs) > 0 {
-		addNeededOverlayPackages(cfg, golistDriver, response, needPkgs)
-		if err != nil {
-			return nil, err
-		}
+	if err := addNeededOverlayPackages(cfg, golistDriver, response, needPkgs); err != nil {
+		return nil, err
 	}
 	// Check candidate packages for containFiles.
 	if len(containFiles) > 0 {
@@ -191,6 +187,9 @@ extractQueries:
 }
 
 func addNeededOverlayPackages(cfg *Config, driver driver, response *responseDeduper, pkgs []string) error {
+	if len(pkgs) == 0 {
+		return nil
+	}
 	dr, err := driver(cfg, pkgs...)
 	if err != nil {
 		return err
@@ -198,6 +197,11 @@ func addNeededOverlayPackages(cfg *Config, driver driver, response *responseDedu
 	for _, pkg := range dr.Packages {
 		response.addPackage(pkg)
 	}
+	_, needPkgs, err := processGolistOverlay(cfg, response.dr)
+	if err != nil {
+		return err
+	}
+	addNeededOverlayPackages(cfg, driver, response, needPkgs)
 	return nil
 }
 

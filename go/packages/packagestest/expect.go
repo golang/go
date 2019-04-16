@@ -141,6 +141,9 @@ func (e *Exported) getNotes() error {
 			dirs = append(dirs, filepath.Dir(filename))
 		}
 	}
+	for filename := range e.Config.Overlay {
+		dirs = append(dirs, filepath.Dir(filename))
+	}
 	pkgs, err := packages.Load(e.Config, dirs...)
 	if err != nil {
 		return fmt.Errorf("unable to load packages for directories %s: %v", dirs, err)
