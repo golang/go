@@ -3595,8 +3595,8 @@ func TestTransportAutomaticHTTP2(t *testing.T) {
 
 func TestTransportAutomaticHTTP2_DialerAndTLSConfigSupportsHTTP2AndTLSConfig(t *testing.T) {
 	testTransportAutoHTTP(t, &Transport{
-		DialerAndTLSConfigSupportsHTTP2: true,
-		TLSClientConfig:                 new(tls.Config),
+		ForceAttemptHTTP2: true,
+		TLSClientConfig:   new(tls.Config),
 	}, true)
 }
 
