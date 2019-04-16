@@ -16,8 +16,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
@@ -243,8 +245,23 @@ func (b *Builder) Init() {
 		if !cfg.BuildWork {
 			workdir := b.WorkDir
 			base.AtExit(func() {
-				if err := os.RemoveAll(workdir); err != nil {
-					fmt.Fprintf(os.Stderr, "go: failed to remove work dir: %s\n", err)
+				start := time.Now()
+				for {
+					err := os.RemoveAll(workdir)
+					if err == nil {
+						return
+					}
+
+					// On some configurations of Windows, directories containing executable
+					// files may be locked for a while after the executable exits (perhaps
+					// due to antivirus scans?). It's probably worth a little extra latency
+					// on exit to avoid filling up the user's temporary directory with leaked
+					// files. (See golang.org/issue/30789.)
+					if runtime.GOOS != "windows" || time.Since(start) >= 500*time.Millisecond {
+						fmt.Fprintf(os.Stderr, "go: failed to remove work dir: %s\n", err)
+						return
+					}
+					time.Sleep(5 * time.Millisecond)
 				}
 			})
 		}
