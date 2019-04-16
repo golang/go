@@ -103,7 +103,7 @@ func TestPKCS8(t *testing.T) {
 			continue
 		}
 		if !bytes.Equal(derBytes, reserialised) {
-			t.Errorf("%s: marshalled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
+			t.Errorf("%s: marshaled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
 			continue
 		}
 	}
