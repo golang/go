@@ -1726,9 +1726,14 @@ func testReturnErrorWhenUsingNonGoFiles(t *testing.T, exporter packagestest.Expo
 		}}})
 	defer exported.Cleanup()
 	config := packages.Config{}
+	want := "named files must be .go files"
 	pkgs, err := packages.Load(&config, "a/a.go", "b/b.c")
 	if err != nil {
-		t.Fatal(err)
+		// Check if the error returned is the one we expected.
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("want error message: %s, got: %s", want, err.Error())
+		}
+		return
 	}
 	if len(pkgs) != 1 || pkgs[0].PkgPath != "command-line-arguments" {
 		t.Fatalf("packages.Load: want [command-line-arguments], got %v", pkgs)
@@ -1737,7 +1742,6 @@ func testReturnErrorWhenUsingNonGoFiles(t *testing.T, exporter packagestest.Expo
 		t.Fatalf("result of Load: want package with one error, got: %+v", pkgs[0])
 	}
 	got := pkgs[0].Errors[0].Error()
-	want := "named files must be .go files"
 	if !strings.Contains(got, want) {
 		t.Fatalf("want error message: %s, got: %s", want, got)
 	}
