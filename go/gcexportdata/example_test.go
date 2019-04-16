@@ -80,7 +80,7 @@ func ExampleNewImporter() {
 // choosing a package that doesn't change across releases
 import "net/rpc"
 
-const defaultRPCPath = rpc.DefaultRPCPath
+const serverError rpc.ServerError = ""
 `
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "myrpc.go", src, 0)
@@ -97,17 +97,16 @@ const defaultRPCPath = rpc.DefaultRPCPath
 	}
 
 	// object from imported package
-	pi := packages["net/rpc"].Scope().Lookup("DefaultRPCPath")
-	fmt.Printf("const %s.%s %s = %s // %s\n",
+	pi := packages["net/rpc"].Scope().Lookup("ServerError")
+	fmt.Printf("type %s.%s %s // %s\n",
 		pi.Pkg().Path(),
 		pi.Name(),
-		pi.Type(),
-		pi.(*types.Const).Val(),
+		pi.Type().Underlying(),
 		slashify(fset.Position(pi.Pos())),
 	)
 
 	// object in source package
-	twopi := pkg.Scope().Lookup("defaultRPCPath")
+	twopi := pkg.Scope().Lookup("serverError")
 	fmt.Printf("const %s %s = %s // %s\n",
 		twopi.Name(),
 		twopi.Type(),
@@ -117,8 +116,8 @@ const defaultRPCPath = rpc.DefaultRPCPath
 
 	// Output:
 	//
-	// const net/rpc.DefaultRPCPath untyped string = "/_goRPC_" // $GOROOT/src/net/rpc/server.go:146:1
-	// const defaultRPCPath untyped string = "/_goRPC_" // myrpc.go:6:7
+	// type net/rpc.ServerError string // $GOROOT/src/net/rpc/client.go:20:1
+	// const serverError net/rpc.ServerError = "" // myrpc.go:6:7
 }
 
 func slashify(posn token.Position) token.Position {
