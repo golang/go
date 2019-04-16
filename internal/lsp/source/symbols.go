@@ -173,8 +173,9 @@ func typeSymbol(spec *ast.TypeSpec, obj types.Object, fset *token.FileSet, q typ
 		s.SelectionSpan = span
 	}
 
-	if t, ok := obj.Type().Underlying().(*types.Struct); ok {
-		st := spec.Type.(*ast.StructType)
+	t, objIsStruct := obj.Type().Underlying().(*types.Struct)
+	st, specIsStruct := spec.Type.(*ast.StructType)
+	if objIsStruct && specIsStruct {
 		for i := 0; i < t.NumFields(); i++ {
 			f := t.Field(i)
 			child := Symbol{Name: f.Name(), Kind: FieldSymbol}
