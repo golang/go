@@ -17,8 +17,8 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cmd"
+	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
 )
@@ -28,20 +28,14 @@ const (
 	expectedTypeDefinitionsCount = 2
 )
 
-type definition struct {
-	src     span.Span
-	flags   string
-	def     span.Span
-	pattern pattern
-}
-
-type definitions map[span.Span]definition
-
 var verifyGuru = flag.Bool("verify-guru", false, "Check that the guru compatability matches")
 
 func TestDefinitionHelpExample(t *testing.T) {
 	if runtime.GOOS == "android" {
 		t.Skip("not all source files are available on android")
+	}
+	if runtime.GOOS != "linux" || isRace {
+		t.Skip("currently uses too much memory, see issue #31611")
 	}
 	dir, err := os.Getwd()
 	if err != nil {
@@ -64,53 +58,28 @@ func TestDefinitionHelpExample(t *testing.T) {
 	}
 }
 
-func (l definitions) godef(src, def span.Span) {
-	l[src] = definition{
-		src:     src,
-		def:     def,
-		pattern: newPattern("", def),
-	}
-}
-
-func (l definitions) typdef(src, def span.Span) {
-	l[src] = definition{
-		src:     src,
-		def:     def,
-		pattern: newPattern("", def),
-	}
-}
-
-func (l definitions) definition(src span.Span, flags string, def span.Span, match string) {
-	l[src] = definition{
-		src:     src,
-		flags:   flags,
-		def:     def,
-		pattern: newPattern(match, def),
-	}
-}
-
-func (l definitions) testDefinitions(t *testing.T, e *packagestest.Exported) {
-	if len(l) != expectedDefinitionsCount {
-		t.Errorf("got %v definitions expected %v", len(l), expectedDefinitionsCount)
-	}
-	for _, d := range l {
+func (r *runner) Definition(t *testing.T, data tests.Definitions) {
+	for _, d := range data {
+		if d.IsType {
+			// TODO: support type definition queries
+			continue
+		}
 		args := []string{"query"}
-		if d.flags != "" {
-			args = append(args, strings.Split(d.flags, " ")...)
+		if d.Flags != "" {
+			args = append(args, strings.Split(d.Flags, " ")...)
 		}
 		args = append(args, "definition")
-		src := span.New(d.src.URI(), span.NewPoint(0, 0, d.src.Start().Offset()), span.Point{})
+		src := span.New(d.Src.URI(), span.NewPoint(0, 0, d.Src.Start().Offset()), span.Point{})
 		args = append(args, fmt.Sprint(src))
-		app := &cmd.Application{}
-		app.Config = *e.Config
 		got := captureStdOut(t, func() {
-			tool.Main(context.Background(), app, args)
+			tool.Main(context.Background(), r.app, args)
 		})
-		if !d.pattern.matches(got) {
-			t.Errorf("definition %v\nexpected:\n%s\ngot:\n%s", args, d.pattern, got)
+		pattern := newPattern(d.Match, d.Def)
+		if !pattern.matches(got) {
+			t.Errorf("definition %v\nexpected:\n%s\ngot:\n%s", args, pattern, got)
 		}
 		if *verifyGuru {
-			moduleMode := e.File(e.Modules[0].Name, "go.mod") != ""
+			moduleMode := r.data.Exported.File(r.data.Exported.Modules[0].Name, "go.mod") != ""
 			var guruArgs []string
 			runGuru := false
 			if !moduleMode {
@@ -133,26 +102,19 @@ func (l definitions) testDefinitions(t *testing.T, e *packagestest.Exported) {
 			}
 			if runGuru {
 				cmd := exec.Command("guru", guruArgs...)
-				cmd.Env = e.Config.Env
+				cmd.Env = r.data.Exported.Config.Env
 				out, err := cmd.CombinedOutput()
 				if err != nil {
 					t.Errorf("Could not run guru %v: %v\n%s", guruArgs, err, out)
 				} else {
 					guru := strings.TrimSpace(string(out))
-					if !d.pattern.matches(guru) {
-						t.Errorf("definition %v\nexpected:\n%s\nguru gave:\n%s", args, d.pattern, guru)
+					if !pattern.matches(guru) {
+						t.Errorf("definition %v\nexpected:\n%s\nguru gave:\n%s", args, pattern, guru)
 					}
 				}
 			}
 		}
 	}
-}
-
-func (l definitions) testTypeDefinitions(t *testing.T, e *packagestest.Exported) {
-	if len(l) != expectedTypeDefinitionsCount {
-		t.Errorf("got %v definitions expected %v", len(l), expectedTypeDefinitionsCount)
-	}
-	//TODO: add command line type definition tests when it works
 }
 
 type pattern struct {

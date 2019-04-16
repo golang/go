@@ -7,49 +7,38 @@ package cmd_test
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/go/packages/packagestest"
-	"golang.org/x/tools/internal/lsp/cmd"
-	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/tool"
 )
 
-type diagnostics map[string][]source.Diagnostic
-
-func (l diagnostics) collect(spn span.Span, msgSource, msg string) {
-	fname, err := spn.URI().Filename()
-	if err != nil {
-		return
+func (r *runner) Diagnostics(t *testing.T, data tests.Diagnostics) {
+	if runtime.GOOS != "linux" || isRace {
+		t.Skip("currently uses too much memory, see issue #31611")
 	}
-	//TODO: diagnostics with range
-	spn = span.New(spn.URI(), spn.Start(), span.Point{})
-	l[fname] = append(l[fname], source.Diagnostic{
-		Span:     spn,
-		Message:  msg,
-		Source:   msgSource,
-		Severity: source.SeverityError,
-	})
-}
-
-func (l diagnostics) test(t *testing.T, e *packagestest.Exported) {
-	count := 0
-	for fname, want := range l {
+	for uri, want := range data {
 		if len(want) == 1 && want[0].Message == "" {
 			continue
 		}
+		fname, err := uri.Filename()
+		if err != nil {
+			t.Fatal(err)
+		}
 		args := []string{"-remote=internal"}
 		args = append(args, "check", fname)
-		app := &cmd.Application{}
-		app.Config = *e.Config
 		out := captureStdOut(t, func() {
-			tool.Main(context.Background(), app, args)
+			tool.Main(context.Background(), r.app, args)
 		})
 		// parse got into a collection of reports
 		got := map[string]struct{}{}
 		for _, l := range strings.Split(out, "\n") {
+			if len(l) == 0 {
+				continue
+			}
 			// parse and reprint to normalize the span
 			bits := strings.SplitN(l, ": ", 2)
 			if len(bits) == 2 {
@@ -60,7 +49,8 @@ func (l diagnostics) test(t *testing.T, e *packagestest.Exported) {
 			got[l] = struct{}{}
 		}
 		for _, diag := range want {
-			expect := fmt.Sprintf("%v: %v", diag.Span, diag.Message)
+			spn := span.New(diag.Span.URI(), diag.Span.Start(), diag.Span.Start())
+			expect := fmt.Sprintf("%v: %v", spn, diag.Message)
 			_, found := got[expect]
 			if !found {
 				t.Errorf("missing diagnostic %q", expect)
@@ -71,9 +61,5 @@ func (l diagnostics) test(t *testing.T, e *packagestest.Exported) {
 		for extra, _ := range got {
 			t.Errorf("extra diagnostic %q", extra)
 		}
-		count += len(want)
-	}
-	if count != expectedDiagnosticsCount {
-		t.Errorf("got %v diagnostics expected %v", count, expectedDiagnosticsCount)
 	}
 }

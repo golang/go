@@ -106,11 +106,11 @@ func (e *Exported) Expect(methods map[string]interface{}) error {
 		for i, convert := range mi.converters {
 			params[i], args, err = convert(n, args)
 			if err != nil {
-				return fmt.Errorf("%v: %v", e.fset.Position(n.Pos), err)
+				return fmt.Errorf("%v: %v", e.ExpectFileSet.Position(n.Pos), err)
 			}
 		}
 		if len(args) > 0 {
-			return fmt.Errorf("%v: unwanted args got %+v extra", e.fset.Position(n.Pos), args)
+			return fmt.Errorf("%v: unwanted args got %+v extra", e.ExpectFileSet.Position(n.Pos), args)
 		}
 		//TODO: catch the error returned from the method
 		mi.f.Call(params)
@@ -154,7 +154,7 @@ func (e *Exported) getNotes() error {
 			if err != nil {
 				return err
 			}
-			l, err := expect.Parse(e.fset, filename, content)
+			l, err := expect.Parse(e.ExpectFileSet, filename, content)
 			if err != nil {
 				return fmt.Errorf("Failed to extract expectations: %v", err)
 			}
@@ -214,7 +214,7 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 		}, nil
 	case pt == fsetType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
-			return reflect.ValueOf(e.fset), args, nil
+			return reflect.ValueOf(e.ExpectFileSet), args, nil
 		}, nil
 	case pt == exportedType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
@@ -234,7 +234,7 @@ func (e *Exported) buildConverter(pt reflect.Type) (converter, error) {
 			if err != nil {
 				return reflect.Value{}, nil, err
 			}
-			return reflect.ValueOf(e.fset.Position(r.Start)), remains, nil
+			return reflect.ValueOf(e.ExpectFileSet.Position(r.Start)), remains, nil
 		}, nil
 	case pt == rangeType:
 		return func(n *expect.Note, args []interface{}) (reflect.Value, []interface{}, error) {
@@ -369,9 +369,9 @@ func (e *Exported) rangeConverter(n *expect.Note, args []interface{}) (span.Rang
 		switch arg {
 		case eofIdentifier:
 			// end of file identifier, look up the current file
-			f := e.fset.File(n.Pos)
+			f := e.ExpectFileSet.File(n.Pos)
 			eof := f.Pos(f.Size())
-			return span.Range{FileSet: e.fset, Start: eof, End: token.NoPos}, args, nil
+			return span.Range{FileSet: e.ExpectFileSet, Start: eof, End: token.NoPos}, args, nil
 		default:
 			// look up an marker by name
 			mark, ok := e.markers[string(arg)]
@@ -381,23 +381,23 @@ func (e *Exported) rangeConverter(n *expect.Note, args []interface{}) (span.Rang
 			return mark, args, nil
 		}
 	case string:
-		start, end, err := expect.MatchBefore(e.fset, e.FileContents, n.Pos, arg)
+		start, end, err := expect.MatchBefore(e.ExpectFileSet, e.FileContents, n.Pos, arg)
 		if err != nil {
 			return span.Range{}, nil, err
 		}
 		if start == token.NoPos {
-			return span.Range{}, nil, fmt.Errorf("%v: pattern %s did not match", e.fset.Position(n.Pos), arg)
+			return span.Range{}, nil, fmt.Errorf("%v: pattern %s did not match", e.ExpectFileSet.Position(n.Pos), arg)
 		}
-		return span.Range{FileSet: e.fset, Start: start, End: end}, args, nil
+		return span.Range{FileSet: e.ExpectFileSet, Start: start, End: end}, args, nil
 	case *regexp.Regexp:
-		start, end, err := expect.MatchBefore(e.fset, e.FileContents, n.Pos, arg)
+		start, end, err := expect.MatchBefore(e.ExpectFileSet, e.FileContents, n.Pos, arg)
 		if err != nil {
 			return span.Range{}, nil, err
 		}
 		if start == token.NoPos {
-			return span.Range{}, nil, fmt.Errorf("%v: pattern %s did not match", e.fset.Position(n.Pos), arg)
+			return span.Range{}, nil, fmt.Errorf("%v: pattern %s did not match", e.ExpectFileSet.Position(n.Pos), arg)
 		}
-		return span.Range{FileSet: e.fset, Start: start, End: end}, args, nil
+		return span.Range{FileSet: e.ExpectFileSet, Start: start, End: end}, args, nil
 	default:
 		return span.Range{}, nil, fmt.Errorf("cannot convert %v to pos", arg)
 	}
