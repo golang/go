@@ -563,11 +563,8 @@ func (s symbols) test(t *testing.T, server *Server) {
 			continue
 		}
 
-		sort.Slice(symbols, func(i, j int) bool { return symbols[i].Name < symbols[j].Name })
-		sort.Slice(expectedSymbols, func(i, j int) bool { return expectedSymbols[i].Name < expectedSymbols[j].Name })
 		for i := range expectedSymbols {
 			children := s.children[expectedSymbols[i].Name]
-			sort.Slice(children, func(i, j int) bool { return children[i].Name < children[j].Name })
 			expectedSymbols[i].Children = children
 		}
 		if diff := diffSymbols(uri, expectedSymbols, symbols); diff != "" {
@@ -577,30 +574,38 @@ func (s symbols) test(t *testing.T, server *Server) {
 }
 
 func diffSymbols(uri span.URI, want, got []protocol.DocumentSymbol) string {
+	sort.Slice(want, func(i, j int) bool { return want[i].Name < want[j].Name })
+	sort.Slice(got, func(i, j int) bool { return got[i].Name < got[j].Name })
 	if len(got) != len(want) {
-		goto Failed
+		return summarizeSymbols(-1, want, got, "different lengths got %v want %v", len(got), len(want))
 	}
 	for i, w := range want {
 		g := got[i]
 		if w.Name != g.Name {
-			goto Failed
+			return summarizeSymbols(i, want, got, "incorrect name got %v want %v", g.Name, w.Name)
 		}
 		if w.Kind != g.Kind {
-			goto Failed
+			return summarizeSymbols(i, want, got, "incorrect kind got %v want %v", g.Kind, w.Kind)
 		}
 		if w.SelectionRange != g.SelectionRange {
-			goto Failed
+			return summarizeSymbols(i, want, got, "incorrect span got %v want %v", g.SelectionRange, w.SelectionRange)
 		}
-		sort.Slice(g.Children, func(i, j int) bool { return g.Children[i].Name < g.Children[j].Name })
 		if msg := diffSymbols(uri, w.Children, g.Children); msg != "" {
 			return fmt.Sprintf("children of %s: %s", w.Name, msg)
 		}
 	}
 	return ""
+}
 
-Failed:
+func summarizeSymbols(i int, want []protocol.DocumentSymbol, got []protocol.DocumentSymbol, reason string, args ...interface{}) string {
 	msg := &bytes.Buffer{}
-	fmt.Fprintf(msg, "document symbols failed for %s:\nexpected:\n", uri)
+	fmt.Fprint(msg, "document symbols failed")
+	if i >= 0 {
+		fmt.Fprintf(msg, " at %d", i)
+	}
+	fmt.Fprint(msg, " because of ")
+	fmt.Fprintf(msg, reason, args...)
+	fmt.Fprint(msg, ":\nexpected:\n")
 	for _, s := range want {
 		fmt.Fprintf(msg, "  %v %v %v\n", s.Name, s.Kind, s.SelectionRange)
 	}
