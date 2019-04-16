@@ -112,11 +112,10 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 		if diag.Category != "" {
 			category += "." + category
 		}
-
 		reports[s.URI()] = append(reports[s.URI()], Diagnostic{
 			Source:   category,
 			Span:     s,
-			Message:  fmt.Sprintf(diag.Message),
+			Message:  diag.Message,
 			Severity: SeverityWarning,
 		})
 	})

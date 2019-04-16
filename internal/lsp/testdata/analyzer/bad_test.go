@@ -10,7 +10,7 @@ func Testbad(t *testing.T) { //@diag("", "tests", "Testbad has malformed name: f
 	var x sync.Mutex
 	_ = x //@diag("x", "copylocks", "assignment copies lock value to _: sync.Mutex")
 
-	printfWrapper("%s") //@diag("printfWrapper", "printf", "printfWrapper format %!s(MISSING) reads arg #1, but call has 0 args")
+	printfWrapper("%s") //@diag("printfWrapper", "printf", "printfWrapper format %s reads arg #1, but call has 0 args")
 }
 
 func printfWrapper(format string, args ...interface{}) {
