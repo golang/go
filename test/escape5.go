@@ -9,7 +9,10 @@
 
 package foo
 
-import "runtime"
+import (
+	"runtime"
+	"unsafe"
+)
 
 func noleak(p *int) int { // ERROR "p does not escape"
 	return *p
@@ -71,13 +74,13 @@ func f2() {
 }
 
 func f3() {
-	var x int          // ERROR "moved to heap: x"
+	var x int // ERROR "moved to heap: x"
 	p := leaktoret(&x)
 	gp = p
 }
 
 func f4() {
-	var x int              // ERROR "moved to heap: x"
+	var x int // ERROR "moved to heap: x"
 	p, q := leaktoret2(&x)
 	gp = p
 	gp = q
@@ -89,7 +92,7 @@ func f5() {
 }
 
 func f6() {
-	var x int                               // ERROR "moved to heap: x"
+	var x int // ERROR "moved to heap: x"
 	px1, px2 := leaktoret22(leaktoret2(&x))
 	gp = px1
 	_ = px2
@@ -244,4 +247,18 @@ func f29000(_ int, x interface{}) { // ERROR "leaking param: x"
 func g29000() {
 	x := 1
 	f29000(2, x) // ERROR "x escapes to heap"
+}
+
+// Issue 28369: taking an address of a parameter and converting it into a uintptr causes an
+// unnecessary escape.
+
+var sink28369 uintptr
+
+func f28369(n int) int {
+	if n == 0 {
+		sink28369 = uintptr(unsafe.Pointer(&n))
+		return n
+	}
+
+	return 1 + f28369(n-1)
 }
