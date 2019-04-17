@@ -501,7 +501,7 @@ var ptrnames = []string{
 // +------------------+ <- frame->varp
 // |     locals       |
 // +------------------+
-// |  args to callee  |
+// |  args to caller  |
 // +------------------+ <- frame->sp
 //
 // (arm)
@@ -512,7 +512,7 @@ var ptrnames = []string{
 // +------------------+ <- frame->varp
 // |     locals       |
 // +------------------+
-// |  args to callee  |
+// |  args to caller  |
 // +------------------+
 // |  return address  |
 // +------------------+ <- frame->sp
