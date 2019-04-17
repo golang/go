@@ -40,7 +40,7 @@ func (m *ColumnMapper) Location(s span.Span) (Location, error) {
 }
 
 func (m *ColumnMapper) Range(s span.Span) (Range, error) {
-	if m.URI != s.URI() {
+	if span.CompareURI(m.URI, s.URI()) != 0 {
 		return Range{}, fmt.Errorf("column mapper is for file %q instead of %q", m.URI, s.URI())
 	}
 	s, err := s.WithAll(m.Converter)

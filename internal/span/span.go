@@ -7,7 +7,6 @@ package span
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 )
 
 // Span represents a source code range in standardized form.
@@ -58,7 +57,7 @@ func NewPoint(line, col, offset int) Point {
 }
 
 func Compare(a, b Span) int {
-	if r := strings.Compare(string(a.v.URI), string(b.v.URI)); r != 0 {
+	if r := CompareURI(a.URI(), b.URI()); r != 0 {
 		return r
 	}
 	if r := comparePoint(a.v.Start, b.v.Start); r != 0 {
