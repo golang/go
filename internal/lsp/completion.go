@@ -33,20 +33,16 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}
 	items, prefix, err := source.Completion(ctx, f, rng.Start)
 	if err != nil {
-		s.log.Infof(ctx, "no completions found for %s:%v:%v", uri, int(params.Position.Line), int(params.Position.Character))
+		s.log.Infof(ctx, "no completions found for %s:%v:%v: %v", uri, int(params.Position.Line), int(params.Position.Character), err)
 		items = []source.CompletionItem{}
 	}
 	return &protocol.CompletionList{
 		IsIncomplete: false,
-		Items:        toProtocolCompletionItems(items, prefix, params.Position, s.snippetsSupported, s.usePlaceholders),
+		Items:        toProtocolCompletionItems(items, prefix, params.Position, s.insertTextFormat, s.usePlaceholders),
 	}, nil
 }
 
-func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string, pos protocol.Position, snippetsSupported, usePlaceholders bool) []protocol.CompletionItem {
-	insertTextFormat := protocol.PlainTextTextFormat
-	if snippetsSupported {
-		insertTextFormat = protocol.SnippetTextFormat
-	}
+func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string, pos protocol.Position, insertTextFormat protocol.InsertTextFormat, usePlaceholders bool) []protocol.CompletionItem {
 	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].Score > candidates[j].Score
 	})
@@ -78,6 +74,15 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 			SortText:   fmt.Sprintf("%05d", i),
 			FilterText: insertText,
 			Preselect:  i == 0,
+		}
+		// Trigger signature help for any function or method completion.
+		// This is helpful even if a function does not have parameters,
+		// since we show return types as well.
+		switch item.Kind {
+		case protocol.FunctionCompletion, protocol.MethodCompletion:
+			item.Command = &protocol.Command{
+				Command: "editor.action.triggerParameterHints",
+			}
 		}
 		items = append(items, item)
 	}

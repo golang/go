@@ -98,7 +98,10 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 
 func (s *Server) setClientCapabilities(caps protocol.ClientCapabilities) {
 	// Check if the client supports snippets in completion items.
-	s.snippetsSupported = caps.TextDocument.Completion.CompletionItem.SnippetSupport
+	s.insertTextFormat = protocol.PlainTextTextFormat
+	if caps.TextDocument.Completion.CompletionItem.SnippetSupport {
+		s.insertTextFormat = protocol.SnippetTextFormat
+	}
 	// Check if the client supports configuration messages.
 	s.configurationSupported = caps.Workspace.Configuration
 	s.dynamicConfigurationSupported = caps.Workspace.DidChangeConfiguration.DynamicRegistration
