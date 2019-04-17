@@ -100,13 +100,7 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return fmt.Errorf("%v: %v", from, err)
 	}
-	//TODO: either work out how to request plain text, or
-	//use a less kludgy way of cleaning the markdown
-	description := hover.Contents.Value
-	if v := strings.TrimPrefix(description, "```go"); v != description {
-		description = strings.TrimSuffix(v, "```")
-	}
-	description = strings.TrimSpace(description)
+	description := strings.TrimSpace(hover.Contents.Value)
 	var result interface{}
 	switch d.query.Emulate {
 	case "":

@@ -35,7 +35,6 @@ func (s *Server) hover(ctx context.Context, params *protocol.TextDocumentPositio
 	if err != nil {
 		return nil, err
 	}
-	markdown := "```go\n" + content + "\n```"
 	identSpan, err := ident.Range.Span()
 	if err != nil {
 		return nil, err
@@ -45,10 +44,20 @@ func (s *Server) hover(ctx context.Context, params *protocol.TextDocumentPositio
 		return nil, err
 	}
 	return &protocol.Hover{
-		Contents: protocol.MarkupContent{
-			Kind:  protocol.Markdown,
-			Value: markdown,
-		},
-		Range: &rng,
+		Contents: markupContent(content, s.preferredContentFormat),
+		Range:    &rng,
 	}, nil
+}
+
+func markupContent(content string, kind protocol.MarkupKind) protocol.MarkupContent {
+	result := protocol.MarkupContent{
+		Kind: kind,
+	}
+	switch kind {
+	case protocol.PlainText:
+		result.Value = content
+	case protocol.Markdown:
+		result.Value = "```go\n" + content + "\n```"
+	}
+	return result
 }

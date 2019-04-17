@@ -105,6 +105,12 @@ func (s *Server) setClientCapabilities(caps protocol.ClientCapabilities) {
 	// Check if the client supports configuration messages.
 	s.configurationSupported = caps.Workspace.Configuration
 	s.dynamicConfigurationSupported = caps.Workspace.DidChangeConfiguration.DynamicRegistration
+
+	// Check which types of content format are supported by this client.
+	s.preferredContentFormat = protocol.PlainText
+	if len(caps.TextDocument.Hover.ContentFormat) > 0 {
+		s.preferredContentFormat = caps.TextDocument.Hover.ContentFormat[0]
+	}
 }
 
 func (s *Server) initialized(ctx context.Context, params *protocol.InitializedParams) error {

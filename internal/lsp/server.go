@@ -77,6 +77,7 @@ type Server struct {
 	insertTextFormat              protocol.InsertTextFormat
 	configurationSupported        bool
 	dynamicConfigurationSupported bool
+	preferredContentFormat        protocol.MarkupKind
 
 	textDocumentSyncKind protocol.TextDocumentSyncKind
 
