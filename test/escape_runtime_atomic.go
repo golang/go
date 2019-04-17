@@ -26,8 +26,8 @@ func Storep() {
 }
 
 func Casp1() {
-	// BAD: x doesn't need to be heap allocated
-	var x int // ERROR "moved to heap: x"
-	var y int // ERROR "moved to heap: y"
-	atomic.Casp1(&ptr, unsafe.Pointer(&x), unsafe.Pointer(&y))
+	// BAD: should always be "does not escape"
+	x := new(int) // ERROR "escapes to heap|does not escape"
+	var y int     // ERROR "moved to heap: y"
+	atomic.Casp1(&ptr, unsafe.Pointer(x), unsafe.Pointer(&y))
 }
