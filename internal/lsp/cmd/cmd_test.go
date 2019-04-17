@@ -7,6 +7,7 @@ package cmd_test
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -18,7 +19,7 @@ import (
 // We hardcode the expected number of test cases to ensure that all tests
 // are being executed. If a test is added, this number must be changed.
 const (
-	expectedCompletionsCount = 64
+	expectedCompletionsCount = 65
 	expectedDiagnosticsCount = 16
 	expectedFormatCount      = 4
 )
@@ -31,16 +32,28 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 	const dir = "../testdata"
 
 	files := packagestest.MustCopyFileTree(dir)
+	overlays := map[string][]byte{}
 	for fragment, operation := range files {
 		if trimmed := strings.TrimSuffix(fragment, ".in"); trimmed != fragment {
 			delete(files, fragment)
 			files[trimmed] = operation
 		}
+		const overlay = ".overlay"
+		if index := strings.Index(fragment, overlay); index >= 0 {
+			delete(files, fragment)
+			partial := fragment[:index] + fragment[index+len(overlay):]
+			contents, err := ioutil.ReadFile(filepath.Join(dir, fragment))
+			if err != nil {
+				t.Fatal(err)
+			}
+			overlays[partial] = contents
+		}
 	}
 	modules := []packagestest.Module{
 		{
-			Name:  "golang.org/x/tools/internal/lsp",
-			Files: files,
+			Name:    "golang.org/x/tools/internal/lsp",
+			Files:   files,
+			Overlay: overlays,
 		},
 	}
 	exported := packagestest.Export(t, exporter, modules)

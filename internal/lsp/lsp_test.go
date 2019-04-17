@@ -11,6 +11,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/ioutil"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -18,7 +19,6 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/diff"
@@ -48,24 +48,34 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	const expectedSignaturesCount = 19
 
 	files := packagestest.MustCopyFileTree(dir)
+	overlays := map[string][]byte{}
 	for fragment, operation := range files {
 		if trimmed := strings.TrimSuffix(fragment, ".in"); trimmed != fragment {
 			delete(files, fragment)
 			files[trimmed] = operation
 		}
+		const overlay = ".overlay"
+		if index := strings.Index(fragment, overlay); index >= 0 {
+			delete(files, fragment)
+			partial := fragment[:index] + fragment[index+len(overlay):]
+			contents, err := ioutil.ReadFile(filepath.Join(dir, fragment))
+			if err != nil {
+				t.Fatal(err)
+			}
+			overlays[partial] = contents
+		}
 	}
 	modules := []packagestest.Module{
 		{
-			Name:  "golang.org/x/tools/internal/lsp",
-			Files: files,
+			Name:    "golang.org/x/tools/internal/lsp",
+			Files:   files,
+			Overlay: overlays,
 		},
 	}
 	exported := packagestest.Export(t, exporter, modules)
 	defer exported.Cleanup()
 
 	// Merge the exported.Config with the view.Config.
-	addUnsavedFiles(t, exported.Config, exported)
-
 	cfg := *exported.Config
 
 	cfg.Fset = token.NewFileSet()
@@ -188,25 +198,6 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		}
 		expectedSignatures.test(t, s)
 	})
-}
-
-func addUnsavedFiles(t *testing.T, cfg *packages.Config, exported *packagestest.Exported) {
-	if cfg.Overlay == nil {
-		cfg.Overlay = make(map[string][]byte)
-	}
-	// For now, we hardcode a file that we know is in the testdata.
-	// TODO(rstambler): Figure out a way to do this better.
-	dir := filepath.Dir(filepath.Dir(exported.File("golang.org/x/tools/internal/lsp", filepath.Join("complit", "complit.go"))))
-	cfg.Overlay[filepath.Join(dir, "nodisk", "nodisk.go")] = []byte(`package nodisk
-
-import (
-	"golang.org/x/tools/internal/lsp/foo"
-)
-
-func _() {
-	foo.Foo() //@complete("F", Foo, IntFoo, StructFoo)
-}
-`)
 }
 
 type diagnostics map[span.URI][]protocol.Diagnostic
