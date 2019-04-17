@@ -29,16 +29,16 @@ func init() {
 	namesDiagnosticSeverity[SeverityError] = "Error"
 
 	namesCompletionItemKind[Unknown] = "Unknown"
-	namesCompletionItemKind[InterfaceCompletionItem] = "InterfaceCompletion"
-	namesCompletionItemKind[StructCompletionItem] = "StructCompletion"
-	namesCompletionItemKind[TypeCompletionItem] = "TypeCompletion"
-	namesCompletionItemKind[ConstantCompletionItem] = "ConstantCompletion"
-	namesCompletionItemKind[FieldCompletionItem] = "FieldCompletion"
-	namesCompletionItemKind[ParameterCompletionItem] = "ParameterCompletion"
-	namesCompletionItemKind[VariableCompletionItem] = "VariableCompletion"
-	namesCompletionItemKind[FunctionCompletionItem] = "FunctionCompletion"
-	namesCompletionItemKind[MethodCompletionItem] = "MethodCompletion"
-	namesCompletionItemKind[PackageCompletionItem] = "PackageCompletion"
+	namesCompletionItemKind[InterfaceCompletionItem] = "interface"
+	namesCompletionItemKind[StructCompletionItem] = "struct"
+	namesCompletionItemKind[TypeCompletionItem] = "type"
+	namesCompletionItemKind[ConstantCompletionItem] = "const"
+	namesCompletionItemKind[FieldCompletionItem] = "field"
+	namesCompletionItemKind[ParameterCompletionItem] = "parameter"
+	namesCompletionItemKind[VariableCompletionItem] = "var"
+	namesCompletionItemKind[FunctionCompletionItem] = "func"
+	namesCompletionItemKind[MethodCompletionItem] = "method"
+	namesCompletionItemKind[PackageCompletionItem] = "package"
 }
 
 func formatEnum(f fmt.State, c rune, i int, names []string, unknown string) {

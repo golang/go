@@ -389,31 +389,10 @@ func (c completions) collect(src token.Position, expected []token.Pos) {
 }
 
 func (i completionItems) collect(pos token.Pos, label, detail, kind string) {
-	var k protocol.CompletionItemKind
-	switch kind {
-	case "struct":
-		k = protocol.StructCompletion
-	case "func":
-		k = protocol.FunctionCompletion
-	case "var":
-		k = protocol.VariableCompletion
-	case "type":
-		k = protocol.TypeParameterCompletion
-	case "field":
-		k = protocol.FieldCompletion
-	case "interface":
-		k = protocol.InterfaceCompletion
-	case "const":
-		k = protocol.ConstantCompletion
-	case "method":
-		k = protocol.MethodCompletion
-	case "package":
-		k = protocol.ModuleCompletion
-	}
 	i[pos] = &protocol.CompletionItem{
 		Label:  label,
 		Detail: detail,
-		Kind:   k,
+		Kind:   protocol.ParseCompletionItemKind(kind),
 	}
 }
 
