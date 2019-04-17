@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+	"fmt"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -31,7 +32,7 @@ func (s *Server) hover(ctx context.Context, params *protocol.TextDocumentPositio
 	if err != nil {
 		return nil, err
 	}
-	content, err := ident.Hover(ctx, nil)
+	decl, doc, err := ident.Hover(ctx, nil, s.enhancedHover)
 	if err != nil {
 		return nil, err
 	}
@@ -44,20 +45,23 @@ func (s *Server) hover(ctx context.Context, params *protocol.TextDocumentPositio
 		return nil, err
 	}
 	return &protocol.Hover{
-		Contents: markupContent(content, s.preferredContentFormat),
+		Contents: markupContent(decl, doc, s.preferredContentFormat),
 		Range:    &rng,
 	}, nil
 }
 
-func markupContent(content string, kind protocol.MarkupKind) protocol.MarkupContent {
+func markupContent(decl, doc string, kind protocol.MarkupKind) protocol.MarkupContent {
 	result := protocol.MarkupContent{
 		Kind: kind,
 	}
 	switch kind {
 	case protocol.PlainText:
-		result.Value = content
+		result.Value = decl
 	case protocol.Markdown:
-		result.Value = "```go\n" + content + "\n```"
+		result.Value = "```go\n" + decl + "\n```"
+	}
+	if doc != "" {
+		result.Value = fmt.Sprintf("%s\n%s", doc, result.Value)
 	}
 	return result
 }

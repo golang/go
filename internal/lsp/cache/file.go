@@ -40,6 +40,11 @@ func (f *File) URI() span.URI {
 	return f.uris[0]
 }
 
+// View returns the view associated with the file.
+func (f *File) View() source.View {
+	return f.view
+}
+
 // GetContent returns the contents of the file, reading it from file system if needed.
 func (f *File) GetContent(ctx context.Context) []byte {
 	f.view.mu.Lock()

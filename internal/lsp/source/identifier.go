@@ -26,6 +26,7 @@ type IdentifierInfo struct {
 	}
 	Declaration struct {
 		Range  span.Range
+		Node   ast.Decl
 		Object types.Object
 	}
 
@@ -47,15 +48,6 @@ func Identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 		err = fmt.Errorf("no identifier found")
 	}
 	return result, err
-}
-
-func (i *IdentifierInfo) Hover(ctx context.Context, q types.Qualifier) (string, error) {
-	if q == nil {
-		fAST := i.File.GetAST(ctx)
-		pkg := i.File.GetPackage(ctx)
-		q = qualifier(fAST, pkg.GetTypes(), pkg.GetTypesInfo())
-	}
-	return types.ObjectString(i.Declaration.Object, q), nil
 }
 
 // identifier checks a single position for a potential identifier.
@@ -105,6 +97,9 @@ func identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 	if result.Declaration.Range, err = objToRange(ctx, v, result.Declaration.Object); err != nil {
 		return nil, err
 	}
+	if result.Declaration.Node, err = objToNode(ctx, v, result.Declaration.Object, result.Declaration.Range); err != nil {
+		return nil, err
+	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)
 	if typ == nil {
 		return nil, fmt.Errorf("no type for %s", result.Name)
@@ -139,4 +134,31 @@ func objToRange(ctx context.Context, v View, obj types.Object) (span.Range, erro
 		return span.Range{}, fmt.Errorf("invalid position for %v", obj.Name())
 	}
 	return span.NewRange(v.FileSet(), p, p+token.Pos(len(obj.Name()))), nil
+}
+
+func objToNode(ctx context.Context, v View, obj types.Object, rng span.Range) (ast.Decl, error) {
+	s, err := rng.Span()
+	if err != nil {
+		return nil, err
+	}
+	declFile, err := v.GetFile(ctx, s.URI())
+	if err != nil {
+		return nil, err
+	}
+	declAST := declFile.GetAST(ctx)
+	path, _ := astutil.PathEnclosingInterval(declAST, rng.Start, rng.End)
+	if path == nil {
+		return nil, fmt.Errorf("no path for range %v", rng)
+	}
+	// TODO(rstambler): Support other node types.
+	// For now, we only associate an ast.Node for type declarations.
+	switch obj.Type().(type) {
+	case *types.Named, *types.Struct, *types.Interface:
+		for _, node := range path {
+			if node, ok := node.(*ast.GenDecl); ok && node.Tok == token.TYPE {
+				return node, nil
+			}
+		}
+	}
+	return nil, nil // didn't find a node, but no error
 }

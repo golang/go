@@ -34,6 +34,7 @@ type View interface {
 // the loading of packages into their own caching systems.
 type File interface {
 	URI() span.URI
+	View() View
 	GetAST(ctx context.Context) *ast.File
 	GetFileSet(ctx context.Context) *token.FileSet
 	GetPackage(ctx context.Context) Package
