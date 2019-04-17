@@ -75,10 +75,6 @@ func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []sou
 		if err != nil {
 			return nil, err
 		}
-		src := diag.Source
-		if src == "" {
-			src = "LSP"
-		}
 		var severity protocol.DiagnosticSeverity
 		switch diag.Severity {
 		case source.SeverityError:
@@ -94,7 +90,7 @@ func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []sou
 			Message:  diag.Message,
 			Range:    rng,
 			Severity: severity,
-			Source:   src,
+			Source:   diag.Source,
 		})
 	}
 	return reports, nil
