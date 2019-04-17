@@ -7,6 +7,7 @@ package span
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // Span represents a source code range in standardized form.
@@ -54,6 +55,45 @@ func NewPoint(line, col, offset int) Point {
 	p := Point{v: point{Line: line, Column: col, Offset: offset}}
 	p.v.clean()
 	return p
+}
+
+func Compare(a, b Span) int {
+	if r := strings.Compare(string(a.v.URI), string(b.v.URI)); r != 0 {
+		return r
+	}
+	if r := comparePoint(a.v.Start, b.v.Start); r != 0 {
+		return r
+	}
+	return comparePoint(a.v.End, b.v.End)
+}
+
+func ComparePoint(a, b Point) int {
+	return comparePoint(a.v, b.v)
+}
+
+func comparePoint(a, b point) int {
+	if !a.hasPosition() {
+		if a.Offset < b.Offset {
+			return -1
+		}
+		if a.Offset > b.Offset {
+			return 1
+		}
+		return 0
+	}
+	if a.Line < b.Line {
+		return -1
+	}
+	if a.Line > b.Line {
+		return 1
+	}
+	if a.Column < b.Column {
+		return -1
+	}
+	if a.Column > b.Column {
+		return 1
+	}
+	return 0
 }
 
 func (s Span) HasPosition() bool             { return s.v.Start.hasPosition() }
