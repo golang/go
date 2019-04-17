@@ -508,7 +508,11 @@ func formatParams(t *types.Tuple, variadic bool, qualifier types.Qualifier) stri
 		if variadic && i == t.Len()-1 {
 			typ = strings.Replace(typ, "[]", "...", 1)
 		}
-		fmt.Fprintf(&b, "%v %v", el.Name(), typ)
+		if el.Name() == "" {
+			fmt.Fprintf(&b, "%v", typ)
+		} else {
+			fmt.Fprintf(&b, "%v %v", el.Name(), typ)
+		}
 	}
 	b.WriteByte(')')
 	return b.String()

@@ -19,8 +19,8 @@ type Range struct {
 }
 
 // TokenConverter is a Converter backed by a token file set and file.
-// It uses the file set methods to work out determine the conversions which
-// make if fast and do not require the file contents.
+// It uses the file set methods to work out the conversions, which
+// makes it fast and does not require the file contents.
 type TokenConverter struct {
 	fset *token.FileSet
 	file *token.File

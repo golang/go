@@ -395,7 +395,7 @@ func (s *Server) SignatureHelp(ctx context.Context, params *protocol.TextDocumen
 	}
 	info, err := source.SignatureHelp(ctx, f, rng.Start)
 	if err != nil {
-		s.log.Infof(ctx, "no signature help for %s:%v:%v", uri, int(params.Position.Line), int(params.Position.Character))
+		s.log.Infof(ctx, "no signature help for %s:%v:%v : %s", uri, int(params.Position.Line), int(params.Position.Character), err)
 	}
 	return toProtocolSignatureHelp(info), nil
 }

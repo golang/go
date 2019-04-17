@@ -45,6 +45,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	const expectedTypeDefinitionsCount = 2
 	const expectedHighlightsCount = 2
 	const expectedSymbolsCount = 1
+	const expectedSignaturesCount = 19
 
 	files := packagestest.MustCopyFileTree(dir)
 	for fragment, operation := range files {
@@ -77,6 +78,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	s := &Server{
 		views:       []*cache.View{cache.NewView(ctx, log, "lsp_test", span.FileURI(cfg.Dir), &cfg)},
 		undelivered: make(map[span.URI][]source.Diagnostic),
+		log:         log,
 	}
 	// Do a first pass to collect special markers for completion.
 	if err := exported.Expect(map[string]interface{}{
@@ -98,6 +100,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		m:        make(map[span.URI][]protocol.DocumentSymbol),
 		children: make(map[string][]protocol.DocumentSymbol),
 	}
+	expectedSignatures := make(signatures)
 
 	// Collect any data that needs to be used by subsequent tests.
 	if err := exported.Expect(map[string]interface{}{
@@ -109,6 +112,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		"typdef":    expectedTypeDefinitions.collect,
 		"highlight": expectedHighlights.collect,
 		"symbol":    expectedSymbols.collect,
+		"signature": expectedSignatures.collect,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -176,6 +180,14 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		}
 		expectedSymbols.test(t, s)
 	})
+
+	t.Run("Signatures", func(t *testing.T) {
+		t.Helper()
+		if len(expectedSignatures) != expectedSignaturesCount {
+			t.Errorf("got %v signatures expected %v", len(expectedSignatures), expectedSignaturesCount)
+		}
+		expectedSignatures.test(t, s)
+	})
 }
 
 func addUnsavedFiles(t *testing.T, cfg *packages.Config, exported *packagestest.Exported) {
@@ -207,6 +219,7 @@ type symbols struct {
 	m        map[span.URI][]protocol.DocumentSymbol
 	children map[string][]protocol.DocumentSymbol
 }
+type signatures map[token.Position]*protocol.SignatureHelp
 
 func (d diagnostics) test(t *testing.T, v source.View) int {
 	count := 0
@@ -605,6 +618,72 @@ func (s symbols) test(t *testing.T, server *Server) {
 			expectedSymbols[i].Children = children
 		}
 		if diff := diffSymbols(uri, expectedSymbols, symbols); diff != "" {
+			t.Error(diff)
+		}
+	}
+}
+
+func (s signatures) collect(src token.Position, signature string, activeParam int64) {
+	s[src] = &protocol.SignatureHelp{
+		Signatures:      []protocol.SignatureInformation{{Label: signature}},
+		ActiveSignature: 0,
+		ActiveParameter: float64(activeParam),
+	}
+}
+
+func diffSignatures(src token.Position, want, got *protocol.SignatureHelp) string {
+	decorate := func(f string, args ...interface{}) string {
+		return fmt.Sprintf("Invalid signature at %s: %s", src, fmt.Sprintf(f, args...))
+	}
+
+	if lw, lg := len(want.Signatures), len(got.Signatures); lw != lg {
+		return decorate("wanted %d signatures, got %d", lw, lg)
+	}
+
+	if want.ActiveSignature != got.ActiveSignature {
+		return decorate("wanted active signature of %f, got %f", want.ActiveSignature, got.ActiveSignature)
+	}
+
+	if want.ActiveParameter != got.ActiveParameter {
+		return decorate("wanted active parameter of %f, got %f", want.ActiveParameter, got.ActiveParameter)
+	}
+
+	for i := range want.Signatures {
+		wantSig, gotSig := want.Signatures[i], got.Signatures[i]
+
+		if wantSig.Label != gotSig.Label {
+			return decorate("wanted label %q, got %q", wantSig.Label, gotSig.Label)
+		}
+
+		var paramParts []string
+		for _, p := range gotSig.Parameters {
+			paramParts = append(paramParts, p.Label)
+		}
+		paramsStr := strings.Join(paramParts, ", ")
+		if !strings.Contains(gotSig.Label, paramsStr) {
+			return decorate("expected signature %q to contain params %q", gotSig.Label, paramsStr)
+		}
+	}
+
+	return ""
+}
+
+func (s signatures) test(t *testing.T, server *Server) {
+	for src, expectedSignatures := range s {
+		gotSignatures, err := server.SignatureHelp(context.Background(), &protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{
+				URI: protocol.NewURI(span.FileURI(src.Filename)),
+			},
+			Position: protocol.Position{
+				Line:      float64(src.Line - 1),
+				Character: float64(src.Column - 1),
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if diff := diffSignatures(src, expectedSignatures, gotSignatures); diff != "" {
 			t.Error(diff)
 		}
 	}

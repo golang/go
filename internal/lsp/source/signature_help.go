@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -38,7 +39,7 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInform
 		return nil, fmt.Errorf("cannot find node enclosing position")
 	}
 	for _, node := range path {
-		if c, ok := node.(*ast.CallExpr); ok {
+		if c, ok := node.(*ast.CallExpr); ok && pos >= c.Lparen && pos <= c.Rparen {
 			callExpr = c
 			break
 		}
@@ -47,37 +48,25 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInform
 		return nil, fmt.Errorf("cannot find an enclosing function")
 	}
 
-	// Get the type information for the function corresponding to the call expression.
-	var obj types.Object
-	switch t := callExpr.Fun.(type) {
-	case *ast.Ident:
-		obj = pkg.GetTypesInfo().ObjectOf(t)
-	case *ast.SelectorExpr:
-		obj = pkg.GetTypesInfo().ObjectOf(t.Sel)
-	default:
-		return nil, fmt.Errorf("the enclosing function is malformed")
+	// Get the type information for the function being called.
+	sigType := pkg.GetTypesInfo().TypeOf(callExpr.Fun)
+	if sigType == nil {
+		return nil, fmt.Errorf("cannot get type for Fun %[1]T (%[1]v)", callExpr.Fun)
 	}
-	if obj == nil {
-		return nil, fmt.Errorf("cannot resolve %s", callExpr.Fun)
-	}
-	// Find the signature corresponding to the object.
-	var sig *types.Signature
-	switch obj.(type) {
-	case *types.Var:
-		if underlying, ok := obj.Type().Underlying().(*types.Signature); ok {
-			sig = underlying
-		}
-	case *types.Func:
-		sig = obj.Type().(*types.Signature)
-	}
+
+	sig, _ := sigType.Underlying().(*types.Signature)
 	if sig == nil {
-		return nil, fmt.Errorf("no function signatures found for %s", obj.Name())
+		return nil, fmt.Errorf("cannot find signature for Fun %[1]T (%[1]v)", callExpr.Fun)
 	}
+
 	pkgStringer := qualifier(fAST, pkg.GetTypes(), pkg.GetTypesInfo())
 	var paramInfo []ParameterInformation
 	for i := 0; i < sig.Params().Len(); i++ {
 		param := sig.Params().At(i)
 		label := types.TypeString(param.Type(), pkgStringer)
+		if sig.Variadic() && i == sig.Params().Len()-1 {
+			label = strings.Replace(label, "[]", "...", 1)
+		}
 		if param.Name() != "" {
 			label = fmt.Sprintf("%s %s", param.Name(), label)
 		}
@@ -85,30 +74,56 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInform
 			Label: label,
 		})
 	}
+
 	// Determine the query position relative to the number of parameters in the function.
 	var activeParam int
 	var start, end token.Pos
-	for i, expr := range callExpr.Args {
+	for _, expr := range callExpr.Args {
 		if start == token.NoPos {
 			start = expr.Pos()
 		}
 		end = expr.End()
-		if i < len(callExpr.Args)-1 {
-			end = callExpr.Args[i+1].Pos() - 1 // comma
-		}
 		if start <= pos && pos <= end {
 			break
 		}
-		activeParam++
+
+		// Don't advance the active parameter for the last parameter of a variadic function.
+		if !sig.Variadic() || activeParam < sig.Params().Len()-1 {
+			activeParam++
+		}
 		start = expr.Pos() + 1 // to account for commas
 	}
-	// Label for function, qualified by package name.
-	label := obj.Name()
-	if pkg := pkgStringer(obj.Pkg()); pkg != "" {
-		label = pkg + "." + label
+
+	// Get the object representing the function, if available.
+	// There is no object in certain cases such as calling a function returned by
+	// a function (e.g. "foo()()").
+	var obj types.Object
+	switch t := callExpr.Fun.(type) {
+	case *ast.Ident:
+		obj = pkg.GetTypesInfo().ObjectOf(t)
+	case *ast.SelectorExpr:
+		obj = pkg.GetTypesInfo().ObjectOf(t.Sel)
 	}
+
+	var label string
+	if obj != nil {
+		label = obj.Name()
+	} else {
+		label = "func"
+	}
+
+	label += formatParams(sig.Params(), sig.Variadic(), pkgStringer)
+	if sig.Results().Len() > 0 {
+		results := types.TypeString(sig.Results(), pkgStringer)
+		if sig.Results().Len() == 1 && sig.Results().At(0).Name() == "" {
+			// Trim off leading/trailing parens to avoid results like "foo(a int) (int)".
+			results = strings.Trim(results, "()")
+		}
+		label += " " + results
+	}
+
 	return &SignatureInformation{
-		Label:           label + formatParams(sig.Params(), sig.Variadic(), pkgStringer),
+		Label:           label,
 		Parameters:      paramInfo,
 		ActiveParameter: activeParam,
 	}, nil
