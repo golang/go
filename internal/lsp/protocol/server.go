@@ -81,7 +81,9 @@ func serverHandler(log xlog.Logger, server Server) jsonrpc2.Handler {
 				conn.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))
 				return
 			}
-			if err := server.Shutdown(ctx); err != nil {
+			if err := server.Shutdown(ctx); err == nil {
+				conn.Reply(ctx, r, nil, nil)
+			} else {
 				log.Errorf(ctx, "%v", err)
 			}
 
