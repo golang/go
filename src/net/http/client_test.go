@@ -1692,7 +1692,7 @@ func TestShouldCopyHeaderOnRedirect(t *testing.T) {
 			t.Errorf("%d. dest URL %q parse error: %v", i, tt.destURL, err)
 			continue
 		}
-		got := Export_shouldCopyHeaderOnRedirect(tt.header, u0, u1)
+		got := Export_shouldCopyHeaderOnRedirect(tt.header, u0, u1, tt.headerPolicy)
 		if got != tt.want {
 			t.Errorf("%d. shouldCopyHeaderOnRedirect(%q, %q => %q) = %v; want %v",
 				i, tt.header, tt.initialURL, tt.destURL, got, tt.want)

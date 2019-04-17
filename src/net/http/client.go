@@ -82,6 +82,10 @@ type Client struct {
 	//
 	// If RedirectHeader is nil, all headers will be forwarded on all
 	// subsequent redirects.
+	//
+	// Headers "Authorization", "Www-Authenticate", "Cookie",
+	// and "Cookie2" bypass this function and are sent along
+	// on all redirects.
 	RedirectHeader func(headerKey string) bool
 
 	// Jar specifies the cookie jar.
