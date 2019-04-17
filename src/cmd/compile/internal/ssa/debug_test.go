@@ -165,6 +165,9 @@ func TestNexting(t *testing.T) {
 // then runs the debugger on the resulting binary, with any comment-specified actions matching tag triggered.
 func subTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
 	t.Run(tag+"-"+basename, func(t *testing.T) {
+		if t.Name() == "TestNexting/gdb-dbg-i22558" {
+			testenv.SkipFlaky(t, 31263)
+		}
 		testNexting(t, basename, tag, gcflags, 1000, moreargs...)
 	})
 }
