@@ -62,7 +62,7 @@ func CompareURI(a, b URI) int {
 	// If we have the same URI basename, we may still have the same file URIs.
 	if fa, err := a.Filename(); err == nil {
 		if fb, err := b.Filename(); err == nil {
-			if filepath.Base(fa) == filepath.Base(fb) {
+			if strings.EqualFold(filepath.Base(fa), filepath.Base(fb)) {
 				// Stat the files to check if they are equal.
 				if infoa, err := os.Stat(fa); err == nil {
 					if infob, err := os.Stat(fb); err == nil {
