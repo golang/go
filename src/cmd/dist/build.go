@@ -53,6 +53,7 @@ var (
 
 	rebuildall   bool
 	defaultclang bool
+	keepWorkdir  bool
 
 	vflag int // verbosity
 )
@@ -241,7 +242,9 @@ func xinit() {
 	os.Setenv("LANGUAGE", "en_US.UTF8")
 
 	workdir = xworkdir()
-	xatexit(rmworkdir)
+	// "-work" flag from cmdbootstrap hasn't been initialized
+	//  so we can't use it here to decide remove workdir or not.
+	xatexit(tryrmworkdir)
 
 	tooldir = pathf("%s/pkg/tool/%s_%s", goroot, gohostos, gohostarch)
 }
@@ -295,8 +298,12 @@ func compilerEnvLookup(m map[string]string, goos, goarch string) string {
 	return m[""]
 }
 
-// rmworkdir deletes the work directory.
-func rmworkdir() {
+// tryrmworkdir try to deletes the work directory
+// if -work flag is not set.
+func tryrmworkdir() {
+	if keepWorkdir {
+		return
+	}
 	if vflag > 1 {
 		errprintf("rm -rf %s\n", workdir)
 	}
@@ -1209,9 +1216,10 @@ func cmdbootstrap() {
 
 	var noBanner bool
 	var debug bool
-	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
-	flag.BoolVar(&debug, "d", debug, "enable debugging of bootstrap process")
-	flag.BoolVar(&noBanner, "no-banner", noBanner, "do not print banner")
+	flag.BoolVar(&rebuildall, "a", false, "rebuild all")
+	flag.BoolVar(&debug, "d", false, "enable debugging of bootstrap process")
+	flag.BoolVar(&keepWorkdir, "work", false, "keep temporary work directory")
+	flag.BoolVar(&noBanner, "no-banner", false, "do not print banner")
 
 	xflagparse(0)
 
