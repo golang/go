@@ -37,11 +37,13 @@ func TestChanges(t *testing.T) {
 
 	report := Changes(oldpkg.Types, newpkg.Types)
 
-	if !reflect.DeepEqual(report.Incompatible, wanti) {
-		t.Errorf("incompatibles: got %v\nwant %v\n", report.Incompatible, wanti)
+	got := report.messages(false)
+	if !reflect.DeepEqual(got, wanti) {
+		t.Errorf("incompatibles: got %v\nwant %v\n", got, wanti)
 	}
-	if !reflect.DeepEqual(report.Compatible, wantc) {
-		t.Errorf("compatibles: got %v\nwant %v\n", report.Compatible, wantc)
+	got = report.messages(true)
+	if !reflect.DeepEqual(got, wantc) {
+		t.Errorf("compatibles: got %v\nwant %v\n", got, wantc)
 	}
 }
 

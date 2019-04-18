@@ -24,10 +24,14 @@ import (
 func Changes(old, new *types.Package) Report {
 	d := newDiffer(old, new)
 	d.checkPackage()
-	return Report{
-		Incompatible: d.incompatibles.collect(),
-		Compatible:   d.compatibles.collect(),
+	r := Report{}
+	for _, m := range d.incompatibles.collect() {
+		r.Changes = append(r.Changes, Change{Message: m, Compatible: false})
 	}
+	for _, m := range d.compatibles.collect() {
+		r.Changes = append(r.Changes, Change{Message: m, Compatible: true})
+	}
+	return r
 }
 
 type differ struct {
