@@ -194,7 +194,7 @@ func (p *Pool) getSlow(pid int) interface{} {
 // Caller must call runtime_procUnpin() when done with the pool.
 func (p *Pool) pin() (*poolLocal, int) {
 	pid := runtime_procPin()
-	// In pinSlow we store to localSize and then to local, here we load in opposite order.
+	// In pinSlow we store to local and then to localSize, here we load in opposite order.
 	// Since we've disabled preemption, GC cannot happen in between.
 	// Thus here we must observe local at least as large localSize.
 	// We can observe a newer/larger local, it is fine (we must observe its zero-initialized-ness).
