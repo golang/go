@@ -65,7 +65,7 @@ label:
 // LTYPES spec5	{ outcode(int($1), &$2); }
 	SHLL	$4, BX
 	SHLL	$4, foo+4(SB)
-	SHLL	$4, foo+4(SB):AX // SHLL $4, AX, foo+4(SB)
+//	SHLL	$4, foo+4(SB):AX // Old syntax, equivalent to: SHLL $4, AX, foo+4(SB)
 
 // LTYPEM spec6	{ outcode(int($1), &$2); }
 	MOVL	AX, BX

@@ -92,8 +92,7 @@ label:
 // LTYPES spec5	{ outcode($1, &$2); }
 	SHLL	CX, R12
 	SHLL	CX, foo+4(SB)
-	// Old syntax, still accepted:
-	SHLL	CX, R11:AX // SHLL CX, AX, R11
+//	SHLL	CX, R11:AX // Old syntax, equivalent to: SHLL CX, AX, R11
 
 // LTYPEM spec6	{ outcode($1, &$2); }
 	MOVL	AX, R11

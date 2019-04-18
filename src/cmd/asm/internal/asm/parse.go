@@ -168,7 +168,6 @@ next:
 	operands = scratch[:0]
 	// Zero or more comma-separated operands, one per loop.
 	nesting := 0
-	colon := -1
 	for tok != '\n' && tok != ';' {
 		// Process one operand.
 		var items []lex.Token
@@ -205,12 +204,8 @@ next:
 			// was AX:DX, for which the new syntax is DX, AX. Note the reordering.
 			if tok == '\n' || tok == ';' || (nesting == 0 && (tok == ',' || tok == ':')) {
 				if tok == ':' {
-					// Remember this location so we can swap the operands below.
-					if colon >= 0 {
-						p.errorf("invalid ':' in operand")
-						return word, cond, operands, true
-					}
-					colon = len(operands)
+					p.errorf("Invalid ':' in operands. If you tried to use the 'register pair' syntax like 'AX:DX', use 'DX, AX' instead.")
+					return word, cond, operands, true
 				}
 				break
 			}
@@ -224,12 +219,7 @@ next:
 		}
 		if len(items) > 0 {
 			operands = append(operands, items)
-			if colon >= 0 && len(operands) == colon+2 {
-				// AX:DX becomes DX, AX.
-				operands[colon], operands[colon+1] = operands[colon+1], operands[colon]
-				colon = -1
-			}
-		} else if len(operands) > 0 || tok == ',' || colon >= 0 {
+		} else if len(operands) > 0 || tok == ',' {
 			// Had a separator with nothing after.
 			p.errorf("missing operand")
 		}
@@ -572,7 +562,7 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
 		p.errorf("prefix %c not allowed for register: %c%s", prefix, prefix, name)
 	}
 	c := p.peek()
-	if c == ':' || c == ',' || c == '+' {
+	if c == ',' || c == '+' {
 		// 2nd register; syntax (R1+R2) etc. No two architectures agree.
 		// Check the architectures match the syntax.
 		switch p.next().ScanToken {
