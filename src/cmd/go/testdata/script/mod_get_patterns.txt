@@ -15,11 +15,11 @@ grep 'require rsc.io/quote' go.mod
 
 cp go.mod.orig go.mod
 ! go get -d rsc.io/quote/x...
-stderr 'go get rsc.io/quote/x...: no matching packages in module rsc.io/quote@v1.5.2'
+stderr 'go get rsc.io/quote/x...: module rsc.io/quote@latest \(v1.5.2\) found, but does not contain packages matching rsc.io/quote/x...'
 ! grep 'require rsc.io/quote' go.mod
 
 ! go get -d rsc.io/quote/x/...
-stderr 'go get rsc.io/quote/x/...: no matching packages in module rsc.io/quote@v1.5.2'
+stderr 'go get rsc.io/quote/x/...: module rsc.io/quote@latest \(v1.5.2\) found, but does not contain packages matching rsc.io/quote/x/...'
 ! grep 'require rsc.io/quote' go.mod
 
 -- go.mod.orig --
