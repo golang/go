@@ -124,6 +124,39 @@ var dnsReadConfigTests = []struct {
 			search:        []string{"domain.local."},
 		},
 	},
+	{
+		name: "testdata/linux-use-vc-resolv.conf",
+		want: &dnsConfig{
+			servers:  defaultNS,
+			ndots:    1,
+			useTCP:   true,
+			timeout:  5 * time.Second,
+			attempts: 2,
+			search:   []string{"domain.local."},
+		},
+	},
+	{
+		name: "testdata/freebsd-usevc-resolv.conf",
+		want: &dnsConfig{
+			servers:  defaultNS,
+			ndots:    1,
+			useTCP:   true,
+			timeout:  5 * time.Second,
+			attempts: 2,
+			search:   []string{"domain.local."},
+		},
+	},
+	{
+		name: "testdata/openbsd-tcp-resolv.conf",
+		want: &dnsConfig{
+			servers:  defaultNS,
+			ndots:    1,
+			useTCP:   true,
+			timeout:  5 * time.Second,
+			attempts: 2,
+			search:   []string{"domain.local."},
+		},
+	},
 }
 
 func TestDNSReadConfig(t *testing.T) {
