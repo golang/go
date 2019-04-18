@@ -155,8 +155,7 @@ func labelToInsertText(label string, kind source.CompletionItemKind, insertTextF
 			if i != 0 {
 				b.WriteString(", ")
 			}
-			p = strings.Split(strings.Trim(p, " "), " ")[0]
-			fmt.Fprintf(b, "${%v:%v}", i+1, r.Replace(p))
+			fmt.Fprintf(b, "${%v:%v}", i+1, r.Replace(strings.TrimSpace(p)))
 		}
 		b.WriteByte(')')
 		return b.String()
