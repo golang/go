@@ -92,6 +92,7 @@ var importerTests = [...]importerTest{
 	{pkgpath: "nointerface", name: "I", want: "type I int"},
 	{pkgpath: "issue29198", name: "FooServer", want: "type FooServer struct{FooServer *FooServer; user string; ctx context.Context}"},
 	{pkgpath: "issue30628", name: "Apple", want: "type Apple struct{hey sync.RWMutex; x int; RQ [517]struct{Count uintptr; NumBytes uintptr; Last uintptr}}"},
+	{pkgpath: "issue31540", name: "S", want: "type S struct{b int; map[Y]Z}"},
 }
 
 func TestGoxImporter(t *testing.T) {
