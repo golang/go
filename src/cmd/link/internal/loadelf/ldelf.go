@@ -678,6 +678,8 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 	// as well use one large chunk.
 
 	// create symbols for elfmapped sections
+	sectsymNames := make(map[string]bool)
+	counter := 0
 	for i := 0; uint(i) < elfobj.nsect; i++ {
 		sect = &elfobj.sect[i]
 		if sect.type_ == SHT_ARM_ATTRIBUTES && sect.name == ".ARM.attributes" {
@@ -709,6 +711,12 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		}
 
 		name := fmt.Sprintf("%s(%s)", pkg, sect.name)
+		for sectsymNames[name] {
+			counter++
+			name = fmt.Sprintf("%s(%s%d)", pkg, sect.name, counter)
+		}
+		sectsymNames[name] = true
+
 		s := syms.Lookup(name, localSymVersion)
 
 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
