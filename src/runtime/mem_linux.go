@@ -117,16 +117,19 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 }
 
 func sysUsed(v unsafe.Pointer, n uintptr) {
-	if physHugePageSize != 0 {
-		// Partially undo the NOHUGEPAGE marks from sysUnused
-		// for whole huge pages between v and v+n. This may
-		// leave huge pages off at the end points v and v+n
-		// even though allocations may cover these entire huge
-		// pages. We could detect this and undo NOHUGEPAGE on
-		// the end points as well, but it's probably not worth
-		// the cost because when neighboring allocations are
-		// freed sysUnused will just set NOHUGEPAGE again.
+	// Partially undo the NOHUGEPAGE marks from sysUnused
+	// for whole huge pages between v and v+n. This may
+	// leave huge pages off at the end points v and v+n
+	// even though allocations may cover these entire huge
+	// pages. We could detect this and undo NOHUGEPAGE on
+	// the end points as well, but it's probably not worth
+	// the cost because when neighboring allocations are
+	// freed sysUnused will just set NOHUGEPAGE again.
+	sysHugePage(v, n)
+}
 
+func sysHugePage(v unsafe.Pointer, n uintptr) {
+	if physHugePageSize != 0 {
 		// Round v up to a huge page boundary.
 		beg := (uintptr(v) + (physHugePageSize - 1)) &^ (physHugePageSize - 1)
 		// Round v+n down to a huge page boundary.
