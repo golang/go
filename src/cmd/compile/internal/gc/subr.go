@@ -347,13 +347,13 @@ func newnamel(pos src.XPos, s *types.Sym) *Node {
 	}
 
 	var x struct {
-		Node
-		Name
-		Param
+		n Node
+		m Name
+		p Param
 	}
-	n := &x.Node
-	n.Name = &x.Name
-	n.Name.Param = &x.Param
+	n := &x.n
+	n.Name = &x.m
+	n.Name.Param = &x.p
 
 	n.Op = ONAME
 	n.Pos = pos
