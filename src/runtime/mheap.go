@@ -502,6 +502,8 @@ func (h *mheap) coalesce(s *mspan) {
 		h.free.insert(other)
 	}
 
+	hpBefore := s.hugePages()
+
 	// Coalesce with earlier, later spans.
 	if before := spanOf(s.base() - 1); before != nil && before.state == mSpanFree {
 		if s.scavenged == before.scavenged {
@@ -518,6 +520,18 @@ func (h *mheap) coalesce(s *mspan) {
 		} else {
 			realign(s, after, after)
 		}
+	}
+
+	if !s.scavenged && s.hugePages() > hpBefore {
+		// If s has grown such that it now may contain more huge pages than it
+		// did before, then mark the whole region as huge-page-backable.
+		//
+		// Otherwise, on systems where we break up huge pages (like Linux)
+		// s may not be backed by huge pages because it could be made up of
+		// pieces which are broken up in the underlying VMA. The primary issue
+		// with this is that it can lead to a poor estimate of the amount of
+		// free memory backed by huge pages for determining the scavenging rate.
+		sysHugePage(unsafe.Pointer(s.base()), s.npages*pageSize)
 	}
 }
 

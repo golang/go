@@ -81,6 +81,9 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
 	}
 }
 
+func sysHugePage(v unsafe.Pointer, n uintptr) {
+}
+
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //go:nosplit
