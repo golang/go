@@ -461,7 +461,22 @@ type (
 		Dir   ChanDir   // channel direction
 		Value Expr      // value type
 	}
+
+	// A ContractType node represents a contract.
+	ContractType struct {
+		Contract    token.Pos      // position of "contract" pseudo keeyword
+		Params      *TypeParamList // list of type parameters; non-nil
+		Lbrace      token.Pos      // position of "{"
+		Constraints []*Constraint  // list of constraints
+		Rbrace      token.Pos      // position of "}"
+	}
 )
+
+type Constraint struct {
+	Param *Ident // constrained type parameter; or nil (for embedded constraints)
+	MName *Ident // method name, "==" or "!="; or nil
+	Type  Expr   // embedded constraint (CallExpr), constraint type, BasicLit (0, 0.0, 0i), method type (*FuncType); or nil
+}
 
 // Pos and End implementations for expression/type nodes.
 
@@ -497,6 +512,7 @@ func (x *FuncType) Pos() token.Pos {
 func (x *InterfaceType) Pos() token.Pos { return x.Interface }
 func (x *MapType) Pos() token.Pos       { return x.Map }
 func (x *ChanType) Pos() token.Pos      { return x.Begin }
+func (x *ContractType) Pos() token.Pos  { return x.Contract }
 
 func (x *BadExpr) End() token.Pos { return x.To }
 func (x *Ident) End() token.Pos   { return token.Pos(int(x.NamePos) + len(x.Name)) }
@@ -530,6 +546,7 @@ func (x *FuncType) End() token.Pos {
 func (x *InterfaceType) End() token.Pos { return x.Methods.End() }
 func (x *MapType) End() token.Pos       { return x.Value.End() }
 func (x *ChanType) End() token.Pos      { return x.Value.End() }
+func (x *ContractType) End() token.Pos  { return x.Rbrace }
 
 // exprNode() ensures that only expression/type nodes can be
 // assigned to an Expr.
@@ -557,6 +574,7 @@ func (*FuncType) exprNode()      {}
 func (*InterfaceType) exprNode() {}
 func (*MapType) exprNode()       {}
 func (*ChanType) exprNode()      {}
+func (*ContractType) exprNode()  {}
 
 // ----------------------------------------------------------------------------
 // Convenience functions for Idents
