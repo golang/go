@@ -180,7 +180,8 @@ type Config struct {
 	MaxCount int
 	// MaxCountScale is a non-negative scale factor applied to the
 	// default maximum.
-	// If zero, the default is unchanged.
+	// If zero, the default is configured by the -quickchecks flag
+	// which defaults to 100.
 	MaxCountScale float64
 	// Rand specifies a source of random numbers.
 	// If nil, a default pseudo-random source will be used.
