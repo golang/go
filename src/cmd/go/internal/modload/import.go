@@ -186,22 +186,31 @@ func Import(path string) (m module.Version, dir string, err error) {
 		}
 	}
 
-	m, _, err = QueryPackage(path, "latest", Allowed)
+	candidates, err := QueryPackage(path, "latest", Allowed)
 	if err != nil {
 		if _, ok := err.(*codehost.VCSError); ok {
 			return module.Version{}, "", err
 		}
 		return module.Version{}, "", &ImportMissingError{ImportPath: path}
 	}
+	m = candidates[0].Mod
 	newMissingVersion := ""
-	for _, bm := range buildList {
-		if bm.Path == m.Path && semver.Compare(bm.Version, m.Version) > 0 {
-			// This typically happens when a package is present at the "@latest"
-			// version (e.g., v1.0.0) of a module, but we have a newer version
-			// of the same module in the build list (e.g., v1.0.1-beta), and
-			// the package is not present there.
-			newMissingVersion = bm.Version
-			break
+	for _, c := range candidates {
+		cm := c.Mod
+		for _, bm := range buildList {
+			if bm.Path == cm.Path && semver.Compare(bm.Version, cm.Version) > 0 {
+				// QueryPackage proposed that we add module cm to provide the package,
+				// but we already depend on a newer version of that module (and we don't
+				// have the package).
+				//
+				// This typically happens when a package is present at the "@latest"
+				// version (e.g., v1.0.0) of a module, but we have a newer version
+				// of the same module in the build list (e.g., v1.0.1-beta), and
+				// the package is not present there.
+				m = cm
+				newMissingVersion = bm.Version
+				break
+			}
 		}
 	}
 	return m, "", &ImportMissingError{ImportPath: path, Module: m, newMissingVersion: newMissingVersion}

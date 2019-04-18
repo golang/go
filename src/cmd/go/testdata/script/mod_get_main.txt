@@ -1,0 +1,28 @@
+env GO111MODULE=on
+
+# @patch and @latest within the main module refer to the current version, and
+# are no-ops.
+cp go.mod.orig go.mod
+go get -m rsc.io@latest
+go get -m rsc.io@patch
+cmp go.mod go.mod.orig
+
+# The main module cannot be updated to a specific version.
+cp go.mod.orig go.mod
+! go get -m rsc.io@v0.1.0
+stderr '^go get rsc.io@v0.1.0: can.t get a specific version of the main module$'
+! go get -d rsc.io/x@v0.1.0
+stderr '^go get rsc.io/x@v0.1.0: can.t query specific version for package rsc.io/x in the main module \(rsc.io\)$'
+
+# TODO: upgrading a package pattern not contained in the main module should not
+# attempt to upgrade the main module.
+! go get rsc.io/quote/...@v1.5.1
+
+-- go.mod.orig --
+module rsc.io
+
+go 1.13
+-- x/x.go --
+package x
+
+import _ "rsc.io/quote"

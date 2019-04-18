@@ -17,6 +17,11 @@ cp go.mod.orig go.mod
 go get -u -m local
 cmp go.mod go.mod.implicitmod
 
+# For the main module, @patch should be a no-op.
+cp go.mod.orig go.mod
+go get -u -m local@patch
+cmp go.mod go.mod.implicitmod
+
 # 'go get -u -d' in the empty root of the main module should update the
 # dependencies of all packages in the module.
 cp go.mod.orig go.mod
@@ -42,7 +47,6 @@ cp go.mod go.mod.dotpkg
 cp go.mod.orig go.mod
 go get -u -d local/uselang
 cmp go.mod go.mod.dotpkg
-
 
 -- go.mod --
 module local

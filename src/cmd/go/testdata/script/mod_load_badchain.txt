@@ -4,6 +4,7 @@ env GO111MODULE=on
 # Download everything to avoid "finding" messages in stderr later.
 cp go.mod.orig go.mod
 go mod download
+go mod download example.com@v1.0.0
 go mod download example.com/badchain/a@v1.1.0
 go mod download example.com/badchain/b@v1.1.0
 go mod download example.com/badchain/c@v1.1.0
