@@ -416,12 +416,6 @@ func nodintconst(v int64) *Node {
 	return nodlit(Val{u})
 }
 
-func nodfltconst(v *Mpflt) *Node {
-	u := newMpflt()
-	u.Set(v)
-	return nodlit(Val{u})
-}
-
 func nodnil() *Node {
 	return nodlit(Val{new(NilVal)})
 }
