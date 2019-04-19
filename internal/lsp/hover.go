@@ -32,7 +32,7 @@ func (s *Server) hover(ctx context.Context, params *protocol.TextDocumentPositio
 	if err != nil {
 		return nil, err
 	}
-	decl, doc, err := ident.Hover(ctx, nil, s.enhancedHover)
+	hover, err := ident.Hover(ctx, nil, s.enhancedHover, s.preferredContentFormat == protocol.Markdown)
 	if err != nil {
 		return nil, err
 	}
@@ -45,8 +45,11 @@ func (s *Server) hover(ctx context.Context, params *protocol.TextDocumentPositio
 		return nil, err
 	}
 	return &protocol.Hover{
-		Contents: markupContent(decl, doc, s.preferredContentFormat),
-		Range:    &rng,
+		Contents: protocol.MarkupContent{
+			Kind:  s.preferredContentFormat,
+			Value: hover,
+		},
+		Range: &rng,
 	}, nil
 }
 
