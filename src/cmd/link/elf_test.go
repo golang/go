@@ -34,6 +34,7 @@ func main() {}
 // with the same name.
 func TestSectionsWithSameName(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
 	t.Parallel()
 
 	objcopy, err := exec.LookPath("objcopy")
@@ -77,7 +78,7 @@ func TestSectionsWithSameName(t *testing.T) {
 	cflags := strings.Fields(string(cflagsb))
 
 	asmObj := filepath.Join(dir, "x.o")
-	t.Logf("%s %v -o %s %s", cc, cflags, asmObj, asmFile)
+	t.Logf("%s %v -c -o %s %s", cc, cflags, asmObj, asmFile)
 	if out, err := exec.Command(cc, append(cflags, "-c", "-o", asmObj, asmFile)...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
