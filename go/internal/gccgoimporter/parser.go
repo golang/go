@@ -35,6 +35,7 @@ type parser struct {
 	typeData []string                  // unparsed type data (v3 and later)
 	fixups   []fixupRecord             // fixups to apply at end of parsing
 	initdata InitData                  // package init priority data
+	aliases  map[int]string            // maps saved type number to alias name
 }
 
 // When reading export data it's possible to encounter a defined type
@@ -61,6 +62,7 @@ func (p *parser) init(filename string, src io.Reader, imports map[string]*types.
 	p.scanner = new(scanner.Scanner)
 	p.initScanner(filename, src)
 	p.imports = imports
+	p.aliases = make(map[int]string)
 	p.typeList = make([]types.Type, 1 /* type numbers start at 1 */, 16)
 }
 
@@ -242,17 +244,22 @@ func deref(typ types.Type) types.Type {
 // Field = Name Type [string] .
 func (p *parser) parseField(pkg *types.Package) (field *types.Var, tag string) {
 	name := p.parseName()
-	typ := p.parseType(pkg)
+	typ, n := p.parseTypeExtended(pkg)
 	anon := false
 	if name == "" {
 		anon = true
-		switch typ := deref(typ).(type) {
-		case *types.Basic:
-			name = typ.Name()
-		case *types.Named:
-			name = typ.Obj().Name()
-		default:
-			p.error("anonymous field expected")
+		// Alias?
+		if aname, ok := p.aliases[n]; ok {
+			name = aname
+		} else {
+			switch typ := deref(typ).(type) {
+			case *types.Basic:
+				name = typ.Name()
+			case *types.Named:
+				name = typ.Obj().Name()
+			default:
+				p.error("anonymous field expected")
+			}
 		}
 	}
 	field = types.NewField(token.NoPos, pkg, name, typ, anon)
@@ -499,6 +506,7 @@ func (p *parser) parseNamedType(nlist []int) types.Type {
 		}
 		t := p.parseType(pkg, nlist...)
 		obj = types.NewTypeName(token.NoPos, pkg, name, t)
+		p.aliases[nlist[len(nlist)-1]] = name
 		scope.Insert(obj)
 		return t
 	}
@@ -706,7 +714,8 @@ func (p *parser) parseResultList(pkg *types.Package) *types.Tuple {
 		if p.tok == scanner.Ident && p.lit == "inl" {
 			return nil
 		}
-		return types.NewTuple(types.NewParam(token.NoPos, pkg, "", p.parseTypeAfterAngle(pkg)))
+		taa, _ := p.parseTypeAfterAngle(pkg)
+		return types.NewTuple(types.NewParam(token.NoPos, pkg, "", taa))
 
 	case '(':
 		params, _ := p.parseParamList(pkg)
@@ -880,16 +889,18 @@ func lookupBuiltinType(typ int) types.Type {
 //
 func (p *parser) parseType(pkg *types.Package, n ...int) types.Type {
 	p.expect('<')
-	return p.parseTypeAfterAngle(pkg, n...)
+	t, _ := p.parseTypeAfterAngle(pkg, n...)
+	return t
 }
 
 // (*parser).Type after reading the "<".
-func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...int) (t types.Type) {
+func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...int) (t types.Type, n1 int) {
 	p.expectKeyword("type")
 
+	n1 = 0
 	switch p.tok {
 	case scanner.Int:
-		n1 := p.parseInt()
+		n1 = p.parseInt()
 		if p.tok == '>' {
 			if len(p.typeData) > 0 && p.typeList[n1] == nil {
 				p.parseSavedType(pkg, n1, n)
@@ -912,7 +923,7 @@ func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...int) (t types.Type
 
 	default:
 		p.errorf("expected type number, got %s (%q)", scanner.TokenString(p.tok), p.lit)
-		return nil
+		return nil, 0
 	}
 
 	if t == nil || t == reserved {
@@ -920,6 +931,15 @@ func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...int) (t types.Type
 	}
 
 	p.expect('>')
+	return
+}
+
+// parseTypeExtended is identical to parseType, but if the type in
+// question is a saved type, returns the index as well as the type
+// pointer (index returned is zero if we parsed a builtin).
+func (p *parser) parseTypeExtended(pkg *types.Package, n ...int) (t types.Type, n1 int) {
+	p.expect('<')
+	t, n1 = p.parseTypeAfterAngle(pkg, n...)
 	return
 }
 
