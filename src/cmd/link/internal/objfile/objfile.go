@@ -386,7 +386,9 @@ overwrite:
 			// here is that we get different line numbers on formal
 			// params; I am guessing that the pos is being inherited
 			// from the spot where the wrapper is needed.
-			whitelist := strings.HasPrefix(dup.Name, "go.info.go.interface")
+			whitelist := (strings.HasPrefix(dup.Name, "go.info.go.interface") ||
+				strings.HasPrefix(dup.Name, "go.info.go.builtin") ||
+				strings.HasPrefix(dup.Name, "go.isstmt.go.builtin"))
 			if !whitelist {
 				r.strictDupMsgs++
 			}
