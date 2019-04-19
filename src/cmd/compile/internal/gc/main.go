@@ -19,7 +19,7 @@ import (
 	"cmd/internal/sys"
 	"flag"
 	"fmt"
-	"go/build"
+	"internal/goversion"
 	"io"
 	"io/ioutil"
 	"log"
@@ -1426,8 +1426,7 @@ var flag_lang string
 
 // currentLang returns the current language version.
 func currentLang() string {
-	tags := build.Default.ReleaseTags
-	return tags[len(tags)-1]
+	return fmt.Sprintf("go1.%d", goversion.Version)
 }
 
 // goVersionRE is a regular expression that matches the valid
