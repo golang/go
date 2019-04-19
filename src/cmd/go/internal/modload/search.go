@@ -35,7 +35,13 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 	}
 	var pkgs []string
 
-	walkPkgs := func(root, importPathRoot string, includeVendor bool) {
+	type pruning int8
+	const (
+		pruneVendor = pruning(1 << iota)
+		pruneGoMod
+	)
+
+	walkPkgs := func(root, importPathRoot string, prune pruning) {
 		root = filepath.Clean(root)
 		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
 			if err != nil {
@@ -75,7 +81,7 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 				return filepath.SkipDir
 			}
 			// Stop at module boundaries.
-			if path != root {
+			if (prune&pruneGoMod != 0) && path != root {
 				if fi, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
 					return filepath.SkipDir
 				}
@@ -90,7 +96,7 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 				}
 			}
 
-			if elem == "vendor" && !includeVendor {
+			if elem == "vendor" && (prune&pruneVendor != 0) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -98,16 +104,16 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 	}
 
 	if useStd {
-		walkPkgs(cfg.GOROOTsrc, "", true)
+		walkPkgs(cfg.GOROOTsrc, "", pruneGoMod)
 		if treeCanMatch("cmd") {
-			walkPkgs(filepath.Join(cfg.GOROOTsrc, "cmd"), "cmd", true)
+			walkPkgs(filepath.Join(cfg.GOROOTsrc, "cmd"), "cmd", pruneGoMod)
 		}
 	}
 
 	if cfg.BuildMod == "vendor" {
 		if HasModRoot() {
-			walkPkgs(ModRoot(), targetPrefix, false)
-			walkPkgs(filepath.Join(ModRoot(), "vendor"), "", false)
+			walkPkgs(ModRoot(), targetPrefix, pruneGoMod|pruneVendor)
+			walkPkgs(filepath.Join(ModRoot(), "vendor"), "", pruneVendor)
 		}
 		return pkgs
 	}
@@ -116,23 +122,33 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
 		if !treeCanMatch(mod.Path) {
 			continue
 		}
-		var root, modPrefix string
+
+		var (
+			root, modPrefix string
+			isLocal         bool
+		)
 		if mod == Target {
 			if !HasModRoot() {
 				continue // If there is no main module, we can't search in it.
 			}
 			root = ModRoot()
 			modPrefix = targetPrefix
+			isLocal = true
 		} else {
 			var err error
-			root, _, err = fetch(mod)
+			root, isLocal, err = fetch(mod)
 			if err != nil {
 				base.Errorf("go: %v", err)
 				continue
 			}
 			modPrefix = mod.Path
 		}
-		walkPkgs(root, modPrefix, false)
+
+		prune := pruneVendor
+		if isLocal {
+			prune |= pruneGoMod
+		}
+		walkPkgs(root, modPrefix, prune)
 	}
 
 	return pkgs
