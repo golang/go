@@ -180,6 +180,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 	args := []string{"-nx", "-q", "--batch",
 		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
+		"-ex", "set print thread-events off",
 	}
 	if cgo {
 		// When we build the cgo version of the program, the system's
