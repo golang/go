@@ -1125,7 +1125,7 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 	return startTime
 }
 
-// Called to start an M.
+// mstart is the entry-point for new Ms.
 //
 // This must not split the stack because we may not even have stack
 // bounds set up yet.
@@ -1150,9 +1150,11 @@ func mstart() {
 		_g_.stack.hi = uintptr(noescape(unsafe.Pointer(&size)))
 		_g_.stack.lo = _g_.stack.hi - size + 1024
 	}
-	// Initialize stack guards so that we can start calling
-	// both Go and C functions with stack growth prologues.
+	// Initialize stack guard so that we can start calling regular
+	// Go code.
 	_g_.stackguard0 = _g_.stack.lo + _StackGuard
+	// This is the g0, so we can also call go:systemstack
+	// functions, which check stackguard1.
 	_g_.stackguard1 = _g_.stackguard0
 	mstart1()
 
