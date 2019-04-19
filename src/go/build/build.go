@@ -13,6 +13,7 @@ import (
 	"go/parser"
 	"go/token"
 	"internal/goroot"
+	"internal/goversion"
 	"io"
 	"io/ioutil"
 	"log"
@@ -292,15 +293,14 @@ func defaultContext() Context {
 	c.GOPATH = envOr("GOPATH", defaultGOPATH())
 	c.Compiler = runtime.Compiler
 
-	// Each major Go release in the Go 1.x series should add a tag here.
-	// Old tags should not be removed. That is, the go1.x tag is present
-	// in all releases >= Go 1.x. Code that requires Go 1.x or later should
-	// say "+build go1.x", and code that should only be built before Go 1.x
-	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
-	// NOTE: If you add to this list, also update the doc comment in doc.go.
-	// NOTE: The last element in ReleaseTags should be the current release.
-	const version = 13 // go1.13
-	for i := 1; i <= version; i++ {
+	// Each major Go release in the Go 1.x series adds a new
+	// "go1.x" release tag. That is, the go1.x tag is present in
+	// all releases >= Go 1.x. Code that requires Go 1.x or later
+	// should say "+build go1.x", and code that should only be
+	// built before Go 1.x (perhaps it is the stub to use in that
+	// case) should say "+build !go1.x".
+	// The last element in ReleaseTags is the current release.
+	for i := 1; i <= goversion.Version; i++ {
 		c.ReleaseTags = append(c.ReleaseTags, "go1."+strconv.Itoa(i))
 	}
 

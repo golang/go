@@ -89,6 +89,7 @@ var bootstrapDirs = []string{
 	"debug/elf",
 	"debug/macho",
 	"debug/pe",
+	"internal/goversion",
 	"internal/xcoff",
 	"math/big",
 	"math/bits",

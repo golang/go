@@ -268,7 +268,7 @@ var pkgDeps = map[string][]string{
 	"encoding/pem":                   {"L4"},
 	"encoding/xml":                   {"L4", "encoding"},
 	"flag":                           {"L4", "OS"},
-	"go/build":                       {"L4", "OS", "GOPARSER", "internal/goroot"},
+	"go/build":                       {"L4", "OS", "GOPARSER", "internal/goroot", "internal/goversion"},
 	"html":                           {"L4"},
 	"image/draw":                     {"L4", "image/internal/imageutil"},
 	"image/gif":                      {"L4", "compress/lzw", "image/color/palette", "image/draw"},
