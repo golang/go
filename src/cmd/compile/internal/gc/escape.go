@@ -746,14 +746,7 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 	var recvK EscHole
 	var paramKs []EscHole
 
-	if where != nil && !(where.Op == ODEFER && e.loopDepth == 1) {
-		if recv != nil {
-			recvK = e.heapHole()
-		}
-		for range args {
-			paramKs = append(paramKs, e.heapHole())
-		}
-	} else if static && fn.Name.Defn != nil && fn.Name.Defn.Esc < EscFuncTagged {
+	if static && fn.Name.Defn != nil && fn.Name.Defn.Esc < EscFuncTagged {
 		// Static call to function in same mutually recursive
 		// group; incorporate into data flow graph.
 
@@ -778,32 +771,25 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 		// function. Setup flows to heap and/or ks according
 		// to parameter tags.
 		if r := fntype.Recv(); r != nil {
-			recvK = e.tagHole(ks, r, static, where)
+			recvK = e.tagHole(ks, r, static)
 		}
 		for _, param := range fntype.Params().FieldSlice() {
-			paramKs = append(paramKs, e.tagHole(ks, param, static, where))
+			paramKs = append(paramKs, e.tagHole(ks, param, static))
 		}
 	} else {
 		// Handle escape analysis for builtins.
-
-		// By default, we just discard everything. However, if
-		// we're in a top-level defer statement, we can't
-		// allow transient values.
-		k := e.discardHole()
-		if where != nil {
-			k = e.newLoc(where, false).asHole()
-		}
+		// By default, we just discard everything.
 		for range args {
-			paramKs = append(paramKs, k)
+			paramKs = append(paramKs, e.discardHole())
 		}
 
 		switch call.Op {
 		case OAPPEND:
 			// Appendee slice may flow directly to the
-			// result, if it has enough
-			// capacity. Alternatively, a new heap slice
-			// might be allocated, and all slice elements
-			// might flow to heap.
+			// result, if it has enough capacity.
+			// Alternatively, a new heap slice might be
+			// allocated, and all slice elements might
+			// flow to heap.
 			paramKs[0] = e.teeHole(paramKs[0], ks[0])
 			if types.Haspointers(args[0].Type.Elem()) {
 				paramKs[0] = e.teeHole(paramKs[0], e.heapHole().deref(call, "appendee slice"))
@@ -829,6 +815,22 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 		}
 	}
 
+	if call.Op == OCALLFUNC {
+		// Evaluate callee function expression.
+		e.expr(e.augmentParamHole(e.discardHole(), where), call.Left)
+	}
+
+	if recv != nil {
+		// TODO(mdempsky): Handle go:uintptrescapes here too?
+		e.expr(e.augmentParamHole(recvK, where), recv)
+	}
+
+	// Apply augmentParamHole before ODDDARG so that it affects
+	// the implicit slice allocation for variadic calls, if any.
+	for i, paramK := range paramKs {
+		paramKs[i] = e.augmentParamHole(paramK, where)
+	}
+
 	// TODO(mdempsky): Remove after early ddd-ification.
 	if fntype != nil && fntype.IsVariadic() && !call.IsDDD() {
 		vi := fntype.NumParams() - 1
@@ -849,24 +851,6 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 		}
 	}
 
-	if call.Op == OCALLFUNC {
-		// Evaluate callee function expression.
-		k := e.discardHole()
-		if where != nil {
-			if where.Op == ODEFER && e.loopDepth == 1 {
-				k = e.newLoc(nil, false).asHole()
-			} else {
-				k = e.heapHole()
-			}
-		}
-		e.expr(k, call.Left)
-	}
-
-	if recv != nil {
-		// TODO(mdempsky): Handle go:uintptrescapes here too?
-		e.expr(recvK, recv)
-	}
-
 	for i, arg := range args {
 		// For arguments to go:uintptrescapes, peel
 		// away an unsafe.Pointer->uintptr conversion,
@@ -881,15 +865,35 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 			}
 		}
 
+		// no augmentParamHole here; handled in loop before ODDDARG
 		e.expr(paramKs[i], arg)
 	}
+}
+
+// augmentParamHole augments parameter holes as necessary for use in
+// go/defer statements.
+func (e *Escape) augmentParamHole(k EscHole, where *Node) EscHole {
+	if where == nil {
+		return k
+	}
+
+	// Top level defers arguments don't escape to heap, but they
+	// do need to last until end of function. Tee with a
+	// non-transient location to avoid arguments from being
+	// transiently allocated.
+	if where.Op == ODEFER && e.loopDepth == 1 {
+		// TODO(mdempsky): Eliminate redundant EscLocation allocs.
+		return e.teeHole(k, e.newLoc(nil, false).asHole())
+	}
+
+	return e.heapHole()
 }
 
 // tagHole returns a hole for evaluating an argument passed to param.
 // ks should contain the holes representing where the function
 // callee's results flows; static indicates whether this is a static
-// call; where is the OGO/ODEFER context of the call, if any.
-func (e *Escape) tagHole(ks []EscHole, param *types.Field, static bool, where *Node) EscHole {
+// call.
+func (e *Escape) tagHole(ks []EscHole, param *types.Field, static bool) EscHole {
 	// If this is a dynamic call, we can't rely on param.Note.
 	if !static {
 		return e.heapHole()
@@ -902,10 +906,6 @@ func (e *Escape) tagHole(ks []EscHole, param *types.Field, static bool, where *N
 	}
 
 	var tagKs []EscHole
-	if where != nil {
-		tagKs = append(tagKs, e.newLoc(nil, false).asHole())
-	}
-
 	if esc&EscContentEscapes != 0 {
 		tagKs = append(tagKs, e.heapHole().shift(1))
 	}
