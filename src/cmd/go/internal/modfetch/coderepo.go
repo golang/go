@@ -634,6 +634,19 @@ func isVendoredPackage(name string) bool {
 	if strings.HasPrefix(name, "vendor/") {
 		i += len("vendor/")
 	} else if j := strings.Index(name, "/vendor/"); j >= 0 {
+		// This offset looks incorrect; this should probably be
+		//
+		// 	i = j + len("/vendor/")
+		//
+		// (See https://golang.org/issue/31562.)
+		//
+		// Unfortunately, we can't fix it without invalidating checksums.
+		// Fortunately, the error appears to be strictly conservative: we'll retain
+		// vendored packages that we should have pruned, but we won't prune
+		// non-vendored packages that we should have retained.
+		//
+		// Since this defect doesn't seem to break anything, it's not worth fixing
+		// for now.
 		i += len("/vendor/")
 	} else {
 		return false
