@@ -76,6 +76,7 @@ func identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 	for _, n := range path[1:] {
 		if field, ok := n.(*ast.Field); ok {
 			result.wasEmbeddedField = len(field.Names) == 0
+			break
 		}
 	}
 	result.Name = result.ident.Name
@@ -88,8 +89,8 @@ func identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 		// The original position was on the embedded field declaration, so we
 		// try to dig out the type and jump to that instead.
 		if v, ok := result.Declaration.Object.(*types.Var); ok {
-			if n, ok := v.Type().(*types.Named); ok {
-				result.Declaration.Object = n.Obj()
+			if typObj := typeToObject(v.Type()); typObj != nil {
+				result.Declaration.Object = typObj
 			}
 		}
 	}

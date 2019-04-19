@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	expectedDefinitionsCount     = 26
+	expectedDefinitionsCount     = 28
 	expectedTypeDefinitionsCount = 2
 )
 
