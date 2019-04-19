@@ -122,25 +122,27 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	// we assume they know what they are doing so we allow it to be
 	// used with kqueue.
 	if kind == kindOpenFile {
-		var st syscall.Stat_t
 		switch runtime.GOOS {
-		case "dragonfly", "freebsd", "netbsd", "openbsd":
+		case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
+			var st syscall.Stat_t
+			err := syscall.Fstat(fdi, &st)
+			typ := st.Mode & syscall.S_IFMT
 			// Don't try to use kqueue with regular files on *BSDs.
 			// On FreeBSD a regular file is always
 			// reported as ready for writing.
 			// On Dragonfly, NetBSD and OpenBSD the fd is signaled
 			// only once as ready (both read and write).
 			// Issue 19093.
-			if err := syscall.Fstat(fdi, &st); err == nil && st.Mode&syscall.S_IFMT == syscall.S_IFREG {
+			// Also don't add directories to the netpoller.
+			if err == nil && (typ == syscall.S_IFREG || typ == syscall.S_IFDIR) {
 				pollable = false
 			}
 
-		case "darwin":
 			// In addition to the behavior described above for regular files,
 			// on Darwin, kqueue does not work properly with fifos:
 			// closing the last writer does not cause a kqueue event
 			// for any readers. See issue #24164.
-			if err := syscall.Fstat(fdi, &st); err == nil && (st.Mode&syscall.S_IFMT == syscall.S_IFIFO || st.Mode&syscall.S_IFMT == syscall.S_IFREG) {
+			if runtime.GOOS == "darwin" && typ == syscall.S_IFIFO {
 				pollable = false
 			}
 		}
