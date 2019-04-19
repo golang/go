@@ -584,11 +584,12 @@ Here follow some descriptions of key Go-specific details for the supported archi
 The runtime pointer to the <code>g</code> structure is maintained
 through the value of an otherwise unused (as far as Go is concerned) register in the MMU.
 A OS-dependent macro <code>get_tls</code> is defined for the assembler if the source includes
-a special header, <code>go_asm.h</code>:
+a header, <code>go_tls.h</code>:
 </p>
 
 <pre>
-#include "go_asm.h"
+#include "go_asm.h" ; for g, g_m etc.
+#include "go_tls.h"
 </pre>
 
 <p>
