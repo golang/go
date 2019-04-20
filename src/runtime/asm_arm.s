@@ -891,9 +891,6 @@ TEXT runtime·usplitR0(SB),NOSPLIT,$0
 	SUB	R1, R3, R1
 	RET
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
-	RET
-
 #ifndef GOOS_nacl
 // This is called from .init_array and follows the platform, not Go, ABI.
 TEXT runtime·addmoduledata(SB),NOSPLIT,$0-8
