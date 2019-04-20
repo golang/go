@@ -145,9 +145,6 @@ func (app *Application) connect(ctx context.Context, client cmdClient) (protocol
 		stream := jsonrpc2.NewHeaderStream(conn, conn)
 		var jc *jsonrpc2.Conn
 		jc, server, _ = protocol.NewClient(stream, client)
-		if err != nil {
-			return nil, err
-		}
 		go jc.Run(ctx)
 	}
 
