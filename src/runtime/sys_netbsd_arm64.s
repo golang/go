@@ -109,7 +109,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 // XXX the use of R1 here does not make sense.
 // Does it not matter?
 // func exitThread(wait *uint32)
-TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+TEXT runtime·exitThread(SB),NOSPLIT,$0-8
 	MOVW	wait+0(FP), R0
 	// We're done using the stack.
 	MOVW	$0, R1
