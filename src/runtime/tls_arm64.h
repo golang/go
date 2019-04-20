@@ -20,6 +20,11 @@
 #define MRS_TPIDR_R0 WORD $0xd53bd060 // MRS TPIDRRO_EL0, R0
 #endif
 
+#ifdef GOOS_netbsd
+#define TPIDR TPIDRRO_EL0
+#define MRS_TPIDR_R0 WORD $0xd53bd040 // MRS TPIDRRO_EL0, R0
+#endif
+
 // Define something that will break the build if
 // the GOOS is unknown.
 #ifndef TPIDR
