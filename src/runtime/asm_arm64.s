@@ -1128,9 +1128,6 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	MOVD	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
-	RET
-
 // This is called from .init_array and follows the platform, not Go, ABI.
 TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 	SUB	$0x10, RSP
