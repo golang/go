@@ -389,6 +389,10 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpRsh8x64_0(v)
 	case OpRsh8x8:
 		return rewriteValuegeneric_OpRsh8x8_0(v)
+	case OpSelect0:
+		return rewriteValuegeneric_OpSelect0_0(v)
+	case OpSelect1:
+		return rewriteValuegeneric_OpSelect1_0(v)
 	case OpSignExt16to32:
 		return rewriteValuegeneric_OpSignExt16to32_0(v)
 	case OpSignExt16to64:
@@ -26583,6 +26587,56 @@ func rewriteValuegeneric_OpRsh8x8_0(v *Value) bool {
 		}
 		v.reset(OpConst8)
 		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpSelect0_0(v *Value) bool {
+	// match: (Select0 (Div128u (Const64 [0]) lo y))
+	// cond:
+	// result: (Div64u lo y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpDiv128u {
+			break
+		}
+		y := v_0.Args[2]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst64 {
+			break
+		}
+		if v_0_0.AuxInt != 0 {
+			break
+		}
+		lo := v_0.Args[1]
+		v.reset(OpDiv64u)
+		v.AddArg(lo)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpSelect1_0(v *Value) bool {
+	// match: (Select1 (Div128u (Const64 [0]) lo y))
+	// cond:
+	// result: (Mod64u lo y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpDiv128u {
+			break
+		}
+		y := v_0.Args[2]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConst64 {
+			break
+		}
+		if v_0_0.AuxInt != 0 {
+			break
+		}
+		lo := v_0.Args[1]
+		v.reset(OpMod64u)
+		v.AddArg(lo)
+		v.AddArg(y)
 		return true
 	}
 	return false

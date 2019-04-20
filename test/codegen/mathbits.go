@@ -538,3 +538,8 @@ func Div64(hi, lo, x uint64) (q, r uint64) {
 	// amd64:"DIVQ"
 	return bits.Div64(hi, lo, x)
 }
+
+func Div64degenerate(x uint64) (q, r uint64) {
+	// amd64:-"DIVQ"
+	return bits.Div64(0, x, 5)
+}
