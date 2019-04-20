@@ -146,6 +146,8 @@
 (Div64u (Const64 [c])  (Const64 [d])) && d != 0 -> (Const64 [int64(uint64(c)/uint64(d))])
 (Div32F (Const32F [c]) (Const32F [d])) -> (Const32F [auxFrom32F(auxTo32F(c) / auxTo32F(d))])
 (Div64F (Const64F [c]) (Const64F [d])) -> (Const64F [auxFrom64F(auxTo64F(c) / auxTo64F(d))])
+(Select0 (Div128u (Const64 [0]) lo y)) -> (Div64u lo y)
+(Select1 (Div128u (Const64 [0]) lo y)) -> (Mod64u lo y)
 
 (Not (ConstBool [c])) -> (ConstBool [1-c])
 
