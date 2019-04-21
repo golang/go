@@ -7,17 +7,15 @@ stdout '^patch.example.com/direct v1.0.0'
 stdout '^patch.example.com/indirect v1.0.0'
 ! stdout '^patch.example.com/depofdirectpatch'
 
-# get -u=patch, with no arguments, should patch-update all dependencies,
-# pulling in transitive dependencies and also patching those.
-#
-# TODO(golang.org/issue/26902): We should not update dependencies
-# that don't affect the transitive import graph of the main module in any way.
+# get -u=patch, with no arguments, should patch-update all dependencies
+# of the package in the current directory, pulling in transitive dependencies
+# and also patching those.
 cp go.mod.orig go.mod
 go get -u=patch
 go list -m all
 stdout '^patch.example.com/direct v1.0.1'
 stdout '^patch.example.com/indirect v1.0.1'
-stdout '^patch.example.com/depofdirectpatch v1.0.1' # TODO: leave at v1.0.0
+stdout '^patch.example.com/depofdirectpatch v1.0.0'
 
 # 'get all@patch' should be equivalent to 'get -u=patch all'
 cp go.mod.orig go.mod
@@ -34,7 +32,7 @@ go get -u=patch patch.example.com/direct
 go list -m all
 stdout '^patch.example.com/direct v1.0.1'
 stdout '^patch.example.com/indirect v1.0.1'
-stdout '^patch.example.com/depofdirectpatch v1.0.1' # TODO: leave at v1.0.0
+stdout '^patch.example.com/depofdirectpatch v1.0.0'
 
 # Requesting only the indirect dependency should not update the direct one.
 cp go.mod.orig go.mod
@@ -59,7 +57,7 @@ go get -u patch.example.com/direct@patch
 go list -m all
 stdout '^patch.example.com/direct v1.0.1'
 stdout '^patch.example.com/indirect v1.1.0'
-stdout '^patch.example.com/depofdirectpatch v1.0.1'
+stdout '^patch.example.com/depofdirectpatch v1.0.0'
 
 # An explicit @latest should override a general -u=patch.
 cp go.mod.orig go.mod
@@ -75,7 +73,7 @@ cp go.mod.orig go.mod
 stderr 'cannot use pattern .* with explicit version'
 
 # However, standard-library packages without explicit versions are fine.
-go get -u=patch -d cmd/get
+go get -u=patch -d cmd/go
 
 
 -- go.mod --

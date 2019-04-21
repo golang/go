@@ -5,8 +5,8 @@ go list -m all
 stdout 'rsc.io/quote v1.5.1'
 grep 'rsc.io/quote v1.5.1$' go.mod
 
-# get -u should update all dependencies
-go get -u
+# get -m -u should update all dependencies
+go get -m -u
 grep 'rsc.io/quote v1.5.2$' go.mod
 grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
 
@@ -39,3 +39,8 @@ require rsc.io/quote v1.1.0
 -- go.mod-v1.5.1 --
 module x
 require rsc.io/quote v1.5.1
+
+-- use.go --
+package use
+
+import _ "rsc.io/quote"
