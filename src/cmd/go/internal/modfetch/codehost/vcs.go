@@ -29,8 +29,9 @@ import (
 // The caller should report this error instead of continuing to probe
 // other possible module paths.
 //
-// TODO(bcmills): See if we can invert this. (Return a distinguished error for
-// “repo not found” and treat everything else as terminal.)
+// TODO(golang.org/issue/31730): See if we can invert this. (Return a
+// distinguished error for “repo not found” and treat everything else
+// as terminal.)
 type VCSError struct {
 	Err error
 }

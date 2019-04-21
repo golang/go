@@ -442,3 +442,13 @@ func (e *packageNotInModuleError) Error() string {
 	}
 	return fmt.Sprintf("module %s@%s%s found, but does not contain package %s", e.mod.Path, e.query, found, e.pattern)
 }
+
+// ModuleHasRootPackage returns whether module m contains a package m.Path.
+func ModuleHasRootPackage(m module.Version) (bool, error) {
+	root, isLocal, err := fetch(m)
+	if err != nil {
+		return false, err
+	}
+	_, ok := dirInModule(m.Path, m.Path, root, isLocal)
+	return ok, nil
+}

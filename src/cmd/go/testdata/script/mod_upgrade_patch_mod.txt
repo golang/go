@@ -9,15 +9,12 @@ stdout '^patch.example.com/indirect v1.0.0'
 
 # get -m -u=patch, with no arguments, should patch-update all dependencies,
 # pulling in transitive dependencies and also patching those.
-#
-# TODO(golang.org/issue/26902): We should not update transitive dependencies
-# that don't affect the transitive import graph of the main module in any way.
 cp go.mod.orig go.mod
 go get -m -u=patch
 go list -m all
 stdout '^patch.example.com/direct v1.0.1'
 stdout '^patch.example.com/indirect v1.0.1'
-stdout '^patch.example.com/depofdirectpatch v1.0.1' # TODO: leave at v1.0.0
+stdout '^patch.example.com/depofdirectpatch v1.0.0'
 
 # 'get -m all@patch' should be equivalent to 'get -u=patch -m all'
 cp go.mod.orig go.mod
@@ -34,7 +31,7 @@ go get -m -u=patch patch.example.com/direct
 go list -m all
 stdout '^patch.example.com/direct v1.0.1'
 stdout '^patch.example.com/indirect v1.0.1'
-stdout '^patch.example.com/depofdirectpatch v1.0.1' # TODO: leave at v1.0.0
+stdout '^patch.example.com/depofdirectpatch v1.0.1'
 
 # Requesting only the indirect dependency should not update the direct one.
 cp go.mod.orig go.mod

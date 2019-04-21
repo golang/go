@@ -33,7 +33,8 @@ import (
 
 // buildList is the list of modules to use for building packages.
 // It is initialized by calling ImportPaths, ImportFromFiles,
-// LoadALL, or LoadBuildList, each of which uses loaded.load.
+// ModulePackages, LoadALL, or LoadBuildList, each of which uses
+// loaded.load.
 //
 // Ideally, exactly ONE of those functions would be called,
 // and exactly once. Most of the time, that's true.
@@ -53,27 +54,22 @@ var loaded *loader
 // ImportPaths returns the set of packages matching the args (patterns),
 // adding modules to the build list as needed to satisfy new imports.
 func ImportPaths(patterns []string) []*search.Match {
-	InitMod()
+	matches := ImportPathsQuiet(patterns)
+	search.WarnUnmatched(matches)
+	return matches
+}
 
-	var matches []*search.Match
-	for _, pattern := range search.CleanPatterns(patterns) {
-		m := &search.Match{
-			Pattern: pattern,
-			Literal: !strings.Contains(pattern, "...") && !search.IsMetaPackage(pattern),
-		}
-		if m.Literal {
-			m.Pkgs = []string{pattern}
-		}
-		matches = append(matches, m)
-	}
-
-	fsDirs := make([][]string, len(matches))
-	loaded = newLoader()
-	updateMatches := func(iterating bool) {
+// ImportPathsQuiet is like ImportPaths but does not warn about patterns with no matches.
+func ImportPathsQuiet(patterns []string) []*search.Match {
+	var fsDirs [][]string
+	updateMatches := func(matches []*search.Match, iterating bool) {
 		for i, m := range matches {
 			switch {
 			case build.IsLocalImport(m.Pattern) || filepath.IsAbs(m.Pattern):
 				// Evaluate list of file system directories on first iteration.
+				if fsDirs == nil {
+					fsDirs = make([][]string, len(matches))
+				}
 				if fsDirs[i] == nil {
 					var dirs []string
 					if m.Literal {
@@ -167,23 +163,113 @@ func ImportPaths(patterns []string) []*search.Match {
 				if len(m.Pkgs) == 0 {
 					m.Pkgs = search.MatchPackages(m.Pattern).Pkgs
 				}
+
+			default:
+				m.Pkgs = []string{m.Pattern}
 			}
 		}
 	}
 
+	return loadPatterns(patterns, true, updateMatches)
+}
+
+// ModulePackages returns packages provided by each module in patterns.
+// patterns may contain module paths, patterns matching module paths,
+// "all" (interpreted as package pattern "all"), and "." (interpreted
+// as the main module). Additional modules (including modules providing
+// dependencies) may be added to the build list or upgraded.
+func ModulePackages(patterns []string) []*search.Match {
+	updateMatches := func(matches []*search.Match, iterating bool) {
+		for _, m := range matches {
+			switch {
+			case search.IsRelativePath(m.Pattern) || filepath.IsAbs(m.Pattern):
+				if m.Pattern != "." {
+					base.Errorf("go: path %s is not a module", m.Pattern)
+					continue
+				}
+				m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{Target})
+
+			case strings.Contains(m.Pattern, "..."):
+				match := search.MatchPattern(m.Pattern)
+				var matched []module.Version
+				for _, mod := range buildList {
+					if match(mod.Path) || str.HasPathPrefix(m.Pattern, mod.Path) {
+						matched = append(matched, mod)
+					}
+				}
+				m.Pkgs = matchPackages(m.Pattern, loaded.tags, false, matched)
+
+			case m.Pattern == "all":
+				loaded.testAll = true
+				if iterating {
+					// Enumerate the packages in the main module.
+					// We'll load the dependencies as we find them.
+					m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{Target})
+				} else {
+					// Starting with the packages in the main module,
+					// enumerate the full list of "all".
+					m.Pkgs = loaded.computePatternAll(m.Pkgs)
+				}
+
+			default:
+				found := false
+				for _, mod := range buildList {
+					if mod.Path == m.Pattern {
+						found = true
+						m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{mod})
+						break
+					}
+				}
+				if !found {
+					base.Errorf("go %s: module not in build list", m.Pattern)
+				}
+			}
+		}
+	}
+	return loadPatterns(patterns, false, updateMatches)
+}
+
+// loadPatterns returns a set of packages matching the args (patterns),
+// adding modules to the build list as needed to satisfy new imports.
+//
+// useTags indicates whether to use the default build constraints to
+// filter source files. If useTags is false, only "ignore" and malformed
+// build tag requirements are considered false.
+//
+// The interpretation of patterns is determined by updateMatches, which will be
+// called repeatedly until the build list is finalized. updateMatches should
+// should store a list of matching packages in each search.Match when it is
+// called. The iterating parameter is true if the build list has not been
+// finalized yet.
+//
+// If errors are encountered, loadPatterns will print them and exit.
+// On success, loadPatterns will update the build list and write go.mod.
+func loadPatterns(patterns []string, useTags bool, updateMatches func(matches []*search.Match, iterating bool)) []*search.Match {
+	InitMod()
+
+	var matches []*search.Match
+	for _, pattern := range search.CleanPatterns(patterns) {
+		matches = append(matches, &search.Match{
+			Pattern: pattern,
+			Literal: !strings.Contains(pattern, "...") && !search.IsMetaPackage(pattern),
+		})
+	}
+
+	loaded = newLoader()
+	if !useTags {
+		loaded.tags = anyTags
+	}
 	loaded.load(func() []string {
 		var roots []string
-		updateMatches(true)
+		updateMatches(matches, true)
 		for _, m := range matches {
-			for _, pkg := range m.Pkgs {
-				roots = append(roots, pkg)
-			}
+			roots = append(roots, m.Pkgs...)
 		}
 		return roots
 	})
 
 	// One last pass to finalize wildcards.
-	updateMatches(false)
+	updateMatches(matches, false)
 
 	// A given module path may be used as itself or as a replacement for another
 	// module, but not both at the same time. Otherwise, the aliasing behavior is
@@ -204,7 +290,6 @@ func ImportPaths(patterns []string) []*search.Match {
 	base.ExitIfErrors()
 	WriteGoMod()
 
-	search.WarnUnmatched(matches)
 	return matches
 }
 
@@ -408,6 +493,20 @@ func PackageModule(path string) module.Version {
 		return module.Version{}
 	}
 	return pkg.mod
+}
+
+// PackageImports returns the imports for the package named by the import path.
+// It does not include test imports. It returns nil for unknown packages.
+func PackageImports(path string) []string {
+	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+	if !ok {
+		return nil
+	}
+	imports := make([]string, len(pkg.imports))
+	for i, p := range pkg.imports {
+		imports[i] = p.path
+	}
+	return imports
 }
 
 // ModuleUsedDirectly reports whether the main module directly imports

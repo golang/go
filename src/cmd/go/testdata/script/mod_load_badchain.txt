@@ -16,7 +16,7 @@ cmp go.mod go.mod.orig
 
 # Try to update the main module. This updates everything, including
 # modules that aren't direct requirements, so the error stack is shorter.
-! go get -u
+! go get -m -u
 cmp stderr update-main-expected
 cmp go.mod go.mod.orig
 
