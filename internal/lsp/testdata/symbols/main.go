@@ -1,6 +1,8 @@
 package main
 
-import "io"
+import (
+	"io"
+)
 
 var x = 42 //@symbol("x", "x", "Variable", "")
 
@@ -39,5 +41,16 @@ func main() { //@symbol("main", "main", "Function", "")
 }
 
 type Stringer interface { //@symbol("Stringer", "Stringer", "Interface", "")
-	String() string
+	String() string //@symbol("String", "String", "Method", "Stringer")
+}
+
+type ABer interface { //@symbol("ABer", "ABer", "Interface", "")
+	B()        //@symbol("B", "B", "Method", "ABer")
+	A() string //@symbol("A", "A", "Method", "ABer")
+}
+
+type WithEmbeddeds interface { //@symbol("WithEmbeddeds", "WithEmbeddeds", "Interface", "")
+	Do()      //@symbol("Do", "Do", "Method", "WithEmbeddeds")
+	ABer      //@symbol("ABer", "ABer", "Interface", "WithEmbeddeds")
+	io.Writer //@symbol("io.Writer", "io.Writer", "Interface", "WithEmbeddeds")
 }

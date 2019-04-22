@@ -68,7 +68,7 @@ func DocumentSymbols(ctx context.Context, f File) []Symbol {
 				switch spec := spec.(type) {
 				case *ast.TypeSpec:
 					if obj := info.ObjectOf(spec.Name); obj != nil {
-						ts := typeSymbol(spec, obj, fset, q)
+						ts := typeSymbol(info, spec, obj, fset, q)
 						symbols = append(symbols, ts)
 						symbolsToReceiver[obj.Type()] = len(symbols) - 1
 					}
@@ -161,7 +161,7 @@ func setKind(s *Symbol, typ types.Type, q types.Qualifier) {
 	}
 }
 
-func typeSymbol(spec *ast.TypeSpec, obj types.Object, fset *token.FileSet, q types.Qualifier) Symbol {
+func typeSymbol(info *types.Info, spec *ast.TypeSpec, obj types.Object, fset *token.FileSet, q types.Qualifier) Symbol {
 	s := Symbol{Name: obj.Name()}
 	s.Detail, _ = formatType(obj.Type(), q)
 	setKind(&s, obj.Type(), q)
@@ -193,6 +193,66 @@ func typeSymbol(spec *ast.TypeSpec, obj types.Object, fset *token.FileSet, q typ
 		}
 	}
 
+	ti, objIsInterface := obj.Type().Underlying().(*types.Interface)
+	ai, specIsInterface := spec.Type.(*ast.InterfaceType)
+	if objIsInterface && specIsInterface {
+		for i := 0; i < ti.NumExplicitMethods(); i++ {
+			method := ti.ExplicitMethod(i)
+			child := Symbol{
+				Name: method.Name(),
+				Kind: MethodSymbol,
+			}
+
+			var spanNode, selectionNode ast.Node
+		Methods:
+			for _, f := range ai.Methods.List {
+				for _, id := range f.Names {
+					if id.Name == method.Name() {
+						spanNode, selectionNode = f, id
+						break Methods
+					}
+				}
+			}
+			if span, err := nodeSpan(spanNode, fset); err == nil {
+				child.Span = span
+			}
+			if span, err := nodeSpan(selectionNode, fset); err == nil {
+				child.SelectionSpan = span
+			}
+			s.Children = append(s.Children, child)
+		}
+
+		for i := 0; i < ti.NumEmbeddeds(); i++ {
+			embedded := ti.EmbeddedType(i)
+			nt, isNamed := embedded.(*types.Named)
+			if !isNamed {
+				continue
+			}
+
+			child := Symbol{Name: types.TypeString(embedded, q)}
+			setKind(&child, embedded, q)
+			var spanNode, selectionNode ast.Node
+		Embeddeds:
+			for _, f := range ai.Methods.List {
+				if len(f.Names) > 0 {
+					continue
+				}
+
+				if t := info.TypeOf(f.Type); types.Identical(nt, t) {
+					spanNode, selectionNode = f, f.Type
+					break Embeddeds
+				}
+			}
+
+			if span, err := nodeSpan(spanNode, fset); err == nil {
+				child.Span = span
+			}
+			if span, err := nodeSpan(selectionNode, fset); err == nil {
+				child.SelectionSpan = span
+			}
+			s.Children = append(s.Children, child)
+		}
+	}
 	return s
 }
 
