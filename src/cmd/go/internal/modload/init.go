@@ -512,7 +512,8 @@ func findModulePath(dir string) (string, error) {
 	// TODO(bcmills): once we have located a plausible module path, we should
 	// query version control (if available) to verify that it matches the major
 	// version of the most recent tag.
-	// See https://golang.org/issue/29433 and https://golang.org/issue/27009.
+	// See https://golang.org/issue/29433, https://golang.org/issue/27009, and
+	// https://golang.org/issue/31549.
 
 	// Cast about for import comments,
 	// first in top-level directory, then in subdirectories.
@@ -563,7 +564,15 @@ func findModulePath(dir string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("cannot determine module path for source directory %s (outside GOPATH, module path must be specified)", dir)
+	msg := `cannot determine module path for source directory %s (outside GOPATH, module path must be specified)
+
+Example usage:
+	'go mod init example.com/m' to initialize a v0 or v1 module
+	'go mod init example.com/m/v2' to initialize a v2 module
+
+Run 'go help mod init' for more information.
+`
+	return "", fmt.Errorf(msg, dir)
 }
 
 var (
