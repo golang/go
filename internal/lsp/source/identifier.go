@@ -54,6 +54,9 @@ func Identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 func identifier(ctx context.Context, v View, f File, pos token.Pos) (*IdentifierInfo, error) {
 	fAST := f.GetAST(ctx)
 	pkg := f.GetPackage(ctx)
+	if pkg == nil {
+		return nil, fmt.Errorf("no package for %s", f.URI())
+	}
 	if pkg.IsIllTyped() {
 		return nil, fmt.Errorf("package for %s is ill typed", f.URI())
 	}
