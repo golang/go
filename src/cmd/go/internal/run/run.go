@@ -131,7 +131,11 @@ func runRun(cmd *base.Command, args []string) {
 		}
 		base.Fatalf("go run: no suitable source files%s", hint)
 	}
-	p.Internal.ExeName = src[:len(src)-len(".go")] // name temporary executable for first go file
+	if len(args) == 1 && args[0] == "." {
+		p.Internal.ExeName = p.Name // set name of package as temporary executable name
+	} else {
+		p.Internal.ExeName = src[:len(src)-len(".go")] // set name of first go file as temporary executable name
+	}
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
 	a := &work.Action{Mode: "go run", Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
 	b.Do(a)
