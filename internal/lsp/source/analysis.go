@@ -18,17 +18,22 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
 )
 
-func analyze(ctx context.Context, v View, pkgs []Package, analyzers []*analysis.Analyzer) []*Action {
+func analyze(ctx context.Context, v View, pkgs []Package, analyzers []*analysis.Analyzer) ([]*Action, error) {
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
 	// Build nodes for initial packages.
 	var roots []*Action
 	for _, a := range analyzers {
 		for _, pkg := range pkgs {
 			root, err := pkg.GetActionGraph(ctx, a)
 			if err != nil {
-				continue
+				return nil, err
 			}
 			root.isroot = true
 			roots = append(roots, root)
@@ -36,9 +41,9 @@ func analyze(ctx context.Context, v View, pkgs []Package, analyzers []*analysis.
 	}
 
 	// Execute the graph in parallel.
-	execAll(v.FileSet(), roots)
+	execAll(ctx, v.FileSet(), roots)
 
-	return roots
+	return roots, nil
 }
 
 // An action represents one unit of analysis work: the application of
@@ -75,28 +80,27 @@ func (act *Action) String() string {
 	return fmt.Sprintf("%s@%s", act.Analyzer, act.Pkg)
 }
 
-func execAll(fset *token.FileSet, actions []*Action) {
-	var wg sync.WaitGroup
+func execAll(ctx context.Context, fset *token.FileSet, actions []*Action) error {
+	g, ctx := errgroup.WithContext(ctx)
 	for _, act := range actions {
-		wg.Add(1)
-		work := func(act *Action) {
-			act.exec(fset)
-			wg.Done()
-		}
-		go work(act)
+		act := act
+		g.Go(func() error {
+			act.exec(ctx, fset)
+			return nil
+		})
 	}
-	wg.Wait()
+	return g.Wait()
 }
 
-func (act *Action) exec(fset *token.FileSet) {
+func (act *Action) exec(ctx context.Context, fset *token.FileSet) {
 	act.once.Do(func() {
-		act.execOnce(fset)
+		act.execOnce(ctx, fset)
 	})
 }
 
-func (act *Action) execOnce(fset *token.FileSet) {
+func (act *Action) execOnce(ctx context.Context, fset *token.FileSet) {
 	// Analyze dependencies.
-	execAll(fset, act.Deps)
+	execAll(ctx, fset, act.Deps)
 
 	// Report an error if any dependency failed.
 	var failed []string
