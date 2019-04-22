@@ -46,11 +46,14 @@ import (
 var newescape bool
 
 func escapes(all []*Node) {
-	esc := escAnalyze
+	visitBottomUp(all, escapeImpl())
+}
+
+func escapeImpl() func([]*Node, bool) {
 	if newescape {
-		esc = escapeFuncs
+		return escapeFuncs
 	}
-	visitBottomUp(all, esc)
+	return escAnalyze
 }
 
 const (
