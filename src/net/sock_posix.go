@@ -207,10 +207,7 @@ func (fd *netFD) listenStream(laddr sockaddr, backlog int, ctrlFn func(string, s
 	if err = listenFunc(fd.pfd.Sysfd, backlog); err != nil {
 		return os.NewSyscallError("listen", err)
 	}
-	if err = fd.init(); err != nil {
-		return err
-	}
-	return nil
+	return fd.init()
 }
 
 func (fd *netFD) listenDatagram(laddr sockaddr, ctrlFn func(string, string, syscall.RawConn) error, afterBind func(string, string, syscall.RawConn) error) error {
@@ -265,8 +262,5 @@ func (fd *netFD) listenDatagram(laddr sockaddr, ctrlFn func(string, string, sysc
 			return err
 		}
 	}
-	if err = fd.init(); err != nil {
-		return err
-	}
-	return nil
+	return fd.init()
 }
