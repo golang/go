@@ -621,14 +621,19 @@ func unsupportedTypeEncoder(e *encodeState, v reflect.Value, _ encOpts) {
 }
 
 type structEncoder struct {
-	fields []field
+	fields structFields
+}
+
+type structFields struct {
+	list      []field
+	nameIndex map[string]int
 }
 
 func (se structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	next := byte('{')
 FieldLoop:
-	for i := range se.fields {
-		f := &se.fields[i]
+	for i := range se.fields.list {
+		f := &se.fields.list[i]
 
 		// Find the nested struct field by following f.index.
 		fv := v
@@ -1063,7 +1068,7 @@ func (x byIndex) Less(i, j int) bool {
 // typeFields returns a list of fields that JSON should recognize for the given type.
 // The algorithm is breadth-first search over the set of structs to include - the top struct
 // and then any reachable anonymous structs.
-func typeFields(t reflect.Type) []field {
+func typeFields(t reflect.Type) structFields {
 	// Anonymous fields to explore at the current level and the next.
 	current := []field{}
 	next := []field{{typ: t}}
@@ -1237,7 +1242,11 @@ func typeFields(t reflect.Type) []field {
 		f := &fields[i]
 		f.encoder = typeEncoder(typeByIndex(t, f.index))
 	}
-	return fields
+	nameIndex := make(map[string]int, len(fields))
+	for i, field := range fields {
+		nameIndex[field.name] = i
+	}
+	return structFields{fields, nameIndex}
 }
 
 // dominantField looks through the fields, all of which are known to
@@ -1256,13 +1265,13 @@ func dominantField(fields []field) (field, bool) {
 	return fields[0], true
 }
 
-var fieldCache sync.Map // map[reflect.Type][]field
+var fieldCache sync.Map // map[reflect.Type]structFields
 
 // cachedTypeFields is like typeFields but uses a cache to avoid repeated work.
-func cachedTypeFields(t reflect.Type) []field {
+func cachedTypeFields(t reflect.Type) structFields {
 	if f, ok := fieldCache.Load(t); ok {
-		return f.([]field)
+		return f.(structFields)
 	}
 	f, _ := fieldCache.LoadOrStore(t, typeFields(t))
-	return f.([]field)
+	return f.(structFields)
 }
