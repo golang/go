@@ -8,7 +8,6 @@
 package json
 
 import (
-	"bytes"
 	"encoding"
 	"encoding/base64"
 	"fmt"
@@ -691,7 +690,7 @@ func (d *decodeState) object(v reflect.Value) error {
 		return nil
 	}
 
-	var fields []field
+	var fields structFields
 
 	// Check type of target:
 	//   struct or
@@ -761,14 +760,18 @@ func (d *decodeState) object(v reflect.Value) error {
 			subv = mapElem
 		} else {
 			var f *field
-			for i := range fields {
-				ff := &fields[i]
-				if bytes.Equal(ff.nameBytes, key) {
-					f = ff
-					break
-				}
-				if f == nil && ff.equalFold(ff.nameBytes, key) {
-					f = ff
+			if i, ok := fields.nameIndex[string(key)]; ok {
+				// Found an exact name match.
+				f = &fields.list[i]
+			} else {
+				// Fall back to the expensive case-insensitive
+				// linear search.
+				for i := range fields.list {
+					ff := &fields.list[i]
+					if ff.equalFold(ff.nameBytes, key) {
+						f = ff
+						break
+					}
 				}
 			}
 			if f != nil {
