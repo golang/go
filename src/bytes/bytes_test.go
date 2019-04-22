@@ -51,15 +51,17 @@ type BinOpTest struct {
 }
 
 func TestEqual(t *testing.T) {
-	for _, tt := range compareTests {
-		eql := Equal(tt.a, tt.b)
-		if eql != (tt.i == 0) {
-			t.Errorf(`Equal(%q, %q) = %v`, tt.a, tt.b, eql)
+	// Run the tests and check for allocation at the same time.
+	allocs := testing.AllocsPerRun(10, func() {
+		for _, tt := range compareTests {
+			eql := Equal(tt.a, tt.b)
+			if eql != (tt.i == 0) {
+				t.Errorf(`Equal(%q, %q) = %v`, tt.a, tt.b, eql)
+			}
 		}
-		eql = EqualPortable(tt.a, tt.b)
-		if eql != (tt.i == 0) {
-			t.Errorf(`EqualPortable(%q, %q) = %v`, tt.a, tt.b, eql)
-		}
+	})
+	if allocs > 0 {
+		t.Errorf("Equal allocated %v times", allocs)
 	}
 }
 
@@ -570,11 +572,6 @@ func BenchmarkEqual(b *testing.B) {
 
 	sizes := []int{1, 6, 9, 15, 16, 20, 32, 4 << 10, 4 << 20, 64 << 20}
 	benchBytes(b, sizes, bmEqual(Equal))
-}
-
-func BenchmarkEqualPort(b *testing.B) {
-	sizes := []int{1, 6, 32, 4 << 10, 4 << 20, 64 << 20}
-	benchBytes(b, sizes, bmEqual(EqualPortable))
 }
 
 func bmEqual(equal func([]byte, []byte) bool) func(b *testing.B, n int) {
