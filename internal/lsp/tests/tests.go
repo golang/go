@@ -27,8 +27,8 @@ import (
 // We hardcode the expected number of test cases to ensure that all tests
 // are being executed. If a test is added, this number must be changed.
 const (
-	ExpectedCompletionsCount     = 82
-	ExpectedDiagnosticsCount     = 16
+	ExpectedCompletionsCount     = 84
+	ExpectedDiagnosticsCount     = 17
 	ExpectedFormatCount          = 4
 	ExpectedDefinitionsCount     = 21
 	ExpectedTypeDefinitionsCount = 2

@@ -7,11 +7,6 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/types"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strings"
-	"sync"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
@@ -41,9 +36,9 @@ func (v *View) parse(ctx context.Context, f *File) ([]packages.Error, error) {
 		return nil, fmt.Errorf("no metadata found for %v", f.filename)
 	}
 	imp := &importer{
-		view:     v,
-		circular: make(map[string]struct{}),
-		ctx:      ctx,
+		view: v,
+		seen: make(map[string]struct{}),
+		ctx:  ctx,
 	}
 	// Start prefetching direct imports.
 	for importPath := range f.meta.children {
@@ -178,15 +173,15 @@ func (v *View) link(pkgPath string, pkg *packages.Package, parent *metadata) *me
 type importer struct {
 	view *View
 
-	// circular maintains the set of previously imported packages.
+	// seen maintains the set of previously imported packages.
 	// If we have seen a package that is already in this map, we have a circular import.
-	circular map[string]struct{}
+	seen map[string]struct{}
 
 	ctx context.Context
 }
 
 func (imp *importer) Import(pkgPath string) (*types.Package, error) {
-	if _, ok := imp.circular[pkgPath]; ok {
+	if _, ok := imp.seen[pkgPath]; ok {
 		return nil, fmt.Errorf("circular import detected")
 	}
 	imp.view.pcache.mu.Lock()
@@ -245,22 +240,25 @@ func (imp *importer) typeCheck(pkgPath string) (*Package, error) {
 	appendError := func(err error) {
 		imp.view.appendPkgError(pkg, err)
 	}
-	files, errs := imp.view.parseFiles(meta.files)
+	files, errs := imp.parseFiles(meta.files)
 	for _, err := range errs {
 		appendError(err)
 	}
 	pkg.syntax = files
 
 	// Handle circular imports by copying previously seen imports.
-	newCircular := copySet(imp.circular)
-	newCircular[pkgPath] = struct{}{}
+	seen := make(map[string]struct{})
+	for k, v := range imp.seen {
+		seen[k] = v
+	}
+	seen[pkgPath] = struct{}{}
 
 	cfg := &types.Config{
 		Error: appendError,
 		Importer: &importer{
-			view:     imp.view,
-			circular: newCircular,
-			ctx:      imp.ctx,
+			view: imp.view,
+			seen: seen,
+			ctx:  imp.ctx,
 		},
 	}
 	check := types.NewChecker(cfg, imp.view.Config.Fset, pkg.types, pkg.typesInfo)
@@ -282,14 +280,6 @@ func (imp *importer) typeCheck(pkgPath string) (*Package, error) {
 	}
 
 	return pkg, nil
-}
-
-func copySet(m map[string]struct{}) map[string]struct{} {
-	result := make(map[string]struct{})
-	for k, v := range m {
-		result[k] = v
-	}
-	return result
 }
 
 func (v *View) appendPkgError(pkg *Package, err error) {
@@ -321,116 +311,4 @@ func (v *View) appendPkgError(pkg *Package, err error) {
 		})
 	}
 	pkg.errors = append(pkg.errors, errs...)
-}
-
-// We use a counting semaphore to limit
-// the number of parallel I/O calls per process.
-var ioLimit = make(chan bool, 20)
-
-// parseFiles reads and parses the Go source files and returns the ASTs
-// of the ones that could be at least partially parsed, along with a
-// list of I/O and parse errors encountered.
-//
-// Because files are scanned in parallel, the token.Pos
-// positions of the resulting ast.Files are not ordered.
-//
-func (v *View) parseFiles(filenames []string) ([]*ast.File, []error) {
-	var wg sync.WaitGroup
-	n := len(filenames)
-	parsed := make([]*ast.File, n)
-	errors := make([]error, n)
-	for i, filename := range filenames {
-		if v.Config.Context.Err() != nil {
-			parsed[i] = nil
-			errors[i] = v.Config.Context.Err()
-			continue
-		}
-
-		// First, check if we have already cached an AST for this file.
-		f, err := v.findFile(span.FileURI(filename))
-		if err != nil {
-			parsed[i], errors[i] = nil, err
-		}
-		var fAST *ast.File
-		if f != nil {
-			fAST = f.ast
-		}
-
-		wg.Add(1)
-		go func(i int, filename string) {
-			ioLimit <- true // wait
-
-			if fAST != nil {
-				parsed[i], errors[i] = fAST, nil
-			} else {
-				// We don't have a cached AST for this file.
-				var src []byte
-				// Check for an available overlay.
-				for f, contents := range v.Config.Overlay {
-					if sameFile(f, filename) {
-						src = contents
-					}
-				}
-				var err error
-				// We don't have an overlay, so we must read the file's contents.
-				if src == nil {
-					src, err = ioutil.ReadFile(filename)
-				}
-				if err != nil {
-					parsed[i], errors[i] = nil, err
-				} else {
-					// ParseFile may return both an AST and an error.
-					parsed[i], errors[i] = v.Config.ParseFile(v.Config.Fset, filename, src)
-				}
-			}
-
-			<-ioLimit // signal
-			wg.Done()
-		}(i, filename)
-	}
-	wg.Wait()
-
-	// Eliminate nils, preserving order.
-	var o int
-	for _, f := range parsed {
-		if f != nil {
-			parsed[o] = f
-			o++
-		}
-	}
-	parsed = parsed[:o]
-
-	o = 0
-	for _, err := range errors {
-		if err != nil {
-			errors[o] = err
-			o++
-		}
-	}
-	errors = errors[:o]
-
-	return parsed, errors
-}
-
-// sameFile returns true if x and y have the same basename and denote
-// the same file.
-//
-func sameFile(x, y string) bool {
-	if x == y {
-		// It could be the case that y doesn't exist.
-		// For instance, it may be an overlay file that
-		// hasn't been written to disk. To handle that case
-		// let x == y through. (We added the exact absolute path
-		// string to the CompiledGoFiles list, so the unwritten
-		// overlay case implies x==y.)
-		return true
-	}
-	if strings.EqualFold(filepath.Base(x), filepath.Base(y)) { // (optimisation)
-		if xi, err := os.Stat(x); err == nil {
-			if yi, err := os.Stat(y); err == nil {
-				return os.SameFile(xi, yi)
-			}
-		}
-	}
-	return false
 }
