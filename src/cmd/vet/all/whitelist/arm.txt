@@ -12,4 +12,3 @@ runtime/tls_arm.s: [arm] load_g: function load_g missing Go declaration
 runtime/tls_arm.s: [arm] _initcgo: function _initcgo missing Go declaration
 
 runtime/internal/atomic/asm_arm.s: [arm] cas: function cas missing Go declaration
-internal/bytealg/equal_arm.s: [arm] Equal: invalid MOVW of ret+24(FP); bool is 1-byte value
