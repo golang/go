@@ -374,15 +374,10 @@ Words:
 	// Substitute command if required.
 	if len(words) > 0 && g.commands[words[0]] != nil {
 		// Replace 0th word by command substitution.
-		//  If no other words besides the command are on the invocation
-		//  line, e.g.,
-		//       //go:generate MY-COMMAND
-		//  append wouldn't force a copy as no increase in capacity was
-		//  needed.  Instead, it would instead return a reference to
-		//  the actual g.commands value (the original word array).  We
-		//  don't want the original word list to be subjected to os.Expand
-		//  below, since the words in the command could contain changing
-		//  environment variables, etc., so force a copy.
+		//
+		// Force a copy of the command definition to
+		// ensure words doesn't end up as a reference
+		// to the g.commands content.
 		tmpCmdWords := append([]string(nil), (g.commands[words[0]])...)
 		words = append(tmpCmdWords, words[1:]...)
 	}
