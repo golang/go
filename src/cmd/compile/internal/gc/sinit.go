@@ -973,33 +973,33 @@ func maplit(n *Node, m *Node, init *Nodes) {
 
 		// build types [count]Tindex and [count]Tvalue
 		tk := types.NewArray(n.Type.Key(), int64(len(stat)))
-		tv := types.NewArray(n.Type.Elem(), int64(len(stat)))
+		te := types.NewArray(n.Type.Elem(), int64(len(stat)))
 
 		// TODO(josharian): suppress alg generation for these types?
 		dowidth(tk)
-		dowidth(tv)
+		dowidth(te)
 
 		// make and initialize static arrays
 		vstatk := staticname(tk)
 		vstatk.Name.SetReadonly(true)
-		vstatv := staticname(tv)
-		vstatv.Name.SetReadonly(true)
+		vstate := staticname(te)
+		vstate.Name.SetReadonly(true)
 
 		datak := nod(OARRAYLIT, nil, nil)
-		datav := nod(OARRAYLIT, nil, nil)
+		datae := nod(OARRAYLIT, nil, nil)
 		for _, r := range stat {
 			datak.List.Append(r.Left)
-			datav.List.Append(r.Right)
+			datae.List.Append(r.Right)
 		}
 		fixedlit(inInitFunction, initKindStatic, datak, vstatk, init)
-		fixedlit(inInitFunction, initKindStatic, datav, vstatv, init)
+		fixedlit(inInitFunction, initKindStatic, datae, vstate, init)
 
 		// loop adding structure elements to map
 		// for i = 0; i < len(vstatk); i++ {
-		//	map[vstatk[i]] = vstatv[i]
+		//	map[vstatk[i]] = vstate[i]
 		// }
 		i := temp(types.Types[TINT])
-		rhs := nod(OINDEX, vstatv, i)
+		rhs := nod(OINDEX, vstate, i)
 		rhs.SetBounded(true)
 
 		kidx := nod(OINDEX, vstatk, i)
@@ -1035,28 +1035,28 @@ func addMapEntries(m *Node, dyn []*Node, init *Nodes) {
 	nerr := nerrors
 
 	// Build list of var[c] = expr.
-	// Use temporaries so that mapassign1 can have addressable key, val.
+	// Use temporaries so that mapassign1 can have addressable key, elem.
 	// TODO(josharian): avoid map key temporaries for mapfast_* assignments with literal keys.
-	key := temp(m.Type.Key())
-	val := temp(m.Type.Elem())
+	tmpkey := temp(m.Type.Key())
+	tmpelem := temp(m.Type.Elem())
 
 	for _, r := range dyn {
-		index, value := r.Left, r.Right
+		index, elem := r.Left, r.Right
 
 		setlineno(index)
-		a := nod(OAS, key, index)
+		a := nod(OAS, tmpkey, index)
 		a = typecheck(a, ctxStmt)
 		a = walkstmt(a)
 		init.Append(a)
 
-		setlineno(value)
-		a = nod(OAS, val, value)
+		setlineno(elem)
+		a = nod(OAS, tmpelem, elem)
 		a = typecheck(a, ctxStmt)
 		a = walkstmt(a)
 		init.Append(a)
 
-		setlineno(val)
-		a = nod(OAS, nod(OINDEX, m, key), val)
+		setlineno(tmpelem)
+		a = nod(OAS, nod(OINDEX, m, tmpkey), tmpelem)
 		a = typecheck(a, ctxStmt)
 		a = walkstmt(a)
 		init.Append(a)
@@ -1066,10 +1066,10 @@ func addMapEntries(m *Node, dyn []*Node, init *Nodes) {
 		}
 	}
 
-	a := nod(OVARKILL, key, nil)
+	a := nod(OVARKILL, tmpkey, nil)
 	a = typecheck(a, ctxStmt)
 	init.Append(a)
-	a = nod(OVARKILL, val, nil)
+	a = nod(OVARKILL, tmpelem, nil)
 	a = typecheck(a, ctxStmt)
 	init.Append(a)
 }

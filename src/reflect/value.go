@@ -1237,7 +1237,7 @@ func (it *MapIter) Value() Value {
 
 	t := (*mapType)(unsafe.Pointer(it.m.typ))
 	vtype := t.elem
-	return copyVal(vtype, it.m.flag.ro()|flag(vtype.Kind()), mapitervalue(it.it))
+	return copyVal(vtype, it.m.flag.ro()|flag(vtype.Kind()), mapiterelem(it.it))
 }
 
 // Next advances the map iterator and reports whether there is another
@@ -1635,13 +1635,13 @@ func (v Value) SetCap(n int) {
 	s.Cap = n
 }
 
-// SetMapIndex sets the value associated with key in the map v to val.
+// SetMapIndex sets the element associated with key in the map v to elem.
 // It panics if v's Kind is not Map.
-// If val is the zero Value, SetMapIndex deletes the key from the map.
+// If elem is the zero Value, SetMapIndex deletes the key from the map.
 // Otherwise if v holds a nil map, SetMapIndex will panic.
-// As in Go, key's value must be assignable to the map's key type,
-// and val's value must be assignable to the map's value type.
-func (v Value) SetMapIndex(key, val Value) {
+// As in Go, key's elem must be assignable to the map's key type,
+// and elem's value must be assignable to the map's elem type.
+func (v Value) SetMapIndex(key, elem Value) {
 	v.mustBe(Map)
 	v.mustBeExported()
 	key.mustBeExported()
@@ -1653,17 +1653,17 @@ func (v Value) SetMapIndex(key, val Value) {
 	} else {
 		k = unsafe.Pointer(&key.ptr)
 	}
-	if val.typ == nil {
+	if elem.typ == nil {
 		mapdelete(v.typ, v.pointer(), k)
 		return
 	}
-	val.mustBeExported()
-	val = val.assignTo("reflect.Value.SetMapIndex", tt.elem, nil)
+	elem.mustBeExported()
+	elem = elem.assignTo("reflect.Value.SetMapIndex", tt.elem, nil)
 	var e unsafe.Pointer
-	if val.flag&flagIndir != 0 {
-		e = val.ptr
+	if elem.flag&flagIndir != 0 {
+		e = elem.ptr
 	} else {
-		e = unsafe.Pointer(&val.ptr)
+		e = unsafe.Pointer(&elem.ptr)
 	}
 	mapassign(v.typ, v.pointer(), k, e)
 }
@@ -2708,7 +2708,7 @@ func mapiterinit(t *rtype, m unsafe.Pointer) unsafe.Pointer
 func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
 
 //go:noescape
-func mapitervalue(it unsafe.Pointer) (value unsafe.Pointer)
+func mapiterelem(it unsafe.Pointer) (elem unsafe.Pointer)
 
 //go:noescape
 func mapiternext(it unsafe.Pointer)

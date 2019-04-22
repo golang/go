@@ -42,7 +42,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
 			if *(*uint64)(k) == key && !isEmpty(b.tophash[i]) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.elemsize))
 			}
 		}
 	}
@@ -82,7 +82,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 	for ; b != nil; b = b.overflow(t) {
 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
 			if *(*uint64)(k) == key && !isEmpty(b.tophash[i]) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize)), true
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.elemsize)), true
 			}
 		}
 	}
@@ -171,12 +171,12 @@ bucketloop:
 	h.count++
 
 done:
-	val := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*8+inserti*uintptr(t.valuesize))
+	elem := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*8+inserti*uintptr(t.elemsize))
 	if h.flags&hashWriting == 0 {
 		throw("concurrent map writes")
 	}
 	h.flags &^= hashWriting
-	return val
+	return elem
 }
 
 func mapassign_fast64ptr(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
@@ -261,12 +261,12 @@ bucketloop:
 	h.count++
 
 done:
-	val := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*8+inserti*uintptr(t.valuesize))
+	elem := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*8+inserti*uintptr(t.elemsize))
 	if h.flags&hashWriting == 0 {
 		throw("concurrent map writes")
 	}
 	h.flags &^= hashWriting
-	return val
+	return elem
 }
 
 func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
@@ -302,11 +302,11 @@ search:
 			if t.key.ptrdata != 0 {
 				memclrHasPointers(k, t.key.size)
 			}
-			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+			e := add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.elemsize))
 			if t.elem.ptrdata != 0 {
-				memclrHasPointers(v, t.elem.size)
+				memclrHasPointers(e, t.elem.size)
 			} else {
-				memclrNoHeapPointers(v, t.elem.size)
+				memclrNoHeapPointers(e, t.elem.size)
 			}
 			b.tophash[i] = emptyOne
 			// If the bucket now ends in a bunch of emptyOne states,
@@ -373,7 +373,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 		x := &xy[0]
 		x.b = (*bmap)(add(h.buckets, oldbucket*uintptr(t.bucketsize)))
 		x.k = add(unsafe.Pointer(x.b), dataOffset)
-		x.v = add(x.k, bucketCnt*8)
+		x.e = add(x.k, bucketCnt*8)
 
 		if !h.sameSizeGrow() {
 			// Only calculate y pointers if we're growing bigger.
@@ -381,13 +381,13 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 			y := &xy[1]
 			y.b = (*bmap)(add(h.buckets, (oldbucket+newbit)*uintptr(t.bucketsize)))
 			y.k = add(unsafe.Pointer(y.b), dataOffset)
-			y.v = add(y.k, bucketCnt*8)
+			y.e = add(y.k, bucketCnt*8)
 		}
 
 		for ; b != nil; b = b.overflow(t) {
 			k := add(unsafe.Pointer(b), dataOffset)
-			v := add(k, bucketCnt*8)
-			for i := 0; i < bucketCnt; i, k, v = i+1, add(k, 8), add(v, uintptr(t.valuesize)) {
+			e := add(k, bucketCnt*8)
+			for i := 0; i < bucketCnt; i, k, e = i+1, add(k, 8), add(e, uintptr(t.elemsize)) {
 				top := b.tophash[i]
 				if isEmpty(top) {
 					b.tophash[i] = evacuatedEmpty
@@ -399,7 +399,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 				var useY uint8
 				if !h.sameSizeGrow() {
 					// Compute hash to make our evacuation decision (whether we need
-					// to send this key/value to bucket x or bucket y).
+					// to send this key/elem to bucket x or bucket y).
 					hash := t.key.alg.hash(k, uintptr(h.hash0))
 					if hash&newbit != 0 {
 						useY = 1
@@ -413,7 +413,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 					dst.b = h.newoverflow(t, dst.b)
 					dst.i = 0
 					dst.k = add(unsafe.Pointer(dst.b), dataOffset)
-					dst.v = add(dst.k, bucketCnt*8)
+					dst.e = add(dst.k, bucketCnt*8)
 				}
 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
 
@@ -431,17 +431,17 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 					*(*uint64)(dst.k) = *(*uint64)(k)
 				}
 
-				typedmemmove(t.elem, dst.v, v)
+				typedmemmove(t.elem, dst.e, e)
 				dst.i++
 				// These updates might push these pointers past the end of the
-				// key or value arrays.  That's ok, as we have the overflow pointer
+				// key or elem arrays.  That's ok, as we have the overflow pointer
 				// at the end of the bucket to protect against pointing past the
 				// end of the bucket.
 				dst.k = add(dst.k, 8)
-				dst.v = add(dst.v, uintptr(t.valuesize))
+				dst.e = add(dst.e, uintptr(t.elemsize))
 			}
 		}
-		// Unlink the overflow buckets & clear key/value to help GC.
+		// Unlink the overflow buckets & clear key/elem to help GC.
 		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
 			// Preserve b.tophash because the evacuation

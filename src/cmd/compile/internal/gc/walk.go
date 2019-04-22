@@ -1210,7 +1210,7 @@ opswitch:
 			// Allocate one bucket pointed to by hmap.buckets on stack if hint
 			// is not larger than BUCKETSIZE. In case hint is larger than
 			// BUCKETSIZE runtime.makemap will allocate the buckets on the heap.
-			// Maximum key and value size is 128 bytes, larger objects
+			// Maximum key and elem size is 128 bytes, larger objects
 			// are stored with an indirection. So max bucket size is 2048+eps.
 			if !Isconst(hint, CTINT) ||
 				hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
@@ -2462,7 +2462,7 @@ var mapassign = mkmapnames("mapassign", "ptr")
 var mapdelete = mkmapnames("mapdelete", "")
 
 func mapfast(t *types.Type) int {
-	// Check runtime/map.go:maxValueSize before changing.
+	// Check runtime/map.go:maxElemSize before changing.
 	if t.Elem().Width > 128 {
 		return mapslow
 	}
