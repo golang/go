@@ -14,16 +14,24 @@ import (
 )
 
 func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content string) error {
+	s.log.Debugf(ctx, "cacheAndDiagnose: %s", uri)
+
 	view := s.findView(ctx, uri)
 	if err := view.SetContent(ctx, uri, []byte(content)); err != nil {
 		return err
 	}
+
+	s.log.Debugf(ctx, "cacheAndDiagnose: set content for %s", uri)
+
 	go func() {
 		ctx := view.BackgroundContext()
 		if ctx.Err() != nil {
 			s.log.Errorf(ctx, "canceling diagnostics for %s: %v", uri, ctx.Err())
 			return
 		}
+
+		s.log.Debugf(ctx, "cacheAndDiagnose: going to get diagnostics for %s", uri)
+
 		reports, err := source.Diagnostics(ctx, view, uri)
 		if err != nil {
 			s.log.Errorf(ctx, "failed to compute diagnostics for %s: %v", uri, err)
@@ -32,6 +40,8 @@ func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content str
 
 		s.undeliveredMu.Lock()
 		defer s.undeliveredMu.Unlock()
+
+		s.log.Debugf(ctx, "cacheAndDiagnose: publishing diagnostics")
 
 		for uri, diagnostics := range reports {
 			if err := s.publishDiagnostics(ctx, view, uri, diagnostics); err != nil {
@@ -44,6 +54,9 @@ func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content str
 			// In case we had old, undelivered diagnostics.
 			delete(s.undelivered, uri)
 		}
+
+		s.log.Debugf(ctx, "cacheAndDiagnose: publishing undelivered diagnostics")
+
 		// Anytime we compute diagnostics, make sure to also send along any
 		// undelivered ones (only for remaining URIs).
 		for uri, diagnostics := range s.undelivered {
@@ -53,6 +66,9 @@ func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content str
 			delete(s.undelivered, uri)
 		}
 	}()
+
+	s.log.Debugf(ctx, "cacheAndDiagnose: done computing diagnostics for %s", uri)
+
 	return nil
 }
 

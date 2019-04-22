@@ -34,6 +34,7 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 		}
 		text = change.Text
 	}
+	s.log.Debugf(ctx, "didChange: %s", params.TextDocument.URI)
 	return s.cacheAndDiagnose(ctx, span.NewURI(params.TextDocument.URI), text)
 }
 
