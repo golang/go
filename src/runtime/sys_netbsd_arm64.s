@@ -10,41 +10,41 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-#define	CLOCK_REALTIME		0
-#define	CLOCK_MONOTONIC		3
-#define	FD_CLOEXEC		1
-#define	F_SETFD			2
+#define CLOCK_REALTIME		0
+#define CLOCK_MONOTONIC		3
+#define FD_CLOEXEC		1
+#define F_SETFD			2
 
-#define	SYS_exit			1
-#define	SYS_read			3
-#define	SYS_write			4
-#define	SYS_open			5
-#define	SYS_close			6
-#define	SYS_getpid			20
-#define	SYS_kill			37
-#define	SYS_munmap			73
-#define	SYS_madvise			75
-#define	SYS_fcntl			92
-#define	SYS_mmap			197
-#define	SYS___sysctl			202
-#define	SYS___sigaltstack14		281
-#define	SYS___sigprocmask14		293
-#define	SYS_getcontext			307
-#define	SYS_setcontext			308
-#define	SYS__lwp_create			309
-#define	SYS__lwp_exit			310
-#define	SYS__lwp_self			311
-#define	SYS__lwp_kill			318
-#define	SYS__lwp_unpark			321
-#define	SYS___sigaction_sigtramp	340
-#define	SYS_kqueue			344
-#define	SYS_sched_yield			350
-#define	SYS___setitimer50		425
-#define	SYS___clock_gettime50		427
-#define	SYS___nanosleep50		430
-#define	SYS___kevent50			435
-#define	SYS_openat			468
-#define	SYS____lwp_park60		478
+#define SYS_exit			1
+#define SYS_read			3
+#define SYS_write			4
+#define SYS_open			5
+#define SYS_close			6
+#define SYS_getpid			20
+#define SYS_kill			37
+#define SYS_munmap			73
+#define SYS_madvise			75
+#define SYS_fcntl			92
+#define SYS_mmap			197
+#define SYS___sysctl			202
+#define SYS___sigaltstack14		281
+#define SYS___sigprocmask14		293
+#define SYS_getcontext			307
+#define SYS_setcontext			308
+#define SYS__lwp_create			309
+#define SYS__lwp_exit			310
+#define SYS__lwp_self			311
+#define SYS__lwp_kill			318
+#define SYS__lwp_unpark			321
+#define SYS___sigaction_sigtramp	340
+#define SYS_kqueue			344
+#define SYS_sched_yield			350
+#define SYS___setitimer50		425
+#define SYS___clock_gettime50		427
+#define SYS___nanosleep50		430
+#define SYS___kevent50			435
+#define SYS_openat			468
+#define SYS____lwp_park60		478
 
 // int32 lwp_create(void *context, uintptr flags, void *lwpid)
 TEXT runtime·lwp_create(SB),NOSPLIT,$0
