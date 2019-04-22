@@ -1574,7 +1574,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym != nil {
 		inlcalls(fn)
 	}
-	escAnalyze([]*Node{fn}, false)
+	escapeImpl()([]*Node{fn}, false)
 
 	Curfn = nil
 	funccompile(fn)
