@@ -117,13 +117,6 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 		return min
 	}
 
-	min = v.visitcodelist(n.Ninit, min)
-	min = v.visitcode(n.Left, min)
-	min = v.visitcode(n.Right, min)
-	min = v.visitcodelist(n.List, min)
-	min = v.visitcodelist(n.Nbody, min)
-	min = v.visitcodelist(n.Rlist, min)
-
 	switch n.Op {
 	case OCALLFUNC, OCALLMETH:
 		fn := asNode(n.Left.Type.Nname())
@@ -140,6 +133,13 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 			min = m
 		}
 	}
+
+	min = v.visitcodelist(n.Ninit, min)
+	min = v.visitcode(n.Left, min)
+	min = v.visitcode(n.Right, min)
+	min = v.visitcodelist(n.List, min)
+	min = v.visitcodelist(n.Nbody, min)
+	min = v.visitcodelist(n.Rlist, min)
 
 	return min
 }
