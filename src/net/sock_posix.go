@@ -15,7 +15,7 @@ import (
 
 // socket returns a network file descriptor that is ready for
 // asynchronous I/O using the network poller.
-func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, ctrlFn func(string, string, syscall.RawConn) error) (fd *netFD, err error) {
+func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, ctrlFn func(string, string, syscall.RawConn) error, afterBind func(string, string, syscall.RawConn) error) (fd *netFD, err error) {
 	s, err := sysSocket(family, sotype, proto)
 	if err != nil {
 		return nil, err
@@ -54,13 +54,13 @@ func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only
 	if laddr != nil && raddr == nil {
 		switch sotype {
 		case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
-			if err := fd.listenStream(laddr, listenerBacklog(), ctrlFn); err != nil {
+			if err := fd.listenStream(laddr, listenerBacklog(), ctrlFn, afterBind); err != nil {
 				fd.Close()
 				return nil, err
 			}
 			return fd, nil
 		case syscall.SOCK_DGRAM:
-			if err := fd.listenDatagram(laddr, ctrlFn); err != nil {
+			if err := fd.listenDatagram(laddr, ctrlFn, afterBind); err != nil {
 				fd.Close()
 				return nil, err
 			}
@@ -172,7 +172,7 @@ func (fd *netFD) dial(ctx context.Context, laddr, raddr sockaddr, ctrlFn func(st
 	return nil
 }
 
-func (fd *netFD) listenStream(laddr sockaddr, backlog int, ctrlFn func(string, string, syscall.RawConn) error) error {
+func (fd *netFD) listenStream(laddr sockaddr, backlog int, ctrlFn func(string, string, syscall.RawConn) error, afterBind func(string, string, syscall.RawConn) error) error {
 	var err error
 	if err = setDefaultListenerSockopts(fd.pfd.Sysfd); err != nil {
 		return err
@@ -193,18 +193,27 @@ func (fd *netFD) listenStream(laddr sockaddr, backlog int, ctrlFn func(string, s
 	if err = syscall.Bind(fd.pfd.Sysfd, lsa); err != nil {
 		return os.NewSyscallError("bind", err)
 	}
+	lsa, _ = syscall.Getsockname(fd.pfd.Sysfd)
+	fd.setAddr(fd.addrFunc()(lsa), nil)
+	if afterBind != nil {
+		c, err := newRawConn(fd)
+		if err != nil {
+			return err
+		}
+		if err := afterBind(fd.ctrlNetwork(), fd.laddr.String(), c); err != nil {
+			return err
+		}
+	}
 	if err = listenFunc(fd.pfd.Sysfd, backlog); err != nil {
 		return os.NewSyscallError("listen", err)
 	}
 	if err = fd.init(); err != nil {
 		return err
 	}
-	lsa, _ = syscall.Getsockname(fd.pfd.Sysfd)
-	fd.setAddr(fd.addrFunc()(lsa), nil)
 	return nil
 }
 
-func (fd *netFD) listenDatagram(laddr sockaddr, ctrlFn func(string, string, syscall.RawConn) error) error {
+func (fd *netFD) listenDatagram(laddr sockaddr, ctrlFn func(string, string, syscall.RawConn) error, afterBind func(string, string, syscall.RawConn) error) error {
 	switch addr := laddr.(type) {
 	case *UDPAddr:
 		// We provide a socket that listens to a wildcard
@@ -245,10 +254,19 @@ func (fd *netFD) listenDatagram(laddr sockaddr, ctrlFn func(string, string, sysc
 	if err = syscall.Bind(fd.pfd.Sysfd, lsa); err != nil {
 		return os.NewSyscallError("bind", err)
 	}
+	lsa, _ = syscall.Getsockname(fd.pfd.Sysfd)
+	fd.setAddr(fd.addrFunc()(lsa), nil)
+	if afterBind != nil {
+		c, err := newRawConn(fd)
+		if err != nil {
+			return err
+		}
+		if err := afterBind(fd.ctrlNetwork(), fd.laddr.String(), c); err != nil {
+			return err
+		}
+	}
 	if err = fd.init(); err != nil {
 		return err
 	}
-	lsa, _ = syscall.Getsockname(fd.pfd.Sysfd)
-	fd.setAddr(fd.addrFunc()(lsa), nil)
 	return nil
 }

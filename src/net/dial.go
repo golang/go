@@ -597,6 +597,14 @@ type ListenConfig struct {
 	// Listen will cause the Control function to be called with "tcp4" or "tcp6".
 	Control func(network, address string, c syscall.RawConn) error
 
+	// If AfterBind is not nil, it is called after creating the network
+	// connection and binding it to the operating system.
+	//
+	// Network and address parameters passed to Control method are not
+	// necessarily the ones passed to Listen. For example, passing "tcp" to
+	// Listen will cause the Control function to be called with "tcp4" or "tcp6".
+	AfterBind func(network, address string, c syscall.RawConn) error
+
 	// KeepAlive specifies the keep-alive period for network
 	// connections accepted by this listener.
 	// If zero, keep-alives are enabled if supported by the protocol
