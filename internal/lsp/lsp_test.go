@@ -9,6 +9,8 @@ import (
 	"context"
 	"fmt"
 	"go/token"
+	"os"
+	"os/exec"
 	"sort"
 	"strings"
 	"testing"
@@ -226,8 +228,24 @@ func summarizeCompletionItems(i int, want []source.CompletionItem, got []protoco
 
 func (r *runner) Format(t *testing.T, data tests.Formats) {
 	ctx := context.Background()
-	for filename, gofmted := range data {
-		uri := span.FileURI(filename)
+	for _, spn := range data {
+		uri := spn.URI()
+		filename, err := uri.Filename()
+		if err != nil {
+			t.Fatal(err)
+		}
+		gofmted := string(r.data.Golden("gofmt", filename, func(golden string) error {
+			cmd := exec.Command("gofmt", filename)
+			stdout, err := os.Create(golden)
+			if err != nil {
+				return err
+			}
+			defer stdout.Close()
+			cmd.Stdout = stdout
+			cmd.Run() // ignore error, sometimes we have intentionally ungofmt-able files
+			return nil
+		}))
+
 		edits, err := r.server.Formatting(context.Background(), &protocol.DocumentFormattingParams{
 			TextDocument: protocol.TextDocumentIdentifier{
 				URI: protocol.NewURI(uri),

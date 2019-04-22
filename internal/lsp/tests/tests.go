@@ -11,7 +11,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io/ioutil"
-	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -50,7 +49,7 @@ var updateGolden = flag.Bool("golden", false, "Update golden files")
 type Diagnostics map[span.URI][]source.Diagnostic
 type CompletionItems map[token.Pos]*source.CompletionItem
 type Completions map[span.Span][]token.Pos
-type Formats map[string]string
+type Formats []span.Span
 type Definitions map[span.Span]Definition
 type Highlights map[string][]span.Span
 type Symbols map[span.URI][]source.Symbol
@@ -100,7 +99,6 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		Diagnostics:     make(Diagnostics),
 		CompletionItems: make(CompletionItems),
 		Completions:     make(Completions),
-		Formats:         make(Formats),
 		Definitions:     make(Definitions),
 		Highlights:      make(Highlights),
 		Symbols:         make(Symbols),
@@ -317,18 +315,8 @@ func (data *Data) collectCompletionItems(pos token.Pos, label, detail, kind stri
 	}
 }
 
-func (data *Data) collectFormats(pos token.Position) {
-	data.Formats[pos.Filename] = string(data.Golden("gofmt", pos.Filename, func(golden string) error {
-		cmd := exec.Command("gofmt", pos.Filename)
-		stdout, err := os.Create(golden)
-		if err != nil {
-			return err
-		}
-		defer stdout.Close()
-		cmd.Stdout = stdout
-		cmd.Run() // ignore error, sometimes we have intentionally ungofmt-able files
-		return nil
-	}))
+func (data *Data) collectFormats(spn span.Span) {
+	data.Formats = append(data.Formats, spn)
 }
 
 func (data *Data) collectDefinitions(src, target span.Span) {
