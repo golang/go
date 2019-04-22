@@ -49,7 +49,7 @@ type Server interface {
 	RangeFormatting(context.Context, *DocumentRangeFormattingParams) ([]TextEdit, error)
 	OnTypeFormatting(context.Context, *DocumentOnTypeFormattingParams) ([]TextEdit, error)
 	Rename(context.Context, *RenameParams) ([]WorkspaceEdit, error)
-	FoldingRanges(context.Context, *FoldingRangeParams) ([]FoldingRange, error)
+	FoldingRange(context.Context, *FoldingRangeParams) ([]FoldingRange, error)
 }
 
 func serverHandler(log xlog.Logger, server Server) jsonrpc2.Handler {
@@ -454,7 +454,7 @@ func serverHandler(log xlog.Logger, server Server) jsonrpc2.Handler {
 				sendParseError(ctx, log, conn, r, err)
 				return
 			}
-			resp, err := server.FoldingRanges(ctx, &params)
+			resp, err := server.FoldingRange(ctx, &params)
 			if err := conn.Reply(ctx, r, resp, err); err != nil {
 				log.Errorf(ctx, "%v", err)
 			}
@@ -714,9 +714,9 @@ func (s *serverDispatcher) Rename(ctx context.Context, params *RenameParams) ([]
 	return result, nil
 }
 
-func (s *serverDispatcher) FoldingRanges(ctx context.Context, params *FoldingRangeParams) ([]FoldingRange, error) {
+func (s *serverDispatcher) FoldingRange(ctx context.Context, params *FoldingRangeParams) ([]FoldingRange, error) {
 	var result []FoldingRange
-	if err := s.Conn.Call(ctx, "textDocument/foldingRanges", params, &result); err != nil {
+	if err := s.Conn.Call(ctx, "textDocument/foldingRange", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
