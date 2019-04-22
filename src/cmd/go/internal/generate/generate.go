@@ -374,7 +374,12 @@ Words:
 	// Substitute command if required.
 	if len(words) > 0 && g.commands[words[0]] != nil {
 		// Replace 0th word by command substitution.
-		words = append(g.commands[words[0]], words[1:]...)
+		//
+		// Force a copy of the command definition to
+		// ensure words doesn't end up as a reference
+		// to the g.commands content.
+		tmpCmdWords := append([]string(nil), (g.commands[words[0]])...)
+		words = append(tmpCmdWords, words[1:]...)
 	}
 	// Substitute environment variables.
 	for i, word := range words {
