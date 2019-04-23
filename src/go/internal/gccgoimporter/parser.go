@@ -493,6 +493,7 @@ func (p *parser) parseNamedType(nlist []int) types.Type {
 	// type alias
 	if p.tok == '=' {
 		p.next()
+		p.aliases[nlist[len(nlist)-1]] = name
 		if obj != nil {
 			// use the previously imported (canonical) type
 			t := obj.Type()
@@ -502,7 +503,6 @@ func (p *parser) parseNamedType(nlist []int) types.Type {
 		}
 		t := p.parseType(pkg, nlist...)
 		obj = types.NewTypeName(token.NoPos, pkg, name, t)
-		p.aliases[nlist[len(nlist)-1]] = name
 		scope.Insert(obj)
 		return t
 	}
