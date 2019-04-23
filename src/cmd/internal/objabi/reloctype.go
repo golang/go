@@ -30,7 +30,7 @@
 
 package objabi
 
-type RelocType int32
+type RelocType int16
 
 //go:generate stringer -type=RelocType
 const (
