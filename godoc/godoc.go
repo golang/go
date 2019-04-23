@@ -355,26 +355,6 @@ func comment_htmlFunc(comment string) string {
 	return buf.String()
 }
 
-// punchCardWidth is the number of columns of fixed-width
-// characters to assume when wrapping text.  Very few people
-// use terminals or cards smaller than 80 characters, so 80 it is.
-// We do not try to sniff the environment or the tty to adapt to
-// the situation; instead, by using a constant we make sure that
-// godoc always produces the same output regardless of context,
-// a consistency that is lost otherwise.  For example, if we sniffed
-// the environment or tty, then http://golang.org/pkg/math/?m=text
-// would depend on the width of the terminal where godoc started,
-// which is clearly bogus.  More generally, the Unix tools that behave
-// differently when writing to a tty than when writing to a file have
-// a history of causing confusion (compare `ls` and `ls | cat`), and we
-// want to avoid that mistake here.
-const punchCardWidth = 80
-
-func containsOnlySpace(buf []byte) bool {
-	isNotSpace := func(r rune) bool { return !unicode.IsSpace(r) }
-	return bytes.IndexFunc(buf, isNotSpace) == -1
-}
-
 // sanitizeFunc sanitizes the argument src by replacing newlines with
 // blanks, removing extra blanks, and by removing trailing whitespace
 // and commas before closing parentheses.
