@@ -1930,7 +1930,8 @@ func joinUnambiguously(a []string) string {
 		q := strconv.Quote(s)
 		// A gccgo command line can contain -( and -).
 		// Make sure we quote them since they are special to the shell.
-		if s == "" || strings.ContainsAny(s, " ()") || len(q) > len(s)+2 {
+		// The trimpath argument can also contain > (part of =>) and ;. Quote those too.
+		if s == "" || strings.ContainsAny(s, " ()>;") || len(q) > len(s)+2 {
 			buf.WriteString(q)
 		} else {
 			buf.WriteString(s)
