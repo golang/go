@@ -5369,6 +5369,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 				// We found an instruction with the same source position as
 				// some of the inline marks.
 				// Use this instruction instead.
+				p.Pos = p.Pos.WithIsStmt() // promote position to a statement
 				pp.curfn.Func.lsym.Func.AddInlMark(p, inlMarks[m])
 				// Make the inline mark a real nop, so it doesn't generate any code.
 				m.As = obj.ANOP

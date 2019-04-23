@@ -445,5 +445,5 @@ func (x lico) lineNumberHTML() string {
 }
 
 func (x lico) atColumn1() lico {
-	return makeLico(x.Line(), 1) | (x & (isStmtMask | xlogueMask))
+	return makeLico(x.Line(), 1).withIsStmt()
 }
