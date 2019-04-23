@@ -1184,3 +1184,13 @@ func TestWithUnexpiredValuesPreserved(t *testing.T) {
 		t.Errorf("Lookup after expiry: Got %v want nil", g)
 	}
 }
+
+// Issue 31586: don't crash on null byte in name
+func TestLookupNullByte(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+	testenv.SkipFlakyNet(t)
+	_, err := LookupHost("foo\x00bar") // used to crash on Windows
+	if err == nil {
+		t.Errorf("unexpected success")
+	}
+}
