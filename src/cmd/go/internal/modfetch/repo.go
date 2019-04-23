@@ -209,6 +209,10 @@ func lookup(path string) (r Repo, err error) {
 		return lookupProxy(path)
 	}
 
+	return lookupDirect(path)
+}
+
+func lookupDirect(path string) (Repo, error) {
 	security := web.SecureOnly
 	if get.Insecure {
 		security = web.Insecure

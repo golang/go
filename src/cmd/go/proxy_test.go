@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -104,6 +105,16 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/mod/")
+
+	// If asked for 404/abc, serve a 404.
+	if j := strings.Index(path, "/"); j >= 0 {
+		n, err := strconv.Atoi(path[:j])
+		if err == nil && n >= 200 {
+			w.WriteHeader(n)
+			return
+		}
+	}
+
 	i := strings.Index(path, "/@v/")
 	if i < 0 {
 		http.NotFound(w, r)
