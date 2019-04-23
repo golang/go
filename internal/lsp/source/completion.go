@@ -61,16 +61,14 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 		return nil, "", fmt.Errorf("cannot find node enclosing position")
 	}
 
-	// Skip completion inside comment blocks or string literals.
-	switch lit := path[0].(type) {
-	case *ast.File, *ast.BlockStmt:
-		if inComment(pos, file.Comments) {
-			return items, prefix, nil
-		}
-	case *ast.BasicLit:
-		if lit.Kind == token.STRING {
-			return items, prefix, nil
-		}
+	// Skip completion inside comments.
+	if inComment(pos, file.Comments) {
+		return items, prefix, nil
+	}
+
+	// Skip completion inside any kind of literal.
+	if _, ok := path[0].(*ast.BasicLit); ok {
+		return items, prefix, nil
 	}
 
 	// Save certain facts about the query position, including the expected type
@@ -283,10 +281,8 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 // inComment checks if given token position is inside ast.Comment node.
 func inComment(pos token.Pos, commentGroups []*ast.CommentGroup) bool {
 	for _, g := range commentGroups {
-		for _, c := range g.List {
-			if c.Pos() <= pos && pos <= c.End() {
-				return true
-			}
+		if g.Pos() <= pos && pos <= g.End() {
+			return true
 		}
 	}
 	return false

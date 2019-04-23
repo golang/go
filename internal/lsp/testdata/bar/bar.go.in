@@ -38,7 +38,7 @@ func _() {
 		Value: Valen //@complete("le", Valentine)
 	}
 	_ = foo.StructFoo{
-		Value:       //@complete(re"$", Valentine, foo, Bar, helper)
+		Value:       //@complete(" //", Valentine, foo, Bar, helper)
 	}
 	_ = foo.StructFoo{
 		Value:       //@complete(" ", Valentine, foo, Bar, helper)

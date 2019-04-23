@@ -1,5 +1,0 @@
-package stringlit
-
-func _() {
-	_ := "hello." //@complete(".")
-}
