@@ -159,9 +159,7 @@ func yyerror(format string, args ...interface{}) {
 }
 
 func Warn(fmt_ string, args ...interface{}) {
-	adderr(lineno, fmt_, args...)
-
-	hcrash()
+	Warnl(lineno, fmt_, args...)
 }
 
 func Warnl(line src.XPos, fmt_ string, args ...interface{}) {
