@@ -3378,6 +3378,27 @@ type TextDocumentContentChangeEvent struct {
 	Text string `json:"text"`
 }
 
+// SetTraceParams is
+type SetTraceParams struct {
+
+	// Value is
+	Value TraceValues `json:"value"`
+}
+
+// LogTraceParams is
+type LogTraceParams struct {
+
+	// Message is
+	Message string `json:"message"`
+
+	// Verbose is
+	Verbose string `json:"verbose,omitempty"`
+}
+
+// Tracer is
+type Tracer struct {
+}
+
 // FoldingRangeKind defines constants
 type FoldingRangeKind string
 
@@ -3434,6 +3455,24 @@ type CodeActionKind string
 
 // TextDocumentSaveReason defines constants
 type TextDocumentSaveReason float64
+
+// ErrorCodes defines constants
+type ErrorCodes float64
+
+// Touch defines constants
+type Touch float64
+
+// Trace defines constants
+type Trace string
+
+// TraceFormat defines constants
+type TraceFormat string
+
+// ConnectionErrors defines constants
+type ConnectionErrors float64
+
+// ConnectionState defines constants
+type ConnectionState float64
 
 const (
 
@@ -3890,6 +3929,42 @@ const (
 	 * When the editor lost focus.
 	 */
 	FocusOut TextDocumentSaveReason = 3
+
+	// MessageWriteError is
+	MessageWriteError ErrorCodes = 1
+
+	// MessageReadError is
+	MessageReadError ErrorCodes = 2
+
+	// First is
+	First Touch = 1
+
+	// Last is
+	Last Touch = 2
+
+	// JSON is
+	JSON TraceFormat = "json"
+
+	/*Closed defined:
+	 * The connection is closed.
+	 */
+	Closed ConnectionErrors = 1
+
+	/*Disposed defined:
+	 * The connection got disposed.
+	 */
+	Disposed ConnectionErrors = 2
+
+	/*AlreadyListening defined:
+	 * The connection is already in listening mode.
+	 */
+	AlreadyListening ConnectionErrors = 3
+
+	// New is
+	New ConnectionState = 1
+
+	// Listening is
+	Listening ConnectionState = 2
 )
 
 // DocumentFilter is a type
@@ -3949,3 +4024,12 @@ type DefinitionLink LocationLink
  * by the client.
  */
 type DeclarationLink LocationLink
+
+// LSPMessageType is a type
+/**
+ * A LSP Log Entry.
+ */
+type LSPMessageType string
+
+// TraceValues is a type
+type TraceValues string

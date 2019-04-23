@@ -190,7 +190,7 @@ func (c *baseClient) LogMessage(ctx context.Context, p *protocol.LogMessageParam
 	}
 	return nil
 }
-func (c *baseClient) Telemetry(ctx context.Context, t interface{}) error { return nil }
+func (c *baseClient) Event(ctx context.Context, t *interface{}) error { return nil }
 func (c *baseClient) RegisterCapability(ctx context.Context, p *protocol.RegistrationParams) error {
 	return nil
 }
@@ -218,8 +218,8 @@ func (c *baseClient) Configuration(ctx context.Context, p *protocol.Configuratio
 	}
 	return results, nil
 }
-func (c *baseClient) ApplyEdit(ctx context.Context, p *protocol.ApplyWorkspaceEditParams) (bool, error) {
-	return false, nil
+func (c *baseClient) ApplyEdit(ctx context.Context, p *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResponse, error) {
+	return &protocol.ApplyWorkspaceEditResponse{Applied: false, FailureReason: "not implemented"}, nil
 }
 func (c *baseClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishDiagnosticsParams) error {
 	return nil
