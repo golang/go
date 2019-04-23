@@ -237,6 +237,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.findfunctab()
 	ctxt.typelink()
 	ctxt.symtab()
+	ctxt.buildinfo()
 	ctxt.dodata()
 	order := ctxt.address()
 	dwarfcompress(ctxt)

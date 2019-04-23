@@ -1302,6 +1302,7 @@ func (ctxt *Link) dodata() {
 
 	// Writable data sections that do not need any specialized handling.
 	writable := []sym.SymKind{
+		sym.SBUILDINFO,
 		sym.SELFSECT,
 		sym.SMACHO,
 		sym.SMACHOGOT,
@@ -1961,6 +1962,39 @@ func (ctxt *Link) textbuildid() {
 	ctxt.Textp = append(ctxt.Textp, nil)
 	copy(ctxt.Textp[1:], ctxt.Textp)
 	ctxt.Textp[0] = s
+}
+
+func (ctxt *Link) buildinfo() {
+	if ctxt.linkShared || ctxt.BuildMode == BuildModePlugin {
+		// -linkshared and -buildmode=plugin get confused
+		// about the relocations in go.buildinfo
+		// pointing at the other data sections.
+		// The version information is only available in executables.
+		return
+	}
+
+	s := ctxt.Syms.Lookup(".go.buildinfo", 0)
+	s.Attr |= sym.AttrReachable
+	s.Type = sym.SBUILDINFO
+	s.Align = 16
+	// The \xff is invalid UTF-8, meant to make it less likely
+	// to find one of these accidentally.
+	const prefix = "\xff Go buildinf:" // 14 bytes, plus 2 data bytes filled in below
+	data := make([]byte, 32)
+	copy(data, prefix)
+	data[len(prefix)] = byte(ctxt.Arch.PtrSize)
+	data[len(prefix)+1] = 0
+	if ctxt.Arch.ByteOrder == binary.BigEndian {
+		data[len(prefix)+1] = 1
+	}
+	s.P = data
+	s.Size = int64(len(s.P))
+	s1 := ctxt.Syms.Lookup("runtime.buildVersion", 0)
+	s2 := ctxt.Syms.Lookup("runtime.modinfo", 0)
+	s.R = []sym.Reloc{
+		{Off: 16, Siz: uint8(ctxt.Arch.PtrSize), Type: objabi.R_ADDR, Sym: s1},
+		{Off: 16 + int32(ctxt.Arch.PtrSize), Siz: uint8(ctxt.Arch.PtrSize), Type: objabi.R_ADDR, Sym: s2},
+	}
 }
 
 // assign addresses to text
