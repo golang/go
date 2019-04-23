@@ -16,30 +16,30 @@ stderr 'z'
 -- m/x/y/z/foo.go --
 package main
 import(
-    "os"
+	"os"
 	"path/filepath"
 )
-func main() { 
-    println(filepath.Base(os.Args[0])) 
+func main() {
+	println(filepath.Base(os.Args[0]))
 }
 
 -- m/x/y/z/foo.go --
 package main
 import(
-    "os"
+	"os"
 	"path/filepath"
 )
-func main() { 
-    println(filepath.Base(os.Args[0])) 
+func main() {
+	println(filepath.Base(os.Args[0]))
 }
 
 -- m/x/y/z/foo.go --
 package main
 import(
-    "os"
+	"os"
 	"path/filepath"
 )
-func main() { 
-    println(filepath.Base(os.Args[0])) 
+func main() {
+	println(filepath.Base(os.Args[0]))
 }
 
