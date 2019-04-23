@@ -52,21 +52,13 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 	if pkg.IsIllTyped() {
 		return nil, "", fmt.Errorf("package for %s is ill typed", f.URI())
 	}
-	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
+
+	// Completion is based on what precedes the cursor.
+	// To understand what we are completing, find the path to the
+	// position before pos.
+	path, _ := astutil.PathEnclosingInterval(file, pos-1, pos-1)
 	if path == nil {
 		return nil, "", fmt.Errorf("cannot find node enclosing position")
-	}
-
-	// If the position is not an identifier but immediately follows
-	// an identifier or selector period (as is common when
-	// requesting a completion), use the path to the preceding node.
-	if _, ok := path[0].(*ast.Ident); !ok {
-		if p, _ := astutil.PathEnclosingInterval(file, pos-1, pos-1); p != nil {
-			switch p[0].(type) {
-			case *ast.Ident, *ast.SelectorExpr:
-				path = p // use preceding ident/selector
-			}
-		}
 	}
 
 	// Skip completion inside comment blocks or string literals.
@@ -411,6 +403,43 @@ func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 	return items, prefix, false
 }
 
+// enclosingCompLit returns the composite literal and key value expression, if
+// any, enclosing the given position.
+func enclosingCompLit(pos token.Pos, path []ast.Node) (*ast.CompositeLit, *ast.KeyValueExpr) {
+	var keyVal *ast.KeyValueExpr
+
+	for _, n := range path {
+		switch n := n.(type) {
+		case *ast.CompositeLit:
+			// pos isn't part of the composite literal unless it falls within the curly
+			// braces (e.g. "foo.Foo<>Struct{}").
+			if n.Lbrace <= pos && pos <= n.Rbrace {
+				if keyVal == nil {
+					if i := exprAtPos(pos, n.Elts); i < len(n.Elts) {
+						keyVal, _ = n.Elts[i].(*ast.KeyValueExpr)
+					}
+				}
+
+				return n, keyVal
+			}
+
+			return nil, nil
+		case *ast.KeyValueExpr:
+			keyVal = n
+		case *ast.FuncType, *ast.CallExpr, *ast.TypeAssertExpr:
+			// These node types break the type link between the leaf node and
+			// the composite literal. The type of the leaf node becomes unrelated
+			// to the type of the composite literal, so we return nil to avoid
+			// inappropriate completions. For example, "Foo{Bar: x.Baz(<>)}"
+			// should complete as a function argument to Baz, not part of the Foo
+			// composite literal.
+			return nil, nil
+		}
+	}
+
+	return nil, nil
+}
+
 // formatCompletion creates a completion item for a given types.Object.
 func formatCompletion(obj types.Object, qualifier types.Qualifier, score float64, isParam func(*types.Var) bool) CompletionItem {
 	label := obj.Name()
@@ -578,8 +607,77 @@ func enclosingFunction(path []ast.Node, pos token.Pos, info *types.Info) *types.
 	return nil
 }
 
+func expectedCompLitType(cl *ast.CompositeLit, kv *ast.KeyValueExpr, pos token.Pos, info *types.Info) types.Type {
+	// Get the type of the *ast.CompositeLit we belong to.
+	clType, ok := info.Types[cl]
+	if !ok {
+		return nil
+	}
+
+	switch t := clType.Type.Underlying().(type) {
+	case *types.Slice:
+		return t.Elem()
+	case *types.Array:
+		return t.Elem()
+	case *types.Map:
+		// If pos isn't in a key/value expression or it is on the left side
+		// of a key/value colon, a key must be entered next.
+		if kv == nil || pos <= kv.Colon {
+			return t.Key()
+		}
+
+		return t.Elem()
+	case *types.Struct:
+		// pos is in a key/value expression
+		if kv != nil {
+			// If pos is to left of the colon, it is a struct field name,
+			// so there is no expected type.
+			if pos <= kv.Colon {
+				return nil
+			}
+
+			if keyIdent, ok := kv.Key.(*ast.Ident); ok {
+				// Find the type of the struct field whose name matches the key.
+				for i := 0; i < t.NumFields(); i++ {
+					if field := t.Field(i); field.Name() == keyIdent.Name {
+						return field.Type()
+					}
+				}
+			}
+
+			return nil
+		}
+
+		hasKeys := false // true if the composite literal has any key/value pairs
+		for _, el := range cl.Elts {
+			if _, ok := el.(*ast.KeyValueExpr); ok {
+				hasKeys = true
+				break
+			}
+		}
+
+		// The struct literal is using field names, but pos is not in a key/value
+		// pair. A field name must be entered next, so there is no expected type.
+		if hasKeys {
+			return nil
+		}
+
+		// The order of the literal fields must match the order in the struct definition.
+		// Find the element pos falls in and use the corresponding field's type.
+		if i := exprAtPos(pos, cl.Elts); i < t.NumFields() {
+			return t.Field(i).Type()
+		}
+	}
+
+	return nil
+}
+
 // expectedType returns the expected type for an expression at the query position.
 func expectedType(path []ast.Node, pos token.Pos, info *types.Info) types.Type {
+	if compLit, keyVal := enclosingCompLit(pos, path); compLit != nil {
+		return expectedCompLitType(compLit, keyVal, pos, info)
+	}
+
 	for i, node := range path {
 		if i == 2 {
 			break

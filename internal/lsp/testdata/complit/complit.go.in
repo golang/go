@@ -5,17 +5,45 @@ type position struct { //@item(structPosition, "position", "struct{...}", "struc
 }
 
 func _() {
-	_ := position{
+	_ = position{
 		//@complete("", fieldX, fieldY, structPosition)
 	}
-	_ := position{
+	_ = position{
 		X: 1,
 		//@complete("", fieldY)
 	}
-	_ := position{
+	_ = position{
 		//@complete("", fieldX)
 		Y: 1,
 	}
+}
+
+func _() {
+	var (
+		aa string //@item(aaVar, "aa", "string", "var")
+		ab int    //@item(abVar, "ab", "int", "var")
+	)
+
+	_ = map[int]int{
+		a: a, //@complete(":", abVar, aaVar),complete(",", abVar, aaVar)
+	}
+
+	_ = map[int]int{
+		//@complete("", abVar, aaVar, structPosition)
+	}
+
+	_ = position{X: a} //@complete("}", abVar, aaVar)
+	_ = position{a}    //@complete("}", abVar, aaVar)
+
+	_ = []int{a}  //@complete("a", abVar, aaVar, structPosition)
+	_ = [1]int{a} //@complete("a", abVar, aaVar, structPosition)
+
+	var s struct {
+		AA int    //@item(fieldAA, "AA", "int", "field")
+		AB string //@item(fieldAB, "AB", "string", "field")
+	}
+	_ = map[int]string{1: "" + s.A} //@complete("}", fieldAB, fieldAA)
+	_ = map[int]string{1: (func(i int) string { return "" })(s.A)} //@complete(")}", fieldAA, fieldAB)
 }
 
 func _() {

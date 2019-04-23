@@ -162,8 +162,26 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, items tests.Co
 			t.Fatalf("completion failed for %v: %v", src, err)
 		}
 		if diff := diffCompletionItems(t, src, want, got); diff != "" {
-			t.Errorf(diff)
+			t.Errorf("%s: %s", src, diff)
 		}
+	}
+
+	// Make sure we don't crash completing the first position in file set.
+	firstFile := r.data.Config.Fset.Position(1).Filename
+
+	_, err := r.server.Completion(context.Background(), &protocol.CompletionParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{
+				URI: protocol.NewURI(span.FileURI(firstFile)),
+			},
+			Position: protocol.Position{
+				Line:      0,
+				Character: 0,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

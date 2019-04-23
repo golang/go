@@ -28,12 +28,12 @@ func Qux() {
 	Foo("foo", 123) //@signature(" 1", "Foo(a string, b int) (c bool)", 1)
 	Foo("foo", 123) //@signature(")", "Foo(a string, b int) (c bool)", 1)
 
-	Bar(13.37, 0x1337)     //@signature("13.37", "Bar(float64, ...byte)", 0)
-	Bar(13.37, 0x1337)     //@signature("0x1337", "Bar(float64, ...byte)", 1)
+	Bar(13.37, 0x13)       //@signature("13.37", "Bar(float64, ...byte)", 0)
+	Bar(13.37, 0x37)       //@signature("0x37", "Bar(float64, ...byte)", 1)
 	Bar(13.37, 1, 2, 3, 4) //@signature("4", "Bar(float64, ...byte)", 1)
 
 	fn := func(hi, there string) func(i int) rune {
-		return 0
+		return func(int) rune { return 0 }
 	}
 
 	fn("hi", "there")    //@signature("hi", "fn(hi string, there string) func(i int) rune", 0)
@@ -53,9 +53,10 @@ func Qux() {
 	var ms myStruct
 	ms.foo(nil) //@signature("nil", "foo(e *json.Decoder) (*big.Int, error)", 0)
 
-	panic("oops!")    //@signature("oops", "panic(interface{})", 0)
-	make([]int, 1, 2) //@signature("2", "make([]int, int, int) []int", 2)
+	_ = make([]int, 1, 2) //@signature("2", "make([]int, int, int) []int", 2)
 
 	Foo(myFunc(123), 456) //@signature("myFunc", "Foo(a string, b int) (c bool)", 0)
 	Foo(myFunc(123), 456) //@signature("123", "myFunc(foo int) string", 0)
+
+	panic("oops!") //@signature("oops", "panic(interface{})", 0)
 }
