@@ -301,27 +301,30 @@ func (root *mTreap) removeNode(t *treapNode) {
 // find searches for, finds, and returns the treap iterator representing
 // the position of the smallest span that can hold npages. If no span has
 // at least npages it returns an invalid iterator.
-// This is slightly more complicated than a simple binary tree search
-// since if an exact match is not found the next larger node is
-// returned.
-// TODO(mknyszek): It turns out this routine does not actually find the
-// best-fit span, so either fix that or move to something else first, and
-// evaluate the performance implications of doing so.
+// This is a simple binary tree search that tracks the best-fit node found
+// so far. The best-fit node is guaranteed to be on the path to a
+// (maybe non-existent) lowest-base exact match.
 func (root *mTreap) find(npages uintptr) treapIter {
+	var best *treapNode
 	t := root.treap
 	for t != nil {
 		if t.spanKey == nil {
 			throw("treap node with nil spanKey found")
 		}
-		if t.npagesKey < npages {
-			t = t.right
-		} else if t.left != nil && t.left.npagesKey >= npages {
+		// If we found an exact match, try to go left anyway. There could be
+		// a span there with a lower base address.
+		//
+		// Don't bother checking nil-ness of left and right here; even if t
+		// becomes nil, we already know the other path had nothing better for
+		// us anyway.
+		if t.npagesKey >= npages {
+			best = t
 			t = t.left
 		} else {
-			return treapIter{t}
+			t = t.right
 		}
 	}
-	return treapIter{}
+	return treapIter{best}
 }
 
 // removeSpan searches for, finds, deletes span along with
