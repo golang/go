@@ -27,7 +27,7 @@ func TestUTF16(t *testing.T) {
 	c := span.NewContentConverter("test", input)
 	for line := 1; line <= 9; line++ {
 		runeColumn, runeChr := 0, 0
-		for chr := 1; chr <= 9; chr++ {
+		for chr := 1; chr <= 10; chr++ {
 			switch {
 			case chr <= line:
 				runeChr = chr
@@ -64,6 +64,31 @@ func TestUTF16(t *testing.T) {
 			if p != gotPoint {
 				t.Errorf("FromUTF16Column(%v,%v): expected %v, got %v", p.Line(), chr, p, gotPoint)
 			}
+		}
+	}
+}
+
+func TestUTF16Errors(t *testing.T) {
+	var input = []byte(`
+hello
+world
+`)[1:]
+	for _, test := range []struct {
+		line, col, offset int
+		want              string
+	}{
+		{
+			1, 6, 12,
+			"ToUTF16Column: length of line (5) is less than column (6)",
+		},
+		{
+			1, 6, 13,
+			"ToUTF16Column: offsets 8-13 outside file contents (12)",
+		},
+	} {
+		p := span.NewPoint(test.line, test.col, test.offset)
+		if _, err := span.ToUTF16Column(p, input); err == nil || err.Error() != test.want {
+			t.Errorf("expected %v, got %v", test.want, err)
 		}
 	}
 }
