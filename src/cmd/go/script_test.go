@@ -539,6 +539,13 @@ func (ts *testScript) cmdEnv(neg bool, args []string) {
 	if neg {
 		ts.fatalf("unsupported: ! env")
 	}
+
+	conv := func(s string) string { return s }
+	if len(args) > 0 && args[0] == "-r" {
+		conv = regexp.QuoteMeta
+		args = args[1:]
+	}
+
 	if len(args) == 0 {
 		printed := make(map[string]bool) // env list can have duplicates; only print effective value (from envMap) once
 		for _, kv := range ts.env {
@@ -556,8 +563,9 @@ func (ts *testScript) cmdEnv(neg bool, args []string) {
 			fmt.Fprintf(&ts.log, "%s=%s\n", env, ts.envMap[env])
 			continue
 		}
-		ts.env = append(ts.env, env)
-		ts.envMap[env[:i]] = env[i+1:]
+		key, val := env[:i], conv(env[i+1:])
+		ts.env = append(ts.env, key+"="+val)
+		ts.envMap[key] = val
 	}
 }
 
@@ -743,6 +751,11 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
 		}
 		args = args[1:]
 	}
+	quiet := false
+	if len(args) >= 1 && args[0] == "-q" {
+		quiet = true
+		args = args[1:]
+	}
 
 	extraUsage := ""
 	want := 1
@@ -773,14 +786,14 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
 
 	if neg {
 		if re.MatchString(text) {
-			if isGrep {
+			if isGrep && !quiet {
 				fmt.Fprintf(&ts.log, "[%s]\n%s\n", name, text)
 			}
 			ts.fatalf("unexpected match for %#q found in %s: %s", pattern, name, re.FindString(text))
 		}
 	} else {
 		if !re.MatchString(text) {
-			if isGrep {
+			if isGrep && !quiet {
 				fmt.Fprintf(&ts.log, "[%s]\n%s\n", name, text)
 			}
 			ts.fatalf("no match for %#q found in %s", pattern, name)
@@ -788,7 +801,7 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
 		if n > 0 {
 			count := len(re.FindAllString(text, -1))
 			if count != n {
-				if isGrep {
+				if isGrep && !quiet {
 					fmt.Fprintf(&ts.log, "[%s]\n%s\n", name, text)
 				}
 				ts.fatalf("have %d matches for %#q, want %d", count, pattern, n)
