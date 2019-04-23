@@ -13,6 +13,9 @@ import (
 
 var buildVersion = sys.TheVersion
 
+// set using cmd/go/internal/modload.ModInfoProg
+var modinfo string
+
 // Goroutine scheduler
 // The scheduler's job is to distribute ready-to-run goroutines over worker threads.
 //
@@ -576,6 +579,11 @@ func schedinit() {
 		// Condition should never trigger. This code just serves
 		// to ensure runtime·buildVersion is kept in the resulting binary.
 		buildVersion = "unknown"
+	}
+	if len(modinfo) == 1 {
+		// Condition should never trigger. This code just serves
+		// to ensure runtime·modinfo is kept in the resulting binary.
+		modinfo = ""
 	}
 }
 
