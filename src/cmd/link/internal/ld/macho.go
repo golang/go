@@ -828,7 +828,7 @@ func machoShouldExport(ctxt *Link, s *sym.Symbol) bool {
 	if strings.HasPrefix(s.Name, "go.link.pkghash") {
 		return true
 	}
-	return s.Type >= sym.SELFSECT // only writable sections
+	return s.Type >= sym.SFirstWritable // only writable sections
 }
 
 func machosymtab(ctxt *Link) {

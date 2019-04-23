@@ -81,6 +81,8 @@ const (
 	SPCLNTAB
 
 	// Writable sections.
+	SFirstWritable
+	SBUILDINFO
 	SELFSECT
 	SMACHO
 	SMACHOGOT

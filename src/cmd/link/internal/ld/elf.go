@@ -1439,6 +1439,7 @@ func (ctxt *Link) doelf() {
 	Addstring(shstrtab, ".data")
 	Addstring(shstrtab, ".bss")
 	Addstring(shstrtab, ".noptrbss")
+	Addstring(shstrtab, ".go.buildinfo")
 
 	// generate .tbss section for dynamic internal linker or external
 	// linking, so that various binutils could correctly calculate
@@ -1485,6 +1486,7 @@ func (ctxt *Link) doelf() {
 		if ctxt.UseRelro() {
 			Addstring(shstrtab, elfRelType+".data.rel.ro")
 		}
+		Addstring(shstrtab, elfRelType+".go.buildinfo")
 
 		// add a .note.GNU-stack section to mark the stack as non-executable
 		Addstring(shstrtab, ".note.GNU-stack")
