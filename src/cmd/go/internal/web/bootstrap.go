@@ -16,8 +16,8 @@ import (
 	urlpkg "net/url"
 )
 
-func get(security SecurityMode, url *urlpkg.URL) (*urlpkg.URL, *Response, error) {
-	return nil, nil, errors.New("no http in bootstrap go command")
+func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+	return nil, errors.New("no http in bootstrap go command")
 }
 
 func openBrowser(url string) bool { return false }

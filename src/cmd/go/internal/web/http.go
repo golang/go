@@ -49,7 +49,7 @@ var securityPreservingHTTPClient = &http.Client{
 	},
 }
 
-func get(security SecurityMode, url *urlpkg.URL) (*urlpkg.URL, *Response, error) {
+func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 	fetch := func(url *urlpkg.URL) (*urlpkg.URL, *http.Response, error) {
 		if cfg.BuildV {
 			log.Printf("Fetching %s", url)
@@ -90,7 +90,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*urlpkg.URL, *Response, error)
 			if security != Insecure || url.Scheme == "https" {
 				// HTTPS failed, and we can't fall back to plain HTTP.
 				// Report the error from the HTTPS attempt.
-				return nil, nil, err
+				return nil, err
 			}
 		}
 	}
@@ -99,42 +99,44 @@ func get(security SecurityMode, url *urlpkg.URL) (*urlpkg.URL, *Response, error)
 		switch url.Scheme {
 		case "http":
 			if security == SecureOnly {
-				return nil, nil, fmt.Errorf("URL %q is not secure", PasswordRedacted(url))
+				return nil, fmt.Errorf("insecure URL: %s", Redacted(url))
 			}
 		case "":
 			if security != Insecure {
 				panic("should have returned after HTTPS failure")
 			}
 		default:
-			return nil, nil, fmt.Errorf("unsupported scheme %s", url.Scheme)
+			return nil, fmt.Errorf("unsupported scheme: %s", Redacted(url))
 		}
 
 		insecure := new(urlpkg.URL)
 		*insecure = *url
 		insecure.Scheme = "http"
 		if insecure.User != nil && security != Insecure {
-			return nil, nil, fmt.Errorf("refusing to pass credentials to insecure URL %q", PasswordRedacted(insecure))
+			return nil, fmt.Errorf("refusing to pass credentials to insecure URL: %s", Redacted(insecure))
 		}
 
 		fetched, res, err = fetch(insecure)
 		if err != nil {
 			// HTTP failed, and we already tried HTTPS if applicable.
 			// Report the error from the HTTP attempt.
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
 	// Note: accepting a non-200 OK here, so people can serve a
 	// meta import in their http 404 page.
 	if cfg.BuildV {
-		log.Printf("Parsing meta tags from %s (status code %d)", PasswordRedacted(fetched), res.StatusCode)
+		log.Printf("Parsing meta tags from %s (status code %d)", Redacted(fetched), res.StatusCode)
 	}
-	return fetched, &Response{
+	r := &Response{
+		URL:        Redacted(fetched),
 		Status:     res.Status,
 		StatusCode: res.StatusCode,
 		Header:     map[string][]string(res.Header),
 		Body:       res.Body,
-	}, nil
+	}
+	return r, nil
 }
 
 func openBrowser(url string) bool { return browser.Open(url) }

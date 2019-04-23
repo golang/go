@@ -782,7 +782,7 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 	if err != nil {
 		return nil, err
 	}
-	url, resp, err := web.Get(security, url)
+	resp, err := web.Get(security, url)
 	if err != nil {
 		msg := "https fetch: %v"
 		if security == web.Insecure {
@@ -802,7 +802,7 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 		if _, ok := err.(ImportMismatchError); !ok {
 			return nil, fmt.Errorf("parse %s: %v", url, err)
 		}
-		return nil, fmt.Errorf("parse %s: no go-import meta tags (%s)", url, err)
+		return nil, fmt.Errorf("parse %s: no go-import meta tags (%s)", resp.URL, err)
 	}
 	if cfg.BuildV {
 		log.Printf("get %q: found meta tag %#v at %s", importPath, mmi, url)
@@ -817,7 +817,6 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 		if cfg.BuildV {
 			log.Printf("get %q: verifying non-authoritative meta tag", importPath)
 		}
-		url0 := *url
 		var imports []metaImport
 		url, imports, err = metaImportsForPrefix(mmi.Prefix, mod, security)
 		if err != nil {
@@ -825,16 +824,16 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 		}
 		metaImport2, err := matchGoImport(imports, importPath)
 		if err != nil || mmi != metaImport2 {
-			return nil, fmt.Errorf("%s and %s disagree about go-import for %s", &url0, url, mmi.Prefix)
+			return nil, fmt.Errorf("%s and %s disagree about go-import for %s", resp.URL, url, mmi.Prefix)
 		}
 	}
 
 	if err := validateRepoRoot(mmi.RepoRoot); err != nil {
-		return nil, fmt.Errorf("%s: invalid repo root %q: %v", url, mmi.RepoRoot, err)
+		return nil, fmt.Errorf("%s: invalid repo root %q: %v", resp.URL, mmi.RepoRoot, err)
 	}
 	vcs := vcsByCmd(mmi.VCS)
 	if vcs == nil && mmi.VCS != "mod" {
-		return nil, fmt.Errorf("%s: unknown vcs %q", url, mmi.VCS)
+		return nil, fmt.Errorf("%s: unknown vcs %q", resp.URL, mmi.VCS)
 	}
 
 	rr := &RepoRoot{
@@ -894,15 +893,15 @@ func metaImportsForPrefix(importPrefix string, mod ModuleMode, security web.Secu
 		if err != nil {
 			return setCache(fetchResult{err: err})
 		}
-		url, resp, err := web.Get(security, url)
+		resp, err := web.Get(security, url)
 		if err != nil {
-			return setCache(fetchResult{url: url, err: fmt.Errorf("fetch %s: %v", url, err)})
+			return setCache(fetchResult{url: url, err: fmt.Errorf("fetch %s: %v", resp.URL, err)})
 		}
 		body := resp.Body
 		defer body.Close()
 		imports, err := parseMetaGoImports(body, mod)
 		if err != nil {
-			return setCache(fetchResult{url: url, err: fmt.Errorf("parsing %s: %v", url, err)})
+			return setCache(fetchResult{url: url, err: fmt.Errorf("parsing %s: %v", resp.URL, err)})
 		}
 		if len(imports) == 0 {
 			err = fmt.Errorf("fetch %s: no go-import meta tag", url)
