@@ -189,13 +189,19 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			Errorf(s, "unreachable sym in relocation: %s", r.Sym.Name)
 		}
 
+		if ctxt.LinkMode == LinkExternal {
+			r.InitExt()
+		}
+
 		// TODO(mundaym): remove this special case - see issue 14218.
 		if ctxt.Arch.Family == sys.S390X {
 			switch r.Type {
 			case objabi.R_PCRELDBL:
+				r.InitExt()
 				r.Type = objabi.R_PCREL
 				r.Variant = sym.RV_390_DBL
 			case objabi.R_CALL:
+				r.InitExt()
 				r.Variant = sym.RV_390_DBL
 			}
 		}
@@ -499,8 +505,11 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			o = r.Add
 		}
 
-		if r.Variant != sym.RV_NONE {
-			o = thearch.Archrelocvariant(ctxt, r, s, o)
+		if ctxt.Arch.Family == sys.PPC64 || ctxt.Arch.Family == sys.S390X {
+			r.InitExt()
+			if r.Variant != sym.RV_NONE {
+				o = thearch.Archrelocvariant(ctxt, r, s, o)
+			}
 		}
 
 		if false {

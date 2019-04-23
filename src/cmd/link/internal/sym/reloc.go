@@ -22,15 +22,27 @@ import (
 //
 // Some relocations are created by cmd/link.
 type Reloc struct {
-	Off     int32            // offset to rewrite
-	Siz     uint8            // number of bytes to rewrite, 1, 2, or 4
-	Done    bool             // set to true when relocation is complete
-	Variant RelocVariant     // variation on Type
-	Type    objabi.RelocType // the relocation type
-	Add     int64            // addend
-	Xadd    int64            // addend passed to external linker
-	Sym     *Symbol          // symbol the relocation addresses
-	Xsym    *Symbol          // symbol passed to external linker
+	Off       int32            // offset to rewrite
+	Siz       uint8            // number of bytes to rewrite, 1, 2, or 4
+	Done      bool             // set to true when relocation is complete
+	Type      objabi.RelocType // the relocation type
+	Add       int64            // addend
+	Sym       *Symbol          // symbol the relocation addresses
+	*relocExt                  // extra fields (see below), may be nil, call InitExt before use
+}
+
+// relocExt contains extra fields in Reloc that are used only in
+// certain cases.
+type relocExt struct {
+	Xadd    int64        // addend passed to external linker
+	Xsym    *Symbol      // symbol passed to external linker
+	Variant RelocVariant // variation on Type, currently used only on PPC64 and S390X
+}
+
+func (r *Reloc) InitExt() {
+	if r.relocExt == nil {
+		r.relocExt = new(relocExt)
+	}
 }
 
 // RelocVariant is a linker-internal variation on a relocation.

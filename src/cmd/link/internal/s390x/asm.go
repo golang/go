@@ -104,6 +104,7 @@ func gentext(ctxt *ld.Link) {
 
 func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
+	r.InitExt()
 
 	switch r.Type {
 	default:

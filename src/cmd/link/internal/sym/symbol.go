@@ -211,6 +211,9 @@ func (s *Symbol) AddPCRelPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
 	r.Add = add
 	r.Type = objabi.R_PCREL
 	r.Siz = 4
+	if arch.Family == sys.S390X || arch.Family == sys.PPC64 {
+		r.InitExt()
+	}
 	if arch.Family == sys.S390X {
 		r.Variant = RV_390_DBL
 	}
