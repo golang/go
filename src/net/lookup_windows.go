@@ -101,7 +101,11 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 			Protocol: syscall.IPPROTO_IP,
 		}
 		var result *syscall.AddrinfoW
-		e := syscall.GetAddrInfoW(syscall.StringToUTF16Ptr(name), nil, &hints, &result)
+		name16p, err := syscall.UTF16PtrFromString(name)
+		if err != nil {
+			return nil, &DNSError{Name: name, Err: err.Error()}
+		}
+		e := syscall.GetAddrInfoW(name16p, nil, &hints, &result)
 		if e != nil {
 			err := winError("getaddrinfow", e)
 			dnsError := &DNSError{Err: err.Error(), Name: name}
