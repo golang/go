@@ -8,6 +8,7 @@ package run
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -131,10 +132,11 @@ func runRun(cmd *base.Command, args []string) {
 		}
 		base.Fatalf("go run: no suitable source files%s", hint)
 	}
+	p.Internal.ExeName = src[:len(src)-len(".go")] // set name of first go file as temporary executable name
 	if len(args) == 1 && args[0] == "." {
-		p.Internal.ExeName = p.Name // set name of package as temporary executable name
-	} else {
-		p.Internal.ExeName = src[:len(src)-len(".go")] // set name of first go file as temporary executable name
+		p.Internal.ExeName = p.Dir // set name of directory as temporary executable name
+	} else if len(args) == 1 && filepath.Ext(args[0]) == "" {
+		p.Internal.ExeName = p.Dir // set name of directoy as temporary executable name if args[0] is a directory.
 	}
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
 	a := &work.Action{Mode: "go run", Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
