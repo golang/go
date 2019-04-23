@@ -786,3 +786,41 @@ func TestListenConfigControl(t *testing.T) {
 		}
 	})
 }
+
+func TestListenConfigAfterBind(t *testing.T) {
+	if testableNetwork("unix") {
+		var errDial error
+
+		ln, err := (&ListenConfig{
+			AfterBind: func(network, address string, c syscall.RawConn) error {
+				var cn Conn
+				if cn, errDial = Dial(network, address); errDial == nil {
+					cn.Close()
+				}
+				return nil
+			},
+		}).Listen(context.Background(), "unix", testUnixAddr())
+
+		if err == nil {
+			ln.Close()
+
+			connRefused := false
+
+			if oe, ok := errDial.(*OpError); ok {
+				if se, ok := oe.Err.(*os.SyscallError); ok {
+					if en, ok := se.Err.(syscall.Errno); ok {
+						connRefused = se.Syscall == "connect" && en == syscall.ECONNREFUSED
+					}
+				}
+			}
+
+			if !connRefused {
+				t.Errorf(`got %#v; want a *net.OpError wrapping a &os.SyscallError{Syscall:"connect", Err:0x3d}`, errDial)
+			}
+		} else {
+			t.Error(err)
+		}
+	} else {
+		t.Skipf("not supported on %s-%s", runtime.GOOS, runtime.GOARCH)
+	}
+}
