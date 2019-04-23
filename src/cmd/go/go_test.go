@@ -4644,7 +4644,7 @@ func TestBuildTagsNoComma(t *testing.T) {
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.path("go"))
 	tg.run("build", "-tags", "tag1 tag2", "math")
-	tg.runFail("build", "-tags", "tag1,tag2", "math")
+	tg.runFail("build", "-tags", "tag1,tag2 tag3", "math")
 	tg.grepBoth("space-separated list contains comma", "-tags with a comma-separated list didn't error")
 }
 

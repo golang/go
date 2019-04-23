@@ -104,10 +104,12 @@ and test commands:
 		install and load all packages from dir instead of the usual locations.
 		For example, when building with a non-standard configuration,
 		use -pkgdir to keep generated packages in a separate location.
-	-tags 'tag list'
-		a space-separated list of build tags to consider satisfied during the
+	-tags tag,list
+		a comma-separated list of build tags to consider satisfied during the
 		build. For more information about build tags, see the description of
 		build constraints in the documentation for the go/build package.
+		(Earlier versions of Go used a space-separated list, and that form
+		is deprecated but still recognized.)
 	-trimpath
 		remove all file system paths from the resulting executable.
 		Instead of absolute file system paths, the recorded file names
@@ -233,13 +235,36 @@ func AddBuildFlags(cmd *base.Command) {
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
-	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
+	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
+}
+
+// tagsFlag is the implementation of the -tags flag.
+type tagsFlag []string
+
+func (v *tagsFlag) Set(s string) error {
+	// For compatibility with Go 1.12 and earlier, allow "-tags='a b c'" or even just "-tags='a'".
+	if strings.Contains(s, " ") || strings.Contains(s, "'") {
+		return (*base.StringsFlag)(v).Set(s)
+	}
+
+	// Split on commas, ignore empty strings.
+	*v = []string{}
+	for _, s := range strings.Split(s, ",") {
+		if s != "" {
+			*v = append(*v, s)
+		}
+	}
+	return nil
+}
+
+func (v *tagsFlag) String() string {
+	return "<TagsFlag>"
 }
 
 // fileExtSplit expects a filename and returns the name
