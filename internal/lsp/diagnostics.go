@@ -67,8 +67,7 @@ func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content str
 		}
 	}()
 
-	s.log.Debugf(ctx, "cacheAndDiagnose: done computing diagnostics for %s", uri)
-
+	s.log.Debugf(ctx, "cacheAndDiagnose: returned from diagnostics for %s", uri)
 	return nil
 }
 

@@ -36,13 +36,15 @@ func analyze(ctx context.Context, v View, pkgs []Package, analyzers []*analysis.
 				return nil, err
 			}
 			root.isroot = true
+			root.view = v
 			roots = append(roots, root)
 		}
 	}
 
 	// Execute the graph in parallel.
-	execAll(ctx, v.FileSet(), roots)
-
+	if err := execAll(ctx, v.FileSet(), roots); err != nil {
+		return nil, err
+	}
 	return roots, nil
 }
 
@@ -64,6 +66,7 @@ type Action struct {
 	diagnostics  []analysis.Diagnostic
 	err          error
 	duration     time.Duration
+	view         View
 }
 
 type objectFactKey struct {
@@ -85,22 +88,25 @@ func execAll(ctx context.Context, fset *token.FileSet, actions []*Action) error 
 	for _, act := range actions {
 		act := act
 		g.Go(func() error {
-			act.exec(ctx, fset)
-			return nil
+			return act.exec(ctx, fset)
 		})
 	}
 	return g.Wait()
 }
 
-func (act *Action) exec(ctx context.Context, fset *token.FileSet) {
+func (act *Action) exec(ctx context.Context, fset *token.FileSet) error {
+	var err error
 	act.once.Do(func() {
-		act.execOnce(ctx, fset)
+		err = act.execOnce(ctx, fset)
 	})
+	return err
 }
 
-func (act *Action) execOnce(ctx context.Context, fset *token.FileSet) {
+func (act *Action) execOnce(ctx context.Context, fset *token.FileSet) error {
 	// Analyze dependencies.
-	execAll(ctx, fset, act.Deps)
+	if err := execAll(ctx, fset, act.Deps); err != nil {
+		return err
+	}
 
 	// Report an error if any dependency failed.
 	var failed []string
@@ -112,7 +118,7 @@ func (act *Action) execOnce(ctx context.Context, fset *token.FileSet) {
 	if failed != nil {
 		sort.Strings(failed)
 		act.err = fmt.Errorf("failed prerequisites: %s", strings.Join(failed, ", "))
-		return
+		return act.err
 	}
 
 	// Plumb the output values of the dependencies
@@ -152,24 +158,24 @@ func (act *Action) execOnce(ctx context.Context, fset *token.FileSet) {
 	}
 	act.pass = pass
 
-	var err error
 	if len(act.Pkg.GetErrors()) > 0 && !pass.Analyzer.RunDespiteErrors {
-		err = fmt.Errorf("analysis skipped due to errors in package")
+		act.err = fmt.Errorf("analysis skipped due to errors in package")
 	} else {
-		act.result, err = pass.Analyzer.Run(pass)
-		if err == nil {
+		act.result, act.err = pass.Analyzer.Run(pass)
+		if act.err == nil {
 			if got, want := reflect.TypeOf(act.result), pass.Analyzer.ResultType; got != want {
-				err = fmt.Errorf(
+				act.err = fmt.Errorf(
 					"internal error: on package %s, analyzer %s returned a result of type %v, but declared ResultType %v",
 					pass.Pkg.Path(), pass.Analyzer, got, want)
 			}
 		}
 	}
-	act.err = err
 
 	// disallow calls after Run
 	pass.ExportObjectFact = nil
 	pass.ExportPackageFact = nil
+
+	return act.err
 }
 
 // inheritFacts populates act.facts with
