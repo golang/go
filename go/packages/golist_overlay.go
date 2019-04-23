@@ -105,6 +105,10 @@ func extractImports(filename string, contents []byte) ([]string, error) {
 	return res, nil
 }
 
+// extractPackage attempts to extract a package defined in an overlay.
+//
+// If the package has errors and has no Name, GoFiles, or Imports,
+// then it's possible that it doesn't yet exist on disk.
 func extractPackage(pkg *Package, filename string, contents []byte) bool {
 	// TODO(rstambler): Check the message of the actual error?
 	// It differs between $GOPATH and module mode.
@@ -124,10 +128,11 @@ func extractPackage(pkg *Package, filename string, contents []byte) bool {
 	if err != nil {
 		return false
 	}
+	// TODO(rstambler): This doesn't work for main packages.
 	if filepath.Base(pkg.PkgPath) != f.Name.Name {
 		return false
 	}
 	pkg.Name = f.Name.Name
-	pkg.Errors = []Error{}
+	pkg.Errors = nil
 	return true
 }
