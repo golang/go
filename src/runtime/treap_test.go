@@ -58,11 +58,7 @@ func TestTreap(t *testing.T) {
 		}
 		tr.RemoveSpan(spans[0])
 	})
-	t.Run("Find", func(t *testing.T) {
-		// Note that Find doesn't actually find the best-fit
-		// element, so just make sure it always returns an element
-		// that is at least large enough to satisfy the request.
-		//
+	t.Run("FindBestFit", func(t *testing.T) {
 		// Run this 10 times, recreating the treap each time.
 		// Because of the non-deterministic structure of a treap,
 		// we'll be able to test different structures this way.
@@ -72,8 +68,10 @@ func TestTreap(t *testing.T) {
 				tr.Insert(s)
 			}
 			i := tr.Find(5)
-			if i.Span().Pages() < 5 {
-				t.Fatalf("expected span of size at least 5, got size %d", i.Span().Pages())
+			if i.Span().Pages() != 5 {
+				t.Fatalf("expected span of size 5, got span of size %d", i.Span().Pages())
+			} else if i.Span().Base() != 0xc0040000 {
+				t.Fatalf("expected span to have the lowest base address, instead got base %x", i.Span().Base())
 			}
 			for _, s := range spans {
 				tr.RemoveSpan(s)
