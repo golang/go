@@ -89,7 +89,8 @@ type acceptRange struct {
 	hi uint8 // highest value for second byte.
 }
 
-var acceptRanges = [...]acceptRange{
+// acceptRanges has size 16 to avoid bounds checks in the code that uses it.
+var acceptRanges = [16]acceptRange{
 	0: {locb, hicb},
 	1: {0xA0, hicb},
 	2: {locb, 0x9F},
