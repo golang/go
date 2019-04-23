@@ -124,11 +124,11 @@ func newProxyRepo(baseURL, path string) (Repo, error) {
 	switch url.Scheme {
 	case "file":
 		if *url != (urlpkg.URL{Scheme: url.Scheme, Path: url.Path, RawPath: url.RawPath}) {
-			return nil, fmt.Errorf("proxy URL %q uses file scheme with non-path elements", web.PasswordRedacted(url))
+			return nil, fmt.Errorf("proxy URL %q uses file scheme with non-path elements", web.Redacted(url))
 		}
 	case "http", "https":
 	case "":
-		return nil, fmt.Errorf("proxy URL %q missing scheme", web.PasswordRedacted(url))
+		return nil, fmt.Errorf("proxy URL %q missing scheme", web.Redacted(url))
 	default:
 		return nil, fmt.Errorf("unsupported proxy scheme %q", url.Scheme)
 	}
@@ -171,12 +171,12 @@ func (p *proxyRepo) getBody(path string) (io.ReadCloser, error) {
 	url.Path = fullPath
 	url.RawPath = pathpkg.Join(url.RawPath, pathEscape(path))
 
-	_, resp, err := web.Get(web.DefaultSecurity, url)
+	resp, err := web.Get(web.DefaultSecurity, url)
 	if err != nil {
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected status (%s): %v", web.PasswordRedacted(url), resp.Status)
+		return nil, fmt.Errorf("unexpected status (%s): %v", web.Redacted(url), resp.Status)
 	}
 	return resp.Body, nil
 }
