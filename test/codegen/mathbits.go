@@ -410,24 +410,32 @@ func AddM(p, q, r *[3]uint) {
 func Add64(x, y, ci uint64) (r, co uint64) {
 	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+	// ppc64: "ADDC", "ADDE", "ADDZE"
+	// ppc64le: "ADDC", "ADDE", "ADDZE"
 	return bits.Add64(x, y, ci)
 }
 
 func Add64C(x, ci uint64) (r, co uint64) {
 	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+	// ppc64: "ADDC", "ADDE", "ADDZE"
+	// ppc64le: "ADDC", "ADDE", "ADDZE"
 	return bits.Add64(x, 7, ci)
 }
 
 func Add64Z(x, y uint64) (r, co uint64) {
 	// arm64:"ADDS","ADC",-"ADCS",-"ADD\t",-"CMP"
 	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
+	// ppc64: "ADDC", "ADDE", "ADDZE"
+	// ppc64le: "ADDC", "ADDE", "ADDZE"
 	return bits.Add64(x, y, 0)
 }
 
 func Add64R(x, y, ci uint64) uint64 {
 	// arm64:"ADDS","ADCS",-"ADD\t",-"CMP"
 	// amd64:"NEGL","ADCQ",-"SBBQ",-"NEGQ"
+	// ppc64: "ADDC", "ADDE", "ADDZE"
+	// ppc64le: "ADDC", "ADDE", "ADDZE"
 	r, _ := bits.Add64(x, y, ci)
 	return r
 }
@@ -436,6 +444,8 @@ func Add64M(p, q, r *[3]uint64) {
 	r[0], c = bits.Add64(p[0], q[0], c)
 	// arm64:"ADCS",-"ADD\t",-"CMP"
 	// amd64:"ADCQ",-"NEGL",-"SBBQ",-"NEGQ"
+	// ppc64: "ADDC", "ADDE", "ADDZE"
+	// ppc64le: "ADDC", "ADDE", "ADDZE"
 	r[1], c = bits.Add64(p[1], q[1], c)
 	r[2], c = bits.Add64(p[2], q[2], c)
 }

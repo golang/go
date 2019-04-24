@@ -23,6 +23,7 @@
 // (x + y) / 2 with x>=y -> (x - y) / 2 + y
 (Avg64u <t> x y) -> (ADD (SRDconst <t> (SUB <t> x y) [1]) y)
 
+(Add64carry x y c) -> (LoweredAdd64Carry x y c)
 (Mul64  x y) -> (MULLD  x y)
 (Mul(32|16|8)  x y) -> (MULLW  x y)
 (Mul64uhilo x y) -> (LoweredMuluhilo x y)

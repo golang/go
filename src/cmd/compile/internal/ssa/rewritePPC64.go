@@ -29,6 +29,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpAdd64_0(v)
 	case OpAdd64F:
 		return rewriteValuePPC64_OpAdd64F_0(v)
+	case OpAdd64carry:
+		return rewriteValuePPC64_OpAdd64carry_0(v)
 	case OpAdd8:
 		return rewriteValuePPC64_OpAdd8_0(v)
 	case OpAddPtr:
@@ -783,6 +785,21 @@ func rewriteValuePPC64_OpAdd64F_0(v *Value) bool {
 		v.reset(OpPPC64FADD)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValuePPC64_OpAdd64carry_0(v *Value) bool {
+	// match: (Add64carry x y c)
+	// cond:
+	// result: (LoweredAdd64Carry x y c)
+	for {
+		c := v.Args[2]
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpPPC64LoweredAdd64Carry)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(c)
 		return true
 	}
 }
