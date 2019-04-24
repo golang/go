@@ -176,13 +176,26 @@ func Pow2Mods(n1 uint, n2 int) (uint, int) {
 	// ppc64le:"ANDCC\t[$]31"
 	a := n1 % 32 // unsigned
 
-	// 386:-"IDIVL"
-	// amd64:-"IDIVQ"
-	// arm:-".*udiv"
-	// arm64:-"REM"
+	// 386:"SHRL",-"IDIVL"
+	// amd64:"SHRQ",-"IDIVQ"
+	// arm:"SRA",-".*udiv"
+	// arm64:"ASR",-"REM"
+	// ppc64:"SRAD"
+	// ppc64le:"SRAD"
 	b := n2 % 64 // signed
 
 	return a, b
+}
+
+// Check that signed divisibility checks get converted to AND on low bits
+func Pow2DivisibleSigned(n int) bool {
+	// 386:"TESTL\t[$]63",-"DIVL",-"SHRL"
+	// amd64:"TESTQ\t[$]63",-"DIVQ",-"SHRQ"
+	// arm:"AND\t[$]63",-".*udiv",-"SRA"
+	// arm64:"AND\t[$]63",-"UDIV",-"ASR"
+	// ppc64:"ANDCC\t[$]63",-"SRAD"
+	// ppc64le:"ANDCC\t[$]63",-"SRAD"
+	return n%64 == 0 // signed
 }
 
 // Check that constant modulo divs get turned into MULs
