@@ -1058,7 +1058,7 @@ func (w *response) Header() Header {
 		// Accessing the header between logically writing it
 		// and physically writing it means we need to allocate
 		// a clone to snapshot the logically written state.
-		w.cw.header = w.handlerHeader.clone()
+		w.cw.header = w.handlerHeader.Clone()
 	}
 	w.calledHeader = true
 	return w.handlerHeader
@@ -1127,7 +1127,7 @@ func (w *response) WriteHeader(code int) {
 	w.status = code
 
 	if w.calledHeader && w.cw.header == nil {
-		w.cw.header = w.handlerHeader.clone()
+		w.cw.header = w.handlerHeader.Clone()
 	}
 
 	if cl := w.handlerHeader.get("Content-Length"); cl != "" {
