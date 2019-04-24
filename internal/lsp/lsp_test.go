@@ -165,7 +165,6 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, items tests.Co
 			t.Errorf("%s: %s", src, diff)
 		}
 	}
-
 	// Make sure we don't crash completing the first position in file set.
 	firstFile := r.data.Config.Fset.Position(1).Filename
 

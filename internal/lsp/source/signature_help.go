@@ -59,11 +59,11 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInform
 		return nil, fmt.Errorf("cannot find signature for Fun %[1]T (%[1]v)", callExpr.Fun)
 	}
 
-	pkgStringer := qualifier(fAST, pkg.GetTypes(), pkg.GetTypesInfo())
+	qf := qualifier(fAST, pkg.GetTypes(), pkg.GetTypesInfo())
 	var paramInfo []ParameterInformation
 	for i := 0; i < sig.Params().Len(); i++ {
 		param := sig.Params().At(i)
-		label := types.TypeString(param.Type(), pkgStringer)
+		label := types.TypeString(param.Type(), qf)
 		if sig.Variadic() && i == sig.Params().Len()-1 {
 			label = strings.Replace(label, "[]", "...", 1)
 		}
@@ -112,9 +112,9 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInform
 		label = "func"
 	}
 
-	label += formatParams(sig.Params(), sig.Variadic(), pkgStringer)
+	label += formatParams(sig, qf)
 	if sig.Results().Len() > 0 {
-		results := types.TypeString(sig.Results(), pkgStringer)
+		results := types.TypeString(sig.Results(), qf)
 		if sig.Results().Len() == 1 && sig.Results().At(0).Name() == "" {
 			// Trim off leading/trailing parens to avoid results like "foo(a int) (int)".
 			results = strings.Trim(results, "()")
