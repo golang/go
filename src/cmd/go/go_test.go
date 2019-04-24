@@ -3176,6 +3176,12 @@ func TestGoTestFooTestWorks(t *testing.T) {
 	tg.run("test", "testdata/standalone_test.go")
 }
 
+func TestGoTestTestMainSeesTestingFlags(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "testdata/standalone_testmain_flag_test.go")
+}
+
 // Issue 22388
 func TestGoTestMainWithWrongSignature(t *testing.T) {
 	tg := testgo(t)

@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	// Make benchmark tests run 10* faster.
+	// Make benchmark tests run 10x faster.
 	benchTime.d = 100 * time.Millisecond
 }
 
