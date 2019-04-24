@@ -57,6 +57,10 @@ func (r *runner) Signature(t *testing.T, data tests.Signatures) {
 	//TODO: add command line signature tests when it works
 }
 
+func (r *runner) Link(t *testing.T, data tests.Links) {
+	//TODO: add command line link tests when it works
+}
+
 func captureStdOut(t testing.TB, f func()) string {
 	r, out, err := os.Pipe()
 	if err != nil {

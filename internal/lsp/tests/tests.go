@@ -36,6 +36,7 @@ const (
 	ExpectedSymbolsCount           = 1
 	ExpectedSignaturesCount        = 19
 	ExpectedCompletionSnippetCount = 9
+	ExpectedLinksCount             = 2
 )
 
 const (
@@ -57,6 +58,7 @@ type Highlights map[string][]span.Span
 type Symbols map[span.URI][]source.Symbol
 type SymbolsChildren map[string][]source.Symbol
 type Signatures map[span.Span]source.SignatureInformation
+type Links map[span.URI][]Link
 
 type Data struct {
 	Config             packages.Config
@@ -71,6 +73,7 @@ type Data struct {
 	Symbols            Symbols
 	symbolsChildren    SymbolsChildren
 	Signatures         Signatures
+	Links              Links
 
 	t         testing.TB
 	fragments map[string]string
@@ -85,6 +88,7 @@ type Tests interface {
 	Highlight(*testing.T, Highlights)
 	Symbol(*testing.T, Symbols)
 	Signature(*testing.T, Signatures)
+	Link(*testing.T, Links)
 }
 
 type Definition struct {
@@ -101,6 +105,11 @@ type CompletionSnippet struct {
 	PlaceholderSnippet string
 }
 
+type Link struct {
+	Src    span.Span
+	Target string
+}
+
 func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 	t.Helper()
 
@@ -114,6 +123,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		Symbols:            make(Symbols),
 		symbolsChildren:    make(SymbolsChildren),
 		Signatures:         make(Signatures),
+		Links:              make(Links),
 
 		t:         t,
 		dir:       dir,
@@ -180,6 +190,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		"symbol":    data.collectSymbols,
 		"signature": data.collectSignatures,
 		"snippet":   data.collectCompletionSnippets,
+		"link":      data.collectLinks,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -263,6 +274,18 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Errorf("got %v signatures expected %v", len(data.Signatures), ExpectedSignaturesCount)
 		}
 		tests.Signature(t, data.Signatures)
+	})
+
+	t.Run("Links", func(t *testing.T) {
+		t.Helper()
+		linksCount := 0
+		for _, want := range data.Links {
+			linksCount += len(want)
+		}
+		if linksCount != ExpectedLinksCount {
+			t.Errorf("got %v links expected %v", linksCount, ExpectedLinksCount)
+		}
+		tests.Link(t, data.Links)
 	})
 }
 
@@ -378,4 +401,12 @@ func (data *Data) collectCompletionSnippets(spn span.Span, item token.Pos, plain
 		PlainSnippet:       plain,
 		PlaceholderSnippet: placeholder,
 	}
+}
+
+func (data *Data) collectLinks(spn span.Span, link string) {
+	uri := spn.URI()
+	data.Links[uri] = append(data.Links[uri], Link{
+		Src:    spn,
+		Target: link,
+	})
 }

@@ -536,6 +536,41 @@ func diffSignatures(spn span.Span, want source.SignatureInformation, got *protoc
 	return ""
 }
 
+func (r *runner) Link(t *testing.T, data tests.Links) {
+	for uri, wantLinks := range data {
+		m := r.mapper(uri)
+		gotLinks, err := r.server.DocumentLink(context.Background(), &protocol.DocumentLinkParams{
+			TextDocument: protocol.TextDocumentIdentifier{
+				URI: protocol.NewURI(uri),
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		links := make(map[span.Span]string, len(wantLinks))
+		for _, link := range wantLinks {
+			links[link.Src] = link.Target
+		}
+		for _, link := range gotLinks {
+			spn, err := m.RangeSpan(link.Range)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if target, ok := links[spn]; ok {
+				delete(links, spn)
+				if target != link.Target {
+					t.Errorf("for %v want %v, got %v\n", spn, link.Target, target)
+				}
+			} else {
+				t.Errorf("unexpected link %v:%v\n", spn, link.Target)
+			}
+		}
+		for spn, target := range links {
+			t.Errorf("missing link %v:%v\n", spn, target)
+		}
+	}
+}
+
 func (r *runner) mapper(uri span.URI) *protocol.ColumnMapper {
 	fname, err := uri.Filename()
 	if err != nil {
