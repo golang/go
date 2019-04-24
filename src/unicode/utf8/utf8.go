@@ -25,25 +25,25 @@ const (
 )
 
 const (
-	t1 = 0x00 // 0000 0000
-	tx = 0x80 // 1000 0000
-	t2 = 0xC0 // 1100 0000
-	t3 = 0xE0 // 1110 0000
-	t4 = 0xF0 // 1111 0000
-	t5 = 0xF8 // 1111 1000
+	t1 = 0b00000000
+	tx = 0b10000000
+	t2 = 0b11000000
+	t3 = 0b11100000
+	t4 = 0b11110000
+	t5 = 0b11111000
 
-	maskx = 0x3F // 0011 1111
-	mask2 = 0x1F // 0001 1111
-	mask3 = 0x0F // 0000 1111
-	mask4 = 0x07 // 0000 0111
+	maskx = 0b00111111
+	mask2 = 0b00011111
+	mask3 = 0b00001111
+	mask4 = 0b00000111
 
 	rune1Max = 1<<7 - 1
 	rune2Max = 1<<11 - 1
 	rune3Max = 1<<16 - 1
 
 	// The default lowest and highest continuation byte.
-	locb = 0x80 // 1000 0000
-	hicb = 0xBF // 1011 1111
+	locb = 0b10000000
+	hicb = 0b10111111
 
 	// These names of these constants are chosen to give nice alignment in the
 	// table below. The first nibble is an index into acceptRanges or F for
