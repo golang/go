@@ -1,7 +1,8 @@
+env GO111MODULE=on
 # Check for correct naming of temporary executable
 
 #Test for single file specified
-cd m/x/y/z/
+cd x/y/z
 go run foo.go
 stderr 'foo'
 
@@ -23,7 +24,7 @@ func main() {
 	println(filepath.Base(os.Args[0]))
 }
 
--- m/x/y/z/foo.go --
+-- x/y/z/foo.go --
 package main
 import(
 	"os"
@@ -33,7 +34,7 @@ func main() {
 	println(filepath.Base(os.Args[0]))
 }
 
--- m/x/y/z/foo.go --
+-- x/y/z/foo.go --
 package main
 import(
 	"os"
@@ -43,3 +44,5 @@ func main() {
 	println(filepath.Base(os.Args[0]))
 }
 
+-- go.mod --
+module m
