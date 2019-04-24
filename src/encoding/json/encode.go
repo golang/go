@@ -337,7 +337,7 @@ func isEmptyStruct(v reflect.Value) bool {
 	vType := v.Type()
 	for i := 0; i < v.NumField(); i++ {
 		typField := vType.Field(i)
-		tag := typField.Tag.Get("xml")
+		tag := typField.Tag.Get("json")
 
 		if tag != "-" && !strings.Contains(tag, "omitempty") {
 			return false
