@@ -194,10 +194,6 @@ func TestDisasmExtld(t *testing.T) {
 	case "s390x":
 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
 	}
-	// TODO(jsing): Reenable once openbsd/arm has external linking support.
-	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
-		t.Skip("skipping on openbsd/arm, no support for external linking, issue 10619")
-	}
 	if !build.Default.CgoEnabled {
 		t.Skip("skipping because cgo is not enabled")
 	}
