@@ -91,7 +91,13 @@ func (v *View) checkMetadata(ctx context.Context, f *File) ([]packages.Error, er
 			if err == nil {
 				err = fmt.Errorf("no packages found for %s", f.filename)
 			}
-			return nil, err
+			// Return this error as a diagnostic to the user.
+			return []packages.Error{
+				{
+					Msg:  err.Error(),
+					Kind: packages.ListError,
+				},
+			}, err
 		}
 		for _, pkg := range pkgs {
 			// If the package comes back with errors from `go list`, don't bother
