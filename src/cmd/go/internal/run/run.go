@@ -8,6 +8,7 @@ package run
 import (
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -94,10 +95,10 @@ func runRun(cmd *base.Command, args []string) {
 		base.Fatalf("go run: no go files listed")
 	}
 	cmdArgs := args[i:]
-
 	if p.Error != nil {
 		base.Fatalf("%s", p.Error)
 	}
+
 	p.Internal.OmitDebug = true
 	if len(p.DepsErrors) > 0 {
 		// Since these are errors in dependencies,
@@ -117,21 +118,26 @@ func runRun(cmd *base.Command, args []string) {
 		base.Fatalf("go run: cannot run non-main package")
 	}
 	p.Target = "" // must build - not up to date
-	var src string
-	if len(p.GoFiles) > 0 {
-		src = p.GoFiles[0]
-	} else if len(p.CgoFiles) > 0 {
-		src = p.CgoFiles[0]
-	} else {
-		// this case could only happen if the provided source uses cgo
-		// while cgo is disabled.
-		hint := ""
-		if !cfg.BuildContext.CgoEnabled {
-			hint = " (cgo is disabled)"
+	if p.Internal.CmdlineFiles {
+		//set executable name if go file is given as cmd-argument
+		var src string
+		if len(p.GoFiles) > 0 {
+			src = p.GoFiles[0]
+		} else if len(p.CgoFiles) > 0 {
+			src = p.CgoFiles[0]
+		} else {
+			// this case could only happen if the provided source uses cgo
+			// while cgo is disabled.
+			hint := ""
+			if !cfg.BuildContext.CgoEnabled {
+				hint = " (cgo is disabled)"
+			}
+			base.Fatalf("go run: no suitable source files%s", hint)
 		}
-		base.Fatalf("go run: no suitable source files%s", hint)
+		p.Internal.ExeName = src[:len(src)-len(".go")]
+	} else {
+		p.Internal.ExeName = path.Base(p.ImportPath)
 	}
-	p.Internal.ExeName = src[:len(src)-len(".go")] // name temporary executable for first go file
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
 	a := &work.Action{Mode: "go run", Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
 	b.Do(a)
