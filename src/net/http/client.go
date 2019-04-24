@@ -238,7 +238,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 		username := u.Username()
 		password, _ := u.Password()
 		forkReq()
-		req.Header = ireq.Header.clone()
+		req.Header = ireq.Header.Clone()
 		req.Header.Set("Authorization", "Basic "+basicAuth(username, password))
 	}
 
@@ -668,7 +668,7 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
 	// The headers to copy are from the very initial request.
 	// We use a closured callback to keep a reference to these original headers.
 	var (
-		ireqhdr  = ireq.Header.clone()
+		ireqhdr  = ireq.Header.Clone()
 		icookies map[string][]*Cookie
 	)
 	if c.Jar != nil && ireq.Header.Get("Cookie") != "" {

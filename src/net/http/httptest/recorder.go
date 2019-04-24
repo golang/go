@@ -127,17 +127,7 @@ func (rw *ResponseRecorder) WriteHeader(code int) {
 	if rw.HeaderMap == nil {
 		rw.HeaderMap = make(http.Header)
 	}
-	rw.snapHeader = cloneHeader(rw.HeaderMap)
-}
-
-func cloneHeader(h http.Header) http.Header {
-	h2 := make(http.Header, len(h))
-	for k, vv := range h {
-		vv2 := make([]string, len(vv))
-		copy(vv2, vv)
-		h2[k] = vv2
-	}
-	return h2
+	rw.snapHeader = rw.HeaderMap.Clone()
 }
 
 // Flush sets rw.Flushed to true.
@@ -168,7 +158,7 @@ func (rw *ResponseRecorder) Result() *http.Response {
 		return rw.result
 	}
 	if rw.snapHeader == nil {
-		rw.snapHeader = cloneHeader(rw.HeaderMap)
+		rw.snapHeader = rw.HeaderMap.Clone()
 	}
 	res := &http.Response{
 		Proto:      "HTTP/1.1",
