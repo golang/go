@@ -161,23 +161,23 @@ func DecodeRune(p []byte) (r rune, size int) {
 		mask := rune(x) << 31 >> 31 // Create 0x0000 or 0xFFFF.
 		return rune(p[0])&^mask | RuneError&mask, 1
 	}
-	sz := x & 7
+	sz := int(x & 7)
 	accept := acceptRanges[x>>4]
-	if n < int(sz) {
+	if n < sz {
 		return RuneError, 1
 	}
 	b1 := p[1]
 	if b1 < accept.lo || accept.hi < b1 {
 		return RuneError, 1
 	}
-	if sz == 2 {
+	if sz <= 2 { // <= instead of == to help the compiler eliminate some bounds checks
 		return rune(p0&mask2)<<6 | rune(b1&maskx), 2
 	}
 	b2 := p[2]
 	if b2 < locb || hicb < b2 {
 		return RuneError, 1
 	}
-	if sz == 3 {
+	if sz <= 3 {
 		return rune(p0&mask3)<<12 | rune(b1&maskx)<<6 | rune(b2&maskx), 3
 	}
 	b3 := p[3]
@@ -209,23 +209,23 @@ func DecodeRuneInString(s string) (r rune, size int) {
 		mask := rune(x) << 31 >> 31 // Create 0x0000 or 0xFFFF.
 		return rune(s[0])&^mask | RuneError&mask, 1
 	}
-	sz := x & 7
+	sz := int(x & 7)
 	accept := acceptRanges[x>>4]
-	if n < int(sz) {
+	if n < sz {
 		return RuneError, 1
 	}
 	s1 := s[1]
 	if s1 < accept.lo || accept.hi < s1 {
 		return RuneError, 1
 	}
-	if sz == 2 {
+	if sz <= 2 { // <= instead of == to help the compiler eliminate some bounds checks
 		return rune(s0&mask2)<<6 | rune(s1&maskx), 2
 	}
 	s2 := s[2]
 	if s2 < locb || hicb < s2 {
 		return RuneError, 1
 	}
-	if sz == 3 {
+	if sz <= 3 {
 		return rune(s0&mask3)<<12 | rune(s1&maskx)<<6 | rune(s2&maskx), 3
 	}
 	s3 := s[3]
