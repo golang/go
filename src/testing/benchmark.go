@@ -21,13 +21,18 @@ import (
 	"unicode"
 )
 
-var matchBenchmarks = flag.String("test.bench", "", "run only benchmarks matching `regexp`")
-var benchTime = benchTimeFlag{d: 1 * time.Second}
-var benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
-
-func init() {
+func initBenchmarkFlags() {
+	matchBenchmarks = flag.String("test.bench", "", "run only benchmarks matching `regexp`")
+	benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
 	flag.Var(&benchTime, "test.benchtime", "run each benchmark for duration `d`")
 }
+
+var (
+	matchBenchmarks *string
+	benchmarkMemory *bool
+
+	benchTime = benchTimeFlag{d: 1 * time.Second} // changed during test of testing package
+)
 
 type benchTimeFlag struct {
 	d time.Duration
@@ -754,6 +759,9 @@ func (b *B) SetParallelism(p int) {
 
 // Benchmark benchmarks a single function. It is useful for creating
 // custom benchmarks that do not use the "go test" command.
+//
+// If f depends on testing flags, then Init must be used to register
+// those flags before calling Benchmark and before calling flag.Parse.
 //
 // If f calls Run, the result will be an estimate of running all its
 // subbenchmarks that don't call Run in sequence in a single benchmark.
