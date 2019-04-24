@@ -1278,6 +1278,9 @@ func (s *InitSchedule) initplan(n *Node) {
 			if a.Op != OSTRUCTKEY {
 				Fatalf("initplan structlit")
 			}
+			if a.Sym.IsBlank() {
+				continue
+			}
 			s.addvalue(p, a.Xoffset, a.Left)
 		}
 
