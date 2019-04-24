@@ -1098,6 +1098,12 @@ func shrinkstack(gp *g) {
 	if gstatus&_Gscan == 0 {
 		throw("bad status in shrinkstack")
 	}
+	// Check for self-shrinks while in a libcall. These may have
+	// pointers into the stack disguised as uintptrs, but these
+	// code paths should all be nosplit.
+	if gp == getg().m.curg && gp.m.libcallsp != 0 {
+		throw("shrinking stack in libcall")
+	}
 
 	if debug.gcshrinkstackoff > 0 {
 		return
@@ -1129,9 +1135,6 @@ func shrinkstack(gp *g) {
 	// We can't copy the stack if we're in a syscall.
 	// The syscall might have pointers into the stack.
 	if gp.syscallsp != 0 {
-		return
-	}
-	if sys.GoosWindows != 0 && gp.m != nil && gp.m.libcallsp != 0 {
 		return
 	}
 
