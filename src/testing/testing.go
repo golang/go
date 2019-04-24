@@ -1287,7 +1287,7 @@ func (m *M) writeProfiles() {
 			os.Exit(2)
 		}
 		if err = m.deps.WriteProfileTo("mutex", f, 0); err != nil {
-			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *blockProfile, err)
+			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *mutexProfile, err)
 			os.Exit(2)
 		}
 		f.Close()
