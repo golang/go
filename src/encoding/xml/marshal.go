@@ -1042,6 +1042,26 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Float() == 0
 	case reflect.Interface, reflect.Ptr:
 		return v.IsNil()
+	case reflect.Struct:
+		return isEmptyStruct(v)
 	}
 	return false
+}
+
+func isEmptyStruct(v reflect.Value) bool {
+	vType := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		typField := vType.Field(i)
+		tag := typField.Tag.Get("xml")
+
+		if tag != "-" && tag != ",chardata" && !strings.Contains(tag, "omitempty") {
+			return false
+		}
+
+		valField := v.Field(i)
+		if !isEmptyValue(valField) {
+			return false
+		}
+	}
+	return true;
 }
