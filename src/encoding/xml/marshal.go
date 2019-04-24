@@ -931,7 +931,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 				return err
 			}
 			if len(finfo.parents) > len(s.stack) {
-				if vf.Kind() != reflect.Ptr && vf.Kind() != reflect.Interface || !vf.IsNil() {
+				if finfo.flags&fOmitEmpty == 0 || !isEmptyValue(vf) {
 					if err := s.push(finfo.parents[len(s.stack):]); err != nil {
 						return err
 					}
