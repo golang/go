@@ -37,17 +37,12 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-8
 	MOVD gobuf_g(R0), g
 	MOVD gobuf_sp(R0), SP
 
+	// Put target PC at -8(SP), wasm_pc_f_loop will pick it up
+	Get SP
+	I32Const $8
+	I32Sub
 	I64Load gobuf_pc(R0)
-	I32WrapI64
-	I32Const $16
-	I32ShrU
-	Set PC_F
-
-	I64Load gobuf_pc(R0)
-	I64Const $0xFFFF
-	I64And
-	I32WrapI64
-	Set PC_B
+	I64Store $0
 
 	MOVD gobuf_ret(R0), RET0
 	MOVD gobuf_ctxt(R0), CTXT
