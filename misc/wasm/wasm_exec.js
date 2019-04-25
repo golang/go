@@ -415,9 +415,13 @@
 			let offset = 4096;
 
 			const strPtr = (str) => {
-				let ptr = offset;
-				new Uint8Array(mem.buffer, offset, str.length + 1).set(encoder.encode(str + "\0"));
-				offset += str.length + (8 - (str.length % 8));
+				const ptr = offset;
+				const bytes = encoder.encode(str + "\0");
+				new Uint8Array(mem.buffer, offset, bytes.length).set(bytes);
+				offset += bytes.length;
+				if (offset % 8 !== 0) {
+					offset += 8 - (offset % 8);
+				}
 				return ptr;
 			};
 
