@@ -930,6 +930,11 @@ var pathEscapeTests = []EscapeTest{
 		nil,
 	},
 	{
+		"a/b",
+		"a%2Fb",
+		nil,
+	},
+	{
 		"one two",
 		"one%20two",
 		nil,
