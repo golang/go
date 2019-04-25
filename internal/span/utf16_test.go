@@ -5,14 +5,11 @@
 package span_test
 
 import (
-	"flag"
 	"strings"
 	"testing"
 
 	"golang.org/x/tools/internal/span"
 )
-
-var b31341 = flag.Bool("b31341", false, "Test for issue 31341")
 
 // The funny character below is 4 bytes long in UTF-8; two UTF-16 code points
 var funnyString = []byte(`
@@ -90,14 +87,6 @@ var toUTF16Tests = []struct {
 		post:        "",
 	},
 	{
-		scenario: "cursor beyond last character on first line",
-		input:    funnyString,
-		line:     1,
-		col:      7,  // 4 + 1 + 1 + 1 (1-indexed)
-		offset:   13, // 4 + 1 + 1
-		err:      "ToUTF16Column: length of line (6) is less than column (7)",
-	},
-	{
 		scenario:    "cursor before funny character; second line",
 		input:       funnyString,
 		line:        2,
@@ -126,7 +115,6 @@ var toUTF16Tests = []struct {
 		resUTF16col: 5,  // 2 + 1 + 1 + 1 (1-indexed)
 		pre:         "𐐀45",
 		post:        "",
-		issue:       b31341,
 	},
 	{
 		scenario: "cursor beyond end of file",

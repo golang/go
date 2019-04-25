@@ -40,9 +40,6 @@ func ToUTF16Column(p Point, content []byte) (int, error) {
 	start := content[lineOffset:]
 
 	// Now, truncate down to the supplied column.
-	if col > len(start) { // col is 1-indexed
-		return -1, fmt.Errorf("ToUTF16Column: length of line (%v) is less than column (%v)", len(start), col)
-	}
 	start = start[:col]
 	// and count the number of utf16 characters
 	// in theory we could do this by hand more efficiently...
