@@ -14,7 +14,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"strings"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -102,13 +101,6 @@ func (modules) Finalize(exported *Exported) error {
 			return fmt.Errorf("creating module proxy dir for %v: %v", module, err)
 		}
 	}
-	proxyURL := filepath.ToSlash(proxyDir)
-	if !strings.HasPrefix(proxyURL, "/") {
-		// Windows paths will look like C:/foo/bar. In the URL, the C: will be
-		// interpreted as the host, so add a leading /. See golang.org/issue/6027.
-		proxyURL = "/" + proxyURL
-	}
-	proxyURL = "file://" + proxyURL
 
 	// Discard the original mod cache dir, which contained the files written
 	// for us by Export.
@@ -118,7 +110,7 @@ func (modules) Finalize(exported *Exported) error {
 	exported.Config.Env = append(exported.Config.Env,
 		"GO111MODULE=on",
 		"GOPATH="+filepath.Join(exported.temp, "modcache"),
-		"GOPROXY=file://"+filepath.ToSlash(proxyDir))
+		"GOPROXY="+proxyDirToURL(proxyDir))
 
 	// Run go mod download to recreate the mod cache dir with all the extra
 	// stuff in cache. All the files created by Export should be recreated.

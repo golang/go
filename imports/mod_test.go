@@ -519,7 +519,7 @@ func setup(t *testing.T, main, wd string) *modTest {
 		GOROOT:      build.Default.GOROOT,
 		GOPATH:      filepath.Join(dir, "gopath"),
 		GO111MODULE: "on",
-		GOPROXY:     "file://" + filepath.ToSlash(proxyDir),
+		GOPROXY:     proxyDirToURL(proxyDir),
 		WorkingDir:  filepath.Join(mainDir, wd),
 	}
 
