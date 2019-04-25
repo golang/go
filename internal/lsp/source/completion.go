@@ -239,6 +239,10 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 	}
 	scopes = append(scopes, pkg.Scope(), types.Universe)
 
+	// Track seen variables to avoid showing completions for shadowed variables.
+	// This works since we look at scopes from innermost to outermost.
+	seen := make(map[string]struct{})
+
 	// Process scopes innermost first.
 	for i, scope := range scopes {
 		if scope == nil {
@@ -272,7 +276,11 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 			if scope == types.Universe {
 				score *= 0.1
 			}
-			items = found(obj, score, items)
+			// If we haven't already added a candidate for an object with this name.
+			if _, ok := seen[obj.Name()]; !ok {
+				seen[obj.Name()] = struct{}{}
+				items = found(obj, score, items)
+			}
 		}
 	}
 	return items
