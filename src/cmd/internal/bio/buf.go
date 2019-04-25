@@ -129,3 +129,15 @@ func (r *Reader) Slice(length uint64) ([]byte, bool, error) {
 	}
 	return data, false, nil
 }
+
+// SliceRO returns a slice containing the next length bytes of r
+// backed by a read-only mmap'd data. If the mmap cannot be
+// established (limit exceeded, region too small, etc) a nil slice
+// will be returned. If mmap succeeds, it will never be unmapped.
+func (r *Reader) SliceRO(length uint64) []byte {
+	data, ok := r.sliceOS(length)
+	if ok {
+		return data
+	}
+	return nil
+}
