@@ -939,6 +939,10 @@ func addstrdata(ctxt *Link, name, value string) {
 
 	s.Size = 0
 	s.P = s.P[:0]
+	if s.Attr.ReadOnly() {
+		s.P = make([]byte, 0, ctxt.Arch.PtrSize*2)
+		s.Attr.Set(sym.AttrReadOnly, false)
+	}
 	s.R = s.R[:0]
 	reachable := s.Attr.Reachable()
 	s.AddAddr(ctxt.Arch, sp)
