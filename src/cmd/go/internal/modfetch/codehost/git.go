@@ -650,7 +650,7 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
 	// result is definitive.
 	describe := func() (definitive bool) {
 		var out []byte
-		out, err = Run(r.dir, "git", "describe", "--first-parent", "--always", "--abbrev=0", "--match", prefix+"v[0-9]*.[0-9]*.[0-9]*", "--tags", rev)
+		out, err = Run(r.dir, "git", "describe", "--always", "--abbrev=0", "--match", prefix+"v[0-9]*.[0-9]*.[0-9]*", "--tags", rev)
 		if err != nil {
 			return true // Because we use "--always", describe should never fail.
 		}
