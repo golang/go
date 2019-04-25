@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -101,6 +102,13 @@ func (modules) Finalize(exported *Exported) error {
 			return fmt.Errorf("creating module proxy dir for %v: %v", module, err)
 		}
 	}
+	proxyURL := filepath.ToSlash(proxyDir)
+	if !strings.HasPrefix(proxyURL, "/") {
+		// Windows paths will look like C:/foo/bar. In the URL, the C: will be
+		// interpreted as the host, so add a leading /. See golang.org/issue/6027.
+		proxyURL = "/" + proxyURL
+	}
+	proxyURL = "file://" + proxyURL
 
 	// Discard the original mod cache dir, which contained the files written
 	// for us by Export.
