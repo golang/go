@@ -5,90 +5,329 @@
 package span_test
 
 import (
+	"flag"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/internal/span"
 )
 
-// TestUTF16 tests the conversion of column information between the native
-// byte offset and the utf16 form.
-func TestUTF16(t *testing.T) {
-	var input = []byte(`
-𐐀23456789
-1𐐀3456789
-12𐐀456789
-123𐐀56789
-1234𐐀6789
-12345𐐀789
-123456𐐀89
-1234567𐐀9
-12345678𐐀
-`[1:])
-	c := span.NewContentConverter("test", input)
-	for line := 1; line <= 9; line++ {
-		runeColumn, runeChr := 0, 0
-		for chr := 1; chr <= 10; chr++ {
-			switch {
-			case chr <= line:
-				runeChr = chr
-				runeColumn = chr
-			case chr == line+1:
-				runeChr = chr - 1
-				runeColumn = chr - 1
-			default:
-				runeChr = chr
-				runeColumn = chr + 2
+var b31341 = flag.Bool("b31341", false, "Test for issue 31341")
+
+// The funny character below is 4 bytes long in UTF-8; two UTF-16 code points
+var funnyString = []byte(`
+𐐀23
+𐐀45`[1:])
+
+var toUTF16Tests = []struct {
+	scenario    string
+	input       []byte
+	line        int    // 1-indexed count
+	col         int    // 1-indexed byte position in line
+	offset      int    // 0-indexed byte offset into input
+	resUTF16col int    // 1-indexed UTF-16 col number
+	pre         string // everything before the cursor on the line
+	post        string // everything from the cursor onwards
+	err         string // expected error string in call to ToUTF16Column
+	issue       *bool
+}{
+	{
+		scenario: "cursor missing content",
+		input:    nil,
+		err:      "ToUTF16Column: missing content",
+	},
+	{
+		scenario: "cursor missing position",
+		input:    funnyString,
+		line:     -1,
+		col:      -1,
+		err:      "ToUTF16Column: point is missing position",
+	},
+	{
+		scenario: "cursor missing offset",
+		input:    funnyString,
+		line:     1,
+		col:      1,
+		offset:   -1,
+		err:      "ToUTF16Column: point is missing offset",
+	},
+	{
+		scenario:    "zero length input; cursor at first col, first line",
+		input:       []byte(""),
+		line:        1,
+		col:         1,
+		offset:      0,
+		resUTF16col: 1,
+	},
+	{
+		scenario:    "cursor before funny character; first line",
+		input:       funnyString,
+		line:        1,
+		col:         1,
+		offset:      0,
+		resUTF16col: 1,
+		pre:         "",
+		post:        "𐐀23",
+	},
+	{
+		scenario:    "cursor after funny character; first line",
+		input:       funnyString,
+		line:        1,
+		col:         5, // 4 + 1 (1-indexed)
+		offset:      4,
+		resUTF16col: 3, // 2 + 1 (1-indexed)
+		pre:         "𐐀",
+		post:        "23",
+	},
+	{
+		scenario:    "cursor after last character on first line",
+		input:       funnyString,
+		line:        1,
+		col:         7, // 4 + 1 + 1 + 1 (1-indexed)
+		offset:      6, // 4 + 1 + 1
+		resUTF16col: 5, // 2 + 1 + 1 + 1 (1-indexed)
+		pre:         "𐐀23",
+		post:        "",
+	},
+	{
+		scenario: "cursor beyond last character on first line",
+		input:    funnyString,
+		line:     1,
+		col:      7,  // 4 + 1 + 1 + 1 (1-indexed)
+		offset:   13, // 4 + 1 + 1
+		err:      "ToUTF16Column: length of line (6) is less than column (7)",
+	},
+	{
+		scenario:    "cursor before funny character; second line",
+		input:       funnyString,
+		line:        2,
+		col:         1,
+		offset:      7, // length of first line
+		resUTF16col: 1,
+		pre:         "",
+		post:        "𐐀45",
+	},
+	{
+		scenario:    "cursor after funny character; second line",
+		input:       funnyString,
+		line:        1,
+		col:         5,  // 4 + 1 (1-indexed)
+		offset:      11, // 7 (length of first line) + 4
+		resUTF16col: 3,  // 2 + 1 (1-indexed)
+		pre:         "𐐀",
+		post:        "45",
+	},
+	{
+		scenario:    "cursor after last character on second line",
+		input:       funnyString,
+		line:        2,
+		col:         7,  // 4 + 1 + 1 + 1 (1-indexed)
+		offset:      13, // 7 (length of first line) + 4 + 1 + 1
+		resUTF16col: 5,  // 2 + 1 + 1 + 1 (1-indexed)
+		pre:         "𐐀45",
+		post:        "",
+		issue:       b31341,
+	},
+	{
+		scenario: "cursor beyond end of file",
+		input:    funnyString,
+		line:     2,
+		col:      8,  // 4 + 1 + 1 + 1 + 1 (1-indexed)
+		offset:   14, // 4 + 1 + 1 + 1
+		err:      "ToUTF16Column: offsets 7-14 outside file contents (13)",
+	},
+}
+
+var fromUTF16Tests = []struct {
+	scenario  string
+	input     []byte
+	line      int    // 1-indexed line number (isn't actually used)
+	offset    int    // 0-indexed byte offset to beginning of line
+	utf16col  int    // 1-indexed UTF-16 col number
+	resCol    int    // 1-indexed byte position in line
+	resOffset int    // 0-indexed byte offset into input
+	pre       string // everything before the cursor on the line
+	post      string // everything from the cursor onwards
+	err       string // expected error string in call to ToUTF16Column
+}{
+	{
+		scenario:  "zero length input; cursor at first col, first line",
+		input:     []byte(""),
+		line:      1,
+		offset:    0,
+		utf16col:  1,
+		resCol:    1,
+		resOffset: 0,
+		pre:       "",
+		post:      "",
+	},
+	{
+		scenario: "missing offset",
+		input:    funnyString,
+		line:     1,
+		offset:   -1,
+		err:      "FromUTF16Column: point is missing offset",
+	},
+	{
+		scenario:  "cursor before funny character",
+		input:     funnyString,
+		line:      1,
+		utf16col:  1,
+		resCol:    1,
+		resOffset: 0,
+		pre:       "",
+		post:      "𐐀23",
+	},
+	{
+		scenario:  "cursor after funny character",
+		input:     funnyString,
+		line:      1,
+		utf16col:  3,
+		resCol:    5,
+		resOffset: 4,
+		pre:       "𐐀",
+		post:      "23",
+	},
+	{
+		scenario:  "cursor after last character on line",
+		input:     funnyString,
+		line:      1,
+		utf16col:  5,
+		resCol:    7,
+		resOffset: 6,
+		pre:       "𐐀23",
+		post:      "",
+	},
+	{
+		scenario: "cursor beyond last character on line",
+		input:    funnyString,
+		line:     1,
+		offset:   0,
+		utf16col: 6,
+		err:      "FromUTF16Column: chr goes beyond the line",
+	},
+	{
+		scenario:  "cursor before funny character; second line",
+		input:     funnyString,
+		line:      2,
+		offset:    7, // length of first line
+		utf16col:  1,
+		resCol:    1,
+		resOffset: 7,
+		pre:       "",
+		post:      "𐐀45",
+	},
+	{
+		scenario:  "cursor after funny character; second line",
+		input:     funnyString,
+		line:      2,
+		offset:    7,  // length of first line
+		utf16col:  3,  // 2 + 1 (1-indexed)
+		resCol:    5,  // 4 + 1 (1-indexed)
+		resOffset: 11, // 7 (length of first line) + 4
+		pre:       "𐐀",
+		post:      "45",
+	},
+	{
+		scenario:  "cursor after last character on second line",
+		input:     funnyString,
+		line:      2,
+		offset:    7,  // length of first line
+		utf16col:  5,  // 2 + 1 + 1 + 1 (1-indexed)
+		resCol:    7,  // 4 + 1 + 1 + 1 (1-indexed)
+		resOffset: 13, // 7 (length of first line) + 4 + 1 + 1
+		pre:       "𐐀45",
+		post:      "",
+	},
+	{
+		scenario:  "cursor beyond end of file",
+		input:     funnyString,
+		line:      2,
+		offset:    7,
+		utf16col:  6,  // 2 + 1 + 1 + 1 + 1(1-indexed)
+		resCol:    8,  // 4 + 1 + 1 + 1 + 1 (1-indexed)
+		resOffset: 14, // 7 (length of first line) + 4 + 1 + 1 + 1
+		err:       "FromUTF16Column: chr goes beyond the content",
+	},
+	{
+		scenario: "offset beyond end of file",
+		input:    funnyString,
+		line:     2,
+		offset:   14,
+		utf16col: 2,
+		err:      "FromUTF16Column: offset (14) greater than length of content (13)",
+	},
+}
+
+func TestToUTF16(t *testing.T) {
+	for _, e := range toUTF16Tests {
+		t.Run(e.scenario, func(t *testing.T) {
+			if e.issue != nil && !*e.issue {
+				t.Skip("expected to fail")
 			}
-			p := span.NewPoint(line, runeColumn, (line-1)*13+(runeColumn-1))
-			// check conversion to utf16 format
-			gotChr, err := span.ToUTF16Column(p, input)
+			p := span.NewPoint(e.line, e.col, e.offset)
+			got, err := span.ToUTF16Column(p, e.input)
 			if err != nil {
-				t.Error(err)
+				if err.Error() != e.err {
+					t.Fatalf("expected error %v; got %v", e.err, err)
+				}
+				return
 			}
-			if runeChr != gotChr {
-				t.Errorf("ToUTF16Column(%v): expected %v, got %v", p, runeChr, gotChr)
+			if e.err != "" {
+				t.Fatalf("unexpected success; wanted %v", e.err)
 			}
-			offset, err := c.ToOffset(p.Line(), p.Column())
-			if err != nil {
-				t.Error(err)
+			if got != e.resUTF16col {
+				t.Fatalf("expected result %v; got %v", e.resUTF16col, got)
 			}
-			if p.Offset() != offset {
-				t.Errorf("ToOffset(%v,%v): expected %v, got %v", p.Line(), p.Column(), p.Offset(), offset)
+			pre, post := getPrePost(e.input, p.Offset())
+			if string(pre) != e.pre {
+				t.Fatalf("expected #%d pre %q; got %q", p.Offset(), e.pre, pre)
 			}
-			// and check the conversion back
-			lineStart := span.NewPoint(p.Line(), 1, p.Offset()-(p.Column()-1))
-			gotPoint, err := span.FromUTF16Column(lineStart, chr, input)
-			if err != nil {
-				t.Error(err)
+			if string(post) != e.post {
+				t.Fatalf("expected #%d, post %q; got %q", p.Offset(), e.post, post)
 			}
-			if p != gotPoint {
-				t.Errorf("FromUTF16Column(%v,%v): expected %v, got %v", p.Line(), chr, p, gotPoint)
-			}
-		}
+		})
 	}
 }
 
-func TestUTF16Errors(t *testing.T) {
-	var input = []byte(`
-hello
-world
-`)[1:]
-	for _, test := range []struct {
-		line, col, offset int
-		want              string
-	}{
-		{
-			1, 6, 12,
-			"ToUTF16Column: length of line (5) is less than column (6)",
-		},
-		{
-			1, 6, 13,
-			"ToUTF16Column: offsets 8-13 outside file contents (12)",
-		},
-	} {
-		p := span.NewPoint(test.line, test.col, test.offset)
-		if _, err := span.ToUTF16Column(p, input); err == nil || err.Error() != test.want {
-			t.Errorf("expected %v, got %v", test.want, err)
-		}
+func TestFromUTF16(t *testing.T) {
+	for _, e := range fromUTF16Tests {
+		t.Run(e.scenario, func(t *testing.T) {
+			p := span.NewPoint(e.line, 1, e.offset)
+			p, err := span.FromUTF16Column(p, e.utf16col, []byte(e.input))
+			if err != nil {
+				if err.Error() != e.err {
+					t.Fatalf("expected error %v; got %v", e.err, err)
+				}
+				return
+			}
+			if e.err != "" {
+				t.Fatalf("unexpected success; wanted %v", e.err)
+			}
+			if p.Column() != e.resCol {
+				t.Fatalf("expected resulting col %v; got %v", e.resCol, p.Column())
+			}
+			if p.Offset() != e.resOffset {
+				t.Fatalf("expected resulting offset %v; got %v", e.resOffset, p.Offset())
+			}
+			pre, post := getPrePost(e.input, p.Offset())
+			if string(pre) != e.pre {
+				t.Fatalf("expected #%d pre %q; got %q", p.Offset(), e.pre, pre)
+			}
+			if string(post) != e.post {
+				t.Fatalf("expected #%d post %q; got %q", p.Offset(), e.post, post)
+			}
+		})
 	}
+}
+
+func getPrePost(content []byte, offset int) (string, string) {
+	pre, post := string(content)[:offset], string(content)[offset:]
+	if i := strings.LastIndex(pre, "\n"); i >= 0 {
+		pre = pre[i+1:]
+	}
+	if i := strings.IndexRune(post, '\n'); i >= 0 {
+		post = post[:i]
+	}
+	return pre, post
 }
