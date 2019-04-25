@@ -373,9 +373,6 @@ func init() {
 		{name: "MOVHZreg", argLength: 1, reg: gp11sp, asm: "MOVHZ", typ: "UInt64"}, // zero extend arg0 from int16 to int64
 		{name: "MOVWreg", argLength: 1, reg: gp11sp, asm: "MOVW", typ: "Int64"},    // sign extend arg0 from int32 to int64
 		{name: "MOVWZreg", argLength: 1, reg: gp11sp, asm: "MOVWZ", typ: "UInt64"}, // zero extend arg0 from int32 to int64
-		{name: "MOVDreg", argLength: 1, reg: gp11sp, asm: "MOVD"},                  // move from arg0
-
-		{name: "MOVDnop", argLength: 1, reg: gp11, resultInArg0: true}, // nop, return arg0 in same register
 
 		{name: "MOVDconst", reg: gp01, asm: "MOVD", typ: "UInt64", aux: "Int64", rematerializeable: true}, // auxint
 
