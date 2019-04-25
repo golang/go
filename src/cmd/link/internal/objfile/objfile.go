@@ -23,6 +23,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unsafe"
 )
 
 const (
@@ -58,6 +59,9 @@ type objReader struct {
 	funcdataoff []int64
 	file        []*sym.Symbol
 
+	roObject      []byte // from read-only mmap of object file
+	objFileOffset int64  // offset of object data from start of file
+
 	dataReadOnly bool // whether data is backed by read-only memory
 }
 
@@ -78,6 +82,10 @@ const (
 // The symbols loaded are added to syms.
 func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string, flags int) int {
 	start := f.Offset()
+	roObject := f.SliceRO(uint64(length))
+	if roObject != nil {
+		f.Seek(int64(-length), os.SEEK_CUR)
+	}
 	r := &objReader{
 		rd:              f,
 		lib:             lib,
@@ -87,6 +95,8 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, le
 		dupSym:          &sym.Symbol{Name: ".dup"},
 		localSymVersion: syms.IncVersion(),
 		flags:           flags,
+		roObject:        roObject,
+		objFileOffset:   start,
 	}
 	r.loadObjFile()
 	if f.Offset() != start+length {
@@ -136,7 +146,7 @@ func (r *objReader) loadObjFile() {
 	r.readSlices()
 
 	// Data section
-	r.data, r.dataReadOnly, err = r.rd.Slice(uint64(r.dataSize))
+	err = r.readDataSection()
 	if err != nil {
 		log.Fatalf("%s: error reading %s", r.pn, err)
 	}
@@ -174,6 +184,18 @@ func (r *objReader) readSlices() {
 	r.funcdataoff = make([]int64, n)
 	n = r.readInt()
 	r.file = make([]*sym.Symbol, n)
+}
+
+func (r *objReader) readDataSection() (err error) {
+	if r.roObject != nil {
+		dOffset := r.rd.Offset() - r.objFileOffset
+		r.data, r.dataReadOnly, err =
+			r.roObject[dOffset:dOffset+int64(r.dataSize)], true, nil
+		r.rd.Seek(int64(r.dataSize), os.SEEK_CUR)
+		return
+	}
+	r.data, r.dataReadOnly, err = r.rd.Slice(uint64(r.dataSize))
+	return
 }
 
 // Symbols are prefixed so their content doesn't get confused with the magic footer.
@@ -544,6 +566,20 @@ func (r *objReader) readData() []byte {
 	return p
 }
 
+type stringHeader struct {
+	str unsafe.Pointer
+	len int
+}
+
+func mkROString(rodata []byte) string {
+	if len(rodata) == 0 {
+		return ""
+	}
+	ss := stringHeader{str: unsafe.Pointer(&rodata[0]), len: len(rodata)}
+	s := *(*string)(unsafe.Pointer(&ss))
+	return s
+}
+
 // readSymName reads a symbol name, replacing all "". with pkg.
 func (r *objReader) readSymName() string {
 	pkg := objabi.PathToPrefix(r.lib.Pkg)
@@ -555,6 +591,7 @@ func (r *objReader) readSymName() string {
 	if cap(r.rdBuf) < n {
 		r.rdBuf = make([]byte, 2*n)
 	}
+	sOffset := r.rd.Offset() - r.objFileOffset
 	origName, err := r.rd.Peek(n)
 	if err == bufio.ErrBufferFull {
 		// Long symbol names are rare but exist. One source is type
@@ -565,10 +602,16 @@ func (r *objReader) readSymName() string {
 		log.Fatalf("%s: error reading symbol: %v", r.pn, err)
 	}
 	adjName := r.rdBuf[:0]
+	nPkgRefs := 0
 	for {
 		i := bytes.Index(origName, emptyPkg)
 		if i == -1 {
-			s := string(append(adjName, origName...))
+			var s string
+			if r.roObject != nil && nPkgRefs == 0 {
+				s = mkROString(r.roObject[sOffset : sOffset+int64(n)])
+			} else {
+				s = string(append(adjName, origName...))
+			}
 			// Read past the peeked origName, now that we're done with it,
 			// using the rfBuf (also no longer used) as the scratch space.
 			// TODO: use bufio.Reader.Discard if available instead?
@@ -578,6 +621,7 @@ func (r *objReader) readSymName() string {
 			r.rdBuf = adjName[:0] // in case 2*n wasn't enough
 			return s
 		}
+		nPkgRefs++
 		adjName = append(adjName, origName[:i]...)
 		adjName = append(adjName, pkg...)
 		adjName = append(adjName, '.')
