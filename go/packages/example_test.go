@@ -16,7 +16,7 @@ func Example() {
 	// Many tools pass their command-line arguments (after any flags)
 	// uninterpreted to packages.Load so that it can interpret them
 	// according to the conventions of the underlying build system.
-	cfg := &packages.Config{Mode: packages.LoadSyntax}
+	cfg := &packages.Config{Mode: packages.NeedFiles | packages.NeedSyntax}
 	pkgs, err := packages.Load(cfg, flag.Args()...)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "load: %v\n", err)
