@@ -105,7 +105,7 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 	v.Logger().Debugf(ctx, "running `go vet` analyses for %s", uri)
 
 	// Type checking and parsing succeeded. Run analyses.
-	runAnalyses(ctx, v, pkg, func(a *analysis.Analyzer, diag analysis.Diagnostic) error {
+	if err := runAnalyses(ctx, v, pkg, func(a *analysis.Analyzer, diag analysis.Diagnostic) error {
 		r := span.NewRange(v.FileSet(), diag.Pos, 0)
 		s, err := r.Span()
 		if err != nil {
@@ -123,7 +123,9 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 			Severity: SeverityWarning,
 		})
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
 
 	v.Logger().Debugf(ctx, "completed reporting `go vet` analyses for %s", uri)
 
