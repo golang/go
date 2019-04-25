@@ -482,7 +482,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux2(&p.To, v, sc.Off())
-	case ssa.OpCopy, ssa.OpS390XMOVDreg:
+	case ssa.OpCopy:
 		if v.Type.IsMemory() {
 			return
 		}
@@ -491,11 +491,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if x != y {
 			opregreg(s, moveByType(v.Type), y, x)
 		}
-	case ssa.OpS390XMOVDnop:
-		if v.Reg() != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
-		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("load flags not implemented: %v", v.LongString())

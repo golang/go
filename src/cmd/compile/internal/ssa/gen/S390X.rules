@@ -443,61 +443,121 @@
 // ***************************
 // TODO: Should the optimizations be a separate pass?
 
-// Fold unnecessary type conversions.
-(MOVDreg <t> x) && t.Compare(x.Type) == types.CMPeq -> x
-(MOVDnop <t> x) && t.Compare(x.Type) == types.CMPeq -> x
+// Note: when removing unnecessary sign/zero extensions.
+//
+// After a value is spilled it is restored using a sign- or zero-extension
+// to register-width as appropriate for its type. For example, a uint8 will
+// be restored using a MOVBZ (llgc) instruction which will zero extend the
+// 8-bit value to 64-bits.
+//
+// This is a hazard when folding sign- and zero-extensions since we need to
+// ensure not only that the value in the argument register is correctly
+// extended but also that it will still be correctly extended if it is
+// spilled and restored.
+//
+// In general this means we need type checks when the RHS of a rule is an
+// OpCopy (i.e. "(... x:(...) ...) -> x").
 
-// Propagate constants through type conversions.
-(MOVDreg (MOVDconst [c])) -> (MOVDconst [c])
-(MOVDnop (MOVDconst [c])) -> (MOVDconst [c])
+// Merge double extensions.
+(MOV(H|HZ)reg e:(MOV(B|BZ)reg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
+(MOV(W|WZ)reg e:(MOV(B|BZ)reg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
+(MOV(W|WZ)reg e:(MOV(H|HZ)reg x)) && clobberIfDead(e) -> (MOV(H|HZ)reg x)
 
-// If a register move has only 1 use, just use the same register without emitting instruction.
-// MOVDnop doesn't emit instruction, only for ensuring the type.
-(MOVDreg x) && x.Uses == 1 -> (MOVDnop x)
+// Bypass redundant sign extensions.
+(MOV(B|BZ)reg e:(MOVBreg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
+(MOV(B|BZ)reg e:(MOVHreg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
+(MOV(B|BZ)reg e:(MOVWreg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
+(MOV(H|HZ)reg e:(MOVHreg x)) && clobberIfDead(e) -> (MOV(H|HZ)reg x)
+(MOV(H|HZ)reg e:(MOVWreg x)) && clobberIfDead(e) -> (MOV(H|HZ)reg x)
+(MOV(W|WZ)reg e:(MOVWreg x)) && clobberIfDead(e) -> (MOV(W|WZ)reg x)
 
-// Fold type changes into loads.
-(MOVDreg <t> x:(MOVBZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZload <t> [off] {sym} ptr mem)
-(MOVDreg <t> x:(MOVBload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload  <t> [off] {sym} ptr mem)
-(MOVDreg <t> x:(MOVHZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZload <t> [off] {sym} ptr mem)
-(MOVDreg <t> x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHload  <t> [off] {sym} ptr mem)
-(MOVDreg <t> x:(MOVWZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZload <t> [off] {sym} ptr mem)
-(MOVDreg <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload  <t> [off] {sym} ptr mem)
-(MOVDreg <t> x:(MOVDload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDload  <t> [off] {sym} ptr mem)
+// Bypass redundant zero extensions.
+(MOV(B|BZ)reg e:(MOVBZreg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
+(MOV(B|BZ)reg e:(MOVHZreg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
+(MOV(B|BZ)reg e:(MOVWZreg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
+(MOV(H|HZ)reg e:(MOVHZreg x)) && clobberIfDead(e) -> (MOV(H|HZ)reg x)
+(MOV(H|HZ)reg e:(MOVWZreg x)) && clobberIfDead(e) -> (MOV(H|HZ)reg x)
+(MOV(W|WZ)reg e:(MOVWZreg x)) && clobberIfDead(e) -> (MOV(W|WZ)reg x)
 
-(MOVDnop <t> x:(MOVBZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZload <t> [off] {sym} ptr mem)
-(MOVDnop <t> x:(MOVBload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload  <t> [off] {sym} ptr mem)
-(MOVDnop <t> x:(MOVHZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZload <t> [off] {sym} ptr mem)
-(MOVDnop <t> x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHload  <t> [off] {sym} ptr mem)
-(MOVDnop <t> x:(MOVWZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZload <t> [off] {sym} ptr mem)
-(MOVDnop <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload  <t> [off] {sym} ptr mem)
-(MOVDnop <t> x:(MOVDload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDload  <t> [off] {sym} ptr mem)
+// Remove zero extensions after zero extending load.
+// Note: take care that if x is spilled it is restored correctly.
+(MOV(B|H|W)Zreg x:(MOVBZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 1) -> x
+(MOV(B|H|W)Zreg x:(MOVBZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 1) -> x
+(MOV(H|W)Zreg   x:(MOVHZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 2) -> x
+(MOV(H|W)Zreg   x:(MOVHZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 2) -> x
+(MOVWZreg       x:(MOVWZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 4) -> x
+(MOVWZreg       x:(MOVWZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 4) -> x
 
-(MOVDreg <t> x:(MOVBZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZloadidx <t> [off] {sym} ptr idx mem)
-(MOVDreg <t> x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <t> [off] {sym} ptr idx mem)
-(MOVDreg <t> x:(MOVHZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZloadidx <t> [off] {sym} ptr idx mem)
-(MOVDreg <t> x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <t> [off] {sym} ptr idx mem)
-(MOVDreg <t> x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <t> [off] {sym} ptr idx mem)
-(MOVDreg <t> x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <t> [off] {sym} ptr idx mem)
-(MOVDreg <t> x:(MOVDloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDloadidx  <t> [off] {sym} ptr idx mem)
+// Remove sign extensions after sign extending load.
+// Note: take care that if x is spilled it is restored correctly.
+(MOV(B|H|W)reg x:(MOVBload    _   _)) && (x.Type.IsSigned() || x.Type.Size() == 8) -> x
+(MOV(B|H|W)reg x:(MOVBloadidx _ _ _)) && (x.Type.IsSigned() || x.Type.Size() == 8) -> x
+(MOV(H|W)reg   x:(MOVHload    _   _)) && (x.Type.IsSigned() || x.Type.Size() == 8) -> x
+(MOV(H|W)reg   x:(MOVHloadidx _ _ _)) && (x.Type.IsSigned() || x.Type.Size() == 8) -> x
+(MOVWreg       x:(MOVWload    _   _)) && (x.Type.IsSigned() || x.Type.Size() == 8) -> x
+(MOVWreg       x:(MOVWloadidx _ _ _)) && (x.Type.IsSigned() || x.Type.Size() == 8) -> x
 
-(MOVDnop <t> x:(MOVBZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZloadidx <t> [off] {sym} ptr idx mem)
-(MOVDnop <t> x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <t> [off] {sym} ptr idx mem)
-(MOVDnop <t> x:(MOVHZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZloadidx <t> [off] {sym} ptr idx mem)
-(MOVDnop <t> x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <t> [off] {sym} ptr idx mem)
-(MOVDnop <t> x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <t> [off] {sym} ptr idx mem)
-(MOVDnop <t> x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <t> [off] {sym} ptr idx mem)
-(MOVDnop <t> x:(MOVDloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDloadidx  <t> [off] {sym} ptr idx mem)
+// Remove sign extensions after zero extending load.
+// These type checks are probably unnecessary but do them anyway just in case.
+(MOV(H|W)reg x:(MOVBZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 1) -> x
+(MOV(H|W)reg x:(MOVBZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 1) -> x
+(MOVWreg     x:(MOVHZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 2) -> x
+(MOVWreg     x:(MOVHZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 2) -> x
 
-// Fold sign extensions into conditional moves of constants.
-// Designed to remove the MOVBZreg inserted by the If lowering.
-(MOVBZreg x:(MOVDLT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
-(MOVBZreg x:(MOVDLE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
-(MOVBZreg x:(MOVDGT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
-(MOVBZreg x:(MOVDGE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
-(MOVBZreg x:(MOVDEQ (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
-(MOVBZreg x:(MOVDNE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
-(MOVBZreg x:(MOVDGTnoinv (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
-(MOVBZreg x:(MOVDGEnoinv (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
+// Fold sign and zero extensions into loads.
+//
+// Note: The combined instruction must end up in the same block
+// as the original load. If not, we end up making a value with
+// memory type live in two different blocks, which can lead to
+// multiple memory values alive simultaneously.
+//
+// Make sure we don't combine these ops if the load has another use.
+// This prevents a single load from being split into multiple loads
+// which then might return different values.  See test/atomicload.go.
+(MOV(B|H|W)Zreg <t> x:(MOV(B|H|W)load [o] {s} p mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> @x.Block (MOV(B|H|W)Zload <t> [o] {s} p mem)
+(MOV(B|H|W)reg <t> x:(MOV(B|H|W)Zload [o] {s} p mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> @x.Block (MOV(B|H|W)load <t> [o] {s} p mem)
+(MOV(B|H|W)Zreg <t> x:(MOV(B|H|W)loadidx [o] {s} p i mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> @x.Block (MOV(B|H|W)Zloadidx <t> [o] {s} p i mem)
+(MOV(B|H|W)reg <t> x:(MOV(B|H|W)Zloadidx [o] {s} p i mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> @x.Block (MOV(B|H|W)loadidx <t> [o] {s} p i mem)
+
+// Remove zero extensions after argument load.
+(MOVBZreg x:(Arg <t>)) && !t.IsSigned() && t.Size() == 1 -> x
+(MOVHZreg x:(Arg <t>)) && !t.IsSigned() && t.Size() <= 2 -> x
+(MOVWZreg x:(Arg <t>)) && !t.IsSigned() && t.Size() <= 4 -> x
+
+// Remove sign extensions after argument load.
+(MOVBreg x:(Arg <t>)) && t.IsSigned() && t.Size() == 1 -> x
+(MOVHreg x:(Arg <t>)) && t.IsSigned() && t.Size() <= 2 -> x
+(MOVWreg x:(Arg <t>)) && t.IsSigned() && t.Size() <= 4 -> x
+
+// Fold zero extensions into constants.
+(MOVBZreg (MOVDconst [c])) -> (MOVDconst [int64( uint8(c))])
+(MOVHZreg (MOVDconst [c])) -> (MOVDconst [int64(uint16(c))])
+(MOVWZreg (MOVDconst [c])) -> (MOVDconst [int64(uint32(c))])
+
+// Fold sign extensions into constants.
+(MOVBreg (MOVDconst [c])) -> (MOVDconst [int64( int8(c))])
+(MOVHreg (MOVDconst [c])) -> (MOVDconst [int64(int16(c))])
+(MOVWreg (MOVDconst [c])) -> (MOVDconst [int64(int32(c))])
+
+// Remove zero extension of conditional move.
+// Note: only for MOVBZreg for now since it is added as part of 'if' statement lowering.
+(MOVBZreg x:(MOVD(LT|LE|GT|GE|EQ|NE|GTnoinv|GEnoinv) (MOVDconst [c]) (MOVDconst [d]) _))
+  && int64(uint8(c)) == c
+  && int64(uint8(d)) == d
+  && (!x.Type.IsSigned() || x.Type.Size() > 1)
+  -> x
 
 // Fold boolean tests into blocks.
 (NE (CMPWconst [0] (MOVDLT (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (LT cmp yes no)
@@ -547,12 +607,12 @@
 	-> (S(LD|RD|RAD|LW|RW|RAW) x (ANDWconst <typ.UInt32> [c&63] y))
 (S(LD|RD|RAD|LW|RW|RAW) x (ANDWconst [c] y)) && c&63 == 63
 	-> (S(LD|RD|RAD|LW|RW|RAW) x y)
-(SLD  x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SLD  x y)
-(SRD  x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SRD  x y)
-(SRAD x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SRAD x y)
-(SLW  x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SLW  x y)
-(SRW  x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SRW  x y)
-(SRAW x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SRAW x y)
+(SLD  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) -> (SLD  x y)
+(SRD  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) -> (SRD  x y)
+(SRAD x (MOV(W|H|B|WZ|HZ|BZ)reg y)) -> (SRAD x y)
+(SLW  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) -> (SLW  x y)
+(SRW  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) -> (SRW  x y)
+(SRAW x (MOV(W|H|B|WZ|HZ|BZ)reg y)) -> (SRAW x y)
 
 // Constant rotate generation
 (RLL  x (MOVDconst [c])) -> (RLLconst  x [c&31])
@@ -615,99 +675,8 @@
 (MOVDEQ x y (InvertFlags cmp)) -> (MOVDEQ x y cmp)
 (MOVDNE x y (InvertFlags cmp)) -> (MOVDNE x y cmp)
 
-// don't extend after proper load
-(MOVBreg x:(MOVBload _ _)) -> (MOVDreg x)
-(MOVBZreg x:(MOVBZload _ _)) -> (MOVDreg x)
-(MOVHreg x:(MOVBload _ _)) -> (MOVDreg x)
-(MOVHreg x:(MOVBZload _ _)) -> (MOVDreg x)
-(MOVHreg x:(MOVHload _ _)) -> (MOVDreg x)
-(MOVHZreg x:(MOVBZload _ _)) -> (MOVDreg x)
-(MOVHZreg x:(MOVHZload _ _)) -> (MOVDreg x)
-(MOVWreg x:(MOVBload _ _)) -> (MOVDreg x)
-(MOVWreg x:(MOVBZload _ _)) -> (MOVDreg x)
-(MOVWreg x:(MOVHload _ _)) -> (MOVDreg x)
-(MOVWreg x:(MOVHZload _ _)) -> (MOVDreg x)
-(MOVWreg x:(MOVWload _ _)) -> (MOVDreg x)
-(MOVWZreg x:(MOVBZload _ _)) -> (MOVDreg x)
-(MOVWZreg x:(MOVHZload _ _)) -> (MOVDreg x)
-(MOVWZreg x:(MOVWZload _ _)) -> (MOVDreg x)
-
-// don't extend if argument is already extended
-(MOVBreg x:(Arg <t>)) && is8BitInt(t) && isSigned(t) -> (MOVDreg x)
-(MOVBZreg x:(Arg <t>)) && is8BitInt(t) && !isSigned(t) -> (MOVDreg x)
-(MOVHreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && isSigned(t) -> (MOVDreg x)
-(MOVHZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && !isSigned(t) -> (MOVDreg x)
-(MOVWreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && isSigned(t) -> (MOVDreg x)
-(MOVWZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t) -> (MOVDreg x)
-
-// fold double extensions
-(MOVBreg x:(MOVBreg _)) -> (MOVDreg x)
-(MOVBZreg x:(MOVBZreg _)) -> (MOVDreg x)
-(MOVHreg x:(MOVBreg _)) -> (MOVDreg x)
-(MOVHreg x:(MOVBZreg _)) -> (MOVDreg x)
-(MOVHreg x:(MOVHreg _)) -> (MOVDreg x)
-(MOVHZreg x:(MOVBZreg _)) -> (MOVDreg x)
-(MOVHZreg x:(MOVHZreg _)) -> (MOVDreg x)
-(MOVWreg x:(MOVBreg _)) -> (MOVDreg x)
-(MOVWreg x:(MOVBZreg _)) -> (MOVDreg x)
-(MOVWreg x:(MOVHreg _)) -> (MOVDreg x)
-(MOVWreg x:(MOVHZreg _)) -> (MOVDreg x)
-(MOVWreg x:(MOVWreg _)) -> (MOVDreg x)
-(MOVWZreg x:(MOVBZreg _)) -> (MOVDreg x)
-(MOVWZreg x:(MOVHZreg _)) -> (MOVDreg x)
-(MOVWZreg x:(MOVWZreg _)) -> (MOVDreg x)
-
-(MOVBreg (MOVBZreg x)) -> (MOVBreg x)
-(MOVBZreg (MOVBreg x)) -> (MOVBZreg x)
-(MOVHreg (MOVHZreg x)) -> (MOVHreg x)
-(MOVHZreg (MOVHreg x)) -> (MOVHZreg x)
-(MOVWreg (MOVWZreg x)) -> (MOVWreg x)
-(MOVWZreg (MOVWreg x)) -> (MOVWZreg x)
-
-// fold extensions into constants
-(MOVBreg (MOVDconst [c])) -> (MOVDconst [int64(int8(c))])
-(MOVBZreg (MOVDconst [c])) -> (MOVDconst [int64(uint8(c))])
-(MOVHreg (MOVDconst [c])) -> (MOVDconst [int64(int16(c))])
-(MOVHZreg (MOVDconst [c])) -> (MOVDconst [int64(uint16(c))])
-(MOVWreg (MOVDconst [c])) -> (MOVDconst [int64(int32(c))])
-(MOVWZreg (MOVDconst [c])) -> (MOVDconst [int64(uint32(c))])
-
-// sign extended loads
-// Note: The combined instruction must end up in the same block
-// as the original load. If not, we end up making a value with
-// memory type live in two different blocks, which can lead to
-// multiple memory values alive simultaneously.
-// Make sure we don't combine these ops if the load has another use.
-// This prevents a single load from being split into multiple loads
-// which then might return different values.  See test/atomicload.go.
-(MOVBreg  x:(MOVBZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload  <v.Type> [off] {sym} ptr mem)
-(MOVBreg  x:(MOVBload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload  <v.Type> [off] {sym} ptr mem)
-(MOVBZreg x:(MOVBZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZload <v.Type> [off] {sym} ptr mem)
-(MOVBZreg x:(MOVBload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZload <v.Type> [off] {sym} ptr mem)
-(MOVHreg  x:(MOVHZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHload  <v.Type> [off] {sym} ptr mem)
-(MOVHreg  x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHload  <v.Type> [off] {sym} ptr mem)
-(MOVHZreg x:(MOVHZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZload <v.Type> [off] {sym} ptr mem)
-(MOVHZreg x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZload <v.Type> [off] {sym} ptr mem)
-(MOVWreg  x:(MOVWZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload  <v.Type> [off] {sym} ptr mem)
-(MOVWreg  x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload  <v.Type> [off] {sym} ptr mem)
-(MOVWZreg x:(MOVWZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZload <v.Type> [off] {sym} ptr mem)
-(MOVWZreg x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZload <v.Type> [off] {sym} ptr mem)
-
-(MOVBreg  x:(MOVBZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <v.Type> [off] {sym} ptr idx mem)
-(MOVBreg  x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <v.Type> [off] {sym} ptr idx mem)
-(MOVBZreg x:(MOVBZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZloadidx <v.Type> [off] {sym} ptr idx mem)
-(MOVBZreg x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZloadidx <v.Type> [off] {sym} ptr idx mem)
-(MOVHreg  x:(MOVHZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <v.Type> [off] {sym} ptr idx mem)
-(MOVHreg  x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <v.Type> [off] {sym} ptr idx mem)
-(MOVHZreg x:(MOVHZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZloadidx <v.Type> [off] {sym} ptr idx mem)
-(MOVHZreg x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZloadidx <v.Type> [off] {sym} ptr idx mem)
-(MOVWreg  x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <v.Type> [off] {sym} ptr idx mem)
-(MOVWreg  x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <v.Type> [off] {sym} ptr idx mem)
-(MOVWZreg x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <v.Type> [off] {sym} ptr idx mem)
-(MOVWZreg x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <v.Type> [off] {sym} ptr idx mem)
-
 // replace load from same location as preceding store with copy
-(MOVDload  [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVDreg x)
+(MOVDload  [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> x
 (MOVWload  [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVWreg x)
 (MOVHload  [off] {sym} ptr1 (MOVHstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVHreg x)
 (MOVBload  [off] {sym} ptr1 (MOVBstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVBreg x)
@@ -755,7 +724,7 @@
 
 // remove unnecessary FPR <-> GPR moves
 (LDGR (LGDR x)) -> x
-(LGDR (LDGR x)) -> (MOVDreg x)
+(LGDR (LDGR x)) -> x
 
 // Don't extend before storing
 (MOVWstore [off] {sym} ptr (MOVWreg x) mem) -> (MOVWstore [off] {sym} ptr x mem)
