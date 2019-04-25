@@ -42,6 +42,8 @@ var PhysHugePageSize = physHugePageSize
 
 var NetpollGenericInit = netpollGenericInit
 
+const PreemptMSupported = preemptMSupported
+
 type LFNode struct {
 	Next    uint64
 	Pushcnt uintptr
