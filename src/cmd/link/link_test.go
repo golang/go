@@ -229,3 +229,31 @@ func TestBuildFortvOS(t *testing.T) {
 		t.Fatalf("%v: %v:\n%s", link.Args, err, out)
 	}
 }
+
+var testXFlagSrc = `
+package main
+var X = "hello"
+var Z = [99999]int{99998:12345} // make it large enough to be mmaped
+func main() { println(X) }
+`
+
+func TestXFlag(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "TestXFlag")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "main.go")
+	err = ioutil.WriteFile(src, []byte(testXFlagSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-X=main.X=meow", "-o", filepath.Join(tmpdir, "main"), src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("%v: %v:\n%s", cmd.Args, err, out)
+	}
+}
