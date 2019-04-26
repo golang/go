@@ -1339,6 +1339,54 @@ func TestConnQuery(t *testing.T) {
 	}
 }
 
+func TestConnRaw(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.dc.ci.(*fakeConn).skipDirtySession = true
+	defer conn.Close()
+
+	sawFunc := false
+	err = conn.Raw(func(dc interface{}) error {
+		sawFunc = true
+		if _, ok := dc.(*fakeConn); !ok {
+			return fmt.Errorf("got %T want *fakeConn", dc)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sawFunc {
+		t.Fatal("Raw func not called")
+	}
+
+	func() {
+		defer func() {
+			x := recover()
+			if x == nil {
+				t.Fatal("expected panic")
+			}
+			conn.closemu.Lock()
+			closed := conn.dc == nil
+			conn.closemu.Unlock()
+			if !closed {
+				t.Fatal("expected connection to be closed after panic")
+			}
+		}()
+		err = conn.Raw(func(dc interface{}) error {
+			panic("Conn.Raw panic should return an error")
+		})
+		t.Fatal("expected panic from Raw func")
+	}()
+}
+
 func TestCursorFake(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
