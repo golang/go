@@ -7,7 +7,6 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
-	"go/build"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -140,8 +139,8 @@ func TestGdbPythonCgo(t *testing.T) {
 }
 
 func testGdbPython(t *testing.T, cgo bool) {
-	if cgo && !build.Default.CgoEnabled {
-		t.Skip("skipping because cgo is not enabled")
+	if cgo {
+		testenv.MustHaveCGO(t)
 	}
 
 	checkGdbEnvironment(t)
