@@ -45,12 +45,11 @@ import (
 //
 // String values encode as JSON strings coerced to valid UTF-8,
 // replacing invalid bytes with the Unicode replacement rune.
-// So that the JSON will be safe to embed inside HTML <script> tags,
-// the string is encoded using HTMLEscape,
-// which replaces "<", ">", "&", U+2028, and U+2029 are escaped
-// to "\u003c","\u003e", "\u0026", "\u2028", and "\u2029".
-// This replacement can be disabled when using an Encoder,
-// by calling SetEscapeHTML(false).
+// The angle brackets "<" and ">" are escaped to "\u003c" and "\u003e"
+// to keep some browsers from misinterpreting JSON output as HTML.
+// Ampersand "&" is also escaped to "\u0026" for the same reason.
+// This escaping can be disabled using an Encoder that had SetEscapeHTML(false)
+// called on it.
 //
 // Array and slice values encode as JSON arrays, except that
 // []byte encodes as a base64-encoded string, and a nil slice
@@ -227,6 +226,10 @@ type Marshaler interface {
 	MarshalJSON() ([]byte, error)
 }
 
+type EmptyValue interface {
+	IsEmpty() bool
+}
+
 // An UnsupportedTypeError is returned by Marshal when attempting
 // to encode an unsupported value type.
 type UnsupportedTypeError struct {
@@ -314,6 +317,11 @@ func (e *encodeState) error(err error) {
 }
 
 func isEmptyValue(v reflect.Value) bool {
+	vType := v.Type()
+	if vType.Implements(emptyValueType) {
+		return v.Interface().(EmptyValue).IsEmpty()
+	}
+
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
@@ -335,6 +343,7 @@ func isEmptyValue(v reflect.Value) bool {
 
 func isEmptyStruct(v reflect.Value) bool {
 	vType := v.Type()
+
 	for i := 0; i < v.NumField(); i++ {
 		typField := vType.Field(i)
 		tag := typField.Tag.Get("json")
@@ -405,6 +414,7 @@ func typeEncoder(t reflect.Type) encoderFunc {
 var (
 	marshalerType     = reflect.TypeOf((*Marshaler)(nil)).Elem()
 	textMarshalerType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+	emptyValueType    = reflect.TypeOf((*EmptyValue)(nil)).Elem()
 )
 
 // newTypeEncoder constructs an encoderFunc for a type.
@@ -413,15 +423,19 @@ func newTypeEncoder(t reflect.Type, allowAddr bool) encoderFunc {
 	if t.Implements(marshalerType) {
 		return marshalerEncoder
 	}
-	if t.Kind() != reflect.Ptr && allowAddr && reflect.PtrTo(t).Implements(marshalerType) {
-		return newCondAddrEncoder(addrMarshalerEncoder, newTypeEncoder(t, false))
+	if t.Kind() != reflect.Ptr && allowAddr {
+		if reflect.PtrTo(t).Implements(marshalerType) {
+			return newCondAddrEncoder(addrMarshalerEncoder, newTypeEncoder(t, false))
+		}
 	}
 
 	if t.Implements(textMarshalerType) {
 		return textMarshalerEncoder
 	}
-	if t.Kind() != reflect.Ptr && allowAddr && reflect.PtrTo(t).Implements(textMarshalerType) {
-		return newCondAddrEncoder(addrTextMarshalerEncoder, newTypeEncoder(t, false))
+	if t.Kind() != reflect.Ptr && allowAddr {
+		if reflect.PtrTo(t).Implements(textMarshalerType) {
+			return newCondAddrEncoder(addrTextMarshalerEncoder, newTypeEncoder(t, false))
+		}
 	}
 
 	switch t.Kind() {
@@ -642,19 +656,14 @@ func unsupportedTypeEncoder(e *encodeState, v reflect.Value, _ encOpts) {
 }
 
 type structEncoder struct {
-	fields structFields
-}
-
-type structFields struct {
-	list      []field
-	nameIndex map[string]int
+	fields []field
 }
 
 func (se structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	next := byte('{')
 FieldLoop:
-	for i := range se.fields.list {
-		f := &se.fields.list[i]
+	for i := range se.fields {
+		f := &se.fields[i]
 
 		// Find the nested struct field by following f.index.
 		fv := v
@@ -777,7 +786,7 @@ type sliceEncoder struct {
 
 func (se sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	if v.IsNil() {
-		e.WriteString("null")
+		e.WriteString("[]")
 		return
 	}
 	se.arrayEnc(e, v, opts)
@@ -1089,13 +1098,14 @@ func (x byIndex) Less(i, j int) bool {
 // typeFields returns a list of fields that JSON should recognize for the given type.
 // The algorithm is breadth-first search over the set of structs to include - the top struct
 // and then any reachable anonymous structs.
-func typeFields(t reflect.Type) structFields {
+func typeFields(t reflect.Type) []field {
 	// Anonymous fields to explore at the current level and the next.
 	current := []field{}
 	next := []field{{typ: t}}
 
 	// Count of queued names for current level and the next.
-	var count, nextCount map[reflect.Type]int
+	count := map[reflect.Type]int{}
+	nextCount := map[reflect.Type]int{}
 
 	// Types already visited at an earlier level.
 	visited := map[reflect.Type]bool{}
@@ -1263,11 +1273,7 @@ func typeFields(t reflect.Type) structFields {
 		f := &fields[i]
 		f.encoder = typeEncoder(typeByIndex(t, f.index))
 	}
-	nameIndex := make(map[string]int, len(fields))
-	for i, field := range fields {
-		nameIndex[field.name] = i
-	}
-	return structFields{fields, nameIndex}
+	return fields
 }
 
 // dominantField looks through the fields, all of which are known to
@@ -1286,13 +1292,13 @@ func dominantField(fields []field) (field, bool) {
 	return fields[0], true
 }
 
-var fieldCache sync.Map // map[reflect.Type]structFields
+var fieldCache sync.Map // map[reflect.Type][]field
 
 // cachedTypeFields is like typeFields but uses a cache to avoid repeated work.
-func cachedTypeFields(t reflect.Type) structFields {
+func cachedTypeFields(t reflect.Type) []field {
 	if f, ok := fieldCache.Load(t); ok {
-		return f.(structFields)
+		return f.([]field)
 	}
 	f, _ := fieldCache.LoadOrStore(t, typeFields(t))
-	return f.(structFields)
+	return f.([]field)
 }
