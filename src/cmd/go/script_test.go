@@ -110,7 +110,7 @@ func (ts *testScript) setup() {
 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
 		"GOPROXY=" + proxyURL,
 		"GOROOT=" + testGOROOT,
-		"GONOVERIFY=*",
+		"GOSUMDB=" + testSumDBVerifierKey,
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
 		"goversion=" + goVersion(ts),

@@ -2742,32 +2742,45 @@
 // you want to use the same code you used yesterday.
 //
 // If a downloaded module is not yet included in go.sum and it is a publicly
-// available module, the go command consults the Go notary server to fetch
+// available module, the go command consults the Go checksum database to fetch
 // the expected go.sum lines. If the downloaded code does not match those
 // lines, the go command reports the mismatch and exits. Note that the
-// notary is not consulted for module versions already listed in go.sum.
+// database is not consulted for module versions already listed in go.sum.
 //
-// The GONOVERIFY environment variable is a comma-separated list of
+// If a go.sum mismatch is reported, it is always worth investigating why
+// the code downloaded today differs from what was downloaded yesterday.
+//
+// The GOSUMDB environment variable identifies the name of checksum database
+// to use and optionally its public key and URL, as in:
+//
+// 	GOSUMDB="sum.golang.org"
+// 	GOSUMDB="sum.golang.org+<publickey>"
+// 	GOSUMDB="sum.golang.org+<publickey> https://sum.golang.org"
+//
+// The go command knows the public key of sum.golang.org; use of any other
+// database requires giving the public key explicitly. The URL defaults to
+// "https://" followed by the database name.
+//
+// GOSUMDB defaults to "sum.golang.org" when GOPROXY="https://proxy.golang.org"
+// and otherwise defaults to "off". NOTE: The GOSUMDB will later default to
+// "sum.golang.org" unconditionally.
+//
+// If GOSUMDB is set to "off", or if "go get" is invoked with the -insecure flag,
+// the checksum database is never consulted, but at the cost of giving up the
+// security guarantee of verified repeatable downloads for all modules.
+// A better way to bypass the checksum database for specific modules is
+// to use the GONOSUMDB environment variable.
+//
+// The GONOSUMDB environment variable is a comma-separated list of
 // patterns (in the syntax of Go's path.Match) of module path prefixes
-// that should not be verified using the notary. For example,
+// that should not be compared against the checksum database.
+// For example,
 //
-// 	GONOVERIFY=*.corp.example.com,rsc.io/private
+// 	GONOSUMDB=*.corp.example.com,rsc.io/private
 //
-// disables notary verification for modules with path prefixes matching
+// disables checksum database lookups for modules with path prefixes matching
 // either pattern, including "git.corp.example.com/xyzzy", "rsc.io/private",
 // and "rsc.io/private/quux".
-//
-// As a special case, if GONOVERIFY is set to "off", or if "go get" was invoked
-// with the -insecure flag, the notary is never consulted, but note that this
-// defeats the security provided by the notary. A better course of action is
-// to set a narrower GONOVERIFY and, in the case of go.sum mismatches,
-// investigate why the code downloaded code differs from what was
-// downloaded yesterday.
-//
-// NOTE: Early in the Go 1.13 dev cycle, the notary is being simulated by
-// a whitelist of known hashes for popular Go modules, to expose any
-// problems arising from knowing the expected hashes.
-// TODO(rsc): This note should be removed once the real notary is used instead. See #30601.
 //
 //
 // Testing flags

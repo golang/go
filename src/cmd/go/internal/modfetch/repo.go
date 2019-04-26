@@ -17,6 +17,7 @@ import (
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/par"
 	"cmd/go/internal/semver"
+	"cmd/go/internal/str"
 	web "cmd/go/internal/web"
 )
 
@@ -205,10 +206,9 @@ func lookup(path string) (r Repo, err error) {
 	if proxyURL == "off" {
 		return nil, fmt.Errorf("module lookup disabled by GOPROXY=%s", proxyURL)
 	}
-	if proxyURL != "" && proxyURL != "direct" {
+	if proxyURL != "" && proxyURL != "direct" && !str.GlobsMatchPath(cfg.GONOPROXY, path) {
 		return lookupProxy(path)
 	}
-
 	return lookupDirect(path)
 }
 

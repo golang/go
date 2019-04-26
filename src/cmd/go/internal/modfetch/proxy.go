@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	url "net/url"
+	"net/url"
 	"os"
 	pathpkg "path"
 	"path/filepath"

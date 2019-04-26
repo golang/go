@@ -48,7 +48,7 @@ func Download(mod module.Version) (dir string, err error) {
 		if err := download(mod, dir); err != nil {
 			return cached{"", err}
 		}
-		checkSum(mod)
+		checkMod(mod)
 		return cached{dir, nil}
 	}).(cached)
 	return c.dir, c.err
@@ -246,7 +246,7 @@ func downloadZip(mod module.Version, zipfile string) (err error) {
 	if err != nil {
 		return err
 	}
-	checkOneSum(mod, hash)
+	checkModSum(mod, hash)
 
 	if err := renameio.WriteFile(zipfile+"hash", []byte(hash)); err != nil {
 		return err
@@ -305,7 +305,7 @@ func initGoSum() bool {
 		readGoSum(migrate, alt, data)
 		for mod, sums := range migrate {
 			for _, sum := range sums {
-				checkOneSumLocked(mod, sum)
+				addModSumLocked(mod, sum)
 			}
 		}
 		goSum.modverify = alt
@@ -348,8 +348,8 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) {
 	}
 }
 
-// checkSum checks the given module's checksum.
-func checkSum(mod module.Version) {
+// checkMod checks the given module's checksum.
+func checkMod(mod module.Version) {
 	if PkgMod == "" {
 		// Do not use current directory.
 		return
@@ -373,7 +373,7 @@ func checkSum(mod module.Version) {
 		base.Fatalf("verifying %s@%s: unexpected ziphash: %q", mod.Path, mod.Version, h)
 	}
 
-	checkOneSum(mod, h)
+	checkModSum(mod, h)
 }
 
 // goModSum returns the checksum for the go.mod contents.
@@ -391,52 +391,63 @@ func checkGoMod(path, version string, data []byte) {
 		base.Fatalf("verifying %s %s go.mod: %v", path, version, err)
 	}
 
-	checkOneSum(module.Version{Path: path, Version: version + "/go.mod"}, h)
+	checkModSum(module.Version{Path: path, Version: version + "/go.mod"}, h)
 }
 
-// checkOneSum checks that the recorded hash for mod is h.
-func checkOneSum(mod module.Version, h string) {
+// checkModSum checks that the recorded checksum for mod is h.
+func checkModSum(mod module.Version, h string) {
+	// We lock goSum when manipulating it,
+	// but we arrange to release the lock when calling checkSumDB,
+	// so that parallel calls to checkModHash can execute parallel calls
+	// to checkSumDB.
+
+	// Check whether mod+h is listed in go.sum already. If so, we're done.
 	goSum.mu.Lock()
-	defer goSum.mu.Unlock()
-	if initGoSum() {
-		checkOneSumLocked(mod, h)
-	} else if useNotary(mod) {
-		checkNotarySum(mod, h)
-	}
-}
+	inited := initGoSum()
+	done := inited && haveModSumLocked(mod, h)
+	goSum.mu.Unlock()
 
-func checkOneSumLocked(mod module.Version, h string) {
-	goSum.checked[modSum{mod, h}] = true
-
-	checkGoSum := func() bool {
-		for _, vh := range goSum.m[mod] {
-			if h == vh {
-				return true
-			}
-			if strings.HasPrefix(vh, "h1:") {
-				base.Fatalf("verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\tgo.sum:     %v"+goSumMismatch, mod.Path, mod.Version, h, vh)
-			}
-		}
-		return false
-	}
-
-	if checkGoSum() {
+	if done {
 		return
 	}
 
-	if useNotary(mod) {
-		goSum.mu.Unlock()
-		checkNotarySum(mod, h) // dies if h is wrong
-		goSum.mu.Lock()
-
-		// Because we dropped the lock, a racing goroutine
-		// may have already added this entry to go.sum.
-		// Check again.
-		if checkGoSum() {
-			return
-		}
+	// Not listed, so we want to add them.
+	// Consult checksum database if appropriate.
+	if useSumDB(mod) {
+		// Calls base.Fatalf if mismatch detected.
+		checkSumDB(mod, h)
 	}
 
+	// Add mod+h to go.sum, if it hasn't appeared already.
+	if inited {
+		goSum.mu.Lock()
+		addModSumLocked(mod, h)
+		goSum.mu.Unlock()
+	}
+}
+
+// haveModSumLocked reports whether the pair mod,h is already listed in go.sum.
+// If it finds a conflicting pair instead, it calls base.Fatalf.
+// goSum.mu must be locked.
+func haveModSumLocked(mod module.Version, h string) bool {
+	goSum.checked[modSum{mod, h}] = true
+	for _, vh := range goSum.m[mod] {
+		if h == vh {
+			return true
+		}
+		if strings.HasPrefix(vh, "h1:") {
+			base.Fatalf("verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\tgo.sum:     %v"+goSumMismatch, mod.Path, mod.Version, h, vh)
+		}
+	}
+	return false
+}
+
+// addModSumLocked adds the pair mod,h to go.sum.
+// goSum.mu must be locked.
+func addModSumLocked(mod module.Version, h string) {
+	if haveModSumLocked(mod, h) {
+		return
+	}
 	if len(goSum.m[mod]) > 0 {
 		fmt.Fprintf(os.Stderr, "warning: verifying %s@%s: unknown hashes in go.sum: %v; adding %v"+hashVersionMismatch, mod.Path, mod.Version, strings.Join(goSum.m[mod], ", "), h)
 	}
@@ -444,16 +455,22 @@ func checkOneSumLocked(mod module.Version, h string) {
 	goSum.dirty = true
 }
 
-// checkNotarySum checks the mod, h pair against the Go notary.
+// checkSumDB checks the mod, h pair against the Go checksum database.
 // It calls base.Fatalf if the hash is to be rejected.
-func checkNotarySum(mod module.Version, h string) {
-	hashes := notaryHashes(mod)
-	for _, vh := range hashes {
-		if h == vh {
+func checkSumDB(mod module.Version, h string) {
+	db, lines, err := lookupSumDB(mod)
+	if err != nil {
+		base.Fatalf("verifying %s@%s: %v", mod.Path, mod.Version, err)
+	}
+
+	have := mod.Path + " " + mod.Version + " " + h
+	prefix := mod.Path + " " + mod.Version + " h1:"
+	for _, line := range lines {
+		if line == have {
 			return
 		}
-		if strings.HasPrefix(vh, "h1:") {
-			base.Fatalf("verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\tnotary:     %v"+notarySumMismatch, mod.Path, mod.Version, h, vh)
+		if strings.HasPrefix(line, prefix) {
+			base.Fatalf("verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\t%s: %v"+sumdbMismatch, mod.Path, mod.Version, h, db, line[len(prefix)-len("h1:"):])
 		}
 	}
 }
@@ -526,7 +543,8 @@ func WriteGoSum() {
 		goSum.m = make(map[module.Version][]string, len(goSum.m))
 		readGoSum(goSum.m, GoSumFile, data)
 		for ms := range goSum.checked {
-			checkOneSumLocked(ms.mod, ms.sum)
+			addModSumLocked(ms.mod, ms.sum)
+			goSum.dirty = true
 		}
 	}
 
@@ -587,10 +605,10 @@ have intercepted the download attempt.
 For more information, see 'go help module-auth'.
 `
 
-const notarySumMismatch = `
+const sumdbMismatch = `
 
 SECURITY ERROR
-This download does NOT match the expected download known to the notary.
+This download does NOT match the one reported by the checksum server.
 The bits may have been replaced on the origin server, or an attacker may
 have intercepted the download attempt.
 
@@ -662,31 +680,44 @@ go.sum is wrong or the downloaded code is wrong. Usually go.sum is right:
 you want to use the same code you used yesterday.
 
 If a downloaded module is not yet included in go.sum and it is a publicly
-available module, the go command consults the Go notary server to fetch
+available module, the go command consults the Go checksum database to fetch
 the expected go.sum lines. If the downloaded code does not match those
 lines, the go command reports the mismatch and exits. Note that the
-notary is not consulted for module versions already listed in go.sum.
+database is not consulted for module versions already listed in go.sum.
 
-The GONOVERIFY environment variable is a comma-separated list of
+If a go.sum mismatch is reported, it is always worth investigating why
+the code downloaded today differs from what was downloaded yesterday.
+
+The GOSUMDB environment variable identifies the name of checksum database
+to use and optionally its public key and URL, as in:
+
+	GOSUMDB="sum.golang.org"
+	GOSUMDB="sum.golang.org+<publickey>"
+	GOSUMDB="sum.golang.org+<publickey> https://sum.golang.org"
+
+The go command knows the public key of sum.golang.org; use of any other
+database requires giving the public key explicitly. The URL defaults to
+"https://" followed by the database name.
+
+GOSUMDB defaults to "sum.golang.org" when GOPROXY="https://proxy.golang.org"
+and otherwise defaults to "off". NOTE: The GOSUMDB will later default to
+"sum.golang.org" unconditionally.
+
+If GOSUMDB is set to "off", or if "go get" is invoked with the -insecure flag,
+the checksum database is never consulted, but at the cost of giving up the
+security guarantee of verified repeatable downloads for all modules.
+A better way to bypass the checksum database for specific modules is
+to use the GONOSUMDB environment variable.
+
+The GONOSUMDB environment variable is a comma-separated list of
 patterns (in the syntax of Go's path.Match) of module path prefixes
-that should not be verified using the notary. For example,
+that should not be compared against the checksum database.
+For example,
 
-	GONOVERIFY=*.corp.example.com,rsc.io/private
+	GONOSUMDB=*.corp.example.com,rsc.io/private
 
-disables notary verification for modules with path prefixes matching
+disables checksum database lookups for modules with path prefixes matching
 either pattern, including "git.corp.example.com/xyzzy", "rsc.io/private",
 and "rsc.io/private/quux".
-
-As a special case, if GONOVERIFY is set to "off", or if "go get" was invoked
-with the -insecure flag, the notary is never consulted, but note that this
-defeats the security provided by the notary. A better course of action is
-to set a narrower GONOVERIFY and, in the case of go.sum mismatches,
-investigate why the code downloaded code differs from what was
-downloaded yesterday.
-
-NOTE: Early in the Go 1.13 dev cycle, the notary is being simulated by
-a whitelist of known hashes for popular Go modules, to expose any
-problems arising from knowing the expected hashes.
-TODO(rsc): This note should be removed once the real notary is used instead. See #30601.
 `,
 }

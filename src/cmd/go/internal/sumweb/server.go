@@ -59,7 +59,7 @@ var Paths = []string{
 	"/tile/",
 }
 
-var modVerRE = regexp.MustCompile(`^[^@]+@v[0-9]+\.[0-9]+\.[0-9]+(-[^@]*)?$`)
+var modVerRE = regexp.MustCompile(`^[^@]+@v[0-9]+\.[0-9]+\.[0-9]+(-[^@]*)?(\+incompatible)?$`)
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, err := h.Server.NewContext(r)

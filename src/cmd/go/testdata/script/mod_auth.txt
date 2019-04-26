@@ -2,6 +2,7 @@
 
 env GO111MODULE=on
 env GOPROXY=direct
+env GOSUMDB=off
 
 # Without credentials, downloading a module from a path that requires HTTPS
 # basic auth should fail.
