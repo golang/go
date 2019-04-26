@@ -71,8 +71,9 @@ func main() {
 	case "openbsd":
 		// The gcc available on OpenBSD armv7 is old/inadequate (for example, lacks
 		// __sync_fetch_and_*/__sync_*_and_fetch) and will likely be removed in the
-		// not-to-distant future - use clang instead.
-		if runtime.GOARCH == "arm" {
+		// not-to-distant future - use clang instead. OpenBSD arm64 does not ship
+		// with gcc.
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
 			defaultclang = true
 		}
 	case "plan9":
