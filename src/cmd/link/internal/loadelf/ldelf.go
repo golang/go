@@ -678,6 +678,8 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 	// as well use one large chunk.
 
 	// create symbols for elfmapped sections
+	sectsymNames := make(map[string]bool)
+	counter := 0
 	for i := 0; uint(i) < elfobj.nsect; i++ {
 		sect = &elfobj.sect[i]
 		if sect.type_ == SHT_ARM_ATTRIBUTES && sect.name == ".ARM.attributes" {
@@ -709,6 +711,12 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		}
 
 		name := fmt.Sprintf("%s(%s)", pkg, sect.name)
+		for sectsymNames[name] {
+			counter++
+			name = fmt.Sprintf("%s(%s%d)", pkg, sect.name, counter)
+		}
+		sectsymNames[name] = true
+
 		s := syms.Lookup(name, localSymVersion)
 
 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
@@ -923,7 +931,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 				rp.Sym = elfsym.sym
 			}
 
-			rp.Type = 256 + objabi.RelocType(info)
+			rp.Type = objabi.ElfRelocOffset + objabi.RelocType(info)
 			rp.Siz, err = relSize(arch, pn, uint32(info))
 			if err != nil {
 				return nil, 0, err
@@ -1087,6 +1095,11 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
 				s = syms.Lookup(elfsym.name, 0)
 				if elfsym.other == 2 {
 					s.Attr |= sym.AttrVisibilityHidden
+				}
+
+				// Allow weak symbols to be duplicated when already defined.
+				if s.Outer != nil {
+					s.Attr |= sym.AttrDuplicateOK
 				}
 			}
 

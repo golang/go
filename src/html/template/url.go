@@ -86,7 +86,7 @@ func urlProcessor(norm bool, args ...interface{}) string {
 }
 
 // processURLOnto appends a normalized URL corresponding to its input to b
-// and returns true if the appended content differs from s.
+// and reports whether the appended content differs from s.
 func processURLOnto(s string, norm bool, b *bytes.Buffer) bool {
 	b.Grow(len(s) + 16)
 	written := 0

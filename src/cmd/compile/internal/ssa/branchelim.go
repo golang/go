@@ -26,16 +26,61 @@ func branchelim(f *Func) {
 		return
 	}
 
+	// Find all the values used in computing the address of any load.
+	// Typically these values have operations like AddPtr, Lsh64x64, etc.
+	loadAddr := f.newSparseSet(f.NumValues())
+	defer f.retSparseSet(loadAddr)
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			switch v.Op {
+			case OpLoad, OpAtomicLoad32, OpAtomicLoad64, OpAtomicLoadPtr, OpAtomicLoadAcq32:
+				loadAddr.add(v.Args[0].ID)
+			case OpMove:
+				loadAddr.add(v.Args[1].ID)
+			}
+		}
+	}
+	po := f.postorder()
+	for {
+		n := loadAddr.size()
+		for _, b := range po {
+			for i := len(b.Values) - 1; i >= 0; i-- {
+				v := b.Values[i]
+				if !loadAddr.contains(v.ID) {
+					continue
+				}
+				for _, a := range v.Args {
+					if a.Type.IsInteger() || a.Type.IsPtr() || a.Type.IsUnsafePtr() {
+						loadAddr.add(a.ID)
+					}
+				}
+			}
+		}
+		if loadAddr.size() == n {
+			break
+		}
+	}
+
 	change := true
 	for change {
 		change = false
 		for _, b := range f.Blocks {
-			change = elimIf(f, b) || elimIfElse(f, b) || change
+			change = elimIf(f, loadAddr, b) || elimIfElse(f, loadAddr, b) || change
 		}
 	}
 }
 
-func canCondSelect(v *Value, arch string) bool {
+func canCondSelect(v *Value, arch string, loadAddr *sparseSet) bool {
+	if loadAddr.contains(v.ID) {
+		// The result of the soon-to-be conditional move is used to compute a load address.
+		// We want to avoid generating a conditional move in this case
+		// because the load address would now be data-dependent on the condition.
+		// Previously it would only be control-dependent on the condition, which is faster
+		// if the branch predicts well (or possibly even if it doesn't, if the load will
+		// be an expensive cache miss).
+		// See issue #26306.
+		return false
+	}
 	// For now, stick to simple scalars that fit in registers
 	switch {
 	case v.Type.Size() > v.Block.Func.Config.RegSize:
@@ -53,7 +98,10 @@ func canCondSelect(v *Value, arch string) bool {
 	}
 }
 
-func elimIf(f *Func, dom *Block) bool {
+// elimIf converts the one-way branch starting at dom in f to a conditional move if possible.
+// loadAddr is a set of values which are used to compute the address of a load.
+// Those values are exempt from CMOV generation.
+func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 	// See if dom is an If with one arm that
 	// is trivial and succeeded by the other
 	// successor of dom.
@@ -83,7 +131,7 @@ func elimIf(f *Func, dom *Block) bool {
 	for _, v := range post.Values {
 		if v.Op == OpPhi {
 			hasphis = true
-			if !canCondSelect(v, f.Config.arch) {
+			if !canCondSelect(v, f.Config.arch, loadAddr) {
 				return false
 			}
 		}
@@ -158,7 +206,10 @@ func clobberBlock(b *Block) {
 	b.Kind = BlockInvalid
 }
 
-func elimIfElse(f *Func, b *Block) bool {
+// elimIfElse converts the two-way branch starting at dom in f to a conditional move if possible.
+// loadAddr is a set of values which are used to compute the address of a load.
+// Those values are exempt from CMOV generation.
+func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
 	// See if 'b' ends in an if/else: it should
 	// have two successors, both of which are BlockPlain
 	// and succeeded by the same block.
@@ -184,7 +235,7 @@ func elimIfElse(f *Func, b *Block) bool {
 	for _, v := range post.Values {
 		if v.Op == OpPhi {
 			hasphis = true
-			if !canCondSelect(v, f.Config.arch) {
+			if !canCondSelect(v, f.Config.arch, loadAddr) {
 				return false
 			}
 		}

@@ -351,7 +351,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	ADDQ	$64, SP
 	POPFQ
 
-	MOVL	-8(CX)(DX*1), AX  // return value
+	MOVQ	-8(CX)(DX*1), AX  // return value
 	POPQ	-8(CX)(DX*1)      // restore bytes just after the args
 	RET
 
@@ -486,7 +486,6 @@ loop:
 	SHLQ	$32, CX
 	ORQ	BX, CX
 	IMULQ	$100, CX
-	SUBQ	runtime·startNano(SB), CX
 	MOVQ	CX, ret+0(FP)
 	RET
 useQPC:
@@ -506,7 +505,6 @@ loop:
 	SHLQ	$32, AX
 	ORQ	BX, AX
 	IMULQ	$100, AX
-	SUBQ	runtime·startNano(SB), AX
 	MOVQ	AX, mono+16(FP)
 
 	MOVQ	$_SYSTEM_TIME, DI

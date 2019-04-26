@@ -171,9 +171,20 @@ nocpuinfo:
 	MOVL	_cgo_init(SB), AX
 	TESTL	AX, AX
 	JZ	needtls
+#ifdef GOOS_android
+	// arg 4: TLS base, stored in slot 0 (Android's TLS_SLOT_SELF).
+	// Compensate for tls_g (+8).
+	MOVL	-8(TLS), BX
+	MOVL	BX, 12(SP)
+	MOVL	$runtime·tls_g(SB), 8(SP)	// arg 3: &tls_g
+#else
+	MOVL	$0, BX
+	MOVL	BX, 12(SP)	// arg 3,4: not used when using platform's TLS
+	MOVL	BX, 8(SP)
+#endif
 	MOVL	$setg_gcc<>(SB), BX
-	MOVL	BX, 4(SP)
-	MOVL	BP, 0(SP)
+	MOVL	BX, 4(SP)	// arg 2: setg_gcc
+	MOVL	BP, 0(SP)	// arg 1: g0
 	CALL	AX
 
 	// update stackguard after _cgo_init
@@ -248,16 +259,8 @@ ok:
 	CALL	runtime·abort(SB)
 	RET
 
-DATA	bad_proc_msg<>+0x00(SB)/8, $"This pro"
-DATA	bad_proc_msg<>+0x08(SB)/8, $"gram can"
-DATA	bad_proc_msg<>+0x10(SB)/8, $" only be"
-DATA	bad_proc_msg<>+0x18(SB)/8, $" run on "
-DATA	bad_proc_msg<>+0x20(SB)/8, $"processo"
-DATA	bad_proc_msg<>+0x28(SB)/8, $"rs with "
-DATA	bad_proc_msg<>+0x30(SB)/8, $"MMX supp"
-DATA	bad_proc_msg<>+0x38(SB)/4, $"ort."
-DATA	bad_proc_msg<>+0x3c(SB)/1, $0xa
-GLOBL	bad_proc_msg<>(SB), RODATA, $0x3d
+DATA	bad_proc_msg<>+0x00(SB)/61, $"This program can only be run on processors with MMX support.\n"
+GLOBL	bad_proc_msg<>(SB), RODATA, $61
 
 DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$4
@@ -492,9 +495,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
 	MOVL	$NAME(SB), AX;		\
 	JMP	AX
 // Note: can't just "JMP NAME(SB)" - bad inlining results.
-
-TEXT reflect·call(SB), NOSPLIT, $0-0
-	JMP	·reflectcall(SB)
 
 TEXT ·reflectcall(SB), NOSPLIT, $0-20
 	MOVL	argsize+12(FP), CX
@@ -1412,3 +1412,162 @@ flush:
 	MOVL	12(SP), BP
 	MOVL	16(SP), SI
 	JMP	ret
+
+// Note: these functions use a special calling convention to save generated code space.
+// Arguments are passed in registers, but the space for those arguments are allocated
+// in the caller's stack frame. These stubs write the args into that stack space and
+// then tail call to the corresponding runtime handler.
+// The tail call makes these stubs disappear in backtraces.
+TEXT runtime·panicIndex(SB),NOSPLIT,$0-8
+	MOVL	AX, x+0(FP)
+	MOVL	CX, y+4(FP)
+	JMP	runtime·goPanicIndex(SB)
+TEXT runtime·panicIndexU(SB),NOSPLIT,$0-8
+	MOVL	AX, x+0(FP)
+	MOVL	CX, y+4(FP)
+	JMP	runtime·goPanicIndexU(SB)
+TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-8
+	MOVL	CX, x+0(FP)
+	MOVL	DX, y+4(FP)
+	JMP	runtime·goPanicSliceAlen(SB)
+TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-8
+	MOVL	CX, x+0(FP)
+	MOVL	DX, y+4(FP)
+	JMP	runtime·goPanicSliceAlenU(SB)
+TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-8
+	MOVL	CX, x+0(FP)
+	MOVL	DX, y+4(FP)
+	JMP	runtime·goPanicSliceAcap(SB)
+TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-8
+	MOVL	CX, x+0(FP)
+	MOVL	DX, y+4(FP)
+	JMP	runtime·goPanicSliceAcapU(SB)
+TEXT runtime·panicSliceB(SB),NOSPLIT,$0-8
+	MOVL	AX, x+0(FP)
+	MOVL	CX, y+4(FP)
+	JMP	runtime·goPanicSliceB(SB)
+TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-8
+	MOVL	AX, x+0(FP)
+	MOVL	CX, y+4(FP)
+	JMP	runtime·goPanicSliceBU(SB)
+TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-8
+	MOVL	DX, x+0(FP)
+	MOVL	BX, y+4(FP)
+	JMP	runtime·goPanicSlice3Alen(SB)
+TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-8
+	MOVL	DX, x+0(FP)
+	MOVL	BX, y+4(FP)
+	JMP	runtime·goPanicSlice3AlenU(SB)
+TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-8
+	MOVL	DX, x+0(FP)
+	MOVL	BX, y+4(FP)
+	JMP	runtime·goPanicSlice3Acap(SB)
+TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-8
+	MOVL	DX, x+0(FP)
+	MOVL	BX, y+4(FP)
+	JMP	runtime·goPanicSlice3AcapU(SB)
+TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-8
+	MOVL	CX, x+0(FP)
+	MOVL	DX, y+4(FP)
+	JMP	runtime·goPanicSlice3B(SB)
+TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-8
+	MOVL	CX, x+0(FP)
+	MOVL	DX, y+4(FP)
+	JMP	runtime·goPanicSlice3BU(SB)
+TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-8
+	MOVL	AX, x+0(FP)
+	MOVL	CX, y+4(FP)
+	JMP	runtime·goPanicSlice3C(SB)
+TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-8
+	MOVL	AX, x+0(FP)
+	MOVL	CX, y+4(FP)
+	JMP	runtime·goPanicSlice3CU(SB)
+
+// Extended versions for 64-bit indexes.
+TEXT runtime·panicExtendIndex(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	AX, lo+4(FP)
+	MOVL	CX, y+8(FP)
+	JMP	runtime·goPanicExtendIndex(SB)
+TEXT runtime·panicExtendIndexU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	AX, lo+4(FP)
+	MOVL	CX, y+8(FP)
+	JMP	runtime·goPanicExtendIndexU(SB)
+TEXT runtime·panicExtendSliceAlen(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	CX, lo+4(FP)
+	MOVL	DX, y+8(FP)
+	JMP	runtime·goPanicExtendSliceAlen(SB)
+TEXT runtime·panicExtendSliceAlenU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	CX, lo+4(FP)
+	MOVL	DX, y+8(FP)
+	JMP	runtime·goPanicExtendSliceAlenU(SB)
+TEXT runtime·panicExtendSliceAcap(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	CX, lo+4(FP)
+	MOVL	DX, y+8(FP)
+	JMP	runtime·goPanicExtendSliceAcap(SB)
+TEXT runtime·panicExtendSliceAcapU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	CX, lo+4(FP)
+	MOVL	DX, y+8(FP)
+	JMP	runtime·goPanicExtendSliceAcapU(SB)
+TEXT runtime·panicExtendSliceB(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	AX, lo+4(FP)
+	MOVL	CX, y+8(FP)
+	JMP	runtime·goPanicExtendSliceB(SB)
+TEXT runtime·panicExtendSliceBU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	AX, lo+4(FP)
+	MOVL	CX, y+8(FP)
+	JMP	runtime·goPanicExtendSliceBU(SB)
+TEXT runtime·panicExtendSlice3Alen(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	DX, lo+4(FP)
+	MOVL	BX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3Alen(SB)
+TEXT runtime·panicExtendSlice3AlenU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	DX, lo+4(FP)
+	MOVL	BX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3AlenU(SB)
+TEXT runtime·panicExtendSlice3Acap(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	DX, lo+4(FP)
+	MOVL	BX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3Acap(SB)
+TEXT runtime·panicExtendSlice3AcapU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	DX, lo+4(FP)
+	MOVL	BX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3AcapU(SB)
+TEXT runtime·panicExtendSlice3B(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	CX, lo+4(FP)
+	MOVL	DX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3B(SB)
+TEXT runtime·panicExtendSlice3BU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	CX, lo+4(FP)
+	MOVL	DX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3BU(SB)
+TEXT runtime·panicExtendSlice3C(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	AX, lo+4(FP)
+	MOVL	CX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3C(SB)
+TEXT runtime·panicExtendSlice3CU(SB),NOSPLIT,$0-12
+	MOVL	SI, hi+0(FP)
+	MOVL	AX, lo+4(FP)
+	MOVL	CX, y+8(FP)
+	JMP	runtime·goPanicExtendSlice3CU(SB)
+
+#ifdef GOOS_android
+// Use the free TLS_SLOT_APP slot #2 on Android Q.
+// Earlier androids are set up in gcc_android.c.
+DATA runtime·tls_g+0(SB)/4, $8
+GLOBL runtime·tls_g+0(SB), NOPTR, $4
+#endif

@@ -8,6 +8,9 @@ import "bytes"
 
 // Compact appends to dst the JSON-encoded src with
 // insignificant space characters elided.
+// Like Marshal, Compact applies HTMLEscape to any
+// string literals so that the JSON will be safe to embed
+// inside HTML <script> tags.
 func Compact(dst *bytes.Buffer, src []byte) error {
 	return compact(dst, src, false)
 }

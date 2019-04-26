@@ -13,21 +13,6 @@ import (
 
 func sigpipe() // implemented in package runtime
 
-// Readlink returns the destination of the named symbolic link.
-// If there is an error, it will be of type *PathError.
-func Readlink(name string) (string, error) {
-	for len := 128; ; len *= 2 {
-		b := make([]byte, len)
-		n, e := fixCount(syscall.Readlink(fixLongPath(name), b))
-		if e != nil {
-			return "", &PathError{"readlink", name, e}
-		}
-		if n < len {
-			return string(b[0:n]), nil
-		}
-	}
-}
-
 // syscallMode returns the syscall-specific mode bits from Go's portable mode bits.
 func syscallMode(i FileMode) (o uint32) {
 	o |= uint32(i.Perm())

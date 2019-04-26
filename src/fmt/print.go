@@ -6,6 +6,7 @@ package fmt
 
 import (
 	"errors"
+	"internal/fmtsort"
 	"io"
 	"os"
 	"reflect"
@@ -216,12 +217,6 @@ func Sprintf(format string, a ...interface{}) string {
 	return s
 }
 
-// Errorf formats according to a format specifier and returns the string
-// as a value that satisfies error.
-func Errorf(format string, a ...interface{}) error {
-	return errors.New(Sprintf(format, a...))
-}
-
 // These routines do not take a format string
 
 // Fprint formats using the default formats for its operands and writes to w.
@@ -362,7 +357,7 @@ func (p *pp) fmtBool(v bool, verb rune) {
 func (p *pp) fmt0x64(v uint64, leading0x bool) {
 	sharp := p.fmt.sharp
 	p.fmt.sharp = leading0x
-	p.fmt.fmtInteger(v, 16, unsigned, ldigits)
+	p.fmt.fmtInteger(v, 16, unsigned, 'v', ldigits)
 	p.fmt.sharp = sharp
 }
 
@@ -373,18 +368,18 @@ func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
 		if p.fmt.sharpV && !isSigned {
 			p.fmt0x64(v, true)
 		} else {
-			p.fmt.fmtInteger(v, 10, isSigned, ldigits)
+			p.fmt.fmtInteger(v, 10, isSigned, verb, ldigits)
 		}
 	case 'd':
-		p.fmt.fmtInteger(v, 10, isSigned, ldigits)
+		p.fmt.fmtInteger(v, 10, isSigned, verb, ldigits)
 	case 'b':
-		p.fmt.fmtInteger(v, 2, isSigned, ldigits)
-	case 'o':
-		p.fmt.fmtInteger(v, 8, isSigned, ldigits)
+		p.fmt.fmtInteger(v, 2, isSigned, verb, ldigits)
+	case 'o', 'O':
+		p.fmt.fmtInteger(v, 8, isSigned, verb, ldigits)
 	case 'x':
-		p.fmt.fmtInteger(v, 16, isSigned, ldigits)
+		p.fmt.fmtInteger(v, 16, isSigned, verb, ldigits)
 	case 'X':
-		p.fmt.fmtInteger(v, 16, isSigned, udigits)
+		p.fmt.fmtInteger(v, 16, isSigned, verb, udigits)
 	case 'c':
 		p.fmt.fmtC(v)
 	case 'q':
@@ -406,7 +401,7 @@ func (p *pp) fmtFloat(v float64, size int, verb rune) {
 	switch verb {
 	case 'v':
 		p.fmt.fmtFloat(v, size, 'g', -1)
-	case 'b', 'g', 'G':
+	case 'b', 'g', 'G', 'x', 'X':
 		p.fmt.fmtFloat(v, size, verb, -1)
 	case 'f', 'e', 'E':
 		p.fmt.fmtFloat(v, size, verb, 6)
@@ -424,7 +419,7 @@ func (p *pp) fmtComplex(v complex128, size int, verb rune) {
 	// Make sure any unsupported verbs are found before the
 	// calls to fmtFloat to not generate an incorrect error string.
 	switch verb {
-	case 'v', 'b', 'g', 'G', 'f', 'F', 'e', 'E':
+	case 'v', 'b', 'g', 'G', 'x', 'X', 'f', 'F', 'e', 'E':
 		oldPlus := p.fmt.plus
 		p.buf.WriteByte('(')
 		p.fmtFloat(real(v), size/2, verb)
@@ -482,12 +477,12 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
 				if i > 0 {
 					p.buf.WriteByte(' ')
 				}
-				p.fmt.fmtInteger(uint64(c), 10, unsigned, ldigits)
+				p.fmt.fmtInteger(uint64(c), 10, unsigned, verb, ldigits)
 			}
 			p.buf.WriteByte(']')
 		}
 	case 's':
-		p.fmt.fmtS(string(v))
+		p.fmt.fmtBs(v)
 	case 'x':
 		p.fmt.fmtBx(v, ldigits)
 	case 'X':
@@ -537,7 +532,7 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
 	}
 }
 
-func (p *pp) catchPanic(arg interface{}, verb rune) {
+func (p *pp) catchPanic(arg interface{}, verb rune, method string) {
 	if err := recover(); err != nil {
 		// If it's a nil pointer, just say "<nil>". The likeliest causes are a
 		// Stringer that fails to guard against nil or a nil pointer for a
@@ -560,6 +555,8 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
 		p.buf.WriteString(percentBangString)
 		p.buf.WriteRune(verb)
 		p.buf.WriteString(panicString)
+		p.buf.WriteString(method)
+		p.buf.WriteString(" method: ")
 		p.panicking = true
 		p.printArg(err, 'v')
 		p.panicking = false
@@ -573,19 +570,29 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 	if p.erroring {
 		return
 	}
-	// Is it a Formatter?
-	if formatter, ok := p.arg.(Formatter); ok {
+	switch x := p.arg.(type) {
+	case errors.Formatter:
 		handled = true
-		defer p.catchPanic(p.arg, verb)
-		formatter.Format(p, verb)
+		defer p.catchPanic(p.arg, verb, "FormatError")
+		return fmtError(p, verb, x)
+
+	case Formatter:
+		handled = true
+		defer p.catchPanic(p.arg, verb, "Format")
+		x.Format(p, verb)
 		return
+
+	case error:
+		handled = true
+		defer p.catchPanic(p.arg, verb, "Error")
+		return fmtError(p, verb, x)
 	}
 
 	// If we're doing Go syntax and the argument knows how to supply it, take care of it now.
 	if p.fmt.sharpV {
 		if stringer, ok := p.arg.(GoStringer); ok {
 			handled = true
-			defer p.catchPanic(p.arg, verb)
+			defer p.catchPanic(p.arg, verb, "GoString")
 			// Print the result of GoString unadorned.
 			p.fmt.fmtS(stringer.GoString())
 			return
@@ -596,20 +603,9 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 		// Println etc. set verb to %v, which is "stringable".
 		switch verb {
 		case 'v', 's', 'x', 'X', 'q':
-			// Is it an error or Stringer?
-			// The duplication in the bodies is necessary:
-			// setting handled and deferring catchPanic
-			// must happen before calling the method.
-			switch v := p.arg.(type) {
-			case error:
+			if v, ok := p.arg.(Stringer); ok {
 				handled = true
-				defer p.catchPanic(p.arg, verb)
-				p.fmtString(v.Error(), verb)
-				return
-
-			case Stringer:
-				handled = true
-				defer p.catchPanic(p.arg, verb)
+				defer p.catchPanic(p.arg, verb, "String")
 				p.fmtString(v.String(), verb)
 				return
 			}
@@ -753,8 +749,8 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 		} else {
 			p.buf.WriteString(mapString)
 		}
-		iter := f.MapRange()
-		for i := 0; iter.Next(); i++ {
+		sorted := fmtsort.Sort(f)
+		for i, key := range sorted.Key {
 			if i > 0 {
 				if p.fmt.sharpV {
 					p.buf.WriteString(commaSpaceString)
@@ -762,9 +758,9 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 					p.buf.WriteByte(' ')
 				}
 			}
-			p.printValue(iter.Key(), verb, depth+1)
+			p.printValue(key, verb, depth+1)
 			p.buf.WriteByte(':')
-			p.printValue(iter.Value(), verb, depth+1)
+			p.printValue(sorted.Value[i], verb, depth+1)
 		}
 		if p.fmt.sharpV {
 			p.buf.WriteByte('}')

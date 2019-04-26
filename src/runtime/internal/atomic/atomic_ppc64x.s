@@ -38,3 +38,12 @@ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$-8-16
 	ISYNC
 	MOVD	R3, ret+8(FP)
 	RET
+
+// uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* ptr)
+TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$-8-12
+	MOVD   ptr+0(FP), R3
+	MOVWZ  0(R3), R3
+	CMPW   R3, R3, CR7
+	BC     4, 30, 1(PC) // bne- cr7, 0x4
+	MOVW   R3, ret+8(FP)
+	RET

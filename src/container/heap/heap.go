@@ -38,7 +38,7 @@ type Interface interface {
 // Init establishes the heap invariants required by the other routines in this package.
 // Init is idempotent with respect to the heap invariants
 // and may be called whenever the heap invariants may have been invalidated.
-// Its complexity is O(n) where n = h.Len().
+// The complexity is O(n) where n = h.Len().
 func Init(h Interface) {
 	// heapify
 	n := h.Len()
@@ -47,18 +47,16 @@ func Init(h Interface) {
 	}
 }
 
-// Push pushes the element x onto the heap. The complexity is
-// O(log(n)) where n = h.Len().
-//
+// Push pushes the element x onto the heap.
+// The complexity is O(log n) where n = h.Len().
 func Push(h Interface, x interface{}) {
 	h.Push(x)
 	up(h, h.Len()-1)
 }
 
-// Pop removes the minimum element (according to Less) from the heap
-// and returns it. The complexity is O(log(n)) where n = h.Len().
-// It is equivalent to Remove(h, 0).
-//
+// Pop removes and returns the minimum element (according to Less) from the heap.
+// The complexity is O(log n) where n = h.Len().
+// Pop is equivalent to Remove(h, 0).
 func Pop(h Interface) interface{} {
 	n := h.Len() - 1
 	h.Swap(0, n)
@@ -66,9 +64,8 @@ func Pop(h Interface) interface{} {
 	return h.Pop()
 }
 
-// Remove removes the element at index i from the heap and returns
-// the element. The complexity is O(log(n)) where n = h.Len().
-//
+// Remove removes and returns the element at index i from the heap.
+// The complexity is O(log n) where n = h.Len().
 func Remove(h Interface, i int) interface{} {
 	n := h.Len() - 1
 	if n != i {
@@ -83,7 +80,7 @@ func Remove(h Interface, i int) interface{} {
 // Fix re-establishes the heap ordering after the element at index i has changed its value.
 // Changing the value of the element at index i and then calling Fix is equivalent to,
 // but less expensive than, calling Remove(h, i) followed by a Push of the new value.
-// The complexity is O(log(n)) where n = h.Len().
+// The complexity is O(log n) where n = h.Len().
 func Fix(h Interface, i int) {
 	if !down(h, i, h.Len()) {
 		up(h, i)

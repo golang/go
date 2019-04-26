@@ -49,7 +49,7 @@ var (
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen"}
+	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime"}
 
 	// ratec controls the max number of tests running at a time.
 	ratec chan bool
@@ -233,11 +233,14 @@ func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, 
 	return runcmd(cmd...)
 }
 
-func linkFile(runcmd runCmd, goname string) (err error) {
+func linkFile(runcmd runCmd, goname string, ldflags []string) (err error) {
 	pfile := strings.Replace(goname, ".go", ".o", -1)
 	cmd := []string{goTool(), "tool", "link", "-w", "-o", "a.exe", "-L", "."}
 	if *linkshared {
 		cmd = append(cmd, "-linkshared", "-installsuffix=dynlink")
+	}
+	if ldflags != nil {
+		cmd = append(cmd, ldflags...)
 	}
 	cmd = append(cmd, pfile)
 	_, err = runcmd(cmd...)
@@ -324,6 +327,18 @@ func goDirFiles(longdir string) (filter []os.FileInfo, err error) {
 
 var packageRE = regexp.MustCompile(`(?m)^package ([\p{Lu}\p{Ll}\w]+)`)
 
+func getPackageNameFromSource(fn string) (string, error) {
+	data, err := ioutil.ReadFile(fn)
+	if err != nil {
+		return "", err
+	}
+	pkgname := packageRE.FindStringSubmatch(string(data))
+	if pkgname == nil {
+		return "", fmt.Errorf("cannot find package name in %s", fn)
+	}
+	return pkgname[1], nil
+}
+
 // If singlefilepkgs is set, each file is considered a separate package
 // even if the package names are the same.
 func goDirPackages(longdir string, singlefilepkgs bool) ([][]string, error) {
@@ -335,19 +350,13 @@ func goDirPackages(longdir string, singlefilepkgs bool) ([][]string, error) {
 	m := make(map[string]int)
 	for _, file := range files {
 		name := file.Name()
-		data, err := ioutil.ReadFile(filepath.Join(longdir, name))
-		if err != nil {
-			return nil, err
-		}
-		pkgname := packageRE.FindStringSubmatch(string(data))
-		if pkgname == nil {
-			return nil, fmt.Errorf("cannot find package name in %s", name)
-		}
-		i, ok := m[pkgname[1]]
+		pkgname, err := getPackageNameFromSource(filepath.Join(longdir, name))
+		check(err)
+		i, ok := m[pkgname]
 		if singlefilepkgs || !ok {
 			i = len(pkgs)
 			pkgs = append(pkgs, nil)
-			m[pkgname[1]] = i
+			m[pkgname] = i
 		}
 		pkgs[i] = append(pkgs[i], name)
 	}
@@ -502,6 +511,7 @@ func (t *test) run() {
 	wantError := false
 	wantAuto := false
 	singlefilepkgs := false
+	setpkgpaths := false
 	localImports := true
 	f := strings.Fields(action)
 	if len(f) > 0 {
@@ -540,6 +550,8 @@ func (t *test) run() {
 			wantError = false
 		case "-s":
 			singlefilepkgs = true
+		case "-P":
+			setpkgpaths = true
 		case "-n":
 			// Do not set relative path for local imports to current dir,
 			// e.g. do not pass -D . -I . to the compiler.
@@ -558,6 +570,19 @@ func (t *test) run() {
 			flags = append(flags, args[0])
 		}
 		args = args[1:]
+	}
+	if action == "errorcheck" {
+		found := false
+		for i, f := range flags {
+			if strings.HasPrefix(f, "-d=") {
+				flags[i] = f + ",ssa/check/on"
+				found = true
+				break
+			}
+		}
+		if !found {
+			flags = append(flags, "-d=ssa/check/on")
+		}
 	}
 
 	t.makeTempDir()
@@ -629,11 +654,15 @@ func (t *test) run() {
 		// against a set of regexps in comments.
 		ops := t.wantedAsmOpcodes(long)
 		for _, env := range ops.Envs() {
-			cmdline := []string{"build", "-gcflags", "-S"}
+			// -S=2 forces outermost line numbers when disassembling inlined code.
+			cmdline := []string{"build", "-gcflags", "-S=2"}
 			cmdline = append(cmdline, flags...)
 			cmdline = append(cmdline, long)
 			cmd := exec.Command(goTool(), cmdline...)
 			cmd.Env = append(os.Environ(), env.Environ()...)
+			if len(flags) > 0 && flags[0] == "-race" {
+				cmd.Env = append(cmd.Env, "CGO_ENABLED=1")
+			}
 
 			var buf bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &buf, &buf
@@ -751,8 +780,26 @@ func (t *test) run() {
 			t.err = err
 			return
 		}
+		// Split flags into gcflags and ldflags
+		ldflags := []string{}
+		for i, fl := range flags {
+			if fl == "-ldflags" {
+				ldflags = flags[i+1:]
+				flags = flags[0:i]
+				break
+			}
+		}
+
 		for i, gofiles := range pkgs {
-			_, err := compileInDir(runcmd, longdir, flags, localImports, gofiles...)
+			pflags := []string{}
+			pflags = append(pflags, flags...)
+			if setpkgpaths {
+				fp := filepath.Join(longdir, gofiles[0])
+				pkgname, serr := getPackageNameFromSource(fp)
+				check(serr)
+				pflags = append(pflags, "-p", pkgname)
+			}
+			_, err := compileInDir(runcmd, longdir, pflags, localImports, gofiles...)
 			// Allow this package compilation fail based on conditions below;
 			// its errors were checked in previous case.
 			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {
@@ -760,7 +807,7 @@ func (t *test) run() {
 				return
 			}
 			if i == len(pkgs)-1 {
-				err = linkFile(runcmd, gofiles[0])
+				err = linkFile(runcmd, gofiles[0], ldflags)
 				if err != nil {
 					t.err = err
 					return
@@ -796,25 +843,37 @@ func (t *test) run() {
 			t.err = dirErr
 			break
 		}
-		var gos []os.FileInfo
-		var asms []os.FileInfo
+		var gos []string
+		var asms []string
 		for _, file := range files {
 			switch filepath.Ext(file.Name()) {
 			case ".go":
-				gos = append(gos, file)
+				gos = append(gos, filepath.Join(longdir, file.Name()))
 			case ".s":
-				asms = append(asms, file)
+				asms = append(asms, filepath.Join(longdir, file.Name()))
 			}
 
+		}
+		if len(asms) > 0 {
+			emptyHdrFile := filepath.Join(t.tempDir, "go_asm.h")
+			if err := ioutil.WriteFile(emptyHdrFile, nil, 0666); err != nil {
+				t.err = fmt.Errorf("write empty go_asm.h: %s", err)
+				return
+			}
+			cmd := []string{goTool(), "tool", "asm", "-gensymabis", "-o", "symabis"}
+			cmd = append(cmd, asms...)
+			_, err = runcmd(cmd...)
+			if err != nil {
+				t.err = err
+				break
+			}
 		}
 		var objs []string
 		cmd := []string{goTool(), "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
 		if len(asms) > 0 {
-			cmd = append(cmd, "-asmhdr", "go_asm.h")
+			cmd = append(cmd, "-asmhdr", "go_asm.h", "-symabis", "symabis")
 		}
-		for _, file := range gos {
-			cmd = append(cmd, filepath.Join(longdir, file.Name()))
-		}
+		cmd = append(cmd, gos...)
 		_, err := runcmd(cmd...)
 		if err != nil {
 			t.err = err
@@ -823,9 +882,7 @@ func (t *test) run() {
 		objs = append(objs, "go.o")
 		if len(asms) > 0 {
 			cmd = []string{goTool(), "tool", "asm", "-e", "-I", ".", "-o", "asm.o"}
-			for _, file := range asms {
-				cmd = append(cmd, filepath.Join(longdir, file.Name()))
-			}
+			cmd = append(cmd, asms...)
 			_, err = runcmd(cmd...)
 			if err != nil {
 				t.err = err
@@ -1189,7 +1246,7 @@ func (t *test) updateErrors(out, file string) {
 		msg := errStr[colon2+2:]
 		msg = strings.Replace(msg, file, base, -1) // normalize file mentions in error itself
 		msg = strings.TrimLeft(msg, " \t")
-		for _, r := range []string{`\`, `*`, `+`, `[`, `]`, `(`, `)`} {
+		for _, r := range []string{`\`, `*`, `+`, `?`, `[`, `]`, `(`, `)`} {
 			msg = strings.Replace(msg, r, `\`+r, -1)
 		}
 		msg = strings.Replace(msg, `"`, `.`, -1)
@@ -1358,9 +1415,10 @@ var (
 		"arm64":   {},
 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
 		"mips64":  {"GOMIPS64", "hardfloat", "softfloat"},
-		"ppc64":   {},
-		"ppc64le": {},
+		"ppc64":   {"GOPPC64", "power8", "power9"},
+		"ppc64le": {"GOPPC64", "power8", "power9"},
 		"s390x":   {},
+		"wasm":    {},
 	}
 )
 
@@ -1439,6 +1497,9 @@ func (t *test) wantedAsmOpcodes(fn string) asmChecks {
 				os, arch, subarch = "linux", archspec[0], archspec[1][1:]
 			default: // 1 component: "386"
 				os, arch, subarch = "linux", archspec[0], ""
+				if arch == "wasm" {
+					os = "js"
+				}
 			}
 
 			if _, ok := archVariants[arch]; !ok {

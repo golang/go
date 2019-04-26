@@ -9,9 +9,26 @@ import (
 	"internal/testenv"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+func TestMinimalFeatures(t *testing.T) {
+	if runtime.GOARCH == "arm64" {
+		switch runtime.GOOS {
+		case "linux", "android":
+		default:
+			t.Skipf("%s/%s is not supported", runtime.GOOS, runtime.GOARCH)
+		}
+	}
+
+	for _, o := range Options {
+		if o.Required && !*o.Feature {
+			t.Errorf("%v expected true, got false", o.Name)
+		}
+	}
+}
 
 func MustHaveDebugOptionsSupport(t *testing.T) {
 	if !DebugOptions {
@@ -24,7 +41,7 @@ func runDebugOptionsTest(t *testing.T, test string, options string) {
 
 	testenv.MustHaveExec(t)
 
-	env := "GODEBUGCPU=" + options
+	env := "GODEBUG=" + options
 
 	cmd := exec.Command(os.Args[0], "-test.run="+test)
 	cmd.Env = append(cmd.Env, env)
@@ -41,19 +58,20 @@ func runDebugOptionsTest(t *testing.T, test string, options string) {
 }
 
 func TestDisableAllCapabilities(t *testing.T) {
-	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "all=off")
+	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "cpu.all=off")
 }
 
 func TestAllCapabilitiesDisabled(t *testing.T) {
 	MustHaveDebugOptionsSupport(t)
 
-	if os.Getenv("GODEBUGCPU") != "all=off" {
-		t.Skipf("skipping test: GODEBUGCPU=all=off not set")
+	if os.Getenv("GODEBUG") != "cpu.all=off" {
+		t.Skipf("skipping test: GODEBUG=cpu.all=off not set")
 	}
 
 	for _, o := range Options {
-		if got := *o.Feature; got != false {
-			t.Errorf("%v: expected false, got %v", o.Name, got)
+		want := o.Required
+		if got := *o.Feature; got != want {
+			t.Errorf("%v: expected %v, got %v", o.Name, want, got)
 		}
 	}
 }

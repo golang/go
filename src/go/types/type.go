@@ -340,7 +340,7 @@ func (t *Interface) NumMethods() int { return len(t.allMethods) }
 // The methods are ordered by their unique Id.
 func (t *Interface) Method(i int) *Func { return t.allMethods[i] }
 
-// Empty returns true if t is the empty interface.
+// Empty reports whether t is the empty interface.
 func (t *Interface) Empty() bool { return len(t.allMethods) == 0 }
 
 // Complete computes the interface's method set. It must be called by users of
@@ -352,19 +352,14 @@ func (t *Interface) Complete() *Interface {
 		return t
 	}
 
+	// collect all methods
 	var allMethods []*Func
 	allMethods = append(allMethods, t.methods...)
 	for _, et := range t.embeddeds {
 		it := et.Underlying().(*Interface)
 		it.Complete()
-		for _, tm := range it.allMethods {
-			// Make a copy of the method and adjust its receiver type.
-			newm := *tm
-			newmtyp := *tm.typ.(*Signature)
-			newm.typ = &newmtyp
-			newmtyp.recv = NewVar(newm.pos, newm.pkg, "", t)
-			allMethods = append(allMethods, &newm)
-		}
+		// copy embedded methods unchanged (see issue #28282)
+		allMethods = append(allMethods, it.allMethods...)
 	}
 	sort.Sort(byUniqueMethodName(allMethods))
 

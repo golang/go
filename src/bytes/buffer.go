@@ -68,7 +68,7 @@ func (b *Buffer) String() string {
 	return string(b.buf[b.off:])
 }
 
-// empty returns whether the unread portion of the buffer is empty.
+// empty reports whether the unread portion of the buffer is empty.
 func (b *Buffer) empty() bool { return len(b.buf) <= b.off }
 
 // Len returns the number of bytes of the unread portion of the buffer;
@@ -385,13 +385,15 @@ func (b *Buffer) UnreadRune() error {
 	return nil
 }
 
+var errUnreadByte = errors.New("bytes.Buffer: UnreadByte: previous operation was not a successful read")
+
 // UnreadByte unreads the last byte returned by the most recent successful
 // read operation that read at least one byte. If a write has happened since
 // the last read, if the last read returned an error, or if the read read zero
 // bytes, UnreadByte returns an error.
 func (b *Buffer) UnreadByte() error {
 	if b.lastRead == opInvalid {
-		return errors.New("bytes.Buffer: UnreadByte: previous operation was not a successful read")
+		return errUnreadByte
 	}
 	b.lastRead = opInvalid
 	if b.off > 0 {

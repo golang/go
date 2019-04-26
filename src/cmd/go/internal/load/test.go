@@ -15,10 +15,10 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"internal/lazytemplate"
 	"path/filepath"
 	"sort"
 	"strings"
-	"text/template"
 	"unicode"
 	"unicode/utf8"
 )
@@ -39,10 +39,43 @@ type TestCover struct {
 	DeclVars func(*Package, ...string) map[string]*CoverVar
 }
 
-// TestPackagesFor returns three packages:
+// TestPackagesFor is like TestPackagesAndErrors but it returns
+// an error if the test packages or their dependencies have errors.
+// Only test packages without errors are returned.
+func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
+	pmain, ptest, pxtest = TestPackagesAndErrors(p, cover)
+	for _, p1 := range []*Package{ptest, pxtest, pmain} {
+		if p1 == nil {
+			// pxtest may be nil
+			continue
+		}
+		if p1.Error != nil {
+			err = p1.Error
+			break
+		}
+		if len(p1.DepsErrors) > 0 {
+			perr := p1.DepsErrors[0]
+			perr.Pos = "" // show full import stack
+			err = perr
+			break
+		}
+	}
+	if pmain.Error != nil || len(pmain.DepsErrors) > 0 {
+		pmain = nil
+	}
+	if ptest.Error != nil || len(ptest.DepsErrors) > 0 {
+		ptest = nil
+	}
+	if pxtest != nil && (pxtest.Error != nil || len(pxtest.DepsErrors) > 0) {
+		pxtest = nil
+	}
+	return pmain, ptest, pxtest, err
+}
+
+// TestPackagesAndErrors returns three packages:
+//	- pmain, the package main corresponding to the test binary (running tests in ptest and pxtest).
 //	- ptest, the package p compiled with added "package p" test files.
 //	- pxtest, the result of compiling any "package p_test" (external) test files.
-//	- pmain, the package main corresponding to the test binary (running tests in ptest and pxtest).
 //
 // If the package has no "package p_test" test files, pxtest will be nil.
 // If the non-test compilation of package p can be reused
@@ -50,33 +83,36 @@ type TestCover struct {
 // package p need not be instrumented for coverage or any other reason),
 // then the returned ptest == p.
 //
+// An error is returned if the testmain source cannot be completely generated
+// (for example, due to a syntax error in a test file). No error will be
+// returned for errors loading packages, but the Error or DepsError fields
+// of the returned packages may be set.
+//
 // The caller is expected to have checked that len(p.TestGoFiles)+len(p.XTestGoFiles) > 0,
 // or else there's no point in any of this.
-func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
+func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package) {
+	pre := newPreload()
+	defer pre.flush()
+	allImports := append([]string{}, p.TestImports...)
+	allImports = append(allImports, p.XTestImports...)
+	pre.preloadImports(allImports, p.Internal.Build)
+
+	var ptestErr, pxtestErr *PackageError
 	var imports, ximports []*Package
 	var stk ImportStack
 	stk.Push(p.ImportPath + " (test)")
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
-		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
-		if p1.Error != nil {
-			return nil, nil, nil, p1.Error
-		}
-		if len(p1.DepsErrors) > 0 {
-			err := p1.DepsErrors[0]
-			err.Pos = "" // show full import stack
-			return nil, nil, nil, err
-		}
+		p1 := loadImport(pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
 		if str.Contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
 			// Same error that loadPackage returns (via reusePackage) in pkg.go.
 			// Can't change that code, because that code is only for loading the
 			// non-test copy of a package.
-			err := &PackageError{
+			ptestErr = &PackageError{
 				ImportStack:   testImportStack(stk[0], p1, p.ImportPath),
 				Err:           "import cycle not allowed in test",
 				IsImportCycle: true,
 			}
-			return nil, nil, nil, err
 		}
 		p.TestImports[i] = p1.ImportPath
 		imports = append(imports, p1)
@@ -86,15 +122,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 	pxtestNeedsPtest := false
 	rawXTestImports := str.StringList(p.XTestImports)
 	for i, path := range p.XTestImports {
-		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
-		if p1.Error != nil {
-			return nil, nil, nil, p1.Error
-		}
-		if len(p1.DepsErrors) > 0 {
-			err := p1.DepsErrors[0]
-			err.Pos = "" // show full import stack
-			return nil, nil, nil, err
-		}
+		p1 := loadImport(pre, path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
 		if p1.ImportPath == p.ImportPath {
 			pxtestNeedsPtest = true
 		} else {
@@ -108,6 +136,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 	if len(p.TestGoFiles) > 0 || p.Name == "main" || cover != nil && cover.Local {
 		ptest = new(Package)
 		*ptest = *p
+		ptest.Error = ptestErr
 		ptest.ForTest = p.ImportPath
 		ptest.GoFiles = nil
 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
@@ -129,6 +158,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 		ptest.Internal.Imports = append(imports, p.Internal.Imports...)
 		ptest.Internal.RawImports = str.StringList(rawTestImports, p.Internal.RawImports)
 		ptest.Internal.ForceLibrary = true
+		ptest.Internal.BuildInfo = ""
 		ptest.Internal.Build = new(build.Package)
 		*ptest.Internal.Build = *p.Internal.Build
 		m := map[string][]token.Position{}
@@ -139,6 +169,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 			m[k] = append(m[k], v...)
 		}
 		ptest.Internal.Build.ImportPos = m
+		ptest.collectDeps()
 	} else {
 		ptest = p
 	}
@@ -154,6 +185,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 				GoFiles:    p.XTestGoFiles,
 				Imports:    p.XTestImports,
 				ForTest:    p.ImportPath,
+				Error:      pxtestErr,
 			},
 			Internal: PackageInternal{
 				LocalPrefix: p.Internal.LocalPrefix,
@@ -172,6 +204,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 		if pxtestNeedsPtest {
 			pxtest.Internal.Imports = append(pxtest.Internal.Imports, ptest)
 		}
+		pxtest.collectDeps()
 	}
 
 	// Build main package.
@@ -186,6 +219,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 		},
 		Internal: PackageInternal{
 			Build:      &build.Package{Name: "main"},
+			BuildInfo:  p.Internal.BuildInfo,
 			Asmflags:   p.Internal.Asmflags,
 			Gcflags:    p.Internal.Gcflags,
 			Ldflags:    p.Internal.Ldflags,
@@ -204,10 +238,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 		if dep == ptest.ImportPath {
 			pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
 		} else {
-			p1 := LoadImport(dep, "", nil, &stk, nil, 0)
-			if p1.Error != nil {
-				return nil, nil, nil, p1.Error
-			}
+			p1 := loadImport(pre, dep, "", nil, &stk, nil, 0)
 			pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
 		}
 	}
@@ -227,13 +258,19 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 		}
 	}
 
+	allTestImports := make([]*Package, 0, len(pmain.Internal.Imports)+len(imports)+len(ximports))
+	allTestImports = append(allTestImports, pmain.Internal.Imports...)
+	allTestImports = append(allTestImports, imports...)
+	allTestImports = append(allTestImports, ximports...)
+	setToolFlags(allTestImports...)
+
 	// Do initial scan for metadata needed for writing _testmain.go
 	// Use that metadata to update the list of imports for package main.
 	// The list of imports is used by recompileForTest and by the loop
 	// afterward that gathers t.Cover information.
 	t, err := loadTestFuncs(ptest)
-	if err != nil {
-		return nil, nil, nil, err
+	if err != nil && pmain.Error == nil {
+		pmain.Error = &PackageError{Err: err.Error()}
 	}
 	t.Cover = cover
 	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
@@ -246,6 +283,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 		pmain.Imports = append(pmain.Imports, pxtest.ImportPath)
 		t.ImportXtest = true
 	}
+	pmain.collectDeps()
 
 	// Sort and dedup pmain.Imports.
 	// Only matters for go list -test output.
@@ -260,17 +298,8 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 	pmain.Imports = pmain.Imports[:w]
 	pmain.Internal.RawImports = str.StringList(pmain.Imports)
 
-	if ptest != p {
-		// We have made modifications to the package p being tested
-		// and are rebuilding p (as ptest).
-		// Arrange to rebuild all packages q such that
-		// the test depends on q and q depends on p.
-		// This makes sure that q sees the modifications to p.
-		// Strictly speaking, the rebuild is only necessary if the
-		// modifications to p change its export metadata, but
-		// determining that is a bit tricky, so we rebuild always.
-		recompileForTest(pmain, p, ptest, pxtest)
-	}
+	// Replace pmain's transitive dependencies with test copies, as necessary.
+	recompileForTest(pmain, p, ptest, pxtest)
 
 	// Should we apply coverage analysis locally,
 	// only for this package and only for this test?
@@ -291,12 +320,14 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 	}
 
 	data, err := formatTestmain(t)
-	if err != nil {
-		return nil, nil, nil, err
+	if err != nil && pmain.Error == nil {
+		pmain.Error = &PackageError{Err: err.Error()}
 	}
-	pmain.Internal.TestmainGo = &data
+	if data != nil {
+		pmain.Internal.TestmainGo = &data
+	}
 
-	return pmain, ptest, pxtest, nil
+	return pmain, ptest, pxtest
 }
 
 func testImportStack(top string, p *Package, target string) []string {
@@ -317,6 +348,14 @@ Search:
 	return stk
 }
 
+// recompileForTest copies and replaces certain packages in pmain's dependency
+// graph. This is necessary for two reasons. First, if ptest is different than
+// preal, packages that import the package under test should get ptest instead
+// of preal. This is particularly important if pxtest depends on functionality
+// exposed in test sources in ptest. Second, if there is a main package
+// (other than pmain) anywhere, we need to clear p.Internal.BuildInfo in
+// the test copy to prevent link conflicts. This may happen if both -coverpkg
+// and the command line patterns include multiple main packages.
 func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 	// The "test copy" of preal is ptest.
 	// For each package that depends on preal, make a "test copy"
@@ -346,6 +385,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 			copy(p1.Imports, p.Imports)
 			p = p1
 			p.Target = ""
+			p.Internal.BuildInfo = ""
 		}
 
 		// Update p.Internal.Imports to use test copies.
@@ -354,6 +394,13 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 				split()
 				p.Internal.Imports[i] = p1
 			}
+		}
+
+		// Don't compile build info from a main package. This can happen
+		// if -coverpkg patterns include main packages, since those packages
+		// are imported by pmain. See golang.org/issue/30907.
+		if p.Internal.BuildInfo != "" && p != pmain {
+			split()
 		}
 	}
 }
@@ -404,21 +451,24 @@ type coverInfo struct {
 }
 
 // loadTestFuncs returns the testFuncs describing the tests that will be run.
+// The returned testFuncs is always non-nil, even if an error occurred while
+// processing test files.
 func loadTestFuncs(ptest *Package) (*testFuncs, error) {
 	t := &testFuncs{
 		Package: ptest,
 	}
+	var err error
 	for _, file := range ptest.TestGoFiles {
-		if err := t.load(filepath.Join(ptest.Dir, file), "_test", &t.ImportTest, &t.NeedTest); err != nil {
-			return nil, err
+		if lerr := t.load(filepath.Join(ptest.Dir, file), "_test", &t.ImportTest, &t.NeedTest); lerr != nil && err == nil {
+			err = lerr
 		}
 	}
 	for _, file := range ptest.XTestGoFiles {
-		if err := t.load(filepath.Join(ptest.Dir, file), "_xtest", &t.ImportXtest, &t.NeedXtest); err != nil {
-			return nil, err
+		if lerr := t.load(filepath.Join(ptest.Dir, file), "_xtest", &t.ImportXtest, &t.NeedXtest); lerr != nil && err == nil {
+			err = lerr
 		}
 	}
-	return t, nil
+	return t, err
 }
 
 // formatTestmain returns the content of the _testmain.go file for t.
@@ -550,7 +600,7 @@ func checkTestFunc(fn *ast.FuncDecl, arg string) error {
 	return nil
 }
 
-var testmainTmpl = template.Must(template.New("main").Parse(`
+var testmainTmpl = lazytemplate.New("main", `
 package main
 
 import (
@@ -651,4 +701,4 @@ func main() {
 {{end}}
 }
 
-`))
+`)

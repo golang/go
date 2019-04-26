@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 [!gc] skip
 
 # Set up fresh GOCACHE.

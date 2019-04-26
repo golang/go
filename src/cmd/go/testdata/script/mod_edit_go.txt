@@ -1,0 +1,16 @@
+# Test support for go mod -edit to set language version.
+
+env GO111MODULE=on
+! go build
+stderr 'type aliases only supported as of'
+go mod edit -go=1.9
+grep 'go 1.9' go.mod
+go build
+
+-- go.mod --
+module m
+go 1.8
+
+-- alias.go --
+package alias
+type T = int

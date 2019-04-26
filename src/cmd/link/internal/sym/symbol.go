@@ -5,6 +5,7 @@
 package sym
 
 import (
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"debug/elf"
@@ -27,7 +28,7 @@ type Symbol struct {
 	Sub         *Symbol
 	Outer       *Symbol
 	Gotype      *Symbol
-	File        string
+	File        string // actually package!
 	auxinfo     *AuxSymbol
 	Sect        *Section
 	FuncInfo    *FuncInfo
@@ -51,11 +52,41 @@ type AuxSymbol struct {
 	elftype elf.SymType
 }
 
+const (
+	SymVerABI0        = 0
+	SymVerABIInternal = 1
+	SymVerStatic      = 10 // Minimum version used by static (file-local) syms
+)
+
+func ABIToVersion(abi obj.ABI) int {
+	switch abi {
+	case obj.ABI0:
+		return SymVerABI0
+	case obj.ABIInternal:
+		return SymVerABIInternal
+	}
+	return -1
+}
+
+func VersionToABI(v int) (obj.ABI, bool) {
+	switch v {
+	case SymVerABI0:
+		return obj.ABI0, true
+	case SymVerABIInternal:
+		return obj.ABIInternal, true
+	}
+	return ^obj.ABI(0), false
+}
+
 func (s *Symbol) String() string {
 	if s.Version == 0 {
 		return s.Name
 	}
 	return fmt.Sprintf("%s<%d>", s.Name, s.Version)
+}
+
+func (s *Symbol) IsFileLocal() bool {
+	return s.Version >= SymVerStatic
 }
 
 func (s *Symbol) ElfsymForReloc() int32 {
@@ -129,6 +160,10 @@ func (s *Symbol) SetUint8(arch *sys.Arch, r int64, v uint8) int64 {
 	return s.setUintXX(arch, r, uint64(v), 1)
 }
 
+func (s *Symbol) SetUint16(arch *sys.Arch, r int64, v uint16) int64 {
+	return s.setUintXX(arch, r, uint64(v), 2)
+}
+
 func (s *Symbol) SetUint32(arch *sys.Arch, r int64, v uint32) int64 {
 	return s.setUintXX(arch, r, uint64(v), 4)
 }
@@ -137,7 +172,7 @@ func (s *Symbol) SetUint(arch *sys.Arch, r int64, v uint64) int64 {
 	return s.setUintXX(arch, r, v, int64(arch.PtrSize))
 }
 
-func (s *Symbol) AddAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
+func (s *Symbol) addAddrPlus(arch *sys.Arch, t *Symbol, add int64, typ objabi.RelocType) int64 {
 	if s.Type == 0 {
 		s.Type = SDATA
 	}
@@ -149,9 +184,17 @@ func (s *Symbol) AddAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
 	r.Sym = t
 	r.Off = int32(i)
 	r.Siz = uint8(arch.PtrSize)
-	r.Type = objabi.R_ADDR
+	r.Type = typ
 	r.Add = add
 	return i + int64(r.Siz)
+}
+
+func (s *Symbol) AddAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
+	return s.addAddrPlus(arch, t, add, objabi.R_ADDR)
+}
+
+func (s *Symbol) AddCURelativeAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
+	return s.addAddrPlus(arch, t, add, objabi.R_ADDRCUOFF)
 }
 
 func (s *Symbol) AddPCRelPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
@@ -478,7 +521,6 @@ type FuncInfo struct {
 	Pcline      Pcdata
 	Pcinline    Pcdata
 	Pcdata      []Pcdata
-	IsStmtSym   *Symbol
 	Funcdata    []*Symbol
 	Funcdataoff []int64
 	File        []*Symbol
@@ -487,10 +529,11 @@ type FuncInfo struct {
 
 // InlinedCall is a node in a local inlining tree (FuncInfo.InlTree).
 type InlinedCall struct {
-	Parent int32   // index of parent in InlTree
-	File   *Symbol // file of the inlined call
-	Line   int32   // line number of the inlined call
-	Func   *Symbol // function that was inlined
+	Parent   int32   // index of parent in InlTree
+	File     *Symbol // file of the inlined call
+	Line     int32   // line number of the inlined call
+	Func     *Symbol // function that was inlined
+	ParentPC int32   // PC of the instruction just before the inlined body (offset from function start)
 }
 
 type Pcdata struct {

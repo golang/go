@@ -1,3 +1,5 @@
+env GO111MODULE=off
+
 # smoke test for complex build configuration
 go build -o complex.exe complex
 [exec:gccgo] go build -compiler=gccgo -o complex.exe complex

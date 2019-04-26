@@ -6,4 +6,3 @@ runtime/sys_windows_386.s: [386] setldt: function setldt missing Go declaration
 runtime/sys_windows_386.s: [386] callbackasm1+0: function callbackasm1+0 missing Go declaration
 runtime/sys_windows_386.s: [386] tstart: function tstart missing Go declaration
 runtime/sys_windows_386.s: [386] tstart_stdcall: RET without writing to 4-byte ret+4(FP)
-runtime/sys_windows_386.s: [386] cannot check cross-package assembly function: now is in package time

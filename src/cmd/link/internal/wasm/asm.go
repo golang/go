@@ -54,7 +54,11 @@ type wasmFuncType struct {
 }
 
 var wasmFuncTypes = map[string]*wasmFuncType{
-	"_rt0_wasm_js":           &wasmFuncType{Params: []byte{I32, I32}},                                 // argc, argv
+	"_rt0_wasm_js":           &wasmFuncType{Params: []byte{}},                                         //
+	"wasm_export_run":        &wasmFuncType{Params: []byte{I32, I32}},                                 // argc, argv
+	"wasm_export_resume":     &wasmFuncType{Params: []byte{}},                                         //
+	"wasm_export_getsp":      &wasmFuncType{Results: []byte{I32}},                                     // sp
+	"wasm_pc_f_loop":         &wasmFuncType{Params: []byte{}},                                         //
 	"runtime.wasmMove":       &wasmFuncType{Params: []byte{I32, I32, I32}},                            // dst, src, len
 	"runtime.wasmZero":       &wasmFuncType{Params: []byte{I32, I32}},                                 // ptr, len
 	"runtime.wasmDiv":        &wasmFuncType{Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
@@ -88,9 +92,11 @@ func assignAddress(ctxt *ld.Link, sect *sym.Section, n int, s *sym.Symbol, va ui
 	return sect, n, va
 }
 
+func asmb(ctxt *ld.Link) {} // dummy
+
 // asmb writes the final WebAssembly module binary.
 // Spec: https://webassembly.github.io/spec/core/binary/modules.html
-func asmb(ctxt *ld.Link) {
+func asmb2(ctxt *ld.Link) {
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
 	}
@@ -162,9 +168,6 @@ func asmb(ctxt *ld.Link) {
 		fns[i] = &wasmFunc{Name: name, Type: typ, Code: wfn.Bytes()}
 	}
 
-	// look up program entry point
-	rt0 := uint32(len(hostImports)) + uint32(ctxt.Syms.ROLookup("_rt0_wasm_js", 0).Value>>16) - funcValueOffset
-
 	ctxt.Out.Write([]byte{0x00, 0x61, 0x73, 0x6d}) // magic
 	ctxt.Out.Write([]byte{0x01, 0x00, 0x00, 0x00}) // version
 
@@ -180,7 +183,7 @@ func asmb(ctxt *ld.Link) {
 	writeTableSec(ctxt, fns)
 	writeMemorySec(ctxt)
 	writeGlobalSec(ctxt)
-	writeExportSec(ctxt, rt0)
+	writeExportSec(ctxt, len(hostImports))
 	writeElementSec(ctxt, uint64(len(hostImports)), uint64(len(fns)))
 	writeCodeSec(ctxt, fns)
 	writeDataSec(ctxt)
@@ -296,18 +299,18 @@ func writeTableSec(ctxt *ld.Link, fns []*wasmFunc) {
 }
 
 // writeMemorySec writes the section that declares linear memories. Currently one linear memory is being used.
+// Linear memory always starts at address zero. More memory can be requested with the GrowMemory instruction.
 func writeMemorySec(ctxt *ld.Link) {
 	sizeOffset := writeSecHeader(ctxt, sectionMemory)
 
-	// Linear memory always starts at address zero.
-	// The unit of the sizes is "WebAssembly page size", which is 64Ki.
-	// The minimum is currently set to 1GB, which is a lot.
-	// More memory can be requested with the grow_memory instruction,
-	// but this operation currently is rather slow, so we avoid it for now.
-	// TODO(neelance): Use lower initial memory size.
-	writeUleb128(ctxt.Out, 1)       // number of memories
-	ctxt.Out.WriteByte(0x00)        // no maximum memory size
-	writeUleb128(ctxt.Out, 1024*16) // minimum (initial) memory size
+	const (
+		initialSize  = 16 << 20 // 16MB, enough for runtime init without growing
+		wasmPageSize = 64 << 10 // 64KB
+	)
+
+	writeUleb128(ctxt.Out, 1)                        // number of memories
+	ctxt.Out.WriteByte(0x00)                         // no maximum memory size
+	writeUleb128(ctxt.Out, initialSize/wasmPageSize) // minimum (initial) memory size
 
 	writeSecSize(ctxt, sizeOffset)
 }
@@ -326,7 +329,7 @@ func writeGlobalSec(ctxt *ld.Link) {
 		I64, // 6: RET1
 		I64, // 7: RET2
 		I64, // 8: RET3
-		I32, // 9: RUN
+		I32, // 9: PAUSE
 	}
 
 	writeUleb128(ctxt.Out, uint64(len(globalRegs))) // number of globals
@@ -348,15 +351,18 @@ func writeGlobalSec(ctxt *ld.Link) {
 
 // writeExportSec writes the section that declares exports.
 // Exports can be accessed by the WebAssembly host, usually JavaScript.
-// Currently _rt0_wasm_js (program entry point) and the linear memory get exported.
-func writeExportSec(ctxt *ld.Link, rt0 uint32) {
+// The wasm_export_* functions and the linear memory get exported.
+func writeExportSec(ctxt *ld.Link, lenHostImports int) {
 	sizeOffset := writeSecHeader(ctxt, sectionExport)
 
-	writeUleb128(ctxt.Out, 2) // number of exports
+	writeUleb128(ctxt.Out, 4) // number of exports
 
-	writeName(ctxt.Out, "run")          // inst.exports.run in wasm_exec.js
-	ctxt.Out.WriteByte(0x00)            // func export
-	writeUleb128(ctxt.Out, uint64(rt0)) // funcidx
+	for _, name := range []string{"run", "resume", "getsp"} {
+		idx := uint32(lenHostImports) + uint32(ctxt.Syms.ROLookup("wasm_export_"+name, 0).Value>>16) - funcValueOffset
+		writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js
+		ctxt.Out.WriteByte(0x00)            // func export
+		writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+	}
 
 	writeName(ctxt.Out, "mem") // inst.exports.mem in wasm_exec.js
 	ctxt.Out.WriteByte(0x02)   // mem export
@@ -413,14 +419,71 @@ func writeDataSec(ctxt *ld.Link) {
 		ctxt.Syms.Lookup("runtime.data", 0).Sect,
 	}
 
-	writeUleb128(ctxt.Out, uint64(len(sections))) // number of data entries
+	type dataSegment struct {
+		offset int32
+		data   []byte
+	}
 
-	for _, sec := range sections {
+	// Omit blocks of zeroes and instead emit data segments with offsets skipping the zeroes.
+	// This reduces the size of the WebAssembly binary. We use 8 bytes as an estimate for the
+	// overhead of adding a new segment (same as wasm-opt's memory-packing optimization uses).
+	const segmentOverhead = 8
+
+	// Generate at most this many segments. A higher number of segments gets rejected by some WebAssembly runtimes.
+	const maxNumSegments = 100000
+
+	var segments []*dataSegment
+	for secIndex, sec := range sections {
+		data := ld.DatblkBytes(ctxt, int64(sec.Vaddr), int64(sec.Length))
+		offset := int32(sec.Vaddr)
+
+		// skip leading zeroes
+		for len(data) > 0 && data[0] == 0 {
+			data = data[1:]
+			offset++
+		}
+
+		for len(data) > 0 {
+			dataLen := int32(len(data))
+			var segmentEnd, zeroEnd int32
+			if len(segments)+(len(sections)-secIndex) == maxNumSegments {
+				segmentEnd = dataLen
+				zeroEnd = dataLen
+			} else {
+				for {
+					// look for beginning of zeroes
+					for segmentEnd < dataLen && data[segmentEnd] != 0 {
+						segmentEnd++
+					}
+					// look for end of zeroes
+					zeroEnd = segmentEnd
+					for zeroEnd < dataLen && data[zeroEnd] == 0 {
+						zeroEnd++
+					}
+					// emit segment if omitting zeroes reduces the output size
+					if zeroEnd-segmentEnd >= segmentOverhead || zeroEnd == dataLen {
+						break
+					}
+					segmentEnd = zeroEnd
+				}
+			}
+
+			segments = append(segments, &dataSegment{
+				offset: offset,
+				data:   data[:segmentEnd],
+			})
+			data = data[zeroEnd:]
+			offset += zeroEnd
+		}
+	}
+
+	writeUleb128(ctxt.Out, uint64(len(segments))) // number of data entries
+	for _, seg := range segments {
 		writeUleb128(ctxt.Out, 0) // memidx
-		writeI32Const(ctxt.Out, int32(sec.Vaddr))
+		writeI32Const(ctxt.Out, seg.offset)
 		ctxt.Out.WriteByte(0x0b) // end
-		writeUleb128(ctxt.Out, uint64(sec.Length))
-		ld.Datblk(ctxt, int64(sec.Vaddr), int64(sec.Length))
+		writeUleb128(ctxt.Out, uint64(len(seg.data)))
+		ctxt.Out.Write(seg.data)
 	}
 
 	writeSecSize(ctxt, sizeOffset)

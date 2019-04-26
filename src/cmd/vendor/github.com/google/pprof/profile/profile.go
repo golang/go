@@ -704,6 +704,12 @@ func (s *Sample) HasLabel(key, value string) bool {
 	return false
 }
 
+// DiffBaseSample returns true if a sample belongs to the diff base and false
+// otherwise.
+func (s *Sample) DiffBaseSample() bool {
+	return s.HasLabel("pprof::base", "true")
+}
+
 // Scale multiplies all sample values in a profile by a constant.
 func (p *Profile) Scale(ratio float64) {
 	if ratio == 1 {

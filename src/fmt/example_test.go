@@ -290,15 +290,14 @@ func Example_formats() {
 
 	// Maps formatted with %v show keys and values in their default formats.
 	// The %#v form (the # is called a "flag" in this context) shows the map in
-	// the Go source format.
+	// the Go source format. Maps are printed in a consistent order, sorted
+	// by the values of the keys.
 	isLegume := map[string]bool{
-		"peanut": true,
-		// TODO: Include this line when maps are printed in deterministic order.
-		// See Issue #21095
-		// "dachshund": false,
+		"peanut":    true,
+		"dachshund": false,
 	}
 	fmt.Printf("%v %#v\n", isLegume, isLegume)
-	// Result: map[peanut:true] map[string]bool{"peanut":true}
+	// Result: map[dachshund:false peanut:true] map[string]bool{"dachshund":false, "peanut":true}
 
 	// Structs formatted with %v show field values in their default formats.
 	// The %+v form shows the fields by name, while %#v formats the struct in
@@ -322,13 +321,13 @@ func Example_formats() {
 	// Result: &{Kim 22} 0x010203 // See comment above.
 
 	// Arrays and slices are formatted by applying the format to each element.
-	greats := [5]string{"Katano", "Kobayashi", "Kurosawa", "Miyazaki", "Ozu"}
+	greats := [5]string{"Kitano", "Kobayashi", "Kurosawa", "Miyazaki", "Ozu"}
 	fmt.Printf("%v %q\n", greats, greats)
-	// Result: [Katano Kobayashi Kurosawa Miyazaki Ozu] ["Katano" "Kobayashi" "Kurosawa" "Miyazaki" "Ozu"]
+	// Result: [Kitano Kobayashi Kurosawa Miyazaki Ozu] ["Kitano" "Kobayashi" "Kurosawa" "Miyazaki" "Ozu"]
 
 	kGreats := greats[:3]
 	fmt.Printf("%v %q %#v\n", kGreats, kGreats, kGreats)
-	// Result: [Katano Kobayashi Kurosawa] ["Katano" "Kobayashi" "Kurosawa"] []string{"Katano", "Kobayashi", "Kurosawa"}
+	// Result: [Kitano Kobayashi Kurosawa] ["Kitano" "Kobayashi" "Kurosawa"] []string{"Kitano", "Kobayashi", "Kurosawa"}
 
 	// Byte slices are special. Integer verbs like %d print the elements in
 	// that format. The %s and %q forms treat the slice like a string. The %x
@@ -356,11 +355,11 @@ func Example_formats() {
 	// (110.7+22.5i) (110.7+22.5i) (110.70+22.50i) (1.11e+02+2.25e+01i)
 	// 128512 128512 😀 '😀' U+1F600 U+1F600 '😀'
 	// foo "bar" foo "bar" "foo \"bar\"" `foo "bar"`
-	// map[peanut:true] map[string]bool{"peanut":true}
+	// map[dachshund:false peanut:true] map[string]bool{"dachshund":false, "peanut":true}
 	// {Kim 22} {Name:Kim Age:22} struct { Name string; Age int }{Name:"Kim", Age:22}
 	// &{Kim 22} 0x0
-	// [Katano Kobayashi Kurosawa Miyazaki Ozu] ["Katano" "Kobayashi" "Kurosawa" "Miyazaki" "Ozu"]
-	// [Katano Kobayashi Kurosawa] ["Katano" "Kobayashi" "Kurosawa"] []string{"Katano", "Kobayashi", "Kurosawa"}
+	// [Kitano Kobayashi Kurosawa Miyazaki Ozu] ["Kitano" "Kobayashi" "Kurosawa" "Miyazaki" "Ozu"]
+	// [Kitano Kobayashi Kurosawa] ["Kitano" "Kobayashi" "Kurosawa"] []string{"Kitano", "Kobayashi", "Kurosawa"}
 	// [97 226 140 152] [97 226 140 152] a⌘ "a⌘" 61e28c98 61 e2 8c 98
 	// 1973-11-29 21:33:09 +0000 UTC "1973-11-29 21:33:09 +0000 UTC"
 }

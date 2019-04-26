@@ -1,0 +1,24 @@
+env GO111MODULE=off
+
+[!exec:echo] skip
+[!exec:false] skip
+
+exec echo foo
+stdout foo
+
+exec echo foo &
+exec echo bar &
+! exec false &
+
+# Starting a background process should clear previous output.
+! stdout foo
+
+# Wait should set the output to the concatenated outputs of the background
+# programs, in the order in which they were started.
+wait
+stdout 'foo\nbar'
+
+# The end of the test should interrupt or kill any remaining background
+# programs.
+[!exec:sleep] skip
+! exec sleep 86400 &

@@ -21,17 +21,19 @@ var (
 )
 
 type dnsConfig struct {
-	servers    []string      // server addresses (in host:port form) to use
-	search     []string      // rooted suffixes to append to local name
-	ndots      int           // number of dots in name to trigger absolute lookup
-	timeout    time.Duration // wait before giving up on a query, including retries
-	attempts   int           // lost packets before giving up on server
-	rotate     bool          // round robin among servers
-	unknownOpt bool          // anything unknown was encountered
-	lookup     []string      // OpenBSD top-level database "lookup" order
-	err        error         // any error that occurs during open of resolv.conf
-	mtime      time.Time     // time of resolv.conf modification
-	soffset    uint32        // used by serverOffset
+	servers       []string      // server addresses (in host:port form) to use
+	search        []string      // rooted suffixes to append to local name
+	ndots         int           // number of dots in name to trigger absolute lookup
+	timeout       time.Duration // wait before giving up on a query, including retries
+	attempts      int           // lost packets before giving up on server
+	rotate        bool          // round robin among servers
+	unknownOpt    bool          // anything unknown was encountered
+	lookup        []string      // OpenBSD top-level database "lookup" order
+	err           error         // any error that occurs during open of resolv.conf
+	mtime         time.Time     // time of resolv.conf modification
+	soffset       uint32        // used by serverOffset
+	singleRequest bool          // use sequential A and AAAA queries instead of parallel queries
+	useTCP        bool          // force usage of TCP for DNS resolutions
 }
 
 // See resolv.conf(5) on a Linux machine.
@@ -115,6 +117,21 @@ func dnsReadConfig(filename string) *dnsConfig {
 					conf.attempts = n
 				case s == "rotate":
 					conf.rotate = true
+				case s == "single-request" || s == "single-request-reopen":
+					// Linux option:
+					// http://man7.org/linux/man-pages/man5/resolv.conf.5.html
+					// "By default, glibc performs IPv4 and IPv6 lookups in parallel [...]
+					//  This option disables the behavior and makes glibc
+					//  perform the IPv6 and IPv4 requests sequentially."
+					conf.singleRequest = true
+				case s == "use-vc" || s == "usevc" || s == "tcp":
+					// Linux (use-vc), FreeBSD (usevc) and OpenBSD (tcp) option:
+					// http://man7.org/linux/man-pages/man5/resolv.conf.5.html
+					// "Sets RES_USEVC in _res.options.
+					//  This option forces the use of TCP for DNS resolutions."
+					// https://www.freebsd.org/cgi/man.cgi?query=resolv.conf&sektion=5&manpath=freebsd-release-ports
+					// https://man.openbsd.org/resolv.conf.5
+					conf.useTCP = true
 				default:
 					conf.unknownOpt = true
 				}

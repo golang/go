@@ -6,11 +6,13 @@ package sys
 
 const GOOS = `aix`
 
-const GoosAndroid = 0
 const GoosAix = 1
+const GoosAndroid = 0
 const GoosDarwin = 0
 const GoosDragonfly = 0
 const GoosFreebsd = 0
+const GoosHurd = 0
+const GoosJs = 0
 const GoosLinux = 0
 const GoosNacl = 0
 const GoosNetbsd = 0

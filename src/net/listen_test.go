@@ -780,6 +780,9 @@ func TestListenConfigControl(t *testing.T) {
 				continue
 			}
 			c.Close()
+			if network == "unixgram" {
+				os.Remove(address)
+			}
 		}
 	})
 }

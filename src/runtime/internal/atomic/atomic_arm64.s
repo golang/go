@@ -25,8 +25,15 @@ TEXT ·Loadp(SB),NOSPLIT,$0-16
 	MOVD	R0, ret+8(FP)
 	RET
 
+// uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* addr)
+TEXT ·LoadAcq(SB),NOSPLIT,$0-12
+	B	·Load(SB)
+
 TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
 	B	runtime∕internal∕atomic·Store64(SB)
+
+TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-12
+	B	runtime∕internal∕atomic·Store(SB)
 
 TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
 	MOVD	ptr+0(FP), R0

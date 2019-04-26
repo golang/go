@@ -5,8 +5,6 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
@@ -55,18 +53,20 @@ func testMain(m *testing.M) int {
 }
 
 func TestNonGoExecs(t *testing.T) {
+	t.Parallel()
 	testfiles := []string{
-		"elf/testdata/gcc-386-freebsd-exec",
-		"elf/testdata/gcc-amd64-linux-exec",
-		"macho/testdata/gcc-386-darwin-exec",
-		"macho/testdata/gcc-amd64-darwin-exec",
-		// "pe/testdata/gcc-amd64-mingw-exec", // no symbols!
-		"pe/testdata/gcc-386-mingw-exec",
-		"plan9obj/testdata/amd64-plan9-exec",
-		"plan9obj/testdata/386-plan9-exec",
+		"debug/elf/testdata/gcc-386-freebsd-exec",
+		"debug/elf/testdata/gcc-amd64-linux-exec",
+		"debug/macho/testdata/gcc-386-darwin-exec",
+		"debug/macho/testdata/gcc-amd64-darwin-exec",
+		// "debug/pe/testdata/gcc-amd64-mingw-exec", // no symbols!
+		"debug/pe/testdata/gcc-386-mingw-exec",
+		"debug/plan9obj/testdata/amd64-plan9-exec",
+		"debug/plan9obj/testdata/386-plan9-exec",
+		"internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec",
 	}
 	for _, f := range testfiles {
-		exepath := filepath.Join(runtime.GOROOT(), "src", "debug", f)
+		exepath := filepath.Join(runtime.GOROOT(), "src", f)
 		cmd := exec.Command(testnmpath, exepath)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
@@ -76,6 +76,7 @@ func TestNonGoExecs(t *testing.T) {
 }
 
 func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
+	t.Parallel()
 	tmpdir, err := ioutil.TempDir("", "TestGoExec")
 	if err != nil {
 		t.Fatal(err)
@@ -135,21 +136,47 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 		"runtime.noptrdata": "D",
 	}
 
+	if runtime.GOOS == "aix" && iscgo {
+		// pclntab is moved to .data section on AIX.
+		runtimeSyms["runtime.epclntab"] = "D"
+	}
+
 	out, err = exec.Command(testnmpath, exe).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm: %v\n%s", err, string(out))
 	}
-	scanner := bufio.NewScanner(bytes.NewBuffer(out))
+
+	relocated := func(code string) bool {
+		if runtime.GOOS == "aix" {
+			// On AIX, .data and .bss addresses are changed by the loader.
+			// Therefore, the values returned by the exec aren't the same
+			// than the ones inside the symbol table.
+			// In case of cgo, .text symbols are also changed.
+			switch code {
+			case "T", "t", "R", "r":
+				return iscgo
+			case "D", "d", "B", "b":
+				return true
+			}
+		}
+		if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
+			return true
+		}
+		return false
+	}
+
 	dups := make(map[string]bool)
-	for scanner.Scan() {
-		f := strings.Fields(scanner.Text())
+	for _, line := range strings.Split(string(out), "\n") {
+		f := strings.Fields(line)
 		if len(f) < 3 {
 			continue
 		}
 		name := f[2]
 		if addr, found := names[name]; found {
 			if want, have := addr, "0x"+f[0]; have != want {
-				t.Errorf("want %s address for %s symbol, but have %s", want, name, have)
+				if !relocated(f[1]) {
+					t.Errorf("want %s address for %s symbol, but have %s", want, name, have)
+				}
 			}
 			delete(names, name)
 		}
@@ -167,10 +194,6 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 			delete(runtimeSyms, name)
 		}
 	}
-	err = scanner.Err()
-	if err != nil {
-		t.Fatalf("error reading nm output: %v", err)
-	}
 	if len(names) > 0 {
 		t.Errorf("executable is missing %v symbols", names)
 	}
@@ -184,6 +207,7 @@ func TestGoExec(t *testing.T) {
 }
 
 func testGoLib(t *testing.T, iscgo bool) {
+	t.Parallel()
 	tmpdir, err := ioutil.TempDir("", "TestGoLib")
 	if err != nil {
 		t.Fatal(err)
@@ -206,12 +230,16 @@ func testGoLib(t *testing.T, iscgo bool) {
 	if e := file.Close(); err == nil {
 		err = e
 	}
+	if err == nil {
+		err = ioutil.WriteFile(filepath.Join(libpath, "go.mod"), []byte("module mylib\n"), 0666)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	args := []string{"install", "mylib"}
 	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	cmd.Dir = libpath
 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -247,14 +275,17 @@ func testGoLib(t *testing.T, iscgo bool) {
 		if runtime.GOOS == "darwin" || (runtime.GOOS == "windows" && runtime.GOARCH == "386") {
 			syms = append(syms, symType{"D", "_cgodata", true, false})
 			syms = append(syms, symType{"T", "_cgofunc", true, false})
+		} else if runtime.GOOS == "aix" {
+			syms = append(syms, symType{"D", "cgodata", true, false})
+			syms = append(syms, symType{"T", ".cgofunc", true, false})
 		} else {
 			syms = append(syms, symType{"D", "cgodata", true, false})
 			syms = append(syms, symType{"T", "cgofunc", true, false})
 		}
 	}
-	scanner := bufio.NewScanner(bytes.NewBuffer(out))
-	for scanner.Scan() {
-		f := strings.Fields(scanner.Text())
+
+	for _, line := range strings.Split(string(out), "\n") {
+		f := strings.Fields(line)
 		var typ, name string
 		var csym bool
 		if iscgo {
@@ -280,10 +311,6 @@ func testGoLib(t *testing.T, iscgo bool) {
 				sym.Found = true
 			}
 		}
-	}
-	err = scanner.Err()
-	if err != nil {
-		t.Fatalf("error reading nm output: %v", err)
 	}
 	for _, sym := range syms {
 		if !sym.Found {

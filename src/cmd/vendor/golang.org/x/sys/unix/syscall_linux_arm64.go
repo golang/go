@@ -30,6 +30,7 @@ func EpollCreate(size int) (fd int, err error) {
 //sys	Listen(s int, n int) (err error)
 //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
 
 func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) {
@@ -191,12 +192,9 @@ func Dup2(oldfd int, newfd int) (err error) {
 	return Dup3(oldfd, newfd, 0)
 }
 
-func Pause() (err error) {
-	_, _, e1 := Syscall6(SYS_PPOLL, 0, 0, 0, 0, 0, 0)
-	if e1 != 0 {
-		err = errnoErr(e1)
-	}
-	return
+func Pause() error {
+	_, err := ppoll(nil, 0, nil, nil)
+	return err
 }
 
 func Poll(fds []PollFd, timeout int) (n int, err error) {
@@ -209,4 +207,17 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
 		return ppoll(nil, 0, ts, nil)
 	}
 	return ppoll(&fds[0], len(fds), ts, nil)
+}
+
+//sys	kexecFileLoad(kernelFd int, initrdFd int, cmdlineLen int, cmdline string, flags int) (err error)
+
+func KexecFileLoad(kernelFd int, initrdFd int, cmdline string, flags int) error {
+	cmdlineLen := len(cmdline)
+	if cmdlineLen > 0 {
+		// Account for the additional NULL byte added by
+		// BytePtrFromString in kexecFileLoad. The kexec_file_load
+		// syscall expects a NULL-terminated string.
+		cmdlineLen++
+	}
+	return kexecFileLoad(kernelFd, initrdFd, cmdlineLen, cmdline, flags)
 }

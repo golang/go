@@ -178,7 +178,7 @@ func markroot(gcw *gcWork, i uint32) {
 		systemstack(markrootFreeGStacks)
 
 	case baseSpans <= i && i < baseStacks:
-		// mark MSpan.specials
+		// mark mspan.specials
 		markrootSpans(gcw, int(i-baseSpans))
 
 	default:
@@ -270,7 +270,9 @@ func markrootFreeGStacks() {
 	// Free stacks.
 	q := gQueue{list.head, list.head}
 	for gp := list.head.ptr(); gp != nil; gp = gp.schedlink.ptr() {
-		shrinkstack(gp)
+		stackfree(gp.stack)
+		gp.stack.lo = 0
+		gp.stack.hi = 0
 		// Manipulate the queue directly since the Gs are
 		// already all linked the right way.
 		q.tail.set(gp)
@@ -558,7 +560,7 @@ func gcWakeAllAssists() {
 
 // gcParkAssist puts the current goroutine on the assist queue and parks.
 //
-// gcParkAssist returns whether the assist is now satisfied. If it
+// gcParkAssist reports whether the assist is now satisfied. If it
 // returns false, the caller must retry the assist.
 //
 //go:nowritebarrier
@@ -709,7 +711,20 @@ func scanstack(gp *g, gcw *gcWork) {
 		return true
 	}
 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
+
+	// Find additional pointers that point into the stack from the heap.
+	// Currently this includes defers and panics. See also function copystack.
 	tracebackdefers(gp, scanframe, nil)
+	for d := gp._defer; d != nil; d = d.link {
+		// tracebackdefers above does not scan the func value, which could
+		// be a stack allocated closure. See issue 30453.
+		if d.fn != nil {
+			scanblock(uintptr(unsafe.Pointer(&d.fn)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+		}
+	}
+	if gp._panic != nil {
+		state.putPtr(uintptr(unsafe.Pointer(gp._panic)))
+	}
 
 	// Find and scan all reachable stack objects.
 	state.buildIndex()
@@ -1229,6 +1244,13 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
 			return
 		}
 		mbits.setMarked()
+
+		// Mark span.
+		arena, pageIdx, pageMask := pageIndexOf(span.base())
+		if arena.pageMarks[pageIdx]&pageMask == 0 {
+			atomic.Or8(&arena.pageMarks[pageIdx], pageMask)
+		}
+
 		// If this is a noscan object, fast-track it to black
 		// instead of greying it.
 		if span.spanclass.noscan() {

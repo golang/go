@@ -6,5 +6,14 @@
 
 package bytealg
 
+import _ "unsafe" // For go:linkname
+
 //go:noescape
 func Compare(a, b []byte) int
+
+// The declaration below generates ABI wrappers for functions
+// implemented in assembly in this package but declared in another
+// package.
+
+//go:linkname abigen_runtime_cmpstring runtime.cmpstring
+func abigen_runtime_cmpstring(a, b string) int

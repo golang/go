@@ -6,8 +6,10 @@ package modfetch
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 
 	"cmd/go/internal/cfg"
@@ -45,11 +47,8 @@ type Repo interface {
 	// GoMod returns the go.mod file for the given version.
 	GoMod(version string) (data []byte, err error)
 
-	// Zip downloads a zip file for the given version
-	// to a new file in a given temporary directory.
-	// It returns the name of the new file.
-	// The caller should remove the file when finished with it.
-	Zip(version, tmpdir string) (tmpfile string, err error)
+	// Zip writes a zip file for the given version to dst.
+	Zip(dst io.Writer, version string) error
 }
 
 // A Rev describes a single revision in a module repository.
@@ -161,12 +160,6 @@ type RevInfo struct {
 // To avoid version control access except when absolutely necessary,
 // Lookup does not attempt to connect to the repository itself.
 //
-// The Import function takes an import path found in source code and
-// determines which module to add to the requirement list to satisfy
-// that import. It checks successive truncations of the import path
-// to determine possible modules and stops when it finds a module
-// in which the latest version satisfies the import path.
-//
 // The ImportRepoRev function is a variant of Import which is limited
 // to code in a source code repository at a particular revision identifier
 // (usually a commit hash or source code repository tag, not necessarily
@@ -216,7 +209,11 @@ func lookup(path string) (r Repo, err error) {
 		return lookupProxy(path)
 	}
 
-	security := web.Secure
+	return lookupDirect(path)
+}
+
+func lookupDirect(path string) (Repo, error) {
+	security := web.SecureOnly
 	if get.Insecure {
 		security = web.Insecure
 	}
@@ -261,7 +258,7 @@ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
 	// Note: Because we are converting a code reference from a legacy
 	// version control system, we ignore meta tags about modules
 	// and use only direct source control entries (get.IgnoreMod).
-	security := web.Secure
+	security := web.SecureOnly
 	if get.Insecure {
 		security = web.Insecure
 	}
@@ -357,7 +354,11 @@ func (l *loggingRepo) GoMod(version string) ([]byte, error) {
 	return l.r.GoMod(version)
 }
 
-func (l *loggingRepo) Zip(version, tmpdir string) (string, error) {
-	defer logCall("Repo[%s]: Zip(%q, %q)", l.r.ModulePath(), version, tmpdir)()
-	return l.r.Zip(version, tmpdir)
+func (l *loggingRepo) Zip(dst io.Writer, version string) error {
+	dstName := "_"
+	if dst, ok := dst.(interface{ Name() string }); ok {
+		dstName = strconv.Quote(dst.Name())
+	}
+	defer logCall("Repo[%s]: Zip(%s, %q)", l.r.ModulePath(), dstName, version)()
+	return l.r.Zip(dst, version)
 }

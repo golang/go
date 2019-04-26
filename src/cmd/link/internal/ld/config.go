@@ -38,7 +38,7 @@ func (mode *BuildMode) Set(s string) error {
 		*mode = BuildModeExe
 	case "pie":
 		switch objabi.GOOS {
-		case "android", "linux":
+		case "aix", "android", "linux":
 		case "darwin", "freebsd":
 			switch objabi.GOARCH {
 			case "amd64":
@@ -51,7 +51,7 @@ func (mode *BuildMode) Set(s string) error {
 		*mode = BuildModePIE
 	case "c-archive":
 		switch objabi.GOOS {
-		case "darwin", "linux":
+		case "aix", "darwin", "linux":
 		case "freebsd":
 			switch objabi.GOARCH {
 			case "amd64":
@@ -199,8 +199,8 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	// When the race flag is set, the LLVM tsan relocatable file is linked
 	// into the final binary, which means external linking is required because
 	// internal linking does not support it.
-	if *flagRace && ctxt.Arch.InFamily(sys.PPC64) {
-		return true, "race on ppc64le"
+	if *flagRace && ctxt.Arch.InFamily(sys.PPC64, sys.ARM64) {
+		return true, "race on " + objabi.GOARCH
 	}
 
 	// Some build modes require work the internal linker cannot do (yet).
@@ -247,8 +247,8 @@ func determineLinkMode(ctxt *Link) {
 			}
 			ctxt.LinkMode = LinkInternal
 		case "1":
-			if objabi.GOARCH == "ppc64" {
-				Exitf("external linking requested via GO_EXTLINK_ENABLED but not supported for linux/ppc64")
+			if objabi.GOARCH == "ppc64" && objabi.GOOS != "aix" {
+				Exitf("external linking requested via GO_EXTLINK_ENABLED but not supported for %s/ppc64", objabi.GOOS)
 			}
 			ctxt.LinkMode = LinkExternal
 		default:
@@ -256,13 +256,13 @@ func determineLinkMode(ctxt *Link) {
 				ctxt.LinkMode = LinkExternal
 			} else if iscgo && externalobj {
 				ctxt.LinkMode = LinkExternal
-			} else if ctxt.BuildMode == BuildModePIE {
-				ctxt.LinkMode = LinkExternal // https://golang.org/issue/18968
+			} else if ctxt.BuildMode == BuildModePIE && sys.PIEDefaultsToExternalLink(objabi.GOOS, objabi.GOARCH) {
+				ctxt.LinkMode = LinkExternal
 			} else {
 				ctxt.LinkMode = LinkInternal
 			}
-			if objabi.GOARCH == "ppc64" && ctxt.LinkMode == LinkExternal {
-				Exitf("external linking is not supported for linux/ppc64")
+			if objabi.GOARCH == "ppc64" && objabi.GOOS != "aix" && ctxt.LinkMode == LinkExternal {
+				Exitf("external linking is not supported for %s/ppc64", objabi.GOOS)
 			}
 		}
 	case LinkInternal:
@@ -270,8 +270,8 @@ func determineLinkMode(ctxt *Link) {
 			Exitf("internal linking requested but external linking required: %s", reason)
 		}
 	case LinkExternal:
-		if objabi.GOARCH == "ppc64" {
-			Exitf("external linking not supported for linux/ppc64")
+		if objabi.GOARCH == "ppc64" && objabi.GOOS != "aix" {
+			Exitf("external linking not supported for %s/ppc64", objabi.GOOS)
 		}
 	}
 }

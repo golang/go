@@ -37,7 +37,7 @@ package modfetch
 import (
 	"cmd/go/internal/semver"
 	"fmt"
-	"regexp"
+	"internal/lazyregexp"
 	"strings"
 	"time"
 )
@@ -86,7 +86,7 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
 	return v + patch + "-0." + segment + build
 }
 
-var pseudoVersionRE = regexp.MustCompile(`^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+incompatible)?$`)
+var pseudoVersionRE = lazyregexp.New(`^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+incompatible)?$`)
 
 // IsPseudoVersion reports whether v is a pseudo-version.
 func IsPseudoVersion(v string) bool {
@@ -98,6 +98,9 @@ func IsPseudoVersion(v string) bool {
 // embedded in the pseudo-version is not a valid time.
 func PseudoVersionTime(v string) (time.Time, error) {
 	timestamp, _, err := parsePseudoVersion(v)
+	if err != nil {
+		return time.Time{}, err
+	}
 	t, err := time.Parse("20060102150405", timestamp)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("pseudo-version with malformed time %s: %q", timestamp, v)

@@ -959,6 +959,8 @@ func buildop(ctxt *obj.Link) {
 			opset(ADIVU, r0)
 			opset(AMULU, r0)
 			opset(ADIV, r0)
+			opset(AMADD, r0)
+			opset(AMSUB, r0)
 
 		case AMULV:
 			opset(ADIVV, r0)
@@ -1120,9 +1122,11 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 1: /* mov r1,r2 ==> OR r1,r0,r2 */
 		a := AOR
 		if p.As == AMOVW && c.ctxt.Arch.Family == sys.MIPS64 {
-			a = AADDU // sign-extended to high 32 bits
+			// on MIPS64, most of the 32-bit instructions have unpredictable behavior,
+			// but SLL is special that the result is always sign-extended to 64-bit.
+			a = ASLL
 		}
-		o1 = OP_RRR(c.oprrr(a), uint32(REGZERO), uint32(p.From.Reg), uint32(p.To.Reg))
+		o1 = OP_RRR(c.oprrr(a), uint32(p.From.Reg), uint32(REGZERO), uint32(p.To.Reg))
 
 	case 2: /* add/sub r1,[r2],r3 */
 		r := int(p.Reg)
@@ -1275,7 +1279,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = REGZERO
 		}
 		/* only use 10 bits of trap code */
-		o1 = OP_IRR(c.opirr(p.As), (uint32(v)&0x3FF)<<6, uint32(p.Reg), uint32(p.To.Reg))
+		o1 = OP_IRR(c.opirr(p.As), (uint32(v)&0x3FF)<<6, uint32(r), uint32(p.To.Reg))
 
 	case 16: /* sll $c,[r1],r2 */
 		v := c.regoff(&p.From)
@@ -1783,6 +1787,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return SP(3, 4) | OP(4, 1)
 	case ACLZ:
 		return SP(3, 4) | OP(4, 0)
+	case AMADD:
+		return SP(3, 4) | OP(0, 0)
+	case AMSUB:
+		return SP(3, 4) | OP(0, 4)
 	}
 
 	if a < 0 {

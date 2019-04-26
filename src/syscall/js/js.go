@@ -16,17 +16,30 @@ import (
 )
 
 // ref is used to identify a JavaScript value, since the value itself can not be passed to WebAssembly.
-// A JavaScript number (64-bit float, except NaN) is represented by its IEEE 754 binary representation.
+//
+// The JavaScript value "undefined" is represented by the value 0.
+// A JavaScript number (64-bit float, except 0 and NaN) is represented by its IEEE 754 binary representation.
 // All other values are represented as an IEEE 754 binary representation of NaN with bits 0-31 used as
 // an ID and bits 32-33 used to differentiate between string, symbol, function and object.
 type ref uint64
 
-// nanHead are the upper 32 bits of a ref which are set if the value is not a JavaScript number or NaN itself.
+// nanHead are the upper 32 bits of a ref which are set if the value is not encoded as an IEEE 754 number (see above).
 const nanHead = 0x7FF80000
 
-// Value represents a JavaScript value.
+// Wrapper is implemented by types that are backed by a JavaScript value.
+type Wrapper interface {
+	// JSValue returns a JavaScript value associated with an object.
+	JSValue() Value
+}
+
+// Value represents a JavaScript value. The zero value is the JavaScript value "undefined".
 type Value struct {
 	ref ref
+}
+
+// JSValue implements Wrapper interface.
+func (v Value) JSValue() Value {
+	return v
 }
 
 func makeValue(v ref) Value {
@@ -38,6 +51,9 @@ func predefValue(id uint32) Value {
 }
 
 func floatValue(f float64) Value {
+	if f == 0 {
+		return valueZero
+	}
 	if f != f {
 		return valueNaN
 	}
@@ -56,8 +72,9 @@ func (e Error) Error() string {
 }
 
 var (
+	valueUndefined = Value{ref: 0}
 	valueNaN       = predefValue(0)
-	valueUndefined = predefValue(1)
+	valueZero      = predefValue(1)
 	valueNull      = predefValue(2)
 	valueTrue      = predefValue(3)
 	valueFalse     = predefValue(4)
@@ -90,21 +107,21 @@ func Global() Value {
 //  | ---------------------- | ---------------------- |
 //  | js.Value               | [its value]            |
 //  | js.TypedArray          | typed array            |
-//  | js.Callback            | function               |
+//  | js.Func                | function               |
 //  | nil                    | null                   |
 //  | bool                   | boolean                |
 //  | integers and floats    | number                 |
 //  | string                 | string                 |
 //  | []interface{}          | new array              |
 //  | map[string]interface{} | new object             |
+//
+// Panics if x is not one of the expected types.
 func ValueOf(x interface{}) Value {
 	switch x := x.(type) {
-	case Value:
+	case Value: // should precede Wrapper to avoid a loop
 		return x
-	case TypedArray:
-		return x.Value
-	case Callback:
-		return x.Value
+	case Wrapper:
+		return x.JSValue()
 	case nil:
 		return valueNull
 	case bool:
@@ -199,6 +216,10 @@ func (t Type) String() string {
 	}
 }
 
+func (t Type) isObject() bool {
+	return t == TypeObject || t == TypeFunction
+}
+
 // Type returns the JavaScript type of the value v. It is similar to JavaScript's typeof operator,
 // except that it returns TypeNull instead of TypeObject for null.
 func (v Value) Type() Type {
@@ -227,28 +248,44 @@ func (v Value) Type() Type {
 }
 
 // Get returns the JavaScript property p of value v.
+// It panics if v is not a JavaScript object.
 func (v Value) Get(p string) Value {
+	if vType := v.Type(); !vType.isObject() {
+		panic(&ValueError{"Value.Get", vType})
+	}
 	return makeValue(valueGet(v.ref, p))
 }
 
 func valueGet(v ref, p string) ref
 
 // Set sets the JavaScript property p of value v to ValueOf(x).
+// It panics if v is not a JavaScript object.
 func (v Value) Set(p string, x interface{}) {
+	if vType := v.Type(); !vType.isObject() {
+		panic(&ValueError{"Value.Set", vType})
+	}
 	valueSet(v.ref, p, ValueOf(x).ref)
 }
 
 func valueSet(v ref, p string, x ref)
 
 // Index returns JavaScript index i of value v.
+// It panics if v is not a JavaScript object.
 func (v Value) Index(i int) Value {
+	if vType := v.Type(); !vType.isObject() {
+		panic(&ValueError{"Value.Index", vType})
+	}
 	return makeValue(valueIndex(v.ref, i))
 }
 
 func valueIndex(v ref, i int) ref
 
 // SetIndex sets the JavaScript index i of value v to ValueOf(x).
+// It panics if v is not a JavaScript object.
 func (v Value) SetIndex(i int, x interface{}) {
+	if vType := v.Type(); !vType.isObject() {
+		panic(&ValueError{"Value.SetIndex", vType})
+	}
 	valueSetIndex(v.ref, i, ValueOf(x).ref)
 }
 
@@ -263,7 +300,11 @@ func makeArgs(args []interface{}) []ref {
 }
 
 // Length returns the JavaScript property "length" of v.
+// It panics if v is not a JavaScript object.
 func (v Value) Length() int {
+	if vType := v.Type(); !vType.isObject() {
+		panic(&ValueError{"Value.SetIndex", vType})
+	}
 	return valueLength(v.ref)
 }
 
@@ -275,7 +316,7 @@ func valueLength(v ref) int
 func (v Value) Call(m string, args ...interface{}) Value {
 	res, ok := valueCall(v.ref, m, makeArgs(args))
 	if !ok {
-		if vType := v.Type(); vType != TypeObject && vType != TypeFunction { // check here to avoid overhead in success case
+		if vType := v.Type(); !vType.isObject() { // check here to avoid overhead in success case
 			panic(&ValueError{"Value.Call", vType})
 		}
 		if propType := v.Get(m).Type(); propType != TypeFunction {
@@ -289,7 +330,7 @@ func (v Value) Call(m string, args ...interface{}) Value {
 func valueCall(v ref, m string, args []ref) (ref, bool)
 
 // Invoke does a JavaScript call of the value v with the given arguments.
-// It panics if v is not a function.
+// It panics if v is not a JavaScript function.
 // The arguments get mapped to JavaScript values according to the ValueOf function.
 func (v Value) Invoke(args ...interface{}) Value {
 	res, ok := valueInvoke(v.ref, makeArgs(args))
@@ -305,11 +346,14 @@ func (v Value) Invoke(args ...interface{}) Value {
 func valueInvoke(v ref, args []ref) (ref, bool)
 
 // New uses JavaScript's "new" operator with value v as constructor and the given arguments.
-// It panics if v is not a function.
+// It panics if v is not a JavaScript function.
 // The arguments get mapped to JavaScript values according to the ValueOf function.
 func (v Value) New(args ...interface{}) Value {
 	res, ok := valueNew(v.ref, makeArgs(args))
 	if !ok {
+		if vType := v.Type(); vType != TypeFunction { // check here to avoid overhead in success case
+			panic(&ValueError{"Value.Invoke", vType})
+		}
 		panic(Error{makeValue(res)})
 	}
 	return makeValue(res)
@@ -318,27 +362,35 @@ func (v Value) New(args ...interface{}) Value {
 func valueNew(v ref, args []ref) (ref, bool)
 
 func (v Value) isNumber() bool {
-	return v.ref>>32&nanHead != nanHead || v.ref == valueNaN.ref
+	return v.ref == valueZero.ref ||
+		v.ref == valueNaN.ref ||
+		(v.ref != valueUndefined.ref && v.ref>>32&nanHead != nanHead)
 }
 
 func (v Value) float(method string) float64 {
 	if !v.isNumber() {
 		panic(&ValueError{method, v.Type()})
 	}
+	if v.ref == valueZero.ref {
+		return 0
+	}
 	return *(*float64)(unsafe.Pointer(&v.ref))
 }
 
-// Float returns the value v as a float64. It panics if v is not a JavaScript number.
+// Float returns the value v as a float64.
+// It panics if v is not a JavaScript number.
 func (v Value) Float() float64 {
 	return v.float("Value.Float")
 }
 
-// Int returns the value v truncated to an int. It panics if v is not a JavaScript number.
+// Int returns the value v truncated to an int.
+// It panics if v is not a JavaScript number.
 func (v Value) Int() int {
 	return int(v.float("Value.Int"))
 }
 
-// Bool returns the value v as a bool. It panics if v is not a JavaScript boolean.
+// Bool returns the value v as a bool.
+// It panics if v is not a JavaScript boolean.
 func (v Value) Bool() bool {
 	switch v.ref {
 	case valueTrue.ref:
@@ -350,9 +402,55 @@ func (v Value) Bool() bool {
 	}
 }
 
-// String returns the value v converted to string according to JavaScript type conversions.
+// Truthy returns the JavaScript "truthiness" of the value v. In JavaScript,
+// false, 0, "", null, undefined, and NaN are "falsy", and everything else is
+// "truthy". See https://developer.mozilla.org/en-US/docs/Glossary/Truthy.
+func (v Value) Truthy() bool {
+	switch v.Type() {
+	case TypeUndefined, TypeNull:
+		return false
+	case TypeBoolean:
+		return v.Bool()
+	case TypeNumber:
+		return v.ref != valueNaN.ref && v.ref != valueZero.ref
+	case TypeString:
+		return v.String() != ""
+	case TypeSymbol, TypeFunction, TypeObject:
+		return true
+	default:
+		panic("bad type")
+	}
+}
+
+// String returns the value v as a string.
+// String is a special case because of Go's String method convention. Unlike the other getters,
+// it does not panic if v's Type is not TypeString. Instead, it returns a string of the form "<T>"
+// or "<T: V>" where T is v's type and V is a string representation of v's value.
 func (v Value) String() string {
-	str, length := valuePrepareString(v.ref)
+	switch v.Type() {
+	case TypeString:
+		return jsString(v.ref)
+	case TypeUndefined:
+		return "<undefined>"
+	case TypeNull:
+		return "<null>"
+	case TypeBoolean:
+		return "<boolean: " + jsString(v.ref) + ">"
+	case TypeNumber:
+		return "<number: " + jsString(v.ref) + ">"
+	case TypeSymbol:
+		return "<symbol>"
+	case TypeObject:
+		return "<object>"
+	case TypeFunction:
+		return "<function>"
+	default:
+		panic("bad type")
+	}
+}
+
+func jsString(v ref) string {
+	str, length := valuePrepareString(v)
 	b := make([]byte, length)
 	valueLoadString(str, b)
 	return string(b)

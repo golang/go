@@ -127,6 +127,22 @@ var writeSetCookiesTests = []struct {
 		&Cookie{Name: "\t"},
 		``,
 	},
+	{
+		&Cookie{Name: "\r"},
+		``,
+	},
+	{
+		&Cookie{Name: "a\nb", Value: "v"},
+		``,
+	},
+	{
+		&Cookie{Name: "a\nb", Value: "v"},
+		``,
+	},
+	{
+		&Cookie{Name: "a\rb", Value: "v"},
+		``,
+	},
 }
 
 func TestWriteSetCookies(t *testing.T) {
@@ -384,6 +400,19 @@ var readCookiesTests = []struct {
 			{Name: "Cookie-1", Value: "v$1"},
 			{Name: "c2", Value: "v2"},
 		},
+	},
+	{
+		Header{"Cookie": {`Cookie-1="v$1"; c2=v2;`}},
+		"",
+		[]*Cookie{
+			{Name: "Cookie-1", Value: "v$1"},
+			{Name: "c2", Value: "v2"},
+		},
+	},
+	{
+		Header{"Cookie": {``}},
+		"",
+		[]*Cookie{},
 	},
 }
 

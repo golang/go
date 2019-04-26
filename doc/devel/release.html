@@ -23,6 +23,45 @@ in supported releases as needed by issuing minor revisions
 (for example, Go 1.6.1, Go 1.6.2, and so on).
 </p>
 
+<h2 id="go1.12">go1.12 (released 2019/02/25)</h2>
+
+<p>
+Go 1.12 is a major release of Go.
+Read the <a href="/doc/go1.12">Go 1.12 Release Notes</a> for more information.
+</p>
+
+<h3 id="go1.12.minor">Minor revisions</h3>
+
+<p>
+go1.12.1 (released 2019/03/14) includes fixes to cgo, the compiler, the go
+command, and the <code>fmt</code>, <code>net/smtp</code>, <code>os</code>,
+<code>path/filepath</code>, <code>sync</code>, and <code>text/template</code>
+packages. See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.12.1">Go
+1.12.1 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.12.2 (released 2019/04/05) includes fixes to the compiler, the go
+command, the runtime, and the <code>doc</code>, <code>net</code>,
+<code>net/http/httputil</code>, and <code>os</code> packages. See the
+<a href="https://github.com/golang/go/issues?q=milestone%3AGo1.12.2">Go
+1.12.2 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.12.3 (released 2019/04/08) was accidentally released without its
+intended fix. It is identical to go1.12.2, except for its version
+number. The intended fix is in go1.12.4.
+</p>
+
+<p>
+go1.12.4 (released 2019/04/11) fixes an issue where using the prebuilt binary
+releases on older versions of GNU/Linux
+<a href="https://golang.org/issues/31293">led to failures</a>
+when linking programs that used cgo.
+Only Linux users who hit this issue need to update.
+</p>
+
 <h2 id="go1.11">go1.11 (released 2018/08/24)</h2>
 
 <p>
@@ -39,6 +78,67 @@ command, runtime, and the <code>crypto/x509</code>, <code>encoding/json</code>,
 <code>reflect</code> packages.
 See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.1">Go
 1.11.1 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.11.2 (released 2018/11/02) includes fixes to the compiler, linker,
+documentation, go command, and the <code>database/sql</code> and
+<code>go/types</code> packages.
+See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.2">Go
+1.11.2 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.11.3 (released 2018/12/12) includes three security fixes to "go get" and
+the <code>crypto/x509</code> package.
+See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.3">Go
+1.11.3 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.11.4 (released 2018/12/14) includes fixes to cgo, the compiler, linker,
+runtime, documentation, go command, and the <code>net/http</code> and
+<code>go/types</code> packages.
+It includes a fix to a bug introduced in Go 1.11.3 that broke <code>go</code>
+<code>get</code> for import path patterns containing "<code>...</code>".
+See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.4+label%3ACherryPickApproved">Go
+1.11.4 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.11.5 (released 2019/01/23) includes a security fix to the
+<code>crypto/elliptic</code> package.  See
+the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.5">Go
+1.11.5 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.11.6 (released 2019/03/14) includes fixes to cgo, the compiler, linker,
+runtime, go command, and the <code>crypto/x509</code>, <code>encoding/json</code>,
+<code>net</code>, and <code>net/url</code> packages. See the
+<a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.6">Go
+1.11.6 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.11.7 (released 2019/04/05) includes fixes to the runtime and the
+<code>net</code> packages. See the
+<a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.7">Go
+1.11.7 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.11.8 (released 2019/04/08) was accidentally released without its
+intended fix. It is identical to go1.11.7, except for its version
+number. The intended fix is in go1.11.9.
+</p>
+
+<p>
+go1.11.9 (released 2019/04/11) fixes an issue where using the prebuilt binary
+releases on older versions of GNU/Linux
+<a href="https://golang.org/issues/31293">led to failures</a>
+when linking programs that used cgo.
+Only Linux users who hit this issue need to update.
 </p>
 
 <h2 id="go1.10">go1.10 (released 2018/02/16)</h2>
@@ -81,6 +181,36 @@ go1.10.4 (released 2018/08/24) includes fixes to the go command, linker, and the
 <code>bytes</code>, and <code>strings</code> packages.
 See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.10.4">Go
 1.10.4 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.10.5 (released 2018/11/02) includes fixes to the go command, linker, runtime
+and the <code>database/sql</code> package.
+See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.10.5">Go
+1.10.5 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.10.6 (released 2018/12/12) includes three security fixes to "go get" and
+the <code>crypto/x509</code> package.
+It contains the same fixes as Go 1.11.3 and was released at the same time.
+See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.10.6">Go
+1.10.6 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.10.7 (released 2018/12/14) includes a fix to a bug introduced in Go 1.10.6
+that broke <code>go</code> <code>get</code> for import path patterns containing
+"<code>...</code>".
+See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.10.7+label%3ACherryPickApproved">
+Go 1.10.7 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.10.8 (released 2019/01/23) includes a security fix to the
+<code>crypto/elliptic</code> package.  See
+the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.10.8">Go
+1.10.8 milestone</a> on our issue tracker for details.
 </p>
 
 <h2 id="go1.9">go1.9 (released 2017/08/24)</h2>

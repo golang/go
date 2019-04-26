@@ -15,6 +15,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/module"
 )
@@ -43,9 +44,9 @@ func runVendor(cmd *base.Command, args []string) {
 	}
 	pkgs := modload.LoadVendor()
 
-	vdir := filepath.Join(modload.ModRoot, "vendor")
+	vdir := filepath.Join(modload.ModRoot(), "vendor")
 	if err := os.RemoveAll(vdir); err != nil {
-		base.Fatalf("go vendor: %v", err)
+		base.Fatalf("go mod vendor: %v", err)
 	}
 
 	modpkgs := make(map[module.Version][]string)
@@ -85,7 +86,7 @@ func runVendor(cmd *base.Command, args []string) {
 		return
 	}
 	if err := ioutil.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
-		base.Fatalf("go vendor: %v", err)
+		base.Fatalf("go mod vendor: %v", err)
 	}
 }
 
@@ -100,7 +101,7 @@ func vendorPkg(vdir, pkg string) {
 	if src == "" {
 		fmt.Fprintf(os.Stderr, "internal error: no pkg for %s -> %s\n", pkg, realPath)
 	}
-	copyDir(dst, src, matchNonTest)
+	copyDir(dst, src, matchPotentialSourceFile)
 	if m := modload.PackageModule(realPath); m.Path != "" {
 		copyMetadata(m.Path, realPath, dst, src)
 	}
@@ -153,7 +154,7 @@ var metaPrefixes = []string{
 }
 
 // matchMetadata reports whether info is a metadata file.
-func matchMetadata(info os.FileInfo) bool {
+func matchMetadata(dir string, info os.FileInfo) bool {
 	name := info.Name()
 	for _, p := range metaPrefixes {
 		if strings.HasPrefix(name, p) {
@@ -163,38 +164,61 @@ func matchMetadata(info os.FileInfo) bool {
 	return false
 }
 
-// matchNonTest reports whether info is any non-test file (including non-Go files).
-func matchNonTest(info os.FileInfo) bool {
-	return !strings.HasSuffix(info.Name(), "_test.go")
+var anyTagsExceptIgnore = map[string]bool{"*": true}
+
+// matchPotentialSourceFile reports whether info may be relevant to a build operation.
+func matchPotentialSourceFile(dir string, info os.FileInfo) bool {
+	if strings.HasSuffix(info.Name(), "_test.go") {
+		return false
+	}
+	if strings.HasSuffix(info.Name(), ".go") {
+		f, err := os.Open(filepath.Join(dir, info.Name()))
+		if err != nil {
+			base.Fatalf("go mod vendor: %v", err)
+		}
+		defer f.Close()
+
+		content, err := imports.ReadImports(f, false, nil)
+		if err == nil && !imports.ShouldBuild(content, anyTagsExceptIgnore) {
+			// The file is explicitly tagged "ignore", so it can't affect the build.
+			// Leave it out.
+			return false
+		}
+		return true
+	}
+
+	// We don't know anything about this file, so optimistically assume that it is
+	// needed.
+	return true
 }
 
 // copyDir copies all regular files satisfying match(info) from src to dst.
-func copyDir(dst, src string, match func(os.FileInfo) bool) {
+func copyDir(dst, src string, match func(dir string, info os.FileInfo) bool) {
 	files, err := ioutil.ReadDir(src)
 	if err != nil {
-		base.Fatalf("go vendor: %v", err)
+		base.Fatalf("go mod vendor: %v", err)
 	}
 	if err := os.MkdirAll(dst, 0777); err != nil {
-		base.Fatalf("go vendor: %v", err)
+		base.Fatalf("go mod vendor: %v", err)
 	}
 	for _, file := range files {
-		if file.IsDir() || !file.Mode().IsRegular() || !match(file) {
+		if file.IsDir() || !file.Mode().IsRegular() || !match(src, file) {
 			continue
 		}
 		r, err := os.Open(filepath.Join(src, file.Name()))
 		if err != nil {
-			base.Fatalf("go vendor: %v", err)
+			base.Fatalf("go mod vendor: %v", err)
 		}
 		w, err := os.Create(filepath.Join(dst, file.Name()))
 		if err != nil {
-			base.Fatalf("go vendor: %v", err)
+			base.Fatalf("go mod vendor: %v", err)
 		}
 		if _, err := io.Copy(w, r); err != nil {
-			base.Fatalf("go vendor: %v", err)
+			base.Fatalf("go mod vendor: %v", err)
 		}
 		r.Close()
 		if err := w.Close(); err != nil {
-			base.Fatalf("go vendor: %v", err)
+			base.Fatalf("go mod vendor: %v", err)
 		}
 	}
 }

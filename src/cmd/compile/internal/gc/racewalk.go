@@ -71,14 +71,14 @@ func instrument(fn *Node) {
 		lno := lineno
 		lineno = src.NoXPos
 
-		if thearch.LinkArch.Arch == sys.ArchPPC64LE {
+		if thearch.LinkArch.Arch.Family != sys.AMD64 {
 			fn.Func.Enter.Prepend(mkcall("racefuncenterfp", nil, nil))
 			fn.Func.Exit.Append(mkcall("racefuncexit", nil, nil))
 		} else {
 
 			// nodpc is the PC of the caller as extracted by
 			// getcallerpc. We use -widthptr(FP) for x86.
-			// BUG: This only works for amd64. This will not
+			// This only works for amd64. This will not
 			// work on arm or others that might support
 			// race in the future.
 			nodpc := nodfp.copy()

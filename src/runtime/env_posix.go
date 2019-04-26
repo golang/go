@@ -14,11 +14,34 @@ func gogetenv(key string) string {
 		throw("getenv before env init")
 	}
 	for _, s := range env {
-		if len(s) > len(key) && s[len(key)] == '=' && s[:len(key)] == key {
+		if len(s) > len(key) && s[len(key)] == '=' && envKeyEqual(s[:len(key)], key) {
 			return s[len(key)+1:]
 		}
 	}
 	return ""
+}
+
+// envKeyEqual reports whether a == b, with ASCII-only case insensitivity
+// on Windows. The two strings must have the same length.
+func envKeyEqual(a, b string) bool {
+	if GOOS == "windows" { // case insensitive
+		for i := 0; i < len(a); i++ {
+			ca, cb := a[i], b[i]
+			if ca == cb || lowerASCII(ca) == lowerASCII(cb) {
+				continue
+			}
+			return false
+		}
+		return true
+	}
+	return a == b
+}
+
+func lowerASCII(c byte) byte {
+	if 'A' <= c && c <= 'Z' {
+		return c + ('a' - 'A')
+	}
+	return c
 }
 
 var _cgo_setenv unsafe.Pointer   // pointer to C function

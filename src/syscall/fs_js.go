@@ -38,9 +38,9 @@ type jsFile struct {
 
 var filesMu sync.Mutex
 var files = map[int]*jsFile{
-	0: &jsFile{},
-	1: &jsFile{},
-	2: &jsFile{},
+	0: {},
+	1: {},
+	2: {},
 }
 
 func fdToFile(fd int) (*jsFile, error) {
@@ -244,18 +244,26 @@ func Chown(path string, uid, gid int) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	return ENOSYS
+	_, err := fsCall("chown", path, uint32(uid), uint32(gid))
+	return err
 }
 
 func Fchown(fd int, uid, gid int) error {
-	return ENOSYS
+	_, err := fsCall("fchown", fd, uint32(uid), uint32(gid))
+	return err
 }
 
 func Lchown(path string, uid, gid int) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	return ENOSYS
+	if jsFS.Get("lchown") == js.Undefined() {
+		// fs.lchown is unavailable on Linux until Node.js 10.6.0
+		// TODO(neelance): remove when we require at least this Node.js version
+		return ENOSYS
+	}
+	_, err := fsCall("lchown", path, uint32(uid), uint32(gid))
+	return err
 }
 
 func UtimesNano(path string, ts []Timespec) error {
@@ -473,8 +481,8 @@ func fsCall(name string, args ...interface{}) (js.Value, error) {
 		err error
 	}
 
-	c := make(chan callResult)
-	jsFS.Call(name, append(args, js.NewCallback(func(args []js.Value) {
+	c := make(chan callResult, 1)
+	jsFS.Call(name, append(args, js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		var res callResult
 
 		if len(args) >= 1 { // on Node.js 8, fs.utimes calls the callback without any arguments
@@ -489,6 +497,7 @@ func fsCall(name string, args ...interface{}) (js.Value, error) {
 		}
 
 		c <- res
+		return nil
 	}))...)
 	res := <-c
 	return res.val, res.err

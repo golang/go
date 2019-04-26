@@ -56,6 +56,9 @@ func main() {
 
 	gohostos = runtime.GOOS
 	switch gohostos {
+	case "aix":
+		// uname -m doesn't work under AIX
+		gohostarch = "ppc64"
 	case "darwin":
 		// Even on 64-bit platform, darwin uname -m prints i386.
 		// We don't support any of the OS X versions that run on 32-bit-only hardware anymore.
@@ -65,6 +68,18 @@ func main() {
 	case "freebsd":
 		// Since FreeBSD 10 gcc is no longer part of the base system.
 		defaultclang = true
+	case "openbsd":
+		// The gcc available on OpenBSD armv7 is old/inadequate (for example, lacks
+		// __sync_fetch_and_*/__sync_*_and_fetch) and will likely be removed in the
+		// not-to-distant future - use clang instead.
+		if runtime.GOARCH == "arm" {
+			defaultclang = true
+		}
+	case "plan9":
+		gohostarch = os.Getenv("objtype")
+		if gohostarch == "" {
+			fatalf("$objtype is unset")
+		}
 	case "solaris":
 		// Even on 64-bit platform, solaris uname -m prints i86pc.
 		out := run("", CheckExit, "isainfo", "-n")
@@ -74,16 +89,8 @@ func main() {
 		if strings.Contains(out, "i386") {
 			gohostarch = "386"
 		}
-	case "plan9":
-		gohostarch = os.Getenv("objtype")
-		if gohostarch == "" {
-			fatalf("$objtype is unset")
-		}
 	case "windows":
 		exe = ".exe"
-	case "aix":
-		// uname -m doesn't work under AIX
-		gohostarch = "ppc64"
 	}
 
 	sysinit()
@@ -96,10 +103,10 @@ func main() {
 			gohostarch = "amd64"
 		case strings.Contains(out, "86"):
 			gohostarch = "386"
+		case strings.Contains(out, "aarch64"), strings.Contains(out, "arm64"):
+			gohostarch = "arm64"
 		case strings.Contains(out, "arm"):
 			gohostarch = "arm"
-		case strings.Contains(out, "aarch64"):
-			gohostarch = "arm64"
 		case strings.Contains(out, "ppc64le"):
 			gohostarch = "ppc64le"
 		case strings.Contains(out, "ppc64"):

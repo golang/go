@@ -100,6 +100,14 @@
 ( OR (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) -> (ROTLW x y)
 (XOR (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) -> (ROTLW x y)
 
+// Lowering rotates
+(RotateLeft32 x y) -> (ROTLW x y)
+(RotateLeft64 x y) -> (ROTL x y)
+
+// Constant rotate generation
+(ROTLW  x (MOVDconst [c])) -> (ROTLWconst  x [c&31])
+(ROTL   x (MOVDconst [c])) -> (ROTLconst   x [c&63])
+
 (Lsh64x64  x (Const64 [c])) && uint64(c) < 64 -> (SLDconst x [c])
 (Rsh64x64  x (Const64 [c])) && uint64(c) < 64 -> (SRADconst x [c])
 (Rsh64Ux64 x (Const64 [c])) && uint64(c) < 64 -> (SRDconst x [c])
@@ -295,10 +303,12 @@
 (Ctz32NonZero x) -> (Ctz32 x)
 (Ctz64NonZero x) -> (Ctz64 x)
 
-(Ctz64 x) -> (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
-(Ctz32 x) -> (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+(Ctz64 x) && objabi.GOPPC64<=8 -> (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
+(Ctz64 x) -> (CNTTZD x)
+(Ctz32 x) && objabi.GOPPC64<=8 -> (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+(Ctz32 x) -> (CNTTZW (MOVWZreg x))
 (Ctz16 x) -> (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
-(Ctz8 x) -> (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
+(Ctz8 x)  -> (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
 
 (BitLen64 x) -> (SUB (MOVDconst [64]) (CNTLZD <typ.Int> x))
 (BitLen32 x) -> (SUB (MOVDconst [32]) (CNTLZW <typ.Int> x))
@@ -331,7 +341,7 @@
 // Sign extension dependence on operand sign sets up for sign/zero-extension elision later
 (Eq8 x y) && isSigned(x.Type) && isSigned(y.Type) -> (Equal (CMPW (SignExt8to32 x) (SignExt8to32 y)))
 (Eq16 x y) && isSigned(x.Type) && isSigned(y.Type) -> (Equal (CMPW (SignExt16to32 x) (SignExt16to32 y)))
-(Eq8 x y)  -> (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Eq8 x y) -> (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Eq16 x y) -> (Equal (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Eq32 x y) -> (Equal (CMPW x y))
 (Eq64 x y) -> (Equal (CMP x y))
@@ -518,6 +528,13 @@
 (LessEqual (InvertFlags x)) -> (GreaterEqual x)
 (GreaterEqual (InvertFlags x)) -> (LessEqual x)
 
+// Elide compares of bit tests // TODO need to make both CC and result of ANDCC available.
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] (ANDconst [c] x)) yes no) -> ((EQ|NE|LT|LE|GT|GE) (ANDCCconst [c] x) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPWconst [0] (ANDconst [c] x)) yes no) -> ((EQ|NE|LT|LE|GT|GE) (ANDCCconst [c] x) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> ((EQ|NE|LT|LE|GT|GE) (ANDCC x y) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(OR x y)) yes no) && z.Uses == 1 -> ((EQ|NE|LT|LE|GT|GE) (ORCC x y) yes no)
+((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(XOR x y)) yes no) && z.Uses == 1 -> ((EQ|NE|LT|LE|GT|GE) (XORCC x y) yes no)
+
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVDload ptr mem)
 (Load <t> ptr mem) && is32BitInt(t) && isSigned(t) -> (MOVWload ptr mem)
@@ -639,6 +656,10 @@
 
 // Write barrier.
 (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 -> (LoweredPanicBoundsA [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 -> (LoweredPanicBoundsB [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 -> (LoweredPanicBoundsC [kind] x y mem)
 
 // Optimizations
 // Note that PPC "logical" immediates come in 0:15 and 16:31 unsigned immediate forms,
@@ -896,16 +917,19 @@
     (MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
 
 // atomic intrinsics
-(AtomicLoad(32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(32|64|Ptr) ptr mem)
+(AtomicLoad(32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(32|64|Ptr) [1] ptr mem)
+(AtomicLoadAcq32        ptr mem) -> (LoweredAtomicLoad32 [0] ptr mem)
 
-(AtomicStore(32|64)      ptr val mem) -> (LoweredAtomicStore(32|64) ptr val mem)
+(AtomicStore(32|64)      ptr val mem) -> (LoweredAtomicStore(32|64) [1] ptr val mem)
+(AtomicStoreRel32        ptr val mem) -> (LoweredAtomicStore32 [0] ptr val mem)
 //(AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)
 
 (AtomicExchange(32|64) ptr val mem) -> (LoweredAtomicExchange(32|64) ptr val mem)
 
 (AtomicAdd(32|64) ptr val mem) -> (LoweredAtomicAdd(32|64) ptr val mem)
 
-(AtomicCompareAndSwap(32|64) ptr old new_ mem) -> (LoweredAtomicCas(32|64) ptr old new_ mem)
+(AtomicCompareAndSwap(32|64) ptr old new_ mem) -> (LoweredAtomicCas(32|64) [1] ptr old new_ mem)
+(AtomicCompareAndSwapRel32   ptr old new_ mem) -> (LoweredAtomicCas32 [0] ptr old new_ mem)
 
 (AtomicAnd8 ptr val mem) -> (LoweredAtomicAnd8 ptr val mem)
 (AtomicOr8  ptr val mem) -> (LoweredAtomicOr8  ptr val mem)
@@ -920,11 +944,11 @@
 (ZeroExt16to(32|64) x) -> (MOVHZreg x)
 (ZeroExt32to64 x) -> (MOVWZreg x)
 
-(Trunc(16|32|64)to8  x) && isSigned(x.Type) -> (MOVBreg x)
+(Trunc(16|32|64)to8 <t> x) && isSigned(t) -> (MOVBreg x)
 (Trunc(16|32|64)to8  x) -> (MOVBZreg x)
-(Trunc(32|64)to16 x) && isSigned(x.Type) -> (MOVHreg x)
+(Trunc(32|64)to16 <t> x) && isSigned(t) -> (MOVHreg x)
 (Trunc(32|64)to16 x) -> (MOVHZreg x)
-(Trunc64to32 x) && isSigned(x.Type) -> (MOVWreg x)
+(Trunc64to32 <t> x) && isSigned(t) -> (MOVWreg x)
 (Trunc64to32 x) -> (MOVWZreg x)
 
 (Slicemask <t> x) -> (SRADconst (NEG <t> x) [63])

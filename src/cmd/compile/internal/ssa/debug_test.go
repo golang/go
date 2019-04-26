@@ -156,33 +156,37 @@ func TestNexting(t *testing.T) {
 
 	subTest(t, debugger+"-dbg-race", "i22600", dbgFlags, append(moreargs, "-race")...)
 
-	optSubTest(t, debugger+"-opt", "hist", optFlags, moreargs...)
-	optSubTest(t, debugger+"-opt", "scopes", optFlags, moreargs...)
+	optSubTest(t, debugger+"-opt", "hist", optFlags, 1000, moreargs...)
+	optSubTest(t, debugger+"-opt", "scopes", optFlags, 1000, moreargs...)
+	optSubTest(t, debugger+"-opt", "infloop", optFlags, 10, moreargs...)
 }
 
 // subTest creates a subtest that compiles basename.go with the specified gcflags and additional compiler arguments,
 // then runs the debugger on the resulting binary, with any comment-specified actions matching tag triggered.
 func subTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
 	t.Run(tag+"-"+basename, func(t *testing.T) {
-		testNexting(t, basename, tag, gcflags, moreargs...)
+		if t.Name() == "TestNexting/gdb-dbg-i22558" {
+			testenv.SkipFlaky(t, 31263)
+		}
+		testNexting(t, basename, tag, gcflags, 1000, moreargs...)
 	})
 }
 
 // optSubTest is the same as subTest except that it skips the test if the runtime and libraries
 // were not compiled with optimization turned on.  (The skip may not be necessary with Go 1.10 and later)
-func optSubTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
+func optSubTest(t *testing.T, tag string, basename string, gcflags string, count int, moreargs ...string) {
 	// If optimized test is run with unoptimized libraries (compiled with -N -l), it is very likely to fail.
 	// This occurs in the noopt builders (for example).
 	t.Run(tag+"-"+basename, func(t *testing.T) {
 		if *force || optimizedLibs {
-			testNexting(t, basename, tag, gcflags, moreargs...)
+			testNexting(t, basename, tag, gcflags, count, moreargs...)
 		} else {
 			t.Skip("skipping for unoptimized stdlib/runtime")
 		}
 	})
 }
 
-func testNexting(t *testing.T, base, tag, gcflags string, moreArgs ...string) {
+func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ...string) {
 	// (1) In testdata, build sample.go into test-sample.<tag>
 	// (2) Run debugger gathering a history
 	// (3) Read expected history from testdata/sample.<tag>.nexts
@@ -219,7 +223,7 @@ func testNexting(t *testing.T, base, tag, gcflags string, moreArgs ...string) {
 	} else {
 		dbg = newGdb(tag, exe)
 	}
-	h1 := runDbgr(dbg, 1000)
+	h1 := runDbgr(dbg, count)
 	if *dryrun {
 		fmt.Printf("# Tag for above is %s\n", dbg.tag())
 		return
@@ -261,6 +265,7 @@ func runDbgr(dbg dbgr, maxNext int) *nextHist {
 			break
 		}
 	}
+	dbg.quit()
 	h := dbg.hist()
 	return h
 }
@@ -298,7 +303,7 @@ func (t tstring) String() string {
 }
 
 type pos struct {
-	line uint16
+	line uint32
 	file uint8 // Artifact of plans to implement differencing instead of calling out to diff.
 }
 
@@ -386,7 +391,7 @@ func (h *nextHist) add(file, line, text string) bool {
 		}
 	}
 	l := len(h.ps)
-	p := pos{line: uint16(li), file: fi}
+	p := pos{line: uint32(li), file: fi}
 
 	if l == 0 || *repeats || h.ps[l-1] != p {
 		h.ps = append(h.ps, p)
@@ -721,6 +726,15 @@ func varsToPrint(line, lookfor string) []string {
 func (s *gdbState) quit() {
 	response := s.ioState.writeRead("q\n")
 	if strings.Contains(response.o, "Quit anyway? (y or n)") {
+		defer func() {
+			if r := recover(); r != nil {
+				if s, ok := r.(string); !(ok && strings.Contains(s, "'Y\n'")) {
+					// Not the panic that was expected.
+					fmt.Printf("Expected a broken pipe panic, but saw the following panic instead")
+					panic(r)
+				}
+			}
+		}()
 		s.ioState.writeRead("Y\n")
 	}
 }
@@ -934,7 +948,8 @@ func expect(want string, got tstring) {
 		if match {
 			return
 		}
-		match, err = regexp.MatchString(want, got.e)
+		// Ignore error as we have already checked for it before
+		match, _ = regexp.MatchString(want, got.e)
 		if match {
 			return
 		}

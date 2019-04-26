@@ -38,7 +38,24 @@ func initExceptionHandler() {
 	}
 }
 
-// isgoexception returns true if this exception should be translated
+// isAbort returns true, if context r describes exception raised
+// by calling runtime.abort function.
+//
+//go:nosplit
+func isAbort(r *context) bool {
+	switch GOARCH {
+	case "386", "amd64":
+		// In the case of an abort, the exception IP is one byte after
+		// the INT3 (this differs from UNIX OSes).
+		return isAbortPC(r.ip() - 1)
+	case "arm":
+		return isAbortPC(r.ip())
+	default:
+		return false
+	}
+}
+
+// isgoexception reports whether this exception should be translated
 // into a Go panic.
 //
 // It is nosplit to avoid growing the stack in case we're aborting
@@ -53,9 +70,7 @@ func isgoexception(info *exceptionrecord, r *context) bool {
 		return false
 	}
 
-	// In the case of an abort, the exception IP is one byte after
-	// the INT3 (this differs from UNIX OSes).
-	if isAbortPC(r.ip() - 1) {
+	if isAbort(r) {
 		// Never turn abort into a panic.
 		return false
 	}
@@ -117,10 +132,18 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 	if r.ip() != 0 {
 		sp := unsafe.Pointer(r.sp())
 		sp = add(sp, ^(unsafe.Sizeof(uintptr(0)) - 1)) // sp--
-		*((*uintptr)(sp)) = r.ip()
-		r.setsp(uintptr(sp))
+		r.set_sp(uintptr(sp))
+		switch GOARCH {
+		default:
+			panic("unsupported architecture")
+		case "386", "amd64":
+			*((*uintptr)(sp)) = r.ip()
+		case "arm":
+			*((*uintptr)(sp)) = r.lr()
+			r.set_lr(r.ip())
+		}
 	}
-	r.setip(funcPC(sigpanic))
+	r.set_ip(funcPC(sigpanic))
 	return _EXCEPTION_CONTINUE_EXECUTION
 }
 

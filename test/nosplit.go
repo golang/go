@@ -1,4 +1,4 @@
-// +build !nacl,!js,!gcflags_noopt
+// +build !nacl,!js,!aix,!gcflags_noopt
 // run
 
 // Copyright 2014 The Go Authors. All rights reserved.
@@ -217,6 +217,11 @@ func main() {
 		return
 	}
 	defer os.RemoveAll(dir)
+	os.Setenv("GOPATH", filepath.Join(dir, "_gopath"))
+
+	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module go-test-nosplit\n"), 0666); err != nil {
+		log.Panic(err)
+	}
 
 	tests = strings.Replace(tests, "\t", " ", -1)
 	tests = commentRE.ReplaceAllString(tests, "")

@@ -66,7 +66,8 @@ func SyntaxError(cmd, msg string) {
 	} else {
 		fmt.Fprintf(os.Stderr, `run "go help %s" for more information`+"\n", cmd)
 	}
-	os.Exit(2)
+	base.SetExitStatus(2)
+	base.Exit()
 }
 
 // AddKnownFlags registers the flags in defns with base.AddKnownFlag.
@@ -79,15 +80,15 @@ func AddKnownFlags(cmd string, defns []*Defn) {
 
 // Parse sees if argument i is present in the definitions and if so,
 // returns its definition, value, and whether it consumed an extra word.
-// If the flag begins (cmd+".") it is ignored for the purpose of this function.
-func Parse(cmd string, defns []*Defn, args []string, i int) (f *Defn, value string, extra bool) {
+// If the flag begins (cmd.Name()+".") it is ignored for the purpose of this function.
+func Parse(cmd string, usage func(), defns []*Defn, args []string, i int) (f *Defn, value string, extra bool) {
 	arg := args[i]
 	if strings.HasPrefix(arg, "--") { // reduce two minuses to one
 		arg = arg[1:]
 	}
 	switch arg {
 	case "-?", "-h", "-help":
-		base.Usage()
+		usage()
 	}
 	if arg == "" || arg[0] != '-' {
 		return

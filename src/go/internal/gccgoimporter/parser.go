@@ -15,10 +15,11 @@ import (
 	"strconv"
 	"strings"
 	"text/scanner"
+	"unicode/utf8"
 )
 
 type parser struct {
-	scanner  scanner.Scanner
+	scanner  *scanner.Scanner
 	version  string                    // format version
 	tok      rune                      // current token
 	lit      string                    // literal string; only valid for Ident, Int, String tokens
@@ -27,18 +28,47 @@ type parser struct {
 	pkg      *types.Package            // reference to imported package
 	imports  map[string]*types.Package // package path -> package object
 	typeList []types.Type              // type number -> type
+	typeData []string                  // unparsed type data (v3 and later)
+	fixups   []fixupRecord             // fixups to apply at end of parsing
 	initdata InitData                  // package init priority data
+	aliases  map[int]string            // maps saved type number to alias name
+}
+
+// When reading export data it's possible to encounter a defined type
+// N1 with an underlying defined type N2 while we are still reading in
+// that defined type N2; see issues #29006 and #29198 for instances
+// of this. Example:
+//
+//   type N1 N2
+//   type N2 struct {
+//      ...
+//      p *N1
+//   }
+//
+// To handle such cases, the parser generates a fixup record (below) and
+// delays setting of N1's underlying type until parsing is complete, at
+// which point fixups are applied.
+
+type fixupRecord struct {
+	toUpdate *types.Named // type to modify when fixup is processed
+	target   types.Type   // type that was incomplete when fixup was created
 }
 
 func (p *parser) init(filename string, src io.Reader, imports map[string]*types.Package) {
+	p.scanner = new(scanner.Scanner)
+	p.initScanner(filename, src)
+	p.imports = imports
+	p.aliases = make(map[int]string)
+	p.typeList = make([]types.Type, 1 /* type numbers start at 1 */, 16)
+}
+
+func (p *parser) initScanner(filename string, src io.Reader) {
 	p.scanner.Init(src)
 	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
-	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanFloats | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
-	p.scanner.Whitespace = 1<<'\t' | 1<<'\n' | 1<<' '
+	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanFloats | scanner.ScanStrings
+	p.scanner.Whitespace = 1<<'\t' | 1<<' '
 	p.scanner.Filename = filename // for good error messages
 	p.next()
-	p.imports = imports
-	p.typeList = make([]types.Type, 1 /* type numbers start at 1 */, 16)
 }
 
 type importError struct {
@@ -71,6 +101,13 @@ func (p *parser) expect(tok rune) string {
 	return lit
 }
 
+func (p *parser) expectEOL() {
+	if p.version == "v1" || p.version == "v2" {
+		p.expect(';')
+	}
+	p.expect('\n')
+}
+
 func (p *parser) expectKeyword(keyword string) {
 	lit := p.expect(scanner.Ident)
 	if lit != keyword {
@@ -96,7 +133,7 @@ func (p *parser) parseUnquotedString() string {
 	buf.WriteString(p.scanner.TokenText())
 	// This loop needs to examine each character before deciding whether to consume it. If we see a semicolon,
 	// we need to let it be consumed by p.next().
-	for ch := p.scanner.Peek(); ch != ';' && ch != scanner.EOF && p.scanner.Whitespace&(1<<uint(ch)) == 0; ch = p.scanner.Peek() {
+	for ch := p.scanner.Peek(); ch != '\n' && ch != ';' && ch != scanner.EOF && p.scanner.Whitespace&(1<<uint(ch)) == 0; ch = p.scanner.Peek() {
 		buf.WriteRune(ch)
 		p.scanner.Next()
 	}
@@ -203,17 +240,22 @@ func deref(typ types.Type) types.Type {
 // Field = Name Type [string] .
 func (p *parser) parseField(pkg *types.Package) (field *types.Var, tag string) {
 	name := p.parseName()
-	typ := p.parseType(pkg)
+	typ, n := p.parseTypeExtended(pkg)
 	anon := false
 	if name == "" {
 		anon = true
-		switch typ := deref(typ).(type) {
-		case *types.Basic:
-			name = typ.Name()
-		case *types.Named:
-			name = typ.Obj().Name()
-		default:
-			p.error("anonymous field expected")
+		// Alias?
+		if aname, ok := p.aliases[n]; ok {
+			name = aname
+		} else {
+			switch typ := deref(typ).(type) {
+			case *types.Basic:
+				name = typ.Name()
+			case *types.Named:
+				name = typ.Obj().Name()
+			default:
+				p.error("anonymous field expected")
+			}
 		}
 	}
 	field = types.NewField(token.NoPos, pkg, name, typ, anon)
@@ -268,6 +310,15 @@ func (p *parser) parseConversion(pkg *types.Package) (val constant.Value, typ ty
 // ConstValue     = string | "false" | "true" | ["-"] (int ["'"] | FloatOrComplex) | Conversion .
 // FloatOrComplex = float ["i" | ("+"|"-") float "i"] .
 func (p *parser) parseConstValue(pkg *types.Package) (val constant.Value, typ types.Type) {
+	// v3 changed to $false, $true, $convert, to avoid confusion
+	// with variable names in inline function bodies.
+	if p.tok == '$' {
+		p.next()
+		if p.tok != scanner.Ident {
+			p.errorf("expected identifer after '$', got %s (%q)", scanner.TokenString(p.tok), p.lit)
+		}
+	}
+
 	switch p.tok {
 	case scanner.String:
 		str := p.parseString()
@@ -387,17 +438,42 @@ var reserved = new(struct{ types.Type })
 
 // reserve reserves the type map entry n for future use.
 func (p *parser) reserve(n int) {
-	if n != len(p.typeList) {
-		p.errorf("invalid type number %d (out of sync)", n)
+	// Notes:
+	// - for pre-V3 export data, the type numbers we see are
+	//   guaranteed to be in increasing order, so we append a
+	//   reserved entry onto the list.
+	// - for V3+ export data, type numbers can appear in
+	//   any order, however the 'types' section tells us the
+	//   total number of types, hence typeList is pre-allocated.
+	if len(p.typeData) == 0 {
+		if n != len(p.typeList) {
+			p.errorf("invalid type number %d (out of sync)", n)
+		}
+		p.typeList = append(p.typeList, reserved)
+	} else {
+		if p.typeList[n] != nil {
+			p.errorf("previously visited type number %d", n)
+		}
+		p.typeList[n] = reserved
 	}
-	p.typeList = append(p.typeList, reserved)
 }
 
 // update sets the type map entries for the given type numbers nlist to t.
 func (p *parser) update(t types.Type, nlist []int) {
+	if len(nlist) != 0 {
+		if t == reserved {
+			p.errorf("internal error: update(%v) invoked on reserved", nlist)
+		}
+		if t == nil {
+			p.errorf("internal error: update(%v) invoked on nil", nlist)
+		}
+	}
 	for _, n := range nlist {
+		if p.typeList[n] == t {
+			continue
+		}
 		if p.typeList[n] != reserved {
-			p.errorf("typeMap[%d] not reserved", n)
+			p.errorf("internal error: update(%v): %d not reserved", nlist, n)
 		}
 		p.typeList[n] = t
 	}
@@ -405,7 +481,7 @@ func (p *parser) update(t types.Type, nlist []int) {
 
 // NamedType = TypeName [ "=" ] Type { Method } .
 // TypeName  = ExportedName .
-// Method    = "func" "(" Param ")" Name ParamList ResultList ";" .
+// Method    = "func" "(" Param ")" Name ParamList ResultList [InlineBody] ";" .
 func (p *parser) parseNamedType(nlist []int) types.Type {
 	pkg, name := p.parseExportedName()
 	scope := pkg.Scope()
@@ -417,6 +493,7 @@ func (p *parser) parseNamedType(nlist []int) types.Type {
 	// type alias
 	if p.tok == '=' {
 		p.next()
+		p.aliases[nlist[len(nlist)-1]] = name
 		if obj != nil {
 			// use the previously imported (canonical) type
 			t := obj.Type()
@@ -456,22 +533,39 @@ func (p *parser) parseNamedType(nlist []int) types.Type {
 
 	underlying := p.parseType(pkg)
 	if nt.Underlying() == nil {
-		nt.SetUnderlying(underlying.Underlying())
+		if underlying.Underlying() == nil {
+			fix := fixupRecord{toUpdate: nt, target: underlying}
+			p.fixups = append(p.fixups, fix)
+		} else {
+			nt.SetUnderlying(underlying.Underlying())
+		}
 	}
 
-	// collect associated methods
-	for p.tok == scanner.Ident {
-		p.expectKeyword("func")
-		p.expect('(')
-		receiver, _ := p.parseParam(pkg)
-		p.expect(')')
-		name := p.parseName()
-		params, isVariadic := p.parseParamList(pkg)
-		results := p.parseResultList(pkg)
-		p.expect(';')
+	if p.tok == '\n' {
+		p.next()
+		// collect associated methods
+		for p.tok == scanner.Ident {
+			p.expectKeyword("func")
+			if p.tok == '/' {
+				// Skip a /*nointerface*/ comment.
+				p.expect('/')
+				p.expect('*')
+				p.expect(scanner.Ident)
+				p.expect('*')
+				p.expect('/')
+			}
+			p.expect('(')
+			receiver, _ := p.parseParam(pkg)
+			p.expect(')')
+			name := p.parseName()
+			params, isVariadic := p.parseParamList(pkg)
+			results := p.parseResultList(pkg)
+			p.skipInlineBody()
+			p.expectEOL()
 
-		sig := types.NewSignature(receiver, params, results, isVariadic)
-		nt.AddMethod(types.NewFunc(token.NoPos, pkg, name, sig))
+			sig := types.NewSignature(receiver, params, results, isVariadic)
+			nt.AddMethod(types.NewFunc(token.NoPos, pkg, name, sig))
+		}
 	}
 
 	return nt
@@ -612,7 +706,12 @@ func (p *parser) parseParamList(pkg *types.Package) (*types.Tuple, bool) {
 func (p *parser) parseResultList(pkg *types.Package) *types.Tuple {
 	switch p.tok {
 	case '<':
-		return types.NewTuple(types.NewParam(token.NoPos, pkg, "", p.parseType(pkg)))
+		p.next()
+		if p.tok == scanner.Ident && p.lit == "inl" {
+			return nil
+		}
+		taa, _ := p.parseTypeAfterAngle(pkg)
+		return types.NewTuple(types.NewParam(token.NoPos, pkg, "", taa))
 
 	case '(':
 		params, _ := p.parseParamList(pkg)
@@ -635,7 +734,7 @@ func (p *parser) parseFunctionType(pkg *types.Package, nlist []int) *types.Signa
 	return t
 }
 
-// Func = Name FunctionType .
+// Func = Name FunctionType [InlineBody] .
 func (p *parser) parseFunc(pkg *types.Package) *types.Func {
 	name := p.parseName()
 	if strings.ContainsRune(name, '$') {
@@ -644,7 +743,9 @@ func (p *parser) parseFunc(pkg *types.Package) *types.Func {
 		p.discardDirectiveWhileParsingTypes(pkg)
 		return nil
 	}
-	return types.NewFunc(token.NoPos, pkg, name, p.parseFunctionType(pkg, nil))
+	f := types.NewFunc(token.NoPos, pkg, name, p.parseFunctionType(pkg, nil))
+	p.skipInlineBody()
+	return f
 }
 
 // InterfaceType = "interface" "{" { ("?" Type | Func) ";" } "}" .
@@ -782,17 +883,27 @@ func lookupBuiltinType(typ int) types.Type {
 //
 // parseType updates the type map to t for all type numbers n.
 //
-func (p *parser) parseType(pkg *types.Package, n ...int) (t types.Type) {
+func (p *parser) parseType(pkg *types.Package, n ...int) types.Type {
 	p.expect('<')
+	t, _ := p.parseTypeAfterAngle(pkg, n...)
+	return t
+}
+
+// (*parser).Type after reading the "<".
+func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...int) (t types.Type, n1 int) {
 	p.expectKeyword("type")
 
+	n1 = 0
 	switch p.tok {
 	case scanner.Int:
-		n1 := p.parseInt()
+		n1 = p.parseInt()
 		if p.tok == '>' {
+			if len(p.typeData) > 0 && p.typeList[n1] == nil {
+				p.parseSavedType(pkg, n1, n)
+			}
 			t = p.typeList[n1]
-			if t == reserved {
-				p.errorf("invalid type cycle, type %d not yet defined", n1)
+			if len(p.typeData) == 0 && t == reserved {
+				p.errorf("invalid type cycle, type %d not yet defined (nlist=%v)", n1, n)
 			}
 			p.update(t, n)
 		} else {
@@ -808,10 +919,131 @@ func (p *parser) parseType(pkg *types.Package, n ...int) (t types.Type) {
 
 	default:
 		p.errorf("expected type number, got %s (%q)", scanner.TokenString(p.tok), p.lit)
+		return nil, 0
+	}
+
+	if t == nil || t == reserved {
+		p.errorf("internal error: bad return from parseType(%v)", n)
 	}
 
 	p.expect('>')
 	return
+}
+
+// parseTypeExtended is identical to parseType, but if the type in
+// question is a saved type, returns the index as well as the type
+// pointer (index returned is zero if we parsed a builtin).
+func (p *parser) parseTypeExtended(pkg *types.Package, n ...int) (t types.Type, n1 int) {
+	p.expect('<')
+	t, n1 = p.parseTypeAfterAngle(pkg, n...)
+	return
+}
+
+// InlineBody = "<inl:NN>" .{NN}
+// Reports whether a body was skipped.
+func (p *parser) skipInlineBody() {
+	// We may or may not have seen the '<' already, depending on
+	// whether the function had a result type or not.
+	if p.tok == '<' {
+		p.next()
+		p.expectKeyword("inl")
+	} else if p.tok != scanner.Ident || p.lit != "inl" {
+		return
+	} else {
+		p.next()
+	}
+
+	p.expect(':')
+	want := p.parseInt()
+	p.expect('>')
+
+	defer func(w uint64) {
+		p.scanner.Whitespace = w
+	}(p.scanner.Whitespace)
+	p.scanner.Whitespace = 0
+
+	got := 0
+	for got < want {
+		r := p.scanner.Next()
+		if r == scanner.EOF {
+			p.error("unexpected EOF")
+		}
+		got += utf8.RuneLen(r)
+	}
+}
+
+// Types = "types" maxp1 exportedp1 (offset length)* .
+func (p *parser) parseTypes(pkg *types.Package) {
+	maxp1 := p.parseInt()
+	exportedp1 := p.parseInt()
+	p.typeList = make([]types.Type, maxp1, maxp1)
+
+	type typeOffset struct {
+		offset int
+		length int
+	}
+	var typeOffsets []typeOffset
+
+	total := 0
+	for i := 1; i < maxp1; i++ {
+		len := p.parseInt()
+		typeOffsets = append(typeOffsets, typeOffset{total, len})
+		total += len
+	}
+
+	defer func(w uint64) {
+		p.scanner.Whitespace = w
+	}(p.scanner.Whitespace)
+	p.scanner.Whitespace = 0
+
+	// We should now have p.tok pointing to the final newline.
+	// The next runes from the scanner should be the type data.
+
+	var sb strings.Builder
+	for sb.Len() < total {
+		r := p.scanner.Next()
+		if r == scanner.EOF {
+			p.error("unexpected EOF")
+		}
+		sb.WriteRune(r)
+	}
+	allTypeData := sb.String()
+
+	p.typeData = []string{""} // type 0, unused
+	for _, to := range typeOffsets {
+		p.typeData = append(p.typeData, allTypeData[to.offset:to.offset+to.length])
+	}
+
+	for i := 1; i < int(exportedp1); i++ {
+		p.parseSavedType(pkg, i, []int{})
+	}
+}
+
+// parseSavedType parses one saved type definition.
+func (p *parser) parseSavedType(pkg *types.Package, i int, nlist []int) {
+	defer func(s *scanner.Scanner, tok rune, lit string) {
+		p.scanner = s
+		p.tok = tok
+		p.lit = lit
+	}(p.scanner, p.tok, p.lit)
+
+	p.scanner = new(scanner.Scanner)
+	p.initScanner(p.scanner.Filename, strings.NewReader(p.typeData[i]))
+	p.expectKeyword("type")
+	id := p.parseInt()
+	if id != i {
+		p.errorf("type ID mismatch: got %d, want %d", id, i)
+	}
+	if p.typeList[i] == reserved {
+		p.errorf("internal error: %d already reserved in parseSavedType", i)
+	}
+	if p.typeList[i] == nil {
+		p.reserve(i)
+		p.parseTypeSpec(pkg, append(nlist, i))
+	}
+	if p.typeList[i] == nil || p.typeList[i] == reserved {
+		p.errorf("internal error: parseSavedType(%d,%v) reserved/nil", i, nlist)
+	}
 }
 
 // PackageInit = unquotedString unquotedString int .
@@ -829,7 +1061,7 @@ func (p *parser) parsePackageInit() PackageInit {
 func (p *parser) discardDirectiveWhileParsingTypes(pkg *types.Package) {
 	for {
 		switch p.tok {
-		case ';':
+		case '\n', ';':
 			return
 		case '<':
 			p.parseType(pkg)
@@ -848,7 +1080,7 @@ func (p *parser) maybeCreatePackage() {
 	}
 }
 
-// InitDataDirective = ( "v1" | "v2" ) ";" |
+// InitDataDirective = ( "v1" | "v2" | "v3" ) ";" |
 //                     "priority" int ";" |
 //                     "init" { PackageInit } ";" |
 //                     "checksum" unquotedString ";" .
@@ -859,31 +1091,32 @@ func (p *parser) parseInitDataDirective() {
 	}
 
 	switch p.lit {
-	case "v1", "v2":
+	case "v1", "v2", "v3":
 		p.version = p.lit
 		p.next()
 		p.expect(';')
+		p.expect('\n')
 
 	case "priority":
 		p.next()
 		p.initdata.Priority = p.parseInt()
-		p.expect(';')
+		p.expectEOL()
 
 	case "init":
 		p.next()
-		for p.tok != ';' && p.tok != scanner.EOF {
+		for p.tok != '\n' && p.tok != ';' && p.tok != scanner.EOF {
 			p.initdata.Inits = append(p.initdata.Inits, p.parsePackageInit())
 		}
-		p.expect(';')
+		p.expectEOL()
 
 	case "init_graph":
 		p.next()
 		// The graph data is thrown away for now.
-		for p.tok != ';' && p.tok != scanner.EOF {
+		for p.tok != '\n' && p.tok != ';' && p.tok != scanner.EOF {
 			p.parseInt64()
 			p.parseInt64()
 		}
-		p.expect(';')
+		p.expectEOL()
 
 	case "checksum":
 		// Don't let the scanner try to parse the checksum as a number.
@@ -893,7 +1126,7 @@ func (p *parser) parseInitDataDirective() {
 		p.scanner.Mode &^= scanner.ScanInts | scanner.ScanFloats
 		p.next()
 		p.parseUnquotedString()
-		p.expect(';')
+		p.expectEOL()
 
 	default:
 		p.errorf("unexpected identifier: %q", p.lit)
@@ -905,6 +1138,7 @@ func (p *parser) parseInitDataDirective() {
 //             "pkgpath" unquotedString ";" |
 //             "prefix" unquotedString ";" |
 //             "import" unquotedString unquotedString string ";" |
+//             "indirectimport" unquotedString unquotedstring ";" |
 //             "func" Func ";" |
 //             "type" Type ";" |
 //             "var" Var ";" |
@@ -916,29 +1150,29 @@ func (p *parser) parseDirective() {
 	}
 
 	switch p.lit {
-	case "v1", "v2", "priority", "init", "init_graph", "checksum":
+	case "v1", "v2", "v3", "priority", "init", "init_graph", "checksum":
 		p.parseInitDataDirective()
 
 	case "package":
 		p.next()
 		p.pkgname = p.parseUnquotedString()
 		p.maybeCreatePackage()
-		if p.version == "v2" && p.tok != ';' {
+		if p.version != "v1" && p.tok != '\n' && p.tok != ';' {
 			p.parseUnquotedString()
 			p.parseUnquotedString()
 		}
-		p.expect(';')
+		p.expectEOL()
 
 	case "pkgpath":
 		p.next()
 		p.pkgpath = p.parseUnquotedString()
 		p.maybeCreatePackage()
-		p.expect(';')
+		p.expectEOL()
 
 	case "prefix":
 		p.next()
 		p.pkgpath = p.parseUnquotedString()
-		p.expect(';')
+		p.expectEOL()
 
 	case "import":
 		p.next()
@@ -946,7 +1180,19 @@ func (p *parser) parseDirective() {
 		pkgpath := p.parseUnquotedString()
 		p.getPkg(pkgpath, pkgname)
 		p.parseString()
-		p.expect(';')
+		p.expectEOL()
+
+	case "indirectimport":
+		p.next()
+		pkgname := p.parseUnquotedString()
+		pkgpath := p.parseUnquotedString()
+		p.getPkg(pkgpath, pkgname)
+		p.expectEOL()
+
+	case "types":
+		p.next()
+		p.parseTypes(p.pkg)
+		p.expectEOL()
 
 	case "func":
 		p.next()
@@ -954,24 +1200,24 @@ func (p *parser) parseDirective() {
 		if fun != nil {
 			p.pkg.Scope().Insert(fun)
 		}
-		p.expect(';')
+		p.expectEOL()
 
 	case "type":
 		p.next()
 		p.parseType(p.pkg)
-		p.expect(';')
+		p.expectEOL()
 
 	case "var":
 		p.next()
 		v := p.parseVar(p.pkg)
 		p.pkg.Scope().Insert(v)
-		p.expect(';')
+		p.expectEOL()
 
 	case "const":
 		p.next()
 		c := p.parseConst(p.pkg)
 		p.pkg.Scope().Insert(c)
-		p.expect(';')
+		p.expectEOL()
 
 	default:
 		p.errorf("unexpected identifier: %q", p.lit)
@@ -983,6 +1229,13 @@ func (p *parser) parsePackage() *types.Package {
 	for p.tok != scanner.EOF {
 		p.parseDirective()
 	}
+	for _, f := range p.fixups {
+		if f.target.Underlying() == nil {
+			p.errorf("internal error: fixup can't be applied, loop required")
+		}
+		f.toUpdate.SetUnderlying(f.target.Underlying())
+	}
+	p.fixups = nil
 	for _, typ := range p.typeList {
 		if it, ok := typ.(*types.Interface); ok {
 			it.Complete()

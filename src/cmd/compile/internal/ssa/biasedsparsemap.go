@@ -43,7 +43,7 @@ func (s *biasedSparseMap) size() int {
 	return s.s.size()
 }
 
-// contains returns whether x is a key in s
+// contains reports whether x is a key in s
 func (s *biasedSparseMap) contains(x uint) bool {
 	if s.s == nil {
 		return false

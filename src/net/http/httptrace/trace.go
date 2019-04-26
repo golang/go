@@ -152,7 +152,7 @@ type ClientTrace struct {
 	WroteHeaders func()
 
 	// Wait100Continue is called if the Request specified
-	// "Expected: 100-continue" and the Transport has written the
+	// "Expect: 100-continue" and the Transport has written the
 	// request headers but is waiting for "100 Continue" from the
 	// server before writing the request body.
 	Wait100Continue func()

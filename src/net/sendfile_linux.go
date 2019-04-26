@@ -32,7 +32,19 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 		return 0, nil, false
 	}
 
-	written, err = poll.SendFile(&c.pfd, int(f.Fd()), remain)
+	sc, err := f.SyscallConn()
+	if err != nil {
+		return 0, nil, false
+	}
+
+	var werr error
+	err = sc.Read(func(fd uintptr) bool {
+		written, werr = poll.SendFile(&c.pfd, int(fd), remain)
+		return true
+	})
+	if err == nil {
+		err = werr
+	}
 
 	if lr != nil {
 		lr.N = remain - written

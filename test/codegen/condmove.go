@@ -95,7 +95,7 @@ func cmovfloatint2(x, y float64) float64 {
 			rexp = rexp - 1
 		}
 		// amd64:"CMOVQHI"
-		// arm64:"CSEL\tGT"
+		// arm64:"CSEL\tMI"
 		r = r - ldexp(y, (rexp-yexp))
 	}
 	return r
@@ -179,4 +179,21 @@ func cmovinvert6(x, y uint64) uint64 {
 	}
 	// amd64:"CMOVQLS"
 	return y
+}
+
+func cmovload(a []int, i int, b bool) int {
+	if b {
+		i++
+	}
+	// See issue 26306
+	// amd64:-"CMOVQNE"
+	return a[i]
+}
+
+func cmovstore(a []int, i int, b bool) {
+	if b {
+		i++
+	}
+	// amd64:"CMOVQNE"
+	a[i] = 7
 }

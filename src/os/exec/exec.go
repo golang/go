@@ -190,6 +190,25 @@ func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
 	return cmd
 }
 
+// String returns a human-readable description of c.
+// It is intended only for debugging.
+// In particular, it is not suitable for use as input to a shell.
+// The output of String may vary across Go releases.
+func (c *Cmd) String() string {
+	if c.lookPathErr != nil {
+		// failed to resolve path; report the original requested path (plus args)
+		return strings.Join(c.Args, " ")
+	}
+	// report the exact executable path (plus args)
+	b := new(strings.Builder)
+	b.WriteString(c.Path)
+	for _, a := range c.Args[1:] {
+		b.WriteByte(' ')
+		b.WriteString(a)
+	}
+	return b.String()
+}
+
 // interfaceEqual protects against panics from doing equality tests on
 // two interfaces with non-comparable underlying types.
 func interfaceEqual(a, b interface{}) bool {
@@ -376,6 +395,7 @@ func (c *Cmd) Start() error {
 		}
 	}
 
+	c.childFiles = make([]*os.File, 0, 3+len(c.ExtraFiles))
 	type F func(*Cmd) (*os.File, error)
 	for _, setupFd := range []F{(*Cmd).stdin, (*Cmd).stdout, (*Cmd).stderr} {
 		fd, err := setupFd(c)
@@ -403,11 +423,14 @@ func (c *Cmd) Start() error {
 
 	c.closeDescriptors(c.closeAfterStart)
 
-	c.errch = make(chan error, len(c.goroutine))
-	for _, fn := range c.goroutine {
-		go func(fn func() error) {
-			c.errch <- fn()
-		}(fn)
+	// Don't allocate the channel unless there are goroutines to fire.
+	if len(c.goroutine) > 0 {
+		c.errch = make(chan error, len(c.goroutine))
+		for _, fn := range c.goroutine {
+			go func(fn func() error) {
+				c.errch <- fn()
+			}(fn)
+		}
 	}
 
 	if c.ctx != nil {
@@ -713,7 +736,7 @@ func dedupEnv(env []string) []string {
 // If caseInsensitive is true, the case of keys is ignored.
 func dedupEnvCase(caseInsensitive bool, env []string) []string {
 	out := make([]string, 0, len(env))
-	saw := map[string]int{} // key => index into out
+	saw := make(map[string]int, len(env)) // key => index into out
 	for _, kv := range env {
 		eq := strings.Index(kv, "=")
 		if eq < 0 {

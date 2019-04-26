@@ -13,31 +13,38 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
+	"fmt"
 	"io"
 	"log"
+	"os"
 	"strconv"
 	"strings"
+	"unsafe"
 )
 
 const (
-	startmagic = "\x00\x00go19ld"
-	endmagic   = "\xff\xffgo19ld"
+	startmagic = "\x00go112ld"
+	endmagic   = "\xffgo112ld"
 )
 
 var emptyPkg = []byte(`"".`)
 
 // objReader reads Go object files.
 type objReader struct {
-	rd              *bufio.Reader
+	rd              *bio.Reader
 	arch            *sys.Arch
 	syms            *sym.Symbols
 	lib             *sym.Library
 	pn              string
 	dupSym          *sym.Symbol
 	localSymVersion int
+	flags           int
+	strictDupMsgs   int
+	dataSize        int
 
 	// rdBuf is used by readString and readSymName as scratch for reading strings.
 	rdBuf []byte
@@ -51,25 +58,51 @@ type objReader struct {
 	funcdata    []*sym.Symbol
 	funcdataoff []int64
 	file        []*sym.Symbol
+
+	roObject      []byte // from read-only mmap of object file
+	objFileOffset int64  // offset of object data from start of file
+
+	dataReadOnly bool // whether data is backed by read-only memory
 }
+
+// Flags to enable optional behavior during object loading/reading.
+
+const (
+	NoFlag int = iota
+
+	// Sanity-check duplicate symbol contents, issuing warning
+	// when duplicates have different lengths or contents.
+	StrictDupsWarnFlag
+
+	// Similar to StrictDupsWarnFlag, but issue fatal error.
+	StrictDupsErrFlag
+)
 
 // Load loads an object file f into library lib.
 // The symbols loaded are added to syms.
-func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string) {
+func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string, flags int) int {
 	start := f.Offset()
+	roObject := f.SliceRO(uint64(length))
+	if roObject != nil {
+		f.Seek(int64(-length), os.SEEK_CUR)
+	}
 	r := &objReader{
-		rd:              f.Reader,
+		rd:              f,
 		lib:             lib,
 		arch:            arch,
 		syms:            syms,
 		pn:              pn,
 		dupSym:          &sym.Symbol{Name: ".dup"},
 		localSymVersion: syms.IncVersion(),
+		flags:           flags,
+		roObject:        roObject,
+		objFileOffset:   start,
 	}
 	r.loadObjFile()
 	if f.Offset() != start+length {
 		log.Fatalf("%s: unexpected end at %d, want %d", pn, f.Offset(), start+length)
 	}
+	return r.strictDupMsgs
 }
 
 func (r *objReader) loadObjFile() {
@@ -113,7 +146,10 @@ func (r *objReader) loadObjFile() {
 	r.readSlices()
 
 	// Data section
-	r.readFull(r.data)
+	err = r.readDataSection()
+	if err != nil {
+		log.Fatalf("%s: error reading %s", r.pn, err)
+	}
 
 	// Defined symbols
 	for {
@@ -136,9 +172,8 @@ func (r *objReader) loadObjFile() {
 }
 
 func (r *objReader) readSlices() {
+	r.dataSize = r.readInt()
 	n := r.readInt()
-	r.data = make([]byte, n)
-	n = r.readInt()
 	r.reloc = make([]sym.Reloc, n)
 	n = r.readInt()
 	r.pcdata = make([]sym.Pcdata, n)
@@ -149,6 +184,18 @@ func (r *objReader) readSlices() {
 	r.funcdataoff = make([]int64, n)
 	n = r.readInt()
 	r.file = make([]*sym.Symbol, n)
+}
+
+func (r *objReader) readDataSection() (err error) {
+	if r.roObject != nil {
+		dOffset := r.rd.Offset() - r.objFileOffset
+		r.data, r.dataReadOnly, err =
+			r.roObject[dOffset:dOffset+int64(r.dataSize)], true, nil
+		r.rd.Seek(int64(r.dataSize), os.SEEK_CUR)
+		return
+	}
+	r.data, r.dataReadOnly, err = r.rd.Slice(uint64(r.dataSize))
+	return
 }
 
 // Symbols are prefixed so their content doesn't get confused with the magic footer.
@@ -229,6 +276,7 @@ overwrite:
 		dup.Gotype = typ
 	}
 	s.P = data
+	s.Attr.Set(sym.AttrReadOnly, r.dataReadOnly)
 	if nreloc > 0 {
 		s.R = r.reloc[:nreloc:nreloc]
 		if !isdup {
@@ -261,6 +309,9 @@ overwrite:
 		}
 		if flags&(1<<3) != 0 {
 			s.Attr |= sym.AttrShared
+		}
+		if flags&(1<<4) != 0 {
+			s.Attr |= sym.AttrTopFrame
 		}
 		n := r.readInt()
 		pc.Autom = r.autom[:n:n]
@@ -317,9 +368,8 @@ overwrite:
 			pc.InlTree[i].File = r.readSymIndex()
 			pc.InlTree[i].Line = r.readInt32()
 			pc.InlTree[i].Func = r.readSymIndex()
+			pc.InlTree[i].ParentPC = r.readInt32()
 		}
-
-		s.FuncInfo.IsStmtSym = r.syms.Lookup(dwarf.IsStmtPrefix+s.Name, int(s.Version))
 
 		if !dupok {
 			if s.Attr.OnList() {
@@ -339,6 +389,32 @@ overwrite:
 	}
 	if s.Type == sym.SDWARFINFO {
 		r.patchDWARFName(s)
+	}
+
+	if isdup && r.flags&(StrictDupsWarnFlag|StrictDupsErrFlag) != 0 {
+		// Compare the just-read symbol with the previously read
+		// symbol of the same name, verifying that they have the same
+		// payload. If not, issue a warning and possibly an error.
+		if !bytes.Equal(s.P, dup.P) {
+			reason := "same length but different contents"
+			if len(s.P) != len(dup.P) {
+				reason = fmt.Sprintf("new length %d != old length %d",
+					len(data), len(dup.P))
+			}
+			fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.lib, dup, dup.Lib, reason)
+
+			// For the moment, whitelist DWARF subprogram DIEs for
+			// auto-generated wrapper functions. What seems to happen
+			// here is that we get different line numbers on formal
+			// params; I am guessing that the pos is being inherited
+			// from the spot where the wrapper is needed.
+			whitelist := (strings.HasPrefix(dup.Name, "go.info.go.interface") ||
+				strings.HasPrefix(dup.Name, "go.info.go.builtin") ||
+				strings.HasPrefix(dup.Name, "go.isstmt.go.builtin"))
+			if !whitelist {
+				r.strictDupMsgs++
+			}
+		}
 	}
 }
 
@@ -382,17 +458,20 @@ func (r *objReader) readRef() {
 		log.Fatalf("readSym out of sync")
 	}
 	name := r.readSymName()
-	v := r.readInt()
-	if v != 0 && v != 1 {
-		log.Fatalf("invalid symbol version for %q: %d", name, v)
-	}
-	if v == 1 {
+	var v int
+	if abi := r.readInt(); abi == -1 {
+		// Static
 		v = r.localSymVersion
+	} else if abiver := sym.ABIToVersion(obj.ABI(abi)); abiver != -1 {
+		// Note that data symbols are "ABI0", which maps to version 0.
+		v = abiver
+	} else {
+		log.Fatalf("invalid symbol ABI for %q: %d", name, abi)
 	}
 	s := r.syms.Lookup(name, v)
 	r.refs = append(r.refs, s)
 
-	if s == nil || v != 0 {
+	if s == nil || v == r.localSymVersion {
 		return
 	}
 	if s.Name[0] == '$' && len(s.Name) > 5 && s.Type == 0 && len(s.P) == 0 {
@@ -487,6 +566,20 @@ func (r *objReader) readData() []byte {
 	return p
 }
 
+type stringHeader struct {
+	str unsafe.Pointer
+	len int
+}
+
+func mkROString(rodata []byte) string {
+	if len(rodata) == 0 {
+		return ""
+	}
+	ss := stringHeader{str: unsafe.Pointer(&rodata[0]), len: len(rodata)}
+	s := *(*string)(unsafe.Pointer(&ss))
+	return s
+}
+
 // readSymName reads a symbol name, replacing all "". with pkg.
 func (r *objReader) readSymName() string {
 	pkg := objabi.PathToPrefix(r.lib.Pkg)
@@ -498,6 +591,7 @@ func (r *objReader) readSymName() string {
 	if cap(r.rdBuf) < n {
 		r.rdBuf = make([]byte, 2*n)
 	}
+	sOffset := r.rd.Offset() - r.objFileOffset
 	origName, err := r.rd.Peek(n)
 	if err == bufio.ErrBufferFull {
 		// Long symbol names are rare but exist. One source is type
@@ -508,10 +602,16 @@ func (r *objReader) readSymName() string {
 		log.Fatalf("%s: error reading symbol: %v", r.pn, err)
 	}
 	adjName := r.rdBuf[:0]
+	nPkgRefs := 0
 	for {
 		i := bytes.Index(origName, emptyPkg)
 		if i == -1 {
-			s := string(append(adjName, origName...))
+			var s string
+			if r.roObject != nil && nPkgRefs == 0 {
+				s = mkROString(r.roObject[sOffset : sOffset+int64(n)])
+			} else {
+				s = string(append(adjName, origName...))
+			}
 			// Read past the peeked origName, now that we're done with it,
 			// using the rfBuf (also no longer used) as the scratch space.
 			// TODO: use bufio.Reader.Discard if available instead?
@@ -521,6 +621,7 @@ func (r *objReader) readSymName() string {
 			r.rdBuf = adjName[:0] // in case 2*n wasn't enough
 			return s
 		}
+		nPkgRefs++
 		adjName = append(adjName, origName[:i]...)
 		adjName = append(adjName, pkg...)
 		adjName = append(adjName, '.')

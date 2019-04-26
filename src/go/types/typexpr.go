@@ -414,10 +414,10 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 		ftype := field.Type
 		if t, _ := ftype.(*ast.Ellipsis); t != nil {
 			ftype = t.Elt
-			if variadicOk && i == len(list.List)-1 {
+			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
 				variadic = true
 			} else {
-				check.invalidAST(field.Pos(), "... not permitted")
+				check.softErrorf(t.Pos(), "can only use ... with final parameter in list")
 				// ignore ... and continue
 			}
 		}
@@ -451,9 +451,12 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	}
 
 	// For a variadic function, change the last parameter's type from T to []T.
-	if variadic && len(params) > 0 {
+	// Since we type-checked T rather than ...T, we also need to retro-actively
+	// record the type for ...T.
+	if variadic {
 		last := params[len(params)-1]
 		last.typ = &Slice{elem: last.typ}
+		check.recordTypeAndValue(list.List[len(list.List)-1].Type, typexpr, last.typ, nil)
 	}
 
 	return
@@ -538,7 +541,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 	info := check.infoFromTypeLit(check.scope, iface, tname, path)
 	if info == nil || info == &emptyIfaceInfo {
-		// error or empty interface - exit early
+		// we got an error or the empty interface - exit early
 		ityp.allMethods = markComplete
 		return
 	}

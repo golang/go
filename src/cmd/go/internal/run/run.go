@@ -22,7 +22,7 @@ var CmdRun = &base.Command{
 	Short:     "compile and run Go program",
 	Long: `
 Run compiles and runs the named main Go package.
-Typically the package is specified as a list of .go source files,
+Typically the package is specified as a list of .go source files from a single directory,
 but it may also be an import path, file system path, or pattern
 matching a single known package, as in 'go run .' or 'go run my/cmd'.
 
@@ -78,6 +78,9 @@ func runRun(cmd *base.Command, args []string) {
 		p = load.GoFilesPackage(files)
 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		pkgs := load.PackagesAndErrors(args[:1])
+		if len(pkgs) == 0 {
+			base.Fatalf("go run: no packages loaded from %s", args[0])
+		}
 		if len(pkgs) > 1 {
 			var names []string
 			for _, p := range pkgs {

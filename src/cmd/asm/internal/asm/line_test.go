@@ -38,8 +38,7 @@ func testBadInstParser(t *testing.T, goarch string, tests []badInstTest) {
 		parser := NewParser(ctxt, arch, tokenizer)
 
 		err := tryParse(t, func() {
-			parser.start(lex.Tokenize(test.input))
-			parser.line()
+			parser.Parse()
 		})
 
 		switch {

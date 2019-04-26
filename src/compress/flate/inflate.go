@@ -89,7 +89,7 @@ type Resetter interface {
 // number of bits.
 //
 // See the following:
-//	http://www.gzip.org/algorithm.txt
+//	https://github.com/madler/zlib/raw/master/doc/algorithm.txt
 
 // chunk & 15 is number of bits
 // chunk >> 4 is value, including table link

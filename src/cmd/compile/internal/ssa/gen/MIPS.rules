@@ -410,6 +410,13 @@
 // Write barrier.
 (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
 
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 -> (LoweredPanicBoundsA [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 -> (LoweredPanicBoundsB [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 -> (LoweredPanicBoundsC [kind] x y mem)
+
+(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 0 -> (LoweredPanicExtendA [kind] hi lo y mem)
+(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 1 -> (LoweredPanicExtendB [kind] hi lo y mem)
+(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 2 -> (LoweredPanicExtendC [kind] hi lo y mem)
 
 // Optimizations
 
@@ -670,8 +677,8 @@
 (SGTUconst [c] (MOVHUreg _)) && 0xffff < uint32(c) -> (MOVWconst [1])
 (SGTconst [c] (ANDconst [m] _)) && 0 <= int32(m) && int32(m) < int32(c) -> (MOVWconst [1])
 (SGTUconst [c] (ANDconst [m] _)) && uint32(m) < uint32(c) -> (MOVWconst [1])
-(SGTconst [c] (SRLconst _ [d])) && 0 <= int32(c) && uint32(d) <= 31 && 1<<(32-uint32(d)) <= int32(c) -> (MOVWconst [1])
-(SGTUconst [c] (SRLconst _ [d])) && uint32(d) <= 31 && 1<<(32-uint32(d)) <= uint32(c) -> (MOVWconst [1])
+(SGTconst [c] (SRLconst _ [d])) && 0 <= int32(c) && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c) -> (MOVWconst [1])
+(SGTUconst [c] (SRLconst _ [d])) && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c) -> (MOVWconst [1])
 
 // absorb constants into branches
 (EQ  (MOVWconst [0]) yes no) -> (First nil yes no)
@@ -688,7 +695,7 @@
 (GEZ (MOVWconst [c]) yes no) && int32(c) <  0 -> (First nil no yes)
 
 // conditional move
-(CMOVZ _ b (MOVWconst [0])) -> b
+(CMOVZ _ f (MOVWconst [0])) -> f
 (CMOVZ a _ (MOVWconst [c])) && c!=0 -> a
 (CMOVZzero _ (MOVWconst [0])) -> (MOVWconst [0])
 (CMOVZzero a (MOVWconst [c])) && c!=0 -> a

@@ -5,7 +5,8 @@
 package cgotest
 
 /*
-#include "issue4339.h"
+// We've historically permitted #include <>, so test it here.  Issue 29333.
+#include <issue4339.h>
 */
 import "C"
 

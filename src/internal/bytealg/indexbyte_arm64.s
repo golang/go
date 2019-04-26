@@ -18,22 +18,6 @@ TEXT ·IndexByteString(SB),NOSPLIT,$0-32
 	MOVD	$ret+24(FP), R8
 	B	indexbytebody<>(SB)
 
-TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
-	MOVD	b_base+0(FP), R0
-	MOVD	b_len+8(FP), R2
-	MOVBU	c+24(FP), R1
-	MOVD	$ret+32(FP), R8
-	B	indexbytebody<>(SB)
-
-TEXT strings·IndexByte(SB),NOSPLIT,$0-32
-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
-	MOVD	s_base+0(FP), R0
-	MOVD	s_len+8(FP), R2
-	MOVBU	c+16(FP), R1
-	MOVD	$ret+24(FP), R8
-	B	indexbytebody<>(SB)
-
 // input:
 //   R0: data
 //   R1: byte to search

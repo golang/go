@@ -5,12 +5,13 @@
 package net
 
 import (
-	//"os"
+	"internal/poll"
+	"internal/syscall/unix"
 	"syscall"
 	"unsafe"
 )
 
-type RawSockaddrDatalink struct {
+type rawSockaddrDatalink struct {
 	Len    uint8
 	Family uint8
 	Index  uint16
@@ -19,6 +20,11 @@ type RawSockaddrDatalink struct {
 	Alen   uint8
 	Slen   uint8
 	Data   [120]byte
+}
+
+type ifreq struct {
+	Name [16]uint8
+	Ifru [16]byte
 }
 
 const _KINFO_RT_IFLIST = (0x1 << 8) | 3 | (1 << 30)
@@ -30,12 +36,12 @@ const _RTAX_MAX = 8
 func getIfList() ([]byte, error) {
 	needed, err := syscall.Getkerninfo(_KINFO_RT_IFLIST, 0, 0, 0)
 	if err != nil {
-		return nil, nil // XXX
+		return nil, err
 	}
 	tab := make([]byte, needed)
 	_, err = syscall.Getkerninfo(_KINFO_RT_IFLIST, uintptr(unsafe.Pointer(&tab[0])), uintptr(unsafe.Pointer(&needed)), 0)
 	if err != nil {
-		return nil, nil // XXX
+		return nil, err
 	}
 	return tab[:needed], nil
 }
@@ -49,6 +55,12 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 		return nil, err
 	}
 
+	sock, err := sysSocket(syscall.AF_INET, syscall.SOCK_DGRAM, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer poll.CloseFunc(sock)
+
 	var ift []Interface
 	for len(tab) > 0 {
 		ifm := (*syscall.IfMsgHdr)(unsafe.Pointer(&tab[0]))
@@ -57,12 +69,21 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 		}
 		if ifm.Type == syscall.RTM_IFINFO {
 			if ifindex == 0 || ifindex == int(ifm.Index) {
-				sdl := (*RawSockaddrDatalink)(unsafe.Pointer(&tab[syscall.SizeofIfMsghdr]))
+				sdl := (*rawSockaddrDatalink)(unsafe.Pointer(&tab[syscall.SizeofIfMsghdr]))
 
 				ifi := &Interface{Index: int(ifm.Index), Flags: linkFlags(ifm.Flags)}
 				ifi.Name = string(sdl.Data[:sdl.Nlen])
 				ifi.HardwareAddr = sdl.Data[sdl.Nlen : sdl.Nlen+sdl.Alen]
-				/* XXX MTU? */
+
+				// Retrieve MTU
+				ifr := &ifreq{}
+				copy(ifr.Name[:], ifi.Name)
+				err = unix.Ioctl(sock, syscall.SIOCGIFMTU, uintptr(unsafe.Pointer(ifr)))
+				if err != nil {
+					return nil, err
+				}
+				ifi.MTU = int(ifr.Ifru[0])<<24 | int(ifr.Ifru[1])<<16 | int(ifr.Ifru[2])<<8 | int(ifr.Ifru[3])
+
 				ift = append(ift, *ifi)
 				if ifindex == int(ifm.Index) {
 					break

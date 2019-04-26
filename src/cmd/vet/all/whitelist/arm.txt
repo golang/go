@@ -1,8 +1,5 @@
 // arm-specific vet whitelist. See readme.txt for details.
 
-internal/bytealg/compare_arm.s: [arm] cannot check cross-package assembly function: Compare is in package bytes
-internal/bytealg/compare_arm.s: [arm] cannot check cross-package assembly function: cmpstring is in package runtime
-
 // Intentionally missing declarations.
 runtime/asm_arm.s: [arm] emptyfunc: function emptyfunc missing Go declaration
 runtime/asm_arm.s: [arm] armPublicationBarrier: function armPublicationBarrier missing Go declaration

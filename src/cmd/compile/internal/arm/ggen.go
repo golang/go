@@ -68,11 +68,12 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
 	}
 }
 
-func ginsnop(pp *gc.Progs) {
+func ginsnop(pp *gc.Progs) *obj.Prog {
 	p := pp.Prog(arm.AAND)
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = arm.REG_R0
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = arm.REG_R0
 	p.Scond = arm.C_SCOND_EQ
+	return p
 }

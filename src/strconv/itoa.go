@@ -30,7 +30,7 @@ func FormatInt(i int64, base int) string {
 	return s
 }
 
-// Itoa is shorthand for FormatInt(int64(i), 10).
+// Itoa is equivalent to FormatInt(int64(i), 10).
 func Itoa(i int) string {
 	return FormatInt(int64(i), 10)
 }

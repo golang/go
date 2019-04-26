@@ -12,7 +12,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"cmd/go/internal/modfetch/codehost"
@@ -21,12 +20,12 @@ import (
 )
 
 func Unzip(dir, zipfile, prefix string, maxSize int64) error {
+	// TODO(bcmills): The maxSize parameter is invariantly 0. Remove it.
 	if maxSize == 0 {
 		maxSize = codehost.MaxZipFile
 	}
 
 	// Directory can exist, but must be empty.
-	// except maybe
 	files, _ := ioutil.ReadDir(dir)
 	if len(files) > 0 {
 		return fmt.Errorf("target directory %v exists and is not empty", dir)
@@ -98,22 +97,16 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 	}
 
 	// Unzip, enforcing sizes checked earlier.
-	dirs := map[string]bool{dir: true}
 	for _, zf := range z.File {
 		if zf.Name == prefix || strings.HasSuffix(zf.Name, "/") {
 			continue
 		}
 		name := zf.Name[len(prefix):]
 		dst := filepath.Join(dir, name)
-		parent := filepath.Dir(dst)
-		for parent != dir {
-			dirs[parent] = true
-			parent = filepath.Dir(parent)
-		}
 		if err := os.MkdirAll(filepath.Dir(dst), 0777); err != nil {
 			return err
 		}
-		w, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0444)
+		w, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0444)
 		if err != nil {
 			return fmt.Errorf("unzip %v: %v", zipfile, err)
 		}
@@ -137,17 +130,44 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
 		}
 	}
 
-	// Mark directories unwritable, best effort.
-	var dirlist []string
-	for dir := range dirs {
-		dirlist = append(dirlist, dir)
+	return nil
+}
+
+// makeDirsReadOnly makes a best-effort attempt to remove write permissions for dir
+// and its transitive contents.
+func makeDirsReadOnly(dir string) {
+	type pathMode struct {
+		path string
+		mode os.FileMode
 	}
-	sort.Strings(dirlist)
+	var dirs []pathMode // in lexical order
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err == nil && info.Mode()&0222 != 0 {
+			if info.IsDir() {
+				dirs = append(dirs, pathMode{path, info.Mode()})
+			}
+		}
+		return nil
+	})
 
 	// Run over list backward to chmod children before parents.
-	for i := len(dirlist) - 1; i >= 0; i-- {
-		os.Chmod(dirlist[i], 0555)
+	for i := len(dirs) - 1; i >= 0; i-- {
+		os.Chmod(dirs[i].path, dirs[i].mode&^0222)
 	}
+}
 
-	return nil
+// RemoveAll removes a directory written by Download or Unzip, first applying
+// any permission changes needed to do so.
+func RemoveAll(dir string) error {
+	// Module cache has 0555 directories; make them writable in order to remove content.
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // ignore errors walking in file system
+		}
+		if info.IsDir() {
+			os.Chmod(path, 0777)
+		}
+		return nil
+	})
+	return os.RemoveAll(dir)
 }

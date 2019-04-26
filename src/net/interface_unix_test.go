@@ -176,3 +176,37 @@ func TestInterfaceArrivalAndDeparture(t *testing.T) {
 		}
 	}
 }
+
+func TestInterfaceArrivalAndDepartureZoneCache(t *testing.T) {
+	if testing.Short() {
+		t.Skip("avoid external network")
+	}
+	if os.Getuid() != 0 {
+		t.Skip("must be root")
+	}
+
+	// Ensure zoneCache is filled:
+	_, _ = Listen("tcp", "[fe80::1%nonexistant]:0")
+
+	ti := &testInterface{local: "fe80::1"}
+	if err := ti.setLinkLocal(0); err != nil {
+		t.Skipf("test requires external command: %v", err)
+	}
+	if err := ti.setup(); err != nil {
+		t.Fatal(err)
+	}
+	defer ti.teardown()
+
+	time.Sleep(3 * time.Millisecond)
+
+	// If Listen fails (on Linux with “bind: invalid argument”), zoneCache was
+	// not updated when encountering a nonexistant interface:
+	ln, err := Listen("tcp", "[fe80::1%"+ti.name+"]:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln.Close()
+	if err := ti.teardown(); err != nil {
+		t.Fatal(err)
+	}
+}

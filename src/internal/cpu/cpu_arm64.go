@@ -66,8 +66,8 @@ func doinit() {
 		{Name: "asimdfhm", Feature: &ARM64.HasASIMDFHM},
 
 		// These capabilities should always be enabled on arm64:
-		//  {Name: "fp", Feature: &ARM64.HasFP},
-		//  {Name: "asimd", Feature: &ARM64.HasASIMD},
+		{Name: "fp", Feature: &ARM64.HasFP, Required: true},
+		{Name: "asimd", Feature: &ARM64.HasASIMD, Required: true},
 	}
 
 	// HWCAP feature bits

@@ -122,6 +122,49 @@ func TestS390XOperandParser(t *testing.T) {
 	testOperandParser(t, parser, s390xOperandTests)
 }
 
+func TestFuncAddress(t *testing.T) {
+	type subtest struct {
+		arch  string
+		tests []operandTest
+	}
+	for _, sub := range []subtest{
+		{"amd64", amd64OperandTests},
+		{"386", x86OperandTests},
+		{"arm", armOperandTests},
+		{"arm64", arm64OperandTests},
+		{"ppc64", ppc64OperandTests},
+		{"mips", mipsOperandTests},
+		{"mips64", mips64OperandTests},
+		{"s390x", s390xOperandTests},
+	} {
+		t.Run(sub.arch, func(t *testing.T) {
+			parser := newParser(sub.arch)
+			for _, test := range sub.tests {
+				parser.start(lex.Tokenize(test.input))
+				name, ok := parser.funcAddress()
+
+				isFuncSym := strings.HasSuffix(test.input, "(SB)") &&
+					// Ignore static symbols.
+					!strings.Contains(test.input, "<>") &&
+					// Ignore symbols with offsets.
+					!strings.Contains(test.input, "+")
+
+				wantName := ""
+				if isFuncSym {
+					// Strip $|* and (SB).
+					wantName = test.output[:len(test.output)-4]
+					if strings.HasPrefix(wantName, "$") || strings.HasPrefix(wantName, "*") {
+						wantName = wantName[1:]
+					}
+				}
+				if ok != isFuncSym || name != wantName {
+					t.Errorf("fail at %s as function address: got %s, %v; expected %s, %v", test.input, name, ok, wantName, isFuncSym)
+				}
+			}
+		})
+	}
+}
+
 type operandTest struct {
 	input, output string
 }
@@ -607,6 +650,7 @@ var arm64OperandTests = []operandTest{
 	{"R0", "R0"},
 	{"R10", "R10"},
 	{"R11", "R11"},
+	{"R18_PLATFORM", "R18"},
 	{"$4503601774854144.0", "$(4503601774854144.0)"},
 	{"$runtime·badsystemstack(SB)", "$runtime.badsystemstack(SB)"},
 	{"ZR", "ZR"},

@@ -461,7 +461,11 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 			check.invalidOp(x.Pos(), "shifted operand %s (type %s) must be integer", x, typ)
 			return
 		}
-	} else if old.val != nil {
+		// Even if we have an integer, if the value is a constant we
+		// still must check that it is representable as the specific
+		// int type requested (was issue #22969). Fall through here.
+	}
+	if old.val != nil {
 		// If x is a constant, it must be representable as a value of typ.
 		c := operand{old.mode, x, old.typ, old.val, 0}
 		check.convertUntyped(&c, typ)
@@ -590,10 +594,10 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
 		switch op {
 		case token.EQL, token.NEQ:
 			// spec: "The equality operators == and != apply to operands that are comparable."
-			defined = Comparable(x.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
+			defined = Comparable(x.typ) && Comparable(y.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
 		case token.LSS, token.LEQ, token.GTR, token.GEQ:
 			// spec: The ordering operators <, <=, >, and >= apply to operands that are ordered."
-			defined = isOrdered(x.typ)
+			defined = isOrdered(x.typ) && isOrdered(y.typ)
 		default:
 			unreachable()
 		}
@@ -651,11 +655,10 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 		return
 	}
 
-	// spec: "The right operand in a shift expression must have unsigned
-	// integer type or be an untyped constant representable by a value of
-	// type uint."
+	// spec: "The right operand in a shift expression must have integer type
+	// or be an untyped constant representable by a value of type uint."
 	switch {
-	case isUnsigned(y.typ):
+	case isInteger(y.typ):
 		// nothing to do
 	case isUntyped(y.typ):
 		check.convertUntyped(y, Typ[Uint])
@@ -664,21 +667,28 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 			return
 		}
 	default:
-		check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
+		check.invalidOp(y.pos(), "shift count %s must be integer", y)
 		x.mode = invalid
 		return
 	}
 
+	var yval constant.Value
+	if y.mode == constant_ {
+		// rhs must be an integer value
+		// (Either it was of an integer type already, or it was
+		// untyped and successfully converted to a uint above.)
+		yval = constant.ToInt(y.val)
+		assert(yval.Kind() == constant.Int)
+		if constant.Sign(yval) < 0 {
+			check.invalidOp(y.pos(), "negative shift count %s", y)
+			x.mode = invalid
+			return
+		}
+	}
+
 	if x.mode == constant_ {
 		if y.mode == constant_ {
-			// rhs must be an integer value
-			yval := constant.ToInt(y.val)
-			if yval.Kind() != constant.Int {
-				check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
-				x.mode = invalid
-				return
-			}
-			// rhs must be within reasonable bounds
+			// rhs must be within reasonable bounds in constant shifts
 			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64
 			s, ok := constant.Uint64Val(yval)
 			if !ok || s > shiftBound {
@@ -735,11 +745,6 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 			x.mode = value
 			return
 		}
-	}
-
-	// constant rhs must be >= 0
-	if y.mode == constant_ && constant.Sign(y.val) < 0 {
-		check.invalidOp(y.pos(), "shift count %s must not be negative", y)
 	}
 
 	// non-constant shift - lhs must be an integer

@@ -186,32 +186,46 @@ const (
 	AF64Copysign
 
 	AI32WrapI64
-	AI32TruncSF32
-	AI32TruncUF32
-	AI32TruncSF64
-	AI32TruncUF64
-	AI64ExtendSI32
-	AI64ExtendUI32
-	AI64TruncSF32
-	AI64TruncUF32
-	AI64TruncSF64
-	AI64TruncUF64
-	AF32ConvertSI32
-	AF32ConvertUI32
-	AF32ConvertSI64
-	AF32ConvertUI64
+	AI32TruncF32S
+	AI32TruncF32U
+	AI32TruncF64S
+	AI32TruncF64U
+	AI64ExtendI32S
+	AI64ExtendI32U
+	AI64TruncF32S
+	AI64TruncF32U
+	AI64TruncF64S
+	AI64TruncF64U
+	AF32ConvertI32S
+	AF32ConvertI32U
+	AF32ConvertI64S
+	AF32ConvertI64U
 	AF32DemoteF64
-	AF64ConvertSI32
-	AF64ConvertUI32
-	AF64ConvertSI64
-	AF64ConvertUI64
+	AF64ConvertI32S
+	AF64ConvertI32U
+	AF64ConvertI64S
+	AF64ConvertI64U
 	AF64PromoteF32
 	AI32ReinterpretF32
 	AI64ReinterpretF64
 	AF32ReinterpretI32
 	AF64ReinterpretI64
+	AI32Extend8S
+	AI32Extend16S
+	AI64Extend8S
+	AI64Extend16S
+	AI64Extend32S
 
-	// End of low-level WebAssembly instructions.
+	AI32TruncSatF32S // opcode 0xFC 0x00
+	AI32TruncSatF32U
+	AI32TruncSatF64S
+	AI32TruncSatF64U
+	AI64TruncSatF32S
+	AI64TruncSatF32U
+	AI64TruncSatF64S
+	AI64TruncSatF64U
+
+	ALast // Sentinel: End of low-level WebAssembly instructions.
 
 	ARESUMEPOINT
 	// ACALLNORESUME is a call which is not followed by a resume point.
@@ -246,7 +260,7 @@ const (
 	REG_RET1
 	REG_RET2
 	REG_RET3
-	REG_RUN
+	REG_PAUSE
 
 	// locals
 	REG_R0

@@ -1,13 +1,16 @@
 package ssa_test
 
 import (
+	cmddwarf "cmd/internal/dwarf"
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
 	"fmt"
 	"internal/testenv"
+	"internal/xcoff"
 	"io"
+	"os"
 	"runtime"
 	"testing"
 )
@@ -22,6 +25,10 @@ func open(path string) (*dwarf.Data, error) {
 	}
 
 	if fh, err := macho.Open(path); err == nil {
+		return fh.DWARF()
+	}
+
+	if fh, err := xcoff.Open(path); err == nil {
 		return fh.DWARF()
 	}
 
@@ -42,6 +49,20 @@ type Line struct {
 func TestStmtLines(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	if runtime.GOOS == "aix" {
+		extld := os.Getenv("CC")
+		if extld == "" {
+			extld = "gcc"
+		}
+		enabled, err := cmddwarf.IsDWARFEnabledOnAIXLd(extld)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !enabled {
+			t.Skip("skipping on aix: no DWARF with ld version < 7.2.2 ")
+		}
 	}
 
 	lines := map[Line]bool{}

@@ -11,7 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
+	"regexp"
+	"strconv"
 	"testing"
 )
 
@@ -53,9 +54,6 @@ func runImporterTest(t *testing.T, imp Importer, initmap map[*types.Package]Init
 		// Check that the package's own init function has the package's priority
 		for _, pkginit := range initdata.Inits {
 			if pkginit.InitFunc == test.wantinits[0] {
-				if initdata.Priority != pkginit.Priority {
-					t.Errorf("%s: got self priority %d; want %d", test.pkgpath, pkginit.Priority, initdata.Priority)
-				}
 				found = true
 				break
 			}
@@ -65,27 +63,11 @@ func runImporterTest(t *testing.T, imp Importer, initmap map[*types.Package]Init
 			t.Errorf("%s: could not find expected function %q", test.pkgpath, test.wantinits[0])
 		}
 
-		// Each init function in the list other than the first one is a
-		// dependency of the function immediately before it. Check that
-		// the init functions appear in descending priority order.
-		priority := initdata.Priority
-		for _, wantdepinit := range test.wantinits[1:] {
-			found = false
-			for _, pkginit := range initdata.Inits {
-				if pkginit.InitFunc == wantdepinit {
-					if priority <= pkginit.Priority {
-						t.Errorf("%s: got dep priority %d; want less than %d", test.pkgpath, pkginit.Priority, priority)
-					}
-					found = true
-					priority = pkginit.Priority
-					break
-				}
-			}
-
-			if !found {
-				t.Errorf("%s: could not find expected function %q", test.pkgpath, wantdepinit)
-			}
-		}
+		// FIXME: the original version of this test was written against
+		// the v1 export data scheme for capturing init functions, so it
+		// verified the priority values. We moved away from the priority
+		// scheme some time ago; it is not clear how much work it would be
+		// to validate the new init export data.
 	}
 }
 
@@ -100,17 +82,21 @@ var importerTests = [...]importerTest{
 	{pkgpath: "time", name: "Nanosecond", want: "const Nanosecond Duration", wantval: "1"},
 	{pkgpath: "unicode", name: "IsUpper", want: "func IsUpper(r rune) bool"},
 	{pkgpath: "unicode", name: "MaxRune", want: "const MaxRune untyped rune", wantval: "1114111"},
-	{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
+	{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import"}},
 	{pkgpath: "importsar", name: "Hello", want: "var Hello string"},
 	{pkgpath: "aliases", name: "A14", want: "type A14 = func(int, T0) chan T2"},
 	{pkgpath: "aliases", name: "C0", want: "type C0 struct{f1 C1; f2 C1}"},
 	{pkgpath: "escapeinfo", name: "NewT", want: "func NewT(data []byte) *T"},
 	{pkgpath: "issue27856", name: "M", want: "type M struct{E F}"},
+	{pkgpath: "v1reflect", name: "Type", want: "type Type interface{Align() int; AssignableTo(u Type) bool; Bits() int; ChanDir() ChanDir; Elem() Type; Field(i int) StructField; FieldAlign() int; FieldByIndex(index []int) StructField; FieldByName(name string) (StructField, bool); FieldByNameFunc(match func(string) bool) (StructField, bool); Implements(u Type) bool; In(i int) Type; IsVariadic() bool; Key() Type; Kind() Kind; Len() int; Method(int) Method; MethodByName(string) (Method, bool); Name() string; NumField() int; NumIn() int; NumMethod() int; NumOut() int; Out(i int) Type; PkgPath() string; Size() uintptr; String() string; common() *commonType; rawString() string; runtimeType() *runtimeType; uncommon() *uncommonType}"},
+	{pkgpath: "nointerface", name: "I", want: "type I int"},
+	{pkgpath: "issue29198", name: "FooServer", want: "type FooServer struct{FooServer *FooServer; user string; ctx context.Context}"},
+	{pkgpath: "issue30628", name: "Apple", want: "type Apple struct{hey sync.RWMutex; x int; RQ [517]struct{Count uintptr; NumBytes uintptr; Last uintptr}}"},
+	{pkgpath: "issue31540", name: "S", want: "type S struct{b int; map[Y]Z}"},
 }
 
 func TestGoxImporter(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-
+	testenv.MustHaveExec(t) // this is to skip nacl, js
 	initmap := make(map[*types.Package]InitData)
 	imp := GetImporter([]string{"testdata"}, initmap)
 
@@ -119,35 +105,81 @@ func TestGoxImporter(t *testing.T) {
 	}
 }
 
-func TestObjImporter(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
+// gccgoPath returns a path to gccgo if it is present (either in
+// path or specified via GCCGO environment variable), or an
+// empty string if no gccgo is available.
+func gccgoPath() string {
+	gccgoname := os.Getenv("GCCGO")
+	if gccgoname == "" {
+		gccgoname = "gccgo"
+	}
+	if gpath, gerr := exec.LookPath(gccgoname); gerr == nil {
+		return gpath
+	}
+	return ""
+}
 
-	// This test relies on gccgo being around, which it most likely will be if we
-	// were compiled with gccgo.
-	if runtime.Compiler != "gccgo" {
+func TestObjImporter(t *testing.T) {
+	// This test relies on gccgo being around.
+	gpath := gccgoPath()
+	if gpath == "" {
 		t.Skip("This test needs gccgo")
 	}
 
-	tmpdir, err := ioutil.TempDir("", "")
+	verout, err := exec.Command(gpath, "--version").CombinedOutput()
+	if err != nil {
+		t.Logf("%s", verout)
+		t.Fatal(err)
+	}
+	vers := regexp.MustCompile(`([0-9]+)\.([0-9]+)`).FindSubmatch(verout)
+	if len(vers) == 0 {
+		t.Fatalf("could not find version number in %s", verout)
+	}
+	major, err := strconv.Atoi(string(vers[1]))
 	if err != nil {
 		t.Fatal(err)
 	}
+	minor, err := strconv.Atoi(string(vers[2]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("gccgo version %d.%d", major, minor)
+
+	tmpdir, err := ioutil.TempDir("", "TestObjImporter")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
 	initmap := make(map[*types.Package]InitData)
 	imp := GetImporter([]string{tmpdir}, initmap)
 
-	artmpdir, err := ioutil.TempDir("", "")
+	artmpdir, err := ioutil.TempDir("", "TestObjImporter")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(artmpdir)
+
 	arinitmap := make(map[*types.Package]InitData)
 	arimp := GetImporter([]string{artmpdir}, arinitmap)
 
 	for _, test := range importerTests {
+		// Support for type aliases was added in GCC 7.
+		if test.pkgpath == "aliases" || test.pkgpath == "issue27856" || test.pkgpath == "issue29198" {
+			if major < 7 {
+				t.Logf("skipping %q: not supported before gccgo version 7", test.pkgpath)
+				continue
+			}
+		}
+
 		gofile := filepath.Join("testdata", test.pkgpath+".go")
+		if _, err := os.Stat(gofile); os.IsNotExist(err) {
+			continue
+		}
 		ofile := filepath.Join(tmpdir, test.pkgpath+".o")
 		afile := filepath.Join(artmpdir, "lib"+test.pkgpath+".a")
 
-		cmd := exec.Command("gccgo", "-fgo-pkgpath="+test.pkgpath, "-c", "-o", ofile, gofile)
+		cmd := exec.Command(gpath, "-fgo-pkgpath="+test.pkgpath, "-c", "-o", ofile, gofile)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Logf("%s", out)
@@ -171,9 +203,5 @@ func TestObjImporter(t *testing.T) {
 		if err = os.Remove(afile); err != nil {
 			t.Fatal(err)
 		}
-	}
-
-	if err = os.Remove(tmpdir); err != nil {
-		t.Fatal(err)
 	}
 }

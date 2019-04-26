@@ -50,8 +50,9 @@ func writeMultiple(s fmt.State, text string, count int) {
 var _ fmt.Formatter = intOne // *Int must implement fmt.Formatter
 
 // Format implements fmt.Formatter. It accepts the formats
-// 'b' (binary), 'o' (octal), 'd' (decimal), 'x' (lowercase
-// hexadecimal), and 'X' (uppercase hexadecimal).
+// 'b' (binary), 'o' (octal with 0 prefix), 'O' (octal with 0o prefix),
+// 'd' (decimal), 'x' (lowercase hexadecimal), and
+// 'X' (uppercase hexadecimal).
 // Also supported are the full suite of package fmt's format
 // flags for integral types, including '+' and ' ' for sign
 // control, '#' for leading zero in octal and for hexadecimal,
@@ -66,7 +67,7 @@ func (x *Int) Format(s fmt.State, ch rune) {
 	switch ch {
 	case 'b':
 		base = 2
-	case 'o':
+	case 'o', 'O':
 		base = 8
 	case 'd', 's', 'v':
 		base = 10
@@ -98,6 +99,8 @@ func (x *Int) Format(s fmt.State, ch rune) {
 	prefix := ""
 	if s.Flag('#') {
 		switch ch {
+		case 'b': // binary
+			prefix = "0b"
 		case 'o': // octal
 			prefix = "0"
 		case 'x': // hexadecimal
@@ -105,6 +108,9 @@ func (x *Int) Format(s fmt.State, ch rune) {
 		case 'X':
 			prefix = "0X"
 		}
+	}
+	if ch == 'O' {
+		prefix = "0o"
 	}
 
 	digits := x.abs.utoa(base)
@@ -166,8 +172,9 @@ func (x *Int) Format(s fmt.State, ch rune) {
 //
 // The base argument must be 0 or a value from 2 through MaxBase. If the base
 // is 0, the string prefix determines the actual conversion base. A prefix of
-// ``0x'' or ``0X'' selects base 16; the ``0'' prefix selects base 8, and a
-// ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
+// ``0b'' or ``0B'' selects base 2; a ``0'', ``0o'', or ``0O'' prefix selects
+// base 8, and a ``0x'' or ``0X'' prefix selects base 16. Otherwise the selected
+// base is 10.
 //
 func (z *Int) scan(r io.ByteScanner, base int) (*Int, int, error) {
 	// determine sign

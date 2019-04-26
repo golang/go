@@ -380,6 +380,7 @@ func (d *socksDialer) Dial(network, address string) (net.Conn, error) {
 		return nil, &net.OpError{Op: d.cmd.String(), Net: network, Source: proxy, Addr: dst, Err: err}
 	}
 	if _, err := d.DialWithConn(context.Background(), c, network, address); err != nil {
+		c.Close()
 		return nil, err
 	}
 	return c, nil
@@ -452,7 +453,7 @@ func (up *socksUsernamePassword) Authenticate(ctx context.Context, rw io.ReadWri
 		b = append(b, up.Username...)
 		b = append(b, byte(len(up.Password)))
 		b = append(b, up.Password...)
-		// TODO(mikio): handle IO deadlines and cancelation if
+		// TODO(mikio): handle IO deadlines and cancellation if
 		// necessary
 		if _, err := rw.Write(b); err != nil {
 			return err

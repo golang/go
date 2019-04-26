@@ -18,8 +18,8 @@ import (
 // This is really an os package test but here for convenience.
 func testSetEnv(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		// Go uses SetEnvironmentVariable on windows. Howerver,
-		// C runtime takes a *copy* at process startup of thei
+		// Go uses SetEnvironmentVariable on windows. However,
+		// C runtime takes a *copy* at process startup of the
 		// OS environment, and stores it in environ/envp.
 		// It is this copy that	getenv/putenv manipulate.
 		t.Logf("skipping test")

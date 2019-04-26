@@ -6,18 +6,26 @@ package modfetch
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/url"
+	url "net/url"
 	"os"
+	pathpkg "path"
+	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
+	"unicode"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/module"
 	"cmd/go/internal/semver"
+	"cmd/go/internal/web"
 )
 
 var HelpGoproxy = &base.Command{
@@ -29,8 +37,13 @@ directly, just as 'go get' always has. The GOPROXY environment variable allows
 further control over the download source. If GOPROXY is unset, is the empty string,
 or is the string "direct", downloads use the default direct connection to version
 control systems. Setting GOPROXY to "off" disallows downloading modules from
-any source. Otherwise, GOPROXY is expected to be the URL of a module proxy,
-in which case the go command will fetch all modules from that proxy.
+any source. Otherwise, GOPROXY is expected to be a comma-separated list of
+the URLs of module proxies, in which case the go command will fetch modules
+from those proxies. For each request, the go command tries each proxy in sequence,
+only moving to the next if the current proxy returns a 404 or 410 HTTP response.
+The string "direct" may appear in the proxy list, to cause a direct connection to
+be attempted at that point in the search.
+
 No matter the source of the modules, downloaded modules must match existing
 entries in go.sum (see 'go help modules' for discussion of verification).
 
@@ -86,40 +99,153 @@ cached module versions with GOPROXY=https://example.com/proxy.
 `,
 }
 
-var proxyURL = os.Getenv("GOPROXY")
+var proxyURL = cfg.Getenv("GOPROXY")
+
+// SetProxy sets the proxy to use when fetching modules.
+// It accepts the same syntax as the GOPROXY environment variable,
+// which also provides its default configuration.
+// SetProxy must not be called after the first module fetch has begun.
+func SetProxy(url string) {
+	proxyURL = url
+}
+
+var proxyOnce struct {
+	sync.Once
+	list []string
+	err  error
+}
+
+func proxyURLs() ([]string, error) {
+	proxyOnce.Do(func() {
+		for _, proxyURL := range strings.Split(proxyURL, ",") {
+			if proxyURL == "" {
+				continue
+			}
+			if proxyURL == "direct" {
+				proxyOnce.list = append(proxyOnce.list, "direct")
+				continue
+			}
+
+			// Check that newProxyRepo accepts the URL.
+			// It won't do anything with the path.
+			_, err := newProxyRepo(proxyURL, "golang.org/x/text")
+			if err != nil {
+				proxyOnce.err = err
+				return
+			}
+			proxyOnce.list = append(proxyOnce.list, proxyURL)
+		}
+	})
+
+	return proxyOnce.list, proxyOnce.err
+}
 
 func lookupProxy(path string) (Repo, error) {
-	if strings.Contains(proxyURL, ",") {
-		return nil, fmt.Errorf("invalid $GOPROXY setting: cannot have comma")
+	list, err := proxyURLs()
+	if err != nil {
+		return nil, err
 	}
-	u, err := url.Parse(proxyURL)
-	if err != nil || u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "file" {
-		// Don't echo $GOPROXY back in case it has user:password in it (sigh).
-		return nil, fmt.Errorf("invalid $GOPROXY setting: malformed URL or invalid scheme (must be http, https, file)")
+
+	var repos listRepo
+	for _, u := range list {
+		var r Repo
+		if u == "direct" {
+			// lookupDirect does actual network traffic.
+			// Especially if GOPROXY="http://mainproxy,direct",
+			// avoid the network until we need it by using a lazyRepo wrapper.
+			r = &lazyRepo{setup: lookupDirect, path: path}
+		} else {
+			// The URL itself was checked in proxyURLs.
+			// The only possible error here is a bad path,
+			// so we can return it unconditionally.
+			r, err = newProxyRepo(u, path)
+			if err != nil {
+				return nil, err
+			}
+		}
+		repos = append(repos, r)
 	}
-	return newProxyRepo(u.String(), path)
+	return repos, nil
 }
 
 type proxyRepo struct {
-	url  string
+	url  *url.URL
 	path string
 }
 
 func newProxyRepo(baseURL, path string) (Repo, error) {
+	base, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, err
+	}
+	switch base.Scheme {
+	case "http", "https":
+		// ok
+	case "file":
+		if *base != (url.URL{Scheme: base.Scheme, Path: base.Path, RawPath: base.RawPath}) {
+			return nil, fmt.Errorf("invalid file:// proxy URL with non-path elements: %s", web.Redacted(base))
+		}
+	case "":
+		return nil, fmt.Errorf("invalid proxy URL missing scheme: %s", web.Redacted(base))
+	default:
+		return nil, fmt.Errorf("invalid proxy URL scheme (must be https, http, file): %s", web.Redacted(base))
+	}
+
 	enc, err := module.EncodePath(path)
 	if err != nil {
 		return nil, err
 	}
-	return &proxyRepo{strings.TrimSuffix(baseURL, "/") + "/" + pathEscape(enc), path}, nil
+
+	base.Path = strings.TrimSuffix(base.Path, "/") + "/" + enc
+	base.RawPath = strings.TrimSuffix(base.RawPath, "/") + "/" + pathEscape(enc)
+	return &proxyRepo{base, path}, nil
 }
 
 func (p *proxyRepo) ModulePath() string {
 	return p.path
 }
 
+func (p *proxyRepo) getBytes(path string) ([]byte, error) {
+	body, err := p.getBody(path)
+	if err != nil {
+		return nil, err
+	}
+	defer body.Close()
+	return ioutil.ReadAll(body)
+}
+
+func (p *proxyRepo) getBody(path string) (io.ReadCloser, error) {
+	fullPath := pathpkg.Join(p.url.Path, path)
+	if p.url.Scheme == "file" {
+		rawPath, err := url.PathUnescape(fullPath)
+		if err != nil {
+			return nil, err
+		}
+		if runtime.GOOS == "windows" && len(rawPath) >= 4 && rawPath[0] == '/' && unicode.IsLetter(rune(rawPath[1])) && rawPath[2] == ':' {
+			// On Windows, file URLs look like "file:///C:/foo/bar". url.Path will
+			// start with a slash which must be removed. See golang.org/issue/6027.
+			rawPath = rawPath[1:]
+		}
+		return os.Open(filepath.FromSlash(rawPath))
+	}
+
+	target := *p.url
+	target.Path = fullPath
+	target.RawPath = pathpkg.Join(target.RawPath, pathEscape(path))
+
+	resp, err := web.Get(web.DefaultSecurity, &target)
+	if err != nil {
+		return nil, err
+	}
+	if err := resp.Err(); err != nil {
+		resp.Body.Close()
+		return nil, err
+	}
+	return resp.Body, nil
+}
+
 func (p *proxyRepo) Versions(prefix string) ([]string, error) {
-	var data []byte
-	err := webGetBytes(p.url+"/@v/list", &data)
+	data, err := p.getBytes("@v/list")
 	if err != nil {
 		return nil, err
 	}
@@ -135,8 +261,7 @@ func (p *proxyRepo) Versions(prefix string) ([]string, error) {
 }
 
 func (p *proxyRepo) latest() (*RevInfo, error) {
-	var data []byte
-	err := webGetBytes(p.url+"/@v/list", &data)
+	data, err := p.getBytes("@v/list")
 	if err != nil {
 		return nil, err
 	}
@@ -165,12 +290,11 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
 }
 
 func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
-	var data []byte
 	encRev, err := module.EncodeVersion(rev)
 	if err != nil {
 		return nil, err
 	}
-	err = webGetBytes(p.url+"/@v/"+pathEscape(encRev)+".info", &data)
+	data, err := p.getBytes("@v/" + encRev + ".info")
 	if err != nil {
 		return nil, err
 	}
@@ -182,9 +306,7 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
 }
 
 func (p *proxyRepo) Latest() (*RevInfo, error) {
-	var data []byte
-	u := p.url + "/@latest"
-	err := webGetBytes(u, &data)
+	data, err := p.getBytes("@latest")
 	if err != nil {
 		// TODO return err if not 404
 		return p.latest()
@@ -197,51 +319,36 @@ func (p *proxyRepo) Latest() (*RevInfo, error) {
 }
 
 func (p *proxyRepo) GoMod(version string) ([]byte, error) {
-	var data []byte
 	encVer, err := module.EncodeVersion(version)
 	if err != nil {
 		return nil, err
 	}
-	err = webGetBytes(p.url+"/@v/"+pathEscape(encVer)+".mod", &data)
+	data, err := p.getBytes("@v/" + encVer + ".mod")
 	if err != nil {
 		return nil, err
 	}
 	return data, nil
 }
 
-func (p *proxyRepo) Zip(version string, tmpdir string) (tmpfile string, err error) {
-	var body io.ReadCloser
+func (p *proxyRepo) Zip(dst io.Writer, version string) error {
 	encVer, err := module.EncodeVersion(version)
 	if err != nil {
-		return "", err
+		return err
 	}
-	err = webGetBody(p.url+"/@v/"+pathEscape(encVer)+".zip", &body)
+	body, err := p.getBody("@v/" + encVer + ".zip")
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer body.Close()
 
-	// Spool to local file.
-	f, err := ioutil.TempFile(tmpdir, "go-proxy-download-")
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	maxSize := int64(codehost.MaxZipFile)
-	lr := &io.LimitedReader{R: body, N: maxSize + 1}
-	if _, err := io.Copy(f, lr); err != nil {
-		os.Remove(f.Name())
-		return "", err
+	lr := &io.LimitedReader{R: body, N: codehost.MaxZipFile + 1}
+	if _, err := io.Copy(dst, lr); err != nil {
+		return err
 	}
 	if lr.N <= 0 {
-		os.Remove(f.Name())
-		return "", fmt.Errorf("downloaded zip file too large")
+		return fmt.Errorf("downloaded zip file too large")
 	}
-	if err := f.Close(); err != nil {
-		os.Remove(f.Name())
-		return "", err
-	}
-	return f.Name(), nil
+	return nil
 }
 
 // pathEscape escapes s so it can be used in a path.
@@ -249,4 +356,118 @@ func (p *proxyRepo) Zip(version string, tmpdir string) (tmpfile string, err erro
 // It does not escape / to %2F: our REST API is designed so that / can be left as is.
 func pathEscape(s string) string {
 	return strings.ReplaceAll(url.PathEscape(s), "%2F", "/")
+}
+
+// A lazyRepo is a lazily-initialized Repo,
+// constructed on demand by calling setup.
+type lazyRepo struct {
+	path  string
+	setup func(string) (Repo, error)
+	once  sync.Once
+	repo  Repo
+	err   error
+}
+
+func (r *lazyRepo) init() {
+	r.repo, r.err = r.setup(r.path)
+}
+
+func (r *lazyRepo) ModulePath() string {
+	return r.path
+}
+
+func (r *lazyRepo) Versions(prefix string) ([]string, error) {
+	if r.once.Do(r.init); r.err != nil {
+		return nil, r.err
+	}
+	return r.repo.Versions(prefix)
+}
+
+func (r *lazyRepo) Stat(rev string) (*RevInfo, error) {
+	if r.once.Do(r.init); r.err != nil {
+		return nil, r.err
+	}
+	return r.repo.Stat(rev)
+}
+
+func (r *lazyRepo) Latest() (*RevInfo, error) {
+	if r.once.Do(r.init); r.err != nil {
+		return nil, r.err
+	}
+	return r.repo.Latest()
+}
+
+func (r *lazyRepo) GoMod(version string) ([]byte, error) {
+	if r.once.Do(r.init); r.err != nil {
+		return nil, r.err
+	}
+	return r.repo.GoMod(version)
+}
+
+func (r *lazyRepo) Zip(dst io.Writer, version string) error {
+	if r.once.Do(r.init); r.err != nil {
+		return r.err
+	}
+	return r.repo.Zip(dst, version)
+}
+
+// A listRepo is a preference list of Repos.
+// The list must be non-empty and all Repos
+// must return the same result from ModulePath.
+// For each method, the repos are tried in order
+// until one succeeds or returns a non-ErrNotExist (non-404) error.
+type listRepo []Repo
+
+func (l listRepo) ModulePath() string {
+	return l[0].ModulePath()
+}
+
+func (l listRepo) Versions(prefix string) ([]string, error) {
+	for i, r := range l {
+		v, err := r.Versions(prefix)
+		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
+			return v, err
+		}
+	}
+	panic("no repos")
+}
+
+func (l listRepo) Stat(rev string) (*RevInfo, error) {
+	for i, r := range l {
+		info, err := r.Stat(rev)
+		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
+			return info, err
+		}
+	}
+	panic("no repos")
+}
+
+func (l listRepo) Latest() (*RevInfo, error) {
+	for i, r := range l {
+		info, err := r.Latest()
+		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
+			return info, err
+		}
+	}
+	panic("no repos")
+}
+
+func (l listRepo) GoMod(version string) ([]byte, error) {
+	for i, r := range l {
+		data, err := r.GoMod(version)
+		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
+			return data, err
+		}
+	}
+	panic("no repos")
+}
+
+func (l listRepo) Zip(dst io.Writer, version string) error {
+	for i, r := range l {
+		err := r.Zip(dst, version)
+		if i == len(l)-1 || !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	panic("no repos")
 }

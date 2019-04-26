@@ -35,7 +35,7 @@ func _runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr, uintptr)
 //   /* The function call will not return.  */
 
 //go:linkname _runtime_cgo_panic_internal runtime._cgo_panic_internal
-var _runtime_cgo_panic_internal byte
+func _runtime_cgo_panic_internal(p *byte)
 
 //go:linkname _cgo_panic _cgo_panic
 //go:cgo_export_static _cgo_panic
@@ -43,7 +43,12 @@ var _runtime_cgo_panic_internal byte
 //go:nosplit
 //go:norace
 func _cgo_panic(a unsafe.Pointer, n int32) {
-	_runtime_cgocallback(unsafe.Pointer(&_runtime_cgo_panic_internal), a, uintptr(n), 0)
+	f := _runtime_cgo_panic_internal
+	type funcval struct {
+		pc unsafe.Pointer
+	}
+	fv := *(**funcval)(unsafe.Pointer(&f))
+	_runtime_cgocallback(fv.pc, a, uintptr(n), 0)
 }
 
 //go:cgo_import_static x_cgo_init

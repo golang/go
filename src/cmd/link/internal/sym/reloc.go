@@ -57,8 +57,8 @@ func RelocName(arch *sys.Arch, r objabi.RelocType) string {
 	// Uncomment code when we include those in bootstrap code.
 
 	switch {
-	case r >= 512: // Mach-O
-		// nr := (r - 512)>>1
+	case r >= objabi.MachoRelocOffset: // Mach-O
+		// nr := (r - objabi.MachoRelocOffset)>>1
 		// switch ctxt.Arch.Family {
 		// case sys.AMD64:
 		// 	return macho.RelocTypeX86_64(nr).String()
@@ -71,8 +71,8 @@ func RelocName(arch *sys.Arch, r objabi.RelocType) string {
 		// default:
 		// 	panic("unreachable")
 		// }
-	case r >= 256: // ELF
-		nr := r - 256
+	case r >= objabi.ElfRelocOffset: // ELF
+		nr := r - objabi.ElfRelocOffset
 		switch arch.Family {
 		case sys.AMD64:
 			return elf.R_X86_64(nr).String()

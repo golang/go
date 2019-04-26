@@ -28,6 +28,12 @@ type pkcs8 struct {
 func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
 	var privKey pkcs8
 	if _, err := asn1.Unmarshal(der, &privKey); err != nil {
+		if _, err := asn1.Unmarshal(der, &ecPrivateKey{}); err == nil {
+			return nil, errors.New("x509: failed to parse private key (use ParseECPrivateKey instead for this key format)")
+		}
+		if _, err := asn1.Unmarshal(der, &pkcs1PrivateKey{}); err == nil {
+			return nil, errors.New("x509: failed to parse private key (use ParsePKCS1PrivateKey instead for this key format)")
+		}
 		return nil, err
 	}
 	switch {
@@ -74,7 +80,7 @@ func MarshalPKCS8PrivateKey(key interface{}) ([]byte, error) {
 	case *ecdsa.PrivateKey:
 		oid, ok := oidFromNamedCurve(k.Curve)
 		if !ok {
-			return nil, errors.New("x509: unknown curve while marshalling to PKCS#8")
+			return nil, errors.New("x509: unknown curve while marshaling to PKCS#8")
 		}
 
 		oidBytes, err := asn1.Marshal(oid)
@@ -94,7 +100,7 @@ func MarshalPKCS8PrivateKey(key interface{}) ([]byte, error) {
 		}
 
 	default:
-		return nil, fmt.Errorf("x509: unknown key type while marshalling PKCS#8: %T", key)
+		return nil, fmt.Errorf("x509: unknown key type while marshaling PKCS#8: %T", key)
 	}
 
 	return asn1.Marshal(privKey)

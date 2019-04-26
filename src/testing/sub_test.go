@@ -706,6 +706,55 @@ func TestRacyOutput(t *T) {
 	}
 }
 
+// The late log message did not include the test name.  Issue 29388.
+func TestLogAfterComplete(t *T) {
+	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
+	var buf bytes.Buffer
+	t1 := &T{
+		common: common{
+			// Use a buffered channel so that tRunner can write
+			// to it although nothing is reading from it.
+			signal: make(chan bool, 1),
+			w:      &buf,
+		},
+		context: ctx,
+	}
+
+	c1 := make(chan bool)
+	c2 := make(chan string)
+	tRunner(t1, func(t *T) {
+		t.Run("TestLateLog", func(t *T) {
+			go func() {
+				defer close(c2)
+				defer func() {
+					p := recover()
+					if p == nil {
+						c2 <- "subtest did not panic"
+						return
+					}
+					s, ok := p.(string)
+					if !ok {
+						c2 <- fmt.Sprintf("subtest panic with unexpected value %v", p)
+						return
+					}
+					const want = "Log in goroutine after TestLateLog has completed"
+					if !strings.Contains(s, want) {
+						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, want)
+					}
+				}()
+
+				<-c1
+				t.Log("log after test")
+			}()
+		})
+	})
+	close(c1)
+
+	if s := <-c2; s != "" {
+		t.Error(s)
+	}
+}
+
 func TestBenchmark(t *T) {
 	res := Benchmark(func(b *B) {
 		for i := 0; i < 5; i++ {

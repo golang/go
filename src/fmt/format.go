@@ -34,6 +34,11 @@ type fmtFlags struct {
 	// different, flagless formats set at the top level.
 	plusV  bool
 	sharpV bool
+
+	// error-related flags.
+	inDetail    bool
+	needNewline bool
+	needColon   bool
 }
 
 // A fmt is the raw formatter used by Printf etc.
@@ -191,7 +196,7 @@ func (f *fmt) fmtUnicode(u uint64) {
 }
 
 // fmtInteger formats signed and unsigned integers.
-func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
+func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, verb rune, digits string) {
 	negative := isSigned && int64(u) < 0
 	if negative {
 		u = -u
@@ -275,6 +280,12 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
 	// Various prefixes: 0x, -, etc.
 	if f.sharp {
 		switch base {
+		case 2:
+			// Add a leading 0b.
+			i--
+			buf[i] = 'b'
+			i--
+			buf[i] = '0'
 		case 8:
 			if buf[i] != '0' {
 				i--
@@ -287,6 +298,12 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
 			i--
 			buf[i] = '0'
 		}
+	}
+	if verb == 'O' {
+		i--
+		buf[i] = 'o'
+		i--
+		buf[i] = '0'
 	}
 
 	if negative {
@@ -308,8 +325,8 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
 	f.zero = oldZero
 }
 
-// truncate truncates the string to the specified precision, if present.
-func (f *fmt) truncate(s string) string {
+// truncate truncates the string s to the specified precision, if present.
+func (f *fmt) truncateString(s string) string {
 	if f.precPresent {
 		n := f.prec
 		for i := range s {
@@ -322,10 +339,35 @@ func (f *fmt) truncate(s string) string {
 	return s
 }
 
+// truncate truncates the byte slice b as a string of the specified precision, if present.
+func (f *fmt) truncate(b []byte) []byte {
+	if f.precPresent {
+		n := f.prec
+		for i := 0; i < len(b); {
+			n--
+			if n < 0 {
+				return b[:i]
+			}
+			wid := 1
+			if b[i] >= utf8.RuneSelf {
+				_, wid = utf8.DecodeRune(b[i:])
+			}
+			i += wid
+		}
+	}
+	return b
+}
+
 // fmtS formats a string.
 func (f *fmt) fmtS(s string) {
-	s = f.truncate(s)
+	s = f.truncateString(s)
 	f.padString(s)
+}
+
+// fmtBs formats the byte slice b as if it was formatted as string with fmtS.
+func (f *fmt) fmtBs(b []byte) {
+	b = f.truncate(b)
+	f.pad(b)
 }
 
 // fmtSbx formats a string or byte slice as a hexadecimal encoding of its bytes.
@@ -408,7 +450,7 @@ func (f *fmt) fmtBx(b []byte, digits string) {
 // If f.sharp is set a raw (backquoted) string may be returned instead
 // if the string does not contain any control characters other than tab.
 func (f *fmt) fmtQ(s string) {
-	s = f.truncate(s)
+	s = f.truncateString(s)
 	if f.sharp && strconv.CanBackquote(s) {
 		f.padString("`" + s + "`")
 		return
@@ -485,7 +527,7 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 	if f.sharp && verb != 'b' {
 		digits := 0
 		switch verb {
-		case 'v', 'g', 'G':
+		case 'v', 'g', 'G', 'x':
 			digits = prec
 			// If no precision is set explicitly use a precision of 6.
 			if digits == -1 {
@@ -494,8 +536,8 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 		}
 
 		// Buffer pre-allocated with enough room for
-		// exponent notations of the form "e+123".
-		var tailBuf [5]byte
+		// exponent notations of the form "e+123" or "p-1023".
+		var tailBuf [6]byte
 		tail := tailBuf[:0]
 
 		hasDecimalPoint := false
@@ -504,9 +546,16 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 			switch num[i] {
 			case '.':
 				hasDecimalPoint = true
-			case 'e', 'E':
+			case 'p', 'P':
 				tail = append(tail, num[i:]...)
 				num = num[:i]
+			case 'e', 'E':
+				if verb != 'x' && verb != 'X' {
+					tail = append(tail, num[i:]...)
+					num = num[:i]
+					break
+				}
+				fallthrough
 			default:
 				digits--
 			}

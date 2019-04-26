@@ -196,9 +196,14 @@ const (
 
 	// R_WASMIMPORT resolves to the index of the WebAssembly function import.
 	R_WASMIMPORT
+
+	// R_XCOFFREF (only used on aix/ppc64) prevents garbage collection by ld
+	// of a symbol. This isn't a real relocation, it can be placed in anywhere
+	// in a symbol and target any symbols.
+	R_XCOFFREF
 )
 
-// IsDirectJump returns whether r is a relocation for a direct jump.
+// IsDirectJump reports whether r is a relocation for a direct jump.
 // A direct jump is a CALL or JMP instruction that takes the target address
 // as immediate. The address is embedded into the instruction, possibly
 // with limited width.

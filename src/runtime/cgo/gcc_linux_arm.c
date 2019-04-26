@@ -11,7 +11,7 @@
 static void *threadentry(void*);
 
 void (*x_cgo_inittls)(void **tlsg, void **tlsbase);
-void (*setg_gcc)(void*);
+static void (*setg_gcc)(void*);
 
 void
 _cgo_sys_thread_start(ThreadStart *ts)

@@ -7,6 +7,7 @@ package asm
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"text/scanner"
 
 	"cmd/asm/internal/arch"
@@ -200,7 +201,11 @@ func (p *Parser) asmData(operands [][]lex.Token) {
 		p.errorf("expect /size for DATA argument")
 		return
 	}
-	scale := p.parseScale(op[n-1].String())
+	szop := op[n-1].String()
+	sz, err := strconv.Atoi(szop)
+	if err != nil {
+		p.errorf("bad size for DATA argument: %q", szop)
+	}
 	op = op[:n-2]
 	nameAddr := p.address(op)
 	if !p.validSymbol("DATA", &nameAddr, true) {
@@ -223,24 +228,33 @@ func (p *Parser) asmData(operands [][]lex.Token) {
 		p.errorf("overlapping DATA entry for %s", name)
 		return
 	}
-	p.dataAddr[name] = nameAddr.Offset + int64(scale)
+	p.dataAddr[name] = nameAddr.Offset + int64(sz)
 
 	switch valueAddr.Type {
 	case obj.TYPE_CONST:
-		nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, int(scale), valueAddr.Offset)
+		switch sz {
+		case 1, 2, 4, 8:
+			nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, int(sz), valueAddr.Offset)
+		default:
+			p.errorf("bad int size for DATA argument: %d", sz)
+		}
 	case obj.TYPE_FCONST:
-		switch scale {
+		switch sz {
 		case 4:
 			nameAddr.Sym.WriteFloat32(p.ctxt, nameAddr.Offset, float32(valueAddr.Val.(float64)))
 		case 8:
 			nameAddr.Sym.WriteFloat64(p.ctxt, nameAddr.Offset, valueAddr.Val.(float64))
 		default:
-			panic("bad float scale")
+			p.errorf("bad float size for DATA argument: %d", sz)
 		}
 	case obj.TYPE_SCONST:
-		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, int(scale), valueAddr.Val.(string))
+		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, int(sz), valueAddr.Val.(string))
 	case obj.TYPE_ADDR:
-		nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, int(scale), valueAddr.Sym, valueAddr.Offset)
+		if sz == p.arch.PtrSize {
+			nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, int(sz), valueAddr.Sym, valueAddr.Offset)
+		} else {
+			p.errorf("bad addr size for DATA argument: %d", sz)
+		}
 	}
 }
 
@@ -304,6 +318,28 @@ func (p *Parser) asmPCData(operands [][]lex.Token) {
 		Pos:  p.pos(),
 		From: key,
 		To:   value,
+	}
+	p.append(prog, "", true)
+}
+
+// asmPCAlign assembles a PCALIGN pseudo-op.
+// PCALIGN $16
+func (p *Parser) asmPCAlign(operands [][]lex.Token) {
+	if len(operands) != 1 {
+		p.errorf("expect one operand for PCALIGN")
+		return
+	}
+
+	// Operand 0 must be an immediate constant.
+	key := p.address(operands[0])
+	if !p.validImmediate("PCALIGN", &key) {
+		return
+	}
+
+	prog := &obj.Prog{
+		Ctxt: p.ctxt,
+		As:   obj.APCALIGN,
+		From: key,
 	}
 	p.append(prog, "", true)
 }
@@ -748,6 +784,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			break
 		}
 		if p.arch.Family == sys.AMD64 {
+			prog.From = a[0]
+			prog.RestArgs = []obj.Addr{a[1], a[2], a[3]}
+			prog.To = a[4]
+			break
+		}
+		if p.arch.Family == sys.S390X {
 			prog.From = a[0]
 			prog.RestArgs = []obj.Addr{a[1], a[2], a[3]}
 			prog.To = a[4]

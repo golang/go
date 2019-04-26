@@ -1338,6 +1338,52 @@ func TestConnQuery(t *testing.T) {
 	}
 }
 
+func TestCursorFake(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	exec(t, db, "CREATE|peoplecursor|list=table")
+	exec(t, db, "INSERT|peoplecursor|list=people!name!age")
+
+	rows, err := db.QueryContext(ctx, `SELECT|peoplecursor|list|`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		t.Fatal("no rows")
+	}
+	var cursor = &Rows{}
+	err = rows.Scan(cursor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cursor.Close()
+
+	const expectedRows = 3
+	var currentRow int64
+
+	var n int64
+	var s string
+	for cursor.Next() {
+		currentRow++
+		err = cursor.Scan(&s, &n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n != currentRow {
+			t.Errorf("expected number(Age)=%d, got %d", currentRow, n)
+		}
+	}
+	if currentRow != expectedRows {
+		t.Errorf("expected %d rows, got %d rows", expectedRows, currentRow)
+	}
+}
+
 func TestInvalidNilValues(t *testing.T) {
 	var date1 time.Time
 	var date2 int
@@ -1645,6 +1691,21 @@ func TestNullBoolParam(t *testing.T) {
 		{NullBool{true, true}, false, NullBool{true, true}},
 		{NullBool{true, false}, true, NullBool{false, false}},
 		{true, NullBool{true, false}, nil},
+	}}
+	nullTestRun(t, spec)
+}
+
+func TestNullTimeParam(t *testing.T) {
+	t0 := time.Time{}
+	t1 := time.Date(2000, 1, 1, 8, 9, 10, 11, time.UTC)
+	t2 := time.Date(2010, 1, 1, 8, 9, 10, 11, time.UTC)
+	spec := nullTestSpec{"nulldatetime", "datetime", [6]nullTestRow{
+		{NullTime{t1, true}, t2, NullTime{t1, true}},
+		{NullTime{t1, false}, t2, NullTime{t0, false}},
+		{t1, t2, NullTime{t1, true}},
+		{NullTime{t1, true}, t2, NullTime{t1, true}},
+		{NullTime{t1, false}, t2, NullTime{t0, false}},
+		{t2, NullTime{t1, false}, nil},
 	}}
 	nullTestRun(t, spec)
 }

@@ -168,6 +168,14 @@ func TestTinyAlloc(t *testing.T) {
 	}
 }
 
+func TestPhysicalMemoryUtilization(t *testing.T) {
+	got := runTestProg(t, "testprog", "GCPhys")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
 type acLink struct {
 	x [1 << 20]byte
 }
@@ -175,6 +183,14 @@ type acLink struct {
 var arenaCollisionSink []*acLink
 
 func TestArenaCollision(t *testing.T) {
+	if GOOS == "darwin" && race.Enabled {
+		// Skip this test on Darwin in race mode because Darwin 10.10 has
+		// issues following arena hints and runs out of them in race mode, so
+		// MAP_FIXED is used to ensure we keep the heap in the memory region the
+		// race detector expects.
+		// TODO(mknyszek): Delete this when Darwin 10.10 is no longer supported.
+		t.Skip("disabled on Darwin with race mode since MAP_FIXED is used")
+	}
 	testenv.MustHaveExec(t)
 
 	// Test that mheap.sysAlloc handles collisions with other

@@ -8,12 +8,14 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
 	. "net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"reflect"
@@ -133,30 +135,31 @@ func TestParseFormInitializeOnError(t *testing.T) {
 }
 
 func TestMultipartReader(t *testing.T) {
-	req := &Request{
-		Method: "POST",
-		Header: Header{"Content-Type": {`multipart/form-data; boundary="foo123"`}},
-		Body:   ioutil.NopCloser(new(bytes.Buffer)),
-	}
-	multipart, err := req.MultipartReader()
-	if multipart == nil {
-		t.Errorf("expected multipart; error: %v", err)
-	}
-
-	req = &Request{
-		Method: "POST",
-		Header: Header{"Content-Type": {`multipart/mixed; boundary="foo123"`}},
-		Body:   ioutil.NopCloser(new(bytes.Buffer)),
-	}
-	multipart, err = req.MultipartReader()
-	if multipart == nil {
-		t.Errorf("expected multipart; error: %v", err)
+	tests := []struct {
+		shouldError bool
+		contentType string
+	}{
+		{false, `multipart/form-data; boundary="foo123"`},
+		{false, `multipart/mixed; boundary="foo123"`},
+		{true, `text/plain`},
 	}
 
-	req.Header = Header{"Content-Type": {"text/plain"}}
-	multipart, err = req.MultipartReader()
-	if multipart != nil {
-		t.Error("unexpected multipart for text/plain")
+	for i, test := range tests {
+		req := &Request{
+			Method: "POST",
+			Header: Header{"Content-Type": {test.contentType}},
+			Body:   ioutil.NopCloser(new(bytes.Buffer)),
+		}
+		multipart, err := req.MultipartReader()
+		if test.shouldError {
+			if err == nil || multipart != nil {
+				t.Errorf("test %d: unexpectedly got nil-error (%v) or non-nil-multipart (%v)", i, err, multipart)
+			}
+			continue
+		}
+		if err != nil || multipart == nil {
+			t.Errorf("test %d: unexpectedly got error (%v) or nil-multipart (%v)", i, err, multipart)
+		}
 	}
 }
 
@@ -1045,4 +1048,93 @@ func BenchmarkReadRequestWrk(b *testing.B) {
 	benchmarkReadRequest(b, `GET / HTTP/1.1
 Host: localhost:8080
 `)
+}
+
+const (
+	withTLS = true
+	noTLS   = false
+)
+
+func BenchmarkFileAndServer_1KB(b *testing.B) {
+	benchmarkFileAndServer(b, 1<<10)
+}
+
+func BenchmarkFileAndServer_16MB(b *testing.B) {
+	benchmarkFileAndServer(b, 1<<24)
+}
+
+func BenchmarkFileAndServer_64MB(b *testing.B) {
+	benchmarkFileAndServer(b, 1<<26)
+}
+
+func benchmarkFileAndServer(b *testing.B, n int64) {
+	f, err := ioutil.TempFile(os.TempDir(), "go-bench-http-file-and-server")
+	if err != nil {
+		b.Fatalf("Failed to create temp file: %v", err)
+	}
+
+	defer func() {
+		f.Close()
+		os.RemoveAll(f.Name())
+	}()
+
+	if _, err := io.CopyN(f, rand.Reader, n); err != nil {
+		b.Fatalf("Failed to copy %d bytes: %v", n, err)
+	}
+
+	b.Run("NoTLS", func(b *testing.B) {
+		runFileAndServerBenchmarks(b, noTLS, f, n)
+	})
+
+	b.Run("TLS", func(b *testing.B) {
+		runFileAndServerBenchmarks(b, withTLS, f, n)
+	})
+}
+
+func runFileAndServerBenchmarks(b *testing.B, tlsOption bool, f *os.File, n int64) {
+	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
+		defer req.Body.Close()
+		nc, err := io.Copy(ioutil.Discard, req.Body)
+		if err != nil {
+			panic(err)
+		}
+
+		if nc != n {
+			panic(fmt.Errorf("Copied %d Wanted %d bytes", nc, n))
+		}
+	})
+
+	var cst *httptest.Server
+	if tlsOption == withTLS {
+		cst = httptest.NewTLSServer(handler)
+	} else {
+		cst = httptest.NewServer(handler)
+	}
+
+	defer cst.Close()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Perform some setup.
+		b.StopTimer()
+		if _, err := f.Seek(0, 0); err != nil {
+			b.Fatalf("Failed to seek back to file: %v", err)
+		}
+
+		b.StartTimer()
+		req, err := NewRequest("PUT", cst.URL, ioutil.NopCloser(f))
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		req.ContentLength = n
+		// Prevent mime sniffing by setting the Content-Type.
+		req.Header.Set("Content-Type", "application/octet-stream")
+		res, err := cst.Client().Do(req)
+		if err != nil {
+			b.Fatalf("Failed to make request to backend: %v", err)
+		}
+
+		res.Body.Close()
+		b.SetBytes(n)
+	}
 }

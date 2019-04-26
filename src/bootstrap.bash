@@ -49,6 +49,7 @@ cp -R "$src" "$targ"
 cd "$targ"
 echo
 echo "#### Cleaning $targ"
+chmod -R +w .
 rm -f .gitignore
 if [ -e .git ]; then
 	git clean -f -d
@@ -72,6 +73,7 @@ if [ "$goos" = "$gohostos" -a "$goarch" = "$gohostarch" ]; then
 	# prepare a clean toolchain for others.
 	true
 else
+	rm -f bin/go_${goos}_${goarch}_exec
 	mv bin/*_*/* bin
 	rmdir bin/*_*
 	rm -rf "pkg/${gohostos}_${gohostarch}" "pkg/tool/${gohostos}_${gohostarch}"

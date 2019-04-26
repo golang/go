@@ -120,10 +120,11 @@ func (c *context) ip() uintptr { return uintptr(c.rip) }
 func (c *context) sp() uintptr { return uintptr(c.rsp) }
 
 // Amd64 does not have link register, so this returns 0.
-func (c *context) lr() uintptr { return 0 }
+func (c *context) lr() uintptr      { return 0 }
+func (c *context) set_lr(x uintptr) {}
 
-func (c *context) setip(x uintptr) { c.rip = uint64(x) }
-func (c *context) setsp(x uintptr) { c.rsp = uint64(x) }
+func (c *context) set_ip(x uintptr) { c.rip = uint64(x) }
+func (c *context) set_sp(x uintptr) { c.rsp = uint64(x) }
 
 func dumpregs(r *context) {
 	print("rax     ", hex(r.rax), "\n")

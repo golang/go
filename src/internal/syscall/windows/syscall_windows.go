@@ -12,7 +12,11 @@ import (
 
 const (
 	ERROR_SHARING_VIOLATION      syscall.Errno = 32
+	ERROR_LOCK_VIOLATION         syscall.Errno = 33
+	ERROR_NOT_SUPPORTED          syscall.Errno = 50
+	ERROR_CALL_NOT_IMPLEMENTED   syscall.Errno = 120
 	ERROR_INVALID_NAME           syscall.Errno = 123
+	ERROR_LOCK_FAILED            syscall.Errno = 167
 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
 )
 
@@ -254,6 +258,14 @@ func Rename(oldpath, newpath string) error {
 	}
 	return MoveFileEx(from, to, MOVEFILE_REPLACE_EXISTING)
 }
+
+//sys LockFileEx(file syscall.Handle, flags uint32, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *syscall.Overlapped) (err error) = kernel32.LockFileEx
+//sys UnlockFileEx(file syscall.Handle, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *syscall.Overlapped) (err error) = kernel32.UnlockFileEx
+
+const (
+	LOCKFILE_FAIL_IMMEDIATELY = 0x00000001
+	LOCKFILE_EXCLUSIVE_LOCK   = 0x00000002
+)
 
 const MB_ERR_INVALID_CHARS = 8
 

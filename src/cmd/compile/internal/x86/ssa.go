@@ -198,24 +198,31 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if v.Op == ssa.Op386DIVL || v.Op == ssa.Op386DIVW ||
 			v.Op == ssa.Op386MODL || v.Op == ssa.Op386MODW {
 
-			var c *obj.Prog
+			if ssa.NeedsFixUp(v) {
+				var c *obj.Prog
+				switch v.Op {
+				case ssa.Op386DIVL, ssa.Op386MODL:
+					c = s.Prog(x86.ACMPL)
+					j = s.Prog(x86.AJEQ)
+
+				case ssa.Op386DIVW, ssa.Op386MODW:
+					c = s.Prog(x86.ACMPW)
+					j = s.Prog(x86.AJEQ)
+				}
+				c.From.Type = obj.TYPE_REG
+				c.From.Reg = x
+				c.To.Type = obj.TYPE_CONST
+				c.To.Offset = -1
+
+				j.To.Type = obj.TYPE_BRANCH
+			}
+			// sign extend the dividend
 			switch v.Op {
 			case ssa.Op386DIVL, ssa.Op386MODL:
-				c = s.Prog(x86.ACMPL)
-				j = s.Prog(x86.AJEQ)
-				s.Prog(x86.ACDQ) //TODO: fix
-
+				s.Prog(x86.ACDQ)
 			case ssa.Op386DIVW, ssa.Op386MODW:
-				c = s.Prog(x86.ACMPW)
-				j = s.Prog(x86.AJEQ)
 				s.Prog(x86.ACWD)
 			}
-			c.From.Type = obj.TYPE_REG
-			c.From.Reg = x
-			c.To.Type = obj.TYPE_CONST
-			c.To.Offset = -1
-
-			j.To.Type = obj.TYPE_BRANCH
 		}
 
 		// for unsigned ints, we sign extend by setting DX = 0
@@ -751,6 +758,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = v.Aux.(*obj.LSym)
 
+	case ssa.Op386LoweredPanicBoundsA, ssa.Op386LoweredPanicBoundsB, ssa.Op386LoweredPanicBoundsC:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
+		s.UseArgs(8) // space used in callee args area by assembly stubs
+
+	case ssa.Op386LoweredPanicExtendA, ssa.Op386LoweredPanicExtendB, ssa.Op386LoweredPanicExtendC:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.ExtendCheckFunc[v.AuxInt]
+		s.UseArgs(12) // space used in callee args area by assembly stubs
+
 	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLinter:
 		s.Call(v)
 	case ssa.Op386NEGL,
@@ -895,7 +916,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
 	case ssa.BlockExit:
-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
 	case ssa.BlockRetJmp:

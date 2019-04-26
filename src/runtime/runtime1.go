@@ -301,6 +301,7 @@ type dbgVar struct {
 var debug struct {
 	allocfreetrace     int32
 	cgocheck           int32
+	clobberfree        int32
 	efence             int32
 	gccheckmark        int32
 	gcpacertrace       int32
@@ -308,6 +309,7 @@ var debug struct {
 	gcstoptheworld     int32
 	gctrace            int32
 	invalidptr         int32
+	madvdontneed       int32 // for Linux; issue 28466
 	sbrk               int32
 	scavenge           int32
 	scheddetail        int32
@@ -317,6 +319,7 @@ var debug struct {
 
 var dbgvars = []dbgVar{
 	{"allocfreetrace", &debug.allocfreetrace},
+	{"clobberfree", &debug.clobberfree},
 	{"cgocheck", &debug.cgocheck},
 	{"efence", &debug.efence},
 	{"gccheckmark", &debug.gccheckmark},
@@ -325,6 +328,7 @@ var dbgvars = []dbgVar{
 	{"gcstoptheworld", &debug.gcstoptheworld},
 	{"gctrace", &debug.gctrace},
 	{"invalidptr", &debug.invalidptr},
+	{"madvdontneed", &debug.madvdontneed},
 	{"sbrk", &debug.sbrk},
 	{"scavenge", &debug.scavenge},
 	{"scheddetail", &debug.scheddetail},
@@ -408,6 +412,7 @@ func setTraceback(level string) {
 // This is a very special function, do not use it if you are not sure what you are doing.
 // int64 division is lowered into _divv() call on 386, which does not fit into nosplit functions.
 // Handles overflow in a time-specific manner.
+// This keeps us within no-split stack limits on 32-bit processors.
 //go:nosplit
 func timediv(v int64, div int32, rem *int32) int32 {
 	res := int32(0)
@@ -484,6 +489,18 @@ func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 	return (*_type)(rtype).textOff(textOff(off))
 
+}
+
+// reflectlite_resolveNameOff resolves a name offset from a base pointer.
+//go:linkname reflectlite_resolveNameOff internal/reflectlite.resolveNameOff
+func reflectlite_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
+	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
+}
+
+// reflectlite_resolveTypeOff resolves an *rtype offset from a base type.
+//go:linkname reflectlite_resolveTypeOff internal/reflectlite.resolveTypeOff
+func reflectlite_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
 }
 
 // reflect_addReflectOff adds a pointer to the reflection offset lookup map.

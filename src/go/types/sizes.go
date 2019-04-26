@@ -182,10 +182,16 @@ var gcArchSizes = map[string]*StdSizes{
 // "386", "arm", "arm64", "amd64", "amd64p32", "mips", "mipsle",
 // "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x", "sparc64", "wasm".
 func SizesFor(compiler, arch string) Sizes {
-	if compiler != "gc" {
+	var m map[string]*StdSizes
+	switch compiler {
+	case "gc":
+		m = gcArchSizes
+	case "gccgo":
+		m = gccgoArchSizes
+	default:
 		return nil
 	}
-	s, ok := gcArchSizes[arch]
+	s, ok := m[arch]
 	if !ok {
 		return nil
 	}

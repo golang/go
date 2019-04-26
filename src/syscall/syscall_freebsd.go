@@ -223,31 +223,45 @@ func Fstat(fd int, st *Stat_t) (err error) {
 	return nil
 }
 
-func Statfs(path string, stat *Statfs_t) (err error) {
+func Fstatat(fd int, path string, st *Stat_t, flags int) (err error) {
+	var oldStat stat_freebsd11_t
+	if supportsABI(_ino64First) {
+		return fstatat_freebsd12(fd, path, st, flags)
+	}
+	err = fstatat(fd, path, &oldStat, flags)
+	if err != nil {
+		return err
+	}
+
+	st.convertFrom(&oldStat)
+	return nil
+}
+
+func Statfs(path string, st *Statfs_t) (err error) {
 	var oldStatfs statfs_freebsd11_t
 	if supportsABI(_ino64First) {
-		return statfs_freebsd12(path, stat)
+		return statfs_freebsd12(path, st)
 	}
 	err = statfs(path, &oldStatfs)
 	if err != nil {
 		return err
 	}
 
-	stat.convertFrom(&oldStatfs)
+	st.convertFrom(&oldStatfs)
 	return nil
 }
 
-func Fstatfs(fd int, stat *Statfs_t) (err error) {
+func Fstatfs(fd int, st *Statfs_t) (err error) {
 	var oldStatfs statfs_freebsd11_t
 	if supportsABI(_ino64First) {
-		return fstatfs_freebsd12(fd, stat)
+		return fstatfs_freebsd12(fd, st)
 	}
 	err = fstatfs(fd, &oldStatfs)
 	if err != nil {
 		return err
 	}
 
-	stat.convertFrom(&oldStatfs)
+	st.convertFrom(&oldStatfs)
 	return nil
 }
 
@@ -262,7 +276,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	oldBuf := make([]byte, oldBufLen)
 	n, err = getdirentries(fd, oldBuf, basep)
 	if err == nil && n > 0 {
-		n = convertFromDirents11(oldBuf[:n], buf)
+		n = convertFromDirents11(buf, oldBuf[:n])
 	}
 	return
 }
@@ -286,22 +300,22 @@ func roundup(x, y int) int {
 
 func (s *Stat_t) convertFrom(old *stat_freebsd11_t) {
 	*s = Stat_t{
-		Dev:      uint64(old.Dev),
-		Ino:      uint64(old.Ino),
-		Nlink:    uint64(old.Nlink),
-		Mode:     old.Mode,
-		Uid:      old.Uid,
-		Gid:      old.Gid,
-		Rdev:     uint64(old.Rdev),
-		Atim:     old.Atim,
-		Mtim:     old.Mtim,
-		Ctim:     old.Ctim,
-		Birthtim: old.Birthtim,
-		Size:     old.Size,
-		Blocks:   old.Blocks,
-		Blksize:  old.Blksize,
-		Flags:    old.Flags,
-		Gen:      uint64(old.Gen),
+		Dev:           uint64(old.Dev),
+		Ino:           uint64(old.Ino),
+		Nlink:         uint64(old.Nlink),
+		Mode:          old.Mode,
+		Uid:           old.Uid,
+		Gid:           old.Gid,
+		Rdev:          uint64(old.Rdev),
+		Atimespec:     old.Atimespec,
+		Mtimespec:     old.Mtimespec,
+		Ctimespec:     old.Ctimespec,
+		Birthtimespec: old.Birthtimespec,
+		Size:          old.Size,
+		Blocks:        old.Blocks,
+		Blksize:       old.Blksize,
+		Flags:         old.Flags,
+		Gen:           uint64(old.Gen),
 	}
 }
 
@@ -344,17 +358,20 @@ func (s *Statfs_t) convertFrom(old *statfs_freebsd11_t) {
 	copy(s.Mntonname[:], old.Mntonname[:n])
 }
 
-func convertFromDirents11(old []byte, buf []byte) int {
-	oldFixedSize := int(unsafe.Offsetof((*dirent_freebsd11)(nil).Name))
-	fixedSize := int(unsafe.Offsetof((*Dirent)(nil).Name))
-	srcPos := 0
+func convertFromDirents11(buf []byte, old []byte) int {
+	const (
+		fixedSize    = int(unsafe.Offsetof(Dirent{}.Name))
+		oldFixedSize = int(unsafe.Offsetof(dirent_freebsd11{}.Name))
+	)
+
 	dstPos := 0
+	srcPos := 0
 	for dstPos+fixedSize < len(buf) && srcPos+oldFixedSize < len(old) {
-		srcDirent := (*dirent_freebsd11)(unsafe.Pointer(&old[srcPos]))
 		dstDirent := (*Dirent)(unsafe.Pointer(&buf[dstPos]))
+		srcDirent := (*dirent_freebsd11)(unsafe.Pointer(&old[srcPos]))
 
 		reclen := roundup(fixedSize+int(srcDirent.Namlen)+1, 8)
-		if dstPos+reclen >= len(buf) {
+		if dstPos+reclen > len(buf) {
 			break
 		}
 
@@ -400,6 +417,7 @@ func convertFromDirents11(old []byte, buf []byte) int {
 //sys	Fpathconf(fd int, name int) (val int, err error)
 //sys	fstat(fd int, stat *stat_freebsd11_t) (err error)
 //sys	fstat_freebsd12(fd int, stat *Stat_t) (err error) = _SYS_FSTAT_FREEBSD12
+//sys	fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error)
 //sys	fstatat_freebsd12(fd int, path string, stat *Stat_t, flags int) (err error) = _SYS_FSTATAT_FREEBSD12
 //sys	fstatfs(fd int, stat *statfs_freebsd11_t) (err error)
 //sys	fstatfs_freebsd12(fd int, stat *Statfs_t) (err error) = _SYS_FSTATFS_FREEBSD12
@@ -474,3 +492,4 @@ func convertFromDirents11(old []byte, buf []byte) int {
 //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
 //sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL

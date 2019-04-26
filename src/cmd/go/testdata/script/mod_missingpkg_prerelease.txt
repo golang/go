@@ -1,0 +1,12 @@
+env GO111MODULE=on
+
+! go list use.go
+stderr 'example.com/missingpkg/deprecated: package provided by example.com/missingpkg at latest version v1.0.0 but not at required version v1.0.1-beta'
+
+-- use.go --
+package use
+
+import (
+	_ "example.com/missingpkg/deprecated"
+	_ "example.com/usemissingpre"
+)

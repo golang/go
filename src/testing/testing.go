@@ -17,13 +17,13 @@
 // package builds but will be included when the ``go test'' command is run.
 // For more detail, run ``go help test'' and ``go help testflag''.
 //
-// Tests and benchmarks may be skipped if not applicable with a call to
-// the Skip method of *T and *B:
-//     func TestTimeConsuming(t *testing.T) {
-//         if testing.Short() {
-//             t.Skip("skipping test in short mode.")
+// A simple test function looks like this:
+//
+//     func TestAbs(t *testing.T) {
+//         got := Abs(-1)
+//         if got != 1 {
+//             t.Errorf("Abs(-1) = %d; want 1", got)
 //         }
-//         ...
 //     }
 //
 // Benchmarks
@@ -131,6 +131,18 @@
 // The entire test file is presented as the example when it contains a single
 // example function, at least one other function, type, variable, or constant
 // declaration, and no test or benchmark functions.
+//
+// Skipping
+//
+// Tests or benchmarks may be skipped at run time with a call to
+// the Skip method of *T or *B:
+//
+//     func TestTimeConsuming(t *testing.T) {
+//         if testing.Short() {
+//             t.Skip("skipping test in short mode.")
+//         }
+//         ...
+//     }
 //
 // Subtests and Sub-benchmarks
 //
@@ -602,21 +614,24 @@ func (c *common) log(s string) {
 	c.logDepth(s, 3) // logDepth + log + public function
 }
 
-// logDepth generates the output. At an arbitary stack depth
+// logDepth generates the output at an arbitrary stack depth.
 func (c *common) logDepth(s string, depth int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	// If this test has already finished try and log this message with our parent
-	// with this test name tagged so we know where it came from.
-	// If we don't have a parent panic.
-	if c.done {
-		if c.parent != nil {
-			c.parent.logDepth(s, depth+1)
-		} else {
-			panic("Log in goroutine after " + c.name + " has completed")
-		}
-	} else {
+	if !c.done {
 		c.output = append(c.output, c.decorate(s, depth+1)...)
+	} else {
+		// This test has already finished. Try and log this message
+		// with our parent. If we don't have a parent, panic.
+		for parent := c.parent; parent != nil; parent = parent.parent {
+			parent.mu.Lock()
+			defer parent.mu.Unlock()
+			if !parent.done {
+				parent.output = append(parent.output, parent.decorate(s, depth+1)...)
+				return
+			}
+		}
+		panic("Log in goroutine after " + c.name + " has completed")
 	}
 }
 
@@ -1272,7 +1287,7 @@ func (m *M) writeProfiles() {
 			os.Exit(2)
 		}
 		if err = m.deps.WriteProfileTo("mutex", f, 0); err != nil {
-			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *blockProfile, err)
+			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *mutexProfile, err)
 			os.Exit(2)
 		}
 		f.Close()
@@ -1288,20 +1303,18 @@ func toOutputDir(path string) string {
 	if *outputDir == "" || path == "" {
 		return path
 	}
-	if runtime.GOOS == "windows" {
-		// On Windows, it's clumsy, but we can be almost always correct
-		// by just looking for a drive letter and a colon.
-		// Absolute paths always have a drive letter (ignoring UNC).
-		// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
-		// what to do, but even then path/filepath doesn't help.
-		// TODO: Worth doing better? Probably not, because we're here only
-		// under the management of go test.
-		if len(path) >= 2 {
-			letter, colon := path[0], path[1]
-			if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
-				// If path starts with a drive letter we're stuck with it regardless.
-				return path
-			}
+	// On Windows, it's clumsy, but we can be almost always correct
+	// by just looking for a drive letter and a colon.
+	// Absolute paths always have a drive letter (ignoring UNC).
+	// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
+	// what to do, but even then path/filepath doesn't help.
+	// TODO: Worth doing better? Probably not, because we're here only
+	// under the management of go test.
+	if runtime.GOOS == "windows" && len(path) >= 2 {
+		letter, colon := path[0], path[1]
+		if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
+			// If path starts with a drive letter we're stuck with it regardless.
+			return path
 		}
 	}
 	if os.IsPathSeparator(path[0]) {

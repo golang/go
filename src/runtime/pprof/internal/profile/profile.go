@@ -211,9 +211,7 @@ func (p *Profile) setMain() {
 			continue
 		}
 		// Swap what we guess is main to position 0.
-		tmp := p.Mapping[i]
-		p.Mapping[i] = p.Mapping[0]
-		p.Mapping[0] = tmp
+		p.Mapping[i], p.Mapping[0] = p.Mapping[0], p.Mapping[i]
 		break
 	}
 }
@@ -573,7 +571,7 @@ func (p *Profile) Demangle(d Demangler) error {
 	return nil
 }
 
-// Empty returns true if the profile contains no samples.
+// Empty reports whether the profile contains no samples.
 func (p *Profile) Empty() bool {
 	return len(p.Sample) == 0
 }

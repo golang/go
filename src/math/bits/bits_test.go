@@ -6,6 +6,7 @@ package bits_test
 
 import (
 	. "math/bits"
+	"runtime"
 	"testing"
 	"unsafe"
 )
@@ -735,6 +736,13 @@ func TestAddSubUint(t *testing.T) {
 		test("Add symmetric", Add, a.y, a.x, a.c, a.z, a.cout)
 		test("Sub", Sub, a.z, a.x, a.c, a.y, a.cout)
 		test("Sub symmetric", Sub, a.z, a.y, a.c, a.x, a.cout)
+		// The above code can't test intrinsic implementation, because the passed function is not called directly.
+		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
+		test("Add intrinsic", func(x, y, c uint) (uint, uint) { return Add(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
+		test("Add intrinsic symmetric", func(x, y, c uint) (uint, uint) { return Add(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub intrinsic", func(x, y, c uint) (uint, uint) { return Sub(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub intrinsic symmetric", func(x, y, c uint) (uint, uint) { return Sub(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
+
 	}
 }
 
@@ -789,6 +797,12 @@ func TestAddSubUint64(t *testing.T) {
 		test("Add64 symmetric", Add64, a.y, a.x, a.c, a.z, a.cout)
 		test("Sub64", Sub64, a.z, a.x, a.c, a.y, a.cout)
 		test("Sub64 symmetric", Sub64, a.z, a.y, a.c, a.x, a.cout)
+		// The above code can't test intrinsic implementation, because the passed function is not called directly.
+		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
+		test("Add64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return Add64(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
+		test("Add64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return Add64(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return Sub64(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return Sub64(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
 	}
 }
 
@@ -816,6 +830,12 @@ func TestMulDiv(t *testing.T) {
 		testMul("Mul symmetric", Mul, a.y, a.x, a.hi, a.lo)
 		testDiv("Div", Div, a.hi, a.lo+a.r, a.y, a.x, a.r)
 		testDiv("Div symmetric", Div, a.hi, a.lo+a.r, a.x, a.y, a.r)
+		// The above code can't test intrinsic implementation, because the passed function is not called directly.
+		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
+		testMul("Mul intrinsic", func(x, y uint) (uint, uint) { return Mul(x, y) }, a.x, a.y, a.hi, a.lo)
+		testMul("Mul intrinsic symmetric", func(x, y uint) (uint, uint) { return Mul(x, y) }, a.y, a.x, a.hi, a.lo)
+		testDiv("Div intrinsic", func(hi, lo, y uint) (uint, uint) { return Div(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div intrinsic symmetric", func(hi, lo, y uint) (uint, uint) { return Div(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
 	}
 }
 
@@ -872,7 +892,96 @@ func TestMulDiv64(t *testing.T) {
 		testMul("Mul64 symmetric", Mul64, a.y, a.x, a.hi, a.lo)
 		testDiv("Div64", Div64, a.hi, a.lo+a.r, a.y, a.x, a.r)
 		testDiv("Div64 symmetric", Div64, a.hi, a.lo+a.r, a.x, a.y, a.r)
+		// The above code can't test intrinsic implementation, because the passed function is not called directly.
+		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
+		testMul("Mul64 intrinsic", func(x, y uint64) (uint64, uint64) { return Mul64(x, y) }, a.x, a.y, a.hi, a.lo)
+		testMul("Mul64 intrinsic symmetric", func(x, y uint64) (uint64, uint64) { return Mul64(x, y) }, a.y, a.x, a.hi, a.lo)
+		testDiv("Div64 intrinsic", func(hi, lo, y uint64) (uint64, uint64) { return Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div64 intrinsic symmetric", func(hi, lo, y uint64) (uint64, uint64) { return Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
 	}
+}
+
+const (
+	divZeroError  = "runtime error: integer divide by zero"
+	overflowError = "runtime error: integer overflow"
+)
+
+func TestDivPanicOverflow(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div should have panicked when y<=hi")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != overflowError {
+			t.Errorf("Div expected panic: %q, got: %q ", overflowError, e.Error())
+		}
+	}()
+	q, r := Div(1, 0, 1)
+	t.Errorf("undefined q, r = %v, %v calculated when Div should have panicked", q, r)
+}
+
+func TestDiv32PanicOverflow(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div32 should have panicked when y<=hi")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != overflowError {
+			t.Errorf("Div32 expected panic: %q, got: %q ", overflowError, e.Error())
+		}
+	}()
+	q, r := Div32(1, 0, 1)
+	t.Errorf("undefined q, r = %v, %v calculated when Div32 should have panicked", q, r)
+}
+
+func TestDiv64PanicOverflow(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div64 should have panicked when y<=hi")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != overflowError {
+			t.Errorf("Div64 expected panic: %q, got: %q ", overflowError, e.Error())
+		}
+	}()
+	q, r := Div64(1, 0, 1)
+	t.Errorf("undefined q, r = %v, %v calculated when Div64 should have panicked", q, r)
+}
+
+func TestDivPanicZero(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div should have panicked when y==0")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != divZeroError {
+			t.Errorf("Div expected panic: %q, got: %q ", divZeroError, e.Error())
+		}
+	}()
+	q, r := Div(1, 1, 0)
+	t.Errorf("undefined q, r = %v, %v calculated when Div should have panicked", q, r)
+}
+
+func TestDiv32PanicZero(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div32 should have panicked when y==0")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != divZeroError {
+			t.Errorf("Div32 expected panic: %q, got: %q ", divZeroError, e.Error())
+		}
+	}()
+	q, r := Div32(1, 1, 0)
+	t.Errorf("undefined q, r = %v, %v calculated when Div32 should have panicked", q, r)
+}
+
+func TestDiv64PanicZero(t *testing.T) {
+	// Expect a panic
+	defer func() {
+		if err := recover(); err == nil {
+			t.Error("Div64 should have panicked when y==0")
+		} else if e, ok := err.(runtime.Error); !ok || e.Error() != divZeroError {
+			t.Errorf("Div64 expected panic: %q, got: %q ", divZeroError, e.Error())
+		}
+	}()
+	q, r := Div64(1, 1, 0)
+	t.Errorf("undefined q, r = %v, %v calculated when Div64 should have panicked", q, r)
 }
 
 func BenchmarkAdd(b *testing.B) {
@@ -899,6 +1008,21 @@ func BenchmarkAdd64(b *testing.B) {
 	Output = int(z + c)
 }
 
+func BenchmarkAdd64multiple(b *testing.B) {
+	var z0 = uint64(Input)
+	var z1 = uint64(Input)
+	var z2 = uint64(Input)
+	var z3 = uint64(Input)
+	for i := 0; i < b.N; i++ {
+		var c uint64
+		z0, c = Add64(z0, uint64(i), c)
+		z1, c = Add64(z1, uint64(i), c)
+		z2, c = Add64(z2, uint64(i), c)
+		z3, _ = Add64(z3, uint64(i), c)
+	}
+	Output = int(z0 + z1 + z2 + z3)
+}
+
 func BenchmarkSub(b *testing.B) {
 	var z, c uint
 	for i := 0; i < b.N; i++ {
@@ -918,9 +1042,24 @@ func BenchmarkSub32(b *testing.B) {
 func BenchmarkSub64(b *testing.B) {
 	var z, c uint64
 	for i := 0; i < b.N; i++ {
-		z, c = Add64(uint64(Input), uint64(i), c)
+		z, c = Sub64(uint64(Input), uint64(i), c)
 	}
 	Output = int(z + c)
+}
+
+func BenchmarkSub64multiple(b *testing.B) {
+	var z0 = uint64(Input)
+	var z1 = uint64(Input)
+	var z2 = uint64(Input)
+	var z3 = uint64(Input)
+	for i := 0; i < b.N; i++ {
+		var c uint64
+		z0, c = Sub64(z0, uint64(i), c)
+		z1, c = Sub64(z1, uint64(i), c)
+		z2, c = Sub64(z2, uint64(i), c)
+		z3, _ = Sub64(z3, uint64(i), c)
+	}
+	Output = int(z0 + z1 + z2 + z3)
 }
 
 func BenchmarkMul(b *testing.B) {

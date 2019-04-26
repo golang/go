@@ -171,7 +171,7 @@ func (r *Region) End() {
 	userRegion(r.id, regionEndCode, r.regionType)
 }
 
-// IsEnabled returns whether tracing is enabled.
+// IsEnabled reports whether tracing is enabled.
 // The information is advisory only. The tracing status
 // may have changed by the time this function returns.
 func IsEnabled() bool {

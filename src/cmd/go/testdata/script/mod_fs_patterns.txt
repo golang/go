@@ -34,11 +34,11 @@ stderr 'import lookup disabled'
 
 ! go build -mod=readonly ./nonexist
 ! stderr 'import lookup disabled'
-stderr '^go: no such directory ./nonexist'
+stderr 'unknown import path "m/nonexist": cannot find package'
 
 ! go build -mod=readonly ./go.mod
 ! stderr 'import lookup disabled'
-stderr '^go: ./go.mod is not a directory'
+stderr 'unknown import path "m/go.mod": cannot find package'
 
 -- x/go.mod --
 module m

@@ -9,6 +9,7 @@ package os
 import (
 	"internal/poll"
 	"internal/syscall/unix"
+	"io"
 	"runtime"
 	"syscall"
 )
@@ -51,6 +52,7 @@ type file struct {
 	dirinfo     *dirInfo // nil unless directory being read
 	nonblock    bool     // whether we set nonblocking mode
 	stdoutOrErr bool     // whether this is stdout or stderr
+	appendMode  bool     // whether file is opened for appending
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
@@ -116,23 +118,33 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 
 	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindNonBlock
 
-	// Don't try to use kqueue with regular files on FreeBSD.
-	// It crashes the system unpredictably while running all.bash.
-	// Issue 19093.
 	// If the caller passed a non-blocking filedes (kindNonBlock),
 	// we assume they know what they are doing so we allow it to be
 	// used with kqueue.
-	if runtime.GOOS == "freebsd" && kind == kindOpenFile {
-		pollable = false
-	}
+	if kind == kindOpenFile {
+		switch runtime.GOOS {
+		case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
+			var st syscall.Stat_t
+			err := syscall.Fstat(fdi, &st)
+			typ := st.Mode & syscall.S_IFMT
+			// Don't try to use kqueue with regular files on *BSDs.
+			// On FreeBSD a regular file is always
+			// reported as ready for writing.
+			// On Dragonfly, NetBSD and OpenBSD the fd is signaled
+			// only once as ready (both read and write).
+			// Issue 19093.
+			// Also don't add directories to the netpoller.
+			if err == nil && (typ == syscall.S_IFREG || typ == syscall.S_IFDIR) {
+				pollable = false
+			}
 
-	// On Darwin, kqueue does not work properly with fifos:
-	// closing the last writer does not cause a kqueue event
-	// for any readers. See issue #24164.
-	if runtime.GOOS == "darwin" && kind == kindOpenFile {
-		var st syscall.Stat_t
-		if err := syscall.Fstat(fdi, &st); err == nil && st.Mode&syscall.S_IFMT == syscall.S_IFIFO {
-			pollable = false
+			// In addition to the behavior described above for regular files,
+			// on Darwin, kqueue does not work properly with fifos:
+			// closing the last writer does not cause a kqueue event
+			// for any readers. See issue #24164.
+			if runtime.GOOS == "darwin" && typ == syscall.S_IFIFO {
+				pollable = false
+			}
 		}
 	}
 
@@ -155,13 +167,6 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	return f
 }
 
-// Auxiliary information if the File describes a directory
-type dirInfo struct {
-	buf  []byte // buffer for directory I/O
-	nbuf int    // length of buf; return value from Getdirentries
-	bufp int    // location of next record in buf.
-}
-
 // epipecheck raises SIGPIPE if we get an EPIPE error on standard
 // output or standard error. See the SIGPIPE docs in os/signal, and
 // issue 11845.
@@ -176,6 +181,7 @@ func epipecheck(file *File, e error) {
 const DevNull = "/dev/null"
 
 // openFileNolog is the Unix implementation of OpenFile.
+// Changes here should be reflected in openFdAt, if relevant.
 func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	setSticky := false
 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
@@ -229,6 +235,9 @@ func (f *File) Close() error {
 func (file *file) close() error {
 	if file == nil {
 		return syscall.EINVAL
+	}
+	if file.dirinfo != nil {
+		file.dirinfo.close()
 	}
 	var err error
 	if e := file.pfd.Close(); e != nil {
@@ -357,4 +366,50 @@ func Symlink(oldname, newname string) error {
 		return &LinkError{"symlink", oldname, newname, e}
 	}
 	return nil
+}
+
+func (f *File) readdir(n int) (fi []FileInfo, err error) {
+	dirname := f.name
+	if dirname == "" {
+		dirname = "."
+	}
+	names, err := f.Readdirnames(n)
+	fi = make([]FileInfo, 0, len(names))
+	for _, filename := range names {
+		fip, lerr := lstat(dirname + "/" + filename)
+		if IsNotExist(lerr) {
+			// File disappeared between readdir + stat.
+			// Just treat it as if it didn't exist.
+			continue
+		}
+		if lerr != nil {
+			return fi, lerr
+		}
+		fi = append(fi, fip)
+	}
+	if len(fi) == 0 && err == nil && n > 0 {
+		// Per File.Readdir, the slice must be non-empty or err
+		// must be non-nil if n > 0.
+		err = io.EOF
+	}
+	return fi, err
+}
+
+// Readlink returns the destination of the named symbolic link.
+// If there is an error, it will be of type *PathError.
+func Readlink(name string) (string, error) {
+	for len := 128; ; len *= 2 {
+		b := make([]byte, len)
+		n, e := fixCount(syscall.Readlink(name, b))
+		// buffer too small
+		if runtime.GOOS == "aix" && e == syscall.ERANGE {
+			continue
+		}
+		if e != nil {
+			return "", &PathError{"readlink", name, e}
+		}
+		if n < len {
+			return string(b[0:n]), nil
+		}
+	}
 }

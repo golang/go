@@ -15,12 +15,15 @@ import (
 )
 
 // A Header represents the key-value pairs in an HTTP header.
+//
+// The keys should be in canonical form, as returned by
+// CanonicalHeaderKey.
 type Header map[string][]string
 
 // Add adds the key, value pair to the header.
 // It appends to any existing values associated with key.
 // The key is case insensitive; it is canonicalized by
-// textproto.CanonicalMIMEHeaderKey.
+// CanonicalHeaderKey.
 func (h Header) Add(key, value string) {
 	textproto.MIMEHeader(h).Add(key, value)
 }
@@ -52,9 +55,16 @@ func (h Header) get(key string) string {
 	return ""
 }
 
+// has reports whether h has the provided key defined, even if it's
+// set to 0-length slice.
+func (h Header) has(key string) bool {
+	_, ok := h[key]
+	return ok
+}
+
 // Del deletes the values associated with key.
 // The key is case insensitive; it is canonicalized by
-// textproto.CanonicalMIMEHeaderKey.
+// CanonicalHeaderKey.
 func (h Header) Del(key string) {
 	textproto.MIMEHeader(h).Del(key)
 }
@@ -68,12 +78,19 @@ func (h Header) write(w io.Writer, trace *httptrace.ClientTrace) error {
 	return h.writeSubset(w, nil, trace)
 }
 
-func (h Header) clone() Header {
+// Clone returns a copy of h.
+func (h Header) Clone() Header {
+	// Find total number of values.
+	nv := 0
+	for _, vv := range h {
+		nv += len(vv)
+	}
+	sv := make([]string, nv) // shared backing array for headers' values
 	h2 := make(Header, len(h))
 	for k, vv := range h {
-		vv2 := make([]string, len(vv))
-		copy(vv2, vv)
-		h2[k] = vv2
+		n := copy(sv, vv)
+		h2[k] = sv[:n:n]
+		sv = sv[n:]
 	}
 	return h2
 }

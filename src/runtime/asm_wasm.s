@@ -293,9 +293,6 @@ TEXT ·cgocallback_gofunc(SB), NOSPLIT, $16-32
 		JMP NAME(SB); \
 	End
 
-TEXT reflect·call(SB), NOSPLIT, $0-0
-	JMP ·reflectcall(SB)
-
 TEXT ·reflectcall(SB), NOSPLIT, $0-32
 	I64Load fn+8(FP)
 	I64Eqz
@@ -369,7 +366,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-32; \
 	Set RET1; \
 	\
 	Get SP; \
-	I64ExtendUI32; \
+	I64ExtendI32U; \
 	Get R0; \
 	I64Add; \
 	Set RET2; \
@@ -446,7 +443,7 @@ TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
 	// Record value
 	MOVD R1, 0(R5)
 	// Record *slot
-	MOVD R0, 8(R5)
+	MOVD (R0), 8(R5)
 
 	// Increment wbBuf.next
 	Get R5

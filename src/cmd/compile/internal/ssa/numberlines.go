@@ -20,7 +20,7 @@ func isPoorStatementOp(op Op) bool {
 	return false
 }
 
-// LosesStmtMark returns whether a prog with op as loses its statement mark on the way to DWARF.
+// LosesStmtMark reports whether a prog with op as loses its statement mark on the way to DWARF.
 // The attributes from some opcodes are lost in translation.
 // TODO: this is an artifact of how funcpctab combines information for instructions at a single PC.
 // Should try to fix it there.
@@ -71,6 +71,16 @@ func notStmtBoundary(op Op) bool {
 		return true
 	}
 	return false
+}
+
+func (b *Block) FirstPossibleStmtValue() *Value {
+	for _, v := range b.Values {
+		if notStmtBoundary(v.Op) {
+			continue
+		}
+		return v
+	}
+	return nil
 }
 
 func numberLines(f *Func) {

@@ -224,6 +224,7 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 // use variables of type Listener instead of assuming TCP.
 type TCPListener struct {
 	fd *netFD
+	lc ListenConfig
 }
 
 // SyscallConn returns a raw network connection.

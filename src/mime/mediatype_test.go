@@ -481,6 +481,8 @@ var formatTests = []formatTest{
 	{"noslash", map[string]string{"X": "Y"}, "noslash; x=Y"}, // e.g. Content-Disposition values (RFC 2183); issue 11289
 	{"foo bar/baz", nil, ""},
 	{"foo/bar baz", nil, ""},
+	{"attachment", map[string]string{"filename": "ĄĄŽŽČČŠŠ"}, ""},
+	{"attachment", map[string]string{"filename": "ÁÁÊÊÇÇÎÎ"}, ""},
 	{"foo/BAR", nil, "foo/bar"},
 	{"foo/BAR", map[string]string{"X": "Y"}, "foo/bar; x=Y"},
 	{"foo/BAR", map[string]string{"space": "With space"}, `foo/bar; space="With space"`},

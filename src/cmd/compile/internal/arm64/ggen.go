@@ -79,7 +79,8 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
 	}
 }
 
-func ginsnop(pp *gc.Progs) {
+func ginsnop(pp *gc.Progs) *obj.Prog {
 	p := pp.Prog(arm64.AHINT)
 	p.From.Type = obj.TYPE_CONST
+	return p
 }

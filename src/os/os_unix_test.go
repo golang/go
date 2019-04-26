@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
 
 package os_test
 
@@ -21,6 +21,9 @@ import (
 func init() {
 	isReadonlyError = func(err error) bool { return err == syscall.EROFS }
 }
+
+// For TestRawConnReadWrite.
+type syscallDescriptor = int
 
 func checkUidGid(t *testing.T, path string, uid, gid int) {
 	dir, err := Lstat(path)
@@ -149,6 +152,9 @@ func TestLchown(t *testing.T) {
 	gid := Getgid()
 	t.Log("gid:", gid)
 	if err = Lchown(linkname, -1, gid); err != nil {
+		if err, ok := err.(*PathError); ok && err.Err == syscall.ENOSYS {
+			t.Skip("lchown is unavailable")
+		}
 		t.Fatalf("lchown %s -1 %d: %s", linkname, gid, err)
 	}
 	sys := dir.Sys().(*syscall.Stat_t)
@@ -228,6 +234,10 @@ func TestMkdirStickyUmask(t *testing.T) {
 
 // See also issues: 22939, 24331
 func newFileTest(t *testing.T, blocking bool) {
+	if runtime.GOOS == "js" {
+		t.Skipf("syscall.Pipe is not available on %s.", runtime.GOOS)
+	}
+
 	p := make([]int, 2)
 	if err := syscall.Pipe(p); err != nil {
 		t.Fatalf("pipe: %v", err)
@@ -277,4 +287,29 @@ func TestNewFileBlock(t *testing.T) {
 func TestNewFileNonBlock(t *testing.T) {
 	t.Parallel()
 	newFileTest(t, false)
+}
+
+func TestSplitPath(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct{ path, wantDir, wantBase string }{
+		{"a", ".", "a"},
+		{"a/", ".", "a"},
+		{"a//", ".", "a"},
+		{"a/b", "a", "b"},
+		{"a/b/", "a", "b"},
+		{"a/b/c", "a/b", "c"},
+		{"/a", "/", "a"},
+		{"/a/", "/", "a"},
+		{"/a/b", "/a", "b"},
+		{"/a/b/", "/a", "b"},
+		{"/a/b/c", "/a/b", "c"},
+		{"//a", "/", "a"},
+		{"//a/", "/", "a"},
+		{"///a", "/", "a"},
+		{"///a/", "/", "a"},
+	} {
+		if dir, base := SplitPath(tt.path); dir != tt.wantDir || base != tt.wantBase {
+			t.Errorf("splitPath(%q) = %q, %q, want %q, %q", tt.path, dir, base, tt.wantDir, tt.wantBase)
+		}
+	}
 }

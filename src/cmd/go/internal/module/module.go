@@ -226,7 +226,7 @@ func checkElem(elem string, fileName bool) error {
 	}
 	for _, bad := range badWindowsNames {
 		if strings.EqualFold(bad, short) {
-			return fmt.Errorf("disallowed path element %q", elem)
+			return fmt.Errorf("%q disallowed as path element component on Windows", short)
 		}
 	}
 	return nil
@@ -284,7 +284,7 @@ func SplitPathVersion(path string) (prefix, pathMajor string, ok bool) {
 		}
 		i--
 	}
-	if i <= 1 || path[i-1] != 'v' || path[i-2] != '/' {
+	if i <= 1 || i == len(path) || path[i-1] != 'v' || path[i-2] != '/' {
 		return path, "", true
 	}
 	prefix, pathMajor = path[:i-2], path[i-2:]

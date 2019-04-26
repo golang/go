@@ -101,6 +101,8 @@ type Rusage C.struct_rusage
 
 type Rlimit C.struct_rlimit
 
+type _Pid_t C.pid_t
+
 type _Gid_t C.gid_t
 
 // Files

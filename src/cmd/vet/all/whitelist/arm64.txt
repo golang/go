@@ -1,8 +1,5 @@
 // arm64-specific vet whitelist. See readme.txt for details.
 
-internal/bytealg/compare_arm64.s: [arm64] cannot check cross-package assembly function: Compare is in package bytes
-internal/bytealg/compare_arm64.s: [arm64] cannot check cross-package assembly function: cmpstring is in package runtime
-
 // Intentionally missing declarations.
 runtime/asm_arm64.s: [arm64] addmoduledata: function addmoduledata missing Go declaration
 runtime/duff_arm64.s: [arm64] duffzero: function duffzero missing Go declaration

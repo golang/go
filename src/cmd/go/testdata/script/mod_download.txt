@@ -8,6 +8,12 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
 
+# download of an invalid path should report the error
+! go mod download this.domain.is.invalid/somemodule@v1.0.0
+stderr 'this.domain.is.invalid'
+! go mod download -json this.domain.is.invalid/somemodule@v1.0.0
+stdout '"Error": ".*this.domain.is.invalid.*"'
+
 # download -json with version should print JSON
 go mod download -json 'rsc.io/quote@<=v1.5.0'
 stdout '^\t"Path": "rsc.io/quote"'
@@ -42,6 +48,21 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
 exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
 
+# download repopulates deleted files and directories independently.
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+go mod download
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+go mod download
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+go mod download
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+rm -r $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+go mod download
+exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+
+# download reports the locations of downloaded files
 go mod download -json
 stdout '^\t"Path": "rsc.io/quote"'
 stdout '^\t"Version": "v1.5.2"'

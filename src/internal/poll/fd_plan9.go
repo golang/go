@@ -193,10 +193,10 @@ func isInterrupted(err error) bool {
 	return err != nil && stringsHasSuffix(err.Error(), "interrupted")
 }
 
-// PollDescriptor returns the descriptor being used by the poller,
-// or ^uintptr(0) if there isn't one. This is only used for testing.
-func PollDescriptor() uintptr {
-	return ^uintptr(0)
+// IsPollDescriptor reports whether fd is the descriptor being used by the poller.
+// This is only used for testing.
+func IsPollDescriptor(fd uintptr) bool {
+	return false
 }
 
 // RawControl invokes the user-defined function f for a non-IO

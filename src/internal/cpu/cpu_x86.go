@@ -55,13 +55,8 @@ func doinit() {
 		{Name: "sse42", Feature: &X86.HasSSE42},
 		{Name: "ssse3", Feature: &X86.HasSSSE3},
 
-		// sse2 set as last element so it can easily be removed again. See code below.
-		{Name: "sse2", Feature: &X86.HasSSE2},
-	}
-
-	// Remove sse2 from options on amd64(p32) because SSE2 is a mandatory feature for these GOARCHs.
-	if GOARCH == "amd64" || GOARCH == "amd64p32" {
-		options = options[:len(options)-1]
+		// These capabilities should always be enabled on amd64(p32):
+		{Name: "sse2", Feature: &X86.HasSSE2, Required: GOARCH == "amd64" || GOARCH == "amd64p32"},
 	}
 
 	maxID, _, _, _ := cpuid(0, 0)

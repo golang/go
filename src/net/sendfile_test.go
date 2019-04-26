@@ -12,8 +12,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"runtime"
+	"sync"
 	"testing"
+	"time"
 )
 
 const (
@@ -209,4 +213,104 @@ func TestSendfileSeeked(t *testing.T) {
 	for err := range errc {
 		t.Error(err)
 	}
+}
+
+// Test that sendfile doesn't put a pipe into blocking mode.
+func TestSendfilePipe(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "plan9", "windows":
+		// These systems don't support deadlines on pipes.
+		t.Skipf("skipping on %s", runtime.GOOS)
+	}
+
+	t.Parallel()
+
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer w.Close()
+	defer r.Close()
+
+	copied := make(chan bool)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		// Accept a connection and copy 1 byte from the read end of
+		// the pipe to the connection. This will call into sendfile.
+		defer wg.Done()
+		conn, err := ln.Accept()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer conn.Close()
+		_, err = io.CopyN(conn, r, 1)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		// Signal the main goroutine that we've copied the byte.
+		close(copied)
+	}()
+
+	wg.Add(1)
+	go func() {
+		// Write 1 byte to the write end of the pipe.
+		defer wg.Done()
+		_, err := w.Write([]byte{'a'})
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		// Connect to the server started two goroutines up and
+		// discard any data that it writes.
+		defer wg.Done()
+		conn, err := Dial("tcp", ln.Addr().String())
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer conn.Close()
+		io.Copy(ioutil.Discard, conn)
+	}()
+
+	// Wait for the byte to be copied, meaning that sendfile has
+	// been called on the pipe.
+	<-copied
+
+	// Set a very short deadline on the read end of the pipe.
+	if err := r.SetDeadline(time.Now().Add(time.Microsecond)); err != nil {
+		t.Fatal(err)
+	}
+
+	wg.Add(1)
+	go func() {
+		// Wait for much longer than the deadline and write a byte
+		// to the pipe.
+		defer wg.Done()
+		time.Sleep(50 * time.Millisecond)
+		w.Write([]byte{'b'})
+	}()
+
+	// If this read does not time out, the pipe was incorrectly
+	// put into blocking mode.
+	_, err = r.Read(make([]byte, 1))
+	if err == nil {
+		t.Error("Read did not time out")
+	} else if !os.IsTimeout(err) {
+		t.Errorf("got error %v, expected a time out", err)
+	}
+
+	wg.Wait()
 }

@@ -242,6 +242,7 @@ func testSpliceNoUnixgram(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(addr.Name)
 	up, err := ListenUnixgram("unixgram", addr)
 	if err != nil {
 		t.Fatal(err)
@@ -368,6 +369,7 @@ func startSpliceClient(conn Conn, op string, chunkSize, totalSize int) (func(), 
 		"GO_NET_TEST_SPLICE_OP=" + op,
 		"GO_NET_TEST_SPLICE_CHUNK_SIZE=" + strconv.Itoa(chunkSize),
 		"GO_NET_TEST_SPLICE_TOTAL_SIZE=" + strconv.Itoa(totalSize),
+		"TMPDIR=" + os.Getenv("TMPDIR"),
 	}
 	cmd.ExtraFiles = append(cmd.ExtraFiles, f)
 	cmd.Stdout = os.Stdout

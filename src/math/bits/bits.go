@@ -63,7 +63,7 @@ func TrailingZeros8(x uint8) int {
 }
 
 // TrailingZeros16 returns the number of trailing zero bits in x; the result is 16 for x == 0.
-func TrailingZeros16(x uint16) (n int) {
+func TrailingZeros16(x uint16) int {
 	if x == 0 {
 		return 16
 	}
@@ -230,8 +230,7 @@ func Reverse32(x uint32) uint32 {
 	x = x>>1&(m0&m) | x&(m0&m)<<1
 	x = x>>2&(m1&m) | x&(m1&m)<<2
 	x = x>>4&(m2&m) | x&(m2&m)<<4
-	x = x>>8&(m3&m) | x&(m3&m)<<8
-	return x>>16 | x<<16
+	return ReverseBytes32(x)
 }
 
 // Reverse64 returns the value of x with its bits in reversed order.
@@ -240,9 +239,7 @@ func Reverse64(x uint64) uint64 {
 	x = x>>1&(m0&m) | x&(m0&m)<<1
 	x = x>>2&(m1&m) | x&(m1&m)<<2
 	x = x>>4&(m2&m) | x&(m2&m)<<4
-	x = x>>8&(m3&m) | x&(m3&m)<<8
-	x = x>>16&(m4&m) | x&(m4&m)<<16
-	return x>>32 | x<<32
+	return ReverseBytes64(x)
 }
 
 // --- ReverseBytes ---
@@ -452,8 +449,7 @@ func Mul64(x, y uint64) (hi, lo uint64) {
 // Div returns the quotient and remainder of (hi, lo) divided by y:
 // quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
 // half in parameter hi and the lower half in parameter lo.
-// hi must be < y otherwise the behavior is undefined (the quotient
-// won't fit into quo).
+// Div panics for y == 0 (division by zero) or y <= hi (quotient overflow).
 func Div(hi, lo, y uint) (quo, rem uint) {
 	if UintSize == 32 {
 		q, r := Div32(uint32(hi), uint32(lo), uint32(y))
@@ -466,9 +462,11 @@ func Div(hi, lo, y uint) (quo, rem uint) {
 // Div32 returns the quotient and remainder of (hi, lo) divided by y:
 // quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
 // half in parameter hi and the lower half in parameter lo.
-// hi must be < y otherwise the behavior is undefined (the quotient
-// won't fit into quo).
+// Div32 panics for y == 0 (division by zero) or y <= hi (quotient overflow).
 func Div32(hi, lo, y uint32) (quo, rem uint32) {
+	if y != 0 && y <= hi {
+		panic(overflowError)
+	}
 	z := uint64(hi)<<32 | uint64(lo)
 	quo, rem = uint32(z/uint64(y)), uint32(z%uint64(y))
 	return
@@ -477,15 +475,17 @@ func Div32(hi, lo, y uint32) (quo, rem uint32) {
 // Div64 returns the quotient and remainder of (hi, lo) divided by y:
 // quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
 // half in parameter hi and the lower half in parameter lo.
-// hi must be < y otherwise the behavior is undefined (the quotient
-// won't fit into quo).
+// Div64 panics for y == 0 (division by zero) or y <= hi (quotient overflow).
 func Div64(hi, lo, y uint64) (quo, rem uint64) {
 	const (
 		two32  = 1 << 32
 		mask32 = two32 - 1
 	)
-	if hi >= y {
-		return 1<<64 - 1, 1<<64 - 1
+	if y == 0 {
+		panic(divideError)
+	}
+	if y <= hi {
+		panic(overflowError)
 	}
 
 	s := uint(LeadingZeros64(y))

@@ -227,7 +227,7 @@ func (n Name) String() string {
 	return n.ToRDNSequence().String()
 }
 
-// oidInAttributeTypeAndValue returns whether a type with the given OID exists
+// oidInAttributeTypeAndValue reports whether a type with the given OID exists
 // in atv.
 func oidInAttributeTypeAndValue(oid asn1.ObjectIdentifier, atv []AttributeTypeAndValue) bool {
 	for _, a := range atv {

@@ -1,8 +1,5 @@
 // 386-specific vet whitelist. See readme.txt for details.
 
-internal/bytealg/compare_386.s: [386] cannot check cross-package assembly function: Compare is in package bytes
-internal/bytealg/compare_386.s: [386] cannot check cross-package assembly function: cmpstring is in package runtime
-
 // startup code uses non-standard calling convention and intentionally
 // omits args.
 runtime/asm_386.s: [386] rt0_go: use of 4(SP) points beyond argument frame
@@ -19,6 +16,3 @@ runtime/asm_386.s: [386] aeshashbody: function aeshashbody missing Go declaratio
 runtime/asm_386.s: [386] addmoduledata: function addmoduledata missing Go declaration
 runtime/duff_386.s: [386] duffzero: function duffzero missing Go declaration
 runtime/duff_386.s: [386] duffcopy: function duffcopy missing Go declaration
-
-runtime/asm_386.s: [386] uint32tofloat64: function uint32tofloat64 missing Go declaration
-runtime/asm_386.s: [386] float64touint32: function float64touint32 missing Go declaration

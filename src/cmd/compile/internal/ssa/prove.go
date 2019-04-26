@@ -174,6 +174,9 @@ type factsTable struct {
 	// more than one len(s) for a slice. We could keep a list if necessary.
 	lens map[ID]*Value
 	caps map[ID]*Value
+
+	// zero is a zero-valued constant
+	zero *Value
 }
 
 // checkpointFact is an invalid value used for checkpointing
@@ -191,12 +194,16 @@ func newFactsTable(f *Func) *factsTable {
 	ft.stack = make([]fact, 4)
 	ft.limits = make(map[ID]limit)
 	ft.limitStack = make([]limitFact, 4)
+	ft.zero = f.ConstInt64(f.Config.Types.Int64, 0)
 	return ft
 }
 
 // update updates the set of relations between v and w in domain d
 // restricting it to r.
 func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+	if parent.Func.pass.debug > 2 {
+		parent.Func.Warnl(parent.Pos, "parent=%s, update %s %s %s", parent, v, w, r)
+	}
 	// No need to do anything else if we already found unsat.
 	if ft.unsat {
 		return
@@ -234,6 +241,9 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			panic("unknown relation")
 		}
 		if !ok {
+			if parent.Func.pass.debug > 2 {
+				parent.Func.Warnl(parent.Pos, "unsat %s %s %s", v, w, r)
+			}
 			ft.unsat = true
 			return
 		}
@@ -260,6 +270,9 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		ft.facts[p] = oldR & r
 		// If this relation is not satisfiable, mark it and exit right away
 		if oldR&r == 0 {
+			if parent.Func.pass.debug > 2 {
+				parent.Func.Warnl(parent.Pos, "unsat %s %s %s", v, w, r)
+			}
 			ft.unsat = true
 			return
 		}
@@ -361,7 +374,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		lim = old.intersect(lim)
 		ft.limits[v.ID] = lim
 		if v.Block.Func.pass.debug > 2 {
-			v.Block.Func.Warnl(parent.Pos, "parent=%s, new limits %s %s %s", parent, v, w, lim.String())
+			v.Block.Func.Warnl(parent.Pos, "parent=%s, new limits %s %s %s %s", parent, v, w, r, lim.String())
 		}
 		if lim.min > lim.max || lim.umin > lim.umax {
 			ft.unsat = true
@@ -442,7 +455,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 	if r == gt || r == gt|eq {
 		if x, delta := isConstDelta(v); x != nil && d == signed {
 			if parent.Func.pass.debug > 1 {
-				parent.Func.Warnl(parent.Pos, "x+d >= w; x:%v %v delta:%v w:%v d:%v", x, parent.String(), delta, w.AuxInt, d)
+				parent.Func.Warnl(parent.Pos, "x+d %s w; x:%v %v delta:%v w:%v d:%v", r, x, parent.String(), delta, w.AuxInt, d)
 			}
 			if !w.isGenericIntConst() {
 				// If we know that x+delta > w but w is not constant, we can derive:
@@ -503,8 +516,10 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 					// the other must be true
 					if l, has := ft.limits[x.ID]; has {
 						if l.max <= min {
-							// x>min is impossible, so it must be x<=max
-							ft.update(parent, vmax, x, d, r|eq)
+							if r&eq == 0 || l.max < min {
+								// x>min (x>=min) is impossible, so it must be x<=max
+								ft.update(parent, vmax, x, d, r|eq)
+							}
 						} else if l.min > max {
 							// x<=max is impossible, so it must be x>min
 							ft.update(parent, x, vmin, d, r)
@@ -555,7 +570,8 @@ func (ft *factsTable) isNonNegative(v *Value) bool {
 		}
 	}
 
-	return false
+	// Check if the signed poset can prove that the value is >= 0
+	return ft.order[0].OrderedOrEqual(ft.zero, v)
 }
 
 // checkpoint saves the current state of known relations.
@@ -723,14 +739,8 @@ func prove(f *Func) {
 	ft.checkpoint()
 
 	// Find length and capacity ops.
-	var zero *Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			// If we found a zero constant, save it (so we don't have
-			// to build one later).
-			if zero == nil && v.Op == OpConst64 && v.AuxInt == 0 {
-				zero = v
-			}
 			if v.Uses == 0 {
 				// We don't care about dead values.
 				// (There can be some that are CSEd but not removed yet.)
@@ -738,28 +748,19 @@ func prove(f *Func) {
 			}
 			switch v.Op {
 			case OpStringLen:
-				if zero == nil {
-					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
-				}
-				ft.update(b, v, zero, signed, gt|eq)
+				ft.update(b, v, ft.zero, signed, gt|eq)
 			case OpSliceLen:
 				if ft.lens == nil {
 					ft.lens = map[ID]*Value{}
 				}
 				ft.lens[v.Args[0].ID] = v
-				if zero == nil {
-					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
-				}
-				ft.update(b, v, zero, signed, gt|eq)
+				ft.update(b, v, ft.zero, signed, gt|eq)
 			case OpSliceCap:
 				if ft.caps == nil {
 					ft.caps = map[ID]*Value{}
 				}
 				ft.caps[v.Args[0].ID] = v
-				if zero == nil {
-					zero = b.NewValue0I(b.Pos, OpConst64, f.Config.Types.Int64, 0)
-				}
-				ft.update(b, v, zero, signed, gt|eq)
+				ft.update(b, v, ft.zero, signed, gt|eq)
 			}
 		}
 	}
@@ -893,7 +894,7 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
 // starting in Block b.
 func addIndVarRestrictions(ft *factsTable, b *Block, iv indVar) {
 	d := signed
-	if isNonNegative(iv.min) && isNonNegative(iv.max) {
+	if ft.isNonNegative(iv.min) && ft.isNonNegative(iv.max) {
 		d |= unsigned
 	}
 
@@ -929,31 +930,41 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 		if d == signed && ft.isNonNegative(c.Args[0]) && ft.isNonNegative(c.Args[1]) {
 			d |= unsigned
 		}
-		switch br {
-		case negative:
-			switch b.Control.Op { // Special cases
-			case OpIsInBounds, OpIsSliceInBounds:
-				// 0 <= a0 < a1 (or 0 <= a0 <= a1)
-				//
-				// On the positive branch, we learn a0 < a1,
-				// both signed and unsigned.
-				//
-				// On the negative branch, we learn (0 > a0 ||
-				// a0 >= a1). In the unsigned domain, this is
-				// simply a0 >= a1 (which is the reverse of the
-				// positive branch, so nothing surprising).
-				// But in the signed domain, we can't express the ||
-				// condition, so check if a0 is non-negative instead,
-				// to be able to learn something.
+		switch b.Control.Op {
+		case OpIsInBounds, OpIsSliceInBounds:
+			// 0 <= a0 < a1 (or 0 <= a0 <= a1)
+			//
+			// On the positive branch, we learn:
+			//   signed: 0 <= a0 < a1 (or 0 <= a0 <= a1)
+			//   unsigned:    a0 < a1 (or a0 <= a1)
+			//
+			// On the negative branch, we learn (0 > a0 ||
+			// a0 >= a1). In the unsigned domain, this is
+			// simply a0 >= a1 (which is the reverse of the
+			// positive branch, so nothing surprising).
+			// But in the signed domain, we can't express the ||
+			// condition, so check if a0 is non-negative instead,
+			// to be able to learn something.
+			switch br {
+			case negative:
 				d = unsigned
 				if ft.isNonNegative(c.Args[0]) {
 					d |= signed
 				}
+				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
+			case positive:
+				addRestrictions(b, ft, signed, ft.zero, c.Args[0], lt|eq)
+				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r)
 			}
-			addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
-		case positive:
-			addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r)
+		default:
+			switch br {
+			case negative:
+				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
+			case positive:
+				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r)
+			}
 		}
+
 	}
 }
 
@@ -1076,6 +1087,13 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 }
 
 var ctzNonZeroOp = map[Op]Op{OpCtz8: OpCtz8NonZero, OpCtz16: OpCtz16NonZero, OpCtz32: OpCtz32NonZero, OpCtz64: OpCtz64NonZero}
+var mostNegativeDividend = map[Op]int64{
+	OpDiv16: -1 << 15,
+	OpMod16: -1 << 15,
+	OpDiv32: -1 << 31,
+	OpMod32: -1 << 31,
+	OpDiv64: -1 << 63,
+	OpMod64: -1 << 63}
 
 // simplifyBlock simplifies some constant values in b and evaluates
 // branches to non-uniquely dominated successors of b.
@@ -1145,6 +1163,22 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				v.AuxInt = 1 // see shiftIsBounded
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Proved %v bounded", v.Op)
+				}
+			}
+		case OpDiv16, OpDiv32, OpDiv64, OpMod16, OpMod32, OpMod64:
+			// On amd64 and 386 fix-up code can be avoided if we know
+			//  the divisor is not -1 or the dividend > MinIntNN.
+			divr := v.Args[1]
+			divrLim, divrLimok := ft.limits[divr.ID]
+			divd := v.Args[0]
+			divdLim, divdLimok := ft.limits[divd.ID]
+			if (divrLimok && (divrLim.max < -1 || divrLim.min > -1)) ||
+				(divdLimok && divdLim.min > mostNegativeDividend[v.Op]) {
+				v.AuxInt = 1 // see NeedsFixUp in genericOps - v.AuxInt = 0 means we have not proved
+				// that the divisor is not -1 and the dividend is not the most negative,
+				// so we need to add fix-up code.
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v does not need fix-up", v.Op)
 				}
 			}
 		}

@@ -28,11 +28,18 @@ func (s Sequence) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
+// Copy returns a copy of the Sequence.
+func (s Sequence) Copy() Sequence {
+	copy := make(Sequence, 0, len(s))
+	return append(copy, s...)
+}
+
 // Method for printing - sorts the elements before printing.
 func (s Sequence) String() string {
+	s = s.Copy() // Make a copy; don't overwrite argument.
 	sort.Sort(s)
 	str := "["
-	for i, elem := range s {
+	for i, elem := range s { // Loop is O(N²); will fix that in next example.
 		if i > 0 {
 			str += " "
 		}

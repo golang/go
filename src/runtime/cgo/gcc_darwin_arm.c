@@ -47,7 +47,7 @@ inittls(void **tlsg, void **tlsbase)
 }
 
 static void *threadentry(void*);
-void (*setg_gcc)(void*);
+static void (*setg_gcc)(void*);
 
 void
 _cgo_sys_thread_start(ThreadStart *ts)

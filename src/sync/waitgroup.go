@@ -90,7 +90,7 @@ func (wg *WaitGroup) Add(delta int) {
 	// Reset waiters count to 0.
 	*statep = 0
 	for ; w != 0; w-- {
-		runtime_Semrelease(semap, false)
+		runtime_Semrelease(semap, false, 0)
 	}
 }
 

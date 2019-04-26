@@ -203,10 +203,18 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []interface{}) ([
 
 }
 
-// convertAssign copies to dest the value in src, converting it if possible.
-// An error is returned if the copy would result in loss of information.
-// dest should be a pointer type.
+// convertAssign is the same as convertAssignRows, but without the optional
+// rows argument.
 func convertAssign(dest, src interface{}) error {
+	return convertAssignRows(dest, src, nil)
+}
+
+// convertAssignRows copies to dest the value in src, converting it if possible.
+// An error is returned if the copy would result in loss of information.
+// dest should be a pointer type. If rows is passed in, the rows will
+// be used as the parent for any cursor values converted from a
+// driver.Rows to a *Rows.
+func convertAssignRows(dest, src interface{}, rows *Rows) error {
 	// Common cases, without reflect.
 	switch s := src.(type) {
 	case string:
@@ -299,6 +307,35 @@ func convertAssign(dest, src interface{}) error {
 			*d = nil
 			return nil
 		}
+	// The driver is returning a cursor the client may iterate over.
+	case driver.Rows:
+		switch d := dest.(type) {
+		case *Rows:
+			if d == nil {
+				return errNilPtr
+			}
+			if rows == nil {
+				return errors.New("invalid context to convert cursor rows, missing parent *Rows")
+			}
+			rows.closemu.Lock()
+			*d = Rows{
+				dc:          rows.dc,
+				releaseConn: func(error) {},
+				rowsi:       s,
+			}
+			// Chain the cancel function.
+			parentCancel := rows.cancel
+			rows.cancel = func() {
+				// When Rows.cancel is called, the closemu will be locked as well.
+				// So we can access rs.lasterr.
+				d.close(rows.lasterr)
+				if parentCancel != nil {
+					parentCancel()
+				}
+			}
+			rows.closemu.Unlock()
+			return nil
+		}
 	}
 
 	var sv reflect.Value
@@ -381,7 +418,7 @@ func convertAssign(dest, src interface{}) error {
 			return nil
 		}
 		dv.Set(reflect.New(dv.Type().Elem()))
-		return convertAssign(dv.Interface(), src)
+		return convertAssignRows(dv.Interface(), src, rows)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		s := asString(src)
 		i64, err := strconv.ParseInt(s, 10, dv.Type().Bits())

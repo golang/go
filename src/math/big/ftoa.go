@@ -22,24 +22,28 @@ import (
 //	'f'	-ddddd.dddd, no exponent
 //	'g'	like 'e' for large exponents, like 'f' otherwise
 //	'G'	like 'E' for large exponents, like 'f' otherwise
-//	'b'	-ddddddp±dd, binary exponent
-//	'p'	-0x.dddp±dd, binary exponent, hexadecimal mantissa
+//	'x'	-0xd.dddddp±dd, hexadecimal mantissa, decimal power of two exponent
+//	'p'	-0x.dddp±dd, hexadecimal mantissa, decimal power of two exponent (non-standard)
+//	'b'	-ddddddp±dd, decimal mantissa, decimal power of two exponent (non-standard)
 //
-// For the binary exponent formats, the mantissa is printed in normalized form:
+// For the power-of-two exponent formats, the mantissa is printed in normalized form:
 //
-//	'b'	decimal integer mantissa using x.Prec() bits, or -0
-//	'p'	hexadecimal fraction with 0.5 <= 0.mantissa < 1.0, or -0
+//	'x'	hexadecimal mantissa in [1, 2), or 0
+//	'p'	hexadecimal mantissa in [½, 1), or 0
+//	'b'	decimal integer mantissa using x.Prec() bits, or 0
+//
+// Note that the 'x' form is the one used by most other languages and libraries.
 //
 // If format is a different character, Text returns a "%" followed by the
 // unrecognized format character.
 //
 // The precision prec controls the number of digits (excluding the exponent)
-// printed by the 'e', 'E', 'f', 'g', and 'G' formats. For 'e', 'E', and 'f'
-// it is the number of digits after the decimal point. For 'g' and 'G' it is
-// the total number of digits. A negative precision selects the smallest
-// number of decimal digits necessary to identify the value x uniquely using
-// x.Prec() mantissa bits.
-// The prec value is ignored for the 'b' or 'p' format.
+// printed by the 'e', 'E', 'f', 'g', 'G', and 'x' formats.
+// For 'e', 'E', 'f', and 'x', it is the number of digits after the decimal point.
+// For 'g' and 'G' it is the total number of digits. A negative precision selects
+// the smallest number of decimal digits necessary to identify the value x uniquely
+// using x.Prec() mantissa bits.
+// The prec value is ignored for the 'b' and 'p' formats.
 func (x *Float) Text(format byte, prec int) string {
 	cap := 10 // TODO(gri) determine a good/better value here
 	if prec > 0 {
@@ -76,6 +80,8 @@ func (x *Float) Append(buf []byte, fmt byte, prec int) []byte {
 		return x.fmtB(buf)
 	case 'p':
 		return x.fmtP(buf)
+	case 'x':
+		return x.fmtX(buf, prec)
 	}
 
 	// Algorithm:
@@ -308,6 +314,7 @@ func fmtF(buf []byte, prec int, d decimal) []byte {
 // The mantissa is normalized such that is uses x.Prec() bits in binary
 // representation.
 // The sign of x is ignored, and x must not be an Inf.
+// (The caller handles Inf before invoking fmtB.)
 func (x *Float) fmtB(buf []byte) []byte {
 	if x.form == zero {
 		return append(buf, '0')
@@ -336,11 +343,80 @@ func (x *Float) fmtB(buf []byte) []byte {
 	return strconv.AppendInt(buf, e, 10)
 }
 
+// fmtX appends the string of x in the format "0x1." mantissa "p" exponent
+// with a hexadecimal mantissa and a binary exponent, or "0x0p0" if x is zero,
+// and returns the extended buffer.
+// A non-zero mantissa is normalized such that 1.0 <= mantissa < 2.0.
+// The sign of x is ignored, and x must not be an Inf.
+// (The caller handles Inf before invoking fmtX.)
+func (x *Float) fmtX(buf []byte, prec int) []byte {
+	if x.form == zero {
+		buf = append(buf, "0x0"...)
+		if prec > 0 {
+			buf = append(buf, '.')
+			for i := 0; i < prec; i++ {
+				buf = append(buf, '0')
+			}
+		}
+		buf = append(buf, "p+00"...)
+		return buf
+	}
+
+	if debugFloat && x.form != finite {
+		panic("non-finite float")
+	}
+
+	// round mantissa to n bits
+	var n uint
+	if prec < 0 {
+		n = 1 + (x.MinPrec()-1+3)/4*4 // round MinPrec up to 1 mod 4
+	} else {
+		n = 1 + 4*uint(prec)
+	}
+	// n%4 == 1
+	x = new(Float).SetPrec(n).SetMode(x.mode).Set(x)
+
+	// adjust mantissa to use exactly n bits
+	m := x.mant
+	switch w := uint(len(x.mant)) * _W; {
+	case w < n:
+		m = nat(nil).shl(m, n-w)
+	case w > n:
+		m = nat(nil).shr(m, w-n)
+	}
+	exp := x.exp - 1
+
+	hm := m.utoa(16)
+	if debugFloat && hm[0] != '1' {
+		panic("incorrect mantissa: " + string(hm))
+	}
+	buf = append(buf, "0x1"...)
+	if len(hm) > 1 {
+		buf = append(buf, '.')
+		buf = append(buf, hm[1:]...)
+	}
+
+	buf = append(buf, 'p')
+	exp64 := int64(exp)
+	if exp64 >= 0 {
+		buf = append(buf, '+')
+	} else {
+		exp64 = -exp64
+		buf = append(buf, '-')
+	}
+	// Force at least two exponent digits, to match fmt.
+	if exp64 < 10 {
+		buf = append(buf, '0')
+	}
+	return strconv.AppendInt(buf, exp64, 10)
+}
+
 // fmtP appends the string of x in the format "0x." mantissa "p" exponent
 // with a hexadecimal mantissa and a binary exponent, or "0" if x is zero,
 // and returns the extended buffer.
 // The mantissa is normalized such that 0.5 <= 0.mantissa < 1.0.
 // The sign of x is ignored, and x must not be an Inf.
+// (The caller handles Inf before invoking fmtP.)
 func (x *Float) fmtP(buf []byte) []byte {
 	if x.form == zero {
 		return append(buf, '0')
@@ -380,7 +456,7 @@ var _ fmt.Formatter = &floatZero // *Float must implement fmt.Formatter
 
 // Format implements fmt.Formatter. It accepts all the regular
 // formats for floating-point numbers ('b', 'e', 'E', 'f', 'F',
-// 'g', 'G') as well as 'p' and 'v'. See (*Float).Text for the
+// 'g', 'G', 'x') as well as 'p' and 'v'. See (*Float).Text for the
 // interpretation of 'p'. The 'v' format is handled like 'g'.
 // Format also supports specification of the minimum precision
 // in digits, the output field width, as well as the format flags
@@ -394,7 +470,7 @@ func (x *Float) Format(s fmt.State, format rune) {
 	}
 
 	switch format {
-	case 'e', 'E', 'f', 'b', 'p':
+	case 'e', 'E', 'f', 'b', 'p', 'x':
 		// nothing to do
 	case 'F':
 		// (*Float).Text doesn't support 'F'; handle like 'f'

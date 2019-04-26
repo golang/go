@@ -4,9 +4,13 @@
 
 package runtime
 
+import "unsafe"
+
 //go:nosplit
 func cputicks() int64 {
-	return nanotime()
+	var counter int64
+	stdcall1(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&counter)))
+	return counter
 }
 
 func checkgoarm() {

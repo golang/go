@@ -38,7 +38,7 @@ type Cookie struct {
 
 // SameSite allows a server to define a cookie attribute making it impossible for
 // the browser to send this cookie along with cross-site requests. The main
-// goal is to mitigate the risk of cross-origin information leakage, and provides
+// goal is to mitigate the risk of cross-origin information leakage, and provide
 // some protection against cross-site request forgery attacks.
 //
 // See https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site-00 for details.
@@ -168,8 +168,12 @@ func (c *Cookie) String() string {
 	if c == nil || !isCookieNameValid(c.Name) {
 		return ""
 	}
+	// extraCookieLength derived from typical length of cookie attributes
+	// see RFC 6265 Sec 4.1.
+	const extraCookieLength = 110
 	var b strings.Builder
-	b.WriteString(sanitizeCookieName(c.Name))
+	b.Grow(len(c.Name) + len(c.Value) + len(c.Domain) + len(c.Path) + extraCookieLength)
+	b.WriteString(c.Name)
 	b.WriteRune('=')
 	b.WriteString(sanitizeCookieValue(c.Value))
 
@@ -226,25 +230,28 @@ func (c *Cookie) String() string {
 //
 // if filter isn't empty, only cookies of that name are returned
 func readCookies(h Header, filter string) []*Cookie {
-	lines, ok := h["Cookie"]
-	if !ok {
+	lines := h["Cookie"]
+	if len(lines) == 0 {
 		return []*Cookie{}
 	}
 
-	cookies := []*Cookie{}
+	cookies := make([]*Cookie, 0, len(lines)+strings.Count(lines[0], ";"))
 	for _, line := range lines {
-		parts := strings.Split(strings.TrimSpace(line), ";")
-		if len(parts) == 1 && parts[0] == "" {
-			continue
-		}
-		// Per-line attributes
-		for i := 0; i < len(parts); i++ {
-			parts[i] = strings.TrimSpace(parts[i])
-			if len(parts[i]) == 0 {
+		line = strings.TrimSpace(line)
+
+		var part string
+		for len(line) > 0 { // continue since we have rest
+			if splitIndex := strings.Index(line, ";"); splitIndex > 0 {
+				part, line = line[:splitIndex], line[splitIndex+1:]
+			} else {
+				part, line = line, ""
+			}
+			part = strings.TrimSpace(part)
+			if len(part) == 0 {
 				continue
 			}
-			name, val := parts[i], ""
-			if j := strings.Index(name, "="); j >= 0 {
+			name, val := part, ""
+			if j := strings.Index(part, "="); j >= 0 {
 				name, val = name[:j], name[j+1:]
 			}
 			if !isCookieNameValid(name) {
@@ -263,7 +270,7 @@ func readCookies(h Header, filter string) []*Cookie {
 	return cookies
 }
 
-// validCookieDomain returns whether v is a valid cookie domain-value.
+// validCookieDomain reports whether v is a valid cookie domain-value.
 func validCookieDomain(v string) bool {
 	if isCookieDomainName(v) {
 		return true
@@ -274,13 +281,13 @@ func validCookieDomain(v string) bool {
 	return false
 }
 
-// validCookieExpires returns whether v is a valid cookie expires-value.
+// validCookieExpires reports whether v is a valid cookie expires-value.
 func validCookieExpires(t time.Time) bool {
 	// IETF RFC 6265 Section 5.1.1.5, the year must not be less than 1601
 	return t.Year() >= 1601
 }
 
-// isCookieDomainName returns whether s is a valid domain name or a valid
+// isCookieDomainName reports whether s is a valid domain name or a valid
 // domain name with a leading dot '.'.  It is almost a direct copy of
 // package net's isDomainName.
 func isCookieDomainName(s string) bool {

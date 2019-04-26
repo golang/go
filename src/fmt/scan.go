@@ -562,7 +562,7 @@ const (
 	hexadecimalDigits = "0123456789aAbBcCdDeEfF"
 	sign              = "+-"
 	period            = "."
-	exponent          = "eEp"
+	exponent          = "eEpP"
 )
 
 // getBase returns the numeric base represented by the verb and its digit string.
@@ -609,22 +609,28 @@ func (s *ss) scanRune(bitSize int) int64 {
 	return r
 }
 
-// scanBasePrefix reports whether the integer begins with a 0 or 0x,
+// scanBasePrefix reports whether the integer begins with a bas prefix
 // and returns the base, digit string, and whether a zero was found.
 // It is called only if the verb is %v.
-func (s *ss) scanBasePrefix() (base int, digits string, found bool) {
+func (s *ss) scanBasePrefix() (base int, digits string, zeroFound bool) {
 	if !s.peek("0") {
-		return 10, decimalDigits, false
+		return 0, decimalDigits + "_", false
 	}
 	s.accept("0")
-	found = true // We've put a digit into the token buffer.
-	// Special cases for '0' && '0x'
-	base, digits = 8, octalDigits
-	if s.peek("xX") {
-		s.consume("xX", false)
-		base, digits = 16, hexadecimalDigits
+	// Special cases for 0, 0b, 0o, 0x.
+	switch {
+	case s.peek("bB"):
+		s.consume("bB", true)
+		return 0, binaryDigits + "_", true
+	case s.peek("oO"):
+		s.consume("oO", true)
+		return 0, octalDigits + "_", true
+	case s.peek("xX"):
+		s.consume("xX", true)
+		return 0, hexadecimalDigits + "_", true
+	default:
+		return 0, octalDigits + "_", true
 	}
-	return
 }
 
 // scanInt returns the value of the integer represented by the next
@@ -705,21 +711,27 @@ func (s *ss) floatToken() string {
 	if s.accept("iI") && s.accept("nN") && s.accept("fF") {
 		return string(s.buf)
 	}
+	digits := decimalDigits + "_"
+	exp := exponent
+	if s.accept("0") && s.accept("xX") {
+		digits = hexadecimalDigits + "_"
+		exp = "pP"
+	}
 	// digits?
-	for s.accept(decimalDigits) {
+	for s.accept(digits) {
 	}
 	// decimal point?
 	if s.accept(period) {
 		// fraction?
-		for s.accept(decimalDigits) {
+		for s.accept(digits) {
 		}
 	}
 	// exponent?
-	if s.accept(exponent) {
+	if s.accept(exp) {
 		// leading sign?
 		s.accept(sign)
 		// digits?
-		for s.accept(decimalDigits) {
+		for s.accept(decimalDigits + "_") {
 		}
 	}
 	return string(s.buf)
@@ -749,9 +761,21 @@ func (s *ss) complexTokens() (real, imag string) {
 	return real, imagSign + imag
 }
 
+func hasX(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] == 'x' || s[i] == 'X' {
+			return true
+		}
+	}
+	return false
+}
+
 // convertFloat converts the string to a float64value.
 func (s *ss) convertFloat(str string, n int) float64 {
-	if p := indexRune(str, 'p'); p >= 0 {
+	// strconv.ParseFloat will handle "+0x1.fp+2",
+	// but we have to implement our non-standard
+	// decimal+binary exponent mix (1.2p4) ourselves.
+	if p := indexRune(str, 'p'); p >= 0 && !hasX(str) {
 		// Atof doesn't handle power-of-2 exponents,
 		// but they're easy to evaluate.
 		f, err := strconv.ParseFloat(str[:p], n)

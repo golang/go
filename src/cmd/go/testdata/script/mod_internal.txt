@@ -18,15 +18,6 @@ stderr 'use of internal package golang.org/x/.* not allowed'
 ! go build ./fromstd
 stderr 'use of internal package internal/testenv not allowed'
 
-# Packages found via standard-library vendoring should not leak.
-! go build ./fromstdvendor
-stderr 'use of vendored package golang_org/x/net/http/httpguts not allowed'
-
-env GO111MODULE=off
-! go build ./fromstdvendor
-stderr 'cannot find package "golang_org/x/net/http/httpguts" in any of:'
-env GO111MODULE=on
-
 # Dependencies should be able to use their own internal modules...
 rm go.mod
 go mod init golang.org/notx
@@ -82,10 +73,6 @@ import _ "golang.org/notx/useinternal"
 -- fromstd/useinternal.go --
 package fromstd
 import _ "internal/testenv"
-
--- fromstdvendor/useinternal.go --
-package fromstdvendor
-import _ "golang_org/x/net/http/httpguts"
 
 -- replace/golang.org/notx/internal/go.mod --
 module golang.org/x/internal

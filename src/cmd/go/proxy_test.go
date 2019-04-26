@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -104,6 +105,16 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/mod/")
+
+	// If asked for 404/abc, serve a 404.
+	if j := strings.Index(path, "/"); j >= 0 {
+		n, err := strconv.Atoi(path[:j])
+		if err == nil && n >= 200 {
+			w.WriteHeader(n)
+			return
+		}
+	}
+
 	i := strings.Index(path, "/@v/")
 	if i < 0 {
 		http.NotFound(w, r)
@@ -197,7 +208,13 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 				if strings.HasPrefix(f.Name, ".") {
 					continue
 				}
-				zf, err := z.Create(path + "@" + vers + "/" + f.Name)
+				var zipName string
+				if strings.HasPrefix(f.Name, "/") {
+					zipName = f.Name[1:]
+				} else {
+					zipName = path + "@" + vers + "/" + f.Name
+				}
+				zf, err := z.Create(zipName)
 				if err != nil {
 					return cached{nil, err}
 				}

@@ -37,6 +37,7 @@ type opInfo struct {
 	hasSideEffects    bool      // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
 	zeroWidth         bool      // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	symEffect         SymEffect // effect this op has on symbol in aux
+	scale             uint8     // amd64/386 indexed load scale
 }
 
 type inputInfo struct {
@@ -153,6 +154,18 @@ func makeValAndOff(val, off int64) int64 {
 	return ValAndOff(val<<32 + int64(uint32(off))).Int64()
 }
 
+// offOnly returns the offset half of ValAndOff vo.
+// It is intended for use in rewrite rules.
+func offOnly(vo int64) int64 {
+	return ValAndOff(vo).Off()
+}
+
+// valOnly returns the value half of ValAndOff vo.
+// It is intended for use in rewrite rules.
+func valOnly(vo int64) int64 {
+	return ValAndOff(vo).Val()
+}
+
 func (x ValAndOff) canAdd(off int64) bool {
 	newoff := x.Off() + off
 	return newoff == int64(int32(newoff))
@@ -163,4 +176,71 @@ func (x ValAndOff) add(off int64) int64 {
 		panic("invalid ValAndOff.add")
 	}
 	return makeValAndOff(x.Val(), x.Off()+off)
+}
+
+type BoundsKind uint8
+
+const (
+	BoundsIndex       BoundsKind = iota // indexing operation, 0 <= idx < len failed
+	BoundsIndexU                        // ... with unsigned idx
+	BoundsSliceAlen                     // 2-arg slicing operation, 0 <= high <= len failed
+	BoundsSliceAlenU                    // ... with unsigned high
+	BoundsSliceAcap                     // 2-arg slicing operation, 0 <= high <= cap failed
+	BoundsSliceAcapU                    // ... with unsigned high
+	BoundsSliceB                        // 2-arg slicing operation, 0 <= low <= high failed
+	BoundsSliceBU                       // ... with unsigned low
+	BoundsSlice3Alen                    // 3-arg slicing operation, 0 <= max <= len failed
+	BoundsSlice3AlenU                   // ... with unsigned max
+	BoundsSlice3Acap                    // 3-arg slicing operation, 0 <= max <= cap failed
+	BoundsSlice3AcapU                   // ... with unsigned max
+	BoundsSlice3B                       // 3-arg slicing operation, 0 <= high <= max failed
+	BoundsSlice3BU                      // ... with unsigned high
+	BoundsSlice3C                       // 3-arg slicing operation, 0 <= low <= high failed
+	BoundsSlice3CU                      // ... with unsigned low
+	BoundsKindCount
+)
+
+// boundsAPI determines which register arguments a bounds check call should use. For an [a:b:c] slice, we do:
+//   CMPQ c, cap
+//   JA   fail1
+//   CMPQ b, c
+//   JA   fail2
+//   CMPQ a, b
+//   JA   fail3
+//
+// fail1: CALL panicSlice3Acap (c, cap)
+// fail2: CALL panicSlice3B (b, c)
+// fail3: CALL panicSlice3C (a, b)
+//
+// When we register allocate that code, we want the same register to be used for
+// the first arg of panicSlice3Acap and the second arg to panicSlice3B. That way,
+// initializing that register once will satisfy both calls.
+// That desire ends up dividing the set of bounds check calls into 3 sets. This function
+// determines which set to use for a given panic call.
+// The first arg for set 0 should be the second arg for set 1.
+// The first arg for set 1 should be the second arg for set 2.
+func boundsABI(b int64) int {
+	switch BoundsKind(b) {
+	case BoundsSlice3Alen,
+		BoundsSlice3AlenU,
+		BoundsSlice3Acap,
+		BoundsSlice3AcapU:
+		return 0
+	case BoundsSliceAlen,
+		BoundsSliceAlenU,
+		BoundsSliceAcap,
+		BoundsSliceAcapU,
+		BoundsSlice3B,
+		BoundsSlice3BU:
+		return 1
+	case BoundsIndex,
+		BoundsIndexU,
+		BoundsSliceB,
+		BoundsSliceBU,
+		BoundsSlice3C,
+		BoundsSlice3CU:
+		return 2
+	default:
+		panic("bad BoundsKind")
+	}
 }

@@ -6,10 +6,12 @@ package sys
 
 const GOOS = `js`
 
+const GoosAix = 0
 const GoosAndroid = 0
 const GoosDarwin = 0
 const GoosDragonfly = 0
 const GoosFreebsd = 0
+const GoosHurd = 0
 const GoosJs = 1
 const GoosLinux = 0
 const GoosNacl = 0

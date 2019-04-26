@@ -10,6 +10,12 @@
 #include "textflag.h"
 #include "asm_ppc64x.h"
 
+#ifdef GOOS_aix
+#define cgoCalleeStackSize 48
+#else
+#define cgoCalleeStackSize 32
+#endif
+
 TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// R1 = stack; R3 = argc; R4 = argv; R13 = C TLS base pointer
 
@@ -36,18 +42,26 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	MOVD	_cgo_init(SB), R12
 	CMP	R0, R12
 	BEQ	nocgo
+#ifdef GOARCH_ppc64
+	// ppc64 use elf ABI v1. we must get the real entry address from
+	// first slot of the function descriptor before call.
+	MOVD	8(R12), R2
+	MOVD	(R12), R12
+#endif
 	MOVD	R12, CTR		// r12 = "global function entry point"
 	MOVD	R13, R5			// arg 2: TLS base pointer
 	MOVD	$setg_gcc<>(SB), R4 	// arg 1: setg
 	MOVD	g, R3			// arg 0: G
-	// C functions expect 32 bytes of space on caller stack frame
-	// and a 16-byte aligned R1
+	// C functions expect 32 (48 for AIX) bytes of space on caller
+	// stack frame and a 16-byte aligned R1
 	MOVD	R1, R14			// save current stack
-	SUB	$32, R1			// reserve 32 bytes
+	SUB	$cgoCalleeStackSize, R1	// reserve the callee area
 	RLDCR	$0, R1, $~15, R1	// 16-byte align
 	BL	(CTR)			// may clobber R0, R3-R12
 	MOVD	R14, R1			// restore stack
+#ifndef GOOS_aix
 	MOVD	24(R1), R2
+#endif
 	XOR	R0, R0			// fix R0
 
 nocgo:
@@ -99,6 +113,7 @@ TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
 TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
+// Any changes must be reflected to runtime/cgo/gcc_aix_ppc64.S:.crosscall_ppc64
 TEXT _cgo_reginit(SB),NOSPLIT|NOFRAME,$0-0
 	// crosscall_ppc64 and crosscall2 need to reginit, but can't
 	// get at the 'runtime.reginit' symbol.
@@ -140,7 +155,9 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
 	MOVD	0(g), R4
 	MOVD	gobuf_sp(R5), R1
 	MOVD	gobuf_lr(R5), R31
+#ifndef GOOS_aix
 	MOVD	24(R1), R2	// restore R2
+#endif
 	MOVD	R31, LR
 	MOVD	gobuf_ret(R5), R3
 	MOVD	gobuf_ctxt(R5), R11
@@ -257,7 +274,9 @@ switch:
 	MOVD	g_m(g), R3
 	MOVD	m_curg(R3), g
 	MOVD	(g_sched+gobuf_sp)(g), R3
+#ifndef GOOS_aix
 	MOVD	24(R3), R2
+#endif
 	// switch back to g
 	MOVD	g_m(g), R3
 	MOVD	m_curg(R3), g
@@ -274,7 +293,9 @@ noswitch:
 	MOVD	0(R11), R12	// code pointer
 	MOVD	R12, CTR
 	BL	(CTR)
+#ifndef GOOS_aix
 	MOVD	24(R1), R2
+#endif
 	RET
 
 /*
@@ -349,9 +370,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	BR	(CTR)
 // Note: can't just "BR NAME(SB)" - bad inlining results.
 
-TEXT reflect·call(SB), NOSPLIT, $0-0
-	BR	·reflectcall(SB)
-
 TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWZ argsize+24(FP), R3
 	DISPATCH(runtime·call32, 32)
@@ -422,11 +440,20 @@ tail: \
 callfn: \
 	/* call function */			\
 	MOVD	f+8(FP), R11;			\
+#ifdef GOOS_aix				\
+	/* AIX won't trigger a SIGSEGV if R11 = nil */	\
+	/* So it manually triggers it */	\
+	CMP	R0, R11				\
+	BNE	2(PC)				\
+	MOVD	R0, 0(R0)			\
+#endif						\
 	MOVD	(R11), R12;			\
 	MOVD	R12, CTR;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(CTR);				\
+#ifndef GOOS_aix				\
 	MOVD	24(R1), R2;			\
+#endif						\
 	/* copy return values back */		\
 	MOVD	argtype+0(FP), R7;		\
 	MOVD	arg+16(FP), R3;			\
@@ -510,6 +537,13 @@ TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD	fv+0(FP), R11
 	MOVD	argp+8(FP), R1
 	SUB	$FIXED_FRAME, R1
+#ifdef GOOS_aix
+	// AIX won't trigger a SIGSEGV if R11 = nil
+	// So it manually triggers it
+	CMP	R0, R11
+	BNE	2(PC)
+	MOVD	R0, 0(R0)
+#endif
 	MOVD	0(R11), R12
 	MOVD	R12, CTR
 	BR	(CTR)
@@ -528,6 +562,12 @@ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	BL	runtime·badctxt(SB)
 	RET
 
+#ifdef GOOS_aix
+#define asmcgocallSaveOffset cgoCalleeStackSize + 8
+#else
+#define asmcgocallSaveOffset cgoCalleeStackSize
+#endif
+
 // func asmcgocall(fn, arg unsafe.Pointer) int32
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
@@ -542,8 +582,13 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
-	MOVD	g_m(g), R6
-	MOVD	m_g0(R6), R6
+	// Moreover, if it's called inside the signal handler, it must not switch
+	// to g0 as it can be in use by another syscall.
+	MOVD	g_m(g), R8
+	MOVD	m_gsignal(R8), R6
+	CMP	R6, g
+	BEQ	g0
+	MOVD	m_g0(R8), R6
 	CMP	R6, g
 	BEQ	g0
 	BL	gosave<>(SB)
@@ -553,36 +598,53 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Now on a scheduling stack (a pthread-created stack).
 g0:
-	// Save room for two of our pointers, plus 32 bytes of callee
+#ifdef GOOS_aix
+	// Create a fake LR to improve backtrace.
+	MOVD	$runtime·asmcgocall(SB), R6
+	MOVD	R6, 16(R1)
+	// AIX also save one argument on the stack.
+	SUB $8, R1
+#endif
+	// Save room for two of our pointers, plus the callee
 	// save area that lives on the caller stack.
-	SUB	$48, R1
+	SUB	$(asmcgocallSaveOffset+16), R1
 	RLDCR	$0, R1, $~15, R1	// 16-byte alignment for gcc ABI
-	MOVD	R5, 40(R1)	// save old g on stack
+	MOVD	R5, (asmcgocallSaveOffset+8)(R1)// save old g on stack
 	MOVD	(g_stack+stack_hi)(R5), R5
 	SUB	R7, R5
-	MOVD	R5, 32(R1)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
+	MOVD	R5, asmcgocallSaveOffset(R1)    // save depth in old g stack (can't just save SP, as stack might be copied during a callback)
+#ifdef GOOS_aix
+	MOVD	R7, 0(R1)	// Save frame pointer to allow manual backtrace with gdb
+#else
 	MOVD	R0, 0(R1)	// clear back chain pointer (TODO can we give it real back trace information?)
+#endif
 	// This is a "global call", so put the global entry point in r12
 	MOVD	R3, R12
+
+#ifdef GOARCH_ppc64
+	// ppc64 use elf ABI v1. we must get the real entry address from
+	// first slot of the function descriptor before call.
+	// Same for AIX.
+	MOVD	8(R12), R2
+	MOVD	(R12), R12
+#endif
 	MOVD	R12, CTR
 	MOVD	R4, R3		// arg in r3
 	BL	(CTR)
-
-	// C code can clobber R0, so set it back to 0.  F27-F31 are
+	// C code can clobber R0, so set it back to 0. F27-F31 are
 	// callee save, so we don't need to recover those.
 	XOR	R0, R0
 	// Restore g, stack pointer, toc pointer.
 	// R3 is errno, so don't touch it
-	MOVD	40(R1), g
-	MOVD    (g_stack+stack_hi)(g), R5
-	MOVD    32(R1), R6
-	SUB     R6, R5
-	MOVD    24(R5), R2
-	BL	runtime·save_g(SB)
+	MOVD	(asmcgocallSaveOffset+8)(R1), g
 	MOVD	(g_stack+stack_hi)(g), R5
-	MOVD	32(R1), R6
+	MOVD	asmcgocallSaveOffset(R1), R6
 	SUB	R6, R5
+#ifndef GOOS_aix
+	MOVD	24(R5), R2
+#endif
 	MOVD	R5, R1
+	BL	runtime·save_g(SB)
 
 	MOVW	R3, ret+16(FP)
 	RET
@@ -610,7 +672,7 @@ TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
 	NO_LOCAL_POINTERS
 
 	// Load m and g from thread-local storage.
-	MOVB	runtime·iscgo(SB), R3
+	MOVBZ	runtime·iscgo(SB), R3
 	CMP	R3, $0
 	BEQ	nocgo
 	BL	runtime·load_g(SB)
@@ -722,9 +784,27 @@ TEXT runtime·setg(SB), NOSPLIT, $0-8
 	BL	runtime·save_g(SB)
 	RET
 
+#ifdef GOARCH_ppc64
+#ifdef GOOS_aix
+DATA    setg_gcc<>+0(SB)/8, $_setg_gcc<>(SB)
+DATA    setg_gcc<>+8(SB)/8, $TOC(SB)
+DATA    setg_gcc<>+16(SB)/8, $0
+GLOBL   setg_gcc<>(SB), NOPTR, $24
+#else
+TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
+	DWORD	$_setg_gcc<>(SB)
+	DWORD	$0
+	DWORD	$0
+#endif
+#endif
+
 // void setg_gcc(G*); set g in C TLS.
 // Must obey the gcc calling convention.
+#ifdef GOARCH_ppc64le
 TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
+#else
+TEXT _setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
+#endif
 	// The standard prologue clobbers R31, which is callee-save in
 	// the C ABI, so we have to use $-8-0 and save LR ourselves.
 	MOVD	LR, R4
@@ -768,7 +848,13 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
+#ifdef GOOS_aix
+// On AIX, _cgo_topofstack is defined in runtime/cgo, because it must
+// be a longcall in order to prevent trampolines from ld.
+TEXT __cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
+#else
 TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
+#endif
 	// g (R30) and R31 are callee-save in the C ABI, so save them
 	MOVD	g, R4
 	MOVD	R31, R5
@@ -794,7 +880,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
 // pointer in the correct place).
 // goexit+_PCQuantum is halfway through the usual global entry point prologue
 // that derives r2 from r12 which is a bit silly, but not harmful.
-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	MOVD	24(R1), R2
 	BL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
@@ -897,3 +983,73 @@ flush:
 	MOVD	(FIXED_FRAME+96)(R1), R14
 	MOVD	(FIXED_FRAME+104)(R1), R15
 	JMP	ret
+
+// Note: these functions use a special calling convention to save generated code space.
+// Arguments are passed in registers, but the space for those arguments are allocated
+// in the caller's stack frame. These stubs write the args into that stack space and
+// then tail call to the corresponding runtime handler.
+// The tail call makes these stubs disappear in backtraces.
+TEXT runtime·panicIndex(SB),NOSPLIT,$0-16
+	MOVD	R3, x+0(FP)
+	MOVD	R4, y+8(FP)
+	JMP	runtime·goPanicIndex(SB)
+TEXT runtime·panicIndexU(SB),NOSPLIT,$0-16
+	MOVD	R3, x+0(FP)
+	MOVD	R4, y+8(FP)
+	JMP	runtime·goPanicIndexU(SB)
+TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-16
+	MOVD	R4, x+0(FP)
+	MOVD	R5, y+8(FP)
+	JMP	runtime·goPanicSliceAlen(SB)
+TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-16
+	MOVD	R4, x+0(FP)
+	MOVD	R5, y+8(FP)
+	JMP	runtime·goPanicSliceAlenU(SB)
+TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-16
+	MOVD	R4, x+0(FP)
+	MOVD	R5, y+8(FP)
+	JMP	runtime·goPanicSliceAcap(SB)
+TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-16
+	MOVD	R4, x+0(FP)
+	MOVD	R5, y+8(FP)
+	JMP	runtime·goPanicSliceAcapU(SB)
+TEXT runtime·panicSliceB(SB),NOSPLIT,$0-16
+	MOVD	R3, x+0(FP)
+	MOVD	R4, y+8(FP)
+	JMP	runtime·goPanicSliceB(SB)
+TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-16
+	MOVD	R3, x+0(FP)
+	MOVD	R4, y+8(FP)
+	JMP	runtime·goPanicSliceBU(SB)
+TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-16
+	MOVD	R5, x+0(FP)
+	MOVD	R6, y+8(FP)
+	JMP	runtime·goPanicSlice3Alen(SB)
+TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-16
+	MOVD	R5, x+0(FP)
+	MOVD	R6, y+8(FP)
+	JMP	runtime·goPanicSlice3AlenU(SB)
+TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-16
+	MOVD	R5, x+0(FP)
+	MOVD	R6, y+8(FP)
+	JMP	runtime·goPanicSlice3Acap(SB)
+TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-16
+	MOVD	R5, x+0(FP)
+	MOVD	R6, y+8(FP)
+	JMP	runtime·goPanicSlice3AcapU(SB)
+TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-16
+	MOVD	R4, x+0(FP)
+	MOVD	R5, y+8(FP)
+	JMP	runtime·goPanicSlice3B(SB)
+TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-16
+	MOVD	R4, x+0(FP)
+	MOVD	R5, y+8(FP)
+	JMP	runtime·goPanicSlice3BU(SB)
+TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-16
+	MOVD	R3, x+0(FP)
+	MOVD	R4, y+8(FP)
+	JMP	runtime·goPanicSlice3C(SB)
+TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
+	MOVD	R3, x+0(FP)
+	MOVD	R4, y+8(FP)
+	JMP	runtime·goPanicSlice3CU(SB)

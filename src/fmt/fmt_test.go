@@ -298,20 +298,30 @@ var fmtTests = []struct {
 
 	// width
 	{"%5s", "abc", "  abc"},
+	{"%5s", []byte("abc"), "  abc"},
 	{"%2s", "\u263a", " ☺"},
+	{"%2s", []byte("\u263a"), " ☺"},
 	{"%-5s", "abc", "abc  "},
-	{"%-8q", "abc", `"abc"   `},
+	{"%-5s", []byte("abc"), "abc  "},
 	{"%05s", "abc", "00abc"},
-	{"%08q", "abc", `000"abc"`},
+	{"%05s", []byte("abc"), "00abc"},
 	{"%5s", "abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz"},
+	{"%5s", []byte("abcdefghijklmnopqrstuvwxyz"), "abcdefghijklmnopqrstuvwxyz"},
 	{"%.5s", "abcdefghijklmnopqrstuvwxyz", "abcde"},
+	{"%.5s", []byte("abcdefghijklmnopqrstuvwxyz"), "abcde"},
 	{"%.0s", "日本語日本語", ""},
+	{"%.0s", []byte("日本語日本語"), ""},
 	{"%.5s", "日本語日本語", "日本語日本"},
-	{"%.10s", "日本語日本語", "日本語日本語"},
 	{"%.5s", []byte("日本語日本語"), "日本語日本"},
+	{"%.10s", "日本語日本語", "日本語日本語"},
+	{"%.10s", []byte("日本語日本語"), "日本語日本語"},
+	{"%08q", "abc", `000"abc"`},
+	{"%08q", []byte("abc"), `000"abc"`},
+	{"%-8q", "abc", `"abc"   `},
+	{"%-8q", []byte("abc"), `"abc"   `},
 	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
-	{"%.5x", "abcdefghijklmnopqrstuvwxyz", "6162636465"},
 	{"%.5q", []byte("abcdefghijklmnopqrstuvwxyz"), `"abcde"`},
+	{"%.5x", "abcdefghijklmnopqrstuvwxyz", "6162636465"},
 	{"%.5x", []byte("abcdefghijklmnopqrstuvwxyz"), "6162636465"},
 	{"%.3q", "日本語日本語", `"日本語"`},
 	{"%.3q", []byte("日本語日本語"), `"日本語"`},
@@ -320,6 +330,7 @@ var fmtTests = []struct {
 	{"%.1x", "日本語", "e6"},
 	{"%.1X", []byte("日本語"), "E6"},
 	{"%10.1q", "日本語日本語", `       "日"`},
+	{"%10.1q", []byte("日本語日本語"), `       "日"`},
 	{"%10v", nil, "     <nil>"},
 	{"%-10v", nil, "<nil>     "},
 
@@ -343,11 +354,17 @@ var fmtTests = []struct {
 	{"%+d", -12345, "-12345"},
 	{"%b", 7, "111"},
 	{"%b", -6, "-110"},
+	{"%#b", 7, "0b111"},
+	{"%#b", -6, "-0b110"},
 	{"%b", ^uint32(0), "11111111111111111111111111111111"},
 	{"%b", ^uint64(0), "1111111111111111111111111111111111111111111111111111111111111111"},
 	{"%b", int64(-1 << 63), zeroFill("-1", 63, "")},
 	{"%o", 01234, "1234"},
+	{"%o", -01234, "-1234"},
 	{"%#o", 01234, "01234"},
+	{"%#o", -01234, "-01234"},
+	{"%O", 01234, "0o1234"},
+	{"%O", -01234, "-0o1234"},
 	{"%o", ^uint32(0), "37777777777"},
 	{"%o", ^uint64(0), "1777777777777777777777"},
 	{"%#X", 0, "0X0"},
@@ -402,6 +419,8 @@ var fmtTests = []struct {
 	// floats
 	{"%+.3e", 0.0, "+0.000e+00"},
 	{"%+.3e", 1.0, "+1.000e+00"},
+	{"%+.3x", 0.0, "+0x0.000p+00"},
+	{"%+.3x", 1.0, "+0x1.000p+00"},
 	{"%+.3f", -1.0, "-1.000"},
 	{"%+.3F", -1.0, "-1.000"},
 	{"%+.3F", float32(-1.0), "-1.000"},
@@ -417,6 +436,8 @@ var fmtTests = []struct {
 	{"%+10.2f", -1.0, "     -1.00"},
 	{"% .3E", -1.0, "-1.000E+00"},
 	{"% .3e", 1.0, " 1.000e+00"},
+	{"% .3X", -1.0, "-0X1.000P+00"},
+	{"% .3x", 1.0, " 0x1.000p+00"},
 	{"%+.3g", 0.0, "+0"},
 	{"%+.3g", 1.0, "+1"},
 	{"%+.3g", -1.0, "-1"},
@@ -434,17 +455,21 @@ var fmtTests = []struct {
 	{"%#g", 1000000.0, "1.00000e+06"},
 	{"%#.0f", 1.0, "1."},
 	{"%#.0e", 1.0, "1.e+00"},
+	{"%#.0x", 1.0, "0x1.p+00"},
 	{"%#.0g", 1.0, "1."},
 	{"%#.0g", 1100000.0, "1.e+06"},
 	{"%#.4f", 1.0, "1.0000"},
 	{"%#.4e", 1.0, "1.0000e+00"},
+	{"%#.4x", 1.0, "0x1.0000p+00"},
 	{"%#.4g", 1.0, "1.000"},
 	{"%#.4g", 100000.0, "1.000e+05"},
 	{"%#.0f", 123.0, "123."},
 	{"%#.0e", 123.0, "1.e+02"},
+	{"%#.0x", 123.0, "0x1.p+07"},
 	{"%#.0g", 123.0, "1.e+02"},
 	{"%#.4f", 123.0, "123.0000"},
 	{"%#.4e", 123.0, "1.2300e+02"},
+	{"%#.4x", 123.0, "0x1.ec00p+06"},
 	{"%#.4g", 123.0, "123.0"},
 	{"%#.4g", 123000.0, "1.230e+05"},
 	{"%#9.4g", 1.0, "    1.000"},
@@ -463,17 +488,23 @@ var fmtTests = []struct {
 	{"%20f", posInf, "                +Inf"},
 	{"% 20F", posInf, "                 Inf"},
 	{"% 20e", negInf, "                -Inf"},
+	{"% 20x", negInf, "                -Inf"},
 	{"%+20E", negInf, "                -Inf"},
+	{"%+20X", negInf, "                -Inf"},
 	{"% +20g", negInf, "                -Inf"},
 	{"%+-20G", posInf, "+Inf                "},
 	{"%20e", NaN, "                 NaN"},
+	{"%20x", NaN, "                 NaN"},
 	{"% +20E", NaN, "                +NaN"},
+	{"% +20X", NaN, "                +NaN"},
 	{"% -20g", NaN, " NaN                "},
 	{"%+-20G", NaN, "+NaN                "},
 	// Zero padding does not apply to infinities and NaN.
 	{"%+020e", posInf, "                +Inf"},
+	{"%+020x", posInf, "                +Inf"},
 	{"%-020f", negInf, "-Inf                "},
 	{"%-020E", NaN, "NaN                 "},
+	{"%-020X", NaN, "NaN                 "},
 
 	// complex values
 	{"%.f", 0i, "(0+0i)"},
@@ -481,23 +512,29 @@ var fmtTests = []struct {
 	{"%+.f", 0i, "(+0+0i)"},
 	{"% +.f", 0i, "(+0+0i)"},
 	{"%+.3e", 0i, "(+0.000e+00+0.000e+00i)"},
+	{"%+.3x", 0i, "(+0x0.000p+00+0x0.000p+00i)"},
 	{"%+.3f", 0i, "(+0.000+0.000i)"},
 	{"%+.3g", 0i, "(+0+0i)"},
 	{"%+.3e", 1 + 2i, "(+1.000e+00+2.000e+00i)"},
+	{"%+.3x", 1 + 2i, "(+0x1.000p+00+0x1.000p+01i)"},
 	{"%+.3f", 1 + 2i, "(+1.000+2.000i)"},
 	{"%+.3g", 1 + 2i, "(+1+2i)"},
 	{"%.3e", 0i, "(0.000e+00+0.000e+00i)"},
+	{"%.3x", 0i, "(0x0.000p+00+0x0.000p+00i)"},
 	{"%.3f", 0i, "(0.000+0.000i)"},
 	{"%.3F", 0i, "(0.000+0.000i)"},
 	{"%.3F", complex64(0i), "(0.000+0.000i)"},
 	{"%.3g", 0i, "(0+0i)"},
 	{"%.3e", 1 + 2i, "(1.000e+00+2.000e+00i)"},
+	{"%.3x", 1 + 2i, "(0x1.000p+00+0x1.000p+01i)"},
 	{"%.3f", 1 + 2i, "(1.000+2.000i)"},
 	{"%.3g", 1 + 2i, "(1+2i)"},
 	{"%.3e", -1 - 2i, "(-1.000e+00-2.000e+00i)"},
+	{"%.3x", -1 - 2i, "(-0x1.000p+00-0x1.000p+01i)"},
 	{"%.3f", -1 - 2i, "(-1.000-2.000i)"},
 	{"%.3g", -1 - 2i, "(-1-2i)"},
 	{"% .3E", -1 - 2i, "(-1.000E+00-2.000E+00i)"},
+	{"% .3X", -1 - 2i, "(-0X1.000P+00-0X1.000P+01i)"},
 	{"%+.3g", 1 + 2i, "(+1+2i)"},
 	{"%+.3g", complex64(1 + 2i), "(+1+2i)"},
 	{"%#g", 1 + 2i, "(1.00000+2.00000i)"},
@@ -506,11 +543,13 @@ var fmtTests = []struct {
 	{"%#g", -1e10 - 1.11e100i, "(-1.00000e+10-1.11000e+100i)"},
 	{"%#.0f", 1.23 + 1.0i, "(1.+1.i)"},
 	{"%#.0e", 1.23 + 1.0i, "(1.e+00+1.e+00i)"},
+	{"%#.0x", 1.23 + 1.0i, "(0x1.p+00+0x1.p+00i)"},
 	{"%#.0g", 1.23 + 1.0i, "(1.+1.i)"},
 	{"%#.0g", 0 + 100000i, "(0.+1.e+05i)"},
 	{"%#.0g", 1230000 + 0i, "(1.e+06+0.i)"},
 	{"%#.4f", 1 + 1.23i, "(1.0000+1.2300i)"},
 	{"%#.4e", 123 + 1i, "(1.2300e+02+1.0000e+00i)"},
+	{"%#.4x", 123 + 1i, "(0x1.ec00p+06+0x1.0000p+00i)"},
 	{"%#.4g", 123 + 1.23i, "(123.0+1.230i)"},
 	{"%#12.5g", 0 + 100000i, "(      0.0000 +1.0000e+05i)"},
 	{"%#12.5g", 1230000 - 0i, "(  1.2300e+06     +0.0000i)"},
@@ -530,7 +569,9 @@ var fmtTests = []struct {
 	{"% f", complex(negInf, negInf), "(-Inf-Infi)"},
 	{"% f", complex(NaN, NaN), "( NaN+NaNi)"},
 	{"%8e", complex(posInf, posInf), "(    +Inf    +Infi)"},
+	{"%8x", complex(posInf, posInf), "(    +Inf    +Infi)"},
 	{"% 8E", complex(posInf, posInf), "(     Inf    +Infi)"},
+	{"% 8X", complex(posInf, posInf), "(     Inf    +Infi)"},
 	{"%+8f", complex(negInf, negInf), "(    -Inf    -Infi)"},
 	{"% +8g", complex(negInf, negInf), "(    -Inf    -Infi)"},
 	{"% -8G", complex(NaN, NaN), "( NaN    +NaN    i)"},
@@ -1211,7 +1252,16 @@ func BenchmarkSprintfString(b *testing.B) {
 func BenchmarkSprintfTruncateString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%.3s", "日本語日本語日本語")
+			Sprintf("%.3s", "日本語日本語日本語日本語")
+		}
+	})
+}
+
+func BenchmarkSprintfTruncateBytes(b *testing.B) {
+	var bytes interface{} = []byte("日本語日本語日本語日本語")
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%.3s", bytes)
 		}
 	})
 }
@@ -1663,18 +1713,18 @@ var panictests = []struct {
 }{
 	// String
 	{"%s", (*PanicS)(nil), "<nil>"}, // nil pointer special case
-	{"%s", PanicS{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
-	{"%s", PanicS{3}, "%!s(PANIC=3)"},
+	{"%s", PanicS{io.ErrUnexpectedEOF}, "%!s(PANIC=String method: unexpected EOF)"},
+	{"%s", PanicS{3}, "%!s(PANIC=String method: 3)"},
 	// GoString
 	{"%#v", (*PanicGo)(nil), "<nil>"}, // nil pointer special case
-	{"%#v", PanicGo{io.ErrUnexpectedEOF}, "%!v(PANIC=unexpected EOF)"},
-	{"%#v", PanicGo{3}, "%!v(PANIC=3)"},
+	{"%#v", PanicGo{io.ErrUnexpectedEOF}, "%!v(PANIC=GoString method: unexpected EOF)"},
+	{"%#v", PanicGo{3}, "%!v(PANIC=GoString method: 3)"},
 	// Issue 18282. catchPanic should not clear fmtFlags permanently.
-	{"%#v", []interface{}{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=3), %!v(PANIC=3)}"},
+	{"%#v", []interface{}{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=GoString method: 3), %!v(PANIC=GoString method: 3)}"},
 	// Format
 	{"%s", (*PanicF)(nil), "<nil>"}, // nil pointer special case
-	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
-	{"%s", PanicF{3}, "%!s(PANIC=3)"},
+	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=Format method: unexpected EOF)"},
+	{"%s", PanicF{3}, "%!s(PANIC=Format method: 3)"},
 }
 
 func TestPanics(t *testing.T) {

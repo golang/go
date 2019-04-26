@@ -350,13 +350,21 @@ func TestImportDirNotExist(t *testing.T) {
 
 func TestImportVendor(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
+
+	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
+	os.Setenv("GO111MODULE", "off")
+
 	ctxt := Default
-	ctxt.GOPATH = ""
-	p, err := ctxt.Import("golang_org/x/net/http2/hpack", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
+	wd, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("cannot find vendored golang_org/x/net/http2/hpack from net/http directory: %v", err)
+		t.Fatal(err)
 	}
-	want := "vendor/golang_org/x/net/http2/hpack"
+	ctxt.GOPATH = filepath.Join(wd, "testdata/withvendor")
+	p, err := ctxt.Import("c/d", filepath.Join(ctxt.GOPATH, "src/a/b"), 0)
+	if err != nil {
+		t.Fatalf("cannot find vendored c/d from testdata src/a/b directory: %v", err)
+	}
+	want := "a/vendor/c/d"
 	if p.ImportPath != want {
 		t.Fatalf("Import succeeded but found %q, want %q", p.ImportPath, want)
 	}
@@ -364,9 +372,17 @@ func TestImportVendor(t *testing.T) {
 
 func TestImportVendorFailure(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
+
+	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
+	os.Setenv("GO111MODULE", "off")
+
 	ctxt := Default
-	ctxt.GOPATH = ""
-	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctxt.GOPATH = filepath.Join(wd, "testdata/withvendor")
+	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOPATH, "src/a/b"), 0)
 	if err == nil {
 		t.Fatalf("found made-up package x.com/y/z in %s", p.Dir)
 	}
@@ -379,10 +395,18 @@ func TestImportVendorFailure(t *testing.T) {
 
 func TestImportVendorParentFailure(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
+
+	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
+	os.Setenv("GO111MODULE", "off")
+
 	ctxt := Default
-	ctxt.GOPATH = ""
-	// This import should fail because the vendor/golang.org/x/net/http2 directory has no source code.
-	p, err := ctxt.Import("golang_org/x/net/http2", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctxt.GOPATH = filepath.Join(wd, "testdata/withvendor")
+	// This import should fail because the vendor/c directory has no source code.
+	p, err := ctxt.Import("c", filepath.Join(ctxt.GOPATH, "src/a/b"), 0)
 	if err == nil {
 		t.Fatalf("found empty parent in %s", p.Dir)
 	}

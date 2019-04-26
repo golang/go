@@ -9,9 +9,12 @@ import (
 )
 
 // findlive returns the reachable blocks and live values in f.
+// The caller should call f.retDeadcodeLive(live) when it is done with it.
 func findlive(f *Func) (reachable []bool, live []bool) {
 	reachable = ReachableBlocks(f)
-	live, _ = liveValues(f, reachable)
+	var order []*Value
+	live, order = liveValues(f, reachable)
+	f.retDeadcodeLiveOrderStmts(order)
 	return
 }
 
@@ -48,8 +51,21 @@ func ReachableBlocks(f *Func) []bool {
 // to be statements in reversed data flow order.
 // The second result is used to help conserve statement boundaries for debugging.
 // reachable is a map from block ID to whether the block is reachable.
+// The caller should call f.retDeadcodeLive(live) and f.retDeadcodeLiveOrderStmts(liveOrderStmts)
+// when they are done with the return values.
 func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value) {
-	live = make([]bool, f.NumValues())
+	live = f.newDeadcodeLive()
+	if cap(live) < f.NumValues() {
+		live = make([]bool, f.NumValues())
+	} else {
+		live = live[:f.NumValues()]
+		for i := range live {
+			live[i] = false
+		}
+	}
+
+	liveOrderStmts = f.newDeadcodeLiveOrderStmts()
+	liveOrderStmts = liveOrderStmts[:0]
 
 	// After regalloc, consider all values to be live.
 	// See the comment at the top of regalloc.go and in deadcode for details.
@@ -60,8 +76,33 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 		return
 	}
 
+	// Record all the inline indexes we need
+	var liveInlIdx map[int]bool
+	pt := f.Config.ctxt.PosTable
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			i := pt.Pos(v.Pos).Base().InliningIndex()
+			if i < 0 {
+				continue
+			}
+			if liveInlIdx == nil {
+				liveInlIdx = map[int]bool{}
+			}
+			liveInlIdx[i] = true
+		}
+		i := pt.Pos(b.Pos).Base().InliningIndex()
+		if i < 0 {
+			continue
+		}
+		if liveInlIdx == nil {
+			liveInlIdx = map[int]bool{}
+		}
+		liveInlIdx[i] = true
+	}
+
 	// Find all live values
-	q := make([]*Value, 0, 64) // stack-like worklist of unscanned values
+	q := f.Cache.deadcode.q[:0]
+	defer func() { f.Cache.deadcode.q = q }()
 
 	// Starting set: all control values of reachable blocks are live.
 	// Calls are live (because callee can observe the memory state).
@@ -85,7 +126,14 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 				}
 			}
 			if v.Type.IsVoid() && !live[v.ID] {
-				// The only Void ops are nil checks.  We must keep these.
+				// The only Void ops are nil checks and inline marks.  We must keep these.
+				if v.Op == OpInlMark && !liveInlIdx[int(v.AuxInt)] {
+					// We don't need marks for bodies that
+					// have been completely optimized away.
+					// TODO: save marks only for bodies which
+					// have a faulting instruction or a call?
+					continue
+				}
 				live[v.ID] = true
 				q = append(q, v)
 				if v.Pos.IsStmt() != src.PosNotStmt {
@@ -163,6 +211,8 @@ func deadcode(f *Func) {
 
 	// Find live values.
 	live, order := liveValues(f, reachable)
+	defer f.retDeadcodeLive(live)
+	defer f.retDeadcodeLiveOrderStmts(order)
 
 	// Remove dead & duplicate entries from namedValues map.
 	s := f.newSparseSet(f.NumValues())

@@ -146,6 +146,8 @@
 (Div64u (Const64 [c])  (Const64 [d])) && d != 0 -> (Const64 [int64(uint64(c)/uint64(d))])
 (Div32F (Const32F [c]) (Const32F [d])) -> (Const32F [auxFrom32F(auxTo32F(c) / auxTo32F(d))])
 (Div64F (Const64F [c]) (Const64F [d])) -> (Const64F [auxFrom64F(auxTo64F(c) / auxTo64F(d))])
+(Select0 (Div128u (Const64 [0]) lo y)) -> (Div64u lo y)
+(Select1 (Div128u (Const64 [0]) lo y)) -> (Mod64u lo y)
 
 (Not (ConstBool [c])) -> (ConstBool [1-c])
 
@@ -419,6 +421,13 @@
 (Geq(64|32|16|8)     (Const(64|32|16|8) [c]) (Const(64|32|16|8) [d])) -> (ConstBool [b2i(c >= d)])
 (Less(64|32|16|8)    (Const(64|32|16|8) [c]) (Const(64|32|16|8) [d])) -> (ConstBool [b2i(c < d)])
 (Leq(64|32|16|8)     (Const(64|32|16|8) [c]) (Const(64|32|16|8) [d])) -> (ConstBool [b2i(c <= d)])
+
+(Geq8  (And8  _ (Const8  [c])) (Const8  [0])) && int8(c)  >= 0 -> (ConstBool [1])
+(Geq16 (And16 _ (Const16 [c])) (Const16 [0])) && int16(c) >= 0 -> (ConstBool [1])
+(Geq32 (And32 _ (Const32 [c])) (Const32 [0])) && int32(c) >= 0 -> (ConstBool [1])
+(Geq64 (And64 _ (Const64 [c])) (Const64 [0])) && int64(c) >= 0 -> (ConstBool [1])
+
+(Geq64 (Rsh64Ux64 _ (Const64 [c])) (Const64 [0])) && c > 0 -> (ConstBool [1])
 
 (Greater64U (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(uint64(c) > uint64(d))])
 (Greater32U (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(uint32(c) > uint32(d))])
@@ -871,59 +880,6 @@
 (Convert (Add(64|32) (Convert ptr mem) off) mem) -> (Add(64|32) ptr off)
 (Convert (Convert ptr mem) mem) -> ptr
 
-// Decompose compound argument values
-(Arg {n} [off]) && v.Type.IsString() ->
-  (StringMake
-    (Arg <typ.BytePtr> {n} [off])
-    (Arg <typ.Int> {n} [off+config.PtrSize]))
-
-(Arg {n} [off]) && v.Type.IsSlice() ->
-  (SliceMake
-    (Arg <v.Type.Elem().PtrTo()> {n} [off])
-    (Arg <typ.Int> {n} [off+config.PtrSize])
-    (Arg <typ.Int> {n} [off+2*config.PtrSize]))
-
-(Arg {n} [off]) && v.Type.IsInterface() ->
-  (IMake
-    (Arg <typ.Uintptr> {n} [off])
-    (Arg <typ.BytePtr> {n} [off+config.PtrSize]))
-
-(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 16 ->
-  (ComplexMake
-    (Arg <typ.Float64> {n} [off])
-    (Arg <typ.Float64> {n} [off+8]))
-
-(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 8 ->
-  (ComplexMake
-    (Arg <typ.Float32> {n} [off])
-    (Arg <typ.Float32> {n} [off+4]))
-
-(Arg <t>) && t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t) ->
-  (StructMake0)
-(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t) ->
-  (StructMake1
-    (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]))
-(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t) ->
-  (StructMake2
-    (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])
-    (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)]))
-(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t) ->
-  (StructMake3
-    (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])
-    (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])
-    (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)]))
-(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t) ->
-  (StructMake4
-    (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])
-    (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])
-    (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)])
-    (Arg <t.FieldType(3)> {n} [off+t.FieldOff(3)]))
-
-(Arg <t>) && t.IsArray() && t.NumElem() == 0 ->
-  (ArrayMake0)
-(Arg <t> {n} [off]) && t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t) ->
-  (ArrayMake1 (Arg <t.Elem()> {n} [off]))
-
 // strength reduction of divide by a constant.
 // See ../magic.go for a detailed description of these algorithms.
 
@@ -1207,6 +1163,41 @@
 (Mod64u <t> x (Const64 [c])) && x.Op != OpConst64 && c > 0 && umagicOK(64,c)
   -> (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))
 
+// Divisibility check for signed integers for power of two constant are simple mask.
+// However, we must match against the rewritten n%c == 0 -> n - c*(n/c) == 0 -> n == c *(n/c)
+// where n/c contains fixup code to handle signed n.
+(Eq8 n (Lsh8x64
+  (Rsh8x64
+    (Add8  <t> n (Rsh8Ux64  <t> (Rsh8x64  <t> n (Const64 <typ.UInt64> [ 7])) (Const64 <typ.UInt64> [kbar])))
+    (Const64 <typ.UInt64> [k]))
+	(Const64 <typ.UInt64> [k]))
+) && k > 0 && k < 7 && kbar == 8 - k
+  -> (Eq8 (And8 <t> n (Const8 <t> [int64(1<<uint(k)-1)])) (Const8 <t> [0]))
+
+(Eq16 n (Lsh16x64
+  (Rsh16x64
+    (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <typ.UInt64> [15])) (Const64 <typ.UInt64> [kbar])))
+    (Const64 <typ.UInt64> [k]))
+	(Const64 <typ.UInt64> [k]))
+) && k > 0 && k < 15 && kbar == 16 - k
+  -> (Eq16 (And16 <t> n (Const16 <t> [int64(1<<uint(k)-1)])) (Const16 <t> [0]))
+
+(Eq32 n (Lsh32x64
+  (Rsh32x64
+    (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <typ.UInt64> [31])) (Const64 <typ.UInt64> [kbar])))
+    (Const64 <typ.UInt64> [k]))
+	(Const64 <typ.UInt64> [k]))
+) && k > 0 && k < 31 && kbar == 32 - k
+  -> (Eq32 (And32 <t> n (Const32 <t> [int64(1<<uint(k)-1)])) (Const32 <t> [0]))
+
+(Eq64 n (Lsh64x64
+  (Rsh64x64
+    (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) (Const64 <typ.UInt64> [kbar])))
+    (Const64 <typ.UInt64> [k]))
+	(Const64 <typ.UInt64> [k]))
+) && k > 0 && k < 63 && kbar == 64 - k
+  -> (Eq64 (And64 <t> n (Const64 <t> [int64(1<<uint(k)-1)])) (Const64 <t> [0]))
+
 (Eq(8|16|32|64)  s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Eq(8|16|32|64)  x y)
 (Neq(8|16|32|64) s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Neq(8|16|32|64) x y)
 
@@ -1407,6 +1398,7 @@
 // Inline small or disjoint runtime.memmove calls with constant length.
 (StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
 	&& isSameSym(sym,"runtime.memmove")
+	&& t.(*types.Type).IsPtr() // avoids TUINTPTR, see issue 30061
 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
 	&& isInlinableMemmove(dst,src,sz,config)
 	&& clobber(s1) && clobber(s2) && clobber(s3)
@@ -1799,3 +1791,31 @@
 					(Zero {t1} [n] dst mem)))))
 
 (StaticCall {sym} x) && needRaceCleanup(sym,v) -> x
+
+// Collapse moving A -> B -> C into just A -> C.
+// Later passes (deadstore, elim unread auto) will remove the A -> B move, if possible.
+// This happens most commonly when B is an autotmp inserted earlier
+// during compilation to ensure correctness.
+// Take care that overlapping moves are preserved.
+// Restrict this optimization to the stack, to avoid duplicating loads from the heap;
+// see CL 145208 for discussion.
+(Move {t1} [s] dst tmp1 midmem:(Move {t2} [s] tmp2 src _))
+	&& t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq
+	&& isSamePtr(tmp1, tmp2)
+	&& isStackPtr(src)
+	&& disjoint(src, s, tmp2, s)
+	&& (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+	-> (Move {t1} [s] dst src midmem)
+
+// Same, but for large types that require VarDefs.
+(Move {t1} [s] dst tmp1 midmem:(VarDef (Move {t2} [s] tmp2 src _)))
+	&& t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq
+	&& isSamePtr(tmp1, tmp2)
+	&& isStackPtr(src)
+	&& disjoint(src, s, tmp2, s)
+	&& (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+	-> (Move {t1} [s] dst src midmem)
+
+// Elide self-moves. This only happens rarely (e.g test/fixedbugs/bug277.go).
+// However, this rule is needed to prevent the previous rule from looping forever in such cases.
+(Move dst src mem) && isSamePtr(dst, src) -> mem

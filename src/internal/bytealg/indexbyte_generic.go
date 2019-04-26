@@ -6,8 +6,6 @@
 
 package bytealg
 
-import _ "unsafe" // for go:linkname
-
 func IndexByte(b []byte, c byte) int {
 	for i, x := range b {
 		if x == c {
@@ -18,26 +16,6 @@ func IndexByte(b []byte, c byte) int {
 }
 
 func IndexByteString(s string, c byte) int {
-	for i := 0; i < len(s); i++ {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
-}
-
-//go:linkname bytes_IndexByte bytes.IndexByte
-func bytes_IndexByte(b []byte, c byte) int {
-	for i, x := range b {
-		if x == c {
-			return i
-		}
-	}
-	return -1
-}
-
-//go:linkname strings_IndexByte strings.IndexByte
-func strings_IndexByte(s string, c byte) int {
 	for i := 0; i < len(s); i++ {
 		if s[i] == c {
 			return i

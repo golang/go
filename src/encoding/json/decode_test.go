@@ -45,6 +45,15 @@ type W struct {
 	S SS
 }
 
+type P struct {
+	PP PP
+}
+
+type PP struct {
+	T  T
+	Ts []T
+}
+
 type SS string
 
 func (*SS) UnmarshalJSON(data []byte) error {
@@ -816,7 +825,7 @@ var unmarshalTests = []unmarshalTest{
 		err: &UnmarshalTypeError{
 			Value:  "string",
 			Struct: "V",
-			Field:  "F2",
+			Field:  "V.F2",
 			Type:   reflect.TypeOf(int32(0)),
 			Offset: 20,
 		},
@@ -827,7 +836,7 @@ var unmarshalTests = []unmarshalTest{
 		err: &UnmarshalTypeError{
 			Value:  "string",
 			Struct: "V",
-			Field:  "F2",
+			Field:  "V.F2",
 			Type:   reflect.TypeOf(int32(0)),
 			Offset: 30,
 		},
@@ -922,6 +931,29 @@ var unmarshalTests = []unmarshalTest{
 		in:  `{"foo": "bar"}`,
 		ptr: new(MustNotUnmarshalText),
 		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(&MustNotUnmarshalText{}), Offset: 1},
+	},
+	// #22369
+	{
+		in:  `{"PP": {"T": {"Y": "bad-type"}}}`,
+		ptr: new(P),
+		err: &UnmarshalTypeError{
+			Value:  "string",
+			Struct: "T",
+			Field:  "PP.T.Y",
+			Type:   reflect.TypeOf(int(0)),
+			Offset: 29,
+		},
+	},
+	{
+		in:  `{"Ts": [{"Y": 1}, {"Y": 2}, {"Y": "bad-type"}]}`,
+		ptr: new(PP),
+		err: &UnmarshalTypeError{
+			Value:  "string",
+			Struct: "T",
+			Field:  "Ts.Y",
+			Type:   reflect.TypeOf(int(0)),
+			Offset: 29,
+		},
 	},
 }
 
@@ -1021,12 +1053,22 @@ func TestMarshalEmbeds(t *testing.T) {
 	}
 }
 
+func equalError(a, b error) bool {
+	if a == nil {
+		return b == nil
+	}
+	if b == nil {
+		return a == nil
+	}
+	return a.Error() == b.Error()
+}
+
 func TestUnmarshal(t *testing.T) {
 	for i, tt := range unmarshalTests {
 		var scan scanner
 		in := []byte(tt.in)
 		if err := checkValid(in, &scan); err != nil {
-			if !reflect.DeepEqual(err, tt.err) {
+			if !equalError(err, tt.err) {
 				t.Errorf("#%d: checkValid: %#v", i, err)
 				continue
 			}
@@ -1044,7 +1086,7 @@ func TestUnmarshal(t *testing.T) {
 		if tt.disallowUnknownFields {
 			dec.DisallowUnknownFields()
 		}
-		if err := dec.Decode(v.Interface()); !reflect.DeepEqual(err, tt.err) {
+		if err := dec.Decode(v.Interface()); !equalError(err, tt.err) {
 			t.Errorf("#%d: %v, want %v", i, err, tt.err)
 			continue
 		} else if err != nil {
@@ -2270,7 +2312,7 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 
 	for i, tt := range tests {
 		err := Unmarshal([]byte(tt.in), tt.ptr)
-		if !reflect.DeepEqual(err, tt.err) {
+		if !equalError(err, tt.err) {
 			t.Errorf("#%d: %v, want %v", i, err, tt.err)
 		}
 		if !reflect.DeepEqual(tt.ptr, tt.out) {

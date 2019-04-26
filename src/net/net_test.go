@@ -529,7 +529,7 @@ func TestNotTemporaryRead(t *testing.T) {
 	server := func(cs *TCPConn) error {
 		cs.SetLinger(0)
 		// Give the client time to get stuck in a Read.
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 		cs.Close()
 		return nil
 	}

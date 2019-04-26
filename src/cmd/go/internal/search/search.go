@@ -190,7 +190,7 @@ func MatchPackagesInFS(pattern string) *Match {
 
 		if !top && cfg.ModulesEnabled {
 			// Ignore other modules found in subdirectories.
-			if _, err := os.Stat(filepath.Join(path, "go.mod")); err == nil {
+			if fi, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
 				return filepath.SkipDir
 			}
 		}
@@ -327,14 +327,35 @@ func ImportPathsQuiet(patterns []string) []*Match {
 			out = append(out, MatchPackages(a))
 			continue
 		}
-		if strings.Contains(a, "...") {
-			if build.IsLocalImport(a) {
-				out = append(out, MatchPackagesInFS(a))
+
+		if build.IsLocalImport(a) || filepath.IsAbs(a) {
+			var m *Match
+			if strings.Contains(a, "...") {
+				m = MatchPackagesInFS(a)
 			} else {
-				out = append(out, MatchPackages(a))
+				m = &Match{Pattern: a, Literal: true, Pkgs: []string{a}}
 			}
+
+			// Change the file import path to a regular import path if the package
+			// is in GOPATH or GOROOT. We don't report errors here; LoadImport
+			// (or something similar) will report them later.
+			for i, dir := range m.Pkgs {
+				if !filepath.IsAbs(dir) {
+					dir = filepath.Join(base.Cwd, dir)
+				}
+				if bp, _ := cfg.BuildContext.ImportDir(dir, build.FindOnly); bp.ImportPath != "" && bp.ImportPath != "." {
+					m.Pkgs[i] = bp.ImportPath
+				}
+			}
+			out = append(out, m)
 			continue
 		}
+
+		if strings.Contains(a, "...") {
+			out = append(out, MatchPackages(a))
+			continue
+		}
+
 		out = append(out, &Match{Pattern: a, Literal: true, Pkgs: []string{a}})
 	}
 	return out

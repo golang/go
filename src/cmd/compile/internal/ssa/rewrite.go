@@ -177,23 +177,11 @@ func canMergeSym(x, y interface{}) bool {
 	return x == nil || y == nil
 }
 
-// canMergeLoad reports whether the load can be merged into target without
+// canMergeLoadClobber reports whether the load can be merged into target without
 // invalidating the schedule.
 // It also checks that the other non-load argument x is something we
-// are ok with clobbering (all our current load+op instructions clobber
-// their input register).
-func canMergeLoad(target, load, x *Value) bool {
-	if target.Block.ID != load.Block.ID {
-		// If the load is in a different block do not merge it.
-		return false
-	}
-
-	// We can't merge the load into the target if the load
-	// has more than one use.
-	if load.Uses != 1 {
-		return false
-	}
-
+// are ok with clobbering.
+func canMergeLoadClobber(target, load, x *Value) bool {
 	// The register containing x is going to get clobbered.
 	// Don't merge if we still need the value of x.
 	// We don't have liveness information here, but we can
@@ -206,6 +194,22 @@ func canMergeLoad(target, load, x *Value) bool {
 	loopnest := x.Block.Func.loopnest()
 	loopnest.calculateDepths()
 	if loopnest.depth(target.Block.ID) > loopnest.depth(x.Block.ID) {
+		return false
+	}
+	return canMergeLoad(target, load)
+}
+
+// canMergeLoad reports whether the load can be merged into target without
+// invalidating the schedule.
+func canMergeLoad(target, load *Value) bool {
+	if target.Block.ID != load.Block.ID {
+		// If the load is in a different block do not merge it.
+		return false
+	}
+
+	// We can't merge the load into the target if the load
+	// has more than one use.
+	if load.Uses != 1 {
 		return false
 	}
 
@@ -258,6 +262,20 @@ func canMergeLoad(target, load, x *Value) bool {
 		if v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
 			// We could handle this situation however it is likely
 			// to be very rare.
+			return false
+		}
+		if v.Op.SymEffect()&SymAddr != 0 {
+			// This case prevents an operation that calculates the
+			// address of a local variable from being forced to schedule
+			// before its corresponding VarDef.
+			// See issue 28445.
+			//   v1 = LOAD ...
+			//   v2 = VARDEF
+			//   v3 = LEAQ
+			//   v4 = CMPQ v1 v3
+			// We don't want to combine the CMPQ with the load, because
+			// that would force the CMPQ to schedule before the VARDEF, which
+			// in turn requires the LEAQ to schedule before the VARDEF.
 			return false
 		}
 		if v.Type.IsMemory() {
@@ -316,7 +334,7 @@ func canMergeLoad(target, load, x *Value) bool {
 	return true
 }
 
-// isSameSym returns whether sym is the same as the given named symbol
+// isSameSym reports whether sym is the same as the given named symbol
 func isSameSym(sym interface{}, name string) bool {
 	s, ok := sym.(fmt.Stringer)
 	return ok && s.String() == name
@@ -451,6 +469,16 @@ func extend32Fto64F(f float32) float64 {
 	return math.Float64frombits(r)
 }
 
+// NeedsFixUp reports whether the division needs fix-up code.
+func NeedsFixUp(v *Value) bool {
+	return v.AuxInt == 0
+}
+
+// i2f is used in rules for converting from an AuxInt to a float.
+func i2f(i int64) float64 {
+	return math.Float64frombits(uint64(i))
+}
+
 // auxFrom64F encodes a float64 value so it can be stored in an AuxInt.
 func auxFrom64F(f float64) int64 {
 	return int64(math.Float64bits(f))
@@ -471,7 +499,7 @@ func auxTo64F(i int64) float64 {
 	return math.Float64frombits(uint64(i))
 }
 
-// uaddOvf returns true if unsigned a+b would overflow.
+// uaddOvf reports whether unsigned a+b would overflow.
 func uaddOvf(a, b int64) bool {
 	return uint64(a)+uint64(b) < uint64(a)
 }
@@ -516,6 +544,13 @@ func isSamePtr(p1, p2 *Value) bool {
 	return false
 }
 
+func isStackPtr(v *Value) bool {
+	for v.Op == OpOffPtr || v.Op == OpAddPtr {
+		v = v.Args[0]
+	}
+	return v.Op == OpSP || v.Op == OpLocalAddr
+}
+
 // disjoint reports whether the memory region specified by [p1:p1+n1)
 // does not overlap with [p2:p2+n2).
 // A return value of false does not imply the regions overlap.
@@ -528,7 +563,7 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 	}
 	baseAndOffset := func(ptr *Value) (base *Value, offset int64) {
 		base, offset = ptr, 0
-		if base.Op == OpOffPtr {
+		for base.Op == OpOffPtr {
 			offset += base.AuxInt
 			base = base.Args[0]
 		}
@@ -695,6 +730,14 @@ func arm64Negate(op Op) Op {
 		return OpARM64NotEqual
 	case OpARM64NotEqual:
 		return OpARM64Equal
+	case OpARM64LessThanF:
+		return OpARM64GreaterEqualF
+	case OpARM64GreaterThanF:
+		return OpARM64LessEqualF
+	case OpARM64LessEqualF:
+		return OpARM64GreaterThanF
+	case OpARM64GreaterEqualF:
+		return OpARM64LessThanF
 	default:
 		panic("unreachable")
 	}
@@ -727,6 +770,14 @@ func arm64Invert(op Op) Op {
 		return OpARM64LessEqualU
 	case OpARM64Equal, OpARM64NotEqual:
 		return op
+	case OpARM64LessThanF:
+		return OpARM64GreaterThanF
+	case OpARM64GreaterThanF:
+		return OpARM64LessThanF
+	case OpARM64LessEqualF:
+		return OpARM64GreaterEqualF
+	case OpARM64GreaterEqualF:
+		return OpARM64LessEqualF
 	default:
 		panic("unreachable")
 	}
@@ -1002,13 +1053,13 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	return false
 }
 
-// encodes the lsb and width for arm64 bitfield ops into the expected auxInt format.
-func arm64BFAuxInt(lsb, width int64) int64 {
+// encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
+func armBFAuxInt(lsb, width int64) int64 {
 	if lsb < 0 || lsb > 63 {
-		panic("ARM64 bit field lsb constant out of range")
+		panic("ARM(64) bit field lsb constant out of range")
 	}
 	if width < 1 || width > 64 {
-		panic("ARM64 bit field width constant out of range")
+		panic("ARM(64) bit field width constant out of range")
 	}
 	return width | lsb<<8
 }
@@ -1076,17 +1127,25 @@ func needRaceCleanup(sym interface{}, v *Value) bool {
 	}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Op == OpStaticCall {
-				switch v.Aux.(fmt.Stringer).String() {
-				case "runtime.racefuncenter", "runtime.racefuncexit", "runtime.panicindex",
-					"runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap":
+			switch v.Op {
+			case OpStaticCall:
 				// Check for racefuncenter will encounter racefuncexit and vice versa.
 				// Allow calls to panic*
-				default:
-					// If we encountered any call, we need to keep racefunc*,
-					// for accurate stacktraces.
-					return false
+				s := v.Aux.(fmt.Stringer).String()
+				switch s {
+				case "runtime.racefuncenter", "runtime.racefuncexit",
+					"runtime.panicdivide", "runtime.panicwrap",
+					"runtime.panicshift":
+					continue
 				}
+				// If we encountered any call, we need to keep racefunc*,
+				// for accurate stacktraces.
+				return false
+			case OpPanicBounds, OpPanicExtend:
+				// Note: these are panic generators that are ok (like the static calls above).
+			case OpClosureCall, OpInterCall:
+				// We must keep the race functions if there are any other call types.
+				return false
 			}
 		}
 	}
@@ -1102,12 +1161,22 @@ func symIsRO(sym interface{}) bool {
 // read8 reads one byte from the read-only global sym at offset off.
 func read8(sym interface{}, off int64) uint8 {
 	lsym := sym.(*obj.LSym)
+	if off >= int64(len(lsym.P)) || off < 0 {
+		// Invalid index into the global sym.
+		// This can happen in dead code, so we don't want to panic.
+		// Just return any value, it will eventually get ignored.
+		// See issue 29215.
+		return 0
+	}
 	return lsym.P[off]
 }
 
 // read16 reads two bytes from the read-only global sym at offset off.
 func read16(sym interface{}, off int64, bigEndian bool) uint16 {
 	lsym := sym.(*obj.LSym)
+	if off >= int64(len(lsym.P))-1 || off < 0 {
+		return 0
+	}
 	if bigEndian {
 		return binary.BigEndian.Uint16(lsym.P[off:])
 	} else {
@@ -1118,6 +1187,9 @@ func read16(sym interface{}, off int64, bigEndian bool) uint16 {
 // read32 reads four bytes from the read-only global sym at offset off.
 func read32(sym interface{}, off int64, bigEndian bool) uint32 {
 	lsym := sym.(*obj.LSym)
+	if off >= int64(len(lsym.P))-3 || off < 0 {
+		return 0
+	}
 	if bigEndian {
 		return binary.BigEndian.Uint32(lsym.P[off:])
 	} else {
@@ -1128,6 +1200,9 @@ func read32(sym interface{}, off int64, bigEndian bool) uint32 {
 // read64 reads eight bytes from the read-only global sym at offset off.
 func read64(sym interface{}, off int64, bigEndian bool) uint64 {
 	lsym := sym.(*obj.LSym)
+	if off >= int64(len(lsym.P))-7 || off < 0 {
+		return 0
+	}
 	if bigEndian {
 		return binary.BigEndian.Uint64(lsym.P[off:])
 	} else {

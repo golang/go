@@ -12,8 +12,11 @@ import (
 	"time"
 )
 
-// BUG(mikio): On JS, NaCl, Plan 9 and Windows, methods and functions
-// related to UnixConn and UnixListener are not implemented.
+// BUG(mikio): On JS, NaCl and Plan 9, methods and functions related
+// to UnixConn and UnixListener are not implemented.
+
+// BUG(mikio): On Windows, methods and functions related to UnixConn
+// and UnixListener don't work for "unixgram" and "unixpacket".
 
 // UnixAddr represents the address of a Unix domain socket end point.
 type UnixAddr struct {

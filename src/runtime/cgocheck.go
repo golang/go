@@ -43,6 +43,13 @@ func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
 		return
 	}
 
+	// It's OK if writing to memory allocated by persistentalloc.
+	// Do this check last because it is more expensive and rarely true.
+	// If it is false the expense doesn't matter since we are crashing.
+	if inPersistentAlloc(uintptr(unsafe.Pointer(dst))) {
+		return
+	}
+
 	systemstack(func() {
 		println("write of Go pointer", hex(src), "to non-Go memory", hex(uintptr(unsafe.Pointer(dst))))
 		throw(cgoWriteBarrierFail)
@@ -57,7 +64,7 @@ func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
-	if typ.kind&kindNoPointers != 0 {
+	if typ.ptrdata == 0 {
 		return
 	}
 	if !cgoIsGoPointer(src) {
@@ -76,7 +83,7 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckSliceCopy(typ *_type, dst, src slice, n int) {
-	if typ.kind&kindNoPointers != 0 {
+	if typ.ptrdata == 0 {
 		return
 	}
 	if !cgoIsGoPointer(src.array) {
@@ -196,7 +203,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
 //go:nowritebarrier
 //go:systemstack
 func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
-	if typ.kind&kindNoPointers != 0 {
+	if typ.ptrdata == 0 {
 		return
 	}
 

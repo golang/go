@@ -13,7 +13,7 @@ import (
 )
 
 // builtin type-checks a call to the built-in specified by id and
-// returns true if the call is valid, with *x holding the result;
+// reports whether the call is valid, with *x holding the result;
 // but x.expr is not set. If the call is invalid, the result is
 // false, and *x is undefined.
 //

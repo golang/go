@@ -105,7 +105,12 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 		throw("unaligned sysUnused")
 	}
 
-	advise := atomic.Load(&adviseUnused)
+	var advise uint32
+	if debug.madvdontneed != 0 {
+		advise = _MADV_DONTNEED
+	} else {
+		advise = atomic.Load(&adviseUnused)
+	}
 	if errno := madvise(v, n, int32(advise)); advise == _MADV_FREE && errno != 0 {
 		// MADV_FREE was added in Linux 4.5. Fall back to MADV_DONTNEED if it is
 		// not supported.

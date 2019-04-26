@@ -73,7 +73,7 @@ const (
 	O_CREATE int = syscall.O_CREAT  // create a new file if none exists.
 	O_EXCL   int = syscall.O_EXCL   // used with O_CREATE, file must not exist.
 	O_SYNC   int = syscall.O_SYNC   // open for synchronous I/O.
-	O_TRUNC  int = syscall.O_TRUNC  // if possible, truncate file when opened.
+	O_TRUNC  int = syscall.O_TRUNC  // truncate regular writable file when opened.
 )
 
 // Seek whence values.
@@ -96,6 +96,10 @@ type LinkError struct {
 
 func (e *LinkError) Error() string {
 	return e.Op + " " + e.Old + " " + e.New + ": " + e.Err.Error()
+}
+
+func (e *LinkError) Unwrap() error {
+	return e.Err
 }
 
 // Read reads up to len(b) bytes from the File.
@@ -159,12 +163,19 @@ func (f *File) Write(b []byte) (n int, err error) {
 	return n, err
 }
 
+var errWriteAtInAppendMode = errors.New("os: invalid use of WriteAt on file opened with O_APPEND")
+
 // WriteAt writes len(b) bytes to the File starting at byte offset off.
 // It returns the number of bytes written and an error, if any.
 // WriteAt returns a non-nil error when n != len(b).
+//
+// If file was opened with the O_APPEND flag, WriteAt returns an error.
 func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	if err := f.checkValid("write"); err != nil {
 		return 0, err
+	}
+	if f.appendMode {
+		return 0, errWriteAtInAppendMode
 	}
 
 	if off < 0 {
@@ -265,10 +276,10 @@ func Open(name string) (*File, error) {
 	return OpenFile(name, O_RDONLY, 0)
 }
 
-// Create creates the named file with mode 0666 (before umask), truncating
-// it if it already exists. If successful, methods on the returned
-// File can be used for I/O; the associated file descriptor has mode
-// O_RDWR.
+// Create creates or truncates the named file. If the file already exists,
+// it is truncated. If the file does not exist, it is created with mode 0666
+// (before umask). If successful, methods on the returned File can
+// be used for I/O; the associated file descriptor has mode O_RDWR.
 // If there is an error, it will be of type *PathError.
 func Create(name string) (*File, error) {
 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
@@ -276,12 +287,19 @@ func Create(name string) (*File, error) {
 
 // OpenFile is the generalized open call; most users will use Open
 // or Create instead. It opens the named file with specified flag
-// (O_RDONLY etc.) and perm (before umask), if applicable. If successful,
+// (O_RDONLY etc.). If the file does not exist, and the O_CREATE flag
+// is passed, it is created with mode perm (before umask). If successful,
 // methods on the returned File can be used for I/O.
 // If there is an error, it will be of type *PathError.
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	testlog.Open(name)
-	return openFileNolog(name, flag, perm)
+	f, err := openFileNolog(name, flag, perm)
+	if err != nil {
+		return nil, err
+	}
+	f.appendMode = flag&O_APPEND != 0
+
+	return f, nil
 }
 
 // lstat is overridden in tests.
@@ -381,27 +399,85 @@ func UserCacheDir() (string, error) {
 	return dir, nil
 }
 
+// UserConfigDir returns the default root directory to use for user-specific
+// configuration data. Users should create their own application-specific
+// subdirectory within this one and use that.
+//
+// On Unix systems, it returns $XDG_CONFIG_HOME as specified by
+// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html if
+// non-empty, else $HOME/.config.
+// On Darwin, it returns $HOME/Library/Preferences.
+// On Windows, it returns %AppData%.
+// On Plan 9, it returns $home/lib.
+//
+// If the location cannot be determined (for example, $HOME is not defined),
+// then it will return an error.
+func UserConfigDir() (string, error) {
+	var dir string
+
+	switch runtime.GOOS {
+	case "windows":
+		dir = Getenv("AppData")
+		if dir == "" {
+			return "", errors.New("%AppData% is not defined")
+		}
+
+	case "darwin":
+		dir = Getenv("HOME")
+		if dir == "" {
+			return "", errors.New("$HOME is not defined")
+		}
+		dir += "/Library/Preferences"
+
+	case "plan9":
+		dir = Getenv("home")
+		if dir == "" {
+			return "", errors.New("$home is not defined")
+		}
+		dir += "/lib"
+
+	default: // Unix
+		dir = Getenv("XDG_CONFIG_HOME")
+		if dir == "" {
+			dir = Getenv("HOME")
+			if dir == "" {
+				return "", errors.New("neither $XDG_CONFIG_HOME nor $HOME are defined")
+			}
+			dir += "/.config"
+		}
+	}
+
+	return dir, nil
+}
+
 // UserHomeDir returns the current user's home directory.
 //
 // On Unix, including macOS, it returns the $HOME environment variable.
 // On Windows, it returns %USERPROFILE%.
 // On Plan 9, it returns the $home environment variable.
-func UserHomeDir() string {
+func UserHomeDir() (string, error) {
+	env, enverr := "HOME", "$HOME"
 	switch runtime.GOOS {
 	case "windows":
-		return Getenv("USERPROFILE")
+		env, enverr = "USERPROFILE", "%userprofile%"
 	case "plan9":
-		return Getenv("home")
-	case "nacl", "android":
-		return "/"
+		env, enverr = "home", "$home"
+	}
+	if v := Getenv(env); v != "" {
+		return v, nil
+	}
+	// On some geese the home directory is not always defined.
+	switch runtime.GOOS {
+	case "nacl":
+		return "/", nil
+	case "android":
+		return "/sdcard", nil
 	case "darwin":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			return "/"
+			return "/", nil
 		}
-		fallthrough
-	default:
-		return Getenv("HOME")
 	}
+	return "", errors.New(enverr + " is not defined")
 }
 
 // Chmod changes the mode of the named file to mode.
@@ -470,4 +546,13 @@ func (f *File) SetReadDeadline(t time.Time) error {
 // Not all files support setting deadlines; see SetDeadline.
 func (f *File) SetWriteDeadline(t time.Time) error {
 	return f.setWriteDeadline(t)
+}
+
+// SyscallConn returns a raw file.
+// This implements the syscall.Conn interface.
+func (f *File) SyscallConn() (syscall.RawConn, error) {
+	if err := f.checkValid("SyscallConn"); err != nil {
+		return nil, err
+	}
+	return newRawConn(f)
 }

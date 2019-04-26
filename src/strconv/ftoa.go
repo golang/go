@@ -32,12 +32,14 @@ var float64info = floatInfo{52, 11, -1023}
 // 'e' (-d.dddde±dd, a decimal exponent),
 // 'E' (-d.ddddE±dd, a decimal exponent),
 // 'f' (-ddd.dddd, no exponent),
-// 'g' ('e' for large exponents, 'f' otherwise), or
-// 'G' ('E' for large exponents, 'f' otherwise).
+// 'g' ('e' for large exponents, 'f' otherwise),
+// 'G' ('E' for large exponents, 'f' otherwise),
+// 'x' (-0xd.ddddp±ddd, a hexadecimal fraction and binary exponent), or
+// 'X' (-0Xd.ddddP±ddd, a hexadecimal fraction and binary exponent).
 //
 // The precision prec controls the number of digits (excluding the exponent)
-// printed by the 'e', 'E', 'f', 'g', and 'G' formats.
-// For 'e', 'E', and 'f' it is the number of digits after the decimal point.
+// printed by the 'e', 'E', 'f', 'g', 'G', 'x', and 'X' formats.
+// For 'e', 'E', 'f', 'x', and 'X', it is the number of digits after the decimal point.
 // For 'g' and 'G' it is the maximum number of significant digits (trailing
 // zeros are removed).
 // The special precision -1 uses the smallest number of digits
@@ -94,9 +96,12 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 	}
 	exp += flt.bias
 
-	// Pick off easy binary format.
+	// Pick off easy binary, hex formats.
 	if fmt == 'b' {
 		return fmtB(dst, neg, mant, exp, flt)
+	}
+	if fmt == 'x' || fmt == 'X' {
+		return fmtX(dst, prec, fmt, neg, mant, exp, flt)
 	}
 
 	if !optimize {
@@ -435,6 +440,89 @@ func fmtB(dst []byte, neg bool, mant uint64, exp int, flt *floatInfo) []byte {
 		dst = append(dst, '+')
 	}
 	dst, _ = formatBits(dst, uint64(exp), 10, exp < 0, true)
+
+	return dst
+}
+
+// %x: -0x1.yyyyyyyyp±ddd or -0x0p+0. (y is hex digit, d is decimal digit)
+func fmtX(dst []byte, prec int, fmt byte, neg bool, mant uint64, exp int, flt *floatInfo) []byte {
+	if mant == 0 {
+		exp = 0
+	}
+
+	// Shift digits so leading 1 (if any) is at bit 1<<60.
+	mant <<= 60 - flt.mantbits
+	for mant != 0 && mant&(1<<60) == 0 {
+		mant <<= 1
+		exp--
+	}
+
+	// Round if requested.
+	if prec >= 0 && prec < 15 {
+		shift := uint(prec * 4)
+		extra := (mant << shift) & (1<<60 - 1)
+		mant >>= 60 - shift
+		if extra|(mant&1) > 1<<59 {
+			mant++
+		}
+		mant <<= 60 - shift
+		if mant&(1<<61) != 0 {
+			// Wrapped around.
+			mant >>= 1
+			exp++
+		}
+	}
+
+	hex := lowerhex
+	if fmt == 'X' {
+		hex = upperhex
+	}
+
+	// sign, 0x, leading digit
+	if neg {
+		dst = append(dst, '-')
+	}
+	dst = append(dst, '0', fmt, '0'+byte((mant>>60)&1))
+
+	// .fraction
+	mant <<= 4 // remove leading 0 or 1
+	if prec < 0 && mant != 0 {
+		dst = append(dst, '.')
+		for mant != 0 {
+			dst = append(dst, hex[(mant>>60)&15])
+			mant <<= 4
+		}
+	} else if prec > 0 {
+		dst = append(dst, '.')
+		for i := 0; i < prec; i++ {
+			dst = append(dst, hex[(mant>>60)&15])
+			mant <<= 4
+		}
+	}
+
+	// p±
+	ch := byte('P')
+	if fmt == lower(fmt) {
+		ch = 'p'
+	}
+	dst = append(dst, ch)
+	if exp < 0 {
+		ch = '-'
+		exp = -exp
+	} else {
+		ch = '+'
+	}
+	dst = append(dst, ch)
+
+	// dd or ddd or dddd
+	switch {
+	case exp < 100:
+		dst = append(dst, byte(exp/10)+'0', byte(exp%10)+'0')
+	case exp < 1000:
+		dst = append(dst, byte(exp/100)+'0', byte((exp/10)%10)+'0', byte(exp%10)+'0')
+	default:
+		dst = append(dst, byte(exp/1000)+'0', byte(exp/100)%10+'0', byte((exp/10)%10)+'0', byte(exp%10)+'0')
+	}
 
 	return dst
 }

@@ -143,5 +143,7 @@ blockloop:
 			}
 		}
 	}
+	f.laidout = true
 	return order
+	//f.Blocks = order
 }

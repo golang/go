@@ -28,6 +28,7 @@ func ExampleOpenFile_append() {
 		log.Fatal(err)
 	}
 	if _, err := f.Write([]byte("appended some data\n")); err != nil {
+		f.Close() // ignore error; Write error takes precedence
 		log.Fatal(err)
 	}
 	if err := f.Close(); err != nil {
@@ -55,6 +56,7 @@ func ExampleFileMode() {
 		log.Fatal(err)
 	}
 
+	fmt.Printf("permissions: %#o\n", fi.Mode().Perm()) // 0400, 0777, etc.
 	switch mode := fi.Mode(); {
 	case mode.IsRegular():
 		fmt.Println("regular file")

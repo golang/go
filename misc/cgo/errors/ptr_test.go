@@ -357,6 +357,73 @@ var ptrTests = []ptrTest{
 		body:    `r, _, _ := os.Pipe(); r.SetDeadline(time.Now().Add(C.US * time.Microsecond))`,
 		fail:    false,
 	},
+	{
+		// Test for double evaluation of channel receive.
+		name:    "chan-recv",
+		c:       `void f(char** p) {}`,
+		imports: []string{"time"},
+		body:    `c := make(chan []*C.char, 2); c <- make([]*C.char, 1); go func() { time.Sleep(10 * time.Second); panic("received twice from chan") }(); C.f(&(<-c)[0]);`,
+		fail:    false,
+	},
+	{
+		// Test that converting the address of a struct field
+		// to unsafe.Pointer still just checks that field.
+		// Issue #25941.
+		name:    "struct-field",
+		c:       `void f(void* p) {}`,
+		imports: []string{"unsafe"},
+		support: `type S struct { p *int; a [8]byte; u uintptr }`,
+		body:    `s := &S{p: new(int)}; C.f(unsafe.Pointer(&s.a))`,
+		fail:    false,
+	},
+	{
+		// Test that converting multiple struct field
+		// addresses to unsafe.Pointer still just checks those
+		// fields. Issue #25941.
+		name:    "struct-field-2",
+		c:       `void f(void* p, int r, void* s) {}`,
+		imports: []string{"unsafe"},
+		support: `type S struct { a [8]byte; p *int; b int64; }`,
+		body:    `s := &S{p: new(int)}; C.f(unsafe.Pointer(&s.a), 32, unsafe.Pointer(&s.b))`,
+		fail:    false,
+	},
+	{
+		// Test that second argument to cgoCheckPointer is
+		// evaluated when a deferred function is deferred, not
+		// when it is run.
+		name:    "defer2",
+		c:       `void f(char **pc) {}`,
+		support: `type S1 struct { s []*C.char }; type S2 struct { ps *S1 }`,
+		body:    `p := &S2{&S1{[]*C.char{nil}}}; defer C.f(&p.ps.s[0]); p.ps = nil`,
+		fail:    false,
+	},
+	{
+		// Test that indexing into a function call still
+		// examines only the slice being indexed.
+		name:    "buffer",
+		c:       `void f(void *p) {}`,
+		imports: []string{"bytes", "unsafe"},
+		body:    `var b bytes.Buffer; b.WriteString("a"); C.f(unsafe.Pointer(&b.Bytes()[0]))`,
+		fail:    false,
+	},
+	{
+		// Test that bgsweep releasing a finalizer is OK.
+		name:    "finalizer",
+		c:       `// Nothing to declare.`,
+		imports: []string{"os"},
+		support: `func open() { os.Open(os.Args[0]) }; var G [][]byte`,
+		body:    `for i := 0; i < 10000; i++ { G = append(G, make([]byte, 4096)); if i % 100 == 0 { G = nil; open() } }`,
+		fail:    false,
+	},
+	{
+		// Test that converting generated struct to interface is OK.
+		name:    "structof",
+		c:       `// Nothing to declare.`,
+		imports: []string{"reflect"},
+		support: `type MyInt int; func (i MyInt) Get() int { return int(i) }; type Getter interface { Get() int }`,
+		body:    `t := reflect.StructOf([]reflect.StructField{{Name: "MyInt", Type: reflect.TypeOf(MyInt(0)), Anonymous: true}}); v := reflect.New(t).Elem(); v.Interface().(Getter).Get()`,
+		fail:    false,
+	},
 }
 
 func TestPointerChecks(t *testing.T) {
@@ -377,8 +444,8 @@ func testOne(t *testing.T, pt ptrTest) {
 	}
 	defer os.RemoveAll(gopath)
 
-	src := filepath.Join(gopath, "src")
-	if err := os.Mkdir(src, 0777); err != nil {
+	src := filepath.Join(gopath, "src", "ptrtest")
+	if err := os.MkdirAll(src, 0777); err != nil {
 		t.Fatal(err)
 	}
 
@@ -423,13 +490,18 @@ func testOne(t *testing.T, pt ptrTest) {
 		}
 	}
 
+	gomod := fmt.Sprintf("module %s\n", filepath.Base(src))
+	if err := ioutil.WriteFile(filepath.Join(src, "go.mod"), []byte(gomod), 0666); err != nil {
+		t.Fatalf("writing go.mod: %v", err)
+	}
+
 	args := func(cmd *exec.Cmd) string {
 		return strings.Join(cmd.Args, " ")
 	}
 
 	cmd := exec.Command("go", "build")
 	cmd.Dir = src
-	cmd.Env = addEnv("GOPATH", gopath)
+	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 	buf, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Logf("%#q:\n%s", args(cmd), buf)
@@ -501,16 +573,5 @@ func testOne(t *testing.T, pt ptrTest) {
 }
 
 func cgocheckEnv(val string) []string {
-	return addEnv("GODEBUG", "cgocheck="+val)
-}
-
-func addEnv(key, val string) []string {
-	env := []string{key + "=" + val}
-	look := key + "="
-	for _, e := range os.Environ() {
-		if !strings.HasPrefix(e, look) {
-			env = append(env, e)
-		}
-	}
-	return env
+	return append(os.Environ(), "GODEBUG=cgocheck="+val)
 }

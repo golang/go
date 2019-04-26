@@ -7,10 +7,13 @@ package tls
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rsa"
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"hash"
+	"io"
 )
 
 // pickSignatureAlgorithm selects a signature algorithm that is compatible with
@@ -43,7 +46,7 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 		if !isSupportedSignatureAlgorithm(sigAlg, ourSigAlgs) {
 			continue
 		}
-		hashAlg, err := lookupTLSHash(sigAlg)
+		hashAlg, err := hashFromSignatureScheme(sigAlg)
 		if err != nil {
 			panic("tls: supported signature algorithm has an unknown hash function")
 		}
@@ -104,4 +107,115 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
 		return errors.New("tls: unknown signature algorithm")
 	}
 	return nil
+}
+
+const (
+	serverSignatureContext = "TLS 1.3, server CertificateVerify\x00"
+	clientSignatureContext = "TLS 1.3, client CertificateVerify\x00"
+)
+
+var signaturePadding = []byte{
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+}
+
+// writeSignedMessage writes the content to be signed by certificate keys in TLS
+// 1.3 to sigHash. See RFC 8446, Section 4.4.3.
+func writeSignedMessage(sigHash io.Writer, context string, transcript hash.Hash) {
+	sigHash.Write(signaturePadding)
+	io.WriteString(sigHash, context)
+	sigHash.Write(transcript.Sum(nil))
+}
+
+// signatureSchemesForCertificate returns the list of supported SignatureSchemes
+// for a given certificate, based on the public key and the protocol version. It
+// does not support the crypto.Decrypter interface, so shouldn't be used on the
+// server side in TLS 1.2 and earlier.
+func signatureSchemesForCertificate(version uint16, cert *Certificate) []SignatureScheme {
+	priv, ok := cert.PrivateKey.(crypto.Signer)
+	if !ok {
+		return nil
+	}
+
+	switch pub := priv.Public().(type) {
+	case *ecdsa.PublicKey:
+		if version != VersionTLS13 {
+			// In TLS 1.2 and earlier, ECDSA algorithms are not
+			// constrained to a single curve.
+			return []SignatureScheme{
+				ECDSAWithP256AndSHA256,
+				ECDSAWithP384AndSHA384,
+				ECDSAWithP521AndSHA512,
+				ECDSAWithSHA1,
+			}
+		}
+		switch pub.Curve {
+		case elliptic.P256():
+			return []SignatureScheme{ECDSAWithP256AndSHA256}
+		case elliptic.P384():
+			return []SignatureScheme{ECDSAWithP384AndSHA384}
+		case elliptic.P521():
+			return []SignatureScheme{ECDSAWithP521AndSHA512}
+		default:
+			return nil
+		}
+	case *rsa.PublicKey:
+		if version != VersionTLS13 {
+			return []SignatureScheme{
+				PSSWithSHA256,
+				PSSWithSHA384,
+				PSSWithSHA512,
+				PKCS1WithSHA256,
+				PKCS1WithSHA384,
+				PKCS1WithSHA512,
+				PKCS1WithSHA1,
+			}
+		}
+		// RSA keys with RSA-PSS OID are not supported by crypto/x509.
+		return []SignatureScheme{
+			PSSWithSHA256,
+			PSSWithSHA384,
+			PSSWithSHA512,
+		}
+	default:
+		return nil
+	}
+}
+
+// unsupportedCertificateError returns a helpful error for certificates with
+// an unsupported private key.
+func unsupportedCertificateError(cert *Certificate) error {
+	switch cert.PrivateKey.(type) {
+	case rsa.PrivateKey, ecdsa.PrivateKey:
+		return fmt.Errorf("tls: unsupported certificate: private key is %T, expected *%T",
+			cert.PrivateKey, cert.PrivateKey)
+	}
+
+	signer, ok := cert.PrivateKey.(crypto.Signer)
+	if !ok {
+		return fmt.Errorf("tls: certificate private key (%T) does not implement crypto.Signer",
+			cert.PrivateKey)
+	}
+
+	switch pub := signer.Public().(type) {
+	case *ecdsa.PublicKey:
+		switch pub.Curve {
+		case elliptic.P256():
+		case elliptic.P384():
+		case elliptic.P521():
+		default:
+			return fmt.Errorf("tls: unsupported certificate curve (%s)", pub.Curve.Params().Name)
+		}
+	case *rsa.PublicKey:
+	default:
+		return fmt.Errorf("tls: unsupported certificate key (%T)", pub)
+	}
+
+	return fmt.Errorf("tls: internal error: unsupported key (%T)", cert.PrivateKey)
 }

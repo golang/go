@@ -87,20 +87,11 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
 	}
 }
 
-func cipherSuiteById(id uint16) *cipherSuite {
-	for _, cipherSuite := range cipherSuites {
-		if cipherSuite.id == id {
-			return cipherSuite
-		}
-	}
-	panic("ciphersuite not found")
-}
-
 // These test vectors were generated from GnuTLS using `gnutls-cli --insecure -d 9 `
 var testKeysFromTests = []testKeysFromTest{
 	{
 		VersionTLS10,
-		cipherSuiteById(TLS_RSA_WITH_RC4_128_SHA),
+		cipherSuiteByID(TLS_RSA_WITH_RC4_128_SHA),
 		"0302cac83ad4b1db3b9ab49ad05957de2a504a634a386fc600889321e1a971f57479466830ac3e6f468e87f5385fa0c5",
 		"4ae66303755184a3917fcb44880605fcc53baa01912b22ed94473fc69cebd558",
 		"4ae663020ec16e6bb5130be918cfcafd4d765979a3136a5d50c593446e4e44db",
@@ -116,7 +107,7 @@ var testKeysFromTests = []testKeysFromTest{
 	},
 	{
 		VersionTLS10,
-		cipherSuiteById(TLS_RSA_WITH_RC4_128_SHA),
+		cipherSuiteByID(TLS_RSA_WITH_RC4_128_SHA),
 		"03023f7527316bc12cbcd69e4b9e8275d62c028f27e65c745cfcddc7ce01bd3570a111378b63848127f1c36e5f9e4890",
 		"4ae66364b5ea56b20ce4e25555aed2d7e67f42788dd03f3fee4adae0459ab106",
 		"4ae66363ab815cbf6a248b87d6b556184e945e9b97fbdf247858b0bdafacfa1c",
@@ -132,7 +123,7 @@ var testKeysFromTests = []testKeysFromTest{
 	},
 	{
 		VersionTLS10,
-		cipherSuiteById(TLS_RSA_WITH_RC4_128_SHA),
+		cipherSuiteByID(TLS_RSA_WITH_RC4_128_SHA),
 		"832d515f1d61eebb2be56ba0ef79879efb9b527504abb386fb4310ed5d0e3b1f220d3bb6b455033a2773e6d8bdf951d278a187482b400d45deb88a5d5a6bb7d6a7a1decc04eb9ef0642876cd4a82d374d3b6ff35f0351dc5d411104de431375355addc39bfb1f6329fb163b0bc298d658338930d07d313cd980a7e3d9196cac1",
 		"4ae663b2ee389c0de147c509d8f18f5052afc4aaf9699efe8cb05ece883d3a5e",
 		"4ae664d503fd4cff50cfc1fb8fc606580f87b0fcdac9554ba0e01d785bdf278e",
@@ -148,7 +139,7 @@ var testKeysFromTests = []testKeysFromTest{
 	},
 	{
 		VersionSSL30,
-		cipherSuiteById(TLS_RSA_WITH_RC4_128_SHA),
+		cipherSuiteByID(TLS_RSA_WITH_RC4_128_SHA),
 		"832d515f1d61eebb2be56ba0ef79879efb9b527504abb386fb4310ed5d0e3b1f220d3bb6b455033a2773e6d8bdf951d278a187482b400d45deb88a5d5a6bb7d6a7a1decc04eb9ef0642876cd4a82d374d3b6ff35f0351dc5d411104de431375355addc39bfb1f6329fb163b0bc298d658338930d07d313cd980a7e3d9196cac1",
 		"4ae663b2ee389c0de147c509d8f18f5052afc4aaf9699efe8cb05ece883d3a5e",
 		"4ae664d503fd4cff50cfc1fb8fc606580f87b0fcdac9554ba0e01d785bdf278e",

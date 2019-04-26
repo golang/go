@@ -129,6 +129,9 @@ func TestLookupGroup(t *testing.T) {
 
 func TestGroupIds(t *testing.T) {
 	checkGroup(t)
+	if runtime.GOOS == "aix" {
+		t.Skip("skipping GroupIds, see golang.org/issue/30563")
+	}
 	if runtime.GOOS == "solaris" {
 		t.Skip("skipping GroupIds, see golang.org/issue/14709")
 	}

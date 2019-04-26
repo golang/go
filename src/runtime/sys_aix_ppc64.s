@@ -30,7 +30,13 @@ TEXT runtime·callCfunction(SB),	NOSPLIT|NOFRAME,$0
 // Called by runtime.asmcgocall
 // It reserves a stack of 288 bytes for the C function.
 // NOT USING GO CALLING CONVENTION
-TEXT runtime·asmsyscall6(SB),NOSPLIT,$256
+// runtime.asmsyscall6 is a function descriptor to the real asmsyscall6.
+DATA	runtime·asmsyscall6+0(SB)/8, $runtime·_asmsyscall6(SB)
+DATA	runtime·asmsyscall6+8(SB)/8, $TOC(SB)
+DATA	runtime·asmsyscall6+16(SB)/8, $0
+GLOBL	runtime·asmsyscall6(SB), NOPTR, $24
+
+TEXT runtime·_asmsyscall6(SB),NOSPLIT,$256
 	MOVD	R3, 48(R1) // Save libcall for later
 	MOVD	libcall_fn(R3), R12
 	MOVD	libcall_args(R3), R9
@@ -71,8 +77,15 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVD	info+16(FP), R4
 	MOVD	ctx+24(FP), R5
 	MOVD	fn+0(FP), R12
-	MOVD	R12, CTR
+	// fn is a function descriptor
+	// R2 must be saved on restore
+	MOVD	0(R12), R0
+	MOVD	R2, 40(R1)
+	MOVD	8(R12), R2
+	MOVD	R0, CTR
 	BL	(CTR)
+	MOVD	40(R1), R2
+	BL	runtime·reginit(SB)
 	RET
 
 
@@ -84,6 +97,7 @@ GLOBL	runtime·sigtramp(SB), NOPTR, $24
 
 // This funcion must not have any frame as we want to control how
 // every registers are used.
+// TODO(aix): Implement SetCgoTraceback handler.
 TEXT runtime·_sigtramp(SB),NOSPLIT|NOFRAME,$0
 	MOVD	LR, R0
 	MOVD	R0, 16(R1)
@@ -94,36 +108,42 @@ TEXT runtime·_sigtramp(SB),NOSPLIT|NOFRAME,$0
 	// more stack available than NOSPLIT would have us believe.
 	// To defeat the linker, we make our own stack frame with
 	// more space.
-	SUB	   $128+FIXED_FRAME, R1
+	SUB	$144+FIXED_FRAME, R1
 
 	// Save registers
 	MOVD	R31, 56(R1)
 	MOVD	g, 64(R1)
 	MOVD	R29, 72(R1)
+	MOVD	R14, 80(R1)
+	MOVD	R15, 88(R1)
 
 	BL	runtime·load_g(SB)
 
+	CMP	$0, g
+	BEQ	sigtramp // g == nil
+	MOVD	g_m(g), R6
+	CMP	$0, R6
+	BEQ	sigtramp	// g.m == nil
+
 	// Save m->libcall. We need to do this because we
 	// might get interrupted by a signal in runtime·asmcgocall.
-
-	// save m->libcall
-	MOVD	g_m(g), R6
 	MOVD	(m_libcall+libcall_fn)(R6), R7
-	MOVD	R7, 80(R1)
-	MOVD	(m_libcall+libcall_args)(R6), R7
-	MOVD	R7, 88(R1)
-	MOVD	(m_libcall+libcall_n)(R6), R7
 	MOVD	R7, 96(R1)
-	MOVD	(m_libcall+libcall_r1)(R6), R7
+	MOVD	(m_libcall+libcall_args)(R6), R7
 	MOVD	R7, 104(R1)
-	MOVD	(m_libcall+libcall_r2)(R6), R7
+	MOVD	(m_libcall+libcall_n)(R6), R7
 	MOVD	R7, 112(R1)
+	MOVD	(m_libcall+libcall_r1)(R6), R7
+	MOVD	R7, 120(R1)
+	MOVD	(m_libcall+libcall_r2)(R6), R7
+	MOVD	R7, 128(R1)
 
 	// save errno, it might be EINTR; stuff we do here might reset it.
 	MOVD	(m_mOS+mOS_perrno)(R6), R8
 	MOVD	0(R8), R8
-	MOVD	R8, 120(R1)
+	MOVD	R8, 136(R1)
 
+sigtramp:
 	MOVW	R3, FIXED_FRAME+0(R1)
 	MOVD	R4, FIXED_FRAME+8(R1)
 	MOVD	R5, FIXED_FRAME+16(R1)
@@ -131,31 +151,39 @@ TEXT runtime·_sigtramp(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R12, CTR
 	BL	(CTR)
 
+	CMP	$0, g
+	BEQ	exit // g == nil
 	MOVD	g_m(g), R6
+	CMP	$0, R6
+	BEQ	exit	// g.m == nil
+
 	// restore libcall
-	MOVD	80(R1), R7
-	MOVD	R7, (m_libcall+libcall_fn)(R6)
-	MOVD	88(R1), R7
-	MOVD	R7, (m_libcall+libcall_args)(R6)
 	MOVD	96(R1), R7
-	MOVD	R7, (m_libcall+libcall_n)(R6)
+	MOVD	R7, (m_libcall+libcall_fn)(R6)
 	MOVD	104(R1), R7
-	MOVD	R7, (m_libcall+libcall_r1)(R6)
+	MOVD	R7, (m_libcall+libcall_args)(R6)
 	MOVD	112(R1), R7
+	MOVD	R7, (m_libcall+libcall_n)(R6)
+	MOVD	120(R1), R7
+	MOVD	R7, (m_libcall+libcall_r1)(R6)
+	MOVD	128(R1), R7
 	MOVD	R7, (m_libcall+libcall_r2)(R6)
 
 	// restore errno
 	MOVD	(m_mOS+mOS_perrno)(R6), R7
-	MOVD	120(R1), R8
+	MOVD	136(R1), R8
 	MOVD	R8, 0(R7)
 
+exit:
 	// restore registers
 	MOVD	56(R1),R31
 	MOVD	64(R1),g
 	MOVD	72(R1),R29
+	MOVD	80(R1), R14
+	MOVD	88(R1), R15
 
 	// Don't use RET because we need to restore R31 !
-	ADD $128+FIXED_FRAME, R1
+	ADD $144+FIXED_FRAME, R1
 	MOVD	16(R1), R0
 	MOVD	R0, LR
 	BR (LR)
@@ -188,14 +216,100 @@ TEXT runtime·_tstart(SB),NOSPLIT,$0
 	MOVD R0, R3
 	RET
 
+
+#define CSYSCALL()			\
+	MOVD	0(R12), R12		\
+	MOVD	R2, 40(R1)		\
+	MOVD	0(R12), R0		\
+	MOVD	8(R12), R2		\
+	MOVD	R0, CTR			\
+	BL	(CTR)			\
+	MOVD	40(R1), R2		\
+	BL runtime·reginit(SB)
+
+
 // Runs on OS stack, called from runtime·osyield.
 TEXT runtime·osyield1(SB),NOSPLIT,$0
 	MOVD	$libc_sched_yield(SB), R12
-	MOVD	0(R12), R12
-	MOVD	R2, 40(R1)
-	MOVD	0(R12), R0
-	MOVD	8(R12), R2
-	MOVD	R0, CTR
-	BL	(CTR)
-	MOVD	40(R1), R2
+	CSYSCALL()
+	RET
+
+
+// Runs on OS stack, called from runtime·sigprocmask.
+TEXT runtime·sigprocmask1(SB),NOSPLIT,$0-24
+	MOVD	how+0(FP), R3
+	MOVD	new+8(FP), R4
+	MOVD	old+16(FP), R5
+	MOVD	$libpthread_sigthreadmask(SB), R12
+	CSYSCALL()
+	RET
+
+// Runs on OS stack, called from runtime·usleep.
+TEXT runtime·usleep1(SB),NOSPLIT,$0-4
+	MOVW	us+0(FP), R3
+	MOVD	$libc_usleep(SB), R12
+	CSYSCALL()
+	RET
+
+// Runs on OS stack, called from runtime·exit.
+TEXT runtime·exit1(SB),NOSPLIT,$0-4
+	MOVW	code+0(FP), R3
+	MOVD	$libc_exit(SB), R12
+	CSYSCALL()
+	RET
+
+// Runs on OS stack, called from runtime·write.
+TEXT runtime·write1(SB),NOSPLIT,$0-28
+	MOVD	fd+0(FP), R3
+	MOVD	p+8(FP), R4
+	MOVW	n+16(FP), R5
+	MOVD	$libc_write(SB), R12
+	CSYSCALL()
+	MOVW	R3, ret+24(FP)
+	RET
+
+// Runs on OS stack, called from runtime·pthread_attr_init.
+TEXT runtime·pthread_attr_init1(SB),NOSPLIT,$0-12
+	MOVD	attr+0(FP), R3
+	MOVD	$libpthread_attr_init(SB), R12
+	CSYSCALL()
+	MOVW	R3, ret+8(FP)
+	RET
+
+// Runs on OS stack, called from runtime·pthread_attr_setstacksize.
+TEXT runtime·pthread_attr_setstacksize1(SB),NOSPLIT,$0-20
+	MOVD	attr+0(FP), R3
+	MOVD	size+8(FP), R4
+	MOVD	$libpthread_attr_setstacksize(SB), R12
+	CSYSCALL()
+	MOVW	R3, ret+16(FP)
+	RET
+
+// Runs on OS stack, called from runtime·pthread_setdetachstate.
+TEXT runtime·pthread_attr_setdetachstate1(SB),NOSPLIT,$0-20
+	MOVD	attr+0(FP), R3
+	MOVW	state+8(FP), R4
+	MOVD	$libpthread_attr_setdetachstate(SB), R12
+	CSYSCALL()
+	MOVW	R3, ret+16(FP)
+	RET
+
+// Runs on OS stack, called from runtime·pthread_create.
+TEXT runtime·pthread_create1(SB),NOSPLIT,$0-36
+	MOVD	tid+0(FP), R3
+	MOVD	attr+8(FP), R4
+	MOVD	fn+16(FP), R5
+	MOVD	arg+24(FP), R6
+	MOVD	$libpthread_create(SB), R12
+	CSYSCALL()
+	MOVW	R3, ret+32(FP)
+	RET
+
+// Runs on OS stack, called from runtime·sigaction.
+TEXT runtime·sigaction1(SB),NOSPLIT,$0-24
+	MOVD	sig+0(FP), R3
+	MOVD	new+8(FP), R4
+	MOVD	old+16(FP), R5
+	MOVD	$libc_sigaction(SB), R12
+	CSYSCALL()
 	RET

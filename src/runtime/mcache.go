@@ -79,7 +79,7 @@ type stackfreelist struct {
 	size uintptr   // total size of stacks in list
 }
 
-// dummy MSpan that contains no free objects.
+// dummy mspan that contains no free objects.
 var emptymspan mspan
 
 func allocmcache() *mcache {

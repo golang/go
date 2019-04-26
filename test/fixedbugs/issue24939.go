@@ -15,7 +15,9 @@ type M interface {
 }
 
 type P = interface {
-	I() M
+	// The compiler cannot handle this case. Disabled for now.
+	// See issue #25838.
+	// I() M
 }
 
 func main() {}

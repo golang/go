@@ -159,7 +159,7 @@ var goopnames = []string{
 	OCASE:     "case",
 	OCLOSE:    "close",
 	OCOMPLEX:  "complex",
-	OCOM:      "^",
+	OBITNOT:   "^",
 	OCONTINUE: "continue",
 	OCOPY:     "copy",
 	ODELETE:   "delete",
@@ -174,13 +174,14 @@ var goopnames = []string{
 	OGT:       ">",
 	OIF:       "if",
 	OIMAG:     "imag",
-	OIND:      "*",
+	OINLMARK:  "inlmark",
+	ODEREF:    "*",
 	OLEN:      "len",
 	OLE:       "<=",
 	OLSH:      "<<",
 	OLT:       "<",
 	OMAKE:     "make",
-	OMINUS:    "-",
+	ONEG:      "-",
 	OMOD:      "%",
 	OMUL:      "*",
 	ONEW:      "new",
@@ -464,8 +465,8 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " tc(%d)", n.Typecheck())
 	}
 
-	if n.Isddd() {
-		fmt.Fprintf(s, " isddd(%v)", n.Isddd())
+	if n.IsDDD() {
+		fmt.Fprintf(s, " isddd(%v)", n.IsDDD())
 	}
 
 	if n.Implicit() {
@@ -751,7 +752,11 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 			case types.IsExported(f.Sym.Name):
 				buf = append(buf, sconv(f.Sym, FmtShort, mode)...)
 			default:
-				buf = append(buf, sconv(f.Sym, FmtUnsigned, mode)...)
+				flag1 := FmtLeft
+				if flag&FmtUnsigned != 0 {
+					flag1 = FmtUnsigned
+				}
+				buf = append(buf, sconv(f.Sym, flag1, mode)...)
 			}
 			buf = append(buf, tconv(f.Type, FmtShort, mode, depth)...)
 		}
@@ -942,7 +947,10 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 	case ORETJMP:
 		mode.Fprintf(s, "retjmp %v", n.Sym)
 
-	case OPROC:
+	case OINLMARK:
+		mode.Fprintf(s, "inlmark %d", n.Xoffset)
+
+	case OGO:
 		mode.Fprintf(s, "go %v", n.Left)
 
 	case ODEFER:
@@ -1045,8 +1053,8 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 		mode.Fprintf(s, ": %v", n.Nbody)
 
 	case OBREAK, OCONTINUE, OGOTO, OFALL:
-		if n.Left != nil {
-			mode.Fprintf(s, "%#v %v", n.Op, n.Left)
+		if n.Sym != nil {
+			mode.Fprintf(s, "%#v %v", n.Op, n.Sym)
 		} else {
 			mode.Fprintf(s, "%#v", n.Op)
 		}
@@ -1055,7 +1063,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 		break
 
 	case OLABEL:
-		mode.Fprintf(s, "%v: ", n.Left)
+		mode.Fprintf(s, "%v: ", n.Sym)
 	}
 
 	if extrablock {
@@ -1064,91 +1072,92 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 }
 
 var opprec = []int{
-	OALIGNOF:      8,
-	OAPPEND:       8,
-	OARRAYBYTESTR: 8,
-	OARRAYLIT:     8,
-	OSLICELIT:     8,
-	OARRAYRUNESTR: 8,
-	OCALLFUNC:     8,
-	OCALLINTER:    8,
-	OCALLMETH:     8,
-	OCALL:         8,
-	OCAP:          8,
-	OCLOSE:        8,
-	OCONVIFACE:    8,
-	OCONVNOP:      8,
-	OCONV:         8,
-	OCOPY:         8,
-	ODELETE:       8,
-	OGETG:         8,
-	OLEN:          8,
-	OLITERAL:      8,
-	OMAKESLICE:    8,
-	OMAKE:         8,
-	OMAPLIT:       8,
-	ONAME:         8,
-	ONEW:          8,
-	ONONAME:       8,
-	OOFFSETOF:     8,
-	OPACK:         8,
-	OPANIC:        8,
-	OPAREN:        8,
-	OPRINTN:       8,
-	OPRINT:        8,
-	ORUNESTR:      8,
-	OSIZEOF:       8,
-	OSTRARRAYBYTE: 8,
-	OSTRARRAYRUNE: 8,
-	OSTRUCTLIT:    8,
-	OTARRAY:       8,
-	OTCHAN:        8,
-	OTFUNC:        8,
-	OTINTER:       8,
-	OTMAP:         8,
-	OTSTRUCT:      8,
-	OINDEXMAP:     8,
-	OINDEX:        8,
-	OSLICE:        8,
-	OSLICESTR:     8,
-	OSLICEARR:     8,
-	OSLICE3:       8,
-	OSLICE3ARR:    8,
-	ODOTINTER:     8,
-	ODOTMETH:      8,
-	ODOTPTR:       8,
-	ODOTTYPE2:     8,
-	ODOTTYPE:      8,
-	ODOT:          8,
-	OXDOT:         8,
-	OCALLPART:     8,
-	OPLUS:         7,
-	ONOT:          7,
-	OCOM:          7,
-	OMINUS:        7,
-	OADDR:         7,
-	OIND:          7,
-	ORECV:         7,
-	OMUL:          6,
-	ODIV:          6,
-	OMOD:          6,
-	OLSH:          6,
-	ORSH:          6,
-	OAND:          6,
-	OANDNOT:       6,
-	OADD:          5,
-	OSUB:          5,
-	OOR:           5,
-	OXOR:          5,
-	OEQ:           4,
-	OLT:           4,
-	OLE:           4,
-	OGE:           4,
-	OGT:           4,
-	ONE:           4,
-	OSEND:         3,
-	OANDAND:       2,
-	OOROR:         1,
+	OALIGNOF:     8,
+	OAPPEND:      8,
+	OBYTES2STR:   8,
+	OARRAYLIT:    8,
+	OSLICELIT:    8,
+	ORUNES2STR:   8,
+	OCALLFUNC:    8,
+	OCALLINTER:   8,
+	OCALLMETH:    8,
+	OCALL:        8,
+	OCAP:         8,
+	OCLOSE:       8,
+	OCONVIFACE:   8,
+	OCONVNOP:     8,
+	OCONV:        8,
+	OCOPY:        8,
+	ODELETE:      8,
+	OGETG:        8,
+	OLEN:         8,
+	OLITERAL:     8,
+	OMAKESLICE:   8,
+	OMAKE:        8,
+	OMAPLIT:      8,
+	ONAME:        8,
+	ONEW:         8,
+	ONONAME:      8,
+	OOFFSETOF:    8,
+	OPACK:        8,
+	OPANIC:       8,
+	OPAREN:       8,
+	OPRINTN:      8,
+	OPRINT:       8,
+	ORUNESTR:     8,
+	OSIZEOF:      8,
+	OSTR2BYTES:   8,
+	OSTR2RUNES:   8,
+	OSTRUCTLIT:   8,
+	OTARRAY:      8,
+	OTCHAN:       8,
+	OTFUNC:       8,
+	OTINTER:      8,
+	OTMAP:        8,
+	OTSTRUCT:     8,
+	OINDEXMAP:    8,
+	OINDEX:       8,
+	OSLICE:       8,
+	OSLICESTR:    8,
+	OSLICEARR:    8,
+	OSLICE3:      8,
+	OSLICE3ARR:   8,
+	OSLICEHEADER: 8,
+	ODOTINTER:    8,
+	ODOTMETH:     8,
+	ODOTPTR:      8,
+	ODOTTYPE2:    8,
+	ODOTTYPE:     8,
+	ODOT:         8,
+	OXDOT:        8,
+	OCALLPART:    8,
+	OPLUS:        7,
+	ONOT:         7,
+	OBITNOT:      7,
+	ONEG:         7,
+	OADDR:        7,
+	ODEREF:       7,
+	ORECV:        7,
+	OMUL:         6,
+	ODIV:         6,
+	OMOD:         6,
+	OLSH:         6,
+	ORSH:         6,
+	OAND:         6,
+	OANDNOT:      6,
+	OADD:         5,
+	OSUB:         5,
+	OOR:          5,
+	OXOR:         5,
+	OEQ:          4,
+	OLT:          4,
+	OLE:          4,
+	OGE:          4,
+	OGT:          4,
+	ONE:          4,
+	OSEND:        3,
+	OANDAND:      2,
+	OOROR:        1,
 
 	// Statements handled by stmtfmt
 	OAS:         -1,
@@ -1171,7 +1180,7 @@ var opprec = []int{
 	OGOTO:       -1,
 	OIF:         -1,
 	OLABEL:      -1,
-	OPROC:       -1,
+	OGO:         -1,
 	ORANGE:      -1,
 	ORETURN:     -1,
 	OSELECT:     -1,
@@ -1182,7 +1191,7 @@ var opprec = []int{
 }
 
 func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
-	for n != nil && n.Implicit() && (n.Op == OIND || n.Op == OADDR) {
+	for n != nil && n.Implicit() && (n.Op == ODEREF || n.Op == OADDR) {
 		n = n.Left
 	}
 
@@ -1393,16 +1402,26 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		}
 		fmt.Fprint(s, "]")
 
-	case OCOPY, OCOMPLEX:
-		mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
+	case OSLICEHEADER:
+		if n.List.Len() != 2 {
+			Fatalf("bad OSLICEHEADER list length %d", n.List.Len())
+		}
+		mode.Fprintf(s, "sliceheader{%v,%v,%v}", n.Left, n.List.First(), n.List.Second())
+
+	case OCOMPLEX, OCOPY:
+		if n.Left != nil {
+			mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
+		} else {
+			mode.Fprintf(s, "%#v(%.v)", n.Op, n.List)
+		}
 
 	case OCONV,
 		OCONVIFACE,
 		OCONVNOP,
-		OARRAYBYTESTR,
-		OARRAYRUNESTR,
-		OSTRARRAYBYTE,
-		OSTRARRAYRUNE,
+		OBYTES2STR,
+		ORUNES2STR,
+		OSTR2BYTES,
+		OSTR2RUNES,
 		ORUNESTR:
 		if n.Type == nil || n.Type.Sym == nil {
 			mode.Fprintf(s, "(%v)", n.Type)
@@ -1435,7 +1454,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			mode.Fprintf(s, "%#v(%v)", n.Op, n.Left)
 			return
 		}
-		if n.Isddd() {
+		if n.IsDDD() {
 			mode.Fprintf(s, "%#v(%.v...)", n.Op, n.List)
 			return
 		}
@@ -1443,7 +1462,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
 		n.Left.exprfmt(s, nprec, mode)
-		if n.Isddd() {
+		if n.IsDDD() {
 			mode.Fprintf(s, "(%.v...)", n.List)
 			return
 		}
@@ -1464,7 +1483,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 		}
 		mode.Fprintf(s, "make(%v)", n.Type)
 
-	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
+	case OPLUS, ONEG, OADDR, OBITNOT, ODEREF, ONOT, ORECV:
 		// Unary
 		mode.Fprintf(s, "%#v", n.Op)
 		if n.Left != nil && n.Left.Op == n.Op {
@@ -1522,6 +1541,8 @@ func (n *Node) nodefmt(s fmt.State, flag FmtFlag, mode fmtMode) {
 	if flag&FmtLong != 0 && t != nil {
 		if t.Etype == TNIL {
 			fmt.Fprint(s, "nil")
+		} else if n.Op == ONAME && n.Name.AutoTemp() {
+			mode.Fprintf(s, "%v value", t)
 		} else {
 			mode.Fprintf(s, "%v (type %v)", n, t)
 		}
@@ -1557,9 +1578,6 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
 	switch n.Op {
 	default:
 		mode.Fprintf(s, "%v%j", n.Op, n)
-
-	case OINDREGSP:
-		mode.Fprintf(s, "%v-SP%j", n.Op, n)
 
 	case OLITERAL:
 		mode.Fprintf(s, "%v-%v%j", n.Op, n.Val(), n)
@@ -1687,7 +1705,7 @@ func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int, funarg types
 	}
 
 	var typ string
-	if f.Isddd() {
+	if f.IsDDD() {
 		var et *types.Type
 		if f.Type != nil {
 			et = f.Type.Elem()
@@ -1735,7 +1753,11 @@ func tconv(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 		return t.FieldType(0).String() + "," + t.FieldType(1).String()
 	}
 
-	if depth > 100 {
+	// Avoid endless recursion by setting an upper limit. This also
+	// limits the depths of valid composite types, but they are likely
+	// artificially created.
+	// TODO(gri) should have proper cycle detection here, eventually (issue #29312)
+	if depth > 250 {
 		return "<...>"
 	}
 

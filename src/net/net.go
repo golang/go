@@ -282,7 +282,7 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 	return nil
 }
 
-// File returns a copy of the underlying os.File
+// File returns a copy of the underlying os.File.
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.
 //
@@ -473,7 +473,7 @@ func (e *OpError) Error() string {
 
 var (
 	// aLongTimeAgo is a non-zero time, far in the past, used for
-	// immediate cancelation of dials.
+	// immediate cancellation of dials.
 	aLongTimeAgo = time.Unix(1, 0)
 
 	// nonDeadline and noCancel are just zero values for
@@ -579,6 +579,7 @@ type DNSError struct {
 	Server      string // server used
 	IsTimeout   bool   // if true, timed out; not all timeouts set this
 	IsTemporary bool   // if true, error is temporary; not all errors set this
+	IsNotFound  bool   // if true, host could not be found
 }
 
 func (e *DNSError) Error() string {
