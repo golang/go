@@ -4187,7 +4187,12 @@ func checkdead() {
 	// for details.)
 	var run0 int32
 	if !iscgo && cgoHasExtraM {
-		run0 = 1
+		mp := lockextra(true)
+		haveExtraM := extraMCount > 0
+		unlockextra(mp)
+		if haveExtraM {
+			run0 = 1
+		}
 	}
 
 	run := mcount() - sched.nmidle - sched.nmidlelocked - sched.nmsys
