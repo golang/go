@@ -222,6 +222,7 @@ struct ltchars {
 #include <linux/hdreg.h>
 #include <linux/rtc.h>
 #include <linux/if_xdp.h>
+#include <linux/cryptouser.h>
 #include <mtd/ubi-user.h>
 #include <net/route.h>
 
@@ -499,6 +500,7 @@ ccflags="$@"
 		$2 ~ /^NFN/ ||
 		$2 ~ /^XDP_/ ||
 		$2 ~ /^(HDIO|WIN|SMART)_/ ||
+		$2 ~ /^CRYPTO_/ ||
 		$2 !~ "WMESGLEN" &&
 		$2 ~ /^W[A-Z0-9]+$/ ||
 		$2 ~/^PPPIOC/ ||

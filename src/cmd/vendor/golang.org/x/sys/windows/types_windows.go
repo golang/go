@@ -7,33 +7,6 @@ package windows
 import "syscall"
 
 const (
-	// Windows errors.
-	ERROR_FILE_NOT_FOUND         syscall.Errno = 2
-	ERROR_PATH_NOT_FOUND         syscall.Errno = 3
-	ERROR_ACCESS_DENIED          syscall.Errno = 5
-	ERROR_NO_MORE_FILES          syscall.Errno = 18
-	ERROR_HANDLE_EOF             syscall.Errno = 38
-	ERROR_NETNAME_DELETED        syscall.Errno = 64
-	ERROR_FILE_EXISTS            syscall.Errno = 80
-	ERROR_BROKEN_PIPE            syscall.Errno = 109
-	ERROR_BUFFER_OVERFLOW        syscall.Errno = 111
-	ERROR_INSUFFICIENT_BUFFER    syscall.Errno = 122
-	ERROR_MOD_NOT_FOUND          syscall.Errno = 126
-	ERROR_PROC_NOT_FOUND         syscall.Errno = 127
-	ERROR_ALREADY_EXISTS         syscall.Errno = 183
-	ERROR_ENVVAR_NOT_FOUND       syscall.Errno = 203
-	ERROR_MORE_DATA              syscall.Errno = 234
-	ERROR_OPERATION_ABORTED      syscall.Errno = 995
-	ERROR_IO_PENDING             syscall.Errno = 997
-	ERROR_SERVICE_SPECIFIC_ERROR syscall.Errno = 1066
-	ERROR_NOT_FOUND              syscall.Errno = 1168
-	ERROR_PRIVILEGE_NOT_HELD     syscall.Errno = 1314
-	WSAEACCES                    syscall.Errno = 10013
-	WSAEMSGSIZE                  syscall.Errno = 10040
-	WSAECONNRESET                syscall.Errno = 10054
-)
-
-const (
 	// Invented values to support what package os expects.
 	O_RDONLY   = 0x00000
 	O_WRONLY   = 0x00001
@@ -177,7 +150,6 @@ const (
 	IGNORE                = 0
 	INFINITE              = 0xffffffff
 
-	WAIT_TIMEOUT   = 258
 	WAIT_ABANDONED = 0x00000080
 	WAIT_OBJECT_0  = 0x00000000
 	WAIT_FAILED    = 0xFFFFFFFF
@@ -411,12 +383,6 @@ const (
 	CERT_CHAIN_POLICY_MICROSOFT_ROOT    = 7
 	CERT_CHAIN_POLICY_EV                = 8
 	CERT_CHAIN_POLICY_SSL_F12           = 9
-
-	CERT_E_EXPIRED       = 0x800B0101
-	CERT_E_ROLE          = 0x800B0103
-	CERT_E_PURPOSE       = 0x800B0106
-	CERT_E_UNTRUSTEDROOT = 0x800B0109
-	CERT_E_CN_NO_MATCH   = 0x800B010F
 
 	/* AuthType values for SSLExtraCertChainPolicyPara struct */
 	AUTHTYPE_CLIENT = 1
@@ -857,10 +823,6 @@ const (
 	DNS_TYPE_WINS    = 0xff01
 	DNS_TYPE_WINSR   = 0xff02
 	DNS_TYPE_NBSTAT  = 0xff01
-)
-
-const (
-	DNS_INFO_NO_RECORDS = 0x251D
 )
 
 const (

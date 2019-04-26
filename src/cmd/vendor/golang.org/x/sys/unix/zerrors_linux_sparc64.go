@@ -323,6 +323,10 @@ const (
 	CRDLY                                = 0x600
 	CREAD                                = 0x80
 	CRTSCTS                              = 0x80000000
+	CRYPTO_MAX_NAME                      = 0x40
+	CRYPTO_MSG_MAX                       = 0x15
+	CRYPTO_NR_MSGTYPES                   = 0x6
+	CRYPTO_REPORT_MAXSIZE                = 0x160
 	CS5                                  = 0x0
 	CS6                                  = 0x10
 	CS7                                  = 0x20

@@ -169,6 +169,15 @@ openbsd_arm)
 	# API consistent across platforms.
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	;;
+openbsd_arm64)
+	mkerrors="$mkerrors -m64"
+	mksyscall="go run mksyscall.go -openbsd"
+	mksysctl="./mksysctl_openbsd.pl"
+	mksysnum="go run mksysnum.go 'https://cvsweb.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master'"
+	# Let the type of C char be signed for making the bare syscall
+	# API consistent across platforms.
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
+	;;
 solaris_amd64)
 	mksyscall="go run mksyscall_solaris.go"
 	mkerrors="$mkerrors -m64"

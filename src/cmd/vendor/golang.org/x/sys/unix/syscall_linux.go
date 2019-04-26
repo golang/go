@@ -1662,6 +1662,19 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 	return EACCES
 }
 
+//sys nameToHandleAt(dirFD int, pathname string, fh *fileHandle, mountID *_C_int, flags int) (err error) = SYS_NAME_TO_HANDLE_AT
+//sys openByHandleAt(mountFD int, fh *fileHandle, flags int) (fd int, err error) = SYS_OPEN_BY_HANDLE_AT
+
+// fileHandle is the argument to nameToHandleAt and openByHandleAt. We
+// originally tried to generate it via unix/linux/types.go with "type
+// fileHandle C.struct_file_handle" but that generated empty structs
+// for mips64 and mips64le. Instead, hard code it for now (it's the
+// same everywhere else) until the mips64 generator issue is fixed.
+type fileHandle struct {
+	Bytes uint32
+	Type  int32
+}
+
 /*
  * Unimplemented
  */
