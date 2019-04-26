@@ -907,25 +907,3 @@ square:
 	MULTIPLY(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, R_0, R_1, R_2, R5_1, R5_2, M0, M1, M2, M3, M4, M5, T_0, T_1, T_2, T_3, T_4, T_5, T_6, T_7, T_8, T_9)
 	REDUCE2(H0_0, H1_0, H2_0, M0, M1, M2, M3, M4, T_9, T_10, H0_1, M5)
 	BR next
-
-TEXT ·hasVMSLFacility(SB), NOSPLIT, $24-1
-	MOVD  $x-24(SP), R1
-	XC    $24, 0(R1), 0(R1) // clear the storage
-	MOVD  $2, R0            // R0 is the number of double words stored -1
-	WORD  $0xB2B01000       // STFLE 0(R1)
-	XOR   R0, R0            // reset the value of R0
-	MOVBZ z-8(SP), R1
-	AND   $0x01, R1
-	BEQ   novmsl
-
-vectorinstalled:
-	// check if the vector instruction has been enabled
-	VLEIB  $0, $0xF, V16
-	VLGVB  $0, V16, R1
-	CMPBNE R1, $0xF, novmsl
-	MOVB   $1, ret+0(FP)    // have vx
-	RET
-
-novmsl:
-	MOVB $0, ret+0(FP) // no vx
-	RET

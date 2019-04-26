@@ -78,8 +78,8 @@ type SpanningTransformer interface {
 	// considering the error err.
 	//
 	// A nil error means that all input bytes are known to be identical to the
-	// output produced by the Transformer. A nil error can be be returned
-	// regardless of whether atEOF is true. If err is nil, then then n must
+	// output produced by the Transformer. A nil error can be returned
+	// regardless of whether atEOF is true. If err is nil, then n must
 	// equal len(src); the converse is not necessarily true.
 	//
 	// ErrEndOfSpan means that the Transformer output may differ from the
@@ -493,7 +493,7 @@ func (c *chain) Transform(dst, src []byte, atEOF bool) (nDst, nSrc int, err erro
 	return dstL.n, srcL.p, err
 }
 
-// Deprecated: use runes.Remove instead.
+// Deprecated: Use runes.Remove instead.
 func RemoveFunc(f func(r rune) bool) Transformer {
 	return removeF(f)
 }

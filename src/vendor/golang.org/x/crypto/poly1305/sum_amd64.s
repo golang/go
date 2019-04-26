@@ -58,20 +58,17 @@ DATA ·poly1305Mask<>+0x00(SB)/8, $0x0FFFFFFC0FFFFFFF
 DATA ·poly1305Mask<>+0x08(SB)/8, $0x0FFFFFFC0FFFFFFC
 GLOBL ·poly1305Mask<>(SB), RODATA, $16
 
-// func poly1305(out *[16]byte, m *byte, mlen uint64, key *[32]key)
-TEXT ·poly1305(SB), $0-32
-	MOVQ out+0(FP), DI
-	MOVQ m+8(FP), SI
-	MOVQ mlen+16(FP), R15
-	MOVQ key+24(FP), AX
+// func update(state *[7]uint64, msg []byte)
+TEXT ·update(SB), $0-32
+	MOVQ state+0(FP), DI
+	MOVQ msg_base+8(FP), SI
+	MOVQ msg_len+16(FP), R15
 
-	MOVQ 0(AX), R11
-	MOVQ 8(AX), R12
-	ANDQ ·poly1305Mask<>(SB), R11   // r0
-	ANDQ ·poly1305Mask<>+8(SB), R12 // r1
-	XORQ R8, R8                    // h0
-	XORQ R9, R9                    // h1
-	XORQ R10, R10                  // h2
+	MOVQ 0(DI), R8   // h0
+	MOVQ 8(DI), R9   // h1
+	MOVQ 16(DI), R10 // h2
+	MOVQ 24(DI), R11 // r0
+	MOVQ 32(DI), R12 // r1
 
 	CMPQ R15, $16
 	JB   bytes_between_0_and_15
@@ -109,16 +106,42 @@ flush_buffer:
 	JMP  multiply
 
 done:
-	MOVQ    R8, AX
-	MOVQ    R9, BX
+	MOVQ R8, 0(DI)
+	MOVQ R9, 8(DI)
+	MOVQ R10, 16(DI)
+	RET
+
+// func initialize(state *[7]uint64, key *[32]byte)
+TEXT ·initialize(SB), $0-16
+	MOVQ state+0(FP), DI
+	MOVQ key+8(FP), SI
+
+	// state[0...7] is initialized with zero
+	MOVOU 0(SI), X0
+	MOVOU 16(SI), X1
+	MOVOU ·poly1305Mask<>(SB), X2
+	PAND  X2, X0
+	MOVOU X0, 24(DI)
+	MOVOU X1, 40(DI)
+	RET
+
+// func finalize(tag *[TagSize]byte, state *[7]uint64)
+TEXT ·finalize(SB), $0-16
+	MOVQ tag+0(FP), DI
+	MOVQ state+8(FP), SI
+
+	MOVQ    0(SI), AX
+	MOVQ    8(SI), BX
+	MOVQ    16(SI), CX
+	MOVQ    AX, R8
+	MOVQ    BX, R9
 	SUBQ    $0xFFFFFFFFFFFFFFFB, AX
 	SBBQ    $0xFFFFFFFFFFFFFFFF, BX
-	SBBQ    $3, R10
+	SBBQ    $3, CX
 	CMOVQCS R8, AX
 	CMOVQCS R9, BX
-	MOVQ    key+24(FP), R8
-	ADDQ    16(R8), AX
-	ADCQ    24(R8), BX
+	ADDQ    40(SI), AX
+	ADCQ    48(SI), BX
 
 	MOVQ AX, 0(DI)
 	MOVQ BX, 8(DI)

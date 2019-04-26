@@ -6,14 +6,13 @@
 
 package chacha20
 
-var haveAsm = hasVectorFacility()
+import (
+	"golang.org/x/sys/cpu"
+)
+
+var haveAsm = cpu.S390X.HasVX
 
 const bufSize = 256
-
-// hasVectorFacility reports whether the machine supports the vector
-// facility (vx).
-// Implementation in asm_s390x.s.
-func hasVectorFacility() bool
 
 // xorKeyStreamVX is an assembly implementation of XORKeyStream. It must only
 // be called when the vector facility is available.
