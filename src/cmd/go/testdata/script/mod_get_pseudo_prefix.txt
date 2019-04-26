@@ -1,0 +1,35 @@
+env GO111MODULE=on
+env GOPROXY=
+
+# TODO(jayconrod): get test repo onto vcs-test.golang.org
+
+# Testing that a pseudo-version is based on the semantically-latest
+# prefixed tag in any commit that is a parent of the commit supplied
+# to 'go get', when using a repo with go.mod in a sub directory.
+
+[!net] skip
+[!exec:git] skip
+
+# For this test repository go.mod resides in sub/ (only):
+#  master (372cb6e) is not tagged
+#  tag v0.2.0 is most recent tag before master
+#  tag sub/v0.0.10 is most recent tag before v0.2.0
+#
+# The pseudo-version is based on sub/v0.0.10, since v0.2.0 doesn't
+# contain the prefix.
+go get -m github.com/leitzler/prefixtagtests/sub
+go list -m all
+stdout '^github.com/leitzler/prefixtagtests/sub v0.0.10$'
+
+go get -u -m github.com/leitzler/prefixtagtests/sub@372cb6e
+go list -m all
+stdout '^github.com/leitzler/prefixtagtests/sub v0.0.11-0.20190427183112-372cb6ea3fb5$'
+
+-- go.mod --
+module x
+
+go 1.12
+-- x.go --
+package x
+
+import _ "github.com/leitzler/prefixtagtests/sub"
