@@ -97,7 +97,7 @@ func (f *format) Run(ctx context.Context, args ...string) error {
 		}
 		if f.Diff {
 			printIt = false
-			u := diff.ToUnified(filename, filename, lines, ops)
+			u := diff.ToUnified(filename+".orig", filename, lines, ops)
 			fmt.Print(u)
 		}
 		if printIt {

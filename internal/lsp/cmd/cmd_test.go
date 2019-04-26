@@ -5,9 +5,13 @@
 package cmd_test
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
+	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cmd"
@@ -72,4 +76,66 @@ func captureStdOut(t testing.TB, f func()) string {
 		t.Fatal(err)
 	}
 	return string(data)
+}
+
+// normalizePaths replaces all paths present in s with just the fragment portion
+// this is used to make golden files not depend on the temporary paths of the files
+func (r *runner) normalizePaths(s string) string {
+	type entry struct {
+		path  string
+		index int
+	}
+	match := make([]entry, len(r.data.Exported.Modules))
+	// collect the initial state of all the matchers
+	for i, m := range r.data.Exported.Modules {
+		// any random file will do, we collect the first one only
+		for f := range m.Files {
+			path := strings.TrimSuffix(r.data.Exported.File(m.Name, f), f)
+			index := strings.Index(s, path)
+			match[i] = entry{path, index}
+			break
+		}
+	}
+	// result should be the same or shorter than the input
+	buf := bytes.NewBuffer(make([]byte, 0, len(s)))
+	last := 0
+	for {
+		// find the nearest path match to the start of the buffer
+		next := -1
+		nearest := len(s)
+		for i, c := range match {
+			if c.index >= 0 && nearest > c.index {
+				nearest = c.index
+				next = i
+			}
+		}
+		// if there are no matches, we copy the rest of the string and are done
+		if next < 0 {
+			buf.WriteString(s[last:])
+			return buf.String()
+		}
+		// we have a match
+		n := &match[next]
+		// copy up to the start of the match
+		buf.WriteString(s[last:n.index])
+		// skip over the non fragment prefix
+		last = n.index + len(n.path)
+		// now try to convert the fragment part
+		for last < len(s) {
+			r, size := utf8.DecodeRuneInString(s[last:])
+			if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '/' {
+				buf.WriteRune(r)
+			} else if r == '\\' {
+				buf.WriteRune('/')
+			} else {
+				break
+			}
+			last += size
+		}
+		// see what the next match for this path is
+		n.index = strings.Index(s[last:], n.path)
+		if n.index >= 0 {
+			n.index += last
+		}
+	}
 }

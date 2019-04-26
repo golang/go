@@ -7,9 +7,9 @@ package cmd_test
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -26,14 +26,7 @@ var formatModes = [][]string{
 func (r *runner) Format(t *testing.T, data tests.Formats) {
 	for _, spn := range data {
 		for _, mode := range formatModes {
-			isDiff := false
-			tag := "gofmt"
-			for _, arg := range mode {
-				tag += arg
-				if arg == "-d" {
-					isDiff = true
-				}
-			}
+			tag := "gofmt" + strings.Join(mode, "")
 			uri := spn.URI()
 			filename, err := uri.Filename()
 			if err != nil {
@@ -45,16 +38,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 				buf := &bytes.Buffer{}
 				cmd.Stdout = buf
 				cmd.Run() // ignore error, sometimes we have intentionally ungofmt-able files
-				contents := buf.String()
-				// strip the unwanted diff line
-				if isDiff {
-					if strings.HasPrefix(contents, "diff -u") {
-						if i := strings.IndexRune(contents, '\n'); i >= 0 && i < len(contents)-1 {
-							contents = contents[i+1:]
-						}
-					}
-					contents, _ = stripFileHeader(contents)
-				}
+				contents := r.normalizePaths(fixFileHeader(buf.String()))
 				return ioutil.WriteFile(golden, []byte(contents), 0666)
 			}))
 			if expect == "" {
@@ -66,13 +50,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 			got := captureStdOut(t, func() {
 				tool.Main(context.Background(), app, append([]string{"format"}, args...))
 			})
-			if isDiff {
-				got, err = stripFileHeader(got)
-				if err != nil {
-					t.Errorf("%v: got: %v\n%v", filename, err, got)
-					continue
-				}
-			}
+			got = r.normalizePaths(got)
 			// check the first two lines are the expected file header
 			if expect != got {
 				t.Errorf("format failed with %#v expected:\n%s\ngot:\n%s", args, expect, got)
@@ -81,23 +59,12 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 	}
 }
 
-func stripFileHeader(s string) (string, error) {
-	s = strings.TrimSpace(s)
-	if !strings.HasPrefix(s, "---") {
-		return s, fmt.Errorf("missing original")
+var unifiedHeader = regexp.MustCompile(`^diff -u.*\n(---\s+\S+\.go\.orig)\s+[\d-:. ]+(\n\+\+\+\s+\S+\.go)\s+[\d-:. ]+(\n@@)`)
+
+func fixFileHeader(s string) string {
+	match := unifiedHeader.FindStringSubmatch(s)
+	if match == nil {
+		return s
 	}
-	if i := strings.IndexRune(s, '\n'); i >= 0 && i < len(s)-1 {
-		s = s[i+1:]
-	} else {
-		return s, fmt.Errorf("no EOL for original")
-	}
-	if !strings.HasPrefix(s, "+++") {
-		return s, fmt.Errorf("missing output")
-	}
-	if i := strings.IndexRune(s, '\n'); i >= 0 && i < len(s)-1 {
-		s = s[i+1:]
-	} else {
-		return s, fmt.Errorf("no EOL for output")
-	}
-	return s, nil
+	return strings.Join(append(match[1:], s[len(match[0]):]), "")
 }
