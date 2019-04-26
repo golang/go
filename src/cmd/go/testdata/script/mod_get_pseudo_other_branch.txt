@@ -1,0 +1,31 @@
+env GO111MODULE=on
+env GOPROXY=
+
+# TODO(jayconrod): get test repo onto vcs-test.golang.org
+
+# Testing that a pseudo-version is based on the semantically-latest
+# tag that appears in any commit that is a (transitive) parent of the commit
+# supplied to 'go get', regardless of branches
+
+[!net] skip
+[!exec:git] skip
+
+# For this test repository:
+#  tag v0.2.1 is most recent tag on master itself
+#  tag v0.2.2 is on branch2, which was then merged to master
+#  commit 5aaa858 is on master at a later point
+#
+# The pseudo-version hence sorts immediately after v0.2.2 rather
+# than v0.2.1, even though the v0.2.2 tag is not on master.
+go get -m github.com/leitzler/tagtests@5aaa858
+go list -m all
+stdout '^github.com/leitzler/tagtests v0.2.3-0.20190424071028-5aaa858a59e2$'
+
+-- go.mod --
+module x
+
+go 1.12
+-- x.go --
+package x
+
+import _ "github.com/leitzler/tagtests"
