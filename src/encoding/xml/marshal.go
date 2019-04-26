@@ -119,6 +119,10 @@ type MarshalerAttr interface {
 	MarshalXMLAttr(name Name) (Attr, error)
 }
 
+type EmptyValue interface {
+	IsEmpty() bool
+}
+
 // MarshalIndent works like Marshal, but each XML element begins on a new
 // indented line that starts with prefix and is followed by one or more
 // copies of indent according to the nesting depth.
@@ -398,6 +402,7 @@ var (
 	marshalerType     = reflect.TypeOf((*Marshaler)(nil)).Elem()
 	marshalerAttrType = reflect.TypeOf((*MarshalerAttr)(nil)).Elem()
 	textMarshalerType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+	emptyValueType    = reflect.TypeOf((*EmptyValue)(nil)).Elem()
 )
 
 // marshalValue writes one or more XML elements representing val.
@@ -1050,6 +1055,10 @@ func isEmptyValue(v reflect.Value) bool {
 
 func isEmptyStruct(v reflect.Value) bool {
 	vType := v.Type()
+	if vType.Implements(emptyValueType) {
+		return v.Interface().(EmptyValue).IsEmpty()
+	}
+
 	for i := 0; i < v.NumField(); i++ {
 		typField := vType.Field(i)
 		tag := typField.Tag.Get("xml")
