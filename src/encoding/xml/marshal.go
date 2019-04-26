@@ -1034,6 +1034,11 @@ func (e *UnsupportedTypeError) Error() string {
 }
 
 func isEmptyValue(v reflect.Value) bool {
+	vType := v.Type()
+	if vType.Implements(emptyValueType) {
+		return v.Interface().(EmptyValue).IsEmpty()
+	}
+
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
@@ -1055,9 +1060,6 @@ func isEmptyValue(v reflect.Value) bool {
 
 func isEmptyStruct(v reflect.Value) bool {
 	vType := v.Type()
-	if vType.Implements(emptyValueType) {
-		return v.Interface().(EmptyValue).IsEmpty()
-	}
 
 	for i := 0; i < v.NumField(); i++ {
 		typField := vType.Field(i)
