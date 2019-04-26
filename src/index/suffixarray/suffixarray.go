@@ -72,13 +72,15 @@ func (a *ints) slice(i, j int) ints {
 }
 
 // New creates a new Index for data.
-// Index creation time is O(N*log(N)) for N = len(data).
+// Index creation time is O(N) for N = len(data).
 func New(data []byte) *Index {
 	ix := &Index{data: data}
 	if len(data) <= maxData32 {
-		ix.sa.int32 = qsufsort32(data)
+		ix.sa.int32 = make([]int32, len(data))
+		text_32(data, ix.sa.int32)
 	} else {
-		ix.sa.int64 = qsufsort64(data)
+		ix.sa.int64 = make([]int64, len(data))
+		text_64(data, ix.sa.int64)
 	}
 	return ix
 }
