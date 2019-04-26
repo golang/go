@@ -1401,7 +1401,7 @@ func TestInvalidNilValues(t *testing.T) {
 		{
 			name:          "int",
 			input:         &date2,
-			expectedError: `sql: Scan error on column index 0, name "bdate": converting driver.Value type <nil> ("<nil>") to a int: invalid syntax`,
+			expectedError: `sql: Scan error on column index 0, name "bdate": converting NULL to int is unsupported`,
 		},
 	}
 
