@@ -407,7 +407,7 @@ func decomposeHangul(buf []byte, r rune) int {
 
 // decomposeHangul algorithmically decomposes a Hangul rune into
 // its Jamo components.
-// See http://unicode.org/reports/tr15/#Hangul for details on decomposing Hangul.
+// See https://unicode.org/reports/tr15/#Hangul for details on decomposing Hangul.
 func (rb *reorderBuffer) decomposeHangul(r rune) {
 	r -= hangulBase
 	x := r % jamoTCount
@@ -420,7 +420,7 @@ func (rb *reorderBuffer) decomposeHangul(r rune) {
 }
 
 // combineHangul algorithmically combines Jamo character components into Hangul.
-// See http://unicode.org/reports/tr15/#Hangul for details on combining Hangul.
+// See https://unicode.org/reports/tr15/#Hangul for details on combining Hangul.
 func (rb *reorderBuffer) combineHangul(s, i, k int) {
 	b := rb.rune[:]
 	bn := rb.nrune
@@ -461,6 +461,10 @@ func (rb *reorderBuffer) combineHangul(s, i, k int) {
 // It should only be used to recompose a single segment, as it will not
 // handle alternations between Hangul and non-Hangul characters correctly.
 func (rb *reorderBuffer) compose() {
+	// Lazily load the map used by the combine func below, but do
+	// it outside of the loop.
+	recompMapOnce.Do(buildRecompMap)
+
 	// UAX #15, section X5 , including Corrigendum #5
 	// "In any character sequence beginning with starter S, a character C is
 	//  blocked from S if and only if there is some character B between S

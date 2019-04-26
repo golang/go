@@ -86,7 +86,7 @@ func feFromBytes(dst *fieldElement, src *[32]byte) {
 	h6 := load3(src[20:]) << 7
 	h7 := load3(src[23:]) << 5
 	h8 := load3(src[26:]) << 4
-	h9 := load3(src[29:]) << 2
+	h9 := (load3(src[29:]) & 0x7fffff) << 2
 
 	var carry [10]int64
 	carry[9] = (h9 + 1<<24) >> 25

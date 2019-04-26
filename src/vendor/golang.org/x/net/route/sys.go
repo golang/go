@@ -29,7 +29,7 @@ func roundup(l int) int {
 	if l == 0 {
 		return kernelAlign
 	}
-	return (l + kernelAlign - 1) & ^(kernelAlign - 1)
+	return (l + kernelAlign - 1) &^ (kernelAlign - 1)
 }
 
 type wireFormat struct {

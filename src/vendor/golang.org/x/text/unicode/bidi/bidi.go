@@ -6,7 +6,7 @@
 
 // Package bidi contains functionality for bidirectional text support.
 //
-// See http://www.unicode.org/reports/tr9.
+// See https://www.unicode.org/reports/tr9.
 //
 // NOTE: UNDER CONSTRUCTION. This API may change in backwards incompatible ways
 // and without notice.

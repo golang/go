@@ -6,17 +6,63 @@
 
 package poly1305
 
-// This function is implemented in sum_amd64.s
 //go:noescape
-func poly1305(out *[16]byte, m *byte, mlen uint64, key *[32]byte)
+func initialize(state *[7]uint64, key *[32]byte)
+
+//go:noescape
+func update(state *[7]uint64, msg []byte)
+
+//go:noescape
+func finalize(tag *[TagSize]byte, state *[7]uint64)
 
 // Sum generates an authenticator for m using a one-time key and puts the
 // 16-byte result into out. Authenticating two different messages with the same
 // key allows an attacker to forge messages at will.
 func Sum(out *[16]byte, m []byte, key *[32]byte) {
-	var mPtr *byte
-	if len(m) > 0 {
-		mPtr = &m[0]
+	h := newMAC(key)
+	h.Write(m)
+	h.Sum(out)
+}
+
+func newMAC(key *[32]byte) (h mac) {
+	initialize(&h.state, key)
+	return
+}
+
+type mac struct {
+	state [7]uint64 // := uint64{ h0, h1, h2, r0, r1, pad0, pad1 }
+
+	buffer [TagSize]byte
+	offset int
+}
+
+func (h *mac) Write(p []byte) (n int, err error) {
+	n = len(p)
+	if h.offset > 0 {
+		remaining := TagSize - h.offset
+		if n < remaining {
+			h.offset += copy(h.buffer[h.offset:], p)
+			return n, nil
+		}
+		copy(h.buffer[h.offset:], p[:remaining])
+		p = p[remaining:]
+		h.offset = 0
+		update(&h.state, h.buffer[:])
 	}
-	poly1305(out, mPtr, uint64(len(m)), key)
+	if nn := len(p) - (len(p) % TagSize); nn > 0 {
+		update(&h.state, p[:nn])
+		p = p[nn:]
+	}
+	if len(p) > 0 {
+		h.offset += copy(h.buffer[h.offset:], p)
+	}
+	return n, nil
+}
+
+func (h *mac) Sum(out *[16]byte) {
+	state := h.state
+	if h.offset > 0 {
+		update(&state, h.buffer[:h.offset])
+	}
+	finalize(out, &state)
 }
