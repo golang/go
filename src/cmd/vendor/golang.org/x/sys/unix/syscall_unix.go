@@ -294,6 +294,13 @@ func GetsockoptTimeval(fd, level, opt int) (*Timeval, error) {
 	return &tv, err
 }
 
+func GetsockoptUint64(fd, level, opt int) (value uint64, err error) {
+	var n uint64
+	vallen := _Socklen(8)
+	err = getsockopt(fd, level, opt, unsafe.Pointer(&n), &vallen)
+	return n, err
+}
+
 func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
@@ -344,11 +351,19 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (err error) {
 }
 
 func SetsockoptString(fd, level, opt int, s string) (err error) {
-	return setsockopt(fd, level, opt, unsafe.Pointer(&[]byte(s)[0]), uintptr(len(s)))
+	var p unsafe.Pointer
+	if len(s) > 0 {
+		p = unsafe.Pointer(&[]byte(s)[0])
+	}
+	return setsockopt(fd, level, opt, p, uintptr(len(s)))
 }
 
 func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (err error) {
 	return setsockopt(fd, level, opt, unsafe.Pointer(tv), unsafe.Sizeof(*tv))
+}
+
+func SetsockoptUint64(fd, level, opt int, value uint64) (err error) {
+	return setsockopt(fd, level, opt, unsafe.Pointer(&value), 8)
 }
 
 func Socket(domain, typ, proto int) (fd int, err error) {
