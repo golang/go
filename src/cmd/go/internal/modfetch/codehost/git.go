@@ -166,7 +166,7 @@ func (r *gitRepo) loadRefs() {
 	if err != nil {
 		if rerr, ok := err.(*RunError); ok {
 			if bytes.Contains(rerr.Stderr, []byte("fatal: could not read Username")) {
-				rerr.HelpText = "If this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
+				rerr.HelpText = "Confirm the import path was entered correctly.\nIf this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
 			}
 		}
 		r.refsErr = err
