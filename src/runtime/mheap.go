@@ -1198,16 +1198,6 @@ HaveSpan:
 		// heap_released since we already did so earlier.
 		sysUsed(unsafe.Pointer(s.base()), s.npages<<_PageShift)
 		s.scavenged = false
-
-		// Since we allocated out of a scavenged span, we just
-		// grew the RSS. Mitigate this by scavenging enough free
-		// space to make up for it.
-		//
-		// Also, scavengeLargest may cause coalescing, so prevent
-		// coalescing with s by temporarily changing its state.
-		s.state = mSpanManual
-		h.scavengeLargest(s.npages * pageSize)
-		s.state = mSpanFree
 	}
 	s.unusedsince = 0
 
