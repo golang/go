@@ -314,6 +314,158 @@ func TestIndex64(t *testing.T) {
 	testIndex(t)
 }
 
+func TestNew32(t *testing.T) {
+	test(t, func(x []byte) []int {
+		sa := make([]int32, len(x))
+		text_32(x, sa)
+		out := make([]int, len(sa))
+		for i, v := range sa {
+			out[i] = int(v)
+		}
+		return out
+	})
+}
+
+func TestNew64(t *testing.T) {
+	test(t, func(x []byte) []int {
+		sa := make([]int64, len(x))
+		text_64(x, sa)
+		out := make([]int, len(sa))
+		for i, v := range sa {
+			out[i] = int(v)
+		}
+		return out
+	})
+}
+
+// test tests an arbitrary suffix array construction function.
+// Generates many inputs, builds and checks suffix arrays.
+func test(t *testing.T, build func([]byte) []int) {
+	t.Run("ababab...", func(t *testing.T) {
+		// Very repetitive input has numLMS = len(x)/2-1
+		// at top level, the largest it can be.
+		// But maxID is only two (aba and ab$).
+		size := 100000
+		if testing.Short() {
+			size = 10000
+		}
+		x := make([]byte, size)
+		for i := range x {
+			x[i] = "ab"[i%2]
+		}
+		testSA(t, x, build)
+	})
+
+	t.Run("forcealloc", func(t *testing.T) {
+		// Construct a pathological input that forces
+		// recurse_32 to allocate a new temporary buffer.
+		// The input must have more than N/3 LMS-substrings,
+		// which we arrange by repeating an SLSLSLSLSLSL pattern
+		// like ababab... above, but then we must also arrange
+		// for a large number of distinct LMS-substrings.
+		// We use this pattern:
+		// 1 255 1 254 1 253 1 ... 1 2 1 255 2 254 2 253 2 252 2 ...
+		// This gives approximately 2¹⁵ distinct LMS-substrings.
+		// We need to repeat at least one substring, though,
+		// or else the recursion can be bypassed entirely.
+		x := make([]byte, 100000, 100001)
+		lo := byte(1)
+		hi := byte(255)
+		for i := range x {
+			if i%2 == 0 {
+				x[i] = lo
+			} else {
+				x[i] = hi
+				hi--
+				if hi <= lo {
+					lo++
+					if lo == 0 {
+						lo = 1
+					}
+					hi = 255
+				}
+			}
+		}
+		x[:cap(x)][len(x)] = 0 // for sais.New
+		testSA(t, x, build)
+	})
+
+	t.Run("exhaustive2", func(t *testing.T) {
+		// All inputs over {0,1} up to length 21.
+		// Runs in about 10 seconds on my laptop.
+		x := make([]byte, 30)
+		numFail := 0
+		for n := 0; n <= 21; n++ {
+			if n > 12 && testing.Short() {
+				break
+			}
+			x[n] = 0 // for sais.New
+			testRec(t, x[:n], 0, 2, &numFail, build)
+		}
+	})
+
+	t.Run("exhaustive3", func(t *testing.T) {
+		// All inputs over {0,1,2} up to length 14.
+		// Runs in about 10 seconds on my laptop.
+		x := make([]byte, 30)
+		numFail := 0
+		for n := 0; n <= 14; n++ {
+			if n > 8 && testing.Short() {
+				break
+			}
+			x[n] = 0 // for sais.New
+			testRec(t, x[:n], 0, 3, &numFail, build)
+		}
+	})
+}
+
+// testRec fills x[i:] with all possible combinations of values in [1,max]
+// and then calls testSA(t, x, build) for each one.
+func testRec(t *testing.T, x []byte, i, max int, numFail *int, build func([]byte) []int) {
+	if i < len(x) {
+		for x[i] = 1; x[i] <= byte(max); x[i]++ {
+			testRec(t, x, i+1, max, numFail, build)
+		}
+		return
+	}
+
+	if !testSA(t, x, build) {
+		*numFail++
+		if *numFail >= 10 {
+			t.Errorf("stopping after %d failures", *numFail)
+			t.FailNow()
+		}
+	}
+}
+
+// testSA tests the suffix array build function on the input x.
+// It constructs the suffix array and then checks that it is correct.
+func testSA(t *testing.T, x []byte, build func([]byte) []int) bool {
+	defer func() {
+		if e := recover(); e != nil {
+			t.Logf("build %v", x)
+			panic(e)
+		}
+	}()
+	sa := build(x)
+	if len(sa) != len(x) {
+		t.Errorf("build %v: len(sa) = %d, want %d", x, len(sa), len(x))
+		return false
+	}
+	for i := 0; i+1 < len(sa); i++ {
+		if sa[i] < 0 || sa[i] >= len(x) || sa[i+1] < 0 || sa[i+1] >= len(x) {
+			t.Errorf("build %s: sa out of range: %v\n", x, sa)
+			return false
+		}
+		if bytes.Compare(x[sa[i]:], x[sa[i+1]:]) >= 0 {
+			t.Errorf("build %v -> %v\nsa[%d:] = %d,%d out of order", x, sa, i, sa[i], sa[i+1])
+			return false
+		}
+	}
+
+	return true
+}
+
 var (
 	benchdata = make([]byte, 1e6)
 	benchrand = make([]byte, 1e6)
