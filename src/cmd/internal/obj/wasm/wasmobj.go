@@ -774,21 +774,34 @@ func countRegisters(s *obj.LSym) (numI, numF int16) {
 func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	w := new(bytes.Buffer)
 
-	numI, numF := countRegisters(s)
+	hasLocalSP := false
+	var r0, f0 int16
 
 	// Function starts with declaration of locals: numbers and types.
+	// Some functions use a special calling convention.
 	switch s.Name {
-	// memchr and memcmp don't use the normal Go calling convention and need i32 variables.
-	case "memchr":
-		writeUleb128(w, 1) // number of sets of locals
-		writeUleb128(w, 3) // number of locals
-		w.WriteByte(0x7F)  // i32
-	case "memcmp":
+	case "wasm_export_run", "runtime.wasmMove", "runtime.wasmZero", "runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody":
+		writeUleb128(w, 0) // number of sets of locals
+	case "memchr", "memcmp":
 		writeUleb128(w, 1) // number of sets of locals
 		writeUleb128(w, 2) // number of locals
 		w.WriteByte(0x7F)  // i32
+	case "cmpbody":
+		writeUleb128(w, 1) // number of sets of locals
+		writeUleb128(w, 2) // number of locals
+		w.WriteByte(0x7E)  // i64
+	case "runtime.gcWriteBarrier":
+		writeUleb128(w, 1) // number of sets of locals
+		writeUleb128(w, 4) // number of locals
+		w.WriteByte(0x7E)  // i64
 	default:
-		numTypes := 0
+		// Normal calling convention: No WebAssembly parameters. First local variable is local SP cache.
+		hasLocalSP = true
+		numI, numF := countRegisters(s)
+		r0 = 1
+		f0 = 1 + numI
+
+		numTypes := 1
 		if numI > 0 {
 			numTypes++
 		}
@@ -797,6 +810,8 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		writeUleb128(w, uint64(numTypes))
+		writeUleb128(w, 1) // number of locals (SP)
+		w.WriteByte(0x7F)  // i32
 		if numI > 0 {
 			writeUleb128(w, uint64(numI)) // number of locals
 			w.WriteByte(0x7E)             // i64
@@ -807,6 +822,10 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
+	if hasLocalSP {
+		// Copy SP from its global variable into a local variable. Accessing a local variable is more efficient.
+		updateLocalSP(w)
+	}
 	for p := s.Func.Text; p != nil; p = p.Link {
 		switch p.As {
 		case AGet:
@@ -815,15 +834,18 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 			reg := p.From.Reg
 			switch {
+			case reg == REG_SP && hasLocalSP:
+				w.WriteByte(0x20)  // local.get
+				writeUleb128(w, 0) // local SP
 			case reg >= REG_PC_F && reg <= REG_PAUSE:
 				w.WriteByte(0x23) // global.get
 				writeUleb128(w, uint64(reg-REG_PC_F))
 			case reg >= REG_R0 && reg <= REG_R15:
 				w.WriteByte(0x20) // local.get (i64)
-				writeUleb128(w, uint64(reg-REG_R0))
+				writeUleb128(w, uint64(r0+(reg-REG_R0)))
 			case reg >= REG_F0 && reg <= REG_F15:
 				w.WriteByte(0x20) // local.get (f64)
-				writeUleb128(w, uint64(numI+(reg-REG_F0)))
+				writeUleb128(w, uint64(f0+(reg-REG_F0)))
 			default:
 				panic("bad Get: invalid register")
 			}
@@ -836,6 +858,10 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			reg := p.To.Reg
 			switch {
 			case reg >= REG_PC_F && reg <= REG_PAUSE:
+				if reg == REG_SP && hasLocalSP {
+					w.WriteByte(0x22)  // local.tee
+					writeUleb128(w, 0) // local SP
+				}
 				w.WriteByte(0x24) // global.set
 				writeUleb128(w, uint64(reg-REG_PC_F))
 			case reg >= REG_R0 && reg <= REG_F15:
@@ -846,9 +872,9 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 					w.WriteByte(0x21) // local.set
 				}
 				if reg <= REG_R15 {
-					writeUleb128(w, uint64(reg-REG_R0))
+					writeUleb128(w, uint64(r0+(reg-REG_R0)))
 				} else {
-					writeUleb128(w, uint64(numI+(reg-REG_F0)))
+					writeUleb128(w, uint64(f0+(reg-REG_F0)))
 				}
 			default:
 				panic("bad Set: invalid register")
@@ -863,10 +889,10 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			switch {
 			case reg >= REG_R0 && reg <= REG_R15:
 				w.WriteByte(0x22) // local.tee (i64)
-				writeUleb128(w, uint64(reg-REG_R0))
+				writeUleb128(w, uint64(r0+(reg-REG_R0)))
 			case reg >= REG_F0 && reg <= REG_F15:
 				w.WriteByte(0x22) // local.tee (f64)
-				writeUleb128(w, uint64(numI+(reg-REG_F0)))
+				writeUleb128(w, uint64(f0+(reg-REG_F0)))
 			default:
 				panic("bad Tee: invalid register")
 			}
@@ -942,6 +968,10 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 					r.Type = objabi.R_WASMIMPORT
 				}
 				r.Sym = p.To.Sym
+				if hasLocalSP {
+					// The stack may have moved, which changes SP. Update the local SP variable.
+					updateLocalSP(w)
+				}
 
 			default:
 				panic("bad type for Call")
@@ -950,6 +980,10 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		case ACallIndirect:
 			writeUleb128(w, uint64(p.To.Offset))
 			w.WriteByte(0x00) // reserved value
+			if hasLocalSP {
+				// The stack may have moved, which changes SP. Update the local SP variable.
+				updateLocalSP(w)
+			}
 
 		case AI32Const, AI64Const:
 			if p.From.Name == obj.NAME_EXTERN {
@@ -999,6 +1033,13 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	w.WriteByte(0x0b) // end
 
 	s.P = w.Bytes()
+}
+
+func updateLocalSP(w *bytes.Buffer) {
+	w.WriteByte(0x23)                        // global.get
+	writeUleb128(w, uint64(REG_SP-REG_PC_F)) // SP
+	w.WriteByte(0x21)                        // local.set
+	writeUleb128(w, 0)                       // local SP
 }
 
 func align(as obj.As) uint64 {
