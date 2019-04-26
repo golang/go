@@ -128,9 +128,9 @@ type itimerval struct {
 }
 
 type mcontextt struct {
-	__gregs     [35]uint64
-	__fregs     [4160]byte // _NFREG * 128 + 32 + 32
-	_           [8]uint64 // future use
+	__gregs [35]uint64
+	__fregs [4160]byte // _NFREG * 128 + 32 + 32
+	_       [8]uint64  // future use
 }
 
 type ucontextt struct {
