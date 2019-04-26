@@ -265,12 +265,14 @@ var knownEnv = `
 	GOHOSTOS
 	GOMIPS
 	GOMIPS64
-	GONOVERIFY
+	GONOPROXY
+	GONOSUMDB
 	GOOS
 	GOPATH
 	GOPPC64
 	GOPROXY
 	GOROOT
+	GOSUMDB
 	GOTMPDIR
 	GOTOOLDIR
 	GOWASM
@@ -293,7 +295,44 @@ var (
 	GOMIPS64 = envOr("GOMIPS64", objabi.GOMIPS64)
 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
 	GOWASM   = envOr("GOWASM", fmt.Sprint(objabi.GOWASM))
+
+	GOPROXY   = goproxy()
+	GOSUMDB   = gosumdb()
+	GONOPROXY = Getenv("GONOPROXY")
+	GONOSUMDB = Getenv("GONOSUMDB")
 )
+
+func goproxy() string {
+	v := Getenv("GOPROXY")
+	if v != "" {
+		return v
+	}
+
+	// Proxy is off by default for now.
+	// TODO(rsc): Remove this condition, turning it on always.
+	// (But do NOT do this without approval from rsc.)
+	if true {
+		return "direct"
+	}
+
+	return "https://proxy.golang.org"
+}
+
+func gosumdb() string {
+	v := Getenv("GOSUMDB")
+	if v != "" {
+		return v
+	}
+
+	// Checksum database is off by default except when GOPROXY is proxy.golang.org.
+	// TODO(rsc): Remove this condition, turning it on always.
+	// (But do NOT do this without approval from rsc.)
+	if !strings.HasPrefix(GOPROXY, "https://proxy.golang.org") {
+		return "off"
+	}
+
+	return "sum.golang.org"
+}
 
 // GetArchEnv returns the name and setting of the
 // GOARCH-specific architecture environment variable.

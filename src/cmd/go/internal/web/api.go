@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"strings"
 )
 
 // SecurityMode specifies whether a function should make network
@@ -117,4 +118,16 @@ func Redacted(u *url.URL) string {
 // OpenBrowser attempts to open the requested URL in a web browser.
 func OpenBrowser(url string) (opened bool) {
 	return openBrowser(url)
+}
+
+// Join returns the result of adding the slash-separated
+// path elements to the end of u's path.
+func Join(u *url.URL, path string) *url.URL {
+	j := *u
+	if path == "" {
+		return &j
+	}
+	j.Path = strings.TrimSuffix(u.Path, "/") + "/" + strings.TrimPrefix(path, "/")
+	j.RawPath = strings.TrimSuffix(u.RawPath, "/") + "/" + strings.TrimPrefix(path, "/")
+	return &j
 }

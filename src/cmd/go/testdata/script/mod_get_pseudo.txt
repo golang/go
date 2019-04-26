@@ -3,7 +3,8 @@ env GO111MODULE=on
 # Testing git->module converter's generation of +incompatible tags; turn off proxy.
 [!net] skip
 [!exec:git] skip
-env GOPROXY=
+env GOPROXY=direct
+env GOSUMDB=off
 
 # We can resolve the @master branch without unshallowing the local repository
 # (even with older gits), so try that before we do anything else.

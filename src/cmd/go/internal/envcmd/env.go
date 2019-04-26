@@ -8,13 +8,13 @@ package envcmd
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
-	"unicode/utf8"
-	"io/ioutil"
-	"sort"
 	"runtime"
+	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
@@ -56,7 +56,7 @@ func init() {
 
 var (
 	envJson = CmdEnv.Flag.Bool("json", false, "")
-	envU = CmdEnv.Flag.Bool("u", false, "")
+	envU    = CmdEnv.Flag.Bool("u", false, "")
 	envW    = CmdEnv.Flag.Bool("w", false, "")
 )
 
@@ -74,10 +74,13 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOFLAGS", Value: cfg.Getenv("GOFLAGS")},
 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
 		{Name: "GOHOSTOS", Value: runtime.GOOS},
+		{Name: "GONOPROXY", Value: cfg.GONOPROXY},
+		{Name: "GONOSUMDB", Value: cfg.GONOSUMDB},
 		{Name: "GOOS", Value: cfg.Goos},
 		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH},
-		{Name: "GOPROXY", Value: cfg.Getenv("GOPROXY")},
+		{Name: "GOPROXY", Value: cfg.GOPROXY},
 		{Name: "GOROOT", Value: cfg.GOROOT},
+		{Name: "GOSUMDB", Value: cfg.GOSUMDB},
 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
 		{Name: "GOTOOLDIR", Value: base.ToolDir},
 	}
@@ -387,7 +390,7 @@ func updateEnvFile(add map[string]string, del map[string]bool) {
 		}
 	}
 	for key, val := range add {
-		lines = append(lines, key + "=" + val + "\n")
+		lines = append(lines, key+"="+val+"\n")
 	}
 
 	// Delete requested variables (go env -u).
@@ -404,7 +407,7 @@ func updateEnvFile(add map[string]string, del map[string]bool) {
 	for i := 0; i <= len(lines); i++ {
 		if i == len(lines) || lineToKey(lines[i]) == "" {
 			sortKeyValues(lines[start:i])
-			start = i+1
+			start = i + 1
 		}
 	}
 
