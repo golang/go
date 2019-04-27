@@ -544,9 +544,13 @@ func loadImport(pre *preload, path, srcDir string, parent *Package, stk *ImportS
 
 	if p.Internal.Local && parent != nil && !parent.Internal.Local {
 		perr := *p
+		errMsg := fmt.Sprintf("local import %q in non-local package", path)
+		if path == "." {
+			errMsg = "cannot import current directory"
+		}
 		perr.Error = &PackageError{
 			ImportStack: stk.Copy(),
-			Err:         fmt.Sprintf("local import %q in non-local package", path),
+			Err:         errMsg,
 		}
 		return setErrorPos(&perr, importPos)
 	}
