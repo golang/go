@@ -11,8 +11,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"time"
 )
 
@@ -66,7 +64,7 @@ func WriteToFile(filename string, data io.Reader) (err error) {
 	var start time.Time
 	for {
 		err := os.Rename(f.Name(), filename)
-		if err == nil || runtime.GOOS != "windows" || !strings.HasSuffix(err.Error(), "Access is denied.") {
+		if err == nil || !isAccessDeniedError(err) {
 			return err
 		}
 
