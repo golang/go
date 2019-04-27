@@ -119,6 +119,12 @@ type MarshalerAttr interface {
 	MarshalXMLAttr(name Name) (Attr, error)
 }
 
+// EmptyValue is the interface implemented by types that
+// can specify if it is a empty value.
+type EmptyValue interface {
+	IsEmpty() bool
+}
+
 // MarshalIndent works like Marshal, but each XML element begins on a new
 // indented line that starts with prefix and is followed by one or more
 // copies of indent according to the nesting depth.
@@ -398,6 +404,7 @@ var (
 	marshalerType     = reflect.TypeOf((*Marshaler)(nil)).Elem()
 	marshalerAttrType = reflect.TypeOf((*MarshalerAttr)(nil)).Elem()
 	textMarshalerType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+	emptyValueType    = reflect.TypeOf((*EmptyValue)(nil)).Elem()
 )
 
 // marshalValue writes one or more XML elements representing val.
@@ -931,7 +938,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 				return err
 			}
 			if len(finfo.parents) > len(s.stack) {
-				if vf.Kind() != reflect.Ptr && vf.Kind() != reflect.Interface || !vf.IsNil() {
+				if finfo.flags&fOmitEmpty == 0 || !isEmptyValue(vf) {
 					if err := s.push(finfo.parents[len(s.stack):]); err != nil {
 						return err
 					}
@@ -1029,6 +1036,10 @@ func (e *UnsupportedTypeError) Error() string {
 }
 
 func isEmptyValue(v reflect.Value) bool {
+	if v.Type().Implements(emptyValueType) {
+		return v.Interface().(EmptyValue).IsEmpty()
+	}
+
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
@@ -1042,6 +1053,30 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Float() == 0
 	case reflect.Interface, reflect.Ptr:
 		return v.IsNil()
+	case reflect.Struct:
+		return isEmptyStruct(v)
 	}
 	return false
 }
+
+func isEmptyStruct(v reflect.Value) bool {
+	vType := v.Type()
+
+	for i := 0; i < v.NumField(); i++ {
+		tag := vType.Field(i).Tag.Get("xml")
+
+		if tag == "-" || tag == ",chardata" || tag == ",cdata" || tag == ",innerxml" || tag == ",comment" {
+			continue
+		}
+
+		if !strings.Contains(tag, "omitempty") {
+			return false
+		}
+
+		if !isEmptyValue(v.Field(i)) {
+			return false
+		}
+	}
+	return true;
+}
+
