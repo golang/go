@@ -108,7 +108,10 @@ func (pkg *Package) GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*
 			}
 			sort.Strings(importPaths) // for determinism
 			for _, importPath := range importPaths {
-				dep := pkg.imports[importPath]
+				dep, ok := pkg.imports[importPath]
+				if !ok {
+					continue
+				}
 				act, err := dep.GetActionGraph(ctx, a)
 				if err != nil {
 					return nil, err
@@ -116,7 +119,6 @@ func (pkg *Package) GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*
 				e.Deps = append(e.Deps, act)
 			}
 		}
-
 		e.succeeded = true
 	}
 	return e.Action, nil
