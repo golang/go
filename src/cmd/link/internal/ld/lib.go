@@ -1482,12 +1482,8 @@ func (ctxt *Link) hostlink() {
 		if err != nil {
 			Exitf("%s: parsing Mach-O header failed: %v", os.Args[0], err)
 		}
-		load, err := peekMachoPlatform(exem)
-		if err != nil {
-			Exitf("%s: failed to parse Mach-O load commands: %v", os.Args[0], err)
-		}
 		// Only macOS supports unmapped segments such as our __DWARF segment.
-		if load == nil || load.platform == PLATFORM_MACOS {
+		if machoPlatform == PLATFORM_MACOS {
 			if err := machoCombineDwarf(ctxt, exef, exem, dsym, combinedOutput); err != nil {
 				Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
 			}
