@@ -45,7 +45,7 @@ fi
 unset GOROOT
 src=$(cd .. && pwd)
 echo "#### Copying to $targ"
-cp -R "$src" "$targ"
+cp -Rp "$src" "$targ"
 cd "$targ"
 echo
 echo "#### Cleaning $targ"
