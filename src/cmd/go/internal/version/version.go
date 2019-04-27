@@ -34,7 +34,7 @@ By default, go version does not report unrecognized files found
 during a directory scan. The -v flag causes it to report unrecognized files.
 
 The -m flag causes go version to print each executable's embedded
-module version information, when available. In the output, the modul
+module version information, when available. In the output, the module
 information consists of multiple lines following the version line, each
 indented by a leading tab character.
 
