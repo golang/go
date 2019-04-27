@@ -197,6 +197,8 @@ var machohdr MachoHdr
 
 var load []MachoLoad
 
+var machoPlatform MachoPlatform
+
 var seg [16]MachoSeg
 
 var nseg int
@@ -386,6 +388,36 @@ func machowrite(arch *sys.Arch, out *OutBuf, linkmode LinkMode) int {
 func (ctxt *Link) domacho() {
 	if *FlagD {
 		return
+	}
+
+	// Copy platform load command.
+	for _, h := range hostobj {
+		load, err := hostobjMachoPlatform(&h)
+		if err != nil {
+			Exitf("%v", err)
+		}
+		if load != nil {
+			machoPlatform = load.platform
+			ml := newMachoLoad(ctxt.Arch, load.cmd.type_, uint32(len(load.cmd.data)))
+			copy(ml.data, load.cmd.data)
+			break
+		}
+	}
+	if machoPlatform == 0 {
+		machoPlatform = PLATFORM_MACOS
+		if ctxt.LinkMode == LinkInternal {
+			// For lldb, must say LC_VERSION_MIN_MACOSX or else
+			// it won't know that this Mach-O binary is from OS X
+			// (could be iOS or WatchOS instead).
+			// Go on iOS uses linkmode=external, and linkmode=external
+			// adds this itself. So we only need this code for linkmode=internal
+			// and we can assume OS X.
+			//
+			// See golang.org/issues/12941.
+			ml := newMachoLoad(ctxt.Arch, LC_VERSION_MIN_MACOSX, 2)
+			ml.data[0] = 10<<16 | 7<<8 | 0<<0 // OS X version 10.7.0
+			ml.data[1] = 10<<16 | 7<<8 | 0<<0 // SDK 10.7.0
+		}
 	}
 
 	// empirically, string table must begin with " \x00".
@@ -689,32 +721,6 @@ func Asmbmacho(ctxt *Link) {
 				stringtouint32(ml.data[4:], lib)
 			}
 		}
-	}
-	foundLoad := false
-	for _, h := range hostobj {
-		load, err := hostobjMachoPlatform(&h)
-		if err != nil {
-			Exitf("%v", err)
-		}
-		if load != nil {
-			ml := newMachoLoad(ctxt.Arch, load.cmd.type_, uint32(len(load.cmd.data)))
-			copy(ml.data, load.cmd.data)
-			foundLoad = true
-			break
-		}
-	}
-	if !foundLoad && ctxt.LinkMode == LinkInternal {
-		// For lldb, must say LC_VERSION_MIN_MACOSX or else
-		// it won't know that this Mach-O binary is from OS X
-		// (could be iOS or WatchOS instead).
-		// Go on iOS uses linkmode=external, and linkmode=external
-		// adds this itself. So we only need this code for linkmode=internal
-		// and we can assume OS X.
-		//
-		// See golang.org/issues/12941.
-		ml := newMachoLoad(ctxt.Arch, LC_VERSION_MIN_MACOSX, 2)
-		ml.data[0] = 10<<16 | 7<<8 | 0<<0 // OS X version 10.7.0
-		ml.data[1] = 10<<16 | 7<<8 | 0<<0 // SDK 10.7.0
 	}
 
 	a := machowrite(ctxt.Arch, ctxt.Out, ctxt.LinkMode)
