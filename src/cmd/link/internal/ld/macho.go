@@ -786,6 +786,27 @@ func (x machoscmp) Less(i, j int) bool {
 func machogenasmsym(ctxt *Link) {
 	genasmsym(ctxt, addsym)
 	for _, s := range ctxt.Syms.Allsym {
+		// Some 64-bit functions have a "$INODE64" or "$INODE64$UNIX2003" suffix.
+		if s.Type == sym.SDYNIMPORT && s.Dynimplib() == "/usr/lib/libSystem.B.dylib" {
+			// But only on macOS.
+			if machoPlatform == PLATFORM_MACOS {
+				switch n := s.Extname(); n {
+				case "fdopendir":
+					switch objabi.GOARCH {
+					case "amd64":
+						s.SetExtname(n + "$INODE64")
+					case "386":
+						s.SetExtname(n + "$INODE64$UNIX2003")
+					}
+				case "readdir_r":
+					switch objabi.GOARCH {
+					case "amd64", "386":
+						s.SetExtname(n + "$INODE64")
+					}
+				}
+			}
+		}
+
 		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
 			if s.Attr.Reachable() {
 				addsym(ctxt, s, "", DataSym, 0, nil)
