@@ -24,7 +24,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	RET
 
 // func exitThread(wait *uint32)
-TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+TEXT runtime·exitThread(SB),NOSPLIT,$0
 	MOVD	wait+0(FP), R0		// arg 1 - notdead
 	MOVD	$302, R8		// sys___threxit
 	SVC

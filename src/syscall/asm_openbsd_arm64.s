@@ -65,7 +65,7 @@ TEXT ·Syscall9(SB),NOSPLIT,$0-104
 	MOVD	a8+64(FP), R7
 	MOVD	a9+72(FP), R8	// on stack
 	MOVD	R8, 8(RSP)
-	MOVD	trap+0(FP), R8	// syscall number
+	MOVD	num+0(FP), R8	// syscall number
 	SVC
 	BCC	ok
 	MOVD	$-1, R4
