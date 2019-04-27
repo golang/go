@@ -798,7 +798,7 @@ func machogenasmsym(ctxt *Link) {
 					case "386":
 						s.SetExtname(n + "$INODE64$UNIX2003")
 					}
-				case "readdir_r":
+				case "readdir_r", "getfsstat":
 					switch objabi.GOARCH {
 					case "amd64", "386":
 						s.SetExtname(n + "$INODE64")
