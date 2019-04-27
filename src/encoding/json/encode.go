@@ -226,6 +226,8 @@ type Marshaler interface {
 	MarshalJSON() ([]byte, error)
 }
 
+// EmptyValue is the interface implemented by types that
+// can specify if it is a empty value.
 type EmptyValue interface {
 	IsEmpty() bool
 }
@@ -317,8 +319,7 @@ func (e *encodeState) error(err error) {
 }
 
 func isEmptyValue(v reflect.Value) bool {
-	vType := v.Type()
-	if vType.Implements(emptyValueType) {
+	if v.Type().Implements(emptyValueType) {
 		return v.Interface().(EmptyValue).IsEmpty()
 	}
 
@@ -786,7 +787,7 @@ type sliceEncoder struct {
 
 func (se sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	if v.IsNil() {
-		e.WriteString("[]")
+		e.WriteString("null")
 		return
 	}
 	se.arrayEnc(e, v, opts)
