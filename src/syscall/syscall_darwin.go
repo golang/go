@@ -188,7 +188,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 		_p0 = unsafe.Pointer(&buf[0])
 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
 	}
-	r0, _, e1 := syscall(funcPC(libc_getfsstat64_trampoline), uintptr(_p0), bufsize, uintptr(flags))
+	r0, _, e1 := syscall(funcPC(libc_getfsstat_trampoline), uintptr(_p0), bufsize, uintptr(flags))
 	n = int(r0)
 	if e1 != 0 {
 		err = e1
@@ -196,10 +196,10 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 	return
 }
 
-func libc_getfsstat64_trampoline()
+func libc_getfsstat_trampoline()
 
-//go:linkname libc_getfsstat64 libc_getfsstat64
-//go:cgo_import_dynamic libc_getfsstat64 getfsstat64 "/usr/lib/libSystem.B.dylib"
+//go:linkname libc_getfsstat libc_getfsstat
+//go:cgo_import_dynamic libc_getfsstat getfsstat "/usr/lib/libSystem.B.dylib"
 
 func setattrlistTimes(path string, times []Timespec) error {
 	_p0, err := BytePtrFromString(path)

@@ -3,8 +3,8 @@
 #include "textflag.h"
 TEXT ·libc_getattrlist_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_getattrlist(SB)
-TEXT ·libc_getfsstat64_trampoline(SB),NOSPLIT,$0-0
-	JMP	libc_getfsstat64(SB)
+TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_getfsstat(SB)
 TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_setattrlist(SB)
 TEXT ·libc_fdopendir_trampoline(SB),NOSPLIT,$0-0
