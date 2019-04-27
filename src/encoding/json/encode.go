@@ -233,6 +233,12 @@ type UnsupportedTypeError struct {
 	Type reflect.Type
 }
 
+// EmptyValue is the interface implemented by types that
+// can specify if it is a empty value.
+type EmptyValue interface {
+	IsEmpty() bool
+}
+
 func (e *UnsupportedTypeError) Error() string {
 	return "json: unsupported type: " + e.Type.String()
 }
@@ -314,6 +320,10 @@ func (e *encodeState) error(err error) {
 }
 
 func isEmptyValue(v reflect.Value) bool {
+	if v.Type().Implements(emptyValueType) {
+		return v.Interface().(EmptyValue).IsEmpty()
+	}
+
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
@@ -327,8 +337,33 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Float() == 0
 	case reflect.Interface, reflect.Ptr:
 		return v.IsNil()
+	case reflect.Struct:
+		return isEmptyStruct(v)
 	}
 	return false
+}
+
+func isEmptyStruct(v reflect.Value) bool {
+	vType := v.Type()
+
+	for i := 0; i < v.NumField(); i++ {
+		typField := vType.Field(i)
+		tag := typField.Tag.Get("json")
+
+		if tag == "-" {
+			continue
+		}
+
+		if !strings.Contains(tag, "omitempty") {
+			return false
+		}
+
+		valField := v.Field(i)
+		if !isEmptyValue(valField) {
+			return false
+		}
+	}
+	return true;
 }
 
 func (e *encodeState) reflectValue(v reflect.Value, opts encOpts) {
@@ -385,6 +420,7 @@ func typeEncoder(t reflect.Type) encoderFunc {
 var (
 	marshalerType     = reflect.TypeOf((*Marshaler)(nil)).Elem()
 	textMarshalerType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+	emptyValueType    = reflect.TypeOf((*EmptyValue)(nil)).Elem()
 )
 
 // newTypeEncoder constructs an encoderFunc for a type.
