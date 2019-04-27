@@ -350,10 +350,6 @@ while(<>) {
 			$text .= "//go:linkname $funcname $funcname\n";
 			# Tell the linker that funcname can be found in libSystem using varname without the libc_ prefix.
 			my $basename = substr $funcname, 5;
-			if($basename eq "readdir_r" && ($ENV{'GOARCH'} eq "386" || $ENV{'GOARCH'} eq "amd64")) {
-			    # Hack to make sure we get the 64-bit inode version on darwin/macOS.
-			    $basename .= "\$INODE64"
-			}
 			$text .= "//go:cgo_import_dynamic $funcname $basename \"/usr/lib/libSystem.B.dylib\"\n\n";
 		}
 	}

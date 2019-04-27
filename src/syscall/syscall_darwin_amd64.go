@@ -58,20 +58,6 @@ func libc_sendfile_trampoline()
 //go:linkname libc_sendfile libc_sendfile
 //go:cgo_import_dynamic libc_sendfile sendfile "/usr/lib/libSystem.B.dylib"
 
-func fdopendir(fd int) (dir uintptr, err error) {
-	r0, _, e1 := syscallPtr(funcPC(libc_fdopendir_trampoline), uintptr(fd), 0, 0)
-	dir = uintptr(r0)
-	if e1 != 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
-func libc_fdopendir_trampoline()
-
-//go:linkname libc_fdopendir libc_fdopendir
-//go:cgo_import_dynamic libc_fdopendir fdopendir$INODE64 "/usr/lib/libSystem.B.dylib"
-
 // Implemented in the runtime package (runtime/sys_darwin_64.go)
 func syscallX(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 
