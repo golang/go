@@ -119,6 +119,8 @@ type MarshalerAttr interface {
 	MarshalXMLAttr(name Name) (Attr, error)
 }
 
+// EmptyValue is the interface implemented by types that
+// can specify if it is a empty value.
 type EmptyValue interface {
 	IsEmpty() bool
 }
@@ -936,7 +938,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 				return err
 			}
 			if len(finfo.parents) > len(s.stack) {
-				if finfo.flags&fOmitEmpty == 0 || !isEmptyValue(vf) {
+				if (vf.Kind() != reflect.Ptr && vf.Kind() != reflect.Interface || !vf.IsNil()) && (finfo.flags&fOmitEmpty == 0 || !isEmptyValue(vf)) {
 					if err := s.push(finfo.parents[len(s.stack):]); err != nil {
 						return err
 					}
@@ -1034,8 +1036,7 @@ func (e *UnsupportedTypeError) Error() string {
 }
 
 func isEmptyValue(v reflect.Value) bool {
-	vType := v.Type()
-	if vType.Implements(emptyValueType) {
+	if v.Type().Implements(emptyValueType) {
 		return v.Interface().(EmptyValue).IsEmpty()
 	}
 
@@ -1062,15 +1063,17 @@ func isEmptyStruct(v reflect.Value) bool {
 	vType := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {
-		typField := vType.Field(i)
-		tag := typField.Tag.Get("xml")
+		tag := vType.Field(i).Tag.Get("xml")
 
-		if tag != "-" && tag != ",chardata" && !strings.Contains(tag, "omitempty") {
+		if tag == "-" || tag == ",chardata" || tag == ",cdata" || tag == ",innerxml" || tag == ",comment" {
+			continue
+		}
+
+		if !strings.Contains(tag, "omitempty") {
 			return false
 		}
 
-		valField := v.Field(i)
-		if !isEmptyValue(valField) {
+		if !isEmptyValue(v.Field(i)) {
 			return false
 		}
 	}
