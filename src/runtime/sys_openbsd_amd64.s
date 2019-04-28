@@ -348,9 +348,6 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
 
 // int32 runtime·kqueue(void);
 TEXT runtime·kqueue(SB),NOSPLIT,$0
-	MOVQ	$0, DI
-	MOVQ	$0, SI
-	MOVQ	$0, DX
 	MOVL	$269, AX
 	SYSCALL
 	JCC	2(PC)
