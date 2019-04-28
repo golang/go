@@ -183,7 +183,7 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
 }
 
 // checkHeader performs basic sanity checks on the header.
-func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header, name, server string) error {
+func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
 	if h.RCode == dnsmessage.RCodeNameError {
 		return errNoSuchHost
 	}
@@ -214,7 +214,7 @@ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header, name, server string)
 	return nil
 }
 
-func skipToAnswer(p *dnsmessage.Parser, qtype dnsmessage.Type, name, server string) error {
+func skipToAnswer(p *dnsmessage.Parser, qtype dnsmessage.Type) error {
 	for {
 		h, err := p.AnswerHeader()
 		if err == dnsmessage.ErrSectionDone {
@@ -272,7 +272,7 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 				continue
 			}
 
-			if err := checkHeader(&p, h, name, server); err != nil {
+			if err := checkHeader(&p, h); err != nil {
 				dnsErr := &DNSError{
 					Err:    err.Error(),
 					Name:   name,
@@ -292,7 +292,7 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 				continue
 			}
 
-			err = skipToAnswer(&p, qtype, name, server)
+			err = skipToAnswer(&p, qtype)
 			if err == nil {
 				return p, server, nil
 			}
