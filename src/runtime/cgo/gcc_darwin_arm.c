@@ -103,7 +103,7 @@ init_working_dir()
 	}
 	CFURLRef url_ref = CFBundleCopyResourceURL(bundle, CFSTR("Info"), CFSTR("plist"), NULL);
 	if (url_ref == NULL) {
-		fprintf(stderr, "runtime/cgo: no Info.plist URL\n");
+		// No Info.plist found. It can happen on Corellium virtual devices.
 		return;
 	}
 	CFStringRef url_str_ref = CFURLGetString(url_ref);
