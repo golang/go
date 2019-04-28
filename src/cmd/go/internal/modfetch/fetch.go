@@ -479,6 +479,10 @@ func Sum(mod module.Version) string {
 
 // WriteGoSum writes the go.sum file if it needs to be updated.
 func WriteGoSum() {
+	if cfg.BuildMod == "readonly" {
+		base.Fatalf("go: updates to go.sum needed, disabled by -mod=readonly")
+	}
+
 	goSum.mu.Lock()
 	defer goSum.mu.Unlock()
 
