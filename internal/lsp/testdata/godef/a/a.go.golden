@@ -1,6 +1,5 @@
 -- Random-definition --
 godef/a/random.go:3:6-12: defined here as func Random() int
--- Random-definition-guru --
 
 -- Random-definition-json --
 {
@@ -20,14 +19,10 @@ godef/a/random.go:3:6-12: defined here as func Random() int
 	"description": "func Random() int"
 }
 
--- Random-definition-json-guru --
-
 -- Random-hover --
 func Random() int
 -- Random2-definition --
 godef/a/random.go:8:6-13: defined here as func Random2(y int) int
--- Random2-definition-guru --
-godef/a/random.go:8:6: defined here as func Random2(y int) int
 
 -- Random2-definition-json --
 {
@@ -47,18 +42,10 @@ godef/a/random.go:8:6: defined here as func Random2(y int) int
 	"description": "func Random2(y int) int"
 }
 
--- Random2-definition-json-guru --
-{
-	"objpos": "godef/a/random.go:8:6",
-	"desc": "func Random2(y int) int"
-}
-
 -- Random2-hover --
 func Random2(y int) int
 -- err-definition --
 godef/a/a.go:14:6-9: defined here as var err error
--- err-definition-guru --
-godef/a/a.go:14:6: defined here as var err
 
 -- err-definition-json --
 {

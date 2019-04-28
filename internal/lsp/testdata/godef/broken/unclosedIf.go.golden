@@ -1,7 +1,5 @@
 -- myUnclosedIf-definition --
 godef/broken/unclosedIf.go:7:7-19: defined here as var myUnclosedIf string
--- myUnclosedIf-definition-guru --
-godef/broken/unclosedIf.go:7:7: defined here as var myUnclosedIf
 
 -- myUnclosedIf-definition-json --
 {

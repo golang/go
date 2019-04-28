@@ -169,9 +169,9 @@ func (s *Server) processConfig(view source.View, config interface{}) error {
 	if usePlaceholders, ok := c["usePlaceholders"].(bool); ok {
 		s.usePlaceholders = usePlaceholders
 	}
-	// Check if enhancedHover is enabled.
-	if enhancedHover, ok := c["enhancedHover"].(bool); ok {
-		s.enhancedHover = enhancedHover
+	// Check if user has disabled documentation on hover.
+	if noDocsOnHover, ok := c["noDocsOnHover"].(bool); ok {
+		s.noDocsOnHover = noDocsOnHover
 	}
 	return nil
 }

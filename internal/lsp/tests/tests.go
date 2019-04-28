@@ -267,7 +267,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		tests.Format(t, data.Formats)
 	})
 
-	t.Run("Definitions", func(t *testing.T) {
+	t.Run("Definition", func(t *testing.T) {
 		t.Helper()
 		if len(data.Definitions) != ExpectedDefinitionsCount {
 			t.Errorf("got %v definitions expected %v", len(data.Definitions), ExpectedDefinitionsCount)
@@ -275,7 +275,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		tests.Definition(t, data.Definitions)
 	})
 
-	t.Run("Highlights", func(t *testing.T) {
+	t.Run("Highlight", func(t *testing.T) {
 		t.Helper()
 		if len(data.Highlights) != ExpectedHighlightsCount {
 			t.Errorf("got %v highlights expected %v", len(data.Highlights), ExpectedHighlightsCount)
@@ -299,7 +299,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		tests.SignatureHelp(t, data.Signatures)
 	})
 
-	t.Run("Links", func(t *testing.T) {
+	t.Run("Link", func(t *testing.T) {
 		t.Helper()
 		linksCount := 0
 		for _, want := range data.Links {

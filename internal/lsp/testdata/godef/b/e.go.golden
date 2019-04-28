@@ -1,7 +1,5 @@
 -- Member-definition --
 godef/a/d.go:6:2-8: defined here as field Member string
--- Member-definition-guru --
-godef/a/d.go:6:2: defined here as field Member string
 
 -- Member-definition-json --
 {
@@ -21,18 +19,11 @@ godef/a/d.go:6:2: defined here as field Member string
 	"description": "field Member string"
 }
 
--- Member-definition-json-guru --
-{
-	"objpos": "godef/a/d.go:6:2",
-	"desc": "field Member string"
-}
-
 -- Member-hover --
+@Member
 field Member string
 -- Other-definition --
 godef/a/d.go:9:5-10: defined here as var a.Other a.Thing
--- Other-definition-guru --
-godef/a/d.go:9:5: defined here as var a.Other
 
 -- Other-definition-json --
 {
@@ -55,9 +46,9 @@ godef/a/d.go:9:5: defined here as var a.Other
 -- Other-hover --
 var a.Other a.Thing
 -- Thing-definition --
-godef/a/d.go:5:6-11: defined here as type a.Thing struct{Member string}
--- Thing-definition-guru --
-godef/a/d.go:5:6: defined here as type a.Thing
+godef/a/d.go:5:6-11: defined here as Thing struct {
+	Member string //@Member
+}
 
 -- Thing-definition-json --
 {
@@ -74,15 +65,15 @@ godef/a/d.go:5:6: defined here as type a.Thing
 			"offset": 35
 		}
 	},
-	"description": "type a.Thing struct{Member string}"
+	"description": "Thing struct {\n\tMember string //@Member\n}"
 }
 
 -- Thing-hover --
-type a.Thing struct{Member string}
+Thing struct {
+	Member string //@Member
+}
 -- Things-definition --
 godef/a/d.go:11:6-12: defined here as func a.Things(val []string) []a.Thing
--- Things-definition-guru --
-godef/a/d.go:11:6: defined here as func a.Things
 
 -- Things-definition-json --
 {

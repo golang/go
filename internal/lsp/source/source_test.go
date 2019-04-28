@@ -301,7 +301,7 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", d.Src, err)
 		}
-		hover, err := ident.Hover(ctx, nil, false, false)
+		hover, err := ident.Hover(ctx, nil, false, true)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", d.Src, err)
 		}

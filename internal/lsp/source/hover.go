@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/doc"
 	"go/format"
 	"go/token"
 	"go/types"
@@ -17,7 +18,7 @@ import (
 // formatter returns the a hover value formatted with its documentation.
 type formatter func(interface{}, *ast.CommentGroup) (string, error)
 
-func (i *IdentifierInfo) Hover(ctx context.Context, qf types.Qualifier, enhancedHover, markdownSupported bool) (string, error) {
+func (i *IdentifierInfo) Hover(ctx context.Context, qf types.Qualifier, markdownSupported, wantComments bool) (string, error) {
 	file := i.File.GetAST(ctx)
 	if qf == nil {
 		pkg := i.File.GetPackage(ctx)
@@ -25,21 +26,21 @@ func (i *IdentifierInfo) Hover(ctx context.Context, qf types.Qualifier, enhanced
 	}
 	var b strings.Builder
 	f := func(x interface{}, c *ast.CommentGroup) (string, error) {
+		if !wantComments {
+			c = nil
+		}
 		return writeHover(x, i.File.GetFileSet(ctx), &b, c, markdownSupported, qf)
 	}
 	obj := i.Declaration.Object
-	// TODO(rstambler): Remove this configuration when hover behavior is stable.
-	if enhancedHover {
-		switch node := i.Declaration.Node.(type) {
-		case *ast.GenDecl:
-			switch obj := obj.(type) {
-			case *types.TypeName, *types.Var, *types.Const, *types.Func:
-				return formatGenDecl(node, obj, obj.Type(), f)
-			}
-		case *ast.FuncDecl:
-			if _, ok := obj.(*types.Func); ok {
-				return f(obj, node.Doc)
-			}
+	switch node := i.Declaration.Node.(type) {
+	case *ast.GenDecl:
+		switch obj := obj.(type) {
+		case *types.TypeName, *types.Var, *types.Const, *types.Func:
+			return formatGenDecl(node, obj, obj.Type(), f)
+		}
+	case *ast.FuncDecl:
+		if _, ok := obj.(*types.Func); ok {
+			return f(obj, node.Doc)
 		}
 	}
 	return f(obj, nil)
@@ -70,8 +71,8 @@ func formatGenDecl(node *ast.GenDecl, obj types.Object, typ types.Type, f format
 	// Handle types.
 	switch spec := spec.(type) {
 	case *ast.TypeSpec:
-		// If multiple types are declared in the same block.
 		if len(node.Specs) > 1 {
+			// If multiple types are declared in the same block.
 			return f(spec.Type, spec.Doc)
 		} else {
 			return f(spec, node.Doc)
@@ -97,7 +98,7 @@ func formatVar(node ast.Spec, obj types.Object, f formatter) (string, error) {
 	// If we have a struct or interface declaration,
 	// we need to match the object to the corresponding field or method.
 	if fieldList != nil {
-		for i := 0; i < fieldList.NumFields(); i++ {
+		for i := 0; i < len(fieldList.List); i++ {
 			field := fieldList.List[i]
 			if field.Pos() <= obj.Pos() && obj.Pos() <= field.End() {
 				if field.Doc.Text() != "" {
@@ -115,7 +116,8 @@ func formatVar(node ast.Spec, obj types.Object, f formatter) (string, error) {
 // writeHover writes the hover for a given node and its documentation.
 func writeHover(x interface{}, fset *token.FileSet, b *strings.Builder, c *ast.CommentGroup, markdownSupported bool, qf types.Qualifier) (string, error) {
 	if c != nil {
-		b.WriteString(c.Text())
+		// TODO(rstambler): Improve conversion from Go docs to markdown.
+		b.WriteString(doc.Synopsis(c.Text()))
 		b.WriteRune('\n')
 	}
 	if markdownSupported {
