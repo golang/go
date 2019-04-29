@@ -436,8 +436,11 @@ func pipe(fd *int32) int32 {
 // by the assembly routine as 0.
 // The err result is an OS error code such as ENOMEM.
 //go:nosplit
-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int) {
+func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
 	r, err0 := syscall6(&libc_mmap, uintptr(addr), uintptr(n), uintptr(prot), uintptr(flags), uintptr(fd), uintptr(off))
+	if r == ^uintptr(0) {
+		return nil, int(err0)
+	}
 	return unsafe.Pointer(r), int(err0)
 }
 
