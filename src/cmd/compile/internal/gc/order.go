@@ -1239,6 +1239,58 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			n.Left = o.addrTemp(n.Left)
 			n.Right = o.addrTemp(n.Right)
 		}
+	case OMAPLIT:
+		// Order map by converting:
+		//   map[int]int{
+		//     a(): b(),
+		//     c(): d(),
+		//     e(): f(),
+		//   }
+		// to
+		//   m := map[int]int{}
+		//   m[a()] = b()
+		//   m[c()] = d()
+		//   m[e()] = f()
+		// Then order the result.
+		// Without this special case, order would otherwise compute all
+		// the keys and values before storing any of them to the map.
+		// See issue 26552.
+		entries := n.List.Slice()
+		statics := entries[:0]
+		var dynamics []*Node
+		for _, r := range entries {
+			if r.Op != OKEY {
+				Fatalf("OMAPLIT entry not OKEY: %v\n", r)
+			}
+			if isStaticCompositeLiteral(r.Left) && isStaticCompositeLiteral(r.Right) {
+				statics = append(statics, r)
+			} else {
+				dynamics = append(dynamics, r)
+			}
+		}
+		n.List.Set(statics)
+
+		// Note: we don't need to recursively call order on the statics.
+		// But do it anyway, just in case that's not true in the future.
+		o.exprList(n.List)
+
+		if len(dynamics) == 0 {
+			break
+		}
+
+		// Emit the creation of the map (with all its static entries).
+		m := o.newTemp(n.Type, false)
+		as := nod(OAS, m, n)
+		typecheck(as, ctxStmt)
+		o.stmt(as)
+		n = m
+
+		// Emit eval+insert of dynamic entries, one at a time.
+		for _, r := range dynamics {
+			as := nod(OAS, nod(OINDEX, n, r.Left), r.Right)
+			typecheck(as, ctxStmt) // Note: this converts the OINDEX to an OINDEXMAP
+			o.stmt(as)
+		}
 	}
 
 	lineno = lno

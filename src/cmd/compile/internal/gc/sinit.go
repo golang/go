@@ -1080,6 +1080,11 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 	default:
 		Fatalf("anylit: not lit, op=%v node=%v", n.Op, n)
 
+	case ONAME:
+		a := nod(OAS, var_, n)
+		a = typecheck(a, ctxStmt)
+		init.Append(a)
+
 	case OPTRLIT:
 		if !t.IsPtr() {
 			Fatalf("anylit: not ptr")
