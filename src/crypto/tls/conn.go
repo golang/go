@@ -1027,8 +1027,6 @@ func (c *Conn) readHandshake() (interface{}, error) {
 		m = &certificateVerifyMsg{
 			hasSignatureAlgorithm: c.vers >= VersionTLS12,
 		}
-	case typeNextProtocol:
-		m = new(nextProtoMsg)
 	case typeFinished:
 		m = new(finishedMsg)
 	case typeEncryptedExtensions:
