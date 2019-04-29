@@ -1,6 +1,82 @@
+-- PosSum-definition --
+godef/a/random.go:16:15-18: defined here as func (*Pos).Sum() int
+-- PosSum-definition-guru --
+
+-- PosSum-definition-json --
+{
+	"span": {
+		"uri": "file://godef/a/random.go",
+		"start": {
+			"line": 16,
+			"column": 15,
+			"offset": 248
+		},
+		"end": {
+			"line": 16,
+			"column": 18,
+			"offset": 251
+		}
+	},
+	"description": "func (*Pos).Sum() int"
+}
+
+-- PosSum-definition-json-guru --
+
 -- PosSum-hover --
 func (*Pos).Sum() int
+-- PosX-definition --
+godef/a/random.go:13:2-3: defined here as field x int
+-- PosX-definition-guru --
+godef/a/random.go:13:2: defined here as field x int
+
+-- PosX-definition-json --
+{
+	"span": {
+		"uri": "file://godef/a/random.go",
+		"start": {
+			"line": 13,
+			"column": 2,
+			"offset": 187
+		},
+		"end": {
+			"line": 13,
+			"column": 3,
+			"offset": 188
+		}
+	},
+	"description": "field x int"
+}
+
+-- PosX-definition-json-guru --
+{
+	"objpos": "godef/a/random.go:13:2",
+	"desc": "field x int"
+}
+
 -- PosX-hover --
 field x int
+-- RandomParamY-definition --
+godef/a/random.go:8:14-15: defined here as var y int
+-- RandomParamY-definition-guru --
+godef/a/random.go:8:14: defined here as var y
+
+-- RandomParamY-definition-json --
+{
+	"span": {
+		"uri": "file://godef/a/random.go",
+		"start": {
+			"line": 8,
+			"column": 14,
+			"offset": 79
+		},
+		"end": {
+			"line": 8,
+			"column": 15,
+			"offset": 80
+		}
+	},
+	"description": "var y int"
+}
+
 -- RandomParamY-hover --
 var y int

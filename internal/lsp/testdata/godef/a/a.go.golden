@@ -1,6 +1,82 @@
+-- Random-definition --
+godef/a/random.go:3:6-12: defined here as func Random() int
+-- Random-definition-guru --
+
+-- Random-definition-json --
+{
+	"span": {
+		"uri": "file://godef/a/random.go",
+		"start": {
+			"line": 3,
+			"column": 6,
+			"offset": 16
+		},
+		"end": {
+			"line": 3,
+			"column": 12,
+			"offset": 22
+		}
+	},
+	"description": "func Random() int"
+}
+
+-- Random-definition-json-guru --
+
 -- Random-hover --
 func Random() int
+-- Random2-definition --
+godef/a/random.go:8:6-13: defined here as func Random2(y int) int
+-- Random2-definition-guru --
+godef/a/random.go:8:6: defined here as func Random2(y int) int
+
+-- Random2-definition-json --
+{
+	"span": {
+		"uri": "file://godef/a/random.go",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"offset": 71
+		},
+		"end": {
+			"line": 8,
+			"column": 13,
+			"offset": 78
+		}
+	},
+	"description": "func Random2(y int) int"
+}
+
+-- Random2-definition-json-guru --
+{
+	"objpos": "godef/a/random.go:8:6",
+	"desc": "func Random2(y int) int"
+}
+
 -- Random2-hover --
 func Random2(y int) int
+-- err-definition --
+godef/a/a.go:14:6-9: defined here as var err error
+-- err-definition-guru --
+godef/a/a.go:14:6: defined here as var err
+
+-- err-definition-json --
+{
+	"span": {
+		"uri": "file://godef/a/a.go",
+		"start": {
+			"line": 14,
+			"column": 6,
+			"offset": 201
+		},
+		"end": {
+			"line": 14,
+			"column": 9,
+			"offset": 204
+		}
+	},
+	"description": "var err error"
+}
+
 -- err-hover --
 var err error

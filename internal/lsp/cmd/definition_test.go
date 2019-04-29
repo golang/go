@@ -6,14 +6,12 @@ package cmd_test
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -28,7 +26,20 @@ const (
 	expectedTypeDefinitionsCount = 2
 )
 
-var verifyGuru = flag.Bool("verify-guru", false, "Check that the guru compatability matches")
+type godefMode int
+
+const (
+	plainGodef = godefMode(1 << iota)
+	jsonGoDef
+	guruGoDef
+)
+
+var godefModes = []godefMode{
+	plainGodef,
+	jsonGoDef,
+	guruGoDef,
+	jsonGoDef | guruGoDef,
+}
 
 func TestDefinitionHelpExample(t *testing.T) {
 	if runtime.GOOS == "android" {
@@ -55,132 +66,96 @@ func TestDefinitionHelpExample(t *testing.T) {
 	}
 }
 
+var brokenDefinitionTests = map[string]bool{
+	// The following tests all have extra information in the description
+	"A-definition-json-guru":            true,
+	"err-definition-json-guru":          true,
+	"myUnclosedIf-definition-json-guru": true,
+	"Other-definition-json-guru":        true,
+	"RandomParamY-definition-json-guru": true,
+	"S1-definition-json-guru":           true,
+	"S2-definition-json-guru":           true,
+	"Stuff-definition-json-guru":        true,
+	"Thing-definition-json-guru":        true,
+	"Things-definition-json-guru":       true,
+}
+
 func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 	for _, d := range data {
 		if d.IsType {
 			// TODO: support type definition queries
 			continue
 		}
-		args := []string{"-remote=internal", "query"}
-		if d.Flags != "" {
-			args = append(args, strings.Split(d.Flags, " ")...)
-		}
-		args = append(args, "definition")
-		src := span.New(d.Src.URI(), span.NewPoint(0, 0, d.Src.Start().Offset()), span.Point{})
-		args = append(args, fmt.Sprint(src))
-		got := captureStdOut(t, func() {
-			tool.Main(context.Background(), r.app, args)
-		})
-		pattern := newPattern(d.Match, d.Def)
-		if !pattern.matches(got) {
-			t.Errorf("definition %v\nexpected:\n%s\ngot:\n%s", args, pattern, got)
-		}
-		if *verifyGuru {
-			moduleMode := r.data.Exported.File(r.data.Exported.Modules[0].Name, "go.mod") != ""
-			var guruArgs []string
-			runGuru := false
-			if !moduleMode {
-				for _, arg := range args {
-					switch {
-					case arg == "query":
-						// just ignore this one
-					case arg == "-json":
-						guruArgs = append(guruArgs, arg)
-					case arg == "-emulate=guru":
-						// if we don't see this one we should not run guru
-						runGuru = true
-					case strings.HasPrefix(arg, "-"):
-						// unknown flag, ignore it
-						break
-					default:
-						guruArgs = append(guruArgs, arg)
-					}
-				}
+		d.Src = span.New(d.Src.URI(), span.NewPoint(0, 0, d.Src.Start().Offset()), span.Point{})
+		for _, mode := range godefModes {
+			args := []string{"-remote=internal", "query"}
+			tag := d.Name + "-definition"
+			if mode&jsonGoDef != 0 {
+				tag += "-json"
+				args = append(args, "-json")
 			}
-			if runGuru {
+			if mode&guruGoDef != 0 {
+				if r.exporter.Name() != "GOPATH" {
+					//only run guru compatability tests in GOPATH mode
+					continue
+				}
+				if d.Name == "PackageFoo" {
+					//guru does not support definition on packages
+					continue
+				}
+				tag += "-guru"
+				args = append(args, "-emulate=guru")
+			}
+			if _, found := brokenDefinitionTests[tag]; found {
+				continue
+			}
+			args = append(args, "definition")
+			uri := d.Src.URI()
+			filename, err := uri.Filename()
+			if err != nil {
+				t.Fatal(err)
+			}
+			args = append(args, fmt.Sprint(d.Src))
+			got := captureStdOut(t, func() {
+				tool.Main(context.Background(), r.app, args)
+			})
+			got = normalizePaths(r.data, got)
+			if mode&jsonGoDef != 0 && runtime.GOOS == "windows" {
+				got = strings.Replace(got, "file:///", "file://", -1)
+			}
+			if mode&guruGoDef == 0 {
+				expect := string(r.data.Golden(tag, filename, func() ([]byte, error) {
+					return []byte(got), nil
+				}))
+				if got != expect {
+					t.Errorf("definition %v failed with %#v expected:\n%s\ngot:\n%s", tag, args, expect, got)
+				}
+				continue
+			}
+			guruArgs := []string{}
+			if mode&jsonGoDef != 0 {
+				guruArgs = append(guruArgs, "-json")
+			}
+			guruArgs = append(guruArgs, "definition", fmt.Sprint(d.Src))
+			expect := strings.TrimSpace(string(r.data.Golden(tag, filename, func() ([]byte, error) {
 				cmd := exec.Command("guru", guruArgs...)
 				cmd.Env = r.data.Exported.Config.Env
-				out, err := cmd.CombinedOutput()
+				out, _ := cmd.Output()
 				if err != nil {
-					t.Errorf("Could not run guru %v: %v\n%s", guruArgs, err, out)
-				} else {
-					guru := strings.TrimSpace(string(out))
-					if !pattern.matches(guru) {
-						t.Errorf("definition %v\nexpected:\n%s\nguru gave:\n%s", args, pattern, guru)
+					if _, ok := err.(*exec.ExitError); !ok {
+						return nil, fmt.Errorf("Could not run guru %v: %v\n%s", guruArgs, err, out)
 					}
 				}
+				result := normalizePaths(r.data, string(out))
+				// guru sometimes puts the full package path in type names, but we don't
+				if mode&jsonGoDef == 0 && d.Name != "AImport" {
+					result = strings.Replace(result, "golang.org/x/tools/internal/lsp/godef/", "", -1)
+				}
+				return []byte(result), nil
+			})))
+			if expect != "" && !strings.HasPrefix(got, expect) {
+				t.Errorf("definition %v failed with %#v expected:\n%q\ngot:\n%q", tag, args, expect, got)
 			}
 		}
 	}
-}
-
-type pattern struct {
-	raw      string
-	expanded []string
-	matchAll bool
-}
-
-func newPattern(s string, def span.Span) pattern {
-	p := pattern{raw: s}
-	if s == "" {
-		p.expanded = []string{fmt.Sprintf("%v: ", def)}
-		return p
-	}
-	p.matchAll = strings.HasSuffix(s, "$$")
-	for _, fragment := range strings.Split(s, "$$") {
-		p.expanded = append(p.expanded, os.Expand(fragment, func(name string) string {
-			switch name {
-			case "file":
-				fname, _ := def.URI().Filename()
-				return fname
-			case "efile":
-				fname, _ := def.URI().Filename()
-				qfile := strconv.Quote(fname)
-				return qfile[1 : len(qfile)-1]
-			case "euri":
-				quri := strconv.Quote(string(def.URI()))
-				return quri[1 : len(quri)-1]
-			case "line":
-				return fmt.Sprint(def.Start().Line())
-			case "col":
-				return fmt.Sprint(def.Start().Column())
-			case "offset":
-				return fmt.Sprint(def.Start().Offset())
-			case "eline":
-				return fmt.Sprint(def.End().Line())
-			case "ecol":
-				return fmt.Sprint(def.End().Column())
-			case "eoffset":
-				return fmt.Sprint(def.End().Offset())
-			default:
-				return name
-			}
-		}))
-	}
-	return p
-}
-
-func (p pattern) String() string {
-	return strings.Join(p.expanded, "$$")
-}
-
-func (p pattern) matches(s string) bool {
-	if len(p.expanded) == 0 {
-		return false
-	}
-	if !strings.HasPrefix(s, p.expanded[0]) {
-		return false
-	}
-	remains := s[len(p.expanded[0]):]
-	for _, fragment := range p.expanded[1:] {
-		i := strings.Index(remains, fragment)
-		if i < 0 {
-			return false
-		}
-		remains = remains[i+len(fragment):]
-	}
-	if !p.matchAll {
-		return true
-	}
-	return len(remains) == 0
 }

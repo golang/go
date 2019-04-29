@@ -31,7 +31,7 @@ const (
 	ExpectedCompletionsCount       = 97
 	ExpectedDiagnosticsCount       = 17
 	ExpectedFormatCount            = 5
-	ExpectedDefinitionsCount       = 24
+	ExpectedDefinitionsCount       = 33
 	ExpectedTypeDefinitionsCount   = 2
 	ExpectedHighlightsCount        = 2
 	ExpectedSymbolsCount           = 1
@@ -97,9 +97,7 @@ type Definition struct {
 	Name   string
 	Src    span.Span
 	IsType bool
-	Flags  string
 	Def    span.Span
-	Match  string
 }
 
 type CompletionSnippet struct {

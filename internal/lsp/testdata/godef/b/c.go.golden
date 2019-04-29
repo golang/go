@@ -1,4 +1,56 @@
+-- S1-definition --
+godef/b/b.go:8:6-8: defined here as type S1 struct{F1 int; S2; a.A}
+-- S1-definition-guru --
+godef/b/b.go:8:6: defined here as type S1 struct{F1 int; S2; a.A}
+
+-- S1-definition-json --
+{
+	"span": {
+		"uri": "file://godef/b/b.go",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"offset": 196
+		},
+		"end": {
+			"line": 8,
+			"column": 8,
+			"offset": 198
+		}
+	},
+	"description": "type S1 struct{F1 int; S2; a.A}"
+}
+
 -- S1-hover --
 type S1 struct{F1 int; S2; a.A}
+-- S1F1-definition --
+godef/b/b.go:9:2-4: defined here as field F1 int
+-- S1F1-definition-guru --
+godef/b/b.go:9:2: defined here as field F1 int
+
+-- S1F1-definition-json --
+{
+	"span": {
+		"uri": "file://godef/b/b.go",
+		"start": {
+			"line": 9,
+			"column": 2,
+			"offset": 215
+		},
+		"end": {
+			"line": 9,
+			"column": 4,
+			"offset": 217
+		}
+	},
+	"description": "field F1 int"
+}
+
+-- S1F1-definition-json-guru --
+{
+	"objpos": "godef/b/b.go:9:2",
+	"desc": "field F1 int"
+}
+
 -- S1F1-hover --
 field F1 int

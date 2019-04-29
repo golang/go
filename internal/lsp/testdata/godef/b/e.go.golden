@@ -1,0 +1,106 @@
+-- Member-definition --
+godef/a/d.go:6:2-8: defined here as field Member string
+-- Member-definition-guru --
+godef/a/d.go:6:2: defined here as field Member string
+
+-- Member-definition-json --
+{
+	"span": {
+		"uri": "file://godef/a/d.go",
+		"start": {
+			"line": 6,
+			"column": 2,
+			"offset": 55
+		},
+		"end": {
+			"line": 6,
+			"column": 8,
+			"offset": 61
+		}
+	},
+	"description": "field Member string"
+}
+
+-- Member-definition-json-guru --
+{
+	"objpos": "godef/a/d.go:6:2",
+	"desc": "field Member string"
+}
+
+-- Member-hover --
+field Member string
+-- Other-definition --
+godef/a/d.go:9:5-10: defined here as var a.Other a.Thing
+-- Other-definition-guru --
+godef/a/d.go:9:5: defined here as var a.Other
+
+-- Other-definition-json --
+{
+	"span": {
+		"uri": "file://godef/a/d.go",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"offset": 86
+		},
+		"end": {
+			"line": 9,
+			"column": 10,
+			"offset": 91
+		}
+	},
+	"description": "var a.Other a.Thing"
+}
+
+-- Other-hover --
+var a.Other a.Thing
+-- Thing-definition --
+godef/a/d.go:5:6-11: defined here as type a.Thing struct{Member string}
+-- Thing-definition-guru --
+godef/a/d.go:5:6: defined here as type a.Thing
+
+-- Thing-definition-json --
+{
+	"span": {
+		"uri": "file://godef/a/d.go",
+		"start": {
+			"line": 5,
+			"column": 6,
+			"offset": 30
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"offset": 35
+		}
+	},
+	"description": "type a.Thing struct{Member string}"
+}
+
+-- Thing-hover --
+type a.Thing struct{Member string}
+-- Things-definition --
+godef/a/d.go:11:6-12: defined here as func a.Things(val []string) []a.Thing
+-- Things-definition-guru --
+godef/a/d.go:11:6: defined here as func a.Things
+
+-- Things-definition-json --
+{
+	"span": {
+		"uri": "file://godef/a/d.go",
+		"start": {
+			"line": 11,
+			"column": 6,
+			"offset": 113
+		},
+		"end": {
+			"line": 11,
+			"column": 12,
+			"offset": 119
+		}
+	},
+	"description": "func a.Things(val []string) []a.Thing"
+}
+
+-- Things-hover --
+func a.Things(val []string) []a.Thing

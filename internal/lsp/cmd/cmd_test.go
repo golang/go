@@ -8,10 +8,10 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
-	"unicode"
-	"unicode/utf8"
 
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cmd"
@@ -21,8 +21,9 @@ import (
 var isRace = false
 
 type runner struct {
-	data *tests.Data
-	app  *cmd.Application
+	exporter packagestest.Exporter
+	data     *tests.Data
+	app      *cmd.Application
 }
 
 func TestCommandLine(t *testing.T) {
@@ -34,7 +35,8 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 	defer data.Exported.Cleanup()
 
 	r := &runner{
-		data: data,
+		exporter: exporter,
+		data:     data,
 		app: &cmd.Application{
 			Config: *data.Exported.Config,
 		},
@@ -84,20 +86,34 @@ func captureStdOut(t testing.TB, f func()) string {
 
 // normalizePaths replaces all paths present in s with just the fragment portion
 // this is used to make golden files not depend on the temporary paths of the files
-func (r *runner) normalizePaths(s string) string {
+func normalizePaths(data *tests.Data, s string) string {
 	type entry struct {
-		path  string
-		index int
+		path     string
+		index    int
+		fragment string
 	}
-	match := make([]entry, len(r.data.Exported.Modules))
+	match := make([]entry, 0, len(data.Exported.Modules))
 	// collect the initial state of all the matchers
-	for i, m := range r.data.Exported.Modules {
-		// any random file will do, we collect the first one only
-		for f := range m.Files {
-			path := strings.TrimSuffix(r.data.Exported.File(m.Name, f), f)
-			index := strings.Index(s, path)
-			match[i] = entry{path, index}
-			break
+	for _, m := range data.Exported.Modules {
+		for fragment := range m.Files {
+			filename := data.Exported.File(m.Name, fragment)
+			index := strings.Index(s, filename)
+			if index >= 0 {
+				match = append(match, entry{filename, index, fragment})
+			}
+			if slash := filepath.ToSlash(filename); slash != filename {
+				index := strings.Index(s, slash)
+				if index >= 0 {
+					match = append(match, entry{slash, index, fragment})
+				}
+			}
+			quoted := strconv.Quote(filename)
+			if escaped := quoted[1 : len(quoted)-1]; escaped != filename {
+				index := strings.Index(s, escaped)
+				if index >= 0 {
+					match = append(match, entry{escaped, index, fragment})
+				}
+			}
 		}
 	}
 	// result should be the same or shorter than the input
@@ -122,20 +138,10 @@ func (r *runner) normalizePaths(s string) string {
 		n := &match[next]
 		// copy up to the start of the match
 		buf.WriteString(s[last:n.index])
-		// skip over the non fragment prefix
+		// skip over the filename
 		last = n.index + len(n.path)
-		// now try to convert the fragment part
-		for last < len(s) {
-			r, size := utf8.DecodeRuneInString(s[last:])
-			if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '/' {
-				buf.WriteRune(r)
-			} else if r == '\\' {
-				buf.WriteRune('/')
-			} else {
-				break
-			}
-			last += size
-		}
+		// add in the fragment instead
+		buf.WriteString(n.fragment)
 		// see what the next match for this path is
 		n.index = strings.Index(s[last:], n.path)
 		if n.index >= 0 {

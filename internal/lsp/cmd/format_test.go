@@ -34,7 +34,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 			expect := string(r.data.Golden(tag, filename, func() ([]byte, error) {
 				cmd := exec.Command("gofmt", args...)
 				contents, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
-				contents = []byte(r.normalizePaths(fixFileHeader(string(contents))))
+				contents = []byte(normalizePaths(r.data, fixFileHeader(string(contents))))
 				return contents, nil
 			}))
 			if expect == "" {
@@ -46,7 +46,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 			got := captureStdOut(t, func() {
 				tool.Main(context.Background(), app, append([]string{"-remote=internal", "format"}, args...))
 			})
-			got = r.normalizePaths(got)
+			got = normalizePaths(r.data, got)
 			// check the first two lines are the expected file header
 			if expect != got {
 				t.Errorf("format failed with %#v expected:\n%s\ngot:\n%s", args, expect, got)

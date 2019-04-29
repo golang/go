@@ -25,46 +25,15 @@ func useThings() {
 }
 
 /*@
-definition(aStructType, "", Thing, "$file:$line:$col-$ecol: defined here as type Thing struct{Member string}")
-definition(aStructType, "-emulate=guru", Thing, "$file:$line:$col: defined here as type Thing")
-
-definition(aMember, "", Member, "$file:$line:$col-$ecol: defined here as field Member string")
-definition(aMember, "-emulate=guru", Member, "$file:$line:$col: defined here as field Member string")
-
-definition(aVar, "", Other, "$file:$line:$col-$ecol: defined here as var Other Thing")
-definition(aVar, "-emulate=guru", Other, "$file:$line:$col: defined here as var Other")
-
-definition(aFunc, "", Things, "$file:$line:$col-$ecol: defined here as func Things(val []string) []Thing")
-definition(aFunc, "-emulate=guru", Things, "$file:$line:$col: defined here as func Things")
-
-definition(aMethod, "", Method, "$file:$line:$col-$ecol: defined here as func (Thing).Method(i int) string")
-definition(aMethod, "-emulate=guru", Method, "$file:$line:$col: defined here as func (Thing).Method(i int) string")
+godef(aStructType, Thing)
+godef(aMember, Member)
+godef(aVar, Other)
+godef(aFunc, Things)
+godef(aMethod, Method)
 
 //param
 //package name
 //const
 //anon field
 
-// JSON tests
-
-definition(aStructType, "-json", Thing, `{
-	"span": {
-		"uri": "$euri",
-		"start": {
-			"line": $line,
-			"column": $col,
-			"offset": $offset
-		},
-		"end": {
-			"line": $eline,
-			"column": $ecol,
-			"offset": $eoffset
-		}
-	},
-	"description": "type Thing struct{Member string}"
-}`)
-definition(aStructType, "-json -emulate=guru", Thing, `{
-	"objpos": "$efile:$line:$col",
-	"desc": "type Thing$$"
-}`)
 */

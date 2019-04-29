@@ -1,2 +1,25 @@
+-- myUnclosedIf-definition --
+godef/broken/unclosedIf.go:7:7-19: defined here as var myUnclosedIf string
+-- myUnclosedIf-definition-guru --
+godef/broken/unclosedIf.go:7:7: defined here as var myUnclosedIf
+
+-- myUnclosedIf-definition-json --
+{
+	"span": {
+		"uri": "file://godef/broken/unclosedIf.go",
+		"start": {
+			"line": 7,
+			"column": 7,
+			"offset": 68
+		},
+		"end": {
+			"line": 7,
+			"column": 19,
+			"offset": 80
+		}
+	},
+	"description": "var myUnclosedIf string"
+}
+
 -- myUnclosedIf-hover --
 var myUnclosedIf string
