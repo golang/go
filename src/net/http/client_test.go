@@ -317,8 +317,7 @@ func TestClientRedirectContext(t *testing.T) {
 			return errors.New("redirected request's context never expired after root request canceled")
 		}
 	}
-	req, _ := NewRequest("GET", ts.URL, nil)
-	req = req.WithContext(ctx)
+	req, _ := NewRequestWithContext(ctx, "GET", ts.URL, nil)
 	_, err := c.Do(req)
 	ue, ok := err.(*url.Error)
 	if !ok {
