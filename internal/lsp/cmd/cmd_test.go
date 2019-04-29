@@ -38,7 +38,7 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 	tests.Run(t, r, data)
 }
 
-func (r *runner) Completion(t *testing.T, data tests.Completions, items tests.CompletionItems) {
+func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests.CompletionSnippets, items tests.CompletionItems) {
 	//TODO: add command line completions tests when it works
 }
 

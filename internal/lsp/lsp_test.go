@@ -130,26 +130,15 @@ func summarizeDiagnostics(i int, want []source.Diagnostic, got []source.Diagnost
 	return msg.String()
 }
 
-func (r *runner) Completion(t *testing.T, data tests.Completions, items tests.CompletionItems) {
+func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests.CompletionSnippets, items tests.CompletionItems) {
 	for src, itemList := range data {
 		var want []source.CompletionItem
 		for _, pos := range itemList {
 			want = append(want, *items[pos])
 		}
-		list, err := r.server.Completion(context.Background(), &protocol.CompletionParams{
-			TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-				TextDocument: protocol.TextDocumentIdentifier{
-					URI: protocol.NewURI(src.URI()),
-				},
-				Position: protocol.Position{
-					Line:      float64(src.Start().Line() - 1),
-					Character: float64(src.Start().Column() - 1),
-				},
-			},
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
+
+		list := r.runCompletion(t, src)
+
 		wantBuiltins := strings.Contains(string(src.URI()), "builtins")
 		var got []protocol.CompletionItem
 		for _, item := range list.Items {
@@ -158,30 +147,79 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, items tests.Co
 			}
 			got = append(got, item)
 		}
-		if err != nil {
-			t.Fatalf("completion failed for %v: %v", src, err)
-		}
 		if diff := diffCompletionItems(t, src, want, got); diff != "" {
 			t.Errorf("%s: %s", src, diff)
 		}
 	}
 	// Make sure we don't crash completing the first position in file set.
-	firstFile := r.data.Config.Fset.Position(1).Filename
+	firstPos, err := span.NewRange(r.data.Exported.ExpectFileSet, 1, 2).Span()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = r.runCompletion(t, firstPos)
 
-	_, err := r.server.Completion(context.Background(), &protocol.CompletionParams{
+	r.checkCompletionSnippets(t, snippets, items)
+}
+
+func (r *runner) checkCompletionSnippets(t *testing.T, data tests.CompletionSnippets, items tests.CompletionItems) {
+	origPlaceHolders := r.server.usePlaceholders
+	origTextFormat := r.server.insertTextFormat
+	defer func() {
+		r.server.usePlaceholders = origPlaceHolders
+		r.server.insertTextFormat = origTextFormat
+	}()
+
+	r.server.insertTextFormat = protocol.SnippetTextFormat
+	for _, usePlaceholders := range []bool{true, false} {
+		r.server.usePlaceholders = usePlaceholders
+
+		for src, want := range data {
+			list := r.runCompletion(t, src)
+
+			wantCompletion := items[want.CompletionItem]
+			var gotItem *protocol.CompletionItem
+			for _, item := range list.Items {
+				if item.Label == wantCompletion.Label {
+					gotItem = &item
+					break
+				}
+			}
+
+			if gotItem == nil {
+				t.Fatalf("%s: couldn't find completion matching %q", src.URI(), wantCompletion.Label)
+			}
+
+			var expected string
+			if usePlaceholders {
+				expected = want.PlaceholderSnippet
+			} else {
+				expected = want.PlainSnippet
+			}
+
+			if expected != gotItem.TextEdit.NewText {
+				t.Errorf("%s: expected snippet %q, got %q", src, expected, gotItem.TextEdit.NewText)
+			}
+		}
+	}
+}
+
+func (r *runner) runCompletion(t *testing.T, src span.Span) *protocol.CompletionList {
+	t.Helper()
+	list, err := r.server.Completion(context.Background(), &protocol.CompletionParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{
-				URI: protocol.NewURI(span.FileURI(firstFile)),
+				URI: protocol.NewURI(src.URI()),
 			},
 			Position: protocol.Position{
-				Line:      0,
-				Character: 0,
+				Line:      float64(src.Start().Line() - 1),
+				Character: float64(src.Start().Column() - 1),
 			},
 		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
+	return list
 }
 
 func isBuiltin(item protocol.CompletionItem) bool {

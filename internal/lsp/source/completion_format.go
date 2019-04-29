@@ -5,18 +5,24 @@
 package source
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/types"
 	"strings"
+
+	"golang.org/x/tools/internal/lsp/snippet"
 )
 
 // formatCompletion creates a completion item for a given types.Object.
 func (c *completer) item(obj types.Object, score float64) CompletionItem {
-	label := obj.Name()
-	detail := types.TypeString(obj.Type(), c.qf)
-	var kind CompletionItemKind
+	var (
+		label              = obj.Name()
+		detail             = types.TypeString(obj.Type(), c.qf)
+		insert             = label
+		kind               CompletionItemKind
+		plainSnippet       *snippet.Builder
+		placeholderSnippet *snippet.Builder
+	)
 
 	switch o := obj.(type) {
 	case *types.TypeName:
@@ -40,6 +46,7 @@ func (c *completer) item(obj types.Object, score float64) CompletionItem {
 		}
 		if o.IsField() {
 			kind = FieldCompletionItem
+			plainSnippet, placeholderSnippet = c.structFieldSnippet(label, detail)
 		} else if c.isParameter(o) {
 			kind = ParameterCompletionItem
 		} else {
@@ -47,12 +54,15 @@ func (c *completer) item(obj types.Object, score float64) CompletionItem {
 		}
 	case *types.Func:
 		if sig, ok := o.Type().(*types.Signature); ok {
-			label += formatParams(sig, c.qf)
+			params := formatEachParam(sig, c.qf)
+			label += formatParamParts(params)
 			detail = strings.Trim(types.TypeString(sig.Results(), c.qf), "()")
 			kind = FunctionCompletionItem
 			if sig.Recv() != nil {
 				kind = MethodCompletionItem
 			}
+
+			plainSnippet, placeholderSnippet = c.funcCallSnippet(obj.Name(), params)
 		}
 	case *types.Builtin:
 		item, ok := builtinDetails[obj.Name()]
@@ -71,10 +81,13 @@ func (c *completer) item(obj types.Object, score float64) CompletionItem {
 	detail = strings.TrimPrefix(detail, "untyped ")
 
 	return CompletionItem{
-		Label:  label,
-		Detail: detail,
-		Kind:   kind,
-		Score:  score,
+		Label:              label,
+		Insert:             insert,
+		Detail:             detail,
+		Kind:               kind,
+		Score:              score,
+		PlainSnippet:       plainSnippet,
+		PlaceholderSnippet: placeholderSnippet,
 	}
 }
 
@@ -109,28 +122,54 @@ func formatType(typ types.Type, qf types.Qualifier) (detail string, kind Complet
 	return detail, kind
 }
 
-// formatParams correctly format the parameters of a function.
-func formatParams(sig *types.Signature, qf types.Qualifier) string {
-	var b bytes.Buffer
+// formatParams correctly formats the parameters of a function.
+func formatParams(sig *types.Signature, qualifier types.Qualifier) string {
+	return formatParamParts(formatEachParam(sig, qualifier))
+}
+
+func formatParamParts(params []string) string {
+	totalLen := 2 // parens
+
+	// length of each param itself
+	for _, p := range params {
+		totalLen += len(p)
+	}
+	// length of ", " separator
+	if len(params) > 1 {
+		totalLen += 2 * (len(params) - 1)
+	}
+
+	var b strings.Builder
+	b.Grow(totalLen)
+
 	b.WriteByte('(')
-	for i := 0; i < sig.Params().Len(); i++ {
+	for i, p := range params {
 		if i > 0 {
 			b.WriteString(", ")
 		}
+		b.WriteString(p)
+	}
+	b.WriteByte(')')
+
+	return b.String()
+}
+
+func formatEachParam(sig *types.Signature, qualifier types.Qualifier) []string {
+	params := make([]string, 0, sig.Params().Len())
+	for i := 0; i < sig.Params().Len(); i++ {
 		el := sig.Params().At(i)
-		typ := types.TypeString(el.Type(), qf)
+		typ := types.TypeString(el.Type(), qualifier)
 		// Handle a variadic parameter (can only be the final parameter).
 		if sig.Variadic() && i == sig.Params().Len()-1 {
 			typ = strings.Replace(typ, "[]", "...", 1)
 		}
 		if el.Name() == "" {
-			fmt.Fprintf(&b, "%v", typ)
+			params = append(params, typ)
 		} else {
-			fmt.Fprintf(&b, "%v %v", el.Name(), typ)
+			params = append(params, el.Name()+" "+typ)
 		}
 	}
-	b.WriteByte(')')
-	return b.String()
+	return params
 }
 
 // qualifier returns a function that appropriately formats a types.PkgName

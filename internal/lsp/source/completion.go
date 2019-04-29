@@ -12,12 +12,35 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/lsp/snippet"
 )
 
 type CompletionItem struct {
-	Label, Detail string
-	Kind          CompletionItemKind
-	Score         float64
+	// Label is the primary text the user sees for this completion item.
+	Label string
+
+	// Detail is supplemental information to present to the user. This
+	// often contains the Go type of the completion item.
+	Detail string
+
+	// Insert is the text to insert if this item is selected. Any already-typed
+	// prefix has not been trimmed. Insert does not contain snippets.
+	Insert string
+
+	Kind CompletionItemKind
+
+	// Score is the internal relevance score. Higher is more relevant.
+	Score float64
+
+	// PlainSnippet is the LSP snippet to be inserted if not nil and snippets are
+	// enabled and placeholders are not desired. This can contain tabs stops, but
+	// should not contain placeholder text.
+	PlainSnippet *snippet.Builder
+
+	// PlaceholderSnippet is the LSP snippet to be inserted if not nil and
+	// snippets are enabled and placeholders are desired. This can contain
+	// placeholder text.
+	PlaceholderSnippet *snippet.Builder
 }
 
 type CompletionItemKind int
@@ -54,6 +77,7 @@ type completer struct {
 	types *types.Package
 	info  *types.Info
 	qf    types.Qualifier
+	fset  *token.FileSet
 
 	// pos is the position at which the request was triggered.
 	pos token.Pos
@@ -80,6 +104,15 @@ type completer struct {
 	// preferTypeNames is true if we are completing at a position that expects a type,
 	// not a value.
 	preferTypeNames bool
+
+	// enclosingCompositeLiteral is the composite literal enclosing the position.
+	enclosingCompositeLiteral *ast.CompositeLit
+
+	// enclosingKeyValue is the key value expression enclosing the position.
+	enclosingKeyValue *ast.KeyValueExpr
+
+	// inCompositeLiteralField is true if we are completing a composite literal field.
+	inCompositeLiteralField bool
 }
 
 // found adds a candidate completion.
@@ -132,25 +165,29 @@ func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, s
 		return nil, "", nil
 	}
 
+	cl, kv, clField := enclosingCompositeLiteral(path, pos)
 	c := &completer{
-		types:             pkg.GetTypes(),
-		info:              pkg.GetTypesInfo(),
-		qf:                qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
-		path:              path,
-		pos:               pos,
-		seen:              make(map[types.Object]bool),
-		expectedType:      expectedType(path, pos, pkg.GetTypesInfo()),
-		enclosingFunction: enclosingFunction(path, pos, pkg.GetTypesInfo()),
-		preferTypeNames:   preferTypeNames(path, pos),
+		types:                     pkg.GetTypes(),
+		info:                      pkg.GetTypesInfo(),
+		qf:                        qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
+		fset:                      f.GetFileSet(ctx),
+		path:                      path,
+		pos:                       pos,
+		seen:                      make(map[types.Object]bool),
+		expectedType:              expectedType(path, pos, pkg.GetTypesInfo()),
+		enclosingFunction:         enclosingFunction(path, pos, pkg.GetTypesInfo()),
+		preferTypeNames:           preferTypeNames(path, pos),
+		enclosingCompositeLiteral: cl,
+		enclosingKeyValue:         kv,
+		inCompositeLiteralField:   clField,
 	}
 
 	// Composite literals are handled entirely separately.
-	if lit, kv, ok := c.enclosingCompositeLiteral(); lit != nil {
-		c.expectedType = c.expectedCompositeLiteralType(lit, kv)
+	if c.enclosingCompositeLiteral != nil {
+		c.expectedType = c.expectedCompositeLiteralType(c.enclosingCompositeLiteral, c.enclosingKeyValue)
 
-		// ok means that we should return composite literal completions for this position.
-		if ok {
-			if err := c.compositeLiteral(lit, kv); err != nil {
+		if c.inCompositeLiteralField {
+			if err := c.compositeLiteral(c.enclosingCompositeLiteral, c.enclosingKeyValue); err != nil {
 				return nil, "", err
 			}
 			return c.items, c.prefix, nil
@@ -363,8 +400,8 @@ func (c *completer) compositeLiteral(lit *ast.CompositeLit, kv *ast.KeyValueExpr
 	return nil
 }
 
-func (c *completer) enclosingCompositeLiteral() (lit *ast.CompositeLit, kv *ast.KeyValueExpr, ok bool) {
-	for _, n := range c.path {
+func enclosingCompositeLiteral(path []ast.Node, pos token.Pos) (lit *ast.CompositeLit, kv *ast.KeyValueExpr, ok bool) {
+	for _, n := range path {
 		switch n := n.(type) {
 		case *ast.CompositeLit:
 			// The enclosing node will be a composite literal if the user has just
@@ -373,19 +410,19 @@ func (c *completer) enclosingCompositeLiteral() (lit *ast.CompositeLit, kv *ast.
 			//
 			// The position is not part of the composite literal unless it falls within the
 			// curly braces (e.g. "foo.Foo<>Struct{}").
-			if n.Lbrace <= c.pos && c.pos <= n.Rbrace {
+			if n.Lbrace <= pos && pos <= n.Rbrace {
 				lit = n
 
 				// If the cursor position is within a key-value expression inside the composite
 				// literal, we try to determine if it is before or after the colon. If it is before
 				// the colon, we return field completions. If the cursor does not belong to any
 				// expression within the composite literal, we show composite literal completions.
-				if expr, isKeyValue := exprAtPos(c.pos, n.Elts).(*ast.KeyValueExpr); kv == nil && isKeyValue {
+				if expr, isKeyValue := exprAtPos(pos, n.Elts).(*ast.KeyValueExpr); kv == nil && isKeyValue {
 					kv = expr
 
 					// If the position belongs to a key-value expression and is after the colon,
 					// don't show composite literal completions.
-					ok = c.pos <= kv.Colon
+					ok = pos <= kv.Colon
 				} else if kv == nil {
 					ok = true
 				}
@@ -397,7 +434,7 @@ func (c *completer) enclosingCompositeLiteral() (lit *ast.CompositeLit, kv *ast.
 
 				// If the position belongs to a key-value expression and is after the colon,
 				// don't show composite literal completions.
-				ok = c.pos <= kv.Colon
+				ok = pos <= kv.Colon
 			}
 		case *ast.FuncType, *ast.CallExpr, *ast.TypeAssertExpr:
 			// These node types break the type link between the leaf node and

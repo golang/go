@@ -27,14 +27,15 @@ import (
 // We hardcode the expected number of test cases to ensure that all tests
 // are being executed. If a test is added, this number must be changed.
 const (
-	ExpectedCompletionsCount     = 85
-	ExpectedDiagnosticsCount     = 17
-	ExpectedFormatCount          = 4
-	ExpectedDefinitionsCount     = 21
-	ExpectedTypeDefinitionsCount = 2
-	ExpectedHighlightsCount      = 2
-	ExpectedSymbolsCount         = 1
-	ExpectedSignaturesCount      = 19
+	ExpectedCompletionsCount       = 85
+	ExpectedDiagnosticsCount       = 17
+	ExpectedFormatCount            = 4
+	ExpectedDefinitionsCount       = 21
+	ExpectedTypeDefinitionsCount   = 2
+	ExpectedHighlightsCount        = 2
+	ExpectedSymbolsCount           = 1
+	ExpectedSignaturesCount        = 19
+	ExpectedCompletionSnippetCount = 9
 )
 
 const (
@@ -49,6 +50,7 @@ var updateGolden = flag.Bool("golden", false, "Update golden files")
 type Diagnostics map[span.URI][]source.Diagnostic
 type CompletionItems map[token.Pos]*source.CompletionItem
 type Completions map[span.Span][]token.Pos
+type CompletionSnippets map[span.Span]CompletionSnippet
 type Formats []span.Span
 type Definitions map[span.Span]Definition
 type Highlights map[string][]span.Span
@@ -57,17 +59,18 @@ type SymbolsChildren map[string][]source.Symbol
 type Signatures map[span.Span]source.SignatureInformation
 
 type Data struct {
-	Config          packages.Config
-	Exported        *packagestest.Exported
-	Diagnostics     Diagnostics
-	CompletionItems CompletionItems
-	Completions     Completions
-	Formats         Formats
-	Definitions     Definitions
-	Highlights      Highlights
-	Symbols         Symbols
-	symbolsChildren SymbolsChildren
-	Signatures      Signatures
+	Config             packages.Config
+	Exported           *packagestest.Exported
+	Diagnostics        Diagnostics
+	CompletionItems    CompletionItems
+	Completions        Completions
+	CompletionSnippets CompletionSnippets
+	Formats            Formats
+	Definitions        Definitions
+	Highlights         Highlights
+	Symbols            Symbols
+	symbolsChildren    SymbolsChildren
+	Signatures         Signatures
 
 	t         testing.TB
 	fragments map[string]string
@@ -76,7 +79,7 @@ type Data struct {
 
 type Tests interface {
 	Diagnostics(*testing.T, Diagnostics)
-	Completion(*testing.T, Completions, CompletionItems)
+	Completion(*testing.T, Completions, CompletionSnippets, CompletionItems)
 	Format(*testing.T, Formats)
 	Definition(*testing.T, Definitions)
 	Highlight(*testing.T, Highlights)
@@ -92,18 +95,25 @@ type Definition struct {
 	Match  string
 }
 
+type CompletionSnippet struct {
+	CompletionItem     token.Pos
+	PlainSnippet       string
+	PlaceholderSnippet string
+}
+
 func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 	t.Helper()
 
 	data := &Data{
-		Diagnostics:     make(Diagnostics),
-		CompletionItems: make(CompletionItems),
-		Completions:     make(Completions),
-		Definitions:     make(Definitions),
-		Highlights:      make(Highlights),
-		Symbols:         make(Symbols),
-		symbolsChildren: make(SymbolsChildren),
-		Signatures:      make(Signatures),
+		Diagnostics:        make(Diagnostics),
+		CompletionItems:    make(CompletionItems),
+		Completions:        make(Completions),
+		CompletionSnippets: make(CompletionSnippets),
+		Definitions:        make(Definitions),
+		Highlights:         make(Highlights),
+		Symbols:            make(Symbols),
+		symbolsChildren:    make(SymbolsChildren),
+		Signatures:         make(Signatures),
 
 		t:         t,
 		dir:       dir,
@@ -169,6 +179,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		"highlight": data.collectHighlights,
 		"symbol":    data.collectSymbols,
 		"signature": data.collectSignatures,
+		"snippet":   data.collectCompletionSnippets,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +199,10 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		if len(data.Completions) != ExpectedCompletionsCount {
 			t.Errorf("got %v completions expected %v", len(data.Completions), ExpectedCompletionsCount)
 		}
-		tests.Completion(t, data.Completions, data.CompletionItems)
+		if len(data.CompletionSnippets) != ExpectedCompletionSnippetCount {
+			t.Errorf("got %v snippets expected %v", len(data.CompletionSnippets), ExpectedCompletionSnippetCount)
+		}
+		tests.Completion(t, data.Completions, data.CompletionSnippets, data.CompletionItems)
 	})
 
 	t.Run("Diagnostics", func(t *testing.T) {
@@ -355,5 +369,13 @@ func (data *Data) collectSignatures(spn span.Span, signature string, activeParam
 	data.Signatures[spn] = source.SignatureInformation{
 		Label:           signature,
 		ActiveParameter: int(activeParam),
+	}
+}
+
+func (data *Data) collectCompletionSnippets(spn span.Span, item token.Pos, plain, placeholder string) {
+	data.CompletionSnippets[spn] = CompletionSnippet{
+		CompletionItem:     item,
+		PlainSnippet:       plain,
+		PlaceholderSnippet: placeholder,
 	}
 }
