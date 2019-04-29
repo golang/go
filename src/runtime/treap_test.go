@@ -41,9 +41,11 @@ func TestTreapFilter(t *testing.T) {
 		mask, match runtime.TreapIterType
 		filter      runtime.TreapIterFilter // expected filter
 	}{
-		{0, 0, 0x3},
-		{runtime.TreapIterScav, 0, 0x1},
-		{runtime.TreapIterScav, runtime.TreapIterScav, 0x2},
+		{0, 0, 0xf},
+		{runtime.TreapIterScav, 0, 0x5},
+		{runtime.TreapIterScav, runtime.TreapIterScav, 0xa},
+		{runtime.TreapIterScav | runtime.TreapIterHuge, runtime.TreapIterHuge, 0x4},
+		{runtime.TreapIterScav | runtime.TreapIterHuge, 0, 0x1},
 		{0, runtime.TreapIterScav, 0x0},
 	}
 	for _, it := range iterTypes {
