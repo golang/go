@@ -12,9 +12,7 @@ import (
 )
 
 // The funny character below is 4 bytes long in UTF-8; two UTF-16 code points
-var funnyString = []byte(`
-𐐀23
-𐐀45`[1:])
+var funnyString = []byte("𐐀23\n𐐀45")
 
 var toUTF16Tests = []struct {
 	scenario    string
