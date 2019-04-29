@@ -10,11 +10,12 @@ import (
 	"debug/macho"
 	"debug/pe"
 	"fmt"
+	"internal/xcoff"
 	"io"
 	"os"
 )
 
-// An exe is a generic interface to an OS executable (ELF, Mach-O, PE).
+// An exe is a generic interface to an OS executable (ELF, Mach-O, PE, XCOFF).
 type exe interface {
 	// Close closes the underlying file.
 	Close() error
@@ -60,6 +61,15 @@ func openExe(file string) (exe, error) {
 			return nil, err
 		}
 		return &machoExe{f, e}, nil
+	}
+	if bytes.HasPrefix(data, []byte{0x01, 0xDF}) || bytes.HasPrefix(data, []byte{0x01, 0xF7}) {
+		e, err := xcoff.NewFile(f)
+		if err != nil {
+			f.Close()
+			return nil, err
+		}
+		return &xcoffExe{f, e}, nil
+
 	}
 	return nil, fmt.Errorf("unrecognized executable format")
 }
@@ -208,4 +218,36 @@ func (x *machoExe) DataStart() uint64 {
 		}
 	}
 	return 0
+}
+
+// xcoffExe is the XCOFF (AIX eXtended COFF) implementation of the exe interface.
+type xcoffExe struct {
+	os *os.File
+	f  *xcoff.File
+}
+
+func (x *xcoffExe) Close() error {
+	return x.os.Close()
+}
+
+func (x *xcoffExe) ReadData(addr, size uint64) ([]byte, error) {
+	for _, sect := range x.f.Sections {
+		if uint64(sect.VirtualAddress) <= addr && addr <= uint64(sect.VirtualAddress+sect.Size-1) {
+			n := uint64(sect.VirtualAddress+sect.Size) - addr
+			if n > size {
+				n = size
+			}
+			data := make([]byte, n)
+			_, err := sect.ReadAt(data, int64(addr-uint64(sect.VirtualAddress)))
+			if err != nil {
+				return nil, err
+			}
+			return data, nil
+		}
+	}
+	return nil, fmt.Errorf("address not mapped")
+}
+
+func (x *xcoffExe) DataStart() uint64 {
+	return x.f.SectionByType(xcoff.STYP_DATA).VirtualAddress
 }
