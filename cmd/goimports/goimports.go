@@ -26,10 +26,11 @@ import (
 
 var (
 	// main operation modes
-	list    = flag.Bool("l", false, "list files whose formatting differs from goimport's")
-	write   = flag.Bool("w", false, "write result to (source) file instead of stdout")
-	doDiff  = flag.Bool("d", false, "display diffs instead of rewriting files")
-	srcdir  = flag.String("srcdir", "", "choose imports as if source code is from `dir`. When operating on a single file, dir may instead be the complete file name.")
+	list   = flag.Bool("l", false, "list files whose formatting differs from goimport's")
+	write  = flag.Bool("w", false, "write result to (source) file instead of stdout")
+	doDiff = flag.Bool("d", false, "display diffs instead of rewriting files")
+	srcdir = flag.String("srcdir", "", "choose imports as if source code is from `dir`. When operating on a single file, dir may instead be the complete file name.")
+
 	verbose bool // verbose logging
 
 	cpuProfile     = flag.String("cpuprofile", "", "CPU profile output")
@@ -48,6 +49,7 @@ var (
 func init() {
 	flag.BoolVar(&options.AllErrors, "e", false, "report all errors (not just the first 10 on different lines)")
 	flag.StringVar(&imports.LocalPrefix, "local", "", "put imports beginning with this string after 3rd-party packages; comma-separated list")
+	flag.BoolVar(&options.FormatOnly, "format-only", false, "if true, don't fix imports and only format. In this mode, goimports is effectively gofmt, with the addition that imports are grouped into sections.")
 }
 
 func report(err error) {
