@@ -191,7 +191,7 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 	}
 
 	switch runtime.GOOS {
-	case "darwin", "dragonfly", "netbsd", "solaris":
+	case "darwin", "dragonfly", "netbsd", "illumos", "solaris":
 		t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
 	case "openbsd":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {

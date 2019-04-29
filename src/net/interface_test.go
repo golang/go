@@ -61,7 +61,7 @@ func TestInterfaces(t *testing.T) {
 			t.Fatal(err)
 		}
 		switch runtime.GOOS {
-		case "solaris":
+		case "solaris", "illumos":
 			if ifxi.Index != ifi.Index {
 				t.Errorf("got %v; want %v", ifxi, ifi)
 			}
@@ -278,7 +278,7 @@ func checkUnicastStats(ifStats *ifStats, uniStats *routeStats) error {
 
 func checkMulticastStats(ifStats *ifStats, uniStats, multiStats *routeStats) error {
 	switch runtime.GOOS {
-	case "aix", "dragonfly", "nacl", "netbsd", "openbsd", "plan9", "solaris":
+	case "aix", "dragonfly", "nacl", "netbsd", "openbsd", "plan9", "solaris", "illumos":
 	default:
 		// Test the existence of connected multicast route
 		// clones for IPv4. Unlike IPv6, IPv4 multicast

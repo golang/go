@@ -80,6 +80,7 @@ var okgoarch = []string{
 var okgoos = []string{
 	"darwin",
 	"dragonfly",
+	"illumos",
 	"js",
 	"linux",
 	"android",
@@ -936,7 +937,7 @@ func matchtag(tag string) bool {
 		}
 		return !matchtag(tag[1:])
 	}
-	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux")
+	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux") || (goos == "illumos" && tag == "solaris")
 }
 
 // shouldbuild reports whether we should build this file.
@@ -950,7 +951,7 @@ func shouldbuild(file, dir string) bool {
 	name := filepath.Base(file)
 	excluded := func(list []string, ok string) bool {
 		for _, x := range list {
-			if x == ok || ok == "android" && x == "linux" {
+			if x == ok || (ok == "android" && x == "linux") || (ok == "illumos" && x == "solaris") {
 				continue
 			}
 			i := strings.Index(name, x)
@@ -1486,6 +1487,7 @@ var cgoEnabled = map[string]bool{
 	"freebsd/386":     true,
 	"freebsd/amd64":   true,
 	"freebsd/arm":     true,
+	"illumos/amd64":   true,
 	"linux/386":       true,
 	"linux/amd64":     true,
 	"linux/arm":       true,

@@ -326,7 +326,7 @@ func (b *Builder) gccgoBuildIDFile(a *Action) (string, error) {
 	var buf bytes.Buffer
 	if cfg.Goos == "aix" {
 		fmt.Fprintf(&buf, "\t.csect .go.buildid[XO]\n")
-	} else if cfg.Goos != "solaris" || assemblerIsGas() {
+	} else if (cfg.Goos != "solaris" && cfg.Goos != "illumos") || assemblerIsGas() {
 		fmt.Fprintf(&buf, "\t"+`.section .go.buildid,"e"`+"\n")
 	} else if cfg.Goarch == "sparc" || cfg.Goarch == "sparc64" {
 		fmt.Fprintf(&buf, "\t"+`.section ".go.buildid",#exclude`+"\n")
@@ -345,7 +345,7 @@ func (b *Builder) gccgoBuildIDFile(a *Action) (string, error) {
 		fmt.Fprintf(&buf, "%#02x", a.buildID[i])
 	}
 	fmt.Fprintf(&buf, "\n")
-	if cfg.Goos != "solaris" && cfg.Goos != "aix" {
+	if cfg.Goos != "solaris" && cfg.Goos != "illumos" && cfg.Goos != "aix" {
 		secType := "@progbits"
 		if cfg.Goarch == "arm" {
 			secType = "%progbits"

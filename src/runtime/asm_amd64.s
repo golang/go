@@ -171,6 +171,10 @@ needtls:
 	// skip TLS setup on Solaris
 	JMP ok
 #endif
+#ifdef GOOS_illumos
+	// skip TLS setup on illumos
+	JMP ok
+#endif
 #ifdef GOOS_darwin
 	// skip TLS setup on Darwin
 	JMP ok

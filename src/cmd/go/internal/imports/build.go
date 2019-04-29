@@ -202,6 +202,7 @@ var KnownOS = map[string]bool{
 	"dragonfly": true,
 	"freebsd":   true,
 	"hurd":      true,
+	"illumos":   true,
 	"js":        true,
 	"linux":     true,
 	"nacl":      true,

@@ -147,6 +147,9 @@
 // Using GOOS=android matches build tags and files as for GOOS=linux
 // in addition to android tags and files.
 //
+// Using GOOS=illumos matches build tags and files as for GOOS=solaris
+// in addition to illumos tags and files.
+//
 // Binary-Only Packages
 //
 // In Go 1.12 and earlier, it was possible to distribute packages in binary
