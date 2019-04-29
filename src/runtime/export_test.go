@@ -339,7 +339,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			slow.BySize[i].Frees = bySize[i].Frees
 		}
 
-		for i := mheap_.scav.start(); i.valid(); i = i.next() {
+		for i := mheap_.free.start(0, 0); i.valid(); i = i.next() {
 			slow.HeapReleased += uint64(i.span().released())
 		}
 
@@ -522,11 +522,12 @@ type Span struct {
 	*mspan
 }
 
-func AllocSpan(base, npages uintptr) Span {
+func AllocSpan(base, npages uintptr, scavenged bool) Span {
 	lock(&mheap_.lock)
 	s := (*mspan)(mheap_.spanalloc.alloc())
 	unlock(&mheap_.lock)
 	s.init(base, npages)
+	s.scavenged = scavenged
 	return Span{s}
 }
 
@@ -543,6 +544,17 @@ func (s Span) Base() uintptr {
 
 func (s Span) Pages() uintptr {
 	return s.mspan.npages
+}
+
+type TreapIterType int
+
+const (
+	TreapIterScav TreapIterType = TreapIterType(treapIterScav)
+	TreapIterBits               = treapIterBits
+)
+
+func (s Span) MatchesIter(mask, match TreapIterType) bool {
+	return s.mspan.matchesIter(treapIterType(mask), treapIterType(match))
 }
 
 type TreapIter struct {
@@ -575,12 +587,12 @@ type Treap struct {
 	mTreap
 }
 
-func (t *Treap) Start() TreapIter {
-	return TreapIter{t.start()}
+func (t *Treap) Start(mask, match TreapIterType) TreapIter {
+	return TreapIter{t.start(treapIterType(mask), treapIterType(match))}
 }
 
-func (t *Treap) End() TreapIter {
-	return TreapIter{t.end()}
+func (t *Treap) End(mask, match TreapIterType) TreapIter {
+	return TreapIter{t.end(treapIterType(mask), treapIterType(match))}
 }
 
 func (t *Treap) Insert(s Span) {
