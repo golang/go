@@ -244,15 +244,6 @@ Curves:
 			hs.hello.alpnProtocol = selectedProto
 			c.clientProtocol = selectedProto
 		}
-	} else {
-		// Although sending an empty NPN extension is reasonable, Firefox has
-		// had a bug around this. Best to send nothing at all if
-		// c.config.NextProtos is empty. See
-		// https://golang.org/issue/5445.
-		if hs.clientHello.nextProtoNeg && len(c.config.NextProtos) > 0 {
-			hs.hello.nextProtoNeg = true
-			hs.hello.nextProtos = c.config.NextProtos
-		}
 	}
 
 	hs.cert, err = c.config.getCertificate(clientHelloInfo(c, hs.clientHello))
@@ -616,20 +607,6 @@ func (hs *serverHandshakeState) readFinished(out []byte) error {
 
 	if err := c.readChangeCipherSpec(); err != nil {
 		return err
-	}
-
-	if hs.hello.nextProtoNeg {
-		msg, err := c.readHandshake()
-		if err != nil {
-			return err
-		}
-		nextProto, ok := msg.(*nextProtoMsg)
-		if !ok {
-			c.sendAlert(alertUnexpectedMessage)
-			return unexpectedMessageError(nextProto, msg)
-		}
-		hs.finishedHash.Write(nextProto.marshal())
-		c.clientProtocol = nextProto.proto
 	}
 
 	msg, err := c.readHandshake()

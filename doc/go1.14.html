@@ -96,6 +96,14 @@ TODO
       TODO: <a href="https://golang.org/cl/191999">https://golang.org/cl/191999</a>: remove TLS 1.3 opt-out
     </p>
 
+    <p><!-- CL 174329 -->
+      The <code>tls</code> package no longer supports NPN and now only
+      supports ALPN. In previous releases it supported both. There are
+      no API changes and code should function identically as before.
+      Most other clients & servers have already removed NPN support in
+      favor of the standardized ALPN.
+    </p>
+
 </dl><!-- crypto/tls -->
 
 <dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
