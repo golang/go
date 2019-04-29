@@ -490,11 +490,11 @@ func UserHomeDir() (string, error) {
 // On Unix, the mode's permission bits, ModeSetuid, ModeSetgid, and
 // ModeSticky are used.
 //
-// On Windows, the mode must be non-zero but otherwise only the 0200
-// bit (owner writable) of mode is used; it controls whether the
-// file's read-only attribute is set or cleared. attribute. The other
-// bits are currently unused. Use mode 0400 for a read-only file and
-// 0600 for a readable+writable file.
+// On Windows, only the 0200 bit (owner writable) of mode is used; it
+// controls whether the file's read-only attribute is set or cleared.
+// The other bits are currently unused. For compatibilty with Go 1.12
+// and earlier, use a non-zero mode. Use mode 0400 for a read-only
+// file and 0600 for a readable+writable file.
 //
 // On Plan 9, the mode's permission bits, ModeAppend, ModeExclusive,
 // and ModeTemporary are used.
