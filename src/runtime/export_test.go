@@ -36,6 +36,8 @@ var Atoi32 = atoi32
 
 var Nanotime = nanotime
 
+var PhysHugePageSize = physHugePageSize
+
 type LFNode struct {
 	Next    uint64
 	Pushcnt uintptr
@@ -514,6 +516,26 @@ func MapTombstoneCheck(m map[int]int) {
 			}
 		}
 	}
+}
+
+// UnscavHugePagesSlow returns the value of mheap_.freeHugePages
+// and the number of unscavenged huge pages calculated by
+// scanning the heap.
+func UnscavHugePagesSlow() (uintptr, uintptr) {
+	var base, slow uintptr
+	// Run on the system stack to avoid deadlock from stack growth
+	// trying to acquire the heap lock.
+	systemstack(func() {
+		lock(&mheap_.lock)
+		base = mheap_.free.unscavHugePages
+		for _, s := range mheap_.allspans {
+			if s.state == mSpanFree && !s.scavenged {
+				slow += s.hugePages()
+			}
+		}
+		unlock(&mheap_.lock)
+	})
+	return base, slow
 }
 
 // Span is a safe wrapper around an mspan, whose memory
