@@ -2334,3 +2334,15 @@ func TestUnmarshalPanic(t *testing.T) {
 	Unmarshal([]byte("{}"), &unmarshalPanic{})
 	t.Fatalf("Unmarshal should have panicked")
 }
+
+// The decoder used to hang if decoding into an interface pointing to its own address.
+// See golang.org/issues/31740.
+func TestUnmarshalRecursivePointer(t *testing.T) {
+	var v interface{}
+	v = &v
+	data := []byte(`{"a": "b"}`)
+
+	if err := Unmarshal(data, v); err != nil {
+		t.Fatal(err)
+	}
+}
