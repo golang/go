@@ -13,6 +13,8 @@ import (
 
 func canInternalLink() bool {
 	switch runtime.GOOS {
+	case "aix":
+		return false
 	case "dragonfly":
 		return false
 	case "linux":
@@ -20,8 +22,11 @@ func canInternalLink() bool {
 		case "arm64", "mips64", "mips64le", "mips", "mipsle", "ppc64", "ppc64le":
 			return false
 		}
-	case "aix":
-		return false
+	case "openbsd":
+		switch runtime.GOARCH {
+		case "arm64":
+			return false
+		}
 	}
 	return true
 }
