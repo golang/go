@@ -138,10 +138,11 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			body = &arrayReader{arrayPromise: result.Call("arrayBuffer")}
 		}
 
+		code := result.Get("status").Int()
 		select {
 		case respCh <- &Response{
-			Status:        result.Get("status").String() + " " + StatusText(result.Get("status").Int()),
-			StatusCode:    result.Get("status").Int(),
+			Status:        fmt.Sprintf("%d %s", code, StatusText(code)),
+			StatusCode:    code,
 			Header:        header,
 			ContentLength: contentLength,
 			Body:          body,
