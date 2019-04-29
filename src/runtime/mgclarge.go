@@ -40,7 +40,8 @@ import (
 
 //go:notinheap
 type mTreap struct {
-	treap *treapNode
+	treap           *treapNode
+	unscavHugePages uintptr // number of unscavenged huge pages in the treap
 }
 
 //go:notinheap
@@ -378,6 +379,9 @@ func (root *mTreap) end(mask, match treapIterType) treapIter {
 
 // insert adds span to the large span treap.
 func (root *mTreap) insert(span *mspan) {
+	if !span.scavenged {
+		root.unscavHugePages += span.hugePages()
+	}
 	base := span.base()
 	var last *treapNode
 	pt := &root.treap
@@ -435,6 +439,9 @@ func (root *mTreap) insert(span *mspan) {
 }
 
 func (root *mTreap) removeNode(t *treapNode) {
+	if !t.span.scavenged {
+		root.unscavHugePages -= t.span.hugePages()
+	}
 	if t.span.base() != t.key {
 		throw("span and treap node base addresses do not match")
 	}
