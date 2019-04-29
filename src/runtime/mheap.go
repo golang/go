@@ -521,6 +521,25 @@ func (h *mheap) coalesce(s *mspan) {
 	}
 }
 
+// hugePages returns the number of aligned physical huge pages in the memory
+// regioned owned by this mspan.
+func (s *mspan) hugePages() uintptr {
+	if physHugePageSize == 0 || s.npages < physHugePageSize/pageSize {
+		return 0
+	}
+	start := s.base()
+	end := start + s.npages*pageSize
+	if physHugePageSize > pageSize {
+		// Round start and end in.
+		start = (start + physHugePageSize - 1) &^ (physHugePageSize - 1)
+		end &^= physHugePageSize - 1
+	}
+	if start < end {
+		return (end - start) / physHugePageSize
+	}
+	return 0
+}
+
 func (s *mspan) scavenge() uintptr {
 	// start and end must be rounded in, otherwise madvise
 	// will round them *out* and release more memory
@@ -1324,27 +1343,30 @@ func (h *mheap) scavengeLocked(nbytes uintptr) {
 		h.scavengeCredit -= nbytes
 		return
 	}
-	// Iterate over the unscavenged spans in the treap backwards (from highest
-	// address to lowest address) scavenging spans until we've reached our
-	// quota of nbytes.
 	released := uintptr(0)
-	for t := h.free.end(treapIterScav, 0); released < nbytes && t.valid(); {
-		s := t.span()
-		start, end := s.physPageBounds()
-		if start >= end {
-			// This span doesn't cover at least one physical page, so skip it.
-			t = t.prev()
-			continue
+	// Iterate over spans with huge pages first, then spans without.
+	const mask = treapIterScav | treapIterHuge
+	for _, match := range []treapIterType{treapIterHuge, 0} {
+		// Iterate over the treap backwards (from highest address to lowest address)
+		// scavenging spans until we've reached our quota of nbytes.
+		for t := h.free.end(mask, match); released < nbytes && t.valid(); {
+			s := t.span()
+			start, end := s.physPageBounds()
+			if start >= end {
+				// This span doesn't cover at least one physical page, so skip it.
+				t = t.prev()
+				continue
+			}
+			n := t.prev()
+			h.free.erase(t)
+			released += s.scavenge()
+			// Now that s is scavenged, we must eagerly coalesce it
+			// with its neighbors to prevent having two spans with
+			// the same scavenged state adjacent to each other.
+			h.coalesce(s)
+			t = n
+			h.free.insert(s)
 		}
-		n := t.prev()
-		h.free.erase(t)
-		released += s.scavenge()
-		// Now that s is scavenged, we must eagerly coalesce it
-		// with its neighbors to prevent having two spans with
-		// the same scavenged state adjacent to each other.
-		h.coalesce(s)
-		t = n
-		h.free.insert(s)
 	}
 	// If we over-scavenged, turn that extra amount into credit.
 	if released > nbytes {

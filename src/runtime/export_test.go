@@ -550,6 +550,7 @@ type TreapIterType treapIterType
 
 const (
 	TreapIterScav TreapIterType = TreapIterType(treapIterScav)
+	TreapIterHuge               = TreapIterType(treapIterHuge)
 	TreapIterBits               = treapIterBits
 )
 

@@ -273,7 +273,8 @@ type treapIterType uint8
 
 const (
 	treapIterScav treapIterType = 1 << iota // scavenged spans
-	treapIterBits               = iota
+	treapIterHuge                           // spans containing at least one huge page
+	treapIterBits = iota
 )
 
 // treapIterFilter is a bitwise filter of different spans by binary
@@ -317,6 +318,9 @@ func (s *mspan) treapFilter() treapIterFilter {
 	have := treapIterType(0)
 	if s.scavenged {
 		have |= treapIterScav
+	}
+	if s.hugePages() > 0 {
+		have |= treapIterHuge
 	}
 	return treapIterFilter(uint32(1) << (0x1f & have))
 }

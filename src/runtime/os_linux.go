@@ -270,8 +270,8 @@ func getHugePageSize() uintptr {
 		return 0
 	}
 	n := read(fd, noescape(unsafe.Pointer(&numbuf[0])), int32(len(numbuf)))
+	closefd(fd)
 	if n <= 0 {
-		closefd(fd)
 		return 0
 	}
 	l := n - 1 // remove trailing newline
@@ -279,7 +279,10 @@ func getHugePageSize() uintptr {
 	if !ok || v < 0 {
 		v = 0
 	}
-	closefd(fd)
+	if v&(v-1) != 0 {
+		// v is not a power of 2
+		return 0
+	}
 	return uintptr(v)
 }
 
