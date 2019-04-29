@@ -51,25 +51,24 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 		if !strings.HasPrefix(candidate.Label, prefix) {
 			continue
 		}
-
-		insertText := candidate.Insert
+		insertText := candidate.InsertText
 		if insertTextFormat == protocol.SnippetTextFormat {
 			if usePlaceholders && candidate.PlaceholderSnippet != nil {
 				insertText = candidate.PlaceholderSnippet.String()
-			} else if candidate.PlainSnippet != nil {
-				insertText = candidate.PlainSnippet.String()
+			} else if candidate.Snippet != nil {
+				insertText = candidate.Snippet.String()
 			}
 		}
-
+		// If the user has already typed some part of the completion candidate,
+		// don't insert that portion of the text.
 		if strings.HasPrefix(insertText, prefix) {
 			insertText = insertText[len(prefix):]
 		}
-
-		filterText := candidate.Insert
+		// Don't filter on text that might have snippets in it.
+		filterText := candidate.InsertText
 		if strings.HasPrefix(filterText, prefix) {
 			filterText = filterText[len(prefix):]
 		}
-
 		item := protocol.CompletionItem{
 			Label:  candidate.Label,
 			Detail: candidate.Detail,

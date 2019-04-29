@@ -126,6 +126,7 @@ func (v *View) FileSet() *token.FileSet {
 func (v *View) SetContent(ctx context.Context, uri span.URI, content []byte) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
+
 	// Cancel all still-running previous requests, since they would be
 	// operating on stale data.
 	v.cancel()

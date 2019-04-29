@@ -35,8 +35,8 @@ func (c *completer) item(obj types.Object, score float64) CompletionItem {
 			detail = ""
 		} else {
 			val := o.Val().ExactString()
-			if !strings.Contains(val, "\\n") { // skip any multiline constants
-				label += " = " + o.Val().ExactString()
+			if !strings.ContainsRune(val, '\n') { // skip any multiline constants
+				label += " = " + val
 			}
 		}
 		kind = ConstantCompletionItem
@@ -46,24 +46,25 @@ func (c *completer) item(obj types.Object, score float64) CompletionItem {
 		}
 		if o.IsField() {
 			kind = FieldCompletionItem
-			plainSnippet, placeholderSnippet = c.structFieldSnippet(label, detail)
+			plainSnippet, placeholderSnippet = c.structFieldSnippets(label, detail)
 		} else if c.isParameter(o) {
 			kind = ParameterCompletionItem
 		} else {
 			kind = VariableCompletionItem
 		}
 	case *types.Func:
-		if sig, ok := o.Type().(*types.Signature); ok {
-			params := formatEachParam(sig, c.qf)
-			label += formatParamParts(params)
-			detail = strings.Trim(types.TypeString(sig.Results(), c.qf), "()")
-			kind = FunctionCompletionItem
-			if sig.Recv() != nil {
-				kind = MethodCompletionItem
-			}
-
-			plainSnippet, placeholderSnippet = c.funcCallSnippet(obj.Name(), params)
+		sig, ok := o.Type().(*types.Signature)
+		if !ok {
+			break
 		}
+		params := formatEachParam(sig, c.qf)
+		label += formatParamParts(params)
+		detail = strings.Trim(types.TypeString(sig.Results(), c.qf), "()")
+		kind = FunctionCompletionItem
+		if sig.Recv() != nil {
+			kind = MethodCompletionItem
+		}
+		plainSnippet, placeholderSnippet = c.functionCallSnippets(obj.Name(), params)
 	case *types.Builtin:
 		item, ok := builtinDetails[obj.Name()]
 		if !ok {
@@ -82,11 +83,11 @@ func (c *completer) item(obj types.Object, score float64) CompletionItem {
 
 	return CompletionItem{
 		Label:              label,
-		Insert:             insert,
+		InsertText:         insert,
 		Detail:             detail,
 		Kind:               kind,
 		Score:              score,
-		PlainSnippet:       plainSnippet,
+		Snippet:            plainSnippet,
 		PlaceholderSnippet: placeholderSnippet,
 	}
 }

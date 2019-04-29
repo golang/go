@@ -98,12 +98,8 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 		}
 	}
 	if len(diags) > 0 {
-		v.Logger().Debugf(ctx, "found parse or type-checking errors for %s, returning", uri)
 		return reports, nil
 	}
-
-	v.Logger().Debugf(ctx, "running `go vet` analyses for %s", uri)
-
 	// Type checking and parsing succeeded. Run analyses.
 	if err := runAnalyses(ctx, v, pkg, func(a *analysis.Analyzer, diag analysis.Diagnostic) error {
 		r := span.NewRange(v.FileSet(), diag.Pos, 0)
@@ -124,10 +120,8 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 		})
 		return nil
 	}); err != nil {
-		return nil, err
+		return singleDiagnostic(uri, "unable to run analyses for %s: %v", uri, err), nil
 	}
-
-	v.Logger().Debugf(ctx, "completed reporting `go vet` analyses for %s", uri)
 
 	return reports, nil
 }
@@ -207,8 +201,6 @@ func runAnalyses(ctx context.Context, v View, pkg Package, report func(a *analys
 	if err != nil {
 		return err
 	}
-
-	v.Logger().Debugf(ctx, "analyses have completed for %s", pkg.GetTypes().Path())
 
 	// Report diagnostics and errors from root analyzers.
 	for _, r := range roots {
