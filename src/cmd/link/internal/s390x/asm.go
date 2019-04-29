@@ -69,6 +69,7 @@ func gentext(ctxt *ld.Link) {
 	initfunc.AddUint8(0xc0)
 	initfunc.AddUint8(0x20)
 	lmd := initfunc.AddRel()
+	lmd.InitExt()
 	lmd.Off = int32(initfunc.Size)
 	lmd.Siz = 4
 	lmd.Sym = ctxt.Moduledata
@@ -81,6 +82,7 @@ func gentext(ctxt *ld.Link) {
 	initfunc.AddUint8(0xc0)
 	initfunc.AddUint8(0xf4)
 	rel := initfunc.AddRel()
+	rel.InitExt()
 	rel.Off = int32(initfunc.Size)
 	rel.Siz = 4
 	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
