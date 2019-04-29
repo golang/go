@@ -81,8 +81,11 @@ func main() {
 		if gohostarch == "" {
 			fatalf("$objtype is unset")
 		}
-	case "solaris":
-		// Even on 64-bit platform, solaris uname -m prints i86pc.
+	case "solaris", "illumos":
+		// Solaris and illumos systems have multi-arch userlands, and
+		// "uname -m" reports the machine hardware name; e.g.,
+		// "i86pc" on both 32- and 64-bit x86 systems.  Check for the
+		// native (widest) instruction set on the running kernel:
 		out := run("", CheckExit, "isainfo", "-n")
 		if strings.Contains(out, "amd64") {
 			gohostarch = "amd64"

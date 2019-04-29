@@ -275,8 +275,8 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	runtime_BeforeExec()
 
 	var err1 error
-	if runtime.GOOS == "solaris" || runtime.GOOS == "aix" {
-		// RawSyscall should never be used on Solaris or AIX.
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "aix" {
+		// RawSyscall should never be used on Solaris, illumos, or AIX.
 		err1 = execveLibc(
 			uintptr(unsafe.Pointer(argv0p)),
 			uintptr(unsafe.Pointer(&argvp[0])),

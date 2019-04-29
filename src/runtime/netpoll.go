@@ -177,8 +177,8 @@ func poll_runtime_pollWait(pd *pollDesc, mode int) int {
 	if err != 0 {
 		return err
 	}
-	// As for now only Solaris and AIX use level-triggered IO.
-	if GOOS == "solaris" || GOOS == "aix" {
+	// As for now only Solaris, illumos, and AIX use level-triggered IO.
+	if GOOS == "solaris" || GOOS == "illumos" || GOOS == "aix" {
 		netpollarm(pd, mode)
 	}
 	for !netpollblock(pd, int32(mode), false) {

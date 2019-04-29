@@ -56,7 +56,7 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 	mSysStatInc(sysStat, n)
 
 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
-	if err == _ENOMEM || (GOOS == "solaris" && err == _sunosEAGAIN) {
+	if err == _ENOMEM || ((GOOS == "solaris" || GOOS == "illumos") && err == _sunosEAGAIN) {
 		throw("runtime: out of memory")
 	}
 	if p != v || err != 0 {

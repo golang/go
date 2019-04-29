@@ -92,7 +92,7 @@ type cgoCallers [32]uintptr
 // Call from Go to C.
 //go:nosplit
 func cgocall(fn, arg unsafe.Pointer) int32 {
-	if !iscgo && GOOS != "solaris" && GOOS != "windows" {
+	if !iscgo && GOOS != "solaris" && GOOS != "illumos" && GOOS != "windows" {
 		throw("cgocall unavailable")
 	}
 

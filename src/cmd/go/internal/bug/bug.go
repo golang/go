@@ -102,7 +102,9 @@ func printOSDetails(w io.Writer) {
 		printGlibcVersion(w)
 	case "openbsd", "netbsd", "freebsd", "dragonfly":
 		printCmdOut(w, "uname -v: ", "uname", "-v")
-	case "solaris":
+	case "illumos", "solaris":
+		// Be sure to use the OS-supplied uname, in "/usr/bin":
+		printCmdOut(w, "uname -srv: ", "/usr/bin/uname", "-srv")
 		out, err := ioutil.ReadFile("/etc/release")
 		if err == nil {
 			fmt.Fprintf(w, "/etc/release: %s\n", out)
