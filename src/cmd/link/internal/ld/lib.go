@@ -2265,11 +2265,23 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 		}
 	}
 
-	for _, s := range ctxt.Syms.Allsym {
+	shouldBeInSymbolTable := func(s *sym.Symbol) bool {
 		if s.Attr.NotInSymbolTable() {
-			continue
+			return false
+		}
+		if ctxt.HeadType == objabi.Haix && s.Name == ".go.buildinfo" {
+			// On AIX, .go.buildinfo must be in the symbol table as
+			// it has relocations.
+			return true
 		}
 		if (s.Name == "" || s.Name[0] == '.') && !s.IsFileLocal() && s.Name != ".rathole" && s.Name != ".TOC." {
+			return false
+		}
+		return true
+	}
+
+	for _, s := range ctxt.Syms.Allsym {
+		if !shouldBeInSymbolTable(s) {
 			continue
 		}
 		switch s.Type {

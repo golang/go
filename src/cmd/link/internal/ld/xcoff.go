@@ -513,16 +513,13 @@ func (f *xcoffFile) getXCOFFscnum(sect *sym.Section) int16 {
 	case &Segtext:
 		return f.sectNameToScnum[".text"]
 	case &Segdata:
-		if sect.Name == ".noptrdata" || sect.Name == ".data" {
-			return f.sectNameToScnum[".data"]
-		}
 		if sect.Name == ".noptrbss" || sect.Name == ".bss" {
 			return f.sectNameToScnum[".bss"]
 		}
 		if sect.Name == ".tbss" {
 			return f.sectNameToScnum[".tbss"]
 		}
-		Errorf(nil, "unknown XCOFF segment data section: %s", sect.Name)
+		return f.sectNameToScnum[".data"]
 	case &Segdwarf:
 		name, _ := xcoffGetDwarfSubtype(sect.Name)
 		return f.sectNameToScnum[name]
