@@ -30,8 +30,7 @@ const minPhysPageSize = 4096
 //go:notinheap
 type mheap struct {
 	lock      mutex
-	free      mTreap // free and non-scavenged spans
-	scav      mTreap // free and scavenged spans
+	free      mTreap // free spans
 	sweepgen  uint32 // sweep generation, see comment in mspan
 	sweepdone uint32 // all spans are swept
 	sweepers  uint32 // number of active sweepone calls
@@ -60,7 +59,7 @@ type mheap struct {
 	// on the swept stack.
 	sweepSpans [2]gcSweepBuf
 
-	_ uint32 // align uint64 fields on 32-bit for atomics
+	// _ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
 	//
@@ -464,7 +463,7 @@ func (h *mheap) coalesce(s *mspan) {
 
 		// The size is potentially changing so the treap needs to delete adjacent nodes and
 		// insert back as a combined node.
-		h.treapForSpan(other).removeSpan(other)
+		h.free.removeSpan(other)
 		other.state = mSpanDead
 		h.spanalloc.free(unsafe.Pointer(other))
 	}
@@ -482,7 +481,7 @@ func (h *mheap) coalesce(s *mspan) {
 			return
 		}
 		// Since we're resizing other, we must remove it from the treap.
-		h.treapForSpan(other).removeSpan(other)
+		h.free.removeSpan(other)
 
 		// Round boundary to the nearest physical page size, toward the
 		// scavenged span.
@@ -500,7 +499,7 @@ func (h *mheap) coalesce(s *mspan) {
 		h.setSpan(boundary, b)
 
 		// Re-insert other now that it has a new size.
-		h.treapForSpan(other).insert(other)
+		h.free.insert(other)
 	}
 
 	// Coalesce with earlier, later spans.
@@ -1101,57 +1100,27 @@ func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
 	}
 }
 
-// treapForSpan returns the appropriate treap for a span for
-// insertion and removal.
-func (h *mheap) treapForSpan(span *mspan) *mTreap {
-	if span.scavenged {
-		return &h.scav
-	}
-	return &h.free
-}
-
-// pickFreeSpan acquires a free span from internal free list
-// structures if one is available. Otherwise returns nil.
-// h must be locked.
-func (h *mheap) pickFreeSpan(npage uintptr) *mspan {
-	tf := h.free.find(npage)
-	ts := h.scav.find(npage)
-
-	// Check for whichever treap gave us the smaller, non-nil result.
-	// Note that we want the _smaller_ free span, i.e. the free span
-	// closer in size to the amount we requested (npage).
-	var s *mspan
-	if tf.valid() && (!ts.valid() || tf.span().base() <= ts.span().base()) {
-		s = tf.span()
-		h.free.erase(tf)
-	} else if ts.valid() && (!tf.valid() || tf.span().base() > ts.span().base()) {
-		s = ts.span()
-		h.scav.erase(ts)
-	}
-	return s
-}
-
 // Allocates a span of the given size.  h must be locked.
 // The returned span has been removed from the
 // free structures, but its state is still mSpanFree.
 func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
-	var s *mspan
-
-	s = h.pickFreeSpan(npage)
-	if s != nil {
+	t := h.free.find(npage)
+	if t.valid() {
 		goto HaveSpan
 	}
-	// On failure, grow the heap and try again.
 	if !h.grow(npage) {
 		return nil
 	}
-	s = h.pickFreeSpan(npage)
-	if s != nil {
+	t = h.free.find(npage)
+	if t.valid() {
 		goto HaveSpan
 	}
 	throw("grew heap, but no adequate free span found")
 
 HaveSpan:
+	s := t.span()
+	h.free.erase(t)
+
 	// Mark span in use.
 	if s.state != mSpanFree {
 		throw("candidate mspan for allocation is not free")
@@ -1339,8 +1308,8 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 	// Coalesce span with neighbors.
 	h.coalesce(s)
 
-	// Insert s into the appropriate treap.
-	h.treapForSpan(s).insert(s)
+	// Insert s into the treap.
+	h.free.insert(s)
 }
 
 // scavengeLocked scavenges nbytes worth of spans in the free treap by
@@ -1355,10 +1324,11 @@ func (h *mheap) scavengeLocked(nbytes uintptr) {
 		h.scavengeCredit -= nbytes
 		return
 	}
-	// Iterate over the treap backwards (from highest address to lowest address)
-	// scavenging spans until we've reached our quota of nbytes.
+	// Iterate over the unscavenged spans in the treap backwards (from highest
+	// address to lowest address) scavenging spans until we've reached our
+	// quota of nbytes.
 	released := uintptr(0)
-	for t := h.free.end(); released < nbytes && t.valid(); {
+	for t := h.free.end(treapIterScav, 0); released < nbytes && t.valid(); {
 		s := t.span()
 		r := s.scavenge()
 		if r == 0 {
@@ -1373,7 +1343,7 @@ func (h *mheap) scavengeLocked(nbytes uintptr) {
 		// the same scavenged state adjacent to each other.
 		h.coalesce(s)
 		t = n
-		h.scav.insert(s)
+		h.free.insert(s)
 		released += r
 	}
 	// If we over-scavenged, turn that extra amount into credit.
@@ -1386,20 +1356,19 @@ func (h *mheap) scavengeLocked(nbytes uintptr) {
 // treapNode's span. It then removes the scavenged span from
 // unscav and adds it into scav before continuing. h must be locked.
 func (h *mheap) scavengeAllLocked(now, limit uint64) uintptr {
-	// Iterate over the treap scavenging spans if unused for at least limit time.
+	// Iterate over the unscavenged spans in the treap scavenging spans
+	// if unused for at least limit time.
 	released := uintptr(0)
-	for t := h.free.start(); t.valid(); {
+	for t := h.free.start(treapIterScav, 0); t.valid(); {
 		s := t.span()
 		n := t.next()
 		if (now - uint64(s.unusedsince)) > limit {
 			r := s.scavenge()
 			if r != 0 {
 				h.free.erase(t)
-				// Now that s is scavenged, we must eagerly coalesce it
-				// with its neighbors to prevent having two spans with
-				// the same scavenged state adjacent to each other.
+				// See (*mheap).scavenge.
 				h.coalesce(s)
-				h.scav.insert(s)
+				h.free.insert(s)
 				released += r
 			}
 		}

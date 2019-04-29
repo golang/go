@@ -185,6 +185,41 @@ func (t *treapNode) validateMaxPages() uintptr {
 	return max
 }
 
+// treapIterType represents the type of iteration to perform
+// over the treap. Each choice effectively represents a filter,
+// i.e. spans that do not satisfy the conditions of the iteration
+// type will be skipped over.
+type treapIterType uint8
+
+const (
+	treapIterScav treapIterType = 1 << iota // scavenged spans
+	treapIterBits               = iota
+)
+
+// matches returns true if t satisfies the filter given by mask and match. mask
+// is a bit-set of span properties to filter on.
+//
+// In other words, matches returns true if all properties set in mask have the
+// value given by the corresponding bits in match.
+func (t treapIterType) matches(mask, match treapIterType) bool {
+	return t&mask == match
+}
+
+// iterType returns the treapIterType associated with this span.
+func (s *mspan) iterType() treapIterType {
+	have := treapIterType(0)
+	if s.scavenged {
+		have |= treapIterScav
+	}
+	return have
+}
+
+// matchesIter is a convenience method which checks if a span
+// meets the criteria of the mask and match for an iter type.
+func (s *mspan) matchesIter(mask, match treapIterType) bool {
+	return s.iterType().matches(mask, match)
+}
+
 // treapIter is a bidirectional iterator type which may be used to iterate over a
 // an mTreap in-order forwards (increasing order) or backwards (decreasing order).
 // Its purpose is to hide details about the treap from users when trying to iterate
@@ -192,7 +227,8 @@ func (t *treapNode) validateMaxPages() uintptr {
 //
 // To create iterators over the treap, call start or end on an mTreap.
 type treapIter struct {
-	t *treapNode
+	mask, match treapIterType
+	t           *treapNode
 }
 
 // span returns the span at the current position in the treap.
@@ -211,6 +247,9 @@ func (i *treapIter) valid() bool {
 // ceases to be valid, calling next will panic.
 func (i treapIter) next() treapIter {
 	i.t = i.t.succ()
+	for i.valid() && !i.span().matchesIter(i.mask, i.match) {
+		i.t = i.t.succ()
+	}
 	return i
 }
 
@@ -218,12 +257,15 @@ func (i treapIter) next() treapIter {
 // ceases to be valid, calling prev will panic.
 func (i treapIter) prev() treapIter {
 	i.t = i.t.pred()
+	for i.valid() && !i.span().matchesIter(i.mask, i.match) {
+		i.t = i.t.pred()
+	}
 	return i
 }
 
 // start returns an iterator which points to the start of the treap (the
-// left-most node in the treap).
-func (root *mTreap) start() treapIter {
+// left-most node in the treap) subject to mask and match constraints.
+func (root *mTreap) start(mask, match treapIterType) treapIter {
 	t := root.treap
 	if t == nil {
 		return treapIter{}
@@ -231,12 +273,15 @@ func (root *mTreap) start() treapIter {
 	for t.left != nil {
 		t = t.left
 	}
-	return treapIter{t: t}
+	for t != nil && !t.span.matchesIter(mask, match) {
+		t = t.succ()
+	}
+	return treapIter{mask, match, t}
 }
 
 // end returns an iterator which points to the end of the treap (the
-// right-most node in the treap).
-func (root *mTreap) end() treapIter {
+// right-most node in the treap) subject to mask and match constraints.
+func (root *mTreap) end(mask, match treapIterType) treapIter {
 	t := root.treap
 	if t == nil {
 		return treapIter{}
@@ -244,7 +289,10 @@ func (root *mTreap) end() treapIter {
 	for t.right != nil {
 		t = t.right
 	}
-	return treapIter{t: t}
+	for t != nil && !t.span.matchesIter(mask, match) {
+		t = t.pred()
+	}
+	return treapIter{mask, match, t}
 }
 
 // insert adds span to the large span treap.
@@ -348,9 +396,10 @@ func (root *mTreap) removeNode(t *treapNode) {
 	mheap_.treapalloc.free(unsafe.Pointer(t))
 }
 
-// find searches for, finds, and returns the treap iterator representing the
-// position of the span with the smallest base address which is at least npages
-// in size. If no span has at least npages it returns an invalid iterator.
+// find searches for, finds, and returns the treap iterator over all spans
+// representing the position of the span with the smallest base address which is
+// at least npages in size. If no span has at least npages it returns an invalid
+// iterator.
 //
 // This algorithm is as follows:
 // * If there's a left child and its subtree can satisfy this allocation,
@@ -391,7 +440,7 @@ func (root *mTreap) find(npages uintptr) treapIter {
 			t = nil
 		}
 	}
-	return treapIter{t}
+	return treapIter{t: t}
 }
 
 // removeSpan searches for, finds, deletes span along with
