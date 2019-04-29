@@ -10,7 +10,7 @@
 #include "textflag.h"
 #include "asm_ppc64x.h"
 
-#ifdef GOOS_aix
+#ifdef GOARCH_ppc64
 #define cgoCalleeStackSize 48
 #else
 #define cgoCalleeStackSize 32
@@ -562,7 +562,7 @@ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	BL	runtime·badctxt(SB)
 	RET
 
-#ifdef GOOS_aix
+#ifdef GOARCH_ppc64
 #define asmcgocallSaveOffset cgoCalleeStackSize + 8
 #else
 #define asmcgocallSaveOffset cgoCalleeStackSize
