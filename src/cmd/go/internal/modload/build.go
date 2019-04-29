@@ -12,6 +12,7 @@ import (
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/module"
 	"cmd/go/internal/search"
+	"cmd/go/internal/semver"
 	"encoding/hex"
 	"fmt"
 	"internal/goroot"
@@ -74,13 +75,15 @@ func ModuleInfo(path string) *modinfo.ModulePublic {
 
 // addUpdate fills in m.Update if an updated version is available.
 func addUpdate(m *modinfo.ModulePublic) {
-	if m.Version != "" {
-		if info, err := Query(m.Path, "latest", Allowed); err == nil && info.Version != m.Version {
-			m.Update = &modinfo.ModulePublic{
-				Path:    m.Path,
-				Version: info.Version,
-				Time:    &info.Time,
-			}
+	if m.Version == "" {
+		return
+	}
+
+	if info, err := Query(m.Path, "latest", Allowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
+		m.Update = &modinfo.ModulePublic{
+			Path:    m.Path,
+			Version: info.Version,
+			Time:    &info.Time,
 		}
 	}
 }
