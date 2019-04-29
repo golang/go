@@ -1,0 +1,13 @@
+example.com/pseudoupgrade v0.0.0-20190429073000-30950c05d534
+written by hand
+
+-- .mod --
+module example.com/pseudoupgrade
+
+-- .info --
+{"Version":"v0.0.0-20190429073000-30950c05d534","Name":"v0.0.0-20190429073000-30950c05d534","Short":"30950c05d534","Time":"2019-04-29T07:30:00Z"}
+
+-- pseudoupgrade.go --
+package pseudoupgrade
+
+const X = 1
