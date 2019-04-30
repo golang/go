@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -72,6 +73,7 @@ func runVendor(cmd *base.Command, args []string) {
 			if cfg.BuildV {
 				fmt.Fprintf(os.Stderr, "# %s %s%s\n", m.Path, m.Version, repl)
 			}
+			sort.Strings(pkgs)
 			for _, pkg := range pkgs {
 				fmt.Fprintf(&buf, "%s\n", pkg)
 				if cfg.BuildV {
