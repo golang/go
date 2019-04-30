@@ -105,23 +105,18 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInform
 		obj = pkg.GetTypesInfo().ObjectOf(t.Sel)
 	}
 
-	var label string
+	var name string
 	if obj != nil {
-		label = obj.Name()
+		name = obj.Name()
 	} else {
-		label = "func"
+		name = "func"
 	}
 
-	label += formatParams(sig, qf)
+	results, writeResultParens := formatResults(sig.Results(), qf)
+	label, detail := formatFunction(name, formatParams(sig.Params(), sig.Variadic(), qf), results, writeResultParens)
 	if sig.Results().Len() > 0 {
-		results := types.TypeString(sig.Results(), qf)
-		if sig.Results().Len() == 1 && sig.Results().At(0).Name() == "" {
-			// Trim off leading/trailing parens to avoid results like "foo(a int) (int)".
-			results = strings.Trim(results, "()")
-		}
-		label += " " + results
+		label += " " + detail
 	}
-
 	return &SignatureInformation{
 		Label:           label,
 		Parameters:      paramInfo,

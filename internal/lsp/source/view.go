@@ -24,6 +24,7 @@ import (
 type View interface {
 	Logger() xlog.Logger
 	FileSet() *token.FileSet
+	BuiltinPackage() *ast.Package
 	GetFile(ctx context.Context, uri span.URI) (File, error)
 	SetContent(ctx context.Context, uri span.URI, content []byte) error
 }

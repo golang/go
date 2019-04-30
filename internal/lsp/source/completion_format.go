@@ -5,8 +5,10 @@
 package source
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
+	"go/printer"
 	"go/types"
 	"strings"
 
@@ -15,6 +17,11 @@ import (
 
 // formatCompletion creates a completion item for a given types.Object.
 func (c *completer) item(obj types.Object, score float64) CompletionItem {
+	// Handle builtin types separately.
+	if obj.Parent() == types.Universe {
+		return c.formatBuiltin(obj, score)
+	}
+
 	var (
 		label              = obj.Name()
 		detail             = types.TypeString(obj.Type(), c.qf)
@@ -27,9 +34,6 @@ func (c *completer) item(obj types.Object, score float64) CompletionItem {
 	switch o := obj.(type) {
 	case *types.TypeName:
 		detail, kind = formatType(o.Type(), c.qf)
-		if obj.Parent() == types.Universe {
-			detail = ""
-		}
 	case *types.Const:
 		if obj.Parent() == types.Universe {
 			detail = ""
@@ -57,27 +61,17 @@ func (c *completer) item(obj types.Object, score float64) CompletionItem {
 		if !ok {
 			break
 		}
-		params := formatEachParam(sig, c.qf)
-		label += formatParamParts(params)
-		detail = strings.Trim(types.TypeString(sig.Results(), c.qf), "()")
+		params := formatParams(sig.Params(), sig.Variadic(), c.qf)
+		results, writeParens := formatResults(sig.Results(), c.qf)
+		label, detail = formatFunction(obj.Name(), params, results, writeParens)
+		plainSnippet, placeholderSnippet = c.functionCallSnippets(obj.Name(), params)
 		kind = FunctionCompletionItem
 		if sig.Recv() != nil {
 			kind = MethodCompletionItem
 		}
-		plainSnippet, placeholderSnippet = c.functionCallSnippets(obj.Name(), params)
-	case *types.Builtin:
-		item, ok := builtinDetails[obj.Name()]
-		if !ok {
-			break
-		}
-		label, detail = item.label, item.detail
-		kind = FunctionCompletionItem
 	case *types.PkgName:
 		kind = PackageCompletionItem
 		detail = fmt.Sprintf("\"%s\"", o.Imported().Path())
-	case *types.Nil:
-		kind = VariableCompletionItem
-		detail = ""
 	}
 	detail = strings.TrimPrefix(detail, "untyped ")
 
@@ -106,71 +100,77 @@ func (c *completer) isParameter(v *types.Var) bool {
 	return false
 }
 
-// formatType returns the detail and kind for an object of type *types.TypeName.
-func formatType(typ types.Type, qf types.Qualifier) (detail string, kind CompletionItemKind) {
-	if types.IsInterface(typ) {
-		detail = "interface{...}"
-		kind = InterfaceCompletionItem
-	} else if _, ok := typ.(*types.Struct); ok {
-		detail = "struct{...}"
-		kind = StructCompletionItem
-	} else if typ != typ.Underlying() {
-		detail, kind = formatType(typ.Underlying(), qf)
-	} else {
-		detail = types.TypeString(typ, qf)
-		kind = TypeCompletionItem
+func (c *completer) formatBuiltin(obj types.Object, score float64) CompletionItem {
+	item := CompletionItem{
+		Label:      obj.Name(),
+		InsertText: obj.Name(),
+		Score:      score,
 	}
-	return detail, kind
-}
-
-// formatParams correctly formats the parameters of a function.
-func formatParams(sig *types.Signature, qualifier types.Qualifier) string {
-	return formatParamParts(formatEachParam(sig, qualifier))
-}
-
-func formatParamParts(params []string) string {
-	totalLen := 2 // parens
-
-	// length of each param itself
-	for _, p := range params {
-		totalLen += len(p)
-	}
-	// length of ", " separator
-	if len(params) > 1 {
-		totalLen += 2 * (len(params) - 1)
-	}
-
-	var b strings.Builder
-	b.Grow(totalLen)
-
-	b.WriteByte('(')
-	for i, p := range params {
-		if i > 0 {
-			b.WriteString(", ")
+	switch obj.(type) {
+	case *types.Const:
+		item.Kind = ConstantCompletionItem
+	case *types.Builtin:
+		fn := c.view.BuiltinPackage().Scope.Lookup(obj.Name())
+		decl, ok := fn.Decl.(*ast.FuncDecl)
+		if !ok {
+			break
 		}
-		b.WriteString(p)
-	}
-	b.WriteByte(')')
-
-	return b.String()
-}
-
-func formatEachParam(sig *types.Signature, qualifier types.Qualifier) []string {
-	params := make([]string, 0, sig.Params().Len())
-	for i := 0; i < sig.Params().Len(); i++ {
-		el := sig.Params().At(i)
-		typ := types.TypeString(el.Type(), qualifier)
-		// Handle a variadic parameter (can only be the final parameter).
-		if sig.Variadic() && i == sig.Params().Len()-1 {
-			typ = strings.Replace(typ, "[]", "...", 1)
-		}
-		if el.Name() == "" {
-			params = append(params, typ)
+		params, _ := c.formatFieldList(decl.Type.Params)
+		results, writeResultParens := c.formatFieldList(decl.Type.Results)
+		item.Label, item.Detail = formatFunction(obj.Name(), params, results, writeResultParens)
+		item.Snippet, item.PlaceholderSnippet = c.functionCallSnippets(obj.Name(), params)
+		item.Kind = FunctionCompletionItem
+	case *types.TypeName:
+		if types.IsInterface(obj.Type()) {
+			item.Kind = InterfaceCompletionItem
 		} else {
-			params = append(params, el.Name()+" "+typ)
+			item.Kind = TypeCompletionItem
+		}
+	case *types.Nil:
+		item.Kind = VariableCompletionItem
+	}
+	return item
+}
+
+var replacer = strings.NewReplacer(
+	`ComplexType`, `complex128`,
+	`FloatType`, `float64`,
+	`IntegerType`, `int`,
+)
+
+func (c *completer) formatFieldList(list *ast.FieldList) ([]string, bool) {
+	if list == nil {
+		return nil, false
+	}
+	var writeResultParens bool
+	var result []string
+	for i := 0; i < len(list.List); i++ {
+		if i >= 1 {
+			writeResultParens = true
+		}
+		p := list.List[i]
+		cfg := printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 4}
+		b := &bytes.Buffer{}
+		if err := cfg.Fprint(b, c.view.FileSet(), p.Type); err != nil {
+			c.view.Logger().Errorf(c.ctx, "unable to print type %v", p.Type)
+			continue
+		}
+		typ := replacer.Replace(b.String())
+		if len(p.Names) == 0 {
+			result = append(result, fmt.Sprintf("%s", typ))
+		}
+		for _, name := range p.Names {
+			if name.Name != "" {
+				if i == 0 {
+					writeResultParens = true
+				}
+				result = append(result, fmt.Sprintf("%s %s", name.Name, typ))
+			} else {
+				result = append(result, fmt.Sprintf("%s", typ))
+			}
 		}
 	}
-	return params
+	return result, writeResultParens
 }
 
 // qualifier returns a function that appropriately formats a types.PkgName
@@ -199,66 +199,4 @@ func qualifier(f *ast.File, pkg *types.Package, info *types.Info) types.Qualifie
 		}
 		return p.Name()
 	}
-}
-
-type itemDetails struct {
-	label, detail string
-}
-
-var builtinDetails = map[string]itemDetails{
-	"append": { // append(slice []T, elems ...T)
-		label:  "append(slice []T, elems ...T)",
-		detail: "[]T",
-	},
-	"cap": { // cap(v []T) int
-		label:  "cap(v []T)",
-		detail: "int",
-	},
-	"close": { // close(c chan<- T)
-		label: "close(c chan<- T)",
-	},
-	"complex": { // complex(r, i float64) complex128
-		label:  "complex(real float64, imag float64)",
-		detail: "complex128",
-	},
-	"copy": { // copy(dst, src []T) int
-		label:  "copy(dst []T, src []T)",
-		detail: "int",
-	},
-	"delete": { // delete(m map[T]T1, key T)
-		label: "delete(m map[K]V, key K)",
-	},
-	"imag": { // imag(c complex128) float64
-		label:  "imag(complex128)",
-		detail: "float64",
-	},
-	"len": { // len(v T) int
-		label:  "len(T)",
-		detail: "int",
-	},
-	"make": { // make(t T, size ...int) T
-		label:  "make(t T, size ...int)",
-		detail: "T",
-	},
-	"new": { // new(T) *T
-		label:  "new(T)",
-		detail: "*T",
-	},
-	"panic": { // panic(v interface{})
-		label: "panic(interface{})",
-	},
-	"print": { // print(args ...T)
-		label: "print(args ...T)",
-	},
-	"println": { // println(args ...T)
-		label: "println(args ...T)",
-	},
-	"real": { // real(c complex128) float64
-		label:  "real(complex128)",
-		detail: "float64",
-	},
-	"recover": { // recover() interface{}
-		label:  "recover()",
-		detail: "interface{}",
-	},
 }

@@ -93,7 +93,12 @@ type completer struct {
 	types *types.Package
 	info  *types.Info
 	qf    types.Qualifier
-	fset  *token.FileSet
+
+	// view is the View associated with this completion request.
+	view View
+
+	// ctx is the context associated with this completion request.
+	ctx context.Context
 
 	// pos is the position at which the request was triggered.
 	pos token.Pos
@@ -186,7 +191,8 @@ func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, s
 		types:                     pkg.GetTypes(),
 		info:                      pkg.GetTypesInfo(),
 		qf:                        qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
-		fset:                      f.GetFileSet(ctx),
+		view:                      f.View(),
+		ctx:                       ctx,
 		path:                      path,
 		pos:                       pos,
 		seen:                      make(map[types.Object]bool),

@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strings"
 )
 
 // indexExprAtPos returns the index of the expression containing pos.
@@ -108,4 +109,91 @@ func deref(typ types.Type) types.Type {
 		return p.Elem()
 	}
 	return typ
+}
+
+func formatParams(tup *types.Tuple, variadic bool, qf types.Qualifier) []string {
+	params := make([]string, 0, tup.Len())
+	for i := 0; i < tup.Len(); i++ {
+		el := tup.At(i)
+		typ := types.TypeString(el.Type(), qf)
+
+		// Handle a variadic parameter (can only be the final parameter).
+		if variadic && i == tup.Len()-1 {
+			typ = strings.Replace(typ, "[]", "...", 1)
+		}
+
+		if el.Name() == "" {
+			params = append(params, typ)
+		} else {
+			params = append(params, el.Name()+" "+typ)
+		}
+	}
+	return params
+}
+
+func formatResults(tup *types.Tuple, qf types.Qualifier) ([]string, bool) {
+	var writeResultParens bool
+	results := make([]string, 0, tup.Len())
+	for i := 0; i < tup.Len(); i++ {
+		if i >= 1 {
+			writeResultParens = true
+		}
+		el := tup.At(i)
+		typ := types.TypeString(el.Type(), qf)
+
+		if el.Name() == "" {
+			results = append(results, typ)
+		} else {
+			if i == 0 {
+				writeResultParens = true
+			}
+			results = append(results, el.Name()+" "+typ)
+		}
+	}
+	return results, writeResultParens
+}
+
+// formatType returns the detail and kind for an object of type *types.TypeName.
+func formatType(typ types.Type, qf types.Qualifier) (detail string, kind CompletionItemKind) {
+	if types.IsInterface(typ) {
+		detail = "interface{...}"
+		kind = InterfaceCompletionItem
+	} else if _, ok := typ.(*types.Struct); ok {
+		detail = "struct{...}"
+		kind = StructCompletionItem
+	} else if typ != typ.Underlying() {
+		detail, kind = formatType(typ.Underlying(), qf)
+	} else {
+		detail = types.TypeString(typ, qf)
+		kind = TypeCompletionItem
+	}
+	return detail, kind
+}
+
+func formatFunction(name string, params []string, results []string, writeResultParens bool) (string, string) {
+	var label, detail strings.Builder
+	label.WriteString(name)
+	label.WriteByte('(')
+	for i, p := range params {
+		if i > 0 {
+			label.WriteString(", ")
+		}
+		label.WriteString(p)
+	}
+	label.WriteByte(')')
+
+	if writeResultParens {
+		detail.WriteByte('(')
+	}
+	for i, p := range results {
+		if i > 0 {
+			detail.WriteString(", ")
+		}
+		detail.WriteString(p)
+	}
+	if writeResultParens {
+		detail.WriteByte(')')
+	}
+
+	return label.String(), detail.String()
 }

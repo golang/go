@@ -6,6 +6,8 @@ package cache
 
 import (
 	"context"
+	"go/ast"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"os"
@@ -63,6 +65,9 @@ type View struct {
 
 	// pcache caches type information for the packages of the opened files in a view.
 	pcache *packageCache
+
+	// builtinPkg is the AST package used to resolve builtin types.
+	builtinPkg *ast.Package
 }
 
 type metadataCache struct {
@@ -93,6 +98,7 @@ func NewView(ctx context.Context, log xlog.Logger, name string, folder span.URI,
 	v := &View{
 		baseCtx:        ctx,
 		backgroundCtx:  backgroundCtx,
+		builtinPkg:     builtinPkg(*config),
 		cancel:         cancel,
 		log:            log,
 		Config:         *config,
@@ -116,6 +122,32 @@ func (v *View) BackgroundContext() context.Context {
 	defer v.mu.Unlock()
 
 	return v.backgroundCtx
+}
+
+func (v *View) BuiltinPackage() *ast.Package {
+	return v.builtinPkg
+}
+
+func builtinPkg(cfg packages.Config) *ast.Package {
+	var bpkg *ast.Package
+	cfg.Mode = packages.LoadFiles
+	pkgs, _ := packages.Load(&cfg, "builtin")
+	if len(pkgs) != 1 {
+		bpkg, _ = ast.NewPackage(cfg.Fset, nil, nil, nil)
+		return bpkg
+	}
+	pkg := pkgs[0]
+	files := make(map[string]*ast.File)
+	for _, filename := range pkg.GoFiles {
+		file, err := parser.ParseFile(cfg.Fset, filename, nil, parser.ParseComments)
+		if err != nil {
+			bpkg, _ = ast.NewPackage(cfg.Fset, nil, nil, nil)
+			return bpkg
+		}
+		files[filename] = file
+	}
+	bpkg, _ = ast.NewPackage(cfg.Fset, files, nil, nil)
+	return bpkg
 }
 
 func (v *View) FileSet() *token.FileSet {
