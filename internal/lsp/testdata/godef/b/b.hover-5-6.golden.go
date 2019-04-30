@@ -1,0 +1,1 @@
+type S1 struct{F1 int; S2; a.A}

@@ -1,0 +1,1 @@
+type S2 struct{F1 string; F2 int; *a.A}

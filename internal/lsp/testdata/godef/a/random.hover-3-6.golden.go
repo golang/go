@@ -1,0 +1,1 @@
+func Random() int

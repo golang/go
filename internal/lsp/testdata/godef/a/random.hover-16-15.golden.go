@@ -1,0 +1,1 @@
+func (*Pos).Sum() int
