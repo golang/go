@@ -31,10 +31,15 @@ func MSanSupported(goos, goarch string) bool {
 	}
 }
 
-// PIEDefaultsToExternalLink reports whether goos/goarch defaults
-// to external linking for buildmode=pie.
-func PIEDefaultsToExternalLink(goos, goarch string) bool {
-	// Currently all systems external link PIE binaries.
-	// See https://golang.org/issue/18968.
-	return true
+// MustLinkExternal reports whether goos/goarch requires external linking.
+func MustLinkExternal(goos, goarch string) bool {
+	switch goos {
+	case "android":
+		return true
+	case "darwin":
+		if goarch == "arm" || goarch == "arm64" {
+			return true
+		}
+	}
+	return false
 }
