@@ -650,6 +650,8 @@ func getdyn(n *Node, top bool) initGenType {
 // isStaticCompositeLiteral reports whether n is a compile-time constant.
 func isStaticCompositeLiteral(n *Node) bool {
 	switch n.Op {
+	case ONAME:
+		return n.Class() == PEXTERN && n.Name != nil && n.Name.Readonly()
 	case OSLICELIT:
 		return false
 	case OARRAYLIT:
@@ -954,26 +956,22 @@ func maplit(n *Node, m *Node, init *Nodes) {
 	a.List.Set2(typenod(n.Type), nodintconst(int64(n.List.Len())))
 	litas(m, a, init)
 
-	// Split the initializers into static and dynamic.
-	var stat, dyn []*Node
-	for _, r := range n.List.Slice() {
-		if r.Op != OKEY {
-			Fatalf("maplit: rhs not OKEY: %v", r)
-		}
-		if isStaticCompositeLiteral(r.Left) && isStaticCompositeLiteral(r.Right) {
-			stat = append(stat, r)
-		} else {
-			dyn = append(dyn, r)
+	entries := n.List.Slice()
+
+	// The order pass already removed any dynamic (runtime-computed) entries.
+	// All remaining entries are static. Double-check that.
+	for _, r := range entries {
+		if !isStaticCompositeLiteral(r.Left) || !isStaticCompositeLiteral(r.Right) {
+			Fatalf("maplit: entry is not a literal: %v", r)
 		}
 	}
 
-	// Add static entries.
-	if len(stat) > 25 {
-		// For a large number of static entries, put them in an array and loop.
+	if len(entries) > 25 {
+		// For a large number of entries, put them in an array and loop.
 
 		// build types [count]Tindex and [count]Tvalue
-		tk := types.NewArray(n.Type.Key(), int64(len(stat)))
-		te := types.NewArray(n.Type.Elem(), int64(len(stat)))
+		tk := types.NewArray(n.Type.Key(), int64(len(entries)))
+		te := types.NewArray(n.Type.Elem(), int64(len(entries)))
 
 		// TODO(josharian): suppress alg generation for these types?
 		dowidth(tk)
@@ -987,7 +985,7 @@ func maplit(n *Node, m *Node, init *Nodes) {
 
 		datak := nod(OARRAYLIT, nil, nil)
 		datae := nod(OARRAYLIT, nil, nil)
-		for _, r := range stat {
+		for _, r := range entries {
 			datak.List.Append(r.Left)
 			datae.List.Append(r.Right)
 		}
@@ -1018,21 +1016,9 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		loop = typecheck(loop, ctxStmt)
 		loop = walkstmt(loop)
 		init.Append(loop)
-	} else {
-		// For a small number of static entries, just add them directly.
-		addMapEntries(m, stat, init)
-	}
-
-	// Add dynamic entries.
-	addMapEntries(m, dyn, init)
-}
-
-func addMapEntries(m *Node, dyn []*Node, init *Nodes) {
-	if len(dyn) == 0 {
 		return
 	}
-
-	nerr := nerrors
+	// For a small number of entries, just add them directly.
 
 	// Build list of var[c] = expr.
 	// Use temporaries so that mapassign1 can have addressable key, elem.
@@ -1040,7 +1026,7 @@ func addMapEntries(m *Node, dyn []*Node, init *Nodes) {
 	tmpkey := temp(m.Type.Key())
 	tmpelem := temp(m.Type.Elem())
 
-	for _, r := range dyn {
+	for _, r := range entries {
 		index, elem := r.Left, r.Right
 
 		setlineno(index)
@@ -1060,13 +1046,9 @@ func addMapEntries(m *Node, dyn []*Node, init *Nodes) {
 		a = typecheck(a, ctxStmt)
 		a = walkstmt(a)
 		init.Append(a)
-
-		if nerr != nerrors {
-			break
-		}
 	}
 
-	a := nod(OVARKILL, tmpkey, nil)
+	a = nod(OVARKILL, tmpkey, nil)
 	a = typecheck(a, ctxStmt)
 	init.Append(a)
 	a = nod(OVARKILL, tmpelem, nil)
