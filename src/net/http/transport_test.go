@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"go/token"
 	"internal/nettrace"
 	"internal/testenv"
 	"io"
@@ -5318,5 +5319,55 @@ func TestTransportRequestWriteRoundTrip(t *testing.T) {
 				t.Fatalf("ReadFrom was unexpectedly invoked")
 			}
 		})
+	}
+}
+
+func TestTransportClone(t *testing.T) {
+	tr := &Transport{
+		Proxy:                  func(*Request) (*url.URL, error) { panic("") },
+		DialContext:            func(ctx context.Context, network, addr string) (net.Conn, error) { panic("") },
+		Dial:                   func(network, addr string) (net.Conn, error) { panic("") },
+		DialTLS:                func(network, addr string) (net.Conn, error) { panic("") },
+		TLSClientConfig:        new(tls.Config),
+		TLSHandshakeTimeout:    time.Second,
+		DisableKeepAlives:      true,
+		DisableCompression:     true,
+		MaxIdleConns:           1,
+		MaxIdleConnsPerHost:    1,
+		MaxConnsPerHost:        1,
+		IdleConnTimeout:        time.Second,
+		ResponseHeaderTimeout:  time.Second,
+		ExpectContinueTimeout:  time.Second,
+		ProxyConnectHeader:     Header{},
+		MaxResponseHeaderBytes: 1,
+		ForceAttemptHTTP2:      true,
+		TLSNextProto: map[string]func(authority string, c *tls.Conn) RoundTripper{
+			"foo": func(authority string, c *tls.Conn) RoundTripper { panic("") },
+		},
+		ReadBufferSize:  1,
+		WriteBufferSize: 1,
+	}
+	tr2 := tr.Clone()
+	rv := reflect.ValueOf(tr2).Elem()
+	rt := rv.Type()
+	for i := 0; i < rt.NumField(); i++ {
+		sf := rt.Field(i)
+		if !token.IsExported(sf.Name) {
+			continue
+		}
+		if rv.Field(i).IsZero() {
+			t.Errorf("cloned field t2.%s is zero", sf.Name)
+		}
+	}
+
+	if _, ok := tr2.TLSNextProto["foo"]; !ok {
+		t.Errorf("cloned Transport lacked TLSNextProto 'foo' key")
+	}
+
+	// But test that a nil TLSNextProto is kept nil:
+	tr = new(Transport)
+	tr2 = tr.Clone()
+	if tr2.TLSNextProto != nil {
+		t.Errorf("Transport.TLSNextProto unexpected non-nil")
 	}
 }
