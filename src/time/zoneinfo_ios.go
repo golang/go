@@ -7,10 +7,14 @@
 
 package time
 
-import "syscall"
+import (
+	"runtime"
+	"syscall"
+)
 
 var zoneSources = []string{
 	getZipParent() + "/zoneinfo.zip",
+	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
 }
 
 func getZipParent() string {
