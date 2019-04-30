@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.8
+// +build go1.13
 
-package obj
+package sort
 
-import "sort"
+import "internal/reflectlite"
 
-func SortSlice(slice interface{}, less func(i, j int) bool) {
-	sort.Slice(slice, less)
-}
+var reflectValueOf = reflectlite.ValueOf
+var reflectSwapper = reflectlite.Swapper

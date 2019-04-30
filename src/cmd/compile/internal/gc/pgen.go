@@ -348,7 +348,7 @@ func compileFunctions() {
 			// Compile the longest functions first,
 			// since they're most likely to be the slowest.
 			// This helps avoid stragglers.
-			obj.SortSlice(compilequeue, func(i, j int) bool {
+			sort.Slice(compilequeue, func(i, j int) bool {
 				return compilequeue[i].Nbody.Len() > compilequeue[j].Nbody.Len()
 			})
 		}

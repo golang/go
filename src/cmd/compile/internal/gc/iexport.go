@@ -202,12 +202,12 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/types"
-	"cmd/internal/obj"
 	"cmd/internal/src"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"math/big"
+	"sort"
 	"strings"
 )
 
@@ -321,12 +321,12 @@ func (w *exportWriter) writeIndex(index map[*Node]uint64, mainIndex bool) {
 	for pkg, objs := range pkgObjs {
 		pkgs = append(pkgs, pkg)
 
-		obj.SortSlice(objs, func(i, j int) bool {
+		sort.Slice(objs, func(i, j int) bool {
 			return objs[i].Sym.Name < objs[j].Sym.Name
 		})
 	}
 
-	obj.SortSlice(pkgs, func(i, j int) bool {
+	sort.Slice(pkgs, func(i, j int) bool {
 		return pkgs[i].Path < pkgs[j].Path
 	})
 
