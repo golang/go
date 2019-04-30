@@ -96,6 +96,11 @@ func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *ty
 	}
 	if val == "" || val[0] == ',' {
 		if field.Anonymous() {
+			// Disable this check enhancement in Go 1.12.1; some
+			// false positives were spotted in the initial 1.12
+			// release. See https://golang.org/issues/30465.
+			return
+
 			typ, ok := field.Type().Underlying().(*types.Struct)
 			if !ok {
 				return
