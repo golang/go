@@ -60,9 +60,6 @@ func main() {
 		// uname -m doesn't work under AIX
 		gohostarch = "ppc64"
 	case "darwin":
-		// Even on 64-bit platform, darwin uname -m prints i386.
-		// We don't support any of the OS X versions that run on 32-bit-only hardware anymore.
-		gohostarch = "amd64"
 		// macOS 10.9 and later require clang
 		defaultclang = true
 	case "freebsd":
@@ -107,6 +104,11 @@ func main() {
 			gohostarch = "amd64"
 		case strings.Contains(out, "86"):
 			gohostarch = "386"
+			if gohostos == "darwin" {
+				// Even on 64-bit platform, some versions of macOS uname -m prints i386.
+				// We don't support any of the OS X versions that run on 32-bit-only hardware anymore.
+				gohostarch = "amd64"
+			}
 		case strings.Contains(out, "aarch64"), strings.Contains(out, "arm64"):
 			gohostarch = "arm64"
 		case strings.Contains(out, "arm"):
@@ -128,8 +130,8 @@ func main() {
 		case strings.Contains(out, "s390x"):
 			gohostarch = "s390x"
 		case gohostos == "darwin":
-			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM_") {
-				gohostarch = "arm"
+			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM64_") {
+				gohostarch = "arm64"
 			}
 		default:
 			fatalf("unknown architecture: %s", out)
