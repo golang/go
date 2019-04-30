@@ -233,7 +233,15 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
 // which will be deleted by "go clean -modcache".
 func (*dbClient) ReadCache(file string) ([]byte, error) {
 	targ := filepath.Join(PkgMod, "download/cache/sumdb", file)
-	return lockedfile.Read(targ)
+	data, err := lockedfile.Read(targ)
+	// lockedfile.Write does not atomically create the file with contents.
+	// There is a moment between file creation and locking the file for writing,
+	// during which the empty file can be locked for reading.
+	// Treat observing an empty file as file not found.
+	if err == nil && len(data) == 0 {
+		err = &os.PathError{Op: "read", Path: targ, Err: os.ErrNotExist}
+	}
+	return data, err
 }
 
 // WriteCache updates cached lookups or tiles.
