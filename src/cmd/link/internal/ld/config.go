@@ -175,13 +175,8 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		}()
 	}
 
-	switch objabi.GOOS {
-	case "android":
-		return true, "android"
-	case "darwin":
-		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
-			return true, "iOS"
-		}
+	if sys.MustLinkExternal(objabi.GOOS, objabi.GOARCH) {
+		return true, fmt.Sprintf("%s/%s requires external linking", objabi.GOOS, objabi.GOARCH)
 	}
 
 	if *flagMsan {
@@ -256,7 +251,7 @@ func determineLinkMode(ctxt *Link) {
 				ctxt.LinkMode = LinkExternal
 			} else if iscgo && externalobj {
 				ctxt.LinkMode = LinkExternal
-			} else if ctxt.BuildMode == BuildModePIE && sys.PIEDefaultsToExternalLink(objabi.GOOS, objabi.GOARCH) {
+			} else if ctxt.BuildMode == BuildModePIE {
 				ctxt.LinkMode = LinkExternal
 			} else {
 				ctxt.LinkMode = LinkInternal
