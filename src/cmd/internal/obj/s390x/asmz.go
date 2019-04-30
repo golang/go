@@ -3139,14 +3139,12 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			}
 			r = p.To.Reg
 		}
-		if r == p.To.Reg {
-			if opri != 0 && int64(int16(v)) == v {
-				zRI(opri, uint32(p.To.Reg), uint32(v), asm)
-			} else {
-				zRIL(_a, opril, uint32(p.To.Reg), uint32(v), asm)
-			}
-		} else {
+		if opri != 0 && r == p.To.Reg && int64(int16(v)) == v {
+			zRI(opri, uint32(p.To.Reg), uint32(v), asm)
+		} else if oprie != 0 && int64(int16(v)) == v {
 			zRIE(_d, oprie, uint32(p.To.Reg), uint32(r), uint32(v), 0, 0, 0, 0, asm)
+		} else {
+			zRIL(_a, opril, uint32(p.To.Reg), uint32(v), asm)
 		}
 
 	case 23: // 64-bit logical op $constant reg
