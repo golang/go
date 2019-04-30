@@ -32,7 +32,7 @@ func LocalGitRepo(remote string) (Repo, error) {
 	return newGitRepoCached(remote, true)
 }
 
-const gitWorkDirType = "git2"
+const gitWorkDirType = "git3"
 
 var gitRepoCache par.Cache
 
@@ -339,8 +339,14 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 		}
 	}
 
-	// If we know a specific commit we need, fetch it.
-	if r.fetchLevel <= fetchSome && hash != "" && !r.local {
+	// If we know a specific commit we need and its ref, fetch it.
+	// We do NOT fetch arbitrary hashes (when we don't know the ref)
+	// because we want to avoid ever importing a commit that isn't
+	// reachable from refs/tags/* or refs/heads/* or HEAD.
+	// Both Gerrit and GitHub expose every CL/PR as a named ref,
+	// and we don't want those commits masquerading as being real
+	// pseudo-versions in the main repo.
+	if r.fetchLevel <= fetchSome && ref != "" && hash != "" && !r.local {
 		r.fetchLevel = fetchSome
 		var refspec string
 		if ref != "" && ref != "HEAD" {
