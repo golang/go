@@ -280,10 +280,12 @@ func Sleb128put(ctxt Context, s Sym, v int64) {
 }
 
 /*
- * Defining Abbrevs.  This is hardcoded, and there will be
- * only a handful of them.  The DWARF spec places no restriction on
- * the ordering of attributes in the Abbrevs and DIEs, and we will
- * always write them out in the order of declaration in the abbrev.
+ * Defining Abbrevs. This is hardcoded on a per-platform basis (that is,
+ * each platform will see a fixed abbrev table for all objects); the number
+ * of abbrev entries is fairly small (compared to C++ objects).  The DWARF
+ * spec places no restriction on the ordering of attributes in the
+ * Abbrevs and DIEs, and we will always write them out in the order
+ * of declaration in the abbrev.
  */
 type dwAttrForm struct {
 	attr uint16
@@ -356,6 +358,45 @@ type dwAbbrev struct {
 	children uint8
 	attr     []dwAttrForm
 }
+
+var abbrevsFinalized bool
+
+// expandPseudoForm takes an input DW_FORM_xxx value and translates it
+// into a platform-appropriate concrete form. Existing concrete/real
+// DW_FORM values are left untouched. For the moment the only
+// pseudo-form is DW_FORM_udata_pseudo, which gets expanded to
+// DW_FORM_data4 on Darwin and DW_FORM_udata everywhere else. See
+// issue #31459 for more context.
+func expandPseudoForm(form uint8) uint8 {
+	// Is this a pseudo-form?
+	if form != DW_FORM_udata_pseudo {
+		return form
+	}
+	expandedForm := DW_FORM_udata
+	if objabi.GOOS == "darwin" {
+		expandedForm = DW_FORM_data4
+	}
+	return uint8(expandedForm)
+}
+
+// Abbrevs() returns the finalized abbrev array for the platform,
+// expanding any DW_FORM pseudo-ops to real values.
+func Abbrevs() [DW_NABRV]dwAbbrev {
+	if abbrevsFinalized {
+		return abbrevs
+	}
+	for i := 1; i < DW_NABRV; i++ {
+		for j := 0; j < len(abbrevs[i].attr); j++ {
+			abbrevs[i].attr[j].form = expandPseudoForm(abbrevs[i].attr[j].form)
+		}
+	}
+	abbrevsFinalized = true
+	return abbrevs
+}
+
+// abbrevs is a raw table of abbrev entries; it needs to be post-processed
+// by the Abbrevs() function above prior to being consumed, to expand
+// the 'pseudo-form' entries below to real DWARF form values.
 
 var abbrevs = [DW_NABRV]dwAbbrev{
 	/* The mandatory DW_ABRV_NULL entry. */
@@ -436,7 +477,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_low_pc, DW_FORM_addr},
 			{DW_AT_high_pc, DW_FORM_addr},
 			{DW_AT_call_file, DW_FORM_data4},
-			{DW_AT_call_line, DW_FORM_udata},
+			{DW_AT_call_line, DW_FORM_udata_pseudo}, // pseudo-form
 		},
 	},
 
@@ -448,7 +489,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_abstract_origin, DW_FORM_ref_addr},
 			{DW_AT_ranges, DW_FORM_sec_offset},
 			{DW_AT_call_file, DW_FORM_data4},
-			{DW_AT_call_line, DW_FORM_udata},
+			{DW_AT_call_line, DW_FORM_udata_pseudo}, // pseudo-form
 		},
 	},
 
@@ -807,6 +848,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 
 // GetAbbrev returns the contents of the .debug_abbrev section.
 func GetAbbrev() []byte {
+	abbrevs := Abbrevs()
 	var buf []byte
 	for i := 1; i < DW_NABRV; i++ {
 		// See section 7.5.3
@@ -963,6 +1005,7 @@ func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, da
 // Note that we can (and do) add arbitrary attributes to a DIE, but
 // only the ones actually listed in the Abbrev will be written out.
 func PutAttrs(ctxt Context, s Sym, abbrev int, attr *DWAttr) {
+	abbrevs := Abbrevs()
 Outer:
 	for _, f := range abbrevs[abbrev].attr {
 		for ap := attr; ap != nil; ap = ap.Link {
@@ -978,6 +1021,7 @@ Outer:
 
 // HasChildren reports whether 'die' uses an abbrev that supports children.
 func HasChildren(die *DWDie) bool {
+	abbrevs := Abbrevs()
 	return abbrevs[die.Abbrev].children != 0
 }
 
@@ -1232,7 +1276,8 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 
 	// Emit call file, line attrs.
 	ctxt.AddFileRef(s.Info, ic.CallFile)
-	putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(ic.CallLine), nil)
+	form := int(expandPseudoForm(DW_FORM_udata_pseudo))
+	putattr(ctxt, s.Info, abbrev, form, DW_CLS_CONSTANT, int64(ic.CallLine), nil)
 
 	// Variables associated with this inlined routine instance.
 	vars := ic.InlVars
