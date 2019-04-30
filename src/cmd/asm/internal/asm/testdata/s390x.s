@@ -66,6 +66,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	ADD	$32768, R1, R2        // b9040021c22800008000
 	ADDC	R1, R2                // b9ea1022
 	ADDC	$1, R1, R2            // ec21000100db
+	ADDC	$-1, R1, R2           // ec21ffff00db
 	ADDC	R1, R2, R3            // b9ea1032
 	ADDW	R1, R2                // 1a21
 	ADDW	R1, R2, R3            // b9f81032

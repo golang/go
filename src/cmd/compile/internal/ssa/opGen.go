@@ -1922,6 +1922,11 @@ const (
 	OpS390XXORWconst
 	OpS390XXORload
 	OpS390XXORWload
+	OpS390XADDC
+	OpS390XADDCconst
+	OpS390XADDE
+	OpS390XSUBC
+	OpS390XSUBE
 	OpS390XCMP
 	OpS390XCMPW
 	OpS390XCMPU
@@ -2044,6 +2049,7 @@ const (
 	OpS390XFlagEQ
 	OpS390XFlagLT
 	OpS390XFlagGT
+	OpS390XFlagOV
 	OpS390XMOVWZatomicload
 	OpS390XMOVDatomicload
 	OpS390XMOVWatomicstore
@@ -25812,6 +25818,80 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "ADDC",
+		argLen:      2,
+		commutative: true,
+		asm:         s390x.AADDC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+			outputs: []outputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+		},
+	},
+	{
+		name:    "ADDCconst",
+		auxType: auxInt16,
+		argLen:  1,
+		asm:     s390x.AADDC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+			outputs: []outputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+		},
+	},
+	{
+		name:         "ADDE",
+		argLen:       3,
+		commutative:  true,
+		resultInArg0: true,
+		asm:          s390x.AADDE,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+			outputs: []outputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+		},
+	},
+	{
+		name:   "SUBC",
+		argLen: 2,
+		asm:    s390x.ASUBC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+			outputs: []outputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+		},
+	},
+	{
+		name:         "SUBE",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          s390x.ASUBE,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+			outputs: []outputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+		},
+	},
+	{
 		name:   "CMP",
 		argLen: 2,
 		asm:    s390x.ACMP,
@@ -26644,7 +26724,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVBZload",
 		auxType:        auxSymOff,
 		argLen:         2,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead,
 		asm:            s390x.AMOVBZ,
@@ -26661,7 +26740,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVBload",
 		auxType:        auxSymOff,
 		argLen:         2,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead,
 		asm:            s390x.AMOVB,
@@ -26678,7 +26756,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVHZload",
 		auxType:        auxSymOff,
 		argLen:         2,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead,
 		asm:            s390x.AMOVHZ,
@@ -26695,7 +26772,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVHload",
 		auxType:        auxSymOff,
 		argLen:         2,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead,
 		asm:            s390x.AMOVH,
@@ -26712,7 +26788,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVWZload",
 		auxType:        auxSymOff,
 		argLen:         2,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead,
 		asm:            s390x.AMOVWZ,
@@ -26729,7 +26804,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVWload",
 		auxType:        auxSymOff,
 		argLen:         2,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead,
 		asm:            s390x.AMOVW,
@@ -26746,7 +26820,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVDload",
 		auxType:        auxSymOff,
 		argLen:         2,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead,
 		asm:            s390x.AMOVD,
@@ -26789,7 +26862,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVHBRload",
 		auxType:        auxSymOff,
 		argLen:         2,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead,
 		asm:            s390x.AMOVHBR,
@@ -26806,7 +26878,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVWBRload",
 		auxType:        auxSymOff,
 		argLen:         2,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead,
 		asm:            s390x.AMOVWBR,
@@ -26823,7 +26894,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVDBRload",
 		auxType:        auxSymOff,
 		argLen:         2,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymRead,
 		asm:            s390x.AMOVDBR,
@@ -26840,7 +26910,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVBstore",
 		auxType:        auxSymOff,
 		argLen:         3,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,
 		asm:            s390x.AMOVB,
@@ -26855,7 +26924,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVHstore",
 		auxType:        auxSymOff,
 		argLen:         3,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,
 		asm:            s390x.AMOVH,
@@ -26870,7 +26938,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVWstore",
 		auxType:        auxSymOff,
 		argLen:         3,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,
 		asm:            s390x.AMOVW,
@@ -26885,7 +26952,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVDstore",
 		auxType:        auxSymOff,
 		argLen:         3,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,
 		asm:            s390x.AMOVD,
@@ -26900,7 +26966,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVHBRstore",
 		auxType:        auxSymOff,
 		argLen:         3,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,
 		asm:            s390x.AMOVHBR,
@@ -26915,7 +26980,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVWBRstore",
 		auxType:        auxSymOff,
 		argLen:         3,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,
 		asm:            s390x.AMOVWBR,
@@ -26930,7 +26994,6 @@ var opcodeTable = [...]opInfo{
 		name:           "MOVDBRstore",
 		auxType:        auxSymOff,
 		argLen:         3,
-		clobberFlags:   true,
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,
 		asm:            s390x.AMOVDBR,
@@ -26958,13 +27021,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVBZloadidx",
-		auxType:      auxSymOff,
-		argLen:       3,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymRead,
-		asm:          s390x.AMOVBZ,
+		name:        "MOVBZloadidx",
+		auxType:     auxSymOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         s390x.AMOVBZ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -26976,13 +27038,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVBloadidx",
-		auxType:      auxSymOff,
-		argLen:       3,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymRead,
-		asm:          s390x.AMOVB,
+		name:        "MOVBloadidx",
+		auxType:     auxSymOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         s390x.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -26994,13 +27055,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVHZloadidx",
-		auxType:      auxSymOff,
-		argLen:       3,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymRead,
-		asm:          s390x.AMOVHZ,
+		name:        "MOVHZloadidx",
+		auxType:     auxSymOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         s390x.AMOVHZ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27012,13 +27072,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVHloadidx",
-		auxType:      auxSymOff,
-		argLen:       3,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymRead,
-		asm:          s390x.AMOVH,
+		name:        "MOVHloadidx",
+		auxType:     auxSymOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         s390x.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27030,13 +27089,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVWZloadidx",
-		auxType:      auxSymOff,
-		argLen:       3,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymRead,
-		asm:          s390x.AMOVWZ,
+		name:        "MOVWZloadidx",
+		auxType:     auxSymOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         s390x.AMOVWZ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27048,13 +27106,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVWloadidx",
-		auxType:      auxSymOff,
-		argLen:       3,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymRead,
-		asm:          s390x.AMOVW,
+		name:        "MOVWloadidx",
+		auxType:     auxSymOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         s390x.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27066,13 +27123,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVDloadidx",
-		auxType:      auxSymOff,
-		argLen:       3,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymRead,
-		asm:          s390x.AMOVD,
+		name:        "MOVDloadidx",
+		auxType:     auxSymOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         s390x.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27084,13 +27140,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVHBRloadidx",
-		auxType:      auxSymOff,
-		argLen:       3,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymRead,
-		asm:          s390x.AMOVHBR,
+		name:        "MOVHBRloadidx",
+		auxType:     auxSymOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         s390x.AMOVHBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27102,13 +27157,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVWBRloadidx",
-		auxType:      auxSymOff,
-		argLen:       3,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymRead,
-		asm:          s390x.AMOVWBR,
+		name:        "MOVWBRloadidx",
+		auxType:     auxSymOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         s390x.AMOVWBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27120,13 +27174,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVDBRloadidx",
-		auxType:      auxSymOff,
-		argLen:       3,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymRead,
-		asm:          s390x.AMOVDBR,
+		name:        "MOVDBRloadidx",
+		auxType:     auxSymOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         s390x.AMOVDBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27138,13 +27191,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVBstoreidx",
-		auxType:      auxSymOff,
-		argLen:       4,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymWrite,
-		asm:          s390x.AMOVB,
+		name:        "MOVBstoreidx",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         s390x.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27154,13 +27206,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVHstoreidx",
-		auxType:      auxSymOff,
-		argLen:       4,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymWrite,
-		asm:          s390x.AMOVH,
+		name:        "MOVHstoreidx",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         s390x.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27170,13 +27221,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVWstoreidx",
-		auxType:      auxSymOff,
-		argLen:       4,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymWrite,
-		asm:          s390x.AMOVW,
+		name:        "MOVWstoreidx",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         s390x.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27186,13 +27236,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVDstoreidx",
-		auxType:      auxSymOff,
-		argLen:       4,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymWrite,
-		asm:          s390x.AMOVD,
+		name:        "MOVDstoreidx",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         s390x.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27202,13 +27251,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVHBRstoreidx",
-		auxType:      auxSymOff,
-		argLen:       4,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymWrite,
-		asm:          s390x.AMOVHBR,
+		name:        "MOVHBRstoreidx",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         s390x.AMOVHBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27218,13 +27266,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVWBRstoreidx",
-		auxType:      auxSymOff,
-		argLen:       4,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymWrite,
-		asm:          s390x.AMOVWBR,
+		name:        "MOVWBRstoreidx",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         s390x.AMOVWBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27234,13 +27281,12 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "MOVDBRstoreidx",
-		auxType:      auxSymOff,
-		argLen:       4,
-		commutative:  true,
-		clobberFlags: true,
-		symEffect:    SymWrite,
-		asm:          s390x.AMOVDBR,
+		name:        "MOVDBRstoreidx",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymWrite,
+		asm:         s390x.AMOVDBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
@@ -27496,6 +27542,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:   "FlagGT",
+		argLen: 0,
+		reg:    regInfo{},
+	},
+	{
+		name:   "FlagOV",
 		argLen: 0,
 		reg:    regInfo{},
 	},
