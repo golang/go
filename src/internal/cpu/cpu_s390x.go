@@ -36,6 +36,20 @@ const (
 	ghash function = 65 // GHASH
 )
 
+const (
+	// KDSA function codes
+	ecdsaVerifyP256    function = 1  // NIST P256
+	ecdsaVerifyP384    function = 2  // NIST P384
+	ecdsaVerifyP521    function = 3  // NIST P521
+	ecdsaSignP256      function = 9  // NIST P256
+	ecdsaSignP384      function = 10 // NIST P384
+	ecdsaSignP521      function = 11 // NIST P521
+	eddsaVerifyEd25519 function = 32 // Curve25519
+	eddsaVerifyEd448   function = 36 // Curve448
+	eddsaSignEd25519   function = 40 // Curve25519
+	eddsaSignEd448     function = 44 // Curve448
+)
+
 // queryResult contains the result of a Query function
 // call. Bits are numbered in big endian order so the
 // leftmost bit (the MSB) is at index 0.
@@ -76,6 +90,7 @@ const (
 	msa4 facility = 77  // message-security-assist extension 4
 	msa5 facility = 57  // message-security-assist extension 5
 	msa8 facility = 146 // message-security-assist extension 8
+	msa9 facility = 155 // message-security-assist extension 9
 
 	// vector facilities
 	vxe facility = 135 // vector-enhancements 1
@@ -113,6 +128,7 @@ func kmctrQuery() queryResult
 func kmaQuery() queryResult
 func kimdQuery() queryResult
 func klmdQuery() queryResult
+func kdsaQuery() queryResult
 
 func doinit() {
 	options = []option{
@@ -125,6 +141,7 @@ func doinit() {
 		{Name: "etf3eh", Feature: &S390X.HasETF3EH},
 		{Name: "vx", Feature: &S390X.HasVX},
 		{Name: "vxe", Feature: &S390X.HasVXE},
+		{Name: "kdsa", Feature: &S390X.HasKDSA},
 	}
 
 	aes := []function{aes128, aes192, aes256}
@@ -164,6 +181,12 @@ func doinit() {
 			shake128, shake256,
 		}
 		S390X.HasSHA3 = kimd.Has(sha3...) && klmd.Has(sha3...)
+		S390X.HasKDSA = facilities.Has(msa9) // elliptic curves
+		if S390X.HasKDSA {
+			kdsa := kdsaQuery()
+			S390X.HasECDSA = kdsa.Has(ecdsaVerifyP256, ecdsaSignP256, ecdsaVerifyP384, ecdsaSignP384, ecdsaVerifyP521, ecdsaSignP521)
+			S390X.HasEDDSA = kdsa.Has(eddsaVerifyEd25519, eddsaSignEd25519, eddsaVerifyEd448, eddsaSignEd448)
+		}
 	}
 	if S390X.HasVX {
 		S390X.HasVXE = facilities.Has(vxe)
