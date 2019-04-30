@@ -34,7 +34,7 @@ TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
     MOVLQSX  (AX), DX             // move return from libc_error into DX
     XORL     AX, AX               // size on error is 0
 ok:
-    MOVQ    AX, 28(BX) // size
-    MOVQ    DX, 32(BX) // error code
+    MOVL    AX, 28(BX) // size
+    MOVL    DX, 32(BX) // error code
     POPQ    BP
     RET
