@@ -304,33 +304,92 @@ TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
 	RET
 
 // Thread related functions
-// Note: On darwin/arm64, the runtime always use runtime/cgo to
-// create threads, so all thread related functions will just exit with a
-// unique status.
 
+// mstart_stub is the first function executed on a new thread started by pthread_create.
+// It just does some low-level setup and then calls mstart.
+// Note: called with the C calling convention.
 TEXT runtime·mstart_stub(SB),NOSPLIT,$0
-	MOVW	$44, R0
-	BL	libc_exit(SB)
+	// R0 points to the m.
+	// We are already on m's g0 stack.
+
+	// Save callee-save registers.
+	SUB $144, RSP
+	MOVD R19, 0(RSP)
+	MOVD R20, 8(RSP)
+	MOVD R21, 16(RSP)
+	MOVD R22, 24(RSP)
+	MOVD R23, 32(RSP)
+	MOVD R24, 40(RSP)
+	MOVD R25, 48(RSP)
+	MOVD R26, 56(RSP)
+	MOVD R27, 64(RSP)
+	MOVD g, 72(RSP)
+	FMOVD F8, 80(RSP)
+	FMOVD F9, 88(RSP)
+	FMOVD F10, 96(RSP)
+	FMOVD F11, 104(RSP)
+	FMOVD F12, 112(RSP)
+	FMOVD F13, 120(RSP)
+	FMOVD F14, 128(RSP)
+	FMOVD F15, 136(RSP)
+
+	MOVD    m_g0(R0), g
+
+	BL runtime·mstart(SB)
+
+	// Restore callee-save registers.
+	MOVD 0(RSP), R19
+	MOVD 8(RSP), R20
+	MOVD 16(RSP), R21
+	MOVD 24(RSP), R22
+	MOVD 32(RSP), R23
+	MOVD 40(RSP), R24
+	MOVD 48(RSP), R25
+	MOVD 56(RSP), R26
+	MOVD 64(RSP), R27
+	MOVD 72(RSP), g
+	FMOVD 80(RSP), F8
+	FMOVD 88(RSP), F9
+	FMOVD 96(RSP), F10
+	FMOVD 104(RSP), F11
+	FMOVD 112(RSP), F12
+	FMOVD 120(RSP), F13
+	FMOVD 128(RSP), F14
+	FMOVD 136(RSP), F15
+	ADD $144, RSP
+
+	// Go is all done with this OS thread.
+	// Tell pthread everything is ok (we never join with this thread, so
+	// the value here doesn't really matter).
+	MOVD $0, R0
+
 	RET
 
 TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
-	MOVW	$45, R0
-	BL	libc_exit(SB)
+	MOVD	0(R0), R0	// arg 1 attr
+	BL	libc_pthread_attr_init(SB)
 	RET
 
 TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
-	MOVW	$46, R0
-	BL	libc_exit(SB)
+	MOVD	8(R0), R1	// arg 2 size
+	MOVD	0(R0), R0	// arg 1 attr
+	BL	libc_pthread_attr_setstacksize(SB)
 	RET
 
 TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
-	MOVW	$47, R0
-	BL	libc_exit(SB)
+	MOVD	8(R0), R1	// arg 2 state
+	MOVD	0(R0), R0	// arg 1 attr
+	BL	libc_pthread_attr_setdetachstate(SB)
 	RET
 
 TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
-	MOVW	$48, R0
-	BL	libc_exit(SB)
+	SUB	$16, RSP
+	MOVD	0(R0), R1	// arg 2 state
+	MOVD	8(R0), R2	// arg 3 start
+	MOVD	16(R0), R3	// arg 4 arg
+	MOVD	RSP, R0 	// arg 1 &threadid (which we throw away)
+	BL	libc_pthread_create(SB)
+	ADD	$16, RSP
 	RET
 
 TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
