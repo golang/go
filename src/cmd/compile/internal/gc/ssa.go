@@ -2732,6 +2732,8 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 			return
 		}
 		if left.Op == OINDEX && left.Left.Type.IsArray() {
+			s.pushLine(left.Pos)
+			defer s.popLine()
 			// We're assigning to an element of an ssa-able array.
 			// a[i] = v
 			t := left.Left.Type
@@ -3894,6 +3896,11 @@ func etypesign(e types.EType) int8 {
 // If bounded is true then this address does not require a nil check for its operand
 // even if that would otherwise be implied.
 func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+	if n.Op != ONAME {
+		s.pushLine(n.Pos)
+		defer s.popLine()
+	}
+
 	t := types.NewPtr(n.Type)
 	switch n.Op {
 	case ONAME:
