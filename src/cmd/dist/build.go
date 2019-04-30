@@ -1478,7 +1478,7 @@ func checkNotStale(goBinary string, targets ...string) {
 // by 'go tool dist list'.
 var cgoEnabled = map[string]bool{
 	"aix/ppc64":       true,
-	"darwin/386":      true,
+	"darwin/386":      false, // Issue 31751
 	"darwin/amd64":    true,
 	"darwin/arm":      true,
 	"darwin/arm64":    true,
