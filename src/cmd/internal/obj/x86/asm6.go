@@ -961,7 +961,6 @@ var optab =
 	{ABSRL, yml_rl, Pm, opBytes{0xbd}},
 	{ABSRQ, yml_rl, Pw, opBytes{0x0f, 0xbd}},
 	{ABSRW, yml_rl, Pq, opBytes{0xbd}},
-	{ABSWAPW, ybswap, Pe, opBytes{0x0f, 0xc8}},
 	{ABSWAPL, ybswap, Px, opBytes{0x0f, 0xc8}},
 	{ABSWAPQ, ybswap, Pw, opBytes{0x0f, 0xc8}},
 	{ABTCL, ybtl, Pm, opBytes{0xba, 07, 0xbb}},
