@@ -1934,6 +1934,91 @@ func TestMakeFuncVariadic(t *testing.T) {
 	}
 }
 
+// Dummy type that implements io.WriteCloser
+type WC struct {
+}
+
+func (w *WC) Write(p []byte) (n int, err error) {
+	return 0, nil
+}
+func (w *WC) Close() error {
+	return nil
+}
+
+func TestMakeFuncValidReturnAssignments(t *testing.T) {
+	// reflect.Values returned from the wrapped function should be assignment-converted
+	// to the types returned by the result of MakeFunc.
+
+	// Concrete types should be promotable to interfaces they implement.
+	var f func() error
+	f = MakeFunc(TypeOf(f), func([]Value) []Value {
+		return []Value{ValueOf(io.EOF)}
+	}).Interface().(func() error)
+	f()
+
+	// Super-interfaces should be promotable to simpler interfaces.
+	var g func() io.Writer
+	g = MakeFunc(TypeOf(g), func([]Value) []Value {
+		var w io.WriteCloser = &WC{}
+		return []Value{ValueOf(&w).Elem()}
+	}).Interface().(func() io.Writer)
+	g()
+
+	// Channels should be promotable to directional channels.
+	var h func() <-chan int
+	h = MakeFunc(TypeOf(h), func([]Value) []Value {
+		return []Value{ValueOf(make(chan int))}
+	}).Interface().(func() <-chan int)
+	h()
+
+	// Unnamed types should be promotable to named types.
+	type T struct{ a, b, c int }
+	var i func() T
+	i = MakeFunc(TypeOf(i), func([]Value) []Value {
+		return []Value{ValueOf(struct{ a, b, c int }{a: 1, b: 2, c: 3})}
+	}).Interface().(func() T)
+	i()
+}
+
+func TestMakeFuncInvalidReturnAssignments(t *testing.T) {
+	// Type doesn't implement the required interface.
+	shouldPanic(func() {
+		var f func() error
+		f = MakeFunc(TypeOf(f), func([]Value) []Value {
+			return []Value{ValueOf(int(7))}
+		}).Interface().(func() error)
+		f()
+	})
+	// Assigning to an interface with additional methods.
+	shouldPanic(func() {
+		var f func() io.ReadWriteCloser
+		f = MakeFunc(TypeOf(f), func([]Value) []Value {
+			var w io.WriteCloser = &WC{}
+			return []Value{ValueOf(&w).Elem()}
+		}).Interface().(func() io.ReadWriteCloser)
+		f()
+	})
+	// Directional channels can't be assigned to bidirectional ones.
+	shouldPanic(func() {
+		var f func() chan int
+		f = MakeFunc(TypeOf(f), func([]Value) []Value {
+			var c <-chan int = make(chan int)
+			return []Value{ValueOf(c)}
+		}).Interface().(func() chan int)
+		f()
+	})
+	// Two named types which are otherwise identical.
+	shouldPanic(func() {
+		type T struct{ a, b, c int }
+		type U struct{ a, b, c int }
+		var f func() T
+		f = MakeFunc(TypeOf(f), func([]Value) []Value {
+			return []Value{ValueOf(U{a: 1, b: 2, c: 3})}
+		}).Interface().(func() T)
+		f()
+	})
+}
+
 type Point struct {
 	x, y int
 }

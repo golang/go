@@ -560,11 +560,6 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
 		}
 		for i, typ := range ftyp.out() {
 			v := out[i]
-			if v.typ != typ {
-				panic("reflect: function created by MakeFunc using " + funcName(f) +
-					" returned wrong type: have " +
-					out[i].typ.String() + " for " + typ.String())
-			}
 			if v.flag&flagRO != 0 {
 				panic("reflect: function created by MakeFunc using " + funcName(f) +
 					" returned value obtained from unexported field")
@@ -574,6 +569,12 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
 				continue
 			}
 			addr := add(ptr, off, "typ.size > 0")
+
+			// Convert v to type typ if v is assignable to a variable
+			// of type t in the language spec.
+			// See issue 28761.
+			v = v.assignTo("reflect.MakeFunc", typ, addr)
+
 			// We are writing to stack. No write barrier.
 			if v.flag&flagIndir != 0 {
 				memmove(addr, v.ptr, typ.size)
