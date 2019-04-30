@@ -7,5 +7,4 @@ require (
 	golang.org/x/net v0.0.0-20190424112056-4829fb13d2c6
 	golang.org/x/sys v0.0.0-20190425145619-16072639606e // indirect
 	golang.org/x/text v0.3.2 // indirect
-	golang.org/x/tools v0.0.0-20190425214124-2d660fb8a000 // indirect
 )
