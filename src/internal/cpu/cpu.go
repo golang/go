@@ -128,6 +128,9 @@ type s390x struct {
 	HasSHA3   bool // K{I,L}MD-SHA3-{224,256,384,512} and K{I,L}MD-SHAKE-{128,256} functions
 	HasVX     bool // vector facility. Note: the runtime sets this when it processes auxv records.
 	HasVXE    bool // vector-enhancements facility 1
+	HasKDSA   bool // elliptic curve functions
+	HasECDSA  bool // NIST curves
+	HasEDDSA  bool // Edwards curves
 	_         CacheLinePad
 }
 
