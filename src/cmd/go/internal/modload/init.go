@@ -376,6 +376,7 @@ func InitMod() {
 		excluded[x.Mod] = true
 	}
 	modFileToBuildList()
+	stdVendorMode()
 	WriteGoMod()
 }
 
@@ -383,7 +384,7 @@ func InitMod() {
 func modFileToBuildList() {
 	Target = modFile.Module.Mod
 	targetPrefix = Target.Path
-	if search.InDir(cwd, cfg.GOROOTsrc) != "" {
+	if rel := search.InDir(cwd, cfg.GOROOTsrc); rel != "" && rel != filepath.FromSlash("cmd/vet/all") {
 		targetInGorootSrc = true
 		if Target.Path == "std" {
 			targetPrefix = ""
@@ -395,6 +396,42 @@ func modFileToBuildList() {
 		list = append(list, r.Mod)
 	}
 	buildList = list
+}
+
+// stdVendorMode applies inside $GOROOT/src.
+// It checks that the go.mod matches vendor/modules.txt
+// and then sets -mod=vendor unless this is a command
+// that has to do explicitly with modules.
+func stdVendorMode() {
+	if !targetInGorootSrc {
+		return
+	}
+	if cfg.CmdName == "get" || strings.HasPrefix(cfg.CmdName, "mod ") {
+		return
+	}
+
+	readVendorList()
+BuildList:
+	for _, m := range buildList {
+		if m.Path == "cmd" || m.Path == "std" {
+			continue
+		}
+		for _, v := range vendorList {
+			if m.Path == v.Path {
+				if m.Version != v.Version {
+					base.Fatalf("go: inconsistent vendoring in %s:\n"+
+						"\tgo.mod requires %s %s but vendor/modules.txt has %s.\n"+
+						"\trun 'go mod tidy; go mod vendor' to sync",
+						modRoot, m.Path, m.Version, v.Version)
+				}
+				continue BuildList
+			}
+		}
+		base.Fatalf("go: inconsistent vendoring in %s:\n"+
+			"\tgo.mod requires %s %s but vendor/modules.txt does not include it.\n"+
+			"\trun 'go mod tidy; go mod vendor' to sync", modRoot, m.Path, m.Version)
+	}
+	cfg.BuildMod = "vendor"
 }
 
 // Allowed reports whether module m is allowed (not excluded) by the main module's go.mod.
