@@ -104,7 +104,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 		// As they are created during Progedit, two symbols can be switched between
 		// two different compilations. Therefore, BuildID will be different.
 		// TODO: find a better place and optimize to only sort TOC symbols
-		SortSlice(ctxt.Data, func(i, j int) bool {
+		sort.Slice(ctxt.Data, func(i, j int) bool {
 			return ctxt.Data[i].Name < ctxt.Data[j].Name
 		})
 	}

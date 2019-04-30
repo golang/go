@@ -27,6 +27,7 @@ import (
 	"path"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -723,7 +724,7 @@ func Main(archInit func(*Arch)) {
 	}
 
 	// Check whether any of the functions we have compiled have gigantic stack frames.
-	obj.SortSlice(largeStackFrames, func(i, j int) bool {
+	sort.Slice(largeStackFrames, func(i, j int) bool {
 		return largeStackFrames[i].pos.Before(largeStackFrames[j].pos)
 	})
 	for _, large := range largeStackFrames {
@@ -1313,7 +1314,7 @@ func clearImports() {
 		}
 	}
 
-	obj.SortSlice(unused, func(i, j int) bool { return unused[i].pos.Before(unused[j].pos) })
+	sort.Slice(unused, func(i, j int) bool { return unused[i].pos.Before(unused[j].pos) })
 	for _, pkg := range unused {
 		pkgnotused(pkg.pos, pkg.path, pkg.name)
 	}

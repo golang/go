@@ -586,9 +586,8 @@ func findImports(pkg string) ([]string, error) {
 	var haveImport = map[string]bool{}
 	for _, file := range files {
 		name := file.Name()
-		if name == "slice_pre113.go" {
-			// This file is ignored by build tags which aren't
-			// handled by this findImports func.
+		if name == "slice_go14.go" || name == "slice_go18.go" {
+			// These files are for compiler bootstrap with older versions of Go and not built in the standard build.
 			continue
 		}
 		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
