@@ -59,13 +59,26 @@ var sysdir = func() *sysDir {
 			if err != nil {
 				wd = err.Error()
 			}
-			return &sysDir{
+			sd := &sysDir{
 				filepath.Join(wd, "..", ".."),
 				[]string{
 					"ResourceRules.plist",
 					"Info.plist",
 				},
 			}
+			found := true
+			for _, f := range sd.files {
+				path := filepath.Join(sd.name, f)
+				if _, err := Stat(path); err != nil {
+					found = false
+					break
+				}
+			}
+			if found {
+				return sd
+			}
+			// In a self-hosted iOS build the above files might
+			// not exist. Look for system files instead below.
 		}
 	case "windows":
 		return &sysDir{
@@ -1191,15 +1204,18 @@ func TestChdirAndGetwd(t *testing.T) {
 	case "darwin":
 		switch runtime.GOARCH {
 		case "arm", "arm64":
-			d1, err := ioutil.TempDir("", "d1")
-			if err != nil {
-				t.Fatalf("TempDir: %v", err)
+			for _, d := range []string{"d1", "d2"} {
+				dir, err := ioutil.TempDir("", d)
+				if err != nil {
+					t.Fatalf("TempDir: %v", err)
+				}
+				// Expand symlinks so path equality tests work.
+				dir, err = filepath.EvalSymlinks(dir)
+				if err != nil {
+					t.Fatalf("EvalSymlinks: %v", err)
+				}
+				dirs = append(dirs, dir)
 			}
-			d2, err := ioutil.TempDir("", "d2")
-			if err != nil {
-				t.Fatalf("TempDir: %v", err)
-			}
-			dirs = []string{d1, d2}
 		}
 	}
 	oldwd := Getenv("PWD")
