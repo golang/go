@@ -666,6 +666,7 @@ func runInstall(dir string, ch chan struct{}) {
 		if goldflags != "" {
 			link = append(link, goldflags)
 		}
+		link = append(link, "-extld="+compilerEnvLookup(defaultcc, goos, goarch))
 		link = append(link, "-o", pathf("%s/%s%s", tooldir, elem, exe))
 		targ = len(link) - 1
 	}
