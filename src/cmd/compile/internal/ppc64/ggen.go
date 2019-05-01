@@ -67,8 +67,9 @@ func ginsnop(pp *gc.Progs) *obj.Prog {
 	return p
 }
 
-func ginsnop2(pp *gc.Progs) *obj.Prog {
-	// PPC64 is unusual because TWO nops are required
+func ginsnopdefer(pp *gc.Progs) *obj.Prog {
+	// On PPC64 two nops are required in the defer case.
+	//
 	// (see gc/cgen.go, gc/plive.go -- copy of comment below)
 	//
 	// On ppc64, when compiling Go into position
