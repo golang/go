@@ -1310,6 +1310,35 @@ func (p *noder) binOp(op syntax.Operator) Op {
 	return binOps[op]
 }
 
+// checkLangCompat reports an error if the representation of a numeric
+// literal is not compatible with the current language version.
+func checkLangCompat(lit *syntax.BasicLit) {
+	s := lit.Value
+	if len(s) <= 2 || langSupported(1, 13) {
+		return
+	}
+	// len(s) > 2
+	if strings.Contains(s, "_") {
+		yyerror("underscores in numeric literals only supported as of -lang=go1.13")
+		return
+	}
+	if s[0] != '0' {
+		return
+	}
+	base := s[1]
+	if base == 'b' || base == 'B' {
+		yyerror("binary literals only supported as of -lang=go1.13")
+		return
+	}
+	if base == 'o' || base == 'O' {
+		yyerror("0o/0O-style octal literals only supported as of -lang=go1.13")
+		return
+	}
+	if lit.Kind != syntax.IntLit && (base == 'x' || base == 'X') {
+		yyerror("hexadecimal floating-point literals only supported as of -lang=go1.13")
+	}
+}
+
 func (p *noder) basicLit(lit *syntax.BasicLit) Val {
 	// TODO: Don't try to convert if we had syntax errors (conversions may fail).
 	//       Use dummy values so we can continue to compile. Eventually, use a
@@ -1317,16 +1346,19 @@ func (p *noder) basicLit(lit *syntax.BasicLit) Val {
 	//       we can continue type-checking w/o spurious follow-up errors.
 	switch s := lit.Value; lit.Kind {
 	case syntax.IntLit:
+		checkLangCompat(lit)
 		x := new(Mpint)
 		x.SetString(s)
 		return Val{U: x}
 
 	case syntax.FloatLit:
+		checkLangCompat(lit)
 		x := newMpflt()
 		x.SetString(s)
 		return Val{U: x}
 
 	case syntax.ImagLit:
+		checkLangCompat(lit)
 		x := newMpcmplx()
 		x.Imag.SetString(strings.TrimSuffix(s, "i"))
 		return Val{U: x}
