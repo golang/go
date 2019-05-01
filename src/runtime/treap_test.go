@@ -36,6 +36,25 @@ func maskMatchName(mask, match runtime.TreapIterType) string {
 	return fmt.Sprintf("%0*b-%0*b", runtime.TreapIterBits, uint8(mask), runtime.TreapIterBits, uint8(match))
 }
 
+func TestTreapFilter(t *testing.T) {
+	var iterTypes = [...]struct {
+		mask, match runtime.TreapIterType
+		filter      runtime.TreapIterFilter // expected filter
+	}{
+		{0, 0, 0x3},
+		{runtime.TreapIterScav, 0, 0x1},
+		{runtime.TreapIterScav, runtime.TreapIterScav, 0x2},
+		{0, runtime.TreapIterScav, 0x0},
+	}
+	for _, it := range iterTypes {
+		t.Run(maskMatchName(it.mask, it.match), func(t *testing.T) {
+			if f := runtime.TreapFilter(it.mask, it.match); f != it.filter {
+				t.Fatalf("got %#x, want %#x", f, it.filter)
+			}
+		})
+	}
+}
+
 // This test ensures that the treap implementation in the runtime
 // maintains all stated invariants after different sequences of
 // insert, removeSpan, find, and erase. Invariants specific to the

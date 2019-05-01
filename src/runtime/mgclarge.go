@@ -27,6 +27,9 @@
 // remove: removes the span from that treap that best fits the required size
 // removeSpan: which removes a specific span from the treap
 //
+// Whenever a pointer to a span which is owned by the treap is acquired, that
+// span must not be mutated. To mutate a span in the treap, remove it first.
+//
 // mheap_.lock must be held when manipulating this data structure.
 
 package runtime
@@ -42,80 +45,147 @@ type mTreap struct {
 
 //go:notinheap
 type treapNode struct {
-	right    *treapNode // all treapNodes > this treap node
-	left     *treapNode // all treapNodes < this treap node
-	parent   *treapNode // direct parent of this node, nil if root
-	key      uintptr    // base address of the span, used as primary sort key
-	span     *mspan     // span at base address key
-	maxPages uintptr    // the maximum size of any span in this subtree, including the root
-	priority uint32     // random number used by treap algorithm to keep tree probabilistically balanced
+	right    *treapNode      // all treapNodes > this treap node
+	left     *treapNode      // all treapNodes < this treap node
+	parent   *treapNode      // direct parent of this node, nil if root
+	key      uintptr         // base address of the span, used as primary sort key
+	span     *mspan          // span at base address key
+	maxPages uintptr         // the maximum size of any span in this subtree, including the root
+	priority uint32          // random number used by treap algorithm to keep tree probabilistically balanced
+	types    treapIterFilter // the types of spans available in this subtree
 }
 
-// recomputeMaxPages is a helper method which has a node
-// recompute its own maxPages value by looking at its own
-// span's length as well as the maxPages value of its
-// direct children.
-func (t *treapNode) recomputeMaxPages() {
+// updateInvariants is a helper method which has a node recompute its own
+// maxPages and types values by looking at its own span as well as the
+// values of its direct children.
+//
+// Returns true if anything changed.
+func (t *treapNode) updateInvariants() bool {
+	m, i := t.maxPages, t.types
 	t.maxPages = t.span.npages
-	if t.left != nil && t.maxPages < t.left.maxPages {
-		t.maxPages = t.left.maxPages
-	}
-	if t.right != nil && t.maxPages < t.right.maxPages {
-		t.maxPages = t.right.maxPages
-	}
-}
-
-func (t *treapNode) pred() *treapNode {
+	t.types = t.span.treapFilter()
 	if t.left != nil {
-		// If it has a left child, its predecessor will be
-		// its right most left (grand)child.
-		t = t.left
-		for t.right != nil {
-			t = t.right
+		t.types |= t.left.types
+		if t.maxPages < t.left.maxPages {
+			t.maxPages = t.left.maxPages
 		}
-		return t
 	}
-	// If it has no left child, its predecessor will be
-	// the first grandparent who's right child is its
-	// ancestor.
-	//
-	// We compute this by walking up the treap until the
-	// current node's parent is its parent's right child.
-	//
-	// If we find at any point walking up the treap
-	// that the current node doesn't have a parent,
-	// we've hit the root. This means that t is already
-	// the left-most node in the treap and therefore
-	// has no predecessor.
-	for t.parent != nil && t.parent.right != t {
-		if t.parent.left != t {
-			println("runtime: predecessor t=", t, "t.span=", t.span)
-			throw("node is not its parent's child")
+	if t.right != nil {
+		t.types |= t.right.types
+		if t.maxPages < t.right.maxPages {
+			t.maxPages = t.right.maxPages
 		}
-		t = t.parent
 	}
-	return t.parent
+	return m != t.maxPages || i != t.types
 }
 
-func (t *treapNode) succ() *treapNode {
-	if t.right != nil {
-		// If it has a right child, its successor will be
-		// its left-most right (grand)child.
-		t = t.right
-		for t.left != nil {
-			t = t.left
-		}
-		return t
+// findMinimal finds the minimal (lowest base addressed) node in the treap
+// which matches the criteria set out by the filter f and returns nil if
+// none exists.
+//
+// This algorithm is functionally the same as (*mTreap).find, so see that
+// method for more details.
+func (t *treapNode) findMinimal(f treapIterFilter) *treapNode {
+	if t == nil || !f.matches(t.types) {
+		return nil
 	}
-	// See pred.
-	for t.parent != nil && t.parent.left != t {
-		if t.parent.right != t {
-			println("runtime: predecessor t=", t, "t.span=", t.span)
-			throw("node is not its parent's child")
+	for t != nil {
+		if t.left != nil && f.matches(t.left.types) {
+			t = t.left
+		} else if f.matches(t.span.treapFilter()) {
+			break
+		} else if t.right != nil && f.matches(t.right.types) {
+			t = t.right
+		} else {
+			println("runtime: f=", f)
+			throw("failed to find minimal node matching filter")
 		}
+	}
+	return t
+}
+
+// findMaximal finds the maximal (highest base addressed) node in the treap
+// which matches the criteria set out by the filter f and returns nil if
+// none exists.
+//
+// This algorithm is the logical inversion of findMinimal and just changes
+// the order of the left and right tests.
+func (t *treapNode) findMaximal(f treapIterFilter) *treapNode {
+	if t == nil || !f.matches(t.types) {
+		return nil
+	}
+	for t != nil {
+		if t.right != nil && f.matches(t.right.types) {
+			t = t.right
+		} else if f.matches(t.span.treapFilter()) {
+			break
+		} else if t.left != nil && f.matches(t.left.types) {
+			t = t.left
+		} else {
+			println("runtime: f=", f)
+			throw("failed to find minimal node matching filter")
+		}
+	}
+	return t
+}
+
+// pred returns the predecessor of t in the treap subject to the criteria
+// specified by the filter f. Returns nil if no such predecessor exists.
+func (t *treapNode) pred(f treapIterFilter) *treapNode {
+	if t.left != nil && f.matches(t.left.types) {
+		// The node has a left subtree which contains at least one matching
+		// node, find the maximal matching node in that subtree.
+		return t.left.findMaximal(f)
+	}
+	// Lacking a left subtree, look to the parents.
+	p := t // previous node
+	t = t.parent
+	for t != nil {
+		// Walk up the tree until we find a node that has a left subtree
+		// that we haven't already visited.
+		if t.right == p {
+			if f.matches(t.span.treapFilter()) {
+				// If this node matches, then it's guaranteed to be the
+				// predecessor since everything to its left is strictly
+				// greater.
+				return t
+			} else if t.left != nil && f.matches(t.left.types) {
+				// Failing the root of this subtree, if its left subtree has
+				// something, that's where we'll find our predecessor.
+				return t.left.findMaximal(f)
+			}
+		}
+		p = t
 		t = t.parent
 	}
-	return t.parent
+	// If the parent is nil, then we've hit the root without finding
+	// a suitable left subtree containing the node (and the predecessor
+	// wasn't on the path). Thus, there's no predecessor, so just return
+	// nil.
+	return nil
+}
+
+// succ returns the successor of t in the treap subject to the criteria
+// specified by the filter f. Returns nil if no such successor exists.
+func (t *treapNode) succ(f treapIterFilter) *treapNode {
+	// See pred. This method is just the logical inversion of it.
+	if t.right != nil && f.matches(t.right.types) {
+		return t.right.findMinimal(f)
+	}
+	p := t
+	t = t.parent
+	for t != nil {
+		if t.left == p {
+			if f.matches(t.span.treapFilter()) {
+				return t
+			} else if t.right != nil && f.matches(t.right.types) {
+				return t.right.findMinimal(f)
+			}
+		}
+		p = t
+		t = t.parent
+	}
+	return nil
 }
 
 // isSpanInTreap is handy for debugging. One should hold the heap lock, usually
@@ -162,15 +232,16 @@ func checkTreapNode(t *treapNode) {
 	}
 }
 
-// validateMaxPages is handy for debugging and testing.
-// It ensures that the maxPages field is appropriately maintained throughout
-// the treap by walking the treap in a post-order manner.
-func (t *treapNode) validateMaxPages() uintptr {
+// validateInvariants is handy for debugging and testing.
+// It ensures that the various invariants on each treap node are
+// appropriately maintained throughout the treap by walking the
+// treap in a post-order manner.
+func (t *treapNode) validateInvariants() (uintptr, treapIterFilter) {
 	if t == nil {
-		return 0
+		return 0, 0
 	}
-	leftMax := t.left.validateMaxPages()
-	rightMax := t.right.validateMaxPages()
+	leftMax, leftTypes := t.left.validateInvariants()
+	rightMax, rightTypes := t.right.validateInvariants()
 	max := t.span.npages
 	if leftMax > max {
 		max = leftMax
@@ -182,13 +253,22 @@ func (t *treapNode) validateMaxPages() uintptr {
 		println("runtime: t.maxPages=", t.maxPages, "want=", max)
 		throw("maxPages invariant violated in treap")
 	}
-	return max
+	typ := t.span.treapFilter() | leftTypes | rightTypes
+	if typ != t.types {
+		println("runtime: t.types=", t.types, "want=", typ)
+		throw("types invariant violated in treap")
+	}
+	return max, typ
 }
 
 // treapIterType represents the type of iteration to perform
-// over the treap. Each choice effectively represents a filter,
-// i.e. spans that do not satisfy the conditions of the iteration
-// type will be skipped over.
+// over the treap. Each different flag is represented by a bit
+// in the type, and types may be combined together by a bitwise
+// or operation.
+//
+// Note that only 5 bits are available for treapIterType, do not
+// use the 3 higher-order bits. This constraint is to allow for
+// expansion into a treapIterFilter, which is a uint32.
 type treapIterType uint8
 
 const (
@@ -196,28 +276,49 @@ const (
 	treapIterBits               = iota
 )
 
-// matches returns true if t satisfies the filter given by mask and match. mask
-// is a bit-set of span properties to filter on.
+// treapIterFilter is a bitwise filter of different spans by binary
+// properties. Each bit of a treapIterFilter represents a unique
+// combination of bits set in a treapIterType, in other words, it
+// represents the power set of a treapIterType.
 //
-// In other words, matches returns true if all properties set in mask have the
-// value given by the corresponding bits in match.
-func (t treapIterType) matches(mask, match treapIterType) bool {
-	return t&mask == match
+// The purpose of this representation is to allow the existence of
+// a specific span type to bubble up in the treap (see the types
+// field on treapNode).
+//
+// More specifically, any treapIterType may be transformed into a
+// treapIterFilter for a specific combination of flags via the
+// following operation: 1 << (0x1f&treapIterType).
+type treapIterFilter uint32
+
+// treapFilterAll represents the filter which allows all spans.
+const treapFilterAll = ^treapIterFilter(0)
+
+// treapFilter creates a new treapIterFilter from two treapIterTypes.
+// mask represents a bitmask for which flags we should check against
+// and match for the expected result after applying the mask.
+func treapFilter(mask, match treapIterType) treapIterFilter {
+	allow := treapIterFilter(0)
+	for i := treapIterType(0); i < 1<<treapIterBits; i++ {
+		if mask&i == match {
+			allow |= 1 << i
+		}
+	}
+	return allow
 }
 
-// iterType returns the treapIterType associated with this span.
-func (s *mspan) iterType() treapIterType {
+// matches returns true if m and f intersect.
+func (f treapIterFilter) matches(m treapIterFilter) bool {
+	return f&m != 0
+}
+
+// treapFilter returns the treapIterFilter exactly matching this span,
+// i.e. popcount(result) == 1.
+func (s *mspan) treapFilter() treapIterFilter {
 	have := treapIterType(0)
 	if s.scavenged {
 		have |= treapIterScav
 	}
-	return have
-}
-
-// matchesIter is a convenience method which checks if a span
-// meets the criteria of the mask and match for an iter type.
-func (s *mspan) matchesIter(mask, match treapIterType) bool {
-	return s.iterType().matches(mask, match)
+	return treapIterFilter(uint32(1) << (0x1f & have))
 }
 
 // treapIter is a bidirectional iterator type which may be used to iterate over a
@@ -227,8 +328,8 @@ func (s *mspan) matchesIter(mask, match treapIterType) bool {
 //
 // To create iterators over the treap, call start or end on an mTreap.
 type treapIter struct {
-	mask, match treapIterType
-	t           *treapNode
+	f treapIterFilter
+	t *treapNode
 }
 
 // span returns the span at the current position in the treap.
@@ -246,53 +347,29 @@ func (i *treapIter) valid() bool {
 // next moves the iterator forward by one. Once the iterator
 // ceases to be valid, calling next will panic.
 func (i treapIter) next() treapIter {
-	i.t = i.t.succ()
-	for i.valid() && !i.span().matchesIter(i.mask, i.match) {
-		i.t = i.t.succ()
-	}
+	i.t = i.t.succ(i.f)
 	return i
 }
 
 // prev moves the iterator backwards by one. Once the iterator
 // ceases to be valid, calling prev will panic.
 func (i treapIter) prev() treapIter {
-	i.t = i.t.pred()
-	for i.valid() && !i.span().matchesIter(i.mask, i.match) {
-		i.t = i.t.pred()
-	}
+	i.t = i.t.pred(i.f)
 	return i
 }
 
 // start returns an iterator which points to the start of the treap (the
 // left-most node in the treap) subject to mask and match constraints.
 func (root *mTreap) start(mask, match treapIterType) treapIter {
-	t := root.treap
-	if t == nil {
-		return treapIter{}
-	}
-	for t.left != nil {
-		t = t.left
-	}
-	for t != nil && !t.span.matchesIter(mask, match) {
-		t = t.succ()
-	}
-	return treapIter{mask, match, t}
+	f := treapFilter(mask, match)
+	return treapIter{f, root.treap.findMinimal(f)}
 }
 
 // end returns an iterator which points to the end of the treap (the
 // right-most node in the treap) subject to mask and match constraints.
 func (root *mTreap) end(mask, match treapIterType) treapIter {
-	t := root.treap
-	if t == nil {
-		return treapIter{}
-	}
-	for t.right != nil {
-		t = t.right
-	}
-	for t != nil && !t.span.matchesIter(mask, match) {
-		t = t.pred()
-	}
-	return treapIter{mask, match, t}
+	f := treapFilter(mask, match)
+	return treapIter{f, root.treap.findMaximal(f)}
 }
 
 // insert adds span to the large span treap.
@@ -325,17 +402,13 @@ func (root *mTreap) insert(span *mspan) {
 	t.priority = fastrand()
 	t.span = span
 	t.maxPages = span.npages
+	t.types = span.treapFilter()
 	t.parent = last
 	*pt = t // t now at a leaf.
 
-	// Update the tree to maintain the maxPages invariant.
+	// Update the tree to maintain the various invariants.
 	i := t
-	for i.parent != nil {
-		if i.parent.maxPages < i.maxPages {
-			i.parent.maxPages = i.maxPages
-		} else {
-			break
-		}
+	for i.parent != nil && i.parent.updateInvariants() {
 		i = i.parent
 	}
 
@@ -377,16 +450,8 @@ func (root *mTreap) removeNode(t *treapNode) {
 		} else {
 			p.right = nil
 		}
-		// Walk up the tree updating maxPages values until
-		// it no longer changes, since the just-removed node
-		// could have contained the biggest span in any subtree
-		// up to the root.
-		for p != nil {
-			m := p.maxPages
-			p.recomputeMaxPages()
-			if p.maxPages == m {
-				break
-			}
+		// Walk up the tree updating invariants until no updates occur.
+		for p != nil && p.updateInvariants() {
 			p = p.parent
 		}
 	} else {
@@ -440,7 +505,7 @@ func (root *mTreap) find(npages uintptr) treapIter {
 			t = nil
 		}
 	}
-	return treapIter{t: t}
+	return treapIter{treapFilterAll, t}
 }
 
 // removeSpan searches for, finds, deletes span along with
@@ -503,10 +568,8 @@ func (root *mTreap) rotateLeft(x *treapNode) {
 		p.right = y
 	}
 
-	// Recomputing maxPages for x and y is sufficient
-	// for maintaining the maxPages invariant.
-	x.recomputeMaxPages()
-	y.recomputeMaxPages()
+	x.updateInvariants()
+	y.updateInvariants()
 }
 
 // rotateRight rotates the tree rooted at node y.
@@ -544,8 +607,6 @@ func (root *mTreap) rotateRight(y *treapNode) {
 		p.right = x
 	}
 
-	// Recomputing maxPages for x and y is sufficient
-	// for maintaining the maxPages invariant.
-	y.recomputeMaxPages()
-	x.recomputeMaxPages()
+	y.updateInvariants()
+	x.updateInvariants()
 }
