@@ -40,7 +40,7 @@ func load_le32(b []byte) {
 	// 386:`MOVL\s\(.*\),`,-`MOV[BW]`,-`OR`
 	// s390x:`MOVWBR\s\(.*\),`
 	// arm64:`MOVWU\s\(R[0-9]+\),`,-`MOV[BH]`
-	// ppc64le:`MOVWZ\s`
+	// ppc64le:`MOVWZ\s`,-`MOV[BH]Z\s`
 	sink32 = binary.LittleEndian.Uint32(b)
 }
 
@@ -49,20 +49,20 @@ func load_le32_idx(b []byte, idx int) {
 	// 386:`MOVL\s\(.*\)\(.*\*1\),`,-`MOV[BW]`,-`OR`
 	// s390x:`MOVWBR\s\(.*\)\(.*\*1\),`
 	// arm64:`MOVWU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[BH]`
-	// ppc64le:`MOVWZ\s`
+	// ppc64le:`MOVWZ\s`,-`MOV[BH]Z\s`
 	sink32 = binary.LittleEndian.Uint32(b[idx:])
 }
 
 func load_le16(b []byte) {
 	// amd64:`MOVWLZX\s\(.*\),`,-`MOVB`,-`OR`
-	// ppc64le:`MOVHZ\s`
+	// ppc64le:`MOVHZ\s`,-`MOVBZ`
 	// arm64:`MOVHU\s\(R[0-9]+\),`,-`MOVB`
 	sink16 = binary.LittleEndian.Uint16(b)
 }
 
 func load_le16_idx(b []byte, idx int) {
 	// amd64:`MOVWLZX\s\(.*\),`,-`MOVB`,-`OR`
-	// ppc64le:`MOVHZ\s`
+	// ppc64le:`MOVHZ\s`,-`MOVBZ`
 	// arm64:`MOVHU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOVB`
 	sink16 = binary.LittleEndian.Uint16(b[idx:])
 }
@@ -71,7 +71,7 @@ func load_be64(b []byte) {
 	// amd64:`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
 	// s390x:`MOVD\s\(.*\),`
 	// arm64:`REV`,`MOVD\s\(R[0-9]+\),`,-`MOV[BHW]`,-`REVW`,-`REV16W`
-	// ppc64le:`MOVDBR`
+	// ppc64le:`MOVDBR`,-`MOV[BHW]Z`
 	sink64 = binary.BigEndian.Uint64(b)
 }
 
@@ -79,7 +79,7 @@ func load_be64_idx(b []byte, idx int) {
 	// amd64:`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
 	// s390x:`MOVD\s\(.*\)\(.*\*1\),`
 	// arm64:`REV`,`MOVD\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[WHB]`,-`REVW`,-`REV16W`
-	// ppc64le:`MOVDBR`
+	// ppc64le:`MOVDBR`,-`MOV[BHW]Z`
 	sink64 = binary.BigEndian.Uint64(b[idx:])
 }
 
@@ -87,7 +87,7 @@ func load_be32(b []byte) {
 	// amd64:`BSWAPL`,-`MOV[BW]`,-`OR`
 	// s390x:`MOVWZ\s\(.*\),`
 	// arm64:`REVW`,`MOVWU\s\(R[0-9]+\),`,-`MOV[BH]`,-`REV16W`
-	// ppc64le:`MOVWBR`
+	// ppc64le:`MOVWBR`,-`MOV[BH]Z`
 	sink32 = binary.BigEndian.Uint32(b)
 }
 
@@ -95,7 +95,7 @@ func load_be32_idx(b []byte, idx int) {
 	// amd64:`BSWAPL`,-`MOV[BW]`,-`OR`
 	// s390x:`MOVWZ\s\(.*\)\(.*\*1\),`
 	// arm64:`REVW`,`MOVWU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[HB]`,-`REV16W`
-	// ppc64le:`MOVWBR`
+	// ppc64le:`MOVWBR`,-`MOV[BH]Z`
 	sink32 = binary.BigEndian.Uint32(b[idx:])
 }
 
@@ -117,6 +117,7 @@ func load_le_byte2_uint16(s []byte) uint16 {
 	// arm64:`MOVHU\t\(R[0-9]+\)`,-`ORR`,-`MOVB`
 	// 386:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
 	// amd64:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
+	// ppc64le:`MOVHZ\t\(R[0-9]+\)`,-`MOVBZ`
 	return uint16(s[0]) | uint16(s[1])<<8
 }
 
@@ -124,6 +125,7 @@ func load_le_byte2_uint16_inv(s []byte) uint16 {
 	// arm64:`MOVHU\t\(R[0-9]+\)`,-`ORR`,-`MOVB`
 	// 386:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
 	// amd64:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
+	// ppc64le:`MOVHZ\t\(R[0-9]+\)`,-`MOVDZ`
 	return uint16(s[1])<<8 | uint16(s[0])
 }
 
@@ -131,6 +133,7 @@ func load_le_byte4_uint32(s []byte) uint32 {
 	// arm64:`MOVWU\t\(R[0-9]+\)`,-`ORR`,-`MOV[BH]`
 	// 386:`MOVL\s\([A-Z]+\)`,-`MOV[BW]`,-`OR`
 	// amd64:`MOVL\s\([A-Z]+\)`,-`MOV[BW]`,-`OR`
+	// ppc64le:`MOVWZ\t\(R[0-9]+\)`,-`MOV[BH]Z`
 	return uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 | uint32(s[3])<<24
 }
 
@@ -142,6 +145,7 @@ func load_le_byte4_uint32_inv(s []byte) uint32 {
 func load_le_byte8_uint64(s []byte) uint64 {
 	// arm64:`MOVD\t\(R[0-9]+\)`,-`ORR`,-`MOV[BHW]`
 	// amd64:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,-`MOV[BWL]\t[^$]`,-`OR`
+	// ppc64le:`MOVD\t\(R[0-9]+\)`,-`MOV[BHW]Z`
 	return uint64(s[0]) | uint64(s[1])<<8 | uint64(s[2])<<16 | uint64(s[3])<<24 | uint64(s[4])<<32 | uint64(s[5])<<40 | uint64(s[6])<<48 | uint64(s[7])<<56
 }
 
@@ -153,12 +157,14 @@ func load_le_byte8_uint64_inv(s []byte) uint64 {
 func load_be_byte2_uint16(s []byte) uint16 {
 	// arm64:`MOVHU\t\(R[0-9]+\)`,`REV16W`,-`ORR`,-`MOVB`
 	// amd64:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
+	// ppc64le:`MOVHBR\t\(R[0-9]+\)`,-`MOVBZ`
 	return uint16(s[0])<<8 | uint16(s[1])
 }
 
 func load_be_byte2_uint16_inv(s []byte) uint16 {
 	// arm64:`MOVHU\t\(R[0-9]+\)`,`REV16W`,-`ORR`,-`MOVB`
 	// amd64:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
+	// ppc64le:`MOVHBR\t\(R[0-9]+\)`,-`MOVBZ`
 	return uint16(s[1]) | uint16(s[0])<<8
 }
 
@@ -175,12 +181,14 @@ func load_be_byte4_uint32_inv(s []byte) uint32 {
 
 func load_be_byte8_uint64(s []byte) uint64 {
 	// arm64:`MOVD\t\(R[0-9]+\)`,`REV`,-`ORR`,-`REVW`,-`REV16W`,-`MOV[BHW]`
+	// ppc64le:`MOVDBR\t\(R[0-9]+\)`,-`MOV[BHW]Z`
 	return uint64(s[0])<<56 | uint64(s[1])<<48 | uint64(s[2])<<40 | uint64(s[3])<<32 | uint64(s[4])<<24 | uint64(s[5])<<16 | uint64(s[6])<<8 | uint64(s[7])
 }
 
 func load_be_byte8_uint64_inv(s []byte) uint64 {
 	// arm64:`MOVD\t\(R[0-9]+\)`,`REV`,-`ORR`,-`REVW`,-`REV16W`,-`MOV[BHW]`
 	// amd64:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,-`MOV[BWL]\t[^$]`,-`OR`
+	// ppc64le:`MOVDBR\t\(R[0-9]+\)`,-`MOV[BHW]Z`
 	return uint64(s[7]) | uint64(s[6])<<8 | uint64(s[5])<<16 | uint64(s[4])<<24 | uint64(s[3])<<32 | uint64(s[2])<<40 | uint64(s[1])<<48 | uint64(s[0])<<56
 }
 
