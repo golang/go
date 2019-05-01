@@ -1425,6 +1425,9 @@ func cmdbootstrap() {
 }
 
 func wrapperPathFor(goos, goarch string) string {
+	if goos == gohostos && goarch == gohostarch {
+		return ""
+	}
 	switch {
 	case goos == "android":
 		return pathf("%s/misc/android/go_android_exec.go", goroot)
