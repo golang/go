@@ -650,8 +650,6 @@ func getdyn(n *Node, top bool) initGenType {
 // isStaticCompositeLiteral reports whether n is a compile-time constant.
 func isStaticCompositeLiteral(n *Node) bool {
 	switch n.Op {
-	case ONAME:
-		return n.Class() == PEXTERN && n.Name != nil && n.Name.Readonly()
 	case OSLICELIT:
 		return false
 	case OARRAYLIT:
