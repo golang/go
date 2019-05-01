@@ -401,6 +401,11 @@ type B struct {
 	B bool `json:",string"`
 }
 
+type DoublePtr struct {
+	I **int
+	J **int
+}
+
 var unmarshalTests = []unmarshalTest{
 	// basic types
 	{in: `true`, ptr: new(bool), out: true},
@@ -655,6 +660,11 @@ var unmarshalTests = []unmarshalTest{
 		ptr:                   new(S10),
 		err:                   fmt.Errorf("json: unknown field \"X\""),
 		disallowUnknownFields: true,
+	},
+	{
+		in:  `{"I": 0, "I": null, "J": null}`,
+		ptr: new(DoublePtr),
+		out: DoublePtr{I: nil, J: nil},
 	},
 
 	// invalid UTF-8 is coerced to valid UTF-8.
