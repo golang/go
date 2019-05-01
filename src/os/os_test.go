@@ -1204,6 +1204,7 @@ func TestChdirAndGetwd(t *testing.T) {
 	case "darwin":
 		switch runtime.GOARCH {
 		case "arm", "arm64":
+			dirs = nil
 			for _, d := range []string{"d1", "d2"} {
 				dir, err := ioutil.TempDir("", d)
 				if err != nil {
