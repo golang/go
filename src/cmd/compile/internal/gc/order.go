@@ -1262,17 +1262,23 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			if r.Op != OKEY {
 				Fatalf("OMAPLIT entry not OKEY: %v\n", r)
 			}
-			if isStaticCompositeLiteral(r.Left) && isStaticCompositeLiteral(r.Right) {
-				statics = append(statics, r)
-			} else {
+
+			if !isStaticCompositeLiteral(r.Left) || !isStaticCompositeLiteral(r.Right) {
 				dynamics = append(dynamics, r)
+				continue
 			}
+
+			// Recursively ordering some static entries can change them to dynamic;
+			// e.g., OCONVIFACE nodes. See #31777.
+			r = o.expr(r, nil)
+			if !isStaticCompositeLiteral(r.Left) || !isStaticCompositeLiteral(r.Right) {
+				dynamics = append(dynamics, r)
+				continue
+			}
+
+			statics = append(statics, r)
 		}
 		n.List.Set(statics)
-
-		// Note: we don't need to recursively call order on the statics.
-		// But do it anyway, just in case that's not true in the future.
-		o.exprList(n.List)
 
 		if len(dynamics) == 0 {
 			break
