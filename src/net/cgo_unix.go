@@ -106,6 +106,7 @@ func cgoLookupServicePort(hints *C.struct_addrinfo, network, service string) (po
 	var res *C.struct_addrinfo
 	gerrno, err := C.getaddrinfo(nil, (*C.char)(unsafe.Pointer(&cservice[0])), hints, &res)
 	if gerrno != 0 {
+		isTemporary := false
 		switch gerrno {
 		case C.EAI_SYSTEM:
 			if err == nil { // see golang.org/issue/6232
@@ -113,8 +114,9 @@ func cgoLookupServicePort(hints *C.struct_addrinfo, network, service string) (po
 			}
 		default:
 			err = addrinfoErrno(gerrno)
+			isTemporary = addrinfoErrno(gerrno).Temporary()
 		}
-		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service}
+		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service, IsTemporary: isTemporary}
 	}
 	defer C.freeaddrinfo(res)
 
@@ -159,6 +161,7 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
 	gerrno, err := C.getaddrinfo((*C.char)(unsafe.Pointer(&h[0])), nil, &hints, &res)
 	if gerrno != 0 {
 		isErrorNoSuchHost := false
+		isTemporary := false
 		switch gerrno {
 		case C.EAI_SYSTEM:
 			if err == nil {
@@ -176,9 +179,10 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
 			isErrorNoSuchHost = true
 		default:
 			err = addrinfoErrno(gerrno)
+			isTemporary = addrinfoErrno(gerrno).Temporary()
 		}
 
-		return nil, "", &DNSError{Err: err.Error(), Name: name, IsNotFound: isErrorNoSuchHost}
+		return nil, "", &DNSError{Err: err.Error(), Name: name, IsNotFound: isErrorNoSuchHost, IsTemporary: isTemporary}
 	}
 	defer C.freeaddrinfo(res)
 
@@ -299,6 +303,7 @@ func cgoLookupAddrPTR(addr string, sa *C.struct_sockaddr, salen C.socklen_t) (na
 		}
 	}
 	if gerrno != 0 {
+		isTemporary := false
 		switch gerrno {
 		case C.EAI_SYSTEM:
 			if err == nil { // see golang.org/issue/6232
@@ -306,8 +311,9 @@ func cgoLookupAddrPTR(addr string, sa *C.struct_sockaddr, salen C.socklen_t) (na
 			}
 		default:
 			err = addrinfoErrno(gerrno)
+			isTemporary = addrinfoErrno(gerrno).Temporary()
 		}
-		return nil, &DNSError{Err: err.Error(), Name: addr}
+		return nil, &DNSError{Err: err.Error(), Name: addr, IsTemporary: isTemporary}
 	}
 	for i := 0; i < len(b); i++ {
 		if b[i] == 0 {
