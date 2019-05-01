@@ -127,7 +127,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 	// Note: accepting a non-200 OK here, so people can serve a
 	// meta import in their http 404 page.
 	if cfg.BuildV {
-		log.Printf("Parsing meta tags from %s (status code %d)", Redacted(fetched), res.StatusCode)
+		log.Printf("reading from %s: status code %d", Redacted(fetched), res.StatusCode)
 	}
 	r := &Response{
 		URL:        Redacted(fetched),
