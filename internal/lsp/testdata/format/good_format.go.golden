@@ -1,3 +1,4 @@
+-- gofmt --
 package format //@format("package")
 
 import (
@@ -7,3 +8,6 @@ import (
 func goodbye() {
 	log.Printf("byeeeee")
 }
+
+-- gofmt-d --
+

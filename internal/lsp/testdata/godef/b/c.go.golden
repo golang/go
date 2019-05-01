@@ -1,0 +1,4 @@
+-- S1-hover --
+type S1 struct{F1 int; S2; a.A}
+-- S1F1-hover --
+field F1 int

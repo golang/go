@@ -1,0 +1,6 @@
+-- Random-hover --
+func Random() int
+-- Random2-hover --
+func Random2(y int) int
+-- err-hover --
+var err error

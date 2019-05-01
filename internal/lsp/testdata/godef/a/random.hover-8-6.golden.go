@@ -1,1 +1,0 @@
-func Random2(y int) int

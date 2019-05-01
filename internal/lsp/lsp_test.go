@@ -9,8 +9,6 @@ import (
 	"context"
 	"fmt"
 	"go/token"
-	"io/ioutil"
-	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -290,16 +288,10 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		gofmted := string(r.data.Golden("gofmt", filename, func(golden string) error {
+		gofmted := string(r.data.Golden("gofmt", filename, func() ([]byte, error) {
 			cmd := exec.Command("gofmt", filename)
-			stdout, err := os.Create(golden)
-			if err != nil {
-				return err
-			}
-			defer stdout.Close()
-			cmd.Stdout = stdout
-			cmd.Run() // ignore error, sometimes we have intentionally ungofmt-able files
-			return nil
+			out, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
+			return out, nil
 		}))
 
 		edits, err := r.server.Formatting(context.Background(), &protocol.DocumentFormattingParams{
@@ -365,13 +357,13 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 			t.Errorf("for %v got %v want %v", d.Src, def, d.Def)
 		}
 		if hover != nil {
-			tag := fmt.Sprintf("hover-%d-%d", d.Def.Start().Line(), d.Def.Start().Column())
-			filename, err := d.Def.URI().Filename()
+			tag := fmt.Sprintf("%s-hover", d.Name)
+			filename, err := d.Src.URI().Filename()
 			if err != nil {
 				t.Fatalf("failed for %v: %v", d.Def, err)
 			}
-			expectHover := string(r.data.Golden(tag, filename, func(golden string) error {
-				return ioutil.WriteFile(golden, []byte(hover.Contents.Value), 0666)
+			expectHover := string(r.data.Golden(tag, filename, func() ([]byte, error) {
+				return []byte(hover.Contents.Value), nil
 			}))
 			if hover.Contents.Value != expectHover {
 				t.Errorf("for %v got %q want %q", d.Src, hover.Contents.Value, expectHover)

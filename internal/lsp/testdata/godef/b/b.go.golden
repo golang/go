@@ -1,0 +1,16 @@
+-- A-hover --
+type a.A string
+-- S1-hover --
+type S1 struct{F1 int; S2; a.A}
+-- S1F1-hover --
+field F1 int
+-- S1S2-hover --
+field S2 S2
+-- S2-hover --
+type S2 struct{F1 string; F2 int; *a.A}
+-- S2F1-hover --
+field F1 string
+-- S2F2-hover --
+field F2 int
+-- Stuff-hover --
+func a.Stuff()

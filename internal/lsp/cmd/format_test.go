@@ -5,9 +5,7 @@
 package cmd_test
 
 import (
-	"bytes"
 	"context"
-	"io/ioutil"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -33,13 +31,11 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 				t.Fatal(err)
 			}
 			args := append(mode, filename)
-			expect := string(r.data.Golden(tag, filename, func(golden string) error {
+			expect := string(r.data.Golden(tag, filename, func() ([]byte, error) {
 				cmd := exec.Command("gofmt", args...)
-				buf := &bytes.Buffer{}
-				cmd.Stdout = buf
-				cmd.Run() // ignore error, sometimes we have intentionally ungofmt-able files
-				contents := r.normalizePaths(fixFileHeader(buf.String()))
-				return ioutil.WriteFile(golden, []byte(contents), 0666)
+				contents, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
+				contents = []byte(r.normalizePaths(fixFileHeader(string(contents))))
+				return contents, nil
 			}))
 			if expect == "" {
 				//TODO: our error handling differs, for now just skip unformattable files

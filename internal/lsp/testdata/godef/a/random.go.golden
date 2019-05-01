@@ -1,0 +1,6 @@
+-- PosSum-hover --
+func (*Pos).Sum() int
+-- PosX-hover --
+field x int
+-- RandomParamY-hover --
+var y int
