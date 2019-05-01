@@ -164,7 +164,7 @@ func dumpLinkerObj(bout *bio.Writer) {
 
 	addGCLocals()
 
-	obj.WriteObjFile(Ctxt, bout.Writer)
+	obj.WriteObjFile(Ctxt, bout.Writer, myimportpath)
 }
 
 func addptabs() {
