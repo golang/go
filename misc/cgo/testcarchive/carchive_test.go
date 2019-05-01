@@ -525,6 +525,9 @@ func TestExtar(t *testing.T) {
 	if runtime.Compiler == "gccgo" {
 		t.Skip("skipping -extar test when using gccgo")
 	}
+	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		t.Skip("shell scripts are not executable on iOS hosts")
+	}
 
 	defer func() {
 		os.Remove("libgo4.a")
