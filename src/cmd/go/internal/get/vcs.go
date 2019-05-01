@@ -424,8 +424,8 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 	cmd.Dir = dir
 	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
 	if cfg.BuildX {
-		fmt.Printf("cd %s\n", dir)
-		fmt.Printf("%s %s\n", v.cmd, strings.Join(args, " "))
+		fmt.Fprintf(os.Stderr, "cd %s\n", dir)
+		fmt.Fprintf(os.Stderr, "%s %s\n", v.cmd, strings.Join(args, " "))
 	}
 	out, err := cmd.Output()
 	if err != nil {
