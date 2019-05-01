@@ -510,7 +510,21 @@ func pluginPath(a *Action) string {
 		return p.ImportPath
 	}
 	h := sha1.New()
-	fmt.Fprintf(h, "build ID: %s\n", a.buildID)
+	buildID := a.buildID
+	if a.Mode == "link" {
+		// For linking, use the main package's build ID instead of
+		// the binary's build ID, so it is the same hash used in
+		// compiling and linking.
+		// When compiling, we use actionID/actionID (instead of
+		// actionID/contentID) as a temporary build ID to compute
+		// the hash. Do the same here. (See buildid.go:useCache)
+		// The build ID matters because it affects the overall hash
+		// in the plugin's pseudo-import path returned below.
+		// We need to use the same import path when compiling and linking.
+		id := strings.Split(buildID, buildIDSeparator)
+		buildID = id[1] + buildIDSeparator + id[1]
+	}
+	fmt.Fprintf(h, "build ID: %s\n", buildID)
 	for _, file := range str.StringList(p.GoFiles, p.CgoFiles, p.SFiles) {
 		data, err := ioutil.ReadFile(filepath.Join(p.Dir, file))
 		if err != nil {

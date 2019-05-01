@@ -266,12 +266,12 @@ func testGoLib(t *testing.T, iscgo bool) {
 		Found bool
 	}
 	var syms = []symType{
-		{"B", "%22%22.Testdata", false, false},
-		{"T", "%22%22.Testfunc", false, false},
+		{"B", "mylib.Testdata", false, false},
+		{"T", "mylib.Testfunc", false, false},
 	}
 	if iscgo {
-		syms = append(syms, symType{"B", "%22%22.TestCgodata", false, false})
-		syms = append(syms, symType{"T", "%22%22.TestCgofunc", false, false})
+		syms = append(syms, symType{"B", "mylib.TestCgodata", false, false})
+		syms = append(syms, symType{"T", "mylib.TestCgofunc", false, false})
 		if runtime.GOOS == "darwin" || (runtime.GOOS == "windows" && runtime.GOARCH == "386") {
 			syms = append(syms, symType{"D", "_cgodata", true, false})
 			syms = append(syms, symType{"T", "_cgofunc", true, false})

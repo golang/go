@@ -15,6 +15,7 @@ import (
 	"log"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -33,6 +34,8 @@ type objWriter struct {
 	nAutom    int
 	nFuncdata int
 	nFile     int
+
+	pkgpath string // the package import path (escaped), "" if unknown
 }
 
 func (w *objWriter) addLengths(s *LSym) {
@@ -71,15 +74,16 @@ func (w *objWriter) writeLengths() {
 	w.writeInt(int64(w.nFile))
 }
 
-func newObjWriter(ctxt *Link, b *bufio.Writer) *objWriter {
+func newObjWriter(ctxt *Link, b *bufio.Writer, pkgpath string) *objWriter {
 	return &objWriter{
-		ctxt: ctxt,
-		wr:   b,
+		ctxt:    ctxt,
+		wr:      b,
+		pkgpath: objabi.PathToPrefix(pkgpath),
 	}
 }
 
-func WriteObjFile(ctxt *Link, b *bufio.Writer) {
-	w := newObjWriter(ctxt, b)
+func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
+	w := newObjWriter(ctxt, b, pkgpath)
 
 	// Magic header
 	w.wr.WriteString("\x00go112ld")
@@ -170,6 +174,10 @@ func (w *objWriter) writeRef(s *LSym, isPath bool) {
 	w.wr.WriteByte(symPrefix)
 	if isPath {
 		w.writeString(filepath.ToSlash(s.Name))
+	} else if w.pkgpath != "" {
+		// w.pkgpath is already escaped.
+		n := strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
+		w.writeString(n)
 	} else {
 		w.writeString(s.Name)
 	}
