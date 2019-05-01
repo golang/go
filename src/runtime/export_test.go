@@ -546,15 +546,21 @@ func (s Span) Pages() uintptr {
 	return s.mspan.npages
 }
 
-type TreapIterType int
+type TreapIterType treapIterType
 
 const (
 	TreapIterScav TreapIterType = TreapIterType(treapIterScav)
 	TreapIterBits               = treapIterBits
 )
 
+type TreapIterFilter treapIterFilter
+
+func TreapFilter(mask, match TreapIterType) TreapIterFilter {
+	return TreapIterFilter(treapFilter(treapIterType(mask), treapIterType(match)))
+}
+
 func (s Span) MatchesIter(mask, match TreapIterType) bool {
-	return s.mspan.matchesIter(treapIterType(mask), treapIterType(match))
+	return treapFilter(treapIterType(mask), treapIterType(match)).matches(s.treapFilter())
 }
 
 type TreapIter struct {
@@ -639,5 +645,5 @@ func (t *Treap) Size() int {
 
 func (t *Treap) CheckInvariants() {
 	t.mTreap.treap.walkTreap(checkTreapNode)
-	t.mTreap.treap.validateMaxPages()
+	t.mTreap.treap.validateInvariants()
 }

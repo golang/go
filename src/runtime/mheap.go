@@ -1330,21 +1330,21 @@ func (h *mheap) scavengeLocked(nbytes uintptr) {
 	released := uintptr(0)
 	for t := h.free.end(treapIterScav, 0); released < nbytes && t.valid(); {
 		s := t.span()
-		r := s.scavenge()
-		if r == 0 {
+		start, end := s.physPageBounds()
+		if start >= end {
 			// This span doesn't cover at least one physical page, so skip it.
 			t = t.prev()
 			continue
 		}
 		n := t.prev()
 		h.free.erase(t)
+		released += s.scavenge()
 		// Now that s is scavenged, we must eagerly coalesce it
 		// with its neighbors to prevent having two spans with
 		// the same scavenged state adjacent to each other.
 		h.coalesce(s)
 		t = n
 		h.free.insert(s)
-		released += r
 	}
 	// If we over-scavenged, turn that extra amount into credit.
 	if released > nbytes {
@@ -1363,13 +1363,13 @@ func (h *mheap) scavengeAllLocked(now, limit uint64) uintptr {
 		s := t.span()
 		n := t.next()
 		if (now - uint64(s.unusedsince)) > limit {
-			r := s.scavenge()
-			if r != 0 {
+			start, end := s.physPageBounds()
+			if start < end {
 				h.free.erase(t)
-				// See (*mheap).scavenge.
+				released += s.scavenge()
+				// See (*mheap).scavengeLocked.
 				h.coalesce(s)
 				h.free.insert(s)
-				released += r
 			}
 		}
 		t = n
