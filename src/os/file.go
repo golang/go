@@ -142,6 +142,10 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 // Write writes len(b) bytes to the File.
 // It returns the number of bytes written and an error, if any.
 // Write returns a non-nil error when n != len(b).
+//
+// Calls to Write are atomic, and are serialised with respect to
+// concurrent calls from other Goroutines: the n bytes that are
+// written will not be interleaved with other data.
 func (f *File) Write(b []byte) (n int, err error) {
 	if err := f.checkValid("write"); err != nil {
 		return 0, err
