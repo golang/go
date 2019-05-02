@@ -77,7 +77,7 @@ func (s *Server) removeView(ctx context.Context, name string, uri span.URI) erro
 			s.views[i] = s.views[len(s.views)-1]
 			s.views[len(s.views)-1] = nil
 			s.views = s.views[:len(s.views)-1]
-			//TODO: shutdown the view in here
+			view.Shutdown(ctx)
 			return nil
 		}
 	}

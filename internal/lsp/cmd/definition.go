@@ -63,6 +63,7 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return err
 	}
+	defer conn.terminate(ctx)
 	from := span.Parse(args[0])
 	file := conn.AddFile(ctx, from.URI())
 	if file.err != nil {

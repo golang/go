@@ -340,3 +340,14 @@ func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
 	}
 	return file
 }
+
+func (c *connection) terminate(ctx context.Context) {
+	if c.Client.app.Remote == "internal" {
+		// internal connections need to be left alive for the next test
+		return
+	}
+	//TODO: do we need to handle errors on these calls?
+	c.Shutdown(ctx)
+	//TODO: right now calling exit terminates the process, we should rethink that
+	//server.Exit(ctx)
+}

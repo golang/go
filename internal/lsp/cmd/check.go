@@ -45,6 +45,7 @@ func (c *check) Run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return err
 	}
+	defer conn.terminate(ctx)
 	for _, arg := range args {
 		uri := span.FileURI(arg)
 		file := conn.AddFile(ctx, uri)

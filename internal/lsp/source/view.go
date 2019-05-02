@@ -32,6 +32,7 @@ type View interface {
 	BackgroundContext() context.Context
 	Config() packages.Config
 	SetEnv([]string)
+	Shutdown(ctx context.Context)
 }
 
 // File represents a Go source file that has been type-checked. It is the input

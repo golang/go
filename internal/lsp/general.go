@@ -189,12 +189,19 @@ func applyEnv(env []string, k string, v interface{}) []string {
 }
 
 func (s *Server) shutdown(ctx context.Context) error {
-	// TODO(rstambler): Cancel contexts here?
 	s.initializedMu.Lock()
 	defer s.initializedMu.Unlock()
 	if !s.isInitialized {
 		return jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidRequest, "server not initialized")
 	}
+	// drop all the active views
+	s.viewMu.Lock()
+	defer s.viewMu.Unlock()
+	for _, v := range s.views {
+		v.Shutdown(ctx)
+	}
+	s.views = nil
+	s.viewMap = nil
 	s.isInitialized = false
 	return nil
 }

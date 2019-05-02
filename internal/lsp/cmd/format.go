@@ -55,6 +55,7 @@ func (f *format) Run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return err
 	}
+	defer conn.terminate(ctx)
 	for _, arg := range args {
 		spn := span.Parse(arg)
 		file := conn.AddFile(ctx, spn.URI())

@@ -138,6 +138,15 @@ func (v *view) SetEnv(env []string) {
 	v.config.Env = env
 }
 
+func (v *view) Shutdown(context.Context) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.cancel != nil {
+		v.cancel()
+		v.cancel = nil
+	}
+}
+
 func (v *view) BackgroundContext() context.Context {
 	v.mu.Lock()
 	defer v.mu.Unlock()
