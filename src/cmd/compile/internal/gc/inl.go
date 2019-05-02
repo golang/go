@@ -343,10 +343,6 @@ func (v *hairyVisitor) visit(n *Node) bool {
 				// runtime.heapBits.next even though
 				// it calls slow-path
 				// runtime.heapBits.nextArena.
-				//
-				// TODO(austin): Once mid-stack
-				// inlining is the default, remove
-				// this special case.
 				break
 			}
 		}
