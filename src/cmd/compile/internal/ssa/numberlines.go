@@ -149,7 +149,7 @@ func numberLines(f *Func) {
 		} else {
 			for _, p := range b.Preds {
 				pbi := p.Block().ID
-				if endlines[pbi] != firstPos {
+				if endlines[pbi].Line() != firstPos.Line() || !endlines[pbi].SameFile(firstPos) {
 					b.Values[firstPosIndex].Pos = firstPos.WithIsStmt()
 					break
 				}
