@@ -9,11 +9,16 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"fmt"
+	"internal/testenv"
 	"io"
+	"runtime"
 	"testing"
 )
 
 func TestXOR(t *testing.T) {
+	if runtime.GOOS == "js" {
+		testenv.SkipFlaky(t, 31812)
+	}
 	for j := 1; j <= 1024; j++ {
 		for alignP := 0; alignP < 2; alignP++ {
 			for alignQ := 0; alignQ < 2; alignQ++ {
