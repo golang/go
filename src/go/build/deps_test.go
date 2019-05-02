@@ -375,6 +375,10 @@ var pkgDeps = map[string][]string{
 	// math/big, which imports fmt.
 	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall", "syscall/js", "internal/syscall/unix"},
 
+	// Not part of CRYPTO because it imports crypto/rand and crypto/sha512.
+	"crypto/ed25519":                       {"L3", "CRYPTO", "crypto/rand", "crypto/ed25519/internal/edwards25519"},
+	"crypto/ed25519/internal/edwards25519": {"encoding/binary"},
+
 	// Mathematical crypto: dependencies on fmt (L4) and math/big.
 	// We could avoid some of the fmt, but math/big imports fmt anyway.
 	"crypto/dsa":      {"L4", "CRYPTO", "math/big"},

@@ -97,6 +97,9 @@ go	src=..
 				+
 			zlib
 		crypto
+			ed25519
+				testdata
+					+
 			rsa
 				testdata
 					+
