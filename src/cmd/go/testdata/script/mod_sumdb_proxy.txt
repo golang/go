@@ -21,7 +21,7 @@ cp go.mod.orig go.mod
 env GOSUMDB=$sumdb
 env GOPROXY=direct
 ! go get -m rsc.io/fortune@v1.0.0
-stderr 'verifying.*localhost.localdev.*no such host'
+stderr 'verifying.*lookup.*localhost.localdev'
 rm $GOPATH/pkg/mod/download/cache/sumdb
 rm go.sum
 
@@ -30,7 +30,7 @@ cp go.mod.orig go.mod
 env GOSUMDB=$sumdb
 env GOPROXY=$proxy/sumdb-404
 ! go get -m rsc.io/fortune@v1.0.0
-stderr 'verifying.*localhost.localdev.*no such host'
+stderr 'verifying.*lookup.*localhost.localdev'
 rm $GOPATH/pkg/mod/download/cache/sumdb
 rm go.sum
 
