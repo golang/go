@@ -1675,6 +1675,69 @@ type fileHandle struct {
 	Type  int32
 }
 
+// FileHandle represents the C struct file_handle used by
+// name_to_handle_at (see NameToHandleAt) and open_by_handle_at (see
+// OpenByHandleAt).
+type FileHandle struct {
+	*fileHandle
+}
+
+// NewFileHandle constructs a FileHandle.
+func NewFileHandle(handleType int32, handle []byte) FileHandle {
+	const hdrSize = unsafe.Sizeof(fileHandle{})
+	buf := make([]byte, hdrSize+uintptr(len(handle)))
+	copy(buf[hdrSize:], handle)
+	fh := (*fileHandle)(unsafe.Pointer(&buf[0]))
+	fh.Type = handleType
+	fh.Bytes = uint32(len(handle))
+	return FileHandle{fh}
+}
+
+func (fh *FileHandle) Size() int   { return int(fh.fileHandle.Bytes) }
+func (fh *FileHandle) Type() int32 { return fh.fileHandle.Type }
+func (fh *FileHandle) Bytes() []byte {
+	n := fh.Size()
+	if n == 0 {
+		return nil
+	}
+	return (*[1 << 30]byte)(unsafe.Pointer(uintptr(unsafe.Pointer(&fh.fileHandle.Type)) + 4))[:n:n]
+}
+
+// NameToHandleAt wraps the name_to_handle_at system call; it obtains
+// a handle for a path name.
+func NameToHandleAt(dirfd int, path string, flags int) (handle FileHandle, mountID int, err error) {
+	var mid _C_int
+	// Try first with a small buffer, assuming the handle will
+	// only be 32 bytes.
+	size := uint32(32 + unsafe.Sizeof(fileHandle{}))
+	didResize := false
+	for {
+		buf := make([]byte, size)
+		fh := (*fileHandle)(unsafe.Pointer(&buf[0]))
+		fh.Bytes = size - uint32(unsafe.Sizeof(fileHandle{}))
+		err = nameToHandleAt(dirfd, path, fh, &mid, flags)
+		if err == EOVERFLOW {
+			if didResize {
+				// We shouldn't need to resize more than once
+				return
+			}
+			didResize = true
+			size = fh.Bytes + uint32(unsafe.Sizeof(fileHandle{}))
+			continue
+		}
+		if err != nil {
+			return
+		}
+		return FileHandle{fh}, int(mid), nil
+	}
+}
+
+// OpenByHandleAt wraps the open_by_handle_at system call; it opens a
+// file via a handle as previously returned by NameToHandleAt.
+func OpenByHandleAt(mountFD int, handle FileHandle, flags int) (fd int, err error) {
+	return openByHandleAt(mountFD, handle.fileHandle, flags)
+}
+
 /*
  * Unimplemented
  */

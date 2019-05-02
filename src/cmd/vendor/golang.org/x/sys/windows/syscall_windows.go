@@ -561,9 +561,6 @@ func Fsync(fd Handle) (err error) {
 }
 
 func Chmod(path string, mode uint32) (err error) {
-	if mode == 0 {
-		return syscall.EINVAL
-	}
 	p, e := UTF16PtrFromString(path)
 	if e != nil {
 		return e
