@@ -5,13 +5,12 @@
 package note
 
 import (
+	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
 	"strings"
 	"testing"
 	"testing/iotest"
-
-	"golang.org/x/crypto/ed25519"
 )
 
 func TestNewVerifier(t *testing.T) {
@@ -165,7 +164,7 @@ func TestFromEd25519(t *testing.T) {
 }
 
 // newSignerFromEd25519Seed constructs a new signer from a verifier name and a
-// golang.org/x/crypto/ed25519 private key seed.
+// crypto/ed25519 private key seed.
 func newSignerFromEd25519Seed(name string, seed []byte) (Signer, error) {
 	if len(seed) != ed25519.SeedSize {
 		return nil, errors.New("invalid seed size")
