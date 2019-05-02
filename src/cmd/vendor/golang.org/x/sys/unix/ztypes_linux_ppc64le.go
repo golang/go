@@ -1453,6 +1453,21 @@ type TpacketBlockDesc struct {
 	Hdr     [40]byte
 }
 
+type TpacketBDTS struct {
+	Sec  uint32
+	Usec uint32
+}
+
+type TpacketHdrV1 struct {
+	Block_status        uint32
+	Num_pkts            uint32
+	Offset_to_first_pkt uint32
+	Blk_len             uint32
+	Seq_num             uint64
+	Ts_first_pkt        TpacketBDTS
+	Ts_last_pkt         TpacketBDTS
+}
+
 type TpacketReq struct {
 	Block_size uint32
 	Block_nr   uint32
