@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/nettrace"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"log"
@@ -590,9 +591,7 @@ func TestTransportMaxConnsPerHostIncludeDialInProgress(t *testing.T) {
 
 func TestTransportMaxConnsPerHost(t *testing.T) {
 	defer afterTest(t)
-	if runtime.GOOS == "js" {
-		t.Skipf("skipping test on js/wasm")
-	}
+	testenv.SkipFlaky(t, 31784)
 	h := HandlerFunc(func(w ResponseWriter, r *Request) {
 		_, err := w.Write([]byte("foo"))
 		if err != nil {
