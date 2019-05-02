@@ -195,7 +195,7 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
 		f.Module = &Module{Syntax: line}
 		if len(args) != 1 {
 
-			fmt.Fprintf(errs, "%s:%d: usage: module module/path [version]\n", f.Syntax.Name, line.Start.Line)
+			fmt.Fprintf(errs, "%s:%d: usage: module module/path\n", f.Syntax.Name, line.Start.Line)
 			return
 		}
 		s, err := parseString(&args[0])
