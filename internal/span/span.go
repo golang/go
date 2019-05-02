@@ -249,7 +249,7 @@ func (s *Span) update(c Converter, withPos, withOffset bool) error {
 			return err
 		}
 	}
-	if withOffset && !s.HasOffset() {
+	if withOffset && (!s.HasOffset() || (s.v.End.hasPosition() && !s.v.End.hasOffset())) {
 		if err := s.v.Start.updateOffset(c); err != nil {
 			return err
 		}

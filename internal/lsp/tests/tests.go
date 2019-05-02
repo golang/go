@@ -29,7 +29,7 @@ import (
 const (
 	ExpectedCompletionsCount       = 85
 	ExpectedDiagnosticsCount       = 17
-	ExpectedFormatCount            = 4
+	ExpectedFormatCount            = 5
 	ExpectedDefinitionsCount       = 21
 	ExpectedTypeDefinitionsCount   = 2
 	ExpectedHighlightsCount        = 2
