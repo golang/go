@@ -34,7 +34,7 @@ func (e noWrapper) FormatError(p Printer) (next error) {
 }
 
 // Unwrap returns the result of calling the Unwrap method on err, if err
-// implements Unwrap. Otherwise, Unwrap returns nil.
+// implements Wrapper. Otherwise, Unwrap returns nil.
 func Unwrap(err error) error {
 	u, ok := err.(Wrapper)
 	if !ok {
