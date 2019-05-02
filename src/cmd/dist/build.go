@@ -1425,14 +1425,15 @@ func cmdbootstrap() {
 }
 
 func wrapperPathFor(goos, goarch string) string {
-	if goos == gohostos && goarch == gohostarch {
-		return ""
-	}
 	switch {
 	case goos == "android":
-		return pathf("%s/misc/android/go_android_exec.go", goroot)
+		if gohostos != "android" {
+			return pathf("%s/misc/android/go_android_exec.go", goroot)
+		}
 	case goos == "darwin" && (goarch == "arm" || goarch == "arm64"):
-		return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
+		if gohostos != "darwin" || (gohostarch != "arm" && gohostarch != "arm64") {
+			return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
+		}
 	}
 	return ""
 }
