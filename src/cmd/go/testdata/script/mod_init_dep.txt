@@ -24,7 +24,7 @@ stdout 'rsc.io/sampler v1.0.0'
 # test dep replacement
 cd y
 go mod init
-cmp go.mod go.mod.replace
+cmpenv go.mod go.mod.replace
 
 -- go.mod1 --
 module x
@@ -50,7 +50,7 @@ import _ "z"
 -- y/go.mod.replace --
 module y
 
-go 1.13
+go $goversion
 
 replace z v1.0.0 => rsc.io/quote v1.0.0
 
