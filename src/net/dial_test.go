@@ -973,11 +973,11 @@ func TestDialerControl(t *testing.T) {
 }
 
 // mustHaveExternalNetwork is like testenv.MustHaveExternalNetwork
-// except that it won't skip testing on non-iOS builders.
+// except that it won't skip testing on non-mobile builders.
 func mustHaveExternalNetwork(t *testing.T) {
 	t.Helper()
-	ios := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
-	if testenv.Builder() == "" || ios {
+	mobile := runtime.GOOS == "android" || runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
+	if testenv.Builder() == "" || mobile {
 		testenv.MustHaveExternalNetwork(t)
 	}
 }
