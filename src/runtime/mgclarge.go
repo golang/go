@@ -377,6 +377,40 @@ func (root *mTreap) end(mask, match treapIterType) treapIter {
 	return treapIter{f, root.treap.findMaximal(f)}
 }
 
+// mutate allows one to mutate the span without removing it from the treap via a
+// callback. The span's base and size are allowed to change as long as the span
+// remains in the same order relative to its predecessor and successor.
+//
+// Note however that any operation that causes a treap rebalancing inside of fn
+// is strictly forbidden, as that may cause treap node metadata to go
+// out-of-sync.
+func (root *mTreap) mutate(i treapIter, fn func(span *mspan)) {
+	s := i.span()
+	// Save some state about the span for later inspection.
+	hpages := s.hugePages()
+	scavenged := s.scavenged
+	// Call the mutator.
+	fn(s)
+	// Update unscavHugePages appropriately.
+	if !scavenged {
+		mheap_.free.unscavHugePages -= hpages
+	}
+	if !s.scavenged {
+		mheap_.free.unscavHugePages += s.hugePages()
+	}
+	// Update the key in case the base changed.
+	i.t.key = s.base()
+	// Updating invariants up the tree needs to happen if
+	// anything changed at all, so just go ahead and do it
+	// unconditionally.
+	//
+	// If it turns out nothing changed, it'll exit quickly.
+	t := i.t
+	for t != nil && t.updateInvariants() {
+		t = t.parent
+	}
+}
+
 // insert adds span to the large span treap.
 func (root *mTreap) insert(span *mspan) {
 	if !span.scavenged {
