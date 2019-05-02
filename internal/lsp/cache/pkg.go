@@ -124,6 +124,10 @@ func (pkg *Package) GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*
 	return e.Action, nil
 }
 
+func (pkg *Package) PkgPath() string {
+	return pkg.pkgPath
+}
+
 func (pkg *Package) GetFilenames() []string {
 	return pkg.files
 }

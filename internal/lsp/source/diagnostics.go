@@ -64,6 +64,25 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 	for _, filename := range pkg.GetFilenames() {
 		reports[span.FileURI(filename)] = []Diagnostic{}
 	}
+	// Run diagnostics for the package that this URI belongs to.
+	if !diagnostics(ctx, v, pkg, reports) {
+		// If we don't have any list, parse, or type errors, run analyses.
+		if err := analyses(ctx, v, pkg, reports); err != nil {
+			return singleDiagnostic(uri, "failed to run analyses for %s", uri), nil
+		}
+	}
+	// Updates to the diagnostics for this package may need to be propagated.
+	for _, f := range f.GetActiveReverseDeps(ctx) {
+		pkg := f.GetPackage(ctx)
+		for _, filename := range pkg.GetFilenames() {
+			reports[span.FileURI(filename)] = []Diagnostic{}
+		}
+		diagnostics(ctx, v, pkg, reports)
+	}
+	return reports, nil
+}
+
+func diagnostics(ctx context.Context, v View, pkg Package, reports map[span.URI][]Diagnostic) bool {
 	var listErrors, parseErrors, typeErrors []packages.Error
 	for _, err := range pkg.GetErrors() {
 		switch err.Kind {
@@ -97,9 +116,11 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 			reports[spn.URI()] = append(reports[spn.URI()], diagnostic)
 		}
 	}
-	if len(diags) > 0 {
-		return reports, nil
-	}
+	// Returns true if we've sent non-empty diagnostics.
+	return len(diags) != 0
+}
+
+func analyses(ctx context.Context, v View, pkg Package, reports map[span.URI][]Diagnostic) error {
 	// Type checking and parsing succeeded. Run analyses.
 	if err := runAnalyses(ctx, v, pkg, func(a *analysis.Analyzer, diag analysis.Diagnostic) error {
 		r := span.NewRange(v.FileSet(), diag.Pos, 0)
@@ -120,10 +141,9 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 		})
 		return nil
 	}); err != nil {
-		return singleDiagnostic(uri, "unable to run analyses for %s: %v", uri, err), nil
+		return err
 	}
-
-	return reports, nil
+	return nil
 }
 
 func pointToSpan(ctx context.Context, v View, spn span.Span) span.Span {

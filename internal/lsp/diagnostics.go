@@ -18,43 +18,46 @@ func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content str
 	if err := view.SetContent(ctx, uri, []byte(content)); err != nil {
 		return err
 	}
-
 	go func() {
 		ctx := view.BackgroundContext()
-		if ctx.Err() != nil {
-			s.log.Errorf(ctx, "canceling diagnostics for %s: %v", uri, ctx.Err())
-			return
-		}
-		reports, err := source.Diagnostics(ctx, view, uri)
-		if err != nil {
-			s.log.Errorf(ctx, "failed to compute diagnostics for %s: %v", uri, err)
-			return
-		}
-
-		s.undeliveredMu.Lock()
-		defer s.undeliveredMu.Unlock()
-
-		for uri, diagnostics := range reports {
-			if err := s.publishDiagnostics(ctx, view, uri, diagnostics); err != nil {
-				if s.undelivered == nil {
-					s.undelivered = make(map[span.URI][]source.Diagnostic)
-				}
-				s.undelivered[uri] = diagnostics
-				continue
-			}
-			// In case we had old, undelivered diagnostics.
-			delete(s.undelivered, uri)
-		}
-		// Anytime we compute diagnostics, make sure to also send along any
-		// undelivered ones (only for remaining URIs).
-		for uri, diagnostics := range s.undelivered {
-			s.publishDiagnostics(ctx, view, uri, diagnostics)
-
-			// If we fail to deliver the same diagnostics twice, just give up.
-			delete(s.undelivered, uri)
-		}
+		s.Diagnostics(ctx, view, uri)
 	}()
 	return nil
+}
+
+func (s *Server) Diagnostics(ctx context.Context, view *cache.View, uri span.URI) {
+	if ctx.Err() != nil {
+		s.log.Errorf(ctx, "canceling diagnostics for %s: %v", uri, ctx.Err())
+		return
+	}
+	reports, err := source.Diagnostics(ctx, view, uri)
+	if err != nil {
+		s.log.Errorf(ctx, "failed to compute diagnostics for %s: %v", uri, err)
+		return
+	}
+
+	s.undeliveredMu.Lock()
+	defer s.undeliveredMu.Unlock()
+
+	for uri, diagnostics := range reports {
+		if err := s.publishDiagnostics(ctx, view, uri, diagnostics); err != nil {
+			if s.undelivered == nil {
+				s.undelivered = make(map[span.URI][]source.Diagnostic)
+			}
+			s.undelivered[uri] = diagnostics
+			continue
+		}
+		// In case we had old, undelivered diagnostics.
+		delete(s.undelivered, uri)
+	}
+	// Anytime we compute diagnostics, make sure to also send along any
+	// undelivered ones (only for remaining URIs).
+	for uri, diagnostics := range s.undelivered {
+		s.publishDiagnostics(ctx, view, uri, diagnostics)
+
+		// If we fail to deliver the same diagnostics twice, just give up.
+		delete(s.undelivered, uri)
+	}
 }
 
 func (s *Server) publishDiagnostics(ctx context.Context, view *cache.View, uri span.URI, diagnostics []source.Diagnostic) error {

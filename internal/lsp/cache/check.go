@@ -57,31 +57,6 @@ func (v *View) parse(ctx context.Context, f *File) ([]packages.Error, error) {
 	return nil, nil
 }
 
-func (v *View) cachePackage(ctx context.Context, pkg *Package) {
-	for _, file := range pkg.GetSyntax() {
-		// TODO: If a file is in multiple packages, which package do we store?
-		if !file.Pos().IsValid() {
-			v.Logger().Errorf(ctx, "invalid position for file %v", file.Name)
-			continue
-		}
-		tok := v.Config.Fset.File(file.Pos())
-		if tok == nil {
-			v.Logger().Errorf(ctx, "no token.File for %v", file.Name)
-			continue
-		}
-		fURI := span.FileURI(tok.Name())
-		f, err := v.getFile(fURI)
-		if err != nil {
-			v.Logger().Errorf(ctx, "no file: %v", err)
-			continue
-		}
-		f.token = tok
-		f.ast = file
-		f.imports = f.ast.Imports
-		f.pkg = pkg
-	}
-}
-
 func (v *View) checkMetadata(ctx context.Context, f *File) ([]packages.Error, error) {
 	if v.reparseImports(ctx, f, f.filename) {
 		cfg := v.Config
@@ -271,21 +246,56 @@ func (imp *importer) typeCheck(pkgPath string) (*Package, error) {
 	check.Files(pkg.syntax)
 
 	// Add every file in this package to our cache.
-	imp.view.cachePackage(imp.ctx, pkg)
+	imp.view.cachePackage(imp.ctx, pkg, meta)
+
+	return pkg, nil
+}
+
+func (v *View) cachePackage(ctx context.Context, pkg *Package, meta *metadata) {
+	for _, file := range pkg.GetSyntax() {
+		// TODO: If a file is in multiple packages, which package do we store?
+		if !file.Pos().IsValid() {
+			v.Logger().Errorf(ctx, "invalid position for file %v", file.Name)
+			continue
+		}
+		tok := v.Config.Fset.File(file.Pos())
+		if tok == nil {
+			v.Logger().Errorf(ctx, "no token.File for %v", file.Name)
+			continue
+		}
+		fURI := span.FileURI(tok.Name())
+		f, err := v.getFile(fURI)
+		if err != nil {
+			v.Logger().Errorf(ctx, "no file: %v", err)
+			continue
+		}
+		f.token = tok
+		f.ast = file
+		f.imports = f.ast.Imports
+		f.pkg = pkg
+	}
+
+	v.pcache.mu.Lock()
+	defer v.pcache.mu.Unlock()
+
+	// Cache the entry for this package.
+	// All dependencies are cached through calls to *imp.Import.
+	e := &entry{
+		pkg:   pkg,
+		err:   nil,
+		ready: make(chan struct{}),
+	}
+	close(e.ready)
+	v.pcache.packages[pkg.pkgPath] = e
 
 	// Set imports of package to correspond to cached packages.
 	// We lock the package cache, but we shouldn't get any inconsistencies
 	// because we are still holding the lock on the view.
-	imp.view.pcache.mu.Lock()
-	defer imp.view.pcache.mu.Unlock()
-
 	for importPath := range meta.children {
-		if importEntry, ok := imp.view.pcache.packages[importPath]; ok {
+		if importEntry, ok := v.pcache.packages[importPath]; ok {
 			pkg.imports[importPath] = importEntry.pkg
 		}
 	}
-
-	return pkg, nil
 }
 
 func (v *View) appendPkgError(pkg *Package, err error) {

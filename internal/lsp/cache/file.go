@@ -88,6 +88,7 @@ func (f *File) GetAST(ctx context.Context) *ast.File {
 func (f *File) GetPackage(ctx context.Context) source.Package {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
+
 	if f.pkg == nil || len(f.view.contentChanges) > 0 {
 		if errs, err := f.view.parse(ctx, f); err != nil {
 			// Create diagnostics for errors if we are able to.
@@ -133,4 +134,53 @@ func (f *File) read(ctx context.Context) {
 // isPopulated returns true if all of the computed fields of the file are set.
 func (f *File) isPopulated() bool {
 	return f.ast != nil && f.token != nil && f.pkg != nil && f.meta != nil && f.imports != nil
+}
+
+func (f *File) GetActiveReverseDeps(ctx context.Context) []source.File {
+	pkg := f.GetPackage(ctx)
+	if pkg == nil {
+		return nil
+	}
+
+	f.view.mu.Lock()
+	defer f.view.mu.Unlock()
+
+	f.view.mcache.mu.Lock()
+	defer f.view.mcache.mu.Unlock()
+
+	seen := make(map[string]struct{}) // visited packages
+	results := make(map[*File]struct{})
+	f.view.reverseDeps(ctx, seen, results, pkg.PkgPath())
+
+	files := make([]source.File, 0, len(results))
+	for rd := range results {
+		if rd == nil {
+			continue
+		}
+		// Don't return any of the active file's in this package.
+		if rd.pkg != nil && rd.pkg == pkg {
+			continue
+		}
+		files = append(files, rd)
+	}
+	return files
+}
+
+func (v *View) reverseDeps(ctx context.Context, seen map[string]struct{}, results map[*File]struct{}, pkgPath string) {
+	if _, ok := seen[pkgPath]; ok {
+		return
+	}
+	seen[pkgPath] = struct{}{}
+	m, ok := v.mcache.packages[pkgPath]
+	if !ok {
+		return
+	}
+	for _, filename := range m.files {
+		if f, err := v.getFile(span.FileURI(filename)); err == nil && f.active {
+			results[f] = struct{}{}
+		}
+	}
+	for parentPkgPath := range m.parents {
+		v.reverseDeps(ctx, seen, results, parentPkgPath)
+	}
 }
