@@ -1138,40 +1138,46 @@ func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
 
 HaveSpan:
 	s := t.span()
-	h.free.erase(t)
-
-	// Mark span in use.
 	if s.state != mSpanFree {
 		throw("candidate mspan for allocation is not free")
 	}
-	if s.npages < npage {
-		throw("candidate mspan for allocation is too small")
-	}
 
 	// First, subtract any memory that was released back to
-	// the OS from s. We will re-scavenge the trimmed section
-	// if necessary.
+	// the OS from s. We will add back what's left if necessary.
 	memstats.heap_released -= uint64(s.released())
 
-	if s.npages > npage {
-		// Trim extra and put it back in the heap.
-		t := (*mspan)(h.spanalloc.alloc())
-		t.init(s.base()+npage<<_PageShift, s.npages-npage)
-		s.npages = npage
-		h.setSpan(t.base()-1, s)
-		h.setSpan(t.base(), t)
-		h.setSpan(t.base()+t.npages*pageSize-1, t)
-		t.needzero = s.needzero
-		// If s was scavenged, then t may be scavenged.
-		start, end := t.physPageBounds()
-		if s.scavenged && start < end {
-			memstats.heap_released += uint64(end - start)
-			t.scavenged = true
-		}
-		s.state = mSpanManual // prevent coalescing with s
-		t.state = mSpanManual
-		h.freeSpanLocked(t, false, false, s.unusedsince)
-		s.state = mSpanFree
+	if s.npages == npage {
+		h.free.erase(t)
+	} else if s.npages > npage {
+		// Trim off the lower bits and make that our new span.
+		// Do this in-place since this operation does not
+		// affect the original span's location in the treap.
+		n := (*mspan)(h.spanalloc.alloc())
+		h.free.mutate(t, func(s *mspan) {
+			n.init(s.base(), npage)
+			s.npages -= npage
+			s.startAddr = s.base() + npage*pageSize
+			h.setSpan(s.base()-1, n)
+			h.setSpan(s.base(), s)
+			h.setSpan(n.base(), n)
+			n.needzero = s.needzero
+			// n may not be big enough to actually be scavenged, but that's fine.
+			// We still want it to appear to be scavenged so that we can do the
+			// right bookkeeping later on in this function (i.e. sysUsed).
+			n.scavenged = s.scavenged
+			// Check if s is still scavenged.
+			if s.scavenged {
+				start, end := s.physPageBounds()
+				if start < end {
+					memstats.heap_released += uint64(end - start)
+				} else {
+					s.scavenged = false
+				}
+			}
+		})
+		s = n
+	} else {
+		throw("candidate mspan for allocation is too small")
 	}
 	// "Unscavenge" s only AFTER splitting so that
 	// we only sysUsed whatever we actually need.
