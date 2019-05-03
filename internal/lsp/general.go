@@ -29,9 +29,13 @@ func (s *Server) initialize(ctx context.Context, params *protocol.InitializePara
 	}
 	s.isInitialized = true // mark server as initialized now
 
-	// TODO(rstambler): Change this default to protocol.Incremental (or add a
-	// flag). Disabled for now to simplify debugging.
+	// TODO(iancottrell): Change this default to protocol.Incremental and remove the option
 	s.textDocumentSyncKind = protocol.Full
+	if opts, ok := params.InitializationOptions.(map[string]interface{}); ok {
+		if opt, ok := opts["incrementalSync"].(bool); ok && opt {
+			s.textDocumentSyncKind = protocol.Incremental
+		}
+	}
 
 	s.setClientCapabilities(params.Capabilities)
 
