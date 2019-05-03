@@ -1416,7 +1416,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 
 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
-			return &persistConn{cacheKey: pconn.cacheKey, alt: next(cm.targetAddr, pconn.conn.(*tls.Conn))}, nil
+			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: next(cm.targetAddr, pconn.conn.(*tls.Conn))}, nil
 		}
 	}
 
@@ -2344,13 +2344,8 @@ func (pc *persistConn) closeLocked(err error) {
 	if pc.closed == nil {
 		pc.closed = err
 		if pc.alt != nil {
-			// Do nothing; can only get here via getConn's
-			// handlePendingDial's putOrCloseIdleConn when
-			// it turns out the abandoned connection in
-			// flight ended up negotiating an alternate
-			// protocol. We don't use the connection
-			// freelist for http2. That's done by the
-			// alternate protocol's RoundTripper.
+			// Clean up any host connection counting.
+			pc.t.decHostConnCount(pc.cacheKey)
 		} else {
 			if err != errCallerOwnsConn {
 				pc.conn.Close()
