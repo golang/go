@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"go/token"
 	"internal/nettrace"
-	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"log"
@@ -592,7 +591,7 @@ func TestTransportMaxConnsPerHostIncludeDialInProgress(t *testing.T) {
 
 func TestTransportMaxConnsPerHost(t *testing.T) {
 	defer afterTest(t)
-	testenv.SkipFlaky(t, 31784)
+
 	h := HandlerFunc(func(w ResponseWriter, r *Request) {
 		_, err := w.Write([]byte("foo"))
 		if err != nil {
@@ -666,6 +665,7 @@ func TestTransportMaxConnsPerHost(t *testing.T) {
 		}
 
 		(<-connCh).Close()
+		tr.CloseIdleConnections()
 
 		doReq()
 		expected++
