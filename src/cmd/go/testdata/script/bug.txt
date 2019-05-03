@@ -10,7 +10,6 @@ grep '^go version' $TMPDIR/browser
 grep '^GOROOT/bin/go version: go version' $TMPDIR/browser
 grep '^GOROOT/bin/go tool compile -V: compile version' $TMPDIR/browser
 grep '^uname -sr: Linux' $TMPDIR/browser
-grep 'GNU C Library' $TMPDIR/browser
 
 -- go.mod --
 module browser
