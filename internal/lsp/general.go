@@ -5,6 +5,7 @@
 package lsp
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -139,6 +140,9 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 			}
 		}
 	}
+	buf := &bytes.Buffer{}
+	PrintVersionInfo(buf, true, false)
+	s.log.Infof(ctx, "%s", buf)
 	return nil
 }
 
