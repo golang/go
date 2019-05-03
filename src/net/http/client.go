@@ -926,10 +926,9 @@ func isDomainOrSubdomain(sub, parent string) bool {
 }
 
 func stripPassword(u *url.URL) string {
-	pass, passSet := u.User.Password()
+	_, passSet := u.User.Password()
 	if passSet {
-		return strings.Replace(u.String(), pass+"@", "***@", 1)
+		return strings.Replace(u.String(), u.User.String()+"@", u.User.Username()+":***@", 1)
 	}
-
 	return u.String()
 }

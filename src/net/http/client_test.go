@@ -1184,6 +1184,11 @@ func TestStripPasswordFromError(t *testing.T) {
 			in:   "http://user:password@dummy.faketld/password",
 			out:  "Get http://user:***@dummy.faketld/password: dummy impl",
 		},
+		{
+			desc: "Strip escaped password",
+			in:   "http://user:pa%2Fssword@dummy.faketld/",
+			out:  "Get http://user:***@dummy.faketld/: dummy impl",
+		},
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
