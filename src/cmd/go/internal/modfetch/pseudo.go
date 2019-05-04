@@ -62,9 +62,8 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
 
 	// Form (2), (3).
 	// Extract patch from vMAJOR.MINOR.PATCH
-	v := older[:]
-	i := strings.LastIndex(v, ".") + 1
-	v, patch := v[:i], v[i:]
+	i := strings.LastIndex(older, ".") + 1
+	v, patch := older[:i], older[i:]
 
 	// Increment PATCH by adding 1 to decimal:
 	// scan right to left turning 9s to 0s until you find a digit to increment.
