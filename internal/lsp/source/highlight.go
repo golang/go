@@ -13,7 +13,7 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func Highlight(ctx context.Context, f File, pos token.Pos) []span.Span {
+func Highlight(ctx context.Context, f GoFile, pos token.Pos) []span.Span {
 	fAST := f.GetAST(ctx)
 	fset := f.GetFileSet(ctx)
 	path, _ := astutil.PathEnclosingInterval(fAST, pos, pos)

@@ -35,22 +35,24 @@ type View interface {
 	Shutdown(ctx context.Context)
 }
 
-// File represents a Go source file that has been type-checked. It is the input
-// to most of the exported functions in this package, as it wraps up the
-// building blocks for most queries. Users of the source package can abstract
-// the loading of packages into their own caching systems.
+// File represents a source file of any type.
 type File interface {
 	URI() span.URI
 	View() View
-	GetAST(ctx context.Context) *ast.File
-	GetFileSet(ctx context.Context) *token.FileSet
-	GetPackage(ctx context.Context) Package
-	GetToken(ctx context.Context) *token.File
 	GetContent(ctx context.Context) []byte
+	GetFileSet(ctx context.Context) *token.FileSet
+	GetToken(ctx context.Context) *token.File
+}
+
+// GoFile represents a Go source file that has been type-checked.
+type GoFile interface {
+	File
+	GetAST(ctx context.Context) *ast.File
+	GetPackage(ctx context.Context) Package
 
 	// GetActiveReverseDeps returns the active files belonging to the reverse
 	// dependencies of this file's package.
-	GetActiveReverseDeps(ctx context.Context) []File
+	GetActiveReverseDeps(ctx context.Context) []GoFile
 }
 
 // Package represents a Go package that has been type-checked. It maintains

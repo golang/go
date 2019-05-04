@@ -55,7 +55,11 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 	if err != nil {
 		return singleDiagnostic(uri, "no file found for %s", uri), nil
 	}
-	pkg := f.GetPackage(ctx)
+	gof, ok := f.(GoFile)
+	if !ok {
+		return singleDiagnostic(uri, "%s is not a go file", uri), nil
+	}
+	pkg := gof.GetPackage(ctx)
 	if pkg == nil {
 		return singleDiagnostic(uri, "%s is not part of a package", uri), nil
 	}
@@ -72,7 +76,7 @@ func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diag
 		}
 	}
 	// Updates to the diagnostics for this package may need to be propagated.
-	for _, f := range f.GetActiveReverseDeps(ctx) {
+	for _, f := range gof.GetActiveReverseDeps(ctx) {
 		pkg := f.GetPackage(ctx)
 		if pkg == nil {
 			continue
@@ -151,9 +155,14 @@ func analyses(ctx context.Context, v View, pkg Package, reports map[span.URI][]D
 
 func pointToSpan(ctx context.Context, v View, spn span.Span) span.Span {
 	// Don't set a range if it's anything other than a type error.
-	diagFile, err := v.GetFile(ctx, spn.URI())
+	f, err := v.GetFile(ctx, spn.URI())
 	if err != nil {
 		v.Logger().Errorf(ctx, "Could find file for diagnostic: %v", spn.URI())
+		return spn
+	}
+	diagFile, ok := f.(GoFile)
+	if !ok {
+		v.Logger().Errorf(ctx, "Not a go file: %v", spn.URI())
 		return spn
 	}
 	tok := diagFile.GetToken(ctx)

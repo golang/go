@@ -62,7 +62,7 @@ func (s *Server) publishDiagnostics(ctx context.Context, view source.View, uri s
 func toProtocolDiagnostics(ctx context.Context, v source.View, diagnostics []source.Diagnostic) ([]protocol.Diagnostic, error) {
 	reports := []protocol.Diagnostic{}
 	for _, diag := range diagnostics {
-		_, m, err := newColumnMap(ctx, v, diag.Span.URI())
+		_, m, err := getSourceFile(ctx, v, diag.Span.URI())
 		if err != nil {
 			return nil, err
 		}

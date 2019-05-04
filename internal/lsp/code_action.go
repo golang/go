@@ -17,7 +17,7 @@ import (
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.findView(ctx, uri)
-	_, m, err := newColumnMap(ctx, view, uri)
+	_, m, err := getSourceFile(ctx, view, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 }
 
 func organizeImports(ctx context.Context, v source.View, s span.Span) ([]protocol.TextEdit, error) {
-	f, m, err := newColumnMap(ctx, v, s.URI())
+	f, m, err := getGoFile(ctx, v, s.URI())
 	if err != nil {
 		return nil, err
 	}

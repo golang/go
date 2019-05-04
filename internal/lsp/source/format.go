@@ -19,7 +19,7 @@ import (
 )
 
 // Format formats a file with a given range.
-func Format(ctx context.Context, f File, rng span.Range) ([]TextEdit, error) {
+func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
 	pkg := f.GetPackage(ctx)
 	if hasParseErrors(pkg.GetErrors()) {
 		return nil, fmt.Errorf("%s has parse errors, not formatting", f.URI())
@@ -52,7 +52,7 @@ func hasParseErrors(errors []packages.Error) bool {
 }
 
 // Imports formats a file using the goimports tool.
-func Imports(ctx context.Context, f File, rng span.Range) ([]TextEdit, error) {
+func Imports(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
 	formatted, err := imports.Process(f.GetToken(ctx).Name(), f.GetContent(ctx), nil)
 	if err != nil {
 		return nil, err

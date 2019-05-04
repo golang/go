@@ -24,7 +24,7 @@ type ParameterInformation struct {
 	Label string
 }
 
-func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInformation, error) {
+func SignatureHelp(ctx context.Context, f GoFile, pos token.Pos) (*SignatureInformation, error) {
 	fAST := f.GetAST(ctx)
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {

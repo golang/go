@@ -22,7 +22,7 @@ func (s *Server) formatting(ctx context.Context, params *protocol.DocumentFormat
 
 // formatRange formats a document with a given range.
 func formatRange(ctx context.Context, v source.View, s span.Span) ([]protocol.TextEdit, error) {
-	f, m, err := newColumnMap(ctx, v, s.URI())
+	f, m, err := getGoFile(ctx, v, s.URI())
 	if err != nil {
 		return nil, err
 	}

@@ -18,7 +18,7 @@ import (
 func (s *Server) completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.findView(ctx, uri)
-	f, m, err := newColumnMap(ctx, view, uri)
+	f, m, err := getGoFile(ctx, view, uri)
 	if err != nil {
 		return nil, err
 	}

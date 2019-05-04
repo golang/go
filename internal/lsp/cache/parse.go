@@ -50,7 +50,9 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 		}
 		var fAST *ast.File
 		if f != nil {
-			fAST = f.ast
+			if gof, ok := f.(*goFile); ok {
+				fAST = gof.ast
+			}
 		}
 
 		wg.Add(1)

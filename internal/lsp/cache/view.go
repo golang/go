@@ -51,8 +51,8 @@ type view struct {
 
 	// keep track of files by uri and by basename, a single file may be mapped
 	// to multiple uris, and the same basename may map to multiple files
-	filesByURI  map[span.URI]*file
-	filesByBase map[string][]*file
+	filesByURI  map[span.URI]viewFile
+	filesByBase map[string][]viewFile
 
 	// contentChanges saves the content changes for a given state of the view.
 	// When type information is requested by the view, all of the dirty changes
@@ -105,8 +105,8 @@ func NewView(ctx context.Context, log xlog.Logger, name string, folder span.URI,
 		config:         *config,
 		name:           name,
 		folder:         folder,
-		filesByURI:     make(map[span.URI]*file),
-		filesByBase:    make(map[string][]*file),
+		filesByURI:     make(map[span.URI]viewFile),
+		filesByBase:    make(map[string][]viewFile),
 		contentChanges: make(map[span.URI]func()),
 		mcache: &metadataCache{
 			packages: make(map[string]*metadata),
@@ -227,6 +227,10 @@ func (v *view) applyContentChange(uri span.URI, content []byte) {
 	if err != nil {
 		return
 	}
+	f.setContent(content)
+}
+
+func (f *goFile) setContent(content []byte) {
 	f.content = content
 
 	// TODO(rstambler): Should we recompute these here?
@@ -235,19 +239,19 @@ func (v *view) applyContentChange(uri span.URI, content []byte) {
 
 	// Remove the package and all of its reverse dependencies from the cache.
 	if f.pkg != nil {
-		v.remove(f.pkg.pkgPath, map[string]struct{}{})
+		f.view.remove(f.pkg.pkgPath, map[string]struct{}{})
 	}
 
 	switch {
 	case f.active && content == nil:
 		// The file was active, so we need to forget its content.
 		f.active = false
-		delete(f.view.config.Overlay, f.filename)
+		delete(f.view.config.Overlay, f.filename())
 		f.content = nil
 	case content != nil:
 		// This is an active overlay, so we update the map.
 		f.active = true
-		f.view.config.Overlay[f.filename] = f.content
+		f.view.config.Overlay[f.filename()] = f.content
 	}
 }
 
@@ -270,14 +274,16 @@ func (v *view) remove(pkgPath string, seen map[string]struct{}) {
 	// invalidated package.
 	for _, filename := range m.files {
 		if f, _ := v.findFile(span.FileURI(filename)); f != nil {
-			f.pkg = nil
+			if gof, ok := f.(*goFile); ok {
+				gof.pkg = nil
+			}
 		}
 	}
 	delete(v.pcache.packages, pkgPath)
 }
 
 // FindFile returns the file if the given URI is already a part of the view.
-func (v *view) FindFile(ctx context.Context, uri span.URI) *file {
+func (v *view) FindFile(ctx context.Context, uri span.URI) source.File {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	f, err := v.findFile(uri)
@@ -301,7 +307,7 @@ func (v *view) GetFile(ctx context.Context, uri span.URI) (source.File, error) {
 }
 
 // getFile is the unlocked internal implementation of GetFile.
-func (v *view) getFile(uri span.URI) (*file, error) {
+func (v *view) getFile(uri span.URI) (viewFile, error) {
 	filename, err := uri.Filename()
 	if err != nil {
 		return nil, err
@@ -314,9 +320,11 @@ func (v *view) getFile(uri span.URI) (*file, error) {
 	} else if f != nil {
 		return f, nil
 	}
-	f := &file{
-		view:     v,
-		filename: filename,
+	f := &goFile{
+		fileBase: fileBase{
+			view:  v,
+			fname: filename,
+		},
 	}
 	v.mapFile(uri, f)
 	return f, nil
@@ -340,7 +348,7 @@ func (v *view) isIgnored(filename string) bool {
 //
 // An error is only returned for an irreparable failure, for example, if the
 // filename in question does not exist.
-func (v *view) findFile(uri span.URI) (*file, error) {
+func (v *view) findFile(uri span.URI) (viewFile, error) {
 	if f := v.filesByURI[uri]; f != nil {
 		// a perfect match
 		return f, nil
@@ -360,7 +368,7 @@ func (v *view) findFile(uri span.URI) (*file, error) {
 			return nil, nil // the file may exist, return without an error
 		}
 		for _, c := range candidates {
-			if cStat, err := os.Stat(c.filename); err == nil {
+			if cStat, err := os.Stat(c.filename()); err == nil {
 				if os.SameFile(pathStat, cStat) {
 					// same file, map it
 					v.mapFile(uri, c)
@@ -373,12 +381,16 @@ func (v *view) findFile(uri span.URI) (*file, error) {
 	return nil, nil
 }
 
-func (v *view) mapFile(uri span.URI, f *file) {
-	v.filesByURI[uri] = f
+func (f *fileBase) addURI(uri span.URI) int {
 	f.uris = append(f.uris, uri)
-	if f.basename == "" {
-		f.basename = basename(f.filename)
-		v.filesByBase[f.basename] = append(v.filesByBase[f.basename], f)
+	return len(f.uris)
+}
+
+func (v *view) mapFile(uri span.URI, f viewFile) {
+	v.filesByURI[uri] = f
+	if f.addURI(uri) == 1 {
+		basename := basename(f.filename())
+		v.filesByBase[basename] = append(v.filesByBase[basename], f)
 	}
 }
 

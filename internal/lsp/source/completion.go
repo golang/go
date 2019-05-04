@@ -200,7 +200,7 @@ func (c *completer) found(obj types.Object, weight float64) {
 // The prefix is computed based on the preceding identifier and can be used by
 // the client to score the quality of the completion. For instance, some clients
 // may tolerate imperfect matches as valid completion results, since users may make typos.
-func Completion(ctx context.Context, f File, pos token.Pos) ([]CompletionItem, Prefix, error) {
+func Completion(ctx context.Context, f GoFile, pos token.Pos) ([]CompletionItem, Prefix, error) {
 	file := f.GetAST(ctx)
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {

@@ -133,9 +133,9 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
-		tok := f.GetToken(ctx)
+		tok := f.(source.GoFile).GetToken(ctx)
 		pos := tok.Pos(src.Start().Offset())
-		list, prefix, err := source.Completion(ctx, f, pos)
+		list, prefix, err := source.Completion(ctx, f.(source.GoFile), pos)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", src, err)
 		}
@@ -164,7 +164,7 @@ func (r *runner) Completion(t *testing.T, data tests.Completions, snippets tests
 			}
 			tok := f.GetToken(ctx)
 			pos := tok.Pos(src.Start().Offset())
-			list, _, err := source.Completion(ctx, f, pos)
+			list, _, err := source.Completion(ctx, f.(source.GoFile), pos)
 			if err != nil {
 				t.Fatalf("failed for %v: %v", src, err)
 			}
@@ -273,7 +273,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
 		}
-		edits, err := source.Format(ctx, f, rng)
+		edits, err := source.Format(ctx, f.(source.GoFile), rng)
 		if err != nil {
 			if gofmted != "" {
 				t.Error(err)
@@ -297,7 +297,7 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 		}
 		tok := f.GetToken(ctx)
 		pos := tok.Pos(d.Src.Start().Offset())
-		ident, err := source.Identifier(ctx, r.view, f, pos)
+		ident, err := source.Identifier(ctx, r.view, f.(source.GoFile), pos)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", d.Src, err)
 		}
@@ -341,7 +341,7 @@ func (r *runner) Highlight(t *testing.T, data tests.Highlights) {
 		}
 		tok := f.GetToken(ctx)
 		pos := tok.Pos(src.Start().Offset())
-		highlights := source.Highlight(ctx, f, pos)
+		highlights := source.Highlight(ctx, f.(source.GoFile), pos)
 		if len(highlights) != len(locations) {
 			t.Fatalf("got %d highlights for %s, expected %d", len(highlights), name, len(locations))
 		}
@@ -360,7 +360,7 @@ func (r *runner) Symbol(t *testing.T, data tests.Symbols) {
 		if err != nil {
 			t.Fatalf("failed for %v: %v", uri, err)
 		}
-		symbols := source.DocumentSymbols(ctx, f)
+		symbols := source.DocumentSymbols(ctx, f.(source.GoFile))
 
 		if len(symbols) != len(expectedSymbols) {
 			t.Errorf("want %d top-level symbols in %v, got %d", len(expectedSymbols), uri, len(symbols))
@@ -424,7 +424,7 @@ func (r *runner) SignatureHelp(t *testing.T, data tests.Signatures) {
 		}
 		tok := f.GetToken(ctx)
 		pos := tok.Pos(spn.Start().Offset())
-		gotSignature, err := source.SignatureHelp(ctx, f, pos)
+		gotSignature, err := source.SignatureHelp(ctx, f.(source.GoFile), pos)
 		if err != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
 		}

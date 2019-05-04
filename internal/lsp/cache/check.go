@@ -14,16 +14,22 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 )
 
-func (v *view) parse(ctx context.Context, f *file) ([]packages.Error, error) {
+func (v *view) parse(ctx context.Context, file source.File) ([]packages.Error, error) {
 	v.mcache.mu.Lock()
 	defer v.mcache.mu.Unlock()
 
 	// Apply any queued-up content changes.
 	if err := v.applyContentChanges(ctx); err != nil {
 		return nil, err
+	}
+
+	f, ok := file.(*goFile)
+	if !ok {
+		return nil, fmt.Errorf("not a go file: %v", file.URI())
 	}
 
 	// If the package for the file has not been invalidated by the application
@@ -37,7 +43,7 @@ func (v *view) parse(ctx context.Context, f *file) ([]packages.Error, error) {
 		return errs, err
 	}
 	if f.meta == nil {
-		return nil, fmt.Errorf("no metadata found for %v", f.filename)
+		return nil, fmt.Errorf("no metadata found for %v", f.filename())
 	}
 	imp := &importer{
 		view: v,
@@ -56,19 +62,19 @@ func (v *view) parse(ctx context.Context, f *file) ([]packages.Error, error) {
 
 	// If we still have not found the package for the file, something is wrong.
 	if f.pkg == nil {
-		return nil, fmt.Errorf("parse: no package found for %v", f.filename)
+		return nil, fmt.Errorf("parse: no package found for %v", f.filename())
 	}
 	return nil, nil
 }
 
-func (v *view) checkMetadata(ctx context.Context, f *file) ([]packages.Error, error) {
-	if v.reparseImports(ctx, f, f.filename) {
+func (v *view) checkMetadata(ctx context.Context, f *goFile) ([]packages.Error, error) {
+	if v.reparseImports(ctx, f, f.filename()) {
 		cfg := v.config
 		cfg.Mode = packages.LoadImports | packages.NeedTypesSizes
-		pkgs, err := packages.Load(&cfg, fmt.Sprintf("file=%s", f.filename))
+		pkgs, err := packages.Load(&cfg, fmt.Sprintf("file=%s", f.filename()))
 		if len(pkgs) == 0 {
 			if err == nil {
-				err = fmt.Errorf("no packages found for %s", f.filename)
+				err = fmt.Errorf("no packages found for %s", f.filename())
 			}
 			// Return this error as a diagnostic to the user.
 			return []packages.Error{
@@ -84,7 +90,7 @@ func (v *view) checkMetadata(ctx context.Context, f *file) ([]packages.Error, er
 			if len(pkg.Errors) > 0 {
 				return pkg.Errors, fmt.Errorf("package %s has errors, skipping type-checking", pkg.PkgPath)
 			}
-			v.link(pkg.PkgPath, pkg, nil)
+			v.link(ctx, pkg.PkgPath, pkg, nil)
 		}
 	}
 	return nil, nil
@@ -92,7 +98,7 @@ func (v *view) checkMetadata(ctx context.Context, f *file) ([]packages.Error, er
 
 // reparseImports reparses a file's import declarations to determine if they
 // have changed.
-func (v *view) reparseImports(ctx context.Context, f *file, filename string) bool {
+func (v *view) reparseImports(ctx context.Context, f *goFile, filename string) bool {
 	if f.meta == nil {
 		return true
 	}
@@ -113,7 +119,7 @@ func (v *view) reparseImports(ctx context.Context, f *file, filename string) boo
 	return false
 }
 
-func (v *view) link(pkgPath string, pkg *packages.Package, parent *metadata) *metadata {
+func (v *view) link(ctx context.Context, pkgPath string, pkg *packages.Package, parent *metadata) *metadata {
 	m, ok := v.mcache.packages[pkgPath]
 	if !ok {
 		m = &metadata{
@@ -130,7 +136,12 @@ func (v *view) link(pkgPath string, pkg *packages.Package, parent *metadata) *me
 	m.files = pkg.CompiledGoFiles
 	for _, filename := range m.files {
 		if f, _ := v.getFile(span.FileURI(filename)); f != nil {
-			f.meta = m
+			gof, ok := f.(*goFile)
+			if !ok {
+				v.Logger().Errorf(ctx, "not a go file: %v", f.URI())
+				continue
+			}
+			gof.meta = m
 		}
 	}
 	// Connect the import graph.
@@ -140,7 +151,7 @@ func (v *view) link(pkgPath string, pkg *packages.Package, parent *metadata) *me
 	}
 	for importPath, importPkg := range pkg.Imports {
 		if _, ok := m.children[importPath]; !ok {
-			v.link(importPath, importPkg, m)
+			v.link(ctx, importPath, importPkg, m)
 		}
 	}
 	// Clear out any imports that have been removed.
@@ -273,10 +284,15 @@ func (v *view) cachePackage(ctx context.Context, pkg *pkg, meta *metadata) {
 			v.Logger().Errorf(ctx, "no file: %v", err)
 			continue
 		}
-		f.token = tok
-		f.ast = file
-		f.imports = f.ast.Imports
-		f.pkg = pkg
+		gof, ok := f.(*goFile)
+		if !ok {
+			v.Logger().Errorf(ctx, "not a go file: %v", f.URI())
+			continue
+		}
+		gof.token = tok
+		gof.ast = file
+		gof.imports = gof.ast.Imports
+		gof.pkg = pkg
 	}
 
 	v.pcache.mu.Lock()

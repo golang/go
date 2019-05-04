@@ -40,7 +40,7 @@ type Symbol struct {
 	Children      []Symbol
 }
 
-func DocumentSymbols(ctx context.Context, f File) []Symbol {
+func DocumentSymbols(ctx context.Context, f GoFile) []Symbol {
 	fset := f.GetFileSet(ctx)
 	file := f.GetAST(ctx)
 	pkg := f.GetPackage(ctx)

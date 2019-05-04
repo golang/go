@@ -20,7 +20,7 @@ import (
 type IdentifierInfo struct {
 	Name  string
 	Range span.Range
-	File  File
+	File  GoFile
 	Type  struct {
 		Range  span.Range
 		Object types.Object
@@ -37,7 +37,7 @@ type IdentifierInfo struct {
 
 // Identifier returns identifier information for a position
 // in a file, accounting for a potentially incomplete selector.
-func Identifier(ctx context.Context, v View, f File, pos token.Pos) (*IdentifierInfo, error) {
+func Identifier(ctx context.Context, v View, f GoFile, pos token.Pos) (*IdentifierInfo, error) {
 	if result, err := identifier(ctx, v, f, pos); err != nil || result != nil {
 		return result, err
 	}
@@ -52,7 +52,7 @@ func Identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 }
 
 // identifier checks a single position for a potential identifier.
-func identifier(ctx context.Context, v View, f File, pos token.Pos) (*IdentifierInfo, error) {
+func identifier(ctx context.Context, v View, f GoFile, pos token.Pos) (*IdentifierInfo, error) {
 	fAST := f.GetAST(ctx)
 	pkg := f.GetPackage(ctx)
 	if pkg == nil || pkg.IsIllTyped() {
@@ -128,7 +128,7 @@ func identifier(ctx context.Context, v View, f File, pos token.Pos) (*Identifier
 	return result, nil
 }
 
-func checkImportSpec(f File, fAST *ast.File, pkg Package, pos token.Pos) (*IdentifierInfo, error) {
+func checkImportSpec(f GoFile, fAST *ast.File, pkg Package, pos token.Pos) (*IdentifierInfo, error) {
 	// Check if pos is in an *ast.ImportSpec.
 	for _, imp := range fAST.Imports {
 		if imp.Pos() <= pos && pos < imp.End() {
@@ -204,9 +204,13 @@ func objToNode(ctx context.Context, v View, obj types.Object, rng span.Range) (a
 	if err != nil {
 		return nil, err
 	}
-	declFile, err := v.GetFile(ctx, s.URI())
+	f, err := v.GetFile(ctx, s.URI())
 	if err != nil {
 		return nil, err
+	}
+	declFile, ok := f.(GoFile)
+	if !ok {
+		return nil, fmt.Errorf("not a go file %v", s.URI())
 	}
 	declAST := declFile.GetAST(ctx)
 	path, _ := astutil.PathEnclosingInterval(declAST, rng.Start, rng.End)

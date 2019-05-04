@@ -65,7 +65,7 @@ func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTex
 
 	uri := span.NewURI(params.TextDocument.URI)
 	view := s.findView(ctx, uri)
-	file, m, err := newColumnMap(ctx, view, uri)
+	file, m, err := getSourceFile(ctx, view, uri)
 	if err != nil {
 		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found")
 	}
