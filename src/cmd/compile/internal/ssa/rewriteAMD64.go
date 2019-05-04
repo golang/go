@@ -25491,6 +25491,24 @@ func rewriteValueAMD64_OpAMD64MULQconst_30(v *Value) bool {
 		v.AuxInt = c * d
 		return true
 	}
+	// match: (MULQconst [c] (NEGQ x))
+	// cond: c != -(1<<31)
+	// result: (MULQconst [-c] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64NEGQ {
+			break
+		}
+		x := v_0.Args[0]
+		if !(c != -(1 << 31)) {
+			break
+		}
+		v.reset(OpAMD64MULQconst)
+		v.AuxInt = -c
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64MULSD_0(v *Value) bool {
@@ -25786,6 +25804,24 @@ func rewriteValueAMD64_OpAMD64NEGL_0(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (NEGL s:(SUBL x y))
+	// cond: s.Uses == 1
+	// result: (SUBL y x)
+	for {
+		s := v.Args[0]
+		if s.Op != OpAMD64SUBL {
+			break
+		}
+		y := s.Args[1]
+		x := s.Args[0]
+		if !(s.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64SUBL)
+		v.AddArg(y)
+		v.AddArg(x)
+		return true
+	}
 	// match: (NEGL (MOVLconst [c]))
 	// cond:
 	// result: (MOVLconst [int64(int32(-c))])
@@ -25813,6 +25849,24 @@ func rewriteValueAMD64_OpAMD64NEGQ_0(v *Value) bool {
 		x := v_0.Args[0]
 		v.reset(OpCopy)
 		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (NEGQ s:(SUBQ x y))
+	// cond: s.Uses == 1
+	// result: (SUBQ y x)
+	for {
+		s := v.Args[0]
+		if s.Op != OpAMD64SUBQ {
+			break
+		}
+		y := s.Args[1]
+		x := s.Args[0]
+		if !(s.Uses == 1) {
+			break
+		}
+		v.reset(OpAMD64SUBQ)
+		v.AddArg(y)
 		v.AddArg(x)
 		return true
 	}
