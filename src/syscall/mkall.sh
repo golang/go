@@ -288,6 +288,12 @@ netbsd_arm)
 	mksysnum="curl -s 'http://cvsweb.netbsd.org/bsdweb.cgi/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_netbsd.pl"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
+netbsd_arm64)
+	mkerrors="$mkerrors -m64"
+	mksyscall="./mksyscall.pl -netbsd"
+	mksysnum="curl -s 'http://cvsweb.netbsd.org/bsdweb.cgi/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_netbsd.pl"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	;;
 openbsd_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32 -openbsd"
