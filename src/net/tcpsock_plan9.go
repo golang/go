@@ -8,7 +8,6 @@ import (
 	"context"
 	"io"
 	"os"
-	"time"
 )
 
 func (c *TCPConn) readFrom(r io.Reader) (int64, error) {
@@ -50,7 +49,7 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
 		setKeepAlive(fd, true)
 		ka := ln.lc.KeepAlive
 		if ln.lc.KeepAlive == 0 {
-			ka = 3 * time.Minute
+			ka = defaultTCPKeepAlive
 		}
 		setKeepAlivePeriod(fd, ka)
 	}
