@@ -3,6 +3,17 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+# Environment variables that control run.bash:
+#
+# GO_TEST_SHARDS: number of "dist test" test shards that the
+# $GOROOT/test directory will be sliced up into for parallel
+# execution. Defaults to 1, unless GO_BUILDER_NAME is also specified,
+# in which case it defaults to 10.
+#
+# GO_BUILDER_NAME: the name of the Go builder that's running the tests.
+# Some tests are conditionally enabled or disabled based on the builder
+# name or the builder name being non-empty.
+
 set -e
 
 eval $(go env)
