@@ -51,8 +51,10 @@ func Is(err, target error) bool {
 	if target == nil {
 		return err == target
 	}
+
+	isComparable := target == nil || reflectlite.TypeOf(target).Comparable()
 	for {
-		if err == target {
+		if isComparable && err == target {
 			return true
 		}
 		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(target) {
