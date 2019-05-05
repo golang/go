@@ -41214,20 +41214,20 @@ func rewriteBlockARM64(b *Block) bool {
 			b.Aux = nil
 			return true
 		}
-		// match: (NZ (GreaterThan cc) yes no)
+		// match: (NZ (GreaterThanF cc) yes no)
 		// cond:
 		// result: (FGT cc yes no)
-		for v.Op == OpARM64GreaterThan {
+		for v.Op == OpARM64GreaterThanF {
 			cc := v.Args[0]
 			b.Kind = BlockARM64FGT
 			b.SetControl(cc)
 			b.Aux = nil
 			return true
 		}
-		// match: (NZ (GreaterEqual cc) yes no)
+		// match: (NZ (GreaterEqualF cc) yes no)
 		// cond:
 		// result: (FGE cc yes no)
-		for v.Op == OpARM64GreaterEqual {
+		for v.Op == OpARM64GreaterEqualF {
 			cc := v.Args[0]
 			b.Kind = BlockARM64FGE
 			b.SetControl(cc)
