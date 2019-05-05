@@ -630,8 +630,8 @@
 (NZ (GreaterEqualU cc) yes no) -> (UGE cc yes no)
 (NZ (LessThanF cc) yes no) -> (FLT cc yes no)
 (NZ (LessEqualF cc) yes no) -> (FLE cc yes no)
-(NZ (GreaterThan cc) yes no) -> (FGT cc yes no)
-(NZ (GreaterEqual cc) yes no) -> (FGE cc yes no)
+(NZ (GreaterThanF cc) yes no) -> (FGT cc yes no)
+(NZ (GreaterEqualF cc) yes no) -> (FGE cc yes no)
 
 (EQ (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (TSTWconst [c] y) yes no)
 (NE (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (NE (TSTWconst [c] y) yes no)
