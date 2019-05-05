@@ -12,6 +12,12 @@ import (
 	"time"
 )
 
+// defaultTCPKeepAlive is a default constant value for TCPKeepAlive times
+// See golang.org/issue/31510
+const (
+	defaultTCPKeepAlive = 15 * time.Second
+)
+
 // A Dialer contains options for connecting to an address.
 //
 // The zero value for each field is equivalent to dialing
@@ -425,7 +431,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 		setKeepAlive(tc.fd, true)
 		ka := d.KeepAlive
 		if d.KeepAlive == 0 {
-			ka = 15 * time.Second
+			ka = defaultTCPKeepAlive
 		}
 		setKeepAlivePeriod(tc.fd, ka)
 		testHookSetKeepAlive(ka)
