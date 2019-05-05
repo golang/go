@@ -709,10 +709,13 @@ func (t *tester) registerTests() {
 	if goos != "android" && !t.iOS() {
 		// Only start multiple test dir shards on builders,
 		// where they get distributed to multiple machines.
-		// See issue 20141.
+		// See issues 20141 and 31834.
 		nShards := 1
 		if os.Getenv("GO_BUILDER_NAME") != "" {
 			nShards = 10
+		}
+		if n, err := strconv.Atoi(os.Getenv("GO_TEST_SHARDS")); err == nil {
+			nShards = n
 		}
 		for shard := 0; shard < nShards; shard++ {
 			shard := shard
