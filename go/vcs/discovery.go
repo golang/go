@@ -28,13 +28,16 @@ func charsetReader(charset string, input io.Reader) (io.Reader, error) {
 
 // parseMetaGoImports returns meta imports from the HTML in r.
 // Parsing ends at the end of the <head> section or the beginning of the <body>.
+//
+// This copy of cmd/go/internal/vcs.parseMetaGoImports always operates
+// in IgnoreMod ModuleMode.
 func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
 	d := xml.NewDecoder(r)
 	d.CharsetReader = charsetReader
 	d.Strict = false
 	var t xml.Token
 	for {
-		t, err = d.Token()
+		t, err = d.RawToken()
 		if err != nil {
 			if err == io.EOF || len(imports) > 0 {
 				err = nil
@@ -55,6 +58,10 @@ func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
 			continue
 		}
 		if f := strings.Fields(attrValue(e.Attr, "content")); len(f) == 3 {
+			// Ignore VCS type "mod", which is applicable only in module mode.
+			if f[1] == "mod" {
+				continue
+			}
 			imports = append(imports, metaImport{
 				Prefix:   f[0],
 				VCS:      f[1],
