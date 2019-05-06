@@ -48,6 +48,7 @@ const (
 	SameSiteDefaultMode SameSite = iota + 1
 	SameSiteLaxMode
 	SameSiteStrictMode
+	SameSiteNoneMode
 )
 
 // readSetCookies parses all "Set-Cookie" values from
@@ -105,6 +106,8 @@ func readSetCookies(h Header) []*Cookie {
 					c.SameSite = SameSiteLaxMode
 				case "strict":
 					c.SameSite = SameSiteStrictMode
+				case "none":
+					c.SameSite = SameSiteNoneMode
 				default:
 					c.SameSite = SameSiteDefaultMode
 				}
@@ -217,6 +220,8 @@ func (c *Cookie) String() string {
 	switch c.SameSite {
 	case SameSiteDefaultMode:
 		b.WriteString("; SameSite")
+	case SameSiteNoneMode:
+		b.WriteString("; SameSite=None")
 	case SameSiteLaxMode:
 		b.WriteString("; SameSite=Lax")
 	case SameSiteStrictMode:
