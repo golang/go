@@ -560,6 +560,10 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
 		}
 		for i, typ := range ftyp.out() {
 			v := out[i]
+			if v.typ == nil {
+				panic("reflect: function created by MakeFunc using " + funcName(f) +
+					" returned zero Value")
+			}
 			if v.flag&flagRO != 0 {
 				panic("reflect: function created by MakeFunc using " + funcName(f) +
 					" returned value obtained from unexported field")
