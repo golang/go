@@ -6,14 +6,13 @@
 
 // Package imports implements a Go pretty-printer (like package "go/format")
 // that also adds or removes import statements as necessary.
-package imports // import "golang.org/x/tools/imports"
+package imports
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
 	"go/ast"
-	"go/build"
 	"go/format"
 	"go/parser"
 	"go/printer"
@@ -27,8 +26,10 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
-// Options specifies options for processing files.
+// Options is golang.org/x/tools/imports.Options with extra internal-only options.
 type Options struct {
+	Env *ProcessEnv // The environment to use. Note: this contains the cached module and filesystem state.
+
 	Fragment  bool // Accept fragment of a source file (no package statement)
 	AllErrors bool // Report all errors (not just the first 10 on different lines)
 
@@ -39,18 +40,8 @@ type Options struct {
 	FormatOnly bool // Disable the insertion and deletion of imports
 }
 
-// Process formats and adjusts imports for the provided file.
-// If opt is nil the defaults are used.
-//
-// Note that filename's directory influences which imports can be chosen,
-// so it is important that filename be accurate.
-// To process data ``as if'' it were in filename, pass the data as a non-nil src.
+// Process implements golang.org/x/tools/imports.Process with explicit context in env.
 func Process(filename string, src []byte, opt *Options) ([]byte, error) {
-	env := &fixEnv{GOPATH: build.Default.GOPATH, GOROOT: build.Default.GOROOT}
-	return process(filename, src, opt, env)
-}
-
-func process(filename string, src []byte, opt *Options, env *fixEnv) ([]byte, error) {
 	if opt == nil {
 		opt = &Options{Comments: true, TabIndent: true, TabWidth: 8}
 	}
@@ -69,12 +60,12 @@ func process(filename string, src []byte, opt *Options, env *fixEnv) ([]byte, er
 	}
 
 	if !opt.FormatOnly {
-		if err := fixImports(fileSet, file, filename, env); err != nil {
+		if err := fixImports(fileSet, file, filename, opt.Env); err != nil {
 			return nil, err
 		}
 	}
 
-	sortImports(fileSet, file)
+	sortImports(opt.Env, fileSet, file)
 	imps := astutil.Imports(fileSet, file)
 	var spacesBefore []string // import paths we need spaces before
 	for _, impSection := range imps {
@@ -85,7 +76,7 @@ func process(filename string, src []byte, opt *Options, env *fixEnv) ([]byte, er
 		lastGroup := -1
 		for _, importSpec := range impSection {
 			importPath, _ := strconv.Unquote(importSpec.Path.Value)
-			groupNum := importGroup(importPath)
+			groupNum := importGroup(opt.Env, importPath)
 			if groupNum != lastGroup && lastGroup != -1 {
 				spacesBefore = append(spacesBefore, importPath)
 			}

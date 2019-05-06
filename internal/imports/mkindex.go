@@ -8,7 +8,7 @@
 // standard library. The file is intended to be built as part of the imports
 // package, so that the package may be used in environments where a GOROOT is
 // not available (such as App Engine).
-package main
+package imports
 
 import (
 	"bytes"

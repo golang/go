@@ -56,7 +56,13 @@ func (modules) Finalize(exported *Exported) error {
 	// other weird stuff, and will be the working dir for the go command.
 	// It depends on all the other modules.
 	primaryDir := primaryDir(exported)
+	if err := os.MkdirAll(primaryDir, 0755); err != nil {
+		return err
+	}
 	exported.Config.Dir = primaryDir
+	if exported.written[exported.primary] == nil {
+		exported.written[exported.primary] = make(map[string]string)
+	}
 	exported.written[exported.primary]["go.mod"] = filepath.Join(primaryDir, "go.mod")
 	primaryGomod := "module " + exported.primary + "\nrequire (\n"
 	for other := range exported.written {

@@ -5,6 +5,7 @@
 package imports
 
 import (
+	"flag"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -13,6 +14,8 @@ import (
 
 	"golang.org/x/tools/go/packages/packagestest"
 )
+
+var testDebug = flag.Bool("debug", false, "enable debug output")
 
 var tests = []struct {
 	name       string
@@ -1116,8 +1119,7 @@ var _, _ = rand.Read, rand.NewZipf
 }
 
 func TestSimpleCases(t *testing.T) {
-	defer func(lp string) { LocalPrefix = lp }(LocalPrefix)
-	LocalPrefix = "local.com,github.com/local"
+	const localPrefix = "local.com,github.com/local"
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			options := &Options{
@@ -1163,7 +1165,11 @@ func TestSimpleCases(t *testing.T) {
 						Files: fm{"bar/x.go": "package bar\nfunc Bar(){}\n"},
 					},
 				},
-			}.processTest(t, "golang.org/fake", "x.go", nil, options, tt.out)
+			}.test(t, func(t *goimportTest) {
+				t.env.LocalPrefix = localPrefix
+				t.assertProcessEquals("golang.org/fake", "x.go", nil, options, tt.out)
+			})
+
 		})
 	}
 }
@@ -1485,20 +1491,28 @@ func TestFindStdlib(t *testing.T) {
 		for _, sym := range tt.symbols {
 			input += fmt.Sprintf("var _ = %s.%s\n", tt.pkg, sym)
 		}
-		buf, err := Process("x.go", []byte(input), &Options{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := string(buf); !strings.Contains(got, tt.want) {
-			t.Errorf("Process(%q) = %q, wanted it to contain %q", input, buf, tt.want)
-		}
+		testConfig{
+			module: packagestest.Module{
+				Name:  "foo.com",
+				Files: fm{"x.go": input},
+			},
+		}.test(t, func(t *goimportTest) {
+			buf, err := t.process("foo.com", "x.go", nil, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := string(buf); !strings.Contains(got, tt.want) {
+				t.Errorf("Process(%q) = %q, wanted it to contain %q", input, buf, tt.want)
+			}
+		})
 	}
 }
 
 type testConfig struct {
-	gopathOnly bool
-	module     packagestest.Module
-	modules    []packagestest.Module
+	gopathOnly             bool
+	goPackagesIncompatible bool
+	module                 packagestest.Module
+	modules                []packagestest.Module
 }
 
 // fm is the type for a packagestest.Module's Files, abbreviated for shorter lines.
@@ -1522,6 +1536,12 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 
 			forceGoPackages := false
 			var exporter packagestest.Exporter
+			if c.gopathOnly && strings.HasPrefix(kind, "Modules") {
+				t.Skip("test marked GOPATH-only")
+			}
+			if c.goPackagesIncompatible && strings.HasSuffix(kind, "_GoPackages") {
+				t.Skip("test marked go/packages-incompatible")
+			}
 			switch kind {
 			case "GOPATH":
 				exporter = packagestest.GOPATH
@@ -1529,14 +1549,8 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 				exporter = packagestest.GOPATH
 				forceGoPackages = true
 			case "Modules":
-				if c.gopathOnly {
-					t.Skip("test marked GOPATH-only")
-				}
 				exporter = packagestest.Modules
 			case "Modules_GoPackages":
-				if c.gopathOnly {
-					t.Skip("test marked GOPATH-only")
-				}
 				exporter = packagestest.Modules
 				forceGoPackages = true
 			default:
@@ -1554,12 +1568,13 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 
 			it := &goimportTest{
 				T: t,
-				fixEnv: &fixEnv{
+				env: &ProcessEnv{
 					GOROOT:          env["GOROOT"],
 					GOPATH:          env["GOPATH"],
 					GO111MODULE:     env["GO111MODULE"],
 					WorkingDir:      exported.Config.Dir,
 					ForceGoPackages: forceGoPackages,
+					Debug:           *testDebug,
 				},
 				exported: exported,
 			}
@@ -1572,23 +1587,36 @@ func (c testConfig) processTest(t *testing.T, module, file string, contents []by
 	t.Helper()
 	c.test(t, func(t *goimportTest) {
 		t.Helper()
-		t.process(module, file, contents, opts, want)
+		t.assertProcessEquals(module, file, contents, opts, want)
 	})
 }
 
 type goimportTest struct {
 	*testing.T
-	fixEnv   *fixEnv
+	env      *ProcessEnv
 	exported *packagestest.Exported
 }
 
-func (t *goimportTest) process(module, file string, contents []byte, opts *Options, want string) {
+func (t *goimportTest) process(module, file string, contents []byte, opts *Options) ([]byte, error) {
 	t.Helper()
 	f := t.exported.File(module, file)
 	if f == "" {
 		t.Fatalf("%v not found in exported files (typo in filename?)", file)
 	}
-	buf, err := process(f, contents, opts, t.fixEnv)
+	return t.processNonModule(f, contents, opts)
+}
+
+func (t *goimportTest) processNonModule(file string, contents []byte, opts *Options) ([]byte, error) {
+	if opts == nil {
+		opts = &Options{Comments: true, TabIndent: true, TabWidth: 8}
+	}
+	opts.Env = t.env
+	opts.Env.Debug = *testDebug
+	return Process(file, contents, opts)
+}
+
+func (t *goimportTest) assertProcessEquals(module, file string, contents []byte, opts *Options, want string) {
+	buf, err := t.process(module, file, contents, opts)
 	if err != nil {
 		t.Fatalf("Process() = %v", err)
 	}
@@ -1775,9 +1803,8 @@ const _ = runtime.GOOS
 					Files: fm{"t.go": tt.src},
 				}}, tt.modules...),
 			}.test(t, func(t *goimportTest) {
-				defer func(s string) { LocalPrefix = s }(LocalPrefix)
-				LocalPrefix = tt.localPrefix
-				t.process("test.com", "t.go", nil, nil, tt.want)
+				t.env.LocalPrefix = tt.localPrefix
+				t.assertProcessEquals("test.com", "t.go", nil, nil, tt.want)
 			})
 		})
 	}
@@ -1827,7 +1854,7 @@ func TestImportPathToNameGoPathParse(t *testing.T) {
 		if strings.Contains(t.Name(), "GoPackages") {
 			t.Skip("go/packages does not ignore package main")
 		}
-		r := t.fixEnv.getResolver()
+		r := t.env.getResolver()
 		srcDir := filepath.Dir(t.exported.File("example.net/pkg", "z.go"))
 		names, err := r.loadPackageNames([]string{"example.net/pkg"}, srcDir)
 		if err != nil {
@@ -2220,13 +2247,19 @@ func TestPkgIsCandidate(t *testing.T) {
 
 // Issue 20941: this used to panic on Windows.
 func TestProcessStdin(t *testing.T) {
-	got, err := Process("<standard input>", []byte("package main\nfunc main() {\n\tfmt.Println(123)\n}\n"), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(got), `"fmt"`) {
-		t.Errorf("expected fmt import; got: %s", got)
-	}
+	testConfig{
+		module: packagestest.Module{
+			Name: "foo.com",
+		},
+	}.test(t, func(t *goimportTest) {
+		got, err := t.processNonModule("<standard input>", []byte("package main\nfunc main() {\n\tfmt.Println(123)\n}\n"), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(got), `"fmt"`) {
+			t.Errorf("expected fmt import; got: %s", got)
+		}
+	})
 }
 
 // Tests LocalPackagePromotion when there is a local package that matches, it
@@ -2324,14 +2357,21 @@ import "bytes"
 
 var _ = &bytes.Buffer{}
 `
+	testConfig{
+		goPackagesIncompatible: true,
+		module: packagestest.Module{
+			Name: "mycompany.net",
+		},
+	}.test(t, func(t *goimportTest) {
+		buf, err := t.processNonModule("mycompany.net/tool/main.go", []byte(input), nil)
+		if err != nil {
+			t.Fatalf("Process() = %v", err)
+		}
+		if string(buf) != want {
+			t.Errorf("Got:\n%s\nWant:\n%s", buf, want)
+		}
+	})
 
-	buf, err := Process("mycompany.net/tool/main.go", []byte(input), nil)
-	if err != nil {
-		t.Fatalf("Process() = %v", err)
-	}
-	if string(buf) != want {
-		t.Errorf("Got:\n%s\nWant:\n%s", buf, want)
-	}
 }
 
 // Ensures a token as large as 500000 bytes can be handled

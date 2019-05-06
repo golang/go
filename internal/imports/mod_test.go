@@ -485,7 +485,7 @@ var proxyDir string
 
 type modTest struct {
 	*testing.T
-	env      *fixEnv
+	env      *ProcessEnv
 	resolver *moduleResolver
 	cleanup  func()
 }
@@ -515,7 +515,7 @@ func setup(t *testing.T, main, wd string) *modTest {
 		t.Fatal(err)
 	}
 
-	env := &fixEnv{
+	env := &ProcessEnv{
 		GOROOT:      build.Default.GOROOT,
 		GOPATH:      filepath.Join(dir, "gopath"),
 		GO111MODULE: "on",

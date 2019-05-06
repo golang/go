@@ -3,7 +3,7 @@
 // mkstdlib generates the zstdlib.go file, containing the Go standard
 // library API symbols. It's baked into the binary to avoid scanning
 // GOPATH in the common case.
-package main
+package imports
 
 import (
 	"bufio"
