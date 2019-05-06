@@ -86,7 +86,6 @@ func (x *elfExe) Close() error {
 
 func (x *elfExe) ReadData(addr, size uint64) ([]byte, error) {
 	for _, prog := range x.f.Progs {
-		fmt.Printf("%#x %#x %#x\n", addr, prog.Vaddr, prog.Vaddr+prog.Filesz)
 		if prog.Vaddr <= addr && addr <= prog.Vaddr+prog.Filesz-1 {
 			n := prog.Vaddr + prog.Filesz - addr
 			if n > size {
