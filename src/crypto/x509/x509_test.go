@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/dsa"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
@@ -65,27 +66,39 @@ func TestPKCS1MismatchPublicKeyFormat(t *testing.T) {
 	}
 }
 
-func TestParsePKIXPublicKey(t *testing.T) {
-	block, _ := pem.Decode([]byte(pemPublicKey))
+func testParsePKIXPublicKey(t *testing.T, pemBytes string) (pub interface{}) {
+	block, _ := pem.Decode([]byte(pemBytes))
 	pub, err := ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
-		t.Errorf("Failed to parse RSA public key: %s", err)
-		return
-	}
-	rsaPub, ok := pub.(*rsa.PublicKey)
-	if !ok {
-		t.Errorf("Value returned from ParsePKIXPublicKey was not an RSA public key")
-		return
+		t.Fatalf("Failed to parse public key: %s", err)
 	}
 
-	pubBytes2, err := MarshalPKIXPublicKey(rsaPub)
+	pubBytes2, err := MarshalPKIXPublicKey(pub)
 	if err != nil {
-		t.Errorf("Failed to marshal RSA public key for the second time: %s", err)
+		t.Errorf("Failed to marshal public key for the second time: %s", err)
 		return
 	}
 	if !bytes.Equal(pubBytes2, block.Bytes) {
 		t.Errorf("Reserialization of public key didn't match. got %x, want %x", pubBytes2, block.Bytes)
 	}
+	return
+}
+
+func TestParsePKIXPublicKey(t *testing.T) {
+	t.Run("RSA", func(t *testing.T) {
+		pub := testParsePKIXPublicKey(t, pemPublicKey)
+		_, ok := pub.(*rsa.PublicKey)
+		if !ok {
+			t.Errorf("Value returned from ParsePKIXPublicKey was not an RSA public key")
+		}
+	})
+	t.Run("Ed25519", func(t *testing.T) {
+		pub := testParsePKIXPublicKey(t, pemEd25519Key)
+		_, ok := pub.(ed25519.PublicKey)
+		if !ok {
+			t.Errorf("Value returned from ParsePKIXPublicKey was not an Ed25519 public key")
+		}
+	})
 }
 
 var pemPublicKey = `-----BEGIN PUBLIC KEY-----
@@ -115,6 +128,13 @@ AAA7eoZ9AEHflUeuLn9QJI/r0hyQQLEtrpwv6rDT1GCWaLII5HJ6NUFVf4TTcqxo
 6vdM4QGKTJoO+SaCyP0CQFdpcxSAuzpFcKv0IlJ8XzS/cy+mweCMwyJ1PFEc4FX6
 wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
 -----END RSA PRIVATE KEY-----
+`
+
+// pemEd25519Key is the example from RFC 8410, Secrion 4.
+var pemEd25519Key = `
+-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=
+-----END PUBLIC KEY-----
 `
 
 func TestPKIXMismatchPublicKeyFormat(t *testing.T) {
@@ -518,6 +538,11 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		t.Fatalf("Failed to generate ECDSA key: %s", err)
 	}
 
+	ed25519Pub, ed25519Priv, err := ed25519.GenerateKey(random)
+	if err != nil {
+		t.Fatalf("Failed to generate Ed25519 key: %s", err)
+	}
+
 	tests := []struct {
 		name      string
 		pub, priv interface{}
@@ -531,6 +556,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		{"RSAPSS/RSAPSS", &testPrivateKey.PublicKey, testPrivateKey, true, SHA256WithRSAPSS},
 		{"ECDSA/RSAPSS", &ecdsaPriv.PublicKey, testPrivateKey, false, SHA256WithRSAPSS},
 		{"RSAPSS/ECDSA", &testPrivateKey.PublicKey, ecdsaPriv, false, ECDSAWithSHA384},
+		{"Ed25519", ed25519Pub, ed25519Priv, true, PureEd25519},
 	}
 
 	testExtKeyUsage := []ExtKeyUsage{ExtKeyUsageClientAuth, ExtKeyUsageServerAuth}
@@ -1017,6 +1043,76 @@ func TestRSAPSSSelfSigned(t *testing.T) {
 	}
 }
 
+const ed25519Certificate = `
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            0c:83:d8:21:2b:82:cb:23:98:23:63:e2:f7:97:8a:43:5b:f3:bd:92
+        Signature Algorithm: ED25519
+        Issuer: CN = Ed25519 test certificate
+        Validity
+            Not Before: May  6 17:27:16 2019 GMT
+            Not After : Jun  5 17:27:16 2019 GMT
+        Subject: CN = Ed25519 test certificate
+        Subject Public Key Info:
+            Public Key Algorithm: ED25519
+                ED25519 Public-Key:
+                pub:
+                    36:29:c5:6c:0d:4f:14:6c:81:d0:ff:75:d3:6a:70:
+                    5f:69:cd:0f:4d:66:d5:da:98:7e:82:49:89:a3:8a:
+                    3c:fa
+        X509v3 extensions:
+            X509v3 Subject Key Identifier:
+                09:3B:3A:9D:4A:29:D8:95:FF:68:BE:7B:43:54:72:E0:AD:A2:E3:AE
+            X509v3 Authority Key Identifier:
+                keyid:09:3B:3A:9D:4A:29:D8:95:FF:68:BE:7B:43:54:72:E0:AD:A2:E3:AE
+
+            X509v3 Basic Constraints: critical
+                CA:TRUE
+    Signature Algorithm: ED25519
+         53:a5:58:1c:2c:3b:2a:9e:ac:9d:4e:a5:1d:5f:5d:6d:a6:b5:
+         08:de:12:82:f3:97:20:ae:fa:d8:98:f4:1a:83:32:6b:91:f5:
+         24:1d:c4:20:7f:2c:e2:4d:da:13:3b:6d:54:1a:d2:a8:28:dc:
+         60:b9:d4:f4:78:4b:3c:1c:91:00
+-----BEGIN CERTIFICATE-----
+MIIBWzCCAQ2gAwIBAgIUDIPYISuCyyOYI2Pi95eKQ1vzvZIwBQYDK2VwMCMxITAf
+BgNVBAMMGEVkMjU1MTkgdGVzdCBjZXJ0aWZpY2F0ZTAeFw0xOTA1MDYxNzI3MTZa
+Fw0xOTA2MDUxNzI3MTZaMCMxITAfBgNVBAMMGEVkMjU1MTkgdGVzdCBjZXJ0aWZp
+Y2F0ZTAqMAUGAytlcAMhADYpxWwNTxRsgdD/ddNqcF9pzQ9NZtXamH6CSYmjijz6
+o1MwUTAdBgNVHQ4EFgQUCTs6nUop2JX/aL57Q1Ry4K2i464wHwYDVR0jBBgwFoAU
+CTs6nUop2JX/aL57Q1Ry4K2i464wDwYDVR0TAQH/BAUwAwEB/zAFBgMrZXADQQBT
+pVgcLDsqnqydTqUdX11tprUI3hKC85cgrvrYmPQagzJrkfUkHcQgfyziTdoTO21U
+GtKoKNxgudT0eEs8HJEA
+-----END CERTIFICATE-----`
+
+func TestEd25519SelfSigned(t *testing.T) {
+	der, _ := pem.Decode([]byte(ed25519Certificate))
+	if der == nil {
+		t.Fatalf("Failed to find PEM block")
+	}
+
+	cert, err := ParseCertificate(der.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse: %s", err)
+	}
+
+	if cert.PublicKeyAlgorithm != Ed25519 {
+		t.Fatalf("Parsed key algorithm was not Ed25519")
+	}
+	parsedKey, ok := cert.PublicKey.(ed25519.PublicKey)
+	if !ok {
+		t.Fatalf("Parsed key was not an Ed25519 key: %s", err)
+	}
+	if len(parsedKey) != ed25519.PublicKeySize {
+		t.Fatalf("Invalid Ed25519 key")
+	}
+
+	if err = cert.CheckSignatureFrom(cert); err != nil {
+		t.Fatalf("Signature check failed: %s", err)
+	}
+}
+
 const pemCertificate = `-----BEGIN CERTIFICATE-----
 MIIDATCCAemgAwIBAgIRAKQkkrFx1T/dgB/Go/xBM5swDQYJKoZIhvcNAQELBQAw
 EjEQMA4GA1UEChMHQWNtZSBDbzAeFw0xNjA4MTcyMDM2MDdaFw0xNzA4MTcyMDM2
@@ -1176,6 +1272,11 @@ func TestCreateCertificateRequest(t *testing.T) {
 		t.Fatalf("Failed to generate ECDSA key: %s", err)
 	}
 
+	_, ed25519Priv, err := ed25519.GenerateKey(random)
+	if err != nil {
+		t.Fatalf("Failed to generate Ed25519 key: %s", err)
+	}
+
 	tests := []struct {
 		name    string
 		priv    interface{}
@@ -1185,6 +1286,7 @@ func TestCreateCertificateRequest(t *testing.T) {
 		{"ECDSA-256", ecdsa256Priv, ECDSAWithSHA1},
 		{"ECDSA-384", ecdsa384Priv, ECDSAWithSHA1},
 		{"ECDSA-521", ecdsa521Priv, ECDSAWithSHA1},
+		{"Ed25519", ed25519Priv, PureEd25519},
 	}
 
 	for _, test := range tests {
