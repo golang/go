@@ -180,6 +180,8 @@ pkg net, type ListenConfig struct, KeepAlive time.Duration
 pkg net/http, const StatusEarlyHints = 103
 pkg net/http, const StatusEarlyHints ideal-int
 pkg net/http, method (Header) Clone() Header
+pkg net/http, const SameSiteNoneMode = 4
+pkg net/http, const SameSiteNoneMode SameSite
 pkg net/http, type Server struct, BaseContext func(net.Listener) context.Context
 pkg net/http, type Server struct, ConnContext func(context.Context, net.Conn) context.Context
 pkg net/http, type Transport struct, ForceAttemptHTTP2 bool
