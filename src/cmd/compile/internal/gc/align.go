@@ -172,7 +172,16 @@ func dowidth(t *types.Type) {
 	if t.Width == -2 {
 		if !t.Broke() {
 			t.SetBroke(true)
-			yyerrorl(asNode(t.Nod).Pos, "invalid recursive type %v", t)
+			// t.Nod should not be nil here, but in some cases is appears to be
+			// (see issue #23823). For now (temporary work-around) at a minimum
+			// don't crash and provide a meaningful error message.
+			// TODO(gri) determine the correct fix during a regular devel cycle
+			// (see issue #31872).
+			if t.Nod == nil {
+				yyerror("invalid recursive type %v", t)
+			} else {
+				yyerrorl(asNode(t.Nod).Pos, "invalid recursive type %v", t)
+			}
 		}
 
 		t.Width = 0
