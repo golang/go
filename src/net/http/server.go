@@ -2951,7 +2951,7 @@ func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 		config.NextProtos = append(config.NextProtos, "http/1.1")
 	}
 
-	configHasCert := len(config.Certificates) > 0 || config.GetCertificate != nil
+	configHasCert := len(config.Certificates) > 0 || config.GetCertificate != nil || config.GetConfigForClient != nil
 	if !configHasCert || certFile != "" || keyFile != "" {
 		var err error
 		config.Certificates = make([]tls.Certificate, 1)
