@@ -496,6 +496,7 @@ func setup() {
 		xremoveall(p)
 	}
 	xmkdirall(p)
+	xatexit(func() { xremoveall(p) })
 
 	// Create tool directory.
 	// We keep it in pkg/, just like the object directory above.
