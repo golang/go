@@ -44,7 +44,7 @@ func (r *runner) Format(t *testing.T, data tests.Formats) {
 			app := &cmd.Application{}
 			app.Config = r.data.Config
 			got := captureStdOut(t, func() {
-				tool.Main(context.Background(), app, append([]string{"format"}, args...))
+				tool.Main(context.Background(), app, append([]string{"-remote=internal", "format"}, args...))
 			})
 			got = r.normalizePaths(got)
 			// check the first two lines are the expected file header

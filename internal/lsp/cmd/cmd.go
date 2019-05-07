@@ -19,6 +19,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -120,62 +121,104 @@ func (app *Application) commands() []tool.Application {
 	}
 }
 
-type cmdClient interface {
-	protocol.Client
+var (
+	internalMu          sync.Mutex
+	internalConnections = make(map[string]*connection)
+)
 
-	prepare(app *Application, server protocol.Server)
-}
-
-func (app *Application) connect(ctx context.Context, client cmdClient) (protocol.Server, error) {
-	var server protocol.Server
+func (app *Application) connect(ctx context.Context) (*connection, error) {
 	switch app.Remote {
 	case "":
-		server = lsp.NewClientServer(client)
+		connection := newConnection(app)
+		connection.Server = lsp.NewClientServer(connection.Client)
+		return connection, connection.initialize(ctx)
 	case "internal":
+		internalMu.Lock()
+		defer internalMu.Unlock()
+		if c := internalConnections[app.Config.Dir]; c != nil {
+			return c, nil
+		}
+		connection := newConnection(app)
+		ctx := context.Background() //TODO:a way of shutting down the internal server
 		cr, sw, _ := os.Pipe()
 		sr, cw, _ := os.Pipe()
 		var jc *jsonrpc2.Conn
-		jc, server, _ = protocol.NewClient(jsonrpc2.NewHeaderStream(cr, cw), client)
+		jc, connection.Server, _ = protocol.NewClient(jsonrpc2.NewHeaderStream(cr, cw), connection.Client)
 		go jc.Run(ctx)
 		go lsp.NewServer(jsonrpc2.NewHeaderStream(sr, sw)).Run(ctx)
+		if err := connection.initialize(ctx); err != nil {
+			return nil, err
+		}
+		internalConnections[app.Config.Dir] = connection
+		return connection, nil
 	default:
+		connection := newConnection(app)
 		conn, err := net.Dial("tcp", app.Remote)
 		if err != nil {
 			return nil, err
 		}
 		stream := jsonrpc2.NewHeaderStream(conn, conn)
 		var jc *jsonrpc2.Conn
-		jc, server, _ = protocol.NewClient(stream, client)
+		jc, connection.Server, _ = protocol.NewClient(stream, connection.Client)
 		go jc.Run(ctx)
+		return connection, connection.initialize(ctx)
 	}
+}
 
+func (c *connection) initialize(ctx context.Context) error {
 	params := &protocol.InitializeParams{}
-	params.RootURI = string(span.FileURI(app.Config.Dir))
+	params.RootURI = string(span.FileURI(c.Client.app.Config.Dir))
 	params.Capabilities.Workspace.Configuration = true
 	params.Capabilities.TextDocument.Hover.ContentFormat = []protocol.MarkupKind{protocol.PlainText}
-
-	client.prepare(app, server)
-	if _, err := server.Initialize(ctx, params); err != nil {
-		return nil, err
+	if _, err := c.Server.Initialize(ctx, params); err != nil {
+		return err
 	}
-	if err := server.Initialized(ctx, &protocol.InitializedParams{}); err != nil {
-		return nil, err
+	if err := c.Server.Initialized(ctx, &protocol.InitializedParams{}); err != nil {
+		return err
 	}
-	return server, nil
+	return nil
 }
 
-type baseClient struct {
+type connection struct {
 	protocol.Server
-	app    *Application
-	server protocol.Server
-	fset   *token.FileSet
+	Client *cmdClient
 }
 
-func (c *baseClient) ShowMessage(ctx context.Context, p *protocol.ShowMessageParams) error { return nil }
-func (c *baseClient) ShowMessageRequest(ctx context.Context, p *protocol.ShowMessageRequestParams) (*protocol.MessageActionItem, error) {
+type cmdClient struct {
+	protocol.Server
+	app  *Application
+	fset *token.FileSet
+
+	filesMu sync.Mutex
+	files   map[span.URI]*cmdFile
+}
+
+type cmdFile struct {
+	uri            span.URI
+	mapper         *protocol.ColumnMapper
+	err            error
+	added          bool
+	hasDiagnostics chan struct{}
+	diagnostics    []protocol.Diagnostic
+}
+
+func newConnection(app *Application) *connection {
+	return &connection{
+		Client: &cmdClient{
+			app:   app,
+			fset:  token.NewFileSet(),
+			files: make(map[span.URI]*cmdFile),
+		},
+	}
+}
+
+func (c *cmdClient) ShowMessage(ctx context.Context, p *protocol.ShowMessageParams) error { return nil }
+
+func (c *cmdClient) ShowMessageRequest(ctx context.Context, p *protocol.ShowMessageRequestParams) (*protocol.MessageActionItem, error) {
 	return nil, nil
 }
-func (c *baseClient) LogMessage(ctx context.Context, p *protocol.LogMessageParams) error {
+
+func (c *cmdClient) LogMessage(ctx context.Context, p *protocol.LogMessageParams) error {
 	switch p.Type {
 	case protocol.Error:
 		log.Print("Error:", p.Message)
@@ -190,17 +233,22 @@ func (c *baseClient) LogMessage(ctx context.Context, p *protocol.LogMessageParam
 	}
 	return nil
 }
-func (c *baseClient) Event(ctx context.Context, t *interface{}) error { return nil }
-func (c *baseClient) RegisterCapability(ctx context.Context, p *protocol.RegistrationParams) error {
+
+func (c *cmdClient) Event(ctx context.Context, t *interface{}) error { return nil }
+
+func (c *cmdClient) RegisterCapability(ctx context.Context, p *protocol.RegistrationParams) error {
 	return nil
 }
-func (c *baseClient) UnregisterCapability(ctx context.Context, p *protocol.UnregistrationParams) error {
+
+func (c *cmdClient) UnregisterCapability(ctx context.Context, p *protocol.UnregistrationParams) error {
 	return nil
 }
-func (c *baseClient) WorkspaceFolders(ctx context.Context) ([]protocol.WorkspaceFolder, error) {
+
+func (c *cmdClient) WorkspaceFolders(ctx context.Context) ([]protocol.WorkspaceFolder, error) {
 	return nil, nil
 }
-func (c *baseClient) Configuration(ctx context.Context, p *protocol.ConfigurationParams) ([]interface{}, error) {
+
+func (c *cmdClient) Configuration(ctx context.Context, p *protocol.ConfigurationParams) ([]interface{}, error) {
 	results := make([]interface{}, len(p.Items))
 	for i, item := range p.Items {
 		if item.Section != "gopls" {
@@ -218,36 +266,66 @@ func (c *baseClient) Configuration(ctx context.Context, p *protocol.Configuratio
 	}
 	return results, nil
 }
-func (c *baseClient) ApplyEdit(ctx context.Context, p *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResponse, error) {
+
+func (c *cmdClient) ApplyEdit(ctx context.Context, p *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResponse, error) {
 	return &protocol.ApplyWorkspaceEditResponse{Applied: false, FailureReason: "not implemented"}, nil
 }
-func (c *baseClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishDiagnosticsParams) error {
+
+func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishDiagnosticsParams) error {
+	c.filesMu.Lock()
+	defer c.filesMu.Unlock()
+	uri := span.URI(p.URI)
+	file := c.getFile(ctx, uri)
+	hadDiagnostics := file.diagnostics != nil
+	file.diagnostics = p.Diagnostics
+	if file.diagnostics == nil {
+		file.diagnostics = []protocol.Diagnostic{}
+	}
+	if !hadDiagnostics {
+		close(file.hasDiagnostics)
+	}
 	return nil
 }
 
-func (c *baseClient) prepare(app *Application, server protocol.Server) {
-	c.app = app
-	c.server = server
-	c.fset = token.NewFileSet()
+func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
+	file, found := c.files[uri]
+	if !found {
+		file = &cmdFile{
+			uri:            uri,
+			hasDiagnostics: make(chan struct{}),
+		}
+		c.files[uri] = file
+	}
+	if file.mapper == nil {
+		fname, err := uri.Filename()
+		if err != nil {
+			file.err = fmt.Errorf("%v: %v", uri, err)
+			return file
+		}
+		content, err := ioutil.ReadFile(fname)
+		if err != nil {
+			file.err = fmt.Errorf("%v: %v", uri, err)
+			return file
+		}
+		f := c.fset.AddFile(fname, -1, len(content))
+		f.SetLinesForContent(content)
+		file.mapper = protocol.NewColumnMapper(uri, c.fset, f, content)
+	}
+	return file
 }
 
-func (c *baseClient) AddFile(ctx context.Context, uri span.URI) (*protocol.ColumnMapper, error) {
-	fname, err := uri.Filename()
-	if err != nil {
-		return nil, fmt.Errorf("%v: %v", uri, err)
+func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
+	c.Client.filesMu.Lock()
+	defer c.Client.filesMu.Unlock()
+	file := c.Client.getFile(ctx, uri)
+	if !file.added {
+		file.added = true
+		p := &protocol.DidOpenTextDocumentParams{}
+		p.TextDocument.URI = string(uri)
+		p.TextDocument.Text = string(file.mapper.Content)
+		if err := c.Server.DidOpen(ctx, p); err != nil {
+			file.err = fmt.Errorf("%v: %v", uri, err)
+		}
 	}
-	content, err := ioutil.ReadFile(fname)
-	if err != nil {
-		return nil, fmt.Errorf("%v: %v", uri, err)
-	}
-	f := c.fset.AddFile(fname, -1, len(content))
-	f.SetLinesForContent(content)
-	m := protocol.NewColumnMapper(uri, c.fset, f, content)
-	p := &protocol.DidOpenTextDocumentParams{}
-	p.TextDocument.URI = string(uri)
-	p.TextDocument.Text = string(content)
-	if err := c.server.DidOpen(ctx, p); err != nil {
-		return nil, fmt.Errorf("%v: %v", uri, err)
-	}
-	return m, nil
+	return file
 }

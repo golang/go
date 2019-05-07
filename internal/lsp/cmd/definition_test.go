@@ -34,9 +34,6 @@ func TestDefinitionHelpExample(t *testing.T) {
 	if runtime.GOOS == "android" {
 		t.Skip("not all source files are available on android")
 	}
-	if runtime.GOOS != "linux" || isRace {
-		t.Skip("currently uses too much memory, see issue #31611")
-	}
 	dir, err := os.Getwd()
 	if err != nil {
 		t.Errorf("could not get wd: %v", err)
@@ -64,7 +61,7 @@ func (r *runner) Definition(t *testing.T, data tests.Definitions) {
 			// TODO: support type definition queries
 			continue
 		}
-		args := []string{"query"}
+		args := []string{"-remote=internal", "query"}
 		if d.Flags != "" {
 			args = append(args, strings.Split(d.Flags, " ")...)
 		}

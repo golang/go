@@ -59,17 +59,16 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if len(args) != 1 {
 		return tool.CommandLineErrorf("definition expects 1 argument")
 	}
-	client := &baseClient{}
-	server, err := d.query.app.connect(ctx, client)
+	conn, err := d.query.app.connect(ctx)
 	if err != nil {
 		return err
 	}
 	from := span.Parse(args[0])
-	m, err := client.AddFile(ctx, from.URI())
-	if err != nil {
-		return err
+	file := conn.AddFile(ctx, from.URI())
+	if file.err != nil {
+		return file.err
 	}
-	loc, err := m.Location(from)
+	loc, err := file.mapper.Location(from)
 	if err != nil {
 		return err
 	}
@@ -77,7 +76,7 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 		TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
 		Position:     loc.Range.Start,
 	}
-	locs, err := server.Definition(ctx, &p)
+	locs, err := conn.Definition(ctx, &p)
 	if err != nil {
 		return fmt.Errorf("%v: %v", from, err)
 	}
@@ -85,18 +84,18 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if len(locs) == 0 {
 		return fmt.Errorf("%v: not an identifier", from)
 	}
-	hover, err := server.Hover(ctx, &p)
+	hover, err := conn.Hover(ctx, &p)
 	if err != nil {
 		return fmt.Errorf("%v: %v", from, err)
 	}
 	if hover == nil {
 		return fmt.Errorf("%v: not an identifier", from)
 	}
-	m, err = client.AddFile(ctx, span.NewURI(locs[0].URI))
-	if err != nil {
-		return fmt.Errorf("%v: %v", from, err)
+	file = conn.AddFile(ctx, span.NewURI(locs[0].URI))
+	if file.err != nil {
+		return fmt.Errorf("%v: %v", from, file.err)
 	}
-	definition, err := m.Span(locs[0])
+	definition, err := file.mapper.Span(locs[0])
 	if err != nil {
 		return fmt.Errorf("%v: %v", from, err)
 	}
