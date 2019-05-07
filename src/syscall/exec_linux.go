@@ -196,12 +196,14 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		}
 	}
 
+	hasRawVforkSyscall := runtime.GOARCH == "amd64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "s390x"
+
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
 	runtime_BeforeFork()
 	locked = true
 	switch {
-	case runtime.GOARCH == "amd64" && (sys.Cloneflags&CLONE_NEWUSER == 0 && sys.Unshareflags&CLONE_NEWUSER == 0):
+	case hasRawVforkSyscall && (sys.Cloneflags&CLONE_NEWUSER == 0 && sys.Unshareflags&CLONE_NEWUSER == 0):
 		r1, err1 = rawVforkSyscall(SYS_CLONE, uintptr(SIGCHLD|CLONE_VFORK|CLONE_VM)|sys.Cloneflags)
 	case runtime.GOARCH == "s390x":
 		r1, _, err1 = RawSyscall6(SYS_CLONE, 0, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0)
