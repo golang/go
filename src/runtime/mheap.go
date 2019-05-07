@@ -1350,6 +1350,63 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
 	h.free.insert(s)
 }
 
+// scavengeSplit takes t.span() and attempts to split off a span containing size
+// (in bytes) worth of physical pages from the back.
+//
+// The split point is only approximately defined by size since the split point
+// is aligned to physPageSize and pageSize every time. If physHugePageSize is
+// non-zero and the split point would break apart a huge page in the span, then
+// the split point is also aligned to physHugePageSize.
+//
+// If the desired split point ends up at the base of s, or if size is obviously
+// much larger than s, then a split is not possible and this method returns nil.
+// Otherwise if a split occurred it returns the newly-created span.
+func (h *mheap) scavengeSplit(t treapIter, size uintptr) *mspan {
+	s := t.span()
+	start, end := s.physPageBounds()
+	if end <= start || end-start <= size {
+		// Size covers the whole span.
+		return nil
+	}
+	// The span is bigger than what we need, so compute the base for the new
+	// span if we decide to split.
+	base := end - size
+	// Round down to the next physical or logical page, whichever is bigger.
+	base &^= (physPageSize - 1) | (pageSize - 1)
+	if base <= start {
+		return nil
+	}
+	if physHugePageSize > pageSize && base&^(physHugePageSize-1) >= start {
+		// We're in danger of breaking apart a huge page, so include the entire
+		// huge page in the bound by rounding down to the huge page size.
+		// base should still be aligned to pageSize.
+		base &^= physHugePageSize - 1
+	}
+	if base == start {
+		// After all that we rounded base down to s.base(), so no need to split.
+		return nil
+	}
+	if base < start {
+		print("runtime: base=", base, ", s.npages=", s.npages, ", s.base()=", s.base(), ", size=", size, "\n")
+		print("runtime: physPageSize=", physPageSize, ", physHugePageSize=", physHugePageSize, "\n")
+		throw("bad span split base")
+	}
+
+	// Split s in-place, removing from the back.
+	n := (*mspan)(h.spanalloc.alloc())
+	nbytes := s.base() + s.npages*pageSize - base
+	h.free.mutate(t, func(s *mspan) {
+		n.init(base, nbytes/pageSize)
+		s.npages -= nbytes / pageSize
+		h.setSpan(n.base()-1, s)
+		h.setSpan(n.base(), n)
+		h.setSpan(n.base()+nbytes-1, n)
+		n.needzero = s.needzero
+		n.state = s.state
+	})
+	return n
+}
+
 // scavengeLocked scavenges nbytes worth of spans in the free treap by
 // starting from the span with the highest base address and working down.
 // It then takes those spans and places them in scav.
@@ -1371,7 +1428,11 @@ func (h *mheap) scavengeLocked(nbytes uintptr) uintptr {
 				continue
 			}
 			n := t.prev()
-			h.free.erase(t)
+			if span := h.scavengeSplit(t, nbytes-released); span != nil {
+				s = span
+			} else {
+				h.free.erase(t)
+			}
 			released += s.scavenge()
 			// Now that s is scavenged, we must eagerly coalesce it
 			// with its neighbors to prevent having two spans with
