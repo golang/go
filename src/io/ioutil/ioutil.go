@@ -119,6 +119,18 @@ func NopCloser(r io.Reader) io.ReadCloser {
 	return nopCloser{r}
 }
 
+type writeNopCloser struct {
+	io.Writer
+}
+
+func (writeNopCloser) Close() error { return nil }
+
+// WriteNopCloser returns a WriteCloser with a no-op Close method wrapping
+// the provided Writer w.
+func WriteNopCloser(w io.Writer) io.WriteCloser {
+	return writeNopCloser{w}
+}
+
 type devNull int
 
 // devNull implements ReaderFrom as an optimization so io.Copy to
