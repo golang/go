@@ -46,9 +46,10 @@
 // If 'Index' is present, matches and submatches are identified by byte index
 // pairs within the input string: result[2*n:2*n+1] identifies the indexes of
 // the nth submatch. The pair for n==0 identifies the match of the entire
-// expression. If 'Index' is not present, the match is identified by the
-// text of the match/submatch. If an index is negative, it means that
-// subexpression did not match any string in the input.
+// expression. If 'Index' is not present, the match is identified by the text
+// of the match/submatch. If an index is negative or text is nil, it means that
+// subexpression did not match any string in the input. For 'String' versions
+// an empty string means either no match or an empty match.
 //
 // There is also a subset of the methods that can be applied to text read
 // from a RuneReader:
