@@ -1274,7 +1274,7 @@ func testClientTimeout(t *testing.T, h2 bool) {
 		} else if !ne.Timeout() {
 			t.Errorf("net.Error.Timeout = false; want true")
 		}
-		if got := ne.Error(); !strings.Contains(got, "Client.Timeout exceeded") {
+		if got := ne.Error(); !strings.Contains(got, "(Client.Timeout") {
 			t.Errorf("error string = %q; missing timeout substring", got)
 		}
 	case <-time.After(failTime):
@@ -1916,4 +1916,23 @@ func TestClientCloseIdleConnections(t *testing.T) {
 	if !closed {
 		t.Error("not closed")
 	}
+}
+
+func TestClientPropagatesTimeoutToContext(t *testing.T) {
+	errDial := errors.New("not actually dialing")
+	c := &Client{
+		Timeout: 5 * time.Second,
+		Transport: &Transport{
+			DialContext: func(ctx context.Context, netw, addr string) (net.Conn, error) {
+				deadline, ok := ctx.Deadline()
+				if !ok {
+					t.Error("no deadline")
+				} else {
+					t.Logf("deadline in %v", deadline.Sub(time.Now()).Round(time.Second/10))
+				}
+				return nil, errDial
+			},
+		},
+	}
+	c.Get("https://example.tld/")
 }
