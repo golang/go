@@ -1,0 +1,98 @@
+# Tests for automatic testing.Init calls when using 'go test'.
+
+env GO111MODULE=on
+
+# A TestMain should be able to access testing flags if it calls flag.Parse
+# without needing to use testing.Init.
+go test testmain_flag_test.go
+
+# Test code can use the name 'testing' without colliding with generated
+# testinginit code.
+go test testing_collision_test.go
+
+# Tests running under 'go test' should observe that testing.Init is called
+# before any user package initialization code runs.
+go test ./testinitflag
+
+-- testmain_flag_test.go --
+package testmain_flag_test
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	found := false
+	flag.VisitAll(func(f *flag.Flag) {
+		if f.Name == "test.count" {
+			found = true
+		}
+	})
+	if !found {
+		fmt.Println("testing flags not registered")
+		os.Exit(1)
+	}
+	os.Exit(m.Run())
+}
+
+func TestX(t *testing.T) {}
+
+-- testing_collision_test.go --
+package testing_collision_test
+
+import testing2 "testing"
+
+var testing = 3
+
+func TestX(t *testing2.T) {}
+
+-- go.mod --
+module m
+
+-- testinitflag/init.go --
+package testinitflag
+
+import "flag"
+
+func TestFlagsInitialized() bool {
+	found := false
+	flag.VisitAll(func(f *flag.Flag) {
+		if f.Name == "test.count" {
+			found = true
+		}
+	})
+	return found
+}
+
+-- testinitflag/init_test.go --
+package testinitflag
+
+import "testing"
+
+var testingInitAtInitialization = TestFlagsInitialized()
+
+func TestInit(t *testing.T) {
+	if !testingInitAtInitialization {
+		t.Fatal("testing.Init not called before package initialization")
+	}
+}
+
+-- testinitflag/external_test.go --
+package testinitflag_test
+
+import (
+	"testing"
+	"m/testinitflag"
+)
+
+var testingInitAtInitialization = testinitflag.TestFlagsInitialized()
+
+func TestInitExternal(t *testing.T) {
+	if !testingInitAtInitialization {
+		t.Fatal("testing.Init not called before package initialization")
+	}
+}

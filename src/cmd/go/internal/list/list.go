@@ -459,7 +459,7 @@ func runList(cmd *base.Command, args []string) {
 				}
 				if pmain != nil {
 					pkgs = append(pkgs, pmain)
-					data := *pmain.Internal.TestmainGo
+					data := pmain.Internal.TestmainGo
 					h := cache.NewHash("testmain")
 					h.Write([]byte("testmain\n"))
 					h.Write(data)
