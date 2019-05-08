@@ -590,9 +590,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 
 	elfobj.nsect = uint(elfobj.shnum)
 	for i := 0; uint(i) < elfobj.nsect; i++ {
-		if f.Seek(int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0) < 0 {
-			return errorf("malformed elf file: negative seek")
-		}
+		f.MustSeek(int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0)
 		sect := &elfobj.sect[i]
 		if is64 != 0 {
 			var b ElfSectBytes64
@@ -996,9 +994,7 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 	}
 
 	sect.base = make([]byte, sect.size)
-	if elfobj.f.Seek(int64(uint64(elfobj.base)+sect.off), 0) < 0 {
-		return fmt.Errorf("short read: seek not successful")
-	}
+	elfobj.f.MustSeek(int64(uint64(elfobj.base)+sect.off), 0)
 	if _, err := io.ReadFull(elfobj.f, sect.base); err != nil {
 		return fmt.Errorf("short read: %v", err)
 	}

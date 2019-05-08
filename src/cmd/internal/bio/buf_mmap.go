@@ -57,6 +57,6 @@ func (r *Reader) sliceOS(length uint64) ([]byte, bool) {
 	}
 
 	data = data[off-aoff:]
-	r.Seek(int64(length), 1)
+	r.MustSeek(int64(length), 1)
 	return data, true
 }

@@ -321,9 +321,7 @@ func macholoadrel(m *ldMachoObj, sect *ldMachoSect) int {
 	rel := make([]ldMachoRel, sect.nreloc)
 	n := int(sect.nreloc * 8)
 	buf := make([]byte, n)
-	if m.f.Seek(m.base+int64(sect.reloff), 0) < 0 {
-		return -1
-	}
+	m.f.MustSeek(m.base+int64(sect.reloff), 0)
 	if _, err := io.ReadFull(m.f, buf); err != nil {
 		return -1
 	}
@@ -367,9 +365,7 @@ func macholoaddsym(m *ldMachoObj, d *ldMachoDysymtab) int {
 	n := int(d.nindirectsyms)
 
 	p := make([]byte, n*4)
-	if m.f.Seek(m.base+int64(d.indirectsymoff), 0) < 0 {
-		return -1
-	}
+	m.f.MustSeek(m.base+int64(d.indirectsymoff), 0)
 	if _, err := io.ReadFull(m.f, p); err != nil {
 		return -1
 	}
@@ -387,9 +383,7 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 	}
 
 	strbuf := make([]byte, symtab.strsize)
-	if m.f.Seek(m.base+int64(symtab.stroff), 0) < 0 {
-		return -1
-	}
+	m.f.MustSeek(m.base+int64(symtab.stroff), 0)
 	if _, err := io.ReadFull(m.f, strbuf); err != nil {
 		return -1
 	}
@@ -400,9 +394,7 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 	}
 	n := int(symtab.nsym * uint32(symsize))
 	symbuf := make([]byte, n)
-	if m.f.Seek(m.base+int64(symtab.symoff), 0) < 0 {
-		return -1
-	}
+	m.f.MustSeek(m.base+int64(symtab.symoff), 0)
 	if _, err := io.ReadFull(m.f, symbuf); err != nil {
 		return -1
 	}
@@ -463,7 +455,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 	}
 
 	if is64 {
-		f.Seek(4, 1) // skip reserved word in header
+		f.MustSeek(4, 1) // skip reserved word in header
 	}
 
 	m := &ldMachoObj{
@@ -555,9 +547,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		return errorf("load segment out of range")
 	}
 
-	if f.Seek(m.base+int64(c.seg.fileoff), 0) < 0 {
-		return errorf("cannot load object data: seek failed")
-	}
+	f.MustSeek(m.base+int64(c.seg.fileoff), 0)
 	dat := make([]byte, c.seg.filesz)
 	if _, err := io.ReadFull(f, dat); err != nil {
 		return errorf("cannot load object data: %v", err)

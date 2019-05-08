@@ -133,7 +133,7 @@ const (
 type peBiobuf bio.Reader
 
 func (f *peBiobuf) ReadAt(p []byte, off int64) (int, error) {
-	ret := ((*bio.Reader)(f)).Seek(off, 0)
+	ret := ((*bio.Reader)(f)).MustSeek(off, 0)
 	if ret < 0 {
 		return 0, errors.New("fail to seek")
 	}

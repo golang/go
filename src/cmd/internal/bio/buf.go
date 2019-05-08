@@ -43,7 +43,7 @@ func Open(name string) (*Reader, error) {
 	return &Reader{f: f, Reader: bufio.NewReader(f)}, nil
 }
 
-func (r *Reader) Seek(offset int64, whence int) int64 {
+func (r *Reader) MustSeek(offset int64, whence int) int64 {
 	if whence == 1 {
 		offset -= int64(r.Buffered())
 	}
@@ -55,7 +55,7 @@ func (r *Reader) Seek(offset int64, whence int) int64 {
 	return off
 }
 
-func (w *Writer) Seek(offset int64, whence int) int64 {
+func (w *Writer) MustSeek(offset int64, whence int) int64 {
 	if err := w.Flush(); err != nil {
 		log.Fatalf("writing output: %v", err)
 	}

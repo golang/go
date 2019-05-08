@@ -85,7 +85,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, le
 	start := f.Offset()
 	roObject := f.SliceRO(uint64(length))
 	if roObject != nil {
-		f.Seek(int64(-length), os.SEEK_CUR)
+		f.MustSeek(int64(-length), os.SEEK_CUR)
 	}
 	r := &objReader{
 		rd:              f,
@@ -104,7 +104,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, le
 		if r.roOffset != length {
 			log.Fatalf("%s: unexpected end at %d, want %d", pn, r.roOffset, start+length)
 		}
-		r.rd.Seek(int64(length), os.SEEK_CUR)
+		r.rd.MustSeek(int64(length), os.SEEK_CUR)
 	} else if f.Offset() != start+length {
 		log.Fatalf("%s: unexpected end at %d, want %d", pn, f.Offset(), start+length)
 	}

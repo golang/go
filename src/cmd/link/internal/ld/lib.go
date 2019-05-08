@@ -741,7 +741,7 @@ func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
 	if off&1 != 0 {
 		off++
 	}
-	bp.Seek(off, 0)
+	bp.MustSeek(off, 0)
 	var buf [SAR_HDR]byte
 	if n, err := io.ReadFull(bp, buf[:]); err != nil {
 		if n == 0 && err != io.EOF {
@@ -864,8 +864,8 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
 		}
 
 		/* load it as a regular file */
-		l := f.Seek(0, 2)
-		f.Seek(0, 0)
+		l := f.MustSeek(0, 2)
+		f.MustSeek(0, 0)
 		ldobj(ctxt, f, lib, l, lib.File, lib.File)
 		return
 	}
@@ -985,7 +985,7 @@ func hostobjs(ctxt *Link) {
 			Exitf("cannot reopen %s: %v", h.pn, err)
 		}
 
-		f.Seek(h.off, 0)
+		f.MustSeek(h.off, 0)
 		h.ld(ctxt, f, h.pkg, h.length, h.pn)
 		f.Close()
 	}
@@ -1607,7 +1607,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	c2 := bgetc(f)
 	c3 := bgetc(f)
 	c4 := bgetc(f)
-	f.Seek(start, 0)
+	f.MustSeek(start, 0)
 
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
@@ -1740,9 +1740,9 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	import1 := f.Offset()
 
-	f.Seek(import0, 0)
+	f.MustSeek(import0, 0)
 	ldpkg(ctxt, f, lib, import1-import0-2, pn) // -2 for !\n
-	f.Seek(import1, 0)
+	f.MustSeek(import1, 0)
 
 	flags := 0
 	switch *FlagStrictDups {
