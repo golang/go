@@ -156,10 +156,10 @@ loop:
 			break
 		}
 		if w.fmt.needColon || !p.fmt.plusV {
-			w.buf.WriteByte(':')
+			w.buf.writeByte(':')
 			w.fmt.needColon = false
 		}
-		w.buf.WriteString(sep)
+		w.buf.writeString(sep)
 		w.fmt.inDetail = false
 		w.fmt.needNewline = false
 	}
@@ -195,24 +195,24 @@ func (p *errPPState) Write(b []byte) (n int, err error) {
 		for i, c := range b {
 			if p.fmt.needNewline {
 				if p.fmt.inDetail && p.fmt.needColon {
-					p.buf.WriteByte(':')
+					p.buf.writeByte(':')
 					p.fmt.needColon = false
 				}
-				p.buf.Write(detailSep)
+				p.buf.write(detailSep)
 				p.fmt.needNewline = false
 			}
 			if c == '\n' {
-				p.buf.Write(b[k:i])
+				p.buf.write(b[k:i])
 				k = i + 1
 				p.fmt.needNewline = true
 			}
 		}
-		p.buf.Write(b[k:])
+		p.buf.write(b[k:])
 		if !p.fmt.inDetail {
 			p.fmt.needColon = true
 		}
 	} else if !p.fmt.inDetail {
-		p.buf.Write(b)
+		p.buf.write(b)
 	}
 	return len(b), nil
 
