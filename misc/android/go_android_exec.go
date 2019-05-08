@@ -27,11 +27,8 @@ import (
 )
 
 func run(args ...string) (string, error) {
-	if flags := os.Getenv("GOANDROID_ADB_FLAGS"); flags != "" {
-		args = append(strings.Split(flags, " "), args...)
-	}
+	cmd := adbCmd(args...)
 	buf := new(bytes.Buffer)
-	cmd := exec.Command("adb", args...)
 	cmd.Stdout = io.MultiWriter(os.Stdout, buf)
 	// If the adb subprocess somehow hangs, go test will kill this wrapper
 	// and wait for our os.Stderr (and os.Stdout) to close as a result.
@@ -43,12 +40,26 @@ func run(args ...string) (string, error) {
 	// forcing cmd.Run to use another pipe and goroutine to pass
 	// along stderr from adb.
 	cmd.Stderr = struct{ io.Writer }{os.Stderr}
-	log.Printf("adb %s", strings.Join(args, " "))
 	err := cmd.Run()
 	if err != nil {
 		return "", fmt.Errorf("adb %s: %v", strings.Join(args, " "), err)
 	}
 	return buf.String(), nil
+}
+
+func adb(args ...string) error {
+	if out, err := adbCmd(args...).CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "adb %s\n%s", strings.Join(args, " "), out)
+		return err
+	}
+	return nil
+}
+
+func adbCmd(args ...string) *exec.Cmd {
+	if flags := os.Getenv("GOANDROID_ADB_FLAGS"); flags != "" {
+		args = append(strings.Split(flags, " "), args...)
+	}
+	return exec.Command("adb", args...)
 }
 
 const (
@@ -83,7 +94,7 @@ func runMain() (int, error) {
 	// In case we're booting a device or emulator alongside all.bash, wait for
 	// it to be ready. adb wait-for-device is not enough, we have to
 	// wait for sys.boot_completed.
-	if _, err := run("wait-for-device", "exec-out", "while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;"); err != nil {
+	if err := adb("wait-for-device", "exec-out", "while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;"); err != nil {
 		return 0, err
 	}
 
@@ -98,7 +109,7 @@ func runMain() (int, error) {
 	binName := filepath.Base(os.Args[1])
 	deviceGotmp := fmt.Sprintf(deviceRoot+"/%s-%d", binName, os.Getpid())
 	deviceGopath := deviceGotmp + "/gopath"
-	defer run("exec-out", "rm", "-rf", deviceGotmp) // Clean up.
+	defer adb("exec-out", "rm", "-rf", deviceGotmp) // Clean up.
 
 	// Determine the package by examining the current working
 	// directory, which will look something like
@@ -113,7 +124,7 @@ func runMain() (int, error) {
 	if inGoRoot {
 		deviceCwd = filepath.Join(deviceGoroot, subdir)
 	} else {
-		if _, err := run("exec-out", "mkdir", "-p", deviceCwd); err != nil {
+		if err := adb("exec-out", "mkdir", "-p", deviceCwd); err != nil {
 			return 0, err
 		}
 		if err := adbCopyTree(deviceCwd, subdir); err != nil {
@@ -127,14 +138,14 @@ func runMain() (int, error) {
 		}
 		if len(goFiles) > 0 {
 			args := append(append([]string{"push"}, goFiles...), deviceCwd)
-			if _, err := run(args...); err != nil {
+			if err := adb(args...); err != nil {
 				return 0, err
 			}
 		}
 	}
 
 	deviceBin := fmt.Sprintf("%s/%s", deviceGotmp, binName)
-	if _, err := run("push", os.Args[1], deviceBin); err != nil {
+	if err := adb("push", os.Args[1], deviceBin); err != nil {
 		return 0, err
 	}
 
@@ -146,7 +157,7 @@ func runMain() (int, error) {
 		for range quit {
 			// We don't have the PID of the running process; use the
 			// binary name instead.
-			run("exec-out", "killall -QUIT "+binName)
+			adb("exec-out", "killall -QUIT "+binName)
 		}
 	}()
 	// In light of
@@ -232,10 +243,10 @@ func adbCopyTree(deviceCwd, subdir string) error {
 				continue
 			}
 			devicePath := filepath.Join(deviceCwd, dir)
-			if _, err := run("exec-out", "mkdir", "-p", devicePath); err != nil {
+			if err := adb("exec-out", "mkdir", "-p", devicePath); err != nil {
 				return err
 			}
-			if _, err := run("push", path, devicePath); err != nil {
+			if err := adb("push", path, devicePath); err != nil {
 				return err
 			}
 		}
@@ -273,11 +284,11 @@ func adbCopyGoroot() error {
 		return nil
 	}
 	// Delete GOROOT, GOPATH and any leftover test data.
-	if _, err := run("exec-out", "rm", "-rf", deviceRoot); err != nil {
+	if err := adb("exec-out", "rm", "-rf", deviceRoot); err != nil {
 		return err
 	}
 	deviceBin := filepath.Join(deviceGoroot, "bin")
-	if _, err := run("exec-out", "mkdir", "-p", deviceBin); err != nil {
+	if err := adb("exec-out", "mkdir", "-p", deviceBin); err != nil {
 		return err
 	}
 	goroot := runtime.GOROOT()
@@ -294,20 +305,20 @@ func adbCopyGoroot() error {
 		return fmt.Errorf("failed to build go tool for device: %s\n%v", out, err)
 	}
 	deviceGo := filepath.Join(deviceBin, "go")
-	if _, err := run("push", tmpGo.Name(), deviceGo); err != nil {
+	if err := adb("push", tmpGo.Name(), deviceGo); err != nil {
 		return err
 	}
 	for _, dir := range []string{"src", "test", "lib", "api"} {
-		if _, err := run("push", filepath.Join(goroot, dir), filepath.Join(deviceGoroot)); err != nil {
+		if err := adb("push", filepath.Join(goroot, dir), filepath.Join(deviceGoroot)); err != nil {
 			return err
 		}
 	}
 
 	// Copy only the relevant from pkg.
-	if _, err := run("exec-out", "mkdir", "-p", filepath.Join(deviceGoroot, "pkg", "tool")); err != nil {
+	if err := adb("exec-out", "mkdir", "-p", filepath.Join(deviceGoroot, "pkg", "tool")); err != nil {
 		return err
 	}
-	if _, err := run("push", filepath.Join(goroot, "pkg", "include"), filepath.Join(deviceGoroot, "pkg")); err != nil {
+	if err := adb("push", filepath.Join(goroot, "pkg", "include"), filepath.Join(deviceGoroot, "pkg")); err != nil {
 		return err
 	}
 	runtimea, err := exec.Command(goCmd, "list", "-f", "{{.Target}}", "runtime").Output()
@@ -315,11 +326,11 @@ func adbCopyGoroot() error {
 	if pkgdir == "" {
 		return errors.New("could not find android pkg dir")
 	}
-	if _, err := run("push", pkgdir, filepath.Join(deviceGoroot, "pkg")); err != nil {
+	if err := adb("push", pkgdir, filepath.Join(deviceGoroot, "pkg")); err != nil {
 		return err
 	}
 	tooldir := filepath.Join(goroot, "pkg", "tool", filepath.Base(pkgdir))
-	if _, err := run("push", tooldir, filepath.Join(deviceGoroot, "pkg", "tool")); err != nil {
+	if err := adb("push", tooldir, filepath.Join(deviceGoroot, "pkg", "tool")); err != nil {
 		return err
 	}
 
