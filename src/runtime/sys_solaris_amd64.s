@@ -291,7 +291,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 // can also be called in cgo callback path without a g->m.
 TEXT runtime·usleep1(SB),NOSPLIT,$0
 	MOVL	usec+0(FP), DI
-	MOVQ	$runtime·usleep2(SB), AX // to hide from 6l
+	MOVQ	$usleep2<>(SB), AX // to hide from 6l
 
 	// Execute call on m->g0.
 	get_tls(R15)
@@ -328,7 +328,7 @@ noswitch:
 	RET
 
 // Runs on OS stack. duration (in µs units) is in DI.
-TEXT runtime·usleep2(SB),NOSPLIT,$0
+TEXT usleep2<>(SB),NOSPLIT,$0
 	LEAQ	libc_usleep(SB), AX
 	CALL	AX
 	RET
