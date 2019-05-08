@@ -22,6 +22,12 @@
 //	-compileflags 'list'
 //		Pass the space-separated list of flags to the compilation.
 //
+//	-link exe
+//		Use exe as the path to the cmd/link binary.
+//
+//	-linkflags 'list'
+//		Pass the space-separated list of flags to the linker.
+//
 //	-count n
 //		Run each benchmark n times (default 1).
 //
@@ -90,6 +96,7 @@ import (
 var (
 	goroot   string
 	compiler string
+	linker   string
 	runRE    *regexp.Regexp
 	is6g     bool
 )
@@ -100,6 +107,8 @@ var (
 	flagObj            = flag.Bool("obj", false, "report object file stats")
 	flagCompiler       = flag.String("compile", "", "use `exe` as the cmd/compile binary")
 	flagCompilerFlags  = flag.String("compileflags", "", "additional `flags` to pass to compile")
+	flagLinker         = flag.String("link", "", "use `exe` as the cmd/link binary")
+	flagLinkerFlags    = flag.String("linkflags", "", "additional `flags` to pass to link")
 	flagRun            = flag.String("run", "", "run benchmarks matching `regexp`")
 	flagCount          = flag.Int("count", 1, "run benchmarks `n` times")
 	flagCpuprofile     = flag.String("cpuprofile", "", "write CPU profile to `file`")
@@ -130,6 +139,7 @@ var tests = []test{
 	{"BenchmarkReflect", compile{"reflect"}},
 	{"BenchmarkTar", compile{"archive/tar"}},
 	{"BenchmarkXML", compile{"encoding/xml"}},
+	{"BenchmarkLinkCompiler", link{"cmd/compile"}},
 	{"BenchmarkStdCmd", goBuild{[]string{"std", "cmd"}}},
 	{"BenchmarkHelloSize", size{"$GOROOT/test/helloworld.go", false}},
 	{"BenchmarkCmdGoSize", size{"cmd/go", true}},
@@ -160,16 +170,16 @@ func main() {
 
 	compiler = *flagCompiler
 	if compiler == "" {
-		out, err := exec.Command(*flagGoCmd, "tool", "-n", "compile").CombinedOutput()
-		if err != nil {
-			out, err = exec.Command(*flagGoCmd, "tool", "-n", "6g").CombinedOutput()
+		var foundTool string
+		foundTool, compiler = toolPath("compile", "6g")
+		if foundTool == "6g" {
 			is6g = true
-			if err != nil {
-				out, err = exec.Command(*flagGoCmd, "tool", "-n", "compile").CombinedOutput()
-				log.Fatalf("go tool -n compiler: %v\n%s", err, out)
-			}
 		}
-		compiler = strings.TrimSpace(string(out))
+	}
+
+	linker = *flagLinker
+	if linker == "" && !is6g { // TODO: Support 6l
+		_, linker = toolPath("link")
 	}
 
 	if is6g {
@@ -190,6 +200,7 @@ func main() {
 	if *flagPackage != "" {
 		tests = []test{
 			{"BenchmarkPkg", compile{*flagPackage}},
+			{"BenchmarkPkgLink", link{*flagPackage}},
 		}
 		runRE = nil
 	}
@@ -206,6 +217,39 @@ func main() {
 			}
 		}
 	}
+}
+
+func toolPath(names ...string) (found, path string) {
+	var out1 []byte
+	var err1 error
+	for i, name := range names {
+		out, err := exec.Command(*flagGoCmd, "tool", "-n", name).CombinedOutput()
+		if err == nil {
+			return name, strings.TrimSpace(string(out))
+		}
+		if i == 0 {
+			out1, err1 = out, err
+		}
+	}
+	log.Fatalf("go tool -n %s: %v\n%s", names[0], err1, out1)
+	return "", ""
+}
+
+type Pkg struct {
+	Dir     string
+	GoFiles []string
+}
+
+func goList(dir string) (*Pkg, error) {
+	var pkg Pkg
+	out, err := exec.Command(*flagGoCmd, "list", "-json", dir).Output()
+	if err != nil {
+		return nil, fmt.Errorf("go list -json %s: %v\n", dir, err)
+	}
+	if err := json.Unmarshal(out, &pkg); err != nil {
+		return nil, fmt.Errorf("go list -json %s: unmarshal: %v", dir, err)
+	}
+	return &pkg, nil
 }
 
 func runCmd(name string, cmd *exec.Cmd) error {
@@ -286,16 +330,9 @@ func (c compile) run(name string, count int) error {
 	}
 
 	// Find dir and source file list.
-	var pkg struct {
-		Dir     string
-		GoFiles []string
-	}
-	out, err = exec.Command(*flagGoCmd, "list", "-json", c.dir).Output()
+	pkg, err := goList(c.dir)
 	if err != nil {
-		return fmt.Errorf("go list -json %s: %v\n", c.dir, err)
-	}
-	if err := json.Unmarshal(out, &pkg); err != nil {
-		return fmt.Errorf("go list -json %s: unmarshal: %v", c.dir, err)
+		return err
 	}
 
 	args := []string{"-o", "_compilebench_.o"}
@@ -322,6 +359,52 @@ func (c compile) run(name string, count int) error {
 
 	os.Remove(opath)
 	return nil
+}
+
+type link struct{ dir string }
+
+func (link) long() bool { return false }
+
+func (r link) run(name string, count int) error {
+	if linker == "" {
+		// No linker. Skip the test.
+		return nil
+	}
+
+	// Build dependencies.
+	out, err := exec.Command(*flagGoCmd, "build", "-i", "-o", "/dev/null", r.dir).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("go build -i %s: %v\n%s", r.dir, err, out)
+	}
+
+	// Build the main package.
+	pkg, err := goList(r.dir)
+	if err != nil {
+		return err
+	}
+	args := []string{"-o", "_compilebench_.o"}
+	args = append(args, pkg.GoFiles...)
+	cmd := exec.Command(compiler, args...)
+	cmd.Dir = pkg.Dir
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("compiling: %v", err)
+	}
+	defer os.Remove(pkg.Dir + "/_compilebench_.o")
+
+	// Link the main package.
+	args = []string{"-o", "_compilebench_.exe"}
+	args = append(args, strings.Fields(*flagLinkerFlags)...)
+	args = append(args, "_compilebench_.o")
+	if err := runBuildCmd(name, count, pkg.Dir, linker, args); err != nil {
+		return err
+	}
+	fmt.Println()
+	defer os.Remove(pkg.Dir + "/_compilebench_.exe")
+
+	return err
 }
 
 // runBuildCmd runs "tool args..." in dir, measures standard build
