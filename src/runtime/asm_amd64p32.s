@@ -9,9 +9,9 @@
 
 TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// copy arguments forward on an even stack
-	MOVL	argc+0(FP), AX
-	MOVL	argv+4(FP), BX
 	MOVL	SP, CX
+	MOVL	8(CX), AX	// argc
+	MOVL	12(CX), BX	// argv
 	SUBL	$128, CX		// plenty of scratch
 	ANDL	$~15, CX
 	MOVL	CX, SP
@@ -276,6 +276,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
+	NOP	SP	// tell vet SP changed - stop checking offsets
 	MOVL	8(SP), AX	// f's caller's PC
 	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
 	LEAL	16(SP), AX	// f's caller's SP
@@ -443,7 +444,8 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
 // func asmcgocall(fn, arg unsafe.Pointer) int32
 // Not implemented.
 TEXT runtime·asmcgocall(SB),NOSPLIT,$0-12
-	MOVL	0, AX
+	MOVL	0, AX // crash
+	MOVL	$0, ret+8(FP) // for vet
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
