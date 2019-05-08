@@ -67,11 +67,13 @@ func (f *format) Run(ctx context.Context, args ...string) error {
 		if err != nil {
 			return err
 		}
-		p := protocol.DocumentRangeFormattingParams{
-			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-			Range:        loc.Range,
+		if loc.Range.Start != loc.Range.End {
+			return fmt.Errorf("only full file formatting supported")
 		}
-		edits, err := server.RangeFormatting(ctx, &p)
+		p := protocol.DocumentFormattingParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
+		}
+		edits, err := server.Formatting(ctx, &p)
 		if err != nil {
 			return fmt.Errorf("%v: %v", spn, err)
 		}

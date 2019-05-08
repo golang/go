@@ -20,20 +20,6 @@ func (s *Server) formatting(ctx context.Context, params *protocol.DocumentFormat
 	return formatRange(ctx, view, spn)
 }
 
-func (s *Server) rangeFormatting(ctx context.Context, params *protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
-	uri := span.NewURI(params.TextDocument.URI)
-	view := s.findView(ctx, uri)
-	_, m, err := newColumnMap(ctx, view, uri)
-	if err != nil {
-		return nil, err
-	}
-	spn, err := m.RangeSpan(params.Range)
-	if err != nil {
-		return nil, err
-	}
-	return formatRange(ctx, view, spn)
-}
-
 // formatRange formats a document with a given range.
 func formatRange(ctx context.Context, v source.View, s span.Span) ([]protocol.TextEdit, error) {
 	f, m, err := newColumnMap(ctx, v, s.URI())
