@@ -172,6 +172,13 @@ func main() {
 		compiler = strings.TrimSpace(string(out))
 	}
 
+	if is6g {
+		*flagMemprofilerate = -1
+		*flagAlloc = false
+		*flagCpuprofile = ""
+		*flagMemprofile = ""
+	}
+
 	if *flagRun != "" {
 		r, err := regexp.Compile(*flagRun)
 		if err != nil {
@@ -292,31 +299,56 @@ func (c compile) run(name string, count int) error {
 	}
 
 	args := []string{"-o", "_compilebench_.o"}
-	if is6g {
-		*flagMemprofilerate = -1
-		*flagAlloc = false
-		*flagCpuprofile = ""
-		*flagMemprofile = ""
-	}
-	if *flagMemprofilerate >= 0 {
-		args = append(args, "-memprofilerate", fmt.Sprint(*flagMemprofilerate))
-	}
 	args = append(args, strings.Fields(*flagCompilerFlags)...)
+	args = append(args, pkg.GoFiles...)
+	if err := runBuildCmd(name, count, pkg.Dir, compiler, args); err != nil {
+		return err
+	}
+
+	opath := pkg.Dir + "/_compilebench_.o"
+	if *flagObj {
+		// TODO(josharian): object files are big; just read enough to find what we seek.
+		data, err := ioutil.ReadFile(opath)
+		if err != nil {
+			log.Print(err)
+		}
+		// Find start of export data.
+		i := bytes.Index(data, []byte("\n$$B\n")) + len("\n$$B\n")
+		// Count bytes to end of export data.
+		nexport := bytes.Index(data[i:], []byte("\n$$\n"))
+		fmt.Printf(" %d object-bytes %d export-bytes", len(data), nexport)
+	}
+	fmt.Println()
+
+	os.Remove(opath)
+	return nil
+}
+
+// runBuildCmd runs "tool args..." in dir, measures standard build
+// tool metrics, and prints a benchmark line. The caller may print
+// additional metrics and then must print a newline.
+//
+// This assumes tool accepts standard build tool flags like
+// -memprofilerate, -memprofile, and -cpuprofile.
+func runBuildCmd(name string, count int, dir, tool string, args []string) error {
+	var preArgs []string
+	if *flagMemprofilerate >= 0 {
+		preArgs = append(preArgs, "-memprofilerate", fmt.Sprint(*flagMemprofilerate))
+	}
 	if *flagAlloc || *flagCpuprofile != "" || *flagMemprofile != "" {
 		if *flagAlloc || *flagMemprofile != "" {
-			args = append(args, "-memprofile", "_compilebench_.memprof")
+			preArgs = append(preArgs, "-memprofile", "_compilebench_.memprof")
 		}
 		if *flagCpuprofile != "" {
-			args = append(args, "-cpuprofile", "_compilebench_.cpuprof")
+			preArgs = append(preArgs, "-cpuprofile", "_compilebench_.cpuprof")
 		}
 	}
-	args = append(args, pkg.GoFiles...)
-	cmd := exec.Command(compiler, args...)
-	cmd.Dir = pkg.Dir
+	cmd := exec.Command(tool, append(preArgs, args...)...)
+	cmd.Dir = dir
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	start := time.Now()
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		return err
 	}
@@ -324,7 +356,7 @@ func (c compile) run(name string, count int) error {
 
 	var allocs, allocbytes int64
 	if *flagAlloc || *flagMemprofile != "" {
-		out, err := ioutil.ReadFile(pkg.Dir + "/_compilebench_.memprof")
+		out, err := ioutil.ReadFile(dir + "/_compilebench_.memprof")
 		if err != nil {
 			log.Print("cannot find memory profile after compilation")
 		}
@@ -354,11 +386,11 @@ func (c compile) run(name string, count int) error {
 				log.Print(err)
 			}
 		}
-		os.Remove(pkg.Dir + "/_compilebench_.memprof")
+		os.Remove(dir + "/_compilebench_.memprof")
 	}
 
 	if *flagCpuprofile != "" {
-		out, err := ioutil.ReadFile(pkg.Dir + "/_compilebench_.cpuprof")
+		out, err := ioutil.ReadFile(dir + "/_compilebench_.cpuprof")
 		if err != nil {
 			log.Print(err)
 		}
@@ -369,7 +401,7 @@ func (c compile) run(name string, count int) error {
 		if err := ioutil.WriteFile(outpath, out, 0666); err != nil {
 			log.Print(err)
 		}
-		os.Remove(pkg.Dir + "/_compilebench_.cpuprof")
+		os.Remove(dir + "/_compilebench_.cpuprof")
 	}
 
 	wallns := end.Sub(start).Nanoseconds()
@@ -380,21 +412,5 @@ func (c compile) run(name string, count int) error {
 		fmt.Printf(" %d B/op %d allocs/op", allocbytes, allocs)
 	}
 
-	opath := pkg.Dir + "/_compilebench_.o"
-	if *flagObj {
-		// TODO(josharian): object files are big; just read enough to find what we seek.
-		data, err := ioutil.ReadFile(opath)
-		if err != nil {
-			log.Print(err)
-		}
-		// Find start of export data.
-		i := bytes.Index(data, []byte("\n$$B\n")) + len("\n$$B\n")
-		// Count bytes to end of export data.
-		nexport := bytes.Index(data[i:], []byte("\n$$\n"))
-		fmt.Printf(" %d object-bytes %d export-bytes", len(data), nexport)
-	}
-	fmt.Println()
-
-	os.Remove(opath)
 	return nil
 }
