@@ -116,7 +116,7 @@ TEXT runtime·setlasterror(SB),NOSPLIT|NOFRAME,$0
 // int32_t sigtramp(
 //     PEXCEPTION_POINTERS ExceptionInfo,
 //     func *GoExceptionHandler);
-TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
+TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
 	MOVM.DB.W [R0, R4-R11, R14], (R13)	// push {r0, r4-r11, lr} (SP-=40)
 	SUB	$(8+20), R13		// reserve space for g, sp, and
 					// parameters/retval to go call
@@ -198,7 +198,7 @@ done:
 	// handler, don't clobber the stored SP and PC on the stack.
 	MOVW	4(R3), R3			// PEXCEPTION_POINTERS->Context
 	MOVW	0x40(R3), R2			// load PC from context record
-	MOVW	$runtime·returntramp(SB), R1
+	MOVW	$returntramp<>(SB), R1
 	CMP	R1, R2
 	B.EQ	return				// do not clobber saved SP/PC
 
@@ -211,7 +211,7 @@ done:
 	// Set up context record to return to returntramp on g0 stack
 	MOVW	R12, 0x38(R3)			// save g0 stack pointer
 						// in context record
-	MOVW	$runtime·returntramp(SB), R2	// save resume address
+	MOVW	$returntramp<>(SB), R2	// save resume address
 	MOVW	R2, 0x40(R3)			// in context record
 
 return:
@@ -222,20 +222,20 @@ return:
 // This is part of the control flow guard workaround.
 // It switches stacks and jumps to the continuation address.
 //
-TEXT runtime·returntramp(SB),NOSPLIT|NOFRAME,$0
+TEXT returntramp<>(SB),NOSPLIT|NOFRAME,$0
 	MOVM.IA	(R13), [R13, R15]		// ldm sp, [sp, pc]
 
 TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$runtime·exceptionhandler(SB), R1
-	B	runtime·sigtramp(SB)
+	B	sigtramp<>(SB)
 
 TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$runtime·firstcontinuehandler(SB), R1
-	B	runtime·sigtramp(SB)
+	B	sigtramp<>(SB)
 
 TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$runtime·lastcontinuehandler(SB), R1
-	B	runtime·sigtramp(SB)
+	B	sigtramp<>(SB)
 
 TEXT runtime·ctrlhandler(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$runtime·ctrlhandler1(SB), R1
@@ -363,7 +363,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
 	BL	runtime·save_g(SB)
 
 	// do per-thread TLS initialization
-	BL	runtime·init_thread_tls(SB)
+	BL	init_thread_tls<>(SB)
 
 	// Layout new m scheduler stack on os stack.
 	MOVW	R13, R0
@@ -475,7 +475,7 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
 	BIC	$0x7, R13		// alignment for ABI
 	MOVW	runtime·_SwitchToThread(SB), R0
 	BL	(R0)
-	MOVW 	R4, R13			// restore stack pointer 
+	MOVW 	R4, R13			// restore stack pointer
 	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
 
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
@@ -654,7 +654,7 @@ TEXT runtime·_initcgo(SB),NOSPLIT|NOFRAME,$0
 	MOVW 	$runtime·tls_g(SB), R1
 	MOVW	R0, (R1)
 
-	BL	runtime·init_thread_tls(SB)
+	BL	init_thread_tls<>(SB)
 
 	MOVW	R4, R13
 	MOVM.IA.W (R13), [R4, R15]	// pop {r4, pc}
@@ -674,7 +674,7 @@ TEXT runtime·_initcgo(SB),NOSPLIT|NOFRAME,$0
 // handler can get the real g from the thread's m.
 //
 // Clobbers R0-R3
-TEXT runtime·init_thread_tls(SB),NOSPLIT|NOFRAME,$0
+TEXT init_thread_tls<>(SB),NOSPLIT|NOFRAME,$0
 	// compute &_TEB->TlsSlots[tls_g]
 	MRC	15, 0, R0, C13, C0, 2
 	ADD	$0xe10, R0
