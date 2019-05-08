@@ -292,7 +292,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
 	LEAL	m_tls(BX), BP
 	PUSHAL				// save registers
 	PUSHL	BP
-	CALL	runtime·settls(SB)
+	CALL	set_tcb<>(SB)
 	POPL	AX
 	POPAL
 
@@ -331,10 +331,10 @@ TEXT runtime·setldt(SB),NOSPLIT,$4
 	// Under OpenBSD we set the GS base instead of messing with the LDT.
 	MOVL	base+4(FP), AX
 	MOVL	AX, 0(SP)
-	CALL	runtime·settls(SB)
+	CALL	set_tcb<>(SB)
 	RET
 
-TEXT runtime·settls(SB),NOSPLIT,$8
+TEXT set_tcb<>(SB),NOSPLIT,$8
 	// adjust for ELF: wants to use -4(GS) for g
 	MOVL	tlsbase+0(FP), CX
 	ADDL	$4, CX

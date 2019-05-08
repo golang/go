@@ -3,7 +3,6 @@
 runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable signo
 runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable info
 runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable context
-runtime/sys_openbsd_386.s: [386] settls: function settls missing Go declaration
 syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
 syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)
 syscall/asm_unix_386.s: [386] Syscall6: 8(SP) should be a1+4(FP)
