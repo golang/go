@@ -620,10 +620,23 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 			} else {
 				b = append(b, "am"...)
 			}
-		case stdISO8601TZ, stdISO8601ColonTZ, stdISO8601SecondsTZ, stdISO8601ShortTZ, stdISO8601ColonSecondsTZ, stdNumTZ, stdNumColonTZ, stdNumSecondsTz, stdNumShortTZ, stdNumColonSecondsTZ:
+		case stdISO8601TZ,
+			stdISO8601ColonTZ,
+			stdISO8601SecondsTZ,
+			stdISO8601ShortTZ,
+			stdISO8601ColonSecondsTZ,
+			stdNumTZ,
+			stdNumColonTZ,
+			stdNumSecondsTz,
+			stdNumShortTZ,
+			stdNumColonSecondsTZ:
 			// Ugly special case. We cheat and take the "Z" variants
 			// to mean "the time zone as formatted for ISO 8601".
-			if offset == 0 && (std == stdISO8601TZ || std == stdISO8601ColonTZ || std == stdISO8601SecondsTZ || std == stdISO8601ShortTZ || std == stdISO8601ColonSecondsTZ) {
+			if offset == 0 && (std == stdISO8601TZ ||
+				std == stdISO8601ColonTZ ||
+				std == stdISO8601SecondsTZ ||
+				std == stdISO8601ShortTZ ||
+				std == stdISO8601ColonSecondsTZ) {
 				b = append(b, 'Z')
 				break
 			}
@@ -637,7 +650,10 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 				b = append(b, '+')
 			}
 			b = appendInt(b, zone/60, 2)
-			if std == stdISO8601ColonTZ || std == stdNumColonTZ || std == stdISO8601ColonSecondsTZ || std == stdNumColonSecondsTZ {
+			if std == stdISO8601ColonTZ ||
+				std == stdNumColonTZ ||
+				std == stdISO8601ColonSecondsTZ ||
+				std == stdNumColonSecondsTZ {
 				b = append(b, ':')
 			}
 			if std != stdNumShortTZ && std != stdISO8601ShortTZ {
@@ -645,7 +661,10 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 			}
 
 			// append seconds if appropriate
-			if std == stdISO8601SecondsTZ || std == stdNumSecondsTz || std == stdNumColonSecondsTZ || std == stdISO8601ColonSecondsTZ {
+			if std == stdISO8601SecondsTZ ||
+				std == stdNumSecondsTz ||
+				std == stdNumColonSecondsTZ ||
+				std == stdISO8601ColonSecondsTZ {
 				if std == stdNumColonSecondsTZ || std == stdISO8601ColonSecondsTZ {
 					b = append(b, ':')
 				}
@@ -979,8 +998,19 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			default:
 				err = errBad
 			}
-		case stdISO8601TZ, stdISO8601ColonTZ, stdISO8601SecondsTZ, stdISO8601ShortTZ, stdISO8601ColonSecondsTZ, stdNumTZ, stdNumShortTZ, stdNumColonTZ, stdNumSecondsTz, stdNumColonSecondsTZ:
-			if (std == stdISO8601TZ || std == stdISO8601ShortTZ || std == stdISO8601ColonTZ) && len(value) >= 1 && value[0] == 'Z' {
+		case stdISO8601TZ,
+			stdISO8601ColonTZ,
+			stdISO8601SecondsTZ,
+			stdISO8601ShortTZ,
+			stdISO8601ColonSecondsTZ,
+			stdNumTZ,
+			stdNumShortTZ,
+			stdNumColonTZ,
+			stdNumSecondsTz,
+			stdNumColonSecondsTZ:
+
+			if (std == stdISO8601TZ || std == stdISO8601ShortTZ ||
+				std == stdISO8601ColonTZ) && len(value) >= 1 && value[0] == 'Z' {
 				value = value[1:]
 				z = UTC
 				break
