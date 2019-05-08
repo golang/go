@@ -31,7 +31,7 @@ func (c *completer) structFieldSnippets(label, detail string) (*snippet.Builder,
 		if i >= len(lit.Elts) {
 			return nil, nil
 		}
-		// If the expression is not an identifer, it is not a struct field name.
+		// If the expression is not an identifier, it is not a struct field name.
 		if _, ok := lit.Elts[i].(*ast.Ident); !ok {
 			return nil, nil
 		}

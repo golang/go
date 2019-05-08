@@ -110,7 +110,15 @@ func (c *completer) formatBuiltin(obj types.Object, score float64) CompletionIte
 	case *types.Const:
 		item.Kind = ConstantCompletionItem
 	case *types.Builtin:
-		fn := c.view.BuiltinPackage().Scope.Lookup(obj.Name())
+		item.Kind = FunctionCompletionItem
+		builtinPkg := c.view.BuiltinPackage()
+		if builtinPkg == nil || builtinPkg.Scope == nil {
+			break
+		}
+		fn := builtinPkg.Scope.Lookup(obj.Name())
+		if fn == nil {
+			break
+		}
 		decl, ok := fn.Decl.(*ast.FuncDecl)
 		if !ok {
 			break
@@ -119,7 +127,6 @@ func (c *completer) formatBuiltin(obj types.Object, score float64) CompletionIte
 		results, writeResultParens := c.formatFieldList(decl.Type.Results)
 		item.Label, item.Detail = formatFunction(obj.Name(), params, results, writeResultParens)
 		item.Snippet, item.PlaceholderSnippet = c.functionCallSnippets(obj.Name(), params)
-		item.Kind = FunctionCompletionItem
 	case *types.TypeName:
 		if types.IsInterface(obj.Type()) {
 			item.Kind = InterfaceCompletionItem
