@@ -1,6 +1,7 @@
 package main
 
 import (
+	"debug/macho"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -255,5 +256,69 @@ func TestXFlag(t *testing.T) {
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-X=main.X=meow", "-o", filepath.Join(tmpdir, "main"), src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Errorf("%v: %v:\n%s", cmd.Args, err, out)
+	}
+}
+
+var testMacOSVersionSrc = `
+package main
+func main() { }
+`
+
+func TestMacOSVersion(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "TestMacOSVersion")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "main.go")
+	err = ioutil.WriteFile(src, []byte(testMacOSVersionSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exe := filepath.Join(tmpdir, "main")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-linkmode=internal", "-o", exe, src)
+	cmd.Env = append(os.Environ(),
+		"CGO_ENABLED=0",
+		"GOOS=darwin",
+		"GOARCH=amd64",
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
+	}
+	exef, err := os.Open(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exem, err := macho.NewFile(exef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	const LC_VERSION_MIN_MACOSX = 0x24
+	checkMin := func(ver uint32) {
+		major, minor := (ver>>16)&0xff, (ver>>8)&0xff
+		if major != 10 || minor < 9 {
+			t.Errorf("LC_VERSION_MIN_MACOSX version %d.%d < 10.9", major, minor)
+		}
+	}
+	for _, cmd := range exem.Loads {
+		raw := cmd.Raw()
+		type_ := exem.ByteOrder.Uint32(raw)
+		if type_ != LC_VERSION_MIN_MACOSX {
+			continue
+		}
+		osVer := exem.ByteOrder.Uint32(raw[8:])
+		checkMin(osVer)
+		sdkVer := exem.ByteOrder.Uint32(raw[12:])
+		checkMin(sdkVer)
+		found = true
+		break
+	}
+	if !found {
+		t.Errorf("no LC_VERSION_MIN_MACOSX load command found")
 	}
 }
