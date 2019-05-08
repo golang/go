@@ -314,3 +314,15 @@ func op_orn(x, y uint32) uint32 {
 	// arm64:`ORN\t`,-`ORR`
 	return x | ^y
 }
+
+// check bitsets
+func bitSetPowerOf2Test(x int) bool {
+	// amd64:"BTL\t[$]3"
+	return x&8 == 8
+}
+
+func bitSetTest(x int) bool {
+	// amd64:"ANDQ\t[$]9, AX"
+	// amd64:"CMPQ\tAX, [$]9"
+	return x&9 == 9
+}
