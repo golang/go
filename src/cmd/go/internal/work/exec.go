@@ -523,6 +523,15 @@ func (b *Builder) build(a *Action) (err error) {
 		}
 	}
 
+	// Write out the _testinginit.go file for any test packages that import "testing".
+	if a.Package.Internal.TestinginitGo != nil {
+		initfile := objdir + "_testinginit.go"
+		if err := b.writeFile(initfile, a.Package.Internal.TestinginitGo); err != nil {
+			return err
+		}
+		gofiles = append([]string{initfile}, gofiles...)
+	}
+
 	// Run cgo.
 	if a.Package.UsesCgo() || a.Package.UsesSwig() {
 		// In a package using cgo, cgo compiles the C, C++ and assembly files with gcc.
