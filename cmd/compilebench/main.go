@@ -437,6 +437,7 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 	}
 	end := time.Now()
 
+	haveAllocs := false
 	var allocs, allocbytes int64
 	if *flagAlloc || *flagMemprofile != "" {
 		out, err := ioutil.ReadFile(dir + "/_compilebench_.memprof")
@@ -452,12 +453,16 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 			if err != nil {
 				continue
 			}
+			haveAllocs = true
 			switch f[1] {
 			case "TotalAlloc":
 				allocbytes = val
 			case "Mallocs":
 				allocs = val
 			}
+		}
+		if !haveAllocs {
+			log.Println("missing stats in memprof (golang.org/issue/18641)")
 		}
 
 		if *flagMemprofile != "" {
@@ -491,7 +496,7 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 	userns := cmd.ProcessState.UserTime().Nanoseconds()
 
 	fmt.Printf("%s 1 %d ns/op %d user-ns/op", name, wallns, userns)
-	if *flagAlloc {
+	if haveAllocs {
 		fmt.Printf(" %d B/op %d allocs/op", allocbytes, allocs)
 	}
 
