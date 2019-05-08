@@ -2298,6 +2298,39 @@ func TestVariadicMethodValue(t *testing.T) {
 	}
 }
 
+type DirectIfaceT struct {
+	p *int
+}
+
+func (d DirectIfaceT) M() int { return *d.p }
+
+func TestDirectIfaceMethod(t *testing.T) {
+	x := 42
+	v := DirectIfaceT{&x}
+	typ := TypeOf(v)
+	m, ok := typ.MethodByName("M")
+	if !ok {
+		t.Fatalf("cannot find method M")
+	}
+	in := []Value{ValueOf(v)}
+	out := m.Func.Call(in)
+	if got := out[0].Int(); got != 42 {
+		t.Errorf("Call with value receiver got %d, want 42", got)
+	}
+
+	pv := &v
+	typ = TypeOf(pv)
+	m, ok = typ.MethodByName("M")
+	if !ok {
+		t.Fatalf("cannot find method M")
+	}
+	in = []Value{ValueOf(pv)}
+	out = m.Func.Call(in)
+	if got := out[0].Int(); got != 42 {
+		t.Errorf("Call with pointer receiver got %d, want 42", got)
+	}
+}
+
 // Reflect version of $GOROOT/test/method5.go
 
 // Concrete types implementing M method.
