@@ -285,16 +285,19 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVD	24(R1), R2
 	RET
 
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+	RET
+
 #ifdef GOARCH_ppc64le
 // ppc64le doesn't need function descriptors
 TEXT runtime·sigtramp(SB),NOSPLIT,$64
 #else
 // function descriptor for the real sigtramp
 TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
-	DWORD	$runtime·_sigtramp(SB)
+	DWORD	$sigtramp<>(SB)
 	DWORD	$0
 	DWORD	$0
-TEXT runtime·_sigtramp(SB),NOSPLIT,$64
+TEXT sigtramp<>(SB),NOSPLIT,$64
 #endif
 	// initialize essential registers (just in case)
 	BL	runtime·reginit(SB)
@@ -410,11 +413,11 @@ sigtrampnog:
 #else
 // function descriptor for the real sigtramp
 TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
-	DWORD	$runtime·_cgoSigtramp(SB)
+	DWORD	$cgoSigtramp<>(SB)
 	DWORD	$0
 	DWORD	$0
-TEXT runtime·_cgoSigtramp(SB),NOSPLIT,$0
-	JMP	runtime·_sigtramp(SB)
+TEXT cgoSigtramp<>(SB),NOSPLIT,$0
+	JMP	sigtramp<>(SB)
 #endif
 
 TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0

@@ -886,9 +886,6 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	MOVD	R0, R0	// NOP
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
-	RET
-
 // prepGoExitFrame saves the current TOC pointer (i.e. the TOC pointer for the
 // module containing runtime) to the frame that goexit will execute in when
 // the goroutine exits. It's implemented in assembly mainly because that's the

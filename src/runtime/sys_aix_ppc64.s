@@ -15,7 +15,7 @@
 #include "asm_ppc64x.h"
 
 // This function calls a C function with the function descriptor in R12
-TEXT runtime·callCfunction(SB),	NOSPLIT|NOFRAME,$0
+TEXT callCfunction<>(SB),	NOSPLIT|NOFRAME,$0
 	MOVD	0(R12), R12
 	MOVD	R2, 40(R1)
 	MOVD	0(R12), R0
@@ -31,12 +31,12 @@ TEXT runtime·callCfunction(SB),	NOSPLIT|NOFRAME,$0
 // It reserves a stack of 288 bytes for the C function.
 // NOT USING GO CALLING CONVENTION
 // runtime.asmsyscall6 is a function descriptor to the real asmsyscall6.
-DATA	runtime·asmsyscall6+0(SB)/8, $runtime·_asmsyscall6(SB)
+DATA	runtime·asmsyscall6+0(SB)/8, $asmsyscall6<>(SB)
 DATA	runtime·asmsyscall6+8(SB)/8, $TOC(SB)
 DATA	runtime·asmsyscall6+16(SB)/8, $0
 GLOBL	runtime·asmsyscall6(SB), NOPTR, $24
 
-TEXT runtime·_asmsyscall6(SB),NOSPLIT,$256
+TEXT asmsyscall6<>(SB),NOSPLIT,$256
 	MOVD	R3, 48(R1) // Save libcall for later
 	MOVD	libcall_fn(R3), R12
 	MOVD	libcall_args(R3), R9
@@ -46,7 +46,7 @@ TEXT runtime·_asmsyscall6(SB),NOSPLIT,$256
 	MOVD	24(R9), R6
 	MOVD	32(R9), R7
 	MOVD	40(R9), R8
-	BL	runtime·callCfunction(SB)
+	BL	callCfunction<>(SB)
 
 	// Restore R0 and TOC
 	XOR	R0, R0
@@ -90,15 +90,15 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 
 
 // runtime.sigtramp is a function descriptor to the real sigtramp.
-DATA	runtime·sigtramp+0(SB)/8, $runtime·_sigtramp(SB)
+DATA	runtime·sigtramp+0(SB)/8, $sigtramp<>(SB)
 DATA	runtime·sigtramp+8(SB)/8, $TOC(SB)
 DATA	runtime·sigtramp+16(SB)/8, $0
 GLOBL	runtime·sigtramp(SB), NOPTR, $24
 
-// This funcion must not have any frame as we want to control how
+// This function must not have any frame as we want to control how
 // every registers are used.
 // TODO(aix): Implement SetCgoTraceback handler.
-TEXT runtime·_sigtramp(SB),NOSPLIT|NOFRAME,$0
+TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	LR, R0
 	MOVD	R0, 16(R1)
 	// initialize essential registers (just in case)
@@ -189,12 +189,12 @@ exit:
 	BR (LR)
 
 // runtime.tstart is a function descriptor to the real tstart.
-DATA	runtime·tstart+0(SB)/8, $runtime·_tstart(SB)
+DATA	runtime·tstart+0(SB)/8, $tstart<>(SB)
 DATA	runtime·tstart+8(SB)/8, $TOC(SB)
 DATA	runtime·tstart+16(SB)/8, $0
 GLOBL	runtime·tstart(SB), NOPTR, $24
 
-TEXT runtime·_tstart(SB),NOSPLIT,$0
+TEXT tstart<>(SB),NOSPLIT,$0
 	XOR	 R0, R0 // reset R0
 
 	// set g
