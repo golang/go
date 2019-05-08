@@ -23,9 +23,8 @@ cmd/compile/internal/gc/testdata/short_test.go: unreachable code
 // These cases are basically ok.
 // Errors are handled reasonably and there's no clear need for interface satisfaction.
 // Except for the runtime/pprof case, the API is not exported.
-fmt/print.go: method WriteByte(c byte) should have signature WriteByte(byte) error
 
-// Also non-standard, but this method is on an unexported type, so it's
+// Also on-standard, but this method is on an unexported type, so it's
 // irrelevant.
 encoding/gob/encode.go: method WriteByte(c byte) should have signature WriteByte(byte) error
 

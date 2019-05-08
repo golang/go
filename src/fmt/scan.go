@@ -457,7 +457,7 @@ func (s *ss) token(skipSpace bool, f func(rune) bool) []byte {
 			s.UnreadRune()
 			break
 		}
-		s.buf.WriteRune(r)
+		s.buf.writeRune(r)
 	}
 	return s.buf
 }
@@ -483,7 +483,7 @@ func (s *ss) consume(ok string, accept bool) bool {
 	}
 	if indexRune(ok, r) >= 0 {
 		if accept {
-			s.buf.WriteRune(r)
+			s.buf.writeRune(r)
 		}
 		return true
 	}
@@ -850,20 +850,20 @@ func (s *ss) quotedString() string {
 			if r == quote {
 				break
 			}
-			s.buf.WriteRune(r)
+			s.buf.writeRune(r)
 		}
 		return string(s.buf)
 	case '"':
 		// Double-quoted: Include the quotes and let strconv.Unquote do the backslash escapes.
-		s.buf.WriteByte('"')
+		s.buf.writeByte('"')
 		for {
 			r := s.mustReadRune()
-			s.buf.WriteRune(r)
+			s.buf.writeRune(r)
 			if r == '\\' {
 				// In a legal backslash escape, no matter how long, only the character
 				// immediately after the escape can itself be a backslash or quote.
 				// Thus we only need to protect the first character after the backslash.
-				s.buf.WriteRune(s.mustReadRune())
+				s.buf.writeRune(s.mustReadRune())
 			} else if r == '"' {
 				break
 			}
@@ -922,7 +922,7 @@ func (s *ss) hexString() string {
 		if !ok {
 			break
 		}
-		s.buf.WriteByte(b)
+		s.buf.writeByte(b)
 	}
 	if len(s.buf) == 0 {
 		s.errorString("no hex data for %x string")
