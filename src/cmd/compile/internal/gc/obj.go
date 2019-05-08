@@ -97,13 +97,13 @@ func finishArchiveEntry(bout *bio.Writer, start int64, name string) {
 	if size&1 != 0 {
 		bout.WriteByte(0)
 	}
-	bout.Seek(start-ArhdrSize, 0)
+	bout.MustSeek(start-ArhdrSize, 0)
 
 	var arhdr [ArhdrSize]byte
 	formathdr(arhdr[:], name, size)
 	bout.Write(arhdr[:])
 	bout.Flush()
-	bout.Seek(start+size+(size&1), 0)
+	bout.MustSeek(start+size+(size&1), 0)
 }
 
 func dumpCompilerObj(bout *bio.Writer) {

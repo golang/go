@@ -117,7 +117,7 @@ func iimport(pkg *types.Pkg, in *bio.Reader) {
 	stringData := data[:sLen]
 	declData := data[sLen:]
 
-	in.Seek(int64(sLen+dLen), os.SEEK_CUR)
+	in.MustSeek(int64(sLen+dLen), os.SEEK_CUR)
 
 	p := &iimporter{
 		ipkg: pkg,

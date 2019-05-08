@@ -23,8 +23,6 @@ cmd/compile/internal/gc/testdata/short_test.go: unreachable code
 // These cases are basically ok.
 // Errors are handled reasonably and there's no clear need for interface satisfaction.
 // Except for the runtime/pprof case, the API is not exported.
-cmd/internal/bio/buf.go: method Seek(offset int64, whence int) int64 should have signature Seek(int64, int) (int64, error)
-cmd/internal/bio/buf.go: method Seek(offset int64, whence int) int64 should have signature Seek(int64, int) (int64, error)
 fmt/print.go: method WriteByte(c byte) should have signature WriteByte(byte) error
 
 // Also non-standard, but this method is on an unexported type, so it's
