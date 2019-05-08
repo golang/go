@@ -133,9 +133,9 @@ var (
 
 // Function to be called by windows CreateThread
 // to start new os thread.
-func tstart_stdcall(newm *m) uint32
+func tstart_stdcall(newm *m)
 
-func ctrlhandler(_type uint32) uint32
+func ctrlhandler(_type uint32)
 
 type mOS struct {
 	waitsema uintptr // semaphore for parking on locks
@@ -906,6 +906,9 @@ func ctrlhandler1(_type uint32) uint32 {
 
 // in sys_windows_386.s and sys_windows_amd64.s
 func profileloop()
+
+// called from zcallback_windows_*.s to sys_windows_*.s
+func callbackasm1()
 
 var profiletimer uintptr
 
