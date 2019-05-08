@@ -1733,6 +1733,12 @@
 (Eq(8|16|32|64)  s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Eq(8|16|32|64)  x y)
 (Neq(8|16|32|64) s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Neq(8|16|32|64) x y)
 
+// Optimize bitsets
+(Eq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [y])) (Const(8|16|32|64) <t> [y])) && isPowerOfTwo(y)
+  -> (Neq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [y])) (Const(8|16|32|64) <t> [0]))
+(Neq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [y])) (Const(8|16|32|64) <t> [y])) && isPowerOfTwo(y)
+  -> (Eq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [y])) (Const(8|16|32|64) <t> [0]))
+
 // Reassociate expressions involving
 // constants such that constants come first,
 // exposing obvious constant-folding opportunities.
