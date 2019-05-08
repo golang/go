@@ -1,5 +1,0 @@
-// openbsd/386-specific vet whitelist. See readme.txt for details.
-
-runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable signo
-runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable info
-runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable context

@@ -240,7 +240,7 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVW.CS R8, (R8)
 	RET
 
-TEXT runtime·sigreturn_tramp(SB),NOSPLIT|NOFRAME,$0
+TEXT sigreturn_tramp<>(SB),NOSPLIT|NOFRAME,$0
 	// on entry, SP points to siginfo, we add sizeof(ucontext)
 	// to SP to get a pointer to ucontext.
 	ADD $0x80, R13, R0 // 0x80 == sizeof(UcontextT)
@@ -254,7 +254,7 @@ TEXT runtime·sigaction(SB),NOSPLIT,$4
 	MOVW sig+0(FP), R0	// arg 1 - signum
 	MOVW new+4(FP), R1	// arg 2 - nsa
 	MOVW old+8(FP), R2	// arg 3 - osa
-	MOVW $runtime·sigreturn_tramp(SB), R3	// arg 4 - tramp
+	MOVW $sigreturn_tramp<>(SB), R3	// arg 4 - tramp
 	MOVW $2, R4	// arg 5 - vers
 	MOVW R4, 4(R13)
 	ADD $4, R13	// pass arg 5 on stack
