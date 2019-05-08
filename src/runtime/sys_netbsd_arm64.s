@@ -249,7 +249,7 @@ fail:
 	MOVD	$0, R0
 	MOVD	R0, (R0)		// crash
 
-TEXT runtime·sigreturn_tramp(SB),NOSPLIT,$-8
+TEXT sigreturn_tramp<>(SB),NOSPLIT,$-8
 	MOVD	g, R0
 	SVC	$SYS_setcontext
 	MOVD	$0x4242, R0		// Something failed, return magic number
@@ -260,7 +260,7 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
 	MOVD	new+8(FP), R1		// arg 2 - nsa
 	MOVD	old+16(FP), R2		// arg 3 - osa
 					// arg 4 - tramp
-	MOVD	$runtime·sigreturn_tramp(SB), R3
+	MOVD	$sigreturn_tramp<>(SB), R3
 	MOVW	$2, R4			// arg 5 - vers
 	SVC	$SYS___sigaction_sigtramp
 	BCS	fail

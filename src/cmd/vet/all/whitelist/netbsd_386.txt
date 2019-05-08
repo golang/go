@@ -1,9 +1,0 @@
-// netbsd/386-specific vet whitelist. See readme.txt for details.
-
-runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 140(SP) points beyond argument frame
-runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 4(SP) points beyond argument frame
-runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 4(SP) points beyond argument frame
-runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable signo
-runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable info
-runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable context
-

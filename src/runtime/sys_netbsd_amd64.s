@@ -258,7 +258,7 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·sigreturn_tramp(SB),NOSPLIT,$-8
+TEXT sigreturn_tramp<>(SB),NOSPLIT,$-8
 	MOVQ	R15, DI			// Load address of ucontext
 	MOVQ	$SYS_setcontext, AX
 	SYSCALL
@@ -271,7 +271,7 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
 	MOVQ	new+8(FP), SI		// arg 2 - nsa
 	MOVQ	old+16(FP), DX		// arg 3 - osa
 					// arg 4 - tramp
-	LEAQ	runtime·sigreturn_tramp(SB), R10
+	LEAQ	sigreturn_tramp<>(SB), R10
 	MOVQ	$2, R8			// arg 5 - vers
 	MOVL	$SYS___sigaction_sigtramp, AX
 	SYSCALL
