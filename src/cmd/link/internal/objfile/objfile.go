@@ -58,9 +58,10 @@ type objReader struct {
 	funcdata    []*sym.Symbol
 	funcdataoff []int64
 	file        []*sym.Symbol
+	pkgpref     string // objabi.PathToPrefix(r.lib.Pkg) + "."
 
-	roObject      []byte // from read-only mmap of object file
-	objFileOffset int64  // offset of object data from start of file
+	roObject []byte // from read-only mmap of object file (may be nil)
+	roOffset int64  // offset into readonly object data examined so far
 
 	dataReadOnly bool // whether data is backed by read-only memory
 }
@@ -96,10 +97,15 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, le
 		localSymVersion: syms.IncVersion(),
 		flags:           flags,
 		roObject:        roObject,
-		objFileOffset:   start,
+		pkgpref:         objabi.PathToPrefix(lib.Pkg) + ".",
 	}
 	r.loadObjFile()
-	if f.Offset() != start+length {
+	if roObject != nil {
+		if r.roOffset != length {
+			log.Fatalf("%s: unexpected end at %d, want %d", pn, r.roOffset, start+length)
+		}
+		r.rd.Seek(int64(length), os.SEEK_CUR)
+	} else if f.Offset() != start+length {
 		log.Fatalf("%s: unexpected end at %d, want %d", pn, f.Offset(), start+length)
 	}
 	return r.strictDupMsgs
@@ -114,7 +120,7 @@ func (r *objReader) loadObjFile() {
 	}
 
 	// Version
-	c, err := r.rd.ReadByte()
+	c, err := r.readByte()
 	if err != nil || c != 1 {
 		log.Fatalf("%s: invalid file version number %d", r.pn, c)
 	}
@@ -131,12 +137,12 @@ func (r *objReader) loadObjFile() {
 	// Symbol references
 	r.refs = []*sym.Symbol{nil} // zeroth ref is nil
 	for {
-		c, err := r.rd.Peek(1)
+		c, err := r.peek(1)
 		if err != nil {
 			log.Fatalf("%s: peeking: %v", r.pn, err)
 		}
 		if c[0] == 0xff {
-			r.rd.ReadByte()
+			r.readByte()
 			break
 		}
 		r.readRef()
@@ -153,7 +159,7 @@ func (r *objReader) loadObjFile() {
 
 	// Defined symbols
 	for {
-		c, err := r.rd.Peek(1)
+		c, err := r.peek(1)
 		if err != nil {
 			log.Fatalf("%s: peeking: %v", r.pn, err)
 		}
@@ -188,10 +194,9 @@ func (r *objReader) readSlices() {
 
 func (r *objReader) readDataSection() (err error) {
 	if r.roObject != nil {
-		dOffset := r.rd.Offset() - r.objFileOffset
 		r.data, r.dataReadOnly, err =
-			r.roObject[dOffset:dOffset+int64(r.dataSize)], true, nil
-		r.rd.Seek(int64(r.dataSize), os.SEEK_CUR)
+			r.roObject[r.roOffset:r.roOffset+int64(r.dataSize)], true, nil
+		r.roOffset += int64(r.dataSize)
 		return
 	}
 	r.data, r.dataReadOnly, err = r.rd.Slice(uint64(r.dataSize))
@@ -204,10 +209,10 @@ const symPrefix = 0xfe
 func (r *objReader) readSym() {
 	var c byte
 	var err error
-	if c, err = r.rd.ReadByte(); c != symPrefix || err != nil {
+	if c, err = r.readByte(); c != symPrefix || err != nil {
 		log.Fatalln("readSym out of sync")
 	}
-	if c, err = r.rd.ReadByte(); err != nil {
+	if c, err = r.readByte(); err != nil {
 		log.Fatalln("error reading input: ", err)
 	}
 	t := sym.AbiSymKindToSymKind[c]
@@ -220,7 +225,6 @@ func (r *objReader) readSym() {
 	typ := r.readSymIndex()
 	data := r.readData()
 	nreloc := r.readInt()
-	pkg := objabi.PathToPrefix(r.lib.Pkg)
 	isdup := false
 
 	var dup *sym.Symbol
@@ -249,7 +253,7 @@ func (r *objReader) readSym() {
 	}
 
 overwrite:
-	s.File = pkg
+	s.File = r.pkgpref[:len(r.pkgpref)-1]
 	s.Lib = r.lib
 	if dupok {
 		s.Attr |= sym.AttrDuplicateOK
@@ -432,7 +436,7 @@ func (r *objReader) patchDWARFName(s *sym.Symbol) {
 	if p == -1 {
 		return
 	}
-	pkgprefix := []byte(objabi.PathToPrefix(r.lib.Pkg) + ".")
+	pkgprefix := []byte(r.pkgpref)
 	patched := bytes.Replace(s.P[:e], emptyPkg, pkgprefix, -1)
 
 	s.P = append(patched, s.P[e:]...)
@@ -447,14 +451,35 @@ func (r *objReader) patchDWARFName(s *sym.Symbol) {
 }
 
 func (r *objReader) readFull(b []byte) {
+	if r.roObject != nil {
+		copy(b, r.roObject[r.roOffset:])
+		r.roOffset += int64(len(b))
+		return
+	}
 	_, err := io.ReadFull(r.rd, b)
 	if err != nil {
 		log.Fatalf("%s: error reading %s", r.pn, err)
 	}
 }
 
+func (r *objReader) readByte() (byte, error) {
+	if r.roObject != nil {
+		b := r.roObject[r.roOffset]
+		r.roOffset++
+		return b, nil
+	}
+	return r.rd.ReadByte()
+}
+
+func (r *objReader) peek(n int) ([]byte, error) {
+	if r.roObject != nil {
+		return r.roObject[r.roOffset : r.roOffset+int64(n)], nil
+	}
+	return r.rd.Peek(n)
+}
+
 func (r *objReader) readRef() {
-	if c, err := r.rd.ReadByte(); c != symPrefix || err != nil {
+	if c, err := r.readByte(); c != symPrefix || err != nil {
 		log.Fatalf("readSym out of sync")
 	}
 	name := r.readSymName()
@@ -505,7 +530,7 @@ func (r *objReader) readInt64() int64 {
 		if shift >= 64 {
 			log.Fatalf("corrupt input")
 		}
-		c, err := r.rd.ReadByte()
+		c, err := r.readByte()
 		if err != nil {
 			log.Fatalln("error reading input: ", err)
 		}
@@ -582,7 +607,6 @@ func mkROString(rodata []byte) string {
 
 // readSymName reads a symbol name, replacing all "". with pkg.
 func (r *objReader) readSymName() string {
-	pkg := objabi.PathToPrefix(r.lib.Pkg)
 	n := r.readInt()
 	if n == 0 {
 		r.readInt64()
@@ -591,8 +615,8 @@ func (r *objReader) readSymName() string {
 	if cap(r.rdBuf) < n {
 		r.rdBuf = make([]byte, 2*n)
 	}
-	sOffset := r.rd.Offset() - r.objFileOffset
-	origName, err := r.rd.Peek(n)
+	sOffset := r.roOffset
+	origName, err := r.peek(n)
 	if err == bufio.ErrBufferFull {
 		// Long symbol names are rare but exist. One source is type
 		// symbols for types with long string forms. See #15104.
@@ -623,7 +647,7 @@ func (r *objReader) readSymName() string {
 		}
 		nPkgRefs++
 		adjName = append(adjName, origName[:i]...)
-		adjName = append(adjName, pkg...)
+		adjName = append(adjName, r.pkgpref[:len(r.pkgpref)-1]...)
 		adjName = append(adjName, '.')
 		origName = origName[i+len(emptyPkg):]
 	}
