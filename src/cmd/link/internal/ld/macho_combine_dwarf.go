@@ -99,6 +99,7 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
 	if err != nil {
 		return err
 	}
+	defer dwarff.Close()
 	outf, err := os.Create(outexe)
 	if err != nil {
 		return err
