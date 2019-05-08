@@ -19,8 +19,8 @@ TEXT	·Syscall(SB),NOSPLIT,$0-28
 	CALL	runtime·entersyscall(SB)
 	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL		a1+4(FP), SI
+	LEAL		trap+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -43,8 +43,8 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	CALL	runtime·entersyscall(SB)
 	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL		a1+4(FP), SI
+	LEAL		trap+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -70,8 +70,8 @@ TEXT	·Syscall9(SB),NOSPLIT,$0-52
 	CALL	runtime·entersyscall(SB)
 	MOVL	num+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL		a1+4(FP), SI
+	LEAL		num+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -99,8 +99,8 @@ ok9:
 TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL		a1+4(FP), SI
+	LEAL		trap+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -120,8 +120,8 @@ ok1:
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL		a1+4(FP), SI
+	LEAL		trap+0(FP), DI
 	CLD
 	MOVSL
 	MOVSL
