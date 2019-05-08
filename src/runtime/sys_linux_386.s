@@ -474,6 +474,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	RET
 
 	// Paranoia: check that SP is as we expect.
+	NOP	SP // tell vet SP changed - stop checking offsets
 	MOVL	12(SP), BP
 	CMPL	BP, $1234
 	JEQ	2(PC)
@@ -572,7 +573,7 @@ GLOBL runtime·tls_entry_number(SB), NOPTR, $4
 // The name, setldt, is a misnomer, although we leave this name as it is for
 // the compatibility with other platforms.
 TEXT runtime·setldt(SB),NOSPLIT,$32
-	MOVL	address+4(FP), DX	// base address
+	MOVL	base+4(FP), DX
 
 #ifdef GOOS_android
 	// Android stores the TLS offset in runtime·tls_g.

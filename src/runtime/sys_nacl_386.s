@@ -287,7 +287,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$20
 	RET
 
 TEXT runtime·setldt(SB),NOSPLIT,$8
-	MOVL	addr+4(FP), BX // aka base
+	MOVL	base+4(FP), BX
 	ADDL	$0x8, BX
 	MOVL	BX, 0(SP)
 	NACL_SYSCALL(SYS_tls_init)

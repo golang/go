@@ -4,5 +4,11 @@
 
 package runtime
 
+import "unsafe"
+
 func float64touint32(a float64) uint32
 func uint32tofloat64(a uint32) float64
+
+// Called from assembly only; declared for go vet.
+func setldt(slot uintptr, base unsafe.Pointer, size uintptr)
+func emptyfunc()
