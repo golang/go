@@ -525,7 +525,9 @@
 // they are treated as a single package. Within a package, generate processes the
 // source files in a package in file name order, one at a time. Within
 // a source file, generate runs generators in the order they appear
-// in the file, one at a time.
+// in the file, one at a time. The go generate tool also sets the build
+// tag "generate" so that files may be examined by go generate but ignored
+// during build.
 //
 // If any generator returns an error exit status, "go generate" skips
 // all further processing for that package.
