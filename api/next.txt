@@ -1,5 +1,28 @@
+pkg bytes, func ToValidUTF8([]uint8, []uint8) []uint8
+pkg crypto/ed25519, const PrivateKeySize = 64
+pkg crypto/ed25519, const PrivateKeySize ideal-int
+pkg crypto/ed25519, const PublicKeySize = 32
+pkg crypto/ed25519, const PublicKeySize ideal-int
+pkg crypto/ed25519, const SeedSize = 32
+pkg crypto/ed25519, const SeedSize ideal-int
+pkg crypto/ed25519, const SignatureSize = 64
+pkg crypto/ed25519, const SignatureSize ideal-int
+pkg crypto/ed25519, func GenerateKey(io.Reader) (PublicKey, PrivateKey, error)
+pkg crypto/ed25519, func NewKeyFromSeed([]uint8) PrivateKey
+pkg crypto/ed25519, func Sign(PrivateKey, []uint8) []uint8
+pkg crypto/ed25519, func Verify(PublicKey, []uint8, []uint8) bool
+pkg crypto/ed25519, method (PrivateKey) Public() crypto.PublicKey
+pkg crypto/ed25519, method (PrivateKey) Seed() []uint8
+pkg crypto/ed25519, method (PrivateKey) Sign(io.Reader, []uint8, crypto.SignerOpts) ([]uint8, error)
+pkg crypto/ed25519, type PrivateKey []uint8
+pkg crypto/ed25519, type PublicKey []uint8
+pkg database/sql, method (*NullInt32) Scan(interface{}) error
 pkg database/sql, method (*NullTime) Scan(interface{}) error
+pkg database/sql, method (NullInt32) Value() (driver.Value, error)
 pkg database/sql, method (NullTime) Value() (driver.Value, error)
+pkg database/sql, type NullInt32 struct
+pkg database/sql, type NullInt32 struct, Int32 int32
+pkg database/sql, type NullInt32 struct, Valid bool
 pkg database/sql, type NullTime struct
 pkg database/sql, type NullTime struct, Time time.Time
 pkg database/sql, type NullTime struct, Valid bool
@@ -9,6 +32,8 @@ pkg debug/dwarf, method (*UnsupportedType) String() string
 pkg debug/dwarf, type UnsupportedType struct
 pkg debug/dwarf, type UnsupportedType struct, Tag Tag
 pkg debug/dwarf, type UnsupportedType struct, embedded CommonType
+pkg encoding/csv, method (*ParseError) Unwrap() error
+pkg encoding/json, method (*MarshalerError) Unwrap() error
 pkg errors, func As(error, interface{}) bool
 pkg errors, func Caller(int) Frame
 pkg errors, func Is(error, error) bool
@@ -175,16 +200,26 @@ pkg log/syslog (netbsd-arm64-cgo), type Priority int
 pkg log/syslog (netbsd-arm64-cgo), type Writer struct
 pkg math/big, method (*Int) TrailingZeroBits() uint
 pkg math/big, method (*Rat) SetUint64(uint64) *Rat
+pkg net, method (*DNSConfigError) Unwrap() error
+pkg net, method (*DNSError) Is(error) bool
+pkg net, method (*OpError) Is(error) bool
+pkg net, method (*OpError) Unwrap() error
 pkg net, type DNSError struct, IsNotFound bool
 pkg net, type ListenConfig struct, KeepAlive time.Duration
-pkg net/http, const StatusEarlyHints = 103
-pkg net/http, const StatusEarlyHints ideal-int
-pkg net/http, method (Header) Clone() Header
 pkg net/http, const SameSiteNoneMode = 4
 pkg net/http, const SameSiteNoneMode SameSite
+pkg net/http, const StatusEarlyHints = 103
+pkg net/http, const StatusEarlyHints ideal-int
+pkg net/http, func NewRequestWithContext(context.Context, string, string, io.Reader) (*Request, error)
+pkg net/http, method (*Request) Clone(context.Context) *Request
+pkg net/http, method (*Transport) Clone() *Transport
+pkg net/http, method (Header) Clone() Header
 pkg net/http, type Server struct, BaseContext func(net.Listener) context.Context
 pkg net/http, type Server struct, ConnContext func(context.Context, net.Conn) context.Context
 pkg net/http, type Transport struct, ForceAttemptHTTP2 bool
+pkg net/http, type Transport struct, ReadBufferSize int
+pkg net/http, type Transport struct, WriteBufferSize int
+pkg net/url, method (*Error) Unwrap() error
 pkg os (netbsd-arm64), const DevNull = "/dev/null"
 pkg os (netbsd-arm64), const O_APPEND = 8
 pkg os (netbsd-arm64), const O_CREATE = 512
@@ -205,8 +240,10 @@ pkg os, func UserConfigDir() (string, error)
 pkg os, method (*LinkError) Unwrap() error
 pkg os, method (*PathError) Unwrap() error
 pkg os, method (*SyscallError) Unwrap() error
+pkg os, var ErrTemporary error
 pkg os, var ErrTimeout error
 pkg os/exec, method (*Cmd) String() string
+pkg os/exec, method (*Error) Unwrap() error
 pkg path/filepath (netbsd-arm64), const ListSeparator = 58
 pkg path/filepath (netbsd-arm64), const Separator = 47
 pkg path/filepath (netbsd-arm64-cgo), const ListSeparator = 58
@@ -216,6 +253,7 @@ pkg runtime (netbsd-arm64), const GOARCH = "arm64"
 pkg runtime (netbsd-arm64), const GOOS = "netbsd"
 pkg runtime (netbsd-arm64-cgo), const GOARCH = "arm64"
 pkg runtime (netbsd-arm64-cgo), const GOOS = "netbsd"
+pkg strings, func ToValidUTF8(string, string) string
 pkg syscall (netbsd-arm64), const AF_APPLETALK = 16
 pkg syscall (netbsd-arm64), const AF_APPLETALK ideal-int
 pkg syscall (netbsd-arm64), const AF_ARP = 28
@@ -7980,12 +8018,18 @@ pkg syscall (netbsd-arm64-cgo), type WaitStatus uint32
 pkg syscall (netbsd-arm64-cgo), var Stderr int
 pkg syscall (netbsd-arm64-cgo), var Stdin int
 pkg syscall (netbsd-arm64-cgo), var Stdout int
+pkg syscall (windows-386), type SysProcAttr struct, ProcessAttributes *SecurityAttributes
+pkg syscall (windows-386), type SysProcAttr struct, ThreadAttributes *SecurityAttributes
+pkg syscall (windows-amd64), type SysProcAttr struct, ProcessAttributes *SecurityAttributes
+pkg syscall (windows-amd64), type SysProcAttr struct, ThreadAttributes *SecurityAttributes
 pkg syscall, method (Errno) Is(error) bool
+pkg testing, func Init()
 pkg testing, method (*B) ReportMetric(float64, string)
 pkg testing, type BenchmarkResult struct, Extra map[string]float64
 pkg text/scanner, const AllowNumberbars = 1024
 pkg text/scanner, const AllowNumberbars ideal-int
 pkg text/scanner, const GoTokens = 2036
+pkg text/template, method (ExecError) Unwrap() error
 pkg time, method (Duration) Microseconds() int64
 pkg time, method (Duration) Milliseconds() int64
 pkg unicode, const Version = "11.0.0"
