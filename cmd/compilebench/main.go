@@ -109,24 +109,30 @@ var (
 	flagShort          = flag.Bool("short", false, "skip long-running benchmarks")
 )
 
-var tests = []struct {
+type test struct {
 	name string
-	dir  string
-	long bool
-}{
-	{"BenchmarkTemplate", "html/template", false},
-	{"BenchmarkUnicode", "unicode", false},
-	{"BenchmarkGoTypes", "go/types", false},
-	{"BenchmarkCompiler", "cmd/compile/internal/gc", false},
-	{"BenchmarkSSA", "cmd/compile/internal/ssa", false},
-	{"BenchmarkFlate", "compress/flate", false},
-	{"BenchmarkGoParser", "go/parser", false},
-	{"BenchmarkReflect", "reflect", false},
-	{"BenchmarkTar", "archive/tar", false},
-	{"BenchmarkXML", "encoding/xml", false},
-	{"BenchmarkStdCmd", "", true},
-	{"BenchmarkHelloSize", "", false},
-	{"BenchmarkCmdGoSize", "", true},
+	r    runner
+}
+
+type runner interface {
+	long() bool
+	run(name string, count int) error
+}
+
+var tests = []test{
+	{"BenchmarkTemplate", compile{"html/template"}},
+	{"BenchmarkUnicode", compile{"unicode"}},
+	{"BenchmarkGoTypes", compile{"go/types"}},
+	{"BenchmarkCompiler", compile{"cmd/compile/internal/gc"}},
+	{"BenchmarkSSA", compile{"cmd/compile/internal/ssa"}},
+	{"BenchmarkFlate", compile{"compress/flate"}},
+	{"BenchmarkGoParser", compile{"go/parser"}},
+	{"BenchmarkReflect", compile{"reflect"}},
+	{"BenchmarkTar", compile{"archive/tar"}},
+	{"BenchmarkXML", compile{"encoding/xml"}},
+	{"BenchmarkStdCmd", goBuild{[]string{"std", "cmd"}}},
+	{"BenchmarkHelloSize", size{"$GOROOT/test/helloworld.go", false}},
+	{"BenchmarkCmdGoSize", size{"cmd/go", true}},
 }
 
 func usage() {
@@ -174,67 +180,83 @@ func main() {
 		runRE = r
 	}
 
-	for i := 0; i < *flagCount; i++ {
-		if *flagPackage != "" {
-			runBuild("BenchmarkPkg", *flagPackage, i)
-			continue
+	if *flagPackage != "" {
+		tests = []test{
+			{"BenchmarkPkg", compile{*flagPackage}},
 		}
+		runRE = nil
+	}
+
+	for i := 0; i < *flagCount; i++ {
 		for _, tt := range tests {
-			if tt.long && *flagShort {
+			if tt.r.long() && *flagShort {
 				continue
 			}
 			if runRE == nil || runRE.MatchString(tt.name) {
-				runBuild(tt.name, tt.dir, i)
+				if err := tt.r.run(tt.name, i); err != nil {
+					log.Printf("%s: %v", tt.name, err)
+				}
 			}
 		}
 	}
 }
 
-func runCmd(name string, cmd *exec.Cmd) {
+func runCmd(name string, cmd *exec.Cmd) error {
 	start := time.Now()
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("%v: %v\n%s", name, err, out)
-		return
+		return fmt.Errorf("%v\n%s", err, out)
 	}
 	fmt.Printf("%s 1 %d ns/op\n", name, time.Since(start).Nanoseconds())
+	return nil
 }
 
-func runStdCmd() {
+type goBuild struct{ pkgs []string }
+
+func (goBuild) long() bool { return true }
+
+func (r goBuild) run(name string, count int) error {
 	args := []string{"build", "-a"}
 	if *flagCompilerFlags != "" {
 		args = append(args, "-gcflags", *flagCompilerFlags)
 	}
-	args = append(args, "std", "cmd")
+	args = append(args, r.pkgs...)
 	cmd := exec.Command(*flagGoCmd, args...)
 	cmd.Dir = filepath.Join(goroot, "src")
-	runCmd("BenchmarkStdCmd", cmd)
+	return runCmd(name, cmd)
 }
 
-// path is either a path to a file ("$GOROOT/test/helloworld.go") or a package path ("cmd/go").
-func runSize(name, path string) {
-	cmd := exec.Command(*flagGoCmd, "build", "-o", "_compilebenchout_", path)
+type size struct {
+	// path is either a path to a file ("$GOROOT/test/helloworld.go") or a package path ("cmd/go").
+	path   string
+	isLong bool
+}
+
+func (r size) long() bool { return r.isLong }
+
+func (r size) run(name string, count int) error {
+	if strings.HasPrefix(r.path, "$GOROOT/") {
+		r.path = goroot + "/" + r.path[len("$GOROOT/"):]
+	}
+
+	cmd := exec.Command(*flagGoCmd, "build", "-o", "_compilebenchout_", r.path)
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		log.Print(err)
-		return
+		return err
 	}
 	defer os.Remove("_compilebenchout_")
 	info, err := os.Stat("_compilebenchout_")
 	if err != nil {
-		log.Print(err)
-		return
+		return err
 	}
 	out, err := exec.Command("size", "_compilebenchout_").CombinedOutput()
 	if err != nil {
-		log.Printf("size: %v\n%s", err, out)
-		return
+		return fmt.Errorf("size: %v\n%s", err, out)
 	}
 	lines := strings.Split(string(out), "\n")
 	if len(lines) < 2 {
-		log.Printf("not enough output from size: %s", out)
-		return
+		return fmt.Errorf("not enough output from size: %s", out)
 	}
 	f := strings.Fields(lines[1])
 	if strings.HasPrefix(lines[0], "__TEXT") && len(f) >= 2 { // OS X
@@ -242,26 +264,18 @@ func runSize(name, path string) {
 	} else if strings.Contains(lines[0], "bss") && len(f) >= 3 {
 		fmt.Printf("%s 1 %s text-bytes %s data-bytes %s bss-bytes %v exe-bytes\n", name, f[0], f[1], f[2], info.Size())
 	}
+	return nil
 }
 
-func runBuild(name, dir string, count int) {
-	switch name {
-	case "BenchmarkStdCmd":
-		runStdCmd()
-		return
-	case "BenchmarkCmdGoSize":
-		runSize("BenchmarkCmdGoSize", "cmd/go")
-		return
-	case "BenchmarkHelloSize":
-		runSize("BenchmarkHelloSize", filepath.Join(goroot, "test/helloworld.go"))
-		return
-	}
+type compile struct{ dir string }
 
+func (compile) long() bool { return false }
+
+func (c compile) run(name string, count int) error {
 	// Make sure dependencies needed by go tool compile are installed to GOROOT/pkg.
-	out, err := exec.Command(*flagGoCmd, "build", "-i", dir).CombinedOutput()
+	out, err := exec.Command(*flagGoCmd, "build", "-i", c.dir).CombinedOutput()
 	if err != nil {
-		log.Printf("go build -i %s: %v\n%s", dir, err, out)
-		return
+		return fmt.Errorf("go build -i %s: %v\n%s", c.dir, err, out)
 	}
 
 	// Find dir and source file list.
@@ -269,14 +283,12 @@ func runBuild(name, dir string, count int) {
 		Dir     string
 		GoFiles []string
 	}
-	out, err = exec.Command(*flagGoCmd, "list", "-json", dir).Output()
+	out, err = exec.Command(*flagGoCmd, "list", "-json", c.dir).Output()
 	if err != nil {
-		log.Printf("go list -json %s: %v\n", dir, err)
-		return
+		return fmt.Errorf("go list -json %s: %v\n", c.dir, err)
 	}
 	if err := json.Unmarshal(out, &pkg); err != nil {
-		log.Printf("go list -json %s: unmarshal: %v", dir, err)
-		return
+		return fmt.Errorf("go list -json %s: unmarshal: %v", c.dir, err)
 	}
 
 	args := []string{"-o", "_compilebench_.o"}
@@ -306,8 +318,7 @@ func runBuild(name, dir string, count int) {
 	start := time.Now()
 	err = cmd.Run()
 	if err != nil {
-		log.Printf("%v: %v", name, err)
-		return
+		return err
 	}
 	end := time.Now()
 
@@ -385,4 +396,5 @@ func runBuild(name, dir string, count int) {
 	fmt.Println()
 
 	os.Remove(opath)
+	return nil
 }
