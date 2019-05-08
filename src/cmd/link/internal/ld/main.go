@@ -319,8 +319,13 @@ func startProfile() {
 			log.Fatalf("%v", err)
 		}
 		AtExit(func() {
-			runtime.GC() // profile all outstanding allocations
-			if err := pprof.WriteHeapProfile(f); err != nil {
+			// Profile all outstanding allocations.
+			runtime.GC()
+			// compilebench parses the memory profile to extract memstats,
+			// which are only written in the legacy pprof format.
+			// See golang.org/issue/18641 and runtime/pprof/pprof.go:writeHeap.
+			const writeLegacyFormat = 1
+			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
 				log.Fatalf("%v", err)
 			}
 		})
