@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 13, 2019",
+	"Subtitle": "Version of May 13, 2019",
 	"Path": "/ref/spec"
 }-->
 
@@ -6362,16 +6362,16 @@ var t T
 <h3 id="Package_initialization">Package initialization</h3>
 
 <p>
-Within a package, package-level variables are initialized in
-<i>declaration order</i> but after any of the variables
-they <i>depend</i> on.
+Within a package, package-level variable initialization proceeds stepwise,
+with each step selecting the variable earliest in <i>declaration order</i>
+which has no dependencies on uninitialized variables.
 </p>
 
 <p>
 More precisely, a package-level variable is considered <i>ready for
 initialization</i> if it is not yet initialized and either has
 no <a href="#Variable_declarations">initialization expression</a> or
-its initialization expression has no dependencies on uninitialized variables.
+its initialization expression has no <i>dependencies</i> on uninitialized variables.
 Initialization proceeds by repeatedly initializing the next package-level
 variable that is earliest in declaration order and ready for initialization,
 until there are no variables ready for initialization.
@@ -6381,6 +6381,23 @@ until there are no variables ready for initialization.
 If any variables are still uninitialized when this
 process ends, those variables are part of one or more initialization cycles,
 and the program is not valid.
+</p>
+
+<p>
+Multiple variables on the left-hand side of a variable declaration initialized
+by single (multi-valued) expression on the right-hand side are initialized
+together: If any of the variables on the left-hand side is initialized, all
+those variables are initialized in the same step.
+</p>
+
+<pre>
+var x = a
+var a, b = f() // a and b are initialized together, before x is initialized
+</pre>
+
+<p>
+For the purpose of package initialization, <a href="#Blank_identifier">blank</a>
+variables are treated like any other variables in declarations.
 </p>
 
 <p>
@@ -6425,21 +6442,15 @@ or to a function or method that depends on <code>y</code>.
 </ul>
 
 <p>
-Dependency analysis is performed per package; only references referring
-to variables, functions, and methods declared in the current package
-are considered.
-</p>
-
-<p>
 For example, given the declarations
 </p>
 
 <pre>
 var (
-	a = c + b
-	b = f()
-	c = f()
-	d = 3
+	a = c + b  // == 9
+	b = f()    // == 4
+	c = f()    // == 5
+	d = 3      // == 5 after initialization has finished
 )
 
 func f() int {
@@ -6450,6 +6461,39 @@ func f() int {
 
 <p>
 the initialization order is <code>d</code>, <code>b</code>, <code>c</code>, <code>a</code>.
+Note that the order of subexpressions in initialization expressions is irrelevant:
+<code>a = c + b</code> and <code>a = b + c</code> result in the same initialization
+order in this example.
+</p>
+
+<p>
+Dependency analysis is performed per package; only references referring
+to variables, functions, and (non-interface) methods declared in the current
+package are considered. If other, hidden, data dependencies exists between
+variables, the initialization order between those variables is unspecified.
+</p>
+
+<p>
+For instance, given the declarations
+</p>
+
+<pre>
+var x = I(T{}).ab()   // x has an undetected, hidden dependency on a and b
+var _ = sideEffect()  // unrelated to x, a, or b
+var a = b
+var b = 42
+
+type I interface      { ab() []int }
+type T struct{}
+func (T) ab() []int   { return []int{a, b} }
+</pre>
+
+<p>
+the variable <code>a</code> will be initialized after <code>b</code> but
+whether <code>x</code> is initialized before <code>b</code>, between
+<code>b</code> and <code>a</code>, or after <code>a</code>, and
+thus also the moment at which <code>sideEffect()</code> is called (before
+or after <code>x</code> is initialized) is not specified.
 </p>
 
 <p>
