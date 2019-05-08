@@ -414,9 +414,11 @@ func (ctxt *Link) domacho() {
 			// and we can assume OS X.
 			//
 			// See golang.org/issues/12941.
+			//
+			// The version must be at least 10.9; see golang.org/issues/30488.
 			ml := newMachoLoad(ctxt.Arch, LC_VERSION_MIN_MACOSX, 2)
-			ml.data[0] = 10<<16 | 7<<8 | 0<<0 // OS X version 10.7.0
-			ml.data[1] = 10<<16 | 7<<8 | 0<<0 // SDK 10.7.0
+			ml.data[0] = 10<<16 | 9<<8 | 0<<0 // OS X version 10.9.0
+			ml.data[1] = 10<<16 | 9<<8 | 0<<0 // SDK 10.9.0
 		}
 	}
 
