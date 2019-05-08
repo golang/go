@@ -329,7 +329,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 
 TEXT runtime·setldt(SB),NOSPLIT,$4
 	// Under OpenBSD we set the GS base instead of messing with the LDT.
-	MOVL	tls0+4(FP), AX
+	MOVL	base+4(FP), AX
 	MOVL	AX, 0(SP)
 	CALL	runtime·settls(SB)
 	RET

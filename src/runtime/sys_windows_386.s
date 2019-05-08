@@ -354,7 +354,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 
 // setldt(int entry, int address, int limit)
 TEXT runtime·setldt(SB),NOSPLIT,$0
-	MOVL	address+4(FP), CX
+	MOVL	base+4(FP), CX
 	MOVL	CX, 0x14(FS)
 	RET
 

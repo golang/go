@@ -319,3 +319,8 @@ func abort()
 
 // Called from compiled code; declared for vet; do NOT call from Go.
 func gcWriteBarrier()
+func duffzero()
+func duffcopy()
+
+// Called from linker-generated .initarray; declared for go vet; do NOT call from Go.
+func addmoduledata()

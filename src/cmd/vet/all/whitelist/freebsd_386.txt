@@ -5,7 +5,6 @@ runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable signo
 runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable info
 runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable context
 runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable context
-runtime/sys_freebsd_386.s: [386] setldt: function setldt missing Go declaration
 runtime/sys_freebsd_386.s: [386] i386_set_ldt: function i386_set_ldt missing Go declaration
 syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
 syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)

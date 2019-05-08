@@ -361,7 +361,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 
 TEXT runtime·setldt(SB),NOSPLIT,$8
 	// Under NetBSD we set the GS base instead of messing with the LDT.
-	MOVL	16(SP), AX		// tls0
+	MOVL	base+4(FP), AX
 	MOVL	AX, 0(SP)
 	CALL	runtime·settls(SB)
 	RET

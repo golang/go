@@ -1,6 +1,5 @@
 // arm64-specific vet whitelist. See readme.txt for details.
 
 // Intentionally missing declarations.
-runtime/asm_arm64.s: [arm64] addmoduledata: function addmoduledata missing Go declaration
 runtime/tls_arm64.s: [arm64] load_g: function load_g missing Go declaration
 runtime/tls_arm64.s: [arm64] save_g: function save_g missing Go declaration

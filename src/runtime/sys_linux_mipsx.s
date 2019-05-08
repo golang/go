@@ -492,3 +492,18 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
 	SYSCALL
 	MOVW	R2, ret+0(FP)
 	RET
+
+TEXT runtime·access(SB),$0-12
+	BREAK // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+8(FP)	// for vet
+	RET
+
+TEXT runtime·connect(SB),$0-16
+	BREAK // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+12(FP)	// for vet
+	RET
+
+TEXT runtime·socket(SB),$0-16
+	BREAK // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+12(FP)	// for vet
+	RET

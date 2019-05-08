@@ -9,8 +9,6 @@ runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 4(SP) points beyond argu
 runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable signo
 runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable info
 runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable context
-runtime/sys_netbsd_386.s: [386] setldt: function setldt missing Go declaration
-runtime/sys_netbsd_386.s: [386] setldt: use of 16(SP) points beyond argument frame
 
 syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
 syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)

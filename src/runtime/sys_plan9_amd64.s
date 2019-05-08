@@ -6,10 +6,6 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-// setldt(int entry, int address, int limit)
-TEXT runtime·setldt(SB),NOSPLIT,$0
-	RET
-
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVQ	$14, BP
 	SYSCALL
