@@ -492,6 +492,9 @@ var (
 	testCacheExpire   time.Time                           // ignore cached test results before this time
 )
 
+// testVetExplicit records whether testVetFlags were set by an explicit -vet.
+var testVetExplicit = false
+
 // testVetFlags is the list of flags to pass to vet when invoked automatically during go test.
 var testVetFlags = []string{
 	// TODO(rsc): Decide which tests are enabled by default.
@@ -533,6 +536,7 @@ func runTest(cmd *base.Command, args []string) {
 
 	work.BuildInit()
 	work.VetFlags = testVetFlags
+	work.VetExplicit = testVetExplicit
 
 	pkgs = load.PackagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {

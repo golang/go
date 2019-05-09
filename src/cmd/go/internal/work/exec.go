@@ -968,9 +968,12 @@ func buildVetConfig(a *Action, srcfiles []string) {
 // The caller is expected to set it (if needed) before executing any vet actions.
 var VetTool string
 
-// VetFlags are the flags to pass to vet.
+// VetFlags are the default flags to pass to vet.
 // The caller is expected to set them before executing any vet actions.
 var VetFlags []string
+
+// VetExplicit records whether the vet flags were set explicitly on the command line.
+var VetExplicit bool
 
 func (b *Builder) vet(a *Action) error {
 	// a.Deps[0] is the build of the package being vetted.
@@ -998,12 +1001,42 @@ func (b *Builder) vet(a *Action) error {
 	h := cache.NewHash("vet " + a.Package.ImportPath)
 	fmt.Fprintf(h, "vet %q\n", b.toolID("vet"))
 
+	vetFlags := VetFlags
+
+	// In GOROOT, we enable all the vet tests during 'go test',
+	// not just the high-confidence subset. This gets us extra
+	// checking for the standard library (at some compliance cost)
+	// and helps us gain experience about how well the checks
+	// work, to help decide which should be turned on by default.
+	// The command-line still wins.
+	//
+	// Note that this flag change applies even when running vet as
+	// a dependency of vetting a package outside std.
+	// (Otherwise we'd have to introduce a whole separate
+	// space of "vet fmt as a dependency of a std top-level vet"
+	// versus "vet fmt as a dependency of a non-std top-level vet".)
+	// This is OK as long as the packages that are farther down the
+	// dependency tree turn on *more* analysis, as here.
+	// (The unsafeptr check does not write any facts for use by
+	// later vet runs.)
+	if a.Package.Goroot && !VetExplicit {
+		// Note that $GOROOT/src/buildall.bash
+		// does the same for the misc-compile trybots
+		// and should be updated if these flags are
+		// changed here.
+		//
+		// There's too much unsafe.Pointer code
+		// that vet doesn't like in low-level packages
+		// like runtime, sync, and reflect.
+		vetFlags = []string{"-unsafeptr=false"}
+	}
+
 	// Note: We could decide that vet should compute export data for
 	// all analyses, in which case we don't need to include the flags here.
 	// But that would mean that if an analysis causes problems like
 	// unexpected crashes there would be no way to turn it off.
 	// It seems better to let the flags disable export analysis too.
-	fmt.Fprintf(h, "vetflags %q\n", VetFlags)
+	fmt.Fprintf(h, "vetflags %q\n", vetFlags)
 
 	fmt.Fprintf(h, "pkg %q\n", a.Deps[0].actionID)
 	for _, a1 := range a.Deps {
@@ -1022,26 +1055,6 @@ func (b *Builder) vet(a *Action) error {
 			}
 		}
 	}
-
-	// TODO(adonovan): delete this when we use the new vet printf checker.
-	// https://github.com/golang/go/issues/28756
-	if vcfg.ImportMap["fmt"] == "" {
-		a1 := a.Deps[1]
-		vcfg.ImportMap["fmt"] = "fmt"
-		if a1.built != "" {
-			vcfg.PackageFile["fmt"] = a1.built
-		}
-		vcfg.Standard["fmt"] = true
-	}
-
-	// During go test, ignore type-checking failures during vet.
-	// We only run vet if the compilation has succeeded,
-	// so at least for now assume the bug is in vet.
-	// We know of at least #18395.
-	// TODO(rsc,gri): Try to remove this for Go 1.11.
-	//
-	// Disabled 2018-04-20. Let's see if we can do without it.
-	// vcfg.SucceedOnTypecheckFailure = cfg.CmdName == "test"
 
 	js, err := json.MarshalIndent(vcfg, "", "\t")
 	if err != nil {
@@ -1062,7 +1075,7 @@ func (b *Builder) vet(a *Action) error {
 	if tool == "" {
 		tool = base.Tool("vet")
 	}
-	runErr := b.run(a, p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, VetFlags, a.Objdir+"vet.cfg")
+	runErr := b.run(a, p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, vetFlags, a.Objdir+"vet.cfg")
 
 	// If vet wrote export data, save it for input to future vets.
 	if f, err := os.Open(vcfg.VetxOutput); err == nil {
