@@ -651,8 +651,14 @@ func (s *regAllocState) init(f *Func) {
 	}
 
 	s.regs = make([]regState, s.numRegs)
-	s.values = make([]valState, f.NumValues())
-	s.orig = make([]*Value, f.NumValues())
+	nv := f.NumValues()
+	if cap(s.f.Cache.regallocValues) >= nv {
+		s.f.Cache.regallocValues = s.f.Cache.regallocValues[:nv]
+	} else {
+		s.f.Cache.regallocValues = make([]valState, nv)
+	}
+	s.values = s.f.Cache.regallocValues
+	s.orig = make([]*Value, nv)
 	s.copies = make(map[*Value]bool)
 	for _, b := range s.visitOrder {
 		for _, v := range b.Values {
