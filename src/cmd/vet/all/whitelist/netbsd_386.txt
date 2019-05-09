@@ -1,6 +1,7 @@
 // netbsd/386-specific vet whitelist. See readme.txt for details.
 
 runtime/sys_netbsd_ARCHSUFF.s: [GOARCH] settls: function settls missing Go declaration
+runtime/sys_netbsd_ARCHSUFF.s: [GOARCH] sigreturn_tramp: function sigreturn_tramp missing Go declaration
 
 runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 140(SP) points beyond argument frame
 runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 4(SP) points beyond argument frame
