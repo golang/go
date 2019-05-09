@@ -192,6 +192,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 				ImportPath: p.ImportPath + "_test",
 				Root:       p.Root,
 				Dir:        p.Dir,
+				Goroot:     p.Goroot,
 				GoFiles:    p.XTestGoFiles,
 				Imports:    p.XTestImports,
 				ForTest:    p.ImportPath,
