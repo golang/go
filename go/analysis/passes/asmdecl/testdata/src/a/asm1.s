@@ -4,6 +4,11 @@
 
 // +build amd64
 
+// Commented-out code should be ignored.
+//
+//	TEXT ·unknown(SB),0,$0
+//		RET
+
 TEXT ·arg1(SB),0,$0-2
 	MOVB	x+0(FP), AX
 	// MOVB x+0(FP), AX // commented out instructions used to panic
@@ -152,6 +157,7 @@ TEXT ·argptr(SB),7,$0-2 // want `wrong argument size 2; expected \$\.\.\.-40`
 TEXT ·argstring(SB),0,$32 // want `wrong argument size 0; expected \$\.\.\.-32`
 	MOVW	x+0(FP), AX // want `invalid MOVW of x\+0\(FP\); string base is 8-byte value`
 	MOVL	x+0(FP), AX // want `invalid MOVL of x\+0\(FP\); string base is 8-byte value`
+	LEAQ	x+0(FP), AX // ok
 	MOVQ	x+0(FP), AX
 	MOVW	x_base+0(FP), AX // want `invalid MOVW of x_base\+0\(FP\); string base is 8-byte value`
 	MOVL	x_base+0(FP), AX // want `invalid MOVL of x_base\+0\(FP\); string base is 8-byte value`

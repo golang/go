@@ -47,6 +47,7 @@ TEXT ·arg8(SB),7,$0-2 // want `wrong argument size 2; expected \$\.\.\.-16`
 	MOVH	x+0(FP), R1 // want `invalid MOVH of x\+0\(FP\); int64 is 8-byte value`
 	MOVH	y+8(FP), R1 // want `invalid MOVH of y\+8\(FP\); uint64 is 8-byte value`
 	MOVW	x+0(FP), R1 // want `invalid MOVW of x\+0\(FP\); int64 is 8-byte value containing x_lo\+0\(FP\) and x_hi\+4\(FP\)`
+	MOVW	$x+0(FP), R1 // ok
 	MOVW	x_lo+0(FP), R1
 	MOVW	x_hi+4(FP), R1
 	MOVW	y+8(FP), R1 // want `invalid MOVW of y\+8\(FP\); uint64 is 8-byte value containing y_lo\+8\(FP\) and y_hi\+12\(FP\)`
