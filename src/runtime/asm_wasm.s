@@ -7,7 +7,7 @@
 #include "funcdata.h"
 #include "textflag.h"
 
-TEXT runtime·rt0_go(SB), NOSPLIT, $0
+TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME, $0
 	// save m->g0 = g0
 	MOVD $runtime·g0(SB), runtime·m0+m_g0(SB)
 	// save m0 to g0->m
@@ -258,6 +258,7 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
+	NOP	SP	// tell vet SP changed - stop checking offsets
 	MOVD 8(SP), m_morebuf+gobuf_pc(R1)
 	MOVD $16(SP), m_morebuf+gobuf_sp(R1) // f's caller's SP
 	MOVD g, m_morebuf+gobuf_g(R1)
