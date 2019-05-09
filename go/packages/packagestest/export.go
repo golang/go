@@ -263,7 +263,7 @@ func MustCopyFileTree(root string) map[string]interface{} {
 		if err != nil {
 			return err
 		}
-		result[fragment] = Copy(path)
+		result[filepath.ToSlash(fragment)] = Copy(path)
 		return nil
 	}); err != nil {
 		log.Panic(fmt.Sprintf("MustCopyFileTree failed: %v", err))
