@@ -8,8 +8,6 @@ runtime/asm_amd64p32.s: [amd64p32] morestack: use of 8(SP) points beyond argumen
 runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
 runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
 runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
-runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
-runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
 runtime/sys_nacl_amd64p32.s: [amd64p32] nacl_sysinfo: function nacl_sysinfo missing Go declaration
 runtime/sys_nacl_amd64p32.s: [amd64p32] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
 runtime/sys_nacl_amd64p32.s: [amd64p32] settls: function settls missing Go declaration
