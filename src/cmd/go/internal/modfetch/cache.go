@@ -488,7 +488,7 @@ func writeDiskCache(file string, data []byte) error {
 		return err
 	}
 
-	if err := renameio.WriteFile(file, data); err != nil {
+	if err := renameio.WriteFile(file, data, 0666); err != nil {
 		return err
 	}
 
@@ -550,7 +550,7 @@ func rewriteVersionList(dir string) {
 		return
 	}
 
-	if err := renameio.WriteFile(listFile, buf.Bytes()); err != nil {
+	if err := renameio.WriteFile(listFile, buf.Bytes(), 0666); err != nil {
 		base.Fatalf("go: failed to write version list: %v", err)
 	}
 }
