@@ -32,6 +32,8 @@ type Cache struct {
 		live           []bool
 		q              []*Value
 	}
+	// Reusable regalloc state.
+	regallocValues []valState
 
 	ValueToProgAfter []*obj.Prog
 	debugState       debugState
@@ -54,6 +56,12 @@ func (c *Cache) Reset() {
 	xl := c.locs[:nl]
 	for i := range xl {
 		xl[i] = nil
+	}
+
+	// regalloc sets the length of c.regallocValues to whatever it may use,
+	// so clear according to length.
+	for i := range c.regallocValues {
+		c.regallocValues[i] = valState{}
 	}
 
 	// liveOrderStmts gets used multiple times during compilation of a function.
