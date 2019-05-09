@@ -715,7 +715,7 @@ func WriteGoMod() {
 
 	}
 
-	if err := renameio.WriteFile(file, new); err != nil {
+	if err := renameio.WriteFile(file, new, 0666); err != nil {
 		base.Fatalf("error writing go.mod: %v", err)
 	}
 	modFileData = new

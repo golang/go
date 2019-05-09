@@ -248,7 +248,7 @@ func downloadZip(mod module.Version, zipfile string) (err error) {
 	}
 	checkModSum(mod, hash)
 
-	if err := renameio.WriteFile(zipfile+"hash", []byte(hash)); err != nil {
+	if err := renameio.WriteFile(zipfile+"hash", []byte(hash), 0666); err != nil {
 		return err
 	}
 	if err := os.Rename(f.Name(), zipfile); err != nil {
@@ -565,7 +565,7 @@ func WriteGoSum() {
 		}
 	}
 
-	if err := renameio.WriteFile(GoSumFile, buf.Bytes()); err != nil {
+	if err := renameio.WriteFile(GoSumFile, buf.Bytes(), 0666); err != nil {
 		base.Fatalf("go: writing go.sum: %v", err)
 	}
 
