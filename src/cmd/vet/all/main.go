@@ -233,7 +233,7 @@ func (p platform) vet() {
 		vetTool := filepath.Join(tmpdir, "vet")
 		vetCmd = []string{
 			vetTool,
-			"-nilness=0", // expensive, uses SSA
+			// "-nilness=0", // expensive, uses SSA
 		}
 
 		cmd := exec.Command(cmdGoPath, "build", "-o", vetTool, "golang.org/x/tools/go/analysis/cmd/vet")
