@@ -57,7 +57,17 @@ func current() (*User, error) {
 	if u.Uid != "" && u.Username != "" && u.HomeDir != "" {
 		return u, nil
 	}
-	return u, fmt.Errorf("user: Current not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+	var missing string
+	if u.Username == "" {
+		missing = "$USER"
+	}
+	if u.HomeDir == "" {
+		if missing != "" {
+			missing += ", "
+		}
+		missing += "$HOME"
+	}
+	return u, fmt.Errorf("user: Current requires cgo or %s set in environment", missing)
 }
 
 func listGroups(*User) ([]string, error) {
