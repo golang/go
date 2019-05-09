@@ -336,37 +336,32 @@ func runGet(cmd *base.Command, args []string) {
 			}
 
 		case strings.Contains(path, "..."):
-			// Find modules in the build list matching the pattern, if any.
-			match := search.MatchPattern(path)
-			matched := false
-			for _, m := range modload.BuildList() {
-				// TODO: If we have matching packages already in the build list and we
-				// know which module(s) they are in, then we should not upgrade the
-				// modules that do *not* contain those packages, even if the module path
-				// is a prefix of the pattern.
-				//
-				// For example, if we have modules golang.org/x/tools and
-				// golang.org/x/tools/playground, and all of the packages matching
-				// golang.org/x/tools/playground... are in the
-				// golang.org/x/tools/playground module, then we should not *also* try
-				// to upgrade golang.org/x/tools if the user says 'go get
-				// golang.org/x/tools/playground...@latest'.
-				if match(m.Path) || str.HasPathPrefix(path, m.Path) {
-					queries = append(queries, &query{querySpec: querySpec{path: m.Path, vers: vers, prevM: m, forceModulePath: true}, arg: arg})
-					matched = true
+			// If we're using -m, look up modules in the build list that match
+			// the pattern. Report an error if no modules match.
+			if *getM {
+				match := search.MatchPattern(path)
+				matched := false
+				for _, m := range modload.BuildList() {
+					if match(m.Path) || str.HasPathPrefix(path, m.Path) {
+						queries = append(queries, &query{querySpec: querySpec{path: m.Path, vers: vers, prevM: m, forceModulePath: true}, arg: arg})
+						matched = true
+					}
 				}
-			}
-			// If matched, we're done.
-			// If we're using -m, report an error.
-			// Otherwise, look up a module containing packages that match the pattern.
-			if matched {
+				if !matched {
+					base.Errorf("go get %s: pattern matches no modules in build list", arg)
+					continue
+				}
 				break
 			}
-			if *getM {
-				base.Errorf("go get %s: pattern matches no modules in build list", arg)
-				continue
-			}
-			queries = append(queries, &query{querySpec: querySpec{path: path, vers: vers}, arg: arg})
+
+			// If we're not using -m, wait until we load packages to look up modules.
+			// We don't know yet whether any modules in the build list provide
+			// packages matching the pattern. For example, suppose
+			// golang.org/x/tools and golang.org/x/tools/playground are separate
+			// modules, and only golang.org/x/tools is in the build list. If the
+			// user runs 'go get golang.org/x/tools/playground/...', we should
+			// add a requirement for golang.org/x/tools/playground. We should not
+			// upgrade golang.org/x/tools.
 
 		case path == "all":
 			// This is the package pattern "all" not the module pattern "all",
@@ -463,8 +458,16 @@ func runGet(cmd *base.Command, args []string) {
 	var matches []*search.Match
 	var install []string
 	for {
-		var queries []*query
 		var seenPkgs map[string]bool
+		seenQuery := make(map[querySpec]bool)
+		var queries []*query
+		addQuery := func(q *query) {
+			if !seenQuery[q.querySpec] {
+				seenQuery[q.querySpec] = true
+				queries = append(queries, q)
+			}
+		}
+
 		if len(pkgPatterns) > 0 {
 			// Don't load packages if pkgPatterns is empty. Both
 			// modload.ImportPathsQuiet and ModulePackages convert an empty list
@@ -474,16 +477,21 @@ func runGet(cmd *base.Command, args []string) {
 			} else {
 				matches = modload.ImportPathsQuiet(pkgPatterns)
 			}
-			seenQuery := make(map[querySpec]bool)
 			seenPkgs = make(map[string]bool)
 			install = make([]string, 0, len(pkgPatterns))
 			for i, match := range matches {
-				if len(match.Pkgs) == 0 {
-					// We'll print a warning at the end of the outer loop to avoid
-					// repeating warnings on multiple iterations.
+				arg := pkgGets[i]
+
+				if !*getM && len(match.Pkgs) == 0 {
+					// If the pattern did not match any packages, look up a new module.
+					// If the pattern doesn't match anything on the last iteration,
+					// we'll print a warning after the outer loop.
+					if !search.IsRelativePath(arg.path) && !match.Literal && arg.path != "all" {
+						addQuery(&query{querySpec: querySpec{path: arg.path, vers: arg.vers}, arg: arg.raw})
+					}
 					continue
 				}
-				arg := pkgGets[i]
+
 				install = append(install, arg.path)
 				allStd := true
 				for _, pkg := range match.Pkgs {
@@ -501,11 +509,7 @@ func runGet(cmd *base.Command, args []string) {
 						continue
 					}
 					allStd = false
-					spec := querySpec{path: m.Path, vers: arg.vers}
-					if !seenQuery[spec] {
-						seenQuery[spec] = true
-						queries = append(queries, &query{querySpec: querySpec{path: m.Path, vers: arg.vers, forceModulePath: true, prevM: m}, arg: arg.raw})
-					}
+					addQuery(&query{querySpec: querySpec{path: m.Path, vers: arg.vers, forceModulePath: true, prevM: m}, arg: arg.raw})
 				}
 				if allStd {
 					if *getM {
