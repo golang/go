@@ -14,7 +14,7 @@ import (
 
 func init() {
 	// This test currently requires GOPATH mode.
-	// Explicitly disabling module mode should suffix, but
+	// Explicitly disabling module mode should suffice, but
 	// we'll also turn off GOPROXY just for good measure.
 	if err := os.Setenv("GO111MODULE", "off"); err != nil {
 		log.Fatal(err)
