@@ -8,7 +8,7 @@ env GO111MODULE=off
 
 # GO111MODULE=auto in GOPATH/src
 env GO111MODULE=auto
-! exec $WORK/testimport.exe x/y/z/w .
+exec $WORK/testimport.exe x/y/z/w .
 
 # GO111MODULE=auto outside GOPATH/src
 cd $GOPATH/other

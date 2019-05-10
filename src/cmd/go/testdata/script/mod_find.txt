@@ -1,4 +1,4 @@
-env GO111MODULE=auto
+env GO111MODULE=on
 
 # Derive module path from import comment.
 cd $WORK/x
@@ -12,14 +12,8 @@ addcrlf x.go
 go mod init
 stderr 'module x'
 
-# go mod should die in GOPATH if modules are not enabled for GOPATH
-cd $GOPATH/src/example.com/x/y
-! go mod init
-stderr 'go: modules disabled inside GOPATH/src by GO111MODULE=auto; see ''go help modules'''
-
-env GO111MODULE=
-
 # Derive module path from location inside GOPATH.
+# 'go mod init' should succeed if modules are not explicitly disabled.
 cd $GOPATH/src/example.com/x/y
 go mod init
 stderr 'module example.com/x/y$'

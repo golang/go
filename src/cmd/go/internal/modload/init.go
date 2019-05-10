@@ -34,7 +34,7 @@ import (
 
 var (
 	cwd            string // TODO(bcmills): Is this redundant with base.Cwd?
-	mustUseModules = true
+	mustUseModules = false
 	initialized    bool
 
 	modRoot     string
@@ -79,8 +79,6 @@ func BinDir() string {
 	return filepath.Join(gopath, "bin")
 }
 
-var inGOPATH bool // running in GOPATH/src
-
 // Init determines whether module mode is enabled, locates the root of the
 // current module (if any), sets environment variables for Git subprocesses, and
 // configures the cfg, codehost, load, modfetch, and search packages for use
@@ -95,9 +93,9 @@ func Init() {
 	switch env {
 	default:
 		base.Fatalf("go: unknown environment setting GO111MODULE=%s", env)
-	case "auto":
+	case "auto", "":
 		mustUseModules = false
-	case "on", "":
+	case "on":
 		mustUseModules = true
 	case "off":
 		mustUseModules = false
@@ -135,28 +133,6 @@ func Init() {
 	cwd, err = os.Getwd()
 	if err != nil {
 		base.Fatalf("go: %v", err)
-	}
-
-	inGOPATH = false
-	for _, gopath := range filepath.SplitList(cfg.BuildContext.GOPATH) {
-		if gopath == "" {
-			continue
-		}
-		if search.InDir(cwd, filepath.Join(gopath, "src")) != "" {
-			inGOPATH = true
-			break
-		}
-	}
-
-	if inGOPATH && !mustUseModules {
-		if CmdModInit {
-			die() // Don't init a module that we're just going to ignore.
-		}
-		// No automatic enabling in GOPATH.
-		if root := findModuleRoot(cwd); root != "" {
-			cfg.GoModInGOPATH = filepath.Join(root, "go.mod")
-		}
-		return
 	}
 
 	if CmdModInit {
@@ -299,9 +275,6 @@ func die() {
 	}
 	if cfg.Getenv("GO111MODULE") == "off" {
 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
-	}
-	if inGOPATH && !mustUseModules {
-		base.Fatalf("go: modules disabled inside GOPATH/src by GO111MODULE=auto; see 'go help modules'")
 	}
 	if cwd != "" {
 		if dir, name := findAltConfig(cwd); dir != "" {

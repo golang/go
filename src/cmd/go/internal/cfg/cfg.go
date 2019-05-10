@@ -128,11 +128,6 @@ var (
 	// in module-aware mode (as opposed to GOPATH mode).
 	// It is equal to modload.Enabled, but not all packages can import modload.
 	ModulesEnabled bool
-
-	// GoModInGOPATH records whether we've found a go.mod in GOPATH/src
-	// in GO111MODULE=auto mode. In that case, we don't use modules
-	// but people might expect us to, so 'go get' warns.
-	GoModInGOPATH string
 )
 
 func exeSuffix() string {
