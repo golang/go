@@ -84,10 +84,11 @@ type Action struct {
 	actionID cache.ActionID // cache ID of action input
 	buildID  string         // build ID of action output
 
-	VetxOnly bool       // Mode=="vet": only being called to supply info about dependencies
-	needVet  bool       // Mode=="build": need to fill in vet config
-	vetCfg   *vetConfig // vet config
-	output   []byte     // output redirect buffer (nil means use b.Print)
+	VetxOnly  bool       // Mode=="vet": only being called to supply info about dependencies
+	needVet   bool       // Mode=="build": need to fill in vet config
+	needBuild bool       // Mode=="build": need to do actual build (can be false if needVet is true)
+	vetCfg    *vetConfig // vet config
+	output    []byte     // output redirect buffer (nil means use b.Print)
 
 	// Execution state.
 	pending  int  // number of deps yet to complete
@@ -212,6 +213,8 @@ const (
 	ModeBuild BuildMode = iota
 	ModeInstall
 	ModeBuggyInstall
+
+	ModeVetOnly = 1 << 8
 )
 
 func (b *Builder) Init() {
@@ -354,6 +357,9 @@ func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
 // depMode is the action (build or install) to use when building dependencies.
 // To turn package main into an executable, call b.Link instead.
 func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Action {
+	vetOnly := mode&ModeVetOnly != 0
+	mode &^= ModeVetOnly
+
 	if mode != ModeBuild && (p.Internal.Local || p.Module != nil) && p.Target == "" {
 		// Imported via local path or using modules. No permanent target.
 		mode = ModeBuild
@@ -400,6 +406,19 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 		return a
 	})
 
+	// Find the build action; the cache entry may have been replaced
+	// by the install action during (*Builder).installAction.
+	buildAction := a
+	switch buildAction.Mode {
+	case "build", "built-in package":
+		// ok
+	case "build-install":
+		buildAction = a.Deps[0]
+	default:
+		panic("lost build action: " + buildAction.Mode)
+	}
+	buildAction.needBuild = buildAction.needBuild || !vetOnly
+
 	// Construct install action.
 	if mode == ModeInstall || mode == ModeBuggyInstall {
 		a = b.installAction(a, mode)
@@ -421,7 +440,7 @@ func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
 func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 	// Construct vet action.
 	a := b.cacheAction("vet", p, func() *Action {
-		a1 := b.CompileAction(mode, depMode, p)
+		a1 := b.CompileAction(mode|ModeVetOnly, depMode, p)
 
 		// vet expects to be able to import "fmt".
 		var stk load.ImportStack
