@@ -211,7 +211,7 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
 	JMP	sigtramp<>(SB)
 
 TEXT runtime·ctrlhandler(SB),NOSPLIT|NOFRAME,$8
-	MOVQ	CX, _type+16(SP)		// spill
+	MOVQ	CX, 16(SP)		// spill
 	MOVQ	$runtime·ctrlhandler1(SB), CX
 	MOVQ	CX, 0(SP)
 	CALL	runtime·externalthreadhandler(SB)
