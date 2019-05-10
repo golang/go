@@ -98,7 +98,7 @@ func defaultCheckNamedValue(nv *driver.NamedValue) (err error) {
 	return err
 }
 
-// driverArgs converts arguments from callers of Stmt.Exec and
+// driverArgsConnLocked converts arguments from callers of Stmt.Exec and
 // Stmt.Query into driver Values.
 //
 // The statement ds may be nil, if no statement is available.
